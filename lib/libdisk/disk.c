@@ -209,7 +209,7 @@ Int_Open_Disk(const char *name)
 			if (Add_Chunk(d, 0, d->chunks->size, name, freebsd, 0, 0, "-"))
 				DPRINT(("Failed to add 'freebsd' chunk"));
 		}
-		if (platform == p_i386 && !strcmp(t, "BSD") && i == 2)
+		if (!strcmp(t, "BSD") && i == RAW_PART)
 			continue;
 		/* PLATFORM POLICY END --------------------------------------- */
 
