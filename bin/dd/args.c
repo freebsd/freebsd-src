@@ -54,25 +54,25 @@ static const char rcsid[] =
 #include "dd.h"
 #include "extern.h"
 
-static int	c_arg __P((const void *, const void *));
-static int	c_conv __P((const void *, const void *));
-static void	f_bs __P((char *));
-static void	f_cbs __P((char *));
-static void	f_conv __P((char *));
-static void	f_count __P((char *));
-static void	f_files __P((char *));
-static void	f_ibs __P((char *));
-static void	f_if __P((char *));
-static void	f_obs __P((char *));
-static void	f_of __P((char *));
-static void	f_seek __P((char *));
-static void	f_skip __P((char *));
-static u_quad_t	get_num __P((const char *));
-static off_t	get_off_t __P((const char *));
+static int	c_arg(const void *, const void *);
+static int	c_conv(const void *, const void *);
+static void	f_bs(char *);
+static void	f_cbs(char *);
+static void	f_conv(char *);
+static void	f_count(char *);
+static void	f_files(char *);
+static void	f_ibs(char *);
+static void	f_if(char *);
+static void	f_obs(char *);
+static void	f_of(char *);
+static void	f_seek(char *);
+static void	f_skip(char *);
+static u_quad_t	get_num(const char *);
+static off_t	get_off_t(const char *);
 
 static const struct arg {
 	const char *name;
-	void (*f) __P((char *));
+	void (*f)(char *);
 	u_int set, noset;
 } args[] = {
 	{ "bs",		f_bs,		C_BS,	 C_BS|C_IBS|C_OBS|C_OSYNC },
@@ -96,8 +96,7 @@ static char *oper;
  * args -- parse JCL syntax of dd.
  */
 void
-jcl(argv)
-	char **argv;
+jcl(char **argv)
 {
 	struct arg *ap, tmp;
 	char *arg;
@@ -173,8 +172,7 @@ jcl(argv)
 }
 
 static int
-c_arg(a, b)
-	const void *a, *b;
+c_arg(const void *a, const void *b)
 {
 
 	return (strcmp(((const struct arg *)a)->name,
@@ -182,8 +180,7 @@ c_arg(a, b)
 }
 
 static void
-f_bs(arg)
-	char *arg;
+f_bs(char *arg)
 {
 	u_quad_t res;
 
@@ -194,8 +191,7 @@ f_bs(arg)
 }
 
 static void
-f_cbs(arg)
-	char *arg;
+f_cbs(char *arg)
 {
 	u_quad_t res;
 
@@ -206,8 +202,7 @@ f_cbs(arg)
 }
 
 static void
-f_count(arg)
-	char *arg;
+f_count(char *arg)
 {
 	u_quad_t res;
 
@@ -221,8 +216,7 @@ f_count(arg)
 }
 
 static void
-f_files(arg)
-	char *arg;
+f_files(char *arg)
 {
 
 	files_cnt = get_num(arg);
@@ -231,8 +225,7 @@ f_files(arg)
 }
 
 static void
-f_ibs(arg)
-	char *arg;
+f_ibs(char *arg)
 {
 	u_quad_t res;
 
@@ -245,16 +238,14 @@ f_ibs(arg)
 }
 
 static void
-f_if(arg)
-	char *arg;
+f_if(char *arg)
 {
 
 	in.name = arg;
 }
 
 static void
-f_obs(arg)
-	char *arg;
+f_obs(char *arg)
 {
 	u_quad_t res;
 
@@ -267,24 +258,21 @@ f_obs(arg)
 }
 
 static void
-f_of(arg)
-	char *arg;
+f_of(char *arg)
 {
 
 	out.name = arg;
 }
 
 static void
-f_seek(arg)
-	char *arg;
+f_seek(char *arg)
 {
 
 	out.offset = get_off_t(arg);
 }
 
 static void
-f_skip(arg)
-	char *arg;
+f_skip(char *arg)
 {
 
 	in.offset = get_off_t(arg);
@@ -314,8 +302,7 @@ static const struct conv {
 };
 
 static void
-f_conv(arg)
-	char *arg;
+f_conv(char *arg)
 {
 	struct conv *cp, tmp;
 
@@ -334,8 +321,7 @@ f_conv(arg)
 }
 
 static int
-c_conv(a, b)
-	const void *a, *b;
+c_conv(const void *a, const void *b)
 {
 
 	return (strcmp(((const struct conv *)a)->name,
@@ -355,8 +341,7 @@ c_conv(a, b)
  *	   the product of the indicated values.
  */
 static u_quad_t
-get_num(val)
-	const char *val;
+get_num(const char *val)
 {
 	u_quad_t num, mult, prevnum;
 	char *expr;
@@ -424,8 +409,7 @@ erange:
  * cast down to an off_t, if possible.
  */
 static off_t
-get_off_t(val)
-	const char *val;
+get_off_t(const char *val)
 {
 	quad_t num, mult, prevnum;
 	char *expr;
