@@ -57,6 +57,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <stdint.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -64,35 +65,6 @@ __FBSDID("$FreeBSD$");
 #define DKTYPENAMES
 #define FSTYPENAMES
 #include <sys/disklabel.h>
-
-#include <sys/diskmbr.h>
-#if (DOSPARTOFF != 446 || NDOSPART != 4 || DOSPTYP_386BSD != 0xa5)
-#error	<sys/diskmbr.h> has changed
-#else
-#define	I386_DOSPARTOFF		446
-#define	I386_NDOSPART		4
-#define	I386_DOSPTYP_386BSD	0xa5
-#endif
-#undef DOSPARTOFF
-#undef NDOSPART
-#undef DOSPTYP_386BSD
-
-#include <sys/diskpc98.h>
-#if (DOSPARTOFF != 0 || NDOSPART != 16 || DOSPTYP_386BSD != 0x94)
-#error	<sys/diskpc98.h> has changed
-#else
-#define	PC98_DOSPARTOFF		0
-#define	PC98_NDOSPART		16
-#define	PC98_DOSPTYP_386BSD	0x94
-#endif
-#undef DOSPARTOFF
-#undef NDOSPART
-#undef DOSPTYP_386BSD
-
-#define	IS_PC98	(arch->mach == MACH_PC98)
-#define	DOSPARTOFF	(IS_PC98 ? PC98_DOSPARTOFF : I386_DOSPARTOFF)
-#define	NDOSPART	(IS_PC98 ? PC98_NDOSPART : I386_NDOSPART)
-#define	DOSPTYP_386BSD	(IS_PC98 ? PC98_DOSPTYP_386BSD : I386_DOSPTYP_386BSD)
 
 #include <unistd.h>
 #include <string.h>
@@ -181,23 +153,6 @@ enum	{
 	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
 } op = UNSPEC;
 
-enum { ARCH_I386, ARCH_ALPHA, ARCH_IA64 };
-
-enum { MACH_I386, MACH_PC98 };
-
-struct {
-	const char	*name;
-	int		arch;
-	int		mach;
-	off_t		label_sector;
-	off_t		label_offset;
-} arches[] = {
-	{ "i386", ARCH_I386, MACH_I386, 1, 0 },
-	{ "pc98", ARCH_I386, MACH_PC98, 1, 0 },
-	{ "alpha", ARCH_ALPHA, ARCH_ALPHA, 0, 64 },
-	{ "ia64", ARCH_IA64, ARCH_IA64, 1, 0 },
-}, *arch;
-#define	NARCHES	(int)(sizeof(arches) / sizeof(*arches))
 
 int	rflag;
 int	disable_write;   /* set to disable writing to disk label */
@@ -207,7 +162,7 @@ main(int argc, char *argv[])
 {
 	struct disklabel *lp;
 	FILE *t;
-	int ch, f = 0, error = 0, i;
+	int ch, f = 0, error = 0;
 	char *name = 0;
 
 	while ((ch = getopt(argc, argv, "Bb:em:nRrs:w")) != -1)
@@ -228,13 +183,6 @@ main(int argc, char *argv[])
 					bbsize = 8192;
 					alphacksum = 1;
 				}
-				for (i = 0; i < NARCHES &&
-				    strcmp(arches[i].name, optarg) != 0;
-				    i++);
-				if (i == NARCHES)
-					errx(1, "%s: unknown architecture",
-					    optarg);
-				arch = &arches[i];
 				break;
 			case 'n':
 				disable_write = 1;
@@ -274,30 +222,6 @@ main(int argc, char *argv[])
 	}
 	if (argc < 1)
 		usage();
-
-	if (arch == NULL) {
-		for (i = 0; i < NARCHES; i++)
-			if (strcmp(arches[i].name,
-#if defined(__i386__)
-#ifdef PC98
-			    "pc98"
-#else
-			    "i386"
-#endif
-#elif defined(__alpha__)
-			    "alpha"
-#elif defined(__ia64__)
-			    "ia64"
-#else
-			    "unknown"
-#endif
-			    ) == 0) {
-				arch = &arches[i];
-				break;
-			}
-		if (i == NARCHES)
-			errx(1, "unsupported architecture");
-	}
 
 	dkname = argv[0];
 	if (dkname[0] != '/') {
@@ -431,7 +355,7 @@ writelabel(int f, void *boot, struct disklabel *lp)
 
 	(void)lseek(f, (off_t)0, SEEK_SET);
 	
-	if (arch->arch == ARCH_ALPHA) {
+	if (alphacksum) {
 		/*
 		 * Generate the bootblock checksum for the SRM console.
 		 */
@@ -494,7 +418,7 @@ readlabel(int f)
 }
 
 /*
- * Construct a bootarea (d_bbsize bytes) in the specified buffer ``boot''
+ * Construct a bootarea (bbsize bytes) in the specified buffer ``boot''
  * Returns a pointer to the disklabel portion of the bootarea.
  */
 struct disklabel *
@@ -507,17 +431,13 @@ makebootarea(void *boot, struct disklabel *dp, int f)
 	struct stat sb;
 	uint64_t *bootinfo;
 	int n;
-	char *tmpbuf;
-	int i, found, dps;
 
 	/* XXX */
 	if (dp->d_secsize == 0) {
 		dp->d_secsize = DEV_BSIZE;
-		dp->d_bbsize = BBSIZE;
+		dp->d_bbsize = bbsize;
 	}
-	lp = (struct disklabel *)
-	    ((char *)boot + (arch->label_sector * dp->d_secsize) +
-	    arch->label_offset);
+	lp = (struct disklabel *)((char *)boot + labeloffset);
 	bzero((char *)lp, sizeof *lp);
 	/*
 	 * If we are not installing a boot program but we are installing a
@@ -525,11 +445,9 @@ makebootarea(void *boot, struct disklabel *dp, int f)
 	 * clobber the existing boot.
 	 */
 	if (!installboot) {
-		if (rflag) {
-			if (read(f, boot, BBSIZE) < BBSIZE)
-				err(4, "%s", specname);
-			bzero((char *)lp, sizeof *lp);
-		}
+		if (read(f, boot, BBSIZE) < BBSIZE)
+			err(4, "%s", specname);
+		bzero((char *)lp, sizeof *lp);
 		return (lp);
 	}
 	/*
@@ -557,38 +475,8 @@ makebootarea(void *boot, struct disklabel *dp, int f)
 		err(4, "%s", xxboot);
 	if (fstat(b, &sb) != 0)
 		err(4, "%s", xxboot);
-	if (arch->arch == ARCH_I386) {
-		if (sb.st_size > BBSIZE)
-			errx(4, "%s too large", xxboot);
-		/*
-		 * XXX Botch alert.
-		 * The i386/PC98 has the so-called fdisk table embedded into the
-		 * primary bootstrap.  We take care to not clobber it, but
-		 * only if it does already contain some data.  (Otherwise,
-		 * the xxboot provides a template.)
-		 */
-		if ((tmpbuf = (char *)malloc((int)dp->d_secsize)) == 0)
-			err(4, "%s", xxboot);
-		memcpy((void *)tmpbuf, (void *)boot, (int)dp->d_secsize);
 
-		if (read(b, boot, BBSIZE) < 0)
-			err(4, "%s", xxboot);
-
-		/* XXX: rely on some very precise overlaps in definitions */
-		dps = IS_PC98 ? sizeof(struct pc98_partition) :
-		    sizeof(struct dos_partition);
-		for (i = DOSPARTOFF, found = 0;
-		     !found && i < (int)(DOSPARTOFF + NDOSPART * dps);
-		     i++)
-			found = tmpbuf[i] != 0;
-		if (found)
-			memcpy((void *)&((char *)boot)[DOSPARTOFF],
-			       (void *)&tmpbuf[DOSPARTOFF],
-			       NDOSPART * dps);
-		free(tmpbuf);
-	}
-
-	if (arch->arch == ARCH_ALPHA) {
+	if (alphacksum) {
 		if (sb.st_size > BBSIZE - dp->d_secsize)
 			errx(4, "%s too large", xxboot);
 		/*
@@ -598,13 +486,20 @@ makebootarea(void *boot, struct disklabel *dp, int f)
 		 * size and location of the primary bootstrap.
 		 */
 		n = read(b, (char *)boot + dp->d_secsize,
-		    BBSIZE - dp->d_secsize);
-		if (n < 0)
+		    bbsize - dp->d_secsize);
+		if (n != bbsize - dp->d_secsize)
 			err(4, "%s", xxboot);
 		bootinfo = (uint64_t *)((char *)boot + 480);
 		bootinfo[0] = (n + dp->d_secsize - 1) / dp->d_secsize;
 		bootinfo[1] = 1;	/* start at sector 1 */
 		bootinfo[2] = 0;	/* flags (must be zero) */
+	} else {
+		if (sb.st_size != bbsize)
+			errx(4, "%s is wrong size, is %jd bytes, expected %d bytes",
+			    xxboot, (intmax_t)sb.st_size, bbsize);
+		n = read(b, (char *)boot, bbsize);
+		if (n != bbsize)
+			err(4, "%s", xxboot);
 	}
 
 	(void)close(b);
