@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.9 1998/11/03 22:01:06 des Exp $
+#	$Id: PICOBSD,v 1.10 1999/01/14 23:22:51 abial Exp $
 #
 
 machine		"i386"
@@ -61,7 +61,7 @@ disk		fd0	at fdc0 drive 0
 controller	atkbdc0	at isa? port IO_KBD tty
 device		atkbd0	at isa? tty irq 1
 device		vga0	at isa? port ? conflicts
-device		sc0	at isa? tty irq 1
+device		sc0	at isa? tty
 
 device		npx0	at isa? port IO_NPX irq 13
 
