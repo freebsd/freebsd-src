@@ -1208,6 +1208,25 @@ device_shutdown(device_t dev)
     return DEVICE_SHUTDOWN(dev);
 }
 
+int
+device_set_unit(device_t dev, int unit)
+{
+    devclass_t dc;
+    int err;
+
+    dc = device_get_devclass(dev);
+    if (unit < dc->maxunit && dc->devices[unit])
+	return EBUSY;
+    err = devclass_delete_device(dc, dev);
+    if (err)
+	return err;
+    dev->unit = unit;
+    err = devclass_add_device(dc, dev);
+    if (err)
+	return err;
+    return 0;
+}
+
 #ifdef DEVICE_SYSCTLS
 
 /*
