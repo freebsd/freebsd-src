@@ -1,5 +1,6 @@
 /* Target macros for the FRV port of GCC.
-   Copyright (C) 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004
+   Free Software Foundation, Inc.
    Contributed by Red Hat Inc.
 
    This file is part of GCC.
@@ -22,10 +23,6 @@
 #ifndef __FRV_H__
 #define __FRV_H__
 
-/* Set up System V.4 (aka ELF) defaults.  */
-#include "svr4.h"
-
-
 /* Frv general purpose macros.  */
 /* Align an address.  */
 #define ADDR_ALIGN(addr,align) (((addr) + (align) - 1) & ~((align) - 1))
@@ -65,9 +62,9 @@
    Defined in svr4.h.  */
 #undef WORD_SWITCH_TAKES_ARG
 
-/* A C string constant that tells the GNU CC driver program options to pass to
+/* A C string constant that tells the GCC driver program options to pass to
    the assembler.  It can also specify how to translate options you give to GNU
-   CC into options for GNU CC to pass to the assembler.  See the file `sun3.h'
+   CC into options for GCC to pass to the assembler.  See the file `sun3.h'
    for an example of this.
 
    Do not define this macro if it does not need to do anything.
@@ -86,7 +83,7 @@
     %{mmedia} %{mno-media} \
     %{mmuladd} %{mno-muladd} \
     %{mpack} %{mno-pack} \
-    %{fpic: -mpic} %{fPIC: -mPIC} %{mlibrary-pic}}"
+    %{fpic|fpie: -mpic} %{fPIC|fPIE: -mPIC} %{mlibrary-pic}}"
 
 /* Another C string constant used much like `LINK_SPEC'.  The difference
    between the two is that `STARTFILE_SPEC' is used at the very beginning of
@@ -109,9 +106,9 @@
 #undef  ENDFILE_SPEC
 #define ENDFILE_SPEC "frvend%O%s"
 
-/* A C string constant that tells the GNU CC driver program options to pass to
-   CPP.  It can also specify how to translate options you give to GNU CC into
-   options for GNU CC to pass to the CPP.
+/* A C string constant that tells the GCC driver program options to pass to
+   CPP.  It can also specify how to translate options you give to GCC into
+   options for GCC to pass to the CPP.
 
    Do not define this macro if it does not need to do anything.  */
 
@@ -204,17 +201,17 @@
 #define MASK_DEFAULT_SIMPLE \
   (MASK_GPR_32 | MASK_SOFT_FLOAT)
 
-/* A C string constant that tells the GNU CC driver program options to pass to
-   `cc1'.  It can also specify how to translate options you give to GNU CC into
-   options for GNU CC to pass to the `cc1'.
+/* A C string constant that tells the GCC driver program options to pass to
+   `cc1'.  It can also specify how to translate options you give to GCC into
+   options for GCC to pass to the `cc1'.
 
    Do not define this macro if it does not need to do anything.  */
 /* For ABI compliance, we need to put bss data into the normal data section.  */
 #define CC1_SPEC "%{G*}"
 
-/* A C string constant that tells the GNU CC driver program options to pass to
-   the linker.  It can also specify how to translate options you give to GNU CC
-   into options for GNU CC to pass to the linker.
+/* A C string constant that tells the GCC driver program options to pass to
+   the linker.  It can also specify how to translate options you give to GCC
+   into options for GCC to pass to the linker.
 
    Do not define this macro if it does not need to do anything.
 
@@ -249,7 +246,7 @@
    is an initializer with a subgrouping for each command option.
 
    Each subgrouping contains a string constant, that defines the
-   specification name, and a string constant that used by the GNU CC driver
+   specification name, and a string constant that used by the GCC driver
    program.
 
    Do not define this macro if it does not need to do anything.  */
@@ -280,16 +277,13 @@
 
 /* Run-time target specifications */
 
-/* Define this to be a string constant containing `-D' options to define the
-   predefined macros that identify this machine and system.  These macros will
-   be predefined unless the `-ansi' option is specified.
-
-   In addition, a parallel set of macros are predefined, whose names are made
-   by appending `__' at the beginning and at the end.  These `__' macros are
-   permitted by the ANSI standard, so they are predefined regardless of whether
-   `-ansi' is specified.  */
-
-#define CPP_PREDEFINES "-D__frv__ -Amachine(frv)"
+#define TARGET_CPU_CPP_BUILTINS()		\
+  do						\
+    {						\
+      builtin_define ("__frv__");		\
+      builtin_assert ("machine=frv");		\
+    }						\
+  while (0)
 
 
 /* This declaration should be present.  */
@@ -489,13 +483,13 @@ extern int target_flags;
 	 "Specify the size of the short data section"  } }
 
    This declaration is optional.  */
-#define TARGET_OPTIONS							    \
-{									    \
-  { "cpu=",		&frv_cpu_string,	 "Set cpu type" },	    \
-  { "branch-cost=",	&frv_branch_cost_string, "Internal debug switch" }, \
-  { "cond-exec-insns=", &frv_condexec_insns_str, "Internal debug switch" }, \
-  { "cond-exec-temps=", &frv_condexec_temps_str, "Internal debug switch" }, \
-  { "sched-lookahead=", &frv_sched_lookahead_str,"Internal debug switch" }, \
+#define TARGET_OPTIONS							      \
+{									      \
+  { "cpu=",		&frv_cpu_string,	 "Set cpu type", 0},	      \
+  { "branch-cost=",	&frv_branch_cost_string, "Internal debug switch", 0}, \
+  { "cond-exec-insns=", &frv_condexec_insns_str, "Internal debug switch", 0}, \
+  { "cond-exec-temps=", &frv_condexec_temps_str, "Internal debug switch", 0}, \
+  { "sched-lookahead=", &frv_sched_lookahead_str,"Internal debug switch", 0}, \
 }
 
 /* This macro is a C statement to print on `stderr' a string describing the
@@ -543,9 +537,9 @@ extern int target_flags;
 
 
 /* Define this macro if debugging can be performed even without a frame
-   pointer.  If this macro is defined, GNU CC will turn on the
+   pointer.  If this macro is defined, GCC will turn on the
    `-fomit-frame-pointer' option whenever `-O' is specified.  */
-/* Frv needs a specific frame layout that includes the frame pointer */
+/* Frv needs a specific frame layout that includes the frame pointer.  */
 
 #define CAN_DEBUG_WITHOUT_FP
 
@@ -556,9 +550,6 @@ extern int target_flags;
 #ifndef SDATA_DEFAULT_SIZE
 #define SDATA_DEFAULT_SIZE 8
 #endif
-
-extern int g_switch_value;        /* value of the -G xx switch */
-extern int g_switch_set;          /* whether -G xx was passed.  */
 
 
 /* Storage Layout */
@@ -580,7 +571,7 @@ extern int g_switch_set;          /* whether -G xx was passed.  */
 
 /* Define this macro to have the value 1 if, in a multiword object, the most
    significant word has the lowest number.  This applies to both memory
-   locations and registers; GNU CC fundamentally assumes that the order of
+   locations and registers; GCC fundamentally assumes that the order of
    words in memory is the same as the order in registers.  This macro need not
    be a constant.  */
 #define WORDS_BIG_ENDIAN 1
@@ -643,7 +634,7 @@ extern int g_switch_set;          /* whether -G xx was passed.  */
 #define BIGGEST_FIELD_ALIGNMENT 64
 #else
 /* An expression for the alignment of a structure field FIELD if the
-   alignment computed in the usual way is COMPUTED.  GNU CC uses this
+   alignment computed in the usual way is COMPUTED.  GCC uses this
    value instead of the value in `BIGGEST_ALIGNMENT' or
    `BIGGEST_FIELD_ALIGNMENT', if defined, for structure fields only.  */
 #define ADJUST_FIELD_ALIGN(FIELD, COMPUTED) 				\
@@ -715,7 +706,7 @@ extern int g_switch_set;          /* whether -G xx was passed.  */
    `STRUCTURE_SIZE_BOUNDARY' that way, you must define
    `PCC_BITFIELD_TYPE_MATTERS' to have a nonzero value.
 
-   If your aim is to make GNU CC use the same conventions for laying out
+   If your aim is to make GCC use the same conventions for laying out
    bitfields as are used by another compiler, here is how to investigate what
    the other compiler does.  Compile and run this program:
 
@@ -1045,7 +1036,7 @@ extern int g_switch_set;          /* whether -G xx was passed.  */
 /* Order of allocation of registers.  */
 
 /* If defined, an initializer for a vector of integers, containing the numbers
-   of hard registers in the order in which GNU CC should prefer to use them
+   of hard registers in the order in which GCC should prefer to use them
    (from most preferred to least).
 
    If this macro is not defined, registers are used lowest numbered first (all
@@ -1895,7 +1886,7 @@ struct machine_function GTY(())
 #define FUNCTION_ARG_PARTIAL_NREGS(CUM, MODE, TYPE, NAMED)		\
   frv_function_arg_partial_nregs (&CUM, MODE, TYPE, NAMED)
 
-/* extern int frv_function_arg_partial_nregs PARAMS ((CUMULATIVE_ARGS, int, Tree, int));  */
+/* extern int frv_function_arg_partial_nregs (CUMULATIVE_ARGS, int, Tree, int);  */
 
 /* A C expression that indicates when an argument must be passed by reference.
    If nonzero for an argument, a copy of that argument is made in memory and a
@@ -1955,19 +1946,19 @@ struct machine_function GTY(())
    being processed.  Thus, each time this macro is called, either LIBNAME or
    FNTYPE is nonzero, but never both of them at once.  */
 
-#define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT) \
-  frv_init_cumulative_args (&CUM, FNTYPE, LIBNAME, INDIRECT, FALSE)
+#define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, FNDECL, N_NAMED_ARGS) \
+  frv_init_cumulative_args (&CUM, FNTYPE, LIBNAME, FNDECL, FALSE)
 
 /* Like `INIT_CUMULATIVE_ARGS' but overrides it for the purposes of finding the
    arguments for the function being compiled.  If this macro is undefined,
    `INIT_CUMULATIVE_ARGS' is used instead.
 
    The value passed for LIBNAME is always 0, since library routines with
-   special calling conventions are never compiled with GNU CC.  The argument
+   special calling conventions are never compiled with GCC.  The argument
    LIBNAME exists for symmetry with `INIT_CUMULATIVE_ARGS'.  */
 
 #define INIT_CUMULATIVE_INCOMING_ARGS(CUM, FNTYPE, LIBNAME) \
-  frv_init_cumulative_args (&CUM, FNTYPE, LIBNAME, FALSE, TRUE)
+  frv_init_cumulative_args (&CUM, FNTYPE, LIBNAME, NULL, TRUE)
 
 /* A C statement (sans semicolon) to update the summarizer variable CUM to
    advance past an argument in the argument list.  The values MODE, TYPE and
@@ -2079,14 +2070,14 @@ struct machine_function GTY(())
    `fprintf'.
 
    The details of how the address should be passed to `mcount' are determined
-   by your operating system environment, not by GNU CC.  To figure them out,
+   by your operating system environment, not by GCC.  To figure them out,
    compile a small program for profiling using the system's installed C
    compiler and look at the assembler code that results.
 
    This declaration must be present, but it can be an abort if profiling is
    not implemented.  */
 
-#define FUNCTION_PROFILER(FILE, LABELNO) abort ()
+#define FUNCTION_PROFILER(FILE, LABELNO)
 
 
 /* Implementing the Varargs Macros.  */
@@ -2170,7 +2161,7 @@ struct machine_function GTY(())
 
 /* Define this macro if trampolines need a special subroutine to do their work.
    The macro should expand to a series of `asm' statements which will be
-   compiled with GNU CC.  They go in a library function named
+   compiled with GCC.  They go in a library function named
    `__transfer_from_trampoline'.
 
    If you need to avoid executing the ordinary prologue code of a compiled C
@@ -2190,11 +2181,7 @@ struct machine_function GTY(())
 extern int _write (int, const void *, unsigned);			\
 									\
 void									\
-__trampoline_setup (addr, size, fnaddr, sc)				\
-     short * addr;							\
-     int size;								\
-     int fnaddr;							\
-     int sc;								\
+__trampoline_setup (short * addr, int size, int fnaddr, int sc)		\
 {									\
   extern short __trampoline_template[];					\
   short * to = addr;							\
@@ -2232,101 +2219,6 @@ __asm__("\n"								\
 	"\tsethi #0, gr6\n"						\
 	"\tsethi #0, gr7\n"						\
 	"\tjmpl @(gr0,gr6)\n");
-
-
-/* Implicit Calls to Library Routines.  */
-
-/* A C string constant giving the name of the function to call for the
-   remainder in division of one signed full-word by another.  If you do not
-   define this macro, the default name is used, which is `__modsi3', a function
-   defined in `libgcc.a'.  */
-#define MODSI3_LIBCALL "__modi"
-
-/* A C string constant giving the name of the function to call for the
-   remainder in division of one unsigned full-word by another.  If you do not
-   define this macro, the default name is used, which is `__umodsi3', a
-   function defined in `libgcc.a'.  */
-#define UMODSI3_LIBCALL "__umodi"
-
-/* A C string constant giving the name of the function to call for
-   multiplication of one signed double-word by another.  If you do not define
-   this macro, the default name is used, which is `__muldi3', a function
-   defined in `libgcc.a'.  */
-#define MULDI3_LIBCALL "__mulll"
-
-/* A C string constant giving the name of the function to call for division of
-   one signed double-word by another.  If you do not define this macro, the
-   default name is used, which is `__divdi3', a function defined in `libgcc.a'.  */
-#define DIVDI3_LIBCALL "__divll"
-
-/* A C string constant giving the name of the function to call for division of
-   one unsigned full-word by another.  If you do not define this macro, the
-   default name is used, which is `__udivdi3', a function defined in
-   `libgcc.a'.  */
-#define UDIVDI3_LIBCALL "__udivll"
-
-/* A C string constant giving the name of the function to call for the
-   remainder in division of one signed double-word by another.  If you do not
-   define this macro, the default name is used, which is `__moddi3', a function
-   defined in `libgcc.a'.  */
-#define MODDI3_LIBCALL "__modll"
-
-/* A C string constant giving the name of the function to call for the
-   remainder in division of one unsigned full-word by another.  If you do not
-   define this macro, the default name is used, which is `__umoddi3', a
-   function defined in `libgcc.a'.  */
-#define UMODDI3_LIBCALL "__umodll"
-
-/* Define this macro as a C statement that declares additional library routines
-   renames existing ones. `init_optabs' calls this macro after initializing all
-   the normal library routines.  */
-#define INIT_TARGET_OPTABS 					\
-  do								\
-    {								\
-      add_optab->handlers [(int) DImode].libfunc		\
-	= init_one_libfunc ("__addll");				\
-      sub_optab->handlers [(int) DImode].libfunc		\
-	= init_one_libfunc ("__subll");				\
-      and_optab->handlers [(int) DImode].libfunc		\
-	= init_one_libfunc ("__andll");				\
-      ior_optab->handlers [(int) DImode].libfunc		\
-	= init_one_libfunc ("__orll");				\
-      xor_optab->handlers [(int) DImode].libfunc		\
-	= init_one_libfunc ("__xorll");				\
-      one_cmpl_optab->handlers [(int) DImode].libfunc		\
-	= init_one_libfunc ("__notll");				\
-      add_optab->handlers [(int) SFmode].libfunc		\
-	= init_one_libfunc ("__addf");				\
-      sub_optab->handlers [(int) SFmode].libfunc		\
-	= init_one_libfunc ("__subf");				\
-      smul_optab->handlers [(int) SFmode].libfunc		\
-	= init_one_libfunc ("__mulf");				\
-      sdiv_optab->handlers [(int) SFmode].libfunc		\
-	= init_one_libfunc ("__divf");				\
-      add_optab->handlers [(int) DFmode].libfunc		\
-	= init_one_libfunc ("__addd");				\
-      sub_optab->handlers [(int) DFmode].libfunc		\
-	= init_one_libfunc ("__subd");				\
-      smul_optab->handlers [(int) DFmode].libfunc		\
-	= init_one_libfunc ("__muld");				\
-      sdiv_optab->handlers [(int) DFmode].libfunc		\
-	= init_one_libfunc ("__divd");				\
-      fixsfsi_libfunc = init_one_libfunc ("__ftoi");		\
-      fixunssfsi_libfunc = init_one_libfunc ("__ftoui");	\
-      fixsfdi_libfunc = init_one_libfunc ("__ftoll");		\
-      fixunssfdi_libfunc = init_one_libfunc ("__ftoull");	\
-      fixdfsi_libfunc = init_one_libfunc ("__dtoi");		\
-      fixunsdfsi_libfunc = init_one_libfunc ("__dtoui");	\
-      fixdfdi_libfunc = init_one_libfunc ("__dtoll");		\
-      fixunsdfdi_libfunc = init_one_libfunc ("__dtoull");	\
-      floatsisf_libfunc = init_one_libfunc ("__itof");		\
-      floatdisf_libfunc = init_one_libfunc ("__lltof");		\
-      floatsidf_libfunc = init_one_libfunc ("__itod");		\
-      floatdidf_libfunc = init_one_libfunc ("__lltod");		\
-      extendsfdf2_libfunc = init_one_libfunc ("__ftod");	\
-      truncdfsf2_libfunc = init_one_libfunc ("__dtof");		\
-    }								\
-  while (0)
 
 
 /* Addressing Modes.  */
@@ -2532,7 +2424,7 @@ __asm__("\n"								\
         #define REVERSIBLE_CC_MODE(MODE)  ((MODE) != CCFPEmode)  */
 
 /* On frv, don't consider floating point comparisons to be reversible.  In
-   theory, fp equality comparisons can be reversible */
+   theory, fp equality comparisons can be reversible.  */
 #define REVERSIBLE_CC_MODE(MODE) ((MODE) == CCmode || (MODE) == CC_UNSmode)
 
 /* Frv CCR_MODE's are not reversible.  */
@@ -2540,65 +2432,6 @@ __asm__("\n"								\
 
 
 /* Describing Relative Costs of Operations.  */
-
-/* A part of a C `switch' statement that describes the relative costs of
-   constant RTL expressions.  It must contain `case' labels for expression
-   codes `const_int', `const', `symbol_ref', `label_ref' and `const_double'.
-   Each case must ultimately reach a `return' statement to return the relative
-   cost of the use of that kind of constant value in an expression.  The cost
-   may depend on the precise value of the constant, which is available for
-   examination in X, and the rtx code of the expression in which it is
-   contained, found in OUTER_CODE.
-
-   CODE is the expression code--redundant, since it can be obtained with
-   `GET_CODE (X)'.  */
-#define CONST_COSTS(X, CODE, OUTER_CODE)				\
-  case CONST:								\
-  case LABEL_REF:							\
-  case SYMBOL_REF:							\
-  case CONST_DOUBLE:							\
-    return COSTS_N_INSNS (2);						\
-									\
-  case CONST_INT:							\
-    /* Make 12 bit integers really cheap */				\
-    return IN_RANGE_P (INTVAL (X), -2048, 2047) ? 0 : COSTS_N_INSNS (2); \
-
-/* Like `CONST_COSTS' but applies to nonconstant RTL expressions.  This can be
-   used, for example, to indicate how costly a multiply instruction is.  In
-   writing this macro, you can use the construct `COSTS_N_INSNS (N)' to specify
-   a cost equal to N fast instructions.  OUTER_CODE is the code of the
-   expression in which X is contained.
-
-   This macro is optional; do not define it if the default cost assumptions are
-   adequate for the target machine.  */
-#define RTX_COSTS(X, CODE, OUTER_CODE)					\
-  case PLUS:								\
-  case MINUS:								\
-  case AND:								\
-  case IOR:								\
-  case XOR:								\
-  case ASHIFT:								\
-  case ASHIFTRT:							\
-  case LSHIFTRT:							\
-  case NOT:								\
-  case NEG:								\
-  case COMPARE:								\
-    if (GET_MODE (X) == SImode)						\
-      return COSTS_N_INSNS (1);						\
-    else if (GET_MODE (X) == DImode)					\
-      return COSTS_N_INSNS (2);						\
-    else								\
-      return COSTS_N_INSNS (3);	/* guess */				\
-									\
-  case MULT:								\
-    if (GET_MODE (X) == SImode)						\
-      return COSTS_N_INSNS (2);						\
-    else								\
-      return COSTS_N_INSNS (6);	/* guess */				\
-									\
-  case DIV:								\
-  case UDIV:								\
-    return COSTS_N_INSNS (18);
 
 /* A C expression for the cost of moving data from a register in class FROM to
    one in class TO.  The classes are expressed using the enumeration values
@@ -2629,7 +2462,7 @@ __asm__("\n"								\
    default; other values are interpreted relative to that.  */
 
 /* Here are additional macros which do not specify precise relative costs, but
-   only that certain actions are more expensive than GNU CC would ordinarily
+   only that certain actions are more expensive than GCC would ordinarily
    expect.  */
 
 /* We used to default the branch cost to 2, but I changed it to 1, to avoid
@@ -2686,7 +2519,6 @@ __asm__("\n"								\
 
 /* Short Data Support */
 #define SDATA_SECTION_ASM_OP	"\t.section .sdata,\"aw\""
-#define SBSS_SECTION_ASM_OP	"\t.section .sbss,\"aw\""
 
 /* On svr4, we *do* have support for the .init and .fini sections, and we
    can put stuff in there to be executed before and after `main'.  We let
@@ -2702,6 +2534,11 @@ __asm__("\n"								\
 #define INIT_SECTION_ASM_OP	"\t.section .init,\"ax\""
 #define FINI_SECTION_ASM_OP	"\t.section .fini,\"ax\""
 
+#undef CTORS_SECTION_ASM_OP
+#undef DTORS_SECTION_ASM_OP
+#define CTORS_SECTION_ASM_OP	"\t.section\t.ctors,\"a\""
+#define DTORS_SECTION_ASM_OP	"\t.section\t.dtors,\"a\""
+
 /* A C expression whose value is a string containing the assembler operation to
    switch to the fixup section that records all initialized pointers in a -fpic
    program so they can be changed program startup time if the program is loaded
@@ -2712,7 +2549,7 @@ __asm__("\n"								\
    `in_text' and `in_data'.  You need not define this macro
    on a system with no other sections (that GCC needs to use).  */
 #undef  EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_sdata, in_sbss, in_const, in_fixup
+#define EXTRA_SECTIONS in_sdata, in_const, in_fixup
 
 /* One or more functions to be defined in "varasm.c".  These
    functions should do jobs analogous to those of `text_section' and
@@ -2720,47 +2557,30 @@ __asm__("\n"								\
    macro if you do not define `EXTRA_SECTIONS'.  */
 #undef  EXTRA_SECTION_FUNCTIONS
 #define EXTRA_SECTION_FUNCTIONS                                         \
-SDATA_SECTION_FUNCTION                                                  \
-SBSS_SECTION_FUNCTION							\
-FIXUP_SECTION_FUNCTION
-
+	SDATA_SECTION_FUNCTION						\
+	FIXUP_SECTION_FUNCTION
 
 #define SDATA_SECTION_FUNCTION						\
 void									\
-sdata_section ()							\
+sdata_section (void)							\
 {									\
   if (in_section != in_sdata)						\
     {									\
       fprintf (asm_out_file, "%s\n", SDATA_SECTION_ASM_OP);		\
       in_section = in_sdata;						\
     }									\
-}									\
-
-#define SBSS_SECTION_FUNCTION						\
-void									\
-sbss_section ()								\
-{									\
-  if (in_section != in_sbss)						\
-    {									\
-      fprintf (asm_out_file, "%s\n", SBSS_SECTION_ASM_OP);		\
-      in_section = in_sbss;						\
-    }									\
-}									\
+}
 
 #define FIXUP_SECTION_FUNCTION						\
 void									\
-fixup_section ()							\
+fixup_section (void)							\
 {									\
   if (in_section != in_fixup)						\
     {									\
       fprintf (asm_out_file, "%s\n", FIXUP_SECTION_ASM_OP);		\
       in_section = in_fixup;						\
     }									\
-}									\
-
-#define SDATA_FLAG_CHAR '@'
-
-#define SDATA_NAME_P(NAME) (*(NAME) == SDATA_FLAG_CHAR)
+}
 
 /* Position Independent Code.  */
 
@@ -2845,10 +2665,10 @@ extern int size_directive_output;
 #undef ASM_OUTPUT_ALIGNED_DECL_LOCAL
 #define ASM_OUTPUT_ALIGNED_DECL_LOCAL(STREAM, DECL, NAME, SIZE, ALIGN)	\
 do {                                                                   	\
-  if (SDATA_NAME_P (NAME))                                             	\
-    sbss_section ();                                                 	\
+  if ((SIZE) > 0 && (SIZE) <= g_switch_value)				\
+    named_section (0, ".sbss", 0);                                    	\
   else                                                                 	\
-     bss_section ();                                                  	\
+    bss_section ();                                                  	\
   ASM_OUTPUT_ALIGN (STREAM, floor_log2 ((ALIGN) / BITS_PER_UNIT));     	\
   ASM_DECLARE_OBJECT_NAME (STREAM, NAME, DECL);                        	\
   ASM_OUTPUT_SKIP (STREAM, (SIZE) ? (SIZE) : 1);                       	\
@@ -2871,24 +2691,11 @@ do {									\
 /* Globalizing directive for a label.  */
 #define GLOBAL_ASM_OP "\t.globl "
 
-/* A C statement (sans semicolon) to output to the stdio stream STREAM a
-   reference in assembler syntax to a label named NAME.  This should add `_' to
-   the front of the name, if that is customary on your operating system, as it
-   is in most Berkeley Unix systems.  This macro is used in `assemble_name'.  */
-#undef ASM_OUTPUT_LABELREF
-#define ASM_OUTPUT_LABELREF(STREAM, NAME)				\
-do {									\
-  const char *_name = (NAME);						\
-  while (*_name == '*' || *_name == SDATA_FLAG_CHAR)			\
-    _name++;								\
-  asm_fprintf (STREAM, "%U%s", _name);					\
-} while (0)
-
 /* A C statement to store into the string STRING a label whose name is made
    from the string PREFIX and the number NUM.
 
    This string, when output subsequently by `assemble_name', should produce the
-   output that `ASM_OUTPUT_INTERNAL_LABEL' would produce with the same PREFIX
+   output that `(*targetm.asm_out.internal_label)' would produce with the same PREFIX
    and NUM.
 
    If the string begins with `*', then `assemble_name' will output the rest of
@@ -2905,32 +2712,11 @@ do {									\
   sprintf (LABEL, "*.%s%ld", PREFIX, (long)NUM);			\
 } while (0)
 
-/* A C expression to assign to OUTVAR (which is a variable of type `char *') a
-   newly allocated string made from the string NAME and the number NUMBER, with
-   some suitable punctuation added.  Use `alloca' to get space for the string.
-
-   The string will be used as an argument to `ASM_OUTPUT_LABELREF' to produce
-   an assembler label for an internal static variable whose name is NAME.
-   Therefore, the string must be such as to result in valid assembler code.
-   The argument NUMBER is different each time this macro is executed; it
-   prevents conflicts between similarly-named internal static variables in
-   different scopes.
-
-   Ideally this string should not be a valid C identifier, to prevent any
-   conflict with the user's own symbols.  Most assemblers allow periods or
-   percent signs in assembler symbols; putting at least one of these between
-   the name and the number will suffice.  */
-#define ASM_FORMAT_PRIVATE_NAME(OUTVAR, NAME, NUMBER)			\
-do {									\
-  (OUTVAR) = (char *) alloca (strlen ((NAME)) + 12);			\
-  sprintf ((OUTVAR), "%s.%ld", (NAME), (long)(NUMBER));			\
-} while (0)
-
 
 /* Macros Controlling Initialization Routines.  */
 
 /* If defined, a C string constant for the assembler operation to identify the
-   following data as initialization code.  If not defined, GNU CC will assume
+   following data as initialization code.  If not defined, GCC will assume
    such a section does not exist.  When you are using special sections for
    initialization and termination functions, this macro also controls how
    `crtstuff.c' and `libgcc2.c' arrange to run the initialization functions.
@@ -2943,27 +2729,6 @@ do {									\
    init section is not actually run automatically, but is still useful for
    collecting the lists of constructors and destructors.  */
 #define INVOKE__main
-
-/* Output appropriate code tp call a static constructor.  */
-#undef  ASM_OUTPUT_CONSTRUCTOR
-#define ASM_OUTPUT_CONSTRUCTOR(STREAM,NAME)				\
-do {									\
-  ctors_section ();							\
-  fprintf (STREAM, "\t.picptr\t");					\
-  assemble_name (STREAM, NAME);						\
-  fprintf (STREAM, "\n");							\
-} while (0)
-
-/* Output appropriate code tp call a static destructor.  */
-#undef  ASM_OUTPUT_DESTRUCTOR
-#define ASM_OUTPUT_DESTRUCTOR(STREAM,NAME)				\
-do {									\
-  dtors_section ();							\
-  fprintf (STREAM, "\t.picptr\t");					\
-  assemble_name (STREAM, NAME);						\
-  fprintf (STREAM, "\n");							\
-} while (0)
-
 
 /* Output of Assembler Instructions.  */
 
@@ -3079,7 +2844,7 @@ do {									\
    * == temporary integer CCR register (cr3)
    & == temporary integer ICC register (icc3)  */
 #define PRINT_OPERAND_PUNCT_VALID_P(CODE)				\
-((CODE) == '.' || (CODE) == '#' || (CODE) == SDATA_FLAG_CHAR || (CODE) == '~'	\
+((CODE) == '.' || (CODE) == '#' || (CODE) == '@' || (CODE) == '~'	\
  || (CODE) == '*' || (CODE) == '&')
 
 /* A C compound statement to output to stdio stream STREAM the assembler syntax
@@ -3115,7 +2880,7 @@ do {									\
    The definition should be a C statement to output to the stdio stream STREAM
    an assembler pseudo-instruction to generate a difference between two labels.
    VALUE and REL are the numbers of two internal labels.  The definitions of
-   these labels are output using `ASM_OUTPUT_INTERNAL_LABEL', and they must be
+   these labels are output using `(*targetm.asm_out.internal_label)', and they must be
    printed in the same way here.  For example,
 
         fprintf (STREAM, "\t.word L%d-L%d\n", VALUE, REL)  */
@@ -3128,14 +2893,14 @@ fprintf (STREAM, "\t.word .L%d-.L%d\n", VALUE, REL)
    The definition should be a C statement to output to the stdio stream STREAM
    an assembler pseudo-instruction to generate a reference to a label.  VALUE
    is the number of an internal label whose definition is output using
-   `ASM_OUTPUT_INTERNAL_LABEL'.  For example,
+   `(*targetm.asm_out.internal_label)'.  For example,
 
         fprintf (STREAM, "\t.word L%d\n", VALUE)  */
 #define ASM_OUTPUT_ADDR_VEC_ELT(STREAM, VALUE) \
 fprintf (STREAM, "\t.word .L%d\n", VALUE)
 
 /* Define this if the label before a jump-table needs to be output specially.
-   The first three arguments are the same as for `ASM_OUTPUT_INTERNAL_LABEL';
+   The first three arguments are the same as for `(*targetm.asm_out.internal_label)';
    the fourth argument is the jump-table which follows (a `jump_insn'
    containing an `addr_vec' or `addr_diff_vec').
 
@@ -3143,7 +2908,7 @@ fprintf (STREAM, "\t.word .L%d\n", VALUE)
    table.
 
    If this macro is not defined, these labels are output with
-   `ASM_OUTPUT_INTERNAL_LABEL'.
+   `(*targetm.asm_out.internal_label)'.
 
    Defined in svr4.h.  */
 /* When generating embedded PIC or mips16 code we want to put the jump
@@ -3158,7 +2923,7 @@ fprintf (STREAM, "\t.word .L%d\n", VALUE)
 do {                                                                    \
   if (flag_pic)                                                         \
     function_section (current_function_decl);                           \
-  ASM_OUTPUT_INTERNAL_LABEL (STREAM, PREFIX, NUM);                      \
+  (*targetm.asm_out.internal_label) (STREAM, PREFIX, NUM);                      \
 } while (0)
 
 /* Define this to determine whether case statement labels are relative to
@@ -3194,7 +2959,7 @@ do {                                                                    \
    Defined in svr4.h.  */
 #undef  ASM_OUTPUT_SKIP
 #define ASM_OUTPUT_SKIP(STREAM, NBYTES) \
-  fprintf (STREAM, "\t.zero\t%u\n", (NBYTES))
+  fprintf (STREAM, "\t.zero\t%u\n", (int)(NBYTES))
 
 /* A C statement to output to the stdio stream STREAM an assembler command to
    advance the location counter to a multiple of 2 to the POWER bytes.  POWER
@@ -3202,6 +2967,9 @@ do {                                                                    \
 #define ASM_OUTPUT_ALIGN(STREAM, POWER) \
   fprintf ((STREAM), "\t.p2align %d\n", (POWER))
 
+/* Inside the text section, align with unpacked nops rather than zeros.  */
+#define ASM_OUTPUT_ALIGN_WITH_NOP(STREAM, POWER) \
+  fprintf ((STREAM), "\t.p2alignl %d,0x80880000\n", (POWER))
 
 /* Macros Affecting all Debug Formats.  */
 
@@ -3211,7 +2979,7 @@ do {                                                                    \
    knows about and DBX does not, or vice versa.  In such cases, some register
    may need to have one number in the compiler and another for DBX.
 
-   If two registers have consecutive numbers inside GNU CC, and they can be
+   If two registers have consecutive numbers inside GCC, and they can be
    used as a pair to hold a multiword value, then they *must* have consecutive
    numbers after renumbering with `DBX_REGISTER_NUMBER'.  Otherwise, debuggers
    will be unable to access such a pair, because they expect register pairs to
@@ -3224,9 +2992,9 @@ do {                                                                    \
    This declaration is required.  */
 #define DBX_REGISTER_NUMBER(REGNO) (REGNO)
 
-/* A C expression that returns the type of debugging output GNU CC produces
+/* A C expression that returns the type of debugging output GCC produces
    when the user specifies `-g' or `-ggdb'.  Define this if you have arranged
-   for GNU CC to support more than one format of debugging output.  Currently,
+   for GCC to support more than one format of debugging output.  Currently,
    the allowable values are `DBX_DEBUG', `SDB_DEBUG', `DWARF_DEBUG',
    `DWARF2_DEBUG', and `XCOFF_DEBUG'.
 
@@ -3314,10 +3082,11 @@ do {                                                                    \
   { "minmax_operator",			{ SMIN, SMAX, UMIN, UMAX }},	\
   { "condexec_si_binary_operator",	{ PLUS, MINUS, AND, IOR, XOR,	\
 					  ASHIFT, ASHIFTRT, LSHIFTRT }}, \
+  { "condexec_si_media_operator",	{ AND, IOR, XOR }},		\
   { "condexec_si_divide_operator",	{ DIV, UDIV }},			\
   { "condexec_si_unary_operator",	{ NOT, NEG }},			\
-  { "condexec_sf_binary_operator",	{ PLUS, MINUS, MULT, DIV }},	\
-  { "condexec_sf_unary_operator",	{ ABS, NEG, SQRT }},		\
+  { "condexec_sf_add_operator",		{ PLUS, MINUS }},		\
+  { "condexec_sf_conv_operator",	{ ABS, NEG }},			\
   { "intop_compare_operator",		{ PLUS, MINUS, AND, IOR, XOR,	\
 					  ASHIFT, ASHIFTRT, LSHIFTRT }}, \
   { "condexec_intop_cmp_operator",	{ PLUS, MINUS, AND, IOR, XOR,	\
@@ -3491,9 +3260,6 @@ frv_ifcvt_modify_multiple_tests (CE_INFO, BB, &TRUE_EXPR, &FALSE_EXPR)
    macro value is zero or negative there will be no multi-pass
    scheduling.  */
 #define FIRST_CYCLE_MULTIPASS_SCHEDULING_LOOKAHEAD frv_sched_lookahead
-
-/* Return true if a function is ok to be called as a sibcall.  */
-#define FUNCTION_OK_FOR_SIBCALL(DECL) 0
 
 enum frv_builtins
 {

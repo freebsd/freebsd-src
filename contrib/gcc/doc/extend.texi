@@ -1,4 +1,4 @@
-@c Copyright (C) 1988,1989,1992,1993,1994,1996,1998,1999,2000,2001,2002, 2003
+@c Copyright (C) 1988,1989,1992,1993,1994,1996,1998,1999,2000,2001,2002,2003,2004
 @c Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
@@ -253,7 +253,7 @@ The @code{register} specifier affects code generation only in these ways:
 
 @itemize @bullet
 @item
-When used as part of the register variable extension, see 
+When used as part of the register variable extension, see
 @ref{Explicit Reg Vars}.
 
 @item
@@ -424,7 +424,7 @@ extensions, accepted by GCC in C89 mode and in C++.
 
 @menu
 * Statement Exprs::     Putting statements and declarations inside expressions.
-* Local Labels::        Labels local to a statement-expression.
+* Local Labels::        Labels local to a block.
 * Labels as Values::    Getting pointers to labels, and computed gotos.
 * Nested Functions::    As in Algol and Pascal, lexical scoping of functions.
 * Constructing Calls::	Dispatching a call to another function.
@@ -494,12 +494,12 @@ Recall that a compound statement is a sequence of statements surrounded
 by braces; in this construct, parentheses go around the braces.  For
 example:
 
-@example
+@smallexample
 (@{ int y = foo (); int z;
    if (y > 0) z = y;
    else z = - y;
    z; @})
-@end example
+@end smallexample
 
 @noindent
 is a valid (though slightly more complex than necessary) expression
@@ -516,21 +516,21 @@ that they evaluate each operand exactly once).  For example, the
 ``maximum'' function is commonly defined as a macro in standard C as
 follows:
 
-@example
+@smallexample
 #define max(a,b) ((a) > (b) ? (a) : (b))
-@end example
+@end smallexample
 
 @noindent
 @cindex side effects, macro argument
 But this definition computes either @var{a} or @var{b} twice, with bad
 results if the operand has side effects.  In GNU C, if you know the
-type of the operands (here let's assume @code{int}), you can define
+type of the operands (here taken as @code{int}), you can define
 the macro safely as follows:
 
-@example
+@smallexample
 #define maxint(a,b) \
   (@{int _a = (a), _b = (b); _a > _b ? _a : _b; @})
-@end example
+@end smallexample
 
 Embedded statements are not allowed in constant expressions, such as
 the value of an enumeration constant, the width of a bit-field, or
@@ -539,32 +539,46 @@ the initial value of a static variable.
 If you don't know the type of the operand, you can still do this, but you
 must use @code{typeof} (@pxref{Typeof}).
 
-Statement expressions are not supported fully in G++, and their fate
-there is unclear.  (It is possible that they will become fully supported
-at some point, or that they will be deprecated, or that the bugs that
-are present will continue to exist indefinitely.)  Presently, statement
-expressions do not work well as default arguments.
+In G++, the result value of a statement expression undergoes array and
+function pointer decay, and is returned by value to the enclosing
+expression. For instance, if @code{A} is a class, then
 
-In addition, there are semantic issues with statement-expressions in
-C++.  If you try to use statement-expressions instead of inline
-functions in C++, you may be surprised at the way object destruction is
-handled.  For example:
+@smallexample
+        A a;
 
-@example
-#define foo(a)  (@{int b = (a); b + 3; @})
-@end example
+        (@{a;@}).Foo ()
+@end smallexample
 
 @noindent
-does not work the same way as:
+will construct a temporary @code{A} object to hold the result of the
+statement expression, and that will be used to invoke @code{Foo}.
+Therefore the @code{this} pointer observed by @code{Foo} will not be the
+address of @code{a}.
 
-@example
-inline int foo(int a) @{ int b = a; return b + 3; @}
-@end example
+Any temporaries created within a statement within a statement expression
+will be destroyed at the statement's end.  This makes statement
+expressions inside macros slightly different from function calls.  In
+the latter case temporaries introduced during argument evaluation will
+be destroyed at the end of the statement that includes the function
+call.  In the statement expression case they will be destroyed during
+the statement expression.  For instance,
+
+@smallexample
+#define macro(a)  (@{__typeof__(a) b = (a); b + 3; @})
+template<typename T> T function(T a) @{ T b = a; return b + 3; @}
+
+void foo ()
+@{
+  macro (X ());
+  function (X ());
+@}
+@end smallexample
 
 @noindent
-In particular, if the expression passed into @code{foo} involves the
-creation of temporaries, the destructors for those temporaries will be
-run earlier in the case of the macro than in the case of the function.
+will have different places where temporaries are destroyed.  For the
+@code{macro} case, the temporary @code{X} will be destroyed just after
+the initialization of @code{b}.  In the @code{function} case that
+temporary will be destroyed when the function returns.
 
 These considerations mean that it is probably a bad idea to use
 statement-expressions of this form in header files that are designed to
@@ -577,41 +591,58 @@ bug.)
 @cindex local labels
 @cindex macros, local labels
 
-Each statement expression is a scope in which @dfn{local labels} can be
-declared.  A local label is simply an identifier; you can jump to it
-with an ordinary @code{goto} statement, but only from within the
-statement expression it belongs to.
+GCC allows you to declare @dfn{local labels} in any nested block
+scope. A local label is just like an ordinary label, but you can
+only reference it (with a @code{goto} statement, or by taking its
+address) within the block in which it was declared.
 
 A local label declaration looks like this:
 
-@example
+@smallexample
 __label__ @var{label};
-@end example
+@end smallexample
 
 @noindent
 or
 
-@example
+@smallexample
 __label__ @var{label1}, @var{label2}, /* @r{@dots{}} */;
-@end example
+@end smallexample
 
-Local label declarations must come at the beginning of the statement
-expression, right after the @samp{(@{}, before any ordinary
-declarations.
+Local label declarations must come at the beginning of the block,
+before any ordinary declarations or statements.
 
 The label declaration defines the label @emph{name}, but does not define
 the label itself.  You must do this in the usual way, with
 @code{@var{label}:}, within the statements of the statement expression.
 
-The local label feature is useful because statement expressions are
-often used in macros.  If the macro contains nested loops, a @code{goto}
-can be useful for breaking out of them.  However, an ordinary label
-whose scope is the whole function cannot be used: if the macro can be
-expanded several times in one function, the label will be multiply
-defined in that function.  A local label avoids this problem.  For
-example:
+The local label feature is useful for complex macros.  If a macro
+contains nested loops, a @code{goto} can be useful for breaking out of
+them.  However, an ordinary label whose scope is the whole function
+cannot be used: if the macro can be expanded several times in one
+function, the label will be multiply defined in that function.  A
+local label avoids this problem.  For example:
 
-@example
+@smallexample
+#define SEARCH(value, array, target)              \
+do @{                                              \
+  __label__ found;                                \
+  typeof (target) _SEARCH_target = (target);      \
+  typeof (*(array)) *_SEARCH_array = (array);     \
+  int i, j;                                       \
+  int value;                                      \
+  for (i = 0; i < max; i++)                       \
+    for (j = 0; j < max; j++)                     \
+      if (_SEARCH_array[i][j] == _SEARCH_target)  \
+        @{ (value) = i; goto found; @}              \
+  (value) = -1;                                   \
+ found:;                                          \
+@} while (0)
+@end smallexample
+
+This could also be written using a statement-expression:
+
+@smallexample
 #define SEARCH(array, target)                     \
 (@{                                                \
   __label__ found;                                \
@@ -627,7 +658,10 @@ example:
  found:                                           \
   value;                                          \
 @})
-@end example
+@end smallexample
+
+Local label declarations also make the labels they declare visible to
+nested functions, if there are any.  @xref{Nested Functions}, for details.
 
 @node Labels as Values
 @section Labels as Values
@@ -641,11 +675,11 @@ You can get the address of a label defined in the current function
 value has type @code{void *}.  This value is a constant and can be used
 wherever a constant of that type is valid.  For example:
 
-@example
+@smallexample
 void *ptr;
 /* @r{@dots{}} */
 ptr = &&foo;
-@end example
+@end smallexample
 
 To use these values, you need to be able to jump to one.  This is done
 with the computed goto statement@footnote{The analogous feature in
@@ -653,9 +687,9 @@ Fortran is called an assigned goto, but that name seems inappropriate in
 C, where one can do more than simply store label addresses in label
 variables.}, @code{goto *@var{exp};}.  For example,
 
-@example
+@smallexample
 goto *ptr;
-@end example
+@end smallexample
 
 @noindent
 Any expression of type @code{void *} is allowed.
@@ -663,15 +697,15 @@ Any expression of type @code{void *} is allowed.
 One way of using these constants is in initializing a static array that
 will serve as a jump table:
 
-@example
+@smallexample
 static void *array[] = @{ &&foo, &&bar, &&hack @};
-@end example
+@end smallexample
 
 Then you can select a label with indexing, like this:
 
-@example
+@smallexample
 goto *array[i];
-@end example
+@end smallexample
 
 @noindent
 Note that this does not check whether the subscript is in bounds---array
@@ -693,11 +727,11 @@ never pass it as an argument.
 
 An alternate way to write the above example is
 
-@example
+@smallexample
 static const int array[] = @{ &&foo - &&foo, &&bar - &&foo,
                              &&hack - &&foo @};
 goto *(&&foo + array[i]);
-@end example
+@end smallexample
 
 @noindent
 This is more friendly to code living in shared libraries, as it reduces
@@ -715,7 +749,7 @@ A @dfn{nested function} is a function defined inside another function.
 name is local to the block where it is defined.  For example, here we
 define a nested function named @code{square}, and call it twice:
 
-@example
+@smallexample
 @group
 foo (double a, double b)
 @{
@@ -724,14 +758,14 @@ foo (double a, double b)
   return square (a) + square (b);
 @}
 @end group
-@end example
+@end smallexample
 
 The nested function can access all the variables of the containing
 function that are visible at the point of its definition.  This is
 called @dfn{lexical scoping}.  For example, here we show a nested
 function which uses an inherited variable named @code{offset}:
 
-@example
+@smallexample
 @group
 bar (int *array, int offset, int size)
 @{
@@ -743,7 +777,7 @@ bar (int *array, int offset, int size)
     /* @r{@dots{}} */ access (array, i) /* @r{@dots{}} */
 @}
 @end group
-@end example
+@end smallexample
 
 Nested function definitions are permitted within functions in the places
 where variable definitions are allowed; that is, in any block, before
@@ -752,7 +786,7 @@ the first statement in the block.
 It is possible to call the nested function from outside the scope of its
 name by storing its address or passing the address to another function:
 
-@example
+@smallexample
 hack (int *array, int size)
 @{
   void store (int index, int value)
@@ -760,7 +794,7 @@ hack (int *array, int size)
 
   intermediate (store, size);
 @}
-@end example
+@end smallexample
 
 Here, the function @code{intermediate} receives the address of
 @code{store} as an argument.  If @code{intermediate} calls @code{store},
@@ -788,7 +822,7 @@ function (@pxref{Local Labels}).  Such a jump returns instantly to the
 containing function, exiting the nested function which did the
 @code{goto} and any intermediate functions as well.  Here is an example:
 
-@example
+@smallexample
 @group
 bar (int *array, int offset, int size)
 @{
@@ -812,14 +846,14 @@ bar (int *array, int offset, int size)
   return -1;
 @}
 @end group
-@end example
+@end smallexample
 
 A nested function always has internal linkage.  Declaring one with
 @code{extern} is erroneous.  If you need to declare the nested function
 before its definition, use @code{auto} (which is otherwise meaningless
 for function declarations).
 
-@example
+@smallexample
 bar (int *array, int offset, int size)
 @{
   __label__ failure;
@@ -833,7 +867,7 @@ bar (int *array, int offset, int size)
     @}
   /* @r{@dots{}} */
 @}
-@end example
+@end smallexample
 
 @node Constructing Calls
 @section Constructing Function Calls
@@ -849,6 +883,11 @@ You can also record the return value of that function call,
 and later return that value, without knowing what data type
 the function tried to return (as long as your caller expects
 that data type).
+
+However, these built-in functions may interact badly with some
+sophisticated features or other extensions of the language.  It
+is, therefore, not recommended to use them outside very simple
+functions acting as mere forwarders for their arguments.
 
 @deftypefn {Built-in Function} {void *} __builtin_apply_args ()
 This built-in function returns a pointer to data
@@ -899,9 +938,9 @@ construct acts semantically like a type name defined with @code{typedef}.
 There are two ways of writing the argument to @code{typeof}: with an
 expression or with a type.  Here is an example with an expression:
 
-@example
+@smallexample
 typeof (x[0](1))
-@end example
+@end smallexample
 
 @noindent
 This assumes that @code{x} is an array of pointers to functions;
@@ -909,9 +948,9 @@ the type described is that of the values of the functions.
 
 Here is an example with a typename as the argument:
 
-@example
+@smallexample
 typeof (int *)
-@end example
+@end smallexample
 
 @noindent
 Here the type described is that of pointers to @code{int}.
@@ -929,12 +968,12 @@ statements-within-expressions feature.  Here is how the two together can
 be used to define a safe ``maximum'' macro that operates on any
 arithmetic type and evaluates each of its arguments exactly once:
 
-@example
+@smallexample
 #define max(a,b) \
   (@{ typeof (a) _a = (a); \
       typeof (b) _b = (b); \
     _a > _b ? _a : _b; @})
-@end example
+@end smallexample
 
 @cindex underscores in variables in macros
 @cindex @samp{_} in variables in macros
@@ -956,45 +995,45 @@ Some more examples of the use of @code{typeof}:
 @item
 This declares @code{y} with the type of what @code{x} points to.
 
-@example
+@smallexample
 typeof (*x) y;
-@end example
+@end smallexample
 
 @item
 This declares @code{y} as an array of such values.
 
-@example
+@smallexample
 typeof (*x) y[4];
-@end example
+@end smallexample
 
 @item
 This declares @code{y} as an array of pointers to characters:
 
-@example
+@smallexample
 typeof (typeof (char *)[4]) y;
-@end example
+@end smallexample
 
 @noindent
 It is equivalent to the following traditional C declaration:
 
-@example
+@smallexample
 char *y[4];
-@end example
+@end smallexample
 
 To see the meaning of the declaration using @code{typeof}, and why it
-might be a useful way to write, let's rewrite it with these macros:
+might be a useful way to write, rewrite it with these macros:
 
-@example
+@smallexample
 #define pointer(T)  typeof(T *)
 #define array(T, N) typeof(T [N])
-@end example
+@end smallexample
 
 @noindent
 Now the declaration can be rewritten this way:
 
-@example
+@smallexample
 array (pointer (char), 4) y;
-@end example
+@end smallexample
 
 @noindent
 Thus, @code{array (pointer (char), 4)} is the type of arrays of 4
@@ -1004,9 +1043,9 @@ pointers to @code{char}.
 @emph{Compatibility Note:} In addition to @code{typeof}, GCC 2 supported
 a more limited extension which permitted one to write
 
-@example
+@smallexample
 typedef @var{T} = @var{expr};
-@end example
+@end smallexample
 
 @noindent
 with the effect of declaring @var{T} to have the type of the expression
@@ -1014,9 +1053,9 @@ with the effect of declaring @var{T} to have the type of the expression
 3.0 and 3.2 will crash; 3.2.1 and later give an error).  Code which
 relies on it should be rewritten to use @code{typeof}:
 
-@example
+@smallexample
 typedef typeof(@var{expr}) @var{T};
-@end example
+@end smallexample
 
 @noindent
 This will work with all versions of GCC@.
@@ -1035,39 +1074,41 @@ This will work with all versions of GCC@.
 
 Compound expressions, conditional expressions and casts are allowed as
 lvalues provided their operands are lvalues.  This means that you can take
-their addresses or store values into them.
+their addresses or store values into them.  All these extensions are
+deprecated.
 
-Standard C++ allows compound expressions and conditional expressions as
-lvalues, and permits casts to reference type, so use of this extension
-is deprecated for C++ code.
+Standard C++ allows compound expressions and conditional expressions
+as lvalues, and permits casts to reference type, so use of this
+extension is not supported for C++ code.
 
 For example, a compound expression can be assigned, provided the last
 expression in the sequence is an lvalue.  These two expressions are
 equivalent:
 
-@example
+@smallexample
 (a, b) += 5
 a, (b += 5)
-@end example
+@end smallexample
 
 Similarly, the address of the compound expression can be taken.  These two
 expressions are equivalent:
 
-@example
+@smallexample
 &(a, b)
 a, &b
-@end example
+@end smallexample
 
 A conditional expression is a valid lvalue if its type is not void and the
 true and false branches are both valid lvalues.  For example, these two
 expressions are equivalent:
 
-@example
+@smallexample
 (a ? b : c) = 5
 (a ? b = 5 : (c = 5))
-@end example
+@end smallexample
 
-A cast is a valid lvalue if its operand is an lvalue.  A simple
+A cast is a valid lvalue if its operand is an lvalue.  This extension
+is deprecated.  A simple
 assignment whose left-hand side is a cast works by converting the
 right-hand side first to the specified type, then to the type of the
 inner left-hand side expression.  After this is stored, the value is
@@ -1075,20 +1116,20 @@ converted back to the specified type to become the value of the
 assignment.  Thus, if @code{a} has type @code{char *}, the following two
 expressions are equivalent:
 
-@example
+@smallexample
 (int)a = 5
 (int)(a = (char *)(int)5)
-@end example
+@end smallexample
 
 An assignment-with-arithmetic operation such as @samp{+=} applied to a cast
 performs the arithmetic using the type resulting from the cast, and then
 continues as in the previous case.  Therefore, these two expressions are
 equivalent:
 
-@example
+@smallexample
 (int)a += 5
 (int)(a = (char *)(int) ((int)a + 5))
-@end example
+@end smallexample
 
 You cannot take the address of an lvalue cast, because the use of its
 address would not work out coherently.  Suppose that @code{&(int)f} were
@@ -1096,9 +1137,9 @@ permitted, where @code{f} has type @code{float}.  Then the following
 statement would try to store an integer bit-pattern where a floating
 point number belongs:
 
-@example
+@smallexample
 *&(int)f = 1;
-@end example
+@end smallexample
 
 This is quite different from what @code{(int)f = 1} would do---that
 would convert 1 to floating point and store it.  Rather than cause this
@@ -1121,9 +1162,9 @@ expression.
 
 Therefore, the expression
 
-@example
+@smallexample
 x ? : y
-@end example
+@end smallexample
 
 @noindent
 has the value of @code{x} if that is nonzero; otherwise, the value of
@@ -1131,9 +1172,9 @@ has the value of @code{x} if that is nonzero; otherwise, the value of
 
 This example is perfectly equivalent to
 
-@example
+@smallexample
 x ? x : y
-@end example
+@end smallexample
 
 @cindex side effect in ?:
 @cindex ?: side effect
@@ -1271,7 +1312,7 @@ Zero-length arrays are allowed in GNU C@.  They are very useful as the
 last element of a structure which is really a header for a variable-length
 object:
 
-@example
+@smallexample
 struct line @{
   int length;
   char contents[0];
@@ -1280,7 +1321,7 @@ struct line @{
 struct line *thisline = (struct line *)
   malloc (sizeof (struct line) + this_length);
 thisline->length = this_length;
-@end example
+@end smallexample
 
 In ISO C90, you would have to give @code{contents} a length of 1, which
 means either you waste space or complicate the argument to @code{malloc}.
@@ -1324,7 +1365,7 @@ structure followed by an array of sufficient size to contain the data.
 I.e.@: in the following, @code{f1} is constructed as if it were declared
 like @code{f2}.
 
-@example
+@smallexample
 struct f1 @{
   int x; int y[];
 @} f1 = @{ 1, @{ 2, 3, 4 @} @};
@@ -1332,7 +1373,7 @@ struct f1 @{
 struct f2 @{
   struct f1 f1; int data[3];
 @} f2 = @{ @{ 1 @}, @{ 2, 3, 4 @} @};
-@end example
+@end smallexample
 
 @noindent
 The convenience of this extension is that @code{f1} has the desired
@@ -1348,7 +1389,7 @@ with initialization of deeply nested arrays, we simply disallow any
 non-empty initialization except when the structure is the top-level
 object.  For example:
 
-@example
+@smallexample
 struct foo @{ int x; int y[]; @};
 struct bar @{ struct foo z; @};
 
@@ -1356,7 +1397,7 @@ struct foo a = @{ 1, @{ 2, 3, 4 @} @};        // @r{Valid.}
 struct bar b = @{ @{ 1, @{ 2, 3, 4 @} @} @};    // @r{Invalid.}
 struct bar c = @{ @{ 1, @{ @} @} @};            // @r{Valid.}
 struct foo d[1] = @{ @{ 1 @{ 2, 3, 4 @} @} @};  // @r{Invalid.}
-@end example
+@end smallexample
 
 @node Empty Structures
 @section Structures With No Members
@@ -1365,10 +1406,10 @@ struct foo d[1] = @{ @{ 1 @{ 2, 3, 4 @} @} @};  // @r{Invalid.}
 
 GCC permits a C structure to have no members:
 
-@example
+@smallexample
 struct empty @{
 @};
-@end example
+@end smallexample
 
 The structure will have size zero.  In C++, empty structures are part
 of the language.  G++ treats empty structures as if they had a single
@@ -1389,7 +1430,7 @@ a constant expression.  The storage is allocated at the point of
 declaration and deallocated when the brace-level is exited.  For
 example:
 
-@example
+@smallexample
 FILE *
 concat_fopen (char *s1, char *s2, char *mode)
 @{
@@ -1398,7 +1439,7 @@ concat_fopen (char *s1, char *s2, char *mode)
   strcat (str, s2);
   return fopen (str, mode);
 @}
-@end example
+@end smallexample
 
 @cindex scope of a variable length array
 @cindex variable-length array scope
@@ -1422,13 +1463,13 @@ will also deallocate anything more recently allocated with @code{alloca}.)
 
 You can also use variable-length arrays as arguments to functions:
 
-@example
+@smallexample
 struct entry
 tester (int len, char data[len][len])
 @{
   /* @r{@dots{}} */
 @}
-@end example
+@end smallexample
 
 The length of an array is computed once when the storage is allocated
 and is remembered for the scope of the array in case you access it with
@@ -1437,13 +1478,13 @@ and is remembered for the scope of the array in case you access it with
 If you want to pass the array first and the length afterward, you can
 use a forward declaration in the parameter list---another GNU extension.
 
-@example
+@smallexample
 struct entry
 tester (int len; char data[len][len], int len)
 @{
   /* @r{@dots{}} */
 @}
-@end example
+@end smallexample
 
 @cindex parameter forward declaration
 The @samp{int len} before the semicolon is a @dfn{parameter forward
@@ -1483,9 +1524,9 @@ GCC has long supported variadic macros, and used a different syntax that
 allowed you to give a name to the variable arguments just like any other
 argument.  Here is an example:
 
-@example
+@smallexample
 #define debug(format, args...) fprintf (stderr, format, args)
-@end example
+@end smallexample
 
 This is in all ways equivalent to the ISO C example above, but arguably
 more readable and descriptive.
@@ -1498,9 +1539,9 @@ entirely; but you are allowed to pass an empty argument.  For example,
 this invocation is invalid in ISO C, because there is no comma after
 the string:
 
-@example
+@smallexample
 debug ("A message")
-@end example
+@end smallexample
 
 GNU CPP permits you to completely omit the variable arguments in this
 way.  In the above examples, the compiler would complain, though since
@@ -1551,7 +1592,7 @@ subscripted in C89 mode, though otherwise they do not decay to
 pointers outside C99 mode.  For example,
 this is valid in GNU C though not valid in C89:
 
-@example
+@smallexample
 @group
 struct foo @{int a[4];@};
 
@@ -1562,7 +1603,7 @@ bar (int index)
   return f().a[index];
 @}
 @end group
-@end example
+@end smallexample
 
 @node Pointer Arith
 @section Arithmetic on @code{void}- and Function-Pointers
@@ -1591,13 +1632,13 @@ As in standard C++ and ISO C99, the elements of an aggregate initializer for an
 automatic variable are not required to be constant expressions in GNU C@.
 Here is an example of an initializer with run-time varying elements:
 
-@example
+@smallexample
 foo (float f, float g)
 @{
   float beat_freqs[2] = @{ f-g, f+g @};
   /* @r{@dots{}} */
 @}
-@end example
+@end smallexample
 
 @node Compound Literals
 @section Compound Literals
@@ -1617,26 +1658,26 @@ compound literals in C89 mode and in C++.
 Usually, the specified type is a structure.  Assume that
 @code{struct foo} and @code{structure} are declared as shown:
 
-@example
+@smallexample
 struct foo @{int a; char b[2];@} structure;
-@end example
+@end smallexample
 
 @noindent
 Here is an example of constructing a @code{struct foo} with a compound literal:
 
-@example
+@smallexample
 structure = ((struct foo) @{x + y, 'a', 0@});
-@end example
+@end smallexample
 
 @noindent
 This is equivalent to writing the following:
 
-@example
+@smallexample
 @{
   struct foo temp = @{x + y, 'a', 0@};
   structure = temp;
 @}
-@end example
+@end smallexample
 
 You can also construct an array.  If all the elements of the compound literal
 are (made up of) simple constant expressions, suitable for use in
@@ -1644,9 +1685,9 @@ initializers of objects of static storage duration, then the compound
 literal can be coerced to a pointer to its first element and used in
 such an initializer, as shown here:
 
-@example
+@smallexample
 char **foo = (char *[]) @{ "x", "y", "z" @};
-@end example
+@end smallexample
 
 Compound literals for scalar types and union types are is
 also allowed, but then the compound literal is equivalent
@@ -1661,19 +1702,19 @@ The initializer list of the compound literal must be constant.
 If the object being initialized has array type of unknown size, the size is
 determined by compound literal size.
 
-@example
+@smallexample
 static struct foo x = (struct foo) @{1, 'a', 'b'@};
 static int y[] = (int []) @{1, 2, 3@};
 static int z[] = (int [3]) @{1@};
-@end example
+@end smallexample
 
 @noindent
 The above lines are equivalent to the following:
-@example
+@smallexample
 static struct foo x = @{1, 'a', 'b'@};
 static int y[] = @{1, 2, 3@};
 static int z[] = @{1, 0, 0@};
-@end example
+@end smallexample
 
 @node Designated Inits
 @section Designated Initializers
@@ -1694,16 +1735,16 @@ implemented in GNU C++.
 To specify an array index, write
 @samp{[@var{index}] =} before the element value.  For example,
 
-@example
+@smallexample
 int a[6] = @{ [4] = 29, [2] = 15 @};
-@end example
+@end smallexample
 
 @noindent
 is equivalent to
 
-@example
+@smallexample
 int a[6] = @{ 0, 0, 15, 0, 29, 0 @};
-@end example
+@end smallexample
 
 @noindent
 The index values must be constant expressions, even if the array being
@@ -1717,9 +1758,9 @@ To initialize a range of elements to the same value, write
 @samp{[@var{first} ... @var{last}] = @var{value}}.  This is a GNU
 extension.  For example,
 
-@example
+@smallexample
 int widths[] = @{ [0 ... 9] = 1, [10 ... 99] = 2, [100] = 3 @};
-@end example
+@end smallexample
 
 @noindent
 If the value in it has side-effects, the side-effects will happen only once,
@@ -1733,30 +1774,30 @@ In a structure initializer, specify the name of a field to initialize
 with @samp{.@var{fieldname} =} before the element value.  For example,
 given the following structure,
 
-@example
+@smallexample
 struct point @{ int x, y; @};
-@end example
+@end smallexample
 
 @noindent
 the following initialization
 
-@example
+@smallexample
 struct point p = @{ .y = yvalue, .x = xvalue @};
-@end example
+@end smallexample
 
 @noindent
 is equivalent to
 
-@example
+@smallexample
 struct point p = @{ xvalue, yvalue @};
-@end example
+@end smallexample
 
 Another syntax which has the same meaning, obsolete since GCC 2.5, is
 @samp{@var{fieldname}:}, as shown here:
 
-@example
+@smallexample
 struct point p = @{ y: yvalue, x: xvalue @};
-@end example
+@end smallexample
 
 @cindex designators
 The @samp{[@var{index}]} or @samp{.@var{fieldname}} is known as a
@@ -1764,11 +1805,11 @@ The @samp{[@var{index}]} or @samp{.@var{fieldname}} is known as a
 syntax) when initializing a union, to specify which element of the union
 should be used.  For example,
 
-@example
+@smallexample
 union foo @{ int i; double d; @};
 
 union foo f = @{ .d = 4 @};
-@end example
+@end smallexample
 
 @noindent
 will convert 4 to a @code{double} to store it in the union using
@@ -1781,26 +1822,26 @@ initialization of successive elements.  Each initializer element that
 does not have a designator applies to the next consecutive element of the
 array or structure.  For example,
 
-@example
+@smallexample
 int a[6] = @{ [1] = v1, v2, [4] = v4 @};
-@end example
+@end smallexample
 
 @noindent
 is equivalent to
 
-@example
+@smallexample
 int a[6] = @{ 0, v1, v2, 0, v4, 0 @};
-@end example
+@end smallexample
 
 Labeling the elements of an array initializer is especially useful
 when the indices are characters or belong to an @code{enum} type.
 For example:
 
-@example
+@smallexample
 int whitespace[256]
   = @{ [' '] = 1, ['\t'] = 1, ['\h'] = 1,
       ['\f'] = 1, ['\n'] = 1, ['\r'] = 1 @};
-@end example
+@end smallexample
 
 @cindex designator lists
 You can also write a series of @samp{.@var{fieldname}} and
@@ -1817,7 +1858,7 @@ struct point ptarray[10] = @{ [2].y = yv2, [2].x = xv2, [0].x = xv0 @};
 If the same field is initialized multiple times, it will have value from
 the last initialization.  If any such overridden initialization has
 side-effect, it is unspecified whether the side-effect happens or not.
-Currently, gcc will discard them and issue a warning.
+Currently, GCC will discard them and issue a warning.
 
 @node Case Ranges
 @section Case Ranges
@@ -1827,9 +1868,9 @@ Currently, gcc will discard them and issue a warning.
 You can specify a range of consecutive values in a single @code{case} label,
 like this:
 
-@example
+@smallexample
 case @var{low} ... @var{high}:
-@end example
+@end smallexample
 
 @noindent
 This has the same effect as the proper number of individual @code{case}
@@ -1837,24 +1878,24 @@ labels, one for each integer value from @var{low} to @var{high}, inclusive.
 
 This feature is especially useful for ranges of ASCII character codes:
 
-@example
+@smallexample
 case 'A' ... 'Z':
-@end example
+@end smallexample
 
 @strong{Be careful:} Write spaces around the @code{...}, for otherwise
 it may be parsed wrong when you use it with integer values.  For example,
 write this:
 
-@example
+@smallexample
 case 1 ... 5:
-@end example
+@end smallexample
 
 @noindent
 rather than this:
 
-@example
+@smallexample
 case 1...5:
-@end example
+@end smallexample
 
 @node Cast to Union
 @section Cast to a Union Type
@@ -1870,11 +1911,11 @@ normal casts.  (@xref{Compound Literals}.)
 The types that may be cast to the union type are those of the members
 of the union.  Thus, given the following union and variables:
 
-@example
+@smallexample
 union foo @{ int i; double d; @};
 int x;
 double y;
-@end example
+@end smallexample
 
 @noindent
 both @code{x} and @code{y} can be cast to type @code{union foo}.
@@ -1882,20 +1923,20 @@ both @code{x} and @code{y} can be cast to type @code{union foo}.
 Using the cast as the right-hand side of an assignment to a variable of
 union type is equivalent to storing in a member of the union:
 
-@example
+@smallexample
 union foo u;
 /* @r{@dots{}} */
 u = (union foo) x  @equiv{}  u.i = x
 u = (union foo) y  @equiv{}  u.d = y
-@end example
+@end smallexample
 
 You can also use the union cast as a function argument:
 
-@example
+@smallexample
 void hack (union foo);
 /* @r{@dots{}} */
 hack ((union foo) x);
-@end example
+@end smallexample
 
 @node Mixed Declarations
 @section Mixed Declarations and Code
@@ -1907,12 +1948,12 @@ ISO C99 and ISO C++ allow declarations and code to be freely mixed
 within compound statements.  As an extension, GCC also allows this in
 C89 mode.  For example, you could do:
 
-@example
+@smallexample
 int i;
 /* @r{@dots{}} */
 i++;
 int j = i + 2;
-@end example
+@end smallexample
 
 Each identifier is visible from where it is declared until the end of
 the enclosing block.
@@ -1946,9 +1987,9 @@ attributes are currently defined for functions on all targets:
 @code{format}, @code{format_arg}, @code{no_instrument_function},
 @code{section}, @code{constructor}, @code{destructor}, @code{used},
 @code{unused}, @code{deprecated}, @code{weak}, @code{malloc},
-@code{alias}, and @code{nonnull}.  Several other attributes are defined
-for functions on particular target systems.  Other attributes, including
-@code{section} are supported for variables declarations
+@code{alias}, @code{warn_unused_result} and @code{nonnull}.  Several other
+attributes are defined for functions on particular target systems.  Other
+attributes, including @code{section} are supported for variables declarations
 (@pxref{Variable Attributes}) and for types (@pxref{Type Attributes}).
 
 You may also specify attributes with @samp{__} preceding and following
@@ -1985,6 +2026,10 @@ The @code{noreturn} keyword tells the compiler to assume that
 would happen if @code{fatal} ever did return.  This makes slightly
 better code.  More importantly, it helps avoid spurious warnings of
 uninitialized variables.
+
+The @code{noreturn} keyword does not affect the exceptional path when that
+applies: a @code{noreturn}-marked function may still return to the caller
+by throwing an exception.
 
 Do not assume that registers saved by the calling function are
 restored before calling the @code{noreturn} function.
@@ -2248,8 +2293,7 @@ These attributes are not currently implemented for Objective-C@.
 @item unused
 This attribute, attached to a function, means that the function is meant
 to be possibly unused.  GCC will not produce a warning for this
-function.  GNU C++ does not currently support this attribute as
-definitions without parameters are valid in C++.
+function.
 
 @cindex @code{used} attribute.
 @item used
@@ -2279,6 +2323,26 @@ results in a warning on line 3 but not line 2.
 The @code{deprecated} attribute can also be used for variables and
 types (@pxref{Variable Attributes}, @pxref{Type Attributes}.)
 
+@item warn_unused_result
+@cindex @code{warn_unused_result} attribute
+The @code{warn_unused_result} attribute causes a warning to be emitted
+if a caller of the function with this attribute does not use its
+return value.  This is useful for functions where not checking
+the result is either a security problem or always a bug, such as
+@code{realloc}.
+
+@smallexample
+int fn () __attribute__ ((warn_unused_result));
+int foo ()
+@{
+  if (fn () < 0) return -1;
+  fn ();
+  return 0;
+@}
+@end smallexample
+
+results in warning on line 5.
+
 @item weak
 @cindex @code{weak} attribute
 The @code{weak} attribute causes the declaration to be emitted as a weak
@@ -2291,9 +2355,14 @@ and linker.
 @item malloc
 @cindex @code{malloc} attribute
 The @code{malloc} attribute is used to tell the compiler that a function
-may be treated as if it were the malloc function.  The compiler assumes
-that calls to malloc result in pointers that cannot alias anything.
+may be treated as if any non-@code{NULL} pointer it returns cannot
+alias any other pointer valid when the function returns.
 This will often improve optimization.
+Standard functions with this property include @code{malloc} and
+@code{calloc}.  @code{realloc}-like functions have this property as
+long as the old pointer is never referred to (including comparing it
+to the new pointer) after the function returns a non-@code{NULL}
+value.
 
 @item alias ("@var{target}")
 @cindex @code{alias} attribute
@@ -2325,7 +2394,7 @@ See the ELF gABI for complete details, but the short story is:
 
 @table @dfn
 @item default
-Default visibility is the normal case for ELF.  This value is 
+Default visibility is the normal case for ELF.  This value is
 available for the visibility attribute to override other options
 that may change the assumed visibility of symbols.
 
@@ -2343,11 +2412,11 @@ by another module.
 @item internal
 Internal visibility is like hidden visibility, but with additional
 processor specific semantics.  Unless otherwise specified by the psABI,
-gcc defines internal visibility to mean that the function is @emph{never}
+GCC defines internal visibility to mean that the function is @emph{never}
 called from another module.  Note that hidden symbols, while they cannot
 be referenced directly by other modules, can be referenced indirectly via
 function pointers.  By indicating that a symbol cannot be called from
-outside the module, gcc may for instance omit the load of a PIC register
+outside the module, GCC may for instance omit the load of a PIC register
 since it is known that the calling function loaded the correct value.
 @end table
 
@@ -2378,6 +2447,13 @@ On the Intel 386, the @code{stdcall} attribute causes the compiler to
 assume that the called function will pop off the stack space used to
 pass arguments, unless it takes a variable number of arguments.
 
+@item fastcall
+@cindex functions that pop the argument stack on the 386
+On the Intel 386, the @code{fastcall} attribute causes the compiler to
+pass the first two arguments in the registers ECX and EDX. Subsequent
+arguments are passed on the stack. The called function will pop the
+arguments off the stack. If the number of arguments is variable all
+arguments are pushed on the stack.
 
 @item cdecl
 @cindex functions that do pop the argument stack on the 386
@@ -2412,24 +2488,24 @@ instruction directly.
 
 @item function_vector
 @cindex calling functions through the function vector on the H8/300 processors
-Use this attribute on the H8/300 and H8/300H to indicate that the specified
+Use this attribute on the H8/300, H8/300H, and H8S to indicate that the specified
 function should be called through the function vector.  Calling a
 function through the function vector will reduce code size, however;
 the function vector has a limited size (maximum 128 entries on the H8/300
-and 64 entries on the H8/300H) and shares space with the interrupt vector.
+and 64 entries on the H8/300H and H8S) and shares space with the interrupt vector.
 
 You must use GAS and GLD from GNU binutils version 2.7 or later for
 this attribute to work correctly.
 
 @item interrupt
 @cindex interrupt handler functions
-Use this attribute on the ARM, AVR, M32R/D and Xstormy16 ports to indicate
+Use this attribute on the ARM, AVR, C4x, M32R/D and Xstormy16 ports to indicate
 that the specified function is an interrupt handler.  The compiler will
 generate function entry and exit sequences suitable for use in an
 interrupt handler when this attribute is present.
 
-Note, interrupt handlers for the H8/300, H8/300H and SH processors can
-be specified via the @code{interrupt_handler} attribute.
+Note, interrupt handlers for the m68k, H8/300, H8/300H, H8S, and SH processors
+can be specified via the @code{interrupt_handler} attribute.
 
 Note, on the AVR, interrupts will be enabled inside the function.
 
@@ -2443,9 +2519,9 @@ void f () __attribute__ ((interrupt ("IRQ")));
 Permissible values for this parameter are: IRQ, FIQ, SWI, ABORT and UNDEF@.
 
 @item interrupt_handler
-@cindex interrupt handler functions on the H8/300 and SH processors
-Use this attribute on the H8/300, H8/300H and SH to indicate that the
-specified function is an interrupt handler.  The compiler will generate
+@cindex interrupt handler functions on the m68k, H8/300 and SH processors
+Use this attribute on the m68k, H8/300, H8/300H, H8S, and SH to indicate that
+the specified function is an interrupt handler.  The compiler will generate
 function entry and exit sequences suitable for use in an interrupt
 handler when this attribute is present.
 
@@ -2462,13 +2538,13 @@ void f () __attribute__ ((interrupt_handler,
 @end smallexample
 
 @item trap_exit
-Use this attribute on the SH for an @code{interrupt_handle} to return using
+Use this attribute on the SH for an @code{interrupt_handler} to return using
 @code{trapa} instead of @code{rte}.  This attribute expects an integer
 argument specifying the trap number to be used.
 
 @item eightbit_data
-@cindex eight bit data on the H8/300 and H8/300H
-Use this attribute on the H8/300 and H8/300H to indicate that the specified
+@cindex eight bit data on the H8/300, H8/300H, and H8S
+Use this attribute on the H8/300, H8/300H, and H8S to indicate that the specified
 variable should be placed into the eight bit data section.
 The compiler will generate more efficient code for certain operations
 on data in the eight bit data area.  Note the eight bit data area is limited to
@@ -2478,12 +2554,18 @@ You must use GAS and GLD from GNU binutils version 2.7 or later for
 this attribute to work correctly.
 
 @item tiny_data
-@cindex tiny data section on the H8/300H
-Use this attribute on the H8/300H to indicate that the specified
+@cindex tiny data section on the H8/300H and H8S
+Use this attribute on the H8/300H and H8S to indicate that the specified
 variable should be placed into the tiny data section.
 The compiler will generate more efficient code for loads and stores
 on data in the tiny data section.  Note the tiny data area is limited to
 slightly under 32kbytes of data.
+
+@item saveall
+@cindex save all registers on the H8/300, H8/300H, and H8S
+Use this attribute on the H8/300, H8/300H, and H8S to indicate that
+all registers except the stack pointer should be saved in the prologue
+regardless of whether they are used or not.
 
 @item signal
 @cindex signal handler functions on the AVR processors
@@ -2494,16 +2576,18 @@ attribute is present.  Interrupts will be disabled inside the function.
 
 @item naked
 @cindex function without a prologue/epilogue code
-Use this attribute on the ARM, AVR and IP2K ports to indicate that the
+Use this attribute on the ARM, AVR, C4x and IP2K ports to indicate that the
 specified function does not need prologue/epilogue sequences generated by
 the compiler.  It is up to the programmer to provide these sequences.
 
 @item model (@var{model-name})
 @cindex function addressability on the M32R/D
-Use this attribute on the M32R/D to set the addressability of an object,
-and of the code generated for a function.
-The identifier @var{model-name} is one of @code{small}, @code{medium},
-or @code{large}, representing each of the code models.
+@cindex variable addressability on the IA-64
+
+On the M32R/D, use this attribute to set the addressability of an
+object, and of the code generated for a function.  The identifier
+@var{model-name} is one of @code{small}, @code{medium}, or
+@code{large}, representing each of the code models.
 
 Small model objects live in the lower 16MB of memory (so that their
 addresses can be loaded with the @code{ld24} instruction), and are
@@ -2517,6 +2601,14 @@ Large model objects may live anywhere in the 32-bit address space (the
 compiler will generate @code{seth/add3} instructions to load their addresses),
 and may not be reachable with the @code{bl} instruction (the compiler will
 generate the much slower @code{seth/add3/jl} instruction sequence).
+
+On IA-64, use this attribute to set the addressability of an object.
+At present, the only supported identifier for @var{model-name} is
+@code{small}, indicating addressability via ``small'' (22-bit)
+addresses (so that their addresses can be loaded with the @code{addl}
+instruction).  Caveat: such addressing is by definition not position
+independent and hence this attribute must not be used for objects
+defined by shared libraries.
 
 @item far
 @cindex functions which handle memory bank switching
@@ -2544,9 +2636,9 @@ option.
 
 @item dllimport
 @cindex @code{__declspec(dllimport)}
-On Windows targets, the @code{dllimport} attribute causes the compiler
+On Microsoft Windows targets, the @code{dllimport} attribute causes the compiler
 to reference a function or variable via a global pointer to a pointer
-that is set up by the Windows dll library. The pointer name is formed by
+that is set up by the Microsoft Windows dll library. The pointer name is formed by
 combining @code{_imp__} and the function or variable name. The attribute
 implies @code{extern} storage.
 
@@ -2555,7 +2647,7 @@ attribute is applied to a symbol @emph{definition}, an error is reported.
 If a symbol previously declared @code{dllimport} is later defined, the
 attribute is ignored in subsequent references, and a warning is emitted.
 The attribute is also overridden by a subsequent declaration as
-@code{dllexport}. 
+@code{dllexport}.
 
 When applied to C++ classes, the attribute marks non-inlined
 member functions and static data members as imports.  However, the
@@ -2564,14 +2656,14 @@ using thunks.
 
 On cygwin, mingw and arm-pe targets, @code{__declspec(dllimport)} is
 recognized as a synonym for @code{__attribute__ ((dllimport))} for
-compatibility with other Windows compilers.
+compatibility with other Microsoft Windows compilers.
 
 The use of the @code{dllimport} attribute on functions is not necessary,
 but provides a small performance benefit by eliminating a thunk in the
 dll. The use of the @code{dllimport} attribute on imported variables was
 required on older versions of GNU ld, but can now be avoided by passing
 the @option{--enable-auto-import} switch to ld. As with functions, using
-the attribute for a variable eliminates a thunk in the dll. 
+the attribute for a variable eliminates a thunk in the dll.
 
 One drawback to using this attribute is that a pointer to a function or
 variable marked as dllimport cannot be used as a constant address. The
@@ -2580,7 +2672,7 @@ attribute can be disabled for functions by setting the
 
 @item dllexport
 @cindex @code{__declspec(dllexport)}
-On Windows targets the @code{dllexport} attribute causes the compiler to
+On Microsoft Windows targets the @code{dllexport} attribute causes the compiler to
 provide a global pointer to a pointer in a dll, so that it can be
 referenced with the @code{dllimport} attribute. The pointer name is
 formed by combining @code{_imp__} and the function or variable name.
@@ -2597,7 +2689,7 @@ out-of-class.
 
 On cygwin, mingw and arm-pe targets, @code{__declspec(dllexport)} is
 recognized as a synonym for @code{__attribute__ ((dllexport))} for
-compatibility with other Windows compilers.
+compatibility with other Microsoft Windows compilers.
 
 Alternative methods for including the symbol in the dll's export table
 are to use a .def file with an @code{EXPORTS} section or, with GNU ld,
@@ -2698,14 +2790,18 @@ with the list being a single string constant.
 An @dfn{attribute specifier list} is a sequence of one or more attribute
 specifiers, not separated by any other tokens.
 
-An attribute specifier list may appear after the colon following a
+In GNU C, an attribute specifier list may appear after the colon following a
 label, other than a @code{case} or @code{default} label.  The only
 attribute it makes sense to use after a label is @code{unused}.  This
 feature is intended for code generated by programs which contains labels
 that may be unused but which is compiled with @option{-Wall}.  It would
 not normally be appropriate to use in it human-written code, though it
 could be useful in cases where the code that jumps to the label is
-contained within an @code{#ifdef} conditional.
+contained within an @code{#ifdef} conditional. GNU C++ does not permit
+such placement of attribute lists, as it is permissible for a
+declaration, which could begin with an attribute list, to be labelled in
+C++. Declarations cannot be labelled in C90 or C99, so the ambiguity
+does not arise there.
 
 An attribute specifier list may appear as part of a @code{struct},
 @code{union} or @code{enum} specifier.  It may go either immediately
@@ -2878,7 +2974,7 @@ to the function type.
 GNU C extends ISO C to allow a function prototype to override a later
 old-style non-prototype definition.  Consider the following example:
 
-@example
+@smallexample
 /* @r{Use prototypes unless the compiler is old-fashioned.}  */
 #ifdef __STDC__
 #define P(x) x
@@ -2896,7 +2992,7 @@ isroot (x)   /* ??? lossage here ??? */
 @{
   return x == 0;
 @}
-@end example
+@end smallexample
 
 Suppose the type @code{uid_t} happens to be @code{short}.  ISO C does
 not allow this example, because subword arguments in old-style
@@ -2914,7 +3010,7 @@ by a later old-style definition if the former type is the same as the
 latter type before promotion.  Thus in GNU C the above example is
 equivalent to the following:
 
-@example
+@smallexample
 int isroot (uid_t);
 
 int
@@ -2922,7 +3018,7 @@ isroot (uid_t x)
 @{
   return x == 0;
 @}
-@end example
+@end smallexample
 
 @noindent
 GNU C++ does not support old-style function definitions, so this
@@ -2983,9 +3079,9 @@ any minimum alignment specified with GCC's @code{__attribute__}
 extension (@pxref{Variable Attributes}).  For example, after this
 declaration:
 
-@example
+@smallexample
 struct foo @{ int x; char y; @} foo1;
-@end example
+@end smallexample
 
 @noindent
 the value of @code{__alignof__ (foo1.y)} is 1, even though its actual
@@ -3100,7 +3196,7 @@ The @code{common} attribute requests GCC to place a variable in
 ``common'' storage.  The @code{nocommon} attribute requests the
 opposite -- to allocate space for it directly.
 
-These attributes override the default chosen by the 
+These attributes override the default chosen by the
 @option{-fno-common} and @option{-fcommon} flags respectively.
 
 @item deprecated
@@ -3145,13 +3241,13 @@ and one bit for a field, unless you specify a larger value with the
 Here is a structure in which the field @code{x} is packed, so that it
 immediately follows @code{a}:
 
-@example
+@smallexample
 struct foo
 @{
   char a;
   int x[2] __attribute__ ((packed));
 @};
-@end example
+@end smallexample
 
 @item section ("@var{section-name}")
 @cindex @code{section} variable attribute
@@ -3203,7 +3299,7 @@ section, consider using the facilities of the linker instead.
 
 @item shared
 @cindex @code{shared} variable attribute
-On Windows, in addition to putting variable definitions in a named
+On Microsoft Windows, in addition to putting variable definitions in a named
 section, the section can also be shared among all running copies of an
 executable or DLL@.  For example, this small program defines shared data
 by putting it in a named section @code{shared} and marking the section
@@ -3226,7 +3322,7 @@ You may only use the @code{shared} attribute along with @code{section}
 attribute with a fully initialized global definition because of the way
 linkers work.  See @code{section} attribute for more information.
 
-The @code{shared} attribute is only available on Windows@.
+The @code{shared} attribute is only available on Microsoft Windows@.
 
 @item tls_model ("@var{tls_model}")
 @cindex @code{tls_model} attribute
@@ -3284,6 +3380,19 @@ the @code{int}.
 @item weak
 The @code{weak} attribute is described in @xref{Function Attributes}.
 
+@item dllimport
+The @code{dllimport} attribute is described in @xref{Function Attributes}.
+
+@item dlexport
+The @code{dllexport} attribute is described in @xref{Function Attributes}.
+
+@end table
+
+@subsection M32R/D Variable Attributes
+
+One attribute is currently defined for the M32R/D.
+
+@table @code
 @item model (@var{model-name})
 @cindex variable addressability on the M32R/D
 Use this attribute on the M32R/D to set the addressability of an object.
@@ -3296,18 +3405,29 @@ addresses can be loaded with the @code{ld24} instruction).
 Medium and large model objects may live anywhere in the 32-bit address space
 (the compiler will generate @code{seth/add3} instructions to load their
 addresses).
-
-@item dllimport
-The @code{dllimport} attribute is described in @xref{Function Attributes}.
-
-@item dlexport
-The @code{dllexport} attribute is described in @xref{Function Attributes}.
-
 @end table
 
-To specify multiple attributes, separate them by commas within the
-double parentheses: for example, @samp{__attribute__ ((aligned (16),
-packed))}.
+@subsection i386 Variable Attributes
+
+Two attributes are currently defined for i386 configurations:
+@code{ms_struct} and @code{gcc_struct}
+
+@table @code
+@item ms_struct
+@itemx gcc_struct
+@cindex @code{ms_struct} attribute
+@cindex @code{gcc_struct} attribute
+
+If @code{packed} is used on a structure, or if bit-fields are used
+it may be that the Microsoft ABI packs them differently
+than GCC would normally pack them.  Particularly when moving packed
+data between functions compiled with GCC and the native Microsoft compiler
+(either via function call or as data in a file), it may be necessary to access
+either format.
+
+Currently @option{-m[no-]ms-bitfields} is provided for the Microsoft Windows X86
+compilers to match the native Microsoft compiler.
+@end table
 
 @node Type Attributes
 @section Specifying Attributes of Types
@@ -3422,9 +3542,10 @@ in an @code{__attribute__} will still only provide you with 8 byte
 alignment.  See your linker documentation for further information.
 
 @item packed
-This attribute, attached to an @code{enum}, @code{struct}, or
-@code{union} type definition, specifies that the minimum required memory
-be used to represent the type.
+This attribute, attached to @code{struct} or @code{union} type
+definition, specifies that each member of the structure or union is
+placed to minimize the memory required. When attached to an @code{enum}
+definition, it indicates that the smallest integral type should be used.
 
 @opindex fshort-enums
 Specifying this attribute for @code{struct} and @code{union} types is
@@ -3433,9 +3554,29 @@ structure or union members.  Specifying the @option{-fshort-enums}
 flag on the line is equivalent to specifying the @code{packed}
 attribute on all @code{enum} definitions.
 
-You may only specify this attribute after a closing curly brace on an
-@code{enum} definition, not in a @code{typedef} declaration, unless that
-declaration also contains the definition of the @code{enum}.
+In the following example @code{struct my_packed_struct}'s members are
+packed closely together, but the internal layout of its @code{s} member
+is not packed -- to do that, @code{struct my_unpacked_struct} would need to
+be packed too.
+
+@smallexample
+struct my_unpacked_struct
+ @{
+    char c;
+    int i;
+ @};
+
+struct my_packed_struct __attribute__ ((__packed__))
+  @{
+     char c;
+     int  i;
+     struct my_unpacked_struct s;
+  @};
+@end smallexample
+
+You may only specify this attribute on the definition of a @code{enum},
+@code{struct} or @code{union}, not on a @code{typedef} which does not
+also define the enumerated type, structure or union.
 
 @item transparent_union
 This attribute, attached to a @code{union} type definition, indicates
@@ -3481,19 +3622,19 @@ This interface allows either @code{int *} or @code{union wait *}
 arguments to be passed, using the @code{int *} calling convention.
 The program can call @code{wait} with arguments of either type:
 
-@example
+@smallexample
 int w1 () @{ int w; return wait (&w); @}
 int w2 () @{ union wait w; return wait (&w); @}
-@end example
+@end smallexample
 
 With this interface, @code{wait}'s implementation might look like this:
 
-@example
+@smallexample
 pid_t wait (wait_status_ptr_t p)
 @{
   return waitpid (-1, p.__ip, 0);
 @}
-@end example
+@end smallexample
 
 @item unused
 When attached to a type (including a @code{union} or a @code{struct}),
@@ -3562,6 +3703,26 @@ If you replaced @code{short_a} with @code{short} in the variable
 declaration, the above program would abort when compiled with
 @option{-fstrict-aliasing}, which is on by default at @option{-O2} or
 above in recent GCC versions.
+
+@subsection i386 Type Attributes
+
+Two attributes are currently defined for i386 configurations:
+@code{ms_struct} and @code{gcc_struct}
+
+@item ms_struct
+@itemx gcc_struct
+@cindex @code{ms_struct}
+@cindex @code{gcc_struct}
+
+If @code{packed} is used on a structure, or if bit-fields are used
+it may be that the Microsoft ABI packs them differently
+than GCC would normally pack them.  Particularly when moving packed
+data between functions compiled with GCC and the native Microsoft compiler
+(either via function call or as data in a file), it may be necessary to access
+either format.
+
+Currently @option{-m[no-]ms-bitfields} is provided for the Microsoft Windows X86
+compilers to match the native Microsoft compiler.
 @end table
 
 To specify multiple attributes, separate them by commas within the
@@ -3593,13 +3754,13 @@ the ISO C99 standard requires.
 To declare a function inline, use the @code{inline} keyword in its
 declaration, like this:
 
-@example
+@smallexample
 inline int
 inc (int *a)
 @{
   (*a)++;
 @}
-@end example
+@end smallexample
 
 (If you are writing a header file to be included in ISO C programs, write
 @code{__inline__} instead of @code{inline}.  @xref{Alternate Keywords}.)
@@ -3674,10 +3835,10 @@ that will implement the C99 semantics, though it does not do so yet.)
 GCC does not inline any functions when not optimizing unless you specify
 the @samp{always_inline} attribute for the function, like this:
 
-@example
+@smallexample
 /* Prototype.  */
 inline void foo (const char) __attribute__((always_inline));
-@end example
+@end smallexample
 
 @node Extended Asm
 @section Assembler Instructions with C Expression Operands
@@ -3697,9 +3858,9 @@ each operand.
 
 For example, here is how to use the 68881's @code{fsinx} instruction:
 
-@example
+@smallexample
 asm ("fsinx %1,%0" : "=f" (result) : "f" (angle));
-@end example
+@end smallexample
 
 @noindent
 Here @code{angle} is the C expression for the input operand while
@@ -3729,11 +3890,11 @@ assembler code using @code{%[@var{name}]} instead of a percentage sign
 followed by the operand number.  Using named operands the above example
 could look like:
 
-@example
+@smallexample
 asm ("fsinx %[angle],%[output]"
      : [output] "=f" (result)
      : [angle] "f" (angle));
-@end example
+@end smallexample
 
 @noindent
 Note that the symbolic operand names have no relation whatsoever to
@@ -3757,22 +3918,23 @@ The ordinary output operands must be write-only; GCC will assume that
 the values in these operands before the instruction are dead and need
 not be generated.  Extended asm supports input-output or read-write
 operands.  Use the constraint character @samp{+} to indicate such an
-operand and list it with the output operands.
+operand and list it with the output operands.  You should only use
+read-write operands when the constraints for the operand (or the
+operand in which only some of the bits are to be changed) allow a
+register.
 
-When the constraints for the read-write operand (or the operand in which
-only some of the bits are to be changed) allows a register, you may, as
-an alternative, logically split its function into two separate operands,
-one input operand and one write-only output operand.  The connection
-between them is expressed by constraints which say they need to be in
-the same location when the instruction executes.  You can use the same C
-expression for both operands, or different expressions.  For example,
-here we write the (fictitious) @samp{combine} instruction with
-@code{bar} as its read-only source operand and @code{foo} as its
-read-write destination:
+You may, as an alternative, logically split its function into two
+separate operands, one input operand and one write-only output
+operand.  The connection between them is expressed by constraints
+which say they need to be in the same location when the instruction
+executes.  You can use the same C expression for both operands, or
+different expressions.  For example, here we write the (fictitious)
+@samp{combine} instruction with @code{bar} as its read-only source
+operand and @code{foo} as its read-write destination:
 
-@example
+@smallexample
 asm ("combine %2,%0" : "=r" (foo) : "0" (foo), "g" (bar));
-@end example
+@end smallexample
 
 @noindent
 The constraint @samp{"0"} for operand 1 says that it must occupy the
@@ -3785,9 +3947,9 @@ of both operands is not enough to guarantee that they will be in the
 same place in the generated assembler code.  The following would not
 work reliably:
 
-@example
+@smallexample
 asm ("combine %2,%0" : "=r" (foo) : "r" (foo), "g" (bar));
-@end example
+@end smallexample
 
 Various optimizations or reloading could cause operands 0 and 1 to be in
 different registers; GCC knows no reason not to do so.  For example, the
@@ -3800,23 +3962,23 @@ code, the result will not work, but GCC can't tell that.
 As of GCC version 3.1, one may write @code{[@var{name}]} instead of
 the operand number for a matching constraint.  For example:
 
-@example
+@smallexample
 asm ("cmoveq %1,%2,%[result]"
      : [result] "=r"(result)
      : "r" (test), "r"(new), "[result]"(old));
-@end example
+@end smallexample
 
 Some instructions clobber specific hard registers.  To describe this,
 write a third colon after the input operands, followed by the names of
 the clobbered hard registers (given as strings).  Here is a realistic
 example for the VAX:
 
-@example
+@smallexample
 asm volatile ("movc3 %0,%1,%2"
               : /* no outputs */
               : "g" (from), "g" (to), "g" (count)
               : "r0", "r1", "r2", "r3", "r4", "r5");
-@end example
+@end smallexample
 
 You may not write a clobber description in a way that overlaps with an
 input or output operand.  For example, you may not have an operand
@@ -3844,13 +4006,35 @@ represents the condition codes as a specific hardware register;
 condition code is handled differently, and specifying @samp{cc} has no
 effect.  But it is valid no matter what the machine.
 
-If your assembler instruction modifies memory in an unpredictable
+If your assembler instructions access memory in an unpredictable
 fashion, add @samp{memory} to the list of clobbered registers.  This
-will cause GCC to not keep memory values cached in registers across
-the assembler instruction.  You will also want to add the
-@code{volatile} keyword if the memory affected is not listed in the
-inputs or outputs of the @code{asm}, as the @samp{memory} clobber does
-not count as a side-effect of the @code{asm}.
+will cause GCC to not keep memory values cached in registers across the
+assembler instruction and not optimize stores or loads to that memory.
+You will also want to add the @code{volatile} keyword if the memory
+affected is not listed in the inputs or outputs of the @code{asm}, as
+the @samp{memory} clobber does not count as a side-effect of the
+@code{asm}.  If you know how large the accessed memory is, you can add
+it as input or output but if this is not known, you should add
+@samp{memory}.  As an example, if you access ten bytes of a string, you
+can use a memory input like:
+
+@example
+@{"m"( (@{ struct @{ char x[10]; @} *p = (void *)ptr ; *p; @}) )@}.
+@end example
+
+Note that in the following example the memory input is necessary,
+otherwise GCC might optimize the store to @code{x} away:
+@example
+int foo ()
+@{
+  int x = 42;
+  int *y = &x;
+  int result;
+  asm ("magic stuff accessing an 'int' pointed to by '%1'"
+        "=&d" (r) : "a" (y), "m" (*y));
+  return result;     
+@}
+@end example
 
 You can put multiple assembler instructions together in a single
 @code{asm} template, separated by the characters normally used in assembly
@@ -3865,12 +4049,12 @@ read and write the clobbered registers as many times as you like.  Here
 is an example of multiple instructions in a template; it assumes the
 subroutine @code{_foo} accepts arguments in registers 9 and 10:
 
-@example
+@smallexample
 asm ("movl %0,r9\n\tmovl %1,r10\n\tcall _foo"
      : /* no outputs */
      : "g" (from), "g" (to)
      : "r9", "r10");
-@end example
+@end smallexample
 
 Unless an output operand has the @samp{&} constraint modifier, GCC
 may allocate it in the same register as an unrelated input operand, on
@@ -3883,11 +4067,11 @@ If you want to test the condition code produced by an assembler
 instruction, you must include a branch and a label in the @code{asm}
 construct, as follows:
 
-@example
+@smallexample
 asm ("clr %0\n\tfrob %1\n\tbeq 0f\n\tmov #1,%0\n0:"
      : "g" (result)
      : "g" (input));
-@end example
+@end smallexample
 
 @noindent
 This assumes your assembler supports local labels, as the GNU assembler
@@ -3902,12 +4086,12 @@ optimize.
 Usually the most convenient way to use these @code{asm} instructions is to
 encapsulate them in macros that look like functions.  For example,
 
-@example
+@smallexample
 #define sin(x)       \
 (@{ double __value, __arg = (x);   \
    asm ("fsinx %1,%0": "=f" (__value): "f" (__arg));  \
    __value; @})
-@end example
+@end smallexample
 
 @noindent
 Here the variable @code{__arg} is used to make sure that the instruction
@@ -3936,13 +4120,13 @@ You can prevent an @code{asm} instruction from being deleted, moved
 significantly, or combined, by writing the keyword @code{volatile} after
 the @code{asm}.  For example:
 
-@example
+@smallexample
 #define get_and_set_priority(new)              \
 (@{ int __old;                                  \
    asm volatile ("get_and_set_priority %0, %1" \
                  : "=g" (__old) : "g" (new));  \
    __old; @})
-@end example
+@end smallexample
 
 @noindent
 If you write an @code{asm} instruction with no outputs, GCC will know
@@ -3956,10 +4140,10 @@ prove that control-flow will never reach the location of the
 instruction.)  In addition, GCC will not reschedule instructions
 across a volatile @code{asm} instruction.  For example:
 
-@example
+@smallexample
 *(volatile int *)addr = foo;
 asm volatile ("eieio" : : );
-@end example
+@end smallexample
 
 @noindent
 Assume @code{addr} contains the address of a memory mapped device
@@ -3997,6 +4181,26 @@ If you are writing a header file that should be includable in ISO C
 programs, write @code{__asm__} instead of @code{asm}.  @xref{Alternate
 Keywords}.
 
+@subsection Size of an @code{asm}
+
+Some targets require that GCC track the size of each instruction used in
+order to generate correct code.  Because the final length of an
+@code{asm} is only known by the assembler, GCC must make an estimate as
+to how big it will be.  The estimate is formed by counting the number of
+statements in the pattern of the @code{asm} and multiplying that by the
+length of the longest instruction on that processor.  Statements in the
+@code{asm} are identified by newline characters and whatever statement
+separator characters are supported by the assembler; on most processors
+this is the `@code{;}' character.
+
+Normally, GCC's estimate is perfectly adequate to ensure that correct
+code is generated, but it is possible to confuse the compiler if you use
+pseudo instructions or assembler macros that expand into multiple real
+instructions or if you use assembler directives that expand to more
+space in the object file than would be needed for a single instruction.
+If this happens then the assembler will produce a diagnostic saying that
+a label is unreachable.
+
 @subsection i386 floating point asm operands
 
 There are several rules on the usage of stack-like regs in
@@ -4027,9 +4231,9 @@ the reg-stack than any input that is not implicitly popped.
 It is possible that if an input dies in an insn, reload might
 use the input reg for an output reload.  Consider this example:
 
-@example
+@smallexample
 asm ("foo" : "=t" (a) : "f" (b));
-@end example
+@end smallexample
 
 This asm says that input B is not popped by the asm, and that
 the asm pushes a result onto the reg-stack, i.e., the stack is one
@@ -4042,9 +4246,9 @@ constraints must use the @code{&} earlyclobber.
 
 The asm above would be written as
 
-@example
+@smallexample
 asm ("foo" : "=&t" (a) : "f" (b));
-@end example
+@end smallexample
 
 @item
 Some operands need to be in particular places on the stack.  All
@@ -4075,17 +4279,17 @@ unrelated to the inputs and outputs.
 Here are a couple of reasonable asms to want to write.  This asm
 takes one input, which is internally popped, and produces two outputs.
 
-@example
+@smallexample
 asm ("fsincos" : "=t" (cos), "=u" (sin) : "0" (inp));
-@end example
+@end smallexample
 
 This asm takes two inputs, which are popped by the @code{fyl2xp1} opcode,
 and replaces them with one output.  The user must code the @code{st(1)}
 clobber for reg-stack.c to know that @code{fyl2xp1} pops both inputs.
 
-@example
+@smallexample
 asm ("fyl2xp1" : "=t" (result) : "0" (x), "u" (y) : "st(1)");
-@end example
+@end smallexample
 
 @include md.texi
 
@@ -4099,9 +4303,9 @@ You can specify the name to be used in the assembler code for a C
 function or variable by writing the @code{asm} (or @code{__asm__})
 keyword after the declarator as follows:
 
-@example
+@smallexample
 int foo asm ("myfoo") = 2;
-@end example
+@end smallexample
 
 @noindent
 This specifies that the name to be used for the variable @code{foo} in
@@ -4123,13 +4327,13 @@ You cannot use @code{asm} in this way in a function @emph{definition}; but
 you can get the same effect by writing a declaration for the function
 before its definition and putting @code{asm} there, like this:
 
-@example
+@smallexample
 extern func () asm ("FUNC");
 
 func (x, y)
      int x, y;
 /* @r{@dots{}} */
-@end example
+@end smallexample
 
 It is up to you to make sure that the assembler names you choose do not
 conflict with any other assembler symbols.  Also, you must not use a
@@ -4182,9 +4386,9 @@ specified for that operand in the @code{asm}.)
 
 You can define a global register variable in GNU C like this:
 
-@example
+@smallexample
 register int *foo asm ("a5");
-@end example
+@end smallexample
 
 @noindent
 Here @code{a5} is the name of the register which should be used.  Choose a
@@ -4281,9 +4485,9 @@ Of course, it will not do to use more than a few of those.
 You can define a local register variable with a specified register
 like this:
 
-@example
+@smallexample
 register int *foo asm ("a5");
-@end example
+@end smallexample
 
 @noindent
 Here @code{a5} is the name of the register which should be used.  Note
@@ -4340,11 +4544,11 @@ Other C compilers won't accept these alternative keywords; if you want to
 compile with another compiler, you can define the alternate keywords as
 macros to replace them with the customary keywords.  It looks like this:
 
-@example
+@smallexample
 #ifndef __GNUC__
 #define __asm__ asm
 #endif
-@end example
+@end smallexample
 
 @findex __extension__
 @opindex pedantic
@@ -4373,18 +4577,47 @@ This extension is not supported by GNU C++.
 
 @node Function Names
 @section Function Names as Strings
+@cindex @code{__func__} identifier
 @cindex @code{__FUNCTION__} identifier
 @cindex @code{__PRETTY_FUNCTION__} identifier
-@cindex @code{__func__} identifier
 
-GCC predefines two magic identifiers to hold the name of the current
-function.  The identifier @code{__FUNCTION__} holds the name of the function
-as it appears in the source.  The identifier @code{__PRETTY_FUNCTION__}
-holds the name of the function pretty printed in a language specific
-fashion.
+GCC provides three magic variables which hold the name of the current
+function, as a string.  The first of these is @code{__func__}, which
+is part of the C99 standard:
 
-These names are always the same in a C function, but in a C++ function
-they may be different.  For example, this program:
+@display
+The identifier @code{__func__} is implicitly declared by the translator
+as if, immediately following the opening brace of each function
+definition, the declaration
+
+@smallexample
+static const char __func__[] = "function-name";
+@end smallexample
+
+appeared, where function-name is the name of the lexically-enclosing
+function.  This name is the unadorned name of the function.
+@end display
+
+@code{__FUNCTION__} is another name for @code{__func__}.  Older
+versions of GCC recognize only this name.  However, it is not
+standardized.  For maximum portability, we recommend you use
+@code{__func__}, but provide a fallback definition with the
+preprocessor:
+
+@smallexample
+#if __STDC_VERSION__ < 199901L
+# if __GNUC__ >= 2
+#  define __func__ __FUNCTION__
+# else
+#  define __func__ "<unknown>"
+# endif
+#endif
+@end smallexample
+
+In C, @code{__PRETTY_FUNCTION__} is yet another name for
+@code{__func__}.  However, in C++, @code{__PRETTY_FUNCTION__} contains
+the type signature of the function as well as its bare name.  For
+example, this program:
 
 @smallexample
 extern "C" @{
@@ -4393,7 +4626,7 @@ extern int printf (char *, ...);
 
 class a @{
  public:
-  sub (int i)
+  void sub (int i)
     @{
       printf ("__FUNCTION__ = %s\n", __FUNCTION__);
       printf ("__PRETTY_FUNCTION__ = %s\n", __PRETTY_FUNCTION__);
@@ -4414,46 +4647,16 @@ gives this output:
 
 @smallexample
 __FUNCTION__ = sub
-__PRETTY_FUNCTION__ = int  a::sub (int)
+__PRETTY_FUNCTION__ = void a::sub(int)
 @end smallexample
 
-The compiler automagically replaces the identifiers with a string
-literal containing the appropriate name.  Thus, they are neither
-preprocessor macros, like @code{__FILE__} and @code{__LINE__}, nor
-variables.  This means that they catenate with other string literals, and
-that they can be used to initialize char arrays.  For example
-
-@smallexample
-char here[] = "Function " __FUNCTION__ " in " __FILE__;
-@end smallexample
-
-On the other hand, @samp{#ifdef __FUNCTION__} does not have any special
-meaning inside a function, since the preprocessor does not do anything
-special with the identifier @code{__FUNCTION__}.
-
-Note that these semantics are deprecated, and that GCC 3.2 will handle
-@code{__FUNCTION__} and @code{__PRETTY_FUNCTION__} the same way as
-@code{__func__}.  @code{__func__} is defined by the ISO standard C99:
-
-@display
-The identifier @code{__func__} is implicitly declared by the translator
-as if, immediately following the opening brace of each function
-definition, the declaration
-
-@smallexample
-static const char __func__[] = "function-name";
-@end smallexample
-
-appeared, where function-name is the name of the lexically-enclosing
-function.  This name is the unadorned name of the function.
-@end display
-
-By this definition, @code{__func__} is a variable, not a string literal.
-In particular, @code{__func__} does not catenate with other string
-literals.
-
-In @code{C++}, @code{__FUNCTION__} and @code{__PRETTY_FUNCTION__} are
-variables, declared in the same way as @code{__func__}.
+These identifiers are not preprocessor macros.  In GCC 3.3 and
+earlier, in C only, @code{__FUNCTION__} and @code{__PRETTY_FUNCTION__}
+were treated as string literals; they could be used to initialize
+@code{char} arrays, and they could be concatenated with other string
+literals.  GCC 3.4 and later treat them as variables, like
+@code{__func__}.  In C++, @code{__FUNCTION__} and
+@code{__PRETTY_FUNCTION__} have always been variables.
 
 @node Return Address
 @section Getting the Return or Frame Address of a Function
@@ -4519,9 +4722,9 @@ this way.
 The first step in using these extensions is to provide the necessary data
 types.  This should be done using an appropriate @code{typedef}:
 
-@example
+@smallexample
 typedef int v4si __attribute__ ((mode(V4SI)));
-@end example
+@end smallexample
 
 The base type @code{int} is effectively ignored by the compiler, the
 actual properties of the new type @code{v4si} are defined by the
@@ -4546,14 +4749,14 @@ A floating point value, as wide as a DI mode integer, usually 64 bits.
 @end table
 
 Specifying a combination that is not valid for the current architecture
-will cause gcc to synthesize the instructions using a narrower mode.
+will cause GCC to synthesize the instructions using a narrower mode.
 For example, if you specify a variable of type @code{V4SI} and your
-architecture does not allow for this specific SIMD type, gcc will
+architecture does not allow for this specific SIMD type, GCC will
 produce code that uses 4 @code{SIs}.
 
 The types defined in this manner can be used with a subset of normal C
-operations.  Currently, gcc will allow using the following operators on
-these types: @code{+, -, *, /, unary minus}@.
+operations.  Currently, GCC will allow using the following operators
+on these types: @code{+, -, *, /, unary minus, ^, |, &, ~}@.
 
 The operations behave like C++ @code{valarrays}.  Addition is defined as
 the addition of the corresponding elements of the operands.  For
@@ -4561,17 +4764,18 @@ example, in the code below, each of the 4 elements in @var{a} will be
 added to the corresponding 4 elements in @var{b} and the resulting
 vector will be stored in @var{c}.
 
-@example
+@smallexample
 typedef int v4si __attribute__ ((mode(V4SI)));
 
 v4si a, b, c;
 
 c = a + b;
-@end example
+@end smallexample
 
-Subtraction, multiplication, and division operate in a similar manner.
-Likewise, the result of using the unary minus operator on a vector type
-is a vector whose elements are the negative value of the corresponding
+Subtraction, multiplication, division, and the logical operations
+operate in a similar manner.  Likewise, the result of using the unary
+minus or complement operators on a vector type is a vector whose
+elements are the negative or complemented values of the corresponding
 elements in the operand.
 
 You can declare variables and use them in function calls and returns, as
@@ -4589,14 +4793,14 @@ of built-in functions that can be used to operate on vectors.  For
 example, a function to add two vectors and multiply the result by a
 third could look like this:
 
-@example
+@smallexample
 v4si f (v4si a, v4si b, v4si c)
 @{
   v4si tmp = __builtin_addv4si (a, b);
   return __builtin_mulv4si (tmp, c);
 @}
 
-@end example
+@end smallexample
 
 @node Other Builtins
 @section Other built-in functions provided by GCC
@@ -4607,55 +4811,283 @@ v4si f (v4si a, v4si b, v4si c)
 @findex __builtin_islessequal
 @findex __builtin_islessgreater
 @findex __builtin_isunordered
+@findex _Exit
+@findex _exit
 @findex abort
 @findex abs
+@findex acos
+@findex acosf
+@findex acosh
+@findex acoshf
+@findex acoshl
+@findex acosl
 @findex alloca
+@findex asin
+@findex asinf
+@findex asinh
+@findex asinhf
+@findex asinhl
+@findex asinl
+@findex atan
+@findex atan2
+@findex atan2f
+@findex atan2l
+@findex atanf
+@findex atanh
+@findex atanhf
+@findex atanhl
+@findex atanl
 @findex bcmp
 @findex bzero
+@findex cabs
+@findex cabsf
+@findex cabsl
+@findex cacos
+@findex cacosf
+@findex cacosh
+@findex cacoshf
+@findex cacoshl
+@findex cacosl
+@findex calloc
+@findex carg
+@findex cargf
+@findex cargl
+@findex casin
+@findex casinf
+@findex casinh
+@findex casinhf
+@findex casinhl
+@findex casinl
+@findex catan
+@findex catanf
+@findex catanh
+@findex catanhf
+@findex catanhl
+@findex catanl
+@findex cbrt
+@findex cbrtf
+@findex cbrtl
+@findex ccos
+@findex ccosf
+@findex ccosh
+@findex ccoshf
+@findex ccoshl
+@findex ccosl
+@findex ceil
+@findex ceilf
+@findex ceill
+@findex cexp
+@findex cexpf
+@findex cexpl
 @findex cimag
 @findex cimagf
 @findex cimagl
 @findex conj
 @findex conjf
 @findex conjl
+@findex copysign
+@findex copysignf
+@findex copysignl
 @findex cos
 @findex cosf
+@findex cosh
+@findex coshf
+@findex coshl
 @findex cosl
+@findex cpow
+@findex cpowf
+@findex cpowl
+@findex cproj
+@findex cprojf
+@findex cprojl
 @findex creal
 @findex crealf
 @findex creall
+@findex csin
+@findex csinf
+@findex csinh
+@findex csinhf
+@findex csinhl
+@findex csinl
+@findex csqrt
+@findex csqrtf
+@findex csqrtl
+@findex ctan
+@findex ctanf
+@findex ctanh
+@findex ctanhf
+@findex ctanhl
+@findex ctanl
+@findex dcgettext
+@findex dgettext
+@findex drem
+@findex dremf
+@findex dreml
+@findex erf
+@findex erfc
+@findex erfcf
+@findex erfcl
+@findex erff
+@findex erfl
 @findex exit
-@findex _exit
-@findex _Exit
 @findex exp
+@findex exp10
+@findex exp10f
+@findex exp10l
+@findex exp2
+@findex exp2f
+@findex exp2l
 @findex expf
 @findex expl
+@findex expm1
+@findex expm1f
+@findex expm1l
 @findex fabs
 @findex fabsf
 @findex fabsl
+@findex fdim
+@findex fdimf
+@findex fdiml
 @findex ffs
+@findex floor
+@findex floorf
+@findex floorl
+@findex fma
+@findex fmaf
+@findex fmal
+@findex fmax
+@findex fmaxf
+@findex fmaxl
+@findex fmin
+@findex fminf
+@findex fminl
+@findex fmod
+@findex fmodf
+@findex fmodl
 @findex fprintf
 @findex fprintf_unlocked
 @findex fputs
 @findex fputs_unlocked
+@findex frexp
+@findex frexpf
+@findex frexpl
+@findex fscanf
+@findex gamma
+@findex gammaf
+@findex gammal
+@findex gettext
+@findex hypot
+@findex hypotf
+@findex hypotl
+@findex ilogb
+@findex ilogbf
+@findex ilogbl
 @findex imaxabs
 @findex index
+@findex j0
+@findex j0f
+@findex j0l
+@findex j1
+@findex j1f
+@findex j1l
+@findex jn
+@findex jnf
+@findex jnl
 @findex labs
+@findex ldexp
+@findex ldexpf
+@findex ldexpl
+@findex lgamma
+@findex lgammaf
+@findex lgammal
 @findex llabs
+@findex llrint
+@findex llrintf
+@findex llrintl
+@findex llround
+@findex llroundf
+@findex llroundl
 @findex log
+@findex log10
+@findex log10f
+@findex log10l
+@findex log1p
+@findex log1pf
+@findex log1pl
+@findex log2
+@findex log2f
+@findex log2l
+@findex logb
+@findex logbf
+@findex logbl
 @findex logf
 @findex logl
+@findex lrint
+@findex lrintf
+@findex lrintl
+@findex lround
+@findex lroundf
+@findex lroundl
+@findex malloc
 @findex memcmp
 @findex memcpy
+@findex mempcpy
 @findex memset
+@findex modf
+@findex modff
+@findex modfl
+@findex nearbyint
+@findex nearbyintf
+@findex nearbyintl
+@findex nextafter
+@findex nextafterf
+@findex nextafterl
+@findex nexttoward
+@findex nexttowardf
+@findex nexttowardl
+@findex pow
+@findex pow10
+@findex pow10f
+@findex pow10l
+@findex powf
+@findex powl
 @findex printf
 @findex printf_unlocked
 @findex putchar
 @findex puts
+@findex remainder
+@findex remainderf
+@findex remainderl
+@findex remquo
+@findex remquof
+@findex remquol
 @findex rindex
-@findex scanf
+@findex rint
+@findex rintf
+@findex rintl
+@findex round
+@findex roundf
+@findex roundl
+@findex scalb
+@findex scalbf
+@findex scalbl
+@findex scalbln
+@findex scalblnf
+@findex scalblnf
+@findex scalbn
+@findex scalbnf
+@findex scanfnl
+@findex significand
+@findex significandf
+@findex significandl
 @findex sin
+@findex sincos
+@findex sincosf
+@findex sincosl
 @findex sinf
+@findex sinh
+@findex sinhf
+@findex sinhl
 @findex sinl
 @findex snprintf
 @findex sprintf
@@ -4663,11 +5095,15 @@ v4si f (v4si a, v4si b, v4si c)
 @findex sqrtf
 @findex sqrtl
 @findex sscanf
+@findex stpcpy
 @findex strcat
 @findex strchr
 @findex strcmp
 @findex strcpy
 @findex strcspn
+@findex strdup
+@findex strfmon
+@findex strftime
 @findex strlen
 @findex strncat
 @findex strncmp
@@ -4676,11 +5112,34 @@ v4si f (v4si a, v4si b, v4si c)
 @findex strrchr
 @findex strspn
 @findex strstr
+@findex tan
+@findex tanf
+@findex tanh
+@findex tanhf
+@findex tanhl
+@findex tanl
+@findex tgamma
+@findex tgammaf
+@findex tgammal
+@findex trunc
+@findex truncf
+@findex truncl
+@findex vfprintf
+@findex vfscanf
 @findex vprintf
 @findex vscanf
 @findex vsnprintf
 @findex vsprintf
 @findex vsscanf
+@findex y0
+@findex y0f
+@findex y0l
+@findex y1
+@findex y1f
+@findex y1l
+@findex yn
+@findex ynf
+@findex ynl
 
 GCC provides a large number of built-in functions other than the ones
 mentioned above.  Some of these are for internal use in the processing
@@ -4701,47 +5160,102 @@ be emitted.
 
 @opindex ansi
 @opindex std
-The functions @code{abort}, @code{exit}, @code{_Exit} and @code{_exit}
-are recognized and presumed not to return, but otherwise are not built
-in.  @code{_exit} is not recognized in strict ISO C mode (@option{-ansi},
-@option{-std=c89} or @option{-std=c99}).  @code{_Exit} is not recognized in
-strict C89 mode (@option{-ansi} or @option{-std=c89}).  All these functions
-have corresponding versions prefixed with @code{__builtin_}, which may be
-used even in strict C89 mode.
-
-Outside strict ISO C mode, the functions @code{alloca}, @code{bcmp},
-@code{bzero}, @code{index}, @code{rindex}, @code{ffs}, @code{fputs_unlocked},
-@code{printf_unlocked} and @code{fprintf_unlocked} may be handled as
-built-in functions.  All these functions have corresponding versions
+Outside strict ISO C mode (@option{-ansi}, @option{-std=c89} or
+@option{-std=c99}), the functions
+@code{_exit}, @code{alloca}, @code{bcmp}, @code{bzero},
+@code{dcgettext}, @code{dgettext}, @code{dremf}, @code{dreml},
+@code{drem}, @code{exp10f}, @code{exp10l}, @code{exp10}, @code{ffsll},
+@code{ffsl}, @code{ffs}, @code{fprintf_unlocked}, @code{fputs_unlocked},
+@code{gammaf}, @code{gammal}, @code{gamma}, @code{gettext},
+@code{index}, @code{j0f}, @code{j0l}, @code{j0}, @code{j1f}, @code{j1l},
+@code{j1}, @code{jnf}, @code{jnl}, @code{jn}, @code{mempcpy},
+@code{pow10f}, @code{pow10l}, @code{pow10}, @code{printf_unlocked},
+@code{rindex}, @code{scalbf}, @code{scalbl}, @code{scalb},
+@code{significandf}, @code{significandl}, @code{significand},
+@code{sincosf}, @code{sincosl}, @code{sincos}, @code{stpcpy},
+@code{strdup}, @code{strfmon}, @code{y0f}, @code{y0l}, @code{y0},
+@code{y1f}, @code{y1l}, @code{y1}, @code{ynf}, @code{ynl} and @code{yn}
+may be handled as built-in functions.
+All these functions have corresponding versions
 prefixed with @code{__builtin_}, which may be used even in strict C89
 mode.
 
-The ISO C99 functions @code{conj}, @code{conjf}, @code{conjl},
-@code{creal}, @code{crealf}, @code{creall}, @code{cimag}, @code{cimagf},
-@code{cimagl}, @code{imaxabs}, @code{llabs}, @code{snprintf},
-@code{vscanf}, @code{vsnprintf} and @code{vsscanf} are handled as built-in
-functions except in strict ISO C90 mode.  There are also built-in
-versions of the ISO C99 functions @code{cosf}, @code{cosl},
-@code{expf}, @code{expl}, @code{fabsf}, @code{fabsl},
-@code{logf}, @code{logl}, @code{sinf}, @code{sinl}, @code{sqrtf}, and
-@code{sqrtl}, that are recognized in any mode since ISO C90 reserves
-these names for the purpose to which ISO C99 puts them.  All these
-functions have corresponding versions prefixed with @code{__builtin_}.
+The ISO C99 functions
+@code{_Exit}, @code{acoshf}, @code{acoshl}, @code{acosh}, @code{asinhf},
+@code{asinhl}, @code{asinh}, @code{atanhf}, @code{atanhl}, @code{atanh},
+@code{cabsf}, @code{cabsl}, @code{cabs}, @code{cacosf}, @code{cacoshf},
+@code{cacoshl}, @code{cacosh}, @code{cacosl}, @code{cacos},
+@code{cargf}, @code{cargl}, @code{carg}, @code{casinf}, @code{casinhf},
+@code{casinhl}, @code{casinh}, @code{casinl}, @code{casin},
+@code{catanf}, @code{catanhf}, @code{catanhl}, @code{catanh},
+@code{catanl}, @code{catan}, @code{cbrtf}, @code{cbrtl}, @code{cbrt},
+@code{ccosf}, @code{ccoshf}, @code{ccoshl}, @code{ccosh}, @code{ccosl},
+@code{ccos}, @code{cexpf}, @code{cexpl}, @code{cexp}, @code{cimagf},
+@code{cimagl}, @code{cimag},
+@code{conjf}, @code{conjl}, @code{conj}, @code{copysignf},
+@code{copysignl}, @code{copysign}, @code{cpowf}, @code{cpowl},
+@code{cpow}, @code{cprojf}, @code{cprojl}, @code{cproj}, @code{crealf},
+@code{creall}, @code{creal}, @code{csinf}, @code{csinhf}, @code{csinhl},
+@code{csinh}, @code{csinl}, @code{csin}, @code{csqrtf}, @code{csqrtl},
+@code{csqrt}, @code{ctanf}, @code{ctanhf}, @code{ctanhl}, @code{ctanh},
+@code{ctanl}, @code{ctan}, @code{erfcf}, @code{erfcl}, @code{erfc},
+@code{erff}, @code{erfl}, @code{erf}, @code{exp2f}, @code{exp2l},
+@code{exp2}, @code{expm1f}, @code{expm1l}, @code{expm1}, @code{fdimf},
+@code{fdiml}, @code{fdim}, @code{fmaf}, @code{fmal}, @code{fmaxf},
+@code{fmaxl}, @code{fmax}, @code{fma}, @code{fminf}, @code{fminl},
+@code{fmin}, @code{hypotf}, @code{hypotl}, @code{hypot}, @code{ilogbf},
+@code{ilogbl}, @code{ilogb}, @code{imaxabs}, @code{lgammaf},
+@code{lgammal}, @code{lgamma}, @code{llabs}, @code{llrintf},
+@code{llrintl}, @code{llrint}, @code{llroundf}, @code{llroundl},
+@code{llround}, @code{log1pf}, @code{log1pl}, @code{log1p},
+@code{log2f}, @code{log2l}, @code{log2}, @code{logbf}, @code{logbl},
+@code{logb}, @code{lrintf}, @code{lrintl}, @code{lrint}, @code{lroundf},
+@code{lroundl}, @code{lround}, @code{nearbyintf}, @code{nearbyintl},
+@code{nearbyint}, @code{nextafterf}, @code{nextafterl},
+@code{nextafter}, @code{nexttowardf}, @code{nexttowardl},
+@code{nexttoward}, @code{remainderf}, @code{remainderl},
+@code{remainder}, @code{remquof}, @code{remquol}, @code{remquo},
+@code{rintf}, @code{rintl}, @code{rint}, @code{roundf}, @code{roundl},
+@code{round}, @code{scalblnf}, @code{scalblnl}, @code{scalbln},
+@code{scalbnf}, @code{scalbnl}, @code{scalbn}, @code{snprintf},
+@code{tgammaf}, @code{tgammal}, @code{tgamma}, @code{truncf},
+@code{truncl}, @code{trunc}, @code{vfscanf}, @code{vscanf},
+@code{vsnprintf} and @code{vsscanf}
+are handled as built-in functions
+except in strict ISO C90 mode (@option{-ansi} or @option{-std=c89}).
 
-The ISO C90 functions @code{abs}, @code{cos}, @code{exp}, @code{fabs},
-@code{fprintf}, @code{fputs}, @code{labs}, @code{log},
-@code{memcmp}, @code{memcpy},
-@code{memset}, @code{printf}, @code{putchar}, @code{puts}, @code{scanf},
-@code{sin}, @code{snprintf}, @code{sprintf}, @code{sqrt}, @code{sscanf},
-@code{strcat},
-@code{strchr}, @code{strcmp}, @code{strcpy}, @code{strcspn},
-@code{strlen}, @code{strncat}, @code{strncmp}, @code{strncpy},
-@code{strpbrk}, @code{strrchr}, @code{strspn}, @code{strstr},
-@code{vprintf} and @code{vsprintf} are all
-recognized as built-in functions unless @option{-fno-builtin} is
-specified (or @option{-fno-builtin-@var{function}} is specified for an
-individual function).  All of these functions have corresponding
-versions prefixed with @code{__builtin_}.
+There are also built-in versions of the ISO C99 functions
+@code{acosf}, @code{acosl}, @code{asinf}, @code{asinl}, @code{atan2f},
+@code{atan2l}, @code{atanf}, @code{atanl}, @code{ceilf}, @code{ceill},
+@code{cosf}, @code{coshf}, @code{coshl}, @code{cosl}, @code{expf},
+@code{expl}, @code{fabsf}, @code{fabsl}, @code{floorf}, @code{floorl},
+@code{fmodf}, @code{fmodl}, @code{frexpf}, @code{frexpl}, @code{ldexpf},
+@code{ldexpl}, @code{log10f}, @code{log10l}, @code{logf}, @code{logl},
+@code{modfl}, @code{modf}, @code{powf}, @code{powl}, @code{sinf},
+@code{sinhf}, @code{sinhl}, @code{sinl}, @code{sqrtf}, @code{sqrtl},
+@code{tanf}, @code{tanhf}, @code{tanhl} and @code{tanl}
+that are recognized in any mode since ISO C90 reserves these names for
+the purpose to which ISO C99 puts them.  All these functions have
+corresponding versions prefixed with @code{__builtin_}.
+
+The ISO C90 functions
+@code{abort}, @code{abs}, @code{acos}, @code{asin}, @code{atan2},
+@code{atan}, @code{calloc}, @code{ceil}, @code{cosh}, @code{cos},
+@code{exit}, @code{exp}, @code{fabs}, @code{floor}, @code{fmod},
+@code{fprintf}, @code{fputs}, @code{frexp}, @code{fscanf}, @code{labs},
+@code{ldexp}, @code{log10}, @code{log}, @code{malloc}, @code{memcmp},
+@code{memcpy}, @code{memset}, @code{modf}, @code{pow}, @code{printf},
+@code{putchar}, @code{puts}, @code{scanf}, @code{sinh}, @code{sin},
+@code{snprintf}, @code{sprintf}, @code{sqrt}, @code{sscanf},
+@code{strcat}, @code{strchr}, @code{strcmp}, @code{strcpy},
+@code{strcspn}, @code{strlen}, @code{strncat}, @code{strncmp},
+@code{strncpy}, @code{strpbrk}, @code{strrchr}, @code{strspn},
+@code{strstr}, @code{tanh}, @code{tan}, @code{vfprintf}, @code{vprintf}
+and @code{vsprintf}
+are all recognized as built-in functions unless
+@option{-fno-builtin} is specified (or @option{-fno-builtin-@var{function}}
+is specified for an individual function).  All of these functions have
+corresponding versions prefixed with @code{__builtin_}.
 
 GCC provides built-in versions of the ISO C99 floating point comparison
 macros that avoid raising exceptions for unordered operands.  They have
@@ -4773,8 +5287,10 @@ similarity.  Consequently, @code{short *} is not similar to
 @code{short **}.  Furthermore, two types that are typedefed are
 considered compatible if their underlying types are compatible.
 
-An @code{enum} type is considered to be compatible with another
-@code{enum} type.  For example, @code{enum @{foo, bar@}} is similar to
+An @code{enum} type is not considered to be compatible with another
+@code{enum} type even if both are compatible with the same integer
+type; this is what the C standard specifies.
+For example, @code{enum @{foo, bar@}} is not similar to
 @code{enum @{hot, dog@}}.
 
 You would typically use this function in code whose execution varies
@@ -5007,7 +5523,7 @@ do not implement, a description of the parsing is in order.  The string
 is parsed as by @code{strtol}; that is, the base is recognized by
 leading @samp{0} or @samp{0x} prefixes.  The number parsed is placed
 in the significand such that the least significant bit of the number
-is at the least significant bit of the significand.  The number is 
+is at the least significant bit of the significand.  The number is
 truncated to fit the significand field provided.  The significand is
 forced to be a quiet NaN.
 
@@ -5024,9 +5540,9 @@ Similar to @code{__builtin_nan}, except the return type is @code{long double}.
 @end deftypefn
 
 @deftypefn {Built-in Function} double __builtin_nans (const char *str)
-Similar to @code{__builtin_nan}, except the significand is forced 
+Similar to @code{__builtin_nan}, except the significand is forced
 to be a signaling NaN.  The @code{nans} function is proposed by
-@uref{http://std.dkuug.dk/JTC1/SC22/WG14/www/docs/n965.htm,,WG14 N965}.
+@uref{http://www.open-std.org/jtc1/sc22/wg14/www/docs/n965.htm,,WG14 N965}.
 @end deftypefn
 
 @deftypefn {Built-in Function} float __builtin_nansf (const char *str)
@@ -5037,6 +5553,81 @@ Similar to @code{__builtin_nans}, except the return type is @code{float}.
 Similar to @code{__builtin_nans}, except the return type is @code{long double}.
 @end deftypefn
 
+@deftypefn {Built-in Function} int __builtin_ffs (unsigned int x)
+Returns one plus the index of the least significant 1-bit of @var{x}, or
+if @var{x} is zero, returns zero.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_clz (unsigned int x)
+Returns the number of leading 0-bits in @var{x}, starting at the most
+significant bit position.  If @var{x} is 0, the result is undefined.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_ctz (unsigned int x)
+Returns the number of trailing 0-bits in @var{x}, starting at the least
+significant bit position.  If @var{x} is 0, the result is undefined.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_popcount (unsigned int x)
+Returns the number of 1-bits in @var{x}.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_parity (unsigned int x)
+Returns the parity of @var{x}, i.@:e. the number of 1-bits in @var{x}
+modulo 2.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_ffsl (unsigned long)
+Similar to @code{__builtin_ffs}, except the argument type is
+@code{unsigned long}.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_clzl (unsigned long)
+Similar to @code{__builtin_clz}, except the argument type is
+@code{unsigned long}.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_ctzl (unsigned long)
+Similar to @code{__builtin_ctz}, except the argument type is
+@code{unsigned long}.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_popcountl (unsigned long)
+Similar to @code{__builtin_popcount}, except the argument type is
+@code{unsigned long}.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_parityl (unsigned long)
+Similar to @code{__builtin_parity}, except the argument type is
+@code{unsigned long}.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_ffsll (unsigned long long)
+Similar to @code{__builtin_ffs}, except the argument type is
+@code{unsigned long long}.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_clzll (unsigned long long)
+Similar to @code{__builtin_clz}, except the argument type is
+@code{unsigned long long}.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_ctzll (unsigned long long)
+Similar to @code{__builtin_ctz}, except the argument type is
+@code{unsigned long long}.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_popcountll (unsigned long long)
+Similar to @code{__builtin_popcount}, except the argument type is
+@code{unsigned long long}.
+@end deftypefn
+
+@deftypefn {Built-in Function} int __builtin_parityll (unsigned long long)
+Similar to @code{__builtin_parity}, except the argument type is
+@code{unsigned long long}.
+@end deftypefn
+
+
 @node Target Builtins
 @section Built-in Functions Specific to Particular Target Machines
 
@@ -5046,6 +5637,7 @@ instructions, but allow the compiler to schedule those calls.
 
 @menu
 * Alpha Built-in Functions::
+* ARM Built-in Functions::
 * X86 Built-in Functions::
 * PowerPC AltiVec Built-in Functions::
 @end menu
@@ -5059,7 +5651,7 @@ processors, depending on the command-line switches used.
 The following built-in functions are always available.  They
 all generate the machine instruction that is part of the name.
 
-@example
+@smallexample
 long __builtin_alpha_implver (void)
 long __builtin_alpha_rpcc (void)
 long __builtin_alpha_amask (long)
@@ -5088,14 +5680,14 @@ long __builtin_alpha_mskqh (long, long)
 long __builtin_alpha_umulh (long, long)
 long __builtin_alpha_zap (long, long)
 long __builtin_alpha_zapnot (long, long)
-@end example
+@end smallexample
 
 The following built-in functions are always with @option{-mmax}
 or @option{-mcpu=@var{cpu}} where @var{cpu} is @code{pca56} or
 later.  They all generate the machine instruction that is part
 of the name.
 
-@example
+@smallexample
 long __builtin_alpha_pklb (long)
 long __builtin_alpha_pkwb (long)
 long __builtin_alpha_unpkbl (long)
@@ -5109,28 +5701,175 @@ long __builtin_alpha_maxsb8 (long, long)
 long __builtin_alpha_maxuw4 (long, long)
 long __builtin_alpha_maxsw4 (long, long)
 long __builtin_alpha_perr (long, long)
-@end example
+@end smallexample
 
 The following built-in functions are always with @option{-mcix}
 or @option{-mcpu=@var{cpu}} where @var{cpu} is @code{ev67} or
 later.  They all generate the machine instruction that is part
 of the name.
 
-@example
+@smallexample
 long __builtin_alpha_cttz (long)
 long __builtin_alpha_ctlz (long)
 long __builtin_alpha_ctpop (long)
-@end example
+@end smallexample
 
 The following builtins are available on systems that use the OSF/1
 PALcode.  Normally they invoke the @code{rduniq} and @code{wruniq}
 PAL calls, but when invoked with @option{-mtls-kernel}, they invoke
 @code{rdval} and @code{wrval}.
 
-@example
+@smallexample
 void *__builtin_thread_pointer (void)
 void __builtin_set_thread_pointer (void *)
-@end example
+@end smallexample
+
+@node ARM Built-in Functions
+@subsection ARM Built-in Functions
+
+These built-in functions are available for the ARM family of
+processors, when the @option{-mcpu=iwmmxt} switch is used:
+
+@smallexample
+typedef int v2si __attribute__ ((vector_size (8)));
+typedef short v4hi __attribute__ ((vector_size (8)));
+typedef char v8qi __attribute__ ((vector_size (8)));
+
+int __builtin_arm_getwcx (int)
+void __builtin_arm_setwcx (int, int)
+int __builtin_arm_textrmsb (v8qi, int)
+int __builtin_arm_textrmsh (v4hi, int)
+int __builtin_arm_textrmsw (v2si, int)
+int __builtin_arm_textrmub (v8qi, int)
+int __builtin_arm_textrmuh (v4hi, int)
+int __builtin_arm_textrmuw (v2si, int)
+v8qi __builtin_arm_tinsrb (v8qi, int)
+v4hi __builtin_arm_tinsrh (v4hi, int)
+v2si __builtin_arm_tinsrw (v2si, int)
+long long __builtin_arm_tmia (long long, int, int)
+long long __builtin_arm_tmiabb (long long, int, int)
+long long __builtin_arm_tmiabt (long long, int, int)
+long long __builtin_arm_tmiaph (long long, int, int)
+long long __builtin_arm_tmiatb (long long, int, int)
+long long __builtin_arm_tmiatt (long long, int, int)
+int __builtin_arm_tmovmskb (v8qi)
+int __builtin_arm_tmovmskh (v4hi)
+int __builtin_arm_tmovmskw (v2si)
+long long __builtin_arm_waccb (v8qi)
+long long __builtin_arm_wacch (v4hi)
+long long __builtin_arm_waccw (v2si)
+v8qi __builtin_arm_waddb (v8qi, v8qi)
+v8qi __builtin_arm_waddbss (v8qi, v8qi)
+v8qi __builtin_arm_waddbus (v8qi, v8qi)
+v4hi __builtin_arm_waddh (v4hi, v4hi)
+v4hi __builtin_arm_waddhss (v4hi, v4hi)
+v4hi __builtin_arm_waddhus (v4hi, v4hi)
+v2si __builtin_arm_waddw (v2si, v2si)
+v2si __builtin_arm_waddwss (v2si, v2si)
+v2si __builtin_arm_waddwus (v2si, v2si)
+v8qi __builtin_arm_walign (v8qi, v8qi, int)
+long long __builtin_arm_wand(long long, long long)
+long long __builtin_arm_wandn (long long, long long)
+v8qi __builtin_arm_wavg2b (v8qi, v8qi)
+v8qi __builtin_arm_wavg2br (v8qi, v8qi)
+v4hi __builtin_arm_wavg2h (v4hi, v4hi)
+v4hi __builtin_arm_wavg2hr (v4hi, v4hi)
+v8qi __builtin_arm_wcmpeqb (v8qi, v8qi)
+v4hi __builtin_arm_wcmpeqh (v4hi, v4hi)
+v2si __builtin_arm_wcmpeqw (v2si, v2si)
+v8qi __builtin_arm_wcmpgtsb (v8qi, v8qi)
+v4hi __builtin_arm_wcmpgtsh (v4hi, v4hi)
+v2si __builtin_arm_wcmpgtsw (v2si, v2si)
+v8qi __builtin_arm_wcmpgtub (v8qi, v8qi)
+v4hi __builtin_arm_wcmpgtuh (v4hi, v4hi)
+v2si __builtin_arm_wcmpgtuw (v2si, v2si)
+long long __builtin_arm_wmacs (long long, v4hi, v4hi)
+long long __builtin_arm_wmacsz (v4hi, v4hi)
+long long __builtin_arm_wmacu (long long, v4hi, v4hi)
+long long __builtin_arm_wmacuz (v4hi, v4hi)
+v4hi __builtin_arm_wmadds (v4hi, v4hi)
+v4hi __builtin_arm_wmaddu (v4hi, v4hi)
+v8qi __builtin_arm_wmaxsb (v8qi, v8qi)
+v4hi __builtin_arm_wmaxsh (v4hi, v4hi)
+v2si __builtin_arm_wmaxsw (v2si, v2si)
+v8qi __builtin_arm_wmaxub (v8qi, v8qi)
+v4hi __builtin_arm_wmaxuh (v4hi, v4hi)
+v2si __builtin_arm_wmaxuw (v2si, v2si)
+v8qi __builtin_arm_wminsb (v8qi, v8qi)
+v4hi __builtin_arm_wminsh (v4hi, v4hi)
+v2si __builtin_arm_wminsw (v2si, v2si)
+v8qi __builtin_arm_wminub (v8qi, v8qi)
+v4hi __builtin_arm_wminuh (v4hi, v4hi)
+v2si __builtin_arm_wminuw (v2si, v2si)
+v4hi __builtin_arm_wmulsm (v4hi, v4hi)
+v4hi __builtin_arm_wmulul (v4hi, v4hi)
+v4hi __builtin_arm_wmulum (v4hi, v4hi)
+long long __builtin_arm_wor (long long, long long)
+v2si __builtin_arm_wpackdss (long long, long long)
+v2si __builtin_arm_wpackdus (long long, long long)
+v8qi __builtin_arm_wpackhss (v4hi, v4hi)
+v8qi __builtin_arm_wpackhus (v4hi, v4hi)
+v4hi __builtin_arm_wpackwss (v2si, v2si)
+v4hi __builtin_arm_wpackwus (v2si, v2si)
+long long __builtin_arm_wrord (long long, long long)
+long long __builtin_arm_wrordi (long long, int)
+v4hi __builtin_arm_wrorh (v4hi, long long)
+v4hi __builtin_arm_wrorhi (v4hi, int)
+v2si __builtin_arm_wrorw (v2si, long long)
+v2si __builtin_arm_wrorwi (v2si, int)
+v2si __builtin_arm_wsadb (v8qi, v8qi)
+v2si __builtin_arm_wsadbz (v8qi, v8qi)
+v2si __builtin_arm_wsadh (v4hi, v4hi)
+v2si __builtin_arm_wsadhz (v4hi, v4hi)
+v4hi __builtin_arm_wshufh (v4hi, int)
+long long __builtin_arm_wslld (long long, long long)
+long long __builtin_arm_wslldi (long long, int)
+v4hi __builtin_arm_wsllh (v4hi, long long)
+v4hi __builtin_arm_wsllhi (v4hi, int)
+v2si __builtin_arm_wsllw (v2si, long long)
+v2si __builtin_arm_wsllwi (v2si, int)
+long long __builtin_arm_wsrad (long long, long long)
+long long __builtin_arm_wsradi (long long, int)
+v4hi __builtin_arm_wsrah (v4hi, long long)
+v4hi __builtin_arm_wsrahi (v4hi, int)
+v2si __builtin_arm_wsraw (v2si, long long)
+v2si __builtin_arm_wsrawi (v2si, int)
+long long __builtin_arm_wsrld (long long, long long)
+long long __builtin_arm_wsrldi (long long, int)
+v4hi __builtin_arm_wsrlh (v4hi, long long)
+v4hi __builtin_arm_wsrlhi (v4hi, int)
+v2si __builtin_arm_wsrlw (v2si, long long)
+v2si __builtin_arm_wsrlwi (v2si, int)
+v8qi __builtin_arm_wsubb (v8qi, v8qi)
+v8qi __builtin_arm_wsubbss (v8qi, v8qi)
+v8qi __builtin_arm_wsubbus (v8qi, v8qi)
+v4hi __builtin_arm_wsubh (v4hi, v4hi)
+v4hi __builtin_arm_wsubhss (v4hi, v4hi)
+v4hi __builtin_arm_wsubhus (v4hi, v4hi)
+v2si __builtin_arm_wsubw (v2si, v2si)
+v2si __builtin_arm_wsubwss (v2si, v2si)
+v2si __builtin_arm_wsubwus (v2si, v2si)
+v4hi __builtin_arm_wunpckehsb (v8qi)
+v2si __builtin_arm_wunpckehsh (v4hi)
+long long __builtin_arm_wunpckehsw (v2si)
+v4hi __builtin_arm_wunpckehub (v8qi)
+v2si __builtin_arm_wunpckehuh (v4hi)
+long long __builtin_arm_wunpckehuw (v2si)
+v4hi __builtin_arm_wunpckelsb (v8qi)
+v2si __builtin_arm_wunpckelsh (v4hi)
+long long __builtin_arm_wunpckelsw (v2si)
+v4hi __builtin_arm_wunpckelub (v8qi)
+v2si __builtin_arm_wunpckeluh (v4hi)
+long long __builtin_arm_wunpckeluw (v2si)
+v8qi __builtin_arm_wunpckihb (v8qi, v8qi)
+v4hi __builtin_arm_wunpckihh (v4hi, v4hi)
+v2si __builtin_arm_wunpckihw (v2si, v2si)
+v8qi __builtin_arm_wunpckilb (v8qi, v8qi)
+v4hi __builtin_arm_wunpckilh (v4hi, v4hi)
+v2si __builtin_arm_wunpckilw (v2si, v2si)
+long long __builtin_arm_wxor (long long, long long)
+long long __builtin_arm_wzero ()
+@end smallexample
 
 @node X86 Built-in Functions
 @subsection X86 Built-in Functions
@@ -5156,7 +5895,7 @@ entire vector register, interpreting it as a 128-bit integer, these use mode
 The following built-in functions are made available by @option{-mmmx}.
 All of them generate the machine instruction that is part of the name.
 
-@example
+@smallexample
 v8qi __builtin_ia32_paddb (v8qi, v8qi)
 v4hi __builtin_ia32_paddw (v4hi, v4hi)
 v2si __builtin_ia32_paddd (v2si, v2si)
@@ -5192,14 +5931,14 @@ v2si __builtin_ia32_punpckldq (v2si, v2si)
 v8qi __builtin_ia32_packsswb (v4hi, v4hi)
 v4hi __builtin_ia32_packssdw (v2si, v2si)
 v8qi __builtin_ia32_packuswb (v4hi, v4hi)
-@end example
+@end smallexample
 
 The following built-in functions are made available either with
 @option{-msse}, or with a combination of @option{-m3dnow} and
 @option{-march=athlon}.  All of them generate the machine
 instruction that is part of the name.
 
-@example
+@smallexample
 v4hi __builtin_ia32_pmulhuw (v4hi, v4hi)
 v8qi __builtin_ia32_pavgb (v8qi, v8qi)
 v4hi __builtin_ia32_pavgw (v4hi, v4hi)
@@ -5214,12 +5953,12 @@ int __builtin_ia32_pmovmskb (v8qi)
 void __builtin_ia32_maskmovq (v8qi, v8qi, char *)
 void __builtin_ia32_movntq (di *, di)
 void __builtin_ia32_sfence (void)
-@end example
+@end smallexample
 
 The following built-in functions are available when @option{-msse} is used.
 All of them generate the machine instruction that is part of the name.
 
-@example
+@smallexample
 int __builtin_ia32_comieq (v4sf, v4sf)
 int __builtin_ia32_comineq (v4sf, v4sf)
 int __builtin_ia32_comilt (v4sf, v4sf)
@@ -5288,7 +6027,7 @@ v4sf __builtin_ia32_sqrtss (v4sf)
 v4sf __builtin_ia32_shufps (v4sf, v4sf, int)
 void __builtin_ia32_movntps (float *, v4sf)
 int __builtin_ia32_movmskps (v4sf)
-@end example
+@end smallexample
 
 The following built-in functions are available when @option{-msse} is used.
 
@@ -5315,10 +6054,10 @@ Generates the @code{movhps} machine instruction as a store to memory.
 Generates the @code{movlps} machine instruction as a store to memory.
 @end table
 
-The following built-in functions are available when @option{-mpni} is used.
+The following built-in functions are available when @option{-msse3} is used.
 All of them generate the machine instruction that is part of the name.
 
-@example
+@smallexample
 v2df __builtin_ia32_addsubpd (v2df, v2df)
 v2df __builtin_ia32_addsubps (v2df, v2df)
 v2df __builtin_ia32_haddpd (v2df, v2df)
@@ -5331,9 +6070,9 @@ v2df __builtin_ia32_movddup (v2df)
 v4sf __builtin_ia32_movshdup (v4sf)
 v4sf __builtin_ia32_movsldup (v4sf)
 void __builtin_ia32_mwait (unsigned int, unsigned int)
-@end example
+@end smallexample
 
-The following built-in functions are available when @option{-mpni} is used.
+The following built-in functions are available when @option{-msse3} is used.
 
 @table @code
 @item v2df __builtin_ia32_loadddup (double const *)
@@ -5343,7 +6082,7 @@ Generates the @code{movddup} machine instruction as a load from memory.
 The following built-in functions are available when @option{-m3dnow} is used.
 All of them generate the machine instruction that is part of the name.
 
-@example
+@smallexample
 void __builtin_ia32_femms (void)
 v8qi __builtin_ia32_pavgusb (v8qi, v8qi)
 v2si __builtin_ia32_pf2id (v2sf)
@@ -5364,20 +6103,20 @@ v2sf __builtin_ia32_pfsub (v2sf, v2sf)
 v2sf __builtin_ia32_pfsubr (v2sf, v2sf)
 v2sf __builtin_ia32_pi2fd (v2si)
 v4hi __builtin_ia32_pmulhrw (v4hi, v4hi)
-@end example
+@end smallexample
 
 The following built-in functions are available when both @option{-m3dnow}
 and @option{-march=athlon} are used.  All of them generate the machine
 instruction that is part of the name.
 
-@example
+@smallexample
 v2si __builtin_ia32_pf2iw (v2sf)
 v2sf __builtin_ia32_pfnacc (v2sf, v2sf)
 v2sf __builtin_ia32_pfpnacc (v2sf, v2sf)
 v2sf __builtin_ia32_pi2fw (v2si)
 v2sf __builtin_ia32_pswapdsf (v2sf)
 v2si __builtin_ia32_pswapdsi (v2si)
-@end example
+@end smallexample
 
 @node PowerPC AltiVec Built-in Functions
 @subsection PowerPC AltiVec Built-in Functions
@@ -6618,7 +7357,7 @@ For compatibility with other compilers, GCC allows you to define
 a structure or union that contains, as fields, structures and unions
 without names.  For example:
 
-@example
+@smallexample
 struct @{
   int a;
   union @{
@@ -6627,7 +7366,7 @@ struct @{
   @};
   int d;
 @} foo;
-@end example
+@end smallexample
 
 In this example, the user would be able to access members of the unnamed
 union with code like @samp{foo.b}.  Note that only unnamed structs and
@@ -6637,14 +7376,14 @@ unions are allowed, you may not have, for example, an unnamed
 You must never create such structures that cause ambiguous field definitions.
 For example, this structure:
 
-@example
+@smallexample
 struct @{
   int a;
   struct @{
     int a;
   @};
 @} foo;
-@end example
+@end smallexample
 
 It is ambiguous which @code{a} is being referred to with @samp{foo.a}.
 Such constructs are not supported and must be avoided.  In the future,
@@ -6668,11 +7407,11 @@ is not available everywhere.
 At the user level, the extension is visible with a new storage
 class keyword: @code{__thread}.  For example:
 
-@example
+@smallexample
 __thread int i;
 extern __thread struct state s;
 static __thread char *p;
-@end example
+@end smallexample
 
 The @code{__thread} specifier may be used alone, with the @code{extern}
 or @code{static} specifiers, but with no other storage class specifier.
@@ -6935,8 +7674,10 @@ Predefined Macros,cpp,The GNU C Preprocessor}).
 * Bound member functions:: You can extract a function pointer to the
                         method denoted by a @samp{->*} or @samp{.*} expression.
 * C++ Attributes::      Variable, function, and type attributes for C++ only.
+* Strong Using::      Strong using-directives for namespace composition.
+* Offsetof::            Special syntax for implementing @code{offsetof}.
 * Java Exceptions::     Tweaking exception handling to work with Java.
-* Deprecated Features:: Things might disappear from g++.
+* Deprecated Features:: Things will disappear from g++.
 * Backwards Compatibility:: Compatibilities with earlier definitions of C++.
 @end menu
 
@@ -6964,9 +7705,9 @@ These operations are not primitive in ordinary C++, since you can
 use a macro to return the minimum of two things in C++, as in the
 following example.
 
-@example
+@smallexample
 #define MIN(X,Y) ((X) < (Y) ? : (X) : (Y))
-@end example
+@end smallexample
 
 @noindent
 You might then use @w{@samp{int min = MIN (i, j);}} to set @var{min} to
@@ -7011,11 +7752,11 @@ within a sequence point.
 In most expressions, it is intuitively obvious what is a read and what is
 a write.  For instance
 
-@example
+@smallexample
 volatile int *dst = @var{somevalue};
 volatile int *src = @var{someothervalue};
 *dst = *src;
-@end example
+@end smallexample
 
 @noindent
 will cause a read of the volatile object pointed to by @var{src} and stores the
@@ -7026,10 +7767,10 @@ larger than @code{int}.
 Less obvious expressions are where something which looks like an access
 is used in a void context.  An example would be,
 
-@example
+@smallexample
 volatile int *src = @var{somevalue};
 *src;
-@end example
+@end smallexample
 
 With C, such expressions are rvalues, and as rvalues cause a read of
 the object, GCC interprets this as a read of the volatile being pointed
@@ -7044,14 +7785,14 @@ pointer to volatile object of complete type in a void context as a read
 of the object.  When the object has incomplete type, G++ issues a
 warning.
 
-@example
+@smallexample
 struct S;
 struct T @{int m;@};
 volatile S *ptr1 = @var{somevalue};
 volatile T *ptr2 = @var{somevalue};
 *ptr1;
 *ptr2;
-@end example
+@end smallexample
 
 In this example, a warning is issued for @code{*ptr1}, and @code{*ptr2}
 causes a read of the object pointed to.  If you wish to force an error on
@@ -7072,7 +7813,7 @@ an rvalue.
 @cindex restricted references
 @cindex restricted this pointer
 
-As with gcc, g++ understands the C99 feature of restricted pointers,
+As with the C front end, G++ understands the C99 feature of restricted pointers,
 specified with the @code{__restrict__}, or @code{__restrict} type
 qualifier.  Because you cannot compile C++ by specifying the @option{-std=c99}
 language flag, @code{restrict} is not a keyword in C++.
@@ -7081,12 +7822,12 @@ In addition to allowing restricted pointers, you can specify restricted
 references, which indicate that the reference is not aliased in the local
 context.
 
-@example
+@smallexample
 void fn (int *__restrict__ rptr, int &__restrict__ rref)
 @{
   /* @r{@dots{}} */
 @}
-@end example
+@end smallexample
 
 @noindent
 In the body of @code{fn}, @var{rptr} points to an unaliased integer and
@@ -7095,12 +7836,12 @@ In the body of @code{fn}, @var{rptr} points to an unaliased integer and
 You may also specify whether a member function's @var{this} pointer is
 unaliased by using @code{__restrict__} as a member function qualifier.
 
-@example
+@smallexample
 void T::fn () __restrict__
 @{
   /* @r{@dots{}} */
 @}
-@end example
+@end smallexample
 
 @noindent
 Within the body of @code{T::fn}, @var{this} will have the effective
@@ -7175,7 +7916,7 @@ but there are other options as well.
 @end table
 
 When used with GNU ld version 2.8 or later on an ELF system such as
-Linux/GNU or Solaris 2, or on Microsoft Windows, duplicate copies of
+GNU/Linux or Solaris 2, or on Microsoft Windows, duplicate copies of
 these constructs will be discarded at link time.  This is known as
 COMDAT support.
 
@@ -7193,37 +7934,24 @@ almost certainly break things.
 another way to control placement of these constructs.
 
 @node C++ Interface
-@section Declarations and Definitions in One Header
+@section #pragma interface and implementation
 
 @cindex interface and implementation headers, C++
 @cindex C++ interface and implementation headers
-C++ object definitions can be quite complex.  In principle, your source
-code will need two kinds of things for each object that you use across
-more than one source file.  First, you need an @dfn{interface}
-specification, describing its structure with type declarations and
-function prototypes.  Second, you need the @dfn{implementation} itself.
-It can be tedious to maintain a separate interface description in a
-header file, in parallel to the actual implementation.  It is also
-dangerous, since separate interface and implementation definitions may
-not remain parallel.
-
 @cindex pragmas, interface and implementation
-With GNU C++, you can use a single header file for both purposes.
 
-@quotation
-@emph{Warning:} The mechanism to specify this is in transition.  For the
-nonce, you must use one of two @code{#pragma} commands; in a future
-release of GNU C++, an alternative mechanism will make these
-@code{#pragma} commands unnecessary.
-@end quotation
+@code{#pragma interface} and @code{#pragma implementation} provide the
+user with a way of explicitly directing the compiler to emit entities
+with vague linkage (and debugging information) in a particular
+translation unit.
 
-The header file contains the full definitions, but is marked with
-@samp{#pragma interface} in the source code.  This allows the compiler
-to use the header file only as an interface specification when ordinary
-source files incorporate it with @code{#include}.  In the single source
-file where the full implementation belongs, you can use either a naming
-convention or @samp{#pragma implementation} to indicate this alternate
-use of the header file.
+@emph{Note:} As of GCC 2.7.2, these @code{#pragma}s are not useful in
+most cases, because of COMDAT support and the ``key method'' heuristic
+mentioned in @ref{Vague Linkage}.  Using them can actually cause your
+program to grow due to unnecesary out-of-line copies of inline
+functions.  Currently the only benefit of these @code{#pragma}s is
+reduced duplication of debugging information, and that should be
+addressed soon on DWARF 2 targets with the use of COMDAT sections.
 
 @table @code
 @item #pragma interface
@@ -7273,9 +8001,6 @@ an implementation file whenever you would include it from
 implementation}.  This was deemed to be more trouble than it was worth,
 however, and disabled.
 
-If you use an explicit @samp{#pragma implementation}, it must appear in
-your source file @emph{before} you include the affected header files.
-
 Use the string argument if you want a single implementation file to
 include code from multiple header files.  (You must also use
 @samp{#include} to include the header file; @samp{#pragma
@@ -7293,10 +8018,10 @@ multiple implementation files.
 effect on function inlining.
 
 If you define a class in a header file marked with @samp{#pragma
-interface}, the effect on a function defined in that class is similar to
-an explicit @code{extern} declaration---the compiler emits no code at
-all to define an independent version of the function.  Its definition
-is used only for inlining with its callers.
+interface}, the effect on an inline function defined in that class is
+similar to an explicit @code{extern} declaration---the compiler emits
+no code at all to define an independent version of the function.  Its
+definition is used only for inlining with its callers.
 
 @opindex fno-implement-inlines
 Conversely, when you include the same header file in a main source file
@@ -7316,7 +8041,7 @@ intelligence from the environment than one usually finds on a UNIX
 system.  Somehow the compiler and linker have to make sure that each
 template instance occurs exactly once in the executable if it is needed,
 and not at all otherwise.  There are two basic approaches to this
-problem, which I will refer to as the Borland model and the Cfront model.
+problem, which are referred to as the Borland model and the Cfront model.
 
 @table @asis
 @item Borland model
@@ -7352,11 +8077,11 @@ compiled separately.
 @end table
 
 When used with GNU ld version 2.8 or later on an ELF system such as
-Linux/GNU or Solaris 2, or on Microsoft Windows, g++ supports the
-Borland model.  On other systems, g++ implements neither automatic
+GNU/Linux or Solaris 2, or on Microsoft Windows, G++ supports the
+Borland model.  On other systems, G++ implements neither automatic
 model.
 
-A future version of g++ will support a hybrid model whereby the compiler
+A future version of G++ will support a hybrid model whereby the compiler
 will emit any instantiations for which the template definition is
 included in the compile, and store template definitions and
 instantiation context information into the object file for the rest.
@@ -7406,14 +8131,14 @@ that define the templates themselves; you can put all of the explicit
 instantiations you need into one big file; or you can create small files
 like
 
-@example
+@smallexample
 #include "Foo.h"
 #include "Foo.cc"
 
 template class Foo<int>;
 template ostream& operator <<
                 (ostream&, const Foo<int>&);
-@end example
+@end smallexample
 
 for each of the instances you need, and create a template instantiation
 library from those.
@@ -7427,7 +8152,7 @@ compile it without @option{-fno-implicit-templates} so you get all of the
 instances required by your explicit instantiations (but not by any
 other files) without having to specify them as well.
 
-g++ has extended the template instantiation syntax given in the ISO
+G++ has extended the template instantiation syntax given in the ISO
 standard to allow forward declaration of explicit instantiations
 (with @code{extern}), instantiation of the compiler support data for a
 template class (i.e.@: the vtable) without instantiating any of its
@@ -7435,21 +8160,18 @@ members (with @code{inline}), and instantiation of only the static data
 members of a template class, without the support data or member
 functions (with (@code{static}):
 
-@example
+@smallexample
 extern template int max (int, int);
 inline template class Foo<int>;
 static template class Foo<int>;
-@end example
+@end smallexample
 
 @item
-Do nothing.  Pretend g++ does implement automatic instantiation
+Do nothing.  Pretend G++ does implement automatic instantiation
 management.  Code written for the Borland model will work fine, but
 each translation unit will contain instances of each of the templates it
 uses.  In a large program, this can lead to an unacceptable amount of code
 duplication.
-
-@xref{C++ Interface,,Declarations and Definitions in One Header}, for
-more discussion of these pragmas.
 @end enumerate
 
 @node Bound member functions
@@ -7475,21 +8197,21 @@ virtual function calls.
 
 The syntax for this extension is
 
-@example
+@smallexample
 extern A a;
 extern int (A::*fp)();
 typedef int (*fptr)(A *);
 
 fptr p = (fptr)(a.*fp);
-@end example
+@end smallexample
 
 For PMF constants (i.e.@: expressions of the form @samp{&Klasse::Member}),
 no object is needed to obtain the address of the function.  They can be
 converted to function pointers directly:
 
-@example
+@smallexample
 fptr p1 = (fptr)(&A::foo);
-@end example
+@end smallexample
 
 @opindex Wno-pmf-conversions
 You must specify @option{-Wno-pmf-conversions} to use this extension.
@@ -7534,6 +8256,69 @@ Calls to methods declared in this interface will be dispatched using GCJ's
 interface table mechanism, instead of regular virtual table dispatch.
 
 @end table
+
+See also @xref{Strong Using}.
+
+@node Strong Using
+@section Strong Using
+
+@strong{Caution:} The semantics of this extension are not fully
+defined.  Users should refrain from using this extension as its
+semantics may change subtly over time.  It is possible that this
+extension wil be removed in future versions of G++.
+
+A using-directive with @code{__attribute ((strong))} is stronger
+than a normal using-directive in two ways:
+
+@itemize @bullet
+@item
+Templates from the used namespace can be specialized as though they were members of the using namespace.
+
+@item
+The using namespace is considered an associated namespace of all
+templates in the used namespace for purposes of argument-dependent
+name lookup.
+@end itemize
+
+This is useful for composing a namespace transparently from
+implementation namespaces.  For example:
+
+@smallexample
+namespace std @{
+  namespace debug @{
+    template <class T> struct A @{ @};
+  @}
+  using namespace debug __attribute ((__strong__));
+  template <> struct A<int> @{ @};   // ok to specialize
+
+  template <class T> void f (A<T>);
+@}
+
+int main()
+@{
+  f (std::A<float>());             // lookup finds std::f
+  f (std::A<int>());
+@}
+@end smallexample
+
+@node Offsetof
+@section Offsetof
+
+G++ uses a syntactic extension to implement the @code{offsetof} macro.
+
+In particular:
+
+@smallexample
+  __offsetof__ (expression)
+@end smallexample
+
+is equivalent to the parenthesized expression, except that the
+expression is considered an integral constant expression even if it
+contains certain operators that are not normally permitted in an
+integral constant expression.  Users should never use
+@code{__offsetof__} directly; the only valid use of
+@code{__offsetof__} is to implement the @code{offsetof} macro in
+@code{<stddef.h>}.
 
 @node Java Exceptions
 @section Java Exceptions
@@ -7586,10 +8371,10 @@ that are now deprecated:
 @table @code
 @item -fexternal-templates
 @itemx -falt-external-templates
-These are two of the many ways for g++ to implement template
+These are two of the many ways for G++ to implement template
 instantiation.  @xref{Template Instantiation}.  The C++ standard clearly
 defines how template definitions have to be organized across
-implementation units.  g++ has an implicit instantiation mechanism that
+implementation units.  G++ has an implicit instantiation mechanism that
 should work just fine for standard-conforming code.
 
 @item -fstrict-prototype
@@ -7601,18 +8386,20 @@ it is required for backwards compatibility @xref{Backwards Compatibility}.
 @end table
 
 The named return value extension has been deprecated, and is now
-removed from g++.
+removed from G++.
 
 The use of initializer lists with new expressions has been deprecated,
-and is now removed from g++.
+and is now removed from G++.
 
 Floating and complex non-type template parameters have been deprecated,
-and are now removed from g++.
+and are now removed from G++.
 
-The implicit typename extension has been deprecated and will be removed
-from g++ at some point.  In some cases g++ determines that a dependent
-type such as @code{TPL<T>::X} is a type without needing a
-@code{typename} keyword, contrary to the standard.
+The implicit typename extension has been deprecated and is now
+removed from G++.
+
+The use of default arguments in function pointers, function typedefs and
+and other places where they are not permitted by the standard is
+deprecated and will be removed from a future version of G++.
 
 @node Backwards Compatibility
 @section Backwards Compatibility

@@ -1,6 +1,6 @@
 /* Generate code from machine description to recognize rtl as insns.
    Copyright (C) 1987, 1988, 1992, 1993, 1994, 1995, 1997, 1998,
-   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -50,8 +50,10 @@
    the new rtl is returned in an INSN list, and LAST_INSN will point
    to the last recognized insn in the old sequence.  */
 
-#include "hconfig.h"
+#include "bconfig.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "rtl.h"
 #include "errors.h"
 #include "gensupport.h"
@@ -65,7 +67,7 @@ static char **insn_name_ptr = 0;
 static int insn_name_ptr_size = 0;
 
 /* A listhead of decision trees.  The alternatives to a node are kept
-   in a doublely-linked list so we can easily add nodes to the proper
+   in a doubly-linked list so we can easily add nodes to the proper
    place when merging.  */
 
 struct decision_head
@@ -210,9 +212,7 @@ static const struct pred_table
   {"indirect_operand", {SUBREG, MEM}},
   {"comparison_operator", {EQ, NE, LE, LT, GE, GT, LEU, LTU, GEU, GTU,
 			   UNORDERED, ORDERED, UNEQ, UNGE, UNGT, UNLE,
-			   UNLT, LTGT}},
-  {"mode_independent_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,
-				LABEL_REF, SUBREG, REG, MEM, ADDRESSOF}}
+			   UNLT, LTGT}}
 };
 
 #define NUM_KNOWN_PREDS ARRAY_SIZE (preds)
@@ -227,101 +227,97 @@ static const char *const special_mode_pred_table[] = {
 #define NUM_SPECIAL_MODE_PREDS ARRAY_SIZE (special_mode_pred_table)
 
 static struct decision *new_decision
-  PARAMS ((const char *, struct decision_head *));
+  (const char *, struct decision_head *);
 static struct decision_test *new_decision_test
-  PARAMS ((enum decision_type, struct decision_test ***));
+  (enum decision_type, struct decision_test ***);
 static rtx find_operand
-  PARAMS ((rtx, int));
+  (rtx, int, rtx);
 static rtx find_matching_operand
-  PARAMS ((rtx, int));
+  (rtx, int);
 static void validate_pattern
-  PARAMS ((rtx, rtx, rtx, int));
+  (rtx, rtx, rtx, int);
 static struct decision *add_to_sequence
-  PARAMS ((rtx, struct decision_head *, const char *, enum routine_type, int));
+  (rtx, struct decision_head *, const char *, enum routine_type, int);
 
 static int maybe_both_true_2
-  PARAMS ((struct decision_test *, struct decision_test *));
+  (struct decision_test *, struct decision_test *);
 static int maybe_both_true_1
-  PARAMS ((struct decision_test *, struct decision_test *));
+  (struct decision_test *, struct decision_test *);
 static int maybe_both_true
-  PARAMS ((struct decision *, struct decision *, int));
+  (struct decision *, struct decision *, int);
 
 static int nodes_identical_1
-  PARAMS ((struct decision_test *, struct decision_test *));
+  (struct decision_test *, struct decision_test *);
 static int nodes_identical
-  PARAMS ((struct decision *, struct decision *));
+  (struct decision *, struct decision *);
 static void merge_accept_insn
-  PARAMS ((struct decision *, struct decision *));
+  (struct decision *, struct decision *);
 static void merge_trees
-  PARAMS ((struct decision_head *, struct decision_head *));
+  (struct decision_head *, struct decision_head *);
 
 static void factor_tests
-  PARAMS ((struct decision_head *));
+  (struct decision_head *);
 static void simplify_tests
-  PARAMS ((struct decision_head *));
+  (struct decision_head *);
 static int break_out_subroutines
-  PARAMS ((struct decision_head *, int));
+  (struct decision_head *, int);
 static void find_afterward
-  PARAMS ((struct decision_head *, struct decision *));
+  (struct decision_head *, struct decision *);
 
 static void change_state
-  PARAMS ((const char *, const char *, struct decision *, const char *));
+  (const char *, const char *, struct decision *, const char *);
 static void print_code
-  PARAMS ((enum rtx_code));
+  (enum rtx_code);
 static void write_afterward
-  PARAMS ((struct decision *, struct decision *, const char *));
+  (struct decision *, struct decision *, const char *);
 static struct decision *write_switch
-  PARAMS ((struct decision *, int));
+  (struct decision *, int);
 static void write_cond
-  PARAMS ((struct decision_test *, int, enum routine_type));
+  (struct decision_test *, int, enum routine_type);
 static void write_action
-  PARAMS ((struct decision *, struct decision_test *, int, int,
-	   struct decision *, enum routine_type));
+  (struct decision *, struct decision_test *, int, int,
+   struct decision *, enum routine_type);
 static int is_unconditional
-  PARAMS ((struct decision_test *, enum routine_type));
+  (struct decision_test *, enum routine_type);
 static int write_node
-  PARAMS ((struct decision *, int, enum routine_type));
+  (struct decision *, int, enum routine_type);
 static void write_tree_1
-  PARAMS ((struct decision_head *, int, enum routine_type));
+  (struct decision_head *, int, enum routine_type);
 static void write_tree
-  PARAMS ((struct decision_head *, const char *, enum routine_type, int));
+  (struct decision_head *, const char *, enum routine_type, int);
 static void write_subroutine
-  PARAMS ((struct decision_head *, enum routine_type));
+  (struct decision_head *, enum routine_type);
 static void write_subroutines
-  PARAMS ((struct decision_head *, enum routine_type));
+  (struct decision_head *, enum routine_type);
 static void write_header
-  PARAMS ((void));
+  (void);
 
 static struct decision_head make_insn_sequence
-  PARAMS ((rtx, enum routine_type));
+  (rtx, enum routine_type);
 static void process_tree
-  PARAMS ((struct decision_head *, enum routine_type));
+  (struct decision_head *, enum routine_type);
 
 static void record_insn_name
-  PARAMS ((int, const char *));
+  (int, const char *);
 
 static void debug_decision_0
-  PARAMS ((struct decision *, int, int));
+  (struct decision *, int, int);
 static void debug_decision_1
-  PARAMS ((struct decision *, int));
+  (struct decision *, int);
 static void debug_decision_2
-  PARAMS ((struct decision_test *));
+  (struct decision_test *);
 extern void debug_decision
-  PARAMS ((struct decision *));
+  (struct decision *);
 extern void debug_decision_list
-  PARAMS ((struct decision *));
+  (struct decision *);
 
 /* Create a new node in sequence after LAST.  */
 
 static struct decision *
-new_decision (position, last)
-     const char *position;
-     struct decision_head *last;
+new_decision (const char *position, struct decision_head *last)
 {
-  struct decision *new
-    = (struct decision *) xmalloc (sizeof (struct decision));
+  struct decision *new = xcalloc (1, sizeof (struct decision));
 
-  memset (new, 0, sizeof (*new));
   new->success = *last;
   new->position = xstrdup (position);
   new->number = next_number++;
@@ -333,14 +329,12 @@ new_decision (position, last)
 /* Create a new test and link it in at PLACE.  */
 
 static struct decision_test *
-new_decision_test (type, pplace)
-     enum decision_type type;
-     struct decision_test ***pplace;
+new_decision_test (enum decision_type type, struct decision_test ***pplace)
 {
   struct decision_test **place = *pplace;
   struct decision_test *test;
 
-  test = (struct decision_test *) xmalloc (sizeof (*test));
+  test = xmalloc (sizeof (*test));
   test->next = *place;
   test->type = type;
   *place = test;
@@ -351,17 +345,18 @@ new_decision_test (type, pplace)
   return test;
 }
 
-/* Search for and return operand N.  */
+/* Search for and return operand N, stop when reaching node STOP.  */
 
 static rtx
-find_operand (pattern, n)
-     rtx pattern;
-     int n;
+find_operand (rtx pattern, int n, rtx stop)
 {
   const char *fmt;
   RTX_CODE code;
   int i, j, len;
   rtx r;
+
+  if (pattern == stop)
+    return stop;
 
   code = GET_CODE (pattern);
   if ((code == MATCH_SCRATCH
@@ -379,18 +374,19 @@ find_operand (pattern, n)
       switch (fmt[i])
 	{
 	case 'e': case 'u':
-	  if ((r = find_operand (XEXP (pattern, i), n)) != NULL_RTX)
+	  if ((r = find_operand (XEXP (pattern, i), n, stop)) != NULL_RTX)
 	    return r;
 	  break;
 
 	case 'V':
 	  if (! XVEC (pattern, i))
 	    break;
-	  /* FALLTHRU */
+	  /* Fall through.  */
 
 	case 'E':
 	  for (j = 0; j < XVECLEN (pattern, i); j++)
-	    if ((r = find_operand (XVECEXP (pattern, i, j), n)) != NULL_RTX)
+	    if ((r = find_operand (XVECEXP (pattern, i, j), n, stop))
+		!= NULL_RTX)
 	      return r;
 	  break;
 
@@ -409,9 +405,7 @@ find_operand (pattern, n)
    constraint for operand N.  */
 
 static rtx
-find_matching_operand (pattern, n)
-     rtx pattern;
-     int n;
+find_matching_operand (rtx pattern, int n)
 {
   const char *fmt;
   RTX_CODE code;
@@ -439,7 +433,7 @@ find_matching_operand (pattern, n)
 	case 'V':
 	  if (! XVEC (pattern, i))
 	    break;
-	  /* FALLTHRU */
+	  /* Fall through.  */
 
 	case 'E':
 	  for (j = 0; j < XVECLEN (pattern, i); j++)
@@ -464,11 +458,7 @@ find_matching_operand (pattern, n)
    '+' within a context that requires in-out constraints.  */
 
 static void
-validate_pattern (pattern, insn, set, set_code)
-     rtx pattern;
-     rtx insn;
-     rtx set;
-     int set_code;
+validate_pattern (rtx pattern, rtx insn, rtx set, int set_code)
 {
   const char *fmt;
   RTX_CODE code;
@@ -480,7 +470,17 @@ validate_pattern (pattern, insn, set, set_code)
     {
     case MATCH_SCRATCH:
       return;
-
+    case MATCH_DUP:
+    case MATCH_OP_DUP:
+    case MATCH_PAR_DUP:
+      if (find_operand (insn, XINT (pattern, 0), pattern) == pattern)
+	{
+	  message_with_line (pattern_lineno,
+			     "operand %i duplicated before defined",
+			     XINT (pattern, 0));
+          error_count++;
+	}
+      break;
     case MATCH_INSN:
     case MATCH_OPERAND:
     case MATCH_OPERATOR:
@@ -551,7 +551,7 @@ validate_pattern (pattern, insn, set, set_code)
 	  {
 	    const char constraints0 = XSTR (pattern, 2)[0];
 
-	    /* In DEFINE_EXPAND, DEFINE_SPLIT, and DEFINE_PEEPHOLE2, we 
+	    /* In DEFINE_EXPAND, DEFINE_SPLIT, and DEFINE_PEEPHOLE2, we
 	       don't use the MATCH_OPERAND constraint, only the predicate.
 	       This is confusing to folks doing new ports, so help them
 	       not make the mistake.  */
@@ -564,7 +564,7 @@ validate_pattern (pattern, insn, set, set_code)
 				     "warning: constraints not supported in %s",
 				     rtx_name[GET_CODE (insn)]);
 	      }
-	      
+
 	    /* A MATCH_OPERAND that is a SET should have an output reload.  */
 	    else if (set && constraints0)
 	      {
@@ -588,7 +588,7 @@ validate_pattern (pattern, insn, set, set_code)
 		else if (constraints0 != '=' && constraints0 != '+')
 		  {
 		    message_with_line (pattern_lineno,
-				       "operand %d missing output reload", 
+				       "operand %d missing output reload",
 				       XINT (pattern, 0));
 		    error_count++;
 		  }
@@ -647,17 +647,17 @@ validate_pattern (pattern, insn, set, set_code)
 	if (GET_CODE (dest) == STRICT_LOW_PART)
 	  dest = XEXP (dest, 0);
 
-	/* Find the referant for a DUP.  */
+	/* Find the referent for a DUP.  */
 
 	if (GET_CODE (dest) == MATCH_DUP
 	    || GET_CODE (dest) == MATCH_OP_DUP
 	    || GET_CODE (dest) == MATCH_PAR_DUP)
-	  dest = find_operand (insn, XINT (dest, 0));
+	  dest = find_operand (insn, XINT (dest, 0), NULL);
 
 	if (GET_CODE (src) == MATCH_DUP
 	    || GET_CODE (src) == MATCH_OP_DUP
 	    || GET_CODE (src) == MATCH_PAR_DUP)
-	  src = find_operand (insn, XINT (src, 0));
+	  src = find_operand (insn, XINT (src, 0), NULL);
 
 	dmode = GET_MODE (dest);
 	smode = GET_MODE (src);
@@ -765,12 +765,8 @@ validate_pattern (pattern, insn, set, set_code)
    A pointer to the final node in the chain is returned.  */
 
 static struct decision *
-add_to_sequence (pattern, last, position, insn_type, top)
-     rtx pattern;
-     struct decision_head *last;
-     const char *position;
-     enum routine_type insn_type;
-     int top;
+add_to_sequence (rtx pattern, struct decision_head *last, const char *position,
+		 enum routine_type insn_type, int top)
 {
   RTX_CODE code;
   struct decision *this, *sub;
@@ -786,7 +782,7 @@ add_to_sequence (pattern, last, position, insn_type, top)
   if (depth > max_depth)
     max_depth = depth;
 
-  subpos = (char *) xmalloc (depth + 2);
+  subpos = xmalloc (depth + 2);
   strcpy (subpos, position);
   subpos[depth + 1] = 0;
 
@@ -830,7 +826,7 @@ add_to_sequence (pattern, last, position, insn_type, top)
 	 beyond the end of the vector.  */
       test = new_decision_test (DT_veclen_ge, &place);
       test->u.veclen = XVECLEN (pattern, 2);
-      /* FALLTHRU */
+      /* Fall through.  */
 
     case MATCH_OPERAND:
     case MATCH_SCRATCH:
@@ -1060,8 +1056,7 @@ add_to_sequence (pattern, last, position, insn_type, top)
    Returns > 0 for "definitely both true" and < 0 for "maybe both true".  */
 
 static int
-maybe_both_true_2 (d1, d2)
-     struct decision_test *d1, *d2;
+maybe_both_true_2 (struct decision_test *d1, struct decision_test *d2)
 {
   if (d1->type == d2->type)
     {
@@ -1171,8 +1166,7 @@ maybe_both_true_2 (d1, d2)
    Returns > 0 for "definitely both true" and < 0 for "maybe both true".  */
 
 static int
-maybe_both_true_1 (d1, d2)
-     struct decision_test *d1, *d2;
+maybe_both_true_1 (struct decision_test *d1, struct decision_test *d2)
 {
   struct decision_test *t1, *t2;
 
@@ -1206,9 +1200,8 @@ maybe_both_true_1 (d1, d2)
    recursively descend.  */
 
 static int
-maybe_both_true (d1, d2, toplevel)
-     struct decision *d1, *d2;
-     int toplevel;
+maybe_both_true (struct decision *d1, struct decision *d2,
+		 int toplevel)
 {
   struct decision *p1, *p2;
   int cmp;
@@ -1275,8 +1268,7 @@ maybe_both_true (d1, d2, toplevel)
 /* A subroutine of nodes_identical.  Examine two tests for equivalence.  */
 
 static int
-nodes_identical_1 (d1, d2)
-     struct decision_test *d1, *d2;
+nodes_identical_1 (struct decision_test *d1, struct decision_test *d2)
 {
   switch (d1->type)
     {
@@ -1323,8 +1315,7 @@ nodes_identical_1 (d1, d2)
    consider different orderings on the tests.  */
 
 static int
-nodes_identical (d1, d2)
-     struct decision *d1, *d2;
+nodes_identical (struct decision *d1, struct decision *d2)
 {
   struct decision_test *t1, *t2;
 
@@ -1360,8 +1351,7 @@ nodes_identical (d1, d2)
    source machine description.  */
 
 static void
-merge_accept_insn (oldd, addd)
-     struct decision *oldd, *addd;
+merge_accept_insn (struct decision *oldd, struct decision *addd)
 {
   struct decision_test *old, *add;
 
@@ -1405,8 +1395,7 @@ merge_accept_insn (oldd, addd)
 /* Merge two decision trees OLDH and ADDH, modifying OLDH destructively.  */
 
 static void
-merge_trees (oldh, addh)
-     struct decision_head *oldh, *addh;
+merge_trees (struct decision_head *oldh, struct decision_head *addh)
 {
   struct decision *next, *add;
 
@@ -1490,8 +1479,7 @@ merge_trees (oldh, addh)
    (depending on the test type) to emit switch statements later.  */
 
 static void
-factor_tests (head)
-     struct decision_head *head;
+factor_tests (struct decision_head *head)
 {
   struct decision *first, *next;
 
@@ -1576,8 +1564,7 @@ factor_tests (head)
    predicates, remove them.  */
 
 static void
-simplify_tests (head)
-     struct decision_head *head;
+simplify_tests (struct decision_head *head)
 {
   struct decision *tree;
 
@@ -1614,9 +1601,7 @@ simplify_tests (head)
    that is generated.  */
 
 static int
-break_out_subroutines (head, initial)
-     struct decision_head *head;
-     int initial;
+break_out_subroutines (struct decision_head *head, int initial)
 {
   int size = 0;
   struct decision *sub;
@@ -1636,9 +1621,7 @@ break_out_subroutines (head, initial)
    when p is true.  */
 
 static void
-find_afterward (head, real_afterward)
-     struct decision_head *head;
-     struct decision *real_afterward;
+find_afterward (struct decision_head *head, struct decision *real_afterward)
 {
   struct decision *p, *q, *afterward;
 
@@ -1685,11 +1668,8 @@ find_afterward (head, real_afterward)
    match multiple insns and we try to step past the end of the stream.  */
 
 static void
-change_state (oldpos, newpos, afterward, indent)
-     const char *oldpos;
-     const char *newpos;
-     struct decision *afterward;
-     const char *indent;
+change_state (const char *oldpos, const char *newpos,
+	      struct decision *afterward, const char *indent)
 {
   int odepth = strlen (oldpos);
   int ndepth = strlen (newpos);
@@ -1746,8 +1726,7 @@ change_state (oldpos, newpos, afterward, indent)
    the name.  */
 
 static void
-print_code (code)
-     enum rtx_code code;
+print_code (enum rtx_code code)
 {
   const char *p;
   for (p = GET_RTX_NAME (code); *p; p++)
@@ -1757,10 +1736,8 @@ print_code (code)
 /* Emit code to cross an afterward link -- change state and branch.  */
 
 static void
-write_afterward (start, afterward, indent)
-     struct decision *start;
-     struct decision *afterward;
-     const char *indent;
+write_afterward (struct decision *start, struct decision *afterward,
+		 const char *indent)
 {
   if (!afterward || start->subroutine_number > 0)
     printf("%sgoto ret0;\n", indent);
@@ -1771,13 +1748,25 @@ write_afterward (start, afterward, indent)
     }
 }
 
+/* Emit a HOST_WIDE_INT as an integer constant expression.  We need to take
+   special care to avoid "decimal constant is so large that it is unsigned"
+   warnings in the resulting code.  */
+
+static void
+print_host_wide_int (HOST_WIDE_INT val)
+{
+  HOST_WIDE_INT min = (unsigned HOST_WIDE_INT)1 << (HOST_BITS_PER_WIDE_INT-1);
+  if (val == min)
+    printf ("(" HOST_WIDE_INT_PRINT_DEC_C "-1)", val + 1);
+  else
+    printf (HOST_WIDE_INT_PRINT_DEC_C, val);
+}
+
 /* Emit a switch statement, if possible, for an initial sequence of
    nodes at START.  Return the first node yet untested.  */
 
 static struct decision *
-write_switch (start, depth)
-     struct decision *start;
-     int depth;
+write_switch (struct decision *start, int depth)
 {
   struct decision *p = start;
   enum decision_type type = p->tests->type;
@@ -1946,7 +1935,7 @@ write_switch (start, depth)
 	    case DT_elt_one_int:
 	    case DT_elt_zero_wide:
 	    case DT_elt_zero_wide_safe:
-	      printf (HOST_WIDE_INT_PRINT_DEC_C, p->tests->u.intval);
+	      print_host_wide_int (p->tests->u.intval);
 	      break;
 	    default:
 	      abort ();
@@ -1966,7 +1955,7 @@ write_switch (start, depth)
     }
   else
     {
-      /* None of the other tests are ameanable.  */
+      /* None of the other tests are amenable.  */
       return p;
     }
 }
@@ -1974,10 +1963,8 @@ write_switch (start, depth)
 /* Emit code for one test.  */
 
 static void
-write_cond (p, depth, subroutine_type)
-     struct decision_test *p;
-     int depth;
-     enum routine_type subroutine_type;
+write_cond (struct decision_test *p, int depth,
+	    enum routine_type subroutine_type)
 {
   switch (p->type)
     {
@@ -2005,7 +1992,7 @@ write_cond (p, depth, subroutine_type)
     case DT_elt_zero_wide:
     case DT_elt_zero_wide_safe:
       printf ("XWINT (x%d, 0) == ", depth);
-      printf (HOST_WIDE_INT_PRINT_DEC_C, p->u.intval);
+      print_host_wide_int (p->u.intval);
       break;
 
     case DT_veclen_ge:
@@ -2049,12 +2036,9 @@ write_cond (p, depth, subroutine_type)
    perform a state change.  For the `accept' tests we must do more work.  */
 
 static void
-write_action (p, test, depth, uncond, success, subroutine_type)
-     struct decision *p;
-     struct decision_test *test;
-     int depth, uncond;
-     struct decision *success;
-     enum routine_type subroutine_type;
+write_action (struct decision *p, struct decision_test *test,
+	      int depth, int uncond, struct decision *success,
+	      enum routine_type subroutine_type)
 {
   const char *indent;
   int want_close = 0;
@@ -2140,9 +2124,7 @@ write_action (p, test, depth, uncond, success, subroutine_type)
 /* ??? is_unconditional is a stupid name for a tri-state function.  */
 
 static int
-is_unconditional (t, subroutine_type)
-     struct decision_test *t;
-     enum routine_type subroutine_type;
+is_unconditional (struct decision_test *t, enum routine_type subroutine_type)
 {
   if (t->type == DT_accept_op)
     return 1;
@@ -2169,10 +2151,8 @@ is_unconditional (t, subroutine_type)
    Return true if there is no fallthru path.  */
 
 static int
-write_node (p, depth, subroutine_type)
-     struct decision *p;
-     int depth;
-     enum routine_type subroutine_type;
+write_node (struct decision *p, int depth,
+	    enum routine_type subroutine_type)
 {
   struct decision_test *test, *last_test;
   int uncond;
@@ -2208,10 +2188,8 @@ write_node (p, depth, subroutine_type)
 /* Emit code for all of the sibling nodes of HEAD.  */
 
 static void
-write_tree_1 (head, depth, subroutine_type)
-     struct decision_head *head;
-     int depth;
-     enum routine_type subroutine_type;
+write_tree_1 (struct decision_head *head, int depth,
+	      enum routine_type subroutine_type)
 {
   struct decision *p, *next;
   int uncond = 0;
@@ -2244,11 +2222,8 @@ write_tree_1 (head, depth, subroutine_type)
    position at the node that branched to this node.  */
 
 static void
-write_tree (head, prevpos, type, initial)
-     struct decision_head *head;
-     const char *prevpos;
-     enum routine_type type;
-     int initial;
+write_tree (struct decision_head *head, const char *prevpos,
+	    enum routine_type type, int initial)
 {
   struct decision *p = head->first;
 
@@ -2304,9 +2279,7 @@ write_tree (head, prevpos, type, initial)
    node TREE.  */
 
 static void
-write_subroutine (head, type)
-     struct decision_head *head;
-     enum routine_type type;
+write_subroutine (struct decision_head *head, enum routine_type type)
 {
   int subfunction = head->first ? head->first->subroutine_number : 0;
   const char *s_or_e;
@@ -2325,28 +2298,18 @@ write_subroutine (head, type)
   switch (type)
     {
     case RECOG:
-      printf ("%sint recog%s PARAMS ((rtx, rtx, int *));\n", s_or_e, extension);
       printf ("%sint\n\
-recog%s (x0, insn, pnum_clobbers)\n\
-     rtx x0 ATTRIBUTE_UNUSED;\n\
-     rtx insn ATTRIBUTE_UNUSED;\n\
-     int *pnum_clobbers ATTRIBUTE_UNUSED;\n", s_or_e, extension);
+recog%s (rtx x0 ATTRIBUTE_UNUSED,\n\trtx insn ATTRIBUTE_UNUSED,\n\tint *pnum_clobbers ATTRIBUTE_UNUSED)\n", s_or_e, extension);
       break;
     case SPLIT:
-      printf ("%srtx split%s PARAMS ((rtx, rtx));\n", s_or_e, extension);
       printf ("%srtx\n\
-split%s (x0, insn)\n\
-     rtx x0 ATTRIBUTE_UNUSED;\n\
-     rtx insn ATTRIBUTE_UNUSED;\n", s_or_e, extension);
+split%s (rtx x0 ATTRIBUTE_UNUSED, rtx insn ATTRIBUTE_UNUSED)\n",
+	      s_or_e, extension);
       break;
     case PEEPHOLE2:
-      printf ("%srtx peephole2%s PARAMS ((rtx, rtx, int *));\n",
-	      s_or_e, extension);
       printf ("%srtx\n\
-peephole2%s (x0, insn, _pmatch_len)\n\
-     rtx x0 ATTRIBUTE_UNUSED;\n\
-     rtx insn ATTRIBUTE_UNUSED;\n\
-     int *_pmatch_len ATTRIBUTE_UNUSED;\n", s_or_e, extension);
+peephole2%s (rtx x0 ATTRIBUTE_UNUSED,\n\trtx insn ATTRIBUTE_UNUSED,\n\tint *_pmatch_len ATTRIBUTE_UNUSED)\n",
+	      s_or_e, extension);
       break;
     }
 
@@ -2371,9 +2334,7 @@ peephole2%s (x0, insn, _pmatch_len)\n\
    subroutines, but did not write them out.  Do so now.  */
 
 static void
-write_subroutines (head, type)
-     struct decision_head *head;
-     enum routine_type type;
+write_subroutines (struct decision_head *head, enum routine_type type)
 {
   struct decision *p;
 
@@ -2388,7 +2349,7 @@ write_subroutines (head, type)
 /* Begin the output file.  */
 
 static void
-write_header ()
+write_header (void)
 {
   puts ("\
 /* Generated automatically by the program `genrecog' from the target\n\
@@ -2396,6 +2357,8 @@ write_header ()
 \n\
 #include \"config.h\"\n\
 #include \"system.h\"\n\
+#include \"coretypes.h\"\n\
+#include \"tm.h\"\n\
 #include \"rtl.h\"\n\
 #include \"tm_p.h\"\n\
 #include \"function.h\"\n\
@@ -2448,9 +2411,7 @@ write_header ()
    TYPE says what type of routine we are recognizing (RECOG or SPLIT).  */
 
 static struct decision_head
-make_insn_sequence (insn, type)
-     rtx insn;
-     enum routine_type type;
+make_insn_sequence (rtx insn, enum routine_type type)
 {
   rtx x;
   const char *c_test = XSTR (insn, type == RECOG ? 2 : 1);
@@ -2532,7 +2493,7 @@ make_insn_sequence (insn, type)
   switch (type)
     {
     case RECOG:
-      /* If this is an DEFINE_INSN and X is a PARALLEL, see if it ends
+      /* If this is a DEFINE_INSN and X is a PARALLEL, see if it ends
 	 with a group of CLOBBERs of (hard) registers or MATCH_SCRATCHes.
 	 If so, set up to recognize the pattern without these CLOBBERs.  */
 
@@ -2605,12 +2566,12 @@ make_insn_sequence (insn, type)
 
     case SPLIT:
       /* Define the subroutine we will call below and emit in genemit.  */
-      printf ("extern rtx gen_split_%d PARAMS ((rtx *));\n", next_insn_code);
+      printf ("extern rtx gen_split_%d (rtx *);\n", next_insn_code);
       break;
 
     case PEEPHOLE2:
       /* Define the subroutine we will call below and emit in genemit.  */
-      printf ("extern rtx gen_peephole2_%d PARAMS ((rtx, rtx *));\n",
+      printf ("extern rtx gen_peephole2_%d (rtx, rtx *);\n",
 	      next_insn_code);
       break;
     }
@@ -2619,9 +2580,7 @@ make_insn_sequence (insn, type)
 }
 
 static void
-process_tree (head, subroutine_type)
-     struct decision_head *head;
-     enum routine_type subroutine_type;
+process_tree (struct decision_head *head, enum routine_type subroutine_type)
 {
   if (head->first == NULL)
     {
@@ -2648,12 +2607,10 @@ process_tree (head, subroutine_type)
   write_subroutine (head, subroutine_type);
 }
 
-extern int main PARAMS ((int, char **));
+extern int main (int, char **);
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   rtx desc;
   struct decision_head recog_tree, split_tree, peephole2_tree, h;
@@ -2717,8 +2674,7 @@ main (argc, argv)
 
 /* Define this so we can link with print-rtl.o to get debug_rtx function.  */
 const char *
-get_insn_name (code)
-     int code;
+get_insn_name (int code)
 {
   if (code < insn_name_ptr_size)
     return insn_name_ptr[code];
@@ -2727,9 +2683,7 @@ get_insn_name (code)
 }
 
 static void
-record_insn_name (code, name)
-     int code;
-     const char *name;
+record_insn_name (int code, const char *name)
 {
   static const char *last_real_name = "insn";
   static int last_real_code = 0;
@@ -2739,8 +2693,7 @@ record_insn_name (code, name)
     {
       int new_size;
       new_size = (insn_name_ptr_size ? insn_name_ptr_size * 2 : 512);
-      insn_name_ptr =
-	(char **) xrealloc (insn_name_ptr, sizeof(char *) * new_size);
+      insn_name_ptr = xrealloc (insn_name_ptr, sizeof(char *) * new_size);
       memset (insn_name_ptr + insn_name_ptr_size, 0,
 	      sizeof(char *) * (new_size - insn_name_ptr_size));
       insn_name_ptr_size = new_size;
@@ -2761,8 +2714,7 @@ record_insn_name (code, name)
 }
 
 static void
-debug_decision_2 (test)
-     struct decision_test *test;
+debug_decision_2 (struct decision_test *test)
 {
   switch (test->type)
     {
@@ -2782,12 +2734,10 @@ debug_decision_2 (test)
       fprintf (stderr, "elt1_i=%d", (int) test->u.intval);
       break;
     case DT_elt_zero_wide:
-      fprintf (stderr, "elt0_w=");
-      fprintf (stderr, HOST_WIDE_INT_PRINT_DEC, test->u.intval);
+      fprintf (stderr, "elt0_w=" HOST_WIDE_INT_PRINT_DEC, test->u.intval);
       break;
     case DT_elt_zero_wide_safe:
-      fprintf (stderr, "elt0_ws=");
-      fprintf (stderr, HOST_WIDE_INT_PRINT_DEC, test->u.intval);
+      fprintf (stderr, "elt0_ws=" HOST_WIDE_INT_PRINT_DEC, test->u.intval);
       break;
     case DT_veclen_ge:
       fprintf (stderr, "veclen>=%d", test->u.veclen);
@@ -2821,9 +2771,7 @@ debug_decision_2 (test)
 }
 
 static void
-debug_decision_1 (d, indent)
-     struct decision *d;
-     int indent;
+debug_decision_1 (struct decision *d, int indent)
 {
   int i;
   struct decision_test *test;
@@ -2856,9 +2804,7 @@ debug_decision_1 (d, indent)
 }
 
 static void
-debug_decision_0 (d, indent, maxdepth)
-     struct decision *d;
-     int indent, maxdepth;
+debug_decision_0 (struct decision *d, int indent, int maxdepth)
 {
   struct decision *n;
   int i;
@@ -2879,15 +2825,13 @@ debug_decision_0 (d, indent, maxdepth)
 }
 
 void
-debug_decision (d)
-     struct decision *d;
+debug_decision (struct decision *d)
 {
   debug_decision_0 (d, 0, 1000000);
 }
 
 void
-debug_decision_list (d)
-     struct decision *d;
+debug_decision_list (struct decision *d)
 {
   while (d)
     {

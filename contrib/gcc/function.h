@@ -1,6 +1,6 @@
 /* Structure for saving state for a nested function.
    Copyright (C) 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000 Free Software Foundation, Inc.
+   1999, 2000, 2003, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -18,6 +18,9 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
+
+#ifndef GCC_FUNCTION_H
+#define GCC_FUNCTION_H
 
 struct var_refs_queue GTY(())
 {
@@ -62,7 +65,7 @@ struct emit_status GTY(())
 
   /* The ends of the doubly-linked chain of rtl for the current function.
      Both are reset to null at the start of rtl generation for the function.
-   
+
      start_sequence saves both of these on `sequence_stack' along with
      `sequence_rtl_expr' and then starts a new, nested sequence of insns.  */
   rtx x_first_insn;
@@ -83,10 +86,9 @@ struct emit_status GTY(())
      Reset to 1 for each function compiled.  */
   int x_cur_insn_uid;
 
-  /* Line number and source file of the last line-number NOTE emitted.
+  /* Location the last line-number NOTE emitted.
      This is used to avoid generating duplicates.  */
-  int x_last_linenum;
-  const char *x_last_filename;
+  location_t x_last_location;
 
   /* The length of the regno_pointer_align, regno_decl, and x_regno_reg_rtx
      vectors.  Since these vectors are needed during the expansion phase when
@@ -97,19 +99,15 @@ struct emit_status GTY(())
   /* Indexed by pseudo register number, if nonzero gives the known alignment
      for that pseudo (if REG_POINTER is set in x_regno_reg_rtx).
      Allocated in parallel with x_regno_reg_rtx.  */
-  unsigned char * GTY ((length ("%h.regno_pointer_align_length"))) 
+  unsigned char * GTY ((length ("%h.x_reg_rtx_no")))
     regno_pointer_align;
 
-  /* Indexed by pseudo register number, if nonzero gives the decl
-     corresponding to that register.  */
-  tree * GTY ((length ("%h.regno_pointer_align_length"))) regno_decl;
-
   /* Indexed by pseudo register number, gives the rtx for that pseudo.
-     Allocated in parallel with regno_pointer_align. 
+     Allocated in parallel with regno_pointer_align.
 
      Note MEM expressions can appear in this array due to the actions
      of put_var_into_stack.  */
-  rtx * GTY ((length ("%h.regno_pointer_align_length"))) x_regno_reg_rtx;
+  rtx * GTY ((length ("%h.x_reg_rtx_no"))) x_regno_reg_rtx;
 };
 
 /* For backward compatibility... eventually these should all go away.  */
@@ -119,7 +117,6 @@ struct emit_status GTY(())
 #define seq_stack (cfun->emit->sequence_stack)
 
 #define REGNO_POINTER_ALIGN(REGNO) (cfun->emit->regno_pointer_align[REGNO])
-#define REGNO_DECL(REGNO) (cfun->emit->regno_decl[REGNO])
 
 struct expr_status GTY(())
 {
@@ -185,9 +182,6 @@ struct function GTY(())
   struct varasm_status *varasm;
 
   /* For function.c.  */
-
-  /* Name of this function.  */
-  const char *name;
 
   /* Points to the FUNCTION_DECL of this function.  */
   tree decl;
@@ -273,6 +267,11 @@ struct function GTY(())
      on machines which require execution of the epilogue on all returns.  */
   rtx x_return_label;
 
+  /* Label that will go on the end of function epilogue.
+     Jumping to this label serves as a "naked return" instruction
+     on machines which require execution of the epilogue on all returns.  */
+  rtx x_naked_return_label;
+
   /* Label and register for unswitching computed gotos.  */
   rtx computed_goto_common_label;
   rtx computed_goto_common_reg;
@@ -356,7 +355,7 @@ struct function GTY(())
      until no longer needed.  CLEANUP_POINT_EXPRs define the lifetime
      of TARGET_EXPRs.  */
   int x_target_temp_slot_level;
-  
+
   /* This slot is initialized as 0 and is added to
      during the nested function.  */
   struct var_refs_queue *fixup_var_refs_queue;
@@ -383,6 +382,8 @@ struct function GTY(())
   int stack_alignment_needed;
   /* Preferred alignment of the end of stack frame.  */
   int preferred_stack_boundary;
+  /* Set when the call to function itself has been emit.  */
+  bool recursive_call_emit;
 
   /* Language-specific code can use this to store whatever it likes.  */
   struct language_function * language;
@@ -393,6 +394,23 @@ struct function GTY(())
      delay list for them is recorded here.  */
   rtx epilogue_delay_list;
 
+  /* How commonly executed the function is.  Initialized during branch
+     probabilities pass.  */
+  enum function_frequency {
+    /* This function most likely won't be executed at all.
+       (set only when profile feedback is available).  */
+    FUNCTION_FREQUENCY_UNLIKELY_EXECUTED,
+    /* The default value.  */
+    FUNCTION_FREQUENCY_NORMAL,
+    /* Optimize this function hard
+       (set only when profile feedback is available).  */
+    FUNCTION_FREQUENCY_HOT
+  } function_frequency;
+
+  /* Maximal number of entities in the single jumptable.  Used to estimate
+     final flowgraph size.  */
+  int max_jumptable_ents;
+
   /* Collected bit flags.  */
 
   /* Nonzero if function being compiled needs to be given an address
@@ -402,7 +420,7 @@ struct function GTY(())
   /* Nonzero if function being compiled needs to
      return the address of where it has put a structure value.  */
   unsigned int returns_pcc_struct : 1;
-  
+
   /* Nonzero if the current function returns a pointer type.  */
   unsigned int returns_pointer : 1;
 
@@ -414,13 +432,16 @@ struct function GTY(())
 
   /* Nonzero if function being compiled can call longjmp.  */
   unsigned int calls_longjmp : 1;
-  
+
   /* Nonzero if function being compiled can call alloca,
      either as a subroutine or builtin.  */
   unsigned int calls_alloca : 1;
 
   /* Nonzero if the function calls __builtin_eh_return.  */
   unsigned int calls_eh_return : 1;
+
+  /* Nonzero if the function calls __builtin_constant_p.  */
+  unsigned int calls_constant_p : 1;
 
   /* Nonzero if function being compiled receives nonlocal gotos
      from nested functions.  */
@@ -436,9 +457,10 @@ struct function GTY(())
   /* Nonzero if the function being compiled issues a computed jump.  */
   unsigned int has_computed_jump : 1;
 
-  /* Nonzero if the current function is a thunk (a lightweight function that
-     just adjusts one of its arguments and forwards to another function), so
-     we should try to cut corners where we can.  */
+  /* Nonzero if the current function is a thunk, i.e., a lightweight
+     function implemented by the output_mi_thunk hook) that just
+     adjusts one of its arguments and forwards to another
+     function.  */
   unsigned int is_thunk : 1;
 
   /* This bit is used by the exception handling logic.  It is set if all
@@ -447,13 +469,10 @@ struct function GTY(())
      function, however, should be treated as throwing if any of its callees
      can throw.  */
   unsigned int all_throwers_are_sibcalls : 1;
- 
+
   /* Nonzero if instrumentation calls for function entry and exit should be
      generated.  */
   unsigned int instrument_entry_exit : 1;
-
-  /* Nonzero if arc profiling should be done for the function.  */
-  unsigned int arc_profile : 1;
 
   /* Nonzero if profiling code should be generated.  */
   unsigned int profile : 1;
@@ -489,35 +508,30 @@ struct function GTY(())
   /* Nonzero if the current function needs an lsda for exception handling.  */
   unsigned int uses_eh_lsda : 1;
 
-  /* Nonzero if code to initialize arg_pointer_save_area has been emited.  */
+  /* Nonzero if code to initialize arg_pointer_save_area has been emitted.  */
   unsigned int arg_pointer_save_area_init : 1;
 
-  /* How commonly executed the function is.  Initialized during branch
-     probabilities pass.  */
-  enum function_frequency {
-    /* This function most likely won't be executed at all.
-       (set only when profile feedback is available).  */
-    FUNCTION_FREQUENCY_UNLIKELY_EXECUTED,
-    /* The default value.  */
-    FUNCTION_FREQUENCY_NORMAL,
-    /* Optimize this function hard
-       (set only when profile feedback is available).  */
-    FUNCTION_FREQUENCY_HOT
-  } function_frequency;
+  /* Flag for use by ther rtl inliner, to tell if the function has been
+     processed at least once.  */
+  unsigned int rtl_inline_init : 1;
 
-  /* Maximal number of entities in the single jumptable.  Used to estimate
-     final flowgraph size.  */
-  int max_jumptable_ents;
+  /* Nonzero if the rtl inliner has saved the function for inlining.  */
+  unsigned int saved_for_inline : 1;
 };
 
 /* The function currently being compiled.  */
 extern GTY(()) struct function *cfun;
 
+/* Pointer to chain of `struct function' for containing functions.  */
+extern GTY(()) struct function *outer_function_chain;
+
 /* Nonzero if we've already converted virtual regs to hard regs.  */
 extern int virtuals_instantiated;
 
+/* Nonzero if at least one trampoline has been created.  */
+extern int trampolines_created;
+
 /* For backward compatibility... eventually these should all go away.  */
-#define current_function_name (cfun->name)
 #define current_function_pops_args (cfun->pops_args)
 #define current_function_returns_struct (cfun->returns_struct)
 #define current_function_returns_pcc_struct (cfun->returns_pcc_struct)
@@ -527,6 +541,7 @@ extern int virtuals_instantiated;
 #define current_function_calls_alloca (cfun->calls_alloca)
 #define current_function_calls_longjmp (cfun->calls_longjmp)
 #define current_function_calls_eh_return (cfun->calls_eh_return)
+#define current_function_calls_constant_p (cfun->calls_constant_p)
 #define current_function_has_computed_jump (cfun->has_computed_jump)
 #define current_function_contains_functions (cfun->contains_functions)
 #define current_function_is_thunk (cfun->is_thunk)
@@ -553,6 +568,7 @@ extern int virtuals_instantiated;
 #define parm_reg_stack_loc (cfun->x_parm_reg_stack_loc)
 #define cleanup_label (cfun->x_cleanup_label)
 #define return_label (cfun->x_return_label)
+#define naked_return_label (cfun->x_naked_return_label)
 #define save_expr_regs (cfun->x_save_expr_regs)
 #define stack_slot_list (cfun->x_stack_slot_list)
 #define parm_birth_insn (cfun->x_parm_birth_insn)
@@ -579,47 +595,52 @@ extern tree inline_function_decl;
 
 /* Given a function decl for a containing function,
    return the `struct function' for it.  */
-struct function *find_function_data PARAMS ((tree));
+struct function *find_function_data (tree);
 
 /* Set NOTE_BLOCK for each block note in the current function.  */
-extern void identify_blocks PARAMS ((void));
+extern void identify_blocks (void);
 
 /* Identify BLOCKs referenced by more than one NOTE_INSN_BLOCK_{BEG,END},
    and create duplicate blocks.  */
-extern void reorder_blocks PARAMS ((void));
+extern void reorder_blocks (void);
 
 /* Set BLOCK_NUMBER for all the blocks in FN.  */
-extern void number_blocks PARAMS ((tree));
+extern void number_blocks (tree);
 
 /* Return size needed for stack frame based on slots so far allocated.
    This size counts from zero.  It is not rounded to STACK_BOUNDARY;
    the caller may have to do that.  */
-extern HOST_WIDE_INT get_frame_size	PARAMS ((void));
+extern HOST_WIDE_INT get_frame_size (void);
 /* Likewise, but for a different than the current function.  */
-extern HOST_WIDE_INT get_func_frame_size	PARAMS ((struct function *));
+extern HOST_WIDE_INT get_func_frame_size (struct function *);
 
 /* A pointer to a function to create target specific, per-function
    data structures.  */
-extern struct machine_function * (*init_machine_status)	PARAMS ((void));
+extern struct machine_function * (*init_machine_status) (void);
 
 /* Save and restore status information for a nested function.  */
-extern void restore_emit_status		PARAMS ((struct function *));
-extern void free_after_parsing		PARAMS ((struct function *));
-extern void free_after_compilation	PARAMS ((struct function *));
+extern void restore_emit_status (struct function *);
+extern void free_after_parsing (struct function *);
+extern void free_after_compilation (struct function *);
 
-extern void init_varasm_status		PARAMS ((struct function *));
-
-extern rtx get_first_block_beg		PARAMS ((void));
+extern void init_varasm_status (struct function *);
 
 #ifdef RTX_CODE
-extern void diddle_return_value		PARAMS ((void (*)(rtx, void*), void*));
-extern void clobber_return_register	PARAMS ((void));
-extern void use_return_register		PARAMS ((void));
+extern void diddle_return_value (void (*)(rtx, void*), void*);
+extern void clobber_return_register (void);
+extern void use_return_register (void);
 #endif
 
-extern rtx get_arg_pointer_save_area	PARAMS ((struct function *));
+extern rtx get_arg_pointer_save_area (struct function *);
 
-extern void init_virtual_regs		PARAMS ((struct emit_status *));
+extern void init_virtual_regs (struct emit_status *);
+
+/* Returns the name of the current function.  */
+extern const char *current_function_name (void);
 
 /* Called once, at initialization, to initialize function.c.  */
-extern void init_function_once          PARAMS ((void));
+extern void init_function_once (void);
+
+extern void do_warn_unused_parameter (tree);
+
+#endif  /* GCC_FUNCTION_H */

@@ -30,9 +30,20 @@ Boston, MA 02111-1307, USA.  */
 #undef SPARC_DEFAULT_CMODEL
 #define SPARC_DEFAULT_CMODEL CM_MEDMID
 
-/* Run-time target specifications.  */
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__unix__ -D__sparc__ -D__sparc64__ -D__sparcv9__ -D__sparc_v9__ -D__arch64__ -D__ELF__ -D__OpenBSD__ -Asystem(unix) -Asystem(OpenBSD) -Acpu(sparc) -Amachine(sparc)"
+/* Target OS builtins.  */
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define ("__unix__");		\
+	builtin_define ("__OpenBSD__");		\
+	builtin_assert ("system=unix");		\
+	builtin_assert ("system=OpenBSD");	\
+	builtin_define ("__sparc64__");		\
+	builtin_define ("__sparcv9__");		\
+	builtin_define ("__sparc_v9__");	\
+	builtin_define ("__arch64__");		\
+    }						\
+  while (0)
 
 #undef CPP_SUBTARGET_SPEC
 #define CPP_SUBTARGET_SPEC ""
@@ -42,7 +53,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef ASM_SPEC
 #define ASM_SPEC "\
-%{v:-V} -s %{fpic:-K PIC} %{fPIC:-K PIC} \
+%{v:-V} -s %{fpic|fPIC|fpie|fPIE:-K PIC} \
 %{mlittle-endian:-EL} \
 %(asm_cpu) %(asm_arch) \
 "

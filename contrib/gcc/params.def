@@ -39,7 +39,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    of a function counted in internal gcc instructions (not in
    real machine instructions) that is eligible for inlining
    by the tree inliner.
-   The default value is 300.
+   The default value is 500.
    Only functions marked inline (or methods defined in the class
    definition for C++) are affected by this, unless you set the
    -finline-functions (included in -O3) compiler option.
@@ -51,7 +51,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 DEFPARAM (PARAM_MAX_INLINE_INSNS_SINGLE,
 	  "max-inline-insns-single",
 	  "The maximum number of instructions in a single function eligible for inlining",
-	  300)
+	  500)
 
 /* The single function inlining limit for functions that are
    inlined by virtue of -finline-functions (-O3).
@@ -59,56 +59,11 @@ DEFPARAM (PARAM_MAX_INLINE_INSNS_SINGLE,
    that is applied to functions marked inlined (or defined in the
    class declaration in C++) given by the "max-inline-insns-single"
    parameter.
-   The default value is 300.  */
+   The default value is 150.  */
 DEFPARAM (PARAM_MAX_INLINE_INSNS_AUTO,
 	  "max-inline-insns-auto",
 	  "The maximum number of instructions when automatically inlining",
-	  300)
-
-/* The repeated inlining limit.  After this number of instructions 
-   (in the internal gcc representation, not real machine instructions)
-   got inlined by repeated inlining, gcc starts to decrease the maximum
-   number of inlinable instructions in the tree inliner.
-   This is done by a linear function, see "max-inline-slope" parameter.
-   It is necessary in order to limit the compile-time resources, that 
-   could otherwise become very high.
-   It is recommended to set this value to twice the value of the single
-   function limit (set by the "max-inline-insns-single" parameter) or
-   higher.  The default value is 600.
-   Higher values mean that more inlining is done, resulting in
-   better performance of the code, at the expense of higher 
-   compile-time resource (time, memory) requirements and larger
-   binaries.  */
-DEFPARAM (PARAM_MAX_INLINE_INSNS,
-	  "max-inline-insns",
-	  "The maximum number of instructions by repeated inlining before gcc starts to throttle inlining",
-	  600)
-
-/* After the repeated inline limit has been exceeded (see
-   "max-inline-insns" parameter), a linear function is used to
-   decrease the size of single functions eligible for inlining.
-   The slope of this linear function is given the negative
-   reciprocal value (-1/x) of this parameter. 
-   The default value is 32.
-   This linear function is used until it falls below a minimum
-   value specified by the "min-inline-insns" parameter.  */
-DEFPARAM (PARAM_MAX_INLINE_SLOPE,
-	  "max-inline-slope",
-	  "The slope of the linear function throttling inlining after the recursive inlining limit has been reached is given by the negative reciprocal value of this parameter",
-	  32)
-
-/* When gcc has inlined so many instructions (by repeated
-   inlining) that the throttling limits the inlining very much,
-   inlining for very small functions is still desirable to
-   achieve good runtime performance.  The size of single functions 
-   (measured in gcc instructions) which will still be eligible for 
-   inlining then is given by this parameter.  It defaults to 130.
-   Only much later (after exceeding 128 times the recursive limit)
-   inlining is cut down completely.  */
-DEFPARAM (PARAM_MIN_INLINE_INSNS,
-	  "min-inline-insns",
-	  "The number of instructions in a single functions still eligible to inlining after a lot recursive inlining",
-	  130)
+	  100)
 
 /* For languages that (still) use the RTL inliner, we can specify
    limits for the RTL inliner separately.
@@ -152,6 +107,19 @@ DEFPARAM(PARAM_MAX_PENDING_LIST_LENGTH,
 	 "The maximum length of scheduling's pending operations list",
 	 32)
 
+DEFPARAM(PARAM_LARGE_FUNCTION_INSNS,
+	 "large-function-insns",
+	 "The size of function body to be considered large",
+	 3000)
+DEFPARAM(PARAM_LARGE_FUNCTION_GROWTH,
+	 "large-function-growth",
+	 "Maximal growth due to inlining of large function (in percent)",
+	 100)
+DEFPARAM(PARAM_INLINE_UNIT_GROWTH,
+	 "inline-unit-growth",
+	 "how much can given compilation unit grow because of the inlining (in percent)",
+	 50)
+
 /* The GCSE optimization will be disabled if it would require
    significantly more memory than this value.  */
 DEFPARAM(PARAM_MAX_GCSE_MEMORY,
@@ -165,11 +133,63 @@ DEFPARAM(PARAM_MAX_GCSE_PASSES,
 	1)
 
 /* This parameter limits the number of insns in a loop that will be unrolled,
-   and by how much the loop is unrolled.  */
+   and by how much the loop is unrolled.
+   
+   This limit should be at most half of the peeling limits:  loop unroller
+   decides to not unroll loops that iterate fewer than 2*number of allowed
+   unrollings and thus we would have loops that are neither peeled or unrooled
+   otherwise.  */
 DEFPARAM(PARAM_MAX_UNROLLED_INSNS,
 	 "max-unrolled-insns",
 	 "The maximum number of instructions to consider to unroll in a loop",
-	 100)
+	 200)
+/* This parameter limits how many times the loop is unrolled depending
+   on number of insns really executed in each iteration.  */
+DEFPARAM(PARAM_MAX_AVERAGE_UNROLLED_INSNS,
+	 "max-average-unrolled-insns",
+	 "The maximum number of instructions to consider to unroll in a loop on average",
+	 80)
+/* The maximum number of unrollings of a single loop.  */
+DEFPARAM(PARAM_MAX_UNROLL_TIMES,
+	"max-unroll-times",
+	"The maximum number of unrollings of a single loop",
+	8)
+/* The maximum number of insns of a peeled loop.  */
+DEFPARAM(PARAM_MAX_PEELED_INSNS,
+	"max-peeled-insns",
+	"The maximum number of insns of a peeled loop",
+	400)
+/* The maximum number of peelings of a single loop.  */
+DEFPARAM(PARAM_MAX_PEEL_TIMES,
+	"max-peel-times",
+	"The maximum number of peelings of a single loop",
+	16)
+/* The maximum number of insns of a peeled loop.  */
+DEFPARAM(PARAM_MAX_COMPLETELY_PEELED_INSNS,
+	"max-completely-peeled-insns",
+	"The maximum number of insns of a completely peeled loop",
+	400)
+/* The maximum number of peelings of a single loop that is peeled completely.  */
+DEFPARAM(PARAM_MAX_COMPLETELY_PEEL_TIMES,
+	"max-completely-peel-times",
+	"The maximum number of peelings of a single loop that is peeled completely",
+	16)
+/* The maximum number of insns of a peeled loop that rolls only once.  */
+DEFPARAM(PARAM_MAX_ONCE_PEELED_INSNS,
+	"max-once-peeled-insns",
+	"The maximum number of insns of a peeled loop that rolls only once",
+	400)
+
+/* The maximum number of insns of an unswitched loop.  */
+DEFPARAM(PARAM_MAX_UNSWITCH_INSNS,
+	"max-unswitch-insns",
+	"The maximum number of insns of an unswitched loop",
+	50)
+/* The maximum level of recursion in unswitch_single_loop.  */
+DEFPARAM(PARAM_MAX_UNSWITCH_LEVEL,
+	"max-unswitch-level",
+	"The maximum number of unswitchings in a single loop",
+	3)
 
 DEFPARAM(HOT_BB_COUNT_FRACTION,
 	 "hot-bb-count-fraction",
@@ -193,22 +213,22 @@ must be covered by trace formation. Used when profile feedback is not available"
 	 75)
 DEFPARAM(TRACER_MAX_CODE_GROWTH,
 	 "tracer-max-code-growth",
-	 "Maximal code growth caused by tail duplication (in percents)",
+	 "Maximal code growth caused by tail duplication (in percent)",
 	 100)
 DEFPARAM(TRACER_MIN_BRANCH_RATIO,
 	 "tracer-min-branch-ratio",
 	 "Stop reverse growth if the reverse probability of best edge is less \
-than this threshold (in percents)",
+than this threshold (in percent)",
 	 10)
 DEFPARAM(TRACER_MIN_BRANCH_PROBABILITY_FEEDBACK,
 	 "tracer-min-branch-probability-feedback",
 	 "Stop forward growth if the probability of best edge is less than \
-this threshold (in percents). Used when profile feedback is available",
-	 30)
+this threshold (in percent). Used when profile feedback is available",
+	 80)
 DEFPARAM(TRACER_MIN_BRANCH_PROBABILITY,
 	 "tracer-min-branch-probability",
 	 "Stop forward growth if the probability of best edge is less than \
-this threshold (in percents). Used when profile feedback is not available",
+this threshold (in percent). Used when profile feedback is not available",
 	 50)
 
 /* The maximum number of incoming edges to consider for crossjumping.  */
@@ -216,6 +236,17 @@ DEFPARAM(PARAM_MAX_CROSSJUMP_EDGES,
 	 "max-crossjump-edges",
 	 "The maximum number of incoming edges to consider for crossjumping",
 	 100)
+
+/* The maximum length of path considered in cse.  */
+DEFPARAM(PARAM_MAX_CSE_PATH_LENGTH,
+	 "max-cse-path-length",
+	 "The maximum length of path considered in cse",
+	 10)
+
+DEFPARAM(PARAM_MAX_CSELIB_MEMORY_LOCATIONS,
+	 "max-cselib-memory-locations",
+	 "The maximum memory locations recorded by cselib",
+	 500)
 
 #ifdef ENABLE_GC_ALWAYS_COLLECT
 # define GGC_MIN_EXPAND_DEFAULT 0
@@ -228,16 +259,21 @@ DEFPARAM(PARAM_MAX_CROSSJUMP_EDGES,
 DEFPARAM(GGC_MIN_EXPAND,
 	 "ggc-min-expand",
 	 "Minimum heap expansion to trigger garbage collection, as \
-a percentage of the total size of the heap.",
+a percentage of the total size of the heap",
 	 GGC_MIN_EXPAND_DEFAULT)
 
 DEFPARAM(GGC_MIN_HEAPSIZE,
 	 "ggc-min-heapsize",
-	 "Minimum heap size before we start collecting garbage, in kilobytes.",
+	 "Minimum heap size before we start collecting garbage, in kilobytes",
 	 GGC_MIN_HEAPSIZE_DEFAULT)
 
 #undef GGC_MIN_EXPAND_DEFAULT
 #undef GGC_MIN_HEAPSIZE_DEFAULT
+
+DEFPARAM(PARAM_MAX_RELOAD_SEARCH_INSNS,
+	 "max-reload-search-insns",
+	 "The maximum number of instructions to search backward when looking for equivalent reload",
+	 100)
 
 /*
 Local variables:

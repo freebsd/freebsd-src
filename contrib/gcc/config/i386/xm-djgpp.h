@@ -1,20 +1,20 @@
-/* Configuration for GNU C-compiler for Intel 80386 running DJGPP.
+/* Configuration for GCC for Intel 80386 running DJGPP.
    Copyright (C) 1988, 1996, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -22,13 +22,6 @@ Boston, MA 02111-1307, USA.  */
 #define PATH_SEPARATOR ';'
 
 #define HOST_EXECUTABLE_SUFFIX ".exe"
-
-/* Even though we support "/", allow "\" since everybody tests both.  */
-#define DIR_SEPARATOR '/'
-#define DIR_SEPARATOR_2 '\\'
-
-/* Allow test for DOS drive names.  */
-#define HAVE_DOS_BASED_FILE_SYSTEM
 
 /* System dependent initialization for collect2
    to tell system() to act like Unix.  */
@@ -50,9 +43,6 @@ Boston, MA 02111-1307, USA.  */
       strcat (xref_file, xref_ext); \
   } while (0)
 
-/* Change /dev/env/DJDIR/prefix/dir/ to canonical form so gcc_exec_prefix
-   is set properly in 'gcc.c'. It also helps to cut down the number of times
-   the value of the DJGPP environment variable 'DJDIR' is evaluated.  */
 #undef GCC_DRIVER_HOST_INITIALIZATION
 #define GCC_DRIVER_HOST_INITIALIZATION \
   do { \
@@ -76,9 +66,6 @@ Boston, MA 02111-1307, USA.  */
           fatal ("environment variable DJGPP points to corrupt file '%s'", \
                   djgpp); \
       } \
-    standard_exec_prefix = update_path (standard_exec_prefix, NULL); \
-    standard_bindir_prefix = update_path (standard_bindir_prefix, NULL); \
-    standard_startfile_prefix = update_path (standard_startfile_prefix, NULL); \
   } while (0)
 
 /* Canonicalize paths containing '/dev/env/'; used in prefix.c.

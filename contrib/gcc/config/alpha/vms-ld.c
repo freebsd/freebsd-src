@@ -1,22 +1,22 @@
 /* VMS linker wrapper.
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
    Contributed by Douglas B. Rupp (rupp@gnat.com).
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -26,6 +26,8 @@ Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 
 typedef struct dsc {unsigned short len, mbz; char *adr; } Descr;
 
@@ -42,7 +44,7 @@ static char *vmsdwarf2spec = 0;
 /* File specification for vms-dwarf2eh.o.  */
 static char *vmsdwarf2ehspec = 0;
 
-/* verbose = 1 if -v passed.   */
+/* verbose = 1 if -v passed.  */
 static int verbose = 0;
 
 /* save_temps = 1 if -save-temps passed.  */
@@ -87,39 +89,38 @@ static char *search_dirs;
 
 /* Add STR to the list of arguments to pass to the linker. Expand the list as
    necessary to accommodate.  */
-static void addarg PARAMS ((const char *));
+static void addarg (const char *);
 
 /* Check to see if NAME is a regular file, i.e. not a directory */
-static int is_regular_file PARAMS ((char *));
+static int is_regular_file (char *);
 
 /* Translate a Unix syntax file specification FILESPEC into VMS syntax.
-   If indicators of VMS syntax found, return input string. */
-static char *to_host_file_spec PARAMS ((char *));
+   If indicators of VMS syntax found, return input string.  */
+static char *to_host_file_spec (char *);
 
-/* Locate the library named LIB_NAME in the set of paths PATH_VAL. */
-static char *locate_lib PARAMS ((char *, char *));
+/* Locate the library named LIB_NAME in the set of paths PATH_VAL.  */
+static char *locate_lib (char *, char *);
 
 /* Given a library name NAME, i.e. foo,  Look for libfoo.lib and then
    libfoo.a in the set of directories we are allowed to search in.  */
-static const char *expand_lib PARAMS ((char *));
+static const char *expand_lib (char *);
 
 /* Preprocess the number of args P_ARGC in ARGV.
-   Look for special flags, etc. that must be handled first. */
-static void preprocess_args PARAMS ((int *, char **));
+   Look for special flags, etc. that must be handled first.  */
+static void preprocess_args (int *, char **);
 
 /* Preprocess the number of args P_ARGC in ARGV.  Look for
-   special flags, etc. that must be handled for the VMS linker. */
-static void process_args PARAMS ((int *, char **));
+   special flags, etc. that must be handled for the VMS linker.  */
+static void process_args (int *, char **);
 
 /* Action routine called by decc$to_vms. NAME is a file name or
-   directory name. TYPE is unused. */
-static int translate_unix PARAMS ((char *, int));
+   directory name. TYPE is unused.  */
+static int translate_unix (char *, int);
 
-int main PARAMS ((int, char **));
+int main (int, char **);
 
 static void
-addarg (str)
-     const char *str;
+addarg (const char *str)
 {
   int i;
 
@@ -142,9 +143,7 @@ addarg (str)
 }
 
 static char *
-locate_lib (lib_name, path_val)
-     char *lib_name;
-     char *path_val;
+locate_lib (char *lib_name, char *path_val)
 {
   int lib_len = strlen (lib_name);
   char *eptr, *sptr;
@@ -204,8 +203,7 @@ locate_lib (lib_name, path_val)
 }
 
 static const char *
-expand_lib (name)
-     char *name;
+expand_lib (char *name)
 {
   char *lib, *lib_path;
 
@@ -238,8 +236,7 @@ expand_lib (name)
 }
 
 static int
-is_regular_file (name)
-     char *name;
+is_regular_file (char *name)
 {
   int ret;
   struct stat statbuf;
@@ -249,9 +246,7 @@ is_regular_file (name)
 }
 
 static void
-preprocess_args (p_argc, argv)
-     int *p_argc;
-     char **argv;
+preprocess_args (int *p_argc, char **argv)
 {
   int i;
 
@@ -303,9 +298,7 @@ preprocess_args (p_argc, argv)
 }
 
 static void
-process_args (p_argc, argv)
-     int *p_argc;
-     char **argv;
+process_args (int *p_argc, char **argv)
 {
   int i;
 
@@ -379,9 +372,7 @@ process_args (p_argc, argv)
    and args to be what the VMS linker wants.  */
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   int i;
   char cwdev [128], *devptr;
@@ -751,17 +742,14 @@ static char new_host_filespec [255];
 static char filename_buff [256];
 
 static int
-translate_unix (name, type)
-     char *name;
-     int type ATTRIBUTE_UNUSED;
+translate_unix (char *name, int type ATTRIBUTE_UNUSED)
 {
   strcpy (filename_buff, name);
   return 0;
 }
 
 static char *
-to_host_file_spec (filespec)
-     char *filespec;
+to_host_file_spec (char *filespec)
 {
   strcpy (new_host_filespec, "");
   if (strchr (filespec, ']') || strchr (filespec, ':'))

@@ -1,19 +1,19 @@
-/* Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+/* Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 
-   This file is part of GNU CC.
+   This file is part of GCC.
 
-   GNU CC is free software; you can redistribute it and/or modify
+   GCC is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
-   GNU CC is distributed in the hope that it will be useful,
+   GCC is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU CC; see the file COPYING.  If not, write to
+   along with GCC; see the file COPYING.  If not, write to
    the Free Software Foundation, 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
@@ -41,8 +41,8 @@ typedef int __gthread_mutex_t;
 #define __gthread_mutex_lock(x)  (void)(x)
 #define __gthread_mutex_unlock(x) (void)(x)
 
-static fde * _Unwind_Find_registered_FDE (void *pc, 
-					  struct dwarf_eh_bases *bases);
+static const fde * _Unwind_Find_registered_FDE (void *pc,
+						struct dwarf_eh_bases *bases);
 
 #define _Unwind_Find_FDE _Unwind_Find_registered_FDE
 #include "unwind-dw2-fde.c"
@@ -99,13 +99,28 @@ enum {
    because this object might be about to be unloaded.  Called by
    KeyMgr.  */
 
-static void 
+static void
 live_image_destructor (struct live_images *image)
 {
   if (image->object_info)
     {
-      /* Free any sorted arrays.  */
-      __deregister_frame_info_bases (image->fde);
+      struct km_object_info *the_obj_info;
+
+      the_obj_info =
+	_keymgr_get_and_lock_processwide_ptr (KEYMGR_GCC3_DW2_OBJ_LIST);
+      if (the_obj_info)
+	{
+	  seen_objects = the_obj_info->seen_objects;
+	  unseen_objects = the_obj_info->unseen_objects;
+
+	  /* Free any sorted arrays.  */
+	  __deregister_frame_info_bases (image->fde);
+
+	  the_obj_info->seen_objects = seen_objects;
+	  the_obj_info->unseen_objects = unseen_objects;
+	}
+      _keymgr_set_and_unlock_processwide_ptr (KEYMGR_GCC3_DW2_OBJ_LIST,
+					      the_obj_info);
 
       free (image->object_info);
       image->object_info = NULL;
@@ -121,11 +136,11 @@ live_image_destructor (struct live_images *image)
    give each unseen image a new `struct object'.  Even if we can't,
    check whether the PC is inside the FDE of each unseen image.
  */
- 
-static inline fde *
+
+static inline const fde *
 examine_objects (void *pc, struct dwarf_eh_bases *bases, int dont_alloc)
 {
-  fde *result = NULL;
+  const fde *result = NULL;
   struct live_images *image;
 
   image = _keymgr_get_and_lock_processwide_ptr (KEYMGR_GCC3_LIVE_IMAGE_LIST);
@@ -135,7 +150,7 @@ examine_objects (void *pc, struct dwarf_eh_bases *bases, int dont_alloc)
       {
 	char *fde;
 	unsigned long sz;
-	
+
 	fde = getsectdatafromheader (image->mh, "__DATA", "__eh_frame", &sz);
 	if (fde == NULL)
 	  {
@@ -144,20 +159,20 @@ examine_objects (void *pc, struct dwarf_eh_bases *bases, int dont_alloc)
 	    if (fde != NULL)
 	      image->examined_p |= IMAGE_IS_TEXT_MASK;
 	  }
-	
+
 	/* If .eh_frame is empty, don't register at all.  */
 	if (fde != NULL && sz > 0)
 	  {
 	    char *real_fde = (fde + image->vm_slide);
 	    struct object *ob = NULL;
 	    struct object panicob;
-	    
+
 	    if (! dont_alloc)
 	      ob = calloc (1, sizeof (struct object));
 	    dont_alloc |= ob == NULL;
 	    if (dont_alloc)
 	      ob = &panicob;
-	    
+
 	    ob->pc_begin = (void *)-1;
 	    ob->tbase = 0;
 	    ob->dbase = 0;
@@ -165,34 +180,42 @@ examine_objects (void *pc, struct dwarf_eh_bases *bases, int dont_alloc)
 	    ob->s.i = 0;
 	    ob->s.b.encoding = DW_EH_PE_omit;
 	    ob->fde_end = real_fde + sz;
-	    
+
+	    image->fde = real_fde;
+
+	    result = search_object (ob, pc);
+
 	    if (! dont_alloc)
 	      {
-		ob->next = unseen_objects;
-		unseen_objects = ob;
-		
+		struct object **p;
+
 		image->destructor = live_image_destructor;
 		image->object_info = ob;
-		
-		image->examined_p |= (EXAMINED_IMAGE_MASK 
+
+		image->examined_p |= (EXAMINED_IMAGE_MASK
 				      | DESTRUCTOR_MAY_BE_CALLED_LIVE);
+
+		/* Insert the object into the classified list.  */
+		for (p = &seen_objects; *p ; p = &(*p)->next)
+		  if ((*p)->pc_begin < ob->pc_begin)
+		    break;
+		ob->next = *p;
+		*p = ob;
 	      }
-	    image->fde = real_fde;
-	    
-	    result = search_object (ob, pc);
+
 	    if (result)
 	      {
 		int encoding;
-		
+
 		bases->tbase = ob->tbase;
 		bases->dbase = ob->dbase;
-		
+
 		encoding = ob->s.b.encoding;
 		if (ob->s.b.mixed_encoding)
 		  encoding = get_fde_encoding (result);
-		read_encoded_value_with_base (encoding, 
+		read_encoded_value_with_base (encoding,
 					      base_from_object (encoding, ob),
-					      result->pc_begin, 
+					      result->pc_begin,
 					      (_Unwind_Ptr *)&bases->func);
 		break;
 	      }
@@ -206,25 +229,25 @@ examine_objects (void *pc, struct dwarf_eh_bases *bases, int dont_alloc)
   return result;
 }
 
-fde *
+const fde *
 _Unwind_Find_FDE (void *pc, struct dwarf_eh_bases *bases)
 {
   struct km_object_info *the_obj_info;
-  fde *ret = NULL;
+  const fde *ret = NULL;
 
-  the_obj_info = 
+  the_obj_info =
     _keymgr_get_and_lock_processwide_ptr (KEYMGR_GCC3_DW2_OBJ_LIST);
   if (! the_obj_info)
     the_obj_info = calloc (1, sizeof (*the_obj_info));
-  
+
   if (the_obj_info != NULL)
     {
       seen_objects = the_obj_info->seen_objects;
       unseen_objects = the_obj_info->unseen_objects;
-  
+
       ret = _Unwind_Find_registered_FDE (pc, bases);
     }
-  
+
   /* OK, didn't find it in the list of FDEs we've seen before,
      so go through and look at the new ones.  */
   if (ret == NULL)
@@ -234,8 +257,8 @@ _Unwind_Find_FDE (void *pc, struct dwarf_eh_bases *bases)
     {
       the_obj_info->seen_objects = seen_objects;
       the_obj_info->unseen_objects = unseen_objects;
-      _keymgr_set_and_unlock_processwide_ptr (KEYMGR_GCC3_DW2_OBJ_LIST,
-					      the_obj_info);
     }
+  _keymgr_set_and_unlock_processwide_ptr (KEYMGR_GCC3_DW2_OBJ_LIST,
+					  the_obj_info);
   return ret;
 }

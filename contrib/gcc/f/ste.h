@@ -1,5 +1,5 @@
 /* ste.h -- Private #include File (module.h template V1.0)
-   Copyright (C) 1995 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2003 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -114,31 +114,9 @@ void ffeste_R1221 (void);
 void ffeste_R1225 (void);
 void ffeste_R1226 (ffesymbol entry);
 void ffeste_R1227 (ffestw block, ffebld expr);
-#if FFESTR_VXT
-void ffeste_V018_start (ffestpRewriteStmt *info, ffestvFormat format);
-void ffeste_V018_item (ffebld expr);
-void ffeste_V018_finish (void);
-void ffeste_V019_start (ffestpAcceptStmt *info, ffestvFormat format);
-void ffeste_V019_item (ffebld expr);
-void ffeste_V019_finish (void);
-#endif
 void ffeste_V020_start (ffestpTypeStmt *info, ffestvFormat format);
 void ffeste_V020_item (ffebld expr);
 void ffeste_V020_finish (void);
-#if FFESTR_VXT
-void ffeste_V021 (ffestpDeleteStmt *info);
-void ffeste_V022 (ffestpBeruStmt *info);
-void ffeste_V023_start (ffestpVxtcodeStmt *info);
-void ffeste_V023_item (ffebld expr);
-void ffeste_V023_finish (void);
-void ffeste_V024_start (ffestpVxtcodeStmt *info);
-void ffeste_V024_item (ffebld expr);
-void ffeste_V024_finish (void);
-void ffeste_V025_start (void);
-void ffeste_V025_item (ffebld u, ffebld m, ffebld n, ffebld asv);
-void ffeste_V025_finish (void);
-void ffeste_V026 (ffestpFindStmt *info);
-#endif
 
 /* Define macros. */
 
@@ -148,9 +126,9 @@ void ffeste_V026 (ffestpFindStmt *info);
 #define ffeste_init_3()
 #define ffeste_init_4()
 #define ffeste_filename() input_filename
-#define ffeste_filelinenum() lineno
+#define ffeste_filelinenum() input_line
 #define ffeste_set_line(name,num) \
-  (input_filename = (name), lineno = (num))
+  (input_filename = (name), input_line = (num))
 #define ffeste_terminate_0()
 #define ffeste_terminate_1()
 #ifdef ENABLE_CHECKING

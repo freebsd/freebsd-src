@@ -111,10 +111,7 @@
 #define umul_ppmm(ph, pl, m0, m1) \
   do {									\
     UDItype __m0 = (m0), __m1 = (m1);					\
-    __asm__ ("umulh %r1,%2,%0"						\
-	     : "=r" ((UDItype) ph)					\
-	     : "%rJ" (__m0),						\
-	       "rI" (__m1));						\
+    (ph) = __builtin_alpha_umulh (__m0, __m1);				\
     (pl) = __m0 * __m1;							\
   } while (0)
 #define UMUL_TIME 46
@@ -128,30 +125,28 @@ extern UDItype __udiv_qrnnd (UDItype *, UDItype, UDItype, UDItype);
 #define UDIV_TIME 220
 #endif /* LONGLONG_STANDALONE */
 #ifdef __alpha_cix__
-#define count_leading_zeros(COUNT,X) \
-  __asm__("ctlz %1,%0" : "=r"(COUNT) : "r"(X))
-#define count_trailing_zeros(COUNT,X) \
-  __asm__("cttz %1,%0" : "=r"(COUNT) : "r"(X))
+#define count_leading_zeros(COUNT,X)	((COUNT) = __builtin_clzl (X))
+#define count_trailing_zeros(COUNT,X)	((COUNT) = __builtin_ctzl (X))
 #define COUNT_LEADING_ZEROS_0 64
 #else
-extern const UQItype __clz_tab[];
+extern const UQItype __clz_tab[] ATTRIBUTE_HIDDEN;
 #define count_leading_zeros(COUNT,X) \
   do {									\
     UDItype __xr = (X), __t, __a;					\
-    __asm__("cmpbge $31,%1,%0" : "=r"(__t) : "r"(__xr));		\
+    __t = __builtin_alpha_cmpbge (0, __xr);				\
     __a = __clz_tab[__t ^ 0xff] - 1;					\
-    __asm__("extbl %1,%2,%0" : "=r"(__t) : "r"(__xr), "r"(__a));	\
+    __t = __builtin_alpha_extbl (__xr, __a);				\
     (COUNT) = 64 - (__clz_tab[__t] + __a*8);				\
   } while (0)
 #define count_trailing_zeros(COUNT,X) \
   do {									\
     UDItype __xr = (X), __t, __a;					\
-    __asm__("cmpbge $31,%1,%0" : "=r"(__t) : "r"(__xr));		\
+    __t = __builtin_alpha_cmpbge (0, __xr);				\
     __t = ~__t & -~__t;							\
     __a = ((__t & 0xCC) != 0) * 2;					\
     __a += ((__t & 0xF0) != 0) * 4;					\
     __a += ((__t & 0xAA) != 0);						\
-    __asm__("extbl %1,%2,%0" : "=r"(__t) : "r"(__xr), "r"(__a));	\
+    __t = __builtin_alpha_extbl (__xr, __a);				\
     __a <<= 3;								\
     __t &= -__t;							\
     __a += ((__t & 0xCC) != 0) * 2;					\
@@ -381,17 +376,17 @@ UDItype __umulsidi3 (USItype, USItype);
 #if defined (__M32R__) && W_TYPE_SIZE == 32
 #define add_ssaaaa(sh, sl, ah, al, bh, bl) \
   /* The cmp clears the condition bit.  */ \
-  __asm__ ("cmp %0,%0\n\taddx %%5,%1\n\taddx %%3,%0"			\
+  __asm__ ("cmp %0,%0\n\taddx %1,%5\n\taddx %0,%3"			\
 	   : "=r" ((USItype) (sh)),					\
 	     "=&r" ((USItype) (sl))					\
-	   : "%0" ((USItype) (ah)),					\
+	   : "0" ((USItype) (ah)),					\
 	     "r" ((USItype) (bh)),					\
-	     "%1" ((USItype) (al)),					\
+	     "1" ((USItype) (al)),					\
 	     "r" ((USItype) (bl))					\
 	   : "cbit")
 #define sub_ddmmss(sh, sl, ah, al, bh, bl) \
   /* The cmp clears the condition bit.  */ \
-  __asm__ ("cmp %0,%0\n\tsubx %5,%1\n\tsubx %3,%0"			\
+  __asm__ ("cmp %0,%0\n\tsubx %1,%5\n\tsubx %0,%3"			\
 	   : "=r" ((USItype) (sh)),					\
 	     "=&r" ((USItype) (sl))					\
 	   : "0" ((USItype) (ah)),					\
@@ -448,7 +443,42 @@ UDItype __umulsidi3 (USItype, USItype);
 	     "dmi" ((USItype) (d)))
 
 #else /* not mc68020 */
-#if !defined(__mcf5200__)
+#if defined(__mcoldfire__)
+#define umul_ppmm(xh, xl, a, b) \
+  __asm__ ("| Inlined umul_ppmm\n"					\
+	   "	move%.l	%2,%/d0\n"					\
+	   "	move%.l	%3,%/d1\n"					\
+	   "	move%.l	%/d0,%/d2\n"					\
+	   "	swap	%/d0\n"						\
+	   "	move%.l	%/d1,%/d3\n"					\
+	   "	swap	%/d1\n"						\
+	   "	move%.w	%/d2,%/d4\n"					\
+	   "	mulu	%/d3,%/d4\n"					\
+	   "	mulu	%/d1,%/d2\n"					\
+	   "	mulu	%/d0,%/d3\n"					\
+	   "	mulu	%/d0,%/d1\n"					\
+	   "	move%.l	%/d4,%/d0\n"					\
+	   "	clr%.w	%/d0\n"						\
+	   "	swap	%/d0\n"						\
+	   "	add%.l	%/d0,%/d2\n"					\
+	   "	add%.l	%/d3,%/d2\n"					\
+	   "	jcc	1f\n"						\
+	   "	add%.l	%#65536,%/d1\n"					\
+	   "1:	swap	%/d2\n"						\
+	   "	moveq	%#0,%/d0\n"					\
+	   "	move%.w	%/d2,%/d0\n"					\
+	   "	move%.w	%/d4,%/d2\n"					\
+	   "	move%.l	%/d2,%1\n"					\
+	   "	add%.l	%/d1,%/d0\n"					\
+	   "	move%.l	%/d0,%0"					\
+	   : "=g" ((USItype) (xh)),					\
+	     "=g" ((USItype) (xl))					\
+	   : "g" ((USItype) (a)),					\
+	     "g" ((USItype) (b))					\
+	   : "d0", "d1", "d2", "d3", "d4")
+#define UMUL_TIME 100
+#define UDIV_TIME 400
+#else /* not ColdFire */
 /* %/ inserts REGISTER_PREFIX, %# inserts IMMEDIATE_PREFIX.  */
 #define umul_ppmm(xh, xl, a, b) \
   __asm__ ("| Inlined umul_ppmm\n"					\
@@ -484,14 +514,16 @@ UDItype __umulsidi3 (USItype, USItype);
 	   : "d0", "d1", "d2", "d3", "d4")
 #define UMUL_TIME 100
 #define UDIV_TIME 400
-#endif /* not mcf5200 */
+#endif /* not ColdFire */
 #endif /* not mc68020 */
 
-/* The '020, '030, '040 and '060 have bitfield insns.  */
-#if defined (__mc68020__) || defined(mc68020) \
-	|| defined(__mc68030__) || defined(mc68030) \
-	|| defined(__mc68040__) || defined(mc68040) \
-	|| defined(__mc68060__) || defined(mc68060)
+/* The '020, '030, '040 and '060 have bitfield insns.
+   cpu32 disguises as a 68020, but lacks them.  */
+#if ( defined (__mc68020__) || defined(mc68020) \
+		|| defined(__mc68030__) || defined(mc68030) \
+		|| defined(__mc68040__) || defined(mc68040) \
+		|| defined(__mc68060__) || defined(mc68060) ) \
+	&& !defined(__mcpu32__)
 #define count_leading_zeros(count, x) \
   __asm__ ("bfffo %1{%b2:%b2},%0"					\
 	   : "=d" ((USItype) (count))					\
@@ -652,7 +684,7 @@ UDItype __umulsidi3 (USItype, USItype);
   __asm__ ("{cntlz|cntlzw} %0,%1" : "=r" (count) : "r" (x))
 #define COUNT_LEADING_ZEROS_0 32
 #if defined (_ARCH_PPC) || defined (__powerpc__) || defined (__POWERPC__) \
-  || defined (__ppc__) || defined (PPC) || defined (__vxworks__)
+  || defined (__ppc__) || defined (PPC)
 #define umul_ppmm(ph, pl, m0, m1) \
   do {									\
     USItype __m0 = (m0), __m1 = (m1);					\
@@ -1287,7 +1319,7 @@ UDItype __umulsidi3 (USItype, USItype);
 #endif
 
 #if !defined (count_leading_zeros)
-extern const UQItype __clz_tab[];
+extern const UQItype __clz_tab[] ATTRIBUTE_HIDDEN;
 #define count_leading_zeros(count, x) \
   do {									\
     UWtype __xr = (x);							\

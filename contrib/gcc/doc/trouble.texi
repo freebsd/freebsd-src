@@ -1,5 +1,5 @@
 @c Copyright (C) 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-@c 1999, 2000, 2001 Free Software Foundation, Inc.
+@c 1999, 2000, 2001, 2003, 2004 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -129,7 +129,7 @@ Older GDB versions sometimes fail to read the output of GCC version
 DBX rejects some files produced by GCC, though it accepts similar
 constructs in output from PCC@.  Until someone can supply a coherent
 description of what is valid DBX input and what is not, there is
-nothing I can do about these problems.  You are on your own.
+nothing that can be done about these problems.
 
 @item
 The GNU assembler (GAS) does not support PIC@.  To generate PIC code, you
@@ -374,11 +374,11 @@ because of problems in DEC's versions of the X11 header files
 @option{-I/usr/include/mit} to use the MIT versions of the header files,
 or fixing the header files by adding this:
 
-@example
+@smallexample
 #ifdef __STDC__
 #define NeedFunctionPrototypes 0
 #endif
-@end example
+@end smallexample
 
 @item
 On various 386 Unix systems derived from System V, including SCO, ISC,
@@ -393,17 +393,17 @@ is available as a separate package, and also in the file
 If you have installed GNU malloc as a separate library package, use this
 option when you relink GCC:
 
-@example
+@smallexample
 MALLOC=/usr/local/lib/libgmalloc.a
-@end example
+@end smallexample
 
 Alternatively, if you have compiled @file{gmalloc.c} from Emacs 19, copy
 the object file to @file{gmalloc.o} and use this option when you relink
 GCC:
 
-@example
+@smallexample
 MALLOC=gmalloc.o
-@end example
+@end smallexample
 @end itemize
 
 @node Incompatibilities
@@ -454,9 +454,9 @@ Negating this value yields 2147483648 again.
 GCC does not substitute macro arguments when they appear inside of
 string constants.  For example, the following macro in GCC
 
-@example
+@smallexample
 #define foo(a) "a"
-@end example
+@end smallexample
 
 @noindent
 will produce output @code{"a"} regardless of what the argument @var{a} is.
@@ -469,7 +469,7 @@ variables guaranteed to remain valid are those declared
 @code{volatile}.  This is a consequence of automatic register
 allocation.  Consider this function:
 
-@example
+@smallexample
 jmp_buf j;
 
 foo ()
@@ -484,7 +484,7 @@ foo ()
   /* @r{@code{longjmp (j)} may occur in @code{fun3}.} */
   return a + fun3 ();
 @}
-@end example
+@end smallexample
 
 Here @code{a} may or may not be restored to its first value when the
 @code{longjmp} occurs.  If @code{a} is allocated in a register, then
@@ -500,20 +500,19 @@ Programs that use preprocessing directives in the middle of macro
 arguments do not work with GCC@.  For example, a program like this
 will not work:
 
-@example
+@smallexample
 @group
 foobar (
 #define luser
         hack)
 @end group
-@end example
+@end smallexample
 
 ISO C does not permit such a construct.
 
 @item
 K&R compilers allow comments to cross over an inclusion boundary
-(i.e.@: started in an include file and ended in the including file).  I think
-this would be quite ugly and can't imagine it could be needed.
+(i.e.@: started in an include file and ended in the including file).
 
 @cindex external declaration scope
 @cindex scope of external declarations
@@ -530,10 +529,10 @@ rest of the file even if it happens within a block.
 In traditional C, you can combine @code{long}, etc., with a typedef name,
 as shown here:
 
-@example
+@smallexample
 typedef int foo;
 typedef long foo bar;
-@end example
+@end smallexample
 
 In ISO C, this is not allowed: @code{long} and other type modifiers
 require an explicit @code{int}.
@@ -546,10 +545,10 @@ PCC allows typedef names to be used as function parameters.
 Traditional C allows the following erroneous pair of declarations to
 appear together in a given scope:
 
-@example
+@smallexample
 typedef int foo;
 typedef foo foo;
-@end example
+@end smallexample
 
 @item
 GCC treats all characters of identifiers as significant.  According to
@@ -574,11 +573,11 @@ comments enclosed in conditionals that are guaranteed to fail; if these
 comments contain apostrophes, GCC will probably report an error.  For
 example, this code would produce an error:
 
-@example
+@smallexample
 #if 0
 You can't expect this to work.
 #endif
-@end example
+@end smallexample
 
 The best solution to such a problem is to put the text into an actual
 C comment delimited by @samp{/*@dots{}*/}.
@@ -615,8 +614,8 @@ The method used by GCC is as follows: a structure or union which is
 1, 2, 4 or 8 bytes long is returned like a scalar.  A structure or union
 with any other size is stored into an address supplied by the caller
 (usually in a special, fixed register, but on some machines it is passed
-on the stack).  The machine-description macros @code{STRUCT_VALUE} and
-@code{STRUCT_INCOMING_VALUE} tell GCC where to pass this address.
+on the stack).  The target hook @code{TARGET_STRUCT_VALUE_RTX}
+tells GCC where to pass this address.
 
 By contrast, PCC on most target machines returns structures and unions
 of any size by copying the data into an area of static storage, and then
@@ -758,14 +757,14 @@ executable and your source code, when you use optimization.
 Users often think it is a bug when GCC reports an error for code
 like this:
 
-@example
+@smallexample
 int foo (struct mumble *);
 
 struct mumble @{ @dots{} @};
 
 int foo (struct mumble *x)
 @{ @dots{} @}
-@end example
+@end smallexample
 
 This code really is erroneous, because the scope of @code{struct
 mumble} in the prototype is limited to the argument list containing it.
@@ -851,6 +850,7 @@ give rise to questions of this sort.
 
 @menu
 * Static Definitions::  Static member declarations are not definitions
+* Name lookup::         Name lookup, templates, and accessing members of base classes
 * Temporaries::         Temporaries may vanish before you expect
 * Copy Assignment::     Copy Assignment operators copy virtual bases twice
 @end menu
@@ -865,14 +865,14 @@ give rise to questions of this sort.
 When a class has static data members, it is not enough to @emph{declare}
 the static member; you must also @emph{define} it.  For example:
 
-@example
+@smallexample
 class Foo
 @{
   @dots{}
   void method();
   static int bar;
 @};
-@end example
+@end smallexample
 
 This declaration only establishes that the class @code{Foo} has an
 @code{int} named @code{Foo::bar}, and a member function named
@@ -881,15 +881,139 @@ This declaration only establishes that the class @code{Foo} has an
 standard, you must supply an initializer in one (and only one) source
 file, such as:
 
-@example
+@smallexample
 int Foo::bar = 0;
-@end example
+@end smallexample
 
 Other C++ compilers may not correctly implement the standard behavior.
 As a result, when you switch to @command{g++} from one of these compilers,
 you may discover that a program that appeared to work correctly in fact
 does not conform to the standard: @command{g++} reports as undefined
 symbols any static data members that lack definitions.
+
+
+@node Name lookup
+@subsection Name lookup, templates, and accessing members of base classes
+
+@cindex base class members
+@cindex two-stage name lookup
+@cindex dependent name lookup
+
+The C++ standard prescribes that all names that are not dependent on
+template parameters are bound to their present definitions when parsing
+a template function or class.@footnote{The C++ standard just uses the
+term ``dependent'' for names that depend on the type or value of
+template parameters.  This shorter term will also be used in the rest of
+this section.}  Only names that are dependent are looked up at the point
+of instantiation.  For example, consider
+
+@smallexample
+  void foo(double);
+
+  struct A @{
+    template <typename T>
+    void f () @{
+      foo (1);        // 1
+      int i = N;      // 2
+      T t;
+      t.bar();        // 3
+      foo (t);        // 4
+    @}
+
+    static const int N;
+  @};
+@end smallexample
+
+Here, the names @code{foo} and @code{N} appear in a context that does
+not depend on the type of @code{T}.  The compiler will thus require that
+they are defined in the context of use in the template, not only before
+the point of instantiation, and will here use @code{::foo(double)} and
+@code{A::N}, respectively.  In particular, it will convert the integer
+value to a @code{double} when passing it to @code{::foo(double)}.
+
+Conversely, @code{bar} and the call to @code{foo} in the fourth marked
+line are used in contexts that do depend on the type of @code{T}, so
+they are only looked up at the point of instantiation, and you can
+provide declarations for them after declaring the template, but before
+instantiating it.  In particular, if you instantiate @code{A::f<int>},
+the last line will call an overloaded @code{::foo(int)} if one was
+provided, even if after the declaration of @code{struct A}.
+
+This distinction between lookup of dependent and non-dependent names is
+called two-stage (or dependent) name lookup.  G++ implements it
+since version 3.4.
+
+Two-stage name lookup sometimes leads to situations with behavior
+different from non-template codes. The most common is probably this:
+
+@smallexample
+  template <typename T> struct Base @{
+    int i;
+  @};
+
+  template <typename T> struct Derived : public Base<T> @{
+    int get_i() @{ return i; @}
+  @};
+@end smallexample
+
+In @code{get_i()}, @code{i} is not used in a dependent context, so the
+compiler will look for a name declared at the enclosing namespace scope
+(which is the global scope here).  It will not look into the base class,
+since that is dependent and you may declare specializations of
+@code{Base} even after declaring @code{Derived}, so the compiler can't
+really know what @code{i} would refer to.  If there is no global
+variable @code{i}, then you will get an error message.
+
+In order to make it clear that you want the member of the base class,
+you need to defer lookup until instantiation time, at which the base
+class is known.  For this, you need to access @code{i} in a dependent
+context, by either using @code{this->i} (remember that @code{this} is of
+type @code{Derived<T>*}, so is obviously dependent), or using
+@code{Base<T>::i}. Alternatively, @code{Base<T>::i} might be brought
+into scope by a @code{using}-declaration.
+
+Another, similar example involves calling member functions of a base
+class:
+
+@smallexample
+  template <typename T> struct Base @{
+      int f();
+  @};
+
+  template <typename T> struct Derived : Base<T> @{
+      int g() @{ return f(); @};
+  @};
+@end smallexample
+
+Again, the call to @code{f()} is not dependent on template arguments
+(there are no arguments that depend on the type @code{T}, and it is also
+not otherwise specified that the call should be in a dependent context).
+Thus a global declaration of such a function must be available, since
+the one in the base class is not visible until instantiation time.  The
+compiler will consequently produce the following error message:
+
+@smallexample
+  x.cc: In member function `int Derived<T>::g()':
+  x.cc:6: error: there are no arguments to `f' that depend on a template
+     parameter, so a declaration of `f' must be available
+  x.cc:6: error: (if you use `-fpermissive', G++ will accept your code, but
+     allowing the use of an undeclared name is deprecated)
+@end smallexample
+
+To make the code valid either use @code{this->f()}, or
+@code{Base<T>::f()}.  Using the @code{-fpermissive} flag will also let
+the compiler accept the code, by marking all function calls for which no
+declaration is visible at the time of definition of the template for
+later lookup at instantiation time, as if it were a dependent call.
+We do not recommend using @code{-fpermissive} to work around invalid
+code, and it will also only catch cases where functions in base classes
+are called, not where variables in base classes are used (as in the
+example above).
+
+Note that some compilers (including G++ versions prior to 3.4) get these
+examples wrong and accept above code without an error.  Those compilers
+do not implement two-stage name lookup correctly.
+
 
 @node Temporaries
 @subsection Temporaries May Vanish Before You Expect
@@ -910,7 +1034,7 @@ For example, a program may use a function @code{strfunc} that returns
 @code{string} objects, and another function @code{charfunc} that
 operates on pointers to @code{char}:
 
-@example
+@smallexample
 string strfunc ();
 void charfunc (const char *);
 
@@ -923,7 +1047,7 @@ f ()
   @dots{}
   charfunc (p);
 @}
-@end example
+@end smallexample
 
 @noindent
 In this situation, it may seem reasonable to save a pointer to the C
@@ -942,10 +1066,10 @@ The safe way to write such code is to give the temporary a name, which
 forces it to remain until the end of the scope of the name.  For
 example:
 
-@example
+@smallexample
 string& tmp = strfunc ();
 charfunc (tmp.c_str ());
-@end example
+@end smallexample
 
 @node Copy Assignment
 @subsection Implicit Copy-Assignment for Virtual Bases
@@ -955,7 +1079,7 @@ belongs to each full object.  Also, the constructors and destructors are
 invoked only once, and called from the most-derived class.  However, such
 objects behave unspecified when being assigned.  For example:
 
-@example
+@smallexample
 struct Base@{
   char *name;
   Base(char *n) : name(strdup(n))@{@}
@@ -983,7 +1107,7 @@ void func(Derived &d1, Derived &d2)
 @{
   d1 = d2;
 @}
-@end example
+@end smallexample
 
 The C++ standard specifies that @samp{Base::Base} is only called once
 when constructing or copy-constructing a Derived object.  It is
@@ -991,7 +1115,7 @@ unspecified whether @samp{Base::operator=} is called more than once when
 the implicit copy-assignment for Derived objects is invoked (as it is
 inside @samp{func} in the example).
 
-g++ implements the ``intuitive'' algorithm for copy-assignment: assign all
+G++ implements the ``intuitive'' algorithm for copy-assignment: assign all
 direct bases, then assign all members.  In that algorithm, the virtual
 base subobject can be encountered more than once.  In the example, copying
 proceeds in the following order: @samp{val}, @samp{name} (via
@@ -1120,11 +1244,16 @@ more annoyance than good.
 @item
 Warning when a non-void function value is ignored.
 
-Coming as I do from a Lisp background, I balk at the idea that there is
-something dangerous about discarding a value.  There are functions that
-return values which some callers may find useful; it makes no sense to
-clutter the program with a cast to @code{void} whenever the value isn't
-useful.
+C contains many standard functions that return a value that most
+programs choose to ignore.  One obvious example is @code{printf}.
+Warning about this practice only leads the defensive programmer to
+clutter programs with dozens of casts to @code{void}.  Such casts are
+required so frequently that they become visual noise.  Writing those
+casts becomes so automatic that they no longer convey useful
+information about the intentions of the programmer.  For functions
+where the return value should never be ignored, use the
+@code{warn_unused_result} function attribute (@pxref{Function
+Attributes}).
 
 @item
 @opindex fshort-enums
@@ -1279,12 +1408,12 @@ It is never safe to depend on the order of evaluation of side effects.
 For example, a function call like this may very well behave differently
 from one compiler to another:
 
-@example
+@smallexample
 void func (int, int);
 
 int i = 2;
 func (i++, i++);
-@end example
+@end smallexample
 
 There is no guarantee (in either the C or the C++ standard language
 definitions) that the increments will be evaluated in any particular
@@ -1309,7 +1438,7 @@ an error message for a certain program.
 ISO C requires a ``diagnostic'' message for certain kinds of invalid
 programs, but a warning is defined by GCC to count as a diagnostic.  If
 GCC produces a warning but not an error, that is correct ISO C support.
-If test suites call this ``failure'', they should be run with the GCC
+If testsuites call this ``failure'', they should be run with the GCC
 option @option{-pedantic-errors}, which will turn these warnings into
 errors.
 

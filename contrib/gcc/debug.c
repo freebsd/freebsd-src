@@ -1,5 +1,5 @@
 /* Do-nothing debug hooks for GCC.
-   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -17,6 +17,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "debug.h"
 
 /* The do-nothing debug hooks.  */
@@ -41,58 +43,52 @@ const struct gcc_debug_hooks do_nothing_debug_hooks =
   debug_nothing_tree,		/* global_decl */
   debug_nothing_tree,		/* deferred_inline_function */
   debug_nothing_tree,		/* outlining_inline_function */
-  debug_nothing_rtx		/* label */
+  debug_nothing_rtx,		/* label */
+  debug_nothing_int		/* handle_pch */
 };
 
 /* This file contains implementations of each debug hook that do
    nothing.  */
 
 void
-debug_nothing_void ()
+debug_nothing_void (void)
 {
 }
 
 void
-debug_nothing_tree (decl)
-     tree decl ATTRIBUTE_UNUSED;
+debug_nothing_tree (tree decl ATTRIBUTE_UNUSED)
 {
 }
 
 bool
-debug_true_tree (block)
-     tree block ATTRIBUTE_UNUSED;
+debug_true_tree (tree block ATTRIBUTE_UNUSED)
 {
   return true;
 }
 
 void
-debug_nothing_rtx (insn)
-     rtx insn ATTRIBUTE_UNUSED;
+debug_nothing_rtx (rtx insn ATTRIBUTE_UNUSED)
 {
 }
 
 void
-debug_nothing_charstar (main_filename)
-     const char *main_filename ATTRIBUTE_UNUSED;
+debug_nothing_charstar (const char *main_filename ATTRIBUTE_UNUSED)
 {
 }
 
 void
-debug_nothing_int_charstar (line, text)
-     unsigned int line ATTRIBUTE_UNUSED;
-     const char *text ATTRIBUTE_UNUSED;
+debug_nothing_int_charstar (unsigned int line ATTRIBUTE_UNUSED,
+			    const char *text ATTRIBUTE_UNUSED)
 {
 }
 
 void
-debug_nothing_int (line)
-     unsigned int line ATTRIBUTE_UNUSED;
+debug_nothing_int (unsigned int line ATTRIBUTE_UNUSED)
 {
 }
 
 void
-debug_nothing_int_int (line, n)
-     unsigned int line ATTRIBUTE_UNUSED;
-     unsigned int n ATTRIBUTE_UNUSED;
+debug_nothing_int_int (unsigned int line ATTRIBUTE_UNUSED,
+		       unsigned int n ATTRIBUTE_UNUSED)
 {
 }

@@ -1,5 +1,5 @@
 /* stt.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1997, 2003 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -79,8 +79,7 @@ ffestt_caselist_append (ffesttCaseList list, bool range, ffebld case1,
 {
   ffesttCaseList new;
 
-  new = (ffesttCaseList) malloc_new_kp (ffesta_scratch_pool,
-					"FFEST case list", sizeof (*new));
+  new = malloc_new_kp (ffesta_scratch_pool, "FFEST case list", sizeof (*new));
   new->next = list->previous->next;
   new->previous = list->previous;
   new->next->previous = new;
@@ -99,13 +98,12 @@ ffestt_caselist_append (ffesttCaseList list, bool range, ffebld case1,
    The list is allocated out of the scratch pool.  */
 
 ffesttCaseList
-ffestt_caselist_create ()
+ffestt_caselist_create (void)
 {
   ffesttCaseList new;
 
-  new = (ffesttCaseList) malloc_new_kp (ffesta_scratch_pool,
-					"FFEST case list root",
-					sizeof (*new));
+  new = malloc_new_kp (ffesta_scratch_pool, "FFEST case list root",
+		       sizeof (*new));
   new->next = new->previous = new;
   new->t = NULL;
   new->expr1 = NULL;
@@ -151,8 +149,7 @@ ffestt_dimlist_append (ffesttDimList list, ffebld lower, ffebld upper,
 {
   ffesttDimList new;
 
-  new = (ffesttDimList) malloc_new_kp (ffesta_scratch_pool,
-				       "FFEST dim list", sizeof (*new));
+  new = malloc_new_kp (ffesta_scratch_pool, "FFEST dim list", sizeof (*new));
   new->next = list->previous->next;
   new->previous = list->previous;
   new->next->previous = new;
@@ -396,12 +393,12 @@ ffestt_dimlist_as_expr (ffesttDimList list, ffeinfoRank *rank,
    The list is allocated out of the scratch pool.  */
 
 ffesttDimList
-ffestt_dimlist_create ()
+ffestt_dimlist_create (void)
 {
   ffesttDimList new;
 
-  new = (ffesttDimList) malloc_new_kp (ffesta_scratch_pool,
-				       "FFEST dim list root", sizeof (*new));
+  new = malloc_new_kp (ffesta_scratch_pool, "FFEST dim list root",
+		       sizeof (*new));
   new->next = new->previous = new;
   new->t = NULL;
   new->lower = NULL;
@@ -503,8 +500,7 @@ ffestt_exprlist_append (ffesttExprList list, ffebld expr, ffelexToken t)
 {
   ffesttExprList new;
 
-  new = (ffesttExprList) malloc_new_kp (ffesta_scratch_pool,
-					"FFEST expr list", sizeof (*new));
+  new = malloc_new_kp (ffesta_scratch_pool, "FFEST expr list", sizeof (*new));
   new->next = list->previous->next;
   new->previous = list->previous;
   new->next->previous = new;
@@ -521,12 +517,12 @@ ffestt_exprlist_append (ffesttExprList list, ffebld expr, ffelexToken t)
    The list is allocated out of the scratch pool.  */
 
 ffesttExprList
-ffestt_exprlist_create ()
+ffestt_exprlist_create (void)
 {
   ffesttExprList new;
 
-  new = (ffesttExprList) malloc_new_kp (ffesta_scratch_pool,
-				     "FFEST expr list root", sizeof (*new));
+  new = malloc_new_kp (ffesta_scratch_pool, "FFEST expr list root",
+		       sizeof (*new));
   new->next = new->previous = new;
   new->expr = NULL;
   new->t = NULL;
@@ -592,8 +588,8 @@ ffestt_formatlist_append (ffesttFormatList list)
 {
   ffesttFormatList new;
 
-  new = (ffesttFormatList) malloc_new_kp (ffesta_scratch_pool,
-					"FFEST format list", sizeof (*new));
+  new = malloc_new_kp (ffesta_scratch_pool, "FFEST format list",
+		       sizeof (*new));
   new->next = list->previous->next;
   new->previous = list->previous;
   new->next->previous = new;
@@ -613,8 +609,8 @@ ffestt_formatlist_create (ffesttFormatList parent, ffelexToken t)
 {
   ffesttFormatList new;
 
-  new = (ffesttFormatList) malloc_new_kp (ffesta_scratch_pool,
-				   "FFEST format list root", sizeof (*new));
+  new = malloc_new_kp (ffesta_scratch_pool, "FFEST format list root",
+		       sizeof (*new));
   new->next = new->previous = new;
   new->type = FFESTP_formattypeNone;
   new->t = t;
@@ -720,8 +716,7 @@ ffestt_implist_append (ffesttImpList list, ffelexToken first, ffelexToken last)
 {
   ffesttImpList new;
 
-  new = (ffesttImpList) malloc_new_kp (ffesta_scratch_pool,
-				       "FFEST token list", sizeof (*new));
+  new = malloc_new_kp (ffesta_scratch_pool, "FFEST token list", sizeof (*new));
   new->next = list->previous->next;
   new->previous = list->previous;
   new->next->previous = new;
@@ -738,13 +733,12 @@ ffestt_implist_append (ffesttImpList list, ffelexToken first, ffelexToken last)
    The list is allocated out of the scratch pool.  */
 
 ffesttImpList
-ffestt_implist_create ()
+ffestt_implist_create (void)
 {
   ffesttImpList new;
 
-  new = (ffesttImpList) malloc_new_kp (ffesta_scratch_pool,
-				       "FFEST token list root",
-				       sizeof (*new));
+  new = malloc_new_kp (ffesta_scratch_pool, "FFEST token list root",
+		       sizeof (*new));
   new->next = new->previous = new;
   new->first = NULL;
   new->last = NULL;
@@ -807,8 +801,7 @@ ffestt_tokenlist_append (ffesttTokenList tl, ffelexToken t)
 {
   ffesttTokenItem ti;
 
-  ti = (ffesttTokenItem) malloc_new_kp (ffesta_scratch_pool,
-					"FFEST token item", sizeof (*ti));
+  ti = malloc_new_kp (ffesta_scratch_pool, "FFEST token item", sizeof (*ti));
   ti->next = (ffesttTokenItem) &tl->first;
   ti->previous = tl->last;
   ti->next->previous = ti;
@@ -825,12 +818,11 @@ ffestt_tokenlist_append (ffesttTokenList tl, ffelexToken t)
    The list is allocated out of the scratch pool.  */
 
 ffesttTokenList
-ffestt_tokenlist_create ()
+ffestt_tokenlist_create (void)
 {
   ffesttTokenList tl;
 
-  tl = (ffesttTokenList) malloc_new_kp (ffesta_scratch_pool,
-					"FFEST token list", sizeof (*tl));
+  tl = malloc_new_kp (ffesta_scratch_pool, "FFEST token list", sizeof (*tl));
   tl->first = tl->last = (ffesttTokenItem) &tl->first;
   tl->count = 0;
   return tl;
