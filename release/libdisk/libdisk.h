@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.5 1995/04/29 07:21:11 phk Exp $
+ * $Id: libdisk.h,v 1.6 1995/04/30 06:09:27 phk Exp $
  *
  */
 
@@ -187,6 +187,7 @@ struct disklabel * read_disklabel(int, daddr_t);
 u_short	dkcksum(struct disklabel *);
 struct chunk * Find_Mother_Chunk(struct chunk *, u_long , u_long , chunk_e);
 struct disk * Int_Open_Disk(char *name, u_long size);
+void Fixup_Names(struct disk *);
 
 #define dprintf	printf
 
