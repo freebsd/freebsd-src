@@ -72,7 +72,8 @@
 /*
  * Trap and fault vector routines
  */
-#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(_X,name); __CONCAT(_X,name):
+#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(_X,name); \
+			.type __CONCAT(_X,name),@function; __CONCAT(_X,name):
 #define	TRAP(a)		pushl $(a) ; jmp _alltraps
 
 /*
@@ -194,6 +195,7 @@ IDTVEC(align)
 
 	SUPERALIGN_TEXT
 	.globl	_alltraps
+	.type	_alltraps,@function
 _alltraps:
 	pushal
 	pushl	%ds

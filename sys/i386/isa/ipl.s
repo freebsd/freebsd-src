@@ -107,6 +107,7 @@ _netisrs:
  * Handle return from interrupts, traps and syscalls.
  */
 	SUPERALIGN_TEXT
+	.type	_doreti,@function
 _doreti:
 #ifdef SMP
 	TEST_CIL
@@ -411,6 +412,7 @@ dummynetisr:
  */
 	ALIGN_TEXT
 	.globl	_swi_generic
+	.type	_swi_generic,@function
 _swi_generic:
 	pushl	%ecx
 	FAKE_MCOUNT(4(%esp))

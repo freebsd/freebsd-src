@@ -176,6 +176,7 @@
 #define _bcopy				bcopy
 #define _bcopy_vector			bcopy_vector
 #define _bigJump			bigJump
+#define _bintr				bintr
 #define _bio_imask			bio_imask
 #define _bluetrap			bluetrap
 #define _bootCodeSeg			bootCodeSeg
@@ -188,6 +189,7 @@
 #define _boothowto			boothowto
 #define _bootinfo			bootinfo
 #define _bootstrap_gdt			bootstrap_gdt
+#define _btrap				btrap
 #define _bzero				bzero
 #define _cam_imask			cam_imask
 #define _checkstate_cpus		checkstate_cpus
@@ -227,6 +229,7 @@
 #define _divide_by_zero			divide_by_zero
 #define _divide_kernel			divide_kernel
 #define _do_page_zero_idle		do_page_zero_idle
+#define _doreti				doreti
 #define _edata				edata
 #define _eintrcnt			eintrcnt
 #define _eintrnames			eintrnames
@@ -246,6 +249,7 @@
 #define _get_isrlock			get_isrlock
 #define _get_mplock			get_mplock
 #define _get_syscall_lock		get_syscall_lock
+#define _idle				idle
 #define _getmicrouptime		getmicrouptime
 #define _idqs				idqs
 #define _ihandlers			ihandlers

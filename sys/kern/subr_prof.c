@@ -47,6 +47,7 @@
 #ifdef GPROF
 #include <sys/malloc.h>
 #include <sys/gmon.h>
+#undef MCOUNT
 
 static MALLOC_DEFINE(M_GPROF, "gprof", "kernel profiling buffer");
 
@@ -56,6 +57,8 @@ SYSINIT(kmem, SI_SUB_KPROF, SI_ORDER_FIRST, kmstartup, NULL)
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
 
 #ifdef GUPROF
+#include <machine/asmacros.h>
+
 void
 nullfunc_loop_profiled()
 {
@@ -174,7 +177,7 @@ kmstartup(dummy)
 	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
 #if defined(__i386__) && __GNUC__ >= 2
-		    __asm("call mexitcount; 1:"
+		    __asm("call " __XSTRING(HIDENAME(mexitcount)) "; 1:"
 			  : : : "ax", "bx", "cx", "dx", "memory");
 	__asm("movl $1b,%0" : "=rm" (tmp_addr));
 #else

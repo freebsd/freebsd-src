@@ -250,6 +250,7 @@ rem3id:	.asciz	"remrq.id"
  * to wait for something to come ready.
  */
 	ALIGN_TEXT
+	.type	_idle,@function
 _idle:
 	xorl	%ebp,%ebp
 	movl	%ebp,_switchtime

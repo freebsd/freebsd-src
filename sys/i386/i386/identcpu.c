@@ -667,6 +667,7 @@ __asm
 ("
 	.text
 	.p2align 2,0x90
+	.type	" __XSTRING(CNAME(bluetrap6)) ",@function
 " __XSTRING(CNAME(bluetrap6)) ":
 	ss
 	movl	$0xa8c1d," __XSTRING(CNAME(trap_by_rdmsr)) "
@@ -683,6 +684,7 @@ __asm
 ("
 	.text
 	.p2align 2,0x90
+	.type " __XSTRING(CNAME(bluetrap13)) ",@function
 " __XSTRING(CNAME(bluetrap13)) ":
 	ss
 	movl	$0xa89c4," __XSTRING(CNAME(trap_by_rdmsr)) "
