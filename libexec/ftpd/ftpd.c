@@ -1904,6 +1904,7 @@ send_data(instr, outstr, blksize, filesize, isreg)
 				}
 			}
 
+			transflag = 0;
 			reply(226, "Transfer complete.");
 			return (0);
 		}
