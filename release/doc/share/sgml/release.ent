@@ -37,6 +37,13 @@
 <!ENTITY % release.type.snapshot "INCLUDE">
 <!ENTITY % release.type.release "IGNORE">
 
+<!-- The manpaths for man page references -->
+<!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
+<!ENTITY release.manpath.xfree86       "4.2.0">
+<!ENTITY release.manpath.netbsd        "1.5">
+<!ENTITY release.manpath.freebsd-ports "Ports">
+<!ENTITY release.manpath.freebsd       "5.0-current">
+
 <!-- Text constants which probably don't need to be changed.-->
 
 <!-- Name of our OS.  This is almost certainly going to remain
