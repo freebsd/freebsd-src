@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.55 1999/08/22 23:26:03 brian Exp $
+#	$Id: rc.network,v 1.56 1999/08/25 16:01:37 sheldonh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -64,7 +64,7 @@ network_pass1() {
 	    eval ifconfig_args=\$ifconfig_${ifn}
 	    if [ -n "${ifconfig_args}" ] ; then
 		    # See if we are using DHCP
-		    if [ "${ifconfig_args}" = "XDHCP" ]; then
+		    if [ "${ifconfig_args}" = "DHCP" ]; then
 			     ${dhcp_program} ${dhcp_flags} ${ifn}
 		    else
 			     ifconfig ${ifn} ${ifconfig_args}
