@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.5.2.3 1997/03/17 00:29:48 jmg Exp $
+# $Id: ppp.conf.sample,v 1.5.2.4 1997/04/07 20:22:04 brian Exp $
 #
 #################################################################
 
@@ -91,6 +91,8 @@ ondemand:
 #  IP will be either, take a wild guess at an some IPs that you can't
 #  currently route to.  Ensure that the "delete" and "add" lines are also
 #  present in ppp.linkup so that when we connect, things will be put straight.
+#  Note that it is illegal to use HISADDR here - HISADDR is only available
+#  in ppp.linkup (after the value has been established).
 #
 #  The /0 bit says that we insist on 0 bits of the specified IP actually
 #  being correct, therefore, the other side can assign any IP numbers.
@@ -104,7 +106,7 @@ pmdemand:
  set timeout 120
  set ifaddr 10.10.10.10/0 10.10.11.11/0 255.255.255.0
  delete ALL
- add 0 0 HISADDR
+ add 0 0 10.10.11.11
  set openmode active
 
 # Examples to connect using a null-modem cable from one machine to another.
@@ -126,14 +128,14 @@ direct-client:
  set debug Phase
  set login "TIMEOUT 5 -\\r-login:-\\r-login: ppp word: ppp HELLO"
  set ifaddr 10.0.4.2 10.0.4.1
- add 10.0.4.2 0 127.0.0.1
+ add 10.0.4.2 255.255.255.255 127.0.0.1
  
 direct-server:
  set timeout 900 10 3
  set debug Phase LQM
  enable lqr
  set ifaddr 10.0.4.1 10.0.4.2
- add 10.0.4.1 0 127.0.0.1
+ add 10.0.4.1 255.255.255.255 127.0.0.1
 
 # Example to validate incoming user with CHAP
 #  Invoke as ``ppp -direct users'' from login script. User's system name
