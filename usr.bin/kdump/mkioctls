@@ -19,10 +19,10 @@ fi
 # XXX netipx conflicts with netns (leave out netns).
 ioctl_includes=`
 	cd $1
-	find * -name '*.h' -follow |
+	find -s * -name '*.h' -follow |
 		egrep -v '^(netns)/' |
 		xargs egrep -l \
-'^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-0_]*[ 	]+_IO[^a-z0-9_]' |
+'^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
 		sed -e 's/^/#include </' -e s'/$/>/'
 `
 
@@ -38,6 +38,7 @@ BEGIN {
 	print "#include <sys/socket.h>"
 	print "#include <sys/time.h>"
 	print "#include <sys/tty.h>"
+	print "#include <net/ethernet.h>"
 	print "#include <net/if.h>"
 	print "#include <net/if_var.h>"
 	print "#include <net/route.h>"
