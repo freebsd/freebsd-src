@@ -43,25 +43,31 @@
 /*
  * Kernel per-process accounting / statistics
  * (not necessarily resident except when running).
+ *
+ * Locking key:
+ *      b - created at fork, never changes
+ *      c - locked by proc mtx
+ *      j - locked by sched_lock mtx
+ *      k - only accessed by curthread
  */
 struct pstats {
 #define	pstat_startzero	p_ru
-	struct	rusage p_ru;		/* stats for this proc */
-	struct	rusage p_cru;		/* sum of stats for reaped children */
-	struct	itimerval p_timer[3];	/* virtual-time timers */
+	struct	rusage p_ru;		/* Stats for this process. */
+	struct	rusage p_cru;		/* Stats for reaped children. */
+	struct	itimerval p_timer[3];	/* (j) Virtual-time timers. */
 #define	pstat_endzero	pstat_startcopy
 
 #define	pstat_startcopy	p_prof
-	struct uprof {			/* profile arguments */
-		caddr_t	pr_base;	/* buffer base */
-		u_long	pr_size;	/* buffer size */
-		u_long	pr_off;		/* pc offset */
-		u_long	pr_scale;	/* pc scaling */
-		u_long	pr_addr;	/* temp storage for addr until AST */
-		u_int	pr_ticks;	/* temp storage for ticks until AST */
+	struct uprof {			/* Profile arguments. */
+		caddr_t	pr_base;	/* (c + j) Buffer base. */
+		u_long	pr_size;	/* (c + j) Buffer size. */
+		u_long	pr_off;		/* (c + j) PC offset. */
+		u_long	pr_scale;	/* (c + j) PC scaling. */
+		u_long	pr_addr;	/* (k) Temporary addr until AST. */
+		u_int	pr_ticks;	/* (k) Temporary ticks until AST. */
 	} p_prof;
 #define	pstat_endcopy	p_start
-	struct	timeval p_start;	/* starting time */
+	struct	timeval p_start;	/* (b) Starting time. */
 };
 
 #ifdef _KERNEL
