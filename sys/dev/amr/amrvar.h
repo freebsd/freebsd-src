@@ -202,6 +202,7 @@ struct amr_softc
     /* CAM attachments for passthrough */
     struct cam_sim		*amr_cam_sim[AMR_MAX_CHANNELS];
     TAILQ_HEAD(, ccb_hdr)	amr_cam_ccbq;
+    struct cam_devq		*amr_cam_devq;
 
     /* control device */
     struct cdev *amr_dev_t;
