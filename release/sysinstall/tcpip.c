@@ -444,7 +444,7 @@ tcpDeviceSelect(void)
 	msgConfirm("No network devices available!");
 	return NULL;
     }
-    else if (!RunningAsInit) {
+    else if ((!RunningAsInit) && (variable_check("NETWORK_CONFIGURED=NO") != TRUE)) {
 	if (!msgYesNo("Running multi-user, assume that the network is already configured?"))
 	    return devs[0];
     }
@@ -480,7 +480,9 @@ tcpMenuSelect(dialogMenuItem *self)
 {
     Device *tmp;
 
+    variable_set("NETWORK_CONFIGURED=NO",0);
     tmp = tcpDeviceSelect();
+    variable_unset("NETWORK_CONFIGURED");
     if (tmp && tmp->private && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
 	if (!tmp->init(tmp))
 	    msgConfirm("Initialization of %s device failed.", tmp->name);
