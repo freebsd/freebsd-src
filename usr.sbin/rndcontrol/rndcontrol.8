@@ -27,12 +27,12 @@
 .\"
 .Dd October 20, 1995
 .Dt RNDCONTROL 8
-.Os FreeBSD 2
+.Os FreeBSD
 .Sh NAME
 .Nm rndcontrol 
 .Nd a utility for manipulating the /dev/random device
 .Sh SYNOPSIS
-.Nm rndcontrol
+.Nm
 .Op Fl q
 .Op Fl s Ar irq_no
 .Op Fl c Ar irq_no
@@ -80,6 +80,7 @@ Sure to be some.
 .Sh "SEE ALSO"
 .Xr random 4 
 .Sh AUTHORS
+.An -nosplit
 .An Theodore Ts'o
 wrote the core code.
 .An Mark Murray

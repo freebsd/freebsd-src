@@ -79,14 +79,14 @@ driver allows the disk to have two levels of partitioning.
 One layer, called the
 .Dq slice layer ,
 is used to separate the
-.Tn FreeBSD
+.Fx
 areas of the disk from areas used by other operating systems.
 The second layer is the native
 .Bx 4.4
 partitioning scheme,
 .Xr disklabel 5 ,
 which is used to subdivide the
-.Tn FreeBSD
+.Fx
 slices into areas for individual filesystems.
 For more information, see
 .Xr fdisk 8
@@ -96,10 +96,10 @@ respectively.
 .Pp
 If an uninitialized disk is opened, the slice table will be
 initialized with a fictitious
-.Tn FreeBSD
+.Fx
 slice spanning the entire disk.  Similarly, if an uninitialized
 (or
-.No non- Ns Tn FreeBSD )
+.No non- Ns Fx )
 slice is opened, its disklabel will be initialized with parameters
 returned by the drive and a single
 .Sq Li c
@@ -119,21 +119,19 @@ that follow the vendor's behavior.
 To create a UFS LS-120 disk (no slice table),
 First, make sure there is no slice table on the disk):
 .Dl # dd if=/dev/zero of=/dev/wfd0 count=16
-
+.Pp
 Next, disklabel the disk:
 .Dl # disklabel -rw wfd0 fd120m
-
+.Pp
 Then newfs as usual:
 .Dl # newfs /dev/rwfd0a
-.Fi
-
+.Pp
 To create a standard 1.44mb floppy in a LS-120 drive, do the same
 procedure, but use
 .Ar fd1440
 as the disk layout when using the
 .Nm disklabel
 command.
-
 .Sh KERNEL CONFIGURATION
 Only one
 .Nm
@@ -187,7 +185,7 @@ block mode
 floppy disk unit
 .Ar u ,
 first
-.Tn FreeBSD
+.Fx
 slice, partition
 .Ar p
 .It Pa /dev/rwfd Ns Ar u Ns Ar p
@@ -196,7 +194,7 @@ raw mode
 floppy disk unit
 .Ar u ,
 first
-.Tn FreeBSD
+.Fx
 slice, partition
 .Ar p
 .Sm off
@@ -231,7 +229,7 @@ slice, partition
 .Xr disklabel 8 ,
 .Xr fdisk 8
 .Sh AUTHORS
-.An Junichi\ Satoh\  Aq junichi@jp.FreeBSD.org
+.An "Junichi Satoh" Aq junichi@jp.FreeBSD.org
 .Sh HISTORY
 The
 .Nm
