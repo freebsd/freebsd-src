@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.38 1999/01/13 08:20:55 hm Exp $
+#	$Id: rc.network,v 1.40 1999/03/11 16:17:24 jfitz Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -211,7 +211,7 @@ network_pass2() {
     fi
 
     if [ "X${portmap_enable}" = X"YES" ]; then
-	    echo -n ' portmap';		portmap ${portmap_flags}
+	    echo -n ' portmap';		${portmap_program} ${portmap_flags}
     fi
 
     # Start ypserv if we're an NIS server.

@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.169.2.7 1999/03/14 03:21:39 des Exp $
+#	$Id: rc,v 1.169.2.8 1999/03/14 20:30:08 des Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -233,12 +233,19 @@ if [ -n "$network_pass1_done" ]; then
 	network_pass2
 fi
 
-# Check the quotas (must be after ypbind if using NIS)
-if [ "X${check_quotas}" = X"YES" ]; then
-	echo -n 'checking quotas:'
-	quotacheck -a
-	echo ' done.'
-	quotaon -a
+# Enable/Check the quotas (must be after ypbind if using NIS)
+if [ "X${enable_quotas}" = X"YES" ]; then
+
+    # Only check quotas if they have been previously enabled, and requested
+    if [ "X${check_quotas}" = X"YES" ]; then
+            echo -n 'checking quotas:'
+            quotacheck -a
+            echo ' done.'
+    fi
+
+        echo -n 'enabling quotas:'
+        quotaon -a
+        echo ' done.'
 fi
 
 if [ -n "$network_pass2_done" ]; then
@@ -306,7 +313,7 @@ if [ "X${cron_enable}" != X"NO" ]; then
 fi
 
 if [ "X${lpd_enable}" = X"YES" ]; then
-	echo -n ' printer';		lpd ${lpd_flags}
+	echo -n ' printer';		${lpd_program} ${lpd_flags}
 fi
 
 if [ "X${sendmail_enable}" = X"YES" -a -r /etc/sendmail.cf ]; then
