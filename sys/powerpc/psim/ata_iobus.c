@@ -91,7 +91,7 @@ static driver_t ata_iobus_driver = {
 static devclass_t ata_iobus_devclass;
 
 DRIVER_MODULE(ataiobus, iobus, ata_iobus_driver, ata_iobus_devclass, 0, 0);
-
+MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 static int
 ata_iobus_probe(device_t dev)
@@ -231,19 +231,6 @@ static driver_t ata_iobus_sub_driver = {
 DRIVER_MODULE(ata, ataiobus, ata_iobus_sub_driver, ata_devclass, 0, 0);
 
 static int
-ata_iobus_locknoop(struct ata_channel *ch, int type)
-{
-
-        return (ch->unit);
-}
-
-static void
-ata_iobus_setmode(struct ata_device *atadev, int mode)
-{
-	atadev->mode = ATA_PIO;
-}
-
-static int
 ata_iobus_sub_probe(device_t dev)
 {
 	struct ata_channel *ch = device_get_softc(dev);
@@ -251,9 +238,7 @@ ata_iobus_sub_probe(device_t dev)
 	/* Only a single unit per controller thus far */
 	ch->unit = 0;
 	ch->flags = (ATA_USE_16BIT|ATA_NO_SLAVE);
-	ch->locking = ata_iobus_locknoop;
-	ch->device[MASTER].setmode = ata_iobus_setmode;
-	ch->device[SLAVE].setmode = ata_iobus_setmode;
+	ata_generic_hw(ch);
 
 	return ata_probe(dev);
 }
