@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.5 1995/04/04 02:01:12 davidg Exp $
+ * $Id: kern_subr.c,v 1.6 1995/04/09 01:19:25 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -136,6 +136,8 @@ again:
 	case UIO_USERISPACE:
 		if (suibyte(iov->iov_base, c) < 0)
 			return (EFAULT);
+		break;
+	case UIO_NOCOPY:
 		break;
 	}
 	iov->iov_base++;
