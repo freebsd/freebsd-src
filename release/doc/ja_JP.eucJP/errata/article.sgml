@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.44
+    Original revision: 1.53
 -->
 
 <!-- 
@@ -26,6 +26,10 @@
 %authors;
 <!ENTITY % ja-mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
 %ja-mlists;
+<!ENTITY % ja-trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//JA">
+%ja-trademarks;
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+%trademarks;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 ]>
@@ -53,6 +57,13 @@
       <year>2003</year>
       <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
     </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
   </articleinfo>
 
   <abstract>
@@ -142,10 +153,88 @@
       1 バイトのバッファオーバフローを引き起こすバグがありました。
       この問題は、&man.realpath.3; を利用するアプリケーションと
       他の要因に依存してさまざまな影響を発生する可能性があります。
-      このバグは &release.prev; セキュリティブランチと
+      このバグは &release.prev; の公開前に
       &release.branch; 開発ブランチで修正されました。
+      したがって、&os; &release.prev; には影響がありませんが、
+      リリース文書には記載されていませんでした。
       詳細は、セキュリティ勧告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>
+      をご覧ください。</para>
+
+    <para>カーネルに不正なシグナルの配送を許可してしまうバグがあり、
+      カーネルパニックや、特定の状況では
+      カーネルメモリの改変につながる可能性があります。
+      このバグは &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>
+      をご覧ください。</para>
+
+    <para>iBCS2 エミュレーションモジュールにバグがあり、
+      カーネルメモリを意図せず公開してしまう可能性があります。
+      なお、このモジュールはデフォルトでは有効になっていません。
+      このバグは &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>
+      をご覧ください。</para>
+
+    <para><application>OpenSSH</application> の
+      バッファを管理するコードにバグがあり、
+      潜在的にはクラッシュを引き起こす可能性があります。
+      このバグは、ベンダ提供のパッチを適用して、
+      &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>
+      をご覧ください。</para>
+
+    <para><application>sendmail</application> にリモートから攻撃可能な
+      バッファオーバフロー問題がありました。
+      このバグは、&release.branch; 開発ブランチでは新しいバージョンを統合し、
+      &release.prev; セキュリティブランチではベンダ提供のパッチを適用して
+      修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>
+      をご覧ください。</para>
+
+    <para>&os; の ARP 実装にカーネルが資源の枯渇を許可してしまうバグがあり、
+      その結果、システムがパニックに陥る可能性があります。
+      このバグは &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>
+      をご覧ください。</para>
+
+    <para><application>OpenSSH</application> の
+      PAM 認証のコードにバグがいくつかあり、
+      不正な認証からスタックの汚染まで多岐におよぶ影響があります。
+      これらのバグはベンダ提供のパッチを適用して修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>
+      をご覧ください。</para>
+
+    <para>&man.procfs.5; と &man.linprocfs.5; の実装にバグがあり、
+      カーネルメモリを意図せず公開してしまう可能性があります。
+      このバグは &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>
+      をご覧ください。</para>
+
+    <para><application>OpenSSL</application> にバグがいくつかあり、
+      リモートの攻撃者が <application>OpenSSL</application> を利用する
+      アプリケーションをクラッシュさせることができたり、
+      そのアプリケーションの権限で任意のコードを実行できる可能性があります。
+      これらのバグは、ベンダ提供のパッチを適用することにより、
+      &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      この問題は、<application>OpenSSL</application> 由来の
+      ASN.1 または X.509 の処理を担当するコードを利用する
+      アプリケーションにのみ影響があることに注意してください
+      (たとえば、<application>OpenSSH</application> には影響がありません)。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>
       をご覧ください。</para>
 ]]>
 
@@ -162,7 +251,7 @@
     <para>&man.raid.4; に記載されている
       RAIDframe ディスクドライバは、このリリースでは正常に動作しません。</para>
 
-    <para>ACPI を有効にすると不安定になる i386 マシンがあるようです。
+    <para>ACPI を有効にすると不安定になる &i386; マシンがあるようです。
       ACPI 機能を無効にすると問題が解決する可能性があります。
       <xref linkend="late-news"> にある項をご覧ください。</para>
 
@@ -188,10 +277,10 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>&man.ipfw.4; が alpha や sparc64 のような 64-bit
+    <para>&man.ipfw.4; が alpha や &sparc64; のような 64-bit
       アラインメントを厳密に要求する環境下でも正しく動作するようになっています。</para>
 
-    <para>リリースノートには、i386 プラットフォーム では
+    <para>リリースノートには、&i386; プラットフォーム では
       <filename>libthr</filename> ライブラリがデフォルトで構築されることが
       書かれていませんでした。</para>
 
@@ -203,7 +292,7 @@
       (そのため、<filename>/boot/loader.conf</filename> や、
       他の既存のローダ設定ファイルを読み込みます)。
       なお、デフォルトでは、新規に
-      i386 マシンにバイナリインストールした時にのみ、インストールされます。
+      &i386; マシンにバイナリインストールした時にのみ、インストールされます。
       この新しいスクリプトでは起動時に、&os; どのように起動するかを
       制御できるメニューを表示します。
       具体的には、ACPI の無効化、<quote>安全モード</quote>、
@@ -213,13 +302,13 @@
       ある搭載されているハードウェアに、システムが対応しているかどうか分からない時に便利です。
       このモードではカーネル変数を次のように設定します。</para>
 
-      <programlisting>hint.acpi.0.disabled=1 # ACPI を無効にします (i386 アーキテクチャのみ)。
+      <programlisting>hint.acpi.0.disabled=1 # ACPI を無効にします (&i386; アーキテクチャのみ)。
 hw.ata.ata_dma=0       # IDE DMA 転送を無効にします。
 hw.ata.atapi_dma=0     # ATAPI/IDE DMA 転送を無効にします。
 hw.ata.wc=0            # IDE ディスクの書込みキャッシュを無効にします。
 hw.eisa_slots=0        # EISA デバイスの検出を無効にします。</programlisting>
 
-    <para>i386 アーキテクチャマシンの新規インストールでは、
+    <para>&i386; アーキテクチャマシンの新規インストールでは、
       新しい起動ローダスクリプトで ACPI が
       無効にされているかどうかを &man.sysinstall.8; が判断し、
       もしそうなら、変更をファイルに書き込むかどうか尋ねます。</para>
