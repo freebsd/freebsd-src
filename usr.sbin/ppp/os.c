@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.8 1996/12/10 17:00:38 wollman Exp $
+ * $Id: os.c,v 1.7.2.2 1996/12/23 18:13:39 jkh Exp $
  *
  */
 #include "fsm.h"
@@ -275,7 +275,7 @@ int *ptun;
   unsigned unit, enoentcount=0;
 
   for( unit=0; unit <= MAX_TUN ; unit++ ) {
-    sprintf( devname, "/dev/tun%d", unit );
+    snprintf( devname, sizeof(devname), "/dev/tun%d", unit );
     tun_out = open(devname, O_RDWR);
     if( tun_out >= 0 )
 	break;
@@ -296,13 +296,13 @@ int *ptun;
   /*
    * At first, name the interface.
    */
-  strcpy(ifname, devname + 5);
+  strncpy(ifname, devname + 5, IFNAMSIZ-1);
 
   bzero((char *)&ifra, sizeof(ifra));
   bzero((char *)&ifrq, sizeof(ifrq));
 
-  strncpy(ifrq.ifr_name, ifname, IFNAMSIZ);
-  strncpy(ifra.ifra_name, ifname, IFNAMSIZ);
+  strncpy(ifrq.ifr_name, ifname, IFNAMSIZ-1);
+  strncpy(ifra.ifra_name, ifname, IFNAMSIZ-1);
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {

@@ -165,7 +165,7 @@ u_short true_port;
             p1 = *ptr++; p2=*ptr;
 
 /* Generate command string */
-            sprintf(stemp, "PORT %d,%d,%d,%d,%d,%d\r\n",
+            snprintf(stemp, sizeof(stemp), "PORT %d,%d,%d,%d,%d,%d\r\n",
                      a1,a2,a3,a4,p1,p2);
 
 /* Save string length for IP header modification */
