@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.53 1994/09/21 19:39:25 davidg Exp $
+ *	$Id: sio.c,v 1.54 1994/10/12 19:49:11 bde Exp $
  */
 
 #include "sio.h"
@@ -876,7 +876,9 @@ sioclose(dev, flag, mode, p)
 	com = com_addr(MINOR_TO_UNIT(mynor));
 	tp = com->tp;
 	s = spltty();
+	timeout((timeout_func_t)wakeup, (caddr_t)&tp->t_outq, 60*hz);
 	(*linesw[tp->t_line].l_close)(tp, flag);
+	untimeout((timeout_func_t)wakeup, (caddr_t)&tp->t_outq);
 	siostop(tp, FREAD | FWRITE);
 	comhardclose(com);
 	ttyclose(tp);
