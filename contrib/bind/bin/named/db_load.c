@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: db_load.c,v 8.110 2001/01/25 05:50:53 marka Exp $";
+static const char rcsid[] = "$Id: db_load.c,v 8.113.2.1 2001/05/03 03:26:48 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -271,7 +271,7 @@ db_load(const char *filename, const char *in_origin,
 		/* Any updates should be saved before we attempt to reload. */
 		INSIST((zp->z_flags & (Z_NEED_DUMP|Z_NEED_SOAUPDATE)) == 0);
 	case Z_HINT:
-		if(filename == NULL) {
+		if (filename == NULL) {
 		 	ns_error(ns_log_load,
 		 	    "Required filename not specified for Hint zone");
 		 	zp->z_flags |= Z_DB_BAD;
@@ -983,6 +983,9 @@ db_load(const char *filename, const char *in_origin,
 				break;
 
 			case ns_t_nsap:
+				if (buf[0] != '0' ||
+				    (buf[1] != 'x' && buf[1] != 'X'))
+					ERRTO("NSAP RR: no leading 0x");
 				n = inet_nsap_addr(buf, (u_char *)data,
 						   sizeof data);
 				if (n == 0)
@@ -1132,11 +1135,11 @@ db_load(const char *filename, const char *in_origin,
 		}
 		if (errs != 0) {
 			if (errs != -1)
-				ns_warning(ns_log_load,
+				ns_error(ns_log_load,
 		   "%s zone \"%s\" (%s) rejected due to errors (serial %u)",
-					   zoneTypeString(zp->z_type),
-					   zp->z_origin,
-					   p_class(zp->z_class), zp->z_serial);
+					 zoneTypeString(zp->z_type),
+					 zp->z_origin,
+					 p_class(zp->z_class), zp->z_serial);
 			if ((zp->z_flags & Z_NOTIFY) != 0)
 				ns_stopnotify(zp->z_origin, zp->z_class);
 			do_reload(zp->z_origin, zp->z_type, zp->z_class,
@@ -2178,8 +2181,7 @@ parse_sig_rr(char *buf, int buf_len, u_char *data, int data_size,
 	} else {
 		/* Parse and output OTTL; scan TEXP */
 		origTTL = wordtouint32(buf);
-		if (origTTL >= 0 || wordtouint32_error ||
-		    (origTTL > 0x7fffffff))
+		if (wordtouint32_error || (origTTL > 0x7fffffffU))
 			ERRTO("Original TTL value bad");
 		cp = &data[i];
 		PUTLONG(origTTL, cp);
@@ -2414,7 +2416,7 @@ parse_cert_rr(char *buf, int buf_len, u_char *data, int data_size,
 	}
 	else {
 		cp = &data[i];
-		certlen = b64_pton(buf, (u_char*)cp, sizeof(data) - i);
+		certlen = b64_pton(buf, (u_char*)cp, data_size - i);
 		if (certlen < 0)
 			ERRTO("CERT blob has encoding error");
 	}

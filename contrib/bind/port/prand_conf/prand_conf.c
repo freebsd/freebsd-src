@@ -1,4 +1,4 @@
-/* $Id: prand_conf.c,v 1.5 1999/07/31 16:44:13 cyarnell Exp $
+/* $Id: prand_conf.c,v 1.7 2001/03/07 06:46:33 marka Exp $
  *
  * Portions Copyright (c) 1995-1998 by TIS Labs at Network Assoociates Inc.
  * Portions Copyright (c) 1998-1998 by TIS Labs @ Network Associates Inc.
@@ -130,7 +130,8 @@ main()
 
 	char *files[] = {"/proc/stat", "/proc/rtc", "/proc/meminfo", 
 			 "/proc/interrupts",  "/proc/self/status", 
-			 "/proc/self/maps", 
+			 "/proc/self/maps",  "/proc/curproc/status",
+			 "/proc/curproc/map",
 			 "/var/log/messages", "/var/log/wtmp", 
 			 "/var/log/lastlog", "/var/adm/messages", 
 			 "/var/adm/wtmp", "/var/adm/lastlog", NULL};
@@ -146,7 +147,7 @@ main()
 
 	fprintf(fd, "#ifndef _PRAND_CMD_H_\n#define _PRAND_CMD_H_\n\n");
 
-	fprintf(fd, "const char *cmds[] = {\n");
+	fprintf(fd, "static const char *cmds[] = {\n");
        
 	if ((ps = my_find("ps", ps_path)) >= 0)
 		res = ex(fd, ps_path[ps], "ps","-axlw", 460) || 
@@ -185,7 +186,7 @@ main()
 		res = ex(fd, w_path[cmd], "w", "", 100);
 	fprintf(fd,"\tNULL\n};\n\n");
 
-	fprintf(fd, "const char *dirs[] = {\n");
+	fprintf(fd, "static const char *dirs[] = {\n");
 
 	for (i=0; dirs[i]; i++) { 
 		if (lstat(dirs[i], &st) == 0) 
@@ -195,12 +196,12 @@ main()
 	fprintf(fd,"\tNULL\n};\n\n");
 
 
-	fprintf(fd, "const char *files[] = {\n");
+	fprintf(fd, "static const char *files[] = {\n");
 	tim = time(NULL);
 	for (i=0; files[i]; i++) {
 		if (lstat(files[i],&st) == 0)
 			if (S_ISREG(st.st_mode) && 
-			    (tim -st.st_mtime) < 84600) 
+			    (tim - st.st_mtime) < 84600) 
 				fprintf(fd,"\t\"%s\",\n", files[i]);
 	}
 	fprintf (fd, "\tNULL\n};\n");
