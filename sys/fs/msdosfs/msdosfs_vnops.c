@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.62 1998/02/26 06:45:46 msmith Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.63 1998/03/01 21:26:09 msmith Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -552,7 +552,7 @@ msdosfs_read(ap)
 	long n;
 	long on;
 	daddr_t lbn;
-	daddr_t rablock, rablock1;
+	daddr_t rablock;
 	int rasize;
 	struct buf *bp;
 	struct vnode *vp = ap->a_vp;
@@ -602,14 +602,12 @@ msdosfs_read(ap)
 #endif
 			if (vp->v_lastr + 1 == lbn &&
 			    de_cn2off(pmp, rablock) < dep->de_FileSize) {
-				rablock1 = de_cn2bn(pmp, rablock);
 				rasize = pmp->pm_bpcluster;
-				error = breadn(vp, de_cn2bn(pmp, lbn),
-				    pmp->pm_bpcluster, &rablock1, &rasize, 1,
-				    NOCRED, &bp); 
+				error = breadn(vp, lbn, pmp->pm_bpcluster,
+				    &rablock, &rasize, 1, NOCRED, &bp); 
 			} else
-				error = bread(vp, de_cn2bn(pmp, lbn),
-				    pmp->pm_bpcluster, NOCRED, &bp);
+				error = bread(vp, lbn, pmp->pm_bpcluster, 
+				    NOCRED, &bp);
 			vp->v_lastr = lbn;
 		}
 		n = min(n, pmp->pm_bpcluster - bp->b_resid);
@@ -742,9 +740,10 @@ msdosfs_write(ap)
 			vnode_pager_setsize(vp, dep->de_FileSize);
 		}
 
-		bn = de_blk(pmp, uio->uio_offset);
+		bn = de_cluster(pmp, uio->uio_offset);
 		if ((uio->uio_offset & pmp->pm_crbomask) == 0
-		    && (de_blk(pmp, uio->uio_offset + uio->uio_resid) > de_blk(pmp, uio->uio_offset)
+		    && (de_cluster(pmp, uio->uio_offset + uio->uio_resid) 
+		        > de_cluster(pmp, uio->uio_offset)
 			|| uio->uio_offset + uio->uio_resid >= dep->de_FileSize)) {
 			/*
 			 * If either the whole cluster gets written,
@@ -758,9 +757,8 @@ msdosfs_write(ap)
 			 * for the fat table. (see msdosfs_strategy)
 			 */
 			if (bp->b_blkno == bp->b_lblkno) {
-				error = pcbmap(dep,
-					       de_bn2cn(pmp, bp->b_lblkno),
-					       &bp->b_blkno, 0, 0);
+				error = pcbmap(dep, bp->b_lblkno, &bp->b_blkno, 
+				     0, 0);
 				if (error)
 					bp->b_blkno = -1;
 			}
