@@ -106,11 +106,13 @@ the system call
 would return a file descriptor to the file
 .Dq afile .
 .Pp
-There are six system calls that do not follow links, and which operate
+There are eight system calls that do not follow links, and which operate
 on the symbolic link itself.
 They are:
+.Xr lchmod 2 ,
 .Xr lchown 2 ,
 .Xr lstat 2 ,
+.Xr lutimes 2 ,
 .Xr readlink 2 ,
 .Xr rename 2 ,
 .Xr rmdir 2 ,
@@ -130,8 +132,16 @@ The owner and group of an existing symbolic link can be changed by
 means of the
 .Xr lchown 2
 system call.
-The other file attributes, such as the modification time and access
-permissions, are not used by the system and cannot be changed.
+The access permissions, owner/group and modification time of
+an existing symbolic link can be changed by means of the
+.Xr lchmod 2 ,
+.Xr lchown 2 ,
+and 
+.Xr lutimes 2
+system calls, respectively.
+The flags cannot be changed.
+Of these, only the flags are used by the system;
+the access permissions and ownership are ignored.
 .Pp
 The
 .Bx 4.4
@@ -271,13 +281,6 @@ not of type directory.
 Operations that apply to symbolic links are performed on the links
 themselves, but otherwise the links are ignored.
 .Pp
-For example, the command
-.Dq Li "chown -R user slink directory"
-will ignore
-.Dq Li slink ,
-because symbolic links in this system do not have owners.
-Any symbolic links encountered during the tree traversal will also be
-ignored.
 The command
 .Dq Li "rm -r slink directory"
 will remove
@@ -285,9 +288,7 @@ will remove
 as well as any symbolic links encountered in the tree traversal of
 .Dq Li directory ,
 because symbolic links may be removed.
-In no case will either
-.Nm chown
-or
+In no case will
 .Nm rm
 affect the file which
 .Dq Li slink
@@ -441,8 +442,10 @@ whether specified on the command line or encountered in the tree walk.
 .Xr pax 1 ,
 .Xr rm 1 ,
 .Xr tar 1 ,
+.Xr lchmod 2 ,
 .Xr lchown 2 ,
 .Xr lstat 2 ,
+.Xr lutimes 2 ,
 .Xr readlink 2 ,
 .Xr rename 2 ,
 .Xr symlink 2 ,
