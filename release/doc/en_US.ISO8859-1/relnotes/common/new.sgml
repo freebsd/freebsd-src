@@ -1,0 +1,879 @@
+<articleinfo>
+  <title>&os;/&arch; &release.current; Release Notes</title>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <corpauthor>The FreeBSD Project</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+  </copyright>
+
+  <abstract>
+    <para>The release notes for &os; &release.current; contain a summary
+      of the changes made in the &os; base system since &release.prev;.
+      Both changes for kernel and userland are listed, as well as
+      applicable security advisories for the base system that were issued since the last
+      release.  Some brief remarks on upgrading are also presented.</para>
+  </abstract>
+</articleinfo>
+
+<sect1>
+  <title>Introduction</title>
+
+  <para>This document contains the release notes for &os; &release.current; on
+  the &arch.print; hardware platform.  It describes new features of &os;
+  that have been added (or changed) since &release.prev;.  It also
+  provides some notes on upgrading from previous versions of &os;.</para>
+
+<![ %release.type.snapshot [
+
+  <para>The &release.type; distribution to which these release notes
+  apply represents a point along the &release.branch; development
+  branch between &release.prev; and the future &release.next;.  Some pre-built,
+  binary &release.type; distributions along this branch can be found
+  at <ulink url="&release.url;"></ulink>.</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>This distribution of &os; &release.current; is a &release.type;
+  distribution.  It can be found at <ulink
+  url="&release.url;"></ulink> or any of its mirrors.  More
+  information on obtaining this (or other) &release.type; distributions of
+  &os; can be found in the <ulink
+  url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
+  FreeBSD</quote></ulink> appendix in the <ulink
+  url="http://www.FreeBSD.org/handbook/">FreeBSD Handbook</ulink>.</para>
+
+]]>
+</sect1>
+
+<!--
+	The "What's New" section of the release notes. 
+
+	Guidelines for new entries:
+
+	1.  If there is some obvious "keyword" associated with an
+	entry (such as a manpage entry or an application name), try to
+	put it at the start of the sentence.
+
+	2.  Within each subsection (i.e. kernel, security, userland),
+	list items in alphabetical order by these keywords.
+
+	Some entries will have no obvious keywords to help with
+	ordering.  In sections containing these entries, put those
+	containing (e.g.) manpage references first, then some
+	suitable SGML comment line as a demarc, then the remaining
+	entries.
+
+-->
+
+<sect1>
+  <title>What's New</title>
+
+  <para>This section describes the most user-visible new or changed
+  features in &os; since &release.prev;.  Typical release note items
+  document new drivers or hardware support, new commands or options,
+  major bugfixes, or contributed software upgrades.  Security
+  advisories for the base system that were issued after &release.prev; are also listed.</para>
+
+  <para>Many additional changes were made to &os; that are not listed
+  here for lack of space.  For example, documentation was corrected
+  and improved, minor bugs were fixed, insecure coding practices were
+  audited and corrected, and source code was cleaned up.</para>
+
+  <sect2 id="kernel">
+    <title>Kernel Changes</title>
+
+    <para arch="i386">The &man.amdpm.4; driver has been added to
+    provide access to the system monitoring functions of the AMD 756
+    chip set.</para>
+
+    <para>The <varname>kern.maxvnodes</varname> limit now properly
+    limits the number of vnodes in use.  Previously only vnodes with
+    no cached pages could be freed; this could allow the number of
+    vnodes to grow without limit on large-memory machines accessing
+    many small files.  A <literal>vnlru</literal> kernel thread helps
+    to flush and reuse vnodes.</para>
+
+    <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
+    can be used to reconfigure the size of the kernel virtual address
+    space.</para>
+
+    <para>Linux emulation now supports the kernel functionality
+    required by the
+    <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
+    port.</para>
+
+    <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
+    along with the <varname>hw.physmem</varname> loader tunable, can be
+    used to artificially reduce the memory size of a machine for
+    testing (or other purposes).</para>
+
+    <para>The kernel configuration parameters
+    <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
+    <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
+    <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
+    all loader tunables (<varname>kern.maxtsiz</varname>,
+    <varname>kern.maxdfldsiz</varname>, etc.).</para>
+
+    <para>Specifying a value of <literal>0</literal> for the
+    <varname>maxusers</varname> kernel configuration parameter will
+    now cause an appropriate value to be calculated at boot-time
+    (between 32 and 384, depending on the amount of memory present).
+    This value is now the default for all
+    <filename>GENERIC</filename> kernels.</para>
+
+    <para arch="i386">The pmc driver, which supports the power
+    management controller of the NEC PC-98NOTE, has been
+    added.</para>
+
+    <para arch="alpha">The console driver has gained support for TGA-based
+    display adapters.</para>
+
+<!-- Above this line, kernel changes ordered by manpage/variable name -->
+
+    <para arch="i386">The load addresses of kernels are now exported
+    to the symbol table and various hard-coded constants have been removed so
+    that utilities such as &man.ps.1; can work with kernels compiled
+    at different addresses.</para>
+
+    <para>Coredumps of large processes (or of a large number of
+    processes) no longer lock up the machine for long periods of
+    time.</para>
+
+    <para arch="i386">The number of memory pages allocated for the
+    per-process kernel state has been increased from 2 to 3, to reduce
+    the likelihood of kernel stack overflow (and subsequent corruption
+    of per-process data structures).</para>
+
+    <para>The system load average computation now adds some jitter to
+    the timing of samples, in order to avoid synchronization with
+    processes that run periodically.</para>
+
+    <para>If a debugging kernel with modules is being built
+    (i.e. using <literal>makeoptions DEBUG=-g</literal>), the modules
+    will now be built with debugging support as well, for
+    completeness.  A side effect of this change is that modules built
+    and installed with debugging kernels will now occupy more space on
+    disk than they did previously.</para>
+
+    <para arch="alpha">Compaq Tru64 and &os; keep the year in the TOY
+    clock chip in different formats. Compaq Tru64 uses a year-value that
+    is 52 years higher than &os;. In order to allow dual booting of an
+    Alpha machine without clobbering the TOY clock setting, &os; now
+    supports a boot environment variable
+    <varname>clock_compat_osf1</varname> to use Tru64's year values.  By setting this
+    variable to <literal>1</literal> from the <literal>ok</literal> prompt of the loader or
+    by putting <literal>clock_compat_osf1=1</literal> in
+    <filename>/boot/loader.conf</filename>, an Alpha can be dual booted
+    without <quote>time warps</quote>.</para>
+
+    <para>The kernel on the installation CDs is now separated from the
+    <filename>mfsroot</filename> image.  This provides more
+    flexibility when building custom &os; distributions.</para>
+
+    <sect3>
+      <title>Processor/Motherboard Support</title>
+
+      <para arch="alpha">The machine dependent code has been corrected
+      to allow &os; to run on Alphaserver 2100 and 2100A machines based on EV5
+      Alpha processors. Machines with EV4 Alpha processors were already
+      supported.</para>
+
+    </sect3>
+
+    <sect3>
+      <title>Boot Loaders</title>
+
+      <para arch="i386">A new <filename>cdboot</filename> bootstrap utility for CDROMs provides
+      better compatability with some BIOS implementations that do not
+      completely implement the El Torito bootable CDROM standard.  This
+      boot loader supports <quote>no emulation</quote> mode booting,
+      thus eliminating the need for an emulated floppy disk image on
+      a bootable CDROM.  This in turn permits the use of a
+      full kernel when installing from CD on machines that support CD
+      booting (instead of the stripped-down kernel used on
+      floppies).
+	<note>
+	  <para>While this functionality is not used in the &os;
+	  &release.current; ISO images, it may be used for future
+	  releases.  In the meantime, this feature is available for 
+	  users constructing custom distributions.</para>
+	</note>
+      </para>
+
+      <para arch="i386">The &man.loader.8; now has optional support
+      (enabled at compile-time, off by default) for loading
+      <application>bzip2</application>-compressed kernels and
+      modules.</para>
+
+<!-- Above this line, order boot loader changes by manpage/variable name-->
+
+      <para arch="i386">The &os; boot loader is now capable of
+      booting from filesystems with 16K disk blocks (the old limit was
+      8K).</para>
+
+      <para arch="alpha">The &os; boot loader is now capable of
+      booting from filesystems with block sizes larger than 8K.</para>
+
+      <para arch="i386">The &os; boot loader now supports a
+      <option>-p</option> flag to force the kernel to pause after each
+      line of output during the probing phase.</para>
+    </sect3>
+
+    <sect3>
+      <title>Network Interface Support</title>
+
+      <para>The &man.an.4; driver now supports <quote>monitor</quote>
+      mode, settable via the <option>-M</option> option to
+      &man.ancontrol.8;.</para>
+
+      <para arch="i386">The &man.bge.4; driver has been added to
+      support the Broadcom BCM570x family of Gigabit Ethernet
+      controllers, including the 3Com 3c996-T, the SysKonnect SK-9D21
+      and SK-9D41, and the built-in Gigabit Ethernet NICs on Dell
+      PowerEdge 2550 servers.  Output TCP/IP checksum offload, jumbo frames
+      and VLAN tag insertion/stripping are supported, as well as
+      interrupt moderation.</para>
+
+      <para>The &man.dc.4; driver now supports NICs based on the
+      Conexant LANfinity RS7112 chip.</para>
+
+      <para>The &man.de.4; driver now performs round-robin arbitration
+      between the transmit and receive units of the 21143, instead of
+      giving priority to the receive unit.  This gives a 10&ndash;15%
+      performance improvement in the forwarding rate under heavy
+      load.</para>
+
+      <para>The dgm driver has been updated from &os; -CURRENT.</para>
+
+      <para arch="i386">The &man.em.4; driver has been added to
+      support NICs based on the Intel 82542, 82543, and 82544 Gigabit
+      Ethernet controller chips.  The driver supports transmit/receive
+      checksum offload and jumbo frames on 82543 and 82544-based
+      adapters.</para>
+
+      <para>The &man.faith.4; device is now loadable, unloadable, and
+      clonable.</para>
+
+      <para>The &man.fxp.4; driver now supports Intel's loadable
+      microcode to implement receive-side interrupt coalescing and
+      packet bundling, on NICs that support these features.  This
+      support can be activated by the use of the
+      <option>link0</option> option to &man.ifconfig.8;.</para>
+
+      <para>The &man.gx.4; driver has been added to support NICs based
+      on the Intel 82542 and 82543 Gigabit Ethernet controller chips.
+      Both fiber and copper variants of the cards are supported.  Both
+      boards support VLAN tagging/insertion, and the 82543 additionally
+      supports TCP/IP checksum offload.</para>
+
+      <para arch="i386">The sbni driver, for supporting the Granch
+      SBNI12 series of ISA and PCI point-to-point communications
+      interfaces, has been added.  The <port>sysutil/sbniconfig</port>
+      port in the &os; Ports Collection can be used for configuring
+      these devices.</para>
+
+      <para>The &man.sis.4; driver now supports the SiS 900-style
+      on-board Ethernet controllers in the SiS 635 and 735 motherboard
+      chipsets.</para>
+
+      <para>The &man.sis.4; driver now supports VLANs.</para>
+
+      <para>&man.vlan.4; devices are now loadable, unloadable, and
+      clonable.</para>
+
+      <para>The &man.wx.4; driver is now deprecated; it is now
+      officially unmaintained.  Users with Intel Pro/1000 Gigabit
+      Ethernet interfaces should use either the &man.em.4; driver or the
+      &man.gx.4; driver. (The &man.em.4; driver is supported by Intel,
+      but only works on the i386
+      architecture.  The &man.gx.4; driver was developed by the &os;
+      Project, and is multi-platform.)</para>
+
+      <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
+      checksum offloading for NICs implementing this feature, such as
+      the 3C905B, 3C905C, and 3C980C.</para>
+
+      <para>A bug in the &man.xl.4; driver, related to statistics overflow
+      interrupt handling, was causing slowdowns at medium to high
+      packet rates; this has been fixed.</para>
+
+      <para>The per-interface <varname>ifnet</varname> structure now
+      has the ability to indicate a set of capabilities supported by a
+      network interface, and which ones are enabled.  &man.ifconfig.8;
+      has support for querying these capabilities.</para>
+
+      <para>Performance with hosts having a large number of IP aliases
+      has been improved, by replacing the per-interface
+      <varname>if_inaddr</varname> linear list with a hash table.</para>
+
+      <para arch="i386">The packet-forwarding performance of certain
+      network drivers (specifically &man.dc.4; and &man.sis.4;) has
+      been enhanced by the elimination of unnecessary buffer
+      copies.</para>
+    </sect3>
+
+    <sect3>
+      <title>Network Protocols</title>
+
+      <para>The read timeout feature of &man.bpf.4; now works more
+      correctly with &man.select.2;/&man.poll.2;, and therefore with
+      pthreads.</para>
+
+      <para>&man.bridge.4; and &man.dummynet.4; have received some
+      enhancements and bug fixes, and are now loadable
+      modules.</para>
+
+      <para>A bug in the TCP NewReno implementation, which could cause
+      degraded throughput under certain circumstances, has been
+      fixed.</para>
+
+      <para>TCP's default buffer sizes, controlled by the
+      <varname>net.inet.tcp.sendspace</varname> and
+      <varname>net.inet.tcp.recvspace</varname> sysctl variables, have
+      been increased to 32K and 64K respectively.  Previously, the
+      default for both buffer sizes was 16K.  To try to avoid
+      increasing congestion, the default value for
+      <varname>net.inet.tcp.local_slowstart_flightsize</varname> has
+      been changed from infinity to 4.</para>
+
+      <para>A bug in the TCP implementation, which could cause
+      connections to stall if a sender saw a zero-sized window, has
+      been corrected.</para>
+
+      <para>The TCP implementation in &os; now implements a cache of
+      outstanding, received SYN segments.  Incoming SYN segments now
+      cause entries to be placed in the cache until the TCP three-way
+      handshake is complete, at which point, memory is allocated for
+      the connection as usual.  In addition, all TCP Initial Sequence
+      Numbers (ISNs) are used as cookies, allowing entries in the
+      cache to be dropped, but still have their corresponding ACKs
+      accepted later.  The combination of the so-called
+      <quote>syncache</quote> and <quote>syncookies</quote> features
+      makes a host much more resistant to
+      TCP-based Denial of Service attacks.  Work on this feature was
+      sponsored by DARPA and NAI Labs.</para>
+    </sect3>
+
+    <sect3>
+      <title>Disks and Storage</title>
+
+      <para arch="i386">The &man.aac.4; driver has been updated
+      to include proper handling of commands
+      initiated by the adapter, addition/removal of disk devices,
+      crashdump functionality, and &man.ioctl.2; commands necessary for
+      the management CLI.  This driver is now fully qualified and
+      sanctioned by Adaptec.</para>
+
+      <para>The &man.ata.4; driver now supports a wider variety of
+      chipsets, as listed in the Hardware Notes.</para>
+
+      <para>The &man.ata.4; driver now has support for 48-bit
+      addressing.  Devices larger than 137GB are now
+      supported.</para>
+
+      <para>The &man.ata.4; driver now contains fixes for some data
+      corruption problems on systems using the VIA 82C686B Southbridge
+      chip.</para>
+
+      <para arch="i386">The ciss driver, for devices utilizing the Common
+      Interface for SCSI-3 Support, has been added.  This driver
+      supports the Compaq SmartRAID 5* family of RAID controllers
+      (5300, 532, 5i).</para>
+
+      <para arch="alpha">Floppy access on the Alphaserver DS10 and DS20
+      is broken. Use results in corrupted floppies and/or machine
+      crashes.</para>
+
+      <para>The &man.isp.4; driver now supports the Qlogic 2300 and
+      2312 Optical Fibre Channel PCI cards.</para>
+
+      <para arch="i386">The ncv, nsp, and stg SCSI drivers can now be
+      built and loaded as modules.</para>
+    </sect3>
+
+    <sect3>
+      <title>Filesystems</title>
+
+      <para>The directory layout preference algorithm for FFS
+      (<literal>dirprefs</literal>) has been changed.  Rather than
+      scattering directory blocks across a disk, it attempts to group
+      related directory blocks together.  Operations traversing large
+      directory hierarchies, such as the &os; Ports tree, have shown
+      marked speedups.  This change is transparent and automatic for
+      new directories.</para>
+
+      <para>The virtual memory subsystem now backs UFS directory
+      memory requirements by default (this behavior is controlled via
+      the <varname>vfs.vmiodirenable</varname> sysctl variable).</para>
+
+      <para>A bug that prevented the root filesystem from being
+      mounted from a SCSI CDROM has been fixed (ATAPI CDROMs were
+      always supported).</para>
+
+      <para>The <literal>UFS_DIRHASH</literal> hash-based lookup
+      optimization for large directories is now enabled by default in
+      the <filename>GENERIC</filename> kernel.</para>
+
+      <para>A number of bugs in the filesystem code, discovered
+      through the use of the <application>fsx</application> filesystem test tool, have been fixed.
+      Under certain circumstances (primarily related to use of NFS),
+      these bugs could cause data corruption or kernel panics.</para>
+    </sect3>
+
+    <sect3>
+      <title>PCCARD Support</title>
+
+      <para arch="i386">Various features have been merged from the
+      &os; -CURRENT version of the &man.pcic.4; driver, including
+      improved support for ToPIC-based laptops, 3.3V support for some
+      controllers, and bugfixes.</para>
+    </sect3>
+
+    <sect3>
+      <title>Multimedia Support</title>
+
+      <para>The &man.urio.4; driver, for the Diamond Rio series of MP3
+      players, has been added.  (For some reason, a manual page for this
+      driver was committed to &os; 4.3-RELEASE.)</para>
+    </sect3>
+
+    <sect3>
+      <title>Contributed Software</title>
+
+      <para><application>IPFilter</application> now supports
+      IPv6.</para>
+
+      <sect4 arch="i386">
+	<title>isdn4bsd</title>
+
+	<para>&man.isdnphone.8; now supports a <option>-k</option> option for
+	sending messages via the keypad facility to a PBX or exchange
+	office.</para>
+
+	<para>The &man.isic.4; driver now supports the Compaq Microcom
+	610 ISDN ISA PnP card.</para>
+      </sect4>
+    </sect3>
+  </sect2>
+  <sect2 id="security">
+    <title>Security-Related Changes</title>
+
+    <para>Per-user <filename>~/.login.conf</filename> files were disabled
+    in &os; &release.prev; to avoid a security hole caused by a bug.
+    The bug was fixed and this feature has been re-enabled.</para>
+
+    <para>A security hole in <application>OpenSSH</application>,
+    which could allow users to execute code with arbitrary privileges
+    if <literal>UseLogin yes</literal> was set, has been
+    closed.  Note that the default value of this setting is
+    <literal>UseLogin no</literal>.  (See security advisory
+    <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-01:63.openssh.asc">FreeBSD-SA-01:63</ulink>.)</para>
+
+    <para>The use of an insecure temporary directory by
+    &man.pkg.add.1; could permit a local attacker to modify the
+    contents of binary packages while they were being installed.
+    This hole has been closed.  (See security advisory
+    <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:01.pkg_add.asc">FreeBSD-SA-02:01</ulink>.)</para>
+
+    <para>A race condition in &man.pw.8;, which could expose the
+    contents of <filename>/etc/master.passwd</filename>, has been
+    eliminated.  (See security advisory <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:02.pw.asc">FreeBSD-SA-02:02</ulink>.)</para>
+    <para>A bug in &man.k5su.8; could have allowed a process that had
+    given up superuser privileges to regain them.  This bug has been
+    fixed.  (See security advisory <ulink 
+    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:07.k5su.asc">FreeBSD-SA-02:07</ulink>.)</para>
+
+    <para>A race condition in the &man.exec.3; system call, which
+    could result in local users obtaining increased privileges, has
+    been fixed.  (See security advisory <ulink
+    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:08.exec.asc">FreeBSD-SA-02:08</ulink>.)</para>
+  </sect2>
+  <sect2 id="userland">
+    <title>Userland Changes</title>
+
+    <para>&man.arp.8; now prints the applicable interface name for
+    each ARP entry.</para>
+
+    <para arch="i386">A minimalized version of &man.camcontrol.8; is
+    now available on the installation floppy.  This allows it to
+    rescan for devices that have been connected after booting, or to
+    show the devices attached to SCSI busses (e. g. from within the
+    <quote>emergency holographic shell</quote>).  As a side-effect,
+    this allows devices attached to &man.aic.4;-based PCMCIA SCSI
+    adapters like the Adaptec APA-1460 to be used during
+    installation.</para>
+
+    <para>&man.cat.1; now has the ability to read from UNIX-domain
+    sockets.</para>
+
+    <para arch="i386">The <filename>compat4x</filename> compatability
+    distribution now includes versions of
+    <filename>libcrypto.so.1</filename> and
+    <filename>libssl.so.1</filename> that do not depend on the
+    <filename>librsaUSA.so</filename> and
+    <filename>librsaINTL.so</filename> libraries.  This change
+    improves compatability with binaries built for &os; 4.1-RELEASE
+    and older.</para>
+
+    <para>&man.edquota.8; now takes a <option>-f</option> option to
+    allow limiting the prototype quota distribution (specified with
+    <option>-p</option>) to a single filesystem.</para>
+
+    <para>&man.find.1; can now take various units of time to be
+    applied to the <option>-[acm]time</option> primaries.</para>
+
+    <para>&man.fmt.1; has been rewritten; the rewrite fixes a number
+    of bugs compared to its prior behavior.</para>
+
+    <para>&man.ftpd.8; now supports <option>-o</option> and
+    <option>-O</option> options to disable the <literal>RETR</literal>
+    command; the former for everybody, and the latter only for guest users.
+    Coupled with <option>-A</option> and appropriate file permissions,
+    these can be used to create a relatively safe anonymous FTP drop box
+    for others to upload to.</para>
+
+    <para>The &man.groups.1; and &man.whoami.1; shell scripts are now
+    unnecessary; their functionality has been completely folded into
+    &man.id.1;.</para>
+
+    <para>&man.ipfw.8; will now avoid the display of dynamic
+    firewall rules unless the <option>-d</option> flag is passed to
+    it.  The <option>-e</option> option lists expired dynamic
+    rules.</para>
+
+    <para>&man.ipfw.8; has a new <literal>limit</literal> type of
+    firewall rule, which limits the number of sessions between address
+    pairs.</para>
+
+    <para>&man.keyinfo.1; is now a C program, rather than a Perl
+    script.</para>
+
+    <para><filename>libfetch</filename> has been synchronized to the
+    version in &os; -CURRENT; among other features, it now has support
+    for an authentication callback.</para>
+
+    <para><filename>libstand</filename> now has support for
+    filesystems containing <application>bzip2</application>-compressed
+    files.</para>
+
+    <para>Locale names have been renamed to improve compatibility with
+    the names used by X11R6, as well as a number of other UNIX
+    versions.  As an example, the <literal>en_US.ISO_8859-1</literal>
+    locale name has been changed to
+    <literal>en_US.ISO8859-1</literal>.  Entries in
+    <filename>/etc/locale.alias</filename>,
+    <filename>/etc/man.alias</filename>, and
+    <filename>/etc/nls.alias</filename> provide backward
+    compatibility.  The table below summarizes the locale changes:
+
+      <informaltable>
+	<tgroup cols=2 align=left>
+	  <colspec colwidth="*">
+	  <colspec colwidth="*">
+	  <thead>
+	    <row>
+	      <entry>&os; &release.prev;</entry>
+	      <entry>&os; &release.current;</entry>
+	    </row>
+	  </thead>
+	  <tbody>
+	    <row>
+	      <entry><literal>ISO_</literal><replaceable>*</replaceable></entry>
+	      <entry><literal>ISO</literal><replaceable>*</replaceable></entry>
+	    </row>
+	    <row>
+	      <entry><literal>ru_SU</literal><replaceable>*</replaceable></entry>
+	      <entry><literal>ru_RU</literal><replaceable>*</replaceable></entry>
+	    </row>
+	    <row>
+	      <entry><literal>DIS_</literal><replaceable>*</replaceable></entry>
+	      <entry><literal>ISO</literal><replaceable>*</replaceable><literal>-15</literal></entry>
+	    </row>
+	    <row>
+	      <entry><replaceable>*</replaceable><literal>.ASCII</literal></entry>
+	      <entry><replaceable>*</replaceable><literal>.US-ASCII</literal></entry>
+	    </row>
+	  </tbody>
+      </informaltable>
+    </para>
+
+    <para>&man.lpd.8; now has some support for
+    <literal>o</literal>-type print-file actions in its control files,
+    which allows printing of PostScript files generated by
+    <application>MacOS</application> 10.1.</para>
+
+    <para>&man.natd.8; now supports a
+    <option>-log_ipfw_denied</option> option to log packets that
+    cannot be re-injected because they are blocked by &man.ipfw.8;
+    rules.</para>
+
+    <para>&man.netstat.1; now has a <option>-z</option> flag to reset
+    statistics.</para>
+
+    <para>&man.netstat.1; now has a <option>-S</option> flag to print
+    addresses numerically but port names symbolically.</para>
+
+    <para>The default number of cylinders per group in &man.newfs.8;
+    is now computed to be the maximum allowable given the current
+    filesystem parameters.  It can be overridden with the
+    <option>-c</option> option.  Formerly, the default was fixed at 16.  This
+    change leads to better &man.fsck.8; performance and reduced
+    fragmentation.</para>
+
+    <para><anchor id="newfs-block-frag-sizes">The default block and fragment sizes for new filesystems created
+    by &man.newfs.8; are now 16384 and 2048 bytes, respectively (the
+    old defaults were 8192 and 1024 bytes).  This change generally
+    provides increased performance, at the expense of some wasted disk
+    space.</para>
+
+    <para>&man.newsyslog.8; now has the ability to compress
+    log files using &man.bzip2.1;.</para>
+
+    <para>&man.nl.1;, a line numbering filter program, has been added.</para>
+
+    <para>&man.pciconf.8; now supports a <option>-v</option> option to
+    display the vendor/device information of configured devices,
+    in conjunction with the <option>-l</option> option.  The default
+    vendor/device database can be found at
+    <filename>/usr/share/misc/pci_vendors</filename>.</para>
+
+    <para>&man.ping.8; now supports a <option>-A</option> option to
+    beep when packets are lost.</para>
+
+    <para>&man.route.8; is now more verbose when changing indirect
+    routes, in the case of a gateway route that is the same route as
+    the one being modified.</para>
+
+    <para>&man.route.8; now uses
+    <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
+    syntax instead of
+    <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
+    syntax, for compatibility with &man.netstat.1;.</para>
+
+    <para>&man.route.8; can now create <quote>proxy only</quote>
+    published ARP entries.</para>
+
+    <para>The &man.route.8; <option>add</option> command now supports
+    the <option>-ifp</option> and <option>-ifa</option>
+    modifiers.</para>
+
+    <para>&man.send-pr.1; now takes a <option>-a</option> option to
+    include a file into the <literal>Fix:</literal> section of a
+    problem report.</para>
+
+    <para>&man.sh.1; now implements <command>test</command> as a
+    built-in command for improved efficiency.</para>
+
+    <para>&man.sysctl.8; now supports a <option>-e</option> option to
+    separate variable names and values by <literal>=</literal> rather
+    than <literal>:</literal>.  This feature is useful for producing
+    output that can be fed back to &man.sysctl.8;.</para>
+
+    <para>&man.sysinstall.8; now has the ability to load KLDs as a
+    part of the installation.</para>
+
+    <para>When run from the installation media, &man.sysinstall.8;
+    will automatically load any device drivers found in the
+    <filename>/stand/modules</filename> directory of the
+    <literal>mfsroot</literal> floppy or filesystem image.  Note that
+    any drivers so loaded will not appear in the kernel's boot
+    messages; the &man.sysinstall.8; debugging screen will provide
+    additional information.</para>
+
+    <para>&man.sysinstall.8; now enables Soft Updates by default on
+    all filesystems it creates, except for the root
+    filesystem.</para>
+
+    <para>&man.sysinstall.8; has received updates for its
+    <quote>auto</quote> partitioning mode which provide more
+    reasonable defaults for the sizes of partitions that are created;
+    auto-sized partitions can now also recover the space that becomes
+    available when other partitions are deleted.</para>
+
+    <para>&man.syslogd.8; now has the ability to bind to a specific
+    address (as opposed to using every available one) via the
+    <option>-b</option> option.</para>
+
+    <para>&man.syslogd.8; now accepts a <option>-c</option> flag to
+    disable repeated line compression.</para>
+
+    <para>Previously, &man.vnconfig.8; was only capable of configuring
+    16 devices when invoked with the <option>-f</option>
+    (configuration file) option.  This limit has been removed.</para>
+
+    <para>&man.wall.1; now supports a <option>-g</option> flag to
+    write a message to all users of a given group.</para>
+
+    <para>&man.whois.1; supports a <option>-c</option> option to
+    specify a country code to help direct queries towards a particular
+    whois server.</para>
+
+    <sect3>
+      <title>Contributed Software</title>
+
+      <para>The version of <application>IPFilter</application>
+      provided with &os; now includes the &man.ipfs.8; program, which
+      allows state information created for NAT entries and stateful
+      rules to be saved to disk and restored after a reboot.
+      Boot-time configuration of these features is supported by
+      &man.rc.conf.5;.</para>
+
+      <para>The <application>NTP</application> suite of programs has been
+      updated to 4.1.0.</para>
+
+      <para><application>OpenSSH</application> has been updated to
+      version 2.9, which adds two new programs, &man.sftp.1; and
+      &man.ssh-keyscan.1;.  Among the various enhancements: Rekeying
+      of existing SSH sessions is now supported, &man.ssh-agent.1; now
+      supports authentication forwarding for DSA keys, and an experimental
+      <application>SOCKS4</application> proxy has been added to
+      &man.ssh.1;.
+	<note>
+	  <para><literal>Protocol 1,2</literal> remains the default
+	  protocol setting in
+	  <filename>/etc/ssh/ssh_config</filename>.  In &os; -CURRENT,
+	  the default is <literal>Protocol 2,1</literal>.</para>
+	</note>
+      </para>
+
+      <para>The <username>smmsp</username> and
+      <username>mailnull</username> users have been added to
+      <filename>/etc/master.passwd</filename>.  In the absence of a
+      <literal>confDEF_USER_ID</literal> setting, by default,
+      <application>sendmail</application> will use the
+      <username>mailnull</username> user for extra security.
+      Previously, if the <username>mailnull</username> user did not
+      exist, the <username>daemon</username> user was used.  This
+      change may generate some permissions issues when mailing to
+      files or to programs (such as <port>mail/majordomo</port>).
+      The previous behavior can be restored by adding the
+      following line to a system's
+      <filename><replaceable>*</replaceable>.mc</filename>
+      configuration file:
+	<programlisting>define(`confDEF_USER_ID', `daemon')</programlisting>
+      </para>
+
+      <para arch="i386">Version 1.4.3 of the <application>smbfs</application>
+      userland utilities have been imported.  &man.smbutil.1; and
+      &man.mount.smbfs.8; are now available in the base system,
+      without the need to install the <port>net/smbfs</port> port.  Note that
+      &man.mount.smbfs.8; will automatically load the <filename>smbfs.ko</filename>
+      module into the kernel, even if <literal>LIBMCHAIN</literal> and
+      <literal>LIBICONV</literal> were not compiled into the kernel.</para>
+
+      <para><application>tcsh</application> has been updated to version
+      6.11.</para>
+
+      <para>The timezone database has been updated to the
+      <filename>tzdata2001d</filename> release.</para>
+
+      <sect4>
+	<title>CVS</title>
+     
+	<para><application>CVS</application> has been updated to
+	1.11.1p1.</para>
+
+	<para>&man.cvs.1; now supports a <option>-T</option> option to
+	update a sandbox's <filename>CVS/Template</filename> file from
+	the repository.</para>
+
+	<para>&man.cvs.1; <literal>diff</literal> now supports the
+	<option>-j</option> option to perform differences against a
+	revision relative to a branch tag.</para>
+      </sect4>
+    </sect3>
+
+    <sect3>
+      <title>Ports/Packages Collection</title>
+
+      <para>Due to delays in the certification process, native
+      <application>JDK</application> support for &os; will be released
+      shortly after 4.5-RELEASE.  An announcement will be made on the
+      &os; Web site, as well as the &a.announce;, when the
+      distribution is available.</para>
+
+      <para>&man.pkg.create.1; now supports a <option>-b</option>
+      option to create a package file from a locally-installed
+      package.</para>
+
+      <para>&man.pkg.delete.1; now supports a <option>-r</option>
+      option for recursive package removal.</para>
+
+      <para>Version 4.2.0 of <application>XFree86</application> was
+      released just a few days before the shipping date for &os;
+      4.5-RELEASE.  As a result, the &os; team did not have time to
+      test and evaluate the new version for inclusion in the release.
+      Therefore, &os; 4.5-RELEASE includes the older 4.1.0 version of the
+      <application>XFree86</application> package.  Installing a
+      newer version of <application>XFree86</application> can be done
+      using an up-to-date (post-release) copy of the &os; Ports Collection;
+      instructions for doing so can be found in the <ulink
+      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/ports-using.html">Using
+      the Ports Collection</ulink> section of the <ulink
+      url="http://www.FreeBSD.org/handbook/">FreeBSD
+      Handbook</ulink>.</para>
+    </sect3>
+  </sect2>
+</sect1>
+
+<sect1>
+  <title>Upgrading from previous releases of &os;</title>
+
+  <para>If you're upgrading from a previous release of &os;, you
+  generally will have three options:
+
+    <itemizedlist>
+      <listitem>
+	<para>Using the binary upgrade option of &man.sysinstall.8;.
+	  This option is perhaps the quickest, although it presumes
+	  that your installation of &os; uses no special compilation
+	  options.</para>
+      </listitem>
+      <listitem>
+	<para>Performing a complete reinstall of &os;.  Technically,
+	  this is not an upgrading method, and in any case is usually less
+	  convenient than a binary upgrade, in that it requires you to
+	  manually backup and restore the contents of
+	  <filename>/etc</filename>.  However, it may be useful in
+	  cases where you want (or need) to change the partitioning of
+	  your disks.
+      </listitem>
+      <listitem>
+	<para>From source code in <filename>/usr/src</filename>.  This
+	  route is more flexible, but requires more disk space, time,
+	  and more technical expertise.  Upgrading from very old
+	  versions of &os; may be problematic; in cases like this, it
+	  is usually more effective to perform a binary upgrade or a
+	  complete reinstall.</para>
+      </listitem>
+    </itemizedlist>
+  </para>
+
+  <para>Please read the <filename>INSTALL.TXT</filename> file for more
+  information, preferably <emphasis>before</emphasis> beginning an
+  upgrade.  If you are upgrading from source, please be sure to read
+  <filename>/usr/src/UPDATING</filename> as well.</para>
+
+  <para>Finally, if you want to use one of various means to track the
+  -STABLE or -CURRENT branches of &os;, please be sure to consult the
+  <ulink
+  url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
+  vs. -STABLE</quote></ulink> section of the <ulink
+  url="http://www.FreeBSD.org/handbook/">FreeBSD
+  Handbook</ulink>.</para>
+
+  <important>
+    <para>Upgrading &os; should, of course, only be attempted after
+    backing up <emphasis>all</emphasis> data and configuration
+    files.</para>
+  </important>
+</sect1>
+
