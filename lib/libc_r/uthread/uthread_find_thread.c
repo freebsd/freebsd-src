@@ -64,35 +64,3 @@ _find_thread(pthread_t pthread)
 	/* Return zero if the thread exists: */
 	return ((pthread1 != NULL) ? 0:ESRCH);
 }
-
-/* Find a thread in the linked list of dead threads: */
-int
-_find_dead_thread(pthread_t pthread)
-{
-	pthread_t pthread1;
-
-	/* Check if the caller has specified an invalid thread: */
-	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
-		/* Invalid thread: */
-		return(EINVAL);
-
-	/*
-	 * Lock the garbage collector mutex to ensure that the garbage
-	 * collector is not using the dead thread list.
-	 */
-	if (pthread_mutex_lock(&_gc_mutex) != 0)
-		PANIC("Cannot lock gc mutex");
-
-	/* Search for the specified thread: */
-	TAILQ_FOREACH(pthread1, &_dead_list, dle) {
-		if (pthread1 == pthread)
-			break;
-	}
-
-	/* Unlock the garbage collector mutex: */
-	if (pthread_mutex_unlock(&_gc_mutex) != 0)
-		PANIC("Cannot lock gc mutex");
-
-	/* Return zero if the thread exists: */
-	return ((pthread1 != NULL) ? 0:ESRCH);
-}
