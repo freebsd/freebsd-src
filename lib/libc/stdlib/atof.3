@@ -71,17 +71,3 @@ The
 .Fn atof
 function conforms to
 .St -ansiC .
-.Sh BUGS
-This manual page represents intent instead of actual practice.
-While it is intended that
-.Fn atof
-be implemented using
-.Xr strtod 3 ,
-this has not yet happened.
-In the current system,
-.Fn atof
-translates a string in the following form to a double: a string of
-leading white space, possibly followed by a sign (``+'' or ``-''),
-followed by a digit string which may contain one decimal point (``.''),
-which may be followed by either of the exponent flags (``E'' or ``e''),
-and lastly, followed by a signed or unsigned integer.
