@@ -52,12 +52,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/ex/if_exvar.h>
 
 /* Bus Front End Functions */
-static void	ex_isa_identify	(driver_t *, device_t);
-static int	ex_isa_probe	(device_t);
-static int	ex_isa_attach	(device_t);
+static void	ex_isa_identify(driver_t *, device_t);
+static int	ex_isa_probe(device_t);
+static int	ex_isa_attach(device_t);
+
+static int	ex_look_for_card(struct ex_softc *);
 
 #if 0
-static	void	ex_pnp_wakeup	(void *);
+static	void	ex_pnp_wakeup(void *);
 
 SYSINIT(ex_pnpwakeup, SI_SUB_CPU, SI_ORDER_ANY, ex_pnp_wakeup, NULL);
 #endif
@@ -89,7 +91,7 @@ static struct isa_pnp_id ex_ids[] = {
 #if 0
 #define EX_PNP_WAKE		0x279
 
-static u_int8_t ex_pnp_wake_seq[] =
+static uint8_t ex_pnp_wake_seq[] =
 			{ 0x6A, 0xB5, 0xDA, 0xED, 0xF6, 0xFB, 0x7D, 0xBE,
 			  0xDF, 0x6F, 0x37, 0x1B, 0x0D, 0x86, 0xC3, 0x61,
 			  0xB0, 0x58, 0x2C, 0x16, 0x8B, 0x45, 0xA2, 0xD1,
@@ -115,22 +117,33 @@ ex_pnp_wakeup (void * dummy)
  * Non-destructive identify.
  */
 static void
-ex_isa_identify (driver_t *driver, device_t parent)
+ex_isa_identify(driver_t *driver, device_t parent)
 {
 	device_t	child;
-	u_int32_t	ioport;
+	bus_addr_t	ioport;
 	u_char 		enaddr[6];
 	u_int		irq;
 	int		tmp;
 	const char *	desc;
+	struct ex_softc sc;
+	struct resource *res;
+	int		rid;
 
 	if (bootverbose)
 		printf("ex_isa_identify()\n");
 
 	for (ioport = 0x200; ioport < 0x3a0; ioport += 0x10) {
+		rid = 0;
+		res = bus_alloc_resource(parent, SYS_RES_IOPORT, &rid,
+		    ioport, ioport, 0x10, RF_ACTIVE);
+		if (res == NULL)
+			continue;
+		sc.bst = rman_get_bustag(res);
+		sc.bsh = rman_get_bushandle(res);
 
 		/* No board found at address */
-		if (!look_for_card(ioport)) {
+		if (!ex_look_for_card(&sc)) {
+			bus_release_resource(parent, SYS_RES_IOPORT, rid, res);
 			continue;
 		}
 
@@ -138,23 +151,24 @@ ex_isa_identify (driver_t *driver, device_t parent)
 			printf("ex: Found card at 0x%03x!\n", ioport);
 
 		/* Board in PnP mode */
-		if (eeprom_read(ioport, EE_W0) & EE_W0_PNP) {
+		if (ex_eeprom_read(&sc, EE_W0) & EE_W0_PNP) {
 			/* Reset the card. */
-			outb(ioport + CMD_REG, Reset_CMD);
+			CSR_WRITE_1(&sc, CMD_REG, Reset_CMD);
 			DELAY(500);
 			if (bootverbose)
 				printf("ex: card at 0x%03x in PnP mode!\n", ioport);
+			bus_release_resource(parent, SYS_RES_IOPORT, rid, res);
 			continue;
 		}
 
 		bzero(enaddr, sizeof(enaddr));
 
 		/* Reset the card. */
-		outb(ioport + CMD_REG, Reset_CMD);
+		CSR_WRITE_1(&sc, CMD_REG, Reset_CMD);
 		DELAY(400);
 
-		ex_get_address(ioport, enaddr);
-		tmp = eeprom_read(ioport, EE_W1) & EE_W1_INT_SEL;
+		ex_get_address(&sc, enaddr);
+		tmp = ex_eeprom_read(&sc, EE_W1) & EE_W1_INT_SEL;
 
 		/* work out which set of irq <-> internal tables to use */
 		if (ex_card_type(enaddr) == CARD_TYPE_EX_10_PLUS) {
@@ -165,12 +179,12 @@ ex_isa_identify (driver_t *driver, device_t parent)
 			desc = "Intel Pro/10";
 		}
 
+		bus_release_resource(parent, SYS_RES_IOPORT, rid, res);
 		child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "ex", -1);
 		device_set_desc_copy(child, desc);
 		device_set_driver(child, driver);
 		bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
 		bus_set_resource(child, SYS_RES_IOPORT, 0, ioport, EX_IOSIZE);
-
 		if (bootverbose)
 			printf("ex: Adding board at 0x%03x, irq %d\n", ioport, irq);
 	}
@@ -181,48 +195,46 @@ ex_isa_identify (driver_t *driver, device_t parent)
 static int
 ex_isa_probe(device_t dev)
 {
-	u_int		iobase;
+	bus_addr_t	iobase;
 	u_int		irq;
 	char *		irq2ee;
 	u_char *	ee2irq;
 	u_char 		enaddr[6];
 	int		tmp;
 	int		error;
+	struct ex_softc *sc = device_get_softc(dev);
 
 	/* Check isapnp ids */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, ex_ids);
 
 	/* If the card had a PnP ID that didn't match any we know about */
-	if (error == ENXIO) {
+	if (error == ENXIO)
 		return(error);
-	}
 
 	/* If we had some other problem. */
-	if (!(error == 0 || error == ENOENT)) {
+	if (!(error == 0 || error == ENOENT))
 		return(error);
-	}
 
+	error = ex_alloc_resources(dev);
+	if (error != 0)
+		goto bad;
 	iobase = bus_get_resource_start(dev, SYS_RES_IOPORT, 0);
-	if (!iobase) {
-		printf("ex: no iobase?\n");
-		return(ENXIO);
+	if (!ex_look_for_card(sc)) {
+		if (bootverbose)
+			printf("ex: no card found at 0x%3x.\n", iobase);
+		error = ENXIO;
+		goto bad;
 	}
-
-	if (!look_for_card(iobase)) {
-		printf("ex: no card found at 0x%03x\n", iobase);
-		return(ENXIO);
-	}
-
 	if (bootverbose)
 		printf("ex: ex_isa_probe() found card at 0x%03x\n", iobase);
 
 	/*
 	 * Reset the card.
 	 */
-	outb(iobase + CMD_REG, Reset_CMD);
+	CSR_WRITE_1(sc, CMD_REG, Reset_CMD);
 	DELAY(800);
 
-	ex_get_address(iobase, enaddr);
+	ex_get_address(sc, enaddr);
 
 	/* work out which set of irq <-> internal tables to use */
 	if (ex_card_type(enaddr) == CARD_TYPE_EX_10_PLUS) {
@@ -233,7 +245,7 @@ ex_isa_probe(device_t dev)
 		ee2irq = ee2irqmap;
 	}
 
-	tmp = eeprom_read(iobase, EE_W1) & EE_W1_INT_SEL;
+	tmp = ex_eeprom_read(sc, EE_W1) & EE_W1_INT_SEL;
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
 
 	if (irq > 0) {
@@ -250,10 +262,12 @@ ex_isa_probe(device_t dev)
 
 	if (irq == 0) {
 		printf("ex: invalid IRQ.\n");
-		return(ENXIO);
+		error = ENXIO;
 	}
 
-	return(0);
+bad:;
+	ex_release_resources(dev);
+	return(error);
 }
 
 static int
@@ -261,7 +275,7 @@ ex_isa_attach(device_t dev)
 {
 	struct ex_softc *	sc = device_get_softc(dev);
 	int			error = 0;
-	u_int16_t		temp;
+	uint16_t		temp;
 
 	sc->dev = dev;
 	sc->ioport_rid = 0;
@@ -279,17 +293,16 @@ ex_isa_attach(device_t dev)
 	 *	- IRQ number (if not supplied in config file, read it from EEPROM).
 	 *	- Connector type.
 	 */
-	sc->iobase = rman_get_start(sc->ioport);
 	sc->irq_no = rman_get_start(sc->irq);
 
-	ex_get_address(sc->iobase, sc->arpcom.ac_enaddr);
+	ex_get_address(sc, sc->arpcom.ac_enaddr);
 
-	temp = eeprom_read(sc->iobase, EE_W0);
+	temp = ex_eeprom_read(sc, EE_W0);
 	device_printf(sc->dev, "%s config, %s bus, ",
 		(temp & EE_W0_PNP) ? "PnP" : "Manual",
 		(temp & EE_W0_BUS16) ? "16-bit" : "8-bit");
 
-	temp = eeprom_read(sc->iobase, EE_W6);
+	temp = ex_eeprom_read(sc, EE_W6);
 	printf("board id 0x%03x, stepping 0x%01x\n",
 		(temp & EE_W6_BOARD_MASK) >> EE_W6_BOARD_SHIFT,
 		temp & EE_W6_STEP_MASK);
@@ -310,4 +323,22 @@ ex_isa_attach(device_t dev)
 bad:
 	ex_release_resources(dev);
 	return (error);
+}
+
+static int
+ex_look_for_card(struct ex_softc *sc)
+{
+	int count1, count2;
+
+	/*
+	 * Check for the i82595 signature, and check that the round robin
+	 * counter actually advances.
+	 */
+	if (((count1 = CSR_READ_1(sc, ID_REG)) & Id_Mask) != Id_Sig)
+		return(0);
+	count2 = CSR_READ_1(sc, ID_REG);
+	count2 = CSR_READ_1(sc, ID_REG);
+	count2 = CSR_READ_1(sc, ID_REG);
+
+	return((count2 & Counter_bits) == ((count1 + 0xc0) & Counter_bits));
 }
