@@ -45,13 +45,13 @@
 .Sh DESCRIPTION
 The
 .Nm
-command installs random generation numbers on all the inodes for
+utility installs random generation numbers on all the inodes for
 each filesystem specified on the command line by
 .Ar special .
 This increases the security of NFS-exported filesystems by making
 it difficult to ``guess'' filehandles.
 .Pp
-.Em Note Ns :
+.Em Note :
 .Xr newfs 8
 now does the equivalent of
 .Nm
@@ -61,13 +61,15 @@ run
 by hand on a new filesystem.  It is only used to
 re-randomize or report on an existing filesystem.
 .Pp
-.Nm Fsirand
-should only be used on an unmounted filesystem that
+The
+.Nm
+utility should only be used on an unmounted filesystem that
 has been checked with
 .Xr fsck 8
 or a filesystem that is mounted read-only.
-.Nm Fsirand
-may be used on the root filesystem in single-user mode
+The
+.Nm
+utility may be used on the root filesystem in single-user mode
 but the system should be rebooted via ``reboot -n'' afterwards.
 .Sh OPTIONS
 .Bl -tag -width indent
@@ -98,7 +100,7 @@ of memory for large disks with few cylinder groups.
 .Sh HISTORY
 The
 .Nm
-command appeared in SunOS 3.x.
+utility appeared in SunOS 3.x.
 .Pp
 This version of
 .Nm
