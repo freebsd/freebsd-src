@@ -51,16 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <i386/bios/mca_machdep.h>
 #endif
 
-#ifdef PC98
-#define NMI_PARITY 0x04
-#define NMI_EPARITY 0x02
-#else
 #define NMI_PARITY (1 << 7)
 #define NMI_IOCHAN (1 << 6)
 #define ENMI_WATCHDOG (1 << 7)
 #define ENMI_BUSTIMER (1 << 6)
 #define ENMI_IOSTATUS (1 << 5)
-#endif
 
 /*
  * Handle a NMI, possibly a machine check.
@@ -70,22 +65,6 @@ int
 isa_nmi(int cd)
 {
 	int retval = 0;
-#ifdef PC98
- 	int port = inb(0x33);
-
-	log(LOG_CRIT, "NMI PC98 port = %x\n", port);
-	if (epson_machine_id == 0x20)
-		epson_outb(0xc16, epson_inb(0xc16) | 0x1);
-	if (port & NMI_PARITY) {
-		log(LOG_CRIT, "BASE RAM parity error, likely hardware failure.");
-		retval = 1;
-	} else if (port & NMI_EPARITY) {
-		log(LOG_CRIT, "EXTENDED RAM parity error, likely hardware failure.");
-		retval = 1;
-	} else {
-		log(LOG_CRIT, "\nNMI Resume ??\n");
-	}
-#else /* IBM-PC */
 	int isa_port = inb(0x61);
 	int eisa_port = inb(0x461);
 
@@ -127,6 +106,6 @@ isa_nmi(int cd)
 		log(LOG_CRIT, "EISA I/O port status error.");
 		retval = 1;
 	}
-#endif
+
 	return(retval);
 }

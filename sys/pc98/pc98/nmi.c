@@ -39,23 +39,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mca.h"
-
 #include <sys/types.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 
 #include <machine/md_var.h>
 
-#ifdef DEV_MCA
-#include <i386/bios/mca_machdep.h>
-#endif
+#include <pc98/pc98/epsonio.h>
+#include <pc98/pc98/pc98_machdep.h>
 
-#define NMI_PARITY (1 << 7)
-#define NMI_IOCHAN (1 << 6)
-#define ENMI_WATCHDOG (1 << 7)
-#define ENMI_BUSTIMER (1 << 6)
-#define ENMI_IOSTATUS (1 << 5)
+#define NMI_PARITY 0x04
+#define NMI_EPARITY 0x02
 
 /*
  * Handle a NMI, possibly a machine check.
@@ -65,46 +59,19 @@ int
 isa_nmi(int cd)
 {
 	int retval = 0;
-	int isa_port = inb(0x61);
-	int eisa_port = inb(0x461);
+ 	int port = inb(0x33);
 
-	log(LOG_CRIT, "NMI ISA %x, EISA %x\n", isa_port, eisa_port);
-#ifdef DEV_MCA
-	if (MCA_system && mca_bus_nmi())
-		return(0);
-#endif
-	
-	if (isa_port & NMI_PARITY) {
-		log(LOG_CRIT, "RAM parity error, likely hardware failure.");
+	log(LOG_CRIT, "NMI PC98 port = %x\n", port);
+	if (epson_machine_id == 0x20)
+		epson_outb(0xc16, epson_inb(0xc16) | 0x1);
+	if (port & NMI_PARITY) {
+		log(LOG_CRIT, "BASE RAM parity error, likely hardware failure.");
 		retval = 1;
-	}
-
-	if (isa_port & NMI_IOCHAN) {
-		log(LOG_CRIT, "I/O channel check, likely hardware failure.");
+	} else if (port & NMI_EPARITY) {
+		log(LOG_CRIT, "EXTENDED RAM parity error, likely hardware failure.");
 		retval = 1;
-	}
-
-	/*
-	 * On a real EISA machine, this will never happen.  However it can
-	 * happen on ISA machines which implement XT style floating point
-	 * error handling (very rare).  Save them from a meaningless panic.
-	 */
-	if (eisa_port == 0xff)
-		return(retval);
-
-	if (eisa_port & ENMI_WATCHDOG) {
-		log(LOG_CRIT, "EISA watchdog timer expired, likely hardware failure.");
-		retval = 1;
-	}
-
-	if (eisa_port & ENMI_BUSTIMER) {
-		log(LOG_CRIT, "EISA bus timeout, likely hardware failure.");
-		retval = 1;
-	}
-
-	if (eisa_port & ENMI_IOSTATUS) {
-		log(LOG_CRIT, "EISA I/O port status error.");
-		retval = 1;
+	} else {
+		log(LOG_CRIT, "\nNMI Resume ??\n");
 	}
 
 	return(retval);
