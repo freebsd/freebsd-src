@@ -157,6 +157,14 @@
       More information can be found in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>.
       &merged;</para>
+
+    <para>Four separate security flaws in <application>OpenSSL</application>,
+      which could allow a remote attacker to crash an
+      <application>OpenSSL</application>-using application or
+      to execute arbitrary code with the privileges of the application,
+      have been fixed.
+      More information can be found in security advisory 
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>. &merged;</para>
   </sect2>
 
   <sect2 id="kernel">
