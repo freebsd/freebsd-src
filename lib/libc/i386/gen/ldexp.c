@@ -55,8 +55,18 @@ ldexp (double value, int exp)
 {
 	double temp, texp, temp2;
 	texp = exp;
+#ifdef __GNUC__
+#if    __GNUC__ >= 2
+	asm ("fscale "
+		: "=u" (temp2), "=t" (temp)
+		: "0" (texp), "1" (value));
+#else
 	asm ("fscale ; fxch %%st(1) ; fstp%L1 %1 "
 		: "=f" (temp), "=0" (temp2)
 		: "0" (texp), "f" (value));
+#endif
+#else
+error unknown asm
+#endif
 	return (temp);
 }
