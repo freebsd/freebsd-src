@@ -174,7 +174,8 @@ void print_autowrap(WINDOW *win, unsigned char *prompt, int height, int width, i
   wsetscrreg(win, y, height);
   getyx(win, cur_y, cur_x);
 
-  strcpy(tempstr, prompt);
+  strncpy(tempstr, prompt, MAX_LEN);
+  tempstr[MAX_LEN] = '\0';
   if ((!rawmode && strstr(tempstr, "\\n") != NULL) ||
       (strchr(tempstr, '\n') != NULL)) {    /* Prompt contains "\n" or '\n' */
     word = tempstr;
