@@ -578,9 +578,6 @@ findpcb:
 		if (log_in_vain) {
 #ifdef INET6
 			char dbuf[INET6_ADDRSTRLEN+2], sbuf[INET6_ADDRSTRLEN+2];
-#else
-			char dbuf[4*sizeof "123"], sbuf[4*sizeof "123"];
-#endif /* INET6 */
 			if (isipv6) {
 				strcpy(dbuf, "[");
 				strcpy(sbuf, "[");
@@ -589,9 +586,14 @@ findpcb:
 				strcat(dbuf, "]");
 				strcat(sbuf, "]");
 			} else {
+#else /* INET6 */
+			char dbuf[4*sizeof "123"], sbuf[4*sizeof "123"];
+#endif /* INET6 */
 				strcpy(dbuf, inet_ntoa(ip->ip_dst));
 				strcpy(sbuf, inet_ntoa(ip->ip_src));
+#ifdef INET6
 			}
+#endif /* INET6 */
 			switch (log_in_vain) {
 			case 1:
 				if(thflags & TH_SYN)
