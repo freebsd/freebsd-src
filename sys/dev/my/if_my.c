@@ -142,7 +142,6 @@ static void     my_autoneg_mii(struct my_softc *, int, int);
 static void     my_setmode_mii(struct my_softc *, int);
 static void     my_getmode_mii(struct my_softc *);
 static void     my_setcfg(struct my_softc *, int);
-static uint32_t my_mchash(const uint8_t *);
 static void     my_setmulti(struct my_softc *);
 static void     my_reset(struct my_softc *);
 static int      my_list_rx_init(struct my_softc *);
@@ -313,34 +312,6 @@ my_phy_writereg(struct my_softc * sc, int reg, int data)
 	return;
 }
 
-static uint32_t
-my_mchash(const uint8_t *addr)
-{
-	uint32_t crc, carry;
-	int idx, bit;
-	uint8_t data;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF;	/* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
-			crc <<= 1;
-			if (carry)
-				crc = (crc ^ 0x04c11db6) | carry;
-		}
-	}
-
-	/*
-	 * return the filter bit position Note: I arrived at the following
-	 * nonsense through experimentation. It's not the usual way to
-	 * generate the bit position but it's the only thing I could come up
-	 * with that works.
-	 */
-	return (~(crc >> 26) & 0x0000003F);
-}
-
 
 /*
  * Program the 64-bit multicast hash filter.
@@ -379,7 +350,8 @@ my_setmulti(struct my_softc * sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = my_mchash(LLADDR((struct sockaddr_dl *) ifma->ifma_addr));
+		h = ~ether_crc32_be(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		if (h < 32)
 			hashes[0] |= (1 << h);
 		else

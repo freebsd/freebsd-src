@@ -1023,7 +1023,6 @@ dc_miibus_mediainit(device_t dev)
 		ifmedia_add(ifm, IFM_ETHER | IFM_HPNA_1, 0, NULL);
 }
 
-#define DC_POLY		0xEDB88320
 #define DC_BITS_512	9
 #define DC_BITS_128	7
 #define DC_BITS_64	6
@@ -1032,16 +1031,9 @@ static uint32_t
 dc_mchash_le(struct dc_softc *sc, const uint8_t *addr)
 {
 	uint32_t crc;
-	int idx, bit;
-	uint8_t data;
 
 	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1)
-			crc = (crc >> 1) ^ (((crc ^ data) & 1) ? DC_POLY : 0);
-	}
+	crc = ether_crc32_le(addr, ETHER_ADDR_LEN);
 
 	/*
 	 * The hash table on the PNIC II and the MX98715AEC-C/D/E
@@ -1073,22 +1065,10 @@ dc_mchash_le(struct dc_softc *sc, const uint8_t *addr)
 static uint32_t
 dc_mchash_be(const uint8_t *addr)
 {
-	uint32_t crc, carry;
-	int idx, bit;
-	uint8_t data;
+	uint32_t crc;
 
 	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
-			data >>= 1;
-			crc <<= 1;
-			if (carry)
-				crc = (crc ^ 0x04c11db6) | carry;
-		}
-	}
+	crc = ether_crc32_be(addr, ETHER_ADDR_LEN);
 
 	/* Return the filter bit position. */
 	return ((crc >> 26) & 0x0000003F);

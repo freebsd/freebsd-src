@@ -133,7 +133,6 @@ static void snwatchdog(struct ifnet *);
 
 static void sn_setmcast(struct sn_softc *);
 static int sn_getmcf(struct arpcom *ac, u_char *mcf);
-static uint32_t sn_mchash(const uint8_t *);
 
 /* I (GB) have been unlucky getting the hardware padding
  * to work properly.
@@ -1417,8 +1416,8 @@ sn_getmcf(struct arpcom *ac, uint8_t *mcf)
 	TAILQ_FOREACH(ifma, &ac->ac_if.if_multiaddrs, ifma_link) {
 	    if (ifma->ifma_addr->sa_family != AF_LINK)
 		return 0;
-	    index = sn_mchash(
-		LLADDR((struct sockaddr_dl *)ifma->ifma_addr)) & 0x3f;
+	    index = ether_crc32_le(LLADDR((struct sockaddr_dl *)
+		ifma->ifma_addr), ETHER_ADDR_LEN) & 0x3f;
 	    index2 = 0;
 	    for (i = 0; i < 6; i++) {
 		index2 <<= 1;
@@ -1428,23 +1427,4 @@ sn_getmcf(struct arpcom *ac, uint8_t *mcf)
 	    af[index2 >> 3] |= 1 << (index2 & 7);
 	}
 	return 1;  /* use multicast filter */
-}
-
-static uint32_t
-sn_mchash(const uint8_t *addr)
-{
-	const uint32_t poly = 0xedb88320;
-	uint32_t crc;
-	int idx, bit;
-	uint8_t data;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < ETHER_ADDR_LEN; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
-			crc = (crc >> 1)^(((crc ^ data) & 0x01) ? poly : 0);
-		}
-	}
-	return crc;
 }

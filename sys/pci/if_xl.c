@@ -253,7 +253,6 @@ static int xl_mii_writereg	(struct xl_softc *, struct xl_mii_frame *);
 
 static void xl_setcfg		(struct xl_softc *);
 static void xl_setmode		(struct xl_softc *, int);
-static uint32_t xl_mchash	(const uint8_t *);
 static void xl_setmulti		(struct xl_softc *);
 static void xl_setmulti_hash	(struct xl_softc *);
 static void xl_reset		(struct xl_softc *);
@@ -812,44 +811,6 @@ xl_read_eeprom(sc, dest, off, cnt, swap)
 }
 
 /*
- * This routine is taken from the 3Com Etherlink XL manual,
- * page 10-7. It calculates a CRC of the supplied multicast
- * group address and returns the lower 8 bits, which are used
- * as the multicast filter position.
- * Note: the 3c905B currently only supports a 64-bit hash table,
- * which means we really only need 6 bits, but the manual indicates
- * that future chip revisions will have a 256-bit hash table,
- * hence the routine is set up to calculate 8 bits of position
- * info in case we need it some day.
- * Note II, The Sequel: _CURRENT_ versions of the 3c905B have a
- * 256 bit hash table. This means we have to use all 8 bits regardless.
- * On older cards, the upper 2 bits will be ignored. Grrrr....
- */
-static u_int32_t
-xl_mchash(addr)
-	const uint8_t *addr;
-{
-	uint32_t crc, carry;
-	int idx, bit;
-	uint8_t data;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
-			crc <<= 1;
-			if (carry)
-				crc = (crc ^ 0x04c11db6) | carry;
-		}
-	}
-
-	/* return the filter bit position */
-	return(crc & 0x000000FF);
-}
-
-/*
  * NICs older than the 3c905B have only one multicast option, which
  * is to enable reception of all multicast frames.
  */
@@ -920,7 +881,20 @@ xl_setmulti_hash(sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = xl_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		/*
+		 * Note: the 3c905B currently only supports a 64-bit hash
+		 * table, which means we really only need 6 bits, but the
+		 * manual indicates that future chip revisions will have a
+		 * 256-bit hash table, hence the routine is set up to
+		 * calculate 8 bits of position info in case we need it some
+		 * day.
+		 * Note II, The Sequel: _CURRENT_ versions of the 3c905B have
+		 * a 256 bit hash table. This means we have to use all 8 bits
+		 * regardless. On older cards, the upper 2 bits will be
+		 * ignored. Grrrr....
+ 		 */
+		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) & 0xFF;
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH|XL_HASH_SET|h);
 		mcnt++;
 	}

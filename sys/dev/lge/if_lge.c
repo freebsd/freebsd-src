@@ -150,7 +150,6 @@ static int lge_miibus_writereg(device_t, int, int, int);
 static void lge_miibus_statchg(device_t);
 
 static void lge_setmulti(struct lge_softc *);
-static uint32_t lge_mchash(const uint8_t *);
 static void lge_reset(struct lge_softc *);
 static int lge_list_rx_init(struct lge_softc *);
 static int lge_list_tx_init(struct lge_softc *);
@@ -368,32 +367,6 @@ lge_miibus_statchg(dev)
 	return;
 }
 
-static uint32_t
-lge_mchash(addr)
-	const uint8_t *addr;
-{
-	uint32_t crc, carry;
-	int idx, bit;
-	uint8_t data;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
-			crc <<= 1;
-			if (carry)
-				crc = (crc ^ 0x04c11db6) | carry;
-		}
-	}
-
-	/*
-	 * return the filter bit position
-	 */
-	return((crc >> 26) & 0x0000003F);
-}
-
 static void
 lge_setmulti(sc)
 	struct lge_softc	*sc;
@@ -421,7 +394,8 @@ lge_setmulti(sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = lge_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		if (h < 32)
 			hashes[0] |= (1 << h);
 		else

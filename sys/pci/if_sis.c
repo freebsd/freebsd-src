@@ -842,21 +842,10 @@ sis_mchash(sc, addr)
 	struct sis_softc	*sc;
 	const uint8_t		*addr;
 {
-	uint32_t		crc, carry; 
-	int			idx, bit;
-	uint8_t			data;
+	uint32_t		crc;
 
 	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
-			crc <<= 1;
-			if (carry)
-				crc = (crc ^ 0x04c11db6) | carry;
-		}
-	}
+	crc = ether_crc32_be(addr, ETHER_ADDR_LEN);
 
 	/*
 	 * return the filter bit position
