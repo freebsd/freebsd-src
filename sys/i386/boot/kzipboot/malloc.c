@@ -42,9 +42,9 @@ malloc(nbytes, junk1, junk2) /* junk? not used */
 {
 	unsigned char *p = storage;
 	storage += nbytes;
-	if (storage >= 0xa0000) {
+	if (storage >= (unsigned char *) 0xa0000) {
 		putstr("warning: malloc wrapped\n\r");
-		p = (unsigned char *)0x50000;
+		p = (unsigned char *) 0x50000;
 		storage = p + nbytes;
 	}
 	return p;
