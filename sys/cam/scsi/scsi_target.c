@@ -2155,8 +2155,8 @@ allocdescr()
 	struct targ_cmd_desc* descr;
 
 	/* Allocate the targ_descr structure */
-	descr = (struct targ_cmd_desc *)malloc(sizeof(*descr),
-					       M_DEVBUF, M_NOWAIT);
+	descr = (struct targ_cmd_desc *)
+	    malloc(sizeof(*descr), M_DEVBUF, M_NOWAIT);
 	if (descr == NULL)
 		return (NULL);
 
