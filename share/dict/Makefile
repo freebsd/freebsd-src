@@ -1,3 +1,4 @@
+# ex:ts=8
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
@@ -11,5 +12,7 @@ install:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${FILES} \
 	    ${DESTDIR}${BINDIR}/dict
 	(cd ${DESTDIR}${BINDIR}/dict; rm -f words; ln -s web2 words)
+
+MAINTAINER=	obrien@FreeBSD.org
 
 .include <bsd.prog.mk>
