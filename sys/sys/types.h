@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.32 1999/05/12 07:41:49 phk Exp $
+ * $Id: types.h,v 1.33 1999/05/12 11:06:56 phk Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -106,12 +106,6 @@ typedef	u_int32_t	dev_t;		/* device number */
 #define udev_t dev_t
 
 #ifndef _POSIX_SOURCE
-
-/*
- * minor() gives a cookie instead of an index since we don't want to
- * change the meanings of bits 0-15 or waste time and space shifting
- * bits 16-31 for devices that don't use them.
- */
 
 /*
  * minor() gives a cookie instead of an index since we don't want to
