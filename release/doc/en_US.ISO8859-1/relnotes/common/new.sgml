@@ -2386,7 +2386,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.ls.1; now accepts a <option>-h</option> flag, which
       when combined with the <option>-l</option> flag, causes file
       sizes to be printed with unit suffixes, such that the number of
-      digits printed is less than three. &merged;</para>
+      digits printed is fewer than four. &merged;</para>
 
     <para>The &man.ls.1; program now supports a <option>-m</option>
       flag to list files across a page, a <option>-p</option> flag to
