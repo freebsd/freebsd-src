@@ -79,7 +79,7 @@ MLINKS+=timeout.9 untimeout.9
 MLINKS+=vref.9 VREF.9
 MLINKS+=vslock.9 vsunlock.9
 
-MLINKS+=device_add_child.9 device_add_child_after.9
+MLINKS+=device_add_child.9 device_add_child_ordered.9
 MLINKS+=device_enable.9 device_disable.9
 MLINKS+=device_enable.9 device_is_enabled.9
 MLINKS+=device_get_state.9 device_busy.9
