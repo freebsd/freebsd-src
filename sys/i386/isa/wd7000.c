@@ -57,7 +57,6 @@
 #include <sys/ioctl.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 
@@ -67,6 +66,8 @@
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
+
+#include <vm/vm.h>
 
 #include <i386/isa/isa_device.h>
 

@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.42 1995/11/29 14:39:44 julian Exp $
+ *	$Id: lpt.c,v 1.43 1995/12/02 20:33:40 phk Exp $
  */
 
 /*
@@ -107,7 +107,6 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/ioctl.h>
@@ -117,6 +116,8 @@
 
 #include <machine/clock.h>
 #include <machine/lpt.h>
+
+#include <vm/vm.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
