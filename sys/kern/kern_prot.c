@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.27 1997/03/31 13:21:37 peter Exp $
+ * $Id: kern_prot.c,v 1.28 1997/03/31 13:36:46 peter Exp $
  */
 
 /*
@@ -421,16 +421,19 @@ seteuid(p, uap, retval)
 	int error;
 
 	euid = uap->euid;
-	if (euid != pc->p_ruid && euid != pc->p_svuid &&
+	if (euid != pc->p_ruid &&		/* allow seteuid(getuid()) */
+	    euid != pc->p_svuid &&		/* allow seteuid(saved uid) */
 	    (error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
 	/*
 	 * Everything's okay, do it.  Copy credentials so other references do
 	 * not see our changes.
 	 */
-	pc->pc_ucred = crcopy(pc->pc_ucred);
-	pc->pc_ucred->cr_uid = euid;
-	p->p_flag |= P_SUGID;
+	if (pc->pc_ucred->cr_uid != euid) {
+		pc->pc_ucred = crcopy(pc->pc_ucred);
+		pc->pc_ucred->cr_uid = euid;
+		p->p_flag |= P_SUGID;
+	}
 	return (0);
 }
 
@@ -532,12 +535,15 @@ setegid(p, uap, retval)
 	int error;
 
 	egid = uap->egid;
-	if (egid != pc->p_rgid && egid != pc->p_svgid &&
+	if (egid != pc->p_rgid &&		/* allow setegid(getgid()) */
+	    egid != pc->p_svgid &&		/* allow setegid(saved gid) */
 	    (error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
-	pc->pc_ucred = crcopy(pc->pc_ucred);
-	pc->pc_ucred->cr_groups[0] = egid;
-	p->p_flag |= P_SUGID;
+	if (pc->pc_ucred->cr_groups[0] != egid) {
+		pc->pc_ucred = crcopy(pc->pc_ucred);
+		pc->pc_ucred->cr_groups[0] = egid;
+		p->p_flag |= P_SUGID;
+	}
 	return (0);
 }
 
