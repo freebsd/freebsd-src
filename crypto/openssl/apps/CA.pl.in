@@ -36,6 +36,7 @@
 # default openssl.cnf file has setup as per the following
 # demoCA ... where everything is stored
 
+$SSLEAY_CONFIG=$ENV{"SSLEAY_CONFIG"};
 $DAYS="-days 365";
 $REQ="openssl req $SSLEAY_CONFIG";
 $CA="openssl ca $SSLEAY_CONFIG";
@@ -116,6 +117,11 @@ foreach (@ARGV) {
 							"-infiles newreq.pem");
 	    $RET=$?;
 	    print "Signed certificate is in newcert.pem\n";
+	} elsif (/^(-signCA)$/) {
+	    system ("$CA -policy policy_anything -out newcert.pem " .
+					"-extensions v3_ca -infiles newreq.pem");
+	    $RET=$?;
+	    print "Signed CA certificate is in newcert.pem\n";
 	} elsif (/^-signcert$/) {
 	    system ("$X509 -x509toreq -in newreq.pem -signkey newreq.pem " .
 								"-out tmp.pem");

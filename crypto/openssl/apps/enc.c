@@ -343,11 +343,11 @@ bad:
 		if (verbose) BIO_printf(bio_err,"bufsize=%d\n",bsize);
 		}
 
-	strbuf=Malloc(SIZE);
-	buff=(unsigned char *)Malloc(EVP_ENCODE_LENGTH(bsize));
+	strbuf=OPENSSL_malloc(SIZE);
+	buff=(unsigned char *)OPENSSL_malloc(EVP_ENCODE_LENGTH(bsize));
 	if ((buff == NULL) || (strbuf == NULL))
 		{
-		BIO_printf(bio_err,"Malloc failure %ld\n",(long)EVP_ENCODE_LENGTH(bsize));
+		BIO_printf(bio_err,"OPENSSL_malloc failure %ld\n",(long)EVP_ENCODE_LENGTH(bsize));
 		goto end;
 		}
 
@@ -416,7 +416,15 @@ bad:
 
 
 	if (outf == NULL)
+		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
+#ifdef VMS
+		{
+		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+		out = BIO_push(tmpbio, out);
+		}
+#endif
+		}
 	else
 		{
 		if (BIO_write_filename(out,outf) <= 0)
@@ -581,13 +589,13 @@ bad:
 		}
 end:
 	ERR_print_errors(bio_err);
-	if (strbuf != NULL) Free(strbuf);
-	if (buff != NULL) Free(buff);
+	if (strbuf != NULL) OPENSSL_free(strbuf);
+	if (buff != NULL) OPENSSL_free(buff);
 	if (in != NULL) BIO_free(in);
-	if (out != NULL) BIO_free(out);
+	if (out != NULL) BIO_free_all(out);
 	if (benc != NULL) BIO_free(benc);
 	if (b64 != NULL) BIO_free(b64);
-	if(pass) Free(pass);
+	if(pass) OPENSSL_free(pass);
 	EXIT(ret);
 	}
 

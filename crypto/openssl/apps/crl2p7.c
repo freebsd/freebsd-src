@@ -141,7 +141,7 @@ int MAIN(int argc, char **argv)
 		else if (strcmp(*argv,"-certfile") == 0)
 			{
 			if (--argc < 1) goto bad;
-			if(!certflst) certflst = sk_new(NULL);
+			if(!certflst) certflst = sk_new_null();
 			sk_push(certflst,*(++argv));
 			}
 		else
@@ -215,15 +215,15 @@ bad:
 	p7s->contents->type=OBJ_nid2obj(NID_pkcs7_data);
 
 	if (!ASN1_INTEGER_set(p7s->version,1)) goto end;
-	if ((crl_stack=sk_X509_CRL_new(NULL)) == NULL) goto end;
+	if ((crl_stack=sk_X509_CRL_new_null()) == NULL) goto end;
 	p7s->crl=crl_stack;
 	if (crl != NULL)
 		{
 		sk_X509_CRL_push(crl_stack,crl);
-		crl=NULL; /* now part of p7 for Freeing */
+		crl=NULL; /* now part of p7 for OPENSSL_freeing */
 		}
 
-	if ((cert_stack=sk_X509_new(NULL)) == NULL) goto end;
+	if ((cert_stack=sk_X509_new_null()) == NULL) goto end;
 	p7s->cert=cert_stack;
 
 	if(certflst) for(i = 0; i < sk_num(certflst); i++) {
@@ -239,7 +239,15 @@ bad:
 	sk_free(certflst);
 
 	if (outfile == NULL)
+		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
+#ifdef VMS
+		{
+		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+		out = BIO_push(tmpbio, out);
+		}
+#endif
+		}
 	else
 		{
 		if (BIO_write_filename(out,outfile) <= 0)
@@ -266,7 +274,7 @@ bad:
 	ret=0;
 end:
 	if (in != NULL) BIO_free(in);
-	if (out != NULL) BIO_free(out);
+	if (out != NULL) BIO_free_all(out);
 	if (p7 != NULL) PKCS7_free(p7);
 	if (crl != NULL) X509_CRL_free(crl);
 
@@ -327,7 +335,7 @@ static int add_certs_from_file(STACK_OF(X509) *stack, char *certfile)
 
 	ret=count;
 end:
- 	/* never need to Free x */
+ 	/* never need to OPENSSL_free x */
 	if (in != NULL) BIO_free(in);
 	if (sk != NULL) sk_X509_INFO_free(sk);
 	return(ret);

@@ -161,7 +161,7 @@
 #include <sys/ioctl.h>
 #endif
 
-#ifdef MSDOS
+#if defined(MSDOS) && !defined(__CYGWIN32__)
 #include <conio.h>
 #define fgets(a,b,c) noecho_fgets(a,b,c)
 #endif
@@ -265,13 +265,17 @@ int des_read_pw(char *buf, char *buff, int size, const char *prompt,
 	is_a_tty=1;
 	tty=NULL;
 
-#ifndef MSDOS
-	if ((tty=fopen("/dev/tty","r")) == NULL)
-		tty=stdin;
-#else /* MSDOS */
+#ifdef MSDOS
 	if ((tty=fopen("con","r")) == NULL)
 		tty=stdin;
-#endif /* MSDOS */
+#elif defined(MAC_OS_pre_X)
+	tty=stdin;
+#else
+#ifndef MPE
+	if ((tty=fopen("/dev/tty","r")) == NULL)
+#endif
+		tty=stdin;
+#endif
 
 #if defined(TTY_get) && !defined(VMS)
 	if (TTY_get(fileno(tty),&tty_orig) == -1)
@@ -310,7 +314,11 @@ int des_read_pw(char *buf, char *buff, int size, const char *prompt,
 
 #if defined(TTY_set) && !defined(VMS)
 	if (is_a_tty && (TTY_set(fileno(tty),&tty_new) == -1))
+#ifdef MPE 
+		; /* MPE lies -- echo really has been disabled */
+#else
 		return(-1);
+#endif
 #endif
 #ifdef VMS
 	tty_new[0] = tty_orig[0];

@@ -88,6 +88,7 @@
 static int MS_CALLBACK verify_callback(int ok, X509_STORE_CTX *ctx);
 #ifndef NO_RSA
 static RSA MS_CALLBACK *tmp_rsa_cb(SSL *s, int is_export,int keylength);
+static void free_tmp_rsa(void);
 #endif
 #ifndef NO_DH
 static DH *get_dh512(void);
@@ -528,6 +529,9 @@ end:
 
 	if (bio_stdout != NULL) BIO_free(bio_stdout);
 
+#ifndef NO_RSA
+	free_tmp_rsa();
+#endif
 	ERR_free_strings();
 	ERR_remove_state(0);
 	EVP_cleanup();
@@ -1189,7 +1193,7 @@ int doit(SSL *s_ssl, SSL *c_ssl, long count)
 	ret=0;
 err:
 	/* We have to set the BIO's to NULL otherwise they will be
-	 * Free()ed twice.  Once when th s_ssl is SSL_free()ed and
+	 * OPENSSL_free()ed twice.  Once when th s_ssl is SSL_free()ed and
 	 * again when c_ssl is SSL_free()ed.
 	 * This is a hack required because s_ssl and c_ssl are sharing the same
 	 * BIO structure and SSL_set_bio() and SSL_free() automatically
@@ -1242,10 +1246,10 @@ static int MS_CALLBACK verify_callback(int ok, X509_STORE_CTX *ctx)
 	}
 
 #ifndef NO_RSA
+static RSA *rsa_tmp=NULL;
+
 static RSA MS_CALLBACK *tmp_rsa_cb(SSL *s, int is_export, int keylength)
 	{
-	static RSA *rsa_tmp=NULL;
-
 	if (rsa_tmp == NULL)
 		{
 		BIO_printf(bio_err,"Generating temp (%d bit) RSA key...",keylength);
@@ -1255,6 +1259,15 @@ static RSA MS_CALLBACK *tmp_rsa_cb(SSL *s, int is_export, int keylength)
 		(void)BIO_flush(bio_err);
 		}
 	return(rsa_tmp);
+	}
+
+static void free_tmp_rsa(void)
+	{
+	if (rsa_tmp != NULL)
+		{
+		RSA_free(rsa_tmp);
+		rsa_tmp = NULL;
+		}
 	}
 #endif
 

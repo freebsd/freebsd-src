@@ -59,10 +59,11 @@
 #ifndef HEADER_OBJECTS_H
 #define HEADER_OBJECTS_H
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
+#define USE_OBJ_MAC
 
+#ifdef USE_OBJ_MAC
+#include <openssl/obj_mac.h>
+#else
 #define SN_undef			"UNDEF"
 #define LN_undef			"undefined"
 #define NID_undef			0
@@ -953,6 +954,7 @@ extern "C" {
 #define LN_OCSP_sign			"OCSP Signing"
 #define NID_OCSP_sign			180
 #define OBJ_OCSP_sign			OBJ_id_kp,9L
+#endif /* USE_OBJ_MAC */
 
 #include <openssl/bio.h>
 #include <openssl/asn1.h>
@@ -967,6 +969,10 @@ extern "C" {
 #define	OBJ_NAME_ALIAS		0x8000
 
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 typedef struct obj_name_st
 	{
 	int type;
@@ -979,8 +985,8 @@ typedef struct obj_name_st
 
 
 int OBJ_NAME_init(void);
-int OBJ_NAME_new_index(unsigned long (*hash_func)(),int (*cmp_func)(),
-	void (*free_func)());
+int OBJ_NAME_new_index(unsigned long (*hash_func)(const char *),int (*cmp_func)(const void *, const void *),
+	void (*free_func)(const char *, int, const char *));
 const char *OBJ_NAME_get(const char *name,int type);
 int OBJ_NAME_add(const char *name,int type,const char *data);
 int OBJ_NAME_remove(const char *name,int type);
@@ -997,7 +1003,7 @@ int		OBJ_txt2nid(char *s);
 int		OBJ_ln2nid(const char *s);
 int		OBJ_sn2nid(const char *s);
 int		OBJ_cmp(ASN1_OBJECT *a,ASN1_OBJECT *b);
-char *		OBJ_bsearch(char *key,char *base,int num,int size,int (*cmp)());
+char *		OBJ_bsearch(char *key,char *base,int num,int size,int (*cmp)(const void *, const void *));
 
 void		ERR_load_OBJ_strings(void );
 
