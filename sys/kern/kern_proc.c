@@ -683,5 +683,5 @@ SYSCTL_NODE(_kern_proc, KERN_PROC_RUID, ruid, CTLFLAG_RD,
 SYSCTL_NODE(_kern_proc, KERN_PROC_PID, pid, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
 
-SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args, CTLFLAG_RW,
-	sysctl_kern_proc_args, "Return process argument");
+SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args, CTLFLAG_RW | CTLFLAG_ANYBODY,
+	sysctl_kern_proc_args, "Process argument list");
