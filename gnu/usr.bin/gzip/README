@@ -1,4 +1,4 @@
-This is the file README for the gzip distribution, version 1.2.2.
+This is the file README for the gzip distribution, version 1.2.4.
 
 gzip (GNU zip) is a compression utility designed to be a replacement
 for 'compress'. Its main advantages over compress are much better
@@ -32,34 +32,12 @@ INSTALL for installation instructions. Some answers to frequently
 asked questions are given in the file INSTALL, please read it. (In
 particular, please don't ask me once more for an /etc/magic entry.)
 
-WARNINGS about broken optimizers:
-
-- on the NeXT, "cc -finline-functions" is broken.  gzip produces
-  valid .gz files but they are much too large because the string
-  matching code misses most matches. Use "cc -O" instead.
-
-- on the Mips R4000, gcc -O (version 2.3.1) generates bad code, use cc
-  or just gcc -g instead.
-
-- gcc 2.3.3 and 2.4.3 on the SGI Indigo IRIX 4.0.5 also produce bad code.
-  Use instead: make CC='cc -O2' or gcc without -O.
-
-- On Solaris 2.1 for x86, the January 1993 "OEM" compiler release
-  generates bad code. This is fixed in the June 1993 "FCS" release.
-
-- on Sparc with SunOS 4.1.1 and the SC1.0 compiler, the optimizer
-  works up to -O3 but -O4 does not work.
-
-- MSC 5.1 with -Ox and -DDYN_ALLOC generates bad code in inflate.c.
-  The default is static allocation (no DYN_ALLOC) and -Ox works on inflate.c.
-  But -Ox does not work on util.c, so you must use -Oait -Gs.
-
-- On dnix 5.3 2.2 cc version 2.37c is buggy. Version 2.38d works.
-
-- On an Alliant running Concentrix, cc (even without optimization) generates
-  incorrect code. You have to use gcc.
-
-For all machines, Use "make check" to check that gzip was compiled correctly.
+WARNING: on several systems, compiler bugs cause gzip to fail, in
+particular when optimization options are on.  See the section "Special
+targets" at the end of the INSTALL file for a list of known problems.
+For all machines, use "make check" to check that gzip was compiled
+correctly.  Try compiling gzip without any optimization if you have a
+problem.
 
 Please send all comments and bug reports by electronic mail to:
    Jean-loup Gailly <jloup@chorus.fr>
@@ -82,18 +60,19 @@ file from emacs. It recognizes automatically encrypted and compressed
 files when they are first visited or written. It is available via
 anonymous ftp to roebling.poly.edu [128.238.5.31] in /pub/crypt++.el.
 The same directory contains also patches to dired, ange-ftp and info.
-GNU tar 1.11.2 has a -z option to invoke directly gzip, so you don't have
-to patch it.
+GNU tar 1.11.2 has a -z option to invoke directly gzip, so you don't have to
+patch it. The package ftp.uu.net:/languages/emacs-lisp/misc/jka-compr19.el.Z
+also supports gzip'ed files.
 
 The znew and gzexe shell scripts provided with gzip benefit from
 (but do not require) the cpmod utility to transfer file attributes.
 It is available by anonymous ftp on gatekeeper.dec.com in
 /.0/usenet/comp.sources.unix/volume11/cpmod.Z.
 
-The sample programs zread.c, sub.c and add.c are provided as examples
-of useful complements to gzip. Read the comments inside each source file.
-The perl script ztouch is also provided as example (not installed
-by default since it relies on perl).
+The sample programs zread.c, sub.c and add.c in subdirectory sample
+are provided as examples of useful complements to gzip. Read the
+comments inside each source file.  The perl script ztouch is also
+provided as example (not installed by default since it relies on perl).
 
 
 gzip is free software, you can redistribute it and/or modify it under
@@ -102,16 +81,22 @@ provided under the name COPYING. The latest version of gzip are always
 available by ftp in prep.ai.mit.edu:/pub/gnu, or in any of the prep
 mirror sites:
 
-- sources in gzip-*.tar (or .shar or .tar.gz)
+- sources in gzip-*.tar (or .shar or .tar.gz).
 - Solaris 2 executables in sparc-sun-solaris2/gzip-binaries-*.tar
 - MSDOS lha self-extracting exe in gzip-msdos-*.exe. Once extracted,
   copy gzip.exe to gunzip.exe and zcat.exe, or use "gzip -d" to decompress.
-  gzip386.exe runs much faster but only on 386 and above; it needs go32.exe,
-  available in omnigate.clarkson.edu:/pub/msdos/djgpp/djdev110.zip
+  gzip386.exe runs much faster but only on 386 and above; it is compiled with
+  djgpp 1.10 available in directory omnigate.clarkson.edu:/pub/msdos/djgpp.
 
 A VMS executable is available in ftp.spc.edu:[.macro32.savesets]gzip-1-*.zip
 (use [.macro32]unzip.exe to extract). A PRIMOS executable is available
 in ftp.lysator.liu.se:/pub/primos/run/gzip.run.
+OS/2 executables (16 and 32 bits versions) are available in
+ftp.tu-muenchen.de:/pub/comp/os/os2/archiver/gz*-[16,32].zip
+
+Some ftp servers can automatically make a tar.Z from a tar file. If
+you are getting gzip for the first time, you can ask for a tar.Z file
+instead of the much larger tar file.
 
 Many thanks to those who provided me with bug reports and feedback.
 See the files THANKS and ChangeLog for more details.

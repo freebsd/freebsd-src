@@ -5,7 +5,7 @@ gzip, gunzip, zcat \- compress or expand files
 .SH SYNOPSIS
 .ll +8
 .B gzip
-.RB [ " \-acdfhlLnrtvV19 " ]
+.RB [ " \-acdfhlLnNrtvV19 " ]
 .RB [ \-S\ suffix ]
 [
 .I "name \&..."
@@ -13,7 +13,7 @@ gzip, gunzip, zcat \- compress or expand files
 .ll -8
 .br
 .B gunzip
-.RB [ " \-acfhlLnrtvV " ]
+.RB [ " \-acfhlLnNrtvV " ]
 .RB [ \-S\ suffix ]
 [
 .I "name \&..."
@@ -35,16 +35,16 @@ while keeping the same ownership modes, access and modification times.
 .B "\-gz"
 for VMS,
 .B "z"
-for MSDOS, OS/2 FAT and Atari.)
-If no files are specified, the standard input is compressed to the
-standard output.
+for MSDOS, OS/2 FAT, Windows NT FAT and Atari.)
+If no files are specified, or if a file name is "-", the standard input is
+compressed to the standard output.
 .I Gzip
 will only attempt to compress regular files.
 In particular, it will ignore symbolic links.
 .PP
-If the new file name is too long for its file system,
+If the compressed file name is too long for its file system,
 .I gzip
-truncates it and keeps the original file name in the compressed file.
+truncates it.
 .I Gzip
 attempts to truncate only the parts of the file name longer than 3 characters.
 (A part is delimited by dots.) If the name consists of small parts only,
@@ -52,6 +52,14 @@ the longest parts are truncated. For example, if file names are limited
 to 14 characters, gzip.msdos.exe is compressed to gzi.msd.exe.gz.
 Names are not truncated on systems which do not have a limit on file name
 length.
+.PP
+By default,
+.I gzip
+keeps the original file name and timestamp in the compressed file. These
+are used when decompressing the file with the
+.B \-N
+option. This is useful when the compressed file name was truncated or
+when the time stamp was not preserved after a file transfer.
 .PP
 Compressed files can be restored to their original form using
 .I gzip -d
@@ -226,6 +234,9 @@ The compression methods currently supported are deflate, compress, lzh
 (SCO compress -H) and pack.  The crc is given as ffffffff for a file
 not in gzip format.
 
+With --name, the uncompressed name,  date and time  are
+those stored within the compress file if present.
+
 With --verbose, the size totals and compression ratio for all files
 is also displayed, unless some sizes are unknown. With --quiet,
 the title and totals lines are not displayed.
@@ -236,17 +247,26 @@ Display the
 license and quit.
 .TP
 .B \-n --no-name
-When compressing, do not save the original file name by default. (The
-original name is always saved if the name had to be truncated.) When
-decompressing, do not restore the original file name if present: remove
-only the
+When compressing, do not save the original file name and time stamp by
+default. (The original name is always saved if the name had to be
+truncated.) When decompressing, do not restore the original file name
+if present (remove only the
 .I gzip
-suffix from the compressed file name.
+suffix from the compressed file name) and do not restore the original
+time stamp if present (copy it from the compressed file). This option
+is the default when decompressing.
+.TP
+.B \-N --name
+When compressing, always save the original file name and time stamp; this
+is the default. When decompressing, restore the original file name and
+time stamp if present. This option is useful on systems which have
+a limit on file name length or when the time stamp has been lost after
+a file transfer.
 .TP
 .B \-q --quiet
 Suppress all warnings.
 .TP
-.B \-r --recurse
+.B \-r --recursive
 Travel the directory structure recursively. If any of the file names
 specified on the command line are directories, 
 .I gzip
@@ -258,7 +278,7 @@ will descend into the directory and compress all the files it finds there
 .B \-S .suf   --suffix .suf
 Use suffix .suf instead of .gz. Any suffix can be given, but suffixes
 other than .z and .gz should be avoided to avoid confusion when files
-are transferred to other.  A null suffix forces gunzip to  try
+are transferred to other systems.  A null suffix forces gunzip to  try
 decompression on all given files regardless of suffix, as in:
 
     gunzip -S "" *       (*.* for MSDOS)
@@ -289,7 +309,7 @@ and
 .B \-9
 or
 .B \-\-best
-indicates the slowest compression method (optimal compression).
+indicates the slowest compression method (best compression).
 The default compression level is
 .BR \-6
 (that is, biased towards high compression at expense of speed).
@@ -320,7 +340,19 @@ compresses better than
 
 If you want to recompress concatenated files to get better compression, do:
 
-      zcat old.gz | gzip > new.gz
+      gzip -cd old.gz | gzip > new.gz
+
+If a compressed file consists of several members, the uncompressed
+size and CRC reported by the --list option applies to the last member
+only. If you need the uncompressed size for all members, you can use:
+
+      gzip -cd file.gz | wc -c
+
+If you wish to create a single archive file with multiple members so
+that members can later be extracted independently, use an archiver
+such as tar or zip. GNU tar supports the -z option to invoke gzip
+transparently. gzip is designed as a complement to tar, not as a
+replacement.
 .SH "ENVIRONMENT"
 The environment variable
 .B GZIP
@@ -328,9 +360,9 @@ can hold a set of default options for
 .I gzip.
 These options are interpreted first and can be overwritten by
 explicit command line parameters. For example:
-      for sh:    GZIP="-8 -v"; export GZIP
-      for csh:   setenv GZIP "-8 -v"
-      for MSDOS: set GZIP=-8 -v
+      for sh:    GZIP="-8v --name"; export GZIP
+      for csh:   setenv GZIP "-8v --name"
+      for MSDOS: set GZIP=-8v --name
 
 On Vax/VMS, the name of the environment variable is GZIP_OPT, to
 avoid a conflict with the symbol set for invocation of the program.
@@ -341,7 +373,7 @@ pack(1), compact(1)
 Exit status is normally 0;
 if an error occurs, exit status is 1. If a warning occurs, exit status is 2.
 .PP
-Usage: gzip [-cdfhlLnrtvV19] [-S suffix] [file ...]
+Usage: gzip [-cdfhlLnNrtvV19] [-S suffix] [file ...]
 .in +8
 Invalid options were specified on the command line.
 .in -8
@@ -427,13 +459,20 @@ and emits a warning by default. You have to use the --quiet option to
 suppress the warning. This option can be set in the
 .B GZIP
 environment variable as in:
-    for sh:    GZIP="-q"  tar xfz /dev/rmt/datn
-    for csh:   (setenv GZIP "-q"; tar xfz /dev/rmt/datn)
+  for sh:  GZIP="-q"  tar -xfz --block-compress /dev/rst0
+  for csh: (setenv GZIP -q; tar -xfz --block-compr /dev/rst0
 
-In the above example, gzip is invoked implicitly by the -z option
-of GNU tar. Make sure that the same block size (-b option of
-tar) is used for reading and writing compressed data on tapes.
+In the above example, gzip is invoked implicitly by the -z option of
+GNU tar. Make sure that the same block size (-b option of tar) is used
+for reading and writing compressed data on tapes.  (This example
+assumes you are using the GNU version of tar.)
 .SH BUGS
 The --list option reports incorrect sizes if they exceed 2 gigabytes.
 The --list option reports sizes as -1 and crc as ffffffff if the
 compressed file is on a non seekable media.
+
+In some rare cases, the --best option gives worse compression than
+the default compression level (-6). On some highly redundant files,
+.I compress
+compresses better than
+.I gzip.

@@ -3,6 +3,10 @@
  * written by Haruhiko Okumura.
  */
 
+#ifdef RCSID
+static char rcsid[] = "$Id: unlzh.c,v 1.2 1993/06/24 10:59:01 jloup Exp $";
+#endif
+
 #include <stdio.h>
 
 #include "tailor.h"
@@ -18,11 +22,19 @@ local void decode_start OF((void));
 local void huf_decode_start OF((void));
 local unsigned decode_c     OF((void));
 local unsigned decode_p     OF((void));
+local void read_pt_len      OF((int nn, int nbit, int i_special));
+local void read_c_len       OF((void));
 
 /* io.c */
 local void fillbuf      OF((int n));
 local unsigned getbits  OF((int n));
 local void init_getbits OF((void));
+
+/* maketbl.c */
+
+local void make_table OF((int nchar, uch bitlen[],
+			  int tablebits, ush table[]));
+
 
 #define DICBIT    13    /* 12(-lh4-) or 13(-lh5-) */
 #define DICSIZ ((unsigned) 1 << DICBIT)
@@ -66,7 +78,7 @@ local void init_getbits OF((void));
 /* local ush right[2 * NC - 1]; */
 #define left  prev
 #define right head
-#if NC > 1<<(BITS-2)
+#if NC > (1<<(BITS-2))
     error cannot overlay left+right and prev
 #endif
 
@@ -82,9 +94,13 @@ local ush pt_table[256];
 
 /* local ush c_table[4096]; */
 #define c_table d_buf
-#if DIST_BUFSIZE < 4096
+#if (DIST_BUFSIZE-1) < 4095
     error cannot overlay c_table and d_buf
 #endif
+
+/***********************************************************
+        io.c -- input/output
+***********************************************************/
 
 local ush       bitbuf;
 local unsigned  subbitbuf;
@@ -132,16 +148,16 @@ local void make_table(nchar, bitlen, tablebits, table)
     unsigned i, k, len, ch, jutbits, avail, nextcode, mask;
 
     for (i = 1; i <= 16; i++) count[i] = 0;
-    for (i = 0; i < nchar; i++) count[bitlen[i]]++;
+    for (i = 0; i < (unsigned)nchar; i++) count[bitlen[i]]++;
 
     start[1] = 0;
     for (i = 1; i <= 16; i++)
 	start[i + 1] = start[i] + (count[i] << (16 - i));
-    if (start[17] != (ush)((unsigned) 1 << 16))
+    if ((start[17] & 0xffff) != 0)
 	error("Bad table\n");
 
     jutbits = 16 - tablebits;
-    for (i = 1; i <= tablebits; i++) {
+    for (i = 1; i <= (unsigned)tablebits; i++) {
 	start[i] >>= jutbits;
 	weight[i] = (unsigned) 1 << (tablebits - i);
     }
@@ -151,17 +167,17 @@ local void make_table(nchar, bitlen, tablebits, table)
     }
 
     i = start[tablebits + 1] >> jutbits;
-    if (i != (ush)((unsigned) 1 << 16)) {
+    if (i != 0) {
 	k = 1 << tablebits;
 	while (i != k) table[i++] = 0;
     }
 
     avail = nchar;
     mask = (unsigned) 1 << (15 - tablebits);
-    for (ch = 0; ch < nchar; ch++) {
+    for (ch = 0; ch < (unsigned)nchar; ch++) {
 	if ((len = bitlen[ch]) == 0) continue;
 	nextcode = start[len] + weight[len];
-	if (len <= tablebits) {
+	if (len <= (unsigned)tablebits) {
 	    for (i = start[len]; i < nextcode; i++) table[i] = ch;
 	} else {
 	    k = start[len];

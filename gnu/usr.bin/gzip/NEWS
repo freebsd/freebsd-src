@@ -1,7 +1,32 @@
-Current Version: 1.2.2.
+Current Version: 1.2.4.
 See the file ChangeLog for the details of all changes.
 
-Major changes from 1.2 to 1.2.1
+Major changes from 1.2.3 to 1.2.4
+* By default, do not restore file name and timestamp from those saved
+  inside the .gz file (behave as 'compress'). Added the --name option
+  to force name and timestamp restoration.
+* Accept - as synonym for stdin.
+* Use manlinks=so or ln to support either hard links or .so in man pages
+* Accept foo.gz~ in zdiff.
+* Added support for Windows NT
+* Handle ENAMETOOLONG for strict Posix systems
+* Use --recursive instead of --recurse to comply with Webster and
+  the GNU stdandard.
+* Allow installation of shell scripts with a g prefix: make G=g install
+* Install by default zcat as gzcat if gzcat already exists in path.
+* Let zmore behave as more when invoked without parameters (give help)
+* Let gzip --list reject files not in gzip format even with --force.
+* Don't complain about non gzip files for options -rt or -rl.
+* Added advice in INSTALL for several systems.
+
+Major changes from 1.2.2 to 1.2.3
+* Don't display the output name when decompressing except with --verbose.
+* Remove usage of alloca in getopt.c and all makefiles.
+* Added the zfile shell script in subdirectory sample.
+* Moved the list of compiler bugs from README to INSTALL.
+* Added vms/Readme.vms.
+
+Major changes from 1.2.1 to 1.2.2
 * Fix a compilation error on Sun with cc (worked with gcc).
 
 Major changes from 1.2 to 1.2.1

@@ -4,7 +4,7 @@
  * terms of the GNU General Public License, see the file COPYING.
  */
 
-#ifndef lint
+#ifdef RCSID
 static char rcsid[] = "$Id: zip.c,v 0.17 1993/06/10 13:29:25 jloup Exp $";
 #endif
 

@@ -67,8 +67,8 @@
 #include "gzip.h"
 #include "lzw.h" /* just for consistency checking */
 
-#ifndef lint
-static char rcsid[] = "$Id: deflate.c,v 0.14 1993/06/12 20:11:10 jloup Exp $";
+#ifdef RCSID
+static char rcsid[] = "$Id: deflate.c,v 0.15 1993/06/24 10:53:53 jloup Exp $";
 #endif
 
 /* ===========================================================================
@@ -97,7 +97,7 @@ static char rcsid[] = "$Id: deflate.c,v 0.14 1993/06/12 20:11:10 jloup Exp $";
 /* To save space (see unlzw.c), we overlay prev+head with tab_prefix and
  * window with tab_suffix. Check that we can do this:
  */
-#if WSIZE<<1 > 1<<BITS
+#if (WSIZE<<1) > (1<<BITS)
    error: cannot overlay window with tab_suffix and prev with tab_prefix0
 #endif
 #if HASH_BITS > BITS-1
@@ -199,7 +199,7 @@ local unsigned int max_lazy_match;
 local int compr_level;
 /* compression level (1..9) */
 
-int near good_match;
+unsigned near good_match;
 /* Use a faster search when the previous match is longer than this */
 
 
@@ -574,8 +574,8 @@ local void fill_window()
 /* ===========================================================================
  * Processes a new input file and return its compressed length. This
  * function does not perform lazy evaluationof matches and inserts
- * new strings in the dictionary only for unmatched strings. It is used
- * only for the fast compression options.
+ * new strings in the dictionary only for unmatched strings or for short
+ * matches. It is used only for the fast compression options.
  */
 local ulg deflate_fast()
 {
