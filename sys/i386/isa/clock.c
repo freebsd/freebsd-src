@@ -1228,3 +1228,23 @@ tsc_get_timecount(struct timecounter *tc)
 {
 	return (rdtsc());
 }
+
+#ifdef KERN_TIMESTAMP
+#define KERN_TIMESTAMP_SIZE 16384
+static u_long tsc[KERN_TIMESTAMP_SIZE] ;
+SYSCTL_OPAQUE(_debug, OID_AUTO, timestamp, CTLFLAG_RD, tsc,
+	sizeof(tsc), "LU", "Kernel timestamps");
+void  
+_TSTMP(u_int32_t x)
+{
+	static int i;
+
+	tsc[i] = (u_int32_t)rdtsc();
+	tsc[i+1] = x;
+	i = i + 2;
+	if (i >= KERN_TIMESTAMP_SIZE)
+		i = 0;
+	tsc[i] = 0; /* mark last entry */
+}
+#endif KERN_TIMESTAMP
+

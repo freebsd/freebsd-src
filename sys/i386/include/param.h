@@ -185,5 +185,40 @@
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 
+#ifdef _KERNEL
+
+/*
+ * We put here the definition of two debugging macros/function which
+ * are very convenient to have available.
+ * The macro is called TSTMP() and is used to timestamp events in the
+ * kernel using the TSC register, and export them to userland through
+ * the sysctl variable debug.timestamp, which is a circular buffer
+ * holding pairs of u_int32_t variables <timestamp, argument> .
+ * They can be retrieved with something like
+ *
+ *	sysctl -b debug.timestamp | hexdump -e '"%15u %15u\n"'
+ *
+ * The function _TSTMP() is defined in i386/isa/clock.c. It does not
+ * try to grab any locks or block interrupts or identify which CPU it
+ * is running on. You are supposed to know what to do if you use it.
+ *
+ * The macros must be enabled with "options KERN_TIMESTAMP" in the kernel
+ * config file, otherwise they default to an empty block.
+ */
+
+#ifdef KERN_TIMESTAMP
+extern void _TSTMP(u_int32_t argument);
+#define TSTMP(class, unit, event, par)	_TSTMP(	\
+	(((class) &   0x0f) << 28 ) |		\
+	(((unit)  &   0x0f) << 24 ) |		\
+	(((event) &   0xff) << 16 ) |		\
+	(((par)   & 0xffff)       )   )
+
+#else /* !KERN_TIMESTAMP */
+#define        _TSTMP(x)                       {}
+#define        TSTMP(class, unit, event, par)  _TSTMP(0)
+#endif /* !KERN_TIMESTAMP */
+#endif /* _KERNEL */
+
 #endif /* !_MACHINE_PARAM_H_ */
 #endif /* !_NO_NAMESPACE_POLLUTION */
