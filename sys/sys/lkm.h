@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lkm.h,v 1.11 1995/12/13 15:13:46 julian Exp $
+ * $Id: lkm.h,v 1.12 1996/09/03 22:52:27 bde Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -261,6 +261,15 @@ struct lkm_table {
 		#name ## "_mod"			\
 	}
 
+/*
+ * MOD_DISPATCH -- FreeBSD 3.0+ style envocation.
+   This simply reorders the arguments and calls the previous DISPATCH
+   entry point.  This is here only to help backport new lkm's to 2.2.x.
+   One should not think that the rest of the 3.0 lkm changes have been
+   added.  This is only an API change.
+ */
+#define MOD_DISPATCH(name,lkmtp,cmd,ver,load,unload,stat)  \
+	    DISPATCH(lkmtp,cmd,ver,load,unload,stat)
 
 /*
  * DISPATCH -- body function for use in module entry point function;
