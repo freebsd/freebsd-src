@@ -2,7 +2,7 @@
        FreeBSD 2.0.5  ---  UTGITT Version             ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Velkommen til 2.0.5 versonen av FreeBSD!  2.0.5 er    /- _  `-/  '
+Velkommen til 2.0.5 versjonen av FreeBSD!  2.0.5 er   /- _  `-/  '
 en midlertidig utgave av FreeBSD som er ment til     (/\/ \ \   /\
 å fylle gapet mellom 2.0R (som var                   / /   | `    \
 utgitt i Nov 94) og 2.1R, som kommer til             O O   ) /    |
@@ -33,11 +33,11 @@ installert kan du om-kompilere hele systemet fra grunnen opp med
 en kommando, noe som gjøer systemet ideelt for studenter,
 forskere eller folk som bare vil se hvordan det hele virker.
 
-En stor samling av programer som har blitt flyttet over av andre ("flytte
+En stor samling av program som har blitt flyttet over av andre ("flytte
 samlingen") er også tilbrakt for å gjøre det enklere for deg 
-å få tak i og installere dine yndlings UNIX hjelpe-programmer.
-Over 270 programmer har blitt flyttet over til FreeBSD, fra 
-redigerings-programmer til programmerings språk til grafiske applikasjoner,
+å få tak i og installere dine yndlings program for UNIX.
+Over 270 program har blitt flyttet over til FreeBSD, fra 
+redigerings-program til programmerings språk til grafiske applikasjoner,
 noe som gjør FreeBSD et kraftig og omfattende operativ miljø som
 er på likhet med mange store arbeidsmaskiner når det gjelder generell
 anvendelse og styrke.
@@ -49,7 +49,7 @@ USENIX Foreningen, ISBN 1-56592-082-1.  Vi har ingen forbindelse med
 O'Reilly, vi er bare tilfredstilte kunder!
 
 Det er å anbefale at du også leser MASKINVARE GUIDEN *før* 
-du fortsetter noe videre men installasjonen. Oppsett av PC 
+du fortsetter videre med installasjonen. Oppsett av PC 
 maskinvare for alt annet enn DOS/Windows ( som ikke akkurat belaster
 maskinvaren ) er faktisk en hel del vanskeligere enn det ser ut til. Dersom
 du tror at du forstår deg på PCer, så har du tydeligvis ikke 
@@ -60,26 +60,26 @@ Dokumentasjons menyen på FreeBSD oppstartings-disketten.
 
 FRALEGGELSE: Selv om FreeBSD gjør sitt beste til å beskytte mot 
 tilfeldig tap av data er det fremdeles mulig å slette ut hele disken
-i forbindelse med denne installasjonen. Vær så vennlig å ikke
+i forbindelse med denne installasjonen. Vær så vennlig ikke å
 fortsette til den siste FreeBSD installasjons menyen uten at du har 
 et sikkerhetskopi av alle viktige data først! Dette mener vi på 
 alvor!
 
-Tekniske kommentarer om denne utgaven burde sendes (på Engelsk!) til:
+Tekniske kommentarer om denne utgaven bør sendes (på Engelsk!) til:
 
         hackers@FreeBSD.org
 
 
-Programfeil rapporter burde sendes med å bruke `send-pr' kommandoen, 
+Programfeil-rapporter bør sendes med å bruke `send-pr' kommandoen, 
 dersom du var i stand til å installere systemet, ellers til:
 
         bugs@FreeBSD.org
 
-Vær sikker på å indikere HVILKEN VERSON av FreeBSD du kjører
+Vær sikker på å indikere HVILKEN VERSJON av FreeBSD du kjrøer
 i enhver programfeil rapport!
 
 
-Generelle spørsmål burde sendes til:
+Generelle spørsmål bør sendes til:
 
         questions@FreeBSD.org
 
