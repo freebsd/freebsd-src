@@ -392,6 +392,7 @@ typedef struct {
 #define DRM_IOCTL_RADEON_IRQ_WAIT   DRM_IOW( 0x57, drm_radeon_irq_wait_t)
 /* added by Charl P. Botha - see radeon_cp.c for details */
 #define DRM_IOCTL_RADEON_CP_RESUME  DRM_IO(0x58)
+#define DRM_IOCTL_RADEON_SETPARAM   DRM_IOW(0x59, drm_radeon_setparam_t)
 
 typedef struct drm_radeon_init {
 	enum {
@@ -504,7 +505,7 @@ typedef struct drm_radeon_tex_image {
 } drm_radeon_tex_image_t;
 
 typedef struct drm_radeon_texture {
-	int offset;
+	unsigned int offset;
 	int pitch;
 	int format;
 	int width;			/* Texture image coordinates */
@@ -539,6 +540,7 @@ typedef struct drm_radeon_indirect {
 #define RADEON_PARAM_STATUS_HANDLE         8
 #define RADEON_PARAM_SAREA_HANDLE          9
 #define RADEON_PARAM_GART_TEX_HANDLE       10
+#define RADEON_PARAM_SCRATCH_OFFSET        11
 
 typedef struct drm_radeon_getparam {
 	int param;
@@ -578,6 +580,18 @@ typedef struct drm_radeon_irq_emit {
 typedef struct drm_radeon_irq_wait {
 	int irq_seq;
 } drm_radeon_irq_wait_t;
+
+
+/* 1.10: Clients tell the DRM where they think the framebuffer is located in
+ * the card's address space, via a new generic ioctl to set parameters
+ */
+
+typedef struct drm_radeon_setparam {
+	unsigned int param;
+	int64_t      value;
+} drm_radeon_setparam_t;
+
+#define RADEON_SETPARAM_FB_LOCATION    1 /* determined framebuffer location */
 
 
 #endif
