@@ -1,0 +1,217 @@
+
+.TH XCHESS 1 "14 Nov 1986" "X Version 10"
+.SH NAME
+xchess \- X chess display
+.SH SYNOPSIS
+.B xchess
+[ option ... ] [ white-display ] [ black-display ]
+.SH DESCRIPTION
+.PP
+.B xchess
+is a chess display program which allows players to play a game on either
+one or two displays, or play a chess-playing program.  It uses the
+.B X
+window system.  If one or no display names are given, it will open up one
+window and both black and white at the same board.  If two displays are
+given,
+.B xchess
+will accept moves from each player in his turn.  Black's board will be drawn
+with his pieces at the bottom.
+.PP
+.B xchess
+will not allow a player to make an illegal move.  It accepts all legal moves,
+including castling and pawn capture \fIen passant\fR.
+.SH OPTIONS
+.TP 8
+.B -d
+Turn on debugging.
+.TP 8
+.B -f record-file
+Use \fBrecord-file\fR for saving the game when the \fBSave\fR button is
+selected, or if the \fB-s\fR flag is given.  The default is "xchess.game".
+.TP 8
+.B -r saved-game
+Start with the position at the end of the saved game in the named file.
+This file may be the result of the \fBSave\fR command, and may be in
+either English or International format.  When reading moves, one move
+it made per second.
+.TP 8
+.B -q
+Don't pause for a second every time a move is made when a game is being
+restored.
+.TP 8
+.B -v
+Whenever a piece is moved, outline the path with a "lightning bolt".
+This option and the \fB-n\fR option are useful if you don't want to miss
+an opponent's move when he makes it.
+.TP 8
+.B -i
+Use International format for recording moves (squares numbered 1-8, a-h)
+as opposed to English (e.g, \fIp/k4xp/q5\fR).
+.TP 8
+.B -t moves/timeunit
+Allows \fBtimeunit\fR seconds for every \fBmoves\fR moves.  If either player
+exceeds this allowance both recieve a message saying informing them of
+this fact.
+.TP 8
+.B -c
+Play the computer.
+.B xchess
+will start up a chess-playing program (currently the only one it knows
+how to talk to is \fBGNU Chess\fR).
+.TP 8
+.B -p program
+The name of the program to use if the \fB-c\fR option is given.  The
+default is "/usr/public/gnuchess".  Note that \fBgnuchess\fR must be
+compiled with the \fIcompat\fR flag (in the file "main.c") set to 1.
+.TP 8
+.B -b
+If the \fB-c\fR flag was given, have the computer play white.
+.TP 8
+.B -bnw
+If the display has more than one display plane (i.e, is color), pretend
+it's black and white.
+.TP 8
+.B -s
+Save the moves in the record file as they are made.  This is useful if
+you don't want your game to be lost when \fBxchess\fR core dumps.
+.TP 8
+.B -n
+Be noisy \- beep after every move is made.
+.TP 8
+.B -h host
+Run GNU Chess on the specified \fBhost\fR.
+.TP 8
+.B -R
+Randomly chose who plays white and who plays black, if two displays are
+given.
+.SH CONTROLS
+.PP
+The window is divided up into several sub-windows.  The pieces are moved by
+pushing down any mouse button on top of the piece, moving to the destination
+square, and releasing it.  Castling is done by moving the king to the
+right square.  If you push down on a piece and then let the button
+up without moving it, you must move that piece. ("Touch it, move it.")
+.PP
+The progress of the game is listed in the "Game Record" window.  Error
+messages and such things are printed in the "Message" window.  Both these
+windows have scroll bars that you can use to move around.
+There are also windows for clocks and for a record of the pieces captured.
+.PP
+If you type any keys in the window, the text will go into the message
+window of both players.  This provides a simple communication facility.
+.PP
+There are 9 buttons in the control window.  They are as follows:
+.TP 8
+.B Draw
+Both players must push this button to agree on a draw (just one is ok
+if only one display is being used).
+.TP 8
+.B Resign
+The player whose turn it is to move resigns.
+.TP 8
+.B Reset
+Start over from the beginning.
+.TP 8
+.B Back
+Retract a move.  If two displays are being used the other player will be
+asked to confirm this.
+.TP 8
+.B Fwd
+This will re-play the most recently retracted move.  This button in conjunction
+with \fBBack\fR is useful for "scrolling around" in a saved game.
+.TP 8
+.B Save
+Save the game in the record file.
+.TP 8
+.B Flip
+Rotate the board so that Black will have his pieces at the bottom.
+.TP 8
+.B Switch
+Change the mapping of boards to players.
+.TP 8
+.B Pause
+This button has two functions.  When a game is being restored, pieces will
+be moved once a second.  Hitting \fBPause\fR will stop this process, and
+hitting it again will restart it.  During the time that it is stopped no
+other action can be made except restarting it.  While a game is being played,
+\fBPause\fR will stop the clock and restart it.
+.SH DEFAULTS
+.PP
+\fBxchess\fR uses the following \fI.Xdefaults\fR:
+.TP 8
+.B Noisy
+The -n flag.
+.TP 8
+.B SaveMoves
+The -s flag.
+.TP 8
+.B Algebraic
+The -i flag.
+.TP 8
+.B BlackAndWhite
+The -bnw flag.
+.TP 8
+.B QuickRestore
+The -q flag.
+.TP 8
+.B Flash
+The -v flag.
+.TP 8
+.B NumFlashes
+How many times to flash the move.  The default is 5.
+.TP 8
+.B FlashWidth
+How big to make the lightning bolt.  The default is 10 pixels.
+.TP 8
+.B ProgName
+The -p option.  This may also be changed in the Makefile (-DDEF_PROG_NAME).
+.TP 8
+.B ProgHost
+The -h option.
+.TP 8
+.B RecordFile
+The -f option.
+.TP 8
+.B BlackPiece
+The color of the black pieces.
+.TP 8
+.B WhitePiece
+The color of the white pieces.
+.TP 8
+.B BorderColor
+The color of the borders.
+.TP 8
+.B BlackSquare
+The color of the black squares.
+.TP 8
+.B WhiteSquare
+The color of the white squares.
+.TP 8
+.B TextColor
+The color of routine messages and the move record text.
+.TP 8
+.B ErrorText
+The color of error messages.
+.TP 8
+.B PlayerText
+The color of player-entered text.
+.TP 8
+.B TextBack
+The background color for the two text windows.
+.TP 8
+.B CursorColor
+The color of the mouse and the text cursors.
+.SH "SEE ALSO"
+X(8), gnuchess(1), chess(5)
+.SH AUTHOR
+Wayne A. Christopher (faustus@ic.berkeley.edu)
+.SH BUGS
+.PP
+Checkmate and stalemate are not detected, so the appropriate player must resign
+or agree to a draw respectively.
+.PP
+\fBSwitch\fR doesn't work.
+.PP
+If you are playing \fBgnuchess\fR, and you select Undo a few times so that it
+is \fBgnuchess\fR's turn to move, it won't do anything.
