@@ -43,10 +43,12 @@ static char sccsid[] = "@(#)arith_lex.l	8.3 (Berkeley) 5/4/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "shell.h"
 #include "y.tab.h"
 #include "error.h"
+#include "var.h"
+#include "memalloc.h"
 
-extern int yylval;
 extern char *arith_buf, *arith_startbuf;
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max) \
@@ -56,7 +58,36 @@ extern char *arith_buf, *arith_startbuf;
 
 %%
 [ \t\n]	{ ; }
-[0-9]+	{ yylval = atol(yytext); return(ARITH_NUM); }
+
+0x[a-fA-F0-9]+	{
+		yylval.l_value = strtoarith_t(yytext, NULL, 16);
+		return(ARITH_NUM);
+		}
+
+0[0-7]+	{
+		yylval.l_value = strtoarith_t(yytext, NULL, 8);
+		return(ARITH_NUM);
+		}
+
+[0-9]+		{
+		yylval.l_value = strtoarith_t(yytext, NULL, 10);
+		return(ARITH_NUM);
+		}
+
+
+[A-Za-z][A-Za-z0-9_]*	{
+			/*
+			 * If variable doesn't exist, we should  initialize
+			 * it to zero.
+			 */
+			char *temp;
+			if (lookupvar(yytext) == NULL)
+				setvarsafe(yytext, "0", 0);
+			temp = (char *)ckmalloc(strlen(yytext) + 1);
+			yylval.s_value = strcpy(temp, yytext);
+
+			return(ARITH_VAR);
+		}
 "("	{ return(ARITH_LPAREN); }
 ")"	{ return(ARITH_RPAREN); }
 "||"	{ return(ARITH_OR); }
@@ -79,6 +110,17 @@ extern char *arith_buf, *arith_startbuf;
 "-"	{ return(ARITH_SUB); }
 "~"	{ return(ARITH_BNOT); }
 "!"	{ return(ARITH_NOT); }
+"="	{ return(ARITH_ASSIGN); }
+"+="	{ return(ARITH_ADDASSIGN); }
+"-="	{ return(ARITH_SUBASSIGN); }
+"*="	{ return(ARITH_MULASSIGN); }
+"/="	{ return(ARITH_DIVASSIGN); }
+"%="	{ return(ARITH_REMASSIGN); }
+">>="	{ return(ARITH_RSHASSIGN); }
+"<<="	{ return(ARITH_LSHASSIGN); }
+"&="	{ return(ARITH_BANDASSIGN); }
+"^="	{ return(ARITH_BXORASSIGN); }
+"|="	{ return(ARITH_BORASSIGN); }
 .	{ error("arith: syntax error: \"%s\"\n", arith_startbuf); }
 %%
 
