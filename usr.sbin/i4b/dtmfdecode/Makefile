@@ -12,7 +12,7 @@ SRC             =       dtmfdecode.c
 # libm is only necessary if USE_COS is defined in the source
 #LDADD          +=      -lm
 
-CFLAGS          +=      -Wall -g -DDEBUG
+CFLAGS          +=      -Wall -DDEBUG
 MAN1		=	dtmfdecode.1
 
 test:   ${PROG}
