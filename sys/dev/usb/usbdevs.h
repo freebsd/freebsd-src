@@ -332,6 +332,7 @@
 #define	USB_VENDOR_ENTREGA	0x1645		/* Entrega */
 #define	USB_VENDOR_ACTIONTEC	0x1668		/* Actiontec Electronics, Inc. */
 #define	USB_VENDOR_DLINK	0x2001		/* D-Link Corp */
+#define	USB_VENDOR_DAISY	0x3579		/* Daisy Technology */
 #define	USB_VENDOR_INTEL	0x8086		/* Intel */
 #define	USB_VENDOR_HP2	0xf003		/* Hewlett-Packard */
 
@@ -497,6 +498,9 @@
 #define	USB_PRODUCT_DLINK_DSB650TX	0x4002		/* 10/100 ethernet adapter */
 #define	USB_PRODUCT_DLINK_DSB650TX_PNA	0x4003		/* 1/10/100 ethernet adapter */
 #define	USB_PRODUCT_DLINK_DSB650	0xABC1		/* 10/100 ethernet adapter */
+
+/* Daisy Technology products */
+#define	USB_PRODUCT_DAISY_DMC	0x6901		/* PhotoClip Camera */
 
 /* Dallas Semiconductor products */
 #define	USB_PRODUCT_DALLAS_J6502	0x4201		/* J-6502 speakers */
