@@ -661,14 +661,13 @@ umass_cam_attach(umass_softc_t *sc)
 }
 
 /* umass_cam_detach
+ *	detach from the CAM layer
  */
+
 static void
 umass_cam_detach(umass_softc_t *sc)
 {
-	/* Detach from CAM layer
-	 * XXX do we need to delete the device first?
-	 */
-
+	xpt_async(AC_LOST_DEVICE, sc->path, NULL);
 	xpt_free_path(sc->path);
 	xpt_bus_deregister(cam_sim_path(sc->sim));
 	cam_sim_free(sc->sim, /*free_devq*/TRUE);
@@ -746,7 +745,6 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		DPRINTF(UDMASS_CAM, ("%s: XPT_PATH_INQ\n",
 			USBDEVNAME(sc->sc_dev)));
 
-		/* information copied from vpo driver. Needs to be checked */
 		cpi->version_num = 1;
 		cpi->hba_inquiry = 0;
 		cpi->target_sprt = 0;
