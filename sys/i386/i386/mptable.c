@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.18 1997/06/22 16:03:18 peter Exp $
+ *	$Id: mp_machdep.c,v 1.19 1997/06/24 06:55:30 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -1373,7 +1373,7 @@ start_all_aps(u_int boot_addr)
          *
          * get the initial mp_lock with a count of 1 for the BSP
          */
-	mp_lock = (lapic.id & APIC_ID_MASK) + 1;
+	mp_lock = 1;	/* this uses a LOGICAL cpu ID, ie BSP == 0 */
 
 	/* initialize BSP's local APIC */
 	apic_initialize(1);
