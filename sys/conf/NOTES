@@ -388,6 +388,16 @@ options 	DIAGNOSTIC
 options		REGRESSION
 
 #
+# RESTARTABLE_PANICS allows one to continue from a panic as if it were
+# a call to the debugger via the Debugger() function instead.  It is only
+# useful if a kernel debugger is present.  To restart from a panic, reset
+# the panicstr variable to NULL and continue execution.  This option is
+# for development use only and should NOT be used in production systems
+# to "workaround" a panic.
+#
+options 	RESTARTABLE_PANICS
+
+#
 # PERFMON causes the driver for Pentium/Pentium Pro performance counters
 # to be compiled.  See perfmon(4) for more information.
 #
