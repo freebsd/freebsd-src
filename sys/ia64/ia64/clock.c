@@ -180,7 +180,7 @@ cpu_initclocks()
 	 */
 	cycles_per_sec = 700000000;
 	ia64_set_itm(ia64_get_itc() + (cycles_per_sec + hz/2) / hz);
-
+	ia64_set_itv(240);	/* highest priority class */
 
 	freq = cycles_per_sec;
 	last_time = ia64_get_itc();
