@@ -458,7 +458,12 @@ expmatch (s, re, mstring)
 			/* not optional and we still matched */
 			return (NIL);
 		    }
-		    if (!isalnum(*s1) && *s1 != '_')
+		    if (!(isalnum(*s1) || *s1 == '_' ||
+			  /* C++ destructor */
+			  *s1 == '~' ||
+			  /* C++ scope operator */
+			  (strlen(s1) > 1 && *s1 == ':' && s1[1] == ':' &&
+			   (s1++, TRUE))))
 			return (NIL);
 		    if (*s1 == '\\')
 			_escaped = _escaped ? FALSE : TRUE;
