@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.18 1995/02/28 02:52:48 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.19 1995/03/16 18:12:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -1850,12 +1850,12 @@ out:
 		LEASE_CHECK(tdvp, p, p->p_ucred, LEASE_WRITE);
 		if (fromnd.ni_dvp != tdvp)
 			LEASE_CHECK(fromnd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
-		if (tvp)
+		if (tvp) {
 			LEASE_CHECK(tvp, p, p->p_ucred, LEASE_WRITE);
+			(void) vnode_pager_uncache(tvp);
+		}
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
 				   tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);
-		if (tvp && !error)
-			(void) vnode_pager_uncache(tvp);
 	} else {
 		VOP_ABORTOP(tond.ni_dvp, &tond.ni_cnd);
 		if (tdvp == tvp)
@@ -2222,8 +2222,6 @@ revoke(p, uap, retval)
 	if (p->p_ucred->cr_uid != vattr.va_uid &&
 	    (error = suser(p->p_ucred, &p->p_acflag)))
 		goto out;
-	if( vp->v_vmdata)
-		vnode_pager_uncache( vp);
 	if (vp->v_usecount > 1 || (vp->v_flag & VALIASED))
 		vgoneall(vp);
 out:
