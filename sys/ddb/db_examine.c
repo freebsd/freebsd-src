@@ -23,14 +23,16 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.23 1998/07/08 06:27:22 bde Exp $
+ *	$Id: db_examine.c,v 1.24 1998/07/08 10:53:47 bde Exp $
  */
 
 /*
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
  */
+
 #include <sys/param.h>
+#include <sys/systm.h>
 
 #include <ddb/ddb.h>
 
