@@ -64,7 +64,7 @@ in the form of a bpf filter machine program.
 .Xr bpf 4
 describes the interface used by user programs.
 This man page describes the functions used by interfaces to pass packets to
-.Nm 
+.Nm
 and the functions for testing and running
 .Nm
 filter machine programs.
@@ -104,7 +104,7 @@ requires packets from this interface to be tapped using the functions below.
 allows multiple bpf instances to be attached to a single interface,
 by registering an explicit
 .Em if_bpf
-rather than using 
+rather than using
 .Em ifp->if_bpf .
 It is then possible to run
 .Xr tcpdump 1
