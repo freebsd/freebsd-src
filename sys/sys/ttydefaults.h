@@ -45,15 +45,15 @@
  * Defaults on "first" open.
  */
 #define	TTYDEF_IFLAG	(BRKINT	| ICRNL	| IMAXBEL | IXON | IXANY)
-#define TTYDEF_OFLAG	(OPOST | ONLCR)
-#define TTYDEF_LFLAG	(ECHO | ICANON | ISIG | IEXTEN | ECHOE|ECHOKE|ECHOCTL)
+#define	TTYDEF_OFLAG	(OPOST | ONLCR)
+#define	TTYDEF_LFLAG	(ECHO | ICANON | ISIG | IEXTEN | ECHOE|ECHOKE|ECHOCTL)
 #define	TTYDEF_CFLAG	(CREAD | CS8 | HUPCL)
-#define TTYDEF_SPEED	(B9600)
+#define	TTYDEF_SPEED	(B9600)
 
 /*
  * Control Character Defaults
  */
-#define CTRL(x)	(x&037)
+#define	CTRL(x)	(x&037)
 #define	CEOF		CTRL('d')
 #define	CEOL		0xff		/* XXX avoid _POSIX_VDISABLE */
 #define	CERASE		0177
@@ -75,7 +75,7 @@
 #define	CEOT		CEOF
 /* compat */
 #define	CBRK		CEOL
-#define CRPRNT		CREPRINT
+#define	CRPRNT		CREPRINT
 #define	CFLUSH		CDISCARD
 
 /* PROTECTED INCLUSION ENDS HERE */
