@@ -11,10 +11,6 @@
 #include <unistd.h>
 #endif /* SYS_VAX */
 
-#if defined(HAVE_GETBOOTFILE)
-#include <paths.h>
-#endif
-
 #ifdef SYS_LINUX
 #include "sys/timex.h"
 
@@ -68,6 +64,10 @@ main(int argc, char ** argv)
 
 #include "ntp_io.h"
 #include "ntp_stdlib.h"
+
+#if defined(HAVE_GETBOOTFILE)
+#include <paths.h>
+#endif
 
 #ifdef RS6000
 #undef hz
@@ -445,7 +445,8 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 	struct stat stbuf;
 
 #ifdef HAVE_GETBOOTFILE
-	*kname = getbootfile();
+	/* XXX bogus cast to avoid `const' poisoning. */
+	*kname = (char *)getbootfile();
 	if (stat(*kname, &stbuf) == -1 || nlist(*kname, nl) == -1)
 		*kname = NULL;
 #else
