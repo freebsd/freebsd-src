@@ -151,16 +151,16 @@ bool	lastcmd = NO;
 jmp_buf	tstpbuf;
 
 
-void		ask __P((const char *));
-void		gfrsub __P((FILE *));
-int		linecnt __P((FILE *));
-int		main __P((int, char *[]));
-int		next __P((char *));
-char		*nxtfld __P((unsigned char *));
-void		onsusp __P((int));
-void		onintr __P((int));
-void		prmesg __P((int));
-static void	usage __P((void));
+void		ask(const char *);
+void		gfrsub(FILE *);
+int		linecnt(FILE *);
+int		main(int, char *[]);
+int		next(char *);
+char		*nxtfld(unsigned char *);
+void		onsusp(int);
+void		onintr(int);
+void		prmesg(int);
+static void	usage(void);
 
 int
 main(argc, argv)

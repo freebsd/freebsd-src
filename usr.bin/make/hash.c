@@ -60,7 +60,7 @@ __RCSID("$FreeBSD$");
  * defined:
  */
 
-static void RebuildTable __P((Hash_Table *));
+static void RebuildTable(Hash_Table *);
 
 /*
  * The following defines the ratio of # entries to # buckets

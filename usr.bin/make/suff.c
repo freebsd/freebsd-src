@@ -155,30 +155,30 @@ static Suff 	    *emptySuff;	/* The empty suffix required for POSIX
 				 * single-suffix transformation rules */
 
 
-static char *SuffStrIsPrefix __P((char *, char *));
-static char *SuffSuffIsSuffix __P((Suff *, char *));
-static int SuffSuffIsSuffixP __P((void *, void *));
-static int SuffSuffHasNameP __P((void *, void *));
-static int SuffSuffIsPrefix __P((void *, void *));
-static int SuffGNHasNameP __P((void *, void *));
-static void SuffFree __P((void *));
-static void SuffInsert __P((Lst, Suff *));
-static void SuffRemove __P((Lst, Suff *));
-static Boolean SuffParseTransform __P((char *, Suff **, Suff **));
-static int SuffRebuildGraph __P((void *, void *));
-static int SuffAddSrc __P((void *, void *));
-static int SuffRemoveSrc __P((Lst));
-static void SuffAddLevel __P((Lst, Src *));
-static Src *SuffFindThem __P((Lst, Lst));
-static Src *SuffFindCmds __P((Src *, Lst));
-static int SuffExpandChildren __P((void *, void *));
-static Boolean SuffApplyTransform __P((GNode *, GNode *, Suff *, Suff *));
-static void SuffFindDeps __P((GNode *, Lst));
-static void SuffFindArchiveDeps __P((GNode *, Lst));
-static void SuffFindNormalDeps __P((GNode *, Lst));
-static int SuffPrintName __P((void *, void *));
-static int SuffPrintSuff __P((void *, void *));
-static int SuffPrintTrans __P((void *, void *));
+static char *SuffStrIsPrefix(char *, char *);
+static char *SuffSuffIsSuffix(Suff *, char *);
+static int SuffSuffIsSuffixP(void *, void *);
+static int SuffSuffHasNameP(void *, void *);
+static int SuffSuffIsPrefix(void *, void *);
+static int SuffGNHasNameP(void *, void *);
+static void SuffFree(void *);
+static void SuffInsert(Lst, Suff *);
+static void SuffRemove(Lst, Suff *);
+static Boolean SuffParseTransform(char *, Suff **, Suff **);
+static int SuffRebuildGraph(void *, void *);
+static int SuffAddSrc(void *, void *);
+static int SuffRemoveSrc(Lst);
+static void SuffAddLevel(Lst, Src *);
+static Src *SuffFindThem(Lst, Lst);
+static Src *SuffFindCmds(Src *, Lst);
+static int SuffExpandChildren(void *, void *);
+static Boolean SuffApplyTransform(GNode *, GNode *, Suff *, Suff *);
+static void SuffFindDeps(GNode *, Lst);
+static void SuffFindArchiveDeps(GNode *, Lst);
+static void SuffFindNormalDeps(GNode *, Lst);
+static int SuffPrintName(void *, void *);
+static int SuffPrintSuff(void *, void *);
+static int SuffPrintTrans(void *, void *);
 
 	/*************** Lst Predicates ****************/
 /*-

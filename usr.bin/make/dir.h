@@ -53,19 +53,19 @@ typedef struct Path {
     Hash_Table    files;    	/* Hash table of files in directory */
 } Path;
 
-void Dir_Init __P((void));
-void Dir_End __P((void));
-Boolean Dir_HasWildcards __P((char *));
-void Dir_Expand __P((char *, Lst, Lst));
-char *Dir_FindFile __P((char *, Lst));
-int Dir_MTime __P((GNode *));
-void Dir_AddDir __P((Lst, char *));
-char *Dir_MakeFlags __P((char *, Lst));
-void Dir_ClearPath __P((Lst));
-void Dir_Concat __P((Lst, Lst));
-void Dir_PrintDirectories __P((void));
-void Dir_PrintPath __P((Lst));
-void Dir_Destroy __P((void *));
-void * Dir_CopyDir __P((void *));
+void Dir_Init(void);
+void Dir_End(void);
+Boolean Dir_HasWildcards(char *);
+void Dir_Expand(char *, Lst, Lst);
+char *Dir_FindFile(char *, Lst);
+int Dir_MTime(GNode *);
+void Dir_AddDir(Lst, char *);
+char *Dir_MakeFlags(char *, Lst);
+void Dir_ClearPath(Lst);
+void Dir_Concat(Lst, Lst);
+void Dir_PrintDirectories(void);
+void Dir_PrintPath(Lst);
+void Dir_Destroy(void *);
+void * Dir_CopyDir(void *);
 
 #endif /* _DIR */

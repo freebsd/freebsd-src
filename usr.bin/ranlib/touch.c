@@ -57,9 +57,9 @@ static const char rcsid[] =
 extern CHDR chdr;			/* converted header */
 extern char *archive;			/* archive name */
 
-extern void error __P(( char * ));
-void settime __P(( int ));
-int touch __P(( void ));
+extern void error( char * );
+void settime( int );
+int touch( void );
 
 int
 touch(void)

@@ -88,15 +88,15 @@ static const char rcsid[] =
 	} \
 }
 
-static int	 asciicode __P((void));
-static void	 escape __P((char *));
-static int	 getchr __P((void));
-static double	 getdouble __P((void));
-static int	 getint __P((int *));
-static int	 getquad __P((quad_t *));
-static const char	*getstr __P((void));
-static char	*mklong __P((char *, int));
-static void	 usage __P((void));
+static int	 asciicode(void);
+static void	 escape(char *);
+static int	 getchr(void);
+static double	 getdouble(void);
+static int	 getint(int *);
+static int	 getquad(quad_t *);
+static const char	*getstr(void);
+static char	*mklong(char *, int);
+static void	 usage(void);
 
 static char **gargv;
 

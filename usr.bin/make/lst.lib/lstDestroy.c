@@ -66,7 +66,7 @@ __RCSID("$FreeBSD$");
 void
 Lst_Destroy (l, freeProc)
     Lst	    	  	l;
-    register void	(*freeProc) __P((void *));
+    register void	(*freeProc)(void *);
 {
     register ListNode	ln;
     register ListNode	tln = NULL;

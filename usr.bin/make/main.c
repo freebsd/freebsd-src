@@ -136,10 +136,10 @@ Boolean			checkEnvFirst;	/* -e flag */
 Lst			envFirstVars;	/* (-E) vars to override from env */
 static Boolean		jobsRunning;	/* TRUE if the jobs might be running */
 
-static void		MainParseArgs __P((int, char **));
-char *			chdir_verify_path __P((char *, char *));
-static int		ReadMakefile __P((void *, void *));
-static void		usage __P((void));
+static void		MainParseArgs(int, char **);
+char *			chdir_verify_path(char *, char *);
+static int		ReadMakefile(void *, void *);
+static void		usage(void);
 
 static char *curdir;			/* startup directory */
 static char *objdir;			/* where we chdir'ed to */
@@ -874,7 +874,7 @@ main(argc, argv)
 	Lst_Destroy(targs, NOFREE);
 	Lst_Destroy(variables, NOFREE);
 	Lst_Destroy(makefiles, NOFREE);
-	Lst_Destroy(create, (void (*) __P((void *))) free);
+	Lst_Destroy(create, (void (*)(void *)) free);
 
 	/* print the graph now it's been processed if the user requested it */
 	if (DEBUG(GRAPH2))

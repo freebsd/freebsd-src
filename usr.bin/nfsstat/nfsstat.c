@@ -82,12 +82,12 @@ kvm_t *kd;
 static int deadkernel = 0;
 static int widemode = 0;
 
-void intpr __P((int, int));
-void printhdr __P((int, int));
-void sidewaysintpr __P((u_int, int, int));
-void usage __P((void));
-char *sperc1 __P((int, int));
-char *sperc2 __P((int, int));
+void intpr(int, int);
+void printhdr(int, int);
+void sidewaysintpr(u_int, int, int);
+void usage(void);
+char *sperc1(int, int);
+char *sperc2(int, int);
 
 #define DELTA(field)	(nfsstats.field - lastst.field)
 

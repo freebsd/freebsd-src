@@ -68,7 +68,7 @@ Lst_FindFrom (l, ln, d, cProc)
     Lst		      	l;
     register LstNode    ln;
     register void * d;
-    register int	(*cProc) __P((void *, void *));
+    register int	(*cProc)(void *, void *);
 {
     register ListNode	tln;
     Boolean		found = FALSE;

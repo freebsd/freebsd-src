@@ -190,12 +190,12 @@ static Hash_Table mtimes;   /* Results of doing a last-resort stat in
 			     * should be ok, but... */
 
 
-static int DirFindName __P((void *, void *));
-static int DirMatchFiles __P((char *, Path *, Lst));
-static void DirExpandCurly __P((char *, char *, Lst, Lst));
-static void DirExpandInt __P((char *, Lst, Lst));
-static int DirPrintWord __P((void *, void *));
-static int DirPrintDir __P((void *, void *));
+static int DirFindName(void *, void *);
+static int DirMatchFiles(char *, Path *, Lst);
+static void DirExpandCurly(char *, char *, Lst, Lst);
+static void DirExpandInt(char *, Lst, Lst);
+static int DirPrintWord(void *, void *);
+static int DirPrintDir(void *, void *);
 
 /*-
  *-----------------------------------------------------------------------
