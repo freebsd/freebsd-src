@@ -103,6 +103,7 @@ static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
  * module load time.
  */
 static int snooplinedisc;
+static udev_t snpbasedev = NOUDEV;
 
 
 static LIST_HEAD(, snoop) snp_sclist = LIST_HEAD_INITIALIZER(&snp_sclist);
@@ -465,7 +466,6 @@ snpclose(dev, flags, fmt, td)
 	free(snp->snp_buf, M_SNP);
 	snp->snp_flags &= ~SNOOP_OPEN;
 	dev->si_drv1 = NULL;
-	destroy_dev(dev);
 
 	return (snp_detach(snp));
 }
@@ -614,6 +614,12 @@ snp_clone(arg, name, namelen, dev)
 		return;
 	*dev = make_dev(&snp_cdevsw, unit2minor(u), UID_ROOT, GID_WHEEL, 0600,
 	    "snp%d", u);
+	if (snpbasedev == NOUDEV)
+		snpbasedev = (*dev)->si_udev;
+	else {
+		(*dev)->si_flags |= SI_CHEAPCLONE;
+		dev_depends(udev2dev(snpbasedev, 0), *dev);
+	}
 }
 
 static int
@@ -632,11 +638,11 @@ snp_modevent(mod, type, data)
 		cdevsw_add(&snp_cdevsw);
 		break;
 	case MOD_UNLOAD:
-		/* XXX: temporarily prevent unload due to bugs in unloading. */
-		return (EBUSY);
 		if (!LIST_EMPTY(&snp_sclist))
 			return (EBUSY);
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
+		if (snpbasedev != NOUDEV)
+			destroy_dev(udev2dev(snpbasedev, 0));
 		ldisc_deregister(snooplinedisc);
 		cdevsw_remove(&snp_cdevsw);
 		break;
