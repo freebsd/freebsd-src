@@ -35,19 +35,21 @@ check_list(char *home, Package *pkg)
 {
     char *where = home;
     char *there = NULL;
-    PackingList p = pkg->head;
+    char *cp, name[FILENAME_MAX], buf[33];
+    PackingList p;
 
-    while (p) {
-	if (p->type == PLIST_CWD)
+    for (p = pkg->head; p != NULL; p = p->next)
+	switch (p->type) {
+	case PLIST_CWD:
 	    where = p->name;
-	else if (p->type == PLIST_IGNORE)
+	    break;
+	case PLIST_IGNORE:
 	    p = p->next;
-	else if (p->type == PLIST_SRC) {
+	    break;
+	case PLIST_SRC:
 	    there = p->name;
-	}
-	else if (p->type == PLIST_FILE) {
-	    char *cp, name[FILENAME_MAX], buf[33];
-
+	    break;
+	case PLIST_FILE:
 	    sprintf(name, "%s/%s", there ? there : where, p->name);
 	    if ((cp = MD5File(name, buf)) != NULL) {
 		PackingList tmp = new_plist_entry();
@@ -57,11 +59,14 @@ check_list(char *home, Package *pkg)
 		tmp->next = p->next;
 		tmp->prev = p;
 		p->next = tmp;
+		if (pkg->tail == p)
+		    pkg->tail = tmp;
 		p = tmp;
 	    }
+	    break;
+	default:
+	    break;
 	}
-	p = p->next;
-    }
 }
 
 static int
