@@ -94,7 +94,7 @@ quirks:		ACPI_Q_BROKEN
 name:		Compaq_Presario_1692
 oem:		FADT "COMPAQ" "VIPER II"
 oem_rev:	FADT <= 0x06040000
-creator:	"PTL "
+creator:	FADT "PTL "
 creator_rev:	FADT <= 0xF4240
 quirks:		ACPI_Q_BROKEN
 
@@ -189,7 +189,7 @@ quirks:		ACPI_Q_BROKEN
 
 # Fujitsu Sprint
 name:		Fujitsu_Sprint
-oem:		RSDT "FUJ   " "SPRINT  "
+oem:		XSDT "FUJ   " "SPRINT  "
 quirks:		ACPI_Q_BROKEN
 
 # Fujitsu Tandem
@@ -201,7 +201,7 @@ quirks:		ACPI_Q_BROKEN
 name:		Fujitsu_Elm
 oem:		FADT "FUJ   " "M19A/XA "
 oem_rev:	FADT = 1
-creator:	"ACER"
+creator:	FADT "ACER"
 creator_rev:	FADT = 0
 quirks:		ACPI_Q_BROKEN
 
@@ -209,7 +209,7 @@ quirks:		ACPI_Q_BROKEN
 name:		Fujitsu_Maple
 oem:		FADT "FUJ   " "M9D     "
 oem_rev:	FADT = 1
-creator:	"ACER"
+creator:	FADT "ACER"
 creator_rev:	FADT = 0
 quirks:		ACPI_Q_BROKEN
 
@@ -217,7 +217,7 @@ quirks:		ACPI_Q_BROKEN
 name:		Fujitsu_Sycamore
 oem:		FADT "Fuj   " "M11EJ   "
 oem_rev:	FADT = 1
-creator:	"ACER"
+creator:	FADT "ACER"
 creator_rev:	FADT = 0
 quirks:		ACPI_Q_BROKEN
 
@@ -392,7 +392,7 @@ quirks:		ACPI_Q_BROKEN
 name:		NEC_VersaNote
 oem:		FADT "INTEL " "440BX   "
 oem_rev:	FADT = 0
-creator:	"PTL "
+creator:	FADT "PTL "
 creator_rev:	FADT = 0xf4240
 quirks:		ACPI_Q_BROKEN
 
