@@ -1,5 +1,5 @@
 ** README for file(1) Command **
-@(#) $Id: README,v 1.25 2001/07/23 21:30:22 christos Exp $
+@(#) $Id: README,v 1.26 2002/05/16 18:45:56 christos Exp $
 
 This is Release 3.x of Ian Darwin's (copyright but distributable)
 file(1) command. This version is the standard "file" command for Linux,
@@ -8,7 +8,7 @@ file(1) command. This version is the standard "file" command for Linux,
 UNIX is a trademark of UNIX System Laboratories.
 
 The prime contributor to Release 3.8 was Guy Harris, who put in megachanges
-including byte-order independance.
+including byte-order independence.
 
 The prime contributor to Release 3.0 was Christos Zoulas, who put
 in hundreds of lines of source code changes, including his own
@@ -43,7 +43,7 @@ Makefile - read this next, adapt it as needed (particularly
 	the man page layouts), type "make" to compile, 
 	"make try" to try it out against your old version.
 	Expect some diffs, particularly since your original
-	file(1) may not grok the imbedded-space ("\ ") in
+	file(1) may not grok the embedded-space ("\ ") in
 	the current magic file, or may even not use the
 	magic file.
 apprentice.c - parses /etc/magic to learn magic
@@ -61,9 +61,8 @@ magdir - directory of /etc/magic pieces
 	magdir/Makefile - ADJUST THIS FOR YOUR CONFIGURATION
 names.h - header file for ascmagic.c
 softmagic.c - 2nd set of tests, based on /etc/magic
-readelf.[ch] - Standalone elf parsing code.
+readelf.[ch] - Stand-alone elf parsing code.
 compress.c - on-the-fly decompression.
-internat.c - recognize international `text' files.
 print.c - print results, errors, warnings.
 
 If your gzip sometimes fails to decompress things complaining about a short

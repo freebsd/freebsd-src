@@ -25,7 +25,12 @@
 >512    belong&077777777	0600407	\b, boot block present
 0x1FE	leshort	0xAA55			x86 boot sector
 >2	string	OSBS			\b, OS/BS MBR
+# J\xf6rg Jenderek <joerg@pcialias.localnet>
 >0x8C	string	Invalid\ partition\ table	\b, MS-DOS MBR
+>0x9D	string	Invalid\ partition\ table	\b, DR-DOS MBR, version 7.01 to 7.03
+>0x10F	string	Ung\201ltige\ Partitionstabelle	\b, MS-DOS MBR, german version 4.10.1998, 4.10.2222
+>0x8B	string	Ung\201ltige\ Partitionstabelle	\b, MS-DOS MBR, german version 5.00 to 4.00.950
+>0x145	string	Default:\ F			\b, FREE-DOS MBR
 >0	string	\0\0\0\0		\b, extended partition table
 >0	leshort 0x3CEB			\b, system
 >>3	string	>\0			%s
@@ -41,8 +46,17 @@
 >>>>32	lelong		x		%d sectors
 >0x200	lelong	0x82564557		\b, BSD disklabel
 
+# Solaris 7 FAT12 floppies J\xf6rg Jenderek <joerg@pcialias.localnet>
+>0	leshort 0x7AEB			\b, system
+>>3	string	>\0			%s
+>>0x36	string	FAT			\b, %s
+>>>0x39	string	12			(%s bit)
+
 # Minix filesystems - Juan Cespedes <cespedes@debian.org>
 0x410	leshort		0x137f		Minix filesystem
+0x410	beshort		0x137f		Minix filesystem (big endian),
+>0x402	beshort		!0		\b, %d zones
+>0x1e	string		minix		\b, bootable
 0x410	leshort		0x138f		Minix filesystem, 30 char names
 0x410	leshort		0x2468		Minix filesystem, version 2
 0x410	leshort		0x2478		Minix filesystem, version 2, 30 char names
@@ -116,3 +130,72 @@
 >0x68	beshort		x		inosz=3D%d,
 >0x64	beshort		^0x2004		v1 dirs)
 >0x64	beshort		&0x2004		v2 dirs)
+
+############################################################################
+# Minix-ST kernel floppy
+0x800	belong		0x46fc2700	Atari-ST Minix kernel image
+>19	string		\240\5\371\5\0\011\0\2\0	\b, 720k floppy
+>19	string		\320\2\370\5\0\011\0\1\0	\b, 360k floppy
+
+############################################################################
+# Hmmm, is this a better way of detecting _standard_ floppy images ?
+19	string		\320\2\360\3\0\011\0\1\0	DOS floppy 360k
+>0x1FE	leshort		0xAA55		\b, x86 hard disk boot sector
+19	string		\240\5\371\3\0\011\0\2\0	DOS floppy 720k
+>0x1FE	leshort		0xAA55		\b, x86 hard disk boot sector
+19	string		\100\013\360\011\0\022\0\2\0	DOS floppy 1440k
+>0x1FE	leshort		0xAA55		\b, x86 hard disk boot sector
+
+19	string		\240\5\371\5\0\011\0\2\0	DOS floppy 720k, IBM
+>0x1FE	leshort		0xAA55		\b, x86 hard disk boot sector
+19	string		\100\013\371\5\0\011\0\2\0	DOS floppy 1440k, mkdosfs
+>0x1FE	leshort		0xAA55		\b, x86 hard disk boot sector
+
+19	string		\320\2\370\5\0\011\0\1\0	Atari-ST floppy 360k
+19	string		\240\5\371\5\0\011\0\2\0	Atari-ST floppy 720k
+
+#  Valid media descriptor bytes for MS-DOS:
+#
+#     Byte   Capacity   Media Size and Type
+#     -------------------------------------------------
+#
+#     F0     2.88 MB    3.5-inch, 2-sided, 36-sector
+#     F0     1.44 MB    3.5-inch, 2-sided, 18-sector
+#     F9     720K       3.5-inch, 2-sided, 9-sector
+#     F9     1.2 MB     5.25-inch, 2-sided, 15-sector
+#     FD     360K       5.25-inch, 2-sided, 9-sector
+#     FF     320K       5.25-inch, 2-sided, 8-sector
+#     FC     180K       5.25-inch, 1-sided, 9-sector
+#     FE     160K       5.25-inch, 1-sided, 8-sector
+#     FE     250K       8-inch, 1-sided, single-density
+#     FD     500K       8-inch, 2-sided, single-density
+#     FE     1.2 MB     8-inch, 2-sided, double-density
+#     F8     -----      Fixed disk 
+#
+#     FC     xxxK       Apricot 70x1x9 boot disk.
+#
+# Originally a bitmap:
+#  xxxxxxx0	Not two sided
+#  xxxxxxx1	Double sided
+#  xxxxxx0x	Not 8 SPT
+#  xxxxxx1x	8 SPT
+#  xxxxx0xx	Not Removable drive
+#  xxxxx1xx	Removable drive
+#  11111xxx	Must be one.
+#
+# But now it's rather random:
+#  111111xx	Low density disk
+#        00	SS, Not 8 SPT
+#        01	DS, Not 8 SPT
+#        10	SS, 8 SPT
+#        11	DS, 8 SPT
+#
+#  11111001	Double density 3½ floppy disk, high density 5¼
+#  11110000	High density 3½ floppy disk
+#  11111000	Hard disk any format
+#
+
+# CDROM Filesystems
+32769    string    CD001     ISO 9660 CD-ROM filesystem data
+37633    string    CD001     ISO 9660 CD-ROM filesystem data (raw 2352 byte sectors)
+32776    string    CDROM     High Sierra CD-ROM filesystem data

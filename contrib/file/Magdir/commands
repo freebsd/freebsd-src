@@ -27,16 +27,6 @@
 0	string/b	#!\ /usr/bin/awk	awk script text executable
 0	string		BEGIN			awk script text
 
-# For Larry Wall's perl language.  The ``eval'' line recognizes an
-# outrageously clever hack for USG systems.
-#				Keith Waclena <keith@cerberus.uchicago.edu>
-0	string/b	#!\ /bin/perl			perl script text executable
-0	string		eval\ "exec\ /bin/perl		perl script text
-0	string/b	#!\ /usr/bin/perl		perl script text executable
-0	string		eval\ "exec\ /usr/bin/perl	perl script text
-0	string/b	#!\ /usr/local/bin/perl		perl script text
-0	string		eval\ "exec\ /usr/local/bin/perl	perl script text executable
-
 # AT&T Bell Labs' Plan 9 shell
 0	string/b	#!\ /bin/rc	Plan 9 rc shell script text executable
 
@@ -60,3 +50,13 @@
 >2	string		>\0			%s script text executable
 0	string		#!\ 			script text executable
 >3	string		>\0			for %s
+
+# PHP scripts
+# Ulf Harnhammar <ulfh@update.uu.se>
+0	string/c	=<?php			PHP script text
+0	string		=<?\n			PHP script text
+0	string		=<?\r			PHP script text
+0	string/b	#!\ /usr/local/bin/php	PHP script text executable
+0	string/b	#!\ /usr/bin/php	PHP script text executable
+
+0	string		Zend\x00		PHP script Zend Optimizer data
