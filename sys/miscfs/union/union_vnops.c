@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.20 1997/03/23 03:37:00 bde Exp $
+ * $Id: union_vnops.c,v 1.21 1997/04/13 06:29:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -612,7 +612,7 @@ union_access(ap)
 		ap->a_vp = vp;
 		error = VCALL(vp, VOFFSET(vop_access), ap);
 		if (error == 0) {
-			struct union_mount *um = MOUNTTOUNIONMOUNT(vp->v_mount);
+			struct union_mount *um = MOUNTTOUNIONMOUNT(ap->a_vp->v_mount);
 
 			if (um->um_op == UNMNT_BELOW) {
 				ap->a_cred = um->um_cred;
