@@ -14,10 +14,10 @@
 .\" Jordan K. Hubbard
 .\"
 .\"
-.\"     @(#)pkg_delete.8
+.\"     @(#)pkg_delete.1
 .\"
 .Dd November 25, 1994
-.Dt pkg_delete 8
+.Dt pkg_delete 1
 .Os FreeBSD 2.0
 .Sh NAME
 .Nm pkg_delete
@@ -32,7 +32,7 @@ The
 .Nm
 command is used to delete packages that have been previously installed
 with the
-.Xr pkg_add 8
+.Xr pkg_add 1
 command.
 
 .Sh WARNING
@@ -83,7 +83,7 @@ Sets
 as the directory in which to delete files from any installed packages
 which do not explicitly set theirs.  For most packages, the prefix will
 be set automatically to the installed location by
-.Xr pkg_add 8 .
+.Xr pkg_add 1 .
 .Em "Optional."
 .It Fl d
 Remove empty directories created by file cleanup.  By default, only
@@ -118,7 +118,7 @@ option is given).
 If the package contains a
 .Ar require
 file (see 
-.Xr pkg_create 8 ),
+.Xr pkg_create 1 ),
 then this is executed first as
 .Bd -filled -offset indent -compact
 .Cm require
@@ -168,11 +168,11 @@ option when running
 or
 .Cm pkg_add .
 .Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
 .Xr pkg_info 1 ,
 .Xr mktemp 3 ,
-.Xr mtree 8 ,
-.Xr pkg_add 8 ,
-.Xr pkg_create 8 .
+.Xr mtree 8 .
 .Sh AUTHORS
 .Bl -tag -width indent -compact
 .It "Jordan Hubbard"

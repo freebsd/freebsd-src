@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.27 1995/05/10 22:33:55 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.27.4.1 1995/10/14 19:11:22 jkh Exp $";
 #endif
 
 /*
@@ -25,8 +25,10 @@ static const char *rcsid = "$Id: perform.c,v 1.27 1995/05/10 22:33:55 jkh Exp $"
 #include "lib.h"
 #include "create.h"
 
+#include <errno.h>
 #include <signal.h>
 #include <sys/syslimits.h>
+#include <unistd.h>
 
 static void sanity_check(void);
 static void make_dist(char *, char *, char *, Package *);
@@ -177,21 +179,17 @@ pkg_perform(char **pkgs)
     return TRUE;	/* Success */
 }
 
-/*
- * There doesn't seem to be a sysconf() datum for telling you how *many*
- * arguments you can have, only how long the maximum list can be.
- * Shamelessly guess at what seems to be a conservative value.
- */
-#define MAX_NUM_ARGS	16384
-
 static void
 make_dist(char *home, char *pkg, char *suffix, Package *plist)
 {
     char tball[FILENAME_MAX];
     PackingList p;
     int ret, max, len;
-    char *args[MAX_NUM_ARGS];
+    char *args[50];	/* Much more than enough. */
     int nargs = 0;
+    int pipefds[2];
+    FILE *totar;
+    pid_t pid;
 
     args[nargs++] = "tar";	/* argv[0] */
 
@@ -211,44 +209,57 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 	args[nargs++] = "-X";
 	args[nargs++] = ExcludeFrom;
     }
+    args[nargs++] = "-T";	/* Take filenames from file instead of args. */
+    args[nargs++] = "-";	/* Use stdin for the file. */
+    args[nargs] = NULL;
 
     if (Verbose)
 	printf("Creating gzip'd tar ball in '%s'\n", tball);
 
-    args[nargs++] = CONTENTS_FNAME;
-    args[nargs++] = COMMENT_FNAME;
-    args[nargs++] = DESC_FNAME;
+    /* Set up a pipe for passing the filenames, and fork off a tar process. */
+    if (pipe(pipefds) == -1)
+	barf("Cannot create pipe: %s", strerror(errno));
+    if ((pid = fork()) == -1)
+	barf("Cannot fork process for tar: %s", strerror(errno));
+    if (pid == 0) {	/* The child */
+	dup2(pipefds[0], 0);
+	close(pipefds[0]);
+	close(pipefds[1]);
+	execv("/usr/bin/tar", args);
+	barf("Failed to execute tar command: %s", strerror(errno));
+    }
+
+    /* Meanwhile, back in the parent process ... */
+    close(pipefds[0]);
+    if ((totar = fdopen(pipefds[1], "w")) == NULL)
+	barf("fdopen failed: %s", strerror(errno));
+
+    fprintf(totar, "%s\n", CONTENTS_FNAME);
+    fprintf(totar, "%s\n", COMMENT_FNAME);
+    fprintf(totar, "%s\n", DESC_FNAME);
 
     if (Install)
-	args[nargs++] = INSTALL_FNAME;
+	fprintf(totar, "%s\n", INSTALL_FNAME);
     if (DeInstall)
-	args[nargs++] = DEINSTALL_FNAME;
+	fprintf(totar, "%s\n", DEINSTALL_FNAME);
     if (Require)
-	args[nargs++] = REQUIRE_FNAME;
+	fprintf(totar, "%s\n", REQUIRE_FNAME);
     if (Display)
-	args[nargs++] = DISPLAY_FNAME;
+	fprintf(totar, "%s\n", DISPLAY_FNAME);
     if (Mtree)
-	args[nargs++] = MTREE_FNAME;
+	fprintf(totar, "%s\n", MTREE_FNAME);
 
     for (p = plist->head; p; p = p->next) {
-	if (nargs == (MAX_NUM_ARGS - 1))
-	    barf("More than %d arguments given in plist! :-(", MAX_NUM_ARGS);
 	if (p->type == PLIST_FILE)
-	    args[nargs++] = p->name;
-	else if (p->type == PLIST_CWD || p->type == PLIST_SRC) {
-	    args[nargs++] = "-C";
-	    args[nargs++] = p->name;
-	}
+	    fprintf(totar, "%s\n", p->name);
+	else if (p->type == PLIST_CWD || p->type == PLIST_SRC)
+	    fprintf(totar, "-C\n%s\n", p->name);
 	else if (p->type == PLIST_IGNORE)
 	     p = p->next;
     }
-    args[nargs] = NULL;
-    if (fork() == 0) {
-	execv("/usr/bin/tar", args);
-	barf("Failed to execute tar command!");
-    }
-    else
-	wait(&ret);
+
+    fclose(totar);
+    wait(&ret);
     /* assume either signal or bad exit is enough for us */
     if (ret)
 	barf("tar command failed with code %d", ret);

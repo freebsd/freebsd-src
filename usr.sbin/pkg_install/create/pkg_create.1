@@ -14,8 +14,8 @@
 .\" Jordan K. Hubbard
 .\"
 .\"
-.\"     @(#)pkg_create.8
-.\"	$Id: pkg_create.1,v 1.13 1995/04/09 15:05:01 jkh Exp $	
+.\"     @(#)pkg_create.1
+.\"	$Id: pkg_create.1,v 1.14 1995/04/22 00:03:12 jkh Exp $	
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -24,7 +24,7 @@
 .\" better integration with FreeBSD's new ports collection.
 .\"
 .Dd April 21, 1995
-.Dt pkg_create 8
+.Dt pkg_create 1
 .Os FreeBSD 2.0
 .Sh NAME
 .Nm pkg_create
@@ -353,10 +353,10 @@ package is deinstalled.  Multiple
 directives may be used if hte package depends on multiple other packages.
 .El
 .Sh SEE ALSO
-.Xr pkg_add 8 ,
+.Xr pkg_add 1 ,
+.Xr pkg_delete 1 ,
 .Xr pkg_info 1 ,
-.Xr sysconf 3 ,
-.Xr pkg_delete 8 .
+.Xr sysconf 3 .
 .Sh HISTORY
 The
 .Nm
@@ -376,6 +376,6 @@ extracted.  They additionally must not end up being split between
 .Cm tar
 invocations due to exec argument-space limitations (this depends on the
 value returned by
-.Xr sysconf _SC_ARG_MAX ).
+.Fn sysconf _SC_ARG_MAX ) .
 .Pp
 Sure to be others.
