@@ -28,7 +28,7 @@
  *
  *	from: @(#)rpc.h 1.9 88/02/08 SMI 
  *	from: @(#)rpc.h	2.4 89/07/11 4.0 RPCSRC
- *	$Id: rpc.h,v 1.1 1993/10/27 05:40:45 paul Exp $
+ *	$Id: rpc.h,v 1.2 1994/08/07 18:40:58 wollman Exp $
  */
 
 /*
@@ -59,7 +59,9 @@
  *  Uncomment-out the next line if you are building the rpc library with    
  *  DES Authentication (see the README file in the secure_rpc/ directory).
  */
-/*#include <rpc/auth_des.h>	/* protocol for des style cred */
+#if 0
+#include <rpc/auth_des.h>	/* protocol for des style cred */
+#endif
 
 /* Server side only remote procedure callee */
 #include <rpc/svc.h>		/* service manager and multiplexer */
