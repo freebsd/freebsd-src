@@ -56,8 +56,15 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 
+#include "opt_compat.h"
+
+#if !COMPAT_LINUX32
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+#else
+#include <machine/../linux32/linux.h>
+#include <machine/../linux32/linux32_proto.h>
+#endif
 
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
@@ -2081,7 +2088,11 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 static int
 linux_ifconf(struct thread *td, struct ifconf *uifc)
 {
+#if COMPAT_LINUX32
+	struct l_ifconf ifc;
+#else
 	struct ifconf ifc;
+#endif
 	struct l_ifreq ifr;
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -2094,7 +2105,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 		return (error);
 
 	/* handle the 'request buffer size' case */
-	if (ifc.ifc_buf == NULL) {
+	if (ifc.ifc_buf == PTROUT(NULL)) {
 		ifc.ifc_len = 0;
 		TAILQ_FOREACH(ifp, &ifnet, if_link) {
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -2108,7 +2119,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	}
 
 	/* much easier to use uiomove than keep track ourselves */
-	iov.iov_base = ifc.ifc_buf;
+	iov.iov_base = PTRIN(ifc.ifc_buf);
 	iov.iov_len = ifc.ifc_len;
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;

@@ -39,7 +39,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
+#include "opt_compat.h"
+
+#if !COMPAT_LINUX32
 #include <machine/../linux/linux.h>
+#else
+#include <machine/../linux32/linux.h>
+#endif
 #include <compat/linux/linux_mib.h>
 
 struct linux_prison {
