@@ -1093,7 +1093,7 @@ device		amr		# AMI MegaRAID
 #
 # The 'ATA' driver supports all ATA and ATAPI devices.
 # It can reuse the majors of wd.c for booting purposes.
-# You only need one "device ata0" for it to find all
+# You only need one "device ata" for it to find all
 # PCI ATA/ATAPI devices on modern machines.
 device		ata
 device		atadisk		# ATA disk drives
@@ -1573,7 +1573,7 @@ device		xrpu
 #
 # MCA devices:
 #
-# The MCA bus device is mca0.  It provides auto-detection and
+# The MCA bus device is `mca'.  It provides auto-detection and
 # configuration support for all devices on the MCA bus.
 #
 # The 'aha' device provides support for the Adaptec 1640
@@ -1588,7 +1588,7 @@ device		mca
 #
 # EISA devices:
 #
-# The EISA bus device is eisa0.  It provides auto-detection and
+# The EISA bus device is `eisa'.  It provides auto-detection and
 # configuration support for all devices on the EISA bus.
 #
 # The `ahb' device provides support for the Adaptec 174X adapter.
