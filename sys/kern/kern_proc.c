@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.16 1996/03/11 06:03:25 hsu Exp $
+ * $Id: kern_proc.c,v 1.17 1996/04/07 16:16:05 bde Exp $
  */
 
 #include <sys/param.h>
@@ -427,12 +427,18 @@ fill_eproc(p, ep)
 	if (p->p_pptr)
 		ep->e_ppid = p->p_pptr->p_pid;
 	if (p->p_pgrp) {
-		ep->e_sess = p->p_pgrp->pg_session;
 		ep->e_pgid = p->p_pgrp->pg_id;
 		ep->e_jobc = p->p_pgrp->pg_jobc;
+		ep->e_sess = p->p_pgrp->pg_session;
+
+		if (ep->e_sess) {
+			bcopy(ep->e_sess->s_login, ep->e_login, sizeof(ep->e_login));
+			if (ep->e_sess->s_ttyvp)
+				ep->e_flag = EPROC_CTTY;
+			if (p->p_session && SESS_LEADER(p))
+				ep->e_flag |= EPROC_SLEADER;
+		}
 	}
-	if (ep->e_sess)
-		bcopy(ep->e_sess->s_login, ep->e_login, sizeof(ep->e_login));
 	if ((p->p_flag & P_CONTROLT) &&
 	    (ep->e_sess != NULL) &&
 	    ((tp = ep->e_sess->s_ttyp) != NULL)) {
@@ -441,10 +447,6 @@ fill_eproc(p, ep)
 		ep->e_tsess = tp->t_session;
 	} else
 		ep->e_tdev = NODEV;
-	if (ep->e_sess && ep->e_sess->s_ttyvp)
-		ep->e_flag = EPROC_CTTY;
-	if (SESS_LEADER(p))
-		ep->e_flag |= EPROC_SLEADER;
 	if (p->p_wmesg) {
 		strncpy(ep->e_wmesg, p->p_wmesg, WMESGLEN);
 		ep->e_wmesg[WMESGLEN] = 0;
