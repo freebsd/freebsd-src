@@ -197,7 +197,8 @@ END(_setjmp)
 //  for a second time to the 'SetJump'.
 //
 
-ENTRY(_longjmp, 2)
+	WEAK_ALIAS(_longjmp,___longjmp)
+ENTRY(___longjmp, 2)
     //
     //  Make sure buffer is aligned at 16byte boundary
     //
@@ -346,4 +347,4 @@ ENTRY(_longjmp, 2)
 
     br.ret.sptk b0
 
-END(_longjmp)
+END(___longjmp)
