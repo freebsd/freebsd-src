@@ -40,7 +40,7 @@
  * parent over the pipe. Notice that a pipe is a one-way communications
  * device.  I can write to the output socket (sockets[1], the second socket
  * of the array returned by pipe()) and read from the input socket
- * (sockets[0]), but not vice versa. 
+ * (sockets[0]), but not vice versa.
  */
 
 main()

@@ -42,7 +42,7 @@
 /*
  * Here I send a datagram to a receiver whose name I get from the command
  * line arguments.  The form of the command line is dgramsend hostname
- * portnumber 
+ * portnumber
  */
 
 main(argc, argv)
@@ -63,7 +63,7 @@ main(argc, argv)
 	 * Construct name, with no wildcards, of the socket to send to.
 	 * Getnostbyname() returns a structure including the network address
 	 * of the specified host.  The port number is taken from the command
-	 * line. 
+	 * line.
 	 */
 	hp = gethostbyname(argv[1]);
 	if (hp == 0) {

@@ -41,7 +41,7 @@
 
 /*
  * This program uses select() to check that someone is trying to connect
- * before calling accept(). 
+ * before calling accept().
  */
 
 main()

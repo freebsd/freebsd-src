@@ -9,9 +9,9 @@
 /*
  * Remote verson of "printmessage"
  */
-int *		
+int *
 printmessage_1(msg)
-	char **msg;	
+	char **msg;
 {
 	static int result; /* must be static! */
 	FILE *f;
