@@ -15,6 +15,7 @@ crypto/des/des_enc.c		optional	crypto
 dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 dev/ofw/openfirmio.c		standard
+dev/ofw/openpromio.c		standard
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 geom/geom_bsd.c			standard
