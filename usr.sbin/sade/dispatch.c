@@ -61,7 +61,9 @@ static struct _word {
     { "configUsers",		configUsers		},
     { "configXSetup",		configXSetup	},
     { "configXDesktop",		configXDesktop	},
+#ifdef WITH_SLICES
     { "diskPartitionEditor",	diskPartitionEditor	},
+#endif
     { "diskPartitionWrite",	diskPartitionWrite	},
     { "diskLabelEditor",	diskLabelEditor		},
     { "diskLabelCommit",	diskLabelCommit		},
