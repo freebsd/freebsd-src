@@ -117,7 +117,12 @@
 #define PMDV_PCMCIA1		0x0601
 #define PMDV_PCMCIA2		0x0602
 #define PMDV_PCMCIA3		0x0603
-/* 0x0700 - 0xdfff	Reserved			*/
+/* 0x0700 - 0x7fff	Reserved			*/
+#define PMDV_BATT_BASE		0x8000
+#define PMDV_BATT0		0x8001
+#define PMDV_BATT1		0x8002
+#define PMDV_BATT_ALL		0x80ff
+/* 0x8100 - 0xdfff	Reserved			*/
 /* 0xe000 - 0xefff	OEM-defined power device IDs	*/
 /* 0xf000 - 0xffff	Reserved			*/
 
@@ -219,6 +224,23 @@ typedef struct apm_info {
 	u_int	ai_spare[6];	/* For future expansion */
 } *apm_info_t;
 
+/* Battery flag */
+#define APM_BATT_HIGH		0x01
+#define APM_BATT_LOW		0x02
+#define APM_BATT_CRITICAL	0x04
+#define APM_BATT_CHARGING	0x08
+#define APM_BATT_NOT_PRESENT	0x10
+#define APM_BATT_NO_SYSTEM	0x80
+
+typedef struct apm_pwstatus {
+	u_int	ap_device;	/* Device code of battery */
+	u_int	ap_acline;	/* AC line status (0) */
+	u_int	ap_batt_stat;	/* Battery status (0) */
+	u_int	ap_batt_flag;	/* Battery flag (0) */
+	u_int	ap_batt_life;	/* Remaining battery life in percent (0) */
+	int	ap_batt_time;	/* Remaining battery time in seconds (0) */
+} *apm_pwstatus_t;
+
 struct apm_bios_arg {
         u_long eax;
         u_long ebx;
@@ -244,6 +266,7 @@ struct apm_event_info {
 #define APMIO_BIOS		_IOWR('P', 10, struct apm_bios_arg)
 #define APMIO_GETINFO		_IOR('P', 11, struct apm_info)
 #define APMIO_STANDBY		_IO('P', 12)
+#define APMIO_GETPWSTATUS	_IOWR('P', 13, struct apm_pwstatus)
 /* for /dev/apmctl */
 #define APMIO_NEXTEVENT		_IOR('A', 100, struct apm_event_info)
 #define APMIO_REJECTLASTREQ	_IO('P', 101)
