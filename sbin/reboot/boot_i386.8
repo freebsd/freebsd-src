@@ -36,7 +36,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.7 1997/02/22 14:33:07 peter Exp $
+.\" $Id: boot_i386.8,v 1.4.2.1 1997/03/03 07:01:38 mpp Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -56,30 +56,47 @@ Most 386
 .Tn "PC AT"
 clones attempt to boot the floppy disk drive 0 (otherwise known as
 drive A:) first, and failing that, attempt to boot the hard disk
-controller 1, drive 0 (otherwise known as drive C:, or drive 0x80 in
-the BIOS).  The automatic boot will attempt to load
+drive 0 (otherwise known as drive C:,
+or (confusingly) hard disk drive 1, or drive 0x80 in the BIOS).
+Some BIOSes let you change this default sequence or may include a CD-ROM
+drive as a boot device.
+After the boot blocks have been loaded,
+you should see a prompt similar to the following:
+.Bd -literal
+>> FreeBSD BOOT @ 0x10000: 640/7168 k of memory, internal console
+Boot default: 0:wd(0,a)kernel
+
+boot:
+.Ed
+.Pp
+(You may see some tips printed on the screen too.)
+.Pp
+The automatic boot will attempt to load
 .Pa /kernel
 from partition
 .Ql a
 of either the floppy or the hard disk.
 This boot may be aborted by typing any character on the keyboard
 at the
-.Ql Boot:
+.Ql boot:
 prompt.  At this time, the following input will be accepted:
-.Bl -tag -offset indent -width 10x
+.Bl -tag -width 10x
 .It \&?
 Give a short listing of the files in the root directory of the default
 boot device, as a hint about available boot files.
-.It Op ctrlr(unit,part) Op /filename Op Fl abcCdhrsv
+.It Op bios_drive:interface(unit,part) Op filename Op Fl aCcDdghPrsv
 Specify boot file and flags.
-.Bl -tag -offset indent -width 10x -compact
-.It ctrlr
-The controller to boot from.  Note that the controller is required
+.Bl -tag -width 10x -compact
+.It bios_drive
+The drive number as recognized by the BIOS. 
+0 for the first drive, 1 for the second drive, etc.
+.It interface
+The type of controller to boot from.  Note that the controller is required
 to have BIOS support since the BIOS services are used to load the
 boot file image.
 .Pp
-Common controller names are:
-.Bl -tag -offset indent -width "wdXX" -compact
+The supported interfaces are:
+.Bl -tag -width "wdXX" -compact
 .It wd
 ST506, IDE, ESDI, RLL disks on a WD100[2367] or lookalike
 controller
@@ -87,17 +104,12 @@ controller
 5 1/4" or 3 1/2" High density floppies
 .It sd
 SCSI disk on any supported SCSI controller
-.It cd
-boot from CDROM
-.It hd
-Pseudo-controller, must be used to specify that unit number
-1 (known to the BIOS as drive 0x81) is on a different controller
-than unit number 0.  This can happen for the wd vs. sd case.
+.\".It cd
+.\"boot from CDROM
 .El
 .It unit
-The unit number of the drive on the controller being used.  Either 0
-or 1 for the wd and fd and most sd controllers, between 0 and 6 for
-some newer sd controllers.
+The unit number of the drive on the interface being used.
+0 for the first drive, 1 for the second drive, etc.
 .It part
 The partition letter inside the BSD portion of the disk.  See
 .Xr disklabel 8  .
@@ -106,55 +118,107 @@ By convention, only partition
 contains a bootable image.  If sliced disks are used
 .Pq Dq fdisk partitions ,
 only the first BSD slice can be used to boot from.  The partition
-letter does always refer to this slice then.
-.It /filename
-The pathname of the file to boot; must be inside the root directory
-of the specified partition.  Defaults to
-.Pa /kernel .
+letter always refers to the first slice.
+.It filename
+The pathname of the file to boot (relative to the root directory
+on the specified partition).  Defaults to
+.Pa kernel .
 Symbolic links are not supported (hard links are).
-.It Fl abcCdhrsv
+.It Fl acCdDghPrsv
 Boot flags:
-.Bl -tag -offset indent -width "-CXX" -compact
+.Bl -tag -width "-CXX" -compact
 .It Fl a
-ask for the device to install as root file system during kernel
-initialization
-.It Fl b
-do not automatically reboot after shutdown or crash
+during kernel initialization,
+ask for the device to mount as as the root file system.
+.It Fl C
+boot from CDROM.
 .It Fl c
 run UserConfig to modify hardware parameters for the loaded
-kernel
-.It Fl C
-boot from CDROM
+kernel.
+.It Fl D
+toggle single and dual console configurations.  In the single
+configuration the console will be either the internal display
+or the serial port, depending on the state of the 
+.Fl h
+option below.  In the dual console configuration, 
+both the internal display and the serial port will become the console 
+at the same time, regardless of the state of the 
+.Fl h
+option.  However, the dual console configuration takes effect only during
+the boot prompt.  Once the kernel is loaded, the console specified 
+by the
+.Fl h
+option becomes the only console.
 .It Fl d
 enter the DDB kernel debugger
 .Pq see Xr ddb 4
-before configuring any device (except the system's console)
+as early as possible in kernel inititialization.
+.It Fl g
+use the GDB remote debugging protocol.
 .It Fl h
-toggle serial/graphics console
+toggle internal and serial consoles.  You can use this to switch 
+console devices.  For instance, if you boot from the internal console, 
+you can use the
+.Fl h
+option to force the kernel to use the serial port as its 
+console device.  Alternatively, if you boot from the serial port, 
+you can use this option to force the kernel to use the internal display 
+as the console instead.
+.It Fl P
+probe the keyboard.  If no keyboard is found, the
+.Fl D
+and
+.Fl h
+options are automatically set.
 .It Fl r
-do not establish the root directory of the file system
-hierarchy on the device where the boot file is being loaded
-from
+use the statically configured default for the device containing the
+root file system
+.Pq see Xr config 8 .
+Normally, the root file system is on the device
+that the kernel was loaded from.
 .It Fl s
 boot into single-user mode; if the console is marked as
 .Dq insecure
 .Pq see Xr ttys 5 ,
 the root password must be entered
 .It Fl v
-be verbose during device probing
+be verbose during device probing (and later).
 .El
 .El
 .El
+.Pp
+You may put a BIOS drive number, a controller type, a unit number,
+a partition, a kernel file name and the 
+.Fl D,
+.Fl h
+or
+.Fl P
+options in 
+.Pa /boot.config
+to set defaults.  Write them in one line just as you type at the
+.Ql boot:
+prompt.
 .Sh FILES
-.Bl -tag -width /kernelxx -compact
+.Bl -tag -width /kernel.old.config -compact
+.It Pa /boot.config
+parameters for the boot loader (optional)
+.It Pa /boot.help
+help messages
 .It Pa /kernel
-system code
+default kernel
+.It Pa /kernel.config
+parameters for default kernel (optional)
+.It Pa /kernel.old
+typical non-default kernel (optional)
+.It Pa /kernel.old.config
+parameters for non-default kernel (optional)
 .\" .It Pa /boot
 .\" system bootstrap
 .El
 .Sh SEE ALSO
 .Xr ddb 4 ,
 .Xr ttys 5 ,
+.Xr config 8 ,
 .Xr disklabel 8 ,
 .Xr halt 8 ,
 .Xr reboot 8 ,
