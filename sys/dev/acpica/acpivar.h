@@ -139,62 +139,9 @@ struct acpi_device {
 #define ACPI_IVAR_MAGIC		0x101
 #define ACPI_IVAR_PRIVATE	0x102
 
-static __inline ACPI_HANDLE
-acpi_get_handle(device_t dev)
-{
-    uintptr_t up;
-
-    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, &up))
-	return (NULL);
-    return ((ACPI_HANDLE)up);
-}
-
-static __inline int
-acpi_set_handle(device_t dev, ACPI_HANDLE h)
-{
-    uintptr_t up;
-
-    up = (uintptr_t)h;
-    return (BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, up));
-}
-
-static __inline int
-acpi_get_magic(device_t dev)
-{
-    uintptr_t up;
-
-    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, &up))
-	return(0);
-    return ((int)up);
-}
-
-static __inline int
-acpi_set_magic(device_t dev, int m)
-{
-    uintptr_t up;
-
-    up = (uintptr_t)m;
-    return (BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, up));
-}
-
-static __inline void *
-acpi_get_private(device_t dev)
-{
-    uintptr_t up;
-
-    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, &up))
-	return (NULL);
-    return ((void *)up);
-}
-
-static __inline int
-acpi_set_private(device_t dev, void *p)
-{
-    uintptr_t up;
-
-    up = (uintptr_t)p;
-    return (BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, up));
-}
+__BUS_ACCESSOR(acpi, handle, ACPI, HANDLE, ACPI_HANDLE);
+__BUS_ACCESSOR(acpi, magic, ACPI, MAGIC, int);
+__BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *);
 
 static __inline ACPI_OBJECT_TYPE
 acpi_get_type(device_t dev)
