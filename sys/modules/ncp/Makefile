@@ -19,11 +19,7 @@ CFLAGS+= -DNCPBURST
 .endif
 
 NOMAN=
-CLEANFILES= opt_ncp.h opt_inet.h opt_ipx.h
 CFLAGS+= -DNCP
-
-opt_ncp.h:
-	touch ${.TARGET}
 
 opt_inet.h:
 	touch ${.TARGET}

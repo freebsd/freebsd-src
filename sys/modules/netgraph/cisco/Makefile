@@ -12,8 +12,6 @@ IFACE_IPX?=		0	# 0/1 - requires IPX configured in kernel
 
 CFLAGS+=	${PROTOS}
 
-CLEANFILES+=	opt_inet.h opt_atalk.h opt_ipx.h
-
 opt_inet.h:
 	touch opt_inet.h
 .if ${IFACE_INET} > 0
