@@ -547,6 +547,7 @@ pseudo-device	loop			#Network loopback device
 pseudo-device	bpf			#Berkeley packet filter
 pseudo-device	disc			#Discard device (ds0, ds1, etc)
 pseudo-device	tun			#Tunnel driver (ppp(8), nos-tun(8))
+pseudo-device	tap			#Ethernet tunnel driver (tap(4))
 pseudo-device	sl	2		#Serial Line IP
 pseudo-device	gre			#IP over IP tunneling
 pseudo-device	ppp	2		#Point-to-point protocol
