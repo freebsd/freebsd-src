@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.18 1996/07/10 19:44:20 julian Exp $
+ * $Id: in.h,v 1.19 1996/08/12 14:05:53 peter Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -220,6 +220,13 @@ struct ip_opts {
 #define IP_RSVP_VIF_OFF		18   /* unset RSVP per-vif socket */
 #define IP_PORTRANGE		19   /* int; range to choose for unspec port */
 
+#define IP_FW_ADD     		50   /* add a firewall rule to chain */
+#define IP_FW_DEL    		51   /* delete a firewall rule from chain */
+#define IP_FW_FLUSH   		52   /* flush firewall rule chain */
+#define IP_FW_ZERO    		53   /* clear all firewall counters */
+#define IP_FW_GET     		54   /* get entire firewall rule chain */
+#define IP_NAT			55   /* set/get NAT opts */
+
 /*
  * Defaults and limits for options
  */
@@ -322,10 +329,19 @@ char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
 
 /* Firewall hooks */
 struct ip;
-typedef  int ip_fw_chk_t __P((struct ip**, int, struct ifnet*, int, struct mbuf**));
-typedef  int ip_fw_ctl_t __P((int, struct mbuf**));
-extern ip_fw_chk_t *ip_fw_chk_ptr;
-extern ip_fw_ctl_t *ip_fw_ctl_ptr;
+typedef	int ip_fw_chk_t __P((struct ip**, int, struct ifnet*, int, struct mbuf**));
+typedef	int ip_fw_ctl_t __P((int, struct mbuf**));
+extern	ip_fw_chk_t *ip_fw_chk_ptr;
+extern	ip_fw_ctl_t *ip_fw_ctl_ptr;
+
+/* ip NAT hooks */
+typedef	int ip_nat_t __P((struct ip**, struct mbuf**, int));
+typedef	int ip_nat_ctl_t __P((int, struct mbuf**));
+extern	ip_nat_t *ip_nat_ptr;
+extern	ip_nat_ctl_t *ip_nat_ctl_ptr;
+#define	IP_NAT_IN	0x00000001
+#define	IP_NAT_OUT	0x00000002
+
 #endif /* KERNEL */
 
 #endif

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.44 1996/06/12 19:34:33 gpalmer Exp $
+ * $Id: ip_input.c,v 1.45 1996/07/10 19:44:25 julian Exp $
  */
 
 #include "opt_ipfw.h"
@@ -114,6 +114,10 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 ip_fw_chk_t *ip_fw_chk_ptr;
 ip_fw_ctl_t *ip_fw_ctl_ptr;
 
+/* IP Network Address Translation (NAT) hooks */ 
+ip_nat_t *ip_nat_ptr;
+ip_nat_ctl_t *ip_nat_ctl_ptr;
+
 /*
  * We need to save the IP options in case a protocol wants to respond
  * to an incoming packet over the same route if the packet got here
@@ -175,6 +179,10 @@ ip_init()
 #ifdef IPFIREWALL
 	ip_fw_init();
 #endif
+#ifdef IPNAT
+        ip_nat_init(); 
+#endif
+
 }
 
 static struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
@@ -265,6 +273,7 @@ ip_input(struct mbuf *m)
 	 * and it is still fresh out of network we do our black
 	 * deals with it.
 	 * - Firewall: deny/allow/divert
+	 * - Xlate: translate packet's addr/port (NAT).
 	 * - Wrap: fake packet's addr/port <unimpl.>
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
@@ -289,6 +298,9 @@ ip_input(struct mbuf *m)
 #endif
 		}
 	}
+
+        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, IP_NAT_IN))
+		return;
 
 	/*
 	 * Process options and, if not destined for us,

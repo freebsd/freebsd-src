@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.21 1996/07/10 19:44:24 julian Exp $
+ *	$Id: ip_fw.h,v 1.22 1996/08/13 19:43:41 pst Exp $
  */
 
 /*
@@ -112,17 +112,6 @@ struct ip_fw_chain {
 #define IP_FW_TCPF_ACK		TH_ACK
 #define IP_FW_TCPF_URG		TH_URG
 #define IP_FW_TCPF_ESTAB	0x40
-
-/*
- * New IP firewall options for [gs]etsockopt at the RAW IP level.
- */
-#define IP_FW_BASE_CTL	50
-
-#define IP_FW_ADD     (IP_FW_BASE_CTL+0)
-#define IP_FW_DEL     (IP_FW_BASE_CTL+1)
-#define IP_FW_FLUSH   (IP_FW_BASE_CTL+2)
-#define IP_FW_ZERO    (IP_FW_BASE_CTL+3)
-#define IP_FW_GET     (IP_FW_BASE_CTL+4)
 
 /*
  * Main firewall chains definitions and global var's definitions.
