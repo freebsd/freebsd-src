@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.22 1996/07/30 05:51:14 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.23 1996/07/30 09:35:54 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -158,7 +158,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.22 1996/07/30 05:51:14 asami Exp $
+ # $Id: porting.sgml,v 1.23 1996/07/30 09:35:54 asami Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -175,7 +175,8 @@ The pattern is the year followed by the month.
       <p>See if you can figure it out.  Do not worry about the contents
 	of the <tt>&dollar;Id&dollar;</tt> line, it will be filled in
 	automatically by CVS when the port is imported to our main
-	ports tree.
+	ports tree.  You can find a more detalied example in the <ref
+	id="porting:samplem" name="sample Makefile"> section.
 
       <sect3>
 	<heading>Writing the description files</heading>
@@ -474,9 +475,14 @@ ftp://freefall.FreeBSD.ORG/pub/FreeBSD/LOCAL_PORTS/
       <heading>Configuring the Makefile</heading>
 
       <p>Configuring the Makefile is pretty simple, and again we
-	suggest that you look at existing examples before
-	starting.  Consider the following problems in sequence as
-	you design your new Makefile:
+	suggest that you look at existing examples before starting.
+	Also, there is a <ref id="porting:samplem" name="sample
+	Makefile"> in this handbook, so take a look and please follow
+	the ordering of variables and sections in that template to
+	make your port easier for others to read.
+
+      <p>Now, consider the following problems in sequence as you
+	design your new Makefile:
 
       <sect3>
 	<heading>The original source</heading>
@@ -1020,27 +1026,28 @@ lib/libtcl.so.7.3
 	  beat your head against a wall! <tt>:)</tt>
 
     <sect2>
-      <heading>A Sample Makefile</heading>
+      <heading>A Sample Makefile<label id="porting:samplem"></heading>
       <p>Here is a sample Makefile that you can use to create a new
 	port.  Make sure you remove all the extra comments (ones
 	between brackets)!
 
       <p>It is recommended that you follow this format (ordering of
-	variables, etc.).  Not all of the existing Makefiles are in
-	this format (mostly old ones), but we are trying to uniformize
-	how they look.  This format is designed so that the most
-	important information is easy to locate.
+	variables, empty lines between sections, etc.).  Not all of
+	the existing Makefiles are in this format (mostly old ones),
+	but we are trying to uniformize how they look.  This format is
+	designed so that the most important information is easy to
+	locate.
 
 <tscreen><verb>
  [the header...just to make it easier for us to identify the ports]
  # New ports collection makefile for:	xdvi
- # Version required:	2.2 [things like "1.5alpha" are fine here too]
+ # Version required:	pl18 [things like "1.5alpha" are fine here too]
  # Date created:		26 May 1995
  [this is the person who did the original port to FreeBSD, in particular, the
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.22 1996/07/30 05:51:14 asami Exp $
+ # $Id: porting.sgml,v 1.23 1996/07/30 09:35:54 asami Exp $
  [ ^^^^ do not worry about this...it will be automatically filled in by CVS 
   when it is committed to our repository]
  #
