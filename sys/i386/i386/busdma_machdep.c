@@ -464,9 +464,22 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	/* Reserve Necessary Bounce Pages */
 	if (map->pagesneeded != 0) {
 		mtx_lock(&bounce_lock);
-		if (reserve_bounce_pages(dmat, map, 0) != 0) {
-			mtx_unlock(&bounce_lock);
-			return (ENOMEM);
+		if (flags & BUS_DMA_NOWAIT) {
+			if (reserve_bounce_pages(dmat, map, 0) != 0) {
+				mtx_unlock(&bounce_lock);
+				return (ENOMEM);
+			}
+		} else {
+			if (reserve_bounce_pages(dmat, map, 1) != 0) {
+				/* Queue us for resources */
+				map->dmat = dmat;
+				map->buf = buf;
+				map->buflen = buflen;
+				STAILQ_INSERT_TAIL(&bounce_map_waitinglist,
+								map, links);
+				mtx_unlock(&bounce_lock);
+				return (EINPROGRESS);
+			}
 		}
 		mtx_unlock(&bounce_lock);
 	}
@@ -556,8 +569,17 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
         bus_addr_t		lastaddr = 0;
 	int			error, nsegs = 0;
 
+	if (map != NULL) {
+		flags |= BUS_DMA_WAITOK;
+		map->callback = callback;
+		map->callback_arg = callback_arg;
+	}
+
 	error = _bus_dmamap_load_buffer(dmat, map, dm_segments, buf, buflen,
 	    NULL, flags, &lastaddr, &nsegs, 1);
+
+	if (error == EINPROGRESS)
+		return error;
 
 	if (error)
 		(*callback)(callback_arg, dm_segments, 0, error);
@@ -587,6 +609,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 	KASSERT(m0->m_flags & M_PKTHDR,
 		("bus_dmamap_load_mbuf: no packet header"));
 
+	flags |= BUS_DMA_NOWAIT;
 	nsegs = 0;
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
@@ -638,6 +661,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 	struct iovec *iov;
 	struct thread *td = NULL;
 
+	flags |= BUS_DMA_NOWAIT;
 	resid = uio->uio_resid;
 	iov = uio->uio_iov;
 
