@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)find.c	8.5 (Berkeley) 8/5/94";
 #else
 #endif
 #endif /* not lint */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -51,8 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <fts.h>
 #include <regex.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "find.h"
 
@@ -65,8 +66,7 @@ static int find_compare(const FTSENT * const *s1, const FTSENT * const *s2);
  *	order within each directory.
  */
 static int
-find_compare(s1, s2)
-	const FTSENT * const *s1, * const *s2;
+find_compare(const FTSENT * const *s1, const FTSENT * const *s2)
 {
 
 	return (strcoll((*s1)->fts_name, (*s2)->fts_name));
@@ -78,8 +78,7 @@ find_compare(s1, s2)
  *	command arguments.
  */
 PLAN *
-find_formplan(argv)
-	char **argv;
+find_formplan(char *argv[])
 {
 	PLAN *plan, *tail, *new;
 
@@ -176,9 +175,7 @@ FTS *tree;			/* pointer to top of FTS hierarchy */
  *	over all FTSENT's returned for the given search paths.
  */
 int
-find_execute(plan, paths)
-	PLAN *plan;		/* search plan */
-	char **paths;		/* array of pathnames to traverse */
+find_execute(PLAN *plan, char *paths[])
 {
 	FTSENT *entry;
 	PLAN *p;

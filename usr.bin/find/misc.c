@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)misc.c	8.2 (Berkeley) 4/1/94";
 #else
 #endif
 #endif /* not lint */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -60,9 +61,7 @@ __FBSDID("$FreeBSD$");
  *	Replace occurrences of {} in s1 with s2 and return the result string.
  */
 void
-brace_subst(orig, store, path, len)
-	char *orig, **store, *path;
-	int len;
+brace_subst(char *orig, char **store, char *path, int len)
 {
 	int plen;
 	char ch, *p;
@@ -87,8 +86,7 @@ brace_subst(orig, store, path, len)
  *	input. If the input is 'y' then 1 is returned.
  */
 int
-queryuser(argv)
-	char **argv;
+queryuser(char *argv[])
 {
 	int ch, first, nl;
 
