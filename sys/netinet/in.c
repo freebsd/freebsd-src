@@ -542,8 +542,10 @@ in_addmulti(ap, ifp)
 	 * If ifma->ifma_protospec is null, then if_addmulti() created
 	 * a new record.  Otherwise, we are done.
 	 */
-	if (ifma->ifma_protospec != 0)
+	if (ifma->ifma_protospec != 0) {
+		splx(s);
 		return ifma->ifma_protospec;
+	}
 
 	/* XXX - if_addmulti uses M_WAITOK.  Can this really be called
 	   at interrupt time?  If so, need to fix if_addmulti. XXX */
