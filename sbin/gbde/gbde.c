@@ -491,7 +491,9 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 			p = getenv("EDITOR");
 			if (p == NULL)
 				p = "vi";
-			sprintf(cbuf, "%s %s\n", p, q);
+			if (snprintf(cbuf, sizeof(cbuf), "%s %s\n", p, q) >=
+			    (ssize_t)sizeof(cbuf))
+				errx(1, "EDITOR is too long");
 			system(cbuf);
 		}
 		i = open(q, O_RDONLY);
@@ -749,8 +751,11 @@ main(int argc, char **argv)
 	if (doopen) {
 		dfd = open(dest, O_RDWR | O_CREAT, 0644);
 		if (dfd < 0) {
-			sprintf(buf, "%s%s", _PATH_DEV, dest);
-			dfd = open(buf, O_RDWR | O_CREAT, 0644);
+			if (snprintf(buf, sizeof(buf), "%s%s",
+			    _PATH_DEV, dest) >= (ssize_t)sizeof(buf))
+				errno = ENAMETOOLONG;
+			else
+				dfd = open(buf, O_RDWR | O_CREAT, 0644);
 		}
 		if (dfd < 0)
 			err(1, "%s", dest);
