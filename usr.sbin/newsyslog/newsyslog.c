@@ -125,6 +125,7 @@ static void parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 		struct conf_entry **glob_p, struct conf_entry **defconf_p);
 static char *sob(char *p);
 static char *son(char *p);
+static int isnumberstr(const char *);
 static char *missing_field(char *p, char *errline);
 static void do_entry(struct conf_entry * ent);
 static void expand_globs(struct conf_entry **work_p,
@@ -895,7 +896,7 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 		    (group = strrchr(q, '.')) != NULL) {
 			*group++ = '\0';
 			if (*q) {
-				if (!(isnumber(*q))) {
+				if (!(isnumberstr(q))) {
 					if ((pwd = getpwnam(q)) == NULL)
 						errx(1,
 				     "error in config file; unknown user:\n%s",
@@ -908,7 +909,7 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 
 			q = group;
 			if (*q) {
-				if (!(isnumber(*q))) {
+				if (!(isnumberstr(q))) {
 					if ((grp = getgrnam(q)) == NULL)
 						errx(1,
 				    "error in config file; unknown group:\n%s",
@@ -1534,6 +1535,17 @@ son(char *p)
 	while (p && *p && !isspace(*p))
 		p++;
 	return (p);
+}
+
+/* Check if string is actually a number */
+static int
+isnumberstr(const char *string)
+{
+	while (*string) {
+		if (!isdigitch(*string++))
+			return (0);
+	}
+	return (1);
 }
 
 /*
