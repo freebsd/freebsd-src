@@ -567,12 +567,11 @@ struct proc {
 	struct vnode	*p_tracevp;	/* (c + o) Trace to vnode. */
 	struct ucred	*p_tracecred;	/* (o) Credentials to trace with. */
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
-	sigset_t	p_siglist;	/* (c) Sigs held for the process */
+	sigset_t	p_siglist;	/* (c) Sigs not delivered to a td. */
 	char		p_lock;		/* (c) Proclock (prevent swap) count. */
 	struct klist	p_klist;	/* (c) Knotes attached to this proc. */
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
 	int		p_sigparent;	/* (c) Signal to parent on exit. */
-	sigset_t 	p_oldsigmask;	/* (c) Saved mask from pre-sigpause. */
 	int		p_sig;		/* (n) For core dump/debugger XXX. */
 	u_long		p_code;		/* (n) For core dump/debugger XXX. */
 	u_int		p_stops;	/* (c) Stop event bitmask. */
@@ -584,11 +583,10 @@ struct proc {
 	struct thread	*p_singlethread;/* (j) If single threading this is it */
 	int		p_suspcount;	/* (j) # threads in suspended mode */
 /* End area that is zeroed on creation. */
-#define	p_endzero	p_sigmask
+#define	p_endzero	p_sigstk
 
 /* The following fields are all copied upon creation in fork. */
 #define	p_startcopy	p_endzero
-	sigset_t 	p_sigmask; 	/* (c) Current signal mask. */
 	stack_t		p_sigstk;	/* (c) Stack ptr and on-stack flag. */
 	u_int		p_magic;	/* (b) Magic number. */
 	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
@@ -636,7 +634,7 @@ struct proc {
 #define	P_WAITED	0x01000	/* Someone is waiting for us */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
-#define	P_THREADED	0x08000	/* Process is using M:N threads. */
+#define	P_THREADED	0x08000	/* Process is using threads. */
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
 #define	P_PROTECTED	0x20000	/* Do not kill on memory overcommit. */
 
@@ -656,9 +654,8 @@ struct proc {
 #define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */
-#define	P_OLDMASK	0x2000000 /* Need to restore mask after suspend. */
-#define	P_ALTSTACK	0x4000000 /* Have alternate signal stack. */
-#define	P_INEXEC	0x8000000 /* Process is in execve(). */
+#define	P_ALTSTACK	0x2000000 /* Have alternate signal stack. */
+#define	P_INEXEC	0x4000000 /* Process is in execve(). */
 
 /* These flags are kept in p_sflag and are protected with sched_lock. */
 #define	PS_INMEM	0x00001	/* Loaded into memory. */
@@ -669,7 +666,6 @@ struct proc {
 #define	PS_PROFPEND	0x00040	/* Pending SIGPROF needs to be posted. */
 #define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */
 #define	PS_SWAPPING	0x00200	/* Process is being swapped. */
-#define	PS_NEEDSIGCHK	0x02000	/* Process may need signal delivery. */
 #define	PS_SWAPPINGIN	0x04000	/* Swapin in progress. */
 #define	PS_MACPEND	0x08000	/* Ast()-based MAC event pending. */
 
