@@ -1760,8 +1760,12 @@ tdsignal(struct thread *td, int sig)
 			mtx_lock_spin(&sched_lock);
 			FOREACH_THREAD_IN_PROC(p, td0) {
 				if (TD_IS_SLEEPING(td0) &&
-					(td0->td_flags & TDF_SINTR))
+				    (td0->td_flags & TDF_SINTR) &&
+				    !TD_IS_SUSPENDED(td0)) {
 					thread_suspend_one(td0);
+				} else if (td != td0) {
+					td0->td_flags |= TDF_ASTPENDING;
+				}
 			}
 			thread_stopped(p);
 			if (p->p_numthreads == p->p_suspcount) {
@@ -1898,7 +1902,8 @@ issignal(td)
 	struct proc *p;
 	struct sigacts *ps;
 	sigset_t sigpending;
-	register int sig, prop;
+	int sig, prop;
+	struct thread *td0;
 
 	p = td->td_proc;
 	ps = p->p_sigacts;
@@ -2019,6 +2024,15 @@ issignal(td)
 				p->p_flag |= P_STOPPED_SIG;
 				p->p_xstat = sig;
 				mtx_lock_spin(&sched_lock);
+				FOREACH_THREAD_IN_PROC(p, td0) {
+					if (TD_IS_SLEEPING(td0) &&
+					    (td0->td_flags & TDF_SINTR) &&
+					    !TD_IS_SUSPENDED(td0)) {
+						thread_suspend_one(td0);
+					} else if (td != td0) {
+						td0->td_flags |= TDF_ASTPENDING;
+					}
+				}
 				thread_stopped(p);
 				thread_suspend_one(td);
 				PROC_UNLOCK(p);
