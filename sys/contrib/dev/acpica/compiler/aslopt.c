@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: aslopt- Compiler optimizations
- *              $Revision: 13 $
+ *              $Revision: 16 $
  *
  *****************************************************************************/
 
@@ -211,8 +211,11 @@ OptSearchToRoot (
     *NewPath = ACPI_MEM_CALLOCATE (ACPI_NAME_SIZE + 1);
     ACPI_STRCPY (*NewPath, Path);
 
-    AslError (ASL_OPTIMIZATION, ASL_MSG_SINGLE_NAME_OPTIMIZATION, Op,
-            *NewPath);
+    if (ACPI_STRNCMP (*NewPath, "_T_", 3))
+    {
+        AslError (ASL_OPTIMIZATION, ASL_MSG_SINGLE_NAME_OPTIMIZATION, Op,
+                *NewPath);
+    }
 
     return (AE_OK);
 }
@@ -354,6 +357,15 @@ OptBuildShortestPath (
          * of the current path.  We must include one more NameSeg of the target path
          */
         Index -= ACPI_PATH_SEGMENT_LENGTH;
+
+        /* Special handling for Scope() operator */
+
+        if (Op->Asl.AmlOpcode == AML_SCOPE_OP)
+        {
+            NewPathExternal[i] = '^';
+            i++;
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, "(EXTRA ^)"));
+        }
     }
 
     ACPI_STRCPY (&NewPathExternal[i], &((char *) TargetPath->Pointer)[Index]);
@@ -581,7 +593,7 @@ OptOptimizeNamePath (
 
     /* Various required items */
 
-    if (!TargetNode || !WalkState || !Op->Common.Parent)
+    if (!TargetNode || !WalkState || !AmlNameString || !Op->Common.Parent)
     {
         return_VOID;
     }

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresop - AML Interpreter operand/object resolution
- *              $Revision: 67 $
+ *              $Revision: 70 $
  *
  *****************************************************************************/
 
@@ -240,7 +240,7 @@ AcpiExResolveOperands (
         return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode %X [%s] OperandTypes=%X \n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode %X [%s] RequiredOperandTypes=%8.8X \n",
         Opcode, OpInfo->Name, ArgTypes));
 
     /*
@@ -314,12 +314,13 @@ AcpiExResolveOperands (
                 case AML_LOAD_OP:   /* DdbHandle from LOAD_OP or LOAD_TABLE_OP */
 
                     ACPI_DEBUG_ONLY_MEMBERS (ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-                        "Reference Opcode: %s\n", OpInfo->Name)));
+                        "Operand is a Reference, RefOpcode [%s]\n",
+                        (AcpiPsGetOpcodeInfo (ObjDesc->Reference.Opcode))->Name)));
                     break;
 
                 default:
                     ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                        "Unknown Reference Opcode %X [%s]\n",
+                        "Operand is a Reference, Unknown Reference Opcode %X [%s]\n",
                         ObjDesc->Reference.Opcode,
                         (AcpiPsGetOpcodeInfo (ObjDesc->Reference.Opcode))->Name));
 
@@ -493,7 +494,7 @@ AcpiExResolveOperands (
              * But we can implicitly convert from a STRING or BUFFER
              * Aka - "Implicit Source Operand Conversion"
              */
-            Status = AcpiExConvertToInteger (ObjDesc, StackPtr, WalkState);
+            Status = AcpiExConvertToInteger (ObjDesc, StackPtr, 16);
             if (ACPI_FAILURE (Status))
             {
                 if (Status == AE_TYPE)
@@ -517,7 +518,7 @@ AcpiExResolveOperands (
              * But we can implicitly convert from a STRING or INTEGER
              * Aka - "Implicit Source Operand Conversion"
              */
-            Status = AcpiExConvertToBuffer (ObjDesc, StackPtr, WalkState);
+            Status = AcpiExConvertToBuffer (ObjDesc, StackPtr);
             if (ACPI_FAILURE (Status))
             {
                 if (Status == AE_TYPE)
@@ -541,7 +542,8 @@ AcpiExResolveOperands (
              * But we can implicitly convert from a BUFFER or INTEGER
              * Aka - "Implicit Source Operand Conversion"
              */
-            Status = AcpiExConvertToString (ObjDesc, StackPtr, 16, ACPI_UINT32_MAX, WalkState);
+            Status = AcpiExConvertToString (ObjDesc, StackPtr,
+                        ACPI_IMPLICIT_CONVERT_HEX);
             if (ACPI_FAILURE (Status))
             {
                 if (Status == AE_TYPE)
@@ -597,7 +599,7 @@ AcpiExResolveOperands (
 
                 /* Highest priority conversion is to type Buffer */
 
-                Status = AcpiExConvertToBuffer (ObjDesc, StackPtr, WalkState);
+                Status = AcpiExConvertToBuffer (ObjDesc, StackPtr);
                 if (ACPI_FAILURE (Status))
                 {
                     return_ACPI_STATUS (Status);

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsxface - Public interfaces to the resource manager
- *              $Revision: 30 $
+ *              $Revision: 31 $
  *
  ******************************************************************************/
 
@@ -342,7 +342,7 @@ AcpiWalkResources (
     /* Setup pointers */
 
     Resource  = (ACPI_RESOURCE *) Buffer.Pointer;
-    BufferEnd = ACPI_CAST_PTR (ACPI_RESOURCE, 
+    BufferEnd = ACPI_CAST_PTR (ACPI_RESOURCE,
                     ((UINT8 *) Buffer.Pointer + Buffer.Length));
 
     /* Walk the resource list */

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 118 $
+ *              $Revision: 126 $
  *
  *****************************************************************************/
 
@@ -228,8 +228,9 @@ AcpiExGetObjectReference (
  *
  * FUNCTION:    AcpiExConcatTemplate
  *
- * PARAMETERS:  *ObjDesc            - Object to be converted.  Must be an
- *                                    Integer, Buffer, or String
+ * PARAMETERS:  Operand0            - First source object
+ *              Operand1            - Second source object
+ *              ActualReturnDesc    - Where to place the return object
  *              WalkState           - Current walk state
  *
  * RETURN:      Status
@@ -240,8 +241,8 @@ AcpiExGetObjectReference (
 
 ACPI_STATUS
 AcpiExConcatTemplate (
-    ACPI_OPERAND_OBJECT     *ObjDesc1,
-    ACPI_OPERAND_OBJECT     *ObjDesc2,
+    ACPI_OPERAND_OBJECT     *Operand0,
+    ACPI_OPERAND_OBJECT     *Operand1,
     ACPI_OPERAND_OBJECT     **ActualReturnDesc,
     ACPI_WALK_STATE         *WalkState)
 {
@@ -258,8 +259,8 @@ AcpiExConcatTemplate (
 
     /* Find the EndTags in each resource template */
 
-    EndTag1 = AcpiUtGetResourceEndTag (ObjDesc1);
-    EndTag2 = AcpiUtGetResourceEndTag (ObjDesc2);
+    EndTag1 = AcpiUtGetResourceEndTag (Operand0);
+    EndTag2 = AcpiUtGetResourceEndTag (Operand1);
     if (!EndTag1 || !EndTag2)
     {
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
@@ -267,8 +268,8 @@ AcpiExConcatTemplate (
 
     /* Compute the length of each part */
 
-    Length1 = ACPI_PTR_DIFF (EndTag1, ObjDesc1->Buffer.Pointer);
-    Length2 = ACPI_PTR_DIFF (EndTag2, ObjDesc2->Buffer.Pointer) +
+    Length1 = ACPI_PTR_DIFF (EndTag1, Operand0->Buffer.Pointer);
+    Length2 = ACPI_PTR_DIFF (EndTag2, Operand1->Buffer.Pointer) +
                              2; /* Size of END_TAG */
 
     /* Create a new buffer object for the result */
@@ -282,8 +283,8 @@ AcpiExConcatTemplate (
     /* Copy the templates to the new descriptor */
 
     NewBuf = ReturnDesc->Buffer.Pointer;
-    ACPI_MEMCPY (NewBuf, ObjDesc1->Buffer.Pointer, Length1);
-    ACPI_MEMCPY (NewBuf + Length1, ObjDesc2->Buffer.Pointer, Length2);
+    ACPI_MEMCPY (NewBuf, Operand0->Buffer.Pointer, Length1);
+    ACPI_MEMCPY (NewBuf + Length1, Operand1->Buffer.Pointer, Length2);
 
     /* Compute the new checksum */
 
@@ -302,8 +303,8 @@ AcpiExConcatTemplate (
  *
  * FUNCTION:    AcpiExDoConcatenate
  *
- * PARAMETERS:  ObjDesc1            - First source object
- *              ObjDesc2            - Second source object
+ * PARAMETERS:  Operand0            - First source object
+ *              Operand1            - Second source object
  *              ActualReturnDesc    - Where to place the return object
  *              WalkState           - Current walk state
  *
@@ -315,20 +316,59 @@ AcpiExConcatTemplate (
 
 ACPI_STATUS
 AcpiExDoConcatenate (
-    ACPI_OPERAND_OBJECT     *ObjDesc1,
-    ACPI_OPERAND_OBJECT     *ObjDesc2,
+    ACPI_OPERAND_OBJECT     *Operand0,
+    ACPI_OPERAND_OBJECT     *Operand1,
     ACPI_OPERAND_OBJECT     **ActualReturnDesc,
     ACPI_WALK_STATE         *WalkState)
 {
-    ACPI_STATUS             Status;
-    UINT32                  i;
-    ACPI_INTEGER            ThisInteger;
+    ACPI_OPERAND_OBJECT     *LocalOperand1 = Operand1;
     ACPI_OPERAND_OBJECT     *ReturnDesc;
     char                    *NewBuf;
+    ACPI_STATUS             Status;
+    ACPI_SIZE               NewLength;
 
 
-    ACPI_FUNCTION_ENTRY ();
+    ACPI_FUNCTION_TRACE ("ExDoConcatenate");
 
+
+    /*
+     * Convert the second operand if necessary.  The first operand
+     * determines the type of the second operand, (See the Data Types
+     * section of the ACPI specification.)  Both object types are
+     * guaranteed to be either Integer/String/Buffer by the operand
+     * resolution mechanism.
+     */
+    switch (ACPI_GET_OBJECT_TYPE (Operand0))
+    {
+    case ACPI_TYPE_INTEGER:
+        Status = AcpiExConvertToInteger (Operand1, &LocalOperand1, 16);
+        break;
+
+    case ACPI_TYPE_STRING:
+        Status = AcpiExConvertToString (Operand1, &LocalOperand1,
+                    ACPI_IMPLICIT_CONVERT_HEX);
+        break;
+
+    case ACPI_TYPE_BUFFER:
+        Status = AcpiExConvertToBuffer (Operand1, &LocalOperand1);
+        break;
+
+    default:
+        ACPI_REPORT_ERROR (("Concat - invalid obj type: %X\n",
+                ACPI_GET_OBJECT_TYPE (Operand0)));
+        Status = AE_AML_INTERNAL;
+    }
+
+    if (ACPI_FAILURE (Status))
+    {
+        goto Cleanup;
+    }
+
+    /*
+     * Both operands are now known to be the same object type
+     * (Both are Integer, String, or Buffer), and we can now perform the
+     * concatenation.
+     */
 
     /*
      * There are three cases to handle:
@@ -337,120 +377,108 @@ AcpiExDoConcatenate (
      * 2) Two Strings concatenated to produce a new String
      * 3) Two Buffers concatenated to produce a new Buffer
      */
-    switch (ACPI_GET_OBJECT_TYPE (ObjDesc1))
+    switch (ACPI_GET_OBJECT_TYPE (Operand0))
     {
     case ACPI_TYPE_INTEGER:
 
         /* Result of two Integers is a Buffer */
         /* Need enough buffer space for two integers */
 
-        ReturnDesc = AcpiUtCreateBufferObject (AcpiGbl_IntegerByteWidth * 2);
+        ReturnDesc = AcpiUtCreateBufferObject (
+                            ACPI_MUL_2 (AcpiGbl_IntegerByteWidth));
         if (!ReturnDesc)
         {
-            return (AE_NO_MEMORY);
+            Status = AE_NO_MEMORY;
+            goto Cleanup;
         }
 
         NewBuf = (char *) ReturnDesc->Buffer.Pointer;
 
-        /* Convert the first integer */
+        /* Copy the first integer, LSB first */
 
-        ThisInteger = ObjDesc1->Integer.Value;
-        for (i = 0; i < AcpiGbl_IntegerByteWidth; i++)
-        {
-            NewBuf[i] = (char) ThisInteger;
-            ThisInteger >>= 8;
-        }
+        ACPI_MEMCPY (NewBuf,
+                        &Operand0->Integer.Value,
+                        AcpiGbl_IntegerByteWidth);
 
-        /* Convert the second integer */
+        /* Copy the second integer (LSB first) after the first */
 
-        ThisInteger = ObjDesc2->Integer.Value;
-        for (; i < (ACPI_MUL_2 (AcpiGbl_IntegerByteWidth)); i++)
-        {
-            NewBuf[i] = (char) ThisInteger;
-            ThisInteger >>= 8;
-        }
-
+        ACPI_MEMCPY (NewBuf + AcpiGbl_IntegerByteWidth,
+                        &LocalOperand1->Integer.Value,
+                        AcpiGbl_IntegerByteWidth);
         break;
-
 
     case ACPI_TYPE_STRING:
 
         /* Result of two Strings is a String */
 
-        ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_STRING);
-        if (!ReturnDesc)
+        NewLength = (ACPI_SIZE) Operand0->String.Length +
+                    (ACPI_SIZE) LocalOperand1->String.Length;
+        if (NewLength > ACPI_MAX_STRING_CONVERSION)
         {
-            return (AE_NO_MEMORY);
+            Status = AE_AML_STRING_LIMIT;
+            goto Cleanup;
         }
 
-        /* Operand0 is string  */
-
-        NewBuf = ACPI_MEM_CALLOCATE ((ACPI_SIZE) ObjDesc1->String.Length +
-                                     (ACPI_SIZE) ObjDesc2->String.Length + 1);
-        if (!NewBuf)
+        ReturnDesc = AcpiUtCreateStringObject (NewLength);
+        if (!ReturnDesc)
         {
-            ACPI_REPORT_ERROR
-                (("ExDoConcatenate: String allocation failure\n"));
             Status = AE_NO_MEMORY;
             goto Cleanup;
         }
 
+        NewBuf = ReturnDesc->String.Pointer;
+
         /* Concatenate the strings */
 
-        ACPI_STRCPY (NewBuf, ObjDesc1->String.Pointer);
-        ACPI_STRCPY (NewBuf + ObjDesc1->String.Length,
-                              ObjDesc2->String.Pointer);
-
-        /* Complete the String object initialization */
-
-        ReturnDesc->String.Pointer = NewBuf;
-        ReturnDesc->String.Length  = ObjDesc1->String.Length +
-                                     ObjDesc2->String.Length;
+        ACPI_STRCPY (NewBuf,
+                        Operand0->String.Pointer);
+        ACPI_STRCPY (NewBuf + Operand0->String.Length,
+                        LocalOperand1->String.Pointer);
         break;
-
 
     case ACPI_TYPE_BUFFER:
 
         /* Result of two Buffers is a Buffer */
 
         ReturnDesc = AcpiUtCreateBufferObject (
-                            (ACPI_SIZE) ObjDesc1->Buffer.Length +
-                            (ACPI_SIZE) ObjDesc2->Buffer.Length);
+                            (ACPI_SIZE) Operand0->Buffer.Length +
+                            (ACPI_SIZE) LocalOperand1->Buffer.Length);
         if (!ReturnDesc)
         {
-            return (AE_NO_MEMORY);
+            Status = AE_NO_MEMORY;
+            goto Cleanup;
         }
 
         NewBuf = (char *) ReturnDesc->Buffer.Pointer;
 
         /* Concatenate the buffers */
 
-        ACPI_MEMCPY (NewBuf, ObjDesc1->Buffer.Pointer,
-                        ObjDesc1->Buffer.Length);
-        ACPI_MEMCPY (NewBuf + ObjDesc1->Buffer.Length, ObjDesc2->Buffer.Pointer,
-                         ObjDesc2->Buffer.Length);
-
+        ACPI_MEMCPY (NewBuf,
+                        Operand0->Buffer.Pointer,
+                        Operand0->Buffer.Length);
+        ACPI_MEMCPY (NewBuf + Operand0->Buffer.Length,
+                        LocalOperand1->Buffer.Pointer,
+                        LocalOperand1->Buffer.Length);
         break;
-
 
     default:
 
         /* Invalid object type, should not happen here */
 
-        ACPI_REPORT_ERROR (("Concat - invalid obj type: %X\n",
-                ACPI_GET_OBJECT_TYPE (ObjDesc1)));
-        Status = AE_AML_INTERNAL;
-        ReturnDesc = NULL;
+        ACPI_REPORT_ERROR (("Concatenate - Invalid object type: %X\n",
+                ACPI_GET_OBJECT_TYPE (Operand0)));
+        Status =AE_AML_INTERNAL;
+        goto Cleanup;
     }
 
     *ActualReturnDesc = ReturnDesc;
-    return (AE_OK);
-
 
 Cleanup:
-
-    AcpiUtRemoveReference (ReturnDesc);
-    return (Status);
+    if (LocalOperand1 != Operand1)
+    {
+        AcpiUtRemoveReference (LocalOperand1);
+    }
+    return_ACPI_STATUS (AE_OK);
 }
 
 
@@ -459,8 +487,8 @@ Cleanup:
  * FUNCTION:    AcpiExDoMathOp
  *
  * PARAMETERS:  Opcode              - AML opcode
- *              Operand0            - Integer operand #0
- *              Operand1            - Integer operand #1
+ *              Integer0            - Integer operand #0
+ *              Integer1            - Integer operand #1
  *
  * RETURN:      Integer result of the operation
  *
@@ -473,61 +501,63 @@ Cleanup:
 ACPI_INTEGER
 AcpiExDoMathOp (
     UINT16                  Opcode,
-    ACPI_INTEGER            Operand0,
-    ACPI_INTEGER            Operand1)
+    ACPI_INTEGER            Integer0,
+    ACPI_INTEGER            Integer1)
 {
+
+    ACPI_FUNCTION_ENTRY ();
 
 
     switch (Opcode)
     {
-    case AML_ADD_OP:                /* Add (Operand0, Operand1, Result) */
+    case AML_ADD_OP:                /* Add (Integer0, Integer1, Result) */
 
-        return (Operand0 + Operand1);
-
-
-    case AML_BIT_AND_OP:            /* And (Operand0, Operand1, Result) */
-
-        return (Operand0 & Operand1);
+        return (Integer0 + Integer1);
 
 
-    case AML_BIT_NAND_OP:           /* NAnd (Operand0, Operand1, Result) */
+    case AML_BIT_AND_OP:            /* And (Integer0, Integer1, Result) */
 
-        return (~(Operand0 & Operand1));
-
-
-    case AML_BIT_OR_OP:             /* Or (Operand0, Operand1, Result) */
-
-        return (Operand0 | Operand1);
+        return (Integer0 & Integer1);
 
 
-    case AML_BIT_NOR_OP:            /* NOr (Operand0, Operand1, Result) */
+    case AML_BIT_NAND_OP:           /* NAnd (Integer0, Integer1, Result) */
 
-        return (~(Operand0 | Operand1));
-
-
-    case AML_BIT_XOR_OP:            /* XOr (Operand0, Operand1, Result) */
-
-        return (Operand0 ^ Operand1);
+        return (~(Integer0 & Integer1));
 
 
-    case AML_MULTIPLY_OP:           /* Multiply (Operand0, Operand1, Result) */
+    case AML_BIT_OR_OP:             /* Or (Integer0, Integer1, Result) */
 
-        return (Operand0 * Operand1);
+        return (Integer0 | Integer1);
+
+
+    case AML_BIT_NOR_OP:            /* NOr (Integer0, Integer1, Result) */
+
+        return (~(Integer0 | Integer1));
+
+
+    case AML_BIT_XOR_OP:            /* XOr (Integer0, Integer1, Result) */
+
+        return (Integer0 ^ Integer1);
+
+
+    case AML_MULTIPLY_OP:           /* Multiply (Integer0, Integer1, Result) */
+
+        return (Integer0 * Integer1);
 
 
     case AML_SHIFT_LEFT_OP:         /* ShiftLeft (Operand, ShiftCount, Result) */
 
-        return (Operand0 << Operand1);
+        return (Integer0 << Integer1);
 
 
     case AML_SHIFT_RIGHT_OP:        /* ShiftRight (Operand, ShiftCount, Result) */
 
-        return (Operand0 >> Operand1);
+        return (Integer0 >> Integer1);
 
 
-    case AML_SUBTRACT_OP:           /* Subtract (Operand0, Operand1, Result) */
+    case AML_SUBTRACT_OP:           /* Subtract (Integer0, Integer1, Result) */
 
-        return (Operand0 - Operand1);
+        return (Integer0 - Integer1);
 
     default:
 
@@ -538,18 +568,87 @@ AcpiExDoMathOp (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiExDoLogicalNumericOp
+ *
+ * PARAMETERS:  Opcode              - AML opcode
+ *              Integer0            - Integer operand #0
+ *              Integer1            - Integer operand #1
+ *              LogicalResult       - TRUE/FALSE result of the operation
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Execute a logical "Numeric" AML opcode. For these Numeric
+ *              operators (LAnd and LOr), both operands must be integers.
+ *
+ *              Note: cleanest machine code seems to be produced by the code
+ *              below, rather than using statements of the form:
+ *                  Result = (Integer0 && Integer1);
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiExDoLogicalNumericOp (
+    UINT16                  Opcode,
+    ACPI_INTEGER            Integer0,
+    ACPI_INTEGER            Integer1,
+    BOOLEAN                 *LogicalResult)
+{
+    ACPI_STATUS             Status = AE_OK;
+    BOOLEAN                 LocalResult = FALSE;
+
+
+    ACPI_FUNCTION_TRACE ("ExDoLogicalNumericOp");
+
+
+    switch (Opcode)
+    {
+    case AML_LAND_OP:               /* LAnd (Integer0, Integer1) */
+
+        if (Integer0 && Integer1)
+        {
+            LocalResult = TRUE;
+        }
+        break;
+
+    case AML_LOR_OP:                /* LOr (Integer0, Integer1) */
+
+        if (Integer0 || Integer1)
+        {
+            LocalResult = TRUE;
+        }
+        break;
+
+    default:
+        Status = AE_AML_INTERNAL;
+        break;
+    }
+
+    /* Return the logical result and status */
+
+    *LogicalResult = LocalResult;
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiExDoLogicalOp
  *
  * PARAMETERS:  Opcode              - AML opcode
- *              Operand0            - Integer operand #0
- *              Operand1            - Integer operand #1
+ *              Operand0            - operand #0
+ *              Operand1            - operand #1
+ *              LogicalResult       - TRUE/FALSE result of the operation
  *
- * RETURN:      TRUE/FALSE result of the operation
+ * RETURN:      Status
  *
  * DESCRIPTION: Execute a logical AML opcode. The purpose of having all of the
  *              functions here is to prevent a lot of pointer dereferencing
  *              to obtain the operands and to simplify the generation of the
- *              logical value.
+ *              logical value. For the Numeric operators (LAnd and LOr), both
+ *              operands must be integers. For the other logical operators,
+ *              operands can be any combination of Integer/String/Buffer. The
+ *              first operand determines the type to which the second operand
+ *              will be converted.
  *
  *              Note: cleanest machine code seems to be produced by the code
  *              below, rather than using statements of the form:
@@ -557,66 +656,192 @@ AcpiExDoMathOp (
  *
  ******************************************************************************/
 
-BOOLEAN
+ACPI_STATUS
 AcpiExDoLogicalOp (
     UINT16                  Opcode,
-    ACPI_INTEGER            Operand0,
-    ACPI_INTEGER            Operand1)
+    ACPI_OPERAND_OBJECT     *Operand0,
+    ACPI_OPERAND_OBJECT     *Operand1,
+    BOOLEAN                 *LogicalResult)
 {
+    ACPI_OPERAND_OBJECT     *LocalOperand1 = Operand1;
+    ACPI_INTEGER            Integer0;
+    ACPI_INTEGER            Integer1;
+    UINT32                  Length0;
+    UINT32                  Length1;
+    ACPI_STATUS             Status = AE_OK;
+    BOOLEAN                 LocalResult = FALSE;
+    int                     Compare;
 
 
-    switch (Opcode)
+    ACPI_FUNCTION_TRACE ("ExDoLogicalOp");
+
+
+    /*
+     * Convert the second operand if necessary.  The first operand
+     * determines the type of the second operand, (See the Data Types
+     * section of the ACPI 3.0+ specification.)  Both object types are
+     * guaranteed to be either Integer/String/Buffer by the operand
+     * resolution mechanism.
+     */
+    switch (ACPI_GET_OBJECT_TYPE (Operand0))
     {
-
-    case AML_LAND_OP:               /* LAnd (Operand0, Operand1) */
-
-        if (Operand0 && Operand1)
-        {
-            return (TRUE);
-        }
+    case ACPI_TYPE_INTEGER:
+        Status = AcpiExConvertToInteger (Operand1, &LocalOperand1, 16);
         break;
 
-
-    case AML_LEQUAL_OP:             /* LEqual (Operand0, Operand1) */
-
-        if (Operand0 == Operand1)
-        {
-            return (TRUE);
-        }
+    case ACPI_TYPE_STRING:
+        Status = AcpiExConvertToString (Operand1, &LocalOperand1,
+                    ACPI_IMPLICIT_CONVERT_HEX);
         break;
 
-
-    case AML_LGREATER_OP:           /* LGreater (Operand0, Operand1) */
-
-        if (Operand0 > Operand1)
-        {
-            return (TRUE);
-        }
-        break;
-
-
-    case AML_LLESS_OP:              /* LLess (Operand0, Operand1) */
-
-        if (Operand0 < Operand1)
-        {
-            return (TRUE);
-        }
-        break;
-
-
-    case AML_LOR_OP:                 /* LOr (Operand0, Operand1) */
-
-        if (Operand0 || Operand1)
-        {
-            return (TRUE);
-        }
+    case ACPI_TYPE_BUFFER:
+        Status = AcpiExConvertToBuffer (Operand1, &LocalOperand1);
         break;
 
     default:
+        Status = AE_AML_INTERNAL;
         break;
     }
 
-    return (FALSE);
+    if (ACPI_FAILURE (Status))
+    {
+        goto Cleanup;
+    }
+
+    /*
+     * Two cases: 1) Both Integers, 2) Both Strings or Buffers
+     */
+    if (ACPI_GET_OBJECT_TYPE (Operand0) == ACPI_TYPE_INTEGER)
+    {
+        /*
+         * 1) Both operands are of type integer
+         *    Note: LocalOperand1 may have changed above
+         */
+        Integer0 = Operand0->Integer.Value;
+        Integer1 = LocalOperand1->Integer.Value;
+
+        switch (Opcode)
+        {
+        case AML_LEQUAL_OP:             /* LEqual (Operand0, Operand1) */
+
+            if (Integer0 == Integer1)
+            {
+                LocalResult = TRUE;
+            }
+            break;
+
+        case AML_LGREATER_OP:           /* LGreater (Operand0, Operand1) */
+
+            if (Integer0 > Integer1)
+            {
+                LocalResult = TRUE;
+            }
+            break;
+
+        case AML_LLESS_OP:              /* LLess (Operand0, Operand1) */
+
+            if (Integer0 < Integer1)
+            {
+                LocalResult = TRUE;
+            }
+            break;
+
+        default:
+            Status = AE_AML_INTERNAL;
+            break;
+        }
+    }
+    else
+    {
+        /*
+         * 2) Both operands are Strings or both are Buffers
+         *    Note: Code below takes advantage of common Buffer/String
+         *          object fields. LocalOperand1 may have changed above. Use
+         *          memcmp to handle nulls in buffers.
+         */
+        Length0 = Operand0->Buffer.Length;
+        Length1 = LocalOperand1->Buffer.Length;
+
+        /* Lexicographic compare: compare the data bytes */
+
+        Compare = ACPI_MEMCMP ((const char * ) Operand0->Buffer.Pointer,
+                    (const char * ) LocalOperand1->Buffer.Pointer,
+                    (Length0 > Length1) ? Length1 : Length0);
+
+        switch (Opcode)
+        {
+        case AML_LEQUAL_OP:             /* LEqual (Operand0, Operand1) */
+
+            /* Length and all bytes must be equal */
+
+            if ((Length0 == Length1) &&
+                (Compare == 0))
+            {
+                /* Length and all bytes match ==> TRUE */
+
+                LocalResult = TRUE;
+            }
+            break;
+
+        case AML_LGREATER_OP:           /* LGreater (Operand0, Operand1) */
+
+            if (Compare > 0)
+            {
+                LocalResult = TRUE;
+                goto Cleanup;   /* TRUE */
+            }
+            if (Compare < 0)
+            {
+                goto Cleanup;   /* FALSE */
+            }
+
+            /* Bytes match (to shortest length), compare lengths */
+
+            if (Length0 > Length1)
+            {
+                LocalResult = TRUE;
+            }
+            break;
+
+        case AML_LLESS_OP:              /* LLess (Operand0, Operand1) */
+
+            if (Compare > 0)
+            {
+                goto Cleanup;   /* FALSE */
+            }
+            if (Compare < 0)
+            {
+                LocalResult = TRUE;
+                goto Cleanup;   /* TRUE */
+            }
+
+            /* Bytes match (to shortest length), compare lengths */
+
+            if (Length0 < Length1)
+            {
+                LocalResult = TRUE;
+            }
+            break;
+
+        default:
+            Status = AE_AML_INTERNAL;
+            break;
+        }
+    }
+
+Cleanup:
+
+    /* New object was created if implicit conversion performed - delete */
+
+    if (LocalOperand1 != Operand1)
+    {
+        AcpiUtRemoveReference (LocalOperand1);
+    }
+
+    /* Return the logical result and status */
+
+    *LogicalResult = LocalResult;
+    return_ACPI_STATUS (Status);
 }
 
 

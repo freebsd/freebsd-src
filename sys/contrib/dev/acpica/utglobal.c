@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 201 $
+ *              $Revision: 202 $
  *
  *****************************************************************************/
 
@@ -947,6 +947,7 @@ AcpiUtInitGlobals (
 
     AcpiGbl_SystemNotify.Handler        = NULL;
     AcpiGbl_DeviceNotify.Handler        = NULL;
+    AcpiGbl_ExceptionHandler            = NULL;
     AcpiGbl_InitHandler                 = NULL;
 
     /* Global "typed" ACPI table pointers */

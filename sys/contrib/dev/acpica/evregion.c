@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evregion - ACPI AddressSpace (OpRegion) handler dispatch
- *              $Revision: 151 $
+ *              $Revision: 152 $
  *
  *****************************************************************************/
 
@@ -261,7 +261,7 @@ AcpiEvInitializeOpRegions (
  * FUNCTION:    AcpiEvExecuteRegMethod
  *
  * PARAMETERS:  RegionObj           - Object structure
- *              Function            - On (1) or Off (0)
+ *              Function            - Passed to _REG:  On (1) or Off (0)
  *
  * RETURN:      Status
  *
@@ -317,7 +317,7 @@ AcpiEvExecuteRegMethod (
         goto Cleanup;
     }
 
-    /* Set up the parameter objects */
+    /* Setup the parameter objects */
 
     Params[0]->Integer.Value = RegionObj->Region.SpaceId;
     Params[1]->Integer.Value = Function;
@@ -347,7 +347,6 @@ Cleanup:
  * FUNCTION:    AcpiEvAddressSpaceDispatch
  *
  * PARAMETERS:  RegionObj           - Internal region object
- *              SpaceId             - ID of the address space (0-255)
  *              Function            - Read or Write operation
  *              Address             - Where in the space to read or write
  *              BitWidth            - Field width in bits (8, 16, 32, or 64)
@@ -523,8 +522,8 @@ AcpiEvAddressSpaceDispatch (
  *
  * FUNCTION:    AcpiEvDetachRegion
  *
- * PARAMETERS:  RegionObj       - Region Object
- *              AcpiNsIsLocked  - Namespace Region Already Locked?
+ * PARAMETERS:  RegionObj           - Region Object
+ *              AcpiNsIsLocked      - Namespace Region Already Locked?
  *
  * RETURN:      None
  *
@@ -668,9 +667,9 @@ AcpiEvDetachRegion(
  *
  * FUNCTION:    AcpiEvAttachRegion
  *
- * PARAMETERS:  HandlerObj      - Handler Object
- *              RegionObj       - Region Object
- *              AcpiNsIsLocked  - Namespace Region Already Locked?
+ * PARAMETERS:  HandlerObj          - Handler Object
+ *              RegionObj           - Region Object
+ *              AcpiNsIsLocked      - Namespace Region Already Locked?
  *
  * RETURN:      None
  *
@@ -1103,7 +1102,7 @@ UnlockAndExit:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Run _REG methods for the Space ID;
+ * DESCRIPTION: Run all _REG methods for the input Space ID;
  *              Note: assumes namespace is locked, or system init time.
  *
  ******************************************************************************/
