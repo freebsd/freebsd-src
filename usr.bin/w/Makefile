@@ -2,7 +2,7 @@
 
 PROG=	w
 SRCS=	fmt.c pr_time.c proc_compare.c w.c
-MAN1=	w.0 uptime.0
+MAN1=	w.1 uptime.1
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 BINGRP=	kmem

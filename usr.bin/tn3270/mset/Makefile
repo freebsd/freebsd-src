@@ -3,8 +3,8 @@
 PROG=	mset
 CFLAGS+=-I${.CURDIR} -I.
 SRCS+=	astosc.c map3270.c mset.c
-MAN1=	mset.0
-MAN5=	map3270.0
+MAN1=	mset.1
+MAN5=	map3270.5
 .PATH:	${.CURDIR}/../api ${.CURDIR}/../ascii
 
 CLEANFILES+=	astosc.OUT astosc.out

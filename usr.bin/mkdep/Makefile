@@ -1,6 +1,6 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
-MAN1=	mkdep.0
+MAN1=	mkdep.1
 
 .if (${MACHINE} == "hp300" || ${MACHINE} == "i386" || \
 	${MACHINE} == "mips" || ${MACHINE} == "sparc")
