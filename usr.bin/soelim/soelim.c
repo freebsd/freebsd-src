@@ -47,6 +47,8 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 /*
  * soelim - a filter to process n/troff input eliminating .so's
  *
