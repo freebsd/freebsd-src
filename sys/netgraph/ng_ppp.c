@@ -2025,7 +2025,7 @@ ng_ppp_start_frag_timer(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	if (!(priv->fragTimer.c_flags & CALLOUT_PENDING))
+	if (!(callout_pending(&priv->fragTimer)))
 		ng_callout(&priv->fragTimer, node, NULL, MP_FRAGTIMER_INTERVAL,
 		    ng_ppp_frag_timeout, NULL, 0);
 }
@@ -2038,6 +2038,6 @@ ng_ppp_stop_frag_timer(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	if (priv->fragTimer.c_flags & CALLOUT_PENDING)
+	if (callout_pending(&priv->fragTimer))
 		ng_uncallout(&priv->fragTimer, node);
 }
