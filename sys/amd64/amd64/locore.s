@@ -740,6 +740,30 @@ trycpuid:	/* Use the `cpuid' instruction. */
 	/* Greater than Pentium...call it a Pentium Pro */
 	movl	$CPU_686,R(cpu)
 3:
+	/* Try to read extended CPUID information. */
+	movl	$0x80000000,%eax		# cpuid 80000000
+	cpuid
+	cmpl	$0x80000000,%eax		# is it a valid value?
+	jb	5f
+	movl	%eax,R(cpu_exthigh)		# highest extended capability
+	cmpl	$0x80000004,%eax		# does it have a brand name?
+	jb	5f
+
+	/* Read the brand name. */
+	leal	R(cpu_brand),%edi
+	movl	$0x80000002,%esi
+4:
+	movl	%esi,%eax
+	cpuid
+	movl	%eax,(%edi)			# Store next 16 characters
+	movl	%ebx,4(%edi)			# of brand name
+	movl	%ecx,8(%edi)
+	movl	%edx,12(%edi)
+	incl	%esi				# Advance to next set of 16
+	addl	$16,%edi
+	cmpl	$0x80000004,%esi
+	jbe	4b
+5:
 	ret
 
 
