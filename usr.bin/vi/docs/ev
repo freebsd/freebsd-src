@@ -1,0 +1,55 @@
+#	@(#)ev	8.4 (Berkeley) 4/29/94
+
+Ev:	Vi:	Result:
+<CK>	<CK>	(Cursor keys).  Move around the file.
+
+Meta key commands:
+^A<#>	<#>G	Goto line #.
+^A$	G	Goto the end of the file.
+^A/	/	Prompt and execute a forward search.
+^A:	:	Prompt and execute an ex command.
+^A?	?	Prompt and execute a backward search.
+^Ac	y'<c>	Copy to mark in line mode (or copy the current line).
+^AC	y`<c>	Copy to mark in character mode.
+^Ad	d'<c>	Delete to mark in line mode (or delete the current line).
+^AD	d`<c>	Delete to mark in character mode.
+^Aj	J	Join lines.
+^Am	m<c>	Mark the current cursor position.
+^AN	N	Repeat search in the reverse direction.
+^An	^A	Search for the word under the cursor.
+^Ar	u	Redo a command.
+^Au	u	Undo a command.
+
+Single key commands:
+^B	^B	Page up a screen.
+^C	^C	Interrupt long-running commands.
+^D	^D	Page down a half-screen.
+^E	$	End of line.
+^F	^F	Page down a screen.
+^G	^G	File status/information.
+^H	X	Delete the character to the left of the cursor.
+^I (TAB)
+^J	j	Cursor down one line.
+^K	k	Cursor up one line.
+^L	^L	Redraw the screen.
+^M (CR)	^M	In insert mode, split the line at the current cursor,
+		creating a new line.
+		In overwrite mode, cursor down one line.
+^N	n	Repeat previous search, in previous direction.
+^O (UNUSED)
+^P	p	Paste the cut text at the cursor position.
+^Q (XON/XOFF)
+^R (UNUSED)
+^S (XON/XOFF)
+^T	D	Truncate the line at the cursor position.
+^U	^U	Page up a half-screen.
+^V<c>	^V<c>	Insert/overwrite with a literal next character.
+^W	w	Move forward one whitespace separated word.
+^X	x	Delete the current character.
+^Y (UNUSED)
+^Z	^Z	Suspend.
+
+New ex mode commands:
+
+^A:set ov[erwrite]	Toggle "insert" mode, so that input keys overwrite
+			the existing characters.
