@@ -848,9 +848,7 @@ vn_poll(fp, events, active_cred, td)
 	struct thread *td;
 {
 	struct vnode *vp;
-#ifdef MAC
 	int error;
-#endif
 
 	GIANT_REQUIRED;
 
@@ -859,11 +857,11 @@ vn_poll(fp, events, active_cred, td)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = mac_check_vnode_poll(active_cred, fp->f_cred, vp);
 	VOP_UNLOCK(vp, 0, td);
-	if (error)
-		return (error);
+	if (!error)
 #endif
 
-	return (VOP_POLL(vp, events, fp->f_cred, td));
+	error = VOP_POLL(vp, events, fp->f_cred, td);
+	return (error);
 }
 
 /*
