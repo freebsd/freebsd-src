@@ -10,10 +10,8 @@
 # N.B. /usr is not mounted.
 #
 atm_pass1() {
-    # Locate all probed ATM adapters by scanning dmesg output
-    saveifs="${IFS}"
-    IFS=$IFS:
-    atmdev=`dmesg | while read dev junk; do
+    # Locate all probed ATM adapters
+    atmdev=`atm sh stat int | while read dev junk; do
 	case ${dev} in
 	hea[0-9]|hea[0-9][0-9])
 		echo "${dev} "
@@ -26,7 +24,6 @@ atm_pass1() {
 		;;
 	esac
     done`
-    IFS="${saveifs}"
 
     if [ -z "${atmdev}" ]; then
 	echo "No ATM adapters found."
