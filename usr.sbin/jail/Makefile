@@ -2,6 +2,8 @@
 
 PROG=	jail
 MAN=	jail.8
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 WARNS?=	2
 
