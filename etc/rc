@@ -465,6 +465,14 @@ case ${syslogd_enable} in
 	;;
 esac
 
+# Start disk checking daemon if required.
+#
+case ${diskcheckd_enable} in
+[Yy][Ee][Ss])
+	echo -n ' diskcheckd'; diskcheckd ${diskcheckd_flags}
+	;;
+esac
+
 echo '.'
 
 # Build device name databases if we are not using DEVFS
