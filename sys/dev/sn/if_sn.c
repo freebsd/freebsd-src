@@ -380,8 +380,7 @@ snstart(struct ifnet *ifp)
 	}
 	if (sc->pages_wanted != -1) {
 		splx(s);
-		printf("sn%d: snstart() while memory allocation pending\n",
-		       ifp->if_unit);
+		if_printf(ifp, "snstart() while memory allocation pending\n");
 		return;
 	}
 startagain:
@@ -408,7 +407,7 @@ startagain:
 	 * them instead?
 	 */
 	if (len + pad > ETHER_MAX_LEN - ETHER_CRC_LEN) {
-		printf("sn%d: large packet discarded (A)\n", ifp->if_unit);
+		if_printf(ifp, "large packet discarded (A)\n");
 		++sc->arpcom.ac_if.if_oerrors;
 		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
 		m_freem(m);
@@ -480,7 +479,7 @@ startagain:
 	packet_no = inb(BASE + ALLOC_RESULT_REG_B);
 	if (packet_no & ARR_FAILED) {
 		if (junk++ > 10)
-			printf("sn%d: Memory allocation failed\n", ifp->if_unit);
+			if_printf(ifp, "Memory allocation failed\n");
 		goto startagain;
 	}
 	/*
@@ -611,7 +610,7 @@ snresume(struct ifnet *ifp)
 	 */
 	m = sc->arpcom.ac_if.if_snd.ifq_head;
 	if (m == 0) {
-		printf("sn%d: snresume() with nothing to send\n", ifp->if_unit);
+		if_printf(ifp, "snresume() with nothing to send\n");
 		return;
 	}
 	/*
@@ -628,7 +627,7 @@ snresume(struct ifnet *ifp)
 	 * them instead?
 	 */
 	if (len + pad > ETHER_MAX_LEN - ETHER_CRC_LEN) {
-		printf("sn%d: large packet discarded (B)\n", ifp->if_unit);
+		if_printf(ifp, "large packet discarded (B)\n");
 		++sc->arpcom.ac_if.if_oerrors;
 		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
 		m_freem(m);
@@ -664,7 +663,7 @@ snresume(struct ifnet *ifp)
 	 */
 	packet_no = inb(BASE + ALLOC_RESULT_REG_B);
 	if (packet_no & ARR_FAILED) {
-		printf("sn%d: Memory allocation failed.  Weird.\n", ifp->if_unit);
+		if_printf(ifp, "Memory allocation failed.  Weird.\n");
 		sc->arpcom.ac_if.if_timer = 1;
 		goto try_start;
 	}
@@ -678,7 +677,7 @@ snresume(struct ifnet *ifp)
 	 * memory allocation was initiated.
 	 */
 	if (pages_wanted != numPages) {
-		printf("sn%d: memory allocation wrong size.  Weird.\n", ifp->if_unit);
+		if_printf(ifp, "memory allocation wrong size.  Weird.\n");
 		/*
 		 * If the allocation was the wrong size we simply release the
 		 * memory once it is granted. Wait for the MMU to be un-busy.
