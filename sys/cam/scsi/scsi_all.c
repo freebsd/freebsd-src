@@ -2387,16 +2387,15 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 /*
  * Table of syncrates that don't follow the "divisible by 4"
  * rule. This table will be expanded in future SCSI specs.
- * I believe that FAST-40 has already been defined...
  */
 static struct {
-        u_int period_factor;
-        u_int period;	/* in 10ths of ns */
+	u_int period_factor;
+	u_int period;	/* in 10ths of ns */
 } scsi_syncrates[] = {
-        { 0x09, 125 },	/* FAST-80 */
-        { 0x0a, 250 },
-        { 0x0b, 303 },
-        { 0x0c, 500 }
+	{ 0x09, 125 },	/* FAST-80 */
+	{ 0x0a, 250 },	/* FAST-40 40MHz */
+	{ 0x0b, 303 },	/* FAST-40 33MHz */
+	{ 0x0c, 500 }	/* FAST-20 */
 };
 
 /*
