@@ -108,7 +108,9 @@
 #define dprintf(_x_)
 #endif
 
+#ifdef DECL_ERRNO
      extern int errno;
+#endif
 
 /*
  * display received data (avoids also detaching from tty)
@@ -728,7 +730,7 @@ cvt_rawdcf(
  * convert a wall clock time description of DCF77 to a Unix time (seconds
  * since 1.1. 1970 UTC)
  */
-time_t
+static time_t
 dcf_to_unixtime(
 		clocktime_t   *clock_time,
 		unsigned *cvtrtc
@@ -1083,7 +1085,7 @@ periodic_adjust(
  */
 static void
 tick(
-     void
+     int signum
      )
 {
 	static unsigned long last_notice = 0;
@@ -1217,7 +1219,7 @@ usage(
  * check_y2k() - internal check of Y2K logic
  *	(a lot of this logic lifted from ../ntpd/check_y2k.c)
  */
-int
+static int
 check_y2k( void )
 { 
     int  year;			/* current working year */

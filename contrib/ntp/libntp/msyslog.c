@@ -117,7 +117,7 @@ void msyslog(int level, const char *fmt, ...)
 	    *n++ = '\n';
 	*n = '\0';
 
-	vsprintf(buf, nfmt, ap);
+	vsnprintf(buf, sizeof(buf), nfmt, ap);
 #if !defined(VMS) && !defined (SYS_VXWORKS)
 	if (syslogit)
 #ifndef SYS_WINNT

@@ -146,7 +146,7 @@ ntpd_SOURCES = cmd_args.c jupiter.h map_vme.c ntp_config.c ntp_control.c \
 	refclock_pcf.c refclock_pst.c refclock_ptbacts.c refclock_shm.c \
 	refclock_tpro.c refclock_trak.c refclock_true.c refclock_tt560.c \
 	refclock_ulink.c refclock_usno.c refclock_wwv.c refclock_wwvb.c \
-	refclock_zyfer.c
+	refclock_zyfer.c refclock_ripencc.c refclock_neoclock4x.c
 
 subdir = ntpd
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
@@ -190,7 +190,8 @@ am_ntpd_OBJECTS = cmd_args$U.$(OBJEXT) map_vme$U.$(OBJEXT) \
 	refclock_trak$U.$(OBJEXT) refclock_true$U.$(OBJEXT) \
 	refclock_tt560$U.$(OBJEXT) refclock_ulink$U.$(OBJEXT) \
 	refclock_usno$U.$(OBJEXT) refclock_wwv$U.$(OBJEXT) \
-	refclock_wwvb$U.$(OBJEXT) refclock_zyfer$U.$(OBJEXT)
+	refclock_wwvb$U.$(OBJEXT) refclock_zyfer$U.$(OBJEXT) \
+	refclock_ripencc$U.$(OBJEXT) refclock_neoclock4x$U.$(OBJEXT)
 ntpd_OBJECTS = $(am_ntpd_OBJECTS)
 ntpd_DEPENDENCIES = version.o ../libntp/libntp.a
 ntpd_LDFLAGS =
@@ -238,6 +239,7 @@ depcomp = $(SHELL) $(top_srcdir)/depcomp
 @AMDEP_TRUE@	$(DEPDIR)/refclock_local$U.Po \
 @AMDEP_TRUE@	$(DEPDIR)/refclock_msfees$U.Po \
 @AMDEP_TRUE@	$(DEPDIR)/refclock_mx4200$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/refclock_neoclock4x$U.Po \
 @AMDEP_TRUE@	$(DEPDIR)/refclock_nmea$U.Po \
 @AMDEP_TRUE@	$(DEPDIR)/refclock_oncore$U.Po \
 @AMDEP_TRUE@	$(DEPDIR)/refclock_palisade$U.Po \
@@ -245,6 +247,7 @@ depcomp = $(SHELL) $(top_srcdir)/depcomp
 @AMDEP_TRUE@	$(DEPDIR)/refclock_pcf$U.Po \
 @AMDEP_TRUE@	$(DEPDIR)/refclock_pst$U.Po \
 @AMDEP_TRUE@	$(DEPDIR)/refclock_ptbacts$U.Po \
+@AMDEP_TRUE@	$(DEPDIR)/refclock_ripencc$U.Po \
 @AMDEP_TRUE@	$(DEPDIR)/refclock_shm$U.Po \
 @AMDEP_TRUE@	$(DEPDIR)/refclock_tpro$U.Po \
 @AMDEP_TRUE@	$(DEPDIR)/refclock_trak$U.Po \
@@ -363,6 +366,7 @@ mostlyclean-kr:
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_local$U.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_msfees$U.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_mx4200$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_neoclock4x$U.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_nmea$U.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_oncore$U.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_palisade$U.Po@am__quote@
@@ -370,6 +374,7 @@ mostlyclean-kr:
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_pcf$U.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_pst$U.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_ptbacts$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_ripencc$U.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_shm$U.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_tpro$U.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/refclock_trak$U.Po@am__quote@
@@ -482,6 +487,8 @@ refclock_msfees_.c: refclock_msfees.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_msfees.c; then echo $(srcdir)/refclock_msfees.c; else echo refclock_msfees.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_msfees_.c || rm -f refclock_msfees_.c
 refclock_mx4200_.c: refclock_mx4200.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_mx4200.c; then echo $(srcdir)/refclock_mx4200.c; else echo refclock_mx4200.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_mx4200_.c || rm -f refclock_mx4200_.c
+refclock_neoclock4x_.c: refclock_neoclock4x.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_neoclock4x.c; then echo $(srcdir)/refclock_neoclock4x.c; else echo refclock_neoclock4x.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_neoclock4x_.c || rm -f refclock_neoclock4x_.c
 refclock_nmea_.c: refclock_nmea.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_nmea.c; then echo $(srcdir)/refclock_nmea.c; else echo refclock_nmea.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_nmea_.c || rm -f refclock_nmea_.c
 refclock_oncore_.c: refclock_oncore.c $(ANSI2KNR)
@@ -496,6 +503,8 @@ refclock_pst_.c: refclock_pst.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_pst.c; then echo $(srcdir)/refclock_pst.c; else echo refclock_pst.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_pst_.c || rm -f refclock_pst_.c
 refclock_ptbacts_.c: refclock_ptbacts.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_ptbacts.c; then echo $(srcdir)/refclock_ptbacts.c; else echo refclock_ptbacts.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_ptbacts_.c || rm -f refclock_ptbacts_.c
+refclock_ripencc_.c: refclock_ripencc.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_ripencc.c; then echo $(srcdir)/refclock_ripencc.c; else echo refclock_ripencc.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_ripencc_.c || rm -f refclock_ripencc_.c
 refclock_shm_.c: refclock_shm.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_shm.c; then echo $(srcdir)/refclock_shm.c; else echo refclock_shm.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_shm_.c || rm -f refclock_shm_.c
 refclock_tpro_.c: refclock_tpro.c $(ANSI2KNR)
@@ -534,10 +543,11 @@ refclock_hpgps_.$(OBJEXT) refclock_irig_.$(OBJEXT) \
 refclock_jjy_.$(OBJEXT) refclock_jupiter_.$(OBJEXT) \
 refclock_leitch_.$(OBJEXT) refclock_local_.$(OBJEXT) \
 refclock_msfees_.$(OBJEXT) refclock_mx4200_.$(OBJEXT) \
-refclock_nmea_.$(OBJEXT) refclock_oncore_.$(OBJEXT) \
-refclock_palisade_.$(OBJEXT) refclock_parse_.$(OBJEXT) \
-refclock_pcf_.$(OBJEXT) refclock_pst_.$(OBJEXT) \
-refclock_ptbacts_.$(OBJEXT) refclock_shm_.$(OBJEXT) \
+refclock_neoclock4x_.$(OBJEXT) refclock_nmea_.$(OBJEXT) \
+refclock_oncore_.$(OBJEXT) refclock_palisade_.$(OBJEXT) \
+refclock_parse_.$(OBJEXT) refclock_pcf_.$(OBJEXT) \
+refclock_pst_.$(OBJEXT) refclock_ptbacts_.$(OBJEXT) \
+refclock_ripencc_.$(OBJEXT) refclock_shm_.$(OBJEXT) \
 refclock_tpro_.$(OBJEXT) refclock_trak_.$(OBJEXT) \
 refclock_true_.$(OBJEXT) refclock_tt560_.$(OBJEXT) \
 refclock_ulink_.$(OBJEXT) refclock_usno_.$(OBJEXT) \
