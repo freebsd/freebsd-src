@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: modload.c,v 1.22 1998/07/06 07:07:41 charnier Exp $";
 #endif /* not lint */
 
 #include <a.out.h>
@@ -93,8 +93,8 @@ linkcmd(kernel, entry, outfile, address, object)
 	}
 
 	if(pid == 0) {
-		execl(_PATH_LD, "ld", "-A", kernel, "-e", entrybuf, "-o",
-		      outfile, "-T", addrbuf, object, (char *)0);
+		execl(_PATH_LD, "ld", "-aout", "-A", kernel, "-e", entrybuf,
+		      "-o", outfile, "-T", addrbuf, object, (char *)0);
 		exit(128 + errno);
 	}
 
