@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.65 1999/04/02 17:59:37 alc Exp $
+ *	$Id: genassym.c,v 1.66 1999/04/28 01:03:18 luoqi Exp $
  */
 
 #include "opt_vm86.h"
@@ -68,6 +68,9 @@
 #endif
 #include <machine/segments.h>
 #include <machine/globaldata.h>
+#ifdef VM86
+#include <machine/vm86.h>
+#endif
 
 #define	OS(s, m)	((u_int)offsetof(struct s, m))
 
@@ -229,6 +232,9 @@ main()
 	printf("#define\tKPSEL %#x\n", GSEL(GPRIV_SEL, SEL_KPL));
 #endif
 	printf("#define\tGPROC0_SEL %#x\n", GPROC0_SEL);
+#ifdef VM86
+	printf("#define\tVM86_FRAMESIZE %#x\n", sizeof(struct vm86frame) / 4);
+#endif
 
 	return (0);
 }
