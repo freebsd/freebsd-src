@@ -51,6 +51,7 @@
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #include <sys/kthread.h>
+#include <sys/proc.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -59,7 +60,6 @@
 #include <sys/conf.h>
 #endif
 #include <sys/poll.h>
-#include <sys/proc.h>
 #include <sys/select.h>
 
 #include <dev/usb/usb.h>

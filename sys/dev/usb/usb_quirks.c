@@ -40,9 +40,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if defined(__FreeBSD__)
-#include <sys/bus.h>
-#endif
  
 #include <dev/usb/usb.h>
 

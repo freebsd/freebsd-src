@@ -51,13 +51,13 @@
 #include <sys/malloc.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
+#include <sys/select.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
 #endif
 #include <sys/proc.h>
 #include <sys/queue.h>
-#include <sys/select.h>
 
 #if defined(__FreeBSD__)
 #include <machine/bus_pio.h>
