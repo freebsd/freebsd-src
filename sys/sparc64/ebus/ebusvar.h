@@ -35,17 +35,6 @@
 #ifndef _SPARC64_EBUS_EBUSVAR_H_
 #define _SPARC64_EBUS_EBUSVAR_H_
 
-/*
- * Interrupt map type (for the sc_imap_type softc member):
- * If the ebus node has an interrupt map, this is set to EBUS_IT_EBUS (and the
- * relevant sotfc members are initialized with the EBUS types), otherwise,
- * it is EBUS_IT_PCI, in which case the standard PCI functions are used to
- * map the interrupt (this is needed because the the maps and masks are
- * different).
- */
-#define	EBUS_IT_EBUS	1
-#define	EBUS_IT_PCI	2
-
 enum ebus_device_ivars {
 	EBUS_IVAR_COMPAT,
 	EBUS_IVAR_NAME,
