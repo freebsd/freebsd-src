@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2000 FreeBSD, Inc. All rights reserved.
+ * Copyright (c) 2000 Sheldon Hearn <sheldonh@FreeBSD.org>.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,17 +23,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
+#ifndef lint
+static const char rcsid[] =
+    "$FreeBSD$";
+#endif
+
 #include <sys/stat.h>
-#include <sys/types.h>
 
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
