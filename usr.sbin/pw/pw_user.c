@@ -255,6 +255,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	if ((arg = getarg(args, 's')) != NULL)
 		cnf->shell_default = arg->val;
 
+	if ((arg = getarg(args, 'w')) != NULL)
+		cnf->default_password = boolean_val(arg->val, cnf->default_password);
 	if (mode == M_ADD && getarg(args, 'D')) {
 		if (getarg(args, 'n') != NULL)
 			errx(EX_DATAERR, "can't combine `-D' with `-n name'");
@@ -270,8 +272,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if ((p = strtok(NULL, " ,\t")) == NULL || (cnf->max_gid = (gid_t) atoi(p)) < cnf->min_gid)
 				cnf->max_gid = 32000;
 		}
-		if ((arg = getarg(args, 'w')) != NULL)
-			cnf->default_password = boolean_val(arg->val, cnf->default_password);
 
 		arg = getarg(args, 'C');
 		if (write_userconfig(arg ? arg->val : NULL))
