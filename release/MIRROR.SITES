@@ -1,4 +1,4 @@
-$Id: MIRROR.SITES,v 1.1.2.1 1995/10/22 21:30:32 jkh Exp $
+$Id: MIRROR.SITES,v 1.1.2.2 1995/10/22 21:35:34 jkh Exp $
 
 Obtaining FreeBSD
    
@@ -106,6 +106,9 @@ Obtaining FreeBSD
 
           + ftp://ftp.cau.ac.kr/pub/FreeBSD
             Contact: ftpadm@ftp.cau.ac.kr.
+
+          + ftp://ftp.easy.re.kr/pub/FreeBSD
+            Contact: ftpadm@easy.re.kr.
 
    Netherlands
 
