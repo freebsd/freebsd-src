@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.11.2.3 1995/06/01 00:18:26 jkh Exp $
+ * $Id: dmenu.c,v 1.11.2.4 1995/06/02 00:41:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,7 +44,7 @@
 #include "sysinstall.h"
 #include <sys/types.h>
 
-#define MAX_MENU		9
+#define MAX_MENU		8
 
 /* Traverse menu but give user no control over positioning */
 Boolean

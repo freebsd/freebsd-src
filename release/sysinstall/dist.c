@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.4 1995/06/01 09:42:29 jkh Exp $
+ * $Id: dist.c,v 1.35.2.5 1995/06/01 09:59:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,6 +50,98 @@ unsigned int XF86ServerDists;
 unsigned int XF86FontDists;
 
 static int	distSetXF86(void);
+
+typedef struct _dist {
+    char *my_name;
+    char *my_dir;
+    unsigned int *my_mask;
+    unsigned int my_bit;
+    struct _dist *my_dist;
+} Distribution;
+
+extern Distribution SrcDistTable[];
+extern Distribution XF86DistTable[];
+extern Distribution XF86FontDistTable[];
+extern Distribution XF86ServerDistTable[];
+
+/* The top-level distribution categories */
+static Distribution DistTable[] = {
+{ "bin",	"/",			&Dists,		DIST_BIN,		NULL		},
+{ "games",	"/",			&Dists,		DIST_GAMES,		NULL		},
+{ "manpages",	"/",			&Dists,		DIST_MANPAGES,		NULL		},
+{ "proflibs",	"/",			&Dists,		DIST_PROFLIBS,		NULL		},
+{ "dict",	"/",			&Dists,		DIST_DICT,		NULL		},
+{ "src",	"/",			&Dists,		DIST_SRC,		SrcDistTable	},
+{ "des",	"/",			&Dists,		DIST_DES,		NULL		},
+{ "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
+{ "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
+{ "XF86311",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+{ NULL },
+};
+
+/* The /usr/src distribution */
+static Distribution SrcDistTable[] = {
+{ "sbase",	"/usr/src",		&SrcDists,	DIST_SRC_BASE,		NULL		},
+{ "sgnu",	"/usr/src",		&SrcDists,	DIST_SRC_GNU,		NULL		},
+{ "setc",	"/usr/src",		&SrcDists,	DIST_SRC_ETC,		NULL		},
+{ "sgames",	"/usr/src",		&SrcDists,	DIST_SRC_GAMES,		NULL		},
+{ "sinclude",	"/usr/src",		&SrcDists,	DIST_SRC_INCLUDE,	NULL		},
+{ "slib",	"/usr/src",		&SrcDists,	DIST_SRC_LIB,		NULL		},
+{ "slibexec",	"/usr/src",		&SrcDists,	DIST_SRC_LIBEXEC,	NULL		},
+{ "slkm",	"/usr/src",		&SrcDists,	DIST_SRC_LKM,		NULL		},
+{ "srelease",	"/usr/src",		&SrcDists,	DIST_SRC_RELEASE,	NULL		},
+{ "ssbin",	"/usr/src",		&SrcDists,	DIST_SRC_SBIN,		NULL		},
+{ "sshare",	"/usr/src",		&SrcDists,	DIST_SRC_SHARE,		NULL		},
+{ "ssys",	"/usr/src",		&SrcDists,	DIST_SRC_SYS,		NULL		},
+{ "subin",	"/usr/src",		&SrcDists,	DIST_SRC_UBIN,		NULL		},
+{ "susbin",	"/usr/src",		&SrcDists,	DIST_SRC_USBIN,		NULL		},
+{ NULL },
+};
+
+/* The XFree86 distribution */
+static Distribution XF86DistTable[] = {
+{ "X311bin",	"/usr",			&XF86Dists,	DIST_XF86_BIN,		NULL		},
+{ "X311lib",	"/usr",			&XF86Dists,	DIST_XF86_LIB,		NULL		},
+{ "X311doc",	"/usr",			&XF86Dists,	DIST_XF86_DOC,		NULL		},
+{ "XF86311",	"/usr",			&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
+{ "X311man",	"/usr",			&XF86Dists,	DIST_XF86_MAN,		NULL		},
+{ "X311prog",	"/usr",			&XF86Dists,	DIST_XF86_PROG,		NULL		},
+{ "X311link",	"/usr",			&XF86Dists,	DIST_XF86_LINK,		NULL		},
+{ "X311pex",	"/usr",			&XF86Dists,	DIST_XF86_PEX,		NULL		},
+{ "X311lbx",	"/usr",			&XF86Dists,	DIST_XF86_LBX,		NULL		},
+{ "X311xicf",	"/usr",			&XF86Dists,	DIST_XF86_XINIT,	NULL		},
+{ "X311xdcf",	"/usr",			&XF86Dists,	DIST_XF86_XDMCF,	NULL		},
+{ "XF86311",	"/usr",			&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
+{ "XF86-xc",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
+{ "XF86-co",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
+{ NULL },
+};
+
+/* The XFree86 server distribution */
+static Distribution XF86ServerDistTable[] = {
+{ "X3118514",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_8514,	NULL		},
+{ "X311AGX",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_AGX,	NULL		},
+{ "X311Mch3",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MACH32,NULL		},
+{ "X311Mch8",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MACH8,	NULL		},
+{ "X311Mono",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MONO,	NULL		},
+{ "X311P9K",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_P9000,	NULL		},
+{ "X311S3",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_S3,	NULL		},
+{ "X311SVGA",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_SVGA,	NULL		},
+{ "X311VG16",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
+{ "X311W32",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_W32,	NULL		},
+{ "X311nest",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_NEST,	NULL		},
+{ NULL },
+};
+
+/* The XFree86 font distribution */
+static Distribution XF86FontDistTable[] = {
+{ "X311fnts",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_MISC,	NULL		},
+{ "X311f100",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_100,	NULL		},
+{ "X311fscl",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_SCALE,	NULL		},
+{ "X311fnon",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_NON,	NULL		},
+{ "X311fsrv",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_SERVER,	NULL		},
+{ NULL },
+};
 
 int
 distReset(char *str)
@@ -131,101 +223,11 @@ distSetXF86(void)
 	XF86Dists |= DIST_XF86_FONTS;
     if (XF86Dists)
 	Dists |= DIST_XF86;
+    if (isDebug())
+	msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
+		 XF86ServerDists, XF86FontDists, XF86Dists, Dists);
     return 0;
 }
-
-typedef struct _dist {
-    char *my_name;
-    char *my_dir;
-    unsigned int *my_mask;
-    unsigned int my_bit;
-    struct _dist *my_dist;
-} Distribution;
-
-extern Distribution SrcDistTable[];
-extern Distribution XF86DistTable[];
-extern Distribution XF86FontDistTable[];
-extern Distribution XF86ServerDistTable[];
-
-
-/* The top-level distribution categories */
-static Distribution DistTable[] = {
-{ "bin",	"/",			&Dists,		DIST_BIN,		NULL		},
-{ "games",	"/",			&Dists,		DIST_GAMES,		NULL		},
-{ "manpages",	"/",			&Dists,		DIST_MANPAGES,		NULL		},
-{ "proflibs",	"/",			&Dists,		DIST_PROFLIBS,		NULL		},
-{ "dict",	"/",			&Dists,		DIST_DICT,		NULL		},
-{ "src",	"/",			&Dists,		DIST_SRC,		SrcDistTable	},
-{ "des",	"/",			&Dists,		DIST_DES,		NULL		},
-{ "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
-{ "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
-{ "XF86311",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
-{ NULL },
-};
-
-/* The /usr/src distribution */
-static Distribution SrcDistTable[] = {
-{ "sbase",	"/usr/src",		&SrcDists,	DIST_SRC_BASE,		NULL		},
-{ "sgnu",	"/usr/src",		&SrcDists,	DIST_SRC_GNU,		NULL		},
-{ "setc",	"/usr/src",		&SrcDists,	DIST_SRC_ETC,		NULL		},
-{ "sgames",	"/usr/src",		&SrcDists,	DIST_SRC_GAMES,		NULL		},
-{ "sinclude",	"/usr/src",		&SrcDists,	DIST_SRC_INCLUDE,	NULL		},
-{ "slib",	"/usr/src",		&SrcDists,	DIST_SRC_LIB,		NULL		},
-{ "slibexec",	"/usr/src",		&SrcDists,	DIST_SRC_LIBEXEC,	NULL		},
-{ "slkm",	"/usr/src",		&SrcDists,	DIST_SRC_LKM,		NULL		},
-{ "srelease",	"/usr/src",		&SrcDists,	DIST_SRC_RELEASE,	NULL		},
-{ "ssbin",	"/usr/src",		&SrcDists,	DIST_SRC_SBIN,		NULL		},
-{ "sshare",	"/usr/src",		&SrcDists,	DIST_SRC_SHARE,		NULL		},
-{ "ssys",	"/usr/src",		&SrcDists,	DIST_SRC_SYS,		NULL		},
-{ "subin",	"/usr/src",		&SrcDists,	DIST_SRC_UBIN,		NULL		},
-{ "susbin",	"/usr/src",		&SrcDists,	DIST_SRC_USBIN,		NULL		},
-{ NULL },
-};
-
-/* The XFree86 distribution */
-static Distribution XF86DistTable[] = {
-{ "X311bin",	"/usr",			&XF86Dists,	DIST_XF86_BIN,		NULL		},
-{ "X311lib",	"/usr",			&XF86Dists,	DIST_XF86_LIB,		NULL		},
-{ "X311doc",	"/usr",			&XF86Dists,	DIST_XF86_DOC,		NULL		},
-{ "XF86311",	"/usr",			&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
-{ "X311man",	"/usr",			&XF86Dists,	DIST_XF86_MAN,		NULL		},
-{ "X311prog",	"/usr",			&XF86Dists,	DIST_XF86_PROG,		NULL		},
-{ "X311link",	"/usr",			&XF86Dists,	DIST_XF86_LINK,		NULL		},
-{ "X311pex",	"/usr",			&XF86Dists,	DIST_XF86_PEX,		NULL		},
-{ "X311lbx",	"/usr",			&XF86Dists,	DIST_XF86_LBX,		NULL		},
-{ "X311xicf",	"/usr",			&XF86Dists,	DIST_XF86_XINIT,	NULL		},
-{ "X311xdcf",	"/usr",			&XF86Dists,	DIST_XF86_XDMCF,	NULL		},
-{ "XF86311",	"/usr",			&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
-{ "XF86-xc",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
-{ "XF86-co",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
-{ NULL },
-};
-
-/* The XFree86 server distribution */
-static Distribution XF86ServerDistTable[] = {
-{ "X3118514",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_8514,	NULL		},
-{ "X311AGX",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_AGX,	NULL		},
-{ "X311Mch3",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MACH32,NULL		},
-{ "X311Mch8",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MACH8,	NULL		},
-{ "X311Mono",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MONO,	NULL		},
-{ "X311P9K",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_P9000,	NULL		},
-{ "X311S3",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_S3,	NULL		},
-{ "X311SVGA",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_SVGA,	NULL		},
-{ "X311VG16",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
-{ "X311W32",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_W32,	NULL		},
-{ "X311nest",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_NEST,	NULL		},
-{ NULL },
-};
-
-/* The XFree86 font distribution */
-static Distribution XF86FontDistTable[] = {
-{ "X311fnts",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_MISC,	NULL		},
-{ "X311f100",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_100,	NULL		},
-{ "X311fscl",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_SCALE,	NULL		},
-{ "X311fnon",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_NON,	NULL		},
-{ "X311fsrv",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_SERVER,	NULL		},
-{ NULL },
-};
 
 static Boolean
 distExtract(char *parent, Distribution *me)
@@ -236,7 +238,10 @@ distExtract(char *parent, Distribution *me)
     const char *tmp;
     Attribs *dist_attr;
 
-    status = FALSE;
+    status = TRUE;
+    if (isDebug())
+	msgDebug("distExtract: parent: %s, me: %s\n", parent ? parent : "(none)", me->my_name);
+
     /* Loop through to see if we're in our parent's plans */
     for (i = 0; me[i].my_name; i++) {
 	/* If our bit isn't set, go to the next */
@@ -246,7 +251,7 @@ distExtract(char *parent, Distribution *me)
 	/* Recurse if actually have a sub-distribution */
 	if (me[i].my_dist) {
 	    status = distExtract(me[i].my_name, me[i].my_dist);
-	    if (!status)
+	    if (status)
 		goto done;
 	    else
 		goto punt;
@@ -254,6 +259,7 @@ distExtract(char *parent, Distribution *me)
 	dist = me[i].my_name;
 	path = parent ? parent : me[i].my_name;
 
+	/* First try to get the distribution as a single file */
         snprintf(buf, 512, "%s/%s.tgz", path, dist);
 	fd = (*mediaDevice->get)(buf);
 	if (fd != -1) {
@@ -266,6 +272,7 @@ distExtract(char *parent, Distribution *me)
 	    goto done;
 	}
 
+	/* If we couldn't get it as one file then we need to get multiple pieces; get info file telling us how many */
 	snprintf(buf, sizeof buf, "/stand/info/%s/%s.inf", path, dist);
 	if (!access(buf, R_OK)) {
 	    if (isDebug())
@@ -287,17 +294,21 @@ distExtract(char *parent, Distribution *me)
 	else
 	    numchunks = 0;
 
+	if (!numchunks)
+	    return FALSE;
+
 	if (isDebug())
 	    msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);
 
-	if (numchunks < 2 ) {
+	/* Optimize the single-chunk case */
+	if (numchunks == 1) {
 	    snprintf(buf, 512, "%s/%s", path, dist);
 	    if (numchunks)
 		strcat(buf,".aa");
 	    fd = (*mediaDevice->get)(buf);
-	    if (fd == -1) {
+	    if (fd == -1)
 		status = FALSE;
-	    } else {
+	    else {
 		msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
 		status = mediaExtractDist(me[i].my_dir, fd);
 		if (mediaDevice->close)
@@ -315,12 +326,13 @@ distExtract(char *parent, Distribution *me)
 	    char prompt[80];
 	    int retries = 0;
 
-	    snprintf(buf, 512, "%s/%s.%c%c", path, dist,	(chunk / 26) + 'a', (chunk % 26) + 'a');
+	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 retry:
 	    fd = (*mediaDevice->get)(buf);
 	    if (fd < 0) {
 		if (++retries < 5)
 		    goto retry;
+		dialog_clear();
 		msgConfirm("failed to retreive piece file %s after 5 retries!\nAborting the transfer", buf);
 		goto punt;
 	    }
@@ -328,8 +340,7 @@ retry:
 	    dialog_gauge(" Progress ", prompt, 8, 15, 6, 50, (int) ((float) (chunk + 1) / numchunks * 100));
 	    while ((n = read(fd, buf, sizeof buf)) > 0) {
 		retval = write(fd2, buf, n);
-		if (retval != n)
-		{
+		if (retval != n) {
 		    if (mediaDevice->close)
 			(*mediaDevice->close)(mediaDevice, fd);
 		    else

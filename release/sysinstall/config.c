@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.11 1995/06/01 23:09:42 jkh Exp $
+ * $Id: config.c,v 1.15.2.12 1995/06/02 01:07:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -142,6 +142,7 @@ configFstab(void)
     }
 
     /* Record all the chunks */
+    nchunks = 0;
     for (i = 0; devs[i]; i++) {
 	if (!devs[i]->enabled)
 	    continue;
@@ -172,10 +173,12 @@ configFstab(void)
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
     for (i = 0; i < nchunks; i++) {
+	if (!chunk_list[i]->private && chunk_list[i]->subtype != FS_SWAP) {
+	    msgDebug("Warning: %s has no private struct and is not swap!\n", chunk_list[i]->name);
+	    continue;
+	}
 	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s %s %d %d\n", nameof(chunk_list[i]), mount_point(chunk_list[i]),
-		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]),
-		seq_num(chunk_list[i]));
-    }
+		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
 
     Mkdir("/proc", NULL);
     fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs rw 0 0\n");
