@@ -41,7 +41,6 @@
 #include <sys/exec.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/kse.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
 #include <sys/sysent.h>
