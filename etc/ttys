@@ -9,9 +9,9 @@ console	none				unknown	off secure
 #
 ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
-ttyv1	"/usr/libexec/getty Pc"		cons25	on secure
-ttyv2	"/usr/libexec/getty Pc"		cons25	on secure
-ttyv3	"/usr/libexec/getty Pc"		cons25	off secure
+ttyv1	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv2	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv3	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
 ttyd0	"/usr/libexec/getty std.9600"	unknown	off secure
 ttyd1	"/usr/libexec/getty std.9600"	unknown	off secure
