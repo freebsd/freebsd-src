@@ -228,14 +228,6 @@ doit(fromp)
 	(void) signal(SIGINT, SIG_DFL);
 	(void) signal(SIGQUIT, SIG_DFL);
 	(void) signal(SIGTERM, SIG_DFL);
-#ifdef DEBUG
-	{ int t = open(_PATH_TTY, 2);
-	  if (t >= 0) {
-		ioctl(t, TIOCNOTTY, (char *)0);
-		(void) close(t);
-	  }
-	}
-#endif
 	fromp->su_port = ntohs((u_short)fromp->su_port);
 	if (af != AF_INET
 #ifdef INET6
