@@ -74,8 +74,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
-
 #include <dev/vx/if_vxreg.h>
+#include <dev/vx/if_vxvar.h>
 
 #define ETHER_MAX_LEN	1518
 #define ETHER_ADDR_LEN	6
@@ -144,7 +144,7 @@ vxattach(sc)
         if (vxbusyeeprom(sc))
             return 0;
         CSR_WRITE_2(sc,  VX_W0_EEPROM_COMMAND, EEPROM_CMD_RD
-	     | (EEPROM_OEM_ADDR_0 + i));
+	     | (EEPROM_OEM_ADDR0 + i));
         if (vxbusyeeprom(sc))
             return 0;
         x = CSR_READ_2(sc, VX_W0_EEPROM_DATA);
@@ -455,10 +455,10 @@ startagain:
 
     while (m) {
         if (m->m_len > 3)
-	    bus_space_write_multi_4(sc->vx_btag, sc->vx_bhandle,
+	    bus_space_write_multi_4(sc->bst, sc->bsh,
 		VX_W1_TX_PIO_WR_1, (u_int32_t *)mtod(m, caddr_t), m->m_len / 4);
         if (m->m_len & 3)
-	    bus_space_write_multi_1(sc->vx_btag, sc->vx_bhandle,
+	    bus_space_write_multi_1(sc->bst, sc->bsh,
 		VX_W1_TX_PIO_WR_1,
 		mtod(m, caddr_t) + (m->m_len & ~3) , m->m_len & 3);
 	m = m_free(m);
@@ -820,10 +820,10 @@ vxget(sc, totlen)
         }
         len = min(totlen, len);
         if (len > 3)
-            bus_space_read_multi_4(sc->vx_btag, sc->vx_bhandle,
+            bus_space_read_multi_4(sc->bst, sc->bsh,
 		VX_W1_RX_PIO_RD_1, mtod(m, u_int32_t *), len / 4);
 	if (len & 3) {
-            bus_space_read_multi_1(sc->vx_btag, sc->vx_bhandle,
+            bus_space_read_multi_1(sc->bst, sc->bsh,
 		VX_W1_RX_PIO_RD_1, mtod(m, u_int8_t *) + (len & ~3),
 		len & 3);
 	}
