@@ -162,6 +162,7 @@ device		ppi		# Parallel port interface device
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+device		txp		# 3Com 3cR990 (``Typhoon'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!

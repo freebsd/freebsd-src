@@ -160,6 +160,7 @@ MAN=	aac.4 \
 	tty.4 \
 	tun.4 \
 	twe.4 \
+	txp.4 \
 	udbp.4 \
 	udp.4 \
 	uhci.4 \
