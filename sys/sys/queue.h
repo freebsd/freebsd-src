@@ -37,8 +37,6 @@
 #ifndef _SYS_QUEUE_H_
 #define	_SYS_QUEUE_H_
 
-#include <struct.h>
-
 /*
  * This file defines five types of data structures: singly-linked lists,
  * singly-linked tail queues, lists, tail queues, and circular queues.
@@ -109,6 +107,18 @@
  * _REMOVE		+	+	+	+	+
  *
  */
+
+/*
+ * XXX: temporary, we need to find the real home of these.
+ */
+
+/* Offset of the field in the structure. */
+#define	__qfldoff(name, field) \
+	((int)&(((struct name *)0)->field))
+
+/* Address of the structure from a field. */
+#define	__qstrbase(name, addr, field) \
+	((struct name *)((char *)(addr) - __qfldoff(name, field)))
 
 /*
  * Singly-linked List declarations.
@@ -226,7 +236,7 @@ struct {								\
 #define	STAILQ_LAST(head, type, field)					\
 	(STAILQ_EMPTY(head) ?						\
 		NULL :							\
-		strbase(type, (head)->stqh_last, field))
+		__qstrbase(type, (head)->stqh_last, field))
 
 #define	STAILQ_NEXT(elm, field)	((elm)->field.stqe_next)
 
