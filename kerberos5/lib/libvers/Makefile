@@ -13,6 +13,10 @@ SRCS=		\
 
 install:
 
+__initialized__:
+
+.include "../../Makefile.inc"
+
 .include <bsd.lib.mk>
 
 beforedepend all:	print_version.h
