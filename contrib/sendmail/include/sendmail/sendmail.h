@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,23 +10,18 @@
  * the sendmail distribution.
  *
  *
- *	$Id: sendmail.h,v 8.34.4.8 2001/06/01 05:06:51 gshapiro Exp $
+ *	$Id: sendmail.h,v 8.67 2001/09/08 01:20:57 gshapiro Exp $
  */
 
 /*
 **  SENDMAIL.H -- Global definitions for sendmail.
 */
 
-#if SFIO
-# include <sfio/stdio.h>
-#else /* SFIO */
-# include <stdio.h>
-#endif /* SFIO */
-#include <string.h>
+#include <stdio.h>
+#include <sm/bitops.h>
+#include <sm/io.h>
+#include <sm/string.h>
 #include "conf.h"
-#include "sendmail/errstring.h"
-#include "sendmail/useful.h"
-
 
 /**********************************************************************
 **  Table sizes, etc....
@@ -37,45 +32,6 @@
 #endif /* ! MAXMAILERS */
 
 /*
-**  Data structure for bit maps.
-**
-**	Each bit in this map can be referenced by an ascii character.
-**	This is 256 possible bits, or 32 8-bit bytes.
-*/
-
-#define BITMAPBITS	256	/* number of bits in a bit map */
-#define BYTEBITS	8	/* number of bits in a byte */
-#define BITMAPBYTES	(BITMAPBITS / BYTEBITS)	/* number of bytes in bit map */
-
-/* internal macros */
-#define _BITWORD(bit)	((bit) / (BYTEBITS * sizeof (int)))
-#define _BITBIT(bit)	((unsigned int)1 << ((bit) % (BYTEBITS * sizeof (int))))
-
-typedef unsigned int	BITMAP256[BITMAPBYTES / sizeof (int)];
-
-/* properly case and truncate bit */
-#define bitidx(bit)		((unsigned int) (bit) & 0xff)
-
-/* test bit number N */
-#define bitnset(bit, map)	((map)[_BITWORD(bit)] & _BITBIT(bit))
-
-/* set bit number N */
-#define setbitn(bit, map)	(map)[_BITWORD(bit)] |= _BITBIT(bit)
-
-/* clear bit number N */
-#define clrbitn(bit, map)	(map)[_BITWORD(bit)] &= ~_BITBIT(bit)
-
-/* clear an entire bit map */
-#define clrbitmap(map)		memset((char *) map, '\0', BITMAPBYTES)
-
-
-/*
-**  Utility macros
-*/
-
-/* return number of bytes left in a buffer */
-#define SPACELEFT(buf, ptr)	(sizeof buf - ((ptr) - buf))
-/*
 **  Flags passed to safefile/safedirpath.
 */
 
@@ -85,7 +41,7 @@ typedef unsigned int	BITMAP256[BITMAPBYTES / sizeof (int)];
 #define SFF_ROOTOK	0x00000004L	/* ok for root to own this file */
 #define SFF_RUNASREALUID 0x00000008L	/* if no ctladdr, run as real uid */
 #define SFF_NOPATHCHECK	0x00000010L	/* don't bother checking dir path */
-#define SFF_SETUIDOK	0x00000020L	/* setuid files are ok */
+#define SFF_SETUIDOK	0x00000020L	/* set-user-ID files are ok */
 #define SFF_CREAT	0x00000040L	/* ok to create file if necessary */
 #define SFF_REGONLY	0x00000080L	/* regular files only */
 #define SFF_SAFEDIRPATH	0x00000100L	/* no writable directories allowed */
@@ -108,6 +64,7 @@ typedef unsigned int	BITMAP256[BITMAPBYTES / sizeof (int)];
 extern int	safefile __P((char *, UID_T, GID_T, char *, long, int, struct stat *));
 extern int	safedirpath __P((char *, UID_T, GID_T, char *, long, int, int));
 extern int	safeopen __P((char *, int, int, long));
+extern SM_FILE_T*safefopen __P((char *, int, int, long));
 extern int	dfopen __P((char *, int, int, long));
 extern bool	filechanged __P((char *, int, struct stat *));
 
@@ -116,6 +73,7 @@ extern bool	filechanged __P((char *, int, struct stat *));
 **
 **	Hopefully nobody uses these.
 */
+
 #define DBS_SAFE					0
 #define DBS_ASSUMESAFECHOWN				1
 #define DBS_GROUPWRITABLEDIRPATHSAFE			2
@@ -144,42 +102,33 @@ extern bool	filechanged __P((char *, int, struct stat *));
 #define DBS_HELPFILEINUNSAFEDIRPATH			25
 #define DBS_FORWARDFILEINUNSAFEDIRPATHSAFE		26
 #define DBS_INCLUDEFILEINUNSAFEDIRPATHSAFE		27
-#define DBS_RUNPROGRAMINUNSAFEDIRPATH			28 /* Not used yet */
+#define DBS_RUNPROGRAMINUNSAFEDIRPATH			28
 #define DBS_RUNWRITABLEPROGRAM				29
 #define DBS_INCLUDEFILEINUNSAFEDIRPATH			30
 #define DBS_NONROOTSAFEADDR				31
 #define DBS_TRUSTSTICKYBIT				32
 #define DBS_DONTWARNFORWARDFILEINUNSAFEDIRPATH		33
 #define DBS_INSUFFICIENTENTROPY				34
-#if _FFR_UNSAFE_SASL
-# define DBS_GROUPREADABLESASLFILE			35
-#endif /* _FFR_UNSAFE_SASL */
-#if _FFR_UNSAFE_WRITABLE_INCLUDE
-# define DBS_GROUPWRITABLEFORWARDFILE			36
-# define DBS_GROUPWRITABLEINCLUDEFILE			37
-# define DBS_WORLDWRITABLEFORWARDFILE			38
-# define DBS_WORLDWRITABLEINCLUDEFILE			39
-#endif /* _FFR_UNSAFE_WRITABLE_INCLUDE */
+#define DBS_GROUPREADABLESASLDBFILE			35
+#define DBS_GROUPWRITABLESASLDBFILE			36
+#define DBS_GROUPWRITABLEFORWARDFILE			37
+#define DBS_GROUPWRITABLEINCLUDEFILE			38
+#define DBS_WORLDWRITABLEFORWARDFILE			39
+#define DBS_WORLDWRITABLEINCLUDEFILE			40
+#define DBS_GROUPREADABLEKEYFILE			41
+#if _FFR_GROUPREADABLEAUTHINFOFILE
+# define DBS_GROUPREADABLEAUTHINFOFILE			42
+#endif /* _FFR_GROUPREADABLEAUTHINFOFILE */
 
 /* struct defining such things */
 struct dbsval
 {
-	char	*dbs_name;	/* name of DontBlameSendmail flag */
-	u_char	dbs_flag;	/* numeric level */
+	char		*dbs_name;	/* name of DontBlameSendmail flag */
+	unsigned char	dbs_flag;	/* numeric level */
 };
 
-#if _FFR_DPRINTF
-extern void	dprintf __P((const char *, ...));
-extern int	dflush __P((void));
-#else /* _FFR_DPRINTF */
-#define dprintf		printf
-#define dflush()	fflush(stdout)
-#endif /* _FFR_DPRINTF */
-
-extern int	sm_snprintf __P((char *, size_t, const char *, ...));
-extern int	sm_vsnprintf __P((char *, size_t, const char *, va_list));
-extern char	*quad_to_string __P((QUAD_T));
-
-extern size_t	strlcpy __P((char *, const char *, size_t));
-extern size_t	strlcat __P((char *, const char *, size_t));
+/* Flags for submitmode */
+#define SUBMIT_UNKNOWN	0x0000	/* unknown agent type */
+#define SUBMIT_MTA	0x0001	/* act like a message transfer agent */
+#define SUBMIT_MSA	0x0002	/* act like a message submission agent */
 

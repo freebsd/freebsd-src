@@ -3,7 +3,7 @@ PUSHDIVERT(-1)
 # Copyright (C) 1997, Philip A. Prindeville and Enteka Enterprise Technology
 #				Services
 #
-# Copyright (c) 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999, 2001 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -16,6 +16,7 @@ ifdef(`QPAGE_MAILER_PATH', `', `define(`QPAGE_MAILER_PATH', `/usr/local/bin/qpag
 _DEFIFNOT(`QPAGE_MAILER_FLAGS', `mDFMs')
 ifdef(`QPAGE_MAILER_ARGS', `', `define(`QPAGE_MAILER_ARGS', `qpage -l0 -m -P$u')')
 ifdef(`QPAGE_MAILER_MAX', `', `define(`QPAGE_MAILER_MAX', `4096')')
+define(`_QPAGE_QGRP', `ifelse(defn(`QPAGE_MAILER_QGRP'),`',`', ` Q=QPAGE_MAILER_QGRP,')')dnl
 
 POPDIVERT
 
@@ -23,8 +24,8 @@ POPDIVERT
 ###   QPAGE Mailer specification   ###
 ######################################
 
-VERSIONID(`$Id: qpage.m4,v 8.9 1999/11/16 03:33:04 gshapiro Exp $')
+VERSIONID(`$Id: qpage.m4,v 8.10 2001/11/12 23:11:34 ca Exp $')
 
 Mqpage, P=QPAGE_MAILER_PATH, F=_MODMF_(QPAGE_MAILER_FLAGS, `QPAGE'),
-	M=QPAGE_MAILER_MAX,  T=DNS/RFC822/X-Unix,
+	M=QPAGE_MAILER_MAX,  T=DNS/RFC822/X-Unix,_QPAGE_QGRP
 	A=QPAGE_MAILER_ARGS

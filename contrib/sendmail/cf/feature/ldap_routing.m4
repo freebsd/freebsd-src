@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: ldap_routing.m4,v 8.5.4.1 2000/07/15 18:05:05 gshapiro Exp $')
+VERSIONID(`$Id: ldap_routing.m4,v 8.8 2001/06/27 21:46:31 gshapiro Exp $')
 divert(-1)
 
 # Check first two arguments.  If they aren't set, may need to warn in proto.m4
@@ -22,6 +22,11 @@ ifelse(len(X`'_ARG2_), `1', `define(`_LDAP_ROUTING_WARN_', `yes')')
 ifelse(len(X`'_ARG3_), `1', `define(`_LDAP_ROUTING_', `_PASS_THROUGH_')',
        _ARG3_, `passthru', `define(`_LDAP_ROUTING_', `_PASS_THROUGH_')',
        `define(`_LDAP_ROUTING_', `_MUST_EXIST_')')
+
+# Check for fouth argument to indicate how to deal with +detail info
+ifelse(len(X`'_ARG4_), `1', `',
+       _ARG4_, `strip', `define(`_LDAP_ROUTE_DETAIL_', `_STRIP_')',
+       _ARG4_, `preserve', `define(`_LDAP_ROUTE_DETAIL_', `_PRESERVE_')')
 
 LOCAL_CONFIG
 # LDAP routing maps

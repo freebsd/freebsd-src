@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,9 +10,8 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: timers.c,v 8.13.16.1 2000/10/09 01:06:45 gshapiro Exp $";
-#endif /* ! lint */
+#include <sm/gen.h>
+SM_RCSID("@(#)$Id: timers.c,v 8.24 2001/09/11 04:05:17 gshapiro Exp $")
 
 #if _FFR_TIMERS
 # include <sys/types.h>
@@ -34,17 +33,17 @@ warntimer(msg, va_alist)
 # endif /* __STDC__ */
 {
 	char buf[MAXLINE];
-	VA_LOCAL_DECL
+	SM_VA_LOCAL_DECL
 
 # if 0
 	if (!tTd(98, 30))
 		return;
 # endif /* 0 */
-	VA_START(msg);
-	vsnprintf(buf, sizeof buf, msg, ap);
-	VA_END;
+	SM_VA_START(ap, msg);
+	(void) sm_vsnprintf(buf, sizeof buf, msg, ap);
+	SM_VA_END(ap);
 	sm_syslog(LOG_NOTICE, CurEnv->e_id, "%s; e_timers=0x%lx",
-		  buf, (u_long) &CurEnv->e_timers);
+		  buf, (unsigned long) &CurEnv->e_timers);
 }
 
 static void
@@ -169,7 +168,7 @@ pushtimer(ptimer)
 		if (TimerStack[i] == ptimer)
 		{
 			warntimer("Timer@0x%lx already on stack, index=%d, NTimers=%d",
-				  (u_long) ptimer, i, NTimers);
+				  (unsigned long) ptimer, i, NTimers);
 			errno = save_errno;
 			return;
 		}
@@ -211,7 +210,7 @@ poptimer(ptimer)
 
 	if (i != NTimers - 1)
 		warntimer("poptimer: odd pop (timer=0x%lx, index=%d, NTimers=%d)",
-			  (u_long) ptimer, i, NTimers);
+			  (unsigned long) ptimer, i, NTimers);
 	NTimers = i;
 
 	/* clean up and return */
@@ -224,7 +223,7 @@ strtimer(ptimer)
 {
 	static char buf[40];
 
-	snprintf(buf, sizeof buf, "%ld.%06ldr/%ld.%06ldc",
+	(void) sm_snprintf(buf, sizeof buf, "%ld.%06ldr/%ld.%06ldc",
 		ptimer->ti_wall_sec, ptimer->ti_wall_usec,
 		ptimer->ti_cpu_sec, ptimer->ti_cpu_usec);
 	return buf;

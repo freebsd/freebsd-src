@@ -1,3 +1,7 @@
++------------+
+| t_setreuid |
++------------+
+
 The following are results of running t_setreuid on various architectures.
 
 OPSYS	VERSION	STATUS	DATE	  TESTER/NOTES
@@ -69,6 +73,9 @@ DELL	2.2	OK	93.11.15  Peter Wemm (using -DSETEUID)
 Pyramid	5.0d	OK	95.01.14  David Miller <davem@nadzieja.rutgers.edu>
 
 
++-----------+
+| t_seteuid |
++-----------+
 
 The following are results of running t_seteuid on various architectures.
 
@@ -100,6 +107,10 @@ OSF/1	4.0	OK	96.09.18  Gregory Neil Shapiro <gshapiro@wpi.edu>
 
 CxOS	11.5	FAIL	96.07.08  Eric Schnoebelen <eric@cirr.com>
 
+
++------------+
+| t_pathconf |
++------------+
 
 The following are the results of running t_pathconf.c.  Safe means that
 the underlying filesystem (in NFS, the filesystem on the server) does not
@@ -157,4 +168,31 @@ NCR MP-RAS 3	-1/0
 
 Linux 2.0.27	1/0	    1/0
 
-$Revision: 8.1 $, Last updated $Date: 1999/02/06 18:44:07 $
+
++-----------+
+| t_dropgid |
++-----------+
+
+The following are results of running t_dropgid on various architectures.
+
+OPSYS	VERSION	STATUS		DATE		TESTER/NOTES
+=====	=======	======		====		============
+AIX	4.3.3	FAILS		2001-09-22	Valdis Kletnieks
+BSD/OS	4.2	OK		2001-09-22	Vernon Schryver
+FreeBSD	3.2	OK		2001-09-22	ca
+FreeBSD	4.4	OK		2001-09-29	ca
+HP-UX	11.00	HASSETRESGID	2001-09-22	ca
+IRIX	6.5	FAILS		2001-09-22	Mark D. Roth
+Linux	2.0.35	HASSETREGID	2001-09-22	Neil W Rickert
+Linux	2.2.12	HASSETREGID	2001-09-22	ca
+Linux	2.2.16	HASSETREGID	2001-09-22	Neil W Rickert
+Linux	2.4.9	HASSETREGID	2001-09-22	Derek Balling
+NetBSD	1.5	OK		2001-09-22	Kimmo Suominen
+OpenBSD	2.8	HASSETEGID	2001-09-22	ca
+SCO	5.0.5	FAILS		2001-09-22	Phillip Porch
+SunOS	5.7	HASSETREGID	2001-09-22	Neil W Rickert
+SunOS	5.8	HASSETREGID	2001-09-22	ca
+SunOS	5.9	HASSETREGID	2001-09-22	Neil W Rickert
+
+
+$Revision: 8.3 $, Last updated $Date: 2001/09/30 01:32:33 $

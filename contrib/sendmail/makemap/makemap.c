@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1992 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
@@ -11,18 +11,16 @@
  *
  */
 
-#ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.\n\
+#include <sm/gen.h>
+
+SM_IDSTR(copyright,
+"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1992 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1992, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* ! lint */
+	The Regents of the University of California.  All rights reserved.\n")
 
-#ifndef lint
-static char id[] = "@(#)$Id: makemap.c,v 8.135.4.13 2000/10/05 23:00:50 gshapiro Exp $";
-#endif /* ! lint */
+SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.175 2001/12/28 22:44:01 ca Exp $")
 
 /* $FreeBSD$ */
 
@@ -48,31 +46,24 @@ uid_t	RunAsUid;
 uid_t	RunAsGid;
 char	*RunAsUserName;
 int	Verbose = 2;
-bool	DontInitGroups = FALSE;
+bool	DontInitGroups = false;
 uid_t	TrustedUid = 0;
 BITMAP256 DontBlameSendmail;
 
 #define BUFSIZE		1024
-#if _FFR_DELIM
-# define ISSEP(c) ((sep == '\0' && isascii(c) && isspace(c)) || (c) == sep)
-#else /* _FFR_DELIM */
-# define ISSEP(c) (isascii(c) && isspace(c))
-#endif /* _FFR_DELIM */
-
+#define ISSEP(c) (sep == '\0' ? isascii(c) && isspace(c) : (c) == sep)
 
 static void
 usage(progname)
 	char *progname;
 {
-	fprintf(stderr,
-		"Usage: %s [-C cffile] [-N] [-c cachesize] [-d] [-e] [-f] [-l] [-o] [-r] [-s] %s[-u] [-v] type mapname\n",
-		progname,
-#if _FFR_DELIM
-		"[-t  delimiter] "
-#else /* _FFR_DELIM */
-		""
-#endif /* _FFR_DELIM */
-		);
+	/* XXX break the usage output into multiple lines? it's too long */
+	sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+		"Usage: %s [-C cffile] [-N] [-c cachesize] [-d] [-e] [-f] [-l] [-o] [-r] [-s] [-t delimiter] [-u] [-v] type mapname\n",
+		progname);
+#if _FFR_COMMENT_CHAR
+	/* add -D comment-char */
+#endif /* _FFR_COMMENT_CHAR */
 	exit(EX_USAGE);
 }
 
@@ -83,21 +74,20 @@ main(argc, argv)
 {
 	char *progname;
 	char *cfile;
-	bool inclnull = FALSE;
-	bool notrunc = FALSE;
-	bool allowreplace = FALSE;
-	bool allowempty = FALSE;
-	bool verbose = FALSE;
-	bool foldcase = TRUE;
-	bool unmake = FALSE;
-#if _FFR_DELIM
+	bool inclnull = false;
+	bool notrunc = false;
+	bool allowreplace = false;
+	bool allowempty = false;
+	bool verbose = false;
+	bool foldcase = true;
+	bool unmake = false;
 	char sep = '\0';
-#endif /* _FFR_DELIM */
+	char comment = '#';
 	int exitstat;
 	int opt;
 	char *typename = NULL;
 	char *mapname = NULL;
-	int lineno;
+	unsigned int lineno;
 	int st;
 	int mode;
 	int smode;
@@ -111,7 +101,7 @@ main(argc, argv)
 	SMDB_USER_INFO user_info;
 	char ibuf[BUFSIZE];
 #if HASFCHOWN
-	FILE *cfp;
+	SM_FILE_T *cfp;
 	char buf[MAXLINE];
 #endif /* HASFCHOWN */
 	static char rnamebuf[MAXNAME];	/* holds RealUserName */
@@ -126,25 +116,24 @@ main(argc, argv)
 		progname++;
 	else
 		progname = argv[0];
-	cfile = _PATH_SENDMAILCF;
+	cfile = getcfname(0, 0, SM_GET_SENDMAIL_CF, NULL);
 
 	clrbitmap(DontBlameSendmail);
 	RunAsUid = RealUid = getuid();
 	RunAsGid = RealGid = getgid();
 	pw = getpwuid(RealUid);
 	if (pw != NULL)
-		(void) strlcpy(rnamebuf, pw->pw_name, sizeof rnamebuf);
+		(void) sm_strlcpy(rnamebuf, pw->pw_name, sizeof rnamebuf);
 	else
-		(void) snprintf(rnamebuf, sizeof rnamebuf, "Unknown UID %d",
-				(int) RealUid);
+		(void) sm_snprintf(rnamebuf, sizeof rnamebuf,
+		    "Unknown UID %d", (int) RealUid);
 	RunAsUserName = RealUserName = rnamebuf;
 	user_info.smdbu_id = RunAsUid;
 	user_info.smdbu_group_id = RunAsGid;
-	(void) strlcpy(user_info.smdbu_name, RunAsUserName,
+	(void) sm_strlcpy(user_info.smdbu_name, RunAsUserName,
 		       SMDB_MAX_USER_NAME_LEN);
 
-
-#define OPTIONS		"C:Nc:t:deflorsuv"
+#define OPTIONS		"C:D:Nc:deflorst:uv"
 	while ((opt = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (opt)
@@ -154,7 +143,7 @@ main(argc, argv)
 			break;
 
 		  case 'N':
-			inclnull = TRUE;
+			inclnull = true;
 			break;
 
 		  case 'c':
@@ -162,16 +151,22 @@ main(argc, argv)
 			break;
 
 		  case 'd':
-			params.smdbp_allow_dup = TRUE;
+			params.smdbp_allow_dup = true;
 			break;
 
 		  case 'e':
-			allowempty = TRUE;
+			allowempty = true;
 			break;
 
 		  case 'f':
-			foldcase = FALSE;
+			foldcase = false;
 			break;
+
+#if _FFR_COMMENT_CHAR
+		  case 'D':
+			comment = *optarg;
+			break;
+#endif /* _FFR_COMMENT_CHAR */
 
 		  case 'l':
 			smdb_print_available_types();
@@ -179,11 +174,11 @@ main(argc, argv)
 			break;
 
 		  case 'o':
-			notrunc = TRUE;
+			notrunc = true;
 			break;
 
 		  case 'r':
-			allowreplace = TRUE;
+			allowreplace = true;
 			break;
 
 		  case 's':
@@ -193,23 +188,22 @@ main(argc, argv)
 			setbitn(DBS_LINKEDMAPINWRITABLEDIR, DontBlameSendmail);
 			break;
 
-#if _FFR_DELIM
 		  case 't':
 			if (optarg == NULL || *optarg == '\0')
 			{
-				fprintf(stderr, "Invalid separator\n");
+				sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					      "Invalid separator\n");
 				break;
 			}
 			sep = *optarg;
 			break;
-#endif /* _FFR_DELIM */
 
 		  case 'u':
-			unmake = TRUE;
+			unmake = true;
 			break;
 
 		  case 'v':
-			verbose = TRUE;
+			verbose = true;
 			break;
 
 		  default:
@@ -240,12 +234,14 @@ main(argc, argv)
 
 #if HASFCHOWN
 	/* Find TrustedUser value in sendmail.cf */
-	if ((cfp = fopen(cfile, "r")) == NULL)
+	if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile, SM_IO_RDONLY,
+			      NULL)) == NULL)
 	{
-		fprintf(stderr, "makemap: %s: %s", cfile, errstring(errno));
+		sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "makemap: %s: %s",
+			      cfile, sm_errstring(errno));
 		exit(EX_NOINPUT);
 	}
-	while (fgets(buf, sizeof(buf), cfp) != NULL)
+	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
 	{
 		register char *b;
 
@@ -271,8 +267,9 @@ main(argc, argv)
 					TrustedUid = 0;
 					pw = getpwnam(b);
 					if (pw == NULL)
-						fprintf(stderr,
-							"TrustedUser: unknown user %s\n", b);
+						(void) sm_io_fprintf(smioerr,
+								     SM_TIME_DEFAULT,
+								     "TrustedUser: unknown user %s\n", b);
 					else
 						TrustedUid = pw->pw_uid;
 				}
@@ -280,8 +277,9 @@ main(argc, argv)
 # ifdef UID_MAX
 				if (TrustedUid > UID_MAX)
 				{
-					fprintf(stderr,
-						"TrustedUser: uid value (%ld) > UID_MAX (%ld)",
+					(void) sm_io_fprintf(smioerr,
+							     SM_TIME_DEFAULT,
+							     "TrustedUser: uid value (%ld) > UID_MAX (%ld)",
 						(long) TrustedUid,
 						(long) UID_MAX);
 					TrustedUid = 0;
@@ -295,7 +293,7 @@ main(argc, argv)
 			continue;
 		}
 	}
-	(void) fclose(cfp);
+	(void) sm_io_close(cfp, SM_TIME_DEFAULT);
 #endif /* HASFCHOWN */
 
 	if (!params.smdbp_allow_dup && !allowreplace)
@@ -327,13 +325,14 @@ main(argc, argv)
 
 		if (errno == SMDBE_UNSUPPORTED_DB_TYPE &&
 		    (hint = smdb_db_definition(typename)) != NULL)
-			fprintf(stderr,
-				"%s: Need to recompile with -D%s for %s support\n",
-				progname, hint, typename);
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					     "%s: Need to recompile with -D%s for %s support\n",
+					     progname, hint, typename);
 		else
-			fprintf(stderr,
-				"%s: error opening type %s map %s: %s\n",
-				progname, typename, mapname, errstring(errno));
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					     "%s: error opening type %s map %s: %s\n",
+					     progname, typename, mapname,
+					     sm_errstring(errno));
 		exit(EX_CANTCREAT);
 	}
 
@@ -344,9 +343,9 @@ main(argc, argv)
 		errno = database->smdb_set_owner(database, TrustedUid, -1);
 		if (errno != SMDBE_OK)
 		{
-			fprintf(stderr,
-				"WARNING: ownership change on %s failed %s",
-				mapname, errstring(errno));
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					     "WARNING: ownership change on %s failed %s",
+					     mapname, sm_errstring(errno));
 		}
 	}
 
@@ -361,9 +360,9 @@ main(argc, argv)
 		if (errno != SMDBE_OK)
 		{
 
-			fprintf(stderr,
-				"%s: cannot make cursor for type %s map %s\n",
-				progname, typename, mapname);
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					     "%s: cannot make cursor for type %s map %s\n",
+					     progname, typename, mapname);
 			exit(EX_SOFTWARE);
 		}
 
@@ -377,11 +376,12 @@ main(argc, argv)
 			if (errno != SMDBE_OK)
 				break;
 
-			printf("%.*s\t%.*s\n",
-			       (int) db_key.size,
-			       (char *) db_key.data,
-			       (int) db_val.size,
-			       (char *)db_val.data);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "%.*s\t%.*s\n",
+					     (int) db_key.size,
+					     (char *) db_key.data,
+					     (int) db_val.size,
+					     (char *)db_val.data);
 
 		}
 		(void) cursor->smdbc_close(cursor);
@@ -389,7 +389,8 @@ main(argc, argv)
 	else
 	{
 		lineno = 0;
-		while (fgets(ibuf, sizeof ibuf, stdin) != NULL)
+		while (sm_io_fgets(smioin, SM_TIME_DEFAULT, ibuf, sizeof ibuf)
+		       != NULL)
 		{
 			register char *p;
 
@@ -402,26 +403,23 @@ main(argc, argv)
 			p = strchr(ibuf, '\n');
 			if (p != NULL)
 				*p = '\0';
-			else if (!feof(stdin))
+			else if (!sm_io_eof(smioin))
 			{
-				fprintf(stderr,
-					"%s: %s: line %d: line too long (%ld bytes max)\n",
-					progname, mapname, lineno, (long) sizeof ibuf);
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "%s: %s: line %u: line too long (%ld bytes max)\n",
+						     progname, mapname, lineno,
+						     (long) sizeof ibuf);
 				exitstat = EX_DATAERR;
 				continue;
 			}
 
-			if (ibuf[0] == '\0' || ibuf[0] == '#')
+			if (ibuf[0] == '\0' || ibuf[0] == comment)
 				continue;
-			if (
-#if _FFR_DELIM
-			    sep == '\0' &&
-#endif /* _FFR_DELIM */
-			    isascii(ibuf[0]) && isspace(ibuf[0]))
+			if (sep == '\0' && isascii(ibuf[0]) && isspace(ibuf[0]))
 			{
-				fprintf(stderr,
-					"%s: %s: line %d: syntax error (leading space)\n",
-					progname, mapname, lineno);
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "%s: %s: line %u: syntax error (leading space)\n",
+						     progname, mapname, lineno);
 				exitstat = EX_DATAERR;
 				continue;
 			}
@@ -441,14 +439,14 @@ main(argc, argv)
 
 			if (*p != '\0')
 				*p++ = '\0';
-			while (ISSEP(*p))
+			while (*p != '\0' && ISSEP(*p))
 				p++;
 			if (!allowempty && *p == '\0')
 			{
-				fprintf(stderr,
-					"%s: %s: line %d: no RHS for LHS %s\n",
-					progname, mapname, lineno,
-					(char *) db_key.data);
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "%s: %s: line %u: no RHS for LHS %s\n",
+						     progname, mapname, lineno,
+						     (char *) db_key.data);
 				exitstat = EX_DATAERR;
 				continue;
 			}
@@ -464,9 +462,10 @@ main(argc, argv)
 
 			if (verbose)
 			{
-				printf("key=`%s', val=`%s'\n",
-				       (char *) db_key.data,
-				       (char *) db_val.data);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "key=`%s', val=`%s'\n",
+						     (char *) db_key.data,
+						     (char *) db_val.data);
 			}
 
 			errno = database->smdb_put(database, &db_key, &db_val,
@@ -488,19 +487,20 @@ main(argc, argv)
 
 			if (st < 0)
 			{
-				fprintf(stderr,
-					"%s: %s: line %d: key %s: put error: %s\n",
-					progname, mapname, lineno,
-					(char *) db_key.data,
-					errstring(errno));
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "%s: %s: line %u: key %s: put error: %s\n",
+						     progname, mapname, lineno,
+						     (char *) db_key.data,
+						     sm_errstring(errno));
 				exitstat = EX_IOERR;
 			}
 			else if (st > 0)
 			{
-				fprintf(stderr,
-					"%s: %s: line %d: key %s: duplicate key\n",
-					progname, mapname,
-					lineno, (char *) db_key.data);
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "%s: %s: line %u: key %s: duplicate key\n",
+						     progname, mapname,
+						     lineno,
+						     (char *) db_key.data);
 				exitstat = EX_DATAERR;
 			}
 		}
@@ -513,61 +513,15 @@ main(argc, argv)
 	errno = database->smdb_close(database);
 	if (errno != SMDBE_OK)
 	{
-		fprintf(stderr, "%s: close(%s): %s\n",
-			progname, mapname, errstring(errno));
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "%s: close(%s): %s\n",
+				     progname, mapname, sm_errstring(errno));
 		exitstat = EX_IOERR;
 	}
 	smdb_free_database(database);
 
 	exit(exitstat);
+
 	/* NOTREACHED */
 	return exitstat;
-}
-
-/*VARARGS1*/
-void
-#ifdef __STDC__
-message(const char *msg, ...)
-#else /* __STDC__ */
-message(msg, va_alist)
-	const char *msg;
-	va_dcl
-#endif /* __STDC__ */
-{
-	const char *m;
-	VA_LOCAL_DECL
-
-	m = msg;
-	if (isascii(m[0]) && isdigit(m[0]) &&
-	    isascii(m[1]) && isdigit(m[1]) &&
-	    isascii(m[2]) && isdigit(m[2]) && m[3] == ' ')
-		m += 4;
-	VA_START(msg);
-	(void) vfprintf(stderr, m, ap);
-	VA_END;
-	(void) fprintf(stderr, "\n");
-}
-
-/*VARARGS1*/
-void
-#ifdef __STDC__
-syserr(const char *msg, ...)
-#else /* __STDC__ */
-syserr(msg, va_alist)
-	const char *msg;
-	va_dcl
-#endif /* __STDC__ */
-{
-	const char *m;
-	VA_LOCAL_DECL
-
-	m = msg;
-	if (isascii(m[0]) && isdigit(m[0]) &&
-	    isascii(m[1]) && isdigit(m[1]) &&
-	    isascii(m[2]) && isdigit(m[2]) && m[3] == ' ')
-		m += 4;
-	VA_START(msg);
-	(void) vfprintf(stderr, m, ap);
-	VA_END;
-	(void) fprintf(stderr, "\n");
 }

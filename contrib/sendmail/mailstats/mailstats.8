@@ -6,15 +6,15 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: mailstats.8,v 8.17.4.6 2001/05/07 22:06:38 gshapiro Exp $
+.\"	$Id: mailstats.8,v 8.26 2001/10/21 19:12:10 gshapiro Exp $
 .\"
-.TH MAILSTATS 8 "$Date: 2001/05/07 22:06:38 $"
+.TH MAILSTATS 8 "$Date: 2001/10/21 19:12:10 $"
 .SH NAME
 mailstats
 \- display mail statistics
 .SH SYNOPSIS
 .B mailstats
-.RB [ \-o "] [" \-p ]
+.RB [ \-o "] [" \-p "] [" \-P ]
 .RB [ \-C 
 .IR cffile ]
 .RB [ \-f
@@ -50,10 +50,10 @@ Number of messages to the mailer.
 Kbytes to the mailer.
 .TP
 .B msgsrej
-Number of messages rejected.
+Number of messages rejected (by check_* rulesets).
 .TP
 .B msgsdis
-Number of messages discarded.
+Number of messages discarded (by check_* rulesets).
 .TP
 .B Mailer
 The name of the mailer.
@@ -80,6 +80,9 @@ specified in the
 .B sendmail 
 configuration file.
 .TP 
+.B \-P
+Output information in program-readable mode without clearing statistics.
+.TP
 .B \-p
 Output information in program-readable mode and clear statistics.
 .TP

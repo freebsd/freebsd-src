@@ -12,17 +12,15 @@
  *
  */
 
-#ifndef lint
-static char copyright[] =
+#include <sm/gen.h>
+
+SM_IDSTR(copyright,
 "@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* ! lint */
+	The Regents of the University of California.  All rights reserved.\n")
 
-#ifndef lint
-static char id[] = "@(#)$Id: mailstats.c,v 8.53.16.13 2001/05/07 22:06:38 gshapiro Exp $";
-#endif /* ! lint */
+SM_IDSTR(id, "@(#)$Id: mailstats.c,v 8.95 2001/12/30 04:59:40 gshapiro Exp $")
 
 /* $FreeBSD$ */
 
@@ -37,13 +35,14 @@ static char id[] = "@(#)$Id: mailstats.c,v 8.53.16.13 2001/05/07 22:06:38 gshapi
 #endif /* EX_OK */
 #include <sysexits.h>
 
+#include <sm/errstring.h>
+#include <sm/limits.h>
 #include <sendmail/sendmail.h>
 #include <sendmail/mailstats.h>
 #include <sendmail/pathnames.h>
 
 
 #define MNAMELEN	20	/* max length of mailer name */
-
 
 int
 main(argc, argv)
@@ -56,11 +55,15 @@ main(argc, argv)
 	int ch, fd;
 	char *sfile;
 	char *cfile;
-	FILE *cfp;
+	SM_FILE_T *cfp;
 	bool mnames;
 	bool progmode;
+	bool trunc;
 	long frmsgs = 0, frbytes = 0, tomsgs = 0, tobytes = 0, rejmsgs = 0;
 	long dismsgs = 0;
+#if _FFR_QUARANTINE
+	long quarmsgs = 0;
+#endif /* _FFR_QUARANTINE */
 	time_t now;
 	char mtable[MAXMAILERS][MNAMELEN + 1];
 	char sfilebuf[MAXLINE];
@@ -70,15 +73,19 @@ main(argc, argv)
 	extern char *optarg;
 	extern int optind;
 
-
-	cfile = _PATH_SENDMAILCF;
+	cfile = getcfname(0, 0, SM_GET_SENDMAIL_CF, NULL);
 	sfile = NULL;
-	mnames = TRUE;
-	progmode = FALSE;
-	while ((ch = getopt(argc, argv, "C:f:op")) != -1)
+	mnames = true;
+	progmode = false;
+	trunc = false;
+	while ((ch = getopt(argc, argv, "cC:f:opP")) != -1)
 	{
 		switch (ch)
 		{
+		  case 'c':
+			cfile = getcfname(0, 0, SM_GET_SUBMIT_CF, NULL);
+			break;
+
 		  case 'C':
 			cfile = optarg;
 			break;
@@ -88,18 +95,22 @@ main(argc, argv)
 			break;
 
 		  case 'o':
-			mnames = FALSE;
+			mnames = false;
 			break;
 
 		  case 'p':
-			progmode = TRUE;
+			trunc = true;
+			/* FALLTHROUGH */
+
+		  case 'P':
+			progmode = true;
 			break;
 
 		  case '?':
 		  default:
   usage:
-			(void) fputs("usage: mailstats [-C cffile] [-f stfile] [-o] [-p]\n",
-				     stderr);
+			(void) sm_io_fputs(smioerr, SM_TIME_DEFAULT,
+			    "usage: mailstats [-C cffile] [-P] [-f stfile] [-o] [-p]\n");
 			exit(EX_USAGE);
 		}
 	}
@@ -109,21 +120,22 @@ main(argc, argv)
 	if (argc != 0)
 		goto usage;
 
-	if ((cfp = fopen(cfile, "r")) == NULL)
+	if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile, SM_IO_RDONLY,
+			      NULL)) == NULL)
 	{
 		save_errno = errno;
-		fprintf(stderr, "mailstats: ");
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "mailstats: ");
 		errno = save_errno;
-		perror(cfile);
+		sm_perror(cfile);
 		exit(EX_NOINPUT);
 	}
 
 	mno = 0;
-	(void) strlcpy(mtable[mno++], "prog", MNAMELEN + 1);
-	(void) strlcpy(mtable[mno++], "*file*", MNAMELEN + 1);
-	(void) strlcpy(mtable[mno++], "*include*", MNAMELEN + 1);
+	(void) sm_strlcpy(mtable[mno++], "prog", MNAMELEN + 1);
+	(void) sm_strlcpy(mtable[mno++], "*file*", MNAMELEN + 1);
+	(void) sm_strlcpy(mtable[mno++], "*include*", MNAMELEN + 1);
 
-	while (fgets(buf, sizeof(buf), cfp) != NULL)
+	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
 	{
 		register char *b;
 		char *s;
@@ -136,7 +148,7 @@ main(argc, argv)
 			break;
 
 		  case 'O':		/* option -- see if .st file */
-			if (strncasecmp(b, " StatusFile", 11) == 0 &&
+			if (sm_strncasecmp(b, " StatusFile", 11) == 0 &&
 			    !(isascii(b[11]) && isalnum(b[11])))
 			{
 				/* new form -- find value */
@@ -153,12 +165,12 @@ main(argc, argv)
 			}
 
 			/* this is the S or StatusFile option -- save it */
-			if (strlcpy(sfilebuf, b, sizeof sfilebuf) >=
+			if (sm_strlcpy(sfilebuf, b, sizeof sfilebuf) >=
 			    sizeof sfilebuf)
 			{
-				fprintf(stderr,
-					"StatusFile filename too long: %.30s...\n",
-					b);
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "StatusFile filename too long: %.30s...\n",
+						     b);
 				exit(EX_CONFIG);
 			}
 			b = strchr(sfilebuf, '#');
@@ -178,9 +190,9 @@ main(argc, argv)
 
 		if (mno >= MAXMAILERS)
 		{
-			fprintf(stderr,
-				"Too many mailers defined, %d max.\n",
-				MAXMAILERS);
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					     "Too many mailers defined, %d max.\n",
+					     MAXMAILERS);
 			exit(EX_SOFTWARE);
 		}
 		m = mtable[mno];
@@ -197,13 +209,14 @@ main(argc, argv)
 		if (i == mno)
 			mno++;
 	}
-	(void) fclose(cfp);
+	(void) sm_io_close(cfp, SM_TIME_DEFAULT);
 	for (; mno < MAXMAILERS; mno++)
-		mtable[mno][0]='\0';
+		mtable[mno][0] = '\0';
 
 	if (sfile == NULL)
 	{
-		fprintf(stderr, "mailstats: no statistics file located\n");
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "mailstats: no statistics file located\n");
 		exit (EX_OSFILE);
 	}
 
@@ -211,9 +224,9 @@ main(argc, argv)
 	if ((fd < 0) || (i = read(fd, &stats, sizeof stats)) < 0)
 	{
 		save_errno = errno;
-		(void) fputs("mailstats: ", stderr);
+		(void) sm_io_fputs(smioerr, SM_TIME_DEFAULT, "mailstats: ");
 		errno = save_errno;
-		perror(sfile);
+		sm_perror(sfile);
 		exit(EX_NOINPUT);
 	}
 	if (i == 0)
@@ -222,9 +235,10 @@ main(argc, argv)
 		if ((i = read(fd, &stats, sizeof stats)) < 0)
 		{
 			save_errno = errno;
-			(void) fputs("mailstats: ", stderr);
+			(void) sm_io_fputs(smioerr, SM_TIME_DEFAULT,
+					   "mailstats: ");
 			errno = save_errno;
-			perror(sfile);
+			sm_perror(sfile);
 			exit(EX_NOINPUT);
 		}
 		else if (i == 0)
@@ -237,21 +251,24 @@ main(argc, argv)
 	{
 		if (stats.stat_magic != STAT_MAGIC)
 		{
-			fprintf(stderr,
-				"mailstats: incorrect magic number in %s\n",
-				sfile);
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					     "mailstats: incorrect magic number in %s\n",
+					     sfile);
 			exit(EX_OSERR);
 		}
 		else if (stats.stat_version != STAT_VERSION)
 		{
-			fprintf(stderr,
-				"mailstats version (%d) incompatible with %s version (%d)\n",
-				STAT_VERSION, sfile, stats.stat_version);
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					     "mailstats version (%d) incompatible with %s version (%d)\n",
+					     STAT_VERSION, sfile,
+					     stats.stat_version);
+
 			exit(EX_OSERR);
 		}
 		else if (i != sizeof stats || stats.stat_size != sizeof(stats))
 		{
-			(void) fputs("mailstats: file size changed.\n", stderr);
+			(void) sm_io_fputs(smioerr, SM_TIME_DEFAULT,
+					   "mailstats: file size changed.\n");
 			exit(EX_OSERR);
 		}
 	}
@@ -259,17 +276,28 @@ main(argc, argv)
 	if (progmode)
 	{
 		(void) time(&now);
-		printf("%ld %ld\n", (long) stats.stat_itime, (long) now);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%ld %ld\n",
+				     (long) stats.stat_itime, (long) now);
 	}
 	else
 	{
-		printf("Statistics from %s", ctime(&stats.stat_itime));
-		printf(" M   msgsfr  bytes_from   msgsto    bytes_to  msgsrej msgsdis%s\n",
-			mnames ? "  Mailer" : "");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Statistics from %s",
+				     ctime(&stats.stat_itime));
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     " M   msgsfr  bytes_from   msgsto    bytes_to  msgsrej msgsdis");
+#if _FFR_QUARANTINE
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, " msgsqur");
+#endif /* _FFR_QUARANTINE */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s\n",
+				     mnames ? "  Mailer" : "");
 	}
 	for (i = 0; i < MAXMAILERS; i++)
 	{
 		if (stats.stat_nf[i] || stats.stat_nt[i] ||
+#if _FFR_QUARANTINE
+		    stats.stat_nq[i] ||
+#endif /* _FFR_QUARANTINE */
 		    stats.stat_nr[i] || stats.stat_nd[i])
 		{
 			char *format;
@@ -278,39 +306,78 @@ main(argc, argv)
 				format = "%2d %8ld %10ld %8ld %10ld   %6ld  %6ld";
 			else
 				format = "%2d %8ld %10ldK %8ld %10ldK   %6ld  %6ld";
-			printf(format, i,
-			    stats.stat_nf[i], stats.stat_bf[i],
-			    stats.stat_nt[i], stats.stat_bt[i],
-			    stats.stat_nr[i], stats.stat_nd[i]);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     format, i,
+					     stats.stat_nf[i],
+					     stats.stat_bf[i],
+					     stats.stat_nt[i],
+					     stats.stat_bt[i],
+					     stats.stat_nr[i],
+					     stats.stat_nd[i]);
+#if _FFR_QUARANTINE
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "  %6ld", stats.stat_nq[i]);
+#endif /* _FFR_QUARANTINE */
 			if (mnames)
-				printf("  %s", mtable[i]);
-			printf("\n");
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     "  %s",
+						      mtable[i]);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\n");
 			frmsgs += stats.stat_nf[i];
 			frbytes += stats.stat_bf[i];
 			tomsgs += stats.stat_nt[i];
 			tobytes += stats.stat_bt[i];
 			rejmsgs += stats.stat_nr[i];
 			dismsgs += stats.stat_nd[i];
+#if _FFR_QUARANTINE
+			quarmsgs += stats.stat_nq[i];
+#endif /* _FFR_QUARANTINE */
 		}
 	}
 	if (progmode)
 	{
-		printf(" T %8ld %10ld %8ld %10ld   %6ld  %6ld\n",
-		       frmsgs, frbytes, tomsgs, tobytes, rejmsgs, dismsgs);
-		printf(" C %8ld %8ld %6ld\n",
-		       stats.stat_cf, stats.stat_ct, stats.stat_cr);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     " T %8ld %10ld %8ld %10ld   %6ld  %6ld",
+				     frmsgs, frbytes, tomsgs, tobytes, rejmsgs,
+				     dismsgs);
+#if _FFR_QUARANTINE
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "  %6ld", quarmsgs);
+#endif /* _FFR_QUARANTINE */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\n");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     " C %8ld %8ld %6ld\n",
+				     stats.stat_cf, stats.stat_ct,
+				     stats.stat_cr);
 		(void) close(fd);
-		fd = open(sfile, O_RDWR | O_TRUNC);
-		if (fd >= 0)
-			(void) close(fd);
+		if (trunc)
+		{
+			fd = open(sfile, O_RDWR | O_TRUNC);
+			if (fd >= 0)
+				(void) close(fd);
+		}
 	}
 	else
 	{
-		printf("=============================================================\n");
-		printf(" T %8ld %10ldK %8ld %10ldK   %6ld  %6ld\n",
-			frmsgs, frbytes, tomsgs, tobytes, rejmsgs, dismsgs);
-		printf(" C %8ld %10s  %8ld %10s    %6ld\n",
-		       stats.stat_cf, "", stats.stat_ct, "", stats.stat_cr);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "=============================================================");
+#if _FFR_QUARANTINE
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "========");
+#endif /* _FFR_QUARANTINE */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\n");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     " T %8ld %10ldK %8ld %10ldK   %6ld  %6ld",
+				     frmsgs, frbytes, tomsgs, tobytes, rejmsgs,
+				     dismsgs);
+#if _FFR_QUARANTINE
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "  %6ld", quarmsgs);
+#endif /* _FFR_QUARANTINE */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\n");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     " C %8ld %10s  %8ld %10s    %6ld\n",
+				     stats.stat_cf, "", stats.stat_ct, "",
+				     stats.stat_cr);
 	}
 	exit(EX_OK);
 	/* NOTREACHED */

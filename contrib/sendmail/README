@@ -27,10 +27,12 @@ the latest updates.
 
    You may also find these useful:
 
-   d. devtools/README
-   e. devtools/Site/README
-   f. mail.local/README
-   g. smrsh/README
+   d. sendmail/SECURITY
+   e. devtools/README
+   f. devtools/Site/README
+   g. libmilter/README
+   h. mail.local/README
+   i. smrsh/README
 
 4. Read cf/README.
 
@@ -93,7 +95,7 @@ the items in the file to be marked as safe for file and program
 delivery.
 
 Other files affected by this strengthened security include class
-files (i.e. Fw /etc/mail/local-host-names), persistent host status files,
+files (i.e., Fw /etc/mail/local-host-names), persistent host status files,
 and the files specified by the ErrorHeader and HelpFile options.  Similar
 DontBlameSendmail flags are available for the class, ErrorHeader, and
 HelpFile files.
@@ -174,15 +176,13 @@ Important RFCs for electronic mail are:
 	RFC974	MX routing
 	RFC976	UUCP mail format
 	RFC1123	Host requirements (modifies 821, 822, and 974)
-	RFC1413	Identification server
-	RFC1869	SMTP Service Extensions (ESMTP spec)
-	RFC1652	SMTP Service Extension for 8bit-MIMEtransport
-	RFC1870	SMTP Service Extension for Message Size Declaration
-	RFC2045	Multipurpose Internet Mail Extensions (MIME) Part One:
-		Format of Internet Message Bodies
 	RFC1344	Implications of MIME for Internet Mail Gateways
+	RFC1413	Identification server
 	RFC1428	Transition of Internet Mail from Just-Send-8 to
 		8-bit SMTP/MIME
+	RFC1652	SMTP Service Extension for 8bit-MIMEtransport
+	RFC1869	SMTP Service Extensions (ESMTP spec)
+	RFC1870	SMTP Service Extension for Message Size Declaration
 	RFC1891	SMTP Service Extension for Delivery Status Notifications
 	RFC1892	Multipart/Report Content Type for the Reporting of
 		Mail System Administrative Messages
@@ -192,9 +192,15 @@ Important RFCs for electronic mail are:
 	RFC1985	SMTP Service Extension for Remote Message Queue Starting
 	RFC2033 Local Mail Transfer Protocol (LMTP)
 	RFC2034 SMTP Service Extension for Returning Enhanced Error Codes
+	RFC2045	Multipurpose Internet Mail Extensions (MIME) Part One:
+		Format of Internet Message Bodies
 	RFC2476 Message Submission
 	RFC2487 SMTP Service Extension for Secure SMTP over TLS
 	RFC2554 SMTP Service Extension for Authentication
+	RFC2821 Simple Mail Transfer Protocol
+	RFC2822 Internet Message Format
+	RFC2852 Deliver By SMTP Service Extension
+	RFC2920 SMTP Service Extension for Command Pipelining
 
 Other standards that may be of interest (but which are less directly
 relevant to sendmail) are:
@@ -221,8 +227,8 @@ PARTS OF THE WORLD.  SO, WHEN YOU IMPORT THIS PACKAGE TO YOUR
 COUNTRY, RE-DISTRIBUTE IT FROM THERE OR EVEN JUST EMAIL TECHNICAL
 SUGGESTIONS OR EVEN SOURCE PATCHES TO THE AUTHOR OR OTHER PEOPLE
 YOU ARE STRONGLY ADVISED TO PAY CLOSE ATTENTION TO ANY EXPORT/IMPORT
-AND/OR USE LAWS WHICH APPLY TO YOU. THE AUTHORS ARE NOT LIABLE FOR
-ANY VIOLATIONS YOU MAKE HERE. SO BE CAREFUL, IT IS YOUR RESPONSIBILITY.
+AND/OR USE LAWS WHICH APPLY TO YOU.  THE AUTHORS ARE NOT LIABLE FOR
+ANY VIOLATIONS YOU MAKE HERE.  SO BE CAREFUL, IT IS YOUR RESPONSIBILITY.
 
 If you use OpenSSL then make sure you read their README file which
 contains information about patents etc.
@@ -360,6 +366,8 @@ contrib		Some contributed tools to help with sendmail.  THESE
 devtools	Build environment.  See devtools/README.
 doc		Documentation.  If you are getting source, read
 		op.me -- it's long, but worth it.
+editmap		A program to edit and query maps that have been created
+		with makemap, e.g., adding and deleting entries.
 include		Include files used by multiple programs in the distribution.
 libsmdb		sendmail database library with support for Berkeley DB 1.X,
 		Berkeley DB 2.X, Berkeley DB 3.X, and NDBM.
@@ -392,4 +400,4 @@ sendmail	Source for the sendmail program itself.
 test		Some test scripts (currently only for compilation aids).
 vacation	Source for the vacation program.  NOT PART OF SENDMAIL!
 
-$Revision: 8.71.4.8 $, Last updated $Date: 2001/07/31 22:42:46 $
+$Revision: 8.81 $, Last updated $Date: 2001/09/26 16:22:19 $
