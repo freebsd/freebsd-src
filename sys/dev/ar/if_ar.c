@@ -88,6 +88,8 @@
 
 #define PPP_HEADER_LEN       4
 
+devclass_t ar_devclass;
+
 struct ar_softc {
 #ifndef	NETGRAPH
 	struct sppp ifsppp;
