@@ -650,3 +650,38 @@ gv_new_sd(int max, char *token[])
 
 	return (s);
 }
+
+/*
+ * Take a size in bytes and return a pointer to a string which represents the
+ * size best.  If lj is != 0, return left justified, otherwise in a fixed 10
+ * character field suitable for columnar printing.
+ *
+ * Note this uses a static string: it's only intended to be used immediately
+ * for printing.
+ */
+const char *
+gv_roughlength(off_t bytes, int lj)
+{
+	static char desc[16];
+	
+	/* Gigabytes. */
+	if (bytes > (off_t)MEGABYTE * 10000)
+		snprintf(desc, sizeof(desc), lj ? "%jd GB" : "%10jd GB",
+		    bytes / GIGABYTE);
+
+	/* Megabytes. */
+	else if (bytes > KILOBYTE * 10000)
+		snprintf(desc, sizeof(desc), lj ? "%jd MB" : "%10jd MB",
+		    bytes / MEGABYTE);
+
+	/* Kilobytes. */
+	else if (bytes > 10000)
+		snprintf(desc, sizeof(desc), lj ? "%jd kB" : "%10jd kB",
+		    bytes / KILOBYTE);
+
+	/* Bytes. */
+	else
+		snprintf(desc, sizeof(desc), lj ? "%jd  B" : "%10jd  B", bytes);
+
+	return (desc);
+}
