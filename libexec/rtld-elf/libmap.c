@@ -33,6 +33,7 @@ struct lm {
 TAILQ_HEAD(lmp_list, lmp) lmp_head = TAILQ_HEAD_INITIALIZER(lmp_head);
 struct lmp {
 	char *p;
+	enum { T_EXACT=0, T_BASENAME, T_DIRECTORY } type;
 	struct lm_list lml;
 	TAILQ_ENTRY(lmp) lmp_link;
 };
@@ -42,6 +43,7 @@ static void		lm_free		(struct lm_list *);
 static char *		lml_find	(struct lm_list *, const char *);
 static struct lm_list *	lmp_find	(const char *);
 static struct lm_list *	lmp_init	(char *);
+static const char * quickbasename	(const char *);
 
 #define	iseol(c)	(((c) == '#') || ((c) == '\0') || \
 			 ((c) == '\n') || ((c) == '\r'))
@@ -216,6 +218,8 @@ lm_find (const char *p, const char *f)
 		return (NULL);
 }
 
+/* Given a libmap translation list and a library name, return the
+   replacement library, or NULL */
 #ifdef COMPAT_32BIT
 char *
 lm_findn (const char *p, const char *f, const int n)
@@ -250,6 +254,8 @@ lml_find (struct lm_list *lmh, const char *f)
 	return NULL;
 }
 
+/* Given an executable name, return a pointer to the translation list or
+   NULL if no matches */
 static struct lm_list *
 lmp_find (const char *n)
 {
@@ -258,7 +264,9 @@ lmp_find (const char *n)
 	dbg("%s(\"%s\")", __func__, n);
 
 	TAILQ_FOREACH(lmp, &lmp_head, lmp_link)
-		if (strcmp(n, lmp->p) == 0)
+		if ((lmp->type == T_EXACT && strcmp(n, lmp->p) == 0) ||
+		    (lmp->type == T_DIRECTORY && strncmp(n, lmp->p, strlen(lmp->p)) == 0) ||
+		    (lmp->type == T_BASENAME && strcmp(quickbasename(n), lmp->p) == 0))
 			return (&lmp->lml);
 	return (NULL);
 }
@@ -272,8 +280,28 @@ lmp_init (char *n)
 
 	lmp = xmalloc(sizeof(struct lmp));
 	lmp->p = n;
+	if (n[strlen(n)-1] == '/')
+		lmp->type = T_DIRECTORY;
+	else if (strchr(n,'/') == NULL)
+		lmp->type = T_BASENAME;
+	else
+		lmp->type = T_EXACT;
 	TAILQ_INIT(&lmp->lml);
 	TAILQ_INSERT_HEAD(&lmp_head, lmp, lmp_link);
 
 	return (&lmp->lml);
+}
+
+/* libc basename is overkill.  Return a pointer to the character after the
+   last /, or the original string if there are no slashes. */
+static const char *
+quickbasename (const char *path)
+{
+	const char *p = path;
+	for (; *path; path++)
+	{
+		if (*path == '/')
+			p = path+1;
+	}
+	return p;
 }

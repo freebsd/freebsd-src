@@ -46,14 +46,44 @@ Dependencies are matched against candidates and replaced with the mappings.
 Constrained mappings may be specified by enclosing the name of the
 executable or library in brackets.
 All mappings following a constraint will only be evaluated for that constraint.
-Currently, constraints
-are matched literally so that an executable with a fully qualified pathname
-will only match the same constraint.
-This means that
+Constraints can be one of three types:
+.Bl -tag -width indent
+.It Exact 
+The constraint is matched literally so that only an executable with an
+identical fully qualified pathname will match the constraint.
+This means that the executable
 .Pa /usr/bin/foo
 will not match a constraint for
-.Pa foo
+.Pa /usr/bin/./foo
 and vise-versa.
+This is the default constraint type.
+.It Basename
+A constraint with no path is matched against the basename of the
+executable.
+.Pa foo
+will match 
+.Pa /bin/foo ,
+.Pa /usr/local/sbin/foo ,
+or any other executable named 
+.Pa foo ,
+no matter what its path is.
+.It Directory
+A constraint with a trailing slash is prefix-matched against the full
+pathname of the executable.
+.Pa /usr/bin/
+will match any executable with a path starting with /usr/bin.
+.El
+.Pp
+Note that the executable path matched against is the 
+.Pa path
+parameter in an 
+.Fn exec*
+function call. 
+The Directory or Exact constraints can only match when the executable
+is called with a full pathname.
+Most programs executed from a shell are run without a full path, via
+.Fn exec*p ,
+so the Basename constraint type is the most useful.  
 .Pp
 WARNING!
 Constrained mappings must never appear first in the configuration file.
@@ -77,19 +107,17 @@ libpthread.so		libpthread.so
 libc_r.so.5		libpthread.so.1	# Everything that uses 'libc_r'
 libc_r.so		libpthread.so	# now uses 'libpthread'
 
-[/usr/local/bin/mplayer]		# 'mplayer' uses libc_r.
+[/tmp/mplayer]		# Test version of mplayer uses libc_r
 libpthread.so.1		libc_r.so.5
 libpthread.so		libc_r.so
 
-[mplayer]
-libpthread.so.1		libc_r.so.5
-libpthread.so		libc_r.so
+[mplayer]		# All other mplayers use libpthread
+libpthread.so.1		libpthread.so.1
+libpthread.so		libpthread.so
 
-[/usr/local/sbin/httpd]			# Apache uses libthr
-libpthread.so.1		libthr.so.1
-libpthread.so		libthr.so
-
-[httpd]
+[/usr/local/jdk1.4.1/]	# All Java 1.4.1 programs use libthr
+			# This works because "javavms" executes
+			# programs with the full pathname
 libpthread.so.1		libthr.so.1
 libpthread.so		libthr.so
 .Ed
