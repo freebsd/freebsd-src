@@ -56,7 +56,7 @@ static const char rcsid[] =
  *   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
  *
  * usage:
- *	factor [number] ...
+ *	factor [-h] [number] ...
  *
  * The form of the output is:
  *
@@ -67,8 +67,8 @@ static const char rcsid[] =
  * If no args are given, the list of numbers are read from stdin.
  */
 
-#include <err.h>
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -77,28 +77,17 @@ static const char rcsid[] =
 
 #include "primes.h"
 
-/*
- * prime[i] is the (i-1)th prime.
- *
- * We are able to sieve 2^32-1 because this byte table yields all primes
- * up to 65537 and 65537^2 > 2^32-1.
- */
-extern ubig prime[];
-extern ubig *pr_limit;		/* largest prime in the prime array */
+static int	hflag;
 
-int	hflag;
-
-void	pr_fact(ubig);	/* print factors of a value */
-void	usage(void);
+static void	pr_fact(ubig);		/* print factors of a value */
+static void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	ubig val;
 	int ch;
-	char *p, buf[100];		/* > max number of digits. */
+	char *p, buf[LINE_MAX];		/* > max number of digits. */
 
 	while ((ch = getopt(argc, argv, "h")) != -1)
 		switch (ch) {
@@ -152,60 +141,55 @@ main(argc, argv)
 /*
  * pr_fact - print the factors of a number
  *
- * If the number is 0 or 1, then print the number and return.
- * If the number is < 0, print -1, negate the number and continue
- * processing.
- *
  * Print the factors of the number, from the lowest to the highest.
  * A factor will be printed multiple times if it divides the value
  * multiple times.
  *
  * Factors are printed with leading tabs.
  */
-void
-pr_fact(val)
-	ubig val;		/* Factor this value. */
+static void
+pr_fact(ubig val)
 {
-	ubig *fact;		/* The factor found. */
+	const ubig *fact;	/* The factor found. */
 
 	/* Firewall - catch 0 and 1. */
 	if (val == 0)		/* Historical practice; 0 just exits. */
 		exit(0);
 	if (val == 1) {
-		(void)printf("1: 1\n");
+		printf("1: 1\n");
 		return;
 	}
 
 	/* Factor value. */
-	(void)printf(hflag ? "0x%lx:" : "%lu:", val);
+	printf(hflag ? "0x%lx:" : "%lu:", val);
 	for (fact = &prime[0]; val > 1; ++fact) {
 		/* Look for the smallest factor. */
 		do {
-			if (val % (long)*fact == 0)
+			if (val % *fact == 0)
 				break;
 		} while (++fact <= pr_limit);
 
 		/* Watch for primes larger than the table. */
 		if (fact > pr_limit) {
-			(void)printf(hflag ? " 0x%lx" : " %lu", val);
+			printf(hflag ? " 0x%lx" : " %lu", val);
 			break;
 		}
 
 		/* Divide factor out until none are left. */
 		do {
-			(void)printf(hflag ? " 0x%lx" : " %lu", *fact);
+			printf(hflag ? " 0x%lx" : " %lu", *fact);
 			val /= *fact;
 		} while ((val % *fact) == 0);
 
 		/* Let the user know we're doing something. */
-		(void)fflush(stdout);
+		fflush(stdout);
 	}
-	(void)putchar('\n');
+	putchar('\n');
 }
 
-void
-usage()
+static void
+usage(void)
 {
-	(void)fprintf(stderr, "usage: factor -h [value ...]\n");
-	exit (0);
+	fprintf(stderr, "usage: factor [-h] [value ...]\n");
+	exit(1);
 }
