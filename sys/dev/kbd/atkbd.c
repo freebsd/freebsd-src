@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.3.2.2 1999/05/09 11:02:11 yokota Exp $
+ * $Id: atkbd.c,v 1.3.2.3 1999/05/28 03:15:58 yokota Exp $
  */
 
 #include "atkbd.h"
@@ -380,6 +380,9 @@ atkbd_configure(int flags)
 	struct isa_device *dev;
 	int i;
 
+	/* probe the keyboard controller */
+	atkbdc_configure();
+
 	/* XXX: a kludge to obtain the device configuration flags */
 	dev = find_isadev(isa_devtab_tty, &atkbddriver, 0);
 	if (dev != NULL) {
@@ -391,15 +394,14 @@ atkbd_configure(int flags)
 				kbd = kbd_get_keyboard(i);
 				kbd_unregister(kbd);
 				kbd->kb_flags &= ~KB_REGISTERED;
-				return 0;
 			}
+			return 0;
 		}
 	}
-#endif
-
+#else
 	/* probe the keyboard controller */
 	atkbdc_configure();
-
+#endif
 	/* probe the default keyboard */
 	arg[0] = -1;
 	arg[1] = -1;
