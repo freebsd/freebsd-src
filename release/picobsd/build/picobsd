@@ -597,7 +597,7 @@ init_fs_image() { # filename size_in_kbytes
     dd if=/dev/zero of=${imgname} count=${imgsize} bs=1k 2> /dev/null
     dd if=${boot1}  of=${imgname} conv=notrunc 2> /dev/null
 
-    vnconfig -c vn${VNUM} ${imgname} || fail $? no_vnconfig
+    vnconfig -c -s labels vn${VNUM} ${imgname} || fail $? no_vnconfig
 }
 
 
@@ -615,7 +615,9 @@ fill_floppy_image() {
     init_fs_image ${BUILDDIR}/picobsd.bin ${blocks}
 
     log "---> Labeling floppy image"
-    disklabel -Brw -b ${boot1} -s ${boot2} vn${VNUM} fd${FLOPPY_SIZE} || \
+    b2=${BUILDDIR}/boot2 # modified boot2
+    perl -pne 's/\/boot\/loader/\/kernel\0\0\0\0\0/' ${boot2} > ${b2}
+    disklabel -Brw -b ${boot1} -s ${b2} vn${VNUM} fd${FLOPPY_SIZE} || \
 	fail $?  floppy_disklabel
 
     newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/vn${VNUM}c > /dev/null
