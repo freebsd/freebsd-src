@@ -83,7 +83,9 @@ extern struct nsp_softc *nspdata[];
 #if NCARD > 0
 #include	<sys/kernel.h>
 #include	<sys/module.h>
+#if !defined(__FreeBSD__) || __FreeBSD_version < 500014
 #include	<sys/select.h>
+#endif
 #include 	<pccard/cardinfo.h>
 #include	<pccard/slot.h>
 

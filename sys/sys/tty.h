@@ -44,7 +44,7 @@
 
 #include <sys/termios.h>
 #include <sys/queue.h>
-#include <sys/select.h>		/* For struct selinfo. */
+#include <sys/selinfo.h>
 
 /*
  * Clists are character lists, which is a variable length linked list

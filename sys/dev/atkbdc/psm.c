@@ -73,7 +73,7 @@
 #include <sys/syslog.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <sys/select.h>
+#include <sys/selinfo.h>
 #include <sys/uio.h>
 
 #include <machine/limits.h>

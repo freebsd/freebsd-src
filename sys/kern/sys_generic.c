@@ -55,6 +55,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
+#include <sys/selinfo.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/bio.h>

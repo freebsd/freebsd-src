@@ -26,7 +26,7 @@
 
 #ifndef _KERNEL
 #include <sys/time.h>			/* for struct timespec */
-#include <sys/select.h>			/* for struct selinfo */
+#include <sys/selinfo.h>		/* for struct selinfo */
 #include <vm/vm.h>			/* for vm_page_t */
 #include <machine/param.h>		/* for PAGE_SIZE */
 #endif
