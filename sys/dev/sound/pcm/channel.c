@@ -1179,7 +1179,7 @@ chn_setdir(pcm_channel *c, int dir)
 	int r;
 
 	c->direction = dir;
-	r = c->setdir(c->devinfo, c->direction);
+	r = c->setdir? c->setdir(c->devinfo, c->direction) : 0;
 	if (!r && ISA_DMA(&c->buffer))
 		c->buffer.dir = (dir == PCMDIR_PLAY)? ISADMA_WRITE : ISADMA_READ;
 	return r;
