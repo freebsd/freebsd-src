@@ -9,11 +9,11 @@
 .Fd #include <sys/types.h>
 .Fd #include <netinet/in.h>
 .Ft int
-.Fn bindresvport "int sd "struct sockaddr_in **sin"
+.Fn bindresvport "int sd" "struct sockaddr_in **sin"
 .Sh DESCRIPTION
 .Nm Bindresvport
 is used to bind a socket descriptor to a privileged
-.Em IP
+.Tn IP
 port, that is, a
 port number in the range 0-1023.
 The routine returns 0 if it is successful,
@@ -23,3 +23,8 @@ set to reflect the cause of the error.
 .Pp
 Only root can bind to a privileged port; this call will fail for any
 other users.
+.Pp
+If the value of sin->sin_port is non-zero
+.Fn bindresvport
+will attempt to use that specific port.  If it fails, it chooses another
+privileged port automatically.
