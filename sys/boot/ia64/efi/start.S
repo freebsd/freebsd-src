@@ -28,7 +28,6 @@
 
 	.text
 
-#include <sys/cdefs.h>
 #include <machine/asm.h>
 		
 #define EFI_SUCCESS		0
