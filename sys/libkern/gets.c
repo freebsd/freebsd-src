@@ -43,7 +43,6 @@ gets(char *cp, size_t size, int visible)
 	for (;;) {
 		c = cngetc() & 0177;
 		switch (c) {
-		case -1:
 		case '\n':
 		case '\r':
 			*lp = '\0';
