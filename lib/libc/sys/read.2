@@ -36,7 +36,8 @@
 .Os BSD 4
 .Sh NAME
 .Nm read ,
-.Nm readv
+.Nm readv ,
+.Nm pread
 .Nd read input
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
@@ -46,6 +47,8 @@
 .Fn read "int d" "void *buf" "size_t nbytes"
 .Ft ssize_t
 .Fn readv "int d" "const struct iovec *iov" "int iovcnt"
+.Ft ssize_t
+.Fn pread "int d" "void *buf" "size_t nbytes" "off_t offset"
 .Sh DESCRIPTION
 .Fn Read
 attempts to read
@@ -61,6 +64,9 @@ into the
 buffers specified by the members of the
 .Fa iov
 array: iov[0], iov[1], ..., iov[iovcnt\|\-\|1].
+.Fn Pread
+performs the same function, but reads from the specified position in
+the file without modifying the file pointer.
 .Pp
 For 
 .Fn readv ,
@@ -99,9 +105,10 @@ position.  The value of the pointer associated with such an
 object is undefined.
 .Pp
 Upon successful completion,
-.Fn read
+.Fn read ,
+.Fn readv ,
 and
-.Fn readv
+.Fn pread
 return the number of bytes actually read and placed in the buffer.
 The system guarantees to read the number of bytes requested if
 the descriptor references a normal file that has that many bytes left
@@ -162,9 +169,10 @@ Otherwise, a -1 is returned and the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Read
+.Fn Read ,
+.Fn readv ,
 and
-.Fn readv
+.Fn pread
 will succeed unless:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -211,6 +219,16 @@ Part of the
 .Fa iov
 points outside the process's allocated address space.
 .El
+.Pp
+The
+.Fn pread
+call may also return the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The specified file offset is invalid.
+.It Bq Er ESPIPE
+The file descriptor is associated with a pipe, socket, or FIFO.
+.El
 .Sh SEE ALSO
 .Xr dup 2 ,
 .Xr fcntl 2 ,
@@ -224,7 +242,18 @@ The
 .Fn read
 function call is expected to conform to 
 .St -p1003.1-90 .
+The
+.Fn readv
+and
+.Fn pread
+functions are expected to conform to
+.St -xpg4.2 .
 .Sh HISTORY
+The
+.Fn pread
+function call
+appeared in
+.At V.4 .
 The
 .Fn readv
 function call
