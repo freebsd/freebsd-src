@@ -112,11 +112,20 @@ __bswap16(__uint16_t __x)
 	return (__r);
 }
 
-#endif /* __GNUC__ */
-
 #define	__htonl(x)	__bswap32(x)
 #define	__htons(x)	__bswap16(x)
 #define	__ntohl(x)	__bswap32(x)
 #define	__ntohs(x)	__bswap16(x)
+
+#else /* !__GNUC__ */
+
+/*
+ * No optimizations are available for this compiler.  Fall back to
+ * non-optimized functions by defining the constant usually used to prevent
+ * redefinition.
+ */
+#define	_BYTEORDER_FUNC_DEFINED
+
+#endif /* __GNUC__ */
 
 #endif /* !_MACHINE_ENDIAN_H_ */
