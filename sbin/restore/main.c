@@ -76,13 +76,11 @@ time_t	dumptime;
 time_t	dumpdate;
 FILE 	*terminal;
 
-static void obsolete __P((int *, char **[]));
-static void usage __P((void));
+static void obsolete(int *, char **[]);
+static void usage(void) __dead2;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 	ino_t ino;
@@ -308,9 +306,7 @@ usage()
  *	getopt(3) will like.
  */
 static void
-obsolete(argcp, argvp)
-	int *argcp;
-	char **argvp[];
+obsolete(int *argcp, char **argvp[])
 {
 	int argc, flags;
 	char *ap, **argv, *flagsp, **nargv, *p;

@@ -58,8 +58,7 @@ static const char rcsid[] =
  * Insure that all the components of a pathname exist.
  */
 void
-pathcheck(name)
-	char *name;
+pathcheck(char *name)
 {
 	char *cp;
 	struct entry *ep;
@@ -87,8 +86,7 @@ pathcheck(name)
  * Change a name to a unique temporary name.
  */
 void
-mktempname(ep)
-	struct entry *ep;
+mktempname(struct entry *ep)
 {
 	char oldname[MAXPATHLEN];
 
@@ -106,8 +104,7 @@ mktempname(ep)
  * Generate a temporary name for an entry.
  */
 char *
-gentempname(ep)
-	struct entry *ep;
+gentempname(struct entry *ep)
 {
 	static char name[MAXPATHLEN];
 	struct entry *np;
@@ -126,8 +123,7 @@ gentempname(ep)
  * Rename a file or directory.
  */
 void
-renameit(from, to)
-	char *from, *to;
+renameit(char *from, char *to)
 {
 	if (!Nflag && rename(from, to) < 0) {
 		fprintf(stderr, "warning: cannot rename %s to %s: %s\n",
@@ -141,8 +137,7 @@ renameit(from, to)
  * Create a new node (directory).
  */
 void
-newnode(np)
-	struct entry *np;
+newnode(struct entry *np)
 {
 	char *cp;
 
@@ -161,8 +156,7 @@ newnode(np)
  * Remove an old node (directory).
  */
 void
-removenode(ep)
-	struct entry *ep;
+removenode(struct entry *ep)
 {
 	char *cp;
 
@@ -184,8 +178,7 @@ removenode(ep)
  * Remove a leaf.
  */
 void
-removeleaf(ep)
-	struct entry *ep;
+removeleaf(struct entry *ep)
 {
 	char *cp;
 
@@ -205,9 +198,7 @@ removeleaf(ep)
  * Create a link.
  */
 int
-linkit(existing, new, type)
-	char *existing, *new;
-	int type;
+linkit(char *existing, char *new, int type)
 {
 
 	/* if we want to unlink first, do it now so *link() won't fail */
@@ -256,8 +247,7 @@ linkit(existing, new, type)
  * Create a whiteout.
  */
 int
-addwhiteout(name)
-	char *name;
+addwhiteout(char *name)
 {
 
 	if (!Nflag && mknod(name, S_IFWHT, 0) < 0) {
@@ -273,8 +263,7 @@ addwhiteout(name)
  * Delete a whiteout.
  */
 void
-delwhiteout(ep)
-	struct entry *ep;
+delwhiteout(struct entry *ep)
 {
 	char *name;
 
@@ -295,8 +284,7 @@ delwhiteout(ep)
  * find lowest number file (above "start") that needs to be extracted
  */
 ino_t
-lowerbnd(start)
-	ino_t start;
+lowerbnd(ino_t start)
 {
 	struct entry *ep;
 
@@ -314,8 +302,7 @@ lowerbnd(start)
  * find highest number file (below "start") that needs to be extracted
  */
 ino_t
-upperbnd(start)
-	ino_t start;
+upperbnd(ino_t start)
 {
 	struct entry *ep;
 
@@ -333,9 +320,7 @@ upperbnd(start)
  * report on a badly formed entry
  */
 void
-badentry(ep, msg)
-	struct entry *ep;
-	char *msg;
+badentry(struct entry *ep, char *msg)
 {
 
 	fprintf(stderr, "bad entry: %s\n", msg);
@@ -360,8 +345,7 @@ badentry(ep, msg)
  * Construct a string indicating the active flag bits of an entry.
  */
 char *
-flagvalues(ep)
-	struct entry *ep;
+flagvalues(struct entry *ep)
 {
 	static char flagbuf[BUFSIZ];
 
@@ -386,8 +370,7 @@ flagvalues(ep)
  * Check to see if a name is on a dump tape.
  */
 ino_t
-dirlookup(name)
-	const char *name;
+dirlookup(const char *name)
 {
 	struct direct *dp;
 	ino_t ino;
@@ -403,8 +386,7 @@ dirlookup(name)
  * Elicit a reply.
  */
 int
-reply(question)
-	char *question;
+reply(char *question)
 {
 	int c;
 
@@ -424,28 +406,13 @@ reply(question)
 /*
  * handle unexpected inconsistencies
  */
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 void
-#if __STDC__
 panic(const char *fmt, ...)
-#else
-panic(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-
 	vfprintf(stderr, fmt, ap);
 	if (yflag)
 		return;

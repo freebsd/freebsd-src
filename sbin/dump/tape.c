@@ -55,13 +55,9 @@ static const char rcsid[] =
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
-#ifdef __STDC__
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#else
-int	write(), read();
-#endif
 
 #include "dump.h"
 
@@ -75,12 +71,12 @@ extern	int cartridge;
 extern	char *host;
 char	*nexttape;
 
-static	int atomic __P((ssize_t (*)(), int, char *, int));
-static	void doslave __P((int, int));
-static	void enslave __P((void));
-static	void flushtape __P((void));
-static	void killall __P((void));
-static	void rollforward __P((void));
+static	int atomic(ssize_t (*)(), int, char *, int);
+static	void doslave(int, int);
+static	void enslave(void);
+static	void flushtape(void);
+static	void killall(void);
+static	void rollforward(void);
 
 /*
  * Concurrent dump mods (Caltech) - disk block reading and tape writing
@@ -122,7 +118,7 @@ static jmp_buf jmpbuf;	/* where to jump to if we are ready when the */
 			/* SIGUSR2 arrives from the previous slave */
 
 int
-alloctape()
+alloctape(void)
 {
 	int pgoff = getpagesize() - 1;
 	char *buf;
@@ -162,18 +158,13 @@ alloctape()
 }
 
 void
-writerec(dp, isspcl)
-	char *dp;
-	int isspcl;
+writerec(char *dp, int isspcl)
 {
 
 	slp->req[trecno].dblk = (daddr_t)0;
 	slp->req[trecno].count = 1;
-#ifndef	__alpha__
-	*(union u_spcl *)(*(nextblock)++) = *(union u_spcl *)dp;
-#else
+	/* Can't do a structure assignment due to alignment problems */
 	bcopy(dp, *(nextblock)++, sizeof (union u_spcl));
-#endif
 	if (isspcl)
 		lastspclrec = spcl.c_tapea;
 	trecno++;
@@ -183,9 +174,7 @@ writerec(dp, isspcl)
 }
 
 void
-dumpblock(blkno, size)
-	daddr_t blkno;
-	int size;
+dumpblock(daddr_t blkno, int size)
 {
 	int avail, tpblks, dblkno;
 
@@ -206,8 +195,7 @@ dumpblock(blkno, size)
 int	nogripe = 0;
 
 void
-tperror(signo)
-	int signo;
+tperror(int signo __unused)
 {
 
 	if (pipeout) {
@@ -228,15 +216,14 @@ tperror(signo)
 }
 
 void
-sigpipe(signo)
-	int signo;
+sigpipe(int signo __unused)
 {
 
 	quit("Broken pipe\n");
 }
 
 static void
-flushtape()
+flushtape(void)
 {
 	int i, blks, got;
 	long lastfirstrec;
@@ -313,7 +300,7 @@ flushtape()
 }
 
 void
-trewind()
+trewind(void)
 {
 	struct stat sb;
 	int f;
@@ -394,7 +381,7 @@ close_rewind()
 }
 
 void
-rollforward()
+rollforward(void)
 {
 	struct req *p, *q, *prev;
 	struct slave *tslp;
@@ -509,8 +496,7 @@ rollforward()
  * everything continues as if nothing had happened.
  */
 void
-startnewtape(top)
-	int top;
+startnewtape(int top)
 {
 	int	parentpid;
 	int	childpid;
@@ -642,8 +628,7 @@ restore_check_point:
 }
 
 void
-dumpabort(signo)
-	int signo;
+dumpabort(int signo __unused)
 {
 
 	if (master != 0 && master != getpid())
@@ -674,8 +659,7 @@ Exit(status)
  * proceed - handler for SIGUSR2, used to synchronize IO between the slaves.
  */
 void
-proceed(signo)
-	int signo;
+proceed(int signo __unused)
 {
 
 	if (ready)
@@ -684,7 +668,7 @@ proceed(signo)
 }
 
 void
-enslave()
+enslave(void)
 {
 	int cmd[2];
 	int i, j;
@@ -728,7 +712,7 @@ enslave()
 }
 
 void
-killall()
+killall(void)
 {
 	int i;
 
@@ -747,9 +731,7 @@ killall()
  * get the lock back for the next cycle by swapping descriptors.
  */
 static void
-doslave(cmd, slave_number)
-	int cmd;
-        int slave_number;
+doslave(int cmd, int slave_number)
 {
 	int nread;
 	int nextslave, size, wrote, eot_count;
@@ -863,11 +845,7 @@ doslave(cmd, slave_number)
  * loop until the count is satisfied (or error).
  */
 static int
-atomic(func, fd, buf, count)
-	ssize_t (*func)();
-	int fd;
-	char *buf;
-	int count;
+atomic(ssize_t (*func)(), int fd, char *buf, int count)
 {
 	int got, need = count;
 
