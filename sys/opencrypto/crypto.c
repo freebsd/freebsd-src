@@ -864,10 +864,10 @@ crypto_getreq(int num)
 	struct cryptodesc *crd;
 	struct cryptop *crp;
 
-	crp = uma_zalloc(cryptop_zone, 0);
+	crp = uma_zalloc(cryptop_zone, M_NOWAIT|M_ZERO);
 	if (crp != NULL) {
 		while (num--) {
-			crd = uma_zalloc(cryptodesc_zone, 0);
+			crd = uma_zalloc(cryptodesc_zone, M_NOWAIT|M_ZERO);
 			if (crd == NULL) {
 				crypto_freereq(crp);
 				return NULL;
