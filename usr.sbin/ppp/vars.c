@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.2 1995/02/26 12:18:05 amurai Exp $
+ * $Id: vars.c,v 1.3 1995/05/30 03:51:01 rgrimes Exp $
  *
  */
 #include "fsm.h"
@@ -26,8 +26,10 @@
 #include "termios.h"
 #include "vars.h"
 #include "auth.h"
+#include "defs.h"
 
 char VarVersion[] = "Version 0.94";
+char VarLocalVersion[] = "$Date$";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -71,6 +73,7 @@ int argc;
 char **argv;
 {
   struct confdesc *vp;
+  int    found  = FALSE;
 
   if (argc < 1) {
     printf("disable what?\n");
@@ -78,9 +81,13 @@ char **argv;
   }
   do {
     for (vp = pppConfs; vp->name; vp++) {
-      if (strcasecmp(vp->name, *argv) == 0)
+      if (strcasecmp(vp->name, *argv) == 0) {
 	vp->myside = CONF_DISABLE;
+        found  = TRUE;
+      }
     }
+    if ( found == FALSE )
+       printf("%s - No such key word\n", *argv );
     argc--; argv++;
   } while (argc > 0);
   return(1);
@@ -93,6 +100,7 @@ int argc;
 char **argv;
 {
   struct confdesc *vp;
+  int    found  = FALSE;
 
   if (argc < 1) {
     printf("enable what?\n");
@@ -100,9 +108,13 @@ char **argv;
   }
   do {
     for (vp = pppConfs; vp->name; vp++) {
-      if (strcasecmp(vp->name, *argv) == 0)
+      if (strcasecmp(vp->name, *argv) == 0) {
 	vp->myside = CONF_ENABLE;
+        found  = TRUE;
+      }
     }
+    if ( found == FALSE )
+       printf("%s - No such key word\n", *argv );
     argc--; argv++;
   } while (argc > 0);
   return(1);
@@ -115,6 +127,7 @@ int argc;
 char **argv;
 {
   struct confdesc *vp;
+  int    found  = FALSE;
 
   if (argc < 1) {
     printf("accept what?\n");
@@ -122,9 +135,13 @@ char **argv;
   }
   do {
     for (vp = pppConfs; vp->name; vp++) {
-      if (strcasecmp(vp->name, *argv) == 0)
+      if (strcasecmp(vp->name, *argv) == 0) {
 	vp->hisside = CONF_ACCEPT;
+        found  = TRUE;
+      }
     }
+    if ( found == FALSE )
+       printf("%s - No such key word\n", *argv );
     argc--; argv++;
   } while (argc > 0);
   return(1);
@@ -137,6 +154,7 @@ int argc;
 char **argv;
 {
   struct confdesc *vp;
+  int    found  = FALSE;
 
   if (argc < 1) {
     printf("enable what?\n");
@@ -144,9 +162,13 @@ char **argv;
   }
   do {
     for (vp = pppConfs; vp->name; vp++) {
-      if (strcasecmp(vp->name, *argv) == 0)
+      if (strcasecmp(vp->name, *argv) == 0) {
 	vp->hisside = CONF_DENY;
+        found  = TRUE;
+      }
     }
+    if ( found == FALSE )
+       printf("%s - No such key word\n", *argv );
     argc--; argv++;
   } while (argc > 0);
   return(1);
