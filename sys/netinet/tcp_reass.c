@@ -1935,7 +1935,12 @@ process_ACK:
 
 		if (cw > tp->snd_ssthresh)
 			incr = incr * incr / cw;
-		if (tcp_do_newreno == 0 || SEQ_GEQ(th->th_ack, tp->snd_recover))
+		/*
+		 * If t_dupacks != 0 here, it indicates that we are still
+		 * in NewReno fast recovery mode, so we leave the congestion
+		 * window alone.
+		 */
+		if (tcp_do_newreno == 0 || tp->t_dupacks == 0)
 			tp->snd_cwnd = min(cw + incr,TCP_MAXWIN<<tp->snd_scale);
 		}
 		if (acked > so->so_snd.sb_cc) {
