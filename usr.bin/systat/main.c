@@ -82,9 +82,7 @@ int     use_kvm = 1;
 static	WINDOW *wload;			/* one line window for load average */
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	char errbuf[_POSIX2_LINE_MAX], dummy;
 	size_t	size;
