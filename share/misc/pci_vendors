@@ -295,12 +295,18 @@
 	0002	PC87415 PCI-IDE DMA Master Mode Interface Ctrlr
 	000E	PC87560 Legacy I/O Controller
 	000F	CS4210 OHCI Compliant FireWire Controller
-	0011	National PCI System I/O
+	0011	NS87560 National PCI System I/O
 	0012	USB Controller
 	001B	LM4560 Advanced PCI Audio Accelerator
 	0020	DP83815 10/100 Fast Ethernet Adapter (MacPhyter)
 	0021	PC87200 PCI to ISA Bridge
 	0022	DP83820/1 10/100/1000 Gigabit Ethernet Adapter
+	0500	SCx200 Bridge
+	0501	SCx200 SMI
+	0502	SCx200 IDE
+	0503	SCx200 Audio
+	0504	SCx200 Video
+	0505	SCx200 XBus
 	D001	PC87410 PCI EIDE Controller (Single FIFO)
 100C	TSENG LABS Inc
 	3202	ET4000W32P-A GUI Accelerator
@@ -461,6 +467,7 @@
 	9033	SCSI Controller
 	9040	Multimedia card
 	9060	MegaRAID 434 Ultra GT RAID Controller
+	9063	MegaRAC
 101F	PictureTel Corp.
 1020	Hitachi Computer Electronics
 1021	Oki Electric Industry
@@ -497,6 +504,7 @@
 	7446	AMD-768 AC97 Modem
 	7448	AMD-768 PCI Bridge
 	7449	AMD-768 USB Controller
+	7454	AMD-8151 System Controller
 	7455	AMD-8151 AGP Bridge
 	7460	AMD-8111 PCI Bridge
 	7461	AMD-8111 USB 2.0 Controller
@@ -612,6 +620,7 @@
 	0007	Remote Assistant Card 3
 	0008	PowerEdge 3/Di Expandable RAID Controller
 	000A	PowerEdge 3/Di Expandable RAID Controller
+	000C	Embedded Systems Management Device 4
 1029	Siemens Nixdorf AG
 102A	LSI Logic, Headland Division
 	0000	HYDRA Pentium PCI Chipset (MPI)
@@ -727,6 +736,7 @@
 	0635	SiS 635 Host-to-PCI Bridge
 	0640	SiS 640 Host-to-PCI Bridge
 	0645	SiS 645 Host-to-PCI Bridge
+	0646	SiS645DX CPU to PCI Bridge
 	0650	SiS 650 Host-to-PCI Bridge
 	0730	SiS 730 Host-to-PCI Bridge
 	0735	SiS 735 Host-to-PCI Bridge
@@ -758,6 +768,7 @@
 	6326	SiS 86C326 AGP/PCI Graphics & Video Accelerator
 	7001	SiS5597/8 Universal Serial Bus Controller
 	7007	SiS OHCI Compliant FireWire Controller
+	7012	SiS7012 Sound Codec
 	7013	SiS7013 56k Modem
 	7016	SiS7016 10/100 Ethernet Adapter
 	7018	SiS7018 PCI Audio Accelerator
@@ -860,6 +871,7 @@
 	0228	STPC Atlas IDE Controller
 	0230	STPC Atlas USB Controller
 	0500	ST70137 ADSL
+	0981	DEC-Tulip Compatible 10/100 Ethernet Adapter
 	1746	STG 1746X
 	2774	STE10/100A PCI 10/100 Ethernet Controller with PHY
 	3520	MPEG-II Video Decoder
@@ -950,8 +962,8 @@
 	9971	W9971CF Video Graphics Controller With TV Encode
 1051	Anigma Corp.
 	0100	Motorola MC145575
-1052	?Young Micro Systems
-1053	?Young Micro systems
+1052	Young Micro Systems(??)
+1053	Young Micro systems(??)
 1054	Hitachi Ltd
 	0001	PCI Bridge
 	0002	PCI Bus Controller
@@ -983,6 +995,7 @@
 	4806	CPX8216
 	4809	CPX8216T HotSwap Controller
 	5600	SM56 PCI Speakerphone/Data,Fax  Modem
+	5608	SM56 Voice Modem
 	6400	MPC190 Security Co-Processor
 1058	Electronics Telecommunication Research Inc (ETRI)
 1059	Teknor Microsystems
@@ -1072,13 +1085,14 @@
 	0017	Paddington Mac I/O Controller
 	0018	UniNorth FireWire Controller
 	0019	KeyLargo USB
-	001E	UniNorth PCI
+	001E	UniNorth Internal PCI
 	001F	UniNorth Host-PCI bridge
 	0020	UniNorth AGP interface
 	0021	UniNorth GMAC
 	0022	Keylargo Mac I/O Controller
 	0024	GMAC Ethernet Controller
 	0025	Pangea I/O Controller
+	0026	Pangea USB Interface
 	0027	Pangea AGP interface
 	0028	Pangea CPU to PCI Bridge
 	0029	Pangea CPU to PCI Bridge
@@ -1229,7 +1243,7 @@
 	5000	SME2411 UltraSPARC-IIi Advanced PCI Bridge
 	5043	SunPCI Co-processor
 	8000	STP2223BGA UPA to PCI Bus Interface Module (U2P)
-	8001	Schizo
+	8001	Schizo PCI Bus Module
 	A000	UltraSPARC IIi Sabre
 	A001	UltraSPARC IIe Hummingbird
 108F	Systemsoft Corporation
@@ -1418,6 +1432,7 @@
 	1860	PCI9054RDK-860 PCI Reference Design Kit for PCI 9054
 	2021	PCI9080 used in Daktronics VMax Quad Tansmitter Card
 	2288	Chrislin Industries Memory
+	2724	Thales PCSM Security Card
 	3001	PCI9030RDK-LITE PCI Reference Design Kit for PCI 9030
 	30C1	cPCI9030RDK-LITE CompactPCI Reference Design Kit for PCI 9030
 	5406	PCI9054RDK-LITE PCI Bus Master Prototyping Kit for PCI 9054
@@ -1873,7 +1888,7 @@
 	8938	EV1938 Sound
 1103	HighPoint Technologies Inc.
 	0003	HPT343/5/6,HPT363 UDMA EIDE Controller
-	0004	HPT366/368/370/372 UDMA66/100 EIDE Controller
+	0004	HPT366/8/70 UDMA66/100 EIDE Controller
 	0005	HPT370 UDMA/ATA 100 EIDE Controller
 	0006	HPT302 UDMA/ATA133 EIDE Controller
 	0007	HPT371 UDMA/ATA133 EIDE Controller
@@ -1890,7 +1905,7 @@
 	0501	VT8501 MVP4 System Controller
 	0505	VT82C505 VL to PCI Bridge
 	0561	VT82C570 MV IDE Controller (Single FIFO)
-	0571	VT82C586/A/B,VT82C596/A/B,VT82C686A/B EIDE Controller
+	0571	VT82C5x6/A/B,VT82C686A/B EIDE Controller
 	0576	VT82C570 MV System Controller
 	0585	VT82C585 VP,VPX,VPX/97 System Controller
 	0586	VT82C586/A/B PCI to ISA Bridge
@@ -1965,7 +1980,7 @@
 	B113	I/O APIC
 	B115	VT8363/5 KT/KM133 CPU to AGP Controller
 	B116	PCI-to-PCI Bridge (AGP)
-	B133	CPU to AGP Controller
+	B133	vt686b CPU to AGP Controller
 	B148	PCI-to-PCI Bridge (AGP)
 	B156	PCI-to-PCI Bridge (AGP)
 	B158	PCI-to-PCI Bridge (AGP)
@@ -2153,7 +2168,7 @@
 1131	Philips Semiconductors
 	1201	PTD3000 VPN IPSEC coprocessor
 	1234	EHCI USB 2.0 Controller
-	1301	PTD3012 SSL Accelerator
+	1301	PTD3210 SSL Accelerator
 	1562	ISP1561 EHCI USB 2.0 Controller
 	2780	TDA2780AQ TV deflection controller
 	3400	UCB1500 Modem Device
@@ -2763,6 +2778,7 @@
 	0005	Voodoo3 All Voodoo3 chips, 3000
 	0007	Voodoo4
 	0009	Voodoo4/5
+	0057	Voodoo 3/3000 [Avenger]
 121B	Advanced Telecommunications Modules
 121C	Nippon Texa Co Ltd
 121D	Lippert Automationstechnik GmbH
@@ -2843,6 +2859,7 @@
 1249	Samsung Electronics Co. Ltd.
 124A	AEG Electrocom GmbH
 124B	Greenspring Computers Inc
+	0040	cPCI-200 Four Slot IndustryPack Carrier
 124C	Solitron Technologies Inc.
 124D	Stallion Technologies Inc
 	0000	EasyConnect 8/32
@@ -3068,6 +3085,7 @@
 12B7	ACCUMEN/Cognex Modular Vision Systems
 12B8	Korg
 12B9	3COM Corp, Modem Division (Formerly US Robotics)
+	0062	erk41926a-0.6 usr 56k internal modem
 	1006	3cp803598 USR 56k Internal Voice WinModem
 	1007	ERL3263A-0 USR 56k Internal DF GWPCI PC99
 	1008	3cp803598 USR 56k Internal Modem
@@ -3360,7 +3378,7 @@
 	7890	PCT789T-C1 HSP MicroModem 56
 	7891	PCT 789T HSP MicroModem 56
 	7892	PCT 789T-A HSP MicroModem 56
-	7893	HSP MicroModem 56
+	7893	S911 K017 HSP MicroModem 56
 	7894	HSP MicroModem 56
 	7895	PCT789T-C1 HSP MicroModem 56
 	7896	pct789t-c1 HSP MicroModem 56
@@ -3639,7 +3657,7 @@
 1412	IC Ensemble, Inc.
 	1712	ICE1712 Envy24 Multichannel Audio Controller
 1413	Addonics
-1414	Microsoft
+1414	Microsoft Corp
 1415	Oxford Semiconductor Ltd
 	8401	OX9162 PCI Bridge
 	8403	OX12PCI840 PCI Parallel Port
@@ -3757,6 +3775,7 @@
 146F	Multi Dimensional Consulting Inc
 1470	Bay Networks
 1471	Integrated Telecom Express Inc
+	0188	RoadRunner 10 ADSL PCI
 1472	Daikin Indistries Ltd
 1473	Zapex Technologies Inc
 1474	Doug Carson & Associates
@@ -4453,6 +4472,8 @@
 1626	TDK Semiconductor Corp.
 1627	BCom Electronics Inc
 1629	Kongsberg Spacetec a.s.
+	1003	Format synchronizer v3.0
+	2002	Fast Universal Data Output
 162A	Sejin Computerland Co Ltd
 162B	Shanghai Bell Company Limited
 162C	C&H Technologies Inc
@@ -4541,9 +4562,14 @@
 16AE	SafeNet Inc.
 16CA	Cenatek Inc.
 	0001	Rocket Drive Solid State Disk
+16F6	VideoTele.com Inc
 1705	Digital First
+170B	NetOctave Inc
+170C	YottaYotta Inc
 173B	Altima
 	03E8	AC1000 Gigabit Ethernet Adapter
+1743	Peppercon AG
+	8139	ROL/F-100 Fast Ethernet Adapter with ROL
 1755	Alchemy Semiconductor Inc.
 17A7	Start Network Technology Co., Ltd.
 17AA	Legend Ltd. (Beijing)
@@ -4588,7 +4614,7 @@
 3030	C-Net
 3142	Post Impressions Systems
 3388	Hint Corp.
-	0021	HB1 PCI-PCI Bridge
+	0021	HB1-SE33 PCI to PCI Bridge
 	8011	VXPro II Chipset CPU to PCI Bridge
 	8012	VXPro II Chipset PCI to ISA Bridge
 	8013	VXPro II Chipset EIDE Controller
@@ -4824,7 +4850,8 @@
 	04D0	82437FX 430FX CPU to PCI Bridge
 	0600	Storage RAID Controller
 	0960	80960RP i960 RP Microprocessor/Bridge
-	0964	i960 RP Microprocessor Bridge
+	0962	80960RM i960 RM Microprocessor Bridge
+	0964	80960RP i960 RP Microprocessor Bridge
 	1000	82542 Gigabit Ethernet Controller
 	1001	82543GC 10/100/1000 Ethernet Controller
 	1002	Pro 100 LAN+Modem 56 CardBus II
@@ -4979,10 +5006,10 @@
 	7030	82437VX 430VX System Controller
 	7051	PB 642365-003 Intel Business Video Conferencing Card
 	7100	82439TX System Controller (MTXC), part of 430TX chipset
-	7110	82371AB/EB/MB PIIX4 ISA Bridge
-	7111	82371AB/EB/MB PIIX4 EIDE Controller
-	7112	82371AB/EB/MB PIIX4 USB Controller
-	7113	82371AB/EB/MB PIIX4 Power Management Controller
+	7110	82371AB/EB/MB PIIX4/E/M ISA Bridge
+	7111	82371AB/EB/MB PIIX4/E/M EIDE Controller
+	7112	82371AB/EB/MB PIIX4/E/M USB Controller
+	7113	82371AB/EB/MB PIIX4/E/M Power Management Controller
 	7120	82810 Host-Hub Interface Bridge / DRAM Ctrlr
 	7121	82810 810 Chipset Graphics Controller
 	7122	82810-DC100 Host-Hub Interface Bridge / DRAM Ctrlr
@@ -5037,6 +5064,7 @@
 	2008	video assistant component
 8866	T-Square Design Inc.
 8888	Silicon Magic Corp
+8967	Woopy systems
 8E0E	Computone Corporation
 8E2E	KTI
 	3000	Et32/Px Ethernet Adapter
@@ -5153,6 +5181,7 @@
 	9835	Nm9835 PCI + Dual UART and 1284 Printer Port
 	9845	Nm9845 PCI Bridge with Dual UART
 	9855	Nm9855 1P 2S
+9875	wouteronline
 9877	pan asia superitendence corp
 9902	Starbridge Technologies Inc
 	0001	SG2010 PCI-to-PCI Bridge
@@ -5190,6 +5219,7 @@ CDDD	Tyzx Inc.
 	0101	DeepSea 1 Board
 D4D4	DY4 Systems Inc.
 	0601	PCI Mezzanine Card
+D531	I+ME ACTIA GmBH
 D841	Super PCI(??)
 D84D	Exsys
 DC93	Dawicontrol
