@@ -365,6 +365,18 @@
       <application>IPFilter</application> or another
       firewall not supporting the newer FTP requests.</para>
 
+    <para>&man.ftpd.8; now supports the <option>-m</option> option
+      to permit guest users to modify existing files if allowed
+      by filesystem permissions.
+      In particular, this enables guest users to resume uploads.
+      </para>
+
+    <para>&man.ftpd.8; now supports the <option>-M</option> option
+      to prevent guest users from creating directories.</para>
+
+    <para>&man.ftpd.8; now supports the <option>-W</option> option
+      to disable logging FTP sessions to &man.wtmp.5;.</para>
+
     <para>&man.ifconfig.8; now supports a <option>eui64</option>
       command to fill in the lowermost 64 bits of an IPv6 address
       automatically.  This makes &man.prefix.8; obsolete.</para>
