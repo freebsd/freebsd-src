@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)environ.7	8.3 (Berkeley) 4/19/94
-.\"	$Id: environ.7,v 1.10 1997/03/08 14:41:44 wosch Exp $
+.\"	$Id: environ.7,v 1.10.2.1 1999/04/29 09:33:39 jkoshy Exp $
 .\"
 .Dd April 19, 1994
 .Dt ENVIRON 7
@@ -62,6 +62,8 @@ in units of a kilobyte by specifying a number followed by ``K'' or
 or ``m'' and in units of a gigabyte by specifying a number followed
 by ``G'' or ``g''.
 Sizes less than 512 bytes or greater than a gigabyte are ignored.
+.It Ev EDITOR
+Default editor name.
 .It Ev EXINIT
 A startup list of commands read by
 .Xr ex  1
@@ -83,6 +85,12 @@ used by
 .Xr mail  1 ,
 .Xr sh 1 ,
 and many other mailclients.
+.It Ev PAGER
+Default paginator program.  The program specified by this variable is used by
+.Xr mail 1 ,
+.Xr man 1 ,
+.Xr ftp 1 ,
+etc, to display information which is longer than the current display.
 .It Ev PATH
 The sequence of directories, separated by colons, searched by
 .Xr csh  1  ,
@@ -99,6 +107,8 @@ The name of the default printer to be used by
 .Xr lpq  1 ,
 and
 .Xr lprm  1  .
+.It Ev PWD
+The current directory pathname.
 .It Ev SHELL
 The full pathname of the user's login shell.
 .It Ev TERM
