@@ -33,8 +33,8 @@
 
 u_int read_random(void *, u_int);
 
-enum esource { RANDOM_WRITE, RANDOM_KEYBOARD, RANDOM_MOUSE, RANDOM_NET, \
-		ENTROPYSOURCE };
+enum esource { RANDOM_WRITE, RANDOM_KEYBOARD, RANDOM_MOUSE, RANDOM_NET,
+		RANDOM_INTERRUPT, ENTROPYSOURCE };
 void random_harvest(void *, u_int, u_int, u_int, enum esource);
 
 #endif
