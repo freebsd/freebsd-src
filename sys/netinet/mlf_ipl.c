@@ -160,9 +160,10 @@ static struct cdevsw ipl_cdevsw = {
 #endif
 
 
-static int iplaction __P((struct lkm_table *, int));
 static void ipl_drvinit __P((void *));
 
+#ifdef ACTUALLY_LKM_NOT_KERNEL
+static int iplaction __P((struct lkm_table *, int));
 
 static int iplaction(lkmtp, cmd)
 struct lkm_table *lkmtp;
@@ -298,6 +299,7 @@ int cmd;
 	return 0;
 }
 
+#endif	/* actually LKM */
 
 #if defined(__FreeBSD_version) && (__FreeBSD_version < 220000)
 /*
@@ -376,7 +378,5 @@ static void ipl_drvinit __P((void *unused))
 	}
 }
 
-# ifdef	IPFILTER_LKM
-SYSINIT(ipldev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ipl_drvinit,NULL)
-# endif /* IPFILTER_LKM */
+SYSINIT(ipldev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ipl_drvinit,NULL);
 #endif /* _FreeBSD_version */
