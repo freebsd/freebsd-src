@@ -45,6 +45,7 @@
 #ifdef KERNEL
 #include <sys/queue.h>
 
+struct stat;
 struct proc;
 struct uio;
 
@@ -75,6 +76,8 @@ struct file {
 					    caddr_t data, struct proc *p));
 		int	(*fo_poll)	__P((struct file *fp, int events,
 					    struct ucred *cred, struct proc *p));
+		int	(*fo_stat)	__P((struct file *fp, struct stat *sb,
+					    struct proc *p));
 		int	(*fo_close)	__P((struct file *fp, struct proc *p));
 	} *f_ops;
 	int	f_seqcount;	/*
@@ -119,6 +122,8 @@ static __inline int fo_ioctl __P((struct file *fp, u_long com, caddr_t data,
     struct proc *p));
 static __inline int fo_poll __P((struct file *fp, int events,
     struct ucred *cred, struct proc *p));
+static __inline int fo_stat __P((struct file *fp, struct stat *sb,
+    struct proc *p));
 static __inline int fo_close __P((struct file *fp, struct proc *p));
 
 static __inline int
@@ -179,6 +184,20 @@ fo_poll(fp, events, cred, p)
 
 	fhold(fp);
 	error = (*fp->f_ops->fo_poll)(fp, events, cred, p);
+	fdrop(fp, p);
+	return (error);
+}
+
+static __inline int
+fo_stat(fp, sb, p)
+	struct file *fp;
+	struct stat *sb;
+	struct proc *p;
+{
+	int error;
+
+	fhold(fp);
+	error = (*fp->f_ops->fo_stat)(fp, sb, p);
 	fdrop(fp, p);
 	return (error);
 }
