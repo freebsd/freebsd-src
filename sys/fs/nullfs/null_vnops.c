@@ -219,7 +219,7 @@ SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW,
 int
 null_bypass(struct vop_generic_args *ap)
 {
-	register struct vnode **this_vp_p;
+	struct vnode **this_vp_p;
 	int error;
 	struct vnode *old_vps[VDESC_MAX_VPS];
 	struct vnode **vps_p[VDESC_MAX_VPS];
@@ -720,7 +720,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 static int
 null_print(struct vop_print_args *ap)
 {
-	register struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp;
 	printf("\tvp=%p, lowervp=%p\n", vp, NULLVPTOLOWERVP(vp));
 	return (0);
 }
