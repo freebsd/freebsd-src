@@ -4,7 +4,7 @@
  * <Copyright.MIT>.
  *
  *	from: send_to_kdc.c,v 4.20 90/01/02 13:40:37 jtkohl Exp $
- *	$Id: send_to_kdc.c,v 1.2 1994/07/19 19:26:21 g89r4222 Exp $
+ *	$Id: send_to_kdc.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $
  */
 
 #ifndef lint
@@ -121,6 +121,7 @@ send_to_kdc(pkt,rpkt,realm)
     hostlist = (struct hostent *) malloc(sizeof(struct hostent));
     if (!hostlist)
         return (/*errno */SKDC_CANT);
+    bzero(hostlist, sizeof(struct hostent));
     if ((f = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         if (krb_debug)
             fprintf(stderr,"%s: Can't open socket\n", prog);
