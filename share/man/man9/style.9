@@ -56,7 +56,7 @@ Kernel include files (i.e. sys/*.h) come first; normally, you'll need
 OR <sys/param.h>, but not both!  <sys/types.h> includes <sys/cdefs.h>,
 and it's okay to depend on that.
 .Bd -literal -offset 0i
-#include <sys/types.h>		/* Non-local includes in brackets. */
+#include <sys/types.h>	/* Non-local includes in angle brackets. */
 .Ed
 .Pp
 If it's a network program, put the network include files next.
@@ -91,7 +91,13 @@ Put a single tab character between the
 and the macro name.  
 If they are an inline expansion of a function, the function is defined
 all in lowercase, the macro has the same name all in uppercase.  If the
-macro needs more than a single line, use braces.  Right-justify the
+macro needs more than a single line, use braces
+.Po
+.Sq \&{
+and
+.Sq \&}
+.Pc .
+Right-justify the
 backslashes; it makes it easier to read.
 If the macro encapsulates a compound statement, enclose it in a
 .Dq Li do
@@ -470,16 +476,40 @@ Use
 not fputs/puts/putchar/whatever; it's faster and usually cleaner, not
 to mention avoiding stupid bugs.
 .Pp
-Usage statements should look like the manual pages synopsis.  Options w/o
-operands come first, in alphabetical order inside a single set of
-braces, followed by options with operands, in alphabetical order,
-each in braces, followed by required arguments in the order they
-are specified, followed by optional arguments in the order they
-are specified.  A bar
+Usage statements should look like the manual pages synopsis.
+The usage statement should be structured in the following order:
+.Pp
+.Bl -enum -compat
+.It
+Options without operands come first,
+in alphabetical order,
+inside a single set of brackets
+.Po
+.Sq \&[
+and
+.Sq \&]
+.Pc .
+.It
+Options with operands come next,
+also in alphabetical order,
+with each option and its argument inside its own pair of brackets.
+.It
+Required arguments
+.Pq if any
+are next,
+listed in the order they should be specified in the command line.
+.It
+Finally,
+any optional arguments should be listed,
+listed in the order they should be specified,
+and all inside brackets.
+.El
+.Pp
+A bar
 .Pq Sq \&|
 separates either-or options/arguments,
 and multiple options/arguments which are specified together are
-placed in a single set of braces.
+placed in a single set of brackets.
 .Pp
 .Bd -ragged -offset 0.3i
 "usage: f [-aDde] [-b b_arg] [-m m_arg] req1 req2 [opt1 [opt2]]\en"
