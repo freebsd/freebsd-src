@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.h,v 1.6 1997/09/07 05:27:11 bde Exp $
+ *	$Id: imgact_elf.h,v 1.7 1998/06/07 17:13:01 dfr Exp $
  */
 
 #ifndef _SYS_IMGACT_ELF_H_
@@ -75,13 +75,13 @@ int elf_remove_brand_entry __P((Elf32_Brandinfo *entry));
  */
 typedef struct {
 	Elf64_Sword	execfd;
-	Elf64_Word	phdr;
+	Elf64_Addr	phdr;
 	Elf64_Word	phent;
 	Elf64_Word	phnum;
 	Elf64_Word	pagesz;
-	Elf64_Word	base;
+	Elf64_Addr	base;
 	Elf64_Word	flags;
-	Elf64_Word	entry;
+	Elf64_Addr	entry;
 	Elf64_Word	trace;
 } Elf64_Auxargs;
 
