@@ -69,9 +69,7 @@ static int	cnt(const char *);
 static void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, errors, total;
 
@@ -133,8 +131,7 @@ main(argc, argv)
 }
 
 static int
-cnt(file)
-	const char *file;
+cnt(const char *file)
 {
 	struct stat sb;
 	uintmax_t linect, wordct, charct;
