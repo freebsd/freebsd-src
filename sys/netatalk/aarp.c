@@ -89,19 +89,32 @@ aarptimer(void *ignored)
     }
 }
 
+/* 
+ * search through the network addresses to find one that includes
+ * the given network.. remember to take netranges into
+ * consideration.
+ */
 struct ifaddr *
 at_ifawithnet( sat, ifa )
     struct sockaddr_at	*sat;
     struct ifaddr	*ifa;
 {
+    struct sockaddr_at	*sat2;
+    struct netrange	*nr;
 
     for (; ifa; ifa = ifa->ifa_next ) {
 	if ( ifa->ifa_addr->sa_family != AF_APPLETALK ) {
 	    continue;
 	}
-	if ( satosat( ifa->ifa_addr )->sat_addr.s_net ==
-		sat->sat_addr.s_net ) {
+	sat2 = satosat( ifa->ifa_addr );
+	if ( sat2->sat_addr.s_net == sat->sat_addr.s_net ) {
 	    break;
+	}
+	nr = (struct netrange *)(sat2->sat_zero);
+	if( (nr->nr_phase == 2 )
+	 && (nr->nr_firstnet <= sat->sat_addr.s_net)
+	 && (nr->nr_lastnet >= sat->sat_addr.s_net)) {
+		break;
 	}
     }
     return( ifa );
