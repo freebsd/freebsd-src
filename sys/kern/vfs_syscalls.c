@@ -3266,7 +3266,7 @@ kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 		vrele(fvp);
 		goto out1;
 	}
-	tvfslocked = NDHASGIANT(&fromnd);
+	tvfslocked = NDHASGIANT(&tond);
 	tdvp = tond.ni_dvp;
 	tvp = tond.ni_vp;
 	if (tvp != NULL) {
