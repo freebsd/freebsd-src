@@ -30,6 +30,7 @@
 #include "opt_bus.h"
 
 #include "opt_simos.h"
+#include "opt_compat_oldpci.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -857,6 +858,9 @@ static struct cdevsw pcicdev = {
 
 #include "pci_if.h"
 
+static devclass_t	pci_devclass;
+
+#ifdef COMPAT_OLDPCI
 /*
  * A simple driver to wrap the old pci driver mechanism for back-compat.
  */
@@ -919,8 +923,6 @@ static device_method_t pci_compat_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t	pci_devclass;
-
 /*
  * Create a new style driver around each old pci driver.
  */
@@ -950,6 +952,7 @@ compat_pci_handler(module_t mod, int type, void *data)
 	}
 	return 0;
 }
+#endif
 
 /*
  * New style pci driver.  Parent device is either a pci-host-bridge or a
