@@ -153,7 +153,7 @@ char *hostname;
  * main server loop is started.
  */
 
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -494,6 +494,7 @@ main(argc, argv)
 			break;
 		}
 	}
+	return 0;
 }
 
 

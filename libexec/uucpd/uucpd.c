@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: uucpd.c,v 1.17 1999/04/06 23:06:00 brian Exp $";
+	"$Id: uucpd.c,v 1.18 1999/04/07 08:27:45 brian Exp $";
 #endif /* not lint */
 
 /*
@@ -102,7 +102,7 @@ void dologout(void);
 int readline(char start[], int num, int passw);
 void dologin(struct passwd *pw, struct sockaddr_in *sin);
 
-void main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	environ = nenv;
 	close(1); close(2);
