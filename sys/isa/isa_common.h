@@ -65,7 +65,7 @@ struct isa_device {
 /*
  * These functions are architecture dependant.
  */
-extern void isa_init(void);
+extern void isa_init(device_t dev);
 extern struct resource *isa_alloc_resource(device_t bus, device_t child,
 					   int type, int *rid,
 					   u_long start, u_long end,

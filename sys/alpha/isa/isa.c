@@ -98,7 +98,7 @@ isa_irq_mask(void)
 }
 
 void
-isa_init(void)
+isa_init(device_t dev)
 {
 	isa_init_intr();
 }
