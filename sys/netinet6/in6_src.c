@@ -647,6 +647,8 @@ add_addrsel_policyent(newpolicy)
 {
 	struct addrsel_policyent *new, *pol;
 
+	MALLOC(new, struct addrsel_policyent *, sizeof(*new), M_IFADDR,
+	       M_WAITOK);
 	ADDRSEL_LOCK();
 
 	/* duplication check */
@@ -656,12 +658,12 @@ add_addrsel_policyent(newpolicy)
 				       &pol->ape_policy.addr) &&
 		    SA6_ARE_ADDR_EQUAL(&newpolicy->addrmask,
 				       &pol->ape_policy.addrmask)) {
+			ADDRSEL_UNLOCK();
+			FREE(new, M_IFADDR);
 			return (EEXIST);	/* or override it? */
 		}
 	}
 
-	MALLOC(new, struct addrsel_policyent *, sizeof(*new), M_IFADDR,
-	       M_WAITOK);
 	bzero(new, sizeof(*new));
 
 	/* XXX: should validate entry */
@@ -690,8 +692,10 @@ delete_addrsel_policyent(key)
 			break;
 		}
 	}
-	if (pol == NULL)
+	if (pol == NULL) {
+		ADDRSEL_UNLOCK();
 		return (ESRCH);
+	}
 
 	TAILQ_REMOVE(&addrsel_policytab, pol, ape_entry);
 	ADDRSEL_UNLOCK();
@@ -710,8 +714,10 @@ walk_addrsel_policy(callback, w)
 	ADDRSEL_LOCK();
 	for (pol = TAILQ_FIRST(&addrsel_policytab); pol;
 	     pol = TAILQ_NEXT(pol, ape_entry)) {
-		if ((error = (*callback)(&pol->ape_policy, w)) != 0)
+		if ((error = (*callback)(&pol->ape_policy, w)) != 0) {
+			ADDRSEL_UNLOCK();
 			return (error);
+		}
 	}
 	ADDRSEL_UNLOCK();
 
