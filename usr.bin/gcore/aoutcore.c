@@ -126,7 +126,7 @@ aoutident(int efd, pid_t pid, char *binfile)
 			errx(1, "%d: process exiting", pid);
 		if (ki->ki_flag & P_SYSTEM)	/* Swapper or pagedaemon. */
 			errx(1, "%d: system process", pid);
-		if (exec.a_text != ptoa(ki->ki_tsize))
+		if (exec.a_text != (unsigned long)ptoa(ki->ki_tsize))
 			errx(1, "The executable %s does not belong to"
 			    " process %d!\n"
 			    "Text segment size (in bytes): executable %ld,"
@@ -142,8 +142,8 @@ aoutident(int efd, pid_t pid, char *binfile)
  * core --
  *	Build the core file.
  */
-void
-aoutcore(int efd, int fd, pid_t pid)
+static void
+aoutcore(int efd, int fd, pid_t pid __unused)
 {
 	union {
 		struct user user;
