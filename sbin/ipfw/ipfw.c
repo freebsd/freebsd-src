@@ -16,12 +16,15 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.64.2.2 1999/05/24 10:09:26 luigi Exp $
- *
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id: ipfw.c,v 1.68 1999/06/02 05:59:48 ru Exp $";
+#endif /* not lint */
+
+
 #include <sys/types.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/time.h>
@@ -37,14 +40,12 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sysexits.h>
-#include <time.h>
 #include <unistd.h>
+#include <sysexits.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
@@ -183,7 +184,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 	int ndp = IP_FW_GETNDSTP(chain);
 
 	if (do_resolv)
-		setservent(1/*stayopen*/);
+		setservent(1/*stay open*/);
 
 	printf("%05u ", chain->fw_number);
 
@@ -1406,7 +1407,7 @@ ipfw_main(ac,av)
 
 	ac -= optind;
 	if (*(av+=optind)==NULL) {
-		 show_usage("Bad arguments");
+		 show_usage("bad arguments");
 	}
 
         if (!strncmp(*av, "pipe", strlen(*av))) {
@@ -1469,7 +1470,7 @@ ipfw_main(ac,av)
 		do_acct++;
 		list(--ac,++av);
 	} else {
-		show_usage("Bad arguments");
+		show_usage("bad arguments");
 	}
 	return 0;
 }
