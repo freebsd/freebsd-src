@@ -13,6 +13,7 @@ MINIMALDOCPORTS= \
 	ports/Mk \
 	ports/archivers/unzip \
 	ports/converters/libiconv \
+	ports/devel/bison \
 	ports/devel/gettext \
 	ports/devel/gmake \
 	ports/devel/libtool \
@@ -43,6 +44,7 @@ MINIMALDOCPORTS= \
 	ports/textproc/linuxdoc \
 	ports/textproc/mkcatalog \
 	ports/textproc/sgmlformat \
+	ports/textproc/xhtml \
 	ports/www/links \
 	ports/www/tidy
 .if ${MACHINE_ARCH} == "alpha"
