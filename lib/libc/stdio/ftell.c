@@ -75,6 +75,18 @@ off_t
 ftello(fp)
 	register FILE *fp;
 {
+	register off_t rv;
+
+	FLOCKFILE(fp);
+	rv = _ftello(fp);
+	FUNLOCKFILE(fp);
+	return (rv);
+}
+
+off_t
+_ftello(fp)
+	register FILE *fp;
+{
 	register fpos_t pos, spos;
 	size_t n;
 
@@ -83,19 +95,18 @@ ftello(fp)
 		return (-1);
 	}
 
-	FLOCKFILE(fp);
 	/*
 	 * Find offset of underlying I/O object, then
 	 * adjust for buffered bytes.
 	 */
-	if (fp->_flags & __SOFF)
+	if (fp->_flags & __SOFF) {
 		pos = fp->_offset;
-	else {
-		pos = (*fp->_seek)(fp->_cookie, (fpos_t)0, SEEK_CUR);
-		if (pos == -1) {
-			FUNLOCKFILE(fp);
+		spos = -1;
+	} else {
+get_real_pos:
+		spos = pos = (*fp->_seek)(fp->_cookie, (fpos_t)0, SEEK_CUR);
+		if (pos == -1)
 			return (-1);
-		}
 	}
 	if (fp->_flags & __SRD) {
 		/*
@@ -103,7 +114,6 @@ ftello(fp)
 		 * those from ungetc) cause the position to be
 		 * smaller than that in the underlying object.
 		 */
-		spos = pos;
 		pos -= fp->_r;
 		if (pos < 0) {
 			if (HASUB(fp)) {
@@ -111,6 +121,8 @@ ftello(fp)
 				fp->_r += pos;
 				pos = 0;
 			} else {
+				if (spos == -1)
+					goto get_real_pos;
 				fp->_p = fp->_bf._base;
 				fp->_r = 0;
 				pos = spos;
@@ -124,6 +136,8 @@ ftello(fp)
 					fp->_r += pos;
 					pos = 0;
 				} else {
+					if (spos == -1)
+						goto get_real_pos;
 					fp->_p = fp->_bf._base;
 					fp->_r = 0;
 					FREEUB(fp);
@@ -139,12 +153,10 @@ ftello(fp)
 		 */
 		n = fp->_p - fp->_bf._base;
 		if (pos > OFF_MAX - n) {
-			FUNLOCKFILE(fp);
 			errno = EOVERFLOW;
 			return (-1);
 		}
 		pos += n;
 	}
-	FUNLOCKFILE(fp);
 	return (pos);
 }
