@@ -217,9 +217,9 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 	sblock.fs_nspf = sblock.fs_fsize / sectorsize;
 	sblock.fs_fsbtodb = ilog2(NSPF(&sblock));
 	sblock.fs_sblkno =
-	    roundup(howmany(bbsize + sbsize, sblock.fs_fsize), sblock.fs_frag);
+	    roundup(howmany(BBSIZE + SBSIZE, sblock.fs_fsize), sblock.fs_frag);
 	sblock.fs_cblkno = (daddr_t)(sblock.fs_sblkno +
-	    roundup(howmany(sbsize, sblock.fs_fsize), sblock.fs_frag));
+	    roundup(howmany(SBSIZE, sblock.fs_fsize), sblock.fs_frag));
 	sblock.fs_iblkno = sblock.fs_cblkno + sblock.fs_frag;
 	sblock.fs_cgoffset =
 	    roundup(howmany(sblock.fs_nsect, NSPF(&sblock)), sblock.fs_frag);
@@ -545,7 +545,7 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 	 */
 	fsinit(utime);
 	sblock.fs_time = utime;
-	wtfs((int)SBOFF / sectorsize, sbsize, (char *)&sblock);
+	wtfs((int)SBOFF / sectorsize, SBSIZE, (char *)&sblock);
 	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize)
 		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)),
 			sblock.fs_cssize - i < sblock.fs_bsize ?
@@ -556,7 +556,7 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 	 */
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
 		wtfs(fsbtodb(&sblock, cgsblock(&sblock, cylno)),
-		    sbsize, (char *)&sblock);
+		    SBSIZE, (char *)&sblock);
 	wtfsflush();
 	/*
 	 * Update information about this partion in pack
@@ -727,18 +727,11 @@ initcg(int cylno, time_t utime)
  */
 struct dinode node;
 
-#ifdef LOSTDIR
-#define PREDEFDIR 3
-#else
 #define PREDEFDIR 2
-#endif
 
 struct direct root_dir[] = {
 	{ ROOTINO, sizeof(struct direct), DT_DIR, 1, "." },
 	{ ROOTINO, sizeof(struct direct), DT_DIR, 2, ".." },
-#ifdef LOSTDIR
-	{ LOSTFOUNDINO, sizeof(struct direct), DT_DIR, 10, "lost+found" },
-#endif
 };
 struct odirect {
 	u_long	d_ino;
@@ -748,30 +741,12 @@ struct odirect {
 } oroot_dir[] = {
 	{ ROOTINO, sizeof(struct direct), 1, "." },
 	{ ROOTINO, sizeof(struct direct), 2, ".." },
-#ifdef LOSTDIR
-	{ LOSTFOUNDINO, sizeof(struct direct), 10, "lost+found" },
-#endif
 };
-#ifdef LOSTDIR
-struct direct lost_found_dir[] = {
-	{ LOSTFOUNDINO, sizeof(struct direct), DT_DIR, 1, "." },
-	{ ROOTINO, sizeof(struct direct), DT_DIR, 2, ".." },
-	{ 0, DIRBLKSIZ, 0, 0, 0 },
-};
-struct odirect olost_found_dir[] = {
-	{ LOSTFOUNDINO, sizeof(struct direct), 1, "." },
-	{ ROOTINO, sizeof(struct direct), 2, ".." },
-	{ 0, DIRBLKSIZ, 0, 0 },
-};
-#endif
 char buf[MAXBSIZE];
 
 void
 fsinit(time_t utime)
 {
-#ifdef LOSTDIR
-	int i;
-#endif
 
 	/*
 	 * initialize the node
@@ -779,22 +754,6 @@ fsinit(time_t utime)
 	node.di_atime = utime;
 	node.di_mtime = utime;
 	node.di_ctime = utime;
-#ifdef LOSTDIR
-	/*
-	 * create the lost+found directory
-	 */
-	(void)makedir(lost_found_dir, 2);
-	for (i = DIRBLKSIZ; i < sblock.fs_bsize; i += DIRBLKSIZ)
-		memmove(&buf[i], &lost_found_dir[2],
-		    DIRSIZ(0, &lost_found_dir[2]));
-	node.di_mode = IFDIR | UMASK;
-	node.di_nlink = 2;
-	node.di_size = sblock.fs_bsize;
-	node.di_db[0] = alloc(node.di_size, node.di_mode);
-	node.di_blocks = btodb(fragroundup(&sblock, node.di_size));
-	wtfs(fsbtodb(&sblock, node.di_db[0]), node.di_size, buf);
-	iput(&node, LOSTFOUNDINO);
-#endif
 	/*
 	 * create the root directory
 	 */
