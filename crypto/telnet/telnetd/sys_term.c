@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -31,67 +31,49 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+
+#include <sys/types.h>
+#include <sys/tty.h>
+#include <libutil.h>
+#include <stdlib.h>
+#include <utmp.h>
 
 #include "telnetd.h"
 #include "pathnames.h"
 
-#if	defined(AUTHENTICATION)
+#ifdef	AUTHENTICATION
 #include <libtelnet/auth.h>
 #endif
 
-extern char *altlogin;
-int cleanopen(char *line);
+int cleanopen(char *);
 void scrub_env(void);
 
-#ifdef	NEWINIT
-#include <initreq.h>
-#else	/* NEWINIT*/
-# ifdef	UTMPX
-# include <utmpx.h>
-struct	utmpx wtmp;
-# else
-# include <utmp.h>
 struct	utmp wtmp;
-# endif /* UTMPX */
 
-# ifndef PARENT_DOES_UTMP
 #ifdef _PATH_WTMP
 char    wtmpf[] = _PATH_WTMP;
 #else
-char	wtmpf[]	= "/usr/adm/wtmp";
+char	wtmpf[]	= "/var/log/wtmp";
 #endif
 #ifdef _PATH_UTMP
 char    utmpf[] = _PATH_UTMP;
 #else
-char	utmpf[] = "/etc/utmp";
+char	utmpf[] = "/var/run/utmp";
 #endif
-# else /* PARENT_DOES_UTMP */
-char	wtmpf[]	= "/etc/wtmp";
-# endif /* PARENT_DOES_UTMP */
 
-#include <libutil.h>
-
-#endif	/* NEWINIT */
-
-#ifdef	STREAMSPTY
-#include <sac.h>
-#include <sys/stropts.h>
-#endif
+char	*envinit[3];
+extern char **environ;
 
 #define SCPYN(a, b)	(void) strncpy(a, b, sizeof(a))
 #define SCMPN(a, b)	strncmp(a, b, sizeof(a))
 
-#ifdef	STREAMS
-#include <sys/stream.h>
-#endif
-#include <sys/tty.h>
 #ifdef	t_erase
 #undef	t_erase
 #undef	t_kill
@@ -122,9 +104,6 @@ struct termbuf {
 # define	cfgetospeed(tp)		(tp)->sg.sg_ospeed
 # define	cfgetispeed(tp)		(tp)->sg.sg_ispeed
 #else	/* USE_TERMIO */
-# ifdef	SYSV_TERMIO
-#	define termios termio
-# endif
 # ifndef	TCSANOW
 #  ifdef TCSETS
 #   define	TCSANOW		TCSETS
@@ -156,9 +135,6 @@ struct termbuf {
 #  endif
 # endif /* TCSANOW */
 struct termios termbuf, termbuf2;	/* pty control structure */
-# ifdef  STREAMSPTY
-int ttyfd = -1;
-# endif
 #endif	/* USE_TERMIO */
 
 #include <sys/types.h>
@@ -166,6 +142,7 @@ int ttyfd = -1;
 
 int cleanopen __P((char *));
 void scrub_env __P((void));
+static char **addarg __P((char **, const char *));
 
 /*
  * init_termbuf()
@@ -178,8 +155,8 @@ void scrub_env __P((void));
  * set_termbuf() writes the structure into the kernel.
  */
 
-	void
-init_termbuf()
+void
+init_termbuf(void)
 {
 #ifndef	USE_TERMIO
 	(void) ioctl(pty, TIOCGETP, (char *)&termbuf.sg);
@@ -189,20 +166,14 @@ init_termbuf()
 	(void) ioctl(pty, TIOCGSTATE, (char *)&termbuf.state);
 # endif
 #else
-# ifdef  STREAMSPTY
-	(void) tcgetattr(ttyfd, &termbuf);
-# else
 	(void) tcgetattr(pty, &termbuf);
-# endif
 #endif
 	termbuf2 = termbuf;
 }
 
 #if	defined(LINEMODE) && defined(TIOCPKT_IOCTL)
-	void
-copy_termbuf(cp, len)
-	char *cp;
-	int len;
+void
+copy_termbuf(char *cp, size_t len)
 {
 	if (len > sizeof(termbuf))
 		len = sizeof(termbuf);
@@ -211,8 +182,8 @@ copy_termbuf(cp, len)
 }
 #endif	/* defined(LINEMODE) && defined(TIOCPKT_IOCTL) */
 
-	void
-set_termbuf()
+void
+set_termbuf(void)
 {
 	/*
 	 * Only make the necessary changes.
@@ -231,11 +202,7 @@ set_termbuf()
 		(void) ioctl(pty, TIOCLSET, (char *)&termbuf.lflags);
 #else	/* USE_TERMIO */
 	if (memcmp((char *)&termbuf, (char *)&termbuf2, sizeof(termbuf)))
-# ifdef  STREAMSPTY
-		(void) tcsetattr(ttyfd, TCSANOW, &termbuf);
-# else
 		(void) tcsetattr(pty, TCSANOW, &termbuf);
-# endif
 #endif	/* USE_TERMIO */
 }
 
@@ -252,11 +219,8 @@ set_termbuf()
  */
 
 #ifndef	USE_TERMIO
-	int
-spcset(func, valp, valpp)
-	int func;
-	cc_t *valp;
-	cc_t **valpp;
+int
+spcset(int func, cc_t *valp, cc_t **valpp)
 {
 	switch(func) {
 	case SLC_EOF:
@@ -327,18 +291,15 @@ spcset(func, valp, valpp)
 
 #else	/* USE_TERMIO */
 
-	int
-spcset(func, valp, valpp)
-	int func;
-	cc_t *valp;
-	cc_t **valpp;
-{
 
 #define	setval(a, b)	*valp = termbuf.c_cc[a]; \
 			*valpp = &termbuf.c_cc[a]; \
 			return(b);
 #define	defval(a) *valp = ((cc_t)a); *valpp = (cc_t *)0; return(SLC_DEFAULT);
 
+int
+spcset(int func, cc_t *valp, cc_t **valpp)
+{
 	switch(func) {
 	case SLC_EOF:
 		setval(VEOF, SLC_VARIABLE);
@@ -423,7 +384,6 @@ spcset(func, valp, valpp)
 }
 #endif	/* USE_TERMIO */
 
-#ifndef	convex
 /*
  * getpty()
  *
@@ -432,28 +392,16 @@ spcset(func, valp, valpp)
  *
  * Returns the file descriptor of the opened pty.
  */
+char alpha[] = "0123456789abcdefghijklmnopqrstuv";
 char line[16];
 
-	int
-getpty(ptynum)
-int *ptynum;
+int
+getpty(int *ptynum __unused)
 {
-	register int p;
-#ifdef	STREAMSPTY
-	int t;
-	char *ptsname();
-
-	p = open("/dev/ptmx", 2);
-	if (p > 0) {
-		grantpt(p);
-		unlockpt(p);
-		strcpy(line, ptsname(p));
-		return(p);
-	}
-
-#else	/* ! STREAMSPTY */
-	register char *cp, *p1, *p2;
-	register int i;
+	int p;
+	const char *cp;
+	char *p1, *p2;
+	int i;
 
 	(void) strcpy(line, _PATH_DEV);
 	(void) strcat(line, "ptyXX");
@@ -473,7 +421,7 @@ int *ptynum;
 		if (stat(line, &stb) < 0)
 			break;
 		for (i = 0; i < 32; i++) {
-			*p2 = "0123456789abcdefghijklmnopqrstuv"[i];
+			*p2 = alpha[i];
 			p = open(line, 2);
 			if (p > 0) {
 				line[5] = 't';
@@ -483,10 +431,8 @@ int *ptynum;
 			}
 		}
 	}
-#endif	/* STREAMSPTY */
 	return(-1);
 }
-#endif	/* convex */
 
 #ifdef	LINEMODE
 /*
@@ -510,38 +456,24 @@ int *ptynum;
  * tty_rspeed(val)	Set receive speed to val.
  */
 
-#ifdef convex
-static int linestate;
-#endif
 
-	int
-tty_linemode()
+int
+tty_linemode(void)
 {
-#ifndef convex
 #ifndef	USE_TERMIO
 	return(termbuf.state & TS_EXTPROC);
 #else
 	return(termbuf.c_lflag & EXTPROC);
 #endif
-#else
-	return(linestate);
-#endif
 }
 
-	void
-tty_setlinemode(on)
-	int on;
+void
+tty_setlinemode(int on)
 {
 #ifdef	TIOCEXT
-# ifndef convex
 	set_termbuf();
-# else
-	linestate = on;
-# endif
 	(void) ioctl(pty, TIOCEXT, (char *)&on);
-# ifndef convex
 	init_termbuf();
-# endif
 #else	/* !TIOCEXT */
 # ifdef	EXTPROC
 	if (on)
@@ -553,8 +485,8 @@ tty_setlinemode(on)
 }
 #endif	/* LINEMODE */
 
-	int
-tty_isecho()
+int
+tty_isecho(void)
 {
 #ifndef USE_TERMIO
 	return (termbuf.sg.sg_flags & ECHO);
@@ -563,8 +495,8 @@ tty_isecho()
 #endif
 }
 
-	int
-tty_flowmode()
+int
+tty_flowmode(void)
 {
 #ifndef USE_TERMIO
 	return(((termbuf.tc.t_startc) > 0 && (termbuf.tc.t_stopc) > 0) ? 1 : 0);
@@ -573,8 +505,8 @@ tty_flowmode()
 #endif
 }
 
-	int
-tty_restartany()
+int
+tty_restartany(void)
 {
 #ifndef USE_TERMIO
 # ifdef	DECCTQ
@@ -587,9 +519,8 @@ tty_restartany()
 #endif
 }
 
-	void
-tty_setecho(on)
-	int on;
+void
+tty_setecho(int on)
 {
 #ifndef	USE_TERMIO
 	if (on)
@@ -604,8 +535,8 @@ tty_setecho(on)
 #endif
 }
 
-	int
-tty_israw()
+int
+tty_israw(void)
 {
 #ifndef USE_TERMIO
 	return(termbuf.sg.sg_flags & RAW);
@@ -614,9 +545,10 @@ tty_israw()
 #endif
 }
 
-#if	defined (AUTHENTICATION) && defined(NO_LOGIN_F) && defined(LOGIN_R)
-	int
-tty_setraw(on)
+#ifdef	AUTHENTICATION
+#if	defined(NO_LOGIN_F) && defined(LOGIN_R)
+int
+tty_setraw(int on)
 {
 #  ifndef USE_TERMIO
 	if (on)
@@ -631,10 +563,10 @@ tty_setraw(on)
 #  endif
 }
 #endif
+#endif /* AUTHENTICATION */
 
-	void
-tty_binaryin(on)
-	int on;
+void
+tty_binaryin(int on)
 {
 #ifndef	USE_TERMIO
 	if (on)
@@ -650,9 +582,8 @@ tty_binaryin(on)
 #endif
 }
 
-	void
-tty_binaryout(on)
-	int on;
+void
+tty_binaryout(int on)
 {
 #ifndef	USE_TERMIO
 	if (on)
@@ -672,8 +603,8 @@ tty_binaryout(on)
 #endif
 }
 
-	int
-tty_isbinaryin()
+int
+tty_isbinaryin(void)
 {
 #ifndef	USE_TERMIO
 	return(termbuf.lflags & LPASS8);
@@ -682,8 +613,8 @@ tty_isbinaryin()
 #endif
 }
 
-	int
-tty_isbinaryout()
+int
+tty_isbinaryout(void)
 {
 #ifndef	USE_TERMIO
 	return(termbuf.lflags & LLITOUT);
@@ -693,8 +624,8 @@ tty_isbinaryout()
 }
 
 #ifdef	LINEMODE
-	int
-tty_isediting()
+int
+tty_isediting(void)
 {
 #ifndef USE_TERMIO
 	return(!(termbuf.sg.sg_flags & (CBREAK|RAW)));
@@ -703,8 +634,8 @@ tty_isediting()
 #endif
 }
 
-	int
-tty_istrapsig()
+int
+tty_istrapsig(void)
 {
 #ifndef USE_TERMIO
 	return(!(termbuf.sg.sg_flags&RAW));
@@ -713,9 +644,8 @@ tty_istrapsig()
 #endif
 }
 
-	void
-tty_setedit(on)
-	int on;
+void
+tty_setedit(int on)
 {
 #ifndef USE_TERMIO
 	if (on)
@@ -730,9 +660,8 @@ tty_setedit(on)
 #endif
 }
 
-	void
-tty_setsig(on)
-	int on;
+void
+tty_setsig(int on)
 {
 #ifndef	USE_TERMIO
 	if (on)
@@ -746,8 +675,8 @@ tty_setsig(on)
 }
 #endif	/* LINEMODE */
 
-	int
-tty_issofttab()
+int
+tty_issofttab(void)
 {
 #ifndef	USE_TERMIO
 	return (termbuf.sg.sg_flags & XTABS);
@@ -761,9 +690,8 @@ tty_issofttab()
 #endif
 }
 
-	void
-tty_setsofttab(on)
-	int on;
+void
+tty_setsofttab(int on)
 {
 #ifndef	USE_TERMIO
 	if (on)
@@ -791,8 +719,8 @@ tty_setsofttab(on)
 #endif
 }
 
-	int
-tty_islitecho()
+int
+tty_islitecho(void)
 {
 #ifndef	USE_TERMIO
 	return (!(termbuf.lflags & LCTLECH));
@@ -809,9 +737,8 @@ tty_islitecho()
 #endif
 }
 
-	void
-tty_setlitecho(on)
-	int on;
+void
+tty_setlitecho(int on)
 {
 #ifndef	USE_TERMIO
 	if (on)
@@ -834,8 +761,8 @@ tty_setlitecho(on)
 #endif
 }
 
-	int
-tty_iscrnl()
+int
+tty_iscrnl(void)
 {
 #ifndef	USE_TERMIO
 	return (termbuf.sg.sg_flags & CRMOD);
@@ -894,12 +821,11 @@ struct termspeeds {
 };
 #endif	/* DECODE_BAUD */
 
-	void
-tty_tspeed(val)
-	int val;
+void
+tty_tspeed(int val)
 {
 #ifdef	DECODE_BAUD
-	register struct termspeeds *tp;
+	struct termspeeds *tp;
 
 	for (tp = termspeeds; (tp->speed != -1) && (val > tp->speed); tp++)
 		;
@@ -911,12 +837,11 @@ tty_tspeed(val)
 #endif	/* DECODE_BAUD */
 }
 
-	void
-tty_rspeed(val)
-	int val;
+void
+tty_rspeed(int val)
 {
 #ifdef	DECODE_BAUD
-	register struct termspeeds *tp;
+	struct termspeeds *tp;
 
 	for (tp = termspeeds; (tp->speed != -1) && (val > tp->speed); tp++)
 		;
@@ -928,42 +853,16 @@ tty_rspeed(val)
 #endif	/* DECODE_BAUD */
 }
 
-#ifdef PARENT_DOES_UTMP
-# ifndef NEWINIT
-extern	struct utmp wtmp;
-extern char wtmpf[];
-# else	/* NEWINIT */
-int	gotalarm;
-
-	/* ARGSUSED */
-	void
-nologinproc(sig)
-	int sig;
-{
-	gotalarm++;
-}
-# endif	/* NEWINIT */
-#endif /* PARENT_DOES_UTMP */
-
-#ifndef	NEWINIT
-# ifdef PARENT_DOES_UTMP
-extern void utmp_sig_init P((void));
-extern void utmp_sig_reset P((void));
-extern void utmp_sig_wait P((void));
-extern void utmp_sig_notify P((int));
-# endif /* PARENT_DOES_UTMP */
-#endif
-
 /*
  * getptyslave()
  *
  * Open the slave side of the pty, and do any initialization
  * that is necessary.
  */
-	void
-getptyslave()
+static void
+getptyslave(void)
 {
-	register int t = -1;
+	int t = -1;
 	char erase;
 
 # ifdef	LINEMODE
@@ -1000,31 +899,10 @@ getptyslave()
 	}
 # endif
 
-
-# ifdef PARENT_DOES_UTMP
-	/*
-	 * Wait for our parent to get the utmp stuff to get done.
-	 */
-	utmp_sig_wait();
-# endif
-
 	t = cleanopen(line);
 	if (t < 0)
 		fatalperror(net, line);
 
-#ifdef  STREAMSPTY
-#ifdef	USE_TERMIO
-	ttyfd = t;
-#endif
-	if (ioctl(t, I_PUSH, "ptem") < 0)
-		fatal(net, "I_PUSH ptem");
-	if (ioctl(t, I_PUSH, "ldterm") < 0)
-		fatal(net, "I_PUSH ldterm");
-	if (ioctl(t, I_PUSH, "ttcompat") < 0)
-		fatal(net, "I_PUSH ttcompat");
-	if (ioctl(pty, I_PUSH, "pckt") < 0)
-		fatal(net, "I_PUSH pckt");
-#endif
 
 	/*
 	 * set up the tty modes as we like them to be.
@@ -1051,15 +929,6 @@ getptyslave()
 	 * systems, other than 4.4BSD.  In 4.4BSD the
 	 * kernel does the initial terminal setup.
 	 */
-# if defined(USE_TERMIO) && (BSD <= 43)
-#  ifndef	OXTABS
-#   define OXTABS	0
-#  endif
-	termbuf.c_lflag |= ECHO;
-	termbuf.c_oflag |= ONLCR|OXTABS;
-	termbuf.c_iflag |= ICRNL;
-	termbuf.c_iflag &= ~IXOFF;
-# endif /* defined(USE_TERMIO) && (BSD <= 43) */
 	tty_rspeed((def_rspeed > 0) ? def_rspeed : 9600);
 	tty_tspeed((def_tspeed > 0) ? def_tspeed : 9600);
 	if (erase)
@@ -1077,7 +946,8 @@ getptyslave()
 		fatalperror(net, "login_tty");
 	if (net > 2)
 		(void) close(net);
-#if	defined(AUTHENTICATION) && defined(NO_LOGIN_F) && defined(LOGIN_R)
+#ifdef	AUTHENTICATION
+#if	defined(NO_LOGIN_F) && defined(LOGIN_R)
 	/*
 	 * Leave the pty open so that we can write out the rlogin
 	 * protocol for /bin/login, if the authentication works.
@@ -1088,6 +958,7 @@ getptyslave()
 		pty = -1;
 	}
 #endif
+#endif /* AUTHENTICATION */
 }
 
 #ifndef	O_NOCTTY
@@ -1097,89 +968,27 @@ getptyslave()
  * Open the specified slave side of the pty,
  * making sure that we have a clean tty.
  */
-	int
-cleanopen(line)
-	char *line;
+int
+cleanopen(char *li)
 {
-	register int t;
+	int t;
 
-#ifndef STREAMSPTY
 	/*
 	 * Make sure that other people can't open the
 	 * slave side of the connection.
 	 */
-	(void) chown(line, 0, 0);
-	(void) chmod(line, 0600);
-#endif
+	(void) chown(li, 0, 0);
+	(void) chmod(li, 0600);
 
-	(void) revoke(line);
+	(void) revoke(li);
 
 	t = open(line, O_RDWR|O_NOCTTY);
 
 	if (t < 0)
 		return(-1);
 
-	/*
-	 * Hangup anybody else using this ttyp, then reopen it for
-	 * ourselves.
-	 */
-# if (BSD <= 43) && !defined(STREAMSPTY)
-	(void) signal(SIGHUP, SIG_IGN);
-	vhangup();
-	(void) signal(SIGHUP, SIG_DFL);
-	t = open(line, O_RDWR|O_NOCTTY);
-	if (t < 0)
-		return(-1);
-# endif
 	return(t);
 }
-
-#if BSD <= 43
-
-	int
-login_tty(t)
-	int t;
-{
-	if (setsid() < 0) {
-#ifdef ultrix
-		/*
-		 * The setsid() may have failed because we
-		 * already have a pgrp == pid.  Zero out
-		 * our pgrp and try again...
-		 */
-		if ((setpgrp(0, 0) < 0) || (setsid() < 0))
-#endif
-			fatalperror(net, "setsid()");
-	}
-# ifdef	TIOCSCTTY
-	if (ioctl(t, TIOCSCTTY, (char *)0) < 0)
-		fatalperror(net, "ioctl(sctty)");
-# else
-	/*
-	 * We get our controlling tty assigned as a side-effect
-	 * of opening up a tty device.  But on BSD based systems,
-	 * this only happens if our process group is zero.  The
-	 * setsid() call above may have set our pgrp, so clear
-	 * it out before opening the tty...
-	 */
-	(void) setpgrp(0, 0);
-	close(open(line, O_RDWR));
-# endif
-	if (t != 0)
-		(void) dup2(t, 0);
-	if (t != 1)
-		(void) dup2(t, 1);
-	if (t != 2)
-		(void) dup2(t, 2);
-	if (t > 2)
-		close(t);
-	return(0);
-}
-#endif	/* BSD <= 43 */
-
-#ifdef	NEWINIT
-char *gen_id = "fe";
-#endif
 
 /*
  * startslave(host)
@@ -1189,21 +998,12 @@ char *gen_id = "fe";
  */
 
 /* ARGSUSED */
-	void
-startslave(host, autologin, autoname)
-	char *host;
-	int autologin;
-	char *autoname;
+void
+startslave(char *host, int autologin, char *autoname)
 {
-	register int i;
-#ifdef	NEWINIT
-	extern char *ptyip;
-	struct init_request request;
-	void nologinproc();
-	register int n;
-#endif	/* NEWINIT */
+	int i;
 
-#if	defined(AUTHENTICATION)
+#ifdef	AUTHENTICATION
 	if (!autoname || !autoname[0])
 		autologin = 0;
 
@@ -1213,109 +1013,20 @@ startslave(host, autologin, autoname)
 	}
 #endif
 
-#ifndef	NEWINIT
-# ifdef	PARENT_DOES_UTMP
-	utmp_sig_init();
-# endif	/* PARENT_DOES_UTMP */
 
 	if ((i = fork()) < 0)
 		fatalperror(net, "fork");
 	if (i) {
-# ifdef PARENT_DOES_UTMP
-		/*
-		 * Cray parent will create utmp entry for child and send
-		 * signal to child to tell when done.  Child waits for signal
-		 * before doing anything important.
-		 */
-		register int pid = i;
-		void sigjob P((int));
-
-		setpgrp();
-		utmp_sig_reset();		/* reset handler to default */
-		/*
-		 * Create utmp entry for child
-		 */
-		(void) time(&wtmp.ut_time);
-		wtmp.ut_type = LOGIN_PROCESS;
-		wtmp.ut_pid = pid;
-		SCPYN(wtmp.ut_user, "LOGIN");
-		SCPYN(wtmp.ut_host, host);
-		SCPYN(wtmp.ut_line, line + sizeof(_PATH_DEV) - 1);
-		SCPYN(wtmp.ut_id, wtmp.ut_line+3);
-		pututline(&wtmp);
-		endutent();
-		if ((i = open(wtmpf, O_WRONLY|O_APPEND)) >= 0) {
-			(void) write(i, (char *)&wtmp, sizeof(struct utmp));
-			(void) close(i);
-		}
-		utmp_sig_notify(pid);
-# endif	/* PARENT_DOES_UTMP */
 	} else {
-		getptyslave(autologin);
+		getptyslave();
 		start_login(host, autologin, autoname);
 		/*NOTREACHED*/
 	}
-#else	/* NEWINIT */
-
-	/*
-	 * Init will start up login process if we ask nicely.  We only wait
-	 * for it to start up and begin normal telnet operation.
-	 */
-	if ((i = open(INIT_FIFO, O_WRONLY)) < 0) {
-		char tbuf[128];
-		(void) snprintf(tbuf, sizeof(tbuf), "Can't open %s\n", INIT_FIFO);
-		fatalperror(net, tbuf);
-	}
-	memset((char *)&request, 0, sizeof(request));
-	request.magic = INIT_MAGIC;
-	SCPYN(request.gen_id, gen_id);
-	SCPYN(request.tty_id, &line[8]);
-	SCPYN(request.host, host);
-	SCPYN(request.term_type, terminaltype ? terminaltype : "network");
-	request.signal = SIGCLD;
-	request.pid = getpid();
-#ifdef BFTPDAEMON
-	/*
-	 * Are we working as the bftp daemon?
-	 */
-	if (bftpd) {
-		SCPYN(request.exec_name, BFTPPATH);
-	}
-#endif /* BFTPDAEMON */
-	if (write(i, (char *)&request, sizeof(request)) < 0) {
-		char tbuf[128];
-		(void) snprintf(tbuf, sizeof(tbuf), "Can't write to %s\n", INIT_FIFO);
-		fatalperror(net, tbuf);
-	}
-	(void) close(i);
-	(void) signal(SIGALRM, nologinproc);
-	for (i = 0; ; i++) {
-		char tbuf[128];
-		alarm(15);
-		n = read(pty, ptyip, BUFSIZ);
-		if (i == 3 || n >= 0 || !gotalarm)
-			break;
-		gotalarm = 0;
-		snprintf(tbuf, sizeof(tbuf), "telnetd: waiting for /etc/init to start login process on %s\r\n", line);
-		(void) write(net, tbuf, strlen(tbuf));
-	}
-	if (n < 0 && gotalarm)
-		fatal(net, "/etc/init didn't start login process");
-	pcc += n;
-	alarm(0);
-	(void) signal(SIGALRM, SIG_DFL);
-
-	return;
-#endif	/* NEWINIT */
 }
 
-char	*envinit[3];
-extern char **environ;
-
-	void
-init_env()
+void
+init_env(void)
 {
-	extern char *getenv();
 	char **envp;
 
 	envp = envinit;
@@ -1325,7 +1036,6 @@ init_env()
 	environ = envinit;
 }
 
-#ifndef	NEWINIT
 
 /*
  * start_login(host)
@@ -1334,42 +1044,16 @@ init_env()
  * function will turn us into the login process.
  */
 
-	void
-start_login(host, autologin, name)
-	char *host;
-	int autologin;
-	char *name;
+#ifndef AUTHENTICATION
+#define undef1 __unused
+#else
+#define undef1
+#endif
+
+void
+start_login(char *host undef1, int autologin undef1, char *name undef1)
 {
-	register char **argv;
-	char **addarg(), *user;
-	extern char *getenv();
-#ifdef	UTMPX
-	register int pid = getpid();
-	struct utmpx utmpx;
-#endif
-#ifdef SOLARIS
-	char *term;
-	char termbuf[64];
-#endif
-
-#ifdef	UTMPX
-	/*
-	 * Create utmp entry for child
-	 */
-
-	memset(&utmpx, 0, sizeof(utmpx));
-	SCPYN(utmpx.ut_user, ".telnet");
-	SCPYN(utmpx.ut_line, line + sizeof(_PATH_DEV) - 1);
-	utmpx.ut_pid = pid;
-	utmpx.ut_id[0] = 't';
-	utmpx.ut_id[1] = 'n';
-	utmpx.ut_id[2] = SC_WILDC;
-	utmpx.ut_id[3] = SC_WILDC;
-	utmpx.ut_type = LOGIN_PROCESS;
-	(void) time(&utmpx.ut_tv.tv_sec);
-	if (makeutx(&utmpx) == NULL)
-		fatal(net, "makeutx failed");
-#endif
+	char **argv;
 
 	scrub_env();
 
@@ -1384,8 +1068,8 @@ start_login(host, autologin, name)
 	argv = addarg(0, "login");
 
 #if	!defined(NO_LOGIN_H)
-
-# if	defined (AUTHENTICATION) && defined(NO_LOGIN_F) && defined(LOGIN_R)
+#ifdef	AUTHENTICATION
+# if	defined(NO_LOGIN_F) && defined(LOGIN_R)
 	/*
 	 * Don't add the "-h host" option if we are going
 	 * to be adding the "-r host" option down below...
@@ -1395,21 +1079,8 @@ start_login(host, autologin, name)
 	{
 		argv = addarg(argv, "-h");
 		argv = addarg(argv, host);
-#ifdef	SOLARIS
-		/*
-		 * SVR4 version of -h takes TERM= as second arg, or -
-		 */
-		term = getenv("TERM");
-		if (term == NULL || term[0] == 0) {
-			term = "-";
-		} else {
-			strcpy(termbuf, "TERM=");
-			strncat(termbuf, term, sizeof(termbuf) - 6);
-			term = termbuf;
-		}
-		argv = addarg(argv, term);
-#endif
 	}
+#endif /* AUTHENTICATION */
 #endif
 #if	!defined(NO_LOGIN_P)
 	argv = addarg(argv, "-p");
@@ -1437,15 +1108,7 @@ start_login(host, autologin, name)
 		argv = addarg(argv, BFTPPATH);
 	} else
 #endif
-#if	defined (SecurID)
-	/*
-	 * don't worry about the -f that might get sent.
-	 * A -s is supposed to override it anyhow.
-	 */
-	if (require_SecurID)
-		argv = addarg(argv, "-s");
-#endif
-#if	defined (AUTHENTICATION)
+#ifdef	AUTHENTICATION
 	if (auth_level >= 0 && autologin == AUTH_VALID) {
 # if	!defined(NO_LOGIN_F)
 		argv = addarg(argv, "-f");
@@ -1462,7 +1125,7 @@ start_login(host, autologin, name)
 		 */
 
 		if (pty > 2) {
-			register char *cp;
+			char *cp;
 			char speed[128];
 			int isecho, israw, xpty, len;
 			extern int def_rspeed;
@@ -1484,11 +1147,7 @@ start_login(host, autologin, name)
 			argv = addarg(argv, LOGIN_HOST);
 
 			xpty = pty;
-# ifndef  STREAMSPTY
 			pty = 0;
-# else
-			ttyfd = 0;
-# endif
 			init_termbuf();
 			isecho = tty_isecho();
 			israw = tty_israw();
@@ -1534,7 +1193,7 @@ start_login(host, autologin, name)
 		argv = addarg(argv, getenv("USER"));
 #if	defined(LOGIN_ARGS) && defined(NO_LOGIN_P)
 		{
-			register char **cpp;
+			char **cpp;
 			for (cpp = environ; *cpp; cpp++)
 				argv = addarg(argv, *cpp);
 		}
@@ -1551,20 +1210,12 @@ start_login(host, autologin, name)
 		 */
 		unsetenv("USER");
 	}
-#ifdef	SOLARIS
-	else {
-		char **p;
-
-		argv = addarg(argv, "");	/* no login name */
-		for (p = environ; *p; p++) {
-			argv = addarg(argv, *p);
-		}
-	}
-#endif	/* SOLARIS */
-#if	defined(AUTHENTICATION) && defined(NO_LOGIN_F) && defined(LOGIN_R)
+#ifdef	AUTHENTICATION
+#if	defined(NO_LOGIN_F) && defined(LOGIN_R)
 	if (pty > 2)
 		close(pty);
 #endif
+#endif /* AUTHENTICATION */
 	closelog();
 
 	if (altlogin == NULL) {
@@ -1577,12 +1228,10 @@ start_login(host, autologin, name)
 	/*NOTREACHED*/
 }
 
-	char **
-addarg(argv, val)
-	register char **argv;
-	register char *val;
+static char **
+addarg(char **argv, const char *val)
 {
-	register char **cpp;
+	char **cpp;
 
 	if (argv == NULL) {
 		/*
@@ -1605,26 +1254,25 @@ addarg(argv, val)
 		argv++;
 		cpp = &argv[(int)argv[-1] - 10];
 	}
-	*cpp++ = val;
+	*cpp++ = strdup(val);
 	*cpp = 0;
 	return(argv);
 }
-#endif	/* NEWINIT */
 
 /*
  * scrub_env()
  *
  * We only accept the environment variables listed below.
  */
-	void
-scrub_env()
+void
+scrub_env(void)
 {
-	static const char *reject[] = {
+	static const char *rej[] = {
 		"TERMCAP=/",
 		NULL
 	};
 
-	static const char *accept[] = {
+	static const char *acc[] = {
 		"XAUTH=", "XAUTHORITY=", "DISPLAY=",
 		"TERM=",
 		"EDITOR=",
@@ -1641,7 +1289,7 @@ scrub_env()
  	for (cpp2 = cpp = environ; *cpp; cpp++) {
 		int reject_it = 0;
 
-		for(p = reject; *p; p++)
+		for(p = rej; *p; p++)
 			if(strncmp(*cpp, *p, strlen(*p)) == 0) {
 				reject_it = 1;
 				break;
@@ -1649,7 +1297,7 @@ scrub_env()
 		if (reject_it)
 			continue;
 
-		for(p = accept; *p; p++)
+		for(p = acc; *p; p++)
 			if(strncmp(*cpp, *p, strlen(*p)) == 0)
 				break;
 		if(*p != NULL)
@@ -1664,13 +1312,10 @@ scrub_env()
  * This is the routine to call when we are all through, to
  * clean up anything that needs to be cleaned up.
  */
-	/* ARGSUSED */
-	void
-cleanup(sig)
-	int sig;
+/* ARGSUSED */
+void
+cleanup(int sig __unused)
 {
-#ifndef	PARENT_DOES_UTMP
-# if (BSD > 43) || defined(convex)
 	char *p;
 
 	p = line + sizeof(_PATH_DEV) - 1;
@@ -1683,173 +1328,4 @@ cleanup(sig)
 	(void)chown(line, 0, 0);
 	(void) shutdown(net, 2);
 	exit(1);
-# else
-	void rmut();
-
-	rmut();
-	vhangup();	/* XXX */
-	(void) shutdown(net, 2);
-	exit(1);
-# endif
-#else	/* PARENT_DOES_UTMP */
-# ifdef	NEWINIT
-	(void) shutdown(net, 2);
-	exit(1);
-# else	/* NEWINIT */
-	rmut(line);
-	close(pty);
-	(void) shutdown(net, 2);
-	exit(1);
-# endif	/* NEWINT */
-#endif	/* PARENT_DOES_UTMP */
 }
-
-#if defined(PARENT_DOES_UTMP) && !defined(NEWINIT)
-/*
- * _utmp_sig_rcv
- * utmp_sig_init
- * utmp_sig_wait
- *	These three functions are used to coordinate the handling of
- *	the utmp file between the server and the soon-to-be-login shell.
- *	The server actually creates the utmp structure, the child calls
- *	utmp_sig_wait(), until the server calls utmp_sig_notify() and
- *	signals the future-login shell to proceed.
- */
-static int caught=0;		/* NZ when signal intercepted */
-static void (*func)();		/* address of previous handler */
-
-	void
-_utmp_sig_rcv(sig)
-	int sig;
-{
-	caught = 1;
-	(void) signal(SIGUSR1, func);
-}
-
-	void
-utmp_sig_init()
-{
-	/*
-	 * register signal handler for UTMP creation
-	 */
-	if ((int)(func = signal(SIGUSR1, _utmp_sig_rcv)) == -1)
-		fatalperror(net, "telnetd/signal");
-}
-
-	void
-utmp_sig_reset()
-{
-	(void) signal(SIGUSR1, func);	/* reset handler to default */
-}
-
-	void
-utmp_sig_wait()
-{
-	/*
-	 * Wait for parent to write our utmp entry.
-	 */
-	sigoff();
-	while (caught == 0) {
-		pause();	/* wait until we get a signal (sigon) */
-		sigoff();	/* turn off signals while we check caught */
-	}
-	sigon();		/* turn on signals again */
-}
-
-	void
-utmp_sig_notify(pid)
-{
-	kill(pid, SIGUSR1);
-}
-
-#endif	/* defined(PARENT_DOES_UTMP) && !defined(NEWINIT) */
-
-/*
- * rmut()
- *
- * This is the function called by cleanup() to
- * remove the utmp entry for this person.
- */
-
-#ifdef	UTMPX
-	void
-rmut()
-{
-	register f;
-	int found = 0;
-	struct utmp *u, *utmp;
-	int nutmp;
-	struct stat statbf;
-
-	struct utmpx *utxp, utmpx;
-
-	/*
-	 * This updates the utmpx and utmp entries and make a wtmp/x entry
-	 */
-
-	SCPYN(utmpx.ut_line, line + sizeof(_PATH_DEV) - 1);
-	utxp = getutxline(&utmpx);
-	if (utxp) {
-		utxp->ut_type = DEAD_PROCESS;
-		utxp->ut_exit.e_termination = 0;
-		utxp->ut_exit.e_exit = 0;
-		(void) time(&utmpx.ut_tv.tv_sec);
-		utmpx.ut_tv.tv_usec = 0;
-		modutx(utxp);
-	}
-	endutxent();
-}  /* end of rmut */
-#endif
-
-#if	!defined(UTMPX) && BSD <= 43
-	void
-rmut()
-{
-	register f;
-	int found = 0;
-	struct utmp *u, *utmp;
-	int nutmp;
-	struct stat statbf;
-
-	f = open(utmpf, O_RDWR);
-	if (f >= 0) {
-		(void) fstat(f, &statbf);
-		utmp = (struct utmp *)malloc((unsigned)statbf.st_size);
-		if (!utmp)
-			syslog(LOG_ERR, "utmp malloc failed");
-		if (statbf.st_size && utmp) {
-			nutmp = read(f, (char *)utmp, (int)statbf.st_size);
-			nutmp /= sizeof(struct utmp);
-
-			for (u = utmp ; u < &utmp[nutmp] ; u++) {
-				if (SCMPN(u->ut_line, line+5) ||
-				    u->ut_name[0]==0)
-					continue;
-				(void) lseek(f, ((long)u)-((long)utmp), L_SET);
-				SCPYN(u->ut_name, "");
-				SCPYN(u->ut_host, "");
-				(void) time(&u->ut_time);
-				(void) write(f, (char *)u, sizeof(wtmp));
-				found++;
-			}
-		}
-		(void) close(f);
-	}
-	if (found) {
-		f = open(wtmpf, O_WRONLY|O_APPEND);
-		if (f >= 0) {
-			SCPYN(wtmp.ut_line, line+5);
-			SCPYN(wtmp.ut_name, "");
-			SCPYN(wtmp.ut_host, "");
-			(void) time(&wtmp.ut_time);
-			(void) write(f, (char *)&wtmp, sizeof(wtmp));
-			(void) close(f);
-		}
-	}
-	(void) chmod(line, 0666);
-	(void) chown(line, 0, 0);
-	line[strlen(_PATH_DEV)] = 'p';
-	(void) chmod(line, 0666);
-	(void) chown(line, 0, 0);
-}  /* end of rmut */
-#endif
