@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.23 1999/01/27 19:00:49 dillon Exp $
+ *	$Id: db_aout.c,v 1.24 1999/01/27 23:45:37 dillon Exp $
  */
 
 /*
@@ -120,7 +120,7 @@ X_db_sym_init(symtab, esymtab, name)
 			    (char *)symtab);
 }
 
-db_sym_t
+c_db_sym_t
 X_db_lookup(stab, symstr)
 	db_symtab_t	*stab;
 	const char *	symstr;
@@ -143,7 +143,7 @@ X_db_lookup(stab, symstr)
 	return ((db_sym_t)0);
 }
 
-db_sym_t
+c_db_sym_t
 X_db_search_symbol(symtab, off, strategy, diffp)
 	db_symtab_t *	symtab;
 	register
@@ -200,7 +200,7 @@ X_db_search_symbol(symtab, off, strategy, diffp)
 void
 X_db_symbol_values(symtab, sym, namep, valuep)
 	db_symtab_t	*symtab;
-	db_sym_t	sym;
+	c_db_sym_t	sym;
 	const char	**namep;
 	db_expr_t	*valuep;
 {
@@ -217,7 +217,7 @@ X_db_symbol_values(symtab, sym, namep, valuep)
 boolean_t
 X_db_line_at_pc(symtab, cursym, filename, linenum, off)
 	db_symtab_t *	symtab;
-	db_sym_t	cursym;
+	c_db_sym_t	cursym;
 	char 		**filename;
 	int 		*linenum;
 	db_expr_t	off;
