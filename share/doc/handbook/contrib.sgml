@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.65 1996/04/09 04:14:09 gclarkii Exp $ -->
+<!-- $Id: contrib.sgml,v 1.66 1996/04/09 09:04:09 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -169,6 +169,7 @@
 	  <item>Cristian Ferretti &lt;cfs@riemann.mat.puc.cl&gt;
 	  <item>Curt Mayer &lt;curt@toad.com&gt;
 	  <item>Daniel Baker &lt;dbaker@crash.ops.neosoft.com&gt;
+	  <item>Daniel M. Eischen &lt;deischen@iworks.InterWorks.org&gt;
 	  <item>Danny J. Zerkel &lt;dzerkel@feephi.phofarm.com&gt;
 	  <item>Dave Burgess &lt;burgess@hrd769.brooks.af.mil&gt;
 	  <item>Dave Chapeskie &lt;dchapes@zeus.leitch.com&gt;
