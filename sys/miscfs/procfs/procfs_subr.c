@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.4 (Berkeley) 1/27/94
  *
- *	$Id: procfs_subr.c,v 1.4 1995/04/15 02:30:12 davidg Exp $
+ *	$Id: procfs_subr.c,v 1.5 1995/05/30 08:07:11 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -111,14 +111,20 @@ loop:
 	}
 	pfsvplock |= PROCFS_LOCKED;
 
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
+	MALLOC(pfs, struct pfsnode *, sizeof(struct pfsnode), M_TEMP, M_WAITOK);
+
 	error = getnewvnode(VT_PROCFS, mp, procfs_vnodeop_p, vpp);
-	if (error)
+	if (error) {
+		FREE(pfs, M_TEMP);
 		goto out;
+	}
 
-	MALLOC((*vpp)->v_data, void *, sizeof(struct pfsnode),
-		M_TEMP, M_WAITOK);
-
-	pfs = VTOPFS(*vpp);
+	(*vpp)->v_data = pfs;
 	pfs->pfs_next = 0;
 	pfs->pfs_pid = (pid_t) pid;
 	pfs->pfs_type = pfs_type;

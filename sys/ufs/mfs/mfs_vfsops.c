@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.20 1995/12/17 21:09:59 phk Exp $
+ * $Id: mfs_vfsops.c,v 1.21 1996/04/08 07:54:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -288,7 +288,7 @@ mfs_mount(mp, path, data, ndp, p)
 		/*
 		 * FS specific handling
 		 */
-		mfsp = malloc(sizeof *mfsp, M_MFSNODE, M_WAITOK);
+		MALLOC(mfsp, struct mfsnode *, sizeof *mfsp, M_MFSNODE, M_WAITOK);
 		rootvp->v_data = mfsp;
 		rootvp->v_op = mfs_vnodeop_p;
 		rootvp->v_tag = VT_MFS;
@@ -305,7 +305,7 @@ mfs_mount(mp, path, data, ndp, p)
 		if( (err = ffs_mountfs(rootvp, mp, p)) != 0 ) {
 			/* fs specific cleanup (if any)*/
 			rootvp->v_data = NULL;
-			free(mfsp, M_MFSNODE);
+			FREE(mfsp, M_MFSNODE);
 			goto error_1;
 		}
 
@@ -368,13 +368,21 @@ mfs_mount(mp, path, data, ndp, p)
 		/* XXX MFS does not support name updating*/
 		goto success;
 	}
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
+	MALLOC(mfsp, struct mfsnode *, sizeof *mfsp, M_MFSNODE, M_WAITOK);
+
 	err = getnewvnode(VT_MFS, (struct mount *)0, mfs_vnodeop_p, &devvp);
-	if (err)
+	if (err) {
+		FREE(mfsp, M_MFSNODE);
 		goto error_1;
+	}
 	devvp->v_type = VBLK;
 	if (checkalias(devvp, makedev(255, mfs_minor++), (struct mount *)0))
 		panic("mfs_mount: dup dev");
-	mfsp = (struct mfsnode *)malloc(sizeof *mfsp, M_MFSNODE, M_WAITOK);
 	devvp->v_data = mfsp;
 	mfsp->mfs_baseoff = args.base;
 	mfsp->mfs_size = args.size;
