@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ls.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  * From: $NetBSD: ls.c,v 1.3 1997/06/13 13:48:47 drochner Exp $
  */
 
@@ -57,9 +57,8 @@ command_ls(int argc, char *argv[])
     int		fd;
     struct stat	sb;
     size_t	size;
-    char	dirbuf[DIRBLKSIZ];
-    char	pathbuf[128];	/* XXX path length constant? */
-    char	buf[128];	/* must be long enough for dir entry! */
+    static char	dirbuf[DIRBLKSIZ];
+    static char	buf[128];	/* must be long enough for full pathname */
     char	*path;
     int		result, ch;
 #ifdef VERBOSE_LS
@@ -138,10 +137,12 @@ command_ls(int argc, char *argv[])
 		    if (verbose) {
 			/* stat the file, if possible */
 			sb.st_size = 0;
-			sprintf(buf, "%s/%s", pathbuf, dp->d_name);
+			sprintf(buf, "%s/%s", path, dp->d_name);
 			/* ignore return */
-			if (stat(buf, &sb))
+			if (stat(buf, &sb)) {
+			    printf("stat(%s) failed: %s\n", buf, strerror(errno));
 			    sb.st_size = -1;
+			}
 			sprintf(buf, " %c %8d %s\n", typestr[dp->d_type], (int)sb.st_size, dp->d_name);
 #endif
 		    } else

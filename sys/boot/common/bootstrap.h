@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: bootstrap.h,v 1.2 1998/08/31 21:10:42 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -62,6 +62,8 @@ extern int	autoboot(int delay, char *prompt);
 
 /* misc.c */
 extern char	*unargv(int argc, char *argv[]);
+extern size_t	strlenout(vm_offset_t str);
+extern char	*strdupout(vm_offset_t str);
 
 /*
  * Modular console support.
@@ -123,14 +125,16 @@ struct module_format
     /* Load function must return EFTYPE if it can't handle the module supplied */
     int		(* l_load)(char *filename, vm_offset_t dest, struct loaded_module **result);
     /* Only a loader that will load a kernel (first module) should have an exec handler */
-    int		(* l_exec)(struct loaded_module *amp);
+    int		(* l_exec)(struct loaded_module *mp);
 };
 extern struct module_format	*module_formats[];	/* supplied by consumer */
 extern struct loaded_module	*loaded_modules;
 extern int			mod_load(char *name, int argc, char *argv[]);
+extern int			mod_loadobj(char *type, char *name);
 extern struct loaded_module	*mod_findmodule(char *name, char *type);
 extern void			mod_addmetadata(struct loaded_module *mp, int type, size_t size, void *p);
 extern struct module_metadata	*mod_findmetadata(struct loaded_module *mp, int type);
+extern void			mod_discard(struct loaded_module *mp);
 
 /*
  * Module information subtypes
@@ -144,11 +148,17 @@ extern struct module_metadata	*mod_findmetadata(struct loaded_module *mp, int ty
 
 #define MODINFOMD_AOUTEXEC	0x0001		/* a.out exec header */
 #define MODINFOMD_ELFHDR	0x0002		/* ELF header */
+#define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
 /* MI module loaders */
-extern int	aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
+extern int		aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
+extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
 
 /* extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result); */
+
+#define KLD_IDENT_SYMNAME	"kld_identifier_"
+#define MODINFOMD_KLDIDENT	(MODINFOMD_NOCOPY | 0x4000)
+#define MODINFOMD_KLDDEP	(MODINFOMD_NOCOPY | 0x4001)
 
 #if defined(__ELF__)
 
@@ -231,8 +241,36 @@ struct arch_switch
     int			(*arch_getdev)(void **dev, char *name, char **path);
     /* Copy from local address space to module address space, similar to bcopy() */
     int			(*arch_copyin)(void *src, vm_offset_t dest, size_t len);
+    /* Copy to local address space from module address space, similar to bcopy() */
+    int			(*arch_copyout)(vm_offset_t src, void *dest, size_t len);
     /* Read from file to module address space, same semantics as read() */
     int			(*arch_readin)(int fd, vm_offset_t dest, size_t len);
 };
 extern struct arch_switch archsw;
 
+/*
+ * XXX these belong in a system header
+ */
+#define KLD_NAMELEN	32
+
+struct kld_module_dependancy
+{
+    char	kd_name[KLD_NAMELEN];
+    u_int32_t	kd_version;
+};
+
+struct kld_module_identifier
+{
+    u_int32_t				ki_kldversion;
+    char				ki_name[KLD_NAMELEN];
+    u_int32_t				ki_version;
+    struct kld_module_dependancy	*ki_deps;
+    int					ki_ndeps;
+    size_t				ki_depsize;
+};
+
+/*
+ * Use the depsize field in the identifier to correctly index a
+ * dependancy.
+ */
+#define KLD_GETDEP(ki, kd, n)	(struct kld_module_dependancy *)((char *)(kd) + ((ki)->ki_depsize * (n)))

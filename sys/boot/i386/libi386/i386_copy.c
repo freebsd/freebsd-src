@@ -20,6 +20,14 @@ i386_copyin(void *src, vm_offset_t dest, size_t len)
 }
 
 int
+i386_copyout(vm_offset_t src, void *dest, size_t len)
+{
+    pvbcopy(src, dest, len);
+    return(len);
+}
+
+
+int
 i386_readin(int fd, vm_offset_t dest, size_t len)
 {
     void	*buf;

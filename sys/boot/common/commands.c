@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: commands.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 #include <stand.h>
@@ -61,7 +61,7 @@ command_commandlist(int argc, char *argv[])
     printf("Available commands:\n");
     cmdp = (struct bootblk_command **)Xcommand_set.ls_items;
     for (i = 0; i < Xcommand_set.ls_length; i++)
-	if (cmdp[i]->c_name != NULL)
+	if ((cmdp[i]->c_name != NULL) && (cmdp[i]->c_desc != NULL))
 	    printf("  %-15s  %s\n", cmdp[i]->c_name, cmdp[i]->c_desc);
     return(CMD_OK);
 }
@@ -153,3 +153,38 @@ command_panic(int argc, char *argv[])
     cp = unargv(argc - 1, argv + 1);
     panic(cp);
 }
+
+COMMAND_SET(echo, "echo", NULL, command_echo);
+
+static int
+command_echo(int argc, char *argv[])
+{
+    char	*s;
+    int		nl, ch;
+    
+    nl = 0;
+    optind = 1;
+    while ((ch = getopt(argc, argv, "n")) != -1) {
+	switch(ch) {
+	case 'n':
+	    nl = 1;
+	    break;
+	case '?':
+	default:
+	    /* getopt has already reported an error */
+	    return(CMD_OK);
+	}
+    }
+    argv += (optind);
+    argc -= (optind);
+
+    s = unargv(argc, argv);
+    if (s != NULL) {
+	printf(s);
+	free(s);
+    }
+    if (!nl)
+	printf("\n");
+    return(CMD_OK);
+}
+
