@@ -141,7 +141,7 @@ exec_Create(struct physical *p)
 
           log_Printf(LogDEBUG, "Exec'ing ``%s''\n", p->name.base);
 
-          if ((argc = MakeArgs(p->name.base, argv, VECSIZE(argv))) < 0) {
+          if ((argc = MakeArgs(p->name.base, argv, VECSIZE(argv), 1)) < 0) {
             log_Printf(LogWARN, "Syntax error in exec command\n");
             _exit(127);
           }

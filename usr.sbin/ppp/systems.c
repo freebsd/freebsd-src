@@ -320,7 +320,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
       break;
 
     default:
-      if ((wp = findblank(cp, 0)) != NULL) {
+      if ((wp = findblank(cp, 0, 1)) != NULL) {
         while (issep(*wp))
           *wp++ = '\0';
         if (*wp == '#')
