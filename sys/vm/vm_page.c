@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.20 1995/02/20 14:00:50 davidg Exp $
+ *	$Id: vm_page.c,v 1.21 1995/02/22 10:16:21 davidg Exp $
  */
 
 /*
@@ -620,21 +620,19 @@ vm_page_alloc(object, offset, page_req)
 {
 	register vm_page_t mem;
 	int s;
-	int msgflg;
 
 	simple_lock(&vm_page_queue_free_lock);
 
 	s = splhigh();
 
 	if (((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) &&
-		object != kernel_object &&
-	    object != kmem_object &&
-	    curproc != pageproc &&
-	    curproc != &proc0) {
+	    (page_req == VM_ALLOC_NORMAL) &&
+	    (curproc != pageproc)) {
 		simple_unlock(&vm_page_queue_free_lock);
 		splx(s);
 		return (NULL);
 	}
+
 	if (page_req == VM_ALLOC_INTERRUPT) {
 		if ((mem = vm_page_queue_free.tqh_first) == 0) {
 			simple_unlock(&vm_page_queue_free_lock);
@@ -656,7 +654,8 @@ vm_page_alloc(object, offset, page_req)
 				goto gotpage;
 			}
 
-			if( page_req == VM_ALLOC_SYSTEM) {
+			if (page_req == VM_ALLOC_SYSTEM &&
+			    cnt.v_free_count > cnt.v_interrupt_free_min) {
 				mem = vm_page_queue_free.tqh_first;
 			}
 
