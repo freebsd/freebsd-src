@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.27 1994/11/26 23:10:03 ats Exp $
+ *      $Id: aha1742.c,v 1.28 1995/03/23 07:31:07 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -275,7 +275,7 @@ void    ahbminphys();
 struct	ecb *ahb_ecb_phys_kv();
 u_int32 ahb_adapter_info();
 
-#define	MAX_SLOTS	16	/* XXX should this be 16?? Need EISA spec */
+#define	EISA_MAX_SLOTS	16	/* XXX This should go into a comon header */
 static  ahb_slot = 0;		/* slot last board was found in */
 static  ahb_unit = 0;
 int     ahb_debug = 0;
@@ -447,7 +447,7 @@ ahbprobe(dev)
 	u_char  byte1, byte2, byte3;
 
 	ahb_slot++;
-	while (ahb_slot <= MAX_SLOTS) {
+	while (ahb_slot < EISA_MAX_SLOTS) {
 		port = 0x1000 * ahb_slot;
 		byte1 = inb(port + HID0);
 		byte2 = inb(port + HID1);
