@@ -604,7 +604,17 @@ ds_init(struct sc_info *sc)
 
 	ds_enadsp(sc, 1);
 
-	pcs = ds_rd(sc, YDSXGR_PLAYCTRLSIZE, 4) << 2;
+	pcs = 0;
+	for (i = 100; i > 0; i--) {
+		pcs = ds_rd(sc, YDSXGR_PLAYCTRLSIZE, 4) << 2;
+		if (pcs == sizeof(struct pbank))
+			break;
+		DELAY(10);
+	}
+	if (pcs != sizeof(struct pbank)) {
+		device_printf(sc->dev, "preposterous playctrlsize (%d)\n", pcs);
+		return -1;
+	}
 	rcs = ds_rd(sc, YDSXGR_RECCTRLSIZE, 4) << 2;
 	ecs = ds_rd(sc, YDSXGR_EFFCTRLSIZE, 4) << 2;
 	ws = ds_rd(sc, YDSXGR_WORKSIZE, 4) << 2;
