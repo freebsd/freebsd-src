@@ -151,10 +151,11 @@ find_rti(struct ifnet *ifp)
 			return rti;
 		}
 	}
-	/*
-	 * XXXRW: return value of malloc not checked, despite M_NOWAIT.
-	 */
 	MALLOC(rti, struct router_info *, sizeof *rti, M_IGMP, M_NOWAIT);
+	if (rti == NULL) {
+		IGMP_PRINTF( "[igmp.c, _find_rti] --> no memory for entry\n");
+		return NULL;
+	}
 	rti->rti_ifp = ifp;
 	rti->rti_type = IGMP_V2_ROUTER;
 	rti->rti_time = 0;
@@ -245,6 +246,11 @@ igmp_input(register struct mbuf *m, int off)
 
 			mtx_lock(&igmp_mtx);
 			rti = find_rti(ifp);
+			if (rti == NULL) {
+				mtx_unlock(&igmp_mtx);
+				m_freem(m);
+				return;
+			}
 			rti->rti_type = IGMP_V1_ROUTER;
 			rti->rti_time = 0;
 			mtx_unlock(&igmp_mtx);
@@ -369,11 +375,14 @@ igmp_joingroup(struct in_multi *inm)
 		mtx_lock(&igmp_mtx);
 		inm->inm_rti = find_rti(inm->inm_ifp);
 		mtx_unlock(&igmp_mtx);
-		igmp_sendpkt(inm, inm->inm_rti->rti_type, 0);
-		inm->inm_timer = IGMP_RANDOM_DELAY(
+		if (inm->inm_rti != NULL) {
+			igmp_sendpkt(inm, inm->inm_rti->rti_type, 0);
+			inm->inm_timer = IGMP_RANDOM_DELAY(
 					IGMP_MAX_HOST_REPORT_DELAY*PR_FASTHZ);
-		inm->inm_state = IGMP_IREPORTEDLAST;
-		igmp_timers_are_running = 1;
+			inm->inm_state = IGMP_IREPORTEDLAST;
+			igmp_timers_are_running = 1;
+		}
+		/* XXX handling of failure case? */
 	}
 	splx(s);
 }
