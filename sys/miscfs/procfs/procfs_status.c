@@ -186,6 +186,7 @@ procfs_docmdline(curp, p, pfs, uio)
 	char *buf, *bp;
 	int buflen;
 	struct ps_strings pstr;
+	char **ps_argvstr;
 	int i;
 	size_t bytes_left, done;
 
@@ -223,9 +224,22 @@ procfs_docmdline(curp, p, pfs, uio)
 			FREE(buf, M_TEMP);
 			return (error);
 		}
+		if (pstr.ps_nargvstr > ARG_MAX) {
+			FREE(buf, M_TEMP);
+			return (E2BIG);
+		}
+		MALLOC(ps_argvstr, char **, pstr.ps_nargvstr * sizeof(char *),
+		    M_TEMP, M_WAITOK);
+		error = copyin((void *)pstr.ps_argvstr, ps_argvstr,
+		    pstr.ps_nargvstr * sizeof(char *));
+		if (error) {
+			FREE(ps_argvstr, M_TEMP);
+			FREE(buf, M_TEMP);
+			return (error);
+		}
 		bytes_left = buflen;
 		for (i = 0; bytes_left && (i < pstr.ps_nargvstr); i++) {
-			error = copyinstr(pstr.ps_argvstr[i], ps,
+			error = copyinstr(ps_argvstr[i], ps,
 					  bytes_left, &done);
 			/* If too long or malformed, just truncate */
 			if (error) {
@@ -236,6 +250,7 @@ procfs_docmdline(curp, p, pfs, uio)
 			bytes_left -= done;
 		}
 		buflen = ps - buf;
+		FREE(ps_argvstr, M_TEMP);
 	}
 
 	error = uiomove_frombuf(bp, buflen, uio);
