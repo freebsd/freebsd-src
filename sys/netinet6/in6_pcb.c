@@ -194,14 +194,10 @@ in6_pcbbind(inp, nam, cred)
 				t = in6_pcblookup_local(pcbinfo,
 				    &sin6->sin6_addr, lport,
 				    INPLOOKUP_WILDCARD);
-				if (t && (t->inp_vflag & INP_TIMEWAIT)) {
-					if ((!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
-					    !IN6_IS_ADDR_UNSPECIFIED(&t->in6p_laddr) ||
-					    !(intotw(t)->tw_so_options & SO_REUSEPORT))
-					    && so->so_cred->cr_uid != 
-					    intotw(t)->tw_cred->cr_uid)
-						return (EADDRINUSE);
-				} else if (t &&
+				if (t &&
+				    ((t->inp_vflag & INP_TIMEWAIT) == 0) &&
+				    (so->so_type != SOCK_STREAM ||
+				     IN6_IS_ADDR_UNSPECIFIED(&t->in6p_faddr)) &&
 				    (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
 			    	     !IN6_IS_ADDR_UNSPECIFIED(&t->in6p_laddr) ||
 				     (t->inp_socket->so_options & SO_REUSEPORT) 
@@ -216,17 +212,12 @@ in6_pcbbind(inp, nam, cred)
 					t = in_pcblookup_local(pcbinfo,
 						sin.sin_addr, lport,
 						INPLOOKUP_WILDCARD);
-					if (t && (t->inp_vflag & INP_TIMEWAIT)) {
-						if (so->so_cred->cr_uid !=
-						    intotw(t)->tw_cred->cr_uid &&
-						    (ntohl(t->inp_laddr.s_addr) !=
-						     INADDR_ANY || 
-						     ((inp->inp_vflag & 
-						       INP_IPV6PROTO) == 
-						      (t->inp_vflag & 
-						       INP_IPV6PROTO))))
-					    return (EADDRINUSE);
-					} else if (t && 
+					if (t &&
+					    ((t->inp_vflag &
+					      INP_TIMEWAIT) == 0) &&
+					    (so->so_type != SOCK_STREAM ||
+					     ntohl(t->inp_faddr.s_addr) ==
+					      INADDR_ANY) &&
 					    (so->so_cred->cr_uid !=
 					     t->inp_socket->so_cred->cr_uid) &&
 					    (ntohl(t->inp_laddr.s_addr) !=
