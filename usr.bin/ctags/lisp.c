@@ -101,7 +101,7 @@ l_entries()
 				continue;
 		savedc = *cp;
 		*cp = EOS;
-		(void)strcpy(tok, lbp);
+		(void)strlcpy(tok, lbp, sizeof(tok));	/* possible trunc */
 		*cp = savedc;
 		getline();
 		pfnote(tok, lineno);
