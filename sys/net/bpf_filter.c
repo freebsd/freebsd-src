@@ -46,7 +46,7 @@
 #include <netinet/in.h>
 #endif
 
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
+#ifndef __i386__
 #define BPF_ALIGN
 #endif
 
