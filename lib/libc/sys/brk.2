@@ -128,9 +128,11 @@ is returned and the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
+The
 .Fn brk
-or
+and
 .Fn sbrk
+functions
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -167,7 +169,7 @@ from a failure caused by exceeding the maximum size of
 the data segment without consulting
 .Xr getrlimit 2 .
 .Sh HISTORY
-A
+The
 .Fn brk
-function call appeared in
+function appeared in
 .At v7 .

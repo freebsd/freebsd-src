@@ -61,7 +61,7 @@ Inheritance only effects children created by
 It has no effect on
 .Fn exec .
 exec'd processes replace their address space entirely.
-This function also
+This system call also
 has no effect on the parent's address space (other than to potentially
 share the address space with its children).
 .Pp
@@ -101,7 +101,7 @@ space in the parent.
 .Sh ERRORS
 The
 .Fn minherit
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The virtual address range specified by the
@@ -137,5 +137,5 @@ short of unmapping and remapping the area.
 .Sh HISTORY
 The
 .Fn minherit
-function first appeared in
+system call first appeared in
 .Ox .

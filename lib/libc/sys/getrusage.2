@@ -49,7 +49,9 @@
 .Ft int
 .Fn getrusage "int who" "struct rusage *rusage"
 .Sh DESCRIPTION
-.Fn Getrusage
+The
+.Fn getrusage
+system call
 returns information describing the resources utilized by the current
 process, or all its terminated child processes.
 The
@@ -156,7 +158,7 @@ to the first process to read or write the data.
 .Sh ERRORS
 The
 .Fn getrusage
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
@@ -177,5 +179,5 @@ that has not yet terminated.
 .Sh HISTORY
 The
 .Fn getrusage
-function call appeared in
+system call appeared in
 .Bx 4.2 .

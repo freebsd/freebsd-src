@@ -48,7 +48,7 @@
 .Sh DESCRIPTION
 The
 .Fn shutdown
-call causes all or part of a full-duplex connection on
+system call causes all or part of a full-duplex connection on
 the socket associated with the file descriptor
 .Fa s
 to be shut down.
@@ -69,7 +69,7 @@ further sends and receives will be disallowed.
 .Sh ERRORS
 The
 .Fn shutdown
-call fails if:
+system call fails if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
@@ -92,13 +92,13 @@ argument does not refer to a socket.
 .Sh STANDARDS
 The
 .Fn shutdown
-function is expected to comply with
+system call is expected to comply with
 .St -p1003.1g-2000 ,
 when finalized.
 .Sh HISTORY
 The
 .Fn shutdown
-function call appeared in
+system call appeared in
 .Bx 4.2 .
 The
 .Dv SHUT_RD , SHUT_WR ,

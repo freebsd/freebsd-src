@@ -44,7 +44,9 @@
 .Ft int
 .Fn shmdt "void *addr"
 .Sh DESCRIPTION
-.Fn Shmat
+The
+.Fn shmat
+system call
 attaches the shared memory segment identified by
 .Fa shmid
 to the calling process's address space.  The address where the segment
@@ -73,7 +75,9 @@ is specified and SHM_RND is specified,
 is rounded down to the nearest multiple of SHMLBA.
 .El
 .Pp
-.Fn Shmdt
+The
+.Fn shmdt
+system call
 detaches the shared memory segment at the address specified by
 .Fa addr
 from the calling process's address space.
@@ -87,7 +91,9 @@ is set to indicate the error.
 .Pp
 .Rv -std shmdt
 .Sh ERRORS
-.Fn Shmat
+The
+.Fn shmat
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -98,7 +104,9 @@ No shared memory segment was found corresponding to
 was not an acceptable address.
 .El
 .Pp
-.Fn Shmdt
+The
+.Fn shmdt
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL

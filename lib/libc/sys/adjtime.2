@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Fn adjtime
-function
+system call
 makes small adjustments to the system time, as returned by
 .Xr gettimeofday 2 ,
 advancing or retarding it
@@ -82,15 +82,16 @@ of computers in a local area network.
 Such time servers would slow down the clocks of some machines
 and speed up the clocks of others to bring them to the average network time.
 .Pp
-The call
+The
 .Fn adjtime
+system call
 is restricted to the super-user.
 .Sh RETURN VALUES
 .Rv -std adjtime
 .Sh ERRORS
 The
 .Fn adjtime
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EFAULT
 An argument points outside the process's allocated address space.
@@ -110,5 +111,5 @@ The process's effective user ID is not that of the super-user.
 .Sh HISTORY
 The
 .Fn adjtime
-function call appeared in
+system call appeared in
 .Bx 4.3 .

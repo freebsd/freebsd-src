@@ -43,7 +43,9 @@
 .Ft int
 .Fn rtprio "int function" "pid_t pid" "struct rtprio *rtp"
 .Sh DESCRIPTION
+The
 .Fn rtprio
+system call
 is used to lookup or change the realtime or idle priority of a process.
 .Pp
 .Fa function
@@ -64,11 +66,11 @@ struct rtprio {
 .Ed
 .Pp
 The value of the
-.Nm type
+.Va type
 field may be RTP_PRIO_REALTIME for realtime priorities,
 RTP_PRIO_NORMAL for normal priorities, and RTP_PRIO_IDLE for idle priorities.
 The priority specified by the
-.Nm prio
+.Va prio
 field ranges between 0 and
 .Dv RTP_PRIO_MAX (usually 31) .
 0 is the highest possible priority.
@@ -84,7 +86,9 @@ Processes of equal real/idle priority are run round-robin.
 .Sh RETURN VALUES
 .Rv -std rtprio
 .Sh ERRORS
+The
 .Fn rtprio
+system call
 will fail if
 .Bl -tag -width Er
 .It Bq Er EINVAL

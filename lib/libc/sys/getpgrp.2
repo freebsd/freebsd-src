@@ -65,7 +65,7 @@ that have the same process group as the terminal are foreground
 and may read, while others will block with a signal if they attempt
 to read.
 .Pp
-This call is thus used by programs such as
+This system call is thus used by programs such as
 .Xr csh 1
 to create
 process groups
@@ -79,15 +79,17 @@ are used to get/set the process group of the control terminal.
 .Sh RETURN VALUES
 The
 .Fn getpgrp
-call always succeeds.
+system call always succeeds.
 Upon successful completion, the
 .Fn getpgid
-call returns the process group of the specified process;
+system call returns the process group of the specified process;
 otherwise, it returns a value of \-1 and sets
 .Va errno
 to indicate the error.
 .Sh ERRORS
+The
 .Fn getpgid
+system call
 will succeed unless:
 .Bl -tag -width Er
 .It Bq Er ESRCH
@@ -101,15 +103,16 @@ there is no process whose process ID equals
 .Sh HISTORY
 The
 .Fn getpgrp
-function call appeared in
+system call appeared in
 .Bx 4.0 .
 The
 .Fn getpgid
-function call is derived from its usage in System V Release 4.
+system call is derived from its usage in
+.At V.4 .
 .Sh STANDARDS
 The
 .Fn getpgrp
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 .Sh COMPATIBILITY
 This version of
@@ -127,7 +130,7 @@ Rationale:
 .Bx 4.3
 provides a
 .Fn getpgrp
-function that returns the process group ID for a specified process.
+system call that returns the process group ID for a specified process.
 Although this function is used to support job control, all known
 job-control shells always specify the calling process with this
 function.
@@ -140,4 +143,4 @@ suffices, and the added complexity of the
 has been omitted from POSIX.1.
 The old functionality is available from the
 .Fn getpgid
-function.
+system call.

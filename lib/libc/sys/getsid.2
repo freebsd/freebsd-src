@@ -46,13 +46,16 @@ is zero,
 .Fn getsid
 returns the session ID of the current process.
 .Sh RETURN VALUES
-Upon successful completion, the function
+Upon successful completion, the
 .Fn getsid
+system call
 returns the session ID of
 the specified process; otherwise, it returns a value of -1 and
 sets errno to indicate an error.
 .Sh ERRORS
+The
 .Fn getsid
+system call
 will succeed unless:
 .Bl -tag -width Er
 .It Bq Er ESRCH
@@ -60,7 +63,7 @@ if there is no process with a process ID equal to
 .Fa pid .
 .El
 .Pp
-Note that an implementation may restrict this function call to
+Note that an implementation may restrict this system call to
 processes within the same session ID as the calling process.
 .Sh SEE ALSO
 .Xr getpgid 2 ,
@@ -71,9 +74,9 @@ processes within the same session ID as the calling process.
 .Sh HISTORY
 The
 .Fn getsid
-function call appeared in
+system call appeared in
 .Fx 3.0 .
 The
 .Fn getsid
-function call is derived from its usage in
+system call is derived from its usage in
 .At V .

@@ -59,7 +59,7 @@ created if it does not exist (by specifying the
 .Dv O_CREAT
 flag).
 In this case
-.Nm
+.Fn open
 requires a third argument
 .Fa "mode_t mode" ,
 and the file is created with mode
@@ -118,7 +118,7 @@ If the
 .Dv O_NONBLOCK
 flag is specified and the
 .Fn open
-call would result
+system call would result
 in the process being blocked for some reason (e.g., waiting for
 carrier on a dialup line),
 .Fn open
@@ -286,7 +286,7 @@ allocating the inode for
 The file is a pure procedure (shared text) file that is being
 executed and the
 .Fn open
-call requests write access.
+system call requests write access.
 .It Bq Er EFAULT
 .Fa Path
 points outside the process's allocated address space.
@@ -315,7 +315,7 @@ and
 .Xr umask 2 ,
 .Xr write 2
 .Sh HISTORY
-An
+The
 .Fn open
-function call appeared in
+function appeared in
 .At v6 .

@@ -70,26 +70,28 @@ capability is restricted to the super-user.
 .Pp
 The
 .Fn chown
-function
+system call
 clears the set-user-id and set-group-id bits
 on the file
 to prevent accidental or mischievous creation of
 set-user-id and set-group-id programs if not executed
 by the super-user.
+The
 .Fn chown
+system call
 follows symbolic links to operate on the target of the link
 rather than the link itself.
 .Pp
 The
 .Fn fchown
-function
+system call
 is particularly useful when used in conjunction
 with the file locking primitives (see
 .Xr flock 2 ) .
 .Pp
 The
 .Fn lchown
-function is similar to
+system call is similar to
 .Fn chown
 but does not follow symbolic links.
 .Pp
@@ -128,7 +130,7 @@ An I/O error occurred while reading from or writing to the file system.
 .Pp
 The
 .Fn fchown
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 .Fa fd
@@ -151,25 +153,24 @@ An I/O error occurred while reading from or writing to the file system.
 .Sh STANDARDS
 The
 .Fn chown
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-A
+The
 .Fn chown
-function call appeared in
+function appeared in
 .At v7 .
 The
 .Fn fchown
-function call
-appeared in
+system call appeared in
 .Bx 4.2 .
 .Pp
 The
 .Fn chown
-function was changed to follow symbolic links in
+system call was changed to follow symbolic links in
 .Bx 4.4 .
 The
 .Fn lchown
-function was added in
+system call was added in
 .Fx 3.0
 to compensate for the loss of functionality.

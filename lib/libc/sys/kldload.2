@@ -39,12 +39,14 @@
 .Ft int
 .Fn kldload "const char *file"
 .Sh DESCRIPTION
-The function
+The
 .Fn kldload
+system call
 loads a kld file into the kernel using the kernel linker.
 .Sh RETURN VALUES
-The function
+The
 .Fn kldload
+system call
 returns the fileid of the kld file which was loaded into the kernel.
 If an error occurs,
 .Fn kldload
@@ -58,7 +60,7 @@ The named file is loaded unless:
 You do not have access to read the file or link it with the kernel.
 You should be the root user to be able to use the
 .Nm kld
-functions.
+system calls.
 .It Bq Er EFAULT
 Bad address encountered when adding kld info into the kernel space.
 .It Bq Er ENOMEM

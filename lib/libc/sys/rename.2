@@ -45,7 +45,9 @@
 .Ft int
 .Fn rename "const char *from" "const char *to"
 .Sh DESCRIPTION
-.Fn Rename
+The
+.Fn rename
+system call
 causes the link named
 .Fa from
 to be renamed as
@@ -60,7 +62,9 @@ and
 must be of the same type (that is, both directories or both
 non-directories), and must reside on the same file system.
 .Pp
-.Fn Rename
+The
+.Fn rename
+system call
 guarantees that if
 .Fa to
 already exists, an instance of
@@ -102,7 +106,9 @@ not the file or directory to which it points.
 .Sh RETURN VALUES
 .Rv -std rename
 .Sh ERRORS
-.Fn Rename
+The
+.Fn rename
+system call
 will fail and neither of the argument files will be
 affected if:
 .Bl -tag -width Er
@@ -195,5 +201,5 @@ is a directory and is not empty.
 .Sh STANDARDS
 The
 .Fn rename
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-96 .

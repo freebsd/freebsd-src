@@ -41,7 +41,7 @@
 .Sh DESCRIPTION
 The
 .Fn modstat
-function writes the info for the kernel module referred to by
+system call writes the info for the kernel module referred to by
 .Fa modid
 into
 .Fa stat .
@@ -104,7 +104,7 @@ field.
 There was a problem copying one, some, or all of the fields into
 .Fa stat
 in the
-.Fn copyout
+.Xr copyout 9
 function.
 .El
 .Sh SEE ALSO

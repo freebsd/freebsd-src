@@ -56,9 +56,9 @@ the kernel.
 The system's notion of the current Greenwich time and the current time
 zone is obtained with the
 .Fn gettimeofday
-call, and set with the
+system call, and set with the
 .Fn settimeofday
-call.  The time is expressed in seconds and microseconds
+system call.  The time is expressed in seconds and microseconds
 since midnight (0 hour), January 1, 1970.  The resolution of the system
 clock is hardware dependent, and the time may be updated continuously or
 in
@@ -128,5 +128,5 @@ A user other than the super-user attempted to set the time.
 .Sh HISTORY
 The
 .Fn gettimeofday
-function call appeared in
+system call appeared in
 .Bx 4.2 .

@@ -51,7 +51,7 @@
 .Sh DESCRIPTION
 The
 .Fn mount
-function grafts
+system call grafts
 a file system object onto the system file tree
 at the point
 .Ar dir .
@@ -137,14 +137,14 @@ By convention file system manual pages are named
 by prefixing ``mount_'' to the name of the file system as returned by
 .Xr lsvfs 1 .
 Thus the
-.Nm NFS
+.Tn NFS
 file system is described by the
 .Xr mount_nfs 8
 manual page.
 .Pp
 The
 .Fn unmount
-function call disassociates the file system from the specified
+system call disassociates the file system from the specified
 mount point
 .Fa dir .
 .Pp
@@ -173,7 +173,7 @@ pages for more information.
 .Sh ERRORS
 The
 .Fn mount
-function will fail when one of the following occurs:
+system call will fail when one of the following occurs:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The caller is not the super-user.
@@ -250,7 +250,7 @@ points outside the process's allocated address space.
 .Pp
 The
 .Fn unmount
-function may fail with one of the following errors:
+system call may fail with one of the following errors:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The caller is not the super-user.
@@ -284,8 +284,9 @@ mounted.
 .Sh BUGS
 Some of the error codes need translation to more obvious messages.
 .Sh HISTORY
-.Fn Mount
+The
+.Fn mount
 and
 .Fn unmount
-function calls appeared in
+functions appeared in
 .At v6 .

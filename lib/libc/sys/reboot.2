@@ -46,7 +46,9 @@
 .Ft int
 .Fn reboot "int howto"
 .Sh DESCRIPTION
-.Fn Reboot
+The
+.Fn reboot
+system call
 reboots the system.
 Only the super-user may reboot a machine on demand.
 However, a reboot is invoked
@@ -103,7 +105,7 @@ Several other options have different meaning if combined
 with this option, although their use may not be possible
 via the
 .Fn reboot
-call.
+system call.
 See
 .Xr ddb 4
 for more information.
@@ -162,5 +164,5 @@ nor
 .Sh HISTORY
 The
 .Fn reboot
-function call appeared in
+system call appeared in
 .Bx 4.0 .

@@ -39,15 +39,18 @@
 .Ft int
 .Fn kldnext "int fileid"
 .Sh DESCRIPTION
-The function
+The
 .Fn kldnext
+system call
 returns the fileid of the next kld file (that is, the one after
 .Va fileid )
 or 0 if
 .Va fileid
 is the last file loaded.
 .Sh RETURN VALUES
+The
 .Fn kldnext
+system call
 returns the fileid of the next kld file (see DESCRIPTION) or 0.  If an error
 occurs,
 .Va errno

@@ -16,7 +16,9 @@
 .Ft int
 .Fn ptrace "int request" "pid_t pid" "caddr_t addr" "int data"
 .Sh DESCRIPTION
+The
 .Fn ptrace
+system call
 provides tracing and debugging facilities.
 It allows one process
 (the
@@ -37,7 +39,9 @@ or the delivery of a
 .Dv SIGCHLD
 signal, examine the state of the stopped process, and cause it to
 terminate or continue as appropriate.
+The
 .Fn ptrace
+system call
 is the mechanism by which all this happens.
 .Pp
 The
@@ -252,7 +256,7 @@ can be set to 0 before the call and checked afterwards.
 .Sh ERRORS
 The
 .Fn ptrace
-function may fail if:
+system call may fail if:
 .Bl -tag -width Er
 .It Bq Er ESRCH
 .Bl -bullet -compact
@@ -324,7 +328,7 @@ above.
 .Xr i386_clr_watch 3 ,
 .Xr i386_set_watch 3
 .Sh HISTORY
-A
+The
 .Fn ptrace
-function call appeared in
+function appeared in
 .At v7 .

@@ -52,9 +52,11 @@
 .Ft ssize_t
 .Fn recvmsg "int s" "struct msghdr *msg" "int flags"
 .Sh DESCRIPTION
-.Fn Recvfrom
+The
+.Fn recvfrom
 and
 .Fn recvmsg
+system calls
 are used to receive messages from a socket,
 and may be used to receive data on a socket whether or not
 it is connection-oriented.
@@ -72,7 +74,7 @@ address stored there.
 .Pp
 The
 .Fn recv
-call is normally used only on a
+function is normally used only on a
 .Em connected
 socket (see
 .Xr connect 2 )
@@ -111,11 +113,13 @@ described in
 .Pp
 The
 .Xr select 2
-call may be used to determine when more data arrive.
+system call may be used to determine when more data arrive.
 .Pp
 The
 .Fa flags
-argument to a recv call is formed by
+argument to a
+.Fn recv
+function is formed by
 .Em or Ap ing
 one or more of the values:
 .Bl -column MSG_WAITALL -offset indent
@@ -142,7 +146,7 @@ or the next data to be received is of a different type than that returned.
 .Pp
 The
 .Fn recvmsg
-call uses a
+system call uses a
 .Fa msghdr
 structure to minimize the number of directly supplied parameters.
 This structure has the following form, as defined in
@@ -192,7 +196,7 @@ As an example, one could use this to learn of changes in the data-stream
 in XNS/SPP, or in ISO, to obtain user-connection-request data by requesting
 a recvmsg with no data buffer provided immediately after an
 .Fn accept
-call.
+system call.
 .Pp
 Open file descriptors are now passed as ancillary data for
 .Dv AF_UNIX
@@ -291,5 +295,5 @@ address space.
 .Sh HISTORY
 The
 .Fn recv
-function call appeared in
+function appeared in
 .Bx 4.2 .

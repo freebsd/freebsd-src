@@ -47,7 +47,9 @@
 .Ft int
 .Fn swapoff "const char *special"
 .Sh DESCRIPTION
-.Fn Swapon
+The
+.Fn swapon
+system call
 makes the block device
 .Fa special
 available to the system for
@@ -135,8 +137,9 @@ paging and swapping to the given device.
 .Sh HISTORY
 The
 .Fn swapon
-function call appeared in
+system call appeared in
 .Bx 4.0 .
-.Fn Swapoff
-appeared in
+The
+.Fn swapoff
+system call appeared in
 .Fx 5.0 .

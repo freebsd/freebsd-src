@@ -50,7 +50,7 @@
 .Sh DESCRIPTION
 The
 .Fn ktrace
-function enables or disables tracing of one or more processes.
+system call enables or disables tracing of one or more processes.
 Users may only trace their own processes.
 Only the super-user can trace setuid or setgid programs.
 .Pp
@@ -137,7 +137,9 @@ include file.
 .Sh RETURN VALUES
 .Rv -std ktrace
 .Sh ERRORS
-.Fn Ktrace
+The
+.Fn ktrace
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -162,7 +164,7 @@ support.
 .Xr kdump 1 ,
 .Xr ktrace 1
 .Sh HISTORY
-A
+The
 .Fn ktrace
-function call first appeared in
+system call first appeared in
 .Bx 4.4 .

@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Fn setsid
-function creates a new session.
+system call creates a new session.
 The calling process is the session leader of the new session, is the
 process group leader of a new process group and has no controlling
 terminal.
@@ -56,7 +56,7 @@ process group.
 .Sh RETURN VALUES
 Upon successful completion, the
 .Fn setsid
-function returns the value of the process group ID of the new process
+system call returns the value of the process group ID of the new process
 group, which is the same as the process ID of the calling process.
 If an error occurs,
 .Fn setsid
@@ -66,7 +66,7 @@ is set to indicate the error.
 .Sh ERRORS
 The
 .Fn setsid
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The calling process is already a process group leader, or the process
@@ -80,6 +80,6 @@ ID of the calling process.
 .Sh STANDARDS
 The
 .Fn setsid
-function is expected to be compliant with the
+system call is expected to be compliant with the
 .St -p1003.1-90
 specification.

@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\" Copyright (c) 1998 HD Associates, Inc.
 .\" All rights reserved.
 .\"
@@ -23,6 +22,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd March 12, 1998
 .Dt SCHED_GET_PRIORITY_MAX 2
 .Os
@@ -46,12 +47,12 @@ The
 .Fn sched_get_priority_max
 and
 .Fn sched_get_priority_min
-functions return the appropriate maximum or minimum, respectively,
+system calls return the appropriate maximum or minimum, respectively,
 for the scheduling policy specified by
 .Fa policy .
 The
 .Fn sched_rr_get_interval
-function updates the
+system call updates the
 .Fa timespec
 structure referenced by the
 .Fa interval
@@ -80,7 +81,7 @@ If successful, the
 .Fn sched_get_priority_max
 and
 .Fn sched_get_priority_min
-functions shall return the appropriate maximum or minimum values,
+system calls shall return the appropriate maximum or minimum values,
 respectively.  If unsuccessful, they shall return a value of -1 and set
 .Fa errno
 to indicate the error.
@@ -101,7 +102,7 @@ The
 .Fn sched_get_priority_min ,
 and
 .Fn sched_rr_get_interval
-functions are not supported by the implementation.
+system calls are not supported by the implementation.
 .It Bq Er ESRCH
 No process can be found corresponding to that specified by
 .Fa pid .
@@ -117,5 +118,5 @@ The
 .Fn sched_get_priority_min ,
 and
 .Fn sched_rr_get_interval
-functions conform to
+system calls conform to
 .St -p1003.1b-93 .
