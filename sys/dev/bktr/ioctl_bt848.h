@@ -197,6 +197,21 @@ struct _bktr_clip {
 #define BT848SCBUF	_IOW('x', 68, int)
 #define BT848GCBUF	_IOR('x', 68, int)
 
+/* set capture area */
+/* The capture area is the area of the video image which is grabbed */
+/* Usually the capture area is 640x480 (768x576 PAL) pixels */
+/* This area is then scaled to the dimensions the user requires */
+/* using the METEORGEO ioctl */
+/* However, the capture area could be 400x300 pixels from the top right */
+/* corner of the video image */
+struct bktr_capture_area {
+   int      x_offset;
+   int      y_offset;
+   int      x_size;
+   int      y_size;
+};
+#define BT848SCAPAREA   _IOW('x', 69, struct bktr_capture_area)
+#define BT848GCAPAREA   _IOR('x', 69, struct bktr_capture_area)
 
 /* Read/Write the BT848's I2C bus directly
  * b7-b0:    data (read/write)
