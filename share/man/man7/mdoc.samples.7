@@ -1975,6 +1975,16 @@ Cross references
 are specified using the
 .Ql \&.Xr
 macro.
+Cross references in the
+.Sx SEE ALSO
+section should be sorted by section number, and then
+placed in alphabetical order and comma separated.  For example:
+.Pp
+.Xr ls 1 ,
+.Xr ps 1 ,
+.Xr group 5 ,
+.Xr passwd 5 .
+.Pp
 At this time
 .Xr refer 1
 style references are not accommodated.
@@ -2775,9 +2785,9 @@ manual macro package
 template for writing a man page
 .El
 .Sh SEE ALSO
-.Xr mdoc 7 ,
 .Xr man 1 ,
-.Xr troff 1
+.Xr troff 1 ,
+.Xr mdoc 7
 .Sh BUGS
 Undesirable hyphenation on the dash of a flag
 argument is not yet resolved, and causes
