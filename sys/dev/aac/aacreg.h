@@ -1002,6 +1002,105 @@ struct aac_closecommand {
 } __attribute__ ((packed));
 
 /*
+ * Container Config Command
+ */
+#define CT_GET_SCSI_METHOD	64
+struct aac_ctcfg {
+	AAC_VMCommand		Command;
+	u_int32_t		cmd;
+	u_int32_t		param;
+} __attribute__ ((packed));
+
+struct aac_ctcfg_resp {
+	AAC_FSAStatus		Status;
+	u_int32_t		resp;
+	u_int32_t		param;
+} __attribute__ ((packed));
+
+/*
+ * 'Ioctl' commads
+ */
+#define AAC_SCSI_MAX_PORTS	10
+#define AAC_BUS_NO_EXIST	0
+#define AAC_BUS_VALID		1
+#define AAC_BUS_FAULTED		2
+#define AAC_BUS_DISABLED	3
+#define GetBusInfo		0x9
+
+struct aac_getbusinf {
+	u_int32_t		ProbeComplete;
+	u_int32_t		BusCount;
+	u_int32_t		TargetsPerBus;
+	u_int8_t		InitiatorBusId[AAC_SCSI_MAX_PORTS];
+	u_int8_t		BusValid[AAC_SCSI_MAX_PORTS];
+} __attribute__ ((packed));
+
+struct aac_vmioctl {
+	AAC_VMCommand		Command;
+	AAC_FType		ObjType;
+	u_int32_t		MethId;
+	u_int32_t		ObjId;
+	u_int32_t		IoctlCmd;
+	u_int32_t		IoctlBuf[1];	/* Placeholder? */
+} __attribute__ ((packed));
+
+struct aac_vmi_businf_resp {
+	AAC_FSAStatus		Status;
+	AAC_FType		ObjType;
+	u_int32_t		MethId;
+	u_int32_t		ObjId;
+	u_int32_t		IoctlCmd;
+	struct aac_getbusinf	BusInf;
+} __attribute__ ((packed));
+
+#define AAC_BTL_TO_HANDLE(b, t, l) \
+    (((b & 0x3f) << 7) | ((l & 0x7) << 4) | (t & 0xf))
+#define GetDeviceProbeInfo 0x5
+
+struct aac_vmi_devinfo_resp {
+	AAC_FSAStatus		Status;
+	AAC_FType		ObjType;
+	u_int32_t		MethId;
+	u_int32_t		ObjId;
+	u_int32_t		IoctlCmd;
+	u_int8_t		VendorId[8];
+	u_int8_t		ProductId[16];
+	u_int8_t		ProductRev[4];
+	u_int32_t		Inquiry7;
+	u_int32_t		align1;
+	u_int32_t		Inquiry0;
+	u_int32_t		align2;
+	u_int32_t		Inquiry1;
+	u_int32_t		align3;
+	u_int32_t		reserved[2];
+	u_int8_t		VendorSpecific[20];
+	u_int32_t		Smart:1;
+	u_int32_t		AAC_Managed:1;
+	u_int32_t		align4;
+	u_int32_t		reserved2:6;
+	u_int32_t		Bus;
+	u_int32_t		Target;
+	u_int32_t		Lun;
+	u_int32_t		ultraEnable:1,
+				disconnectEnable:1,
+				fast20EnabledW:1,
+				scamDevice:1,
+				scamTolerant:1,
+				setForSync:1,
+				setForWide:1,
+				syncDevice:1,
+				wideDevice:1,
+				reserved1:7,
+				ScsiRate:8,
+				ScsiOffset:8;
+}; /* Do not pack */
+
+#define ResetBus 0x16
+struct aac_resetbus {
+	u_int32_t		BusNumber;
+};
+
+/*
  * Write 'stability' options.
  */
 typedef enum {
@@ -1059,6 +1158,93 @@ struct aac_blockwrite_response {
 struct aac_close_command {
 	AAC_VMCommand      Command;
 	u_int32_t          ContainerId;
+};
+
+/*
+ * SCSI Passthrough structures
+ */
+struct aac_srb32 {
+	u_int32_t		function;
+	u_int32_t		bus;
+	u_int32_t		target;
+	u_int32_t		lun;
+	u_int32_t		timeout;
+	u_int32_t		flags;
+	u_int32_t		data_len;
+	u_int32_t		retry_limit;
+	u_int32_t		cdb_len;
+	u_int8_t		cdb[16];
+	struct aac_sg_table	sg_map32;
+};
+
+enum {
+	AAC_SRB_FUNC_EXECUTE_SCSI	= 0x00,
+	AAC_SRB_FUNC_CLAIM_DEVICE,
+	AAC_SRB_FUNC_IO_CONTROL,
+	AAC_SRB_FUNC_RECEIVE_EVENT,
+	AAC_SRB_FUNC_RELEASE_QUEUE,
+	AAC_SRB_FUNC_ATTACH_DEVICE,
+	AAC_SRB_FUNC_RELEASE_DEVICE,
+	AAC_SRB_FUNC_SHUTDOWN,
+	AAC_SRB_FUNC_FLUSH,
+	AAC_SRB_FUNC_ABORT_COMMAND	= 0x10,
+	AAC_SRB_FUNC_RELEASE_RECOVERY,
+	AAC_SRB_FUNC_RESET_BUS,
+	AAC_SRB_FUNC_RESET_DEVICE,
+	AAC_SRB_FUNC_TERMINATE_IO,
+	AAC_SRB_FUNC_FLUSH_QUEUE,
+	AAC_SRB_FUNC_REMOVE_DEVICE,
+	AAC_SRB_FUNC_DOMAIN_VALIDATION
+};
+
+#define AAC_SRB_FLAGS_NO_DATA_XFER		0x0000
+#define	AAC_SRB_FLAGS_DISABLE_DISCONNECT	0x0004
+#define	AAC_SRB_FLAGS_DISABLE_SYNC_TRANSFER	0x0008
+#define AAC_SRB_FLAGS_BYPASS_FROZEN_QUEUE	0x0010
+#define	AAC_SRB_FLAGS_DISABLE_AUTOSENSE		0x0020
+#define	AAC_SRB_FLAGS_DATA_IN			0x0040
+#define AAC_SRB_FLAGS_DATA_OUT			0x0080
+#define	AAC_SRB_FLAGS_UNSPECIFIED_DIRECTION \
+			(AAC_SRB_FLAGS_DATA_IN | AAC_SRB_FLAGS_DATA_OUT)
+
+#define AAC_HOST_SENSE_DATA_MAX			30
+
+struct aac_srb_response {
+	u_int32_t	fib_status;
+	u_int32_t	srb_status;
+	u_int32_t	scsi_status;
+	u_int32_t	data_len;
+	u_int32_t	sense_len;
+	u_int8_t	sense[AAC_HOST_SENSE_DATA_MAX];
+};
+
+enum {
+	AAC_SRB_STS_PENDING			= 0x00,
+	AAC_SRB_STS_SUCCESS,
+	AAC_SRB_STS_ABORTED,
+	AAC_SRB_STS_ABORT_FAILED,
+	AAC_SRB_STS_ERROR,
+	AAC_SRB_STS_BUSY,
+	AAC_SRB_STS_INVALID_REQUEST,
+	AAC_SRB_STS_INVALID_PATH_ID,
+	AAC_SRB_STS_NO_DEVICE,
+	AAC_SRB_STS_TIMEOUT,
+	AAC_SRB_STS_SELECTION_TIMEOUT,
+	AAC_SRB_STS_COMMAND_TIMEOUT,
+	AAC_SRB_STS_MESSAGE_REJECTED		= 0x0D,
+	AAC_SRB_STS_BUS_RESET,
+	AAC_SRB_STS_PARITY_ERROR,
+	AAC_SRB_STS_REQUEST_SENSE_FAILED,
+	AAC_SRB_STS_NO_HBA,
+	AAC_SRB_STS_DATA_OVERRUN,
+	AAC_SRB_STS_UNEXPECTED_BUS_FREE,
+	AAC_SRB_STS_PHASE_SEQUENCE_FAILURE,
+	AAC_SRB_STS_BAD_SRB_BLOCK_LENGTH,
+	AAC_SRB_STS_REQUEST_FLUSHED,
+	AAC_SRB_STS_INVALID_LUN			= 0x20,
+	AAC_SRB_STS_INVALID_TARGET_ID,
+	AAC_SRB_STS_BAD_FUNCTION,
+	AAC_SRB_STS_ERROR_RECOVERY
 };
 
 /*

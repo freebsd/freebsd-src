@@ -115,6 +115,7 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID
+device		aacp		# SCSI passthrough for aac (requires CAM)
 device		amr		# AMI MegaRAID
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960 family

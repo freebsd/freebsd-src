@@ -90,30 +90,44 @@ struct aac_ident
 	u_int16_t		subvendor;
 	u_int16_t		subdevice;
 	int			hwif;
+	int			quirks;
 	char			*desc;
 } aac_identifiers[] = {
-	{0x1028, 0x0001, 0x1028, 0x0001, AAC_HWIF_I960RX, "Dell PERC 2/Si"},
-	{0x1028, 0x0002, 0x1028, 0x0002, AAC_HWIF_I960RX, "Dell PERC 3/Di"},
-	{0x1028, 0x0003, 0x1028, 0x0003, AAC_HWIF_I960RX, "Dell PERC 3/Si"},
-	{0x1028, 0x0004, 0x1028, 0x00d0, AAC_HWIF_I960RX, "Dell PERC 3/Si"},
-	{0x1028, 0x0002, 0x1028, 0x00d1, AAC_HWIF_I960RX, "Dell PERC 3/Di"},
-	{0x1028, 0x0002, 0x1028, 0x00d9, AAC_HWIF_I960RX, "Dell PERC 3/Di"},
-	{0x1028, 0x0008, 0x1028, 0x00cf, AAC_HWIF_I960RX, "Dell PERC 3/Di"},
-	{0x1028, 0x000a, 0x1028, 0x0106, AAC_HWIF_I960RX, "Dell PERC 3/Di"},
-	{0x1028, 0x000a, 0x1028, 0x011b, AAC_HWIF_I960RX, "Dell PERC 3/Di"},
-	{0x1028, 0x000a, 0x1028, 0x0121, AAC_HWIF_I960RX, "Dell PERC 3/Di"},
-	{0x1011, 0x0046, 0x9005, 0x0364, AAC_HWIF_STRONGARM, "Adaptec AAC-364"},
-	{0x1011, 0x0046, 0x9005, 0x0365, AAC_HWIF_STRONGARM,
-	 "Adaptec SCSI RAID 5400S"},
-	{0x1011, 0x0046, 0x9005, 0x1364, AAC_HWIF_STRONGARM, "Dell PERC 2/QC"},
-	{0x1011, 0x0046, 0x103c, 0x10c2, AAC_HWIF_STRONGARM, "HP NetRaid-4M"},
-	{0x9005, 0x0285, 0x9005, 0x0285, AAC_HWIF_I960RX,
+	{0x1028, 0x0001, 0x1028, 0x0001, AAC_HWIF_I960RX, AAC_QUIRK_NOCAM,
+	"Dell PERC 2/Si"},
+	{0x1028, 0x0002, 0x1028, 0x0002, AAC_HWIF_I960RX, AAC_QUIRK_NOCAM,
+	"Dell PERC 3/Di"},
+	{0x1028, 0x0003, 0x1028, 0x0003, AAC_HWIF_I960RX, AAC_QUIRK_NOCAM,
+	"Dell PERC 3/Si"},
+	{0x1028, 0x0004, 0x1028, 0x00d0, AAC_HWIF_I960RX, AAC_QUIRK_NOCAM,
+	"Dell PERC 3/Si"},
+	{0x1028, 0x0002, 0x1028, 0x00d1, AAC_HWIF_I960RX, AAC_QUIRK_NOCAM,
+	"Dell PERC 3/Di"},
+	{0x1028, 0x0002, 0x1028, 0x00d9, AAC_HWIF_I960RX, AAC_QUIRK_NOCAM,
+	"Dell PERC 3/Di"},
+	{0x1028, 0x0008, 0x1028, 0x00cf, AAC_HWIF_I960RX, AAC_QUIRK_NOCAM,
+	"Dell PERC 3/Di"},
+	{0x1028, 0x000a, 0x1028, 0x0106, AAC_HWIF_I960RX, AAC_QUIRK_NOCAM,
+	"Dell PERC 3/Di"},
+	{0x1028, 0x000a, 0x1028, 0x011b, AAC_HWIF_I960RX, AAC_QUIRK_NOCAM,
+	"Dell PERC 3/Di"},
+	{0x1028, 0x000a, 0x1028, 0x0121, AAC_HWIF_I960RX, AAC_QUIRK_NOCAM,
+	"Dell PERC 3/Di"},
+	{0x1011, 0x0046, 0x9005, 0x0364, AAC_HWIF_STRONGARM, AAC_QUIRK_NOCAM,
+	"Adaptec AAC-364"},
+	{0x1011, 0x0046, 0x9005, 0x0365, AAC_HWIF_STRONGARM, 0,
+	"Adaptec SCSI RAID 5400S"},
+	{0x1011, 0x0046, 0x9005, 0x1364, AAC_HWIF_STRONGARM, AAC_QUIRK_NOCAM |
+	AAC_QUIRK_PERC2QC, "Dell PERC 2/QC"},
+	{0x1011, 0x0046, 0x103c, 0x10c2, AAC_HWIF_STRONGARM, 
+	AAC_QUIRK_CAM_NORESET, "HP NetRaid-4M"},
+	{0x9005, 0x0285, 0x9005, 0x0285, AAC_HWIF_I960RX, 0,
 	 "Adaptec SCSI RAID 2200S"},
-	{0x9005, 0x0285, 0x9005, 0x0287, AAC_HWIF_I960RX,
+	{0x9005, 0x0285, 0x9005, 0x0287, AAC_HWIF_I960RX, 0,
 	 "Adaptec SCSI RAID 2200S"},
-	{0x9005, 0x0285, 0x9005, 0x0286, AAC_HWIF_I960RX,
+	{0x9005, 0x0285, 0x9005, 0x0286, AAC_HWIF_I960RX, 0,
 	 "Adaptec SCSI RAID 2120S"},
-	{0, 0, 0, 0, 0, 0}
+	{0, 0, 0, 0, 0, 0, 0}
 };
 
 /*
@@ -266,7 +280,7 @@ aac_pci_attach(device_t dev)
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   &sc->aac_fib_dmat)) {
-		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");
+		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");;
 		goto out;
 	}
 
@@ -277,7 +291,9 @@ aac_pci_attach(device_t dev)
 	sc->aac_hwif = AAC_HWIF_UNKNOWN;
 	for (i = 0; aac_identifiers[i].vendor != 0; i++) {
 		if ((aac_identifiers[i].vendor == pci_get_vendor(dev)) &&
-		(aac_identifiers[i].device == pci_get_device(dev))) {
+		    (aac_identifiers[i].device == pci_get_device(dev)) &&
+		    (aac_identifiers[i].subvendor == pci_get_subvendor(dev)) &&
+		    (aac_identifiers[i].subdevice == pci_get_subdevice(dev))) {
 			sc->aac_hwif = aac_identifiers[i].hwif;
 			switch(sc->aac_hwif) {
 			case AAC_HWIF_I960RX:
@@ -294,6 +310,10 @@ aac_pci_attach(device_t dev)
 				sc->aac_if = aac_fa_interface;
 				break;
 			}
+
+			/* Set up quirks */
+			sc->quirks = aac_identifiers[i].quirks;
+
 			break;
 		}
 	}
@@ -303,13 +323,6 @@ aac_pci_attach(device_t dev)
 		goto out;
 	}
 
-
-	/*
-	 * Check for quirky hardware
-	 */
-	if (pci_get_subdevice(dev) == 0x1364 && 
-	    pci_get_subvendor(dev) == 0x9005)
-		sc->quirks |= AAC_QUIRK_PERC2QC;
 
 	/*
 	 * Do bus-independent initialisation.
