@@ -30,6 +30,7 @@
 
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"
+#include "opt_kstack_pages.h"
 
 #ifndef COMPAT_43
 #error "Unable to compile Linux-emulator due to missing COMPAT_43 option!"
@@ -48,6 +49,8 @@
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/user.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -57,7 +60,14 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <machine/cpu.h>
+#include <machine/md_var.h>
 #include <sys/mutex.h>
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
@@ -709,6 +719,55 @@ linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
 	*params = NULL;		/* no copyin */
 }
 
+
+
+/*
+ * Dump core, into a file named as described in the comments for
+ * expand_name(), unless the process was setuid/setgid.
+ */
+static int
+linux_aout_coredump(struct thread *td, struct vnode *vp, off_t limit)
+{
+	struct proc *p = td->td_proc;
+	struct ucred *cred = td->td_ucred;
+	struct vmspace *vm = p->p_vmspace;
+	caddr_t tempuser;
+	int error;
+
+	if (ctob((UAREA_PAGES + KSTACK_PAGES) +
+	    vm->vm_dsize + vm->vm_ssize) >= limit)
+		return (EFAULT);
+	tempuser = malloc(ctob(UAREA_PAGES + KSTACK_PAGES), M_TEMP,
+	    M_WAITOK | M_ZERO);
+	if (tempuser == NULL)
+		return (ENOMEM);
+	bcopy(p->p_uarea, tempuser, sizeof(struct user));
+	bcopy(td->td_frame,
+	    tempuser + ctob(UAREA_PAGES) +
+	    ((caddr_t) td->td_frame - (caddr_t) td->td_kstack),
+	    sizeof(struct trapframe));
+	PROC_LOCK(p);
+	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
+	PROC_UNLOCK(p);
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser,
+	    ctob(UAREA_PAGES + KSTACK_PAGES),
+	    (off_t)0, UIO_SYSSPACE, IO_UNIT, cred, NOCRED,
+	    (int *)NULL, td);
+	free(tempuser, M_TEMP);
+	if (error == 0)
+		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
+		    (int)ctob(vm->vm_dsize),
+		    (off_t)ctob(UAREA_PAGES + KSTACK_PAGES), UIO_USERSPACE,
+		    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *) NULL, td);
+	if (error == 0)
+		error = vn_rdwr_inchunks(UIO_WRITE, vp,
+		    (caddr_t) trunc_page(USRSTACK - ctob(vm->vm_ssize)),
+		    round_page(ctob(vm->vm_ssize)),
+		    (off_t)ctob(UAREA_PAGES + KSTACK_PAGES) +
+		        ctob(vm->vm_dsize), UIO_USERSPACE,
+		    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *) NULL, td);
+	return (error);
+}
 /*
  * If a linux binary is exec'ing something, try this image activator 
  * first.  We override standard shell script execution in order to
@@ -768,7 +827,7 @@ struct sysentvec linux_sysvec = {
 	&linux_szsigcode,
 	linux_prepsyscall,
 	"Linux a.out",
-	aout_coredump,
+	linux_aout_coredump,
 	exec_linux_imgact_try,
 	LINUX_MINSIGSTKSZ,
 	PAGE_SIZE,
