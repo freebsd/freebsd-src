@@ -171,6 +171,7 @@
 #define	TERMBUF_SIZE	2048	/* Termcap buffer for tgetent */
 #define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
 #define	TAGLINE_SIZE	512	/* Max size of line in tags file */
+#define	TABSTOP_MAX	32	/* Max number of custom tab stops */
 
 /* Settings automatically determined by configure.  */
 
@@ -254,6 +255,9 @@
 
 /* Define if you have the _setjmp function.  */
 #define HAVE__SETJMP 1
+
+/* Define if you have the fsync function.  */
+#define HAVE_FSYNC 1
 
 /* Define if you have the memcpy function.  */
 #define HAVE_MEMCPY 1
