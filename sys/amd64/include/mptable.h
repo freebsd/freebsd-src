@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.85 1998/11/26 23:14:23 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.86 1998/12/07 21:58:18 archie Exp $
  */
 
 #include "opt_smp.h"
@@ -1009,8 +1009,8 @@ fix_mp_table(void)
 {
 	int	x;
 	int	id;
-	int	bus_0;
-	int	bus_pci;
+	int	bus_0 = 0;	/* Stop GCC warning */
+	int	bus_pci = 0;	/* Stop GCC warning */
 	int	num_pci_bus;
 
 	/*

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.15 1997/12/29 23:36:56 phk Exp $
+ *	$Id: perfmon.c,v 1.16 1998/12/07 21:58:18 archie Exp $
  */
 
 #include <sys/param.h>
@@ -41,7 +41,9 @@
 
 static int perfmon_inuse;
 static int perfmon_cpuok;
+#ifndef SMP
 static int msr_ctl[NPMC];
+#endif
 static int msr_pmc[NPMC];
 static unsigned int ctl_shadow[NPMC];
 static quad_t pmc_shadow[NPMC];	/* used when ctr is stopped on P5 */
