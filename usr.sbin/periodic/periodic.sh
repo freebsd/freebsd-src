@@ -52,6 +52,7 @@ else
 fi
 
 host=`hostname`
+export host
 echo "Subject: $host $run run output"
 
 # Execute each executable file in the directory list.  If the x bit is not
