@@ -32,6 +32,7 @@ MLINKS+=dialog.3 draw_shadow.3 dialog.3 draw_box.3 \
 	dialog.3 dialog_mesgbox.3 dialog.3 dialog_gauge.3 \
 	dialog.3 init_dialog.3 dialog.3 end_dialog.3 \
 	dialog.3 use_helpfile.3 dialog.3 use_helpline.3 \
-	dialog.3 get_helpline.3 dialog.3 restore_helpline.3
+	dialog.3 get_helpline.3 dialog.3 restore_helpline.3 \
+	dialog.3 dialog_msgbox.3
 
 .include <bsd.lib.mk>
