@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.140 1997/09/21 21:41:49 gibbs Exp $
+ *	$Id: wd.c,v 1.141 1997/10/12 16:22:01 sos Exp $
  */
 
 /* TODO:
@@ -453,6 +453,7 @@ wdattach(struct isa_device *dvp)
 		du->dk_lunit = lunit;
 		du->dk_port = dvp->id_iobase;
 
+		du->dk_altport = du->dk_port + wd_ctlr;
 		/*
 		 * Use the individual device flags or the controller
 		 * flags.
