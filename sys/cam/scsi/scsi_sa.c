@@ -1309,7 +1309,7 @@ saasync(void *callback_arg, u_int32_t code,
 
 		cgd = (struct ccb_getdev *)arg;
 
-		if (cgd->pd_type != T_SEQUENTIAL)
+		if (SID_TYPE(&cgd->inq_data) != T_SEQUENTIAL)
 			break;
 
 		/*
@@ -1397,8 +1397,8 @@ saregister(struct cam_periph *periph, void *arg)
 	 * indicate that the blocksize is unavailable right now.
 	 */
 	devstat_add_entry(&softc->device_stats, "sa", periph->unit_number, 0,
-	    DEVSTAT_BS_UNAVAILABLE, cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
-	    DEVSTAT_PRIORITY_TAPE);
+	    DEVSTAT_BS_UNAVAILABLE, SID_TYPE(&cgd->inq_data) |
+	    DEVSTAT_TYPE_IF_SCSI, DEVSTAT_PRIORITY_TAPE);
 
 	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
 	    periph->unit_number, 0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,

@@ -314,7 +314,7 @@ passregister(struct cam_periph *periph, void *arg)
 
 	bzero(softc, sizeof(*softc));
 	softc->state = PASS_STATE_NORMAL;
-	softc->pd_type = cgd->pd_type;
+	softc->pd_type = SID_TYPE(&cgd->inq_data);
 	bufq_init(&softc->buf_queue);
 
 	periph->softc = softc;
@@ -327,7 +327,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 */
 	devstat_add_entry(&softc->device_stats, "pass", periph->unit_number,
 			  0, DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
-			  cgd->pd_type |
+			  softc->pd_type |
 			  DEVSTAT_TYPE_IF_SCSI |
 			  DEVSTAT_TYPE_PASS,
 			  DEVSTAT_PRIORITY_PASS);
