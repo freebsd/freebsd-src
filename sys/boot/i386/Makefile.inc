@@ -3,3 +3,4 @@
 # $FreeBSD$
 
 LOADER_ADDRESS?=	0x200000
+CFLAGS+=		-mpreferred-stack-boundary=2
