@@ -111,4 +111,8 @@ M4FILES=\
 
 $(ALL):  $(M4FILES)
 
+install-sendmail.cf:
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
+		${DESTDIR}/etc/sendmail.cf
+
 .include <bsd.prog.mk>
