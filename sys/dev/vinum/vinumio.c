@@ -50,92 +50,25 @@ static int drivecmp(const void *va, const void *vb);
 int
 open_drive(struct drive *drive, struct thread *td, int verbose)
 {
-    int devmajor;					    /* major devs for disk device */
-    int devminor;					    /* minor devs for disk device */
-    int unit;
-    char *dname;
+    struct nameidata nd;
     struct cdevsw *dsw;					    /* pointer to cdevsw entry */
+    int error;
 
-    if (bcmp(drive->devicename, "/dev/", 5))		    /* device name doesn't start with /dev */
-	return ENOENT;					    /* give up */
     if (drive->flags & VF_OPEN)				    /* open already, */
 	return EBUSY;					    /* don't do it again */
 
-    /*
-     * Yes, Bruce, I know this is horrible, but we
-     * don't have a root filesystem when we first
-     * try to do this.  If you can come up with a
-     * better solution, I'd really like it.  I'm
-     * just putting it in now to add ammuntion to
-     * moving the system to devfs.
-     */
-    dname = &drive->devicename[5];
-    drive->dev = NULL;					    /* no device yet */
-
-    /* Find the device */
-    if (bcmp(dname, "ad", 2) == 0)			    /* IDE disk */
-	devmajor = 116;
-    else if (bcmp(dname, "wd", 2) == 0)			    /* IDE disk */
-	devmajor = 3;
-    else if (bcmp(dname, "da", 2) == 0)
-	devmajor = 13;
-    else if (bcmp(dname, "vn", 2) == 0)
-	devmajor = 43;
-    else if (bcmp(dname, "md", 2) == 0)
-	devmajor = 95;
-    else if (bcmp(dname, "ar", 2) == 0)
-        devmajor = 157;
-    else if (bcmp(dname, "amrd", 4) == 0) {
-	devmajor = 133;
-	dname += 2;
-    } else if (bcmp(dname, "mlxd", 4) == 0) {
-	devmajor = 131;
-	dname += 2;
-    } else if (bcmp(dname, "idad", 4) == 0) {
-	devmajor = 109;
-	dname += 2;
-    } else if (bcmp(dname, "twed", 4) == 0) {               /* 3ware raid */
-      devmajor = 147;
-      dname += 2;
-    } else
-      return ENODEV;
-    dname += 2;						    /* point past */
-
-    /*
-     * Found the device.  We can expect one of
-     * two formats for the rest: a unit number,
-     * then either a partition letter for the
-     * compatiblity partition (e.g. h) or a
-     * slice ID and partition (e.g. s2e).
-     * Create a minor number for each of them.
-     */
-    unit = 0;
-    while ((*dname >= '0')				    /* unit number */
-    &&(*dname <= '9')) {
-	unit = unit * 10 + *dname - '0';
-	dname++;
+    NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, drive->devicename,
+        curthread);
+    error = namei(&nd);
+    if (error)
+	return (error);
+    if (!vn_isdisk(nd.ni_vp, &error)) {
+	NDFREE(&nd, 0);
+	return (error);
     }
+    drive->dev = udev2dev(nd.ni_vp->v_rdev->si_udev, 0);
+    NDFREE(&nd, 0);
 
-    if (*dname == 's') {				    /* slice */
-	if (((dname[1] < '1') || (dname[1] > '4'))	    /* invalid slice */
-	||((dname[2] < 'a') || (dname[2] > 'h')))	    /* or invalid partition */
-	    return ENODEV;
-	devminor = ((unit & 31) << 3)			    /* unit */
-	+(dname[2] - 'a')				    /* partition */
-	+((dname[1] - '0' + 1) << 16)			    /* slice */
-	+((unit & ~31) << 16);				    /* high-order unit bits */
-    } else {						    /* compatibility partition */
-	if ((*dname < 'a') || (*dname > 'h'))		    /* or invalid partition */
-	    return ENODEV;
-	devminor = (*dname - 'a')			    /* partition */
-	+((unit & 31) << 3)				    /* unit */
-	+((unit & ~31) << 16);				    /* high-order unit bits */
-    }
-
-    if ((devminor & 7) == 2)				    /* partition c */
-	return ENOTTY;					    /* not buying that */
-
-    drive->dev = makedev(devmajor, devminor);		    /* find the device */
     if (drive->dev == NULL)				    /* didn't find anything */
 	return ENODEV;
 
@@ -144,7 +77,7 @@ open_drive(struct drive *drive, struct thread *td, int verbose)
     if (dsw == NULL)
 	drive->lasterror = ENOENT;
     else
-	drive->lasterror = (dsw->d_open) (drive->dev, FWRITE, 0, NULL);
+	drive->lasterror = (dsw->d_open) (drive->dev, FWRITE | FREAD, 0, NULL);
 
     if (drive->lasterror != 0) {			    /* failed */
 	drive->state = drive_down;			    /* just force it down */
@@ -278,13 +211,17 @@ close_drive(struct drive *drive)
 void
 close_locked_drive(struct drive *drive)
 {
+    int error;
+
     /*
      * If we can't access the drive, we can't flush
      * the queues, which spec_close() will try to
      * do.  Get rid of them here first.
      */
-    drive->lasterror = (*devsw(drive->dev)->d_close) (drive->dev, 0, 0, NULL);
+    error = (*devsw(drive->dev)->d_close) (drive->dev, 0, 0, NULL);
     drive->flags &= ~VF_OPEN;				    /* no longer open */
+    if (drive->lasterror == 0)
+	drive->lasterror = error;
 }
 
 /*
@@ -678,20 +615,18 @@ daemon_save_config(void)
 		if ((drive->state != drive_unallocated)
 		    && (drive->state != drive_referenced)) { /* and it's a real drive */
 		    wlabel_on = 1;			    /* enable writing the label */
-		    error = (*devsw(drive->dev)->d_ioctl) (drive->dev, /* make the label writeable */
+		    (void) (*devsw(drive->dev)->d_ioctl) (drive->dev, /* make the label writeable */
 			DIOCWLABEL,
 			(caddr_t) & wlabel_on,
 			FWRITE,
 			curthread);
-		    if (error == 0)
-			error = write_drive(drive, (char *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
+		    error = write_drive(drive, (char *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
 		    if (error == 0)
 			error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET); /* first config copy */
 		    if (error == 0)
 			error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET + MAXCONFIG);	/* second copy */
 		    wlabel_on = 0;			    /* enable writing the label */
-		    if (error == 0)
-			error = (*devsw(drive->dev)->d_ioctl) (drive->dev, /* make the label non-writeable again */
+		    (void) (*devsw(drive->dev)->d_ioctl) (drive->dev, /* make the label non-writeable again */
 			    DIOCWLABEL,
 			    (caddr_t) & wlabel_on,
 			    FWRITE,
