@@ -1,4 +1,4 @@
-/* $Id: ispreg.h,v 1.8 1999/03/25 22:52:45 mjacob Exp $ */
+/* $Id: $ */
 /* release_5_11_99 */
 /*
  * Machine Independent (well, as best as possible) register

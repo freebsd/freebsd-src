@@ -1,4 +1,4 @@
-/* $Id: isp.c,v 1.20 1999/05/12 18:56:55 mjacob Exp $ */
+/* $Id: $ */
 /* release_6_2_99 */
 /*
  * Machine and OS Independent (well, as best as possible)
