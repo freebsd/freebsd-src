@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.26 1997/03/06 00:10:39 pst Exp $
+#	$Id: Makefile,v 1.246.2.27 1997/03/06 07:53:11 joerg Exp $
 #
 # How to roll a release:
 #
@@ -14,7 +14,7 @@
 # otherwise the target 'release.8' and possibly others will fail.
 #
 # SET THIS !!!
-BUILDNAME=2.2-RELEASE
+#BUILDNAME=2.2-RELEASE
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
 RELEASETAG=RELENG_2_2
@@ -104,6 +104,9 @@ rerelease release:
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
 .endif
+.if !defined(NO_PORTS)
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ports
+.endif
 .endif
 .if make(rerelease)
 .if !defined(RELEASENOUPDATE)
@@ -111,6 +114,9 @@ rerelease release:
 	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d
 .else
 	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d -r ${RELEASETAG}
+.endif
+.if !defined(NO_PORTS)
+	cd ${CHROOTDIR}/usr/ports && cvs -q update -P -d
 .endif
 .endif
 .endif
@@ -151,7 +157,7 @@ whap:
 	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && mv version.h.new version.h )
 
 clean:
-	rm -rf boot_crunch release.[0-9] release.1[0]
+	rm -rf boot_crunch release.[0-9]
 
 # Clean out /R and make the directory structure.
 release.1:
@@ -430,6 +436,9 @@ release.9:
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/fixitfd \
 		${FIXITINODE} ${FDLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
+# Do our last minute floppies directory setup in a convenient place.
+	cp ${.CURDIR}/floppies/README.TXT ${RD}/floppies/README.TXT
+	@(cd ${RD}/floppies; md5 * > CHECKSUM.MD5)
 	touch release.9
 
 #
@@ -444,7 +453,6 @@ ftp.1:
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${FD}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${FD}/RELNOTES.TXT
-	cp ${.CURDIR}/floppies/README.TXT ${FD}/floppies/README.TXT
 
 #
 # --==## Setup a suitable cdrom-area ##==--
@@ -471,6 +479,21 @@ cdrom.1:
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD_DISC1}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
+	ln -s ../ports ${CD_DISC2}/usr/ports
+#
+# --==## And finally, create the ports distribution & tarball ##==--
+#
+# NOTE: Both ftp.1 and cdrom.1 must be run before this target or it will die
+#       a quick and gruesome death.  We also expect the release engineer to
+#       manually populate ports/distfiles on the 2nd CDROM.
+
+ports.1:
+	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
+		mkdir -p ${CD_DISC1}/ports && tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
+		cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh && \
+		(cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5) &&
+		tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
+
 
 # Various "subroutine" and other supporting targets.
 
@@ -510,7 +533,7 @@ doTARBALL:
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9
-	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
+	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1 ports.1
 	@echo "Release done"
 
 floppies:
