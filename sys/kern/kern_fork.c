@@ -634,12 +634,10 @@ again:
 	}
 
 	/*
-	 * set priority of child to be that of parent
-	 * XXXKSE hey! copying the estcpu seems dodgy.. should split it..
+	 * set priority of child to be that of parent.
+	 * XXXKSE this needs redefining..
 	 */
-	mtx_lock_spin(&sched_lock);
-	p2->p_ksegrp.kg_estcpu = p1->p_ksegrp.kg_estcpu;
-	mtx_unlock_spin(&sched_lock);
+	kg2->kg_estcpu = td->td_ksegrp->kg_estcpu;
 
 	/*
 	 * This begins the section where we must prevent the parent

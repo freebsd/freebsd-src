@@ -87,6 +87,8 @@ static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
 struct	thread thread0;
+struct	kse kse0;
+struct	ksegrp ksegrp0;
 static struct procsig procsig0;
 static struct filedesc0 filedesc0;
 static struct plimit limit0;
@@ -311,6 +313,8 @@ proc0_init(void *dummy __unused)
 	GIANT_REQUIRED;
 	p = &proc0;
 	td = &thread0;
+	ke = &kse0;
+	kg = &ksegrp0;
 
 	/*
 	 * Initialize magic number.
@@ -357,8 +361,6 @@ proc0_init(void *dummy __unused)
 	 * I would have done it here.. maybe this means this should be
 	 * done earlier too.
 	 */
-	ke = &proc0.p_kse;	/* XXXKSE */
-	kg = &proc0.p_ksegrp;	/* XXXKSE */
 	p->p_flag = P_SYSTEM;
 	p->p_sflag = PS_INMEM;
 	p->p_state = PRS_NORMAL;
