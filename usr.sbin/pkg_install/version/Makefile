@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	bmah@FreeBSD.org
 SCRIPTS=	pkg_version.pl
 MAN=		pkg_version.1
 
