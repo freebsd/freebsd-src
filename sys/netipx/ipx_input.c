@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.4 1995/11/04 09:02:54 julian Exp $
+ * $Id: ipx_input.c,v 1.5 1995/11/24 11:43:52 bde Exp $
  */
 
 #include <sys/param.h>
@@ -280,10 +280,12 @@ u_char ipxctlerrmap[PRC_NCMDS] = {
 };
 
 void
-ipx_ctlinput(cmd, arg)
+ipx_ctlinput(cmd, arg_as_sa, dummy)
 	int cmd;
-	caddr_t arg;
+	struct sockaddr *arg_as_sa;	/* XXX should be swapped with dummy */
+	void *dummy;
 {
+	caddr_t arg = (/* XXX */ caddr_t)arg_as_sa;
 	struct ipx_addr *ipx;
 	struct ipxpcb *ipxp;
 	struct ipx_errp *errp;

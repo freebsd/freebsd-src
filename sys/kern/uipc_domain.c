@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.10 1995/11/16 18:59:50 phk Exp $
+ * $Id: uipc_domain.c,v 1.11 1995/12/02 17:10:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -198,7 +198,7 @@ pfctlinput(cmd, sa)
 	for (dp = domains; dp; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_ctlinput)
-				(*pr->pr_ctlinput)(cmd, sa, (caddr_t)0);
+				(*pr->pr_ctlinput)(cmd, sa, (void *)0);
 }
 
 static void

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.22 1995/11/14 20:34:41 phk Exp $
+ *	$Id: tcp_subr.c,v 1.23 1995/12/05 17:46:43 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -444,11 +444,12 @@ tcp_notify(inp, error)
 }
 
 void
-tcp_ctlinput(cmd, sa, ip)
+tcp_ctlinput(cmd, sa, vip)
 	int cmd;
 	struct sockaddr *sa;
-	register struct ip *ip;
+	void *vip;
 {
+	register struct ip *ip = vip;
 	register struct tcphdr *th;
 	void (*notify) __P((struct inpcb *, int)) = tcp_notify;
 
