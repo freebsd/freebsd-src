@@ -1,10 +1,14 @@
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
 # from	$NetBSD: Makefile,v 1.12 1998/02/19 14:18:36 drochner Exp $
 
 BASE= 		loader
 PROG= 		${BASE}.sym
 NOMAN=
 NEWVERSWHAT=	"bootstrap loader"
+
+# Enable PnP and ISA-PnP code.
+#HAVE_PNP=	yes
+#HAVE_ISABUS=	yes
 
 # architecture-specific loader code
 SRCS+=		main.c conf.c

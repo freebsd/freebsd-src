@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: bbinfo.h,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  * From: $NetBSD: bbinfo.h,v 1.3 1997/11/07 16:59:41 drochner Exp $
  */
 
@@ -57,7 +57,7 @@ struct fraglist {
 
 /* only used by bootsect code (not by installboot) */
 #ifndef MAXFLENTRIES
-#define MAXFLENTRIES 10
+#define MAXFLENTRIES 20
 #endif
 #ifndef PRIM_LOADSZ
 #define PRIM_LOADSZ 15

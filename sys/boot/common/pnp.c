@@ -10,81 +10,97 @@
  */
 
 #include <stand.h>
+#include <string.h>
 #include <bootstrap.h>
 
 static struct pnpinfo	*pnp_devices = NULL;
 
-static void		pnp_discard(void);
+static void		pnp_discard(struct pnpinfo **list);
+static int		pnp_readconf(char *path);
+static int		pnp_scankernel(void);
 
 /*
  * Perform complete enumeration sweep, and load required module(s) if possible.
  */
 
+COMMAND_SET(pnpscan, "pnpscan", "scan for PnP devices", pnp_scan);
+
 int
-pnp_autoload(void) 
+pnp_scan(int argc, char *argv[]) 
 {
-    int			hdlr, idx;
+    int			hdlr;
 
     /* forget anything we think we knew */
-    pnp_discard();
+    pnp_discard(&pnp_devices);
 
     /* iterate over all of the handlers */
-    for (hdlr = 0; pnphandlers[hdlr]->pp_name != NULL; i++) {
+    for (hdlr = 0; pnphandlers[hdlr] != NULL; hdlr++) {
 	printf("Probing bus '%s'...\n", pnphandlers[hdlr]->pp_name);
-	idx = 0;
-	while ((pi = pnphandlers[hdlr]->pp_enumerate(idx++)) != NULL) {
-	    printf("  %s\n", pi->pi_ident);
-	    pi->pi_handler = hdlr;
-	    pi->pi_next = pnp_devices;
-	    pnp_devices = pi;
-	}
+	pnphandlers[hdlr]->pp_enumerate(&pnp_devices);
     }
-    /* find anything? */
-    if (pnp_devices != NULL) {
-	/* XXX hardcoded paths! should use loaddev? */
-	pnp_readconf("/boot/pnpdata.local");
-	pnp_readconf("/boot/pnpdata");
-
-	pnp_reload();
-    }
+    return(CMD_OK);
 }
 
 /*
  * Try to load outstanding modules (eg. after disk change)
  */
 int
-pnp_reload(void)
+pnp_reload(char *fname)
 {
     struct pnpinfo	*pi;
     char		*modfname;
 	
-    /* try to load any modules that have been nominated */
-    for (pi = pnp_devices; pi != NULL; pi = pi->pi_next) {
-	/* Already loaded? */
-	if ((pi->pi_module != NULL) && (mod_findmodule(pi->pi_module, NULL) == NULL)) {
-	    modfname = malloc(strlen(pi->pi_module + 3));
-	    sprintf(modfname, "%s.ko", pi->pi_module);	/* XXX implicit knowledge of KLD module filenames */
-	    if (mod_load(pi->pi_module, pi->pi_argc, pi->pi_argv))
-		printf("Could not load module '%s' for device '%s'\n", modfname, pi->pi_ident);
-	    free(modfname);
+    /* find anything? */
+    if (pnp_devices != NULL) {
+
+	/* check for kernel, assign modules handled by static drivers there */
+	if (pnp_scankernel()) {
+	    command_errmsg = "cannot load drivers until kernel loaded";
+	    return(CMD_ERROR);
+	}
+	if (fname == NULL) {
+	    /* default paths */
+	    pnp_readconf("/boot/pnpdata.local");
+	    pnp_readconf("/boot/pnpdata");
+	} else {
+	    if (pnp_readconf("fname")) {
+		sprintf(command_errbuf, "can't read PnP information from '%s'", fname);
+		return(CMD_ERROR);
+	    }
+	}
+
+	/* try to load any modules that have been nominated */
+	for (pi = pnp_devices; pi != NULL; pi = pi->pi_next) {
+	    /* Already loaded? */
+	    if ((pi->pi_module != NULL) && (mod_findmodule(pi->pi_module, NULL) == NULL)) {
+		modfname = malloc(strlen(pi->pi_module + 3));
+		sprintf(modfname, "%s.ko", pi->pi_module);	/* XXX implicit knowledge of KLD module filenames */
+		if (mod_load(pi->pi_module, pi->pi_argc, pi->pi_argv))
+		    printf("Could not load module '%s' for device '%s'\n", modfname, pi->pi_ident->id_ident);
+		free(modfname);
+	    }
 	}
     }
+    return(CMD_OK);
 }
 
-
 /*
- * Throw away anything we think we know about PnP devices
+ * Throw away anything we think we know about PnP devices on (list)
  */
 static void
-pnp_discard(void)
+pnp_discard(struct pnpinfo **list)
 {
     struct pnpinfo	*pi;
+    struct pnpident	*id;
     
-    while (pnp_devices != NULL) {
-	pi = pnp_devices;
-	pnp_devices = pnp_devices->pi_next;
-	if (pi->pi_ident)
-	    free(pi->pi_ident);
+    while (*list != NULL) {
+	pi = *list;
+	*list = (*list)->pi_next;
+	while (pi->pi_ident) {
+	    id = pi->pi_ident;
+	    pi->pi_ident = pi->pi_ident->id_next;
+	    free(id);
+	}
 	if (pi->pi_module)
 	    free(pi->pi_module);
 	if (pi->pi_argv)
@@ -114,10 +130,11 @@ pnp_discard(void)
  *	ignored (but should be used), and the 'args' field must come
  *	last.
  */
-static void
+static int
 pnp_readconf(char *path)
 {
     struct pnpinfo	*pi;
+    struct pnpident	*id;
     int			fd, line;
     char		lbuf[128], *currbus, *ident, *revision, *module, *args;
     char		*cp, *ep, *tp, c;
@@ -155,7 +172,7 @@ pnp_readconf(char *path)
 		continue;
 
 	    /* mapping */
-	    for (ident = module = args = NULL; *cp != 0;) {
+	    for (ident = module = args = revision = NULL; *cp != 0;) {
 
 		/* discard leading whitespace */
 		if (isspace(*cp)) {
@@ -164,12 +181,12 @@ pnp_readconf(char *path)
 		}
 		
 		/* scan for terminator, separator */
-		for (ep = cp; (*ep != 0) && (*ep != '=') && !isspace(ep); ep++)
+		for (ep = cp; (*ep != 0) && (*ep != '=') && !isspace(*ep); ep++)
 		    ;
 
 		if (*ep == '=') {
 		    *ep = 0;
-		    for (tp = ep + 1; (*tp != 0) && !isspace(tp); tp++)
+		    for (tp = ep + 1; (*tp != 0) && !isspace(*tp); tp++)
 			;
 		    c = *tp;
 		    *tp = 0;
@@ -200,22 +217,64 @@ pnp_readconf(char *path)
 	    }
 	    
 	    /*
-	     * Loop looking for module/bus that might match this 
+	     * Loop looking for module/bus that might match this, but aren't already
+	     * assigned.
 	     * XXX no revision parse/test here yet.
 	     */
-	    for (pi = pnp_modules; pi != NULL; pi = pi->pi_next) {
-		if (!strcmp(pnphandlers[pi->pi_handler]->pp_name, currbus) &&
-		    !strcmp(pi->pi_indent, ident)) {
-		    if (args != NULL)
-			if (parse(&pi->pi_argc, &pi->pi_argv, args)) {
-			    printf("%s line %d: bad arguments\n", path, line);
+	    for (pi = pnp_devices; pi != NULL; pi = pi->pi_next) {
+
+		/* no driver assigned, bus matches OK */
+		if ((pi->pi_module == NULL) &&
+		    !strcmp(pi->pi_handler->pp_name, currbus)) {
+
+		    /* scan idents, take first match */
+		    for (id = pi->pi_ident; id != NULL; id = id->id_next)
+			if (!strcmp(id->id_ident, ident))
 			    break;
-			}
-		    pi->pi_module = strdup(module);
+			
+		    /* find a match? */
+		    if (id != NULL) {
+			if (args != NULL)
+			    if (parse(&pi->pi_argc, &pi->pi_argv, args)) {
+				printf("%s line %d: bad arguments\n", path, line);
+				continue;
+			    }
+			pi->pi_module = strdup(module);
+			printf("use module '%s' for %s:%s\n", module, pi->pi_handler->pp_name, id->id_ident);
+		    }
 		}
 	    }
 	}
 	close(fd);
     }
+    return(CMD_OK);
+}
+
+static int
+pnp_scankernel(void)
+{
+    return(CMD_OK);
+}
+
+/*
+ * Add a unique identifier to (pi)
+ */
+void
+pnp_addident(struct pnpinfo *pi, char *ident)
+{
+    struct pnpident	*id, **idp;
+    
+    if (pi->pi_ident == NULL) {
+	idp = &(pi->pi_ident);
+    } else {
+	for (id = pi->pi_ident; id->id_next != NULL; id = id->id_next)
+	    if (!strcmp(id->id_ident, ident))
+		return;			/* already have this one */
+	    ;
+	idp = &(id->id_next);
+    }
+    *idp = malloc(sizeof(struct pnpident));
+    (*idp)->id_next = NULL;
+    (*idp)->id_ident = strdup(ident);
 }
 
