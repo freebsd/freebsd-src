@@ -54,7 +54,7 @@ fputc(c, fp)
 	int retval;
 	FLOCKFILE(fp);
 	ORIENT(fp, -1);
-	retval = putc(c, fp);
+	retval = __sputc(c, fp);
 	FUNLOCKFILE(fp);
 	return (retval);
 }
