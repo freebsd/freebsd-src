@@ -180,7 +180,7 @@ rc.conf(5) on new installs. [MERGED]
 rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 /etc/inetd.conf.  This only affects new installations.  [MERGED]
 
-Many string-handling library calls were fixed to reduce the
+String-handling library calls in many programs were fixed to reduce the
 possibility of buffer overflow-related exploits.  [MERGED]
 
 TCP now uses stronger randomness in choosing its initial sequence 
