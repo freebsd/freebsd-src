@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.460.2.1 1999/01/30 22:16:11 jkh Exp $
+#	$Id: Makefile,v 1.466 1999/01/31 12:38:19 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -72,17 +72,21 @@ MNT=			/mnt
 # Various floppy image parameters.
 #
 BOOTSIZE=		1440
-BOOTMFSSIZE=		1440
 FIXITSIZE=		1440
+MFSSIZE=		1440
+BIGBOOTSIZE=		2880
 BOOTINODE=		80000
 MFSINODE=		8000
 FIXITINODE=		2000
 BOOTLABEL=		fd1440
-BOOTMFSLABEL=		minimum2
 FIXITLABEL=		fd1440
+BIGBOOTLABEL=		minimum2
+MFSLABEL=		fd1440
 
 # overrides.
 .if ${MACHINE_ARCH} == "alpha"
+MFSSIZE=		2880
+MFSLABEL=		minimum2
 FIXITSIZE=		2880
 FIXITLABEL=		minimum2
 .endif
@@ -435,7 +439,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "cmd             514/tcp    shell" >> ${RD}/mfsfd/stand/etc/services
-	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
+	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	for i in README.TXT RELNOTES.TXT INSTALL.TXT UPGRADE.TXT HARDWARE.TXT; do \
 	   gzip -9c ${.CURDIR}/texts/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; done
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
@@ -446,13 +450,13 @@ release.8: write_mfs_in_kernel dumpnlist
 		tar xf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
-	@sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
-		${BOOTMFSSIZE} ${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
-	@gzip -vc mfsroot > mfsroot.gz
+	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
+		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
+	@gzip -9vc mfsroot > mfsroot.gz
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot _MFSKERN=YES
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot BIGBOOT=YES
 	@rm mfsroot mfsroot.gz mfsroot.size
 	@echo "Regular and MFS boot floppies made."
 	touch release.8
@@ -642,11 +646,11 @@ doMFSKERN:
 	@echo "Running doMFSKERN for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && \
-	  sh ${.CURDIR}/scripts/dokern.sh ${_MFSKERN} < GENERIC > BOOTMFS
+	  sh ${.CURDIR}/scripts/dokern.sh ${BIGBOOT} < GENERIC > BOOTMFS
 .if ${MACHINE_ARCH} == "i386"
 	@echo "options  INTRO_USERCONFIG" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
 .endif
-.if defined(_MFSKERN)
+.if defined(BIGBOOT)
 	@echo "options \"MFS_ROOT_SIZE=`cat mfsroot.size`\"" >> \
 	  ${.CURDIR}/../sys/${MACHINE_ARCH}/conf/BOOTMFS
 .endif
@@ -658,7 +662,7 @@ doMFSKERN:
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 	@cp /boot/boot1 /boot/boot2 /boot/loader ${RD}/image.${FSIMAGE}/boot
-.if !defined(_MFSKERN) || ${MACHINE_ARCH} == "alpha"
+.if !defined(BIGBOOT) || ${MACHINE_ARCH} == "alpha"
 	@echo "@load /kernel" > ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "@read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
@@ -666,28 +670,20 @@ doMFSKERN:
 	@echo "@boot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
 .endif
-.if defined(_MFSKERN)
-	@echo "Getting symbols from ${RD}/image.${FSIMAGE}/kernel for mfsroot"
-	@vnconfig /dev/${VNDEVICE} mfsroot
-	@mkdir -p /tmp/mnt_xx
-	@mount /dev/${VNDEVICE} /tmp/mnt_xx
-	@./dumpnlist ${RD}/image.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
-	@umount /tmp/mnt_xx
-	@vnconfig -u /dev/${VNDEVICE}
-	@rmdir /tmp/mnt_xx
+.if defined(BIGBOOT)
 	@echo "Writing MFS image into kernel for ${FSIMAGE} floppy"
 	@./write_mfs_in_kernel ${RD}/image.${FSIMAGE}/kernel mfsroot
 	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 .endif
-	@gzip -v ${RD}/image.${FSIMAGE}/kernel
+	@gzip -9v ${RD}/image.${FSIMAGE}/kernel
 	@touch ${RD}/image.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
-.if defined(_MFSKERN)
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
-		${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/image.${FSIMAGE} \
-		${BOOTINODE} ${BOOTMFSLABEL}
+.if defined(BIGBOOT)
+	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
+		${RD} ${MNT} ${BIGBOOTSIZE} ${RD}/image.${FSIMAGE} \
+		${BOOTINODE} ${BIGBOOTLABEL}
 .else
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
+	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${BOOTLABEL}
 .endif
