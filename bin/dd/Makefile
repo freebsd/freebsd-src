@@ -19,7 +19,7 @@ test:	${PROG}
     swab lcase ucase
 	@echo testing conv=${conv}
 	@./a.out | \
-	  /usr/bin/env -i LC_CTYPE=ASCII ./dd conv=${conv} 2>/dev/null | \
-	  /usr/bin/env -i LC_CTYPE=ASCII hexdump -C | \
+	  /usr/bin/env -i LC_CTYPE=en_US.US-ASCII ./dd conv=${conv} 2>/dev/null | \
+	  /usr/bin/env -i LC_CTYPE=en_US.US-ASCII hexdump -C | \
 	  diff -IFreeBSD - ${.CURDIR}/ref.${conv}
 .endfor
