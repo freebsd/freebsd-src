@@ -82,8 +82,6 @@ KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 OBJCOPY?=	objcopy
 
-TARGET_ARCH?=	${MACHINE_ARCH}
-
 .include <bsd.init.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
