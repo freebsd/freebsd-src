@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.54 1999/02/12 00:52:29 brian Exp $
+ *	$Id: chat.c,v 1.52.2.3 1999/05/02 08:59:37 brian Exp $
  */
 
 #include <sys/param.h>
@@ -181,7 +181,11 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
       } else {
         int minus;
 
-        c->argptr = c->argv[++c->arg];
+        if ((c->argptr = c->argv[++c->arg]) == NULL) {
+          /* End of script - all ok */
+          c->state = CHAT_DONE;
+          return 0;
+        }
 
         if (c->state == CHAT_EXPECT) {
           /* Look for expect-send-expect sequence */
