@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.65 1999/07/11 06:10:47 jmg Exp $
+ *      $Id: cam_xpt.c,v 1.66 1999/08/16 17:47:39 mjacob Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -592,6 +592,7 @@ static u_int bus_generation;
 #ifdef	CAMDEBUG
 struct cam_path *cam_dpath;
 u_int32_t cam_dflags;
+u_int32_t cam_debug_delay;
 #endif
 
 #if defined(CAM_DEBUG_FLAGS) && !defined(CAMDEBUG)
@@ -643,6 +644,8 @@ static void	 xpt_run_dev_sendq(struct cam_eb *bus);
 static timeout_t xpt_release_devq_timeout;
 static timeout_t xpt_release_simq_timeout;
 static void	 xpt_release_bus(struct cam_eb *bus);
+static void	 xpt_release_devq_device(struct cam_ed *dev, u_int count,
+					 int run_queue);
 static struct cam_et*
 		 xpt_alloc_target(struct cam_eb *bus, target_id_t target_id);
 static void	 xpt_release_target(struct cam_eb *bus, struct cam_et *target);
@@ -948,9 +951,6 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			}
 			/* FALLTHROUGH */
 		case XPT_SCAN_LUN:
-		case XPT_RESET_DEV:
-		case XPT_ENG_INQ:  /* XXX not implemented yet */
-		case XPT_ENG_EXEC:
 
 			ccb = xpt_alloc_ccb();
 
@@ -2762,17 +2762,18 @@ xpt_action(union ccb *start_ccb)
 			    start_ccb->ccb_h.target_lun << 5;
 		}
 		start_ccb->csio.scsi_status = SCSI_STATUS_OK;
-		start_ccb->csio.sense_resid = 0;
-		start_ccb->csio.resid = 0;
 		CAM_DEBUG(path, CAM_DEBUG_CDB,("%s. CDB: %s\n",
 			  scsi_op_desc(start_ccb->csio.cdb_io.cdb_bytes[0],
 			  	       &path->device->inq_data),
 			  scsi_cdb_string(start_ccb->csio.cdb_io.cdb_bytes,
 					  cdb_str, sizeof(cdb_str))));
-		/* FALLTRHOUGH */
+		/* FALLTHROUGH */
 	}
 	case XPT_TARGET_IO:
 	case XPT_CONT_TARGET_IO:
+		start_ccb->csio.sense_resid = 0;
+		start_ccb->csio.resid = 0;
+		/* FALLTHROUGH */
 	case XPT_ENG_EXEC:
 	{
 		struct cam_path *path;
@@ -2800,6 +2801,9 @@ xpt_action(union ccb *start_ccb)
 		break;
 	}
 	case XPT_CALC_GEOMETRY:
+	{
+		struct cam_sim *sim;
+
 		/* Filter out garbage */
 		if (start_ccb->ccg.block_size == 0
 		 || start_ccb->ccg.volume_size == 0) {
@@ -2823,9 +2827,63 @@ xpt_action(union ccb *start_ccb)
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
 			break;
 		}
-		/* FALLTHROUGH */
 #endif
+		sim = start_ccb->ccb_h.path->bus->sim;
+		(*(sim->sim_action))(sim, start_ccb);
+		break;
+	}
 	case XPT_ABORT:
+	{
+		union ccb* abort_ccb;
+		int s;				
+
+		abort_ccb = start_ccb->cab.abort_ccb;
+		if (XPT_FC_IS_DEV_QUEUED(abort_ccb)) {
+
+			if (abort_ccb->ccb_h.pinfo.index >= 0) {
+				struct cam_ccbq *ccbq;
+
+				ccbq = &abort_ccb->ccb_h.path->device->ccbq;
+				cam_ccbq_remove_ccb(ccbq, abort_ccb);
+				abort_ccb->ccb_h.status =
+				    CAM_REQ_ABORTED|CAM_DEV_QFRZN;
+				xpt_freeze_devq(abort_ccb->ccb_h.path, 1);
+				s = splcam();
+				xpt_done(abort_ccb);
+				splx(s);
+				start_ccb->ccb_h.status = CAM_REQ_CMP;
+				break;
+			}
+			if (abort_ccb->ccb_h.pinfo.index == CAM_UNQUEUED_INDEX
+			 && (abort_ccb->ccb_h.status & CAM_SIM_QUEUED) == 0) {
+				/*
+				 * We've caught this ccb en route to
+				 * the SIM.  Flag it for abort and the
+				 * SIM will do so just before starting
+				 * real work on the CCB.
+				 */
+				abort_ccb->ccb_h.status =
+				    CAM_REQ_ABORTED|CAM_DEV_QFRZN;
+				xpt_freeze_devq(abort_ccb->ccb_h.path, 1);
+				start_ccb->ccb_h.status = CAM_REQ_CMP;
+				break;
+			}
+		} 
+		if (XPT_FC_IS_QUEUED(abort_ccb)
+		 && (abort_ccb->ccb_h.pinfo.index == CAM_DONEQ_INDEX)) {
+			/*
+			 * It's already completed but waiting
+			 * for our SWI to get to it.
+			 */
+			start_ccb->ccb_h.status = CAM_UA_ABORT;
+			break;
+		}
+		/*
+		 * If we weren't able to take care of the abort request
+		 * in the XPT, pass the request down to the SIM for processing.
+		 */
+		/* FALLTHROUGH */
+	}
 	case XPT_RESET_DEV:
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_EN_LUN:
@@ -3224,7 +3282,7 @@ xpt_action(union ccb *start_ccb)
 		
 		if ((start_ccb->ccb_h.flags & CAM_DEV_QFREEZE) == 0) {
 
-			xpt_release_devq(crs->ccb_h.path->device,
+			xpt_release_devq(crs->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
 		start_ccb->crs.qfrozen_cnt = dev->qfrozen_cnt;
@@ -3244,6 +3302,9 @@ xpt_action(union ccb *start_ccb)
 		int s;
 		
 		s = splcam();
+#ifdef CAM_DEBUG_DELAY
+		cam_debug_delay = CAM_DEBUG_DELAY;
+#endif
 		cam_dflags = start_ccb->cdbg.flags;
 		if (cam_dpath != NULL) {
 			xpt_free_path(cam_dpath);
@@ -3810,7 +3871,8 @@ xpt_free_path(struct cam_path *path)
 
 
 /*
- * Return -1 for failure, 0 for exact match, 1 for match with wildcards.
+ * Return -1 for failure, 0 for exact match, 1 for match with wildcards
+ * in path1, 2 for match with wildcards in path2.
  */
 int
 xpt_path_comp(struct cam_path *path1, struct cam_path *path2)
@@ -3818,23 +3880,28 @@ xpt_path_comp(struct cam_path *path1, struct cam_path *path2)
 	int retval = 0;
 
 	if (path1->bus != path2->bus) {
-		if (path1->bus->path_id == CAM_BUS_WILDCARD
-		 || path2->bus->path_id == CAM_BUS_WILDCARD)
+		if (path1->bus->path_id == CAM_BUS_WILDCARD)
 			retval = 1;
+		else if (path2->bus->path_id == CAM_BUS_WILDCARD)
+			retval = 2;
 		else
 			return (-1);
 	}
 	if (path1->target != path2->target) {
-		if (path1->target->target_id == CAM_TARGET_WILDCARD
-		 || path2->target->target_id == CAM_TARGET_WILDCARD)
-			retval = 1;
+		if (path1->target->target_id == CAM_TARGET_WILDCARD) {
+			if (retval == 0)
+				retval = 1;
+		} else if (path2->target->target_id == CAM_TARGET_WILDCARD)
+			retval = 2;
 		else
 			return (-1);
 	}
 	if (path1->device != path2->device) {
-		if (path1->device->lun_id == CAM_LUN_WILDCARD
-		 || path2->device->lun_id == CAM_LUN_WILDCARD)
-			retval = 1;
+		if (path1->device->lun_id == CAM_LUN_WILDCARD) {
+			if (retval == 0)
+				retval = 1;
+		} else if (path2->device->lun_id == CAM_LUN_WILDCARD)
+			retval = 2;
 		else
 			return (-1);
 	}
@@ -4280,11 +4347,17 @@ xpt_release_devq_timeout(void *arg)
 
 	device = (struct cam_ed *)arg;
 
-	xpt_release_devq(device, /*run_queue*/TRUE);
+	xpt_release_devq_device(device, /*count*/1, /*run_queue*/TRUE);
 }
 
 void
-xpt_release_devq(struct cam_ed *dev, int run_queue)
+xpt_release_devq(struct cam_path *path, u_int count, int run_queue)
+{
+	xpt_release_devq_device(path->device, count, run_queue);
+}
+
+static void
+xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 {
 	int	rundevq;
 	int	s;
@@ -4293,7 +4366,8 @@ xpt_release_devq(struct cam_ed *dev, int run_queue)
 	s = splcam();
 	if (dev->qfrozen_cnt > 0) {
 
-		dev->qfrozen_cnt--;
+		count = (count > dev->qfrozen_cnt) ? dev->qfrozen_cnt : count;
+		dev->qfrozen_cnt -= count;
 		if (dev->qfrozen_cnt == 0) {
 
 			/*
@@ -4620,6 +4694,11 @@ xpt_release_device(struct cam_eb *bus, struct cam_et *target,
 		if (device->alloc_ccb_entry.pinfo.index != CAM_UNQUEUED_INDEX
 		 || device->send_ccb_entry.pinfo.index != CAM_UNQUEUED_INDEX)
 			panic("Removing device while still queued for ccbs");
+
+		if ((device->flags & CAM_DEV_REL_TIMEOUT_PENDING) != 0)
+				untimeout(xpt_release_devq_timeout, device,
+					  device->c_handle);
+
 		TAILQ_REMOVE(&target->ed_entries, device,links);
 		target->generation++;
 		xpt_max_ccbs -= device->ccbq.devq_openings;
@@ -5308,7 +5387,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				return;
 			else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				/* Don't wedge the queue */
-				xpt_release_devq(done_ccb->ccb_h.path->device,
+				xpt_release_devq(done_ccb->ccb_h.path,
+						 /*count*/1,
 						 /*run_queue*/TRUE);
 		}
 		softc->action = PROBE_INQUIRY;
@@ -5360,7 +5440,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			return;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path->device,
+			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
 		/*
@@ -5401,8 +5481,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			return;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path->device,
-					 /*run_queue*/TRUE);
+			xpt_release_devq(done_ccb->ccb_h.path,
+					 /*count*/1, /*run_queue*/TRUE);
 		}
 		xpt_release_ccb(done_ccb);
 		free(mode_hdr, M_TEMP);
@@ -5458,7 +5538,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			return;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path->device,
+			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
 		
@@ -5522,7 +5602,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	case PROBE_TUR_FOR_NEGOTIATION:
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path->device,
+			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
 
@@ -6095,8 +6175,8 @@ camisr(cam_isrq_t *queue)
 
 				STAILQ_REMOVE_HEAD(hphead, xpt_links.stqe);
 
-				xpt_release_devq(send_ccb->ccb_h.path->device,
-						 TRUE);
+				xpt_release_devq(send_ccb->ccb_h.path,
+						 /*count*/1, /*runqueue*/TRUE);
 			}
 		}
 		if ((ccb_h->func_code & XPT_FC_USER_CCB) == 0) {
@@ -6115,7 +6195,7 @@ camisr(cam_isrq_t *queue)
 			 || ((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
 			  && (dev->ccbq.dev_active == 0))) {
 				
-				xpt_release_devq(ccb_h->path->device,
+				xpt_release_devq(ccb_h->path, /*count*/1,
 						 /*run_queue*/TRUE);
 			}
 
@@ -6136,7 +6216,7 @@ camisr(cam_isrq_t *queue)
 					 /*run_queue*/TRUE);
 		} else if ((ccb_h->flags & CAM_DEV_QFRZDIS)
 			&& (ccb_h->status & CAM_DEV_QFRZN)) {
-			xpt_release_devq(ccb_h->path->device,
+			xpt_release_devq(ccb_h->path, /*count*/1,
 					 /*run_queue*/TRUE);
 			ccb_h->status &= ~CAM_DEV_QFRZN;
 		} else if (runq) {
