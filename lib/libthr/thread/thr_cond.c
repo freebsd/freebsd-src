@@ -43,6 +43,8 @@
 static pthread_t	cond_queue_deq(pthread_cond_t);
 static void		cond_queue_remove(pthread_cond_t, pthread_t);
 static void		cond_queue_enq(pthread_cond_t, pthread_t);
+static int		cond_wait_common(pthread_cond_t *,
+			    pthread_mutex_t *, const struct timespec *);
 
 __weak_reference(_pthread_cond_init, pthread_cond_init);
 __weak_reference(_pthread_cond_destroy, pthread_cond_destroy);
@@ -161,13 +163,8 @@ int
 _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
 	int rval;
-	struct timespec abstime = { 0, 0 };
 
-	/*
-	 * XXXTHR This is a hack.  Make a pthread_cond_common function that
-	 * accepts NULL so we don't change posix semantics for timedwait.
-	 */
-	rval = pthread_cond_timedwait(cond, mutex, &abstime);
+	rval = cond_wait_common(cond, mutex, NULL);
 
 	/* This should never happen. */
 	if (rval == ETIMEDOUT)
@@ -180,7 +177,16 @@ int
 _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		       const struct timespec * abstime)
 {
-	struct timespec *time;
+	if (abstime == NULL || abstime->tv_nsec >= 1000000000)
+		return (EINVAL);
+
+	return (cond_wait_common(cond, mutex, abstime));
+}
+
+static int
+cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
+	         const struct timespec * abstime)
+{
 	int	rval = 0;
 	int	done = 0;
 	int	seqno;
@@ -189,13 +195,6 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 	_thread_enter_cancellation_point();
 	
-	if (abstime == NULL || abstime->tv_nsec >= 1000000000)
-		return (EINVAL);
-
-	if (abstime->tv_sec == 0 && abstime->tv_nsec == 0)
-		time = NULL;
-	else
-		time = abstime;
 	/*
 	 * If the condition variable is statically initialized, perform dynamic
 	 * initialization.
@@ -273,7 +272,7 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 			PTHREAD_SET_STATE(curthread, PS_COND_WAIT);
 			GIANT_UNLOCK(curthread);
-			rval = _thread_suspend(curthread, time);
+			rval = _thread_suspend(curthread, (struct timespec *)abstime);
 			if (rval == -1) {
 				printf("foo");
 				fflush(stdout);
