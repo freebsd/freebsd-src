@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.159 1996/12/01 21:04:12 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.160 1996/12/03 13:38:40 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -298,6 +298,7 @@
 	  <item>Oliver Oberdorf &lt;oly@world.std.com&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
+	  <item>Pedro Giffuni &lt;pgiffuni@fps.biblos.unal.edu.co&gt;
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
 	  <item>R. Kym Horsell &lt;?&gt;
