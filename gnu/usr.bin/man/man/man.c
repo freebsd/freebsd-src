@@ -16,15 +16,16 @@
 
 #define MAN_MAIN
 
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/types.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
 #ifdef __FreeBSD__
 #include <locale.h>
 #endif
+#include <stdio.h>
 #include <string.h>
-#include <sys/file.h>
 #include <signal.h>
 #include "config.h"
 #include "gripes.h"
@@ -61,14 +62,7 @@ extern int fclose ();
 extern char *sprintf ();
 #endif
 
-extern char *strdup ();
-
-extern char **glob_vector ();
 extern char **glob_filename ();
-extern int access ();
-extern int unlink ();
-extern int system ();
-extern int chmod ();
 extern int is_newer ();
 extern int is_directory ();
 extern int do_system_command ();
@@ -425,6 +419,10 @@ man_getopt (argc, argv)
   mp = manpathlist;
   for (p = manp; ; p = end+1)
     {
+      if (mp == manpathlist + MAXDIRS - 1) {
+	fprintf (stderr, "Warning: too many directories in manpath, truncated!\n");
+	break;
+      }
       if ((end = strchr (p, ':')) != NULL)
 	*end = '\0';
 
@@ -605,9 +603,9 @@ glob_for_file (path, section, name, cat)
   char **gf;
 
   if (cat)
-    sprintf (pathname, "%s/cat%s/%s.%s*", path, section, name, section);
+    snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.%s*", path, section, name, section);
   else
-    sprintf (pathname, "%s/man%s/%s.%s*", path, section, name, section);
+    snprintf (pathname, sizeof(pathname), "%s/man%s/%s.%s*", path, section, name, section);
 
   if (debug)
     fprintf (stderr, "globbing %s\n", pathname);
@@ -617,18 +615,18 @@ glob_for_file (path, section, name, cat)
   if ((gf == (char **) -1 || *gf == NULL) && isdigit (*section))
     {
       if (cat)
-	sprintf (pathname, "%s/cat%s/%s.%c*", path, section, name, *section);
+	snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.%c*", path, section, name, *section);
       else
-	sprintf (pathname, "%s/man%s/%s.%c*", path, section, name, *section);
+	snprintf (pathname, sizeof(pathname), "%s/man%s/%s.%c*", path, section, name, *section);
 
       gf = glob_filename (pathname);
     }
   if ((gf == (char **) -1 || *gf == NULL) && isdigit (*section))
     {
       if (cat)
-	sprintf (pathname, "%s/cat%s/%s.0*", path, section, name);
+	snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.0*", path, section, name);
       else
-	sprintf (pathname, "%s/man%s/%s.0*", path, section, name);
+	snprintf (pathname, sizeof(pathname), "%s/man%s/%s.0*", path, section, name);
       if (debug)
 	fprintf (stderr, "globbing %s\n", pathname);
       gf = glob_filename (pathname);
@@ -652,9 +650,9 @@ make_name (path, section, name, cat)
   char buf[FILENAME_MAX];
 
   if (cat)
-    sprintf (buf, "%s/cat%s/%s.%s", path, section, name, section);
+    snprintf (buf, sizeof(buf), "%s/cat%s/%s.%s", path, section, name, section);
   else
-    sprintf (buf, "%s/man%s/%s.%s", path, section, name, section);
+    snprintf (buf, sizeof(buf), "%s/man%s/%s.%s", path, section, name, section);
 
   if (access (buf, R_OK) == 0)
     names[i++] = strdup (buf);
@@ -667,9 +665,9 @@ make_name (path, section, name, cat)
   if (section[1] != '\0')
     {
       if (cat)
-	sprintf (buf, "%s/cat%c/%s.%s", path, section[0], name, section);
+	snprintf (buf, sizeof(buf), "%s/cat%c/%s.%s", path, section[0], name, section);
       else
-	sprintf (buf, "%s/man%c/%s.%s", path, section[0], name, section);
+	snprintf (buf, sizeof(buf), "%s/man%c/%s.%s", path, section[0], name, section);
 
       if (access (buf, R_OK) == 0)
 	names[i++] = strdup (buf);
@@ -722,9 +720,9 @@ display_cat_file (file)
       char *expander = get_expander (file);
 
       if (expander != NULL)
-	sprintf (command, "%s %s | %s", expander, file, pager);
+	snprintf (command, sizeof(command), "%s %s | %s", expander, file, pager);
       else
-	sprintf (command, "%s %s", pager, file);
+	snprintf (command, sizeof(command), "%s %s", pager, file);
 
       found = do_system_command (command);
     }
@@ -996,7 +994,7 @@ make_roff_command (file)
 
   if ((cp = get_expander(file)) == NULL)
     cp = "/bin/cat";
-  sprintf(buf, "%s %s | ", cp, file);
+  snprintf(buf, sizeof(buf), "%s %s | ", cp, file);
 #ifdef HAS_TROFF
   if (troff)
     {
@@ -1080,7 +1078,7 @@ make_cat_file (path, man_file, cat_file, manid)
   if (roff_command == NULL)
       return 0;
 
-  sprintf(temp, "%s.tmpXXXXXX", cat_file);
+  snprintf(temp, sizeof(temp), "%s.tmpXXXXXX", cat_file);
   if ((f = mkstemp(temp)) >= 0 && (fp = fdopen(f, "w")) != NULL)
     {
       set_sigs();
@@ -1095,10 +1093,10 @@ make_cat_file (path, man_file, cat_file, manid)
 	fprintf (stderr, "mode of %s is now %o\n", temp, CATMODE);
 
 #ifdef DO_COMPRESS
-      sprintf (command, "(cd %s ; %s | %s)", path,
+      snprintf (command, sizeof(command), "(cd %s ; %s | %s)", path,
 		roff_command, COMPRESSOR);
 #else
-      sprintf (command, "(cd %s ; %s)", path,
+      snprintf (command, sizeof(command), "(cd %s ; %s)", path,
 		roff_command);
 #endif
       fprintf (stderr, "Formatting page, please wait...");
@@ -1247,7 +1245,7 @@ format_and_display (path, man_file, cat_file)
       if (roff_command == NULL)
 	return 0;
       else
-	sprintf (command, "(cd %s ; %s)", path, roff_command);
+	snprintf (command, sizeof(command), "(cd %s ; %s)", path, roff_command);
 
       found = do_system_command (command);
     }
@@ -1327,7 +1325,7 @@ format_and_display (path, man_file, cat_file)
 		  if (roff_command == NULL)
 		    return 0;
 		  else
-		    sprintf (command, "(cd %s ; %s | %s)", path,
+		    snprintf (command, sizeof(command), "(cd %s ; %s | %s)", path,
 			     roff_command, pager);
 
 		  found = do_system_command (command);
