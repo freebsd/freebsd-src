@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <dev/aac/aacreg.h>
-#include <dev/aac/aac_ioctl.h>
+#include <sys/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
 
 static int	aac_pci_probe(device_t dev);
