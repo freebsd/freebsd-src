@@ -262,7 +262,7 @@ load_entry(file, error_func, pw, envp)
 
 	if (!pw) {
 		char		*username = cmd;	/* temp buffer */
-		char            *s, *group;
+		char            *s;
 		struct group    *grp;
 #ifdef LOGIN_CAP
 		login_cap_t *lc;
@@ -409,7 +409,7 @@ load_entry(file, error_func, pw, envp)
 	 */
 	e->cmd = strdup(cmd);
 	if (e->cmd == NULL) {
-		warn("strdup(\"%d\")", cmd);
+		warn("strdup(\"%s\")", cmd);
 		ecode = e_mem;
 		goto eof;
 	}
