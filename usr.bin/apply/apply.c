@@ -143,13 +143,13 @@ main(int argc, char *argv[]) {
 
 		p = cmd;
 		offset = snprintf(cmd, cmdsize, EXEC "%s", argv[0]);
-		if ((size_t)offset >= cmdsize)
+		if (offset < 0 || (size_t)offset >= cmdsize)
 			err(1, "snprintf() failed");
 		p += offset;
 		cmdsize -= offset;
 		for (i = 1; i <= nargs; i++) {
 			offset = snprintf(p, cmdsize, " %c%d", magic, i);
-			if ((size_t)offset >= cmdsize)
+			if (offset < 0 || (size_t)offset >= cmdsize)
 				err(1, "snprintf() failed");
 			p += offset;
 			cmdsize -= offset;
@@ -163,7 +163,7 @@ main(int argc, char *argv[]) {
 			nargs = 1;
 	} else {
 		offset = snprintf(cmd, cmdsize, EXEC "%s", argv[0]);
-		if ((size_t)offset >= cmdsize)
+		if (offset < 0 || (size_t)offset >= cmdsize)
 			err(1, "snprintf() failed");
 		nargs = n;
 	}
@@ -196,7 +196,7 @@ main(int argc, char *argv[]) {
 			if (p[0] == magic && isdigit(p[1]) && p[1] != '0') {
 				offset = snprintf(q, l, "%s",
 				    argv[(++p)[0] - '0']);
-				if ((size_t)offset >= l)
+				if (offset < 0 || (size_t)offset >= l)
 					err(1, "snprintf() failed");
 				q += offset;
 				l -= offset;
