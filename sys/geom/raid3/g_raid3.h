@@ -84,8 +84,6 @@ extern u_int g_raid3_debug;
 	}								\
 } while (0)
 
-#define	G_RAID3_MAX_IO_SIZE	(DFLTPHYS * 2)
-
 #define	G_RAID3_BIO_CFLAG_REGULAR	0x01
 #define	G_RAID3_BIO_CFLAG_SYNC		0x02
 #define	G_RAID3_BIO_CFLAG_PARITY	0x04
