@@ -215,6 +215,6 @@ int yes (int x, int y, int z);
 int yesm (int x, int y, int z);
 
 /* We need to get a little tricky to avoid strings */
-#define DECR(a,b,c,d,e) decr('a'+'+','b'+'-','c'+'#','d'+'&','e'+'%')
+#define DECR(a,b,c,d,e) decr(a+'+',b+'-',c+'#',d+'&',e+'%')
 
 gid_t	egid;
