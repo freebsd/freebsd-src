@@ -8,5 +8,5 @@ include GENERIC
 
 ident		SMP-GENERIC
 
-# To make an SMP kernel, the next two lines are needed
+# To make an SMP kernel, the next line is needed
 options 	SMP			# Symmetric MultiProcessor Kernel
