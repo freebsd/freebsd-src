@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.36 1995/05/30 08:01:21 rgrimes Exp $
+ *      $Id: bt742a.c,v 1.36.4.1 1995/08/31 06:17:11 davidg Exp $
  */
 
 /*
@@ -692,6 +692,7 @@ btattach(dev)
 {
 	int	unit = dev->id_unit;
 	struct	bt_data *bt = btdata[unit];
+	struct	scsibus_data *scbus;
 
 	btprobing = 0;
 	/*
@@ -703,12 +704,22 @@ btattach(dev)
 	bt->sc_link.device = &bt_dev;
 	bt->sc_link.flags = SDEV_BOUNCE;
 
+	/*
+	 * Prepare the scsibus_data area for the upperlevel
+	 * scsi code.
+	 */
+	scbus = scsi_alloc_bus();
+	/* XXX scbus->magtarg should be adjusted for Wide cards */
+	if(!scbus)
+		return 0;
+	scbus->adapter_link = &bt->sc_link;
+
 	kdc_bt[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 
 	/*
 	 * ask the adapter what subunits are present
 	 */
-	scsi_attachdevs(&(bt->sc_link));
+	scsi_attachdevs(scbus);
 	return 1;
 }
 
