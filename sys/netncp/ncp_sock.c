@@ -46,6 +46,7 @@
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/mbuf.h>
+#include <sys/condvar.h>
 #include <net/route.h>
 
 #include <netipx/ipx.h>
@@ -188,18 +189,19 @@ int
 ncp_sock_rselect(struct socket *so,struct proc *p, struct timeval *tv, int events)
 {
 	struct timeval atv,rtv,ttv;
-	int s,timo,error=0;
+	int timo,error=0;
 
 	if (tv) {
 		atv=*tv;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
-			goto done;
+			goto done_noproclock;
 		}
 		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
 	}
 	timo = 0;
+	PROC_LOCK(p);
 retry:
 	p->p_flag |= P_SELECT;
 	error = ncp_poll(so, events);
@@ -215,16 +217,18 @@ retry:
 		timevalsub(&ttv, &rtv);
 		timo = tvtohz(&ttv);
 	}
-	s = splhigh();
-	if ((p->p_flag & P_SELECT) == 0) {
-		splx(s);
-		goto retry;
-	}
 	p->p_flag &= ~P_SELECT;
-	error = tsleep((caddr_t)&selwait, PSOCK, "ncpslt", timo);
-	splx(s);
+	if (timo > 0)
+		error = cv_timedwait(&selwait, &p->p_mtx, timo);
+	else {
+		cv_wait(&selwait, &p->p_mtx);
+		error = 0;
+	}
+
 done:
 	p->p_flag &= ~P_SELECT;
+	PROC_UNLOCK(p);
+done_noproclock:
 	if (error == ERESTART) {
 /*		printf("Signal: %x", CURSIG(p));*/
 		error = 0;
