@@ -35,8 +35,8 @@
 #include "names.h"
 
 #ifndef	lint
-static char *moduleid =
-	"@(#)$Id$";
+static char *moduleid = 
+	"@(#)$Id: ascmagic.c,v 1.1.1.3 1997/03/18 17:58:46 mpp Exp $";
 #endif	/* lint */
 
 			/* an optimisation over plain strcmp() */
@@ -89,6 +89,7 @@ int nbytes;	/* size actually read */
 	}
 
 
+	/* Make sure we are dealing with ascii text before looking for tokens */
 	for (i = 0; i < nbytes; i++) {
 		if (!isascii(buf[i]))
 			return 0;	/* not all ASCII */
