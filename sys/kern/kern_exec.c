@@ -104,8 +104,8 @@ sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	p = curproc;
-#if defined(__amd64__) || defined(__ia64__)
-	if (req->oldlen == sizeof(unsigned int)) {
+#ifdef SCTL_MASK32
+	if (req->flags & SCTL_MASK32) {
 		unsigned int val;
 		val = (unsigned int)p->p_sysent->sv_psstrings;
 		error = SYSCTL_OUT(req, &val, sizeof(val));
@@ -123,8 +123,8 @@ sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	p = curproc;
-#if defined(__amd64__) || defined(__ia64__)
-	if (req->oldlen == sizeof(unsigned int)) {
+#ifdef SCTL_MASK32
+	if (req->flags & SCTL_MASK32) {
 		unsigned int val;
 		val = (unsigned int)p->p_sysent->sv_usrstack;
 		error = SYSCTL_OUT(req, &val, sizeof(val));

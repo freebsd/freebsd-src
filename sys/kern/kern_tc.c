@@ -92,8 +92,9 @@ time_t time_uptime = 0;
 
 static struct bintime boottimebin;
 struct timeval boottime;
-SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD,
-    &boottime, timeval, "System boottime");
+static int sysctl_kern_boottime(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_kern, KERN_BOOTTIME, boottime, CTLTYPE_STRUCT|CTLFLAG_RD,
+    NULL, 0, sysctl_kern_boottime, "S,timeval", "System boottime");
 
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
 
@@ -116,6 +117,20 @@ TC_STATS(nsetclock);
 
 static void tc_windup(void);
 
+static int
+sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
+{
+#ifdef SCTL_MASK32
+	int tv[2];
+
+	if (req->flags & SCTL_MASK32) {
+		tv[0] = boottime.tv_sec;
+		tv[1] = boottime.tv_usec;
+		return SYSCTL_OUT(req, tv, sizeof(tv));
+	} else
+#endif
+		return SYSCTL_OUT(req, &boottime, sizeof(boottime));
+}
 /*
  * Return the difference between the timehands' counter value now and what
  * was when we copied it to the timehands' offset_count.

@@ -828,20 +828,35 @@ int
 sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
-	long tmpout;
+	long tmplong;
+#ifdef SCTL_MASK32
+	int tmpint;
+#endif
 
 	/*
 	 * Attempt to get a coherent snapshot by making a copy of the data.
 	 */
 	if (!arg1)
 		return (EINVAL);
-	tmpout = *(long *)arg1;
-	error = SYSCTL_OUT(req, &tmpout, sizeof(long));
+	tmplong = *(long *)arg1;
+#ifdef SCTL_MASK32
+	if (req->flags & SCTL_MASK32) {
+		tmpint = tmplong;
+		error = SYSCTL_OUT(req, &tmpint, sizeof(int));
+	} else
+#endif
+		error = SYSCTL_OUT(req, &tmplong, sizeof(long));
 
 	if (error || !req->newptr)
 		return (error);
 
-	error = SYSCTL_IN(req, arg1, sizeof(long));
+#ifdef SCTL_MASK32
+	if (req->flags & SCTL_MASK32) {
+		error = SYSCTL_IN(req, &tmpint, sizeof(int));
+		*(long *)arg1 = (long)tmpint;
+	} else
+#endif
+		error = SYSCTL_IN(req, arg1, sizeof(long));
 	return (error);
 }
 
@@ -965,7 +980,7 @@ sysctl_new_kernel(struct sysctl_req *req, void *p, size_t l)
 
 int
 kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
-    size_t *oldlenp, void *new, size_t newlen, size_t *retval)
+    size_t *oldlenp, void *new, size_t newlen, size_t *retval, int flags)
 {
 	int error = 0;
 	struct sysctl_req req;
@@ -973,6 +988,7 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	bzero(&req, sizeof req);
 
 	req.td = td;
+	req.flags = flags;
 
 	if (oldlenp) {
 		req.oldlen = *oldlenp;
@@ -1015,7 +1031,7 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 int
 kernel_sysctlbyname(struct thread *td, char *name, void *old, size_t *oldlenp,
-    void *new, size_t newlen, size_t *retval)
+    void *new, size_t newlen, size_t *retval, int flags)
 {
         int oid[CTL_MAXNAME];
         size_t oidlen, plen;
@@ -1026,12 +1042,12 @@ kernel_sysctlbyname(struct thread *td, char *name, void *old, size_t *oldlenp,
 	oidlen = sizeof(oid);
 
 	error = kernel_sysctl(td, oid, 2, oid, &oidlen,
-	    (void *)name, strlen(name), &plen);
+	    (void *)name, strlen(name), &plen, flags);
 	if (error)
 		return (error);
 
 	error = kernel_sysctl(td, oid, plen / sizeof(int), old, oldlenp,
-	    new, newlen, retval);
+	    new, newlen, retval, flags);
 	return (error);
 }
 
@@ -1256,7 +1272,7 @@ __sysctl(struct thread *td, struct sysctl_args *uap)
 
 	error = userland_sysctl(td, name, uap->namelen,
 		uap->old, uap->oldlenp, 0,
-		uap->new, uap->newlen, &j);
+		uap->new, uap->newlen, &j, 0);
 	if (error && error != ENOMEM)
 		goto done2;
 	if (uap->oldlenp) {
@@ -1275,7 +1291,8 @@ done2:
  */
 int
 userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
-    size_t *oldlenp, int inkernel, void *new, size_t newlen, size_t *retval)
+    size_t *oldlenp, int inkernel, void *new, size_t newlen, size_t *retval,
+    int flags)
 {
 	int error = 0;
 	struct sysctl_req req;
@@ -1283,6 +1300,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	bzero(&req, sizeof req);
 
 	req.td = td;
+	req.flags = flags;
 
 	if (oldlenp) {
 		if (inkernel) {

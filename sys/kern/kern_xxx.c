@@ -192,7 +192,7 @@ uname(td, uap)
 	len = sizeof (uap->name->sysname);
 	mtx_lock(&Giant);
 	error = userland_sysctl(td, name, 2, uap->name->sysname, &len, 
-		1, 0, 0, 0);
+		1, 0, 0, 0, 0);
 	if (error)
 		goto done2;
 	subyte( uap->name->sysname + sizeof(uap->name->sysname) - 1, 0);
@@ -200,7 +200,7 @@ uname(td, uap)
 	name[1] = KERN_HOSTNAME;
 	len = sizeof uap->name->nodename;
 	error = userland_sysctl(td, name, 2, uap->name->nodename, &len, 
-		1, 0, 0, 0);
+		1, 0, 0, 0, 0);
 	if (error)
 		goto done2;
 	subyte( uap->name->nodename + sizeof(uap->name->nodename) - 1, 0);
@@ -208,7 +208,7 @@ uname(td, uap)
 	name[1] = KERN_OSRELEASE;
 	len = sizeof uap->name->release;
 	error = userland_sysctl(td, name, 2, uap->name->release, &len, 
-		1, 0, 0, 0);
+		1, 0, 0, 0, 0);
 	if (error)
 		goto done2;
 	subyte( uap->name->release + sizeof(uap->name->release) - 1, 0);
@@ -217,7 +217,7 @@ uname(td, uap)
 	name = KERN_VERSION;
 	len = sizeof uap->name->version;
 	error = userland_sysctl(td, name, 2, uap->name->version, &len, 
-		1, 0, 0, 0);
+		1, 0, 0, 0, 0);
 	if (error)
 		goto done2;
 	subyte( uap->name->version + sizeof(uap->name->version) - 1, 0);
@@ -241,7 +241,7 @@ uname(td, uap)
 	name[1] = HW_MACHINE;
 	len = sizeof uap->name->machine;
 	error = userland_sysctl(td, name, 2, uap->name->machine, &len, 
-		1, 0, 0, 0);
+		1, 0, 0, 0, 0);
 	if (error)
 		goto done2;
 	subyte( uap->name->machine + sizeof(uap->name->machine) - 1, 0);
