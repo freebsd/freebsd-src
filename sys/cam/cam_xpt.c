@@ -2,7 +2,7 @@
  * Implementation of the Common Access Method Transport (XPT) layer.
  *
  * Copyright (c) 1997, 1998, 1999 Justin T. Gibbs.
- * Copyright (c) 1997, 1998 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.36 1999/01/14 06:03:59 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.37 1999/01/19 00:13:05 peter Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -301,7 +301,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/* Broken tagged queuing drive */ 
-		{ T_DIRECT, SIP_MEDIA_FIXED, "CONNER", "CFP2107*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "CONNER", "CFP*", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
         {
@@ -914,6 +914,7 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		}
 		case XPT_DEV_MATCH: {
 			struct cam_periph_map_info mapinfo;
+			struct cam_path *old_path;
 
 			/*
 			 * We can't deal with physical addresses for this
@@ -923,6 +924,21 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 				error = EINVAL;
 				break;
 			}
+
+			/*
+			 * Save this in case the caller had it set to
+			 * something in particular.
+			 */
+			old_path = inccb->ccb_h.path;
+
+			/*
+			 * We really don't need a path for the matching
+			 * code.  The path is needed because of the
+			 * debugging statements in xpt_action().  They
+			 * assume that the CCB has a valid path.
+			 */
+			inccb->ccb_h.path = xpt_periph->path;
+
 			bzero(&mapinfo, sizeof(mapinfo));
 
 			/*
@@ -931,8 +947,10 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			 */
 			error = cam_periph_mapmem(inccb, &mapinfo);
 
-			if (error)
+			if (error) {
+				inccb->ccb_h.path = old_path;
 				break;
+			}
 
 			/*
 			 * This is an immediate CCB, we can send it on directly.
@@ -943,6 +961,8 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			 * Map the buffers back into user space.
 			 */
 			cam_periph_unmapmem(inccb, &mapinfo);
+
+			inccb->ccb_h.path = old_path;
 
 			error = 0;
 			break;
