@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 /*
  * The SVID interface to getsubopt provides no way of figuring out which
