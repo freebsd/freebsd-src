@@ -177,6 +177,7 @@ static	void	m32_dump(struct softc *sc);
 static	void	f54_dump(struct softc *sc);
 static	void	mn_fmt_ts(char *p, u_int32_t ts);
 #endif /* notyet */
+static	void	f54_init(struct softc *sc);
 
 static	ng_constructor_t ngmn_constructor;
 static	ng_rcvmsg_t ngmn_rcvmsg;
@@ -235,11 +236,15 @@ struct schan {
 	u_long		tx_limit;
 };
 
+enum framing {WHOKNOWS, E1, E1U, T1, T1U};
+
 struct softc {
 	int	unit;
 	device_t	dev;
 	struct resource *irq;
 	void *intrhand;
+	enum framing	framing;
+	int 		nhooks;
 	void 		*m0v, *m1v;
 	vm_offset_t	m0p, m1p;
 	struct m32xreg	*m32x;
@@ -280,25 +285,72 @@ ngmn_shutdown(node_p nodep)
 	return (EINVAL);
 }
 
+static void
+ngmn_config(node_p node, char *set, char *ret)
+{
+	struct softc *sc;
+	enum framing wframing;
+
+	sc = NG_NODE_PRIVATE(node);
+
+	if (set != NULL) {
+		if (!strncmp(set, "line ", 5)) {
+			wframing = sc->framing;
+			if (!strcmp(set, "line e1")) {
+				wframing = E1;
+			} else if (!strcmp(set, "line e1u")) {
+				wframing = E1U;
+			} else {
+				strcat(ret, "ENOGROK\n");
+				return;
+			}
+			if (wframing == sc->framing)
+				return;
+			if (sc->nhooks > 0) {
+				sprintf(ret, "Cannot change line when %d hooks open\n", sc->nhooks);
+				return;
+			}
+			sc->framing = wframing;
+#if 1
+			f54_init(sc);
+#else
+			mn_reset(sc);
+#endif
+		} else {
+			printf("%s CONFIG SET [%s]\n", sc->nodename, set);
+			strcat(ret, "ENOGROK\n");
+			return;
+		}
+	}
+	
+}
+
 static int
 ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct softc *sc;
 	struct ng_mesg *resp = NULL;
 	struct schan *sch;
-	char *arg;
+	char *s, *r;
 	int pos, i;
 	struct ng_mesg *msg;
 
 	NGI_GET_MSG(item, msg);
 	sc = NG_NODE_PRIVATE(node);
 
-	if (msg->header.typecookie != NGM_GENERIC_COOKIE ||
+	if (msg->header.typecookie != NGM_GENERIC_COOKIE) {
+		NG_FREE_ITEM(item);
+		NG_FREE_MSG(msg);
+		return (EINVAL);
+	}
+		
+	if (msg->header.cmd != NGM_TEXT_CONFIG && 
 	    msg->header.cmd != NGM_TEXT_STATUS) {
 		NG_FREE_ITEM(item);
 		NG_FREE_MSG(msg);
 		return (EINVAL);
 	}
+
 	NG_MKRESPONSE(resp, msg, sizeof(struct ng_mesg) + NG_TEXTRESPONSE,
 	    M_NOWAIT);
 	if (resp == NULL) {
@@ -306,9 +358,22 @@ ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		NG_FREE_MSG(msg);
 		return (ENOMEM);
 	}
-	arg = (char *)resp->data;
+
+	if (msg->header.arglen) 
+		s = (char *)msg->data;
+	else
+		s = NULL;
+	r = (char *)resp->data;
+	*r = '\0';
+
+	if (msg->header.cmd == NGM_TEXT_CONFIG) {
+		ngmn_config(node, s, r);
+		resp->header.arglen = strlen(r) + 1;
+		FREE(msg, M_NETGRAPH);
+		return (0);
+	}
 	pos = 0;
-	pos += sprintf(pos + arg,"Framer status %b;\n", sc->framer_state, "\20"
+	pos += sprintf(pos + r,"Framer status %b;\n", sc->framer_state, "\20"
 	    "\40LOS\37AIS\36LFA\35RRA"
 	    "\34AUXP\33NMF\32LMFA\31frs0.0"
 	    "\30frs1.7\27TS16RA\26TS16LOS\25TS16AIS"
@@ -317,10 +382,10 @@ ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	    "\14RY1\13RY2\12RY3\11RY4"
 	    "\10SI1\7SI2\6rsp.5\5rsp.4"
 	    "\4rsp.3\3RSIF\2RS13\1RS15");
-	pos += sprintf(pos + arg,"    Framing errors: %lu", sc->cnt_fec);
-	pos += sprintf(pos + arg,"  Code Violations: %lu\n", sc->cnt_cvc);
+	pos += sprintf(pos + r,"    Framing errors: %lu", sc->cnt_fec);
+	pos += sprintf(pos + r,"  Code Violations: %lu\n", sc->cnt_cvc);
 	
-	pos += sprintf(pos + arg,"    Falc State %b;\n", sc->falc_state, "\20"
+	pos += sprintf(pos + r,"    Falc State %b;\n", sc->falc_state, "\20"
 	    "\40LOS\37AIS\36LFA\35RRA"
 	    "\34AUXP\33NMF\32LMFA\31frs0.0"
 	    "\30frs1.7\27TS16RA\26TS16LOS\25TS16AIS"
@@ -329,7 +394,7 @@ ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	    "\14RY1\13RY2\12RY3\11RY4"
 	    "\10SI1\7SI2\6rsp.5\5rsp.4"
 	    "\4rsp.3\3RSIF\2RS13\1RS15");
-	pos += sprintf(pos + arg, "    Falc IRQ %b\n", sc->falc_irq, "\20"
+	pos += sprintf(pos + r, "    Falc IRQ %b\n", sc->falc_irq, "\20"
 	    "\40RME\37RFS\36T8MS\35RMB\34CASC\33CRC4\32SA6SC\31RPF"
 	    "\30b27\27RDO\26ALLS\25XDU\24XMB\23b22\22XLSC\21XPR"
 	    "\20FAR\17LFA\16MFAR\15T400MS\14AIS\13LOS\12RAR\11RA"
@@ -339,39 +404,39 @@ ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			continue;
 		sch = sc->ch[i];
 
-		pos += sprintf(arg + pos, "  Chan %d <%s> ",
+		pos += sprintf(r + pos, "  Chan %d <%s> ",
 		    i, NG_HOOK_NAME(sch->hook));
 
-		pos += sprintf(arg + pos, "  Last Rx: ");
+		pos += sprintf(r + pos, "  Last Rx: ");
 		if (sch->last_recv)
-			pos += sprintf(arg + pos, "%lu s", time_second - sch->last_recv);
+			pos += sprintf(r + pos, "%lu s", time_second - sch->last_recv);
 		else
-			pos += sprintf(arg + pos, "never");
+			pos += sprintf(r + pos, "never");
 
-		pos += sprintf(arg + pos, ", last RxErr: ");
+		pos += sprintf(r + pos, ", last RxErr: ");
 		if (sch->last_rxerr)
-			pos += sprintf(arg + pos, "%lu s", time_second - sch->last_rxerr);
+			pos += sprintf(r + pos, "%lu s", time_second - sch->last_rxerr);
 		else
-			pos += sprintf(arg + pos, "never");
+			pos += sprintf(r + pos, "never");
 
-		pos += sprintf(arg + pos, ", last Tx: ");
+		pos += sprintf(r + pos, ", last Tx: ");
 		if (sch->last_xmit)
-			pos += sprintf(arg + pos, "%lu s\n", time_second - sch->last_xmit);
+			pos += sprintf(r + pos, "%lu s\n", time_second - sch->last_xmit);
 		else
-			pos += sprintf(arg + pos, "never\n");
+			pos += sprintf(r + pos, "never\n");
 
-		pos += sprintf(arg + pos, "    RX error(s) %lu", sch->rx_error);
-		pos += sprintf(arg + pos, " Short: %lu", sch->short_error);
-		pos += sprintf(arg + pos, " CRC: %lu", sch->crc_error);
-		pos += sprintf(arg + pos, " Mod8: %lu", sch->dribble_error);
-		pos += sprintf(arg + pos, " Long: %lu", sch->long_error);
-		pos += sprintf(arg + pos, " Abort: %lu", sch->abort_error);
-		pos += sprintf(arg + pos, " Overflow: %lu\n", sch->overflow_error);
+		pos += sprintf(r + pos, "    RX error(s) %lu", sch->rx_error);
+		pos += sprintf(r + pos, " Short: %lu", sch->short_error);
+		pos += sprintf(r + pos, " CRC: %lu", sch->crc_error);
+		pos += sprintf(r + pos, " Mod8: %lu", sch->dribble_error);
+		pos += sprintf(r + pos, " Long: %lu", sch->long_error);
+		pos += sprintf(r + pos, " Abort: %lu", sch->abort_error);
+		pos += sprintf(r + pos, " Overflow: %lu\n", sch->overflow_error);
 
-		pos += sprintf(arg + pos, "    Last error: %b  Prev error: %b\n",
+		pos += sprintf(r + pos, "    Last error: %b  Prev error: %b\n",
 		    sch->last_error, "\20\7SHORT\5CRC\4MOD8\3LONG\2ABORT\1OVERRUN",
 		    sch->prev_error, "\20\7SHORT\5CRC\4MOD8\3LONG\2ABORT\1OVERRUN");
-		pos += sprintf(arg + pos, "    Xmit bytes pending %ld\n",
+		pos += sprintf(r + pos, "    Xmit bytes pending %ld\n",
 		    sch->tx_pending);
 	}
 	resp->header.arglen = pos + 1;
@@ -395,9 +460,17 @@ ngmn_newhook(node_p node, hook_p hook, const char *name)
 		return (EINVAL);
 
 	ts = mn_parse_ts(name + 2, &nbit);
+	printf("%d bits %x\n", nbit, ts);
+	if (sc->framing == E1 && (ts & 1))
+		return (EINVAL);
+	if (sc->framing == E1U && nbit != 32)
+		return (EINVAL);
 	if (ts == 0)
 		return (EINVAL);
-	chan = ffs(ts) - 1;
+	if (sc->framing == E1)
+		chan = ffs(ts) - 1;
+	else
+		chan = 1;
 	if (!sc->ch[chan])
 		mn_create_channel(sc, chan);
 	else if (sc->ch[chan]->state == UP)
@@ -406,6 +479,7 @@ ngmn_newhook(node_p node, hook_p hook, const char *name)
 	sc->ch[chan]->hook = hook;
 	sc->ch[chan]->tx_limit = nbit * 8;
 	NG_HOOK_SET_PRIVATE(hook, sc->ch[chan]);
+	sc->nhooks++;
 	return(0);
 }
 
@@ -440,24 +514,24 @@ mn_parse_ts(const char *s, int *nbit)
 	char *p;
 
 	r = 0;
-	j = 0;
+	j = -1;
 	*nbit = 0;
 	while(*s) {
 		i = strtol(s, &p, 0);
-		if (i < 1 || i > 31)
+		if (i < 0 || i > 31)
 			return (0);
-		while (j && j < i) {
+		while (j != -1 && j < i) {
 			r |= 1 << j++;
 			(*nbit)++;
 		}
-		j = 0;
+		j = -1;
 		r |= 1 << i;
 		(*nbit)++;
 		if (*p == ',') {
 			s = p + 1;
 			continue;
 		} else if (*p == '-') {
-			j = i;
+			j = i + 1;
 			s = p + 1;
 			continue;
 		} else if (!*p) {
@@ -477,8 +551,8 @@ mn_fmt_ts(char *p, u_int32_t ts)
 	int j;
 
 	s = "";
-	ts &= 0xfffffffe;
-	for (j = 1; j < 32; j++) {
+	ts &= 0xffffffff;
+	for (j = 0; j < 32; j++) {
 		if (!(ts & (1 << j)))
 			continue;
 		sprintf(p, "%s%d", s, j);
@@ -572,6 +646,7 @@ ngmn_rcvdata(hook_p hook, item_p item)
 		    sch->tx_pending , m->m_pkthdr.len, m);
 #endif
 		sch->tx_pending += m->m_pkthdr.len;
+		sc->m32x->txpoll &= ~(1 << chan);
 	}
 	return (0);
 }
@@ -608,7 +683,10 @@ ngmn_connect(hook_p hook)
 	/* Init the receiver & xmitter to HDLC */
 	sc->m32_mem.cs[chan].flags = 0x80e90006;
 	/* Allocate two buffers per timeslot */
-	sc->m32_mem.cs[chan].itbs = nts * 2;
+	if (nts == 32)
+		sc->m32_mem.cs[chan].itbs = 63;
+	else
+		sc->m32_mem.cs[chan].itbs = nts * 2;
 
 	/* Setup a transmit chain with one descriptor */
 	/* XXX: we actually send a 1 byte packet */
@@ -744,6 +822,7 @@ ngmn_disconnect(hook_p hook)
 		sc->ch[chan]->x1 = dp2 = dp->vnext;
 		mn_free_desc(dp);
 	}
+	sc->nhooks--;
 	return(0);
 }
 
@@ -829,6 +908,9 @@ m32_init(struct softc *sc)
 #if 1
 	sc->m32x->mode2 = 0x00000081;
 	sc->m32x->txpoll = 0xffffffff;
+#elif 1
+	sc->m32x->mode2 = 0x00000081;
+	sc->m32x->txpoll = 0xffffffff;
 #else
 	sc->m32x->mode2 = 0x00000101;
 #endif
@@ -856,13 +938,19 @@ f54_init(struct softc *sc)
 
 	sc->f54w->fmr0 = 0xf0; /* X: HDB3, R: HDB3 */
 	sc->f54w->fmr1 = 0x0e; /* Send CRC4, 2Mbit, ECM */
-	sc->f54w->fmr2 = 0x03; /* Auto Rem-Alarm, Auto resync */
+	if (sc->framing == E1)
+		sc->f54w->fmr2 = 0x03; /* Auto Rem-Alarm, Auto resync */
+	else if (sc->framing == E1U)
+		sc->f54w->fmr2 = 0x33; /* dais, rtm, Auto Rem-Alarm, Auto resync */
 
 	sc->f54w->lim1 = 0xb0; /* XCLK=8kHz, .62V threshold */
 	sc->f54w->pcd =  0x0a;
 	sc->f54w->pcr =  0x15;
 	sc->f54w->xsw =  0x9f; /* fmr4 */
-	sc->f54w->xsp =  0x1c; /* fmr5 */
+	if (sc->framing == E1)
+		sc->f54w->xsp =  0x1c; /* fmr5 */
+	else if (sc->framing == E1U)
+		sc->f54w->xsp =  0x3c; /* tt0, fmr5 */
 	sc->f54w->xc0 =  0x07;
 	sc->f54w->xc1 =  0x3d;
 	sc->f54w->rc0 =  0x05;
@@ -1253,6 +1341,7 @@ mn_attach (device_t self)
 
 	sc->dev = self;
 	sc->unit = device_get_unit(self);
+	sc->framing = E1;
 	sprintf(sc->name, "mn%d", sc->unit);
 
         rid = PCIR_MAPS;
