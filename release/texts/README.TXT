@@ -32,7 +32,7 @@ If you're both technically proficient and know exactly what you're
 getting into here (e.g. you've been following -stable) then this
 snapshot is probably for you.  If you're more interested in doing
 business with FreeBSD than in playing with the cutting edge of
-technology, however, then 3.x or one of the 4.x releases,  is almost 
+technology, however, then 3.x or one of the 4.x releases is almost 
 certainly your best bet.
 
 Most information here is also available from the Documentation menu
@@ -51,7 +51,6 @@ during installation.
   LAYOUT.TXT    Information about the layout of the release directory.
                 If you are installing from floppies, it is especially
                 important that you read this section!
-
 
   HARDWARE.TXT  Information about the configuration of the GENERIC kernel
                 and supported hardware.  New installers should read this
@@ -75,13 +74,13 @@ so much as simply keeping up to date on the latest FreeBSD technology,
 you can also install one of our "snapshot" releases.
 
 For the most up-to-date software along the RELENG_3 branch
-(also known as 3.5-stable), please install your snapshots from from:
+(also known as 3.5-stable), please install your snapshots from:
 
         ftp://releng3.freebsd.org/pub/FreeBSD/
 
 For the most up-to-date software along the RELENG_4 branch
 (also known as 4.0-stable), now proceeding towards the release
-of FreeBSD 4.1, please install your snapshots from from:
+of FreeBSD 4.1, please install your snapshots from:
 
         ftp://releng4.freebsd.org/pub/FreeBSD/
 
