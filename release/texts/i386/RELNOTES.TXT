@@ -1108,10 +1108,11 @@ LAST resort!
 
 FreeBSD 4.x-RELEASE and 3.x-RELEASE CDs may be ordered on CDROM from:
 
-        Walnut Creek CDROM
+        BSDi / Walnut Creek CDROM
         4041 Pike Lane, Suite D
         Concord CA  94520
-        1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (FAX)
+        USA
+        +1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (FAX)
 
 Or via the Internet from orders@cdrom.com or http://www.cdrom.com.
 Their current catalog can be obtained via ftp from:
