@@ -1,9 +1,9 @@
-static char junk[] = "\n@(#) LIBI77 VERSION pjw,dmg-mods 19990503\n";
+static char junk[] = "\n@(#) LIBI77 VERSION pjw,dmg-mods 19991115\n";
 
 /*
 */
 
-char __G77_LIBI77_VERSION__[] = "0.5.25 19991024 (release)";
+char __G77_LIBI77_VERSION__[] = "0.5.25 20000603 (prerelease)";
 
 /*
 2.01	$ format added
@@ -301,6 +301,19 @@ wrtfmt.c:
 		 rdfmt.c: omit fixed-length buffer that could be overwritten
 		 by formats Inn or Lnn with nn > 83. */
 /* 3 May 1999:	open.c: insert two casts for machines with 64-bit longs. */
+/* 18 June 1999: backspace.c: allow for b->ufd changing in t_runc */
+/* 27 June 1999: rsne.c: fix bug in namelist input: a misplaced increment */
+/*		 could cause wrong array elements to be assigned; e.g.,	*/
+/*		 "&input k(5)=10*1 &end" assigned k(5) and k(15..23)	*/
+/* 15 Nov. 1999: endfile.c: set state to writing (b->uwrt = 1) when an */
+/*		endfile statement requires copying the file. */
+/*		(Otherwise an immediately following rewind statement */
+/*		could make the file appear empty.)  Also, supply a */
+/*		missing (long) cast in the sprintf call. */
+/*		 sfe.c: add #ifdef ALWAYS_FLUSH logic, for formatted I/O: */
+/*		Compiling libf2c with -DALWAYS_FLUSH should prevent losing */
+/*		any data in buffers should the program fault.  It also */
+/*		makes the program run more slowly. */
 
 
 
