@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 #define VERSION "1.7b 1985-04-19"
 
 /* Choose one of these */
@@ -31,6 +32,7 @@
 #include <sgtty.h>
 #include <signal.h>
 #include <setjmp.h>
+#include <unistd.h>
 jmp_buf intrenv;
 struct sgttyb sgttyOrg, sgttyNew;
 char stdioBuf[BUFSIZ];
