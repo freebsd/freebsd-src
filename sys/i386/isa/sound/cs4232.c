@@ -191,12 +191,10 @@ attach_cs4232(struct address_info * hw_config)
 	hw_config2.card_subtype = 0;
 	hw_config2.osp = hw_config->osp;
 
-	if (probe_mpu401(&hw_config2)) {
-	    mpu_detected = 1;
+	if (probe_mpu401(&hw_config2))
 	    attach_mpu401(&hw_config2);
-	} else {
+	else
 	    mpu_base = mpu_irq = 0;
-	}
     }
 #endif
 }
