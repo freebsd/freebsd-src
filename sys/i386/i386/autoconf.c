@@ -418,7 +418,7 @@ setroot()
 
 	newrootdev = makebdev(majdev, mindev);
 	rootdevs[0] = newrootdev;
-	sname = dsname(devsw(newrootdev)->d_name, unit, slice, part, partname);
+	sname = dsname(newrootdev, unit, slice, part, partname);
 	rootdevnames[0] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
 	sprintf(rootdevnames[0], "%s%s", sname, partname);
 
@@ -435,7 +435,7 @@ setroot()
 		return;
 	slice = COMPATIBILITY_SLICE;
 	rootdevs[1] = dkmodslice(newrootdev, slice);
-	sname = dsname(devsw(newrootdev)->d_name, unit, slice, part, partname);
+	sname = dsname(newrootdev, unit, slice, part, partname);
 	rootdevnames[1] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
 	sprintf(rootdevnames[1], "%s%s", sname, partname);
 }

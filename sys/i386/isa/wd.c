@@ -1233,7 +1233,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_ncylinders = du->dk_dd.d_ncylinders;
 	label.d_secpercyl = du->dk_dd.d_secpercyl;
 	label.d_secperunit = du->dk_dd.d_secperunit;
-	error = dsopen("wd", dev, fmt, 0, &du->dk_slices, &label);
+	error = dsopen(dev, fmt, 0, &du->dk_slices, &label);
 	}
 	du->dk_flags &= ~DKFL_LABELLING;
 	wdsleep(du->dk_ctrlr, "wdopn2");
@@ -1878,7 +1878,7 @@ wdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
 	du = wddrives[lunit];
 	wdsleep(du->dk_ctrlr, "wdioct");
-	error = dsioctl("wd", dev, cmd, addr, flags, &du->dk_slices);
+	error = dsioctl(dev, cmd, addr, flags, &du->dk_slices);
 	if (error != ENOIOCTL)
 		return (error);
 	switch (cmd) {

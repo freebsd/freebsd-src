@@ -144,7 +144,7 @@ idopen(dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_secperunit = drv->secperunit;
 
 	/* Initialize slice tables. */
-	error = dsopen("id", dev, fmt, 0, &drv->slices, &label);
+	error = dsopen(dev, fmt, 0, &drv->slices, &label);
 
 	return (error);
 }
@@ -171,7 +171,7 @@ idioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	if (drv == NULL)
 		return (ENXIO);
 
-	error = dsioctl("id", dev, cmd, addr, flag, &drv->slices);
+	error = dsioctl(dev, cmd, addr, flag, &drv->slices);
 
 	if (error == ENOIOCTL)
 		return (ENOTTY);

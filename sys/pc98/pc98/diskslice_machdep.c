@@ -257,7 +257,7 @@ reread_mbr:
 
 	/* Weakly verify it. */
 	cp = bp->b_data;
-	sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
+	sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
 		       partname);
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
 		if (bootverbose)
@@ -272,7 +272,7 @@ reread_mbr:
 	 */
 	if ((*(cp + 512) == 0x57) && (*(cp + 513) == 0x45) &&
 		(*(cp + 514) == 0x56) && (*(cp + 515) == 0x82)) {
-		sname = dsname(dname, dkunit(dev), BASE_SLICE,
+		sname = dsname(dev, dkunit(dev), BASE_SLICE,
 			RAW_PART, partname);
 		free(*sspp, M_DEVBUF);
 		ssp = dsmakeslicestruct(MAX_SLICES, lp);
@@ -296,7 +296,7 @@ reread_mbr:
 	    (*(cp + 0x1c) == 0x0) && 
 		((*(cp + 512) == 0xf0) || (*(cp + 512) == 0xf8)) &&
 	    (*(cp + 513) == 0xff) && (*(cp + 514) == 0xff)) {
-		sname = dsname(dname, dkunit(dev), BASE_SLICE,
+		sname = dsname(dev, dkunit(dev), BASE_SLICE,
 			RAW_PART, partname);
 		free(*sspp, M_DEVBUF);
 		ssp = dsmakeslicestruct(MAX_SLICES, lp);
@@ -405,14 +405,14 @@ reread_mbr:
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0)
 			continue;
-		sname = dsname(dname, dkunit(dev), BASE_SLICE + dospart,
+		sname = dsname(dev, dkunit(dev), BASE_SLICE + dospart,
 				RAW_PART, partname);
 #else
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
 		    && dp->dp_start == 0 && dp->dp_size == 0)
 			continue;
-		sname = dsname(dname, dkunit(dev), BASE_SLICE + dospart,
+		sname = dsname(dev, dkunit(dev), BASE_SLICE + dospart,
 			       RAW_PART, partname);
 #endif
 		/*
@@ -546,7 +546,7 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	/* Weakly verify it. */
 	cp = bp->b_data;
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
-		sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
+		sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
 			       partname);
 		if (bootverbose)
 			printf("%s: invalid extended partition table: no magic\n",
@@ -574,7 +574,7 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 #endif
 			char buf[32];
 
-			sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE,
+			sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE,
 				       RAW_PART, partname);
 			snprintf(buf, sizeof(buf), "%s", sname);
 			if (strlen(buf) < sizeof buf - 11)
@@ -591,7 +591,7 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			ext_sizes[dospart] = dp->dp_size;
 #endif
 		} else {
-			sname = dsname(dname, dkunit(dev), slice, RAW_PART,
+			sname = dsname(dev, dkunit(dev), slice, RAW_PART,
 				       partname);
 			check_part(sname, dp, ext_offset, nsectors, ntracks,
 				   mbr_offset);
