@@ -221,7 +221,7 @@ give_plex_to_volume(int volno, int plexno)
 	    "Too many plexes for volume %s",
 	    vol->name);
     else if ((vol->plexes > 0)				    /* we have other plexes */
-    &&((vol->flags & VF_CONFIG_SETUPSTATE) == 0))	    /* and we're not setting up state */
+        &&((vol->flags & VF_CONFIG_SETUPSTATE) == 0))	    /* and we're not setting up state */
 	invalidate_subdisks(&PLEX[plexno], sd_stale);	    /* make the subdisks invalid */
     vol->plex[vol->plexes] = plexno;			    /* this one */
     vol->plexes++;					    /* add another plex */
@@ -501,7 +501,7 @@ find_drive(const char *name, int create)
 	for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	    drive = &DRIVE[driveno];			    /* point to drive */
 	    if ((drive->label.name[0] != '\0')		    /* it has a name */
-&&(strcmp(drive->label.name, name) == 0)		    /* and it's this one */
+		&&(strcmp(drive->label.name, name) == 0)    /* and it's this one */
 	    &&(drive->state > drive_unallocated))	    /* and it's a real one: found */
 		return driveno;
 	}
@@ -654,7 +654,7 @@ return_drive_space(int driveno, int64_t offset, int length)
 	 * with a higher offset than the subdisk, or both.
 	 */
 	if ((fe > 1)					    /* not the first entry */
-&&((fe == drive->freelist_entries)			    /* gone past the end */
+	    &&((fe == drive->freelist_entries)		    /* gone past the end */
 	||(drive->freelist[fe].offset > offset)))	    /* or past the block were looking for */
 	    fe--;					    /* point to the block before */
 	dend = drive->freelist[fe].offset + drive->freelist[fe].sectors; /* end of the entry */
@@ -830,6 +830,7 @@ get_empty_volume(void)
 {
     int volno;
     struct volume *vol;
+    int i;
 
     /* first see if we have one which has been deallocated */
     for (volno = 0; volno < vinum_conf.volumes_allocated; volno++) {
@@ -845,6 +846,8 @@ get_empty_volume(void)
     bzero(vol, sizeof(struct volume));
     vol->flags |= VF_NEWBORN | VF_CREATED;		    /* newly born volume */
     vol->preferred_plex = ROUND_ROBIN_READPOL;		    /* round robin */
+    for (i = 0; i < MAXPLEX; i++)			    /* mark the plexes missing */
+	vol->plex[i] = -1;
     return volno;					    /* return the index */
 }
 
@@ -1467,7 +1470,6 @@ config_volume(int update)
 		token[parameter]);
 	}
     }
-
     current_volume = volno;				    /* note last referred volume */
     vol->volno = volno;					    /* also note in volume */
 
@@ -1573,7 +1575,7 @@ remove(struct vinum_ioctl_msg *msg)
 
     switch (message.type) {
     case drive_object:
-	remove_drive_entry(message.index, message.force, message.recurse);
+	remove_drive_entry(message.index, message.force);
 	updateconfig(0);
 	return;
 
@@ -1600,9 +1602,10 @@ remove(struct vinum_ioctl_msg *msg)
 
 /* Remove a drive.  */
 void
-remove_drive_entry(int driveno, int force, int recurse)
+remove_drive_entry(int driveno, int force)
 {
     struct drive *drive = &DRIVE[driveno];
+    int sdno;
 
     if ((driveno > vinum_conf.drives_allocated)		    /* not a valid drive */
     ||(drive->state == drive_unallocated)) {		    /* or nothing there */
@@ -1610,18 +1613,10 @@ remove_drive_entry(int driveno, int force, int recurse)
 	strcpy(ioctl_reply->msg, "No such drive");
     } else if (drive->opencount > 0) {			    /* we have subdisks */
 	if (force) {					    /* do it at any cost */
-	    int sdno;
-	    struct vinum_ioctl_msg sdmsg;
-
 	    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) {
 		if ((SD[sdno].state != sd_unallocated)	    /* subdisk is allocated */
-		&&(SD[sdno].driveno == driveno)) {	    /* and it belongs to this drive */
-		    sdmsg.index = sdno;
-		    sdmsg.type = sd_object;
-		    sdmsg.recurse = 1;
-		    sdmsg.force = force;
-		    remove(&sdmsg);			    /* remove the subdisk by force */
-		}
+		&&(SD[sdno].driveno == driveno))	    /* and it belongs to this drive */
+		    remove_sd_entry(sdno, force, 0);
 	    }
 	    remove_drive(driveno);			    /* now remove it */
 	    vinum_conf.drives_used--;			    /* one less drive */
@@ -1655,16 +1650,18 @@ remove_sd_entry(int sdno, int force, int recurse)
 		mysdno < plex->subdisks && &SD[plex->sdnos[mysdno]] != sd;
 		mysdno++);
 	    if (mysdno == plex->subdisks)		    /* didn't find it */
-		throw_rude_remark(ENOENT,
-		    "plex %s does not contain subdisk %s",
-		    plex->name,
-		    sd->name);
-	    if (mysdno < (plex->subdisks - 1))		    /* not the last subdisk */
-		bcopy(&plex->sdnos[mysdno + 1],
-		    &plex->sdnos[mysdno],
-		    (plex->subdisks - 1 - mysdno) * sizeof(int));
-	    plex->subdisks--;
-	    sd->plexno = -1;				    /* disown the subdisk */
+		log(LOG_ERR,
+		    "Error removing subdisk %s: not found in plex %s\n",
+		    SD[mysdno].name,
+		    plex->name);
+	    else {					    /* remove the subdisk from plex */
+		if (mysdno < (plex->subdisks - 1))	    /* not the last subdisk */
+		    bcopy(&plex->sdnos[mysdno + 1],
+			&plex->sdnos[mysdno],
+			(plex->subdisks - 1 - mysdno) * sizeof(int));
+		plex->subdisks--;
+		sd->plexno = -1;			    /* disown the subdisk */
+	    }
 
 	    /*
 	     * removing a subdisk from a striped or
@@ -1704,12 +1701,14 @@ remove_plex_entry(int plexno, int force, int recurse)
     if (plex->subdisks) {
 	if (force) {					    /* do it anyway */
 	    if (recurse) {				    /* remove all below */
-		for (sdno = 0; sdno < plex->subdisks; sdno++) {
+		int sds = plex->subdisks;
+		for (sdno = 0; sdno < sds; sdno++) {
 		    free_sd(plex->sdnos[sdno]);		    /* free all subdisks */
 		    vinum_conf.subdisks_used--;		    /* one less sd */
 		}
 	    } else {					    /* just tear them out */
-		for (sdno = 0; sdno < plex->subdisks; sdno++)
+		int sds = plex->subdisks;
+		for (sdno = 0; sdno < sds; sdno++)
 		    SD[plex->sdnos[sdno]].plexno = -1;	    /* no plex any more */
 	    }
 	} else {					    /* can't do it without force */
@@ -1718,14 +1717,6 @@ remove_plex_entry(int plexno, int force, int recurse)
 	}
     }
     if (plex->volno >= 0) {				    /* we are part of a volume */
-	/*
-	 * XXX This should be more intelligent.  We should
-	 * be able to remove a plex as long as the volume
-	 * does not lose any data, which is normally the
-	 * case when it has more than one plex.  To do it
-	 * right we must compare the completeness of the
-	 * mapping of all the plexes in the volume
-	 */
 	if (force) {					    /* do it at any cost */
 	    struct volume *vol = &VOL[plex->volno];
 	    int myplexno;
@@ -1733,20 +1724,15 @@ remove_plex_entry(int plexno, int force, int recurse)
 	    for (myplexno = 0; myplexno < vol->plexes; myplexno++)
 		if (vol->plex[myplexno] == plexno)	    /* found it */
 		    break;
-	    if (myplexno == vol->plexes) {		    /* didn't find it.  Huh? */
-		if (force)
-		    log(LOG_ERR,
-			"volume %s does not contain plex %s",
-			vol->name,
-			plex->name);
-		else
-		    throw_rude_remark(ENOENT,
-			"volume %s does not contain plex %s",
-			vol->name,
-			plex->name);
-	    }
+	    if (myplexno == vol->plexes)		    /* didn't find it.  Huh? */
+		log(LOG_ERR,
+		    "Error removing plex %s: not found in volume %s\n",
+		    plex->name,
+		    vol->name);
 	    if (myplexno < (vol->plexes - 1))		    /* not the last plex in the list */
-		bcopy(&vol->plex[myplexno + 1], &vol->plex[myplexno], vol->plexes - 1 - myplexno);
+		bcopy(&vol->plex[myplexno + 1],
+		    &vol->plex[myplexno],
+		    vol->plexes - 1 - myplexno);
 	    vol->plexes--;
 	} else {
 	    ioctl_reply->error = EBUSY;			    /* can't do that */
@@ -1773,15 +1759,11 @@ remove_volume_entry(int volno, int force, int recurse)
 	ioctl_reply->error = EBUSY;			    /* no getting around that */
     else if (vol->plexes) {
 	if (recurse && force) {				    /* remove all below */
-	    struct vinum_ioctl_msg plexmsg;
+	    int plexes = vol->plexes;
 
-	    plexmsg.type = plex_object;
-	    plexmsg.recurse = 1;
-	    plexmsg.force = force;
-	    for (plexno = vol->plexes; plexno > 0; plexno--) {
-		plexmsg.index = vol->plex[0];		    /* plex number */
-		remove(&plexmsg);
-	    }
+/*       for (plexno = plexes - 1; plexno >= 0; plexno--) */
+	    for (plexno = 0; plexno < plexes; plexno++)
+		remove_plex_entry(vol->plex[plexno], force, recurse);
 	    log(LOG_INFO, "vinum: removing %s\n", vol->name);
 	    free_volume(volno);
 	    vinum_conf.volumes_used--;			    /* one less volume */
@@ -1844,7 +1826,6 @@ update_plex_config(int plexno, int diskconfig)
      * two subdisks, and they must all be the same
      * size
      */
-
     if (plex->organization == plex_striped) {
 	data_sds = plex->subdisks;
 	required_sds = 2;
@@ -1923,10 +1904,7 @@ update_plex_config(int plexno, int diskconfig)
 	plex->length = 0;				    /* no size */
 	state = plex_down;				    /* take it down */
     }
-    if (diskconfig)
-	sdstatemap(plex);				    /* set the sddowncount */
-    else
-	set_plex_state(plexno, state, setstate_none | setstate_configuring); /* set all the state */
+    update_plex_state(plexno);				    /* set the state */
     plex->flags &= ~VF_NEWBORN;
 }
 
