@@ -1,6 +1,10 @@
 /* parse.y - parser for flex input */
 
-%token CHAR NUMBER SECTEND SCDECL XSCDECL WHITESPACE NAME PREVCCL EOF_OP
+%token CHAR NUMBER SECTEND SCDECL XSCDECL NAME PREVCCL EOF_OP
+%token OPTION_OP OPT_OUTFILE OPT_PREFIX OPT_YYCLASS
+
+%token CCE_ALNUM CCE_ALPHA CCE_BLANK CCE_CNTRL CCE_DIGIT CCE_GRAPH
+%token CCE_LOWER CCE_PRINT CCE_PUNCT CCE_SPACE CCE_UPPER CCE_XDIGIT
 
 %{
 /*-
@@ -29,7 +33,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: /home/daffy/u0/vern/flex/RCS/parse.y,v 2.15 93/12/09 13:57:23 vern Exp $ */
+/* $Header: /home/daffy/u0/vern/flex/RCS/parse.y,v 2.28 95/04/21 11:51:51 vern Exp $ */
 
 
 /* Some versions of bison are broken in that they use alloca() but don't
@@ -37,36 +41,62 @@
  * #ifdef chud to fix the problem, courtesy of Francois Pinard.
  */
 #ifdef YYBISON
-/* AIX requires this to be the first thing in the file.  */
-#ifdef __GNUC__
-#define alloca __builtin_alloca
-#else /* not __GNUC__ */
-#if HAVE_ALLOCA_H
-#include <alloca.h>
-#else /* not HAVE_ALLOCA_H */
-#ifdef _AIX
+/* AIX requires this to be the first thing in the file.  What a piece.  */
+# ifdef _AIX
  #pragma alloca
-#else /* not _AIX */
+# endif
+#endif
+
+#include "flexdef.h"
+
+/* The remainder of the alloca() cruft has to come after including flexdef.h,
+ * so HAVE_ALLOCA_H is (possibly) defined.
+ */
+#ifdef YYBISON
+# ifdef __GNUC__
+#  ifndef alloca
+#   define alloca __builtin_alloca
+#  endif
+# else
+#  if HAVE_ALLOCA_H
+#   include <alloca.h>
+#  else
+#   ifdef __hpux
+void *alloca ();
+#   else
+#    ifdef __TURBOC__
+#     include <malloc.h>
+#    else
 char *alloca ();
-#endif /* not _AIX */
-#endif /* not HAVE_ALLOCA_H */
-#endif /* not __GNUC__ */
-#endif /* YYBISON */
+#    endif
+#   endif
+#  endif
+# endif
+#endif
 
 /* Bletch, ^^^^ that was ugly! */
 
 
-#include "flexdef.h"
+int pat, scnum, eps, headcnt, trailcnt, anyccl, lastchar, i, rulelen;
+int trlcontxt, xcluflg, currccl, cclsorted, varlength, variable_trail_rule;
 
-int pat, scnum, eps, headcnt, trailcnt, anyccl, lastchar, i, actvp, rulelen;
-int trlcontxt, xcluflg, cclsorted, varlength, variable_trail_rule;
-int *active_ss;
-Char clower();
-void build_eof_action();
-void yyerror();
+int *scon_stk;
+int scon_stk_ptr;
 
 static int madeany = false;  /* whether we've made the '.' character class */
 int previous_continued_action;	/* whether the previous rule's action was '|' */
+
+/* Expand a POSIX character class expression. */
+#define CCL_EXPR(func) \
+	{ \
+	int c; \
+	for ( c = 0; c < csize; ++c ) \
+		if ( isascii(c) && func(c) ) \
+			ccladd( currccl, c ); \
+	}
+
+/* While POSIX defines isblank(), it's not ANSI C. */
+#define IS_BLANK(c) ((c) == ' ' || (c) == '\t')
 
 /* On some over-ambitious machines, such as DEC Alpha's, the default
  * token type is "long" instead of "int"; this leads to problems with
@@ -113,30 +143,21 @@ initlex		:
 
 			/* Create default DFA start condition. */
 			scinstal( "INITIAL", false );
-
-			/* Initially, the start condition scoping is
-			 * "no start conditions active".
-			 */
-			actvp = 0;
 			}
 		;
 
-sect1		:  sect1 startconddecl WHITESPACE namelist1 '\n'
+sect1		:  sect1 startconddecl namelist1
+		|  sect1 options
 		|
-		|  error '\n'
+		|  error
 			{ synerr( "unknown error processing section 1" ); }
 		;
 
 sect1end	:  SECTEND
 			{
-			/* We now know how many start conditions there
-			 * are, so create the "activity" map indicating
-			 * which conditions are active.
-			 */
-			active_ss = allocate_integer_array( lastsc + 1 );
-
-			for ( i = 1; i <= lastsc; ++i )
-				active_ss[i] = 0;
+			check_options();
+			scon_stk = allocate_integer_array( lastsc + 1 );
+			scon_stk_ptr = 0;
 			}
 		;
 
@@ -147,7 +168,7 @@ startconddecl	:  SCDECL
 			{ xcluflg = true; }
 		;
 
-namelist1	:  namelist1 WHITESPACE NAME
+namelist1	:  namelist1 NAME
 			{ scinstal( nmstr, xcluflg ); }
 
 		|  NAME
@@ -157,7 +178,28 @@ namelist1	:  namelist1 WHITESPACE NAME
 			{ synerr( "bad start condition list" ); }
 		;
 
-sect2		:  sect2 initforrule flexrule '\n'
+options		:  OPTION_OP optionlist
+		;
+
+optionlist	:  optionlist option
+		|
+		;
+
+option		:  OPT_OUTFILE '=' NAME
+			{
+			outfilename = copy_string( nmstr );
+			did_outfilename = 1;
+			}
+		|  OPT_PREFIX '=' NAME
+			{ prefix = copy_string( nmstr ); }
+		|  OPT_YYCLASS '=' NAME
+			{ yyclass = copy_string( nmstr ); }
+		;
+
+sect2		:  sect2 scon initforrule flexrule '\n'
+			{ scon_stk_ptr = $2; }
+		|  sect2 scon '{' sect2 '}'
+			{ scon_stk_ptr = $2; }
 		|
 		;
 
@@ -168,54 +210,37 @@ initforrule	:
 			trailcnt = headcnt = rulelen = 0;
 			current_state_type = STATE_NORMAL;
 			previous_continued_action = continued_action;
+			in_rule = true;
+
 			new_rule();
 			}
 		;
 
-flexrule	:  scon '^' rule
+flexrule	:  '^' rule
 			{
-			pat = $3;
+			pat = $2;
 			finish_rule( pat, variable_trail_rule,
 				headcnt, trailcnt );
 
-			for ( i = 1; i <= actvp; ++i )
-				scbol[actvsc[i]] =
-					mkbranch( scbol[actvsc[i]], pat );
-
-			if ( ! bol_needed )
+			if ( scon_stk_ptr > 0 )
 				{
-				bol_needed = true;
-
-				if ( performance_report > 1 )
-					pinpoint_message( 
-			"'^' operator results in sub-optimal performance" );
+				for ( i = 1; i <= scon_stk_ptr; ++i )
+					scbol[scon_stk[i]] =
+						mkbranch( scbol[scon_stk[i]],
+								pat );
 				}
-			}
 
-		|  scon rule
-			{
-			pat = $2;
-			finish_rule( pat, variable_trail_rule,
-				headcnt, trailcnt );
+			else
+				{
+				/* Add to all non-exclusive start conditions,
+				 * including the default (0) start condition.
+				 */
 
-			for ( i = 1; i <= actvp; ++i )
-				scset[actvsc[i]] =
-					mkbranch( scset[actvsc[i]], pat );
-			}
-
-		|  '^' rule
-			{
-			pat = $2;
-			finish_rule( pat, variable_trail_rule,
-				headcnt, trailcnt );
-
-			/* Add to all non-exclusive start conditions,
-			 * including the default (0) start condition.
-			 */
-
-			for ( i = 1; i <= lastsc; ++i )
-				if ( ! scxclu[i] )
-					scbol[i] = mkbranch( scbol[i], pat );
+				for ( i = 1; i <= lastsc; ++i )
+					if ( ! scxclu[i] )
+						scbol[i] = mkbranch( scbol[i],
+									pat );
+				}
 
 			if ( ! bol_needed )
 				{
@@ -233,51 +258,82 @@ flexrule	:  scon '^' rule
 			finish_rule( pat, variable_trail_rule,
 				headcnt, trailcnt );
 
-			for ( i = 1; i <= lastsc; ++i )
-				if ( ! scxclu[i] )
-					scset[i] = mkbranch( scset[i], pat );
-			}
+			if ( scon_stk_ptr > 0 )
+				{
+				for ( i = 1; i <= scon_stk_ptr; ++i )
+					scset[scon_stk[i]] =
+						mkbranch( scset[scon_stk[i]],
+								pat );
+				}
 
-		|  scon EOF_OP
-			{ build_eof_action(); }
+			else
+				{
+				for ( i = 1; i <= lastsc; ++i )
+					if ( ! scxclu[i] )
+						scset[i] =
+							mkbranch( scset[i],
+								pat );
+				}
+			}
 
 		|  EOF_OP
 			{
-			/* This EOF applies to all start conditions
-			 * which don't already have EOF actions.
-			 */
-			actvp = 0;
+			if ( scon_stk_ptr > 0 )
+				build_eof_action();
+	
+			else
+				{
+				/* This EOF applies to all start conditions
+				 * which don't already have EOF actions.
+				 */
+				for ( i = 1; i <= lastsc; ++i )
+					if ( ! sceof[i] )
+						scon_stk[++scon_stk_ptr] = i;
 
-			for ( i = 1; i <= lastsc; ++i )
-				if ( ! sceof[i] )
-					actvsc[++actvp] = i;
-
-			if ( actvp == 0 )
-				warn(
+				if ( scon_stk_ptr == 0 )
+					warn(
 			"all start conditions already have <<EOF>> rules" );
 
-			else
-				build_eof_action();
+				else
+					build_eof_action();
+				}
 			}
 
 		|  error
 			{ synerr( "unrecognized rule" ); }
 		;
 
-scon		:  '<' namelist2 '>'
+scon_stk_ptr	:
+			{ $$ = scon_stk_ptr; }
+		;
+
+scon		:  '<' scon_stk_ptr namelist2 '>'
+			{ $$ = $2; }
 
 		|  '<' '*' '>'
 			{
-			actvp = 0;
+			$$ = scon_stk_ptr;
 
 			for ( i = 1; i <= lastsc; ++i )
-				actvsc[++actvp] = i;
+				{
+				int j;
+
+				for ( j = 1; j <= scon_stk_ptr; ++j )
+					if ( scon_stk[j] == i )
+						break;
+
+				if ( j > scon_stk_ptr )
+					scon_stk[++scon_stk_ptr] = i;
+				}
 			}
+
+		|
+			{ $$ = scon_stk_ptr; }
 		;
 
 namelist2	:  namelist2 ',' sconname
 
-		|  { actvp = 0; } sconname
+		|  sconname
 
 		|  error
 			{ synerr( "bad start condition list" ); }
@@ -291,15 +347,17 @@ sconname	:  NAME
 					nmstr );
 			else
 				{
-				if ( ++actvp >= current_max_scs )
-					/* Some bozo has included multiple
-					 * instances of start condition names.
-					 */
-					pinpoint_message(
-				"too many start conditions in <> construct!" );
+				for ( i = 1; i <= scon_stk_ptr; ++i )
+					if ( scon_stk[i] == scnum )
+						{
+						format_warn(
+							"<%s> specified twice",
+							scname[scnum] );
+						break;
+						}
 
-				else
-					actvsc[actvp] = scnum;
+				if ( i > scon_stk_ptr )
+					scon_stk[++scon_stk_ptr] = scnum;
 				}
 			}
 		;
@@ -666,14 +724,40 @@ ccl		:  ccl CHAR '-' CHAR
 			$$ = $1;
 			}
 
+		|  ccl ccl_expr
+			{
+			/* Too hard to properly maintain cclsorted. */
+			cclsorted = false;
+			$$ = $1;
+			}
+
 		|
 			{
 			cclsorted = true;
 			lastchar = 0;
-			$$ = cclinit();
+			currccl = $$ = cclinit();
 			}
 		;
 
+ccl_expr:	   CCE_ALNUM	{ CCL_EXPR(isalnum) }
+		|  CCE_ALPHA	{ CCL_EXPR(isalpha) }
+		|  CCE_BLANK	{ CCL_EXPR(IS_BLANK) }
+		|  CCE_CNTRL	{ CCL_EXPR(iscntrl) }
+		|  CCE_DIGIT	{ CCL_EXPR(isdigit) }
+		|  CCE_GRAPH	{ CCL_EXPR(isgraph) }
+		|  CCE_LOWER	{ CCL_EXPR(islower) }
+		|  CCE_PRINT	{ CCL_EXPR(isprint) }
+		|  CCE_PUNCT	{ CCL_EXPR(ispunct) }
+		|  CCE_SPACE	{ CCL_EXPR(isspace) }
+		|  CCE_UPPER	{
+				if ( caseins )
+					CCL_EXPR(islower)
+				else
+					CCL_EXPR(isupper)
+				}
+		|  CCE_XDIGIT	{ CCL_EXPR(isxdigit) }
+		;
+		
 string		:  string CHAR
 			{
 			if ( caseins && $2 >= 'A' && $2 <= 'Z' )
@@ -700,23 +784,23 @@ void build_eof_action()
 	register int i;
 	char action_text[MAXLINE];
 
-	for ( i = 1; i <= actvp; ++i )
+	for ( i = 1; i <= scon_stk_ptr; ++i )
 		{
-		if ( sceof[actvsc[i]] )
+		if ( sceof[scon_stk[i]] )
 			format_pinpoint_message(
 				"multiple <<EOF>> rules for start condition %s",
-				scname[actvsc[i]] );
+				scname[scon_stk[i]] );
 
 		else
 			{
-			sceof[actvsc[i]] = true;
+			sceof[scon_stk[i]] = true;
 			sprintf( action_text, "case YY_STATE_EOF(%s):\n",
-			scname[actvsc[i]] );
+				scname[scon_stk[i]] );
 			add_action( action_text );
 			}
 		}
 
-	line_directive_out( (FILE *) 0 );
+	line_directive_out( (FILE *) 0, 1 );
 
 	/* This isn't a normal rule after all - don't count it as
 	 * such, so we don't have any holes in the rule numbering
@@ -747,6 +831,18 @@ char str[];
 	{
 	syntaxerror = true;
 	pinpoint_message( str );
+	}
+
+
+/* format_warn - write out formatted warning */
+
+void format_warn( msg, arg )
+char msg[], arg[];
+	{
+	char warn_msg[MAXLINE];
+
+	(void) sprintf( warn_msg, msg, arg );
+	warn( warn_msg );
 	}
 
 
