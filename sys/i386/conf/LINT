@@ -1176,8 +1176,11 @@ disk		fd1	at fdc0 drive 1
 # mse: Logitech and ATI InPort bus mouse ports
 # sio: serial ports (see sio(4))
 
-device		olpt0	at isa? port? tty irq 7
-device		olpt1	at isa? port "IO_LPT3" tty irq 5
+# olpt is more than deprecated.  It never actually worked in any version
+# of RELENG_3.  Don't even attempt to lint it.
+#device		olpt0	at isa? port? tty irq 7
+#device		olpt1	at isa? port "IO_LPT3" tty irq 5
+
 device		mse0	at isa? port 0x23c tty irq 5
 
 device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4
