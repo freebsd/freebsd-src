@@ -49,7 +49,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	lock.9 \
 	make_dev.9 malloc.9 mbchain.9 mbuf.9 mdchain.9 \
 	mi_switch.9 microseq.9 microtime.9 microuptime.9 \
-	module.9 mutex.9 \
+	module.9 mtx_pool.9 mutex.9 \
 	namei.9 \
 	panic.9 pbuf.9 pfil.9 pfind.9 pgfind.9 \
 	physio.9 posix4.9 printf.9 pseudofs.9 psignal.9 \
@@ -309,6 +309,9 @@ MLINKS+=microtime.9 getmicrotime.9 microtime.9 nanotime.9
 MLINKS+=microtime.9 getnanotime.9
 MLINKS+=microuptime.9 getmicrouptime.9 microuptime.9 nanouptime.9
 MLINKS+=microuptime.9 getnanouptime.9
+
+MLINKS+=mtx_pool.9 mtx_pool_alloc.9 mtx_pool.9 mtx_pool_find.9
+MLINKS+=mtx_pool.9 mtx_pool_lock.9 mtx_pool.9 mtx_pool_unlock.9
 
 MLINKS+=mutex.9 mtx_init.9
 MLINKS+=mutex.9 mtx_lock.9 mutex.9 mtx_lock_flags.9
