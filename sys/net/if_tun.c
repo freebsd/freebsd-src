@@ -633,6 +633,7 @@ tunwrite(dev, uio, flag)
 	if (error) {
 		if (top)
 			m_freem (top);
+		ifp->if_ierrors++;
 		return error;
 	}
 
@@ -673,6 +674,9 @@ tunwrite(dev, uio, flag)
 		m_adj(top, sizeof(family));
 	} else
 		family = AF_INET;
+
+	ifp->if_ibytes += top->m_pkthdr.len;
+	ifp->if_ipackets++;
 
 	return family_enqueue(family, top);
 }
