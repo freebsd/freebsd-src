@@ -40,6 +40,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/disklabel.h>
@@ -62,7 +63,13 @@ static const char rcsid[] =
 
 #include "fsck.h"
 
+static void slowio_start(void);
+static void slowio_end(void);
+
 long	diskreads, totalreads;	/* Disk cache statistics */
+struct timeval slowio_starttime;
+int slowio_delay_usec = 10000;	/* Initial IO delay for background fsck */
+int slowio_pollcnt;
 
 int
 ftypeok(union dinode *dp)
@@ -350,10 +357,15 @@ bread(int fd, char *buf, ufs2_daddr_t blk, long size)
 
 	offset = blk;
 	offset *= dev_bsize;
+	if (bkgrdflag)
+		slowio_start();
 	if (lseek(fd, offset, 0) < 0)
 		rwerror("SEEK BLK", blk);
-	else if (read(fd, buf, (int)size) == size)
+	else if (read(fd, buf, (int)size) == size) {
+		if (bkgrdflag)
+			slowio_end();
 		return (0);
+	}
 	rwerror("READ BLK", blk);
 	if (lseek(fd, offset, 0) < 0)
 		rwerror("SEEK BLK", blk);
@@ -463,6 +475,39 @@ freeblk(ufs2_daddr_t blkno, long frags)
 	idesc.id_blkno = blkno;
 	idesc.id_numfrags = frags;
 	(void)pass4check(&idesc);
+}
+
+/* Slow down IO so as to leave some disk bandwidth for other processes */
+void
+slowio_start()
+{
+
+	/* Delay one in every 8 operations by 16 times the average IO delay */
+	slowio_pollcnt = (slowio_pollcnt + 1) & 7;
+	if (slowio_pollcnt == 0) {
+		usleep(slowio_delay_usec * 16);
+		gettimeofday(&slowio_starttime, NULL);
+	}
+}
+
+void
+slowio_end()
+{
+	struct timeval tv;
+	int delay_usec;
+
+	if (slowio_pollcnt != 0)
+		return;
+
+	/* Update the slowdown interval. */
+	gettimeofday(&tv, NULL);
+	delay_usec = (tv.tv_sec - slowio_starttime.tv_sec) * 1000000 +
+	    (tv.tv_usec - slowio_starttime.tv_usec);
+	if (delay_usec < 64)
+		delay_usec = 64;
+	if (delay_usec > 1000000)
+		delay_usec = 1000000;
+	slowio_delay_usec = (slowio_delay_usec * 63 + delay_usec) >> 6;
 }
 
 /*
