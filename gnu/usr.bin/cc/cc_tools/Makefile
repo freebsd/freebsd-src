@@ -88,7 +88,7 @@ GENSRCS+=	gxx-hash.h
 
 # make a link the the Cygnus used name for now -- hopes are they will change it
 hash.h: gxx-hash.h
-	ln -s ${.ALLSRC} ${.TARGET}
+	ln -sf ${.ALLSRC} ${.TARGET}
 GENSRCS+=	hash.h
 
 #-----------------------------------------------------------------------
