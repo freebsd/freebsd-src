@@ -4,6 +4,6 @@
 BINDIR?=	/bin
 WARNS?=		6
 
-.if !defined(WITH_DYNAMICROOT)
+.if defined(NO_DYNAMICROOT)
 NOSHARED?=	YES
 .endif
