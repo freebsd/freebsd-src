@@ -918,6 +918,9 @@ try_rpcbind:
 			if ((address = got_entry(relp, nconf)) != NULL) {
 				xdr_free((xdrproc_t) xdr_rpcb_entry_list_ptr,
 				    (char *)(void *)&relp);
+				CLNT_CONTROL(client, CLGET_SVC_ADDR,
+					(char *)(void *)&servaddr);
+				__rpc_fixup_addr(address, &servaddr);
 				goto done;
 			}
 			/* Entry not found for this transport */
