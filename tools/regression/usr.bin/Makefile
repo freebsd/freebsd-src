@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	uudecode uuencode
+SUBDIR=	uudecode uuencode xargs
 
 .include <bsd.subdir.mk>
