@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.10 1994/10/02 17:35:13 phk Exp $
+ *	$Id: kern_exec.c,v 1.11 1995/01/09 16:04:49 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <sys/malloc.h>
+#include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/shm.h>
 
@@ -214,9 +215,14 @@ interpret:
 	p->p_vmspace->vm_minsaddr = (char *)stack_base;
 
 	/*
-	 * Stuff argument count as first item on stack
+	 * If custom stack fixup routine present for this process
+	 * let it do the stack setup.
+	 * Else stuff argument count as first item on stack
 	 */
-	*(--stack_base) = iparams->argc;
+	if (p->p_sysent->sv_fixup)
+		(*p->p_sysent->sv_fixup)(&stack_base, iparams);
+	else
+		*(--stack_base) = iparams->argc;
 
 	/* close files on exec */
 	fdcloseexec(p);
