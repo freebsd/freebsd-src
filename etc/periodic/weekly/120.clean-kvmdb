@@ -1,9 +1,9 @@
 #!/bin/sh -
 #
-# $Id: 120.clean-kvmdb,v 1.1.1.1 1997/08/12 17:51:16 pst Exp $
+# $Id: 120.clean-kvmdb,v 1.1.1.1 1997/08/16 17:04:02 pst Exp $
 #
 
-if [ -d /var/db -a -x /usr/sbin/sysctl ] ; then
+if [ -d /var/db ] ; then
     echo ""
     echo "Cleaning up kernel database files:"
 
