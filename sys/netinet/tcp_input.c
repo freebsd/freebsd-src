@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- * $Id: tcp_input.c,v 1.5 1994/08/02 07:49:01 davidg Exp $
+ * $Id: tcp_input.c,v 1.6 1994/08/18 22:35:32 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -182,7 +182,7 @@ present:
 	 * Present data to user, advancing rcv_nxt through
 	 * completed sequence space.
 	 */
-	if (TCPS_HAVERCVDSYN(tp->t_state) == 0)
+	if (TCPS_HAVEESTABLISHED(tp->t_state) == 0)
 		return (0);
 	ti = tp->seg_next;
 	if (ti == (struct tcpiphdr *)tp || ti->ti_seq != tp->rcv_nxt)
