@@ -71,3 +71,6 @@ o Protocol-compressed packets are accepted even if they were denied
 o Passwords aren't logged when logging the ``set server'' line.
 o Command line options only need enough characters to uniquely identify
   them.  -a == -auto, -dd == -ddial etc.  -interactive is also allowed.
+o If you don't like seeing additional interface aliases when running in
+  -auto -alias mode, add ``iface clear'' to your ppp.linkdown file -
+  check the sample file.
