@@ -4199,6 +4199,22 @@ group_in_compile_stack (compile_stack, regnum)
   return false;
 }
 
+#ifdef __FreeBSD__
+static int collate_range_cmp (a, b)
+	int a, b;
+{
+	int r;
+	static char s[2][2];
+
+	if ((unsigned char)a == (unsigned char)b)
+		return 0;
+	s[0][0] = a;
+	s[1][0] = b;
+	if ((r = strcoll(s[0], s[1])) == 0)
+		r = (unsigned char)a - (unsigned char)b;
+	return r;
+}
+#endif
 
 /*
  * Read the ending character of a range (in a bracket expression) from the
@@ -4246,15 +4262,30 @@ compile_range (rxb, cs, p_ptr, pend, translate, syntax, inv_tr, valid_inv_tr)
 
   (*p_ptr)++;
 
+#ifdef __FreeBSD__
+  if (collate_range_cmp (range_start, range_end) > 0)
+#else
   if (range_start > range_end)
+#endif
     return syntax & RE_NO_EMPTY_RANGES ? REG_ERANGE : REG_NOERROR;
 
+#ifdef __FreeBSD__
+   for (this_char = 0; this_char < CHAR_SET_SIZE; this_char++)
+	if (   collate_range_cmp (range_start, this_char) <= 0
+	    && collate_range_cmp (this_char, range_end) <= 0
+	   ) {
+	  rx_Bitset it =
+	    inverse_translation (rxb, valid_inv_tr, inv_tr, translate, this_char);
+	  rx_bitset_union (rxb->rx.local_cset_size, cs, it);
+	}
+#else
   for (this_char = range_start; this_char <= range_end; this_char++)
     {
       rx_Bitset it =
 	inverse_translation (rxb, valid_inv_tr, inv_tr, translate, this_char);
       rx_bitset_union (rxb->rx.local_cset_size, cs, it);
     }
+#endif
   
   return REG_NOERROR;
 }
