@@ -1,0 +1,31 @@
+This is GNU bc version 1.04.  (And dc version 1.0.4)
+
+Changes from 1.03
+
+	reorganization of source tree
+	use of automake
+
+	new commands for dc (|, ~, r, a)
+	new command line options for dc
+
+	fixed infinite loop in sqrt in bc
+	fixed an I/O bug in bc
+	made bc conform to POSIX for array parameters
+	added long option support for bc
+	new commandline options for bc (-q)
+	added support for readline to bc (use configure --with-readline)
+	command line argumens can now be taken from an environment variable
+	
+
+Changes from 1.02
+
+	minor bug fixes in bc.
+
+	addition of Ken Pizzini's dc program that uses the GNU bc 
+	arbitrary precision arithmetic routines.
+
+Changes from 1.01
+	
+	minor bug fixes.
+
+
