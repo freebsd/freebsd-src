@@ -40,6 +40,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	From: @(#)procfs_regs.c	8.4 (Berkeley) 6/15/94
+ *
+ * From:
+ *	$Id: procfs_regs.c,v 3.2 1993/12/15 09:40:17 jsp Exp $
  * $FreeBSD$
  */
 
@@ -64,7 +68,7 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 	char *kv;
 	int kl;
 
-	if (p_candebug(td->td_proc, p) != 0)
+	if (p_candebug(td->td_proc, p))
 		return (EPERM);
 	kl = sizeof(r);
 	kv = (char *) &r;
@@ -78,14 +82,16 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 	if (kl < 0)
 		error = EINVAL;
 	else
-		error = proc_read_dbregs(FIRST_THREAD_IN_PROC(p), &r); /* XXXKSE */
+		/* XXXKSE: */
+		error = proc_read_dbregs(FIRST_THREAD_IN_PROC(p), &r);
 	if (error == 0)
 		error = uiomove(kv, kl, uio);
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
 		if (p->p_stat != SSTOP)
 			error = EBUSY;
 		else
-			error = proc_write_dbregs(FIRST_THREAD_IN_PROC(p), &r); /* XXXKSE */
+			/* XXXKSE: */
+			error = proc_write_dbregs(FIRST_THREAD_IN_PROC(p), &r);
 	}
 	PRELE(p);
 
