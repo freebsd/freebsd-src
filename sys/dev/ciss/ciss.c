@@ -2312,8 +2312,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
 
     /* check for I/O attempt to nonexistent device */
     if ((bus != 0) ||
-	(target >= CISS_MAX_LOGICAL) ||
-	(sc->ciss_logical[target].cl_status == CISS_LD_NONEXISTENT)) {
+	(target >= CISS_MAX_LOGICAL)) {
 	debug(3, "  device does not exist");
 	csio->ccb_h.status = CAM_REQ_CMP_ERR;
     }
