@@ -20,7 +20,7 @@ how to provide feedback are given below.           ______( (_  / \______/
 This install procedure is ALPHA code, and        `--{__________)
 may very possibly *DESTROY* the contents of your
 ENTIRE DISK!  Please do not proceed with this installation
-without adequately backing up your data first!
+unless you've adequately backed up your data first!
 
 If any errors occur during this installation, you can see them
 by toggling over to the alternate screen - type ALT-F2 to switch
@@ -28,6 +28,12 @@ over, ALT-F1 to switch back to the install screen.  The debugging
 output on the second screen may be very valuable to us in understanding
 your bug report, so please be sure to take note of it when reporting
 any failures in the installation!  Thanks!
+
+Menus and scrolling output windows may be traversed with the arrow
+and Page Up/Page Down keys.  To abort the installation at any point,
+hit ESC twice.  Hitting TAB will move the focus to different controls.
+If you've ever dealt with a DOS installation, you'll know how to deal
+with this.
 
 =============================================
 WHAT'S NEW IN THIS RELEASE (preliminary list)
