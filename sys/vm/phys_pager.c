@@ -30,6 +30,8 @@
 #include <sys/linker_set.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>

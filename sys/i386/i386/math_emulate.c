@@ -37,18 +37,17 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/proc.h>
+#include <sys/user.h>
 
 #include <machine/frame.h>
 #include <machine/reg.h>
 
-#include <sys/proc.h>
-#include <sys/kernel.h>
-
 #include <vm/vm.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>
 
 #define __ALIGNED_TEMP_REAL 1
 #include <i386/i386/math_emu.h>

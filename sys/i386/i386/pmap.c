@@ -74,15 +74,16 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/msgbuf.h>
-#include <sys/vmmeter.h>
+#include <sys/lock.h>
 #include <sys/mman.h>
+#include <sys/msgbuf.h>
+#include <sys/proc.h>
 #include <sys/sx.h>
+#include <sys/user.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
@@ -91,8 +92,6 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_zone.h>
-
-#include <sys/user.h>
 
 #include <machine/cputypes.h>
 #include <machine/md_var.h>

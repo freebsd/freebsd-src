@@ -44,15 +44,16 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/filedesc.h>
-#include <sys/vnode.h>
-#include <net/radix.h>
 #include <sys/socket.h>
-#include <sys/mount.h>
-#include <sys/malloc.h>
+#include <sys/vnode.h>
+
 #include <miscfs/fdesc/fdesc.h>
 
 static MALLOC_DEFINE(M_FDESCMNT, "FDESC mount", "FDESC mount structure");

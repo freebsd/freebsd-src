@@ -30,16 +30,17 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/consio.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/ioctl_compat.h>
-#include <sys/tty.h>
 #include <sys/kbio.h>
-#include <sys/consio.h>
-
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysproto.h>
+#include <sys/tty.h>
 
 #include <i386/ibcs2/ibcs2_signal.h>
 #include <i386/ibcs2/ibcs2_socksys.h>

@@ -43,6 +43,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
@@ -50,6 +52,8 @@
 #include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/lock.h>
+#include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -57,11 +61,10 @@
 #include <sys/signalvar.h>
 #include <sys/uio.h>
 #include <sys/vnode.h>
-#include <sys/lock.h>
-#include <sys/mount.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>

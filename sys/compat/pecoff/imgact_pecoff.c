@@ -46,14 +46,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/sysent.h>
 #include <sys/imgact.h>
-#include <sys/signalvar.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
-#include <sys/vnode.h>
 #include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/signalvar.h>
+#include <sys/sysent.h>
+#include <sys/vnode.h>
 
 #include <machine/reg.h>
 
@@ -61,7 +62,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <sys/lock.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>

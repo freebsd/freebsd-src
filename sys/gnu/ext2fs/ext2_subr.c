@@ -41,18 +41,21 @@
  */
 
 #include <sys/param.h>
-#include <gnu/ext2fs/ext2_fs_sb.h>
-#include <gnu/ext2fs/fs.h>
 
-#include <sys/lock.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/ucred.h>
-#include <sys/vnode.h>
-#include <gnu/ext2fs/ext2_extern.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/lock.h>
+#include <sys/ucred.h>
+#include <sys/vnode.h>
+
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+
+#include <gnu/ext2fs/ext2_extern.h>
+#include <gnu/ext2fs/ext2_fs_sb.h>
+#include <gnu/ext2fs/fs.h>
 
 #include "opt_ddb.h"
 

@@ -40,12 +40,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/fnv_hash.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/vnode.h>
-#include <sys/malloc.h>
-#include <sys/fnv_hash.h>
+#include <sys/proc.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <vm/vm_zone.h>
 

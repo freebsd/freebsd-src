@@ -39,11 +39,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/vnode.h>
-#include <net/radix.h>
-#include <sys/socket.h>
-#include <sys/mount.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/vnode.h>
 
 #include <fs/devfs/devfs.h>
 

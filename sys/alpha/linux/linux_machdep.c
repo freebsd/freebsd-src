@@ -29,18 +29,19 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/unistd.h>
+#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-
-#include <sys/proc.h>
-#include <sys/user.h>
 
 #include <alpha/linux/linux.h>
 #include <alpha/linux/linux_proto.h>

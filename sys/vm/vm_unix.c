@@ -45,13 +45,13 @@
  * Traditional sbrk/grow interface to VM
  */
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 

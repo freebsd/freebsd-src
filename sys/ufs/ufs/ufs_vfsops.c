@@ -42,11 +42,13 @@
 #include "opt_quota.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/mount.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/proc.h>
+#include <sys/socket.h>
 #include <sys/vnode.h>
 
 #include <ufs/ufs/extattr.h>

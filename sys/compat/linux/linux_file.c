@@ -32,18 +32,19 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
+#include <sys/conf.h>
+#include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/lock.h>
-#include <sys/proc.h>
-#include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/dirent.h>
-#include <sys/conf.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sysproto.h>
 #include <sys/tty.h>
+#include <sys/vnode.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>

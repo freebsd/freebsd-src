@@ -44,19 +44,20 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/kernel.h>	/* boottime */
+#include <sys/conf.h>
+#include <sys/dirent.h>
 #include <sys/filedesc.h>
-#include <sys/vnode.h>
+#include <sys/kernel.h>	/* boottime */
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <net/radix.h>
-#include <sys/socket.h>
+#include <sys/file.h>	/* Must come after sys/malloc.h */
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/dirent.h>
-#include <sys/conf.h>
+#include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/vnode.h>
+
 #include <miscfs/fdesc/fdesc.h>
 
 #define FDL_WANT	0x01

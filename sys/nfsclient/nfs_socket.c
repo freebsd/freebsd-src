@@ -43,18 +43,20 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/malloc.h>
-#include <sys/mount.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/vnode.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/syslog.h>
 #include <sys/sysctl.h>
-#include <sys/signalvar.h>
+#include <sys/syslog.h>
+#include <sys/vnode.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>

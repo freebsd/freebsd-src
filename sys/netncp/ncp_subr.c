@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <sys/param.h>
-#include <sys/errno.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 
 #include <netncp/ncp.h>

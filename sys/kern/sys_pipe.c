@@ -51,11 +51,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
+#include <sys/lock.h>
 #include <sys/ttycom.h>
 #include <sys/stat.h>
 #include <sys/poll.h>
@@ -63,13 +63,13 @@
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 #include <sys/pipe.h>
+#include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
 #include <sys/event.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/vm_object.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>

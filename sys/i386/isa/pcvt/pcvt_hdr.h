@@ -52,18 +52,20 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/callout.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/random.h>
 #include <sys/signalvar.h>
+#include <sys/syslog.h>
+#include <sys/time.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
-#include <sys/callout.h>
-#include <sys/kernel.h>
-#include <sys/random.h>
-#include <sys/syslog.h>
-#include <sys/malloc.h>
-#include <sys/time.h>
-#include <sys/cons.h>
 
 #include <machine/bus.h>
 #include <machine/psl.h>

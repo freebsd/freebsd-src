@@ -39,8 +39,10 @@
 
 #include <sys/resource.h>
 #include <sys/queue.h>
-#include <sys/lock.h>	/* XXX */
-#include <sys/mutex.h>	/* XXX */
+#ifdef _KERNEL
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+#endif
 
 /*
  * Kernel per-process accounting / statistics

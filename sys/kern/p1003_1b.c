@@ -38,12 +38,14 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/sysent.h>
-#include <sys/proc.h>
-#include <sys/syslog.h>
+#include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/sysproto.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
+#include <sys/syslog.h>
+#include <sys/sysproto.h>
 
 #include <posix4/posix4.h>
 

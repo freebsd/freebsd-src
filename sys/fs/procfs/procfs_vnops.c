@@ -45,23 +45,28 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
+#include <sys/dirent.h>
+#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/fcntl.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/pioctl.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/socket.h>
 #include <sys/sx.h>
-#include <sys/vnode.h>
+#include <sys/time.h>
 #include <sys/uio.h>
-#include <sys/mount.h>
-#include <sys/namei.h>
-#include <sys/dirent.h>
-#include <sys/malloc.h>
+#include <sys/vnode.h>
+
 #include <machine/reg.h>
+
 #include <vm/vm_zone.h>
+
 #include <miscfs/procfs/procfs.h>
-#include <sys/pioctl.h>
 
 static int	procfs_access __P((struct vop_access_args *));
 static int	procfs_badop __P((void));

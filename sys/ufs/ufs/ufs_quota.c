@@ -39,13 +39,16 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/namei.h>
-#include <sys/malloc.h>
 #include <sys/fcntl.h>
-#include <sys/proc.h>
-#include <sys/vnode.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/vnode.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>

@@ -40,17 +40,18 @@
 #include "opt_bootp.h"
 
 #include <sys/param.h>
-#include <sys/sockio.h>
-#include <sys/proc.h>
-#include <sys/vnode.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mount.h>
 #include <sys/mbuf.h>
+#include <sys/mount.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/systm.h>
+#include <sys/sockio.h>
+#include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

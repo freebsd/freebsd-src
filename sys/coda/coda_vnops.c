@@ -47,18 +47,19 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
-#include <sys/malloc.h>
-#include <net/radix.h>
-#include <sys/socket.h>
-#include <sys/mount.h>
-#include <sys/errno.h>
 #include <sys/acct.h>
-#include <sys/file.h>
+#include <sys/errno.h>
 #include <sys/fcntl.h>
-#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/file.h>		/* Must come after sys/malloc.h */
+#include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
