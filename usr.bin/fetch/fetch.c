@@ -70,7 +70,7 @@ int	 R_flag;	/*    -R: don't delete partially transferred files */
 int	 r_flag;	/*    -r: restart previously interrupted transfer */
 off_t	 S_size;        /*    -S: require size to match */
 int	 s_flag;        /*    -s: show size, don't fetch */
-u_int	 T_secs = 0;	/*    -T: transfer timeout in seconds */
+u_int	 T_secs = 120;	/*    -T: transfer timeout in seconds */
 int	 t_flag;	/*!   -t: workaround TCP bug */
 int	 U_flag;	/*    -U: do not use high ports */
 int	 v_level = 1;	/*    -v: verbosity level */
