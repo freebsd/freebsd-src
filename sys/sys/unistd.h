@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.2 (Berkeley) 1/7/94
- * $Id$
+ * $Id: unistd.h,v 1.2 1994/08/02 07:54:04 davidg Exp $
  */
 
 #ifndef _SYS_UNISTD_H_
@@ -41,14 +41,11 @@
 #define	_POSIX_JOB_CONTROL	/* implementation supports job control */
 
 /*
- * Although we have saved user/group IDs, we do not use them in setuid
- * as described in POSIX 1003.1, because the feature does not work for
- * root.  We use the saved IDs in seteuid/setegid, which are not currently
+ * This feature does not work for root according to POSIX 1003.1.
+ * We use the saved IDs in seteuid/setegid, which are not currently
  * part of the POSIX 1003.1 specification.
  */
-#ifdef	_NOT_AVAILABLE
 #define	_POSIX_SAVED_IDS	/* saved set-user-ID and set-group-ID */
-#endif
 
 #define	_POSIX_VERSION		198808L
 #define	_POSIX2_VERSION		199212L
