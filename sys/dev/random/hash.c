@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Mark R V Murray
+ * Copyright (c) 2000, 2001, 2002, 2003 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
