@@ -579,8 +579,42 @@ fixup_filename(const char *file)
 	return (file);
 }
 
+int
+witness_defineorder(struct lock_object *lock1, struct lock_object *lock2)
+{
+
+	if (witness_watch == 0 || panicstr != NULL)
+		return (0);
+
+	/* Require locks that witness knows about. */
+	if (lock1 == NULL || lock1->lo_witness == NULL || lock2 == NULL ||
+	    lock2->lo_witness == NULL)
+		return (EINVAL);
+
+	MPASS(!mtx_owned(&w_mtx));
+	mtx_lock_spin(&w_mtx);
+
+	/*
+	 * If we already have either an explicit or implied lock order that
+	 * is the other way around, then return an error.
+	 */
+	if (isitmydescendant(lock2->lo_witness, lock1->lo_witness)) {
+		mtx_unlock_spin(&w_mtx);
+		return (EDOOFUS);
+	}
+	
+	/* Try to add the new order. */
+	CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
+	    lock2->lo_type, lock1->lo_type);
+	if (!itismychild(lock1->lo_witness, lock2->lo_witness))
+		return (ENOMEM);
+	mtx_unlock_spin(&w_mtx);
+	return (0);
+}
+
 void
-witness_lock(struct lock_object *lock, int flags, const char *file, int line)
+witness_checkorder(struct lock_object *lock, int flags, const char *file,
+    int line)
 {
 	struct lock_list_entry **lock_list, *lle;
 	struct lock_instance *lock1, *lock2;
@@ -588,13 +622,22 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	struct witness *w, *w1;
 	struct thread *td;
 	int i, j;
-#ifdef DDB
-	int go_into_ddb = 0;
-#endif
 
 	if (witness_cold || witness_watch == 0 || lock->lo_witness == NULL ||
 	    panicstr != NULL)
 		return;
+
+	/*
+	 * Try locks do not block if they fail to acquire the lock, thus
+	 * there is no danger of deadlocks or of switching while holding a
+	 * spin lock if we acquire a lock via a try operation.  This
+	 * function shouldn't even be called for try locks, so panic if
+	 * that happens.
+	 */
+	if (flags & LOP_TRYLOCK)
+		panic("%s should not be called for try lock operations",
+		    __func__);
+
 	w = lock->lo_witness;
 	class = lock->lo_class;
 	td = curthread;
@@ -606,7 +649,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		 * impliclty enforces a lock order of all sleep locks before
 		 * all spin locks.
 		 */
-		if (td->td_critnest != 0 && (flags & LOP_TRYLOCK) == 0)
+		if (td->td_critnest != 0)
 			panic("blockable sleep lock (%s) %s @ %s:%d",
 			    class->lc_name, lock->lo_name, file, line);
 		lock_list = &td->td_sleeplocks;
@@ -618,10 +661,12 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	 * is needed.
 	 */
 	if (*lock_list == NULL)
-		goto out;
+		return;
 
 	/*
-	 * Check to see if we are recursing on a lock we already own.
+	 * Check to see if we are recursing on a lock we already own.  If
+	 * so, make sure that we don't mismatch exclusive and shared lock
+	 * acquires.
 	 */
 	lock1 = find_instance(*lock_list, lock);
 	if (lock1 != NULL) {
@@ -641,20 +686,6 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			    lock1->li_file, lock1->li_line);
 			panic("excl->share");
 		}
-		lock1->li_flags++;
-		if ((lock->lo_flags & LO_RECURSABLE) == 0) {
-			printf(
-			"recursed on non-recursive lock (%s) %s @ %s:%d\n",
-			    class->lc_name, lock->lo_name, file, line);
-			printf("first acquired @ %s:%d\n", lock1->li_file,
-			    lock1->li_line);
-			panic("recurse");
-		}
-		CTR4(KTR_WITNESS, "%s: pid %d recursed on %s r=%d", __func__,
-		    td->td_proc->p_pid, lock->lo_name,
-		    lock1->li_flags & LI_RECURSEMASK);
-		lock1->li_file = file;
-		lock1->li_line = line;
 		return;
 	}
 
@@ -664,7 +695,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	 * spin lock if we acquire a lock via a try operation.
 	 */
 	if (flags & LOP_TRYLOCK)
-		goto out;
+		return;
 
 	/*
 	 * Check for duplicate locks of the same type.  Note that we only
@@ -675,7 +706,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	w1 = lock1->li_lock->lo_witness;
 	if (w1 == w) {
 		if (w->w_same_squawked || (lock->lo_flags & LO_DUPOK))
-			goto out;
+			return;
 		w->w_same_squawked = 1;
 		printf("acquiring duplicate lock of same type: \"%s\"\n", 
 			lock->lo_type);
@@ -683,9 +714,10 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		    lock1->li_file, lock1->li_line);
 		printf(" 2nd %s @ %s:%d\n", lock->lo_name, file, line);
 #ifdef DDB
-		go_into_ddb = 1;
+		goto debugger;
+#else
+		return;
 #endif
-		goto out;
 	}
 	MPASS(!mtx_owned(&w_mtx));
 	mtx_lock_spin(&w_mtx);
@@ -694,7 +726,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	 */
 	if (witness_watch > 1 && w->w_level > w1->w_level) {
 		mtx_unlock_spin(&w_mtx);
-		goto out;
+		return;
 	}
 	/*
 	 * If we know that the the lock we are acquiring comes after
@@ -703,7 +735,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	 */
 	if (isitmydescendant(w1, w)) {
 		mtx_unlock_spin(&w_mtx);
-		goto out;
+		return;
 	}
 	for (j = 0, lle = *lock_list; lle != NULL; lle = lle->ll_next) {
 		for (i = lle->ll_count - 1; i >= 0; i--, j++) {
@@ -754,17 +786,22 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			 */
 			mtx_unlock_spin(&w_mtx);
 #ifdef BLESSING
+			/*
+			 * If the lock order is blessed, just bail.  We don't
+			 * look for other lock order violations though, which
+			 * may be a bug.
+			 */
 			if (blessed(w, w1))
-				goto out;
+				return;
 #endif
 			if (lock1->li_lock == &Giant.mtx_object) {
 				if (w1->w_Giant_squawked)
-					goto out;
+					return;
 				else
 					w1->w_Giant_squawked = 1;
 			} else {
 				if (w1->w_other_squawked)
-					goto out;
+					return;
 				else
 					w1->w_other_squawked = 1;
 			}
@@ -781,12 +818,12 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 				MPASS(lock2->li_lock != NULL);
 				if (lock2->li_lock->lo_witness == w)
 					break;
-				i--;
 				if (i == 0 && lle->ll_next != NULL) {
 					lle = lle->ll_next;
 					i = lle->ll_count - 1;
 					MPASS(i >= 0 && i < LOCK_NCHILDREN);
-				}
+				} else
+					i--;
 			} while (i >= 0);
 			if (i < 0) {
 				printf(" 1st %p %s (%s) @ %s:%d\n",
@@ -808,18 +845,21 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 				    lock->lo_name, lock->lo_type, file, line);
 			}
 #ifdef DDB
-			go_into_ddb = 1;
+			goto debugger;
+#else
+			return;
 #endif
-			goto out;
 		}
 	}
 	lock1 = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
 	/*
-	 * Don't build a new relationship between a sleepable lock and
-	 * Giant if it is the wrong direction.  The real lock order is that
-	 * sleepable locks come before Giant.
+	 * If requested, build a new lock order.  However, don't build a new
+	 * relationship between a sleepable lock and Giant if it is in the
+	 * wrong direction.  The correct lock order is that sleepable locks
+	 * always come before Giant.
 	 */
-	if (!(lock1->li_lock == &Giant.mtx_object &&
+	if (flags & LOP_NEWORDER &&
+	    !(lock1->li_lock == &Giant.mtx_object &&
 	    (lock->lo_flags & LO_SLEEPABLE) != 0)) {
 		CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
 		    lock->lo_type, lock1->li_lock->lo_type);
@@ -828,19 +868,55 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			return;
 	} 
 	mtx_unlock_spin(&w_mtx);
+	return;
 
-out:
 #ifdef DDB
-	if (go_into_ddb) {
-		if (witness_trace)
-			backtrace();
-		if (witness_ddb)
-			Debugger(__func__);
-	}
+debugger:
+	if (witness_trace)
+		backtrace();
+	if (witness_ddb)
+		Debugger(__func__);
 #endif
+}
+
+void
+witness_lock(struct lock_object *lock, int flags, const char *file, int line)
+{
+	struct lock_list_entry **lock_list, *lle;
+	struct lock_instance *instance;
+	struct witness *w;
+	struct thread *td;
+
+	if (witness_cold || witness_watch == 0 || lock->lo_witness == NULL ||
+	    panicstr != NULL)
+		return;
+	w = lock->lo_witness;
+	td = curthread;
+	file = fixup_filename(file);
+
+	/* Determine lock list for this lock. */
+	if (lock->lo_class->lc_flags & LC_SLEEPLOCK)
+		lock_list = &td->td_sleeplocks;
+	else
+		lock_list = PCPU_PTR(spinlocks);
+
+	/* Check to see if we are recursing on a lock we already own. */
+	instance = find_instance(*lock_list, lock);
+	if (instance != NULL) {
+		instance->li_flags++;
+		CTR4(KTR_WITNESS, "%s: pid %d recursed on %s r=%d", __func__,
+		    td->td_proc->p_pid, lock->lo_name,
+		    instance->li_flags & LI_RECURSEMASK);
+		instance->li_file = file;
+		instance->li_line = line;
+		return;
+	}
+
+	/* Update per-witness last file and line acquire. */
 	w->w_file = file;
 	w->w_line = line;
-	
+
+	/* Find the next open lock instance in the list and fill it. */
 	lle = *lock_list;
 	if (lle == NULL || lle->ll_count == LOCK_NCHILDREN) {
 		lle = witness_lock_list_get();
@@ -851,14 +927,14 @@ out:
 		    td->td_proc->p_pid, lle);
 		*lock_list = lle;
 	}
-	lock1 = &lle->ll_children[lle->ll_count++];
-	lock1->li_lock = lock;
-	lock1->li_line = line;
-	lock1->li_file = file;
+	instance = &lle->ll_children[lle->ll_count++];
+	instance->li_lock = lock;
+	instance->li_line = line;
+	instance->li_file = file;
 	if ((flags & LOP_EXCLUSIVE) != 0)
-		lock1->li_flags = LI_EXCLUSIVE;
+		instance->li_flags = LI_EXCLUSIVE;
 	else
-		lock1->li_flags = 0;
+		instance->li_flags = 0;
 	CTR4(KTR_WITNESS, "%s: pid %d added %s as lle[%d]", __func__,
 	    td->td_proc->p_pid, lock->lo_name, lle->ll_count - 1);
 }
@@ -945,6 +1021,8 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	td = curthread;
 	class = lock->lo_class;
 	file = fixup_filename(file);
+
+	/* Find lock instance associated with this lock. */
 	if (class->lc_flags & LC_SLEEPLOCK)
 		lock_list = &td->td_sleeplocks;
 	else
@@ -952,65 +1030,59 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	for (; *lock_list != NULL; lock_list = &(*lock_list)->ll_next)
 		for (i = 0; i < (*lock_list)->ll_count; i++) {
 			instance = &(*lock_list)->ll_children[i];
-			if (instance->li_lock == lock) {
-				if ((instance->li_flags & LI_EXCLUSIVE) != 0 &&
-				    (flags & LOP_EXCLUSIVE) == 0) {
-					printf(
-					"shared unlock of (%s) %s @ %s:%d\n",
-					    class->lc_name, lock->lo_name,
-					    file, line);
-					printf(
-					"while exclusively locked from %s:%d\n",
-					    instance->li_file,
-					    instance->li_line);
-					panic("excl->ushare");
-				}
-				if ((instance->li_flags & LI_EXCLUSIVE) == 0 &&
-				    (flags & LOP_EXCLUSIVE) != 0) {
-					printf(
-					"exclusive unlock of (%s) %s @ %s:%d\n",
-					    class->lc_name, lock->lo_name,
-					    file, line);
-					printf(
-					"while share locked from %s:%d\n",
-					    instance->li_file,
-					    instance->li_line);
-					panic("share->uexcl");
-				}
-				/* If we are recursed, unrecurse. */
-				if ((instance->li_flags & LI_RECURSEMASK) > 0) {
-					CTR4(KTR_WITNESS,
-				    "%s: pid %d unrecursed on %s r=%d", __func__,
-					    td->td_proc->p_pid,
-					    instance->li_lock->lo_name,
-					    instance->li_flags);
-					instance->li_flags--;
-					return;
-				}
-				s = intr_disable();
-				CTR4(KTR_WITNESS,
-				    "%s: pid %d removed %s from lle[%d]", __func__,
-				    td->td_proc->p_pid,
-				    instance->li_lock->lo_name,
-				    (*lock_list)->ll_count - 1);
-				for (j = i; j < (*lock_list)->ll_count - 1; j++)
-					(*lock_list)->ll_children[j] =
-					    (*lock_list)->ll_children[j + 1];
-				(*lock_list)->ll_count--;
-				intr_restore(s);
-				if ((*lock_list)->ll_count == 0) {
-					lle = *lock_list;
-					*lock_list = lle->ll_next;
-					CTR3(KTR_WITNESS,
-					    "%s: pid %d removed lle %p", __func__,
-					    td->td_proc->p_pid, lle);
-					witness_lock_list_free(lle);
-				}
-				return;
-			}
+			if (instance->li_lock == lock)
+				goto found;
 		}
 	panic("lock (%s) %s not locked @ %s:%d", class->lc_name, lock->lo_name,
 	    file, line);
+found:
+
+	/* First, check for shared/exclusive mismatches. */
+	if ((instance->li_flags & LI_EXCLUSIVE) != 0 &&
+	    (flags & LOP_EXCLUSIVE) == 0) {
+		printf("shared unlock of (%s) %s @ %s:%d\n", class->lc_name,
+		    lock->lo_name, file, line);
+		printf("while exclusively locked from %s:%d\n",
+		    instance->li_file, instance->li_line);
+		panic("excl->ushare");
+	}
+	if ((instance->li_flags & LI_EXCLUSIVE) == 0 &&
+	    (flags & LOP_EXCLUSIVE) != 0) {
+		printf("exclusive unlock of (%s) %s @ %s:%d\n", class->lc_name,
+		    lock->lo_name, file, line);
+		printf("while share locked from %s:%d\n", instance->li_file,
+		    instance->li_line);
+		panic("share->uexcl");
+	}
+
+	/* If we are recursed, unrecurse. */
+	if ((instance->li_flags & LI_RECURSEMASK) > 0) {
+		CTR4(KTR_WITNESS, "%s: pid %d unrecursed on %s r=%d", __func__,
+		    td->td_proc->p_pid, instance->li_lock->lo_name,
+		    instance->li_flags);
+		instance->li_flags--;
+		return;
+	}
+
+	/* Otherwise, remove this item from the list. */
+	s = intr_disable();
+	CTR4(KTR_WITNESS, "%s: pid %d removed %s from lle[%d]", __func__,
+	    td->td_proc->p_pid, instance->li_lock->lo_name,
+	    (*lock_list)->ll_count - 1);
+	for (j = i; j < (*lock_list)->ll_count - 1; j++)
+		(*lock_list)->ll_children[j] =
+		    (*lock_list)->ll_children[j + 1];
+	(*lock_list)->ll_count--;
+	intr_restore(s);
+
+	/* If this lock list entry is now empty, free it. */
+	if ((*lock_list)->ll_count == 0) {
+		lle = *lock_list;
+		*lock_list = lle->ll_next;
+		CTR3(KTR_WITNESS, "%s: pid %d removed lle %p", __func__,
+		    td->td_proc->p_pid, lle);
+		witness_lock_list_free(lle);
+	}
 }
 
 /*

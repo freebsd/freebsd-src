@@ -74,6 +74,7 @@ struct lock_class {
  * Option flags passed to lock operations that witness also needs to know
  * about or that are generic across all locks.
  */
+#define	LOP_NEWORDER	0x00000001	/* Define a new lock order. */
 #define	LOP_QUIET	0x00000002	/* Don't log locking operations. */
 #define	LOP_TRYLOCK	0x00000004	/* Don't check lock order. */
 #define	LOP_EXCLUSIVE	0x00000008	/* Exclusive lock. */
@@ -197,6 +198,8 @@ extern struct lock_class lock_class_sx;
 
 void	witness_init(struct lock_object *);
 void	witness_destroy(struct lock_object *);
+int	witness_defineorder(struct lock_object *, struct lock_object *);
+void	witness_checkorder(struct lock_object *, int, const char *, int);
 void	witness_lock(struct lock_object *, int, const char *, int);
 void	witness_upgrade(struct lock_object *, int, const char *, int);
 void	witness_downgrade(struct lock_object *, int, const char *, int);
@@ -222,6 +225,13 @@ const char *witness_file(struct lock_object *);
 
 #define WITNESS_DESTROY(lock)						\
 	witness_destroy(lock)
+
+#define	WITNESS_CHECKORDER(lock, flags, file, line)			\
+	witness_checkorder((lock), (flags), (file), (line))
+
+#define	WITNESS_DEFINEORDER(lock1, lock2)				\
+	witness_defineorder((struct lock_object *)(lock1),		\
+	    (struct lock_object *)(lock2))
 
 #define	WITNESS_LOCK(lock, flags, file, line)				\
 	witness_lock((lock), (flags), (file), (line))
@@ -257,6 +267,8 @@ const char *witness_file(struct lock_object *);
 #else	/* WITNESS */
 #define	WITNESS_INIT(lock)	((lock)->lo_flags |= LO_INITIALIZED)
 #define	WITNESS_DESTROY(lock)	((lock)->lo_flags &= ~LO_INITIALIZED)
+#define	WITNESS_DEFINEORDER(lock1, lock2)	0
+#define	WITNESS_CHECKORDER(lock, flags, file, line)
 #define	WITNESS_LOCK(lock, flags, file, line)
 #define	WITNESS_UPGRADE(lock, flags, file, line)
 #define	WITNESS_DOWNGRADE(lock, flags, file, line)
@@ -268,6 +280,21 @@ const char *witness_file(struct lock_object *);
 #define	WITNESS_FILE(lock) ("?")
 #define	WITNESS_LINE(lock) (0)
 #endif	/* WITNESS */
+
+/*
+ * Helper macros to allow developers to add explicit lock order checks
+ * wherever they please without having to actually grab a lock to do so.
+ */
+#define	witness_check_mutex(m)						\
+	WITNESS_CHECKORDER(&(m)->mtx_object, LOP_EXCLUSIVE, LOCK_FILE,	\
+	    LOCK_LINE)
+
+#define	witness_check_shared_sx(sx)					\
+	WITNESS_CHECKORDER(&(sx)->sx_object, 0, LOCK_FILE, LOCK_LINE)
+	
+#define	witness_check_exclusive_sx(sx)					\
+	WITNESS_CHECKORDER(&(sx)->sx_object, LOP_EXCLUSIVE, LOCK_FILE,	\
+	    LOCK_LINE)
 
 #endif	/* _KERNEL */
 #endif	/* _SYS_LOCK_H_ */

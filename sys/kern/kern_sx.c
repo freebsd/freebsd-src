@@ -112,6 +112,7 @@ _sx_slock(struct sx *sx, const char *file, int line)
 	KASSERT(sx->sx_xholder != curthread,
 	    ("%s (%s): slock while xlock is held @ %s:%d\n", __func__,
 	    sx->sx_object.lo_name, file, line));
+	WITNESS_CHECKORDER(&sx->sx_object, LOP_NEWORDER, file, line);
 
 	/*
 	 * Loop in case we lose the race for lock acquisition.
@@ -165,6 +166,8 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 	KASSERT(sx->sx_xholder != curthread,
 	    ("%s (%s): xlock already held @ %s:%d", __func__,
 	    sx->sx_object.lo_name, file, line));
+	WITNESS_CHECKORDER(&sx->sx_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
+	    line);
 
 	/* Loop in case we lose the race for lock acquisition. */
 	while (sx->sx_cnt != 0) {
