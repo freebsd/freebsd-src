@@ -949,7 +949,7 @@ COMMON ITEMS:
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
 	cp src/sys/${MACHINE_ARCH}/conf/GENERIC.hints /boot/device.hints [2]
-	make installkernel KERNCONF=YOUR_KERNEL_HERE [6]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	reboot in single user [3]
 	mergemaster -p		[5]
 	make installworld
@@ -999,9 +999,6 @@ COMMON ITEMS:
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
 	install) after the buildworld before this step if you last updated
 	from current before 20020224 or from -stable before 20020408.
-
-	[6] You may get a warning from kldxref.  Ignore it.  It doesn't
-	matter.
 
 FORMAT:
 
