@@ -154,7 +154,7 @@ main(argc, argv)
 	 * If style not specified, the default is the whole file for -r, and
 	 * the last 10 lines if not -r.
 	 */
-	if (style == NOTSET)
+	if (style == NOTSET) {
 		if (rflag) {
 			off = 0;
 			style = REVERSE;
@@ -162,6 +162,7 @@ main(argc, argv)
 			off = 10;
 			style = RLINES;
 		}
+	}
 
 	if (*argv)
 		for (first = 1; fname = *argv++;) {

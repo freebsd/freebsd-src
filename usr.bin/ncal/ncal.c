@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ncal.c,v 1.6 1998/01/15 10:23:34 helbig Exp $";
+	"$Id: ncal.c,v 1.7 1999/03/27 21:08:13 helbig Exp $";
 #endif /* not lint */
 
 #include <calendar.h>
@@ -482,7 +482,7 @@ printyear(int y, int jd_flag)
 			    	    mw, year[j + 2].lines[i],
 			    	    year[j + 3].lines[i]);
 		}
-		if (flag_weeks)
+		if (flag_weeks) {
 			if (mpl == 3)
 				printf("  %-*s%-*s%-s\n",
 				    mw, year[j].weeks,
@@ -494,6 +494,7 @@ printyear(int y, int jd_flag)
 				    mw, year[j + 1].weeks,
 				    mw, year[j + 2].weeks,
 				    year[j + 3].weeks);
+		}
 	}
 }
 

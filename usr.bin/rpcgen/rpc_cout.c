@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)rpc_cout.c 1.13 89/02/22 (C) 1987 SMI";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rpc_cout.c,v 1.5 1997/08/06 06:47:39 charnier Exp $";
 #endif
 
 /*
@@ -466,7 +466,7 @@ int flag;
 				}
 			}
 		} else {
-			if (i > 0)
+			if (i > 0) {
 				if (sizestr == NULL && size < inline){
 					/*
 					 * don't expand into inline code
@@ -482,7 +482,7 @@ int flag;
 					if (sizestr == NULL)
 						f_print(fout, "buf = XDR_INLINE(xdrs, %d * BYTES_PER_XDR_UNIT);",
 							size);
-					else
+					else {
 						if (size == 0)
 							f_print(fout,
 								"buf = XDR_INLINE(xdrs, (%s) * BYTES_PER_XDR_UNIT);",
@@ -492,6 +492,7 @@ int flag;
 								"buf = XDR_INLINE(xdrs, (%d + (%s)) * BYTES_PER_XDR_UNIT);",
 								size, sizestr);
 
+					}
 					f_print(fout, "\n");
 					tabify(fout, indent + 1);
 					f_print(fout,
@@ -514,6 +515,7 @@ int flag;
 					tabify(fout, indent + 1);
 					f_print(fout, "}\n");
 				}
+			}
 			size = 0;
 			i = 0;
 			sizestr = NULL;

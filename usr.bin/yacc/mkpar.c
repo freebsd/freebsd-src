@@ -39,7 +39,7 @@
 static char const sccsid[] = "@(#)mkpar.c	5.3 (Berkeley) 1/20/91";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkpar.c,v 1.7 1997/08/28 06:33:53 charnier Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -245,11 +245,12 @@ unused_rules()
     for (i = 3; i < nrules; ++i)
 	if (!rules_used[i]) ++nunused;
 
-    if (nunused)
+    if (nunused) {
 	if (nunused == 1)
 	    warnx("1 rule never reduced");
 	else
 	    warnx("%d rules never reduced", nunused);
+    }
 }
 
 

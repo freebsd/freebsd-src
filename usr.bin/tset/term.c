@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/9/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: term.c,v 1.2 1997/08/18 07:27:56 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -104,11 +104,12 @@ found:	if ((p = getenv("TERMCAP")) != NULL && *p != '/')
 	 * ttype now contains a pointer to the type of the terminal.
 	 * If the first character is '?', ask the user.
 	 */
-	if (ttype[0] == '?')
+	if (ttype[0] == '?') {
 		if (ttype[1] != '\0')
 			ttype = askuser(ttype + 1);
 		else
 			ttype = askuser(NULL);
+	}
 
 	/* Find the termcap entry.  If it doesn't exist, ask the user. */
 	while ((rval = tgetent(tbuf, ttype)) == 0) {

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #endif
 static const char rcsid[] =
-	"$Id: tcopy.c,v 1.4 1997/08/14 06:41:00 charnier Exp $";
+	"$Id: tcopy.c,v 1.5 1999/04/30 13:13:32 phk Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -282,11 +282,12 @@ void
 intr(signo)
 	int signo;
 {
-	if (record)
+	if (record) {
 		if (record - lastrec > 1)
 			fprintf(msg, "records %qu to %qu\n", lastrec, record);
 		else
 			fprintf(msg, "record %qu\n", lastrec);
+	}
 	fprintf(msg, "interrupt at file %d: record %qu\n", filen, record);
 	fprintf(msg, "total length: %ld bytes\n", tsize + size);
 	exit(1);

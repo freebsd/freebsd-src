@@ -129,7 +129,7 @@ main(argc, argv)
 
 	for (rval = 0; *argv; ++argv) {
 		/* See if the file exists. */
-		if (stat(*argv, &sb))
+		if (stat(*argv, &sb)) {
 			if (!cflag) {
 				/* Create the file. */
 				fd = open(*argv,
@@ -145,6 +145,7 @@ main(argc, argv)
 					continue;
 			} else
 				continue;
+		}
 
 		if (!aflag)
 			TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atimespec);
