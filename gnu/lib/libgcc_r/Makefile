@@ -1,8 +1,6 @@
-#
-# $Id: Makefile,v 1.25 1999/04/08 08:39:16 obrien Exp $
-#
+#	$Id: Makefile,v 1.1 1999/04/14 00:24:03 obrien Exp $
 
 .include "../libgcc/Makefile"
 
 LIB=	gcc_r
-CFLAGS+= -D_PTHREADS
+CFLAGS+=-D_PTHREADS

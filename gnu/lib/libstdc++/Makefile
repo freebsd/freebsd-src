@@ -1,6 +1,4 @@
-#
-# $Id: Makefile,v 1.19 1999/04/15 08:08:56 obrien Exp $
-#
+#	$Id: Makefile,v 1.20 1999/04/25 16:59:54 obrien Exp $
 
 EGCSDIR=	${.CURDIR}/../../../contrib/egcs
 

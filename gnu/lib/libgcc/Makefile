@@ -1,10 +1,8 @@
-#
-# $Id: Makefile,v 1.24 1999/04/08 08:19:28 obrien Exp $
-#
+#	$Id: Makefile,v 1.25 1999/04/08 08:39:16 obrien Exp $
 
 GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
 
-.PATH:  ${GCCDIR}/cp ${GCCDIR}
+.PATH: ${GCCDIR}/cp ${GCCDIR}
 
 LIB=	gcc
 
