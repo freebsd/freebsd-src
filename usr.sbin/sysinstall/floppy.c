@@ -104,19 +104,19 @@ mediaInitFloppy(Device *dev)
 #endif
 
 #ifdef PC98
-    sprintf(fddev, "%s.1200", dev->devname);
+    snprintf(fddev, sizeof (fddev), "%s.1200", dev->devname);
     if (mount("msdosfs", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
 	goto success;
     if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
 	goto success;
 
-    sprintf(fddev, "%s.1232", dev->devname);
+    snprintf(fddev, sizeof (fddev), "%s.1232", dev->devname);
     if (mount("msdosfs", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
 	goto success;
     if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
 	goto success;
 
-    sprintf(fddev, "%s.1440", dev->devname);
+    snprintf(fddev, sizeof (fddev), "%s.1440", dev->devname);
     if (mount("msdosfs", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
 	goto success;
     if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
