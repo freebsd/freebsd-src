@@ -231,7 +231,7 @@ nfs_convert_diskless(void)
 /*
  * nfs statfs call
  */
-int
+static int
 nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 {
 	struct vnode *vp;

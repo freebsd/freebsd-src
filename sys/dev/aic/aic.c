@@ -499,7 +499,7 @@ aic_spiordy(struct aic_softc *aic)
 /*
  * Reestablish a disconnected nexus.
  */
-void
+static void
 aic_reconnect(struct aic_softc *aic, int tag)
 {
 	struct aic_scb *scb;

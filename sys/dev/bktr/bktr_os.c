@@ -571,7 +571,7 @@ get_bktr_mem( int unit, unsigned size )
 /*
  * 
  */
-int
+static int
 bktr_open( dev_t dev, int flags, int fmt, struct thread *td )
 {
 	bktr_ptr_t	bktr;
@@ -651,7 +651,7 @@ bktr_open( dev_t dev, int flags, int fmt, struct thread *td )
 /*
  * 
  */
-int
+static int
 bktr_close( dev_t dev, int flags, int fmt, struct thread *td )
 {
 	bktr_ptr_t	bktr;
@@ -690,7 +690,7 @@ bktr_close( dev_t dev, int flags, int fmt, struct thread *td )
 /*
  * 
  */
-int
+static int
 bktr_read( dev_t dev, struct uio *uio, int ioflag )
 {
 	bktr_ptr_t	bktr;
@@ -718,7 +718,7 @@ bktr_read( dev_t dev, struct uio *uio, int ioflag )
 /*
  * 
  */
-int
+static int
 bktr_write( dev_t dev, struct uio *uio, int ioflag )
 {
 	return( EINVAL ); /* XXX or ENXIO ? */
@@ -728,7 +728,7 @@ bktr_write( dev_t dev, struct uio *uio, int ioflag )
 /*
  * 
  */
-int
+static int
 bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct thread *td )
 {
 	bktr_ptr_t	bktr;
@@ -760,7 +760,7 @@ bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct thread *td
 /*
  * 
  */
-int
+static int
 bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
 {
 	int		unit;
@@ -790,7 +790,8 @@ bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
 	return( atop(vtophys(bktr->bigbuf) + offset) );
 }
 
-int bktr_poll( dev_t dev, int events, struct thread *td)
+static int
+bktr_poll( dev_t dev, int events, struct thread *td)
 {
 	int		unit;
 	bktr_ptr_t	bktr;

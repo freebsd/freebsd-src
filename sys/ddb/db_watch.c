@@ -71,7 +71,7 @@ int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
 void db_md_list_watchpoints(void);
 
 
-db_watchpoint_t
+static db_watchpoint_t
 db_watchpoint_alloc()
 {
 	register db_watchpoint_t	watch;
@@ -90,7 +90,7 @@ db_watchpoint_alloc()
 	return (watch);
 }
 
-void
+static void
 db_watchpoint_free(watch)
 	register db_watchpoint_t	watch;
 {

@@ -92,7 +92,7 @@ struct pagerops vnodepagerops = {
 
 int vnode_pbuf_freecnt;
 
-void
+static void
 vnode_pager_init(void)
 {
 

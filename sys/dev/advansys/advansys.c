@@ -1030,7 +1030,7 @@ adv_intr(void *arg)
 	ADV_OUTB(adv, ADV_CHIP_CTRL, saved_ctrl_reg);
 }
 
-void
+static void
 adv_run_doneq(struct adv_softc *adv)
 {
 	struct adv_q_done_info scsiq;

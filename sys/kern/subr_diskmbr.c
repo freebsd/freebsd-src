@@ -376,7 +376,7 @@ done:
 	return (error);
 }
 
-void
+static void
 mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 	     ntracks, mbr_offset, level)
 	dev_t	dev;

@@ -314,7 +314,7 @@ loop:
  * Vnode op for reading.
  */
 /* ARGSUSED */
-int
+static int
 ffs_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -646,7 +646,7 @@ ffs_read(ap)
 /*
  * Vnode op for writing.
  */
-int
+static int
 ffs_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -873,7 +873,7 @@ ffs_write(ap)
 /*
  * get page routine
  */
-int
+static int
 ffs_getpages(ap)
 	struct vop_getpages_args *ap;
 {
@@ -1462,7 +1462,7 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 /*
  * Vnode extattr transaction commit/abort
  */
-int
+static int
 ffs_openextattr(struct vop_openextattr_args *ap)
 /*
 struct vop_openextattr_args {
@@ -1487,7 +1487,7 @@ struct vop_openextattr_args {
 /*
  * Vnode extattr transaction commit/abort
  */
-int
+static int
 ffs_closeextattr(struct vop_closeextattr_args *ap)
 /*
 struct vop_closeextattr_args {
@@ -1514,7 +1514,7 @@ struct vop_closeextattr_args {
 /*
  * Vnode operation to retrieve a named extended attribute.
  */
-int
+static int
 ffs_getextattr(struct vop_getextattr_args *ap)
 /*
 vop_getextattr {
@@ -1600,7 +1600,7 @@ vop_getextattr {
 /*
  * Vnode operation to set a named attribute.
  */
-int
+static int
 ffs_setextattr(struct vop_setextattr_args *ap)
 /*
 vop_setextattr {

@@ -571,7 +571,7 @@ fifo_print(ap)
 /*
  * Return POSIX pathconf information applicable to fifo's.
  */
-int
+static int
 fifo_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;

@@ -1635,7 +1635,7 @@ sioinput(com)
 		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 }
 
-void
+static void
 siointr(arg)
 	void		*arg;
 {
@@ -3149,7 +3149,7 @@ siocncheckc(dev)
 }
 
 
-int
+static int
 siocngetc(dev)
 	dev_t	dev;
 {
@@ -3176,7 +3176,7 @@ siocngetc(dev)
 	return (c);
 }
 
-void
+static void
 siocnputc(dev, c)
 	dev_t	dev;
 	int	c;

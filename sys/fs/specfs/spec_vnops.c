@@ -49,11 +49,11 @@
 #include <sys/fcntl.h>
 #include <sys/vmmeter.h>
 #include <sys/tty.h>
-
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+
 
 static int	spec_advlock(struct vop_advlock_args *);
 static int	spec_bmap(struct vop_bmap_args *);

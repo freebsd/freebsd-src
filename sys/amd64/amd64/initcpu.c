@@ -489,7 +489,7 @@ init_ppro(void)
  * Initialize BBL_CR_CTL3 (Control register 3: used to configure the
  * L2 cache).
  */
-void
+static void
 init_mendocino(void)
 {
 #ifdef CPU_PPRO2CELERON

@@ -453,7 +453,7 @@ no_irq13:
 /*
  * Attach routine - announce which it is, and wire into system
  */
-int
+static int
 npx_attach(dev)
 	device_t dev;
 {

@@ -183,7 +183,7 @@ ufs_itimes(vp)
 /*
  * Create a regular file
  */
-int
+static int
 ufs_create(ap)
 	struct vop_create_args /* {
 		struct vnode *a_dvp;
@@ -207,7 +207,7 @@ ufs_create(ap)
  * Mknod vnode call
  */
 /* ARGSUSED */
-int
+static int
 ufs_mknod(ap)
 	struct vop_mknod_args /* {
 		struct vnode *a_dvp;
@@ -259,7 +259,7 @@ ufs_mknod(ap)
  * Nothing to do.
  */
 /* ARGSUSED */
-int
+static int
 ufs_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -284,7 +284,7 @@ ufs_open(ap)
  * Update the times on the inode.
  */
 /* ARGSUSED */
-int
+static int
 ufs_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -322,7 +322,7 @@ ufs_close(ap)
 	return (0);
 }
 
-int
+static int
 ufs_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
@@ -398,7 +398,7 @@ ufs_access(ap)
 }
 
 /* ARGSUSED */
-int
+static int
 ufs_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -457,7 +457,7 @@ ufs_getattr(ap)
 /*
  * Set attribute vnode op. called from several syscalls
  */
-int
+static int
 ufs_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnode *a_vp;
@@ -772,7 +772,7 @@ good:
 	return (0);
 }
 
-int
+static int
 ufs_remove(ap)
 	struct vop_remove_args /* {
 		struct vnode *a_dvp;
@@ -803,7 +803,7 @@ out:
 /*
  * link vnode call
  */
-int
+static int
 ufs_link(ap)
 	struct vop_link_args /* {
 		struct vnode *a_tdvp;
@@ -864,7 +864,7 @@ out:
 /*
  * whiteout vnode call
  */
-int
+static int
 ufs_whiteout(ap)
 	struct vop_whiteout_args /* {
 		struct vnode *a_dvp;
@@ -940,7 +940,7 @@ ufs_whiteout(ap)
  *    is different from the source, patch the ".." entry in the
  *    directory.
  */
-int
+static int
 ufs_rename(ap)
 	struct vop_rename_args  /* {
 		struct vnode *a_fdvp;
@@ -1329,7 +1329,7 @@ out:
 /*
  * Mkdir system call
  */
-int
+static int
 ufs_mkdir(ap)
 	struct vop_mkdir_args /* {
 		struct vnode *a_dvp;
@@ -1638,7 +1638,7 @@ out:
 /*
  * Rmdir system call.
  */
-int
+static int
 ufs_rmdir(ap)
 	struct vop_rmdir_args /* {
 		struct vnode *a_dvp;
@@ -1739,7 +1739,7 @@ out:
 /*
  * symlink -- make a symbolic link
  */
-int
+static int
 ufs_symlink(ap)
 	struct vop_symlink_args /* {
 		struct vnode *a_dvp;
@@ -1894,7 +1894,7 @@ ufs_readdir(ap)
 /*
  * Return target name of a symbolic link
  */
-int
+static int
 ufs_readlink(ap)
 	struct vop_readlink_args /* {
 		struct vnode *a_vp;
@@ -1922,7 +1922,7 @@ ufs_readlink(ap)
  * In order to be able to swap to a file, the ufs_bmaparray() operation may not
  * deadlock on memory.  See ufs_bmap() for details.
  */
-int
+static int
 ufs_strategy(ap)
 	struct vop_strategy_args /* {
 		struct vnode *a_vp;
@@ -1963,7 +1963,7 @@ ufs_strategy(ap)
 /*
  * Print out the contents of an inode.
  */
-int
+static int
 ufs_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -1983,7 +1983,7 @@ ufs_print(ap)
 /*
  * Read wrapper for special devices.
  */
-int
+static int
 ufsspec_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -2012,7 +2012,7 @@ ufsspec_read(ap)
 /*
  * Write wrapper for special devices.
  */
-int
+static int
 ufsspec_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -2039,7 +2039,7 @@ ufsspec_write(ap)
  *
  * Update the times on the inode then do device close.
  */
-int
+static int
 ufsspec_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -2060,7 +2060,7 @@ ufsspec_close(ap)
 /*
  * Read wrapper for fifos.
  */
-int
+static int
 ufsfifo_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -2086,7 +2086,7 @@ ufsfifo_read(ap)
 /*
  * Write wrapper for fifos.
  */
-int
+static int
 ufsfifo_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -2113,7 +2113,7 @@ ufsfifo_write(ap)
  *
  * Update the times on the inode then do device close.
  */
-int
+static int
 ufsfifo_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -2136,7 +2136,7 @@ ufsfifo_close(ap)
  *
  * Fall through to ufs kqfilter routines if needed 
  */
-int
+static int
 ufsfifo_kqfilter(ap)
 	struct vop_kqfilter_args *ap;
 {
@@ -2151,7 +2151,7 @@ ufsfifo_kqfilter(ap)
 /*
  * Return POSIX pathconf information applicable to ufs filesystems.
  */
-int
+static int
 ufs_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -2188,7 +2188,7 @@ ufs_pathconf(ap)
 /*
  * Advisory record locking support
  */
-int
+static int
 ufs_advlock(ap)
 	struct vop_advlock_args /* {
 		struct vnode *a_vp;
@@ -2251,7 +2251,7 @@ ufs_vinit(mntp, specops, fifoops, vpp)
  * Allocate a new inode.
  * Vnode dvp must be locked.
  */
-int
+static int
 ufs_makeinode(mode, dvp, vpp, cnp)
 	int mode;
 	struct vnode *dvp;

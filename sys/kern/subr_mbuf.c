@@ -332,7 +332,7 @@ static void		 mbuf_init(void *);
  */
 MALLOC_DEFINE(M_MBUF, "mbufmgr", "mbuf subsystem management structures");
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL)
-void
+static void
 mbuf_init(void *dummy)
 {
 	struct mb_pcpu_list *pcpu_cnt;

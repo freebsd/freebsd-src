@@ -468,7 +468,7 @@ swi_sched(void *cookie, int flags)
 /*
  * This is the main code for interrupt threads.
  */
-void
+static void
 ithread_loop(void *arg)
 {
 	struct ithd *ithd;		/* our thread context */

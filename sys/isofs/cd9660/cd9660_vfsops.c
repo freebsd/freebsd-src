@@ -588,7 +588,7 @@ cd9660_root(mp, vpp)
 /*
  * Get filesystem statistics.
  */
-int
+static int
 cd9660_statfs(mp, sbp, td)
 	struct mount *mp;
 	register struct statfs *sbp;
@@ -631,7 +631,7 @@ struct ifid {
 };
 
 /* ARGSUSED */
-int
+static int
 cd9660_fhtovp(mp, fhp, vpp)
 	register struct mount *mp;
 	struct fid *fhp;
@@ -661,7 +661,7 @@ cd9660_fhtovp(mp, fhp, vpp)
 	return (0);
 }
 
-int
+static int
 cd9660_vget(mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -882,7 +882,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
  * Vnode pointer to File handle
  */
 /* ARGSUSED */
-int
+static int
 cd9660_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
