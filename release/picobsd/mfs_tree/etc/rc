@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
-# WARNING !!! We remove this file during execution (see EOF).
-# Awful things happen if its size is > 1024B
+# WARNING !!! We overwrite this file during execution with a new rc file.
+# Awful things happen if this file's size is > 1024B
 
 stty status '^T'
 trap : 2
@@ -20,6 +20,8 @@ mount -o rdonly ${dev} /mnt
 cd /mnt/etc ; cp -Rp . /etc/
 cp -Rp /mnt/root /
 cd /etc
+#rm files to stop overwrite warning
+rm rc login.conf
 gzip -d *.gz
 pwd_mkdb -p ./master.passwd
 umount /mnt
