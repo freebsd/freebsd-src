@@ -1,9 +1,8 @@
 # This file tells what major numbers the various possible swap devices have.
 #
-#	$Id: devices.i386,v 1.3 1993/10/11 06:19:39 rgrimes Exp $
+#	$Id: devices.i386,v 1.4 1993/10/26 21:27:07 nate Exp $
 #
 wd	0
-wx	0
 dk	1
 fd	2
 wt	3
