@@ -860,6 +860,9 @@ echo y |
 /sbin/disklabel -w -r ${drivename} $name /usr/mdec/${drivetype}boot /usr/mdec/boot${drivetype} >/dev/null 2>&1
 echo	" done."
 
+# XXX - Do it again, incase we disklabeled sector 0!
+put_fdisk_data
+
 if [ "$sect_fwd" = "sf:" ]; then
 	echo -n "Initializing bad144 badblock table..."
 	bad144 $drivename 0
@@ -967,7 +970,7 @@ echo "echo	\"Insert cpio installation floppy in drive and\""
 echo "echo -n	\"enter that drive's number (0 or 1): [0] \""
 echo "read resp junk"
 echo "driveno=\${resp:-0}"
-echo "mount -o ro /dev/fd\${driveno}a /mnt"
+echo "mount -o ro /dev/fd\${driveno} /mnt"
 echo "cd /mnt"
 echo "install"
 echo "cd /"
@@ -982,7 +985,7 @@ echo "	echo	\"Remove cpio floppy from drive, insert dos floppy, and\""
 echo "	echo -n	\"enter that drive's number (0 or 1): [0] \""
 echo "	read resp junk"
 echo "	driveno=\${resp:-0}"
-echo "	mount -t pcfs -o ro /dev/fd\${driveno}a /mnt"
+echo "	mount -t pcfs -o ro /dev/fd\${driveno} /mnt"
 echo "	mkdir -p /usr/distbin"
 echo "	cp /mnt/* /usr/distbin/ >/dev/null 2>&1"
 echo "	sync"
