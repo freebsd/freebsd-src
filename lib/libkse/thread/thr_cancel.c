@@ -75,7 +75,7 @@ _pthread_cancel(pthread_t pthread)
 				pthread->cancelflags |= THR_CANCELLING;
 				_thr_setrunnable_unlocked(pthread);
 				if ((joinee != NULL) &&
-				    (curthread->kseg == joinee->kseg)) {
+				    (pthread->kseg == joinee->kseg)) {
 					/* Remove the joiner from the joinee. */
 					joinee->joiner = NULL;
 					joinee = NULL;
