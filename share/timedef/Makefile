@@ -19,7 +19,7 @@ LOCALES=	cs_CZ.ISO_8859-2 \
 		ja_JP.SJIS 	 \
 		it_IT.ISO_8859-1 \
 		ko_KR.EUC        \
-		lt_LN.ISO_8859-1 \
+		la_LN.ISO_8859-1 \
 		nl_NL.ISO_8859-1 \
 		no_NO.ISO_8859-1 \
 		pl_PL.ISO_8859-2 \
@@ -36,11 +36,11 @@ LOCALES=	cs_CZ.ISO_8859-2 \
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 8859_15_LINKS = da_DK de_AT de_DE en_GB en_US es_ES fi_FI fr_FR is_IS \
-                it_IT lt_LN nl_NL no_NO pt_PT sv_SE
+		it_IT la_LN nl_NL no_NO pt_PT sv_SE
 DE_LINKS =      de_CH
 FR_LINKS =      fr_BE fr_CA fr_CH
 IT_LINKS =      it_CH
-LN_LINKS =      lt_LN.ASCII lt_LN.ISO_8859-2
+LN_LINKS =      la_LN.ASCII la_LN.ISO_8859-2
 NL_LINKS =      nl_BE
 US_LINKS =      en_CA
 GB_LINKS =      en_AU
@@ -87,7 +87,7 @@ afterinstall:
 		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
 	done
 	for l in ${LN_LINKS}; do \
-		ln -fs ../lt_LN.ISO_8859-1/LC_TIME \
+		ln -fs ../la_LN.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l/LC_TIME; \
 	done
 	for l in ${NL_LINKS}; do \

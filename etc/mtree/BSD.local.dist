@@ -229,13 +229,13 @@
             ..
             ko_KR.EUC
             ..
-            lt_LN.ASCII
+	    la_LN.ASCII
             ..
-            lt_LN.ISO_8859-1
+	    la_LN.ISO_8859-1
             ..
-            lt_LN.ISO_8859-2
+	    la_LN.ISO_8859-2
             ..
-            lt_LN.DIS_8859-15
+	    la_LN.DIS_8859-15
             ..
             nl_BE.ISO_8859-1
             ..
