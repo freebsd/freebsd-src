@@ -103,7 +103,8 @@ That is, one can specify an address like
 .\" through
 .\" .Ar f ,
 .\" are specified in hexadecimal.
-.\" The host number may be omitted on 10Mb/s Ethernet interfaces,
+.\" The host number may be omitted on IEEE 802 protocol 
+.\" (Ethernet, FDDI, and Token Ring) interfaces,
 .\" which use the hardware physical address,
 .\" and on interfaces other than the first.
 .\" For the
@@ -175,7 +176,9 @@ between network level addresses and link level addresses (default).
 This is currently implemented for mapping between
 .Tn DARPA
 Internet
-addresses and 10Mb/s Ethernet addresses.
+addresses and
+.Tn IEEE
+802 48-bit MAC addresses (Ethernet, FDDI, and Token Ring addresses).
 .It Fl arp
 Disable the use of the Address Resolution Protocol.
 .It Cm broadcast
@@ -201,6 +204,10 @@ the system will not attempt to
 transmit messages through that interface. 
 If possible, the interface will be reset to disable reception as well.
 This action does not automatically disable routes using the interface.
+.It Cm ether
+Another name for the
+.Dq lladdr
+parameter.
 .\" .It Cm ipdst
 .\" This is used to specify an Internet host who is willing to receive
 .\" ip packets encapsulating NS packets bound for a remote network.
