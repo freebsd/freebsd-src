@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#define LogLOG		(0)
 #define LogMIN		(1)
 #define LogASYNC	(1)	/* syslog(LOG_INFO, ....)	 */
 #define LogCBCP		(2)
@@ -39,20 +40,21 @@
 #define LogHDLC		(10)
 #define LogID0		(11)
 #define LogIPCP		(12)
-#define LogLCP		(13)
-#define LogLQM		(14)
-#define LogPHASE	(15)
-#define LogPHYSICAL	(16)	/* syslog(LOG_INFO, ....)	 */
-#define LogSYNC		(17)	/* syslog(LOG_INFO, ....)	 */
-#define LogTCPIP	(18)
-#define LogTIMER	(19)	/* syslog(LOG_DEBUG, ....)	 */
-#define LogTUN		(20)	/* If set, tun%d is output with each message */
-#define LogWARN		(21)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
-#define LogERROR	(22)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
-#define LogALERT	(23)	/* syslog(LOG_ALERT, ....)	 */
+#define LogIPV6CP	(13)
+#define LogLCP		(14)
+#define LogLQM		(15)
+#define LogPHASE	(16)
+#define LogPHYSICAL	(17)	/* syslog(LOG_INFO, ....)	 */
+#define LogSYNC		(18)	/* syslog(LOG_INFO, ....)	 */
+#define LogTCPIP	(19)
+#define LogTIMER	(20)	/* syslog(LOG_DEBUG, ....)	 */
+#define LogTUN		(21)	/* If set, tun%d is output with each message */
+#define LogWARN		(22)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
+#define LogERROR	(23)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
+#define LogALERT	(24)	/* syslog(LOG_ALERT, ....)	 */
 
-#define LogMAXCONF	(20)  
-#define LogMAX		(23)
+#define LogMAXCONF	(21)
+#define LogMAX		(24)
 
 struct mbuf;
 struct cmdargs;

@@ -34,8 +34,10 @@
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,7 +65,10 @@
 #include "mbuf.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "ncpaddr.h"
+#include "ip.h"
 #include "ipcp.h"
+#include "ipv6cp.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "link.h"
@@ -72,7 +77,7 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
-#include "ip.h"
+#include "ncp.h"
 #include "bundle.h"
 
 
@@ -211,7 +216,7 @@ nat_RedirectAddr(struct cmdargs const *arg)
     error = StrToAddr(arg->argv[arg->argn+1], &aliasaddr);
     if (error) {
       prompt_Printf(arg->prompt, "address redirect: invalid alias address\n");
-      prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+      prompt_Printf(arg->prompt, "usage: nat %s %s\n", arg->cmd->name,
                     arg->cmd->syntax);
       return 1;
     }
@@ -219,7 +224,7 @@ nat_RedirectAddr(struct cmdargs const *arg)
     if (link == NULL) {
       prompt_Printf(arg->prompt, "address redirect: packet aliasing"
                     " engine error\n");
-      prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+      prompt_Printf(arg->prompt, "usage: nat %s %s\n", arg->cmd->name,
                     arg->cmd->syntax);
     }
   } else
@@ -265,7 +270,7 @@ nat_RedirectProto(struct cmdargs const *arg)
       error = StrToAddr(arg->argv[arg->argn + 2], &publicIP);
       if (error) {
         prompt_Printf(arg->prompt, "proto redirect: invalid alias address\n");
-        prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+        prompt_Printf(arg->prompt, "usage: nat %s %s\n", arg->cmd->name,
                       arg->cmd->syntax);
         return 1;
       }
@@ -276,7 +281,7 @@ nat_RedirectProto(struct cmdargs const *arg)
       error = StrToAddr(arg->argv[arg->argn + 2], &remoteIP);
       if (error) {
         prompt_Printf(arg->prompt, "proto redirect: invalid dst address\n");
-        prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+        prompt_Printf(arg->prompt, "usage: nat %s %s\n", arg->cmd->name,
                       arg->cmd->syntax);
         return 1;
       }
@@ -287,7 +292,7 @@ nat_RedirectProto(struct cmdargs const *arg)
     if (link == NULL) {
       prompt_Printf(arg->prompt, "proto redirect: packet aliasing"
                     " engine error\n");
-      prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+      prompt_Printf(arg->prompt, "usage: nat %s %s\n", arg->cmd->name,
                     arg->cmd->syntax);
     }
   } else
@@ -435,6 +440,36 @@ nat_SetTarget(struct cmdargs const *arg)
   return 0;
 }
 
+#ifndef NO_FW_PUNCH
+int
+nat_PunchFW(struct cmdargs const *arg)
+{
+  char *end;
+  long base, count;
+
+  if (arg->argc == arg->argn) {
+    PacketAliasSetMode(0, PKT_ALIAS_PUNCH_FW);
+    return 0;
+  }
+
+  if (arg->argc != arg->argn + 2)
+    return -1;
+
+  base = strtol(arg->argv[arg->argn], &end, 10);
+  if (*end != '\0' || base < 0)
+    return -1;
+
+  count = strtol(arg->argv[arg->argn + 1], &end, 10);
+  if (*end != '\0' || count < 0)
+    return -1;
+
+  PacketAliasSetFWBase(base, count);
+  PacketAliasSetMode(PKT_ALIAS_PUNCH_FW, PKT_ALIAS_PUNCH_FW);
+
+  return 0;
+}
+#endif
+
 static struct mbuf *
 nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 int pri, u_short *proto)
@@ -517,7 +552,8 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
         bp = NULL;
       } else if (log_IsKept(LogTCPIP)) {
         log_Printf(LogTCPIP, "NAT engine ignored data:\n");
-        PacketCheck(bundle, MBUF_CTOP(bp), bp->m_len, NULL, NULL, NULL);
+        PacketCheck(bundle, AF_INET, MBUF_CTOP(bp), bp->m_len, NULL,
+                    NULL, NULL);
       }
       break;
 

@@ -33,21 +33,23 @@ struct cmdargs;
 struct rt_msghdr;
 struct sockaddr;
 
-#define ROUTE_STATIC		0x00
-#define ROUTE_DSTMYADDR		0x01
-#define ROUTE_DSTHISADDR	0x02
-#define ROUTE_DSTDNS0		0x04
-#define ROUTE_DSTDNS1		0x08
-#define ROUTE_DSTANY		0x0f
-#define ROUTE_GWHISADDR		0x10	/* May be ORd with DST_* */
+#define ROUTE_STATIC		0x0000
+#define ROUTE_DSTMYADDR		0x0001
+#define ROUTE_DSTMYADDR6	0x0002
+#define ROUTE_DSTHISADDR	0x0004
+#define ROUTE_DSTHISADDR6	0x0008
+#define ROUTE_DSTDNS0		0x0010
+#define ROUTE_DSTDNS1		0x0020
+#define ROUTE_DSTANY		0x0040
+#define ROUTE_GWHISADDR		0x0080	/* May be ORd with DST_* */
+#define ROUTE_GWHISADDR6	0x0100	/* May be ORd with DST_* */
 
 struct sticky_route {
   int type;				/* ROUTE_* value (not _STATIC) */
   struct sticky_route *next;		/* next in list */
 
-  struct in_addr dst;
-  struct in_addr mask;
-  struct in_addr gw;
+  struct ncprange dst;
+  struct ncpaddr gw;
 };
 
 extern int GetIfIndex(char *);
@@ -56,15 +58,16 @@ extern void route_IfDelete(struct bundle *, int);
 extern void route_UpdateMTU(struct bundle *);
 extern const char *Index2Nam(int);
 extern void route_Change(struct bundle *, struct sticky_route *,
-                         struct in_addr, struct in_addr, struct in_addr[2]);
-extern void route_Add(struct sticky_route **, int, struct in_addr,
-                      struct in_addr, struct in_addr);
-extern void route_Delete(struct sticky_route **, int, struct in_addr);
+                         const struct ncpaddr *, const struct ncpaddr *);
+extern void route_Add(struct sticky_route **, int, const struct ncprange *,
+                      const struct ncpaddr *);
+extern void route_Delete(struct sticky_route **, int, const struct ncprange *);
 extern void route_DeleteAll(struct sticky_route **);
 extern void route_Clean(struct bundle *, struct sticky_route *);
 extern void route_ShowSticky(struct prompt *, struct sticky_route *,
                              const char *, int);
 extern void route_ParseHdr(struct rt_msghdr *, struct sockaddr *[RTAX_MAX]);
-extern int rt_Set(struct bundle *, int, struct in_addr,
-                           struct in_addr, struct in_addr, int, int);
-extern void rt_Update(struct bundle *, struct in_addr, struct in_addr);
+extern int rt_Set(struct bundle *, int, const struct ncprange *,
+                  const struct ncpaddr *, int, int);
+extern void rt_Update(struct bundle *, const struct sockaddr *,
+                      const struct sockaddr *, const struct sockaddr *);

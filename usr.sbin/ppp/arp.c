@@ -57,13 +57,16 @@
 #include "slcompress.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
-#include "filter.h"
+#include "ipv6cp.h"
 #include "descriptor.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "link.h"
 #include "mp.h"
+#include "ncp.h"
+#include "filter.h"
 #ifndef NORADIUS
 #include "radius.h"
 #endif
@@ -104,7 +107,7 @@ arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add, int s)
    */
 
   memset(&arpmsg, 0, sizeof arpmsg);
-  if (!get_ether_addr(s, addr, &arpmsg.hwa)) {
+  if (!arp_EtherAddr(s, addr, &arpmsg.hwa, 0)) {
     log_Printf(LogWARN, "%s: Cannot determine ethernet address for proxy ARP\n",
 	       inet_ntoa(addr));
     return 0;
@@ -130,7 +133,7 @@ arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add, int s)
     + arpmsg.hwa.sdl_len;
 
 
-  if (write(routes, &arpmsg, arpmsg.hdr.rtm_msglen) < 0 &&
+  if (ID0write(routes, &arpmsg, arpmsg.hdr.rtm_msglen) < 0 &&
       !(!add && errno == ESRCH)) {
     log_Printf(LogERROR, "%s proxy arp entry %s: %s\n",
 	add ? "Add" : "Delete", inet_ntoa(addr), strerror(errno));
@@ -144,7 +147,6 @@ arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add, int s)
 int
 arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
 {
-
   return (arp_ProxySub(bundle, addr, 1, s));
 }
 
@@ -154,7 +156,6 @@ arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
 int
 arp_ClearProxy(struct bundle *bundle, struct in_addr addr, int s)
 {
-
   return (arp_ProxySub(bundle, addr, 0, s));
 }
 
@@ -178,7 +179,7 @@ arp_SetProxy(struct bundle *bundle, struct in_addr addr, int s)
    * Get the hardware address of an interface on the same subnet as our local
    * address.
    */
-  if (!get_ether_addr(s, addr, &dls.sdl)) {
+  if (!arp_EtherAddr(s, addr, &dls.sdl, 1)) {
     log_Printf(LOG_PHASE_BIT, "Cannot determine ethernet address for "
                "proxy ARP\n");
     return 0;
@@ -220,12 +221,13 @@ arp_ClearProxy(struct bundle *bundle, struct in_addr addr, int s)
 
 
 /*
- * get_ether_addr - get the hardware address of an interface on the
+ * arp_EtherAddr - get the hardware address of an interface on the
  * the same subnet as ipaddr.
  */
 
 int
-get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
+arp_EtherAddr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr,
+              int verbose)
 {
   int mib[6], skip;
   size_t needed;
@@ -243,7 +245,7 @@ get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
   mib[5] = 0;
 
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    log_Printf(LogERROR, "get_ether_addr: sysctl: estimate: %s\n",
+    log_Printf(LogERROR, "arp_EtherAddr: sysctl: estimate: %s\n",
               strerror(errno));
     return 0;
   }
@@ -299,8 +301,9 @@ get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
 
         if ((ifa->sin_addr.s_addr & netmask->sin_addr.s_addr) ==
             (ipaddr.s_addr & netmask->sin_addr.s_addr)) {
-          log_Printf(LogPHASE, "Found interface %.*s for %s\n",
-                    dl->sdl_alen, dl->sdl_data, inet_ntoa(ipaddr));
+          log_Printf(verbose ? LogPHASE : LogDEBUG,
+                     "Found interface %.*s for %s\n", dl->sdl_alen,
+                     dl->sdl_data, inet_ntoa(ipaddr));
           memcpy(hwaddr, dl, dl->sdl_len);
           free(buf);
           return 1;

@@ -30,6 +30,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 #include <errno.h>
@@ -57,6 +58,7 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "lcp.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "async.h"
@@ -67,6 +69,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "chat.h"
 #include "chap.h"
@@ -219,7 +223,7 @@ prompt_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
       prompt_TtyCommandMode(p);
       p->nonewline = 0;
       /* We'll get a prompt because of our status change */
-      /* Fall through */
+      /* FALLTHROUGH */
 
     default:
       /* Wait 'till we're in a state we care about */
@@ -273,7 +277,7 @@ prompt_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
           arg.bundle = bundle;
           arg.cx = p->TermMode;
           arg.prompt = p;
-        
+
 	  mbuf_Show(&arg);
         }
 	break;

@@ -42,6 +42,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <resolv.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -71,6 +72,8 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "lcp.h"
+#include "ncpaddr.h"
+#include "ip.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -83,6 +86,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "id.h"
 #include "arp.h"
@@ -90,100 +95,11 @@
 #include "prompt.h"
 #include "route.h"
 #include "iface.h"
-#include "ip.h"
 
 #undef REJECTED
 #define	REJECTED(p, x)	((p)->peer_reject & (1<<(x)))
 #define issep(ch) ((ch) == ' ' || (ch) == '\t')
 #define isip(ch) (((ch) >= '0' && (ch) <= '9') || (ch) == '.')
-
-static u_short default_urgent_tcp_ports[] = {
-  21,	/* ftp */
-  22,	/* ssh */
-  23,	/* telnet */
-  513,	/* login */
-  514,	/* shell */
-  543,	/* klogin */
-  544	/* kshell */
-};
-
-static u_short default_urgent_udp_ports[] = { };
-
-#define NDEFTCPPORTS \
-  (sizeof default_urgent_tcp_ports / sizeof default_urgent_tcp_ports[0])
-#define NDEFUDPPORTS \
-  (sizeof default_urgent_udp_ports / sizeof default_urgent_udp_ports[0])
-
-int
-ipcp_IsUrgentPort(struct port_range *range, u_short src, u_short dst)
-{
-  int f;
-
-  for (f = 0; f < range->nports; f++)
-    if (range->port[f] == src || range->port[f] == dst)
-      return 1;
-
-  return 0;
-}
-
-void
-ipcp_AddUrgentPort(struct port_range *range, u_short port)
-{
-  u_short *newport;
-  int p;
-
-  if (range->nports == range->maxports) {
-    range->maxports += 10;
-    newport = (u_short *)realloc(range->port,
-                                 range->maxports * sizeof(u_short));
-    if (newport == NULL) {
-      log_Printf(LogERROR, "ipcp_AddUrgentPort: realloc: %s\n",
-                 strerror(errno));
-      range->maxports -= 10;
-      return;
-    }
-    range->port = newport;
-  }
-
-  for (p = 0; p < range->nports; p++)
-    if (range->port[p] == port) {
-      log_Printf(LogWARN, "%u: Port already set to urgent\n", port);
-      break;
-    } else if (range->port[p] > port) {
-      memmove(range->port + p + 1, range->port + p,
-              (range->nports - p) * sizeof(u_short));
-      range->port[p] = port;
-      range->nports++;
-      break;
-    }
-
-  if (p == range->nports)
-    range->port[range->nports++] = port;
-}
-
-void
-ipcp_RemoveUrgentPort(struct port_range *range, u_short port)
-{
-  int p;
-
-  for (p = 0; p < range->nports; p++)
-    if (range->port[p] == port) {
-      if (p != range->nports - 1)
-        memmove(range->port + p, range->port + p + 1,
-                (range->nports - p - 1) * sizeof(u_short));
-      range->nports--;
-      return;
-    }
-
-  if (p == range->nports)
-    log_Printf(LogWARN, "%u: Port not set to urgent\n", port);
-}
-
-void
-ipcp_ClearUrgentPorts(struct port_range *range)
-{
-  range->nports = 0;
-}
 
 struct compreq {
   u_short proto;
@@ -199,7 +115,7 @@ static void IpcpInitRestartCounter(struct fsm *, int);
 static void IpcpSendConfigReq(struct fsm *);
 static void IpcpSentTerminateReq(struct fsm *);
 static void IpcpSendTerminateAck(struct fsm *, u_char);
-static void IpcpDecodeConfig(struct fsm *, u_char *, int, int,
+static void IpcpDecodeConfig(struct fsm *, u_char *, u_char *, int,
                              struct fsm_decode *);
 
 static struct fsm_callbacks ipcp_Callbacks = {
@@ -327,7 +243,7 @@ ipcp_LoadDNS(struct ipcp *ipcp)
 
           ch = *ncp;
           *ncp = '\0';
-          if (n < 2 && inet_aton(cp, ipcp->ns.dns + n))
+          if (n < 2 && inet_aton(cp, ipcp->ns.dns))
             n++;
           *ncp = ch;
 
@@ -344,7 +260,7 @@ ipcp_LoadDNS(struct ipcp *ipcp)
           ipcp->ns.dns[0].s_addr = ipcp->ns.dns[1].s_addr;
           ipcp->ns.dns[1].s_addr = INADDR_ANY;
         }
-        bundle_AdjustDNS(ipcp->fsm.bundle, ipcp->ns.dns);
+        bundle_AdjustDNS(ipcp->fsm.bundle);
       }
     } else
       log_Printf(LogERROR, "Failed to stat opened %s: %s\n",
@@ -424,29 +340,23 @@ ipcp_RestoreDNS(struct ipcp *ipcp)
   } else if (remove(_PATH_RESCONF) == -1)
     log_Printf(LogERROR, "Failed removing %s: %s\n", _PATH_RESCONF,
                strerror(errno));
-  
+
 }
 
 int
 ipcp_Show(struct cmdargs const *arg)
 {
   struct ipcp *ipcp = &arg->bundle->ncp.ipcp;
-  int p;
 
   prompt_Printf(arg->prompt, "%s [%s]\n", ipcp->fsm.name,
                 State2Nam(ipcp->fsm.state));
   if (ipcp->fsm.state == ST_OPENED) {
     prompt_Printf(arg->prompt, " His side:        %s, %s\n",
-	          inet_ntoa(ipcp->peer_ip), vj2asc(ipcp->peer_compproto));
+                  inet_ntoa(ipcp->peer_ip), vj2asc(ipcp->peer_compproto));
     prompt_Printf(arg->prompt, " My side:         %s, %s\n",
-	          inet_ntoa(ipcp->my_ip), vj2asc(ipcp->my_compproto));
+                  inet_ntoa(ipcp->my_ip), vj2asc(ipcp->my_compproto));
     prompt_Printf(arg->prompt, " Queued packets:  %lu\n",
-                  (unsigned long)ip_QueueLen(ipcp));
-  }
-
-  if (ipcp->route) {
-    prompt_Printf(arg->prompt, "\n");
-    route_ShowSticky(arg->prompt, ipcp->route, "Sticky routes", 1);
+                  (unsigned long)ipcp_QueueLen(ipcp));
   }
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
@@ -454,9 +364,8 @@ ipcp_Show(struct cmdargs const *arg)
                 " REQ%s, %u Term REQ%s\n", ipcp->cfg.fsm.timeout,
                 ipcp->cfg.fsm.maxreq, ipcp->cfg.fsm.maxreq == 1 ? "" : "s",
                 ipcp->cfg.fsm.maxtrm, ipcp->cfg.fsm.maxtrm == 1 ? "" : "s");
-  prompt_Printf(arg->prompt, " My Address:      %s/%d",
-	        inet_ntoa(ipcp->cfg.my_range.ipaddr), ipcp->cfg.my_range.width);
-  prompt_Printf(arg->prompt, ", netmask %s\n", inet_ntoa(ipcp->cfg.netmask));
+  prompt_Printf(arg->prompt, " My Address:      %s\n",
+                ncprange_ntoa(&ipcp->cfg.my_range));
   if (ipcp->cfg.HaveTriggerAddress)
     prompt_Printf(arg->prompt, " Trigger address: %s\n",
                   inet_ntoa(ipcp->cfg.TriggerAddress));
@@ -469,15 +378,15 @@ ipcp_Show(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, " His Address:     %s\n",
                   ipcp->cfg.peer_list.src);
   else
-    prompt_Printf(arg->prompt, " His Address:     %s/%d\n",
-	          inet_ntoa(ipcp->cfg.peer_range.ipaddr),
-                  ipcp->cfg.peer_range.width);
+    prompt_Printf(arg->prompt, " His Address:     %s\n",
+                  ncprange_ntoa(&ipcp->cfg.peer_range));
 
   prompt_Printf(arg->prompt, " DNS:             %s",
                 ipcp->cfg.ns.dns[0].s_addr == INADDR_NONE ?
                 "none" : inet_ntoa(ipcp->cfg.ns.dns[0]));
   if (ipcp->cfg.ns.dns[1].s_addr != INADDR_NONE)
-    prompt_Printf(arg->prompt, ", %s", inet_ntoa(ipcp->cfg.ns.dns[1]));
+    prompt_Printf(arg->prompt, ", %s",
+                  inet_ntoa(ipcp->cfg.ns.dns[1]));
   prompt_Printf(arg->prompt, ", %s\n",
                 command_ShowNegval(ipcp->cfg.ns.dns_neg));
   prompt_Printf(arg->prompt, " Resolver DNS:    %s",
@@ -485,32 +394,12 @@ ipcp_Show(struct cmdargs const *arg)
                 "none" : inet_ntoa(ipcp->ns.dns[0]));
   if (ipcp->ns.dns[1].s_addr != INADDR_NONE &&
       ipcp->ns.dns[1].s_addr != ipcp->ns.dns[0].s_addr)
-    prompt_Printf(arg->prompt, ", %s", inet_ntoa(ipcp->ns.dns[1]));
+    prompt_Printf(arg->prompt, ", %s",
+                  inet_ntoa(ipcp->ns.dns[1]));
   prompt_Printf(arg->prompt, "\n NetBIOS NS:      %s, ",
-	        inet_ntoa(ipcp->cfg.ns.nbns[0]));
-  prompt_Printf(arg->prompt, "%s\n", inet_ntoa(ipcp->cfg.ns.nbns[1]));
-
-  prompt_Printf(arg->prompt, " Urgent ports\n");
-  prompt_Printf(arg->prompt, "          TCP:    ");
-  if (ipcp->cfg.urgent.tcp.nports == 0)
-    prompt_Printf(arg->prompt, "none");
-  else
-    for (p = 0; p < ipcp->cfg.urgent.tcp.nports; p++) {
-      if (p)
-        prompt_Printf(arg->prompt, ", ");
-      prompt_Printf(arg->prompt, "%u", ipcp->cfg.urgent.tcp.port[p]);
-    }
-  prompt_Printf(arg->prompt, "\n          UDP:    ");
-  if (ipcp->cfg.urgent.udp.nports == 0)
-    prompt_Printf(arg->prompt, "none");
-  else
-    for (p = 0; p < ipcp->cfg.urgent.udp.nports; p++) {
-      if (p)
-        prompt_Printf(arg->prompt, ", ");
-      prompt_Printf(arg->prompt, "%u", ipcp->cfg.urgent.udp.port[p]);
-    }
-  prompt_Printf(arg->prompt, "\n          TOS:    %s\n\n",
-                ipcp->cfg.urgent.tos ? "yes" : "no");
+                inet_ntoa(ipcp->cfg.ns.nbns[0]));
+  prompt_Printf(arg->prompt, "%s\n\n",
+                inet_ntoa(ipcp->cfg.ns.nbns[1]));
 
   throughput_disp(&ipcp->throughput, arg->prompt);
 
@@ -547,6 +436,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
           const struct fsm_parent *parent)
 {
   struct hostent *hp;
+  struct in_addr host;
   char name[MAXHOSTNAMELEN];
   static const char * const timer_names[] =
     {"IPCP restart", "IPCP openmode", "IPCP stopped"};
@@ -554,17 +444,20 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   fsm_Init(&ipcp->fsm, "IPCP", PROTO_IPCP, 1, IPCP_MAXCODE, LogIPCP,
            bundle, l, parent, &ipcp_Callbacks, timer_names);
 
-  ipcp->route = NULL;
   ipcp->cfg.vj.slots = DEF_VJ_STATES;
   ipcp->cfg.vj.slotcomp = 1;
   memset(&ipcp->cfg.my_range, '\0', sizeof ipcp->cfg.my_range);
+
+  host.s_addr = htonl(INADDR_LOOPBACK);
+  ipcp->cfg.netmask.s_addr = INADDR_ANY;
   if (gethostname(name, sizeof name) == 0) {
     hp = gethostbyname(name);
-    if (hp && hp->h_addrtype == AF_INET)
-      memcpy(&ipcp->cfg.my_range.ipaddr.s_addr, hp->h_addr, hp->h_length);
+    if (hp && hp->h_addrtype == AF_INET && hp->h_length == sizeof host.s_addr)
+      memcpy(&host.s_addr, hp->h_addr, sizeof host.s_addr);
   }
-  ipcp->cfg.netmask.s_addr = INADDR_ANY;
-  memset(&ipcp->cfg.peer_range, '\0', sizeof ipcp->cfg.peer_range);
+  ncprange_setip4(&ipcp->cfg.my_range, host, ipcp->cfg.netmask);
+  ncprange_setip4(&ipcp->cfg.peer_range, ipcp->cfg.netmask, ipcp->cfg.netmask);
+
   iplist_setsrc(&ipcp->cfg.peer_list, "");
   ipcp->cfg.HaveTriggerAddress = 0;
 
@@ -573,17 +466,6 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   ipcp->cfg.ns.dns_neg = 0;
   ipcp->cfg.ns.nbns[0].s_addr = INADDR_ANY;
   ipcp->cfg.ns.nbns[1].s_addr = INADDR_ANY;
-
-  ipcp->cfg.urgent.tcp.nports = ipcp->cfg.urgent.tcp.maxports = NDEFTCPPORTS;
-  ipcp->cfg.urgent.tcp.port = (u_short *)malloc(NDEFTCPPORTS * sizeof(u_short));
-  memcpy(ipcp->cfg.urgent.tcp.port, default_urgent_tcp_ports,
-         NDEFTCPPORTS * sizeof(u_short));
-  ipcp->cfg.urgent.tos = 1;
-
-  ipcp->cfg.urgent.udp.nports = ipcp->cfg.urgent.udp.maxports = NDEFUDPPORTS;
-  ipcp->cfg.urgent.udp.port = (u_short *)malloc(NDEFUDPPORTS * sizeof(u_short));
-  memcpy(ipcp->cfg.urgent.udp.port, default_urgent_udp_ports,
-         NDEFUDPPORTS * sizeof(u_short));
 
   ipcp->cfg.fsm.timeout = DEF_FSMRETRY;
   ipcp->cfg.fsm.maxreq = DEF_FSMTRIES;
@@ -605,16 +487,8 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
 void
 ipcp_Destroy(struct ipcp *ipcp)
 {
-  if (ipcp->cfg.urgent.tcp.maxports) {
-    ipcp->cfg.urgent.tcp.nports = ipcp->cfg.urgent.tcp.maxports = 0;
-    free(ipcp->cfg.urgent.tcp.port);
-    ipcp->cfg.urgent.tcp.port = NULL;
-  }
-  if (ipcp->cfg.urgent.udp.maxports) {
-    ipcp->cfg.urgent.udp.nports = ipcp->cfg.urgent.udp.maxports = 0;
-    free(ipcp->cfg.urgent.udp.port);
-    ipcp->cfg.urgent.udp.port = NULL;
-  }
+  throughput_destroy(&ipcp->throughput);
+
   if (ipcp->ns.resolv != NULL) {
     free(ipcp->ns.resolv);
     ipcp->ns.resolv = NULL;
@@ -635,6 +509,8 @@ void
 ipcp_Setup(struct ipcp *ipcp, u_int32_t mask)
 {
   struct iface *iface = ipcp->fsm.bundle->iface;
+  struct ncpaddr ipaddr;
+  struct in_addr peer;
   int pos, n;
 
   ipcp->fsm.open_mode = 0;
@@ -642,25 +518,24 @@ ipcp_Setup(struct ipcp *ipcp, u_int32_t mask)
 
   if (iplist_isvalid(&ipcp->cfg.peer_list)) {
     /* Try to give the peer a previously configured IP address */
-    for (n = 0; n < iface->in_addrs; n++) {
-      pos = iplist_ip2pos(&ipcp->cfg.peer_list, iface->in_addr[n].brd);
-      if (pos != -1) {
-        ipcp->cfg.peer_range.ipaddr =
-          iplist_setcurpos(&ipcp->cfg.peer_list, pos);
+    for (n = 0; n < iface->addrs; n++) {
+      if (!ncpaddr_getip4(&iface->addr[n].peer, &peer))
+        continue;
+      if ((pos = iplist_ip2pos(&ipcp->cfg.peer_list, peer)) != -1) {
+        ncpaddr_setip4(&ipaddr, iplist_setcurpos(&ipcp->cfg.peer_list, pos));
         break;
       }
     }
-    if (n == iface->in_addrs)
+    if (n == iface->addrs)
       /* Ok, so none of 'em fit.... pick a random one */
-      ipcp->cfg.peer_range.ipaddr = iplist_setrandpos(&ipcp->cfg.peer_list);
+      ncpaddr_setip4(&ipaddr, iplist_setrandpos(&ipcp->cfg.peer_list));
 
-    ipcp->cfg.peer_range.mask.s_addr = INADDR_BROADCAST;
-    ipcp->cfg.peer_range.width = 32;
+    ncprange_sethost(&ipcp->cfg.peer_range, &ipaddr);
   }
 
   ipcp->heis1172 = 0;
   ipcp->peer_req = 0;
-  ipcp->peer_ip = ipcp->cfg.peer_range.ipaddr;
+  ncprange_getip4addr(&ipcp->cfg.peer_range, &ipcp->peer_ip);
   ipcp->peer_compproto = 0;
 
   if (ipcp->cfg.HaveTriggerAddress) {
@@ -677,17 +552,17 @@ ipcp_Setup(struct ipcp *ipcp, u_int32_t mask)
      * Otherwise, if we've used an IP number before and it's still within
      * the network specified on the ``set ifaddr'' line, we really
      * want to keep that IP number so that we can keep any existing
-     * connections that are bound to that IP (assuming we're not
-     * ``iface-alias''ing).
+     * connections that are bound to that IP.
      */
-    for (n = 0; n < iface->in_addrs; n++)
-      if ((iface->in_addr[n].ifa.s_addr & ipcp->cfg.my_range.mask.s_addr) ==
-          (ipcp->cfg.my_range.ipaddr.s_addr & ipcp->cfg.my_range.mask.s_addr)) {
-        ipcp->my_ip = iface->in_addr[n].ifa;
+    for (n = 0; n < iface->addrs; n++) {
+      ncprange_getaddr(&iface->addr[n].ifa, &ipaddr);
+      if (ncprange_contains(&ipcp->cfg.my_range, &ipaddr)) {
+        ncpaddr_getip4(&ipaddr, &ipcp->my_ip);
         break;
       }
-    if (n == iface->in_addrs)
-      ipcp->my_ip = ipcp->cfg.my_range.ipaddr;
+    }
+    if (n == iface->addrs)
+      ncprange_getip4addr(&ipcp->cfg.my_range, &ipcp->my_ip);
   }
 
   if (IsEnabled(ipcp->cfg.vj.neg)
@@ -705,98 +580,128 @@ ipcp_Setup(struct ipcp *ipcp, u_int32_t mask)
   ipcp->peer_reject = 0;
   ipcp->my_reject = 0;
 
-  /* Copy startup values into ipcp->dns? */
+  /* Copy startup values into ipcp->ns.dns */
   if (ipcp->cfg.ns.dns[0].s_addr != INADDR_NONE)
-    memcpy(ipcp->dns, ipcp->cfg.ns.dns, sizeof ipcp->dns);
-  else if (ipcp->ns.dns[0].s_addr != INADDR_NONE)
-    memcpy(ipcp->dns, ipcp->ns.dns, sizeof ipcp->dns);
-  else
-    ipcp->dns[0].s_addr = ipcp->dns[1].s_addr = INADDR_ANY;
-
-  if (ipcp->dns[1].s_addr == INADDR_NONE)
-    ipcp->dns[1] = ipcp->dns[0];
+    memcpy(ipcp->ns.dns, ipcp->cfg.ns.dns, sizeof ipcp->ns.dns);
 }
 
 static int
-ipcp_doproxyall(struct bundle *bundle,
-                int (*proxyfun)(struct bundle *, struct in_addr, int), int s)
+numaddresses(struct in_addr mask)
 {
-  int n, ret;
-  struct sticky_route *rp;
-  struct in_addr addr;
-  struct ipcp *ipcp;
+  u_int32_t bit, haddr;
+  int n;
 
-  ipcp = &bundle->ncp.ipcp;
-  for (rp = ipcp->route; rp != NULL; rp = rp->next) {
-    if (rp->mask.s_addr == INADDR_BROADCAST)
-        continue;
-    n = ntohl(INADDR_BROADCAST) - ntohl(rp->mask.s_addr) - 1;
-    if (n > 0 && n <= 254 && rp->dst.s_addr != INADDR_ANY) {
-      addr = rp->dst;
-      while (n--) {
-        addr.s_addr = htonl(ntohl(addr.s_addr) + 1);
-	log_Printf(LogDEBUG, "ipcp_doproxyall: %s\n", inet_ntoa(addr));
-	ret = (*proxyfun)(bundle, addr, s);
-	if (!ret)
-	  return ret;
-      }
-    }
+  haddr = ntohl(mask.s_addr);
+  bit = 1;
+  n = 1;
+
+  do {
+    if (!(haddr & bit))
+      n <<= 1;
+  } while (bit <<= 1);
+
+  return n;
+}
+
+static int
+ipcp_proxyarp(struct ipcp *ipcp,
+              int (*proxyfun)(struct bundle *, struct in_addr, int),
+              const struct iface_addr *addr)
+{
+  struct bundle *bundle = ipcp->fsm.bundle;
+  struct in_addr peer, mask, ip;
+  int n, ret, s;
+
+  if (!ncpaddr_getip4(&addr->peer, &peer)) {
+    log_Printf(LogERROR, "Oops, ipcp_proxyarp() called with unexpected addr\n");
+    return 0;
   }
 
-  return 0;
+  if ((s = ID0socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+    log_Printf(LogERROR, "ipcp_proxyarp: socket: %s\n",
+               strerror(errno));
+    return 0;
+  }
+
+  ret = 0;
+
+  if (Enabled(bundle, OPT_PROXYALL)) {
+    ncprange_getip4mask(&addr->ifa, &mask);
+    if ((n = numaddresses(mask)) > 256) {
+      log_Printf(LogWARN, "%s: Too many addresses for proxyall\n",
+                 ncprange_ntoa(&addr->ifa));
+      return 0;
+    }
+    ip.s_addr = peer.s_addr & mask.s_addr;
+    if (n >= 4) {
+      ip.s_addr = htonl(ntohl(ip.s_addr) + 1);
+      n -= 2;
+    }
+    while (n) {
+      if (!((ip.s_addr ^ peer.s_addr) & mask.s_addr)) {
+        if (!(ret = (*proxyfun)(bundle, ip, s)))
+          break;
+        n--;
+      }
+      ip.s_addr = htonl(ntohl(ip.s_addr) + 1);
+    }
+    ret = !n;
+  } else if (Enabled(bundle, OPT_PROXY))
+    ret = (*proxyfun)(bundle, peer, s);
+
+  close(s);
+
+  return ret;
 }
 
 static int
-ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
-                  struct in_addr hisaddr, int silent)
+ipcp_SetIPaddress(struct ipcp *ipcp, struct in_addr myaddr,
+                  struct in_addr hisaddr)
 {
-  struct in_addr mask, oaddr;
+  struct bundle *bundle = ipcp->fsm.bundle;
+  struct ncpaddr myncpaddr, hisncpaddr;
+  struct ncprange myrange;
+  struct in_addr mask;
+  struct sockaddr_storage ssdst, ssgw, ssmask;
+  struct sockaddr *sadst, *sagw, *samask;
+
+  sadst = (struct sockaddr *)&ssdst;
+  sagw = (struct sockaddr *)&ssgw;
+  samask = (struct sockaddr *)&ssmask;
+
+  ncpaddr_setip4(&hisncpaddr, hisaddr);
+  ncpaddr_setip4(&myncpaddr, myaddr);
+  ncprange_sethost(&myrange, &myncpaddr);
 
   mask = addr2mask(myaddr);
 
-  if (bundle->ncp.ipcp.ifmask.s_addr != INADDR_ANY &&
-      (bundle->ncp.ipcp.ifmask.s_addr & mask.s_addr) == mask.s_addr)
-    mask.s_addr = bundle->ncp.ipcp.ifmask.s_addr;
+  if (ipcp->ifmask.s_addr != INADDR_ANY &&
+      (ipcp->ifmask.s_addr & mask.s_addr) == mask.s_addr)
+    ncprange_setip4mask(&myrange, ipcp->ifmask);
 
-  oaddr.s_addr = bundle->iface->in_addrs ?
-                 bundle->iface->in_addr[0].ifa.s_addr : INADDR_ANY;
-  if (!iface_inAdd(bundle->iface, myaddr, mask, hisaddr,
-                 IFACE_ADD_FIRST|IFACE_FORCE_ADD))
-    return -1;
+  if (!iface_Add(bundle->iface, &bundle->ncp, &myrange, &hisncpaddr,
+                 IFACE_ADD_FIRST|IFACE_FORCE_ADD|IFACE_SYSTEM))
+    return 0;
 
-  if (!Enabled(bundle, OPT_IFACEALIAS) && bundle->iface->in_addrs > 1
-      && myaddr.s_addr != oaddr.s_addr)
-    /* Nuke the old one */
-    iface_inDelete(bundle->iface, oaddr);
+  if (!Enabled(bundle, OPT_IFACEALIAS))
+    iface_Clear(bundle->iface, &bundle->ncp, AF_INET,
+                IFACE_CLEAR_ALIASES|IFACE_SYSTEM);
 
-  if (bundle->ncp.ipcp.cfg.sendpipe > 0 || bundle->ncp.ipcp.cfg.recvpipe > 0)
-    rt_Update(bundle, hisaddr, myaddr);
+  if (bundle->ncp.cfg.sendpipe > 0 || bundle->ncp.cfg.recvpipe > 0) {
+    ncprange_getsa(&myrange, &ssgw, &ssmask);
+    ncpaddr_getsa(&hisncpaddr, &ssdst);
+    rt_Update(bundle, sadst, sagw, samask);
+  }
 
   if (Enabled(bundle, OPT_SROUTES))
-    route_Change(bundle, bundle->ncp.ipcp.route, myaddr, hisaddr,
-                 bundle->ncp.ipcp.ns.dns);
+    route_Change(bundle, bundle->ncp.route, &myncpaddr, &hisncpaddr);
 
 #ifndef NORADIUS
   if (bundle->radius.valid)
-    route_Change(bundle, bundle->radius.routes, myaddr, hisaddr,
-                 bundle->ncp.ipcp.ns.dns);
+    route_Change(bundle, bundle->radius.routes, &myncpaddr, &hisncpaddr);
 #endif
 
-  if (Enabled(bundle, OPT_PROXY) || Enabled(bundle, OPT_PROXYALL)) {
-    int s = ID0socket(AF_INET, SOCK_DGRAM, 0);
-    if (s < 0)
-      log_Printf(LogERROR, "ipcp_SetIPaddress: socket(): %s\n",
-                 strerror(errno));
-    else {
-      if (Enabled(bundle, OPT_PROXYALL))
-        ipcp_doproxyall(bundle, arp_SetProxy, s);
-      else if (Enabled(bundle, OPT_PROXY))
-        arp_SetProxy(bundle, hisaddr, s);
-      close(s);
-    }
-  }
-
-  return 0;
+  return 1;	/* Ok */
 }
 
 static struct in_addr
@@ -809,7 +714,7 @@ ChooseHisAddr(struct bundle *bundle, struct in_addr gw)
     try = iplist_next(&bundle->ncp.ipcp.cfg.peer_list);
     log_Printf(LogDEBUG, "ChooseHisAddr: Check item %ld (%s)\n",
               f, inet_ntoa(try));
-    if (ipcp_SetIPaddress(bundle, gw, try, 1) == 0) {
+    if (ipcp_SetIPaddress(&bundle->ncp.ipcp, gw, try)) {
       log_Printf(LogIPCP, "Selected IP address %s\n", inet_ntoa(try));
       break;
     }
@@ -850,13 +755,13 @@ IpcpSendConfigReq(struct fsm *fp)
   struct physical *p = link2physical(fp->link);
   struct ipcp *ipcp = fsm2ipcp(fp);
   u_char buff[24];
-  struct lcp_opt *o;
+  struct fsm_opt *o;
 
-  o = (struct lcp_opt *)buff;
+  o = (struct fsm_opt *)buff;
 
   if ((p && !physical_IsSync(p)) || !REJECTED(ipcp, TY_IPADDR)) {
     memcpy(o->data, &ipcp->my_ip.s_addr, 4);
-    INC_LCP_OPT(TY_IPADDR, 6, o);
+    INC_FSM_OPT(TY_IPADDR, 6, o);
   }
 
   if (ipcp->my_compproto && !REJECTED(ipcp, TY_COMPPROTO)) {
@@ -864,7 +769,7 @@ IpcpSendConfigReq(struct fsm *fp)
       u_int16_t proto = PROTO_VJCOMP;
 
       ua_htons(&proto, o->data);
-      INC_LCP_OPT(TY_COMPPROTO, 4, o);
+      INC_FSM_OPT(TY_COMPPROTO, 4, o);
     } else {
       struct compreq req;
 
@@ -872,20 +777,20 @@ IpcpSendConfigReq(struct fsm *fp)
       req.slots = (ipcp->my_compproto >> 8) & 255;
       req.compcid = ipcp->my_compproto & 1;
       memcpy(o->data, &req, 4);
-      INC_LCP_OPT(TY_COMPPROTO, 6, o);
+      INC_FSM_OPT(TY_COMPPROTO, 6, o);
     }
   }
 
-  if (IsEnabled(ipcp->cfg.ns.dns_neg) &&
-      !REJECTED(ipcp, TY_PRIMARY_DNS - TY_ADJUST_NS)) {
-    memcpy(o->data, &ipcp->dns[0].s_addr, 4);
-    INC_LCP_OPT(TY_PRIMARY_DNS, 6, o);
-  }
+  if (IsEnabled(ipcp->cfg.ns.dns_neg)) {
+    if (!REJECTED(ipcp, TY_PRIMARY_DNS - TY_ADJUST_NS)) {
+      memcpy(o->data, &ipcp->ns.dns[0].s_addr, 4);
+      INC_FSM_OPT(TY_PRIMARY_DNS, 6, o);
+    }
 
-  if (IsEnabled(ipcp->cfg.ns.dns_neg) &&
-      !REJECTED(ipcp, TY_SECONDARY_DNS - TY_ADJUST_NS)) {
-    memcpy(o->data, &ipcp->dns[1].s_addr, 4);
-    INC_LCP_OPT(TY_SECONDARY_DNS, 6, o);
+    if (!REJECTED(ipcp, TY_SECONDARY_DNS - TY_ADJUST_NS)) {
+      memcpy(o->data, &ipcp->ns.dns[1].s_addr, 4);
+      INC_FSM_OPT(TY_SECONDARY_DNS, 6, o);
+    }
   }
 
   fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff,
@@ -929,55 +834,57 @@ IpcpLayerFinish(struct fsm *fp)
   throughput_log(&ipcp->throughput, LogIPCP, NULL);
 }
 
+/*
+ * Called from iface_Add() via ncp_IfaceAddrAdded()
+ */
 void
-ipcp_CleanInterface(struct ipcp *ipcp)
+ipcp_IfaceAddrAdded(struct ipcp *ipcp, const struct iface_addr *addr)
 {
-  struct iface *iface = ipcp->fsm.bundle->iface;
+  struct bundle *bundle = ipcp->fsm.bundle;
 
-  if (iface->in_addrs && (Enabled(ipcp->fsm.bundle, OPT_PROXY) ||
-                          Enabled(ipcp->fsm.bundle, OPT_PROXYALL))) {
-    int s = ID0socket(AF_INET, SOCK_DGRAM, 0);
-    if (s < 0)
-      log_Printf(LogERROR, "ipcp_CleanInterface: socket: %s\n",
-                 strerror(errno));
-    else {
-      if (Enabled(ipcp->fsm.bundle, OPT_PROXYALL))
-        ipcp_doproxyall(ipcp->fsm.bundle, arp_ClearProxy, s);
-      else if (Enabled(ipcp->fsm.bundle, OPT_PROXY))
-        arp_ClearProxy(ipcp->fsm.bundle, iface->in_addr[0].brd, s);
-      close(s);
-    }
-  }
+  if (Enabled(bundle, OPT_PROXY) || Enabled(bundle, OPT_PROXYALL))
+    ipcp_proxyarp(ipcp, arp_SetProxy, addr);
+}
 
-  iface_inClear(ipcp->fsm.bundle->iface, IFACE_CLEAR_ALL);
+/*
+ * Called from iface_Clear() and iface_Delete() via ncp_IfaceAddrDeleted()
+ */
+void
+ipcp_IfaceAddrDeleted(struct ipcp *ipcp, const struct iface_addr *addr)
+{
+  struct bundle *bundle = ipcp->fsm.bundle;
+
+  if (Enabled(bundle, OPT_PROXY) || Enabled(bundle, OPT_PROXYALL))
+    ipcp_proxyarp(ipcp, arp_ClearProxy, addr);
 }
 
 static void
 IpcpLayerDown(struct fsm *fp)
 {
   /* About to come down */
-  static int recursing;
   struct ipcp *ipcp = fsm2ipcp(fp);
-  const char *s;
+  static int recursing;
+  char addr[16];
 
   if (!recursing++) {
-    if (ipcp->fsm.bundle->iface->in_addrs)
-      s = inet_ntoa(ipcp->fsm.bundle->iface->in_addr[0].ifa);
-    else
-      s = "Interface configuration error !";
-    log_Printf(LogIPCP, "%s: LayerDown: %s\n", fp->link->name, s);
+    snprintf(addr, sizeof addr, "%s", inet_ntoa(ipcp->my_ip));
+    log_Printf(LogIPCP, "%s: LayerDown: %s\n", fp->link->name, addr);
 
 #ifndef NORADIUS
     radius_Account(&fp->bundle->radius, &fp->bundle->radacct,
                    fp->bundle->links, RAD_STOP, &ipcp->peer_ip, &ipcp->ifmask,
                    &ipcp->throughput);
+
+  if (fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
+    system_Select(fp->bundle, fp->bundle->radius.filterid, LINKDOWNFILE,
+                  NULL, NULL);
 #endif
 
     /*
      * XXX this stuff should really live in the FSM.  Our config should
      * associate executable sections in files with events.
      */
-    if (system_Select(fp->bundle, s, LINKDOWNFILE, NULL, NULL) < 0) {
+    if (system_Select(fp->bundle, addr, LINKDOWNFILE, NULL, NULL) < 0) {
       if (bundle_GetLabel(fp->bundle)) {
          if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
                           LINKDOWNFILE, NULL, NULL) < 0)
@@ -994,7 +901,7 @@ IpcpLayerDown(struct fsm *fp)
 int
 ipcp_InterfaceUp(struct ipcp *ipcp)
 {
-  if (ipcp_SetIPaddress(ipcp->fsm.bundle, ipcp->my_ip, ipcp->peer_ip, 0) < 0) {
+  if (!ipcp_SetIPaddress(ipcp, ipcp->my_ip, ipcp->peer_ip)) {
     log_Printf(LogERROR, "ipcp_InterfaceUp: unable to set ip address\n");
     return 0;
   }
@@ -1032,8 +939,12 @@ IpcpLayerUp(struct fsm *fp)
     return 0;
 
 #ifndef NORADIUS
-  radius_Account(&fp->bundle->radius, &fp->bundle->radacct, fp->bundle->links, 
+  radius_Account(&fp->bundle->radius, &fp->bundle->radacct, fp->bundle->links,
                  RAD_START, &ipcp->peer_ip, &ipcp->ifmask, &ipcp->throughput);
+
+  if (fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
+    system_Select(fp->bundle, fp->bundle->radius.filterid, LINKUPFILE,
+                  NULL, NULL);
 #endif
 
   /*
@@ -1055,25 +966,19 @@ IpcpLayerUp(struct fsm *fp)
   return 1;
 }
 
-static int
-AcceptableAddr(const struct in_range *prange, struct in_addr ipaddr)
-{
-  /* Is the given IP in the given range ? */
-  return (prange->ipaddr.s_addr & prange->mask.s_addr) ==
-    (ipaddr.s_addr & prange->mask.s_addr) && ipaddr.s_addr;
-}
-
 static void
 ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
 {
   struct bundle *bundle = ipcp->fsm.bundle;
   struct iface *iface = bundle->iface;
+  struct in_addr myaddr, peer;
   int n;
 
   if (iplist_isvalid(&ipcp->cfg.peer_list)) {
+    ncprange_getip4addr(&ipcp->cfg.my_range, &myaddr);
     if (ip.s_addr == INADDR_ANY ||
         iplist_ip2pos(&ipcp->cfg.peer_list, ip) < 0 ||
-        ipcp_SetIPaddress(bundle, ipcp->cfg.my_range.ipaddr, ip, 1)) {
+        !ipcp_SetIPaddress(ipcp, myaddr, ip)) {
       log_Printf(LogIPCP, "%s: Address invalid or already in use\n",
                  inet_ntoa(ip));
       /*
@@ -1081,15 +986,19 @@ ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
        * try NAKing with that so that we don't have to upset things
        * too much.
        */
-      for (n = 0; n < iface->in_addrs; n++)
-        if (iplist_ip2pos(&ipcp->cfg.peer_list, iface->in_addr[n].brd) >= 0) {
-          ipcp->peer_ip = iface->in_addr[n].brd;
+      for (n = 0; n < iface->addrs; n++) {
+        if (!ncpaddr_getip4(&iface->addr[n].peer, &peer))
+          continue;
+        if (iplist_ip2pos(&ipcp->cfg.peer_list, peer) >= 0) {
+          ipcp->peer_ip = peer;
           break;
         }
+      }
 
-      if (n == iface->in_addrs)
+      if (n == iface->addrs) {
         /* Just pick an IP number from our list */
-        ipcp->peer_ip = ChooseHisAddr(bundle, ipcp->cfg.my_range.ipaddr);
+        ipcp->peer_ip = ChooseHisAddr(bundle, myaddr);
+      }
 
       if (ipcp->peer_ip.s_addr == INADDR_ANY) {
         *dec->rejend++ = TY_IPADDR;
@@ -1104,23 +1013,21 @@ ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
       }
       return;
     }
-  } else if (!AcceptableAddr(&ipcp->cfg.peer_range, ip)) {
+  } else if (!ncprange_containsip4(&ipcp->cfg.peer_range, ip)) {
     /*
      * If the destination address is not acceptable, NAK with what we
      * want to use.
      */
     *dec->nakend++ = TY_IPADDR;
     *dec->nakend++ = 6;
-    for (n = 0; n < iface->in_addrs; n++)
-      if ((iface->in_addr[n].brd.s_addr & ipcp->cfg.peer_range.mask.s_addr)
-          == (ipcp->cfg.peer_range.ipaddr.s_addr &
-              ipcp->cfg.peer_range.mask.s_addr)) {
+    for (n = 0; n < iface->addrs; n++)
+      if (ncprange_contains(&ipcp->cfg.peer_range, &iface->addr[n].peer)) {
         /* We prefer the already-configured address */
-        memcpy(dec->nakend, &iface->in_addr[n].brd.s_addr, 4);
+        ncpaddr_getip4addr(&iface->addr[n].peer, (u_int32_t *)dec->nakend);
         break;
       }
 
-    if (n == iface->in_addrs)
+    if (n == iface->addrs)
       memcpy(dec->nakend, &ipcp->peer_ip.s_addr, 4);
 
     dec->nakend += 4;
@@ -1135,128 +1042,126 @@ ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
 }
 
 static void
-IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
+IpcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
                  struct fsm_decode *dec)
 {
   /* Deal with incoming PROTO_IPCP */
+  struct ncpaddr ncpaddr;
   struct ipcp *ipcp = fsm2ipcp(fp);
-  int type, length, gotdnsnak;
+  int gotdnsnak;
   u_int32_t compproto;
   struct compreq *pcomp;
   struct in_addr ipaddr, dstipaddr, have_ip;
   char tbuff[100], tbuff2[100];
+  struct fsm_opt *opt, nak;
 
   gotdnsnak = 0;
 
-  while (plen >= sizeof(struct fsmconfig)) {
-    type = *cp;
-    length = cp[1];
-
-    if (length == 0) {
-      log_Printf(LogIPCP, "%s: IPCP size zero\n", fp->link->name);
+  while (end - cp >= sizeof(opt->hdr)) {
+    if ((opt = fsm_readopt(&cp)) == NULL)
       break;
-    }
 
-    snprintf(tbuff, sizeof tbuff, " %s[%d] ", protoname(type), length);
+    snprintf(tbuff, sizeof tbuff, " %s[%d]", protoname(opt->hdr.id),
+             opt->hdr.len);
 
-    switch (type) {
+    switch (opt->hdr.id) {
     case TY_IPADDR:		/* RFC1332 */
-      memcpy(&ipaddr.s_addr, cp + 2, 4);
+      memcpy(&ipaddr.s_addr, opt->data, 4);
       log_Printf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
 
       switch (mode_type) {
       case MODE_REQ:
         ipcp->peer_req = 1;
         ipcp_ValidateReq(ipcp, ipaddr, dec);
-	break;
+        break;
 
       case MODE_NAK:
-	if (AcceptableAddr(&ipcp->cfg.my_range, ipaddr)) {
-	  /* Use address suggested by peer */
-	  snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s ", tbuff,
-		   inet_ntoa(ipcp->my_ip));
-	  log_Printf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
-	  ipcp->my_ip = ipaddr;
-          bundle_AdjustFilters(fp->bundle, &ipcp->my_ip, NULL);
-	} else {
-	  log_Printf(log_IsKept(LogIPCP) ? LogIPCP : LogPHASE,
+        if (ncprange_containsip4(&ipcp->cfg.my_range, ipaddr)) {
+          /* Use address suggested by peer */
+          snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s ", tbuff,
+                   inet_ntoa(ipcp->my_ip));
+          log_Printf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
+          ipcp->my_ip = ipaddr;
+          ncpaddr_setip4(&ncpaddr, ipcp->my_ip);
+          bundle_AdjustFilters(fp->bundle, &ncpaddr, NULL);
+        } else {
+          log_Printf(log_IsKept(LogIPCP) ? LogIPCP : LogPHASE,
                     "%s: Unacceptable address!\n", inet_ntoa(ipaddr));
           fsm_Close(&ipcp->fsm);
-	}
-	break;
+        }
+        break;
 
       case MODE_REJ:
-	ipcp->peer_reject |= (1 << type);
-	break;
+        ipcp->peer_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
     case TY_COMPPROTO:
-      pcomp = (struct compreq *)(cp + 2);
+      pcomp = (struct compreq *)opt->data;
       compproto = (ntohs(pcomp->proto) << 16) + (pcomp->slots << 8) +
                   pcomp->compcid;
       log_Printf(LogIPCP, "%s %s\n", tbuff, vj2asc(compproto));
 
       switch (mode_type) {
       case MODE_REQ:
-	if (!IsAccepted(ipcp->cfg.vj.neg)) {
-	  memcpy(dec->rejend, cp, length);
-	  dec->rejend += length;
-	} else {
-	  switch (length) {
-	  case 4:		/* RFC1172 */
-	    if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
-	      log_Printf(LogWARN, "Peer is speaking RFC1172 compression "
+        if (!IsAccepted(ipcp->cfg.vj.neg))
+          fsm_rej(dec, opt);
+        else {
+          switch (opt->hdr.len) {
+          case 4:		/* RFC1172 */
+            if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
+              log_Printf(LogWARN, "Peer is speaking RFC1172 compression "
                          "protocol !\n");
-	      ipcp->heis1172 = 1;
-	      ipcp->peer_compproto = compproto;
-	      memcpy(dec->ackend, cp, length);
-	      dec->ackend += length;
-	    } else {
-	      memcpy(dec->nakend, cp, 2);
-	      pcomp->proto = htons(PROTO_VJCOMP);
-	      memcpy(dec->nakend+2, &pcomp, 2);
-	      dec->nakend += length;
-	    }
-	    break;
-	  case 6:		/* RFC1332 */
-	    if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
+              ipcp->heis1172 = 1;
+              ipcp->peer_compproto = compproto;
+              fsm_ack(dec, opt);
+            } else {
+              pcomp->proto = htons(PROTO_VJCOMP);
+              nak.hdr.id = TY_COMPPROTO;
+              nak.hdr.len = 4;
+              memcpy(nak.data, &pcomp, 2);
+              fsm_nak(dec, &nak);
+            }
+            break;
+          case 6:		/* RFC1332 */
+            if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
               if (pcomp->slots <= MAX_VJ_STATES
                   && pcomp->slots >= MIN_VJ_STATES) {
                 /* Ok, we can do that */
-	        ipcp->peer_compproto = compproto;
-	        ipcp->heis1172 = 0;
-	        memcpy(dec->ackend, cp, length);
-	        dec->ackend += length;
-	      } else {
+                ipcp->peer_compproto = compproto;
+                ipcp->heis1172 = 0;
+                fsm_ack(dec, opt);
+              } else {
                 /* Get as close as we can to what he wants */
-	        ipcp->heis1172 = 0;
-	        memcpy(dec->nakend, cp, 2);
-	        pcomp->slots = pcomp->slots < MIN_VJ_STATES ?
+                ipcp->heis1172 = 0;
+                pcomp->slots = pcomp->slots < MIN_VJ_STATES ?
                                MIN_VJ_STATES : MAX_VJ_STATES;
-	        memcpy(dec->nakend+2, &pcomp, sizeof pcomp);
-	        dec->nakend += length;
+                nak.hdr.id = TY_COMPPROTO;
+                nak.hdr.len = 4;
+                memcpy(nak.data, &pcomp, 2);
+                fsm_nak(dec, &nak);
               }
-	    } else {
+            } else {
               /* What we really want */
-	      memcpy(dec->nakend, cp, 2);
-	      pcomp->proto = htons(PROTO_VJCOMP);
-	      pcomp->slots = DEF_VJ_STATES;
-	      pcomp->compcid = 1;
-	      memcpy(dec->nakend+2, &pcomp, sizeof pcomp);
-	      dec->nakend += length;
-	    }
-	    break;
-	  default:
-	    memcpy(dec->rejend, cp, length);
-	    dec->rejend += length;
-	    break;
-	  }
-	}
-	break;
+              pcomp->proto = htons(PROTO_VJCOMP);
+              pcomp->slots = DEF_VJ_STATES;
+              pcomp->compcid = 1;
+              nak.hdr.id = TY_COMPPROTO;
+              nak.hdr.len = 6;
+              memcpy(nak.data, &pcomp, sizeof pcomp);
+              fsm_nak(dec, &nak);
+            }
+            break;
+          default:
+            fsm_rej(dec, opt);
+            break;
+          }
+        }
+        break;
 
       case MODE_NAK:
-	if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
+        if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
           if (pcomp->slots > MAX_VJ_STATES)
             pcomp->slots = MAX_VJ_STATES;
           else if (pcomp->slots < MIN_VJ_STATES)
@@ -1265,151 +1170,144 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                       pcomp->compcid;
         } else
           compproto = 0;
-	log_Printf(LogIPCP, "%s changing compproto: %08x --> %08x\n",
-		  tbuff, ipcp->my_compproto, compproto);
+        log_Printf(LogIPCP, "%s changing compproto: %08x --> %08x\n",
+                   tbuff, ipcp->my_compproto, compproto);
         ipcp->my_compproto = compproto;
-	break;
+        break;
 
       case MODE_REJ:
-	ipcp->peer_reject |= (1 << type);
-	break;
+        ipcp->peer_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
     case TY_IPADDRS:		/* RFC1172 */
-      memcpy(&ipaddr.s_addr, cp + 2, 4);
-      memcpy(&dstipaddr.s_addr, cp + 6, 4);
+      memcpy(&ipaddr.s_addr, opt->data, 4);
+      memcpy(&dstipaddr.s_addr, opt->data + 4, 4);
       snprintf(tbuff2, sizeof tbuff2, "%s %s,", tbuff, inet_ntoa(ipaddr));
       log_Printf(LogIPCP, "%s %s\n", tbuff2, inet_ntoa(dstipaddr));
 
       switch (mode_type) {
       case MODE_REQ:
-	memcpy(dec->rejend, cp, length);
-	dec->rejend += length;
-	break;
+        fsm_rej(dec, opt);
+        break;
 
       case MODE_NAK:
       case MODE_REJ:
-	break;
+        break;
       }
       break;
 
     case TY_PRIMARY_DNS:	/* DNS negotiation (rfc1877) */
     case TY_SECONDARY_DNS:
-      memcpy(&ipaddr.s_addr, cp + 2, 4);
+      memcpy(&ipaddr.s_addr, opt->data, 4);
       log_Printf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
 
       switch (mode_type) {
       case MODE_REQ:
         if (!IsAccepted(ipcp->cfg.ns.dns_neg)) {
-          ipcp->my_reject |= (1 << (type - TY_ADJUST_NS));
-	  memcpy(dec->rejend, cp, length);
-	  dec->rejend += length;
-	  break;
+          ipcp->my_reject |= (1 << (opt->hdr.id - TY_ADJUST_NS));
+          fsm_rej(dec, opt);
+          break;
         }
-        have_ip = ipcp->dns[type == TY_PRIMARY_DNS ? 0 : 1];
+        have_ip = ipcp->ns.dns[opt->hdr.id == TY_PRIMARY_DNS ? 0 : 1];
 
-        if (type == TY_PRIMARY_DNS && ipaddr.s_addr != have_ip.s_addr &&
-            ipaddr.s_addr == ipcp->dns[1].s_addr) {
+        if (opt->hdr.id == TY_PRIMARY_DNS && ipaddr.s_addr != have_ip.s_addr &&
+            ipaddr.s_addr == ipcp->ns.dns[1].s_addr) {
           /* Swap 'em 'round */
-          ipcp->dns[0] = ipcp->dns[1];
-          ipcp->dns[1] = have_ip;
-          have_ip = ipcp->dns[0];
+          ipcp->ns.dns[0] = ipcp->ns.dns[1];
+          ipcp->ns.dns[1] = have_ip;
+          have_ip = ipcp->ns.dns[0];
         }
 
-	if (ipaddr.s_addr != have_ip.s_addr) {
-	  /*
-	   * The client has got the DNS stuff wrong (first request) so
-	   * we'll tell 'em how it is
-	   */
-	  memcpy(dec->nakend, cp, 2);	/* copy first two (type/length) */
-	  memcpy(dec->nakend + 2, &have_ip.s_addr, length - 2);
-	  dec->nakend += length;
-	} else {
-	  /*
-	   * Otherwise they have it right (this time) so we send a ack packet
-	   * back confirming it... end of story
-	   */
-	  memcpy(dec->ackend, cp, length);
-	  dec->ackend += length;
+        if (ipaddr.s_addr != have_ip.s_addr) {
+          /*
+           * The client has got the DNS stuff wrong (first request) so
+           * we'll tell 'em how it is
+           */
+          nak.hdr.id = opt->hdr.id;
+          nak.hdr.len = 6;
+          memcpy(nak.data, &have_ip.s_addr, 4);
+          fsm_nak(dec, &nak);
+        } else {
+          /*
+           * Otherwise they have it right (this time) so we send a ack packet
+           * back confirming it... end of story
+           */
+          fsm_ack(dec, opt);
         }
-	break;
+        break;
 
       case MODE_NAK:
         if (IsEnabled(ipcp->cfg.ns.dns_neg)) {
           gotdnsnak = 1;
-          memcpy(&ipcp->dns[type == TY_PRIMARY_DNS ? 0 : 1].s_addr, cp + 2, 4);
-	}
-	break;
+          memcpy(&ipcp->ns.dns[opt->hdr.id == TY_PRIMARY_DNS ? 0 : 1].s_addr,
+                 opt->data, 4);
+        }
+        break;
 
       case MODE_REJ:		/* Can't do much, stop asking */
-        ipcp->peer_reject |= (1 << (type - TY_ADJUST_NS));
-	break;
+        ipcp->peer_reject |= (1 << (opt->hdr.id - TY_ADJUST_NS));
+        break;
       }
       break;
 
     case TY_PRIMARY_NBNS:	/* M$ NetBIOS nameserver hack (rfc1877) */
     case TY_SECONDARY_NBNS:
-      memcpy(&ipaddr.s_addr, cp + 2, 4);
+      memcpy(&ipaddr.s_addr, opt->data, 4);
       log_Printf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
 
       switch (mode_type) {
       case MODE_REQ:
-	have_ip.s_addr =
-          ipcp->cfg.ns.nbns[type == TY_PRIMARY_NBNS ? 0 : 1].s_addr;
+        have_ip.s_addr =
+          ipcp->cfg.ns.nbns[opt->hdr.id == TY_PRIMARY_NBNS ? 0 : 1].s_addr;
 
         if (have_ip.s_addr == INADDR_ANY) {
-	  log_Printf(LogIPCP, "NBNS REQ - rejected - nbns not set\n");
-          ipcp->my_reject |= (1 << (type - TY_ADJUST_NS));
-	  memcpy(dec->rejend, cp, length);
-	  dec->rejend += length;
-	  break;
+          log_Printf(LogIPCP, "NBNS REQ - rejected - nbns not set\n");
+          ipcp->my_reject |= (1 << (opt->hdr.id - TY_ADJUST_NS));
+          fsm_rej(dec, opt);
+          break;
         }
 
-	if (ipaddr.s_addr != have_ip.s_addr) {
-	  memcpy(dec->nakend, cp, 2);
-	  memcpy(dec->nakend+2, &have_ip.s_addr, length);
-	  dec->nakend += length;
-	} else {
-	  memcpy(dec->ackend, cp, length);
-	  dec->ackend += length;
-        }
-	break;
+        if (ipaddr.s_addr != have_ip.s_addr) {
+          nak.hdr.id = opt->hdr.id;
+          nak.hdr.len = 6;
+          memcpy(nak.data, &have_ip.s_addr, 4);
+          fsm_nak(dec, &nak);
+        } else
+          fsm_ack(dec, opt);
+        break;
 
       case MODE_NAK:
-	log_Printf(LogIPCP, "MS NBNS req %d - NAK??\n", type);
-	break;
+        log_Printf(LogIPCP, "MS NBNS req %d - NAK??\n", opt->hdr.id);
+        break;
 
       case MODE_REJ:
-	log_Printf(LogIPCP, "MS NBNS req %d - REJ??\n", type);
-	break;
+        log_Printf(LogIPCP, "MS NBNS req %d - REJ??\n", opt->hdr.id);
+        break;
       }
       break;
 
     default:
       if (mode_type != MODE_NOP) {
-        ipcp->my_reject |= (1 << type);
-        memcpy(dec->rejend, cp, length);
-        dec->rejend += length;
+        ipcp->my_reject |= (1 << opt->hdr.id);
+        fsm_rej(dec, opt);
       }
       break;
     }
-    plen -= length;
-    cp += length;
   }
 
   if (gotdnsnak) {
-    memcpy(ipcp->ns.dns, ipcp->dns, sizeof ipcp->ns.dns);
     if (ipcp->ns.writable) {
       log_Printf(LogDEBUG, "Updating resolver\n");
       if (!ipcp_WriteDNS(ipcp)) {
         ipcp->peer_reject |= (1 << (TY_PRIMARY_DNS - TY_ADJUST_NS));
         ipcp->peer_reject |= (1 << (TY_SECONDARY_DNS - TY_ADJUST_NS));
       } else
-        bundle_AdjustDNS(fp->bundle, ipcp->dns);
+        bundle_AdjustDNS(fp->bundle);
     } else {
       log_Printf(LogDEBUG, "Not updating resolver (readonly)\n");
-      bundle_AdjustDNS(fp->bundle, ipcp->dns);
+      bundle_AdjustDNS(fp->bundle);
     }
   }
 
@@ -1428,13 +1326,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       ipaddr.s_addr = INADDR_ANY;
       ipcp_ValidateReq(ipcp, ipaddr, dec);
     }
-    if (dec->rejend != dec->rej) {
-      /* rejects are preferred */
-      dec->ackend = dec->ack;
-      dec->nakend = dec->nak;
-    } else if (dec->nakend != dec->nak)
-      /* then NAKs */
-      dec->ackend = dec->ack;
+    fsm_opt_normalise(dec);
   }
 }
 
@@ -1458,23 +1350,24 @@ int
 ipcp_UseHisIPaddr(struct bundle *bundle, struct in_addr hisaddr)
 {
   struct ipcp *ipcp = &bundle->ncp.ipcp;
+  struct in_addr myaddr;
 
   memset(&ipcp->cfg.peer_range, '\0', sizeof ipcp->cfg.peer_range);
   iplist_reset(&ipcp->cfg.peer_list);
-  ipcp->peer_ip = ipcp->cfg.peer_range.ipaddr = hisaddr;
-  ipcp->cfg.peer_range.mask.s_addr = INADDR_BROADCAST;
-  ipcp->cfg.peer_range.width = 32;
+  ipcp->peer_ip = hisaddr;
+  ncprange_setip4host(&ipcp->cfg.peer_range, hisaddr);
+  ncprange_getip4addr(&ipcp->cfg.my_range, &myaddr);
 
-  if (ipcp_SetIPaddress(bundle, ipcp->cfg.my_range.ipaddr, hisaddr, 0) < 0)
-    return 0;
-
-  return 1;	/* Ok */
+  return ipcp_SetIPaddress(ipcp, myaddr, hisaddr);
 }
 
 int
 ipcp_UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
 {
-  struct ipcp *ipcp = &bundle->ncp.ipcp;
+  struct in_addr myaddr;
+  struct ncp *ncp = &bundle->ncp;
+  struct ipcp *ipcp = &ncp->ipcp;
+  struct ncpaddr ncpaddr;
 
   /* Use `hisaddr' for the peers address (set iface if `setaddr') */
   memset(&ipcp->cfg.peer_range, '\0', sizeof ipcp->cfg.peer_range);
@@ -1488,25 +1381,26 @@ ipcp_UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
         log_Printf(LogWARN, "%s: None available !\n", ipcp->cfg.peer_list.src);
         return 0;
       }
-      ipcp->cfg.peer_range.ipaddr.s_addr = ipcp->peer_ip.s_addr;
-      ipcp->cfg.peer_range.mask.s_addr = INADDR_BROADCAST;
-      ipcp->cfg.peer_range.width = 32;
+      ncprange_setip4host(&ipcp->cfg.peer_range, ipcp->peer_ip);
     } else {
       log_Printf(LogWARN, "%s: Invalid range !\n", hisaddr);
       return 0;
     }
-  } else if (ParseAddr(ipcp, hisaddr, &ipcp->cfg.peer_range.ipaddr,
-		       &ipcp->cfg.peer_range.mask,
-                       &ipcp->cfg.peer_range.width) != 0) {
-    ipcp->peer_ip.s_addr = ipcp->cfg.peer_range.ipaddr.s_addr;
+  } else if (ncprange_aton(&ipcp->cfg.peer_range, ncp, hisaddr) != 0) {
+    if (ncprange_family(&ipcp->cfg.my_range) != AF_INET) {
+      log_Printf(LogWARN, "%s: Not an AF_INET address !\n", hisaddr);
+      return 0;
+    }
+    ncprange_getip4addr(&ipcp->cfg.my_range, &myaddr);
+    ncprange_getip4addr(&ipcp->cfg.peer_range, &ipcp->peer_ip);
 
-    if (setaddr && ipcp_SetIPaddress(bundle, ipcp->cfg.my_range.ipaddr,
-                                     ipcp->cfg.peer_range.ipaddr, 0) < 0)
+    if (setaddr && !ipcp_SetIPaddress(ipcp, myaddr, ipcp->peer_ip))
       return 0;
   } else
     return 0;
 
-  bundle_AdjustFilters(bundle, NULL, &ipcp->peer_ip);
+  ncpaddr_setip4(&ncpaddr, ipcp->peer_ip);
+  bundle_AdjustFilters(bundle, NULL, &ncpaddr);
 
   return 1;	/* Ok */
 }
@@ -1522,4 +1416,60 @@ addr2mask(struct in_addr addr)
   addr.s_addr = htonl(haddr);
 
   return addr;
+}
+
+size_t
+ipcp_QueueLen(struct ipcp *ipcp)
+{
+  struct mqueue *q;
+  size_t result;
+
+  result = 0;
+  for (q = ipcp->Queue; q < ipcp->Queue + IPCP_QUEUES(ipcp); q++)
+    result += q->len;
+
+  return result;
+}
+
+int
+ipcp_PushPacket(struct ipcp *ipcp, struct link *l)
+{
+  struct bundle *bundle = ipcp->fsm.bundle;
+  struct mqueue *queue;
+  struct mbuf *bp;
+  int m_len;
+  u_int32_t secs = 0;
+  unsigned alivesecs = 0;
+
+  if (ipcp->fsm.state != ST_OPENED)
+    return 0;
+
+  /*
+   * If ccp is not open but is required, do nothing.
+   */
+  if (l->ccp.fsm.state != ST_OPENED && ccp_Required(&l->ccp)) {
+    log_Printf(LogPHASE, "%s: Not transmitting... waiting for CCP\n", l->name);
+    return 0;
+  }
+
+  queue = ipcp->Queue + IPCP_QUEUES(ipcp) - 1;
+  do {
+    if (queue->top) {
+      bp = m_dequeue(queue);
+      bp = mbuf_Read(bp, &secs, sizeof secs);
+      bp = m_pullup(bp);
+      m_len = m_length(bp);
+      if (!FilterCheck(MBUF_CTOP(bp), AF_INET, &bundle->filter.alive,
+                       &alivesecs)) {
+        if (secs == 0)
+          secs = alivesecs;
+        bundle_StartIdleTimer(bundle, secs);
+      }
+      link_PushPacket(l, bp, bundle, 0, PROTO_IP);
+      ipcp_AddOutOctets(ipcp, m_len);
+      return 1;
+    }
+  } while (queue-- != ipcp->Queue);
+
+  return 0;
 }

@@ -52,8 +52,8 @@ struct authinfo {
   } cfg;
 };
 
-#define auth_Failure(a) (*a->fn.failure)(a);
-#define auth_Success(a) (*a->fn.success)(a);
+#define auth_Failure(a) (*(a)->fn.failure)(a)
+#define auth_Success(a) (*(a)->fn.success)(a)
 
 extern const char *Auth2Nam(u_short, u_char);
 extern void auth_Init(struct authinfo *, struct physical *,

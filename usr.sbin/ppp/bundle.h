@@ -36,15 +36,19 @@
 #define OPT_FILTERDECAP	0x0001
 #define OPT_IDCHECK	0x0002
 #define OPT_IFACEALIAS	0x0004
-#define OPT_KEEPSESSION	0x0008
-#define OPT_LOOPBACK	0x0010
-#define OPT_PASSWDAUTH	0x0020
-#define OPT_PROXY	0x0040
-#define OPT_PROXYALL	0x0080
-#define OPT_SROUTES	0x0100
-#define OPT_TCPMSSFIXUP	0x0200
-#define OPT_THROUGHPUT	0x0400
-#define OPT_UTMP	0x0800
+#ifndef NOINET6
+#define OPT_IPCP	0x0008
+#define OPT_IPV6CP	0x0010
+#endif
+#define OPT_KEEPSESSION	0x0020
+#define OPT_LOOPBACK	0x0040
+#define OPT_PASSWDAUTH	0x0080
+#define OPT_PROXY	0x0100
+#define OPT_PROXYALL	0x0200
+#define OPT_SROUTES	0x0400
+#define OPT_TCPMSSFIXUP	0x0800
+#define OPT_THROUGHPUT	0x1000
+#define OPT_UTMP	0x2000
 
 #define MAX_ENDDISC_CLASS 5
 
@@ -109,10 +113,7 @@ struct bundle {
     } choked;
   } cfg;
 
-  struct {
-    struct ipcp ipcp;         /* Our IPCP FSM */
-    struct mp mp;             /* Our MP */
-  } ncp;
+  struct ncp ncp;
 
   struct {
     struct filter in;         /* incoming packet filter */
@@ -125,6 +126,13 @@ struct bundle {
     struct pppTimer timer;    /* timeout after cfg.idle_timeout */
     time_t done;
   } idle;
+
+#ifndef NORADIUS
+  struct {
+    struct pppTimer timer;
+    time_t done;
+  } session;
+#endif
 
   struct {
     int fd;                   /* write status here */
@@ -149,7 +157,6 @@ extern const char *bundle_PhaseName(struct bundle *);
 #define bundle_Phase(b) ((b)->phase)
 extern void bundle_NewPhase(struct bundle *, u_int);
 extern void bundle_LinksRemoved(struct bundle *);
-extern int  bundle_LinkIsUp(const struct bundle *);
 extern void bundle_Close(struct bundle *, const char *, int);
 extern void bundle_Down(struct bundle *, int);
 extern void bundle_Open(struct bundle *, const char *, int, int);
@@ -162,6 +169,11 @@ extern void bundle_SetIdleTimer(struct bundle *, int, int);
 extern void bundle_StopIdleTimer(struct bundle *);
 extern int bundle_IsDead(struct bundle *);
 extern struct datalink *bundle2datalink(struct bundle *, const char *);
+
+#ifndef NORADIUS
+extern void bundle_StartSessionTimer(struct bundle *, unsigned secs);
+extern void bundle_StopSessionTimer(struct bundle *);
+#endif
 
 extern void bundle_RegisterDescriptor(struct bundle *, struct fdescriptor *);
 extern void bundle_UnRegisterDescriptor(struct bundle *, struct fdescriptor *);
@@ -184,11 +196,12 @@ extern void bundle_setsid(struct bundle *, int);
 extern void bundle_LockTun(struct bundle *);
 extern int bundle_HighestState(struct bundle *);
 extern int bundle_Exception(struct bundle *, int);
-extern void bundle_AdjustFilters(struct bundle *, struct in_addr *,
-                                 struct in_addr *);
-extern void bundle_AdjustDNS(struct bundle *, struct in_addr [2]);
+extern void bundle_AdjustFilters(struct bundle *, struct ncpaddr *,
+                                 struct ncpaddr *);
+extern void bundle_AdjustDNS(struct bundle *);
 extern void bundle_CalculateBandwidth(struct bundle *);
 extern void bundle_AutoAdjust(struct bundle *, int, int);
 extern int bundle_WantAutoloadTimer(struct bundle *);
 extern void bundle_ChangedPID(struct bundle *);
 extern void bundle_Notify(struct bundle *, char);
+extern int bundle_Uptime(struct bundle *);

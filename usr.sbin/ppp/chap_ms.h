@@ -32,7 +32,7 @@
 /* Max # of (Unicode) chars in an NT password */
 #define MAX_NT_PASSWORD	256
 
-/* Don't rely on sizeof(MS_ChapResponse) in case of struct padding */  
+/* Don't rely on sizeof(MS_ChapResponse) in case of struct padding */
 #define MS_CHAP_RESPONSE_LEN    49
 #define CHAP81_RESPONSE_LEN     49
 #define CHAP81_NTRESPONSE_LEN   24

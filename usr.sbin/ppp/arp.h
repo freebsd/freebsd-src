@@ -33,4 +33,4 @@ struct bundle;
 
 extern int arp_ClearProxy(struct bundle *, struct in_addr, int);
 extern int arp_SetProxy(struct bundle *, struct in_addr, int);
-extern int get_ether_addr(int, struct in_addr, struct sockaddr_dl *);
+extern int arp_EtherAddr(int, struct in_addr, struct sockaddr_dl *, int);

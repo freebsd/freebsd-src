@@ -25,8 +25,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -69,10 +71,10 @@ async_Setup(struct async *async)
 }
 
 void
-async_SetLinkParams(struct async *async, struct lcp *lcp)
+async_SetLinkParams(struct async *async, u_int32_t mymap, u_int32_t hismap)
 {
-  async->my_accmap = lcp->want_accmap;
-  async->his_accmap = lcp->his_accmap | lcp->want_accmap;
+  async->my_accmap = mymap;
+  async->his_accmap = hismap | mymap;
 }
 
 /*
@@ -160,7 +162,7 @@ async_Decode(struct async *async, u_char c)
       async->mode |= MODE_ESC;
       break;
     }
-    /* Fall into ... */
+    /* FALLTHROUGH */
   default:
     if (async->length >= HDLCSIZE) {
       /* packet is too large, discard it */

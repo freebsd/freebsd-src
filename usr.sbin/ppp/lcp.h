@@ -92,7 +92,7 @@ struct lcp {
     struct fsm_retry fsm;	/* How often/frequently to resend requests */
     unsigned acfcomp : 2;	/* Address & Control Field Compression neg */
     unsigned chap05 : 2;	/* Challenge Handshake Authentication proto */
-#ifdef HAVE_DES
+#ifndef NODES
     unsigned chap80nt : 2;	/* Microsoft (NT) CHAP */
     unsigned chap80lm : 2;	/* Microsoft (LANMan) CHAP */
     unsigned chap81 : 2;	/* Microsoft CHAP v2 */
@@ -122,20 +122,6 @@ struct lcp {
 #define	TY_MRRU		17	/* Max Reconstructed Receive Unit (MP) */
 #define	TY_SHORTSEQ	18	/* Want short seqs (12bit) please (see mp.h) */
 #define	TY_ENDDISC	19	/* Endpoint discriminator */
-
-#define MAX_LCP_OPT_LEN 20
-struct lcp_opt {
-  u_char id;
-  u_char len;
-  u_char data[MAX_LCP_OPT_LEN-2];
-};
-
-#define INC_LCP_OPT(ty, length, o)                    \
-  do {                                                \
-    (o)->id = (ty);                                   \
-    (o)->len = (length);                              \
-    (o) = (struct lcp_opt *)((char *)(o) + (length)); \
-  } while (0)
 
 struct mbuf;
 struct link;

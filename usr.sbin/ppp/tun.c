@@ -63,6 +63,7 @@
 #include "throughput.h"
 #include "iplist.h"
 #include "slcompress.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -74,6 +75,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "tun.h"
 
@@ -83,9 +86,9 @@ tun_configure(struct bundle *bundle)
 #ifdef __NetBSD__
   struct ifreq ifr;
   int s;
-  
-  s = socket(AF_INET, SOCK_DGRAM, 0);
-  
+
+  s = socket(PF_INET, SOCK_DGRAM, 0);
+
   if (s < 0) {
     log_Printf(LogERROR, "tun_configure: socket(): %s\n", strerror(errno));
     return;
@@ -104,10 +107,10 @@ tun_configure(struct bundle *bundle)
   memset(&info, '\0', sizeof info);
   info.type = IFT_PPP;
   info.mtu = bundle->iface->mtu;
-  
+
   info.baudrate = bundle->bandwidth;
 #ifdef __OpenBSD__
-  info.flags = IFF_UP|IFF_POINTOPOINT;                             
+  info.flags = IFF_UP|IFF_POINTOPOINT|IFF_MULTICAST;
 #endif
   if (ID0ioctl(bundle->dev.fd, TUNSIFINFO, &info) < 0)
     log_Printf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",

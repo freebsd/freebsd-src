@@ -30,17 +30,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <termios.h>
 #include <zlib.h>
 
-#include "defs.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lqr.h"
-#include "hdlc.h"
-#include "lcp.h"
 #include "ccp.h"
 #include "deflate.h"
 
@@ -436,7 +431,7 @@ DeflateDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
 }
 
 static const char *
-DeflateDispOpts(struct lcp_opt *o)
+DeflateDispOpts(struct fsm_opt *o)
 {
   static char disp[7];		/* Must be used immediately */
 
@@ -445,17 +440,19 @@ DeflateDispOpts(struct lcp_opt *o)
 }
 
 static void
-DeflateInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
+DeflateInitOptsOutput(struct bundle *bundle, struct fsm_opt *o,
+                      const struct ccp_config *cfg)
 {
-  o->len = 4;
+  o->hdr.len = 4;
   o->data[0] = ((cfg->deflate.out.winsize - 8) << 4) + 8;
   o->data[1] = '\0';
 }
 
 static int
-DeflateSetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
+DeflateSetOptsOutput(struct bundle *bundle, struct fsm_opt *o,
+                     const struct ccp_config *cfg)
 {
-  if (o->len != 4 || (o->data[0] & 15) != 8 || o->data[1] != '\0')
+  if (o->hdr.len != 4 || (o->data[0] & 15) != 8 || o->data[1] != '\0')
     return MODE_REJ;
 
   if ((o->data[0] >> 4) + 8 > 15) {
@@ -467,11 +464,12 @@ DeflateSetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 }
 
 static int
-DeflateSetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
+DeflateSetOptsInput(struct bundle *bundle, struct fsm_opt *o,
+                    const struct ccp_config *cfg)
 {
   int want;
 
-  if (o->len != 4 || (o->data[0] & 15) != 8 || o->data[1] != '\0')
+  if (o->hdr.len != 4 || (o->data[0] & 15) != 8 || o->data[1] != '\0')
     return MODE_REJ;
 
   want = (o->data[0] >> 4) + 8;
@@ -488,7 +486,7 @@ DeflateSetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
 }
 
 static void *
-DeflateInitInput(struct lcp_opt *o)
+DeflateInitInput(struct bundle *bundle, struct fsm_opt *o)
 {
   struct deflate_state *state;
 
@@ -511,7 +509,7 @@ DeflateInitInput(struct lcp_opt *o)
 }
 
 static void *
-DeflateInitOutput(struct lcp_opt *o)
+DeflateInitOutput(struct bundle *bundle, struct fsm_opt *o)
 {
   struct deflate_state *state;
 

@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,8 +86,8 @@ throughput_uptime(struct pppThroughput *t)
   downat = t->downtime ? t->downtime : time(NULL);
   if (t->uptime && downat < t->uptime) {
     /* Euch !  The clock's gone back ! */
-    int i; 
- 
+    int i;
+
     for (i = 0; i < t->SamplePeriod; i++)
       t->in.SampleOctets[i] = t->out.SampleOctets[i] = 0;
     t->nSample = 0;
@@ -141,7 +142,7 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
     log_Printf(level, "%s%sConnect time: %d secs: %llu octets in, %llu octets"
                " out\n", title, *title ? ": " : "", secs_up, t->OctetsIn,
                t->OctetsOut);
-    log_Printf(level, "%s%s: %llu packets in, %llu packets out\n",
+    log_Printf(level, "%s%s%llu packets in, %llu packets out\n",
                title, *title ? ": " : "",  t->PacketsIn, t->PacketsOut);
     if (secs_up == 0)
       secs_up = 1;
@@ -270,7 +271,7 @@ throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
     t->OctetsIn = t->OctetsOut = 0;
     t->downtime = 0;
     time(&t->uptime);
-  } 
+  }
 
   if (clear_type & THROUGHPUT_CURRENT) {
     prompt_Printf(prompt, "current cleared (was %6qu bytes/sec in,"
@@ -287,7 +288,7 @@ throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
     if (last > time_buf && *--last == '\n')
       *last = '\0';
     prompt_Printf(prompt, "peak    cleared (was %6qu bytes/sec on %s)\n",
-                  t->BestOctetsPerSecond, time_buf); 
+                  t->BestOctetsPerSecond, time_buf);
     t->BestOctetsPerSecond = 0;
     time(&t->BestOctetsPerSecondTime);
   }

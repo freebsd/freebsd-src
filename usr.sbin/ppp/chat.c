@@ -30,6 +30,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 #include <errno.h>
@@ -63,6 +64,7 @@
 #include "chap.h"
 #include "slcompress.h"
 #include "iplist.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "cbcp.h"
@@ -71,6 +73,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "id.h"
 
@@ -445,7 +449,7 @@ chat_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
         /* Got it ! */
         timer_Stop(&c->timeout);
         if (memchr(begin + c->arglen - 1, '\n',
-            c->bufend - begin - c->arglen + 1) == NULL) { 
+            c->bufend - begin - c->arglen + 1) == NULL) {
           /* force it into the log */
           end = c->bufend;
           c->bufend = begin + c->arglen;
@@ -463,7 +467,7 @@ chat_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
           if (!strncmp(begin, c->abort.string[n].data,
                        c->abort.string[n].len)) {
             if (memchr(begin + c->abort.string[n].len - 1, '\n',
-                c->bufend - begin - c->abort.string[n].len + 1) == NULL) { 
+                c->bufend - begin - c->abort.string[n].len + 1) == NULL) {
               /* force it into the log */
               end = c->bufend;
               c->bufend = begin + c->abort.string[n].len;
@@ -511,10 +515,12 @@ chat_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
     }
 
     wrote = physical_Write(c->physical, c->argptr, c->arglen);
-    result = wrote ? 1 : 0;
+    result = wrote > 0 ? 1 : 0;
     if (wrote == -1) {
-      if (errno != EINTR)
-        log_Printf(LogERROR, "chat_Write: %s\n", strerror(errno));
+      if (errno != EINTR) {
+        log_Printf(LogWARN, "chat_Write: %s\n", strerror(errno));
+	result = -1;
+      }
       if (physical_IsSync(c->physical)) {
         c->argptr += 2;
         c->arglen -= 2;
@@ -711,8 +717,6 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
     *out = '\0';
     return;
   }
-  command_Expand(argv, argc, (char const *const *)vector,
-                 physical->dl->bundle, 0, getpid());
 
   if (pipe(fids) < 0) {
     log_Printf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
@@ -721,6 +725,8 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
     return;
   }
   if ((pid = fork()) == 0) {
+    command_Expand(argv, argc, (char const *const *)vector,
+                   physical->dl->bundle, 0, getpid());
     close(fids[0]);
     timer_TermService();
     if (fids[1] == STDIN_FILENO)

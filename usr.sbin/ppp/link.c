@@ -29,10 +29,12 @@
 
 #include <sys/types.h>
 #include <netinet/in_systm.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
@@ -57,8 +59,10 @@
 #include "mp.h"
 #include "iplist.h"
 #include "slcompress.h"
-#include "ipcp.h"
+#include "ncpaddr.h"
 #include "ip.h"
+#include "ipcp.h"
+#include "ipv6cp.h"
 #include "auth.h"
 #include "pap.h"
 #include "chap.h"
@@ -317,10 +321,16 @@ static const struct {
   u_short proto;
   struct mbuf *(*fn)(struct bundle *, struct link *, struct mbuf *);
 } despatcher[] = {
-  { PROTO_IP, ip_Input },
+  { PROTO_IP, ipv4_Input },
+#ifndef NOINET6
+  { PROTO_IPV6, ipv6_Input },
+#endif
   { PROTO_MP, mp_Input },
   { PROTO_LCP, lcp_Input },
   { PROTO_IPCP, ipcp_Input },
+#ifndef NOINET6
+  { PROTO_IPV6CP, ipv6cp_Input },
+#endif
   { PROTO_PAP, pap_Input },
   { PROTO_CHAP, chap_Input },
   { PROTO_CCP, ccp_Input },

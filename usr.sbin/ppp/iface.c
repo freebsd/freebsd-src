@@ -31,14 +31,21 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #include <net/if_dl.h>
+#ifdef __FreeBSD__
+#include <net/if_var.h>
+#endif
 #include <net/route.h>
-#include <arpa/inet.h>
 #include <netinet/in_systm.h>
+#include <netinet/in_var.h>
 #include <netinet/ip.h>
+#ifndef NOINET6
+#include <netinet6/nd6.h>
+#endif
 #include <sys/un.h>
 
 #include <errno.h>
 #include <string.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
@@ -60,6 +67,7 @@
 #include "throughput.h"
 #include "slcompress.h"
 #include "descriptor.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "lcp.h"
@@ -69,32 +77,17 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "prompt.h"
 #include "iface.h"
 
 
-static int
-bitsinmask(struct in_addr mask)
-{
-  u_int32_t bitmask, maskaddr;
-  int bits;
-
-  bitmask = 0xffffffff;
-  maskaddr = ntohl(mask.s_addr);
-  for (bits = 32; bits >= 0; bits--) {
-    if (maskaddr == bitmask)
-      break;
-    bitmask &= ~(1 << (32 - bits));
-  }
-
-  return bits;
-}
-
 struct iface *
 iface_Create(const char *name)
 {
-  int mib[6], s, maxtries, err;
+  int mib[6], maxtries, err;
   size_t needed, namelen;
   char *buf, *ptr, *end;
   struct if_msghdr *ifm;
@@ -103,12 +96,6 @@ iface_Create(const char *name)
   struct sockaddr *sa[RTAX_MAX];
   struct iface *iface;
   struct iface_addr *addr;
-
-  s = socket(AF_INET, SOCK_DGRAM, 0);
-  if (s < 0) {
-    fprintf(stderr, "iface_Create: socket(): %s\n", strerror(errno));
-    return NULL;
-  }
 
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
@@ -122,20 +109,17 @@ iface_Create(const char *name)
   do {
     if (maxtries-- == 0 || (err && err != ENOMEM)) {
       fprintf(stderr, "iface_Create: sysctl: %s\n", strerror(err));
-      close(s);
       return NULL;
     }
 
     if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
       fprintf(stderr, "iface_Create: sysctl: estimate: %s\n",
                 strerror(errno));
-      close(s);
       return NULL;
     }
 
     if ((buf = (char *)malloc(needed)) == NULL) {
       fprintf(stderr, "iface_Create: malloc failed: %s\n", strerror(errno));
-      close(s);
       return NULL;
     }
 
@@ -166,8 +150,8 @@ iface_Create(const char *name)
       iface->index = ifm->ifm_index;
       iface->flags = ifm->ifm_flags;
       iface->mtu = 0;
-      iface->in_addrs = 0;
-      iface->in_addr = NULL;
+      iface->addrs = 0;
+      iface->addr = NULL;
     }
     ptr += ifm->ifm_msglen;				/* First ifa_msghdr */
     for (; ptr < end; ptr += ifam->ifam_msglen) {
@@ -180,255 +164,381 @@ iface_Create(const char *name)
         /* Found a configured interface ! */
         iface_ParseHdr(ifam, sa);
 
-        if (sa[RTAX_IFA] && sa[RTAX_IFA]->sa_family == AF_INET) {
+        if (sa[RTAX_IFA] && (sa[RTAX_IFA]->sa_family == AF_INET
+#ifndef NOINET6
+                             || sa[RTAX_IFA]->sa_family == AF_INET6
+#endif
+                             )) {
           /* Record the address */
 
-          addr = (struct iface_addr *)realloc
-            (iface->in_addr, (iface->in_addrs + 1) * sizeof iface->in_addr[0]);
+          addr = (struct iface_addr *)
+            realloc(iface->addr, (iface->addrs + 1) * sizeof iface->addr[0]);
           if (addr == NULL)
             break;
-          iface->in_addr = addr;
+          iface->addr = addr;
 
-          addr += iface->in_addrs;
-          iface->in_addrs++;
+          addr += iface->addrs;
+          iface->addrs++;
 
-          addr->ifa = ((struct sockaddr_in *)sa[RTAX_IFA])->sin_addr;
-
+          ncprange_setsa(&addr->ifa, sa[RTAX_IFA], sa[RTAX_NETMASK]);
           if (sa[RTAX_BRD])
-            addr->brd = ((struct sockaddr_in *)sa[RTAX_BRD])->sin_addr;
+            ncpaddr_setsa(&addr->peer, sa[RTAX_BRD]);
           else
-            addr->brd.s_addr = INADDR_ANY;
-
-          if (sa[RTAX_NETMASK])
-            addr->mask = ((struct sockaddr_in *)sa[RTAX_NETMASK])->sin_addr;
-          else
-            addr->mask.s_addr = INADDR_ANY;
-
-          addr->bits = bitsinmask(addr->mask);
+            ncpaddr_init(&addr->peer);
         }
       }
     }
   }
 
   free(buf);
-  close(s);
 
   return iface;
 }
 
-static void
-iface_addr_Zap(const char *name, struct iface_addr *addr)
+static int
+iface_addr_Zap(const char *name, struct iface_addr *addr, int s)
 {
   struct ifaliasreq ifra;
-  struct sockaddr_in *me, *peer;
-  int s;
+#ifndef NOINET6
+  struct in6_aliasreq ifra6;
+#endif
+  struct sockaddr_in *me4, *msk4, *peer4;
+  struct sockaddr_storage ssme, sspeer, ssmsk;
+  int res;
 
-  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
-  if (s < 0)
-    log_Printf(LogERROR, "iface_addr_Zap: socket(): %s\n", strerror(errno));
-  else {
+  ncprange_getsa(&addr->ifa, &ssme, &ssmsk);
+  ncpaddr_getsa(&addr->peer, &sspeer);
+  res = 0;
+
+  switch (ncprange_family(&addr->ifa)) {
+  case AF_INET:
     memset(&ifra, '\0', sizeof ifra);
     strncpy(ifra.ifra_name, name, sizeof ifra.ifra_name - 1);
-    me = (struct sockaddr_in *)&ifra.ifra_addr;
-    peer = (struct sockaddr_in *)&ifra.ifra_broadaddr;
-    me->sin_family = peer->sin_family = AF_INET;
-    me->sin_len = peer->sin_len = sizeof(struct sockaddr_in);
-    me->sin_addr = addr->ifa;
-    peer->sin_addr = addr->brd;
-    log_Printf(LogDEBUG, "Delete %s\n", inet_ntoa(addr->ifa));
-    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0)
-      log_Printf(LogWARN, "iface_addr_Zap: ioctl(SIOCDIFADDR, %s): %s\n",
-                 inet_ntoa(addr->ifa), strerror(errno));
-    close(s);
+
+    me4 = (struct sockaddr_in *)&ifra.ifra_addr;
+    memcpy(me4, &ssme, sizeof *me4);
+
+    msk4 = (struct sockaddr_in *)&ifra.ifra_mask;
+    memcpy(msk4, &ssmsk, sizeof *msk4);
+
+    peer4 = (struct sockaddr_in *)&ifra.ifra_broadaddr;
+    if (ncpaddr_family(&addr->peer) == AF_UNSPEC) {
+      peer4->sin_family = AF_INET;
+      peer4->sin_len = sizeof(*peer4);
+      peer4->sin_addr.s_addr = INADDR_NONE;
+    } else
+      memcpy(peer4, &sspeer, sizeof *peer4);
+
+    res = ID0ioctl(s, SIOCDIFADDR, &ifra);
+    if (log_IsKept(LogDEBUG)) {
+      char buf[100];
+
+      snprintf(buf, sizeof buf, "%s", ncprange_ntoa(&addr->ifa));
+      log_Printf(LogWARN, "%s: DIFADDR %s -> %s returns %d\n",
+                 ifra.ifra_name, buf, ncpaddr_ntoa(&addr->peer), res);
+    }
+    break;
+
+#ifndef NOINET6
+  case AF_INET6:
+    memset(&ifra6, '\0', sizeof ifra6);
+    strncpy(ifra6.ifra_name, name, sizeof ifra6.ifra_name - 1);
+
+    memcpy(&ifra6.ifra_addr, &ssme, sizeof ifra6.ifra_addr);
+    memcpy(&ifra6.ifra_prefixmask, &ssmsk, sizeof ifra6.ifra_prefixmask);
+    ifra6.ifra_prefixmask.sin6_family = AF_UNSPEC;
+    if (ncpaddr_family(&addr->peer) == AF_UNSPEC)
+      ifra6.ifra_dstaddr.sin6_family = AF_UNSPEC;
+    else
+      memcpy(&ifra6.ifra_dstaddr, &sspeer, sizeof ifra6.ifra_dstaddr);
+    ifra6.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
+    ifra6.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
+
+    res = ID0ioctl(s, SIOCDIFADDR_IN6, &ifra6);
+    break;
+#endif
   }
+
+  if (res == -1) {
+    char dst[40];
+    const char *end =
+#ifndef NOINET6
+      ncprange_family(&addr->ifa) == AF_INET6 ? "_IN6" :
+#endif
+      "";
+
+    if (ncpaddr_family(&addr->peer) == AF_UNSPEC)
+      log_Printf(LogWARN, "iface rm: ioctl(SIOCDIFADDR%s, %s): %s\n",
+                 end, ncprange_ntoa(&addr->ifa), strerror(errno));
+    else {
+      snprintf(dst, sizeof dst, "%s", ncpaddr_ntoa(&addr->peer));
+      log_Printf(LogWARN, "iface rm: ioctl(SIOCDIFADDR%s, %s -> %s): %s\n",
+                 end, ncprange_ntoa(&addr->ifa), dst, strerror(errno));
+    }
+  }
+
+  return res != -1;
 }
 
-void
-iface_inClear(struct iface *iface, int how)
+static int
+iface_addr_Add(const char *name, struct iface_addr *addr, int s)
 {
-  int n, addrs;
+  struct ifaliasreq ifra;
+#ifndef NOINET6
+  struct in6_aliasreq ifra6;
+#endif
+  struct sockaddr_in *me4, *msk4, *peer4;
+  struct sockaddr_storage ssme, sspeer, ssmsk;
+  int res;
 
-  if (iface->in_addrs) {
-    addrs = n = how == IFACE_CLEAR_ALL ? 0 : 1;
-    for (; n < iface->in_addrs; n++)
-      iface_addr_Zap(iface->name, iface->in_addr + n);
+  ncprange_getsa(&addr->ifa, &ssme, &ssmsk);
+  ncpaddr_getsa(&addr->peer, &sspeer);
+  res = 0;
 
-    iface->in_addrs = addrs;
+  switch (ncprange_family(&addr->ifa)) {
+  case AF_INET:
+    memset(&ifra, '\0', sizeof ifra);
+    strncpy(ifra.ifra_name, name, sizeof ifra.ifra_name - 1);
+
+    me4 = (struct sockaddr_in *)&ifra.ifra_addr;
+    memcpy(me4, &ssme, sizeof *me4);
+
+    msk4 = (struct sockaddr_in *)&ifra.ifra_mask;
+    memcpy(msk4, &ssmsk, sizeof *msk4);
+
+    peer4 = (struct sockaddr_in *)&ifra.ifra_broadaddr;
+    if (ncpaddr_family(&addr->peer) == AF_UNSPEC) {
+      peer4->sin_family = AF_INET;
+      peer4->sin_len = sizeof(*peer4);
+      peer4->sin_addr.s_addr = INADDR_NONE;
+    } else
+      memcpy(peer4, &sspeer, sizeof *peer4);
+
+    res = ID0ioctl(s, SIOCAIFADDR, &ifra);
+    if (log_IsKept(LogDEBUG)) {
+      char buf[100];
+
+      snprintf(buf, sizeof buf, "%s", ncprange_ntoa(&addr->ifa));
+      log_Printf(LogWARN, "%s: AIFADDR %s -> %s returns %d\n",
+                 ifra.ifra_name, buf, ncpaddr_ntoa(&addr->peer), res);
+    }
+    break;
+
+#ifndef NOINET6
+  case AF_INET6:
+    memset(&ifra6, '\0', sizeof ifra6);
+    strncpy(ifra6.ifra_name, name, sizeof ifra6.ifra_name - 1);
+
+    memcpy(&ifra6.ifra_addr, &ssme, sizeof ifra6.ifra_addr);
+    memcpy(&ifra6.ifra_prefixmask, &ssmsk, sizeof ifra6.ifra_prefixmask);
+    if (ncpaddr_family(&addr->peer) == AF_UNSPEC)
+      ifra6.ifra_dstaddr.sin6_family = AF_UNSPEC;
+    else
+      memcpy(&ifra6.ifra_dstaddr, &sspeer, sizeof ifra6.ifra_dstaddr);
+    ifra6.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
+    ifra6.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
+
+    res = ID0ioctl(s, SIOCAIFADDR_IN6, &ifra6);
+    break;
+#endif
+  }
+
+  if (res == -1) {
+    char dst[40];
+    const char *end =
+#ifndef NOINET6
+      ncprange_family(&addr->ifa) == AF_INET6 ? "_IN6" :
+#endif
+      "";
+
+    if (ncpaddr_family(&addr->peer) == AF_UNSPEC)
+      log_Printf(LogWARN, "iface add: ioctl(SIOCAIFADDR%s, %s): %s\n",
+                 end, ncprange_ntoa(&addr->ifa), strerror(errno));
+    else {
+      snprintf(dst, sizeof dst, "%s", ncpaddr_ntoa(&addr->peer));
+      log_Printf(LogWARN, "iface add: ioctl(SIOCAIFADDR%s, %s -> %s): %s\n",
+                 end, ncprange_ntoa(&addr->ifa), dst, strerror(errno));
+    }
+  }
+
+  return res != -1;
+}
+
+
+void
+iface_Clear(struct iface *iface, struct ncp *ncp, int family, int how)
+{
+  int addrs, af, inskip, in6skip, n, s4 = -1, s6 = -1, *s;
+
+  if (iface->addrs) {
+    inskip = in6skip = how == IFACE_CLEAR_ALL ? 0 : 1;
+    addrs = 0;
+
+    for (n = 0; n < iface->addrs; n++) {
+      af = ncprange_family(&iface->addr[n].ifa);
+      if (family == 0 || family == af) {
+        if (!iface->addr[n].system && (how & IFACE_SYSTEM))
+          continue;
+        switch (af) {
+        case AF_INET:
+          if (inskip) {
+            inskip = 0;
+            continue;
+          }
+          s = &s4;
+          break;
+
+#ifndef NOINET6
+        case AF_INET6:
+          if (in6skip) {
+            in6skip = 0;
+            continue;
+          }
+          s = &s6;
+          break;
+#endif
+        default:
+          continue;
+        }
+
+        if (*s == -1 && (*s = ID0socket(af, SOCK_DGRAM, 0)) == -1)
+          log_Printf(LogERROR, "iface_Clear: socket(): %s\n", strerror(errno));
+        else if (iface_addr_Zap(iface->name, iface->addr + n, *s)) {
+          ncp_IfaceAddrDeleted(ncp, iface->addr + n);
+          bcopy(iface->addr + n + 1, iface->addr + n,
+                (iface->addrs - n - 1) * sizeof *iface->addr);
+          iface->addrs--;
+          n--;
+        }
+      }
+    }
+
     /* Don't bother realloc()ing - we have little to gain */
+
+    if (s4)
+      close(s4);
+    if (s6)
+      close(s6);
   }
 }
 
 int
-iface_inAdd(struct iface *iface, struct in_addr ifa, struct in_addr mask,
-            struct in_addr brd, int how)
+iface_Add(struct iface *iface, struct ncp *ncp, const struct ncprange *ifa,
+          const struct ncpaddr *peer, int how)
 {
-  int slot, s, chg, nochange;
-  struct ifaliasreq ifra;
-  struct sockaddr_in *me, *peer, *msk;
-  struct iface_addr *addr;
+  int af, n, removed, s, width;
+  struct ncpaddr ncplocal;
+  struct iface_addr *addr, newaddr;
 
-  for (slot = 0; slot < iface->in_addrs; slot++)
-    if (iface->in_addr[slot].ifa.s_addr == ifa.s_addr) {
-      if (how & IFACE_FORCE_ADD)
-        break;
-      else
-        /* errno = EEXIST; */
-        return 0;
-    }
-
-  addr = (struct iface_addr *)realloc
-    (iface->in_addr, (iface->in_addrs + 1) * sizeof iface->in_addr[0]);
-  if (addr == NULL) {
-    log_Printf(LogERROR, "iface_inAdd: realloc: %s\n", strerror(errno));
+  af = ncprange_family(ifa);
+  if ((s = ID0socket(af, SOCK_DGRAM, 0)) == -1) {
+    log_Printf(LogERROR, "iface_Add: socket(): %s\n", strerror(errno));
     return 0;
   }
-  iface->in_addr = addr;
+  ncprange_getaddr(ifa, &ncplocal);
 
-  /*
-   * We've gotta be careful here.  If we try to add an address with the
-   * same destination as an existing interface, nothing will work.
-   * Instead, we tweak all previous address entries that match the
-   * to-be-added destination to 255.255.255.255 (w/ a similar netmask).
-   * There *may* be more than one - if the user has ``iface add''ed
-   * stuff previously.
-   */
-  nochange = 0;
-  s = -1;
-  for (chg = 0; chg < iface->in_addrs; chg++) {
-    if ((iface->in_addr[chg].brd.s_addr == brd.s_addr &&
-         brd.s_addr != INADDR_BROADCAST) || chg == slot) {
-      /*
-       * If we've found an entry that exactly matches what we want to add,
-       * don't remove it and then add it again.  If we do, it's possible
-       * that the kernel will (correctly) ``tidy up'' any routes that use
-       * the IP number as a destination.
-       */
-      if (chg == slot && iface->in_addr[chg].mask.s_addr == mask.s_addr) {
-        if (brd.s_addr == iface->in_addr[slot].brd.s_addr)
-          nochange = 1;
-        /*
-         * If only the destination address has changed, the SIOCAIFADDR
-         * we do after the current loop will change it.
-         */
-        continue;
+  for (n = 0; n < iface->addrs; n++) {
+    if (ncprange_contains(&iface->addr[n].ifa, &ncplocal) ||
+        ncpaddr_equal(&iface->addr[n].peer, peer)) {
+      /* Replace this sockaddr */
+      if (!(how & IFACE_FORCE_ADD)) {
+        close(s);
+        return 0;	/* errno = EEXIST; */
       }
-      if (s == -1 && (s = ID0socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        log_Printf(LogERROR, "iface_inAdd: socket(): %s\n", strerror(errno));
+
+      if (ncprange_equal(&iface->addr[n].ifa, ifa) &&
+          ncpaddr_equal(&iface->addr[n].peer, peer)) {
+        close(s);
+        return 1;	/* Already there */
+      }
+
+      width =
+#ifndef NOINET6
+        (af == AF_INET6) ? 128 :
+#endif
+      32;
+      removed = iface_addr_Zap(iface->name, iface->addr + n, s);
+      if (removed)
+        ncp_IfaceAddrDeleted(ncp, iface->addr + n);
+      ncprange_copy(&iface->addr[n].ifa, ifa);
+      ncpaddr_copy(&iface->addr[n].peer, peer);
+      if (!iface_addr_Add(iface->name, iface->addr + n, s)) {
+        if (removed) {
+          bcopy(iface->addr + n + 1, iface->addr + n,
+                (iface->addrs - n - 1) * sizeof *iface->addr);
+          iface->addrs--;
+          n--;
+        }
+        close(s);
         return 0;
       }
-
-      memset(&ifra, '\0', sizeof ifra);
-      strncpy(ifra.ifra_name, iface->name, sizeof ifra.ifra_name - 1);
-      me = (struct sockaddr_in *)&ifra.ifra_addr;
-      msk = (struct sockaddr_in *)&ifra.ifra_mask;
-      peer = (struct sockaddr_in *)&ifra.ifra_broadaddr;
-      me->sin_family = msk->sin_family = peer->sin_family = AF_INET;
-      me->sin_len = msk->sin_len = peer->sin_len = sizeof(struct sockaddr_in);
-      me->sin_addr = iface->in_addr[chg].ifa;
-      msk->sin_addr = iface->in_addr[chg].mask;
-      peer->sin_addr = iface->in_addr[chg].brd;
-      log_Printf(LogDEBUG, "Delete %s\n", inet_ntoa(me->sin_addr));
-      ID0ioctl(s, SIOCDIFADDR, &ifra);	/* Don't care if it fails... */
-      if (chg != slot) {
-        peer->sin_addr.s_addr = iface->in_addr[chg].brd.s_addr =
-          msk->sin_addr.s_addr = iface->in_addr[chg].mask.s_addr =
-            INADDR_BROADCAST;
-        iface->in_addr[chg].bits = 32;
-        log_Printf(LogDEBUG, "Add %s -> 255.255.255.255\n",
-                   inet_ntoa(me->sin_addr));
-        if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0 && errno != EEXIST) {
-          /* Oops - that's bad(ish) news !  We've lost an alias ! */
-          log_Printf(LogERROR, "iface_inAdd: ioctl(SIOCAIFADDR): %s: %s\n",
-               inet_ntoa(me->sin_addr), strerror(errno));
-          iface->in_addrs--;
-          bcopy(iface->in_addr + chg + 1, iface->in_addr + chg,
-                (iface->in_addrs - chg) * sizeof iface->in_addr[0]);
-          if (slot > chg)
-            slot--;
-          chg--;
-        }
-      }
-    }
-  }
-
-  if (!nochange) {
-    if (s == -1 && (s = ID0socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-      log_Printf(LogERROR, "iface_inAdd: socket(): %s\n", strerror(errno));
-      return 0;
-    }
-    memset(&ifra, '\0', sizeof ifra);
-    strncpy(ifra.ifra_name, iface->name, sizeof ifra.ifra_name - 1);
-    me = (struct sockaddr_in *)&ifra.ifra_addr;
-    msk = (struct sockaddr_in *)&ifra.ifra_mask;
-    peer = (struct sockaddr_in *)&ifra.ifra_broadaddr;
-    me->sin_family = msk->sin_family = peer->sin_family = AF_INET;
-    me->sin_len = msk->sin_len = peer->sin_len = sizeof(struct sockaddr_in);
-    me->sin_addr = ifa;
-    msk->sin_addr = mask;
-    peer->sin_addr = brd;
-
-    if (log_IsKept(LogDEBUG)) {
-      char buf[16];
-
-      strncpy(buf, inet_ntoa(brd), sizeof buf-1);
-      buf[sizeof buf - 1] = '\0';
-      log_Printf(LogDEBUG, "Add %s -> %s\n", inet_ntoa(ifa), buf);
-    }
-
-    /* An EEXIST failure w/ brd == INADDR_BROADCAST is ok (and works!) */
-    if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0 &&
-        (brd.s_addr != INADDR_BROADCAST || errno != EEXIST)) {
-      log_Printf(LogERROR, "iface_inAdd: ioctl(SIOCAIFADDR): %s: %s\n",
-                 inet_ntoa(ifa), strerror(errno));
-      ID0ioctl(s, SIOCDIFADDR, &ifra);	/* EEXIST ? */
       close(s);
-      return 0;
+      ncp_IfaceAddrAdded(ncp, iface->addr + n);
+      return 1;
     }
   }
 
-  if (s != -1)
+  addr = (struct iface_addr *)realloc
+    (iface->addr, (iface->addrs + 1) * sizeof iface->addr[0]);
+  if (addr == NULL) {
+    log_Printf(LogERROR, "iface_inAdd: realloc: %s\n", strerror(errno));
     close(s);
+    return 0;
+  }
+  iface->addr = addr;
 
-  if (slot == iface->in_addrs) {
-    /* We're adding a new interface address */
-
-    if (how & IFACE_ADD_FIRST) {
-      /* Stuff it at the start of our list */
-      slot = 0;
-      bcopy(iface->in_addr, iface->in_addr + 1,
-            iface->in_addrs * sizeof iface->in_addr[0]);
-    }
-
-    iface->in_addrs++;
-  } else if (how & IFACE_ADD_FIRST) {
-    /* Shift it up to the first slot */
-    bcopy(iface->in_addr, iface->in_addr + 1, slot * sizeof iface->in_addr[0]);
-    slot = 0;
+  ncprange_copy(&newaddr.ifa, ifa);
+  ncpaddr_copy(&newaddr.peer, peer);
+  newaddr.system = !!(how & IFACE_SYSTEM);
+  if (!iface_addr_Add(iface->name, &newaddr, s)) {
+    close(s);
+    return 0;
   }
 
-  iface->in_addr[slot].ifa = ifa;
-  iface->in_addr[slot].mask = mask;
-  iface->in_addr[slot].brd = brd;
-  iface->in_addr[slot].bits = bitsinmask(iface->in_addr[slot].mask);
+  if (how & IFACE_ADD_FIRST) {
+    /* Stuff it at the start of our list */
+    n = 0;
+    bcopy(iface->addr, iface->addr + 1, iface->addrs * sizeof *iface->addr);
+  } else
+    n = iface->addrs;
+
+  iface->addrs++;
+  memcpy(iface->addr + n, &newaddr, sizeof(*iface->addr));
+
+  close(s);
+  ncp_IfaceAddrAdded(ncp, iface->addr + n);
 
   return 1;
 }
 
 int
-iface_inDelete(struct iface *iface, struct in_addr ip)
+iface_Delete(struct iface *iface, struct ncp *ncp, const struct ncpaddr *del)
 {
-  int n;
+  struct ncpaddr found;
+  int n, res, s;
 
-  for (n = 0; n < iface->in_addrs; n++)
-    if (iface->in_addr[n].ifa.s_addr == ip.s_addr) {
-      iface_addr_Zap(iface->name, iface->in_addr + n);
-      bcopy(iface->in_addr + n + 1, iface->in_addr + n,
-            (iface->in_addrs - n - 1) * sizeof iface->in_addr[0]);
-      iface->in_addrs--;
-      return 1;
+  if ((s = ID0socket(ncpaddr_family(del), SOCK_DGRAM, 0)) == -1) {
+    log_Printf(LogERROR, "iface_Delete: socket(): %s\n", strerror(errno));
+    return 0;
+  }
+
+  for (n = res = 0; n < iface->addrs; n++) {
+    ncprange_getaddr(&iface->addr[n].ifa, &found);
+    if (ncpaddr_equal(&found, del)) {
+      if (iface_addr_Zap(iface->name, iface->addr + n, s)) {
+        ncp_IfaceAddrDeleted(ncp, iface->addr + n);
+        bcopy(iface->addr + n + 1, iface->addr + n,
+              (iface->addrs - n - 1) * sizeof *iface->addr);
+        iface->addrs--;
+        res = 1;
+      }
+      break;
     }
+  }
 
-  return 0;
+  close(s);
+
+  return res;
 }
 
 #define IFACE_ADDFLAGS 1
@@ -438,9 +548,9 @@ static int
 iface_ChangeFlags(const char *ifname, int flags, int how)
 {
   struct ifreq ifrq;
-  int s, new_flags;
+  int s;
 
-  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
+  s = ID0socket(PF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
     log_Printf(LogERROR, "iface_ChangeFlags: socket: %s\n", strerror(errno));
     return 0;
@@ -455,14 +565,11 @@ iface_ChangeFlags(const char *ifname, int flags, int how)
     close(s);
     return 0;
   }
-  new_flags = (ifrq.ifr_flags & 0xffff) | (ifrq.ifr_flagshigh << 16);
 
   if (how == IFACE_ADDFLAGS)
-    new_flags |= flags;
+    ifrq.ifr_flags |= flags;
   else
-    new_flags &= ~flags;
-  ifrq.ifr_flags = new_flags & 0xffff;
-  ifrq.ifr_flagshigh = new_flags >> 16;
+    ifrq.ifr_flags &= ~flags;
 
   if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
     log_Printf(LogERROR, "iface_ChangeFlags: ioctl(SIOCSIFFLAGS): %s\n",
@@ -498,7 +605,7 @@ iface_Destroy(struct iface *iface)
 
   if (iface != NULL) {
     free(iface->name);
-    free(iface->in_addr);
+    free(iface->addr);
     free(iface);
   }
 }
@@ -530,8 +637,13 @@ struct {
 int
 iface_Show(struct cmdargs const *arg)
 {
+  struct ncpaddr ncpaddr;
   struct iface *iface = arg->bundle->iface, *current;
   int f, flags;
+#ifndef NOINET6
+  int scopeid, width;
+#endif
+  struct in_addr mask;
 
   current = iface_Create(iface->name);
   flags = iface->flags = current->flags;
@@ -539,26 +651,48 @@ iface_Show(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, "%s (idx %d) <", iface->name, iface->index);
   for (f = 0; f < sizeof if_flags / sizeof if_flags[0]; f++)
-    if ((if_flags[f].flag & flags) || (!if_flags[f].flag && flags)) {
+    if ((if_flags[f].flag & flags)) {
       prompt_Printf(arg->prompt, "%s%s", flags == iface->flags ? "" : ",",
                     if_flags[f].value);
       flags &= ~if_flags[f].flag;
     }
-  prompt_Printf(arg->prompt, "> mtu %d has %d address%s:\n", iface->mtu,
-                iface->in_addrs, iface->in_addrs == 1 ? "" : "es");
 
-  for (f = 0; f < iface->in_addrs; f++) {
-    prompt_Printf(arg->prompt, "  %s", inet_ntoa(iface->in_addr[f].ifa));
-    if (iface->in_addr[f].bits >= 0)
-      prompt_Printf(arg->prompt, "/%d", iface->in_addr[f].bits);
-    if (iface->flags & IFF_POINTOPOINT)
-      prompt_Printf(arg->prompt, " -> %s", inet_ntoa(iface->in_addr[f].brd));
-    else if (iface->flags & IFF_BROADCAST)
-      prompt_Printf(arg->prompt, " broadcast %s",
-                    inet_ntoa(iface->in_addr[f].brd));
-    if (iface->in_addr[f].bits < 0)
-      prompt_Printf(arg->prompt, " (mask %s)",
-                    inet_ntoa(iface->in_addr[f].mask));
+#if 0
+  if (flags)
+    prompt_Printf(arg->prompt, "%s0x%x", flags == iface->flags ? "" : ",",
+                  flags);
+#endif
+
+  prompt_Printf(arg->prompt, "> mtu %d has %d address%s:\n", iface->mtu,
+                iface->addrs, iface->addrs == 1 ? "" : "es");
+
+  for (f = 0; f < iface->addrs; f++) {
+    ncprange_getaddr(&iface->addr[f].ifa, &ncpaddr);
+    switch (ncprange_family(&iface->addr[f].ifa)) {
+    case AF_INET:
+      prompt_Printf(arg->prompt, "  inet %s --> ", ncpaddr_ntoa(&ncpaddr));
+      if (ncpaddr_family(&iface->addr[f].peer) == AF_UNSPEC)
+        prompt_Printf(arg->prompt, "255.255.255.255");
+      else
+        prompt_Printf(arg->prompt, "%s", ncpaddr_ntoa(&iface->addr[f].peer));
+      ncprange_getip4mask(&iface->addr[f].ifa, &mask);
+      prompt_Printf(arg->prompt, " netmask 0x%08lx", (long)ntohl(mask.s_addr));
+      break;
+
+#ifndef NOINET6
+    case AF_INET6:
+      prompt_Printf(arg->prompt, "  inet6 %s", ncpaddr_ntoa(&ncpaddr));
+      if (ncpaddr_family(&iface->addr[f].peer) != AF_UNSPEC)
+        prompt_Printf(arg->prompt, " --> %s",
+                      ncpaddr_ntoa(&iface->addr[f].peer));
+      ncprange_getwidth(&iface->addr[f].ifa, &width);
+      if (ncpaddr_family(&iface->addr[f].peer) == AF_UNSPEC)
+        prompt_Printf(arg->prompt, " prefixlen %d", width);
+      if ((scopeid = ncprange_scopeid(&iface->addr[f].ifa)) != -1)
+        prompt_Printf(arg->prompt, " scopeid 0x%x", (unsigned)scopeid);
+      break;
+#endif
+    }
     prompt_Printf(arg->prompt, "\n");
   }
 

@@ -28,8 +28,10 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
@@ -48,6 +50,7 @@
 #include "iplist.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "lcp.h"
@@ -57,6 +60,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 
 void
@@ -180,7 +185,7 @@ sl_compress_tcp(struct mbuf * m,
 
     /*
      * Wasn't the first -- search for it.
-     * 
+     *
      * States are kept in a circularly linked list with last_cs pointing to the
      * end of the list.  The list is kept in lru order by moving a state to
      * the head of the list whenever it is referenced.  Since the list is
@@ -313,7 +318,7 @@ found:
 	ntohs(cs->cs_ip.ip_len) == hlen)
       break;
 
-    /* (fall through) */
+    /* FALLTHROUGH */
 
   case SPECIAL_I:
   case SPECIAL_D:

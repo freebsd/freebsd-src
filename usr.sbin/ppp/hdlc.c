@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/un.h>
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
@@ -209,6 +210,7 @@ static struct {
   { 0x0051, 0x0051, "KNX Bridging Data" },
   { 0x0053, 0x0053, "Encryption" },
   { 0x0055, 0x0055, "Individual Link Encryption" },
+  { 0x0057, 0x0057, "Internet Protocol V6" },
   { 0x006f, 0x006f, "Stampede Bridging" },
   { 0x0071, 0x0071, "BAP Bandwidth Allocation Protocol" },
   { 0x0073, 0x0073, "MP+ Protocol" },
@@ -259,6 +261,7 @@ static struct {
   { 0x8051, 0x8051, "KNX Bridging Control Protocol" },
   { 0x8053, 0x8053, "Encryption Control Protocol" },
   { 0x8055, 0x8055, "Individual Link Encryption Control Protocol" },
+  { 0x8057, 0x8057, "Internet Protocol V6 Control Protocol" },
   { 0x806f, 0x806f, "Stampede Bridging Control Protocol" },
   { 0x8073, 0x8073, "MP+ Control Protocol" },
   { 0x8071, 0x8071, "BACP Bandwidth Allocation Control Protocol" },

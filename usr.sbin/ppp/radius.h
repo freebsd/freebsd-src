@@ -26,6 +26,12 @@
  * $FreeBSD$
  */
 
+#define	MPPE_POLICY_ALLOWED	1
+#define	MPPE_POLICY_REQUIRED	2
+
+#define	MPPE_TYPE_40BIT		2
+#define	MPPE_TYPE_128BIT	4
+
 struct radius {
   struct fdescriptor desc;	/* We're a sort of (selectable) fdescriptor */
   struct {
@@ -39,7 +45,20 @@ struct radius {
   struct in_addr ip;            /* FRAMED IP */
   struct in_addr mask;          /* FRAMED Netmask */
   unsigned long mtu;            /* FRAMED MTU */
+  unsigned long sessiontime;    /* Session-Timeout */
+  char *filterid;		/* FRAMED Filter Id */
   struct sticky_route *routes;  /* FRAMED Routes */
+  char *msrepstr;		/* MS-CHAP2-Response */
+  char *repstr;			/* Reply-Message */
+  char *errstr;			/* Error-Message */
+  struct {
+    int policy;			/* MPPE_POLICY_* */
+    int types;			/* MPPE_TYPE_*BIT bitmask */
+    char *recvkey;
+    size_t recvkeylen;
+    char *sendkey;
+    size_t sendkeylen;
+  } mppe;
   struct {
     char file[PATH_MAX];	/* Radius config file */
   } cfg;
@@ -64,10 +83,10 @@ extern void radius_Init(struct radius *);
 extern void radius_Destroy(struct radius *);
 
 extern void radius_Show(struct radius *, struct prompt *);
-extern void radius_Authenticate(struct radius *, struct authinfo *,
-                                const char *, const char *, int,
-                                const char *, int);
-extern void radius_Account(struct radius *, struct radacct *, 
+extern int radius_Authenticate(struct radius *, struct authinfo *,
+                               const char *, const char *, int,
+                               const char *, int);
+extern void radius_Account(struct radius *, struct radacct *,
                            struct datalink *, int, struct in_addr *,
                            struct in_addr *, struct pppThroughput *);
 
@@ -76,3 +95,6 @@ extern void radius_Account(struct radius *, struct radacct *,
 #define RAD_START	1
 #define RAD_STOP	2
 #endif
+
+/* Get address from NAS pool */
+#define RADIUS_INADDR_POOL	htonl(0xfffffffe)	/* 255.255.255.254 */

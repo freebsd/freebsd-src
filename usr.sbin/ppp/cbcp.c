@@ -28,6 +28,9 @@
 
 #include <sys/param.h>
 
+#ifdef __FreeBSD__
+#include <netinet/in.h>
+#endif
 #include <sys/un.h>
 
 #include <string.h>
@@ -72,7 +75,7 @@ static void cbcp_SendReq(struct cbcp *);
 static void cbcp_SendResponse(struct cbcp *);
 static void cbcp_SendAck(struct cbcp *);
 
-static void 
+static void
 cbcp_Timeout(void *v)
 {
   struct cbcp *cbcp = (struct cbcp *)v;
@@ -560,7 +563,7 @@ cbcp_CheckResponse(struct cbcp *cbcp, struct cbcp_data *data)
         }
         return CBCP_ACTION_DOWN;
     }
-    log_Printf(LogPHASE, "Internal CBCP error - agreed on %d ??!?\n",
+    log_Printf(LogPHASE, "Internal CBCP error - agreed on %d !\n",
                (int)cbcp->fsm.type);
     return CBCP_ACTION_DOWN;
   } else if (data->type == CBCP_NONUM && cbcp->fsm.type == CBCP_CLIENTNUM) {

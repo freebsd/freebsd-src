@@ -32,6 +32,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 #include <stdio.h>
@@ -50,6 +51,7 @@
 #include "defs.h"
 #include "iplist.h"
 #include "throughput.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "lcp.h"
 #include "ccp.h"
@@ -60,6 +62,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "vjcomp.h"
 
@@ -134,7 +138,7 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf *bp, u_char type)
 
   /*
    * Handle compressed packet. 1) Read upto MAX_VJHEADER bytes into work
-   * space. 2) Try to uncompress it. 3) Compute amount of necesary space. 4)
+   * space. 2) Try to uncompress it. 3) Compute amount of necessary space. 4)
    * Copy unread data info there.
    */
   if (len > MAX_VJHEADER)

@@ -52,7 +52,7 @@ struct physical;
 struct bundle;
 
 struct datalink {
-  struct fdescriptor desc;       /* We play either a physical or a chat */
+  struct fdescriptor desc;	/* We play either a physical or a chat */
   int state;			/* Our DATALINK_* state */
   struct physical *physical;	/* Our link */
 
@@ -154,3 +154,4 @@ extern int datalink_RemoveFromSet(struct datalink *, fd_set *, fd_set *,
 extern int datalink_SetMode(struct datalink *, int);
 extern int datalink_GetDialTimeout(struct datalink *);
 extern const char *datalink_ChoosePhoneNumber(struct datalink *);
+extern void datalink_ComeDown(struct datalink *, int);

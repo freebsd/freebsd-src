@@ -34,12 +34,21 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <sys/uio.h>
 #include <termios.h>
+#include <ttyent.h>
 #include <unistd.h>
+#ifndef NONETGRAPH
+#include <netgraph.h>
+#include <netgraph/ng_async.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_ppp.h>
+#include <netgraph/ng_tty.h>
+#endif
 
 #include "layer.h"
 #include "defs.h"
@@ -63,6 +72,7 @@
 #include "cbcp.h"
 #include "datalink.h"
 #include "main.h"
+#include "id.h"
 #include "tty.h"
 
 #if defined(__mac68k__) || defined(__macppc__)
@@ -79,6 +89,15 @@ struct ttydevice {
   struct pppTimer Timer;	/* CD checks */
   int mbits;			/* Current DCD status */
   int carrier_seconds;		/* seconds before CD is *required* */
+#ifndef NONETGRAPH
+  struct {
+    int speed;			/* Pre-line-discipline speed */
+    int fd;			/* Pre-line-discipline fd */
+    int disc;			/* Old line-discipline */
+  } real;
+  char hook[sizeof NG_ASYNC_HOOK_SYNC]; /* our ng_socket hook */
+  int cs;			/* A netgraph control socket (maybe) */
+#endif
   struct termios ios;		/* To be able to reset from raw mode */
 };
 
@@ -192,6 +211,223 @@ tty_AwaitCarrier(struct physical *p)
   return Online(dev) ? CARRIER_OK : CARRIER_LOST;
 }
 
+#ifdef NONETGRAPH
+#define tty_SetAsyncParams	NULL
+#define tty_Write		NULL
+#define tty_Read		NULL
+#else
+
+static int
+isngtty(struct ttydevice *dev)
+{
+  return dev->real.fd != -1;
+}
+
+static void
+tty_SetAsyncParams(struct physical *p, u_int32_t mymap, u_int32_t hismap)
+{
+  struct ttydevice *dev = device2tty(p->handler);
+  char asyncpath[NG_PATHLEN + 1];
+  struct ng_async_cfg cfg;
+
+  if (isngtty(dev)) {
+    /* Configure the async converter node */
+
+    snprintf(asyncpath, sizeof asyncpath, ".:%s", dev->hook);
+    memset(&cfg, 0, sizeof cfg);
+    cfg.enabled = 1;
+    cfg.accm = mymap | hismap;
+    cfg.amru = MAX_MTU;
+    cfg.smru = MAX_MRU;
+    log_Printf(LogDEBUG, "Configure async node at %s\n", asyncpath);
+    if (NgSendMsg(dev->cs, asyncpath, NGM_ASYNC_COOKIE,
+                  NGM_ASYNC_CMD_SET_CONFIG, &cfg, sizeof cfg) < 0)
+      log_Printf(LogWARN, "%s: Can't configure async node at %s\n",
+                 p->link.name, asyncpath);
+  } else
+    /* No netgraph node, just config the async layer */
+    async_SetLinkParams(&p->async, mymap, hismap);
+}
+
+static int
+LoadLineDiscipline(struct physical *p)
+{
+  struct ttydevice *dev = device2tty(p->handler);
+  u_char rbuf[sizeof(struct ng_mesg) + sizeof(struct nodeinfo)];
+  struct ng_mesg *reply;
+  struct nodeinfo *info;
+  char ttypath[NG_NODELEN + 1];
+  struct ngm_mkpeer ngm;
+  struct ngm_connect ngc;
+  int ldisc, cs, ds, hot, speed;
+
+  /*
+   * Don't use the netgraph line discipline for now.  Using it works, but
+   * carrier cannot be detected via TIOCMGET and the device doesn't become
+   * selectable with 0 bytes to read when carrier is lost :(
+   */
+  return 0;
+
+  reply = (struct ng_mesg *)rbuf;
+  info = (struct nodeinfo *)reply->data;
+
+  loadmodules(LOAD_VERBOSLY, "netgraph", "ng_tty", "ng_async", "ng_socket",
+              NULL);
+
+  /* Get the speed before loading the line discipline */
+  speed = physical_GetSpeed(p);
+
+  if (ioctl(p->fd, TIOCGETD, &dev->real.disc) < 0) {
+    log_Printf(LogDEBUG, "%s: Couldn't get tty line discipline\n",
+               p->link.name);
+    return 0;
+  }
+  ldisc = NETGRAPHDISC;
+  if (ID0ioctl(p->fd, TIOCSETD, &ldisc) < 0) {
+    log_Printf(LogDEBUG, "%s: Couldn't set NETGRAPHDISC line discipline\n",
+               p->link.name);
+    return 0;
+  }
+
+  /* Get the name of the tty node */
+  if (ioctl(p->fd, NGIOCGINFO, info) < 0) {
+    log_Printf(LogWARN, "%s: ioctl(NGIOCGINFO): %s\n", p->link.name,
+               strerror(errno));
+    ID0ioctl(p->fd, TIOCSETD, &dev->real.disc);
+    return 0;
+  }
+  snprintf(ttypath, sizeof ttypath, "%s:", info->name);
+
+  /* Create a socket node for our endpoint (and to send messages via) */
+  if (ID0NgMkSockNode(NULL, &cs, &ds) == -1) {
+    log_Printf(LogWARN, "%s: NgMkSockNode: %s\n", p->link.name,
+               strerror(errno));
+    ID0ioctl(p->fd, TIOCSETD, &dev->real.disc);
+    return 0;
+  }
+
+  /* Set the ``hot char'' on the TTY node */
+  hot = HDLC_SYN;
+  log_Printf(LogDEBUG, "%s: Set tty hotchar to 0x%02x\n", p->link.name, hot);
+  if (NgSendMsg(cs, ttypath, NGM_TTY_COOKIE,
+      NGM_TTY_SET_HOTCHAR, &hot, sizeof hot) < 0) {
+    log_Printf(LogWARN, "%s: Can't set hot char\n", p->link.name);
+    goto failed;
+  }
+
+  /* Attach an async converter node */
+  snprintf(ngm.type, sizeof ngm.type, "%s", NG_ASYNC_NODE_TYPE);
+  snprintf(ngm.ourhook, sizeof ngm.ourhook, "%s", NG_TTY_HOOK);
+  snprintf(ngm.peerhook, sizeof ngm.peerhook, "%s", NG_ASYNC_HOOK_ASYNC);
+  log_Printf(LogDEBUG, "%s: Send mkpeer async:%s to %s:%s\n", p->link.name,
+             ngm.peerhook, ttypath, ngm.ourhook);
+  if (NgSendMsg(cs, ttypath, NGM_GENERIC_COOKIE,
+      NGM_MKPEER, &ngm, sizeof ngm) < 0) {
+    log_Printf(LogWARN, "%s: Can't create %s node\n", p->link.name,
+               NG_ASYNC_NODE_TYPE);
+    goto failed;
+  }
+
+  /* Connect the async node to our socket */
+  snprintf(ngc.path, sizeof ngc.path, "%s%s", ttypath, NG_TTY_HOOK);
+  snprintf(ngc.peerhook, sizeof ngc.peerhook, "%s", NG_ASYNC_HOOK_SYNC);
+  memcpy(ngc.ourhook, ngc.peerhook, sizeof ngc.ourhook);
+  log_Printf(LogDEBUG, "%s: Send connect %s:%s to .:%s\n", p->link.name,
+             ngc.path, ngc.peerhook, ngc.ourhook);
+  if (NgSendMsg(cs, ".:", NGM_GENERIC_COOKIE, NGM_CONNECT,
+      &ngc, sizeof ngc) < 0) {
+    log_Printf(LogWARN, "%s: Can't connect .:%s -> %s.%s: %s\n",
+               p->link.name, ngc.ourhook, ngc.path, ngc.peerhook,
+               strerror(errno));
+    goto failed;
+  }
+
+  /* Get the async node id */
+  if (NgSendMsg(cs, ngc.path, NGM_GENERIC_COOKIE, NGM_NODEINFO, NULL, 0) < 0) {
+    log_Printf(LogWARN, "%s: Can't request async node info at %s: %s\n",
+               p->link.name, ngc.path, strerror(errno));
+    goto failed;
+  }
+  if (NgRecvMsg(cs, reply, sizeof rbuf, NULL) < 0) {
+    log_Printf(LogWARN, "%s: Can't obtain async node info at %s: %s\n",
+               p->link.name, ngc.path, strerror(errno));
+    goto failed;
+  }
+
+  /* All done, set up our device state */
+  snprintf(dev->hook, sizeof dev->hook, "%s", ngc.ourhook);
+  dev->cs = cs;
+  dev->real.fd = p->fd;
+  p->fd = ds;
+  dev->real.speed = speed;
+  physical_SetSync(p);
+
+  tty_SetAsyncParams(p, 0xffffffff, 0xffffffff);
+  physical_SetupStack(p, dev->dev.name, PHYSICAL_NOFORCE);
+  log_Printf(LogPHASE, "%s: Loaded netgraph tty line discipline\n",
+             p->link.name);
+
+  return 1;
+
+failed:
+  ID0ioctl(p->fd, TIOCSETD, &dev->real.disc);
+  close(ds);
+  close(cs);
+
+  return 0;
+}
+
+static void
+UnloadLineDiscipline(struct physical *p)
+{
+  struct ttydevice *dev = device2tty(p->handler);
+
+  if (isngtty(dev)) {
+log_Printf(LogPHASE, "back to speed %d\n", dev->real.speed);
+    if (!physical_SetSpeed(p, dev->real.speed))
+      log_Printf(LogWARN, "Couldn't reset tty speed to %d\n", dev->real.speed);
+    dev->real.speed = 0;
+    close(p->fd);
+    p->fd = dev->real.fd;
+    dev->real.fd = -1;
+    close(dev->cs);
+    dev->cs = -1;
+    *dev->hook = '\0';
+    if (ID0ioctl(p->fd, TIOCSETD, &dev->real.disc) == 0) {
+      physical_SetupStack(p, dev->dev.name, PHYSICAL_NOFORCE);
+      log_Printf(LogPHASE, "%s: Unloaded netgraph tty line discipline\n",
+                 p->link.name);
+    } else
+      log_Printf(LogWARN, "%s: Failed to unload netgraph tty line discipline\n",
+                 p->link.name);
+  }
+}
+
+static ssize_t
+tty_Write(struct physical *p, const void *v, size_t n)
+{
+  struct ttydevice *dev = device2tty(p->handler);
+
+  if (isngtty(dev))
+    return NgSendData(p->fd, dev->hook, v, n) == -1 ? -1 : n;
+  else
+    return write(p->fd, v, n);
+}
+
+static ssize_t
+tty_Read(struct physical *p, void *v, size_t n)
+{
+  struct ttydevice *dev = device2tty(p->handler);
+  char hook[sizeof NG_ASYNC_HOOK_SYNC];
+
+  if (isngtty(dev))
+    return NgRecvData(p->fd, v, n, hook);
+  else
+    return read(p->fd, v, n);
+}
+
+#endif /* NETGRAPH */
+
 static int
 tty_Raw(struct physical *p)
 {
@@ -206,19 +442,24 @@ tty_Raw(struct physical *p)
               p->link.name, p->fd, dev->mbits);
 
   if (!physical_IsSync(p)) {
-    tcgetattr(p->fd, &ios);
-    cfmakeraw(&ios);
-    if (p->cfg.rts_cts)
-      ios.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
-    else
-      ios.c_cflag |= CLOCAL;
+#ifndef NONETGRAPH
+    if (!LoadLineDiscipline(p))
+#endif
+    {
+      tcgetattr(p->fd, &ios);
+      cfmakeraw(&ios);
+      if (p->cfg.rts_cts)
+        ios.c_cflag |= CLOCAL | CCTS_OFLOW | CRTS_IFLOW;
+      else
+        ios.c_cflag |= CLOCAL;
 
-    if (p->type != PHYS_DEDICATED)
-      ios.c_cflag |= HUPCL;
+      if (p->type != PHYS_DEDICATED)
+        ios.c_cflag |= HUPCL;
 
-    if (tcsetattr(p->fd, TCSANOW, &ios) == -1)
-      log_Printf(LogWARN, "%s: tcsetattr: Failed configuring device\n",
-                 p->link.name);
+      if (tcsetattr(p->fd, TCSANOW, &ios) == -1)
+        log_Printf(LogWARN, "%s: tcsetattr: Failed configuring device\n",
+                   p->link.name);
+    }
   }
 
   oldflag = fcntl(p->fd, F_GETFL, 0);
@@ -261,6 +502,10 @@ tty_Cooked(struct physical *p)
   if (!physical_IsSync(p) && tcsetattr(p->fd, TCSAFLUSH, &dev->ios) == -1)
     log_Printf(LogWARN, "%s: tcsetattr: Unable to restore device settings\n",
                p->link.name);
+
+#ifndef NONETGRAPH
+  UnloadLineDiscipline(p);
+#endif
 
   if ((oldflag = fcntl(p->fd, F_GETFL, 0)) != -1)
     fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
@@ -309,6 +554,23 @@ tty_OpenInfo(struct physical *p)
   return buf;
 }
 
+static int
+tty_Slot(struct physical *p)
+{
+  struct ttyent *ttyp;
+  int slot;
+
+  setttyent();
+  for (slot = 1; (ttyp = getttyent()); ++slot)
+    if (!strcmp(ttyp->ty_name, p->name.base)) {
+      endttyent();
+      return slot;
+    }
+
+  endttyent();
+  return -1;
+}
+
 static void
 tty_device2iov(struct device *d, struct iovec *iov, int *niov,
                int maxiov, int *auxfd, int *nauxfd)
@@ -323,6 +585,13 @@ tty_device2iov(struct device *d, struct iovec *iov, int *niov,
   }
   iov[*niov].iov_len = sz;
   (*niov)++;
+
+#ifndef NONETGRAPH
+  if (dev->cs >= 0) {
+    *auxfd = dev->cs;
+    (*nauxfd)++;
+  }
+#endif
 
   if (dev->Timer.state != TIMER_STOPPED) {
     timer_Stop(&dev->Timer);
@@ -340,13 +609,15 @@ static struct device basettydevice = {
   tty_Raw,
   tty_Offline,
   tty_Cooked,
+  tty_SetAsyncParams,
   tty_StopTimer,
   tty_Free,
-  NULL,
-  NULL,
+  tty_Read,
+  tty_Write,
   tty_device2iov,
   tty_Speed,
-  tty_OpenInfo
+  tty_OpenInfo,
+  tty_Slot
 };
 
 struct device *
@@ -362,6 +633,14 @@ tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
                  (int)(sizeof *dev));
       AbortProgram(EX_OSERR);
     }
+
+#ifndef NONETGRAPH
+    if (*nauxfd) {
+      dev->cs = *auxfd;
+      (*nauxfd)--;
+    } else
+      dev->cs = -1;
+#endif
 
     /* Refresh function pointers etc */
     memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
@@ -408,6 +687,12 @@ tty_Create(struct physical *p)
   memcpy(&dev->dev, &basettydevice, sizeof dev->dev);
   memset(&dev->Timer, '\0', sizeof dev->Timer);
   dev->mbits = -1;
+#ifndef NONETGRAPH
+  dev->real.speed = 0;
+  dev->real.fd = -1;
+  dev->real.disc = -1;
+  *dev->hook = '\0';
+#endif
   tcgetattr(p->fd, &ios);
   dev->ios = ios;
 

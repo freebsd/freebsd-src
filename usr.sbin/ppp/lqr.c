@@ -29,6 +29,10 @@
  */
 
 #include <sys/param.h>
+
+#ifdef __FreeBSD__
+#include <netinet/in.h>
+#endif
 #include <sys/un.h>
 
 #include <string.h>
@@ -236,7 +240,7 @@ lqr_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
       if (p->hdlc.lqm.timer.load == 0 ||
           !(p->hdlc.lqm.method & LQM_LQR) ||
           (lastLQR && lastLQR == p->hdlc.lqm.lqr.peer.PeerInLQRs) ||
-          (p->hdlc.lqm.lqr.peer_timeout && 
+          (p->hdlc.lqm.lqr.peer_timeout &&
            p->hdlc.lqm.timer.rest * 100 / SECTICKS >
            p->hdlc.lqm.lqr.peer_timeout))
         SendLqrData(lcp);

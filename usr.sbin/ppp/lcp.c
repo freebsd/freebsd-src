@@ -32,9 +32,11 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,6 +64,7 @@
 #include "physical.h"
 #include "prompt.h"
 #include "slcompress.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "mp.h"
@@ -73,12 +76,13 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 
 /* for received LQRs */
 struct lqrreq {
-  u_char type;
-  u_char length;
+  struct fsm_opt_hdr hdr;
   u_short proto;		/* Quality protocol */
   u_int32_t period;		/* Reporting interval */
 };
@@ -91,7 +95,7 @@ static void LcpInitRestartCounter(struct fsm *, int);
 static void LcpSendConfigReq(struct fsm *);
 static void LcpSentTerminateReq(struct fsm *);
 static void LcpSendTerminateAck(struct fsm *, u_char);
-static void LcpDecodeConfig(struct fsm *, u_char *, int, int,
+static void LcpDecodeConfig(struct fsm *, u_char *, u_char *, int,
                             struct fsm_decode *);
 
 static struct fsm_callbacks lcp_Callbacks = {
@@ -161,15 +165,15 @@ lcp_ReportStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, lcp->fsm.name,
                 State2Nam(lcp->fsm.state));
   prompt_Printf(arg->prompt,
-	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %s, ACFCOMP %s,\n"
-	        "           MAGIC %08lx, MRRU %u, SHORTSEQ %s, REJECT %04x\n",
-	        lcp->his_mru, (u_long)lcp->his_accmap,
+                " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %s, ACFCOMP %s,\n"
+                "           MAGIC %08lx, MRRU %u, SHORTSEQ %s, REJECT %04x\n",
+                lcp->his_mru, (u_long)lcp->his_accmap,
                 lcp->his_protocomp ? "on" : "off",
                 lcp->his_acfcomp ? "on" : "off",
                 (u_long)lcp->his_magic, lcp->his_mrru,
                 lcp->his_shortseq ? "on" : "off", lcp->his_reject);
   prompt_Printf(arg->prompt,
-	        " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %s, ACFCOMP %s,\n"
+                " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %s, ACFCOMP %s,\n"
                 "           MAGIC %08lx, MRRU %u, SHORTSEQ %s, REJECT %04x\n",
                 lcp->want_mru, (u_long)lcp->want_accmap,
                 lcp->want_protocomp ? "on" : "off",
@@ -205,7 +209,7 @@ lcp_ReportStatus(struct cmdargs const *arg)
                 command_ShowNegval(lcp->cfg.acfcomp));
   prompt_Printf(arg->prompt, "           CHAP =      %s\n",
                 command_ShowNegval(lcp->cfg.chap05));
-#ifdef HAVE_DES
+#ifndef NODES
   prompt_Printf(arg->prompt, "           CHAP80 =    %s\n",
                 command_ShowNegval(lcp->cfg.chap80nt));
   prompt_Printf(arg->prompt, "           LANMan =    %s\n",
@@ -263,7 +267,7 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
 
   lcp->cfg.acfcomp = NEG_ENABLED|NEG_ACCEPTED;
   lcp->cfg.chap05 = NEG_ACCEPTED;
-#ifdef HAVE_DES
+#ifndef NODES
   lcp->cfg.chap80nt = NEG_ACCEPTED;
   lcp->cfg.chap80lm = 0;
   lcp->cfg.chap81 = NEG_ACCEPTED;
@@ -310,7 +314,7 @@ lcp_Setup(struct lcp *lcp, int openmode)
     if (IsEnabled(lcp->cfg.chap05)) {
       lcp->want_auth = PROTO_CHAP;
       lcp->want_authtype = 0x05;
-#ifdef HAVE_DES
+#ifndef NODES
     } else if (IsEnabled(lcp->cfg.chap80nt) ||
                IsEnabled(lcp->cfg.chap80lm)) {
       lcp->want_auth = PROTO_CHAP;
@@ -376,7 +380,7 @@ LcpSendConfigReq(struct fsm *fp)
   struct physical *p = link2physical(fp->link);
   struct lcp *lcp = fsm2lcp(fp);
   u_char buff[200];
-  struct lcp_opt *o;
+  struct fsm_opt *o;
   struct mp *mp;
   u_int16_t proto;
   u_short maxmru;
@@ -387,17 +391,17 @@ LcpSendConfigReq(struct fsm *fp)
     return;
   }
 
-  o = (struct lcp_opt *)buff;
+  o = (struct fsm_opt *)buff;
   if (!physical_IsSync(p)) {
     if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP))
-      INC_LCP_OPT(TY_ACFCOMP, 2, o);
+      INC_FSM_OPT(TY_ACFCOMP, 2, o);
 
     if (lcp->want_protocomp && !REJECTED(lcp, TY_PROTOCOMP))
-      INC_LCP_OPT(TY_PROTOCOMP, 2, o);
+      INC_FSM_OPT(TY_PROTOCOMP, 2, o);
 
     if (!REJECTED(lcp, TY_ACCMAP)) {
       ua_htonl(&lcp->want_accmap, o->data);
-      INC_LCP_OPT(TY_ACCMAP, 6, o);
+      INC_FSM_OPT(TY_ACCMAP, 6, o);
     }
   }
 
@@ -411,43 +415,43 @@ LcpSendConfigReq(struct fsm *fp)
   }
   if (!REJECTED(lcp, TY_MRU)) {
     ua_htons(&lcp->want_mru, o->data);
-    INC_LCP_OPT(TY_MRU, 4, o);
+    INC_FSM_OPT(TY_MRU, 4, o);
   }
 
   if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM)) {
     ua_htonl(&lcp->want_magic, o->data);
-    INC_LCP_OPT(TY_MAGICNUM, 6, o);
+    INC_FSM_OPT(TY_MAGICNUM, 6, o);
   }
 
   if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO)) {
     proto = PROTO_LQR;
     ua_htons(&proto, o->data);
     ua_htonl(&lcp->want_lqrperiod, o->data + 2);
-    INC_LCP_OPT(TY_QUALPROTO, 8, o);
+    INC_FSM_OPT(TY_QUALPROTO, 8, o);
   }
 
   switch (lcp->want_auth) {
   case PROTO_PAP:
     proto = PROTO_PAP;
     ua_htons(&proto, o->data);
-    INC_LCP_OPT(TY_AUTHPROTO, 4, o);
+    INC_FSM_OPT(TY_AUTHPROTO, 4, o);
     break;
 
   case PROTO_CHAP:
     proto = PROTO_CHAP;
     ua_htons(&proto, o->data);
     o->data[2] = lcp->want_authtype;
-    INC_LCP_OPT(TY_AUTHPROTO, 5, o);
+    INC_FSM_OPT(TY_AUTHPROTO, 5, o);
     break;
   }
 
   if (!REJECTED(lcp, TY_CALLBACK)) {
     if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_AUTH)) {
       *o->data = CALLBACK_AUTH;
-      INC_LCP_OPT(TY_CALLBACK, 3, o);
+      INC_FSM_OPT(TY_CALLBACK, 3, o);
     } else if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_CBCP)) {
       *o->data = CALLBACK_CBCP;
-      INC_LCP_OPT(TY_CALLBACK, 3, o);
+      INC_FSM_OPT(TY_CALLBACK, 3, o);
     } else if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_E164)) {
       int sz = strlen(lcp->want_callback.msg);
 
@@ -457,16 +461,16 @@ LcpSendConfigReq(struct fsm *fp)
       }
       *o->data = CALLBACK_E164;
       memcpy(o->data + 1, lcp->want_callback.msg, sz);
-      INC_LCP_OPT(TY_CALLBACK, sz + 3, o);
+      INC_FSM_OPT(TY_CALLBACK, sz + 3, o);
     }
   }
 
   if (lcp->want_mrru && !REJECTED(lcp, TY_MRRU)) {
     ua_htons(&lcp->want_mrru, o->data);
-    INC_LCP_OPT(TY_MRRU, 4, o);
+    INC_FSM_OPT(TY_MRRU, 4, o);
 
     if (lcp->want_shortseq && !REJECTED(lcp, TY_SHORTSEQ))
-      INC_LCP_OPT(TY_SHORTSEQ, 2, o);
+      INC_FSM_OPT(TY_SHORTSEQ, 2, o);
   }
 
   mp = &lcp->fsm.bundle->ncp.mp;
@@ -474,7 +478,7 @@ LcpSendConfigReq(struct fsm *fp)
       !REJECTED(lcp, TY_ENDDISC)) {
     *o->data = mp->cfg.enddisc.class;
     memcpy(o->data+1, mp->cfg.enddisc.address, mp->cfg.enddisc.len);
-    INC_LCP_OPT(TY_ENDDISC, mp->cfg.enddisc.len + 3, o);
+    INC_FSM_OPT(TY_ENDDISC, mp->cfg.enddisc.len + 3, o);
   }
 
   fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff,
@@ -509,18 +513,19 @@ lcp_SendIdentification(struct lcp *lcp)
   strncpy(msg + 4, exp[0], sizeof msg - 5);
   msg[sizeof msg - 1] = '\0';
 
-  log_Printf(LogLCP, "Sending ident magic %08x text %s\n", lcp->want_magic,
-             msg + 4);
   fsm_Output(&lcp->fsm, CODE_IDENT, id++, msg, 4 + strlen(msg + 4), MB_LCPOUT);
+  log_Printf(LogLCP, " MAGICNUM %08x\n", lcp->want_magic);
+  log_Printf(LogLCP, " TEXT %s\n", msg + 4);
 
-  free(exp[0]);
+  command_Free(1, exp);
   return 1;
 }
 
 void
 lcp_RecvIdentification(struct lcp *lcp, char *data)
 {
-  log_Printf(LogLCP, "Received ident: %s\n", data);
+  log_Printf(LogLCP, " MAGICNUM %08x\n", lcp->his_magic);
+  log_Printf(LogLCP, " TEXT %s\n", data);
 }
 
 static void
@@ -568,7 +573,7 @@ LcpLayerUp(struct fsm *fp)
   struct lcp *lcp = fsm2lcp(fp);
 
   log_Printf(LogLCP, "%s: LayerUp\n", fp->link->name);
-  async_SetLinkParams(&p->async, lcp);
+  physical_SetAsyncParams(p, lcp->want_accmap, lcp->his_accmap);
   lqr_Start(lcp);
   hdlc_StartTimer(&p->hdlc);
   fp->more.reqs = fp->more.naks = fp->more.rejs = lcp->cfg.fsm.maxreq * 3;
@@ -609,37 +614,72 @@ E164ok(struct callback *cb, char *req, int sz)
   return 0;
 }
 
+static int
+lcp_auth_nak(struct lcp *lcp, struct fsm_decode *dec)
+{
+  struct fsm_opt nak;
+
+  nak.hdr.id = TY_AUTHPROTO;
+
+  if (IsAccepted(lcp->cfg.pap)) {
+    nak.hdr.len = 4;
+    nak.data[0] = (unsigned char)(PROTO_PAP >> 8);
+    nak.data[1] = (unsigned char)PROTO_PAP;
+    fsm_nak(dec, &nak);
+    return 1;
+  }
+
+  nak.hdr.len = 5;
+  nak.data[0] = (unsigned char)(PROTO_CHAP >> 8);
+  nak.data[1] = (unsigned char)PROTO_CHAP;
+
+  if (IsAccepted(lcp->cfg.chap05)) {
+    nak.data[2] = 0x05;
+    fsm_nak(dec, &nak);
+#ifndef NODES
+  } else if (IsAccepted(lcp->cfg.chap80nt) ||
+             IsAccepted(lcp->cfg.chap80lm)) {
+    nak.data[2] = 0x80;
+    fsm_nak(dec, &nak);
+  } else if (IsAccepted(lcp->cfg.chap81)) {
+    nak.data[2] = 0x81;
+    fsm_nak(dec, &nak);
+#endif
+  } else {
+    return 0;
+  }
+
+  return 1;
+}
+
 static void
-LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
+LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
                 struct fsm_decode *dec)
 {
   /* Deal with incoming PROTO_LCP */
   struct lcp *lcp = fsm2lcp(fp);
-  int type, length, sz, pos, op, callback_req;
+  int sz, pos, op, callback_req, chap_type;
   u_int32_t magic, accmap;
   u_short mru, phmtu, maxmtu, maxmru, wantmtu, wantmru, proto;
   struct lqrreq *req;
   char request[20], desc[22];
   struct mp *mp;
   struct physical *p = link2physical(fp->link);
+  struct fsm_opt *opt, nak;
 
   sz = op = callback_req = 0;
 
-  while (plen >= sizeof(struct fsmconfig)) {
-    type = *cp;
-    length = cp[1];
-
-    snprintf(request, sizeof request, " %s[%d]", protoname(type), length);
-
-    if (length < 2) {
-      log_Printf(LogLCP, "%s:%s: Bad LCP length\n", fp->link->name, request);
+  while (end - cp >= sizeof(opt->hdr)) {
+    if ((opt = fsm_readopt(&cp)) == NULL)
       break;
-    }
 
-    switch (type) {
+    snprintf(request, sizeof request, " %s[%d]", protoname(opt->hdr.id),
+             opt->hdr.len);
+
+    switch (opt->hdr.id) {
     case TY_MRRU:
       mp = &lcp->fsm.bundle->ncp.mp;
-      ua_ntohs(cp + 2, &mru);
+      ua_ntohs(opt->data, &mru);
       log_Printf(LogLCP, "%s %u\n", request, mru);
 
       switch (mode_type) {
@@ -647,34 +687,37 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         if (mp->cfg.mrru) {
           if (REJECTED(lcp, TY_MRRU))
             /* Ignore his previous reject so that we REQ next time */
-	    lcp->his_reject &= ~(1 << type);
+            lcp->his_reject &= ~(1 << opt->hdr.id);
 
           if (mru > MAX_MRU) {
             /* Push him down to MAX_MRU */
             lcp->his_mrru = MAX_MRU;
-	    memcpy(dec->nakend, cp, 2);
-            ua_htons(&lcp->his_mrru, dec->nakend + 2);
-	    dec->nakend += 4;
+            nak.hdr.id = TY_MRRU;
+            nak.hdr.len = 4;
+            ua_htons(&lcp->his_mrru, nak.data);
+            fsm_nak(dec, &nak);
           } else if (mru < MIN_MRU) {
             /* Push him up to MIN_MRU */
             lcp->his_mrru = MIN_MRU;
-	    memcpy(dec->nakend, cp, 2);
-            ua_htons(&lcp->his_mrru, dec->nakend + 2);
-	    dec->nakend += 4;
-	  } else {
+            nak.hdr.id = TY_MRRU;
+            nak.hdr.len = 4;
+            ua_htons(&lcp->his_mrru, nak.data);
+            fsm_nak(dec, &nak);
+          } else {
             lcp->his_mrru = mru;
-	    memcpy(dec->ackend, cp, 4);
-	    dec->ackend += 4;
-	  }
-	  break;
-        } else
-	  goto reqreject;
+            fsm_ack(dec, opt);
+          }
+          break;
+        } else {
+          fsm_rej(dec, opt);
+          lcp->my_reject |= (1 << opt->hdr.id);
+        }
         break;
       case MODE_NAK:
         if (mp->cfg.mrru) {
           if (REJECTED(lcp, TY_MRRU))
             /* Must have changed his mind ! */
-	    lcp->his_reject &= ~(1 << type);
+            lcp->his_reject &= ~(1 << opt->hdr.id);
 
           if (mru > MAX_MRU)
             lcp->want_mrru = MAX_MRU;
@@ -686,15 +729,15 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         /* else we honour our config and don't send the suggested REQ */
         break;
       case MODE_REJ:
-	lcp->his_reject |= (1 << type);
+        lcp->his_reject |= (1 << opt->hdr.id);
         lcp->want_mrru = 0;		/* Ah well, no multilink :-( */
-	break;
+        break;
       }
       break;
 
     case TY_MRU:
       lcp->mru_req = 1;
-      ua_ntohs(cp + 2, &mru);
+      ua_ntohs(opt->data, &mru);
       log_Printf(LogLCP, "%s %d\n", request, mru);
 
       switch (mode_type) {
@@ -711,21 +754,22 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
         if (maxmtu && mru > maxmtu) {
           lcp->his_mru = maxmtu;
-          memcpy(dec->nakend, cp, 2);
-          ua_htons(&lcp->his_mru, dec->nakend + 2);
-          dec->nakend += 4;
+          nak.hdr.id = TY_MRU;
+          nak.hdr.len = 4;
+          ua_htons(&lcp->his_mru, nak.data);
+          fsm_nak(dec, &nak);
         } else if (wantmtu && mru < wantmtu) {
           /* Push him up to MTU or MIN_MRU */
           lcp->his_mru = wantmtu;
-          memcpy(dec->nakend, cp, 2);
-          ua_htons(&lcp->his_mru, dec->nakend + 2);
-          dec->nakend += 4;
+          nak.hdr.id = TY_MRU;
+          nak.hdr.len = 4;
+          ua_htons(&lcp->his_mru, nak.data);
+          fsm_nak(dec, &nak);
         } else {
           lcp->his_mru = mru;
-          memcpy(dec->ackend, cp, 4);
-          dec->ackend += 4;
+          fsm_ack(dec, opt);
         }
-	break;
+        break;
       case MODE_NAK:
         maxmru = p ? physical_DeviceMTU(p) : 0;
         if (lcp->cfg.max_mru && (!maxmru || maxmru > lcp->cfg.max_mru))
@@ -740,257 +784,212 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           lcp->want_mru = MIN_MRU;
         else
           lcp->want_mru = mru;
-	break;
+        break;
       case MODE_REJ:
-	lcp->his_reject |= (1 << type);
-	break;
+        lcp->his_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
     case TY_ACCMAP:
-      ua_ntohl(cp + 2, &accmap);
+      ua_ntohl(opt->data, &accmap);
       log_Printf(LogLCP, "%s 0x%08lx\n", request, (u_long)accmap);
 
       switch (mode_type) {
       case MODE_REQ:
-	lcp->his_accmap = accmap;
-	memcpy(dec->ackend, cp, 6);
-	dec->ackend += 6;
-	break;
+        lcp->his_accmap = accmap;
+        fsm_ack(dec, opt);
+        break;
       case MODE_NAK:
-	lcp->want_accmap = accmap;
-	break;
+        lcp->want_accmap = accmap;
+        break;
       case MODE_REJ:
-	lcp->his_reject |= (1 << type);
-	break;
+        lcp->his_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
     case TY_AUTHPROTO:
-      ua_ntohs(cp + 2, &proto);
+      ua_ntohs(opt->data, &proto);
+      chap_type = opt->hdr.len == 5 ? opt->data[2] : 0;
+
       log_Printf(LogLCP, "%s 0x%04x (%s)\n", request, proto,
-                 Auth2Nam(proto, length > 4 ? cp[4] : 0));
+                 Auth2Nam(proto, chap_type));
 
       switch (mode_type) {
       case MODE_REQ:
-	switch (proto) {
-	case PROTO_PAP:
-	  if (length != 4) {
-	    log_Printf(LogLCP, " Bad length!\n");
-	    goto reqreject;
-	  }
-	  if (IsAccepted(lcp->cfg.pap)) {
-	    lcp->his_auth = proto;
-	    lcp->his_authtype = 0;
-	    memcpy(dec->ackend, cp, length);
-	    dec->ackend += length;
-	  } else if (IsAccepted(lcp->cfg.chap05)) {
-	    *dec->nakend++ = *cp;
-	    *dec->nakend++ = 5;
-	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
-	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
-	    *dec->nakend++ = 0x05;
-#ifdef HAVE_DES
-	  } else if (IsAccepted(lcp->cfg.chap80nt) ||
-	             IsAccepted(lcp->cfg.chap80lm)) {
-	    *dec->nakend++ = *cp;
-	    *dec->nakend++ = 5;
-	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
-	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
-	    *dec->nakend++ = 0x80;
-	  } else if (IsAccepted(lcp->cfg.chap81)) {
-	    *dec->nakend++ = *cp;
-	    *dec->nakend++ = 5;
-	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
-	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
-	    *dec->nakend++ = 0x81;
-#endif
-	  } else
-	    goto reqreject;
-	  break;
+        switch (proto) {
+        case PROTO_PAP:
+          if (opt->hdr.len == 4 && IsAccepted(lcp->cfg.pap)) {
+            lcp->his_auth = proto;
+            lcp->his_authtype = 0;
+            fsm_ack(dec, opt);
+          } else if (!lcp_auth_nak(lcp, dec)) {
+            lcp->my_reject |= (1 << opt->hdr.id);
+            fsm_rej(dec, opt);
+          }
+          break;
 
-	case PROTO_CHAP:
-	  if (length != 5) {
-	    log_Printf(LogLCP, " Bad length!\n");
-	    goto reqreject;
-	  }
-          if ((cp[4] == 0x05 && IsAccepted(lcp->cfg.chap05))
-#ifdef HAVE_DES
-              || (cp[4] == 0x80 && (IsAccepted(lcp->cfg.chap80nt) ||
+        case PROTO_CHAP:
+          if ((chap_type == 0x05 && IsAccepted(lcp->cfg.chap05))
+#ifndef NODES
+              || (chap_type == 0x80 && (IsAccepted(lcp->cfg.chap80nt) ||
                                    (IsAccepted(lcp->cfg.chap80lm))))
-              || (cp[4] == 0x81 && IsAccepted(lcp->cfg.chap81))
+              || (chap_type == 0x81 && IsAccepted(lcp->cfg.chap81))
 #endif
              ) {
-	    lcp->his_auth = proto;
-	    lcp->his_authtype = cp[4];
-	    memcpy(dec->ackend, cp, length);
-	    dec->ackend += length;
-	  } else {
-#ifndef HAVE_DES
-            if (cp[4] == 0x80) {
+            lcp->his_auth = proto;
+            lcp->his_authtype = chap_type;
+            fsm_ack(dec, opt);
+          } else {
+#ifdef NODES
+            if (chap_type == 0x80) {
               log_Printf(LogWARN, "CHAP 0x80 not available without DES\n");
-            } else if (cp[4] == 0x81) {
+            } else if (chap_type == 0x81) {
               log_Printf(LogWARN, "CHAP 0x81 not available without DES\n");
             } else
 #endif
-            if (cp[4] != 0x05)
+            if (chap_type != 0x05)
               log_Printf(LogWARN, "%s not supported\n",
-                         Auth2Nam(PROTO_CHAP, cp[4]));
+                         Auth2Nam(PROTO_CHAP, chap_type));
 
-            if (IsAccepted(lcp->cfg.chap05)) {
-	      *dec->nakend++ = *cp;
-	      *dec->nakend++ = 5;
-	      *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
-	      *dec->nakend++ = (unsigned char) PROTO_CHAP;
-	      *dec->nakend++ = 0x05;
-#ifdef HAVE_DES
-            } else if (IsAccepted(lcp->cfg.chap80nt) ||
-                       IsAccepted(lcp->cfg.chap80lm)) {
-	      *dec->nakend++ = *cp;
-	      *dec->nakend++ = 5;
-	      *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
-	      *dec->nakend++ = (unsigned char) PROTO_CHAP;
-	      *dec->nakend++ = 0x80;
-            } else if (IsAccepted(lcp->cfg.chap81)) {
-	      *dec->nakend++ = *cp;
-	      *dec->nakend++ = 5;
-	      *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
-	      *dec->nakend++ = (unsigned char) PROTO_CHAP;
-	      *dec->nakend++ = 0x81;
-#endif
-            } else if (IsAccepted(lcp->cfg.pap)) {
-	      *dec->nakend++ = *cp;
-	      *dec->nakend++ = 4;
-	      *dec->nakend++ = (unsigned char) (PROTO_PAP >> 8);
-	      *dec->nakend++ = (unsigned char) PROTO_PAP;
-	    } else
-	      goto reqreject;
+            if (!lcp_auth_nak(lcp, dec)) {
+              lcp->my_reject |= (1 << opt->hdr.id);
+              fsm_rej(dec, opt);
+            }
           }
-	  break;
+          break;
 
-	default:
-          log_Printf(LogLCP, "%s 0x%04x - not recognised, NAK\n",
+        default:
+          log_Printf(LogLCP, "%s 0x%04x - not recognised\n",
                     request, proto);
-	  memcpy(dec->nakend, cp, length);
-	  dec->nakend += length;
-	  break;
-	}
-	break;
+          if (!lcp_auth_nak(lcp, dec)) {
+            lcp->my_reject |= (1 << opt->hdr.id);
+            fsm_rej(dec, opt);
+          }
+          break;
+        }
+        break;
+
       case MODE_NAK:
-	switch (proto) {
-	case PROTO_PAP:
+        switch (proto) {
+        case PROTO_PAP:
           if (IsEnabled(lcp->cfg.pap)) {
             lcp->want_auth = PROTO_PAP;
             lcp->want_authtype = 0;
           } else {
             log_Printf(LogLCP, "Peer will only send PAP (not enabled)\n");
-	    lcp->his_reject |= (1 << type);
+            lcp->his_reject |= (1 << opt->hdr.id);
           }
           break;
-	case PROTO_CHAP:
-          if (cp[4] == 0x05 && IsEnabled(lcp->cfg.chap05)) {
+        case PROTO_CHAP:
+          if (chap_type == 0x05 && IsEnabled(lcp->cfg.chap05)) {
             lcp->want_auth = PROTO_CHAP;
             lcp->want_authtype = 0x05;
-#ifdef HAVE_DES
-          } else if (cp[4] == 0x80 && (IsEnabled(lcp->cfg.chap80nt) ||
-                                       IsEnabled(lcp->cfg.chap80lm))) {
+#ifndef NODES
+          } else if (chap_type == 0x80 && (IsEnabled(lcp->cfg.chap80nt) ||
+                                           IsEnabled(lcp->cfg.chap80lm))) {
             lcp->want_auth = PROTO_CHAP;
             lcp->want_authtype = 0x80;
-          } else if (cp[4] == 0x81 && IsEnabled(lcp->cfg.chap81)) {
+          } else if (chap_type == 0x81 && IsEnabled(lcp->cfg.chap81)) {
             lcp->want_auth = PROTO_CHAP;
             lcp->want_authtype = 0x81;
 #endif
           } else {
-#ifndef HAVE_DES
-            if (cp[4] == 0x80) {
+#ifdef NODES
+            if (chap_type == 0x80) {
               log_Printf(LogLCP, "Peer will only send MSCHAP (not available"
                          " without DES)\n");
-            } else if (cp[4] == 0x81) {
+            } else if (chap_type == 0x81) {
               log_Printf(LogLCP, "Peer will only send MSCHAPV2 (not available"
                          " without DES)\n");
             } else
 #endif
             log_Printf(LogLCP, "Peer will only send %s (not %s)\n",
-                       Auth2Nam(PROTO_CHAP, cp[4]),
-#ifdef HAVE_DES
-                       (cp[4] == 0x80 || cp[4] == 0x81) ? "configured" :
+                       Auth2Nam(PROTO_CHAP, chap_type),
+#ifndef NODES
+                       (chap_type == 0x80 || chap_type == 0x81) ? "configured" :
 #endif
                        "supported");
-	    lcp->his_reject |= (1 << type);
+            lcp->his_reject |= (1 << opt->hdr.id);
           }
           break;
         default:
           /* We've been NAK'd with something we don't understand :-( */
-	  lcp->his_reject |= (1 << type);
+          lcp->his_reject |= (1 << opt->hdr.id);
           break;
         }
-	break;
+        break;
+
       case MODE_REJ:
-	lcp->his_reject |= (1 << type);
-	break;
+        lcp->his_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
     case TY_QUALPROTO:
-      req = (struct lqrreq *)cp;
+      req = (struct lqrreq *)opt;
       log_Printf(LogLCP, "%s proto %x, interval %lums\n",
                 request, ntohs(req->proto), (u_long)ntohl(req->period) * 10);
       switch (mode_type) {
       case MODE_REQ:
-	if (ntohs(req->proto) != PROTO_LQR || !IsAccepted(lcp->cfg.lqr))
-	  goto reqreject;
-	else {
-	  lcp->his_lqrperiod = ntohl(req->period);
-	  if (lcp->his_lqrperiod < MIN_LQRPERIOD * 100)
-	    lcp->his_lqrperiod = MIN_LQRPERIOD * 100;
-	  req->period = htonl(lcp->his_lqrperiod);
-	  memcpy(dec->ackend, cp, length);
-	  dec->ackend += length;
-	}
-	break;
+        if (ntohs(req->proto) != PROTO_LQR || !IsAccepted(lcp->cfg.lqr)) {
+          fsm_rej(dec, opt);
+          lcp->my_reject |= (1 << opt->hdr.id);
+        } else {
+          lcp->his_lqrperiod = ntohl(req->period);
+          if (lcp->his_lqrperiod < MIN_LQRPERIOD * 100)
+            lcp->his_lqrperiod = MIN_LQRPERIOD * 100;
+          req->period = htonl(lcp->his_lqrperiod);
+          fsm_ack(dec, opt);
+        }
+        break;
       case MODE_NAK:
-	break;
+        lcp->want_lqrperiod = ntohl(req->period);
+        break;
       case MODE_REJ:
-	lcp->his_reject |= (1 << type);
-	break;
+        lcp->his_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
     case TY_MAGICNUM:
-      ua_ntohl(cp + 2, &magic);
+      ua_ntohl(opt->data, &magic);
       log_Printf(LogLCP, "%s 0x%08lx\n", request, (u_long)magic);
 
       switch (mode_type) {
       case MODE_REQ:
-	if (lcp->want_magic) {
-	  /* Validate magic number */
-	  if (magic == lcp->want_magic) {
-	    log_Printf(LogLCP, "Magic is same (%08lx) - %d times\n",
+        if (lcp->want_magic) {
+          /* Validate magic number */
+          if (magic == lcp->want_magic) {
+            sigset_t emptyset;
+
+            log_Printf(LogLCP, "Magic is same (%08lx) - %d times\n",
                       (u_long)magic, ++lcp->LcpFailedMagic);
-	    lcp->want_magic = GenerateMagic();
-	    memcpy(dec->nakend, cp, 6);
-	    dec->nakend += 6;
+            lcp->want_magic = GenerateMagic();
+            fsm_nak(dec, opt);
             ualarm(TICKUNIT * (4 + 4 * lcp->LcpFailedMagic), 0);
-            sigpause(0);
-	  } else {
-	    lcp->his_magic = magic;
-	    memcpy(dec->ackend, cp, length);
-	    dec->ackend += length;
+            sigemptyset(&emptyset);
+            sigsuspend(&emptyset);
+          } else {
+            lcp->his_magic = magic;
             lcp->LcpFailedMagic = 0;
-	  }
-	} else {
-	  goto reqreject;
-	}
-	break;
+            fsm_ack(dec, opt);
+          }
+        } else {
+          lcp->my_reject |= (1 << opt->hdr.id);
+          fsm_rej(dec, opt);
+        }
+        break;
       case MODE_NAK:
-	log_Printf(LogLCP, " Magic 0x%08lx is NAKed!\n", (u_long)magic);
-	lcp->want_magic = GenerateMagic();
-	break;
+        log_Printf(LogLCP, " Magic 0x%08lx is NAKed!\n", (u_long)magic);
+        lcp->want_magic = GenerateMagic();
+        break;
       case MODE_REJ:
-	log_Printf(LogLCP, " Magic 0x%08x is REJected!\n", magic);
-	lcp->want_magic = 0;
-	lcp->his_reject |= (1 << type);
-	break;
+        log_Printf(LogLCP, " Magic 0x%08x is REJected!\n", magic);
+        lcp->want_magic = 0;
+        lcp->his_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
@@ -999,25 +998,24 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-	if (IsAccepted(lcp->cfg.protocomp)) {
-	  lcp->his_protocomp = 1;
-	  memcpy(dec->ackend, cp, 2);
-	  dec->ackend += 2;
-	} else {
+        if (IsAccepted(lcp->cfg.protocomp)) {
+          lcp->his_protocomp = 1;
+          fsm_ack(dec, opt);
+        } else {
 #ifdef OLDMST
-	  /* MorningStar before v1.3 needs NAK */
-	  memcpy(dec->nakend, cp, 2);
-	  dec->nakend += 2;
+          /* MorningStar before v1.3 needs NAK */
+          fsm_nak(dec, opt);
 #else
-	  goto reqreject;
+          fsm_rej(dec, opt);
+          lcp->my_reject |= (1 << opt->hdr.id);
 #endif
-	}
-	break;
+        }
+        break;
       case MODE_NAK:
       case MODE_REJ:
-	lcp->want_protocomp = 0;
-	lcp->his_reject |= (1 << type);
-	break;
+        lcp->want_protocomp = 0;
+        lcp->his_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
@@ -1025,25 +1023,24 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       log_Printf(LogLCP, "%s\n", request);
       switch (mode_type) {
       case MODE_REQ:
-	if (IsAccepted(lcp->cfg.acfcomp)) {
-	  lcp->his_acfcomp = 1;
-	  memcpy(dec->ackend, cp, 2);
-	  dec->ackend += 2;
-	} else {
+        if (IsAccepted(lcp->cfg.acfcomp)) {
+          lcp->his_acfcomp = 1;
+          fsm_ack(dec, opt);
+        } else {
 #ifdef OLDMST
-	  /* MorningStar before v1.3 needs NAK */
-	  memcpy(dec->nakend, cp, 2);
-	  dec->nakend += 2;
+          /* MorningStar before v1.3 needs NAK */
+          fsm_nak(dec, opt);
 #else
-	  goto reqreject;
+          fsm_rej(dec, opt);
+          lcp->my_reject |= (1 << opt->hdr.id);
 #endif
-	}
-	break;
+        }
+        break;
       case MODE_NAK:
       case MODE_REJ:
-	lcp->want_acfcomp = 0;
-	lcp->his_reject |= (1 << type);
-	break;
+        lcp->want_acfcomp = 0;
+        lcp->his_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
@@ -1053,31 +1050,32 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       case MODE_REQ:
       case MODE_NAK:
       case MODE_REJ:
-	break;
+        break;
       }
       break;
 
     case TY_CALLBACK:
-      if (length == 2)
+      if (opt->hdr.len == 2)
         op = CALLBACK_NONE;
       else
-        op = (int)cp[2];
-      sz = length - 3;
+        op = (int)opt->data[0];
+      sz = opt->hdr.len - 3;
       switch (op) {
         case CALLBACK_AUTH:
           log_Printf(LogLCP, "%s Auth\n", request);
           break;
         case CALLBACK_DIALSTRING:
-          log_Printf(LogLCP, "%s Dialstring %.*s\n", request, sz, cp + 3);
+          log_Printf(LogLCP, "%s Dialstring %.*s\n", request, sz,
+                     opt->data + 1);
           break;
         case CALLBACK_LOCATION:
-          log_Printf(LogLCP, "%s Location %.*s\n", request, sz, cp + 3);
+          log_Printf(LogLCP, "%s Location %.*s\n", request, sz, opt->data + 1);
           break;
         case CALLBACK_E164:
-          log_Printf(LogLCP, "%s E.164 (%.*s)\n", request, sz, cp + 3);
+          log_Printf(LogLCP, "%s E.164 (%.*s)\n", request, sz, opt->data + 1);
           break;
         case CALLBACK_NAME:
-          log_Printf(LogLCP, "%s Name %.*s\n", request, sz, cp + 3);
+          log_Printf(LogLCP, "%s Name %.*s\n", request, sz, opt->data + 1);
           break;
         case CALLBACK_CBCP:
           log_Printf(LogLCP, "%s CBCP\n", request);
@@ -1090,41 +1088,43 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       switch (mode_type) {
       case MODE_REQ:
         callback_req = 1;
-        if (p->type != PHYS_DIRECT)
-	  goto reqreject;
+        if (p->type != PHYS_DIRECT) {
+          fsm_rej(dec, opt);
+          lcp->my_reject |= (1 << opt->hdr.id);
+        }
+        nak.hdr.id = opt->hdr.id;
+        nak.hdr.len = 3;
         if ((p->dl->cfg.callback.opmask & CALLBACK_BIT(op)) &&
             (op != CALLBACK_AUTH || p->link.lcp.want_auth) &&
             (op != CALLBACK_E164 ||
-             E164ok(&p->dl->cfg.callback, cp + 3, sz))) {
-	  lcp->his_callback.opmask = CALLBACK_BIT(op);
+             E164ok(&p->dl->cfg.callback, opt->data + 1, sz))) {
+          lcp->his_callback.opmask = CALLBACK_BIT(op);
           if (sz > sizeof lcp->his_callback.msg - 1) {
             sz = sizeof lcp->his_callback.msg - 1;
             log_Printf(LogWARN, "Truncating option arg to %d octets\n", sz);
           }
-	  memcpy(lcp->his_callback.msg, cp + 3, sz);
-	  lcp->his_callback.msg[sz] = '\0';
-	  memcpy(dec->ackend, cp, sz + 3);
-	  dec->ackend += sz + 3;
+          memcpy(lcp->his_callback.msg, opt->data + 1, sz);
+          lcp->his_callback.msg[sz] = '\0';
+          fsm_ack(dec, opt);
         } else if ((p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_AUTH)) &&
                     p->link.lcp.auth_ineed) {
-          *dec->nakend++ = *cp;
-          *dec->nakend++ = 3;
-          *dec->nakend++ = CALLBACK_AUTH;
+          nak.data[0] = CALLBACK_AUTH;
+          fsm_nak(dec, &nak);
         } else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_CBCP)) {
-          *dec->nakend++ = *cp;
-          *dec->nakend++ = 3;
-          *dec->nakend++ = CALLBACK_CBCP;
+          nak.data[0] = CALLBACK_CBCP;
+          fsm_nak(dec, &nak);
         } else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_E164)) {
-          *dec->nakend++ = *cp;
-          *dec->nakend++ = 3;
-          *dec->nakend++ = CALLBACK_E164;
+          nak.data[0] = CALLBACK_E164;
+          fsm_nak(dec, &nak);
         } else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_AUTH)) {
           log_Printf(LogWARN, "Cannot insist on auth callback without"
                      " PAP or CHAP enabled !\n");
-          *dec->nakend++ = *cp;
-          *dec->nakend++ = 2;
-        } else
-	  goto reqreject;
+          nak.data[0] = 2;
+          fsm_nak(dec, &nak);
+        } else {
+          lcp->my_reject |= (1 << opt->hdr.id);
+          fsm_rej(dec, opt);
+        }
         break;
       case MODE_NAK:
         /* We don't do what he NAKs with, we do things in our preferred order */
@@ -1144,13 +1144,13 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         break;
       case MODE_REJ:
         if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_NONE)) {
-	  lcp->his_reject |= (1 << type);
+          lcp->his_reject |= (1 << opt->hdr.id);
           lcp->want_callback.opmask = 0;
         } else {
           log_Printf(LogPHASE, "Peer rejected *required* callback\n");
           fsm_Close(&lcp->fsm);
         }
-	break;
+        break;
       }
       break;
 
@@ -1162,10 +1162,11 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       case MODE_REQ:
         if (lcp->want_mrru && IsAccepted(mp->cfg.shortseq)) {
           lcp->his_shortseq = 1;
-	  memcpy(dec->ackend, cp, length);
-	  dec->ackend += length;
-        } else
-	  goto reqreject;
+          fsm_ack(dec, opt);
+        } else {
+          fsm_rej(dec, opt);
+          lcp->my_reject |= (1 << opt->hdr.id);
+        }
         break;
       case MODE_NAK:
         /*
@@ -1174,78 +1175,69 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
          */
         break;
       case MODE_REJ:
-	lcp->his_reject |= (1 << type);
+        lcp->his_reject |= (1 << opt->hdr.id);
         lcp->want_shortseq = 0;		/* For when we hit MP */
-	break;
+        break;
       }
       break;
 
     case TY_ENDDISC:
       mp = &lcp->fsm.bundle->ncp.mp;
       log_Printf(LogLCP, "%s %s\n", request,
-                mp_Enddisc(cp[2], cp + 3, length - 3));
+                 mp_Enddisc(opt->data[0], opt->data + 1, opt->hdr.len - 3));
       switch (mode_type) {
       case MODE_REQ:
         if (!p) {
           log_Printf(LogLCP, " ENDDISC rejected - not a physical link\n");
-	  goto reqreject;
-        } else if (!IsAccepted(mp->cfg.negenddisc))
-	  goto reqreject;
-        else if (length-3 < sizeof p->dl->peer.enddisc.address &&
-                   cp[2] <= MAX_ENDDISC_CLASS) {
-          p->dl->peer.enddisc.class = cp[2];
-          p->dl->peer.enddisc.len = length-3;
-          memcpy(p->dl->peer.enddisc.address, cp + 3, length - 3);
-          p->dl->peer.enddisc.address[length - 3] = '\0';
+          fsm_rej(dec, opt);
+          lcp->my_reject |= (1 << opt->hdr.id);
+        } else if (!IsAccepted(mp->cfg.negenddisc)) {
+          lcp->my_reject |= (1 << opt->hdr.id);
+          fsm_rej(dec, opt);
+        } else if (opt->hdr.len - 3 < sizeof p->dl->peer.enddisc.address &&
+                   opt->data[0] <= MAX_ENDDISC_CLASS) {
+          p->dl->peer.enddisc.class = opt->data[0];
+          p->dl->peer.enddisc.len = opt->hdr.len - 3;
+          memcpy(p->dl->peer.enddisc.address, opt->data + 1, opt->hdr.len - 3);
+          p->dl->peer.enddisc.address[opt->hdr.len - 3] = '\0';
           /* XXX: If mp->active, compare and NAK with mp->peer ? */
-	  memcpy(dec->ackend, cp, length);
-	  dec->ackend += length;
+          fsm_ack(dec, opt);
         } else {
-          if (cp[2] > MAX_ENDDISC_CLASS)
+          if (opt->data[0] > MAX_ENDDISC_CLASS)
             log_Printf(LogLCP, " ENDDISC rejected - unrecognised class %d\n",
-                      cp[2]);
+                      opt->data[0]);
           else
             log_Printf(LogLCP, " ENDDISC rejected - local max length is %ld\n",
                       (long)(sizeof p->dl->peer.enddisc.address - 1));
-	  goto reqreject;
+          fsm_rej(dec, opt);
+          lcp->my_reject |= (1 << opt->hdr.id);
         }
-	break;
+        break;
 
       case MODE_NAK:	/* Treat this as a REJ, we don't vary our disc (yet) */
       case MODE_REJ:
-	lcp->his_reject |= (1 << type);
-	break;
+        lcp->his_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
-      
+
     default:
       sz = (sizeof desc - 2) / 2;
-      if (sz > length - 2)
-        sz = length - 2;
+      if (sz > opt->hdr.len - 2)
+        sz = opt->hdr.len - 2;
       pos = 0;
       desc[0] = sz ? ' ' : '\0';
       for (pos = 0; sz--; pos++)
-        sprintf(desc+(pos<<1)+1, "%02x", cp[pos+2]);
+        sprintf(desc+(pos<<1)+1, "%02x", opt->data[pos]);
 
       log_Printf(LogLCP, "%s%s\n", request, desc);
 
       if (mode_type == MODE_REQ) {
-reqreject:
-        if (length > sizeof dec->rej - (dec->rejend - dec->rej)) {
-          length = sizeof dec->rej - (dec->rejend - dec->rej);
-          log_Printf(LogLCP, "Can't REJ length %d - trunating to %d\n",
-		    cp[1], length);
-        }
-	memcpy(dec->rejend, cp, length);
-	dec->rejend += length;
-	lcp->my_reject |= (1 << type);
-        if (length != cp[1])
-          length = 0;		/* force our way out of the loop */
+        fsm_rej(dec, opt);
+        lcp->my_reject |= (1 << opt->hdr.id);
       }
       break;
     }
-    plen -= length;
-    cp += length;
   }
 
   if (mode_type != MODE_NOP) {
@@ -1253,20 +1245,21 @@ reqreject:
         p->dl->cfg.callback.opmask && !callback_req &&
         !(p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_NONE))) {
       /* We *REQUIRE* that the peer requests callback */
-      *dec->nakend++ = TY_CALLBACK;
-      *dec->nakend++ = 3;
+      nak.hdr.id = TY_CALLBACK;
+      nak.hdr.len = 3;
       if ((p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_AUTH)) &&
           p->link.lcp.want_auth)
-        *dec->nakend++ = CALLBACK_AUTH;
+        nak.data[0] = CALLBACK_AUTH;
       else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_CBCP))
-        *dec->nakend++ = CALLBACK_CBCP;
+        nak.data[0] = CALLBACK_CBCP;
       else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_E164))
-        *dec->nakend++ = CALLBACK_E164;
+        nak.data[0] = CALLBACK_E164;
       else {
         log_Printf(LogWARN, "Cannot insist on auth callback without"
                    " PAP or CHAP enabled !\n");
-        dec->nakend[-1] = 2;	/* XXX: Silly ! */
+        nak.hdr.len = 2;	/* XXX: Silly ! */
       }
+      fsm_nak(dec, &nak);
     }
     if (mode_type == MODE_REQ && !lcp->mru_req) {
       mru = DEF_MRU;
@@ -1278,20 +1271,14 @@ reqreject:
       if (mru < DEF_MRU) {
         /* Don't let the peer use the default MRU */
         lcp->his_mru = lcp->cfg.mtu && lcp->cfg.mtu < mru ? lcp->cfg.mtu : mru;
-        *dec->nakend++ = TY_MRU;
-        *dec->nakend++ = 4;
-        ua_htons(&lcp->his_mru, dec->nakend);
-        dec->nakend += 2;
+        nak.hdr.id = TY_MRU;
+        nak.hdr.len = 4;
+        ua_htons(&lcp->his_mru, nak.data);
+        fsm_nak(dec, &nak);
         lcp->mru_req = 1;	/* Don't keep NAK'ing this */
       }
     }
-    if (dec->rejend != dec->rej) {
-      /* rejects are preferred */
-      dec->ackend = dec->ack;
-      dec->nakend = dec->nak;
-    } else if (dec->nakend != dec->nak)
-      /* then NAKs */
-      dec->ackend = dec->ack;
+    fsm_opt_normalise(dec);
   }
 }
 

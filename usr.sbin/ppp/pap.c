@@ -32,6 +32,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 #include <stdlib.h>
@@ -58,12 +59,15 @@
 #include "physical.h"
 #include "iplist.h"
 #include "slcompress.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "mp.h"
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "chat.h"
 #include "chap.h"
@@ -138,10 +142,17 @@ SendPapCode(struct authinfo *authp, int code, const char *message)
 static void
 pap_Success(struct authinfo *authp)
 {
+  struct bundle *bundle = authp->physical->dl->bundle;
+
   datalink_GotAuthname(authp->physical->dl, authp->in.name);
-  SendPapCode(authp, PAP_ACK, "Greetings!!");
+#ifndef NORADIUS
+  if (*bundle->radius.cfg.file && bundle->radius.repstr)
+    SendPapCode(authp, PAP_ACK, bundle->radius.repstr);
+  else
+#endif
+    SendPapCode(authp, PAP_ACK, "Greetings!!");
   authp->physical->link.lcp.auth_ineed = 0;
-  if (Enabled(authp->physical->dl->bundle, OPT_UTMP))
+  if (Enabled(bundle, OPT_UTMP))
     physical_Login(authp->physical, authp->in.name);
 
   if (authp->physical->link.lcp.auth_iwait == 0)
@@ -253,10 +264,11 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
       key[klen] = '\0';
 
 #ifndef NORADIUS
-      if (*bundle->radius.cfg.file)
-        radius_Authenticate(&bundle->radius, authp, authp->in.name,
-                            key, strlen(key), NULL, 0);
-      else
+      if (*bundle->radius.cfg.file) {
+        if (!radius_Authenticate(&bundle->radius, authp, authp->in.name,
+                                 key, strlen(key), NULL, 0))
+          pap_Failure(authp);
+      } else
 #endif
       if (auth_Validate(bundle, authp->in.name, key, p))
         pap_Success(authp);

@@ -40,6 +40,7 @@
 #include <fcntl.h>
 #include <paths.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,6 +72,7 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "slcompress.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -79,6 +81,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "auth.h"
 #include "systems.h"
@@ -114,10 +118,13 @@ Cleanup(int excode)
 void
 AbortProgram(int excode)
 {
-  server_Close(SignalBundle);
+  if (SignalBundle)
+    server_Close(SignalBundle);
   log_Printf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
-  bundle_Close(SignalBundle, NULL, CLOSE_STAYDOWN);
-  bundle_Destroy(SignalBundle);
+  if (SignalBundle) {
+    bundle_Close(SignalBundle, NULL, CLOSE_STAYDOWN);
+    bundle_Destroy(SignalBundle);
+  }
   log_Close();
   exit(excode);
 }
@@ -182,7 +189,7 @@ RestartServer(int signo)
 static void
 Usage(void)
 {
-  fprintf(stderr, "Usage: ppp [-auto | -foreground | -background | -direct |"
+  fprintf(stderr, "usage: ppp [-auto | -foreground | -background | -direct |"
           " -dedicated | -ddial | -interactive]"
 #ifndef NOALIAS
           " [-nat]"
@@ -300,6 +307,8 @@ main(int argc, char **argv)
   struct prompt *prompt;
   struct switches sw;
 
+  probe_Init();
+
   /*
    * We open 3 descriptors to ensure that STDIN_FILENO, STDOUT_FILENO and
    * STDERR_FILENO are always open.  These are closed before DoLoop(),
@@ -413,7 +422,7 @@ main(int argc, char **argv)
     bundle_SetLabel(bundle, lastlabel);
 
   if (sw.mode == PHYS_AUTO &&
-      bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
+      ncprange_family(&bundle->ncp.ipcp.cfg.peer_range) == AF_UNSPEC) {
     prompt_Printf(prompt, "You must ``set ifaddr'' with a peer address "
                   "in auto mode.\n");
     AbortProgram(EX_START);
@@ -527,9 +536,6 @@ DoLoop(struct bundle *bundle)
 {
   fd_set *rfds, *wfds, *efds;
   int i, nfds, nothing_done;
-  struct probe probe;
-
-  probe_Init(&probe);
 
   if ((rfds = mkfdset()) == NULL) {
     log_Printf(LogERROR, "DoLoop: Cannot create fd_set\n");
@@ -650,9 +656,9 @@ DoLoop(struct bundle *bundle)
     }
 
     if (descriptor_IsSet(&bundle->desc, wfds))
-      if (!descriptor_Write(&bundle->desc, bundle, wfds) && nothing_done) {
+      if (descriptor_Write(&bundle->desc, bundle, wfds) <= 0 && nothing_done) {
         /*
-         * This is disasterous.  The OS has told us that something is
+         * This is disastrous.  The OS has told us that something is
          * writable, and all our write()s have failed.  Rather than
          * going back immediately to do our UpdateSet()s and select(),
          * we sleep for a bit to avoid gobbling up all cpu time.

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 1997 - 1999, 2001 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,14 @@ static int necessary;		/* Anything set ? */
 static sig_type handler[NSIG];	/* all start at SIG_DFL */
 
 
-/* Record a signal in the "caused" array */
-
+/*
+ * Record a signal in the "caused" array
+ *
+ * This function is the only thing actually called in signal context.  It
+ * records that a signal has been caused and that sig_Handle() should be
+ * called (in non-signal context) as soon as possible to process that
+ * signal.
+ */
 static void
 signal_recorder(int sig)
 {
@@ -49,10 +55,11 @@ signal_recorder(int sig)
 
 
 /*
- * Set up signal_recorder, and record handler as the function to ultimately
- * call in handle_signal()
-*/
-
+ * Set up signal_recorder to handle the given sig and record ``fn'' as
+ * the function to ultimately call in sig_Handle().  ``fn'' will not be
+ * called in signal context (as sig_Handle() is not called in signal
+ * context).
+ */
 sig_type
 sig_signal(int sig, sig_type fn)
 {
@@ -77,8 +84,13 @@ sig_signal(int sig, sig_type fn)
 }
 
 
-/* Call the handlers for any pending signals */
-
+/*
+ * Call the handlers for any pending signals
+ *
+ * This function is called from a non-signal context - in fact, it's
+ * called every time select() in DoLoop() returns - just in case
+ * select() returned due to a signal being recorded by signal_recorder().
+ */
 int
 sig_Handle()
 {

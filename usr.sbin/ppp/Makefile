@@ -1,15 +1,24 @@
 # $FreeBSD$
 
 PROG=	ppp
+MAN=	ppp.8
 SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 	command.c datalink.c deflate.c defs.c exec.c filter.c fsm.c hdlc.c \
-	iface.c ip.c ipcp.c iplist.c lcp.c link.c log.c lqr.c main.c \
-	mbuf.c mp.c pap.c physical.c pred.c probe.c prompt.c proto.c route.c \
-	server.c sig.c slcompress.c sync.c systems.c tcp.c tcpmss.c \
-	throughput.c timer.c tty.c tun.c udp.c vjcomp.c
-CFLAGS+=-Wall
-LDADD+= -lcrypt -lmd -lutil -lz
-DPADD+=	${LIBCRYPT} ${LIBMD} ${LIBUTIL} ${LIBZ}
+	iface.c ip.c ipcp.c ipv6cp.c iplist.c lcp.c link.c log.c lqr.c main.c \
+	mbuf.c mp.c ncp.c ncpaddr.c pap.c physical.c pred.c probe.c prompt.c \
+	proto.c route.c server.c sig.c slcompress.c sync.c systems.c tcp.c \
+	tcpmss.c throughput.c timer.c tty.c tun.c udp.c vjcomp.c
+.if defined(RELEASE_CRUNCH)
+CFLAGS+=-DRELEASE_CRUNCH
+NOATM=		true
+NOI4B=		true
+NONAT=		true
+NOKLDLOAD=	true
+NORADIUS=	true
+NOSECURE=	true
+NOSUID=		true
+.endif
+
 .if defined(NOSUID) || defined(PPP_NOSUID)
 BINMODE=554
 .else
@@ -17,11 +26,17 @@ BINMODE=4554
 BINOWN=	root
 .endif
 BINGRP=	network
-MAN=	ppp.8
+M4FLAGS=
 
-.if defined(RELEASE_CRUNCH)
-CFLAGS+=-DRELEASE_CRUNCH
-.endif
+LDADD= -lcrypt -lmd -lutil -lz
+DPADD=	${LIBCRYPT} ${LIBMD} ${LIBUTIL} ${LIBZ}
+
+.SUFFIXES: .8 .8.m4
+
+.8.m4.8:
+	m4 ${M4FLAGS} ${.IMPSRC} >${.TARGET}
+
+CLEANFILES= ppp.8
 
 .if defined(PPP_CONFDIR) && !empty(PPP_CONFDIR)
 CFLAGS+=-DPPP_CONFDIR=\"${PPP_CONFDIR}\"
@@ -38,24 +53,27 @@ CFLAGS+=-DNOINET6
 .if defined(NOALIAS) || defined(NONAT)
 CFLAGS+=-DNONAT
 .else
-.if !defined(RELEASE_CRUNCH)
 SRCS+=	nat_cmd.c
 LDADD+=	-lalias
 DPADD+= ${LIBALIAS}
 .endif
+
+.if defined(NOATM)
+CFLAGS+=-DNOATM
+.else
+SRCS+=	atm.c
 .endif
 
 .if defined(NOSUID) || defined(PPP_NOSUID)
 CFLAGS+=-DNOSUID
 .else
-.if !defined(RELEASE_CRUNCH)
 SRCS+=	id.c
 .endif
-.endif
 
-.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+.if !exists(${.CURDIR}/../../secure) || defined(NOCRYPT) || defined(NOSECURE) || defined(NO_OPENSSL) || defined(NODES)
+CFLAGS+=-DNODES
+.else
 DISTRIBUTION=crypto
-CFLAGS+=-DHAVE_DES
 SRCS+=	chap_ms.c mppe.c
 LDADD+= -lcrypto
 DPADD+= ${LIBCRYPTO}
@@ -64,14 +82,12 @@ DPADD+= ${LIBCRYPTO}
 .if defined(NORADIUS)
 CFLAGS+=-DNORADIUS
 .else
-.if !defined(RELEASE_CRUNCH)
 SRCS+=	radius.c
 LDADD+=	-lradius
 DPADD+= ${LIBRADIUS}
 .endif
-.endif
 
-.if defined(NOI4B) || ${MACHINE_ARCH} == "alpha"
+.if defined(NOI4B) || ${MACHINE_ARCH} != "i386"
 CFLAGS+=-DNOI4B
 .else
 SRCS+=	i4b.c
@@ -83,16 +99,10 @@ CFLAGS+=-DNONETGRAPH
 SRCS+=	ether.c
 LDADD+=	-lnetgraph
 DPADD+= ${LIBNETGRAPH}
+.if defined(EXPERIMENTAL_NETGRAPH)
+CFLAGS+=-DEXPERIMENTAL_NETGRAPH
+SRCS+=	netgraph.c
 .endif
-
-.if defined(RELEASE_CRUNCH)
-# We must create these objects because crunchgen will link them,
-# and we don't want any unused symbols to spoil the final link.
-CFLAGS+=-DNONAT -DNORADIUS -DNOI4B -DNOSUID
-OBJS+=	chap_ms.o mppe.o id.o nat_cmd.o radius.o
-chap_ms.o mppe.o id.o nat_cmd.o radius.o:
-	>null_${.PREFIX}.c
-	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif
 
 .include <bsd.prog.mk>

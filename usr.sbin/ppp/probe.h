@@ -28,6 +28,11 @@
 
 struct probe {
   unsigned select_changes_time : 1;
+#ifndef NOINET6
+  unsigned ipv6_available : 1;
+#endif
 };
 
-extern void probe_Init(struct probe *);
+extern struct probe probe;
+
+extern void probe_Init(void);
