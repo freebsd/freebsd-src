@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.20 1996/05/02 10:43:17 phk Exp $
+ * $Id: kern_malloc.c,v 1.21 1996/05/02 14:20:20 phk Exp $
  */
 
 #include <sys/param.h>
@@ -372,15 +372,16 @@ kmeminit(dummy)
 	int npg;
 
 #if	((MAXALLOCSAVE & (MAXALLOCSAVE - 1)) != 0)
-		ERROR!_kmeminit:_MAXALLOCSAVE_not_power_of_2
+#error "kmeminit: MAXALLOCSAVE not power of 2"
 #endif
 #if	(MAXALLOCSAVE > MINALLOCSIZE * 32768)
-		ERROR!_kmeminit:_MAXALLOCSAVE_too_big
+#error "kmeminit: MAXALLOCSAVE too big"
 #endif
 #if	(MAXALLOCSAVE < PAGE_SIZE)
-		ERROR!_kmeminit:_MAXALLOCSAVE_too_small
+#error "kmeminit: MAXALLOCSAVE too small"
 #endif
-	npg = (nmbclusters * MCLBYTES + VM_KMEM_SIZE) / PAGE_SIZE;
+	npg = (nmbufs * MSIZE + nmbclusters * MCLBYTES + VM_KMEM_SIZE)
+		/ PAGE_SIZE;
 
 	kmemusage = (struct kmemusage *) kmem_alloc(kernel_map,
 		(vm_size_t)(npg * sizeof(struct kmemusage)));
@@ -401,7 +402,8 @@ kmeminit(dummy)
 	 */
 	for (indx = 0; indx < M_LAST; indx++) {
 		kmemstats[indx].ks_limit = min(cnt.v_page_count * PAGE_SIZE,
-			(npg * PAGE_SIZE - nmbclusters * MCLBYTES)) * 6 / 10;
+			(npg * PAGE_SIZE - nmbclusters * MCLBYTES
+			 - nmbufs * MSIZE)) * 6 / 10;
 	}
 #endif
 }
