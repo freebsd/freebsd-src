@@ -91,9 +91,6 @@ SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, sockets, CTLFLAG_RD,
     &nmacsockets, 0, "number of sockets in use");
 #endif
 
-static void	mac_socket_label_free(struct label *label);
-
-
 static struct label *
 mbuf_to_label(struct mbuf *mbuf)
 {
@@ -220,7 +217,7 @@ mac_init_mbuf(struct mbuf *m, int flag)
 	return (0);
 }
 
-static struct label *
+struct label *
 mac_socket_label_alloc(int flag)
 {
 	struct label *label;
@@ -339,7 +336,7 @@ mac_destroy_mbuf_tag(struct m_tag *tag)
 	MAC_DEBUG_COUNTER_DEC(&nmacmbufs);
 }
 
-static void
+void
 mac_socket_label_free(struct label *label)
 {
 
@@ -382,6 +379,13 @@ mac_copy_mbuf_tag(struct m_tag *src, struct m_tag *dest)
 	MAC_PERFORM(copy_mbuf_label, src_label, dest_label);
 }
 
+void
+mac_copy_socket_label(struct label *src, struct label *dest)
+{
+
+	MAC_PERFORM(copy_socket_label, src, dest);
+}
+
 static int
 mac_externalize_ifnet_label(struct label *label, char *elements,
     char *outbuf, size_t outbuflen)
@@ -393,7 +397,7 @@ mac_externalize_ifnet_label(struct label *label, char *elements,
 	return (error);
 }
 
-static int
+int
 mac_externalize_socket_label(struct label *label, char *elements,
     char *outbuf, size_t outbuflen)
 {
@@ -425,7 +429,7 @@ mac_internalize_ifnet_label(struct label *label, char *string)
 	return (error);
 }
 
-static int
+int
 mac_internalize_socket_label(struct label *label, char *string)
 {
 	int error;

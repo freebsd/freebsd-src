@@ -109,6 +109,8 @@ int	mac_allocate_slot(void);
  */
 struct label	*mac_pipe_label_alloc(void);
 void		 mac_pipe_label_free(struct label *label);
+struct label	*mac_socket_label_alloc(int flag);
+void		 mac_socket_label_free(struct label *label);
 
 int	mac_check_cred_relabel(struct ucred *cred, struct label *newlabel);
 int	mac_externalize_cred_label(struct label *label, char *elements, 
@@ -123,6 +125,10 @@ int	mac_internalize_pipe_label(struct label *label, char *string);
 
 int	mac_socket_label_set(struct ucred *cred, struct socket *so,
 	    struct label *label);
+void	mac_copy_socket_label(struct label *src, struct label *dest);
+int	mac_externalize_socket_label(struct label *label, char *elements,
+	    char *outbuf, size_t outbuflen);
+int	mac_internalize_socket_label(struct label *label, char *string);
 
 int	mac_externalize_vnode_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);

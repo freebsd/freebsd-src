@@ -1032,6 +1032,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_destroy_vnode_label = stub_destroy_label,
 	.mpo_copy_mbuf_label = stub_copy_label,
 	.mpo_copy_pipe_label = stub_copy_label,
+	.mpo_copy_socket_label = stub_copy_label,
 	.mpo_copy_vnode_label = stub_copy_label,
 	.mpo_externalize_cred_label = stub_externalize_label,
 	.mpo_externalize_ifnet_label = stub_externalize_label,
