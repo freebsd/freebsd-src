@@ -176,8 +176,7 @@ sched_slp_ratio(int b, int s)
  * XXX nice value should effect how interactive a kg is.
  */
 #define	SCHED_CURR(kg)	(((kg)->kg_slptime > (kg)->kg_runtime &&	\
-	sched_slp_ratio((kg)->kg_slptime, (kg)->kg_runtime) > 4) ||	\
-	(kg)->kg_pri_class != PRI_TIMESHARE)
+	sched_slp_ratio((kg)->kg_slptime, (kg)->kg_runtime) > 4))
 
 /*
  * Cpu percentage computation macros and defines.
@@ -808,13 +807,27 @@ sched_add(struct kse *ke)
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
 
-	kseq = KSEQ_CPU(ke->ke_cpu);
+	/*
+	 * Timeshare threads get placed on the appropriate queue on their
+	 * bound cpu.
+	 */
+	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE) {
+		kseq = KSEQ_CPU(ke->ke_cpu);
 
-	if (ke->ke_runq == NULL) {
-		if (SCHED_CURR(ke->ke_ksegrp))
-			ke->ke_runq = kseq->ksq_curr;
-		else
-			ke->ke_runq = kseq->ksq_next;
+		if (ke->ke_runq == NULL) {
+			if (SCHED_CURR(ke->ke_ksegrp))
+				ke->ke_runq = kseq->ksq_curr;
+			else
+				ke->ke_runq = kseq->ksq_next;
+		}
+	/*
+	 * If we're a real-time or interrupt thread place us on the curr
+	 * queue for the current processor.  Hopefully this will yield the
+	 * lowest latency response.
+	 */
+	} else {
+		kseq = KSEQ_SELF();
+		ke->ke_runq = kseq->ksq_curr;
 	}
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
