@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.51 1997/08/18 11:29:57 kato Exp $
+ *	$Id: machdep.c,v 1.52 1997/08/21 10:12:42 kato Exp $
  */
 
 #include "apm.h"
@@ -403,6 +403,12 @@ again:
 	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1024);
 
+	/*
+	 * Set up buffers, so they can be used to read disk labels.
+	 */
+	bufinit();
+	vm_pager_bufferinit();
+
 #ifdef SMP
 	/*
 	 * OK, enough kmem_alloc/malloc state should be up, lets get on with it!
@@ -410,12 +416,6 @@ again:
 	mp_start();			/* fire up the APs and APICs */
 	mp_announce();
 #endif  /* SMP */
-
-	/*
-	 * Set up buffers, so they can be used to read disk labels.
-	 */
-	bufinit();
-	vm_pager_bufferinit();
 }
 
 int
