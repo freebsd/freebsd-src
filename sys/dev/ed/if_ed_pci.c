@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 
 static struct _pcsid
 {
-	u_int32_t	type;
+	uint32_t	type;
 	const char	*desc;
 } pci_ids[] =
 {
@@ -64,7 +64,7 @@ static int	ed_pci_attach(device_t);
 static int
 ed_pci_probe(device_t dev)
 {
-	u_int32_t	type = pci_get_devid(dev);
+	uint32_t	type = pci_get_devid(dev);
 	struct _pcsid	*ep =pci_ids;
 
 	while (ep->type && ep->type != type)
