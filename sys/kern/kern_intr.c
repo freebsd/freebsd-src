@@ -371,8 +371,8 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	 * Set it_need to tell the thread to keep running if it is already
 	 * running.  Then, grab sched_lock and see if we actually need to
 	 * put this thread on the runqueue.  If so and the do_switch flag is
-	 * true, then switch to the ithread immediately.  Otherwise, use
-	 * need_resched() to guarantee that this ithread will run before any
+	 * true, then switch to the ithread immediately.  Otherwise, set the
+	 * needresched flag to guarantee that this ithread will run before any
 	 * userland processes.
 	 */
 	ithread->it_need = 1;
@@ -387,7 +387,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 			curproc->p_stats->p_ru.ru_nivcsw++;
 			mi_switch();
 		} else
-			need_resched(curproc);
+			curproc->p_sflag |= PS_NEEDRESCHED;
 	} else {
 		CTR3(KTR_INTR, __func__ ": pid %d: it_need %d, state %d",
 		    p->p_pid, ithread->it_need, p->p_stat);

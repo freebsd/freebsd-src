@@ -157,7 +157,7 @@ i386_extend_pcb(struct proc *p)
 	p->p_addr->u_pcb.pcb_ext = ext;
 	
 	/* switch to the new TSS after syscall completes */
-	need_resched(p);
+	p->p_sflag |= PS_NEEDRESCHED;
 	mtx_unlock_spin(&sched_lock);
 
 	return 0;

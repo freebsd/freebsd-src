@@ -176,7 +176,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 
 			mtx_lock_spin(&sched_lock);
 			rtp_to_pri(&rtp, &p->p_pri);
-			need_resched(p);
+			p->p_sflag |= PS_NEEDRESCHED;
 			mtx_unlock_spin(&sched_lock);
 		}
 		else
@@ -198,7 +198,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 			 *     on the scheduling code: You must leave the
 			 *     scheduling info alone.
 			 */
-			need_resched(p);
+			p->p_sflag |= PS_NEEDRESCHED;
 			mtx_unlock_spin(&sched_lock);
 		}
 		break;
@@ -217,7 +217,7 @@ int ksched_getscheduler(register_t *ret, struct ksched *ksched, struct proc *p)
 int ksched_yield(register_t *ret, struct ksched *ksched)
 {
 	mtx_lock_spin(&sched_lock);
-	need_resched(curproc);
+	curproc->p_sflag |= PS_NEEDRESCHED;
 	mtx_unlock_spin(&sched_lock);
 	return 0;
 }

@@ -76,7 +76,7 @@ trap(struct trapframe *frame)
 #if 0 /* XXX: This code hasn't been reworked yet. */
 	struct proc *p;
 	int type;
-	u_quad_t sticks;
+	u_int sticks;
 
 	p = curproc;
 	type = frame->exc;

@@ -259,7 +259,7 @@ trap(a0, a1, a2, entry, framep)
 	register struct proc *p;
 	register int i;
 	u_int64_t ucode;
-	u_quad_t sticks;
+	u_int sticks;
 	int user;
 #ifdef SMP
 	critical_t s;
@@ -289,9 +289,7 @@ trap(a0, a1, a2, entry, framep)
 	CTR5(KTR_TRAP, "%s trap: pid %d, (%lx, %lx, %lx)",
 	    user ? "user" : "kernel", p->p_pid, a0, a1, a2);
 	if (user)  {
-		mtx_lock_spin(&sched_lock);
 		sticks = p->p_sticks;
-		mtx_unlock_spin(&sched_lock);
 		p->p_frame = framep;
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
@@ -654,7 +652,7 @@ syscall(code, framep)
 	struct proc *p;
 	int error = 0;
 	u_int64_t opc;
-	u_quad_t sticks;
+	u_int sticks;
 	u_int64_t args[10];					/* XXX */
 	u_int hidden = 0, nargs;
 #ifdef SMP
@@ -685,9 +683,7 @@ syscall(code, framep)
 	cnt.v_syscall++;
 	p->p_frame = framep;
 	opc = framep->tf_regs[FRAME_PC] - 4;
-	mtx_lock_spin(&sched_lock);
 	sticks = p->p_sticks;
-	mtx_unlock_spin(&sched_lock);
 
 #ifdef DIAGNOSTIC
 	alpha_fpstate_check(p);

@@ -353,41 +353,13 @@ sigonstack(size_t sp)
 }
 
 /*
- * Preempt the current process if in interrupt from user mode,
- * or after the current trap/syscall if in system mode.
- */
-#define	need_resched(p) do {						\
-	mtx_assert(&sched_lock, MA_OWNED);				\
-	(p)->p_sflag |= PS_NEEDRESCHED;					\
-} while (0)
-
-#define	resched_wanted(p)	((p)->p_sflag & PS_NEEDRESCHED)
-
-#define	clear_resched(p) do {						\
-	mtx_assert(&sched_lock, MA_OWNED);				\
-	(p)->p_sflag &= ~PS_NEEDRESCHED;				\
-} while (0)
-
-/*
- * Schedule an Asynchronous System Trap (AST) on return to user mode.
- */
-#define	aston(p) do {							\
-	mtx_assert(&sched_lock, MA_OWNED);				\
-	(p)->p_sflag |= PS_ASTPENDING;					\
-} while (0)
-
-#define	astpending(p)	((p)->p_sflag & PS_ASTPENDING)
-
-#define astoff(p) do {							\
-	mtx_assert(&sched_lock, MA_OWNED);				\
-	(p)->p_sflag &= ~PS_ASTPENDING;					\
-} while (0)
-
-/*
  * Notify the current process (p) that it has a signal pending,
  * process as soon as possible.
  */
-#define	signotify(p)	aston(p)
+#define	signotify(p) do {						\
+	mtx_assert(&sched_lock, MA_OWNED);				\
+	(p)->p_sflag |= PS_ASTPENDING;					\
+} while (0)
 
 /* Handy macro to determine if p1 can mangle p2. */
 #define	PRISON_CHECK(p1, p2) \
@@ -530,7 +502,7 @@ void	cpu_switch __P((void));
 void	cpu_throw __P((void)) __dead2;
 void	unsleep __P((struct proc *));
 void	updatepri __P((struct proc *));
-void	userret __P((struct proc *, struct trapframe *, u_quad_t));
+void	userret __P((struct proc *, struct trapframe *, u_int));
 void	maybe_resched __P((struct proc *));
 
 void	cpu_exit __P((struct proc *)) __dead2;

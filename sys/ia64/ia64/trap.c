@@ -180,7 +180,7 @@ trap(int vector, int imm, struct trapframe *framep)
 	struct proc *p;
 	int i;
 	u_int64_t ucode;
-	u_quad_t sticks;
+	u_int sticks;
 	int user;
 
 	cnt.v_trap++;
@@ -189,9 +189,7 @@ trap(int vector, int imm, struct trapframe *framep)
 
 	user = ((framep->tf_cr_ipsr & IA64_PSR_CPL) == IA64_PSR_CPL_USER);
 	if (user) {
-		mtx_lock_spin(&sched_lock);
 		sticks = p->p_sticks;
-		mtx_unlock_spin(&sched_lock);
 		p->p_frame = framep;
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
@@ -444,14 +442,12 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	struct proc *p;
 	int error = 0;
 	u_int64_t oldip, oldri;
-	u_quad_t sticks;
+	u_int sticks;
 
 	cnt.v_syscall++;
 	p = curproc;
 	p->p_frame = framep;
-	mtx_lock_spin(&sched_lock);
 	sticks = p->p_sticks;
-	mtx_unlock_spin(&sched_lock);
 
 	mtx_lock(&Giant);
 	/*
