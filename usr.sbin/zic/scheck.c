@@ -13,7 +13,7 @@ static const char rcsid[] =
 
 #include "private.h"
 
-const char *
+char *
 scheck(string, format)
 const char * const	string;
 const char * const	format;
@@ -22,7 +22,7 @@ const char * const	format;
 	register const char *	fp;
 	register char *		tp;
 	register int		c;
-	register const char *	result;
+	register char *		result;
 	char			dummy;
 	static char		nada;
 
@@ -58,7 +58,7 @@ const char * const	format;
 	*tp++ = 'c';
 	*tp = '\0';
 	if (sscanf(string, fbuf, &dummy) != 1)
-		result = format;
+		result = (char *) format;
 	ifree(fbuf);
 	return result;
 }
