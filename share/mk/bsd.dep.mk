@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #

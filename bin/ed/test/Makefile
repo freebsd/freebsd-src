@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 SHELL=	/bin/sh
 ED=	${.OBJDIR}/ed

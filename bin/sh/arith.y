@@ -88,7 +88,7 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef lint

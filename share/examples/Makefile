@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 #
 # Doing a make install builds /usr/share/examples
 

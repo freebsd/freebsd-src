@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 #
 # .profile - Bourne Shell startup script for login shells
 #

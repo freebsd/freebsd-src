@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $Id$
 #
 # This shellscript will make a cross reference of the symbols of the LINT 
 # kernel.

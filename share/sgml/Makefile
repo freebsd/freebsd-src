@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 SUBDIR= FreeBSD ISO docbook transpec
 FILES=	CATALOG

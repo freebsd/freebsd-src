@@ -1,5 +1,5 @@
 ###
-#	$FreeBSD$
+#	$Id$
 #
 # This is included to make a floppy that includes a crunch file
 #

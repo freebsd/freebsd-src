@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 KEYMAPS=  INDEX.keymaps
 KEYMAPS+= be.iso.kbd

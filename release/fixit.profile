@@ -1,5 +1,5 @@
 :
-# $FreeBSD$
+# $Id$
 
 export BLOCKSIZE=K
 export PS1="Fixit# "

@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$FreeBSD$
+#	$Id$
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 # <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $Id$
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.

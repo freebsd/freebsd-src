@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 FILES=	roff.cmap roff.sdata linuxdoc-roff.ts
 FILES+= html.cmap html.sdata linuxdoc-html.ts

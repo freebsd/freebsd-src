@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $FreeBSD$
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

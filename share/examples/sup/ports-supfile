@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # ports distribution.  SUP (Software Update Protocol) allows you to download

@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 #
 SUBDIR= boot fixit
 PROG=write_mfs_in_kernel
