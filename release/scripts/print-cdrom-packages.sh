@@ -10,7 +10,7 @@
 # a given CDROM number, that numer currently referring to the 4 CD
 # "official set" published by BSDi.  If there is no minimum package
 # set for the given CDROM, or none is known, the script will exit
-# with a error code of 1.  At some point, this script should be extended
+# with an error code of 1.  At some point, this script should be extended
 # to at least cope with other official CD distributions, like non-US ones.
 #
 # usage: print-cdrom-packages.sh cdrom-number
