@@ -30,7 +30,7 @@
 #
 # Guy Helmer <ghelmer@alpha.dsu.edu>, 07/17/96
 #
-#	$Id: removeuser.perl,v 1.2 1996/08/11 13:03:25 wosch Exp $
+#	$Id: rmuser.perl,v 1.1 1996/11/17 03:51:33 wosch Exp $
 
 sub LOCK_SH {0x01;}
 sub LOCK_EX {0x02;}
@@ -231,8 +231,8 @@ sub get_login_name {
 	chop $login_name;
 	if (!($login_name =~ /[A-Za-z0-9_]/)) {
 	    print STDERR "Sorry, login name must contain alphanumeric characters only.\n";
-	} elsif (length($login_name) > 8 || length($login_name) == 0) {
-	    print STDERR "Sorry, login name must be eight characters or less.\n";
+	} elsif (length($login_name) > 16 || length($login_name) == 0) {
+	    print STDERR "Sorry, login name must be 16 characters or less.\n";
 	} else {
 	    $done = 1;
 	}
