@@ -147,5 +147,8 @@ ENTRY(fork_trampoline)
 	lwz	%r4,CF_ARG0(%r1)
 	lwz	%r5,CF_ARG1(%r1)
 	bl	fork_exit
-	addi	%r1,%r1,4
+	addi	%r1,%r1,CF_SIZE-FSP	/* Allow 8 bytes in front of
+					   trapframe to simulate FRAME_SETUP
+					   does when allocating space for
+					   a frame pointer/saved LR */
 	b	trapexit

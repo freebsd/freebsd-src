@@ -79,6 +79,7 @@ ASSYM(PM_KERNELSR, offsetof(struct pmap, pm_sr[KERNEL_SR]));
 ASSYM(PM_USRSR, offsetof(struct pmap, pm_sr[USER_SR]));
 ASSYM(PM_SR, offsetof(struct pmap, pm_sr));
 
+ASSYM(FSP, 8);
 ASSYM(FRAMELEN, FRAMELEN);
 ASSYM(FRAME_0, offsetof(struct trapframe, fixreg[0]));
 ASSYM(FRAME_1, offsetof(struct trapframe, fixreg[1]));
@@ -164,6 +165,7 @@ ASSYM(SPFRAME_R0, offsetof(struct spillframe, r0));
 ASSYM(CF_FUNC, offsetof(struct callframe, cf_func));
 ASSYM(CF_ARG0, offsetof(struct callframe, cf_arg0));
 ASSYM(CF_ARG1, offsetof(struct callframe, cf_arg1));
+ASSYM(CF_SIZE, sizeof(struct callframe));
 
 ASSYM(PCB_CONTEXT, offsetof(struct pcb, pcb_context));
 ASSYM(PCB_CR, offsetof(struct pcb, pcb_cr));
