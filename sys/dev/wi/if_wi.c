@@ -1654,6 +1654,11 @@ wi_ioctl(ifp, command, data)
 		error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFFLAGS:
+		/*
+		 * Can't do promisc and hostap at the same time.
+		 */
+		if (sc->wi_ptype == WI_PORTTYPE_AP)
+			ifp->if_flags &= ~IFF_PROMISC;
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
@@ -1663,8 +1668,9 @@ wi_ioctl(ifp, command, data)
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->wi_if_flags & IFF_PROMISC) {
 				WI_SETVAL(WI_RID_PROMISC, 0);
-			} else
+			} else {
 				wi_init(sc);
+			}
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
 				wi_stop(sc);
@@ -2077,6 +2083,24 @@ wi_init(xsc)
 	   (char *)&mac.wi_mac_addr, ETHER_ADDR_LEN);
 	wi_write_record(sc, (struct wi_ltv_gen *)&mac);
 
+	/*
+	 * Initialize promisc mode.
+	 *      Being in the Host-AP mode causes
+	 *      great deal of pain if promisc mode is set.
+	 *      Therefore we avoid confusing the firmware
+	 *      and always reset promisc mode in Host-AP regime,
+	 *      it shows us all the packets anyway.
+	 */
+	/*
+	 * Can't do promisc and hostap at the same time.
+	 */
+	if (sc->wi_ptype == WI_PORTTYPE_AP)
+		ifp->if_flags &= ~IFF_PROMISC;
+	if (ifp->if_flags & IFF_PROMISC)
+		WI_SETVAL(WI_RID_PROMISC, 1);
+	else
+		WI_SETVAL(WI_RID_PROMISC, 0);
+
 	/* Configure WEP. */
 	if (sc->wi_has_wep) {
 		WI_SETVAL(WI_RID_ENCRYPTION, sc->wi_use_wep);
@@ -2089,25 +2113,23 @@ wi_init(xsc)
 			 * ONLY HWB3163 EVAL-CARD Firmware version
 			 * less than 0.8 variant2
 			 *
-			 *   If promiscuous mode disable, Prism2 chip
-			 *  does not work with WEP .
+			 * If promiscuous mode disable, Prism2 chip
+			 * does not work with WEP.
 			 * It is under investigation for details.
 			 * (ichiro@netbsd.org)
+			 *
+			 * And make sure that we don't need to do it
+			 * in hostap mode, since it interferes with
+			 * the above hostap workaround.
 			 */
-			if (sc->sc_firmware_type == WI_INTERSIL &&
+			if (sc->wi_ptype != WI_PORTTYPE_AP &&
+			    sc->sc_firmware_type == WI_INTERSIL &&
 			    sc->sc_sta_firmware_ver < 802 ) {
 				/* firm ver < 0.8 variant 2 */
 				WI_SETVAL(WI_RID_PROMISC, 1);
 			}
 			WI_SETVAL(WI_RID_CNFAUTHMODE, sc->wi_authtype);
 		}
-	}
-
-	/* Initialize promisc mode. */
-	if (ifp->if_flags & IFF_PROMISC) {
-		WI_SETVAL(WI_RID_PROMISC, 1);
-	} else {
-		WI_SETVAL(WI_RID_PROMISC, 0);
 	}
 
 	/* Set multicast filter. */
