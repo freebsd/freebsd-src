@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)vacation.c	8.2 (Berkeley) 1/26/94";
 static char rcsid[] =
-	"$Id: vacation.c,v 1.6 1997/03/29 04:33:44 imp Exp $";
+	"$Id: vacation.c,v 1.7 1997/04/23 22:25:20 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -415,7 +415,7 @@ sendmessage(myname)
 		syslog(LOG_ERR, "vacation: pipe: %s", strerror(errno));
 		exit(1);
 	}
-	i = fork();
+	i = vfork();
 	if (i < 0) {
 		syslog(LOG_ERR, "vacation: fork: %s", strerror(errno));
 		exit(1);
@@ -424,11 +424,10 @@ sendmessage(myname)
 		dup2(pvect[0], 0);
 		close(pvect[0]);
 		close(pvect[1]);
-		fclose(mfp);
 		execl(_PATH_SENDMAIL, "sendmail", "-f", myname, from, NULL);
 		syslog(LOG_ERR, "vacation: can't exec %s: %s",
 			_PATH_SENDMAIL, strerror(errno));
-		exit(1);
+		_exit(1);
 	}
 	close(pvect[0]);
 	sfp = fdopen(pvect[1], "w");
