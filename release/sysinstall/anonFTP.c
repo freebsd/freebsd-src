@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.5 1995/11/11 11:56:40 jkh Exp $
+ * $Id: anonFTP.c,v 1.6 1995/11/12 07:27:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -68,7 +68,7 @@
 #define FTP_GROUP	"operator"
 #define FTP_UPLOAD	"incoming"
 #define FTP_COMMENT	"Anonymous FTP Admin"
-#define FTP_HOMEDIR	"/usr/ftp"
+#define FTP_HOMEDIR	"/var/ftp"
 
 #define ANONFTP_HELPFILE "anonftp"
 
@@ -77,7 +77,7 @@
 
 typedef struct
 {
-    char homedir[64];            /* Home Dir for Anon FTP */
+    char homedir[64];             /* Home Dir for Anon FTP */
     char group[32];               /* Group */
     char uid[8];                  /* UID */
     char comment[64];             /* PWD Comment */
@@ -114,106 +114,107 @@ typedef struct _layout {
 } Layout;
 
 static Layout layout[] = {
-{ 2, 3, 8, ANONFTP_UID_LEN - 1,
+    { 2, 3, 8, ANONFTP_UID_LEN - 1,
       "UID:", "What user ID to assign to FTP Admin",
       tconf.uid, STRINGOBJ, NULL },
 #define LAYOUT_UID	1
-
-{ 2, 15, 15, ANONFTP_GROUP_LEN - 1,
+    
+    { 2, 15, 15, ANONFTP_GROUP_LEN - 1,
       "Group:",  "Group name that ftp process belongs to",
       tconf.group, STRINGOBJ, NULL },
 #define LAYOUT_GROUP	2
-
-{ 2, 35, 24, ANONFTP_COMMENT_LEN - 1,
+  
+    { 2, 35, 24, ANONFTP_COMMENT_LEN - 1,
       "Comment:", "Password file comment for FTP Admin",
       tconf.comment, STRINGOBJ, NULL },
 #define LAYOUT_COMMENT	3
-
-{ 9, 10, 43, ANONFTP_HOMEDIR_LEN - 1,
+  
+    { 9, 10, 43, ANONFTP_HOMEDIR_LEN - 1,
       "FTP Root Directory:",
       "The top directory to chroot to when doing anonymous ftp",
       tconf.homedir, STRINGOBJ, NULL },
 #define LAYOUT_HOMEDIR	4
-
-{ 14, 20, 22, ANONFTP_UPLOAD_LEN - 1,
+  
+    { 14, 20, 22, ANONFTP_UPLOAD_LEN - 1,
       "Upload Subdirectory:", "Designated sub-directory that holds uploads",
       tconf.upload, STRINGOBJ, NULL },
 #define LAYOUT_UPLOAD	5
-
-{ 19, 15, 0, 0,
+  
+    { 19, 15, 0, 0,
       "OK", "Select this if you are happy with these settings",
       &okbutton, BUTTONOBJ, NULL },
 #define LAYOUT_OKBUTTON		6
-
-{ 19, 35, 0, 0,
+  
+    { 19, 35, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
 #define LAYOUT_CANCELBUTTON	7
-{ NULL },
+    { NULL },
 };
 
-int createFtpUser()
+int
+createFtpUser()
 {
- struct passwd *tpw;
- struct group  *tgrp;
- char pwline[256];
- char *tptr;
- int gid;
- FILE *fptr;
-
-   if ((gid = atoi(tconf.group)) <= 0) {
-     if (!(tgrp = getgrnam(tconf.group))) {
-	/* group does not exist, create it by name */
-
-	tptr = msgGetInput("14", "What group ID to use for group %s ?", tconf.group);
-	if (tptr && *tptr && ((gid = atoi(tptr)) > 0)) {
-	  if ((fptr = fopen(_PATH_GROUP,"a"))) {
-	    fprintf(fptr,"%s:*:%d:%s\n",tconf.group,gid,FTP_NAME);
-	    fclose(fptr);
-	   }
-	 }
+    struct passwd *tpw;
+    struct group  *tgrp;
+    char pwline[256];
+    char *tptr;
+    int gid;
+    FILE *fptr;
+    
+    if ((gid = atoi(tconf.group)) <= 0) {
+	if (!(tgrp = getgrnam(tconf.group))) {
+	    /* group does not exist, create it by name */
+	    
+	    tptr = msgGetInput("14", "What group ID to use for group %s ?", tconf.group);
+	    if (tptr && *tptr && ((gid = atoi(tptr)) > 0)) {
+		if ((fptr = fopen(_PATH_GROUP,"a"))) {
+		    fprintf(fptr,"%s:*:%d:%s\n",tconf.group,gid,FTP_NAME);
+		    fclose(fptr);
+		}
+	    }
+	    else
+		gid = FTP_GID;
+	}
 	else
-	  gid = FTP_GID;
-      }
-     else
-	gid = tgrp->gr_gid;
+	    gid = tgrp->gr_gid;
     }
-   else if (!getgrgid(gid)) {
+    else if (!getgrgid(gid)) {
 	/* group does not exist, create it by number */
-
+	
 	tptr = msgGetInput("14", "What group name to use for gid %d ?", gid);
 	if (tptr && *tptr) {
-	  strcpy(tconf.group, tptr);
-	  if ((tgrp = getgrnam(tconf.group))) {
-	    gid = tgrp->gr_gid;
-	  }
-	  else if ((fptr = fopen(_PATH_GROUP,"a"))) {
-	    fprintf(fptr,"%s:*:%d:%s\n",tconf.group,gid,FTP_NAME);
-	    fclose(fptr);
-	  }
+	    strcpy(tconf.group, tptr);
+	    if ((tgrp = getgrnam(tconf.group))) {
+		gid = tgrp->gr_gid;
+	    }
+	    else if ((fptr = fopen(_PATH_GROUP,"a"))) {
+		fprintf(fptr,"%s:*:%d:%s\n",tconf.group,gid,FTP_NAME);
+		fclose(fptr);
+	    }
 	}
     }
-
-  if ((tpw = getpwnam(FTP_NAME))) {
-    if (tpw->pw_uid != FTP_UID)
-	msgConfirm("FTP user already exists with a different uid.");
-
-    return (RET_SUCCESS); 	/* succeeds if already exists */
-   }
-
-   sprintf(pwline, "%s::%s:%d::0:0:%s:%s:/bin/date\n", FTP_NAME, tconf.uid, gid, tconf.comment, tconf.homedir);
-
-   fptr = fopen(_PATH_MASTERPASSWD,"a");
-   if (! fptr) {
-     msgConfirm("Could not open master password file.");
-     return (RET_FAIL);
+    
+    if ((tpw = getpwnam(FTP_NAME))) {
+	if (tpw->pw_uid != FTP_UID)
+	    msgConfirm("FTP user already exists with a different uid.");
+	
+	return (RET_SUCCESS); 	/* succeeds if already exists */
     }
-   fprintf(fptr, pwline);
-   fclose(fptr);
-   msgNotify("Remaking password file: %s", _PATH_MASTERPASSWD);
-   vsystem("pwd_mkdb -p %s", _PATH_MASTERPASSWD);
-
-   return (RET_SUCCESS);
+    
+    sprintf(pwline, "%s::%s:%d::0:0:%s:%s:/bin/date\n", FTP_NAME, tconf.uid, gid, tconf.comment, tconf.homedir);
+    
+    fptr = fopen(_PATH_MASTERPASSWD,"a");
+    if (! fptr) {
+	msgConfirm("Could not open master password file.");
+	return (RET_FAIL);
+    }
+    fprintf(fptr, pwline);
+    fclose(fptr);
+    msgNotify("Remaking password file: %s", _PATH_MASTERPASSWD);
+    vsystem("pwd_mkdb -p %s", _PATH_MASTERPASSWD);
+    
+    return (RET_SUCCESS);
 }
 
 /* This is it - how to get the setup values */
@@ -231,11 +232,11 @@ anonftpOpenDialog()
     /* We need a curses window */
     ds_win = newwin(LINES, COLS, 0, 0);
     if (ds_win == 0)
-    {
-        beep();
-        msgConfirm("Cannot open anonymous ftp dialog window!!");
-        return(RET_SUCCESS);
-    }
+      {
+	  beep();
+	  msgConfirm("Cannot open anonymous ftp dialog window!!");
+	  return(RET_SUCCESS);
+      }
     
     /* Say where our help comes from */
     systemHelpFile(ANONFTP_HELPFILE, help);
@@ -247,7 +248,7 @@ anonftpOpenDialog()
     mvwaddstr(ds_win, ANONFTP_DIALOG_Y, ANONFTP_DIALOG_X + 20, " Anonymous FTP Configuration ");
     
     draw_box(ds_win, ANONFTP_DIALOG_Y + 7, ANONFTP_DIALOG_X + 8, ANONFTP_DIALOG_HEIGHT - 11, ANONFTP_DIALOG_WIDTH - 17,
-             dialog_attr, border_attr);
+	     dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
     sprintf(title, " Path Configuration ");
     mvwaddstr(ds_win, ANONFTP_DIALOG_Y + 7, ANONFTP_DIALOG_X + 22, title);
@@ -269,35 +270,35 @@ anonftpOpenDialog()
 #define lt layout[n]
     
     while (lt.help != NULL) {
-        switch (lt.type) {
-        case STRINGOBJ:
-            lt.obj = NewStringObj(ds_win, lt.prompt, lt.var,
-				  lt.y + ANONFTP_DIALOG_Y, lt.x + ANONFTP_DIALOG_X,
-				  lt.len, lt.maxlen);
-            break;
-	    
-        case BUTTONOBJ:
-            lt.obj = NewButtonObj(ds_win, lt.prompt, lt.var,
-				  lt.y + ANONFTP_DIALOG_Y, lt.x + ANONFTP_DIALOG_X);
-            break;
-	    
-        default:
-            msgFatal("Don't support this object yet!");
-        }
-        AddObj(&obj, lt.type, (void *) lt.obj);
-        n++;
+	switch (lt.type) {
+	case STRINGOBJ:
+	  lt.obj = NewStringObj(ds_win, lt.prompt, lt.var,
+				lt.y + ANONFTP_DIALOG_Y, lt.x + ANONFTP_DIALOG_X,
+				lt.len, lt.maxlen);
+	  break;
+	  
+	case BUTTONOBJ:
+	  lt.obj = NewButtonObj(ds_win, lt.prompt, lt.var,
+				lt.y + ANONFTP_DIALOG_Y, lt.x + ANONFTP_DIALOG_X);
+	  break;
+	  
+	default:
+	  msgFatal("Don't support this object yet!");
+	}
+	AddObj(&obj, lt.type, (void *) lt.obj);
+	n++;
     }
     max = n - 1;
     
     /* Find the last object we can traverse to */
     last = obj;
     while (last->next)
-        last = last->next;
+	last = last->next;
     
     /* Find the first object in the list */
     first = obj;
     while (first->prev)
-        first = first->prev;
+	first = first->prev;
     
     /* Some more initialisation before we go into the main input loop */
     n = 0;
@@ -307,89 +308,89 @@ anonftpOpenDialog()
     
     /* Incoming user data - DUCK! */
     while (!quit) {
-        char help_line[80];
-        int i, len = strlen(lt.help);
+	char help_line[80];
+	int i, len = strlen(lt.help);
 	
-        /* Display the help line at the bottom of the screen */
-        for (i = 0; i < 79; i++)
-            help_line[i] = (i < len) ? lt.help[i] : ' ';
-        help_line[i] = '\0';
-        use_helpline(help_line);
-        display_helpline(ds_win, LINES - 1, COLS - 1);
-	
-        /* Ask for libdialog to do its stuff */
-        ret = PollObj(&obj);
-	
-        /* Handle special case stuff that libdialog misses. Sigh */
-        switch (ret) {
-            /* Bail out */
-        case SEL_ESC:
-            quit = TRUE, cancel=TRUE;
-            break;
+	/* Display the help line at the bottom of the screen */
+	for (i = 0; i < 79; i++)
+	    help_line[i] = (i < len) ? lt.help[i] : ' ';
+	    help_line[i] = '\0';
+	    use_helpline(help_line);
+	    display_helpline(ds_win, LINES - 1, COLS - 1);
 	    
-            /* This doesn't work for list dialogs. Oh well. Perhaps
-               should special case the move from the OK button ``up''
-               to make it go to the interface list, but then it gets
-               awkward for the user to go back and correct screw up's
-               in the per-interface section */
+	    /* Ask for libdialog to do its stuff */
+	    ret = PollObj(&obj);
 	    
-        case KEY_UP:
-            if (obj->prev !=NULL ) {
-                obj = obj->prev;
-                --n;
-            } else {
-                obj = last;
-                n = max;
-            }
-            break;
+	    /* Handle special case stuff that libdialog misses. Sigh */
+	    switch (ret) {
+		/* Bail out */
+	    case SEL_ESC:
+	      quit = TRUE, cancel=TRUE;
+	      break;
+	      
+	      /* This doesn't work for list dialogs. Oh well. Perhaps
+		 should special case the move from the OK button ``up''
+		 to make it go to the interface list, but then it gets
+		 awkward for the user to go back and correct screw up's
+		 in the per-interface section */
+	      
+	    case KEY_UP:
+	      if (obj->prev !=NULL ) {
+		  obj = obj->prev;
+		  --n;
+	      } else {
+		  obj = last;
+		  n = max;
+	      }
+	      break;
+	      
+	    case KEY_DOWN:
+	      if (obj->next != NULL) {
+		  obj = obj->next;
+		  ++n;
+	      } else {
+		  obj = first;
+		  n = 0;
+	      }
+	      break;
+	      
+	    case SEL_TAB:
+	      if (n < max)
+		  ++n;
+	      else
+		  n = 0;
+	      break;
+	      
+	      /* The user has pressed enter over a button object */
+	    case SEL_BUTTON:
+	      quit = TRUE;
+	      if (cancelbutton)
+		  cancel = TRUE;
+	      break;
+	      
+	      /* Generic CR handler */
+	    case SEL_CR:
+	      if (n < max)
+		  ++n;
+	      else
+		  n = 0;
+	      break;
+	      
+	    case SEL_BACKTAB:
+	      if (n)
+		  --n;
+	      else
+		  n = max;
+	      break;
+	      
+	    case KEY_F(1):
+	      display_helpfile();
 	    
-        case KEY_DOWN:
-            if (obj->next != NULL) {
-                obj = obj->next;
-                ++n;
-            } else {
-                obj = first;
-                n = 0;
-            }
-            break;
+	    /* They tried some key combination we don't support - tell them! */
+	    default:
+	      beep();
+	    }
 	    
-        case SEL_TAB:
-            if (n < max)
-                ++n;
-            else
-                n = 0;
-            break;
-	    
-            /* The user has pressed enter over a button object */
-        case SEL_BUTTON:
-            quit = TRUE;
-            if (cancelbutton)
-                cancel = TRUE;
-            break;
-	    
-            /* Generic CR handler */
-        case SEL_CR:
-            if (n < max)
-                ++n;
-            else
-                n = 0;
-            break;
-	    
-        case SEL_BACKTAB:
-            if (n)
-                --n;
-            else
-                n = max;
-            break;
-	    
-        case KEY_F(1):
-            display_helpfile();
-	    
-            /* They tried some key combination we don't support - tell them! */
-        default:
-            beep();
-        }
-	
     }
     
     /* Clear this crap off the screen */
@@ -406,10 +407,10 @@ int
 configAnonFTP(char *unused)
 {
     int i;
-
+    
     /* Be optimistic */
     i = RET_SUCCESS;
-
+    
     dialog_clear();
     i = anonftpOpenDialog();
     if (i != RET_SUCCESS) {
@@ -417,7 +418,7 @@ configAnonFTP(char *unused)
 	msgConfirm("Configuration of Anonymous FTP cancelled per user request.");
 	return i;
     }
-
+    
     /*** Use defaults for any invalid values ***/
     if (atoi(tconf.uid) <= 0)
 	sprintf(tconf.uid, "%d", FTP_UID);
@@ -438,50 +439,50 @@ configAnonFTP(char *unused)
     
     /*** If HomeDir does not exist, create it ***/
     
-  if (!directoryExists(tconf.homedir)) {
-    vsystem("mkdir -p %s" ,tconf.homedir);
-  }
-
-  if (directoryExists(tconf.homedir)) {
-    msgNotify("Configuring %s for use by anon FTP.", tconf.homedir);
-    vsystem("chmod 555 %s && chown root.%s %s", tconf.homedir, tconf.group, tconf.homedir);
-    vsystem("mkdir %s/bin && chmod 555 %s/bin", tconf.homedir, tconf.homedir);
-    vsystem("cp /bin/ls %s/bin && chmod 111 %s/bin/ls", tconf.homedir, tconf.homedir);
-    vsystem("cp /bin/date %s/bin && chmod 111 %s/bin/date", tconf.homedir, tconf.homedir);
-    vsystem("mkdir %s/etc && chmod 555 %s/etc", tconf.homedir, tconf.homedir);
-    vsystem("mkdir -p %s/pub", tconf.homedir);
-    vsystem("mkdir -p %s/%s", tconf.homedir, tconf.upload);
-    vsystem("chmod 1777 %s/%s", tconf.homedir, tconf.upload);
-
-    if (createFtpUser() == RET_SUCCESS) {
-      msgNotify("Copying password information for anon FTP.");
-      vsystem("cp /etc/pwd.db %s/etc && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir);
-      vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd",tconf.homedir, tconf.homedir);
-      vsystem("cp /etc/group %s/etc && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
-      vsystem("chown -R %s.%s %s/pub", FTP_NAME, tconf.group, tconf.homedir);
+    if (!directoryExists(tconf.homedir)) {
+	vsystem("mkdir -p %s" ,tconf.homedir);
+    }
+    
+    if (directoryExists(tconf.homedir)) {
+	msgNotify("Configuring %s for use by anon FTP.", tconf.homedir);
+	vsystem("chmod 555 %s && chown root.%s %s", tconf.homedir, tconf.group, tconf.homedir);
+	vsystem("mkdir %s/bin && chmod 555 %s/bin", tconf.homedir, tconf.homedir);
+	vsystem("cp /bin/ls %s/bin && chmod 111 %s/bin/ls", tconf.homedir, tconf.homedir);
+	vsystem("cp /bin/date %s/bin && chmod 111 %s/bin/date", tconf.homedir, tconf.homedir);
+	vsystem("mkdir %s/etc && chmod 555 %s/etc", tconf.homedir, tconf.homedir);
+	vsystem("mkdir -p %s/pub", tconf.homedir);
+	vsystem("mkdir -p %s/%s", tconf.homedir, tconf.upload);
+	vsystem("chmod 1777 %s/%s", tconf.homedir, tconf.upload);
+	
+	if (createFtpUser() == RET_SUCCESS) {
+	    msgNotify("Copying password information for anon FTP.");
+	    vsystem("cp /etc/pwd.db %s/etc && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir);
+	    vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd",tconf.homedir, tconf.homedir);
+	    vsystem("cp /etc/group %s/etc && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
+	    vsystem("chown -R %s.%s %s/pub", FTP_NAME, tconf.group, tconf.homedir);
+	}
+	else {
+	    dialog_clear();
+	    msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
+	    i = RET_FAIL;
+	}
+	
+	dialog_clear();
+	if (!msgYesNo("Create a welcome message file for anonymous FTP users?")) {
+	    char cmd[256];
+	    
+	    dialog_clear();
+	    msgNotify("Uncompressing the editor - please wait..");
+	    vsystem("echo Your welcome message here. > %s/etc/%s", tconf.homedir, MOTD_FILE);
+	    sprintf(cmd, "/stand/ee %s/etc/%s", tconf.homedir, MOTD_FILE);
+	    systemExecute(cmd);
+	}
     }
     else {
-      dialog_clear();
-      msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
-      i = RET_FAIL;
-    }
-
-    dialog_clear();
-    if (!msgYesNo("Create a welcome message file for anonymous FTP users?")) {
-      char cmd[256];
-
-      dialog_clear();
-      msgNotify("Uncompressing the editor - please wait..");
-      vsystem("echo Your welcome message here. > %s/etc/%s", tconf.homedir, MOTD_FILE);
-      sprintf(cmd, "/stand/ee %s/etc/%s", tconf.homedir, MOTD_FILE);
-      systemExecute(cmd);
-     }
-  }
-  else {
 	dialog_clear();
 	msgConfirm("Invalid Directory: %s\n"
 		   "Anonymous FTP will not be set up.", tconf.homedir);
 	i = RET_FAIL;
-  }
-  return i;
+    }
+    return i;
 }

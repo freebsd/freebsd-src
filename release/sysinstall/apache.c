@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.11 1995/11/05 01:00:27 jkh Exp $
+ * $Id: apache.c,v 1.13 1996/01/21 19:38:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -190,26 +190,6 @@ static Layout layout[] = {
       &cancelbutton, BUTTONOBJ, NULL },
 #define LAYOUT_CANCELBUTTON     11
 { NULL },
-};
-
-DMenu MenuApacheLanguages = {
-DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
-"Apache Languages Menu",
-"This allows you to specify which languages are known by your httpd server.",
-NULL,
-NULL,
-{
-{ "English",          "English",
-      DMENU_SET_VARIABLE, "APACHE_English=en", 0, 0 },
-{ "French",           "French",
-      DMENU_SET_VARIABLE, "APACHE_French=fr", 0, 0 },
-{ "German",           "German",
-      DMENU_SET_VARIABLE, "APACHE_German=de", 0, 0 },
-{ "Italian",          "Italian",
-      DMENU_SET_VARIABLE, "APACHE_Italian=it", 0, 0 },
-{ "Japanese",         "Japanese",
-      DMENU_SET_VARIABLE, "APACHE_Japanese=jp", 0, 0 },
-{ NULL } },
 };
 
 /* This is it - how to get Apache setup values */

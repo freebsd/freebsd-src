@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.31 1995/09/18 16:52:38 peter Exp $
+ * $Id: tcpip.c,v 1.32 1995/12/07 10:34:19 peter Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -53,6 +53,9 @@
 #include "dialog.priv.h"
 #include "colors.h"
 #include "sysinstall.h"
+
+/* The help file for the TCP/IP setup screen */
+#define TCP_HELPFILE		"tcp"
 
 /* These are nasty, but they make the layout structure a lot easier ... */
 
