@@ -14,7 +14,7 @@ SUBDIR=	3dfx accf_data accf_http agp aha amr an aue \
 	rl rp sf sis sk sn sound sppp ste sym syscons sysvipc ti tl twe tx \
 	udbp ugen uhid ukbd ulpt umapfs umass umodem ums union urio usb \
 	uscanner \
-	vinum vn vpo vr vx wb wx xl
+	vinum vpo vr vx wb wx xl
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
