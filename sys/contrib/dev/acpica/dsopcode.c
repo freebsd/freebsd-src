@@ -2,7 +2,7 @@
  *
  * Module Name: dsopcode - Dispatcher Op Region support and handling of
  *                         "control" opcodes
- *              $Revision: 73 $
+ *              $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -146,7 +146,9 @@
 ACPI_STATUS
 AcpiDsExecuteArguments (
     ACPI_NAMESPACE_NODE     *Node,
-    ACPI_OPERAND_OBJECT     *ExtraDesc)
+    ACPI_NAMESPACE_NODE     *ScopeNode,
+    UINT32                  AmlLength,
+    UINT8                   *AmlStart)
 {
     ACPI_STATUS             Status;
     ACPI_PARSE_OBJECT       *Op;
@@ -158,10 +160,9 @@ AcpiDsExecuteArguments (
 
 
     /*
-     * Allocate a new parser op to be the root of the parsed
-     * BufferField tree
+     * Allocate a new parser op to be the root of the parsed tree
      */
-    Op = AcpiPsAllocOp (AML_SCOPE_OP);
+    Op = AcpiPsAllocOp (AML_INT_EVAL_SUBTREE_OP);
     if (!Op)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -169,7 +170,7 @@ AcpiDsExecuteArguments (
 
     /* Save the Node for use in AcpiPsParseAml */
 
-    Op->Node = AcpiNsGetParentNode (Node);
+    Op->Node = ScopeNode;
 
     /* Create and initialize a new parser state */
 
@@ -179,8 +180,8 @@ AcpiDsExecuteArguments (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, ExtraDesc->Extra.AmlStart,
-                    ExtraDesc->Extra.AmlLength, NULL, NULL, 1);
+    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, AmlStart,
+                    AmlLength, NULL, NULL, 1);
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
@@ -189,7 +190,7 @@ AcpiDsExecuteArguments (
 
     WalkState->ParseFlags = 0;
 
-    /* Pass1: Parse the entire BufferField declaration */
+    /* Pass1: Parse the entire declaration */
 
     Status = AcpiPsParseAml (WalkState);
     if (ACPI_FAILURE (Status))
@@ -198,7 +199,7 @@ AcpiDsExecuteArguments (
         return_ACPI_STATUS (Status);
     }
 
-    /* Get and init the actual FieldUnit Op created above */
+    /* Get and init the Op created above */
 
     Arg = Op->Value.Arg;
     Op->Node = Node;
@@ -207,13 +208,13 @@ AcpiDsExecuteArguments (
 
     /* Evaluate the address and length arguments for the Buffer Field */
 
-    Op = AcpiPsAllocOp (AML_SCOPE_OP);
+    Op = AcpiPsAllocOp (AML_INT_EVAL_SUBTREE_OP);
     if (!Op)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Op->Node = AcpiNsGetParentNode (Node);
+    Op->Node = ScopeNode;
 
     /* Create and initialize a new parser state */
 
@@ -223,8 +224,8 @@ AcpiDsExecuteArguments (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, ExtraDesc->Extra.AmlStart,
-                    ExtraDesc->Extra.AmlLength, NULL, NULL, 3);
+    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, AmlStart,
+                    AmlLength, NULL, NULL, 3);
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
@@ -278,7 +279,106 @@ AcpiDsGetBufferFieldArguments (
 
     /* Execute the AML code for the TermArg arguments */
 
-    Status = AcpiDsExecuteArguments (Node, ExtraDesc);
+    Status = AcpiDsExecuteArguments (Node, AcpiNsGetParentNode (Node),
+                ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
+    return_ACPI_STATUS (Status);
+}
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiDsGetBufferArguments
+ *
+ * PARAMETERS:  ObjDesc         - A valid Bufferobject
+ *
+ * RETURN:      Status.
+ *
+ * DESCRIPTION: Get Buffer length and initializer byte list.  This implements
+ *              the late evaluation of these attributes.
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiDsGetBufferArguments (
+    ACPI_OPERAND_OBJECT     *ObjDesc)
+{
+    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE_PTR ("DsGetBufferArguments", ObjDesc);
+
+
+    if (ObjDesc->Common.Flags & AOPOBJ_DATA_VALID)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    /* Get the Buffer node */
+
+    Node = ObjDesc->Buffer.Node;
+    if (!Node)
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+                "No pointer back to NS node in buffer %p\n", ObjDesc));
+        return_ACPI_STATUS (AE_AML_INTERNAL);
+    }
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Buffer JIT Init\n"));
+
+    /* Execute the AML code for the TermArg arguments */
+
+    Status = AcpiDsExecuteArguments (Node, Node,
+                ObjDesc->Buffer.AmlLength, ObjDesc->Buffer.AmlStart);
+    return_ACPI_STATUS (Status);
+}
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiDsGetPackageArguments
+ *
+ * PARAMETERS:  ObjDesc         - A valid Packageobject
+ *
+ * RETURN:      Status.
+ *
+ * DESCRIPTION: Get Package length and initializer byte list.  This implements
+ *              the late evaluation of these attributes.
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiDsGetPackageArguments (
+    ACPI_OPERAND_OBJECT     *ObjDesc)
+{
+    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE_PTR ("DsGetPackageArguments", ObjDesc);
+
+
+    if (ObjDesc->Common.Flags & AOPOBJ_DATA_VALID)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    /* Get the Package node */
+
+    Node = ObjDesc->Package.Node;
+    if (!Node)
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+                "No pointer back to NS node in package %p\n", ObjDesc));
+        return_ACPI_STATUS (AE_AML_INTERNAL);
+    }
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Package JIT Init\n"));
+
+    /* Execute the AML code for the TermArg arguments */
+
+    Status = AcpiDsExecuteArguments (Node, Node,
+                ObjDesc->Package.AmlLength, ObjDesc->Package.AmlStart);
     return_ACPI_STATUS (Status);
 }
 
@@ -302,7 +402,7 @@ AcpiDsGetRegionArguments (
 {
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status;
-    ACPI_OPERAND_OBJECT     *RegionObj2;
+    ACPI_OPERAND_OBJECT     *ExtraDesc;
 
 
     ACPI_FUNCTION_TRACE_PTR ("DsGetRegionArguments", ObjDesc);
@@ -313,23 +413,24 @@ AcpiDsGetRegionArguments (
         return_ACPI_STATUS (AE_OK);
     }
 
-    RegionObj2 = AcpiNsGetSecondaryObject (ObjDesc);
-    if (!RegionObj2)
+    ExtraDesc = AcpiNsGetSecondaryObject (ObjDesc);
+    if (!ExtraDesc)
     {
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
-    /* Get the AML pointer (method object) and region node */
+    /* Get the Region node */
 
     Node = ObjDesc->Region.Node;
 
     ACPI_DEBUG_EXEC(AcpiUtDisplayInitPathname (Node, "  [Operation Region]"));
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[%4.4s] OpRegion Init at AML %p\n",
-        (char *) &Node->Name, RegionObj2->Extra.AmlStart));
+        (char *) &Node->Name, ExtraDesc->Extra.AmlStart));
 
 
-    Status = AcpiDsExecuteArguments (Node, RegionObj2);
+    Status = AcpiDsExecuteArguments (Node, AcpiNsGetParentNode (Node),
+                ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
     return_ACPI_STATUS (Status);
 }
 
@@ -408,7 +509,7 @@ AcpiDsEvalBufferFieldOperands (
 
     NextOp = Op->Value.Arg;
 
-    /* AcpiEvaluate/create the address and length operands */
+    /* Evaluate/create the address and length operands */
 
     Status = AcpiDsCreateOperands (WalkState, NextOp);
     if (ACPI_FAILURE (Status))
@@ -674,7 +775,7 @@ AcpiDsEvalRegionOperands (
 
     NextOp = NextOp->Next;
 
-    /* AcpiEvaluate/create the address and length operands */
+    /* Evaluate/create the address and length operands */
 
     Status = AcpiDsCreateOperands (WalkState, NextOp);
     if (ACPI_FAILURE (Status))
@@ -729,6 +830,102 @@ AcpiDsEvalRegionOperands (
 
     return_ACPI_STATUS (Status);
 }
+
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiDsEvalDataObjectOperands
+ *
+ * PARAMETERS:  Op              - A valid DataObject Op object
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Get the operands and complete the following data objec types:
+ *              Buffer
+ *              Package
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiDsEvalDataObjectOperands (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_OPERAND_OBJECT     *ObjDesc)
+{
+    ACPI_STATUS             Status;
+    ACPI_OPERAND_OBJECT     *ArgDesc;
+    UINT32                  Length;
+
+
+    ACPI_FUNCTION_TRACE ("DsEvalDataObjectOperands");
+
+
+    /* The first operand (for all of these data objects) is the length */
+
+    Status = AcpiDsCreateOperand (WalkState, Op->Value.Arg, 1);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiExResolveOperands (WalkState->Opcode,
+                    &(WalkState->Operands [WalkState->NumOperands -1]),
+                    WalkState);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Extract length operand */
+
+    ArgDesc = WalkState->Operands [WalkState->NumOperands - 1];
+    Length = (UINT32) ArgDesc->Integer.Value;
+
+    /* Cleanup for length operand */
+
+    AcpiDsObjStackPop (1, WalkState);
+    AcpiUtRemoveReference (ArgDesc);
+
+    /* 
+     * Create the actual data object
+     */
+    switch (Op->Opcode)
+    {
+    case AML_BUFFER_OP:
+
+        Status = AcpiDsBuildInternalBufferObj (WalkState, Op, Length, &ObjDesc);
+        break;
+
+    case AML_PACKAGE_OP:
+    case AML_VAR_PACKAGE_OP:
+
+        Status = AcpiDsBuildInternalPackageObj (WalkState, Op, Length, &ObjDesc);
+        break;
+
+    default:
+        return_ACPI_STATUS (AE_AML_BAD_OPCODE);
+    }
+
+    if (ACPI_SUCCESS (Status))
+    {
+        /*
+         * Return the object in the WalkState, unless the parent is a package --
+         * in this case, the return object will be stored in the parse tree
+         * for the package.
+         */
+        if ((!Op->Parent) ||
+            ((Op->Parent->Opcode != AML_PACKAGE_OP) &&
+             (Op->Parent->Opcode != AML_VAR_PACKAGE_OP) &&
+             (Op->Parent->Opcode != AML_NAME_OP)))
+        {
+            WalkState->ResultObj = ObjDesc;
+        }
+    }
+
+    return_ACPI_STATUS (Status);
+}
+
 
 
 /*******************************************************************************

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresnte - AML Interpreter object resolution
- *              $Revision: 50 $
+ *              $Revision: 52 $
  *
  *****************************************************************************/
 
@@ -218,10 +218,14 @@ AcpiExResolveNodeToValue (
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
-        /* Return an additional reference to the object */
+        Status = AcpiDsGetPackageArguments (SourceDesc);
+        if (ACPI_SUCCESS (Status))
+        {
+            /* Return an additional reference to the object */
 
-        ObjDesc = SourceDesc;
-        AcpiUtAddReference (ObjDesc);
+            ObjDesc = SourceDesc;
+            AcpiUtAddReference (ObjDesc);
+        }
         break;
 
 
@@ -234,10 +238,14 @@ AcpiExResolveNodeToValue (
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
-        /* Return an additional reference to the object */
+        Status = AcpiDsGetBufferArguments (SourceDesc);
+        if (ACPI_SUCCESS (Status))
+        {
+            /* Return an additional reference to the object */
 
-        ObjDesc = SourceDesc;
-        AcpiUtAddReference (ObjDesc);
+            ObjDesc = SourceDesc;
+            AcpiUtAddReference (ObjDesc);
+        }
         break;
 
 
@@ -281,7 +289,7 @@ AcpiExResolveNodeToValue (
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "FieldRead Node=%p SourceDesc=%p Type=%X\n",
             Node, SourceDesc, EntryType));
 
-        Status = AcpiExReadDataFromField (SourceDesc, &ObjDesc);
+        Status = AcpiExReadDataFromField (WalkState, SourceDesc, &ObjDesc);
         break;
 
     /*

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconvrt - Object conversion routines
- *              $Revision: 30 $
+ *              $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -319,8 +319,7 @@ AcpiExConvertToBuffer (
         {
             /*
              * We are running a method that exists in a 32-bit ACPI table.
-             * Truncate the value to 32 bits by zeroing out the upper
-             * 32-bit field
+             * Use only 32 bits of the Integer for conversion.
              */
             IntegerSize = sizeof (UINT32);
         }
@@ -365,6 +364,9 @@ AcpiExConvertToBuffer (
         return_ACPI_STATUS (AE_TYPE);
     }
 
+    /* Mark buffer initialized */
+
+    (*ResultDesc)->Common.Flags |= AOPOBJ_DATA_VALID;
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -516,8 +518,7 @@ AcpiExConvertToString (
         {
             /*
              * We are running a method that exists in a 32-bit ACPI table.
-             * Truncate the value to 32 bits by zeroing out the upper
-             * 32-bit field
+             * Use only 32 bits of the Integer
              */
             IntegerSize = sizeof (UINT32);
         }

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 66 $
+ *              $Revision: 67 $
  *
  ******************************************************************************/
 
@@ -409,6 +409,7 @@ AcpiDbDecodeInternalObject (
 
     if (!ObjDesc)
     {
+        AcpiOsPrintf (" Uninitialized\n");
         return;
     }
 
@@ -540,21 +541,21 @@ AcpiDbDisplayInternalObject (
                 break;
 
             case AML_LOCAL_OP:
-                AcpiOsPrintf ("[Local%d]", ObjDesc->Reference.Offset);
+                AcpiOsPrintf ("[Local%d] ", ObjDesc->Reference.Offset);
                 if (WalkState)
                 {
                     ObjDesc = WalkState->LocalVariables[ObjDesc->Reference.Offset].Object;
-                    AcpiOsPrintf (" %p", ObjDesc);
+                    AcpiOsPrintf ("%p", ObjDesc);
                     AcpiDbDecodeInternalObject (ObjDesc);
                 }
                 break;
 
             case AML_ARG_OP:
-                AcpiOsPrintf ("[Arg%d]  ", ObjDesc->Reference.Offset);
+                AcpiOsPrintf ("[Arg%d]   ", ObjDesc->Reference.Offset);
                 if (WalkState)
                 {
                     ObjDesc = WalkState->Arguments[ObjDesc->Reference.Offset].Object;
-                    AcpiOsPrintf (" %p", ObjDesc);
+                    AcpiOsPrintf ("%p", ObjDesc);
                     AcpiDbDecodeInternalObject (ObjDesc);
                 }
                 break;
@@ -588,7 +589,6 @@ AcpiDbDisplayInternalObject (
         AcpiOsPrintf ("<Not a valid ACPI Object Descriptor> ");
         break;
     }
-
 
     AcpiOsPrintf ("\n");
 }
