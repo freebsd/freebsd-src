@@ -135,7 +135,7 @@ tcp_output(tp)
 	 * If there is some data or critical controls (SYN, RST)
 	 * to send, then transmit; otherwise, investigate further.
 	 */
-	idle = (tp->snd_max == tp->snd_una);
+	idle = (tp->t_flags & TF_LASTIDLE) || (tp->snd_max == tp->snd_una);
 	if (idle && (ticks - tp->t_rcvtime) >= tp->t_rxtcur) {
 		/*
 		 * We have been idle for "a while" and no acks are
@@ -158,6 +158,13 @@ tcp_output(tp)
 			tp->snd_cwnd = tp->t_maxseg * ss_fltsz_local;
 		else     
 			tp->snd_cwnd = tp->t_maxseg * ss_fltsz;
+	}
+	tp->t_flags &= ~TF_LASTIDLE;
+	if (idle) {
+		if (tp->t_flags & TF_MORETOCOME) {
+			tp->t_flags |= TF_LASTIDLE;
+			idle = 0;
+		}
 	}
 again:
 	sendalot = 0;
