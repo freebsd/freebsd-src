@@ -28,15 +28,20 @@
 .Os
 .Sh NAME
 .Nm kenv
-.Nd dump the kernel environment
+.Nd dump or modify the kernel environment
 .Sh SYNOPSIS
 .Nm
 .Op Fl h
-.Op Ar variable
+.Nm
+.Ar variable Ns Op = Ns Ar value
+.Nm
+.Fl u
+.Ar variable
 .Sh DESCRIPTION
 The
 .Nm
-utility will dump the kernel environment.
+utility will dump the kernel environment if
+invoked without arguments.
 If the
 .Fl h
 option is specified, it will limit the report to kernel probe hints.
@@ -45,6 +50,15 @@ If an optional
 name is specified,
 .Nm
 will only report that value.
+If the
+.Fl u
+option is specified,
+.Nm
+will delete the given environment variable.
+If the environment variable is followed by an optional
+.Ar value
+.Nm
+will set the environment variable to this value.
 .Sh SEE ALSO
 .Xr loader 8
 .Sh HISTORY
