@@ -36,9 +36,7 @@
 #include <sys/libkern.h>
 
 char *
-strcpy(to, from)
-	register char *to;
-	register const char *from;
+strcpy(char * __restrict to, const char * __restrict from)
 {
 	char *save = to;
 
