@@ -35,13 +35,13 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.27 1994/02/01 06:17:36 nate Exp $
+ *	$Id: syscons.c,v 1.28 1994/02/01 08:30:45 ache Exp $
  *
  */
 
-/* #define FADE_SAVER */
-/* #define BLANK_SAVER */
-/* #define STAR_SAVER */
+#if !defined(FADE_SAVER) && !defined(BLANK_SAVER) && !defined(STAR_SAVER) && !defined(SNAKE_SAVER)
+#define SNAKE_SAVER
+#endif
 
 #if !defined(__FreeBSD__)
 #define FAT_CURSOR
@@ -1148,14 +1148,16 @@ static void scrn_saver(int test)
 	}
 #endif
 
-#if defined(STAR_SAVER)
+#if defined(STAR_SAVER) || defined(SNAKE_SAVER)
 static u_long 	rand_next = 1;
 
 static int rand()
 {
 	return ((rand_next = rand_next * 1103515245 + 12345) & 0x7FFFFFFF);
 }
+#endif
 
+#if defined(STAR_SAVER)
 /*
  * Alternate saver that got its inspiration from a well known utility
  * package for an unfamous OS.
@@ -1211,6 +1213,70 @@ static void scrn_saver(int test)
 }
 #endif
 
+#if defined(SNAKE_SAVER)
+/*
+ * alternative screen saver for cards that do not like blanking
+ */
+
+static void scrn_saver(int test)
+{
+	const char	saves[] = {"FreeBSD"};
+	static u_char	*savs[sizeof(saves)-1];
+	static int	dirx, diry;
+	int		f;
+	scr_stat	*scp = cur_console;
+
+	if (test) {
+		if (!scrn_blanked) {
+			bcopy(Crtat, scp->scr, 
+			      scp->max_posx * scp->max_posy * 2);
+			fillw((FG_LIGHTGREY|BG_BLACK)<<8 | scr_map[0x20],
+			      Crtat, scp->max_posx * scp->max_posy);
+			set_border(0);
+			dirx = (scp->posx ? 1 : -1);
+			diry = (scp->posy ? 
+				scp->max_posx : -scp->max_posx);
+			for (f=0; f< sizeof(saves)-1; f++)
+				savs[f] = (u_char *)Crtat + 2 *
+				          (scp->posx+scp->posy*scp->max_posx);
+			*(savs[0]) = scr_map[*saves];
+			f = scp->max_posy * scp->max_posx + 5;
+			outb(crtc_addr, 14);
+			outb(crtc_addr+1, f >> 8);
+			outb(crtc_addr, 15);
+			outb(crtc_addr+1, f & 0xff);
+			scrn_blanked = 1;
+		}
+		if (scrn_blanked++ < 4) 
+			return;
+		scrn_blanked = 1;
+		*(savs[sizeof(saves)-2]) = scr_map[0x20];
+		for (f=sizeof(saves)-2; f > 0; f--)
+			savs[f] = savs[f-1];
+		f = (savs[0] - (u_char *)Crtat) / 2;
+		if ((f % scp->max_posx) == 0 ||
+		    (f % scp->max_posx) == scp->max_posx - 1 ||
+		    (rand() % 50) == 0)
+			dirx = -dirx;
+		if ((f / scp->max_posx) == 0 || 
+		    (f / scp->max_posx) == scp->max_posy - 1 ||
+		    (rand() % 20) == 0)
+			diry = -diry;
+		savs[0] += 2*dirx + 2*diry;
+		for (f=sizeof(saves)-2; f>=0; f--)
+			*(savs[f]) = scr_map[saves[f]];
+	}
+	else {
+		if (scrn_blanked) {
+			bcopy(scp->scr, Crtat, 
+			      scp->max_posx * scp->max_posy * 2);
+			cur_cursor_pos = -1;
+			set_border(scp->border);
+			scrn_blanked = 0;
+		}
+	}
+}
+#endif
 
 static void cursor_shape(int start, int end)
 {
@@ -1790,14 +1856,12 @@ static void ansi_put(scr_stat *scp, u_char c)
 	if (scp->status & UNKNOWN_MODE) 
 		return;
 
-#if defined(STAR_SAVER)
 	/* make screensaver happy */
 	if (scp == cur_console) {
 		scrn_time_stamp = time.tv_sec;
 		if (scrn_blanked)
 			scrn_saver(0);
 	}
-#endif
 	in_putc++;
 	if (scp->term.esc)
 		scan_esc(scp, c);
