@@ -50,6 +50,9 @@
 
 #include <sys/device_port.h>
 
+#include <dev/pccard/pccarddevs.h>
+#include <dev/pccard/pccardvar.h>
+
 #include <cam/scsi/scsi_low.h>
 #include <cam/scsi/scsi_low_pisa.h>
 
@@ -70,6 +73,15 @@ static	int	stgprobe(DEVPORT_PDEVICE devi);
 static	int	stgattach(DEVPORT_PDEVICE devi);
 
 static	void	stg_card_unload	(DEVPORT_PDEVICE);
+
+static const struct pccard_product stg_products[] = {
+	PCMCIA_CARD(FUTUREDOMAIN, SCSI2GO, 0),
+	PCMCIA_CARD(IBM, SCSICARD, 0),
+	PCMCIA_CARD(RATOC, REX5536, 0),
+	PCMCIA_CARD(RATOC, REX5536AM, 0),
+	PCMCIA_CARD(RATOC, REX5536M, 0),
+	{ NULL }
+};
 
 /*
  * Additional code for FreeBSD new-bus PCCard frontend
@@ -155,6 +167,18 @@ stg_alloc_resource(DEVPORT_PDEVICE dev)
 	return(0);
 }
 
+static int stg_pccard_match(device_t dev)
+{
+  	const struct pccard_product *pp;
+
+	if ((pp = pccard_product_lookup(dev, stg_products,
+	    sizeof(stg_products[0]), NULL)) != NULL) {
+		device_set_desc(dev, pp->pp_name);
+		return(0);
+	}
+	return(EIO);
+}
+
 static int
 stg_pccard_probe(DEVPORT_PDEVICE dev)
 {
@@ -213,9 +237,14 @@ stg_pccard_detach(DEVPORT_PDEVICE dev)
 
 static device_method_t stg_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		stg_pccard_probe),
-	DEVMETHOD(device_attach,	stg_pccard_attach),
+	DEVMETHOD(device_probe,		pccard_compat_probe),
+	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	stg_pccard_detach),
+
+	/* Card interface */
+	DEVMETHOD(card_compat_match,	stg_pccard_match),
+	DEVMETHOD(card_compat_probe,	stg_pccard_probe),
+	DEVMETHOD(card_compat_attach,	stg_pccard_attach),
 
 	{ 0, 0 }
 };
