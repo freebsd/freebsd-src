@@ -23,13 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.7 1998/05/21 21:48:52 brian Exp $
+ *	$Id: tun.c,v 1.8 1998/06/27 14:18:15 brian Exp $
  */
 
 #include <sys/types.h>
 #include <sys/socket.h>		/* For IFF_ defines */
 #include <net/if.h>		/* For IFF_ defines */
 #include <netinet/in.h>
+#include <net/if_types.h>
 #include <net/if_tun.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -64,7 +65,7 @@ tun_configure(struct bundle *bundle, int mtu)
 {
   struct tuninfo info;
 
-  info.type = 23;
+  info.type = IFT_PPP;
   info.mtu = mtu;
   info.baudrate = bundle->ifp.Speed;
 #ifdef __OpenBSD__                                           
