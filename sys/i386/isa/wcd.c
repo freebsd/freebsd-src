@@ -1069,18 +1069,10 @@ static int wcd_eject (struct wcd *t)
  * These get copied at modload time into the kernels
  * lkm dummy device driver entries (see sys/i386/i386/conf.c).
  */
-#define NOSTOP     (d_stop_t*)  enodev
-#define NOWRITE    (d_rdwr_t*)  enodev
-#define NORESET    (d_reset_t*) nullop
-#define NODEVTOTTY (d_ttycv_t*) nullop
-#define NOMMAP     (d_mmap_t*)  enodev
-#define NODUMP     (d_dump_t*)  enxio
-#define ZEROSIZE   (d_psize_t*) 0
-d_rdwr_t rawread;
 struct bdevsw dev_wcd  = { wcdbopen, wcdbclose, wcdstrategy, wcdioctl,
-			   NODUMP, ZEROSIZE, 0 };
-struct cdevsw dev_rwcd = { wcdropen, wcdrclose, rawread, NOWRITE, wcdioctl,
-			   NOSTOP, NORESET, NODEVTOTTY, seltrue, NOMMAP,
+			   nodump, nopsize, 0 };
+struct cdevsw dev_rwcd = { wcdropen, wcdrclose, rawread, nowrite, wcdioctl,
+			   nostop, nullreset, nodevtotty, seltrue, nommap,
 			   wcdstrategy };
 /*
  * Construct lkm_dev structures (see lkm.h).
