@@ -1,6 +1,9 @@
 # Makefile for syscall tables
 #
-# $Id$
+# $Id: Makefile,v 1.2 1997/03/29 10:48:49 peter Exp $
+
+all:
+	@echo "make linux_sysent.c only"
 
 linux_sysent.c linux_syscall.h linux_proto.h: ../../kern/makesyscalls.sh \
 		syscalls.master syscalls.conf
