@@ -475,25 +475,19 @@ extract_ugid(const char *str, struct mtpt_info *mip)
 {
 	char *ug;			/* Writable 'str'. */
 	char *user, *group;		/* Result of extracton. */
-	size_t strl;			/* Length of 'str' incl. NULL. */
 	struct passwd *pw;
 	struct group *gr;
 	char *p;
 	uid_t *uid;
 	gid_t *gid;
-	size_t rv;
 
 	uid = &mip->mi_uid;
 	gid = &mip->mi_gid;
 	mip->mi_have_uid = mip->mi_have_gid = false;
 
 	/* Extract the user and group from 'str'.  Format above. */
-	strl = strlen(str) + 1;
-	ug = malloc(strl);
+	ug = strdup(str);
 	assert(ug != NULL);
-	rv = strlcpy(ug, str, strl);
-	if (rv >= strl)
-		errx(1, "-w word too long (%ld >= %ld)", (long)rv, (long)strl);
 	group = ug;
 	user = strsep(&group, ":");
 	if (user == NULL || group == NULL || *user == '\0' || *group == '\0')
