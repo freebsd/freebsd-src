@@ -122,6 +122,13 @@
       application and cause a denial-of-service on the system.
       More details can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:05.openssl.asc">FreeBSD-SA-04:05</ulink>.</para>
+
+    <para>Two programming errors in <application>CVS</application>
+      have been fixed.  They allow a server to overwrite arbitrary
+      files on the client, and a client to read arbitrary files
+      on the server when accessing remote CVS repositories.
+      More details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:07.cvs.asc">FreeBSD-SA-04:07</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
