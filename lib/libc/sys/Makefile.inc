@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.44 1997/10/21 08:41:15 bde Exp $
+#	$Id: Makefile.inc,v 1.45 1998/01/31 05:53:57 imp Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -60,8 +60,6 @@ PSEUDO=	_getlogin.o
 # Pseudo syscalls that are renamed as _thread_sys_{pseudo} when
 # building libc_r.
 PSEUDOR=	_exit.o
-
-OBJS+=	${ASM} ${ASMR} ${PSEUDO} ${PSEUDOR}
 
 SASM=	${ASM:S/.o/.S/}
 
