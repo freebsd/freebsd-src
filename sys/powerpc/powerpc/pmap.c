@@ -906,7 +906,30 @@ pmap_zero_page(vm_page_t m)
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	TODO;
+	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
+	caddr_t	va;
+	int	i;
+
+	if (pa < SEGMENT_LENGTH) {
+		va = (caddr_t) pa;
+	} else if (pmap_initialized) {
+		if (pmap_pvo_zeropage == NULL)
+			pmap_pvo_zeropage = pmap_rkva_alloc();
+		pmap_pa_map(pmap_pvo_zeropage, pa, NULL, NULL);
+		va = (caddr_t)PVO_VADDR(pmap_pvo_zeropage);
+	} else {
+		panic("pmap_zero_page: can't zero pa %#x", pa);
+	}
+
+	bzero(va, size);
+
+	for (i = size / CACHELINESIZE; i > 0; i--) {
+		__asm __volatile("dcbz 0,%0" :: "r"(va));
+		va += CACHELINESIZE;
+	}
+
+	if (pa >= SEGMENT_LENGTH)
+		pmap_pa_unmap(pmap_pvo_zeropage, NULL, NULL);
 }
 
 void
