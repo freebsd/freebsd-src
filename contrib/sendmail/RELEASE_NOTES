@@ -1,10 +1,52 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.561.2.5.2.235 2001/05/27 21:39:16 gshapiro Exp $
+      $Id: RELEASE_NOTES,v 8.561.2.5.2.254 2001/07/31 22:42:46 gshapiro Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.11.5/8.11.5	2001/07/31
+	Fix a possible race condition when sending a HUP signal to restart
+		the daemon.  This could terminate the current process without
+		starting a new daemon.  Problem reported by Wolfgang Breyha
+		of SE Netway Communications.
+	Only apply MaxHeadersLength when receiving a message via SMTP or
+		the command line.  Problem noted by Andrey J. Melnikoff.
+	When finding the system's local hostname on an IPv6-enabled system
+		which doesn't have any IPv6 interface addresses, fall back
+		to looking up only IPv4 addresses.  Problem noted by Tim
+		Bosserman of EarthLink.
+	When commands were being rejected due to check_relay or TCP
+		Wrappers, the ETRN command was not giving a response.
+	Incoming IPv4 connections on a Family=inet6 daemon (using
+		IPv4-mapped addresses) were incorrectly labeled as "may be
+		forged".  Problem noted by Per Steinar Iversen of Oslo
+		University College.
+	Shutdown address test mode cleanly on SIGTERM.  Problem noted by
+		Greg King of the OAO Corporation.
+	Restore the original real uid (changed in main() to prevent
+		out of band signals) before invoking a delivery agent.
+		Some delivery agents use this for the "From " envelope
+		"header".  Problem noted by Leslie Carroll of the
+		University at Albany.
+	Mark closed file descriptors properly to avoid reuse. Problem
+		noted by Jeff Bronson of J.D. Bronson, Inc.
+	Setting Timeout options on the command line will also override
+		their sub-suboptions in the .cf file, e.g., -O
+		Timeout.queuereturn=2d will set all queuereturn timeouts
+		to 2 days.  Problem noted by Roger B.A. Klorese.
+	Portability:
+		BSD/OS has a broken setreuid() implementation.  Problem
+			noted by Vernon Schryver of Rhyolite Software.
+		BSD/OS has /dev/urandom(4) (as of version 4.1/199910 ?).
+			Noted by Vernon Schryver of Rhyolite Software.
+		BSD/OS has fchown(2).  Noted by Dave Yadallee of Netline
+			2000 Internet Solutions Inc.
+		Solaris 2.X and later have strerror(3).  From Sebastian
+			Hagedorn of Cologne University.
+	CONFIG: Fix parsing for IPv6 domain literals in addresses
+		(user@[IPv6:address]).  Problem noted by Liyuan Zhou.
 
 8.11.4/8.11.4	2001/05/28
 	Clean up signal handling routines to reduce the chances of heap
@@ -730,18 +772,18 @@ summary of the changes in that release.
 
 8.10.0/8.10.0	2000/03/01
 	    *************************************************************
-	    * The engineering department at Sendmail, Inc. has suffered *
-	    * the tragic loss of a key member of our engineering team.  *
-	    * Julie Van Bourg was the Vice President of Engineering     *
-	    * at Sendmail, Inc. during the development and deployment   *
-	    * of this release.  It was her vision, dedication, and      *
-	    * support that has made this release a success.  Julie died *
-	    * on October 26, 1999 of cancer.  We have lost a leader, a  *
-	    * coach, and a friend.                                      *
-	    *                                                           *
-	    * This release is dedicated to her memory and to the joy,   *
-	    * strength, ideals, and hope that she brought to all of us. *
-	    * Julie, we miss you!                                       *
+	    * The engineering department at Sendmail, Inc. has suffered	*
+	    * the tragic loss of a key member of our engineering team.	*
+	    * Julie Van Bourg was the Vice President of Engineering	*
+	    * at Sendmail, Inc. during the development and deployment	*
+	    * of this release.  It was her vision, dedication, and	*
+	    * support that has made this release a success.  Julie died	*
+	    * on October 26, 1999 of cancer.  We have lost a leader, a	*
+	    * coach, and a friend.					*
+	    *								*
+	    * This release is dedicated to her memory and to the joy,	*
+	    * strength, ideals, and hope that she brought to all of us.	*
+	    * Julie, we miss you!					*
 	    *************************************************************
 	SECURITY: The safe file checks now back track through symbolic
 		links to make sure the files can't be compromised due
@@ -1586,7 +1628,7 @@ summary of the changes in that release.
 	CONFIG: OSTYPE(`bsdi1.0') and OSTYPE(`bsdi2.0') have been
 		deprecated and may be removed from a future release.
 		BSD/OS users should begin using OSTYPE(`bsdi').
-	CONFIG: OpenBSD 2.4 installs mail.local non-setuid root.  This
+	CONFIG: OpenBSD 2.4 installs mail.local non-set-user-id root.  This
 		requires a new OSTYPE(`openbsd').  From Todd C. Miller of
 		Courtesan Consulting.
 	CONFIG: New OSTYPE(`hpux11') for HP/UX 11.X.
@@ -1846,7 +1888,7 @@ summary of the changes in that release.
 		the others (if it exists).
 	DEVTOOLS: Change order of LIBS: first product specific libraries
 		then the default ones.
-	MAIL.LOCAL: Will not be installed setuid root.  To use mail.local
+	MAIL.LOCAL: Will not be installed set-user-id root.  To use mail.local
 		as local delivery agent without LMTP mode, use
 		MODIFY_MAILER_FLAGS(`LOCAL', `+S')
 		to set the S flag.
@@ -2401,7 +2443,7 @@ summary of the changes in that release.
 		uid and gid for user bin instead of daemon.  If DefaultUser
 		is set in the configuration file, that value overrides this
 		default.
-	SECURITY: Since 8.8.7, the check for non-setuid binaries
+	SECURITY: Since 8.8.7, the check for non-set-user-id binaries
 		interfered with setting an alternate group id for the
 		RunAsUser option.  Problem noted by Randall Winchester of
 		the University of Maryland.
@@ -3069,7 +3111,7 @@ summary of the changes in that release.
 	In some cases, errors during an SMTP session could leave files
 		open or locked.
 	Better handling of missing file descriptors (0, 1, 2) on startup.
-	Better handling of non-setuid binaries -- avoids certain obnoxious
+	Better handling of non-set-user-id binaries -- avoids certain obnoxious
 		errors during testing.
 	Errors in file locking of NEWDB maps had the incorrect file name
 		printed in the error message.
@@ -3461,7 +3503,7 @@ summary of the changes in that release.
 		change to the sendmail map code was made in 8.8.3.  Problem
 		noted by Gregory Neil Shapiro.
 	MAKEMAP: Give warnings on file problems such as map files that are
-		symbolic links; although makemap is not setuid root, it is
+		symbolic links; although makemap is not set-user-id root, it is
 		often run as root and hence has the potential for the same
 		sorts of problems as alias rebuilds.
 	MAKEMAP: Change compilation so that it will link properly on
@@ -4247,9 +4289,9 @@ summary of the changes in that release.
 	Fix problem finding network interface addresses.  Patch from
 		Motonori Nakamura.
 	Don't reject qf entries that are not owned by your effective uid if
-		you are not running setuid; this makes management of certain
-		kinds of firewall setups difficult.  Patch suggested by
-		Eamonn Coleman of Qualcomm.
+		you are not running set-user-id; this makes management of
+		certain kinds of firewall setups difficult.  Patch
+		suggested by Eamonn Coleman of Qualcomm.
 	Add persistent host status.  This keeps the information normally
 		maintained within a single queue run in disk files that are
 		shared between sendmail instances.  The HostStatusDirectory
@@ -4617,7 +4659,7 @@ summary of the changes in that release.
 		failure in the hosts.files map.  This error caused hard
 		bounces when it should have requeued.
 	Aliases to files such as /users/bar/foo/inbox, with /users/bar/foo
-		owned by bar mode 700 and inbox being setuid bar stopped
+		owned by bar mode 700 and inbox being set-user-id bar stopped
 		working properly due to excessive paranoia.  Pointed out by
 		John Hawkinson of Panix.
 	An SMTP RCPT command referencing a host that gave a nameserver
@@ -5291,7 +5333,7 @@ summary of the changes in that release.
 		the aliases file: use the default uid/gid instead of the
 		real uid/gid.  This allows you to create a file owned by
 		and writable only by the default uid/gid that will work
-		all the time (without having the setuid bit set).  Change
+		all the time (without having the set-user-id bit set).  Change
 		suggested by Shau-Ping Lo and Andrew Cheng of Sun
 		Microsystems.
 	Add "DialDelay" option (no short name) to provide an "extra"

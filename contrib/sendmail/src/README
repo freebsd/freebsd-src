@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.263.2.1.2.35 2001/05/09 20:58:32 gshapiro Exp $
+#	$Id: README,v 8.263.2.1.2.37 2001/06/03 03:41:12 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -80,7 +80,6 @@ current platform and builds a new one.
 
 Porting to a new Unix-based system should be a matter of creating
 an appropriate configuration file in the devtools/OS/ directory.
-
 
 
 +----------------------+
@@ -177,6 +176,7 @@ expression.  For example, all-numerics local parts are common spam
 addresses, so "^[0-9]+$" would match this.  By using such a map in a
 check_* rule-set, you can block a certain range of addresses that would
 otherwise be considered valid.
+
 
 +---------------+
 | COMPILE FLAGS |
@@ -463,6 +463,7 @@ NEEDSGETIPNODE	Set this if your system supports IPv6 but doesn't include
 		the getipnodeby{name,addr}() functions.  Set automatically
 		for Linux's glibc.
 
+
 +-----------------------+
 | COMPILE-TIME FEATURES |
 +-----------------------+
@@ -600,6 +601,13 @@ SFIO		Uses sfio instead of stdio. sfio is available from AT&T
 		OPERATING SYSTEM AND COMPILE QUIRKS.
 
 
+Generic notice: If you enable a compile time option that needs
+libraries or include files that don't come with sendmail or are
+installed in a location that your C compiler doesn't use by default
+you should set confINCDIRS and confLIBDIRS as explained in the
+first section:  BUILDING SENDMAIL.
+
+
 +---------------------+
 | DNS/RESOLVER ISSUES |
 +---------------------+
@@ -639,6 +647,7 @@ ResolverOptions setting.  However, instead, we recommend catching the
 problem and reporting it to the name server administrator so we can rid the
 world of broken name servers.
 
+
 +----------------------------------------+
 | STARTTLS COMPILATION AND CONFIGURATION |
 +----------------------------------------+
@@ -649,10 +658,15 @@ sendmail.  See devtools/README how to set the correct compile time
 parameters; you should at least set the following variables:
 
 define(`confSTDIO_TYPE', `portable')
-APPENDDEF(`confENVDEF', `-DSFIO')
-APPENDDEF(`confLIBS', `-lsfio')
+APPENDDEF(`conf_sendmail_ENVDEF', `-DSFIO')
+APPENDDEF(`conf_sendmail_LIBS', `-lsfio')
 APPENDDEF(`conf_sendmail_ENVDEF', `-DSTARTTLS')
 APPENDDEF(`conf_sendmail_LIBS', `-lssl -lcrypto')
+
+If you have installed the OpenSSL libraries and include files in
+a location that your C compiler doesn't use by default you should
+set confINCDIRS and confLIBDIRS as explained in the first section:
+BUILDING SENDMAIL.
 
 Configuration information can be found in doc/op/op.me (required
 certificates) and cf/README (how to tell sendmail about certificates).
@@ -667,10 +681,8 @@ there are any problems listed about permissions (unsafe files)
 or the validity of X.509 certificates.
 
 Note: sfio must be used in all libraries with which sendmail exchanges
-file pointers. That is, libsmutil must be compiled with sfio, which
-is accomplished by the above config parameters. Another example is
-PH map support.  This does not apply to the usual libraries, e.g.,
-OpenSSL, Berkeley DB, Cyrus SASL.
+file pointers. An example is PH map support.  This does not apply to the
+usual libraries, e.g., OpenSSL, Berkeley DB, Cyrus SASL.
 
 Further information can be found via:
 http://www.sendmail.org/tips/
@@ -682,7 +694,17 @@ http://www.sendmail.org/tips/
 
 Please read the docs accompanying the library (INSTALL and README).
 If you use Berkeley DB for Cyrus SASL then you must compile sendmail
-with the same version of Berkeley DB.
+with the same version of Berkeley DB.  See devtools/README how to
+set the correct compile time parameters; you should at least set
+the following variables:
+
+APPENDDEF(`conf_sendmail_ENVDEF', `-DSASL')
+APPENDDEF(`conf_sendmail_LIBS', `-lsasl')
+
+If you have installed the Cyrus SASL library and include files in
+a location that your C compiler doesn't use by default you should
+set confINCDIRS and confLIBDIRS as explained in the first section:
+BUILDING SENDMAIL.
 
 You have to select and install authentication mechanisms and tell
 sendmail where to find the sasl library and the include files (see
@@ -1599,6 +1621,7 @@ Regular Expressions (MAP_REGEX)
 The manual pages have been written against the -man macros, and
 should format correctly with any reasonable *roff.
 
+
 +-----------------+
 | DEBUGGING HOOKS |
 +-----------------+
@@ -1706,4 +1729,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.263.2.1.2.35 $, last update $Date: 2001/05/09 20:58:32 $ )
+(Version $Revision: 8.263.2.1.2.37 $, last update $Date: 2001/06/03 03:41:12 $ )

@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: sm_gethost.c,v 8.7.8.10 2001/05/09 20:57:12 gshapiro Exp $";
+static char id[] = "@(#)$Id: sm_gethost.c,v 8.7.8.11 2001/07/21 00:10:23 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -31,12 +31,15 @@ static char id[] = "@(#)$Id: sm_gethost.c,v 8.7.8.10 2001/05/09 20:57:12 gshapir
 
 #if NETINET6 && NEEDSGETIPNODE
 
-# ifndef AI_V4MAPPED
-#  define AI_V4MAPPED	0	/* dummy */
-# endif /* ! AI_V4MAPPED */
+# ifndef AI_ADDRCONFIG
+#  define AI_ADDRCONFIG	0	/* dummy */
+# endif /* ! AI_ADDRCONFIG */
 # ifndef AI_ALL
 #  define AI_ALL	0	/* dummy */
 # endif /* ! AI_ALL */
+# ifndef AI_DEFAULT
+#  define AI_DEFAULT	0	/* dummy */
+# endif /* ! AI_DEFAULT */
 
 static struct hostent *
 getipnodebyname(name, family, flags, err)
@@ -97,11 +100,15 @@ mi_gethostbyname(name, family)
 # endif /* SOLARIS == 20300 || SOLARIS == 203 */
 #else /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4)) */
 # if NETINET6
+	int flags = AI_DEFAULT|AI_ALL;
 	int err;
 # endif /* NETINET6 */
 
 # if NETINET6
-	h = getipnodebyname(name, family, AI_V4MAPPED|AI_ALL, &err);
+#  if ADDRCONFIG_IS_BROKEN
+	flags &= ~AI_ADDRCONFIG;
+#  endif /* ADDRCONFIG_IS_BROKEN */
+	h = getipnodebyname(name, family, flags, &err);
 	SM_SET_H_ERRNO(err);
 # else /* NETINET6 */
 	h = gethostbyname(name);
