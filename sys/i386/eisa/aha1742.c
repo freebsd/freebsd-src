@@ -520,7 +520,6 @@ struct isa_dev *dev;
 #ifdef  __386BSD__				/* 386BSD */
         dev->id_irq = (1 << ahb_data[unit].vect);
         dev->id_drq = -1; /* use EISA dma */
-	printf("\n  **");
 #endif  __386BSD__
 
 	ahb_unit++;
@@ -537,7 +536,7 @@ struct	isa_dev	*dev;
 
 
 #ifdef  __386BSD__
-	printf(" probing for scsi devices**\n");
+	printf("**probing for scsi devices**\n");
 #endif  __386BSD__
 
 	/***********************************************\
@@ -551,9 +550,6 @@ struct	isa_dev	*dev;
 	{
 		ahb_timeout(0);
 	}
-#ifdef  __386BSD__
-	printf("ahb%d",unit);
-#endif  __386BSD__
 	return;
 }
 
@@ -864,7 +860,6 @@ int	unit;
 	* level						*
 	\***********************************************/
 #ifdef	__386BSD__
-	printf("ahb%d reading board settings, ",unit);
 #define	PRNT(x)
 #else	__386BSD__
 	printf("ahb%d:",unit);

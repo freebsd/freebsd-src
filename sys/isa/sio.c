@@ -40,7 +40,7 @@
  *					into the patch kit.  Added in sioselect
  *					from com.c.  Added port 4 support.
  */
-static char rcsid[] = "$Header: /usr/bill/working/sys/i386/isa/RCS/com.c,v 1.2 92/01/21 14:34:11 william Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/isa/sio.c,v 1.1.1.1 1993/06/12 14:57:57 rgrimes Exp $";
 
 #include "sio.h"
 #if NSIO > 0
@@ -465,6 +465,7 @@ sioattach(isdp)
 	outb(iobase + com_scr, 0x5a);
 	scr2 = inb(iobase + com_scr);
 	outb(iobase + com_scr, scr);
+	printf("sio%d: type", unit);
 	if (scr1 != 0xa5 || scr2 != 0x5a)
 		printf(" <8250>");
 	else {
@@ -487,6 +488,7 @@ sioattach(isdp)
 		}
 		outb(iobase + com_fifo, 0);
 	}
+	printf("\n");
 #ifdef COM_MULTIPORT
 	if (COM_ISMULTIPORT(isdp)) {
 		struct isa_device *masterdev;
