@@ -502,35 +502,14 @@ bremfree(struct buf * bp)
  * Get a buffer with the specified data.  Look in the cache first.  We
  * must clear BIO_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
  * is set, the buffer is valid and we do not have to do anything ( see
- * getblk() ).
+ * getblk() ).  This is really just a special case of breadn().
  */
 int
 bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
     struct buf ** bpp)
 {
-	struct buf *bp;
 
-	bp = getblk(vp, blkno, size, 0, 0);
-	*bpp = bp;
-
-	/* if not found in cache, do some I/O */
-	if ((bp->b_flags & B_CACHE) == 0) {
-		if (curproc != PCPU_GET(idleproc))
-			curproc->p_stats->p_ru.ru_inblock++;
-		KASSERT(!(bp->b_flags & B_ASYNC), ("bread: illegal async bp %p", bp));
-		bp->b_iocmd = BIO_READ;
-		bp->b_flags &= ~B_INVAL;
-		bp->b_ioflags &= ~BIO_ERROR;
-		if (bp->b_rcred == NOCRED) {
-			if (cred != NOCRED)
-				crhold(cred);
-			bp->b_rcred = cred;
-		}
-		vfs_busy_pages(bp, 0);
-		VOP_STRATEGY(vp, bp);
-		return (bufwait(bp));
-	}
-	return (0);
+	return (breadn(vp, blkno, size, 0, 0, 0, cred, bpp));
 }
 
 /*
