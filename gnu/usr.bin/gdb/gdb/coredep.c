@@ -24,6 +24,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <sys/types.h>
 #include <sys/param.h>
 #include "gdbcore.h"
+#include "value.h" /* For supply_register.  */
+#include "inferior.h"
 
 /* These are needed on various systems to expand REGISTER_U_ADDR.  */
 #ifndef USG
@@ -39,6 +41,10 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 # endif /* !PTRACE_IN_WRONG_PLACE */
 #endif /* NO_PTRACE_H */
 #endif
+
+#ifndef CORE_REGISTER_ADDR
+#define CORE_REGISTER_ADDR(regno, regptr) register_addr(regno, regptr)
+#endif /* CORE_REGISTER_ADDR */
 
 #ifdef NEED_SYS_CORE_H
 #include <sys/core.h>
@@ -68,19 +74,20 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
   register unsigned int addr;
   int bad_reg = -1;
   register reg_ptr = -reg_addr;		/* Original u.u_ar0 is -reg_addr. */
+  int numregs = ARCH_NUM_REGS;
 
   /* If u.u_ar0 was an absolute address in the core file, relativize it now,
      so we can use it as an offset into core_reg_sect.  When we're done,
      "register 0" will be at core_reg_sect+reg_ptr, and we can use
-     register_addr to offset to the other registers.  If this is a modern
+     CORE_REGISTER_ADDR to offset to the other registers.  If this is a modern
      core file without a upage, reg_ptr will be zero and this is all a big
      NOP.  */
   if (reg_ptr > core_reg_size)
     reg_ptr -= KERNEL_U_ADDR;
 
-  for (regno = 0; regno < NUM_REGS; regno++)
+  for (regno = 0; regno < numregs; regno++)
     {
-      addr = register_addr (regno, reg_ptr);
+      addr = CORE_REGISTER_ADDR (regno, reg_ptr);
       if (addr >= core_reg_size) {
 	if (bad_reg < 0)
 	  bad_reg = regno;
@@ -107,7 +114,7 @@ register_addr (regno, blockend)
 {
   int addr;
 
-  if (regno < 0 || regno >= NUM_REGS)
+  if (regno < 0 || regno >= ARCH_NUM_REGS)
     error ("Invalid register number %d.", regno);
 
   REGISTER_U_ADDR (addr, blockend, regno);

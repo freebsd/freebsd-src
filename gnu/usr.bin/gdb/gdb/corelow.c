@@ -1,5 +1,6 @@
 /* Core dump and executable file functions below target vector, for GDB.
-   Copyright 1986, 1987, 1989, 1991, 1992 Free Software Foundation, Inc.
+   Copyright 1986, 1987, 1989, 1991, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -18,6 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "defs.h"
+#include <string.h>
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -28,6 +30,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "bfd.h"
 #include "target.h"
 #include "gdbcore.h"
+#include "thread.h"
 
 static void
 core_files_info PARAMS ((struct target_ops *));
@@ -69,13 +72,14 @@ core_close (quitting)
 }
 
 #ifdef SOLIB_ADD
-/* Stub function for catch_errors around shared library hacking. */
+/* Stub function for catch_errors around shared library hacking.  FROM_TTYP
+   is really an int * which points to from_tty.  */
 
 static int 
-solib_add_stub (from_tty)
-     char *from_tty;
+solib_add_stub (from_ttyp)
+     char *from_ttyp;
 {
-    SOLIB_ADD (NULL, (int)from_tty, &core_ops);
+    SOLIB_ADD (NULL, *(int *)from_ttyp, &core_ops);
     return 0;
 }
 #endif /* SOLIB_ADD */
@@ -151,7 +155,7 @@ core_open (filename, from_tty)
     {
       /* Do it after the err msg */
       make_cleanup (bfd_close, temp_bfd);
-      error ("\"%s\" is not a core dump: %s", filename, bfd_errmsg(bfd_error));
+      error ("\"%s\" is not a core dump: %s", filename, bfd_errmsg(bfd_get_error ()));
     }
 
   /* Looks semi-reasonable.  Toss the old core file and work on the new.  */
@@ -167,7 +171,7 @@ core_open (filename, from_tty)
   if (build_section_table (core_bfd, &core_ops.to_sections,
 			   &core_ops.to_sections_end))
     error ("Can't find sections in `%s': %s", bfd_get_filename(core_bfd),
-	   bfd_errmsg (bfd_error));
+	   bfd_errmsg (bfd_get_error ()));
 
   ontop = !push_target (&core_ops);
   discard_cleanups (old_chain);
@@ -193,7 +197,7 @@ core_open (filename, from_tty)
 
     /* Add symbols and section mappings for any shared libraries */
 #ifdef SOLIB_ADD
-    catch_errors (solib_add_stub, (char *)from_tty, (char *)0,
+    catch_errors (solib_add_stub, &from_tty, (char *)0,
 		  RETURN_MASK_ALL);
 #endif
 
@@ -260,8 +264,8 @@ get_core_registers (regno)
   else
     {
 cant:
-      fprintf_filtered (stderr, "Couldn't fetch registers from core file: %s\n",
-	       bfd_errmsg (bfd_error));
+      fprintf_filtered (gdb_stderr, "Couldn't fetch registers from core file: %s\n",
+	       bfd_errmsg (bfd_get_error ()));
     }
 
   /* Now do it again for the float registers, if they exist.  */
@@ -277,8 +281,8 @@ cant:
       }
     else
       {
-	fprintf_filtered (stderr, "Couldn't fetch register set 2 from core file: %s\n",
-		 bfd_errmsg (bfd_error));
+	fprintf_filtered (gdb_stderr, "Couldn't fetch register set 2 from core file: %s\n",
+		 bfd_errmsg (bfd_get_error ()));
       }
   }
   registers_fetched();
@@ -299,6 +303,7 @@ ignore (addr, contents)
      CORE_ADDR addr;
      char *contents;
 {
+  return 0;
 }
 
 struct target_ops core_ops = {

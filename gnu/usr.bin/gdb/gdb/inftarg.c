@@ -24,19 +24,17 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "target.h"
 #include "wait.h"
 #include "gdbcore.h"
-
+#include "command.h"
 #include <signal.h>
 
 static void
 child_prepare_to_store PARAMS ((void));
 
 #ifndef CHILD_WAIT
-static int
-child_wait PARAMS ((int, int *));
+static int child_wait PARAMS ((int, struct target_waitstatus *));
 #endif /* CHILD_WAIT */
 
-static void
-child_open PARAMS ((char *, int));
+static void child_open PARAMS ((char *, int));
 
 static void
 child_files_info PARAMS ((struct target_ops *));
@@ -53,8 +51,7 @@ ptrace_me PARAMS ((void));
 static void
 ptrace_him PARAMS ((int));
 
-static void
-child_create_inferior PARAMS ((char *, char *, char **));
+static void child_create_inferior PARAMS ((char *, char *, char **));
 
 static void
 child_mourn_inferior PARAMS ((void));
@@ -70,21 +67,26 @@ extern struct target_ops child_ops;
 #ifndef CHILD_WAIT
 
 /* Wait for child to do something.  Return pid of child, or -1 in case
-   of error; store status through argument pointer STATUS.  */
+   of error; store status through argument pointer OURSTATUS.  */
 
 static int
-child_wait (pid, status)
+child_wait (pid, ourstatus)
      int pid;
-     int *status;
+     struct target_waitstatus *ourstatus;
 {
   int save_errno;
+  int status;
 
   do {
     if (attach_flag)
       set_sigint_trap();	/* Causes SIGINT to be passed on to the
 				   attached process. */
-    pid = wait (status);
+    set_sigio_trap ();
+
+    pid = proc_wait (inferior_pid, &status);
     save_errno = errno;
+
+    clear_sigio_trap ();
 
     if (attach_flag)
       clear_sigint_trap();
@@ -93,12 +95,15 @@ child_wait (pid, status)
       {
 	if (save_errno == EINTR)
 	  continue;
-	fprintf (stderr, "Child process unexpectedly missing: %s.\n",
+	fprintf_unfiltered (gdb_stderr, "Child process unexpectedly missing: %s.\n",
 		 safe_strerror (save_errno));
-	*status = 42;	/* Claim it exited with signal 42 */
+	/* Claim it exited with unknown signal.  */
+	ourstatus->kind = TARGET_WAITKIND_SIGNALLED;
+	ourstatus->value.sig = TARGET_SIGNAL_UNKNOWN;
         return -1;
       }
   } while (pid != inferior_pid); /* Some other child died or stopped */
+  store_waitstatus (ourstatus, status);
   return pid;
 }
 #endif /* CHILD_WAIT */
@@ -110,35 +115,38 @@ child_attach (args, from_tty)
      char *args;
      int from_tty;
 {
-  char *exec_file;
-  int pid;
-
   if (!args)
     error_no_arg ("process-id to attach");
 
 #ifndef ATTACH_DETACH
   error ("Can't attach to a process on this machine.");
 #else
-  pid = atoi (args);
+  {
+    char *exec_file;
+    int pid;
 
-  if (pid == getpid())		/* Trying to masturbate? */
-    error ("I refuse to debug myself!");
+    pid = atoi (args);
 
-  if (from_tty)
-    {
-      exec_file = (char *) get_exec_file (0);
+    if (pid == getpid())		/* Trying to masturbate? */
+      error ("I refuse to debug myself!");
 
-      if (exec_file)
-	printf ("Attaching to program `%s', %s\n", exec_file, target_pid_to_str (pid));
-      else
-	printf ("Attaching to %s\n", target_pid_to_str (pid));
+    if (from_tty)
+      {
+	exec_file = (char *) get_exec_file (0);
 
-      fflush (stdout);
-    }
+	if (exec_file)
+	  printf_unfiltered ("Attaching to program `%s', %s\n", exec_file,
+		  target_pid_to_str (pid));
+	else
+	  printf_unfiltered ("Attaching to %s\n", target_pid_to_str (pid));
 
-  attach (pid);
-  inferior_pid = pid;
-  push_target (&child_ops);
+	gdb_flush (gdb_stdout);
+      }
+
+    attach (pid);
+    inferior_pid = pid;
+    push_target (&child_ops);
+  }
 #endif  /* ATTACH_DETACH */
 }
 
@@ -156,26 +164,28 @@ child_detach (args, from_tty)
      char *args;
      int from_tty;
 {
-  int siggnal = 0;
-
 #ifdef ATTACH_DETACH
-  if (from_tty)
-    {
-      char *exec_file = get_exec_file (0);
-      if (exec_file == 0)
-	exec_file = "";
-      printf ("Detaching from program: %s %s\n", exec_file,
-	      target_pid_to_str (inferior_pid));
-      fflush (stdout);
-    }
-  if (args)
-    siggnal = atoi (args);
-  
-  detach (siggnal);
-  inferior_pid = 0;
-  unpush_target (&child_ops);		/* Pop out of handling an inferior */
+  {
+    int siggnal = 0;
+
+    if (from_tty)
+      {
+	char *exec_file = get_exec_file (0);
+	if (exec_file == 0)
+	  exec_file = "";
+	printf_unfiltered ("Detaching from program: %s %s\n", exec_file,
+		target_pid_to_str (inferior_pid));
+	gdb_flush (gdb_stdout);
+      }
+    if (args)
+      siggnal = atoi (args);
+
+    detach (siggnal);
+    inferior_pid = 0;
+    unpush_target (&child_ops);
+  }
 #else
-    error ("This version of Unix does not support detaching a process.");
+  error ("This version of Unix does not support detaching a process.");
 #endif
 }
 
@@ -199,7 +209,7 @@ static void
 child_files_info (ignore)
      struct target_ops *ignore;
 {
-  printf ("\tUsing the running image of %s %s.\n",
+  printf_unfiltered ("\tUsing the running image of %s %s.\n",
 	  attach_flag? "attached": "child", target_pid_to_str (inferior_pid));
 }
 
@@ -230,6 +240,13 @@ ptrace_him (pid)
      int pid;
 {
   push_target (&child_ops);
+
+#ifdef START_INFERIOR_TRAPS_EXPECTED
+  startup_inferior (START_INFERIOR_TRAPS_EXPECTED);
+#else
+  /* One trap to exec the shell, one to exec the program being debugged.  */
+  startup_inferior (2);
+#endif
 }
 
 /* Start an inferior Unix child process and sets inferior_pid to its pid.
@@ -243,16 +260,17 @@ child_create_inferior (exec_file, allargs, env)
      char *allargs;
      char **env;
 {
-  fork_inferior (exec_file, allargs, env, ptrace_me, ptrace_him);
+  fork_inferior (exec_file, allargs, env, ptrace_me, ptrace_him, NULL);
   /* We are at the first instruction we care about.  */
   /* Pedal to the metal... */
-  proceed ((CORE_ADDR) -1, 0, 0);
+  proceed ((CORE_ADDR) -1, TARGET_SIGNAL_0, 0);
 }
 
 static void
 child_mourn_inferior ()
 {
   unpush_target (&child_ops);
+  proc_remove_foreign (inferior_pid);
   generic_mourn_inferior ();
 }
 

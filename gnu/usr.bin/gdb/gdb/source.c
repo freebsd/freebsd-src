@@ -25,10 +25,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "gdbcmd.h"
 #include "frame.h"
 
-#ifdef USG
 #include <sys/types.h>
-#endif
-
 #include <string.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -37,6 +34,11 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "regex.h"
 #include "symfile.h"
 #include "objfiles.h"
+#include "annotate.h"
+
+#ifndef DIRNAME_SEPARATOR
+#define DIRNAME_SEPARATOR ':'
+#endif
 
 /* Prototypes for local functions. */
 
@@ -237,7 +239,10 @@ forget_cached_source_info ()
 void
 init_source_path ()
 {
-  source_path = savestring ("$cdir:$cwd", /* strlen of it */ 10);
+  char buf[20];
+
+  sprintf (buf, "$cdir%c$cwd", DIRNAME_SEPARATOR);
+  source_path = strsave (buf);
   forget_cached_source_info ();
 }
 
@@ -288,7 +293,7 @@ mod_path (dirname, which_path)
       struct stat st;
 
       {
-	char *colon = strchr (name, ':');
+	char *colon = strchr (name, DIRNAME_SEPARATOR);
 	char *space = strchr (name, ' ');
 	char *tab = strchr (name, '\t');
 	if (colon == 0 && space == 0 && tab ==  0)
@@ -303,7 +308,7 @@ mod_path (dirname, which_path)
 	    if (tab != 0 && (p == 0 || tab < p))
 	      p = tab;
 	    dirname = p + 1;
-	    while (*dirname == ':' || *dirname == ' ' || *dirname == '\t')
+	    while (*dirname == DIRNAME_SEPARATOR || *dirname == ' ' || *dirname == '\t')
 	      ++dirname;
 	  }
       }
@@ -363,7 +368,7 @@ mod_path (dirname, which_path)
 	if (stat (name, &st) < 0)
 	  {
 	    int save_errno = errno;
-	    fprintf (stderr, "Warning: ");
+	    fprintf_unfiltered (gdb_stderr, "Warning: ");
 	    print_sys_errmsg (name, save_errno);
 	  }
 	else if ((st.st_mode & S_IFMT) != S_IFDIR)
@@ -378,7 +383,7 @@ mod_path (dirname, which_path)
 	while (1)
 	  {
 	    if (!strncmp (p, name, len)
-		&& (p[len] == '\0' || p[len] == ':'))
+		&& (p[len] == '\0' || p[len] == DIRNAME_SEPARATOR))
 	      {
 		/* Found it in the search path, remove old copy */
 		if (p > *which_path)
@@ -387,7 +392,7 @@ mod_path (dirname, which_path)
 		  goto skip_dup;	/* Same dir twice in one cmd */
 		strcpy (p, &p[len+1]);	/* Copy from next \0 or  : */
 	      }
-	    p = strchr (p, ':');
+	    p = strchr (p, DIRNAME_SEPARATOR);
 	    if (p != 0)
 	      ++p;
 	    else
@@ -395,6 +400,11 @@ mod_path (dirname, which_path)
 	  }
 	if (p == 0)
 	  {
+	    char tinybuf[2];
+
+	    tinybuf[0] = DIRNAME_SEPARATOR;
+	    tinybuf[1] = '\0';
+
 	    /* If we have already tacked on a name(s) in this command,			   be sure they stay on the front as we tack on some more.  */
 	    if (prefix)
 	      {
@@ -402,7 +412,7 @@ mod_path (dirname, which_path)
 
 		c = old[prefix];
 		old[prefix] = '\0';
-		temp = concat (old, ":", name, NULL);
+		temp = concat (old, tinybuf, name, NULL);
 		old[prefix] = c;
 		*which_path = concat (temp, "", &old[prefix], NULL);
 		prefix = strlen (temp);
@@ -410,7 +420,7 @@ mod_path (dirname, which_path)
 	      }
 	    else
 	      {
-		*which_path = concat (name, (old[0]? ":" : old), old, NULL);
+		*which_path = concat (name, (old[0] ? tinybuf : old), old, NULL);
 		prefix = strlen (name);
 	      }
 	    free (old);
@@ -448,7 +458,7 @@ source_info (ignore, from_tty)
 
 
 
-/* Open a file named STRING, searching path PATH (dir names sep by colons)
+/* Open a file named STRING, searching path PATH (dir names sep by some char)
    using mode MODE and protection bits PROT in the calls to open.
 
    If TRY_CWD_FIRST, try to open ./STRING before searching PATH.
@@ -503,7 +513,7 @@ openp (path, try_cwd_first, string, mode, prot, filename_opened)
   fd = -1;
   for (p = path; p; p = p1 ? p1 + 1 : 0)
     {
-      p1 = (char *) strchr (p, ':');
+      p1 = (char *) strchr (p, DIRNAME_SEPARATOR);
       if (p1)
 	len = p1 - p;
       else
@@ -535,7 +545,7 @@ openp (path, try_cwd_first, string, mode, prot, filename_opened)
       strcat (filename+len, "/");
       strcat (filename, string);
 
-      fd = open (filename, mode, prot);
+      fd = open (filename, mode);
       if (fd >= 0) break;
     }
 
@@ -587,8 +597,8 @@ open_source_file (s)
       /* We cast strstr's result in case an ANSIhole has made it const,
 	 which produces a "required warning" when assigned to a nonconst. */
       p = (char *)strstr (source_path, "$cdir");
-      if (p && (p == path || p[-1] == ':')
-	    && (p[cdir_len] == ':' || p[cdir_len] == '\0')) {
+      if (p && (p == path || p[-1] == DIRNAME_SEPARATOR)
+	    && (p[cdir_len] == DIRNAME_SEPARATOR || p[cdir_len] == '\0')) {
 	int len;
 
 	path = (char *)
@@ -606,12 +616,12 @@ open_source_file (s)
       /* Didn't work.  Try using just the basename. */
       p = basename (s->filename);
       if (p != s->filename)
-	result = openp(path, 0, p, O_RDONLY,0, &s->fullname);
+	result = openp (path, 0, p, O_RDONLY, 0, &s->fullname);
     }
   if (result >= 0)
     {
-      fullname = s -> fullname;
-      s -> fullname = mstrsave (s -> objfile -> md, s -> fullname);
+      fullname = s->fullname;
+      s->fullname = mstrsave (s->objfile->md, s->fullname);
       free (fullname);
     }
   return result;
@@ -635,75 +645,80 @@ find_source_lines (s, desc)
   int *line_charpos;
   long exec_mtime;
   int size;
-#ifdef LSEEK_NOT_LINEAR
-  char c;
-#endif
 
   line_charpos = (int *) xmmalloc (s -> objfile -> md,
 				   lines_allocated * sizeof (int));
   if (fstat (desc, &st) < 0)
-   perror_with_name (s->filename);
+    perror_with_name (s->filename);
 
-  if (exec_bfd) {
-    exec_mtime = bfd_get_mtime(exec_bfd);
-    if (exec_mtime && exec_mtime < st.st_mtime)
-     printf_filtered ("Source file is more recent than executable.\n");
-  }
+  if (exec_bfd)
+    {
+      exec_mtime = bfd_get_mtime(exec_bfd);
+      if (exec_mtime && exec_mtime < st.st_mtime)
+	printf_filtered ("Source file is more recent than executable.\n");
+    }
 
 #ifdef LSEEK_NOT_LINEAR
-  /* Have to read it byte by byte to find out where the chars live */
-
-   line_charpos[0] = tell(desc);
-   nlines = 1;
-   while (myread(desc, &c, 1)>0) 
-   {
-     if (c == '\n') 
-     {
-       if (nlines == lines_allocated) 
-       {
-	 lines_allocated *= 2;
-	 line_charpos =
-	  (int *) xmrealloc (s -> objfile -> md, (char *) line_charpos,
-			     sizeof (int) * lines_allocated);
-       }
-       line_charpos[nlines++] = tell(desc);
-     }
-   }
-
-#else
-  /* st_size might be a large type, but we only support source files whose 
-     size fits in an int.  FIXME. */
-  size = (int) st.st_size;
-
-#ifdef BROKEN_LARGE_ALLOCA
-  data = (char *) xmalloc (size);
-  make_cleanup (free, data);
-#else
-  data = (char *) alloca (size);
-#endif
-  if (myread (desc, data, size) < 0)
-   perror_with_name (s->filename);
-  end = data + size;
-  p = data;
-  line_charpos[0] = 0;
-  nlines = 1;
-  while (p != end)
   {
-    if (*p++ == '\n'
-	/* A newline at the end does not start a new line.  */
-	&& p != end)
-    {
-      if (nlines == lines_allocated)
+    char c;
+
+    /* Have to read it byte by byte to find out where the chars live */
+
+    line_charpos[0] = tell(desc);
+    nlines = 1;
+    while (myread(desc, &c, 1)>0) 
       {
-	lines_allocated *= 2;
-	line_charpos =
-	 (int *) xmrealloc (s -> objfile -> md, (char *) line_charpos,
-			    sizeof (int) * lines_allocated);
+	if (c == '\n') 
+	  {
+	    if (nlines == lines_allocated) 
+	      {
+		lines_allocated *= 2;
+		line_charpos =
+		  (int *) xmrealloc (s -> objfile -> md, (char *) line_charpos,
+				     sizeof (int) * lines_allocated);
+	      }
+	    line_charpos[nlines++] = tell(desc);
+	  }
       }
-      line_charpos[nlines++] = p - data;
-    }
   }
-#endif
+#else /* lseek linear.  */
+  {
+    struct cleanup *old_cleanups;
+
+    /* st_size might be a large type, but we only support source files whose 
+       size fits in an int.  */
+    size = (int) st.st_size;
+
+    /* Use malloc, not alloca, because this may be pretty large, and we may
+       run into various kinds of limits on stack size.  */
+    data = (char *) xmalloc (size);
+    old_cleanups = make_cleanup (free, data);
+
+    if (myread (desc, data, size) < 0)
+      perror_with_name (s->filename);
+    end = data + size;
+    p = data;
+    line_charpos[0] = 0;
+    nlines = 1;
+    while (p != end)
+      {
+	if (*p++ == '\n'
+	    /* A newline at the end does not start a new line.  */
+	    && p != end)
+	  {
+	    if (nlines == lines_allocated)
+	      {
+		lines_allocated *= 2;
+		line_charpos =
+		  (int *) xmrealloc (s -> objfile -> md, (char *) line_charpos,
+				     sizeof (int) * lines_allocated);
+	      }
+	    line_charpos[nlines++] = p - data;
+	  }
+      }
+    do_cleanups (old_cleanups);
+  }
+#endif /* lseek linear.  */
   s->nlines = nlines;
   s->line_charpos =
    (int *) xmrealloc (s -> objfile -> md, (char *) line_charpos,
@@ -804,10 +819,9 @@ identify_source_line (s, line, mid_statement, pc)
   if (line > s->nlines)
     /* Don't index off the end of the line_charpos array.  */
     return 0;
-  printf ("\032\032%s:%d:%d:%s:0x%lx\n", s->fullname,
-	  line, s->line_charpos[line - 1],
-	  mid_statement ? "middle" : "beg",
-	  (unsigned long) pc);
+  annotate_source (s->fullname, line, s->line_charpos[line - 1],
+		   mid_statement, pc);
+
   current_source_line = line;
   first_line_listed = line;
   last_line_listed = line;
@@ -1025,20 +1039,23 @@ list_command (arg, from_tty)
   if (*arg == '*')
     {
       if (sal.symtab == 0)
+	/* FIXME-32x64--assumes sal.pc fits in long.  */
 	error ("No source file for address %s.",
 		local_hex_string((unsigned long) sal.pc));
       sym = find_pc_function (sal.pc);
       if (sym)
 	{
-	  printf_filtered ("%s is in ",
-			   local_hex_string((unsigned long) sal.pc));
-	  fputs_filtered (SYMBOL_SOURCE_NAME (sym), stdout);
+	  print_address_numeric (sal.pc, 1, gdb_stdout);
+	  printf_filtered (" is in ");
+	  fputs_filtered (SYMBOL_SOURCE_NAME (sym), gdb_stdout);
 	  printf_filtered (" (%s:%d).\n", sal.symtab->filename, sal.line);
 	}
       else
-	printf_filtered ("%s is at %s:%d.\n",
-			 local_hex_string((unsigned long) sal.pc), 
-			 sal.symtab->filename, sal.line);
+	{
+	  print_address_numeric (sal.pc, 1, gdb_stdout);
+	  printf_filtered (" is at %s:%d.\n",
+			   sal.symtab->filename, sal.line);
+	}
     }
 
   /* If line was not specified by just a line number,
@@ -1118,14 +1135,14 @@ line_info (arg, from_tty)
 		 address.  */
 	      printf_filtered (" for address ");
 	      wrap_here ("  ");
-	      print_address (sal.pc, stdout);
+	      print_address (sal.pc, gdb_stdout);
 	    }
 	  else
 	    printf_filtered (".");
 	  printf_filtered ("\n");
 	}
       else if (sal.line > 0
-	  && find_line_pc_range (sal.symtab, sal.line, &start_pc, &end_pc))
+	       && find_line_pc_range (sal, &start_pc, &end_pc))
 	{
 	  if (start_pc == end_pc)
 	    {
@@ -1133,7 +1150,7 @@ line_info (arg, from_tty)
 			       sal.line, sal.symtab->filename);
 	      wrap_here ("  ");
 	      printf_filtered (" is at address ");
-	      print_address (start_pc, stdout);
+	      print_address (start_pc, gdb_stdout);
 	      wrap_here ("  ");
 	      printf_filtered (" but contains no code.\n");
 	    }
@@ -1143,10 +1160,10 @@ line_info (arg, from_tty)
 			       sal.line, sal.symtab->filename);
 	      wrap_here ("  ");
 	      printf_filtered (" starts at address ");
-	      print_address (start_pc, stdout);
+	      print_address (start_pc, gdb_stdout);
 	      wrap_here ("  ");
 	      printf_filtered (" and ends at ");
-	      print_address (end_pc, stdout);
+	      print_address (end_pc, gdb_stdout);
 	      printf_filtered (".\n");
 	    }
 
@@ -1158,7 +1175,7 @@ line_info (arg, from_tty)
 
 	  /* If this is the only line, show the source code.  If it could
 	     not find the file, don't do anything special.  */
-	  if (frame_file_full_name && sals.nelts == 1)
+	  if (annotation_level && sals.nelts == 1)
 	    identify_source_line (sal.symtab, sal.line, 0, start_pc);
 	}
       else

@@ -28,6 +28,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "value.h"		/* for read_register */
 #include "target.h"		/* for target_has_stack */
 #include "inferior.h"		/* for read_pc */
+#include "annotate.h"
 
 /* Is ADDR inside the startup file?  Note that if your machine
    has a way to detect the bottom of the stack, there is no need
@@ -192,6 +193,7 @@ flush_cached_frames ()
   obstack_init (&frame_cache_obstack);
 
   current_frame = (struct frame_info *) 0; /* Invalidate cache */
+  annotate_frames_invalid ();
 }
 
 /* Flush the frame cache, and start a new one if necessary.  */
@@ -389,13 +391,18 @@ get_prev_frame_info (next_frame)
      Only change here is that create_new_frame would no longer init extra
      frame info; SETUP_ARBITRARY_FRAME would have to do that.
    INIT_PREV_FRAME(fromleaf, prev)
-     Replace INIT_EXTRA_FRAME_INFO and INIT_FRAME_PC.
+     Replace INIT_EXTRA_FRAME_INFO and INIT_FRAME_PC.  This should
+     also return a flag saying whether to keep the new frame, or
+     whether to discard it, because on some machines (e.g.  mips) it
+     is really awkward to have FRAME_CHAIN_VALID called *before*
+     INIT_EXTRA_FRAME_INFO (there is no good way to get information
+     deduced in FRAME_CHAIN_VALID into the extra fields of the new frame).
    std_frame_pc(fromleaf, prev)
      This is the default setting for INIT_PREV_FRAME.  It just does what
      the default INIT_FRAME_PC does.  Some machines will call it from
      INIT_PREV_FRAME (either at the beginning, the end, or in the middle).
      Some machines won't use it.
-   kingdon@cygnus.com, 13Apr93.  */
+   kingdon@cygnus.com, 13Apr93, 31Jan94.  */
 
 #ifdef INIT_FRAME_PC_FIRST
   INIT_FRAME_PC_FIRST (fromleaf, prev);
@@ -406,9 +413,24 @@ get_prev_frame_info (next_frame)
 #endif
 
   /* This entry is in the frame queue now, which is good since
-     FRAME_SAVED_PC may use that queue to figure out it's value
+     FRAME_SAVED_PC may use that queue to figure out its value
      (see tm-sparc.h).  We want the pc saved in the inferior frame. */
   INIT_FRAME_PC(fromleaf, prev);
+
+  /* If ->frame and ->pc are unchanged, we are in the process of getting
+     ourselves into an infinite backtrace.  Some architectures check this
+     in FRAME_CHAIN or thereabouts, but it seems like there is no reason
+     this can't be an architecture-independent check.  */
+  if (next_frame != NULL)
+    {
+      if (prev->frame == next_frame->frame
+	  && prev->pc == next_frame->pc)
+	{
+	  next_frame->prev = NULL;
+	  obstack_free (&frame_cache_obstack, prev);
+	  return NULL;
+	}
+    }
 
   find_pc_partial_function (prev->pc, &name,
 			    (CORE_ADDR *)NULL,(CORE_ADDR *)NULL);
@@ -726,7 +748,7 @@ find_pc_partial_function (pc, name, address, endaddr)
 
   /* See if we're in a transfer table for Sun shared libs.  */
 
-  if (msymbol -> type == mst_text)
+  if (msymbol -> type == mst_text || msymbol -> type == mst_file_text)
     cache_pc_function_low = SYMBOL_VALUE_ADDRESS (msymbol);
   else
     /* It is a transfer table for Sun shared libraries.  */
@@ -781,6 +803,29 @@ block_innermost_frame (block)
 	return 0;
       fi = get_frame_info (frame);
       if (fi->pc >= start && fi->pc < end)
+	return frame;
+    }
+}
+
+/* Return the full FRAME which corresponds to the given FRAME_ADDR
+   or NULL if no FRAME on the chain corresponds to FRAME_ADDR.  */
+
+FRAME
+find_frame_addr_in_frame_chain (frame_addr)
+     FRAME_ADDR frame_addr;
+{
+  FRAME frame = NULL;
+
+  if (frame_addr == (CORE_ADDR)0)
+    return NULL;
+
+  while (1)
+    {
+      frame = get_prev_frame (frame);
+      if (frame == NULL)
+	return NULL;
+
+      if (FRAME_FP (frame) == frame_addr)
 	return frame;
     }
 }

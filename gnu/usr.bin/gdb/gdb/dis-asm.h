@@ -19,7 +19,7 @@ enum dis_insn_type {
   dis_jsr,			/* Jump to subroutine */
   dis_condjsr,			/* Conditional jump to subroutine */
   dis_dref,			/* Data reference instruction */
-  dis_dref2,			/* Two data references in instruction */
+  dis_dref2			/* Two data references in instruction */
 };
 
 /* This struct is passed into the instruction decoding routine, 
@@ -111,10 +111,13 @@ extern int print_insn_i960		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_sh		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_hppa		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_m88k		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_ns32k		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_big_powerpc	PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_little_powerpc	PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_rs6000		PARAMS ((bfd_vma, disassemble_info*));
 
-
-
-
+/* Fetch the disassembler for a given BFD, if that support is available.  */
+extern disassembler_ftype disassembler	PARAMS ((bfd *));
 
 
 /* This block of definitions is for particular callers who read instructions

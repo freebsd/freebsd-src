@@ -112,7 +112,8 @@
 #define stStruct	26	/* Beginning of block defining a struct type */
 #define stUnion		27	/* Beginning of block defining a union type */
 #define stEnum		28	/* Beginning of block defining an enum type */
-    /* Psuedo-symbols - internal to debugger */
+#define stIndirect	34	/* Indirect type specification */
+    /* Pseudo-symbols - internal to debugger */
 #define stStr		60	/* string */
 #define stNumber	61	/* pure number (ie. 4 NOR 2+2) */
 #define stExpr		62	/* 2+2 vs. 4 */

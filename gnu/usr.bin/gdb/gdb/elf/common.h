@@ -1,5 +1,5 @@
 /* ELF support for BFD.
-   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -69,16 +69,27 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Values for e_machine, which identifies the architecture */
 
-#define EM_NONE		0		/* No machine */
-#define EM_M32		1		/* AT&T WE 32100 */
-#define EM_SPARC	2		/* SUN SPARC */
-#define EM_386		3		/* Intel 80386 */
-#define EM_68K		4		/* Motorola m68k family */
-#define EM_88K		5		/* Motorola m88k family */
-#define EM_860		7		/* Intel 80860 */
-#define EM_MIPS		8		/* MIPS R3000 */
-#define EM_HPPA		9		/* HP PA-RISC */
+#define EM_NONE		0	/* No machine */
+#define EM_M32		1	/* AT&T WE 32100 */
+#define EM_SPARC	2	/* SUN SPARC */
+#define EM_386		3	/* Intel 80386 */
+#define EM_68K		4	/* Motorola m68k family */
+#define EM_88K		5	/* Motorola m88k family */
+#define EM_860		7	/* Intel 80860 */
+#define EM_MIPS		8	/* MIPS R3000 (officially, big-endian only) */
 
+#define EM_MIPS_RS4_BE 10	/* MIPS R4000 big-endian */
+
+#define EM_SPARC64     11	/* SPARC v9 (not official) 64-bit */
+
+#define EM_PARISC      15	/* HPPA */
+
+/* If it is necessary to assign new unofficial EM_* values, please pick large
+   random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
+   with official or non-GNU unofficial values.  */
+
+/* Cygnus PowerPC ELF backend.  Written in the absence of an ABI.  */
+#define EM_CYGNUS_POWERPC 0x9025
 
 /* Values for e_version */
 
@@ -169,7 +180,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    other places. */
 
 #define SHN_UNDEF	0		/* Undefined section reference */
-#define SHN_LORESERV	0xFF00		/* Begin range of reserved indices */
+#define SHN_LORESERVE	0xFF00		/* Begin range of reserved indices */
 #define SHN_LOPROC	0xFF00		/* Begin range of appl-specific */
 #define SHN_HIPROC	0xFF1F		/* End range of appl-specific */
 #define SHN_ABS		0xFFF1		/* Associated symbol is absolute */
@@ -178,13 +189,13 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* relocation info handling macros */
 
-#define ELF32_R_SYM(i)		((i)>>8)
-#define ELF32_R_TYPE(i)		((unsigned char)(i))
-#define ELF32_R_INFO(s,t)	(((s)<<8)+(unsigned char)(t))
+#define ELF32_R_SYM(i)		((i) >> 8)
+#define ELF32_R_TYPE(i)		((i) & 0xff)
+#define ELF32_R_INFO(s,t)	(((s) << 8) + ((t) & 0xff))
 
-#define ELF64_R_SYM(i)		((i)>>32)
-#define ELF64_R_TYPE(i)		((Elf64_Word)(i))
-#define ELF64_R_INFO(s,t)	(((Elf64_Xword)(s)<<32)+(Elf64_Xword)(t))
+#define ELF64_R_SYM(i)		((i) >> 32)
+#define ELF64_R_TYPE(i)		((i) & 0xffffffff)
+#define ELF64_R_INFO(s,t)	(((bfd_vma) (s) << 32) + (bfd_vma) (t))
 
 /* Dynamic section tags */
 

@@ -1,5 +1,5 @@
 /* Shared code to pre-read a stab (dbx-style), when building a psymtab.
-   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993
+   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994
    Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -240,69 +240,96 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 	}
 
 	case N_BINCL:
+	  {
 #ifdef DBXREAD_ONLY
-	  /* Add this bincl to the bincl_list for future EXCLs.  No
-	     need to save the string; it'll be around until
-	     read_dbx_symtab function returns */
+	    enum language tmp_language;
+	    /* Add this bincl to the bincl_list for future EXCLs.  No
+	       need to save the string; it'll be around until
+	       read_dbx_symtab function returns */
 
-	  SET_NAMESTRING();
+	    SET_NAMESTRING();
 
-	  add_bincl_to_list (pst, namestring, CUR_SYMBOL_VALUE);
+	    tmp_language = deduce_language_from_filename (namestring);
 
-	  /* Mark down an include file in the current psymtab */
+	    /* Only change the psymtab's language if we've learned
+	       something useful (eg. tmp_language is not language_unknown).
+	       In addition, to match what start_subfile does, never change
+	       from C++ to C.  */
+	    if (tmp_language != language_unknown
+		&& (tmp_language != language_c
+		    || psymtab_language != language_cplus))
+	      psymtab_language = tmp_language;
 
-	  goto record_include_file;
+	    add_bincl_to_list (pst, namestring, CUR_SYMBOL_VALUE);
+
+	    /* Mark down an include file in the current psymtab */
+
+	    goto record_include_file;
 
 #else /* DBXREAD_ONLY */
-	  continue;
-#endif
-
-	case N_SOL:
-	  /* Mark down an include file in the current psymtab */
-
-	  SET_NAMESTRING();
-
-	  /* In C++, one may expect the same filename to come round many
-	     times, when code is coming alternately from the main file
-	     and from inline functions in other files. So I check to see
-	     if this is a file we've seen before -- either the main
-	     source file, or a previously included file.
-
-	     This seems to be a lot of time to be spending on N_SOL, but
-	     things like "break c-exp.y:435" need to work (I
-	     suppose the psymtab_include_list could be hashed or put
-	     in a binary tree, if profiling shows this is a major hog).  */
-	  if (pst && STREQ (namestring, pst->filename))
 	    continue;
-	  {
-	    register int i;
-	    for (i = 0; i < includes_used; i++)
-	      if (STREQ (namestring, psymtab_include_list[i]))
-		{
-		  i = -1; 
-		  break;
-		}
-	    if (i == -1)
-	      continue;
+#endif
 	  }
 
-#ifdef DBXREAD_ONLY
-	record_include_file:
-#endif
-
-	  psymtab_include_list[includes_used++] = namestring;
-	  if (includes_used >= includes_allocated)
+	case N_SOL:
+	  {
+	    enum language tmp_language;
+	    /* Mark down an include file in the current psymtab */
+	    
+	    SET_NAMESTRING();
+  
+	    tmp_language = deduce_language_from_filename (namestring);
+  
+	    /* Only change the psymtab's language if we've learned
+	       something useful (eg. tmp_language is not language_unknown).
+	       In addition, to match what start_subfile does, never change
+	       from C++ to C.  */
+	    if (tmp_language != language_unknown
+		&& (tmp_language != language_c
+		    || psymtab_language != language_cplus))
+	      psymtab_language = tmp_language;
+	    
+	    /* In C++, one may expect the same filename to come round many
+	       times, when code is coming alternately from the main file
+	       and from inline functions in other files. So I check to see
+	       if this is a file we've seen before -- either the main
+	       source file, or a previously included file.
+	       
+	       This seems to be a lot of time to be spending on N_SOL, but
+	       things like "break c-exp.y:435" need to work (I
+	       suppose the psymtab_include_list could be hashed or put
+	       in a binary tree, if profiling shows this is a major hog).  */
+	    if (pst && STREQ (namestring, pst->filename))
+	      continue;
 	    {
-	      char **orig = psymtab_include_list;
-
-	      psymtab_include_list = (char **)
-		alloca ((includes_allocated *= 2) *
-			sizeof (char *));
-	      memcpy ((PTR)psymtab_include_list, (PTR)orig,
-		      includes_used * sizeof (char *));
+	      register int i;
+	      for (i = 0; i < includes_used; i++)
+		if (STREQ (namestring, psymtab_include_list[i]))
+		  {
+		    i = -1; 
+		    break;
+		  }
+	      if (i == -1)
+		continue;
 	    }
-	  continue;
-
+	    
+#ifdef DBXREAD_ONLY
+	  record_include_file:
+#endif
+	    
+	    psymtab_include_list[includes_used++] = namestring;
+	    if (includes_used >= includes_allocated)
+	      {
+		char **orig = psymtab_include_list;
+		
+		psymtab_include_list = (char **)
+		  alloca ((includes_allocated *= 2) *
+			  sizeof (char *));
+		memcpy ((PTR)psymtab_include_list, (PTR)orig,
+			includes_used * sizeof (char *));
+	      }
+	    continue;
+	  }
 	case N_LSYM:		/* Typedef or automatic variable. */
 	case N_STSYM:		/* Data seg var -- static  */
 	case N_LCSYM:		/* BSS      "  */
@@ -375,6 +402,20 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 					   objfile);
 		      p += 1;
 		    }
+		  /* The semantics of C++ state that "struct foo { ... }"
+		     also defines a typedef for "foo".  Unfortuantely, cfront
+		     never makes the typedef when translating from C++ to C.
+		     We make the typedef here so that "ptype foo" works as
+		     expected for cfront translated code.  */
+		  else if (psymtab_language == language_cplus)
+		   {
+		      /* Also a typedef with the same name.  */
+		      ADD_PSYMBOL_TO_LIST (namestring, p - namestring,
+					   VAR_NAMESPACE, LOC_TYPEDEF,
+					   objfile->static_psymbols,
+					   CUR_SYMBOL_VALUE, psymtab_language,
+					   objfile);
+		   }
 		}
 	      goto check_enum;
 	    case 't':
@@ -422,7 +463,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 		      /* Check for and handle cretinous dbx symbol name
 			 continuation!  */
-		      if (*p == '\\')
+		      if (*p == '\\' || (*p == '?' && p[1] == '\0'))
 			p = next_symbol_text ();
 
 		      /* Point to the character after the name
@@ -455,10 +496,13 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 	      continue;
 
 	    case 'f':
+	      CUR_SYMBOL_VALUE += ANOFFSET (section_offsets, SECT_OFF_TEXT);
 #ifdef DBXREAD_ONLY
 	      /* Kludges for ELF/STABS with Sun ACC */
 	      last_function_name = namestring;
-	      if (pst && pst->textlow == 0)
+	      /* Do not fix textlow==0 for .o or NLM files, as 0 is a legit
+		 value for the bottom of the text seg in those cases. */
+	      if (pst && pst->textlow == 0 && !symfile_relocatable)
 		pst->textlow = CUR_SYMBOL_VALUE;
 #if 0
 	      if (startup_file_end == 0)
@@ -476,10 +520,13 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 	         are put into the global psymtab like one would expect.
 		 They're also in the minimal symbol table.  */
 	    case 'F':
+	      CUR_SYMBOL_VALUE += ANOFFSET (section_offsets, SECT_OFF_TEXT);
 #ifdef DBXREAD_ONLY
 	      /* Kludges for ELF/STABS with Sun ACC */
 	      last_function_name = namestring;
-	      if (pst && pst->textlow == 0)
+	      /* Do not fix textlow==0 for .o or NLM files, as 0 is a legit
+		 value for the bottom of the text seg in those cases. */
+	      if (pst && pst->textlow == 0 && !symfile_relocatable)
 		pst->textlow = CUR_SYMBOL_VALUE;
 #if 0
 	      if (startup_file_end == 0)
@@ -510,14 +557,28 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 	    case '9':
 	      continue;
 
-	    default:
-	      /* Unexpected symbol.  Ignore it; perhaps it is an extension
-		 that we don't know about.
-
-		 Someone says sun cc puts out symbols like
+	    case ':':
+	      /* It is a C++ nested symbol.  We don't need to record it
+		 (I don't think); if we try to look up foo::bar::baz,
+		 then symbols for the symtab containing foo should get
+		 read in, I think.  */
+	      /* Someone says sun cc puts out symbols like
 		 /foo/baz/maclib::/usr/local/bin/maclib,
 		 which would get here with a symbol type of ':'.  */
+	      continue;
+
+	    default:
+	      /* Unexpected symbol descriptor.  The second and subsequent stabs
+		 of a continued stab can show up here.  The question is
+		 whether they ever can mimic a normal stab--it would be
+		 nice if not, since we certainly don't want to spend the
+		 time searching to the end of every string looking for
+		 a backslash.  */
+
 	      complain (&unknown_symchar_complaint, p[1]);
+
+	      /* Ignore it; perhaps it is an extension that we don't
+		 know about.  */
 	      continue;
 	    }
 
@@ -563,8 +624,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 			   (dependencies_used
 			    * sizeof (struct partial_symtab *)));
 #ifdef DEBUG_INFO
-		    fprintf (stderr, "Had to reallocate dependency list.\n");
-		    fprintf (stderr, "New dependencies allocated: %d\n",
+		    fprintf_unfiltered (gdb_stderr, "Had to reallocate dependency list.\n");
+		    fprintf_unfiltered (gdb_stderr, "New dependencies allocated: %d\n",
 			     dependencies_allocated);
 #endif
 		  }
@@ -613,6 +674,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 	  /* If we haven't found it yet, ignore it.  It's probably some
 	     new type we don't know about yet.  */
 	  complain (&unknown_symtype_complaint,
-		    local_hex_string ((unsigned long) CUR_SYMBOL_TYPE));
+		    local_hex_string (CUR_SYMBOL_TYPE));
 	  continue;
 	}

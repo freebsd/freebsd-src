@@ -1,5 +1,5 @@
 /* Generic symbol file reading for the GNU debugger, GDB.
-   Copyright 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
 This file is part of GDB.
@@ -48,7 +48,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 /* Global variables owned by this file */
-
 int readnow_symbol_files;		/* Read full symbols immediately */
 
 struct complaint oldsyms_complaint = {
@@ -73,6 +72,9 @@ load_command PARAMS ((char *, int));
 
 static void
 add_symbol_file_command PARAMS ((char *, int));
+
+static void
+add_shared_symbol_files_command PARAMS ((char *, int));
 
 static void
 cashier_psymtab PARAMS ((struct partial_symtab *));
@@ -215,21 +217,6 @@ sort_symtab_syms (s)
     }
 }
 
-void
-sort_all_symtab_syms ()
-{
-  register struct symtab *s;
-  register struct objfile *objfile;
-
-  for (objfile = object_files; objfile != NULL; objfile = objfile -> next)
-    {
-      for (s = objfile -> symtabs; s != NULL; s = s -> next)
-	{
-	  sort_symtab_syms (s);
-	}
-    }
-}
-
 /* Make a copy of the string at PTR with SIZE characters in the symbol obstack
    (and add a null character at the end in the copy).
    Returns the address of the copy.  */
@@ -310,11 +297,9 @@ init_entry_point_info (objfile)
   else
     {
       /* Examination of non-executable.o files.  Short-circuit this stuff.  */
-      /* ~0 will not be in any file, we hope.  */
-      objfile -> ei.entry_point = ~0;
-      /* set the startup file to be an empty range.  */
-      objfile -> ei.entry_file_lowpc = 0;
-      objfile -> ei.entry_file_highpc = 0;
+      objfile -> ei.entry_point = INVALID_ENTRY_POINT;
+      objfile -> ei.entry_file_lowpc = INVALID_ENTRY_LOWPC;
+      objfile -> ei.entry_file_highpc = INVALID_ENTRY_HIGHPC;
     }
 }
 
@@ -391,6 +376,11 @@ syms_from_objfile (objfile, addr, mainline, verbo)
 	  symfile_objfile = NULL;
 	}
 
+      /* Currently we keep symbols from the add-symbol-file command.
+	 If the user wants to get rid of them, they should do "symbol-file"
+	 without arguments first.  Not sure this is the best behavior
+	 (PR 2207).  */
+
       (*objfile -> sf -> sym_new_init) (objfile);
     }
 
@@ -419,6 +409,7 @@ syms_from_objfile (objfile, addr, mainline, verbo)
       else if (0 == bfd_get_section_name (objfile->obfd, lowest_sect)
 	       || !STREQ (".text",
 			      bfd_get_section_name (objfile->obfd, lowest_sect)))
+	/* FIXME-32x64--assumes bfd_vma fits in long.  */
 	warning ("Lowest section in %s is %s at 0x%lx",
 		 objfile->name,
 		 bfd_section_name (objfile->obfd, lowest_sect),
@@ -435,9 +426,6 @@ syms_from_objfile (objfile, addr, mainline, verbo)
   (*objfile -> sf -> sym_init) (objfile);
   clear_complaints (1, verbo);
 
-  /* If objfile->sf->sym_offsets doesn't set this, we don't care
-     (currently).  */
-  objfile->num_sections = 0;  /* krp-FIXME: why zero? */
   section_offsets = (*objfile -> sf -> sym_offsets) (objfile, addr);
   objfile->section_offsets = section_offsets;
 
@@ -477,8 +465,17 @@ syms_from_objfile (objfile, addr, mainline, verbo)
 
   (*objfile -> sf -> sym_read) (objfile, section_offsets, mainline);
 
-  /* Don't allow char * to have a typename (else would get caddr_t.)  */
-  /* Ditto void *.  FIXME should do this for all the builtin types.  */
+  if (!have_partial_symbols () && !have_full_symbols ())
+    {
+      wrap_here ("");
+      printf_filtered ("(no debugging symbols found)...");
+      wrap_here ("");
+    }
+
+  /* Don't allow char * to have a typename (else would get caddr_t).
+     Ditto void *.  FIXME: Check whether this is now done by all the
+     symbol readers themselves (many of them now do), and if so remove
+     it from here.  */
 
   TYPE_NAME (lookup_pointer_type (builtin_type_char)) = 0;
   TYPE_NAME (lookup_pointer_type (builtin_type_void)) = 0;
@@ -575,7 +572,7 @@ symbol_file_add (name, from_tty, addr, mainline, mapped, readnow)
 	{
 	  printf_filtered ("Mapped symbols for %s...", name);
 	  wrap_here ("");
-	  fflush (stdout);
+	  gdb_flush (gdb_stdout);
 	}
       init_entry_point_info (objfile);
       find_sym_fns (objfile);
@@ -589,7 +586,7 @@ symbol_file_add (name, from_tty, addr, mainline, mapped, readnow)
 	{
 	  printf_filtered ("Reading symbols from %s...", name);
 	  wrap_here ("");
-	  fflush (stdout);
+	  gdb_flush (gdb_stdout);
 	}
       syms_from_objfile (objfile, addr, mainline, from_tty);
     }      
@@ -605,7 +602,7 @@ symbol_file_add (name, from_tty, addr, mainline, mapped, readnow)
 	{
 	  printf_filtered ("expanding to full symbols...");
 	  wrap_here ("");
-	  fflush (stdout);
+	  gdb_flush (gdb_stdout);
 	}
 
       for (psymtab = objfile -> psymtabs;
@@ -619,7 +616,7 @@ symbol_file_add (name, from_tty, addr, mainline, mapped, readnow)
   if (from_tty || info_verbose)
     {
       printf_filtered ("done.\n");
-      fflush (stdout);
+      gdb_flush (gdb_stdout);
     }
 
   new_symfile_objfile (objfile, mainline, from_tty);
@@ -632,8 +629,15 @@ symbol_file_add (name, from_tty, addr, mainline, mapped, readnow)
   return (objfile);
 }
 
-/* This is the symbol-file command.  Read the file, analyze its symbols,
-   and add a struct symtab to a symtab list.  */
+/* This is the symbol-file command.  Read the file, analyze its
+   symbols, and add a struct symtab to a symtab list.  The syntax of
+   the command is rather bizarre--(1) buildargv implements various
+   quoting conventions which are undocumented and have little or
+   nothing in common with the way things are quoted (or not quoted)
+   elsewhere in GDB, (2) options are used, which are not generally
+   used in GDB (perhaps "set mapped on", "set readnow on" would be
+   better), (3) the order of options matters, which is contrary to GNU
+   conventions (because it is confusing and inconvenient).  */
 
 void
 symbol_file_command (args, from_tty)
@@ -642,6 +646,7 @@ symbol_file_command (args, from_tty)
 {
   char **argv;
   char *name = NULL;
+  CORE_ADDR text_relocation = 0;		/* text_relocation */
   struct cleanup *cleanups;
   int mapped = 0;
   int readnow = 0;
@@ -659,7 +664,7 @@ symbol_file_command (args, from_tty)
       symfile_objfile = NULL;
       if (from_tty)
 	{
-	  printf ("No symbol file now.\n");
+	  printf_unfiltered ("No symbol file now.\n");
 	}
     }
   else
@@ -685,7 +690,27 @@ symbol_file_command (args, from_tty)
 	    }
 	  else
 	    {
-	      name = *argv;
+            char *p;
+
+              name = *argv;
+
+              /* this is for rombug remote only, to get the text relocation by
+              using link command */
+              p = strrchr(name, '/');
+              if (p != NULL) p++;
+              else p = name;
+
+              target_link(p, &text_relocation);
+
+              if (text_relocation == (CORE_ADDR)0)
+                return;
+              else if (text_relocation == (CORE_ADDR)-1)
+                symbol_file_add (name, from_tty, (CORE_ADDR)0, 1, mapped,
+				 readnow);
+              else
+                symbol_file_add (name, from_tty, (CORE_ADDR)text_relocation,
+				 0, mapped, readnow);
+              set_initial_language ();
 	    }
 	  argv++;
 	}
@@ -693,11 +718,6 @@ symbol_file_command (args, from_tty)
       if (name == NULL)
 	{
 	  error ("no symbol file name was specified");
-	}
-      else
-	{
-	  symbol_file_add (name, from_tty, (CORE_ADDR)0, 1, mapped, readnow);
-	  set_initial_language ();
 	}
       do_cleanups (cleanups);
     }
@@ -768,7 +788,7 @@ symfile_bfd_open (name)
       close (desc);
       make_cleanup (free, name);
       error ("\"%s\": can't open to read symbols: %s.", name,
-	     bfd_errmsg (bfd_error));
+	     bfd_errmsg (bfd_get_error ()));
     }
   sym_bfd->cacheable = true;
 
@@ -777,7 +797,7 @@ symfile_bfd_open (name)
       bfd_close (sym_bfd);	/* This also closes desc */
       make_cleanup (free, name);
       error ("\"%s\": can't read symbols: %s.", name,
-	     bfd_errmsg (bfd_error));
+	     bfd_errmsg (bfd_get_error ()));
     }
 
   return (sym_bfd);
@@ -807,11 +827,20 @@ find_sym_fns (objfile)
      struct objfile *objfile;
 {
   struct sym_fns *sf;
+  enum bfd_flavour our_flavour = bfd_get_flavour (objfile -> obfd);
+  char *our_target = bfd_get_target (objfile -> obfd);
+
+  /* Special kludge for RS/6000.  See xcoffread.c.  */
+  if (STREQ (our_target, "aixcoff-rs6000"))
+    our_flavour = (enum bfd_flavour)-1;
+
+  /* Special kludge for apollo.  See dstread.c.  */
+  if (STREQN (our_target, "apollo", 6))
+    our_flavour = (enum bfd_flavour)-2;
 
   for (sf = symtab_fns; sf != NULL; sf = sf -> next)
     {
-      if (strncmp (bfd_get_target (objfile -> obfd),
-		    sf -> sym_name, sf -> sym_namelen) == 0)
+      if (our_flavour == sf -> sym_flavour)
 	{
 	  objfile -> sf = sf;
 	  return;
@@ -846,7 +875,12 @@ generic_load (filename, from_tty)
 {
   struct cleanup *old_cleanups;
   asection *s;
-  bfd *loadfile_bfd = bfd_openr (filename, gnutarget);
+  bfd *loadfile_bfd;
+
+  if (filename == NULL)
+    filename = get_exec_file (1);
+
+  loadfile_bfd = bfd_openr (filename, gnutarget);
   if (loadfile_bfd == NULL)
     {
       perror_with_name (filename);
@@ -857,7 +891,7 @@ generic_load (filename, from_tty)
   if (!bfd_check_format (loadfile_bfd, bfd_object)) 
     {
       error ("\"%s\" is not an object file: %s", filename,
-	     bfd_errmsg (bfd_error));
+	     bfd_errmsg (bfd_get_error ()));
     }
   
   for (s = loadfile_bfd->sections; s; s = s->next) 
@@ -880,9 +914,11 @@ generic_load (filename, from_tty)
 
 	      /* Is this really necessary?  I guess it gives the user something
 		 to look at during a long download.  */
-	      printf_filtered ("Loading section %s, size 0x%lx vma 0x%lx\n",
+	      printf_filtered ("Loading section %s, size 0x%lx vma ",
 			       bfd_get_section_name (loadfile_bfd, s),
-			       (unsigned long) size, (unsigned long) vma);
+			       (unsigned long) size);
+	      print_address_numeric (vma, 1, gdb_stdout);
+	      printf_filtered ("\n");
 
 	      bfd_get_section_contents (loadfile_bfd, s, buffer, 0, size);
 
@@ -966,20 +1002,42 @@ add_symbol_file_command (args, from_tty)
      left pointing at the remainder of the command line, which should
      be the address expression to evaluate. */
 
-  if ((name == NULL) || (*args == '\000') )
+  if (name == NULL)
     {
-      error ("add-symbol-file takes a file name and an address");
+      error ("add-symbol-file takes a file name");
     }
   name = tilde_expand (name);
   make_cleanup (free, name);
 
-  text_addr = parse_and_eval_address (args);
+  if (*args != '\000')
+    {
+      text_addr = parse_and_eval_address (args);
+    }
+  else
+    {
+      target_link(name, &text_addr);
+      if (text_addr == (CORE_ADDR)-1)
+	error("Don't know how to get text start location for this file");
+    }
 
+  /* FIXME-32x64: Assumes text_addr fits in a long.  */
   if (!query ("add symbol table from file \"%s\" at text_addr = %s?\n",
 	      name, local_hex_string ((unsigned long)text_addr)))
     error ("Not confirmed.");
 
   symbol_file_add (name, 0, text_addr, 0, mapped, readnow);
+}
+
+static void
+add_shared_symbol_files_command  (args, from_tty)
+     char *args;
+     int from_tty;
+{
+#ifdef ADD_SHARED_SYMBOL_FILES
+  ADD_SHARED_SYMBOL_FILES (args, from_tty);
+#else
+  error ("This command is not available in this configuration of GDB.");
+#endif  
 }
 
 /* Re-read symbols if a symbol-file has changed.  */
@@ -998,7 +1056,6 @@ reread_symbols ()
      This routine should then walk down each partial symbol table
      and see if the symbol table that it originates from has been changed */
 
-the_big_top:
   for (objfile = object_files; objfile; objfile = objfile->next) {
     if (objfile->obfd) {
 #ifdef IBM6000_TARGET
@@ -1017,24 +1074,150 @@ the_big_top:
 	continue;
       }
       new_modtime = new_statbuf.st_mtime;
-      if (new_modtime != objfile->mtime) {
-	printf_filtered ("`%s' has changed; re-reading symbols.\n",
-			 objfile->name);
-	/* FIXME, this should use a different command...that would only
- 	   affect this objfile's symbols, and would reset objfile->mtime.
-                (objfile->mtime = new_modtime;)
- 	   HOWEVER, that command isn't written yet -- so call symbol_file_
-	   command, and restart the scan from the top, because it munges
-	   the object_files list.  */
-	symbol_file_command (objfile->name, 0);
-	reread_one = 1;
-	goto the_big_top;	/* Start over.  */
-      }
+      if (new_modtime != objfile->mtime)
+	{
+	  struct cleanup *old_cleanups;
+	  struct section_offsets *offsets;
+	  int num_offsets;
+	  int section_offsets_size;
+
+	  printf_filtered ("`%s' has changed; re-reading symbols.\n",
+			   objfile->name);
+
+	  /* There are various functions like symbol_file_add,
+	     symfile_bfd_open, syms_from_objfile, etc., which might
+	     appear to do what we want.  But they have various other
+	     effects which we *don't* want.  So we just do stuff
+	     ourselves.  We don't worry about mapped files (for one thing,
+	     any mapped file will be out of date).  */
+
+	  /* If we get an error, blow away this objfile (not sure if
+	     that is the correct response for things like shared
+	     libraries).  */
+	  old_cleanups = make_cleanup (free_objfile, objfile);
+	  /* We need to do this whenever any symbols go away.  */
+	  make_cleanup (clear_symtab_users, 0);
+
+	  /* Clean up any state BFD has sitting around.  We don't need
+	     to close the descriptor but BFD lacks a way of closing the
+	     BFD without closing the descriptor.  */
+	  if (!bfd_close (objfile->obfd))
+	    error ("Can't close BFD for %s.", objfile->name);
+	  objfile->obfd = bfd_openr (objfile->name, gnutarget);
+	  if (objfile->obfd == NULL)
+	    error ("Can't open %s to read symbols.", objfile->name);
+	  /* bfd_openr sets cacheable to true, which is what we want.  */
+	  if (!bfd_check_format (objfile->obfd, bfd_object))
+	    error ("Can't read symbols from %s: %s.", objfile->name,
+		   bfd_errmsg (bfd_get_error ()));
+
+	  /* Save the offsets, we will nuke them with the rest of the
+	     psymbol_obstack.  */
+	  num_offsets = objfile->num_sections;
+	  section_offsets_size =
+	    sizeof (struct section_offsets)
+	      + sizeof (objfile->section_offsets->offsets) * num_offsets;
+	  offsets = (struct section_offsets *) alloca (section_offsets_size);
+	  memcpy (offsets, objfile->section_offsets, section_offsets_size);
+
+	  /* Nuke all the state that we will re-read.  Much of the following
+	     code which sets things to NULL really is necessary to tell
+	     other parts of GDB that there is nothing currently there.  */
+
+	  /* FIXME: Do we have to free a whole linked list, or is this
+	     enough?  */
+	  if (objfile->global_psymbols.list)
+	    mfree (objfile->md, objfile->global_psymbols.list);
+	  objfile->global_psymbols.list = NULL;
+	  objfile->global_psymbols.next = NULL;
+	  objfile->global_psymbols.size = 0;
+	  if (objfile->static_psymbols.list)
+	    mfree (objfile->md, objfile->static_psymbols.list);
+	  objfile->static_psymbols.list = NULL;
+	  objfile->static_psymbols.next = NULL;
+	  objfile->static_psymbols.size = 0;
+
+	  /* Free the obstacks for non-reusable objfiles */
+	  obstack_free (&objfile -> psymbol_obstack, 0);
+	  obstack_free (&objfile -> symbol_obstack, 0);
+	  obstack_free (&objfile -> type_obstack, 0);
+	  objfile->sections = NULL;
+	  objfile->symtabs = NULL;
+	  objfile->psymtabs = NULL;
+	  objfile->free_psymtabs = NULL;
+	  objfile->msymbols = NULL;
+	  objfile->minimal_symbol_count= 0;
+	  objfile->fundamental_types = NULL;
+	  if (objfile -> sf != NULL)
+	    {
+	      (*objfile -> sf -> sym_finish) (objfile);
+	    }
+
+	  /* We never make this a mapped file.  */
+	  objfile -> md = NULL;
+	  /* obstack_specify_allocation also initializes the obstack so
+	     it is empty.  */
+	  obstack_specify_allocation (&objfile -> psymbol_obstack, 0, 0,
+				      xmalloc, free);
+	  obstack_specify_allocation (&objfile -> symbol_obstack, 0, 0,
+				      xmalloc, free);
+	  obstack_specify_allocation (&objfile -> type_obstack, 0, 0,
+				      xmalloc, free);
+	  if (build_objfile_section_table (objfile))
+	    {
+	      error ("Can't find the file sections in `%s': %s", 
+		     objfile -> name, bfd_errmsg (bfd_get_error ()));
+	    }
+
+	  /* We use the same section offsets as from last time.  I'm not
+	     sure whether that is always correct for shared libraries.  */
+	  objfile->section_offsets = (struct section_offsets *)
+	    obstack_alloc (&objfile -> psymbol_obstack, section_offsets_size);
+	  memcpy (objfile->section_offsets, offsets, section_offsets_size);
+	  objfile->num_sections = num_offsets;
+
+	  /* What the hell is sym_new_init for, anyway?  The concept of
+	     distinguishing between the main file and additional files
+	     in this way seems rather dubious.  */
+	  if (objfile == symfile_objfile)
+	    (*objfile->sf->sym_new_init) (objfile);
+
+	  (*objfile->sf->sym_init) (objfile);
+	  clear_complaints (1, 1);
+	  /* The "mainline" parameter is a hideous hack; I think leaving it
+	     zero is OK since dbxread.c also does what it needs to do if
+	     objfile->global_psymbols.size is 0.  */
+	  (*objfile->sf->sym_read) (objfile, objfile->section_offsets, 0);
+	  if (!have_partial_symbols () && !have_full_symbols ())
+	    {
+	      wrap_here ("");
+	      printf_filtered ("(no debugging symbols found)\n");
+	      wrap_here ("");
+	    }
+	  objfile -> flags |= OBJF_SYMS;
+
+	  /* We're done reading the symbol file; finish off complaints.  */
+	  clear_complaints (0, 1);
+
+	  /* Getting new symbols may change our opinion about what is
+	     frameless.  */
+
+	  reinit_frame_cache ();
+
+	  /* Discard cleanups as symbol reading was successful.  */
+	  discard_cleanups (old_cleanups);
+
+	  /* If the mtime has changed between the time we set new_modtime
+	     and now, we *want* this to be out of date, so don't call stat
+	     again now.  */
+	  objfile->mtime = new_modtime;
+	  reread_one = 1;
+	}
     }
   }
 
   if (reread_one)
-    breakpoint_re_set ();
+    clear_symtab_users ();
 }
 
 
@@ -1052,7 +1235,10 @@ deduce_language_from_filename (filename)
     return language_m2;
   else if (STREQ(c,".c"))
     return language_c;
-  else if (STREQ (c,".cc") || STREQ (c,".C") || STREQ (c, ".cxx"))
+  else if (STREQ(c,".s"))
+    return language_asm;
+  else if (STREQ (c,".cc") || STREQ (c,".C") || STREQ (c, ".cxx")
+	   || STREQ (c, ".cpp"))
     return language_cplus;
   else if (STREQ (c,".ch") || STREQ (c,".c186") || STREQ (c,".c286"))
     return language_chill;
@@ -1150,6 +1336,7 @@ clear_symtab_users ()
   set_default_breakpoint (0, 0, 0, 0);
   current_source_symtab = 0;
   current_source_line = 0;
+  clear_pc_function_cache ();
 }
 
 /* clear_symtab_users_once:
@@ -1469,10 +1656,18 @@ to execute.", &cmdlist);
   c->completer = filename_completer;
 
   c = add_cmd ("add-symbol-file", class_files, add_symbol_file_command,
-   "Load the symbols from FILE, assuming FILE has been dynamically loaded.\n\
-The second argument provides the starting address of the file's text.",
+   "Usage: add-symbol-file FILE ADDR\n\
+Load the symbols from FILE, assuming FILE has been dynamically loaded.\n\
+ADDR is the starting address of the file's text.",
 	       &cmdlist);
   c->completer = filename_completer;
+
+  c = add_cmd ("add-shared-symbol-files", class_files,
+	       add_shared_symbol_files_command,
+   "Load the symbols from shared objects in the dynamic linker's link map.",
+   	       &cmdlist);
+  c = add_alias_cmd ("assf", "add-shared-symbol-files", class_files, 1,
+		     &cmdlist);
 
   c = add_cmd ("load", class_files, load_command,
    "Dynamically load FILE into the running program, and record its symbols\n\

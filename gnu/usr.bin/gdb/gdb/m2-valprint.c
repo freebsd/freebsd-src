@@ -31,14 +31,14 @@ m2_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
      struct type *type;
      char *valaddr;
      CORE_ADDR address;
-     FILE *stream;
+     GDB_FILE *stream;
      int format;
      int deref_ref;
      int recurse;
      enum val_prettyprint pretty;
 {
   extern int
-  c_val_print PARAMS ((struct type *, char *, CORE_ADDR, FILE *, int, int,
+  c_val_print PARAMS ((struct type *, char *, CORE_ADDR, GDB_FILE *, int, int,
 		       int, enum val_prettyprint));
   return (c_val_print (type, valaddr, address, stream, format, deref_ref,
 		       recurse, pretty));

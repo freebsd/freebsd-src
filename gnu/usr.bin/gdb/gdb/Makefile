@@ -1,19 +1,23 @@
 PROG = gdb
 BINDIR= /usr/bin
 CLEANFILES+= y.tab.h c-exp.tab.c ch-exp.tab.c m2-exp.tab.c
-SRCS = main.c blockframe.c breakpoint.c findvar.c stack.c thread.c \
-       source.c values.c eval.c valops.c valarith.c valprint.c printcmd.c \
-       symtab.c symfile.c symmisc.c infcmd.c infrun.c command.c utils.c \
-       expprint.c environ.c gdbtypes.c copying.c i386-tdep.c i386-pinsn.c \
-       freebsd-solib.c ser-unix.c exec.c fork-child.c infptrace.c inftarg.c \
-       corelow.c coredep.c freebsd-nat.c remote.c dcache.c remote-utils.c \
-       mem-break.c target.c putenv.c parse.c language.c buildsym.c \
-       objfiles.c minsyms.c maint.c demangle.c dbxread.c coffread.c \
-       elfread.c dwarfread.c mipsread.c stabsread.c core.c c-lang.c \
-       ch-lang.c m2-lang.c complaints.c typeprint.c c-typeprint.c \
-       ch-typeprint.c m2-typeprint.c c-valprint.c cp-valprint.c ch-valprint.c \
-       m2-valprint.c nlmread.c serial.c inflow.c regex.c init.c \
-       c-exp.tab.c ch-exp.tab.c m2-exp.tab.c version.c i386-dis.c dis-buf.c
+SRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
+	c-typeprint.c c-valprint.c ch-lang.c ch-typeprint.c \
+	ch-valprint.c coffread.c command.c complaints.c copying.c core.c \
+	coredep.c corelow.c cp-valprint.c \
+	dcache.c dbxread.c demangle.c disassemble.c dis-buf.c dwarfread.c \
+	elfread.c environ.c eval.c exec.c expprint.c \
+	findvar.c fork-child.c freebsd-nat.c gdbtypes.c i386-dis.c \
+	i386-pinsn.c i386-tdep.c infcmd.c inflow.c infptrace.c \
+	infrun.c inftarg.c init.c kcorelow.c language.c \
+	m2-lang.c m2-typeprint.c m2-valprint.c main.c maint.c \
+	mem-break.c minsyms.c objfiles.c parse.c \
+	printcmd.c regex.c remote.c remote-utils.c solib.c source.c \
+	stabsread.c stack.c symfile.c symmisc.c \
+	symtab.c target.c thread.c top.c \
+	typeprint.c utils.c valarith.c valops.c \
+	valprint.c values.c version.c serial.c ser-unix.c mdebugread.c\
+	c-exp.tab.c ch-exp.tab.c m2-exp.tab.c
 
 c-exp.tab.c: $(.CURDIR)/c-exp.y
 	yacc -d -p c_ $(.CURDIR)/c-exp.y
@@ -38,7 +42,6 @@ m2-exp.tab.c: $(.CURDIR)/m2-exp.y
          -e 's/realloc/xrealloc/g'  < y.tab.c > m2-exp.new
 	rm y.tab.c
 	mv m2-exp.new ./m2-exp.tab.c
-
 
 
 CFLAGS+= -I$(.CURDIR)/. -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd

@@ -47,6 +47,8 @@ BUGS
 
 */
 
+#include "ansidecl.h"
+#include "libiberty.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 

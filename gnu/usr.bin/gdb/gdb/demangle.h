@@ -69,6 +69,9 @@ extern enum demangling_styles
 extern char *
 cplus_demangle PARAMS ((CONST char *mangled, int options));
 
+extern int
+cplus_demangle_opname PARAMS ((char *opname, char *result, int options));
+
 /* Note: This sets global state.  FIXME if you care about multi-threading. */
 
 extern void

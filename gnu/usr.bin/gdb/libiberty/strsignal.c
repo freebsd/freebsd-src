@@ -18,7 +18,8 @@ License along with libiberty; see the file COPYING.LIB.  If
 not, write to the Free Software Foundation, Inc., 675 Mass Ave,
 Cambridge, MA 02139, USA.  */
 
-#include <ansidecl.h>
+#include "ansidecl.h"
+#include "libiberty.h"
 
 #include "config.h"
 
@@ -36,9 +37,6 @@ Cambridge, MA 02139, USA.  */
 extern void *malloc (size_t size);				/* 4.10.3.3 */
 extern void *memset (void *s, int c, size_t n);			/* 4.11.6.1 */
 #else	/* !__STDC__ */
-#ifndef const
-#define const
-#endif
 extern char *malloc ();		/* Standard memory allocater */
 extern char *memset ();
 #endif	/* __STDC__ */
@@ -73,161 +71,169 @@ extern char *memset ();
 struct signal_info
 {
   int value;		/* The numeric value from <signal.h> */
-  char *name;		/* The equivalent symbolic value */
-  char *msg;		/* Short message about this value */
+  const char *name;	/* The equivalent symbolic value */
+#ifdef NEED_sys_siglist
+  const char *msg;	/* Short message about this value */
+#endif
 };
+
+#ifdef NEED_sys_siglist
+#   define ENTRY(value, name, msg)	{value, name, msg}
+#else
+#   define ENTRY(value, name, msg)	{value, name}
+#endif
 
 static const struct signal_info signal_table[] =
 {
 #if defined (SIGHUP)
-  {SIGHUP, "SIGHUP", "Hangup"},
+  ENTRY(SIGHUP, "SIGHUP", "Hangup"),
 #endif
 #if defined (SIGINT)
-  {SIGINT, "SIGINT", "Interrupt"},
+  ENTRY(SIGINT, "SIGINT", "Interrupt"),
 #endif
 #if defined (SIGQUIT)
-  {SIGQUIT, "SIGQUIT", "Quit"},
+  ENTRY(SIGQUIT, "SIGQUIT", "Quit"),
 #endif
 #if defined (SIGILL)
-  {SIGILL, "SIGILL", "Illegal instruction"},
+  ENTRY(SIGILL, "SIGILL", "Illegal instruction"),
 #endif
 #if defined (SIGTRAP)
-  {SIGTRAP, "SIGTRAP", "Trace/breakpoint trap"},
+  ENTRY(SIGTRAP, "SIGTRAP", "Trace/breakpoint trap"),
 #endif
 /* Put SIGIOT before SIGABRT, so that if SIGIOT==SIGABRT then SIGABRT
    overrides SIGIOT.  SIGABRT is in ANSI and POSIX.1, and SIGIOT isn't. */
 #if defined (SIGIOT)
-  {SIGIOT, "SIGIOT", "IOT trap"},
+  ENTRY(SIGIOT, "SIGIOT", "IOT trap"),
 #endif
 #if defined (SIGABRT)
-  {SIGABRT, "SIGABRT", "Aborted"},
+  ENTRY(SIGABRT, "SIGABRT", "Aborted"),
 #endif
 #if defined (SIGEMT)
-  {SIGEMT, "SIGEMT", "Emulation trap"},
+  ENTRY(SIGEMT, "SIGEMT", "Emulation trap"),
 #endif
 #if defined (SIGFPE)
-  {SIGFPE, "SIGFPE", "Arithmetic exception"},
+  ENTRY(SIGFPE, "SIGFPE", "Arithmetic exception"),
 #endif
 #if defined (SIGKILL)
-  {SIGKILL, "SIGKILL", "Killed"},
+  ENTRY(SIGKILL, "SIGKILL", "Killed"),
 #endif
 #if defined (SIGBUS)
-  {SIGBUS, "SIGBUS", "Bus error"},
+  ENTRY(SIGBUS, "SIGBUS", "Bus error"),
 #endif
 #if defined (SIGSEGV)
-  {SIGSEGV, "SIGSEGV", "Segmentation fault"},
+  ENTRY(SIGSEGV, "SIGSEGV", "Segmentation fault"),
 #endif
 #if defined (SIGSYS)
-  {SIGSYS, "SIGSYS", "Bad system call"},
+  ENTRY(SIGSYS, "SIGSYS", "Bad system call"),
 #endif
 #if defined (SIGPIPE)
-  {SIGPIPE, "SIGPIPE", "Broken pipe"},
+  ENTRY(SIGPIPE, "SIGPIPE", "Broken pipe"),
 #endif
 #if defined (SIGALRM)
-  {SIGALRM, "SIGALRM", "Alarm clock"},
+  ENTRY(SIGALRM, "SIGALRM", "Alarm clock"),
 #endif
 #if defined (SIGTERM)
-  {SIGTERM, "SIGTERM", "Terminated"},
+  ENTRY(SIGTERM, "SIGTERM", "Terminated"),
 #endif
 #if defined (SIGUSR1)
-  {SIGUSR1, "SIGUSR1", "User defined signal 1"},
+  ENTRY(SIGUSR1, "SIGUSR1", "User defined signal 1"),
 #endif
 #if defined (SIGUSR2)
-  {SIGUSR2, "SIGUSR2", "User defined signal 2"},
+  ENTRY(SIGUSR2, "SIGUSR2", "User defined signal 2"),
 #endif
 /* Put SIGCLD before SIGCHLD, so that if SIGCLD==SIGCHLD then SIGCHLD
    overrides SIGCLD.  SIGCHLD is in POXIX.1 */
 #if defined (SIGCLD)
-  {SIGCLD, "SIGCLD", "Child status changed"},
+  ENTRY(SIGCLD, "SIGCLD", "Child status changed"),
 #endif
 #if defined (SIGCHLD)
-  {SIGCHLD, "SIGCHLD", "Child status changed"},
+  ENTRY(SIGCHLD, "SIGCHLD", "Child status changed"),
 #endif
 #if defined (SIGPWR)
-  {SIGPWR, "SIGPWR", "Power fail/restart"},
+  ENTRY(SIGPWR, "SIGPWR", "Power fail/restart"),
 #endif
 #if defined (SIGWINCH)
-  {SIGWINCH, "SIGWINCH", "Window size changed"},
+  ENTRY(SIGWINCH, "SIGWINCH", "Window size changed"),
 #endif
 #if defined (SIGURG)
-  {SIGURG, "SIGURG", "Urgent I/O condition"},
+  ENTRY(SIGURG, "SIGURG", "Urgent I/O condition"),
 #endif
 #if defined (SIGIO)
   /* "I/O pending" has also been suggested, but is misleading since the
      signal only happens when the process has asked for it, not everytime
      I/O is pending. */
-  {SIGIO, "SIGIO", "I/O possible"},
+  ENTRY(SIGIO, "SIGIO", "I/O possible"),
 #endif
 #if defined (SIGPOLL)
-  {SIGPOLL, "SIGPOLL", "Pollable event occurred"},
+  ENTRY(SIGPOLL, "SIGPOLL", "Pollable event occurred"),
 #endif
 #if defined (SIGSTOP)
-  {SIGSTOP, "SIGSTOP", "Stopped (signal)"},
+  ENTRY(SIGSTOP, "SIGSTOP", "Stopped (signal)"),
 #endif
 #if defined (SIGTSTP)
-  {SIGTSTP, "SIGTSTP", "Stopped (user)"},
+  ENTRY(SIGTSTP, "SIGTSTP", "Stopped (user)"),
 #endif
 #if defined (SIGCONT)
-  {SIGCONT, "SIGCONT", "Continued"},
+  ENTRY(SIGCONT, "SIGCONT", "Continued"),
 #endif
 #if defined (SIGTTIN)
-  {SIGTTIN, "SIGTTIN", "Stopped (tty input)"},
+  ENTRY(SIGTTIN, "SIGTTIN", "Stopped (tty input)"),
 #endif
 #if defined (SIGTTOU)
-  {SIGTTOU, "SIGTTOU", "Stopped (tty output)"},
+  ENTRY(SIGTTOU, "SIGTTOU", "Stopped (tty output)"),
 #endif
 #if defined (SIGVTALRM)
-  {SIGVTALRM, "SIGVTALRM", "Virtual timer expired"},
+  ENTRY(SIGVTALRM, "SIGVTALRM", "Virtual timer expired"),
 #endif
 #if defined (SIGPROF)
-  {SIGPROF, "SIGPROF", "Profiling timer expired"},
+  ENTRY(SIGPROF, "SIGPROF", "Profiling timer expired"),
 #endif
 #if defined (SIGXCPU)
-  {SIGXCPU, "SIGXCPU", "CPU time limit exceeded"},
+  ENTRY(SIGXCPU, "SIGXCPU", "CPU time limit exceeded"),
 #endif
 #if defined (SIGXFSZ)
-  {SIGXFSZ, "SIGXFSZ", "File size limit exceeded"},
+  ENTRY(SIGXFSZ, "SIGXFSZ", "File size limit exceeded"),
 #endif
 #if defined (SIGWIND)
-  {SIGWIND, "SIGWIND", "SIGWIND"},
+  ENTRY(SIGWIND, "SIGWIND", "SIGWIND"),
 #endif
 #if defined (SIGPHONE)
-  {SIGPHONE, "SIGPHONE", "SIGPHONE"},
+  ENTRY(SIGPHONE, "SIGPHONE", "SIGPHONE"),
 #endif
 #if defined (SIGLOST)
-  {SIGLOST, "SIGLOST", "Resource lost"},
+  ENTRY(SIGLOST, "SIGLOST", "Resource lost"),
 #endif
 #if defined (SIGWAITING)
-  {SIGWAITING, "SIGWAITING", "Process's LWPs are blocked"},
+  ENTRY(SIGWAITING, "SIGWAITING", "Process's LWPs are blocked"),
 #endif
 #if defined (SIGLWP)
-  {SIGLWP, "SIGLWP", "Signal LWP"},
+  ENTRY(SIGLWP, "SIGLWP", "Signal LWP"),
 #endif
 #if defined (SIGDANGER)
-  {SIGDANGER, "SIGDANGER", "Swap space dangerously low"},
+  ENTRY(SIGDANGER, "SIGDANGER", "Swap space dangerously low"),
 #endif
 #if defined (SIGGRANT)
-  {SIGGRANT, "SIGGRANT", "Monitor mode granted"},
+  ENTRY(SIGGRANT, "SIGGRANT", "Monitor mode granted"),
 #endif
 #if defined (SIGRETRACT)
-  {SIGRETRACT, "SIGRETRACT", "Need to relinguish monitor mode"},
+  ENTRY(SIGRETRACT, "SIGRETRACT", "Need to relinguish monitor mode"),
 #endif
 #if defined (SIGMSG)
-  {SIGMSG, "SIGMSG", "Monitor mode data available"},
+  ENTRY(SIGMSG, "SIGMSG", "Monitor mode data available"),
 #endif
 #if defined (SIGSOUND)
-  {SIGSOUND, "SIGSOUND", "Sound completed"},
+  ENTRY(SIGSOUND, "SIGSOUND", "Sound completed"),
 #endif
 #if defined (SIGSAK)
-  {SIGSAK, "SIGSAK", "Secure attention"},
+  ENTRY(SIGSAK, "SIGSAK", "Secure attention"),
 #endif
-  {0, NULL, NULL}
+  ENTRY(0, NULL, NULL)
 };
 
 /* Translation table allocated and initialized at runtime.  Indexed by the
    signal value to find the equivalent symbolic value. */
 
-static char **signal_names;
+static const char **signal_names;
 static int num_signal_names = 0;
 
 /* Translation table allocated and initialized at runtime, if it does not
@@ -241,7 +247,7 @@ static int num_signal_names = 0;
 #ifdef NEED_sys_siglist
 
 static int sys_nsig;
-static char **sys_siglist;
+static const char **sys_siglist;
 
 #else
 
@@ -305,7 +311,7 @@ init_signal_tables ()
   if (signal_names == NULL)
     {
       nbytes = num_signal_names * sizeof (char *);
-      if ((signal_names = (char **) malloc (nbytes)) != NULL)
+      if ((signal_names = (const char **) malloc (nbytes)) != NULL)
 	{
 	  memset (signal_names, 0, nbytes);
 	  for (eip = signal_table; eip -> name != NULL; eip++)
@@ -323,7 +329,7 @@ init_signal_tables ()
   if (sys_siglist == NULL)
     {
       nbytes = num_signal_names * sizeof (char *);
-      if ((sys_siglist = (char **) malloc (nbytes)) != NULL)
+      if ((sys_siglist = (const char **) malloc (nbytes)) != NULL)
 	{
 	  memset (sys_siglist, 0, nbytes);
 	  sys_nsig = num_signal_names;
@@ -388,7 +394,7 @@ NAME
 
 SYNOPSIS
 
-	char *strsignal (int signo)
+	const char *strsignal (int signo)
 
 DESCRIPTION
 
@@ -410,11 +416,11 @@ DESCRIPTION
 
 */
 
-char *
+const char *
 strsignal (signo)
   int signo;
 {
-  char *msg;
+  const char *msg;
   static char buf[32];
 
 #ifdef NEED_sys_siglist
@@ -435,12 +441,12 @@ strsignal (signo)
     {
       /* In range, but no sys_siglist or no entry at this index. */
       sprintf (buf, "Signal %d", signo);
-      msg = buf;
+      msg = (const char *) buf;
     }
   else
     {
       /* In range, and a valid message.  Just return the message. */
-      msg = (char*)sys_siglist[signo];
+      msg = (const char *) sys_siglist[signo];
     }
   
   return (msg);
@@ -455,7 +461,7 @@ NAME
 
 SYNOPSIS
 
-	char *strsigno (int signo)
+	const char *strsigno (int signo)
 
 DESCRIPTION
 
@@ -477,11 +483,11 @@ BUGS
 
 */
 
-char *
+const char *
 strsigno (signo)
   int signo;
 {
-  char *name;
+  const char *name;
   static char buf[32];
 
   if (signal_names == NULL)
@@ -498,7 +504,7 @@ strsigno (signo)
     {
       /* In range, but no signal_names or no entry at this index. */
       sprintf (buf, "Signal %d", signo);
-      name = buf;
+      name = (const char *) buf;
     }
   else
     {
@@ -529,7 +535,7 @@ DESCRIPTION
 
 int
 strtosigno (name)
-  char *name;
+     const char *name;
 {
   int signo = 0;
 
@@ -602,14 +608,15 @@ psignal (signo, message)
 
 #ifdef MAIN
 
+#include <stdio.h>
+
+int
 main ()
 {
   int signo;
   int maxsigno;
-  char *name;
-  char *msg;
-  char *strsigno ();
-  char *strsignal ();
+  const char *name;
+  const char *msg;
 
   maxsigno = signo_max ();
   printf ("%d entries in names table.\n", num_signal_names);
@@ -629,6 +636,8 @@ main ()
       msg = (msg == NULL) ? "<NULL>" : msg;
       printf ("%-4d%-18s%s\n", signo, name, msg);
     }
+
+  return 0;
 }
 
 #endif

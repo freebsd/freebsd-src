@@ -1,5 +1,5 @@
 /* Select target systems and architectures at runtime for GDB.
-   Copyright 1990, 1992, 1993 Free Software Foundation, Inc.
+   Copyright 1990, 1992, 1993, 1994 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB.
@@ -28,6 +28,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "bfd.h"
 #include "symfile.h"
 #include "objfiles.h"
+#include "wait.h"
+#include <signal.h>
 
 extern int errno;
 
@@ -115,6 +117,11 @@ struct target_ops **current_target_stack;
 
 static struct cmd_list_element *targetlist = NULL;
 
+/* Nonzero if we are debugging an attached outside process
+   rather than an inferior.  */
+
+int attach_flag;
+
 /* The user just typed 'target' without the name of a target.  */
 
 /* ARGSUSED */
@@ -124,7 +131,7 @@ target_command (arg, from_tty)
      int from_tty;
 {
   fputs_filtered ("Argument required (target name).  Try `help target'\n",
-		  stdout);
+		  gdb_stdout);
 }
 
 /* Add a possible target architecture to the list.  */
@@ -135,7 +142,7 @@ add_target (t)
 {
   if (t->to_magic != OPS_MAGIC)
     {
-      fprintf(stderr, "Magic number of %s target struct wrong\n", 
+      fprintf_unfiltered(gdb_stderr, "Magic number of %s target struct wrong\n", 
 	t->to_shortname);
       abort();
     }
@@ -214,7 +221,7 @@ default_terminal_info (args, from_tty)
      char *args;
      int from_tty;
 {
-  printf("No saved terminal information.\n");
+  printf_unfiltered("No saved terminal information.\n");
 }
 
 #if 0
@@ -257,7 +264,7 @@ kill_or_be_killed (from_tty)
 {
   if (target_has_execution)
     {
-      printf ("You are already running a program:\n");
+      printf_unfiltered ("You are already running a program:\n");
       target_files_info ();
       if (query ("Kill it? ")) {
 	target_kill ();
@@ -302,7 +309,7 @@ cleanup_target (t)
      the struct definition, but not all the places that initialize one.  */
   if (t->to_magic != OPS_MAGIC)
     {
-      fprintf(stderr, "Magic number of %s target struct wrong\n", 
+      fprintf_unfiltered(gdb_stderr, "Magic number of %s target struct wrong\n", 
 	t->to_shortname);
       abort();
     }
@@ -434,22 +441,31 @@ pop_target ()
 #undef	MIN
 #define MIN(A, B) (((A) <= (B)) ? (A) : (B))
 
-/* target_read_string -- read a null terminated string from MEMADDR in target.
-   The read may also be terminated early by getting an error from target_xfer_
-   memory.
-   LEN is the size of the buffer pointed to by MYADDR.  Note that a terminating
-   null will only be written if there is sufficient room.  The return value is
-   is the number of bytes (including the null) actually transferred.
-*/
+/* target_read_string -- read a null terminated string, up to LEN bytes,
+   from MEMADDR in target.  Set *ERRNOP to the errno code, or 0 if successful.
+   Set *STRING to a pointer to malloc'd memory containing the data; the caller
+   is responsible for freeing it.  Return the number of bytes successfully
+   read.  */
 
 int
-target_read_string (memaddr, myaddr, len)
+target_read_string (memaddr, string, len, errnop)
      CORE_ADDR memaddr;
-     char *myaddr;
+     char **string;
      int len;
+     int *errnop;
 {
   int tlen, origlen, offset, i;
   char buf[4];
+  int errcode = 0;
+  char *buffer;
+  int buffer_allocated;
+  char *bufptr;
+  unsigned int nbytes_read = 0;
+
+  /* Small for testing.  */
+  buffer_allocated = 4;
+  buffer = xmalloc (buffer_allocated);
+  bufptr = buffer;
 
   origlen = len;
 
@@ -458,20 +474,39 @@ target_read_string (memaddr, myaddr, len)
       tlen = MIN (len, 4 - (memaddr & 3));
       offset = memaddr & 3;
 
-      if (target_xfer_memory (memaddr & ~3, buf, 4, 0))
-	return origlen - len;
+      errcode = target_xfer_memory (memaddr & ~3, buf, 4, 0);
+      if (errcode != 0)
+	goto done;
+
+      if (bufptr - buffer + tlen > buffer_allocated)
+	{
+	  unsigned int bytes;
+	  bytes = bufptr - buffer;
+	  buffer_allocated *= 2;
+	  buffer = xrealloc (buffer, buffer_allocated);
+	  bufptr = buffer + bytes;
+	}
 
       for (i = 0; i < tlen; i++)
 	{
-	  *myaddr++ = buf[i + offset];
+	  *bufptr++ = buf[i + offset];
 	  if (buf[i + offset] == '\000')
-	    return (origlen - len) + i + 1;
+	    {
+	      nbytes_read += i + 1;
+	      goto done;
+	    }
 	}
 
       memaddr += tlen;
       len -= tlen;
+      nbytes_read += tlen;
     }
-  return origlen;
+ done:
+  if (errnop != NULL)
+    *errnop = errcode;
+  if (string != NULL)
+    *string = buffer;
+  return nbytes_read;
 }
 
 /* Read LEN bytes of target memory at address MEMADDR, placing the results in
@@ -621,7 +656,7 @@ target_info (args, from_tty)
   int has_all_mem = 0;
   
   if (symfile_objfile != NULL)
-    printf ("Symbols from \"%s\".\n", symfile_objfile->name);
+    printf_unfiltered ("Symbols from \"%s\".\n", symfile_objfile->name);
 
 #ifdef FILES_INFO_HOOK
   if (FILES_INFO_HOOK ())
@@ -635,8 +670,8 @@ target_info (args, from_tty)
       if ((int)(t->to_stratum) <= (int)dummy_stratum)
 	continue;
       if (has_all_mem)
-	printf("\tWhile running this, gdb does not access memory from...\n");
-      printf("%s:\n", t->to_longname);
+	printf_unfiltered("\tWhile running this, GDB does not access memory from...\n");
+      printf_unfiltered("%s:\n", t->to_longname);
       (t->to_files_info)(t);
       has_all_mem = t->to_has_all_memory;
     }
@@ -658,6 +693,12 @@ target_preopen (from_tty)
       else
         error ("Program not killed.");
     }
+
+  /* Calling target_kill may remove the target from the stack.  But if
+     it doesn't (which seems like a win for UDI), remove it now.  */
+
+  if (target_has_execution)
+    pop_target ();
 }
 
 /* Detach a target after doing deferred register stores.  */
@@ -672,6 +713,21 @@ target_detach (args, from_tty)
   DO_DEFERRED_STORES;
 #endif
   (current_target->to_detach) (args, from_tty);
+}
+
+void
+target_link (modname, t_reloc)
+     char *modname;
+     CORE_ADDR *t_reloc;
+{
+  if (STREQ(current_target->to_shortname, "rombug"))
+    {
+      (current_target->to_lookup_symbol) (modname, t_reloc);
+      if (*t_reloc == 0)
+      error("Unable to link to %s and get relocation in rombug", modname);
+    }
+  else
+    *t_reloc = (CORE_ADDR)-1;
 }
 
 /* Look through the list of possible targets for a target that can
@@ -749,7 +805,11 @@ find_core_target ()
   for (t = target_structs; t < target_structs + target_struct_size;
        ++t)
     {
+#ifdef KERNEL_DEBUG
+      if ((*t)->to_stratum == (kernel_debugging ? kcore_stratum : core_stratum))
+#else
       if ((*t)->to_stratum == core_stratum)
+#endif
 	{
 	  runable = *t;
 	  ++count;
@@ -758,7 +818,471 @@ find_core_target ()
   
   return(count == 1 ? runable : NULL);
 }
-  
+
+/* The inferior process has died.  Long live the inferior!  */
+
+void
+generic_mourn_inferior ()
+{
+  extern int show_breakpoint_hit_counts;
+
+  inferior_pid = 0;
+  attach_flag = 0;
+  breakpoint_init_inferior ();
+  registers_changed ();
+
+#ifdef CLEAR_DEFERRED_STORES
+  /* Delete any pending stores to the inferior... */
+  CLEAR_DEFERRED_STORES;
+#endif
+
+  reopen_exec_file ();
+  reinit_frame_cache ();
+
+  /* It is confusing to the user for ignore counts to stick around
+     from previous runs of the inferior.  So clear them.  */
+  /* However, it is more confusing for the ignore counts to disappear when
+     using hit counts.  So don't clear them if we're counting hits.  */
+  if (!show_breakpoint_hit_counts)
+    breakpoint_clear_ignore_counts ();
+}
+
+/* This table must match in order and size the signals in enum target_signal
+   in target.h.  */
+static struct {
+  char *name;
+  char *string;
+  } signals [] =
+{
+  {"0", "Signal 0"},
+  {"SIGHUP", "Hangup"},
+  {"SIGINT", "Interrupt"},
+  {"SIGQUIT", "Quit"},
+  {"SIGILL", "Illegal instruction"},
+  {"SIGTRAP", "Trace/breakpoint trap"},
+  {"SIGABRT", "Aborted"},
+  {"SIGEMT", "Emulation trap"},
+  {"SIGFPE", "Arithmetic exception"},
+  {"SIGKILL", "Killed"},
+  {"SIGBUS", "Bus error"},
+  {"SIGSEGV", "Segmentation fault"},
+  {"SIGSYS", "Bad system call"},
+  {"SIGPIPE", "Broken pipe"},
+  {"SIGALRM", "Alarm clock"},
+  {"SIGTERM", "Terminated"},
+  {"SIGURG", "Urgent I/O condition"},
+  {"SIGSTOP", "Stopped (signal)"},
+  {"SIGTSTP", "Stopped (user)"},
+  {"SIGCONT", "Continued"},
+  {"SIGCHLD", "Child status changed"},
+  {"SIGTTIN", "Stopped (tty input)"},
+  {"SIGTTOU", "Stopped (tty output)"},
+  {"SIGIO", "I/O possible"},
+  {"SIGXCPU", "CPU time limit exceeded"},
+  {"SIGXFSZ", "File size limit exceeded"},
+  {"SIGVTALRM", "Virtual timer expired"},
+  {"SIGPROF", "Profiling timer expired"},
+  {"SIGWINCH", "Window size changed"},
+  {"SIGLOST", "Resource lost"},
+  {"SIGUSR1", "User defined signal 1"},
+  {"SIGUSR2", "User defined signal 2"},
+  {"SIGPWR", "Power fail/restart"},
+  {"SIGPOLL", "Pollable event occurred"},
+  {"SIGWIND", "SIGWIND"},
+  {"SIGPHONE", "SIGPHONE"},
+  {"SIGWAITING", "Process's LWPs are blocked"},
+  {"SIGLWP", "Signal LWP"},
+  {"SIGDANGER", "Swap space dangerously low"},
+  {"SIGGRANT", "Monitor mode granted"},
+  {"SIGRETRACT", "Need to relinguish monitor mode"},
+  {"SIGMSG", "Monitor mode data available"},
+  {"SIGSOUND", "Sound completed"},
+  {"SIGSAK", "Secure attention"},
+  {NULL, "Unknown signal"},
+  {NULL, "Internal error: printing TARGET_SIGNAL_DEFAULT"},
+
+  /* Last entry, used to check whether the table is the right size.  */
+  {NULL, "TARGET_SIGNAL_MAGIC"}
+};
+
+/* Return the string for a signal.  */
+char *
+target_signal_to_string (sig)
+     enum target_signal sig;
+{
+  return signals[sig].string;
+}
+
+/* Return the name for a signal.  */
+char *
+target_signal_to_name (sig)
+     enum target_signal sig;
+{
+  if (sig == TARGET_SIGNAL_UNKNOWN)
+    /* I think the code which prints this will always print it along with
+       the string, so no need to be verbose.  */
+    return "?";
+  return signals[sig].name;
+}
+
+/* Given a name, return its signal.  */
+enum target_signal
+target_signal_from_name (name)
+     char *name;
+{
+  enum target_signal sig;
+
+  /* It's possible we also should allow "SIGCLD" as well as "SIGCHLD"
+     for TARGET_SIGNAL_SIGCHLD.  SIGIOT, on the other hand, is more
+     questionable; seems like by now people should call it SIGABRT
+     instead.  */
+
+  /* This ugly cast brought to you by the native VAX compiler.  */
+  for (sig = TARGET_SIGNAL_HUP;
+       signals[sig].name != NULL;
+       sig = (enum target_signal)((int)sig + 1))
+    if (STREQ (name, signals[sig].name))
+      return sig;
+  return TARGET_SIGNAL_UNKNOWN;
+}
+
+/* The following functions are to help certain targets deal
+   with the signal/waitstatus stuff.  They could just as well be in
+   a file called native-utils.c or unixwaitstatus-utils.c or whatever.  */
+
+/* Convert host signal to our signals.  */
+enum target_signal
+target_signal_from_host (hostsig)
+     int hostsig;
+{
+  /* A switch statement would make sense but would require special kludges
+     to deal with the cases where more than one signal has the same number.  */
+
+  if (hostsig == 0) return TARGET_SIGNAL_0;
+
+#if defined (SIGHUP)
+  if (hostsig == SIGHUP) return TARGET_SIGNAL_HUP;
+#endif
+#if defined (SIGINT)
+  if (hostsig == SIGINT) return TARGET_SIGNAL_INT;
+#endif
+#if defined (SIGQUIT)
+  if (hostsig == SIGQUIT) return TARGET_SIGNAL_QUIT;
+#endif
+#if defined (SIGILL)
+  if (hostsig == SIGILL) return TARGET_SIGNAL_ILL;
+#endif
+#if defined (SIGTRAP)
+  if (hostsig == SIGTRAP) return TARGET_SIGNAL_TRAP;
+#endif
+#if defined (SIGABRT)
+  if (hostsig == SIGABRT) return TARGET_SIGNAL_ABRT;
+#endif
+#if defined (SIGEMT)
+  if (hostsig == SIGEMT) return TARGET_SIGNAL_EMT;
+#endif
+#if defined (SIGFPE)
+  if (hostsig == SIGFPE) return TARGET_SIGNAL_FPE;
+#endif
+#if defined (SIGKILL)
+  if (hostsig == SIGKILL) return TARGET_SIGNAL_KILL;
+#endif
+#if defined (SIGBUS)
+  if (hostsig == SIGBUS) return TARGET_SIGNAL_BUS;
+#endif
+#if defined (SIGSEGV)
+  if (hostsig == SIGSEGV) return TARGET_SIGNAL_SEGV;
+#endif
+#if defined (SIGSYS)
+  if (hostsig == SIGSYS) return TARGET_SIGNAL_SYS;
+#endif
+#if defined (SIGPIPE)
+  if (hostsig == SIGPIPE) return TARGET_SIGNAL_PIPE;
+#endif
+#if defined (SIGALRM)
+  if (hostsig == SIGALRM) return TARGET_SIGNAL_ALRM;
+#endif
+#if defined (SIGTERM)
+  if (hostsig == SIGTERM) return TARGET_SIGNAL_TERM;
+#endif
+#if defined (SIGUSR1)
+  if (hostsig == SIGUSR1) return TARGET_SIGNAL_USR1;
+#endif
+#if defined (SIGUSR2)
+  if (hostsig == SIGUSR2) return TARGET_SIGNAL_USR2;
+#endif
+#if defined (SIGCLD)
+  if (hostsig == SIGCLD) return TARGET_SIGNAL_CHLD;
+#endif
+#if defined (SIGCHLD)
+  if (hostsig == SIGCHLD) return TARGET_SIGNAL_CHLD;
+#endif
+#if defined (SIGPWR)
+  if (hostsig == SIGPWR) return TARGET_SIGNAL_PWR;
+#endif
+#if defined (SIGWINCH)
+  if (hostsig == SIGWINCH) return TARGET_SIGNAL_WINCH;
+#endif
+#if defined (SIGURG)
+  if (hostsig == SIGURG) return TARGET_SIGNAL_URG;
+#endif
+#if defined (SIGIO)
+  if (hostsig == SIGIO) return TARGET_SIGNAL_IO;
+#endif
+#if defined (SIGPOLL)
+  if (hostsig == SIGPOLL) return TARGET_SIGNAL_POLL;
+#endif
+#if defined (SIGSTOP)
+  if (hostsig == SIGSTOP) return TARGET_SIGNAL_STOP;
+#endif
+#if defined (SIGTSTP)
+  if (hostsig == SIGTSTP) return TARGET_SIGNAL_TSTP;
+#endif
+#if defined (SIGCONT)
+  if (hostsig == SIGCONT) return TARGET_SIGNAL_CONT;
+#endif
+#if defined (SIGTTIN)
+  if (hostsig == SIGTTIN) return TARGET_SIGNAL_TTIN;
+#endif
+#if defined (SIGTTOU)
+  if (hostsig == SIGTTOU) return TARGET_SIGNAL_TTOU;
+#endif
+#if defined (SIGVTALRM)
+  if (hostsig == SIGVTALRM) return TARGET_SIGNAL_VTALRM;
+#endif
+#if defined (SIGPROF)
+  if (hostsig == SIGPROF) return TARGET_SIGNAL_PROF;
+#endif
+#if defined (SIGXCPU)
+  if (hostsig == SIGXCPU) return TARGET_SIGNAL_XCPU;
+#endif
+#if defined (SIGXFSZ)
+  if (hostsig == SIGXFSZ) return TARGET_SIGNAL_XFSZ;
+#endif
+#if defined (SIGWIND)
+  if (hostsig == SIGWIND) return TARGET_SIGNAL_WIND;
+#endif
+#if defined (SIGPHONE)
+  if (hostsig == SIGPHONE) return TARGET_SIGNAL_PHONE;
+#endif
+#if defined (SIGLOST)
+  if (hostsig == SIGLOST) return TARGET_SIGNAL_LOST;
+#endif
+#if defined (SIGWAITING)
+  if (hostsig == SIGWAITING) return TARGET_SIGNAL_WAITING;
+#endif
+#if defined (SIGLWP)
+  if (hostsig == SIGLWP) return TARGET_SIGNAL_LWP;
+#endif
+#if defined (SIGDANGER)
+  if (hostsig == SIGDANGER) return TARGET_SIGNAL_DANGER;
+#endif
+#if defined (SIGGRANT)
+  if (hostsig == SIGGRANT) return TARGET_SIGNAL_GRANT;
+#endif
+#if defined (SIGRETRACT)
+  if (hostsig == SIGRETRACT) return TARGET_SIGNAL_RETRACT;
+#endif
+#if defined (SIGMSG)
+  if (hostsig == SIGMSG) return TARGET_SIGNAL_MSG;
+#endif
+#if defined (SIGSOUND)
+  if (hostsig == SIGSOUND) return TARGET_SIGNAL_SOUND;
+#endif
+#if defined (SIGSAK)
+  if (hostsig == SIGSAK) return TARGET_SIGNAL_SAK;
+#endif
+  return TARGET_SIGNAL_UNKNOWN;
+}
+
+int
+target_signal_to_host (oursig)
+     enum target_signal oursig;
+{
+  switch (oursig)
+    {
+    case TARGET_SIGNAL_0: return 0;
+
+#if defined (SIGHUP)
+    case TARGET_SIGNAL_HUP: return SIGHUP;
+#endif
+#if defined (SIGINT)
+    case TARGET_SIGNAL_INT: return SIGINT;
+#endif
+#if defined (SIGQUIT)
+    case TARGET_SIGNAL_QUIT: return SIGQUIT;
+#endif
+#if defined (SIGILL)
+    case TARGET_SIGNAL_ILL: return SIGILL;
+#endif
+#if defined (SIGTRAP)
+    case TARGET_SIGNAL_TRAP: return SIGTRAP;
+#endif
+#if defined (SIGABRT)
+    case TARGET_SIGNAL_ABRT: return SIGABRT;
+#endif
+#if defined (SIGEMT)
+    case TARGET_SIGNAL_EMT: return SIGEMT;
+#endif
+#if defined (SIGFPE)
+    case TARGET_SIGNAL_FPE: return SIGFPE;
+#endif
+#if defined (SIGKILL)
+    case TARGET_SIGNAL_KILL: return SIGKILL;
+#endif
+#if defined (SIGBUS)
+    case TARGET_SIGNAL_BUS: return SIGBUS;
+#endif
+#if defined (SIGSEGV)
+    case TARGET_SIGNAL_SEGV: return SIGSEGV;
+#endif
+#if defined (SIGSYS)
+    case TARGET_SIGNAL_SYS: return SIGSYS;
+#endif
+#if defined (SIGPIPE)
+    case TARGET_SIGNAL_PIPE: return SIGPIPE;
+#endif
+#if defined (SIGALRM)
+    case TARGET_SIGNAL_ALRM: return SIGALRM;
+#endif
+#if defined (SIGTERM)
+    case TARGET_SIGNAL_TERM: return SIGTERM;
+#endif
+#if defined (SIGUSR1)
+    case TARGET_SIGNAL_USR1: return SIGUSR1;
+#endif
+#if defined (SIGUSR2)
+    case TARGET_SIGNAL_USR2: return SIGUSR2;
+#endif
+#if defined (SIGCHLD) || defined (SIGCLD)
+    case TARGET_SIGNAL_CHLD: 
+#if defined (SIGCHLD)
+      return SIGCHLD;
+#else
+      return SIGCLD;
+#endif
+#endif /* SIGCLD or SIGCHLD */
+#if defined (SIGPWR)
+    case TARGET_SIGNAL_PWR: return SIGPWR;
+#endif
+#if defined (SIGWINCH)
+    case TARGET_SIGNAL_WINCH: return SIGWINCH;
+#endif
+#if defined (SIGURG)
+    case TARGET_SIGNAL_URG: return SIGURG;
+#endif
+#if defined (SIGIO)
+    case TARGET_SIGNAL_IO: return SIGIO;
+#endif
+#if defined (SIGPOLL)
+    case TARGET_SIGNAL_POLL: return SIGPOLL;
+#endif
+#if defined (SIGSTOP)
+    case TARGET_SIGNAL_STOP: return SIGSTOP;
+#endif
+#if defined (SIGTSTP)
+    case TARGET_SIGNAL_TSTP: return SIGTSTP;
+#endif
+#if defined (SIGCONT)
+    case TARGET_SIGNAL_CONT: return SIGCONT;
+#endif
+#if defined (SIGTTIN)
+    case TARGET_SIGNAL_TTIN: return SIGTTIN;
+#endif
+#if defined (SIGTTOU)
+    case TARGET_SIGNAL_TTOU: return SIGTTOU;
+#endif
+#if defined (SIGVTALRM)
+    case TARGET_SIGNAL_VTALRM: return SIGVTALRM;
+#endif
+#if defined (SIGPROF)
+    case TARGET_SIGNAL_PROF: return SIGPROF;
+#endif
+#if defined (SIGXCPU)
+    case TARGET_SIGNAL_XCPU: return SIGXCPU;
+#endif
+#if defined (SIGXFSZ)
+    case TARGET_SIGNAL_XFSZ: return SIGXFSZ;
+#endif
+#if defined (SIGWIND)
+    case TARGET_SIGNAL_WIND: return SIGWIND;
+#endif
+#if defined (SIGPHONE)
+    case TARGET_SIGNAL_PHONE: return SIGPHONE;
+#endif
+#if defined (SIGLOST)
+    case TARGET_SIGNAL_LOST: return SIGLOST;
+#endif
+#if defined (SIGWAITING)
+    case TARGET_SIGNAL_WAITING: return SIGWAITING;
+#endif
+#if defined (SIGLWP)
+    case TARGET_SIGNAL_LWP: return SIGLWP;
+#endif
+#if defined (SIGDANGER)
+    case TARGET_SIGNAL_DANGER: return SIGDANGER;
+#endif
+#if defined (SIGGRANT)
+    case TARGET_SIGNAL_GRANT: return SIGGRANT;
+#endif
+#if defined (SIGRETRACT)
+    case TARGET_SIGNAL_RETRACT: return SIGRETRACT;
+#endif
+#if defined (SIGMSG)
+    case TARGET_SIGNAL_MSG: return SIGMSG;
+#endif
+#if defined (SIGSOUND)
+    case TARGET_SIGNAL_SOUND: return SIGSOUND;
+#endif
+#if defined (SIGSAK)
+    case TARGET_SIGNAL_SAK: return SIGSAK;
+#endif
+    default:
+      /* The user might be trying to do "signal SIGSAK" where this system
+	 doesn't have SIGSAK.  */
+      warning ("Signal %s does not exist on this system.\n",
+	       target_signal_to_name (oursig));
+      return 0;
+    }
+}
+
+/* Helper function for child_wait and the Lynx derivatives of child_wait.
+   HOSTSTATUS is the waitstatus from wait() or the equivalent; store our
+   translation of that in OURSTATUS.  */
+void
+store_waitstatus (ourstatus, hoststatus)
+     struct target_waitstatus *ourstatus;
+     int hoststatus;
+{
+#ifdef CHILD_SPECIAL_WAITSTATUS
+  /* CHILD_SPECIAL_WAITSTATUS should return nonzero and set *OURSTATUS
+     if it wants to deal with hoststatus.  */
+  if (CHILD_SPECIAL_WAITSTATUS (ourstatus, hoststatus))
+    return;
+#endif
+
+  if (WIFEXITED (hoststatus))
+    {
+      ourstatus->kind = TARGET_WAITKIND_EXITED;
+      ourstatus->value.integer = WEXITSTATUS (hoststatus);
+    }
+  else if (!WIFSTOPPED (hoststatus))
+    {
+      ourstatus->kind = TARGET_WAITKIND_SIGNALLED;
+      ourstatus->value.sig = target_signal_from_host (WTERMSIG (hoststatus));
+    }
+  else
+    {
+      ourstatus->kind = TARGET_WAITKIND_STOPPED;
+      ourstatus->value.sig = target_signal_from_host (WSTOPSIG (hoststatus));
+    }
+}
+
+
+/* Returns zero to leave the inferior alone, one to interrupt it.  */
+int (*target_activity_function) PARAMS ((void));
+int target_activity_fd;
+
 /* Convert a normal process ID to a string.  Returns the string in a static
    buffer.  */
 
@@ -772,7 +1296,7 @@ normal_pid_to_str (pid)
 
   return buf;
 }
-
+
 static char targ_desc[] = 
     "Names of targets and files being debugged.\n\
 Shows the entire stack of targets currently in use (including the exec-file,\n\
@@ -786,4 +1310,7 @@ _initialize_targets ()
 
   add_info ("target", target_info, targ_desc);
   add_info ("files", target_info, targ_desc);
+
+  if (!STREQ (signals[TARGET_SIGNAL_LAST].string, "TARGET_SIGNAL_MAGIC"))
+    abort ();
 }

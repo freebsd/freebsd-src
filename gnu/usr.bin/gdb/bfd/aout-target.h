@@ -1,5 +1,5 @@
 /* Define a target vector and some small routines for a variant of a.out.
-   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -27,11 +27,13 @@ extern CONST struct reloc_howto_struct * NAME(aout,reloc_type_lookup) ();
 /* Set parameters about this a.out file that are machine-dependent.
    This routine is called from some_aout_object_p just before it returns.  */
 #ifndef MY_callback
-static bfd_target *
-DEFUN(MY(callback),(abfd),
-      bfd *abfd)
+static const bfd_target *
+MY(callback) (abfd)
+     bfd *abfd;
 {
   struct internal_exec *execp = exec_hdr (abfd);
+  unsigned int arch_align_power;
+  unsigned long arch_align;
 
   /* Calculate the file positions of the parts of a newly read aout header */
   obj_textsec (abfd)->_raw_size = N_TXTSIZE(*execp);
@@ -60,6 +62,26 @@ DEFUN(MY(callback),(abfd),
   bfd_default_set_arch_mach(abfd, DEFAULT_ARCH, 0);
 #endif
 
+  /* Now that we know the architecture, set the alignments of the
+     sections.  This is normally done by NAME(aout,new_section_hook),
+     but when the initial sections were created the architecture had
+     not yet been set.  However, for backward compatibility, we don't
+     set the alignment power any higher than as required by the size
+     of the section.  */
+  arch_align_power = bfd_get_arch_info (abfd)->section_align_power;
+  arch_align = 1 << arch_align_power;
+  if ((BFD_ALIGN (obj_textsec (abfd)->_raw_size, arch_align)
+       == obj_textsec (abfd)->_raw_size)
+      && (BFD_ALIGN (obj_datasec (abfd)->_raw_size, arch_align)
+	  == obj_datasec (abfd)->_raw_size)
+      && (BFD_ALIGN (obj_bsssec (abfd)->_raw_size, arch_align)
+	  == obj_bsssec (abfd)->_raw_size))
+    {
+      obj_textsec (abfd)->alignment_power = arch_align_power;
+      obj_datasec (abfd)->alignment_power = arch_align_power;
+      obj_bsssec (abfd)->alignment_power = arch_align_power;
+    }
+
   /* Don't set sizes now -- can't be sure until we know arch & mach.
      Sizes get set in set_sizes callback, later.  */
 #if 0
@@ -79,25 +101,26 @@ DEFUN(MY(callback),(abfd),
 #ifndef MY_object_p
 /* Finish up the reading of an a.out file header */
 
-static bfd_target *
-DEFUN(MY(object_p),(abfd),
-     bfd *abfd)
+static const bfd_target *
+MY(object_p) (abfd)
+     bfd *abfd;
 {
   struct external_exec exec_bytes;	/* Raw exec header from file */
   struct internal_exec exec;		/* Cleaned-up exec header */
-  bfd_target *target;
+  const bfd_target *target;
 
   if (bfd_read ((PTR) &exec_bytes, 1, EXEC_BYTES_SIZE, abfd)
       != EXEC_BYTES_SIZE) {
-    bfd_error = wrong_format;
+    if (bfd_get_error () != bfd_error_system_call)
+      bfd_set_error (bfd_error_wrong_format);
     return 0;
   }
 
-#ifdef NO_SWAP_MAGIC
-  memcpy (&exec.a_info, exec_bytes.e_info, sizeof(exec.a_info));
+#ifdef SWAP_MAGIC
+  exec.a_info = SWAP_MAGIC (exec_bytes.e_info);
 #else
   exec.a_info = bfd_h_get_32 (abfd, exec_bytes.e_info);
-#endif /* NO_SWAP_MAGIC */
+#endif /* SWAP_MAGIC */
 
   if (N_BADMAG (exec)) return 0;
 #ifdef MACHTYPE_OK
@@ -105,6 +128,12 @@ DEFUN(MY(object_p),(abfd),
 #endif
 
   NAME(aout,swap_exec_header_in)(abfd, &exec_bytes, &exec);
+
+#ifdef SWAP_MAGIC
+  /* swap_exec_header_in read in a_info with the wrong byte order */
+  exec.a_info = SWAP_MAGIC (exec_bytes.e_info);
+#endif /* SWAP_MAGIC */
+
   target = NAME(aout,some_aout_object_p) (abfd, &exec, MY(callback));
 
 #ifdef ENTRY_CAN_BE_ZERO
@@ -134,8 +163,8 @@ DEFUN(MY(object_p),(abfd),
 
 #ifndef MY_mkobject
 static boolean
-DEFUN(MY(mkobject),(abfd),
-      bfd *abfd)
+MY(mkobject) (abfd)
+     bfd *abfd;
 {
   if (NAME(aout,mkobject)(abfd) == false)
     return false;
@@ -154,14 +183,36 @@ DEFUN(MY(mkobject),(abfd),
 #define MY_mkobject MY(mkobject)
 #endif
 
+#ifndef MY_bfd_copy_private_section_data
+
+/* Copy private section data.  This actually does nothing with the
+   sections.  It copies the subformat field.  We copy it here, because
+   we need to know whether this is a QMAGIC file before we set the
+   section contents, and copy_private_bfd_data is not called until
+   after the section contents have been set.  */
+
+/*ARGSUSED*/
+static boolean
+MY_bfd_copy_private_section_data (ibfd, isec, obfd, osec)
+     bfd *ibfd;
+     asection *isec;
+     bfd *obfd;
+     asection *osec;
+{
+  obj_aout_subformat (obfd) = obj_aout_subformat (ibfd);
+  return true;
+}
+
+#endif
+
 /* Write an object file.
    Section contents have already been written.  We write the
    file header, symbols, and relocation.  */
 
 #ifndef MY_write_object_contents
 static boolean
-DEFUN(MY(write_object_contents),(abfd),
-      bfd *abfd)
+MY(write_object_contents) (abfd)
+     bfd *abfd;
 {
   struct external_exec exec_bytes;
   struct internal_exec *execp = exec_hdr (abfd);
@@ -181,29 +232,110 @@ DEFUN(MY(write_object_contents),(abfd),
 
 #ifndef MY_set_sizes
 static boolean
-DEFUN(MY(set_sizes),(abfd), bfd *abfd)
+MY(set_sizes) (abfd)
+     bfd *abfd;
 {
   adata(abfd).page_size = PAGE_SIZE;
+
 #ifdef SEGMENT_SIZE
   adata(abfd).segment_size = SEGMENT_SIZE;
 #else
   adata(abfd).segment_size = PAGE_SIZE;
 #endif
+
+#ifdef ZMAGIC_DISK_BLOCK_SIZE
+  adata(abfd).zmagic_disk_block_size = ZMAGIC_DISK_BLOCK_SIZE;
+#else
+  adata(abfd).zmagic_disk_block_size = PAGE_SIZE;
+#endif
+
   adata(abfd).exec_bytes_size = EXEC_BYTES_SIZE;
   return true;
 }
 #define MY_set_sizes MY(set_sizes)
 #endif
 
+#ifndef MY_exec_hdr_flags
+#define MY_exec_hdr_flags 0
+#endif
+
 #ifndef MY_backend_data
+
+#ifndef MY_text_includes_header
+#define MY_text_includes_header 0
+#endif
+#ifndef MY_add_dynamic_symbols
+#define MY_add_dynamic_symbols 0
+#endif
+#ifndef MY_add_one_symbol
+#define MY_add_one_symbol 0
+#endif
+#ifndef MY_link_dynamic_object
+#define MY_link_dynamic_object 0
+#endif
+#ifndef MY_write_dynamic_symbol
+#define MY_write_dynamic_symbol 0
+#endif
+#ifndef MY_check_dynamic_reloc
+#define MY_check_dynamic_reloc 0
+#endif
+#ifndef MY_finish_dynamic_link
+#define MY_finish_dynamic_link 0
+#endif
+
 static CONST struct aout_backend_data MY(backend_data) = {
   0,				/* zmagic contiguous */
-  0,				/* text incl header */
+  MY_text_includes_header,
+  MY_exec_hdr_flags,
   0,				/* text vma? */
   MY_set_sizes,
   0,				/* exec header is counted */
+  MY_add_dynamic_symbols,
+  MY_add_one_symbol,
+  MY_link_dynamic_object,
+  MY_write_dynamic_symbol,
+  MY_check_dynamic_reloc,
+  MY_finish_dynamic_link
 };
 #define MY_backend_data &MY(backend_data)
+#endif
+
+#ifndef MY_final_link_callback
+
+/* Callback for the final_link routine to set the section offsets.  */
+
+static void MY_final_link_callback
+  PARAMS ((bfd *, file_ptr *, file_ptr *, file_ptr *));
+
+static void
+MY_final_link_callback (abfd, ptreloff, pdreloff, psymoff)
+     bfd *abfd;
+     file_ptr *ptreloff;
+     file_ptr *pdreloff;
+     file_ptr *psymoff;
+{
+  struct internal_exec *execp = exec_hdr (abfd);
+
+  *ptreloff = N_TRELOFF (*execp);
+  *pdreloff = N_DRELOFF (*execp);
+  *psymoff = N_SYMOFF (*execp);
+}
+
+#endif
+
+#ifndef MY_bfd_final_link
+
+/* Final link routine.  We need to use a call back to get the correct
+   offsets in the output file.  */
+
+static boolean
+MY_bfd_final_link (abfd, info)
+     bfd *abfd;
+     struct bfd_link_info *info;
+{
+  return NAME(aout,final_link) (abfd, info, MY_final_link_callback);
+}
+
 #endif
 
 /* We assume BFD generic archive files.  */
@@ -228,14 +360,14 @@ static CONST struct aout_backend_data MY(backend_data) = {
 
 /* No core file defined here -- configure in trad-core.c separately.  */
 #ifndef	MY_core_file_failing_command
-#define	MY_core_file_failing_command _bfd_dummy_core_file_failing_command
+#define	MY_core_file_failing_command _bfd_nocore_core_file_failing_command
 #endif
 #ifndef	MY_core_file_failing_signal
-#define	MY_core_file_failing_signal	_bfd_dummy_core_file_failing_signal
+#define	MY_core_file_failing_signal	_bfd_nocore_core_file_failing_signal
 #endif
 #ifndef	MY_core_file_matches_executable_p
 #define	MY_core_file_matches_executable_p	\
-				_bfd_dummy_core_file_matches_executable_p
+				_bfd_nocore_core_file_matches_executable_p
 #endif
 #ifndef	MY_core_file_p
 #define	MY_core_file_p		_bfd_dummy_target
@@ -260,21 +392,6 @@ static CONST struct aout_backend_data MY(backend_data) = {
 #endif
 #ifndef MY_core_file_matches_executable_p
 #define MY_core_file_matches_executable_p NAME(aout,core_file_matches_executable_p)
-#endif
-#ifndef MY_slurp_armap
-#define MY_slurp_armap NAME(aout,slurp_armap)
-#endif
-#ifndef MY_slurp_extended_name_table
-#define MY_slurp_extended_name_table NAME(aout,slurp_extended_name_table)
-#endif
-#ifndef MY_truncate_arname
-#define MY_truncate_arname NAME(aout,truncate_arname)
-#endif
-#ifndef MY_write_armap
-#define MY_write_armap NAME(aout,write_armap)
-#endif
-#ifndef MY_close_and_cleanup
-#define MY_close_and_cleanup NAME(aout,close_and_cleanup)
 #endif
 #ifndef MY_set_section_contents
 #define MY_set_section_contents NAME(aout,set_section_contents)
@@ -312,32 +429,63 @@ static CONST struct aout_backend_data MY(backend_data) = {
 #ifndef MY_set_arch_mach
 #define MY_set_arch_mach NAME(aout,set_arch_mach)
 #endif
-#ifndef MY_openr_next_archived_file
-#define MY_openr_next_archived_file NAME(aout,openr_next_archived_file)
-#endif
 #ifndef MY_find_nearest_line
 #define MY_find_nearest_line NAME(aout,find_nearest_line)
-#endif
-#ifndef MY_generic_stat_arch_elt
-#define MY_generic_stat_arch_elt NAME(aout,generic_stat_arch_elt)
 #endif
 #ifndef MY_sizeof_headers
 #define MY_sizeof_headers NAME(aout,sizeof_headers)
 #endif
-#ifndef MY_bfd_debug_info_start
-#define MY_bfd_debug_info_start NAME(aout,bfd_debug_info_start)
+#ifndef MY_bfd_get_relocated_section_contents
+#define MY_bfd_get_relocated_section_contents \
+			bfd_generic_get_relocated_section_contents
 #endif
-#ifndef MY_bfd_debug_info_end
-#define MY_bfd_debug_info_end NAME(aout,bfd_debug_info_end)
+#ifndef MY_bfd_relax_section
+#define MY_bfd_relax_section bfd_generic_relax_section
 #endif
-#ifndef MY_bfd_debug_info_accumulat
-#define MY_bfd_debug_info_accumulat NAME(aout,bfd_debug_info_accumulat)
+#ifndef MY_bfd_reloc_type_lookup
+#define MY_bfd_reloc_type_lookup NAME(aout,reloc_type_lookup)
 #endif
-#ifndef MY_reloc_howto_type_lookup
-#define MY_reloc_howto_type_lookup NAME(aout,reloc_type_lookup)
+#ifndef MY_bfd_make_debug_symbol
+#define MY_bfd_make_debug_symbol 0
 #endif
-#ifndef MY_make_debug_symbol
-#define MY_make_debug_symbol 0
+#ifndef MY_bfd_link_hash_table_create
+#define MY_bfd_link_hash_table_create NAME(aout,link_hash_table_create)
+#endif
+#ifndef MY_bfd_link_add_symbols
+#define MY_bfd_link_add_symbols NAME(aout,link_add_symbols)
+#endif
+
+#ifndef MY_bfd_copy_private_bfd_data
+#define MY_bfd_copy_private_bfd_data _bfd_generic_bfd_copy_private_bfd_data
+#endif
+
+#ifndef MY_bfd_is_local_label
+#define MY_bfd_is_local_label bfd_generic_is_local_label
+#endif
+
+#ifndef MY_bfd_free_cached_info
+#define MY_bfd_free_cached_info NAME(aout,bfd_free_cached_info)
+#endif
+
+#ifndef MY_close_and_cleanup
+#define MY_close_and_cleanup MY_bfd_free_cached_info
+#endif
+
+#ifndef MY_get_dynamic_symtab_upper_bound
+#define MY_get_dynamic_symtab_upper_bound \
+  _bfd_nodynamic_get_dynamic_symtab_upper_bound
+#endif
+#ifndef MY_canonicalize_dynamic_symtab
+#define MY_canonicalize_dynamic_symtab \
+  _bfd_nodynamic_canonicalize_dynamic_symtab
+#endif
+#ifndef MY_get_dynamic_reloc_upper_bound
+#define MY_get_dynamic_reloc_upper_bound \
+  _bfd_nodynamic_get_dynamic_reloc_upper_bound
+#endif
+#ifndef MY_canonicalize_dynamic_reloc
+#define MY_canonicalize_dynamic_reloc \
+  _bfd_nodynamic_canonicalize_dynamic_reloc
 #endif
 
 /* Aout symbols normally have leading underscores */
@@ -351,7 +499,7 @@ static CONST struct aout_backend_data MY(backend_data) = {
 #endif
 
 #ifndef MY_BFD_TARGET
-bfd_target MY(vec) =
+const bfd_target MY(vec) =
 {
   TARGETNAME,		/* name */
   bfd_target_aout_flavour,
@@ -392,38 +540,16 @@ bfd_target MY(vec) =
     {bfd_false, MY_write_object_contents, /* bfd_write_contents */
        _bfd_write_archive_contents, bfd_false},
 
-  MY_core_file_failing_command,
-  MY_core_file_failing_signal,
-  MY_core_file_matches_executable_p,
-  MY_slurp_armap,
-  MY_slurp_extended_name_table,
-  MY_truncate_arname,
-  MY_write_armap,
-  MY_close_and_cleanup,
-  MY_set_section_contents,
-  MY_get_section_contents,
-  MY_new_section_hook,
-  MY_get_symtab_upper_bound,
-  MY_get_symtab,
-  MY_get_reloc_upper_bound,
-  MY_canonicalize_reloc,
-  MY_make_empty_symbol,
-  MY_print_symbol,
-  MY_get_symbol_info,
-  MY_get_lineno,
-  MY_set_arch_mach,
-  MY_openr_next_archived_file,
-  MY_find_nearest_line,
-  MY_generic_stat_arch_elt,
-  MY_sizeof_headers,
-  MY_bfd_debug_info_start,
-  MY_bfd_debug_info_end,
-  MY_bfd_debug_info_accumulate,
-  bfd_generic_get_relocated_section_contents,
-  bfd_generic_relax_section,
-  bfd_generic_seclet_link,
-  MY_reloc_howto_type_lookup,
-  MY_make_debug_symbol,
+     BFD_JUMP_TABLE_GENERIC (MY),
+     BFD_JUMP_TABLE_COPY (MY),
+     BFD_JUMP_TABLE_CORE (MY),
+     BFD_JUMP_TABLE_ARCHIVE (MY),
+     BFD_JUMP_TABLE_SYMBOLS (MY),
+     BFD_JUMP_TABLE_RELOCS (MY),
+     BFD_JUMP_TABLE_WRITE (MY),
+     BFD_JUMP_TABLE_LINK (MY),
+     BFD_JUMP_TABLE_DYNAMIC (MY),
+
   (PTR) MY_backend_data,
 };
 #endif /* MY_BFD_TARGET */

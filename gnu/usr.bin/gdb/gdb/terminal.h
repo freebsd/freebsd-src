@@ -20,8 +20,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #if !defined (TERMINAL_H)
 #define TERMINAL_H 1
 
-#include <sys/types.h>
-
 #if !defined(__GO32__) && !defined (HAVE_TERMIOS)
 
 /* Define a common set of macros -- BSD based -- and redefine whatever

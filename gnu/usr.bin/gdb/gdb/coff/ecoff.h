@@ -36,55 +36,38 @@
 #define _RDATA	".rdata"
 #define _SDATA	".sdata"
 #define _SBSS	".sbss"
+#define _LITA	".lita"
 #define _LIT4	".lit4"
 #define _LIT8	".lit8"
 #define _LIB	".lib"
 #define _INIT	".init"
 #define _FINI	".fini"
+#define _PDATA	".pdata"
+#define _XDATA	".xdata"
 
 /* ECOFF uses some additional section flags.  */
-#define STYP_RDATA 0x100
-#define STYP_SDATA 0x200
-#define STYP_SBSS 0x400
-#define STYP_ECOFF_FINI 0x1000000
-#define STYP_LIT8 0x8000000
-#define STYP_LIT4 0x10000000
+#define STYP_RDATA	     0x100
+#define STYP_SDATA	     0x200
+#define STYP_SBSS	     0x400
+#define STYP_ECOFF_FINI	 0x1000000
+#define STYP_EXTENDESC	 0x2000000 /* 0x02FFF000 bits => scn type, rest clr */
+#define STYP_LITA	 0x4000000
+#define STYP_LIT8	 0x8000000
+#define STYP_LIT4	0x10000000
+#define STYP_ECOFF_LIB	0x40000000
 #define STYP_ECOFF_INIT 0x80000000
 #define STYP_OTHER_LOAD (STYP_ECOFF_INIT | STYP_ECOFF_FINI)
+
+/* extended section types */
+#define STYP_COMMENT	 0x2100000
+#define STYP_XDATA	 0x2400000
+#define STYP_PDATA	 0x2800000
 
 /* The linker needs a section to hold small common variables while
    linking.  There is no convenient way to create it when the linker
    needs it, so we always create one for each BFD.  We then avoid
    writing it out.  */
 #define SCOMMON ".scommon"
-
-/* The ECOFF a.out header carries information about register masks and
-   the gp value.  The assembler needs to be able to write out this
-   information, and objcopy needs to be able to copy it from one file
-   to another.  To handle this in BFD, we use a dummy section to hold
-   the information.  We call this section .reginfo, since MIPS ELF has
-   a .reginfo section which serves a similar purpose.  When BFD
-   recognizes an ECOFF object, it copies the information into a
-   private data structure.  When the .reginfo section is read, the
-   information is retrieved from the private data structure.  When the
-   .reginfo section is written, the information in the private data
-   structure is updated.  The contents of the .reginfo section, as
-   seen by programs outside BFD, is a ecoff_reginfo structure.  The
-   contents of the structure are as seen on the host, so no swapping
-   issues arise.
-
-   The assembler used to update the private BFD data structures
-   directly.  With this approach, it instead just creates a .reginfo
-   section and updates that.  The real advantage of this approach is
-   that objcopy works automatically.  */
-#define REGINFO ".reginfo"
-struct ecoff_reginfo
-{
-  bfd_vma gp_value;		/* GP register value.		*/
-  unsigned long gprmask;	/* General registers used.	*/
-  unsigned long cprmask[4];	/* Coprocessor registers used.	*/
-  unsigned long fprmask;	/* Floating pointer registers used.  */
-};  
 
 /* If the extern bit in a reloc is 1, then r_symndx is an index into
    the external symbol table.  If the extern bit is 0, then r_symndx
@@ -104,6 +87,8 @@ struct ecoff_reginfo
 #define RELOC_SECTION_FINI     12
 #define RELOC_SECTION_LITA     13
 #define RELOC_SECTION_ABS      14
+
+#define NUM_RELOC_SECTIONS     15
 
 /********************** STABS **********************/
 
@@ -146,42 +131,42 @@ struct tir_ext {
 	unsigned char	t_tq23[1];
 };
 
-#define	TIR_BITS1_FBITFIELD_BIG		0x80
-#define	TIR_BITS1_FBITFIELD_LITTLE	0x01
+#define	TIR_BITS1_FBITFIELD_BIG		((unsigned int) 0x80)
+#define	TIR_BITS1_FBITFIELD_LITTLE	((unsigned int) 0x01)
 
-#define	TIR_BITS1_CONTINUED_BIG		0x40
-#define	TIR_BITS1_CONTINUED_LITTLE	0x02
+#define	TIR_BITS1_CONTINUED_BIG		((unsigned int) 0x40)
+#define	TIR_BITS1_CONTINUED_LITTLE	((unsigned int) 0x02)
 
-#define	TIR_BITS1_BT_BIG		0x3F
+#define	TIR_BITS1_BT_BIG		((unsigned int) 0x3F)
 #define	TIR_BITS1_BT_SH_BIG		0
-#define	TIR_BITS1_BT_LITTLE		0xFC
+#define	TIR_BITS1_BT_LITTLE		((unsigned int) 0xFC)
 #define	TIR_BITS1_BT_SH_LITTLE		2
 
-#define	TIR_BITS_TQ4_BIG		0xF0
+#define	TIR_BITS_TQ4_BIG		((unsigned int) 0xF0)
 #define	TIR_BITS_TQ4_SH_BIG		4
-#define	TIR_BITS_TQ5_BIG		0x0F
+#define	TIR_BITS_TQ5_BIG		((unsigned int) 0x0F)
 #define	TIR_BITS_TQ5_SH_BIG		0
-#define	TIR_BITS_TQ4_LITTLE		0x0F
+#define	TIR_BITS_TQ4_LITTLE		((unsigned int) 0x0F)
 #define	TIR_BITS_TQ4_SH_LITTLE		0
-#define	TIR_BITS_TQ5_LITTLE		0xF0
+#define	TIR_BITS_TQ5_LITTLE		((unsigned int) 0xF0)
 #define	TIR_BITS_TQ5_SH_LITTLE		4
 
-#define	TIR_BITS_TQ0_BIG		0xF0
+#define	TIR_BITS_TQ0_BIG		((unsigned int) 0xF0)
 #define	TIR_BITS_TQ0_SH_BIG		4
-#define	TIR_BITS_TQ1_BIG		0x0F
+#define	TIR_BITS_TQ1_BIG		((unsigned int) 0x0F)
 #define	TIR_BITS_TQ1_SH_BIG		0
-#define	TIR_BITS_TQ0_LITTLE		0x0F
+#define	TIR_BITS_TQ0_LITTLE		((unsigned int) 0x0F)
 #define	TIR_BITS_TQ0_SH_LITTLE		0
-#define	TIR_BITS_TQ1_LITTLE		0xF0
+#define	TIR_BITS_TQ1_LITTLE		((unsigned int) 0xF0)
 #define	TIR_BITS_TQ1_SH_LITTLE		4
 
-#define	TIR_BITS_TQ2_BIG		0xF0
+#define	TIR_BITS_TQ2_BIG		((unsigned int) 0xF0)
 #define	TIR_BITS_TQ2_SH_BIG		4
-#define	TIR_BITS_TQ3_BIG		0x0F
+#define	TIR_BITS_TQ3_BIG		((unsigned int) 0x0F)
 #define	TIR_BITS_TQ3_SH_BIG		0
-#define	TIR_BITS_TQ2_LITTLE		0x0F
+#define	TIR_BITS_TQ2_LITTLE		((unsigned int) 0x0F)
 #define	TIR_BITS_TQ2_SH_LITTLE		0
-#define	TIR_BITS_TQ3_LITTLE		0xF0
+#define	TIR_BITS_TQ3_LITTLE		((unsigned int) 0xF0)
 #define	TIR_BITS_TQ3_SH_LITTLE		4
 
 /* Relative symbol external record */
@@ -191,19 +176,19 @@ struct rndx_ext {
 };
 
 #define	RNDX_BITS0_RFD_SH_LEFT_BIG	4
-#define	RNDX_BITS1_RFD_BIG		0xF0
+#define	RNDX_BITS1_RFD_BIG		((unsigned int) 0xF0)
 #define	RNDX_BITS1_RFD_SH_BIG		4
 
 #define	RNDX_BITS0_RFD_SH_LEFT_LITTLE	0
-#define	RNDX_BITS1_RFD_LITTLE		0x0F
+#define	RNDX_BITS1_RFD_LITTLE		((unsigned int) 0x0F)
 #define	RNDX_BITS1_RFD_SH_LEFT_LITTLE	8
 
-#define	RNDX_BITS1_INDEX_BIG		0x0F
+#define	RNDX_BITS1_INDEX_BIG		((unsigned int) 0x0F)
 #define	RNDX_BITS1_INDEX_SH_LEFT_BIG	16
 #define	RNDX_BITS2_INDEX_SH_LEFT_BIG	8
 #define	RNDX_BITS3_INDEX_SH_LEFT_BIG	0
 
-#define	RNDX_BITS1_INDEX_LITTLE		0xF0
+#define	RNDX_BITS1_INDEX_LITTLE		((unsigned int) 0xF0)
 #define	RNDX_BITS1_INDEX_SH_LITTLE	4
 #define	RNDX_BITS2_INDEX_SH_LEFT_LITTLE	4
 #define	RNDX_BITS3_INDEX_SH_LEFT_LITTLE	12
@@ -249,14 +234,136 @@ union aux_ext {
 #define AUX_PUT_COUNT(bigend, val, ax) \
   AUX_PUT_ANY ((bigend), (val), (ax), a_count)
 
-/* Prototypes for the swapping functions.  These require that sym.h be
-   included before this file.  */
+/********************** SYMBOLS **********************/
 
-extern void ecoff_swap_tir_in PARAMS ((int bigend, struct tir_ext *, TIR *));
-extern void ecoff_swap_tir_out PARAMS ((int bigend, TIR *, struct tir_ext *));
-extern void ecoff_swap_rndx_in PARAMS ((int bigend, struct rndx_ext *,
-					RNDXR *));
-extern void ecoff_swap_rndx_out PARAMS ((int bigend, RNDXR *,
-					 struct rndx_ext *));
+/* For efficiency, gdb deals directly with the unswapped symbolic
+   information (that way it only takes the time to swap information
+   that it really needs to read).  gdb originally retrieved the
+   information directly from the BFD backend information, but that
+   strategy, besides being sort of ugly, does not work for MIPS ELF,
+   which also uses ECOFF debugging information.  This structure holds
+   pointers to the (mostly) unswapped symbolic information.  */
+
+struct ecoff_debug_info
+{
+  /* The swapped ECOFF symbolic header.  */
+  HDRR symbolic_header;
+
+  /* Pointers to the unswapped symbolic information.  Note that the
+     pointers to external structures point to different sorts of
+     information on different ECOFF targets.  The ecoff_debug_swap
+     structure provides the sizes of the structures and the functions
+     needed to swap the information in and out.  These pointers are
+     all pointers to arrays, not single structures.  They will be NULL
+     if there are no instances of the relevant structure.  These
+     fields are also used by the assembler to output ECOFF debugging
+     information.  */
+  unsigned char *line;
+  PTR external_dnr;	/* struct dnr_ext */
+  PTR external_pdr;	/* struct pdr_ext */
+  PTR external_sym;	/* struct sym_ext */
+  PTR external_opt;	/* struct opt_ext */
+  union aux_ext *external_aux;
+  char *ss;
+  char *ssext;
+  PTR external_fdr;	/* struct fdr_ext */
+  PTR external_rfd;	/* struct rfd_ext */
+  PTR external_ext;	/* struct ext_ext */
+
+  /* These fields are used when linking.  They may disappear at some
+     point.  */
+  char *ssext_end;
+  PTR external_ext_end;
+
+  /* When linking, this field holds a mapping from the input FDR
+     numbers to the output numbers, and is used when writing out the
+     external symbols.  It is NULL if no mapping is required.  */
+  RFDT *ifdmap;
+
+  /* The swapped FDR information.  Currently this is never NULL, but
+     code using this structure should probably double-check in case
+     this changes in the future.  This is a pointer to an array, not a
+     single structure.  */
+  FDR *fdr;
+
+  /* When relaxing MIPS embedded PIC code, we may need to adjust
+     symbol values when they are output.  This is a linked list of
+     structures indicating how values should be adjusted.  There is no
+     requirement that the entries be in any order, or that they not
+     overlap.  This field is normally NULL, in which case no
+     adjustments need to be made.  */
+  struct ecoff_value_adjust *adjust;
+};
+
+/* This structure describes how to adjust symbol values when
+   outputting MIPS embedded PIC code.  These adjustments only apply to
+   the internal symbols, as the external symbol values will come from
+   the hash table and have already been adjusted.  */
+
+struct ecoff_value_adjust
+{
+  /* Next entry on adjustment list.  */
+  struct ecoff_value_adjust *next;
+  /* Starting VMA of adjustment.  This is the VMA in the ECOFF file,
+     not the offset from the start of the section.  Thus it should
+     indicate a particular section.  */
+  bfd_vma start;
+  /* Ending VMA of adjustment.  */
+  bfd_vma end;
+  /* Adjustment.  This should be added to the value of the symbol, or
+     FDR.  This is zero for the last entry in the array.  */
+  long adjust;
+};
+
+/********************** SWAPPING **********************/
+
+/* The generic ECOFF code needs to be able to swap debugging
+   information in and out in the specific format used by a particular
+   ECOFF implementation.  This structure provides the information
+   needed to do this.  */
+
+struct ecoff_debug_swap
+{
+  /* Symbol table magic number.  */
+  int sym_magic;
+  /* Alignment of debugging information.  E.g., 4.  */
+  bfd_size_type debug_align;
+  /* Sizes of external symbolic information.  */
+  bfd_size_type external_hdr_size;
+  bfd_size_type external_dnr_size;
+  bfd_size_type external_pdr_size;
+  bfd_size_type external_sym_size;
+  bfd_size_type external_opt_size;
+  bfd_size_type external_fdr_size;
+  bfd_size_type external_rfd_size;
+  bfd_size_type external_ext_size;
+  /* Functions to swap in external symbolic data.  */
+  void (*swap_hdr_in) PARAMS ((bfd *, PTR, HDRR *));
+  void (*swap_dnr_in) PARAMS ((bfd *, PTR, DNR *));
+  void (*swap_pdr_in) PARAMS ((bfd *, PTR, PDR *));
+  void (*swap_sym_in) PARAMS ((bfd *, PTR, SYMR *));
+  void (*swap_opt_in) PARAMS ((bfd *, PTR, OPTR *));
+  void (*swap_fdr_in) PARAMS ((bfd *, PTR, FDR *));
+  void (*swap_rfd_in) PARAMS ((bfd *, PTR, RFDT *));
+  void (*swap_ext_in) PARAMS ((bfd *, PTR, EXTR *));
+  void (*swap_tir_in) PARAMS ((int, const struct tir_ext *, TIR *));
+  void (*swap_rndx_in) PARAMS ((int, const struct rndx_ext *, RNDXR *));
+  /* Functions to swap out external symbolic data.  */
+  void (*swap_hdr_out) PARAMS ((bfd *, const HDRR *, PTR));
+  void (*swap_dnr_out) PARAMS ((bfd *, const DNR *, PTR));
+  void (*swap_pdr_out) PARAMS ((bfd *, const PDR *, PTR));
+  void (*swap_sym_out) PARAMS ((bfd *, const SYMR *, PTR));
+  void (*swap_opt_out) PARAMS ((bfd *, const OPTR *, PTR));
+  void (*swap_fdr_out) PARAMS ((bfd *, const FDR *, PTR));
+  void (*swap_rfd_out) PARAMS ((bfd *, const RFDT *, PTR));
+  void (*swap_ext_out) PARAMS ((bfd *, const EXTR *, PTR));
+  void (*swap_tir_out) PARAMS ((int, const TIR *, struct tir_ext *));
+  void (*swap_rndx_out) PARAMS ((int, const RNDXR *, struct rndx_ext *));
+  /* Function to read symbol data and set up pointers in
+     ecoff_debug_info structure.  The section argument is used for
+     ELF, not straight ECOFF.  */
+  boolean (*read_debug_info) PARAMS ((bfd *, asection *,
+				      struct ecoff_debug_info *));
+};
 
 #endif /* ! defined (ECOFF_H) */

@@ -84,9 +84,11 @@ i386_skip_prologue PARAMS ((int));
 
 #define INVALID_FLOAT(p, len) (0)
 
-/* Say how long (ordinary) registers are.  */
+/* Say how long (ordinary) registers are.  This is a piece of bogosity
+   used in push_word and a few other places; REGISTER_RAW_SIZE is the
+   real way to know how big a register is.  */
 
-#define REGISTER_TYPE long
+#define REGISTER_SIZE 4
 
 /* Number of machine registers */
 
@@ -144,23 +146,6 @@ i386_skip_prologue PARAMS ((int));
 /* Largest value REGISTER_VIRTUAL_SIZE can have.  */
 
 #define MAX_REGISTER_VIRTUAL_SIZE 4
-
-/* Nonzero if register N requires conversion
-   from raw format to virtual format.  */
-
-#define REGISTER_CONVERTIBLE(N) (0)
-
-/* Convert data from raw format for register REGNUM
-   to virtual format for register REGNUM.  */
-
-#define REGISTER_CONVERT_TO_VIRTUAL(REGNUM,FROM,TO) \
-  {memcpy ((TO), (FROM), 4);}
-
-/* Convert data from virtual format for register REGNUM
-   to raw format for register REGNUM.  */
-
-#define REGISTER_CONVERT_TO_RAW(REGNUM,FROM,TO) \
-  {memcpy ((TO), (FROM), 4);}
 
 /* Return the GDB type object for the "standard" data type
    of data in register N.  */
@@ -279,6 +264,8 @@ i386_pop_frame PARAMS ((void));
 #define CALL_DUMMY_LENGTH 8
 
 #define CALL_DUMMY_START_OFFSET 0  /* Start execution at beginning of dummy */
+
+#define CALL_DUMMY_BREAKPOINT_OFFSET 5
 
 /* Insert the specified number of args and function address
    into a call sequence of the above form stored at DUMMYNAME.  */

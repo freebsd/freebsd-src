@@ -1,8 +1,17 @@
 LIB = bfd
-SRCS = archive.c archures.c bfd.c cache.c coffgen.c core.c ctor.c \
-       format.c init.c libbfd.c opncls.c reloc.c seclet.c section.c syms.c \
-       targets.c ecoff.c elf.c srec.c freebsd386.c aout32.c stab-syms.c \
-       cpu-i386.c trad-core.c
+
+SRCS = libbfd.c opncls.c bfd.c archive.c targets.c cache.c \
+	 archures.c coff-i386.c aout32.c \
+	 srec.c \
+	 ecoff.c ecofflink.c \
+	 coffgen.c format.c \
+	 section.c core.c syms.c stab-syms.c reloc.c init.c ctor.c \
+	 trad-core.c \
+	 i386aout.c \
+	 freebsd386.c \
+	 cpu-i386.c \
+	 elf.c elf32.c elf32-i386.c \
+	 hash.c linker.c
 
 CFLAGS+= -I$(.CURDIR)/. -I$(.CURDIR)/../gdb/.
 CFLAGS+= -DDEFAULT_VECTOR=freebsd386_vec -DSELECT_VECS='&freebsd386_vec' \

@@ -104,6 +104,9 @@ enum exp_opcode
      the second operand with itself that many times. */
   BINOP_CONCAT,
 
+  /* For Chill and Pascal. */
+  BINOP_IN, /* Returns 1 iff ARG1 IN ARG2. */
+
   /* This must be the highest BINOP_ value, for expprint.c.  */
   BINOP_END,
 
@@ -292,7 +295,7 @@ extern struct block *innermost_block;
 /* From expprint.c */
 
 extern void
-print_expression PARAMS ((struct expression *, FILE *));
+print_expression PARAMS ((struct expression *, GDB_FILE *));
 
 extern char *
 op_string PARAMS ((enum exp_opcode));
@@ -304,7 +307,7 @@ op_string PARAMS ((enum exp_opcode));
 
 #ifdef DEBUG_EXPRESSIONS
 extern void
-dump_expression PARAMS ((struct expression *, FILE *, char *));
+dump_expression PARAMS ((struct expression *, GDB_FILE *, char *));
 #define DUMP_EXPRESSION(exp,file,note) dump_expression ((exp), (file), (note))
 #else
 #define DUMP_EXPRESSION(exp,file,note)	/* Null expansion */
