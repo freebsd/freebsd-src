@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.21 1995/03/04 20:50:49 dufault Exp $
+ *      $Id: scsi_base.c,v 1.22 1995/03/15 14:22:05 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -1007,10 +1007,11 @@ void
 sc_print_addr(sc_link)
 	struct	scsi_link *sc_link;
 {
+	if (strcmp(sc_link->device->name, "probe") != 0)
+		printf("%s%d", sc_link->device->name, sc_link->dev_unit);
 
-	printf("%s%d(%s%d:%d:%d): ", sc_link->device->name, sc_link->dev_unit,	
-		sc_link->adapter->name,	 sc_link->adapter_unit,	
-		sc_link->target,	 sc_link->lun);		
+	printf("(%s%d:%d:%d): ", sc_link->adapter->name, sc_link->adapter_unit,
+		sc_link->target, sc_link->lun);		
 }
 #ifdef	SCSIDEBUG
 /*
