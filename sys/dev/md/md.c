@@ -57,10 +57,7 @@
  * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03
  */
 
-#ifdef notquiteyet
 #include "opt_geom.h"
-#endif
-
 #include "opt_md.h"
 
 #include <sys/param.h>
