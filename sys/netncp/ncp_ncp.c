@@ -215,7 +215,7 @@ ncp_renegotiate_connparam(struct ncp_conn *conn, int buffsize, u_int8_t in_optio
 	if (conn->li.saddr.sa_family == AF_IPX) {
 		ilen = sizeof(ckslevel);
 		error = kernel_sysctlbyname(curthread, "net.ipx.ipx.checksum",
-		    &ckslevel, &ilen, NULL, 0, NULL);
+		    &ckslevel, &ilen, NULL, 0, NULL, 0);
 		if (error)
 			return error;
 		if (ckslevel == 2)
