@@ -345,6 +345,10 @@ Static struct umass_devdescr_t umass_devdescrs[] = {
 	  UMASS_PROTO_SCSI | UMASS_PROTO_CBI,
 	  NO_TEST_UNIT_READY | NO_START_STOP
 	},
+	{ USB_VENDOR_MSYSTEMS, USB_PRODUCT_MSYSTEMS_DISKONKEY, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  IGNORE_RESIDUE | NO_GETMAXLUN | RS_NO_CLEAR_UA
+	},
 	{ USB_VENDOR_OLYMPUS, USB_PRODUCT_OLYMPUS_C1, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 	  WRONG_CSWSIG
@@ -2466,7 +2470,8 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 			ccg->secs_per_track = 32;
 		}
 		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
+		ccg->cylinders = (ccg->volume_size + secs_per_cylinder - 1) /
+				secs_per_cylinder;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 
 		xpt_done(ccb);
@@ -2606,7 +2611,7 @@ umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 		/* Getting sense data always succeeds (apart from wire
 		 * failures).
 		 */
-		if (sc->quirks & RS_NO_CLEAR_UA
+		if ((sc->quirks & RS_NO_CLEAR_UA)
 		    && csio->cdb_io.cdb_bytes[0] == INQUIRY
 		    && (csio->sense_data.flags & SSD_KEY)
 		    				== SSD_KEY_UNIT_ATTENTION) {
@@ -2622,20 +2627,25 @@ umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 			 * CCI)
 			 */
 			ccb->ccb_h.status = CAM_REQ_CMP;
-		} else if ((sc->quirks & RS_NO_CLEAR_UA) && /* XXX */
+		} else if ((sc->quirks & RS_NO_CLEAR_UA) &&
 			   (csio->cdb_io.cdb_bytes[0] == READ_CAPACITY) &&
 			   ((csio->sense_data.flags & SSD_KEY)
 			    == SSD_KEY_UNIT_ATTENTION)) {
-
-			/* Some devices do not clear the unit attention error
+			/*
+			 * Some devices do not clear the unit attention error
 			 * on request sense. We insert a test unit ready
 			 * command to make sure we clear the unit attention
-			 * condition.
+			 * condition, then allow the retry to proceed as
+			 * usual.
 			 */
 
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
 					    | CAM_AUTOSNS_VALID;
 			csio->scsi_status = SCSI_STATUS_CHECK_COND;
+
+#if 0
+			DELAY(300000);
+#endif
 
 			DPRINTF(UDMASS_SCSI,("%s: Doing a sneaky"
 					     "TEST_UNIT_READY\n",
@@ -2675,6 +2685,11 @@ umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 	}
 }
 
+/*
+ * This completion code just handles the fact that we sent a test-unit-ready
+ * after having previously failed a READ CAPACITY with CHECK_COND.  Even
+ * though this command succeeded, we have to tell CAM to retry.
+ */
 Static void
 umass_cam_quirk_cb(struct umass_softc *sc, void *priv, int residue, int status)
 {
@@ -2682,7 +2697,12 @@ umass_cam_quirk_cb(struct umass_softc *sc, void *priv, int residue, int status)
 
 	DPRINTF(UDMASS_SCSI, ("%s: Test unit ready returned status %d\n",
 	USBDEVNAME(sc->sc_dev), status));
+#if 0
 	ccb->ccb_h.status = CAM_REQ_CMP;
+#endif
+	ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
+			    | CAM_AUTOSNS_VALID;
+	ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 	xpt_done(ccb);
 }
 
