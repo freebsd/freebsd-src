@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.3 1995/05/04 03:51:21 jkh Exp $
+ * $Id: msg.c,v 1.6 1995/05/05 23:47:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,7 +58,7 @@ msgYap(char *fmt, ...)
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
     va_end(args);
     attrs = getattrs(stdscr);
-    attrset(A_BOLD);
+    attrset(A_REVERSE);
     mvaddstr(23, 0, errstr);
     attrset(attrs);
     refresh();
@@ -101,7 +101,7 @@ msgWarn(char *fmt, ...)
     va_end(args);
     attrs = getattrs(stdscr);
     beep();
-    attrset(A_BOLD);
+    attrset(A_REVERSE);
     mvaddstr(23, 0, errstr);
     attrset(attrs);
     refresh();
@@ -123,7 +123,7 @@ msgError(char *fmt, ...)
     va_end(args);
     beep();
     attrs = getattrs(stdscr);
-    attrset(A_BOLD);
+    attrset(A_REVERSE);
     mvaddstr(23, 0, errstr);
     attrset(attrs);
     refresh();
@@ -145,7 +145,7 @@ msgFatal(char *fmt, ...)
     va_end(args);
     beep();
     attrs = getattrs(stdscr);
-    attrset(A_BOLD);
+    attrset(A_REVERSE);
     mvaddstr(23, 0, errstr);
     addstr(" - ");
     addstr("PRESS ANY KEY TO ");

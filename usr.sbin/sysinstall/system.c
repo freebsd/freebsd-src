@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.5 1995/05/05 23:47:46 jkh Exp $
+ * $Id: system.c,v 1.6 1995/05/06 09:34:22 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -201,7 +201,7 @@ systemHelpFile(char *file, char *buf)
 		fname = buf;
 	}
     }
-    else {
+    if (!fname) {
 	snprintf(buf, FILENAME_MAX, "help/en_US.ISO8859-1/%s", file);
 	if (file_readable(buf))
 	    fname = buf;
@@ -238,12 +238,12 @@ systemChangeTerminal(char *color, const u_char c_term[],
 	if (ColorDisplay) {
 	    setenv("TERM", color, 1);
 	    setenv("TERMCAP", c_term, 1);
-	    setterm(color);
+	/*    setterm(color); */
 	}
 	else {
 	    setenv("TERM", mono, 1);
 	    setenv("TERMCAP", m_term, 1);
-	    setterm(mono);
+	/*    setterm(mono); */
 	}
     }
 }

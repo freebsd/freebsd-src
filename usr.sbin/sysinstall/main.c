@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.2 1995/05/04 03:51:17 jkh Exp $
+ * $Id: main.c,v 1.4 1995/05/05 23:47:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -59,6 +59,9 @@ main(int argc, char **argv)
 
     /* Welcome user to FreeBSD */
     systemWelcome();
+
+    /* Default to English */
+    /* lang_set_English(NULL); */
 
     /* Begin user dialog at outer menu */
     while (1) {
