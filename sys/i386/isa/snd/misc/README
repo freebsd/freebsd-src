@@ -1,0 +1,82 @@
+Various support files for the new sound driver for FreeBSD.
+
+  audio-voxware.cc
+
+        this is the driver for "vat" (tested with vat 4.0b2 in the
+	ports distribution) to make things work in full duplex. It
+	does _not_ use non-blocking i/o, otherwise vat will happily
+	eat most of your CPU time since select will often return true
+	even if less than one frame is ready.
+
+	The environment variable AUDIODEV will let you use different
+	sound cards if you have more than one. It can contain the unit
+	number (0, 1, 2, ...) or the full pathname.
+
+	As an additional bonus, you can select a fourth input which is
+	a ulaw file which is written to the network instead of the
+	input audio data.
+
+	CPU usage on my p5/133 in full duplex, local feedback and
+	silence suppression (most demanding configuration I believe):
+	    PCM   3.5%
+	    DVI   4.8%
+	    LPC  11  %
+	    GSM  23  %
+
+  auvoxware.c
+
+	this is the driver for "nas" (tested with nas 1.2b5). Works
+	fine in full duplex.
+
+  linux_a.c
+
+	driver for timidity, a midi-to-pcm converter. Using this program
+	(and if you have spare cpu cycles) you can play midi files to
+	/dev/audio without the need for a synthesis device.
+
+  linux.patch
+
+	this is a patch for 2.2.X users for the linux emulator. The
+	files to correct are in /sys/i386/linux, and this patch
+	implements a few ioctl which are used by the realvideo player
+	for linux (rvplayer). In order to use these patches you have
+	to recompile the linux_mod.o and install it in place as follows
+
+		cd /usr/src/lkm/linux
+		make
+		mv linux_mod.o /lkm/linux_mod.o
+
+  pcmio.c
+
+	a simple program to do i/o with the audio device. You can set
+	on the command line the device, the speed, data format, stereo
+	or mono... And if you use a bidirectional device, you can play
+	and record at the same time.
+
+	E.g. 
+
+	    pcmio -f 1 +rec,stereo,44100,s16 song
+
+	will record from /dev/audio1 stereo,16-bit data to the file "song"
+
+	    pcmio +play,stereo,44100,s16,loop 50s:20s song
+
+	will continuosly play 50s from "song" (skipping the first 20s)
+	to /dev/audio
+
+	    pcmio +rec,ulaw - | tee tapefile > /dev/audio
+
+	will record using ulaw (mono at 8KHz, default) to stdout, and
+	the pipe will both dump things to "tapefile" and to /dev/audio
+	to listen what you are recording (you could do the same with
+	"cat...").
+
+  soundbyte.c
+
+        the audio module for speak_freely
+
+  test.c
+
+	lets you monitor the status of the device (/dev/audio1) by
+	mmapping the descriptor and dumping to screen the interesting
+	fields.
