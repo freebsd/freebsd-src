@@ -326,6 +326,8 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 		bsd_args.flags |= MAP_FIXED;
 	if (linux_args.flags & LINUX_MAP_ANON)
 		bsd_args.flags |= MAP_ANON;
+	else
+		bsd_args.flags |= MAP_NOSYNC;
 	if (linux_args.flags & LINUX_MAP_GROWSDOWN) {
 		bsd_args.flags |= MAP_STACK;
 
