@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.4 1999/03/28 18:57:19 sos Exp $
+ *	$Id: atapi-cd.c,v 1.5 1999/04/10 18:53:35 sos Exp $
  */
 
 #include "ata.h"
@@ -510,7 +510,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	return acd_lock_device(cdp, 1);
 
     case CDIOCRESET:
-        error = suser(p->p_ucred, &p->p_acflag);
+        error = suser(p);
         if (error)
             return error;
         return acd_test_unit_ready(cdp);

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: $
+ *	$Id: rp.c,v 1.23 1999/04/24 20:26:12 billf Exp $
  */
 
 /* 
@@ -1341,7 +1341,7 @@ open_top:
 			}
 		}
 		if(tp->t_state & TS_XCLUDE &&
-		    suser(p->p_ucred, &p->p_acflag)) {
+		    suser(p)) {
 			splx(oldspl);
 			return(EBUSY);
 		}
@@ -1614,7 +1614,7 @@ rpioctl(dev, cmd, data, flag, p)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(p->p_ucred, &p->p_acflag);
+			error = suser(p);
 			if(error != 0)
 				return(error);
 			*ct = *(struct termios *)data;
@@ -1759,7 +1759,7 @@ rpioctl(dev, cmd, data, flag, p)
 		*(int *)data = result;
 		break;
 	case TIOCMSDTRWAIT:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if(error != 0) {
 			splx(oldspl);
 			return(error);

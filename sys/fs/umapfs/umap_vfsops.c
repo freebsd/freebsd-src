@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.8 (Berkeley) 5/14/95
  *
- * $Id: umap_vfsops.c,v 1.23 1998/09/07 13:17:01 bde Exp $
+ * $Id: umap_vfsops.c,v 1.24 1999/03/12 19:40:39 imp Exp $
  */
 
 /*
@@ -98,7 +98,7 @@ umapfs_mount(mp, path, data, ndp, p)
 	/*
 	 * Only for root
 	 */
-	if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if ((error = suser(p)) != 0)
 		return (error);
 
 #ifdef UMAPFS_DIAGNOSTIC

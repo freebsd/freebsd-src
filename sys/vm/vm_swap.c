@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.60 1999/02/25 05:37:18 dillon Exp $
+ * $Id: vm_swap.c,v 1.61 1999/04/10 17:54:43 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -209,7 +209,7 @@ swapon(p, uap)
 	struct nameidata nd;
 	int error;
 
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error)
 		return (error);
 

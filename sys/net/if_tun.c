@@ -150,7 +150,7 @@ tunopen(dev, flag, mode, p)
 	struct tun_softc *tp;
 	register int	unit, error;
 
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error)
 		return (error);
 

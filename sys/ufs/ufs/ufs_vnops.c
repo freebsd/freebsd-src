@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.110 1999/02/26 05:34:16 imp Exp $
+ * $Id: ufs_vnops.c,v 1.111 1999/03/02 05:31:47 imp Exp $
  */
 
 #include "opt_quota.h"
@@ -448,7 +448,7 @@ ufs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != ip->i_uid &&
-		    (error = suser(cred, &p->p_acflag)))
+		    (error = suser_xxx(cred, &p->p_acflag)))
 			return (error);
 		if (cred->cr_uid == 0) {
 			if ((ip->i_flags
@@ -504,7 +504,7 @@ ufs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != ip->i_uid &&
-		    (error = suser(cred, &p->p_acflag)) &&
+		    (error = suser_xxx(cred, &p->p_acflag)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(vp, VWRITE, cred, p))))
 			return (error);
@@ -546,7 +546,7 @@ ufs_chmod(vp, mode, cred, p)
 	int error;
 
 	if (cred->cr_uid != ip->i_uid) {
-	    error = suser(cred, &p->p_acflag);
+	    error = suser_xxx(cred, &p->p_acflag);
 	    if (error)
 		return (error);
 	}
@@ -594,7 +594,7 @@ ufs_chown(vp, uid, gid, cred, p)
 	 */
 	if ((cred->cr_uid != ip->i_uid || uid != ip->i_uid ||
 	    (gid != ip->i_gid && !groupmember((gid_t)gid, cred))) &&
-	    (error = suser(cred, &p->p_acflag)))
+	    (error = suser_xxx(cred, &p->p_acflag)))
 		return (error);
 	ogid = ip->i_gid;
 	ouid = ip->i_uid;
@@ -2166,7 +2166,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	if (DOINGSOFTDEP(tvp))
 		softdep_increase_linkcnt(ip);
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
-	    suser(cnp->cn_cred, NULL))
+	    suser_xxx(cnp->cn_cred, NULL))
 		ip->i_mode &= ~ISGID;
 
 	if (cnp->cn_flags & ISWHITEOUT)

@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx.c
  *
- * $Id: ipx.c,v 1.13 1998/12/04 22:54:54 archie Exp $
+ * $Id: ipx.c,v 1.15 1998/12/09 13:48:08 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -109,7 +109,7 @@ ipx_control(so, cmd, data, ifp, p)
 		return (0);
 	}
 
-	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if (p && (error = suser(p)) != 0)
 		return (error);
 
 	switch (cmd) {

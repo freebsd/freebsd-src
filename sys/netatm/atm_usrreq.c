@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_usrreq.c,v 1.3 1999/01/19 23:16:10 mks Exp $
+ *	@(#) $Id: atm_usrreq.c,v 1.4 1999/01/27 22:42:20 dillon Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_usrreq.c,v 1.3 1999/01/19 23:16:10 mks Exp $");
+__RCSID("@(#) $Id: atm_usrreq.c,v 1.4 1999/01/27 22:42:20 dillon Exp $");
 #endif
 
 
@@ -175,7 +175,7 @@ atm_dgram_control(so, cmd, data, ifp, p)
 		struct atmcfgreq	*acp = (struct atmcfgreq *)data;
 		struct atm_pif		*pip;
 
-		if (p && (suser(p->p_ucred, &p->p_acflag) != 0))
+		if (p && (suser(p) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (acp->acr_opcode) {
@@ -208,7 +208,7 @@ atm_dgram_control(so, cmd, data, ifp, p)
 		struct atmaddreq	*aap = (struct atmaddreq *)data;
 		Atm_endpoint		*epp;
 
-		if (p && (suser(p->p_ucred, &p->p_acflag) != 0))
+		if (p && (suser(p) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (aap->aar_opcode) {
@@ -258,7 +258,7 @@ atm_dgram_control(so, cmd, data, ifp, p)
 		struct sigmgr		*smp;
 		Atm_endpoint		*epp;
 
-		if (p && (suser(p->p_ucred, &p->p_acflag) != 0))
+		if (p && (suser(p) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (adp->adr_opcode) {
@@ -311,7 +311,7 @@ atm_dgram_control(so, cmd, data, ifp, p)
 		struct sigmgr		*smp;
 		struct ifnet		*ifp2;
 
-		if (p && (suser(p->p_ucred, &p->p_acflag) != 0))
+		if (p && (suser(p) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (asp->asr_opcode) {

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.23 1999/01/12 01:17:01 eivind Exp $
+ * $Id: istallion.c,v 1.24 1999/01/30 12:17:33 phk Exp $
  */
 
 /*****************************************************************************/
@@ -1010,7 +1010,7 @@ stliopen_restart:
 			}
 		}
 		if ((tp->t_state & TS_XCLUDE) &&
-		    suser(p->p_ucred, &p->p_acflag)) {
+		    suser(p)) {
 			error = EBUSY;
 			goto stliopen_end;
 		}
@@ -1203,7 +1203,7 @@ STATIC int stliioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 
 		switch (cmd) {
 		case TIOCSETA:
-			if ((error = suser(p->p_ucred, &p->p_acflag)) == 0)
+			if ((error = suser(p)) == 0)
 				*localtios = *((struct termios *) data);
 			break;
 		case TIOCGETA:
@@ -1339,7 +1339,7 @@ STATIC int stliioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 		*((int *) data) = (portp->sigs | TIOCM_LE);
 		break;
 	case TIOCMSDTRWAIT:
-		if ((error = suser(p->p_ucred, &p->p_acflag)) == 0)
+		if ((error = suser(p)) == 0)
 			portp->dtrwait = *((int *) data) * hz / 100;
 		break;
 	case TIOCMGDTRWAIT:

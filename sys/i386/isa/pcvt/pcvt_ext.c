@@ -2680,7 +2680,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		struct syscframe *fp = (struct syscframe *)p->p_regs;
 #endif
 
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error != 0)
 			return (error);
 		if (securelevel > 0)

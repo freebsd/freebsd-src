@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.4 1999/01/12 10:54:14 dfr Exp $
+ *	$Id: mem.c,v 1.5 1999/04/23 19:53:38 dt Exp $
  */
 
 /*
@@ -324,7 +324,7 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 
 #if 0
 	/* Only root can do this */
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error) {
 		return (error);
 	}

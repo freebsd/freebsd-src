@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.28 1999/03/07 16:06:41 dfr Exp $
+ *	$Id: kern_linker.c,v 1.29 1999/04/06 03:02:11 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -678,7 +678,7 @@ kldload(struct proc* p, struct kldload_args* uap)
     if (securelevel > 0)
 	return EPERM;
 
-    if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+    if ((error = suser(p)) != 0)
 	return error;
 
     filename = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
@@ -717,7 +717,7 @@ kldunload(struct proc* p, struct kldunload_args* uap)
     if (securelevel > 0)
 	return EPERM;
 
-    if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+    if ((error = suser(p)) != 0)
 	return error;
 
     lf = linker_find_file_by_id(SCARG(uap, fileid));

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.21 1998/12/07 21:58:42 archie Exp $
+ * $Id: ipx_usrreq.c,v 1.22 1999/02/06 10:48:11 jhay Exp $
  */
 
 #include "opt_ipx.h"
@@ -598,7 +598,7 @@ ripx_attach(so, proto, p)
 	int s;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	if (p != NULL && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if (p != NULL && (error = suser(p)) != 0)
 		return (error);
 	s = splnet();
 	error = ipx_pcballoc(so, &ipxrawpcb, p);

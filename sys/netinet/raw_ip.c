@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.56 1998/12/14 18:09:13 luigi Exp $
+ *	$Id: raw_ip.c,v 1.57 1999/04/20 13:32:06 peter Exp $
  */
 
 #include <sys/param.h>
@@ -427,7 +427,7 @@ rip_attach(struct socket *so, int proto, struct proc *p)
 	inp = sotoinpcb(so);
 	if (inp)
 		panic("rip_attach");
-	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if (p && (error = suser(p)) != 0)
 		return error;
 
 	s = splnet();

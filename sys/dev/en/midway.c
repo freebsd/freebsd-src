@@ -1262,7 +1262,7 @@ caddr_t data;
 
 #ifdef ATM_PVCEXT
 	case SIOCSPVCTX:
-		if ((error = suser(curproc->p_ucred, &curproc->p_acflag)) == 0)
+		if ((error = suser(curproc)) == 0)
 			error = en_pvctx(sc, (struct pvctxreq *)data);
 		break;
 
@@ -1274,7 +1274,7 @@ caddr_t data;
 		do {
 			struct ifnet *shadow;
 		    
-			if ((error = suser(curproc->p_ucred, &curproc->p_acflag)) != 0)
+			if ((error = suser(curproc)) != 0)
 				break;
 		    
 			if ((shadow = pvc_attach(ifp)) != NULL) {

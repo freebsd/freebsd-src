@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.72 1999/02/14 20:41:01 guido Exp $
+ *	$Id: pccard.c,v 1.73 1999/03/10 15:00:54 roger Exp $
  */
 
 #include "opt_devfs.h"
@@ -942,7 +942,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	 * At the very least, we only allow root to set the context.
 	 */
 	case PIOCSMEM:
-		if (suser(p->p_ucred, &p->p_acflag))
+		if (suser(p))
 			return(EPERM);
 		if (slt->state != filled)
 			return(ENXIO);
@@ -967,7 +967,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	 * Set I/O port context.
 	 */
 	case PIOCSIO:
-		if (suser(p->p_ucred, &p->p_acflag))
+		if (suser(p))
 			return(EPERM);
 		if (slt->state != filled)
 			return(ENXIO);
@@ -992,7 +992,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 				*(unsigned long *)data = pccard_mem;
 			break;
 		}
-		if (suser(p->p_ucred, &p->p_acflag))
+		if (suser(p))
 			return(EPERM);
 		/*
 		 * Validate the memory by checking it against the I/O
@@ -1020,7 +1020,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	 * Allocate a driver to this slot.
 	 */
 	case PIOCSDRV:
-		if (suser(p->p_ucred, &p->p_acflag))
+		if (suser(p))
 			return(EPERM);
 		err = allocate_driver(slt, (struct dev_desc *)data);
 		if (!err)

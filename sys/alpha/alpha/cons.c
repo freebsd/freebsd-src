@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.2 1998/06/14 13:44:40 dfr Exp $
+ *	$Id: cons.c,v 1.3 1998/12/09 02:26:45 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -368,7 +368,7 @@ cnioctl(dev, cmd, data, flag, p)
 	 * output from the "virtual" console.
 	 */
 	if (cmd == TIOCCONS && constty) {
-		error = suser(p->p_ucred, (u_short *) NULL);
+		error = suser_xxx(p->p_ucred, (u_short *) NULL);
 		if (error)
 			return (error);
 		constty = NULL;

@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.74 1999/02/01 08:36:02 dillon Exp $
+ *	$Id: vn.c,v 1.75 1999/03/14 09:20:00 julian Exp $
  */
 
 /*
@@ -409,7 +409,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
     vn_specific:
 
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error)
 		return (error);
 

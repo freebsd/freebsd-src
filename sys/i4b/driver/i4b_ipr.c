@@ -27,7 +27,7 @@
  *	i4b_ipr.c - isdn4bsd IP over raw HDLC ISDN network driver
  *	---------------------------------------------------------
  *
- *	$Id: i4b_ipr.c,v 1.44 1999/02/14 19:51:01 hm Exp $
+ *	$Id: i4b_ipr.c,v 1.2 1999/03/07 16:08:13 hm Exp $
  *
  *	last edit-date: [Sun Feb 14 10:02:36 1999]
  *
@@ -571,7 +571,7 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case IPRIOCSMAXCID:
 			{
 			struct proc *p = curproc;	/* XXX */
-			if((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+			if((error = suser(p)) != 0)
 				return (error);
 		        sl_compress_setup(sc->sc_compr, *(int *)data);
 			}
