@@ -32,7 +32,7 @@
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
 <!ENTITY release.manpath.xfree86       "4.4.0">
 <!ENTITY release.manpath.xorg          "6.8.1">
-<!ENTITY release.manpath.netbsd        "1.6.2">
+<!ENTITY release.manpath.netbsd        "2.0">
 <!ENTITY release.manpath.freebsd-ports "Ports">
 <!ENTITY release.manpath.freebsd       "4.11-RELEASE">
 
