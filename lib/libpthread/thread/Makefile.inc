@@ -71,6 +71,7 @@ SRCS+= \
 	thr_read.c \
 	thr_readv.c \
 	thr_resume_np.c \
+	thr_rtld.c \
 	thr_rwlock.c \
 	thr_rwlockattr.c \
 	thr_select.c \

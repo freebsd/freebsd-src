@@ -304,6 +304,8 @@ _libpthread_init(struct pthread *curthread)
 	_thr_initial->kse->k_curthread = _thr_initial;
 	_thr_initial->kse->k_flags |= KF_INITIALIZED;
 	_kse_initial->k_curthread = _thr_initial;
+	
+	_thr_rtld_init();
 }
 
 /*
