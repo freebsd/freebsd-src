@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.9 1995/05/30 08:00:50 rgrimes Exp $
+ *	$Id: segments.h,v 1.10 1996/01/30 22:54:59 mpp Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
@@ -228,7 +228,8 @@ struct region_descriptor {
 #define	LUDATA_SEL	4
 /* separate stack, es,fs,gs sels ? */
 /* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
-#define NLDT		(LUDATA_SEL + 1)
+#define LBSDICALLS_SEL	16	/* BSDI system call gate */
+#define NLDT		(LBSDICALLS_SEL + 1)
 
 #ifdef KERNEL
 extern int	currentldt;
