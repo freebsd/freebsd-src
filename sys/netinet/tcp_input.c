@@ -581,8 +581,6 @@ findpcb:
 #else
 			char dbuf[4*sizeof "123"], sbuf[4*sizeof "123"];
 #endif /* INET6 */
-
-#ifdef INET6
 			if (isipv6) {
 				strcpy(dbuf, "[");
 				strcpy(sbuf, "[");
