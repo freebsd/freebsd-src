@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
+.\" $FreeBSD$
 .\"
 .Dd April 18, 1994
 .Dt NETSTAT 1
@@ -165,11 +166,12 @@ symbolically).
 This option may be used with any of the display formats.
 .It Fl p Ar protocol 
 Show statistics about
-.Ar protocol  ,
+.Ar protocol ,
 which is either a well-known name for a protocol or an alias for it.  Some
 protocol names and aliases are listed in the file
 .Pa /etc/protocols .
-The special protocol name ``bdg''
+The special protocol name
+.Dq bdg
 is used to show bridging statistics.
 A null response typically means that there are no interesting numbers to
 report.
@@ -193,7 +195,10 @@ seconds.
 The default display, for active sockets, shows the local
 and remote addresses, send and receive queue sizes (in bytes), protocol,
 and the internal state of the protocol.
-Address formats are of the form ``host.port'' or ``network.port''
+Address formats are of the form
+.Dq host.port
+or
+.Dq network.port
 if a socket's address specifies a network but no specific host address.
 When known the host and network addresses are displayed symbolically
 according to the data bases
@@ -206,16 +211,22 @@ the
 option is specified, the address is printed numerically, according
 to the address family.
 For more information regarding
-the Internet ``dot format,''
+the Internet
+.Dq dot format ,
 refer to
 .Xr inet 3 ) .
 Unspecified,
-or ``wildcard'', addresses and ports appear as ``*''.
+or
+.Dq wildcard ,
+addresses and ports appear as
+.Dq * .
 .Pp
 The interface display provides a table of cumulative
 statistics regarding packets transferred, errors, and collisions.
 The network addresses of the interface
-and the maximum transmission unit (``mtu'') are also displayed.
+and the maximum transmission unit
+.Pq Dq mtu
+are also displayed.
 .Pp
 The routing table display indicates the available routes and
 their status.  Each route consists of a destination host or network
@@ -293,12 +304,12 @@ The
 .Nm netstat
 command appeared in
 .Bx 4.2 .
-.\" .Sh FILES
-.\" .Bl -tag -width /dev/kmem -compact
-.\" .It Pa /kernel
-.\" default kernel namelist
-.\" .It Pa /dev/kmem
-.\" default memory file
-.\" .El
+.Sh FILES
+.Bl -tag -width /dev/kmem -compact
+.It Pa /kernel
+default kernel namelist
+.It Pa /dev/kmem
+default memory file
+.El
 .Sh BUGS
 The notion of errors is ill-defined.
