@@ -58,14 +58,19 @@ struct ktr_header {
 	pid_t	ktr_pid;		/* process id */
 	char	ktr_comm[MAXCOMLEN+1];	/* command name */
 	struct	timeval ktr_time;	/* timestamp */
-	caddr_t	ktr_buffer;
+	void	*ktr_buffer;
 };
 
 /*
- * Test for kernel trace point (MP SAFE)
+ * Test for kernel trace point (MP SAFE).
+ *
+ * KTRCHECK() just checks that the type is enabled and is only for
+ * internal use in the ktrace subsystem.  KTRPOINT() checks against
+ * ktrace recursion as well as checking that the type is enabled and
+ * is the public interface.
  */
-#define KTRPOINT(p, type)	\
-	(((p)->p_traceflag & ((1<<(type))|KTRFAC_ACTIVE)) == (1<<(type)))
+#define	KTRCHECK(td, type)	((td)->td_proc->p_traceflag & (1 << type))
+#define KTRPOINT(td, type)	(KTRCHECK((td), (type)) && !(td)->td_inktrace)
 
 /*
  * ktrace record types
@@ -155,15 +160,16 @@ struct ktr_csw {
  */
 #define KTRFAC_ROOT	0x80000000	/* root set this trace */
 #define KTRFAC_INHERIT	0x40000000	/* pass trace flags to children */
-#define KTRFAC_ACTIVE	0x20000000	/* ktrace logging in progress, ignore */
 
 #ifdef	_KERNEL
-void	ktrnamei(struct vnode *,char *);
-void	ktrcsw(struct vnode *,int,int);
-void	ktrpsig(struct vnode *, int, sig_t, sigset_t *, int);
-void	ktrgenio(struct vnode *, int, enum uio_rw, struct uio *, int);
-void	ktrsyscall(struct vnode *, int, int narg, register_t args[]);
-void	ktrsysret(struct vnode *, int, int, register_t);
+extern struct mtx ktrace_mtx;
+
+void	ktrnamei(char *);
+void	ktrcsw(int, int);
+void	ktrpsig(int, sig_t, sigset_t *, int);
+void	ktrgenio(int, enum uio_rw, struct uio *, int);
+void	ktrsyscall(int, int narg, register_t args[]);
+void	ktrsysret(int, int, register_t);
 
 #else
 
