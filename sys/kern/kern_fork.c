@@ -417,7 +417,6 @@ again:
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
 	sx_xunlock(&allproc_lock);
 
-
 	/*
 	 * Make a proc table entry for the new process.
 	 * Start by zeroing the section of proc that is zero-initialized,
