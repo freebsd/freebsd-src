@@ -79,7 +79,6 @@ struct	ether_header;
 
 #ifdef _KERNEL
 #include <sys/mbuf.h>
-#include <sys/systm.h>		/* XXX */
 #endif /* _KERNEL */
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
