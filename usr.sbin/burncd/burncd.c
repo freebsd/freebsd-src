@@ -35,6 +35,7 @@
 #include <err.h>
 #include <sysexits.h>
 #include <fcntl.h>
+#include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/cdio.h>
@@ -121,10 +122,24 @@ main(int argc, char **argv)
 			break;
 		}
 		if (!strcmp(argv[arg], "blank")) {
+		    	int error, percent;
 			if (!quiet)
-				fprintf(stderr, "blanking CD, please wait..\n");
+				fprintf(stderr, "blanking CD, please wait..\r");
 			if (ioctl(fd, CDRIOCBLANK) < 0)
         			err(EX_IOERR, "ioctl(CDRIOCBLANK)");
+			while (1) {
+				sleep(1);
+				error = ioctl(fd, CDRIOCGETPROGRESS, &percent);
+				if (percent > 0 && !quiet)
+					fprintf(stderr, 
+						"blanking CD - %d %% done"
+						"     \r",
+						percent);
+				if (error || percent == 100)
+					break;
+			}
+			if (!quiet)
+				printf("\n");
 			continue;
 		}
 		if (!strcmp(argv[arg], "audio") || !strcmp(argv[arg], "raw")) {
