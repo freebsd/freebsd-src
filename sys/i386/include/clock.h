@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.14 1996/06/14 11:00:56 asami Exp $
+ *	$Id: clock.h,v 1.15 1996/07/30 19:26:55 bde Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -21,7 +21,7 @@
  */
 #define CPU_CLOCKUPDATE(otime, ntime) \
 	do { \
-	if(i586_ctr_rate) { \
+	if (i586_ctr_freq != 0) { \
 		disable_intr(); \
 		i586_ctr_bias = i586_last_tick; \
 		*(otime) = *(ntime); \
@@ -40,7 +40,6 @@
 
 #define	I586_CTR_COMULTIPLIER_SHIFT	20
 #define	I586_CTR_MULTIPLIER_SHIFT	32
-#define		I586_CTR_RATE_SHIFT	8
 
 #if defined(KERNEL) && !defined(LOCORE)
 #include <sys/cdefs.h>
@@ -57,12 +56,11 @@ extern int	statclock_disable;
 extern int	wall_cmos_clock;
 
 #if defined(I586_CPU) || defined(I686_CPU)
+extern u_int	i586_ctr_bias;
 extern u_int	i586_ctr_comultiplier;
 extern u_int	i586_ctr_freq;
 extern u_int	i586_ctr_multiplier;
-extern unsigned	i586_ctr_rate;	/* fixed point */
 extern long long i586_last_tick;
-extern long long i586_ctr_bias;
 extern unsigned long i586_avg_tick;
 #endif
 extern int 	timer0_max_count;
@@ -77,11 +75,11 @@ cpu_thisticklen(u_long dflt)
 	long long old;
 	long len;
 
-	if (i586_ctr_rate) {
+	if (i586_ctr_freq != 0) {
 		old = i586_last_tick;
 		i586_last_tick = rdtsc();
-		len = ((i586_last_tick - old) << I586_CTR_RATE_SHIFT)
-			/ i586_ctr_rate;
+		len = ((i586_last_tick - old) * i586_ctr_multiplier)
+			>> I586_CTR_MULTIPLIER_SHIFT;
 		i586_avg_tick = i586_avg_tick * 15 / 16 + len / 16;
 	}
 	return dflt;
