@@ -31,6 +31,10 @@
  *	locatestring.c				20-Oct-97
  *
  */
+#include <string.h>
+
+#include "locatestring.h"
+
 /*
  * locatestring: locate pattern from string
  *

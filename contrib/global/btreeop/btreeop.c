@@ -32,7 +32,13 @@
  *
  */
 #include <sys/stat.h>
+
+#include <ctype.h>
 #include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "dbio.h"
 #include "global.h"
 
 char    *dbdefault = "btree";   	/* default database name */
@@ -87,7 +93,7 @@ char	*argv[];
 {
 	char	command = 'R';
 	char	*key = NULL;
-	int	mode;
+	int     mode = 0;
 	char	*dbname;
 	DBIO	*dbio;
 	int	i, c;
@@ -188,7 +194,7 @@ DBIO	*dbio;
 	 * +------------------
 	 * | __.VERSION 2
 	 */
-	while (p = mgets(stdin, 0, NULL)) {
+	while ((p = mgets(stdin, 0, NULL)) != NULL) {
 		if (exitflag)
 			break;
 		c = p;
