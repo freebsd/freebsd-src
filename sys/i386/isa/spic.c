@@ -97,7 +97,7 @@ static struct cdevsw spic_cdevsw = {
 #define SCBUFLEN 128
 
 struct spic_softc {
-	u_short sc_port_addr;
+	u_int sc_port_addr;
 	u_char sc_intr;
 	struct resource *sc_port_res,*sc_intr_res;
 	int	sc_port_rid,sc_intr_rid;
