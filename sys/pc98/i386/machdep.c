@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.98 1998/10/09 12:36:25 kato Exp $
+ *	$Id: machdep.c,v 1.99 1998/10/11 15:04:38 kato Exp $
  */
 
 #include "apm.h"
@@ -109,9 +109,6 @@
 #include <net/netisr.h>
 #endif
 
-#if NAPM > 0
-#include <machine/apm_bios.h>
-#endif
 #include <machine/cpu.h>
 #include <machine/reg.h>
 #include <machine/clock.h>
@@ -449,14 +446,7 @@ again:
 	}
 
 #if defined(USERCONFIG)
-#if defined(USERCONFIG_BOOT)
-	if (1) {
-#else
-        if (boothowto & RB_CONFIG) {
-#endif
-		userconfig();
-		cninit();	/* the preferred console may have changed */
-	}
+	userconfig();
 #endif
 
 	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
@@ -804,17 +794,6 @@ cpu_halt(void)
 {
 	for (;;)
 		__asm__ ("hlt");
-}
-
-/*
- * Turn the power off.
- */
-void
-cpu_power_down(void)
-{
-#if NAPM > 0
-	apm_power_off();
-#endif
 }
 
 /*
