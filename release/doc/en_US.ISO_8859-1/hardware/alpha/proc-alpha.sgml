@@ -1665,7 +1665,7 @@ cpu	EV5</programlisting></para>
 	    </itemizedlist>
           </listitem>
 	  <listitem>
-	   <para>AS800: Uses SDRAM DIMMs</para>
+	   <para>AS800: Uses 60ns 3.3Volts EDO DIMMs</para>
 	  </listitem>
          </itemizedlist>
        </listitem>
@@ -1701,7 +1701,8 @@ cpu	EV5</programlisting></para>
       <para> AS800 machines use DIMMs in sets of 4. DIMM installation must 
       start in slots marked bank 0. A bank is four physically adjacent slots. 
       The biggest size DIMMs must be installed in bank 0 in case 2 banks 
-      of different DIMM sizes are used. Max memory size is 2GB.</para>
+      of different DIMM sizes are used. Max memory size is 2GB. Note 
+      that these are EDO DIMMs.</para>
 
       <para>The AS1000/800 are somewhat stubborn when it comes to serial
       consoles. They need 
