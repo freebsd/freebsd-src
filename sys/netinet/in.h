@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.20 1996/08/21 21:36:53 sos Exp $
+ * $Id: in.h,v 1.21 1996/10/19 20:23:12 alex Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -335,7 +335,7 @@ extern	ip_fw_chk_t *ip_fw_chk_ptr;
 extern	ip_fw_ctl_t *ip_fw_ctl_ptr;
 
 /* IP NAT hooks */
-typedef	int ip_nat_t __P((struct ip**, struct mbuf**, int));
+typedef	int ip_nat_t __P((struct ip**, struct mbuf**, struct ifnet*, int));
 typedef	int ip_nat_ctl_t __P((int, struct mbuf**));
 extern	ip_nat_t *ip_nat_ptr;
 extern	ip_nat_ctl_t *ip_nat_ctl_ptr;
