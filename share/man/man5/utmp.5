@@ -57,12 +57,6 @@ The time stamps of date changes, shutdowns and reboots are also logged in
 the
 .Nm wtmp
 file.
-.Pp
-These files can grow rapidly on busy systems, so daily or weekly rotation
-is recommended.
-If any one of these files does not exist, it is not created.
-They must be created manually and are maintained by
-.Xr newsyslog 8 .
 .Bd -literal -offset indent
 #define _PATH_UTMP      "/var/run/utmp"
 #define _PATH_WTMP      "/var/log/wtmp"
@@ -73,18 +67,38 @@ They must be created manually and are maintained by
 #define UT_HOSTSIZE     16
 
 struct lastlog {
-        time_t  ll_time;
-        char    ll_line[UT_LINESIZE];
-        char    ll_host[UT_HOSTSIZE];
+        time_t  ll_time;		/* When user logged in */
+        char    ll_line[UT_LINESIZE];	/* Terminal line name */
+        char    ll_host[UT_HOSTSIZE];	/* Host user came from */
 };
 
 struct utmp {
-        char    ut_line[UT_LINESIZE];
-        char    ut_name[UT_NAMESIZE];
-        char    ut_host[UT_HOSTSIZE];
-        time_t  ut_time;
+        char    ut_line[UT_LINESIZE];	/* Terminal line name */
+        char    ut_name[UT_NAMESIZE];	/* User's login name */
+        char    ut_host[UT_HOSTSIZE];	/* Host user came from */
+        time_t  ut_time;		/* When user logged in */
 };
 .Ed
+.Pp
+The
+.Nm lastlog
+file is a linear array of
+.Fa lastlog
+structures indexed by a user's
+.Tn UID .
+The
+.Nm utmp
+file is a linear array of
+.Fa utmp
+structures indexed by a terminal line number
+(see
+.Xr ttyslot 3 ) .
+The
+.Nm wtmp
+file consists of
+.Fa utmp
+structures and is a binary log file,
+that is, grows linearly at its end.
 .Pp
 Each time a user logs in, the
 .Xr login 1
@@ -132,10 +146,19 @@ program opens the file
 and appends the user's
 .Fa utmp
 record.
-The same
+The user's subsequent logout from the terminal
+line is marked by a special
 .Fa utmp
-record, with an updated time stamp is later appended
-to the file when the user logs out (see
+record with
+.Fa ut_line
+set accordingly,
+.Fa ut_time
+updated, but
+.Fa ut_name
+and
+.Fa ut_host
+both empty
+(see
 .Xr init 8 ) .
 The
 .Nm wtmp
@@ -184,6 +207,30 @@ indicates the time prior to the change, and the character
 .Ql \&{
 indicates the new time.
 .El
+.Sh NOTES
+The
+.Nm wtmp
+file can grow rapidly on busy systems, so daily or weekly rotation
+is recommended.
+It is maintained by
+.Xr newsyslog 8 .
+.Pp
+If any one of these files does not exist, it is not created by
+.Xr login 1 .
+They must be created manually.
+.Pp
+The supplied
+.Xr login 3 ,
+.Xr logout 3 ,
+and
+.Xr logwtmp 3
+utility functions should be used to perform
+the standard actions on the
+.Nm utmp
+and
+.Nm wtmp
+files in order to maintain the portability across
+systems with different formats of those files.
 .Sh FILES
 .Bl -tag -width /var/log/lastlog -compact
 .It Pa /var/run/utmp
@@ -204,6 +251,10 @@ file.
 .Xr login 1 ,
 .Xr w 1 ,
 .Xr who 1 ,
+.Xr login 3 ,
+.Xr logout 3 ,
+.Xr logwtmp 3 ,
+.Xr ttyslot 3 ,
 .Xr ac 8 ,
 .Xr init 8
 .Sh HISTORY
