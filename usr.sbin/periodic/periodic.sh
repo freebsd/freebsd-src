@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: periodic.sh,v 1.6 1998/12/29 22:48:54 hoek Exp $
+# $Id: periodic.sh,v 1.7 1999/01/01 17:37:33 billf Exp $
 #
 # Run nightly periodic scripts
 #
@@ -18,8 +18,11 @@ if [ $# -lt 1 ] ; then
     usage
 fi
 
-# If possible, check /etc/rc.conf to see if there are additional dirs to check
-if [ -r /etc/rc.conf ] ; then
+# If possible, check the global system configuration file, 
+# to see if there are additional dirs to check
+if [ -r /etc/defaults/rc.conf ]; then
+    . /etc/defaults/rc.conf
+elif [ -r /etc/rc.conf ]; then
     . /etc/rc.conf
 fi
 
