@@ -22,36 +22,43 @@
 #ifndef _IP_FW_H
 #define _IP_FW_H
 
-struct ip_firewall {
-    struct ip_firewall *next;		/* Next firewall on chain */
+struct ip_fw {
+    struct ip_fw *next;			/* Next firewall on chain */
     struct in_addr src, dst;		/* Source and destination IP addr */
     struct in_addr src_mask, dst_mask;	/* Mask for src and dest IP addr */
     u_short flags;
-#define IP_FIREWALL_UNIVERSAL	0	/* This is a universal packet firewall*/
-#define IP_FIREWALL_TCP		1	/* This is a TCP packet firewall */
-#define IP_FIREWALL_UDP		2	/* This is a UDP packet firewall */
-#define IP_FIREWALL_ICMP	3	/* This is a ICMP packet firewall */
-#define IP_FIREWALL_KIND	3	/* Mask to isolate firewall kind */
-#define IP_FIREWALL_ACCEPT	4	/* This is an accept firewall (as */
-					/* opposed to a deny firewall) */
-#define IP_FIREWALL_SRC_RANGE	8	/* The first two src ports are a min 
-					 * and max range (stored in host byte 
-					 * order). 
-					 */
-#define IP_FIREWALL_DST_RANGE	16	/* The first two dst ports are a min 
-					 * and max range (stored in host byte 
-					 * order). 
-					 * (ports[0] <= port <= ports[1]) 
-					 */
-#define IP_FIREWALL_PRINT	32	/* In verbos mode print this firewall */
-#define IP_FIREWALL_FLAG_BITS	0x2f	/* All possible flag bits */
-    u_short num_src_ports, num_dst_ports;/* # of src ports and # of dst ports */
+
+    u_short n_src_p, n_dst_p;   /* # of src ports and # of dst ports */
     					/* in ports array (dst ports follow */
     					/* src ports; max of 10 ports in all; */
     					/* count of 0 means match all ports) */
-#define IP_FIREWALL_MAX_PORTS	10	/* A reasonable maximum */
-    u_short ports[IP_FIREWALL_MAX_PORTS]; /* Array of port numbers to match */
+#define IP_FW_MAX_PORTS	10	/* A reasonable maximum */
+    u_short ports[IP_FW_MAX_PORTS]; /* Array of port numbers to match */
 };
+
+/*
+ * Values for "flags" field .
+ */
+
+#define IP_FW_F_ALL	0	/* This is a universal packet firewall*/
+#define IP_FW_F_TCP	1	/* This is a TCP packet firewall      */
+#define IP_FW_F_UDP	2	/* This is a UDP packet firewall      */
+#define IP_FW_F_ICMP	3	/* This is a ICMP packet firewall     */
+#define IP_FW_F_KIND	3	/* Mask to isolate firewall kind      */
+#define IP_FW_F_ACCEPT	4	/* This is an accept firewall (as     *
+				 *         opposed to a deny firewall)*
+				 *                                    */
+#define IP_FW_F_SRNG	8	/* The first two src ports are a min  *
+				 * and max range (stored in host byte *
+				 * order).                            *
+				 *                                    */
+#define IP_FW_F_DRNG	16	/* The first two dst ports are a min  *
+				 * and max range (stored in host byte *
+				 * order).                            *
+				 * (ports[0] <= port <= ports[1])     *
+				 *                                    */
+#define IP_FW_F_PRN	32	/* In verbose mode print this firewall*/
+#define IP_FW_F_MASK	0x2F	/* All possible flag bits mask        */
 
 /*    
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
@@ -68,8 +75,11 @@ struct ip_firewall {
 #define IP_FW_POLICY  (IP_FW_BASE_CTL+7) 
 
 
-extern struct ip_firewall *ip_fw_blk_chain;
-extern struct ip_firewall *ip_fw_fwd_chain;
+/*
+ * Main firewall chains definitions and global var's definitions.
+ */
+extern struct ip_fw *ip_fw_blk_chain;
+extern struct ip_fw *ip_fw_fwd_chain;
 extern int ip_fw_policy;
 
 #endif

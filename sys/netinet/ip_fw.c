@@ -40,8 +40,8 @@
 
 #include <netinet/ip_fw.h>
 
-struct ip_firewall *ip_fw_fwd_chain;
-struct ip_firewall *ip_fw_blk_chain;
+struct ip_fw *ip_fw_fwd_chain;
+struct ip_fw *ip_fw_blk_chain;
 int ip_fw_policy=1;
 
 
@@ -86,59 +86,24 @@ int range_flag;
 
 
 /*
- * Returns 0 if packet should be dropped, 1 if it should be accepted
+ * Returns 0 if packet should be dropped, 1 or more if it should be accepted
  */
 
-#ifdef old
 
-int ip_firewall_check_print(ip,chain)
+int ip_fw_chk(ip,chain)
 struct ip *ip;
-struct ip_firewall *chain;
-{
-struct ip_firewall *fwtmp;
-    if ( !ip_firewall_check_noprint(ip,chain,&fwtmp) ) {
-
-	u_short *portptr = (u_short *)&(((u_int *)ip)[ip->ip_hl]);
-
-	printf("ip_firewall_check says no to ");
-	switch(ip->ip_p) {
-	case IPPROTO_TCP: printf("TCP "); break;
-	case IPPROTO_UDP: printf("UDP "); break;
-	case IPPROTO_ICMP: printf("ICMP:%d ",((char *)portptr)[0]&0xff); break;
-	default: printf("p=%d ",ip->ip_p); break;
-	}
-	print_ip(ip->ip_src);
-	if ( ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ) {
-	    printf(":%d ",ntohs(portptr[0]));
-	} else {
-	    printf("\n");
-	}
-	print_ip(ip->ip_dst);
-	if ( ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ) {
-	    printf(":%d ",ntohs(portptr[1]));
-	}
-	printf("\n");
-	return(0);
-    }
-    return(1);
-}
-
-#endif
-
-int ip_firewall_check(ip,chain)
-struct ip *ip;
-struct ip_firewall *chain;
+struct ip_fw *chain;
 {
     struct in_addr src, dst;
     char got_proto = 0;
-    int firewall_proto, proto = 0;
-    register struct ip_firewall *fptr;
+    int frwl_proto, proto = 0;
+    register struct ip_fw *fptr;
     u_short src_port = 0, dst_port = 0;
 #ifdef IPFIREWALL_VERBOSE
     u_short *portptr = (u_short *)&(((u_int *)ip)[ip->ip_hl]);
 #endif
 
-    if ( chain == NULL ) {	/* Is there a firewall chain? */
+    if ( chain == NULL ) {	/* Is there a frwl chain? */
 	return(1);
     }
 
@@ -172,17 +137,23 @@ struct ip_firewall *chain;
 	if ( (src.s_addr & fptr->src_mask.s_addr) == fptr->src.s_addr
 	&&   (dst.s_addr & fptr->dst_mask.s_addr) == fptr->dst.s_addr ) {
 
-	    if ( (firewall_proto = fptr->flags & IP_FIREWALL_KIND) == IP_FIREWALL_UNIVERSAL ) {
+	    if ( (frwl_proto = fptr->flags & IP_FW_F_KIND)
+					== IP_FW_F_ALL ) {
 
-		/* Universal firewall - we've got a match! */
+		/* Universal frwl - we've got a match! */
 
 #ifdef DEBUG_IPFIREWALL
-		printf("universal firewall match\n");
+		printf("universal frwl match\n");
 #endif
 #ifdef IPFIREWALL_VERBOSE
-    if (  !(fptr->flags & IP_FIREWALL_ACCEPT) &&
-          (fptr->flags & IP_FIREWALL_PRINT)) {
-	printf("ip_firewall_check says no to ");
+		/*
+		 * VERY ugly piece of code which actually
+		 * makes kernel printf for denyed packets...
+		 * This thingy will be added in more places...
+		 */
+    if (  !(fptr->flags & IP_FW_F_ACCEPT) &&
+          (fptr->flags & IP_FW_F_PRN)) {
+	printf("ip_fw_chk says no to ");
 	switch(ip->ip_p) {
 	case IPPROTO_TCP: printf("TCP "); break;
 	case IPPROTO_UDP: printf("UDP "); break;
@@ -203,28 +174,28 @@ struct ip_firewall *chain;
 	return(0);
     }
 #endif
-		return( fptr->flags & IP_FIREWALL_ACCEPT );
+		return( fptr->flags & IP_FW_F_ACCEPT );
 	    } else {
 
-	/* Specific firewall - packet's protocol must match firewall's */
+	/* Specific frwl - packet's protocol must match frwl's */
 
 	if ( !got_proto ) {
 	    u_short *portptr = (u_short *)&(((u_int *)ip)[ip->ip_hl]);
 	    switch( ip->ip_p ) {
 	    case IPPROTO_TCP:
-		proto = IP_FIREWALL_TCP;
+		proto = IP_FW_F_TCP;
 		src_port = ntohs(portptr[0]);	/* first two shorts in TCP */
 		dst_port = ntohs(portptr[1]);	/* are src and dst ports */
 		break;
 	    case IPPROTO_UDP:
-		proto = IP_FIREWALL_UDP;
+		proto = IP_FW_F_UDP;
 		src_port = ntohs(portptr[0]);	/* first two shorts in UDP */
 		dst_port = ntohs(portptr[1]);	/* are src and dst ports */
 		break;
 	    case IPPROTO_ICMP:
-		proto = IP_FIREWALL_ICMP;
+		proto = IP_FW_F_ICMP;
 		break;
-	    default: proto = IP_FIREWALL_UNIVERSAL;
+	    default: proto = IP_FW_F_ALL;
 #ifdef DEBUG_IPFIREWALL
 		printf("non TCP/UDP packet\n");
 #endif
@@ -232,38 +203,43 @@ struct ip_firewall *chain;
 		    got_proto = 1;
 		}
 
-		if ( proto == firewall_proto ) {
+		if ( proto == frwl_proto ) {
 
 		    if (
-			proto == IP_FIREWALL_ICMP
+			proto == IP_FW_F_ICMP
 		    ||
 			(
 			    (
-				fptr->num_src_ports == 0
+				fptr->n_src_p == 0
 			    ||
 				port_match( &fptr->ports[0],
-					    fptr->num_src_ports,
+					    fptr->n_src_p,
 					    src_port,
-					    fptr->flags & IP_FIREWALL_SRC_RANGE
+					    fptr->flags & IP_FW_F_SRNG
 					  )
 			    )
 			&&
 			    (
-				fptr->num_dst_ports == 0
+				fptr->n_dst_p == 0
 			    ||
-				port_match( &fptr->ports[fptr->num_src_ports],
-					    fptr->num_dst_ports,
+				port_match( &fptr->ports[fptr->n_src_p],
+					    fptr->n_dst_p,
 					    dst_port,
-					    fptr->flags & IP_FIREWALL_DST_RANGE
+					    fptr->flags & IP_FW_F_DRNG
 					  )
 			    )
 			)
 		    ) {
 
 #ifdef IPFIREWALL_VERBOSE
-    if (  !(fptr->flags & IP_FIREWALL_ACCEPT) &&
-          (fptr->flags & IP_FIREWALL_PRINT)) {
-	printf("ip_firewall_check says no to ");
+		/*
+		 * VERY ugly piece of code which actually
+		 * makes kernel printf for denyed packets...
+		 * This thingy will be added in more places...
+		 */
+    if (  !(fptr->flags & IP_FW_F_ACCEPT) &&
+          (fptr->flags & IP_FW_F_PRN)) {
+	printf("ip_fw_chk says no to ");
 	switch(ip->ip_p) {
 	case IPPROTO_TCP: printf("TCP "); break;
 	case IPPROTO_UDP: printf("UDP "); break;
@@ -284,7 +260,7 @@ struct ip_firewall *chain;
 	return(0);
     }
 #endif
-			return( fptr->flags & IP_FIREWALL_ACCEPT);
+			return( fptr->flags & IP_FW_F_ACCEPT);
 		    }
 
 		}
@@ -296,20 +272,20 @@ struct ip_firewall *chain;
     }
 
     /*
-     * If we get here then none of the firewalls matched.
-     * If the first firewall was an accept firewall then reject the packet.
-     * If the first firewall was a deny firewall then accept the packet.
-     *
-     * The basic idea is that there is a virtual final firewall which is
-     * the exact complement of the first firewall (this idea is a slight
-     * variant of the way that the Telebit's Netblazer IP filtering scheme
-     * handles this case).
+     * If we get here then none of the frwls matched.
+     * So now we relay on policy defined by user-unmatched packet can
+     * be ever accepted or rejected...
      */
 
 #ifdef IPFIREWALL_VERBOSE
+		/*
+		 * VERY ugly piece of code which actually
+		 * makes kernel printf for denyed packets...
+		 * This thingy will be added in more places...
+		 */
     if (  !(ip_fw_policy) &&
-          (fptr->flags & IP_FIREWALL_PRINT)) {
-	printf("ip_firewall_check says no to ");
+          (fptr->flags & IP_FW_F_PRN)) {
+	printf("ip_fw_chk says no to ");
 	switch(ip->ip_p) {
 	case IPPROTO_TCP: printf("TCP "); break;
 	case IPPROTO_UDP: printf("UDP "); break;
@@ -337,19 +313,18 @@ struct ip_firewall *chain;
 
 static
 void
-free_firewall_chain(chainptr)
-struct ip_firewall **chainptr;
+free_fw_chain(chainptr)
+struct ip_fw **chainptr;
 {
 int s=splnet();
     while ( *chainptr != NULL ) {
-	struct ip_firewall *ftmp;
+	struct ip_fw *ftmp;
 	ftmp = *chainptr;
 	*chainptr = ftmp->next;
 	free(ftmp,M_SOOPTS);
     }
 splx(s);
 }
-
 
 static
 int
@@ -484,7 +459,7 @@ struct ip_fw *frwl;
 						ftmp->n_dst_p : USHRT_MAX;
 
 				if (chtmp->flags & IP_FW_F_DRNG) 
-				     o_dr=chtmp->ports[n_o+1]-chtmp->ports[n_o];
+				       o_dr=chtmp->ports[n_o+1]-chtmp->ports[n_o];
 				else 
 				       o_dr=(chtmp->n_dst_p)?
 						chtmp->n_dst_p : USHRT_MAX;
@@ -524,26 +499,26 @@ skip_check:
     return(0);
 }
 
-
-
 static
 int
-del_from_chain(chainptr,firewall)
-struct ip_firewall **chainptr;
-struct ip_firewall *firewall;
+del_from_chain(chainptr,frwl)
+struct ip_fw **chainptr;
+struct ip_fw *frwl;
 {
-    struct ip_firewall *ftmp,*ltmp;
+    struct ip_fw *ftmp,*ltmp;
     u_short	tport1,tport2,tmpnum;
     char	matches,was_found;
-    int 	s=splnet();
+    int s=splnet();
 
     ftmp=*chainptr;
 
     if ( ftmp == NULL ) {
-	printf("ip_firewall_ctl:  chain is empty\n");
+#ifdef DEBUG_IPFIREWALL
+	printf("ip_fw_ctl:  chain is empty\n");
+#endif
 	splx(s);
 	return( EINVAL );
-   }
+    			}
 
     ltmp=NULL;
     was_found=0;
@@ -551,21 +526,21 @@ struct ip_firewall *firewall;
     while( ftmp != NULL )
     {
      matches=1;
-     if ((bcmp(&ftmp->src,&firewall->src,sizeof(struct in_addr))) 
-     || (bcmp(&ftmp->src_mask,&firewall->src_mask,sizeof(struct in_addr)))
-     || (bcmp(&ftmp->dst,&firewall->dst,sizeof(struct in_addr)))
-     || (bcmp(&ftmp->dst_mask,&firewall->dst_mask,sizeof(struct in_addr)))
-     || (ftmp->flags!=firewall->flags))
+     if ((bcmp(&ftmp->src,&frwl->src,sizeof(struct in_addr))) 
+     || (bcmp(&ftmp->src_mask,&frwl->src_mask,sizeof(struct in_addr)))
+     || (bcmp(&ftmp->dst,&frwl->dst,sizeof(struct in_addr)))
+     || (bcmp(&ftmp->dst_mask,&frwl->dst_mask,sizeof(struct in_addr)))
+     || (ftmp->flags!=frwl->flags))
         matches=0;
-     tport1=ftmp->num_src_ports+ftmp->num_dst_ports;
-     tport2=firewall->num_src_ports+firewall->num_dst_ports;
+     tport1=ftmp->n_src_p+ftmp->n_dst_p;
+     tport2=frwl->n_src_p+frwl->n_dst_p;
      if (tport1!=tport2)
         matches=0;
      else
       if (tport1!=0)
       {
-       for (tmpnum=0;tmpnum < tport1 && tmpnum < IP_FIREWALL_MAX_PORTS;tmpnum++)
-        if (ftmp->ports[tmpnum]!=firewall->ports[tmpnum])
+       for (tmpnum=0;tmpnum < tport1 && tmpnum < IP_FW_MAX_PORTS;tmpnum++)
+        if (ftmp->ports[tmpnum]!=frwl->ports[tmpnum])
            matches=0;
       }
     if(matches)
@@ -597,21 +572,21 @@ struct ip_firewall *firewall;
 }
 
 int
-ip_firewall_ctl(stage,m)
+ip_fw_ctl(stage,m)
 int stage;	
 struct mbuf *m;
 {
 int *tmp_policy_ptr;
 if ( stage == IP_FW_FLUSH )
        {
-	free_firewall_chain(&ip_fw_blk_chain);
-	free_firewall_chain(&ip_fw_fwd_chain);
+	free_fw_chain(&ip_fw_blk_chain);
+	free_fw_chain(&ip_fw_fwd_chain);
 	return(0);
        }  
 
 	if ( m == 0 )	
           {
-	    printf("ip_firewall_ctl:  NULL mbuf ptr\n");
+	    printf("ip_fw_ctl:  NULL mbuf ptr\n");
 	    return( EINVAL );
           }
 
@@ -628,15 +603,19 @@ if ( stage == IP_FW_POLICY )
 
 	    struct ip *ip;
 	    if ( m->m_len < sizeof(struct ip) + 2 * sizeof(u_short) )	{
-		printf("ip_firewall_ctl:  mbuf len=%d, want at least %d\n",m->m_len,sizeof(struct ip) + 2 * sizeof(u_short));
+#ifdef DEBUG_IPFIREWALL
+		printf("ip_fw_ctl:  mbuf len=%d, want at least %d\n",m->m_len,sizeof(struct ip) + 2 * sizeof(u_short));
+#endif
 		return( EINVAL );
 	    								}
 	    ip = mtod(m,struct ip *);
 	    if ( ip->ip_hl != sizeof(struct ip) / sizeof(int) )	{
-		printf("ip_firewall_ctl:  ip->ip_hl=%d, want %d\n",ip->ip_hl,sizeof(struct ip)/sizeof(int));
+#ifdef DEBUG_IPFIREWALL
+		printf("ip_fw_ctl:  ip->ip_hl=%d, want %d\n",ip->ip_hl,sizeof(struct ip)/sizeof(int));
+#endif
 		return( EINVAL );
 	    							}
-	    if ( ip_firewall_check(ip,
+	    if ( ip_fw_chk(ip,
 		stage == IP_FW_CHK_BLK ?
                 ip_fw_blk_chain : ip_fw_fwd_chain )
 	       ) 
@@ -651,60 +630,74 @@ if ( stage == IP_FW_POLICY )
        		 || stage == IP_FW_DEL_FWD
                   ) {
 
-	    struct ip_firewall *firewall;
+	    struct ip_fw *frwl;
 
-	    if ( m->m_len != sizeof(struct ip_firewall) )	{
-		printf("ip_firewall_ctl:  len=%d, want %d\n",m->m_len,sizeof(struct ip_firewall));
+	    if ( m->m_len != sizeof(struct ip_fw) )	{
+#ifdef DEBUG_IPFIREWALL
+		printf("ip_fw_ctl:  len=%d, want %d\n",m->m_len,sizeof(struct ip_fw));
+#endif
 		return( EINVAL );
 	    							}
 
-	    firewall = mtod(m,struct ip_firewall*);
-	    if ( (firewall->flags & ~IP_FIREWALL_FLAG_BITS) != 0 )	{
-		printf("ip_firewall_ctl:  undefined flag bits set (flags=%x)\n",firewall->flags);
+	    frwl = mtod(m,struct ip_fw*);
+	    if ( (frwl->flags & ~IP_FW_F_MASK) != 0 )	{
+#ifdef DEBUG_IPFIREWALL
+		printf("ip_fw_ctl:  undefined flag bits set (flags=%x)\n",frwl->flags);
+#endif
 		return( EINVAL );
 	    								}
 
-	    if ( (firewall->flags & IP_FIREWALL_SRC_RANGE) && firewall->num_src_ports < 2 ) {
-		printf("ip_firewall_ctl:  SRC_RANGE set but num_src_ports=%d\n",firewall->num_src_ports);
+	    if ( (frwl->flags & IP_FW_F_SRNG) && frwl->n_src_p < 2 ) {
+#ifdef DEBUG_IPFIREWALL
+		printf("ip_fw_ctl:  src range set but n_src_p=%d\n",frwl->n_src_p);
+#endif
 		return( EINVAL );
 	    }
 
-	    if ( (firewall->flags & IP_FIREWALL_DST_RANGE) && firewall->num_dst_ports < 2 ) {
-		printf("ip_firewall_ctl:  DST_RANGE set but num_dst_ports=%d\n",firewall->num_dst_ports);
+	    if ( (frwl->flags & IP_FW_F_DRNG) && frwl->n_dst_p < 2 ) {
+#ifdef DEBUG_IPFIREWALL
+		printf("ip_fw_ctl:  dst range set but n_dst_p=%d\n",frwl->n_dst_p);
+#endif
 		return( EINVAL );
 	    }
 
-	    if ( firewall->num_src_ports + firewall->num_dst_ports > IP_FIREWALL_MAX_PORTS ) {
-		printf("ip_firewall_ctl:  too many ports (%d+%d)\n",firewall->num_src_ports,firewall->num_dst_ports);
+	    if ( frwl->n_src_p + frwl->n_dst_p > IP_FW_MAX_PORTS ) {
+#ifdef DEBUG_IPFIREWALL
+		printf("ip_fw_ctl:  too many ports (%d+%d)\n",frwl->n_src_p,frwl->n_dst_p);
+#endif
 		return( EINVAL );
 	    }
 
 #if 0
-	    if ( (firewall->flags & IP_FIREWALL_KIND) == IP_FIREWALL_ICMP ) {
-		printf("ip_firewall_ctl:  request for unsupported ICMP firewalling\n");
+	    if ( (frwl->flags & IP_FW_F_KIND) == IP_FW_F_ICMP ) {
+#ifdef DEBUG_IPFIREWALL
+		printf("ip_fw_ctl:  request for unsupported ICMP frwling\n");
+#endif
 		return( EINVAL );
 	    }
 
 #endif
 	    if ( stage == IP_FW_ADD_BLK )
                {
-		return( add_to_chain(&ip_fw_blk_chain,firewall));
+		return( add_to_chain(&ip_fw_blk_chain,frwl));
 	       } 
 	    if ( stage == IP_FW_ADD_FWD )
                {
-		return( add_to_chain(&ip_fw_fwd_chain,firewall));
+		return( add_to_chain(&ip_fw_fwd_chain,frwl));
 	       } 
 	    if ( stage == IP_FW_DEL_BLK )
                {
-		return( del_from_chain(&ip_fw_blk_chain,firewall));
+		return( del_from_chain(&ip_fw_blk_chain,frwl));
 	       } 
 	    if ( stage == IP_FW_DEL_FWD )
                {
-		return( del_from_chain(&ip_fw_fwd_chain,firewall));
+		return( del_from_chain(&ip_fw_fwd_chain,frwl));
 	       } 
 	} 
 
-printf("ip_firewall_ctl:  unknown request %d\n",stage);
+#ifdef DEBUG_IPFIREWALL
+printf("ip_fw_ctl:  unknown request %d\n",stage);
+#endif
 return(EINVAL);
 
 }
