@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.4 1994/12/02 02:58:56 wollman Exp $";
+	"$Id: mountd.c,v 1.5 1995/03/26 23:36:38 wpaul Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -251,8 +251,11 @@ main(argc, argv)
 		errx(1, "NFS support is not available in the running kernel");
 	}
 
-	while ((c = getopt(argc, argv, "n")) != EOF)
+	while ((c = getopt(argc, argv, "dn")) != EOF)
 		switch (c) {
+		case 'd':
+			debug = debug ? 0 : 1;
+			break;
 		case 'n':
 			root_only = 0;
 			break;
