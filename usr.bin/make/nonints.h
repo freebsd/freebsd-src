@@ -93,7 +93,7 @@ Lst *Parse_MainName(void);
 /* str.c */
 void str_init(void);
 void str_end(void);
-char *str_concat(char *, char *, int);
+char *str_concat(const char *, const char *, int);
 char **brk_string(char *, int *, Boolean);
 int Str_Match(const char *, const char *);
 const char *Str_SYSVMatch(const char *, const char *, int *);
