@@ -35,6 +35,7 @@
 #include <sys/sysctl.h>
 
 #include <crypto/rijndael/rijndael.h>
+#include <crypto/sha2/sha2.h>
 
 #include <dev/random/hash.h>
 #include <dev/random/randomdev.h>
@@ -249,9 +250,7 @@ reseed(u_int fastslow)
 	random_unblock();
 }
 
-/* Internal function to do return processed entropy from the
- * Yarrow PRNG
- */
+/* Internal function to return processed entropy from the PRNG */
 int
 read_random_real(void *buf, int count)
 {
@@ -343,5 +342,5 @@ generator_gate(void)
 void
 random_reseed(void)
 {
-	reseed(FAST);
+	reseed(SLOW);
 }
