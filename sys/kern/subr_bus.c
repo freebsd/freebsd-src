@@ -363,9 +363,8 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 	if (unit != -1) {
 		if (unit >= 0 && unit < dc->maxunit &&
 		    dc->devices[unit] != NULL) {
-			if (bootverbose)
-				printf("%s-: %s%d already exists, skipping it\n",
-				    dc->name, dc->name, *unitp);
+			printf("%s-: %s%d already exists, skipping it\n",
+			    dc->name, dc->name, *unitp);
 			return (EEXIST);
 		}
 	} else {
