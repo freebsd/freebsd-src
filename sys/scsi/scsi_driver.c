@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.23 1997/03/23 06:33:47 bde Exp $
+ * $Id: scsi_driver.c,v 1.24 1997/06/25 19:07:42 tegge Exp $
  *
  */
 
@@ -57,12 +57,6 @@
 #define GETUNIT(DEVICE, DEV) \
 	((DEVICE)->getunit) ? (*(DEVICE)->getunit)((DEV)) \
 				: (minor((DEV)) & ~SCSI_CONTROL_MASK)
-
-int
-scsi_goaway(int force) /* XXX should do a lot more */
-{
-	return 0;
-}
 
 /* scsi_device_attach: Attach a SCSI device.  This routine will
  * print out the device address, what it is, then call the type

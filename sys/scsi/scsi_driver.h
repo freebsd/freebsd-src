@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.h,v 1.11 1997/03/23 04:39:07 bde Exp $
+ * $Id: scsi_driver.h,v 1.12 1997/06/25 19:07:42 tegge Exp $
  *
  */
 #ifndef _SCSI__DRIVER_H_
@@ -48,7 +48,6 @@ struct scsi_device;
 struct buf;
 struct proc;
 
-int  scsi_goaway __P((int));
 int  scsi_device_attach __P((struct scsi_link *));
 int  scsi_device_lock   __P((struct scsi_link *));
 void scsi_device_unlock __P((struct scsi_link *));
