@@ -51,7 +51,7 @@
 
     <note>
       <para>SRM commands will be in <userinput>UPPER CASE</userinput>. 
-      Lower case input is also acceptible to SRM. Upper case is used for
+      Lower case input is also acceptable to SRM. Upper case is used for
       clarity.
     </note>
   </sect2>
@@ -166,7 +166,7 @@
     <para>In order to be bootable the root partition (partition a)
     must be at offset 0 of the disk drive. This means you have to 
     use the installer's partitioning menu and start with assigning 
-    partiton a at offset 0 to the root partition. Subsequently layout
+    partition a at offset 0 to the root partition. Subsequently layout
     the rest of the partitions to your liking. If you do not adhere
     to this rule the install will proceed just fine, but the system
     will not be bootable from the freshly installed disk.</para>
@@ -578,7 +578,7 @@ cpu	EV4</programlisting>
       disks. A 3.5&quot; IDE disk would not fit in the case anyway. At
       least not without sacrificing your only PCI slot. The SRM 
       console unfortunately does not know how to boot from IDE 
-      disks. You will need to use a SCSI disk as the bootdisk.</para>
+      disks. You will need to use a SCSI disk as the boot disk.</para>
 
       <para>In case you want to change the internal hard drive: the
       internal flat cable running from the PCI riser board to the 
@@ -779,7 +779,7 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       and will complain about unknown cards as before. So does the
       &os; kernel by the way.</para>
 
-      <para>The Miata SRM can boot from IDE CDROM drives. IDE harddisk
+      <para>The Miata SRM can boot from IDE CDROM drives. IDE hard disk
       boot is known to work for both MiataGL and MX5 disks, so you
       can root &os; from an IDE disk. Speeds on MX5 are around 14
       Mbytes/sec assuming a suitable drive. Miata's CMD646 chip will
@@ -1378,7 +1378,7 @@ cpu	EV4</programlisting>
       can be found on the Compaq Web site.</para>
 
       <para>164LX can either have the SRM console code or the AlphaBIOS
-      code in it's flash ROM because the flash ROM is too small to hold
+      code in its flash ROM because the flash ROM is too small to hold
       both at the same time.</para>
 
       <para>PC164 can boot from IDE disks assuming your SRM version is 
@@ -1821,7 +1821,7 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
 	  </listitem>
 	  <listitem>
 	    <para>memory bus: 128 bit via crossbar, 1.3GB/sec memory
-	    bandwith</para>
+	    bandwidth</para>
 	  </listitem>
 	  <listitem>
 	    <para>memory:
@@ -2777,7 +2777,7 @@ cpu	EV5</programlisting>
 
        <para>Chances are that your UP1000 comes by default with 
        AlphaBios only. The SRM console firmware is available from 
-       the Alpha Processor Inc. website. It is currently available in 
+       the Alpha Processor Inc. web site. It is currently available in 
        a beta version which was successfully used during the port of &os; 
        to the UP1000. </para>
 
@@ -2954,7 +2954,7 @@ cpu	EV5</programlisting>
       like temperature, fans, voltages etc. The I2C also supports 
       <quote>wake on LAN</quote>.</para>
 
-      <para>Each PCI slot is connected to it's own independent PCI bus 
+      <para>Each PCI slot is connected to its own independent PCI bus 
       on the Tsunami.</para>
 
       <para>The embedded Ultra DMA EIDE ports are bootable by the 
