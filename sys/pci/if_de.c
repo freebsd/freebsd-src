@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.24 1995/05/05 20:09:51 davidg Exp $
+ * $Id: if_de.c,v 1.25 1995/05/22 05:51:41 davidg Exp $
  *
  */
 
@@ -674,7 +674,8 @@ tulip_rx_intr(
 		if (m0 != NULL) {
 		    m->m_pkthdr.rcvif = ifp;
 		    m->m_data += sizeof(struct ether_header);
-		    m->m_len = m->m_pkthdr.len = total_len;
+		    m->m_len = m->m_pkthdr.len = total_len -
+			sizeof(struct ether_header);
 #if defined(__bsdi__)
 		    eh.ether_type = ntohs(eh.ether_type);
 #endif
@@ -1042,7 +1043,7 @@ tulip_read_srom(
     }
 }
 
-#define	tulip_mchash(mca)	(tulip_crc32(mca, 6) & 0x1FF)
+#define	tulip_mchash(mca)	((tulip_crc32(mca, 6) >> 23) & 0x1FF)
 #define	tulip_srom_crcok(databuf)	( \
     (tulip_crc32(databuf, 126) & 0xFFFF) == \
      ((databuf)[126] | ((databuf)[127] << 8)))
