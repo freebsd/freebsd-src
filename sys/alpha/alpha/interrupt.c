@@ -337,8 +337,8 @@ static struct alpha_intr_list alpha_intr_hash[31];
 
 int
 alpha_setup_intr(const char *name, int vector, driver_intr_t *handler,
-		 void *arg, int pri, void **cookiep, volatile long *cntp,
-		 void (*disable)(int), void (*enable)(int))
+		 void *arg, int pri, int flags, void **cookiep,
+		 volatile long *cntp, void (*disable)(int), void (*enable)(int))
 {
 	int h = HASHVEC(vector);
 	struct alpha_intr *i;
@@ -383,22 +383,48 @@ alpha_setup_intr(const char *name, int vector, driver_intr_t *handler,
 		}
 
 		/* Create a kernel thread if needed. */
-		if (ithd->it_proc == NULL) {
-			errcode = kthread_create(ithd_loop, NULL, &p,
-			    RFSTOPPED | RFHIGHPID, "intr: %s", name);
-			if (errcode)
-				panic(
+		if ((flags & INTR_FAST) == 0) {
+			if (ithd->it_proc == NULL) {
+				errcode = kthread_create(ithd_loop, NULL, &p,
+				    RFSTOPPED | RFHIGHPID, "intr: %s", name);
+				if (errcode)
+					panic(
 			    "alpha_setup_intr: Can't create interrupt thread");
-			p->p_rtprio.type = RTP_PRIO_ITHREAD;
-			p->p_stat = SWAIT;	/* we're idle */
+				p->p_rtprio.type = RTP_PRIO_ITHREAD;
+				p->p_stat = SWAIT;	/* we're idle */
 
-			/* Put in linkages. */
-			ithd->it_proc = p;
-			p->p_ithd = ithd;
-		} else
-			snprintf(ithd->it_proc->p_comm, MAXCOMLEN, "intr%03x: %s",
-			    vector, name);
-		p->p_rtprio.prio = pri;
+				/* Put in linkages. */
+				ithd->it_proc = p;
+				p->p_ithd = ithd;
+			} else
+				snprintf(ithd->it_proc->p_comm, MAXCOMLEN,
+				     "intr: %s", name);
+			p->p_rtprio.prio = pri;
+		}
+	} else if ((flags & INTR_EXCL) != 0 ||
+		   (ithd->it_ih->ih_flags & INTR_EXCL) != 0) {
+		/*
+		 * We can't have more than one exclusive handler for a given
+		 * interrupt.
+		 */
+		if (bootverbose)
+			printf(
+	"\tdevice combination %s and %s doesn't support shared vector %x\n",
+			    ithd->it_ih->ih_name, name, vector);
+		return EINVAL;
+	} else if ((flags & INTR_FAST) != 0) {
+		/* We can only have one fast interrupt by itself. */
+		if (bootverbose)
+			printf(
+	"\tCan't add fast interrupt %s to normal interrupt %s on vector %x\n",
+			    name, ithd->it_ih->ih_name, vector);
+		return EINVAL;
+	} else if (ithd->it_proc == NULL) {
+		if (bootverbose)
+			printf(
+	"\tCan't add normal interrupt %s to fast interrupt %s on vector %x\n",
+			    name, ithd->it_ih->ih_name, vector);
+		return EINVAL;
 	} else {
 		p = ithd->it_proc;
 		if (strlen(p->p_comm) + strlen(name) < MAXCOMLEN) {
@@ -417,6 +443,7 @@ alpha_setup_intr(const char *name, int vector, driver_intr_t *handler,
 
 	idesc->ih_handler = handler;
 	idesc->ih_argument = arg;
+	idesc->ih_flags = flags;
 	idesc->ih_name = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
 	if (idesc->ih_name == NULL) {
 		free(idesc, M_DEVBUF);
@@ -504,6 +531,22 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		return;
 
 	atomic_add_long(i->cntp, 1);
+
+	/*
+	 * Handle a fast interrupt if there is no actual thread for this
+	 * interrupt by calling the handler directly without Giant.  Note
+	 * that this means that any fast interrupt handler must be MP safe.
+	 */
+	if (ithd->it_proc == NULL) {
+		KASSERT(ithd->it_ih->ih_flags & INTR_FAST != 0,
+			("threaded interrupt without a thread"));
+		KASSERT(ithd->it_ih->ih_next == NULL,
+			("fast interrupt with more than one handler"));
+
+		ithd->it_ih->ih_handler(ithd->it_ih->ih_argument);
+
+		return;
+	}
 
 	CTR3(KTR_INTR, "sched_ithd pid %d(%s) need=%d",
 		ithd->it_proc->p_pid, ithd->it_proc->p_comm, ithd->it_need);
