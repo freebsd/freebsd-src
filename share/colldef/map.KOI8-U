@@ -81,7 +81,7 @@ HH \xa0
 VV \xa1
 dR \xa2
 io \xa3
-ye \xa4
+ie \xa4
 DR \xa5
 ii \xa6
 yi \xa7
@@ -90,14 +90,14 @@ uR \xa9
 Ur \xaa
 UR \xab
 uL \xac
-Ul \xad
-ge \xae
+g3 \xad
+UL \xae
 vR \xaf
 Vr \xb0
 VR \xb1
 vL \xb2
 IO \xb3
-YE \xb4
+IE \xb4
 VL \xb5
 II \xb6
 YI \xb7
@@ -106,8 +106,8 @@ uH \xb9
 Uh \xba
 UH \xbb
 vH \xbc
-Vh \xbd
-GE \xbe
+G3 \xbd
+VH \xbe
 Co \xbf
 ju \xc0
 a= \xc1
