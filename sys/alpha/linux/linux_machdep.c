@@ -31,7 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/imgact.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -64,20 +66,23 @@ struct linux_select_argv {
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
-	struct execve_args bsd;
-	caddr_t sg;
+	struct image_args eargs;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(execve))
-		printf(ARGS(execve, "%s"), args->path);
+		printf(ARGS(execve, "%s"), path);
 #endif
-	bsd.fname = args->path;
-	bsd.argv = args->argp;
-	bsd.envv = args->envp;
-	return (execve(td, &bsd));
+	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, args->argp,
+	    args->envp);
+	free(path, M_TEMP);
+	if (error == 0)
+		error = kern_execve(td, &eargs, NULL);
+	exec_free_args(&eargs);
+	return (error);
 }
 
 /*
