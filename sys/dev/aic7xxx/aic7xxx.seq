@@ -84,12 +84,13 @@ reset:
 	clr	SCSISIGO		/* De-assert BSY */
 
 p_busfree:
-	mvi	SCSISEQ,ENRSELI		/* Always allow reselection */
+	or	SXFRCTL0, CLRCHN
 	clr	SCSIRATE		/*
 					 * We don't know the target we will
 					 * connect to, so default to narrow
 					 * transfers to avoid parity problems.
 					 */
+	mvi	SCSISEQ,ENRSELI		/* Always allow reselection */
 	mvi	LASTPHASE, P_BUSFREE
 	and	FLAGS,0x07		/* clear target specific flags */
 poll_for_work:
@@ -153,6 +154,7 @@ test_busy:
 	test	SCB_CONTROL, TAG_ENB	jnz start_scb
 	mov	SAVED_SCBPTR, SCBPTR
 	mov	SCB_TCL		call	index_untagged_scb
+	mvi	SEQCTL,0x50			/* PAUSEDIS|FASTMODE */
 	mov	ARG_1, SINDIR			/*
 						 * ARG_1 should
 						 * now have the SCB ID of
@@ -172,8 +174,7 @@ test_busy:
 	mov	ALLZEROS	call findSCB
 	/*
 	 * If we couldn't find it, tell the kernel.  This should
-	 * only happen if the parent SCB was aborted and this
-	 * one was already here at the time of the abort.
+	 * never happen.
 	 */
 	cmp	SINDEX, SCB_LIST_NULL	jne paged_busy_link
 	mvi	INTSTAT, NO_MATCH_BUSY
@@ -182,12 +183,15 @@ paged_busy_link:
 	mov	SCB_LINKED_NEXT, CUR_SCBID 
 	/* Put it back on the disconnected list */
 	call	add_scb_to_disc_list
+	mvi	SEQCTL,0x10			/* FASTMODE */
 	jmp	poll_for_work
 simple_busy_link:
 	mov	SCBPTR, ARG_1
 	mov	SCB_LINKED_NEXT, CUR_SCBID 
+	mvi	SEQCTL,0x10			/* FASTMODE */
 	jmp	poll_for_work
 make_busy:
+	mvi	SEQCTL,0x10			/* FASTMODE */
 	mov	DINDIR, CUR_SCBID
 	mov	SCBPTR, SAVED_SCBPTR
 
@@ -259,7 +263,8 @@ wait_for_selection:
  */
 reselect:
 	clr	MSG_LEN		/* Don't have anything in the mesg buffer */
-	mov	SELID		call initialize_scsiid
+	/* XXX test for and handle ONE BIT condition */
+	and	SAVED_TCL, 0xf0, SELID
 	or	FLAGS,RESELECTED
 	jmp	select2
 
@@ -272,13 +277,26 @@ reselect:
 select:
 	mov	WAITING_SCBH,SCB_NEXT
 select2:
+	/* Turn off the selection hardware */
+	mvi	SCSISEQ,ENAUTOATNP		/*
+						 * ATN on parity errors
+						 * for "in" phases
+						 */
+	mvi	CLRSINT0,0x60			/* CLRSELDI|CLRSELDO */
+	mvi	CLRSINT1,CLRBUSFREE
+	or	SIMODE1, ENBUSFREE		/*
+						 * We aren't expecting a
+						 * bus free, so interrupt
+						 * the kernel driver if it
+						 * happens.
+						 */
 /*
  * Initialize SCSIRATE with the appropriate value for this target.
  * The SCSIRATE settings for each target are stored in an array
  * based at TARG_SCRATCH.
  */
 ndx_dtr:
-	shr	A,SCSIID,4
+	shr	A,SAVED_TCL,4
 	test	SBLKCTL,SELBUSB	jz ndx_dtr_2
 	or	SAVED_TCL, SELBUSB /* Add the channel bit while we're here */
 	or	A,0x08		/* Channel B entries add 8 */
@@ -291,18 +309,12 @@ ndx_dtr_2:
  */
 ultra:
 	and	DINDEX,0xdf,SXFRCTL0            /* default to Ultra disabled */
-	/*
-	 * Set CLRCHN here before the target has entered a data transfer mode -
-	 * with synchronous SCSI, if you do it later, you blow away some
-	 * data in the SCSI FIFO that the target has already sent to you.
-	 */
-	or	DINDEX, CLRCHN
 	mvi	SINDEX, ULTRA_ENB_B
-	test	SCSIID, 0x80     jnz ultra_2     /* Target ID > 7 */
+	test	SAVED_TCL, 0x80     jnz ultra_2     /* Target ID > 7 */
 	test	SBLKCTL, SELBUSB jnz ultra_2     /* Second channel device */
 	dec	SINDEX
 ultra_2:
-	mov     FUNCTION1,SCSIID 
+	mov     FUNCTION1,SAVED_TCL
 	mov     A,FUNCTION1
 	test	SINDIR, A	jz set_sxfrctl0
 	or	DINDEX, ULTRAEN
@@ -310,18 +322,6 @@ ultra_2:
 set_sxfrctl0:
 	mov	SXFRCTL0,DINDEX
 
-	mvi	SCSISEQ,ENAUTOATNP		/*
-						 * ATN on parity errors
-						 * for "in" phases
-						 */
-	mvi	CLRSINT1,CLRBUSFREE
-	mvi	CLRSINT0,0x60			/* CLRSELDI|CLRSELDO */
-	or	SIMODE1, ENBUSFREE		/*
-						 * We aren't expecting a
-						 * bus free, so interrupt
-						 * the kernel driver if it
-						 * happens.
-						 */
 /*
  * Main loop for information transfer phases.  If BSY is false, then
  * we have a bus free condition, expected or not.  Otherwise, wait
@@ -516,8 +516,8 @@ p_command:
 p_status:
 	call	assert
 
-	mvi	SCB_TARGET_STATUS	call inb_first
-	jmp	mesgin_done
+	mov	SCB_TARGET_STATUS, SCSIDATL
+	jmp	ITloop
 
 /*
  * Message out phase.  If there is not an active message, but the target
@@ -542,15 +542,22 @@ p_mesgout_start:
  * a MESSAGE REJECT.
  */
 p_mesgout_loop:
-	test	SSTAT0,SPIORDY jz p_mesgout_loop
-	test	SSTAT1,PHASEMIS	jnz p_mesgout_done
+	/*
+	 * If there is a parity error, wait for the kernel to
+	 * see the interrupt and "update" our message response
+	 * before continuing.
+	 */
+	test	SSTAT1, REQINIT	jz p_mesgout_loop
+	test	SSTAT1, SCSIPERR jnz p_mesgout_loop
+	and	LASTPHASE, PHASE_MASK, SCSISIGI
+	cmp	LASTPHASE, P_MESGOUT jne p_mesgout_done
 /*
  * If the next bus phase after ATN drops is a message out, it means
  * that the target is requesting that the last message(s) be resent.
  */
 p_mesgout_testretry:
 	test	DINDEX,0xff	jnz p_mesgout_dropatn
-	or	SCSISIGO,ATNO		/* turn on ATN for the retry */
+	or	SCSISIGO,ATNO,LASTPHASE	/* turn on ATN for the retry */
 	jmp	p_mesgout_start
 p_mesgout_dropatn:
 	cmp	DINDEX,1	jne p_mesgout_outb	/* last byte? */
@@ -649,16 +656,8 @@ status_ok:
 	mov	SCBPTR, SAVED_SCBPTR
 
 complete:
-	test	FLAGS, PAGESCBS jz complete_post
-	mov	A, QFULLCNT
-complete_poll:
-	cmp	QOUTQCNT, A	je complete_poll
-	mvi	SEQCTL,0x50			/* PAUSEDIS|FASTMODE */
-	inc	QOUTQCNT
-complete_post:
 	/* Post the SCB and issue an interrupt */
 	mov	QOUTFIFO,SCB_TAG
-	mvi	SEQCTL,0x10			/* FASTMODE */
 	mvi	INTSTAT,CMDCMPLT
 
 dma_next_scb:
@@ -701,7 +700,7 @@ mesgin_extended_intr:
 	cmp	RETURN_1,SEND_REJ je rej_mesgin
 	cmp	RETURN_1,SEND_MSG jne mesgin_done
 /* The kernel has setup a message to be sent */
-	or	SCSISIGO,ATNO			/* turn on ATNO */
+	or	SCSISIGO,ATNO,LASTPHASE		/* turn on ATNO */
 	jmp	mesgin_done
 
 /*
@@ -776,7 +775,8 @@ mesgin_identify:
 	mvi	ARG_1,SCB_LIST_NULL	/* Default to no-tag */
 snoop_tag_loop:
 	test	SSTAT1,REQINIT		jz snoop_tag_loop
-	test	SSTAT1,PHASEMIS		jnz use_findSCB
+	and	LASTPHASE, PHASE_MASK, SCSISIGI
+	cmp	LASTPHASE, P_MESGIN, jne use_findSCB
 	mvi	A			call inb_first
 	cmp	A,MSG_SIMPLE_Q_TAG	jne use_findSCB
 get_tag:
@@ -853,7 +853,7 @@ mk_mesg:
 	mvi	INTSTAT,MSG_BUFFER_BUSY
 
 mk_mesg1:
-	or	SCSISIGO,ATNO		/* turn on ATNO */
+	or	SCSISIGO,ATNO,LASTPHASE	/* turn on ATNO */
 	mvi	MSG_LEN,1		/* length = 1 */
 	mov	MSG0,SINDEX		/* 1-byte message */
 	mvi	SEQCTL,0x10	ret	/* !PAUSEDIS|FASTMODE */
@@ -875,15 +875,21 @@ mk_mesg1:
  */
 
 inb_next:
-	call	inb_last	/* ACK */
+	mov	NONE,SCSIDATL			/*dummy read from latch to ACK*/
 inb_next_wait:
-	test	SSTAT0, SPIORDY	jz inb_next_wait
-	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
+	/*
+	 * If there is a parity error, wait for the kernel to
+	 * see the interrupt and prepare our message response
+	 * before continuing.
+	 */
+	test	SSTAT1, REQINIT	jz inb_next_wait
+	test	SSTAT1, SCSIPERR jnz inb_next_wait
+	and	LASTPHASE, PHASE_MASK, SCSISIGI
+	cmp	LASTPHASE, P_MESGIN jne mesgin_phasemis
 inb_first:
 	mov	DINDEX,SINDEX
 	mov	DINDIR,SCSIBUSL	ret		/*read byte directly from bus*/
 inb_last:
-	mvi	CLRSINT0, CLRSPIORDY
 	mov	NONE,SCSIDATL ret		/*dummy read from latch to ACK*/
 
 mesgin_phasemis:
