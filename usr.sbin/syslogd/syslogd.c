@@ -272,7 +272,8 @@ int	LogFacPri = 0;		/* Put facility and priority in log message: */
 int	allowaddr __P((char *));
 void	cfline __P((char *, struct filed *, char *));
 char   *cvthname __P((struct sockaddr_in *));
-void	deadq_enter __P((pid_t));
+void	deadq_enter __P((pid_t, const char *));
+int	deadq_remove __P((pid_t));
 int	decode __P((const char *, CODE *));
 void	die __P((int));
 void	domark __P((int));
@@ -280,6 +281,7 @@ void	fprintlog __P((struct filed *, int, char *));
 void	init __P((int));
 void	logerror __P((const char *));
 void	logmsg __P((int, char *, char *, int));
+void	log_deadchild __P((pid_t, int, const char *));
 void	printline __P((char *, char *));
 void	printsys __P((char *));
 int	p_open __P((char *, pid_t *));
@@ -303,6 +305,8 @@ main(argc, argv)
 	FILE *fp;
 	char *p, *hname, line[MAXLINE + 1];
 	struct timeval tv, *tvp;
+	struct sigaction sact;
+	sigset_t mask;
 	pid_t ppid = 1;
 
 	while ((ch = getopt(argc, argv, "a:dl:f:m:p:suv")) != -1)
@@ -369,7 +373,18 @@ main(argc, argv)
 	(void)signal(SIGTERM, die);
 	(void)signal(SIGINT, Debug ? die : SIG_IGN);
 	(void)signal(SIGQUIT, Debug ? die : SIG_IGN);
-	(void)signal(SIGCHLD, reapchild);
+	/*
+	 * We don't want the SIGCHLD and SIGHUP handlers to interfere
+	 * with each other; they are likely candidates for being called
+	 * simultaneously (SIGHUP closes pipe descriptor, process dies,
+	 * SIGCHLD happens).
+	 */
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sact.sa_handler = reapchild;
+	sact.sa_mask = mask;
+	sact.sa_flags = 0;
+	(void)sigaction(SIGCHLD, &sact, NULL);
 	(void)signal(SIGALRM, domark);
 	(void)signal(SIGPIPE, SIG_IGN);	/* We'll catch EPIPE instead. */
 	(void)alarm(TIMERINTVL);
@@ -434,7 +449,13 @@ main(argc, argv)
 	dprintf("off & running....\n");
 
 	init(0);
-	(void)signal(SIGHUP, init);
+	/* prevent SIGHUP and SIGCHLD handlers from running in parallel */
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGCHLD);
+	sact.sa_handler = init;
+	sact.sa_mask = mask;
+	sact.sa_flags = 0;
+	(void)sigaction(SIGHUP, &sact, NULL);
 
 	tvp = &tv;
 	tv.tv_sec = tv.tv_usec = 0;
@@ -941,7 +962,8 @@ fprintlog(f, flags, msg)
 			int e = errno;
 			(void)close(f->f_file);
 			if (f->f_un.f_pipe.f_pid > 0)
-				deadq_enter(f->f_un.f_pipe.f_pid);
+				deadq_enter(f->f_un.f_pipe.f_pid,
+					    f->f_un.f_pipe.f_pname);
 			f->f_un.f_pipe.f_pid = 0;
 			errno = e;
 			logerror(f->f_un.f_pipe.f_pname);
@@ -1039,12 +1061,9 @@ void
 reapchild(signo)
 	int signo;
 {
-	int status, code;
+	int status;
 	pid_t pid;
 	struct filed *f;
-	char buf[256];
-	const char *reason;
-	dq_t q;
 
 	while ((pid = wait3(&status, WNOHANG, (struct rusage *)NULL)) > 0) {
 		if (!Initialized)
@@ -1052,35 +1071,17 @@ reapchild(signo)
 			continue;
 
 		/* First, look if it's a process from the dead queue. */
-		for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = TAILQ_NEXT(q, dq_entries))
-			if (q->dq_pid == pid) {
-				TAILQ_REMOVE(&deadq_head, q, dq_entries);
-				free(q);
-				goto oncemore;
-			}
+		if (deadq_remove(pid))
+			goto oncemore;
 
 		/* Now, look in list of active processes. */
 		for (f = Files; f; f = f->f_next)
 			if (f->f_type == F_PIPE &&
 			    f->f_un.f_pipe.f_pid == pid) {
 				(void)close(f->f_file);
-
-				errno = 0; /* Keep strerror() stuff out of logerror messages. */
 				f->f_un.f_pipe.f_pid = 0;
-				if (WIFSIGNALED(status)) {
-					reason = "due to signal";
-					code = WTERMSIG(status);
-				} else {
-					reason = "with status";
-					code = WEXITSTATUS(status);
-					if (code == 0)
-						goto oncemore; /* Exited OK. */
-				}
-				(void)snprintf(buf, sizeof buf,
-				"Logging subprocess %d (%s) exited %s %d.",
-					       pid, f->f_un.f_pipe.f_pname,
-					       reason, code);
-				logerror(buf);
+				log_deadchild(pid, status,
+					      f->f_un.f_pipe.f_pname);
 				break;
 			}
 	  oncemore:
@@ -1150,7 +1151,8 @@ domark(signo)
 		switch (q->dq_timeout) {
 		case 0:
 			/* Already signalled once, try harder now. */
-			kill(q->dq_pid, SIGKILL);
+			if (kill(q->dq_pid, SIGKILL) != 0)
+				(void)deadq_remove(q->dq_pid);
 			break;
 
 		case 1:
@@ -1158,10 +1160,13 @@ domark(signo)
 			 * Timed out on dead queue, send terminate
 			 * signal.  Note that we leave the removal
 			 * from the dead queue to reapchild(), which
-			 * will also log the event.
+			 * will also log the event (unless the process
+			 * didn't even really exist, in case we simply
+			 * drop it from the dead queue).
 			 */
-			kill(q->dq_pid, SIGTERM);
-			/* FALLTROUGH */
+			if (kill(q->dq_pid, SIGTERM) != 0)
+				(void)deadq_remove(q->dq_pid);
+			/* FALLTHROUGH */
 
 		default:
 			q->dq_timeout--;
@@ -1255,7 +1260,8 @@ init(signo)
 		case F_PIPE:
 			(void)close(f->f_file);
 			if (f->f_un.f_pipe.f_pid > 0)
-				deadq_enter(f->f_un.f_pipe.f_pid);
+				deadq_enter(f->f_un.f_pipe.f_pid,
+					    f->f_un.f_pipe.f_pname);
 			f->f_un.f_pipe.f_pid = 0;
 			break;
 		}
@@ -1914,10 +1920,23 @@ p_open(prog, pid)
 }
 
 void
-deadq_enter(pid)
+deadq_enter(pid, name)
 	pid_t pid;
+	const char *name;
 {
 	dq_t p;
+	int status;
+
+	/*
+	 * Be paranoid, if we can't signal the process, don't enter it
+	 * into the dead queue (perhaps it's already dead).  If possible,
+	 * we try to fetch and log the child's status.
+	 */
+	if (kill(pid, 0) != 0) {
+		if (waitpid(pid, &status, WNOHANG) > 0)
+			log_deadchild(pid, status, name);
+		return;
+	}
 
 	p = malloc(sizeof(struct deadq_entry));
 	if (p == 0) {
@@ -1929,4 +1948,46 @@ deadq_enter(pid)
 	p->dq_pid = pid;
 	p->dq_timeout = DQ_TIMO_INIT;
 	TAILQ_INSERT_TAIL(&deadq_head, p, dq_entries);
+}
+
+int
+deadq_remove(pid)
+	pid_t pid;
+{
+	dq_t q;
+
+	for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = TAILQ_NEXT(q, dq_entries))
+		if (q->dq_pid == pid) {
+			TAILQ_REMOVE(&deadq_head, q, dq_entries);
+				free(q);
+				return 1;
+		}
+
+	return 0;
+}
+
+void
+log_deadchild(pid, status, name)
+	pid_t pid;
+	int status;
+	const char *name;
+{
+	int code;
+	char buf[256];
+	const char *reason;
+
+	errno = 0; /* Keep strerror() stuff out of logerror messages. */
+	if (WIFSIGNALED(status)) {
+		reason = "due to signal";
+		code = WTERMSIG(status);
+	} else {
+		reason = "with status";
+		code = WEXITSTATUS(status);
+		if (code == 0)
+			return;
+	}
+	(void)snprintf(buf, sizeof buf,
+		       "Logging subprocess %d (%s) exited %s %d.",
+		       pid, name, reason, code);
+	logerror(buf);
 }
