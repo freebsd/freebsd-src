@@ -47,7 +47,7 @@ kevent(int kq, const struct kevent *changelist, int nchanges,
 
 	rc = _thread_sys_kevent(kq, changelist, nchanges,
 	    eventlist, nevents, &nullts);
-	if (rc == 0 && (timeout == NULL ||
+	if (rc == 0 && eventlist != NULL && nevents > 0 && (timeout == NULL ||
 	    timeout->tv_sec != 0 || timeout->tv_nsec != 0)) {
 		/* Save the socket file descriptor: */
 		_thread_run->data.fd.fd = kq;
