@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.193 1998/06/02 18:28:55 jhay Exp $
+#	$Id: Makefile,v 1.194 1998/06/04 06:25:22 charnier Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -357,11 +357,13 @@ reinstall:
 	@echo " Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} install
+.if ${MACHINE_ARCH} == "i386"
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Re-scanning the shared libraries.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ldconfig -R
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding man page indexes"
@@ -479,7 +481,7 @@ bootstrap:
 		find -dx net netinet posix4 sys vm -name '*.h' -o -type d | \
 		cpio -dump ${DESTDIR}/usr/include
 	mkdir -p ${DESTDIR}/usr/include/machine
-	cd ${.CURDIR}/sys/i386/include; find -dx . -name '*.h' -o -type d | \
+	cd ${.CURDIR}/sys/${MACHINE_ARCH}/include; find -dx . -name '*.h' -o -type d | \
 		cpio -dump ${DESTDIR}/usr/include/machine
 .endif
 	cd ${.CURDIR}/usr.bin/make; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
@@ -582,6 +584,22 @@ includes:
 	cd ${.CURDIR}/usr.bin/lex;		${MAKE} beforeinstall
 
 #
+# Declare tools if they are not required on all architectures.
+#
+.if ${MACHINE_ARCH} == "i386"
+# aout tools:
+_aout_ar	= usr.bin/ar
+_aout_as	= gnu/usr.bin/as
+_aout_ld	= gnu/usr.bin/ld
+_aout_nm	= usr.bin/nm
+_aout_ranlib	= usr.bin/ranlib
+_aout_size	= usr.bin/size
+_aout_strip	= usr.bin/strip
+_aout_ldconfig	= sbin/ldconfig
+_objformat	= usr.bin/objformat
+.endif
+
+#
 # lib-tools - build tools to compile and install the libraries.
 #
 # XXX gperf is required for cc
@@ -590,22 +608,22 @@ includes:
 lib-tools:
 .for d in				\
 		gnu/usr.bin/gperf	\
-		gnu/usr.bin/ld		\
+		${_aout_ld}		\
 		usr.bin/tsort		\
-		gnu/usr.bin/as		\
+		${_aout_as}		\
 		gnu/usr.bin/bison	\
 		gnu/usr.bin/cc		\
-		usr.bin/ar		\
+		${_aout_ar}		\
 		usr.bin/lex/lib		\
 		usr.bin/mk_cmds		\
-		usr.bin/nm		\
-		usr.bin/ranlib		\
-		usr.bin/strip		\
+		${_aout_nm}		\
+		${_aout_ranlib}		\
+		${_aout_strip}		\
 		usr.bin/env		\
 		gnu/usr.bin/binutils	\
 		usr.bin/uudecode	\
-		sbin/ldconfig		\
-		usr.bin/objformat
+		${_aout_ldconfig}	\
+		${_objformat}
 	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install; \
@@ -758,9 +776,9 @@ build-tools:
 		usr.bin/mkdep		\
 		usr.bin/paste		\
 		usr.bin/sed		\
-		usr.bin/size		\
+		${_aout_size}		\
 		usr.bin/soelim		\
-		usr.bin/strip		\
+		${_aout_strip}		\
 		usr.bin/symorder	\
 		usr.bin/touch		\
 		usr.bin/tr		\
