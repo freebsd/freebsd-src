@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: extract.c,v 1.7.6.12 1998/09/11 07:27:17 jkh Exp $";
+	"$Id: extract.c,v 1.7.6.13 1998/10/28 12:00:32 jkh Exp $";
 #endif
 
 /*
@@ -34,7 +34,7 @@ static const char rcsid[] =
 
 #define PUSHOUT(todir) /* push out string */ \
         if (where_count > sizeof(STARTSTRING)-1) { \
-		    strcat(where_args, "|tar xf - -C "); \
+		    strcat(where_args, "|tar --unlink -xf - -C "); \
 		    strcat(where_args, todir); \
 		    if (system(where_args)) { \
 	                cleanup(0); \
