@@ -68,7 +68,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command is used to manually enter security associations into the kernel
+utility is used to manually enter security associations into the kernel
 key/security association database.  (See
 .Xr key 4 ) .
 .Pp
@@ -220,10 +220,12 @@ An EOF will also end interaction with
 .Sh HISTORY
 The
 .Nm
-command first appeared in NRL's
+utility first appeared in NRL's
 .Bx 4.4
 IPv6 networking distribution.
-.Nm Keyadmin
+The
+.Nm
+utility
 started its life as a pipe dream thought up by Dan McDonald, and came to
 life through the excruciating efforts of Ran Atkinson, Dan McDonald,
 Craig Metz, and Bao Phan.
@@ -234,8 +236,9 @@ but was renamed to
 because of the conflict with
 .Xr key 1 .
 .Sh BUGS
-.Nm Keyadmin
-needs a -n flag like
+The
+.Nm
+utility needs a -n flag like
 .Xr route 8
 to avoid name lookups.
 .Pp

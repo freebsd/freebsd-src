@@ -44,8 +44,9 @@
 .Op Ar maddr
 .\"
 .Sh DESCRIPTION
+The
 .Nm
-sends an IPv6 multicast listener discovery (MLD) query packet toward
+utility sends an IPv6 multicast listener discovery (MLD) query packet toward
 the specified multicast address,
 .Ar maddr ,
 toward interface
@@ -82,8 +83,9 @@ The program exits with 0 on success, non-zero on failures.
 .Sh HISTORY
 The
 .Nm
-command first appeared in WIDE/KAME IPv6 protocol stack kit.
+utility first appeared in WIDE/KAME IPv6 protocol stack kit.
 .Sh BUGS
-.Nm Mld6query
-does not take care of multicast addresses which have non link-local
+The
+.Nm
+utility does not take care of multicast addresses which have non link-local
 scope.

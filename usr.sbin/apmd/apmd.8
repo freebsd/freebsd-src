@@ -40,7 +40,9 @@
 .Op Fl f file
 .Op Fl v
 .Sh DESCRIPTION
-.Nm Apmd
+The
+.Nm
+utility
 monitors the occurrence of the specified Advanced Power Management
 .Pq Tn APM
 events and, if one of the events occurs, it executes the sequence of
@@ -58,8 +60,9 @@ Therefore, if you wish action to be taken when these events
 occur, you need to explicitly configure the appropriate commands or
 built-in functions in the configuration file.
 .Pp
-.Nm Apmd
-recognizes the following runtime options:
+The
+.Nm
+utility recognizes the following runtime options:
 .Bl -tag -width -f_file
 .It Fl d
 Starts in debug mode.  This causes
@@ -88,8 +91,9 @@ If the
 process receives a SIGHUP, it will reread its configuration file and
 notify the APM device driver of any changes to its configuration.
 .Pp
-.Nm Apmd
-uses the device
+The
+.Nm
+utility uses the device
 .Pa /dev/apmctl
 to issue
 .Xr ioctl 2
@@ -114,7 +118,7 @@ complete the request just yet.
 .Pp
 The
 .Nm
-daemon creates the file
+utility creates the file
 .Pa /var/run/apmd.pid ,
 and stores its process
 id there.
@@ -202,15 +206,17 @@ The command list for the event should be enclosed by
 .Ql {
 and
 .Ql } .
+The
 .Nm
-uses
+utility uses
 .Pa /bin/sh
 for double-quotation enclosed command execution, just as with
 .Xr system 3 .
 Each command is executed in order until the end of
 the list is reached or a command finishes with a non-zero status code.
+The
 .Nm
-will report any failed command's status code via
+utility will report any failed command's status code via
 .Xr syslog 3
 and will then reject the request event posted by the APM BIOS.
 .Ed
@@ -292,5 +298,5 @@ and
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Fx 3.3 .

@@ -48,8 +48,9 @@
 .Op Fl t
 .Op Ar logfile
 .Sh DESCRIPTION
+The
 .Nm
-is invoked at boot time to manage the IPX routing tables.
+utility is invoked at boot time to manage the IPX routing tables.
 The IPX routing daemon uses the Novell IPX Routing
 Information Protocol in maintaining up to date kernel routing
 table entries.
@@ -68,7 +69,7 @@ Forces
 to supply routing information whether it is acting as an internetwork
 router or not.
 .It Fl S
-Do not supply Service Advertizing Protocol
+Do not supply Service Advertising Protocol
 (SAP)
 information.
 The default is to supply
@@ -110,8 +111,9 @@ system and marked
 is ignored).  If multiple interfaces
 are present, it is assumed the host will forward packets
 between networks.
+The
 .Nm
-then transmits a
+utility then transmits a
 .Em request
 packet on each interface (using a broadcast packet if
 the interface supports it) and enters a loop, listening

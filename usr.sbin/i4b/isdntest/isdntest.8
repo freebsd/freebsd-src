@@ -44,13 +44,15 @@
 .Op Fl t Ar num
 .Op Fl w
 .Sh DESCRIPTION
+The
 .Nm
-is part of the isdn4bsd package and may be used as a stimulation tool
+utility is part of the isdn4bsd package and may be used as a stimulation tool
 for debugging the isdn4bsd kernel functionality.
 .Pp
 NOTE:
-.Nm Isdntest
-must be run
+The
+.Nm
+utility must be run
 .Em instead
 of the
 .Xr isdnd 8
@@ -80,8 +82,9 @@ utility is currently of not much use for end users, it is primarily a debugging
 tool for development and is part of the release in the hope, that someone
 enhances it as a real self test and setup-verification tool!
 .Pp
-.Nm Isdntest
-does almost no error checking and error recovery, so unexpected
+The
+.Nm
+utility does almost no error checking and error recovery, so unexpected
 hangs or crashes may occur.
 .Sh EXAMPLES
 For the following example, it is assumed that a machine with isdn4bsd
@@ -98,8 +101,9 @@ isdntest -i 42 -o 42
 .Pp
 will setup an outgoing call from that machine to itself, connect to itself
 and disconnect after 5 seconds.
-.Nm Isdntest
-has to be finished by the user by entering Control-C.
+The
+.Nm
+utility has to be finished by the user by entering Control-C.
 .Sh FILES
 .Bl -tag -width indent
 .It Pa /dev/i4b

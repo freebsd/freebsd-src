@@ -104,7 +104,7 @@ information in a read-only
 .Pp
 The
 .Nm
-program is designed to replace
+utility is designed to replace
 .Pa /usr/sbin/sendmail
 and to invoke an appropriate MTA instead of
 .Xr sendmail 8
@@ -115,7 +115,7 @@ the system at run time.
 .Pp
 Other configuration files may need to be altered when replacing
 .Xr sendmail 8 .
-For example, if the replacement MTA doesn't support the
+For example, if the replacement MTA does not support the
 .Fl A
 option with
 .Xr mailq 1 ,
@@ -132,8 +132,9 @@ is typically set up as a symbolic link to
 .Nm
 which is not usually invoked on its own.
 .Sh DIAGNOSTICS
+The
 .Nm
-will return an error value and print a diagnostic if its configuration
+utility will return an error value and print a diagnostic if its configuration
 file is missing or malformed, or does not contain a mapping for the
 name under which
 .Nm
@@ -146,8 +147,9 @@ was invoked.
 .Xr periodic.conf 5 ,
 .Xr sendmail 8
 .Sh HISTORY
+The
 .Nm
-first appeared in
+utility first appeared in
 .Nx 1.4
 and then
 .Fx 4.0 .

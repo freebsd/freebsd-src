@@ -29,26 +29,31 @@
 .Op Fl o
 .Op Fl x Ar debugflag Ns Op , Ns Ar ...
 .Sh DESCRIPTION
-.Nm Cron
-should be started from
+The
+.Nm
+utility should be started from
 .Pa /etc/rc
 or
 .Pa /etc/rc.local .
 It will return immediately,
 so you don't need to start it with '&'.
 .Pp
-.Nm Cron
-searches
+The
+.Nm
+utility searches
 .Pa /var/cron/tabs
 for crontab files which are named after accounts in
 .Pa /etc/passwd ;
 crontabs found are loaded into memory.
-.Nm Cron
-also searches for
+The
+.Nm
+utility also searches for
 .Pa /etc/crontab
 which is in a different format (see
 .Xr crontab 5 ) .
-.Nm Cron
+The
+.Nm
+utility
 then wakes up every minute, examining all stored crontabs, checking each
 command to see if it should be run in the current minute.  When executing
 commands, any output is mailed to the owner of the crontab (or to the user

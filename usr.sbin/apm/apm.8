@@ -27,11 +27,14 @@
 .Pp
 .Nm zzz
 .Sh DESCRIPTION
-.Nm Apm
+The
+.Nm
+utility
 controls the Intel / Microsoft APM (Advanced Power Management) BIOS and
 displays the current status of APM on laptop PCs.
-.Nm Zzz
-suspends the system by controlling APM.
+The
+.Nm zzz
+utility suspends the system by controlling APM.
 .Pp
 The following options are available for
 .Nm
@@ -108,7 +111,9 @@ it is unknown, -1 is displayed.
 Transition the system into standby mode.  This mode uses less power than
 full power mode, but more than suspend mode.  Some laptops support
 resuming from this state on timer or Ring Indicator events.  The
-output of apm tells what your laptop claims to support.
+output of
+.Nm
+tells what your laptop claims to support.
 .It Fl z
 Suspend the system.
 It is equivalent to
@@ -133,9 +138,9 @@ or
 .Sh NOTES
 .Xr apmconf 8
 has been merged in
-.Xr apm 8
+.Nm
 and thus
-.Xr apm 8
+.Nm
 replaces all of its functionality.
 .Sh SEE ALSO
 .Xr apm 4

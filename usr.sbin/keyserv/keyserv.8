@@ -18,12 +18,14 @@
 .Op Fl p Ar path
 .Op Fl v
 .Sh DESCRIPTION
-.Nm Keyserv
-is a daemon that is used for storing the
+The
+.Nm
+utility is a daemon that is used for storing the
 private encryption keys of each
 user logged into the system.
 These encryption keys are used for accessing
-secure network services such as secure NFS.
+secure network services such as secure
+.Tn NFS .
 .Pp
 Normally, root's key is read from the file
 .Pa /etc/.rootkey
@@ -68,7 +70,7 @@ Default is
 Display status of DES support (enabled/disabled).
 .El
 .Sh FILES
-.Bl -tag -width /usr/lib/libdes.so.3. -compact
+.Bl -tag -width /usr/lib/libdes.so.3 -compact
 .It Pa /etc/.rootkey
 .It Pa /usr/lib/libdes.so.3
 .El
