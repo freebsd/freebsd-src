@@ -721,6 +721,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       enhancements and bug fixes, and are now loadable
       modules. &merged;</para>
 
+      <para>&man.bridge.4; now has better support for multiple,
+      fully-independent bridging clusters, and is much more stable in
+      the presence of dynamic attachments and detatchments.  Full
+      support for VLANs is also supported. &merged;</para>
+
       <para>ICMP ECHO and TSTAMP replies are now rate limited.  TCP RSTs
       generated due to packets sent to open and unopen ports are now
       limited by separate counters.  Each rate limiting queue now has
@@ -1654,6 +1659,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     the path to the <filename>/etc/dumpdates</filename> file to be
     changed. &merged;</para>
 
+    <para>&man.dump.8; now supplies progress information in its
+    process title, useful for monitoring automated backups.</para>
+
     <para>&man.edquota.8; now takes a <option>-f</option> option to
     allow limiting the prototype quota distribution (specified with
     <option>-p</option>) to a single filesystem. &merged;</para>
@@ -1874,7 +1882,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     with the <option>-i</option> flag. &merged;</para>
 
     <para>&man.ldd.1; can now be used on shared libraries, in addition
-    to executables.</para>
+    to executables. &merged;</para>
+
+    <para>&man.ldd.1; now supports a <option>-a</option> flag to list
+    all the objects that are needed by each loaded object.</para>
 
     <para><filename>libc</filename> is now thread-safe by default;
     <filename>libc_r</filename> contains only thread functions.</para>
@@ -2203,6 +2214,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     libraries are
     no longer required for USA and non-USA residents respectively. &merged;</para>
 
+    <para>&man.rtld.1; will now print the names of all objects that
+    cause each object to be loaded, if the
+    <varname>LD_TRACE_LOADED_OBJECTS_ALL</varname> environment
+    variable is defined.</para>
+
     <para>&man.savecore.8; now supports a <option>-k</option> option
     to prevent clearing a crash dump after saving it.  It also
     attempts to avoid writing large stretches of zeros to crash dump
@@ -2383,6 +2399,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.units.1; has received some updates and bugfixes. &merged;</para>
 
+    <para>&man.usbdevs.8; now supports a <option>-d</option> flag to
+    show the device driver associated with each device.</para>
+
     <para>&man.uudecode.1; now accepts a <option>-o</option> option to
     set its output file.</para>
 
@@ -2483,14 +2502,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       misconfigurations. &merged;</para>
 
       <para><application>BIND</application> has been updated to
-      8.3.1-REL.</para>
+      8.3.1-REL. &merged;</para>
 
       <para><application>Binutils</application> have been updated to
       a 27 January 2002 snapshot from the FSF 2.12 branch.</para>
 
       <para><application>bzip2</application> 1.0.2 has been imported; this
       brings the &man.bzip2.1; program and the <filename>libbz2</filename>
-      library to the base system.</para>
+      library to the base system. &merged;</para>
 
       <para>The &man.ee.1; <application>Easy Editor</application> has
       been updated to 1.4.2. &merged;</para>
