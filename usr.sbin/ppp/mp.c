@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.22 1999/06/02 15:59:06 brian Exp $
+ *	$Id: mp.c,v 1.23 1999/06/02 23:06:21 brian Exp $
  */
 
 #include <sys/param.h>
@@ -405,7 +405,7 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
 
     if (h.seq != seq) {
       /* we're missing something :-( */
-      if (mp->seq.min_in > seq) {
+      if (isbefore(mp->local_is12bit, seq, mp->seq.min_in)) {
         /* we're never gonna get it */
         struct mbuf *next;
 
@@ -433,7 +433,8 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
           log_Printf(LogDEBUG, "Drop frag %u\n", h.seq);
           mbuf_Free(mp->inbufs);
           mp->inbufs = next;
-        } while (mp->inbufs && (h.seq >= mp->seq.min_in || h.end));
+        } while (mp->inbufs && (isbefore(mp->local_is12bit, mp->seq.min_in,
+                                         h.seq) || h.end));
 
         /*
          * Continue processing things from here.
@@ -569,7 +570,7 @@ mp_Output(struct mp *mp, struct bundle *bundle, struct link *l,
   }
   if (log_IsKept(LogDEBUG))
     log_Printf(LogDEBUG, "MP[frag %d]: Send %d bytes on link `%s'\n",
-              mp->out.seq, mbuf_Length(mo), l->name);
+               mp->out.seq, mbuf_Length(mo), l->name);
   mp->out.seq = inc_seq(mp->peer_is12bit, mp->out.seq);
 
   link_PushPacket(l, mo, bundle, PRI_NORMAL, PROTO_MP);
@@ -710,10 +711,11 @@ mp_ShowStatus(struct cmdargs const *arg)
 
       first = mp_ReadHeader(mp, mp->inbufs, &mh) ? mh.seq : 0;
       last = mp_ReadHeader(mp, lm, &mh) ? mh.seq : 0;
-      prompt_Printf(arg->prompt, " (Have %lu - %lu, want %lu, lowest %lu)",
+      prompt_Printf(arg->prompt, " (Have %lu - %lu, want %lu, lowest %lu)\n",
                     first, last, (unsigned long)mp->seq.next_in,
                     (unsigned long)mp->seq.min_in);
-      prompt_Printf(arg->prompt, " first is %d, %d", mh.begin ? 1 : 0, mh.end ? 1 : 0);
+      prompt_Printf(arg->prompt, "                First has %sbegin bit and "
+                    "%send bit", mh.begin ? "" : "no ", mh.end ? "" : "no ");
     }
     prompt_Printf(arg->prompt, "\n");
   }
