@@ -219,6 +219,7 @@ field_action(struct form *form)
 	for (;;) {
 		wattron(form->window, F_SELATTR);
 		disp_action(form, form->current_field);
+		wmove(form->window, field->y, field->x);
 		ch = wgetch(form->window);
 		if (ch == F_ACCEPT) {
 			(*field->field.action->fn)();
@@ -297,7 +298,6 @@ next_field(struct form *form, int ch)
 		return (0);
 
 	print_status("");
-	field->attr = F_DEFATTR;
 	return (1);
 }
 
