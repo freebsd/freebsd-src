@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Robert N. M. Watson
+ * Copyright (c) 1999, 2000 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ struct acl {
 typedef struct acl	*acl_t;
 
 /*
- * Possible valid values for a_type of acl_entry_t
+ * Possible valid values for a_tag of acl_entry_t
  */
 #define	ACL_USER_OBJ	0x00000001
 #define	ACL_USER	0x00000002
@@ -71,12 +71,15 @@ typedef struct acl	*acl_t;
 #define	ACL_OTHER	0x00000020
 #define	ACL_OTHER_OBJ	ACL_OTHER
 
+/*
+ * Possible valid values a_type_t arguments
+ */
 #define	ACL_TYPE_ACCESS		0x00000000
 #define	ACL_TYPE_DEFAULT	0x00000001
-#define ACL_TYPE_AFS		0x00000002
-#define ACL_TYPE_CODA		0x00000003
-#define ACL_TYPE_NTFS		0x00000004
-#define ACL_TYPE_NWFS		0x00000005
+#define	ACL_TYPE_AFS		0x00000002
+#define	ACL_TYPE_CODA		0x00000003
+#define	ACL_TYPE_NTFS		0x00000004
+#define	ACL_TYPE_NWFS		0x00000005
 
 /*
  * Possible flags in a_perm field
@@ -97,23 +100,6 @@ typedef struct acl	*acl_t;
 MALLOC_DECLARE(M_ACL);
 #endif
 
-/*
- * POSIX.1e and generic kernel/vfs semantics functions--not currently in the
- * base distribution, but will be soon.
- */
-struct proc;
-struct ucred;
-struct vattr;
-struct vop_getacl_args;
-struct vop_aclcheck_args;
-
-void	generic_attr_to_posix1e_acl(struct acl *a_acl, struct vattr *vattr);
-int	generic_vop_aclcheck(struct vop_aclcheck_args *ap);
-int	generic_vop_getacl(struct vop_getacl_args *ap);
-int	posix1e_acl_access(struct acl *a_acl, int a_mode, struct ucred *a_cred,
-	    struct proc *a_p);
-int	posix1e_vop_aclcheck(struct vop_aclcheck_args *ap);
-
 #else /* !_KERNEL */
 
 /*
@@ -121,15 +107,15 @@ int	posix1e_vop_aclcheck(struct vop_aclcheck_args *ap);
  * have strict acl entry ordering requirements
  */
 __BEGIN_DECLS
-int	__acl_aclcheck_fd(int filedes, acl_type_t type, struct acl *aclp);
-int	__acl_aclcheck_file(const char *path, acl_type_t type,
-	    struct acl *aclp);
-int	__acl_delete_fd(int filedes, acl_type_t type);
-int	__acl_delete_file(const char *path_p, acl_type_t type);
-int	__acl_get_fd(int filedes, acl_type_t type, struct acl *aclp);
-int	__acl_get_file(const char *path, acl_type_t type, struct acl *aclp);
-int	__acl_set_fd(int filedes, acl_type_t type, struct acl *aclp);
-int	__acl_set_file(const char *path, acl_type_t type, struct acl *aclp);
+int	__acl_aclcheck_fd(int _filedes, acl_type_t _type, struct acl *_aclp);
+int	__acl_aclcheck_file(const char *_path, acl_type_t _type,
+	    struct acl *_aclp);
+int	__acl_delete_fd(int _filedes, acl_type_t _type);
+int	__acl_delete_file(const char *_path_p, acl_type_t _type);
+int	__acl_get_fd(int _filedes, acl_type_t _type, struct acl *_aclp);
+int	__acl_get_file(const char *_path, acl_type_t _type, struct acl *_aclp);
+int	__acl_set_fd(int _filedes, acl_type_t _type, struct acl *_aclp);
+int	__acl_set_file(const char *_path, acl_type_t _type, struct acl *_aclp);
 __END_DECLS
 
 /*
@@ -139,23 +125,23 @@ __END_DECLS
  * ACL type for different file systems (i.e., AFS)
  */
 __BEGIN_DECLS
-int	acl_delete_fd_np(int filedes, acl_type_t type);
-int	acl_delete_file_np(const char *path_p, acl_type_t type);
-int	acl_delete_def_file(const char *path_p);
-acl_t	acl_dup(acl_t acl);
-int	acl_free(void *obj_p);
-acl_t	acl_from_text(const char *buf_p);
-acl_t	acl_get_fd(int fd);
-acl_t	acl_get_fd_np(int fd, acl_type_t type);
-acl_t	acl_get_file(const char *path_p, acl_type_t type);
-acl_t	acl_init(int count);
-int	acl_set_fd(int fd, acl_t acl);
-int	acl_set_fd_np(int fd, acl_t acl, acl_type_t type);
-int	acl_set_file(const char *path_p, acl_type_t type, acl_t acl);
-char	*acl_to_text(acl_t acl, ssize_t *len_p);
-int	acl_valid(acl_t acl);
-int	acl_valid_fd_np(int fd, acl_type_t type, acl_t acl);
-int	acl_valid_file_np(const char *path_p, acl_type_t type, acl_t acl);
+int	acl_delete_fd_np(int _filedes, acl_type_t _type);
+int	acl_delete_file_np(const char *_path_p, acl_type_t _type);
+int	acl_delete_def_file(const char *_path_p);
+acl_t	acl_dup(acl_t _acl);
+int	acl_free(void *_obj_p);
+acl_t	acl_from_text(const char *_buf_p);
+acl_t	acl_get_fd(int _fd);
+acl_t	acl_get_fd_np(int fd, acl_type_t _type);
+acl_t	acl_get_file(const char *_path_p, acl_type_t _type);
+acl_t	acl_init(int _count);
+int	acl_set_fd(int _fd, acl_t _acl);
+int	acl_set_fd_np(int _fd, acl_t _acl, acl_type_t _type);
+int	acl_set_file(const char *_path_p, acl_type_t _type, acl_t _acl);
+char	*acl_to_text(acl_t _acl, ssize_t *_len_p);
+int	acl_valid(acl_t _acl);
+int	acl_valid_fd_np(int _fd, acl_type_t _type, acl_t _acl);
+int	acl_valid_file_np(const char *_path_p, acl_type_t _type, acl_t _acl);
 __END_DECLS
 
 #endif /* !_KERNEL */
