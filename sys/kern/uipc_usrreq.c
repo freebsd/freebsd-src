@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.15 1996/03/11 15:12:47 davidg Exp $
+ *	$Id: uipc_usrreq.c,v 1.15.4.1 1996/12/14 14:41:06 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -460,7 +460,7 @@ unp_bind(unp, nam, p)
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
-	vattr.va_mode = ACCESSPERMS;
+	vattr.va_mode = (ACCESSPERMS & ~p->p_fd->fd_cmask);
 	LEASE_CHECK(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	if (error)
