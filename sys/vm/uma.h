@@ -173,7 +173,14 @@ uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 #define UMA_ZONE_MALLOC		0x0010	/* For use by malloc(9) only! */
 #define UMA_ZONE_NOFREE		0x0020	/* Do not free slabs of this type! */
 #define UMA_ZONE_MTXCLASS	0x0040	/* Create a new lock class */
-#define	UMA_ZONE_VM		0x0080	/* Used for internal vm datastructures */
+#define	UMA_ZONE_VM		0x0080	/*
+					 * Used for internal vm datastructures
+					 * only.
+					 */
+#define	UMA_ZONE_HASH		0x0100	/*
+					 * Use a hash table instead of caching
+					 * information in the vm_page.
+					 */
 
 /* Definitions for align */
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
@@ -309,18 +316,16 @@ void uma_startup(void *bootmem);
  * be called when kva is ready for normal allocs.
  *
  * Arguments:
- *	hash   An area of memory that will become the malloc hash
- *	elems  The number of elements in this array
+ *	None
  *
  * Returns:
  *	Nothing
  *
  * Discussion:
- *	uma_startup2 is called by kmeminit() to prepare the malloc
- *	hash bucket, and enable use of uma for malloc ops.
+ *	uma_startup2 is called by kmeminit() to enable us of uma for malloc.
  */
  
-void uma_startup2(void *hash, u_long elems);
+void uma_startup2(void);
 
 /*
  * Reclaims unused memory for all zones

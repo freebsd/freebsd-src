@@ -48,11 +48,12 @@
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
-#include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_page.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
@@ -120,8 +121,7 @@ struct {
 u_int vm_kmem_size;
 
 /*
- * The malloc_mtx protects the kmemstatistics linked list as well as the
- * mallochash.
+ * The malloc_mtx protects the kmemstatistics linked list.
  */
 
 struct mtx malloc_mtx;
@@ -206,10 +206,9 @@ free(addr, type)
 	void *addr;
 	struct malloc_type *type;
 {
-	uma_slab_t slab;
-	void *mem;
-	u_long size;
 	register struct malloc_type *ksp = type;
+	uma_slab_t slab;
+	u_long size;
 
 	/* free(NULL, ...) does nothing */
 	if (addr == NULL)
@@ -217,14 +216,12 @@ free(addr, type)
 
 	size = 0;
 
-	mem = (void *)((u_long)addr & (~UMA_SLAB_MASK));
-	mtx_lock(&malloc_mtx);
-	slab = hash_sfind(mallochash, mem);
-	mtx_unlock(&malloc_mtx);
+	slab = vtoslab((vm_offset_t)addr & (~UMA_SLAB_MASK));
 
 	if (slab == NULL)
 		panic("free: address %p(%p) has not been allocated.\n",
-		    addr, mem);
+		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
+
 
 	if (!(slab->us_flags & UMA_SLAB_MALLOC)) {
 #ifdef INVARIANTS
@@ -275,10 +272,7 @@ realloc(addr, size, type, flags)
 	if (addr == NULL)
 		return (malloc(size, type, flags));
 
-	mtx_lock(&malloc_mtx);
-	slab = hash_sfind(mallochash,
-	    (void *)((u_long)addr & ~(UMA_SLAB_MASK)));
-	mtx_unlock(&malloc_mtx);
+	slab = vtoslab((vm_offset_t)addr & ~(UMA_SLAB_MASK));
 
 	/* Sanity check */
 	KASSERT(slab != NULL,
@@ -333,10 +327,6 @@ kmeminit(dummy)
 	u_int8_t indx;
 	u_long npg;
 	u_long mem_size;
-	void *hashmem;
-	u_long hashsize;
-	int highbit;
-	int bits;
 	int i;
  
 	mtx_init(&malloc_mtx, "malloc", NULL, MTX_DEF);
@@ -392,21 +382,7 @@ kmeminit(dummy)
 		(vm_offset_t *)&kmemlimit, (vm_size_t)(npg * PAGE_SIZE));
 	kmem_map->system_map = 1;
 
-	hashsize = npg * sizeof(void *);
-
-	highbit = 0;
-	bits = 0;
-	/* The hash size must be a power of two */
-	for (i = 0; i < 8 * sizeof(hashsize); i++)
-		if (hashsize & (1 << i)) {
-			highbit = i;
-			bits++;
-		}
-	if (bits > 1) 
-		hashsize = 1 << (highbit);
-
-	hashmem = (void *)kmem_alloc(kernel_map, (vm_size_t)hashsize);
-	uma_startup2(hashmem, hashsize / sizeof(void *));
+	uma_startup2();
 
 	for (i = 0, indx = 0; kmemzones[indx].kz_size != 0; indx++) {
 		int size = kmemzones[indx].kz_size;
