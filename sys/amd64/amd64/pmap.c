@@ -163,11 +163,6 @@ struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
 static struct mtx allpmaps_lock;
-#ifdef LAZY_SWITCH
-#ifdef SMP
-static struct mtx lazypmap_lock;
-#endif
-#endif
 
 vm_paddr_t avail_start;		/* PA of first available physical page */
 vm_paddr_t avail_end;		/* PA of last available physical page */
@@ -474,11 +469,6 @@ pmap_bootstrap(firstaddr)
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	LIST_INIT(&allpmaps);
-#ifdef LAZY_SWITCH
-#ifdef SMP
-	mtx_init(&lazypmap_lock, "lazypmap", NULL, MTX_SPIN);
-#endif
-#endif
 	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_SPIN);
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, kernel_pmap, pm_list);
@@ -1288,93 +1278,6 @@ retry:
  * Pmap allocation/deallocation routines.
  ***************************************************/
 
-#ifdef LAZY_SWITCH
-#ifdef SMP
-/*
- * Deal with a SMP shootdown of other users of the pmap that we are
- * trying to dispose of.  This can be a bit hairy.
- */
-static u_int *lazymask;
-static register_t lazyptd;
-static volatile u_int lazywait;
-
-void pmap_lazyfix_action(void);
-
-void
-pmap_lazyfix_action(void)
-{
-	u_int mymask = PCPU_GET(cpumask);
-
-	if (rcr3() == lazyptd)
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-	atomic_clear_int(lazymask, mymask);
-	atomic_store_rel_int(&lazywait, 1);
-}
-
-static void
-pmap_lazyfix_self(u_int mymask)
-{
-
-	if (rcr3() == lazyptd)
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-	atomic_clear_int(lazymask, mymask);
-}
-
-
-static void
-pmap_lazyfix(pmap_t pmap)
-{
-	u_int mymask = PCPU_GET(cpumask);
-	u_int mask;
-	register u_int spins;
-
-	while ((mask = pmap->pm_active) != 0) {
-		spins = 50000000;
-		mask = mask & -mask;	/* Find least significant set bit */
-		mtx_lock_spin(&lazypmap_lock);
-		lazyptd = vtophys(pmap->pm_pml4);
-		if (mask == mymask) {
-			lazymask = &pmap->pm_active;
-			pmap_lazyfix_self(mymask);
-		} else {
-			atomic_store_rel_long((u_long *)&lazymask,
-			    (u_long)&pmap->pm_active);
-			atomic_store_rel_int(&lazywait, 0);
-			ipi_selected(mask, IPI_LAZYPMAP);
-			while (lazywait == 0) {
-				ia32_pause();
-				if (--spins == 0)
-					break;
-			}
-		}
-		mtx_unlock_spin(&lazypmap_lock);
-		if (spins == 0)
-			printf("pmap_lazyfix: spun for 50000000\n");
-	}
-}
-
-#else	/* SMP */
-
-/*
- * Cleaning up on uniprocessor is easy.  For various reasons, we're
- * unlikely to have to even execute this code, including the fact
- * that the cleanup is deferred until the parent does a wait(2), which
- * means that another userland process has run.
- */
-static void
-pmap_lazyfix(pmap_t pmap)
-{
-	u_long cr3;
-
-	cr3 = vtophys(pmap->pm_pml4);
-	if (cr3 == rcr3()) {
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-		pmap->pm_active &= ~(PCPU_GET(cpumask));
-	}
-}
-#endif	/* SMP */
-#endif
-
 /*
  * Release any resources held by the given physical map.
  * Called when a pmap initialized by pmap_pinit is being released.
@@ -1389,9 +1292,6 @@ pmap_release(pmap_t pmap)
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
 
-#ifdef LAZY_SWITCH
-	pmap_lazyfix(pmap);
-#endif
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);

@@ -303,11 +303,6 @@ cpu_mp_start(void)
 	/* Install an inter-CPU IPI for forwarding statclock() */
 	setidt(IPI_STATCLOCK, IDTVEC(statclock), SDT_SYSIGT, SEL_KPL, 0);
 	
-#ifdef LAZY_SWITCH
-	/* Install an inter-CPU IPI for lazy pmap release */
-	setidt(IPI_LAZYPMAP, IDTVEC(lazypmap), SDT_SYSIGT, SEL_KPL, 0);
-#endif
-
 	/* Install an inter-CPU IPI for all-CPU rendezvous */
 	setidt(IPI_RENDEZVOUS, IDTVEC(rendezvous), SDT_SYSIGT, SEL_KPL, 0);
 

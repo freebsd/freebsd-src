@@ -158,10 +158,6 @@ ENTRY(cpu_switch)
 
 	/* switch address space */
 	movq	PCB_CR3(%r8),%rdx
-#ifdef LAZY_SWITCH
-	cmpq	%rdx,KPML4phys			/* Kernel address space? */
-	je	sw1
-#endif
 	movq	%cr3,%rax
 	cmpq	%rdx,%rax			/* Same address space? */
 	je	sw1

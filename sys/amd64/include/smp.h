@@ -44,8 +44,7 @@ inthand_t
 	IDTVEC(statclock),	/* Forward statclock() */
 	IDTVEC(cpuast),		/* Additional software trap on other cpu */ 
 	IDTVEC(cpustop),	/* CPU stops & waits to be restarted */
-	IDTVEC(rendezvous),	/* handle CPU rendezvous */
-	IDTVEC(lazypmap);	/* handle lazy pmap release */
+	IDTVEC(rendezvous);	/* handle CPU rendezvous */
 
 /* functions in mp_machdep.c */
 void	cpu_add(u_int apic_id, char boot_cpu);
