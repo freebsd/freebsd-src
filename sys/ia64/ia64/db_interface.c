@@ -44,6 +44,7 @@
 #include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/smp.h>
 #include <sys/cons.h>
 #include <sys/ktr.h>
 
@@ -51,7 +52,6 @@
 
 #include <machine/db_machdep.h>
 #include <machine/mutex.h>
-#include <machine/smp.h>
 
 #include <machine/inst.h>
 

@@ -68,7 +68,6 @@ struct clockframe {
 
 #define	CLKF_USERMODE(framep)	TRAPF_USERMODE(&(framep)->cf_tf)
 #define	CLKF_PC(framep)		TRAPF_PC(&(framep)->cf_tf)
-#define	CLKF_INTR(framep)	(curproc->p_intr_nesting_level >= 2)
 
 /*
  * Arrange to handle pending profiling ticks before returning to user mode.

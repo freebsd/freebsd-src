@@ -68,9 +68,6 @@ struct clockframe {
 
 #define	CLKF_USERMODE(framep)	TRAPF_USERMODE(&(framep)->cf_tf)
 #define	CLKF_PC(framep)		TRAPF_PC(&(framep)->cf_tf)
-#define	CLKF_BASEPRI(framep)						\
-	(((framep)->cf_tf.tf_cr_ipsr & IA64_PSR_I) == 0)
-#define	CLKF_INTR(framep)	(curproc->p_intr_nesting_level >= 2)
 
 /*
  * Give a profiling tick to the current process when the user profiling

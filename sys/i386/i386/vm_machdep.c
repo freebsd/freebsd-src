@@ -59,14 +59,12 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
-#ifdef SMP
-#include <machine/smp.h>
-#endif
 #include <machine/pcb.h>
 #include <machine/pcb_ext.h>
 #include <machine/vm86.h>

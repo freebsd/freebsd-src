@@ -112,6 +112,7 @@
 #include <sys/vmmeter.h>
 #include <sys/msgbuf.h>
 #include <sys/exec.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/linker.h>
@@ -130,7 +131,6 @@
 #include <machine/reg.h>
 #include <machine/fpu.h>
 #include <machine/pal.h>
-#include <machine/smp.h>
 #include <machine/globaldata.h>
 #include <machine/cpuconf.h>
 #include <machine/bootinfo.h>
@@ -151,8 +151,6 @@ int cold = 1;
 struct platform platform;
 alpha_chipset_t chipset;
 struct bootinfo_kernel bootinfo;
-
-struct cpuhead cpuhead;
 
 struct mtx sched_lock;
 struct mtx Giant;
@@ -415,14 +413,6 @@ again:
 	vm_pager_bufferinit();
 	EVENTHANDLER_REGISTER(shutdown_final, alpha_srm_shutdown, 0,
 			      SHUTDOWN_PRI_LAST);
-
-#ifdef SMP
-	/*
-	 * OK, enough kmem_alloc/malloc state should be up, lets get on with it!
-	 */
-	mp_start();			/* fire up the secondaries */
-	mp_announce();
-#endif  /* SMP */
 }
 
 /*
@@ -1001,12 +991,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * Get the right value for the boot cpu's idle ptbr.
 	 */
 	globalp->gd_idlepcb.apcb_ptbr = proc0.p_addr->u_pcb.pcb_hw.apcb_ptbr;
-
-	/*
-	 * Record all cpus in a list.
-	 */
-	SLIST_INIT(&cpuhead);
-	SLIST_INSERT_HEAD(&cpuhead, GLOBALP, gd_allcpu);
 
 	/* Setup curproc so that mutexes work */
 	PCPU_SET(curproc, &proc0);

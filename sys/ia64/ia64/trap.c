@@ -41,6 +41,7 @@
 #include <sys/exec.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 #include <sys/vmmeter.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
@@ -58,7 +59,6 @@
 #include <machine/reg.h>
 #include <machine/pal.h>
 #include <machine/fpu.h>
-#include <machine/smp.h>
 
 #ifdef KTRACE
 #include <sys/uio.h>
@@ -90,7 +90,7 @@ userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 
 	mtx_lock_spin(&sched_lock);
 	p->p_pri.pri_level = p->p_pri.pri_user;
-	if (resched_wanted()) {
+	if (resched_wanted(p)) {
 		/*
 		 * Since we are curproc, a clock interrupt could
 		 * change our priority without changing run queues
@@ -638,7 +638,7 @@ ast(framep)
 	 * acquiring and release mutexes in assembly is not fun.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (!(astpending(p) || resched_wanted())) {
+	if (!(astpending(p) || resched_wanted(p))) {
 		mtx_unlock_spin(&sched_lock);
 		return;
 	}

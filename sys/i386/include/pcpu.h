@@ -74,9 +74,6 @@ struct globaldata {
 #endif
 };
 
-SLIST_HEAD(cpuhead, globaldata);
-extern struct cpuhead cpuhead;
-
 #ifdef SMP
 /*
  * This is the upper (0xff800000) address space layout that is per-cpu.

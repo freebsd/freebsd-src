@@ -381,7 +381,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 			mi_switch();
 			sched_lock.mtx_savecrit = savecrit;
 		} else
-			need_resched();
+			need_resched(curproc);
 	} else {
 		CTR3(KTR_INTR, __func__ ": pid %d: it_need %d, state %d",
 		    p->p_pid, ithread->it_need, p->p_stat);
