@@ -975,7 +975,7 @@ ed_reset_CNET98(sc, flags)
 	struct ed_softc *sc;
 	int flags;
 {
-	u_short	init_addr = ED_CNET98_INIT;
+	u_int init_addr = ED_CNET98_INIT;
 	u_char tmp;
 
 	/* Choose initial register address */
