@@ -430,7 +430,7 @@ pkg_fire(dialogMenuItem *self)
 		msgInfo("Added %s to selection list", kp->name);
 	    }
 	}
-	else if (sp) {
+	else {
 	    msgInfo("Removed %s from selection list", kp->name);
 	    index_delete(sp);
 	}
