@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.466 1998/09/15 18:16:36 sos Exp $
+#	$Id: LINT,v 1.467 1998/09/17 03:15:30 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1521,6 +1521,7 @@ device smb0	at smbus?
 # Supported devices:
 # ic	i2c network interface
 # iic	i2c standard io
+# iicsmb i2c to smb bridge. Allow i2c i/o with smb commands.
 #
 # Supported interfaces:
 # pcf	Philips PCF8584 ISA-bus controller
@@ -1542,11 +1543,12 @@ controller pcf0	at isa? port 0x320 net irq 5 vector pcfintr
 #
 # Supported devices:
 # vpo	Iomega Zip Drive
-#	Requires SCSI disk support ('scbus' and 'sd'), best
+#	Requires SCSI disk support ('scbus' and 'da'), best
 #	performance is achieved with ports in EPP 1.9 mode.
-# nlpt	Parallel Printer
+# nlpt	Parallel Printer, use _instead_ of lpt0
 # plip	Parallel network interface
 # ppi	General-purpose I/O ("Geek Port")
+# pps	Pulse per second Timing Interface
 #
 # Supported interfaces:
 # ppc	ISA-bus parallel port interfaces.  
