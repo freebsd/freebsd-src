@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-common	5.7 (Berkeley) 8/5/91
+.\"	$Id$
 .\"
 .\"     %beginstrip%
 .nr %A 1
@@ -158,7 +159,13 @@
 .\" .	if "\\$3"" \{\
 .		if \\$2>=1 .if \\$2<=9 \{\
 .			ds vT FreeBSD Reference Manual
-.			if \\$2>1 .if \\$2<6 .ds vT FreeBSD Programmer's Manual
+.			if "\\$2"1" .ds vT FreeBSD General Commands Manual
+.			if "\\$2"2" .ds vT FreeBSD System Calls Manual
+.			if "\\$2"3" .ds vT FreeBSD Library Functions Manual
+.			if "\\$2"4" .ds vT FreeBSD Devices and Device Drivers Manual 
+.			if "\\$2"5" .ds vT FreeBSD File Formats Manual
+.			if "\\$2"6" .ds vT FreeBSD Games Manual
+.			if "\\$2"7" .ds vT FreeBSD Miscellaneous Information Manual
 .			if "\\$2"8" .ds vT FreeBSD System Manager's Manual
 .			if "\\$2"9" .ds vT FreeBSD Kernel Developer's Manual
 .			nr sN \\$2
