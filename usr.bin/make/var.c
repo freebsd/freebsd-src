@@ -954,21 +954,21 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	 * replacing embedded variables as we go.
 	 */
 	for (tstr = str + 2; *tstr != '\0' && *tstr != endc && *tstr != ':'; tstr++)
-		if (*tstr == '$') {
-			size_t rlen;
-			Boolean	rfree;
-			char*	rval = Var_Parse(tstr, ctxt, err, &rlen, &rfree);
+	    if (*tstr == '$') {
+		size_t	rlen;
+		Boolean	rfree;
+		char	*rval = Var_Parse(tstr, ctxt, err, &rlen, &rfree);
 
-			if (rval == var_Error) {
-				Fatal("Error expanding embedded variable.");
-			} else if (rval != NULL) {
-				Buf_Append(buf, rval);
-				if (rfree)
-					free(rval);
-			}
-			tstr += rlen - 1;
-		} else
-			Buf_AddByte(buf, (Byte)*tstr);
+		if (rval == var_Error) {
+			Fatal("Error expanding embedded variable.");
+		} else if (rval != NULL) {
+			Buf_Append(buf, rval);
+			if (rfree)
+				free(rval);
+		}
+		tstr += rlen - 1;
+	    } else
+		Buf_AddByte(buf, (Byte)*tstr);
 
 	if (*tstr == '\0') {
 	    /*
@@ -1118,6 +1118,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
     } else {
 	v->flags |= VAR_IN_USE;
     }
+
     /*
      * Before doing any modification, we have to make sure the value
      * has been fully expanded. If it looks like recursion might be
@@ -1734,14 +1735,15 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 char *
 Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 {
-    Buffer  	  *buf;	    	    /* Buffer for forming things */
-    char    	  *val;		    /* Value to substitute for a variable */
-    size_t	  length;   	    /* Length of the variable invocation */
-    Boolean 	  doFree;   	    /* Set true if val should be freed */
+    Buffer	*buf;	/* Buffer for forming things */
+    char	*val;	/* Value to substitute for a variable */
+    size_t	length;	/* Length of the variable invocation */
+    Boolean	doFree;	/* Set true if val should be freed */
     char	*result;
-    static Boolean errorReported;   /* Set true if an error has already
-				     * been reported to prevent a plethora
-				     * of messages when recursing */
+
+    static Boolean errorReported;	/* Set true if an error has already
+					 * been reported to prevent a plethora
+					 * of messages when recursing */
 
     buf = Buf_Init(MAKE_BSIZE);
     errorReported = FALSE;
@@ -1767,6 +1769,7 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 		str++;
 	    } while (str[0] != '$' && str[0] != '\0');
 	    Buf_AppendRange(buf, cp, str);
+
 	} else {
 	    /*
 	     * Variable invocation.
@@ -1795,6 +1798,7 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 			       *p != '$') {
 			    ++p;
 			}
+
 			/*
 			 * A variable inside the variable. We cannot expand
 			 * the external variable yet, so we try again with
@@ -1814,6 +1818,7 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 			     */
 			    for (;*p != '$' && *p != '\0'; p++)
 				continue;
+
 			    Buf_AppendRange(buf, str, p);
 			    str = p;
 			    expand = FALSE;

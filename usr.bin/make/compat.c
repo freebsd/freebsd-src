@@ -226,19 +226,19 @@ shellneed(char *cmd)
 int
 Compat_RunCommand(void *cmdp, void *gnp)
 {
-    char    	  *cmdStart;	/* Start of expanded command */
-    char	  *cp;
-    Boolean 	  silent,   	/* Don't print command */
-		  doit,		/* Execute even in -n */
-		  errCheck; 	/* Check errors */
-    int 	  reason;   	/* Reason for child's death */
-    int	    	  status;   	/* Description of child's death */
-    int	    	  cpid;	    	/* Child actually found */
-    ReturnStatus  rstat;	/* Status of fork */
-    LstNode 	  *cmdNode;  	/* Node where current command is located */
-    char    	  **av;	    	/* Argument vector for thing to exec */
-    char	  *cmd = cmdp;
-    GNode	  *gn = gnp;
+    char	*cmdStart;	/* Start of expanded command */
+    char	*cp;
+    Boolean	silent;		/* Don't print command */
+    Boolean	doit;		/* Execute even in -n */
+    Boolean	errCheck;	/* Check errors */
+    int		reason;		/* Reason for child's death */
+    int		status;		/* Description of child's death */
+    int		cpid;		/* Child actually found */
+    ReturnStatus	rstat;	/* Status of fork */
+    LstNode	*cmdNode;	/* Node where current command is located */
+    char	**av;		/* Argument vector for thing to exec */
+    char	*cmd = cmdp;
+    GNode	*gn = gnp;
 
     /*
      * Avoid clobbered variable warnings by forcing the compiler
