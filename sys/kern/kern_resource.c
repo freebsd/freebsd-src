@@ -567,19 +567,27 @@ calcru(p, up, sp, ip)
 
 	tu = p->p_runtime;
 	if (p == curproc) {
+		struct timeval old_switchtime;
 		/*
 		 * Adjust for the current time slice.  This is actually fairly
 		 * important since the error here is on the order of a time
 		 * quantum, which is much greater than the sampling error.
 		 */
-		microuptime(&tv);
-		if (timevalcmp(&tv, PCPU_PTR(switchtime), <))
+		do {
+			old_switchtime = PCPU_GET(switchtime);
+			microuptime(&tv);
+		} while (old_switchtime.tv_sec != 
+			 PCPU_GET(switchtime.tv_sec) ||
+			 old_switchtime.tv_usec !=
+			 PCPU_GET(switchtime.tv_usec));
+		if (timevalcmp(&tv, &old_switchtime, <))
 			printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
-			    PCPU_GET(switchtime.tv_sec), PCPU_GET(switchtime.tv_usec),
-			    tv.tv_sec, tv.tv_usec);
+			       old_switchtime.tv_sec,
+			       old_switchtime.tv_usec,
+			       tv.tv_sec, tv.tv_usec);
 		else
-			tu += (tv.tv_usec - PCPU_GET(switchtime.tv_usec)) +
-			    (tv.tv_sec - PCPU_GET(switchtime.tv_sec)) *
+			tu += (tv.tv_usec - old_switchtime.tv_usec) +
+			    (tv.tv_sec - old_switchtime.tv_sec) *
 			    (int64_t)1000000;
 	}
 	ptu = p->p_uu + p->p_su + p->p_iu;
