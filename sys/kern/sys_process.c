@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.41 1998/12/26 17:14:37 dfr Exp $
+ *	$Id: sys_process.c,v 1.42 1999/01/27 21:49:57 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -414,7 +414,7 @@ ptrace(curp, uap)
 			return EFAULT;
 		}
 		if (ptrace_read_u_check(p,(vm_offset_t) uap->addr,
-					sizeof(long)) &&
+					sizeof(int)) &&
 		    !procfs_kmemaccess(curp)) {
 			return EFAULT;
 		}
