@@ -19,6 +19,9 @@ CFLAGS+=-DLOGIN_CAP -Wall
 DPADD+=	${LIBUTIL}
 LDADD+= -lutil
 
+# IPv6 support
+CFLAGS+= -DINET6
+
 .include <bsd.prog.mk>
 
 .PATH:	${.CURDIR}/../rlogind

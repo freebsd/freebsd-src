@@ -58,7 +58,9 @@ MLINKS+=if_indextoname.3 if_nametoindex.3 if_indextoname.3 if_nameindex.3 \
 	if_indextoname.3 if_freenameindex.3
 MLINKS+=linkaddr.3 link_addr.3 linkaddr.3 link_ntoa.3 
 #MLINKS+=ns.3 ns_addr.3 ns.3 ns_ntoa.3
-MLINKS+=rcmd.3 iruserok.3 rcmd.3 rresvport.3 rcmd.3 ruserok.3
+MLINKS+=rcmd.3 iruserok.3 rcmd.3 rresvport.3 rcmd.3 ruserok.3 \
+	rcmd.3 iruserok_af.3 rcmd.3 rresvport_af.3 rcmd.3 ruserok_af.3 \
+	rcmd.3 rcmd_af.3
 MLINKS+=resolver.3 dn_comp.3 resolver.3 dn_expand.3 resolver.3 res_init.3 \
 	resolver.3 res_mkquery.3 resolver.3 res_query.3 \
 	resolver.3 res_search.3 resolver.3 res_send.3
