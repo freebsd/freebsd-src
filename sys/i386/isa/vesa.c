@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.26 1999/07/01 15:05:11 peter Exp $
+ * $Id: vesa.c,v 1.27 1999/08/27 09:18:42 yokota Exp $
  */
 
 #include "vga.h"
@@ -192,7 +192,7 @@ static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 static int vesa_bios_state_buf_size(void);
 static int vesa_bios_save_restore(int code, void *p, size_t size);
 static int vesa_bios_get_line_length(void);
-static int vesa_bios_set_line_length(int pixel);
+static int vesa_bios_set_line_length(int pixel, int *bytes, int *lines);
 #if 0
 static int vesa_bios_get_start(int *x, int *y);
 #endif
@@ -468,7 +468,7 @@ vesa_bios_get_line_length(void)
 }
 
 static int
-vesa_bios_set_line_length(int pixel)
+vesa_bios_set_line_length(int pixel, int *bytes, int *lines)
 {
 	struct vm86frame vmf;
 	int err;
@@ -481,7 +481,13 @@ vesa_bios_set_line_length(int pixel)
 #if VESA_DEBUG > 1
 	printf("bx:%d, cx:%d, dx:%d\n", vmf.vmf_bx, vmf.vmf_cx, vmf.vmf_dx); 
 #endif
-	return ((err != 0) || (vmf.vmf_ax != 0x4f));
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
+		return 1;
+	if (bytes)
+		*bytes = vmf.vmf_bx;
+	if (lines)
+		*lines = vmf.vmf_dx;
+	return 0;
 }
 
 #if 0
@@ -1384,6 +1390,8 @@ set_palette(video_adapter_t *adp, int base, int count,
 static int
 vesa_ioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 {
+	int bytes;
+
 	if (adp != vesa_adp)
 		return (*prevvidsw->ioctl)(adp, cmd, arg);
 
@@ -1400,9 +1408,12 @@ vesa_ioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		return 0;
 
 	case FBIO_SETLINEWIDTH:	/* set line length in pixel */
-		if (vesa_bios_set_line_length(*(u_int *)arg))
+		if (vesa_bios_set_line_length(*(u_int *)arg, &bytes, NULL))
 			return ENODEV;
-		adp->va_line_width = (*(u_int *)arg + 7)/8;
+		adp->va_line_width = bytes;
+#if VESA_DEBUG > 1
+		printf("new line width:%d\n", adp->va_line_width);
+#endif
 		return 0;
 
 	case FBIO_GETPALETTE:	/* get color palette */
