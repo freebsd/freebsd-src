@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.127 1998/09/14 18:19:45 obrien Exp $
+#	$Id: BSD.usr.dist,v 1.128 1998/09/14 20:05:46 obrien Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -288,6 +288,8 @@
             FreeBSD_version
             ..
             atapi
+            ..
+            atm
             ..
             cvs
                 contrib
