@@ -233,7 +233,7 @@ parsefmt(const char *p)
 	static struct varent *vtail;
 	char *tempstr, *tempstr1;
 
-#define	FMTSEP	" \t,\n"
+#define	FMTSEP	"\t,\n"
 	tempstr1 = tempstr = strdup(p);
 	while (tempstr && *tempstr) {
 		char *cp;
