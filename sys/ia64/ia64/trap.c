@@ -273,8 +273,8 @@ static void
 printtrap(int vector, int imm, struct trapframe *framep, int isfatal, int user)
 {
 	printf("\n");
-	printf("%s %s trap:\n", isfatal? "fatal" : "handled",
-	       user ? "user" : "kernel");
+	printf("%s %s trap (cpu %d):\n", isfatal? "fatal" : "handled",
+	       user ? "user" : "kernel", PCPU_GET(cpuid));
 	printf("\n");
 	printf("    trap vector = 0x%x (%s)\n",
 	       vector, ia64_vector_names[vector]);
@@ -287,6 +287,11 @@ printtrap(int vector, int imm, struct trapframe *framep, int isfatal, int user)
 	printf(")\n");
 	printf("    cr.ifa      = 0x%lx\n", framep->tf_cr_ifa);
 	printf("    cr.iim      = 0x%x\n", imm);
+	if (framep->tf_cr_ipsr & IA64_PSR_IS) {
+		printf("    ar.cflg     = 0x%x\n", ia64_get_cflg());
+		printf("    ar.csd      = 0x%x\n", ia64_get_csd());
+		printf("    ar.ssd      = 0x%x\n", ia64_get_ssd());
+	}
 	printf("    curthread   = %p\n", curthread);
 	if (curthread != NULL)
 		printf("        pid = %d, comm = %s\n",
@@ -969,8 +974,8 @@ ia32_syscall(struct trapframe *framep)
 	u_int sticks;
 	int error;
 	int narg;
-	int args[8];
-	int64_t args64[8];
+	u_int32_t args[8];
+	u_int64_t args64[8];
 	u_int code;
 
 	/*
@@ -984,7 +989,7 @@ ia32_syscall(struct trapframe *framep)
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
 	params = (caddr_t)(framep->tf_r[FRAME_SP] & ((1L<<32)-1))
-		+ sizeof(int);
+		+ sizeof(u_int32_t);
 	code = framep->tf_r[FRAME_R8]; /* eax */
 	orig_eflags = ia64_get_eflag();
 
@@ -1027,8 +1032,8 @@ ia32_syscall(struct trapframe *framep)
 	/*
 	 * copyin and the ktrsyscall()/ktrsysret() code is MP-aware
 	 */
-	if (params && (i = narg * sizeof(int)) &&
-	    (error = copyin(params, (caddr_t)args, (u_int)i))) {
+	if (params && (i = narg * sizeof(u_int32_t)) &&
+	    (error = copyin(params, (caddr_t)args, i))) {
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_SYSCALL))
 			ktrsyscall(p->p_tracep, code, narg, args64);
