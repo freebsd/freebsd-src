@@ -958,10 +958,12 @@ soshutdown(so, how)
 {
 	register struct protosw *pr = so->so_proto;
 
-	how++;
-	if (how & FREAD)
+	if (!(how == SHUT_RD || how == SHUT_WR || how == SHUT_RDWR))
+		return (EINVAL);
+
+	if (how != SHUT_WR)
 		sorflush(so);
-	if (how & FWRITE)
+	if (how != SHUT_RD)
 		return ((*pr->pr_usrreqs->pru_shutdown)(so));
 	return (0);
 }
