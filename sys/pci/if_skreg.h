@@ -1378,7 +1378,7 @@ struct sk_tx_desc {
  */
 #define SK_JUMBO_FRAMELEN	9018
 #define SK_JUMBO_MTU		(SK_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
-#define SK_JSLOTS		384
+#define SK_JSLOTS		((SK_RX_RING_CNT * 3) / 2)
 
 #define SK_JRAWLEN (SK_JUMBO_FRAMELEN + ETHER_ALIGN)
 #define SK_JLEN (SK_JRAWLEN + (sizeof(u_int64_t) - \
@@ -1483,7 +1483,11 @@ struct sk_if_softc {
 	int			sk_if_flags;
 	SLIST_HEAD(__sk_jfreehead, sk_jpool_entry)	sk_jfree_listhead;
 	SLIST_HEAD(__sk_jinusehead, sk_jpool_entry)	sk_jinuse_listhead;
+	struct mtx		sk_jlist_mtx;
 };
+
+#define	SK_JLIST_LOCK(_sc)	mtx_lock(&(_sc)->sk_jlist_mtx)
+#define	SK_JLIST_UNLOCK(_sc)	mtx_unlock(&(_sc)->sk_jlist_mtx)
 
 #define SK_MAXUNIT	256
 #define SK_TIMEOUT	1000
