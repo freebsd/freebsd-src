@@ -311,7 +311,9 @@ ufs_close(ap)
 		 * XXX - EAGAIN is returned to prevent vn_close from
 		 * repeating the vrele operation.
 		 */
-		if (vp->v_type == VREG && VTOI(vp)->i_effnlink == 0) {
+		if (vp->v_type == VREG &&
+		    (VFSTOUFS(vp->v_mount)->um_i_effnlink_valid ?
+		    VTOI(vp)->i_effnlink : VTOI(vp)->i_nlink) == 0) {
 			(void) vn_start_write(vp, &mp, V_WAIT);
 			vrele(vp);
 			vn_finished_write(mp);
