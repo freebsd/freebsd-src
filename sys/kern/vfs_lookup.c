@@ -107,8 +107,8 @@ namei(ndp)
 	struct componentname *cnp = &ndp->ni_cnd;
 	struct thread *td = cnp->cn_thread;
 	struct proc *p = td->td_proc;
-
-	GIANT_REQUIRED;
+	struct mount *mp;
+	int vfslocked;
 
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
 	KASSERT(cnp->cn_cred && p, ("namei: bad cred/proc"));
@@ -163,6 +163,7 @@ namei(ndp)
 	ndp->ni_topdir = fdp->fd_jdir;
 
 	dp = fdp->fd_cdir;
+	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 	VREF(dp);
 	FILEDESC_UNLOCK(fdp);
 	for (;;) {
@@ -173,13 +174,17 @@ namei(ndp)
 		cnp->cn_nameptr = cnp->cn_pnbuf;
 		if (*(cnp->cn_nameptr) == '/') {
 			vrele(dp);
+			VFS_UNLOCK_GIANT(vfslocked);
 			while (*(cnp->cn_nameptr) == '/') {
 				cnp->cn_nameptr++;
 				ndp->ni_pathlen--;
 			}
 			dp = ndp->ni_rootdir;
+			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 			VREF(dp);
 		}
+		if (vfslocked)
+			ndp->ni_cnd.cn_flags |= GIANTHELD;
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
 		if (error) {
@@ -190,6 +195,8 @@ namei(ndp)
 #endif
 			return (error);
 		}
+		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
+		ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 		/*
 		 * Check for symbolic link
 		 */
@@ -209,7 +216,10 @@ namei(ndp)
 				 LOCKLEAF))
 				VOP_CREATEVOBJECT(ndp->ni_vp, 
 				    ndp->ni_cnd.cn_cred, td);
-
+			if ((cnp->cn_flags & MPSAFE) == 0) {
+				VFS_UNLOCK_GIANT(vfslocked);
+			} else if (vfslocked)
+				ndp->ni_cnd.cn_flags |= GIANTHELD;
 			return (0);
 		}
 		if ((cnp->cn_flags & LOCKPARENT) && ndp->ni_pathlen == 1)
@@ -274,7 +284,9 @@ namei(ndp)
 	cnp->cn_nameptr = NULL;
 #endif
 	vrele(ndp->ni_dvp);
+	mp = ndp->ni_vp->v_mount;
 	vput(ndp->ni_vp);
+	VFS_UNLOCK_GIANT(vfslocked);
 	ndp->ni_vp = NULL;
 	return (error);
 }
@@ -333,10 +345,14 @@ lookup(ndp)
 	int dpunlocked = 0;		/* dp has already been unlocked */
 	struct componentname *cnp = &ndp->ni_cnd;
 	struct thread *td = cnp->cn_thread;
+	int vfslocked;
+	int tvfslocked;
 
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
+	vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
+	ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 	wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
 	docache = (cnp->cn_flags & NOCACHE) ^ NOCACHE;
 	if (cnp->cn_nameiop == DELETE ||
@@ -432,7 +448,7 @@ dirloop:
 		/* XXX This should probably move to the top of function. */
 		if (cnp->cn_flags & SAVESTART)
 			panic("lookup: SAVESTART");
-		return (0);
+		goto success;
 	}
 
 	/*
@@ -465,8 +481,11 @@ dirloop:
 				goto bad;
 			}
 			tdp = dp;
+			tvfslocked = vfslocked;
 			dp = dp->v_mount->mnt_vnodecovered;
 			vput(tdp);
+			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
+			VFS_UNLOCK_GIANT(tvfslocked);
 			VREF(dp);
 			vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
 		}
@@ -499,11 +518,14 @@ unionlookup:
 		    (dp->v_vflag & VV_ROOT) && (dp->v_mount != NULL) &&
 		    (dp->v_mount->mnt_flag & MNT_UNION)) {
 			tdp = dp;
+			tvfslocked = vfslocked;
 			dp = dp->v_mount->mnt_vnodecovered;
 			if (cnp->cn_flags & PDIRUNLOCK)
 				vrele(tdp);
 			else
 				vput(tdp);
+			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
+			VFS_UNLOCK_GIANT(tvfslocked);
 			VREF(dp);
 			vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
 			goto unionlookup;
@@ -533,7 +555,7 @@ unionlookup:
 			ndp->ni_startdir = ndp->ni_dvp;
 			VREF(ndp->ni_startdir);
 		}
-		return (0);
+		goto success;
 	}
 #ifdef NAMEI_DIAGNOSTIC
 	printf("found\n");
@@ -563,14 +585,18 @@ unionlookup:
 		if (vfs_busy(mp, 0, 0, td))
 			continue;
 		VOP_UNLOCK(dp, 0, td);
+		tvfslocked = VFS_LOCK_GIANT(mp);
 		error = VFS_ROOT(mp, &tdp, td);
 		vfs_unbusy(mp, td);
 		if (error) {
+			VFS_UNLOCK_GIANT(tvfslocked);
 			dpunlocked = 1;
 			goto bad2;
 		}
 		vrele(dp);
+		VFS_UNLOCK_GIANT(vfslocked);
 		ndp->ni_vp = dp = tdp;
+		vfslocked = tvfslocked;
 	}
 
 	/*
@@ -590,7 +616,7 @@ unionlookup:
 			error = EACCES;
 			goto bad2;
 		}
-		return (0);
+		goto success;
 	}
 
 	/*
@@ -634,6 +660,9 @@ nextname:
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, td);
+success:
+	if (vfslocked)
+		ndp->ni_cnd.cn_flags |= GIANTHELD;
 	return (0);
 
 bad2:
@@ -646,6 +675,8 @@ bad:
 		vrele(dp);
 	else
 		vput(dp);
+	VFS_UNLOCK_GIANT(vfslocked);
+	ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 	ndp->ni_vp = NULL;
 	return (error);
 }
