@@ -148,6 +148,9 @@ asm (TEXT_SECTION_ASM_OP);
 void
 exception_section ()
 {
+#ifdef EXCEPTION_SECTION_FUNCTION
+  EXCEPTION_SECTION_FUNCTION;
+#else
 #ifdef ASM_OUTPUT_SECTION_NAME
   named_section (NULL_TREE, ".gcc_except_table");
 #else
@@ -158,6 +161,7 @@ exception_section ()
     data_section ();
 #else
     readonly_data_section ();
+#endif
 #endif
 #endif
 }

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.21 1998/01/11 04:10:26 jb Exp $
+# $Id: Makefile.inc,v 1.22 1998/01/25 09:49:00 jb Exp $
 #
 
 # Sometimes this is .include'd several times...
@@ -23,15 +23,15 @@ BINFORMAT?=	aout
 #BINFORMAT?=	elf
 .endif
 
+# same backend, just change compiled-in default.
 .if ${BINFORMAT} == aout
 CFLAGS+=	-DFREEBSD_AOUT
-target=		${MACHINE_ARCH}-unknown-freebsd
 .endif
 .if ${BINFORMAT} == elf
 CFLAGS+=	-DFREEBSD_ELF
-target=		${MACHINE_ARCH}-unknown-freebsdelf
 .endif
 
+target=		${MACHINE_ARCH}-unknown-freebsd
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
 
 CFLAGS+=	-I${GCCDIR} -I${GCCDIR}/config

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.6 1998/01/25 09:47:46 jb Exp $
+# $Id: Makefile,v 1.7 1998/03/06 13:34:36 bde Exp $
 #
 
 #
@@ -116,24 +116,11 @@ CLEANFILES+= objc-parse.y		# insurance
 #-----------------------------------------------------------------------
 # CPP parser done in its own makefile
 #-----------------------------------------------------------------------
-# Everything in ${SRCS} is generated
-CLEANFILES+=	${SRCS}
-
-#-----------------------------------------------------------------------
-all:		${BINFORMAT} ${SRCS}
-
-#-----------------------------------------------------------------------
-beforedepend:	${BINFORMAT}
-
-#-----------------------------------------------------------------------
 # the host/target compiler config.
 
 COMMONHDRS=	config.h hconfig.h tconfig.h tm.h options.h specs.h
 
-${COMMONHDRS}:	${BINFORMAT}
-
-aout:
-	@rm -f elf
+${COMMONHDRS}:
 	echo '#include "${MACHINE_ARCH}/freebsd.h"'     > tm.h
 	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"'  > config.h
 	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"'  > hconfig.h
@@ -141,21 +128,19 @@ aout:
 	echo '#include "cp/lang-options.h"'             > options.h
 	echo '#include "cp/lang-specs.h"'               > specs.h
 	echo '#include "f2c-specs.h"'                   >> specs.h
-	@touch aout
-
-elf:
-	@rm -f aout
-	echo '#include "${MACHINE_ARCH}/freebsd-elf.h"' > tm.h
-	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"'  > config.h
-	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"'  > hconfig.h
-	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"'  > tconfig.h
-	echo '#include "cp/lang-options.h"'             > options.h
-	echo '#include "cp/lang-specs.h"'               > specs.h
-	echo '#include "f2c-specs.h"'                   >> specs.h
-	@touch elf
 
 SRCS+=	${COMMONHDRS}
 CLEANFILES+=	elf aout
+
+#-----------------------------------------------------------------------
+# Everything in ${SRCS} is generated
+CLEANFILES+=	${SRCS}
+
+#-----------------------------------------------------------------------
+all:		${COMMONHDRS} ${SRCS}
+
+#-----------------------------------------------------------------------
+beforedepend:	${COMMONHDRS}
 
 # We kept ${LOCOBJS} separate from ${OBJS} because adding all the
 # objects to ${OBJS} would give too many (cyclic) dependencies.

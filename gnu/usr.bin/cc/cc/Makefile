@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.12 1997/02/22 15:44:52 peter Exp $
 #
 
 PROG =	cc
@@ -14,9 +14,7 @@ CLEANFILES+= multilib.h
 CFLAGS+= -I.	# I mean it!
 CFLAGS+= -I${.CURDIR}
 
-# I have NO idea what this is for, it appears to be m68k specific.
 multilib.h: genmultilib
-	sh ${GCCDIR}/genmultilib "$(MULTILIB_OPTIONS)" \
-		"$(MULTILIB_DIRNAMES)" "$(MULTILIB_MATCHES)" > multilib.h
+	echo '#define MULTILIB_SELECT "aout maout;elf !maout;"' > multilib.h
 
 .include <bsd.prog.mk>
