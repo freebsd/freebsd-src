@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
- * $Id: ufs_bmap.c,v 1.3 1994/08/02 07:54:52 davidg Exp $
+ * $Id: ufs_bmap.c,v 1.4 1994/10/08 06:57:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -128,12 +128,12 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 	if (runp) {
 		/*
 		 * XXX
-		 * If MAXBSIZE is the largest transfer the disks can handle,
+		 * If MAXPHYS is the largest transfer the disks can handle,
 		 * we probably want maxrun to be 1 block less so that we
 		 * don't create a block larger than the device can handle.
 		 */
 		*runp = 0;
-		maxrun = MAXBSIZE / mp->mnt_stat.f_iosize - 1;
+		maxrun = MAXPHYS / mp->mnt_stat.f_iosize - 1;
 	}
 
 	xap = ap == NULL ? a : ap;
@@ -179,7 +179,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 
 		xap->in_exists = 1;
 		bp = getblk(vp, metalbn, mp->mnt_stat.f_iosize, 0, 0);
-		if (bp->b_flags & (B_DONE | B_DELWRI)) {
+		if (bp->b_flags & B_CACHE) {
 			trace(TR_BREADHIT, pack(vp, size), metalbn);
 		}
 #ifdef DIAGNOSTIC
@@ -190,6 +190,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 			trace(TR_BREADMISS, pack(vp, size), metalbn);
 			bp->b_blkno = blkptrtodb(ump, daddr);
 			bp->b_flags |= B_READ;
+			vfs_busy_pages(bp, 0);
 			VOP_STRATEGY(bp);
 			curproc->p_stats->p_ru.ru_inblock++;	/* XXX */
 			error = biowait(bp);

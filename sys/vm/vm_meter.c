@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.3 1994/08/02 07:55:27 davidg Exp $
+ * $Id: vm_meter.c,v 1.4 1994/09/12 11:38:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -41,9 +41,9 @@
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 
-struct	loadavg averunnable;		/* load average, of runnable procs */
+struct loadavg averunnable;	/* load average, of runnable procs */
 
-int	maxslp = MAXSLP;
+int maxslp = MAXSLP;
 
 void
 vmmeter()
@@ -51,15 +51,15 @@ vmmeter()
 
 	if (time.tv_sec % 5 == 0)
 		loadav(&averunnable);
-	if (proc0.p_slptime > maxslp/2)
-		wakeup((caddr_t)&proc0);
+	if (proc0.p_slptime > maxslp / 2)
+		wakeup((caddr_t) & proc0);
 }
 
 /*
  * Constants for averages over 1, 5, and 15 minutes
  * when sampling at 5 second intervals.
  */
-fixpt_t	cexp[3] = {
+fixpt_t cexp[3] = {
 	0.9200444146293232 * FSCALE,	/* exp(-1/12) */
 	0.9834714538216174 * FSCALE,	/* exp(-1/60) */
 	0.9944598480048967 * FSCALE,	/* exp(-1/180) */
@@ -76,7 +76,7 @@ loadav(avg)
 	register int i, nrun;
 	register struct proc *p;
 
-	for (nrun = 0, p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+	for (nrun = 0, p = (struct proc *) allproc; p != NULL; p = p->p_next) {
 		switch (p->p_stat) {
 		case SSLEEP:
 			if (p->p_priority > PZERO || p->p_slptime != 0)
@@ -89,7 +89,7 @@ loadav(avg)
 	}
 	for (i = 0; i < 3; i++)
 		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
-			nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
+		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
 }
 
 /*
@@ -109,17 +109,32 @@ vm_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 
 	/* all sysctl names at this level are terminal */
 	if (namelen != 1)
-		return (ENOTDIR);		/* overloaded */
+		return (ENOTDIR);	/* overloaded */
 
 	switch (name[0]) {
 	case VM_LOADAVG:
 		averunnable.fscale = FSCALE;
 		return (sysctl_rdstruct(oldp, oldlenp, newp, &averunnable,
-		    sizeof(averunnable)));
+			sizeof(averunnable)));
 	case VM_METER:
 		vmtotal(&vmtotals);
 		return (sysctl_rdstruct(oldp, oldlenp, newp, &vmtotals,
-		    sizeof(vmtotals)));
+			sizeof(vmtotals)));
+	case VM_V_FREE_MIN:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_free_min));
+	case VM_V_FREE_TARGET:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_free_target));
+	case VM_V_FREE_RESERVED:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_free_reserved));
+	case VM_V_INACTIVE_TARGET:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_inactive_target));
+	case VM_V_CACHE_MIN:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_cache_min));
+	case VM_V_CACHE_MAX:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_cache_max));
+	case VM_V_PAGEOUT_FREE_MIN:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_pageout_free_min));
+
 	default:
 		return (EOPNOTSUPP);
 	}
@@ -135,7 +150,7 @@ vmtotal(totalp)
 	register struct vmtotal *totalp;
 {
 	register struct proc *p;
-	register vm_map_entry_t	entry;
+	register vm_map_entry_t entry;
 	register vm_object_t object;
 	register vm_map_t map;
 	int paging;
@@ -146,14 +161,14 @@ vmtotal(totalp)
 	 */
 	simple_lock(&vm_object_list_lock);
 	for (object = vm_object_list.tqh_first;
-	     object != NULL;
-	     object = object->object_list.tqe_next)
+	    object != NULL;
+	    object = object->object_list.tqe_next)
 		object->flags &= ~OBJ_ACTIVE;
 	simple_unlock(&vm_object_list_lock);
 	/*
 	 * Calculate process statistics.
 	 */
-	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+	for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
 		if (p->p_flag & P_SYSTEM)
 			continue;
 		switch (p->p_stat) {
@@ -188,7 +203,7 @@ vmtotal(totalp)
 		 */
 		paging = 0;
 		for (map = &p->p_vmspace->vm_map, entry = map->header.next;
-		     entry != &map->header; entry = entry->next) {
+		    entry != &map->header; entry = entry->next) {
 			if (entry->is_a_map || entry->is_sub_map ||
 			    entry->object.vm_object == NULL)
 				continue;
@@ -203,8 +218,8 @@ vmtotal(totalp)
 	 */
 	simple_lock(&vm_object_list_lock);
 	for (object = vm_object_list.tqh_first;
-	     object != NULL;
-	     object = object->object_list.tqe_next) {
+	    object != NULL;
+	    object = object->object_list.tqe_next) {
 		totalp->t_vm += num_pages(object->size);
 		totalp->t_rm += object->resident_page_count;
 		if (object->flags & OBJ_ACTIVE) {
@@ -221,5 +236,5 @@ vmtotal(totalp)
 			}
 		}
 	}
-	totalp->t_free = cnt.v_free_count;
+	totalp->t_free = cnt.v_free_count + cnt.v_cache_count;
 }

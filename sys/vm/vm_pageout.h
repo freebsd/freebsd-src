@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -40,17 +40,17 @@
  * All rights reserved.
  *
  * Author: Avadis Tevanian, Jr.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.5 1994/08/21 07:19:45 paul Exp $
+ * $Id: vm_pageout.h,v 1.6 1994/10/09 01:52:16 phk Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -75,8 +75,8 @@
  *	Exported data structures.
  */
 
-extern int	vm_pages_needed;	/* should be some "event" structure */
-simple_lock_data_t	vm_pages_needed_lock;
+extern int vm_pages_needed;	/* should be some "event" structure */
+simple_lock_data_t vm_pages_needed_lock;
 extern int vm_pageout_pages_needed;
 
 #define VM_PAGEOUT_ASYNC 0
@@ -93,26 +93,30 @@ extern int vm_pageout_pages_needed;
 
 #define VM_WAIT vm_wait()
 
-inline static void vm_wait() {
+inline static void 
+vm_wait()
+{
 	int s;
+
 	s = splhigh();
 	if (curproc == pageproc) {
 		vm_pageout_pages_needed = 1;
-		tsleep((caddr_t) &vm_pageout_pages_needed, PSWP, "vmwait", 0);
+		tsleep((caddr_t) & vm_pageout_pages_needed, PSWP, "vmwait", 0);
 		vm_pageout_pages_needed = 0;
 	} else {
-		wakeup((caddr_t) &vm_pages_needed);
-		tsleep((caddr_t) &cnt.v_free_count, PVM, "vmwait", 0);
+		wakeup((caddr_t) & vm_pages_needed);
+		tsleep((caddr_t) & cnt.v_free_count, PVM, "vmwait", 0);
 	}
 	splx(s);
 }
 
 
 #ifdef KERNEL
-int		 vm_pageout_scan __P((void));
-void		 vm_pageout_page __P((vm_page_t, vm_object_t));
-void		 vm_pageout_cluster __P((vm_page_t, vm_object_t));
-int		vm_pageout_clean __P((vm_page_t, int));
+int vm_pageout_scan __P((void));
+void vm_pageout_page __P((vm_page_t, vm_object_t));
+void vm_pageout_cluster __P((vm_page_t, vm_object_t));
+int vm_pageout_clean __P((vm_page_t, int));
+
 #endif
 
 #endif

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.28 1994/09/02 04:12:07 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.29 1994/10/08 22:19:51 phk Exp $
  */
 
 #include "npx.h"
@@ -321,6 +321,8 @@ vm_bounce_alloc(bp)
 		pa = pmap_kextract(va);
 		if (pa >= SIXTEENMEG)
 			++dobounceflag;
+		if( pa == 0)
+			panic("vm_bounce_alloc: Unmapped page");
 		va += NBPG;
 	}
 	if (dobounceflag == 0)
@@ -492,10 +494,13 @@ vm_bounce_init()
 	if (!bounceallocarray)
 		panic("Cannot allocate bounce resource array\n");
 
-	bzero(bounceallocarray, bounceallocarraysize * sizeof(unsigned));
 	bouncepa = malloc(bouncepages * sizeof(vm_offset_t), M_TEMP, M_NOWAIT);
 	if (!bouncepa)
 		panic("Cannot allocate physical memory array\n");
+
+	for(i=0;i<bounceallocarraysize;i++) {
+		bounceallocarray[i] = 0xffffffff;
+	}
 
 	for(i=0;i<bouncepages;i++) {
 		vm_offset_t pa;
@@ -504,6 +509,7 @@ vm_bounce_init()
 		if( pa == 0)
 			panic("bounce memory not resident");
 		bouncepa[i] = pa;
+		bounceallocarray[i/(8*sizeof(int))] &= ~(1<<(i%(8*sizeof(int))));
 	}
 	bouncefree = bouncepages;
 
@@ -603,9 +609,9 @@ cpu_wait(p) struct proc *p; {
 /*	extern vm_map_t upages_map; */
 
 	/* drop per-process resources */
- 	pmap_remove(vm_map_pmap(kernel_map), (vm_offset_t) p->p_addr,
+ 	pmap_remove(vm_map_pmap(u_map), (vm_offset_t) p->p_addr,
 		((vm_offset_t) p->p_addr) + ctob(UPAGES));
-	kmem_free(kernel_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
+	kmem_free(u_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
 	vmspace_free(p->p_vmspace);
 }
 

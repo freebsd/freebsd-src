@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -40,17 +40,17 @@
  * All rights reserved.
  *
  * Authors: Avadis Tevanian, Jr., Michael Wayne Young
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_user.c,v 1.3 1994/08/02 07:55:42 davidg Exp $
+ * $Id: vm_user.c,v 1.4 1994/10/15 10:28:47 davidg Exp $
  */
 
 /*
@@ -74,7 +74,7 @@
 
 #include <vm/vm.h>
 
-simple_lock_data_t	vm_alloc_lock;	/* XXX */
+simple_lock_data_t vm_alloc_lock;	/* XXX */
 
 #ifdef MACHVMCOMPAT
 /*
@@ -87,6 +87,7 @@ struct svm_allocate_args {
 	vm_size_t size;
 	boolean_t anywhere;
 };
+
 /* ARGSUSED */
 int
 svm_allocate(p, uap, retval)
@@ -97,17 +98,17 @@ svm_allocate(p, uap, retval)
 	vm_offset_t addr;
 	int rv;
 
-	uap->map = p->p_map;		/* XXX */
+	uap->map = p->p_map;	/* XXX */
 
-	if (copyin((caddr_t)uap->addr, (caddr_t)&addr, sizeof (addr)))
+	if (copyin((caddr_t) uap->addr, (caddr_t) & addr, sizeof(addr)))
 		rv = KERN_INVALID_ARGUMENT;
 	else
 		rv = vm_allocate(uap->map, &addr, uap->size, uap->anywhere);
 	if (rv == KERN_SUCCESS) {
-		if (copyout((caddr_t)&addr, (caddr_t)uap->addr, sizeof(addr)))
+		if (copyout((caddr_t) & addr, (caddr_t) uap->addr, sizeof(addr)))
 			rv = KERN_INVALID_ARGUMENT;
 	}
-	return((int)rv);
+	return ((int) rv);
 }
 
 struct svm_deallocate_args {
@@ -115,6 +116,7 @@ struct svm_deallocate_args {
 	vm_offset_t addr;
 	vm_size_t size;
 };
+
 /* ARGSUSED */
 int
 svm_deallocate(p, uap, retval)
@@ -124,9 +126,9 @@ svm_deallocate(p, uap, retval)
 {
 	int rv;
 
-	uap->map = p->p_map;		/* XXX */
+	uap->map = p->p_map;	/* XXX */
 	rv = vm_deallocate(uap->map, uap->addr, uap->size);
-	return((int)rv);
+	return ((int) rv);
 }
 
 struct svm_inherit_args {
@@ -135,6 +137,7 @@ struct svm_inherit_args {
 	vm_size_t size;
 	vm_inherit_t inherit;
 };
+
 /* ARGSUSED */
 int
 svm_inherit(p, uap, retval)
@@ -144,9 +147,9 @@ svm_inherit(p, uap, retval)
 {
 	int rv;
 
-	uap->map = p->p_map;		/* XXX */
+	uap->map = p->p_map;	/* XXX */
 	rv = vm_inherit(uap->map, uap->addr, uap->size, uap->inherit);
-	return((int)rv);
+	return ((int) rv);
 }
 
 struct svm_protect_args {
@@ -156,6 +159,7 @@ struct svm_protect_args {
 	boolean_t setmax;
 	vm_prot_t prot;
 };
+
 /* ARGSUSED */
 int
 svm_protect(p, uap, retval)
@@ -165,9 +169,9 @@ svm_protect(p, uap, retval)
 {
 	int rv;
 
-	uap->map = p->p_map;		/* XXX */
+	uap->map = p->p_map;	/* XXX */
 	rv = vm_protect(uap->map, uap->addr, uap->size, uap->setmax, uap->prot);
-	return((int)rv);
+	return ((int) rv);
 }
 
 #endif
@@ -177,15 +181,15 @@ svm_protect(p, uap, retval)
  */
 int
 vm_inherit(map, start, size, new_inheritance)
-	register vm_map_t	map;
-	vm_offset_t		start;
-	vm_size_t		size;
-	vm_inherit_t		new_inheritance;
+	register vm_map_t map;
+	vm_offset_t start;
+	vm_size_t size;
+	vm_inherit_t new_inheritance;
 {
 	if (map == NULL)
-		return(KERN_INVALID_ARGUMENT);
+		return (KERN_INVALID_ARGUMENT);
 
-	return(vm_map_inherit(map, trunc_page(start), round_page(start+size), new_inheritance));
+	return (vm_map_inherit(map, trunc_page(start), round_page(start + size), new_inheritance));
 }
 
 /*
@@ -195,16 +199,16 @@ vm_inherit(map, start, size, new_inheritance)
 
 int
 vm_protect(map, start, size, set_maximum, new_protection)
-	register vm_map_t	map;
-	vm_offset_t		start;
-	vm_size_t		size;
-	boolean_t		set_maximum;
-	vm_prot_t		new_protection;
+	register vm_map_t map;
+	vm_offset_t start;
+	vm_size_t size;
+	boolean_t set_maximum;
+	vm_prot_t new_protection;
 {
 	if (map == NULL)
-		return(KERN_INVALID_ARGUMENT);
+		return (KERN_INVALID_ARGUMENT);
 
-	return(vm_map_protect(map, trunc_page(start), round_page(start+size), new_protection, set_maximum));
+	return (vm_map_protect(map, trunc_page(start), round_page(start + size), new_protection, set_maximum));
 }
 
 /*
@@ -213,20 +217,19 @@ vm_protect(map, start, size, set_maximum, new_protection)
  */
 int
 vm_allocate(map, addr, size, anywhere)
-	register vm_map_t	map;
-	register vm_offset_t	*addr;
-	register vm_size_t	size;
-	boolean_t		anywhere;
+	register vm_map_t map;
+	register vm_offset_t *addr;
+	register vm_size_t size;
+	boolean_t anywhere;
 {
-	int	result;
+	int result;
 
 	if (map == NULL)
-		return(KERN_INVALID_ARGUMENT);
+		return (KERN_INVALID_ARGUMENT);
 	if (size == 0) {
 		*addr = 0;
-		return(KERN_SUCCESS);
+		return (KERN_SUCCESS);
 	}
-
 	if (anywhere)
 		*addr = vm_map_min(map);
 	else
@@ -235,7 +238,7 @@ vm_allocate(map, addr, size, anywhere)
 
 	result = vm_map_find(map, NULL, (vm_offset_t) 0, addr, size, anywhere);
 
-	return(result);
+	return (result);
 }
 
 /*
@@ -244,17 +247,17 @@ vm_allocate(map, addr, size, anywhere)
  */
 int
 vm_deallocate(map, start, size)
-	register vm_map_t	map;
-	vm_offset_t		start;
-	vm_size_t		size;
+	register vm_map_t map;
+	vm_offset_t start;
+	vm_size_t size;
 {
 	if (map == NULL)
-		return(KERN_INVALID_ARGUMENT);
+		return (KERN_INVALID_ARGUMENT);
 
 	if (size == (vm_offset_t) 0)
-		return(KERN_SUCCESS);
+		return (KERN_SUCCESS);
 
-	return(vm_map_remove(map, trunc_page(start), round_page(start+size)));
+	return (vm_map_remove(map, trunc_page(start), round_page(start + size)));
 }
 
 #if 1
@@ -263,27 +266,26 @@ vm_deallocate(map, start, size)
  */
 int
 vm_allocate_with_pager(map, addr, size, anywhere, pager, poffset, internal)
-	register vm_map_t	map;
-	register vm_offset_t	*addr;
-	register vm_size_t	size;
-	boolean_t		anywhere;
-	vm_pager_t		pager;
-	vm_offset_t		poffset;
-	boolean_t		internal;
+	register vm_map_t map;
+	register vm_offset_t *addr;
+	register vm_size_t size;
+	boolean_t anywhere;
+	vm_pager_t pager;
+	vm_offset_t poffset;
+	boolean_t internal;
 {
-	register vm_object_t	object;
-	register int		result;
+	register vm_object_t object;
+	register int result;
 
 	if (map == NULL)
-		return(KERN_INVALID_ARGUMENT);
+		return (KERN_INVALID_ARGUMENT);
 
 	*addr = trunc_page(*addr);
 	size = round_page(size);
 
 	/*
-	 *	Lookup the pager/paging-space in the object cache.
-	 *	If it's not there, then create a new object and cache
-	 *	it.
+	 * Lookup the pager/paging-space in the object cache. If it's not
+	 * there, then create a new object and cache it.
 	 */
 	object = vm_object_lookup(pager);
 	if (object == NULL) {
@@ -291,8 +293,8 @@ vm_allocate_with_pager(map, addr, size, anywhere, pager, poffset, internal)
 		/*
 		 * From Mike Hibler: "unnamed anonymous objects should never
 		 * be on the hash list ... For now you can just change
-		 * vm_allocate_with_pager to not do vm_object_enter if this
-		 * is an internal object ..."
+		 * vm_allocate_with_pager to not do vm_object_enter if this is
+		 * an internal object ..."
 		 */
 		if (!internal)
 			vm_object_enter(object, pager);
@@ -309,6 +311,6 @@ vm_allocate_with_pager(map, addr, size, anywhere, pager, poffset, internal)
 		vm_object_deallocate(object);
 	else if (pager != NULL)
 		vm_object_setpager(object, pager, (vm_offset_t) 0, TRUE);
-	return(result);
+	return (result);
 }
 #endif

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.4 1994/08/08 09:11:44 davidg Exp $
+ * $Id: ufs_readwrite.c,v 1.5 1994/10/10 01:04:55 phk Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -101,6 +101,9 @@ READ(ap)
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
 		lbn = lblkno(fs, uio->uio_offset);
+		xfersize = vfs_read_bypass( vp, uio, bytesinfile, lbn);
+		if( xfersize != 0)
+			continue;
 		nextlbn = lbn + 1;
 		size = BLKSIZE(fs, ip, lbn);
 		blkoffset = blkoff(fs, uio->uio_offset);
@@ -231,6 +234,10 @@ WRITE(ap)
 		xfersize = fs->fs_bsize - blkoffset;
 		if (uio->uio_resid < xfersize)
 			xfersize = uio->uio_resid;
+
+		if (uio->uio_offset + xfersize > ip->i_size)
+			vnode_pager_setsize(vp, (u_long)uio->uio_offset + xfersize);
+
 #ifdef LFS_READWRITE
 		(void)lfs_check(vp, lbn);
 		error = lfs_balloc(vp, xfersize, lbn, &bp);
@@ -245,11 +252,13 @@ WRITE(ap)
 #endif
 		if (error)
 			break;
+
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
-			vnode_pager_setsize(vp, (u_long)ip->i_size);
 		}
+/*
 		(void)vnode_pager_uncache(vp);
+*/
 
 		size = BLKSIZE(fs, ip, lbn) - bp->b_resid;
 		if (size < xfersize)
@@ -262,14 +271,17 @@ WRITE(ap)
 #else
 		if (ioflag & IO_SYNC)
 			(void)bwrite(bp);
-		else if (xfersize + blkoffset == fs->fs_bsize)
-			if (doclusterwrite)
+		else if (xfersize + blkoffset == fs->fs_bsize) {
+			if (doclusterwrite) {
+				bp->b_flags |= B_CLUSTEROK;
 				cluster_write(bp, ip->i_size);
-			else {
+			} else {
 				bawrite(bp);
 			}
-		else
+		} else {
+			bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
+		}
 #endif
 		if (error || xfersize == 0)
 			break;

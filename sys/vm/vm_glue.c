@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -38,17 +38,17 @@
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
  * All rights reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.9 1994/11/13 12:47:07 davidg Exp $
+ * $Id: vm_glue.c,v 1.10 1994/12/18 06:31:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -81,8 +81,9 @@
 #include <machine/cpu.h>
 
 extern char kstack[];
-int	avefree = 0;		/* XXX */
-int	readbuffers = 0;	/* XXX allow kgdb to read kernel buffer pool */
+int avefree = 0;		/* XXX */
+int readbuffers = 0;		/* XXX allow kgdb to read kernel buffer pool */
+
 /* vm_map_t upages_map; */
 
 int
@@ -95,9 +96,9 @@ kernacc(addr, len, rw)
 	vm_prot_t prot = rw == B_READ ? VM_PROT_READ : VM_PROT_WRITE;
 
 	saddr = trunc_page(addr);
-	eaddr = round_page(addr+len);
+	eaddr = round_page(addr + len);
 	rv = vm_map_check_protection(kernel_map, saddr, eaddr, prot);
-	return(rv == TRUE);
+	return (rv == TRUE);
 }
 
 int
@@ -111,20 +112,19 @@ useracc(addr, len, rw)
 	/*
 	 * XXX - check separately to disallow access to user area and user
 	 * page tables - they are in the map.
-	 *
-	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  It was
-	 * once only used (as an end address) in trap.c.  Use it as an end
-	 * address here too.  This bogusness has spread.  I just fixed
-	 * where it was used as a max in vm_mmap.c.
+	 * 
+	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  It was once
+	 * only used (as an end address) in trap.c.  Use it as an end address
+	 * here too.  This bogusness has spread.  I just fixed where it was
+	 * used as a max in vm_mmap.c.
 	 */
 	if ((vm_offset_t) addr + len > /* XXX */ VM_MAXUSER_ADDRESS
 	    || (vm_offset_t) addr + len < (vm_offset_t) addr) {
 		return (FALSE);
 	}
-
 	rv = vm_map_check_protection(&curproc->p_vmspace->vm_map,
-	    trunc_page(addr), round_page(addr+len), prot);
-	return(rv == TRUE);
+	    trunc_page(addr), round_page(addr + len), prot);
+	return (rv == TRUE);
 }
 
 #ifdef KGDB
@@ -140,29 +140,29 @@ chgkprot(addr, len, rw)
 	vm_prot_t prot = rw == B_READ ? VM_PROT_READ : VM_PROT_WRITE;
 
 	vm_map_protect(kernel_map, trunc_page(addr),
-		       round_page(addr+len), prot, FALSE);
+	    round_page(addr + len), prot, FALSE);
 }
 #endif
 void
 vslock(addr, len)
-	caddr_t	addr;
-	u_int	len;
+	caddr_t addr;
+	u_int len;
 {
 	vm_map_pageable(&curproc->p_vmspace->vm_map, trunc_page(addr),
-			round_page(addr+len), FALSE);
+	    round_page(addr + len), FALSE);
 }
 
 void
 vsunlock(addr, len, dirtied)
-	caddr_t	addr;
-	u_int	len;
+	caddr_t addr;
+	u_int len;
 	int dirtied;
 {
 #ifdef	lint
 	dirtied++;
-#endif	lint
-		vm_map_pageable(&curproc->p_vmspace->vm_map, trunc_page(addr),
-			round_page(addr+len), TRUE);
+#endif	/* lint */
+	vm_map_pageable(&curproc->p_vmspace->vm_map, trunc_page(addr),
+	    round_page(addr + len), TRUE);
 }
 
 /*
@@ -186,15 +186,17 @@ vm_fork(p1, p2, isvfork)
 	int i;
 	struct vm_map *vp;
 
-	while( cnt.v_free_count < cnt.v_free_min)
+	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 		VM_WAIT;
+	}
 
 	/*
 	 * avoid copying any of the parent's pagetables or other per-process
-	 * objects that reside in the map by marking all of them non-inheritable
+	 * objects that reside in the map by marking all of them
+	 * non-inheritable
 	 */
-	(void)vm_map_inherit(&p1->p_vmspace->vm_map,
-		UPT_MIN_ADDRESS - UPAGES * NBPG, VM_MAX_ADDRESS, VM_INHERIT_NONE);
+	(void) vm_map_inherit(&p1->p_vmspace->vm_map,
+	    UPT_MIN_ADDRESS - UPAGES * NBPG, VM_MAX_ADDRESS, VM_INHERIT_NONE);
 	p2->p_vmspace = vmspace_fork(p1->p_vmspace);
 
 #ifdef SYSVSHM
@@ -203,7 +205,8 @@ vm_fork(p1, p2, isvfork)
 #endif
 
 	/*
-	 * Allocate a wired-down (for now) pcb and kernel stack for the process
+	 * Allocate a wired-down (for now) pcb and kernel stack for the
+	 * process
 	 */
 
 	addr = (vm_offset_t) kstack;
@@ -211,56 +214,57 @@ vm_fork(p1, p2, isvfork)
 	vp = &p2->p_vmspace->vm_map;
 
 	/* ream out old pagetables and kernel stack */
-	(void)vm_deallocate(vp, addr, UPT_MAX_ADDRESS - addr);
+	(void) vm_deallocate(vp, addr, UPT_MAX_ADDRESS - addr);
 
 	/* get new pagetables and kernel stack */
-	(void)vm_allocate(vp, &addr, UPT_MAX_ADDRESS - addr, FALSE);
+	(void) vm_allocate(vp, &addr, UPT_MAX_ADDRESS - addr, FALSE);
 
 	/* force in the page table encompassing the UPAGES */
-	ptaddr = trunc_page((u_int)vtopte(addr));
+	ptaddr = trunc_page((u_int) vtopte(addr));
 	vm_map_pageable(vp, ptaddr, ptaddr + NBPG, FALSE);
 
 	/* and force in (demand-zero) the UPAGES */
 	vm_map_pageable(vp, addr, addr + UPAGES * NBPG, FALSE);
 
 	/* get a kernel virtual address for the UPAGES for this proc */
-	up = (struct user *)kmem_alloc_pageable(kernel_map, UPAGES * NBPG);
+	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * NBPG);
 
 	/* and force-map the upages into the kernel pmap */
 	for (i = 0; i < UPAGES; i++)
-		pmap_enter(vm_map_pmap(kernel_map),
-			((vm_offset_t) up) + NBPG * i,
-			pmap_extract(vp->pmap, addr + NBPG * i),
-			VM_PROT_READ|VM_PROT_WRITE, 1);
+		pmap_enter(vm_map_pmap(u_map),
+		    ((vm_offset_t) up) + NBPG * i,
+		    pmap_extract(vp->pmap, addr + NBPG * i),
+		    VM_PROT_READ | VM_PROT_WRITE, 1);
 
-	/* and allow the UPAGES page table entry to be paged (at the vm system level) */
+	/*
+	 * and allow the UPAGES page table entry to be paged (at the vm system
+	 * level)
+	 */
 	vm_map_pageable(vp, ptaddr, ptaddr + NBPG, TRUE);
 
 	p2->p_addr = up;
 
 	/*
-	 * p_stats and p_sigacts currently point at fields
-	 * in the user struct but not at &u, instead at p_addr.
-	 * Copy p_sigacts and parts of p_stats; zero the rest
-	 * of p_stats (statistics).
+	 * p_stats and p_sigacts currently point at fields in the user struct
+	 * but not at &u, instead at p_addr. Copy p_sigacts and parts of
+	 * p_stats; zero the rest of p_stats (statistics).
 	 */
 	p2->p_stats = &up->u_stats;
 	p2->p_sigacts = &up->u_sigacts;
 	up->u_sigacts = *p1->p_sigacts;
 	bzero(&up->u_stats.pstat_startzero,
-	    (unsigned) ((caddr_t)&up->u_stats.pstat_endzero -
-	    (caddr_t)&up->u_stats.pstat_startzero));
+	    (unsigned) ((caddr_t) & up->u_stats.pstat_endzero -
+		(caddr_t) & up->u_stats.pstat_startzero));
 	bcopy(&p1->p_stats->pstat_startcopy, &up->u_stats.pstat_startcopy,
-	    ((caddr_t)&up->u_stats.pstat_endcopy -
-	     (caddr_t)&up->u_stats.pstat_startcopy));
+	    ((caddr_t) & up->u_stats.pstat_endcopy -
+		(caddr_t) & up->u_stats.pstat_startcopy));
 
-	
+
 	/*
-	 * cpu_fork will copy and update the kernel stack and pcb,
-	 * and make the child ready to run.  It marks the child
-	 * so that it can return differently than the parent.
-	 * It returns twice, once in the parent process and
-	 * once in the child.
+	 * cpu_fork will copy and update the kernel stack and pcb, and make
+	 * the child ready to run.  It marks the child so that it can return
+	 * differently than the parent. It returns twice, once in the parent
+	 * process and once in the child.
 	 */
 	return (cpu_fork(p1, p2));
 }
@@ -276,27 +280,26 @@ vm_init_limits(p)
 	int rss_limit;
 
 	/*
-	 * Set up the initial limits on process VM.
-	 * Set the maximum resident set size to be half
-	 * of (reasonably) available memory.  Since this
-	 * is a soft limit, it comes into effect only
-	 * when the system is out of memory - half of
-	 * main memory helps to favor smaller processes,
+	 * Set up the initial limits on process VM. Set the maximum resident
+	 * set size to be half of (reasonably) available memory.  Since this
+	 * is a soft limit, it comes into effect only when the system is out
+	 * of memory - half of main memory helps to favor smaller processes,
 	 * and reduces thrashing of the object cache.
 	 */
-        p->p_rlimit[RLIMIT_STACK].rlim_cur = DFLSSIZ;
-        p->p_rlimit[RLIMIT_STACK].rlim_max = MAXSSIZ;
-        p->p_rlimit[RLIMIT_DATA].rlim_cur = DFLDSIZ;
-        p->p_rlimit[RLIMIT_DATA].rlim_max = MAXDSIZ;
-	/* limit the limit to no less than 2MB */ 
+	p->p_rlimit[RLIMIT_STACK].rlim_cur = DFLSSIZ;
+	p->p_rlimit[RLIMIT_STACK].rlim_max = MAXSSIZ;
+	p->p_rlimit[RLIMIT_DATA].rlim_cur = DFLDSIZ;
+	p->p_rlimit[RLIMIT_DATA].rlim_max = MAXDSIZ;
+	/* limit the limit to no less than 2MB */
 	rss_limit = max(cnt.v_free_count / 2, 512);
 	p->p_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
 	p->p_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
 
 #ifdef DEBUG
-int	enableswap = 1;
-int	swapdebug = 0;
+int enableswap = 1;
+int swapdebug = 0;
+
 #define	SDB_FOLLOW	1
 #define SDB_SWAPIN	2
 #define SDB_SWAPOUT	4
@@ -304,7 +307,7 @@ int	swapdebug = 0;
 
 void
 faultin(p)
-struct proc *p;
+	struct proc *p;
 {
 	vm_offset_t i;
 	vm_offset_t ptaddr;
@@ -317,22 +320,23 @@ struct proc *p;
 
 		map = &p->p_vmspace->vm_map;
 		/* force the page table encompassing the kernel stack (upages) */
-		ptaddr = trunc_page((u_int)vtopte(kstack));
+		ptaddr = trunc_page((u_int) vtopte(kstack));
 		vm_map_pageable(map, ptaddr, ptaddr + NBPG, FALSE);
 
 		/* wire in the UPAGES */
 		vm_map_pageable(map, (vm_offset_t) kstack,
-			(vm_offset_t) kstack + UPAGES * NBPG, FALSE);
+		    (vm_offset_t) kstack + UPAGES * NBPG, FALSE);
 
 		/* and map them nicely into the kernel pmap */
 		for (i = 0; i < UPAGES; i++) {
 			vm_offset_t off = i * NBPG;
 			vm_offset_t pa = (vm_offset_t)
-				pmap_extract(&p->p_vmspace->vm_pmap, 
-				(vm_offset_t) kstack + off);
-			pmap_enter(vm_map_pmap(kernel_map),
-				((vm_offset_t)p->p_addr) + off,
-					pa, VM_PROT_READ|VM_PROT_WRITE, 1);
+			pmap_extract(&p->p_vmspace->vm_pmap,
+			    (vm_offset_t) kstack + off);
+
+			pmap_enter(vm_map_pmap(u_map),
+			    ((vm_offset_t) p->p_addr) + off,
+			    pa, VM_PROT_READ | VM_PROT_WRITE, 1);
 		}
 
 		/* and let the page table pages go (at least above pmap level) */
@@ -343,18 +347,15 @@ struct proc *p;
 		if (p->p_stat == SRUN)
 			setrunqueue(p);
 
-		p->p_flag |= P_INMEM; 
+		p->p_flag |= P_INMEM;
 
 		/* undo the effect of setting SLOCK above */
 		--p->p_lock;
 		splx(s);
 
 	}
-
 }
-	
-int swapinreq;
-int percentactive;
+
 /*
  * This swapin algorithm attempts to swap-in processes only if there
  * is enough space for them.  Of course, if a process waits for a long
@@ -367,95 +368,45 @@ scheduler()
 	register int pri;
 	struct proc *pp;
 	int ppri;
-	int lastidle, lastrun;
-	int curidle, currun;
-	int forceload;
-	int percent;
-	int ntries;
-
-	lastidle = 0;
-	lastrun = 0;
 
 loop:
-	ntries = 0;
+	while ((cnt.v_free_count + cnt.v_cache_count) < (cnt.v_free_reserved + UPAGES + 2)) {
+		VM_WAIT;
+		tsleep((caddr_t) & proc0, PVM, "schedm", 0);
+	}
 
-	curidle = cp_time[CP_IDLE];
-	currun = cp_time[CP_USER] + cp_time[CP_SYS] + cp_time[CP_NICE];
-	percent = (100*(currun-lastrun)) / ( 1 + (currun-lastrun) + (curidle-lastidle));
-	lastrun = currun;
-	lastidle = curidle;
-	if( percent > 100)
-		percent = 100;
-	percentactive = percent;
-
-	if( percentactive < 25)
-		forceload = 1;
-	else
-		forceload = 0;
-
-loop1:
 	pp = NULL;
 	ppri = INT_MIN;
-	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
-		if (p->p_stat == SRUN && (p->p_flag & (P_INMEM|P_SWAPPING)) == 0) {
+	for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
+		if (p->p_stat == SRUN && (p->p_flag & (P_INMEM | P_SWAPPING)) == 0) {
 			int mempri;
+
 			pri = p->p_swtime + p->p_slptime - p->p_nice * 8;
 			mempri = pri > 0 ? pri : 0;
-			/* 
+			/*
 			 * if this process is higher priority and there is
-			 * enough space, then select this process instead
-			 * of the previous selection.
+			 * enough space, then select this process instead of
+			 * the previous selection.
 			 */
-			if (pri > ppri && 
-				(((cnt.v_free_count + (mempri * (4*PAGE_SIZE) / PAGE_SIZE) >= (p->p_vmspace->vm_swrss)) || (ntries > 0 && forceload)))) {
+			if (pri > ppri) {
 				pp = p;
 				ppri = pri;
 			}
 		}
 	}
 
-	if ((pp == NULL) && (ntries == 0) && forceload) {
-		++ntries;
-		goto loop1;
-	}
-		
 	/*
 	 * Nothing to do, back to sleep
 	 */
 	if ((p = pp) == NULL) {
-		tsleep((caddr_t)&proc0, PVM, "sched", 0);
+		tsleep((caddr_t) & proc0, PVM, "sched", 0);
 		goto loop;
 	}
-
 	/*
 	 * We would like to bring someone in. (only if there is space).
 	 */
-/*
-	printf("swapin: %d, free: %d, res: %d, min: %d\n",
-		p->p_pid, cnt.v_free_count, cnt.v_free_reserved, cnt.v_free_min);
-*/
-	(void) splhigh();
-	if ((forceload && (cnt.v_free_count > (cnt.v_free_reserved + UPAGES + 1))) ||
-	    (cnt.v_free_count >= cnt.v_free_min)) {
-		spl0();
-		faultin(p);
-		p->p_swtime = 0;
-		goto loop;
-	} 
-	/*
-	 * log the memory shortage
-	 */
-	swapinreq += p->p_vmspace->vm_swrss;
-	/*
-	 * Not enough memory, jab the pageout daemon and wait til the
-	 * coast is clear.
-	 */
-	if( cnt.v_free_count < cnt.v_free_min) {
-		VM_WAIT;
-	} else {
-		tsleep((caddr_t)&proc0, PVM, "sched", 0);
-	}
-	(void) spl0();
+	faultin(p);
+	p->p_swtime = 0;
 	goto loop;
 }
 
@@ -464,6 +415,7 @@ loop1:
 		((p)->p_flag & (P_TRACED|P_NOSWAP|P_SYSTEM|P_INMEM|P_WEXIT|P_PHYSIO|P_SWAPPING)) == P_INMEM)
 
 extern int vm_pageout_free_min;
+
 /*
  * Swapout is driven by the pageout daemon.  Very simple, we find eligible
  * procs and unwire their u-areas.  We try to always "swap" at least one
@@ -480,98 +432,58 @@ swapout_threads()
 	int outpri, outpri2;
 	int tpri;
 	int didswap = 0;
-	int swapneeded = swapinreq;
 	extern int maxslp;
-	int runnablenow;
 
-	runnablenow = 0;
 	outp = outp2 = NULL;
 	outpri = outpri2 = INT_MIN;
-	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+retry:
+	for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
 		if (!swappable(p))
 			continue;
 		switch (p->p_stat) {
-		case SRUN:
-			++runnablenow;
-			/*
-			 * count the process as being in a runnable state
-			 */
-			if ((tpri = p->p_swtime + p->p_nice * 8) > outpri2) {
-				outp2 = p;
-				outpri2 = tpri;
-			}
+		default:
 			continue;
-			
+
 		case SSLEEP:
 		case SSTOP:
 			/*
- 			 * do not swapout a realtime process
- 			 */
- 			if (p->p_rtprio.type == RTP_PRIO_REALTIME)
- 				continue;
+			 * do not swapout a realtime process
+			 */
+			if (p->p_rtprio.type == RTP_PRIO_REALTIME)
+				continue;
 
 			/*
-			 * do not swapout a process that is waiting for VM datastructures
-			 * there is a possible deadlock.
+			 * do not swapout a process waiting on a critical
+			 * event of some kind
 			 */
-			if (!lock_try_write( &p->p_vmspace->vm_map.lock)) {
+			if ((p->p_priority & 0x7f) < PSOCK)
+				continue;
+
+			/*
+			 * do not swapout a process that is waiting for VM
+			 * datastructures there is a possible deadlock.
+			 */
+			if (!lock_try_write(&p->p_vmspace->vm_map.lock)) {
 				continue;
 			}
-			vm_map_unlock( &p->p_vmspace->vm_map);
+			vm_map_unlock(&p->p_vmspace->vm_map);
 			/*
-			 * If the process has been asleep for awhile and had most
-			 * of its pages taken away already, swap it out.
+			 * If the process has been asleep for awhile and had
+			 * most of its pages taken away already, swap it out.
 			 */
 			if (p->p_slptime > maxslp) {
 				swapout(p);
 				didswap++;
-			} else if ((tpri = p->p_slptime + p->p_nice * 8) > outpri &&
-				(p->p_vmspace->vm_pmap.pm_stats.resident_count <= 6)) {
-				outp = p;
-				outpri = tpri ;
+				goto retry;
 			}
-			continue;
 		}
 	}
-	/*
-	 * We swapout only if there are more than two runnable processes or if
-	 * another process needs some space to swapin.
-	 */
-	if ((swapinreq || ((percentactive > 90) && (runnablenow > 2))) && 
-			(((cnt.v_free_count + cnt.v_inactive_count) <= (cnt.v_free_target + cnt.v_inactive_target)) ||
-			(cnt.v_free_count < cnt.v_free_min))) {
-		if ((p = outp) == 0) {
-			p = outp2; 
-		} 
-
-		/*
-		 * Only swapout processes that have already had most
-		 * of their pages taken away.
-		 */
-		if (p && (p->p_vmspace->vm_pmap.pm_stats.resident_count <= 6)) {
-			swapout(p);
-			didswap = 1;
-		}
-	}
-
-	/*
-	 * if we previously had found a process to swapout, and we need to swapout
-	 * more then try again.
-	 */
-#if 0
-	if( p && swapinreq)
-		goto swapmore;
-#endif
-
 	/*
 	 * If we swapped something out, and another process needed memory,
 	 * then wakeup the sched process.
 	 */
-	if (didswap) {
-		if (swapneeded)
-			wakeup((caddr_t)&proc0);
-		swapinreq = 0;
-	}
+	if (didswap)
+		wakeup((caddr_t) & proc0);
 }
 
 void
@@ -585,11 +497,7 @@ swapout(p)
 	 * remember the process resident count
 	 */
 	p->p_vmspace->vm_swrss =
-			p->p_vmspace->vm_pmap.pm_stats.resident_count;
-	/*
-	 * and decrement the amount of needed space
-	 */
-	swapinreq -= min(swapinreq, p->p_vmspace->vm_pmap.pm_stats.resident_count);
+	    p->p_vmspace->vm_pmap.pm_stats.resident_count;
 
 	(void) splhigh();
 	p->p_flag &= ~P_INMEM;
@@ -598,12 +506,14 @@ swapout(p)
 	(void) spl0();
 
 	p->p_flag |= P_SWAPPING;
-/* let the upages be paged */
-	pmap_remove(vm_map_pmap(kernel_map),
-		(vm_offset_t) p->p_addr, ((vm_offset_t) p->p_addr) + UPAGES * NBPG);
+	/*
+	 * let the upages be paged
+	 */
+	pmap_remove(vm_map_pmap(u_map),
+	    (vm_offset_t) p->p_addr, ((vm_offset_t) p->p_addr) + UPAGES * NBPG);
 
 	vm_map_pageable(map, (vm_offset_t) kstack,
-		(vm_offset_t) kstack + UPAGES * NBPG, TRUE);
+	    (vm_offset_t) kstack + UPAGES * NBPG, TRUE);
 
 	p->p_flag &= ~P_SWAPPING;
 	p->p_swtime = 0;
@@ -630,7 +540,7 @@ void
 thread_block(char *msg)
 {
 	if (curproc->p_thread)
-		tsleep((caddr_t)curproc->p_thread, PVM, msg, 0);
+		tsleep((caddr_t) curproc->p_thread, PVM, msg, 0);
 }
 
 
@@ -644,7 +554,7 @@ thread_sleep_(event, lock, wmesg)
 	curproc->p_thread = event;
 	simple_unlock(lock);
 	if (curproc->p_thread) {
-		tsleep((caddr_t)event, PVM, wmesg, 0);
+		tsleep((caddr_t) event, PVM, wmesg, 0);
 	}
 }
 
@@ -653,7 +563,7 @@ void
 thread_wakeup(event)
 	int event;
 {
-	wakeup((caddr_t)event);
+	wakeup((caddr_t) event);
 }
 #endif
 
@@ -663,16 +573,17 @@ thread_wakeup(event)
 
 int indent = 0;
 
-#include <machine/stdarg.h>		/* see subr_prf.c */
+#include <machine/stdarg.h>	/* see subr_prf.c */
 
 /*ARGSUSED2*/
 void
 #if __STDC__
-iprintf(const char *fmt, ...)
+iprintf(const char *fmt,...)
 #else
-iprintf(fmt /* , va_alist */)
+iprintf(fmt /* , va_alist */ )
 	char *fmt;
-	/* va_dcl */
+
+ /* va_dcl */
 #endif
 {
 	register int i;
