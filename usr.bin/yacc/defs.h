@@ -265,7 +265,6 @@ extern int nvars;
 extern int ntags;
 
 extern char unionized;
-extern char line_format[];
 
 extern int   start_symbol;
 extern char  **symbol_name;
