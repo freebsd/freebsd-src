@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.78 1999/07/17 19:59:55 phk Exp $
+ * $Id: vm_swap.c,v 1.79 1999/07/20 21:29:11 green Exp $
  */
 
 #include "opt_devfs.h"
@@ -41,7 +41,6 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/buf.h>
-#include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -53,11 +52,10 @@
 #include <sys/blist.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/conf.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/swap_pager.h>
-
-#include <miscfs/specfs/specdev.h>
 
 /*
  * "sw" is a fake device implemented

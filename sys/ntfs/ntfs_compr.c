@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_compr.c,v 1.3 1999/04/20 21:06:43 semenu Exp $
+ *	$Id: ntfs_compr.c,v 1.4 1999/05/12 09:42:54 semenu Exp $
  */
 
 #include <sys/param.h>
@@ -41,8 +41,6 @@
 #ifdef __FreeBSD__
 #include <machine/clock.h>
 #endif
-
-#include <miscfs/specfs/specdev.h>
 
 #include <ntfs/ntfs.h>
 #include <ntfs/ntfs_compr.h>

@@ -55,8 +55,6 @@
 #include <sys/malloc.h>
 #include <sys/stat.h>
 
-#include <miscfs/specfs/specdev.h>
-
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/inode.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.44 1999/05/02 23:56:57 alc Exp $
+ * $Id: mfs_vnops.c,v 1.45 1999/06/26 02:46:41 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -43,8 +43,7 @@
 #include <sys/malloc.h>
 #include <sys/sysproto.h>
 #include <sys/mman.h>
-
-#include <miscfs/specfs/specdev.h>
+#include <sys/conf.h>
 
 #include <ufs/mfs/mfsnode.h>
 #include <ufs/mfs/mfs_extern.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.53 1999/07/20 21:51:12 green Exp $
+ * $Id: kern_conf.c,v 1.54 1999/08/08 00:34:00 grog Exp $
  */
 
 #include <sys/param.h>
@@ -41,8 +41,7 @@
 #include <sys/conf.h>
 #include <sys/vnode.h>
 #include <sys/queue.h>
-
-#include <miscfs/specfs/specdev.h>
+#include <machine/stdarg.h>
 
 #define cdevsw_ALLOCSTART	(NUMCDEVSW/2)
 
@@ -230,6 +229,10 @@ makedev(int x, int y)
 	si->si_bsize_phys = DEV_BSIZE;
 	si->si_bsize_best = BLKDEV_IOSIZE;
 	si->si_bsize_max = MAXBSIZE;
+	if (y > 256)
+		sprintf(si->si_name, "#%d/0x%x", x, y);
+	else
+		sprintf(si->si_name, "#%d/%d", x, y);
 	SLIST_INSERT_HEAD(&dev_hash[hash], si, si_hash);
         return (si);
 }
@@ -281,5 +284,21 @@ udev_t
 makeudev(int x, int y)
 {
         return ((x << 8) | y);
+}
+
+dev_t
+make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)
+{
+	dev_t	dev;
+	va_list ap;
+	int i;
+
+	dev = makedev(devsw->d_maj, minor);
+	va_start(ap, fmt);
+	i = kvprintf(fmt, NULL, dev->si_name, 32, ap);
+	dev->si_name[i] = '\0';
+	va_end(ap);
+	dev->si_devsw = devsw;
+	return (dev);
 }
 

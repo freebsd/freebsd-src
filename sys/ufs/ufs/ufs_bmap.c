@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id: ufs_bmap.c,v 1.27 1999/05/07 10:11:36 phk Exp $
+ * $Id: ufs_bmap.c,v 1.28 1999/05/08 06:40:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,6 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
-#include <miscfs/specfs/specdev.h>
 
 /*
  * Bmap converts a the logical block number of a file to its physical block

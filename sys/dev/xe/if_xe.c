@@ -114,7 +114,6 @@
 
 #include <sys/param.h>
 #include <sys/cdefs.h>
-#include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -124,6 +123,7 @@
 #include <sys/sockio.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
+#include <sys/conf.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
