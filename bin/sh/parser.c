@@ -478,15 +478,14 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		break;
 	/* Handle an empty command like other simple commands.  */
 	case TSEMI:
+	case TAND:
+	case TOR:
 		/*
 		 * An empty command before a ; doesn't make much sense, and
 		 * should certainly be disallowed in the case of `if ;'.
 		 */
 		if (!redir)
 			synexpect(-1);
-	case TAND:
-	case TOR:
-		synexpect(-1);
 	case TNL:
 	case TEOF:
 	case TWORD:
