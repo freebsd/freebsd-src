@@ -69,11 +69,15 @@ fi
 #	mount_null /var/tmp /tmp
 #fi
 #
-# extract a list of device entries, then copy them to a writable partition
-(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
-echo "+++ mount_mfs of /dev"
-mount_md 4096 /dev 3
-(cd /; cpio -i -H newc -d < /tmp/dev.tmp)
+if [ ! -h /tmp ]; then
+	mount_md ${tmpsize:=64m} /tmp 2
+	chmod 01777 /tmp
+fi
+
+if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
+	mount_mfs -s 4096 -i 512 -T qp120at dummy /dev
+	true
+else
 	# extract a list of device entries, then copy them to a writable fs
 	(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
 	mount_md 4096 /dev 3 512
