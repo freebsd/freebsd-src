@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.53 1995/06/28 04:42:25 davidg Exp $
+ *	$Id: locore.s,v 1.54 1995/08/29 23:45:20 bde Exp $
  */
 
 /*
@@ -539,9 +539,9 @@ over_symalloc:
 	fillkpt
 #endif /* KGDB || BDE_DEBUGGER */
 
-/* now initialize the page dir, upages, p0stack PT, and page tables */
+/* now initialize the page dir, upages, and p0stack PT */
 
-	movl	$(1+UPAGES+1+NKPT),%ecx	/* number of PTEs */
+	movl	$(1+UPAGES+1),%ecx		/* number of PTEs */
 	movl	%esi,%eax			/* phys address of PTD */
 	andl	$PG_FRAME,%eax			/* convert to PFN, should be a NOP */
 	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write */
@@ -659,8 +659,8 @@ begin: /* now running relocated at KERNBASE where the system is linked to run */
 	addl	$KERNBASE,%edx			/* add virtual base */
 	movl	%edx,_atdevbase
 
-	/* set up bootstrap stack - 48 bytes */
-	movl	$_kstack+UPAGES*NBPG-4*12,%esp	/* bootstrap stack end location */
+	/* set up bootstrap stack */
+	movl	$_kstack+UPAGES*NBPG,%esp	/* bootstrap stack end location */
 	xorl	%eax,%eax			/* mark end of frames */
 	movl	%eax,%ebp
 	movl	_proc0paddr,%eax
@@ -683,7 +683,8 @@ reloc_gdt:
 #endif /* BDE_DEBUGGER */
 
 	/*
-	 * Skip over the page tables and the kernel stack
+	 * Prepare "first" - physical address of first available page
+	 * after the kernel+pdir+upages+p0stack+page tables
 	 */
 	lea	((1+UPAGES+1+NKPT)*NBPG)(%esi),%esi
 
