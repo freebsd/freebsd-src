@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.79 1994/09/13 03:34:08 phk Exp $
+#	$Id: LINT,v 1.80 1994/09/16 10:23:30 jkh Exp $
 #
 
 machine		"i386"
@@ -76,6 +76,7 @@ options		KERNFS			#Kernel filesystem
 options		LFS			#Log filesystem
 options		MFS			#Memory File System
 options		NFS			#Network File System
+options		MSDOSFS			#MS DOS File System
 options		NULLFS			#NULL filesystem
 options		PORTAL			#Portal filesystem
 options		PROCFS			#Process filesystem
