@@ -578,6 +578,7 @@ sendit(td, s, mp, flags)
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
 	struct uio ktruio;
+	int iovlen;
 #endif
 
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
@@ -634,9 +635,8 @@ sendit(td, s, mp, flags)
 		control = 0;
 	}
 #ifdef KTRACE
-	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
-		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
-
+	if (KTRPOINT(td, KTR_GENIO)) {
+		iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
 		ktruio = auio;
@@ -662,7 +662,7 @@ sendit(td, s, mp, flags)
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
 			ktruio.uio_resid = td->td_retval[0];
-			ktrgenio(td->td_proc->p_tracep, s, UIO_WRITE, &ktruio, error);
+			ktrgenio(s, UIO_WRITE, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
@@ -854,6 +854,7 @@ recvit(td, s, mp, namelenp)
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
 	struct uio ktruio;
+	int iovlen;
 #endif
 
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
@@ -873,9 +874,8 @@ recvit(td, s, mp, namelenp)
 		}
 	}
 #ifdef KTRACE
-	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
-		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
-
+	if (KTRPOINT(td, KTR_GENIO)) {
+		iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
 		ktruio = auio;
@@ -895,7 +895,7 @@ recvit(td, s, mp, namelenp)
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
 			ktruio.uio_resid = len - auio.uio_resid;
-			ktrgenio(td->td_proc->p_tracep, s, UIO_READ, &ktruio, error);
+			ktrgenio(s, UIO_READ, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
 	}

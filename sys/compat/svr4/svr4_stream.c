@@ -227,7 +227,7 @@ svr4_sendit(td, s, mp, flags)
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
 			ktruio.uio_resid = td->td_retval[0];
-			ktrgenio(td->td_proc->p_tracep, s, UIO_WRITE, &ktruio, error);
+			ktrgenio(s, UIO_WRITE, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
@@ -299,7 +299,7 @@ svr4_recvit(td, s, mp, namelenp)
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
 			ktruio.uio_resid = len - auio.uio_resid;
-			ktrgenio(td->td_proc->p_tracep, s, UIO_READ, &ktruio, error);
+			ktrgenio(s, UIO_READ, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
