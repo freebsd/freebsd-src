@@ -1,5 +1,5 @@
 /*
- * $Id: scsi_sa.c,v 1.16.2.3 1999/05/09 01:27:46 ken Exp $
+ * $Id: scsi_sa.c,v 1.16.2.4 1999/05/11 05:40:43 mjacob Exp $
  *
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *
@@ -1267,15 +1267,8 @@ saasync(void *callback_arg, u_int32_t code,
 				"due to status 0x%x\n", status);
 		break;
 	}
-	case AC_LOST_DEVICE:
-		cam_periph_invalidate(periph);
-		break;
-	case AC_TRANSFER_NEG:
-	case AC_SENT_BDR:
-	case AC_SCSI_AEN:
-	case AC_UNSOL_RESEL:
-	case AC_BUS_RESET:
 	default:
+		cam_periph_async(periph, code, path, arg);
 		break;
 	}
 }

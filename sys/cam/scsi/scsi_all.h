@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.6 1998/12/05 22:10:14 mjacob Exp $
+ *	$Id: scsi_all.h,v 1.6.2.1 1999/05/09 01:27:31 ken Exp $
  */
 
 /*
@@ -25,6 +25,33 @@
 #define _SCSI_SCSI_ALL_H 1
 
 #include <sys/cdefs.h>
+
+#ifdef KERNEL
+#include "opt_scsi.h"
+/*
+ * This is the number of seconds we wait for devices to settle after a SCSI
+ * bus reset.
+ */
+#ifndef SCSI_DELAY
+#define SCSI_DELAY 2000
+#endif
+/*
+ * If someone sets this to 0, we assume that they want the minimum
+ * allowable bus settle delay.  All devices need _some_ sort of bus settle
+ * delay, so we'll set it to a minimum value of 100ms.
+ */
+#if (SCSI_DELAY == 0)
+#undef SCSI_DELAY
+#define SCSI_DELAY 100
+#endif
+
+/*
+ * Make sure the user isn't using seconds instead of milliseconds.
+ */
+#if (SCSI_DELAY < 100)
+#error "SCSI_DELAY is in milliseconds, not seconds!  Please use a larger value"
+#endif
+#endif /* KERNEL */
 
 /*
  * SCSI command format
