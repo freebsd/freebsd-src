@@ -138,19 +138,6 @@ g_sunlabel_hotwrite(void *arg, int flag)
 	g_slice_finish_hot(bp);
 }
 
-static int
-g_sunlabel_start(struct bio *bp)
-{
-	struct g_geom *gp;
-	struct g_sunlabel_softc *ms;
-	struct g_slicer *gsp;
-
-	gp = bp->bio_to->geom;
-	gsp = gp->softc;
-	ms = gsp->softc;
-	return (0);
-}
-
 static void
 g_sunlabel_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
 {
@@ -182,7 +169,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (flags == G_TF_NORMAL &&
 	    !strcmp(pp->geom->class->name, SUNLABEL_CLASS_NAME))
 		return (NULL);
-	gp = g_slice_new(mp, 8, pp, &cp, &ms, sizeof *ms, g_sunlabel_start);
+	gp = g_slice_new(mp, 8, pp, &cp, &ms, sizeof *ms, NULL);
 	if (gp == NULL)
 		return (NULL);
 	gsp = gp->softc;
