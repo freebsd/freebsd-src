@@ -34,11 +34,11 @@ extern const union __nan_un {
 	float		__uf;
 } __nan;
 
-#if (defined(__GNUC__) && ((__GNUC__ >= 3 && __GNUC_MINOR__ >= 3) || __GNUC__ >= 4)) || defined(__INTEL_COMPILER)
+#if __GNUC_PREREQ__(3, 3) || (defined(__INTEL_COMPILER) && __INTEL_COMPILER >= 800)
 #define	__MATH_BUILTIN_CONSTANTS
 #endif
 
-#if (defined(__GNUC__) && __GNUC__ >= 3 && !defined(__INTEL_COMPILER))
+#if __GNUC_PREREQ__(3, 0) && !defined(__INTEL_COMPILER)
 #define	__MATH_BUILTIN_RELOPS
 #endif
 
@@ -265,8 +265,12 @@ int	ilogb(double);
 int	(isinf)(double) __pure2;
 int	(isnan)(double) __pure2;
 double	lgamma(double);
+long long llrint(double);
+long long llround(double);
 double	log1p(double) __pure2;
 double	logb(double) __pure2;
+long	lrint(double);
+long	lround(double);
 double	nextafter(double, double);
 double	remainder(double, double);
 double	rint(double) __pure2;
@@ -368,6 +372,10 @@ float	atanhf(float);
 float	cbrtf(float) __pure2;
 float	logbf(float) __pure2;
 float	copysignf(float, float) __pure2;
+long long llrintf(float);
+long long llroundf(float);
+long	lrintf(float);
+long	lroundf(float);
 float	nearbyintf(float) __pure2;
 float	nextafterf(float, float);
 float	remainderf(float, float);
