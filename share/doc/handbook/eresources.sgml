@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.18 1996/01/16 14:53:09 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.19 1996/01/31 14:26:04 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -64,6 +64,7 @@ messages sent to a list within the scope of the guidelines.
 List                     Purpose
 ----------------------------------------------------------------------
 freebsd-doc              The FreeBSD Documentation project
+freebsd-emulation        Emulation of other systems such as Linux/DOS/Windows
 freebsd-fs               Filesystems
 freebsd-hackers          General technical discussion
 freebsd-hardware         General discussion of hardware for running FreeBSD
