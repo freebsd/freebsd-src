@@ -449,15 +449,12 @@ procfs_getattr(ap)
 	case Pregs:
 	case Pfpregs:
 	case Pdbregs:
+	case Pmem:
+		PROC_LOCK(procp);
 		if (procp->p_flag & P_SUGID)
 			vap->va_mode &= ~((VREAD|VWRITE)|
 					  ((VREAD|VWRITE)>>3)|
 					  ((VREAD|VWRITE)>>6));
-		break;
-	case Pmem:
-		PROC_LOCK(procp);
-		if (procp->p_flag & P_SUGID)
-			vap->va_mode &= ~(VREAD|VWRITE);
 		PROC_UNLOCK(procp);
 		break;
 	default:
