@@ -31,12 +31,13 @@
  *
  * $FreeBSD$
  */
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_once=_pthread_once
+
 int
-pthread_once(pthread_once_t * once_control, void (*init_routine) (void))
+_pthread_once(pthread_once_t * once_control, void (*init_routine) (void))
 {
 	if (once_control->state == PTHREAD_NEEDS_INIT) {
 		if (_thread_initial == NULL)
@@ -50,4 +51,3 @@ pthread_once(pthread_once_t * once_control, void (*init_routine) (void))
 	}
 	return (0);
 }
-#endif

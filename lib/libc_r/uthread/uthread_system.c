@@ -30,12 +30,13 @@
  */
 
 #include <stdlib.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	system=_system
+
 int
-system(const char *string)
+_system(const char *string)
 {
 	int	ret;
 
@@ -45,4 +46,3 @@ system(const char *string)
 	
 	return ret;
 }
-#endif

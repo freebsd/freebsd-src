@@ -37,9 +37,10 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	fstatfs=_fstatfs
 
 int
 _fstatfs(int fd, struct statfs * buf)
@@ -49,12 +50,9 @@ _fstatfs(int fd, struct statfs * buf)
 	/* Lock the file descriptor for read: */
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 		/* Get the file system status: */
-		ret = _thread_sys_fstatfs(fd, buf);
+		ret = __sys_fstatfs(fd, buf);
 		/* Unlock the file descriptor: */
 		_FD_UNLOCK(fd, FD_READ);
 	}
 	return (ret);
 }
-
-__strong_reference(_fstatfs, fstatfs);
-#endif

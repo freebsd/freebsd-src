@@ -33,11 +33,13 @@
  */
 #include <stdlib.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
-int pthread_attr_destroy(pthread_attr_t *attr)
+#pragma weak	pthread_attr_destroy=_pthread_attr_destroy
+
+int
+_pthread_attr_destroy(pthread_attr_t *attr)
 {
 	int	ret;
 
@@ -58,4 +60,3 @@ int pthread_attr_destroy(pthread_attr_t *attr)
 	}
 	return(ret);
 }
-#endif

@@ -34,12 +34,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_mutexattr_getprotocol=_pthread_mutexattr_getprotocol
+#pragma weak	pthread_mutexattr_setprotocol=_pthread_mutexattr_setprotocol
+
 int
-pthread_mutexattr_getprotocol(pthread_mutexattr_t *mattr, int *protocol)
+_pthread_mutexattr_getprotocol(pthread_mutexattr_t *mattr, int *protocol)
 {
 	int ret = 0;
 
@@ -52,7 +54,7 @@ pthread_mutexattr_getprotocol(pthread_mutexattr_t *mattr, int *protocol)
 }
 
 int
-pthread_mutexattr_setprotocol(pthread_mutexattr_t *mattr, int protocol)
+_pthread_mutexattr_setprotocol(pthread_mutexattr_t *mattr, int protocol)
 {
 	int ret = 0;
 
@@ -66,4 +68,3 @@ pthread_mutexattr_setprotocol(pthread_mutexattr_t *mattr, int protocol)
 	return(ret);
 }
 
-#endif

@@ -30,12 +30,13 @@
  */
 
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	creat=___creat
+
 int
-creat(const char *path, mode_t mode)
+___creat(const char *path, mode_t mode)
 {
 	int	ret;
 
@@ -45,4 +46,3 @@ creat(const char *path, mode_t mode)
 	
 	return ret;
 }
-#endif

@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_attr_getinheritsched=_pthread_attr_getinheritsched
+
 int
-pthread_attr_getinheritsched(const pthread_attr_t *attr, int *sched_inherit)
+_pthread_attr_getinheritsched(const pthread_attr_t *attr, int *sched_inherit)
 {
 	int ret = 0;
 
@@ -48,4 +49,3 @@ pthread_attr_getinheritsched(const pthread_attr_t *attr, int *sched_inherit)
 
 	return(ret);
 }
-#endif

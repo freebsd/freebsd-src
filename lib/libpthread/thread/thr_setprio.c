@@ -31,12 +31,13 @@
  *
  * $FreeBSD$
  */
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_setprio=_pthread_setprio
+
 int
-pthread_setprio(pthread_t pthread, int prio)
+_pthread_setprio(pthread_t pthread, int prio)
 {
 	int ret, policy;
 	struct sched_param param;
@@ -49,4 +50,3 @@ pthread_setprio(pthread_t pthread, int prio)
 	/* Return the error status: */
 	return (ret);
 }
-#endif

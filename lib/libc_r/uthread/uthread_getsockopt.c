@@ -33,9 +33,10 @@
  */
 #include <sys/types.h>
 #include <sys/socket.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	getsockopt=_getsockopt
 
 int
 _getsockopt(int fd, int level, int optname, void *optval, socklen_t
@@ -44,11 +45,8 @@ _getsockopt(int fd, int level, int optname, void *optval, socklen_t
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-		ret = _thread_sys_getsockopt(fd, level, optname, optval, optlen);
+		ret = __sys_getsockopt(fd, level, optname, optval, optlen);
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return ret;
 }
-
-__strong_reference(_getsockopt, getsockopt);
-#endif

@@ -32,14 +32,16 @@
  * $FreeBSD$
  */
 #include <string.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
-int pthread_single_np()
+#pragma weak	pthread_single_np=_pthread_single_np
+
+int _pthread_single_np()
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/* Enter single-threaded (non-POSIX) scheduling mode: */
-	_thread_single = _thread_run;
+	_thread_single = curthread;
 	return(0);
 }
-#endif

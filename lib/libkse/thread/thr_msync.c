@@ -8,22 +8,23 @@
 
 #include <sys/types.h>
 #include <sys/mman.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	msync=__msync
 
 int
 _msync(void *addr, size_t len, int flags)
 {
 	int ret;
 
-	ret = _thread_sys_msync(addr, len, flags);
+	ret = __sys_msync(addr, len, flags);
 
 	return (ret);
 }
 
 int
-msync(void *addr, size_t len, int flags)
+__msync(void *addr, size_t len, int flags)
 {
 	int	ret;
 
@@ -39,4 +40,3 @@ msync(void *addr, size_t len, int flags)
 
 	return ret;
 }
-#endif

@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_attr_getschedparam=_pthread_attr_getschedparam
+
 int
-pthread_attr_getschedparam(const pthread_attr_t *attr, struct sched_param *param)
+_pthread_attr_getschedparam(const pthread_attr_t *attr, struct sched_param *param)
 {
 	int ret = 0;
 
@@ -48,4 +49,3 @@ pthread_attr_getschedparam(const pthread_attr_t *attr, struct sched_param *param
 
 	return(ret);
 }
-#endif

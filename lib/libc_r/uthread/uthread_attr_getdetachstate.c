@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_attr_getdetachstate=_pthread_attr_getdetachstate
+
 int
-pthread_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate)
+_pthread_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate)
 {
 	int	ret;
 
@@ -56,4 +57,3 @@ pthread_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate)
 	}
 	return(ret);
 }
-#endif

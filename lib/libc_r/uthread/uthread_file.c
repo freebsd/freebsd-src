@@ -40,7 +40,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/queue.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -137,6 +136,7 @@ static
 struct file_lock *
 do_lock(int idx, FILE *fp)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct file_lock *p;
 
 	/* Check if the static structure is not being used: */
@@ -171,7 +171,7 @@ do_lock(int idx, FILE *fp)
 	if (p != NULL) {
 		/* Acquire the lock for the running thread: */
 		p->fp		= fp;
-		p->owner	= _thread_run;
+		p->owner	= curthread;
 		p->count	= 1;
 		TAILQ_INIT(&p->l_head);
 	}
@@ -181,6 +181,7 @@ do_lock(int idx, FILE *fp)
 void
 _flockfile_debug(FILE * fp, char *fname, int lineno)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	idx = file_idx(fp);
 	struct	file_lock	*p;
 
@@ -213,7 +214,7 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 		 * The file is already locked, so check if the
 		 * running thread is the owner:
 		 */
-		} else if (p->owner == _thread_run) {
+		} else if (p->owner == curthread) {
 			/*
 			 * The running thread is already the
 			 * owner, so increment the count of
@@ -226,7 +227,7 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			_SPINUNLOCK(&hash_lock);
 		} else {
 			/* Clear the interrupted flag: */
-			_thread_run->interrupted = 0;
+			curthread->interrupted = 0;
 
 			/*
 			 * Prevent being context switched out while
@@ -239,27 +240,27 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			 * Append this thread to the queue of
 			 * threads waiting on the lock.
 			 */
-			TAILQ_INSERT_TAIL(&p->l_head,_thread_run,qe);
-			_thread_run->flags |= PTHREAD_FLAGS_IN_FILEQ;
+			TAILQ_INSERT_TAIL(&p->l_head,curthread,qe);
+			curthread->flags |= PTHREAD_FLAGS_IN_FILEQ;
 
 			/* Unlock the hash table: */
 			_SPINUNLOCK(&hash_lock);
 
-			_thread_run->data.fp = fp;
+			curthread->data.fp = fp;
 
 			/* Wait on the FILE lock: */
 			_thread_kern_sched_state(PS_FILE_WAIT, fname, lineno);
 
-			if ((_thread_run->flags & PTHREAD_FLAGS_IN_FILEQ) != 0) {
-				TAILQ_REMOVE(&p->l_head,_thread_run,qe);
-				_thread_run->flags &= ~PTHREAD_FLAGS_IN_FILEQ;
+			if ((curthread->flags & PTHREAD_FLAGS_IN_FILEQ) != 0) {
+				TAILQ_REMOVE(&p->l_head,curthread,qe);
+				curthread->flags &= ~PTHREAD_FLAGS_IN_FILEQ;
 			}
 
 			_thread_kern_sig_undefer();
 
-			if (_thread_run->interrupted != 0 &&
-			    _thread_run->continuation != NULL)
-				_thread_run->continuation((void *)_thread_run);
+			if (curthread->interrupted != 0 &&
+			    curthread->continuation != NULL)
+				curthread->continuation((void *)curthread);
 		}
 	}
 }
@@ -273,6 +274,7 @@ _flockfile(FILE * fp)
 int
 _ftrylockfile(FILE * fp)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	ret = -1;
 	int	idx = file_idx(fp);
 	struct	file_lock	*p;
@@ -294,7 +296,7 @@ _ftrylockfile(FILE * fp)
 		 * The file is already locked, so check if the
 		 * running thread is the owner:
 		 */
-		} else if (p->owner == _thread_run) {
+		} else if (p->owner == curthread) {
 			/*
 			 * The running thread is already the
 			 * owner, so increment the count of
@@ -325,6 +327,7 @@ _ftrylockfile(FILE * fp)
 void 
 _funlockfile(FILE * fp)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	idx = file_idx(fp);
 	struct	file_lock	*p;
 
@@ -344,7 +347,7 @@ _funlockfile(FILE * fp)
 		 * the running thread is the one with the lock:
 		 */
 		if ((p = find_lock(idx, fp)) != NULL &&
-		    p->owner == _thread_run) {
+		    p->owner == curthread) {
 			/*
 			 * Check if this thread has locked the FILE
 			 * more than once:
@@ -503,4 +506,3 @@ _flockfile_backout(pthread_t pthread)
 	_thread_kern_sig_undefer();
 }
 
-#endif

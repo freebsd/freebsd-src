@@ -35,27 +35,29 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	recvmsg=_recvmsg
 
 ssize_t
 _recvmsg(int fd, struct msghdr *msg, int flags)
 {
+	struct pthread	*curthread = _get_curthread();
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
-		while ((ret = _thread_sys_recvmsg(fd, msg, flags)) < 0) {
+		while ((ret = __sys_recvmsg(fd, msg, flags)) < 0) {
 			if (!(_thread_fd_table[fd]->flags & O_NONBLOCK) && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
-				_thread_run->data.fd.fd = fd;
+				curthread->data.fd.fd = fd;
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);
-				_thread_run->interrupted = 0;
+				curthread->interrupted = 0;
 				_thread_kern_sched_state(PS_FDR_WAIT, __FILE__, __LINE__);
 
 				/* Check if the wait was interrupted: */
-				if (_thread_run->interrupted) {
+				if (curthread->interrupted) {
 					/* Return an error status: */
 					errno = EINTR;
 					ret = -1;
@@ -70,6 +72,3 @@ _recvmsg(int fd, struct msghdr *msg, int flags)
 	}
 	return (ret);
 }
-
-__strong_reference(_recvmsg, recvmsg);
-#endif

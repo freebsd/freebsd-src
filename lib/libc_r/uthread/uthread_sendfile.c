@@ -34,14 +34,16 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	sendfile=_sendfile
+
 int
-sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
+_sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
     off_t *sbytes, int flags)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	ret, type, blocking;
 	ssize_t wvret, num = 0;
 	off_t	n, nwritten = 0;
@@ -92,7 +94,7 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 	 */
 	for (;;) {
 		/* Perform a non-blocking sendfile syscall. */
-		ret = _thread_sys_sendfile(fd, s, offset + num, nbytes - num,
+		ret = __sys_sendfile(fd, s, offset + num, nbytes - num,
 		    NULL, &n, flags);
 
 		if (ret == 0) {
@@ -108,16 +110,16 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 			/* Update the count of bytes written. */
 			num += n;
 
-			_thread_run->data.fd.fd = fd;
+			curthread->data.fd.fd = fd;
 			_thread_kern_set_timeout(NULL);
 
 			/* Reset the interrupted operation flag. */
-			_thread_run->interrupted = 0;
+			curthread->interrupted = 0;
 
 			_thread_kern_sched_state(PS_FDW_WAIT, __FILE__,
 			    __LINE__);
 
-			if (_thread_run->interrupted) {
+			if (curthread->interrupted) {
 				/* Interrupted by a signal.  Return an error. */
 				break;
 			}
@@ -151,4 +153,3 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 	}
 	return ret;
 }
-#endif

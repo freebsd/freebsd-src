@@ -33,9 +33,10 @@
  */
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	fchmod=_fchmod
 
 int
 _fchmod(int fd, mode_t mode)
@@ -43,11 +44,8 @@ _fchmod(int fd, mode_t mode)
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
-		ret = _thread_sys_fchmod(fd, mode);
+		ret = __sys_fchmod(fd, mode);
 		_FD_UNLOCK(fd, FD_WRITE);
 	}
 	return (ret);
 }
-
-__strong_reference(_fchmod, fchmod);
-#endif

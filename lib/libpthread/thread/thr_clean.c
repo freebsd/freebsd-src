@@ -34,31 +34,35 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdlib.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_cleanup_push=_pthread_cleanup_push
+#pragma weak	pthread_cleanup_pop=_pthread_cleanup_pop
+
 void
-pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
+_pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct pthread_cleanup *new;
 
 	if ((new = (struct pthread_cleanup *) malloc(sizeof(struct pthread_cleanup))) != NULL) {
 		new->routine = routine;
 		new->routine_arg = routine_arg;
-		new->next = _thread_run->cleanup;
+		new->next = curthread->cleanup;
 
-		_thread_run->cleanup = new;
+		curthread->cleanup = new;
 	}
 }
 
 void
-pthread_cleanup_pop(int execute)
+_pthread_cleanup_pop(int execute)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct pthread_cleanup *old;
 
-	if ((old = _thread_run->cleanup) != NULL) {
-		_thread_run->cleanup = old->next;
+	if ((old = curthread->cleanup) != NULL) {
+		curthread->cleanup = old->next;
 		if (execute) {
 			old->routine(old->routine_arg);
 		}
@@ -66,4 +70,3 @@ pthread_cleanup_pop(int execute)
 	}
 }
 
-#endif

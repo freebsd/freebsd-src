@@ -33,9 +33,10 @@
  */
 #include <sys/types.h>
 #include <sys/socket.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	getpeername=_getpeername
 
 int
 _getpeername(int fd, struct sockaddr * peer, socklen_t *paddrlen)
@@ -43,11 +44,9 @@ _getpeername(int fd, struct sockaddr * peer, socklen_t *paddrlen)
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
-		ret = _thread_sys_getpeername(fd, peer, paddrlen);
+		ret = __sys_getpeername(fd, peer, paddrlen);
 		_FD_UNLOCK(fd, FD_READ);
 	}
 	return ret;
 }
 
-__strong_reference(_getpeername, getpeername);
-#endif

@@ -33,9 +33,10 @@
  */
 #include <sys/types.h>
 #include <sys/socket.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	getsockname=_getsockname
 
 int
 _getsockname(int s, struct sockaddr * name, socklen_t *namelen)
@@ -43,11 +44,8 @@ _getsockname(int s, struct sockaddr * name, socklen_t *namelen)
 	int             ret;
 
 	if ((ret = _FD_LOCK(s, FD_READ, NULL)) == 0) {
-		ret = _thread_sys_getsockname(s, name, namelen);
+		ret = __sys_getsockname(s, name, namelen);
 		_FD_UNLOCK(s, FD_READ);
 	}
 	return ret;
 }
-
-__strong_reference(_getsockname, getsockname);
-#endif

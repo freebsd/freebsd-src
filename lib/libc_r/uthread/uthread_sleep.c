@@ -30,12 +30,13 @@
  */
 
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	sleep=_sleep
+
 unsigned int
-sleep(unsigned int seconds)
+_sleep(unsigned int seconds)
 {
 	unsigned int	ret;
 
@@ -45,4 +46,3 @@ sleep(unsigned int seconds)
 	
 	return ret;
 }
-#endif
