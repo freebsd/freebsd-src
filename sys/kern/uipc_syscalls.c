@@ -619,47 +619,18 @@ sendit(td, s, mp, flags)
 	register struct msghdr *mp;
 	int flags;
 {
-	struct uio auio;
-	register struct iovec *iov;
-	register int i;
 	struct mbuf *control;
-	struct sockaddr *to = NULL;
-	int len, error;
-	struct socket *so;
-#ifdef KTRACE
-	struct iovec *ktriov = NULL;
-	struct uio ktruio;
-	int iovlen;
-#endif
+	struct sockaddr *to;
+	int error;
 
-	if ((error = fgetsock(td, s, &so, NULL)) != 0)
-		return (error);
-
-#ifdef MAC
-	error = mac_check_socket_send(td->td_ucred, so);
-	if (error)
-		goto bad;
-#endif
-
-	auio.uio_iov = mp->msg_iov;
-	auio.uio_iovcnt = mp->msg_iovlen;
-	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_rw = UIO_WRITE;
-	auio.uio_td = td;
-	auio.uio_offset = 0;			/* XXX */
-	auio.uio_resid = 0;
-	iov = mp->msg_iov;
-	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
-		if ((auio.uio_resid += iov->iov_len) < 0) {
-			error = EINVAL;
-			goto bad;
-		}
-	}
-	if (mp->msg_name) {
+	if (mp->msg_name != NULL) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
 		if (error)
-			goto bad;
-	}
+			return error;
+		mp->msg_name = to;
+	} else
+		to = NULL;
+
 	if (mp->msg_control) {
 		if (mp->msg_controllen < sizeof(struct cmsghdr)
 #ifdef COMPAT_OLDSOCK
@@ -690,7 +661,59 @@ sendit(td, s, mp, flags)
 		}
 #endif
 	} else {
-		control = 0;
+		control = NULL;
+	}
+
+	error = kern_sendit(td, s, mp, flags, control);
+
+bad:
+	if (to)
+		FREE(to, M_SONAME);
+	return (error);
+}
+
+int
+kern_sendit(td, s, mp, flags, control)
+	struct thread *td;
+	int s;
+	struct msghdr *mp;
+	int flags;
+	struct mbuf *control;
+{
+	struct uio auio;
+	struct iovec *iov;
+	struct socket *so;
+	int i;
+	int len, error;
+#ifdef KTRACE
+	struct iovec *ktriov = NULL;
+	struct uio ktruio;
+	int iovlen;
+#endif
+
+	mtx_lock(&Giant);
+	if ((error = fgetsock(td, s, &so, NULL)) != 0)
+		goto bad2;
+
+#ifdef MAC
+	error = mac_check_socket_send(td->td_ucred, so);
+	if (error)
+		goto bad;
+#endif
+
+	auio.uio_iov = mp->msg_iov;
+	auio.uio_iovcnt = mp->msg_iovlen;
+	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_rw = UIO_WRITE;
+	auio.uio_td = td;
+	auio.uio_offset = 0;			/* XXX */
+	auio.uio_resid = 0;
+	iov = mp->msg_iov;
+	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
+		if ((auio.uio_resid += iov->iov_len) < 0) {
+			error = EINVAL;
+			goto bad;
+		}
 	}
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_GENIO)) {
@@ -701,8 +724,8 @@ sendit(td, s, mp, flags)
 	}
 #endif
 	len = auio.uio_resid;
-	error = so->so_proto->pr_usrreqs->pru_sosend(so, to, &auio, 0, control,
-						     flags, td);
+	error = so->so_proto->pr_usrreqs->pru_sosend(so, mp->msg_name, &auio,
+	    0, control, flags, td);
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
@@ -728,8 +751,8 @@ sendit(td, s, mp, flags)
 #endif
 bad:
 	fputsock(so);
-	if (to)
-		FREE(to, M_SONAME);
+bad2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -762,9 +785,7 @@ sendto(td, uap)
 #endif
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->len;
-	mtx_lock(&Giant);
 	error = sendit(td, uap->s, &msg, uap->flags);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -794,9 +815,7 @@ osend(td, uap)
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = 0;
-	mtx_lock(&Giant);
 	error = sendit(td, uap->s, &msg, uap->flags);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -816,7 +835,6 @@ osendmsg(td, uap)
 	struct iovec aiov[UIO_SMALLIOV], *iov;
 	int error;
 
-	mtx_lock(&Giant);
 	error = copyin(uap->msg, &msg, sizeof (struct omsghdr));
 	if (error)
 		goto done2;
@@ -842,7 +860,6 @@ done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 #endif
@@ -863,7 +880,6 @@ sendmsg(td, uap)
 	struct iovec aiov[UIO_SMALLIOV], *iov;
 	int error;
 
-	mtx_lock(&Giant);
 	error = copyin(uap->msg, &msg, sizeof (msg));
 	if (error)
 		goto done2;
@@ -891,7 +907,6 @@ done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
