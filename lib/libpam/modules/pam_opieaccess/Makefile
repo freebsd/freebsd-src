@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		pam_opieaccess
-SHLIB_NAME=	${LIB}.so
+SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		${LIB}.c
 DPADD=		${LIBOPIE}
 LDADD=		-lopie

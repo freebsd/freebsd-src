@@ -25,7 +25,7 @@
 # $FreeBSD$
 
 LIB=		pam_lastlog
-SHLIB_NAME=	pam_lastlog.so
+SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_lastlog.c
 DPADD=		${LIBUTIL}
 LDADD=		-lutil

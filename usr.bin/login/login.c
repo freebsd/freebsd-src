@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include <security/pam_appl.h>
-#include <security/pam_misc.h>
+#include <security/openpam.h>
 
 #include "login.h"
 #include "pathnames.h"
@@ -154,7 +154,7 @@ static char		*tty;
  * PAM data
  */
 static pam_handle_t	*pamh = NULL;
-static struct pam_conv	 pamc = { misc_conv, NULL };
+static struct pam_conv	 pamc = { openpam_ttyconv, NULL };
 static int		 pam_err;
 static int		 pam_silent = PAM_SILENT;
 static int		 pam_cred_established;
@@ -513,7 +513,7 @@ main(int argc, char *argv[])
 	/*
 	 * We're done with PAM now; our parent will deal with the rest.
 	 */
-	pam_end(pamh, PAM_DATA_SILENT);
+	pam_end(pamh, 0);
 	pamh = NULL;
 
 	/*

@@ -25,7 +25,7 @@
 # $FreeBSD$
 
 LIB=		pam_ftp
-SHLIB_NAME=	pam_ftp.so
+SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_ftp.c
 MAN=		pam_ftp.8
 

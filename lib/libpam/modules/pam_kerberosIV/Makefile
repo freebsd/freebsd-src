@@ -25,7 +25,7 @@
 #	$FreeBSD$
 
 LIB=		pam_kerberosIV
-SHLIB_NAME=	pam_kerberosIV.so
+SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_kerberosIV.c klogin.c
 CFLAGS+=	-DKERBEROS
 DPADD=		${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
