@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd April 4, 2000
+.Dd February 23, 2003
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -88,7 +88,13 @@ follows:
 .Pp
 .Bl -tag -width indent
 .It Ar logfile_name
-Name of the system log file to be archived.
+Name of the system log file to be archived, or the literal string
+``<default>''.
+The special default entry will be only be used if some log file
+name is given as a command line argument on the
+.Nm
+command, and if that log file name is not matched by any other
+line in the configuration file.
 .It Ar owner : Ns Ar group
 This optional field specifies the owner and group for the archive file.
 The ":" is essential, even if the
