@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "bsdtar.h"
 
 static void	cleanup_security(struct bsdtar *);
+static int	edit_pathname(struct bsdtar *, struct archive_entry *);
 static void	list_item_verbose(struct bsdtar *, FILE *,
 		    struct archive_entry *);
 static void	read_archive(struct bsdtar *bsdtar, char mode);
@@ -115,7 +116,27 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			continue;
 		}
 
+		/*
+		 * Note that exclusions are checked before pathname
+		 * rewrites are handled.  This gives more control over
+		 * exclusions, since rewrites always lose information.
+		 * (For example, consider a rewrite s/foo[0-9]/foo/.
+		 * If we check exclusions after the rewrite, there
+		 * would be no way to exclude foo1/bar while allowing
+		 * foo2/bar.)
+		 */
 		if (excluded(bsdtar, archive_entry_pathname(entry)))
+			continue;
+
+		/*
+		 * Modify the pathname as requested by the user.  We
+		 * do this for -t as well to give users a way to
+		 * preview the effects of their rewrites.  We also do
+		 * this before extraction security checks (including
+		 * leading '/' removal).  Note that some rewrite
+		 * failures prevent extraction.
+		 */
+		if (edit_pathname(bsdtar, entry))
 			continue;
 
 		if (mode == 't') {
@@ -295,6 +316,43 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		safe_fprintf(out, " -> %s", archive_entry_symlink(entry));
 }
 
+/*
+ * Handle --strip-components and any future path-rewriting options.
+ * Returns non-zero if the pathname should not be extracted.
+ */
+static int
+edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
+{
+	/* Strip leading dir names as per --strip-components option. */
+	if (bsdtar->strip_components > 0) {
+		int r = bsdtar->strip_components;
+		const char *name = archive_entry_pathname(entry);
+		const char *p = name;
+		char *q;
+
+		while (r > 0) {
+			switch (*p++) {
+			case '/':
+				r--;
+				name = p;
+				break;
+			case '\0':
+				/* Path is too short, skip it. */
+				return (1);
+			}
+		}
+		/* Safely replace name in archive_entry. */
+		q = strdup(name);
+		archive_entry_copy_pathname(entry, q);
+		free(q);
+	}
+
+	return (0);
+}
+
+/*
+ * Structure for storing path of last successful security check.
+ */
 struct security {
 	char	*path;
 	size_t	 path_size;
