@@ -92,6 +92,7 @@ static const struct cputab models[] = {
         { "Motorola PowerPC 7410",	MPC7410,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7450",	MPC7450,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7455",	MPC7455,	REVFMT_MAJMIN },
+        { "Motorola PowerPC 7457",	MPC7457,	REVFMT_MAJMIN },
         { "Motorola PowerPC 8240",	MPC8240,	REVFMT_MAJMIN },
         { "Unknown PowerPC CPU",	0,		REVFMT_HEX }
 };
@@ -173,6 +174,7 @@ cpu_setup(u_int cpuid)
 #endif
 		break;
 
+	case MPC7457:
 	case MPC7455:
 	case MPC7450:
 		/* Disable BTIC on 7450 Rev 2.0 or earlier */
@@ -210,6 +212,7 @@ cpu_setup(u_int cpuid)
 	switch (vers) {
 	case MPC7450:
 	case MPC7455:
+	case MPC7457:
 		bitmask = HID0_7450_BITMASK;
 		break;
 	default:
@@ -224,6 +227,7 @@ cpu_setup(u_int cpuid)
 	case MPC7410:
 	case MPC7450:
 	case MPC7455:
+	case MPC7457:
 		cpu_print_speed();
 		printf("\n");
 		cpu_config_l2cr(cpuid, vers);
@@ -304,7 +308,9 @@ cpu_config_l2cr(u_int cpuid, uint16_t vers)
 	printf("cpu%d: ", cpuid);
 
 	if (l2cr & L2CR_L2E) {
-		if (vers == MPC7450 || vers == MPC7455) {
+		if (vers == MPC7450 || 
+		    vers == MPC7455 ||
+		    vers == MPC7457) {
 			u_int l3cr;
 
 			printf("256KB L2 cache");
