@@ -62,21 +62,21 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
-ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
-ASSYM(GD_FPCURTHREAD, offsetof(struct globaldata, gd_fpcurthread));
-ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
-ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
-ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
+ASSYM(GD_CURTHREAD,	offsetof(struct globaldata, gd_curthread));
+ASSYM(GD_FPCURTHREAD,	offsetof(struct globaldata, gd_fpcurthread));
+ASSYM(GD_CURPCB,	offsetof(struct globaldata, gd_curpcb));
+ASSYM(GD_SWITCHTIME,	offsetof(struct globaldata, gd_switchtime));
+ASSYM(GD_CPUID,		offsetof(struct globaldata, gd_cpuid));
 
-ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
-ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
-ASSYM(MTX_SAVECRIT, offsetof(struct mtx, mtx_savecrit));
-ASSYM(MTX_UNOWNED, MTX_UNOWNED);
+ASSYM(MTX_LOCK,		offsetof(struct mtx, mtx_lock));
+ASSYM(MTX_RECURSE,	offsetof(struct mtx, mtx_recurse));
+ASSYM(MTX_SAVECRIT,	offsetof(struct mtx, mtx_savecrit));
+ASSYM(MTX_UNOWNED,	MTX_UNOWNED);
 
-ASSYM(TD_PROC, offsetof(struct thread, td_proc));
-ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
-ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
-ASSYM(TD_MD_FLAGS, offsetof(struct thread, td_md.md_flags));
+ASSYM(TD_PROC,		offsetof(struct thread, td_proc));
+ASSYM(TD_PCB,		offsetof(struct thread, td_pcb));
+ASSYM(TD_KSTACK,	offsetof(struct thread, td_kstack));
+ASSYM(TD_MD_FLAGS,	offsetof(struct thread, td_md.md_flags));
 
 ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 
@@ -128,14 +128,14 @@ ASSYM(PCB_HIGHFP,	offsetof(struct pcb, pcb_highfp));
 ASSYM(UC_MCONTEXT_MC_AR_BSP,  offsetof(ucontext_t, uc_mcontext.mc_ar_bsp));
 ASSYM(UC_MCONTEXT_MC_AR_RNAT, offsetof(ucontext_t, uc_mcontext.mc_ar_rnat));
 
-ASSYM(EFAULT, EFAULT);
-ASSYM(ENAMETOOLONG, ENAMETOOLONG);
+ASSYM(EFAULT,		EFAULT);
+ASSYM(ENAMETOOLONG,	ENAMETOOLONG);
 
-ASSYM(PAGE_SIZE, PAGE_SIZE);
-ASSYM(KSTACK_PAGES, KSTACK_PAGES);
+ASSYM(PAGE_SIZE,	PAGE_SIZE);
+ASSYM(KSTACK_PAGES,	KSTACK_PAGES);
 
-ASSYM(SIZEOF_TRAPFRAME, sizeof(struct trapframe));
-ASSYM(SIZEOF_PCB, sizeof(struct pcb));
+ASSYM(SIZEOF_TRAPFRAME,	sizeof(struct trapframe));
+ASSYM(SIZEOF_PCB,	sizeof(struct pcb));
 
 ASSYM(DT_NULL,		DT_NULL);
 ASSYM(DT_RELA,		DT_RELA);
