@@ -321,26 +321,6 @@ vm_object_pip_wait(vm_object_t object, char *waitid)
 }
 
 /*
- *	vm_object_allocate_wait
- *
- *	Return a new object with the given size, and give the user the
- *	option of waiting for it to complete or failing if the needed
- *	memory isn't available.
- */
-vm_object_t
-vm_object_allocate_wait(objtype_t type, vm_pindex_t size, int flags)
-{
-	vm_object_t result;
-
-	result = (vm_object_t) uma_zalloc(obj_zone, flags);
-
-	if (result != NULL)
-		_vm_object_allocate(type, size, result);
-
-	return (result);
-}
-
-/*
  *	vm_object_allocate:
  *
  *	Returns a new object with the given size.
@@ -348,7 +328,11 @@ vm_object_allocate_wait(objtype_t type, vm_pindex_t size, int flags)
 vm_object_t
 vm_object_allocate(objtype_t type, vm_pindex_t size)
 {
-	return(vm_object_allocate_wait(type, size, M_WAITOK));
+	vm_object_t object;
+
+	object = (vm_object_t)uma_zalloc(obj_zone, M_WAITOK);
+	_vm_object_allocate(type, size, object);
+	return (object);
 }
 
 
