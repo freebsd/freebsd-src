@@ -104,6 +104,10 @@ CFLAGS+=	-I${LIBCDIR}/include -I${LIBCDIR}/${MACHINE_ARCH}
 # C99 long double functions
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c
 
+# C99 complex functions
+COMMON_SRCS+=	s_cimag.c s_cimagf.c s_cimagl.c s_conj.c s_conjf.c s_conjl.c \
+	s_creal.c s_crealf.c s_creall.c
+
 # FreeBSD's C library supplies these functions:
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
 
