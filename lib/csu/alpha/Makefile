@@ -2,8 +2,8 @@
 # $FreeBSD$
 #
 
-SRCS=		crt1.c
-OBJS=		crt1.o
+SRCS=		crt1.c crti.S crtn.S
+OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
 CFLAGS+=	-Wall -Wno-unused \
 		-I${.CURDIR}/../common
