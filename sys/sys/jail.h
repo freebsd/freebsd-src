@@ -43,5 +43,10 @@ struct prison {
 	void		*pr_linux;
 };
 
+/*
+ * Sysctl-set variables that determine global jail policy
+ */
+extern int	prison_set_hostname_allowed;
+
 #endif /* !_KERNEL */
 #endif /* !_SYS_JAIL_H_ */
