@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 110.clean-tmps,v 1.3 1997/09/11 15:21:30 ache Exp $
+# $Id: 110.clean-tmps,v 1.5 1999/06/10 00:34:15 brian Exp $
 #
 # Use at your own risk, but for a long-living system, this might come
 # more useful than the boot-time cleaning of /tmp.  If /var/tmp and
@@ -12,7 +12,8 @@ exit 0		# do not run by default
 
 if [ -d /tmp ]; then
     cd /tmp && {
-	find . -type f -atime +3 -ctime +3 ! -name '.X*-lock' -delete
+	find . -type f -atime +3 -ctime +3 ! -name '.X*-lock' \
+	    ! -name quota.user ! -name quota.group -delete
 	find -d . ! -name . -type d -mtime +1 -delete
     }
 fi
