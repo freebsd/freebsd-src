@@ -49,7 +49,7 @@ calloc(num, size)
 {
 	void *p;
 
-	if (size != 0 && SIZE_MAX / size < num) {
+	if (size != 0 && SIZE_T_MAX / size < num) {
 		errno = ENOMEM;
 		return (NULL);
 	}
