@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "opt_global.h"
 #include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
