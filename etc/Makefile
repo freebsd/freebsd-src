@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.199 1999/06/24 09:45:17 sheldonh Exp $
+#	$Id: Makefile,v 1.200 1999/07/09 05:30:33 obrien Exp $
 
 SUBDIR=	sendmail
 
@@ -7,6 +7,7 @@ BIN1=   aliases amd.map auth.conf crontab csh.cshrc csh.login csh.logout \
 	dhclient.conf dm.conf fbtab ftpusers gettytab group hosts hosts.allow \
 	host.conf hosts.equiv hosts.lpd inetd.conf login.access login.conf \
 	motd modems networks newsyslog.conf pam.conf pccard.conf.sample \
+	apmd.conf \
 	phones printcap profile protocols rc rc.atm rc.devfs rc.diskless1 \
 	rc.diskless2 rc.firewall rc.isdn rc.network rc.pccard  rc.serial \
 	rc.shutdown etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} remote security \
@@ -17,7 +18,7 @@ BIN1=   aliases amd.map auth.conf crontab csh.cshrc csh.login csh.logout \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
 
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
-BIN2=	netstart pccard_ether
+BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist
