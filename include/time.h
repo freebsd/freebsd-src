@@ -128,8 +128,8 @@ size_t strftime __P((char *, size_t, const char *, const struct tm *));
 time_t time __P((time_t *));
 
 #ifdef	_THREAD_SAFE
-int asctime_r __P((const struct tm *, char *, int));
-int ctime_r __P((const time_t *, char *, int));
+char *asctime_r __P((const struct tm *, char *));
+char *ctime_r __P((const time_t *, char *));
 struct tm *gmtime_r __P((const time_t *, struct tm *));
 struct tm *localtime_r __P((const time_t *, struct tm *));
 #endif

@@ -1345,6 +1345,15 @@ const time_t * const	timep;
 	return asctime(localtime(timep));
 }
 
+char *
+ctime_r(timep, buf)
+const time_t * const	timep;
+char *buf;
+{
+        struct tm tm;
+	return asctime_r(localtime_r(timep, &tm), buf);
+}
+
 /*
 ** Adapted from code provided by Robert Elz, who writes:
 **	The "best" way to do mktime I think is based on an idea of Bob
