@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.35 1998/12/31 16:51:01 wpaul Exp $
+ *	$Id: if_pn.c,v 1.36 1999/01/05 00:47:25 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.35 1998/12/31 16:51:01 wpaul Exp $";
+	"$Id: if_pn.c,v 1.36 1999/01/05 00:47:25 wpaul Exp $";
 #endif
 
 /*
@@ -913,7 +913,7 @@ pn_attach(config_id, unit)
 
 #ifdef PN_PROMISC_BUG_WAR
 	revision = pci_conf_read(config_id, PN_PCI_REVISION) & 0x000000FF;
-	if (revision == PN_169B_REV) {
+	if (revision == PN_169B_REV || revision == PN_169_REV) {
 		sc->pn_promisc_war = 1;
 		sc->pn_promisc_buf = malloc(PN_RXLEN * 5, M_DEVBUF, M_NOWAIT);
 		if (sc->pn_promisc_buf == NULL) {
