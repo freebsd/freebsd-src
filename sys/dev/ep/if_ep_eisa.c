@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.2 1996/02/28 17:18:55 gibbs Exp $
+ *	$Id: 3c5x9.c,v 1.3 1996/06/12 05:02:39 gpalmer Exp $
  */
 
 #include "eisa.h"
@@ -292,6 +292,12 @@ ep_eisa_attach(e_dev)
 	 GO_WINDOW(0);
 	for(i = 0; i < 3; i++)
 		sc->epb->eth_addr[i] = get_e(sc, i);
+
+        /* Even we get irq number from board, we should tell him..
+            Otherwise we never get a H/W interrupt anymore...*/
+        if ( irq == 9 )
+               irq = 2;
+        SET_IRQ(eisa_ioport->addr, irq);
 
 	ep_attach(sc);
 
