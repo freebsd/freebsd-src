@@ -222,8 +222,11 @@ as an implementation can refuse to accept such REs and remain
 POSIX-compliant.
 .PP
 Obsolete (``basic'') regular expressions differ in several respects.
-`|', `+', and `?' are ordinary characters and there is no equivalent
-for their functionality.
+`|' is an ordinary character and there is no equivalent
+for its functionality.
+`+' and `?' are ordinary characters, and their functionality
+can be expressed using bounds (\&{1,\&} or \&{0,1\&} respectively).
+Also note that `x+' in modern REs is equivalent to `xx*'.
 The delimiters for bounds are `\e{' and `\e}',
 with `{' and `}' by themselves ordinary characters.
 The parentheses for nested subexpressions are `\e(' and `\e)',
