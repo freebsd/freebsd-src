@@ -47,7 +47,7 @@
 #elif __alpha__
 #include <gnu/ext2fs/alpha-bitops.h>
 #else
-#error Provide an bitops.h file, please !
+#error Provide a bitops.h file, please!
 #endif
 
 #define in_range(b, first, len)		((b) >= (first) && (b) <= (first) + (len) - 1)

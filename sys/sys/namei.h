@@ -148,7 +148,7 @@ struct nameidata {
 #define	PARAMASK	0xfffe00 /* mask of parameter descriptors */
 
 /*
- * Initialization of an nameidata structure.
+ * Initialization of a nameidata structure.
  */
 static void NDINIT(struct nameidata *, u_long, u_long, enum uio_seg,
 	    const char *, struct thread *);

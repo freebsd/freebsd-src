@@ -34,6 +34,8 @@
 .\"
 .\"	@(#)1.t	8.1 (Berkeley) 6/8/93
 .\"
+.\" $FreeBSD$
+.\"
 .sh 1 "NFS Implementation"
 .pp
 The 4.4BSD implementation of NFS and the alternate protocol nicknamed
@@ -213,7 +215,7 @@ request/reply message in a single UDP
 datagram. Since UDP does not guarantee datagram delivery, the
 Remote Procedure Call (RPC) layer
 times out and retransmits an RPC request if
-no RPC reply has been received. Since this round trip timeout (RTO) value 
+no RPC reply has been received. Since this round trip timeout (RTO) value
 is for the entire RPC operation, including RPC message transmission to the
 server, queuing at the server for an nfsd, performing the RPC and
 sending the RPC reply message back to the client, it can be highly variable
@@ -230,7 +232,7 @@ Also, with an 8Kbyte read/write data size
 that must normally be fragmented at the IP layer for transmission.\**
 .(f
 \**6 IP fragments for an Ethernet,
-which has an maximum transmission unit of 1500bytes.
+which has a maximum transmission unit of 1500bytes.
 .)f
 For IP fragments to be successfully reassembled into
 the IP datagram at the receive end, all

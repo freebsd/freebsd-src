@@ -1093,7 +1093,7 @@ process_partition(CMD *command)
 	}
 
 	/*
-	 * Adjust start upwards, if necessary, to fall on an head boundary.
+	 * Adjust start upwards, if necessary, to fall on a head boundary.
 	 */
 		if (partp->dp_start % dos_sectors != 0) {
 	    prev_head_boundary = partp->dp_start / dos_sectors * dos_sectors;
@@ -1304,7 +1304,7 @@ sanitize_partition(struct dos_partition *partp)
 	return (1);
 
     /*
-     * Adjust start upwards, if necessary, to fall on an head boundary.
+     * Adjust start upwards, if necessary, to fall on a head boundary.
      */
     if (start % dos_sectors != 0) {
 	prev_head_boundary = start / dos_sectors * dos_sectors;

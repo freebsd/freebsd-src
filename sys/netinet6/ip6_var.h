@@ -206,7 +206,7 @@ struct	ip6stat {
 	 * from the destination is chosen.
 	 */
 	u_quad_t ip6s_sources_otherscope[16];
-	/* number of times that an deprecated address is chosen */
+	/* number of times that a deprecated address is chosen */
 	u_quad_t ip6s_sources_deprecated[16];
 
 	u_quad_t ip6s_forward_cachehit;

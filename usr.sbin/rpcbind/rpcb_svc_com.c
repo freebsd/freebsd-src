@@ -943,7 +943,7 @@ forward_register(u_int32_t caller_xid, struct netbuf *caller_addr,
 		lastxid = time_now * NFORWARD;
 
 	/*
-	 * Check if it is an duplicate entry. Then,
+	 * Check if it is a duplicate entry. Then,
 	 * try to find an empty slot.  If not available, then
 	 * use the slot with the earliest time.
 	 */

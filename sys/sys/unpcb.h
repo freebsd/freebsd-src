@@ -44,7 +44,7 @@
  * Protocol control block for an active
  * instance of a UNIX internal protocol.
  *
- * A socket may be associated with an vnode in the
+ * A socket may be associated with a vnode in the
  * filesystem.  If so, the unp_vnode pointer holds
  * a reference count to this vnode, which should be irele'd
  * when the socket goes away.

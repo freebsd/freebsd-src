@@ -1054,7 +1054,7 @@ response:
 /*
  * Process a close response or close confirmation
  *
- * Called when an close response or close confirmation is received.
+ * Called when a close response or close confirmation is received.
  * Processing will be based on the state of the requested connection and
  * the returned status.
  *
@@ -1241,7 +1241,7 @@ spans_add_req(spp, msg)
 /*
  * Process a join request
  *
- * Called when an join request is received.  We don't support group
+ * Called when a join request is received.  We don't support group
  * addresses, so we just reject the request.
  *
  * Arguments:
@@ -1286,7 +1286,7 @@ spans_join_req(spp, msg)
 /*
  * Process a leave request
  *
- * Called when an leave request is received.  We don't support group
+ * Called when a leave request is received.  We don't support group
  * addresses, so we just reject the request.
  *
  * Arguments:

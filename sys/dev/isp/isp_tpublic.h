@@ -82,7 +82,7 @@ typedef struct {
  *
  * The cd_private tag should be used by the MD layer to keep a free list
  * of these structures. Code outside of this driver can then use this
- * as an to identify it's own unit structures. That is, when not on the MD
+ * to identify it's own unit structures. That is, when not on the MD
  * layer's freelist, the MD layer should shove into it the identifier
  * that the outer layer has for it- passed in on an initial QIN_HBA_REG
  * call (see below).
@@ -294,7 +294,7 @@ typedef enum {
  */
 
 /*
- * A word about ENABLE/DISABLE: the argument is a pointer to an tmd_cmd_t
+ * A word about ENABLE/DISABLE: the argument is a pointer to a tmd_cmd_t
  * with cd_hba, cd_bus, cd_tgt and cd_lun filled out. If an error occurs
  * in either enabling or disabling the described lun, cd_lflags is set
  * with CDFL_ERROR.

@@ -334,7 +334,7 @@ enum smb_dialects {
 #define SMBSUCCESS	0x00
 #define ERRDOS		0x01
 #define ERRSRV		0x02
-#define ERRHRD		0x03	/* Error is an hardware error. */
+#define ERRHRD		0x03	/* Error is a hardware error. */
 #define ERRCMD		0xFF	/* Command was not in the "SMB" format. */
 
 /*

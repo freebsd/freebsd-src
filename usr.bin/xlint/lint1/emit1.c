@@ -36,6 +36,7 @@
 #if defined(__RCSID) && !defined(lint)
 __RCSID("$NetBSD: emit1.c,v 1.11 2002/01/31 19:36:54 tv Exp $");
 #endif
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 
@@ -207,7 +208,7 @@ outtt(sym_t *tag, sym_t *tdef)
 }
 
 /*
- * write information about an global declared/defined symbol
+ * write information about a global declared/defined symbol
  * with storage class extern
  *
  * informations about function definitions are written in outfdef(),

@@ -1049,7 +1049,7 @@ cm_ioctl(ifp, command, data)
  * software has not enabled the Receiver, would make our hardware wait forever
  * Discovered this after 20 times reading the docs.
  *
- * Only thing we do is disable transmitter. We'll get an transmit timeout,
+ * Only thing we do is disable transmitter. We'll get a transmit timeout,
  * and the int handler will have to decide not to retransmit (in case
  * retransmission is implemented).
  *

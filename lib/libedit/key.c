@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  *	  the extended-key map.
  *
  *      An extended-key (key) is a sequence of keystrokes introduced
- *	with an sequence introducer and consisting of an arbitrary
+ *	with a sequence introducer and consisting of an arbitrary
  *	number of characters.  This module maintains a map (the el->el_key.map)
  *	to convert these extended-key sequences into input strs
  *	(XK_STR), editor functions (XK_CMD), or unix commands (XK_EXE).
@@ -450,7 +450,7 @@ node__put(EditLine *el, key_node_t *ptr)
 
 
 /* node__get():
- *	Returns pointer to an key_node_t for ch.
+ *	Returns pointer to a key_node_t for ch.
  */
 private key_node_t *
 node__get(int ch)
