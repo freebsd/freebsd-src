@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.30 1998/04/28 01:25:18 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.31 1998/05/01 19:24:37 brian Exp $
  *
  *	TODO:
  */
@@ -577,7 +577,7 @@ hdlc_ReportStatus(struct cmdargs const *arg)
 {
   struct hdlc *hdlc = &arg->cx->physical->hdlc;
 
-  prompt_Printf(arg->prompt, "HDLC level errors:\n");
+  prompt_Printf(arg->prompt, "%s HDLC level errors:\n", arg->cx->name);
   prompt_Printf(arg->prompt, " Bad Frame Check Sequence fields: %u\n",
 	        hdlc->stats.badfcs);
   prompt_Printf(arg->prompt, " Bad address (!= 0x%02x) fields:    %u\n",

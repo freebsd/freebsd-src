@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.63 1998/05/01 19:25:25 brian Exp $
+ * $Id: modem.c,v 1.77.2.64 1998/05/02 21:57:46 brian Exp $
  *
  *  TODO:
  */
@@ -672,7 +672,13 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
     return (-1);
   fcntl(modem->fd, F_SETFL, oldflag | O_NONBLOCK);
 
-  modem_Timeout(modem);
+  if (modem->dev_is_modem && ioctl(modem->fd, TIOCMGET, &modem->mbits) == 0 &&
+      !(modem->mbits & TIOCM_CD)) {
+    log_Printf(LogDEBUG, "%s: Switching off timer - %s doesn't support CD\n",
+               modem->link.name, modem->name.full);
+    timer_Stop(&modem->Timer);
+  } else
+    modem_Timeout(modem);
 
   return 0;
 }
@@ -959,7 +965,10 @@ iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
   p->fd = fd;
   throughput_start(&p->link.throughput, "modem throughput",
                    Enabled(dl->bundle, OPT_THROUGHPUT));
-  /* Don't need a modem timer.... */
+  if (p->Timer.state != TIMER_STOPPED) {
+    p->Timer.state = TIMER_STOPPED;	/* Special - see modem2iov() */
+    modem_StartTimer(dl->bundle, p);
+  }
   /* Don't need to lock the device in -direct mode */
 
   return p;
@@ -977,7 +986,10 @@ modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov)
     timer_Stop(&p->link.ccp.fsm.OpenTimer);
     timer_Stop(&p->link.lcp.fsm.StoppedTimer);
     timer_Stop(&p->link.ccp.fsm.StoppedTimer);
-    timer_Stop(&p->Timer);
+    if (p->Timer.state != TIMER_STOPPED) {
+      timer_Stop(&p->Timer);
+      p->Timer.state = TIMER_RUNNING;	/* Special - see iov2modem() */
+    }
     timer_Stop(&p->link.throughput.Timer);
   }
 
