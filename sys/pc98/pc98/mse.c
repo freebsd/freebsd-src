@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.5 1996/09/10 09:38:15 asami Exp $
+ * $Id: mse.c,v 1.6 1996/10/30 22:40:06 asami Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -114,6 +114,7 @@ static struct mse_softc {
 #define	MSESC_WANT	0x2
 
 /* and Mouse Types */
+#define	MSE_NONE	0	/* don't move this! */
 #ifdef PC98
 #define	MSE_98BUSMOUSE	0x1
 #else
@@ -325,6 +326,8 @@ mseopen(dev, flags, fmt, p)
 	if (MSE_UNIT(dev) >= NMSE)
 		return (ENXIO);
 	sc = &mse_sc[MSE_UNIT(dev)];
+	if (sc->sc_mousetype == MSE_NONE)
+		return (ENXIO);
 	if (sc->sc_flags & MSESC_OPEN)
 		return (EBUSY);
 	sc->sc_flags |= MSESC_OPEN;
