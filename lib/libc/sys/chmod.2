@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: chmod.2,v 1.8 1997/02/22 15:03:43 peter Exp $
+.\"	$Id: chmod.2,v 1.9 1997/03/21 20:57:18 mpp Exp $
 .\"
 .Dd June 4, 1993
 .Dt CHMOD 2
@@ -90,13 +90,17 @@ defined in
 #define S_ISUID 0004000    /* set user id on execution */
 #define S_ISGID 0002000    /* set group id on execution */
 #define S_ISVTX 0001000    /* sticky bit */
+#ifndef _POSIX_SOURCE
+#define S_ISTXT 0001000
+#endif
 .Ed
 .Pp
 The
 .Tn FreeBSD
 VM system totally ignores the sticky bit
 .Pf ( Dv ISVTX
-) for executables.
+) for executables.  On UFS-based filesystems (FFS, MFS, LFS) the sticky
+bit may only be set upon directories.
 .Pp
 If mode
 .Dv ISVTX
@@ -145,6 +149,8 @@ The named file resides on a read-only file system.
 points outside the process's allocated address space.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
+.It Bq Er EFTYPE
+An attempt was made to set the sticky bit upon an executable.
 .El
 .Pp
 .Fn Fchmod
@@ -170,7 +176,8 @@ An I/O error occurred while reading from or writing to the file system.
 The
 .Fn chmod
 function call is expected to conform to 
-.St -p1003.1-90 .
+.St -p1003.1-90 ,
+except for the return of EFTYPE and the use of S_ISTXT.
 .Sh HISTORY
 A
 .Fn chmod
