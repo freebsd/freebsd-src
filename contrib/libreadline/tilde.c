@@ -189,7 +189,7 @@ tilde_expand (string)
   if (result = strchr (string, '~'))
     result = xmalloc (result_size = (strlen (string) + 16));
   else
-    result = xmalloc (result_size = strlen (string));
+    result = xmalloc (result_size = (strlen (string) + 1));
 
   /* Scan through STRING expanding tildes as we come to them. */
   while (1)
