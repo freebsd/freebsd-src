@@ -54,12 +54,17 @@ enum md_types {MD_MALLOC, MD_PRELOAD, MD_VNODE, MD_SWAP};
  */
 
 struct md_ioctl {
+	unsigned	md_version;	/* Structure layout version */
 	unsigned	md_unit;	/* unit number */
 	enum md_types	md_type ;	/* type of disk */
-	char		md_file[MAXPATHLEN + 1]; /* pathname of file to mount */
-	unsigned	md_size;	/* (returned) size of disk */
+	char		*md_file;	/* pathname of file to mount */
+	unsigned	md_size;	/* size of disk in DEV_BSIZE units */
 	unsigned	md_options;	/* options */
+	u_int64_t	md_base;	/* base address */
+	int		pad[100];	/* padding for future ideas */
 };
+
+#define MDIOVERSION	1
 
 /*
  * Before you can use a unit, it must be configured with MDIOCSET.
