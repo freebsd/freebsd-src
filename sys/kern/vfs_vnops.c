@@ -793,7 +793,7 @@ vn_poll(fp, events, cred, td)
 		return (error);
 #endif
 
-	return (VOP_POLL(((struct vnode *)fp->f_data), events, cred, td));
+	return (VOP_POLL(vp, events, cred, td));
 }
 
 /*
