@@ -53,7 +53,9 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#define _KERNEL	/* Avoid userland compatability headers */
 #include <sys/user.h>
+#undef _KERNEL
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
@@ -62,6 +64,7 @@
 #include <nfs/nfsdiskless.h>
 
 int	main __P((void));
+int	printf __P((const char *, ...));
 
 #define BIG(val)	((val) > 999LL || (val) < -999LL)
 
