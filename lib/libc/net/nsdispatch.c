@@ -549,7 +549,9 @@ nss_method_lookup(const char *source, const char *database,
 			return (match->method);
 		}
 	}
-	nss_log(LOG_DEBUG, "%s, %s, %s, not found", source, database, method);
+	if (is_dynamic())
+		nss_log(LOG_DEBUG, "%s, %s, %s, not found", source, database,
+		    method);
 	*mdata = NULL;
 	return (NULL);
 }
