@@ -628,14 +628,15 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
 void
 radius_Show(struct radius *r, struct prompt *p)
 {
-  prompt_Printf(p, " Radius config: %s", *r->cfg.file ? r->cfg.file : "none");
+  prompt_Printf(p, " Radius config:     %s",
+                *r->cfg.file ? r->cfg.file : "none");
   if (r->valid) {
-    prompt_Printf(p, "\n            IP: %s\n", inet_ntoa(r->ip));
-    prompt_Printf(p, "       Netmask: %s\n", inet_ntoa(r->mask));
-    prompt_Printf(p, "           MTU: %lu\n", r->mtu);
-    prompt_Printf(p, "            VJ: %sabled\n", r->vj ? "en" : "dis");
+    prompt_Printf(p, "\n                IP: %s\n", inet_ntoa(r->ip));
+    prompt_Printf(p, "           Netmask: %s\n", inet_ntoa(r->mask));
+    prompt_Printf(p, "               MTU: %lu\n", r->mtu);
+    prompt_Printf(p, "                VJ: %sabled\n", r->vj ? "en" : "dis");
     if (r->routes)
-      route_ShowSticky(p, r->routes, "        Routes", 16);
+      route_ShowSticky(p, r->routes, "            Routes", 16);
   } else
     prompt_Printf(p, " (not authenticated)\n");
 }
