@@ -37,7 +37,8 @@
 #define	PSTATE_RED		(1<<5)
 
 #define	PSTATE_MM_SHIFT		(6)
-#define	PSTATE_MM_MASK		((1<<PSTATE_MM_SHIFT)|(1<<(PSTATE_MM_SHIFT+1)))
+#define	PSTATE_MM_SIZE		(2)
+#define	PSTATE_MM_MASK		(((1<<PSTATE_MM_SIZE)-1)<<PSTATE_MM_SHIFT)
 #define	PSTATE_MM_TSO		(0<<PSTATE_MM_SHIFT)
 #define	PSTATE_MM_PSO		(1<<PSTATE_MM_SHIFT)
 #define	PSTATE_MM_RMO		(2<<PSTATE_MM_SHIFT)
@@ -56,6 +57,7 @@
 
 #define	PSTATE_KERNEL		(PSTATE_NORMAL | PSTATE_IE)
 
-#define	PSTATE_SECURE(pstate)	(1)	/* XXX */
+#define	PSTATE_SECURE(pstate) \
+	(((pstate) & ~(PSTATE_AM|PSTATE_MM_MASK)) == (PSTATE_IE|PSTATE_PEF))
 
 #endif /* !_MACHINE_PSTATE_H_ */
