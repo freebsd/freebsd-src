@@ -852,7 +852,7 @@ fdc_attach(device_t dev)
 		return error;
 	}
 	fdc->fdcu = device_get_unit(dev);
-	fdc->flags |= FDC_ATTACHED;
+	fdc->flags |= FDC_ATTACHED | FDC_NEEDS_RESET;
 
 	if ((fdc->flags & FDC_NODMA) == 0) {
 		/*
@@ -1067,6 +1067,7 @@ fd_probe(device_t dev)
 
 	/* select it */
 	set_motor(fdc, fdsu, TURNON);
+	fdc_reset(fdc);		/* XXX reset, then unreset, etc. */
 	DELAY(1000000);	/* 1 sec */
 
 	/* XXX This doesn't work before the first set_motor() */
@@ -1231,45 +1232,17 @@ DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, 0, 0);
 static void
 set_motor(struct fdc_data *fdc, int fdsu, int turnon)
 {
-	int fdout = fdc->fdout;
-	int needspecify = 0;
+	int fdout;
 
-	if(turnon) {
+	fdout = fdc->fdout;
+	if (turnon) {
 		fdout &= ~FDO_FDSEL;
-		fdout |= (FDO_MOEN0 << fdsu) + fdsu;
+		fdout |= (FDO_MOEN0 << fdsu) | FDO_FDMAEN | FDO_FRST | fdsu;
 	} else
 		fdout &= ~(FDO_MOEN0 << fdsu);
-
-	if(!turnon
-	   && (fdout & (FDO_MOEN0+FDO_MOEN1+FDO_MOEN2+FDO_MOEN3)) == 0)
-		/* gonna turn off the last drive, put FDC to bed */
-		fdout &= ~ (FDO_FRST|FDO_FDMAEN);
-	else {
-		/* make sure controller is selected and specified */
-		if((fdout & (FDO_FRST|FDO_FDMAEN)) == 0)
-			needspecify = 1;
-		fdout |= (FDO_FRST|FDO_FDMAEN);
-	}
-
-	fdout_wr(fdc, fdout);
 	fdc->fdout = fdout;
+	fdout_wr(fdc, fdout);
 	TRACE1("[0x%x->FDOUT]", fdout);
-
-	if (needspecify) {
-		/*
-		 * we silently assume the command will be accepted
-		 * after an FDC reset
-		 *
-		 * Steinbach's Guideline for Systems Programming:
-		 * Never test for an error condition you don't know
-		 * how to handle.
-		 */
-		(void)fd_cmd(fdc, 3, NE7CMD_SPECIFY,
-			     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
-			     0);
-		if (fdc->flags & FDC_HAS_FIFO)
-			(void) enable_fifo(fdc);
-	}
 }
 
 static void
@@ -1501,7 +1474,7 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 void
 fdstrategy(struct bio *bp)
 {
-	unsigned nblocks, blknum, cando;
+	long blknum, nblocks;
  	int	s;
  	fdu_t	fdu;
  	fdc_p	fdc;
@@ -1548,20 +1521,19 @@ fdstrategy(struct bio *bp)
 		bp->bio_flags |= BIO_ERROR;
 		goto bad;
 	}
-	blknum = (unsigned) bp->bio_blkno * DEV_BSIZE/fdblk;
+	blknum = bp->bio_blkno * DEV_BSIZE / fdblk;
  	nblocks = fd->ft->size;
-	bp->bio_resid = 0;
-	if (blknum + (bp->bio_bcount / fdblk) > nblocks) {
-		if (blknum <= nblocks) {
-			cando = (nblocks - blknum) * fdblk;
-			bp->bio_resid = bp->bio_bcount - cando;
-			if (cando == 0)
-				goto bad;	/* not actually bad but EOF */
-		} else {
-			bp->bio_error = EINVAL;
-			bp->bio_flags |= BIO_ERROR;
-			goto bad;
+	if (blknum + bp->bio_bcount / fdblk > nblocks) {
+		if (blknum >= nblocks) {
+			if (bp->bio_cmd == BIO_READ)
+				bp->bio_resid = bp->bio_bcount;
+			else {
+				bp->bio_error = ENOSPC;
+				bp->bio_flags |= BIO_ERROR;
+			}
+			goto bad;	/* not always bad, but EOF */
 		}
+		bp->bio_bcount = (nblocks - blknum) * fdblk;
 	}
  	bp->bio_pblkno = bp->bio_blkno;
 	s = splbio();
@@ -1692,9 +1664,10 @@ fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 static int
 fdstate(fdc_p fdc)
 {
-	int read, format, rdsectid, head, i, sec = 0, sectrac, st0, cyl, st3, idf;
-	unsigned blknum = 0, b_cylinder = 0;
 	struct fdc_readid *idp;
+	int read, format, rdsectid, cylinder, head, i, sec = 0, sectrac;
+	int st0, cyl, st3, idf;
+	unsigned long blknum;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
 	register struct bio *bp;
@@ -1736,16 +1709,8 @@ fdstate(fdc_p fdc)
 		idf = ISADMA_WRITE;
 	format = bp->bio_cmd == BIO_FORMAT;
 	rdsectid = bp->bio_cmd == BIO_RDSECTID;
-	if (format) {
+	if (format)
 		finfo = (struct fd_formb *)bp->bio_data;
-		fd->skip = (char *)&(finfo->fd_formb_cylno(0))
-			- (char *)finfo;
-	}
-	if (fdc->state == DOSEEK || fdc->state == SEEKCOMPLETE) {
-		blknum = (unsigned) bp->bio_pblkno * DEV_BSIZE/fdblk +
-			fd->skip/fdblk;
-		b_cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
-	}
 	TRACE1("fd%d", fdu);
 	TRACE1("[%s]", fdstates[fdc->state]);
 	TRACE1("(0x%x)", fd->flags);
@@ -1787,15 +1752,18 @@ fdstate(fdc_p fdc)
 			fdc->flags &= ~FDC_NEEDS_RESET;
 		} else
 			fdc->state = DOSEEK;
-		break;
+		return (1);	/* come back immediately */
+
 	case DOSEEK:
-		if (b_cylinder == (unsigned)fd->track)
+		blknum = bp->bio_pblkno + fd->skip / fdblk;
+		cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
+		if (cylinder == fd->track)
 		{
 			fdc->state = SEEKCOMPLETE;
-			break;
+			return (1); /* come back immediately */
 		}
 		if (fd_cmd(fdc, 3, NE7CMD_SEEK,
-			   fd->fdsu, b_cylinder * fd->ft->steptrac,
+			   fd->fdsu, cylinder * fd->ft->steptrac,
 			   0))
 		{
 			/*
@@ -1808,15 +1776,20 @@ fdstate(fdc_p fdc)
 		fd->track = FD_NO_TRACK;
 		fdc->state = SEEKWAIT;
 		return(0);	/* will return later */
+
 	case SEEKWAIT:
 		/* allow heads to settle */
 		timeout(fd_pseudointr, fdc, hz / 16);
 		fdc->state = SEEKCOMPLETE;
 		return(0);	/* will return later */
+
 	case SEEKCOMPLETE : /* SEEK DONE, START DMA */
+		blknum = bp->bio_pblkno + fd->skip / fdblk;
+		cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
+
 		/* Make sure seek really happened*/
 		if(fd->track == FD_NO_TRACK) {
-			int descyl = b_cylinder * fd->ft->steptrac;
+			int descyl = cylinder * fd->ft->steptrac;
 			do {
 				/*
 				 * This might be a "ready changed" interrupt,
@@ -1879,10 +1852,14 @@ fdstate(fdc_p fdc)
 			}
 		}
 
-		fd->track = b_cylinder;
+		fd->track = cylinder;
+		if (format)
+			fd->skip = (char *)&(finfo->fd_formb_cylno(0))
+			    - (char *)finfo;
 		if (!rdsectid && !(fdc->flags & FDC_NODMA))
 			isa_dmastart(idf, bp->bio_data+fd->skip,
 				format ? bp->bio_bcount : fdblk, fdc->dmachan);
+		blknum = bp->bio_pblkno + fd->skip / fdblk;
 		sectrac = fd->ft->sectrac;
 		sec = blknum %  (sectrac * fd->ft->heads);
 		head = sec / sectrac;
@@ -2023,6 +2000,7 @@ fdstate(fdc_p fdc)
 		fdc->state = IOCOMPLETE;
 		fd->tohandle = timeout(fd_iotimeout, fdc, hz);
 		return (0);	/* will return later */
+
 	case PIOREAD:
 		/* 
 		 * actually perform the PIO read.  The IOCOMPLETE case
@@ -2047,7 +2025,6 @@ fdstate(fdc_p fdc)
 		fdc->state = IOTIMEDOUT;
 
 		/* FALLTHROUGH */
-
 	case IOTIMEDOUT:
 		if (!rdsectid && !(fdc->flags & FDC_NODMA))
 			isa_dmadone(idf, bp->bio_data + fd->skip,
@@ -2084,12 +2061,13 @@ fdstate(fdc_p fdc)
 			idp->secshift = fdc->status[6];
 		}
 		fd->skip += fdblk;
-		if (!rdsectid && !format && fd->skip < bp->bio_bcount - bp->bio_resid) {
+		if (!rdsectid && !format && fd->skip < bp->bio_bcount) {
 			/* set up next transfer */
 			fdc->state = DOSEEK;
 		} else {
 			/* ALL DONE */
 			fd->skip = 0;
+			bp->bio_resid = 0;
 			fdc->bp = NULL;
 			device_unbusy(fd->dev);
 			biofinish(bp, &fd->device_stats, 0);
@@ -2098,11 +2076,13 @@ fdstate(fdc_p fdc)
 			fdc->state = FINDWORK;
 		}
 		return (1);
+
 	case RESETCTLR:
 		fdc_reset(fdc);
 		fdc->retry++;
 		fdc->state = RESETCOMPLETE;
 		return (0);
+
 	case RESETCOMPLETE:
 		/*
 		 * Discard all the results from the reset so that they
@@ -2111,7 +2091,7 @@ fdstate(fdc_p fdc)
 		for (i = 0; i < 4; i++)
 			(void)fd_sense_int(fdc, &st0, &cyl);
 		fdc->state = STARTRECAL;
-		/* Fall through. */
+		/* FALLTHROUGH */
 	case STARTRECAL:
 		if(fd_cmd(fdc, 2, NE7CMD_RECAL, fdu, 0)) {
 			/* arrgl */
@@ -2120,11 +2100,13 @@ fdstate(fdc_p fdc)
 		}
 		fdc->state = RECALWAIT;
 		return (0);	/* will return later */
+
 	case RECALWAIT:
 		/* allow heads to settle */
 		timeout(fd_pseudointr, fdc, hz / 8);
 		fdc->state = RECALCOMPLETE;
 		return (0);	/* will return later */
+
 	case RECALCOMPLETE:
 		do {
 			/*
@@ -2156,6 +2138,7 @@ fdstate(fdc_p fdc)
 		/* Seek (probably) necessary */
 		fdc->state = DOSEEK;
 		return (1);	/* will return immediatly */
+
 	case MOTORWAIT:
 		if(fd->flags & FD_MOTOR_WAIT)
 		{
@@ -2164,16 +2147,10 @@ fdstate(fdc_p fdc)
 		if (fdc->flags & FDC_NEEDS_RESET) {
 			fdc->state = RESETCTLR;
 			fdc->flags &= ~FDC_NEEDS_RESET;
-		} else {
-			/*
-			 * If all motors were off, then the controller was
-			 * reset, so it has lost track of the current
-			 * cylinder.  Recalibrate to handle this case.
-			 * But first, discard the results of the reset.
-			 */
-			fdc->state = RESETCOMPLETE;
-		}
+		} else
+			fdc->state = DOSEEK;
 		return (1);	/* will return immediatly */
+
 	default:
 		device_printf(fdc->fdc_dev, "unexpected FD int->");
 		if (fd_read_status(fdc) == 0)
@@ -2195,8 +2172,8 @@ fdstate(fdc_p fdc)
 		printf("ST0 = %x, PCN = %x\n", st0, cyl);
 		return (0);
 	}
-	/*XXX confusing: some branches return immediately, others end up here*/
-	return (1); /* Come back immediatly to new state */
+	/* keep the compiler happy -- noone should ever get here */
+	return (999999);
 }
 
 static int
@@ -2228,33 +2205,27 @@ retrier(struct fdc_data *fdc)
 		break;
 	default:
 	fail:
-		{
-			int printerror = (fd->options & FDOPT_NOERRLOG) == 0;
-
-			if (printerror)
-				diskerr(bp, "hard error",
-				    fdc->fd->skip / DEV_BSIZE,
-				    (struct disklabel *)NULL);
-			if (printerror) {
-				if (fdc->flags & FDC_STAT_VALID)
-				{
-					printf(
+		if ((fd->options & FDOPT_NOERRLOG) == 0) {
+			diskerr(bp, "hard error", fdc->fd->skip / DEV_BSIZE,
+				(struct disklabel *)NULL);
+			if (fdc->flags & FDC_STAT_VALID) {
+				printf(
 				" (ST0 %b ST1 %b ST2 %b cyl %u hd %u sec %u)\n",
-					       fdc->status[0], NE7_ST0BITS,
-					       fdc->status[1], NE7_ST1BITS,
-					       fdc->status[2], NE7_ST2BITS,
-					       fdc->status[3], fdc->status[4],
-					       fdc->status[5]);
-				}
-				else
-					printf(" (No status)\n");
+				       fdc->status[0], NE7_ST0BITS,
+				       fdc->status[1], NE7_ST1BITS,
+				       fdc->status[2], NE7_ST2BITS,
+				       fdc->status[3], fdc->status[4],
+				       fdc->status[5]);
 			}
+			else
+				printf(" (No status)\n");
 		}
 		if ((fd->options & FDOPT_NOERROR) == 0) {
 			bp->bio_flags |= BIO_ERROR;
 			bp->bio_error = EIO;
-			bp->bio_resid += bp->bio_bcount - fdc->fd->skip;
-		}
+			bp->bio_resid = bp->bio_bcount - fdc->fd->skip;
+		} else
+			bp->bio_resid = 0;
 		fdc->bp = NULL;
 		fdc->fd->skip = 0;
 		device_unbusy(fd->dev);
@@ -2291,9 +2262,7 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	finfo = (struct fd_formb *)data;
 	idfield = (struct fdc_readid *)data;
 
-	bp = malloc(sizeof(struct bio), M_TEMP, M_ZERO | M_NOWAIT);
-	if (bp == 0)
-		return (ENOMEM);
+	bp = malloc(sizeof(struct bio), M_TEMP, M_ZERO);
 
 	/*
 	 * Set up a bio request for fdstrategy().  bio_blkno is faked
@@ -2324,12 +2293,12 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	bp->bio_flags = BIO_ORDERED;
 
 	/*
-	 * Now run the cmd.  The wait loop is a version of bufwait()
-	 * adapted for struct bio instead of struct buf and
-	 * specialized for the current context.
+	 * Now run the command.  The wait loop is a version of bufwait()
+	 * adapted for struct bio instead of struct buf and specialized
+	 * for the current context.
 	 */
 	fdstrategy(bp);
-	while((bp->bio_flags & BIO_DONE) == 0)
+	while ((bp->bio_flags & BIO_DONE) == 0)
 		tsleep(bp, PRIBIO, "fdcmd", 0);
 
 	free(bp, M_TEMP);
@@ -2342,79 +2311,65 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
  	fdu_t fdu;
  	fd_p fd;
 	struct fd_type *fdt;
-	struct disklabel *dl;
+	struct disklabel *lp;
 	struct fdc_status *fsp;
 	struct fdc_readid *rid;
-	char *buffer;
 	size_t fdblk;
-	int error = 0;
+	int error;
 
-	fdu = FDUNIT(minor(dev));
-	fd = devclass_get_softc(fd_devclass, fdu);
+ 	fdu = FDUNIT(minor(dev));
+ 	fd = devclass_get_softc(fd_devclass, fdu);
+
+
 	fdblk = 128 << fd->ft->secsize;
+	error = 0;
 
 	switch (cmd) {
 	case DIOCGDINFO:
-		buffer = malloc(DEV_BSIZE, M_TEMP, M_ZERO | M_NOWAIT);
-		if (buffer == 0) {
-			error = ENOMEM;
-			break;
-		}
-		dl = (struct disklabel *)buffer;
-		dl->d_secsize = fdblk;
+		lp = malloc(sizeof(*lp), M_TEMP, M_ZERO);
+		lp->d_secsize = fdblk;
 		fdt = fd->ft;
-		dl->d_secpercyl = fdt->size / fdt->tracks;
-		dl->d_type = DTYPE_FLOPPY;
-
-		if (readdisklabel(dkmodpart(dev, RAW_PART), dl)
-		    == NULL)
-			error = 0;
-		else
+		lp->d_secpercyl = fdt->size / fdt->tracks;
+		lp->d_type = DTYPE_FLOPPY;
+		if (readdisklabel(dkmodpart(dev, RAW_PART), lp) != NULL)
 			error = EINVAL;
-
-		*(struct disklabel *)addr = *dl;
-		free(buffer, M_TEMP);
+		else
+			*(struct disklabel *)addr = *lp;
+		free(lp, M_TEMP);
 		break;
 
 	case DIOCSDINFO:
 		if ((flag & FWRITE) == 0)
-			error = EBADF;
+			return (EBADF);
+		/*
+		 * XXX perhaps should call setdisklabel() to do error checking
+		 * although there is nowhere to "set" the result.  Perhaps
+		 * should always just fail.
+		 */
 		break;
 
 	case DIOCWLABEL:
 		if ((flag & FWRITE) == 0)
-			error = EBADF;
+			return (EBADF);
 		break;
 
 	case DIOCWDINFO:
-		if ((flag & FWRITE) == 0) {
-			error = EBADF;
-			break;
-		}
-
-		dl = (struct disklabel *)addr;
-
-		buffer = malloc(DEV_BSIZE, M_TEMP, M_ZERO | M_NOWAIT);
-		if (buffer == 0) {
-			error = ENOMEM;
-			break;
-		}
-		if ((error = setdisklabel((struct disklabel *)buffer, dl,
-					  (u_long)0)) != 0)
-			break;
-
-		error = writedisklabel(dev, (struct disklabel *)buffer);
-		free(buffer, M_TEMP);
+		if ((flag & FWRITE) == 0)
+			return (EBADF);
+		lp = malloc(DEV_BSIZE, M_TEMP, M_ZERO);
+		error = setdisklabel(lp, (struct disklabel *)addr, (u_long)0);
+		if (error != 0)
+			error = writedisklabel(dev, lp);
+		free(lp, M_TEMP);
 		break;
 
 	case FD_FORM:
 		if ((flag & FWRITE) == 0)
-			error = EBADF;	/* must be opened for writing */
-		else if (((struct fd_formb *)addr)->format_version !=
-			FD_FORMAT_VERSION)
-			error = EINVAL;	/* wrong version of formatting prog */
-		else
-			error = fdmisccmd(dev, BIO_FORMAT, addr);
+			return (EBADF);	/* must be opened for writing */
+		if (((struct fd_formb *)addr)->format_version !=
+		    FD_FORMAT_VERSION)
+			return (EINVAL); /* wrong version of formatting prog */
+		error = fdmisccmd(dev, BIO_FORMAT, addr);
 		break;
 
 	case FD_GTYPE:                  /* get drive type */
@@ -2424,7 +2379,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	case FD_STYPE:                  /* set drive type */
 		/* this is considered harmful; only allow for superuser */
 		if (suser(p) != 0)
-			return EPERM;
+			return (EPERM);
 		*fd->ft = *(struct fd_type *)addr;
 		break;
 
@@ -2444,21 +2399,21 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 	case FD_CLRERR:
 		if (suser(p) != 0)
-			return EPERM;
+			return (EPERM);
 		fd->fdc->fdc_errs = 0;
 		break;
 
 	case FD_GSTAT:
 		fsp = (struct fdc_status *)addr;
 		if ((fd->fdc->flags & FDC_STAT_VALID) == 0)
-			return EINVAL;
+			return (EINVAL);
 		memcpy(fsp->status, fd->fdc->status, 7 * sizeof(u_int));
 		break;
 
 	case FD_READID:
 		rid = (struct fdc_readid *)addr;
 		if (rid->cyl > MAX_CYLINDER || rid->head > MAX_HEAD)
-			return EINVAL;
+			return (EINVAL);
 		error = fdmisccmd(dev, BIO_RDSECTID, addr);
 		break;
 
