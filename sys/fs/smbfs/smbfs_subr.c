@@ -108,7 +108,7 @@ static u_short lastdtime;
 void
 smb_time_local2server(struct timespec *tsp, int tzoff, u_long *seconds)
 {
-	*seconds = tsp->tv_sec - tzoff * 60 /*- tz.tz_minuteswest * 60 -
+	*seconds = tsp->tv_sec - tzoff * 60 /*- tz_minuteswest * 60 -
 	    (wall_cmos_clock ? adjkerntz : 0)*/;
 }
 
@@ -116,7 +116,7 @@ void
 smb_time_server2local(u_long seconds, int tzoff, struct timespec *tsp)
 {
 	tsp->tv_sec = seconds + tzoff * 60;
-	    /*+ tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0)*/;
+	    /*+ tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0)*/;
 }
 
 /*

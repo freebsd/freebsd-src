@@ -281,7 +281,7 @@ inittodr(time_t base)
 		printf("Check and reset the date immediately!\n");
 	}
 
-	ts.tv_sec += tz.tz_minuteswest * 60 +
+	ts.tv_sec += tz_minuteswest * 60 +
 	    (wall_cmos_clock ? adjkerntz : 0);
 
 	if (timespeccmp(&ref, &ts, >)) {
@@ -310,7 +310,7 @@ resettodr()
 		return;
 
 	getnanotime(&ts);
-	ts.tv_sec -= tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
+	ts.tv_sec -= tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 	if ((error = CLOCK_SETTIME(clock_dev, &ts)) != 0) {
 		printf("warning: clock_settime failed (%d), time-of-day clock "
 		    "not adjusted to system time\n", error);

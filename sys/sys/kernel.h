@@ -68,8 +68,6 @@ extern char kernelname[MAXPATHLEN];
 /* 1.2 */
 extern struct timeval boottime;
 
-extern struct timezone tz;			/* XXX */
-
 extern int tick;			/* usec per tick (1000000 / hz) */
 extern int hz;				/* system clock's frequency */
 extern int psratio;			/* ratio: prof / stat */
@@ -78,6 +76,9 @@ extern int profhz;			/* profiling clock's frequency */
 extern int profprocs;			/* number of process's profiling */
 extern int ticks;
 extern int lbolt;			/* once a second sleep address */
+
+extern int tz_minuteswest;
+extern int tz_dsttime;
 
 #endif /* _KERNEL */
 
