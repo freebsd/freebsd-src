@@ -88,8 +88,10 @@ ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args, int *retval)
 		return 0;
 
 	default:
+#ifdef DIAGNOSTIC
 		printf("IBCS2: 'sysi86' function %d(0x%x) "
 			"not implemented yet\n", SCARG(args, cmd), args->cmd);
+#endif
 		return EINVAL;
 	}
 }
