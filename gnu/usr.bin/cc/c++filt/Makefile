@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1999/04/04 16:36:31 obrien Exp $
+# $Id: Makefile,v 1.6 1999/07/04 15:51:39 bde Exp $
 #
 
 .include "../Makefile.inc"
@@ -8,6 +8,7 @@
 
 PROG =	c++filt
 SRCS =	cplus-dem.c getopt.c getopt1.c underscore.c
+BINDIR=	/usr/libexec/${OBJFORMAT}
 NOMAN=	1
 CFLAGS+= -DMAIN -DIN_GCC -DVERSION=\"$(version)\"
 
