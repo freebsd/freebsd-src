@@ -51,6 +51,9 @@
 .Cm list
 .Op Ar name ...
 .Nm
+.Cm status
+.Op Ar name ...
+.Nm
 .Cm load
 .Op Fl v
 .Nm
@@ -81,7 +84,11 @@ Clear metadata on the given providers.
 .It Cm dump
 Dump metadata stored on the given providers.
 .It Cm list
-List all or the given currently configured shared secret devices.
+Print detailed information about every currently configured device; if a list of
+devices is passed as a parameter then only those devices will be shown.
+.It Cm status
+Print general information about every currently configured device; if a list of
+devices is passed as a parameter then only those devices will be shown.
 .It Cm load
 Load
 .Pa geom_shsec.ko
