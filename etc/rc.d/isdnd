@@ -1,44 +1,66 @@
 #!/bin/sh
-#---------------------------------------------------------------------------
 #
-#	/etc/rc.isdn - isdn4bsd startup script
-#	--------------------------------------
+# $NetBSD: isdnd,v 1.2 2001/01/07 17:53:36 martin Exp $
 #
-#	last edit-date: [Tue Jan 12 15:35:36 1999]
-#
-#	$Id:$
-#
-#---------------------------------------------------------------------------
 
-if [ "X${isdn_enable}" = X"YES" ] ; then
+# PROVIDE: isdnd
+# REQUIRE: NETWORK syslogd mountcritremote
 
-	# terminal type for fullscreen mode, default to syscons driver
-	isdn_ttype=cons25
+. /etc/rc.subr
 
-	# check for pcvt driver (VT100/VT220 emulator)
-	if [ -x /usr/sbin/ispcvt ] ; then
-		if /usr/sbin/ispcvt ; then
-			isdn_ttype=pcvt25
-		fi
-	fi
+name="isdnd"
+rcvar=$name
+required_files="/etc/isdn/${name}.rc"
+
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+
+load_rc_config $name
+run_rc_command "$1"
+
+if checkyesno isdnd && checkyesno isdn_autoupdown; then
 	
-	if [ "X${isdn_flags}" = X"NO" ] ; then
-		isdn_flags=""
-	fi
-	
-	# start the isdn daemon
-	if [ -x /usr/sbin/isdnd ] ; then
-		echo -n ' isdnd'
-		if [ "X${isdn_fsdev}" = X"NO" ] ; then
-			/usr/sbin/isdnd ${isdn_flags} 
-		else
-			/usr/sbin/isdnd ${isdn_flags} -f -r ${isdn_fsdev} -t ${isdn_ttype}
-		fi
-	fi
+	# The isdn network interfaces could not be marked UP in the
+	# ifconfig.* files, since the daemon wasn't available then.
+	# If we are doing start: now it's running, so figure which
+	# interfaces these applies to and UP them. If doing stop: 
+	# down them (for symetry, and effectively they are down).
 
-	# start isdntrace	
-	if [ "X${isdn_trace}" = X"YES" -a -x /usr/sbin/isdntrace ] ; then
-		echo -n ' isdntrace'
-		nohup /usr/sbin/isdntrace ${isdn_traceflags} >/dev/null 2>&1 &
+	case "$_arg" in
+	  start)
+		ifflag="-d"
+		ifcmd="up"
+		;;
+	  stop)
+		ifflag="-u"
+		ifcmd="down"
+		;;
+	  *)
+		exit 0
+		;;
+	esac
+
+	if [ -z "$isdn_interfaces" ]; then
+		# the user has not specified a list of interface
+		# to track isdnd - try to figure ourselfs
+		tmp=`ifconfig -l $ifflag`
+		for int in $tmp; do
+			# Check if the interface has been configured at all
+			# XXX - does this work with IPv6 ?
+			if ifconfig $int | fgrep inet >/dev/null; then
+				case $int in
+				isp*)
+					isdn_interfaces="$isdn_interfaces $int"
+					;;
+				ipr*)
+					isdn_interfaces="$isdn_interfaces $int"
+					;;
+				esac
+			fi
+		done
 	fi
+	for int in $isdn_interfaces; do
+		ifconfig $int $ifcmd
+	done
 fi
+

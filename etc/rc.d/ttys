@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# $NetBSD: ttys,v 1.1.1.1 2000/03/10 11:53:24 lukem Exp $
+#
+
+# PROVIDE: tty
+# REQUIRE: root
+
+. /etc/rc.subr
+
+name="ttyflags"
+start_cmd="ttyflags_start"
+stop_cmd=":"
+
+ttyflags_start()
+{
+	#	set flags on ttys.
+	#	(do early, in case they use tty for SLIP in network)
+	#
+	echo "Setting tty flags."
+	ttyflags -a
+
+	#	setup ptys
+	#
+	#	XXX:	there may be more ptys than this; maybe use
+	#		sysctl to find out how many?
+	#
+	chmod 666 /dev/tty[pqrs]*
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+# $NetBSD: swap2,v 1.4 2000/07/17 12:27:04 lukem Exp $
+#
+
+# PROVIDE: nonlocalswap
+# REQUIRE: mountcritremote
+
+. /etc/rc.subr
+
+name="swap2"
+start_cmd="swap2_start"
+
+swap2_start()
+{
+	#	"Critical" file systems are now mounted.  Go ahead and swap
+	#	to files now, since they will be residing in the critical file
+	#	systems (or, at least, they should be...).
+	#	Check for no swap, and warn about it unless that is desired.
+	#
+	swapctl -A -t noblk;
+	if ! checkyesno no_swap; then
+		if swapctl -s | grep "no swap devices configured" > /dev/null;
+		then
+			warn "No swap space configured!"
+		fi
+	fi
+}
+
+#		Remove all non-block-type swap devices
+#
+stop_cmd="swapctl -U -t noblk"
+
+load_rc_config swap
+run_rc_command "$1"

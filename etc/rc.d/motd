@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# $NetBSD: motd,v 1.5 2000/09/19 13:04:38 lukem Exp $
+#
+
+# PROVIDE: motd
+# REQUIRE: mountcritremote
+
+. /etc/rc.subr
+
+name="motd"
+rcvar="update_motd"
+start_cmd="motd_start"
+stop_cmd=":"
+
+motd_start()
+{
+	#	Update kernel info in /etc/motd
+	#	Must be done *before* interactive logins are possible
+	#	to prevent possible race conditions.
+	#
+	echo "Updating motd."
+	if [ ! -f /etc/motd ]; then
+		install -c -o root -g wheel -m 664 /dev/null /etc/motd
+	fi
+	T=/etc/_motd
+	sysctl -n kern.version | while read i; do echo $i; break; done > $T
+	sed '1{/^NetBSD.*/{d;};};' < /etc/motd >> $T
+	cmp -s $T /etc/motd || cp $T /etc/motd
+	rm -f $T
+}
+
+load_rc_config $name
+run_rc_command "$1"

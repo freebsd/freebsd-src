@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# $NetBSD: mopd,v 1.3 2000/05/13 08:45:07 lukem Exp $
+#
+
+# PROVIDE: mopd
+# REQUIRE: DAEMON
+
+. /etc/rc.subr
+
+name="mopd"
+rcvar=$name
+command="/usr/sbin/${name}"
+
+load_rc_config $name
+run_rc_command "$1"

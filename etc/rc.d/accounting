@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# $NetBSD: accounting,v 1.2 2000/05/13 08:45:06 lukem Exp $
+#
+
+# PROVIDE: accounting
+# REQUIRE: mountall
+
+. /etc/rc.subr
+
+name="accounting"
+rcvar=$name
+start_cmd="accounting_start"
+stop_cmd="accounting_stop"
+
+accounting_start()
+{
+	if [ -f /var/account/acct ]; then
+		echo "Turning on accounting."
+		/usr/sbin/accton /var/account/acct
+	fi
+}
+
+accounting_stop()
+{
+	echo "Turning off accounting."
+	/usr/sbin/accton
+}
+
+load_rc_config $name
+run_rc_command "$1"
