@@ -144,12 +144,13 @@ char *username;
 	int pstat;
 	pid_t pid;
 
-	warnx("rebuilding the database...");
 	(void)fflush(stderr);
 	if (!(pid = vfork())) {
 		if(!username) {
+			warnx("rebuilding the database...");
 			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", tempname, NULL);
 		} else {
+			warnx("updating the database...");
 			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", "-u", 
 					username, tempname, NULL);
 		}
