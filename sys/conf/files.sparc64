@@ -20,6 +20,7 @@ dev/sio/sio_isa.c		optional	sio isa
 geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_sunlabel.c		standard
+geom/geom_sunlabel_enc.c	standard
 libkern/ffs.c			standard
 kern/syscalls.c			optional	ktr
 sparc64/central/central.c	optional	central
