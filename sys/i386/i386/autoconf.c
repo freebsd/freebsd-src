@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.116 1999/05/07 10:10:21 phk Exp $
+ *	$Id: autoconf.c,v 1.117 1999/05/08 06:39:18 phk Exp $
  */
 
 /*
@@ -391,11 +391,11 @@ setdumpdev(dev)
 		return (0);
 	}
 	maj = major(dev);
-	if (maj >= nblkdev || bdevsw(maj) == NULL)
+	if (maj >= nblkdev || bdevsw(dev) == NULL)
 		return (ENXIO);		/* XXX is this right? */
-	if (bdevsw(maj)->d_psize == NULL)
+	if (bdevsw(dev)->d_psize == NULL)
 		return (ENXIO);		/* XXX should be ENODEV ? */
-	psize = bdevsw(maj)->d_psize(dev);
+	psize = bdevsw(dev)->d_psize(dev);
 	if (psize == -1)
 		return (ENXIO);		/* XXX should be ENODEV ? */
 	/*
@@ -427,14 +427,15 @@ static void
 setroot()
 {
 	int majdev, mindev, unit, slice, part;
-	dev_t newrootdev;
+	dev_t newrootdev, dev;
 	char partname[2];
 	char *sname;
 
 	if (boothowto & RB_DFLTROOT || (bootdev & B_MAGICMASK) != B_DEVMAGIC)
 		return;
 	majdev = B_TYPE(bootdev);
-	if (majdev >= nblkdev || bdevsw(majdev) == NULL)
+	dev = makedev(majdev, 0);
+	if (majdev >= nblkdev || bdevsw(dev) == NULL)
 		return;
 	unit = B_UNIT(bootdev);
 	slice = B_SLICE(bootdev);
@@ -458,7 +459,7 @@ setroot()
 
 	newrootdev = makedev(majdev, mindev);
 	rootdevs[0] = newrootdev;
-	sname = dsname(bdevsw(majdev)->d_name, unit, slice, part, partname);
+	sname = dsname(bdevsw(newrootdev)->d_name, unit, slice, part, partname);
 	rootdevnames[0] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
 	sprintf(rootdevnames[0], "%s%s", sname, partname);
 
@@ -475,7 +476,7 @@ setroot()
 		return;
 	slice = COMPATIBILITY_SLICE;
 	rootdevs[1] = dkmodslice(newrootdev, slice);
-	sname = dsname(bdevsw(majdev)->d_name, unit, slice, part, partname);
+	sname = dsname(bdevsw(newrootdev)->d_name, unit, slice, part, partname);
 	rootdevnames[1] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
 	sprintf(rootdevnames[1], "%s%s", sname, partname);
 }
