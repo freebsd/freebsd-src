@@ -60,10 +60,15 @@
 #define VGA_DEBUG		0
 #endif
 
-/* machine/pc/bios.h has got too much i386-specific stuff in it */
+/* XXX machine/pc/bios.h has got too much i386-specific stuff in it */
 #ifndef BIOS_PADDRTOVADDR
+#if !defined(__amd64__)
+#define	BIOS_PADDRTOVADDR(x)	(x)
+#else
 #define BIOS_PADDRTOVADDR(x) (((x) - ISA_HOLE_START) + atdevbase)
 #endif
+#endif
+
 int
 vga_probe_unit(int unit, video_adapter_t *buf, int flags)
 {
