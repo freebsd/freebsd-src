@@ -1,0 +1,155 @@
+
+INSTALL_SEC
+
+		 Bind with Secure DNS (TIS/DNSSEC)
+			Version 1.3.0 Beta
+			  September 1996
+
+This version has been compiled and tested on SUNOS 4.1.3,
+FreeBSD-2.1.5-REL and Linux 2.0.11.
+There may be still be portability problems. 
+If you have access to other hardware platforms please let us know if
+there are any problems porting and send us patches, to include in
+future releases. 
+
+This version of secure Bind uses RSAREF-2.0 library from RSA,
+First you should get/read the RSAREF FAQ 
+		http://www.consensus.com/rsaref-faq.html
+Then you can copy RSAREF from 
+		ftp://ftp.rsa.com/rsaref/README
+
+You need to read this README file carefully for further instructions.
+
+Installation: (this version is based on 4.9.4-REL-P1). 
+
+1. The tar ball will create a directory sec_bind in the current	directory 
+	untar the archive
+	The content of the sec_bind directory has the same directory 
+	structure as bind distribution with the addition of the directories 
+	dnssec_lib/ and signer/, some named directories have been 
+	deleted from the distribution. 
+
+	dnssec_lib/ contains the library files for signature generation 
+	signer/     contains tools for signing bind boot files and 
+	            generating keys.  
+
+	In addition, there is a new file, "res/res_sign.c", which 
+	contains library routines that are required in the resolver
+	for displaying new RR types. 
+
+	You need to tailor sec_bind/Makefile to your system as you do
+	with bind distributions.  
+
+	The sec_bind distribution expects to find RSAREF in the
+	rsaref/ subdirectory. If you install RSAREF in a different
+	place you can place a pointer to the RSAREF installation
+	directory in place of sec_bind/rsaref. 
+
+	sec_bind/Makefile expects to find the RSAREF library file
+	at  sec_bind/rsaref/lib/rsaref.a. The RSAREF distribution 
+	does not contain that directory. If you are installing RSAREF
+	for the first time create that directory copy the correct
+	Makefile from the appropriate rsaref/install/ subdirectory.  
+	Sec_bind will compile RSAREF for you. 	
+
+	We recommend that you use an ANSI C compliant compiler to
+	compile this distribution. 
+
+2. Follow Bind installation guidelines on your system 
+
+	Set your normal configuration in conf/options.h with the
+	following exceptions/additions:
+		ROUND_ROBIN  must be OFF  (for right now)
+		DNS_SECURITY must be ON 
+		RSAREF       must be ON if you have a copy of RSAREF.
+	This version of sec_bind does not work well without RSAREF. 
+
+3. make
+	If you are going to use make install everything will work right 
+	out of the box. If you are going to run programs out of the
+	sec_bind directory you need to set the DESTEXEC variables
+	accordingly. 
+
+4. Once everything compiles you can run the simple test that is include in
+	the distribution. 
+	
+	First you need to edit the file signer/simple_test/test.boot to
+	set directory directive to the full path of the directory this
+	file is in.
+
+	Now the signer program can be run to sign the simple_test data.
+	The signed zone will be	written to /tmp
+		% cd sec_bind/signer
+		% make test
+	The passwords for the keys in the distribution are:
+		Key:			Password:
+		foo.bar			foo.bar
+		mobile.foo.bar		mobile
+		fix.foo.bar		fix.foo.bar
+		sub.foo.bar		sub.foo.bar
+		some.bar		some.bar
+
+	Notice the differences between simple_test/test.boot and
+	/tmp/test.boot. The pubkey directive are required for correct
+	behavior of new named.  	
+
+	To check the if named can read the new zone files and verify
+	the signatures run following commands 
+		% cd ../named
+		% make test
+
+	Exit/error code 66 indicates that program completed normally
+	in "load-only" mode (new -l flag).  
+
+	If you want to load up named run same command as make test does 
+	without -l flag. (the -d 3 flag is to make sure the process
+	does not do a fork). 
+		% ./named -p 12345 -b /tmp/test.boot  -d 3
+	
+		% cd ../tools
+		% ./dig @localhost snore.foo.bar. -p 12345
+	This should return an A record + SIG(A) record 
+		% ./dig @localhost no_such_name.foo.bar. -p 12345
+	This should return a NXT record +SIG(NXT) for *.foo.bar.
+
+	You can also test against our nameserver for zone sd-bogus.tis.com
+		the host is uranus.hq.tis.com(192.94.214.95)
+		% ./dig @uranus.hq.tis.com sd-bogus.tis.com. soa 
+	will return the SOA and SIG(SOA) + KEY
+		% ./dig @uranus.hq.tis.com sd-bogus.tis.com. mb    
+	will return NXT   for sd-bogus.tis.com
+		% ./dig @uranus.hq.tis.com foo.sd-bogus.tis.com. ns 
+	will NS +KEY for foo.sd-bog.tis.com. 
+
+5. Converting your setup to secure DNS zones. 
+	need to create a key for your zone.
+	If you have a copy of the last release of sec_bind the key file 
+	format has changed and you need to regenerate all your keys, Sorry.
+	The new format for private key files is portable between
+	different architectures and operating systems, the encryption
+	of the key file is compatible with the des program.
+	
+	To generate key use sec_bind/signer/key_gen.  To generate zone key
+	for name you.bar, with 512 bit modulus and exponent of 3, 
+	execute following command
+
+		% cd signer
+		% ./key_gen -z -g 512 you.bar
+
+	key_gen will ask for an encryption password for the private
+	key file, if you do not want to encrypt the key hit <Return>.
+	The program will output resource record suitable for zone file.
+	key_gen creates two files you.bar.priv and foo.bar.public. 
+
+	If you want, at any time, to display the public key for foo.bar
+	run key_gen without the -g flag or cat file foo.bar.public. 
+	key_gen without any flags will print out the usage information.  
+	key_gen has extensive error checking on flags.
+
+	To modify the flags field for an existing key run key_gen with
+	the new flags but without the -g flag. 
+	
+	Note: The key above is suitable for signing records but not for
+	encrypting data.
+
+6. Send problems, fixes and suggestions to dns-security@tis.com. 

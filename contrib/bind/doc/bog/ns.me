@@ -1,3 +1,5 @@
+.\" ++Copyright++ 1986, 1988
+.\" -
 .\" Copyright (c) 1986, 1988
 .\"    The Regents of the University of California.  All rights reserved.
 .\" 
@@ -46,6 +48,8 @@
 .\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
+.\" -
+.\" --Copyright--
 .\"
 .\"	@(#)ns.me	6.3 (Berkeley) 9/19/89
 .\"
@@ -90,38 +94,3 @@ Berkeley would look as follows:
 .)b
 The top level domain for educational organizations is EDU;
 Berkeley is a subdomain of EDU and monet is the name of the host.
-.sh 1 Security
-.pp
-This section examines some of the know security implications of various
-versions of BIND. Some of these have been used to attack the nameservers
-in the past.
-.sh 2 "Unnecessary Glue"
-.pp
-Unnecessary glue can lead to incorrect records being loaded into the
-server. This can result in connections going to the wrong machines.
-.pp
-To prevent unnecessary glue being loaded, all the servers of zones being
-servered by a server and the servers of the parent zones need to be
-upgraded to BIND 4.9.3 or later.
-.sh 2 "Insertion of data into a zone that is being servered"
-.pp
-BIND versions prior to BIND 4.9.2 are subject to the insertion of
-resource records into zone that they are serving.
-.sh 2 "Denial of Service: Hash Bug Exploit"
-.pp
-September 1996 saw the COM TLD subject to a denial of service attack by
-injecting into the DNS a record with a final label of COM, eight spaces
-and COM. This effected BIND 4.9.4 servers. Similar attacks are possible
-on BIND 4.9.3 and BIND 4.9.3-P1. 
-.pp
-It is recommend that you run a BIND 4.9.4-P1 or later server to avoid
-this exploit.
-.sh 2 "Denial of Service: TTL Inconsistency Attacks"
-.pp
-If you are still using multiple TTL values within a RRset you can be
-subject to a denial of service attack. BIND 4.9.5 onwards uses multiple
-ttl values within a RRset to reject obviously bad RRset.
-.pp
-It is recommend that you upgrade to BIND 4.9.5 or later as these server
-prevent you loading multiple TTL values and doesn't merge answers received
-across the network.

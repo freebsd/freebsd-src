@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND Address Match Lists</TITLE>
+</HEAD>
+<BODY>
+
+<H2>BIND Configuration File Guide--Address Match Lists</H2>
+
+<HR>
+
+<A NAME="Syntax"><H3>Syntax</H3></A>
+
+<PRE>
+<VAR>address_match_list</VAR>    = 1*<VAR>address_match_element</VAR>
+
+<VAR>address_match_element</VAR> = [ "!" ] (<VAR><A HREF="docdef.html">ip_address</A></VAR> / <VAR><A HREF="docdef.html">ip_prefix</A></VAR> / <VAR><A HREF="acl.html">acl_name</A></VAR> / <VAR>address_match_list</VAR>) ";"
+</PRE>
+
+<HR>
+
+<A NAME="Usage"><H3>Definition and Usage</H3></A>
+
+<P>Address match lists are lists of elements.  The elements can be any
+of the following:</P>
+
+<UL>
+<LI>an IP address (in dotted-decimal notation),</LI>
+
+<LI>an IP prefix (in the '/'-notation),</LI>
+
+<LI>the name of an address match list previously defined with 
+the <A HREF="acl.html"><CODE>acl</CODE></A> statment.</LI>
+
+<LI>an IP address match list</LI>
+</UL>
+
+<P>The ACLs "any", "none", "localhost" and "localnets" are
+predefined.  More information can be found in the description of the
+<A HREF="acl.html"><CODE>acl</CODE></A> statement.
+
+<P>Elements can be negated with a leading "!".
+
+<P>When a given IP address or prefix is compared to an address match
+list, the list is traversed in order and the first match (regardless
+of negation) is used.  The interpretation of a match depends on
+whether the list is being used for access control or as a
+topology.</P>
+
+<P>When used as an access control list, a non-negated match allows
+access and a negated match denies access.  If there is no match,
+access is denied.  The clauses <CODE>allow-query</CODE>,
+<CODE>allow-transfer</CODE> and <CODE>allow-update</CODE> all use
+address match lists like this.  Similarly, the <CODE>listen-on</CODE>
+clause can use negation to define local addresses which should not be
+used to accept nameserver connections.</P>
+
+<P>When used with the <CODE>topology</CODE> clause, a non-negated
+match returns a distance based on its postion on the list (the closer
+the match is to the start of the list, the shorter the distance is
+between it and the server).  A negated match will be assigned the
+maximum distance from the server.  If there is no match, the address
+will get a distance which is further than any non-negated list
+element, and closer than any negated element.</P>
+
+<P>Because of the first-match aspect of the algorithm, an element that
+defines a subset of another element in the list should come before the
+broader element, regardless of whether either is negated.  For
+example, in <CODE>1.2.3/24;&nbsp;!&nbsp;1.2.3.13;</CODE> the 1.2.3.13
+element is completely useless, because the algorithm will match
+any lookup for 1.2.3.13 to the 1.2.3/24 element.  Using
+<CODE>!&nbsp;1.2.3.13;&nbsp;1.2.3/24</CODE> fixes that problem by
+having 1.2.3.13 blocked by the negation but all other 1.2.3.* hosts
+fall through.
+
+<HR>
+
+<CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
+| <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
+| <A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: address_list.html,v 1.5 1998/03/21 01:03:10 halley Exp $
+</ADDRESS>
+</BODY>
+</HTML>
