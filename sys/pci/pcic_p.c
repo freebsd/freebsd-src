@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/bus.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -40,12 +41,14 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#define PRVERB(x)	if (bootverbose) device_printf x
+
 /*
  * Set up the CL-PD6832 to look like a ISA based PCMCIA chip (a
  * PD672X).  This routine is called once per PCMCIA socket.
  */
 static void
-pd6832_legacy_init(device_t self)
+pd6832_legacy_init(device_t dev)
 {
 	u_long bcr; 		/* to set interrupts */
 	u_short io_port;	/* the io_port to map this slot on */
@@ -53,7 +56,8 @@ pd6832_legacy_init(device_t self)
 	int unit;
 
 	num6832 = 0;
-	unit = device_get_unit(self);
+	unit = device_get_unit(dev);
+
 	/*
 	 * Some BIOS leave the legacy address uninitialized.  This
 	 * insures that the PD6832 puts itself where the driver will
@@ -63,15 +67,15 @@ pd6832_legacy_init(device_t self)
 	 */
 	io_port = PCIC_INDEX_0 + num6832 * CLPD6832_NUM_REGS;
 	if (unit == 0)
-		pci_write_config(self, CLPD6832_LEGACY_16BIT_IOADDR,
-				 io_port & ~PCI_MAP_IO, 4);
+		pci_write_config(dev, CLPD6832_LEGACY_16BIT_IOADDR,
+		    io_port & ~PCI_MAP_IO, 4);
 
 	/*
 	 * I think this should be a call to pci_map_port, but that
 	 * routine won't map regiaters above 0x28, and the register we
 	 * need to map is 0x44.
 	 */
-	io_port = pci_read_config(self, CLPD6832_LEGACY_16BIT_IOADDR, 4) &
+	io_port = pci_read_config(dev, CLPD6832_LEGACY_16BIT_IOADDR, 4) &
 	    ~PCI_MAP_IO;
 
 	/*
@@ -79,49 +83,148 @@ pd6832_legacy_init(device_t self)
 	 * words and deactivate the second by setting the limit lower
 	 * than the base.
 	 */
-	pci_write_config(self, CLPD6832_IO_BASE0, io_port | 1, 4);
-	pci_write_config(self, CLPD6832_IO_LIMIT0,
-			 (io_port + CLPD6832_NUM_REGS) | 1, 4);
+	pci_write_config(dev, CLPD6832_IO_BASE0, io_port | 1, 4);
+	pci_write_config(dev, CLPD6832_IO_LIMIT0,
+	    (io_port + CLPD6832_NUM_REGS) | 1, 4);
 
-	pci_write_config(self, CLPD6832_IO_BASE1, (io_port + 0x20) | 1, 4);
-	pci_write_config(self, CLPD6832_IO_LIMIT1, io_port | 1, 4);
+	pci_write_config(dev, CLPD6832_IO_BASE1, (io_port + 0x20) | 1, 4);
+	pci_write_config(dev, CLPD6832_IO_LIMIT1, io_port | 1, 4);
 
 	/*
 	 * Set default operating mode (I/O port space) and allocate
 	 * this socket to the current unit.
 	 */
-	pci_write_config(self, PCI_COMMAND_STATUS_REG,
-			 CLPD6832_COMMAND_DEFAULTS, 4);
-	pci_write_config(self, CLPD6832_SOCKET, unit, 4);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG,
+	    CLPD6832_COMMAND_DEFAULTS, 4);
+	pci_write_config(dev, CLPD6832_SOCKET, unit, 4);
 
 	/*
 	 * Set up the card inserted/card removed interrupts to come
 	 * through the isa IRQ.
 	 */
-	bcr = pci_read_config(self, CLPD6832_BRIDGE_CONTROL, 4);
+	bcr = pci_read_config(dev, CLPD6832_BRIDGE_CONTROL, 4);
 	bcr |= (CLPD6832_BCR_ISA_IRQ|CLPD6832_BCR_MGMT_IRQ_ENA);
-	pci_write_config(self, CLPD6832_BRIDGE_CONTROL, bcr, 4);
+	pci_write_config(dev, CLPD6832_BRIDGE_CONTROL, bcr, 4);
 
 	/* After initializing 2 sockets, the chip is fully configured */
 	if (unit == 1)
 		num6832++;
 
-	if (bootverbose)
-		printf("CardBus: Legacy PC-card 16bit I/O address [0x%x]\n",
-		       io_port);
+	PRVERB((dev, "CardBus: Legacy PC-card 16bit I/O address [0x%x]\n", 
+	    io_port));
 }
+
+/*
+ * TI1XXX PCI-CardBus Host Adapter specific function code.
+ * This function is separated from pcic_pci_attach().
+ * Support Device: TI1130,TI1131,TI1250,TI1220.
+ * Test Device: TI1221.
+ * Takeshi Shibagaki(shiba@jp.freebsd.org).
+ */
+static void
+ti1xxx_pci_init(device_t dev)
+{
+	u_long	syscntl,devcntl,cardcntl;
+	u_int32_t device_id = pci_get_devid(dev);
+	char	buf[128];
+	int 	ti113x = (device_id == PCI_DEVICE_ID_PCIC_TI1130)
+	    || (device_id == PCI_DEVICE_ID_PCIC_TI1131);
+
+	syscntl  = pci_read_config(dev, TI113X_PCI_SYSTEM_CONTROL, 4);
+	devcntl  = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
+	cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL,   1);
+
+	switch(ti113x){
+	case 0 :
+		strcpy(buf, "TI12XX PCI Config Reg: ");
+		break;
+	case 1 :
+		strcpy(buf, "TI113X PCI Config Reg: ");
+		/* 
+		 * Defalut card control register setting is
+		 * PCI interrupt.  The method of this code
+		 * switches PCI INT and ISA IRQ by bit 7 of
+		 * Bridge Control Register(Offset:0x3e,0x13e).
+		 * Takeshi Shibagaki(shiba@jp.freebsd.org) 
+		 */
+		cardcntl |= TI113X_CARDCNTL_PCI_IREQ;
+		cardcntl |= TI113X_CARDCNTL_PCI_CSC;
+		if (syscntl & TI113X_SYSCNTL_CLKRUN_ENA){
+			if (syscntl & TI113X_SYSCNTL_CLKRUN_SEL)
+				strcat(buf, "[clkrun irq 12]");
+			else
+				strcat(buf, "[clkrun irq 10]");
+		}
+		break;
+	}
+	if (cardcntl & TI113X_CARDCNTL_RING_ENA)
+		strcat(buf, "[ring enable]");
+	if (cardcntl & TI113X_CARDCNTL_SPKR_ENA)
+		strcat(buf, "[speaker enable]");
+	if (syscntl & TI113X_SYSCNTL_PWRSAVINGS)
+		strcat(buf, "[pwr save]");
+	switch(devcntl & TI113X_DEVCNTL_INTR_MASK){
+		case TI113X_DEVCNTL_INTR_ISA :
+			strcat(buf, "[CSC parallel isa irq]");
+			break;
+		case TI113X_DEVCNTL_INTR_SERIAL :
+			strcat(buf, "[CSC serial isa irq]");
+			break;
+		case TI113X_DEVCNTL_INTR_NONE :
+			strcat(buf, "[pci only]");
+			break;
+		case TI12XX_DEVCNTL_INTR_ALLSERIAL :
+			strcat(buf, "[FUNC pci int + CSC serial isa irq]");
+			break;
+	}
+	pci_write_config(dev, TI113X_PCI_CARD_CONTROL,  cardcntl, 1);
+	if (ti113x)
+		cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL, 1);
+	device_printf(dev, "%s\n",buf);
+}
+
+static void
+generic_cardbus_attach(device_t dev)
+{
+	u_int16_t	brgcntl;
+	u_int32_t	iobase;
+	int		unit;
+
+	unit = device_get_unit(dev);
+
+	/* Output ISA IRQ indicated in ExCA register(0x03). */
+	brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
+	brgcntl |= CB_BCR_INT_EXCA;
+	pci_write_config(dev, CB_PCI_BRIDGE_CTRL, brgcntl, 2);
+
+	/* 16bit Legacy Mode Base Address */
+	if (unit != 0)
+		return;
+	
+	iobase = pci_read_config(dev, CB_PCI_LEGACY16_IOADDR, 2) 
+	    & ~PCI_MAP_IO;
+	if (!iobase) {
+		iobase = 0x3e0 | PCI_MAP_IO;
+		pci_write_config(dev, CB_PCI_LEGACY16_IOADDR, iobase, 2);
+		iobase = pci_read_config(dev, CB_PCI_LEGACY16_IOADDR, 2)
+		    & ~PCI_MAP_IO;
+	}
+	PRVERB((dev, "Legacy address set to %#x\n", iobase));
+	return;
+}
+
 
 /*
  * Return the ID string for the controller if the vendor/product id
  * matches, NULL otherwise.
  */
 static int
-pcic_pci_probe(device_t self)
+pcic_pci_probe(device_t dev)
 {
 	u_int32_t device_id;
 	char *desc;
 
-	device_id = pci_get_devid(self);
+	device_id = pci_get_devid(dev);
 	desc = NULL;
 
 	switch (device_id) {
@@ -182,6 +285,7 @@ pcic_pci_probe(device_t self)
 	case PCI_DEVICE_ID_RICOH_RL5C478:
 		desc = "Ricoh RL5C478 PCI-CardBus Bridge";
 		break;
+
 	/* 16bit PC-card bridges */
 	case PCI_DEVICE_ID_PCIC_CLPD6729:
 		desc = "Cirrus Logic PD6729/6730 PC-Card Controller";
@@ -200,7 +304,7 @@ pcic_pci_probe(device_t self)
 	if (desc == NULL)
 		return (ENXIO);
 	
-	device_set_desc(self, desc);
+	device_set_desc(dev, desc);
 	return 0;	/* exact match */
 }
 
@@ -210,13 +314,44 @@ pcic_pci_probe(device_t self)
  * it only understands the CL-PD6832.
  */
 static int
-pcic_pci_attach(device_t self)
+pcic_pci_attach(device_t dev)
 {
-	u_int32_t device_id = pci_get_devid(self);
+	u_int32_t device_id = pci_get_devid(dev);
+	u_long command;
+
+	/* Init. CardBus/PC-card controllers as 16-bit PC-card controllers */
+
+	/* Place any per "slot" initialization here */
+
+	/*
+	 * In sys/pci/pcireg.h, PCI_COMMAND_STATUS_REG must be separated
+	 * PCI_COMMAND_REG(0x04) and PCI_STATUS_REG(0x06).
+	 * Takeshi Shibagaki(shiba@jp.freebsd.org).
+	 */
+        command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+        command |= PCI_COMMAND_IO_ENABLE | PCI_COMMAND_MEM_ENABLE;
+        pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
 
 	switch (device_id) {
+	case PCI_DEVICE_ID_PCIC_TI1130:
+	case PCI_DEVICE_ID_PCIC_TI1131:
+	case PCI_DEVICE_ID_PCIC_TI1220:
+	case PCI_DEVICE_ID_PCIC_TI1221:
+	case PCI_DEVICE_ID_PCIC_TI1250:
+	case PCI_DEVICE_ID_PCIC_TI1251:
+	case PCI_DEVICE_ID_PCIC_TI1251B:
+	case PCI_DEVICE_ID_PCIC_TI1225:
+	case PCI_DEVICE_ID_PCIC_TI1410:
+	case PCI_DEVICE_ID_PCIC_TI1420:
+	case PCI_DEVICE_ID_PCIC_TI1450:
+	case PCI_DEVICE_ID_PCIC_TI1451:
+                ti1xxx_pci_init(dev);
+		/* FALLTHROUGH */
+	default:
+                generic_cardbus_attach(dev);
+                break;
 	case PCI_DEVICE_ID_PCIC_CLPD6832:
-		pd6832_legacy_init(self);
+		pd6832_legacy_init(dev);
 		break;
 	}
 
@@ -229,10 +364,10 @@ pcic_pci_attach(device_t self)
 		for (j = 0; j < 0x98; j += 16) {
 			printf("%02x: ", j);
 			for (i = 0; i < 16; i += 4)
-				printf(" %08x", pci_read_config(self, i+j, 4));
+				printf(" %08x", pci_read_config(dev, i+j, 4));
 			printf("\n");
 		}
-		p = (u_char *)pmap_mapdev(pci_read_config(self, 0x10, 4),
+		p = (u_char *)pmap_mapdev(pci_read_config(dev, 0x10, 4),
 					  0x1000);
 		pl = (u_long *)p;
 		printf("Cardbus Socket registers:\n");
@@ -247,9 +382,8 @@ pcic_pci_attach(device_t self)
 			printf("%02x: %16D\n", i, p + 0x800 + i, " ");
 	}
 
-	return 0;	/* no error */
+	return 0;
 }
-
 
 static device_method_t pcic_pci_methods[] = {
 	/* Device interface */
