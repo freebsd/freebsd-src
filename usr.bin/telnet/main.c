@@ -96,8 +96,8 @@ usage()
 	    "[-4] [-6] [-8] [-E] [-K] [-L] [-N] [-S tos] [-X atype] [-a] [-c] [-d]",
 	    "\n\t[-e char] [-k realm] [-l user] [-f/-F] [-n tracefile] ",
 #else
-	    "[-4] [-6] [-8] [-E] [-L] [-N] [-S tos] [-a] [-c] [-d] [-e char] [-l user]",
-	    "\n\t[-n tracefile] ",
+	    "[-4] [-6] [-8] [-E] [-L] [-N] [-S tos] [-a] [-c] [-d]",
+	    "\n\t[-e char] [-l user] [-n tracefile] ",
 #endif
 #if defined(TN3270) && defined(unix)
 # ifdef AUTHENTICATION
@@ -105,15 +105,15 @@ usage()
 	    "[-noasyncnet] [-r] [-s src_addr] [-t transcom] ",
 # else
 	    "[-noasynch] [-noasynctty] [-noasyncnet] [-r]\n\t"
-	    "[-s src_addr] [-t transcom]",
+	    "[-s src_addr] [-t transcom] ",
 # endif
 #else
-	    "[-r] [-s src_addr] ",
+	    "[-r] [-s src_addr] [-u] ",
 #endif
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
-	    "[-P policy]"
+	    "[-P policy] "
 #endif
-	    "[host-name [port]]"
+	    "\n\t[host-name [port]]"
 	);
 	exit(1);
 }
@@ -162,9 +162,6 @@ main(argc, argv)
 	{
 
 		switch(ch) {
-		case 'u':
-			family = AF_UNIX;
-			break;
 		case '4':
 			family = AF_INET;
 			break;
@@ -303,6 +300,9 @@ main(argc, argv)
 			   "%s: Warning: -t ignored, no TN3270 support.\n",
 								prompt);
 #endif
+			break;
+		case 'u':
+			family = AF_UNIX;
 			break;
 		case 'x':
 			fprintf(stderr,
