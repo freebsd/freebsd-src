@@ -43,13 +43,18 @@ all:	buildworld installworld buildimage
 Customize:	_.cs
 _.cs:	_.iw _.di _.ik _.di
 	echo "/dev/ad0s1a / ufs ro 1 1" >  ${WD}/etc/fstab
-.if exists(${CUSTOMIZE})
-	sh -e ${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR}
-.else
+.if empty(CUSTOMIZE)
 	# useful stuff for diskless boot
 	sed -i "" -e /beastie/d ${WD}/boot/loader.rc
 	sed -i "" -e /ttyd0/s/off/on/ ${WD}/etc/ttys
 	echo " -h" > ${WD}/boot.config
+.elif exists(${CUSTOMIZE})
+	sh -e ${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR}
+.elif exists(${.CURDIR}/${CUSTOMIZE})
+	sh -e ${.CURDIR}/${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR}
+.else
+	echo "CUSTOMIZE script not found" 1>&2
+	false
 .endif
 	touch _.cs
 
