@@ -986,6 +986,10 @@ video_open( bktr_ptr_t bktr )
 	bktr->video.width = 0;
 	bktr->video.banksize = 0;
 	bktr->video.ramsize = 0;
+	bktr->pixfmt_compat = TRUE;
+	bktr->format = METEOR_GEO_RGB16;
+	bktr->pixfmt = oformat_meteor_to_bt( bktr->format );
+
 
 	bt848->int_mask = BT848_INT_MYSTERYBIT;	/* what does this bit do ??? */
 
@@ -2849,7 +2853,6 @@ set_fps( bktr_ptr_t bktr, u_short fps )
 		return;
 	} else {
 		bt848->tdec = (int) (((float) fps / 30.0) * 60.0) & 0x3f;
-		bt848->tdec |= 0x80;
 	}
 
 	if ( bktr->flags & METEOR_CAP_MASK ) {
