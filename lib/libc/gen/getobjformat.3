@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: getobjformat.3,v 1.1 1998/09/09 01:21:24 jdp Exp $
 .\"
 .Dd September 7, 1998
 .Dt GETOBJFORMAT 3
@@ -103,12 +103,22 @@ and its null terminator,
 returns -1.  In that case, the contents of the buffer and argument
 vector supplied by the caller are indeterminate.
 .Sh ENVIRONMENT
+.Bl -tag -width OBJFORMAT
+.It Ev OBJFORMAT
+If the environment variable
 .Ev OBJFORMAT
+is set, it overrides the default object file format.
+.Ev OBJFORMAT takes precedence over
+.Pa /etc/objformat .
 .Sh FILES
-.Pa /etc/objformat
+.Bl -tag -width /etc/objformat -compact
+.It Pa /etc/objformat
+If present, specifies the object file format to use.  Syntax is
+.Ql OBJFORMAT=xxx .
 .Sh SEE ALSO
 .Xr objformat 1
 .Sh HISTORY
 The
 .Fn getobjformat
-function first appeared in FreeBSD 3.0.
+function first appeared in 
+.Fx 3.0 .
