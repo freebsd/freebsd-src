@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.30 1998/04/22 06:54:31 phk Exp $";
+	"$Id: route.c,v 1.31 1998/06/09 04:13:03 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -520,15 +520,13 @@ p_rtentry(rt)
 	if (rt->rt_parent && !aflag)
 		return;
 
-	bzero(&addr, sizeof addr);
+	bzero(&addr, sizeof(addr));
 	if ((sa = kgetsa(rt_key(rt))))
-		bcopy(sa,&addr,sa->sa_len);
-
-	bzero(&mask, sizeof mask);
+		bcopy(sa, &addr, sa->sa_len);
+	bzero(&mask, sizeof(mask));
 	if (rt_mask(rt) && (sa = kgetsa(rt_mask(rt))))
-		bcopy(sa,&mask,sa->sa_len);
-
-	p_sockaddr(&addr, &mask, rt->rt_flags, WID_DST);
+		bcopy(sa, &mask, sa->sa_len);
+	p_sockaddr(&addr.u_sa, &mask.u_sa, rt->rt_flags, WID_DST);
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST, WID_GW);
 	p_flags(rt->rt_flags, "%-6.6s ");
 	printf("%6d %8ld ", rt->rt_refcnt, rt->rt_use);
