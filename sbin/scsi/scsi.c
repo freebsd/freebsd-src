@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.8 1995/05/30 06:09:58 rgrimes Exp $
+ *	$Id: scsi.c,v 1.9 1995/07/11 09:21:33 dufault Exp $
  */
 
 #include <stdio.h>
@@ -944,4 +944,5 @@ void main(int argc, char **argv)
 	} else if (modeflag) {
 		mode_edit(fd, modepage, editflag, argc, argv);
 	}
+	exit(0);
 }
