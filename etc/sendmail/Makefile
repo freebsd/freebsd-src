@@ -5,7 +5,10 @@ M4=		m4
 CHMOD=		chmod
 ROMODE=		444
 RM=		rm -f
-CFDIR=		${.CURDIR}/../../contrib/sendmail/cf
+
+SENDMAIL_DIR=	${.CURDIR}/../../contrib/sendmail
+SMDIR=		${SENDMAIL_DIR}/src
+CFDIR=		${SENDMAIL_DIR}/cf
 
 # this is overkill, but....
 M4FILES!=	find ${CFDIR} -type f -name '*.m4' -print
@@ -72,6 +75,8 @@ distribution:	freebsd.cf freebsd.mc ${INSTALL_CF}
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DESTDIR}/etc/mail/sendmail.cf
 .endif
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/helpfile \
+	    ${DESTDIR}/etc/mail/helpfile
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/sendmail.st
 

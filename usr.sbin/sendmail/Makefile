@@ -61,10 +61,6 @@ DPADD+=${SENDMAIL_DPADD}
 LDADD+=${SENDMAIL_LDADD}
 LDFLAGS+=${SENDMAIL_LDFLAGS}
 
-beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/helpfile \
-	    ${DESTDIR}/etc/mail/helpfile
-
 afterinstall:
 	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/sendmail.cf -a \
 	      ! -f ${DESTDIR}/etc/mail/sendmail.cf ]; then \
