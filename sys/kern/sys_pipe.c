@@ -1258,9 +1258,7 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 	struct thread *td;
 {
 	struct pipe *mpipe = fp->f_data;
-#ifdef MAC
 	int error;
-#endif
 
 	PIPE_LOCK(mpipe);
 
@@ -1272,11 +1270,11 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 	}
 #endif
 
+	error = 0;
 	switch (cmd) {
 
 	case FIONBIO:
-		PIPE_UNLOCK(mpipe);
-		return (0);
+		break;
 
 	case FIOASYNC:
 		if (*(int *)data) {
@@ -1284,40 +1282,38 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 		} else {
 			mpipe->pipe_state &= ~PIPE_ASYNC;
 		}
-		PIPE_UNLOCK(mpipe);
-		return (0);
+		break;
 
 	case FIONREAD:
 		if (mpipe->pipe_state & PIPE_DIRECTW)
 			*(int *)data = mpipe->pipe_map.cnt;
 		else
 			*(int *)data = mpipe->pipe_buffer.cnt;
-		PIPE_UNLOCK(mpipe);
-		return (0);
+		break;
 
 	case FIOSETOWN:
-		PIPE_UNLOCK(mpipe);
-		return (fsetown(*(int *)data, &mpipe->pipe_sigio));
+		error = fsetown(*(int *)data, &mpipe->pipe_sigio);
+		break;
 
 	case FIOGETOWN:
-		PIPE_UNLOCK(mpipe);
 		*(int *)data = fgetown(&mpipe->pipe_sigio);
-		return (0);
+		break;
 
 	/* This is deprecated, FIOSETOWN should be used instead. */
 	case TIOCSPGRP:
-		PIPE_UNLOCK(mpipe);
-		return (fsetown(-(*(int *)data), &mpipe->pipe_sigio));
+		error = fsetown(-(*(int *)data), &mpipe->pipe_sigio);
+		break;
 
 	/* This is deprecated, FIOGETOWN should be used instead. */
 	case TIOCGPGRP:
-		PIPE_UNLOCK(mpipe);
 		*(int *)data = -fgetown(&mpipe->pipe_sigio);
-		return (0);
+		break;
 
+	default:
+		error = ENOTTY;
 	}
 	PIPE_UNLOCK(mpipe);
-	return (ENOTTY);
+	return (error);
 }
 
 static int
