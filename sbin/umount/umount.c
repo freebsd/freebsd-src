@@ -140,7 +140,8 @@ main(int argc, char *argv[])
 	if (nfshost != NULL) {
 		memset(&hints, 0, sizeof hints);
 		error = getaddrinfo(nfshost, NULL, &hints, &nfshost_ai);
-		errx(1, "%s: %s", nfshost, gai_strerror(error));
+		if (error)
+			errx(1, "%s: %s", nfshost, gai_strerror(error));
 	}
 
 	switch (all) {
