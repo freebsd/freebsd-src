@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.143 1997/09/16 18:57:16 jkh Exp $
+ * $Id: menus.c,v 1.144 1997/09/29 00:15:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -762,10 +762,12 @@ DMenu MenuDESDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_DES, },
       { "krb",		"Kerberos encryption services",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_KERBEROS },
-      { "sebones",	"Sources for eBones (Kerberos)",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SEBONES },
+      { "skerbero",	"Sources for Kerberos IV",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SKERBEROS },
       { "ssecure",	"Sources for DES",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SSECURE },
+      { "scrypto",	"Export controlled crypto sources",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SCRYPTO },
       { "Exit",		"Exit this menu (returning to previous)",
 	checkTrue,	dmenuExit, NULL, NULL, '<', '<', '<' },
       { NULL } },
@@ -1146,7 +1148,7 @@ DMenu MenuNetworking = {
 	dmenuVarCheck, configNovell, NULL, "novell" },
 #endif
       { "Ntpdate",	"Select a clock-syncronization server",
-	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', "ntpdate_enable=YES" },
+	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', (int)"ntpdate_enable=YES" },
       { "router",	"Select routing daemon (default: routed)",
 	dmenuVarCheck, configRouter, NULL, "router" },
       { "Rwhod",	"This machine wants to run the rwho daemon",
