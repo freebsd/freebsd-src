@@ -119,8 +119,8 @@ lnc0    280     10      n/a     dyn     Lance/PCnet cards
                                         (Isolan, Novell NE2100, NE32-VL,
 					 some PCnet-PCI cards)
 pcn0	dyn	dyn	n/a	dyn	AMD PCnet/FAST, PCnet/FAST+, 
-					PCnet/PRO, PCnet/Home, and HomePNA 
-					cards
+					PCnet/FAST III, PCnet/PRO, PCnet/Home,
+					and HomePNA cards
 rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
 sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
 sis0    dyn     dyn     n/a     dyn     SiS 900/SiS 7016 fast ethernet
@@ -528,7 +528,7 @@ chipsets, including the following:
     Silicon Graphics Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
-AMD PCnet/FAST, PCnet/FAST+, PCnet/PRO, HomePCI, and HomePNA.
+AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO, HomePCI, and HomePNA.
 
 SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT

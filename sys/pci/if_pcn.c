@@ -410,6 +410,7 @@ static int pcn_probe(dev)
 			case Am79C971:
 			case Am79C972:
 			case Am79C973:
+			case Am79C975:
 			case Am79C976:
 			case Am79C978:
 				break;
