@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: canohost.c,v 1.37 2003/06/02 09:17:34 markus Exp $");
+RCSID("$OpenBSD: canohost.c,v 1.38 2003/09/23 20:17:11 markus Exp $");
 
 #include "packet.h"
 #include "xmalloc.h"
@@ -20,6 +20,7 @@ RCSID("$OpenBSD: canohost.c,v 1.37 2003/06/02 09:17:34 markus Exp $");
 #include "canohost.h"
 
 static void check_ip_options(int, char *);
+static void ipv64_normalise_mapped(struct sockaddr_storage *, socklen_t *);
 
 /*
  * Return the canonical name of the host at the other end of the socket. The
@@ -40,31 +41,11 @@ get_remote_hostname(int socket, int use_dns)
 	memset(&from, 0, sizeof(from));
 	if (getpeername(socket, (struct sockaddr *)&from, &fromlen) < 0) {
 		debug("getpeername failed: %.100s", strerror(errno));
-		fatal_cleanup();
+		cleanup_exit(255);
 	}
-#ifdef IPV4_IN_IPV6
-	if (from.ss_family == AF_INET6) {
-		struct sockaddr_in6 *from6 = (struct sockaddr_in6 *)&from;
 
-		/* Detect IPv4 in IPv6 mapped address and convert it to */
-		/* plain (AF_INET) IPv4 address */
-		if (IN6_IS_ADDR_V4MAPPED(&from6->sin6_addr)) {
-			struct sockaddr_in *from4 = (struct sockaddr_in *)&from;
-			struct in_addr addr;
-			u_int16_t port;
+	ipv64_normalise_mapped(&from, &fromlen);
 
-			memcpy(&addr, ((char *)&from6->sin6_addr) + 12, sizeof(addr));
-			port = from6->sin6_port;
-
-			memset(&from, 0, sizeof(from));
-
-			from4->sin_family = AF_INET;
-			fromlen = sizeof(*from4);
-			memcpy(&from4->sin_addr, &addr, sizeof(addr));
-			from4->sin_port = port;
-		}
-	}
-#endif
 	if (from.ss_family == AF_INET6)
 		fromlen = sizeof(struct sockaddr_in6);
 
@@ -185,6 +166,31 @@ check_ip_options(int socket, char *ipaddr)
 #endif /* IP_OPTIONS */
 }
 
+static void
+ipv64_normalise_mapped(struct sockaddr_storage *addr, socklen_t *len)
+{
+	struct sockaddr_in6 *a6 = (struct sockaddr_in6 *)addr;
+	struct sockaddr_in *a4 = (struct sockaddr_in *)addr;
+	struct in_addr inaddr;
+	u_int16_t port;
+
+	if (addr->ss_family != AF_INET6 || 
+	    !IN6_IS_ADDR_V4MAPPED(&a6->sin6_addr))
+		return;
+
+	debug3("Normalising mapped IPv4 in IPv6 address");
+
+	memcpy(&inaddr, ((char *)&a6->sin6_addr) + 12, sizeof(inaddr));
+	port = a6->sin6_port;
+
+	memset(addr, 0, sizeof(*a4));
+
+	a4->sin_family = AF_INET;
+	*len = sizeof(*a4);
+	memcpy(&a4->sin_addr, &inaddr, sizeof(inaddr));
+	a4->sin_port = port;
+}
+
 /*
  * Return the canonical name of the host in the other side of the current
  * connection.  The host name is cached, so it is efficient to call this
@@ -296,7 +302,7 @@ get_remote_ipaddr(void)
 			canonical_host_ip =
 			    get_peer_ipaddr(packet_get_connection_in());
 			if (canonical_host_ip == NULL)
-				fatal_cleanup();
+				cleanup_exit(255);
 		} else {
 			/* If not on socket, return UNKNOWN. */
 			canonical_host_ip = xstrdup("UNKNOWN");
@@ -336,7 +342,7 @@ get_sock_port(int sock, int local)
 	} else {
 		if (getpeername(sock, (struct sockaddr *)&from, &fromlen) < 0) {
 			debug("getpeername failed: %.100s", strerror(errno));
-			fatal_cleanup();
+			cleanup_exit(255);
 		}
 	}
 

@@ -9,7 +9,7 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.28 2003/06/10 09:12:11 jmc Exp $
+.\" $OpenBSD: scp.1,v 1.32 2003/12/16 15:49:51 markus Exp $
 .\"
 .Dd September 25, 1999
 .Dt SCP 1
@@ -20,24 +20,24 @@
 .Sh SYNOPSIS
 .Nm scp
 .Bk -words
-.Op Fl pqrvBC1246
-.Op Fl F Ar ssh_config
-.Op Fl S Ar program
-.Op Fl P Ar port
+.Op Fl 1246BCpqrv
 .Op Fl c Ar cipher
+.Op Fl F Ar ssh_config
 .Op Fl i Ar identity_file
 .Op Fl l Ar limit
 .Op Fl o Ar ssh_option
+.Op Fl P Ar port
+.Op Fl S Ar program
 .Sm off
 .Oo
-.Op Ar user@
+.Op Ar user No @
 .Ar host1 No :
 .Oc Ns Ar file1
 .Sm on
 .Op Ar ...
 .Sm off
 .Oo
-.Op Ar user@
+.Op Ar user No @
 .Ar host2 No :
 .Oc Ar file2
 .Sm on
@@ -62,72 +62,6 @@ Copies between two remote hosts are permitted.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl c Ar cipher
-Selects the cipher to use for encrypting the data transfer.
-This option is directly passed to
-.Xr ssh 1 .
-.It Fl i Ar identity_file
-Selects the file from which the identity (private key) for RSA
-authentication is read.
-This option is directly passed to
-.Xr ssh 1 .
-.It Fl l Ar limit
-Limits the used bandwidth, specified in Kbit/s.
-.It Fl p
-Preserves modification times, access times, and modes from the
-original file.
-.It Fl r
-Recursively copy entire directories.
-.It Fl v
-Verbose mode.
-Causes
-.Nm
-and
-.Xr ssh 1
-to print debugging messages about their progress.
-This is helpful in
-debugging connection, authentication, and configuration problems.
-.It Fl B
-Selects batch mode (prevents asking for passwords or passphrases).
-.It Fl q
-Disables the progress meter.
-.It Fl C
-Compression enable.
-Passes the
-.Fl C
-flag to
-.Xr ssh 1
-to enable compression.
-.It Fl F Ar ssh_config
-Specifies an alternative
-per-user configuration file for
-.Nm ssh .
-This option is directly passed to
-.Xr ssh 1 .
-.It Fl P Ar port
-Specifies the port to connect to on the remote host.
-Note that this option is written with a capital
-.Sq P ,
-because
-.Fl p
-is already reserved for preserving the times and modes of the file in
-.Xr rcp 1 .
-.It Fl S Ar program
-Name of
-.Ar program
-to use for the encrypted connection.
-The program must understand
-.Xr ssh 1
-options.
-.It Fl o Ar ssh_option
-Can be used to pass options to
-.Nm ssh
-in the format used in
-.Xr ssh_config 5 .
-This is useful for specifying options
-for which there is no separate
-.Nm scp
-command-line flag.
 .It Fl 1
 Forces
 .Nm
@@ -144,6 +78,118 @@ to use IPv4 addresses only.
 Forces
 .Nm
 to use IPv6 addresses only.
+.It Fl B
+Selects batch mode (prevents asking for passwords or passphrases).
+.It Fl C
+Compression enable.
+Passes the
+.Fl C
+flag to
+.Xr ssh 1
+to enable compression.
+.It Fl c Ar cipher
+Selects the cipher to use for encrypting the data transfer.
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl F Ar ssh_config
+Specifies an alternative
+per-user configuration file for
+.Nm ssh .
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl i Ar identity_file
+Selects the file from which the identity (private key) for RSA
+authentication is read.
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl l Ar limit
+Limits the used bandwidth, specified in Kbit/s.
+.It Fl o Ar ssh_option
+Can be used to pass options to
+.Nm ssh
+in the format used in
+.Xr ssh_config 5 .
+This is useful for specifying options
+for which there is no separate
+.Nm scp
+command-line flag.
+For full details of the options listed below, and their possible values, see
+.Xr ssh_config 5 .
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It AddressFamily
+.It BatchMode
+.It BindAddress
+.It ChallengeResponseAuthentication
+.It CheckHostIP
+.It Cipher
+.It Ciphers
+.It Compression
+.It CompressionLevel
+.It ConnectionAttempts
+.It ConnectionTimeout
+.It GlobalKnownHostsFile
+.It GSSAPIAuthentication
+.It GSSAPIDelegateCredentials
+.It Host
+.It HostbasedAuthentication
+.It HostKeyAlgorithms
+.It HostKeyAlias
+.It HostName
+.It IdentityFile
+.It LogLevel
+.It MACs
+.It NoHostAuthenticationForLocalhost
+.It NumberOfPasswordPrompts
+.It PasswordAuthentication
+.It Port
+.It PreferredAuthentications
+.It Protocol
+.It ProxyCommand
+.It PubkeyAuthentication
+.It RhostsRSAAuthentication
+.It RSAAuthentication
+.It ServerAliveInterval
+.It ServerAliveCountMax
+.It SmartcardDevice
+.It StrictHostKeyChecking
+.It TCPKeepAlive
+.It UsePrivilegedPort
+.It User
+.It UserKnownHostsFile
+.It VerifyHostKeyDNS
+.El
+.It Fl P Ar port
+Specifies the port to connect to on the remote host.
+Note that this option is written with a capital
+.Sq P ,
+because
+.Fl p
+is already reserved for preserving the times and modes of the file in
+.Xr rcp 1 .
+.It Fl p
+Preserves modification times, access times, and modes from the
+original file.
+.It Fl q
+Disables the progress meter.
+.It Fl r
+Recursively copy entire directories.
+.It Fl S Ar program
+Name of
+.Ar program
+to use for the encrypted connection.
+The program must understand
+.Xr ssh 1
+options.
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+and
+.Xr ssh 1
+to print debugging messages about their progress.
+This is helpful in
+debugging connection, authentication, and configuration problems.
 .El
 .Sh DIAGNOSTICS
 .Nm
@@ -165,5 +211,4 @@ program in BSD source code from the Regents of the University of
 California.
 .Sh AUTHORS
 .An Timo Rinne Aq tri@iki.fi
-and
 .An Tatu Ylonen Aq ylo@cs.hut.fi

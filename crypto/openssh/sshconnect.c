@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect.c,v 1.148 2003/09/18 07:52:54 markus Exp $");
+RCSID("$OpenBSD: sshconnect.c,v 1.156 2004/01/25 03:49:09 djm Exp $");
 
 #include <openssl/bn.h>
 
@@ -33,16 +33,12 @@ RCSID("$OpenBSD: sshconnect.c,v 1.148 2003/09/18 07:52:54 markus Exp $");
 #include "misc.h"
 #include "readpass.h"
 
-#ifdef DNS
 #include "dns.h"
-#endif
 
 char *client_version_string = NULL;
 char *server_version_string = NULL;
 
-#ifdef DNS
-int verified_host_key_dns = 0;
-#endif
+int matching_host_key_dns = 0;
 
 /* import */
 extern Options options;
@@ -56,6 +52,7 @@ extern pid_t proxy_command_pid;
 #endif
 
 static int show_other_keys(const char *, Key *);
+static void warn_changed_key(Key *);
 
 /*
  * Connect to the given ssh server using a proxy command.
@@ -77,7 +74,7 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 	 * Build the final command string in the buffer by making the
 	 * appropriate substitutions to the given proxy command.
 	 *
-	 * Use "exec" to avoid "sh -c" processes on some platforms 
+	 * Use "exec" to avoid "sh -c" processes on some platforms
 	 * (e.g. Solaris)
 	 */
 	buffer_init(&command);
@@ -234,12 +231,12 @@ timeout_connect(int sockfd, const struct sockaddr *serv_addr,
 	if (timeout <= 0)
 		return (connect(sockfd, serv_addr, addrlen));
 
-	if (fcntl(sockfd, F_SETFL, O_NONBLOCK) < 0)
-		return (-1);
-
+	set_nonblock(sockfd);
 	rc = connect(sockfd, serv_addr, addrlen);
-	if (rc == 0)
+	if (rc == 0) {
+		unset_nonblock(sockfd);
 		return (0);
+	}
 	if (errno != EINPROGRESS)
 		return (-1);
 
@@ -264,15 +261,15 @@ timeout_connect(int sockfd, const struct sockaddr *serv_addr,
 		break;
 	case -1:
 		/* Select error */
-	    	debug("select: %s", strerror(errno));
+		debug("select: %s", strerror(errno));
 		break;
 	case 1:
 		/* Completed or failed */
 		optval = 0;
 		optlen = sizeof(optval);
-		if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &optval, 
+		if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &optval,
 		    &optlen) == -1) {
-		    	debug("getsockopt: %s", strerror(errno));
+			debug("getsockopt: %s", strerror(errno));
 			break;
 		}
 		if (optval != 0) {
@@ -280,6 +277,7 @@ timeout_connect(int sockfd, const struct sockaddr *serv_addr,
 			break;
 		}
 		result = 0;
+		unset_nonblock(sockfd);
 		break;
 	default:
 		/* Should not occur */
@@ -418,8 +416,8 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 
 	debug("Connection established.");
 
-	/* Set keepalives if requested. */
-	if (options.keepalives &&
+	/* Set SO_KEEPALIVE if requested. */
+	if (options.tcp_keep_alive &&
 	    setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *)&on,
 	    sizeof(on)) < 0)
 		error("setsockopt SO_KEEPALIVE: %.100s", strerror(errno));
@@ -566,7 +564,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
     int readonly, const char *user_hostfile, const char *system_hostfile)
 {
 	Key *file_key;
-	char *type = key_type(host_key);
+	const char *type = key_type(host_key);
 	char *ip = NULL;
 	char hostline[1000], *hostp, *fp;
 	HostStatus host_status;
@@ -730,9 +728,8 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 			/* The default */
 			fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
 			msg2[0] = '\0';
-#ifdef DNS
 			if (options.verify_host_key_dns) {
-				if (verified_host_key_dns)
+				if (matching_host_key_dns)
 					snprintf(msg2, sizeof(msg2),
 					    "Matching host key fingerprint"
 					    " found in DNS.\n");
@@ -741,7 +738,6 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 					    "No matching host key fingerprint"
 					    " found in DNS.\n");
 			}
-#endif
 			snprintf(msg, sizeof(msg),
 			    "The authenticity of host '%.200s (%s)' can't be "
 			    "established%s\n"
@@ -791,20 +787,10 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 				error("Offending key for IP in %s:%d", ip_file, ip_line);
 		}
 		/* The host key has changed. */
-		fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
-		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-		error("@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @");
-		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-		error("IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!");
-		error("Someone could be eavesdropping on you right now (man-in-the-middle attack)!");
-		error("It is also possible that the %s host key has just been changed.", type);
-		error("The fingerprint for the %s key sent by the remote host is\n%s.",
-		    type, fp);
-		error("Please contact your system administrator.");
+		warn_changed_key(host_key);
 		error("Add correct host key in %.100s to get rid of this message.",
 		    user_hostfile);
 		error("Offending key in %s:%d", host_file, host_line);
-		xfree(fp);
 
 		/*
 		 * If strict host key checking is in use, the user will have
@@ -907,27 +893,27 @@ int
 verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
 {
 	struct stat st;
+	int flags = 0;
 
-#ifdef DNS
-	if (options.verify_host_key_dns) {
-		switch(verify_host_key_dns(host, hostaddr, host_key)) {
-		case DNS_VERIFY_OK:
-#ifdef DNSSEC
-			return 0;
-#else
-			verified_host_key_dns = 1;
-			break;
-#endif
-		case DNS_VERIFY_FAILED:
-			return -1;
-		case DNS_VERIFY_ERROR:
-			break;
-		default:
-			debug3("bad return value from verify_host_key_dns");
-			break;
+	if (options.verify_host_key_dns &&
+	    verify_host_key_dns(host, hostaddr, host_key, &flags) == 0) {
+
+		if (flags & DNS_VERIFY_FOUND) {
+
+			if (options.verify_host_key_dns == 1 &&
+			    flags & DNS_VERIFY_MATCH &&
+			    flags & DNS_VERIFY_SECURE)
+				return 0;
+
+			if (flags & DNS_VERIFY_MATCH) {
+				matching_host_key_dns = 1;
+			} else {
+				warn_changed_key(host_key);
+				error("Update the SSHFP RR in DNS with the new "
+				    "host key to get rid of this message.");
+			}
 		}
 	}
-#endif /* DNS */
 
 	/* return ok if the key can be found in an old keyfile */
 	if (stat(options.system_hostfile2, &st) == 0 ||
@@ -1052,4 +1038,25 @@ show_other_keys(const char *host, Key *key)
 		debug2("no key of type %d for host %s", type[i], host);
 	}
 	return (found);
+}
+
+static void
+warn_changed_key(Key *host_key)
+{
+	char *fp;
+	const char *type = key_type(host_key);
+
+	fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
+
+	error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+	error("@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @");
+	error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+	error("IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!");
+	error("Someone could be eavesdropping on you right now (man-in-the-middle attack)!");
+	error("It is also possible that the %s host key has just been changed.", type);
+	error("The fingerprint for the %s key sent by the remote host is\n%s.",
+	    type, fp);
+	error("Please contact your system administrator.");
+
+	xfree(fp);
 }

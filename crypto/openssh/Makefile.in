@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.249.2.1 2003/09/22 01:00:12 dtucker Exp $
+# $Id: Makefile.in,v 1.257 2004/02/18 03:35:11 djm Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -61,12 +61,13 @@ INSTALL_SSH_RAND_HELPER=@INSTALL_SSH_RAND_HELPER@
 
 TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-agent$(EXEEXT) scp$(EXEEXT) ssh-rand-helper${EXEEXT} sftp-server$(EXEEXT) sftp$(EXEEXT)
 
-LIBSSH_OBJS=authfd.o authfile.o bufaux.o buffer.o canohost.o channels.o \
-	cipher.o  cipher-aes.o cipher-bf1.o cipher-ctr.o cipher-3des1.o \
-	compat.o compress.o crc32.o deattack.o fatal.o \
-	hostfile.o log.o match.o moduli.o mpaux.o nchan.o packet.o \
-	readpass.o rsa.o tildexpand.o ttymodes.o xmalloc.o atomicio.o \
-	key.o dispatch.o kex.o mac.o uuencode.o misc.o \
+LIBSSH_OBJS=acss.o authfd.o authfile.o bufaux.o buffer.o \
+	canohost.o channels.o cipher.o cipher-acss.o cipher-aes.o \
+	cipher-bf1.o cipher-ctr.o cipher-3des1.o cleanup.o \
+	compat.o compress.o crc32.o deattack.o fatal.o hostfile.o \
+	log.o match.o moduli.o mpaux.o nchan.o packet.o \
+	readpass.o rsa.o tildexpand.o ttymodes.o xmalloc.o \
+	atomicio.o key.o dispatch.o kex.o mac.o uuencode.o misc.o \
 	rijndael.o ssh-dss.o ssh-rsa.o dh.o kexdh.o kexgex.o \
 	kexdhc.o kexgexc.o scard.o msg.o progressmeter.o dns.o \
 	entropy.o scard-opensc.o gss-genr.o
@@ -84,7 +85,7 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
 	kexdhs.o kexgexs.o \
 	auth-krb5.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
-	loginrec.o auth-pam.o auth-sia.o md5crypt.o
+	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o
 
 MANPAGES	= scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-rand-helper.8.out ssh-keysign.8.out sshd_config.5.out ssh_config.5.out
 MANPAGES_IN	= scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-rand-helper.8 ssh-keysign.8 sshd_config.5 ssh_config.5
@@ -140,25 +141,25 @@ scp$(EXEEXT): $(LIBCOMPAT) libssh.a scp.o progressmeter.o
 	$(LD) -o $@ scp.o progressmeter.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-add$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-add.o
-	$(LD) -o $@ ssh-add.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) 
+	$(LD) -o $@ ssh-add.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-agent$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-agent.o
-	$(LD) -o $@ ssh-agent.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) 
+	$(LD) -o $@ ssh-agent.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keygen.o
-	$(LD) -o $@ ssh-keygen.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) 
+	$(LD) -o $@ ssh-keygen.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o
-	$(LD) -o $@ ssh-keysign.o readconf.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) 
+	$(LD) -o $@ ssh-keysign.o readconf.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o
-	$(LD) -o $@ ssh-keyscan.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS) 
+	$(LD) -o $@ ssh-keyscan.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
 
 sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-common.o sftp-server.o
-	$(LD) -o $@ sftp-server.o sftp-common.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) 
+	$(LD) -o $@ sftp-server.o sftp-common.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-sftp$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-client.o sftp-int.o sftp-common.o sftp-glob.o progressmeter.o
-	$(LD) -o $@ progressmeter.o sftp.o sftp-client.o sftp-common.o sftp-int.o sftp-glob.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+sftp$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-client.o sftp-common.o sftp-glob.o progressmeter.o
+	$(LD) -o $@ progressmeter.o sftp.o sftp-client.o sftp-common.o sftp-glob.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-rand-helper${EXEEXT}: $(LIBCOMPAT) libssh.a ssh-rand-helper.o
 	$(LD) -o $@ ssh-rand-helper.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
@@ -193,12 +194,12 @@ moduli:
 	echo
 
 clean:	regressclean
-	rm -f *.o *.a $(TARGETS) logintest config.cache config.log 
-	rm -f *.out core 
+	rm -f *.o *.a $(TARGETS) logintest config.cache config.log
+	rm -f *.out core
 	(cd openbsd-compat && $(MAKE) clean)
 
 distclean:	regressclean
-	rm -f *.o *.a $(TARGETS) logintest config.cache config.log 
+	rm -f *.o *.a $(TARGETS) logintest config.cache config.log
 	rm -f *.out core
 	rm -f Makefile config.h config.status ssh_prng_cmds *~
 	rm -rf autom4te.cache
@@ -222,6 +223,7 @@ catman-do:
 
 distprep: catman-do
 	$(AUTORECONF)
+	-rm -rf autom4te.cache
 	(cd scard && $(MAKE) -f Makefile.in distprep)
 
 install: $(CONFIGFILES) ssh_prng_cmds.out $(MANPAGES) $(TARGETS) install-files host-key check-config
@@ -342,7 +344,7 @@ uninstallall:	uninstall
 	-rmdir $(DESTDIR)$(mandir)
 	-rmdir $(DESTDIR)$(libexecdir)
 
-uninstall: 
+uninstall:
 	-rm -f $(DESTDIR)$(bindir)/slogin
 	-rm -f $(DESTDIR)$(bindir)/ssh$(EXEEXT)
 	-rm -f $(DESTDIR)$(bindir)/scp$(EXEEXT)
@@ -373,6 +375,7 @@ tests:	$(TARGETS)
 	[ -d `pwd`/regress ]  ||  mkdir -p `pwd`/regress; \
 	[ -f `pwd`/regress/Makefile ]  || \
 	    ln -s $(srcdir)/regress/Makefile `pwd`/regress/Makefile ; \
+	TEST_SHELL="@TEST_MINUS_S_SH@"; \
 	TEST_SSH_SSH="$${BUILDDIR}/ssh"; \
 	TEST_SSH_SSHD="$${BUILDDIR}/sshd"; \
 	TEST_SSH_SSHAGENT="$${BUILDDIR}/ssh-agent"; \
@@ -388,6 +391,7 @@ tests:	$(TARGETS)
 		BUILDDIR="$${BUILDDIR}" \
 		OBJ="$${BUILDDIR}/regress/" \
 		PATH="$${BUILDDIR}:$${PATH}" \
+		TEST_SHELL="$${TEST_SHELL}" \
 		TEST_SSH_SSH="$${TEST_SSH_SSH}" \
 		TEST_SSH_SSHD="$${TEST_SSH_SSHD}" \
 		TEST_SSH_SSHAGENT="$${TEST_SSH_SSHAGENT}" \

@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-add.c,v 1.68 2003/06/16 10:22:45 markus Exp $");
+RCSID("$OpenBSD: ssh-add.c,v 1.69 2003/11/21 11:57:03 djm Exp $");
 
 #include <openssl/evp.h>
 
@@ -169,14 +169,14 @@ add_file(AuthenticationConnection *ac, const char *filename)
 		}
 	}
 
- 	if (ssh_add_identity_constrained(ac, private, comment, lifetime,
- 	    confirm)) {
+	if (ssh_add_identity_constrained(ac, private, comment, lifetime,
+	    confirm)) {
 		fprintf(stderr, "Identity added: %s (%s)\n", filename, comment);
 		ret = 0;
 		if (lifetime != 0)
 			fprintf(stderr,
 			    "Lifetime set to %d seconds\n", lifetime);
- 		if (confirm != 0)
+		if (confirm != 0)
 			fprintf(stderr,
 			    "The user has to confirm each use of the key\n");
 	} else if (ssh_add_identity(ac, private, comment)) {

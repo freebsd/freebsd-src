@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect2.c,v 1.124 2003/08/25 10:33:33 djm Exp $");
+RCSID("$OpenBSD: sshconnect2.c,v 1.134 2004/01/19 21:25:15 markus Exp $");
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -222,7 +222,7 @@ static char *authmethods_get(void);
 
 Authmethod authmethods[] = {
 #ifdef GSSAPI
-	{"gssapi",
+	{"gssapi-with-mic",
 		userauth_gssapi,
 		&options.gss_authentication,
 		NULL},
@@ -358,10 +358,12 @@ void
 input_userauth_banner(int type, u_int32_t seq, void *ctxt)
 {
 	char *msg, *lang;
+
 	debug3("input_userauth_banner");
 	msg = packet_get_string(NULL);
 	lang = packet_get_string(NULL);
-	logit("%s", msg);
+	if (options.log_level > SYSLOG_LEVEL_QUIET)
+		fprintf(stderr, "%s", msg);
 	xfree(msg);
 	xfree(lang);
 }
@@ -372,10 +374,14 @@ input_userauth_success(int type, u_int32_t seq, void *ctxt)
 	Authctxt *authctxt = ctxt;
 	if (authctxt == NULL)
 		fatal("input_userauth_success: no authentication context");
-	if (authctxt->authlist)
+	if (authctxt->authlist) {
 		xfree(authctxt->authlist);
-	if (authctxt->methoddata)
+		authctxt->authlist = NULL;
+	}
+	if (authctxt->methoddata) {
 		xfree(authctxt->methoddata);
+		authctxt->methoddata = NULL;
+	}
 	authctxt->success = 1;			/* break out */
 }
 
@@ -447,7 +453,12 @@ input_userauth_pk_ok(int type, u_int32_t seq, void *ctxt)
 	debug2("input_userauth_pk_ok: fp %s", fp);
 	xfree(fp);
 
-	TAILQ_FOREACH(id, &authctxt->keys, next) {
+	/*
+	 * search keys in the reverse order, because last candidate has been
+	 * moved to the end of the queue.  this also avoids confusion by
+	 * duplicate keys
+	 */
+	TAILQ_FOREACH_REVERSE(id, &authctxt->keys, next, idlist) {
 		if (key_equal(key, id->key)) {
 			sent = sign_and_send_pubkey(authctxt, id);
 			break;
@@ -465,11 +476,11 @@ done:
 }
 
 #ifdef GSSAPI
-int 
+int
 userauth_gssapi(Authctxt *authctxt)
 {
 	Gssctxt *gssctxt = NULL;
-	static gss_OID_set supported = NULL;
+	static gss_OID_set gss_supported = NULL;
 	static int mech = 0;
 	OM_uint32 min;
 	int ok = 0;
@@ -477,18 +488,18 @@ userauth_gssapi(Authctxt *authctxt)
 	/* Try one GSSAPI method at a time, rather than sending them all at
 	 * once. */
 
-	if (supported == NULL)
-		gss_indicate_mechs(&min, &supported);
+	if (gss_supported == NULL)
+		gss_indicate_mechs(&min, &gss_supported);
 
 	/* Check to see if the mechanism is usable before we offer it */
-	while (mech<supported->count && !ok) {
+	while (mech < gss_supported->count && !ok) {
 		if (gssctxt)
 			ssh_gssapi_delete_ctx(&gssctxt);
 		ssh_gssapi_build_ctx(&gssctxt);
-		ssh_gssapi_set_oid(gssctxt, &supported->elements[mech]);
+		ssh_gssapi_set_oid(gssctxt, &gss_supported->elements[mech]);
 
 		/* My DER encoding requires length<128 */
-		if (supported->elements[mech].length < 128 &&
+		if (gss_supported->elements[mech].length < 128 &&
 		    !GSS_ERROR(ssh_gssapi_import_name(gssctxt,
 		    authctxt->host))) {
 			ok = 1; /* Mechanism works */
@@ -508,17 +519,11 @@ userauth_gssapi(Authctxt *authctxt)
 
 	packet_put_int(1);
 
-	/* Some servers encode the OID incorrectly (as we used to) */
-	if (datafellows & SSH_BUG_GSSAPI_BER) {
-		packet_put_string(supported->elements[mech].elements,
-		    supported->elements[mech].length);
-	} else {
-		packet_put_int((supported->elements[mech].length)+2);
-		packet_put_char(SSH_GSS_OIDTYPE);
-		packet_put_char(supported->elements[mech].length);
-		packet_put_raw(supported->elements[mech].elements,
-		    supported->elements[mech].length);
-	}
+	packet_put_int((gss_supported->elements[mech].length) + 2);
+	packet_put_char(SSH_GSS_OIDTYPE);
+	packet_put_char(gss_supported->elements[mech].length);
+	packet_put_raw(gss_supported->elements[mech].elements,
+	    gss_supported->elements[mech].length);
 
 	packet_send();
 
@@ -532,15 +537,66 @@ userauth_gssapi(Authctxt *authctxt)
 	return 1;
 }
 
+static OM_uint32
+process_gssapi_token(void *ctxt, gss_buffer_t recv_tok)
+{
+	Authctxt *authctxt = ctxt;
+	Gssctxt *gssctxt = authctxt->methoddata;
+	gss_buffer_desc send_tok = GSS_C_EMPTY_BUFFER;
+	gss_buffer_desc gssbuf, mic;
+	OM_uint32 status, ms, flags;
+	Buffer b;
+
+	status = ssh_gssapi_init_ctx(gssctxt, options.gss_deleg_creds,
+	    recv_tok, &send_tok, &flags);
+
+	if (send_tok.length > 0) {
+		if (GSS_ERROR(status))
+			packet_start(SSH2_MSG_USERAUTH_GSSAPI_ERRTOK);
+		else
+			packet_start(SSH2_MSG_USERAUTH_GSSAPI_TOKEN);
+
+		packet_put_string(send_tok.value, send_tok.length);
+		packet_send();
+		gss_release_buffer(&ms, &send_tok);
+	}
+
+	if (status == GSS_S_COMPLETE) {
+		/* send either complete or MIC, depending on mechanism */
+		if (!(flags & GSS_C_INTEG_FLAG)) {
+			packet_start(SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE);
+			packet_send();
+		} else {
+			ssh_gssapi_buildmic(&b, authctxt->server_user,
+			    authctxt->service, "gssapi-with-mic");
+
+			gssbuf.value = buffer_ptr(&b);
+			gssbuf.length = buffer_len(&b);
+
+			status = ssh_gssapi_sign(gssctxt, &gssbuf, &mic);
+
+			if (!GSS_ERROR(status)) {
+				packet_start(SSH2_MSG_USERAUTH_GSSAPI_MIC);
+				packet_put_string(mic.value, mic.length);
+
+				packet_send();
+			}
+
+			buffer_free(&b);
+			gss_release_buffer(&ms, &mic);
+		}
+	}
+
+	return status;
+}
+
 void
 input_gssapi_response(int type, u_int32_t plen, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
 	Gssctxt *gssctxt;
-	OM_uint32 status, ms;
 	int oidlen;
 	char *oidv;
-	gss_buffer_desc send_tok = GSS_C_EMPTY_BUFFER;
 
 	if (authctxt == NULL)
 		fatal("input_gssapi_response: no authentication context");
@@ -549,93 +605,54 @@ input_gssapi_response(int type, u_int32_t plen, void *ctxt)
 	/* Setup our OID */
 	oidv = packet_get_string(&oidlen);
 
-	if (datafellows & SSH_BUG_GSSAPI_BER) {
-		if (!ssh_gssapi_check_oid(gssctxt, oidv, oidlen))
-			fatal("Server returned different OID than expected");
-	} else {
-		if(oidv[0] != SSH_GSS_OIDTYPE || oidv[1] != oidlen-2) {
-			debug("Badly encoded mechanism OID received");
-			userauth(authctxt, NULL);
-			xfree(oidv);
-			return;
-		}
-		if (!ssh_gssapi_check_oid(gssctxt, oidv+2, oidlen-2))
-			fatal("Server returned different OID than expected");
+	if (oidlen <= 2 ||
+	    oidv[0] != SSH_GSS_OIDTYPE ||
+	    oidv[1] != oidlen - 2) {
+		xfree(oidv);
+		debug("Badly encoded mechanism OID received");
+		userauth(authctxt, NULL);
+		return;
 	}
+
+	if (!ssh_gssapi_check_oid(gssctxt, oidv + 2, oidlen - 2))
+		fatal("Server returned different OID than expected");
 
 	packet_check_eom();
 
 	xfree(oidv);
 
-	status = ssh_gssapi_init_ctx(gssctxt, options.gss_deleg_creds,
-	    GSS_C_NO_BUFFER, &send_tok, NULL);
-	if (GSS_ERROR(status)) {
-		if (send_tok.length > 0) {
-			packet_start(SSH2_MSG_USERAUTH_GSSAPI_ERRTOK);
-			packet_put_string(send_tok.value, send_tok.length);
-			packet_send();
-			gss_release_buffer(&ms, &send_tok);
-		}
+	if (GSS_ERROR(process_gssapi_token(ctxt, GSS_C_NO_BUFFER))) {
 		/* Start again with next method on list */
 		debug("Trying to start again");
 		userauth(authctxt, NULL);
 		return;
 	}
-
-	/* We must have data to send */
-	packet_start(SSH2_MSG_USERAUTH_GSSAPI_TOKEN);
-	packet_put_string(send_tok.value, send_tok.length);
-	packet_send();
-	gss_release_buffer(&ms, &send_tok);
 }
 
 void
 input_gssapi_token(int type, u_int32_t plen, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
-	Gssctxt *gssctxt;
-	gss_buffer_desc send_tok = GSS_C_EMPTY_BUFFER;
 	gss_buffer_desc recv_tok;
-	OM_uint32 status, ms;
+	OM_uint32 status;
 	u_int slen;
 
 	if (authctxt == NULL)
 		fatal("input_gssapi_response: no authentication context");
-	gssctxt = authctxt->methoddata;
 
 	recv_tok.value = packet_get_string(&slen);
 	recv_tok.length = slen;	/* safe typecast */
 
 	packet_check_eom();
 
-	status=ssh_gssapi_init_ctx(gssctxt, options.gss_deleg_creds,
-	    &recv_tok, &send_tok, NULL);
+	status = process_gssapi_token(ctxt, &recv_tok);
 
 	xfree(recv_tok.value);
 
 	if (GSS_ERROR(status)) {
-		if (send_tok.length > 0) {
-			packet_start(SSH2_MSG_USERAUTH_GSSAPI_ERRTOK);
-			packet_put_string(send_tok.value, send_tok.length);
-			packet_send();
-			gss_release_buffer(&ms, &send_tok);
-		}
 		/* Start again with the next method in the list */
 		userauth(authctxt, NULL);
 		return;
-	}
-
-	if (send_tok.length > 0) {
-		packet_start(SSH2_MSG_USERAUTH_GSSAPI_TOKEN);
-		packet_put_string(send_tok.value, send_tok.length);
-		packet_send();
-		gss_release_buffer(&ms, &send_tok);
-	}
-
-	if (status == GSS_S_COMPLETE) {
-		/* If that succeeded, send a exchange complete message */
-		packet_start(SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE);
-		packet_send();
 	}
 }
 
@@ -1016,7 +1033,7 @@ pubkey_prepare(Authctxt *authctxt)
 		    key = ssh_get_next_identity(ac, &comment, 2)) {
 			found = 0;
 			TAILQ_FOREACH(id, &files, next) {
-				/* agent keys from the config file are preferred */ 
+				/* agent keys from the config file are preferred */
 				if (key_equal(key, id->key)) {
 					key_free(key);
 					xfree(comment);
@@ -1080,6 +1097,7 @@ userauth_pubkey(Authctxt *authctxt)
 	while ((id = TAILQ_FIRST(&authctxt->keys))) {
 		if (id->tried++)
 			return (0);
+		/* move key to the end of the queue */
 		TAILQ_REMOVE(&authctxt->keys, id, next);
 		TAILQ_INSERT_TAIL(&authctxt->keys, id, next);
 		/*
@@ -1244,11 +1262,12 @@ ssh_keysign(Key *key, u_char **sigp, u_int *lenp,
 	buffer_init(&b);
 	buffer_put_int(&b, packet_get_connection_in()); /* send # of socket */
 	buffer_put_string(&b, data, datalen);
-	ssh_msg_send(to[1], version, &b);
+	if (ssh_msg_send(to[1], version, &b) == -1)
+		fatal("ssh_keysign: couldn't send request");
 
 	if (ssh_msg_recv(from[0], &b) < 0) {
 		error("ssh_keysign: no reply");
-		buffer_clear(&b);
+		buffer_free(&b);
 		return -1;
 	}
 	close(from[0]);
@@ -1260,11 +1279,11 @@ ssh_keysign(Key *key, u_char **sigp, u_int *lenp,
 
 	if (buffer_get_char(&b) != version) {
 		error("ssh_keysign: bad version");
-		buffer_clear(&b);
+		buffer_free(&b);
 		return -1;
 	}
 	*sigp = buffer_get_string(&b, lenp);
-	buffer_clear(&b);
+	buffer_free(&b);
 
 	return 0;
 }

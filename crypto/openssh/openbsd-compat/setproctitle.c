@@ -41,8 +41,8 @@
 #endif
 
 #define SPT_NONE	0	/* don't use it at all */
-#define SPT_PSTAT	1	/* cover argv with title information */
-#define SPT_REUSEARGV	2	/* use pstat(PSTAT_SETCMD, ...) */
+#define SPT_PSTAT	1	/* use pstat(PSTAT_SETCMD, ...) */
+#define SPT_REUSEARGV	2	/* cover argv with title information */
 
 #ifndef SPT_TYPE
 # define SPT_TYPE	SPT_NONE

@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh-com.sh,v 1.5 2003/05/14 22:08:27 markus Exp $
+#	$OpenBSD: ssh-com.sh,v 1.6 2003/11/07 10:16:44 jmc Exp $
 #	Placed in the Public Domain.
 
 tid="connect to ssh.com server"
@@ -29,7 +29,7 @@ SRC=`dirname ${SCRIPT}`
 # ssh.com
 cat << EOF > $OBJ/sshd2_config
 #*:
-	# Port and ListenAdress are not used.
+	# Port and ListenAddress are not used.
 	QuietMode			yes
 	Port				4343
 	ListenAddress			127.0.0.1

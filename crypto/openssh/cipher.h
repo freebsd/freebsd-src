@@ -1,4 +1,4 @@
-/*	$OpenBSD: cipher.h,v 1.33 2002/03/18 17:13:15 markus Exp $	*/
+/*	$OpenBSD: cipher.h,v 1.34 2003/11/10 16:23:41 jakob Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -79,13 +79,13 @@ void	 cipher_init(CipherContext *, Cipher *, const u_char *, u_int,
 void	 cipher_crypt(CipherContext *, u_char *, const u_char *, u_int);
 void	 cipher_cleanup(CipherContext *);
 void	 cipher_set_key_string(CipherContext *, Cipher *, const char *, int);
-u_int	 cipher_blocksize(Cipher *);
-u_int	 cipher_keylen(Cipher *);
+u_int	 cipher_blocksize(const Cipher *);
+u_int	 cipher_keylen(const Cipher *);
 
-u_int	 cipher_get_number(Cipher *);
+u_int	 cipher_get_number(const Cipher *);
 void	 cipher_get_keyiv(CipherContext *, u_char *, u_int);
 void	 cipher_set_keyiv(CipherContext *, u_char *);
-int	 cipher_get_keyiv_len(CipherContext *);
-int	 cipher_get_keycontext(CipherContext *, u_char *);
+int	 cipher_get_keyiv_len(const CipherContext *);
+int	 cipher_get_keycontext(const CipherContext *, u_char *);
 void	 cipher_set_keycontext(CipherContext *, u_char *);
 #endif				/* CIPHER_H */
