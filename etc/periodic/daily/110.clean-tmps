@@ -17,29 +17,33 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
-case "$clear_tmp_enable" in
+case "$clear_daily_enable" in
     [Yy][Ee][Ss])
-	echo ""
-	echo "Removing old temporary files:"
+	if [ -n "$clear_daily_days" ]
+	then
+	    echo ""
+	    echo "Removing old temporary files:"
 
-	[ -d /tmp ] && cd /tmp && {
-	    find -d . -type f -atime +3 -ctime +3 ! -name '.X*-lock' \
-		! -name quota.user ! -name quota.group -delete
-	    find -d . ! -name . -type d -mtime +1 -delete
-	}
+	    set -f noglob
+	    args="-atime +$clear_daily_days -mtime +$clear_daily_days"
+	    [ -n "$clear_daily_ignore" ] &&
+		args="$args "`echo " ${clear_daily_ignore% }" |
+		    sed 's/[ 	][ 	]*/ ! -name /g'`
+	    case "$clear_daily_verbose" in
+		[Yy][Ee][Ss])
+		    print=-print;;
+		*)
+		    print=;;
+	    esac
 
-	[ -d /var/tmp ] && cd /var/tmp && {
-	    find -d . ! -name . -atime +7 -ctime +3 \
-		! -name quota.user ! -name quota.group -delete
-	    find -d . ! -name . ! -name vi.recover -type d -mtime +1 -delete
-	}
-
-	case "$linux_enable" in
-	    [Yy][Ee][Ss])
-		[ -d /compat/linux/tmp ] && cd /compat/linux/tmp && {
-		    find -d . ! -name . -atime +7 -ctime +3 \
-			! -name quota.user ! -name quota.group -delete
-		    find -d . ! -name . -type d -mtime +1 -delete
-	    	};;
-	esac
+	    for dir in $clear_daily_dirs
+	    do
+		[ ."${dir#/}" != ."$dir" -a -d $dir ] && cd $dir && {
+		    find -d . -type f $args -delete $print
+		    find -d . ! -name . -type d -mtime +$clear_daily_days \
+			-delete $print
+		} | sed "s,^\\.,  $dir,"
+	    done
+	    set -f glob
+	fi;;
 esac
