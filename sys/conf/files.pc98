@@ -366,3 +366,4 @@ pci/agp_sis.c			optional	agp
 pci/agp_ali.c			optional	agp
 pci/agp_amd.c			optional	agp
 pci/agp_i810.c			optional	agp
+pci/agp_nvidia.c		optional	agp
