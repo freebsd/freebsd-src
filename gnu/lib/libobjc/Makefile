@@ -1,40 +1,53 @@
 # $FreeBSD$
 
+OBJCDIR=${.CURDIR}/../../../contrib/libobjc
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
-.PATH:	${GCCDIR}/objc
+.PATH: ${OBJCDIR}/objc ${OBJCDIR}
 
 LIB=    objc
 NOMAN=	sorry
 NOPIC=	works but method lookup slowdown is significant
 
-SRCS=   my_archive.c class.c encoding.c hash.c init.c misc.c nil_method.c \
-	my_objects.c sarray.c selector.c my_sendmsg.c \
+SRCS=   archive.c class.c encoding.c gc.c hash.c init.c misc.c \
+	nil_method.c objects.c sarray.c selector.c sendmsg.c \
 	thr.c thr-single.c \
 	NXConstStr.m Object.m Protocol.m linking.m
 
 HDRS=	encoding.h hash.h objc-act.h objc-api.h objc-list.h objc.h runtime.h \
 	sarray.h thr.h typedstream.h NXConstStr.h Object.h Protocol.h
 
-CFLAGS+= -I${GCCDIR}/objc -I${GCCDIR}
+CFLAGS+= -I${OBJCDIR}/objc -I${OBJCDIR} -I.
+CFLAGS+= -I${GCCDIR}/config -I${GCCDIR}
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${HDRS:S;^;${GCCDIR}/objc/;} ${DESTDIR}/usr/include/objc
+	    ${HDRS:S;^;${OBJCDIR}/objc/;} ${DESTDIR}/usr/include/objc
 
-my_objects.c:	objects.c
-	sed -e '/\.\.\/tconfig.h/d' < ${GCCDIR}/objc/objects.c > my_objects.c
+GENHDRS=	runtime-info.h tconfig.h tm.h 
+CLEANFILES+=	${GENHDRS}
+SRCS+=		${GENHDRS}
 
-my_sendmsg.c:	sendmsg.c  runtime-info.h
-	sed -e '/\.\.\/tconfig.h/d' < ${GCCDIR}/objc/sendmsg.c > my_sendmsg.c
-
-my_archive.c:	archive.c
-	sed -e '/config.h/d' < ${GCCDIR}/objc/archive.c > my_archive.c
+${OBJS}: ${GENHDRS}
 
 runtime-info.h:
 	`${CC} --print-prog-name=cc1obj` -print-objc-runtime-info \
 	    < /dev/null > ${.TARGET}
 
-CLEANFILES+= my_objects.c my_sendmsg.c my_archive.c runtime-info.h
+tconfig.h:
+	echo '#include "gansidecl.h"'				> ${.TARGET}
+	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"'	>> ${.TARGET}
+
+#	KEEP THIS IN SYNC with src/gcc/usr.bin/cc/cc_tools/Makefile !!
+tm.h:
+	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	> ${.TARGET}
+.if ${MACHINE_ARCH} == "i386"
+	echo '#include "${MACHINE_ARCH}/att.h"'			>> ${.TARGET}
+.endif
+	echo '#include <freebsd.h>'				>> ${.TARGET}
+	echo '#include "${MACHINE_ARCH}/freebsd.h"'		>> ${.TARGET}
+.if ${MACHINE_ARCH} == "i386"
+	echo '#include "${MACHINE_ARCH}/perform.h"'		>> ${.TARGET}
+.endif
 
 .include <bsd.lib.mk>
