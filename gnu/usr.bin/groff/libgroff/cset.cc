@@ -33,7 +33,7 @@ cset csprint(CSET_BUILTIN);
 cset csgraph(CSET_BUILTIN);
 cset cscntrl(CSET_BUILTIN);
 
-#ifdef isascii && !defined(__FreeBSD__)	/* FreeBSD uses rune based ctypes */
+#if defined(isascii) && !defined(__FreeBSD__)
 #define ISASCII(c) isascii(c)
 #else
 #define ISASCII(c) (1)

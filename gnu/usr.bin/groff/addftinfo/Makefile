@@ -9,6 +9,5 @@ DPADD+=		${LIBGROFF}
 MANDEPEND=	addftinfo.1
 CLEANFILES+=	${MANDEPEND}
 
-.include "../../../usr.bin/Makefile.inc"
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

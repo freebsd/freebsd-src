@@ -15,8 +15,7 @@ CLEANFILES+=	${MANDEPEND}
 #
 afterinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/eign \
-		${DESTDIR}/usr/share/dict
+		${DESTDIR}${SHAREDIR}/dict
 
-.include "../../../usr.bin/Makefile.inc"
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
