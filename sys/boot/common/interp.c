@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.12.2.1 1999/02/06 14:27:30 dcs Exp $
+ *	$Id: interp.c,v 1.12.2.2 1999/02/22 13:19:56 dcs Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -204,7 +204,7 @@ include(char *filename)
     script = se = NULL;
     line = 0;
 	
-    while (fgetstr(input, sizeof(input), fd) > 0) {
+    while (fgetstr(input, sizeof(input), fd) >= 0) {
 	line++;
 #ifdef BOOT_FORTH
 	cp = input;
