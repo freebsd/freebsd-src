@@ -439,6 +439,7 @@ workitem_free(item, type)
 static struct workhead softdep_workitem_pending;
 static int num_on_worklist;	/* number of worklist items to be processed */
 static int softdep_worklist_busy; /* 1 => trying to do unmount */
+static int softdep_worklist_req; /* serialized waiters */
 static int max_softdeps;	/* maximum number of structs before slowdown */
 static int tickdelay = 2;	/* number of ticks to pause during slowdown */
 static int proc_waiting;	/* tracks whether we have a timeout posted */
@@ -526,14 +527,19 @@ softdep_process_worklist(matchmnt)
 	 */
 	filesys_syncer = p;
 	matchcnt = 0;
+
 	/*
 	 * There is no danger of having multiple processes run this
-	 * code. It is single threaded solely so that softdep_flushfiles
-	 * (below) can get an accurate count of the number of items
+	 * code, but we have to single-thread it when softdep_flushfiles()
+	 * is in operation to get an accurate count of the number of items
 	 * related to its mount point that are in the list.
 	 */
-	if (softdep_worklist_busy && matchmnt == NULL)
-		return (-1);
+	if (matchmnt == NULL) {
+		if (softdep_worklist_busy < 0)
+			return(-1);
+		softdep_worklist_busy += 1;
+	}
+
 	/*
 	 * If requested, try removing inode or removal dependencies.
 	 */
@@ -551,8 +557,16 @@ softdep_process_worklist(matchmnt)
 	starttime = time_second;
 	while (num_on_worklist > 0) {
 		matchcnt += process_worklist_item(matchmnt, 0);
-		if (softdep_worklist_busy && matchmnt == NULL)
-			return (-1);
+
+		/*
+		 * If a umount operation wants to run the worklist
+		 * accurately, abort.
+		 */
+		if (softdep_worklist_req && matchmnt == NULL) {
+			matchcnt = -1;
+			break;
+		}
+
 		/*
 		 * If requested, try removing inode or removal dependencies.
 		 */
@@ -577,8 +591,15 @@ softdep_process_worklist(matchmnt)
 		 * second. Otherwise the other syncer tasks may get
 		 * excessively backlogged.
 		 */
-		if (starttime != time_second && matchmnt == NULL)
-			return (-1);
+		if (starttime != time_second && matchmnt == NULL) {
+			matchcnt = -1;
+			break;
+		}
+	}
+	if (matchmnt == NULL) {
+		softdep_worklist_busy -= 1;
+		if (softdep_worklist_req && softdep_worklist_busy == 0)
+			wakeup(&softdep_worklist_req);
 	}
 	return (matchcnt);
 }
@@ -710,11 +731,14 @@ softdep_flushworklist(oldmnt, countp, p)
 	int count, error = 0;
 
 	/*
-	 * Await our turn to clear out the queue.
+	 * Await our turn to clear out the queue, then serialize access.
 	 */
-	while (softdep_worklist_busy)
-		tsleep(&lbolt, PRIBIO, "softflush", 0);
-	softdep_worklist_busy = 1;
+	while (softdep_worklist_busy) {
+		softdep_worklist_req += 1;
+		tsleep(&softdep_worklist_req, PRIBIO, "softflush", 0);
+		softdep_worklist_req -= 1;
+	}
+	softdep_worklist_busy = -1;
 	/*
 	 * Alternately flush the block device associated with the mount
 	 * point and process any dependencies that the flushing
@@ -732,6 +756,8 @@ softdep_flushworklist(oldmnt, countp, p)
 			break;
 	}
 	softdep_worklist_busy = 0;
+	if (softdep_worklist_req)
+		wakeup(&softdep_worklist_req);
 	return (error);
 }
 
