@@ -1849,7 +1849,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>On ATAPI CDROM drives, &man.cdcontrol.1; now supports a
       <literal>speed</literal> command to set the maximum speed to be
-      used by the drive.</para>
+      used by the drive. &merged;</para>
 
     <para>&man.chflags.1; has moved from <filename>/usr/bin</filename>
       to <filename>/bin</filename>.</para>
@@ -3482,7 +3482,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     </sect3>
 
     <sect3>
-      <title>Ports/Packages Collection</title>
+      <title>Ports/Packages Collection Infrastructure</title>
 
       <para><application>BSDPAN</application>, a collection of modules
 	that provides tighter integration of
@@ -3573,10 +3573,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	directory from which a package was built. &merged;</para>
 
       <para>The Ports Collection infrastructure now uses
-        <application>XFree86</application> 4.X as the default version
+        <application>XFree86</application> 4.2.0 as the default version
         of the X Window System for the purposes of satisfying
         dependencies.  To return to using
-        <application>XFree86</application> 3.X, add the following line
+        <application>XFree86</application> 3.3.6, add the following line
         to <filename>/etc/make.conf</filename>: &merged;</para>
 
       <programlisting>XFREE86_VERSION=3</programlisting>
