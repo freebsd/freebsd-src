@@ -1,7 +1,7 @@
 /*
  *	AMD 7990 (LANCE) definitions
  *
- *
+ * $FreeBSD$
  */
 
 #if defined(BYTE_ORDER) && BYTE_ORDER == BIG_ENDIAN

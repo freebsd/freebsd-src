@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* THIS FILE HAS BEEN PRODUCED AUTOMATICALLY */
 void	devfs_sinit(void *junk);
 devnm_p	dev_findname(dn_p dir,char *name);

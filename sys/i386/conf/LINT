@@ -1850,12 +1850,12 @@ device		sym		# NCR/Symbios Logic (newer chipsets)
 #
 #	ISP_TARGET_MODE		-	enable target mode operation
 #
-options 	SCSI_ISP_NO_FWLOAD_MASK=0x12	# disable FW load for isp1, isp4
-options 	SCSI_ISP_NO_NVRAM_MASK=0x1	# disable NVRAM for isp0
-options 	SCSI_ISP_PREFER_MEM_MAP=0	# prefer I/O mapping
-options 	SCSI_ISP_FCDUPLEX=0x4		# isp2 is a Fibre Channel card
+#options 	SCSI_ISP_NO_FWLOAD_MASK=0x12	# disable FW load for isp1, isp4
+#options 	SCSI_ISP_NO_NVRAM_MASK=0x1	# disable NVRAM for isp0
+#options 	SCSI_ISP_PREFER_MEM_MAP=0	# prefer I/O mapping
+#options 	SCSI_ISP_FCDUPLEX=0x4		# isp2 is a Fibre Channel card
 						# we want in full duplex mode.
-options 	SCSI_ISP_WWN="0x5000000099990000"
+#options 	SCSI_ISP_WWN="0x5000000099990000"
 #options 	ISP_DISABLE_1020_SUPPORT
 #options 	ISP_DISABLE_1080_SUPPORT
 #options 	ISP_DISABLE_12160_SUPPORT

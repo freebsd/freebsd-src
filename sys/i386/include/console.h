@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #ifndef _MACHINE_CONSOLE_H_
 #define _MACHINE_CONSOLE_H_
 

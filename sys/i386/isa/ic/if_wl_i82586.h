@@ -22,6 +22,8 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 /*
   Copyright 1988, 1989 by Olivetti Advanced Technology Center, Inc.,
