@@ -189,8 +189,9 @@ get_srcdir(void)
 static void
 usage(void)
 {
-		fprintf(stderr, "usage: config [-gp] [-d destdir] sysname\n");
-		exit(1);
+
+	fprintf(stderr, "usage: config [-gp] [-d destdir] sysname\n");
+	exit(1);
 }
 
 /*
