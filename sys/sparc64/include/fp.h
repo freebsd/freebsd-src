@@ -29,13 +29,11 @@
 
 /* A block of 8 double-precision (16 single-precision) FP registers. */
 struct fpblock {
-	u_long	fpq_l[8];
+	u_int	fpb_i[16];
 };
 
 struct fpstate {
 	struct	fpblock fp_fb[4];
-	u_long	fp_fsr;
-	u_long	fp_fprs;
 };
 
 #ifdef _KERNEL
@@ -43,9 +41,9 @@ struct fpstate {
 struct pcb;
 struct thread;
 
-void	fp_init_thread(struct pcb *);
+void	fp_init_thread(struct thread *);
 int	fp_enable_thread(struct thread *, struct trapframe *);
-int	fp_exception_other(struct thread *, struct trapframe *);
+int	fp_exception(struct thread *, struct trapframe *, int *);
 /*
  * Note: The pointers passed to the next two functions must be aligned on
  * 64 byte boundaries.
