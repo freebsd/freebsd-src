@@ -175,6 +175,8 @@ static struct acpi_asus_model acpi_asus_models[] = {
 	{ .name = NULL }
 };
 
+ACPI_SERIAL_DECL(asus, "ACPI ASUS extras");
+
 /* Function prototypes */
 static int	acpi_asus_probe(device_t dev);
 static int	acpi_asus_attach(device_t dev);
@@ -455,6 +457,7 @@ acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS)
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = (struct acpi_asus_softc *)oidp->oid_arg1;
+	ACPI_SERIAL_BEGIN(asus);
 
 	/* Sanity check */
 	brn = sc->s_brn;
@@ -485,6 +488,7 @@ acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS)
 	}
 
 out:
+	ACPI_SERIAL_END(asus);
 	return (err);
 }
 
@@ -497,6 +501,7 @@ acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS)
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = (struct acpi_asus_softc *)oidp->oid_arg1;
+	ACPI_SERIAL_BEGIN(asus);
 
 	/* Sanity check */
 	lcd = sc->s_lcd;
@@ -520,6 +525,7 @@ acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS)
 		acpi_SetInteger(sc->handle, sc->model->lcd_set, 0x7);
 
 out:
+	ACPI_SERIAL_END(asus);
 	return (err);
 }
 
@@ -534,6 +540,7 @@ acpi_asus_sysctl_disp(SYSCTL_HANDLER_ARGS)
 	sc = (struct acpi_asus_softc *)oidp->oid_arg1;
 
 	/* Sanity check */
+	ACPI_SERIAL_BEGIN(asus);
 	disp = sc->s_disp;
 	err = sysctl_handle_int(oidp, &disp, 0, req);
 
@@ -550,6 +557,7 @@ acpi_asus_sysctl_disp(SYSCTL_HANDLER_ARGS)
 	acpi_SetInteger(sc->handle, sc->model->disp_set, disp);
 
 out:
+	ACPI_SERIAL_END(asus);
 	return (err);
 }
 
@@ -564,6 +572,7 @@ acpi_asus_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	sc = device_get_softc((device_t)context);
 	acpi_sc = acpi_device_get_parent_softc(sc->dev);
 
+	ACPI_SERIAL_BEGIN(asus);
 	if ((notify & ~0x10) <= 15) {
 		sc->s_brn = notify & ~0x10;
 		ACPI_VPRINT(sc->dev, acpi_sc, "Brightness increased\n");
@@ -580,4 +589,5 @@ acpi_asus_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 		/* Notify devd(8) */
 		acpi_UserNotify("ASUS", h, notify);
 	}
+	ACPI_SERIAL_END(asus);
 }
