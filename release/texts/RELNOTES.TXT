@@ -112,6 +112,8 @@ Sendmail upgraded to version 8.9.2.
 
 AMD, texinfo, global and many other various utilities updated.
 
+Tar now supports compressing via bzip2 with the new -y/--bzip2/--bunzip2 flags.
+
 
 2. Supported Configurations
 ---------------------------
