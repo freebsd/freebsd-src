@@ -2349,12 +2349,12 @@ ttyinfo(tp)
 		    stmp);
 
 		/* Print user time. */
-		ttyprintf(tp, "%lld.%02ldu ",
-		    (long long)utime.tv_sec, utime.tv_usec / 10000);
+		ttyprintf(tp, "%ld.%02ldu ",
+		    (long)utime.tv_sec, utime.tv_usec / 10000);
 
 		/* Print system time. */
-		ttyprintf(tp, "%lld.%02lds ",
-		    (long long)stime.tv_sec, stime.tv_usec / 10000);
+		ttyprintf(tp, "%ld.%02lds ",
+		    (long)stime.tv_sec, stime.tv_usec / 10000);
 
 		/* Print percentage cpu, resident set size. */
 		ttyprintf(tp, "%d%% %ldk\n", tmp / 100, ltmp);
