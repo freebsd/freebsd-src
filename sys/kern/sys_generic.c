@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.18 1996/01/03 21:42:17 wollman Exp $
+ * $Id: sys_generic.c,v 1.19 1996/08/20 07:17:48 smpatel Exp $
  */
 
 #include "opt_ktrace.h"
@@ -533,7 +533,7 @@ select(p, uap, retval)
 	u_int ni;
 
 	if (uap->nd < 0)
-		return EINVAL;
+		return (EINVAL);
 
 	if (uap->nd > p->p_fd->fd_nfiles)
 		uap->nd = p->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
