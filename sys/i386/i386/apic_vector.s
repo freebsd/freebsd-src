@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.10 1997/07/15 00:08:01 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.7 1997/07/15 02:49:21 fsmp Exp $
  */
 
 
@@ -240,22 +240,22 @@ _Xcpustop:
 	incl	_cshits(,%eax,4)
 #endif /* COUNT_CSHITS */
 
-	ASMPOSTCODE_HI(0x10)
+	ASMPOSTCODE_HI(0x1)
 
 	lock
 	btsl	%eax, _stopped_cpus	/* stopped_cpus |= (1<<id) */
 
-	ASMPOSTCODE_HI(0x20);
+	ASMPOSTCODE_HI(0x2);
 1:
 	btl	%eax, _started_cpus	/* while (!(started_cpus & (1<<id))) */
 	jnc	1b
 
-	ASMPOSTCODE_HI(0x30)
+	ASMPOSTCODE_HI(0x3)
 
 	lock
 	btrl	%eax, _started_cpus	/* started_cpus &= ~(1<<id) */
 
-	ASMPOSTCODE_HI(0x40)
+	ASMPOSTCODE_HI(0x4)
 
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 

@@ -33,61 +33,12 @@
  * various 'tests in progress'
  */
 
+
 /*
  * address of POST hardware port
  *
- */
 #define POST_ADDR		0x80
-#ifdef POST_ADDR
-#define ASMPOSTCODE_INC				\
-	pushl	%eax ;				\
-	movl	_current_postcode, %eax ;	\
-	incl	%eax ;				\
-	andl	$0xff, %eax ;			\
-	movl	%eax, _current_postcode ;	\
-	outb	%al, $POST_ADDR ;		\
-	popl	%eax
-
-/*
- * Overwrite the current_postcode low nibble .
  */
-#define ASMPOSTCODE_HILO(X)			\
-	pushl	%eax ;				\
-	movl	$X, %eax ;			\
-	movl	%eax, _current_postcode ;	\
-	outb	%al, $POST_ADDR ;		\
-	popl	%eax
-
-/*
- * Overwrite the current_postcode low nibble .
- */
-#define ASMPOSTCODE_LO(X)			\
-	pushl	%eax ;				\
-	movl	_current_postcode, %eax ;	\
-	andl	$0xf0, %eax ;			\
-	orl	$X, %eax ;			\
-	movl	%eax, _current_postcode ;	\
-	outb	%al, $POST_ADDR ;		\
-	popl	%eax
-
-/*
- * Overwrite the current_postcode high nibble .
- * Note: this does NOT shift the digit to the high position!
- */
-#define ASMPOSTCODE_HI(X)			\
-	pushl	%eax ;				\
-	movl	_current_postcode, %eax ;	\
-	andl	$0x0f, %eax ;			\
-	orl	$X, %eax ;			\
-	movl	%eax, _current_postcode ;	\
-	outb	%al, $POST_ADDR ;		\
-	popl	%eax
-#else
-#define ASMPOSTCODE_INC
-#define ASMPOSTCODE_HILO(X)
-#define ASMPOSTCODE_LO(X)
-#define ASMPOSTCODE_HI(X)
-#endif /* POST_ADDR */
 
 
 /*
@@ -159,6 +110,61 @@
 #define TEST_TEST1
 #define IPI_TARGET_TEST1	1
  */
+
+
+/*
+ * POST hardware macros.
+ */
+#ifdef POST_ADDR
+#define ASMPOSTCODE_INC				\
+	pushl	%eax ;				\
+	movl	_current_postcode, %eax ;	\
+	incl	%eax ;				\
+	andl	$0xff, %eax ;			\
+	movl	%eax, _current_postcode ;	\
+	outb	%al, $POST_ADDR ;		\
+	popl	%eax
+
+/*
+ * Overwrite the current_postcode value.
+ */
+#define ASMPOSTCODE(X)				\
+	pushl	%eax ;				\
+	movl	$X, %eax ;			\
+	movl	%eax, _current_postcode ;	\
+	outb	%al, $POST_ADDR ;		\
+	popl	%eax
+
+/*
+ * Overwrite the current_postcode low nibble.
+ */
+#define ASMPOSTCODE_LO(X)			\
+	pushl	%eax ;				\
+	movl	_current_postcode, %eax ;	\
+	andl	$0xf0, %eax ;			\
+	orl	$X, %eax ;			\
+	movl	%eax, _current_postcode ;	\
+	outb	%al, $POST_ADDR ;		\
+	popl	%eax
+
+/*
+ * Overwrite the current_postcode high nibble.
+ */
+#define ASMPOSTCODE_HI(X)			\
+	pushl	%eax ;				\
+	movl	_current_postcode, %eax ;	\
+	andl	$0x0f, %eax ;			\
+	orl	$(X<<4), %eax ;			\
+	movl	%eax, _current_postcode ;	\
+	outb	%al, $POST_ADDR ;		\
+	popl	%eax
+#else
+#define ASMPOSTCODE_INC
+#define ASMPOSTCODE(X)
+#define ASMPOSTCODE_LO(X)
+#define ASMPOSTCODE_HI(X)
+#endif /* POST_ADDR */
+
 
 /*
  * these are all temps for debugging CPUSTOP code in mplock.s
