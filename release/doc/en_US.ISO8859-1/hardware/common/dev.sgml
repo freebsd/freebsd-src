@@ -2540,6 +2540,9 @@
 	  <para>AMD-756</para>
 	</listitem>
         <listitem>
+	  <para>Belkin USB 2.0 High Speed Host Controller</para>
+	</listitem>
+        <listitem>
 	  <para>CMD Tech 670 & 673</para>
 	</listitem>
         <listitem>
