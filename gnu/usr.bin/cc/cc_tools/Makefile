@@ -167,7 +167,9 @@ tconfig.h:
 	echo '#ifndef POSIX'				>> ${.TARGET}
 	echo '# define POSIX'				>> ${.TARGET}
 	echo '#endif'					>> ${.TARGET}
+.if ${TARGET_ARCH} != "ia64"
 	echo '#define CONFIG_SJLJ_EXCEPTIONS 0'		>> ${.TARGET}
+.endif
 
 tm_p.h:
 	echo '#include "${GCC_CPU}/${GCC_CPU}-protos.h"'	>> ${.TARGET}
