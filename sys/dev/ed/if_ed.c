@@ -1422,7 +1422,7 @@ ed_probe_HP_pclanp(dev, port_rid, flags)
 			return ENXIO;
 	}
 
-	return (ED_HPP_IO_PORTS);
+	return (0);
 
 }
 
