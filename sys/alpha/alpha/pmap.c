@@ -1054,12 +1054,10 @@ pmap_swapout_proc(p)
 	vm_object_t upobj;
 	vm_page_t m;
 
-	if (p == fpcurproc) {
-		alpha_pal_wrfen(1);
-		savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-		fpcurproc = NULL;
-		alpha_pal_wrfen(0);
-	}
+	/*
+	 * Make sure we aren't fpcurproc.
+	 */
+	alpha_fpstate_save(p, 1);
 
 	upobj = p->p_upages_obj;
 	/*

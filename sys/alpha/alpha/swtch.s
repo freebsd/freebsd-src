@@ -267,22 +267,13 @@ Lchkast:
 	beq	t0, Lrestoreregs		/* no: just return */
 
 	ldl	t2, astpending			/* AST pending? */
-	beq	t2, Lsetfpenable		/* no: return & deal with FP */
+	beq	t2, Lrestoreregs		/* no: return */
 
 	/* We've got an AST.  Handle it. */
 	ldiq	a0, ALPHA_PSL_IPL_0		/* drop IPL to zero */
 	call_pal PAL_OSF1_swpipl
 	mov	sp, a0				/* only arg is frame */
 	CALL(ast)
-
-Lsetfpenable:
-	/* enable FPU based on whether the current proc is fpcurproc */
-	ldq	t0, curproc
-	ldq	t1, fpcurproc
-	cmpeq	t0, t1, t0
-	mov	zero, a0
-	cmovne	t0, 1, a0
-	call_pal PAL_OSF1_wrfen
 
 Lrestoreregs:
 	/* set the hae register if this process has specified a value */

@@ -133,19 +133,17 @@ cpu_fork(p1, p2)
 	 * Copy floating point state from the FP chip to the PCB
 	 * if this process has state stored there.
 	 */
-	if (p1 == fpcurproc) {
-		alpha_pal_wrfen(1);
-		savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-		alpha_pal_wrfen(0);
-	}
+	alpha_fpstate_save(p1, 0);
 
 	/*
-	 * Copy pcb and stack from proc p1 to p2.
-	 * We do this as cheaply as possible, copying only the active
-	 * part of the stack.  The stack and pcb need to agree;
+	 * Copy pcb and stack from proc p1 to p2.  We do this as
+	 * cheaply as possible, copying only the active part of the
+	 * stack.  The stack and pcb need to agree. Make sure that the 
+	 * new process has FEN disabled.
 	 */
 	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
 	p2->p_addr->u_pcb.pcb_hw.apcb_usp = alpha_pal_rdusp();
+	p2->p_addr->u_pcb.pcb_hw.apcb_flags &= ~ALPHA_PCB_FLAGS_FEN;
 
 	/*
 	 * Set the floating point state.
@@ -165,8 +163,7 @@ cpu_fork(p1, p2)
 #ifdef DIAGNOSTIC
 	if (p1 != curproc)
 		panic("cpu_fork: curproc");
-	if ((up->u_pcb.pcb_hw.apcb_flags & ALPHA_PCB_FLAGS_FEN) != 0)
-		printf("DANGER WILL ROBINSON: FEN SET IN cpu_fork!\n");
+	alpha_fpstate_check(p1);
 #endif
 
 	/*
@@ -241,8 +238,7 @@ void
 cpu_exit(p)
 	register struct proc *p;
 {
-	if (p == fpcurproc)
-		fpcurproc = NULL;
+	alpha_fpstate_drop(p);
 
 	(void) splhigh();
 	cnt.v_swtch++;

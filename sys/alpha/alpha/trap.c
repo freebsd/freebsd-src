@@ -218,6 +218,11 @@ trap(a0, a1, a2, entry, framep)
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 	}
 
+#ifdef DIAGNOSTIC
+	if (user)
+		alpha_fpstate_check(p);
+#endif
+
 	switch (entry) {
 	case ALPHA_KENTRY_UNA:
 		/*
@@ -327,14 +332,8 @@ trap(a0, a1, a2, entry, framep)
 				goto dopanic;
 			}
 	
-			alpha_pal_wrfen(1);
-			if (fpcurproc)
-				savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-			fpcurproc = p;
-			restorefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-			alpha_pal_wrfen(0);
+			alpha_fpstate_switch(p);
 
-			p->p_md.md_flags |= MDP_FPUSED;
 			goto out;
 
 		default:
@@ -570,6 +569,10 @@ syscall(code, framep)
 	opc = framep->tf_regs[FRAME_PC] - 4;
 	sticks = p->p_sticks;
 
+#ifdef DIAGNOSTIC
+	alpha_fpstate_check(p);
+#endif
+
 	if (p->p_sysent->sv_prepsyscall) {
 		/* (*p->p_sysent->sv_prepsyscall)(framep, args, &code, &params); */
 		panic("prepsyscall");
@@ -745,14 +748,6 @@ const static int reg_to_framereg[32] = {
 #define	frp(p, reg)							\
 	(&(p)->p_addr->u_pcb.pcb_fp.fpr_regs[(reg)])
 
-#define	dump_fp_regs()							\
-	if (p == fpcurproc) {						\
-		alpha_pal_wrfen(1);					\
-		savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);		\
-		alpha_pal_wrfen(0);					\
-		fpcurproc = NULL;					\
-	}
-
 #define	unaligned_load(storage, ptrf, mod)				\
 	if (copyin((caddr_t)va, &(storage), sizeof (storage)) == 0 &&	\
 	    (regptr = ptrf(p, reg)) != NULL)				\
@@ -777,11 +772,11 @@ const static int reg_to_framereg[32] = {
 	unaligned_store(storage, irp, )
 
 #define	unaligned_load_floating(storage, mod)				\
-	dump_fp_regs();							\
+	alpha_fpstate_save(p, 1);					\
 	unaligned_load(storage, frp, mod)
 
 #define	unaligned_store_floating(storage, mod)				\
-	dump_fp_regs();							\
+	alpha_fpstate_save(p, 0);					\
 	unaligned_store(storage, frp, mod)
 
 unsigned long
