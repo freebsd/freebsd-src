@@ -8,6 +8,8 @@ CFLAGS+=-traditional-cpp
 HIDEGAME=hidegame
 CLEANFILES=data.c setup setup.o
 
+WARNS=	2
+
 build-tools: setup
 
 data.c: glorkz setup

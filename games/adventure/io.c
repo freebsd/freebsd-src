@@ -533,7 +533,7 @@ int skip;       /* assumes object 1 doesn't have prop 1, obj 2 no prop 2 &c*/
 	msg = &ptext[m];
 	if ((tbuf=(char *) malloc(msg->txtlen + 1)) == 0)
 		errx(1, "Out of memory!");
-	memcpy(tbuf, msg->seekadr, (u_int)msg->txtlen + 1);   /* Room to null */
+	memcpy(tbuf, msg->seekadr, (size_t)msg->txtlen + 1);   /* Room to null */
 	s = tbuf;
 
 	nonfirst=0;
