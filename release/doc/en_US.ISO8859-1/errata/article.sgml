@@ -139,7 +139,7 @@
 
 <![ %release.type.snapshot [
 
-    <para>Very late in the release cycle, a change was made to the
+    <para>(28 Oct 2003) Very late in the release cycle, a change was made to the
       HyperThreading (HTT) support on &intel; processors.  HTT support
       is now enabled by default on SMP-capable kernels; as a result,
       the <literal>HTT</literal> kernel option is unnecessary and has
@@ -149,15 +149,39 @@
       the value of the <varname>machdep.hlt_logical_cpus</varname>
       &man.sysctl.8; variable from <literal>1</literal> to
       <literal>0</literal>.  This value can also be set from the
-      loader as a tunable of the same name.</para>
+      loader as a tunable of the same name.  This behavior is now
+      identical to &os; 5.<replaceable>X</replaceable>.</para>
 
-    <para>Some of the packages contained in the first CD-ROM depend on
+    <para>(29 Oct 2003) Some of the packages contained in the first CD-ROM depend on
       different versions of the <application>OpenLDAP</application>
       packages, which cannot co-exist on the same host.  One
       manifestation of this problem is that it is not possible to
       install both the <filename role="package">x11/gnome2</filename>
       and <filename role="package">x11/kde3</filename>
       packages.</para>
+
+    <para>(30 Oct 2003) It appears that the
+      <filename>crypto</filename> distribution is required for correct
+      functioning of the &os; base system.  At the very least, the
+      libraries contained in the <filename>crypto</filename>
+      distribution are required for &man.pkg.add.1;.</para>
+
+    <para>(30 Oct 2003) There are known cases of fairly-recent i386
+      machines with BIOSes that do not support booting from emulation
+      mode El Torito CDROMs.  This prevents booting from the &os;
+      &release.current; CDROMs.  As a workaround, download the floppy
+      disk images, use them to boot the machine into
+      &man.sysinstall.8;, and then do a CDROM install.  This problem
+      does not seem to be wide-spread as of this writing.
+
+      <note>
+	<para>&os; 5.<replaceable>X</replaceable> uses non-emulation
+	  El Torito booting on its CDROM releases by default.  These,
+	  of course, cannot be booted on very old i386 machines that
+	  only support emulation mode.</para>
+      </note>
+
+      </para>
 
 ]]>
   </sect1>
