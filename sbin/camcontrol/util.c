@@ -48,10 +48,12 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/stdint.h>
+#include <sys/types.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
 
 #include <camlib.h>
 #include "camcontrol.h"
@@ -116,7 +118,7 @@ arg_put(void *hook, int letter, void *arg, int count, char *name)
 	{
 		case 'i':
 		case 'b':
-		printf("%d ", (intptr_t)arg);
+		printf("%jd ", (intmax_t)(intptr_t)arg);
 		break;
 
 		case 'c':

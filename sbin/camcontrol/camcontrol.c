@@ -29,7 +29,9 @@
  */
 
 #include <sys/ioctl.h>
+#include <sys/stdint.h>
 #include <sys/types.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -3086,10 +3088,12 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 					percentage = 10000 * val;
 
 					fprintf(stdout,
-						"\rFormatting:  %qd.%02qd %% "
+						"\rFormatting:  %ju.%02u %% "
 						"(%d/%d) done",
-						percentage / (0x10000 * 100),
-						(percentage / 0x10000) % 100,
+						(uintmax_t)(percentage / 
+						(0x10000 * 100)),
+						(unsigned)((percentage / 
+						0x10000) % 100),
 						val, 0x10000);
 					fflush(stdout);
 				} else if ((quiet == 0)
