@@ -152,8 +152,8 @@
 
 /* IOCTLs */
 #define GDT_IOCTL_GENERAL       _IOWR('J', 0, gdt_ucmd_t) /* general IOCTL */
-#define GDT_IOCTL_DRVERS        _IOR('J', 1, int)      /* get driver version */
-#define GDT_IOCTL_CTRTYPE       _IOWR('J', 2, gdt_ctrt_t) /* get ctr. type */
+#define GDT_IOCTL_DRVERS        _IOWR('J', 1, int)      /* get driver version */
+#define GDT_IOCTL_CTRTYPE       _IOR('J', 2, gdt_ctrt_t) /* get ctr. type */
 #define GDT_IOCTL_OSVERS        _IOR('J', 3, gdt_osv_t) /* get OS version */
 #define GDT_IOCTL_CTRCNT        _IOR('J', 5, int)       /* get ctr. count */
 #define GDT_IOCTL_EVENT         _IOWR('J', 8, gdt_event_t) /* get event */
