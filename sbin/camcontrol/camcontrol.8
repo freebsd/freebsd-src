@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998, 1999 Kenneth D. Merry.
+.\" Copyright (c) 1998, 1999, 2000 Kenneth D. Merry.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -128,6 +128,13 @@ negotiate
 .Op Fl W Ar bus_width
 .Op Fl v
 .Nm camcontrol
+format
+.Op device id
+.Op generic args
+.Op Fl q
+.Op Fl w
+.Op Fl y
+.Nm camcontrol
 help
 .Sh DESCRIPTION
 .Nm camcontrol
@@ -172,7 +179,7 @@ and
 .Fl u
 arguments will
 .Em not
-override a specified bus:target or bus:target:lun, howevever.
+override a specified bus:target or bus:target:lun, however.
 .Pp
 Most of the
 .Nm camcontrol
@@ -333,7 +340,7 @@ function requires the
 argument to specify the CDB.  Other arguments are optional, depending on
 the command type.  The command and data specification syntax is documented
 in
-.Xr cam 3 .
+.Xr cam_cdbparse 3 .
 NOTE:  If the CDB specified causes data to be transfered to or from the
 SCSI device in question, you MUST specify either
 .Fl i
@@ -510,6 +517,70 @@ device until a command has been sent to the device.  The
 .Fl a
 switch above will automatically send a Test Unit Ready to the device so
 negotiation parameters will take effect.
+.It format
+Issue the
+.Tn SCSI
+FORMAT UNIT command to the named device.
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+Low level formatting a disk will destroy ALL data on the disk.  Use
+extreme caution when issuing this command.  Many users low-level format
+disks that do not really need to be low-level formatted.  There are
+relatively few scenarios that call for low-level formatting a disk.
+One reason for
+low-level formatting a disk is to initialize the disk after changing
+its physical sector size.  Another reason for low-level formatting a disk
+is to revive the disk if you are getting "medium format corrupted" errors
+from the disk in response to read and write requests.
+.Pp
+Some disks take longer than others to format.  Users should specify a
+timeout long enough to allow the format to complete.  The default format
+timeout is 3 hours, which should be long enough for most disks.  Some hard
+disks will complete a format operation in a very short period of time
+(on the order of 5 minutes or less).  This is often because the drive
+doesn't really support the FORMAT UNIT command -- it just accepts the
+command, waits a few minutes and then returns it.
+.Pp
+The
+.Sq format
+subcommand takes several arguments that modify its default behavior.  The
+.Fl q
+and
+.Fl y
+arguments can be useful for scripts.
+.Pp
+.Bl -tag -width 123456
+.It Fl q
+Be quiet, don't print any status messages.  This option will not disable
+the questions, however.  To disable questions, use the
+.Fl y
+argument, below.
+.It Fl w
+Issue a non-immediate format command.  By default,
+.Nm camcontrol
+issues the FORMAT UNIT command with the immediate bit set.  This tells the
+device to immediately return the format command, before the format has
+actually completed.  Then,
+.Nm camcontrol
+gathers
+.Tn SCSI
+sense information from the device every second to determine how far along
+in the format process it is.  If the
+.Fl w
+argument is specified,
+.Nm camcontrol
+will issue a non-immediate format command, and will be unable to print any
+information to let the user know what percentage of the disk has been
+formatted.
+.It Fl y
+Don't ask any questions.  By default,
+.Nm camcontrol
+will ask the user if he/she really wants to format the disk in question,
+and also if the default format command timeout is acceptable.  The user
+will not be asked about the timeout if a timeout is specified on the
+command line.
+.El
 .It help
 Print out verbose usage information.
 .El
@@ -611,33 +682,6 @@ camcontrol negotiate -n da -u 3 -R 20.000 -O 15 -a
 .Pp
 Negotiate a sync rate of 20MHz and an offset of 15 with da3.  Then send a
 Test Unit Ready command to make the settings take effect.
-.Pp
-.Bd -literal -offset indent
-camcontrol cmd -n da -u 3 -v -t 7200 -c "4 0 0 0 0 0"
-.Ed
-.Pp
-Send the FORMAT UNIT (0x04) command to da3.  This will low-level format the
-disk.  Print sense information if the command fails, and set the timeout to
-two hours (or 7200 seconds).
-.Pp
-.Em WARNING! WARNING! WARNING!
-.Pp
-Low level formatting a disk will destroy ALL data on the disk.  Use
-extreme caution when issuing this command.  Many users low-level format
-disks that do not really need to be low-level formatted.  There are
-relatively few scenarios that call for low-level formatting a disk.
-One reason for
-low-level formatting a disk is if you want to change the physical sector
-size of the disk.  Another reason for low-level formatting a disk is to
-revive the disk if you are getting "medium format corrupted" errors from the
-disk in response to read and write requests.
-.Pp
-Some disks take longer than others to format.  Users should specify a
-timeout long enough to allow the format to complete.  Some hard disks
-will complete a format operation in a very short period of time (on the
-order of 5 minutes or less).  This is often because the drive doesn't
-really support the FORMAT UNIT command -- it just accepts the command,
-waits a few minutes and then returns it.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,

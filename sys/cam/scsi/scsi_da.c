@@ -28,12 +28,18 @@
  * $FreeBSD$
  */
 
+#ifdef _KERNEL
 #include "opt_hw_wdog.h"
+#endif /* _KERNEL */
 
 #include <sys/param.h>
+
+#ifdef _KERNEL
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/buf.h>
+#endif /* _KERNEL */
+
 #include <sys/devicestat.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
@@ -46,6 +52,11 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#ifndef _KERNEL
+#include <stdio.h>
+#include <string.h>
+#endif /* _KERNEL */
+
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_extend.h>
@@ -54,6 +65,11 @@
 
 #include <cam/scsi/scsi_message.h>
 
+#ifndef _KERNEL 
+#include <cam/scsi/scsi_da.h>
+#endif /* !_KERNEL */
+
+#ifdef _KERNEL
 typedef enum {
 	DA_STATE_PROBE,
 	DA_STATE_NORMAL
@@ -1550,3 +1566,38 @@ dashutdown(void * arg, int howto)
 
 	}
 }
+
+#else /* !_KERNEL */
+
+/*
+ * XXX This is only left out of the kernel build to silence warnings.  If,
+ * for some reason this function is used in the kernel, the ifdefs should
+ * be moved so it is included both in the kernel and userland.
+ */
+void
+scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 u_int8_t tag_action, u_int8_t byte2, u_int16_t ileave,
+		 u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
+		 u_int32_t timeout)
+{
+	struct scsi_format_unit *scsi_cmd;
+
+	scsi_cmd = (struct scsi_format_unit *)&csio->cdb_io.cdb_bytes;
+	scsi_cmd->opcode = FORMAT_UNIT;
+	scsi_cmd->byte2 = byte2;
+	scsi_ulto2b(ileave, scsi_cmd->interleave);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/ (dxfer_len > 0) ? CAM_DIR_OUT : CAM_DIR_NONE,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+#endif /* _KERNEL */

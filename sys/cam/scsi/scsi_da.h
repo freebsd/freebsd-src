@@ -63,6 +63,25 @@ struct scsi_rezero_unit
 	u_int8_t control;
 };
 
+/*
+ * NOTE:  The lower three bits of byte2 of the format CDB are the same as
+ * the lower three bits of byte2 of the read defect data CDB, below.
+ */
+struct scsi_format_unit
+{
+	u_int8_t opcode;
+	u_int8_t byte2;
+#define FU_FORMAT_MASK	SRDD10_DLIST_FORMAT_MASK
+#define FU_BLOCK_FORMAT	SRDD10_BLOCK_FORMAT
+#define FU_BFI_FORMAT	SRDD10_BYTES_FROM_INDEX_FORMAT
+#define FU_PHYS_FORMAT	SRDD10_PHYSICAL_SECTOR_FORMAT
+#define FU_CMPLST	0x08
+#define FU_FMT_DATA	0x10
+	u_int8_t vendor_specific;
+	u_int8_t interleave[2];
+	u_int8_t control;
+};
+
 struct scsi_reassign_blocks
 {
 	u_int8_t opcode;
@@ -128,12 +147,40 @@ struct scsi_read_defect_data_12
  * Opcodes
  */
 #define REZERO_UNIT		0x01
+#define FORMAT_UNIT		0x04
 #define	REASSIGN_BLOCKS		0x07
 #define MODE_SELECT		0x15
 #define MODE_SENSE		0x1a
 #define READ_DEFECT_DATA_10	0x37
 #define READ_DEFECT_DATA_12	0xb7
 
+struct format_defect_list_header
+{
+	u_int8_t reserved;
+	u_int8_t byte2;
+#define FU_DLH_VS	0x01
+#define FU_DLH_IMMED	0x02
+#define FU_DLH_DSP	0x04
+#define FU_DLH_IP	0x08
+#define FU_DLH_STPF	0x10
+#define FU_DLH_DCRT	0x20
+#define FU_DLH_DPRY	0x40
+#define FU_DLH_FOV	0x80
+	u_int8_t defect_list_length[2];
+};
+
+struct format_ipat_descriptor
+{
+	u_int8_t byte1;
+#define	FU_INIT_NO_HDR		0x00
+#define FU_INIT_LBA_MSB		0x40
+#define FU_INIT_LBA_EACH	0x80
+#define FU_INIT_SI		0x20
+	u_int8_t pattern_type;
+#define FU_INIT_PAT_DEFAULT	0x00
+#define FU_INIT_PAT_REPEAT	0x01
+	u_int8_t pat_length[2];
+};
 
 struct scsi_reassign_blocks_data
 {
@@ -317,5 +364,21 @@ struct scsi_da_rw_recovery_page {
 	u_int8_t reserved2;
 	u_int8_t recovery_time_limit[2];
 };
+
+__BEGIN_DECLS
+/*
+ * XXX This is only left out of the kernel build to silence warnings.  If,
+ * for some reason this function is used in the kernel, the ifdefs should
+ * be moved so it is included both in the kernel and userland.
+ */
+#ifndef _KERNEL
+void scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
+		      void (*cbfcnp)(struct cam_periph *, union ccb *),
+		      u_int8_t tag_action, u_int8_t byte2, u_int16_t ileave,
+		      u_int8_t *data_ptr, u_int32_t dxfer_len,
+		      u_int8_t sense_len, u_int32_t timeout);
+
+#endif /* !_KERNEL */
+__END_DECLS
 
 #endif /* _SCSI_SCSI_DA_H */
