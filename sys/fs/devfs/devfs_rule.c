@@ -146,8 +146,8 @@ devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de)
 /*
  * Rule subsystem SYSINIT hook.
  */
-void
-devfs_rules_init(void)
+static void
+devfs_rules_init(void *junk __unused)
 {
 	struct devfs_ruleset *ds;
 
@@ -157,6 +157,8 @@ devfs_rules_init(void)
 	ds->ds_flags |= DS_IMMUTABLE;
 	ds->ds_refcount = 1;		/* Prevent reaping. */
 }
+
+SYSINIT(devfs_rules, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_rules_init, NULL);
 
 /*
  * Rule subsystem ioctl hook.
