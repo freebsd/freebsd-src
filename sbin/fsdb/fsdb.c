@@ -100,6 +100,7 @@ main(argc, argv)
 	else
 		fsys = argv[0];
 
+	sblock_init();
 	if (!setup(fsys))
 		errx(1, "cannot set up file system `%s'", fsys);
 	printf("%s file system `%s'\nLast Mounted on %s\n",
