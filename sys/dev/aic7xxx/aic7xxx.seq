@@ -28,13 +28,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#4 $
  *
  * $FreeBSD$
  */
 
-#include <dev/aic7xxx/aic7xxx.reg>
-#include <cam/scsi/scsi_message.h>
+#include "aic7xxx.reg"
+#include "scsi_message.h"
 
 /*
  * A few words on the waiting SCB list:
@@ -1373,7 +1373,6 @@ p_mesgin:
  * shouldn't hurt, but why do it twice...
  */
 host_message_loop:
-	nop;
 	mvi	INTSTAT, HOST_MSG_LOOP;
 	call	phase_lock;
 	cmp	RETURN_1, EXIT_MSG_LOOP	je ITloop + 1;
