@@ -267,6 +267,9 @@ typedef struct {
 	u_int8_t	at_sense[QLTM_SENSELEN];
 } at2_entry_t;
 
+#define	ATIO2_WWPN_OFFSET	0x2A
+#define	ATIO2_OXID_OFFSET	0x3E
+
 #define	ATIO2_TC_ATTR_MASK	0x7
 #define	ATIO2_TC_ATTR_SIMPLEQ	0
 #define	ATIO2_TC_ATTR_HEADOFQ	1
