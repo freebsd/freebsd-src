@@ -513,7 +513,7 @@ extern TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 
 struct uio;
 
-caddr_t bufhashinit __P((caddr_t));
+caddr_t	kern_vfs_bio_buffer_alloc __P((caddr_t v, int physmem_est));
 void	bufinit __P((void));
 void	bwillwrite __P((void));
 int	buf_dirty_count_severe __P((void));
