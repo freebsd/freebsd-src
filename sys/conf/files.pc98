@@ -107,6 +107,9 @@ dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			count		pckbd
 dev/lnc/if_lnc_cbus.c		optional	lnc isa
+dev/sio/sio_pccard.c		optional	sio card
+dev/sio/sio_pccard.c		optional	sio pccard
+dev/sio/sio_pci.c		optional	sio pci
 dev/snc/dp83932.c		optional	snc
 dev/snc/dp83932subr.c		optional	snc
 dev/snc/if_snc.c		optional	snc
@@ -399,8 +402,7 @@ pc98/pc98/scgdcrndr.c		optional	sc gdc
 pc98/pc98/scterm-sck.c		optional	sc
 pc98/pc98/scvtbpc98.c		optional	sc
 pc98/pc98/sio.c			optional	sio
-#pc98/pc98/sio_pccard.c		optional	card
-#pc98/pc98/sio_pccard.c		optional	pccard
+pc98/pc98/sio_cbus.c		optional	sio isa
 pc98/pc98/spkr.c		optional	speaker
 pc98/pc98/syscons.c		optional	sc
 pc98/pc98/syscons_pc98.c	optional	sc
