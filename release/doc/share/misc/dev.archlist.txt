@@ -118,6 +118,7 @@ uhci	i386,pc98,alpha,ia64,amd64
 umodem	i386,pc98,amd64
 uplcom	i386,pc98,amd64
 uscanner	i386,pc98,amd64
+uvisor	i386,pc98,amd64
 uvscom	i386,pc98,amd64
 vge	i386,pc98,amd64
 vr	i386,pc98,alpha,amd64

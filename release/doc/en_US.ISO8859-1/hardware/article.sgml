@@ -1304,20 +1304,8 @@
     <para arch="i386,pc98,amd64">Audio Devices (&man.uaudio.4; driver)
     </para>
 
-    <para arch="i386,pc98,amd64">Handspring Visor and other PalmOS
-      devices (&man.uvisor.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Handspring Visor</para>
-        </listitem>
-        <listitem>
-	  <para>Palm M125, M500, M505</para>
-        </listitem>
-        <listitem>
-	  <para>Sony Clie 4.0 and 4.1</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.uvisor;
+
  </sect2>
 
   <sect2 id="firewire">
