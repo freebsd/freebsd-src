@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.8 1994/09/18 22:06:04 wollman Exp $
+#	$Id: bsd.lib.mk,v 1.9 1994/09/18 22:22:32 wollman Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -150,17 +150,20 @@ lib${LIB}.a:: ${OBJS}
 	@${AR} cTq lib${LIB}.a `lorder ${OBJS} | tsort` ${ARADD}
 	${RANLIB} lib${LIB}.a
 
+.if !defined(NOPROFILE)
 POBJS+=	${OBJS:.o=.po}
 lib${LIB}_p.a:: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f lib${LIB}_p.a
 	@${AR} cTq lib${LIB}_p.a `lorder ${POBJS} | tsort` ${ARADD}
 	${RANLIB} lib${LIB}_p.a
+.endif
 
 .if defined(DESTDIR)
 LDDESTDIR?=	-L${DESTDIR}/usr/lib
 .endif
 
+.if !defined(NOPIC)
 .if defined(CPLUSPLUSLIB) && !make(clean) && !make(cleandir)
 SOBJS+= ${DESTDIR}/usr/lib/c++rt0.o
 .endif
@@ -178,6 +181,7 @@ lib${LIB}_pic.a:: ${SOBJS}
 	@rm -f lib${LIB}_pic.a
 	@${AR} cTq lib${LIB}_pic.a ${SOBJS} ${ARADD}
 	${RANLIB} lib${LIB}_pic.a
+.endif
 
 llib-l${LIB}.ln: ${SRCS}
 	${LINT} -C${LIB} ${CFLAGS} ${.ALLSRC:M*.c}
