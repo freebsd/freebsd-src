@@ -40,32 +40,32 @@
 .Fl i
 .Op Fl cdhmNuvy
 .Op Fl b Ar blocksize
-.Op Fl f Ar file
+.Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl R
 .Op Fl cdNuvy
 .Op Fl b Ar blocksize
-.Op Fl f Ar file
+.Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl r
 .Op Fl cdNuvy
 .Op Fl b Ar blocksize
-.Op Fl f Ar file
+.Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl t
 .Op Fl cdhNuvy
 .Op Fl b Ar blocksize
-.Op Fl f Ar file
+.Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Op Ar
 .Nm
 .Fl x
 .Op Fl cdhmNuvy
 .Op Fl b Ar blocksize
-.Op Fl f Ar file
+.Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Op Ar
 .Pp
@@ -93,7 +93,9 @@ The
 utility works across a network;
 to do this see the
 .Fl f
-flag described below.
+and
+.Fl P
+flags described below.
 Other arguments to the command are file or directory
 names specifying the files that are to be restored.
 Unless the
@@ -304,6 +306,25 @@ or
 .Nm
 reads from the named file on the remote host using
 .Xr rmt 8 .
+.It Fl P Ar pipecommand
+Use
+.Xr popen 3
+to execute the
+.Xr sh 1
+script string defined by
+.Ar pipecommand
+as the input for every volume in the backup.
+This child pipeline's
+.Dv stdout
+.Pa ( /dev/fd/1 )
+is redirected to the
+.Nm
+input stream, and the environment variable
+.Ev RESTORE_VOLUME
+is set to the current volume number being read.
+The
+.Ar pipecommand
+script is started each time a volume is loaded, as if it were a tape drive.
 .It Fl h
 Extract the actual directory,
 rather than the files that it references.

@@ -62,6 +62,7 @@ static const char rcsid[] =
 int	bflag = 0, cvtflag = 0, dflag = 0, vflag = 0, yflag = 0;
 int	hflag = 1, mflag = 1, Nflag = 0;
 int	uflag = 0;
+int	pipecmd = 0;
 char	command = '\0';
 long	dumpnum = 1;
 long	volno = 0;
@@ -93,10 +94,9 @@ main(int argc, char *argv[])
 
 	(void)setlocale(LC_ALL, "");
 
-	if ((inputdev = getenv("TAPE")) == NULL)
-		inputdev = _PATH_DEFTAPE;
+	inputdev = NULL;
 	obsolete(&argc, &argv);
-	while ((ch = getopt(argc, argv, "b:df:himNRrs:tuvxy")) != -1)
+	while ((ch = getopt(argc, argv, "b:df:himNP:Rrs:tuvxy")) != -1)
 		switch(ch) {
 		case 'b':
 			/* Change default tape blocksize. */
@@ -111,7 +111,17 @@ main(int argc, char *argv[])
 			dflag = 1;
 			break;
 		case 'f':
+			if (pipecmd)
+				errx(1,
+				    "-P and -f options are mutually exclusive");
 			inputdev = optarg;
+			break;
+		case 'P':
+			if (!pipecmd && inputdev)
+				errx(1,
+				    "-P and -f options are mutually exclusive");
+			inputdev = optarg;
+			pipecmd = 1;
 			break;
 		case 'h':
 			hflag = 0;
@@ -165,7 +175,9 @@ main(int argc, char *argv[])
 		(void) signal(SIGTERM, SIG_IGN);
 	setlinebuf(stderr);
 
-	setinput(inputdev);
+	if (inputdev == NULL && (inputdev = getenv("TAPE")) == NULL)
+		inputdev = _PATH_DEFTAPE;
+	setinput(inputdev, pipecmd);
 
 	if (argc == 0) {
 		argc = 1;
@@ -277,12 +289,17 @@ main(int argc, char *argv[])
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage:\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n",
-	  "restore -i [-cdhmNuvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -r [-cdNuvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -R [-cdNuvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -x [-cdhmNuvy] [-b blocksize] [-f file] [-s fileno] [file ...]",
-	  "restore -t [-cdhNuvy] [-b blocksize] [-f file] [-s fileno] [file ...]");
+	const char *const common =
+	    "[-b blocksize] [-P pipecmd | -f file] [-s fileno]";
+	const char *const fileell = "[file ...]";
+
+	(void)fprintf(stderr, "usage:\t%s %s\n\t%s %s\n\t%s %s\n"
+	    "\t%s %s %s\n\t%s %s %s\n",
+	    "restore -i [-cdhmNuvy]", common,
+	    "restore -r [-cdNuvy]", common,
+	    "restore -R [-cdNuvy]", common,
+	    "restore -x [-cdhmNuvy]", common, fileell,
+	    "restore -t [-cdhNuvy]", common, fileell);
 	done(1);
 }
 

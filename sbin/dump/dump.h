@@ -56,6 +56,7 @@ char	*dumpinomap;	/* map of files to be dumped */
  */
 char	*disk;		/* name of the disk file */
 char	*tape;		/* name of the tape file */
+char	*popenout;	/* popen(3) per-"tape" command */
 char	*dumpdates;	/* name of the file containing dump date information*/
 char	*temp;		/* name of the file for doing rewrite of dumpdates */
 char	lastlevel;	/* dump level of previous dump */

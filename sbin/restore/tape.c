@@ -65,6 +65,8 @@ static const char rcsid[] =
 static long	fssize = MAXBSIZE;
 static int	mt = -1;
 static int	pipein = 0;
+static int	pipecmdin = 0;
+static FILE	*popenfp = NULL;
 static char	*magtape;
 static int	blkcnt;
 static int	numtrec;
@@ -109,7 +111,7 @@ static void	 xtrskip(char *, long);
  * Set up an input source
  */
 void
-setinput(char *source)
+setinput(char *source, int ispipecommand)
 {
 	FLUSHTAPEBUF();
 	if (bflag)
@@ -118,6 +120,9 @@ setinput(char *source)
 		newtapebuf(NTREC > HIGHDENSITYTREC ? NTREC : HIGHDENSITYTREC);
 	terminal = stdin;
 
+	if (ispipecommand)
+		pipecmdin++;
+	else
 #ifdef RRESTORE
 	if (strchr(source, ':')) {
 		host = source;
@@ -182,6 +187,15 @@ setup(void)
 	struct stat stbuf;
 
 	vprintf(stdout, "Verify tape and initialize maps\n");
+	if (pipecmdin) {
+		if (setenv("RESTORE_VOLUME", "1", 1) == -1) {
+			fprintf(stderr, "Cannot set $RESTORE_VOLUME: %s\n",
+			    strerror(errno));
+			done(1);
+		}
+		popenfp = popen(magtape, "r");
+		mt = popenfp ? fileno(popenfp) : -1;
+	} else
 #ifdef RRESTORE
 	if (host)
 		mt = rmtopen(magtape, 0);
@@ -304,6 +318,10 @@ getvol(long nextvol)
 		}
 		if (volno == 1)
 			return;
+		if (pipecmdin) {
+			closemt();
+			goto getpipecmdhdr;
+		}
 		goto gethdr;
 	}
 again:
@@ -364,6 +382,19 @@ again:
 		(void) strcpy(magtape, buf);
 		magtape[strlen(magtape) - 1] = '\0';
 	}
+	if (pipecmdin) {
+		char volno[sizeof("2147483647")];
+
+getpipecmdhdr:
+		(void)sprintf(volno, "%d", newvol);
+		if (setenv("RESTORE_VOLUME", volno, 1) == -1) {
+			fprintf(stderr, "Cannot set $RESTORE_VOLUME: %s\n",
+			    strerror(errno));
+			done(1);
+		}
+		popenfp = popen(magtape, "r");
+		mt = popenfp ? fileno(popenfp) : -1;
+	} else
 #ifdef RRESTORE
 	if (host)
 		mt = rmtopen(magtape, 0);
@@ -493,7 +524,7 @@ setdumpnum(void)
 		rmtioctl(MTFSF, dumpnum - 1);
 	else
 #endif
-		if (ioctl(mt, MTIOCTOP, (char *)&tcom) < 0)
+		if (!pipecmdin && ioctl(mt, MTIOCTOP, (char *)&tcom) < 0)
 			fprintf(stderr, "ioctl MTFSF: %s\n", strerror(errno));
 }
 
@@ -982,6 +1013,10 @@ closemt(void)
 
 	if (mt < 0)
 		return;
+	if (pipecmdin) {
+		pclose(popenfp);
+		popenfp = NULL;
+	} else
 #ifdef RRESTORE
 	if (host)
 		rmtclose();
