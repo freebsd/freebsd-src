@@ -951,6 +951,8 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SHARE },
       { " sys",		"/usr/src/sys (FreeBSD kernel)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SYS },
+      { " tools",	"/usr/src/tools (miscellaneous tools)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_TOOLS },
       { " ubin",	"/usr/src/usr.bin (user binaries)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_UBIN },
       { " usbin",	"/usr/src/usr.sbin (aux system binaries)",
