@@ -75,20 +75,18 @@ static const char rcsid[] =
 #define WHOIS_QUICK		0x04
 
 static void usage __P((void));
-static void whois __P((char *, struct sockaddr_in *, int));
+static void whois __P((char *, struct addrinfo *, int));
 
 int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	int ch, i, j;
+	int ch, i, j, error;
 	int use_qnichost, flags;
 	char *host;
 	char *qnichost;
-	struct servent *sp;
-	struct hostent *hp;
-	struct sockaddr_in sin;
+	struct addrinfo hints, *res;
 
 #ifdef	SOCKS
 	SOCKSinit(argv[0]);
@@ -145,16 +143,6 @@ main(argc, argv)
 		usage();
 	}
 
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	sp = getservbyname("whois", "tcp");
-	if (sp == NULL) {
-		sin.sin_port = htons(WHOIS_PORT);
-	} else {
-		sin.sin_port = sp->s_port;
-	}
-
 	/*
 	 * If no nic host is specified, use whois-servers.net
 	 * if there is a '.' in the name, else fall back to NICHOST.
@@ -186,36 +174,38 @@ main(argc, argv)
 				strcpy(qnichost, *argv + j + 1);
 				strcat(qnichost, QNICHOST_TAIL);
 
-				if (inet_aton(qnichost, &sin.sin_addr) == 0) {
-					hp = gethostbyname2(qnichost, AF_INET);
-					if (hp == NULL) {
-						free(qnichost);
-						qnichost = NULL;
-					} else {
-						sin.sin_addr = *(struct in_addr *)hp->h_addr_list[0];
-					}
-				}
+				memset(&hints, 0, sizeof(hints));
+				hints.ai_flags = 0;
+				hints.ai_family = AF_UNSPEC;
+				hints.ai_socktype = SOCK_STREAM;
+				error = getaddrinfo(qnichost, "whois",
+						&hints, &res);
+				if (error != 0)
+					errx(EX_NOHOST, "%s: %s", qnichost,
+						gai_strerror(error));
 			}
 		}
-		if (!qnichost && inet_aton(host, &sin.sin_addr) == 0) {
-			hp = gethostbyname2(host, AF_INET);
-			if (hp == NULL) {
+		if (!qnichost) {
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_flags = 0;
+			hints.ai_family = AF_UNSPEC;
+			hints.ai_socktype = SOCK_STREAM;
+			error = getaddrinfo(host, "whois", &hints, &res);
+			if (error != 0)
 				errx(EX_NOHOST, "%s: %s", host,
-				    hstrerror(h_errno));
-			}
-			host = hp->h_name;
-			sin.sin_addr = *(struct in_addr *)hp->h_addr_list[0];
+					gai_strerror(error));
 		}
 
-		whois(*argv++, &sin, flags);
+		whois(*argv++, res, flags);
+		freeaddrinfo(res);
 	}
 	exit(0);
 }
 
 static void
-whois(name, sinp, flags)
+whois(name, res, flags)
 	char *name;
-	struct sockaddr_in *sinp;
+	struct addrinfo *res;
 	int flags;
 {
 	FILE *sfi, *sfo;
@@ -223,12 +213,12 @@ whois(name, sinp, flags)
 	size_t len;
 	int s, nomatch;
 
-	s = socket(PF_INET, SOCK_STREAM, 0);
+	s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (s < 0) {
 		err(EX_OSERR, "socket");
 	}
 
-	if (connect(s, (struct sockaddr *)sinp, sizeof(*sinp)) < 0) {
+	if (connect(s, res->ai_addr, res->ai_addrlen) < 0) {
 		err(EX_OSERR, "connect");
 	}
 
@@ -278,17 +268,23 @@ whois(name, sinp, flags)
 		nhost = INICHOST;
 	}
 	if (nhost) {
-		if (inet_aton(nhost, &sinp->sin_addr) == 0) {
-			struct hostent *hp = gethostbyname2(nhost, AF_INET);
-			if (hp == NULL) {
-				return;
-			}
-			sinp->sin_addr = *(struct in_addr *)hp->h_addr_list[0];
+		struct addrinfo hints, *res2;
+		int error;
+
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_flags = 0;
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_STREAM;
+		error = getaddrinfo(nhost, "whois", &hints, &res2);
+		if (error != 0) {
+			warnx("%s: %s", nhost, gai_strerror(error));
+			return;
 		}
 		if (!nomatch) {
 			free(nhost);
 		}
-		whois(name, sinp, 0);
+		whois(name, res2, 0);
+		freeaddrinfo(res2);
 	}
 }
 
