@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.21 2000/12/23 08:02:59 vixie Exp $
+# $Id: Makefile,v 8.23 2001/08/14 05:58:05 marka Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -45,12 +45,14 @@ THREADED= threaded
 SRCS=	nsap_addr.c inet_addr.c inet_ntop.c inet_pton.c \
 	inet_ntoa.c inet_neta.c inet_net_ntop.c inet_net_pton.c \
 	inet_cidr_ntop.c inet_cidr_pton.c \
-	inet_lnaof.c inet_makeaddr.c inet_netof.c inet_network.c
+	inet_lnaof.c inet_makeaddr.c inet_netof.c inet_network.c \
+	inet_data.c
 
 OBJS=	nsap_addr.${O} inet_addr.${O} inet_ntop.${O} inet_pton.${O} \
 	inet_ntoa.${O} inet_neta.${O} inet_net_ntop.${O} inet_net_pton.${O} \
 	inet_cidr_ntop.${O} inet_cidr_pton.${O} \
-	inet_lnaof.${O} inet_makeaddr.${O} inet_netof.${O} inet_network.${O}
+	inet_lnaof.${O} inet_makeaddr.${O} inet_netof.${O} inet_network.${O} \
+	inet_data.${O}
 
 all: ${LIBBIND}
 
@@ -62,7 +64,7 @@ ${LIBBIND}: ${OBJS}
 	${RANLIB} ${LIBBIND}
 
 .c.${O}:
-	if test ! -d ${THREADED} ; then mkdir ${THREADED} ; else true ; fi
+	mkdir ${THREADED} 2> /dev/null || test -d ${THREADED} -a -w ${THREADED}
 	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} ${REENTRANT} -c $*.c \
 	 -o ${THREADED}/$*.${O}
 	-${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} \

@@ -50,7 +50,7 @@
 
 /*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 8.32.2.1 2001/05/17 03:01:30 marka Exp $
+ *	$Id: resolv.h,v 8.44 2001/12/19 01:44:19 marka Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -63,7 +63,9 @@
 # include <sys/types.h>
 #endif
 #include <sys/cdefs.h>
+#include <sys/socket.h>
 #include <stdio.h>
+#include <arpa/nameser.h>
 
 /*
  * Revision information.  This is the release date in YYYYMMDD format.
@@ -113,14 +115,14 @@ __END_DECLS
 typedef enum { res_goahead, res_nextns, res_modified, res_done, res_error }
 	res_sendhookact;
 
-typedef res_sendhookact (*res_send_qhook)__P((struct sockaddr_in * const *ns,
+typedef res_sendhookact (*res_send_qhook)__P((struct sockaddr * const *ns,
 					      const u_char **query,
 					      int *querylen,
 					      u_char *ans,
 					      int anssiz,
 					      int *resplen));
 
-typedef res_sendhookact (*res_send_rhook)__P((const struct sockaddr_in *ns,
+typedef res_sendhookact (*res_send_rhook)__P((const struct sockaddr *ns,
 					      const u_char *query,
 					      int querylen,
 					      u_char *ans,
@@ -128,9 +130,9 @@ typedef res_sendhookact (*res_send_rhook)__P((const struct sockaddr_in *ns,
 					      int *resplen));
 
 struct res_sym {
-	int	number;		/* Identifying number, like T_MX */
-	char *	name;		/* Its symbolic name, like "MX" */
-	char *	humanname;	/* Its fun name, like "mail exchanger" */
+	int		number;	   /* Identifying number, like T_MX */
+	const char *	name;	   /* Its symbolic name, like "MX" */
+	const char *	humanname; /* Its fun name, like "mail exchanger" */
 };
 
 /*
@@ -148,6 +150,8 @@ struct res_sym {
 #define	RES_MAXRETRY		5	/* only for resolv.conf/RES_OPTIONS */
 #define	RES_DFLRETRY		2	/* Default #/tries. */
 #define	RES_MAXTIME		65535	/* Infinity, in milliseconds. */
+
+struct __res_state_ext;
 
 struct __res_state {
 	int	retrans;	 	/* retransmition time interval */
@@ -174,23 +178,38 @@ struct __res_state {
 	int	_vcsock;		/* PRIVATE: for res_send VC i/o */
 	u_int	_flags;			/* PRIVATE: see below */
 	union {
-		char	pad[52];	/* On an i386 this means 512b total. */
+		/* On an 32-bit arch this means 512b total. */
+		char	pad[72 - 3*sizeof (int) - 2*sizeof (void *)];
 		struct {
 			u_int16_t		nscount;
 			u_int16_t		nstimes[MAXNS];	/* ms. */
 			int			nssocks[MAXNS];
-			struct sockaddr_in	nsaddrs[MAXNS];
+			struct __res_state_ext *ext;	/* extention for IPv6 */
 		} _ext;
 	} _u;
 };
 
 typedef struct __res_state *res_state;
 
+union res_sockaddr_union {
+	struct sockaddr_in	sin;
+#ifdef IN6ADDR_ANY_INIT
+	struct sockaddr_in6	sin6;
+#endif
+#ifdef ISC_ALIGN64
+	int64_t			__align64;	/* 64bit alignment */
+#else
+	int32_t			__align32;	/* 32bit alignment */
+#endif
+	char			__space[128];   /* max size */
+};
+
 /*
  * Resolver flags (used to be discrete per-module statics ints).
  */
 #define	RES_F_VC	0x00000001	/* socket is TCP */
 #define	RES_F_CONN	0x00000002	/* socket is connected */
+#define	RES_F_EDNS0ERR	0x00000004	/* EDNS0 caused errors */
 
 /* res_findzonecut() options */
 #define	RES_EXHAUSTIVE	0x00000001	/* always do all queries */
@@ -216,6 +235,14 @@ typedef struct __res_state *res_state;
 #define	RES_NOCHECKNAME	0x00008000	/* do not check names for sanity. */
 #define	RES_KEEPTSIG	0x00010000	/* do not strip TSIG records */
 #define	RES_BLAST	0x00020000	/* blast all recursive servers */
+#define RES_NO_NIBBLE	0x00040000	/* disable IPv6 nibble mode reverse */
+#define RES_NO_BITSTRING 0x00080000	/* disable IPv6 bitstring mode reverse */
+#define RES_NOTLDQUERY	0x00100000	/* don't unqualified name as a tld */
+#define RES_USE_DNSSEC	0x00200000	/* use DNSSEC using OK bit in OPT */
+/* KAME extensions: use higher bit to avoid conflict with ISC use */
+#define RES_USE_DNAME	0x10000000	/* use DNAME */
+#define RES_USE_A6	0x20000000	/* use A6 */
+#define RES_USE_EDNS0	0x40000000	/* use EDNS0 if configured */
 
 #define RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | RES_DNSRCH)
 
@@ -237,7 +264,8 @@ typedef struct __res_state *res_state;
 #define RES_PRF_QUERY	0x00001000
 #define RES_PRF_REPLY	0x00002000
 #define RES_PRF_INIT	0x00004000
-/*			0x00008000	*/
+#define RES_PRF_TRUNC	0x00008000
+/*			0x00010000	*/
 
 /* Things involving an internal (static) resolver context. */
 #ifdef _REENTRANT
@@ -345,6 +373,12 @@ extern const struct res_sym __p_rcode_syms[];
 #define sym_ntop		__sym_ntop
 #define sym_ntos		__sym_ntos
 #define sym_ston		__sym_ston
+#define res_nopt		__res_nopt
+#define res_ndestroy		__res_ndestroy
+#define	res_nametoclass		__res_nametoclass
+#define	res_nametotype		__res_nametotype
+#define	res_setservers		__res_setservers
+#define	res_getservers		__res_getservers
 __BEGIN_DECLS
 int		res_hnok __P((const char *));
 int		res_ownok __P((const char *));
@@ -360,6 +394,10 @@ const char *	loc_ntoa __P((const u_char *binary, char *ascii));
 int		dn_skipname __P((const u_char *, const u_char *));
 void		putlong __P((u_int32_t, u_char *));
 void		putshort __P((u_int16_t, u_char *));
+#ifndef __ultrix__
+u_int16_t	_getshort __P((const u_char *src));
+u_int32_t	_getlong __P((const u_char *src));
+#endif
 const char *	p_class __P((int));
 const char *	p_time __P((u_int32_t));
 const char *	p_type __P((int));
@@ -406,6 +444,24 @@ int		res_nsendsigned __P((res_state, const u_char *, int,
 int		res_findzonecut __P((res_state, const char *, ns_class, int,
 				     char *, size_t, struct in_addr *, int));
 void		res_nclose __P((res_state));
+int		res_nopt __P((res_state, int, u_char *, int, int));
+void		res_send_setqhook __P((res_send_qhook hook));
+void		res_send_setrhook __P((res_send_rhook hook));
+int		__res_vinit __P((res_state, int));
+void		res_destroyservicelist __P((void));
+const char *	res_servicename __P((u_int16_t port, const char *proto));
+const char *	res_protocolname __P((int num));
+void		res_destroyprotolist __P((void));
+void		res_buildprotolist __P((void));
+const char *	res_get_nibblesuffix __P((res_state));
+const char *	res_get_bitstringsuffix __P((res_state));
+void		res_ndestroy __P((res_state));
+u_int16_t	res_nametoclass __P((const char *buf, int *success));
+u_int16_t	res_nametotype __P((const char *buf, int *success));
+void		res_setservers __P((res_state,
+				    const union res_sockaddr_union *, int));
+int		res_getservers __P((res_state,
+				    union res_sockaddr_union *, int));
 __END_DECLS
 
 #endif /* !_RESOLV_H_ */

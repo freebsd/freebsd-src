@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: host.c,v 8.43.2.2 2001/08/09 14:04:45 marka Exp $";
+static const char rcsid[] = "$Id: host.c,v 8.49 2001/12/17 04:24:37 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -119,7 +119,7 @@ static const char copyright[] =
 #define PATH_SEP '/'
 #endif
 #define SIG_RDATA_BY_NAME	18
-#define NS_HEADERDATA_SIZE 10
+#define NS_HEADERDATA_SIZE 10	/* type + class + ttl + rdlen */
 
 #define NUMNS		8
 #define NUMNSADDR	16
@@ -354,7 +354,7 @@ main(int argc, char **argv) {
 					printf ("%s for %s not found, last verified key %s\n",
 						chase_step & SD_SIG ? "Key" : "Signature",
 						chase_step & SD_SIG ? chase_signer : chase_domain, 
-						chase_lastgoodkey ? chase_lastgoodkey : "None");
+						chase_lastgoodkey[0] ? chase_lastgoodkey : "None");
 				}
 			}
 			if (!getdomain[0] && cname) {
@@ -611,7 +611,8 @@ getinfo(const char *name, const char *domain, int type) {
 	int n;
 	char host[NS_MAXDNAME];
 
-	if (domain == NULL)
+	if (domain == NULL ||
+	    (domain[0] == '.' && domain[1] == '\0'))
 		sprintf(host, "%.*s", NS_MAXDNAME, name);
 	else
 		sprintf(host, "%.*s.%.*s",
@@ -647,7 +648,7 @@ printinfo(const querybuf *answer, const u_char *eom, int filter, int isls,
 	/*
 	 * Find first satisfactory answer.
 	 */
-	hp = (HEADER *) answer;
+	hp = (const HEADER *) answer;
 	ancount = ntohs(hp->ancount);
 	qdcount = ntohs(hp->qdcount);
 	nscount = ntohs(hp->nscount);
@@ -725,12 +726,12 @@ printinfo(const querybuf *answer, const u_char *eom, int filter, int isls,
 	if (nscount) {
 		printf("For authoritative answers, see:\n");
 		while (--nscount >= 0 && cp && cp < eom)
-			cp = (u_char *)pr_rr(cp, answer->qb2, stdout, filter);
+			cp = pr_rr(cp, answer->qb2, stdout, filter);
 	}
 	if (arcount) {
 		printf("Additional information:\n");
 		while (--arcount >= 0 && cp && cp < eom)
-			cp = (u_char *)pr_rr(cp, answer->qb2, stdout, filter);
+			cp = pr_rr(cp, answer->qb2, stdout, filter);
 	}
 
 	/* restore sigchase value */
@@ -740,7 +741,8 @@ printinfo(const querybuf *answer, const u_char *eom, int filter, int isls,
 	return (1);
 }
 
-void print_hex_field (u_int8_t field[], int length, int width, char *pref)
+static void print_hex_field (u_int8_t field[], int length, int width,
+			     const char *pref)
 {
 	/* Prints an arbitrary bit field, from one address for some number of
 		bytes.  Output is formatted via the width, and includes the raw
@@ -772,7 +774,7 @@ void print_hex_field (u_int8_t field[], int length, int width, char *pref)
 	} while (start < length);
 }
 
-void memswap (void *s1, void *s2, size_t n)
+static void memswap (void *s1, void *s2, size_t n)
 {
 	void *tmp;
 
@@ -787,23 +789,6 @@ void memswap (void *s1, void *s2, size_t n)
 	memcpy(s2, tmp, n);
 
 	free (tmp);
-}
-
-void print_hex (u_int8_t field[], int length)
-{
-	/* Prints the hex values of a field...not as pretty as the print_hex_field.
-	*/
-	int		i, start, stop;
-
-	start=0;
-	do
-	{
-		stop=length;
- 		for (i = start; i < stop; i++)
-			printf ("%02x ", (u_char) field[i]);
-		start = stop;
-		if (start < length) printf ("\n");
-	} while (start < length);
 }
 
 /*
@@ -826,7 +811,8 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 	u_char canonrr[MY_PACKETSZ];
 	size_t canonrr_len = 0;
 
-	if ((cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name))) == NULL)
+	cp = pr_cdname(cp, msg, name, sizeof(name));
+	if (cp == NULL)
 		return (NULL);			/* compression error */
 	strcpy(thisdomain, name);
 
@@ -895,7 +881,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		const u_char *startrdata = cp;
 		u_char cdname[NS_MAXCDNAME];
 
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof name);
+		cp = pr_cdname(cp, msg, name, sizeof name);
 		if (doprint)
 			fprintf(file, "%c%s", punc, name);
 
@@ -944,7 +930,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		const u_char *startname = cp;
 		u_char cdname[NS_MAXCDNAME];
 
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof name);
+		cp = pr_cdname(cp, msg, name, sizeof name);
 		if (doprint)
 			fprintf(file, "\t%s", name);
 
@@ -961,7 +947,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		}
 
 		startname = cp;
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof name);
+		cp = pr_cdname(cp, msg, name, sizeof name);
 		if (doprint)
 			fprintf(file, " %s", name);
 
@@ -1020,7 +1006,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 				fprintf(file," ");
 		}
 		cp += sizeof(u_short);
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+		cp = pr_cdname(cp, msg, name, sizeof(name));
 		if (doprint)
 			fprintf(file, "%s", name);
 
@@ -1056,7 +1042,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		if (doprint)
 			fprintf(file," %d", ns_get16(cp));
 		cp += sizeof(u_short);
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+		cp = pr_cdname(cp, msg, name, sizeof(name));
 		if (doprint)
 			fprintf(file, " %s", name);
 		break;
@@ -1098,14 +1084,14 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		}
 		cp += n;
 		/* replacement  */
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+		cp = pr_cdname(cp, msg, name, sizeof(name));
 		if (doprint)
 			fprintf(file, "%s", name);
 		break;
 
 	case ns_t_minfo:
 	case ns_t_rp:
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof name);
+		cp = pr_cdname(cp, msg, name, sizeof name);
 		if (doprint) {
 			if (type == ns_t_rp) {
 				char *p;
@@ -1116,7 +1102,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 			}
 			fprintf(file, "%c%s", punc, name);
 		}
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+		cp = pr_cdname(cp, msg, name, sizeof(name));
 		if (doprint)
 			fprintf(file, " %s", name);
 		break;
@@ -1201,7 +1187,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 		u_char cdname[NS_MAXCDNAME];
 		size_t bitmaplen;
 
-		cp = (u_char *) pr_cdname(cp, msg, name, sizeof name);
+		cp = pr_cdname(cp, msg, name, sizeof name);
 		if (doprint)
 			fprintf(file, "%c%s", punc, name);
 		bitmaplen = dlen - (cp - startrdata);
@@ -1265,7 +1251,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 			fprintf(file, " %d", ns_get16(cp));
 		cp += sizeof(u_short);
 		/* signer's name */
-		cp = (u_char *)pr_cdname(cp, msg, name, sizeof(name));
+		cp = pr_cdname(cp, msg, name, sizeof(name));
 		if (doprint && verbose)
 			fprintf(file, " %s", name);
 		else if (doprint && !verbose)
@@ -1299,7 +1285,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 					       SIG_RDATA_BY_NAME);
 					memcpy(chase_sigrdata + SIG_RDATA_BY_NAME,
 					       cdname, n);
-					chase_sigrdata_len += SIG_RDATA_BY_NAME + n;
+					chase_sigrdata_len = SIG_RDATA_BY_NAME + n;
 					memcpy(chase_signature, cp, len);
 					chase_signature_len = len;
 
@@ -1376,10 +1362,14 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 			/* sort rr's (qsort() is too slow) */
 			
 			for (i = 0; i < NUMRR && chase_rr[i].len; i++)
-				for (j = i + 1; i < NUMRR && chase_rr[j].len; j++)
-					if (memcmp(chase_rr[i].data, chase_rr[j].data, MY_PACKETSZ) > 0)
-						memswap(&chase_rr[i], &chase_rr[j], sizeof(rrstruct));
-			
+				for (j = i + 1; j < NUMRR && chase_rr[j].len;
+				     j++)
+					if (memcmp(chase_rr[i].data,
+						   chase_rr[j].data,
+						   MY_PACKETSZ) < 0)
+						memswap(&chase_rr[i],
+						        &chase_rr[j],
+							sizeof(rrstruct));
 			/* append rr's to sigrdata */
 
 			for (i = 0; i < NUMRR && chase_rr[i].len; i++)
@@ -1392,6 +1382,7 @@ pr_rr(const u_char *cp, const u_char *msg, FILE *file, int filter) {
 			/* print rr-data and signature */
 
 			if (verbose) {
+				fprintf(file, "\n");
 				print_hex_field(chase_sigrdata,
 						chase_sigrdata_len,
 						21,"DATA: ");

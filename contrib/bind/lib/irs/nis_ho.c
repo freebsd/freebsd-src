@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_ho.c,v 1.16 1999/10/13 16:39:32 vixie Exp $";
+static const char rcsid[] = "$Id: nis_ho.c,v 1.18 2001/06/18 14:44:00 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports */
@@ -103,6 +103,8 @@ static struct __res_state * ho_res_get(struct irs_ho *this);
 static void		ho_res_set(struct irs_ho *this,
 				   struct __res_state *res,
 				   void (*free_res)(void *));
+static struct addrinfo * ho_addrinfo(struct irs_ho *this, const char *name,
+				     const struct addrinfo *pai);
 
 static struct hostent *	makehostent(struct irs_ho *this);
 static void		nisfree(struct pvt *, enum do_what);
@@ -138,6 +140,7 @@ irs_nis_ho(struct irs_acc *this) {
 	ho->minimize = ho_minimize;
 	ho->res_set = ho_res_set;
 	ho->res_get = ho_res_get;
+	ho->addrinfo = ho_addrinfo;
 	return (ho);
 }
 
@@ -175,13 +178,17 @@ static struct hostent *
 ho_byname2(struct irs_ho *this, const char *name, int af) {
 	struct pvt *pvt = (struct pvt *)this->private;
 	int r;
+	char *tmp;
+
+	UNUSED(af);
 	
 	if (init(this) == -1)
 		return (NULL);
 
 	nisfree(pvt, do_val);
-	r = yp_match(pvt->nis_domain, hosts_byname, (char *)name, strlen(name),
-		     &pvt->curval_data, &pvt->curval_len);
+	DE_CONST(name, tmp);
+	r = yp_match(pvt->nis_domain, hosts_byname, tmp,
+		     strlen(tmp), &pvt->curval_data, &pvt->curval_len);
 	if (r != 0) {
 		RES_SET_H_ERRNO(pvt->res, HOST_NOT_FOUND);
 		return (NULL);
@@ -203,7 +210,7 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af) {
 	    (!memcmp(uaddr, mapped, sizeof mapped) ||
 	     !memcmp(uaddr, tunnelled, sizeof tunnelled))) {
 		/* Unmap. */
-		addr = (u_char *)addr + sizeof mapped;
+		addr = (const u_char *)addr + sizeof mapped;
 		uaddr += sizeof mapped;
 		af = AF_INET;
 		len = INADDRSZ;
@@ -305,6 +312,72 @@ ho_res_set(struct irs_ho *this, struct __res_state *res,
 
 	pvt->res = res;
 	pvt->free_res = free_res;
+}
+
+struct nis_res_target {
+	struct nis_res_target *next;
+	int family;
+};
+
+/* XXX */
+extern struct addrinfo *hostent2addrinfo __P((struct hostent *,
+					      const struct addrinfo *pai));
+
+static struct addrinfo *
+ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
+{
+	struct pvt *pvt = (struct pvt *)this->private;
+	struct hostent *hp;
+	struct nis_res_target q, q2, *p;
+	struct addrinfo sentinel, *cur;
+
+	memset(&q, 0, sizeof(q2));
+	memset(&q2, 0, sizeof(q2));
+	memset(&sentinel, 0, sizeof(sentinel));
+	cur = &sentinel;
+
+	switch(pai->ai_family) {
+	case AF_UNSPEC:		/* INET6 then INET4 */
+		q.family = AF_INET6;
+		q.next = &q2;
+		q2.family = AF_INET;
+		break;
+	case AF_INET6:
+		q.family = AF_INET6;
+		break;
+	case AF_INET:
+		q.family = AF_INET;
+		break;
+	default:
+		RES_SET_H_ERRNO(pvt->res, NO_RECOVERY); /* ??? */
+		return(NULL);
+	}
+
+	for (p = &q; p; p = p->next) {
+		struct addrinfo *ai;
+
+		hp = (*this->byname2)(this, name, p->family);
+		if (hp == NULL) {
+			/* byname2 should've set an appropriate error */
+			continue;
+		}
+		if ((hp->h_name == NULL) || (hp->h_name[0] == 0) ||
+		    (hp->h_addr_list[0] == NULL)) {
+			RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
+			continue;
+		}
+		ai = hostent2addrinfo(hp, pai);
+		if (ai) {
+			cur->ai_next = ai;
+			while (cur && cur->ai_next)
+				cur = cur->ai_next;
+		}
+	}
+
+	if (sentinel.ai_next == NULL)
+		RES_SET_H_ERRNO(pvt->res, HOST_NOT_FOUND);
+
+	return(sentinel.ai_next);
 }
 
 /* Private */

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_signal.c,v 8.13 2000/07/11 07:10:12 vixie Exp $";
+static const char rcsid[] = "$Id: ns_signal.c,v 8.14 2001/06/18 14:43:25 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -162,28 +162,43 @@ static int blocked = 0;
 
 static SIG_FN
 onhup(int sig) {
+
+	UNUSED(sig);
+
 	ns_need_unsafe(main_need_reload);
 }
 
 static SIG_FN
 onintr(int sig) {
+
+	UNUSED(sig);
+
 	ns_need_unsafe(main_need_exit);
 }
 
 static SIG_FN
 setdumpflg(int sig) {
+
+	UNUSED(sig);
+
 	ns_need_unsafe(main_need_dump);
 }
 
 #ifdef DEBUG
 static SIG_FN
 setIncrDbgFlg(int sig) {
+
+	UNUSED(sig);
+
 	desired_debug++;
 	ns_need_unsafe(main_need_debug);
 }
 
 static SIG_FN
 setNoDbgFlg(int sig) {
+
+	UNUSED(sig);
+
 	desired_debug = 0;
 	ns_need_unsafe(main_need_debug);
 }
@@ -192,12 +207,18 @@ setNoDbgFlg(int sig) {
 #if defined(QRYLOG) && defined(SIGWINCH)
 static SIG_FN
 setQrylogFlg(int sig) {
+
+	UNUSED(sig);
+
 	ns_need_unsafe(main_need_qrylog);
 }
 #endif /*QRYLOG && SIGWINCH*/
 
 static SIG_FN
 setstatsflg(int sig) {
+
+	UNUSED(sig);
+
 	ns_need_unsafe(main_need_statsdump);
 }
 
@@ -207,6 +228,8 @@ discard_pipe(int sig) {
 	int saved_errno = errno;
 	struct sigaction sa;
 
+	UNUSED(sig);
+
 	memset(&sa, 0, sizeof sa);
 	sa.sa_mask = mask;
 	sa.sa_handler = discard_pipe;
@@ -214,11 +237,16 @@ discard_pipe(int sig) {
 		ns_error(ns_log_os, "sigaction failed in discard_pipe: %s",
 			 strerror(errno));
 	errno = saved_errno;
+#else
+	UNUSED(sig);
 #endif
 }
 
 static SIG_FN
 setreapflg(int sig) {
+
+	UNUSED(sig);
+
 	ns_need_unsafe(main_need_reap);
 }
 
@@ -226,7 +254,7 @@ setreapflg(int sig) {
 
 void
 init_signals(void) {
-	int sh;
+	size_t sh;
 
 	/* The mask of all our handlers will block all our other handlers. */
 	(void)sigemptyset(&mask);

@@ -55,7 +55,7 @@
 
 /*
  *	@(#)res.h	5.10 (Berkeley) 6/1/90
- *	$Id: res.h,v 8.7 2000/12/23 08:14:47 vixie Exp $
+ *	$Id: res.h,v 8.9 2001/06/20 12:30:34 marka Exp $
  */
 
 /*
@@ -169,7 +169,6 @@ extern struct __res_state res;
  */
 
 /* XXX need prototypes */
-extern Boolean IsAddr();
 void Print_query(const u_char *msg, const u_char *eom, int printHeader);
 void Fprint_query(const u_char *msg, const u_char *eom, int printHeader,
 		  FILE *file);
@@ -186,14 +185,14 @@ extern char *Malloc();
 extern void NsError();
 extern void PrintServer();
 extern void PrintHostInfo();
-extern void ShowOptions();
 extern void FreeHostInfoPtr();
 extern FILE *OpenFile();
-extern char *res_skip();
 extern int pickString(const char *, char *, size_t);
-extern int GetHostInfoByName();
+extern int GetHostInfoByName(struct in_addr *, int, int, const char *,
+			     HostInfo *, Boolean);
 extern int GetHostInfoByAddr();
-extern int GetHostDomain();
+extern int GetHostDomain(struct in_addr *, int, int, const char *, char *,
+		         HostInfo *, Boolean);
 extern int matchString(const char *, const char *);
 extern int StringToType(char *, int, FILE *);
 extern int StringToClass(char *, int, FILE *);
@@ -208,3 +207,17 @@ void ListHost_close(void);
 int SetOption(char *);
 int LookupHost(char *, Boolean);
 int LookupHostWithServer(char *, Boolean);
+const char * DecodeType(int);
+const char * DecodeError(int);
+FILE * OpenFile(char *, char *, size_t);
+void  PrintHostInfo(FILE *, const char *, HostInfo *);
+char * Calloc(int, int);
+char * Malloc(int);
+SIG_FN IntrHandler(int);
+int ListSubr(int, char *, char *);
+void FreeHostInfoPtr(HostInfo *);
+unsigned char * res_skip(unsigned char *, int, unsigned char *);
+extern Boolean IsAddr(const char *, struct in_addr *);
+void PrintHelp(void);
+int GetHostInfoByAddr(struct in_addr *, struct in_addr *, HostInfo *);
+

@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_mkquery.c,v 8.12 1999/10/13 16:39:40 vixie Exp $";
+static const char rcsid[] = "$Id: res_mkquery.c,v 8.14 2001/09/24 13:50:27 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -108,6 +108,8 @@ res_nmkquery(res_state statp,
 	register u_char *cp;
 	register int n;
 	u_char *dnptrs[20], **dpp, **lastdnptr;
+
+	UNUSED(newrr_in);
 
 #ifdef DEBUG
 	if (statp->options & RES_DEBUG)
@@ -154,7 +156,7 @@ res_nmkquery(res_state statp,
 		 * Make an additional record for completion domain.
 		 */
 		buflen -= RRFIXEDSZ;
-		n = dn_comp((char *)data, cp, buflen, dnptrs, lastdnptr);
+		n = dn_comp((const char *)data, cp, buflen, dnptrs, lastdnptr);
 		if (n < 0)
 			return (-1);
 		cp += n;
@@ -197,3 +199,60 @@ res_nmkquery(res_state statp,
 	}
 	return (cp - buf);
 }
+
+#ifdef RES_USE_EDNS0
+/* attach OPT pseudo-RR, as documented in RFC2671 (EDNS0). */
+#ifndef T_OPT
+#define T_OPT	41
+#endif
+
+int
+res_nopt(statp, n0, buf, buflen, anslen)
+	res_state statp;
+	int n0;
+	u_char *buf;		/* buffer to put query */
+	int buflen;		/* size of buffer */
+	int anslen;		/* answer buffer length */
+{
+	register HEADER *hp;
+	register u_char *cp;
+	u_int16_t flags = 0;
+
+#ifdef DEBUG
+	if ((statp->options & RES_DEBUG) != 0)
+		printf(";; res_nopt()\n");
+#endif
+
+	hp = (HEADER *) buf;
+	cp = buf + n0;
+	buflen -= n0;
+
+	if (buflen < 1 + RRFIXEDSZ)
+		return -1;
+
+	*cp++ = 0;	/* "." */
+	buflen--;
+
+	__putshort(T_OPT, cp);	/* TYPE */
+	cp += INT16SZ;
+	__putshort(anslen & 0xffff, cp);	/* CLASS = UDP payload size */
+	cp += INT16SZ;
+	*cp++ = NOERROR;	/* extended RCODE */
+	*cp++ = 0;		/* EDNS version */
+	if (statp->options & RES_USE_DNSSEC) {
+#ifdef DEBUG
+		if (statp->options & RES_DEBUG)
+			printf(";; res_opt()... ENDS0 DNSSEC\n");
+#endif
+		flags |= NS_OPT_DNSSEC_OK;
+	}
+	__putshort(flags, cp);
+	cp += INT16SZ;
+	__putshort(0, cp);	/* RDLEN */
+	cp += INT16SZ;
+	hp->arcount = htons(ntohs(hp->arcount) + 1);
+	buflen -= RRFIXEDSZ;
+
+	return cp - buf;
+}
+#endif

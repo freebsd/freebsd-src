@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_nw.c,v 1.21 1999/10/15 19:49:10 vixie Exp $";
+static const char rcsid[] = "$Id: lcl_nw.c,v 1.22 2001/05/29 05:49:07 marka Exp $";
 /* from getgrent.c 8.2 (Berkeley) 3/21/94"; */
 /* from BSDI Id: getgrent.c,v 2.8 1996/05/28 18:15:14 bostic Exp $	*/
 #endif /* LIBC_SCCS and not lint */
@@ -121,6 +121,8 @@ struct irs_nw *
 irs_lcl_nw(struct irs_acc *this) {
 	struct irs_nw *nw;
 	struct pvt *pvt;
+
+	UNUSED(this);
 
 	if (!(pvt = memget(sizeof *pvt))) {
 		errno = ENOMEM;
