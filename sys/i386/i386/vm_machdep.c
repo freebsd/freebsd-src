@@ -514,20 +514,6 @@ cpu_reset_real()
 	while(1);
 }
 
-int
-grow_stack(p, sp)
-	struct proc *p;
-	u_int sp;
-{
-	int rv;
-
-	rv = vm_map_growstack (p, sp);
-	if (rv != KERN_SUCCESS)
-		return (0);
-
-	return (1);
-}
-
 /*
  * Software interrupt handler for queued VM system processing.
  */   
