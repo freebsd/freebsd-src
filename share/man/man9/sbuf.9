@@ -32,7 +32,11 @@
 .Nm sbuf_new ,
 .Nm sbuf_clear ,
 .Nm sbuf_setpos ,
+.Nm sbuf_bcat ,
+.Nm sbuf_bcopyin ,
+.Nm sbuf_bcpy ,
 .Nm sbuf_cat ,
+.Nm sbuf_copyin ,
 .Nm sbuf_cpy ,
 .Nm sbuf_printf ,
 .Nm sbuf_putc ,
@@ -52,7 +56,15 @@
 .Ft int
 .Fn sbuf_setpos "struct sbuf *s" "int pos"
 .Ft int
+.Fn sbuf_bcat "struct sbuf *s" "const char *str" "size_t len"
+.Ft int
+.Fn sbuf_bcopyin "struct sbuf *s" "const void *uaddr" "size_t len"
+.Ft int
+.Fn sbuf_bcpy "struct sbuf *s" "const char *str" "size_t len"
+.Ft int
 .Fn sbuf_cat "struct sbuf *s" "const char *str"
+.Ft int
+.Fn sbuf_copyin "struct sbuf *s" "const void *uaddr" "size_t len"
 .Ft int
 .Fn sbuf_cpy "struct sbuf *s" "const char *str"
 .Ft int
@@ -131,18 +143,57 @@ which is a value between zero and one less than the size of the
 storage buffer.
 .Pp
 The
+.Fn sbuf_bcat
+function appends the first
+.Fa len
+bytes from the byte string
+.Fa str
+to the
+.Fa sbuf .
+.Pp
+The
+.Fn sbuf_bcopyin
+function copies
+.Fa len
+bytes from the specified userland address into the
+.Fa sbuf .
+.Pp
+The
+.Fn sbuf_bcpy
+function replaces the contents of the
+.Fa sbuf
+with the first
+.Fa len
+bytes from the byte string
+.Fa str .
+.Pp
+The
 .Fn sbuf_cat
-function appends the string
+function appends the NUL-terminated string
 .Fa str
 to the
 .Fa sbuf
 at the current position.
 .Pp
 The
+.Fn sbuf_copyin
+function copies a NUL-terminated string from the specified userland
+address into the
+.Fa sbuf .
+If the
+.Fa len
+argument is non-zero, no more than
+.Fa len
+characters (not counting the terminating NUL) are copied; otherwise
+the entire string, or as much of it as can fit in the
+.Fa sbuf ,
+is copied.
+.Pp
+The
 .Fn sbuf_cpy
 function replaces the contents of the
 .Fa sbuf
-with those of the string
+with those of the NUL-terminated string
 .Fa str .
 This is equivalent to calling
 .Fn sbuf_cat
@@ -248,6 +299,8 @@ return
 .Dv NULL
 and \-1, respectively, if the buffer overflowed.
 .Sh SEE ALSO
+.Xr copyin 9 ,
+.Xr copyinstr 9 ,
 .Xr printf 3 ,
 .Xr strcat 3 ,
 .Xr strcpy 3
