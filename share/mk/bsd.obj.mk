@@ -1,8 +1,12 @@
-#	$Id: bsd.obj.mk,v 1.22 1998/02/25 02:48:28 bde Exp $
+#	$Id: bsd.obj.mk,v 1.23 1998/03/14 14:08:29 bde Exp $
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, etc.
 #
+# Under construction: it also contains the _SUBDIR target (which is used
+# by most `mk' files to recurse into subdirectories) and defaults for the
+# cleandepend, depend and tags targets.  It may eventually be merged with
+# with bsd.subdir.mk.
 #
 # +++ variables +++
 #
@@ -154,3 +158,22 @@ checkdpadd:
 .endif
 
 cleandir: cleanobj _SUBDIR
+
+.for __target in cleandepend depend tags
+.if !target(${__target})
+${__target}: _SUBDIR
+.endif
+.endfor
+
+_SUBDIR: .USE
+.if defined(SUBDIR) && !empty(SUBDIR)
+	@for entry in ${SUBDIR}; do \
+		(${ECHODIR} "===> ${DIRPRFX}$$entry"; \
+		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
+			cd ${.CURDIR}/$${entry}.${MACHINE}; \
+		else \
+			cd ${.CURDIR}/$${entry}; \
+		fi; \
+		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/} DIRPRFX=${DIRPRFX}$$entry/); \
+	done
+.endif
