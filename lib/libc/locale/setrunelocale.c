@@ -85,10 +85,8 @@ _xpg4_setrunelocale(encoding)
 
 	if (!_PathLocale)
 		return(EFAULT);
-	(void) strcpy(name, _PathLocale);
-	(void) strcat(name, "/");
-	(void) strcat(name, encoding);
-	(void) strcat(name, "/LC_CTYPE");
+	(void) snprintf(name, sizeof name, "%s/%s/LC_CTYPE",
+			_PathLocale, encoding);
 
 	if ((fp = fopen(name, "r")) == NULL)
 		return(ENOENT);
