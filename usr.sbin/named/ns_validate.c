@@ -52,21 +52,21 @@ static int		VQcount;
  * pseudocode for function validate is as follows:
  * validate(domain, server, type, class, data, dlen, rcode) {
  *
- *       if(dname or a higher level name not found in cache)
+ *       if (dname or a higher level name not found in cache)
  *          return INVALID;
  *       if (NS records for "domain" found in cache){
  *
- *           if(we are authoritative)  /findns() returned NXDOMAIN;/
- *              if(we did not have an exact match on names)
+ *           if (we are authoritative)  /findns() returned NXDOMAIN;/
+ *              if (we did not have an exact match on names)
  *                 =>the name does not exist in our database
  *                 => data is bad: return INVALID
- *              if(data agrees with what we have)
+ *              if (data agrees with what we have)
  *                return VALID_NO_CACHE;
  *              else return INVALID;
  *    
- *          if(we are not authoritative) /findns() returned OK;/       
+ *          if (we are not authoritative) /findns() returned OK;/       
  *          if (address records for NS's found in cache){
- *                       if("server" = one of the addresses){
+ *                       if ("server" = one of the addresses){
  *                               return VALID_CACHE;
  *                       }else{
  *                          stick in queue of "to_validate" data;
@@ -121,7 +121,7 @@ validate(dname, server, type, class, data, dlen
 	/* everything from forwarders is the GOSPEL */
 	for (fwd = fwdtab; fwd != NULL; fwd = fwd->next) {
 		if (server->sin_addr.s_addr == fwd->fwdaddr.sin_addr.s_addr)
-			return(VALID_CACHE);
+			return (VALID_CACHE);
 	}
 
 	htp = hashtab;
@@ -138,16 +138,15 @@ validate(dname, server, type, class, data, dlen
 		fname[0] = '\0';
 	}
 	dprintf(5, (ddt,
-		    "validate:namebuf found np:0x%x, d:\"%s\", f:\"%s\"\n",
-		    np, dname, fname));
+		    "validate:namebuf found np:%#lx, d:\"%s\", f:\"%s\"\n",
+		    (u_long)np, dname, fname));
 	/* save the namebuf if we were able to locate the exact dname */
 	if (!strcasecmp(dname, fname)) {
 		dnamep = np;
 		exactmatch = 1;
 	}
-	if (np == NULL && fname != NULL) {
+	if (np == NULL && fname != NULL)
 		free((char *)fname);
-	}
 	switch (findns(&np, class, nsp, &count, 0)) {
 	case NXDOMAIN:
 		/** we are authoritative for this domain, lookup name 
@@ -162,19 +161,19 @@ validate(dname, server, type, class, data, dlen
 			needs_prime_cache = 0;
 
 #ifdef NCACHE
-		if(rcode == NXDOMAIN) {
+		if (rcode == NXDOMAIN) {
 			/* If we had an exactmatch on the name, we found the
 			 * name in our authority database, so this couldn't 
 			 * have been a bad name. INVALID data, say so
 			 */
 			if (exactmatch)
-				return INVALID;
+				return (INVALID);
 			else
 				/* we did not have an exactmatch, the data is
 				 * good, we do not NCACHE stuff we are
 				 * authoritative for, though.
 				 */
-				return VALID_NO_CACHE;
+				return (VALID_NO_CACHE);
 		}
 #endif
 		if (!strcasecmp(dname, np->n_dname)) {
@@ -185,9 +184,9 @@ validate(dname, server, type, class, data, dlen
 			 * doesn't, invalid.
 			 */
 			if (isvalid(np, type, class, data, dlen))
-				return VALID_NO_CACHE;
+				return (VALID_NO_CACHE);
 			else
-				return INVALID;
+				return (INVALID);
 		}
     
 		/* we found ns records in a higher level, if we were unable to
@@ -196,16 +195,16 @@ validate(dname, server, type, class, data, dlen
 		 * this name. this name is obviously invalid
 		 */
 		if (!exactmatch)
-			return INVALID;
+			return (INVALID);
     
 		/* we found the exact name earlier and we are obviously
 		 * authoritative so check for data records and see if any
 		 * match.
 		 */
 		if (isvalid(dnamep, type, class, data, dlen))
-			return VALID_NO_CACHE;
+			return (VALID_NO_CACHE);
 		else
-			return INVALID;
+			return (INVALID);
   
 	case SERVFAIL:/* could not find name server records*/
 		/* stick_in_queue(dname, type, class, data); */
@@ -214,7 +213,7 @@ validate(dname, server, type, class, data, dlen
 #ifdef	DATUMREFCNT
 		free_nsp(nsp);
 #endif
-		return INVALID;
+		return (INVALID);
     
 	case OK: /*proceed */
 		dprintf(5,
@@ -226,19 +225,19 @@ validate(dname, server, type, class, data, dlen
 #ifdef	DATUMREFCNT
 			free_nsp(nsp);
 #endif
-			return VALID_CACHE;
+			return (VALID_CACHE);
 		}
 		/* server is not one of those we know of */
 		/* stick_in_queue(dname, type, class, data); */
 #ifdef	DATUMREFCNT
 		free_nsp(nsp);
 #endif
-		return INVALID;
+		return (INVALID);
 	default:
 #ifdef	DATUMREFCNT
 		free_nsp(nsp);
 #endif
-		return INVALID;
+		return (INVALID);
 	} /*switch*/
 
 } /*validate*/
@@ -262,7 +261,7 @@ isvalid(np, type, class, data, dlen)
 		if (!wanted(dp, class, type)) {
 			if ((type == T_CNAME) && (class == dp->d_class)) { 
 				/* if a cname exists, any other will not */
-				return(0);
+				return (0);
 				/* we come here only for zone info,
 				 * so -ve $ed info can't be
 				 */
@@ -277,12 +276,10 @@ isvalid(np, type, class, data, dlen)
 		 * we should return FAILURE since we should not have found
 		 * data here.
 		 */
-		if ((data == NULL) || (dlen == 0)) {
-			return 0;
-		} 
+		if ((data == NULL) || (dlen == 0))
+			return (0);
 		
-		/* XXX:	why aren't we just calling db_cmp() ?
-		 */
+		/* XXX:	why aren't we just calling db_cmp()? */
 
 	        switch (type) {
 			char *td;
@@ -298,6 +295,7 @@ isvalid(np, type, class, data, dlen)
 			case T_TXT:
 			case T_X25:
 			case T_ISDN:
+			case T_LOC:
 #ifdef ALLOW_T_UNSPEC
 			case T_UNSPEC:
 #endif
@@ -378,6 +376,29 @@ isvalid(np, type, class, data, dlen)
 					break;
 				return (1);
 
+			case T_PX:
+				x = memcmp(dp->d_data, data,
+					INT16SZ);
+				if (x != 0)
+					break;
+				td = data + INT16SZ;
+				tdp = dp->d_data + INT16SZ;
+
+				/* compare first string */
+				x = strncasecmp(td, (char *)tdp,
+						strlen((char *)td) + 1);
+				if (x != 0)
+					break;
+				td += (strlen(td) + 1);
+				tdp += (strlen(tdp) + 1);
+				
+				/* compare second string */
+				x = strncasecmp(td, (char *)tdp,
+						strlen((char *)td+1));
+				if (x != 0)
+					break;
+				return (1);
+
 			default:
 				dprintf(3, (ddt, "unknown type %d\n", type));
 				return (0);
@@ -390,7 +411,7 @@ isvalid(np, type, class, data, dlen)
 	 */
 	if ((data == NULL) || (dlen == 0)) {
 		/* negative data, report success */
-		return 1; 
+		return (1);
 	} 
 	/* positive data, no such RR, validation failed */
 	return (0);
@@ -512,7 +533,7 @@ check_in_tables(nsp, server, syslogdname)
 void
 store_name_addr(servername, serveraddr, syslogdname, sysloginfo)
 	char *servername;
-	struct in_addr *serveraddr;
+	struct in_addr serveraddr;
 	char *syslogdname;
 	char *sysloginfo;
 {
@@ -520,21 +541,21 @@ store_name_addr(servername, serveraddr, syslogdname, sysloginfo)
 
 	dprintf(3, (ddt,
 		    "store_name_addr:s:%s, a:[%s]\n",
-		    servername, inet_ntoa(*serveraddr)));
+		    servername, inet_ntoa(serveraddr)));
 
 	/* if we already have the name address pair in cache, return */
 	for (i = lastNA;  i != firstNA;  i = (i+1) % MAXNAMECACHE) {
 		if (strcasecmp(servername, nameaddrlist[i].nsname) == 0) {
-			if (serveraddr->s_addr
+			if (serveraddr.s_addr
 			    ==
 			    nameaddrlist[i].ns_addr.s_addr) {
 				dprintf(5, (ddt,
 			  "store_name_addr:found n and a [%s] [%s] in our $\n",
 					    inet_ntoa(nameaddrlist[i].ns_addr),
-					    inet_ntoa(*serveraddr)));
+					    inet_ntoa(serveraddr)));
 				return;
 			} /* if */
-		} else if (serveraddr->s_addr
+		} else if (serveraddr.s_addr
 			   ==
 			   nameaddrlist[i].ns_addr.s_addr) {
 #ifdef BAD_IDEA
@@ -543,20 +564,15 @@ store_name_addr(servername, serveraddr, syslogdname, sysloginfo)
 			 * replace old name by new, next query likely to have
 			 * NS record matching new
 			 */
-			if (!haveComplained(
-				(char*)dhash((u_char*)nameaddrlist[i].nsname,
-					     strlen(nameaddrlist[i].nsname)),
-				(char*)dhash((u_char*)servername,
-					     strlen(servername))
-					    )
-			    ) {
+			if (!haveComplained((char*)
+					     nhash(nameaddrlist[i].nsname),
+					    (char*)nhash(servername)))
 				syslog(LOG_INFO,
 	       "%s: server name mismatch for [%s]: (%s != %s) (server for %s)",
 				       sysloginfo,
-				       inet_ntoa(*serveraddr),
+				       inet_ntoa(serveraddr),
 				       nameaddrlist[i].nsname, servername,
 				       syslogdname);
-			}
 #endif
 			free(nameaddrlist[i].nsname);
 			nameaddrlist[i].nsname =
@@ -570,7 +586,7 @@ store_name_addr(servername, serveraddr, syslogdname, sysloginfo)
 	nameaddrlist[firstNA].nsname =
 		(char *)malloc((unsigned)strlen(servername)+1);
 	strcpy(nameaddrlist[firstNA].nsname, servername);
-	bcopy((char *)serveraddr,
+	bcopy((char *)&serveraddr,
 	      (char *)&(nameaddrlist[firstNA].ns_addr),
 	      INADDRSZ);
 
@@ -616,7 +632,7 @@ dovalidate(msg, msglen, rrp, zone, flags, server, VCode)
 		    zone, flags));
 #ifdef DEBUG
 	if (debug >= 10)
-		fp_query(msg, ddt);
+		fp_nquery(msg, msglen, ddt);
 #endif
 
 	cp = rrp;
@@ -646,6 +662,7 @@ dovalidate(msg, msglen, rrp, zone, flags, server, VCode)
 	case T_TXT:
 	case T_X25:
 	case T_ISDN:
+	case T_LOC:
 #ifdef ALLOW_T_UNSPEC
 	case T_UNSPEC:
 #endif
@@ -714,13 +731,42 @@ dovalidate(msg, msglen, rrp, zone, flags, server, VCode)
 			      (char *)cp1, sizeof(data) - INT16SZ);
 		if (n < 0) {
 			hp->rcode = FORMERR;
-			return(-1);
+			return (-1);
 		}
 		cp += n;
 
 		/* compute end of data */
 		cp1 += strlen((char *)cp1) + 1;
 		/* compute size of data */
+		n = cp1 - data;
+		cp1 = data;
+		break;
+
+	case T_PX:
+		/* grab preference */
+		bcopy((char *)cp, data, INT16SZ);
+		cp1 = data + INT16SZ;
+		cp += INT16SZ;
+
+		/* get first name */
+		n = dn_expand(msg, msg + msglen, cp,
+			      (char *)cp1, sizeof(data) - INT16SZ);
+		if (n < 0) {
+			hp->rcode = FORMERR;
+			return (-1);
+		}
+		cp += n;
+		cp1 += (n = strlen((char *)cp1) + 1);
+		n1 = sizeof(data) - n;
+		
+		/* get second name */
+		n = dn_expand(msg, msg + msglen, cp, (char *)cp1, n1);
+		if (n < 0) {
+			hp->rcode = FORMERR;
+			return (-1);
+		}
+		cp += n;
+		cp1 += strlen((char *)cp1) + 1;
 		n = cp1 - data;
 		cp1 = data;
 		break;
@@ -733,8 +779,8 @@ dovalidate(msg, msglen, rrp, zone, flags, server, VCode)
 		dprintf(2, (ddt,
 			    "update type %d: %d bytes is too much data\n",
 			    type, n));
-		hp->rcode = NOCHANGE;	/* XXX - FORMERR ??? */
-		return(-1);
+		hp->rcode = FORMERR;
+		return (-1);
 	}
 
 	*VCode = validate(dname, server, type, class,(char *)cp1, n
@@ -751,7 +797,7 @@ dovalidate(msg, msglen, rrp, zone, flags, server, VCode)
 			    "validation succeeded d:%s, t:%d, c:%d\n",
 			    dname, type, class));
 	}
-	return(cp -rrp);
+	return (cp - rrp);
 }
 
 #if 0
@@ -871,7 +917,7 @@ update_msg(msg, msglen, Vlist, c)
 	if (debug) {
 		fprintf(ddt, "update_msg: msglen:%d, c:%d\n", *msglen, c);
 		if (debug >= 10)
-			fp_query(msg, ddt);
+			fp_nquery(msg, *msglen, ddt);
 	}
 #endif
 	/* just making sure we do not do all the work for nothing */
@@ -942,7 +988,7 @@ update_msg(msg, msglen, Vlist, c)
 	dprintf(3, (ddt,
 		    "newlen:%d, if no RR is INVALID == msglen\n", newlen));
 	newmsg = (u_char *)calloc(1,newlen + MAXDNAME);
-	if(newmsg == NULL)
+	if (newmsg == NULL)
 		goto badend;
 	dpp = dnptrs;
 	*dpp++ = newmsg;
@@ -1022,6 +1068,7 @@ update_msg(msg, msglen, Vlist, c)
 		case T_TXT:
 		case T_X25:
 		case T_ISDN:
+		case T_LOC:
 #ifdef ALLOW_T_UNSPEC
 		case T_UNSPEC:
 #endif
@@ -1128,6 +1175,44 @@ update_msg(msg, msglen, Vlist, c)
 			rembuflen -= n_new+INT16SZ;
 			break;
 
+		case T_PX:
+			/* grab preference */
+			bcopy(cp, newcp, INT16SZ);
+			cp += INT16SZ;
+			newcp += INT16SZ;
+
+			/* get first name */
+			n = dn_expand(msg, eom, cp, (char *)data, sizeof data);
+			if (n < 0) {
+				hp->rcode = FORMERR;
+				goto badend;
+			}
+			cp += n;
+			n_new = dn_comp((char *)data, newcp, rembuflen,
+					dnptrs, edp);
+			if (n_new < 0)
+				goto badend;
+			newcp += n_new;
+			newlen += n_new+INT16SZ;
+			rembuflen -= n_new+INT16SZ;
+			dlen = n_new+INT16SZ;
+			n = dn_expand(msg, eom, cp, (char *)data, sizeof data);
+			if (n < 0) {
+				hp->rcode = FORMERR;
+				goto badend;
+			}
+			cp += n;
+			n_new = dn_comp((char *)data, newcp, rembuflen,
+					dnptrs, edp);
+			if (n_new < 0)
+				goto badend;
+			newcp += n_new;
+			newlen += n_new;
+			rembuflen -= n_new;
+			dlen += n_new;
+			PUTSHORT(dlen, tempcp);
+			break;
+
 		default:
 			dprintf(3, (ddt, "unknown type %d\n", type));
 			goto badend;
@@ -1148,14 +1233,14 @@ update_msg(msg, msglen, Vlist, c)
   
 #ifdef DEBUG
 	if (debug >= 10)
-		fp_query(msg, ddt);
+		fp_nquery(msg, *msglen, ddt);
 #endif
 	free((char *)RRlen);
-	return(n);
+	return (n);
 badend:
 	dprintf(2, (ddt, "encountered problems: UPDATE_MSG\n"));
 	free((char *)RRlen);
-	return(-1);
+	return (-1);
 }
 
 #endif /*VALIDATE*/

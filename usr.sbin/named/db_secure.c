@@ -1,5 +1,5 @@
 #ifndef LINT
-static char rcsid[] = "$Id: db_secure.c,v 1.6 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: db_secure.c,v 8.4 1995/06/29 09:26:17 vixie Exp $";
 #endif
 
 /* this file was contributed by Gregory Neil Shapiro of WPI in August 1993 */
@@ -32,7 +32,8 @@ build_secure_netlist(zp)
 	struct hashbuf *htp;
 	struct namebuf *snp;
 	struct databuf *dp;
-	char *fname, *dname, dnbuf[MAXDNAME];
+	const char *fname;
+	char *dname, dnbuf[MAXDNAME];
 	int errs = 0, securezone = 0;
 
 	if (zp->secure_nets) {
@@ -59,7 +60,7 @@ build_secure_netlist(zp)
 	/* Collect secure nets into secure_nets */
 	for (dp = snp->n_data; dp != NULL; dp = dp->d_next) {
 		char *maskptr = NULL;
-		if (!match(dp, C_ANY, T_TXT)) {
+		if (!match(dp, zp->z_class, T_TXT)) {
 			continue;
 		}
 		bzero(buf, sizeof(buf));
@@ -77,20 +78,17 @@ build_secure_netlist(zp)
 				dprintf(1, (ddt,
 				    "build_secure_netlist (%s): malloc fail\n",
 					    zp->z_origin));
-				syslog(LOG_ERR,
+				syslog(LOG_NOTICE,
 				    "build_secure_netlist (%s): Out of Memory",
 				       zp->z_origin);
 				if (!securezone) {
-				  zp->secure_nets=NULL;
+					zp->secure_nets = NULL;
 				}
-				return(1);
+				return (1);
 			}
 		}
 		if (!inet_aton(buf, &ntp->my_addr)) {
-			dprintf(1, (ddt,
-				"build_secure_netlist (%s): Bad address: %s\n",
-				    zp->z_origin, buf));
-			syslog(LOG_ERR,
+			syslog(LOG_INFO,
 			       "build_secure_netlist (%s): Bad address: %s", 
 			       zp->z_origin, buf);
 			errs++;
@@ -105,7 +103,7 @@ build_secure_netlist(zp)
 					dprintf(1, (ddt,
 				   "build_secure_netlist (%s): Bad mask: %s\n",
 						    zp->z_origin, maskptr));
-					syslog(LOG_ERR,
+					syslog(LOG_INFO,
 				     "build_secure_netlist (%s): Bad mask: %s",
 					       zp->z_origin, maskptr);
 					errs++;
@@ -116,16 +114,11 @@ build_secure_netlist(zp)
 			ntp->mask = net_mask(ntp->my_addr);
 		}
 		if (ntp->my_addr.s_addr & ~(ntp->mask)) {
-			dprintf(1, (ddt, 
-		 "build_secure_netlist (%s): addr (%s) is not in mask (x%x)\n",
-				    zp->z_origin,
-				    inet_ntoa(ntp->my_addr),
-				    ntp->mask));
-			syslog(LOG_WARNING, 
-		   "build_secure_netlist (%s): addr (%s) is not in mask (x%x)",
+			syslog(LOG_INFO, 
+		   "build_secure_netlist (%s): addr (%s) is not in mask (%#lx)",
 			       zp->z_origin,
 			       inet_ntoa(ntp->my_addr),
-			       ntp->mask);
+			       (u_long)ntp->mask);
 			errs++;
 		}
 		ntp->next = NULL;
@@ -133,10 +126,7 @@ build_secure_netlist(zp)
 
 		/* Check for duplicates */
 		if (addr_on_netlist(ntp->my_addr, *netlistp)) {
-			dprintf(1, (ddt, 
-			   "build_secure_netlist (%s): duplicate address %s\n",
-				    zp->z_origin, inet_ntoa(ntp->my_addr)));
-			syslog(LOG_WARNING, 
+			syslog(LOG_INFO, 
 			   "build_secure_netlist (%s): duplicate address %s\n",
 			       zp->z_origin, inet_ntoa(ntp->my_addr));
 			errs++;
@@ -151,20 +141,21 @@ build_secure_netlist(zp)
 		free((char *)ntp);
 	}
 	if (!securezone) {
-	  zp->secure_nets=NULL;
+		zp->secure_nets=NULL;
 	}
 
 #ifdef DEBUG
 	if (debug > 1) {
 		for (ntp = *netlistp;  ntp != NULL;  ntp = ntp->next) {
-			fprintf(ddt, "ntp x%x addr x%x mask x%x",
-				ntp, ntp->addr, ntp->mask);
-			fprintf(ddt, " my_addr x%x", ntp->my_addr);
+			fprintf(ddt, "ntp x%lx addr x%lx mask x%lx",
+				(u_long)ntp, ntp->addr, ntp->mask);
+			fprintf(ddt, " my_addr %#lx",
+				(u_long)ntp->my_addr.s_addr);
 			fprintf(ddt, " %s", inet_ntoa(ntp->my_addr));
-			fprintf(ddt, " next x%x\n", ntp->next);
+			fprintf(ddt, " next x%lx\n", (u_long)ntp->next);
 		}
 	}
 #endif
-	return(errs);
+	return (errs);
 }
 #endif /*SECURE_ZONES*/

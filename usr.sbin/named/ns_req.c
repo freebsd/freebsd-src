@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_req.c,v 4.9.1.22 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: ns_req.c,v 8.8 1995/06/29 09:26:17 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -74,8 +74,10 @@ static char rcsid[] = "$Id: ns_req.c,v 4.9.1.22 1994/07/23 23:23:56 vixie Exp $"
 #include "named.h"
 
 struct addinfo {
-	char	*a_dname;		/* domain name */
-	u_int	a_class;		/* class for address */
+	char		*a_dname;		/* domain name */
+	char		*a_rname;		/* referred by */
+	u_int16_t	a_rtype;		/* referred by */
+	u_int16_t	a_class;		/* class for address */
 };
 
 enum req_action { Finish, Refuse, Return };
@@ -86,18 +88,23 @@ static enum req_action	req_query __P((HEADER *hp, u_char **cpp, u_char *eom,
 				       u_char *msg, int dfd,
 				       struct sockaddr_in *from));
 
-#ifdef INVQ
 static enum req_action	req_iquery __P((HEADER *hp, u_char **cpp, u_char *eom,
 					int *buflenp, u_char *msg,
 					struct sockaddr_in *from));
+
+#ifdef BIND_NOTIFY
+static enum req_action	req_notify __P((HEADER *hp, u_char **cpp, u_char *eom,
+					u_char *msg,struct sockaddr_in *from));
 #endif
 
 static void		fwritemsg __P((FILE *, u_char *, int)),
+#ifdef DEBUG
+			printSOAdata __P((struct databuf)),
+#endif
 			doaxfr __P((struct namebuf *, FILE *,
 				    struct namebuf *, int)),
 			startxfr __P((struct qstream *, struct namebuf *,
-				      u_char *, int, int, const char *)),
-			printSOAdata __P((struct databuf));
+				      u_char *, int, int, const char *));
 
 #ifdef ALLOW_UPDATES
 static int		InitDynUpdate __P((register HEADER *hp,
@@ -110,7 +117,8 @@ static int		InitDynUpdate __P((register HEADER *hp,
 #endif
 
 static struct addinfo	addinfo[NADDRECS];
-static void		addname __P((char *, u_int16_t));
+static void		addname __P((const char *, const char *,
+				     u_int16_t, u_int16_t));
 
 /*
  * Process request using database; assemble and send response.
@@ -126,12 +134,12 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 	register HEADER *hp = (HEADER *) msg;
 	u_char *cp, *eom;
 	enum req_action action;
+	int n;
 
 #ifdef DEBUG
 	if (debug > 3) {
-		fprintf(ddt, "ns_req(from=[%s].%d)\n",
-			inet_ntoa(from->sin_addr), ntohs(from->sin_port));
-		fp_query(msg, ddt);
+		fprintf(ddt, "ns_req(from=%s)\n", sin_ntoa(from));
+		fp_nquery(msg, msglen, ddt);
 	}
 #endif
 
@@ -148,19 +156,17 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 		return;
 	}
 
-	/* its a query and these bits have no business
+	/* it's not a response so these bits have no business
 	 * being set. will later simplify work if we can
 	 * safely assume these are always 0 when a query
-	 * comes in
+	 * comes in.
 	 */
 	hp->aa = hp->ra = 0;
 
 	hp->rcode = NOERROR;
 	cp = msg + HFIXEDSZ;
 	eom = msg + msglen;
-
-	dnptrs[0] = msg;
-	dnptrs[1] = NULL;
+	buflen -= HFIXEDSZ;
 
 	free_addinfo();	/* sets addcount to zero */
 	dnptrs[0] = NULL;
@@ -172,9 +178,13 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 				   msg, dfd, from);
 		break;
 
-#ifdef INVQ
 	case IQUERY:
 		action = req_iquery(hp, &cp, eom, &buflen, msg, from);
+		break;
+
+#ifdef BIND_NOTIFY
+	case NS_NOTIFY_OP:
+		action = req_notify(hp, &cp, eom, msg, from);
 		break;
 #endif
 
@@ -188,14 +198,14 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
  * here is that none of the other return codes equals this one (a good
  * assumption, since they only occupy 4 bits over-the-wire)
  */
-        /* Call InitDynUpdate for all dynamic update requests */
-        case UPDATEM:
-        case UPDATEMA:
-        case UPDATED:
-        case UPDATEDA:
-        case UPDATEA:
-                n = InitDynUpdate(hp, msg, msglen, cp, from, qsp, dfd);
-                if (n == FORWARDED) {
+	/* Call InitDynUpdate for all dynamic update requests */
+	case UPDATEM:
+	case UPDATEMA:
+	case UPDATED:
+	case UPDATEDA:
+	case UPDATEA:
+		n = InitDynUpdate(hp, msg, msglen, cp, from, qsp, dfd);
+		if (n == FORWARDED) {
 			/* Return directly because InitDynUpdate
 			 * forwarded the query to the primary, so we
 			 * will send response later
@@ -207,11 +217,11 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 			 */
 			action = Finish;
 		}
-#endif /* ALLOW_UPDATES */
 
 	case ZONEREF:
 		dprintf(1, (ddt, "Refresh Zone\n"));
 		/*FALLTHROUGH*/
+#endif /* ALLOW_UPDATES */
 
 	default:
 		dprintf(1, (ddt, "ns_req: Opcode %d not implemented\n",
@@ -238,48 +248,47 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 		/* rest of the function handles this case */
 		break;
 	default:
-		syslog(LOG_CRIT, "bad action variable in ns_req() -- %d",
-		       (int) action);
-		return;	/* XXX - should really exit here */
+		panic(-1, "ns_req: bad action variable");
+		/*NOTREACHED*/
 	}
 
 	/*
 	 * apply final polish
 	 */
 	hp->qr = 1;		/* set Response flag */
-	if (NoRecurse)
-		hp->ra = 0;	/* No recursion; maybe we're a root server */
-	else
-		hp->ra = 1;	/* Recursion is Available */
+	hp->ra = (NoRecurse == 0);
 	hp->ancount = htons(hp->ancount);
-	if (addcount) {
-		int n = doaddinfo(hp, cp, buflen);
-		cp += n;
-		buflen -= n;
-	}
 
-	dprintf(1, (ddt, "ns_req: answer -> [%s].%d fd=%d id=%d %s\n",
-		    inet_ntoa(from->sin_addr), 
-		    ntohs(from->sin_port),
+	n = doaddinfo(hp, cp, buflen);
+	cp += n;
+	buflen -= n;
+
+	dprintf(1, (ddt, "ns_req: answer -> %s fd=%d id=%d size=%d %s\n",
+		    sin_ntoa(from), 
 		    (qsp == QSTREAM_NULL) ?dfd :qsp->s_rfd, 
-		    ntohs(hp->id), local(from) == NULL ? "Remote" : "Local"));
+		    ntohs(hp->id), cp - msg, local(from) == NULL ? "Remote" : "Local"));
 #ifdef DEBUG
 	if (debug >= 10)
-		fp_query(msg, ddt);
+		fp_nquery(msg, cp - msg, ddt);
 #endif
 	if (qsp == QSTREAM_NULL) {
-		if (sendto(dfd, msg, cp - msg, 0,
+		if (sendto(dfd, (char*)msg, cp - msg, 0,
 			   (struct sockaddr *)from,
 			   sizeof(*from)) < 0) {
 			if (!haveComplained((char*)from->sin_addr.s_addr,
 					    sendtoStr))
-				syslog(LOG_NOTICE,
-				       "ns_req: sendto([%s].%d): %m",
-				       inet_ntoa(from->sin_addr),
-				       ntohs(from->sin_port));
+				syslog(LOG_INFO,
+				       "ns_req: sendto(%s): %m",
+				       sin_ntoa(from));
 			nameserIncr(from->sin_addr, nssSendtoErr);
 		}
 		nameserIncr(from->sin_addr, nssSentAns);
+#ifdef XSTATS
+		if (hp->rcode == NXDOMAIN) 
+			nameserIncr(from->sin_addr, nssSentNXD);
+		if (!hp->aa) 
+			nameserIncr(from->sin_addr, nssSentNaAns);
+#endif
 	} else {
 		(void) writemsg(qsp->s_rfd, msg, cp - msg);
 		sq_done(qsp);
@@ -289,6 +298,124 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 		prime_cache();		/* Now is a safe time */
 	}
 }
+
+#ifdef BIND_NOTIFY
+int
+findZonePri(zp, from)
+	register const struct zoneinfo *zp;
+	const struct sockaddr_in *from;
+{
+	register u_int32_t from_addr = from->sin_addr.s_addr;
+	register int i;
+
+	for (i = 0; (u_int)i < zp->z_addrcnt; i++)
+		if (zp->z_addr[i].s_addr == from_addr)
+			return (i);
+	return (-1);
+}
+
+static enum req_action
+req_notify(hp, cpp, eom, msg, from)
+	HEADER *hp;
+	u_char **cpp, *eom, *msg;
+	struct sockaddr_in *from;
+{
+	int n, type, class, zn;
+	char dnbuf[MAXDNAME];
+	struct namebuf *np;
+	const char *fname;
+	struct hashbuf *htp = hashtab;		/* lookup relative to root */
+
+	/* valid notify's have one question and zero answers */
+	if ((ntohs(hp->qdcount) != 1)
+	    || hp->ancount
+	    || hp->nscount
+	    || hp->arcount) {
+		dprintf(1, (ddt, "FORMERR Notify header counts wrong\n"));
+		hp->qdcount = 0;
+		hp->ancount = 0;
+		hp->nscount = 0;
+		hp->arcount = 0;
+		hp->rcode = FORMERR;
+		return (Finish);
+	}
+
+	n = dn_expand(msg, eom, *cpp, dnbuf, sizeof dnbuf);
+	if (n < 0) {
+		dprintf(1, (ddt, "FORMERR Query expand name failed\n"));
+		hp->rcode = FORMERR;
+		return (Finish);
+	}
+	*cpp += n;
+	GETSHORT(type, *cpp);
+	GETSHORT(class, *cpp);
+	syslog(LOG_INFO, "rcvd NOTIFY(%s %s %s)",
+	       dnbuf, p_class(class), p_type(type));
+	/* XXX - when answers are allowed, we'll need to do compression
+	 * correctly here, and we will need to check for packet underflow.
+	 */
+	np = nlookup(dnbuf, &htp, &fname, 0);
+	if (!np) {
+		syslog(LOG_INFO, "rcvd NOTIFY for \"%s\", name not in cache",
+		       dnbuf);
+		hp->rcode = SERVFAIL;
+		return (Finish);
+	}
+	zn = findMyZone(np, class);
+	if (zn == DB_Z_CACHE || zones[zn].z_type != Z_SECONDARY) {
+		/* this can come if a user did an AXFR of some zone somewhere
+		 * and that zone's server now wants to tell us that the SOA
+		 * has changed.  AXFR's always come from nonpriv ports so it
+		 * isn't possible to know whether it was the server or just
+		 * "dig".  this condition can be avoided by using secure zones
+		 * since that way only real secondaries can AXFR from you.
+		 */
+		syslog(LOG_INFO,
+		       "NOTIFY for non-secondary name (%s), from %s",
+		       dnbuf, sin_ntoa(from));
+		goto refuse;
+	}
+	if (findZonePri(&zones[zn], from) == -1) {
+		syslog(LOG_INFO,
+		       "NOTIFY from non-master server (zone %s), from %s",
+		       zones[zn].z_origin, sin_ntoa(from));
+		goto refuse;
+	}
+	switch (type) {
+	case T_SOA:
+		if (strcasecmp(dnbuf, zones[zn].z_origin) != 0) {
+			syslog(LOG_INFO,
+			       "NOTIFY(SOA) for non-origin (%s), from %s",
+			       dnbuf, sin_ntoa(from));
+			goto refuse;
+		}
+		if (zones[zn].z_flags &
+		    (Z_NEED_RELOAD|Z_NEED_XFER|Z_QSERIAL|Z_XFER_RUNNING)) {
+			syslog(LOG_INFO,
+			       "NOTIFY(SOA) for zone already xferring (%s)",
+			       dnbuf);
+			goto noerror;
+		}
+		zones[zn].z_time = tt.tv_sec;
+		qserial_query(&zones[zn]);
+		/* XXX: qserial_query() can fail due to queue full condition;
+		 *	we should detect that case here and do something.
+		 */
+		break;
+	default:
+		/* unimplemented, but it's not a protocol error, just
+		 * something to be ignored.
+		 */
+		break;
+	}
+ noerror:
+	hp->rcode = NOERROR;
+	return (Finish);
+ refuse:
+	hp->rcode = REFUSED;
+	return (Finish);
+}
+#endif /*BIND_NOTIFY*/
 
 static enum req_action
 req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
@@ -303,14 +430,26 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 	int n, class, type, count, foundname, founddata, omsglen, cname;
 	u_int16_t id;
 	u_char **dpp, *omsg, *answers;
-	char dnbuf[MAXDNAME], *dname, *fname;
+	char dnbuf[MAXDNAME], *dname;
+	const char *fname;
 	struct hashbuf *htp;
 	struct databuf *nsp[NSMAX];
-	struct namebuf *np;
+	struct namebuf *np, *anp;
 	struct qinfo *qp;
 	struct netinfo *lp;
+#ifdef SECURE_ZONES
+	struct zoneinfo *zp;
+#endif
+	struct databuf *dp;
 
 	nameserIncr(from->sin_addr, nssRcvdQ);
+	
+#ifdef XSTATS
+	/* Statistics for queries coming from port <> 53, suspect some kind of forwarder */
+	if (from->sin_port != ns_port)
+		nameserIncr(from->sin_addr, nssNotNsQ);
+#endif
+
 #ifdef DATUMREFCNT
 	nsp[0] = NULL;
 #endif
@@ -368,10 +507,8 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 		/* refuse request if not a TCP connection */
 		if (qsp == QSTREAM_NULL) {
 			syslog(LOG_INFO,
-			       "rejected UDP AXFR from [%s].%u for \"%s\"",
-			       inet_ntoa(from->sin_addr),
-			       ntohs(from->sin_port),
-			       *dnbuf ? dnbuf : ".");
+			       "rejected UDP AXFR from %s for \"%s\"",
+			       sin_ntoa(from), *dnbuf ? dnbuf : ".");
 			return (Refuse);
 		}
 		/* the position of this is subtle. */
@@ -384,20 +521,16 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 			 */
 			if (!addr_on_netlist(from->sin_addr, xfrnets)) {
 				syslog(LOG_INFO,
-				       "unapproved AXFR from [%s].%u for %s",
-				       inet_ntoa(from->sin_addr),
-				       ntohs(from->sin_port),
-				       *dnbuf ? dnbuf : ".");
+				       "unapproved AXFR from %s for %s",
+				       sin_ntoa(from), *dnbuf ? dnbuf : ".");
 				return (Refuse);
 			}
 		}
 #endif /*XFRNETS*/
 		dnptrs[0] = NULL;	/* don't compress names */
 		hp->rd = 0;		/* recursion not possible */
-		syslog(LOG_INFO, "approved AXFR from [%s].%d for \"%s\"",
-		       inet_ntoa(from->sin_addr),
-		       ntohs(from->sin_port),
-		       *dnbuf ? dnbuf : ".");
+		syslog(LOG_INFO, "approved AXFR from %s for \"%s\"",
+		       sin_ntoa(from), *dnbuf ? dnbuf : ".");
 	}
 	*buflenp -= *msglenp;
 	count = 0;
@@ -416,10 +549,10 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 #endif /*QRYLOG*/
 
 try_again:
-	dprintf(1, (ddt, "req: nlookup(%s) id %d type=%d\n",
-		    dname, hp->id, type));
+	dprintf(1, (ddt, "req: nlookup(%s) id %d type=%d class=%d\n",
+		    dname, hp->id, type, class));
 	htp = hashtab;		/* lookup relative to root */
-	if ((np = nlookup(dname, &htp, &fname, 0)) == NULL)
+	if ((anp = np = nlookup(dname, &htp, &fname, 0)) == NULL)
 		fname = "";
 	dprintf(1, (ddt, "req: %s '%s' as '%s' (cname=%d)\n",
 		    np == NULL ? "missed" : "found",
@@ -438,7 +571,7 @@ try_again:
 		dprintf(1, (ddt,"req: nlookup(%s) type=%d\n", dname, type));
 		htp = hashtab;
 		np = nlookup(dname, &htp, &fname, 0);
-        }
+	}
 #endif /*LOCALDOM*/
 
 #ifdef YPKLUDGE
@@ -470,17 +603,26 @@ try_again:
 		goto fetchns;
 
 #ifdef SECURE_ZONES
-	if (np->n_data) {
-		struct zoneinfo *zp;
-
-		zp = &zones[np->n_data->d_zone];
+	/* (gdmr) Make sure the class is correct.  If we have the same name
+	 * with more than one class then we can't refuse a request for one
+	 * class just because another class is blocked.  We *really* ought
+	 * to look for the correct type too, but since everything in a
+	 * particular class of zone has the same secure_zone attribute it
+	 * doesn't really matter which type we use!  Alternatively, this lot
+	 * could all be moved to after the finddata(), by which time only
+	 * the correct class/type combinations will be left.
+	 */
+	dp = np->n_data;
+	while (dp && (dp->d_class != class))
+		dp = dp->d_next;
+	if (dp) {
+		zp = &zones[dp->d_zone];
 		if (zp->secure_nets
 		    && !addr_on_netlist(from->sin_addr, zp->secure_nets)) {
-			dprintf(1, (ddt,
-				    "REFUSED Unauthorized request from %s\n", 
-				    inet_ntoa(from->sin_addr)));
-			syslog(LOG_INFO, "Unauthorized request %s from %s",
-			       dname, inet_ntoa(from->sin_addr));
+			syslog(LOG_NOTICE, "Unauthorized request %s from %s",
+			       dname, sin_ntoa(from));
+			dprintf(1, (ddt, "req: refuse %s from %s class %d (%d)\n",
+				dname, sin_ntoa(from), class, zp->z_class));
 			return (Refuse);
 		}
 	}
@@ -490,36 +632,30 @@ try_again:
 	count = *cpp - msg;
 
 #ifdef NCACHE
-	/* if this is a NXDOMAIN, will have only one databuf
-	 * whose d_rcode field will be NXDOMAIN. So we can go home
-	 * right here. -ve $ing: anant@isi.edu
+	/* Look for NXDOMAIN record with appropriate class
+	 * if found return immediately
 	 */
-	if (np->n_data != NULL && !stale(np->n_data)) {
-		if (np->n_data->d_rcode == NXDOMAIN) {
+	for (dp = np->n_data; dp ; dp = dp->d_next) {
+		if (!stale(dp) && (dp->d_rcode == NXDOMAIN) &&
+			(dp->d_class == class)) {
 #ifdef RETURNSOA
-			n = finddata(np, class, T_SOA, hp, &dname,
-				buflenp, &count);
-			if (n != 0 ) {
-			    if (hp->rcode == NOERROR_NODATA) {
+			    n = finddata(np, class, T_SOA, hp, &dname,
+				     buflenp, &count);
+			    if (n != 0 ) {
+				if (hp->rcode == NOERROR_NODATA) {
 				    /* this should not occur */
 				    hp->rcode = NOERROR;
 				    return (Finish);
+				}
+				*cpp += n;
+				*buflenp -= n;
+				*msglenp += n;
+				hp->nscount = htons((u_int16_t)count);
 			    }
-			    *cpp += n;
-			    *buflenp -= n;
-			    *msglenp += n;
-			    hp->rcode = NXDOMAIN;
-			    hp->nscount = htons((u_int16_t)count);
-			    hp->aa = 1;	
-			    return (Finish);
-			}
-			else
-			    goto fetchns;
-#else
+#endif
 			hp->rcode = NXDOMAIN;
 			hp->aa = 1;
 			return (Finish);
-#endif
 		}
 	}
 
@@ -569,6 +705,29 @@ try_again:
 
 	if ((lp = local(from)) != NULL) 
 		sort_response(answers, count, lp, *cpp);
+#ifdef BIND_NOTIFY
+	if (type == T_SOA &&
+	    from->sin_port == ns_port &&
+	    np->n_data) {
+		int zn = np->n_data->d_zone;
+
+		if (zn != DB_Z_CACHE) {
+			struct notify	*ap;
+
+			/* Old? */
+			ap = findNotifyPeer(&zones[zn], from->sin_addr);
+			/* New? */
+			if (!ap && (ap = (struct notify *)malloc(sizeof *ap))) {
+				ap->addr = from->sin_addr;
+				ap->next = zones[zn].z_notifylist;
+				zones[zn].z_notifylist = ap;
+			}
+			/* Old or New? */
+			if (ap)
+				ap->last = tt.tv_sec;
+		}
+	}
+#endif /*BIND_NOTIFY*/
 	if (type == T_AXFR) {
 		hp->ancount = htons(hp->ancount);
 		startxfr(qsp, np, msg, *cpp - msg, class, dname);
@@ -598,6 +757,7 @@ fetchns:
 	count = 0;
 	switch (findns(&np, class, nsp, &count, 0)) {
 	case NXDOMAIN:
+		/* We are authoritative for this np. */
 		if (!foundname) {
 			hp->rcode = NXDOMAIN;
 		}
@@ -616,7 +776,7 @@ fetchns:
 #ifdef ADDAUTH
 			} else if (hp->ancount) {
 				/* don't add NS records for NOERROR NODATA
-				   as some severs can get confused */
+				   as some servers can get confused */
 #ifdef DATUMREFCNT
 				free_nsp(nsp);
 #endif
@@ -625,7 +785,9 @@ fetchns:
 				case SERVFAIL:
 					break;
 				default:
-					if (np) {
+					if (np &&
+					    (type != T_NS || np != anp)
+					    ) {
 						n = add_data(np, nsp, *cpp,
 							     *buflenp);
 						if (n < 0) {
@@ -648,6 +810,7 @@ fetchns:
 		return (Finish);
 
 	case SERVFAIL:
+		/* We're authoritative but the zone isn't loaded. */
 		if (!founddata && !(forward_only && fwdtab)) {
 			hp->rcode = SERVFAIL;
 #ifdef DATUMREFCNT
@@ -664,17 +827,25 @@ fetchns:
 	 *  ("authority section") here and we're done.
 	 */
 	if (founddata || (!hp->rd) || NoRecurse) {
-		n = add_data(np, nsp, *cpp, *buflenp);
-		if (n < 0) {
-			hp->tc = 1;
-			n = (-n);
+		/* If the qtype was NS, and the np of the authority is
+		 * the same as the np of the data, we don't need to add
+		 * another copy of the answer here in the authority
+		 * section.
+		 */
+		if (!founddata || type != T_NS || anp != np) {
+			n = add_data(np, nsp, *cpp, *buflenp);
+			if (n < 0) {
+				hp->tc = 1;
+				n = (-n);
+			}
+			*cpp += n;
+			*buflenp -= n;
+			hp->nscount = htons((u_int16_t)count);
 		}
-		*cpp += n;
-		*buflenp -= n;
-		hp->nscount = htons((u_int16_t)count);
 #ifdef DATUMREFCNT
 		free_nsp(nsp);
 #endif
+		/* Our caller will handle the Additional section. */
 		return (Finish);
 	}
 
@@ -688,8 +859,7 @@ fetchns:
 	if (cname) {
 		omsg = (u_char *)malloc((unsigned) *msglenp);
 		if (omsg == (u_char *)NULL) {
-			dprintf(1, (ddt, "ns_req: malloc fail\n"));
-			syslog(LOG_ERR, "ns_req: Out Of Memory");
+			syslog(LOG_INFO, "ns_req: Out Of Memory");
 			hp->rcode = SERVFAIL;
 #ifdef DATUMREFCNT
 			free_nsp(nsp);
@@ -700,9 +870,18 @@ fetchns:
 		hp->ancount = htons(hp->ancount);
 		omsglen = *msglenp;
 		bcopy(msg, omsg, omsglen);
-		*msglenp = res_mkquery(QUERY, dname, class, type,
-				       NULL, 0, NULL, msg,
-				       *msglenp + *buflenp);
+		n = res_mkquery(QUERY, dname, class, type,
+				NULL, 0, NULL, msg,
+				*msglenp + *buflenp);
+		if (n < 0) {
+			syslog(LOG_INFO, "res_mkquery(%s) failed", dname);
+			hp->rcode = SERVFAIL;
+#ifdef DATUMREFCNT
+			free_nsp(nsp);
+#endif
+			return (Finish);
+		}
+		*msglenp = n;
 	}
 	n = ns_forw(nsp, msg, *msglenp, from, qsp, dfd, &qp, dname, np);
 	if (n != FW_OK && cname)
@@ -727,10 +906,7 @@ fetchns:
 		*/
 		if (np) {
 			if (np->n_dname[0] == '\0') {
-				dprintf(1, (ddt,
-					    "ns_req: no address for root NS\n"
-					    ));
-				syslog(LOG_ERR, 
+				syslog(LOG_NOTICE, 
 				       "ns_req: no address for root server");
 				hp->rcode = SERVFAIL;
 #ifdef DATUMREFCNT
@@ -762,7 +938,6 @@ fetchns:
 	return (Return);
 }
 
-#ifdef INVQ
 static enum req_action
 req_iquery(hp, cpp, eom, buflenp, msg, from)
 	HEADER *hp;
@@ -771,12 +946,8 @@ req_iquery(hp, cpp, eom, buflenp, msg, from)
 	u_char *msg;
 	struct sockaddr_in *from;
 {
-	register struct invbuf *ip;
-	int dlen, alen, i, n, type, class, count;
+	int dlen, alen, n, type, class, count;
 	char dnbuf[MAXDNAME], anbuf[PACKETSZ], *data, *fname;
-	struct namebuf *np;
-	struct qinfo *qp;
-	struct databuf *dp;
 
 	nameserIncr(from->sin_addr, nssRcvdIQ);
 
@@ -819,8 +990,14 @@ req_iquery(hp, cpp, eom, buflenp, msg, from)
 	 */
 	switch (type) {
 	case T_A:
+#ifndef INVQ
+		if (!fake_iquery)
+			return (Refuse);
+#endif
+#ifdef INVQ
 	case T_UID:
 	case T_GID:
+#endif
 		break;
 	default:
 		return (Refuse);
@@ -833,10 +1010,29 @@ req_iquery(hp, cpp, eom, buflenp, msg, from)
 	*cpp = (u_char *)fname;
 	*buflenp -= HFIXEDSZ;
 	count = 0;
+
+#ifdef QRYLOG
+	if (qrylog) {
+		syslog(LOG_INFO, "XX /%s/%s/-%s",
+		       inet_ntoa(from->sin_addr), 
+		       inet_ntoa(data_inaddr((u_char *)data)),
+		       p_type(type));
+	}
+#endif /*QRYLOG*/
+
+#ifdef INVQ
+    {
+	register struct invbuf *ip;
+
 	for (ip = invtab[dhash((u_char *)data, dlen)];
 	     ip != NULL;
 	     ip = ip->i_next) {
+		int i;
+
 		for (i = 0; i < INVBLKSZ; i++) {
+			struct namebuf *np;
+			struct databuf *dp;
+
 			if ((np = ip->i_dname[i]) == NULL)
 				break;
 			dprintf(5, (ddt, "dname = %d\n", np->n_dname));
@@ -863,6 +1059,30 @@ req_iquery(hp, cpp, eom, buflenp, msg, from)
 			}
 		}
 	}
+    }
+#else /*INVQ*/
+	/*
+	 * We can only get here if we are compiled without INVQ (the default)
+	 * and the type is T_A and the option "fake-iquery" is on in the boot
+	 * file.
+	 *
+	 * What we do here is send back a bogus response of "[dottedquad]".
+	 * A better strategy would be to turn this into a PTR query, but that
+	 * would legitimize inverse queries in a way they do not deserve.
+	 */
+	sprintf(dnbuf, "[%s]", inet_ntoa(data_inaddr((u_char *)data)));
+	*buflenp -= QFIXEDSZ;
+	n = dn_comp(dnbuf, *cpp, *buflenp, NULL, NULL);
+	if (n < 0) {
+		hp->tc = 1;
+		return (Finish);
+	}
+	*cpp += n;
+	PUTSHORT((u_int16_t)type, *cpp);
+	PUTSHORT((u_int16_t)class, *cpp);
+	*buflenp -= n;
+	count++;
+#endif /*INVQ*/
 	dprintf(1, (ddt, "req: IQuery %d records\n", count));
 	hp->qdcount = htons((u_int16_t)count);
 	if (alen > *buflenp) {
@@ -873,7 +1093,6 @@ req_iquery(hp, cpp, eom, buflenp, msg, from)
 	*cpp += alen;
 	return (Finish);
 }
-#endif
 
 static void
 fwritemsg(rfp, msg, msglen)
@@ -886,7 +1105,8 @@ fwritemsg(rfp, msg, msglen)
 	__putshort(msglen, len);
 	if (fwrite((char *)len, INT16SZ, 1, rfp) != 1 ||
 	    fwrite((char *)msg, msglen, 1, rfp) != 1) {
-		dprintf(1, (ddt, "fwrite failed %d\n", errno));
+		syslog(LOG_ERR, "fwritemsg: %m");
+		_exit(1);
 	}
 }
 
@@ -904,10 +1124,14 @@ stale(dp)
 	case Z_PRIMARY:
 		return (0);
 
-	case Z_SECONDARY:
 #ifdef STUBS
 	case Z_STUB:
+		/* root stub zones have DB_F_HINT set */
+		if (dp->d_flags & DB_F_HINT)
+			return (0);
+		/* FALLTROUGH */
 #endif
+	case Z_SECONDARY:
 		/*
 		 * Check to see whether a secondary zone
 		 * has expired; if so clear authority flag
@@ -920,8 +1144,17 @@ stale(dp)
 				    "stale: secondary zone %s expired\n",
 				    zp->z_origin));
 			if (!haveComplained(zp->z_origin, (char*)stale)) {
-				syslog(LOG_ERR,
+				syslog(LOG_NOTICE,
 				       "secondary zone \"%s\" expired",
+				       zp->z_origin);
+			}
+			zp->z_flags &= ~Z_AUTH;
+			return (1);
+		}
+		if (zp->z_lastupdate > tt.tv_sec) {
+			if (!haveComplained(zp->z_origin, (char*)stale)) {
+				syslog(LOG_NOTICE,
+				       "secondary zone \"%s\" time warp",
 				       zp->z_origin);
 			}
 			zp->z_flags &= ~Z_AUTH;
@@ -932,15 +1165,16 @@ stale(dp)
 	case Z_CACHE:
 		if (dp->d_flags & DB_F_HINT || dp->d_ttl >= tt.tv_sec)
 			return (0);
-		dprintf(3, (ddt, "stale: ttl %d %d (x%x)\n",
-			    dp->d_ttl, dp->d_ttl - tt.tv_sec, dp->d_flags));
+		dprintf(3, (ddt, "stale: ttl %d %d (x%lx)\n",
+			    dp->d_ttl, dp->d_ttl - tt.tv_sec,
+			    (u_long)dp->d_flags));
 		return (1);
 
 	default:
 		/* FALLTHROUGH */ ;
 
 	}
-	abort();
+	panic(-1, "stale: impossible condition");
 	/* NOTREACHED */
 }
 
@@ -950,7 +1184,7 @@ stale(dp)
  */
 int
 make_rr(name, dp, buf, buflen, doadd)
-	char *name;
+	const char *name;
 	register struct databuf *dp;
 	u_char *buf;
 	int buflen, doadd;
@@ -962,31 +1196,27 @@ make_rr(name, dp, buf, buflen, doadd)
 	register int32_t ttl;
 	u_char **edp = dnptrs + sizeof dnptrs / sizeof dnptrs[0];
 
-	dprintf(5, (ddt, "make_rr(%s, %x, %x, %d, %d) %d zone %d ttl %d\n",
-		    name, dp, buf,
+	dprintf(5, (ddt, "make_rr(%s, %lx, %lx, %d, %d) %d zone %d ttl %d\n",
+		    name, (u_long)dp, (u_long)buf,
 		    buflen, doadd, dp->d_size, dp->d_zone, dp->d_ttl));
 
 #ifdef	NCACHE
 	if (dp->d_rcode
 #ifdef RETURNSOA
-	&& dp->d_rcode != NXDOMAIN
+	    && dp->d_rcode != NXDOMAIN
 #endif
 	) {
-		syslog(LOG_CRIT, "make_rr d_rcode %d", dp->d_rcode);
-#ifdef DEBUG
-		if (debug) abort();
-#endif
-		return (-1);	/* XXX We should exit here */
+		panic(-1, "make_rr: impossible d_rcode value");
 	}
 #endif
 	zp = &zones[dp->d_zone];
-	/* check for outdated RR before updating dnptrs by dn_comp() (???) */
+	/* check for outdated RR before updating dnptrs by dn_comp() (?) */
 	if (zp->z_type == Z_CACHE) {
 		ttl = dp->d_ttl - (u_int32_t) tt.tv_sec;
 		if ((dp->d_flags & DB_F_HINT) || (ttl < 0)) {
 			dprintf(3, (ddt,
-				    "make_rr: %d=>0, x%x\n",
-				    ttl, dp->d_flags));		/* XXX */
+				    "make_rr: %d=>0, %#lx\n",
+				    ttl, (u_long)dp->d_flags));
 			ttl = 0;
 		}
 	} else {
@@ -1047,7 +1277,8 @@ make_rr(name, dp, buf, buflen, doadd)
 		PUTSHORT((u_int16_t)n, sp);
 		cp += n;
 		if (doadd)
-			addname((char*)dp->d_data, dp->d_class);
+			addname((char*)dp->d_data, name,
+				dp->d_type, dp->d_class);
 		break;
 
 	case T_SOA:
@@ -1079,22 +1310,51 @@ make_rr(name, dp, buf, buflen, doadd)
 		/* cp1 == our data/ cp == data of RR */
 		cp1 = dp->d_data;
 
+ 		if ((buflen -= INT16SZ) < 0)
+			return (-1);
+
  		/* copy preference */
  		bcopy(cp1, cp, INT16SZ);
  		cp += INT16SZ;
  		cp1 += INT16SZ;
- 		buflen -= INT16SZ;
 
 		n = dn_comp((char *)cp1, cp, buflen, dnptrs, edp);
-  		if (n < 0)
-  			return (-1);
-  		cp += n;
+		if (n < 0)
+			return (-1);
+		cp += n;
 
-  		/* save data length */
+		/* save data length */
 		n = (u_int16_t)((cp - sp) - INT16SZ);
-  		PUTSHORT((u_int16_t)n, sp);
+		PUTSHORT((u_int16_t)n, sp);
 		if (doadd)
-			addname((char*)cp1, dp->d_class);
+			addname((char*)cp1, name, dp->d_type, dp->d_class);
+		break;
+
+	case T_PX:
+		cp1 = dp->d_data;
+
+		if ((buflen -= INT16SZ) < 0)
+			return (-1);
+
+		/* copy preference */
+		bcopy(cp1, cp, INT16SZ);
+		cp += INT16SZ;
+		cp1 += INT16SZ;
+
+		n = dn_comp((char *)cp1, cp, buflen, dnptrs, edp);
+		if (n < 0)
+			return (-1);
+		cp += n;
+		buflen -= n;
+		cp1 += strlen((char *)cp1) + 1;
+		n = dn_comp((char *)cp1, cp, buflen, dnptrs, edp);
+		if (n < 0)
+			return (-1);
+		cp += n;
+
+		/* save data length */
+		n = (u_int16_t)((cp - sp) - INT16SZ);
+		PUTSHORT((u_int16_t)n, sp);
 		break;
 
 	default:
@@ -1109,28 +1369,32 @@ make_rr(name, dp, buf, buflen, doadd)
 
 #if defined(__STDC__) || defined(__GNUC__)
 static void
-addname(register char *name,
+addname(register const char *dname,
+	register const char *rname,
+	u_int16_t rtype,
 	u_int16_t class)
 #else
 static void
-addname(name, class)
-	register char	*name;
-	u_int16_t	class;
+addname(dname, rname, rtype, class)
+	register const char	*dname;
+	register const char	*rname;
+	u_int16_t		rtype;
+	u_int16_t		class;
 #endif
 {
 	register struct addinfo *ap;
 	register int n;
 
 	for (ap = addinfo, n = addcount; --n >= 0; ap++)
-		if (strcasecmp(ap->a_dname, name) == 0)
+		if (strcasecmp(ap->a_dname, dname) == 0)
 			return;
-	
 
 	/* add domain name to additional section */
 	if (addcount < NADDRECS) {
 		addcount++;
-		ap->a_dname = (char *)malloc(strlen(name)+1);
-		strcpy(ap->a_dname,name);
+		ap->a_dname = savestr(dname);
+		ap->a_rname = savestr(rname);
+		ap->a_rtype = rtype;
 		ap->a_class = class;
 	}
 }
@@ -1150,8 +1414,11 @@ doaddinfo(hp, msg, msglen)
 	register struct addinfo *ap;
 	register u_char *cp;
 	struct hashbuf *htp;
-	char *fname;
+	const char *fname;
 	int n, count;
+
+	if (!addcount)
+		return (0);
 
 	dprintf(3, (ddt, "doaddinfo() addcount = %d\n", addcount));
 
@@ -1165,11 +1432,13 @@ doaddinfo(hp, msg, msglen)
 	for (ap = addinfo; --addcount >= 0; ap++) {
 		int	foundstale = 0,
 			foundany = 0,
+			foundcname = 0,
 			save_count = count,
 			save_msglen = msglen;
 		u_char	*save_cp = cp;
 
-		dprintf(3, (ddt, "do additional '%s'\n", ap->a_dname));
+		dprintf(3, (ddt, "do additional \"%s\" (from \"%s\")\n",
+			    ap->a_dname, ap->a_rname));
 		htp = hashtab;	/* because "nlookup" stomps on arg. */
 		np = nlookup(ap->a_dname, &htp, &fname, 0);
 		if (np == NULL || fname != ap->a_dname)
@@ -1177,9 +1446,17 @@ doaddinfo(hp, msg, msglen)
 		dprintf(3, (ddt, "found it\n"));
 		/* look for the data */
 		for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
-			if ( (!match(dp, (int)ap->a_class, T_A))
-			  && (!match(dp, C_IN, T_A))
-			   ) {
+#ifdef	NCACHE
+			if (dp->d_rcode)
+				continue;
+#endif
+			if (match(dp, (int)ap->a_class, T_CNAME) ||
+			    match(dp, C_IN, T_CNAME)) {
+				foundcname++;
+				break;
+			}
+			if (!match(dp, (int)ap->a_class, T_A) &&
+			    !match(dp, C_IN, T_A)) {
 				continue;
 			}
 			foundany++;
@@ -1194,10 +1471,6 @@ doaddinfo(hp, msg, msglen)
 					    ));
 				continue;
 			}
-#ifdef	NCACHE
-			if (dp->d_rcode)
-				continue;
-#endif
 			/*
 			 *  Should be smart and eliminate duplicate
 			 *  data here.	XXX
@@ -1213,6 +1486,9 @@ doaddinfo(hp, msg, msglen)
 				 * since we only do A RR's here, the name is
 				 * the key).	vixie, 23apr93
 				 */
+				dprintf(5, (ddt,
+					    "addinfo: not enough room, remaining msglen = %d\n",
+					    save_msglen));
 				cp = save_cp;
 				msglen = save_msglen;
 				count = save_count;
@@ -1225,16 +1501,31 @@ doaddinfo(hp, msg, msglen)
 			msglen -= n;
 			count++;
 		}
-next_rr:	if (foundstale) {
+ next_rr:
+		if (foundstale) {
 			/* Cache invalidate the address RR's */
 			delete_all(np, (int)ap->a_class, T_A);
 		}
-		if (foundstale || !foundany) {
+		if (
+#if 0 /*XXX*/
+		    !NoRecurse &&
+#endif
+		    !foundcname && (foundstale || !foundany)) {
 			/* ask a real server for this info */
 			(void) sysquery(ap->a_dname, (int)ap->a_class, T_A,
-					NULL, 0);
+					NULL, 0, QUERY);
+		}
+		if (foundcname) {
+			if (!haveComplained((char*)nhash(ap->a_dname),
+					    (char*)nhash(ap->a_rname))) {
+				syslog(LOG_INFO,
+				       "\"%s %s %s\" points to a CNAME (%s)",
+				       ap->a_rname, p_class(ap->a_class),
+				       p_type(ap->a_rtype), ap->a_dname);
+			}
 		}
 		free(ap->a_dname);
+		free(ap->a_rname);
 	}
 	hp->arcount = htons((u_int16_t)count);
 	return (cp - msg);
@@ -1299,25 +1590,22 @@ doaxfr(np, rfp, top, class)
 	struct namebuf **npp, **nppend;
 	u_char msg[PACKETSZ];
 	u_char *cp;
-	char *fname;
+	const char *fname;
 	char dname[MAXDNAME];
-	HEADER *hp = (HEADER *) msg;
+	HEADER *hp;
 	int fndns;
 
 	if (np == top)
 		dprintf(1, (ddt, "doaxfr()\n"));
 	fndns = 0;
-	hp->id = 0;
+	bzero((char*)msg, sizeof msg);
+	hp = (HEADER *) msg;
 	hp->opcode = QUERY;
-	hp->aa = hp->tc = hp->ra = hp->pr = hp->rd = 0;
 	hp->qr = 1;
 	hp->rcode = NOERROR;
-	hp->qdcount = 0;
 	hp->ancount = htons(1);
-	hp->nscount = 0;
-	hp->arcount = 0;
-	cp = (u_char *) (msg + HFIXEDSZ);
-	getname(np, dname, sizeof(dname));
+	cp = msg + HFIXEDSZ;
+	getname(np, dname, sizeof dname);
 
 	/* first do the NS records (del@harris) */
 	for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
@@ -1357,7 +1645,9 @@ doaxfr(np, rfp, top, class)
 			    break;
 		    if ( (tnp == NULL) && (top->n_dname[0] != '\0') )
 			continue;  /* name server is not below top domain */
-		    for (tnp = gnp; tnp != top; tnp = tnp->n_parent) {
+		    for (tnp = gnp;
+			 tnp != NULL && tnp != top;
+			 tnp = tnp->n_parent) {
 			for (tdp = tnp->n_data;
 			     tdp != NULL;
 			     tdp = tdp->d_next) {
@@ -1371,7 +1661,8 @@ doaxfr(np, rfp, top, class)
 			if (tdp != NULL)
 			    break; /* found a zone cut */
 		    }
-		    if (tnp == top)
+		    if ((tnp == top) ||
+			    ((tnp == NULL) && (top->n_dname[0] == '\0')))
 			continue;  /* name server is not in a delegated zone */
 		    /* now we know glue records are needed.  send them. */
 #endif /*NO_GLUE*/
@@ -1562,8 +1853,6 @@ InitDynUpdate(hp, msg, msglen, startcp, from, qsp, dfd)
 		*znp = NULL;
 	np = nlookup(ZoneName, &htp, &fname, 0);
 	if ((np == NULL) || (fname != ZoneName)) {
-		dprintf(1, (ddt, "InitDynUpdate: lookup failed on zone (%s)\n",
-			    ZoneName));
 	        syslog(LOG_ERR, "InitDynUpdate: lookup failed on zone (%s)\n",
 		       ZoneName);
 		hp->rcode = NXDOMAIN;
@@ -1618,13 +1907,9 @@ InitDynUpdate(hp, msg, msglen, startcp, from, qsp, dfd)
 			if (match(olddp, class, T_SOA))
 				break;
 		if (olddp == NULL) {
-			dprintf(1, (ddt,
-			 "InitDynUpdate: Couldn't find SOA record for '%s'\n",
-				    ZoneName));
-			syslog(LOG_ERR,
-			   "InitDynUpdate: Couldn't find SOA record for '%s'\n"
-,
-			   ZoneName);
+			syslog(LOG_NOTICE,
+			      "InitDynUpdate: Couldn't find SOA RR for '%s'\n",
+			       ZoneName);
 			hp->rcode = NXDOMAIN;
 #ifdef	DATUMREFCNT
 			free_nsp(nsp);
@@ -1690,11 +1975,14 @@ printSOAdata(dp)
 	if (!debug)
 		return;  /* Otherwise fprintf to ddt will bomb */
 	cp = (u_char *)dp->d_data;
-	fprintf(ddt, "printSOAdata(%x): origin(%x)='%s'\n", dp, cp, cp);
+	fprintf(ddt, "printSOAdata(%#lx): origin(%#lx)='%s'\n",
+		(u_long)dp, (u_long)cp, cp);
 	cp += strlen(cp) + 1; /* skip origin string */
-	fprintf(ddt, "printSOAdata: in-charge(%x)='%s'\n", cp, cp);
+	fprintf(ddt, "printSOAdata: in-charge(%#lx)='%s'\n",
+		(u_long)cp, cp);
 	cp += strlen(cp) + 1; /* skip in-charge string */
-	fprintf(ddt, "printSOAdata: serial(%x)=%d\n", cp, _getlong(cp));
+	fprintf(ddt, "printSOAdata: serial(%lx)=%d\n",
+		cp, (u_long)_getlong(cp));
 }
 #endif
 #endif
@@ -1711,6 +1999,15 @@ startxfr(qsp, np, soa, soalen, class, dname)
 	FILE *rfp;
 	int fdstat;
 	pid_t pid;
+#ifdef HAVE_SETVBUF
+	char *buf;
+#endif
+#ifdef SO_SNDBUF
+	static const int sndbuf = XFER_BUFSIZE * 2;
+#endif
+#ifdef SO_LINGER
+	static const struct linger ll = { 1, 120 };
+#endif
 
 	dprintf(5, (ddt, "startxfr()\n"));
 
@@ -1720,16 +2017,16 @@ startxfr(qsp, np, soa, soalen, class, dname)
 	 */
 	switch (pid = fork()) {
 	case -1:
-		syslog(LOG_ERR, "startxfr(%s -> [%s]) failing; fork: %m",
-		       dname, inet_ntoa(qsp->s_from.sin_addr));
+		syslog(LOG_NOTICE, "startxfr(%s -> %s) failing; fork: %m",
+		       dname, sin_ntoa(&qsp->s_from));
 		return;
 	case 0:
 		/* child */
 		break;
 	default:
 		/* parent */
-		syslog(LOG_DEBUG, "zone transfer of \"%s\" to [%s] (pid %lu)",
-		       dname, inet_ntoa(qsp->s_from.sin_addr), pid);
+		syslog(LOG_DEBUG, "zone transfer of \"%s\" to %s (pid %lu)",
+		       dname, sin_ntoa(&qsp->s_from), pid);
 		return;
 	}
 
@@ -1758,25 +2055,58 @@ startxfr(qsp, np, soa, soalen, class, dname)
 		_exit(1);
 	}
 	(void) fcntl(qsp->s_rfd, F_SETFL, fdstat & ~PORT_NONBLOCK);
+#ifdef HAVE_SETVBUF
+	/* some systems (DEC OSF/1, SunOS) don't initialize the stdio buffer
+	 * if all you do between fdopen() and fclose() are fwrite()'s.  even
+	 * on systems where the buffer is correctly set, it is too small.
+	 */
+	if ((buf = malloc(XFER_BUFSIZE)) != NULL)
+		(void) setvbuf(rfp, buf, _IOFBF, XFER_BUFSIZE);
+#endif
+#ifdef SO_SNDBUF
+	/* the default seems to be 4K, and we'd like it to have enough room
+	 * to parallelize sending the pushed data with accumulating more
+	 * write() data from us.
+	 */
+	(void) setsockopt(qsp->s_rfd, SOL_SOCKET, SO_SNDBUF,
+			  (char *)&sndbuf, sizeof sndbuf);
+#endif
+	/* XXX:	some day we would like to only send the size and header out
+	 *	when we fill a 64K DNS/AXFR "message" rather than on each RR.
+	 *	(PVM@ISI gets credit for this idea.)
+	 */
 	fwritemsg(rfp, soa, soalen);
 	doaxfr(np, rfp, np, class);
 	fwritemsg(rfp, soa, soalen);
 	(void) fflush(rfp);
+#ifdef SO_LINGER
+	/* kernels that map pages for IO end up failing if the pipe is full
+	 * at exit and we take away the final buffer.  this is really a kernel
+	 * bug but it's harmless on systems that are not broken, so...
+	 */
+	setsockopt(qsp->s_rfd, SOL_SOCKET, SO_LINGER,
+		   (char *)&ll, sizeof ll);
+	close(qsp->s_rfd);
+#endif
 	_exit(0);
+	/* NOTREACHED */
 }
 
+void
 free_addinfo() {
 	struct addinfo *ap;
 
 	for (ap = addinfo; --addcount >= 0; ap++) {
 		free(ap->a_dname);
+		free(ap->a_rname);
 	}
 	addcount = 0;
 }
 
 #ifdef DATUMREFCNT
+void
 free_nsp(nsp)
-struct databuf **nsp;
+	struct databuf **nsp;
 {
 	while (*nsp) {
 		if (--((*nsp)->d_rcnt)) {
