@@ -73,7 +73,8 @@ static void	aac_host_command(struct aac_softc *sc);
 static void	aac_host_response(struct aac_softc *sc);
 
 /* Command Buffer Management */
-static int	aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp);
+static int	aac_alloc_command(struct aac_softc *sc,
+				  struct aac_command **cmp);
 static void	aac_release_command(struct aac_command *cm);
 static void	aac_map_command_helper(void *arg, bus_dma_segment_t *segs,
 				       int nseg, int error);
