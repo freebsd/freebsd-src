@@ -469,6 +469,7 @@ svr4_sendsig(catcher, sig, mask, code)
 #else
 	tf->tf_esp = (int)fp;
 	tf->tf_eip = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
+	tf->tf_eflags &= ~PSL_T;
 	tf->tf_cs = _ucodesel;
 	tf->tf_ds = _udatasel;
 	tf->tf_es = _udatasel;
