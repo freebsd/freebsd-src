@@ -58,7 +58,11 @@ no_NO.ISO_8859-15       no_NO.ISO8859-15
 pl_PL.ISO_8859-2        pl_PL.ISO8859-2
 pt_PT.ISO_8859-1        pt_PT.ISO8859-1
 pt_PT.ISO_8859-15       pt_PT.ISO8859-15
+ru_SU.CP866             ru_RU.CP866
 ru_RU.ISO_8859-5        ru_RU.ISO8859-5
+ru_SU.ISO8859-5         ru_RU.ISO8859-5
+ru_SU.ISO_8859-5        ru_RU.ISO8859-5
+ru_SU.KOI8-R            ru_RU.KOI8-R
 sk_SK.ISO_8859-2        sk_SK.ISO8859-2
 sl_SI.ISO_8859-2        sl_SI.ISO8859-2
 sv_SE.ISO_8859-1        sv_SE.ISO8859-1
