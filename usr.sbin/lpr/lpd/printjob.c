@@ -148,7 +148,7 @@ static char	*scnline(int _key, char *_p, int _c);
 static int	 sendfile(struct printer *_pp, int _type, char *_file, 
 		    char _format);
 static int	 sendit(struct printer *_pp, char *_file);
-static void	 sendmail(struct printer *_pp, char *_user, int _bombed);
+static void	 sendmail(struct printer *_pp, char *_userid, int _bombed);
 static void	 setty(const struct printer *_pp);
 
 void
@@ -1379,7 +1379,7 @@ dropit(int c)
  *   tell people about job completion
  */
 static void
-sendmail(struct printer *pp, char *user, int bombed)
+sendmail(struct printer *pp, char *userid, int bombed)
 {
 	register int i;
 	int p[2], s;
@@ -1400,7 +1400,7 @@ sendmail(struct printer *pp, char *user, int bombed)
 		_exit(0);
 	} else if (s > 0) {				/* parent */
 		dup2(p[1], 1);
-		printf("To: %s@%s\n", user, origin_host);
+		printf("To: %s@%s\n", userid, origin_host);
 		printf("Subject: %s printer job \"%s\"\n", pp->printer,
 			*jobname ? jobname : "<unknown>");
 		printf("Reply-To: root@%s\n\n", local_host);
@@ -1443,14 +1443,14 @@ sendmail(struct printer *pp, char *user, int bombed)
 		fflush(stdout);
 		(void) close(1);
 	} else {
-		syslog(LOG_WARNING, "unable to send mail to %s: %m", user);
+		syslog(LOG_WARNING, "unable to send mail to %s: %m", userid);
 		return;
 	}
 	(void) close(p[0]);
 	(void) close(p[1]);
 	wait(NULL);
 	syslog(LOG_INFO, "mail sent to user %s about job %s on printer %s (%s)",
-		user, *jobname ? jobname : "<unknown>", pp->printer, cp);
+	    userid, *jobname ? jobname : "<unknown>", pp->printer, cp);
 }
 
 /*
