@@ -153,9 +153,8 @@ static CORE_ADDR P_thread_next_offset;
 static CORE_ADDR P_thread_uniqueid_offset;
 static CORE_ADDR P_thread_state_offset;
 static CORE_ADDR P_thread_name_offset;
-static CORE_ADDR P_thread_curframe_offset;
-static CORE_ADDR P_thread_sigframe_ctxtype_offset;
-static CORE_ADDR P_thread_sigframe_ctx_offset;
+static CORE_ADDR P_thread_ctxtype_offset;
+static CORE_ADDR P_thread_ctx_offset;
 static CORE_ADDR P_thread_PS_RUNNING_value;
 static CORE_ADDR P_thread_PS_DEAD_value;
 static CORE_ADDR P_thread_CTX_JB_NOSIG_value;
@@ -167,9 +166,8 @@ static int next_offset;
 static int uniqueid_offset;
 static int state_offset;
 static int name_offset;
-static int curframe_offset;
-static int sigframe_ctxtype_offset;
-static int sigframe_ctx_offset;
+static int ctxtype_offset;
+static int ctx_offset;
 static int PS_RUNNING_value;
 static int PS_DEAD_value;
 static int CTX_JB_NOSIG_value;
@@ -266,9 +264,8 @@ read_thread_offsets ()
   READ_OFFSET(uniqueid);
   READ_OFFSET(state);
   READ_OFFSET(name);
-  READ_OFFSET(curframe);
-  READ_OFFSET(sigframe_ctxtype);
-  READ_OFFSET(sigframe_ctx);
+  READ_OFFSET(ctxtype);
+  READ_OFFSET(ctx);
 
   READ_VALUE(PS_RUNNING);
   READ_VALUE(PS_DEAD);
@@ -304,14 +301,11 @@ read_cached_pthread (ptr, cache)
      CORE_ADDR ptr;
      struct cached_pthread *cache;
 {
-  CORE_ADDR curframe_ptr;
-
   READ_FIELD(ptr, u_int64_t,	uniqueid,	cache->uniqueid);
   READ_FIELD(ptr, int,		state,		cache->state);
   READ_FIELD(ptr, CORE_ADDR,	name,		cache->name);
-  READ_FIELD(ptr, CORE_ADDR,	curframe,	curframe_ptr);
-  READ_FIELD(curframe_ptr, int,	sigframe_ctxtype, cache->ctxtype);
-  READ_FIELD(curframe_ptr, int,	sigframe_ctx, cache->ctx);
+  READ_FIELD(ptr, int,		ctxtype,	cache->ctxtype);
+  READ_FIELD(ptr, ucontext_t,	ctx,		cache->ctx);
 }
 
 static int
@@ -903,9 +897,8 @@ freebsd_uthread_new_objfile (objfile)
   LOOKUP_OFFSET(uniqueid);
   LOOKUP_OFFSET(state);
   LOOKUP_OFFSET(name);
-  LOOKUP_OFFSET(curframe);
-  LOOKUP_OFFSET(sigframe_ctxtype);
-  LOOKUP_OFFSET(sigframe_ctx);
+  LOOKUP_OFFSET(ctxtype);
+  LOOKUP_OFFSET(ctx);
 
   LOOKUP_VALUE(PS_RUNNING);
   LOOKUP_VALUE(PS_DEAD);
