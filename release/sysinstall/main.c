@@ -63,6 +63,15 @@ main(int argc, char **argv)
 	return 1;
     }
 
+#ifdef PC98
+    {
+	/* XXX */
+	char *p = getenv("TERM");
+	if (p && strcmp(p, "cons25") == 0)
+	    putenv("TERM=cons25w");
+    }
+#endif
+
     /* Set up whatever things need setting up */
     systemInitialize(argc, argv);
 
