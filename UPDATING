@@ -8,6 +8,9 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020711:		FreeBSD-SA-02:30.ktrace
+	Prevent users from tracing previously privileged processes.
+
 20020708:
 	A tags bug in the ata(4) subsystem has been corrected.
 
