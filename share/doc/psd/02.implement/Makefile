@@ -2,12 +2,16 @@
 # $FreeBSD$
 
 VOLUME=		psd/02.implement
-SRCS=		implement
+SRCS=		stubs implement
 EXTRA=		ref.bib
 MACROS=		-ms
 USE_PIC=	YES
 USE_REFER=	YES
 USE_SOELIM=	YES
-CD_HACK=	${.CURDIR}
+CLEANFILES=	stubs
+
+stubs:
+	@(echo .R1; echo database ${.CURDIR}/ref.bib; \
+	    echo accumulate; echo .R2) > ${.TARGET}
 
 .include <bsd.doc.mk>
