@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_LINK.9,v 1.4 1998/03/12 07:31:11 charnier Exp $
+.\" $Id: VOP_LINK.9,v 1.5 1999/02/13 07:44:14 dillon Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -57,11 +57,13 @@ file vnodes should NOT be released on exit.
 .Sh LOCKS
 The directory,
 .Fa dvp
-should be locked on entry.  The caller will unlock and release
-it on return so the VOP routine should not.
+is locked on entry.  The caller will unlock and release the directory
+on return.  The VOP routine should not try to unlock or release
+the directory.
 The file
 .Fa vp
-should not be locked.
+is not locked on entry.  If the VOP routine locks it, it must remember
+to unlock it prior to returning.
 .Sh RETURN VALUES
 Zero is returned if the file was linked successfully, otherwise an
 error is returned.
@@ -81,6 +83,10 @@ vop_link(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	VOP_ABORTOP(dvp, cnp);
 	goto out2;
     }
+
+    /*
+     * now that we've locked vp, we have to use out1 instead of out2
+     */
 
     if (vp would have too many links) {
 	VOP_ABORTOP(dvp, cnp);
@@ -111,7 +117,6 @@ out1:
     if (vp != dvp)
 	VOP_UNLOCK(vp);
 out2:
-    vput(dvp);
 
     return error;
 }
