@@ -465,6 +465,7 @@ dev/sound/midi/midibuf.c	optional midi
 dev/sound/midi/midisynth.c	optional midi
 dev/sound/midi/sequencer.c	optional seq midi
 #dev/sound/pci/aureal.c	optional pcm pci
+dev/sound/pci/cmi.c	optional pcm pci
 dev/sound/pci/csa.c	optional csa pci
 dev/sound/pci/csa.c	optional pcm pci
 dev/sound/pci/csamidi.c	optional midi csa
