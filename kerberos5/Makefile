@@ -2,7 +2,7 @@
 
 SUBDIR=	lib libexec usr.bin usr.sbin
 
-SDIR= ${.CURDIR}/..
+SDIR= ${.CURDIR}/../secure
 
 bootstrap: cleandir obj depend all install kprog
 
