@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.241 1999/07/08 06:05:49 mckusick Exp $
+ *	$Id: pmap.c,v 1.242 1999/07/21 18:01:40 alc Exp $
  */
 
 /*
@@ -3188,7 +3188,7 @@ pmap_ts_referenced(vm_offset_t pa)
 
 			pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 
-			if (pte && *pte & PG_A) {
+			if (pte && (*pte & PG_A)) {
 				*pte &= ~PG_A;
 
 				pmap_TLB_invalidate(pv->pv_pmap, pv->pv_va);
