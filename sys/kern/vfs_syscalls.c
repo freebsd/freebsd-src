@@ -221,7 +221,8 @@ kernel_vmount(int flags, ...)
 	unsigned int iovcnt, iovlen, len;
 	const char *cp;
 	char *buf, *pos;
-	int error, i, n;
+	size_t n;
+	int error, i;
 
 	len = 0;
 	va_start(ap, flags);
