@@ -276,17 +276,24 @@ endnetgrent()
 
 #ifdef YP
 static int _listmatch(list, group, len)
-char *list, *group;
-int len;
+	char *list, *group;
+	int len;
 {
-	char *ptr = list;
+	char *ptr = list, *cptr;
+	int glen = strlen(group);
 
-	while ( (ptr = strstr(ptr, group)) ) {
+	/* skip possible leading whitespace */
+	while(isspace(*ptr))
+		ptr++;
 
-		ptr += strlen(group);
-
-		if (*ptr == ',' || *ptr == '\0')
+	while (ptr < list + len) {
+		cptr = ptr;
+		while(*ptr != ','  && !isspace(*ptr))
+			ptr++;
+		if (strncmp(cptr, group, glen) == 0 && glen == (ptr - cptr))
 			return(1);
+		while(*ptr == ','  || isspace(*ptr))
+			ptr++;
 	}
 
 	return(0);
