@@ -44,16 +44,13 @@ __FBSDID("$FreeBSD$");
 #include <rune.h>
 
 size_t
-wcstombs(s, pwcs, n)
-	char * __restrict s;
-	const wchar_t * __restrict pwcs;
-	size_t n;
+wcstombs(char * __restrict s, const wchar_t * __restrict pwcs, size_t n)
 {
 	char buf[MB_LEN_MAX];
 	char *e;
 	int cnt, nb;
 
-	if (!pwcs || n > INT_MAX) {
+	if (pwcs == NULL || n > INT_MAX) {
 		errno = EINVAL;
 		return (-1);
 	}
@@ -63,7 +60,7 @@ wcstombs(s, pwcs, n)
 	if (s == NULL) {
 		/* Convert and count only, do not store. */
 		while (*pwcs != L'\0') {
-			if (!sputrune(*pwcs++, buf, MB_LEN_MAX, &e)) {
+			if (sputrune(*pwcs++, buf, MB_LEN_MAX, &e) == 0) {
 				errno = EILSEQ;
 				return (-1);
 			}
@@ -75,15 +72,15 @@ wcstombs(s, pwcs, n)
 	/* Convert, store and count characters. */
 	nb = n;
 	while (nb > 0) {
-		if (*pwcs == 0) {
-			*s = 0;
+		if (*pwcs == L'\0') {
+			*s = '\0';
 			break;
 		}
-		if (!sputrune(*pwcs++, s, nb, &e)) {
+		if (sputrune(*pwcs++, s, nb, &e) == 0) {
 			errno = EILSEQ;
 			return (-1);
 		}
-		if (!e)			/* too long */
+		if (e == NULL)		/* too long */
 			return (cnt);
 		cnt += e - s;
 		nb -= e - s;
