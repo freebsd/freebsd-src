@@ -1,10 +1,8 @@
 #
-#	$Id: Makefile,v 1.109.2.3 1997/04/11 16:57:40 asami Exp $
+#	$Id: Makefile,v 1.109.2.4 1997/05/13 16:09:59 jdp Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
-#	-DMAKE_LOCAL to add ./local to the SUBDIR list
-#	-DMAKE_PORTS to add ./ports to the SUBDIR list
 #	-DMAKE_EBONES to build eBones (KerberosIV)
 #	-DALLLANG to build documentation for all languages
 #	  (where available -- see share/doc/Makefile)
@@ -19,6 +17,7 @@
 #	-DNOGAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
 #	-DNOINFO do not make or install info files
+#	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 
 #
 # The intended user-driven targets are:
@@ -89,11 +88,12 @@ SUBDIR+= etc
 
 # These are last, since it is nice to at least get the base system
 # rebuilt before you do them.
-.if defined(MAKE_LOCAL) & exists(local) & exists(local/Makefile)
-SUBDIR+= local
+.if defined(LOCAL_DIRS)
+.for _DIR in ${LOCAL_DIRS}
+.if exists(${_DIR}) & exists(${_DIR}/Makefile)
+SUBDIR+= ${_DIR}
 .endif
-.if defined(MAKE_PORTS) & exists(ports) & exists(ports/Makefile)
-SUBDIR+= ports
+.endfor
 .endif
 
 # Handle -DNOOBJDIR, -DNOCLEAN and -DNOCLEANDIR
