@@ -304,7 +304,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	}
 	buf = NULL;
 	g_topology_unlock();
-	while (1) {
+	do {
 		if (gp->rank != 2)
 			break;
 		sectorsize = cp->provider->sectorsize;
@@ -359,8 +359,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		pp->sectorsize = sectorsize;
 		g_error_provider(pp, 0);
 		g_topology_unlock();
-		break;
-	}
+	} while(0);
 	g_topology_lock();
 	if (buf)
 		g_free(buf);
