@@ -419,7 +419,7 @@ ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int le
 		/* transfer length high */
 		ess_write(sc, 0xa5, (len & 0xff00) >> 8);
 		/* autoinit, dma dir */
-		ess_write(sc, 0xb8, 0x04 | (play? 0x00 : 0x0a));
+		ess_write(sc, 0xb8, 0x04 | (play? 0x00 : 0x08));
 		/* mono/stereo */
 		ess_write(sc, 0xa8, (ess_read(sc, 0xa8) & ~0x03) | (stereo? 0x01 : 0x02));
 		/* demand mode, 4 bytes/xfer */
@@ -438,7 +438,7 @@ ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int le
 		ess_write(sc, 0xb7, 0x51 | (unsign? 0x00 : 0x20));
 		*/
 		/* setup fifo */
-		ess_write(sc, 0xb7, 0x91 | (unsign? 0x00 : 0x20) |
+		ess_write(sc, 0xb7, 0x90 | (unsign? 0x00 : 0x20) |
 					   (b16? 0x04 : 0x00) |
 					   (stereo? 0x08 : 0x40));
 		/* irq control */
@@ -475,9 +475,13 @@ ess_start(struct ess_chinfo *ch)
 
 	ess_setupch(sc, ch->hwch, ch->dir, ch->spd, ch->fmt, ch->buffer->dl);
 	ch->stopping = 0;
-	if (ch->hwch == 1)
+	if (ch->hwch == 1) {
 		ess_write(sc, 0xb8, ess_read(sc, 0xb8) | 0x01);
-	else
+		if (ch->dir == PCMDIR_PLAY) {
+			DELAY(100000); /* 100 ms */
+			ess_cmd(sc, 0xd1);
+		}
+	} else
 		ess_setmixer(sc, 0x78, ess_getmixer(sc, 0x78) | 0x03);
 	return 0;
 }
@@ -490,6 +494,12 @@ ess_stop(struct ess_chinfo *ch)
 	ch->stopping = 1;
 	if (ch->hwch == 1)
 		ess_write(sc, 0xb8, ess_read(sc, 0xb8) & ~0x04);
+#if 0
+		if (ch->dir == PCMDIR_PLAY) {
+			DELAY(25000); /* 25 ms */
+			ess_cmd(sc, 0xd3);
+		}
+#endif
 	else
 		ess_setmixer(sc, 0x78, ess_getmixer(sc, 0x78) & ~0x10);
 	return 0;
@@ -709,18 +719,13 @@ essmix_setrecsrc(snd_mixer *m, u_int32_t src)
 static int
 ess_dmasetup(struct ess_info *sc, int ch, u_int32_t base, u_int16_t cnt, int dir)
 {
-
-/*
- * XXX -- the constants written to register 8 and b in the playback case
- * are certainly not 0x00. But I don't know what they really are
- */
 	KASSERT(ch == 1 || ch == 2, ("bad ch"));
 	sc->dmasz[ch - 1] = cnt;
 	if (ch == 1) {
-		port_wr(sc->vc, 0x8, dir == PCMDIR_PLAY? 0x00 : 0xc4, 1); /* command */
+		port_wr(sc->vc, 0x8, 0xc4, 1); /* command */
 		port_wr(sc->vc, 0xd, 0xff, 1); /* reset */
 		port_wr(sc->vc, 0xf, 0x01, 1); /* mask */
-		port_wr(sc->vc, 0xb, dir == PCMDIR_PLAY? 0x00 : 0x54, 1); /* mode */
+		port_wr(sc->vc, 0xb, dir == PCMDIR_PLAY? 0x58 : 0x54, 1); /* mode */
 		port_wr(sc->vc, 0x0, base, 4);
 		port_wr(sc->vc, 0x4, cnt, 2);
 
