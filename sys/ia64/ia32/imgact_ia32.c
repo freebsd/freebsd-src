@@ -75,8 +75,6 @@ __ElfType(Auxargs);
 #define IA32_USRSTACK	(3L*1024*1024*1024)
 #define IA32_PS_STRINGS	(IA32_USRSTACK - sizeof(struct ia32_ps_strings))
 
-extern int suhword(void *p, u_int32_t v);
-
 static int elf32_check_header(const Elf32_Ehdr *hdr);
 static int elf32_freebsd_fixup(register_t **stack_base,
     struct image_params *imgp);
@@ -802,7 +800,10 @@ fail:
 	return error;
 }
 
-#define AUXARGS32_ENTRY(pos, id, val) {suhword(pos++, id); suhword(pos++, val);}
+#define AUXARGS32_ENTRY(pos, id, val) { \
+	suword32(pos++, id); \
+	suword32(pos++, val); \
+}
 
 static int
 elf32_freebsd_fixup(register_t **stack_base, struct image_params *imgp)
@@ -831,7 +832,7 @@ elf32_freebsd_fixup(register_t **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 
 	(*(u_int32_t **)stack_base)--;
-	suhword(*stack_base, (long) imgp->argc);
+	suword32(*stack_base, (long) imgp->argc);
 	return 0;
 } 
 
@@ -1264,37 +1265,37 @@ elf32_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	suhword(&arginfo->ps_argvstr, (u_int32_t)(intptr_t)vectp);
-	suhword(&arginfo->ps_nargvstr, argc);
+	suword32(&arginfo->ps_argvstr, (u_int32_t)(intptr_t)vectp);
+	suword32(&arginfo->ps_nargvstr, argc);
 
 	/*
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		suhword(vectp++, (u_int32_t)(intptr_t)destp);
+		suword32(vectp++, (u_int32_t)(intptr_t)destp);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
 	}
 
 	/* a null vector table pointer separates the argp's from the envp's */
-	suhword(vectp++, 0);
+	suword32(vectp++, 0);
 
-	suhword(&arginfo->ps_envstr, (u_int32_t)(intptr_t)vectp);
-	suhword(&arginfo->ps_nenvstr, envc);
+	suword32(&arginfo->ps_envstr, (u_int32_t)(intptr_t)vectp);
+	suword32(&arginfo->ps_nenvstr, envc);
 
 	/*
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		suhword(vectp++, (u_int32_t)(intptr_t)destp);
+		suword32(vectp++, (u_int32_t)(intptr_t)destp);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
 	}
 
 	/* end of vector table is a null pointer */
-	suhword(vectp, 0);
+	suword32(vectp, 0);
 
 	return ((register_t *)stack_base);
 }
