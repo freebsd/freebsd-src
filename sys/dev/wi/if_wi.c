@@ -197,7 +197,6 @@ wi_generic_detach(dev)
 	ifmedia_removeall(&sc->ifmedia);
 
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
-	bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
 	wi_free(dev);
 	sc->wi_gone = 1;
 
@@ -2531,6 +2530,10 @@ wi_free(dev)
 {
 	struct wi_softc		*sc = device_get_softc(dev);
 
+	if (sc->wi_intrhand != NULL) {
+		bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
+		sc->wi_intrhand = NULL;
+	}
 	if (sc->iobase != NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->iobase_rid, sc->iobase);
 		sc->iobase = NULL;
