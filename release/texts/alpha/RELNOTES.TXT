@@ -477,6 +477,11 @@ session when an X11-forwarded client was closed, was fixed.
 
 Kerberos compatability has been added to OpenSSH. [MERGED]
 
+OpenSSH has been modified to be more resistant to traffic analysis by
+requiring that "non-echoed" characters are still echoed back in a null
+packet, as well as by padding passwords sent so as not to hint at
+password lengths. [MERGED]
+
 Support for USB devices was added to the GENERIC kernel and to the
 installation programs to support USB devices out of the box.  Note that
 SRM does not support USB devices at the moment, so you must still use
@@ -620,6 +625,10 @@ make(1) has gained the :C/// (regexp substitution), :L (lowercase),
 and :U (uppercase) variable modifiers.  These were added to reduce the
 differences between the FreeBSD and OpenBSD/NetBSD make programs. [MERGED]
 
+Bugs in make(1), among which include broken null suffix behavior, bad
+assumptions about current directory permissions, and potential buffer
+overflows, have been fixed. [MERGED]
+
 fsck wrappers have been imported; this feature provides infrastructure
 for fsck(8) to work on different types of filesystems (analogous to
 mount(8) and mount_*(8)).
@@ -705,6 +714,10 @@ Shortly after the receipt of a SIGINFO signal (normally control-T from
 the controlling tty), fsck_ffs will now output a line indicating the
 current phase number and progress information relevant to the current
 phase. [MERGED]
+
+fsck_ffs now supports background filesystem checks to mounted FFS
+filesystems with the -B option (softupdates must be enabled on these
+filesystems).
 
 Catching up with most other network utilities in the base system,
 lpr(1), lpd(8), syslogd(8), and logger(1) are now all IPv6-capable.
@@ -909,6 +922,17 @@ disable EPSV.  It also has some fixes to reduce information leakage
 and the ability to specify compile-time port ranges. [MERGED]
 
 ping(8) now supports a -m option to set the TTL of outgoing packets.
+
+A version of Transport Independent RPC (TI-RPC) has been imported.
+
+rpcbind(8) has replaced portmap(8).
+
+NFS now works over IPv6.
+
+lockd has been imported from NetBSD.
+
+rc(8) now has an framework for handling dependencies between
+rc.conf(5) variables. [MERGED]
 
 
 2. Supported Configurations

@@ -742,7 +742,7 @@ including the following:
     D-Link DE-650/660
     Danpex EN-6200P2
     ELECOM Laneed LD-CDL/TX
-    IO DATA PCLATE,PCET/TX-R
+    IO DATA PCLA/TE, PCET/TX, PCET/TX-R
     IBM Creditcard Ethernet I/II
     IC-CARD Ethernet/IC-CARD+ Ethernet
     Linksys EC2T/PCMPC100,EtherFast 10/100 PC Card (PCMPC100 V2)
@@ -947,7 +947,7 @@ Genius and Mustek hand scanners.
 
 Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
-NCR WaveLAN/IEEE 802.11
+3COM 3crwe737A AirConnect Wireless LAN PC Card
 Cabletron RoamAbout 802.11 DS
 Compaq WL100
 Corega KK Wireless LAN PCC-11, PCCA-11
@@ -957,6 +957,7 @@ Farallon Skyline 11Mbps Wireless
 ICOM SL-1100
 IO Data WN-B11/PCM
 Melco Airconnect WLI-PCM-L11
+NCR WaveLAN/IEEE 802.11
 NEC Wireless Card CMZ-RT-WP, PC-WL/11C, PK-WL001
 PLANEX GeoWave/GW-NS110
 TDK LAK-CD011WL
@@ -972,6 +973,10 @@ Cisco Systems Aironet 340 Series (includes 340, 341, and 342 models)
 Webgear Aviator 2.4GHz wireless adapters
 
 Toshiba Mobile HDD MEHDD20A (Type II)
+
+Panasonic Flash ATA BN-040ABP3
+
+Hewlett Packard M820e (CD-writer)
 
 FAX-Modem/PC-Card
 Melco IGM-PCM56K/IGM-PCM56KH
