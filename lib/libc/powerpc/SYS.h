@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
+ * Copyright (c) 2002 Benno Rice.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,18 +31,48 @@
  */
 
 #include <sys/syscall.h>
+
 #include <machine/asm.h>
 
+#define	__CONCAT(x,y)	x ## y
 
-#define SYSCALL(x)							\
-	.text ;								\
-	.align	2 ;							\
-2:	b	PIC_PLT(_C_LABEL(__cerror)) ;				\
-ENTRY(__CONCAT(__sys_,x)) ;						\
-	li	0,(SYS_ ## x) ;						\
-	sc ;								\
+#define _SYSCALL(x)						\
+	.text;							\
+	.align 2;						\
+	li	0,(__CONCAT(SYS_,x));				\
+	sc
+
+#define	SYSCALL(x)						\
+	.text;							\
+	.align 2;						\
+2:	b	PIC_PLT(_C_LABEL(HIDENAME(cerror)));		\
+ENTRY(__CONCAT(__sys_,x));					\
+	.weak	_C_LABEL(x);				\
+	.set	_C_LABEL(x),_C_LABEL(__CONCAT(__sys_,x));	\
+	.weak	_C_LABEL(__CONCAT(_,x));				\
+	.set	_C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
+	_SYSCALL(x);						\
 	bso	2b
 
-#define	RSYSCALL(x)							\
-	SYSCALL(x) ;							\
-	blr
+#define	PSEUDO(x)						\
+	.text;							\
+	.align 2;						\
+ENTRY(__CONCAT(__sys_,x));					\
+	.weak	_C_LABEL(__CONCAT(_,x));				\
+	.set	_C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
+	_SYSCALL(x);						\
+	bnslr;							\
+	b	PIC_PLT(_C_LABEL(HIDENAME(cerror)))
+
+#define	RSYSCALL(x)						\
+	.text;							\
+	.align 2;						\
+2:	b	PIC_PLT(_C_LABEL(HIDENAME(cerror)));		\
+ENTRY(__CONCAT(__sys_,x));					\
+	.weak	_C_LABEL(x);					\
+	.set	_C_LABEL(x),_C_LABEL(__CONCAT(__sys_,x));	\
+	.weak	_C_LABEL(__CONCAT(_,x));				\
+	.set	_C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
+	_SYSCALL(x);						\
+	bnslr;							\
+	b	PIC_PLT(_C_LABEL(HIDENAME(cerror)))
