@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
 #ifndef _SYS_KOBJ_H_
@@ -47,8 +47,8 @@ struct kobj_method {
 
 /*
  * A class is simply a method table and a sizeof value. When the first
- * instance of the class is created, the method table will be compiled 
- * into a form more suited to efficient method dispatch. This compiled 
+ * instance of the class is created, the method table will be compiled
+ * into a form more suited to efficient method dispatch. This compiled
  * method table is always the first field of the object.
  */
 #define KOBJ_CLASS_FIELDS						\
