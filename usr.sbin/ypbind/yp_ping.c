@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_ping.c,v 1.2 1997/05/25 18:54:11 wpaul Exp wpaul $
+ *	$Id: yp_ping.c,v 1.1 1997/05/25 19:49:29 wpaul Exp $
  */
 
 /*
@@ -71,7 +71,7 @@
 #ifndef lint
 /*static char *sccsid = "from: @(#)clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static const char rcsid[] = "@(#) $Id: yp_ping.c,v 1.2 1997/05/25 18:54:11 wpaul Exp wpaul $";
+static const char rcsid[] = "@(#) $Id: yp_ping.c,v 1.1 1997/05/25 19:49:29 wpaul Exp $";
 #endif
 
 /*
@@ -458,6 +458,7 @@ int __yp_ping(restricted_addrs, cnt, dom, port)
 	char			*foo = dom;
 	struct cu_data		*cu;
 	enum clnt_stat		(*oldfunc)();
+	int			validsrvs = 0;
 
 	/* Set up handles. */
 	reqs = calloc(1, sizeof(struct ping_req *) * cnt);
@@ -477,10 +478,11 @@ int __yp_ping(restricted_addrs, cnt, dom, port)
 		any = &reqs[i]->sin;
 		reqs[i]->xid = xid_seed;
 		xid_seed++;
+		validsrvs++;
 	}
 
 	/* Make sure at least one server was assigned */
-	if (reqs[0] == NULL) {
+	if (!validsrvs) {
 		free(reqs);
 		return(-1);
 	}
