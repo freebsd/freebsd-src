@@ -423,7 +423,8 @@ main(argc, argv)
 #ifdef DEBUG
 	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s\n", newcmdbuf);
 #endif /* DEBUG */
-	(void) execle("/bin/sh", "/bin/sh", "-c", newcmdbuf, NULL, newenv);
+	(void) execle("/bin/sh", "/bin/sh", "-c", newcmdbuf,
+		      (char *)NULL, newenv);
 	save_errno = errno;
 #ifndef DEBUG
 	syslog(LOG_CRIT, "Cannot exec /bin/sh: %s", sm_errstring(errno));
