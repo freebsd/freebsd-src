@@ -377,13 +377,19 @@ do_editor (dir, messagep, repository, changes)
    independant of the running of an editor for getting a message.
  */
 void
-do_verify (message, repository)
-    char *message;
+do_verify (messagep, repository)
+    char **messagep;
     char *repository;
 {
     FILE *fp;
     char *fname;
     int retcode = 0;
+
+    char *line;
+    int line_length;
+    size_t line_chars_allocated;
+    char *p;
+    struct stat stbuf;
 
 #ifdef CLIENT_SUPPORT
     if (client_active)
@@ -398,7 +404,7 @@ do_verify (message, repository)
 
     /* If there's no message, then we have nothing to verify.  Can this
        case happen?  And if so why would we print a message?  */
-    if (message == NULL)
+    if (*messagep == NULL)
     {
 	cvs_output ("No message to verify\n", 0);
 	return;
@@ -417,9 +423,9 @@ do_verify (message, repository)
     }
     else
     {
-	fprintf (fp, "%s", message);
-	if ((message)[0] == '\0' ||
-	    (message)[strlen (message) - 1] != '\n')
+	fprintf (fp, "%s", *messagep);
+	if ((*messagep)[0] == '\0' ||
+	    (*messagep)[strlen (*messagep) - 1] != '\n')
 	    (void) fprintf (fp, "%s", "\n");
 	if (fclose (fp) == EOF)
 	    error (1, errno, "%s", fname);
@@ -441,6 +447,55 @@ do_verify (message, repository)
 		error (1, retcode == -1 ? errno : 0, 
 		       "Message verification failed");
 	}
+
+	/* put the entire message back into the *messagep variable */
+
+	fp = open_file (fname, "r");
+	if (fp == NULL)
+	{
+	    error (1, errno, "cannot open temporary file %s", fname);
+	    return;
+	}
+
+	if (*messagep)
+	    free (*messagep);
+
+	if ( CVS_STAT (fname, &stbuf) != 0)
+		error (1, errno, "cannot find size of temp file %s", fname);
+
+	if (stbuf.st_size == 0)
+	    *messagep = NULL;
+	else
+	{
+	    /* On NT, we might read less than st_size bytes, but we won't
+	       read more.  So this works.  */
+	    *messagep = (char *) xmalloc (stbuf.st_size + 1);
+	    *messagep[0] = '\0';
+	}
+
+	line = NULL;
+	line_chars_allocated = 0;
+
+	if (*messagep)
+	{
+	    p = *messagep;
+	    while (1)
+	    {
+		line_length = getline (&line, &line_chars_allocated, fp);
+		if (line_length == -1)
+		{
+		    if (ferror (fp))
+			error (0, errno, "warning: cannot read %s", fname);
+		    break;
+		}
+		if (strncmp (line, CVSEDITPREFIX, CVSEDITPREFIXLEN) == 0)
+		    continue;
+		(void) strcpy (p, line);
+		p += line_length;
+	    }
+	}
+	if (fclose (fp) < 0)
+	    error (0, errno, "warning: cannot close %s", fname);
 
 	/* Close and delete the temp file  */
 
