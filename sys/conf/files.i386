@@ -234,7 +234,7 @@ i386/isa/istallion.c		optional	stli
 i386/isa/labpc.c		count		labpc
 i386/isa/loran.c		optional	loran
 i386/isa/matcd/matcd.c		count		matcd
-i386/isa/mca_machdep.c		count		mca
+i386/isa/mca_machdep.c		optional	mca
 i386/isa/mcd.c			count		mcd
 i386/isa/mse.c			optional	mse
 i386/isa/npx.c			mandatory	npx
