@@ -455,9 +455,7 @@ typedef struct {
  *
  */
 struct _tulip_softc_t {
-#if !defined(tulip_ifmedia)
     struct ifmedia tulip_ifmedia;
-#endif
 #if defined(TULIP_BUS_DMA)
     bus_dma_tag_t tulip_dmatag;		/* bus DMA tag */
 #if !defined(TULIP_BUS_DMA_NOTX)
@@ -872,34 +870,15 @@ typedef u_long ioctl_cmd_t;
 #if defined(TULIP_HDR_DATA)
 static tulip_softc_t *tulips[TULIP_MAX_DEVICES];
 #endif
-#define TULIP_IFP_TO_SOFTC(ifp) ((tulip_softc_t *)((ifp)->if_softc))
-#if NBPF > 0
-#define	TULIP_BPF_MTAP(sc, m)	bpf_mtap(&(sc)->tulip_if, m)
-#define	TULIP_BPF_TAP(sc, p, l)	bpf_tap(&(sc)->tulip_if, p, l)
-#define	TULIP_BPF_ATTACH(sc)	bpfattach(&(sc)->tulip_if, DLT_EN10MB, sizeof(struct ether_header))
-#endif
-#define	tulip_intrfunc_t	void
-#define	TULIP_VOID_INTRFUNC
-#define	IFF_NOTRAILERS		0
-#define	CLBYTES			PAGE_SIZE
 #if 0
 #define	TULIP_KVATOPHYS(sc, va)	kvtop(va)
 #endif
-#define	TULIP_EADDR_FMT		"%6D"
-#define	TULIP_EADDR_ARGS(addr)	addr, ":"
 #if defined(TULIP_USE_SOFTINTR)
 NETISR_SET(NETISR_DE, tulip_softintr);
 #endif
 #define	TULIP_UNIT_TO_SOFTC(unit)	(tulips[unit])
 #define	TULIP_BURSTSIZE(unit)		pci_max_burst_len
 #define	loudprintf			if (bootverbose) printf
-
-#ifndef TULIP_PRINTF_FMT
-#define	TULIP_PRINTF_FMT		"%s%d"
-#endif
-#ifndef TULIP_PRINTF_ARGS
-#define	TULIP_PRINTF_ARGS		sc->tulip_name, sc->tulip_unit
-#endif
 
 #ifndef TULIP_BURSTSIZE
 #define	TULIP_BURSTSIZE(unit)		3
@@ -915,29 +894,6 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 #ifndef tulip_enaddr
 #define	tulip_enaddr	tulip_ac.ac_enaddr
 #endif
-#ifndef tulip_multicnt
-#define	tulip_multicnt	tulip_ac.ac_multicnt
-#endif
-
-#if !defined(TULIP_ETHERCOM)
-#define	TULIP_ETHERCOM(sc)		(&(sc)->tulip_ac)
-#endif
-
-#if !defined(TULIP_ARP_IFINIT)
-#define	TULIP_ARP_IFINIT(sc, ifa)	arp_ifinit(TULIP_ETHERCOM(sc), (ifa))
-#endif
-
-#if !defined(TULIP_ETHER_IFATTACH)
-#define	TULIP_ETHER_IFATTACH(sc)	ether_ifattach(&(sc)->tulip_if)
-#endif
-
-#if !defined(tulip_bpf)
-#define	tulip_bpf	tulip_if.if_bpf
-#endif
-
-#if !defined(tulip_intrfunc_t)
-#define	tulip_intrfunc_t	int
-#endif
 
 #if !defined(TULIP_KVATOPHYS) && (!defined(TULIP_BUS_DMA) || defined(TULIP_BUS_DMA_NORX) || defined(TULIP_BUS_DMA_NOTX))
 #if defined(__alpha__)
@@ -947,22 +903,6 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 #define vtobus(va)	vtophys(va)
 #endif
 #define	TULIP_KVATOPHYS(sc, va)		vtobus(va)
-#endif
-
-#ifndef TULIP_RAISESPL
-#define	TULIP_RAISESPL()		splimp()
-#endif
-#ifndef TULIP_RAISESOFTSPL
-#define	TULIP_RAISESOFTSPL()		splnet()
-#endif
-#ifndef TULIP_RESTORESPL
-#define	TULIP_RESTORESPL(s)		splx(s)
-#endif
-
-#if !defined(TULIP_BPF_MTAP) && NBPF > 0
-#define	TULIP_BPF_MTAP(sc, m)	bpf_mtap((sc)->tulip_bpf, m)
-#define	TULIP_BPF_TAP(sc, p, l)	bpf_tap((sc)->tulip_bpf, p, l)
-#define	TULIP_BPF_ATTACH(sc)	bpfattach(&(sc)->tulip_bpf, &(sc)->tulip_if, DLT_EN10MB, sizeof(struct ether_header))
 #endif
 
 #if defined(TULIP_PERFSTATS)
@@ -1006,11 +946,6 @@ TULIP_PERFREAD(
 #define	TULIP_PERFMERGE(s,n)	do { } while (0)
 #endif /* TULIP_PERFSTATS */
 
-#if !defined(TULIP_EADDR_FMT)
-#define	TULIP_EADDR_FMT		"%s"
-#define	TULIP_EADDR_ARGS(addr)	ether_sprintf(addr)
-#endif
-
 #define	TULIP_CRC32_POLY	0xEDB88320UL	/* CRC-32 Poly -- Little Endian */
 #define	TULIP_MAX_TXSEG		30
 
@@ -1022,7 +957,5 @@ TULIP_PERFREAD(
 	(((u_int16_t *)a1)[0] == 0xFFFFU \
 	 && ((u_int16_t *)a1)[1] == 0xFFFFU \
 	 && ((u_int16_t *)a1)[2] == 0xFFFFU)
-
-typedef int tulip_spl_t;
 
 #endif /* !defined(_DEVAR_H) */
