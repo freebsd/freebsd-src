@@ -466,7 +466,7 @@ vendor FUTUREDOMAIN		-1	FutureDomain
 vendor FREECOM			-1	Freecom
 vendor GEMTEK			-1	Gem Tek
 vendor ICOM			-1	ICOM Inc
-vendor INTERSIL			-1	Intersil
+vendor INTERSIL2		-1	Intersil
 vendor IODATA3			-1	I-O DATA
 vendor LANTECH			-1	Lantech Computer Company
 vendor MELCO2			-1	Melco Corporation
@@ -534,7 +534,7 @@ product FUTUREDOMAIN SCSI2GO	{ "Future&spDomain&spCorporation" "SCSI&spPCMCIA&sp
 product GEMTEK WLAN		{ "Intersil", "PRISM&sp2_5&spPCMCIA&spADAPTER", "ISL37300P", "Eval-RevA" } GEMTEK Prism2_5 WaveLAN Card
 product IBM SCSICARD		{ "IBM&spCorp.", "SCSI&spPCMCIA&spCard", NULL, NULL } IBM SCSI PCMCIA Card
 product ICOM SL200		{ "Icom", "SL-200", NULL, NULL } Icom SL-200
-product INTERSIL PRISM2		{ "INTERSIL", "HFA384x/IEEE", "Version&sp01.02", NULL } Intersil Prism II
+product INTERSIL2 PRISM2	{ "INTERSIL", "HFA384x/IEEE", "Version&sp01.02", NULL } Intersil Prism II
 product IODATA CBIDE2		{ "IO&spDATA", "CBIDE2&sp&sp&sp&sp&sp&sp", NULL, NULL } IO-DATA CBIDE2/16-bit mode
 product IODATA3 CBSC16		{ "IO&spDATA", "CBSC16&sp&sp&sp&sp&sp&sp&sp", NULL, NULL } IO-DATA CBSC16
 product IODATA PCLAT		{ "I-O&spDATA", "PCLA", "ETHERNET", NULL } IO-DATA PCLA/T
