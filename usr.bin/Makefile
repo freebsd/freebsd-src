@@ -228,7 +228,7 @@ SUBDIR+=ar \
 SUBDIR+=uac
 .endif
 
-.if exists(${.CURDIR}/../../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=chkey newkey
 .endif
 
