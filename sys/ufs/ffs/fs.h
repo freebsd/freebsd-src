@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.7 (Berkeley) 4/19/94
- * $Id: fs.h,v 1.6 1996/01/30 23:02:01 mpp Exp $
+ * $Id: fs.h,v 1.7 1996/10/12 22:12:51 bde Exp $
  */
 
 #ifndef _UFS_FFS_FS_H_
@@ -194,8 +194,8 @@ struct fs {
 	long	fs_npsect;		/* # sectors/track including spares */
 	long	fs_interleave;		/* hardware sector interleave */
 	long	fs_trackskew;		/* sector 0 skew, per track */
-	long	fs_headswitch;		/* head switch time, usec */
-	long	fs_trkseek;		/* track-to-track seek, usec */
+/* fs_id takes the space of the unused fs_headswitch and fs_trkseek fields */
+        long	fs_id[2];		/* unique filesystem id */ 
 /* sizes determined by number of cylinder groups and their sizes */
 	daddr_t fs_csaddr;		/* blk addr of cyl grp summary area */
 	long	fs_cssize;		/* size of cyl grp summary area */

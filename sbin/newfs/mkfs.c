@@ -85,8 +85,6 @@ extern int	sectorsize;	/* bytes/sector */
 extern int	rpm;		/* revolutions/minute of drive */
 extern int	interleave;	/* hardware sector interleave */
 extern int	trackskew;	/* sector 0 skew, per track */
-extern int	headswitch;	/* head switch time, usec */
-extern int	trackseek;	/* track-to-track seek, usec */
 extern int	fsize;		/* fragment size */
 extern int	bsize;		/* block size */
 extern int	cpg;		/* cylinders/cylinder group */
@@ -104,6 +102,10 @@ extern u_long	memleft;	/* virtual memory available */
 extern caddr_t	membase;	/* start address of memory based filesystem */
 extern caddr_t	malloc(), calloc();
 extern char *	filename;
+#ifdef FSIRAND
+extern long	random();
+extern void	srandom();
+#endif
 
 union {
 	struct fs fs;
@@ -143,6 +145,9 @@ mkfs(pp, fsys, fi, fo)
 
 #ifndef STANDALONE
 	time(&utime);
+#endif
+#ifdef FSIRAND
+	srandom(utime ^ getpid());
 #endif
 	if (mfs) {
 		ppid = getpid();
@@ -590,8 +595,6 @@ next:
 	sblock.fs_rotdelay = rotdelay;
 	sblock.fs_minfree = minfree;
 	sblock.fs_maxcontig = maxcontig;
-	sblock.fs_headswitch = headswitch;
-	sblock.fs_trkseek = trackseek;
 	sblock.fs_maxbpg = maxbpg;
 	sblock.fs_rps = rpm / 60;
 	sblock.fs_optim = opt;
@@ -603,6 +606,11 @@ next:
 	sblock.fs_fmod = 0;
 	sblock.fs_ronly = 0;
 	sblock.fs_clean = 1;
+#ifdef FSIRAND
+	sblock.fs_id[0] = (long)utime;
+	sblock.fs_id[1] = random();
+#endif
+
 	/*
 	 * Dump out summary information about file system.
 	 */
@@ -750,9 +758,14 @@ initcg(cylno, utime)
 			setbit(cg_inosused(&acg), i);
 			acg.cg_cs.cs_nifree--;
 		}
-	for (i = 0; i < sblock.fs_ipg / INOPF(&sblock); i += sblock.fs_frag)
+	for (i = 0; i < sblock.fs_ipg / INOPF(&sblock); i += sblock.fs_frag) {
+#ifdef FSIRAND
+		for (j = 0; j < sblock.fs_bsize / sizeof(struct dinode); j++)
+			zino[j].di_gen = random();
+#endif
 		wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
 		    sblock.fs_bsize, (char *)zino);
+	}
 	if (cylno > 0) {
 		/*
 		 * In cylno 0, beginning space is reserved
@@ -1018,6 +1031,9 @@ iput(ip, ino)
 	daddr_t d;
 	int c;
 
+#ifdef FSIRAND
+	ip->di_gen = random();
+#endif
 	c = ino_to_cg(&sblock, ino);
 	rdfs(fsbtodb(&sblock, cgtod(&sblock, 0)), sblock.fs_cgsize,
 	    (char *)&acg);
