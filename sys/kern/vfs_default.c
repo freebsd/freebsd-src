@@ -899,6 +899,7 @@ loop:
 		mtx_unlock(&mntvnode_mtx);
 
 		if ((error = vget(vp, lockreq, td)) != 0) {
+			mtx_lock(&mntvnode_mtx);
 			if (error == ENOENT)
 				goto loop;
 			continue;
