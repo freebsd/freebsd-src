@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)dol.c	8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+	"$Id: dol.c,v 1.5 1997/02/22 14:01:47 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -105,10 +108,10 @@ static void	 Dtestq __P((int));
  */
 void
 Dfix(t)
-    register struct command *t;
+    struct command *t;
 {
-    register Char **pp;
-    register Char *p;
+    Char **pp;
+    Char *p;
 
     if (noexec)
 	return;
@@ -130,7 +133,7 @@ Dfix(t)
  */
 Char   *
 Dfix1(cp)
-    register Char *cp;
+    Char *cp;
 {
     Char   *Dv[2];
 
@@ -173,8 +176,8 @@ static Char *
 Dpack(wbuf, wp)
     Char   *wbuf, *wp;
 {
-    register int c;
-    register int i = MAXWLEN - (wp - wbuf);
+    int c;
+    int i = MAXWLEN - (wp - wbuf);
 
     for (;;) {
 	c = DgetC(DODOL);
@@ -220,11 +223,11 @@ Dpack(wbuf, wp)
 static int
 Dword()
 {
-    register int c, c1;
+    int c, c1;
     Char    wbuf[BUFSIZ];
-    register Char *wp = wbuf;
-    register int i = MAXWLEN;
-    register bool dolflg;
+    Char *wp = wbuf;
+    int i = MAXWLEN;
+    bool dolflg;
     bool    sofar = 0, done = 0;
 
     while (!done) {
@@ -340,9 +343,9 @@ Dword()
  */
 static int
 DgetC(flag)
-    register int flag;
+    int flag;
 {
-    register int c;
+    int c;
 
 top:
     if ((c = Dpeekc) != '\0') {
@@ -401,8 +404,8 @@ dolerror(s)
 static void
 Dgetdol()
 {
-    register Char *np;
-    register struct varent *vp = NULL;
+    Char *np;
+    struct varent *vp = NULL;
     Char    name[4 * MAXVARLEN + 1];
     int     c, sc;
     int     subscr = 0, lwb = 1, upb = 0;
@@ -574,7 +577,7 @@ Dgetdol()
 	else if (*np != '-')
 	    stderror(ERR_MISSING, '-');
 	else {
-	    register int i = upb;
+	    int i = upb;
 
 	    np++;
 	    if (Isdigit(*np)) {
@@ -632,7 +635,7 @@ eatbrac:
 static void
 fixDolMod()
 {
-    register int c;
+    int c;
 
     c = DgetC(0);
     if (c == ':') {
@@ -691,9 +694,9 @@ fixDolMod()
 
 static void
 setDolp(cp)
-    register Char *cp;
+    Char *cp;
 {
-    register Char *dp;
+    Char *dp;
     int i;
 
     if (dolnmod == 0 || dolmcnt == 0) {
@@ -804,7 +807,7 @@ unDredc(c)
 static int
 Dredc()
 {
-    register int c;
+    int c;
 
     if ((c = Dpeekrd) != '\0') {
 	Dpeekrd = 0;
@@ -822,7 +825,7 @@ Dredc()
 
 static void
 Dtestq(c)
-    register int c;
+    int c;
 {
 
     if (cmap(c, QUOTES))
@@ -839,11 +842,11 @@ void
 heredoc(term)
     Char *term;
 {
-    register int c;
+    int c;
     Char   *Dv[2];
     Char    obuf[BUFSIZ], lbuf[BUFSIZ], mbuf[BUFSIZ];
     int     ocnt, lcnt, mcnt;
-    register Char *lbp, *obp, *mbp;
+    Char *lbp, *obp, *mbp;
     Char  **vp;
     bool    quoted;
     char   *tmp;

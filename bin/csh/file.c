@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)file.c	8.2 (Berkeley) 3/19/94";
+#else
+static const char rcsid[] =
+	"$Id: file.c,v 1.6 1997/02/22 14:01:54 peter Exp $";
+#endif
 #endif /* not lint */
 
 #ifdef FILEC
@@ -160,7 +163,7 @@ static void
 pushback(string)
     Char   *string;
 {
-    register Char *p;
+    Char *p;
     struct termios tty, tty_normal;
     int     omask;
     char    c;
@@ -184,8 +187,8 @@ pushback(string)
  */
 static void
 catn(des, src, count)
-    register Char *des, *src;
-    register int count;
+    Char *des, *src;
+    int count;
 {
     while (--count >= 0 && *des)
 	des++;
@@ -201,8 +204,8 @@ catn(des, src, count)
  */
 static void
 copyn(des, src, count)
-    register Char *des, *src;
-    register int count;
+    Char *des, *src;
+    int count;
 {
     while (--count >= 0)
 	if ((*des++ = *src++) == 0)
@@ -251,7 +254,7 @@ print_by_column(dir, items, count)
     Char   *dir, *items[];
     int     count;
 {
-    register int i, rows, r, c, maxwidth = 0, columns;
+    int i, rows, r, c, maxwidth = 0, columns;
 
     if (ioctl(SHOUT, TIOCGWINSZ, (ioctl_t) & win) < 0 || win.ws_col == 0)
 	win.ws_col = 80;
@@ -266,7 +269,7 @@ print_by_column(dir, items, count)
 	for (c = 0; c < columns; c++) {
 	    i = c * rows + r;
 	    if (i < count) {
-		register int w;
+		int w;
 
 		(void) fprintf(cshout, "%s", vis_str(items[i]));
 		(void) fputc(dir ? filetype(dir, items[i]) : ' ', cshout);
@@ -292,8 +295,8 @@ static Char *
 tilde(new, old)
     Char   *new, *old;
 {
-    register Char *o, *p;
-    register struct passwd *pw;
+    Char *o, *p;
+    struct passwd *pw;
     static Char person[40];
 
     if (old[0] != '~')
@@ -375,7 +378,7 @@ static void
 extract_dir_and_name(path, dir, name)
     Char   *path, *dir, *name;
 {
-    register Char *p;
+    Char *p;
 
     p = Strrchr(path, '/');
     if (p == NULL) {
@@ -393,8 +396,8 @@ getentry(dir_fd, looking_for_lognames)
     DIR    *dir_fd;
     int     looking_for_lognames;
 {
-    register struct passwd *pw;
-    register struct dirent *dirp;
+    struct passwd *pw;
+    struct dirent *dirp;
 
     if (looking_for_lognames) {
 	if ((pw = getpwent()) == NULL)
@@ -408,9 +411,9 @@ getentry(dir_fd, looking_for_lognames)
 
 static void
 free_items(items)
-    register Char **items;
+    Char **items;
 {
-    register int i;
+    int i;
 
     for (i = 0; items[i]; i++)
 	xfree((ptr_t) items[i]);
@@ -436,9 +439,9 @@ tsearch(word, command, max_word_length)
     int     max_word_length;
 {
     static Char **items = NULL;
-    register DIR *dir_fd;
-    register numitems = 0, ignoring = TRUE, nignored = 0;
-    register name_length, looking_for_lognames;
+    DIR *dir_fd;
+    int numitems = 0, ignoring = TRUE, nignored = 0;
+    int name_length, looking_for_lognames;
     Char    tilded_dir[MAXPATHLEN + 1], dir[MAXPATHLEN + 1];
     Char    name[MAXNAMLEN + 1], extended_name[MAXNAMLEN + 1];
     Char   *entry;
@@ -547,8 +550,8 @@ recognize(extended_name, entry, name_length, numitems)
     if (numitems == 1)		/* 1st match */
 	copyn(extended_name, entry, MAXNAMLEN);
     else {			/* 2nd & subsequent matches */
-	register Char *x, *ent;
-	register int len = 0;
+	Char *x, *ent;
+	int len = 0;
 
 	x = extended_name;
 	for (ent = entry; *x && *x == *ent++; x++, len++)
@@ -567,7 +570,7 @@ recognize(extended_name, entry, name_length, numitems)
  */
 static int
 is_prefix(check, template)
-    register Char *check, *template;
+    Char *check, *template;
 {
     do
 	if (*check == 0)
@@ -584,7 +587,7 @@ static int
 is_suffix(check, template)
     Char   *check, *template;
 {
-    register Char *c, *t;
+    Char *c, *t;
 
     for (c = check; *c++;)
 	continue;
@@ -603,7 +606,7 @@ tenex(inputline, inputline_size)
     Char   *inputline;
     int     inputline_size;
 {
-    register int numitems, num_read;
+    int numitems, num_read;
     char    tinputline[BUFSIZ];
 
 
@@ -613,8 +616,8 @@ tenex(inputline, inputline_size)
 	int     i;
 	static Char delims[] = {' ', '\'', '"', '\t', ';', '&', '<',
 	'>', '(', ')', '|', '^', '%', '\0'};
-	register Char *str_end, *word_start, last_Char, should_retype;
-	register int space_left;
+	Char *str_end, *word_start, last_Char, should_retype;
+	int space_left;
 	COMMAND command;
 
 	for (i = 0; i < num_read; i++)
@@ -671,10 +674,10 @@ tenex(inputline, inputline_size)
 
 static int
 ignored(entry)
-    register Char *entry;
+    Char *entry;
 {
     struct varent *vp;
-    register Char **cp;
+    Char **cp;
 
     if ((vp = adrof(STRfignore)) == NULL || (cp = vp->vec) == NULL)
 	return (FALSE);

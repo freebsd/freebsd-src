@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+	"$Id: time.c,v 1.7 1997/02/22 14:02:09 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -92,7 +95,7 @@ donice(v, t)
     Char **v;
     struct command *t;
 {
-    register Char *cp;
+    Char *cp;
     int     nval = 0;
 
     v++, cp = *v++;
@@ -105,7 +108,7 @@ donice(v, t)
 
 void
 ruadd(ru, ru2)
-    register struct rusage *ru, *ru2;
+    struct rusage *ru, *ru2;
 {
     tvadd(&ru->ru_utime, &ru2->ru_utime);
     tvadd(&ru->ru_stime, &ru2->ru_stime);
@@ -129,17 +132,17 @@ ruadd(ru, ru2)
 
 void
 prusage(r0, r1, e, b)
-    register struct rusage *r0, *r1;
+    struct rusage *r0, *r1;
     struct timeval *e, *b;
 {
-    register time_t t =
+    time_t t =
     (r1->ru_utime.tv_sec - r0->ru_utime.tv_sec) * 100 +
     (r1->ru_utime.tv_usec - r0->ru_utime.tv_usec) / 10000 +
     (r1->ru_stime.tv_sec - r0->ru_stime.tv_sec) * 100 +
     (r1->ru_stime.tv_usec - r0->ru_stime.tv_usec) / 10000;
-    register char *cp;
-    register long i;
-    register struct varent *vp = adrof(STRtime);
+    char *cp;
+    long i;
+    struct varent *vp = adrof(STRtime);
 
     int     ms =
     (e->tv_sec - b->tv_sec) * 100 + (e->tv_usec - b->tv_usec) / 10000;
@@ -277,7 +280,7 @@ void
 psecs(l)
     long    l;
 {
-    register int i;
+    int i;
 
     i = l / 3600;
     if (i) {
@@ -298,7 +301,7 @@ void
 pcsecs(l)			/* PWP: print mm:ss.dd, l is in sec*100 */
     long    l;
 {
-    register int i;
+    int i;
 
     i = l / 360000;
     if (i) {

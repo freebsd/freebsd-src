@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 5/31/93";
+#else
+static const char rcsid[] =
+	"$Id: parse.c,v 1.5 1997/02/22 14:02:03 peter Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -79,7 +82,7 @@ static int aleft;
 extern int hleft;
 void
 alias(lex)
-    register struct wordent *lex;
+    struct wordent *lex;
 {
     jmp_buf osetexit;
 
@@ -99,7 +102,7 @@ alias(lex)
 
 static void
 asyntax(p1, p2)
-    register struct wordent *p1, *p2;
+    struct wordent *p1, *p2;
 {
     while (p1 != p2)
 	if (any(";&\n", p1->word[0]))
@@ -113,10 +116,10 @@ asyntax(p1, p2)
 static void
 asyn0(p1, p2)
     struct wordent *p1;
-    register struct wordent *p2;
+    struct wordent *p2;
 {
-    register struct wordent *p;
-    register int l = 0;
+    struct wordent *p;
+    int l = 0;
 
     for (p = p1; p != p2; p = p->next)
 	switch (p->word[0]) {
@@ -153,11 +156,11 @@ asyn0(p1, p2)
 static void
 asyn3(p1, p2)
     struct wordent *p1;
-    register struct wordent *p2;
+    struct wordent *p2;
 {
-    register struct varent *ap;
+    struct varent *ap;
     struct wordent alout;
-    register bool redid;
+    bool redid;
 
     if (p1 == p2)
 	return;
@@ -203,9 +206,9 @@ asyn3(p1, p2)
 
 static struct wordent *
 freenod(p1, p2)
-    register struct wordent *p1, *p2;
+    struct wordent *p1, *p2;
 {
-    register struct wordent *retp = p1->prev;
+    struct wordent *retp = p1->prev;
 
     while (p1 != p2) {
 	xfree((ptr_t) p1->word);
@@ -229,7 +232,7 @@ freenod(p1, p2)
  */
 struct command *
 syntax(p1, p2, flags)
-    register struct wordent *p1, *p2;
+    struct wordent *p1, *p2;
     int     flags;
 {
 
@@ -251,8 +254,8 @@ syn0(p1, p2, flags)
     struct wordent *p1, *p2;
     int     flags;
 {
-    register struct wordent *p;
-    register struct command *t, *t1;
+    struct wordent *p;
+    struct command *t, *t1;
     int     l;
 
     l = 0;
@@ -319,8 +322,8 @@ syn1(p1, p2, flags)
     struct wordent *p1, *p2;
     int     flags;
 {
-    register struct wordent *p;
-    register struct command *t;
+    struct wordent *p;
+    struct command *t;
     int     l;
 
     l = 0;
@@ -360,9 +363,9 @@ syn1a(p1, p2, flags)
     struct wordent *p1, *p2;
     int     flags;
 {
-    register struct wordent *p;
-    register struct command *t;
-    register int l = 0;
+    struct wordent *p;
+    struct command *t;
+    int l = 0;
 
     for (p = p1; p != p2; p = p->next)
 	switch (p->word[0]) {
@@ -401,9 +404,9 @@ syn1b(p1, p2, flags)
     struct wordent *p1, *p2;
     int     flags;
 {
-    register struct wordent *p;
-    register struct command *t;
-    register int l = 0;
+    struct wordent *p;
+    struct command *t;
+    int l = 0;
 
     for (p = p1; p != p2; p = p->next)
 	switch (p->word[0]) {
@@ -441,9 +444,9 @@ syn2(p1, p2, flags)
     struct wordent *p1, *p2;
     int     flags;
 {
-    register struct wordent *p, *pn;
-    register struct command *t;
-    register int l = 0;
+    struct wordent *p, *pn;
+    struct command *t;
+    int l = 0;
     int     f;
 
     for (p = p1; p != p2; p = p->next)
@@ -492,10 +495,10 @@ syn3(p1, p2, flags)
     struct wordent *p1, *p2;
     int     flags;
 {
-    register struct wordent *p;
+    struct wordent *p;
     struct wordent *lp, *rp;
-    register struct command *t;
-    register int l;
+    struct command *t;
+    int l;
     Char  **av;
     int     n, c;
     bool    specp = 0;
@@ -668,9 +671,9 @@ again:
 
 void
 freesyn(t)
-    register struct command *t;
+    struct command *t;
 {
-    register Char **v;
+    Char **v;
 
     if (t == 0)
 	return;
