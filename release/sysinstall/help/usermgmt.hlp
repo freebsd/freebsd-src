@@ -10,6 +10,11 @@ Basically, the standard EMACS motion sequences.
 
 When you're done with this form, select OK.
 
+Many of the settings get reasonable defaults if you leave them blank.
+The first time you have entered the name of the new group or user, the
+system will show you what it would chose for most of these fields.
+You are free to change them, of course.
+
 
 User groups
 ===========
