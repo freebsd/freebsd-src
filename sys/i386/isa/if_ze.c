@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.45 1997/07/20 23:07:39 fsmp Exp $
+ * $Id: if_ze.c,v 1.46 1997/10/26 04:36:14 nate Exp $
  */
 
 /* XXX - Don't mix different PCCARD support code */
@@ -64,6 +64,7 @@
 #include "ze.h"
 #if	NZE > 0
 #include "bpfilter.h"
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

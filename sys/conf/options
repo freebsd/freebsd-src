@@ -1,4 +1,4 @@
-#	$Id: options,v 1.37 1997/11/05 20:17:06 joerg Exp $
+#	$Id: options,v 1.38 1997/11/13 00:28:49 julian Exp $
 
 # Format:
 # Option name	filename
@@ -102,6 +102,9 @@ IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPFIREWALL_DEFAULT_TO_ACCEPT	opt_ipfw.h
+IPX			opt_ipx.h
+IPXIP			opt_ipx.h
+IPTUNNEL		opt_ipx.h
 PPP_BSDCOMP		opt_ppp.h
 PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
