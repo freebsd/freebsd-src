@@ -34,7 +34,6 @@
 #include <sys/kobj.h>
 
 #include <machine/bus.h>
-#include "busspace_if.h"
 
 void
 busspace_generic_read_multi_1(struct alpha_busspace *space, size_t offset,
