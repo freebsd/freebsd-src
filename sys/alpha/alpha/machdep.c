@@ -421,33 +421,6 @@ again:
 #endif  /* SMP */
 }
 
-int
-register_netisr(num, handler)
-	int num;
-	netisr_t *handler;
-{
-	
-	if (num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs)) ) {
-		printf("register_netisr: bad isr number: %d\n", num);
-		return (EINVAL);
-	}
-	netisrs[num] = handler;
-	return (0);
-}
-
-int
-unregister_netisr(num)
-	int num;
-{
-	
-	if (num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs)) ) {
-		printf("unregister_netisr: bad isr number: %d\n", num);
-		return (EINVAL);
-	}
-	netisrs[num] = NULL;
-	return (0);
-}
-
 /*
  * Retrieve the platform name from the DSR.
  */

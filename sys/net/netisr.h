@@ -71,7 +71,11 @@
 void legacy_setsoftnet __P((void));
 
 extern volatile unsigned int	netisr;	/* scheduling bits for network */
-#define	schednetisr(anisr)	{ netisr |= 1 << (anisr); legacy_setsoftnet(); }
+extern	void	(*netisrs[32]) __P((void));
+#define	schednetisr(anisr) do {						\
+	atomic_set_rel_int(&netisr, 1 << (anisr));			\
+	legacy_setsoftnet();						\
+} while (0)
 
 typedef void netisr_t __P((void));
 
