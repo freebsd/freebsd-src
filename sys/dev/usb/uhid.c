@@ -403,6 +403,7 @@ uhidopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct uhid_softc *sc;
 	usbd_status err;
+	int s;
 
 	USB_GET_SC_OPEN(uhid, UHIDUNIT(dev), sc);
 
@@ -410,6 +411,18 @@ uhidopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 
 	if (sc->sc_dying)
 		return (ENXIO);
+
+	/*
+	 * HID devices tend to tromple in the TTY system's playground
+	 * so we need to try make them play together.
+	 * XXX This is far from perfect. It doesn't take into 
+	 * account removable devices for a start..
+	 */
+	s = splhigh();
+	tty_imask |= bio_imask;
+	bio_imask |= tty_imask;
+	update_intr_masks();
+	splx( s );
 
 	if (sc->sc_state & UHID_OPEN)
 		return (EBUSY);
