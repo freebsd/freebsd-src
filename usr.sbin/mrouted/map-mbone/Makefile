@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1994/09/08 02:51:33 wollman Exp $
 
 PROG=	map-mbone
 
@@ -15,6 +15,6 @@ DPADD+=		$S/common/libmrouted.a
 .endif
 
 SRCS=	mapper.c
-NOMAN=
+MAN8=	${.CURDIR}/../map-mbone.8
 
 .include <bsd.prog.mk>

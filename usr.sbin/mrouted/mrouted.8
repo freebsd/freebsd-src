@@ -1,29 +1,26 @@
 '\"COPYRIGHT 1989 by The Board of Trustees of Leland Stanford Junior University.
-.TH MROUTED 8
-.UC 5
-.SH NAME
-mrouted \- IP multicast routing daemon
-.SH SYNOPSIS
-.B /etc/mrouted 
-[
-.B \-p
-] [
-.B \-c 
-.I config_file
-] [
-.B \-d 
-[ 
-.I debug_level
-]]
-.SH DESCRIPTION
-.I Mrouted 
+.Dd March 25, 1995
+.Dt MROUTED 8
+.Os FreeBSD 2.0
+.Sh NAME
+.Nm mrouted
+.Nd IP multicast routing process
+.Sh SYNOPSIS
+.Nm mrouted
+.Op Fl p
+.Op Fl c Ar config
+.Op Fl d Ar debuglevel
+.Sh DESCRIPTION
+The
+.Nm
+program
 is an implementation of the Distance-Vector Multicast Routing
 Protocol (DVMRP), an earlier version of which is specified in RFC-1075.
 It maintains topological knowledge via a distance-vector routing protocol
 (like RIP, described in RFC-1058), upon which it implements a multicast
 datagram forwarding algorithm called Reverse Path Multicasting.
-.PP
-.I Mrouted 
+.Pp
+.Nm
 forwards a multicast datagram along a shortest (reverse) path tree
 rooted at the subnet on which the datagram originates. The multicast
 delivery tree may be thought of as a broadcast delivery tree that has
@@ -32,83 +29,102 @@ that have members of the destination group. Hence, datagrams
 are not forwarded along those branches which have no listeners of the
 multicast group. The IP time-to-live of a multicast datagram can be
 used to limit the range of multicast datagrams.
-.PP
+.Pp
 In order to support multicasting among subnets that are separated by (unicast)
 routers that do not support IP multicasting, 
-.I mrouted 
+.Nm
 includes support for
-"tunnels", which are virtual point-to-point links between pairs of 
-.IR mrouted s
-located anywhere in an internet.  IP multicast packets are encapsulated for
-transmission through tunnels, so that they look like normal unicast datagrams
-to intervening routers and subnets.  The encapsulation 
-is added on entry to a tunnel, and stripped off
-on exit from a tunnel.
-By default, the packets are encapsulated using the IP-in-IP protocol
-(IP protocol number 4).
-Older versions of 
-.I mrouted
-tunnel using IP source routing, which puts a heavy load on some
+.Dq tunnels ,
+which are virtual point-to-point links between pairs of 
+.Nm
+programs located anywhere in an internet.  IP multicast packets are
+encapsulated for transmission through tunnels, so that they look like
+normal unicast datagrams to intervening routers and subnets.  The
+encapsulation is added on entry to a tunnel, and stripped off on exit
+from a tunnel.  By default, the packets are encapsulated using the
+IP-in-IP protocol (IP protocol number 4).  Older versions of
+.Nm
+tunneled using IP source routing, which puts a heavy load on some
 types of routers.
 This version supports IP source route tunnelling only for backwards 
 compatibility.
-.PP
+.Pp
 The tunnelling mechanism allows 
-.I mrouted 
+.Nm
 to establish a virtual internet, for
 the purpose of multicasting only, which is independent of the physical
 internet, and which may span multiple Autonomous Systems.  This capability
 is intended for experimental support of internet multicasting only, pending
 widespread support for multicast routing by the regular (unicast) routers.
-.I Mrouted 
+.Nm
 suffers from the well-known scaling problems of any distance-vector
 routing protocol, and does not (yet) support hierarchical multicast routing.
-.PP
-.I Mrouted 
+.Pp
+.Nm
 handles multicast routing only; there may or may not be unicast routing
 software running on the same machine as 
-.IR mrouted .
+.Nm mrouted .
 With the use of tunnels, it
 is not necessary for 
-.I mrouted 
+.Nm
 to have access to more than one physical subnet
 in order to perform multicast forwarding.
-.br
-.ne 5
-.SH INVOCATION
-.PP
-If no "\-d" option is given, or if the debug level is specified as 0, 
-.I mrouted
-detaches from the invoking terminal.  Otherwise, it remains attached to the
-invoking terminal and responsive to signals from that terminal.  If "\-d" is
-given with no argument, the debug level defaults to 2.  Regardless of the
-debug level, 
-.I mrouted 
+.Pp
+If no 
+.Fl d
+option is given, or if the debug level is specified as 0, 
+.Nm
+detaches from its controlling terminal.  Otherwise, it remains attached to the
+terminal and responsive to signals.
+.Pp
+The
+.Nm
+program accepts the following command-line options:
+.Bl -tag -width XXXdebuglevel
+.It Fl c Ar config
+This option specifies an alternate configuration file location as
+.Ar config .
+The default location is
+.Pa /etc/mrouted.conf .
+.It Fl d Ar debuglevel
+This option sets the debuging level to
+.Ar debuglevel .
+Regardless of the debug level,
+.Nm
 always writes warning and error messages to the system
 log demon.  Non-zero debug levels have the following effects:
-.IP "level 1"
+.Bl -tag -width "level 3"
+.It level 1
 all syslog'ed messages are also printed to stderr.
-.IP "level 2"
-all level 1 messages plus notifications of "significant"
+.It level 2
+all level 1 messages plus notifications of 
+.Dq significant
 events are printed to stderr.
-.IP "level 3"
+.It level 3
 all level 2 messages plus notifications of all packet
 arrivals and departures are printed to stderr.
-.SH CONFIGURATION
-.PP
-.I Mrouted 
+.El
+.It Fl p
+This option disables pruning of uninterested links in the multicast
+distribution tree.
+.El
+.Sh CONFIGURATION
+.Nm
 automatically configures itself to forward on all multicast-capable
-interfaces, i.e., interfaces that have the IFF_MULTICAST flag set (excluding
-the loopback "interface"), and it finds other
-.IR mrouted s
-directly reachable
-via those interfaces.  To override the default configuration, or to add
-tunnel links to other
-.IR mrouted s,
-configuration commands may be placed in
-/etc/mrouted.conf (or an alternative file, specified by the "\-c" option).
+interfaces; i.e., interfaces that have the
+.Dv IFF_MULTICAST 
+flag set (excluding the loopback), and it finds other
+.Nm
+programs directly reachable via those interfaces.  To override the
+default configuration, or to add tunnel links to other
+.Nm
+programs, configuration commands may be placed in
+.Pa /etc/mrouted.conf
+(or an alternate location can be specified using the
+.Fl c
+option).
 There are four types of configuration commands:
-.nf
+.Bd -literal
 
     phyint <local-addr>   [disable]   [metric <m>]
 		 [threshold <t>] [rate_limit <b>]
@@ -122,103 +138,112 @@ There are four types of configuration commands:
 
     pruning <off/on>
 
-.fi
-.PP
-One note about the configuration commands - all the phyint and tunnel 
+.Ed
+.Pp
+One note about the configuration commands--all the phyint and tunnel 
 command options must be on a single line except for the boundary option
 which may begin on a separate line. A single phyint or tunnel command may
 have multiple boundary options.
-.PP
+.Pp
 The phyint command can be used to disable multicast routing on the physical
 interface identified by local IP address <local-addr>, or to associate a
 non-default metric or threshold with the specified physical interface.
 The local IP address <local-addr> may be alternatively replaced by the 
-interface name (e.g le0) for the phyint command only.
+interface name (e.g., le0) for the phyint command only.
 Phyint commands must precede tunnel commands.
-.PP
+.Pp
 The tunnel command can be used to establish a tunnel link between local
 IP address <local-addr> and remote IP address <remote-addr>, and to associate
 a non-default metric or threshold with that tunnel.  The tunnel must be set
 up in the mrouted.conf files of both routers before it can be used.
 For backwards compatibility with older
-.IR mrouted s,
-the srcrt keyword specifies 
+.Nm
+programs, the srcrt keyword specifies 
 encapsulation using IP source routing.
-.PP
+.Pp
 The cache_lifetime is a value that determines the amount of time that a
 cached multicast route stays in kernel before timing out. The value of this
 entry should lie between 300 (5 min) and 86400 (1 day). It defaults to 300.
-.PP
+.Pp
 The pruning <off/on> option is provided for
-.IR mrouted
+.Nm
 to act as a non-pruning router. It is also possible to start 
-.Ir mrouted
-in a non-pruning mode using the "-p" option on the command line. It is 
-expected that a router would be configured in this manner for test
-purposes only. The default mode is pruning enabled.
-.PP
-The metric is the "cost" associated with sending a datagram on the given
+.Nm
+in a non-pruning mode using the
+.Fl p
+flag on the command line. It is expected that a router would be
+configured in this manner for test purposes only. The default mode is
+pruning enabled.
+.Pp
+The metric is the
+.Dq cost
+associated with sending a datagram on the given
 interface or tunnel; it may be used to influence the choice of routes.
 The metric defaults to 1.  Metrics should be kept as small as possible,
 because 
-.I mrouted
+.Nm
 cannot route along paths with a sum of metrics greater
 than 31.
-.LP
+.Pp
 The threshold is the minimum IP time-to-live required for a multicast datagram
 to be forwarded to the given interface or tunnel.  It is used to control the
 scope of multicast datagrams.  (The TTL of forwarded packets is only compared
 to the threshold, it is not decremented by the threshold.  Every multicast
 router decrements the TTL by 1.)  The default threshold is 1.
-.LP
+.Pp
 In general, all
-.IR mrouted s
-connected to a particular subnet or tunnel should
+.Nm mrouted
+programs connected to a particular subnet or tunnel should
 use the same metric and threshold for that subnet or tunnel.
-.PP
+.Pp
 The rate_limit option allows the network administrator to specify a 
 certain bandwidth in Kbits/second which would be allocated to multicast
 traffic.
-.PP
+.Pp
 The boundary option allows an interface
 to be configured as an administrative boundary for the specified
 scoped address. Packets belonging to this address will not
 be forwarded on a scoped interface.
-.PP
-.I Mrouted
+.Pp
+The
+.Nm
+program
 will not initiate execution if it has fewer than two enabled vifs,
 where a vif (virtual interface) is either a physical multicast-capable
 interface or a tunnel.  It will log a warning if all of its vifs are
 tunnels; such an 
-.I mrouted
+.Nm
 configuration would be better replaced by more
 direct tunnels (i.e., eliminate the middle man).
-.SH SIGNALS
-.PP
-.I Mrouted 
-responds to the following signals:
-.IP HUP
+.Sh SIGNALS
+The
+.Nm
+program responds to the following signals:
+.Bl -tag -width SIGTERMx
+.It Dv SIGHUP
 restarts
-.I mrouted .
+.Nm mrouted .
 The configuration file is reread every time this signal is evoked.
-.IP INT
+.It Dv SIGINT
 terminates execution gracefully (i.e., by sending
 good-bye messages to all neighboring routers).
-.IP TERM
-same as INT
-.IP USR1
-dumps the internal routing tables to /usr/tmp/mrouted.dump.
-.IP USR2
-dumps the internal cache tables to /usr/tmp/mrouted.cache.
-.IP QUIT
+.It Dv SIGTERM
+same as
+.Dv SIGINT
+.It Dv SIGUSR1
+dumps the internal routing tables to
+.Pa /var/tmp/mrouted.dump .
+.It Dv SIGUSR2
+dumps the internal cache tables to
+.Pa /var/tmp/mrouted.cache .
+.It Dv SIGQUIT
 dumps the internal routing tables to stderr (only if
-.I mrouted 
+.Nm
 was invoked with a non-zero debug level). 
-.bp
-.SH EXAMPLE
-.PP
+.El
+.Sh EXAMPLE
 The routing tables look like this:
-.nf
+.Bd -literal
 
 Virtual Interface Table
  Vif  Local-Address                    Metric  Thresh  Flags
@@ -253,34 +278,38 @@ Multicast Routing Table (1136 entries)
  .
  .
 
-.fi
+.Ed
+.Pp
 In this example, there are four vifs connecting to two subnets and two
 tunnels.  The vif 3 tunnel is not in use (no peer address). The vif 0 and
 vif 1 subnets have some groups present; tunnels never have any groups.  This
 instance of 
-.I mrouted
+.Nm
 is the one responsible for sending periodic group
 membership queries on the vif 0 and vif 1 subnets, as indicated by the
-"querier" flags. The list of boundaries indicate the scoped addresses on that
-interface. A count of the no. of incoming and outgoing packets is also
-shown at each interface.
-.PP
-Associated with each subnet from which a multicast datagram can originate
-is the address of the previous hop router (unless the subnet is directly-
-connected), the metric of the path back to the origin, the incoming vif for
-multicasts from that origin, and a list of outgoing vifs.  "*" means that
-the outgoing vif is connected to a leaf of the broadcast tree rooted at the
-origin, and a multicast datagram from that origin will be forwarded on that
-outgoing vif only if there are members of the destination group on that leaf.
-.bp
-.PP
-.I Mrouted 
+.Dq querier
+flags. The list of boundaries indicate the scoped addresses on that
+interface. A count of the number of incoming and outgoing packets is
+also shown at each interface.
+.Pp
+Associated with each subnet from which a multicast datagram can
+originate is the address of the previous hop router (unless the subnet
+is directly connected), the metric of the path back to the origin,
+the incoming vif for multicasts from that origin, and a list of
+outgoing vifs.
+.Dq Li \&*
+means that the outgoing vif is connected to a leaf of the broadcast
+tree rooted at the origin, and a multicast datagram from that origin
+will be forwarded on that outgoing vif only if there are members of
+the destination group on that leaf.
+.Pp
+.Nm
 also maintains a copy of the kernel forwarding cache table. Entries
 are created and deleted by 
-.I mrouted.
-.PP
+.Nm mrouted .
+.Pp
 The cache tables look like this:
-.nf
+.Bd -literal
 
 Multicast Routing Cache Table (325 entries)
  Origin-Subnet   Mcast-group    CTmr IVif Prcv# Psnt Forwvifs
@@ -290,30 +319,61 @@ Multicast Routing Cache Table (325 entries)
  129.215.200     224.2.207.48     40   1    1        0p 2 
  36.77.14        239.0.1.234     345   2b
 
-.fi 
+.Ed
+.Pp
 Each entry is characterized by the origin subnet number and the
-destination multicast group. The 'CTmr' field indicates the lifetime
+destination multicast group. The
+.Dq CTmr
+field indicates the lifetime
 (in seconds) of the entry.  The entry is deleted from the cache table
-when the timer decrements to zero. The Ivif field indicates the
+when the timer decrements to zero. The
+.Dq Ivif
+field indicates the
 incoming vif for multicast packets from that origin.  Each router also
 maintains a record of the number of prunes received from neighbouring
 routers for a particular source and group. If there are no members of
 a multicast group on any downward link of the multicast tree for a
 subnet, a prune message is sent to the upstream router. They are
-indicated by a "P" in the Psnt field.  The Forwvifs field shows the
+indicated by a
+.Dq Li \&P
+in the
+.Dq Psnt
+field.  The 
+.Dq Forwvifs
+field shows the
 interfaces along which datagrams belonging to the source-group are
-forwarded. A "p" indicates that no datagrams are being forwarded along
+forwarded. A
+.Dq Li \&p
+indicates that no datagrams are being forwarded along
 that interface. An unlisted interface is a leaf subnet with are no
-members of the particular group on that subnet. A "b" on an interface
-indicates that it is a boundary interface, i.e. traffic will not be
+members of the particular group on that subnet. A
+.Dq Li \&b
+on an interface
+indicates that it is a boundary interface; i.e., traffic will not be
 forwarded on the scoped address on that interface.
-
-
-.SH FILES
-/etc/mrouted.conf
-.SH SEE ALSO
-DVMRP is described, along with other multicast routing algorithms, in the
-paper "Multicast Routing in Internetworks and Extended LANs" by S. Deering,
-in the Proceedings of the ACM SIGCOMM '88 Conference.
-.SH AUTHORS
+.Sh FILES
+.Bl -tag -compact -width /var/tmp/mrouted.cache
+.It Pa /etc/mrouted.conf
+default configuration file
+.It Pa /var/tmp/mrouted.cache
+kernel forwarding cache dump file
+.It Pa /var/tmp/mrouted.dump
+routing table dump file
+.El
+.Sh SEE ALSO
+.Xr map-mbone 8 ,
+.Xr mrinfo 8 ,
+.Xr mtrace 8
+.Rs
+.%A "S. Deering"
+.%B "Proceedings of the ACM SIGCOMM '88 Conference"
+.%T "Multicast Routing in Internetworks and Extended LANs"
+.Re
+.Sh AUTHORS
 Steve Deering & Ajit Thyagarajan
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Tn FreeBSD
+2.0.
