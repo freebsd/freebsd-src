@@ -33,6 +33,8 @@
 
 #include <sys/types.h>
 
+#include <machine/psl.h>
+
 #ifdef __GNUC__
 
 static __inline void
@@ -43,45 +45,67 @@ breakpoint(void)
 
 #endif
 
+/* CPU register mangling inlines */
+
+static __inline void
+mtmsr(unsigned int value)
+{
+	__asm __volatile ("mtmsr %0" :: "r"(value));
+}
+
+static __inline unsigned int
+mfmsr(void)
+{
+	unsigned int	value;
+
+	__asm __volatile ("mfmsr %0" : "=r"(value));
+
+	return (value);
+}
+
+static __inline void
+mtdec(unsigned int value)
+{
+	__asm __volatile ("mtdec %0" :: "r"(value));
+}
+
+static __inline unsigned int
+mfdec(void)
+{
+	unsigned int	value;
+
+	__asm __volatile ("mfdec %0" : "=r"(value));
+
+	return (value);
+}
+
 /*
  * Bogus interrupt manipulation
  */
 static __inline void
 disable_intr(void)
 {
-	u_int32_t	msr;
+	unsigned int	msr;
 
-	msr = 0;
-	__asm __volatile(
-		"mfmsr %0\n\t"
-		"rlwinm %0, %0, 0, 17, 15\n\t"
-		"mtmsr %0"
-		: "+r" (msr));
-
-	return;
+	msr = mfmsr();
+	mtmsr(msr & ~PSL_EE);
 }
 
 static __inline void
 enable_intr(void)
 {
-	u_int32_t	msr;
+	unsigned int	msr;
 
-	msr = 0;
-	__asm __volatile(
-		"mfmsr %0\n\t"
-		"ori %0, %0, 0x8000\n\t"
-		"mtmsr %0"
-		: "+r" (msr));
-
-	return;
+	msr = mfmsr();
+	mtmsr(msr | PSL_EE);
 }
 
-static __inline u_int
+static __inline unsigned int
 save_intr(void)
 {
-	u_int	msr;
+	unsigned int	msr;
 
-	__asm __volatile("mfmsr %0" : "=r" (msr));
+	msr = mfmsr();
 
 	return msr;
 }
@@ -93,31 +117,29 @@ critical_enter(void)
 }
 
 static __inline void
-restore_intr(u_int msr)
+restore_intr(unsigned int msr)
 {
-	__asm __volatile("mtmsr %0" : : "r" (msr));
-
-	return;
+	mtmsr(msr);
 }
 
 static __inline void
 critical_exit(critical_t msr)
 {
-	return (restore_intr((u_int)msr));
+	return (restore_intr((unsigned int)msr));
 }
 
 static __inline void
 powerpc_mb(void)
 {
-	__asm __volatile("eieio;" : : : "memory");
+	__asm __volatile("eieio; sync" : : : "memory");
 }
 
-static __inline void
+static __inline struct globaldata
 *powerpc_get_globalp(void)
 {
-	void *ret;
+	struct globaldata	*ret;
 
-	__asm __volatile("mfsprg %0, 0" : "=r" (ret));
+	__asm ("mfsprg %0, 0" : "=r"(ret));
 
 	return(ret);
 }
