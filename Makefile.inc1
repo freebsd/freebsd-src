@@ -342,7 +342,7 @@ distribworld:
 # buildkernel and installkernel
 #
 # Which kernels to build and/or install is specified by setting
-# KERNEL. If not defined a GENERIC kernel is built/installed.
+# KERNCONF. If not defined a GENERIC kernel is built/installed.
 # Only the existing (depending MACHINE) config files are used
 # for building kernels and only the first of these is designated
 # as the one being installed.
@@ -352,7 +352,7 @@ distribworld:
 # be set to cross-build, we have to make sure MACHINE is set
 # properly.
 
-KERNEL?=	GENERIC
+KERNCONF?=	GENERIC
 INSTKERNNAME?=	kernel
 
 # The only exotic MACHINE_ARCH/MACHINE combination valid at this
@@ -372,7 +372,7 @@ CONFIGARGS+=	-r
 
 BUILDKERNELS=
 INSTALLKERNEL=
-.for _kernel in ${KERNEL}
+.for _kernel in ${KERNCONF}
 .if exists(${KRNLCONFDIR}/${_kernel})
 BUILDKERNELS+=	${_kernel}
 .if empty(INSTALLKERNEL)
@@ -388,7 +388,7 @@ INSTALLKERNEL= ${_kernel}
 #
 buildkernel:
 .if empty(BUILDKERNELS)
-	@echo ">>> ERROR: Missing kernel configuration file(s) (${KERNEL})."
+	@echo ">>> ERROR: Missing kernel configuration file(s) (${KERNCONF})."
 	@false
 .endif
 	@echo
