@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.37 1999/01/28 01:56:32 brian Exp $
+ * $Id: hdlc.c,v 1.38 1999/02/06 02:54:45 brian Exp $
  *
  *	TODO:
  */
@@ -48,12 +48,12 @@
 #include "vjcomp.h"
 #include "auth.h"
 #include "pap.h"
-#include "chap.h"
 #include "lcp.h"
 #include "async.h"
 #include "ccp.h"
 #include "link.h"
 #include "descriptor.h"
+#include "chap.h"
 #include "physical.h"
 #include "prompt.h"
 #include "chat.h"

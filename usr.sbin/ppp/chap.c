@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.41 1999/02/07 13:48:38 brian Exp $
+ * $Id: chap.c,v 1.42 1999/02/07 13:56:29 brian Exp $
  *
  *	TODO:
  */
@@ -27,13 +27,19 @@
 #include <netinet/ip.h>
 #include <sys/un.h>
 
+#include <errno.h>
+#include <fcntl.h>
 #ifdef HAVE_DES
 #include <md4.h>
 #include <string.h>
 #endif
 #include <md5.h>
+#include <paths.h>
+#include <signal.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include "mbuf.h"
 #include "log.h"
@@ -45,10 +51,10 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "auth.h"
-#include "chap.h"
 #include "async.h"
 #include "throughput.h"
 #include "descriptor.h"
+#include "chap.h"
 #include "iplist.h"
 #include "slcompress.h"
 #include "ipcp.h"
@@ -63,6 +69,7 @@
 #include "bundle.h"
 #include "chat.h"
 #include "cbcp.h"
+#include "command.h"
 #include "datalink.h"
 #ifdef HAVE_DES
 #include "chap_ms.h"
@@ -175,34 +182,230 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, int MSChap)
 }
 
 static void
+chap_StartChild(struct chap *chap, char *prog, const char *name)
+{
+  char *argv[MAXARGS], *nargv[MAXARGS];
+  int argc, fd;
+  int in[2], out[2];
+
+  if (chap->child.fd != -1) {
+    log_Printf(LogWARN, "Chap: %s: Program already running\n", prog);
+    return;
+  }
+
+  if (pipe(in) == -1) {
+    log_Printf(LogERROR, "Chap: pipe: %s\n", strerror(errno));
+    return;
+  }
+
+  if (pipe(out) == -1) {
+    log_Printf(LogERROR, "Chap: pipe: %s\n", strerror(errno));
+    close(in[0]);
+    close(in[1]);
+    return;
+  }
+
+  switch ((chap->child.pid = fork())) {
+    case -1:
+      log_Printf(LogERROR, "Chap: fork: %s\n", strerror(errno));
+      close(in[0]);
+      close(in[1]);
+      close(out[0]);
+      close(out[1]);
+      chap->child.pid = 0;
+      return;
+
+    case 0:
+      timer_TermService();
+      close(in[1]);
+      close(out[0]);
+      if (out[1] == STDIN_FILENO) {
+        fd = dup(out[1]);
+        close(out[1]);
+        out[1] = fd;
+      }
+      dup2(in[0], STDIN_FILENO);
+      dup2(out[1], STDOUT_FILENO);
+      if ((fd = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+        log_Printf(LogALERT, "Chap: Failed to open %s: %s\n",
+                  _PATH_DEVNULL, strerror(errno));
+        exit(1);
+      }
+      dup2(fd, STDERR_FILENO);
+      fcntl(3, F_SETFD, 1);		/* Set close-on-exec flag */
+
+      setuid(geteuid());
+      argc = command_Interpret(prog, strlen(prog), argv);
+      command_Expand(nargv, argc, (char const *const *)argv,
+                     chap->auth.physical->dl->bundle, 0);
+      execvp(nargv[0], nargv);
+
+      log_Printf(LogWARN, "exec() of %s failed: %s\n",
+                nargv[0], strerror(errno));
+      exit(255);
+
+    default:
+      close(in[0]);
+      close(out[1]);
+      chap->child.fd = out[0];
+      chap->child.buf.len = 0;
+      write(in[1], chap->auth.in.name, strlen(chap->auth.in.name));
+      write(in[1], "\n", 1);
+      write(in[1], chap->challenge + 1, *chap->challenge);
+      write(in[1], "\n", 1);
+      write(in[1], name, strlen(name));
+      write(in[1], "\n", 1);
+      close(in[1]);
+      break;
+  }
+}
+
+static void
+chap_Cleanup(struct chap *chap, int sig)
+{
+  if (chap->child.pid) {
+    int status;
+
+    close(chap->child.fd);
+    chap->child.fd = -1;
+    if (sig)
+      kill(chap->child.pid, SIGTERM);
+    chap->child.pid = 0;
+    chap->child.buf.len = 0;
+
+    if (wait(&status) == -1)
+      log_Printf(LogERROR, "Chap: wait: %s\n", strerror(errno));
+    else if (WIFSIGNALED(status))
+      log_Printf(LogWARN, "Chap: Child received signal %d\n", WTERMSIG(status));
+    else if (WIFEXITED(status) && WEXITSTATUS(status))
+      log_Printf(LogERROR, "Chap: Child exited %d\n", WEXITSTATUS(status));
+  }
+  *chap->challenge = 0;
+}
+
+static void
+chap_SendResponse(struct chap *chap, char *name, char *key)
+{
+  char *ans;
+
+  ans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge, 0);
+
+  if (ans) {
+    ChapOutput(chap->auth.physical, CHAP_RESPONSE, chap->auth.id,
+               ans, *ans + 1 + strlen(name), name);
+    free(ans);
+  } else
+    ChapOutput(chap->auth.physical, CHAP_FAILURE, chap->auth.id,
+               "Out of memory!", 14, NULL);
+}
+
+static int
+chap_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+{
+  struct chap *chap = descriptor2chap(d);
+
+  if (r && chap && chap->child.fd != -1) {
+    FD_SET(chap->child.fd, r);
+    if (*n < chap->child.fd + 1)
+      *n = chap->child.fd + 1;
+    log_Printf(LogTIMER, "Chap: fdset(r) %d\n", chap->child.fd);
+    return 1;
+  }
+
+  return 0;
+}
+
+static int
+chap_IsSet(struct descriptor *d, const fd_set *fdset)
+{
+  struct chap *chap = descriptor2chap(d);
+
+  return chap && chap->child.fd != -1 && FD_ISSET(chap->child.fd, fdset);
+}
+
+static void
+chap_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+{
+  struct chap *chap = descriptor2chap(d);
+  int got;
+
+  got = read(chap->child.fd, chap->child.buf.ptr + chap->child.buf.len,
+             sizeof chap->child.buf.ptr - chap->child.buf.len - 1);
+  if (got == -1) {
+    log_Printf(LogERROR, "Chap: Read: %s\n", strerror(errno));
+    chap_Cleanup(chap, SIGTERM);
+  } else if (got == 0) {
+    log_Printf(LogWARN, "Chap: Read: Child terminated connection\n");
+    chap_Cleanup(chap, SIGTERM);
+  } else {
+    char *name, *key, *end;
+
+    chap->child.buf.len += got;
+    chap->child.buf.ptr[chap->child.buf.len] = '\0';
+    name = chap->child.buf.ptr;
+    name += strspn(name, " \t");
+    if ((key = strchr(name, '\n')) == NULL)
+      end = NULL;
+    else
+      end = strchr(++key, '\n');
+
+    if (end == NULL) {
+      if (chap->child.buf.len == sizeof chap->child.buf.ptr - 1) {
+        log_Printf(LogWARN, "Chap: Read: Input buffer overflow\n");
+        chap_Cleanup(chap, SIGTERM);
+      }
+    } else {
+      while (end >= name && strchr(" \t\r\n", *end))
+        *end-- = '\0';
+      end = key - 1;
+      while (end >= name && strchr(" \t\r\n", *end))
+        *end-- = '\0';
+      key += strspn(key, " \t");
+
+      chap_SendResponse(chap, name, key);
+      chap_Cleanup(chap, 0);
+    }
+  }
+}
+
+static int
+chap_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+{
+  /* We never want to write here ! */
+  log_Printf(LogALERT, "chap_Write: Internal error: Bad call !\n");
+  return 0;
+}
+
+static void
 chap_Challenge(struct authinfo *authp)
 {
   struct chap *chap = auth2chap(authp);
   int len, i;
   char *cp;
 
-  randinit();
-  cp = chap->challenge;
+  len = strlen(authp->physical->dl->bundle->cfg.auth.name);
+
+  if (!*chap->challenge) {
+    randinit();
+    cp = chap->challenge;
 
 #ifndef NORADIUS
-  if (*authp->physical->dl->bundle->radius.cfg.file) {
-    /* For radius, our challenge is 16 readable NUL terminated bytes :*/
-    *cp++ = 16;
-    for (i = 0; i < 16; i++)
-      *cp++ = (random() % 10) + '0';
-  } else
+    if (*authp->physical->dl->bundle->radius.cfg.file) {
+      /* For radius, our challenge is 16 readable NUL terminated bytes :*/
+      *cp++ = 16;
+      for (i = 0; i < 16; i++)
+        *cp++ = (random() % 10) + '0';
+    } else
 #endif
-  {
-    *cp++ = random() % (CHAPCHALLENGELEN-16) + 16;
-    for (i = 0; i < *chap->challenge; i++)
-      *cp++ = random() & 0xff;
+    {
+      *cp++ = random() % (CHAPCHALLENGELEN-16) + 16;
+      for (i = 0; i < *chap->challenge; i++)
+        *cp++ = random() & 0xff;
+    }
+    memcpy(cp, authp->physical->dl->bundle->cfg.auth.name, len);
   }
-
-  len = strlen(authp->physical->dl->bundle->cfg.auth.name);
-  memcpy(cp, authp->physical->dl->bundle->cfg.auth.name, len);
-  cp += len;
   ChapOutput(authp->physical, CHAP_CHALLENGE, authp->id, chap->challenge,
-	     cp - chap->challenge, NULL);
+	     1 + *chap->challenge + len, NULL);
 }
 
 static void
@@ -232,9 +435,22 @@ chap_Failure(struct authinfo *authp)
 void
 chap_Init(struct chap *chap, struct physical *p)
 {
+  chap->desc.type = CHAP_DESCRIPTOR;
+  chap->desc.UpdateSet = chap_UpdateSet;
+  chap->desc.IsSet = chap_IsSet;
+  chap->desc.Read = chap_Read;
+  chap->desc.Write = chap_Write;
+  chap->child.pid = 0;
+  chap->child.fd = -1;
   auth_Init(&chap->auth, p, chap_Challenge, chap_Success, chap_Failure);
   *chap->challenge = 0;
   chap->using_MSChap = 0;
+}
+
+void
+chap_ReInit(struct chap *chap)
+{
+  chap_Cleanup(chap, SIGTERM);
 }
 
 void
@@ -336,17 +552,12 @@ chap_Input(struct physical *p, struct mbuf *bp)
 
     switch (chap->auth.in.hdr.code) {
       case CHAP_CHALLENGE:
-        name = p->dl->bundle->cfg.auth.name;
-        nlen = strlen(name);
-        key = p->dl->bundle->cfg.auth.key;
-        myans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge, 0);
-        if (myans) {
-          ChapOutput(p, CHAP_RESPONSE, chap->auth.id, myans,
-                     *myans + 1 + nlen, name);
-          free(myans);
-        } else
-          ChapOutput(p, CHAP_FAILURE, chap->auth.id, "Out of memory!",
-                     14, NULL);
+        if (*p->dl->bundle->cfg.auth.key == '!')
+          chap_StartChild(chap, p->dl->bundle->cfg.auth.key + 1,
+                          p->dl->bundle->cfg.auth.name);
+        else
+          chap_SendResponse(chap, p->dl->bundle->cfg.auth.name,
+                            p->dl->bundle->cfg.auth.key);
         break;
 
       case CHAP_RESPONSE:

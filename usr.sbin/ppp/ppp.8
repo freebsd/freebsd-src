@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.143 1999/01/28 01:56:33 brian Exp $
+.\" $Id: ppp.8,v 1.144 1999/01/28 22:55:08 billf Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -2854,23 +2854,73 @@ For the XON/XOFF scenario, use
 .Dq set accmap 000a0000 .
 .It set authkey|key Ar value
 This sets the authentication key (or password) used in client mode
-PAP or CHAP negotiation to the given value.  It can also be used to
-specify the password to be used in the dial or login scripts in place
-of the '\\P' sequence, preventing the actual password from being logged.  If
+PAP or CHAP negotiation to the given value.  It also specifies the
+password to be used in the dial or login scripts in place of the
+'\\P' sequence, preventing the actual password from being logged.  If
 .Ar command
 logging is in effect,
 .Ar value
 is logged as
 .Sq ********
 for security reasons.
+.Pp
+If the first character of
+.Ar value
+is an exclaimation mark
+.Pq Dq \&! ,
+.Nm
+treats the remainder of the string as a program that must be executed
+to determine the
+.Dq authname
+and
+.Dq authkey
+values.
+.Pp
+Ignoring the
+.Dq \&! ,
+.Ar value
+is parsed as a program to execute in the same was as the
+.Dq !bg
+command above, substituting special names in the same manner.  Once executed,
+.Nm
+will feed the program three lines of input, each terminated by a newline
+character:
+.Bl -bullet
+.It
+The host name as sent in the CHAP challenge.
+.It
+The challenge string as sent in the CHAP challenge.
+.It
+The locally defined
+.Dq authname .
+.El
+.Pp
+Two lines of output are expected:
+.Bl -bullet
+.It
+The
+.Dq authname
+to be sent with the CHAP response.
+.It
+The
+.Dq authkey ,
+which is encrypted with the challenge and request id, the answer being sent
+in the CHAP response packet.
+.El
+.Pp
+When configuring
+.Nm
+in this manner, it's expected that the host challenge is a series of ascii
+digits or characters.  An encryption device or Secure ID card is usually
+required to calculate the secret appropriate for the given challenge.
 .It set authname Ar id
 This sets the authentication id used in client mode PAP or CHAP negotiation.
 .Pp
 If used in
 .Fl direct
-mode with PAP or CHAP enabled,
+mode with CHAP enabled,
 .Ar id
-is used in the initial authentication request and is normally set to
+is used in the initial authentication challenge and should normally be set to
 the local machine name.
 .It set autoload Ar max-duration max-load [min-duration min-load]
 These settings apply only in multi-link mode and all default to zero.
