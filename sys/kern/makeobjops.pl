@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 #
 # Copyright (c) 1992, 1993
 #        The Regents of the University of California.  All rights reserved.
@@ -42,8 +42,9 @@
 # Script to produce kobj front-end sugar.
 #
 
-#use strict;
+use strict;
 use Getopt::Std;
+use vars qw($opt_c $opt_d $opt_h $opt_l $opt_p);
 
 my $line_width = 80;
 
@@ -55,7 +56,6 @@ my $intname;
 
 # Process the command line
 #
-#our ($opt_c, $opt_d, $opt_h, $opt_l, $opt_p);
 getopts('cdhl:p')
     or usage();
 
