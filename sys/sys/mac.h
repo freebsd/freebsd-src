@@ -332,15 +332,15 @@ int	mac_check_vnode_stat(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
 int	mac_check_vnode_write(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
-int	mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
+int	mac_getsockopt_label(struct ucred *cred, struct socket *so,
 	    struct mac *extmac);
-int	mac_getsockopt_peerlabel_get(struct ucred *cred, struct socket *so,
+int	mac_getsockopt_peerlabel(struct ucred *cred, struct socket *so,
 	    struct mac *extmac);
 int	mac_ioctl_ifnet_get(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifnet);
 int	mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifnet);
-int	mac_setsockopt_label_set(struct ucred *cred, struct socket *so,
+int	mac_setsockopt_label(struct ucred *cred, struct socket *so,
 	    struct mac *extmac);
 int	mac_pipe_label_set(struct ucred *cred, struct pipe *pipe,
 	    struct label *label);
