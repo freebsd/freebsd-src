@@ -208,12 +208,6 @@ free(addr, type)
 	if (addr == NULL)
 		return;
 
-	if ((u_long)addr & 3) {	/* XXX: Jeff: find better value for 3 */
-		printf("free(9)'ing unaligned pointer %p\n", addr);
-		Debugger("Don't do that...");
-		return;
-	}
-
 	size = 0;
 
 	mem = (void *)((u_long)addr & (~UMA_SLAB_MASK));
