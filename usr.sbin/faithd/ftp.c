@@ -405,7 +405,7 @@ ftp_copyresult(int src, int dst, enum state state)
 		if (!passivemode && rbuf[0] == '1') {
 			if (ftp_activeconn() < 0) {
 				n = snprintf(rbuf, sizeof(rbuf),
-					"425 Cannot open data connetion\r\n");
+					"425 Cannot open data connection\r\n");
 			}
 		}
 		write(dst, rbuf, n);
