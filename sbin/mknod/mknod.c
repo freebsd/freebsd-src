@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mknod.c	8.1 (Berkeley) 6/5/93";
 #else
 static const char rcsid[] =
-    "$Id$";
+    "$Id: mknod.c,v 1.3 1996/07/30 17:43:21 bde Exp $";
 #endif
 #endif /* not lint */
 
@@ -96,7 +96,7 @@ main(argc, argv)
 	range_error = errno;
 	errno = 0;
 	minor = (long)strtoul(argv[4], &endp, 0);
-	if (endp == argv[3] || *endp != '\0') {
+	if (endp == argv[4] || *endp != '\0') {
 		(void)fprintf(stderr,
 		    "mknod: %s: non-numeric minor number\n", argv[4]);
 		exit(1);
