@@ -1946,7 +1946,7 @@ done:
 }
 
 /*
- * vm_map_clean
+ * vm_map_sync
  *
  * Push any dirty cached pages in the address range to their pager.
  * If syncio is TRUE, dirty pages are written synchronously.
@@ -1955,7 +1955,7 @@ done:
  * Returns an error if any part of the specified range is not mapped.
  */
 int
-vm_map_clean(
+vm_map_sync(
 	vm_map_t map,
 	vm_offset_t start,
 	vm_offset_t end,
@@ -1967,8 +1967,6 @@ vm_map_clean(
 	vm_size_t size;
 	vm_object_t object;
 	vm_ooffset_t offset;
-
-	GIANT_REQUIRED;
 
 	vm_map_lock_read(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -1993,9 +1991,11 @@ vm_map_clean(
 	}
 
 	if (invalidate) {
+		mtx_lock(&Giant);
 		vm_page_lock_queues();
 		pmap_remove(map->pmap, start, end);
 		vm_page_unlock_queues();
+		mtx_unlock(&Giant);
 	}
 	/*
 	 * Make a second pass, cleaning/uncaching pages from the indicated
@@ -2021,61 +2021,7 @@ vm_map_clean(
 		} else {
 			object = current->object.vm_object;
 		}
-		/*
-		 * Note that there is absolutely no sense in writing out
-		 * anonymous objects, so we track down the vnode object
-		 * to write out.
-		 * We invalidate (remove) all pages from the address space
-		 * anyway, for semantic correctness.
-		 *
-		 * note: certain anonymous maps, such as MAP_NOSYNC maps,
-		 * may start out with a NULL object.
-		 */
-		while (object && object->backing_object) {
-			object = object->backing_object;
-			offset += object->backing_object_offset;
-			if (object->size < OFF_TO_IDX(offset + size))
-				size = IDX_TO_OFF(object->size) - offset;
-		}
-		if (object && (object->type == OBJT_VNODE) &&
-		    (current->protection & VM_PROT_WRITE)) {
-			/*
-			 * Flush pages if writing is allowed, invalidate them
-			 * if invalidation requested.  Pages undergoing I/O
-			 * will be ignored by vm_object_page_remove().
-			 *
-			 * We cannot lock the vnode and then wait for paging
-			 * to complete without deadlocking against vm_fault.
-			 * Instead we simply call vm_object_page_remove() and
-			 * allow it to block internally on a page-by-page
-			 * basis when it encounters pages undergoing async
-			 * I/O.
-			 */
-			int flags;
-
-			vm_object_reference(object);
-			vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, curthread);
-			flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
-			flags |= invalidate ? OBJPC_INVAL : 0;
-			VM_OBJECT_LOCK(object);
-			vm_object_page_clean(object,
-			    OFF_TO_IDX(offset),
-			    OFF_TO_IDX(offset + size + PAGE_MASK),
-			    flags);
-			VM_OBJECT_UNLOCK(object);
-			VOP_UNLOCK(object->handle, 0, curthread);
-			vm_object_deallocate(object);
-		}
-		if (object && invalidate &&
-		    ((object->type == OBJT_VNODE) ||
-		     (object->type == OBJT_DEVICE))) {
-			VM_OBJECT_LOCK(object);
-			vm_object_page_remove(object,
-			    OFF_TO_IDX(offset),
-			    OFF_TO_IDX(offset + size + PAGE_MASK),
-			    FALSE);
-			VM_OBJECT_UNLOCK(object);
-		}
+		vm_object_sync(object, offset, size, syncio, invalidate);
 		start += size;
 	}
 
