@@ -173,6 +173,8 @@ int	nmbufs;
 int	nmbclusters;
 int	nmbcnt;
 int	nsfbufs;
+int	nsfbufspeak;
+int	nsfbufsused;
 
 /*
  * Sizes of objects per bucket.  There are this size's worth of mbufs
@@ -318,6 +320,10 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nmbcnt, CTLFLAG_RDTUN, &nmbcnt, 0,
     "Number used to scale kmem_map to ensure sufficient space for counters");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
     "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
 SYSCTL_INT(_kern_ipc, OID_AUTO, mbuf_wait, CTLFLAG_RW, &mbuf_wait, 0,
     "Sleep time of mbuf subsystem wait allocations during exhaustion");
 SYSCTL_UINT(_kern_ipc, OID_AUTO, mbuf_hiwm, CTLFLAG_RW, &mbuf_hiwm, 0,
