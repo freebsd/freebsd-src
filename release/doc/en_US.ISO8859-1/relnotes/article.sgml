@@ -539,6 +539,9 @@
       <quote>Dianthus</quote> release to the
       <quote>Dogwood</quote> release.</para>
 
+    <para><application>sendmail</application> has been updated to
+      version 8.12.10.</para>
+
     <para><application>texinfo</application> has been updated from 4.5
       to 4.6. &merged;</para>
 
