@@ -894,8 +894,13 @@ in6_update_ifa(ifp, ifra, ia)
 	 */
 	if (ia == NULL) {
 		hostIsNew = 1;
+		/*
+		 * When in6_update_ifa() is called in a process of a received
+		 * RA, it is called under splnet().  So, we should call malloc
+		 * with M_NOWAIT.
+		 */
 		ia = (struct in6_ifaddr *)
-			malloc(sizeof(*ia), M_IFADDR, M_WAITOK);
+			malloc(sizeof(*ia), M_IFADDR, M_NOWAIT);
 		if (ia == NULL)
 			return (ENOBUFS);
 		bzero((caddr_t)ia, sizeof(*ia));
