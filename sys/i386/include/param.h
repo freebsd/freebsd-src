@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.3 1993/10/08 12:49:55 rgrimes Exp $
+ *	$Id: param.h,v 1.4 1993/10/08 13:01:34 rgrimes Exp $
  */
 
 /*
@@ -52,34 +52,34 @@
 #define ALIGNBYTES	(sizeof(int) - 1)
 #define ALIGN(p)	(((u_int)(p) + ALIGNBYTES) &~ ALIGNBYTES)
 
-#define	PGSHIFT		12		/* LOG2(NBPG) */
-#define	NBPG		(1 << PGSHIFT)	/* bytes/page */
-#define	PGOFSET		(NBPG-1)	/* byte offset into page */
-#define	NPTEPG		(NBPG/(sizeof (struct pte)))
+#define PGSHIFT		12		/* LOG2(NBPG) */
+#define NBPG		(1 << PGSHIFT)	/* bytes/page */
+#define PGOFSET		(NBPG-1)	/* byte offset into page */
+#define NPTEPG		(NBPG/(sizeof (struct pte)))
 
-#define	PDRSHIFT	22		/* LOG2(NBPDR) */
+#define PDRSHIFT	22		/* LOG2(NBPDR) */
 #define NBPDR		(1 << PDRSHIFT)	/* bytes/page dir */
-#define	PDROFSET	(NBPDR-1)	/* byte offset into page dir */
+#define PDROFSET	(NBPDR-1)	/* byte offset into page dir */
 
-#define	KERNBASE	0xFE000000	/* start of kernel virtual */
-#define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
+#define KERNBASE	0xFE000000	/* start of kernel virtual */
+#define BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
 
-#define	KERNSIZE	0x00C00000	/* size of kernel virtual */
+#define KERNSIZE	0x00C00000	/* size of kernel virtual */
 
-#define	DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
-#define	DEV_BSIZE	(1 << DEV_BSHIFT)
+#define DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
+#define DEV_BSIZE	(1 << DEV_BSHIFT)
 
 #define BLKDEV_IOSIZE	2048
-#define	MAXPHYS		(64 * 1024)	/* max raw I/O transfer size */
+#define MAXPHYS		(64 * 1024)	/* max raw I/O transfer size */
 
-#define	CLSIZELOG2	0
-#define	CLSIZE		(1 << CLSIZELOG2)
+#define CLSIZELOG2	0
+#define CLSIZE		(1 << CLSIZELOG2)
 
 /* NOTE: SSIZE, SINCR and UPAGES must be multiples of CLSIZE */
-#define	SSIZE	1		/* initial stack size/NBPG */
-#define	SINCR	1		/* increment of stack/NBPG */
+#define SSIZE	1		/* initial stack size/NBPG */
+#define SINCR	1		/* increment of stack/NBPG */
 
-#define	UPAGES	2		/* pages of u-area */
+#define UPAGES	2		/* pages of u-area */
 
 /*
  * Constants related to network buffer management.
@@ -89,20 +89,20 @@
  * of the hardware page size.
  */
 #ifndef	MSIZE
-#define	MSIZE		128		/* size of an mbuf */
+#define MSIZE		128		/* size of an mbuf */
 #endif	/* MSIZE */
 
 #ifndef	MCLSHIFT
-#define	MCLSHIFT	11		/* convert bytes to m_buf clusters */
+#define MCLSHIFT	11		/* convert bytes to m_buf clusters */
 #endif	/* MCLSHIFT */
-#define	MCLBYTES	(1 << MCLSHIFT)	/* size of an m_buf cluster */
-#define	MCLOFSET	(MCLBYTES - 1)	/* offset within an m_buf cluster */
+#define MCLBYTES	(1 << MCLSHIFT)	/* size of an m_buf cluster */
+#define MCLOFSET	(MCLBYTES - 1)	/* offset within an m_buf cluster */
 
 #ifndef NMBCLUSTERS
 #ifdef GATEWAY
-#define	NMBCLUSTERS	512		/* map size, max cluster allocation */
+#define NMBCLUSTERS	512		/* map size, max cluster allocation */
 #else
-#define	NMBCLUSTERS	256		/* map size, max cluster allocation */
+#define NMBCLUSTERS	256		/* map size, max cluster allocation */
 #endif	/* GATEWAY */
 #endif	/* NMBCLUSTERS */
 
@@ -110,29 +110,29 @@
  * Size of kernel malloc arena in CLBYTES-sized logical pages
  */ 
 #ifndef NKMEMCLUSTERS
-#define	NKMEMCLUSTERS	(3072*1024/CLBYTES)
+#define NKMEMCLUSTERS	(3072*1024/CLBYTES)
 #endif
 /*
  * Some macros for units conversion
  */
 /* Core clicks (4096 bytes) to segments and vice versa */
-#define	ctos(x)	(x)
-#define	stoc(x)	(x)
+#define ctos(x)	(x)
+#define stoc(x)	(x)
 
 /* Core clicks (4096 bytes) to disk blocks */
-#define	ctod(x)	((x)<<(PGSHIFT-DEV_BSHIFT))
-#define	dtoc(x)	((x)>>(PGSHIFT-DEV_BSHIFT))
-#define	dtob(x)	((x)<<DEV_BSHIFT)
+#define ctod(x)	((x)<<(PGSHIFT-DEV_BSHIFT))
+#define dtoc(x)	((x)>>(PGSHIFT-DEV_BSHIFT))
+#define dtob(x)	((x)<<DEV_BSHIFT)
 
 /* clicks to bytes */
-#define	ctob(x)	((x)<<PGSHIFT)
+#define ctob(x)	((x)<<PGSHIFT)
 
 /* bytes to clicks */
-#define	btoc(x)	(((unsigned)(x)+(NBPG-1))>>PGSHIFT)
+#define btoc(x)	(((unsigned)(x)+(NBPG-1))>>PGSHIFT)
 
-#define	btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
+#define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
 	((unsigned)(bytes) >> DEV_BSHIFT)
-#define	dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
+#define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
 	((unsigned)(db) << DEV_BSHIFT)
 
 /*
@@ -141,7 +141,7 @@
  * add an entry to cdevsw/bdevsw for that purpose.
  * For now though just use DEV_BSIZE.
  */
-#define	bdbtofsb(bn)	((bn) / (BLKDEV_IOSIZE/DEV_BSIZE))
+#define bdbtofsb(bn)	((bn) / (BLKDEV_IOSIZE/DEV_BSIZE))
 
 /*
  * Mach derived conversion macros
@@ -154,3 +154,8 @@
 #define i386_dtob(x)		((unsigned)(x) << PDRSHIFT)
 #define i386_btop(x)		((unsigned)(x) >> PGSHIFT)
 #define i386_ptob(x)		((unsigned)(x) << PGSHIFT)
+
+/*
+ * phystokv stolen from SCSI device drivers and fixed to use KERNBASE
+ */
+#define PHYSTOKV(x)	(x + KERNBASE)
