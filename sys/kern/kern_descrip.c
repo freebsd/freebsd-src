@@ -49,6 +49,7 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
+#include <sys/namei.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/filio.h>
@@ -1178,6 +1179,63 @@ fdcloseexec(p)
 	}
 	while (fdp->fd_lastfile > 0 && fdp->fd_ofiles[fdp->fd_lastfile] == NULL)
 		fdp->fd_lastfile--;
+}
+
+/*
+ * It is unsafe for set[ug]id processes to be started with file
+ * descriptors 0..2 closed, as these descriptors are given implicit
+ * significance in the Standard C library.  fdcheckstd() will create a
+ * descriptor referencing /dev/null for each of stdin, stdout, and
+ * stderr that is not already open.
+ */
+int
+fdcheckstd(p)
+       struct proc *p;
+{
+       struct nameidata nd;
+       struct filedesc *fdp;
+       struct file *fp;
+       register_t retval;
+       int fd, i, error, flags, devnull;
+
+       fdp = p->p_fd;
+       if (fdp == NULL)
+               return (0);
+       devnull = -1;
+       error = 0;
+       for (i = 0; i < 3; i++) {
+               if (fdp->fd_ofiles[i] != NULL)
+                       continue;
+               if (devnull < 0) {
+                       error = falloc(p, &fp, &fd);
+                       if (error != 0)
+                               break;
+                       NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, "/dev/null",
+                           p);
+                       flags = FREAD | FWRITE;
+                       error = vn_open(&nd, &flags, 0);
+                       if (error != 0) {
+                               fdp->fd_ofiles[i] = NULL;
+                               fdrop(fp, p);
+                               break;
+                       }
+                       NDFREE(&nd, NDF_ONLY_PNBUF);
+                       fp->f_data = (caddr_t)nd.ni_vp;
+                       fp->f_flag = flags;
+                       fp->f_ops = &vnops;
+                       fp->f_type = DTYPE_VNODE;
+                       VOP_UNLOCK(nd.ni_vp, 0, p);
+                       devnull = fd;
+               } else {
+                       error = fdalloc(p, 0, &fd);
+                       if (error != 0)
+                               break;
+                       error = do_dup(fdp, devnull, fd, &retval, p);
+                       if (error != 0)
+                               break;
+               }
+       }
+       return (error);
 }
 
 /*
