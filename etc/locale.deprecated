@@ -1,0 +1,11 @@
+# $FreeBSD$
+#
+# List of deprecated locales
+#
+# Make sure that deprecated locale directories and their replacements
+# are set up correctly.
+#
+ru_SU.KOI8-R		ru_RU.KOI8-R
+ru_SU.ISO_8859-1	ru_RU.ISO8859-1
+ru_SU.CP866		ru_RU.CP866
+ru_RU.ISO_8859-1	ru_RU.ISO8859-1
