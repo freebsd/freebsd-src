@@ -88,7 +88,7 @@ typedef struct proc	d_thread_t;
 #define CISSQ_COMPLETE	2
 #define CISSQ_COUNT	3
 
-struct ciss_qstat 
+struct ciss_qstat
 {
     u_int32_t	q_length;
     u_int32_t	q_max;
@@ -123,7 +123,7 @@ struct ciss_request
 #define CISS_REQ_POLL		(1<<2)		/* submitter polling */
 #define CISS_REQ_DATAOUT	(1<<3)		/* data host->adapter */
 #define CISS_REQ_DATAIN		(1<<4)		/* data adapter->host */
-    
+
     void			(* cr_complete)(struct ciss_request *);
     void			*cr_private;
 };
@@ -147,10 +147,10 @@ struct ciss_request
 /*
  * Per-logical-drive data.
  */
-struct ciss_ldrive 
+struct ciss_ldrive
 {
     union ciss_device_address	cl_address;
-    
+
     int				cl_status;
 #define CISS_LD_NONEXISTENT	0
 #define CISS_LD_ONLINE		1
@@ -166,7 +166,7 @@ struct ciss_ldrive
 /*
  * Per-adapter data
  */
-struct ciss_softc 
+struct ciss_softc
 {
     /* bus connections */
     device_t			ciss_dev;		/* bus attachment */
