@@ -166,6 +166,7 @@ announce_invite()
 		quit();
 	}
 	/* leave the actual invitation on my talk daemon */
+	current_state = "Trying to connect to local talk daemon";
 	ctl_transact(my_machine_addr, msg, LEAVE_INVITE, &response);
 	local_id = response.id_num;
 }
