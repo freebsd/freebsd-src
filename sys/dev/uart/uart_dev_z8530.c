@@ -141,22 +141,20 @@ static int
 z8530_setup(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
-	uint8_t mic, tpc;
+	uint8_t tpc;
 
 	if (bas->rclk == 0)
 		bas->rclk = DEFAULT_RCLK;
 
 	/* Assume we don't need to perform a full hardware reset. */
-	mic = MIC_MIE | MIC_NV;
 	switch (bas->chan) {
 	case 1:
-		mic |= MIC_CRA;
+		uart_setmreg(bas, WR_MIC, MIC_NV | MIC_CRA);
 		break;
 	case 2:
-		mic |= MIC_CRB;
+		uart_setmreg(bas, WR_MIC, MIC_NV | MIC_CRB);
 		break;
 	}
-	uart_setmreg(bas, WR_MIC, mic);
 	uart_barrier(bas);
 	/* Set clock sources and enable BRG. */
 	uart_setmreg(bas, WR_CMC, CMC_RC_BRG | CMC_TC_BRG);
@@ -315,11 +313,13 @@ z8530_bus_attach(struct uart_softc *sc)
 
 	uart_setmreg(bas, WR_IC, IC_BRK | IC_CTS | IC_DCD);
 	uart_barrier(bas);
-	uart_setmreg(bas, WR_IDT, IDT_TIE | IDT_RIA);
+	uart_setmreg(bas, WR_IDT, IDT_XIE | IDT_TIE | IDT_RIA);
 	uart_barrier(bas);
 	uart_setmreg(bas, WR_IV, 0);
 	uart_barrier(bas);
 	uart_setmreg(bas, WR_TPC, z8530->tpc);
+	uart_barrier(bas);
+	uart_setmreg(bas, WR_MIC, MIC_NV | MIC_MIE);
 	uart_barrier(bas);
 	return (0);
 }
@@ -352,6 +352,7 @@ z8530_bus_getsig(struct uart_softc *sc)
 		mtx_unlock_spin(&sc->sc_hwmtx);
 		SIGCHG(bes & BES_CTS, sig, SER_CTS, SER_DCTS);
 		SIGCHG(bes & BES_DCD, sig, SER_DCD, SER_DDCD);
+		SIGCHG(bes & BES_SYNC, sig, SER_DSR, SER_DDSR);
 		new = sig & ~UART_SIGMASK_DELTA;
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	return (sig);
@@ -391,36 +392,69 @@ z8530_bus_ipend(struct uart_softc *sc)
 	struct uart_bas *bas;
 	int ipend;
 	uint32_t sig;
-	uint8_t bes, src;
+	uint8_t bes, ip, iv, src;
 
 	bas = &sc->sc_bas;
 	ipend = 0;
+
 	mtx_lock_spin(&sc->sc_hwmtx);
-	uart_setreg(bas, REG_CTRL, CR_RSTIUS);
-	uart_barrier(bas);
-	bes = uart_getmreg(bas, RR_BES);
-	if (bes & BES_BRK) {
-		uart_setreg(bas, REG_CTRL, CR_RSTXSI);
-		ipend |= UART_IPEND_BREAK;
+	switch (bas->chan) {
+	case 1:
+		ip = uart_getmreg(bas, RR_IP);
+		break;
+	case 2:	/* XXX hack!!! */
+		iv = uart_getmreg(bas, RR_IV) & 0x0E;
+		switch (iv) {
+		case IV_TEB:	ip = IP_TIA; break;
+		case IV_XSB:	ip = IP_SIA; break;
+		case IV_RAB:	ip = IP_RIA; break;
+		default:	ip = 0; break;
+		}
+		break;
+	default:
+		ip = 0;
+		break;
 	}
-	if (bes & BES_TXE && z8530->txidle) {
-		uart_setreg(bas, REG_CTRL, CR_RSTTXI);
-		ipend |= UART_IPEND_TXIDLE;
-		z8530->txidle = 0;	/* Suppress UART_IPEND_TXIDLE. */
-	}
-	if (bes & BES_RXA)
+
+	if (ip & IP_RIA)
 		ipend |= UART_IPEND_RXREADY;
-	sig = sc->sc_hwsig;
-	SIGCHG(bes & BES_CTS, sig, SER_CTS, SER_DCTS);
-	SIGCHG(bes & BES_DCD, sig, SER_DCD, SER_DDCD);
-	if (sig & UART_SIGMASK_DELTA)
-		ipend |= UART_IPEND_SIGCHG;
-	src = uart_getmreg(bas, RR_SRC);
-	if (src & SRC_OVR) {
-		uart_setreg(bas, REG_CTRL, CR_RSTERR);
-		ipend |= UART_IPEND_OVERRUN;
+
+	if (ip & IP_TIA) {
+		uart_setreg(bas, REG_CTRL, CR_RSTTXI);
+		uart_barrier(bas);
+		if (z8530->txidle) {
+			ipend |= UART_IPEND_TXIDLE;
+			z8530->txidle = 0;	/* Mask UART_IPEND_TXIDLE. */
+		}
 	}
+
+	if (ip & IP_SIA) {
+		uart_setreg(bas, REG_CTRL, CR_RSTXSI);
+		uart_barrier(bas);
+		bes = uart_getmreg(bas, RR_BES);
+		if (bes & BES_BRK)
+			ipend |= UART_IPEND_BREAK;
+		sig = sc->sc_hwsig;
+		SIGCHG(bes & BES_CTS, sig, SER_CTS, SER_DCTS);
+		SIGCHG(bes & BES_DCD, sig, SER_DCD, SER_DDCD);
+		SIGCHG(bes & BES_SYNC, sig, SER_DSR, SER_DDSR);
+		if (sig & UART_SIGMASK_DELTA)
+			ipend |= UART_IPEND_SIGCHG;
+		src = uart_getmreg(bas, RR_SRC);
+		if (src & SRC_OVR) {
+			uart_setreg(bas, REG_CTRL, CR_RSTERR);
+			uart_barrier(bas);
+			ipend |= UART_IPEND_OVERRUN;
+		}
+	}
+
+	if (ipend) {
+		uart_setreg(bas, REG_CTRL, CR_RSTIUS);
+		uart_barrier(bas);
+	}
+
 	mtx_unlock_spin(&sc->sc_hwmtx);
+
 	return (ipend);
 }
 
@@ -471,14 +505,17 @@ z8530_bus_receive(struct uart_softc *sc)
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
 			break;
 		}
-		src = uart_getmreg(bas, RR_SRC);
 		xc = uart_getreg(bas, REG_DATA);
+		uart_barrier(bas);
+		src = uart_getmreg(bas, RR_SRC);
 		if (src & SRC_FE)
 			xc |= UART_STAT_FRAMERR;
 		if (src & SRC_PE)
 			xc |= UART_STAT_PARERR;
+		if (src & SRC_OVR)
+			xc |= UART_STAT_OVERRUN;
 		uart_rx_put(sc, xc);
-		if (src & (SRC_FE | SRC_PE)) {
+		if (src & (SRC_FE | SRC_PE | SRC_OVR)) {
 			uart_setreg(bas, REG_CTRL, CR_RSTERR);
 			uart_barrier(bas);
 		}
@@ -486,9 +523,10 @@ z8530_bus_receive(struct uart_softc *sc)
 	}
 	/* Discard everything left in the Rx FIFO. */
 	while (bes & BES_RXA) {
-		src = uart_getmreg(bas, RR_SRC);
 		(void)uart_getreg(bas, REG_DATA);
-		if (src & (SRC_FE | SRC_PE)) {
+		uart_barrier(bas);
+		src = uart_getmreg(bas, RR_SRC);
+		if (src & (SRC_FE | SRC_PE | SRC_OVR)) {
 			uart_setreg(bas, REG_CTRL, CR_RSTERR);
 			uart_barrier(bas);
 		}
