@@ -45,25 +45,25 @@ the standard output.
 .Pp
 When
 .Nm
-is invoked without arguments it will print out summary of current
+is invoked without arguments, it will print out a summary of the current
 locale environment depending on environment variable settings and
 internal status. 
 .Pp
 When
 .Nm
-is invoked with arguments and no options specified it will print out
+is invoked with arguments and no options specified, it will print out
 .Em keyword Ns No 's
-value determined using current locale settings.
+value determined using the current locale settings.
 .Pp
 The following options are available:
 .Bl -tag -width indent 
 .It Fl a
 Write names of all available locales.
-While looking for locales
+While looking for locales,
 .Nm
-will respect
+will respect the
 .Ev PATH_LOCALE
-environment variable, and use it instead of system default locale
+environment variable, and use it instead of the system's default locale
 directory.
 .It Fl m
 Write names of all available charmaps.
@@ -75,7 +75,7 @@ Write the category name for the selected keywords.
 .Sh IMPLEMENTATION DETAILS
 Special (FreeBSD specific) keyword
 .Ar list
-can be used to retrieve human readable list of available keywrods.
+can be used to retrieve human readable list of available keywords.
 .Sh DIAGNOSTICS
 The
 .Nm
@@ -87,8 +87,8 @@ does not support
 .Em charmap Ns No s
 in their
 .Em POSIX
-meaning
+meaning,
 .Nm
-emulates
+emulates the
 .Ar m
 option via CODESETs listing of all available locales.
