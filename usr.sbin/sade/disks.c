@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.30.2.7 1995/06/08 09:48:31 jkh Exp $
+ * $Id: disks.c,v 1.31.2.2 1995/07/21 11:45:38 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -112,7 +112,7 @@ print_command_summary()
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
     mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
-    mvprintw(18, 0, "U = Undo All Changes   Q = Finish");
+    mvprintw(18, 0, "U = Undo All Changes   Q = Finish             W = Write Changes");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
     attrset(A_REVERSE); addstr("reverse"); attrset(A_NORMAL); addstr(" video.");
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");
@@ -206,12 +206,8 @@ diskPartition(Disk *d)
 		if (val && (size = strtol(val, &cp, 0)) > 0) {
 		    if (*cp && toupper(*cp) == 'M')
 			size *= 2048;
-		    Create_Chunk(d, chunk_info[current_chunk]->offset,
-				 size,
-				 freebsd,
-				 3,
-				 (chunk_info[current_chunk]->flags &
-				  CHUNK_ALIGN));
+		    Create_Chunk(d, chunk_info[current_chunk]->offset, size, freebsd, 3,
+				 (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
 		    record_chunks(d);
 		}
 	    }
@@ -229,8 +225,7 @@ diskPartition(Disk *d)
 	case 'G': {
 	    char *val, geometry[80];
 
-	    snprintf(geometry, 80, "%lu/%lu/%lu",
-		     d->bios_cyl, d->bios_hd, d->bios_sect);
+	    snprintf(geometry, 80, "%lu/%lu/%lu", d->bios_cyl, d->bios_hd, d->bios_sect);
 	    val = msgGetInput(geometry,
 "Please specify the new geometry in cyl/hd/sect format.\nDon't forget to use the two slash (/) separator characters!\nIt's not possible to parse the field without them.");
 	    if (val) {
@@ -255,6 +250,11 @@ diskPartition(Disk *d)
 	    break;
 
 	case 'W':
+	    if (!msgYesNo("Are you sure you want to write this now?  You do also\nhave the option of not modifying the disk until *all*\nconfiguration information has been entered, at which\npoint you can do it all at once.  If you're unsure, then\nchoose No at this dialog."))
+	      diskPartitionWrite(NULL);
+	    break;
+
+	case '|':
 	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\nNo seat belts whatsoever are provided!")) {
 		dialog_clear();
 		end_dialog();
@@ -345,6 +345,78 @@ diskPartitionEditor(char *str)
 	else {
 	    dmenuOpenSimple(menu);
 	    free(menu);
+	}
+    }
+    return 0;
+}
+
+static u_char *
+getBootMgr(void)
+{
+    extern u_char mbr[], bteasy17[];
+
+    /* Figure out what kind of MBR the user wants */
+    if (dmenuOpenSimple(&MenuMBRType)) {
+	switch (BootMgr) {
+	case 0:
+	    return bteasy17;
+
+	case 1:
+	    return mbr;
+
+	case 2:
+	default:
+	    break;
+	}
+    }
+    return NULL;
+}
+
+int
+diskPartitionWrite(char *str)
+{
+    extern u_char boot1[], boot2[];
+    u_char *mbrContents;
+    Device **devs;
+    int i;
+
+    mbrContents = getBootMgr();
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    if (!devs) {
+	msgConfirm("Unable to find any disks to write to??");
+	return 0;
+    }
+
+    for (i = 0; devs[i]; i++) {
+	Chunk *c1;
+	Disk *d = (Disk *)devs[i]->private;
+
+	if (!devs[i]->enabled)
+	    continue;
+
+	/* Do it once so that it only goes on the first drive */
+	if (mbrContents) {
+	    Set_Boot_Mgr(d, mbrContents);
+	    mbrContents = NULL;
+	}
+
+	Set_Boot_Blocks(d, boot1, boot2);
+	msgNotify("Writing partition information to drive %s", d->name);
+	Write_Disk(d);
+
+	/* Now scan for bad blocks, if necessary */
+	for (c1 = d->chunks->part; c1; c1 = c1->next) {
+	    if (c1->flags & CHUNK_BAD144) {
+		int ret;
+
+		msgNotify("Running bad block scan on partition %s", c1->name);
+		ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
+		if (ret)
+		    msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
+		ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
+		if (ret)
+		    msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
+	    }
 	}
     }
     return 0;

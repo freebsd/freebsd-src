@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.12.2.4 1995/06/05 15:17:12 jkh Exp $
+ * $Id: main.c,v 1.13 1995/06/11 19:30:02 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,9 +63,6 @@ main(int argc, char **argv)
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
-
-    /* Default to English */
-    lang_set_English(NULL);
 
     /* Default to passive mode ftp since it's the only thing we currently support :-( */
     OptFlags |= OPT_FTP_PASSIVE;
