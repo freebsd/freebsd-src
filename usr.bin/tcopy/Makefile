@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	tcopy
-NO_WERROR=yes
 
 .include <bsd.prog.mk>

@@ -3,7 +3,6 @@
 
 PROG=	vfontedpr
 SRCS=	regexp.c vfontedpr.c
-NO_WERROR=yes
 SCRIPTS=vgrind.sh
 FILES=	vgrindefs.src vgrindefs.src.db tmac.vgrind
 FILESNAME_vgrindefs.src=	vgrindefs

@@ -15,7 +15,6 @@ SRCS=	char.c cmd.c cmd1.c cmd2.c cmd3.c cmd4.c cmd5.c cmd6.c cmd7.c \
 	wwredrawwin.c wwrint.c wwscroll.c wwsize.c wwspawn.c wwsuspend.c \
 	wwterminfo.c wwtty.c wwunframe.c wwupdate.c wwwrite.c xx.c xxflush.c \
 	compress.c
-WARNS?=	0
 DPADD=	${LIBTERMCAP} ${LIBUTIL}
 LDADD=	-ltermcap -lutil
 
