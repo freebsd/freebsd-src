@@ -115,7 +115,9 @@ See
 Same as ``mountrw=''.
 .El
 .Pp
-The second (-a) form of the command reads a command file and performs the
+The second (
+.Fl a
+) form of the command reads a command file and performs the
 specified actions for each device/file pair.
 With
 .Fl f
@@ -139,21 +141,21 @@ option.
 .El
 .Sh EXAMPLES
 .Pp
-.Dl vnconfig /dev/vnd0c /tmp/diskimage
+.Dl vnconfig /dev/vn0c /tmp/diskimage
 .Pp
 Configures the vnode disk
-.Pa vnd0c .
+.Pa vn0c .
 .Pp
-.Dl vnconfig -e /dev/vnd0c /var/swapfile swap
+.Dl vnconfig -e /dev/vn0c /var/swapfile swap
 .Pp
 Configures
-.Pa vnd0c
+.Pa vn0c
 and enables swapping on it.
 .Pp
-.Dl vnconfig -d /dev/vnd0c myfilesystem mount=/mnt
+.Dl vnconfig -d /dev/vn0c myfilesystem mount=/mnt
 .Pp
 Unmounts (disables)
-.Pa vnd0c .
+.Pa vn0c .
 .Pp
 .Dl vnconfig -ae
 .Pp
