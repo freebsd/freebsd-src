@@ -164,7 +164,7 @@ options 	COM_MULTIPORT
 # COM1
 device		sio0	at isa? port IO_COM1 irq 4
 # COM2 (2nd CCU)
-device		sio1	at isa? port 0x238 irq 5 flags 0x12000010
+device		sio1	at isa? port 0x238 irq 5 flags 0x12000000
 # PC-9861K, PC-9801-101, MDC-926Rs
 #device		sio1	at isa? port IO_COM2 irq 5 flags 0x01000000
 #device		sio2	at isa? port IO_COM3 irq 6 flags 0x02000000
