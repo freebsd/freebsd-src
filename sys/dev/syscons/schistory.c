@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id:$
+ * $Id: schistory.c,v 1.1 1999/06/22 14:13:26 yokota Exp $
  */
 
 #include "sc.h"
@@ -68,7 +68,7 @@ static void history_to_screen(scr_stat *scp);
 
 /* allocate a history buffer */
 int
-sc_alloc_history_buffer(scr_stat *scp, int lines, int wait)
+sc_alloc_history_buffer(scr_stat *scp, int lines, int prev_ysize, int wait)
 {
 	/*
 	 * syscons unconditionally allocates buffers upto 
@@ -77,36 +77,80 @@ sc_alloc_history_buffer(scr_stat *scp, int lines, int wait)
 	 * subject to extra_history_size.
 	 */
 	sc_vtb_t *history;
+	sc_vtb_t *prev_history;
 	int cur_lines;				/* current buffer size */
 	int min_lines;				/* guaranteed buffer size */
+	int delta;				/* lines to put back */
 
 	if (lines <= 0)
 		lines = SC_HISTORY_SIZE;	/* use the default value */
-	lines = imax(lines, scp->ysize);
-	min_lines = imax(SC_HISTORY_SIZE, scp->ysize);
 
-	history = scp->history;
+	/* make it at least as large as the screen size */
+	lines = imax(lines, scp->ysize);
+
+	/* remove the history buffer while we update it */
+	history = prev_history = scp->history;
 	scp->history = NULL;
-	if (history == NULL) {
-		cur_lines = 0;
-	} else {
+
+	/* calculate the amount of lines to put back to extra_history_size */
+	delta = 0;
+	if (prev_history) {
 		cur_lines = sc_vtb_rows(history);
+		min_lines = imax(SC_HISTORY_SIZE, prev_ysize);
 		if (cur_lines > min_lines)
-			extra_history_size += cur_lines - min_lines;
-		sc_vtb_destroy(history);
+			delta = cur_lines - min_lines;
 	}
 
-	if (lines > min_lines)
-		extra_history_size -= lines - min_lines;
-	history = (sc_vtb_t *)malloc(sizeof(*history),
-				     M_DEVBUF, (wait) ? M_WAITOK : M_NOWAIT);
-	if (history != NULL)
+	/* lines upto min_lines are always allowed. */
+	min_lines = imax(SC_HISTORY_SIZE, scp->ysize);
+	if (lines > min_lines) {
+		if (lines - min_lines > extra_history_size + delta) {
+			/* too many lines are requested */
+			scp->history = prev_history;
+			return EINVAL;
+		}
+	}
+
+	/* destroy the previous buffer and allocate a new one */
+	if (prev_history == NULL) {
+		history = (sc_vtb_t *)malloc(sizeof(*history),
+					     M_DEVBUF,
+					     (wait) ? M_WAITOK : M_NOWAIT);
+	} else {
+		extra_history_size += delta;
+		sc_vtb_destroy(prev_history);
+	}
+	if (history != NULL) {
+		if (lines > min_lines)
+			extra_history_size -= lines - min_lines;
 		sc_vtb_init(history, VTB_RINGBUFFER, scp->xsize, lines,
 			    NULL, wait);
+	}
+
 	scp->history_pos = 0;
 	scp->history = history;
 
 	return 0;
+}
+
+void
+sc_free_history_buffer(scr_stat *scp, int prev_ysize)
+{
+	sc_vtb_t *history;
+	int cur_lines;				/* current buffer size */
+	int min_lines;				/* guaranteed buffer size */
+
+	history = scp->history;
+	scp->history = NULL;
+	if (history == NULL)
+		return;
+
+	cur_lines = sc_vtb_rows(history);
+	min_lines = imax(SC_HISTORY_SIZE, prev_ysize);
+	extra_history_size += (cur_lines > min_lines) ? cur_lines - min_lines : 0;
+
+	sc_vtb_destroy(history);
+	free(history, M_DEVBUF);
 }
 
 /* copy entire screen into the top of the history buffer */
@@ -200,6 +244,7 @@ sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	      struct proc *p)
 {
 	scr_stat *scp;
+	int error;
 
 	switch (cmd) {
 
@@ -209,9 +254,14 @@ sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 			return EINVAL;
 		if (scp->status & BUFFER_SAVED)
 			return EBUSY;
-		return sc_alloc_history_buffer(scp, 
+		DPRINTF(5, ("lines:%d, ysize:%d, pool:%d\n",
+			    *(int *)data, scp->ysize, extra_history_size));
+		error = sc_alloc_history_buffer(scp, 
 					       imax(*(int *)data, scp->ysize),
-					       TRUE);
+					       scp->ysize, TRUE);
+		DPRINTF(5, ("error:%d, rows:%d, pool:%d\n", error,
+			    sc_vtb_rows(scp->history), extra_history_size));
+		return error;
 	}
 
 	return ENOIOCTL;
