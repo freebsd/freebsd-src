@@ -60,7 +60,6 @@ struct at_aliasreq {
 extern struct	pr_usrreqs ddp_usrreqs;
 extern struct at_ifaddr	*at_ifaddr;
 extern struct ifqueue	atintrq1, atintrq2;
-int			atdebug;
 #endif
 
 #endif /* _NETATALK_AT_VAR_H_ */
