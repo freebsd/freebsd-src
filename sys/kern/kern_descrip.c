@@ -163,7 +163,6 @@ dup2(td, uap)
 	register u_int old = uap->from, new = uap->to;
 	int i, error;
 
-	mtx_lock(&Giant);
 	FILEDESC_LOCK(fdp);
 retry:
 	if (old >= fdp->fd_nfiles ||
@@ -171,19 +170,17 @@ retry:
 	    new >= p->p_rlimit[RLIMIT_NOFILE].rlim_cur ||
 	    new >= maxfilesperproc) {
 		FILEDESC_UNLOCK(fdp);
-		error = EBADF;
-		goto done2;
+		return (EBADF);
 	}
 	if (old == new) {
 		td->td_retval[0] = new;
 		FILEDESC_UNLOCK(fdp);
-		error = 0;
-		goto done2;
+		return (0);
 	}
 	if (new >= fdp->fd_nfiles) {
 		if ((error = fdalloc(td, new, &i))) {
 			FILEDESC_UNLOCK(fdp);
-			goto done2;
+			return (error);
 		}
 		if (new != i)
 			panic("dup2: fdalloc");
@@ -193,8 +190,6 @@ retry:
 		goto retry;
 	}
 	error = do_dup(fdp, (int)old, (int)new, td->td_retval, td);
-done2:
-	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -219,22 +214,18 @@ dup(td, uap)
 	u_int old;
 	int new, error;
 
-	mtx_lock(&Giant);
 	old = uap->fd;
 	fdp = td->td_proc->p_fd;
 	FILEDESC_LOCK(fdp);
 	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL) {
 		FILEDESC_UNLOCK(fdp);
-		error = EBADF;
-		goto done2;
+		return (EBADF);
 	}
 	if ((error = fdalloc(td, 0, &new))) {
 		FILEDESC_UNLOCK(fdp);
-		goto done2;
+		return (error);
 	}
 	error = do_dup(fdp, (int)old, new, td->td_retval, td);
-done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -525,8 +516,11 @@ do_dup(fdp, old, new, retval, td)
 	 * and must dispose of it using closef() semantics (as if a
 	 * close() were performed on it).
 	 */
-	if (delfp)
+	if (delfp) {
+		mtx_lock(&Giant);
 		(void) closef(delfp, td);
+		mtx_unlock(&Giant);
+	}
 	return (0);
 }
 
@@ -924,8 +918,10 @@ fdalloc(td, want, result)
 		else
 			nfiles = 2 * fdp->fd_nfiles;
 		FILEDESC_UNLOCK(fdp);
+		mtx_lock(&Giant);
 		MALLOC(newofile, struct file **, nfiles * OFILESIZE,
 		    M_FILEDESC, M_WAITOK);
+		mtx_unlock(&Giant);
 		FILEDESC_LOCK(fdp);
 
 		/*
@@ -934,7 +930,9 @@ fdalloc(td, want, result)
 		 */
 		if (fdp->fd_nfiles >= nfiles) {
 			FILEDESC_UNLOCK(fdp);
+			mtx_lock(&Giant);
 			FREE(newofile, M_FILEDESC);
+			mtx_unlock(&Giant);
 			FILEDESC_LOCK(fdp);
 			continue;
 		}
@@ -957,8 +955,11 @@ fdalloc(td, want, result)
 		fdp->fd_ofileflags = newofileflags;
 		fdp->fd_nfiles = nfiles;
 		fdexpand++;
-		if (oldofile != NULL)
+		if (oldofile != NULL) {
+			mtx_lock(&Giant);
 			FREE(oldofile, M_FILEDESC);
+			mtx_unlock(&Giant);
+		}
 	}
 	return (0);
 }
