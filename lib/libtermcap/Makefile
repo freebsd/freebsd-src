@@ -1,8 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 LIB=	termcap
-SHLIB_MAJOR= 2
-SHLIB_MINOR= 2
+SHLIB_MAJOR= 3
+SHLIB_MINOR= 0
 CFLAGS+=-DCM_N -DCM_GT -DCM_B -DCM_D -I${.CURDIR}
 SRCS=   termcap.c tgoto.c tputs.c tparm.c tospeed.c
 
