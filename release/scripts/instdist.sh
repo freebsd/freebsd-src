@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.2 1995/01/27 07:37:53 jkh Exp $
+# $Id: instdist.sh,v 1.3 1995/01/28 01:18:42 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -193,7 +193,7 @@ media_extract_dist()
 		fi
 	fi
 	if [ -f do_cksum.sh ]; then
-		message "Verifying checksums for distribution.  Please wait!"
+		message "Verifying checksums for ${MEDIA_DISTRIBUTION} distribution.  Please wait!"
 		if sh ./do_cksum.sh; then
 			if [ -f extract.sh ]; then
 				message "Extracting ${MEDIA_DISTRIBUTION} distribution.  Please wait!"
@@ -210,7 +210,7 @@ media_extract_dist()
 			error "Checksum error(s) found.  Please check media!"
 		fi
 	else    
-		error "Improper distribution.  No checksum script found!"
+		error "Improper ${MEDIA_DISTRIBUTION} distribution.  No checksum script!"
 		media_reset
 	fi
 }
@@ -447,7 +447,8 @@ correct value and press return."; then
 "Which type of CDROM drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n" -1 -1 2 \
 		"SCSI" "SCSI CDROM drive attached to supported SCSI controller" \
-		"Mitsumi" "Mitsumi CDROM drive" \
+		"Sony" "Sony CDU33 or compatible CDROM drive" \
+		"Mitsumi" "Mitsumi CDROM (non-IDE) drive" \
 			2> ${TMP}/menu.tmp.$$
 		RETVAL=$?
 		CHOICE=`cat ${TMP}/menu.tmp.$$`
@@ -457,6 +458,10 @@ system?  FreeBSD supports the following types:\n" -1 -1 2 \
 		case ${CHOICE} in
 			SCSI)
 				MEDIA_DEVICE=/dev/cd0a
+			;;
+
+			Sony)
+				MEDIA_DEVICE=/dev/scd0a
 			;;
 
 			Mitsumi)
