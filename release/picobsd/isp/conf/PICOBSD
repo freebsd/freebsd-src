@@ -1,5 +1,5 @@
 #
-# $Id: PICOBSD,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+# $Id: PICOBSD,v 1.2 1998/09/02 14:15:54 abial Exp $
 #
 
 machine		"i386"
@@ -26,9 +26,9 @@ options		VISUAL_USERCONFIG	#visual boot -c editor
 options		IPFIREWALL
 options		IPFIREWALL_DEFAULT_TO_ACCEPT
 options		IPDIVERT
-options		DEVFS
-options		SLICE
+#options		DEVFS
 options		PCI_QUIET
+options		NO_LKM
 # Support for bridging and bandwidth limiting
 #options	DUMMYNET
 #options	BRIDGE
@@ -128,4 +128,4 @@ pseudo-device	ppp	8
 pseudo-device	tun	2
 #pseudo-device	vn
 pseudo-device	pty	16
-pseudo-device	gzip		# Exec gzipped a.out's
+#pseudo-device	gzip		# Exec gzipped a.out's
