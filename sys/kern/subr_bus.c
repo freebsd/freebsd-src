@@ -1785,9 +1785,35 @@ bus_delete_resource(device_t dev, int type, int rid)
 }
 
 int
-bus_child_present(device_t dev)
+bus_child_present(device_t child)
 {
-	return (BUS_CHILD_PRESENT(device_get_parent(dev), dev));
+	return (BUS_CHILD_PRESENT(device_get_parent(child), child));
+}
+
+int
+bus_child_pnpinfo_str(device_t child, char *buf, size_t buflen)
+{
+	device_t parent;
+	
+	parent = device_get_parent(child);
+	if (parent == NULL) {
+		*buf = '\0';
+		return (0);
+	}
+	return (BUS_CHILD_PNPINFO_STR(parent, child, buf, buflen));
+}
+
+int
+bus_child_location_str(device_t child, char *buf, size_t buflen)
+{
+	device_t parent;
+	
+	parent = device_get_parent(child);
+	if (parent == NULL) {
+		*buf = '\0';
+		return (0);
+	}
+	return (BUS_CHILD_LOCATION_STR(parent, child, buf, buflen));
 }
 
 static int
