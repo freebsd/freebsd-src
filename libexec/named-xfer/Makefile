@@ -1,5 +1,6 @@
-# $Id: Makefile,v 1.6 1997/02/22 14:21:56 peter Exp $
+# $Id: Makefile,v 1.7 1998/05/04 05:12:49 peter Exp $
 
+USE_LIBBIND=	true
 .include "${.CURDIR}/../../usr.sbin/named/Makefile.inc"
 
 .PATH:	${BIND_DIR}/bin/named-xfer
