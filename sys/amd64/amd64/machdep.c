@@ -1348,10 +1348,11 @@ set_regs(struct thread *td, struct reg *regs)
 {
 	struct pcb *pcb;
 	struct trapframe *tp;
+	register_t rflags;
 
 	tp = td->td_frame;
-	if (!EFL_SECURE(regs->r_rflags, tp->tf_rflags) ||
-	    !CS_SECURE(regs->r_cs))
+	rflags = regs->r_rflags & 0xffffffff;
+	if (!EFL_SECURE(rflags, tp->tf_rflags) || !CS_SECURE(regs->r_cs))
 		return (EINVAL);
 	tp->tf_r15 = regs->r_r15;
 	tp->tf_r14 = regs->r_r14;
@@ -1370,7 +1371,7 @@ set_regs(struct thread *td, struct reg *regs)
 	tp->tf_rax = regs->r_rax;
 	tp->tf_rip = regs->r_rip;
 	tp->tf_cs = regs->r_cs;
-	tp->tf_rflags = regs->r_rflags;
+	tp->tf_rflags = rflags;
 	tp->tf_rsp = regs->r_rsp;
 	tp->tf_ss = regs->r_ss;
 	pcb = td->td_pcb;
