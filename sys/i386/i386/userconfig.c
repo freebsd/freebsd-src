@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.130 1999/02/10 00:26:47 jkh Exp $
+ **      $Id: userconfig.c,v 1.131 1999/02/10 02:37:24 des Exp $
  **/
 
 /**
@@ -404,6 +404,8 @@ static DEV_INFO device_info[] = {
 {"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
 {"ppc",         "Parallel Port chipset",		0,		CLS_COMMS},
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
+{"uhci",        "UHCI USB host controller driver",	FLG_IMMUTABLE,	CLS_COMMS},
+{"ohci",        "OHCI USB host controller driver",	FLG_IMMUTABLE,	CLS_COMMS},
 
 {"atkbdc",      "Keyboard controller",			FLG_INVISIBLE,	CLS_INPUT},
 {"atkbd",       "Keyboard",				FLG_FIXED,	CLS_INPUT},
@@ -2507,7 +2509,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.130 1999/02/10 00:26:47 jkh Exp $
+ *      $Id: userconfig.c,v 1.131 1999/02/10 02:37:24 des Exp $
  */
 
 #include "scbus.h"
