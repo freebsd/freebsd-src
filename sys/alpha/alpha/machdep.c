@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.21 1998/11/11 00:02:25 msmith Exp $
+ *	$Id: machdep.c,v 1.22 1998/11/15 18:25:15 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1281,7 +1281,14 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	    sizeof(struct fpreg));
 	ksc.sc_fp_control = 0;					/* XXX ? */
 	bzero(ksc.sc_reserved, sizeof ksc.sc_reserved);		/* XXX */
-	bzero(ksc.sc_xxx, sizeof ksc.sc_xxx);			/* XXX */
+	ksc.sc_xxx1[0] = 0;					/* XXX */
+	ksc.sc_xxx1[1] = 0;					/* XXX */
+	ksc.sc_traparg_a0 = frame->tf_regs[FRAME_TRAPARG_A0];
+	ksc.sc_traparg_a1 = frame->tf_regs[FRAME_TRAPARG_A1];
+	ksc.sc_traparg_a2 = frame->tf_regs[FRAME_TRAPARG_A2];
+	ksc.sc_xxx2[0] = 0;					/* XXX */
+	ksc.sc_xxx2[1] = 0;					/* XXX */
+	ksc.sc_xxx2[2] = 0;					/* XXX */
 
 
 #ifdef COMPAT_OSF1

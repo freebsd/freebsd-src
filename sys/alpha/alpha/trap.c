@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.4 1998/07/05 12:24:17 dfr Exp $ */
+/* $Id: trap.c,v 1.5 1998/07/15 20:16:27 dfr Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -493,6 +493,9 @@ trap(a0, a1, a2, entry, framep)
 #ifdef DEBUG
 	printtrap(a0, a1, a2, entry, framep, 1, user);
 #endif
+	framep->tf_regs[FRAME_TRAPARG_A0] = a0;
+	framep->tf_regs[FRAME_TRAPARG_A1] = a1;
+	framep->tf_regs[FRAME_TRAPARG_A2] = a2;
 	trapsignal(p, i, ucode);
 out:
 	if (user) {
@@ -539,10 +542,14 @@ syscall(code, framep)
 	u_int64_t args[10];					/* XXX */
 	u_int hidden = 0, nargs;
 
+	framep->tf_regs[FRAME_TRAPARG_A0] = 0;
+	framep->tf_regs[FRAME_TRAPARG_A1] = 0;
+	framep->tf_regs[FRAME_TRAPARG_A2] = 0;
 #if notdef				/* can't happen, ever. */
 	if ((framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) == 0) {
 		panic("syscall");
 #endif
+
 	cnt.v_syscall++;
 	p = curproc;
 	p->p_md.md_tf = framep;
