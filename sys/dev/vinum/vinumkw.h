@@ -113,9 +113,9 @@ enum keyword {
     kw_detached,
 #ifdef VINUMDEBUG
     kw_debug,						    /* go into debugger */
+#endif
     kw_stripe,
     kw_mirror,
-#endif
     kw_info,
     kw_quit,
     kw_max,
