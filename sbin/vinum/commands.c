@@ -546,9 +546,9 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	for (i = 0; i < devs; i++) {
 	    struct devstat *stat = &statinfo.dinfo->devices[i];
 
-	    if ((((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
-		 || ((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_STORARRAY)) /* storage array */
-	    &&((stat->device_type & DEVSTAT_TYPE_IF_MASK) != DEVSTAT_TYPE_IF_OTHER) /* and not md */
+	    if (((((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
+	        &&((stat->device_type & DEVSTAT_TYPE_IF_MASK) != DEVSTAT_TYPE_IF_OTHER)) /* and not md */
+ 		||((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_STORARRAY)) /* storage array */
 	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
 	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
 		sprintf(enamelist, "%s%s%d", _PATH_DEV, stat->device_name, stat->unit_number);
