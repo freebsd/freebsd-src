@@ -520,12 +520,11 @@ METEOR_SYSTEM_DEFAULT	opt_meteor.h
 METEOR_DEALLOC_PAGES	opt_meteor.h
 METEOR_DEALLOC_ABOVE	opt_meteor.h
 
-# Various mi ISA bus flags
+# options for serial support
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 BREAK_TO_DEBUGGER	opt_comconsole.h
 ALT_BREAK_TO_DEBUGGER	opt_comconsole.h
-DEV_ISA			opt_isa.h
 
 # Include tweaks for running under the SimOS machine simulator.
 SIMOS			opt_simos.h
@@ -586,6 +585,7 @@ NDEVFSINO		opt_devfs.h
 NDEVFSOVERFLOW		opt_devfs.h
 
 # various 'device presence' options.
+DEV_ISA			opt_isa.h
 DEV_MCA			opt_mca.h
 DEV_BPF			opt_bpf.h
 
