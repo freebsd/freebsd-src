@@ -457,7 +457,7 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
       if (ifp->if_flags & IFF_RUNNING)
 	xe_stop(scp);
     }
-
+   /* XXX: intentional fall-through ? */
    case SIOCADDMULTI:
    case SIOCDELMULTI:
     /*
@@ -510,13 +510,11 @@ xe_intr(void *xscp)
 {
   struct xe_softc *scp = (struct xe_softc *) xscp;
   struct ifnet *ifp;
-  int result;
   u_int16_t rx_bytes, rxs, txs;
   u_int8_t psr, isr, esr, rsr;
 
   ifp = &scp->arpcom.ac_if;
   rx_bytes = 0;			/* Bytes received on this interrupt */
-  result = 0;			/* Set true if the interrupt is for us */
 
   if (scp->mohawk) {
     XE_OUTB(XE_CR, 0);		/* Disable interrupts */
@@ -530,7 +528,6 @@ xe_intr(void *xscp)
    */
   if ((isr = XE_INB(XE_ISR)) && isr != 0xff) {
 
-    result = 1;			/* This device did generate an int */
     esr = XE_INB(XE_ESR);	/* Read the other status registers */
     XE_SELECT_PAGE(0x40);
     rxs = XE_INB(XE_RST0);
@@ -1397,7 +1394,7 @@ xe_setaddrs(struct xe_softc *scp) {
 static int
 xe_pio_write_packet(struct xe_softc *scp, struct mbuf *mbp) {
   struct mbuf *mbp2;
-  u_int16_t len, pad, free, ok;
+  u_int16_t len, pad, free;
   u_int8_t *data;
   u_int8_t savebyte[2], wantbyte;
 
@@ -1415,7 +1412,6 @@ xe_pio_write_packet(struct xe_softc *scp, struct mbuf *mbp) {
   XE_SELECT_PAGE(0);
   XE_OUTW(XE_TRS, len+2);
   free = XE_INW(XE_TSO);
-  ok = free & 0x8000;
   free &= 0x7fff;
   if (free <= len + 2)
     return 1;
