@@ -532,7 +532,7 @@ static int tf2gdb[FRAME_SIZE] = {
 /*8*/	R_T7,	R_S0,	R_S1,	R_S2,	R_S3,	R_S4,	R_S5,	R_S6,
 /*16*/	R_A3,	R_A4,	R_A5,	R_T8,	R_T9,	R_T10,	R_T11,	R_RA,
 /*24*/	R_T12,	R_AT,	R_SP,	-1,	-1,	-1,	-1,	-1,
-/*32*/	R_GP,	R_A0,	R_A1,	R_A2,
+/*32*/	-1,	R_GP,	R_A0,	R_A1,	R_A2,
 };
 
 /*
