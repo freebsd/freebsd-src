@@ -225,8 +225,8 @@ db_nextframe(fp, ip, p)
 		if (strcmp(name, "calltrap") == 0 ||
 		    strcmp(name, "fork_trampoline") == 0)
 			frame_type = TRAP;
-		else if (strncmp(name, "Xintr", 5) == 0 ||
-		    strncmp(name, "Xfastintr", 9) == 0)
+		else if (strncmp(name, "Xatpic_intr", 11) == 0 ||
+		    strncmp(name, "Xapic_isr", 9) == 0)
 			frame_type = INTERRUPT;
 		else if (strcmp(name, "Xlcall_syscall") == 0 ||
 		    strcmp(name, "Xint0x80_syscall") == 0)
