@@ -293,7 +293,7 @@ distSetDeveloper(dialogMenuItem *self)
     CRYPTODists = DIST_CRYPTO_ALL;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
-    return i;
+    return i | DITEM_REDRAW;
 }
 
 int
