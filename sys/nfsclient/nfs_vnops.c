@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.48 1997/05/09 13:18:42 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.49 1997/05/17 18:32:52 phk Exp $
  */
 
 
@@ -184,6 +184,7 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_truncate_desc, (vop_t *)nfs_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)nfs_update },	/* update */
 	{ &vop_bwrite_desc, (vop_t *)nfs_bwrite },	/* bwrite */
+	{ &vop_getpages_desc, (vop_t *)nfs_getpages },	/* getpages */
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc nfsv2_vnodeop_opv_desc =
@@ -1035,7 +1036,7 @@ nfs_read(ap)
 
 	if (vp->v_type != VREG)
 		return (EPERM);
-	return (nfs_bioread(vp, ap->a_uio, ap->a_ioflag, ap->a_cred));
+	return (nfs_bioread(vp, ap->a_uio, ap->a_ioflag, ap->a_cred, 0));
 }
 
 /*
@@ -1053,7 +1054,7 @@ nfs_readlink(ap)
 
 	if (vp->v_type != VLNK)
 		return (EPERM);
-	return (nfs_bioread(vp, ap->a_uio, 0, ap->a_cred));
+	return (nfs_bioread(vp, ap->a_uio, 0, ap->a_cred, 0));
 }
 
 /*
@@ -2055,7 +2056,7 @@ nfs_readdir(ap)
 	 * Call nfs_bioread() to do the real work.
 	 */
 	tresid = uio->uio_resid;
-	error = nfs_bioread(vp, uio, 0, ap->a_cred);
+	error = nfs_bioread(vp, uio, 0, ap->a_cred, 0);
 
 	if (!error && uio->uio_resid == tresid)
 		nfsstats.direofcache_misses++;

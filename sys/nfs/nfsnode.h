@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.9 (Berkeley) 5/14/95
- * $Id: nfsnode.h,v 1.19 1997/02/22 09:42:49 peter Exp $
+ * $Id: nfsnode.h,v 1.20 1997/04/04 17:49:35 dfr Exp $
  */
 
 
@@ -161,6 +161,7 @@ extern	vop_t	**spec_nfsv2nodeop_p;
 /*
  * Prototypes for NFS vnode operations
  */
+int	nfs_getpages __P((struct vop_getpages_args *));
 int	nfs_write __P((struct vop_write_args *));
 #define	nfs_lease_check ((int (*) __P((struct  vop_lease_args *)))nullop)
 int	nqnfs_vop_lease_check __P((struct vop_lease_args *));
