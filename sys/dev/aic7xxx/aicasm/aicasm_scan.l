@@ -57,6 +57,8 @@ int  parren_count;
 int  quote_count;
 %}
 
+%option nounput
+
 PATH		[-/A-Za-z0-9_.]*[./][-/A-Za-z0-9_.]*
 WORD		[A-Za-z_][-A-Za-z_0-9]*
 SPACE		[ \t]+
