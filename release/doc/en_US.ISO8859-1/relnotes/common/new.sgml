@@ -1335,9 +1335,11 @@
     &man.semop.2; system call has been closed. &merged;</para>
 
     <para>A security hole in <application>OpenSSH</application>,
-    involving the <literal>UseLogin yes</literal> setting, has been
-    closed (note that the default for this setting is
-    <literal>UseLogin no</literal>). &merged;</para>
+    which could allow users to execute code with arbitrary privileges
+    if <literal>UseLogin yes</literal> was set, has been
+    closed.  Note that the default value of this setting is
+    <literal>UseLogin no</literal>.  (See security advisory
+    FreeBSD-SA-01:63.) &merged;</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
