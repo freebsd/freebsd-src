@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.29 1994/11/12 14:19:11 ache Exp $
+ *	$Id: mcd.c,v 1.30 1994/11/12 18:18:20 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -102,6 +102,12 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #define MCD_MAXTOCS	104	/* from the Linux driver */
 #define MCD_LASTPLUS1	170	/* special toc entry */
 
+#define	MCD_TYPE_UNKNOWN	0
+#define	MCD_TYPE_LU002S		1
+#define	MCD_TYPE_LU005S		2
+#define	MCD_TYPE_FX001		3
+#define	MCD_TYPE_FX001D		4
+
 struct mcd_mbx {
 	short		unit;
 	short		port;
@@ -116,6 +122,8 @@ struct mcd_mbx {
 };
 
 struct mcd_data {
+	short	type;
+	char	*name;
 	short	config;
 	short	flags;
 	short	status;
@@ -204,7 +212,7 @@ static struct kern_devconf kdc_mcd[NMCD] = { {
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
 	DC_IDLE,		/* status */
-	"Mitsumi CD-ROM controller"
+	"Mitsumi CD-ROM controller"     /* properly filled later */
 } };
 
 static inline void
@@ -232,6 +240,8 @@ int mcd_attach(struct isa_device *dev)
 	mcd_configure(cd);
 #endif
 	mcd_registerdev(dev);
+	/* name filled in probe */
+	kdc_mcd[dev->id_unit].kdc_description = mcd_data[dev->id_unit].name;
 
 	return 1;
 }
@@ -543,8 +553,13 @@ static int mcd_getdisklabel(int unit)
 		return -1;
 	
 	bzero(&cd->dlabel,sizeof(struct disklabel));
-	strncpy(cd->dlabel.d_typename,"Mitsumi CD ROM ",16);
-	strncpy(cd->dlabel.d_packname,"unknown        ",16);
+	/* filled with spaces first */
+	strncpy(cd->dlabel.d_typename,"               ",
+		sizeof(cd->dlabel.d_typename));
+	strncpy(cd->dlabel.d_typename, cd->name,
+		min(strlen(cd->name), sizeof(cd->dlabel.d_typename) - 1));
+	strncpy(cd->dlabel.d_packname,"unknown        ",
+		sizeof(cd->dlabel.d_packname));
 	cd->dlabel.d_secsize 	= cd->blksize;
 	cd->dlabel.d_nsectors	= 100;
 	cd->dlabel.d_ntracks	= 1;
@@ -629,6 +644,7 @@ mcd_probe(struct isa_device *dev)
 	int i, j;
 	int status;
 	unsigned char stbytes[3];
+	char *s;
 
 	mcd_data[unit].flags = MCDPROBING;
 
@@ -671,6 +687,30 @@ mcd_probe(struct isa_device *dev)
 		mcd_data[unit].flags |= MCDNEWMODEL;
 		printf("mcd%d: Adjusted for newer drive model\n", unit);
 	}
+	switch (stbytes[1]) {
+	case 'M':
+		if (mcd_data[unit].flags & MCDNEWMODEL)	{
+			mcd_data[unit].type = MCD_TYPE_LU005S;
+			mcd_data[unit].name = "Mitsumi LU005S";
+		} else {
+			mcd_data[unit].type = MCD_TYPE_LU002S;
+			mcd_data[unit].name = "Mitsumi LU002S";
+		}
+		break;
+	case 'F':
+		mcd_data[unit].type = MCD_TYPE_FX001;
+		mcd_data[unit].name = "Mitsumi FX001";
+		break;
+	case 'D':
+		mcd_data[unit].type = MCD_TYPE_FX001D;
+		mcd_data[unit].name = "Mitsumi FX001D";
+		break;
+	default:
+		mcd_data[unit].type = MCD_TYPE_UNKNOWN;
+		mcd_data[unit].name = "Mitsumi ???";
+		break;
+	}
+	printf("mcd%d: type %s\n", unit, mcd_data[unit].name);
 	return 4;
 }
 
