@@ -42,11 +42,11 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.16 1994/08/23 16:27:15 davidg Exp $
+ * 	$Id: pmap.h,v 1.17 1994/10/08 22:21:34 phk Exp $
  */
 
-#ifndef	_PMAP_MACHINE_
-#define	_PMAP_MACHINE_	1
+#ifndef _MACHINE_PMAP_H_
+#define	_MACHINE_PMAP_H_
 
 #include <machine/pte.h>
 
@@ -119,9 +119,8 @@ extern int	IdlePTD;	/* physical address of "Idle" state directory */
  *		Extract the physical page address associated
  *		kernel virtual address.
  */
-static inline vm_offset_t
-pmap_kextract(va)
-	vm_offset_t va;
+static __inline vm_offset_t
+pmap_kextract(vm_offset_t va)
 {
 	vm_offset_t pa = *(int *)vtopte(va);
 	pa = (pa & PG_FRAME) | (va & ~PG_FRAME);
@@ -194,12 +193,14 @@ pv_entry_t	pv_table;		/* array of entries, one per page */
 
 #define	pmap_resident_count(pmap)	((pmap)->pm_stats.resident_count)
 
-extern inline pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
-struct pcb; extern void pmap_activate(pmap_t, struct pcb *);
-extern pmap_t pmap_kernel(void);
+struct pcb;
 
-boolean_t	pmap_page_exists __P((pmap_t, vm_offset_t));
-vm_page_t	pmap_pte_vm_page __P((pmap_t, vm_offset_t));
+void	pmap_activate __P((pmap_t, struct pcb *));
+pmap_t	pmap_kernel __P((void));
+boolean_t pmap_page_exists __P((pmap_t, vm_offset_t));
+pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
+vm_page_t pmap_pte_vm_page __P((pmap_t, vm_offset_t));
+
 #endif /* KERNEL */
 
-#endif /* _PMAP_MACHINE_ */
+#endif /* !_MACHINE_PMAP_H_ */
