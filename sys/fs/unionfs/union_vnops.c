@@ -1620,11 +1620,19 @@ union_getwritemount(ap)
 		struct mount **a_mpp;
 	} */ *ap;
 {
-	struct vnode *vp = UPPERVP(ap->a_vp);
+	struct vnode *vp = ap->a_vp;
+	struct vnode *uvp = UPPERVP(vp);
 
-	if (vp == NULL)
-		panic("union: missing upper layer in getwritemount");
-	return(VOP_GETWRITEMOUNT(vp, ap->a_mpp));
+	if (uvp == NULL) {
+		VI_LOCK(vp);
+		if (vp->v_flag & VFREE) {
+			VI_UNLOCK(vp);
+			return (EOPNOTSUPP);
+		}
+		VI_UNLOCK(vp);
+		panic("union_getwritemount: missing upper layer");
+	}
+	return(VOP_GETWRITEMOUNT(uvp, ap->a_mpp));
 }
 
 /*
