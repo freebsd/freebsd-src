@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
+#	$Id$
 
 MAN8=	adding_user.8 intro.8 rc.8 sticky.8
 
