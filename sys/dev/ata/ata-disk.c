@@ -322,6 +322,7 @@ addump(dev_t dev)
     adp->flags &= ~AD_F_DMA_ENABLED;
 
     while (count > 0) {
+	DELAY(1000);
 	if (is_physical_memory(addr))
 	    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
 		       trunc_page(addr), VM_PROT_READ, TRUE);
@@ -416,7 +417,11 @@ ad_transfer(struct ad_request *request)
     if (request->donecount == 0) {
 
 	/* start timeout for this transfer */
-	request->timeout_handle = timeout((timeout_t*)ad_timeout, request, 3*hz);
+	if (panicstr)
+	    request->timeout_handle.callout = NULL;
+	else
+	    request->timeout_handle = 
+		timeout((timeout_t*)ad_timeout, request, 3*hz);
 
 	/* setup transfer parameters */
 	count = howmany(request->bytecount, DEV_BSIZE);
@@ -614,6 +619,7 @@ ad_timeout(struct ad_request *request)
 {
     struct ad_softc *adp = request->device;
 
+    adp->controller->running = NULL;
     printf("ata%d-%s: ad_timeout: lost disk contact - resetting\n",
 	   adp->controller->lun, 
 	   (adp->unit == ATA_MASTER) ? "master" : "slave");

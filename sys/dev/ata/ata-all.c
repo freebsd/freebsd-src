@@ -243,6 +243,7 @@ ata_pciattach(device_t dev)
     u_int32_t cmd;
     int32_t iobase_1, iobase_2, altiobase_1, altiobase_2; 
     int32_t bmaddr_1 = 0, bmaddr_2 = 0, irq1, irq2;
+    struct resource *irq = NULL;
     int32_t lun;
 
     /* set up vendor-specific stuff */
@@ -324,7 +325,6 @@ ata_pciattach(device_t dev)
 	    alpha_platform_setup_ide_intr(0, ataintr, scp);
 #endif
 	else {
-	    struct resource *irq;
 	    int rid = 0;
 	    void *ih;
 
@@ -348,13 +348,14 @@ ata_pciattach(device_t dev)
 	    alpha_platform_setup_ide_intr(1, ataintr, scp);
 #endif
 	else {
-	    struct resource *irq;
 	    int rid = 0;
 	    void *ih;
 
-	    if (!(irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					 RF_SHAREABLE | RF_ACTIVE)))
-		printf("ata_pciattach: Unable to alloc interrupt\n");
+	    if (irq1 != irq2 || irq == NULL) {
+	  	if (!(irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+					       RF_SHAREABLE | RF_ACTIVE)))
+		    printf("ata_pciattach: Unable to alloc interrupt\n");
+	    }
 	    bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
@@ -514,32 +515,36 @@ ataintr(void *data)
     if (scp->flags & ATA_DMA_ACTIVE)
 	if (!(ata_dmastatus(scp) & ATA_BMSTAT_INTERRUPT))
 	    return;
-    if ((scp->status = inb(scp->ioaddr + ATA_STATUS)) == ATA_S_BUSY) /*XXX SOS*/
+    if ((scp->status = inb(scp->ioaddr + ATA_STATUS)) == ATA_S_BUSY)
 	return;
 
     /* find & call the responsible driver to process this interrupt */
     switch (scp->active) {
 #if NATADISK > 0
     case ATA_ACTIVE_ATA:
-	if (scp->running && (ad_interrupt(scp->running) == ATA_OP_CONTINUES))
-		return;
+	if (!scp->running)
+	    return;
+	if (ad_interrupt(scp->running) == ATA_OP_CONTINUES)
+	    return;
 	break;
 #endif
 #if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
     case ATA_ACTIVE_ATAPI:
-	if (scp->running && (atapi_interrupt(scp->running) == ATA_OP_CONTINUES))
-		return;
+	if (!scp->running) 
+	    return;
+	if (atapi_interrupt(scp->running) == ATA_OP_CONTINUES)
+	    return;
 	break;
 #endif
     case ATA_WAIT_INTR:
 	wakeup((caddr_t)scp);
 	break;
 
+    case ATA_WAIT_READY:
+	break;
+
     case ATA_REINITING:
 	return;
-
-    case ATA_IGNORE_INTR:
-	break;
 
     default:
     case ATA_IDLE:
@@ -780,7 +785,7 @@ ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
     switch (flags) {
     case ATA_WAIT_INTR:
 	if (scp->active != ATA_IDLE)
-	    printf("DANGER wait_intr active=%s\n", active2str(scp->active));
+	    printf("WARNING: WAIT_INTR active=%s\n", active2str(scp->active));
 	scp->active = ATA_WAIT_INTR;
 	outb(scp->ioaddr + ATA_CMD, command);
 	if (tsleep((caddr_t)scp, PRIBIO, "atacmd", 500)) {
@@ -790,12 +795,17 @@ ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
 	}
 	break;
     
-    case ATA_IGNORE_INTR:
+    case ATA_WAIT_READY:
 	if (scp->active != ATA_IDLE && scp->active != ATA_REINITING)
-	    printf("DANGER ignore_intr active=%s\n", active2str(scp->active));
-	if (scp->active != ATA_REINITING)
-	    scp->active = ATA_IGNORE_INTR;
+	    printf("WARNING: WAIT_READY active=%s\n", active2str(scp->active));
+	scp->active = ATA_WAIT_READY;
 	outb(scp->ioaddr + ATA_CMD, command);
+	if (ata_wait(scp, device, ATA_S_READY) < 0) { 
+	    printf("ata%d-%s: timeout waiting for command=%02x s=%02x e=%02x\n",
+		   scp->lun, device ? "slave" : "master", command, 
+		   scp->status, scp->error);
+	    return -1;
+	}
 	break;
 
     case ATA_IMMEDIATE:
@@ -803,7 +813,7 @@ ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
 	break;
 
     default:
-	printf("DANGER illegal interrupt flag=%s\n", active2str(flags));
+	printf("DANGER: illegal interrupt flag=%s\n", active2str(flags));
     }
 #ifdef ATA_DEBUG
     printf("ata_command: leaving\n");
@@ -838,8 +848,6 @@ active2str(int32_t active)
 	return("ATA_IDLE");
     case ATA_WAIT_INTR:
 	return("ATA_WAIT_INTR");
-    case ATA_IGNORE_INTR:
-	return("ATA_IGNORE_INTR");
     case ATA_ACTIVE_ATA:
 	return("ATA_ACTIVE_ATA");
     case ATA_ACTIVE_ATAPI:
