@@ -915,7 +915,7 @@ static void dc_miibus_statchg(dev)
 	mii = device_get_softc(sc->dc_miibus);
 	ifm = &mii->mii_media;
 	if (DC_IS_DAVICOM(sc) &&
-	    IFM_SUBTYPE(ifm->ifm_media) == IFM_homePNA) {
+	    IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1) {
 		dc_setcfg(sc, ifm->ifm_media);
 		sc->dc_if_media = ifm->ifm_media;
 	} else {
@@ -949,7 +949,7 @@ static void dc_miibus_mediainit(dev)
 	ifm = &mii->mii_media;
 
 	if (DC_IS_DAVICOM(sc) && rev >= DC_REVISION_DM9102A)
-		ifmedia_add(ifm, IFM_ETHER|IFM_homePNA, 0, NULL);
+		ifmedia_add(ifm, IFM_ETHER|IFM_HPNA_1, 0, NULL);
 
 	return;
 }
@@ -1445,7 +1445,7 @@ static void dc_setcfg(sc, media)
 	 * on the external MII port.
 	 */
 	if (DC_IS_DAVICOM(sc)) {
-		if (IFM_SUBTYPE(media) == IFM_homePNA) {
+		if (IFM_SUBTYPE(media) == IFM_HPNA_1) {
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			sc->dc_link = 1;
 		} else {
@@ -3296,7 +3296,7 @@ static void dc_init(xsc)
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	/* Don't start the ticker if this is a homePNA link. */
-	if (IFM_SUBTYPE(mii->mii_media.ifm_media) == IFM_homePNA)
+	if (IFM_SUBTYPE(mii->mii_media.ifm_media) == IFM_HPNA_1)
 		sc->dc_link = 1;
 	else {
 		if (sc->dc_flags & DC_21143_NWAY)
@@ -3334,7 +3334,7 @@ static int dc_ifmedia_upd(ifp)
 	ifm = &mii->mii_media;
 
 	if (DC_IS_DAVICOM(sc) &&
-	    IFM_SUBTYPE(ifm->ifm_media) == IFM_homePNA)
+	    IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1)
 		dc_setcfg(sc, ifm->ifm_media);
 	else
 		sc->dc_link = 0;
@@ -3358,7 +3358,7 @@ static void dc_ifmedia_sts(ifp, ifmr)
 	mii_pollstat(mii);
 	ifm = &mii->mii_media;
 	if (DC_IS_DAVICOM(sc)) {
-		if (IFM_SUBTYPE(ifm->ifm_media) == IFM_homePNA) {
+		if (IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1) {
 			ifmr->ifm_active = ifm->ifm_media;
 			ifmr->ifm_status = 0;
 			return;

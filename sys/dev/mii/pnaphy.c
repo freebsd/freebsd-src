@@ -144,7 +144,7 @@ pnaphy_attach(dev)
 	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0)
 		printf("no media present");
 	else {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_homePNA, 0, sc->mii_inst), 0);
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_HPNA_1, 0, sc->mii_inst), 0);
 		PRINT("HomePNA");
 	}
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
@@ -240,7 +240,7 @@ pnaphy_service(sc, mii, cmd)
 	/* Update the media status. */
 	ukphy_status(sc);
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T)
-		mii->mii_media_active = IFM_ETHER|IFM_homePNA;
+		mii->mii_media_active = IFM_ETHER|IFM_HPNA_1;
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
