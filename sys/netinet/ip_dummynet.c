@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.5 1999/01/12 12:27:54 eivind Exp $
+ *	$Id: ip_dummynet.c,v 1.6 1999/01/12 16:40:57 eivind Exp $
  */
 
 /*
@@ -181,7 +181,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	if ( ( pkt == NULL && pipe->r_len != 0) ||
 	     ( pkt != NULL && pipe->r_len == 0) )
 	    printf("-- Warning, pipe head %p len %d\n",
-		    pkt, pipe->r_len);
+		    (void *)pkt, pipe->r_len);
     }
  
     /*
@@ -430,7 +430,7 @@ dn_rule_delete(void *r)
 	    }
     }
     printf("dn_rule_delete, r %p, default %p%s, %d matches\n",
-	    r, ip_fw_default_rule,
+	    (void *)r, (void *)ip_fw_default_rule,
 	    r == ip_fw_default_rule ? "  AARGH!":"",  matches);
 }
 
