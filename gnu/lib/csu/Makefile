@@ -1,9 +1,18 @@
 # $FreeBSD$
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc.295
-.PATH: ${GCCDIR}
 
+TARGET_ARCH?=	${MACHINE_ARCH}
+
+.if ${TARGET_ARCH} == "alpha"
+.PATH: ${GCCDIR}/config/alpha
+SRCS=		crtbegin.s crtend.s
+UGLYHACK=	-x assembler
+.else
+.PATH: ${GCCDIR}
 SRCS=		crtstuff.c tm.h
+.endif
+
 OBJS=		crtbegin.o crtend.o
 SOBJS=		crtbegin.So crtend.So
 CFLAGS+=	-I${GCCDIR}/config -I. -DIN_GCC \
@@ -19,21 +28,33 @@ CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
 
 all: ${OBJS} ${SOBJS}
 
-crtbegin.o:	crtstuff.c tm.h
+.if ${TARGET_ARCH} == "alpha"
+crtbegin.o crtbegin.So:	crtbegin.s
+crtend.o crtend.So:	crtend.s
+.for PART in begin end
+CLEANFILES+=	crt${PART}.s
+crt${PART}.s:  crt${PART}.asm
+	ln -sf ${.ALLSRC} ${.TARGET}
+.endfor
+.else
+crtbegin.o crtbegin.So crtend.o crtend.So:	crtstuff.c tm.h
+.endif
+
+crtbegin.o:
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN \
-		-c -o ${.TARGET} ${GCCDIR}/crtstuff.c
+		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
 
-crtbegin.So:	crtstuff.c tm.h
+crtbegin.So:
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${GCCDIR}/crtstuff.c
+		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
 
-crtend.o:	crtstuff.c tm.h
+crtend.o:
 	${CC} ${CFLAGS} -g0 -DCRT_END \
-		-c -o ${.TARGET} ${GCCDIR}/crtstuff.c
+		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
 
-crtend.So:	crtstuff.c tm.h
+crtend.So:
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${GCCDIR}/crtstuff.c
+		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
 
 #	KEEP THIS IN SYNC with src/gnu/usr.bin/cc/cc_tools/Makefile !!
 tm.h:
