@@ -335,7 +335,13 @@ struct pthread_attr {
  * Miscellaneous definitions.
  */
 #define PTHREAD_STACK_DEFAULT			65536
-/* Size of red zone at the end of each stack. */
+/*
+ * Size of red zone at the end of each stack.  In actuality, this "red zone" is
+ * merely an unmapped region, except in the case of the initial stack.  Since
+ * mmap() makes it possible to specify the maximum growth of a MAP_STACK region,
+ * an unmapped gap between thread stacks achieves the same effect as explicitly
+ * mapped red zones.
+ */
 #define PTHREAD_STACK_GUARD			PAGE_SIZE
 
 /*
@@ -904,10 +910,17 @@ SCLASS pthread_switch_routine_t _sched_switch_hook
  */
 SCLASS SLIST_HEAD(, stack)	_stackq;
 
-/* Base address of next unallocated default-size stack.  Stacks are allocated
- * contiguously, starting below the beginning of the main stack.  When a new
- * stack is created, a guard page is created just above it in order to (usually)
- * detect attempts by the adjacent stack to trounce the next thread stack. */
+/*
+ * Base address of next unallocated default-size {stack, red zone}.  Stacks are
+ * allocated contiguously, starting below the bottom of the main stack.  When a
+ * new stack is created, a red zone is created (actually, the red zone is simply
+ * left unmapped) below the bottom of the stack, such that the stack will not be
+ * able to grow all the way to the top of the next stack.  This isn't
+ * fool-proof.  It is possible for a stack to grow by a large amount, such that
+ * it grows into the next stack, and as long as the memory within the red zone
+ * is never accessed, nothing will prevent one thread stack from trouncing all
+ * over the next.
+ */
 SCLASS void *	_next_stack
 #ifdef GLOBAL_PTHREAD_PRIVATE
 /* main stack top   - main stack size       - stack size            - (red zone + main stack red zone) */
