@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.33 1998/05/01 14:44:00 bde Exp $
+#	$Id: Makefile,v 1.34 1998/05/04 17:56:22 bde Exp $
 
 PROG = gdb
 
@@ -11,7 +11,7 @@ BFDDIR= ${.CURDIR}/../bfd
 .PATH:	${GDBDIR}/gdb
 .PATH:	${GDBDIR}/opcodes
 
-.if ${BINFORMAT} == elf
+.if ${OBJFORMAT} == elf
 CFLAGS+=	-DFREEBSD_ELF
 .endif
 
