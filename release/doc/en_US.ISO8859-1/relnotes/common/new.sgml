@@ -222,6 +222,12 @@
     <para>A &man.nmdm.4; null-modem terminal driver has been added.
     &merged;</para>
 
+    <para>The <varname>maxusers</varname> kernel configuration
+    parameter is now a boot-time tunable variable.  The kernel
+    parameters derived from <varname>maxusers</varname> are now also
+    tunables and can be overridden at boot-time.  The
+    <varname>hz</varname> parameter is also now a tunable. &merged;</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -1548,7 +1554,8 @@
     Collection. &merged;</para>
 
     <para>&man.vidcontrol.1; now supports a <option>-C</option> option
-    to clear the history buffer for a given tty. &merged;</para>
+    to clear the history buffer for a given tty, as well as a
+    <option>-h</option> to set the size of the history buffer. &merged;</para>
 
     <para>devinfo, a simple tool to print the device tree and resource usage by
     devices, has been added.</para>
@@ -1692,6 +1699,10 @@
 
     <para>&man.route.8; can now create <quote>proxy only</quote>
     published ARP entries.</para>
+
+    <para>&man.tmpnam.3; will now use the <envar>TMPDIR</envar>
+    environment variable, if set, to specify the location of temporary
+    files. &merged;</para>
 
     <sect3>
       <title>Contributed Software</title>
