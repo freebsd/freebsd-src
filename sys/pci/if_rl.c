@@ -1504,20 +1504,10 @@ rl_encap(sc, m_head)
 	 * TX buffers, plus we can only have one fragment buffer
 	 * per packet. We have to copy pretty much all the time.
 	 */
+	m_new = m_defrag(m_head, M_DONTWAIT);
 
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL)
 		return(1);
-	if (m_head->m_pkthdr.len > MHLEN) {
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			m_freem(m_new);
-			return(1);
-		}
-	}
-	m_copydata(m_head, 0, m_head->m_pkthdr.len, mtod(m_new, caddr_t));
-	m_new->m_pkthdr.len = m_new->m_len = m_head->m_pkthdr.len;
-	m_freem(m_head);
 	m_head = m_new;
 
 	/* Pad frames to at least 60 bytes. */
