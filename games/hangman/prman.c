@@ -46,6 +46,7 @@ static const char rcsid[] =
  *	Print out the man appropriately for the give number
  *	of incorrect guesses.
  */
+void
 prman()
 {
 	int	i;

@@ -50,9 +50,9 @@ static const char rcsid[] =
 /*
  * This game written by Ken Arnold.
  */
+int
 main()
 {
-	void die();
 
 	/* revoke */
 	setgid(getgid());
@@ -66,6 +66,7 @@ main()
 		Average = (Average * (Wordnum - 1) + Errors) / Wordnum;
 	}
 	/* NOTREACHED */
+	exit(EXIT_FAILURE);
 }
 
 /*
@@ -73,7 +74,8 @@ main()
  *	Die properly.
  */
 void
-die()
+die(sig)
+int sig;
 {
 	mvcur(0, COLS - 1, LINES - 1, 0);
 	endwin();

@@ -46,6 +46,7 @@ static const char rcsid[] =
  * setup:
  *	Set up the strings on the screen.
  */
+void
 setup()
 {
 	char		**sp;
