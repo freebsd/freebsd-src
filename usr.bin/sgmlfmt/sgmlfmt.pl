@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id$
+# $Id: sgmlfmt.pl,v 1.17.2.2 1997/02/07 02:47:27 jfieber Exp $
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.
@@ -67,8 +67,10 @@ $SIG{'QUIT'} = 'sighandler';
 
 sub usage {
     print "Usage:\n";
-    print "sgmlfmt -f <format> [-i <namea> ...] [-links] [-ssi] file\n";
-    print "where <format> is one of: ascii, html, koi8-r, latex, latin1, ps, roff\n";
+    print "sgmlfmt [-d <doctype>] -f <format> [-i <namea> ...] [-links]\n";
+    print "    [-e encoding] [-hdr file] [-ftr file] file\n";
+    print "where <doctype> is one of: linuxdoc (default), docbook.\n";
+    print "and <format> is one of: ascii, html, koi8-r, latin1, ps, roff\n";
 }
 
 #
@@ -156,22 +158,6 @@ sub do_groff {
     }
     unlink("${fileroot}.trf");
 }
-
-#
-# Generate LaTeX output
-#
-
-sub gen_latex {
-    @cleanfiles = (@cleanfiles, "${fileroot}.latex");
-    open(outfile, ">$fileroot.latex");
-    &sgmlparse(infile, "latex");
-    while (<infile>) {
-	print outfile;
-    }
-    close(infile);
-    close(outfile);
-}
-
 
 #
 # Generate HTML output.
@@ -352,25 +338,18 @@ sub html2html {
 	      $st_parent[0] = -1;
 	      $t = $st_header[0];
 	      $t =~ s|<[a-zA-Z/][^>]*>||g;
-	      print tocfile "<HEAD>\n<TITLE>$t</TITLE>\n</HEAD>\n";
+	      print tocfile "<HEAD>\n<TITLE>$t</TITLE>\n" .
+	      	  $html_encoding . "</HEAD>\n";
 	      print tocfile "<H1>$st_header[0]</H1>\n";
 
 	      $header[$st_ol[$sc]] = 
 		  "$doctype\n<HTML>\n<HEAD>\n<TITLE>$t</TITLE>\n" . 
-		      "</HEAD>\n$BODY\n";
+		      $html_encoding . "</HEAD>\n$BODY\n";
     	      $header[$st_ol[$sc]] .= $html_header;
-	      if ($opt_ssi) {	# Server Side Include hook
-		  $header[$st_ol[$sc]] .=
-		      "<!--#include virtual=\"./$fileroot.hdr\" -->";
-	      }
 	      $header[$st_ol[$sc]] .= "\n<H1>$st_header[0]</H1>\n"; 
 
 	      $footer[$st_ol[$sc]] = "\n";
     	      $footer[$st_ol[$sc]] .= $html_footer;
-	      if ($opt_ssi) {	# Server Side Include hook
-		  $footer[$st_ol[$sc]] .= 
-		      "<!--#include virtual=\"./$fileroot.ftr\" -->";
-	      }
 	      $footer[$st_ol[$sc]] .= "\n</BODY>\n</HTML>\n";
 	      last tagsw;
 	  }
@@ -393,19 +372,12 @@ sub html2html {
     	    	  $t = $_;
 	          $t =~ s|<[a-zA-Z/][^>]*>||g;
 		  $header[$st_ol[$sc]] = 
-		      "$doctype\n<HTML>\n<HEAD>\n<TITLE>$t</TITLE>\n</HEAD>\n$BODY\n";
+		      "$doctype\n<HTML>\n<HEAD>\n<TITLE>$t</TITLE>\n" .
+		      $html_encoding . "</HEAD>\n$BODY\n";
 		  $header[$st_ol[$sc]] .= $html_header;
-		  if ($opt_ssi) { # Server Side Include hook
-		      $header[$st_ol[$sc]] .=
-			  "<!--#include virtual=\"./$fileroot.hdr$st_ol[$sc]\" -->";
-		  }
 		  $header[$st_ol[$sc]] .= "\n$navbar[$st_ol[$sc]]\n<HR NOSHADE>\n";
 		  $footer[$st_ol[$sc]] = "<HR NOSHADE>\n$navbar[$st_ol[$sc]]\n";
 		  $footer[$st_ol[$sc]] .= $html_footer;
-		  if ($opt_ssi) { # Server Side Include hook
-		      $footer[$st_ol[$sc]] .=
-			  "<!--#include virtual=\"./$fileroot.ftr$st_ol[$sc]\" -->";
-		  }
                   $footer[$st_ol[$sc]] .= "\n</BODY>\n</HTML>\n";
 	      }
 
@@ -635,7 +607,6 @@ sub navbar {
 #
 
 sub docbook_html {
-    $decl = "/usr/share/sgml/docbook/docbook.dcl";
     @cleanfiles = (@cleanfiles, "${fileroot}.html");
     open (outfile, ">$fileroot.html");
     &sgmlparse(infile, "html");
@@ -676,7 +647,7 @@ sub extlink {
 
 sub main {
     # Check arguments
-    if (!&NGetOpt('d=s', 'f=s', 'links', 'ssi', 'i:s@', 'hdr=s', 'ftr=s')) {
+    if (!&NGetOpt('d=s', 'f=s', 'links', 'i:s@', 'hdr=s', 'ftr=s', 'e=s')) {
 	&usage;
 	exit 1;
     }
@@ -691,63 +662,61 @@ sub main {
 	exit 1;
     }
 
-    # Generate output
-    if ($opt_d eq 'docbook') {
+    # Figure out which DTD we are using
+    if ($opt_d eq "docbook") {
     	$dtd = "docbook";
     	$decl = "/usr/share/sgml/docbook/docbook.dcl";
-    	if ($opt_f eq 'html') {
-    	    if ($opt_hdr) {$instantopts .= " -D \"inchdr=${opt_hdr}\"";}
-    	    if ($opt_ftr) {$instantopts .= " -D \"incftr=${opt_ftr}\"";}
-    	    &docbook_html();
-    	}
-	else {
-	    if ($opt_f eq "") {
-		print "An output format must be specified with the -f
-		option.\n";
-	    }
-	    else {
-		print "\"$opt_f\" is an unknown output format.\n";
-	    }
-	    &usage;
-	    exit 1;
-	}
     }
     else {
     	$dtd = "linuxdoc";
     	$decl = "/usr/share/sgml/FreeBSD/linuxdoc.dcl";
-	if ($opt_f eq 'html') {
+    }
+
+    # Generate the output
+    if ($opt_f eq 'html') {
+    	# Set the character encoding
+    	if (! $opt_e) {
+    	    $opt_e = "iso-8859-1";
+    	}
+    	$html_encoding = "<META HTTP-EQUIV=\"Content-Type\" " .
+    	    "CONTENT=\"text/html; charset=" . $opt_e . "\">\n";
+
+    	if ($dtd eq "docbook") {
+    	    if ($opt_hdr) {$instantopts .= " -D \"inchdr=${opt_hdr}\"";}
+    	    if ($opt_ftr) {$instantopts .= " -D \"incftr=${opt_ftr}\"";}
+    	    &docbook_html();
+    	}
+    	else {
     	    if ($opt_hdr) {$html_header = &gethf($opt_hdr);}
     	    if ($opt_ftr) {$html_footer = &gethf($opt_ftr);}
-    	    &gen_html(); 
-	}
-	elsif ($opt_f eq 'latex' || $opt_f eq 'latex') {
-	    &gen_latex(); 
-	}
-	elsif ($opt_f eq 'roff') { 
-	    &gen_roff();
-	}
-	elsif ($opt_f eq 'ascii') {
-    	    &do_groff("ascii", "| col");
-	}
-	elsif ($opt_f eq 'latin1') {
-    	    &do_groff("latin1", "| col");
-	}
-	elsif ($opt_f eq 'koi8-r') {
-    	    &do_groff("koi8-r", "| col");
-	}
-	elsif ($opt_f eq 'ps') {
-    	    &do_groff("ps", "");
+    	    &gen_html();
+    	}
+    }
+    elsif ($opt_f eq 'roff') { 
+	&gen_roff();
+    }
+    elsif ($opt_f eq 'ascii') {
+    	&do_groff("ascii", "| col");
+    }
+    elsif ($opt_f eq 'latin1') {
+    	&do_groff("latin1", "| col");
+    }
+    elsif ($opt_f eq 'koi8-r') {
+    	&do_groff("koi8-r", "| col");
+    }
+    elsif ($opt_f eq 'ps') {
+    	&do_groff("ps", "");
+    }
+    else {
+	if ($opt_f eq "") {
+	    print "An output format must be specified with the -f
+	    option.\n";
 	}
 	else {
-	    if ($opt_f eq "") {
-		print "An output format must be specified with the -f option.\n";
-	    }
-	    else {
-		print "\"$opt_f\" is an unknown output format.\n";
-	    }
-	    &usage;
-	    exit 1;
+	    print "\"$opt_f\" is an unknown output format.\n";
 	}
+	&usage;
+	exit 1;
     }
 }
 
