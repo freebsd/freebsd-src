@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.31 1996/07/12 16:18:50 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.32 1996/07/15 19:31:47 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -240,6 +240,7 @@ Slippery when wet.  Beware of dog.
 
 	&uart;
 	&sio;
+	&cy;
 
 <sect1><heading>* Parallel ports</heading>
 <sect1><heading>* Modems</heading>
