@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.28 1999/05/17 21:53:50 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29 1999/05/18 03:58:49 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -3805,7 +3805,7 @@ ahc_init(struct ahc_softc *ahc)
 	}
 
 	/* DMA tag for mapping buffers into device visible space. */
-        if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(ahc->parent_dmat, /*alignment*/0, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -3951,14 +3951,9 @@ ahc_init(struct ahc_softc *ahc)
 		ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 		ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN);
 
-#if 0
 		if ((scsi_conf & RESET_SCSI) != 0
 		 && (ahc->flags & AHC_INITIATORMODE) != 0)
 			ahc->flags |= AHC_RESET_BUS_B;
-#else
-		if ((ahc->flags & AHC_INITIATORMODE) != 0)
-			ahc->flags |= AHC_RESET_BUS_B;
-#endif
 
 		/* Select Channel A */
 		ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) & ~SELBUSB);
@@ -3975,14 +3970,9 @@ ahc_init(struct ahc_softc *ahc)
 	ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 	ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN);
 
-#if 0
 	if ((scsi_conf & RESET_SCSI) != 0
 	 && (ahc->flags & AHC_INITIATORMODE) != 0)
 		ahc->flags |= AHC_RESET_BUS_A;
-#else
-	if ((ahc->flags & AHC_INITIATORMODE) != 0)
-		ahc->flags |= AHC_RESET_BUS_A;
-#endif
 
 	/*
 	 * Look at the information that board initialization or
@@ -4067,8 +4057,9 @@ ahc_init(struct ahc_softc *ahc)
 					offset = MAX_OFFSET_ULTRA2;
 				} else
 					offset = ahc_inb(ahc, TARG_OFFSET + i);
-				ahc_find_period(ahc, scsirate,
-						AHC_SYNCRATE_ULTRA2);
+				tinfo->user.period =
+				    ahc_find_period(ahc, scsirate,
+						    AHC_SYNCRATE_ULTRA2);
 				if (offset == 0)
 					tinfo->user.period = 0;
 				else
