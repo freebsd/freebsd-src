@@ -168,6 +168,7 @@ MNT=			/mnt
 SMALLFLOPPYSIZE=	1200
 SMALLFLOPPYSPLITSIZE=	1152
 SMALLFLOPPYLABEL=	fd1200
+SPLIT_MFSROOT=
 .endif
 FLOPPYSIZE=		1440
 FLOPPYSPLITSIZE=	1392
@@ -1087,8 +1088,9 @@ makeFloppySet:
 
 .if make(buildBootFloppy)
 IMAGEDIR=	${RD}/image.${FSIMAGE}
-HINTSFILE=	${.CURDIR}/../sys/${TARGET}/conf/GENERIC.hints
-ACPI_KO=	${RD}/trees/base/boot/kernel/acpi.ko
+BOOTDIR=	${RD}/trees/base/boot
+HINTSFILE=	${BOOTDIR}/device.hints
+ACPI_KO=	${BOOTDIR}/kernel/acpi.ko
 IMAGEFILE=	${RD}/floppies/${FSIMAGE}.flp
 .if defined(FDSIZE) && ${FDSIZE} == "SMALL"
 FLPSIZE=	${SMALLFLOPPYSIZE}
@@ -1116,25 +1118,30 @@ buildBootFloppy:
 	@mkdir -p ${IMAGEDIR}/boot
 .if ${TARGET} == "i386"
 	@${WMAKEENV} kgzip -v -l ${RD}/trees/base/usr/lib/kgzldr.o -o \
-	    ${IMAGEDIR}/boot/loader ${RD}/trees/base/boot/loader
+	    ${IMAGEDIR}/boot/loader ${BOOTDIR}/loader
 .else
-	@cp ${RD}/trees/base/boot/loader ${IMAGEDIR}/boot
+	@cp ${BOOTDIR}/loader ${IMAGEDIR}/boot
 .endif
-	@[ -r ${HINTSFILE} ] && \
-	  sed -e '/^hint/s/^/set /' -e '/^#/d' ${HINTSFILE} > \
-	    ${IMAGEDIR}/boot/device.hints && \
-	  echo "include /boot/device.hints" > ${IMAGEDIR}/boot/loader.rc
-	@echo "load /kernel" >> ${IMAGEDIR}/boot/loader.rc
-	@echo "echo \\007\\007" >> ${IMAGEDIR}/boot/loader.rc
-	@echo "echo Please insert boot floppy and press enter:" >> ${IMAGEDIR}/boot/loader.rc
-	@echo "read" >> ${IMAGEDIR}/boot/loader.rc
+	@cp -Rp ${BOOTDIR}/*.4th ${BOOTDIR}/defaults ${BOOTDIR}/loader.help \
+	    ${BOOTDIR}/loader.rc ${IMAGEDIR}/boot
+.if exists(${HINTSFILE})
+	@gzip -9nc ${HINTSFILE} > ${IMAGEDIR}/boot/device.hints.gz
+.endif
+	@gzip -9n ${IMAGEDIR}/boot/*.4th ${IMAGEDIR}/boot/loader.help \
+	    ${IMAGEDIR}/boot/defaults/loader.conf
+	@echo 'bootfile="/kernel"' > ${IMAGEDIR}/boot/loader.conf
 .if exists(${ACPI_KO})
 	@gzip -9nc ${ACPI_KO} > ${IMAGEDIR}/acpi.ko.gz
-	@echo "load /acpi.ko" >> ${IMAGEDIR}/boot/loader.rc
+	@echo 'acpi_load="YES"' >> ${IMAGEDIR}/boot/loader.conf
+	@echo 'acpi_name="/acpi.ko"' >> ${IMAGEDIR}/boot/loader.conf
+	@echo 'acpi_before="read -p \"Insert boot floppy and press Enter\""' >> ${IMAGEDIR}/boot/loader.conf
 .endif
-	@echo "load -t mfs_root /mfsroot" >> ${IMAGEDIR}/boot/loader.rc
-	@echo "echo \\007\\007" >> ${IMAGEDIR}/boot/loader.rc
-	@echo "autoboot 10" >> ${IMAGEDIR}/boot/loader.rc
+	@echo 'mfsroot_load="YES"' >> ${IMAGEDIR}/boot/loader.conf
+	@echo 'mfsroot_type="mfs_root"' >> ${IMAGEDIR}/boot/loader.conf
+	@echo 'mfsroot_name="/mfsroot"' >> ${IMAGEDIR}/boot/loader.conf
+.if !exists(${ACPI_KO})
+	@echo 'mfsroot_before="read -p \"Insert boot floppy and press Enter\""' >> ${IMAGEDIR}/boot/loader.conf
+.endif
 .if ${TARGET_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
 	@echo "-P" >> ${IMAGEDIR}/boot.config
 .endif
