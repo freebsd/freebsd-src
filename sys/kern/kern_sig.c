@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.5 1994/09/25 19:33:43 phk Exp $
+ * $Id: kern_sig.c,v 1.6 1994/09/30 00:38:34 ache Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -495,6 +495,56 @@ sigaltstack(p, uap, retval)
 	return (0);
 }
 
+/*
+ * Common code for kill process group/broadcast kill.
+ * cp is calling process.
+ */
+int
+killpg1(cp, signum, pgid, all)
+	register struct proc *cp;
+	int signum, pgid, all;
+{
+	register struct proc *p;
+	register struct pcred *pc = cp->p_cred;
+	struct pgrp *pgrp;
+	int nfound = 0;
+	
+	if (all)	
+		/* 
+		 * broadcast 
+		 */
+		for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM || 
+			    p == cp || !CANSIGNAL(cp, pc, p, signum))
+				continue;
+			nfound++;
+			if (signum)
+				psignal(p, signum);
+		}
+	else {
+		if (pgid == 0)		
+			/* 
+			 * zero pgid means send to my process group.
+			 */
+			pgrp = cp->p_pgrp;
+		else {
+			pgrp = pgfind(pgid);
+			if (pgrp == NULL)
+				return (ESRCH);
+		}
+		for (p = pgrp->pg_mem; p != NULL; p = p->p_pgrpnxt) {
+			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
+			    p->p_stat == SZOMB ||
+			    !CANSIGNAL(cp, pc, p, signum))
+				continue;
+			nfound++;
+			if (signum)
+				psignal(p, signum);
+		}
+	}
+	return (nfound ? 0 : ESRCH);
+}
+
 struct kill_args {
 	int	pid;
 	int	signum;
@@ -550,56 +600,6 @@ okillpg(p, uap, retval)
 	return (killpg1(p, uap->signum, uap->pgid, 0));
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
-
-/*
- * Common code for kill process group/broadcast kill.
- * cp is calling process.
- */
-int
-killpg1(cp, signum, pgid, all)
-	register struct proc *cp;
-	int signum, pgid, all;
-{
-	register struct proc *p;
-	register struct pcred *pc = cp->p_cred;
-	struct pgrp *pgrp;
-	int nfound = 0;
-	
-	if (all)	
-		/* 
-		 * broadcast 
-		 */
-		for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
-			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM || 
-			    p == cp || !CANSIGNAL(cp, pc, p, signum))
-				continue;
-			nfound++;
-			if (signum)
-				psignal(p, signum);
-		}
-	else {
-		if (pgid == 0)		
-			/* 
-			 * zero pgid means send to my process group.
-			 */
-			pgrp = cp->p_pgrp;
-		else {
-			pgrp = pgfind(pgid);
-			if (pgrp == NULL)
-				return (ESRCH);
-		}
-		for (p = pgrp->pg_mem; p != NULL; p = p->p_pgrpnxt) {
-			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
-			    p->p_stat == SZOMB ||
-			    !CANSIGNAL(cp, pc, p, signum))
-				continue;
-			nfound++;
-			if (signum)
-				psignal(p, signum);
-		}
-	}
-	return (nfound ? 0 : ESRCH);
-}
 
 /*
  * Send a signal to a process group.
@@ -962,8 +962,8 @@ issignal(p)
 				 * Are you sure you want to ignore SIGSEGV
 				 * in init? XXX
 				 */
-				printf("Process (pid %d) got signal %d\n",
-					p->p_pid, signum);
+				printf("Process (pid %lu) got signal %d\n",
+					(u_long)p->p_pid, signum);
 #endif
 				break;		/* == ignore */
 			}
