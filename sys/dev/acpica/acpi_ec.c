@@ -367,7 +367,7 @@ acpi_ec_attach(device_t dev)
     /*
      * Evaluate resources
      */
-    DEBUG_PRINT(TRACE_RESOURCES, ("parsing EC resources\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "parsing EC resources\n"));
     acpi_parse_resources(sc->ec_dev, sc->ec_handle, &acpi_res_parse_set);
 
     /* 
@@ -397,7 +397,7 @@ acpi_ec_attach(device_t dev)
      * Evaluate the _GPE method to find the GPE bit used by the EC to signal
      * status (SCI).
      */
-    DEBUG_PRINT(TRACE_RESOURCES, ("attaching GPE\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching GPE\n"));
     if ((Status = acpi_EvaluateInteger(sc->ec_handle, "_GPE", &sc->ec_gpebit)) != AE_OK) {
 	device_printf(dev, "can't evaluate _GPE - %s\n", AcpiFormatException(Status));
 	return_VALUE(ENXIO);
@@ -421,7 +421,7 @@ acpi_ec_attach(device_t dev)
     /* 
      * Install address space handler
      */
-    DEBUG_PRINT(TRACE_RESOURCES, ("attaching address space handler\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching address space handler\n"));
     if ((Status = AcpiInstallAddressSpaceHandler(sc->ec_handle, ACPI_ADR_SPACE_EC, 
 						 EcSpaceHandler, EcSpaceSetup, sc)) != AE_OK) {
 	device_printf(dev, "can't install address space handler for %s - %s\n",
@@ -429,7 +429,7 @@ acpi_ec_attach(device_t dev)
 	panic("very suck");
 	return_VALUE(ENXIO);
     }
-    DEBUG_PRINT(TRACE_RESOURCES, ("attach complete\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attach complete\n"));
 
     return_VALUE(0);
 }

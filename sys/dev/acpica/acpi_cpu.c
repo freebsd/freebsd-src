@@ -237,9 +237,9 @@ acpi_cpu_attach(device_t dev)
 	    sc->cpu_p_blk = bus_alloc_resource(sc->cpu_dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
 					       RF_ACTIVE);
 
-	    DEBUG_PRINT(TRACE_IO, ("acpi_cpu%d: throttling with P_BLK at 0x%x/%d%s\n", 
-				   device_get_unit(sc->cpu_dev), p_blk, p_blk_length,
-				   sc->cpu_p_blk ? "" : " (shadowed)"));
+	    ACPI_DEBUG_PRINT((ACPI_DB_IO, "acpi_cpu%d: throttling with P_BLK at 0x%x/%d%s\n", 
+			      device_get_unit(sc->cpu_dev), p_blk, p_blk_length,
+			      sc->cpu_p_blk ? "" : " (shadowed)"));
 	}
     }
     return_VALUE(0);
