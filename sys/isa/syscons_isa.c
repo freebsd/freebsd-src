@@ -129,6 +129,7 @@ sc_softc_t
 	if (!(sc->flags & SC_INIT_DONE)) {
 		sc->keyboard = -1;
 		sc->adapter = -1;
+		sc->cursor_char = SC_CURSOR_CHAR;
 		sc->mouse_char = SC_MOUSE_CHAR;
 	}
 	return sc;

@@ -56,8 +56,17 @@
 #undef SC_PIXEL_MODE
 #endif
 
+#ifndef SC_CURSOR_CHAR
+#define SC_CURSOR_CHAR	(0x07)
+#endif
+
 #ifndef SC_MOUSE_CHAR
 #define SC_MOUSE_CHAR	(0xd0)
+#endif
+
+#if SC_MOUSE_CHAR <= SC_CURSOR_CHAR && SC_CURSOR_CHAR < (SC_MOUSE_CHAR + 4)
+#undef SC_CURSOR_CHAR
+#define SC_CURSOR_CHAR	(SC_MOUSE_CHAR + 4)
 #endif
 
 #ifndef SC_DEBUG_LEVEL
@@ -88,19 +97,20 @@
 				}
 
 /* vty status flags (scp->status) */
-#define UNKNOWN_MODE	0x00010
-#define SWITCH_WAIT_REL	0x00080
-#define SWITCH_WAIT_ACQ	0x00100
-#define BUFFER_SAVED	0x00200
-#define CURSOR_ENABLED 	0x00400
-#define MOUSE_MOVED	0x01000
-#define MOUSE_CUTTING	0x02000
-#define MOUSE_VISIBLE	0x04000
-#define GRAPHICS_MODE	0x08000
-#define PIXEL_MODE	0x10000
-#define SAVER_RUNNING	0x20000
-#define VR_CURSOR_BLINK	0x40000
-#define VR_CURSOR_ON	0x80000
+#define UNKNOWN_MODE	0x00010		/* unknown video mode */
+#define SWITCH_WAIT_REL	0x00080		/* waiting for vty release */
+#define SWITCH_WAIT_ACQ	0x00100		/* waiting for vty ack */
+#define BUFFER_SAVED	0x00200		/* vty buffer is saved */
+#define CURSOR_ENABLED 	0x00400		/* text cursor is enabled */
+#define MOUSE_MOVED	0x01000		/* mouse cursor has moved */
+#define MOUSE_CUTTING	0x02000		/* mouse cursor is cutting text */
+#define MOUSE_VISIBLE	0x04000		/* mouse cursor is showing */
+#define GRAPHICS_MODE	0x08000		/* vty is in a graphics mode */
+#define PIXEL_MODE	0x10000		/* vty is in a raster text mode */
+#define SAVER_RUNNING	0x20000		/* screen saver is running */
+#define VR_CURSOR_BLINK	0x40000		/* blinking text cursor */
+#define VR_CURSOR_ON	0x80000		/* text cursor is on */
+#define MOUSE_HIDDEN	0x100000	/* mouse cursor is temporarily hidden */
 
 /* misc defines */
 #define FALSE		0
@@ -204,6 +214,7 @@ typedef struct sc_softc {
 	u_char		*font_16;
 #endif
 
+	u_char		cursor_char;
 	u_char		mouse_char;
 
 } sc_softc_t;
@@ -248,6 +259,8 @@ typedef struct scr_stat {
 	int		mouse_oldpos;		/* mouse old buffer position */
 	short		mouse_xpos;		/* mouse x coordinate */
 	short		mouse_ypos;		/* mouse y coordinate */
+	short		mouse_oldxpos;		/* mouse previous x coordinate */
+	short		mouse_oldypos;		/* mouse previous y coordinate */
 	short		mouse_buttons;		/* mouse buttons */
 	int		mouse_cut_start;	/* mouse cut start pos */
 	int		mouse_cut_end;		/* mouse cut end pos */
@@ -536,8 +549,12 @@ void		sc_remove_cutmarking(scr_stat *scp);
 void		sc_remove_all_cutmarkings(sc_softc_t *scp);
 void		sc_remove_all_mouse(sc_softc_t *scp);
 #else
+#define		sc_draw_mouse_image(scp)
+#define		sc_remove_mouse_image(scp)
 #define		sc_inside_cutmark(scp, pos)	FALSE
 #define		sc_remove_cutmarking(scp)
+#define		sc_remove_all_cutmarkings(scp)
+#define		sc_remove_all_mouse(scp)
 #endif /* SC_NO_CUTPASTE */
 #ifndef SC_NO_SYSMOUSE
 void		sc_mouse_move(scr_stat *scp, int x, int y);
