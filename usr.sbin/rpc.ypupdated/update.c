@@ -64,11 +64,15 @@ static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
 #define	YPOP_STORE  4			/* add, or change */
 #endif
 
+#ifdef notdef
 extern char *getpass();
 extern char *malloc();
+#endif
 
 #ifdef YP
+#ifdef notdef
 static char *basename();
+#endif
 static char SHELL[] = "/bin/sh";
 static char YPDBPATH[]="/var/yp";	/* This is defined but not used! */
 static char PKMAP[] = "publickey.byname";
