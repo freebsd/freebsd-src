@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.35 1996/04/25 17:31:25 jkh Exp $
+ * $Id: options.c,v 1.36 1996/05/09 09:42:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -218,7 +218,7 @@ optionsEditor(dialogMenuItem *self)
 	    /* Names are painted somewhat gratuitously each time, but it's easier this way */
 	    mvprintw(optrow, OPT_NAME_COL + optcol, Options[i].name);
 	    if (currOpt == i)
-		attrset(item_selected_attr);
+		attrset(tag_attr);
 	    mvprintw(optrow++, OPT_VALUE_COL + optcol, value_of(Options[i]));
 	    if (currOpt == i)
 		attrset(A_NORMAL);
