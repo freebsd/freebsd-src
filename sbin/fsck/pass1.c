@@ -209,6 +209,12 @@ checkinode(inumber, idesc)
 		dp->di_mode = IFREG|0600;
 		inodirty();
 	}
+	if ((mode == IFBLK || mode == IFCHR || mode == IFIFO ||
+	     mode == IFSOCK) && dp->di_size != 0) {
+		if (debug)
+			printf("bad special-file size %qu:", dp->di_size);
+		goto unknown;
+	}
 	ndb = howmany(dp->di_size, sblock.fs_bsize);
 	if (ndb < 0) {
 		if (debug)
