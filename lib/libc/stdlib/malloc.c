@@ -303,7 +303,7 @@ void (*_malloc_message)(const char *p1, const char *p2, const char *p3,
 	    const char *p4) = wrtmessage;
 
 static void
-wrterror(char *p)
+wrterror(char const *p)
 {
 
     suicide = 1;
@@ -861,7 +861,7 @@ irealloc(void *ptr, size_t size)
  */
 
 static __inline__ void
-free_pages(void *ptr, u_long index, struct pginfo *info)
+free_pages(void *ptr, u_long index, struct pginfo const *info)
 {
     u_long i;
     struct pgfree *pf, *pt=0;
