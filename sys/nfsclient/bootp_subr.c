@@ -191,10 +191,7 @@ struct bootpc_globalcontext {
 #define OVERLOAD_SNAME    2
 
 /* Site specific tags: */
-#define TAG_SWAP	128
-#define TAG_SWAPSIZE	129
 #define TAG_ROOTOPTS	130
-#define TAG_SWAPOPTS	131
 #define TAG_COOKIE	134	/* ascii info for userland, via sysctl */
 
 #define TAG_DHCP_MSGTYPE 53
