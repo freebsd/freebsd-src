@@ -1,5 +1,12 @@
 .\" Copyright (c) 2001 Mark R V Murray
 .\" All rights reserved.
+.\" Copyright (c) 2001 Networks Associates Technologies, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by ThinkSec AS and
+.\" NAI Labs, the Security Research Division of Network Associates, Inc.
+.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -9,6 +16,9 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -24,46 +34,42 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2001
-.Dt PAM_UNIX 8
+.Dd November 26, 2001
+.Dt PAM_SSH 8
 .Os
 .Sh NAME
-.Nm pam_unix
-.Nd UNIX PAM module
+.Nm pam_ssh
+.Nd SSH PAM module
 .Sh SYNOPSIS
 .Op Ar service-name
 .Ar module-type
 .Ar control-flag
-.Pa pam_unix
+.Pa pam_ssh
 .Op Ar options
 .Sh DESCRIPTION
 The
-.Ux
+SSH
 authentication service module for PAM,
 .Nm
 provides functionality for two PAM categories:
 authentication
-and account management.
+and session management.
 In terms of the
 .Ar module-type
 parameter, they are the
 .Dq Li auth
 and
-.Dq Li account
+.Dq Li session
 features.
-It also provides a null function for session management.
-.Ss Ux Ss Authentication Module
+It also provides null functions for the remaining categories.
+.Ss SSH Authentication Module
 The
-.Ux
+SSH
 authentication component
-provides functions to verify the identity of a user
+provides a function to verify the identity of a user
 .Pq Fn pam_sm_authenticate ,
-which obtains the relevant
-.Xr passwd 5
-entry.
-It prompts the user for a password
-and verifies that this is correct with
-.Xr crypt 3 .
+by prompting the user for a passphrase and verifying that it can
+decrypt the target user's SSH key using that passphrase.
 .Pp
 The following options may be passed to the authentication module:
 .Bl -tag -width ".Cm use_first_pass"
@@ -93,86 +99,50 @@ This option is similar to the
 option,
 except that if the previously obtained password fails,
 the user is prompted for another password.
-.It Cm auth_as_self
-This option will require the user
-to authenticate themself as the user
-given by
-.Xr getlogin 2 ,
-not as the account they are attempting to access.
-This is primarily for services like
-.Xr su 1 ,
-where the user's ability to retype
-their own password
-might be deemed sufficient.
-.It Cm nullok
-If the password database
-has no password
-for the entity being authenticated,
-then this option
-will forgo password prompting,
-and silently allow authentication to succeed.
 .El
-.Ss Ux Ss Account Management Module
+.Ss SSH Session Management Module
 The
 .Ux
-account management component
-provides a function to perform account management,
-.Fn pam_sm_acct_mgmt .
-The function verifies
-that the authenticated user
-is allowed to login to the local user account
-by checking the password expiry date.
+session management component
+provides functions to initiate
+.Pq Fn pam_sm_open_session
+and terminate
+.Pq Fn pam_sm_close_session
+sessions.
+The
+.Fn pam_sm_open_session
+function starts an SSH agent,
+passing it any private keys it decrypted
+during the authentication phase,
+and sets the environment variables
+the agent specifies.
+The
+.Fn pam_sm_close_session
+function kills the previously started SSH agent
+by sending it a
+.Dv SIGTERM .
 .Pp
-The following options may be passed to the management module:
+The following options may be passed to the session management module:
 .Bl -tag -width ".Cm use_first_pass"
 .It Cm debug
 .Xr syslog 3
 debugging information at
 .Dv LOG_DEBUG
 level.
-.El
-.Ss Ux Ss Password Management Module
-The
-.Ux
-password management component
-provides a function to perform account management,
-.Fn pam_sm_chauthtok .
-The function changes
-the user's password.
-.Pp
-The following options may be passed to the password module:
-.Bl -tag -width ".Cm use_first_pass"
-.It Cm debug
-.Xr syslog 3
-debugging information at
-.Dv LOG_DEBUG
-level.
-.It Cm no_warn
-suppress warning messages to the user.
-These messages include
-reasons why the user's
-authentication attempt was declined.
-.It Cm local_pass
-forces the password module
-to change a local password
-in favour of a NIS one.
-.It Cm nis_pass
-forces the password module
-to change a NIS password
-in favour of a local one.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /etc/master.passwd" -compact
-.It Pa /etc/master.passwd
-default
-.Ux
-password database.
+.Bl -tag -width ".Pa $HOME/.ssh2/id_dsa_*" -compact
+.It Pa $HOME/.ssh/identity
+SSH1/OpenSSH RSA key.
+.It Pa $HOME/.ssh/id_dsa
+OpenSSH DSA key.
+.It Pa $HOME/.ssh2/id_rsa_*
+SSH2 RSA keys.
+.It Pa $HOME/.ssh2/id_dsa_*
+SSH2 DSA keys.
 .El
 .Sh SEE ALSO
-.Xr passwd 1 ,
-.Xr getlogin 2 ,
-.Xr crypt 3 ,
-.Xr syslog 3 ,
+.Xr pam 8 ,
 .Xr pam.conf 5 ,
-.Xr passwd 5 ,
-.Xr pam 8
+.Xr ssh-agent 1 ,
+.Xr syslog 3
