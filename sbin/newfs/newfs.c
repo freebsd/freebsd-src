@@ -148,6 +148,7 @@ static struct disklabel *getdisklabel(char *s, int fd);
 
 int	Nflag;			/* run without writing file system */
 int	Oflag;			/* format as an 4.3BSD file system */
+int	Rflag;			/* regression test */
 int	Uflag;			/* enable soft updates for file system */
 int	fssize;			/* file system size */
 int	ntracks = NTRACKS;	/* # tracks/cylinder */
@@ -209,13 +210,16 @@ main(int argc, char *argv[])
 		progname = *argv;
 
 	while ((ch = getopt(argc, argv,
-	    "NOS:T:Ua:b:c:d:e:f:g:h:i:k:l:m:n:o:p:r:s:t:u:vx:")) != -1)
+	    "NORS:T:Ua:b:c:d:e:f:g:h:i:k:l:m:n:o:p:r:s:t:u:vx:")) != -1)
 		switch (ch) {
 		case 'N':
 			Nflag = 1;
 			break;
 		case 'O':
 			Oflag = 1;
+			break;
+		case 'R':
+			Rflag = 1;
 			break;
 		case 'S':
 			if ((sectorsize = atoi(optarg)) <= 0)
@@ -596,6 +600,7 @@ usage()
 	fprintf(stderr,
 	    "\t-N do not create file system, just print out parameters\n");
 	fprintf(stderr, "\t-O create a 4.3BSD format filesystem\n");
+	fprintf(stderr, "\t-R regression test, supress random factors\n");
 	fprintf(stderr, "\t-S sector size\n");
 #ifdef COMPAT
 	fprintf(stderr, "\t-T disktype\n");
