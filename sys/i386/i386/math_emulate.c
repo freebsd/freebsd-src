@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.14 1995/10/29 15:29:56 phk Exp $
+ *	$Id: math_emulate.c,v 1.15 1995/12/07 12:45:33 davidg Exp $
  */
 
 /*
@@ -37,6 +37,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+
+#ifdef LKM
+#include <sys/types.h>
+#include <sys/kernel.h>
+#include <sys/lkm.h>
+#endif
 
 #include <machine/cpu.h>
 #include <machine/psl.h>
@@ -95,7 +101,7 @@ static void
 put_fs_long(u_long val, unsigned long *adr)
 	{ (void)suword(adr,val); }
 
-int
+static int
 math_emulate(struct trapframe * info)
 {
 	unsigned short code;
@@ -1543,3 +1549,47 @@ int_to_real(const temp_int * a, temp_real * b)
 			:"0" (b->a),"1" (b->b));
 	}
 }
+
+#ifdef LKM
+MOD_MISC(fpu);
+static int
+fpu_load(struct lkm_table *lkmtp, int cmd)
+{
+	if (pmath_emulate) {
+		printf("Math emulator already present\n");
+		return EBUSY;
+	}
+	pmath_emulate = math_emulate;
+	return 0;
+}
+
+static int
+fpu_unload(struct lkm_table *lkmtp, int cmd)
+{
+	if (pmath_emulate != math_emulate) {
+		printf("Cannot unload another math emulator\n");
+		return EACCES;
+	}
+	pmath_emulate = 0;
+	return 0;
+}
+
+int
+fpu(struct lkm_table *lkmtp, int cmd, int ver)
+{
+	DISPATCH(lkmtp, cmd, ver, fpu_load, fpu_unload, lkm_nullcmd);
+}
+#else /* !LKM */
+
+static void
+fpu_init(void)
+{
+	if (pmath_emulate)
+		printf("Another Math emulator already present\n");
+	else
+		pmath_emulate = math_emulate;
+}
+
+SYSINIT(fpu, SI_SUB_CPU, SI_ORDER_ANY, fpu_init, NULL);
+
+#endif /* LKM */
