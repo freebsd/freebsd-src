@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.13 1998/05/26 20:12:54 sos Exp $
+#	$Id: bsd.libnames.mk,v 1.14 1998/05/31 11:32:38 bde Exp $
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
@@ -13,11 +13,12 @@ LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_PIC=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
+LIBCIPHER?=	${DESTDIR}${LIBDIR}/libcipher.a	# XXX in secure dist, not base
 LIBCOM_ERR=	${DESTDIR}${LIBDIR}/libcom_err.a
 LIBCOMPAT?=	${DESTDIR}${LIBDIR}/libcompat.a
 LIBCRYPT?=	${DESTDIR}${LIBDIR}/libcrypt.a
 LIBCURSES?=	${DESTDIR}${LIBDIR}/libcurses.a
-LIBDES?=	${DESTDIR}${LIBDIR}/libdes.a	# XXX doesn't exist
+LIBDES?=	${DESTDIR}${LIBDIR}/libdes.a	# XXX in secure dist, not base
 LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a
 LIBDISK?=	${DESTDIR}${LIBDIR}/libdisk.a
 LIBEDIT?=	${DESTDIR}${LIBDIR}/libedit.a
@@ -31,8 +32,8 @@ LIBGCC_PIC?=	${DESTDIR}${LIBDIR}/libgcc_pic.a
 LIBGMP?=	${DESTDIR}${LIBDIR}/libgmp.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
-LIBKDB?=	${DESTDIR}${LIBDIR}/libkdb.a	# XXX doesn't exist
-LIBKRB?=	${DESTDIR}${LIBDIR}/libkrb.a	# XXX doesn't exist
+LIBKDB?=	${DESTDIR}${LIBDIR}/libkdb.a	# XXX in secure dist, not base
+LIBKRB?=	${DESTDIR}${LIBDIR}/libkrb.a	# XXX in secure dist, not base
 LIBKEYCAP?=	${DESTDIR}${LIBDIR}/libkeycap.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
