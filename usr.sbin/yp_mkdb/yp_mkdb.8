@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: yp_mkdb.8,v 1.7 1997/10/27 12:29:24 charnier Exp $
+.\"	$Id: yp_mkdb.8,v 1.9 1999/08/22 15:34:46 wpaul Exp $
 .\"
 .Dd March 12, 1996
 .Dt YP_MKDB 8
@@ -45,6 +45,7 @@
 .Op Fl c
 .Op Fl b
 .Op Fl s
+.Op Fl f
 .Op Fl i Ar inputfile
 .Op Fl o Ar outputfile
 .Op Fl d Ar domainname
@@ -129,6 +130,22 @@ will deny access to the map to any client that is not using a
 reserved port for its query. This is used mainly for the
 .Em master.passwd
 maps, which should be restricted to privileged access only.
+.It Fl f
+This flag is used to turn on filtering of lines in the source file
+input that start with ``+'' or ``-'' characters. These characters
+have special meaning for the
+.Pa group ,
+.Pa passwd
+and
+.Pa master.passwd
+maps and hence should not be allowed to appear in them as the first
+character of a key or datum. If the
+.Fl f
+flag is used,
+.Nm
+will reject any source line that starts with a ``+'' or ``-''
+character and issue a warning message displaying the line that
+was dropped.
 .It Fl u Ar dbname
 Dump (or 'unwind') an NIS database. This option can be used to
 inspect the contents of an existing NIS database.
