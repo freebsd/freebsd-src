@@ -1,0 +1,60 @@
+
+Import of GNU awk 3.0.3
+
+Original source available as ftp://prep.ai.mit.edu/pub/gnu/gawk-3.0.3.tar.gz
+
+The following files and directories were removed for this import:
+
+Makefile.in
+README_d/README.VMS
+README_d/README.atari
+README_d/README.irix
+README_d/README.linux
+README_d/README.pc
+README_d/README.sco
+README_d/README.sgi
+README_d/README.solaris
+README_d/README.sony
+README_d/README.sunos4
+README_d/README.ultrix
+README_d/README.yacc
+aclocal.m4
+alloca.c
+atari/
+awklib/
+awktab.c
+configh.in
+configure
+configure.in
+doc/Makefile.in
+doc/README.card
+doc/ad.block
+doc/awkcard.in
+doc/awkforai.txt
+doc/cardfonts
+doc/colors
+doc/igawk.1
+doc/macros
+doc/no.colors
+doc/setter.outline
+doc/texinfo.tex
+install-sh
+missing/
+mkinstalldirs
+pc/
+protos.h
+regex.c
+stamp-h.in
+vms/
+
+In addition, doc/gawk.1 and doc/gawk.texi were renamed to awk.1 and awk.texi.
+
+The test sub-directory has been left in, as, although not necessary to build
+awk on FreeBSD, it will be useful to anyone changing the code.  To use it,
+do something like
+
+cd /usr/src/contrib/awk
+ln -s /path/to/new/awk gawk
+cd test && make
+
+jraynard@freebsd.org 26 Sept 1997

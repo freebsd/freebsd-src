@@ -1,0 +1,206 @@
+%%% ====================================================================
+%%%  BibTeX-file{
+%%%     author          = "Nelson H. F. Beebe",
+%%%     version         = "2.09",
+%%%     date            = "26 March 1997",
+%%%     time            = "08:21:19 MST",
+%%%     filename        = "cacm1970.bib",
+%%%     address         = "Center for Scientific Computing
+%%%                        Department of Mathematics
+%%%                        University of Utah
+%%%                        Salt Lake City, UT 84112
+%%%                        USA",
+%%%     telephone       = "+1 801 581 5254",
+%%%     FAX             = "+1 801 581 4148",
+%%%     checksum        = "50673 40670 196033 1787829",
+%%%     email           = "beebe at math.utah.edu (Internet)",
+%%%     codetable       = "ISO/ASCII",
+%%%     keywords        = "bibliography, CACM, Communications of the
+%%%                        ACM",
+%%%     supported       = "yes",
+%%%     docstring       = "This is a bibliography of the journal
+%%%                        Communications of the ACM, covering
+%%%                        (incompletely) 1970 -- 1979.
+%%%
+%%%                        At version 2.09, the year coverage looked
+%%%                        like this:
+%%%
+%%%                             1961 (  1)     1972 (168)     1983 (  0)
+%%%                             1962 (  1)     1973 (158)     1984 (  0)
+%%%                             1963 (  2)     1974 (127)     1985 (  2)
+%%%                             1964 (  2)     1975 (107)     1986 (  0)
+%%%                             1965 (  1)     1976 ( 97)     1987 (  0)
+%%%                             1966 (  2)     1977 (117)     1988 (  0)
+%%%                             1967 (  1)     1978 (118)     1989 (  0)
+%%%                             1968 (  1)     1979 ( 78)     1990 (  2)
+%%%                             1969 (  3)     1980 (  1)     1991 (  4)
+%%%                             1970 (157)     1981 (  2)     1992 (  1)
+%%%                             1971 (104)     1982 (  1)
+%%%
+%%%                             Article:       1252
+%%%                             Book:             2
+%%%                             InProceedings:    1
+%%%                             Manual:           1
+%%%                             MastersThesis:    1
+%%%                             PhdThesis:        1
+%%%
+%%%                             Total entries: 1258
+%%%
+%%%                        The size of the original cacm.bib file
+%%%                        covering 1958--1996 became too large (about
+%%%                        4000 entries) for BibTeX and TeX to handle,
+%%%                        so at version 1.44, it was split into
+%%%                        cacm1950.bib, cacm1960.bib, cacm1970.bib,
+%%%                        cacm1980.bib, and cacm1990.bib, each covering
+%%%                        the decade starting with the year embedded in
+%%%                        the filename.  Version numbers for these
+%%%                        files begin at 2.00.
+%%%
+%%%                        Volumes from the 1990s average more than 200
+%%%                        articles yearly, so a complete bibliography
+%%%                        for this journal could contain more than 6000
+%%%                        entries from 1958 to 2000.
+%%%
+%%%                        These bibliographies also include ACM
+%%%                        Algorithms 1--492.  For Algorithms 493--686,
+%%%                        including Algorithm 568, published in ACM
+%%%                        Transactions on Programming Languages and
+%%%                        Systems (TOPLAS), see the companion
+%%%                        bibliographies, toms.bib and toplas.bib.
+%%%
+%%%                        All published Remarks and Corrigenda are
+%%%                        cross-referenced in both directions, so
+%%%                        that citing a paper will automatically
+%%%                        generate citations for those Remarks and
+%%%                        Corrigenda.  Cross-referenced entries are
+%%%                        duplicated in cacm19*.bib and toms.bib, so
+%%%                        that each is completely self-contained.
+%%%
+%%%                        Source code for ACM Algorithms from 380
+%%%                        onwards, with some omissions, is available
+%%%                        via the Netlib service at
+%%%                        http://netlib.ornl.gov/, and
+%%%                        ftp://netlib.bell-labs.com/netlib/toms.
+%%%
+%%%                        There is a World Wide Web search facility
+%%%                        for articles published in this journal from
+%%%                        1959 to 1979 at
+%%%                        http://ciir.cs.umass.edu/cgi-bin/web_query_form/public/cacm2.1.
+%%%
+%%%                        The initial draft of entries for 1981 --
+%%%                        1990 was extracted from the ACM Computing
+%%%                        Archive CD ROM for the 1980s, with manual
+%%%                        corrections and additions.  Additions were
+%%%                        then made from all of the bibliographies in
+%%%                        the TeX User Group collection, from
+%%%                        bibliographies in the author's personal
+%%%                        files, from the Compendex database
+%%%                        (1970--1979), from the IEEE INSPEC database
+%%%                        (1970--1979), from tables of contents
+%%%                        information at http://www.acm.org/pubs/cacm/,
+%%%                        from Zentralblatt fur Mathematik Mathematics
+%%%                        Abstracts at
+%%%                        http://www.emis.de/cgi-bin/MATH/, from
+%%%                        bibliographies at Internet host
+%%%                        netlib.bell-labs.com, and from the computer
+%%%                        science bibliography collection on
+%%%                        ftp.ira.uka.de in /pub/bibliography to which
+%%%                        many people of have contributed.  The
+%%%                        snapshot of this collection was taken on
+%%%                        5-May-1994, and it consists of 441 BibTeX
+%%%                        files, 2,672,675 lines, 205,289 entries, and
+%%%                        6,375 <at>String{} abbreviations, occupying
+%%%                        94.8MB of disk space.
+%%%
+%%%                        Numerous errors in the sources noted above
+%%%                        have been corrected.   Spelling has been
+%%%                        verified with the UNIX spell and GNU ispell
+%%%                        programs using the exception dictionary
+%%%                        stored in the companion file with extension
+%%%                        .sok.
+%%%
+%%%                        BibTeX citation tags are uniformly chosen
+%%%                        as name:year:abbrev, where name is the
+%%%                        family name of the first author or editor,
+%%%                        year is a 4-digit number, and abbrev is a
+%%%                        3-letter condensation of important title
+%%%                        words. Citation tags were automatically
+%%%                        generated by software developed for the
+%%%                        BibNet Project.
+%%%
+%%%                        In this bibliography, entries are sorted in
+%%%                        publication order within each journal,
+%%%                        using bibsort -byvolume.
+%%%
+%%%                        The checksum field above contains a CRC-16
+%%%                        checksum as the first value, followed by the
+%%%                        equivalent of the standard UNIX wc (word
+%%%                        count) utility output of lines, words, and
+%%%                        characters.  This is produced by Robert
+%%%                        Solovay's checksum utility.",
+%%%  }
+%%% ====================================================================
+
+@Preamble{"\input bibnames.sty " # "\input path.sty " # "\def \TM {${}^{\sc TM}$} " # "\hyphenation{ al-pha-mer-ic Balz-er Blom-quist Bo-ta-fo-go Bran-din Brans-comb Bu-tera Chris-tina Christ-o-fi-des Col-lins Cor-dell data-base econ-omies Fletch-er
+ flow-chart flow-charts Fry-styk ge-dank-en Gar-fink-el Ge-ha-ni Glush-ko Goud-reau Gua-dan-go Hari-di Haw-thorn Hem-men-ding-er Hor-o-witz Hour-vitz Hirsch-berg Ike-da Ka-chi-tvi-chyan-u-kul Kat-ze-nel-son Kitz-miller Ko-ba-yashi Le-Me-tay-er Ken-ne-dy
+ Law-rence Mac-kay Mai-net-ti Mar-sa-glia Max-well Mer-ner Mo-ran-di Na-ray-an New-ell Nich-ols para-digm pat-ent-ed Phi-lo-kyp-rou Prep-a-ra-ta pseu-do-chain-ing QUIK-SCRIPT Rad-e-mach-er re-eval-u-a-tion re-wind Ros-witha Scheu-er-mann Schwach-heim
+ Schob-bens Schon-berg Sho-sha-ni Si-tha-ra-ma Skwa-rec-ki Streck-er Strin-gi-ni Tes-ler Te-zu-ka Teu-ho-la Till-quist Town-send Tsi-chri-tzis Tur-ski Vuille-min Wald-ing-er Za-bo-row-ski Za-mora }"}
+
+%=======================================================================
+% Acknowledgement abbreviations:
+
+@String{ack-nhfb = "Nelson H. F. Beebe, Center for Scientific Computing, Department of Mathematics, University of Utah, Salt Lake City, UT 84112, USA, Tel: +1 801 581 5254, FAX: +1 801 581 4148, e-mail: \path|beebe@math.utah.edu|"}
+
+@String{ack-nj = "Norbert Juffa, 2445 Mission College Blvd. Santa Clara, CA 95054 USA email: \path=norbert@iit.com="}
+
+%=======================================================================
+% Journal abbreviations:
+
+@String{j-CACM = "Communications of the ACM"}
+
+@String{j-COMP-SURV = "Computing Surveys"}
+
+@String{j-J-ACM = "Journal of the ACM"}
+
+@String{j-MANAGEMENT-SCIENCE = "Management Science"}
+
+@String{j-SIAM-J-COMPUT = "SIAM Journal of Computing"}
+
+@String{j-SPE =  "Software --- Practice and Experience"}
+
+@String{j-TOMS = "ACM Transactions on Mathematical Software"}
+
+%=======================================================================
+% Publisher abbreviations:
+
+@String{pub-ANSI = "American National Standards Institute"}
+
+@String{pub-ANSI:adr = "1430 Broadway, New York, NY 10018, USA"}
+
+@String{pub-AW = "Ad{\-d}i{\-s}on-Wes{\-l}ey"}
+
+@String{pub-AW:adr = "Reading, MA, USA"}
+
+@String{pub-SUCSLI = "Stanford University Center for the Study of Language and Information"}
+
+@String{pub-SUCSLI:adr = "Stanford, CA, USA"}
+
+@String{pub-SV = "Spring{\-}er-Ver{\-}lag"}
+
+@String{pub-SV:adr = "Berlin, Germany~/ Heidelberg, Germany~/ London, UK~/ etc."}
+@MastersThesis{Dittmer:1976:IEP,
+  author =       "Ingo Dittmer",
+  title =        "{Implementation eines Einschrittcompilers f{\"u}r die Progammiersprache PASCAL auf der Rechenanlage IBM\slash 360 der Universit{\"a}t M{\"u}nster}. ({English} title: Implementation of a One-Step Compiler for the Programming Language
+ {PASCAL} on the {IBM}\slash 360 of the {University of Muenster})",
+  type =         "Diplomearbeit",
+  school =       "Universit{\"a}t M{\"u}nster",
+  address =      "M{\"u}nster, Germany",
+  pages =        "??",
+  month =        "??",
+  year =         "1976",
+  bibdate =      "Sat Feb 17 13:24:29 1996",
+  note =         "Diplomearbeit M{\"u}nster 1976 und doert angegebene Literatur (English: Muenster diploma work 1976 and the literature cited therein). The hashing method was rediscovered fourteen years later by Pearson \cite{Pearson:1990:FHV}, and then
+ commented on by several authors \cite{Dittmer:1991:NFH,Savoy:1991:NFH,Litsios:1991:NFH,Pearson:1991:NFH}.",
+  acknowledgement = ack-nhfb,
+  xxnote =       "Cannot find in Dissertation Abstracts, European.",
+}

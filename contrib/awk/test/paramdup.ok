@@ -1,0 +1,2 @@
+gawk: paramdup.awk:4: error: function `foo': parameter #4, `b', duplicates parameter #2
+gawk: paramdup.awk:4: error: function `foo': parameter #5, `a', duplicates parameter #1
