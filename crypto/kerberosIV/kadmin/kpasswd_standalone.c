@@ -59,11 +59,11 @@ int krb_passwd(char *uname, char *iflag, char *rflag, char *uflag)
     void get_pw_new_key();
 
 #ifdef NOENCRYPTION
+int placebo_long_pw_string();
 #define read_long_pw_string placebo_read_pw_string
 #else
 #define read_long_pw_string des_read_pw_string
 #endif
-    int read_long_pw_string();
 
     bzero(name, sizeof(name));
     bzero(inst, sizeof(inst));
