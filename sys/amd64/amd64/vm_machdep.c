@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.90 1997/10/10 09:44:12 peter Exp $
+ *	$Id: vm_machdep.c,v 1.91 1997/11/18 09:27:23 bde Exp $
  */
 
 #include "npx.h"
@@ -89,7 +89,6 @@ static void	vm_bounce_page_free __P((vm_offset_t pa, int count));
 static volatile int	kvasfreecnt;
 
 caddr_t		bouncememory;
-int		bouncepages;
 static int	bpwait;
 static vm_offset_t	*bouncepa;
 static int		bmwait, bmfreeing;
@@ -815,12 +814,14 @@ vunmapbuf(bp)
  * Force reset the processor by invalidating the entire address space!
  */
 void
-cpu_reset() {
+cpu_reset()
+{
+
 #ifdef PC98
 	/*
 	 * Attempt to do a CPU reset via CPU reset port.
 	 */
-	asm("cli");
+	disable_intr();
 	outb(0x37, 0x0f);		/* SHUT0 = 0. */
 	outb(0x37, 0x0b);		/* SHUT1 = 0. */
 	outb(0xf0, 0x00);		/* Reset. */
