@@ -40,7 +40,7 @@ divert(-1)
 
 divert(0)dnl
 include(../m4/cf.m4)
-VERSIONID(`$Id: hub.mc,v 1.1.4.2 1997/08/22 16:55:31 peter Exp $')
+VERSIONID(`$Id: hub.mc,v 1.1.4.3 1997/09/28 12:37:50 peter Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
@@ -71,9 +71,11 @@ define(`confTO_HOSTSTATUS', `30m')dnl
 define(`confMIN_QUEUE_AGE', `30m')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
 define(`confTRUSTED_USERS', `majordom')dnl
-define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)$.
-          by $j ($v/$Z)$?r with $r$. id $i$?u$|;$.
-          $?ufor $u; $.$b')dnl
+define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)
+          $.by $j ($v/$Z)$?r with $r$. id $i$?u
+          for $u; $|;
+          $.$b$?g
+          (envelope-from $g)$.')dnl
 define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
 define(`confMAX_DAEMON_CHILDREN', `8')dnl
 define(`confCONNECTION_THROTTLE_RATE', `1')dnl
