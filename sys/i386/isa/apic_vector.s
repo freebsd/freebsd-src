@@ -745,7 +745,7 @@ imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
 
 	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CAMNET_MASK, SWI_CAMBIO_MASK
-	.long	SWI_VM_MASK, 0, SWI_CLOCK_MASK, 0
+	.long	SWI_VM_MASK, SWI_TQ_MASK, SWI_CLOCK_MASK, 0
 
 /* active flag for lazy masking */
 iactive:
