@@ -1846,7 +1846,7 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 		pci_write_config(dev, PCIR_MAPS + i * 4, dinfo->cfg.bar[i], 4);
 	pci_write_config(dev, PCIR_BIOS, dinfo->cfg.bios, 4);
 #ifdef PCI_RESTORE_EXTRA
-	pci_write_config(dev, PCIR_SUBVEND_0, dinfo->cfg.subdevice, 2);
+	pci_write_config(dev, PCIR_SUBVEND_0, dinfo->cfg.subvendor, 2);
 	pci_write_config(dev, PCIR_SUBDEV_0, dinfo->cfg.subdevice, 2);
 	pci_write_config(dev, PCIR_VENDOR, dinfo->cfg.vendor, 2);
 	pci_write_config(dev, PCIR_DEVICE, dinfo->cfg.device, 2);
