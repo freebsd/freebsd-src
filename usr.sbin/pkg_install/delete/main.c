@@ -24,6 +24,8 @@ static const char rcsid[] =
  *
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <err.h>
 #include "lib.h"
 #include "delete.h"
@@ -42,6 +44,8 @@ main(int argc, char **argv)
     int ch, error;
     char **pkgs, **start;
     char *pkgs_split;
+    char *tmp;
+    struct stat stat_s;
 
     pkgs = start = argv;
     while ((ch = getopt(argc, argv, Options)) != -1)
@@ -107,8 +111,14 @@ main(int argc, char **argv)
     if (pkgs == start)
 	warnx("missing package name(s)"), usage();
     *pkgs = NULL;
-    if (!Fake && getuid() != 0)
-	errx(1, "you must be root to delete packages");
+    tmp = getenv(PKG_DBDIR) ? getenv(PKG_DBDIR) : DEF_LOG_DIR;
+    (void) stat(tmp, &stat_s);
+    if (!Fake && getuid() && geteuid() != stat_s.st_uid) {
+	if (!Force)
+	    errx(1, "you do not own %s, use -f to force", tmp);
+	else
+	    warnx("you do not own %s (proceeding anyways)", tmp);
+    }
     if ((error = pkg_perform(start)) != 0) {
 	if (Verbose)
 	    warnx("%d package deletion(s) failed", error);
