@@ -239,6 +239,7 @@ trap(frame)
 
 		case T_BPTFLT:		/* bpt instruction fault */
 		case T_TRCTRAP:		/* trace trap */
+			enable_intr();
 			frame.tf_rflags &= ~PSL_T;
 			i = SIGTRAP;
 			break;
