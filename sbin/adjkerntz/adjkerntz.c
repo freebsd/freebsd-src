@@ -254,6 +254,8 @@ again:
 
 	if (need_restore) {
 		need_restore = 0;
+		mib[0] = CTL_MACHDEP;
+		mib[1] = CPU_DISRTCSET;
 		disrtcset = 0;
 		len = sizeof(disrtcset);
 		if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
