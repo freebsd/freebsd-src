@@ -21,6 +21,10 @@ SUBDIR+=aac asr bktr coff fpu gnufpu ibcs2 linprocfs linux mly splash streams \
 	svr4 vesa wi
 .endif
 
+.if ${MACHINE} == "pc98"
+SUBDIR+=snc
+.endif
+
 .if ${MACHINE_ARCH} == "alpha"
 SUBDIR+=osf1
 .endif
