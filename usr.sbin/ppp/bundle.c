@@ -902,6 +902,7 @@ bundle_Destroy(struct bundle *bundle)
 
 #ifndef NORADIUS
   /* Tell the radius server the bad news */
+  log_Printf(LogDEBUG, "Radius: Destroy called from bundle_Destroy\n");
   radius_Destroy(&bundle->radius);
 #endif
 
