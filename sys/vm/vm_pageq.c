@@ -141,7 +141,6 @@ vm_pageq_remove(vm_page_t m)
 	int queue = m->queue;
 	struct vpgqueues *pq;
 
-	GIANT_REQUIRED;
 	if (queue != PQ_NONE) {
 		m->queue = PQ_NONE;
 		pq = &vm_page_queues[queue];
