@@ -37,15 +37,15 @@
 This driver is for the Promise Supertrak SX6000 ATA hardware RAID controller.
 It supports (in hardware) RAID levels 0, 1, 0+1, 3, 5 and JBOD on up to
 6 ATA disk drives, including automatic rebuild and hotswap, and supports
-signalling disk status on LED's on Promise Superswap disk enclosures.
-The Supertrak lines of controllers does not support non-disk devices.
+signalling disk status on LEDs on Promise Superswap disk enclosures.
+The Supertrak line of controllers does not support non-disk devices.
 .Sh NOTES
 The
 .Nm
-driver does not support manipulating the RAID from the OS, RAID's need
-to be setup from the onboard BIOS.
-However hot swap, hot spare, and
-automatic rebuilds are supported without reboot.
+driver does not support manipulating the RAID from the OS, RAIDs need
+to be set up from the onboard BIOS.
+However, hot swap, hot spare, and
+automatic rebuilds are supported without a reboot.
 .Sh HISTORY
 The
 .Nm
