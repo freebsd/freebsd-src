@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.90 1998/11/03 08:47:29 julian Exp $
+ * $Id: pci.c,v 1.91 1998/11/09 08:08:06 peter Exp $
  *
  */
 
@@ -480,14 +480,6 @@ pci_addcfg(struct pci_devinfo *dinfo)
 		}
 	}
 	pci_drvattach(dinfo); /* XXX currently defined in pci_compat.c */
-}
-
-/* return pointer to device that is a bridge to this bus */
-
-static pcicfgregs *
-pci_bridgeto(int bus)
-{
-	return (NULL); /* XXX not yet implemented */
 }
 
 /* scan one PCI bus for devices */
