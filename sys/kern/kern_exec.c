@@ -583,7 +583,6 @@ exec_new_vmspace(imgp)
 	struct execlist *ep;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
 	vm_offset_t stack_addr = USRSTACK - maxssiz;
-	vm_map_t map = &vmspace->vm_map;
 
 	GIANT_REQUIRED;
 
@@ -604,11 +603,10 @@ exec_new_vmspace(imgp)
 		if (vmspace->vm_shm)
 			shmexit(imgp->proc);
 		pmap_remove_pages(vmspace_pmap(vmspace), 0, VM_MAXUSER_ADDRESS);
-		vm_map_remove(map, 0, VM_MAXUSER_ADDRESS);
+		vm_map_remove(&vmspace->vm_map, 0, VM_MAXUSER_ADDRESS);
 	} else {
 		vmspace_exec(imgp->proc);
 		vmspace = imgp->proc->p_vmspace;
-		map = &vmspace->vm_map;
 	}
 
 	/* Allocate a new stack */
