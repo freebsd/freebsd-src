@@ -12,6 +12,8 @@ SUBDIR= disklabel dmesg dset dump dumpfs \
 	scsiformat shutdown slattach startslip spppcontrol tunefs \
 	umount
 
+SUBDIR+=ipf
+
 .if exists(${.CURDIR}/${MACHINE})
 SUBDIR+= ${MACHINE}
 .endif
