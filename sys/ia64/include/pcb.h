@@ -77,10 +77,14 @@ struct pcb {
 
 /*
  * The pcb is augmented with machine-dependent additional data for
- * core dumps. For the Alpha, that's a trap frame.
+ * core dumps. Not applicable...
  */
 struct md_coredump {
-	struct	trapframe md_tf;
 };
+
+#ifdef _KERNEL
+void restorectx(struct pcb *);
+void savectx(struct pcb *);
+#endif
 
 #endif /* _MACHINE_PCB_H_ */
