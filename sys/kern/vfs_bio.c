@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.179 1998/10/13 08:24:40 dg Exp $
+ * $Id: vfs_bio.c,v 1.180 1998/10/25 17:44:52 phk Exp $
  */
 
 /*
@@ -794,7 +794,8 @@ vfs_vmio_release(bp)
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
-		vm_page_unwire(m);
+		if ((bp->b_flags & B_ASYNC) == 0)
+		vm_page_unwire(m, (bp->b_flags & B_ASYNC) == 0 ? 0 : 1);
 
 		/*
 		 * We don't mess with busy pages, it is
@@ -806,6 +807,7 @@ vfs_vmio_release(bp)
 			
 		if (m->wire_count == 0) {
 
+			vm_page_flag_clear(m, PG_ZERO);
 			/*
 			 * If this is an async free -- we cannot place
 			 * pages onto the cache queue.  If it is an
@@ -830,9 +832,6 @@ vfs_vmio_release(bp)
 					 */
 					if (m->dirty == 0 && m->hold_count == 0)
 						vm_page_cache(m);
-					else
-						vm_page_deactivate(m);
-					vm_page_flag_clear(m, PG_ZERO);
 				} else if (m->hold_count == 0) {
 					vm_page_busy(m);
 					vm_page_protect(m, VM_PROT_NONE);
@@ -844,7 +843,6 @@ vfs_vmio_release(bp)
 				 * act_count.
 				 */
 				m->act_count = 0;
-				vm_page_flag_clear(m, PG_ZERO);
 			}
 		}
 	}
@@ -1714,7 +1712,7 @@ allocbuf(struct buf * bp, int size)
 					vm_page_sleep(m, "biodep", &m->busy);
 
 					bp->b_pages[i] = NULL;
-					vm_page_unwire(m);
+					vm_page_unwire(m, 0);
 				}
 				pmap_qremove((vm_offset_t) trunc_page((vm_offset_t)bp->b_data) +
 				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
@@ -2376,7 +2374,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 			bp->b_pages[index] = NULL;
 			pmap_kremove(pg);
 			vm_page_busy(p);
-			vm_page_unwire(p);
+			vm_page_unwire(p, 0);
 			vm_page_free(p);
 		}
 	}

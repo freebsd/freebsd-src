@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.42 1998/06/07 17:11:39 dfr Exp $
+ * $Id: sys_pipe.c,v 1.43 1998/10/13 08:24:40 dg Exp $
  */
 
 /*
@@ -502,7 +502,7 @@ pipe_build_write_buffer(wpipe, uio)
 		if (!paddr) {
 			int j;
 			for(j=0;j<i;j++)
-				vm_page_unwire(wpipe->pipe_map.ms[j]);
+				vm_page_unwire(wpipe->pipe_map.ms[j], 1);
 			return EFAULT;
 		}
 
@@ -566,7 +566,7 @@ struct pipe *wpipe;
 		}
 	}
 	for (i=0;i<wpipe->pipe_map.npages;i++)
-		vm_page_unwire(wpipe->pipe_map.ms[i]);
+		vm_page_unwire(wpipe->pipe_map.ms[i], 1);
 }
 
 /*

@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.10 1998/09/04 18:49:35 dfr Exp $
+ *	$Id: pmap.c,v 1.11 1998/10/21 11:38:06 dg Exp $
  */
 
 /*
@@ -1045,7 +1045,7 @@ pmap_dispose_proc(p)
 		*(ptek + i) = 0;
 		pmap_invalidate_page(kernel_pmap, 
 				     (vm_offset_t)p->p_addr + i * PAGE_SIZE);
-		vm_page_unwire(m);
+		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
 }
@@ -1069,8 +1069,7 @@ pmap_swapout_proc(p)
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_swapout_proc: upage already missing???");
 		m->dirty = VM_PAGE_BITS_ALL;
-		vm_page_unwire(m);
-		vm_page_deactivate(m);
+		vm_page_unwire(m, 0);
 		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
 	}
 }
