@@ -1,7 +1,7 @@
 #
 # site-specific startup actions, daemons
 #
-#	$Id$
+#	$Id: rc.local,v 1.16 1995/03/16 16:58:01 wollman Exp $
 #
 
 T=/tmp/_motd
@@ -15,8 +15,5 @@ rm -f $T
 _HOST=`hostname`
 
 echo -n 'starting local daemons:'
-
-# For loading fonts/keyboard example look in /usr/share/examples/syscons
-# directory
 
 echo '.'
