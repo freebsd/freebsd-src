@@ -41,6 +41,7 @@ struct { const char *name; int (*setter)(struct archive *); } names[] =
 {
 	{ "cpio",	archive_write_set_format_cpio },
 	{ "pax",	archive_write_set_format_pax },
+	{ "posix",	archive_write_set_format_pax },
 	{ "shar",	archive_write_set_format_shar },
 	{ "shardump",	archive_write_set_format_shar_dump },
 	{ "ustar",	archive_write_set_format_ustar },
