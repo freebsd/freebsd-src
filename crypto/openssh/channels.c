@@ -39,7 +39,8 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: channels.c,v 1.175 2002/06/10 22:28:41 markus Exp $");
+RCSID("$OpenBSD: channels.c,v 1.179 2002/06/26 08:55:02 markus Exp $");
+RCSID("$FreeBSD$");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -205,7 +206,7 @@ channel_register_fds(Channel *c, int rfd, int wfd, int efd,
 
 Channel *
 channel_new(char *ctype, int type, int rfd, int wfd, int efd,
-    int window, int maxpack, int extusage, char *remote_name, int nonblock)
+    u_int window, u_int maxpack, int extusage, char *remote_name, int nonblock)
 {
 	int i, found;
 	Channel *c;
@@ -229,6 +230,9 @@ channel_new(char *ctype, int type, int rfd, int wfd, int efd,
 		/* There are no free slots.  Take last+1 slot and expand the array.  */
 		found = channels_alloc;
 		channels_alloc += 10;
+		if (channels_alloc > 10000)
+			fatal("channel_new: internal error: channels_alloc %d "
+			    "too big.", channels_alloc);
 		debug2("channel: expanding %d", channels_alloc);
 		channels = xrealloc(channels, channels_alloc * sizeof(Channel *));
 		for (i = found; i < channels_alloc; i++)
@@ -1568,8 +1572,9 @@ channel_after_select(fd_set * readset, fd_set * writeset)
 void
 channel_output_poll(void)
 {
-	int len, i;
 	Channel *c;
+	int i;
+	u_int len;
 
 	for (i = 0; i < channels_alloc; i++) {
 		c = channels[i];
@@ -1647,7 +1652,7 @@ channel_output_poll(void)
 		    c->remote_window > 0 &&
 		    (len = buffer_len(&c->extended)) > 0 &&
 		    c->extended_usage == CHAN_EXTENDED_READ) {
-			debug2("channel %d: rwin %d elen %d euse %d",
+			debug2("channel %d: rwin %u elen %u euse %d",
 			    c->self, c->remote_window, buffer_len(&c->extended),
 			    c->extended_usage);
 			if (len > c->remote_window)
@@ -1717,9 +1722,8 @@ void
 channel_input_extended_data(int type, u_int32_t seq, void *ctxt)
 {
 	int id;
-	int tcode;
 	char *data;
-	u_int data_len;
+	u_int data_len, tcode;
 	Channel *c;
 
 	/* Get the channel number and verify it. */
@@ -1874,7 +1878,7 @@ channel_input_open_confirmation(int type, u_int32_t seq, void *ctxt)
 			c->confirm(c->self, NULL);
 			debug2("callback done");
 		}
-		debug("channel %d: open confirm rwindow %d rmax %d", c->self,
+		debug("channel %d: open confirm rwindow %u rmax %u", c->self,
 		    c->remote_window, c->remote_maxpacket);
 	}
 	packet_check_eom();
@@ -1931,7 +1935,8 @@ void
 channel_input_window_adjust(int type, u_int32_t seq, void *ctxt)
 {
 	Channel *c;
-	int id, adjust;
+	int id;
+	u_int adjust;
 
 	if (!compat20)
 		return;
@@ -1947,7 +1952,7 @@ channel_input_window_adjust(int type, u_int32_t seq, void *ctxt)
 	}
 	adjust = packet_get_int();
 	packet_check_eom();
-	debug2("channel %d: rcvd adjust %d", id, adjust);
+	debug2("channel %d: rcvd adjust %u", id, adjust);
 	c->remote_window += adjust;
 }
 
@@ -2328,12 +2333,12 @@ channel_connect_to(const char *host, u_short port)
 
 /*
  * Creates an internet domain socket for listening for X11 connections.
- * Returns a suitable display number for the DISPLAY variable, or -1 if
- * an error occurs.
+ * Returns 0 and a suitable display number for the DISPLAY variable
+ * stored in display_numberp , or -1 if an error occurs.
  */
 int
 x11_create_display_inet(int x11_display_offset, int x11_use_localhost,
-    int single_connection)
+    int single_connection, u_int *display_numberp)
 {
 	Channel *nc = NULL;
 	int display_number, sock;
@@ -2431,7 +2436,8 @@ x11_create_display_inet(int x11_display_offset, int x11_use_localhost,
 	}
 
 	/* Return the display number for the DISPLAY environment variable. */
-	return display_number;
+	*display_numberp = display_number;
+	return (0);
 }
 
 static int

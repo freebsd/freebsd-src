@@ -32,7 +32,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: key.c,v 1.44 2002/05/31 13:16:48 markus Exp $");
+RCSID("$OpenBSD: key.c,v 1.45 2002/06/23 03:26:19 deraadt Exp $");
+RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
 
@@ -89,6 +90,7 @@ key_new(int type)
 	}
 	return k;
 }
+
 Key *
 key_new_private(int type)
 {
@@ -120,6 +122,7 @@ key_new_private(int type)
 	}
 	return k;
 }
+
 void
 key_free(Key *k)
 {
@@ -359,6 +362,7 @@ read_bignum(char **cpp, BIGNUM * value)
 	*cpp = cp;
 	return 1;
 }
+
 static int
 write_bignum(FILE *f, BIGNUM *num)
 {
@@ -485,6 +489,7 @@ key_read(Key *ret, char **cpp)
 	}
 	return success;
 }
+
 int
 key_write(Key *key, FILE *f)
 {
@@ -516,6 +521,7 @@ key_write(Key *key, FILE *f)
 	}
 	return success;
 }
+
 char *
 key_type(Key *k)
 {
@@ -532,6 +538,7 @@ key_type(Key *k)
 	}
 	return "unknown";
 }
+
 char *
 key_ssh_name(Key *k)
 {
@@ -545,6 +552,7 @@ key_ssh_name(Key *k)
 	}
 	return "ssh-unknown";
 }
+
 u_int
 key_size(Key *k)
 {
@@ -807,7 +815,6 @@ key_verify(
 }
 
 /* Converts a private to a public key */
-
 Key *
 key_demote(Key *k)
 {
