@@ -351,13 +351,13 @@ Some nodes (usually associated with a piece of hardware) may be
 .Em persistent
 in that a shutdown breaks all edges and resets the node,
 but doesn't remove it. In this case the shutdown method should not
-free it's resources, but rather, clean up and then clear the
+free its resources, but rather, clean up and then clear the
 .Em NG_INVALID
 flag to signal the generic code that the shutdown is aborted. In
 the case where the shutdown is started by the node itself due to hardware
 removal or unloading, (via ng_rmnode_self()) it should set the
 .Em NG_REALLY_DIE
-flag to signal to it's own shutdown method that it is not to persist.
+flag to signal to its own shutdown method that it is not to persist.
 .El
 .Sh Sending and Receiving Data
 Two other methods are also supported by all nodes:
@@ -427,7 +427,7 @@ The infrastructure will respect that bit and queue the data for delivery at
 a later time, rather than deliver it directly. A node may decide to set
 the bit on the
 .Em peer
-node, so that it's own output packets are queued. This is used
+node, so that its own output packets are queued. This is used
 by device drivers running at different processor priorities to transfer
 packet delivery to the splnet() level at which the bulk of
 .Nm
