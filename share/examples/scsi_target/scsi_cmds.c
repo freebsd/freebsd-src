@@ -87,6 +87,7 @@ static struct targ_cdb_handlers cdb_handlers[] = {
 	{ SYNCHRONIZE_CACHE,	tcmd_null_ok,		NULL },
 	{ MODE_SENSE_6,		tcmd_illegal_req,	NULL },
 	{ MODE_SELECT_6,	tcmd_illegal_req,	NULL },
+	/* XXX REPORT_LUNS should be handled here. */
 #ifdef READ_16
 	{ READ_16,		tcmd_rdwr,		tcmd_rdwr_done },
 	{ WRITE_16,		tcmd_rdwr,		tcmd_rdwr_done },
