@@ -64,7 +64,7 @@
 /* default is to have 8 VN's */
 #if NVN < 8
 #undef NVN
-#define NVN 8
+#define	NVN	8
 #endif
 
 #include <sys/param.h>
@@ -186,12 +186,12 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 		/* Build label for whole disk. */
 		bzero(&label, sizeof label);
 		label.d_secsize = DEV_BSIZE;
-		label.d_nsectors = vn->sc_size;
-		label.d_ntracks = 1;
-		label.d_ncylinders = 1;
-		label.d_secpercyl = label.d_nsectors;
+		label.d_nsectors = 32;
+		label.d_ntracks = 64;
+		label.d_ncylinders = vn->sc_size / (32 * 64);
+		label.d_secpercyl = 32 * 64;
 		label.d_secperunit = label.d_partitions[RAW_PART].p_size
-				   = label.d_nsectors;
+				   = vn->sc_size;
 
 		return (dsopen("vn", dev, mode, &vn->sc_slices, &label,
 			       vnstrategy, (ds_setgeom_t *)NULL));
@@ -421,11 +421,6 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 #endif
 
 #ifdef TEST_LABELLING
-	/*
-	 * XXX test is unnecessary?
-	 */
-	if (unit >= NVN)
-		return (ENXIO);
 	vn = vn_softc[unit];
 	if (vn->sc_slices != NULL) {
 		error = dsioctl(dev, cmd, data, flag, vn->sc_slices,
@@ -440,8 +435,6 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error)
 		return (error);
-	if (unit >= NVN)
-		return (ENXIO);
 
 	vn = vn_softc[unit];
 	vio = (struct vn_ioctl *)data;
