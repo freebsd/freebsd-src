@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.14 1995/12/17 07:19:24 bde Exp $
+ *	$Id: procfs_mem.c,v 1.15 1996/01/19 03:58:32 dyson Exp $
  */
 
 /*
@@ -62,6 +62,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
+#include <sys/user.h>
 
 static int	procfs_rwmem __P((struct proc *p, struct uio *uio));
 
@@ -96,10 +97,18 @@ procfs_rwmem(p, uio)
 
 		uva = (vm_offset_t) uio->uio_offset;
 		if (uva >= VM_MAXUSER_ADDRESS) {
+			
 			if (writing || (uva >= (VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE))) {
 				error = 0;
 				break;
 			}
+			/* we are reading the "U area", fill it in */
+			PHOLD(p);
+			if (p->p_flag & P_INMEM) {
+				p->p_addr->u_kproc.kp_proc = *p;
+				fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+			}
+			PRELE(p);
 		}
 
 		/*
