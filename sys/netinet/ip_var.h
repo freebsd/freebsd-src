@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.41 1998/06/08 09:47:42 bde Exp $
+ *	$Id: ip_var.h,v 1.42 1998/07/06 03:20:18 julian Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -153,6 +153,7 @@ struct	ipstat {
 };
 
 #ifdef KERNEL
+
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
 #define	IP_RAWOUTPUT		0x2		/* raw ip header exists */
@@ -209,11 +210,10 @@ void	div_input __P((struct mbuf *, int));
 extern struct pr_usrreqs div_usrreqs;
 extern u_short ip_divert_port;
 extern u_short ip_divert_cookie;
-#endif /* IPDIVERT */
+#endif
 
-struct sockaddr_in;
 extern struct sockaddr_in *ip_fw_fwd_addr;
 
 #endif /* KERNEL */
 
-#endif /* _NETINET_IP_VAR_H_ */
+#endif /* !_NETINET_IP_VAR_H_ */
