@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Thu Apr 27 13:33:18 2000]
+ *	last edit-date: [Tue Oct 10 17:18:21 2000]
  *
  *---------------------------------------------------------------------------*/ 
 
@@ -636,7 +636,7 @@ ng_ing_newhook(node_p node, hook_p hook, const char *name)
  *---------------------------------------------------------------------------*/
 static int
 ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-							struct ng_mesg **rptr)
+		struct ng_mesg **rptr, hook_p lasthook)
 {
 	struct ing_softc *sc = node->private;
 
@@ -751,7 +751,8 @@ ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * get data from another node and transmit it out on a B-channel
  *---------------------------------------------------------------------------*/
 static int
-ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+                struct mbuf **ret_m, meta_p *ret_meta)
 {
 	struct ing_softc *sc = hook->node->private;
 	struct ifqueue  *xmitq_p;
