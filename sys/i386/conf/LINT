@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.54 1998/06/23 21:33:19 peter Exp $
+#	$Id: LINT,v 1.286.2.55 1998/06/24 08:45:20 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -860,6 +860,7 @@ options		BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to
 #
 
 device ar0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector arintr
+device cs0 at isa? port 0x300 net irq ? vector csintr
 device cx0 at isa? port 0x240 net irq 15 drq 7 vector cxintr
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 device eg0 at isa? port 0x310 net irq 5 vector egintr
