@@ -504,6 +504,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	int h = HASHVEC(vector);
 	struct alpha_intr *i;
 	struct ithd *ithd;			/* our interrupt thread */
+	int saveintr;
 
 	/*
 	 * Walk the hash bucket for this vector looking for this vector's
@@ -554,14 +555,11 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	 * is higher priority than their current thread, it gets run now.
 	 */
 	ithd->it_need = 1;
-#ifdef PREEMPTION
-	/* Does not work on 4100 and PC164 */
 	if (i->disable) {
 		CTR1(KTR_INTR,
 		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
 		i->disable(i->vector);
 	}
-	enable_intr();
 	mtx_enter(&sched_lock, MTX_SPIN);
 	if (ithd->it_proc->p_stat == SWAIT) {
 		/* not on the run queue and not running */
@@ -571,41 +569,25 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		alpha_mb();	/* XXX - ??? */
 		ithd->it_proc->p_stat = SRUN;
 		setrunqueue(ithd->it_proc);
+#ifdef PREEMPTION
+		/* Does not work on 4100 and PC164 */
 		if (!cold) {
+			saveintr = sched_lock.mtx_saveintr;
+			sched_lock.mtx_saveintr = ALPHA_PSL_IPL_0;
 			if (curproc != PCPU_GET(idleproc))
 				setrunqueue(curproc);
 			mi_switch();
+			sched_lock.mtx_saveintr = saveintr;
 		}
+#else
+		need_resched();
+#endif
 	} else {
 		CTR3(KTR_INTR, "alpha_dispatch_intr: %d: it_need %d, state %d",
 		    ithd->it_proc->p_pid, ithd->it_need, ithd->it_proc->p_stat);
 		need_resched();
 	}
 	mtx_exit(&sched_lock, MTX_SPIN);
-#else
-	mtx_enter(&sched_lock, MTX_SPIN);
-	if (ithd->it_proc->p_stat == SWAIT) {
-		/* not on the run queue and not running */
-		CTR1(KTR_INTR, "alpha_dispatch_intr: setrunqueue %d",
-		    ithd->it_proc->p_pid);
-
-		alpha_mb();	/* XXX - ??? */
-		ithd->it_proc->p_stat = SRUN;
-		setrunqueue(ithd->it_proc);
-		aston();
-	} else {
-		CTR3(KTR_INTR, "alpha_dispatch_intr: %d: it_need %d, state %d",
-		    ithd->it_proc->p_pid, ithd->it_need, ithd->it_proc->p_stat);
-	}
-	if (i->disable) {
-		CTR1(KTR_INTR,
-		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
-		i->disable(i->vector);
-	}
-	mtx_exit(&sched_lock, MTX_SPIN);
-
-	need_resched();
-#endif
 }
  
 void
