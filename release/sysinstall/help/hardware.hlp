@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.2 1995/12/07 10:34:47 peter Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.3 1996/04/27 01:34:44 jkh Exp $
 
 Contents last changed:  April 26th, 1996
 
@@ -251,6 +251,14 @@ custom kernel that contains only the device drivers which your system
 really needs (see section 6.0 of the FreeBSD.FAQ).  If your system has
 sufficient free disk space to store and compile the kernel sources,
 this is the option we most highly recommend.
+
+IMPORTANT NOTE:  Because dset only runs when the system has been fully
+installed onto the hard disk, any changes you make when initially booting
+off the floppy will NOT BE SAVED.  If you had to change your settings
+in order to install the system then you will have to make them again
+the first time you boot from the hard disk, after that you will not need
+to do so again as dset will have run and saved them to your installed kernel
+image.
 
 
 3.      LINT - other possible configurations
