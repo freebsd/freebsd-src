@@ -560,6 +560,7 @@ static int
 rip6_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct inpcb *inp;
+	struct icmp6_filter *filter;
 	int error, s;
 
 	INP_INFO_WLOCK(&ripcbinfo);
@@ -577,11 +578,16 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return error;
 	}
+	MALLOC(filter, struct icmp6_filter *,
+	       sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
+	if (filter == NULL)
+		return ENOMEM;
 	s = splnet();
 	error = in_pcballoc(so, &ripcbinfo, "raw6inp");
 	splx(s);
 	if (error) {
 		INP_INFO_WUNLOCK(&ripcbinfo);
+		FREE(filter, M_PCB);
 		return error;
 	}
 	inp = (struct inpcb *)so->so_pcb;
@@ -591,8 +597,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	inp->in6p_ip6_nxt = (long)proto;
 	inp->in6p_hops = -1;	/* use kernel default */
 	inp->in6p_cksum = -1;
-	MALLOC(inp->in6p_icmp6filt, struct icmp6_filter *,
-	       sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
+	inp->in6p_icmp6filt = filter;
 	ICMP6_FILTER_SETPASSALL(inp->in6p_icmp6filt);
 	INP_UNLOCK(inp);
 	return 0;
