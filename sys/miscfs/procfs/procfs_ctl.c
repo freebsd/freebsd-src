@@ -35,8 +35,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)procfs_ctl.c	8.4 (Berkeley) 6/15/94
- *
- * From:
  * $FreeBSD$
  */
 
@@ -128,13 +126,12 @@ procfs_control(curp, p, op)
 	if (op == PROCFS_CTL_ATTACH) {
 		sx_xlock(&proctree_lock);
 		PROC_LOCK(p);
-		/* check whether already being traced */
 		if (p->p_flag & P_TRACED) {
 			error = EBUSY;
 			goto out;
 		}
 
-		/* can't trace yourself! */
+		/* Can't trace yourself! */
 		if (p->p_pid == curp->p_pid) {
 			error = EINVAL;
 			goto out;
@@ -156,10 +153,10 @@ procfs_control(curp, p, op)
 			proc_reparent(p, curp);
 		}
 		psignal(p, SIGSTOP);
-	out:
+out:
 		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);
-		return (0);
+		return (error);
 	}
 
 	/*
@@ -266,7 +263,6 @@ procfs_control(curp, p, op)
 	 * to enter
 	 */
 	case PROCFS_CTL_WAIT:
-		error = 0;
 		if (p->p_flag & P_TRACED) {
 			mtx_lock_spin(&sched_lock);
 			while (error == 0 &&
