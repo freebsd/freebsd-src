@@ -36,8 +36,8 @@ The
 .Nm
 file contains configuration entries created by the USERCONFIG mechanism.
 This is typically used to force I/O port, memory and IRQ settings for
-legacy ISA devices on the i386 platform. It is typically created during
-first-time system installation by
+legacy ISA devices on the i386 platform.
+It is typically created during first-time system installation by
 .Xr kget 8 .
 .Pp
 The file
@@ -61,7 +61,7 @@ The kernel must be compiled with the following option:
 .Pp
 This option is normally present in the GENERIC kernel.
 .Sh SYNTAX
-Device names must contain both the name of the driver, and the instance
+Device names must contain both the name of the driver and the instance
 number, for example, ed0.
 .Pp
 .Bl -tag -width "iom <device> <address>" -compact
@@ -84,16 +84,16 @@ Set arbitrary flags for the device.
 .It Sy q
 End the configuration file.
 .El
-.Sh NOTES
-The
-.Nm
-mechanism has been depracated in
-.Fx 5.0 .
 .Sh SEE ALSO
 .Xr loader.conf 5
 .Xr boot 8 ,
 .Xr kget 8 ,
 .Xr loader 8 ,
+.Sh HISTORY
+The
+.Nm
+mechanism has been deprecated in
+.Fx 5.0 .
 .Sh AUTHORS
 This man page was written by
 .An Bruce M Simpson Aq bms@spc.org .
