@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.serial,v 1.6.2.1 1998/02/15 14:24:51 jkh Exp $
+# $Id: rc.serial,v 1.6.2.2 1998/03/13 14:01:57 danny Exp $
 
 # Change some defaults for serial devices.
 # Standard defaults are:
@@ -118,10 +118,10 @@ terminal() {
 # terminal d a  0
 
 # Initialize all ports on a Cyclades-8yo.
-# modem    c0 c0  00 01 02 03 04 05 06 07
+# modem    c c  00 01 02 03 04 05 06 07
 
 # Initialize all ports on a Cyclades-16ye.
-# modem    c0 c0  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 
+# modem    c c  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 
 
 # Initialize all ports on a Digiboard 8.
 # modem    D D  00 01 02 03 04 05 06 07
