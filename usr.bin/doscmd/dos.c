@@ -569,7 +569,7 @@ int21_0a(regcontext_t *REGS)
     int			n;
     
     /* pointer to buffer */
-    addr = (unsigned char *)MAKEPTR(R_DS, R_DL);
+    addr = (unsigned char *)MAKEPTR(R_DS, R_DX);
 
     /* capacity of buffer */
     avail = addr[0];
@@ -1309,6 +1309,22 @@ int21_3f(regcontext_t *REGS)
 ** write
 */
 static int
+write_or_truncate(int fd, char *addr, int len)
+{
+    off_t offset;
+
+    if (len == 0) {
+	offset = lseek(fd, 0, SEEK_CUR);
+	if (offset < 0)
+	    return -1;
+	else
+	    return ftruncate(fd, offset);
+    } else {
+	return write(fd, addr, len);
+    }
+}
+
+static int
 int21_40(regcontext_t *REGS)
 {
     char	*addr;
@@ -1322,7 +1338,7 @@ int21_40(regcontext_t *REGS)
     switch (R_BX) {
     case 0:
 	if (redirect0) {
-	    n = write (R_BX, addr, nbytes);
+	    n = write_or_truncate(R_BX, addr, nbytes);
 	    break;
 	}
 	n = nbytes;
@@ -1331,7 +1347,7 @@ int21_40(regcontext_t *REGS)
 	break;
     case 1:
 	if (redirect1) {
-	    n = write (R_BX, addr, nbytes);
+	    n = write_or_truncate(R_BX, addr, nbytes);
 	    break;
 	}
 	n = nbytes;
@@ -1340,7 +1356,7 @@ int21_40(regcontext_t *REGS)
 	break;
     case 2:
 	if (redirect2) {
-	    n = write (R_BX, addr, nbytes);
+	    n = write_or_truncate(R_BX, addr, nbytes);
 	    break;
 	}
 	n = nbytes;
@@ -1348,7 +1364,7 @@ int21_40(regcontext_t *REGS)
 	    tty_write(*addr++, -1);
 	break;
     default:
-	n = write (R_BX, addr, nbytes);
+	n = write_or_truncate(R_BX, addr, nbytes);
 	break;
     }
     if (n < 0)
@@ -1705,6 +1721,7 @@ int21_4c(regcontext_t *REGS)
 {
     return_status = R_AL;
     done(REGS, R_AL);
+    return 0;
 }
 
 /*
@@ -2353,7 +2370,7 @@ static struct intfunc_table int21_table [] = {
     { 0x4e,	IFT_NOSUBFUNC,	int21_find,	"findfirst"},
     { 0x4f,	IFT_NOSUBFUNC,	int21_find,	"findnext"},
     { 0x50,	IFT_NOSUBFUNC,	int21_50,	"set psp"},
-    { 0x50,	IFT_NOSUBFUNC,	int21_62,	"get psp"},
+    { 0x51,	IFT_NOSUBFUNC,	int21_62,	"get psp"},
     { 0x52,	IFT_NOSUBFUNC,	int21_NOFUNC,	"get LoL"},
     { 0x53,	IFT_NOSUBFUNC,	int21_NOFUNC,	"translate BPB to DPB"},
     { 0x54,	IFT_NOSUBFUNC,	int21_NULLFUNC,	"get verify flag"},

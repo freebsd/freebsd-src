@@ -235,14 +235,15 @@ init_hdisk(int drive, int cyl, int head, int tracksize, char *file, char *fake_p
     	for (fd = 0; fd < 4; ++fd) {
 	    if (*(u_short *)(di->sector0 + 0x1FE) == 0xAA55 &&
 	        ptab[fd].numSectors == head * tracksize * cyl &&
-		(ptab[fd].systemID == 1 || ptab[fd].systemID == 4))
+		(ptab[fd].systemID == 1 || ptab[fd].systemID == 4 ||
+		 ptab[fd].systemID == 6))
 		    break;
     	}
     	if (fd < 4) {
 	    if (fd)
 		memcpy(ptab, ptab + fd, sizeof(PTAB));
 	    memset(ptab + 1, 0, sizeof(PTAB) * 3);
-	    di->offset = ptab[fd].relSector;
+	    di->offset = ptab[0].relSector;
 	    di->cylinders += di->offset / cylsize(di);
 	} else {
 	    memset(ptab, 0, sizeof(PTAB) * 4);
