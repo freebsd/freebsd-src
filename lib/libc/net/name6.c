@@ -235,7 +235,7 @@ static struct hostent *
 _ghbyname(const char *name, int af, int flags, int *errp)
 {
 	struct hostent *hp;
-	int i, rval;
+	int rval;
 	
 	static const ns_dtab dtab[] = {
 		NS_FILES_CB(_files_ghbyname, NULL)
@@ -360,7 +360,7 @@ struct hostent *
 getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 {
 	struct hostent *hp;
-	int i, rval;
+	int rval;
 #ifdef INET6
 	struct in6_addr addrbuf;
 #else
@@ -769,7 +769,7 @@ _files_ghbyname(void *rval, void *cb_data, va_list ap)
 	char *aliases[MAXALIASES + 1], *addrs[2];
 	union inx_addr addrbuf;
 	char buf[BUFSIZ];
-	int af0 = af;
+	int af0;
 
 	name = va_arg(ap, const char *);
 	af = va_arg(ap, int);
@@ -781,6 +781,7 @@ _files_ghbyname(void *rval, void *cb_data, va_list ap)
 		return NS_UNAVAIL;
 	rethp = hp = NULL;
 
+	af0 = af;
 	while (fgets(buf, sizeof(buf), fp)) {
 		line = buf;
 		if ((addrstr = _hgetword(&line)) == NULL
