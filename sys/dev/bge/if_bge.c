@@ -1040,8 +1040,6 @@ bge_chipinit(sc)
 	u_int32_t		cachesize;
 	int			i;
 
-	sc->arpcom.ac_if.if_hwassist = BGE_CSUM_FEATURES;
-
 	/* Set endianness before we access any non-PCI registers. */
 #if BYTE_ORDER == BIG_ENDIAN
 	pci_write_config(sc->bge_dev, BGE_PCI_MISC_CTL,
@@ -1687,6 +1685,9 @@ bge_attach(dev)
 	ifp->if_init = bge_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = BGE_TX_RING_CNT - 1;
+	ifp->if_hwassist = BGE_CSUM_FEATURES;
+	ifp->if_capabilities = IFCAP_HWCSUM;
+	ifp->if_capenable = ifp->if_capabilities;
 
 	/* The SysKonnect SK-9D41 is a 1000baseSX card. */
 	if ((pci_read_config(dev, BGE_PCI_SUBSYS, 4) >> 16) == SK_SUBSYSID_9D41)
@@ -2537,7 +2538,7 @@ bge_ioctl(ifp, command, data)
 {
 	struct bge_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int s, error = 0;
+	int s, mask, error = 0;
 	struct mii_data *mii;
 
 	s = splimp();
@@ -2603,6 +2604,16 @@ bge_ioctl(ifp, command, data)
 			error = ifmedia_ioctl(ifp, ifr,
 			    &mii->mii_media, command);
 		}
+		break;
+        case SIOCSIFCAP:
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		if (mask & IFCAP_HWCSUM) {
+			if (IFCAP_HWCSUM & ifp->if_capenable)
+				ifp->if_capenable &= ~IFCAP_HWCSUM;
+			else
+				ifp->if_capenable |= IFCAP_HWCSUM;
+		}
+		error = 0;
 		break;
 	default:
 		error = EINVAL;
