@@ -348,13 +348,12 @@ media_timeout(int sig)
 	msgDebug("A media timeout occurred.\n");
     else
 	msgDebug("User generated interrupt.\n");
-    alarm(0);
 }
 
 static Boolean
 distExtract(char *parent, Distribution *me)
 {
-    int i, status, total;
+    int i, status, total, resid;
     int cpid, zpid, fd2, chunk, numchunks;
     char *path, *dist, buf[BUFSIZ];
     const char *tmp;
@@ -368,6 +367,12 @@ distExtract(char *parent, Distribution *me)
     dialog_clear_norefresh();
     if (isDebug())
 	msgDebug("distExtract: parent: %s, me: %s\n", parent ? parent : "(none)", me->my_name);
+
+    /* Make ^C fake a sudden timeout */
+    new.sa_handler = media_timeout;
+    new.sa_flags = 0;
+    new.sa_mask = 0;
+    sigaction(SIGINT, &new, &old);
 
     /* Loop through to see if we're in our parent's plans */
     for (i = 0; me[i].my_name; i++) {
@@ -397,9 +402,12 @@ distExtract(char *parent, Distribution *me)
 	 */
 	dist_attr = NULL;
 	numchunks = 0;
-
 	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
+
+    getinfo:
+	alarm_set(mediaTimeout(), media_timeout);
 	fp = mediaDevice->get(mediaDevice, buf, TRUE);
+	resid = alarm_clear();
 	if (fp > 0) {
 	    int status;
 
@@ -407,18 +415,13 @@ distExtract(char *parent, Distribution *me)
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
 
-	    /* Make ^C fake a sudden timeout */
-	    new.sa_handler = media_timeout;
-	    new.sa_flags = 0;
-	    new.sa_mask = 0;
-	    sigaction(SIGINT, &new, &old);
-
 	    alarm_set(mediaTimeout(), media_timeout);
 	    status = attr_parse(dist_attr, fp);
-	    sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
-	    if (!alarm_clear() || DITEM_STATUS(status) == DITEM_FAILURE)
-		msgConfirm("Cannot parse information file for the %s distribution!\n"
-			   "Please verify that your media is valid and try again.", dist);
+	    resid = alarm_clear();
+	    if (!resid || DITEM_STATUS(status) == DITEM_FAILURE)
+		msgConfirm("Cannot parse information file for the %s distribution: %s\n"
+			   "Please verify that your media is valid and try again.",
+			   dist, resid ? "I/O error" : "Timeout or user interrupt");
 	    else {
 		tmp = attr_match(dist_attr, "pieces");
 		if (tmp)
@@ -428,10 +431,16 @@ distExtract(char *parent, Distribution *me)
 	    if (!numchunks)
 		continue;
 	}
-	else if (fp == (FILE *)IO_ERROR) {	/* Hard error, can't continue */
+	else if (fp == (FILE *)IO_ERROR || !resid) {	/* Hard error, can't continue */
+	    msgConfirm("Unable to open %s: %s.\nReinitializing media.",
+		       buf, resid ? "I/O error." : "Timeout or user interrupt.");
 	    mediaDevice->shutdown(mediaDevice);
-	    status = FALSE;
-	    goto done;
+	    if (!mediaDevice->init(mediaDevice)) {
+		status = FALSE;
+		goto done;
+	    }
+	    else
+		goto getinfo;
 	}
 	else {
 	    /* Try to get the distribution as a single file */
@@ -440,7 +449,10 @@ distExtract(char *parent, Distribution *me)
 	     * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
 	     * are not considered too significant.
 	     */
+	getsingle:
+	    alarm_set(mediaTimeout(), media_timeout);
 	    fp = mediaDevice->get(mediaDevice, buf, TRUE);
+	    resid = alarm_clear();
 	    if (fp > 0) {
 		char *dir = root_bias(me[i].my_dir);
 
@@ -449,10 +461,18 @@ distExtract(char *parent, Distribution *me)
 		fclose(fp);
 		goto done;
 	    }
-	    else if (fp == (FILE *)IO_ERROR) {	/* Hard error, can't continue */
+	    else if (fp == (FILE *)IO_ERROR || !resid) {	/* Hard error, can't continue */
+		if (!resid)	/* result of a timeout */
+		    msgConfirm("Unable to open %s: Timeout or user interrupt", buf);
+		else
+		    msgConfirm("Unable to open %s: I/O error", buf);
 		mediaDevice->shutdown(mediaDevice);
-		status = FALSE;
-		goto done;
+		if (!mediaDevice->init(mediaDevice)) {
+		    status = FALSE;
+		    goto done;
+		}
+		else
+		    goto getsingle;
 	    }
 	    else
 		numchunks = 0;
@@ -471,12 +491,6 @@ distExtract(char *parent, Distribution *me)
 	/* We have one or more chunks, initialize unpackers... */
 	mediaExtractDistBegin(root_bias(me[i].my_dir), &fd2, &zpid, &cpid);
 
-	/* Make ^C fake a sudden timeout */
-	new.sa_handler = media_timeout;
-	new.sa_flags = 0;
-	new.sa_mask = 0;
-	sigaction(SIGINT, &new, &old);
-
 	/* And go for all the chunks */
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int n, retval, last_msg;
@@ -484,18 +498,28 @@ distExtract(char *parent, Distribution *me)
 
 	    last_msg = 0;
 
+	getchunk:
 	    snprintf(buf, sizeof buf, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
+	    alarm_set(mediaTimeout(), media_timeout);
 	    fp = mediaDevice->get(mediaDevice, buf, FALSE);
-	    if (fp <= (FILE *)0) {
-		msgConfirm("failed to retreive piece file %s!\n"
-			   "Aborting the transfer", buf);
-		goto punt;
+	    resid = alarm_clear();
+	    if (fp <= (FILE *)0 || !resid) {
+		if (fp == (FILE *)0)
+		    msgConfirm("Failed to find %s on this media.  Reinitializing media.", buf);
+		else
+		    msgConfirm("failed to retreive piece file %s: %s.\n"
+			       "Reinitializing media.", buf, resid ? "I/O error" : "Timeout or user interrupt");
+		mediaDevice->shutdown(mediaDevice);
+		if (!mediaDevice->init(mediaDevice))
+		    goto punt;
+		else
+		    goto getchunk;
 	    }
+
 	    snprintf(prompt, sizeof prompt, "Extracting %s into %s directory...", dist, root_bias(me[i].my_dir));
 	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
-
 
 	    while (1) {
 		int seconds;
@@ -503,8 +527,9 @@ distExtract(char *parent, Distribution *me)
 		alarm_set(mediaTimeout(), media_timeout);
 		n = fread(buf, 1, BUFSIZ, fp);
 		if (!alarm_clear()) {
-		    msgConfirm("Media read error:  Timeout or user abort.");
-		    break;
+		    msgConfirm("Media read error: Timeout or user abort.");
+		    fclose(fp);
+		    goto punt;
 		}
 		else if (n <= 0)
 		    break;
@@ -535,7 +560,6 @@ distExtract(char *parent, Distribution *me)
 	    }
 	    fclose(fp);
 	}
-	sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
 	close(fd2);
 	status = mediaExtractDistEnd(zpid, cpid);
         goto done;
@@ -571,6 +595,7 @@ distExtract(char *parent, Distribution *me)
 	else
 	    continue;
     }
+    sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
     restorescr(w);
     return status;
 }

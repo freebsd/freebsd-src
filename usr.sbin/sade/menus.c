@@ -334,6 +334,8 @@ whichMouse(dialogMenuItem *self)
 	return FALSE;
     if (readlink("/dev/mouse", buf, sizeof buf) == -1)
 	return FALSE;
+    if (isDebug)
+	msgDebug("The evil link value is `%s'\n", buf);
     if (!strcmp(self->prompt, "COM1"))
 	return !strcmp(buf, "/dev/cuaa0");
     else if (!strcmp(self->prompt, "COM2"))
