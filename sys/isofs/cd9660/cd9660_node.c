@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.6 1994/09/26 00:32:56 gpalmer Exp $
+ * $Id: cd9660_node.c,v 1.7 1994/10/06 21:06:17 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -266,13 +266,13 @@ loop:
 	 */
 	vp->v_type = VNON;
 	switch (imp->iso_ftype) {
-	default:	/* ISO_FTYPE_9660 */
+	default:	/* ISO_FTYPE_9660 || ISO_FTYPE_HIGH_SIERRA */
 		if ((imp->im_flags&ISOFSMNT_EXTATT)
 		    && isonum_711(isodir->ext_attr_length))
 			iso_blkatoff(ip,-isonum_711(isodir->ext_attr_length),
 				     &bp2);
-		cd9660_defattr(isodir,ip,bp2 );
-		cd9660_deftstamp(isodir,ip,bp2 );
+		cd9660_defattr(isodir,ip,bp2,imp->iso_ftype );
+		cd9660_deftstamp(isodir,ip,bp2,imp->iso_ftype );
 		break;
 	case ISO_FTYPE_RRIP:
 		result = cd9660_rrip_analyze(isodir,ip,imp);
@@ -453,17 +453,20 @@ iso_iunlock(ip)
  * File attributes
  */
 void
-cd9660_defattr(isodir,inop,bp)
+cd9660_defattr(isodir,inop,bp,ftype)
 	struct iso_directory_record *isodir;
 	struct iso_node *inop;
 	struct buf *bp;
+	enum ISO_FTYPE ftype;
 {
 	struct buf *bp2 = NULL;
 	struct iso_mnt *imp;
 	struct iso_extended_attributes *ap = NULL;
 	int off;
 	
-	if (isonum_711(isodir->flags)&2) {
+	/* high sierra does not have timezone data, flag is one byte ahead */
+	if (isonum_711(ftype == ISO_FTYPE_HIGH_SIERRA?
+		       &isodir->date[6]: isodir->flags)&2) {
 		inop->inode.iso_mode = S_IFDIR;
 		/*
 		 * If we return 2, fts() will assume there are no subdirectories
@@ -514,10 +517,11 @@ cd9660_defattr(isodir,inop,bp)
  * Time stamps
  */
 void
-cd9660_deftstamp(isodir,inop,bp)
+cd9660_deftstamp(isodir,inop,bp,ftype)
 	struct iso_directory_record *isodir;
 	struct iso_node *inop;
 	struct buf *bp;
+	enum ISO_FTYPE ftype;
 {
 	struct buf *bp2 = NULL;
 	struct iso_mnt *imp;
@@ -533,7 +537,8 @@ cd9660_deftstamp(isodir,inop,bp)
 	if (bp) {
 		ap = (struct iso_extended_attributes *)bp->b_un.b_addr;
 		
-		if (isonum_711(ap->version) == 1) {
+		if (ftype != ISO_FTYPE_HIGH_SIERRA
+		    && isonum_711(ap->version) == 1) {
 			if (!cd9660_tstamp_conv17(ap->ftime,&inop->inode.iso_atime))
 				cd9660_tstamp_conv17(ap->ctime,&inop->inode.iso_atime);
 			if (!cd9660_tstamp_conv17(ap->ctime,&inop->inode.iso_ctime))
@@ -544,7 +549,7 @@ cd9660_deftstamp(isodir,inop,bp)
 			ap = NULL;
 	}
 	if (!ap) {
-		cd9660_tstamp_conv7(isodir->date,&inop->inode.iso_ctime);
+		cd9660_tstamp_conv7(isodir->date,&inop->inode.iso_ctime,ftype);
 		inop->inode.iso_atime = inop->inode.iso_ctime;
 		inop->inode.iso_mtime = inop->inode.iso_ctime;
 	}
@@ -553,9 +558,10 @@ cd9660_deftstamp(isodir,inop,bp)
 }
 
 int
-cd9660_tstamp_conv7(pi,pu)
+cd9660_tstamp_conv7(pi,pu,ftype)
 char *pi;
 struct timespec *pu;
+enum ISO_FTYPE ftype;
 {
 	int crtime, days;
 	int y, m, d, hour, minute, second, tz;
@@ -566,7 +572,11 @@ struct timespec *pu;
 	hour = pi[3];
 	minute = pi[4];
 	second = pi[5];
-	tz = pi[6];
+	if(ftype != ISO_FTYPE_HIGH_SIERRA)
+		tz = pi[6];
+	else
+		/* original high sierra misses timezone data */
+		tz = 0;
 	
 	if (y < 1970) {
 		pu->ts_sec  = 0;
@@ -616,28 +626,28 @@ cd9660_tstamp_conv17(pi,pu)
 {
 	unsigned char buf[7];
 	
-	/* year:"0001"-"9999" -> -1900  */
+	/* year:"0001"-"9999" -> -1900	*/
 	buf[0] = cd9660_chars2ui(pi,4) - 1900;
 	
-	/* month: " 1"-"12"      -> 1 - 12 */
+	/* month: " 1"-"12"   -> 1 - 12 */
 	buf[1] = cd9660_chars2ui(pi + 4,2);
 	
-	/* day:   " 1"-"31"      -> 1 - 31 */
+	/* day:	  " 1"-"31"   -> 1 - 31 */
 	buf[2] = cd9660_chars2ui(pi + 6,2);
 	
-	/* hour:  " 0"-"23"      -> 0 - 23 */
+	/* hour:  " 0"-"23"   -> 0 - 23 */
 	buf[3] = cd9660_chars2ui(pi + 8,2);
 	
-	/* minute:" 0"-"59"      -> 0 - 59 */
+	/* minute:" 0"-"59"   -> 0 - 59 */
 	buf[4] = cd9660_chars2ui(pi + 10,2);
 	
-	/* second:" 0"-"59"      -> 0 - 59 */
+	/* second:" 0"-"59"   -> 0 - 59 */
 	buf[5] = cd9660_chars2ui(pi + 12,2);
 	
 	/* difference of GMT */
 	buf[6] = pi[16];
 	
-	return cd9660_tstamp_conv7(buf,pu);
+	return cd9660_tstamp_conv7(buf, pu, ISO_FTYPE_DEFAULT);
 }
 
 void
