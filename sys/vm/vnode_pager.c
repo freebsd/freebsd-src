@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.83 1998/02/05 03:32:49 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.84 1998/02/06 12:14:30 eivind Exp $
  */
 
 /*
@@ -170,7 +170,7 @@ vnode_pager_dealloc(object)
 		panic("vnode_pager_dealloc: pager already dealloced");
 
 	if (object->paging_in_progress) {
-		int s = splbio();
+		int s = splvm();
 		while (object->paging_in_progress) {
 			object->flags |= OBJ_PIPWNT;
 			tsleep(object, PVM, "vnpdea", 0);
@@ -429,9 +429,9 @@ vnode_pager_input_smlfs(object, m)
 			/* do the input */
 			VOP_STRATEGY(bp);
 
-			/* we definitely need to be at splbio here */
+			/* we definitely need to be at splvm here */
 
-			s = splbio();
+			s = splvm();
 			while ((bp->b_flags & B_DONE) == 0) {
 				tsleep(bp, PVM, "vnsrd", 0);
 			}
@@ -720,8 +720,8 @@ vnode_pager_leaf_getpages(object, m, count, reqpage)
 	/* do the input */
 	VOP_STRATEGY(bp);
 
-	s = splbio();
-	/* we definitely need to be at splbio here */
+	s = splvm();
+	/* we definitely need to be at splvm here */
 
 	while ((bp->b_flags & B_DONE) == 0) {
 		tsleep(bp, PVM, "vnread", 0);

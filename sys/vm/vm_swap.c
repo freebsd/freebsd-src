@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.51 1998/01/25 04:13:25 eivind Exp $
+ * $Id: vm_swap.c,v 1.52 1998/02/19 12:15:06 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -105,7 +105,7 @@ static void
 swstrategy(bp)
 	register struct buf *bp;
 {
-	int sz, off, seg, index;
+	int s, sz, off, seg, index;
 	register struct swdevt *sp;
 	struct vnode *vp;
 
@@ -139,6 +139,7 @@ swstrategy(bp)
 		return;
 	}
 	vhold(sp->sw_vp);
+	s = splvm();
 	if ((bp->b_flags & B_READ) == 0) {
 		vp = bp->b_vp;
 		if (vp) {
@@ -152,6 +153,7 @@ swstrategy(bp)
 	}
 	if (bp->b_vp != NULL)
 		pbrelvp(bp);
+	splx(s);
 	bp->b_vp = sp->sw_vp;
 	VOP_STRATEGY(bp);
 }

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id$
+ *	$Id: swap_pager.h,v 1.18 1997/02/22 09:48:08 peter Exp $
  */
 
 /*
@@ -55,7 +55,10 @@
  * Above problem has been fixed, now we support 16 pages per block.  Unused
  * space is recovered by the swap pager now...
  */
+#if !defined(SWB_NPAGES)
 #define SWB_NPAGES 8
+#endif
+
 struct swblock {
 	unsigned short swb_valid;	/* bitmask for valid pages */
 	unsigned short swb_locked;	/* block locked */

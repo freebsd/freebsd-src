@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.33 1998/02/04 22:33:57 eivind Exp $
+ * $Id: vm_pager.c,v 1.34 1998/02/06 12:14:29 eivind Exp $
  */
 
 /*
@@ -274,7 +274,7 @@ getpbuf()
 	int s;
 	struct buf *bp;
 
-	s = splbio();
+	s = splvm();
 	/* get a bp from the swap buffer header pool */
 	while ((bp = TAILQ_FIRST(&bswlist)) == NULL) {
 		bswneeded = 1;
@@ -296,7 +296,7 @@ trypbuf()
 	int s;
 	struct buf *bp;
 
-	s = splbio();
+	s = splvm();
 	if ((bp = TAILQ_FIRST(&bswlist)) == NULL) {
 		splx(s);
 		return NULL;
@@ -318,7 +318,7 @@ relpbuf(bp)
 {
 	int s;
 
-	s = splbio();
+	s = splvm();
 
 	if (bp->b_rcred != NOCRED) {
 		crfree(bp->b_rcred);

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.114 1998/02/09 06:11:26 eivind Exp $
+ * $Id: vm_map.c,v 1.115 1998/02/20 13:11:54 bde Exp $
  */
 
 /*
@@ -1666,7 +1666,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			 */
 			if (current->protection & VM_PROT_WRITE) {
 				if (object->type == OBJT_VNODE)
-					vn_lock(object->handle, LK_EXCLUSIVE|LK_RETRY, curproc);
+					vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
 		   	    vm_object_page_clean(object,
 					OFF_TO_IDX(offset),
 					OFF_TO_IDX(offset + size + PAGE_MASK),
