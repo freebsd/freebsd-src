@@ -186,8 +186,8 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 #ifdef CPU_ELAN
 		init_AMD_Elan_sc520();
 #else
-		printf("*** WARNING: kernel option CPU_ELAN missing"
-		    " -- timekeeping may be wrong.\n");
+		printf(
+"*** WARNING: missing CPU_ELAN -- timekeeping may be wrong\n");
 #endif
 		break;
 	case 0x70061022:
