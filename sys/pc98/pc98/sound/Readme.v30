@@ -1,0 +1,142 @@
+VoxWare v3.0
+------------
+
+This is a late alpha/early beta of the VoxWare v3.0 to be relased May/June 95.
+
+All features of v2.90-2 should work as earlier. There could be some
+omissions but they are unintentional. I started this version thread
+after v2.3 so all features implemented before it are there.
+
+New features
+============
+
+There are now two new device interfaces. The /dev/midi## is a raw
+tty like interface to MIDI ports. There is a device file for each MIDI
+port on your system. They are named (/dev/midi00 to /dev/midiNN).
+The second addition is the /dev/music which is higher level interface 
+than the old /dev/sequencer. It's intended for writing device independent
+applications like sequencers.
+
+/dev/midi##
+-----------
+
+This interface should be usefull for applications like MIDI sysex librarians.
+There are (currently) no timing features so making music could be impossible.
+
+There are as many /dev/midi## devices as there are MIDI ports in the system. 
+The /dev/midi00 is connected to the first one, /dev/midi01 to the second etc.
+
+These devices work like tty devices in raw mode. Everything written to them is
+sent out to the MIDI port. There is currently an extra delay of at most 
+1/100th of sec but it will be removed later.
+
+The reading algorithm is little bit more complicated. There are two different
+cases:
+
+1)	There is at least one byte in the input buffer.
+
+The read returns as many bytes as it can without waiting for more bytes.
+For example when a process reads 100 bytes and there are 10 bytes in the 
+buffer, the read returns just 10 bytes.
+
+2)	The input buffer is empty when the process calls read.
+
+The read waits for the first byte and then continues as in case 1. By
+default it waits infinitely but there is an ioctl for setting a timeout
+for this. The ioctl(fd, SNDCTL_MIDI_PRETIME, &time) changes the timeout.
+The time is given in 1/10th of seconds (10 means one second).
+
+Other ioctl calls:
+
+ioctl(fd, SNDCTL_MIDI_MPUMODE, &mode) is available for full MPU-401
+compatible devices such as MPU-IPC-T, MQ PC Midi Card or MQX-32.
+It's not available for the so called MPU UART ports of some soundcards
+(PAS16, SB16 etc). By default the MIDI port is in UART mode after open. 
+If this ioctl is called with mode=1, the interface is put to the intelligent
+(coprocessor) mode. NOTE! The MIDI port will be reset when this ioctl is called.
+It could have some strange effects if not called immediately after open. This
+vall returns EINVAL if the midi port doesn't support the MPU-401 intelligent
+mode.
+
+ioctl(fd, SNDCTL_MIDI_MPUCMD, &cmdstruct) is valid only if the MIDI port
+is put to the coprocessor mode using ioctl(SNDCTL_MIDI_MPUMODE). It's used to
+send commands to a MPU-401 compatible MIDI cards. Please refer to the
+MPU-401 Technical Reference Manual (or Music Quest Technical Reference
+Manual) for descriptions of the commands.
+
+The argument of SNDCTL_MIDI_MPUCOMMAND is of type mpu_command_rec. It
+has the following fields:
+
+typedef struct {
+		unsigned char cmd;
+
+		char nr_args, nr_returns;
+		unsigned char data[30];
+	} mpu_command_rec;
+
+where:
+	cmd		Contains the command number.
+	nr_args		Number of arguments of the command.
+			MUST BE INITIALIZED BEFORE CALL
+	nr_returns	Number of bytes returned by the command.
+			MUST BE INITIALIZED BEFORE CALL
+	data		Buffer for the command arguments and returned
+			data.
+
+Be extremely carefull with the nr_args and nr_returns fields. They
+must match the command. An incorrect value will put the card and
+the driver out of sync. Refer to the MPU-401/MQX-32M documentation for further
+datails.
+
+
+
+/dev/music (/dev/sequencer2)
+----------------------------
+
+This device file works much like the /dev/sequencer which has been present
+since the beginning. The main differences are the following:
+
+- /dev/sequencer makes the MIDI ports to look like the synth devices. In fact
+the result is somewhere between the MIDI specification and the synth devices of
+/dev/sequencer. Both kind of devices are accessed using the SEQ_START_NOTE()
+like macros. The voice number parameters of the API macros have been redefined
+to denote MIDI channels. This means that the driver allocates voices for
+the channels automaticly (this is a responsibility/right of an application
+with /dev/sequencer). The result is that a SEQ_START_NOTE() macro has
+similar effects for a synth channel than on a MIDI port. This kind of
+solution provides better device independence than the /dev/sequencer. The
+drawback is that the new interface doesn't permit so low level access to the
+device as the /dev/sequencer does. An application developer must choose between
+these two interfaces. I think the old /dev/sequencer is better for applications
+like module players while the new one is better for making generic sequencer
+programs.
+
+- There are no separate MIDI devices with the /dev/sequencer2. The
+ioctl(SNDCTL_SEQ_NRMIDIS) returns always zero. Instead the MIDI ports are
+shown as synth devices. ioctl(SNDCTL_SEQ_NRSYNTHS) on /dev/sequencer2 will 
+return sum of internal synthesizers (GUS, OPL3) and MIDI ports in the systems.
+
+- The new interface is used much like the ordinary /dev/sequencer. The
+event format is new so you have to use the API macros defined in the 
+sys/soundcard.h. The interface is will propably change before the final 3.0
+release but using the API macros should ensure compatibility in source level.
+The new event format is not recognized by version 2.X so don't try to 
+distribute binaries compiled with soundcard.h of v3.X.
+
+- The basic API useage is similar to the current one. There are some new
+macros but the older ones should work as earlier. The most important
+incompatibility is that the /dev/sequencer2 driver allocates voices itself.
+The other one is that the application must send SEQ_START_TIMER() as it's
+first event. Otherwise the timer is not started and the application waits
+infinitely.
+
+
+There are several new features but I don't document them here. There are
+some info in the soundcard.h (near the end). I have also included some
+sample code in the directory v30. Full documentation will
+appear in the Hacker's Guide later.
+
+Don't hesitate to contact me in case you have questions or comments.
+
+Hannu Savolainen
+hannu@voxware.pp.fi

@@ -1,0 +1,25 @@
+#	$Id: options.i386,v 1.13 1996/05/11 04:39:44 bde Exp $
+BOUNCEPAGES		opt_bounce.h
+USER_LDT
+MATH_EMULATE		opt_math_emulate.h
+GPL_MATH_EMULATE	opt_math_emulate.h
+
+IBCS2			opt_dontuse.h
+COMPAT_LINUX		opt_dontuse.h
+
+SHOW_BUSYBUFS		opt_machdep.h
+PANIC_REBOOT_WAIT_TIME	opt_machdep.h
+LARGEMEM		opt_machdep.h
+MAXMEM			opt_machdep.h
+PERFMON			opt_perfmon.h
+AUTO_EOI_1		opt_auto_eoi.h
+AUTO_EOI_2		opt_auto_eoi.h
+BREAK_TO_DEBUGGER	opt_comconsole.h
+COMCONSOLE		opt_comconsole.h
+COM_ESP			opt_sio.h
+COM_MULTIPORT		opt_sio.h
+DSI_SOFT_MODEM		opt_sio.h
+FAT_CURSOR		opt_pcvt.h
+PCVT_FREEBSD		opt_pcvt.h
+PCVT_SCANSET		opt_pcvt.h
+XSERVER			opt_pcvt.h

@@ -1,0 +1,52 @@
+                            README.srieal.98
+                       %7%j%"%k%3%s%=!<%k$K$D$$$F
+		2CF#>fE5 (kato@eclogite.eps.nagoya-u.ac.jp)
+                            KATO Takenori
+
+FreeBSD(98)$N%3%s%=!<%k$H$7$F!"FbB"RS-232C%]!<%H$K@\B3$5$l$?%@%`C<Kv$r
+;HMQ$9$k$3$H$,$G$-$^$9!#$3$l$K$h$j!"FreeBSD(98)$r%5!<%P$H$7$F;HMQ$9$k
+;~$K!"%-!<%\!<%I$d%b%K%?$r@\B3$7$J$/$F$b$+$^$o$J$/$J$j$^$9!#
+
+%7%j%"%k%3%s%=!<%k$r;HMQ$9$k:]$O!"$3$N%I%-%e%a%s%H$*$h$S!"IBM-PCMQ$N%+!<
+%M%k%=!<%9$K4^$^$l$k!"/usr/src/sys/i386/boot/biosboot/READEME.serial$r
+NI$/FI$s$G2<$5$$!#
+
+FreeBSD(98)$G%7%j%"%k%3%s%=!<%k$r;HMQ$9$k:]$O!"0J2<$N<j=g$r<B9T$7$F2<
+$5$$!#
+
+1: %-!<%\!<%I$r@Z$jN%$9
+	%-!<%\!<%I$r@\B3$;$:$K!"K\BN$r5/F0$5$;$?>l9g!"%7%9%F%`NN0h$N%-!<
+	%\!<%I%?%$%W$,!"5l<0%-!<%\!<%I(CAPS$,5!3#<0$N%-!<%\!<%I)$HF1$8
+	$K$J$j$^$9!#FreeBSD(98)$N%V!<%H%3!<%I$O!"$3$l$r8!=P$7$F<+F0E*
+	$K%7%j%"%k%3%s%=!<%k%b!<%I$K0\$j$^$9!#
+
+2: C<Kv$r@\B3$9$k
+	FbB"RS-232C%3%M%/%?$K%@%`C<Kv$r@\B3$7$F2<$5$$!#%@%`C<Kv$,L5$$
+	>l9g$O!"E,Ev$J%Q%=%3%s$GDL?.%=%U%H%&%'%"$r<B9T$5$;$?$b$N$d!"DL
+	?.5!G=$D$-$N%o!<%W%m$J$I$r;HMQ$7$F2<$5$$!#
+
+	FreeBSD(98)$N%V!<%H%3!<%I$G$O!"RS-232C%]!<%H$r9600%\!<!"8%S%C
+	%H!"%Q%j%F%#L5$7$K@_Dj$5$l$F$$$^$9!#
+
+3: K\BN$r5/F0$9$k
+	%V!<%H%V%m%C%/$O!"5/F0;~$K%-!<%\!<%I$N@\B3$r8!::$7$^$9!#$b$7!"
+	%-!<%\!<%I$,@\B3$5$l$F$$$J$1$l$P!"C<Kv$K0J2<$N%a%C%;!<%8$,I=<(
+	$5$l$^$9!#
+
+	No keyboard found.
+
+	>> FreeBSD BOOT @0x90000 640/25600 k of memory
+	Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.
+	Usage: [[[fd(0,a)]/kernel][-Dabcdhrsv]]
+	Use ? for file list or press Enter for defaults
+
+	Boot:
+
+	$3$l$O!"IaCJ8+$F$$$k%a%C%;!<%8$H$[$H$s$IJQ$o$j$^$;$s$,!"$O$8$a
+	$K!"`No keyboard found'$HI=<($5$l$F$$$^$9!#$3$3$G!"%@%`C<Kv$+
+	$i!"%3%s%=!<%k>e$G5/F0$7$F$$$k;~$HF1$8$h$&$K%+!<%M%k$rN)$A>e$2
+	$k$3$H$,$G$-$^$9!#5/F08e$N%a%C%;!<%8$O%@%`C<Kv$KI=<($5$l$^$9!#
+
+	$b$7!"%7%j%"%k%3%s%=!<%k$+$iDL>o$N%3%s%=!<%k$K@ZBX$($k$K$O!"
+	`-h'%*%W%7%g%s$r$D$1$F5/F0$7$F2<$5$$!#
+
