@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: cd.4,v 1.13 1999/02/27 07:56:08 ken Exp $
+.\"	$Id: cd.4,v 1.12.2.1 1999/05/02 05:34:26 kris Exp $
 .\"
 .Dd October 10, 1998
 .Dt CD 4
@@ -33,7 +33,7 @@
 .Nd SCSI CD-ROM driver
 .Sh SYNOPSIS
 .Cd device cd
-.Cd device cd1 at scbus0 target 4 lun 0
+.Cd device cd1 at scbus0 target 4 unit 0
 .Cd options	"CHANGER_MIN_BUSY_SECONDS=3"
 .Cd options	"CHANGER_MAX_BUSY_SECONDS=11"
 .Sh DESCRIPTION
