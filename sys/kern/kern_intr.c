@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.11 1997/08/21 06:39:41 fsmp Exp $
+ * $Id: kern_intr.c,v 1.12 1997/10/06 04:27:32 nate Exp $
  *
  */
 
@@ -38,8 +38,6 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 #include <sys/interrupt.h>
-
-#include <machine/ipl.h>
 
 #include <stddef.h>
 
@@ -61,6 +59,8 @@ typedef struct intrec {
  */
 
 #ifndef SMP
+#include <machine/ipl.h>
+
 static inline intrmask_t
 splq(intrmask_t mask)
 {
