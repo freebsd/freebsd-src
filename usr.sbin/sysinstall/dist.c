@@ -157,19 +157,25 @@ static Distribution XF86ServerDistTable[] = {
 { "PC98-Servers/X9WSN",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WSN,	NULL		},
 #endif
 { "Servers/X3DL",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_3DL,	NULL		},
+#ifdef __i386__
 { "Servers/X8514",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_8514,	NULL		},
 { "Servers/XAGX",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_AGX,	NULL		},
+#endif
 { "Servers/XI128",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_I128,	NULL		},
+#ifdef __i386__
 { "Servers/XMa8",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MACH8,	NULL		},
 { "Servers/XMa32",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MACH32,NULL		},
+#endif
 { "Servers/XMa64",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MACH64,NULL		},
 { "Servers/XMono",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MONO,	NULL		},
 { "Servers/XP9K",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_P9000,	NULL		},
 { "Servers/XS3",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_S3,	NULL		},
 { "Servers/XS3V",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_S3V,	NULL		},
 { "Servers/XSVGA",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_SVGA,	NULL		},
+#ifdef __i386__
 { "Servers/XVG16",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
 { "Servers/XW32",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_W32,	NULL		},
+#endif
 #ifdef __alpha__
 { "Servers/XTGA",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_TGA,	NULL		},
 #endif
