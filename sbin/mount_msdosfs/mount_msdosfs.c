@@ -324,7 +324,7 @@ set_charset(struct msdosfs_args *args)
 
 	if (modfind("msdosfs_iconv") < 0)
 		if (kldload("msdosfs_iconv") < 0 || modfind("msdosfs_iconv") < 0) {
-			warnx( "cannot find or load \"msdosfs_iconv\" kernel module");
+			warnx("cannot find or load \"msdosfs_iconv\" kernel module");
 			return (-1);
 		}
 
