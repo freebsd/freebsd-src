@@ -82,6 +82,7 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
     case loginfo_user_bpl:
     case loginfo_sdio:					    /* subdisk I/O */
     case loginfo_sdiol:					    /* subdisk I/O launch */
+    case loginfo_sdiodone:				    /* subdisk I/O complete */
 	bcopy(info.bp, &rqip->info.b, sizeof(struct buf));
 	rqip->devmajor = major(info.bp->b_dev);
 	rqip->devminor = minor(info.bp->b_dev);
@@ -345,12 +346,6 @@ launch_requests(struct request *rq, int reviveok)
 	return 0;					    /* and get out of here */
     }
     rq->active = 0;					    /* nothing yet */
-    /* XXX This is probably due to a bug */
-    if (rq->rqg == NULL) {				    /* no request */
-	log(LOG_ERR, "vinum: null rqg\n");
-	abortrequest(rq, EINVAL);
-	return -1;
-    }
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
@@ -868,6 +863,11 @@ sdio(struct buf *bp)
     sd = &SD[Sdno(bp->b_dev)];				    /* point to the subdisk */
     drive = &DRIVE[sd->driveno];
 
+
+    /*
+     * We allow access to any kind of subdisk as long as we can expect
+     * to get the I/O performed.
+     */
     if (sd->state < sd_empty) {				    /* nothing to talk to, */
 	bp->b_flags |= B_ERROR;
 	bp->b_error = EIO;
@@ -930,9 +930,7 @@ sdio(struct buf *bp)
     s = splbio();
 #if VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_sdiol,
-	    (union rqinfou) (struct buf *) sbp,
-	    (struct buf *) sbp);
+	logrq(loginfo_sdiol, (union rqinfou) &sbp->b, &sbp->b);
 #endif
     BUF_STRATEGY(&sbp->b, 0);
     splx(s);
