@@ -48,6 +48,12 @@
 #define	PT_DETACH	11	/* stop tracing a process */
 #define PT_IO		12	/* do I/O to/from stopped process. */
 #define	PT_LWPINFO	13	/* Info about the LWP that stopped. */
+#define PT_GETNUMLWPS	14	/* get total number of threads */
+#define PT_GETLWPLIST	15	/* get thread list */
+#define PT_CLEARSTEP	16	/* turn off single step */
+#define PT_SETSTEP	17	/* turn on single step */
+#define PT_SUSPEND	18	/* suspend a thread */
+#define PT_RESUME	19	/* resume a thread */
 
 #define	PT_TO_SCE	20
 #define	PT_TO_SCX	21
@@ -59,8 +65,7 @@
 #define PT_SETFPREGS    36	/* set floating-point registers */
 #define PT_GETDBREGS    37	/* get debugging registers */
 #define PT_SETDBREGS    38	/* set debugging registers */
-
-#define	PT_FIRSTMACH	64	/* for machine-specific requests */
+#define PT_FIRSTMACH    64	/* for machine-specific requests */
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
 
 struct ptrace_io_desc {
@@ -102,6 +107,7 @@ struct ptrace_lwpinfo {
 
 int	ptrace_set_pc(struct thread *_td, unsigned long _addr);
 int	ptrace_single_step(struct thread *_td);
+int	ptrace_clear_single_step(struct thread *_td);
 
 #ifdef __HAVE_PTRACE_MACHDEP
 int	cpu_ptrace(struct thread *_td, int _req, void *_addr, int _data);
