@@ -1330,7 +1330,9 @@ get_palette(video_adapter_t *adp, int base, int count,
 	int bits;
 	int error;
 
-	if ((base < 0) || (base >= 256) || (base + count > 256))
+	if ((base < 0) || (base >= 256) || (count < 0) || (count > 256))
+		return 1;
+	if ((base + count) > 256)
 		return 1;
 	if (!(vesa_adp_info->v_flags & V_DAC8) || !VESA_MODE(adp->va_mode))
 		return 1;
