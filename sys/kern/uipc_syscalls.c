@@ -501,8 +501,10 @@ kern_connect(td, fd, sa)
 		goto done1;
 	}
 	s = splnet();
+	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-		error = tsleep(&so->so_timeo, PSOCK | PCATCH, "connec", 0);
+		error = msleep(&so->so_timeo, SOCK_MTX(so), PSOCK | PCATCH,
+		    "connec", 0);
 		if (error) {
 			if (error == EINTR || error == ERESTART)
 				interrupted = 1;
@@ -513,6 +515,7 @@ kern_connect(td, fd, sa)
 		error = so->so_error;
 		so->so_error = 0;
 	}
+	SOCK_UNLOCK(so);
 	splx(s);
 bad:
 	if (!interrupted)
