@@ -194,15 +194,15 @@ All objects loaded at program start-up.
 .It
 All objects loaded via
 .Fn dlopen
-which are in needed-object DAGs that also contain the referencing object.
-.It
-All objects loaded via
-.Fn dlopen
 with the
 .Dv RTLD_GLOBAL
 flag set in the
 .Fa mode
 argument.
+.It
+All objects loaded via
+.Fn dlopen
+which are in needed-object DAGs that also contain the referencing object.
 .El
 .Pp
 If
