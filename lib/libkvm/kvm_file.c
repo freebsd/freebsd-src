@@ -102,7 +102,7 @@ kvm_deadfiles(kd, op, arg, filehead_o, nfiles)
 	/*
 	 * followed by an array of file structures
 	 */
-	for (fp = filehead.lh_first; fp != 0; fp = fp->f_list.le_next) {
+	LIST_FOREACH(fp, &filehead, f_list) {
 		if (buflen > sizeof (struct file)) {
 			if (KREAD(kd, (long)fp, ((struct file *)where))) {
 				_kvm_err(kd, kd->program, "can't read kfp");
@@ -156,8 +156,8 @@ kvm_getfiles(kd, op, arg, cnt)
 		filehead = *(struct filelist *)kd->argspc;
 		fp = (struct file *)(kd->argspc + sizeof (filehead));
 		fplim = (struct file *)(kd->argspc + size);
-		for (nfiles = 0; filehead.lh_first && (fp < fplim); nfiles++, fp++)
-			filehead.lh_first = fp->f_list.le_next;
+		for (nfiles = 0; LIST_FIRST(&filehead) && (fp < fplim); nfiles++, fp++)
+			LIST_FIRST(&filehead) = LIST_NEXT(fp, f_list);
 	} else {
 		struct nlist nl[3], *p;
 
