@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_axreg.h,v 1.5 1999/02/23 01:44:20 wpaul Exp $
+ *	$Id: if_axreg.h,v 1.3 1999/02/23 01:52:42 wpaul Exp $
  */
 
 /*
@@ -454,7 +454,7 @@ struct ax_softc {
 
 /* power management registers */
 #define AX_PCI_CAPID		0x44 /* 8 bits */
-#define AX_PCI_NEXTPTR		0x55 /* 8 bits */
+#define AX_PCI_NEXTPTR		0x45 /* 8 bits */
 #define AX_PCI_PWRMGMTCAP	0x46 /* 16 bits */
 #define AX_PCI_PWRMGMTCTRL	0x48 /* 16 bits */
 
