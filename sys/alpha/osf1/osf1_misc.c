@@ -1320,13 +1320,15 @@ osf1_wait4(p, uap)
 	int error;
 	caddr_t sg;
 	struct osf1_rusage *orusage, oru;
-	struct rusage *rusage, ru;
+	struct rusage *rusage = NULL, ru;
 
-	sg = stackgap_init();
-	rusage = stackgap_alloc(&sg, sizeof(struct rusage));
 	orusage = SCARG(uap, rusage);
-	SCARG(uap, rusage) = (struct osf1_rusage *)rusage;
-	if ((error = wait4(p, (struct wait_args *)uap) != 0))
+	if (orusage) {
+		sg = stackgap_init();
+		rusage = stackgap_alloc(&sg, sizeof(struct rusage));
+		SCARG(uap, rusage) = (struct osf1_rusage *)rusage;
+	}
+	if ((error = wait4(p, (struct wait_args *)uap)))
 		return error;
 	if (orusage && (error = copyin(rusage, &ru, sizeof(ru)) == 0)){
 		TV_CP(ru.ru_utime, oru.ru_utime);
