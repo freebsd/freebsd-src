@@ -1,221 +1,247 @@
-.Dd August 27, 1993
+.Dd January 18, 1996
 .Dt SD 4
 .Os FreeBSD
 .Sh NAME
 .Nm sd
-.Nd scsi disk driver
+.Nd SCSI disk driver
 .Sh SYNOPSIS
-.Nm disk sd
-.Nm disk sd1 target 4 lun 0
+.Cd disk sd
+.Cd disk sd1 at scbus0 target 4 lun 0
 .Sh DESCRIPTION
 The
-.Xr sd
+.Nm sd
 driver provides support for a 
-.Em scsi
+.Tn SCSI
 disk. It allows the disk
 to be divided up into a set of pseudo devices called
-.Em partitions.
-A Partition can have both a 
-.Em raw
-interface
-and a
-.Em Block mode
-interface.
+.Em partitions .
 In general the interfaces are similar to those described by 
-.Xr wd 4 
-or
-.Xr dk 4 .
-
+.Xr wd 4 .
 .Pp
 Where the 
 .Xr wd 4
 device has a fairly low level interface to the system, 
-.Em SCSI
+.Tn SCSI
 devices have a much higher level interface and talk to the system via
 a 
-.Em SCSI Adapter
-and a
-.Em Scsi Adapter driver
-e.g. 
-.Xr AHA1542 .
-A scsi adapter must also be separatly configured into the system
-before a scsi disk can be configured.
+.Tn SCSI
+host adapter
+(e.g.,
+.Xr ahc 4 ) .
+A
+.Tn SCSI
+adapter must also be separately configured into the system
+before a
+.Tn SCSI
+disk can be configured.
 .Pp
-As the scsi adapter is probed during boot, the 
-.Em SCSI
-bus is scanned for devices. Any devices found which answer as 'Direct'
-type devices will be 'attached' to the 
+When the
+.Tn SCSI
+adapter is probed during boot, the 
+.Tn SCSI
+bus is scanned for devices. Any devices found which answer as 
+.Sq Em Direct
+type devices will be attached to the 
 .Nm
 driver.
-In FreeBSD releases prior to 2.1, the first found will be attached as
-.Em sd0
-and the next, 
-.Em sd1
-etc.
-Beginning in 2.1 it is possible to specify what sd unit a device should
-come on line as; refer to
+In 
+.Tn FreeBSD
+releases prior to 2.1, the first found was attached as
+.Li sd0 ,
+the second
+.Li sd1 ,
+and so on.
+Beginning in 2.1 it became possible to lock down the assignment of
+devices on the
+.Tn SCSI
+bus to particular units of the
+.Nm
+decice; refer to
 .Xr scsi 4
 for details on kernel configuration.
-.Pp
 .Sh PARTITIONING
 The 
 .Nm
 driver allows the disk to have two levels of partitioning.
-One which allows it to have
-partitions for different Operating systems, (one of which is BSD unix),
-(see also for the 386 port, 
-.Xr fdisk 1
-), and within a BSD partition, further partitions which are individually 
-addressable as separate entries in the 
-.Em /dev
-directory. The second level of partitioning  is controlled by the program
-.Xr disklabel 1
-and is common in format across most BSD operating systems. In most of
-the original BSD ports, what is the 
-BSD part here, is the entire disk, and the outer layer of partitionning
-does not exist. 
-.Nm
-will also run in this manner if
-.Xr disklabel 1
-is run with a blank disk, without first partitioning it
-with
-.Xr fdisk 1
-(or similar).
-
+One layer, called the
+.Dq slice layer ,
+is used to separate the
+.Tn FreeBSD
+areas of the disk from areas used by other operating systems.
+The second layer is the native
+.Bx 4.4
+partitioning scheme,
+.Xr disklabel 5 ,
+which is used to subdivide the
+.Tn FreeBSD
+slices into areas for individual filesystems and swap spaces.
+For more information, see
+.Xr fdisk 8
+and
+.Xr disklabel 8 ,
+respectively.)
 .Pp
-Apologies for the two conflicting usages of the word Partition, but
-it's a historical artifact, and the meaning must be judged from context
-in each case. The next paragraph will discuss partitions exclusively
-in the context of WITHIN a BSD partition on the disk.
-.Pp
-The first few blocks of the BSD section (maybe all) of the disk contain 
-some boot code, and a structure, known as the 
-.Xr disklabel 5
-which describes the disk's characteristics and partitioning for BSD.
-It is set up by the 
-.Xr disklabel 1
-program, and read in by the kernel when the device is first initialised
-during boot. It describes how the drive is further divided. The
-.Xr disklabel 5
-structure contains room for 8 (usually) partitions.  Usually these
-partitions are calculated so as to fall evenly on cylinder boundaries,
-however on a 
-.Em SCSI
-disk this is sometimes not possible. The reason for doing this is historically
-to get better performance, however modern 
-.Em SCSI
-disks often have a variable format, so that it is hard to know at any point
-in the disk, where the cylinder or track boundaries are. Added to this, the
-fact that 
-.Em SCSI
-disk blocks are addressed soley by their 'block number' and not by
-any geometry, leads to the common occurance on 
-.Em SCSI
-disks, of laying out partitions on arbitrary boundaries. Because
-modern disks often have large track caches, this often leads to only small
-degadations of performance, and is in fact sometimes unavoidable. The 
-boot messages will suggest a geometry similar in heads and cylinders 
-to the real geometry, but the disklable need not agree with this for the
-system to be able to successfully work with the disk. 
-.Pp
-During booting
-with an uninitialised disk, the
-.Nm 
-driver will initialise the 'in-core' copy of the disklabel to the suggested
-values, however they are not written to the disk.
-.Pp
-The fourth partition is special. No matter what the disklabel 
-says, the fourth partition (partition d) reflectls the entire disk, including 
-those areas OUTSIDE the BSD partitions. At some times it is suggested that
-the c partition might be used to represent the entire BSD partition, so these
-two partitions should be avoided when laying out filesystems. The fourth
-partition must be used for general
-.Xr scsi 4
-ioctls.
-.Pp
-While partitions are only theoretically valid within the BSD partition, they
-are specified in terms of absolute block numbers, so it is possible to
-specify a partition that lies outside of the BSD partition. This is useful
-if one wants to have a /dev entry that points to a partition belonging
-to another OS (e.g. DOS).
-.Pp
+If an uninitialized disk is opened, the slice table will be
+initialized with a fictitious
+.Tn FreeBSD
+slice spanning the entire disk.  Similarly, if an uninitialized
+(or
+.No non- Ns Tn FreeBSD )
+slice is opened, its disklabel will be initialized with parameters returned
+by the drive and a single
+.Sq Li c
+partition encompassing the entire slice.
 .Sh KERNEL CONFIGURATION
-In configuring, if an optional
-.Ar count
-is given in
-the specification, that number of scsi disks are configured;
-Most storage for them is allocated only when found so a large number 
-of configured devices is cheap. (once the first has included the driver).
-
-.Pp
+It is only necessary to explicitly configure one
+.Nm
+device; data structures are dynamically allocated as disks are found
+on the
+.Tn SCSI
+bus.
 .Sh IOCTLS
 The following 
 .Xr ioctl 2
-calls apply to scsi disks as well as to other disks. They are defined
-in the header file
-.Em disklabel.h.
-
+calls apply to 
+.Tn SCSI
+disks as well as to other disks.  They are defined in the header file
+.Aq Pa disklabel.h .
+.Pp
 .Bl -tag -width DIOCSDINFO
-
 .It Dv DIOCSBAD
-Usually used to set up a bad-block mapping system on the disk. Scsi
-drive incorporate their own bad-block mapping so this is not implimented,
-however it MAY be implimented in the future as a 'kludged' interface to the
-scsi bad-block mapping.
+Usually used to set up a bad-block mapping system on the disk. 
+.Tn SCSI
+drive incorporate their own bad-block mapping so this command is not
+implimented.
 .It Dv DIOCGDINFO
 Read, from the kernel, the in-core copy of the disklabel for the
 drive. This may be a ficticious disklabel if the drive has never
 been initialised, in which case it will contain information read
-from the scsi inquiry commands, and should be the same as
-the information printed at boot.
+from the
+.Tn SCSI
+inquiry commands.
 .It Dv DIOCSDINFO
-Give the driver a new disklabel to use. The driver will NOT try write the new
+Give the driver a new disklabel to use. The driver
+.Em will not
+write the new
 disklabel to the disk.
 .It Dv DIOCWLABEL
-Enable or Disable the driver's software
+Enable or disable the driver's software
 write protect of the disklabel on the disk.
 .It Dv DIOCWDINFO
-Give the driver a new disklabel to use. The driver WILL try write the new
-disklabel to the disk.
+Give the driver a new disklabel to use. The driver
+.Em will
+write the new disklabel to the disk.
 .El
 .Pp
 In addition, the 
 .Xr scsi 4
-general ioctls may be used with the 
+general
+.Fn ioctl
+commands may be used with the 
 .Nm
-driver, but only against the fourth (whole disk) partition.
+driver, but only against the 
+.Sq Li c
+(whole disk) partition.
 .Sh NOTES
 If a removable device is attached to the 
 .Nm
-driver, then the act of changing the media will invalidate the 
-disklabel and information held within the kernel. To stop corruption,
-All accesses to the device will be discarded until there are no more
-open file descriptors referencing the device. During this period, all 
-new open attempts will be rejected. When No more open file descriptors
-reference the device, the first next open will load a new set of
-figures (including disklabel) for the drive.
-
-An ioctl to map out a bad block is planned. (the code is already present
-in the driver).
-
+driver, then the act of changing the media will invalidate the
+disklabel and information held within the kernel.  To avoid
+corruption, all accesses to the device will be discarded until there
+are no more open file descriptors referencing the device.  During this
+period, all new open attempts will be rejected.  When no more open
+file descriptors reference the device, the first next open will load a
+new set of parameters (including disklabel) for the drive.
 .Sh FILES
-.Bl -tag -width /dev/rsd[0-9][a-h] -compact
-.It Pa /dev/sd[0-9][a-h]
-block mode scsi disks
-.It Pa /dev/rsd[0-9][a-h]
-raw scsi disks
+.Bl -tag -width /dev/rsdXXXXX -compact
+.It Pa /dev/rsd Ns Ar u
+raw mode
+.Tn SCSI
+disk unit
+.Ar u ,
+accessed as an unpartitioned device
+.Sm off
+.It Pa /dev/sd Ar u Pa s Ar n
+.Sm on
+block mode
+.Tn SCSI
+disk unit
+.Ar u ,
+slice
+.Ar n ,
+accessed as an unpartitioned device
+.Sm off
+.It Pa /dev/rsd Ar u Pa s Ar n
+.Sm on
+raw mode
+.Tn SCSI
+disk unit
+.Ar u ,
+slice
+.ar n ,
+accessed as an unpartitioned device
+.It Pa /dev/sd Ns Ar u Ns Ar p
+block mode
+.Tn SCSI
+disk unit
+.Ar u ,
+first
+.Tn FreeBSD
+slice, partition
+.Ar p
+.It Pa /dev/rsd Ns Ar u Ns Ar p
+raw mode
+.Tn SCSI
+disk unit
+.Ar u ,
+first
+.Tn FreeBSD
+slice, partition
+.Ar p
+.Sm off
+.It Xo
+.Pa /dev/sd
+.Ar u
+.Pa s
+.Ar n
+.Ar p
+.Xc
+.Sm on
+block mode
+.Tn SCSI
+disk unit
+.Ar u ,
+.No Ar n Ns th
+slice, partition
+.Ar p
+.Sm off
+.It Xo
+.Pa /dev/rsd
+.Ar u
+.Pa s
+.Ar n
+.Ar p
+.Xc
+raw mode
+.Tn SCSI
+disk unit
+.Ar u ,
+.No Ar n Ns th
+slice, partition
+.Ar p
 .El
 .Sh DIAGNOSTICS
 None.
 .Sh SEE ALSO
-.Xr disklabel 1
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr wd 4 ,
 .Xr disklabel 5
-.Xr fdisk 1
-.Xr wd 4
-.Xr dk 4
-(on other systems)
 .Sh HISTORY
 The
 .Nm
-driver appeared in MACH 2.5 .
-
+driver was originally written for
+.Tn Mach
+2.5, and was ported to
+.Tn FreeBSD
+by Julian Elischer.  Support for slices was written by Bruce Evans.
