@@ -247,7 +247,7 @@ static int
 mtab_compare(const void *a, const void *b)
 {
       int     cmp;
-      
+
       cmp = strcmp(((const ns_mtab *)a)->name, ((const ns_mtab *)b)->name);
       if (cmp != 0)
 	      return (cmp);
@@ -305,7 +305,7 @@ _nsdbtdump(const ns_dbt *dbt)
 #endif
 
 
-/* 
+/*
  * The first time nsdispatch is called (during a process's lifetime,
  * or after nsswitch.conf has been updated), nss_configure will
  * prepare global data needed by NSS.
@@ -433,7 +433,7 @@ nss_load_module(const char *source, nss_module_register_fn reg_fn)
 	char		 buf[PATH_MAX];
 	ns_mod		 mod;
 	nss_module_register_fn fn;
-	
+
 	memset(&mod, 0, sizeof(mod));
 	mod.name = strdup(source);
 	if (mod.name == NULL) {
@@ -441,7 +441,7 @@ nss_load_module(const char *source, nss_module_register_fn reg_fn)
 		return;
 	}
 	if (reg_fn != NULL) {
-		/* The placeholder is required, as a NULL handle 
+		/* The placeholder is required, as a NULL handle
 		 * represents an invalid module.
 		 */
 		mod.handle = nss_builtin_handle;
