@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.9 1993/10/09 23:56:53 rgrimes Exp $
+ *	$Id: conf.c,v 1.10 1993/10/11 07:39:13 rgrimes Exp $
  */
 
 #include "param.h"
@@ -279,6 +279,19 @@ int     sbselect();
 #define sbselect       seltrue
 #endif
 
+#include "snd.h"                 /* General Sound Driver */
+#if     NSND > 0
+int     sndopen(), sndclose(), sndioctl(), sndread(), sndwrite();
+int     sndselect();
+#else
+#define sndopen         enxio
+#define sndclose        enxio
+#define sndioctl        enxio
+#define sndread         enxio
+#define sndwrite        enxio
+#define sndselect       seltrue
+#endif
+
 int	fdopen();
 
 #include "bpfilter.h"
@@ -417,9 +430,9 @@ struct cdevsw	cdevsw[] =
 	{ sbopen,	sbclose,	sbread,		sbwrite,	/*20*/
 	  sbioctl,	enodev,		enodev,		NULL,	/* soundblaster*/
 	  sbselect,	enodev,		NULL },
-	{ enxio,	enxio,		enxio,		enxio,		/*21*/
-	  enxio,	enxio,		enxio,		NULL,	/* free */
-	  enxio,	enxio,		NULL },
+	{ sndopen,	sndclose,	sndread,	sndwrite,	/*21*/
+  	  sndioctl,	enodev,		enodev,		NULL,	/* sound driver */
+  	  sndselect,	enodev,		NULL },
 	{ fdopen,	enxio,		enxio,		enxio,		/*22*/
 	  enxio,	enxio,		enxio,		NULL,	/* fd (!=Fd) */
 	  enxio,	enxio,		enxio },
