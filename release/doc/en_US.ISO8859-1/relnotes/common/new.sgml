@@ -156,6 +156,15 @@
 	Prism 2.5-based NICs.  104/128-bit WEP now works on Prism
 	cards.</para>
 
+      <para>The &man.wi.4; driver now supports using a &os; host as
+	a wireless access point.  This functionality can be enabled 
+	using the <literal>mediaopt hostap</literal> option of 
+	&man.ifconfig.8;.  This feature requires a wireless 
+	adapter based on the Prism II chipset.</para>
+
+      <para>The &man.wi.4; driver now has support for
+	<application>bsd-airtools</application>.</para>
+
       <para>The xe driver can now be built as a module.</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
@@ -408,6 +417,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       also handles session management by invoking
       &man.ssh-agent.1;.</para>
 
+    <para>&man.reboot.8; now takes a <option>-k</option> to specify
+      the next kernel to boot.</para>
+
     <para>&man.sshd.8; no longer emits fake S/Key challenges for users
       who do not have S/Key enabled.  The prior behavior created
       confusing, useless one-time-password prompts when using some
@@ -451,6 +463,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>bzip2</application> has been updated to
 	1.0.2.</para>
 
+      <para><application>Heimdal Kerberos</application> has been updated to
+	0.4e.</para>
+
       <para>The <application>ISC DHCP</application> client has been
 	updated to 3.0.1RC8.</para>
 
@@ -491,7 +506,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para></para>
+      <para>The Ports Collection infrastructure now uses
+        <application>XFree86</application> 4.X as the default version
+        of the X Window System for the purposes of satisfying
+        dependencies.  To return to using
+        <application>XFree86</application> 3.X, add the following line
+        to <filename>/etc/make.conf</filename>:</para>
+
+      <programlisting>XFREE86_VERSION=3</programlisting>
+
     </sect3>
   </sect2>
 
