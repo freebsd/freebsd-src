@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: config.h,v 1.46 2003/12/10 03:19:06 gshapiro Exp $
+ *	$Id: config.h,v 1.47 2004/10/26 21:41:07 gshapiro Exp $
  */
 
 /*
@@ -145,6 +145,7 @@
 
 /* LDAP Checks */
 # if LDAPMAP
+#  include <lber.h>
 #  include <ldap.h>
 
 /* Does the LDAP library have ldap_memfree()? */

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: util.c,v 8.382 2004/03/26 19:01:10 ca Exp $")
+SM_RCSID("@(#)$Id: util.c,v 8.383 2004/08/02 18:50:59 ca Exp $")
 
 #include <sysexits.h>
 #include <sm/xtrap.h>
@@ -93,7 +93,8 @@ addquotes(s, rpool)
 }
 
 /*
-**  STRIPBACKSLASH -- Strip leading backslash from a string.
+**  STRIPBACKSLASH -- Strip all leading backslashes from a string, provided
+**	the following character is alpha-numerical.
 **
 **	This is done in place.
 **

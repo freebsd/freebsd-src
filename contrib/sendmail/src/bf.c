@@ -18,7 +18,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: bf.c,v 8.60 2004/04/14 18:12:49 ca Exp $")
+SM_RCSID("@(#)$Id: bf.c,v 8.61 2004/08/03 23:59:02 ca Exp $")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -38,6 +38,8 @@ static ssize_t	sm_bfread __P((SM_FILE_T *, char *, size_t));
 static ssize_t	sm_bfwrite __P((SM_FILE_T *, const char *, size_t));
 static off_t	sm_bfseek __P((SM_FILE_T *, off_t, int));
 static int	sm_bfclose __P((SM_FILE_T *));
+static int	sm_bfcommit __P((SM_FILE_T *));
+static int	sm_bftruncate __P((SM_FILE_T *));
 
 static int	sm_bfopen __P((SM_FILE_T *, const void *, int, const void *));
 static int	sm_bfsetinfo __P((SM_FILE_T *, int , void *));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -15,7 +15,7 @@
 #include <sm/io.h>
 #include <sm/errstring.h>
 
-SM_RCSID("@(#)$Id: safefile.c,v 8.127 2004/05/27 22:37:51 msk Exp $")
+SM_RCSID("@(#)$Id: safefile.c,v 8.128 2004/09/30 18:15:49 ca Exp $")
 
 
 /*
@@ -489,6 +489,7 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 			int linklen;
 			char *target;
 			char buf[MAXPATHLEN];
+			char fullbuf[MAXLINKPATHLEN];
 
 			memset(buf, '\0', sizeof buf);
 			linklen = readlink(s, buf, sizeof buf);
@@ -544,7 +545,6 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 			else
 			{
 				char *sptr;
-				char fullbuf[MAXLINKPATHLEN];
 
 				sptr = strrchr(s, '/');
 				if (sptr != NULL)

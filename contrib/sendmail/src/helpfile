@@ -1,6 +1,6 @@
 #vers	2
 cpyr
-cpyr	Copyright (c) 1998-2000, 2002 Sendmail, Inc. and its suppliers.
+cpyr	Copyright (c) 1998-2000, 2002, 2004 Sendmail, Inc. and its suppliers.
 cpyr	    All rights reserved.
 cpyr	Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
 cpyr	Copyright (c) 1988, 1993
@@ -11,7 +11,7 @@ cpyr	By using this file, you agree to the terms and conditions set
 cpyr	forth in the LICENSE file which can be found at the top level of
 cpyr	the sendmail distribution.
 cpyr
-cpyr	$$Id: helpfile,v 8.40 2002/03/19 00:23:28 gshapiro Exp $$
+cpyr	$$Id: helpfile,v 8.43 2004/10/29 18:05:39 ca Exp $$
 cpyr
 smtp	This is sendmail version $v
 smtp	Topics:

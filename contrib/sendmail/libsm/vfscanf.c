@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2004 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: vfscanf.c,v 1.51 2001/09/11 04:04:49 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: vfscanf.c,v 1.52 2004/08/03 20:56:32 ca Exp $")
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -60,8 +60,9 @@ SM_IDSTR(id, "@(#)$Id: vfscanf.c,v 1.51 2001/09/11 04:04:49 gshapiro Exp $")
 #define CT_INT		3	/* integer, i.e., strtoll or strtoull */
 #define CT_FLOAT	4	/* floating, i.e., strtod */
 
-static unsigned char *sm_sccl __P((char *, unsigned char *));
-static jmp_buf ScanTimeOut;
+static void		scanalrm __P((int));
+static unsigned char	*sm_sccl __P((char *, unsigned char *));
+static jmp_buf		ScanTimeOut;
 
 /*
 **  SCANALRM -- handler when timeout activated for sm_io_vfscanf()

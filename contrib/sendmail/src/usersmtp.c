@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,13 +13,12 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.451 2004/03/01 21:50:36 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.460 2005/01/11 00:24:19 ca Exp $")
 
 #include <sysexits.h>
 
 
-extern void	markfailure __P((ENVELOPE *, ADDRESS *, MCI *, int, bool));
-static void	datatimeout __P((void));
+static void	datatimeout __P((int));
 static void	esmtp_check __P((char *, bool, MAILER *, MCI *, ENVELOPE *));
 static void	helo_options __P((char *, bool, MAILER *, MCI *, ENVELOPE *));
 static int	smtprcptstat __P((ADDRESS *, MAILER *, MCI *, ENVELOPE *));
@@ -90,6 +89,7 @@ smtpinit(m, mci, e, onlyhelo)
 	*/
 
 	SmtpError[0] = '\0';
+	SmtpMsgBuffer[0] = '\0';
 	CurHostName = mci->mci_host;		/* XXX UGLY XXX */
 	if (CurHostName == NULL)
 		CurHostName = MyHostName;
@@ -2560,6 +2560,20 @@ smtpdata(m, mci, e, ctladdr, xstart)
 			mci->mci_nextaddr = mci->mci_nextaddr->q_pchain;
 		}
 		e->e_to = oldto;
+
+		/*
+		**  Connection might be closed in response to a RCPT command,
+		**  i.e., the server responded with 421. In that case (at
+		**  least) one RCPT has a temporary failure, hence we don't
+		**  need to check mci_okrcpts (as it is done below) to figure
+		**  out which error to return.
+		*/
+
+		if (mci->mci_state == MCIS_CLOSED)
+		{
+			errno = mci->mci_errno;
+			return EX_TEMPFAIL;
+		}
 	}
 #endif /* PIPELINING */
 
@@ -2724,7 +2738,8 @@ smtpdata(m, mci, e, ctladdr, xstart)
 	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc, XS_DEFAULT);
 	if (r < 0)
 		return EX_TEMPFAIL;
-	mci->mci_state = MCIS_OPEN;
+	if (mci->mci_state == MCIS_DATA)
+		mci->mci_state = MCIS_OPEN;
 	xstat = EX_NOTSTICKY;
 	if (r == 452)
 		rstat = EX_TEMPFAIL;
@@ -2761,7 +2776,8 @@ smtpdata(m, mci, e, ctladdr, xstart)
 }
 
 static void
-datatimeout()
+datatimeout(ignore)
+	int ignore;
 {
 	int save_errno = errno;
 
@@ -2884,7 +2900,10 @@ smtpquit(m, mci, e)
 	char *oldcurhost;
 
 	if (mci->mci_state == MCIS_CLOSED)
+	{
+		mci_close(mci, "smtpquit:1");
 		return;
+	}
 
 	oldcurhost = CurHostName;
 	CurHostName = mci->mci_host;		/* XXX UGLY XXX */
@@ -2997,10 +3016,12 @@ smtprset(m, mci, e)
 	**  to take when a value other than 250 is received.
 	**
 	**  However, if 421 is returned for the RSET, leave
-	**  mci_state as MCIS_SSD (set in reply()).
+	**  mci_state alone (MCIS_SSD can be set in reply()
+	**  and MCIS_CLOSED can be set in smtpquit() if
+	**  reply() gets a 421 and calls smtpquit()).
 	*/
 
-	if (mci->mci_state != MCIS_SSD)
+	if (mci->mci_state != MCIS_SSD && mci->mci_state != MCIS_CLOSED)
 		mci->mci_state = MCIS_OPEN;
 }
 /*
@@ -3063,7 +3084,7 @@ reply(m, mci, e, timeout, pfunc, enhstat, rtype)
 	MCI *mci;
 	ENVELOPE *e;
 	time_t timeout;
-	void (*pfunc)();
+	void (*pfunc) __P((char *, bool, MAILER *, MCI *, ENVELOPE *));
 	char **enhstat;
 	int rtype;
 {
@@ -3106,7 +3127,7 @@ reply(m, mci, e, timeout, pfunc, enhstat, rtype)
 		if (mci->mci_state == MCIS_CLOSED)
 			return SMTPCLOSING;
 
-		/* don't try to read from a non-existant fd */
+		/* don't try to read from a non-existent fd */
 		if (mci->mci_in == NULL)
 		{
 			if (mci->mci_errno == 0)
@@ -3116,6 +3137,7 @@ reply(m, mci, e, timeout, pfunc, enhstat, rtype)
 			if (strncmp(SmtpMsgBuffer, "QUIT", 4) == 0)
 			{
 				errno = mci->mci_errno;
+				mci_close(mci, "reply:1");
 				return -1;
 			}
 			mci->mci_state = MCIS_ERROR;
@@ -3139,7 +3161,10 @@ reply(m, mci, e, timeout, pfunc, enhstat, rtype)
 
 			/* errors on QUIT should be ignored */
 			if (strncmp(SmtpMsgBuffer, "QUIT", 4) == 0)
+			{
+				mci_close(mci, "reply:2");
 				return -1;
+			}
 
 			/* if the remote end closed early, fake an error */
 			errno = save_errno;
