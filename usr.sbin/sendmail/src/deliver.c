@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.82 (Berkeley) 4/18/94";
+static char sccsid[] = "@(#)deliver.c	8.84.1.1 (Berkeley) 2/10/95";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -124,6 +124,7 @@ sendall(e, mode)
 	if (e->e_hopcount > MaxHopCount)
 	{
 		errno = 0;
+		queueup(e, TRUE, announcequeueup);
 		e->e_flags |= EF_FATALERRS|EF_PM_NOTIFY|EF_CLRQUEUE;
 		syserr("554 too many hops %d (%d max): from %s via %s, to %s",
 			e->e_hopcount, MaxHopCount, e->e_from.q_paddr,
@@ -1005,7 +1006,7 @@ deliver(e, firstto)
 		if (curhost == NULL || curhost[0] == '\0')
 		{
 			syserr("null host signature for %s", pv[1]);
-			rcode = EX_OSERR;
+			rcode = EX_CONFIG;
 			goto give_up;
 		}
 
@@ -1726,7 +1727,7 @@ giveresponse(stat, m, mci, ctladdr, e)
 	else if (stat == EX_NOHOST && h_errno != 0)
 	{
 		statmsg = errstring(h_errno + E_DNSBASE);
-		(void) sprintf(buf, "%s (%s)", SysExMsg[i], statmsg);
+		(void) sprintf(buf, "%s (%s)", SysExMsg[i] + 1, statmsg);
 		statmsg = buf;
 	}
 #endif
@@ -1754,8 +1755,11 @@ giveresponse(stat, m, mci, ctladdr, e)
 	}
 	else
 	{
+		char mbuf[8];
+
 		Errors++;
-		usrerr(statmsg, errstring(errno));
+		sprintf(mbuf, "%.3s %%s", statmsg);
+		usrerr(mbuf, &statmsg[4]);
 	}
 
 	/*
@@ -1770,7 +1774,7 @@ giveresponse(stat, m, mci, ctladdr, e)
 
 	if (tTd(11, 2))
 		printf("giveresponse: stat=%d, e->e_message=%s\n",
-			stat, e->e_message);
+			stat, e->e_message == NULL ? "<NULL>" : e->e_message);
 
 	if (stat != EX_TEMPFAIL)
 		setstat(stat);
