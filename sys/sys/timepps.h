@@ -103,9 +103,11 @@ struct pps_kcbind_args {
 #define PPS_IOC_KCBIND		_IOW('1', 7, struct pps_kcbind_args)
 
 #ifdef _KERNEL
+struct timehands;
+struct timecounter;
 struct pps_state {
 	/* capture information */
-	struct timecounter	*captc;
+	struct timehands	*captc;
 	u_int			capgen;
 	u_int			capcount;
 	/* state information */
