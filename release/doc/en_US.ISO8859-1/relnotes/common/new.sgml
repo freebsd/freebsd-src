@@ -358,7 +358,9 @@
   <sect2>
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>A bug that caused <filename>/usr/share/examples</filename>
+      to be incompletely populated on fresh installs has been
+      fixed.</para>
 
   </sect2>
 </sect1>
