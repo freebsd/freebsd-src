@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uthread_create.c,v 1.13 1999/06/20 08:28:14 jb Exp $
  */
 #include <errno.h>
 #include <stdlib.h>
@@ -37,6 +37,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/time.h>
+#ifdef _PTHREAD_GSTACK
+#include <sys/types.h>
+#include <sys/mman.h>
+#endif
 #ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
@@ -77,12 +81,64 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		/* Check if a stack was specified in the thread attributes: */
 		if ((stack = pattr->stackaddr_attr) != NULL) {
 		}
+#ifdef _PTHREAD_GSTACK
+		/* Allocate memory for a default-size stack: */
+		else if (pattr->stacksize_attr == PTHREAD_STACK_DEFAULT) {
+			struct stack	* spare_stack;
+			
+			/* Allocate or re-use a default-size stack. */
+			
+			/* Use the garbage collector mutex for synchronization
+			 * of the spare stack list.
+			 *
+			 * XXX This may not be ideal. */
+			if (pthread_mutex_lock(&_gc_mutex) != 0)
+				PANIC("Cannot lock gc mutex");
+			
+			if (NULL != (spare_stack = SLIST_FIRST(&_stackq))) {
+				/* Use the spare stack. */
+				SLIST_REMOVE_HEAD(&_stackq, qe);
+				stack = sizeof(struct stack) + (void *) spare_stack - PTHREAD_STACK_DEFAULT;
+			} else {
+				/* Allocate a new stack. */
+				stack = _next_stack + PTHREAD_STACK_GUARD;
+				/* Even if stack allocation fails, we don't want to try to use this location again, so unconditionally
+				 * decrement _next_stack.  Under normal operating conditions, the most likely reason for an mmap()
+				 * error is a stack overflow of the adjacent thread stack. */
+				_next_stack -= (PTHREAD_STACK_DEFAULT + PTHREAD_STACK_GUARD);
+
+				/* Red zone: */
+				if (MAP_FAILED == mmap(_next_stack, PTHREAD_STACK_GUARD, 0, MAP_ANON, -1, 0)) {
+					ret = EAGAIN;
+					free(new_thread);
+				}
+				/* Stack: */
+				else if (MAP_FAILED == mmap(stack, PTHREAD_STACK_DEFAULT, PROT_READ | PROT_WRITE, MAP_STACK, -1, 0)) {
+					ret = EAGAIN;
+					munmap(_next_stack, PTHREAD_STACK_GUARD);
+					free(new_thread);
+				}
+			}
+
+			/* Unlock the garbage collector mutex. */
+			if (pthread_mutex_unlock(&_gc_mutex) != 0)
+				PANIC("Cannot unlock gc mutex");
+		}
+		/* The user wants a stack of a particular size.  Lets hope they really know what they want, and simply malloc the
+		 * stack. */
+		else if ((stack = (void *) malloc(pattr->stacksize_attr)) == NULL) {
+			/* Insufficient memory to create a thread: */
+			ret = EAGAIN;
+			free(new_thread);
+		}
+#else
 		/* Allocate memory for the stack: */
 		else if ((stack = (void *) malloc(pattr->stacksize_attr)) == NULL) {
 			/* Insufficient memory to create a thread: */
 			ret = EAGAIN;
 			free(new_thread);
 		}
+#endif
 		/* Check for errors: */
 		if (ret != 0) {
 		} else {
