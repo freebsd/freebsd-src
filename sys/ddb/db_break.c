@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.c,v 1.8 1995/11/29 10:25:09 phk Exp $
+ *	$Id: db_break.c,v 1.9 1995/12/07 12:44:46 davidg Exp $
  */
 
 /*
@@ -46,7 +46,7 @@
 #include <ddb/db_sym.h>
 
 #define	NBREAKPOINTS	100
-struct db_breakpoint	db_break_table[NBREAKPOINTS];
+static struct db_breakpoint	db_break_table[NBREAKPOINTS];
 static db_breakpoint_t		db_next_free_breakpoint = &db_break_table[0];
 static db_breakpoint_t		db_free_breakpoints = 0;
 static db_breakpoint_t		db_breakpoint_list = 0;

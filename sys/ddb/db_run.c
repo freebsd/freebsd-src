@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_run.c,v 1.7 1995/11/29 10:25:31 phk Exp $
+ *	$Id: db_run.c,v 1.8 1995/12/07 12:44:57 davidg Exp $
  */
 
 /*
@@ -45,7 +45,7 @@
 #include <ddb/db_break.h>
 #include <ddb/db_access.h>
 
-int	db_run_mode;
+static int	db_run_mode;
 #define	STEP_NONE	0
 #define	STEP_ONCE	1
 #define	STEP_RETURN	2
@@ -54,9 +54,9 @@ int	db_run_mode;
 #define STEP_INVISIBLE	5
 #define	STEP_COUNT	6
 
-boolean_t	db_sstep_print;
-int		db_loop_count;
-int		db_call_depth;
+static boolean_t	db_sstep_print;
+static int		db_loop_count;
+static int		db_call_depth;
 
 int		db_inst_count;
 int		db_load_count;
