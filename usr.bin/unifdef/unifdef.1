@@ -2,7 +2,7 @@
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" This code is derived from software contributed to Berkeley by
-.\" Dave Yost.
+.\" Dave Yost. Support for #if and #elif was added by Tony Finch.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -33,36 +33,88 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)unifdef.1	8.2 (Berkeley) 4/1/94
+.\"	$dotat: things/unifdef.1,v 1.23 2002/05/14 22:15:03 fanf Exp $
 .\" $FreeBSD$
 .\"
-.Dd April 1, 1994
+.Dd April 26, 2002
 .Dt UNIFDEF 1
 .Os
 .Sh NAME
-.Nm unifdef
-.Nd remove ifdef'ed lines
+.Nm unifdef ,
+.Nm unifdefall
+.Nd remove preprocessor conditionals from code
 .Sh SYNOPSIS
 .Nm
-.Op Fl clt
+.Op Fl clst
 .Oo
-.Fl D Ns Ar sym
+.Fl I Ns Ar path
+.Fl D Ns Ar sym Ns Oo = Ns Ar val Oc
 .Fl U Ns Ar sym
-.Fl iD Ns Ar sym
+.Fl iD Ns Ar sym Ns Oo = Ns Ar val Oc
 .Fl iU Ns Ar sym
 .Oc
 .Ar ...
 .Op Ar file
+.Nm unifdefall
+.Op Fl I Ns Ar path
+.Ar ...
+.Ar file
 .Sh DESCRIPTION
 The
 .Nm
-utility removes ifdef'ed lines
-from a file while otherwise leaving the file alone.
+utility selectively processes conditional
+.Xr cpp 1
+directives.
+It removes from a file
+both the directives
+and any additional text that they specify should be removed,
+while otherwise leaving the file alone.
+.Pp
 The
 .Nm
 utility acts on
-#ifdef, #ifndef, #else, and #endif lines,
-and it knows only enough about C
-to know when one of these is inactive
+.Li #if ,
+.Li #ifdef ,
+.Li #ifndef ,
+.Li #elif ,
+.Li #else ,
+and
+.Li #endif
+lines,
+and it understands only the commonly-used subset
+of the expression syntax for
+.Li #if
+and
+.Li #elif
+lines.
+Integer values of symbols defined on the command line,
+the
+.Fn defined
+operator applied to symbols defined or undefined on the command line,
+the operators
+.Li ! ,
+.Li < ,
+.Li > ,
+.Li <= ,
+.Li >= ,
+.Li == ,
+.Li != ,
+.Li && ,
+.Li || ,
+and parenthesized expressions
+are handled,
+and anything more complicated is passed through unharmed.
+.Li #ifdef
+and
+.Li #ifndef
+directives are only processed
+if the symbol is specified on the command line,
+otherwise they are also passed though unchanged.
+.Pp
+The
+.Nm
+utility also understands just enough about C
+to know when one of the directives is inactive
 because it is inside
 a comment,
 or a single or double quote.
@@ -73,23 +125,34 @@ until it finds a close quote, and
 it will not complain if it gets
 to the end of a line and finds no backslash for continuation.
 .Pp
+A script called
+.Nm unifdefall
+can be used to remove all conditional
+.Xr cpp 1
+directives from a file.
+It uses
+.Li unifdef -s
+and
+.Li cpp -dM
+to get lists of all the controlling symbols
+and their definitions (or lack thereof),
+then invokes
+.Li unifdef
+with appropriate arguments to process the file.
+.Pp
 Available options:
-.Bl -tag -width Ds -compact
-.It Fl D Ns Ar sym
+.Bl -tag -width Ds
+.It Fl D Ns Ar sym Ns Oo = Ns Ar val Oc
+Specify that a symbol is defined,
+and optionally specify what value to give it
+for the purpose of handling
+.Li #if
+and
+.Li #elif
+directives.
+.Pp
 .It Fl U Ns Ar sym
-Specify which symbols to define or undefine.
-The lines inside those ifdefs will be copied to the output or removed as
-appropriate.
-The ifdef, ifndef, else, and endif lines associated with
-.Ar sym
-will also be removed.
-Ifdefs involving symbols you don't specify
-and ``#if'' control lines
-are untouched and copied out
-along with their associated
-ifdef, else, and endif lines.
-If an ifdef X occurs nested inside another ifdef X, then the
-inside ifdef is treated as if it were an unrecognized symbol.
+Specify that a symbol is undefined.
 If the same symbol appears in more than one argument,
 the last occurrence dominates.
 .Pp
@@ -106,11 +169,28 @@ are retained and vice versa.
 .It Fl l
 Replace removed lines with blank lines
 instead of deleting them.
+.Pp
+.It Fl s
+Instead of processing the input file as usual,
+this option causes
+.Nm
+to produce a list of symbols that appear in expressions
+that
+.Nm
+understands.
+It is useful in conjunction with the
+.Fl dM
+option of
+.Xr cpp 1
+for creating
+.Nm
+command lines.
+.Pp
 .It Fl t
 Disables parsing for C comments and quotes, which is useful
 for plain text.
 .Pp
-.It Fl iD Ns Ar sym
+.It Fl iD Ns Ar sym Ns Oo = Ns Ar val Oc
 .It Fl iU Ns Ar sym
 Ignore ifdefs.
 If your C code uses ifdefs to delimit non-C lines,
@@ -121,15 +201,28 @@ then you must tell
 which symbols are used for that purpose so that it won't try to parse
 for quotes and comments
 inside those ifdefs.
-One specifies ignored ifdefs with
-.Fl iD Ns Ar sym
+One specifies ignored symbols with
+.Fl iD Ns Ar sym Ns Oo = Ns Ar val Oc
 and
 .Fl iU Ns Ar sym
 similar to
-.Fl D Ns Ar sym
+.Fl D Ns Ar sym Ns Oo = Ns Ar val Oc
 and
 .Fl U Ns Ar sym
 above.
+.Pp
+.It Fl I Ns Ar path
+Specifies to
+.Nm unifdefall
+an additional place to look for
+.Li #include
+files.
+This option is ignored by
+.Nm
+for compatibility with
+.Xr cpp 1
+and to simplify the implementation of
+.Nm unifdefall .
 .El
 .Pp
 The
@@ -146,24 +239,25 @@ The
 .Nm
 utility works nicely with the
 .Fl D Ns Ar sym
-option added to
-.Xr diff 1
-as of the 4.1 Berkeley Software Distribution.
+option of
+.Xr diff 1 .
 .Sh SEE ALSO
+.Xr cpp 1 ,
 .Xr diff 1
 .Sh DIAGNOSTICS
 .Bl -item -compact
 .It
-Inappropriate else or endif.
+Inappropriate elif, else or endif.
 .It
 Premature
 .Tn EOF
-with line numbers of the unterminated #ifdefs.
+with line numbers of the unterminated
+.Li #ifdefs .
 .El
 .Pp
 Exit status is 0 if output is exact copy of input, 1 if not, 2 if trouble.
 .Sh BUGS
-Should try to deal with ``#if'' lines.
+Expression evaluation is very limited.
 .Pp
 Doesn't work correctly if input contains null characters.
 .Sh HISTORY
