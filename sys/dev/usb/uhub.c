@@ -456,9 +456,14 @@ uhub_disconnect_port(up)
 	struct softc {		/* all softc begin like this */
 		bdevice sc_dev;
 	};
+	struct softc *sc;
+	struct softc *scp;
 
-	struct softc *sc = (struct softc *)dev->softc;
-	struct softc *scp = (struct softc *)up->parent->softc;
+	if (!dev) 		/* no device driver attached at port */
+		return;
+
+	sc = (struct softc *)dev->softc;
+	scp = (struct softc *)up->parent->softc;
 
 	DPRINTFN(3,("uhub_disconnect_port: up=%p dev=%p port=%d\n", 
 		    up, dev, up->portno));
