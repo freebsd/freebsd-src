@@ -1,7 +1,7 @@
 /* opie_cfg.h: Various configuration-type pieces of information for OPIE.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,11 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Added 4.4BSD-Lite pathnames.h
+		definitions from ftpd. Added struct spwd definition and
+		HAVE_SHADOW logic for SunOS C2 shadow password support.
+		Moved user locking config to configure script. Removed
+		options.h.
 	Modified by cmetz for OPIE 2.3. Splatted with opie_auto.h.
 	        Obseleted many symbols. Changed OPIE_PASS_{MIN,MAX} to
 		OPIE_SECRET_{MIN,MAX}. Fixed SHADOW+UTMP definitions.
@@ -41,15 +46,17 @@ License Agreement applies to this software.
 	Written at NRL for OPIE 2.0.
 */
 
-#define VERSION "2.3"
-#define DATE    "Sunday, September 22, 1996"
+#ifndef _OPIE_CFG_H
+#define _OPIE_CFG_H 1
+
+#define VERSION "2.31"
+#define DATE    "Thursday, March 20, 1997"
 
 #ifndef unix
 #define unix 1
 #endif /* unix */
 
 #include "config.h"
-#include "options.h"
 
 /* System characteristics */
 
@@ -92,21 +99,18 @@ License Agreement applies to this software.
 #endif /* PATH_MAIL */
 #endif /* MAIL_DIR */
 
-#if HAVE_SHADOW_H && HAVE_GETSPENT && HAVE_ENDSPENT
-#if defined(linux) && !HAVE_ETC_SHADOW 
+#if HAVE_SHADOW_H && HAVE_GETSPNAM && HAVE_ENDSPENT
+#if defined(linux) && !HAVE_ETC_SHADOW
 #define HAVE_SHADOW 0
 #else /* defined(linux) && !HAVE_ETC_SHADOW */
 #define HAVE_SHADOW 1
 #endif /* defined(linux) && !HAVE_ETC_SHADOW */
-#endif /* HAVE_SHADOW_H && HAVE_GETSPENT && HAVE_ENDSPENT */
+#endif /* HAVE_SHADOW_H && HAVE_GETSPNAM && HAVE_ENDSPENT */
 
-#if !HAVE_SETEUID && HAVE_SETREUID
-#define seteuid(x) setreuid(-1, x)
-#endif /* !HAVE_SETEUID && HAVE_SETREUID */
-
-#if !HAVE_SETEGID && HAVE_SETREGID
-#define setegid(x) setregid(-1, x)
-#endif /* !HAVE_SETEGID && HAVE_SETREGID */
+#if HAVE_SUNOS_C2_SHADOW && !HAVE_SHADOW
+#undef HAVE_SHADOW
+#define HAVE_SHADOW 1
+#endif /* HAVE_SUNOS_C2_SHADOW && !HAVE_SHADOW */
 
 /* If the user didn't specify, default to MD5 */
 #ifndef MDX
@@ -125,12 +129,20 @@ License Agreement applies to this software.
 #define	_PATH_FTPUSERS	"/etc/ftpusers"
 #endif
 
+#ifndef _PATH_FTPLOGINMESG
+#define	_PATH_FTPLOGINMESG	"/etc/ftpmotd"
+#endif /* _PATH_FTPLOGINMESG */
+
+#ifndef _PATH_FTPWELCOME
+#define _PATH_FTPWELCOME	"/etc/ftpwelcome"
+#endif /* _PATH_FTPWELCOME */
+
+#ifndef _PATH_NOLOGIN
+#define _PATH_NOLOGIN		"/etc/nologin"
+#endif /* _PATH_NOLOGIN */
+
 #ifndef TTYGRPNAME
 #define TTYGRPNAME	"tty"	/* name of group to own ttys */
-#endif
-
-#ifndef NO_LOGINS_FILE
-#define NO_LOGINS_FILE	"/etc/nologin"
 #endif
 
 #ifndef QUIET_LOGIN_FILE
@@ -139,10 +151,6 @@ License Agreement applies to this software.
 
 #ifndef OPIE_ALWAYS_FILE
 #define OPIE_ALWAYS_FILE ".opiealways"
-#endif
-
-#ifndef OPIE_LOCK_PREFIX
-#define OPIE_LOCK_PREFIX "/tmp/opie-lock."
 #endif
 
 #ifndef OPIE_LOCK_TIMEOUT
@@ -165,4 +173,11 @@ License Agreement applies to this software.
 #define POINTER unsigned char *
 #endif /* POINTER */
 
+#ifdef HAVE_SUNOS_C2_SHADOW
+struct spwd {
+  char *sp_pwdp;
+};
+#endif /* HAVE_SUNOS_C2_SHADOW */
+
 #define _OPIE 1
+#endif /* _OPIE_CFG_H */

@@ -1,8 +1,8 @@
 /* opie.h: Data structures and values for the OPIE authentication
 	system that a program might need.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -15,6 +15,7 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Removed active attack protection.
 	Modified by cmetz for OPIE 2.3. Renamed PTR to VOIDPTR. Added
 		re-init key and extension file fields to struct opie. Added
 		opie_ prefix on struct opie members. Added opie_flags field
@@ -32,7 +33,7 @@ License Agreement applies to this software.
 		(skey.h).
 */
 #ifndef _OPIE_H
-#define _OPIE_H
+#define _OPIE_H 1
 
 struct opie {
   int opie_flags;
@@ -42,9 +43,6 @@ struct opie {
   char *opie_seed;
   char *opie_val;
   long opie_recstart;
-  char opie_extbuf[129]; /* > OPIE_PRINCIPAL_MAX + 1 + 16 + 2 + 1 */
-  long opie_extrecstart;
-  char *opie_reinitkey;
 };
 
 #define __OPIE_FLAGS_RW 1
@@ -71,11 +69,7 @@ struct opie {
 /* Maximum length of a principal (read: user name) */
 #define OPIE_PRINCIPAL_MAX 32
 
-struct opiemdx_ctx {
-	u_int32_t state[4];
-	u_int32_t count[2];
-	unsigned char buffer[64];
-};
+#include <sys/cdefs.h>
 
 __BEGIN_DECLS
 int  opieaccessfile __P((char *));
@@ -101,33 +95,28 @@ void opierandomchallenge __P((char *));
 char * opieskipspace __P((register char *));
 void opiestripcrlf __P((char *));
 int  opieverify __P((struct opie *,char *));
-int  opiepasswd __P((struct opie *, int, char *, int, char *, char *));
+int opiepasswd __P((struct opie *, int, char *, int, char *, char *));
 char *opiereadpass __P((char *, int, int));
 int opielogin __P((char *line, char *name, char *host));
 __END_DECLS
 
-#if _OPIE		/* internal glue support */
-
-#define	VOIDPTR void *
-#define	VOIDRET void
-#define	NOARGS	void
-#define	FUNCTION(arglist, args) (args)
-#define	AND	,
-#define	FUNCTION_NOARGS ()
-#define	UINT4	u_int32_t
+#if _OPIE
+#define VOIDPTR void *
+#define VOIDRET void
+#define NOARGS  void
+#define FUNCTION(arglist, args) (args)
+#define AND ,
+#define FUNCTION_NOARGS ()
+#define UINT4 u_int32_t
 
 __BEGIN_DECLS
 struct utmp;
-int   __opiegetutmpentry __P((char *, struct utmp *));
-int   __opiereadrec __P((struct opie *));
-int   __opiewriterec __P((struct opie *));
-
+int __opiegetutmpentry __P((char *, struct utmp *));
 #ifdef EOF
 FILE *__opieopen __P((char *, int, int));
-#endif
-
-__END_DECLS
-
+#endif /* EOF */
+int __opiereadrec __P((struct opie *));
+int __opiewriterec __P((struct opie *));
 #endif /* _OPIE */
-
+__END_DECLS
 #endif /* _OPIE_H */
