@@ -14,14 +14,9 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.49 1996/09/07 17:41:22 nate Exp $
+ *	$Id: apm.c,v 1.50 1997/01/06 06:01:45 nate Exp $
  */
 
-#include "apm.h"
-#if NAPM > 1
-#error only one APM device may be configured
-#endif
- 
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -29,11 +24,7 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/ioctl.h>
-#include <sys/file.h>
-#include <sys/proc.h>
-#include <sys/vnode.h>
+#include <sys/time.h>
 #include <i386/isa/isa_device.h>
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
