@@ -64,6 +64,12 @@ CRT
 .It Li 4
 TV-Out
 .El
+.Pp
+Only some systems (i.e., the Libretto L5) support video switching via
+this hardware-specific driver.
+Use the
+.Xr acpi_video 4
+driver for generic video output support.
 .It Va hw.acpi.toshiba.lcd_brightness
 Makes the LCD backlight brighter or dimmer (higher values are brighter).
 .It Va hw.acpi.toshiba.lcd_backlight
@@ -91,6 +97,7 @@ prompt or in
 .Xr loader.conf 5 .
 .Sh SEE ALSO
 .Xr acpi 4 ,
+.Xr acpi_video 4 ,
 .Xr loader.conf 5 ,
 .Xr sysctl.conf 5 ,
 .Xr sysctl 8
