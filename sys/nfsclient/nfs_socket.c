@@ -319,8 +319,12 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	error = soreserve(so, sndreserve, rcvreserve);
 	if (error)
 		goto bad;
+	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_flags |= SB_NOINTR;
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_flags |= SB_NOINTR;
+	SOCKBUF_UNLOCK(&so->so_snd);
 
 	/* Initialize other non-zero congestion variables */
 	nmp->nm_srtt[0] = nmp->nm_srtt[1] = nmp->nm_srtt[2] =
