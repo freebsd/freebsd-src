@@ -193,7 +193,7 @@ struct ata_request {
 #define		ATA_R_TIMEOUT		0x0080
 
 #define		ATA_R_ORDERED		0x0100
-#define		ATA_R_AT_HEAD		0x0200
+#define		ATA_R_IMMEDIATE		0x0200
 #define		ATA_R_REQUEUE		0x0400
 #define		ATA_R_SKIPSTART		0x0800
 
