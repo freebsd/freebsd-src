@@ -873,7 +873,6 @@ exec_new_vmspace(imgp, sv)
 	    sv->sv_stackprot, VM_PROT_ALL, MAP_STACK_GROWS_UP);
 	if (error)
 		return (error);
-	FIRST_THREAD_IN_PROC(p)->td_md.md_bspstore = stack_addr;
 #endif
 
 	/* vm_ssize and vm_maxsaddr are somewhat antiquated concepts in the

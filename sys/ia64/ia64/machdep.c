@@ -1217,7 +1217,7 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 		bzero(&tf->tf_scratch, sizeof(tf->tf_scratch));
 		bzero(&tf->tf_scratch_fp, sizeof(tf->tf_scratch_fp));
 		tf->tf_special.cfm = (1UL<<63) | (3UL<<7) | 3UL;
-		tf->tf_special.bspstore = td->td_md.md_bspstore;
+		tf->tf_special.bspstore = IA64_BACKINGSTORE;
 		/*
 		 * Copy the arguments onto the kernel register stack so that
 		 * they get loaded by the loadrs instruction. Skip over the
@@ -1236,7 +1236,7 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 		tf->tf_special.ndirty = (ksttop - kst) << 3;
 	} else {				/* epc syscalls (default). */
 		tf->tf_special.cfm = (3UL<<62) | (3UL<<7) | 3UL;
-		tf->tf_special.bspstore = td->td_md.md_bspstore + 24;
+		tf->tf_special.bspstore = IA64_BACKINGSTORE + 24;
 		/*
 		 * Write values for out0, out1 and out2 to the user's backing
 		 * store and arrange for them to be restored into the user's
