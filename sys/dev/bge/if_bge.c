@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  *
  * The BCM5700 supports the PCI v2.2 and PCI-X v1.0 standards, and will
  * function in a 32-bit/64-bit 33/66Mhz bus, or a 64-bit/133Mhz bus.
- * 
+ *
  * The BCM5701 is a single-chip solution incorporating both the BCM5700
  * MAC and a BCM5401 10/100/1000 PHY. Unlike the BCM5700, the BCM5701
  * does not support external SSRAM.
@@ -411,7 +411,7 @@ bge_dma_map_tx_desc(arg, segs, nseg, mapsize, error)
 		    htole32(BGE_ADDR_HI(segs[i].ds_addr));
 		d->bge_len = htole16(segs[i].ds_len);
 		d->bge_flags = htole16(ctx->bge_flags);
-                i++;
+		i++;
 		if (i == nseg)
 			break;
 		BGE_INC(idx, BGE_TX_RING_CNT);
@@ -488,8 +488,8 @@ bge_vpd_read(sc)
 	if (res.vr_id != VPD_RES_ID) {
 		printf("bge%d: bad VPD resource id: expected %x got %x\n",
 			sc->bge_unit, VPD_RES_ID, res.vr_id);
-                return;
-        }
+		return;
+	}
 
 	pos += sizeof(res);
 	sc->bge_vpd_prodname = malloc(res.vr_len + 1, M_DEVBUF, M_NOWAIT);
@@ -559,7 +559,7 @@ bge_eeprom_getbyte(sc, addr, dest)
 	/* Get result. */
 	byte = CSR_READ_4(sc, BGE_EE_DATA);
 
-        *dest = (byte >> ((addr % 4) * 8)) & 0xFF;
+	*dest = (byte >> ((addr % 4) * 8)) & 0xFF;
 
 	return(0);
 }
@@ -754,7 +754,7 @@ bge_alloc_jumbo_mem(sc)
 	    &sc->bge_cdata.bge_jumbo_map);
 
 	if (error)
-                return (ENOMEM);
+		return (ENOMEM);
 
 	SLIST_INIT(&sc->bge_jfree_listhead);
 	SLIST_INIT(&sc->bge_jinuse_listhead);
@@ -767,7 +767,7 @@ bge_alloc_jumbo_mem(sc)
 	for (i = 0; i < BGE_JSLOTS; i++) {
 		sc->bge_cdata.bge_jslots[i] = ptr;
 		ptr += BGE_JLEN;
-		entry = malloc(sizeof(struct bge_jpool_entry), 
+		entry = malloc(sizeof(struct bge_jpool_entry),
 		    M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
 			bge_free_jumbo_mem(sc);
@@ -786,11 +786,11 @@ bge_alloc_jumbo_mem(sc)
 
 static void
 bge_free_jumbo_mem(sc)
-        struct bge_softc *sc;
+	struct bge_softc *sc;
 {
-        int i;
-        struct bge_jpool_entry *entry;
- 
+	int i;
+	struct bge_jpool_entry *entry;
+
 	for (i = 0; i < BGE_JSLOTS; i++) {
 		entry = SLIST_FIRST(&sc->bge_jfree_listhead);
 		SLIST_REMOVE_HEAD(&sc->bge_jfree_listhead, jpool_entries);
@@ -811,7 +811,7 @@ bge_free_jumbo_mem(sc)
 	if (sc->bge_cdata.bge_jumbo_tag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_jumbo_tag);
 
-        return;
+	return;
 }
 
 /*
@@ -822,9 +822,9 @@ bge_jalloc(sc)
 	struct bge_softc		*sc;
 {
 	struct bge_jpool_entry   *entry;
-	
+
 	entry = SLIST_FIRST(&sc->bge_jfree_listhead);
-	
+
 	if (entry == NULL) {
 		printf("bge%d: no free jumbo buffers\n", sc->bge_unit);
 		return(NULL);
@@ -1289,9 +1289,9 @@ bge_chipinit(sc)
 #ifdef __brokenalpha__
 	/*
 	 * Must insure that we do not cross an 8K (bytes) boundary
-	 * for DMA reads.  Our highest limit is 1K bytes.  This is a 
-	 * restriction on some ALPHA platforms with early revision 
-	 * 21174 PCI chipsets, such as the AlphaPC 164lx 
+	 * for DMA reads.  Our highest limit is 1K bytes.  This is a
+	 * restriction on some ALPHA platforms with early revision
+	 * 21174 PCI chipsets, such as the AlphaPC 164lx
 	 */
 	PCI_SETBIT(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
 	    BGE_PCI_READ_BNDRY_1024BYTES, 4);
@@ -1655,7 +1655,7 @@ bge_blockinit(sc)
 	/* Turn on write DMA state machine */
 	CSR_WRITE_4(sc, BGE_WDMA_MODE,
 	    BGE_WDMAMODE_ENABLE|BGE_WDMAMODE_ALL_ATTNS);
-	
+
 	/* Turn on read DMA state machine */
 	CSR_WRITE_4(sc, BGE_RDMA_MODE,
 	    BGE_RDMAMODE_ENABLE|BGE_RDMAMODE_ALL_ATTNS);
@@ -1702,7 +1702,7 @@ bge_blockinit(sc)
 	/* Enable PHY auto polling (for MII/GMII only) */
 	if (sc->bge_tbi) {
 		CSR_WRITE_4(sc, BGE_MI_STS, BGE_MISTS_LINK);
- 	} else {
+	} else {
 		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL|10<<16);
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5700)
 			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
@@ -1929,7 +1929,7 @@ bge_dma_alloc(dev)
 			NULL, NULL,		/* filter, filterarg */
 			MAXBSIZE, BGE_NSEG_NEW,	/* maxsize, nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-                        BUS_DMA_ALLOCNOW,	/* flags */
+			BUS_DMA_ALLOCNOW,	/* flags */
 			NULL, NULL,		/* lockfunc, lockarg */
 			&sc->bge_cdata.bge_parent_tag);
 
@@ -1986,10 +1986,10 @@ bge_dma_alloc(dev)
 	error = bus_dmamem_alloc(sc->bge_cdata.bge_rx_std_ring_tag,
 	    (void **)&sc->bge_ldata.bge_rx_std_ring, BUS_DMA_NOWAIT,
 	    &sc->bge_cdata.bge_rx_std_ring_map);
-        if (error)
-                return (ENOMEM);
+	if (error)
+		return (ENOMEM);
 
-        bzero((char *)sc->bge_ldata.bge_rx_std_ring, BGE_STD_RX_RING_SZ);
+	bzero((char *)sc->bge_ldata.bge_rx_std_ring, BGE_STD_RX_RING_SZ);
 
 	/* Load the address of the standard RX ring */
 
@@ -2104,10 +2104,10 @@ bge_dma_alloc(dev)
 	error = bus_dmamem_alloc(sc->bge_cdata.bge_rx_return_ring_tag,
 	    (void **)&sc->bge_ldata.bge_rx_return_ring, BUS_DMA_NOWAIT,
 	    &sc->bge_cdata.bge_rx_return_ring_map);
-        if (error)
-                return (ENOMEM);
+	if (error)
+		return (ENOMEM);
 
-        bzero((char *)sc->bge_ldata.bge_rx_return_ring,
+	bzero((char *)sc->bge_ldata.bge_rx_return_ring,
 	    BGE_RX_RTN_RING_SZ(sc));
 
 	/* Load the address of the RX return ring */
@@ -2142,10 +2142,10 @@ bge_dma_alloc(dev)
 	error = bus_dmamem_alloc(sc->bge_cdata.bge_tx_ring_tag,
 	    (void **)&sc->bge_ldata.bge_tx_ring, BUS_DMA_NOWAIT,
 	    &sc->bge_cdata.bge_tx_ring_map);
-        if (error)
-                return (ENOMEM);
+	if (error)
+		return (ENOMEM);
 
-        bzero((char *)sc->bge_ldata.bge_tx_ring, BGE_TX_RING_SZ);
+	bzero((char *)sc->bge_ldata.bge_tx_ring, BGE_TX_RING_SZ);
 
 	/* Load the address of the TX ring */
 
@@ -2178,10 +2178,10 @@ bge_dma_alloc(dev)
 	error = bus_dmamem_alloc(sc->bge_cdata.bge_status_tag,
 	    (void **)&sc->bge_ldata.bge_status_block, BUS_DMA_NOWAIT,
 	    &sc->bge_cdata.bge_status_map);
-        if (error)
-                return (ENOMEM);
+	if (error)
+		return (ENOMEM);
 
-        bzero((char *)sc->bge_ldata.bge_status_block, BGE_STATUS_BLK_SZ);
+	bzero((char *)sc->bge_ldata.bge_status_block, BGE_STATUS_BLK_SZ);
 
 	/* Load the address of the status block */
 
@@ -2201,7 +2201,7 @@ bge_dma_alloc(dev)
 
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, BGE_STATS_SZ, 1, BGE_STATS_SZ, 0, NULL, NULL, 
+	    NULL, BGE_STATS_SZ, 1, BGE_STATS_SZ, 0, NULL, NULL,
 	    &sc->bge_cdata.bge_stats_tag);
 
 	if (error) {
@@ -2214,10 +2214,10 @@ bge_dma_alloc(dev)
 	error = bus_dmamem_alloc(sc->bge_cdata.bge_stats_tag,
 	    (void **)&sc->bge_ldata.bge_stats, BUS_DMA_NOWAIT,
 	    &sc->bge_cdata.bge_stats_map);
-        if (error)
-                return (ENOMEM);
+	if (error)
+		return (ENOMEM);
 
-        bzero((char *)sc->bge_ldata.bge_stats, BGE_STATS_SZ);
+	bzero((char *)sc->bge_ldata.bge_stats, BGE_STATS_SZ);
 
 	/* Load the address of the statstics block */
 
@@ -2272,7 +2272,7 @@ bge_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	
+
 	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
@@ -2518,9 +2518,9 @@ static void
 bge_release_resources(sc)
 	struct bge_softc *sc;
 {
-        device_t dev;
+	device_t dev;
 
-        dev = sc->bge_dev;
+	dev = sc->bge_dev;
 
 	if (sc->bge_vpd_prodname != NULL)
 		free(sc->bge_vpd_prodname, M_DEVBUF);
@@ -2528,13 +2528,13 @@ bge_release_resources(sc)
 	if (sc->bge_vpd_readonly != NULL)
 		free(sc->bge_vpd_readonly, M_DEVBUF);
 
-        if (sc->bge_intrhand != NULL)
-                bus_teardown_intr(dev, sc->bge_irq, sc->bge_intrhand);
+	if (sc->bge_intrhand != NULL)
+		bus_teardown_intr(dev, sc->bge_irq, sc->bge_intrhand);
 
-        if (sc->bge_irq != NULL)
+	if (sc->bge_irq != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->bge_irq);
 
-        if (sc->bge_res != NULL)
+	if (sc->bge_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    BGE_PCI_BAR0, sc->bge_res);
 
@@ -2543,7 +2543,7 @@ bge_release_resources(sc)
 	if (mtx_initialized(&sc->bge_mtx))	/* XXX */
 		BGE_LOCK_DESTROY(sc);
 
-        return;
+	return;
 }
 
 static void
@@ -2577,7 +2577,7 @@ bge_reset(sc)
 			reset |= (1<<29);
 		}
 	}
-			
+
 	/* Issue global reset */
 	bge_writereg_ind(sc, BGE_MISC_CFG, reset);
 
@@ -2626,7 +2626,7 @@ bge_reset(sc)
 			break;
 		DELAY(10);
 	}
-	
+
 	if (i == BGE_TIMEOUT) {
 		printf("bge%d: firmware handshake timed out\n", sc->bge_unit);
 		return;
@@ -3033,7 +3033,7 @@ bge_tick_locked(sc)
 
 	mii = device_get_softc(sc->bge_miibus);
 	mii_tick(mii);
- 
+
 	if (!sc->bge_link && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->bge_link++;
@@ -3222,7 +3222,7 @@ bge_start_locked(ifp)
 		 * The code inside the if() block is never reached since we
 		 * must mark CSUM_IP_FRAGS in our if_hwassist to start getting
 		 * requests to checksum TCP/UDP in a fragmented packet.
-		 * 
+		 *
 		 * XXX
 		 * safety overkill.  If this is a fragmented packet chain
 		 * with delayed TCP/UDP checksums, then only encapsulate
@@ -3492,7 +3492,7 @@ bge_ifmedia_sts(ifp, ifmr)
 			ifmr->ifm_status |= IFM_ACTIVE;
 		ifmr->ifm_active |= IFM_1000_SX;
 		if (CSR_READ_4(sc, BGE_MAC_MODE) & BGE_MACMODE_HALF_DUPLEX)
-			ifmr->ifm_active |= IFM_HDX;	
+			ifmr->ifm_active |= IFM_HDX;
 		else
 			ifmr->ifm_active |= IFM_FDX;
 		return;
@@ -3582,7 +3582,7 @@ bge_ioctl(ifp, command, data)
 			    &mii->mii_media, command);
 		}
 		break;
-        case SIOCSIFCAP:
+	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		/* NB: the code for RX csum offload is disabled for now */
 		if (mask & IFCAP_TXCSUM) {
@@ -3743,7 +3743,7 @@ bge_shutdown(dev)
 	sc = device_get_softc(dev);
 
 	BGE_LOCK(sc);
-	bge_stop(sc); 
+	bge_stop(sc);
 	bge_reset(sc);
 	BGE_UNLOCK(sc);
 
