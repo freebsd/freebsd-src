@@ -83,8 +83,9 @@ int force = 0;						    /* set to 1 to force some dangerous ops */
 int verbose = 0;					    /* set verbose operation */
 int Verbose = 0;					    /* set very verbose operation */
 int recurse = 0;					    /* set recursion */
-int stats = 0;						    /* show statistics */
+int sflag = 0;						    /* show statistics */
 int dowait = 0;						    /* wait for completion */
+char *objectname;					    /* name to be passed for -n flag */
 
 /* Structures to read kernel data into */
 struct _vinum_conf vinum_conf;				    /* configuration information */
@@ -236,10 +237,6 @@ struct funkey {
 #ifdef VINUMDEBUG
 	FUNKEY(debug),
 #endif
-	FUNKEY(volume),
-	FUNKEY(plex),
-	FUNKEY(sd),
-	FUNKEY(drive),
 	FUNKEY(modify),
 	FUNKEY(list),
 	FUNKEY(ld),
@@ -263,6 +260,9 @@ struct funkey {
 	FUNKEY(makedev),
 	FUNKEY(help),
 	FUNKEY(quit),
+	FUNKEY(concat),
+	FUNKEY(stripe),
+	FUNKEY(mirror),
 	FUNKEY(setdaemon),
 	FUNKEY(resetstats)
 };
@@ -293,8 +293,15 @@ parseline(int args, char *argv[])
     verbose = 0;					    /* initialize flags */
     Verbose = 0;					    /* initialize flags */
     recurse = 0;					    /* initialize flags */
-    stats = 0;						    /* initialize flags */
-    /* First handle generic options */
+    sflag = 0;						    /* initialize flags */
+    objectname = NULL;					    /* no name yet */
+
+    /*
+     * first handle generic options
+     * We don't use getopt(3) because
+     * getopt doesn't allow merging flags
+     * (for example, -fr).
+     */
     for (i = 1; (i < args) && (argv[i][0] == '-'); i++) {   /* while we have flags */
 	for (j = 1; j < strlen(argv[i]); j++)
 	    switch (argv[i][j]) {
@@ -308,13 +315,13 @@ parseline(int args, char *argv[])
 		force = 1;
 		break;
 
-	    case 'v':					    /* -v: verbose */
-		verbose++;
-		break;
-
-	    case 'V':					    /* -V: Very verbose */
-		verbose++;
-		Verbose++;
+	    case 'n':					    /* -n: get name */
+		if (i == args - 1) {			    /* last arg */
+		    printf("-n requires a name parameter\n");
+		    exit(1);
+		}
+		objectname = argv[++i];			    /* pick it up */
+		j = strlen(argv[i]);			    /* skip the next parm */
 		break;
 
 	    case 'r':					    /* -r: recurse */
@@ -322,7 +329,16 @@ parseline(int args, char *argv[])
 		break;
 
 	    case 's':					    /* -s: show statistics */
-		stats = 1;
+		sflag = 1;
+		break;
+
+	    case 'v':					    /* -v: verbose */
+		verbose++;
+		break;
+
+	    case 'V':					    /* -V: Very verbose */
+		verbose++;
+		Verbose++;
 		break;
 
 	    case 'w':					    /* -w: wait for completion */
@@ -411,6 +427,24 @@ get_volume_info(struct volume *volume, int index)
 	    strerror(errno));
 	longjmp(command_fail, -1);
     }
+}
+
+struct drive *
+find_drive_by_devname(char *name)
+{
+    int driveno;
+
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Can't get vinum config");
+	return NULL;
+    }
+    for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
+	get_drive_info(&drive, driveno);
+	if ((drive.state != drive_unallocated)		    /* real drive */
+	&&(!strcmp(drive.devicename, name)))		    /* and the name's right, */
+	    return &drive;				    /* found it */
+    }
+    return NULL;					    /* no drive of that name */
 }
 
 /* Create the device nodes for vinum objects */
