@@ -113,6 +113,20 @@ struct pccard_config_entry {
 	STAILQ_ENTRY(pccard_config_entry) cfe_list;
 };
 
+struct pccard_funce_disk {
+	int pfd_interface;
+};
+
+struct pccard_funce_lan {
+	int pfl_nidlen;
+	u_int8_t pfl_nid[8];
+};
+
+union pccard_funce {
+	struct pccard_funce_disk pfv_disk;
+	struct pccard_funce_lan pfv_lan;
+};
+
 struct pccard_function {
 	/* read off the card */
 	int		number;
@@ -140,6 +154,11 @@ struct pccard_function {
 	driver_intr_t	*intr_handler;
 	void		*intr_handler_arg;
 	void		*intr_handler_cookie;
+
+	union pccard_funce pf_funce; /* CISTPL_FUNCE */
+#define pf_funce_disk_interface pf_funce.pfv_disk.pfd_interface
+#define pf_funce_lan_nid pf_funce.pfv_lan.pfl_nid
+#define pf_funce_lan_nidlen pf_funce.pfv_lan.pfl_nidlen
 };
 
 /* pf_flags */
