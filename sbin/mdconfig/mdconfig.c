@@ -144,6 +144,8 @@ main(int argc, char **argv)
 				mdio.md_size *= (1024 * 1024 * 1024 / DEV_BSIZE);
 			else
 				errx(1, "Unknown suffix on -s argument");
+			if (mdio.md_size < 192)
+				errx(1, "Filesystem too small");
 			break;
 		case 'u':
 			if (cmdline != 2 && cmdline != 3)
