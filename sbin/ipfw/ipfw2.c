@@ -3294,7 +3294,7 @@ read_options:
 			if (pwd == NULL)
 				errx(EX_DATAERR, "uid \"%s\" nonexistent", *av);
 			cmd32->d[0] = pwd->pw_uid;
-			cmd->len = F_INSN_SIZE(ipfw_insn_u32);
+			cmd->len |= F_INSN_SIZE(ipfw_insn_u32);
 			ac--; av++;
 		    }
 			break;
@@ -3312,7 +3312,7 @@ read_options:
 			if (grp == NULL)
 				errx(EX_DATAERR, "gid \"%s\" nonexistent", *av);
 			cmd32->d[0] = grp->gr_gid;
-			cmd->len = F_INSN_SIZE(ipfw_insn_u32);
+			cmd->len |= F_INSN_SIZE(ipfw_insn_u32);
 			ac--; av++;
 		    }
 			break;
@@ -3328,7 +3328,7 @@ read_options:
 			if (jid < 0 || *end != '\0')
 				errx(EX_DATAERR, "jail requires prison ID");
 			cmd32->d[0] = (unsigned int)jid;
-			cmd->len = F_INSN_SIZE(ipfw_insn_u32);
+			cmd->len |= F_INSN_SIZE(ipfw_insn_u32);
 			ac--; av++;
 		    }
 			break;
