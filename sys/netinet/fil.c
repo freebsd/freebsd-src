@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.9 1997/12/02 13:56:06 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.14 1998/05/23 19:20:30 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -21,6 +21,7 @@ static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.9 1997/12/02 13:56:06 d
 #else
 # include <stdio.h>
 # include <string.h>
+# include <stdlib.h>
 #endif
 #include <sys/uio.h>
 #if !defined(__SVR4) && !defined(__svr4__)
@@ -194,6 +195,7 @@ fr_info_t *fin;
 {
 	struct optlist *op;
 	tcphdr_t *tcp;
+	icmphdr_t *icmp;
 	fr_ip_t *fi = &fin->fin_fi;
 	u_short optmsk = 0, secmsk = 0, auth = 0;
 	int i, mv, ol, off;
@@ -214,6 +216,7 @@ fr_info_t *fin;
 	fin->fin_hlen = hlen;
 	fin->fin_dlen = ip->ip_len - hlen;
 	tcp = (tcphdr_t *)((char *)ip + hlen);
+	icmp = (icmphdr_t *)tcp;
 	fin->fin_dp = (void *)tcp;
 	(*(((u_short *)fi) + 1)) = (*(((u_short *)ip) + 4));
 	(*(((u_32_t *)fi) + 1)) = (*(((u_32_t *)ip) + 3));
@@ -226,12 +229,20 @@ fr_info_t *fin;
 	switch (ip->ip_p)
 	{
 	case IPPROTO_ICMP :
-		if ((!IPMINLEN(ip, icmp) && !off) ||
+	{
+		int minicmpsz = sizeof(struct icmp);
+
+		if (!off && ip->ip_len > ICMP_MINLEN + hlen &&
+		    (icmp->icmp_type == ICMP_ECHOREPLY ||
+		     icmp->icmp_type == ICMP_UNREACH))
+			minicmpsz = ICMP_MINLEN;
+		if ((!(ip->ip_len >= hlen + minicmpsz) && !off) ||
 		    (off && off < sizeof(struct icmp)))
 			fi->fi_fl |= FI_SHORT;
 		if (fin->fin_dlen > 1)
 			fin->fin_data[0] = *(u_short *)tcp;
 		break;
+	}
 	case IPPROTO_TCP :
 		fi->fi_fl |= FI_TCPUDP;
 		if ((!IPMINLEN(ip, tcphdr) && !off) ||
@@ -418,7 +429,7 @@ void *m;
 	off = ip->ip_off & 0x1fff;
 	pass |= (fi->fi_fl << 24);
 
-	if ((fi->fi_fl & FI_TCPUDP) && (fin->fin_dlen > 3) && !off)
+	 if ((fi->fi_fl & FI_TCPUDP) && (fin->fin_dlen > 3) && !off)
 		portcmp = 1;
 
 	for (rulen = 0; fr; fr = fr->fr_next, rulen++) {
@@ -475,24 +486,22 @@ void *m;
 		 * If a fragment, then only the first has what we're looking
 		 * for here...
 		 */
+		if (!portcmp && (fr->fr_dcmp || fr->fr_scmp || fr->fr_tcpf ||
+				 fr->fr_tcpfm))
+			continue;
 		if (fi->fi_fl & FI_TCPUDP) {
-			if (portcmp) {
-				if (!fr_tcpudpchk(fr, fin))
-					continue;
-			} else if (fr->fr_dcmp || fr->fr_scmp || fr->fr_tcpf ||
-				   fr->fr_tcpfm)
+			if (!fr_tcpudpchk(fr, fin))
 				continue;
-		} else if (fi->fi_p == IPPROTO_ICMP) {
-			if (!off && (fin->fin_dlen > 1)) {
-				if ((fin->fin_data[0] & fr->fr_icmpm) !=
-				    fr->fr_icmp) {
-					FR_DEBUG(("i. %#x & %#x != %#x\n",
-						 fin->fin_data[0],
-						 fr->fr_icmpm, fr->fr_icmp));
-					continue;
-				}
-			} else if (fr->fr_icmpm || fr->fr_icmp)
+		} else if (fr->fr_icmpm || fr->fr_icmp) {
+			if ((fi->fi_p != IPPROTO_ICMP) || off ||
+			    (fin->fin_dlen < 2))
 				continue;
+			if ((fin->fin_data[0] & fr->fr_icmpm) != fr->fr_icmp) {
+				FR_DEBUG(("i. %#x & %#x != %#x\n",
+					 fin->fin_data[0], fr->fr_icmpm,
+					 fr->fr_icmp));
+				continue;
+			}
 		}
 		FR_VERBOSE(("*"));
 		/*
@@ -570,6 +579,15 @@ int out;
 	char hbuf[(0xf << 2) + sizeof(struct icmp) + sizeof(ip_t) + 8];
 #  endif
 	int up;
+
+#ifdef M_CANFASTFWD
+	/*
+	 * XXX For now, IP Filter and fast-forwarding of cached flows
+	 * XXX are mutually exclusive.  Eventually, IP Filter should
+	 * XXX get a "can-fast-forward" filter rule.
+	 */
+	m->m_flags &= ~M_CANFASTFWD;
+#endif /* M_CANFASTFWD */
 
 	if ((ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ||
 	     ip->ip_p == IPPROTO_ICMP)) {
@@ -887,7 +905,7 @@ u_short ipf_cksum(addr, len)
 register u_short *addr;
 register int len;
 {
-	register u_long sum = 0;
+	register u_32_t sum = 0;
 
 	for (sum = 0; len > 1; len -= 2)
 		sum += *addr++;
@@ -920,7 +938,7 @@ int len;
 		u_char	c[2];
 		u_short	s;
 	} bytes;
-	u_long sum;
+	u_32_t sum;
 	u_short	*sp;
 # if SOLARIS || defined(__sgi)
 	int add, hlen;
@@ -1019,7 +1037,7 @@ int len;
 #endif /* SOLARIS */
 		if (len < 2)
 			break;
-		if((u_long)sp & 1) {
+		if((u_32_t)sp & 1) {
 			bcopy((char *)sp++, (char *)&bytes.s, sizeof(bytes.s));
 			sum += bytes.s;
 		} else
@@ -1073,7 +1091,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.0.2.41.2.9 1997/12/02 13:56:06 darrenr Exp $
+ * $Id: fil.c,v 2.0.2.41.2.14 1998/05/23 19:20:30 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
