@@ -1,13 +1,12 @@
-# Part of unified Makefile for building kernels.  This includes all
-# the definitions that need to be included after all the % directives,
-# except %RULES and things that act like they are part of %RULES
+# $FreeBSD$
+
+# Part of a unified Makefile for building kernels.  This part includes all
+# the definitions that need to be after all the % directives except %RULES
+# and ones that act like they are part of %RULES.
 #
 # Most make variables should not be defined in this file.  Instead, they
 # should be defined in the kern.pre.mk so that port makefiles can
 # override or augment them.
-#
-# $FreeBSD$
-#
 
 # In case the config had a makeoptions DESTDIR...
 .if defined(DESTDIR)
