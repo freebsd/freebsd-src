@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.17 1994/12/31 17:11:59 jkh Exp $
+ *	$Id: autoconf.c,v 1.18 1995/01/11 17:51:26 jkh Exp $
  */
 
 /*
@@ -75,6 +75,16 @@ int ffs_mountroot __P((void));
 int nfs_mountroot __P((void));
 #endif
 
+#include "isa.h"
+#if NISA > 0
+      #include <i386/isa/isa_device.h>
+#endif
+
+#include "pci.h"
+#if NPCI > 0
+      #include <pci/pcivar.h>
+#endif
+
 /*
  * Determine i/o configuration for a machine.
  */
@@ -82,12 +92,10 @@ void
 configure()
 {
 
-#include "isa.h"
 #if NISA > 0
 	isa_configure();
 #endif
 
-#include "pci.h"
 #if NPCI > 0
 	pci_configure();
 #endif
@@ -159,12 +167,12 @@ swapconf()
 u_long	bootdev = 0;		/* should be dev_t, but not until 32 bits */
 
 static	char devname[][2] = {
-	'w','d',	/* 0 = wd */
-	's','w',	/* 1 = sw */
+      {'w','d'},      /* 0 = wd */
+      {'s','w'},      /* 1 = sw */
 #define FDMAJOR 2
-	'f','d',	/* 2 = fd */
-	'w','t',	/* 3 = wt */
-	's','d',	/* 4 = sd -- new SCSI system */
+      {'f','d'},      /* 2 = fd */
+      {'w','t'},      /* 3 = wt */
+      {'s','d'},      /* 4 = sd -- new SCSI system */
 };
 
 #define	PARTITIONMASK	0x7
