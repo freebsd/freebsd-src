@@ -7,9 +7,7 @@ SRCS=	rkinit_err.c rk_lib.c rk_rpc.c rk_util.c rk_krb.c
 LDADD+=	-lcom_err
 
 beforeinstall:
-	-cd ${.OBJDIR}; cmp -s rkinit_err.h \
-	    ${DESTDIR}/usr/include/kerberosIV/rkinit_err.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 rkinit_err.h \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 rkinit_err.h \
 	    ${DESTDIR}/usr/include/kerberosIV
 
 MAN3=	rkinit.3
