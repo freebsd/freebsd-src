@@ -101,7 +101,6 @@ network_common()
 		eval _cooked_list=\"`expr "$_ifn_list" : ".*\($_cmdifn\).*"`\"
 		if [ -z "$_cooked_list" ]; then
 			err 1 "No such network interface: $_cmdifn"
-			return 1
 		fi
 	fi
 
