@@ -97,9 +97,14 @@ ntfs_bmap(ap)
 		int *a_runb;
 	} */ *ap;
 {
+	struct vnode *vp = ap->a_vp;
+	struct fnode *fp = VTOF(vp);
+	struct ntnode *ip = FTONT(fp);
+	struct ntfsmount *ntmp = ip->i_mp;
+
 	dprintf(("ntfs_bmap: vn: %p, blk: %d\n", ap->a_vp,(u_int32_t)ap->a_bn));
 	if (ap->a_bop != NULL)
-		*ap->a_bop = &ap->a_vp->v_bufobj;
+		*ap->a_bop = &ntmp->ntm_devvp->v_bufobj;
 	if (ap->a_bnp != NULL)
 		*ap->a_bnp = ap->a_bn;
 	if (ap->a_runp != NULL)
