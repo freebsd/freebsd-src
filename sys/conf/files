@@ -103,6 +103,7 @@ dev/buslogic/bt_isa.c	optional bt isa
 dev/buslogic/bt_mca.c	optional bt mca
 dev/buslogic/bt_eisa.c	optional bt eisa
 dev/buslogic/bt_pci.c	optional bt pci
+dev/cardbus/cardbus.c	optional cardbus
 dev/ccd/ccd.c		optional ccd
 #dev/dpt/dpt_control.c	optional dpt
 dev/dpt/dpt_scsi.c	optional dpt
@@ -170,6 +171,9 @@ miibus_if.h		optional miibus					\
 dev/mlx/mlx_disk.c	optional mlx
 dev/mlx/mlx_pci.c	optional mlx
 dev/mlx/mlx.c		optional mlx
+dev/pccard/pccard.c	optional pccard
+dev/pccard/pccard_cis.c	optional pccard
+dev/pccard/pccard_cis_quirks.c optional pccard
 dev/pdq/pdq.c		optional fea
 dev/pdq/pdq_ifsubr.c	optional fea
 dev/pdq/pdq.c		optional fpa
@@ -301,6 +305,7 @@ i4b/layer4/i4b_i4bdrv.c	 optional i4b
 i4b/layer4/i4b_l4.c	 optional i4b
 i4b/layer4/i4b_l4mgmt.c	 optional i4b
 i4b/layer4/i4b_l4timer.c optional i4b
+isa/pcicx.c		optional pcicx pccard
 isofs/cd9660/cd9660_bmap.c	optional cd9660
 isofs/cd9660/cd9660_lookup.c	optional cd9660
 isofs/cd9660/cd9660_node.c	optional cd9660
@@ -671,6 +676,7 @@ dev/bktr/bktr_card.c	optional bktr pci
 dev/bktr/bktr_tuner.c	optional bktr pci
 dev/bktr/bktr_audio.c	optional bktr pci
 dev/bktr/bktr_os.c	optional bktr pci
+pci/pccbb.c		optional pccbb cardbus
 pci/cy_pci.c		optional cy pci
 pci/ida_pci.c		optional ida pci
 pci/if_al.c		optional al
