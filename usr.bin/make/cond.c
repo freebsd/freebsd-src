@@ -751,6 +751,8 @@ do_string_compare:
 			    t = (left > right ? True : False);
 			}
 			break;
+		    default:
+			break;
 		    }
 		}
 error:

@@ -193,8 +193,6 @@ CompatRunCommand (cmdp, gnp)
     char    	  **av;	    	/* Argument vector for thing to exec */
     int	    	  argc;	    	/* Number of arguments in av or 0 if not
 				 * dynamically allocated */
-    Boolean 	  local;    	/* TRUE if command should be executed
-				 * locally */
     int		  internal;	/* Various values.. */
     char	  *cmd = (char *) cmdp;
     GNode	  *gn = (GNode *) gnp;
@@ -317,8 +315,6 @@ CompatRunCommand (cmdp, gnp)
 	av += 1;
     }
 
-    local = TRUE;
-
     /*
      * Fork and execute the single command. If the fork fails, we abort.
      */
@@ -327,15 +323,11 @@ CompatRunCommand (cmdp, gnp)
 	Fatal("Could not fork");
     }
     if (cpid == 0) {
-	if (local) {
-	    execvp(av[0], av);
-	    (void) write (STDERR_FILENO, av[0], strlen (av[0]));
-	    (void) write (STDERR_FILENO, ":", 1);
-	    (void) write (STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
-	    (void) write (STDERR_FILENO, "\n", 1);
-	} else {
-	    (void)execv(av[0], av);
-	}
+	execvp(av[0], av);
+	(void) write (STDERR_FILENO, av[0], strlen (av[0]));
+	(void) write (STDERR_FILENO, ":", 1);
+	(void) write (STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
+	(void) write (STDERR_FILENO, "\n", 1);
 	exit(1);
     }
 

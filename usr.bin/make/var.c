@@ -1538,6 +1538,8 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			return("$(.PREFIX)");
 		    case '!':
 			return("$(.MEMBER)");
+		    default:
+			break;
 		}
 	    }
 	    /*
@@ -1644,6 +1646,8 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			return(val);
 		    }
 		    break;
+		default:
+		    break;
 		}
 	    }
 	}
@@ -1669,6 +1673,8 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    case '*':
 		    case '!':
 			dynamic = TRUE;
+			break;
+		    default:
 			break;
 		}
 	    } else if ((vlen > 2) && (str[0] == '.') &&
@@ -2077,6 +2083,8 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			case '1':
 			    pattern.flags |= VAR_SUB_ONE;
 			    continue;
+			default:
+			    break;
 			}
 			break;
 		    }
