@@ -162,7 +162,10 @@
 .	if "\\$1"2.1.6"  \&\\*(tNFreeBSD\\*(aa 2.1.6\\*(aa\\$2
 .	if "\\$1"2.1.7"  \&\\*(tNFreeBSD\\*(aa 2.1.7\\*(aa\\$2
 .	if "\\$1"2.2"  \&\\*(tNFreeBSD\\*(aa 2.2\\*(aa\\$2
+.	if "\\$1"2.2.1"  \&\\*(tNFreeBSD\\*(aa 2.2.1\\*(aa\\$2
+.	if "\\$1"2.2.2"  \&\\*(tNFreeBSD\\*(aa 2.2.2\\*(aa\\$2
 .	if "\\$1"2.2.5"  \&\\*(tNFreeBSD\\*(aa 2.2.5\\*(aa\\$2
+.	if "\\$1"2.2.6"  \&\\*(tNFreeBSD\\*(aa 2.2.6\\*(aa\\$2
 .	if "\\$1"3.0"  \&\\*(tNFreeBSD\\*(aa 3.0\\*(aa\\$2
 .\}
 .if \\n(.$==1 \{\
@@ -178,6 +181,7 @@
 .	if "\\$1"2.1.7"  \&\\*(tNFreeBSD\\*(aa 2.1.7\\*(aa
 .	if "\\$1"2.2"  \&\\*(tNFreeBSD\\*(aa 2.2\\*(aa
 .	if "\\$1"2.2.5"  \&\\*(tNFreeBSD\\*(aa 2.2.5\\*(aa
+.	if "\\$1"2.2.6"  \&\\*(tNFreeBSD\\*(aa 2.2.6\\*(aa
 .	if "\\$1"3.0"  \&\\*(tNFreeBSD\\*(aa 3.0\\*(aa
 .\}
 ..
@@ -228,10 +232,16 @@
 .if \\n(.$==2 \{\
 .	if "\\$1"1.2"  \&\\*(tNOpenBSD\\*(aa 1.2\\*(aa\\$2
 .	if "\\$1"2.0"  \&\\*(tNOpenBSD\\*(aa 2.0\\*(aa\\$2
+.	if "\\$1"2.1"  \&\\*(tNOpenBSD\\*(aa 2.1\\*(aa\\$2
+.	if "\\$1"2.2"  \&\\*(tNOpenBSD\\*(aa 2.2\\*(aa\\$2
+.	if "\\$1"2.3"  \&\\*(tNOpenBSD\\*(aa 2.3\\*(aa\\$2
 .\}
 .if \\n(.$==1 \{\
 .	if "\\$1"1.2"  \&\\*(tNOpenBSD\\*(aa 1.2\\*(aa
 .	if "\\$1"2.0"  \&\\*(tNOpenBSD\\*(aa 2.0\\*(aa
+.	if "\\$1"2.1"  \&\\*(tNOpenBSD\\*(aa 2.1\\*(aa
+.	if "\\$1"2.2"  \&\\*(tNOpenBSD\\*(aa 2.2\\*(aa
+.	if "\\$1"2.3"  \&\\*(tNOpenBSD\\*(aa 2.3\\*(aa
 .\}
 ..
 .\" The Bt macro should go away now
