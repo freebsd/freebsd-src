@@ -48,8 +48,22 @@
  * related kernel definitions.
  */
 
-#ifndef _KERNEL
-#include <sys/types.h>
+#include <sys/cdefs.h>
+#include <sys/_types.h>
+
+#ifndef _MODE_T_DECLARED
+typedef	__mode_t	mode_t;
+#define	_MODE_T_DECLARED
+#endif
+
+#ifndef _OFF_T_DECLARED
+typedef	__off_t		off_t;
+#define	_OFF_T_DECLARED
+#endif
+
+#ifndef _PID_T_DECLARED
+typedef	__pid_t		pid_t;
+#define	_PID_T_DECLARED
 #endif
 
 /*
@@ -73,17 +87,20 @@
  * FREAD and FWRITE are excluded from the #ifdef _KERNEL so that TIOCFLUSH,
  * which was documented to use FREAD/FWRITE, continues to work.
  */
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #define	FREAD		0x0001
 #define	FWRITE		0x0002
 #endif
 #define	O_NONBLOCK	0x0004		/* no delay */
 #define	O_APPEND	0x0008		/* set append mode */
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #define	O_SHLOCK	0x0010		/* open with shared file lock */
 #define	O_EXLOCK	0x0020		/* open with exclusive file lock */
 #define	O_ASYNC		0x0040		/* signal pgrp when data ready */
 #define	O_FSYNC		0x0080		/* synchronous writes */
+#endif
+#define	O_SYNC		0x0080		/* POSIX synonym for O_FSYNC */
+#if __BSD_VISIBLE
 #define	O_NOFOLLOW	0x0100		/* don't follow symlinks */
 #endif
 #define	O_CREAT		0x0200		/* create if nonexistent */
@@ -99,8 +116,14 @@
 /* Defined by POSIX 1003.1; BSD default, but must be distinct from O_RDONLY. */
 #define	O_NOCTTY	0x8000		/* don't assign controlling terminal */
 
+#if __BSD_VISIBLE
 /* Attempt to bypass buffer cache */
 #define O_DIRECT	0x00010000
+#endif
+
+/*
+ * XXX missing O_DSYNC, O_RSYNC.
+ */
 
 #ifdef _KERNEL
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
@@ -116,9 +139,9 @@
 /*
  * The O_* flags used to have only F* names, which were used in the kernel
  * and by fcntl.  We retain the F* names for the kernel f_flag field
- * and for backward compatibility for fcntl.
+ * and for backward compatibility for fcntl.  These flags are deprecated.
  */
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #define	FAPPEND		O_APPEND	/* kernel/compat */
 #define	FASYNC		O_ASYNC		/* kernel/compat */
 #define	FFSYNC		O_FSYNC		/* kernel */
@@ -133,7 +156,7 @@
  * initial open syscall.  Those bits can thus be given a
  * different meaning for fcntl(2).
  */
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 
 /*
  * Set by shm_open(3) to get automatic MAP_ASYNC behavior
@@ -153,7 +176,7 @@
 #define	F_SETFD		2		/* set file descriptor flags */
 #define	F_GETFL		3		/* get file status flags */
 #define	F_SETFL		4		/* set file status flags */
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE || __XSI_VISIBLE || __POSIX_VISIBLE >= 200112
 #define	F_GETOWN	5		/* get SIGIO/SIGURG proc/pgrp */
 #define F_SETOWN	6		/* set SIGIO/SIGURG proc/pgrp */
 #endif
@@ -187,7 +210,7 @@ struct flock {
 };
 
 
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 /* lock operations for flock(2) */
 #define	LOCK_SH		0x01		/* shared file lock */
 #define	LOCK_EX		0x02		/* exclusive file lock */
@@ -195,17 +218,18 @@ struct flock {
 #define	LOCK_UN		0x08		/* unlock file */
 #endif
 
+/*
+ * XXX missing posix_fadvise() and posix_fallocate(), and POSIX_FADV_* macros.
+ */
 
 #ifndef _KERNEL
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
 int	open(const char *, int, ...);
 int	creat(const char *, mode_t);
 int	fcntl(int, int, ...);
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 int	flock(int, int);
-#endif /* !_POSIX_SOURCE */
+#endif
 __END_DECLS
 #endif
 
