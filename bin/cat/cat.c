@@ -70,6 +70,7 @@ int bflag, eflag, nflag, sflag, tflag, vflag;
 int rval;
 const char *filename;
 
+static void usage(void);
 static void scanfiles(char **argv, int cooked);
 static void cook_cat(FILE *);
 static void raw_cat(int);
@@ -109,9 +110,7 @@ main(int argc, char *argv[])
 			vflag = 1;
 			break;
 		default:
-			fprintf(stderr,
-			    "usage: cat [-benstuv] [file ...]\n");
-			exit(1);
+			usage();
 		}
 	argv += optind;
 
@@ -122,6 +121,13 @@ main(int argc, char *argv[])
 	if (fclose(stdout))
 		err(1, "stdout");
 	exit(rval);
+}
+
+static void
+usage(void)
+{
+	fprintf(stderr, "usage: cat [-benstuv] [file ...]\n");
+	exit(1);
 }
 
 void
