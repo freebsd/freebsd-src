@@ -1,4 +1,4 @@
-/* $Id: msg.h,v 1.3 1995/03/28 07:57:34 bde Exp $ */
+/* $Id: msg.h,v 1.4 1995/07/29 11:42:48 bde Exp $ */
 /*	$NetBSD: msg.h,v 1.4 1994/06/29 06:44:43 cgd Exp $	*/
 
 /*
@@ -141,8 +141,6 @@ extern struct msg *msghdrs;	/* MSGTQL msg headers */
 extern struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
 
 #define MSG_LOCKED	01000	/* Is this msqid_ds locked? */
-
-void msginit __P((void));
 
 #endif /* KERNEL */
 
