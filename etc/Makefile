@@ -42,6 +42,9 @@ BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist BSD.x11-4.dist
+.if !defined(NO_SENDMAIL)
+MTREE+=	BSD.sendmail.dist
+.endif
 NAMEDB= PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
 	make-localhost
 PPPCNF= ppp.conf
@@ -180,6 +183,9 @@ distrib-dirs:
 		-p ${DESTDIR}/usr/include
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/libdata/perl/5.6.1/mach
+.if !defined(NO_SENDMAIL)
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/
+.endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/man/en.ISO8859-1; ln -sf ../man* .
 	cd ${DESTDIR}/usr/share/man; \
