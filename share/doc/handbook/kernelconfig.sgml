@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 0.99 1995/10/05 20:14:15 jehamby Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.1 1995/10/07 04:31:31 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -192,6 +192,11 @@
 	      your kernel's name in quotation marks if it
 	      contains any numbers.
 
+	      Since this name is passed to the C compiler as a
+	      <tt>-D</tt> switch, don't use names like <tt>
+	      DEBUG</tt>, or something that could be confused
+	      with another machine or CPU name, like <tt>vax</tt>.
+
 	    <tag>maxusers <em>number</em></tag>
 
 	    <p>This file sets the size of a number of important
@@ -217,7 +222,7 @@
 	      the dreaded ``proc table full'' error when trying
 	      to start another program, or are running a server
 	      with a large number of simultaneous users (like
-	      Walnut Creek CDROM's FTP site!), you can always
+	      Walnut Creek CDROM's FTP site), you can always
 	      increase this number and rebuild.
 
 	      <quote><em/Note:/ <tt>maxuser</tt> does
@@ -294,7 +299,8 @@
 	      Windows.  For example, you can create a console
 	      xterm by typing <tt>xterm -C</tt>, which will
 	      display any `write', `talk', and other messages you
-	      receive.
+	      receive, as well as any console messages sent by the
+	      kernel.
 
 	    <tag>options SYSVSHM</tag> 
 
@@ -381,6 +387,7 @@
 	      is a pretend filesystem mounted on /proc which
 	      allows programs like <tt>ps(1)</tt> to give you
 	      more information on what processes are running.
+	      <-- XXX why? it's perfectly working as LKM. joerg -->
 	      Leave it in.
 
 	    <tag>options MFS</tag> 
@@ -624,6 +631,16 @@
 	    <p>Support for SCSI CD-ROM
 	      drives.
 
+	    <p>Note that the number <bf>0</bf> in the above entries
+	      is slightly misleading: all these devices are
+	      automatically configured as they are found, regardless
+	      of how many of them are hooked up to the SCSI bus(es),
+	      and which target IDs they have.
+
+	      If you want to ``wire down'' specific target IDs to
+	      particular devices, refer to the appropriate section
+	      of the LINT kernel config file.
+
 	  </descrip>
 
       <sect1><heading>Console, Bus Mouse, and X Server Support</heading>
@@ -652,9 +669,13 @@
 	      console driver, backwards compatible to VT100/102.
 	      It works well on some laptops which have hardware
 	      incompatibilities with <tt>sc0</tt>.  Also, set
-	      your TERM variable to ``vt220'' when you log in if
-	      full-screen programs do not run correctly on this
-	      console.
+	      your TERM variable to ``vt100'' or ``vt220'' when
+	      you log in.  This driver might also prove useful
+	      when connecting to a large number of different
+	      machines over the network, where the <em>termcap</em>
+	      or <em>terminfo</em> entries for the <tt>sc0</tt>
+	      device are often not available -- ``vt100'' should be
+	      available on virtually any platform.
 
 	      <descrip>
 
@@ -712,7 +733,17 @@
 	      it from FreeBSD.  If you have a multiport serial
 	      card, check the manual page for <tt>sio(4)</tt> for
 	      more information on the proper values for these
-	      lines.
+	      lines.  Some video cards (notably
+	      those based on S3 chips) use IO addresses of the
+	      form <tt>0x*2e8</tt>, and since many cheap serial
+	      cards do not fully decode the 16-bit IO address
+	      space, they clash with these cards, making the
+	      COM4 port practically unavailable.
+
+	      Each serial port is required to have a unique
+	      IRQ (unless you are using one of the multiport cards
+	      where shared interrupts are supported), so the default
+	      IRQs for COM3 and COM4 cannot be used.
 
 	    <tag>device lpt0 at isa? port? tty irq 7 vector lptintr</tag> 
 
@@ -958,12 +989,12 @@
 
 	    <p>Stand-alone 6850 UART for MIDI.
 
-	    <tag>device pca0 at isa? port ``IO_TIMER1'' tty</tag>
+	    <tag>device pca0 at isa? port ``IO_TIMER1'' tty<label id="kernelconfig:pcaudio"></tag>
 
 	    <p>Digital audio through PC speaker.  This is going to
 	      be very poor sound quality and quite CPU-intensive,
 	      so you have been warned (but it does not require a
-	      sound card)!
+	      sound card).
 
 	  </descrip>
 
@@ -1060,6 +1091,9 @@
 	      game NetHack (in the ports collection) can be
 	      configured to use this device to play songs when
 	      you play musical instruments in the game.
+
+	    <p>See also the <ref id="kernelconfig:pcaudio"
+	       name="pca0"> device.
 
 	  </descrip>
 

@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.31 1995/10/06 05:56:58 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.33 1995/10/21 17:51:47 torstenb Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -123,7 +123,7 @@
 	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
 	  <item>Don Whiteside &lt;dwhite@anshar.shadow.net&gt;
 	  <item>Eric L. Hernes &lt;erich@lodgenet.com&gt;
-	  <item>Frank Bartels &lt;knarf@nasim.cube.net&gt;
+	  <item>Frank Bartels &lt;knarf@camelot.de&gt;
 	  <item>Frank Durda IV	&lt;bsdmail@nemesis.lonestar.org&gt;
 	  <item>Frank Maclachlan &lt;fpm@crash.cts.com&gt;
 	  <item>Frank Nobis &lt;fn@trinity.radio-do.de&gt;
@@ -165,6 +165,7 @@
 	  <item>Martin Birgmeier
 	  <item>Martin Renters &lt;martin@innovus.com&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
+	  <item>Michael Elbel &lt;me@freebsd.org&gt;
 	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
 	  <item>Mike Pritchard &lt;mpp@mpp.minn.net&gt;
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
@@ -254,7 +255,7 @@
 	<item>James da Silva &lt;jds@cs.umd.edu&gt; et al
 	<item>Jay Fenlason &lt;hack@datacube.com&gt;
 	<item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
-	<item>Joerg Lohse &lt;lohse@tech7.informatik.uni-hamburg.de&gt;
+	<item>J&ouml;rg Lohse &lt;lohse@tech7.informatik.uni-hamburg.de&gt;
 	<item>J&ouml;rg Wunsch &lt;joerg_wunsch@uriah.heep.sax.de&gt;
 	<item>John Dyson - &lt;formerly dyson@ref.tfs.com&gt;
 	<item>John Polstra &lt;jdp@polstra.com&gt;
