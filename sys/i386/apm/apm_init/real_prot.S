@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id: real_prot.S,v 1.1 1994/10/01 02:55:51 davidg Exp $
+ *	$Id: real_prot.S,v 1.2 1996/03/11 06:48:55 nate Exp $
  */
 
 
@@ -129,10 +129,8 @@ xprot:
 	mov	%ax, %ss
 	mov	%ax, %es
 
-#ifdef BDE_DEBUGGER
-	/* load idtr so we can debug */
+	/* load idtr so that we can enable interrupts */
 	lidt	EXT(Idtr_prot)
-#endif
 
 	ret
 
@@ -179,12 +177,10 @@ xreal:
 	mov	%ax, %ss
 	mov	%ax, %es
 
-#ifdef BDE_DEBUGGER
-	/* load idtr so we can debug */
+	/* load idtr so that we can enable interrupts */
 	addr32
 	data32
 	lidt	EXT(Idtr_real)
-#endif
 
 	data32
 	ret
