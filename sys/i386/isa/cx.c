@@ -87,7 +87,6 @@ static	d_write_t	cxwrite;
 static	d_ioctl_t	cxioctl;
 static	d_stop_t	cxstop;
 static	d_devtotty_t	cxdevtotty;
-static	d_poll_t	cxpoll;
 
 # define CDEV_MAJOR 42
 
@@ -95,7 +94,7 @@ static	d_poll_t	cxpoll;
 struct cdevsw cx_cdevsw = 
 	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
 	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
-	  cxpoll,	nommap,		NULL,	"cx",	NULL,	-1 };
+	  ttpoll,	nommap,		NULL,	"cx",	NULL,	-1 };
 #else
 struct tty *cx_tty [NCX*NCHAN];         /* tty data */
 #endif
@@ -734,15 +733,6 @@ struct tty *cxdevtotty (dev_t dev)
 	if (unit == UNIT_CTL || unit >= NCX*NCHAN)
 		return (0);
 	return (cxchan[unit]->ttyp);
-}
-
-int cxpoll (dev_t dev, int events, struct proc *p)
-{
-	int unit = UNIT (dev);
-
-	if (unit == UNIT_CTL || unit >= NCX*NCHAN)
-		return (0);
-	return (ttypoll (cxchan[unit]->ttyp, events, p));
 }
 
 /*
