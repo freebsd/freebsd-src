@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id: vm_unix.c,v 1.4 1995/01/09 16:05:59 davidg Exp $
+ * $Id: vm_unix.c,v 1.5 1995/02/20 17:36:36 davidg Exp $
  */
 
 /*
@@ -50,8 +50,7 @@
 #include <sys/resourcevar.h>
 
 #include <vm/vm.h>
-
-extern int swap_pager_full;
+#include <vm/swap_pager.h>
 
 struct obreak_args {
 	char *nsiz;

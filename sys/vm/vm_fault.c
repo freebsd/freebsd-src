@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.31 1995/09/14 13:42:52 dyson Exp $
+ * $Id: vm_fault.c,v 1.32 1995/09/24 19:47:58 dyson Exp $
  */
 
 /*
@@ -87,13 +87,13 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
+#include <vm/swap_pager.h>
 
 int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
 
 #define VM_FAULT_READ_AHEAD 4
 #define VM_FAULT_READ_BEHIND 3
 #define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
-extern int swap_pager_full;
 
 /*
  *	vm_fault:
