@@ -782,6 +782,17 @@ mtx_validate(struct mtx *m)
 #endif
 
 /*
+ * General init routine used by the MTX_SYSINIT() macro.
+ */
+void
+mtx_sysinit(void *arg)
+{
+	struct mtx_args *margs = arg;
+
+	mtx_init(margs->ma_mtx, margs->ma_desc, margs->ma_opts);
+}
+
+/*
  * Mutex initialization routine; initialize lock `m' of type contained in
  * `opts' with options contained in `opts' and description `description.'
  */ 
