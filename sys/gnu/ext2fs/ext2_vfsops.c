@@ -98,7 +98,7 @@ static struct vfsops ext2fs_vfsops = {
 	ext2_init,
 };
 
-VFS_SET(ext2fs_vfsops, ext2fs, MOUNT_EXT2FS, 0);
+VFS_SET(ext2fs_vfsops, ext2fs, 0);
 #define bsd_malloc malloc
 #define bsd_free free
 
@@ -633,7 +633,7 @@ ext2_mountfs(devvp, mp, p)
 	}
 	mp->mnt_data = (qaddr_t)ump;
 	mp->mnt_stat.f_fsid.val[0] = (long)dev;
-	mp->mnt_stat.f_fsid.val[1] = MOUNT_EXT2FS;
+	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = EXT2_MAXSYMLINKLEN;
 	mp->mnt_flag |= MNT_LOCAL;
 	ump->um_mountp = mp;
@@ -787,7 +787,6 @@ ext2_statfs(mp, sbp, p)
 	overhead = es->s_first_data_block + 
 		   fs->s_groups_count * overhead_per_group;
 
-	sbp->f_type = MOUNT_EXT2FS;
 	sbp->f_bsize = EXT2_FRAG_SIZE(fs);	
 	sbp->f_iosize = EXT2_BLOCK_SIZE(fs);
 	sbp->f_blocks = es->s_blocks_count - overhead;
@@ -796,6 +795,7 @@ ext2_statfs(mp, sbp, p)
 	sbp->f_files = es->s_inodes_count; 
 	sbp->f_ffree = es->s_free_inodes_count; 
 	if (sbp != &mp->mnt_stat) {
+		sbp->f_type = mp->mnt_vfc->vfc_typenum;
 		bcopy((caddr_t)mp->mnt_stat.f_mntonname,
 			(caddr_t)&sbp->f_mntonname[0], MNAMELEN);
 		bcopy((caddr_t)mp->mnt_stat.f_mntfromname,

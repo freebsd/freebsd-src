@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.65 1998/09/02 17:25:51 bde Exp $
+ *	$Id: mount.h,v 1.66 1998/09/05 15:17:34 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -81,55 +81,6 @@ struct statfs {
 	char	f_mntonname[MNAMELEN];	/* directory on which mounted */
 	char	f_mntfromname[MNAMELEN];/* mounted filesystem */
 };
-
-/*
- * File system types (for backwards compat with 4.4Lite.)
- */
-#define	MOUNT_NONE	0
-#define	MOUNT_UFS	1	/* Fast Filesystem */
-#define	MOUNT_NFS	2	/* Sun-compatible Network Filesystem */
-#define	MOUNT_MFS	3	/* Memory-based Filesystem */
-#define	MOUNT_MSDOS	4	/* MS/DOS Filesystem */
-#define	MOUNT_LFS	5	/* Log-based Filesystem */
-#define	MOUNT_LOFS	6	/* Loopback Filesystem */
-#define	MOUNT_FDESC	7	/* File Descriptor Filesystem */
-#define	MOUNT_PORTAL	8	/* Portal Filesystem */
-#define MOUNT_NULL	9	/* Minimal Filesystem Layer */
-#define MOUNT_UMAP	10	/* User/Group Identifier Remapping Filesystem */
-#define MOUNT_KERNFS	11	/* Kernel Information Filesystem */
-#define MOUNT_PROCFS	12	/* /proc Filesystem */
-#define MOUNT_AFS	13	/* Andrew Filesystem */
-#define MOUNT_CD9660	14	/* ISO9660 (aka CDROM) Filesystem */
-#define MOUNT_UNION	15	/* Union (translucent) Filesystem */
-#define MOUNT_DEVFS	16	/* existing device Filesystem */
-#define	MOUNT_EXT2FS	17	/* Linux EXT2FS */
-#define MOUNT_TFS	18	/* Netcon Novell filesystem */
-#define	MOUNT_CFS	19	/* Coda filesystem */
-#define	MOUNT_MAXTYPE	19
-
-#define INITMOUNTNAMES { \
-	"none",		/*  0 MOUNT_NONE */ \
-	"ufs",		/*  1 MOUNT_UFS */ \
-	"nfs",		/*  2 MOUNT_NFS */ \
-	"mfs",		/*  3 MOUNT_MFS */ \
-	"msdos",	/*  4 MOUNT_MSDOS */ \
-	"lfs",		/*  5 MOUNT_LFS */ \
-	"lofs",		/*  6 MOUNT_LOFS */ \
-	"fdesc",	/*  7 MOUNT_FDESC */ \
-	"portal",	/*  8 MOUNT_PORTAL */ \
-	"null",		/*  9 MOUNT_NULL */ \
-	"umap",		/* 10 MOUNT_UMAP */ \
-	"kernfs",	/* 11 MOUNT_KERNFS */ \
-	"procfs",	/* 12 MOUNT_PROCFS */ \
-	"afs",		/* 13 MOUNT_AFS */ \
-	"cd9660",	/* 14 MOUNT_CD9660 */ \
-	"union",	/* 15 MOUNT_UNION */ \
-	"devfs",	/* 16 MOUNT_DEVFS */ \
-	"ext2fs",	/* 17 MOUNT_EXT2FS */ \
-	"tfs",		/* 18 MOUNT_TFS */ \
-	"cfs",		/* 19 MOUNT_CFS */ \
-	0,		/* 20 MOUNT_SPARE */ \
-}
 
 /*
  * Structure per mounted file system.  Each mounted file system has an
@@ -381,11 +332,11 @@ struct vfsops {
 #include <sys/sysent.h>
 #include <sys/lkm.h>
 
-#define VFS_SET(vfsops, fsname, index, flags) \
+#define VFS_SET(vfsops, fsname, flags) \
 	static struct vfsconf _fs_vfsconf = { \
 		&vfsops, \
 		#fsname, \
-		index, \
+		-1, \
 		0, \
 		flags, \
 	}; \
@@ -399,11 +350,11 @@ struct vfsops {
 		lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); }
 #else
 
-#define VFS_SET(vfsops, fsname, index, flags) \
+#define VFS_SET(vfsops, fsname, flags) \
 	static struct vfsconf _fs_vfsconf = { \
 		&vfsops, \
 		#fsname, \
-		index, \
+		-1, \
 		0, \
 		flags | VFCF_STATIC, \
 	}; \

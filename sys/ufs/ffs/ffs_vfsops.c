@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.84 1998/07/08 23:52:27 julian Exp $
+ * $Id: ffs_vfsops.c,v 1.85 1998/08/17 19:09:36 bde Exp $
  */
 
 #include "opt_devfs.h" /* for SLICE */
@@ -87,7 +87,7 @@ static struct vfsops ufs_vfsops = {
 	ffs_init,
 };
 
-VFS_SET(ufs_vfsops, ufs, MOUNT_UFS, 0);
+VFS_SET(ufs_vfsops, ufs, 0);
 
 /*
  * ffs_mount

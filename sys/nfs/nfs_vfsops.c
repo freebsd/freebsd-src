@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.74 1998/09/05 17:13:28 bde Exp $
+ * $Id: nfs_vfsops.c,v 1.75 1998/09/07 05:42:15 bde Exp $
  */
 
 #include <sys/param.h>
@@ -84,7 +84,7 @@ MALLOC_DEFINE(M_NFSHASH, "NFS hash", "NFS hash tables");
 vm_zone_t nfsmount_zone;
 
 struct nfsstats	nfsstats;
-SYSCTL_NODE(_vfs, MOUNT_NFS, nfs, CTLFLAG_RW, 0, "NFS filesystem");
+SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW, 0, "NFS filesystem");
 SYSCTL_STRUCT(_vfs_nfs, NFS_NFSSTATS, nfsstats, CTLFLAG_RD,
 	&nfsstats, nfsstats, "");
 #ifdef NFS_DEBUG
@@ -135,7 +135,7 @@ static struct vfsops nfs_vfsops = {
 	nfs_uninit,
 	&sysctl___vfs_nfs
 };
-VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, VFCF_NETWORK);
+VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
 
 /*
  * This structure must be filled in by a primary bootstrap or bootstrap
@@ -288,7 +288,6 @@ nfs_statfs(mp, sbp, p)
 		goto nfsmout;
 	}
 	nfsm_dissect(sfp, struct nfs_statfs *, NFSX_STATFS(v3));
-	sbp->f_type = MOUNT_NFS;
 	sbp->f_flags = nmp->nm_flag;
 	sbp->f_iosize = nfs_iosize(nmp);
 	if (v3) {
@@ -312,6 +311,7 @@ nfs_statfs(mp, sbp, p)
 		sbp->f_ffree = 0;
 	}
 	if (sbp != &mp->mnt_stat) {
+		sbp->f_type = mp->mnt_vfc->vfc_typenum;
 		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
 		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
 	}

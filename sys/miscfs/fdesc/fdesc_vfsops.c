@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.14 1998/03/01 22:46:10 msmith Exp $
+ * $Id: fdesc_vfsops.c,v 1.15 1998/05/06 05:29:33 msmith Exp $
  */
 
 /*
@@ -269,4 +269,4 @@ static struct vfsops fdesc_vfsops = {
 	fdesc_init,
 };
 
-VFS_SET(fdesc_vfsops, fdesc, MOUNT_FDESC, VFCF_SYNTHETIC);
+VFS_SET(fdesc_vfsops, fdesc, VFCF_SYNTHETIC);
