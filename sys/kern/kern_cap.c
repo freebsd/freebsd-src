@@ -69,12 +69,14 @@ __cap_set_proc(struct proc *p, struct __cap_set_proc_args *uap)
  * Syscalls to allow a process to retrieve capabilities associated with
  * files, if permitted.
  */
+int
 __cap_get_fd(struct proc *p, struct __cap_get_fd_args *uap)
 {
 
 	return (ENOSYS);
 }
 
+int
 __cap_get_file(struct proc *p, struct __cap_get_file_args *uap)
 {
 
@@ -85,12 +87,14 @@ __cap_get_file(struct proc *p, struct __cap_get_file_args *uap)
  * Syscalls to allow a process to set capabilities associated with files,
  * if permitted.
  */
+int
 __cap_set_fd(struct proc *p, struct __cap_set_fd_args *uap)
 {
 
 	return (ENOSYS);
 }
 
+int
 __cap_set_file(struct proc *p, struct __cap_set_file_args *uap)
 {
 
