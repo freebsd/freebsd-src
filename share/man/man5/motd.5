@@ -21,7 +21,8 @@ prepended to this file.
 Individual users may suppress the display of this file by
 creating a file named
 .Dq Pa .hushlogin
-in their home directories.
+in their home directories or through
+.Xr login.conf 5 .
 .Sh FILES
 .Bl -tag -width $HOME/.hushlogin -compact
 .It Pa /etc/motd
@@ -37,4 +38,5 @@ FreeBSD 2.1.6.1-RELEASE (GENERIC) #0: Sun Dec 29 03:08:31 PST 1996
 /home is full.  Please cleanup your directories.
 .Ed
 .Sh SEE ALSO
-.Xr login 1
+.Xr login 1 ,
+.Xr login.conf 5
