@@ -407,11 +407,13 @@ if [ ! "$partition" ]; then
 		read resp
 		case "$resp" in
 		y*|Y*)
+			echo
 			echo "Well, since we can't even open it, there isn't much"
 			echo "hope for writing a label  on it.  But you're free"
 			echo "to give it a try.  You need to specify the geometry."
 			;;
 		*)
+			echo
 			echo "Okay.  Let's start again from the top."
 			continue
 			;;
