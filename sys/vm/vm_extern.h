@@ -55,7 +55,6 @@ int msync __P((struct proc *, void *, int *));
 int munmap __P((struct proc *, void *, int *));
 int obreak __P((struct proc *, void *, int *));
 int sbrk __P((struct proc *, void *, int *));
-int smmap __P((struct proc *, void *, int *));
 int sstk __P((struct proc *, void *, int *));
 int swapon __P((struct proc *, void *, int *));
 #endif
@@ -73,7 +72,6 @@ void kmem_init __P((vm_offset_t, vm_offset_t));
 vm_offset_t kmem_malloc __P((vm_map_t, vm_size_t, boolean_t));
 vm_map_t kmem_suballoc __P((vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t));
 void munmapfd __P((struct proc *, int));
-int pager_cache __P((vm_object_t, boolean_t));
 int swaponvp __P((struct proc *, struct vnode *, dev_t , u_long));
 void swapout_procs __P((int));
 int useracc __P((caddr_t, int, int));
@@ -93,8 +91,6 @@ void vmspace_exec __P((struct proc *));
 void vmspace_unshare __P((struct proc *));
 void vmspace_free __P((struct vmspace *));
 void vnode_pager_setsize __P((struct vnode *, vm_ooffset_t));
-void vnode_pager_umount __P((struct mount *));
-void vnode_pager_uncache __P((struct vnode *, struct proc *));
 void vslock __P((caddr_t, u_int));
 void vsunlock __P((caddr_t, u_int, int));
 void vm_object_print __P((/* db_expr_t */ long, boolean_t, /* db_expr_t */ long,
