@@ -73,7 +73,7 @@
 /*
  * Get the current adapter role
  */
-#define ISP_GETROLE     _IOR(ISP_IOC, 5), int
+#define ISP_GETROLE     _IOR(ISP_IOC, 5, int)
 
 /*
  * Get/Clear Stats
