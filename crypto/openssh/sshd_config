@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.59 2002/09/25 11:17:16 markus Exp $
+#	$OpenBSD: sshd_config,v 1.65 2003/08/28 12:54:34 markus Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -14,7 +14,7 @@
 # Note that some of FreeBSD's defaults differ from OpenBSD's, and
 # FreeBSD has a few additional options.
 
-#VersionAddendum FreeBSD-20030924
+#VersionAddendum FreeBSD-20040106
 
 #Port 22
 #Protocol 2,1
@@ -27,7 +27,7 @@
 #HostKey /etc/ssh/ssh_host_dsa_key
 
 # Lifetime and size of ephemeral version 1 server key
-#KeyRegenerationInterval 3600
+#KeyRegenerationInterval 1h
 #ServerKeyBits 768
 
 # Logging
@@ -37,7 +37,7 @@
 
 # Authentication:
 
-#LoginGraceTime 120
+#LoginGraceTime 2m
 #PermitRootLogin no
 #StrictModes yes
 
@@ -45,10 +45,6 @@
 #PubkeyAuthentication yes
 #AuthorizedKeysFile	.ssh/authorized_keys
 
-# rhosts authentication should not be used
-#RhostsAuthentication no
-# Don't read the user's ~/.rhosts and ~/.shosts files
-#IgnoreRhosts yes
 # For this to work you will also need host keys in /etc/ssh/ssh_known_hosts
 #RhostsRSAAuthentication no
 # similar for protocol version 2
@@ -56,6 +52,8 @@
 # Change to yes if you don't trust ~/.ssh/known_hosts for
 # RhostsRSAAuthentication and HostbasedAuthentication
 #IgnoreUserKnownHosts no
+# Don't read the user's ~/.rhosts and ~/.shosts files
+#IgnoreRhosts yes
 
 # To disable tunneled clear text passwords, change to no here!
 #PasswordAuthentication yes
@@ -69,11 +67,17 @@
 #KerberosOrLocalPasswd yes
 #KerberosTicketCleanup yes
 
-#AFSTokenPassing no
+# GSSAPI options
+#GSSAPIAuthentication no
+#GSSAPICleanupCreds yes
 
-# Kerberos TGT Passing only works with the AFS kaserver
-#KerberosTgtPassing no
+# Set this to 'yes' to enable PAM authentication (via challenge-response)
+# and session processing. Depending on your PAM configuration, this may
+# bypass the setting of 'PasswordAuthentication'
+#UsePAM yes
 
+#AllowTcpForwarding yes
+#GatewayPorts no
 #X11Forwarding yes
 #X11DisplayOffset 10
 #X11UseLocalhost yes
@@ -84,11 +88,14 @@
 #UsePrivilegeSeparation yes
 #PermitUserEnvironment no
 #Compression yes
-
+#ClientAliveInterval 0
+#ClientAliveCountMax 3
+#UseDNS yes
+#PidFile /var/run/sshd.pid
 #MaxStartups 10
+
 # no default banner path
 #Banner /some/path
-#VerifyReverseMapping no
 
 # override default of no subsystems
 Subsystem	sftp	/usr/libexec/sftp-server

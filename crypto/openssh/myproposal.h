@@ -1,4 +1,4 @@
-/*	$OpenBSD: myproposal.h,v 1.14 2002/04/03 09:26:11 markus Exp $	*/
+/*	$OpenBSD: myproposal.h,v 1.15 2003/05/17 04:27:52 markus Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -28,7 +28,8 @@
 #define	KEX_DEFAULT_PK_ALG	"ssh-dss,ssh-rsa"
 #define	KEX_DEFAULT_ENCRYPT \
 	"aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour," \
-	"aes192-cbc,aes256-cbc,rijndael-cbc@lysator.liu.se"
+	"aes192-cbc,aes256-cbc,rijndael-cbc@lysator.liu.se," \
+	"aes128-ctr,aes192-ctr,aes256-ctr"
 #define	KEX_DEFAULT_MAC \
 	"hmac-md5,hmac-sha1,hmac-ripemd160," \
 	"hmac-ripemd160@openssh.com," \

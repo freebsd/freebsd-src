@@ -40,7 +40,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh.c,v 1.190 2003/02/06 09:27:29 markus Exp $");
+RCSID("$OpenBSD: ssh.c,v 1.201 2003/09/01 18:15:50 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
@@ -78,14 +78,6 @@ RCSID("$FreeBSD$");
 extern char *__progname;
 #else
 char *__progname;
-#endif
-
-/* Flag indicating whether IPv4 or IPv6.  This can be set on the command line.
-   Default value is AF_UNSPEC means both IPv4 and IPv6. */
-#ifdef IPV4_DEFAULT
-int IPv4or6 = AF_INET;
-#else
-int IPv4or6 = AF_UNSPEC;
 #endif
 
 /* Flag indicating whether debug mode is on.  This can be set on the command line. */
@@ -163,9 +155,6 @@ usage(void)
 	     _PATH_SSH_USER_CONFFILE);
 	fprintf(stderr, "  -A          Enable authentication agent forwarding.\n");
 	fprintf(stderr, "  -a          Disable authentication agent forwarding (default).\n");
-#ifdef AFS
-	fprintf(stderr, "  -k          Disable Kerberos ticket and AFS token forwarding.\n");
-#endif				/* AFS */
 	fprintf(stderr, "  -X          Enable X11 connection forwarding.\n");
 	fprintf(stderr, "  -x          Disable X11 connection forwarding (default).\n");
 	fprintf(stderr, "  -i file     Identity for public key authentication "
@@ -223,7 +212,7 @@ main(int ac, char **av)
 	extern int optind, optreset;
 	extern char *optarg;
 
-	__progname = get_progname(av[0]);
+	__progname = ssh_get_progname(av[0]);
 	init_rng();
 
 	/*
@@ -254,7 +243,7 @@ main(int ac, char **av)
 	/* Get user data. */
 	pw = getpwuid(original_real_uid);
 	if (!pw) {
-		log("unknown user %d", original_real_uid);
+		logit("You don't exist, go away!");
 		exit(1);
 	}
 	/* Take a copy of the returned structure. */
@@ -285,10 +274,10 @@ again:
 			options.protocol = SSH_PROTO_2;
 			break;
 		case '4':
-			IPv4or6 = AF_INET;
+			options.address_family = AF_INET;
 			break;
 		case '6':
-			IPv4or6 = AF_INET6;
+			options.address_family = AF_INET6;
 			break;
 		case 'n':
 			stdin_null_flag = 1;
@@ -315,12 +304,9 @@ again:
 		case 'A':
 			options.forward_agent = 1;
 			break;
-#ifdef AFS
 		case 'k':
-			options.kerberos_tgt_passing = 0;
-			options.afs_token_passing = 0;
+			/* ignored for backward compatibility */
 			break;
-#endif
 		case 'i':
 			if (stat(optarg, &st) < 0) {
 				fprintf(stderr, "Warning: Identity file %s "
@@ -347,22 +333,22 @@ again:
 			tty_flag = 1;
 			break;
 		case 'v':
-			if (0 == debug_flag) {
+			if (debug_flag == 0) {
 				debug_flag = 1;
 				options.log_level = SYSLOG_LEVEL_DEBUG1;
-			} else if (options.log_level < SYSLOG_LEVEL_DEBUG3) {
-				options.log_level++;
+			} else {
+				if (options.log_level < SYSLOG_LEVEL_DEBUG3)
+					options.log_level++;
 				break;
-			} else
-				fatal("Too high debugging level.");
+			}
 			/* fallthrough */
 		case 'V':
 			fprintf(stderr,
-			    "%s, SSH protocols %d.%d/%d.%d, OpenSSL 0x%8.8lx\n",
+			    "%s, SSH protocols %d.%d/%d.%d, %s\n",
 			    SSH_VERSION,
 			    PROTOCOL_MAJOR_1, PROTOCOL_MINOR_1,
 			    PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2,
-			    SSLeay());
+			    SSLeay_version(SSLEAY_VERSION));
 			if (opt == 'V')
 				exit(0);
 			break;
@@ -428,9 +414,9 @@ again:
 
 		case 'L':
 		case 'R':
-			if (sscanf(optarg, "%5[0-9]:%255[^:]:%5[0-9]",
+			if (sscanf(optarg, "%5[0123456789]:%255[^:]:%5[0123456789]",
 			    sfwd_port, buf, sfwd_host_port) != 3 &&
-			    sscanf(optarg, "%5[0-9]/%255[^/]/%5[0-9]",
+			    sscanf(optarg, "%5[0123456789]/%255[^/]/%5[0123456789]",
 			    sfwd_port, buf, sfwd_host_port) != 3) {
 				fprintf(stderr,
 				    "Bad forwarding specification '%s'\n",
@@ -459,7 +445,7 @@ again:
 				    optarg);
 				exit(1);
 			}
-			add_local_forward(&options, fwd_port, "socks4", 0);
+			add_local_forward(&options, fwd_port, "socks", 0);
 			break;
 
 		case 'C':
@@ -519,7 +505,6 @@ again:
 
 	SSLeay_add_all_algorithms();
 	ERR_load_crypto_strings();
-	channel_set_af(IPv4or6);
 
 	/* Initialize the command to execute on remote host. */
 	buffer_init(&command);
@@ -560,7 +545,7 @@ again:
 	/* Do not allocate a tty if stdin is not a tty. */
 	if (!isatty(fileno(stdin)) && !force_tty_flag) {
 		if (tty_flag)
-			log("Pseudo-terminal will not be allocated because stdin is not a terminal.");
+			logit("Pseudo-terminal will not be allocated because stdin is not a terminal.");
 		tty_flag = 0;
 	}
 
@@ -591,6 +576,8 @@ again:
 	/* Fill configuration defaults. */
 	fill_default_options(&options);
 
+	channel_set_af(options.address_family);
+
 	/* reinit */
 	log_init(av[0], options.log_level, SYSLOG_FACILITY_USER, 1);
 
@@ -608,7 +595,7 @@ again:
 		struct addrinfo *ai = NULL;
 		int errgai;
 		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = IPv4or6;
+		hints.ai_family = options.address_family;
 		hints.ai_flags = AI_CANONNAME;
 		hints.ai_socktype = SOCK_STREAM;
 		errgai = getaddrinfo(host, NULL, &hints, &ai);
@@ -619,25 +606,20 @@ again:
 		}
 	}
 
+	/* force lowercase for hostkey matching */
+	if (options.host_key_alias != NULL) {
+		for (p = options.host_key_alias; *p; p++)
+			if (isupper(*p))
+				*p = tolower(*p);
+	}
+
 	if (options.proxy_command != NULL &&
 	    strcmp(options.proxy_command, "none") == 0)
 		options.proxy_command = NULL;
 
-	/* Disable rhosts authentication if not running as root. */
-#ifdef HAVE_CYGWIN
-	/* Ignore uid if running under Windows */
-	if (!options.use_privileged_port) {
-#else
-	if (original_effective_uid != 0 || !options.use_privileged_port) {
-#endif
-		debug("Rhosts Authentication disabled, "
-		    "originating port will not be trusted.");
-		options.rhosts_authentication = 0;
-	}
 	/* Open a connection to the remote host. */
-
-	if (ssh_connect(host, &hostaddr, options.port, IPv4or6,
-	    options.connection_attempts,
+	if (ssh_connect(host, &hostaddr, options.port,
+	    options.address_family, options.connection_attempts,
 #ifdef HAVE_CYGWIN
 	    options.use_privileged_port,
 #else
@@ -811,7 +793,7 @@ x11_get_proto(char **_proto, char **_data)
 	if (!got_data) {
 		u_int32_t rand = 0;
 
-		log("Warning: No xauth data; using fake authentication data for X11 forwarding.");
+		logit("Warning: No xauth data; using fake authentication data for X11 forwarding.");
 		strlcpy(proto, "MIT-MAGIC-COOKIE-1", sizeof proto);
 		for (i = 0; i < 16; i++) {
 			if (i % 4 == 0)
@@ -891,7 +873,7 @@ ssh_session(void)
 		if (type == SSH_SMSG_SUCCESS)
 			packet_start_compression(options.compression_level);
 		else if (type == SSH_SMSG_FAILURE)
-			log("Warning: Remote host refused compression.");
+			logit("Warning: Remote host refused compression.");
 		else
 			packet_disconnect("Protocol error waiting for compression response.");
 	}
@@ -930,7 +912,7 @@ ssh_session(void)
 			interactive = 1;
 			have_tty = 1;
 		} else if (type == SSH_SMSG_FAILURE)
-			log("Warning: Remote host failed or refused to allocate a pseudo tty.");
+			logit("Warning: Remote host failed or refused to allocate a pseudo tty.");
 		else
 			packet_disconnect("Protocol error waiting for pty request response.");
 	}
@@ -948,7 +930,7 @@ ssh_session(void)
 		if (type == SSH_SMSG_SUCCESS) {
 			interactive = 1;
 		} else if (type == SSH_SMSG_FAILURE) {
-			log("Warning: Remote host denied X11 forwarding.");
+			logit("Warning: Remote host denied X11 forwarding.");
 		} else {
 			packet_disconnect("Protocol error waiting for X11 forwarding");
 		}
@@ -967,7 +949,7 @@ ssh_session(void)
 		type = packet_read();
 		packet_check_eom();
 		if (type != SSH_SMSG_SUCCESS)
-			log("Warning: Remote host denied authentication agent forwarding.");
+			logit("Warning: Remote host denied authentication agent forwarding.");
 	}
 
 	/* Initiate port forwardings. */
@@ -1035,7 +1017,7 @@ client_global_request_reply(int type, u_int32_t seq, void *ctxt)
 	    options.remote_forwards[i].host,
 	    options.remote_forwards[i].host_port);
 	if (type == SSH2_MSG_REQUEST_FAILURE)
-		log("Warning: remote port forwarding failed for listen port %d",
+		logit("Warning: remote port forwarding failed for listen port %d",
 		    options.remote_forwards[i].port);
 }
 
@@ -1150,7 +1132,7 @@ ssh_session2_open(void)
 	c = channel_new(
 	    "session", SSH_CHANNEL_OPENING, in, out, err,
 	    window, packetmax, CHAN_EXTENDED_WRITE,
-	    xstrdup("client-session"), /*nonblock*/0);
+	    "client-session", /*nonblock*/0);
 
 	debug3("ssh_session2_open: channel_new: %d", c->self);
 
@@ -1202,7 +1184,7 @@ load_public_identity_files(void)
 			    sizeof(Key *) * (SSH_MAX_IDENTITY_FILES - 1));
 			options.num_identity_files++;
 			options.identity_keys[0] = keys[i];
-			options.identity_files[0] = xstrdup("smartcard key");;
+			options.identity_files[0] = sc_get_key_label(keys[i]);
 		}
 		if (options.num_identity_files > SSH_MAX_IDENTITY_FILES)
 			options.num_identity_files = SSH_MAX_IDENTITY_FILES;

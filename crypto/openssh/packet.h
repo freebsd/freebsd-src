@@ -1,4 +1,4 @@
-/*	$OpenBSD: packet.h,v 1.37 2003/04/01 10:22:21 markus Exp $	*/
+/*	$OpenBSD: packet.h,v 1.40 2003/06/24 08:23:46 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -62,8 +62,8 @@ int	 packet_get_keyiv_len(int);
 void	 packet_get_keyiv(int, u_char *, u_int);
 int	 packet_get_keycontext(int, u_char *);
 void	 packet_set_keycontext(int, u_char *);
-u_int32_t packet_get_seqnr(int);
-void	 packet_set_seqnr(int, u_int32_t);
+void	 packet_get_state(int, u_int32_t *, u_int64_t *, u_int32_t *);
+void	 packet_set_state(int, u_int32_t, u_int64_t, u_int32_t);
 int	 packet_get_ssh1_cipher(void);
 void	 packet_set_iv(int, u_char *);
 
@@ -81,8 +81,8 @@ void	 packet_add_padding(u_char);
 void	 tty_make_modes(int, struct termios *);
 void	 tty_parse_modes(int, int *);
 
-extern int max_packet_size;
-int      packet_set_maxsize(int);
+extern u_int max_packet_size;
+u_int	 packet_set_maxsize(u_int);
 #define  packet_get_maxsize() max_packet_size
 
 /* don't allow remaining bytes after the end of the message */
@@ -90,10 +90,13 @@ int      packet_set_maxsize(int);
 do { \
 	int _len = packet_remaining(); \
 	if (_len > 0) { \
-		log("Packet integrity error (%d bytes remaining) at %s:%d", \
+		logit("Packet integrity error (%d bytes remaining) at %s:%d", \
 		    _len ,__FILE__, __LINE__); \
 		packet_disconnect("Packet integrity error."); \
 	} \
 } while (0)
+
+int	 packet_need_rekeying(void);
+void	 packet_set_rekey_limit(u_int32_t);
 
 #endif				/* PACKET_H */
