@@ -349,6 +349,18 @@ tcpOpenDialog(Device *devp)
     }
     else { /* See if there are any defaults */
 	char *cp;
+	char *old_interactive = NULL;
+
+	/*
+	 * This is a hack so that the dialogs below are interactive in a
+	 * script if we have requested interactive behavior.
+	 */
+	if (variable_get(VAR_NONINTERACTIVE) &&
+	  variable_get(VAR_NETINTERACTIVE)) {
+	    old_interactive = strdup(VAR_NONINTERACTIVE);
+	    variable_unset(VAR_NONINTERACTIVE);
+	}
+
 
 	/*
 	 * Try a RTSOL scan if such behavior is desired.
@@ -400,6 +412,12 @@ tcpOpenDialog(Device *devp)
 	    }
 	    else
 		use_dhcp = FALSE;
+	}
+
+	/* Restore old VAR_NONINTERACTIVE if needed. */
+	if (old_interactive != NULL) {
+	    variable_set2(VAR_NONINTERACTIVE, old_interactive, 0);
+	    free(old_interactive);
 	}
 
 	/* Special hack so it doesn't show up oddly in the tcpip setup menu */
