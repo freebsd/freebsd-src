@@ -34,7 +34,7 @@
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1985 Sun Microsystems, Inc.\n\
 @(#) Copyright (c) 1976 Board of Trustees of the University of Illinois.\n\
 @(#) Copyright (c) 1980, 1993\n\
@@ -42,10 +42,15 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <err.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -60,6 +65,8 @@ char       *in_name = "Standard Input";	/* will always point to name of input
 char       *out_name = "Standard Output";	/* will always point to name
 						 * of output file */
 char        bakfile[MAXPATHLEN] = "";
+
+static void usage __P((void));
 
 main(argc, argv)
     int         argc;
@@ -182,30 +189,27 @@ main(argc, argv)
 		in_name = argv[i];	/* remember name of input file */
 		input = fopen(in_name, "r");
 		if (input == 0)		/* check for open error */
-			err(in_name);
+			err(1, in_name);
 		continue;
 	    }
 	    else if (output == 0) {	/* we have the output file */
 		out_name = argv[i];	/* remember name of output file */
 		if (strcmp(in_name, out_name) == 0) {	/* attempt to overwrite
 							 * the file */
-		    fprintf(stderr, "indent: input and output files must be different\n");
-		    exit(1);
+		    errx(1, "input and output files must be different");
 		}
 		output = fopen(out_name, "w");
 		if (output == 0)	/* check for create error */
-			err(out_name);
+			err(1, out_name);
 		continue;
 	    }
-	    fprintf(stderr, "indent: unknown parameter: %s\n", argv[i]);
-	    exit(1);
+	    errx(1, "unknown parameter: %s", argv[i]);
 	}
 	else
 	    set_option(argv[i]);
     }				/* end of for */
     if (input == 0) {
-	fprintf(stderr, "indent: usage: indent file [ outfile ] [ options ]\n");
-	exit(1);
+		usage();
     }
     if (output == 0)
 	if (troff)
@@ -1126,6 +1130,13 @@ check_type:
     }				/* end of main while (1) loop */
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: indent file [ outfile ] [ options ]\n");
+	exit(1);
+}
+
 /*
  * copy input file to backup file if in_name is /blah/blah/blah/file, then
  * backup file will be ".Bfile" then make the backup file the input and
@@ -1149,33 +1160,23 @@ bakcopy()
     /* copy in_name to backup file */
     bakchn = creat(bakfile, 0600);
     if (bakchn < 0)
-	err(bakfile);
+	err(1, bakfile);
     while (n = read(fileno(input), buff, sizeof buff))
 	if (write(bakchn, buff, n) != n)
-	    err(bakfile);
+	    err(1, bakfile);
     if (n < 0)
-	err(in_name);
+	err(1, in_name);
     close(bakchn);
     fclose(input);
 
     /* re-open backup file as the input file */
     input = fopen(bakfile, "r");
     if (input == 0)
-	err(bakfile);
+	err(1, bakfile);
     /* now the original input file will be the output */
     output = fopen(in_name, "w");
     if (output == 0) {
 	unlink(bakfile);
-	err(in_name);
+	err(1, in_name);
     }
-}
-
-err(msg)
-	char *msg;
-{
-	extern int errno;
-	char *strerror();
-
-	(void)fprintf(stderr, "indent: %s: %s\n", msg, strerror(errno));
-	exit(1);
 }
