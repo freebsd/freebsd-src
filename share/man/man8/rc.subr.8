@@ -1,7 +1,7 @@
-.\" 	$NetBSD: rc.subr.8,v 1.9 2002/07/08 16:14:55 atatat Exp $
+.\" 	$NetBSD: rc.subr.8,v 1.12 2004/01/06 00:52:24 lukem Exp $
 .\"	$FreeBSD$
 .\"
-.\" Copyright (c) 2002 The NetBSD Foundation, Inc.
+.\" Copyright (c) 2002-2004 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This code is derived from software contributed to The NetBSD Foundation
@@ -35,7 +35,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 18, 2002
+.Dd January 6, 2004
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -217,7 +217,7 @@ Parses the first word of the first line of
 for a PID, and ensures that the process with that PID
 is running and its first argument matches
 .Ar procname .
-Prints the matching PID if successfull, otherwise nothing.
+Prints the matching PID if successful, otherwise nothing.
 If
 .Ar interpreter
 is provided, parse the first line of
@@ -332,7 +332,7 @@ with
 .Ar commands
 being the list of valid arguments
 prefixed by
-.Dq "[fast|force]" .
+.Dq "[fast|force|one]" .
 .It Ic reverse_list Ar item Op Ar ...
 Print the list of
 .Ar items
@@ -351,26 +351,57 @@ scripts to be implemented in a small amount of shell code.
 .Ar argument
 is searched for in the list of supported commands, which may be one
 of:
-.Dl start stop restart rcvar
-as well as any word listed in the optional variable
-.Sy extra_commands .
+.Bl -tag -width restart -offset indent
+.It Sy start
+Start the service.
+This should check that the service is to be started as specified by
+.Xr rc.conf 5 .
+Also checks if the service is already running and refuses to start if
+it is.
+This latter check is not performed by standard
+.Fx
+scripts if the system is starting directly to multi-user mode, to
+speed up the boot process.
+.It Sy stop
+If the service is to be started as specified by
+.Xr rc.conf 5 ,
+stop the service.
+This should check that the service is running and complain if it's not.
+.It Sy restart
+Perform a
+.Sy stop
+then a
+.Sy start .
+Defaults to displaying the process ID of the program (if running).
+.It Sy rcvar
+Display which
+.Xr rc.conf 5
+variables are used to control the startup of the service (if any).
+.El
+.Pp
 If
 .Sy pidfile
 or
 .Sy procname
-is set, also allow:
-.Dl status poll
+is set, also support:
+.Bl -tag -width restart -offset indent
+.It Sy poll
+Wait for the command to exit.
+.It Sy status
+Show the status of the process.
+.El
+.Pp
+Other supported commands are listed in the optional variable
+.Sy extra_commands .
 .Pp
 .Ar argument
 may have one of the following prefixes which alters its operation:
-.Bl -tag -width "Prefix" -offset indent -compact
-.It Sy Prefix
-.Sy Operation
-.It Li fast
+.Bl -tag -width "Prefix" -offset indent
+.It Sy fast
 Skip the check for an existing running process,
 and sets
 .Sy rc_fast=YES .
-.It Li force
+.It Sy force
 Skip the checks for
 .Sy rcvar
 being set to yes,
@@ -380,7 +411,11 @@ This ignores
 .Ar argument Ns Sy _precmd
 returning non-zero, and ignores any of the
 .Sy required_*
-tests failing .
+tests failing, and always returns a zero exit status.
+.It Sy one
+Skip the checks for
+.Sy rcvar
+being set to yes, but performs all the other prerequisite tests.
 .El
 .Pp
 .Ic run_rc_command
