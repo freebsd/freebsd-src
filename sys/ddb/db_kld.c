@@ -23,10 +23,8 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
  *	from db_aout.c,v 1.20 1998/06/07 17:09:36 dfr Exp
  */
-
 /*
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
@@ -34,6 +32,9 @@
 /*
  * Symbol table routines for kld maintained kernels.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 
