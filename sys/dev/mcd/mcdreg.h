@@ -15,7 +15,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *	This software was developed by Holger Veit and Brian Moore
- *      for use with "386BSD" and similar operating systems.
+ *	for use with "386BSD" and similar operating systems.
  *    "Similar operating systems" includes mainly non-profit oriented
  *    systems for research and education, including but not restricted to
  *    "NetBSD", "FreeBSD", "Mach" (by CMU).
@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$Id: mcdreg.h,v 1.1 1993/10/12 06:08:31 rgrimes Exp $
+ *	$Id: mcdreg.h,v 1.2 1994/01/16 23:34:17 jkh Exp $
  */
 
 #ifndef MCD_H
@@ -82,17 +82,18 @@ typedef unsigned char	bcd_t;
 #define	DATA_AVAIL	0xF
 
 /* New Flags */
-#define M_STATUS_AVAIL       	0xFB 
-#define M_DATA_AVAIL		0xFD
+#define M_STATUS_AVAIL	0xFB 
+#define M_DATA_AVAIL	0xFD
 
 /* New Commands */
 #define M_RESET		0x00
+#define M_PICKLE	0x04
 
 /* ports */
 #define	MCD_DATA	0
 #define	MCD_FLAGS	1
-#define	MCD_DONT_KNOW	2	/* What are these two ports for??? */
-#define	CHANNEL		3
+#define	MCD_CTRL	2
+#define	CHANNEL		3	/* XXX ??? */
 
 /* Status bits */
 #define	MCD_ST_DOOROPEN		0x80
