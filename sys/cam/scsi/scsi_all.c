@@ -701,8 +701,6 @@ const char empty_string[] = "";
 	asc, ascq, action, empty_string
 #endif 
 
-static const char quantum[] = "QUANTUM";
-
 const struct sense_key_table_entry sense_key_table[] = 
 {
 	{ SSD_KEY_NO_SENSE, SS_NOP, "NO SENSE" },
