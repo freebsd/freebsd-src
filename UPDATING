@@ -9,6 +9,15 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020105:
+	The locale names have been renamed in -stable to match
+	-current:
+		1. ISO_* -> ISO*
+		2. ru_SU* -> ru_RU*
+		3. DIS_* -> ISO*-15
+		4. *.EUC -> *.euc??
+		5. *.ASCII -> *.US-ASCII
+
 20011202:
 	A security hole in OpenSSH involving `UseLogin yes' has been
 	patched.
@@ -979,7 +988,7 @@ that the style, formatting, etc of this file can be maintained.
 
 Copyright information:
 
-Copyright 1998, 2001 M. Warner Losh.  All Rights Reserved.
+Copyright 1998-2002 M. Warner Losh.  All Rights Reserved.
 
 Redistribution, translation and use, with or without modification, in
 full or in part, are permitted provided that the above copyright
