@@ -70,10 +70,15 @@ Specify the microcode binary file. Defaults are:
 .fi
 .SH NOTES
 .PP
+For the PCA200E adapter, if no file is specified on the command
+line a built-in copy of version 3.0.1 microcode is used.
+.PP
 Microcode as distributed by FORE Systems is not ready for downloading
 directly into SBA host ATM adapters. Instead, the supplied microcode needs
 to be processed with the "objcopy" command to create an image suitable
-for downloading. Arguments to "objcopy" are "-S -l -Fcoff". Microcode as
+for downloading. Arguments to "objcopy" are "-S -l -Fcoff".
+.PP
+Microcode as
 distibuted by FORE Systems for the PCA host ATM adapter does not need
 to be processed.
 .SH "SEE ALSO"
