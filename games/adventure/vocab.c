@@ -53,14 +53,12 @@ static const char rcsid[] =
 #include "hdr.h"
 
 void
-dstroy(object)
-int object;
+dstroy(int object)
 {       move(object,0);
 }
 
 void
-juggle(object)
-int object;
+juggle(int object)
 {       int i,j;
 
 	i=place[object];
@@ -71,8 +69,7 @@ int object;
 
 
 void
-move(object,where)
-int object,where;
+move(int object, int where)
 {       int from;
 
 	if (object<=100)
@@ -85,15 +82,13 @@ int object,where;
 
 
 int
-put(object,where,pval)
-int object,where,pval;
+put(int object, int where, int pval)
 {       move(object,where);
 	return(-1-pval);
 }
 
 void
-carry(object,where)
-int object,where;
+carry(int object, int where)
 {       int temp;
 
 	if (object<=100)
@@ -111,8 +106,7 @@ int object,where;
 
 
 void
-drop(object,where)
-int object,where;
+drop(int object, int where)
 {	if (object>100) fixed[object-100]=where;
 	else
 	{       if (place[object]== -1) holdng--;
@@ -123,12 +117,11 @@ int object,where;
 	atloc[where]=object;
 }
 
-
+/* vocab(): look up or store a word      */
+/* type: -2 for store, -1 for user word, >=0 for canned lookup*/
+/* store: used for storing only        */
 int
-vocab(word,type,value)                  /* look up or store a word      */
-const char *word;
-int type;       /* -2 for store, -1 for user word, >=0 for canned lookup*/
-int value;                              /* used for storing only        */
+vocab(const char *word, int type, int value)
 {       int adr;
 	const char *s;
 	char *t;
