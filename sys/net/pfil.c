@@ -100,9 +100,9 @@ PFIL_TRY_WLOCK(struct pfil_head *ph)
 static __inline void
 PFIL_WUNLOCK(struct pfil_head *ph)
 {
-	ph->ph_want_write = 0;				\
-	mtx_unlock(&ph->ph_mtx);
+	ph->ph_want_write = 0;
 	cv_signal(&ph->ph_cv);
+	mtx_unlock(&ph->ph_mtx);
 }
 
 #define PFIL_LIST_LOCK() mtx_lock(&pfil_global_lock)
