@@ -27,10 +27,12 @@
 #include <sys/types.h>
 #include <sys/disklabel.h>
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 int iotest;
 
@@ -85,8 +87,6 @@ int dos_cylsecs;
 
 #define DOSSECT(s,c) ((s & 0x3f) | ((c >> 2) & 0xc0))
 #define DOSCYL(c)	(c & 0xff)
-static int dos();
-char *get_type();
 static int partition = -1;
 
 
@@ -176,9 +176,31 @@ struct part_type
 	,{0xFF, "BBT (Bad Blocks Table)"}
 };
 
+static void print_s0(int which);
+static void print_part(int i);
+static void init_sector0(unsigned long start);
+static void change_part(int i);
+static void print_params();
+static void change_active(int which);
+static void get_params_to_use();
+static void dos(int sec, unsigned char *c, unsigned char *s, unsigned char *h);
+static int open_disk(int u_flag);
+static ssize_t read_disk(off_t sector, void *buf);
+static ssize_t write_disk(off_t sector, void *buf);
+static int get_params();
+static int read_s0();
+static int write_s0();
+static int ok(char *str);
+static int decimal(char *str, int *num, int deflt);
+static char *get_type(int type);
+#if 0
+static int hex(char *str, int *num, int deflt);
+static int string(char *str, char **ans);
+#endif
 
-main(argc, argv)
-char **argv;
+
+int
+main(int argc, char *argv[])
 {
 	int	i;
 
@@ -191,7 +213,7 @@ char **argv;
 		if (*token++ != '-' || !*token)
 			break;
 		else { register int flag;
-			for ( ; flag = *token++ ; ) {
+			for ( ; (flag = *token++) ; ) {
 				switch (flag) {
 				case '0':
 					partition = 0;
@@ -241,7 +263,7 @@ char **argv;
 	}
 	else
 	{
-		int i, rv;
+		int i, rv = 0;
 
 		for(i = 0; disks[i]; i++)
 		{
@@ -293,9 +315,11 @@ char **argv;
 
 usage:
 	printf("fdisk {-a|-i|-u} [-{0,1,2,3}] [disk]\n");
+	return(1);
 }
 
-print_s0(which)
+static void
+print_s0(int which)
 {
 int	i;
 
@@ -310,7 +334,8 @@ int	i;
 
 static struct dos_partition mtpart = { 0 };
 
-print_part(i)
+static void
+print_part(int i)
 {
 struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i;
 
@@ -320,7 +345,7 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i;
 		return;
 	}
 	printf("sysid %d,(%s)\n", partp->dp_typ, get_type(partp->dp_typ));
-	printf("    start %d, size %d (%d Meg), flag %x\n",
+	printf("    start %ld, size %ld (%ld Meg), flag %x\n",
 		partp->dp_start,
 		partp->dp_size, partp->dp_size * 512 / (1024 * 1024),
 		partp->dp_flag);
@@ -333,11 +358,11 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i;
 		,partp->dp_ehd);
 }
 
-init_sector0(start)
+static void
+init_sector0(unsigned long start)
 {
 struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[3]);
-int size = disksecs - start;
-int rest;
+unsigned long size = disksecs - start;
 
 	memcpy(mboot.bootinst, bootcode, sizeof(bootcode));
 	mboot.signature = BOOT_MAGIC;
@@ -351,7 +376,8 @@ int rest;
 	dos(partp->dp_start+partp->dp_size, &partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
 }
 
-change_part(i)
+static void
+change_part(int i)
 {
 struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i;
 
@@ -409,6 +435,7 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i;
     }
 }
 
+static void
 print_params()
 {
 	printf("parameters extracted from in-core disklabel are:\n");
@@ -421,7 +448,8 @@ print_params()
 		,dos_cyls,dos_heads,dos_sectors,dos_cylsecs);
 }
 
-change_active(which)
+static void
+change_active(int which)
 {
 int i;
 int active = 3, tmp;
@@ -440,6 +468,7 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts);
 		partp[active].dp_flag = ACTIVE;
 }
 
+void
 get_params_to_use()
 {
 	int	tmp;
@@ -461,7 +490,7 @@ get_params_to_use()
 /***********************************************\
 * Change real numbers into strange dos numbers	*
 \***********************************************/
-static
+static void
 dos(sec, c, s, h)
 int sec;
 unsigned char *c, *s, *h;
@@ -489,7 +518,8 @@ int fd;
 
 	/* Getting device status */
 
-open_disk(u_flag)
+static int
+open_disk(int u_flag)
 {
 struct stat 	st;
 
@@ -515,20 +545,22 @@ struct stat 	st;
 	return fd;
 }
 
-
-read_disk(sector, buf)
+static ssize_t
+read_disk(off_t sector, void *buf)
 {
 	lseek(fd,(sector * 512), 0);
 	return read(fd, buf, 512);
 }
 
-write_disk(sector, buf)
+static ssize_t
+write_disk(off_t sector, void *buf)
 {
 	lseek(fd,(sector * 512), 0);
 	return write(fd, buf, 512);
 }
 
-get_params(verbose)
+static int
+get_params()
 {
 
     if (ioctl(fd, DIOCGDINFO, &disklabel) == -1) {
@@ -553,6 +585,7 @@ get_params(verbose)
 }
 
 
+static int
 read_s0()
 {
 	if (read_disk(0, (char *) mboot.bootinst) == -1) {
@@ -568,6 +601,7 @@ read_s0()
 	return 0;
 }
 
+static int
 write_s0()
 {
 	int	flag;
@@ -595,10 +629,11 @@ write_s0()
 	(void) ioctl(fd, DIOCWLABEL, &flag);
 #endif
 	}
+	return(0);
 }
 
 
-
+static int
 ok(str)
 char *str;
 {
@@ -614,9 +649,8 @@ char *str;
 		return 0;
 }
 
-decimal(str, num, deflt)
-char *str;
-int *num;
+static int
+decimal(char *str, int *num, int deflt)
 {
 int acc = 0, c;
 char *cp;
@@ -633,7 +667,7 @@ char *cp;
 		while ((c = *cp) && (c == ' ' || c == '\t')) cp++;
 		if (!c)
 			return 0;
-		while (c = *cp++) {
+		while ((c = *cp++)) {
 			if (c <= '9' && c >= '0')
 				acc = acc * 10 + c - '0';
 			else
@@ -651,9 +685,9 @@ char *cp;
 
 }
 
-hex(str, num, deflt)
-char *str;
-int *num;
+#if 0
+static int
+hex(char *str, int *num, int deflt)
 {
 int acc = 0, c;
 char *cp;
@@ -670,7 +704,7 @@ char *cp;
 		while ((c = *cp) && (c == ' ' || c == '\t')) cp++;
 		if (!c)
 			return 0;
-		while (c = *cp++) {
+		while ((c = *cp++)) {
 			if (c <= '9' && c >= '0')
 				acc = (acc << 4) + c - '0';
 			else if (c <= 'f' && c >= 'a')
@@ -692,9 +726,8 @@ char *cp;
 
 }
 
-string(str, ans)
-char *str;
-char **ans;
+static int
+string(char *str, char **ans)
 {
 int c;
 char *cp = lbuf;
@@ -722,9 +755,10 @@ char *cp = lbuf;
 		return 1;
 	}
 }
+#endif
 
-char *get_type(type)
-int	type;
+static char *
+get_type(int type)
 {
 	int	numentries = (sizeof(part_types)/sizeof(struct part_type));
 	int	counter = 0;
