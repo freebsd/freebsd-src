@@ -23,10 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.6 1998/02/03 21:27:47 bde Exp $
+ *	$Id: vm86.c,v 1.7 1998/02/04 22:32:12 eivind Exp $
  */
 
-#include "opt_diagnostic.h"
 #include "opt_vm86.h"
 
 #include <sys/param.h>

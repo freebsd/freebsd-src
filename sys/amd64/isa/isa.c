@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.109 1998/01/31 03:29:00 eivind Exp $
+ *	$Id: isa.c,v 1.110 1998/02/04 22:32:21 eivind Exp $
  */
 
 /*
@@ -46,8 +46,6 @@
  * mode DMA count compution and reorganized DMA setup code in
  * isa_dmastart()
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

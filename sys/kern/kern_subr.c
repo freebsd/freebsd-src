@@ -36,10 +36,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.17 1998/02/04 22:32:34 eivind Exp $
+ * $Id: kern_subr.c,v 1.18 1998/02/05 03:32:07 dyson Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -61,14 +61,12 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.110 1998/02/04 22:33:47 eivind Exp $
+ * $Id: vm_map.c,v 1.111 1998/02/05 03:32:41 dyson Exp $
  */
 
 /*
  *	Virtual memory mapping module.
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

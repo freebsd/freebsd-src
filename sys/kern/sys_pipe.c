@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.36 1997/11/07 08:53:00 phk Exp $
+ * $Id: sys_pipe.c,v 1.37 1998/02/04 22:32:35 eivind Exp $
  */
 
 /*
@@ -48,8 +48,6 @@
  * its time context switching.  PIPE_SIZE is constrained by the
  * amount of kernel virtual memory.
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -36,11 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.48 1998/01/24 02:54:34 eivind Exp $
+ * $Id: kern_descrip.c,v 1.49 1998/02/04 22:32:31 eivind Exp $
  */
 
 #include "opt_compat.h"
-#include "opt_diagnostic.h"
 #include "opt_devfs.h"
 
 #include <sys/param.h>

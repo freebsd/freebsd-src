@@ -61,15 +61,13 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.32 1998/01/24 02:01:46 dyson Exp $
+ * $Id: vm_pager.c,v 1.33 1998/02/04 22:33:57 eivind Exp $
  */
 
 /*
  *	Paging space routine stubs.  Emulates a matchmaker-like interface
  *	for builtin pagers.
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -34,10 +34,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.33 1997/11/24 14:18:00 bde Exp $
+ * $Id: nfs_syscalls.c,v 1.34 1998/02/04 22:33:16 eivind Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

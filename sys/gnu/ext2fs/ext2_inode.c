@@ -39,7 +39,6 @@
  *	@(#)ext2_inode.c	8.5 (Berkeley) 12/30/93
  */
 
-#include "opt_diagnostic.h"
 #include "opt_quota.h"
 
 #include <sys/param.h>

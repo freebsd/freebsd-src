@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.128 1998/02/04 22:32:40 eivind Exp $
+ * $Id: vfs_subr.c,v 1.129 1998/02/05 03:32:11 dyson Exp $
  */
 
 /*
@@ -44,7 +44,6 @@
  */
 #include "opt_ddb.h"
 #include "opt_devfs.h"
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

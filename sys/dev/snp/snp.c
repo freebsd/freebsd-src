@@ -19,7 +19,6 @@
 
 #include "opt_compat.h"
 #include "opt_devfs.h"
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

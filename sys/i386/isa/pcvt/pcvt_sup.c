@@ -64,8 +64,6 @@
 #include "vt.h"
 #if NVT > 0
 
-#include "opt_diagnostic.h"
-
 #include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 
 static void vid_cursor ( struct cursorshape *data );

@@ -36,14 +36,12 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.52 1998/01/06 05:19:58 dyson Exp $
+ *	$Id: procfs_vnops.c,v 1.53 1998/02/04 22:32:49 eivind Exp $
  */
 
 /*
  * procfs vnode interface
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.22 1998/01/31 07:23:12 eivind Exp $
+ * $Id: null_vfsops.c,v 1.23 1998/02/04 22:32:47 eivind Exp $
  */
 
 /*
@@ -44,7 +44,6 @@
  * (See null_vnops.c for a description of what this does.)
  */
 
-#include "opt_diagnostic.h"
 #include "opt_debug_nullfs.h"
 
 #include <sys/param.h>
