@@ -226,7 +226,7 @@ struct statics *statics;
 {
     register int i = 0;
     register int pagesize;
-    int modelen;
+    size_t modelen;
     struct passwd *pw;
 
     modelen = sizeof(smpmode);
