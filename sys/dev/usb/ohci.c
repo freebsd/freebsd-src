@@ -2069,8 +2069,8 @@ ohci_abort_xfer_end(void *v)
 	p = xfer->hcpriv;
 #ifdef DIAGNOSTIC
 	if (p == NULL) {
-		printf("ohci_abort_xfer: hcpriv==0\n");
 		splx(s);
+		printf("ohci_abort_xfer: hcpriv==0\n");
 		return;
 	}
 #endif
@@ -3173,6 +3173,7 @@ ohci_device_isoc_abort(usbd_xfer_handle xfer)
 	sitd = xfer->hcpriv;
 #ifdef DIAGNOSTIC
 	if (sitd == NULL) {
+		splx(s);
 		printf("ohci_device_isoc_abort: hcpriv==0\n");
 		return;
 	}
