@@ -6,34 +6,25 @@
  *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
- * without modifications are expressly permitted by Sandvine Inc.;
-provided,
+ * without modifications are expressly permitted by Sandvine Inc.; provided,
  * however, that:
- * 1. Any and all reproductions of the source or object code must include
-the
- *    copyright notice above and the following disclaimer of warranties;
-and
+ * 1. Any and all reproductions of the source or object code must include the
+ *    copyright notice above and the following disclaimer of warranties; and
  * 2. No rights are granted, in any manner or form, to use Sandvine Inc.
- *    trademarks, including the mark "SANDVINE" on advertising,
-endorsements,
- *    or otherwise except as such appears in the above copyright notice or
-in
+ *    trademarks, including the mark "SANDVINE" on advertising, endorsements,
+ *    or otherwise except as such appears in the above copyright notice or in
  *    the software.
  *
  * THIS SOFTWARE IS BEING PROVIDED BY SANDVINE "AS IS", AND TO THE MAXIMUM
- * EXTENT PERMITTED BY LAW, SANDVINE MAKES NO REPRESENTATIONS OR
-WARRANTIES,
- * EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE, INCLUDING WITHOUT
-LIMITATION,
- * ANY AND ALL IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR
+ * EXTENT PERMITTED BY LAW, SANDVINE MAKES NO REPRESENTATIONS OR WARRANTIES,
+ * EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE, INCLUDING WITHOUT LIMITATION,
+ * ANY AND ALL IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
  * PURPOSE, OR NON-INFRINGEMENT.  SANDVINE DOES NOT WARRANT, GUARANTEE, OR
  * MAKE ANY REPRESENTATIONS REGARDING THE USE OF, OR THE RESULTS OF THE
  * USE OF THIS SOFTWARE IN TERMS OF ITS CORRECTNESS, ACCURACY, RELIABILITY
  * OR OTHERWISE.  IN NO EVENT SHALL SANDVINE BE LIABLE FOR ANY DAMAGES
  * RESULTING FROM OR ARISING OUT OF ANY USE OF THIS SOFTWARE, INCLUDING
- * WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY,
+ * WITHOUT LIMITATION, ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
  * PUNITIVE, OR CONSEQUENTIAL DAMAGES, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES, LOSS OF USE, DATA OR PROFITS, HOWEVER CAUSED AND UNDER ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -93,12 +84,10 @@ struct privdata {
 	struct source_hookinfo		input;
 	struct source_hookinfo		output;
 	struct ng_source_stats		stats;
-	struct ifqueue			snd_queue;	/* packets to send
-*/
+	struct ifqueue			snd_queue;	/* packets to send */
 	struct ifnet			*output_ifp;
 	struct callout_handle		intr_ch;
-	u_int64_t			packets;	/* packets to send
-*/
+	u_int64_t			packets;	/* packets to send */
 	u_int32_t			queueOctets;
 };
 typedef struct privdata *sc_p;
@@ -295,18 +284,14 @@ ng_source_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 					goto done;
 				}
 				sc->stats.queueOctets = sc->queueOctets;
-				sc->stats.queueFrames =
-sc->snd_queue.ifq_len;
+				sc->stats.queueFrames = sc->snd_queue.ifq_len;
 				if ((sc->node->flags & NG_SOURCE_ACTIVE)
 				    && !timevalisset(&sc->stats.endTime)) {
-
-getmicrotime(&sc->stats.elapsedTime);
+					getmicrotime(&sc->stats.elapsedTime);
 					timevalsub(&sc->stats.elapsedTime,
-
-&sc->stats.startTime);
+					    &sc->stats.startTime);
 				}
-				stats = (struct ng_source_stats
-*)resp->data;
+				stats = (struct ng_source_stats *)resp->data;
 				bcopy(&sc->stats, stats, sizeof(* stats));
                         }
                         if (msg->header.cmd != NGM_SOURCE_GET_STATS)
@@ -317,8 +302,8 @@ getmicrotime(&sc->stats.elapsedTime);
 		    {
 			u_int64_t packets = *(u_int64_t *)msg->data;
 			if (sc->output.hook == NULL) {
-				printf("%s: start on node with no output
-hook\n", __FUNCTION__);
+				printf("%s: start on node with no output hook\n"
+				    , __FUNCTION__);
 				error = EINVAL;
 				break;
 			}
@@ -362,10 +347,10 @@ static int
 ng_source_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	const sc_p sc = hook->node->private;
-	struct source_hookinfo *const hinfo = (struct source_hookinfo *)
-hook->private;
+	struct source_hookinfo *const hinfo;
 	int error = 0;
 
+	hinfo = (struct source_hookinfo *) hook->private;
 	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
 	KASSERT(hinfo != NULL, ("%s: null hook info", __FUNCTION__));
 
@@ -420,10 +405,11 @@ ng_source_rmnode(node_p node)
 static int
 ng_source_disconnect(hook_p hook)
 {
-	struct source_hookinfo *const hinfo = (struct source_hookinfo *)
-hook->private;
-	sc_p sc = (sc_p) hinfo->hook->node->private;
+	struct source_hookinfo *const hinfo;
+	sc_p sc;
 
+	hinfo = (struct source_hookinfo *) hook->private;
+	sc = (sc_p) hinfo->hook->node->private;
 	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
 	hinfo->hook = NULL;
 	if (hook->node->numhooks == 0 || hinfo == &sc->output)
@@ -447,8 +433,7 @@ ng_source_get_output_ifp(sc_p sc)
 	sc->output_ifp = NULL;
 
 	/* Ask the attached node for the connected interface's index */
-	NG_MKMESSAGE(msg, NGM_ETHER_COOKIE, NGM_ETHER_GET_IFINDEX, 0,
-M_NOWAIT);
+	NG_MKMESSAGE(msg, NGM_ETHER_COOKIE, NGM_ETHER_GET_IFINDEX, 0, M_NOWAIT);
 	if (msg == NULL)
 		return (ENOBUFS);
 
@@ -473,8 +458,7 @@ M_NOWAIT);
 	}
 
 	if (ifp == NULL) {
-		printf("%s: can't find interface %d\n", __FUNCTION__,
-if_index);
+		printf("%s: can't find interface %d\n", __FUNCTION__, if_index);
 		return (EINVAL);
 	}
 	sc->output_ifp = ifp;
@@ -489,8 +473,7 @@ if_index);
 	if (ifp->if_snd.ifq_maxlen < NG_SOURCE_DRIVER_IFQ_MAXLEN)
 	{
 		printf("ng_source: changing ifq_maxlen from %d to %d\n",
-			ifp->if_snd.ifq_maxlen,
-NG_SOURCE_DRIVER_IFQ_MAXLEN);
+		    ifp->if_snd.ifq_maxlen, NG_SOURCE_DRIVER_IFQ_MAXLEN);
 		ifp->if_snd.ifq_maxlen = NG_SOURCE_DRIVER_IFQ_MAXLEN;
 	}
 	splx(s);
@@ -545,8 +528,7 @@ ng_source_start (sc_p sc)
 	KASSERT(sc->output.hook != NULL,
 			("%s: output hook unconnected", __FUNCTION__));
 	if ((sc->node->flags & NG_SOURCE_ACTIVE) == 0) {
-		if (sc->output_ifp == NULL && ng_source_get_output_ifp(sc)
-!= 0)
+		if (sc->output_ifp == NULL && ng_source_get_output_ifp(sc) != 0)
 			return;
 		ng_source_set_autosrc(sc, 0);
 		sc->node->flags |= NG_SOURCE_ACTIVE;
@@ -604,8 +586,7 @@ ng_source_intr (void *arg)
 		ng_source_stop(sc);
 		splx(s);
 	} else
-		sc->intr_ch = timeout(ng_source_intr, sc,
-NG_SOURCE_INTR_TICKS);
+		sc->intr_ch = timeout(ng_source_intr, sc, NG_SOURCE_INTR_TICKS);
 }
 
 /*
