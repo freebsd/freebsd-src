@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.28 1999/07/21 18:01:26 alc Exp $
+ *	$Id: pmap.c,v 1.29 1999/07/31 23:02:52 alc Exp $
  */
 
 /*
@@ -1385,11 +1385,8 @@ _pmap_allocpte(pmap, ptepindex)
 	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
 			VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 
-	if (m->queue != PQ_NONE) {
-		int s = splvm();
-		vm_page_unqueue(m);
-		splx(s);
-	}
+	KASSERT(m->queue == PQ_NONE,
+		("_pmap_allocpte: %p->queue != PQ_NONE", m));
 
 	if (m->wire_count == 0)
 		cnt.v_wire_count++;
