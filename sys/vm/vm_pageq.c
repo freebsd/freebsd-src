@@ -46,26 +46,17 @@ vm_pageq_init(void)
 	}
 }
 
-static __inline struct vpgqueues *
-vm_pageq_aquire(int queue)
-{
-	struct vpgqueues *vpq = NULL;
-
-	if (queue != PQ_NONE) {
-		vpq = &vm_page_queues[queue];
-	}
-	return (vpq);
-}
-
 void
 vm_pageq_requeue(vm_page_t m)
 {
 	int queue = m->queue;
 	struct vpgqueues *vpq;
 
-	vpq = vm_pageq_aquire(queue);
-	TAILQ_REMOVE(&vpq->pl, m, pageq);
-	TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
+	if (queue != PQ_NONE) {
+		vpq = &vm_page_queues[queue];
+		TAILQ_REMOVE(&vpq->pl, m, pageq);
+		TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
+	}
 }
 
 /*
