@@ -1122,6 +1122,10 @@
 
   <sect2>
     <title>Serial Interfaces</title>
+
+    <para arch="i386">Cronyx-Sigma synchronous / asynchronous serial
+      adapters (&man.cx.4; driver)</para>
+
     <para arch="i386,alpha,ia64,amd64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
 
     <para arch="sparc64">Serial ports based on the SAB82532 serial
