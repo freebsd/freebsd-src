@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cbcp.c,v 1.3 1998/10/17 12:28:08 brian Exp $
+ *	$Id: cbcp.c,v 1.4 1998/10/17 12:28:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -629,6 +629,11 @@ cbcp_Input(struct physical *p, struct mbuf *bp)
       log_Printf(LogCBCP, "%s: RecvResponse(%d) state = %s\n",
 	         p->dl->name, head->id, cbcpstate(cbcp->fsm.state));
       cbcp_data_Show(data);
+      if (cbcp->fsm.id != head->id) {
+        log_Printf(LogCBCP, "Warning: Expected id was %d, not %d\n",
+                   cbcp->fsm.id, head->id);
+        cbcp->fsm.id = head->id;
+      }
       if (cbcp->fsm.state == CBCP_REQSENT || cbcp->fsm.state == CBCP_ACKSENT) {
         timer_Stop(&cbcp->fsm.timer);
         switch (cbcp_CheckResponse(cbcp, data)) {
@@ -661,6 +666,11 @@ cbcp_Input(struct physical *p, struct mbuf *bp)
       log_Printf(LogCBCP, "%s: RecvAck(%d) state = %s\n",
 	         p->dl->name, head->id, cbcpstate(cbcp->fsm.state));
       cbcp_data_Show(data);
+      if (cbcp->fsm.id != head->id) {
+        log_Printf(LogCBCP, "Warning: Expected id was %d, not %d\n",
+                   cbcp->fsm.id, head->id);
+        cbcp->fsm.id = head->id;
+      }
       if (cbcp->fsm.state == CBCP_RESPSENT) {
         timer_Stop(&cbcp->fsm.timer);
         datalink_CBCPComplete(cbcp->p->dl);
