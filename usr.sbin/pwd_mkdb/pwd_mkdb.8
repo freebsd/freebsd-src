@@ -43,6 +43,7 @@
 .Op Fl C
 .Op Fl N
 .Op Fl p
+.Op Fl i
 .Op Fl d Ar directory
 .Op Fl s Ar cachesize
 .Op Fl u Ar username
@@ -82,6 +83,16 @@ the rebuilding of the database.
 .It Fl p
 Create a Version 7 style password file and install it into
 .Pa /etc/passwd .
+.It Fl i
+Ignore locking failure of the
+.Pa master.passwd
+file.
+This option is intended to be used to build password files in
+the release process over NFS where no contention can happen.
+A non-default directory must also be specified with the
+.Fl d
+option for locking to be ignored.
+Other use of this option is strongly discouraged.
 .It Fl d Ar directory
 Store databases into specified destination directory instead of
 .Pa /etc .
