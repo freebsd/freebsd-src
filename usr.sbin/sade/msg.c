@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.47 1997/09/20 02:48:48 jkh Exp $
+ * $Id: msg.c,v 1.48 1999/05/27 10:32:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -215,20 +215,6 @@ msgNotify(char *fmt, ...)
 	msgDebug("Notify: %s\n", errstr);
     dialog_clear_norefresh();
     dialog_msgbox(NULL, errstr, -1, -1, 0);
-}
-
-/* Put up a message in a popup or notifier box, depending on NO_CONFIRM */
-void
-msgCNotify(char *fmt, ...)
-{
-    va_list args;
-
-    va_start(args, fmt);
-    if (variable_get(VAR_NO_CONFIRM))
-	msgNotify(fmt, args);
-    else
-	msgConfirm(fmt, args);
-    va_end(args);
 }
 
 /* Put up a message in a popup yes/no box and return 1 for YES, 0 for NO */
