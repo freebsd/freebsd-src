@@ -325,7 +325,13 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 	if (map != NULL) {
 		if (STAILQ_FIRST(&map->bpages) != NULL)
 			return (EBUSY);
-		free(map, M_DEVBUF);
+		/*
+		 * The nobounce_dmamap map is not dynamically
+		 * allocated, thus we should on no account try to
+		 * free it.
+		 */
+		if (map != &nobounce_dmamap)
+			free(map, M_DEVBUF);
 	}
 	dmat->map_count--;
 	return (0);
