@@ -7,6 +7,6 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
 BINOWN=	root
 BINMODE=4555
-INSTALLFLAGS=-fschg
+PRECIOUSPROG=
 
 .include <bsd.prog.mk>

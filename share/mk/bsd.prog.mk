@@ -115,6 +115,10 @@ _EXTRADEPEND:
 
 .if !target(install)
 
+.if defined(PRECIOUSPROG) && !defined(NOFSCHG)
+INSTALLFLAGS+= -fschg
+.endif
+
 _INSTALLFLAGS:=	${INSTALLFLAGS}
 .for ie in ${INSTALLFLAGS_EDIT}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
