@@ -135,7 +135,7 @@ vop_open {
 };
 
 #
-#% close	vp	U U U
+#% close	vp	L L L
 #
 vop_close {
 	IN struct vnode *vp;
@@ -235,7 +235,7 @@ vop_kqfilter {
 };
 
 #
-#% revoke	vp	U U U
+#% revoke	vp	L L L
 #
 vop_revoke {
 	IN struct vnode *vp;
@@ -342,7 +342,7 @@ vop_readlink {
 };
 
 #
-#% inactive	vp	L U U
+#% inactive	vp	L L L
 #
 vop_inactive {
 	IN struct vnode *vp;
@@ -350,7 +350,7 @@ vop_inactive {
 };
 
 #
-#% reclaim	vp	U U U
+#% reclaim	vp	L L L
 #
 vop_reclaim {
 	IN struct vnode *vp;
