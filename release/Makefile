@@ -713,7 +713,7 @@ doTARBALL:
 	@echo "SD undefined in doTARBALL" && exit 1
 .endif
 .if !defined(TD)
-	@echo "TB undefined in doTARBALL" && exit 1
+	@echo "TD undefined in doTARBALL" && exit 1
 .endif
 .if !defined(ARG)
 	@echo "ARG undefined in doTARBALL" && exit 1
