@@ -206,7 +206,7 @@ MACHINE_ARCH	?=	i386
 	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC}
 
 .S.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC}
+	${CC} ${CFLAGS} ${AINC} -c ${.IMPSRC}
 
 .s.o .asm.o:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
