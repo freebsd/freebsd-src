@@ -192,6 +192,11 @@ tar_mode_c(struct bsdtar *bsdtar)
 
 	write_archive(a, bsdtar);
 
+	if (bsdtar->option_totals) {
+		fprintf(stderr, "Total bytes written: " BSDTAR_FILESIZE_PRINTF "\n",
+		    (BSDTAR_FILESIZE_TYPE)archive_position_compressed(a));
+	}
+
 	archive_write_finish(a);
 }
 
@@ -251,6 +256,11 @@ tar_mode_r(struct bsdtar *bsdtar)
 	archive_write_open_fd(a, bsdtar->fd); /* XXX check return val XXX */
 
 	write_archive(a, bsdtar); /* XXX check return val XXX */
+
+	if (bsdtar->option_totals) {
+		fprintf(stderr, "Total bytes written: " BSDTAR_FILESIZE_PRINTF "\n",
+		    (BSDTAR_FILESIZE_TYPE)archive_position_compressed(a));
+	}
 
 	archive_write_finish(a);
 	close(bsdtar->fd);
@@ -330,6 +340,11 @@ tar_mode_u(struct bsdtar *bsdtar)
 	archive_write_open_fd(a, bsdtar->fd);
 
 	write_archive(a, bsdtar);
+
+	if (bsdtar->option_totals) {
+		fprintf(stderr, "Total bytes written: " BSDTAR_FILESIZE_PRINTF "\n",
+		    (BSDTAR_FILESIZE_TYPE)archive_position_compressed(a));
+	}
 
 	archive_write_finish(a);
 	close(bsdtar->fd);
@@ -459,6 +474,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	}
 
 	create_cleanup(bsdtar);
+	archive_write_close(a);
 }
 
 /*
