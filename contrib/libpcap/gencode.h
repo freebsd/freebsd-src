@@ -18,11 +18,8 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/gencode.h,v 1.37 1999/10/19 15:18:29 itojun Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/gencode.h,v 1.47 2000/11/04 10:09:55 guy Exp $ (LBL)
  */
-
-/*XXX*/
-#include "gnuc.h"
 
 /* Address qualifiers. */
 
@@ -60,6 +57,13 @@
 #define Q_ESP		19
 
 #define Q_PIM		20
+
+#define	Q_AARP		21
+
+#define Q_ISO		22
+#define Q_ESIS		23
+#define Q_ISIS		24
+#define Q_CLNP		25
 
 /* Directional qualifiers. */
 
@@ -176,11 +180,14 @@ struct block *gen_broadcast(int);
 struct block *gen_multicast(int);
 struct block *gen_inbound(int);
 
+struct block *gen_vlan(int);
+
 void bpf_optimize(struct block **);
-#if __STDC__
-__dead void bpf_error(const char *, ...)
-    __attribute__((volatile, format (printf, 1, 2)));
+void bpf_error(const char *, ...)
+#if HAVE___ATTRIBUTE__
+    __attribute__((noreturn, format (printf, 1, 2)))
 #endif
+;
 
 void finish_parse(struct block *);
 char *sdup(const char *);
@@ -188,6 +195,7 @@ char *sdup(const char *);
 struct bpf_insn *icode_to_fcode(struct block *, int *);
 int pcap_parse(void);
 void lex_init(char *);
+void lex_cleanup(void);
 void sappend(struct slist *, struct slist *);
 
 /* XXX */

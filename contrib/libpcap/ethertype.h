@@ -18,11 +18,33 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/ethertype.h,v 1.7 1999/10/30 04:30:13 itojun Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/ethertype.h,v 1.11 2000/10/22 04:15:55 guy Exp $ (LBL)
  */
 
-/* Types missing from some systems */
+/*
+ * Ethernet types.
+ *
+ * We wrap the declarations with #ifdef, so that if a file includes
+ * <netinet/if_ether.h>, which may declare some of these, we don't
+ * get a bunch of complaints from the C compiler about redefinitions
+ * of these values.
+ *
+ * We declare all of them here so that no file has to include
+ * <netinet/if_ether.h> if all it needs are ETHERTYPE_ values.
+ */
 
+#ifndef ETHERTYPE_PUP
+#define	ETHERTYPE_PUP		0x0200	/* PUP protocol */
+#endif
+#ifndef ETHERTYPE_IP
+#define	ETHERTYPE_IP		0x0800	/* IP protocol */
+#endif
+#ifndef ETHERTYPE_ARP
+#define ETHERTYPE_ARP		0x0806	/* Addr. resolution protocol */
+#endif
+#ifndef ETHERTYPE_REVARP
+#define ETHERTYPE_REVARP	0x8035	/* reverse Addr. resolution protocol */
+#endif
 #ifndef ETHERTYPE_NS
 #define ETHERTYPE_NS		0x0600
 #endif
@@ -72,7 +94,10 @@
 #define ETHERTYPE_AARP		0x80f3
 #endif
 #ifndef ETHERTYPE_IPV6
-#define ETHERTYPE_IPV6		0x80f3
+#define ETHERTYPE_IPV6		0x86dd
+#endif
+#ifndef ETHERTYPE_8021Q
+#define ETHERTYPE_8021Q		0x8100
 #endif
 #ifndef	ETHERTYPE_LOOPBACK
 #define	ETHERTYPE_LOOPBACK	0x9000

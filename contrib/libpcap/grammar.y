@@ -22,12 +22,17 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/grammar.y,v 1.57 1999/10/19 15:18:30 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/grammar.y,v 1.64 2000/10/28 10:18:40 guy Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <stdlib.h>
 
 #if __STDC__
 struct mbuf;
@@ -37,7 +42,6 @@ struct rtentry;
 #include <net/if.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 
 #include <stdio.h>
 
@@ -46,7 +50,6 @@ struct rtentry;
 #include "gencode.h"
 #include <pcap-namedb.h>
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -104,7 +107,7 @@ pcap_parse()
 %token  DST SRC HOST GATEWAY
 %token  NET MASK PORT LESS GREATER PROTO PROTOCHAIN BYTE
 %token  ARP RARP IP TCP UDP ICMP IGMP IGRP PIM
-%token  ATALK DECNET LAT SCA MOPRC MOPDL
+%token  ATALK AARP DECNET LAT SCA MOPRC MOPDL
 %token  TK_BROADCAST TK_MULTICAST
 %token  NUM INBOUND OUTBOUND
 %token  LINK
@@ -113,6 +116,8 @@ pcap_parse()
 %token	LSH RSH
 %token  LEN
 %token  IPV6 ICMPV6 AH ESP
+%token	VLAN
+%token  ISO ESIS ISIS CLNP
 
 %type	<s> ID
 %type	<e> EID
@@ -159,14 +164,7 @@ nid:	  ID			{ $$.b = gen_scode($1, $$.q = $<blk>0.q); }
 	| HID			{
 				  /* Decide how to parse HID based on proto */
 				  $$.q = $<blk>0.q;
-				  switch ($$.q.proto) {
-				  case Q_DECNET:
-					$$.b = gen_ncode($1, 0, $$.q);
-					break;
-				  default:
-					$$.b = gen_ncode($1, 0, $$.q);
-					break;
-				  }
+				  $$.b = gen_ncode($1, 0, $$.q);
 				}
 	| HID6 '/' NUM		{
 #ifdef INET6
@@ -251,6 +249,7 @@ pname:	  LINK			{ $$ = Q_LINK; }
 	| IGRP			{ $$ = Q_IGRP; }
 	| PIM			{ $$ = Q_PIM; }
 	| ATALK			{ $$ = Q_ATALK; }
+	| AARP			{ $$ = Q_AARP; }
 	| DECNET		{ $$ = Q_DECNET; }
 	| LAT			{ $$ = Q_LAT; }
 	| SCA			{ $$ = Q_SCA; }
@@ -260,6 +259,10 @@ pname:	  LINK			{ $$ = Q_LINK; }
 	| ICMPV6		{ $$ = Q_ICMPV6; }
 	| AH			{ $$ = Q_AH; }
 	| ESP			{ $$ = Q_ESP; }
+	| ISO			{ $$ = Q_ISO; }
+	| ESIS			{ $$ = Q_ESIS; }
+	| ISIS			{ $$ = Q_ISIS; }
+	| CLNP			{ $$ = Q_CLNP; }
 	;
 other:	  pqual TK_BROADCAST	{ $$ = gen_broadcast($1); }
 	| pqual TK_MULTICAST	{ $$ = gen_multicast($1); }
@@ -268,6 +271,8 @@ other:	  pqual TK_BROADCAST	{ $$ = gen_broadcast($1); }
 	| BYTE NUM byteop NUM	{ $$ = gen_byteop($3, $2, $4); }
 	| INBOUND		{ $$ = gen_inbound(0); }
 	| OUTBOUND		{ $$ = gen_inbound(1); }
+	| VLAN pnum		{ $$ = gen_vlan($2); }
+	| VLAN			{ $$ = gen_vlan(-1); }
 	;
 relop:	  '>'			{ $$ = BPF_JGT; }
 	| GEQ			{ $$ = BPF_JGE; }

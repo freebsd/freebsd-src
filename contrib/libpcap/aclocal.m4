@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/libpcap/aclocal.m4,v 1.66 1999/10/30 04:41:48 itojun Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/libpcap/aclocal.m4,v 1.71 2000/09/19 03:56:26 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996, 1997, 1998
 dnl	The Regents of the University of California.  All rights reserved.
@@ -118,7 +118,7 @@ AC_DEFUN(AC_LBL_C_INIT,
 			    fi
 			    CFLAGS="$savedcflags"
 			    V_CCOPT="-Aa $V_CCOPT"
-			    AC_DEFINE(_HPUX_SOURCE)
+			    AC_DEFINE(_HPUX_SOURCE,1,[needed on HP-UX])
 			    ;;
 
 		    *)
@@ -246,14 +246,14 @@ AC_DEFUN(AC_LBL_TYPE_SIGNAL,
     [AC_BEFORE([$0], [AC_LBL_LIBPCAP])
     AC_TYPE_SIGNAL
     if test "$ac_cv_type_signal" = void ; then
-	    AC_DEFINE(RETSIGVAL,)
+	    AC_DEFINE(RETSIGVAL,[],[return value of signal handlers])
     else
-	    AC_DEFINE(RETSIGVAL,(0))
+	    AC_DEFINE(RETSIGVAL,(0),[return value of signal handlers])
     fi
     case "$target_os" in
 
     irix*)
-	    AC_DEFINE(_BSD_SIGNALS)
+	    AC_DEFINE(_BSD_SIGNALS,1,[get BSD semantics on Irix])
 	    ;;
 
     *)
@@ -384,9 +384,9 @@ AC_DEFUN(AC_LBL_UNION_WAIT,
 	    ac_cv_lbl_union_wait=yes))
     AC_MSG_RESULT($ac_cv_lbl_union_wait)
     if test $ac_cv_lbl_union_wait = yes ; then
-	    AC_DEFINE(DECLWAITSTATUS,union wait)
+	    AC_DEFINE(DECLWAITSTATUS,union wait,[type for wait])
     else
-	    AC_DEFINE(DECLWAITSTATUS,int)
+	    AC_DEFINE(DECLWAITSTATUS,int,[type for wait])
     fi])
 
 dnl
@@ -411,7 +411,41 @@ AC_DEFUN(AC_LBL_SOCKADDR_SA_LEN,
 	ac_cv_lbl_sockaddr_has_sa_len=no))
     AC_MSG_RESULT($ac_cv_lbl_sockaddr_has_sa_len)
     if test $ac_cv_lbl_sockaddr_has_sa_len = yes ; then
-	    AC_DEFINE(HAVE_SOCKADDR_SA_LEN)
+	    AC_DEFINE(HAVE_SOCKADDR_SA_LEN,1,[if struct sockaddr has sa_len])
+    fi])
+
+dnl
+dnl Checks to see if the dl_hp_ppa_info_t struct has the HP-UX 11.00
+dnl dl_module_id_1 member
+dnl
+dnl usage:
+dnl
+dnl	AC_LBL_HP_PPA_INFO_T_DL_MODULE_ID_1
+dnl
+dnl results:
+dnl
+dnl	HAVE_HP_PPA_INFO_T_DL_MODULE_ID_1 (defined)
+dnl
+dnl NOTE: any compile failure means we conclude that it doesn't have
+dnl that member, so if we don't have DLPI, don't have a <sys/dlpi_ext.h>
+dnl header, or have one that doesn't declare a dl_hp_ppa_info_t type,
+dnl we conclude it doesn't have that member (which is OK, as either we
+dnl won't be using code that would use that member, or we wouldn't
+dnl compile in any case).
+dnl
+AC_DEFUN(AC_LBL_HP_PPA_INFO_T_DL_MODULE_ID_1,
+    [AC_MSG_CHECKING(if dl_hp_ppa_info_t struct has dl_module_id_1 member)
+    AC_CACHE_VAL(ac_cv_lbl_dl_hp_ppa_info_t_has_dl_module_id_1,
+	AC_TRY_COMPILE([
+#	include <sys/types.h>
+#	include <sys/dlpi.h>
+#	include <sys/dlpi_ext.h>],
+	[u_int i = sizeof(((dl_hp_ppa_info_t *)0)->dl_module_id_1)],
+	ac_cv_lbl_dl_hp_ppa_info_t_has_dl_module_id_1=yes,
+	ac_cv_lbl_dl_hp_ppa_info_t_has_dl_module_id_1=no))
+    AC_MSG_RESULT($ac_cv_lbl_dl_hp_ppa_info_t_has_dl_module_id_1)
+    if test $ac_cv_lbl_dl_hp_ppa_info_t_has_dl_module_id_1 = yes ; then
+	    AC_DEFINE(HAVE_HP_PPA_INFO_T_DL_MODULE_ID_1,1,[if ppa_info_t_dl_module_id exists])
     fi])
 
 dnl
@@ -466,7 +500,7 @@ AC_DEFUN(AC_LBL_CHECK_TYPE,
 	ac_cv_lbl_have_$1=no))
     AC_MSG_RESULT($ac_cv_lbl_have_$1)
     if test $ac_cv_lbl_have_$1 = no ; then
-	    AC_DEFINE($1, $2)
+	    AC_DEFINE($1, $2, [if we have $1])
     fi])
 
 dnl
@@ -485,7 +519,8 @@ AC_DEFUN(AC_LBL_UNALIGNED_ACCESS,
     AC_CACHE_VAL(ac_cv_lbl_unaligned_fail,
 	[case "$target_cpu" in
 
-	alpha|hp*|mips|sparc)
+	# XXX: should also check that they don't do weird things (like on arm)
+	alpha*|arm*|hp*|mips|sparc)
 		ac_cv_lbl_unaligned_fail=yes
 		;;
 
@@ -534,7 +569,7 @@ EOF
 	esac])
     AC_MSG_RESULT($ac_cv_lbl_unaligned_fail)
     if test $ac_cv_lbl_unaligned_fail = yes ; then
-	    AC_DEFINE(LBL_ALIGN)
+	    AC_DEFINE(LBL_ALIGN,1,[if unaligned access fails])
     fi])
 
 dnl
@@ -584,7 +619,7 @@ AC_DEFUN(AC_LBL_DEVEL,
 	    name="lbl/os-$os.h"
 	    if test -f $name ; then
 		    ln -s $name os-proto.h
-		    AC_DEFINE(HAVE_OS_PROTO_H)
+		    AC_DEFINE(HAVE_OS_PROTO_H,1,[if there's an os_proto.h])
 	    else
 		    AC_MSG_WARN(can't find $name)
 	    fi
@@ -704,3 +739,31 @@ AC_DEFUN(AC_LBL_LIBRARY_NET, [
     # DLPI needs putmsg under HPUX so test for -lstr while we're at it
     AC_CHECK_LIB(str, putmsg)
     ])
+
+dnl
+dnl Test for __attribute__
+dnl
+
+AC_DEFUN(AC_C___ATTRIBUTE__, [
+AC_MSG_CHECKING(for __attribute__)
+AC_CACHE_VAL(ac_cv___attribute__, [
+AC_TRY_COMPILE([
+#include <stdlib.h>
+],
+[
+static void foo(void) __attribute__ ((noreturn));
+
+static void
+foo(void)
+{
+  exit(1);
+}
+],
+ac_cv___attribute__=yes,
+ac_cv___attribute__=no)])
+if test "$ac_cv___attribute__" = "yes"; then
+  AC_DEFINE(HAVE___ATTRIBUTE__, 1, [define if your compiler has __attribute__])
+fi
+AC_MSG_RESULT($ac_cv___attribute__)
+])
+

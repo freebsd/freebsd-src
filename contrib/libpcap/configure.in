@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/libpcap/configure.in,v 1.71 1999/11/01 15:56:40 itojun Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/libpcap/configure.in,v 1.87.2.1 2001/01/17 18:21:54 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996, 1997
 dnl	The Regents of the University of California.  All rights reserved.
@@ -6,23 +6,30 @@ dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl
 
+AC_REVISION($Revision: 1.87.2.1 $)
 AC_INIT(pcap.c)
 
 AC_CANONICAL_SYSTEM
 
-umask 002
-
-if test -z "$PWD" ; then
-	PWD=`pwd`
-fi
-
 AC_LBL_C_INIT(V_CCOPT, V_INCLS)
+AC_C_INLINE
+AC_C___ATTRIBUTE__
 
-AC_CHECK_HEADERS(malloc.h sys/ioccom.h sys/sockio.h)
+AC_LBL_CHECK_TYPE(u_int8_t, u_char)
+AC_LBL_CHECK_TYPE(u_int16_t, u_short)
+AC_LBL_CHECK_TYPE(u_int32_t, u_int)
+
+dnl
+dnl libpcap doesn't itself use <sys/ioccom.h>; however, the test program
+dnl in "AC_LBL_FIXINCLUDES" in "aclocal.m4" uses it, so we have to
+dnl test for it and set "HAVE_SYS_IOCCOM_H" if we have it, otherwise
+dnl "AC_LBL_FIXINCLUDES" won't work on some platforms such as Solaris.
+dnl
+AC_CHECK_HEADERS(sys/ioccom.h sys/sockio.h ifaddrs.h netinet/if_ether.h)
 
 AC_LBL_FIXINCLUDES
 
-AC_CHECK_FUNCS(ether_hostton strerror)
+AC_CHECK_FUNCS(ether_hostton strerror freeifaddrs strlcpy)
 
 dnl to pacify those who hate protochain insn
 AC_MSG_CHECKING(if --disable-protochain option is specified)
@@ -34,7 +41,7 @@ x)	enable_protochain=enabled	;;
 esac
 
 if test "$enable_protochain" = "disabled"; then
-	AC_DEFINE(NO_PROTOCHAIN)
+	AC_DEFINE(NO_PROTOCHAIN,1,[do not use protochain])
 fi
 AC_MSG_RESULT(${enable_protochain})
 
@@ -44,6 +51,11 @@ dnl better way of testing since the device might be protected. So we
 dnl check in our normal order using -r and then check the for the /dev
 dnl guys again using -c.
 dnl
+dnl XXX This could be done for cross-compiling, but for now it's not.
+dnl
+if test -z "$with_pcap" && test "$cross_compiling" = yes; then
+	AC_MSG_ERROR(pcap type not determined when cross-compiling; use --with-pcap=...)
+fi
 AC_ARG_WITH(pcap, [  --with-pcap=TYPE        use packet capture TYPE])
 AC_MSG_CHECKING(packet capture type)
 if test ! -z "$with_pcap" ; then
@@ -78,7 +90,7 @@ AC_MSG_RESULT($V_PCAP)
 AC_MSG_CHECKING(if --enable-ipv6 option is specified)
 AC_ARG_ENABLE(ipv6, [  --enable-ipv6           build IPv6-capable version])
 if test "$enable_ipv6" = "yes"; then
-	AC_DEFINE(INET6)
+	AC_DEFINE(INET6,1,[IPv6])
 fi
 AC_MSG_RESULT(${enable_ipv6-no})
 
@@ -89,14 +101,14 @@ dlpi)
 	AC_MSG_CHECKING(for /dev/dlpi device)
 	if test -c /dev/dlpi ; then
 		AC_MSG_RESULT(yes)
-		AC_DEFINE(HAVE_DEV_DLPI)
+		AC_DEFINE(HAVE_DEV_DLPI, 1, [define if you have a /dev/dlpi])
 	else
 		AC_MSG_RESULT(no)
 		dir="/dev/dlpi"
 		AC_MSG_CHECKING(for $dir directory)
 		if test -d $dir ; then
 			AC_MSG_RESULT(yes)
-			AC_DEFINE_UNQUOTED(PCAP_DEV_PREFIX, "$dir")
+			AC_DEFINE_UNQUOTED(PCAP_DEV_PREFIX, "$dir", [/dev/dlpi directory])
 		else
 			AC_MSG_RESULT(no)
 		fi
@@ -104,12 +116,20 @@ dlpi)
 	;;
 
 linux)
-	AC_CHECK_HEADERS(net/if_arp.h)
+	AC_CHECK_HEADERS(netpacket/packet.h)
 	AC_MSG_CHECKING(Linux kernel version)
-	AC_CACHE_VAL(ac_cv_linux_vers,
-	    ac_cv_linux_vers=`uname -r 2>&1 | \
-		sed -n -e '$s/.* //' -e '$s/\..*//p'`)
+ 	if test "$cross_compiling" = yes; then
+ 		AC_CACHE_VAL(ac_cv_linux_vers,
+ 		    ac_cv_linux_vers=unknown)
+ 	else
+ 		AC_CACHE_VAL(ac_cv_linux_vers,
+ 		    ac_cv_linux_vers=`uname -r 2>&1 | \
+ 			sed -n -e '$s/.* //' -e '$s/\..*//p'`)
+ 	fi
 	AC_MSG_RESULT($ac_cv_linux_vers)
+ 	if test $ac_cv_linux_vers = unknown ; then
+ 		AC_MSG_ERROR(cannot determine linux version when cross-compiling)
+ 	fi
 	if test $ac_cv_linux_vers -lt 2 ; then
 		AC_MSG_ERROR(version 2 or higher required; see the INSTALL doc for more info)
 	fi
@@ -123,16 +143,32 @@ null)
 esac
 
 AC_LBL_LEX_AND_YACC(V_LEX, V_YACC, pcap_)
+if test "$V_LEX" = lex ; then
+# Some versions of lex can't handle the definitions section of scanner.l .
+# Try lexing it and complain if it can't deal.
+	AC_CACHE_CHECK([for capable lex], tcpdump_cv_capable_lex,
+		if lex -t scanner.l > /dev/null 2>&1; then
+			tcpdump_cv_capable_lex=yes
+		else
+			tcpdump_cv_capable_lex=insufficient
+		fi)
+	if test $tcpdump_cv_capable_lex = insufficient ; then
+		AC_MSG_ERROR([Your operating system's lex is insufficient to compile
+ libpcap.  flex is a lex replacement that has many advantages, including
+ being able to compile libpcap.  For more information, see
+ http://www.gnu.org/software/flex/flex.html .])
+	fi
+fi
 
 case "$target_os" in
 
 aix*)
 	dnl Workaround to enable certain features
-	AC_DEFINE(_SUN)
+	AC_DEFINE(_SUN,1,[define on AIX to get certain functions])
 	;;
 
 hpux9*)
-	AC_DEFINE(HAVE_HPUX9)
+	AC_DEFINE(HAVE_HPUX9,1,[on HP-UX 9.x])
 	;;
 
 hpux10.0*)
@@ -143,7 +179,7 @@ hpux10.1*)
 
 hpux*)
 	dnl HPUX 10.20 and above is similar to HPUX 9...
-	AC_DEFINE(HAVE_HPUX10_20)
+	AC_DEFINE(HAVE_HPUX10_20,1,[on HP-UX 10.20])
 	;;
 
 sinix*)
@@ -156,31 +192,24 @@ sinix*)
 		    ac_cv_cc_sinix_defined=no))
 	    AC_MSG_RESULT($ac_cv_cc_sinix_defined)
 	    if test $ac_cv_cc_sinix_defined = no ; then
-		    AC_DEFINE(sinix)
+		    AC_DEFINE(sinix,1,[on sinix])
 	    fi
 	;;
 
 solaris*)
-	AC_DEFINE(HAVE_SOLARIS)
-	;;
-
-linux*)
-	V_INCLS="$V_INCLS -Ilinux-include"
+	AC_DEFINE(HAVE_SOLARIS,1,[On solaris])
 	;;
 esac
 
-AC_CHECK_PROGS(V_RANLIB, ranlib, @true)
+AC_PROG_RANLIB
 
 AC_LBL_DEVEL(V_CCOPT)
 
 AC_LBL_SOCKADDR_SA_LEN
 
-AC_LBL_UNALIGNED_ACCESS
+AC_LBL_HP_PPA_INFO_T_DL_MODULE_ID_1
 
-if test -r ${srcdir}/lbl/gnuc.h ; then
-	rm -f gnuc.h
-	ln -s ${srcdir}/lbl/gnuc.h gnuc.h
-fi
+AC_LBL_UNALIGNED_ACCESS
 
 rm -f net
 ln -s ${srcdir}/bpf/net net
@@ -193,6 +222,8 @@ AC_SUBST(V_RANLIB)
 AC_SUBST(V_YACC)
 
 AC_PROG_INSTALL
+
+AC_CONFIG_HEADER(config.h)
 
 AC_OUTPUT(Makefile)
 
