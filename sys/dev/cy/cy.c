@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.35 1996/09/06 23:07:17 phk Exp $
+ *	$Id: cy.c,v 1.36 1996/10/04 10:33:08 davidg Exp $
  */
 
 #include "cy.h"
@@ -958,8 +958,8 @@ siointr(unit)
 	cy_iobase = com_addr(baseu)->cy_iobase;
 
 	/* check each CD1400 in turn */
-	for (cyu = 0, iobase = cy_iobase; cyu < cy_nr_cd1400s[unit];
-	     ++cyu, iobase += CY_CD1400_MEMSIZE) {
+	for (cyu = 0; cyu < cy_nr_cd1400s[unit]; ++cyu) {
+		iobase = (cy_addr) (cy_iobase + cy_chip_offset[cyu]);
 		/* poll to see if it has any work */
 		status = cd_inb(iobase, CD1400_SVRR);
 		if (status == 0)
