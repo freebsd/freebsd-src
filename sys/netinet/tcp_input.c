@@ -2913,9 +2913,11 @@ tcp_timewait(tw, to, th, m, tlen)
 	}
 
 	/*
-	 * Acknowlege the segment, then drop it.
+	 * Acknowledge the segment if it has data or is not a duplicate ACK.
 	 */
-	tcp_twrespond(tw, TH_ACK);
+	if (thflags != TH_ACK || tlen != 0 || 
+	    th->th_seq != tw->rcv_nxt || th->th_ack != tw->snd_nxt)
+		tcp_twrespond(tw, TH_ACK);
 	goto drop;
 
 reset:
