@@ -638,8 +638,7 @@ command scans the specified disks for
 .Nm 
 partitions containing previously created configuration information.  It reads
 the configuration in order from the most recently updated to least recently
-updated configuration.  This is the normal method used to start
-.Nm vinum .
+updated configuration.
 .Nm
 maintains an up-to-date copy of all configuration information on each disk
 partition.  You must specify all of the partitions in a configuration as the
@@ -774,21 +773,25 @@ configuration).  Option bit 4 can be useful for error recovery.
 .Nm start
 starts one or more
 .Nm
-objects.  To start a plex in a multi-plex volume, the data must be copied from
-another plex in the volume.  This frequently takes a long time and is done in
-the background.
-.ig
-XXX When invoked without arguments, it checks all disks connected to the system
-for BSD partitions (type 165) and scans the partitions for a
+objects.  If no object names are specified,
+.Nm 
+scans the disks known to the system for
 .Nm
-partition, which it calls a \fIdrive\fR\|.  The
+drives and then reads in the configuration as described under the
+.Nm read
+command.  The
 .Nm
 drive contains a header with all information about the data stored on the drive,
 including the names of the other drives which are required in order to represent
 plexes and volumes.
-.\" XXX 
-.Nm The scan function has not yet been implemented.
-..
+.Pp
+If object names are specified,
+.Nm
+starts them.
+.Pp
+To start a plex in a multi-plex volume, the data must be copied from another
+plex in the volume.  Since this frequently takes a long time, it is done in the
+background.
 .It Nm stop
 .Op Fl f
 .Op volume | plex | subdisk
@@ -1007,11 +1010,11 @@ drive drive5 device /dev/da5h
 drive drive6 device /dev/da6h
 # A volume with one striped plex
 volume tinyvol
- plex org striped 32b
+ plex org striped 512b
   sd length 64m drive drive2
   sd length 64m drive drive4
 volume stripe
- plex org striped 32b
+ plex org striped 512b
   sd length 512m drive drive2
   sd length 512m drive drive4
 # Two plexes
@@ -1023,7 +1026,7 @@ volume concat
   sd length 150m drive drive4
 # A volume with one striped plex and one concatenated plex
 volume strcon
- plex org striped 32b
+ plex org striped 512b
   sd length 100m drive drive2
   sd length 100m drive drive4
  plex org concat
