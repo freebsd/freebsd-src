@@ -73,6 +73,7 @@ struct pcpu {
 #endif
 	PCPU_MD_FIELDS;
 	struct vmmeter	pc_cnt;			/* VM stats counters */
+	struct device	*pc_device;
 };
 
 SLIST_HEAD(cpuhead, pcpu);
