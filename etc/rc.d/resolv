@@ -7,6 +7,7 @@
 		bpi="-i $4"
 	fi
 	/sbin/mdconfig -a -t malloc -s $1 -u $3
+	/sbin/disklabel -r -w md$3 auto
 	/sbin/newfs $bpi /dev/md$3c
 	/sbin/mount /dev/md$3c $2
 }
