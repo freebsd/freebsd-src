@@ -102,6 +102,8 @@ static int	archive_write_ustar_finish(struct archive *);
 static int	archive_write_ustar_finish_entry(struct archive *);
 static int	archive_write_ustar_header(struct archive *,
 		    struct archive_entry *entry);
+static int	format_256(int64_t, char *, int);
+static int	format_number(int64_t, char *, int size, int max, int strict);
 static int	format_octal(int64_t, char *, int);
 static int	write_nulls(struct archive *a, size_t);
 
@@ -151,7 +153,7 @@ archive_write_ustar_header(struct archive *a, struct archive_entry *entry)
 	    !S_ISREG(archive_entry_mode(entry)))
 		archive_entry_set_size(entry, 0);
 
-	ret = __archive_write_format_header_ustar(a, buff, entry, -1);
+	ret = __archive_write_format_header_ustar(a, buff, entry, -1, 1);
 	if (ret != ARCHIVE_OK)
 		return (ret);
 	ret = (a->compression_write)(a, buff, 512);
@@ -168,12 +170,14 @@ archive_write_ustar_header(struct archive *a, struct archive_entry *entry)
  *
  * Returns -1 if format failed (due to field overflow).
  * Note that this always formats as much of the header as possible.
+ * If "strict" is set to zero, it will extend numeric fields as
+ * necessary (overwriting terminators or using base-256 extensions).
  *
  * This is exported so that other 'tar' formats can use it.
  */
 int
 __archive_write_format_header_ustar(struct archive *a, char buff[512],
-				    struct archive_entry *entry, int tartype)
+    struct archive_entry *entry, int tartype, int strict)
 {
 	unsigned int checksum;
 	struct archive_entry_header_ustar *h;
@@ -185,6 +189,11 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 
 	ret = 0;
 	mytartype = -1;
+	/*
+	 * The "template header" already includes the "ustar"
+	 * signature, various end-of-field markers and other required
+	 * elements.
+	 */
 	memcpy(buff, &template_header, 512);
 
 	h = (struct archive_entry_header_ustar *)buff;
@@ -262,42 +271,42 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 
 	st = archive_entry_stat(entry);
 
-	if (format_octal(st->st_mode & 07777, h->mode, sizeof(h->mode))) {
+	if (format_number(st->st_mode & 07777, h->mode, sizeof(h->mode), 8, strict)) {
 		archive_set_error(a, ERANGE, "Numeric mode too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_octal(st->st_uid, h->uid, sizeof(h->uid))) {
+	if (format_number(st->st_uid, h->uid, sizeof(h->uid), 8, strict)) {
 		archive_set_error(a, ERANGE, "Numeric user ID too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_octal(st->st_gid, h->gid, sizeof(h->gid))) {
+	if (format_number(st->st_gid, h->gid, sizeof(h->gid), 8, strict)) {
 		archive_set_error(a, ERANGE, "Numeric group ID too large");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_octal(st->st_size, h->size, sizeof(h->size))) {
-		archive_set_error(a, ERANGE, "File size too large");
+	if (format_number(st->st_size, h->size, sizeof(h->size), 12, strict)) {
+		archive_set_error(a, ERANGE, "File size out of range");
 		ret = ARCHIVE_WARN;
 	}
 
-	if (format_octal(st->st_mtime, h->mtime, sizeof(h->mtime))) {
+	if (format_number(st->st_mtime, h->mtime, sizeof(h->mtime), 12, strict)) {
 		archive_set_error(a, ERANGE,
 		    "File modification time too large");
 		ret = ARCHIVE_WARN;
 	}
 
 	if (S_ISBLK(st->st_mode) || S_ISCHR(st->st_mode)) {
-		if (format_octal(major(st->st_rdev), h->rdevmajor,
-			sizeof(h->rdevmajor))) {
+		if (format_number(major(st->st_rdev), h->rdevmajor,
+			sizeof(h->rdevmajor), 8, strict)) {
 			archive_set_error(a, ERANGE,
 			    "Major device number too large");
 			ret = ARCHIVE_WARN;
 		}
 
-		if (format_octal(minor(st->st_rdev), h->rdevminor,
-			sizeof(h->rdevminor))) {
+		if (format_number(minor(st->st_rdev), h->rdevminor,
+			sizeof(h->rdevminor), 8, strict)) {
 			archive_set_error(a, ERANGE,
 			    "Minor device number too large");
 			ret = ARCHIVE_WARN;
@@ -331,10 +340,58 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 	checksum = 0;
 	for (i = 0; i < 512; i++)
 		checksum += 255 & (unsigned int)buff[i];
-	h->checksum[6] = '\0';
-	h->checksum[7] = ' ';
+	h->checksum[6] = '\0'; /* Can't be pre-set in the template. */
+	/* h->checksum[7] = ' '; */ /* This is pre-set in the template. */
 	format_octal(checksum, h->checksum, 6);
 	return (ret);
+}
+
+/*
+ * Format a number into a field, with some intelligence.
+ */
+static int
+format_number(int64_t v, char *p, int s, int maxsize, int strict)
+{
+	int64_t limit;
+
+	limit = ((int64_t)1 << (s*3));
+
+	/* "Strict" only permits octal values with proper termination. */
+	if (strict)
+		return (format_octal(v, p, s));
+
+	/*
+	 * In non-strict mode, we allow the number to overwrite one or
+	 * more bytes of the field termination.  Even old tar
+	 * implementations should be able to handle this with no
+	 * problem.
+	 */
+	if (v >= 0) {
+		while (s <= maxsize) {
+			if (v < limit)
+				return (format_octal(v, p, s));
+			s++;
+			limit <<= 3;
+		}
+	}
+
+	/* Base-256 can handle any number, positive or negative. */
+	return (format_256(v, p, maxsize));
+}
+
+/*
+ * Format a number into the specified field using base-256.
+ */
+static int
+format_256(int64_t v, char *p, int s)
+{
+	p += s;
+	while (s-- > 0) {
+		*--p = (char)(v & 0xff);
+		v >>= 8;
+	}
+	*p |= 0x80; /* Set the base-256 marker bit. */
+	return (0);
 }
 
 /*
@@ -345,9 +402,16 @@ format_octal(int64_t v, char *p, int s)
 {
 	int len;
 
-	p += s;		/* Start at the end and work backwards. */
-
 	len = s;
+
+	/* Octal values can't be negative, so use 0. */
+	if (v < 0) {
+		while (len-- > 0)
+			*p++ = '0';
+		return (-1);
+	}
+
+	p += s;		/* Start at the end and work backwards. */
 	while (s-- > 0) {
 		*--p = '0' + (v & 7);
 		v >>= 3;
