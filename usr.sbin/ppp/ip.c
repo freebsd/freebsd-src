@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.7 1998/02/16 00:00:11 brian Exp $
+ * $Id: ip.c,v 1.38.2.8 1998/02/23 00:38:32 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -27,6 +27,7 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#include <sys/select.h>
 #include <net/if_tun.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.17 1998/02/27 01:22:16 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.18 1998/03/01 01:07:39 brian Exp $
  */
 
 #include <sys/param.h>
@@ -174,7 +174,7 @@ bundle_LayerStart(void *v, struct fsm *fp)
   /* The given FSM is about to start up ! */
   struct bundle *bundle = (struct bundle *)v;
 
-  if (fp == &LcpInfo.fsm)
+  if (fp->proto == PROTO_LCP && bundle->phase == PHASE_DEAD)
     bundle_NewPhase(bundle, link2physical(fp->link), PHASE_ESTABLISH);
 }
 
@@ -226,7 +226,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
 
   struct bundle *bundle = (struct bundle *)v;
 
-  if (fp == &LcpInfo.fsm) {
+  if (fp->proto == PROTO_LCP) {
     FsmDown(&IpcpInfo.fsm);		/* You've lost your underlings */
     FsmClose(&IpcpInfo.fsm);		/* ST_INITIAL please */
   } else if (fp == &IpcpInfo.fsm) {
@@ -268,9 +268,14 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
     if (staydown)
       for (dl = bundle->links; dl; dl = dl->next)
         datalink_StayDown(dl);
-  } else
+  } else {
+    if (IpcpInfo.fsm.state > ST_INITIAL) {
+      FsmClose(&IpcpInfo.fsm);
+      FsmDown(&IpcpInfo.fsm);
+    }
     for (dl = bundle->links; dl; dl = dl->next)
       datalink_Close(dl, staydown);
+  }
 }
 
 /*

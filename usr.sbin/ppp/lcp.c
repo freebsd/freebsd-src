@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.22 1998/02/27 21:46:26 brian Exp $
+ * $Id: lcp.c,v 1.55.2.23 1998/03/01 01:07:45 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -26,6 +26,7 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#include <sys/select.h>
 #include <net/if_tun.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
