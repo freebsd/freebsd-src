@@ -104,18 +104,23 @@ struct camcontrol_opts {
 	const char	*subopt;
 };
 
+#ifndef MINIMALISTIC
 static const char scsicmd_opts[] = "c:i:o:";
 static const char readdefect_opts[] = "f:GP";
 static const char negotiate_opts[] = "acD:O:qR:T:UW:";
+#endif
 
 struct camcontrol_opts option_table[] = {
+#ifndef MINIMALISTIC
 	{"tur", CAM_ARG_TUR, NULL},
 	{"inquiry", CAM_ARG_INQUIRY, "DSR"},
 	{"start", CAM_ARG_STARTSTOP | CAM_ARG_START_UNIT, NULL},
 	{"stop", CAM_ARG_STARTSTOP, NULL},
 	{"eject", CAM_ARG_STARTSTOP | CAM_ARG_EJECT, NULL},
+#endif /* MINIMALISTIC */
 	{"rescan", CAM_ARG_RESCAN, NULL},
 	{"reset", CAM_ARG_RESET, NULL},
+#ifndef MINIMALISTIC
 	{"cmd", CAM_ARG_SCSI_CMD, scsicmd_opts},
 	{"command", CAM_ARG_SCSI_CMD, scsicmd_opts},
 	{"defects", CAM_ARG_READ_DEFECTS, readdefect_opts},
@@ -128,6 +133,7 @@ struct camcontrol_opts option_table[] = {
 	{"rate", CAM_ARG_RATE, negotiate_opts},
 	{"debug", CAM_ARG_DEBUG, "ITSc"},
 	{"format", CAM_ARG_FORMAT, "qwy"},
+#endif /* MINIMALISTIC */
 	{"help", CAM_ARG_USAGE, NULL},
 	{"-?", CAM_ARG_USAGE, NULL},
 	{"-h", CAM_ARG_USAGE, NULL},
@@ -145,6 +151,7 @@ int bus, target, lun;
 
 
 camcontrol_optret getoption(char *arg, cam_argmask *argnum, char **subopt);
+#ifndef MINIMALISTIC
 static int getdevlist(struct cam_device *device);
 static int getdevtree(void);
 static int testunitready(struct cam_device *device, int retry_count,
@@ -156,11 +163,13 @@ static int scsidoinquiry(struct cam_device *device, int argc, char **argv,
 static int scsiinquiry(struct cam_device *device, int retry_count, int timeout);
 static int scsiserial(struct cam_device *device, int retry_count, int timeout);
 static int scsixferrate(struct cam_device *device);
+#endif /* MINIMALISTIC */
 static int parse_btl(char *tstr, int *bus, int *target, int *lun,
 		     cam_argmask *arglist);
 static int dorescan_or_reset(int argc, char **argv, int rescan);
 static int rescan_or_reset_bus(int bus, int rescan);
 static int scanlun_or_reset_dev(int bus, int target, int lun, int scan);
+#ifndef MINIMALISTIC
 static int readdefects(struct cam_device *device, int argc, char **argv,
 		       char *combinedopt, int retry_count, int timeout);
 static void modepage(struct cam_device *device, int argc, char **argv,
@@ -179,6 +188,7 @@ static int ratecontrol(struct cam_device *device, int retry_count,
 		       int timeout, int argc, char **argv, char *combinedopt);
 static int scsiformat(struct cam_device *device, int argc, char **argv,
 		      char *combinedopt, int retry_count, int timeout);
+#endif /* MINIMALISTIC */
 
 camcontrol_optret
 getoption(char *arg, cam_argmask *argnum, char **subopt)
@@ -202,6 +212,7 @@ getoption(char *arg, cam_argmask *argnum, char **subopt)
 		return(CC_OR_NOT_FOUND);
 }
 
+#ifndef MINIMALISTIC
 static int
 getdevlist(struct cam_device *device)
 {
@@ -911,6 +922,7 @@ xferrate_bailout:
 
 	return(retval);
 }
+#endif /* MINIMALISTIC */
 
 /*
  * Parse out a bus, or a bus, target and lun in the following
@@ -1115,6 +1127,7 @@ scanlun_or_reset_dev(int bus, int target, int lun, int scan)
 	}
 }
 
+#ifndef MINIMALISTIC
 static int
 readdefects(struct cam_device *device, int argc, char **argv,
 	    char *combinedopt, int retry_count, int timeout)
@@ -1404,6 +1417,7 @@ defect_bailout:
 
 	return(error);
 }
+#endif /* MINIMALISTIC */
 
 #if 0
 void
@@ -1417,6 +1431,7 @@ reassignblocks(struct cam_device *device, u_int32_t *blocks, int num_blocks)
 }
 #endif
 
+#ifndef MINIMALISTIC
 void
 mode_sense(struct cam_device *device, int mode_page, int page_control,
 	   int dbd, int retry_count, int timeout, u_int8_t *data, int datalen)
@@ -2966,12 +2981,14 @@ scsiformat_bailout:
 
 	return(error);
 }
+#endif /* MINIMALISTIC */
 
 void 
 usage(int verbose)
 {
 	fprintf(verbose ? stdout : stderr,
 "usage:  camcontrol <command>  [device id][generic args][command args]\n"
+#ifndef MINIMALISTIC
 "        camcontrol devlist    [-v]\n"
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"
@@ -2979,8 +2996,10 @@ usage(int verbose)
 "        camcontrol start      [dev_id][generic args]\n"
 "        camcontrol stop       [dev_id][generic args]\n"
 "        camcontrol eject      [dev_id][generic args]\n"
+#endif /* MINIMALISTIC */
 "        camcontrol rescan     <bus[:target:lun]>\n"
 "        camcontrol reset      <bus[:target:lun]>\n"
+#ifndef MINIMALISTIC
 "        camcontrol defects    [dev_id][generic args] <-f format> [-P][-G]\n"
 "        camcontrol modepage   [dev_id][generic args] <-m page | -l>\n"
 "                              [-P pagectl][-e | -b][-d]\n"
@@ -2993,9 +3012,11 @@ usage(int verbose)
 "                              [-R syncrate][-v][-T <enable|disable>]\n"
 "                              [-U][-W bus_width]\n"
 "        camcontrol format     [dev_id][generic args][-q][-w][-y]\n"
+#endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!verbose)
 		return;
+#ifndef MINIMALISTIC
 	fprintf(stdout,
 "Specify one of the following options:\n"
 "devlist     list all CAM devices\n"
@@ -3069,6 +3090,7 @@ usage(int verbose)
 "-q                be quiet, don't print status messages\n"
 "-w                don't send immediate format command\n"
 "-y                don't ask any questions\n");
+#endif /* MINIMALISTIC */
 }
 
 int 
@@ -3172,6 +3194,7 @@ main(int argc, char **argv)
 	 || ((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_DEBUG))
 		devopen = 0;
 
+#ifndef MINIMALISTIC
 	if ((devopen == 1)
 	 && (argc > 2 && argv[2][0] != '-')) {
 		char name[30];
@@ -3202,6 +3225,7 @@ main(int argc, char **argv)
 			optstart++;
 		}
 	}
+#endif /* MINIMALISTIC */
 	/*
 	 * Start getopt processing at argv[2/3], since we've already
 	 * accepted argv[1..2] as the command name, and as a possible
@@ -3253,6 +3277,7 @@ main(int argc, char **argv)
 		}
 	}
 
+#ifndef MINIMALISTIC
 	/*
 	 * For most commands we'll want to open the passthrough device
 	 * associated with the specified device.  In the case of the rescan
@@ -3273,6 +3298,7 @@ main(int argc, char **argv)
 		     == NULL)
 			errx(1,"%s", cam_errbuf);
 	}
+#endif /* MINIMALISTIC */
 
 	/*
 	 * Reset optind to 2, and reset getopt, so these routines can parse
@@ -3282,6 +3308,7 @@ main(int argc, char **argv)
 	optreset = 1;
 
 	switch(arglist & CAM_ARG_OPT_MASK) {
+#ifndef MINIMALISTIC
 		case CAM_ARG_DEVLIST:
 			error = getdevlist(cam_dev);
 			break;
@@ -3300,12 +3327,14 @@ main(int argc, char **argv)
 					  arglist & CAM_ARG_EJECT, retry_count,
 					  timeout);
 			break;
+#endif /* MINIMALISTIC */
 		case CAM_ARG_RESCAN:
 			error = dorescan_or_reset(argc, argv, 1);
 			break;
 		case CAM_ARG_RESET:
 			error = dorescan_or_reset(argc, argv, 0);
 			break;
+#ifndef MINIMALISTIC
 		case CAM_ARG_READ_DEFECTS:
 			error = readdefects(cam_dev, argc, argv, combinedopt,
 					    retry_count, timeout);
@@ -3332,6 +3361,7 @@ main(int argc, char **argv)
 			error = scsiformat(cam_dev, argc, argv,
 					   combinedopt, retry_count, timeout);
 			break;
+#endif /* MINIMALISTIC */
 		case CAM_ARG_USAGE:
 			usage(1);
 			break;
