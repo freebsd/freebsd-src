@@ -794,8 +794,15 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 	}
 
 	/* Strip leading '/' unless user has asked us not to. */
-	if (pathname && pathname[0] == '/' && !bsdtar->option_absolute_paths)
+	if (pathname && pathname[0] == '/' && !bsdtar->option_absolute_paths) {
+		/* Generate a warning the first time this happens. */
+		if (!bsdtar->warned_lead_slash) {
+			bsdtar_warnc(bsdtar, 0,
+			    "Removing leading '/' from member names");
+			bsdtar->warned_lead_slash = 1;
+		}
 		pathname++;
+	}
 
 	archive_entry_set_pathname(entry, pathname);
 
