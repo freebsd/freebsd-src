@@ -323,6 +323,9 @@
     devices.  The new &man.conscontrol.8; utility helps to manage the
     different consoles.</para>
 
+    <para arch="alpha">The console driver has gained support for TGA-based
+    display adapters.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
