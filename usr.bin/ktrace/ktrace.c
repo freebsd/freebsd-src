@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -41,9 +41,10 @@ static char copyright[] =
 #if 0
 static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -55,20 +56,23 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "ktrace.h"
 
-void no_ktrace(int);
-void usage(void);
+static void no_ktrace(int);
+static int rpid(char *);
+static void usage(void);
 
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
 	enum { NOTSET, CLEAR, CLEARALL } clear;
 	int append, ch, fd, inherit, ops, pid, pidset, trpoints;
-	char *tracefile;
+	const char *tracefile;
 	mode_t omask;
 	struct stat sb;
 
@@ -118,7 +122,7 @@ main(argc, argv)
 	argv += optind;
 	argc -= optind;
 	
-	if (pidset && *argv || !pidset && !*argv)
+	if ((pidset && *argv) || (!pidset && !*argv))
 		usage();
 			
 	if (inherit)
@@ -166,6 +170,7 @@ main(argc, argv)
 	exit(0);
 }
 
+static int
 rpid(p)
 	char *p;
 {
@@ -182,7 +187,7 @@ rpid(p)
 	return(atoi(p));
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
@@ -191,9 +196,9 @@ usage()
 	exit(1);
 }
 
-void
+static void
 no_ktrace(sig)
-        int sig;
+        int sig __unused;
 {
         (void)fprintf(stderr,
 "error:\tktrace() system call not supported in the running kernel\n\tre-compile kernel with 'options KTRACE'\n");
