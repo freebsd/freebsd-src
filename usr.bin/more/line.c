@@ -111,7 +111,7 @@ prewind()
 {
 	line = curr = linebuf;
 	ln_state = LN_NORMAL;
-	column = (horiz_off == NO_HORIZ_OFF) ? 0 : -horiz_off;
+	column = -horiz_off;
 }
 
 /*
@@ -379,14 +379,9 @@ ln_bo_xb_case:
 		/*
 		 * Expand a tab into spaces.
 		 */
-		if (horiz_off != NO_HORIZ_OFF)
-			do {
-				NEW_COLUMN(1);
-			} while (((column + horiz_off) % tabstop) != 0);
-		else
-			do {
-				NEW_COLUMN(1);
-			} while ((column % tabstop) != 0);
+		do {
+			NEW_COLUMN(1);
+		} while (((column + horiz_off) % tabstop) != 0);
 		*curr++ = '\t';
 		return (0);
 	}

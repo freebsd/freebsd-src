@@ -102,7 +102,6 @@ int ignaw;			/* Terminal ignores \n immediately after wrap */
 int retain_below;		/* Terminal retains text below the screen */
 int erase_char, kill_char, werase_char;
 int sc_width, sc_height = -1;	/* Height & width of screen */
-int sc_window = -1;		/* window size for forward and backward */
 int bo_width, be_width;		/* Printing width of boldface sequences */
 int ul_width, ue_width;		/* Printing width of underline sequences */
 int so_width, se_width;		/* Printing width of standout sequences */
@@ -294,6 +293,8 @@ get_term()
  		sc_width = tgetnum("co");
  	if (sc_width < 0)
   		sc_width = 80;
+	(void) setvari("_sc_height", (long) sc_height - 1);
+	(void) setvari("_sc_width", (long) sc_width);
 
 	auto_wrap = tgetflag("am");
 	ignaw = tgetflag("xn");

@@ -74,6 +74,6 @@ getchr()
 			 */
 			quit();
 		}
-	} while (result != 1);
+	} while (result != 1 || c == 0);
 	return ((unsigned char)c);
 }

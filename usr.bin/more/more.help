@@ -25,11 +25,13 @@
   ?pattern     * Search backward for N-th line containing the pattern.
   ?!pattern    * Search backward for N-th line NOT containing the pattern.
   n            * Repeat previous search (for N-th occurence).
+  N            * Repeat previous search (for N-th occurence), switching
+                 the direction of the search.
 
   :a              Display the list of files.
   E [file]        Examine a new file.
-  :n, N        *  Examine the next file.
-  :p, P        *  Examine the previous file.
+  :n           *  Examine the next file.
+  :p           *  Examine the previous file.
   :t [tag]        Examine the tag.
   t, T            Move forward or backward N tags in the gtags queue.
   v               Run an editor on the current file.
