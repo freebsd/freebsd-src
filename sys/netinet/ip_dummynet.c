@@ -140,7 +140,7 @@ rt_unref(struct rtentry *rt)
  *
  * In the heap, first node is element 0. Children of i are 2i+1 and 2i+2.
  * Some macros help finding parent/children so we can optimize them.
- #
+ *
  * heap_init() is called to expand the heap when needed.
  * Increment size in blocks of 256 entries (which make one 4KB page)
  * XXX failure to allocate a new element is a pretty bad failure
@@ -245,10 +245,10 @@ heap_extract(struct dn_heap *h)
     }   
 }           
 
-	    /*
+/*
  * heapify() will reorganize data inside an array to maintain the
  * heap property. It is needed when we delete a bunch of entries.
-	     */
+ */
 static void
 heapify(struct dn_heap *h)
 {
@@ -265,7 +265,7 @@ heapify(struct dn_heap *h)
  * --- end of heap management functions ---
  */
  
-    /*
+/*
  * Scheduler functions -- transmit_event(), ready_event()
  *
  * transmit_event() is called when the delay-line needs to enter
@@ -279,7 +279,7 @@ heapify(struct dn_heap *h)
  * In both cases, we make sure that the data structures are consistent
  * before passing pkts out, because this might trigger recursive
  * invocations of the procedures.
-     */
+ */
 static void
 transmit_event(struct dn_pipe *pipe)
 {
@@ -379,12 +379,6 @@ ready_event(struct dn_flow_queue *q)
         DN_NEXT(p->p.tail) = NULL;
     }
     /*
-     * If the delay line was empty call transmit_event(p) now.
-     * Otherwise, the scheduler will take care of it.
-     */
-    if (p_was_empty)
-	transmit_event(p);
-    /*
      * If we have more packets queued, schedule next ready event
      * (can only occur when bandwidth != 0, otherwise we would have
      * flushed the whole queue in the previous loop).
@@ -402,12 +396,18 @@ ready_event(struct dn_flow_queue *q)
 	 * queue on error hoping next time we are luckier.
 	 */
     }
-    }
- 
     /*
+     * If the delay line was empty call transmit_event(p) now.
+     * Otherwise, the scheduler will take care of it.
+     */
+    if (p_was_empty)
+	transmit_event(p);
+}
+ 
+/*
  * this is called once per tick, or HZ times per second. It is used to
  * increment the current tick counter and schedule expired events.
-     */
+ */
 static void
 dummynet(void * __unused unused)
 {
@@ -773,48 +773,48 @@ ip_dn_ctl(struct sockopt *sopt)
 	error = sooptcopyin(sopt, p, sizeof *p, sizeof *p);
 	if (error)
 	    break ;
-	    /*
-	     * The config program passes parameters as follows:
+	/*
+	 * The config program passes parameters as follows:
 	 * bandwidth = bits/second (0 means no limits);
 	 * delay = millisec.,   must be translated into ticks.
 	 * queue_size = slots (0 means no limit)
 	 * queue_size_bytes = bytes (0 means no limit)
-	     *	  only one can be set, must be bound-checked
-	     */
-	    p->delay = ( p->delay * hz ) / 1000 ;
-	    if (p->queue_size == 0 && p->queue_size_bytes == 0)
-		p->queue_size = 50 ;
-	    if (p->queue_size != 0 )	/* buffers are prevailing */
-		p->queue_size_bytes = 0 ;
-	    if (p->queue_size > 100)
-		p->queue_size = 50 ;
-	    if (p->queue_size_bytes > 1024*1024)
-		p->queue_size_bytes = 1024*1024 ;
-	    for (a = NULL , b = all_pipes ; b && b->pipe_nr < p->pipe_nr ;
-		 a = b , b = b->next) ;
-	    if (b && b->pipe_nr == p->pipe_nr) {
-		b->bandwidth = p->bandwidth ;
-		b->delay = p->delay ;
-		b->queue_size = p->queue_size ;
-		b->queue_size_bytes = p->queue_size_bytes ;
-		b->plr = p->plr ;
+	 *	  only one can be set, must be bound-checked
+	 */
+	p->delay = ( p->delay * hz ) / 1000 ;
+	if (p->queue_size == 0 && p->queue_size_bytes == 0)
+	    p->queue_size = 50 ;
+	if (p->queue_size != 0 )	/* buffers are prevailing */
+	    p->queue_size_bytes = 0 ;
+	if (p->queue_size > 100)
+	    p->queue_size = 50 ;
+	if (p->queue_size_bytes > 1024*1024)
+	    p->queue_size_bytes = 1024*1024 ;
+	for (a = NULL , b = all_pipes ; b && b->pipe_nr < p->pipe_nr ;
+	     a = b , b = b->next) ;
+	if (b && b->pipe_nr == p->pipe_nr) {
+	    b->bandwidth = p->bandwidth ;
+	    b->delay = p->delay ;
+	    b->queue_size = p->queue_size ;
+	    b->queue_size_bytes = p->queue_size_bytes ;
+	    b->plr = p->plr ;
 	    b->flow_mask = p->flow_mask ;
 	    b->flags = p->flags ;
 	} else { /* completely new pipe */
-		int s ;
-		x = malloc(sizeof(struct dn_pipe), M_IPFW, M_DONTWAIT) ;
-		if (x == NULL) {
+	    int s ;
+	    x = malloc(sizeof(struct dn_pipe), M_IPFW, M_DONTWAIT) ;
+	    if (x == NULL) {
 		printf("ip_dummynet.c: no memory for new pipe\n");
 		error = ENOSPC ;
 		break ;
-		}
-		bzero(x, sizeof(*x) );
-		x->bandwidth = p->bandwidth ;
-		x->delay = p->delay ;
-		x->pipe_nr = p->pipe_nr ;
-		x->queue_size = p->queue_size ;
-		x->queue_size_bytes = p->queue_size_bytes ;
-		x->plr = p->plr ;
+	    }
+	    bzero(x, sizeof(*x) );
+	    x->bandwidth = p->bandwidth ;
+	    x->delay = p->delay ;
+	    x->pipe_nr = p->pipe_nr ;
+	    x->queue_size = p->queue_size ;
+	    x->queue_size_bytes = p->queue_size_bytes ;
+	    x->plr = p->plr ;
 	    x->flow_mask = p->flow_mask ;
 	    x->flags = p->flags ;
 	    if (x->flags & DN_HAVE_FLOW_MASK) {/* allocate some slots */
@@ -839,14 +839,14 @@ ip_dn_ctl(struct sockopt *sopt)
 	    bzero(x->rq, x->rq_size * sizeof(struct dn_flow_queue *) );
 	    x->rq_elements = 0 ;
 
-		s = splnet() ;
-		x->next = b ;
-		if (a == NULL)
-		    all_pipes = x ;
-		else
-		    a->next = x ;
-		splx(s);
-	    }
+	    s = splnet() ;
+	    x->next = b ;
+	    if (a == NULL)
+		all_pipes = x ;
+	    else
+		a->next = x ;
+	    splx(s);
+	}
 	break ;
 
     case IP_DUMMYNET_DEL :
@@ -855,9 +855,9 @@ ip_dn_ctl(struct sockopt *sopt)
 	if (error)
 	    break ;
 
-	    for (a = NULL , b = all_pipes ; b && b->pipe_nr < p->pipe_nr ;
-		 a = b , b = b->next) ;
-	    if (b && b->pipe_nr == p->pipe_nr) {	/* found pipe */
+	for (a = NULL , b = all_pipes ; b && b->pipe_nr < p->pipe_nr ;
+	     a = b , b = b->next) ;
+	if (b && b->pipe_nr == p->pipe_nr) {	/* found pipe */
 	    int s ;
 	    struct ip_fw_chain *chain ;
 
@@ -908,9 +908,9 @@ ip_dn_ctl(struct sockopt *sopt)
 		purge_pipe(b);	/* remove pkts from here */
 	    free(b->rq, M_IPFW);
 		free(b, M_IPFW);
-	    }
-	break ;
 	}
+	break ;
+    }
     return error ;
 }
 
