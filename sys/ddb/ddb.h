@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.20 1998/07/13 06:45:23 bde Exp $
+ *	$Id: ddb.h,v 1.21 1999/01/27 19:00:49 dillon Exp $
  */
 
 /*
@@ -144,5 +144,15 @@ struct command {
 #define	CS_SET_DOT	0x100	/* set dot after command */
 	struct command *more;	/* another level of command */
 };
+
+/* XXX: UGLY hack */
+#ifdef CN_DEAD
+/*
+ * Routines to support GDB on an sio port.
+ */
+extern dev_t	   gdbdev;
+extern cn_getc_t *gdb_getc;
+extern cn_putc_t *gdb_putc;
+#endif
 
 #endif /* !_DDB_DDB_H_ */
