@@ -1292,12 +1292,14 @@ DMenu MenuStartup = {
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { " APM",		"Auto-power management services (typically laptops)",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "apm_enable=YES" },
+#ifdef PCCARD_ARCH
       { " pccard",	"Enable PCCARD (AKA PCMCIA) services (also laptops)",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "pccard_enable=YES" },
       { " pccard mem",	"Set PCCARD memory address (if enabled)",
 	dmenuVarCheck, dmenuISetVariable, NULL, "pccard_mem" },
       { " pccard ifconfig",	"List of PCCARD ethernet devices to configure",
 	dmenuVarCheck, dmenuISetVariable, NULL, "pccard_ifconfig" },
+#endif
       { " usbd", "Enable USB daemon (detect USB attach / detach)",
         dmenuVarCheck, dmenuToggleVariable, NULL, "usbd_enable=YES" },
       { " usbd flags", "Set default flags to usbd (if enabled)", 

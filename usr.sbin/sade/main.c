@@ -111,10 +111,12 @@ main(int argc, char **argv)
     }
 
     /* Initialize PC-card, if we haven't already done so. */
+#ifdef PCCARD_ARCH
     if (!pvariable_get("pccardInitialize")) {
 	pccardInitialize();
 	pvariable_set("pccardInitialize=1");
     }
+#endif
 
     /* Initialize USB, if we haven't already done so. */
     if (!pvariable_get("usbInitialize")) {
