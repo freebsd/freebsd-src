@@ -48,6 +48,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
+#error "DEVFS doesn't work"
 
 /*
  * Insert description here

@@ -659,9 +659,6 @@ options 	UNION			#Union filesystem
 options 	CD9660_ROOT		#CD-ROM usable as root device
 options 	FFS_ROOT		#FFS usable as root device
 options 	NFS_ROOT		#NFS usable as root device
-# This code is still experimental (e.g. doesn't handle disk slices well).
-# Also, 'options MFS' is currently incompatible with DEVFS.
-options 	DEVFS			#devices filesystem
 
 # Soft updates is technique for improving file system speed and
 # making abrupt shutdown less risky.
