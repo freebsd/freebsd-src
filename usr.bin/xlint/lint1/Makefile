@@ -9,7 +9,7 @@ DPADD+=	${LIBL}
 YFLAGS=	-d
 CFLAGS+=-I.
 LINTFLAGS=-aehpz
-CLEANFILES+=y.tab.h cgram.c scan.c
+CLEANFILES+=cgram.tab.h cgram.c scan.c
 
 BINDIR=	/usr/libexec
 
