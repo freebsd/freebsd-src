@@ -203,11 +203,23 @@
 #endif
 
 #ifndef	__RCSID_SOURCE
-#define	__RCSID_SOURCE(s) __IDSTRING(rcsid_source,s)
+#define	__RCSID_SOURCE(s)	__IDSTRING(rcsid_source,s)
 #endif
 
 #ifndef	__COPYRIGHT
 #define	__COPYRIGHT(s)	__IDSTRING(copyright,s)
+#endif
+
+#ifndef	__DECONST
+#define	__DECONST(type, var)	((type)(uintptr_t)(const void *)(var))
+#endif
+
+#ifndef	__DEVOLATILE
+#define	__DEVOLATILE(type, var)	((type)(uintptr_t)(volatile void *)(var))
+#endif
+
+#ifndef	__DEQUALIFY
+#define	__DEQUALIFY(type, var)	((type)(uintptr_t)(const volatile void *)(var))
 #endif
 
 #endif /* !_SYS_CDEFS_H_ */
