@@ -232,6 +232,10 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ed7: LA-98
 # ed8: C-NET(98)
 # ed9: C-NET(98)E/L
+# ed10: EC/EP-98X
+#
+# MB86960A NIC
+#
 # fe0: RE1000/1000Plus/AccessPC N98C+/LAC-98
 # fe1: C-NET(98)P2/C-NET(9N)E
 #
@@ -247,6 +251,7 @@ device ed7 at isa? port 0x00d0 net irq 6 flags 0x900000
 device ed6 at isa? port 0x0770 net irq 6 flags 0x800000
 device ed9 at isa? port 0x03d0 net irq 6 flags 0xb00000
 device ed8 at isa? port 0xa3d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
+device ed10 at isa? port 0x00d0 net irq 3 flags 0xd00000
 device ep0 at isa? port 0x40d0 net irq 3
 device fe0 at isa? port 0x00d0 net irq 3
 device fe1 at isa? port 0x73d0 net irq 5
