@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.78 1999/05/11 08:36:12 kato Exp $
+ **      $Id: userconfig.c,v 1.79 1999/05/14 10:05:55 kato Exp $
  **/
 
 /**
@@ -402,6 +402,7 @@ static DEV_INFO device_info[] = {
 {"tl",          "Texas Instruments ThunderLAN Ethernet adapters",	0,CLS_NETWORK},
 {"tx",          "SMC 9432TX Ethernet adapters",			0,	CLS_NETWORK},
 {"vx",          "3COM 3C590/3C595 Ethernet adapters",		0,	CLS_NETWORK},
+{"xe",          "Xircom PC Card Ethernet adapter",		0,	CLS_NETWORK},
 {"ze",          "IBM/National Semiconductor PCMCIA Ethernet adapter",0,	CLS_NETWORK},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter",	0,	CLS_NETWORK},
 {"ax",          "ASIC AX88140A ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
@@ -2554,7 +2555,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.78 1999/05/11 08:36:12 kato Exp $
+ *      $Id: userconfig.c,v 1.79 1999/05/14 10:05:55 kato Exp $
  */
 
 #include "scbus.h"
