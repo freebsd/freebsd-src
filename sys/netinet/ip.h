@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
- *	$Id: ip.h,v 1.7 1995/12/21 21:20:27 wollman Exp $
+ *	$Id: ip.h,v 1.8 1996/03/14 16:59:20 fenner Exp $
  */
 
 #ifndef _NETINET_IP_H_
@@ -75,6 +75,13 @@ struct ip {
 	u_short	ip_sum;			/* checksum */
 	struct	in_addr ip_src,ip_dst;	/* source and dest address */
 };
+
+#ifdef _IP_VHL
+#define	IP_MAKE_VHL(v, hl)	((v) << 4 | (hl))
+#define	IP_VHL_HL(vhl)		((vhl) & 0x0f)
+#define	IP_VHL_V(vhl)		((vhl) >> 4)
+#define	IP_VHL_BORING		0x45
+#endif
 
 #define	IP_MAXPACKET	65535		/* maximum packet size */
 
