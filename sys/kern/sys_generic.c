@@ -730,9 +730,9 @@ selscan(p, ibits, obits, nfd)
 	fd_mask **ibits, **obits;
 	int nfd;
 {
-	register struct filedesc *fdp = p->p_fd;
-	register int msk, i, j, fd;
-	register fd_mask bits;
+	struct filedesc *fdp = p->p_fd;
+	int msk, i, fd;
+	fd_mask bits;
 	struct file *fp;
 	int n = 0;
 	/* Note: backend also returns POLLHUP/POLLERR if appropriate. */
@@ -743,14 +743,16 @@ selscan(p, ibits, obits, nfd)
 			continue;
 		for (i = 0; i < nfd; i += NFDBITS) {
 			bits = ibits[msk][i/NFDBITS];
-			while ((j = ffs(bits)) && (fd = i + --j) < nfd) {
-				bits &= ~(1 << j);
+			/* ffs(int mask) not portable, fd_mask is long */
+			for (fd = i; bits && fd < nfd; fd++, bits >>= 1) {
+				if (!(bits & 1))
+					continue;
 				fp = fdp->fd_ofiles[fd];
 				if (fp == NULL)
 					return (EBADF);
 				if (fo_poll(fp, flag[msk], fp->f_cred, p)) {
 					obits[msk][(fd)/NFDBITS] |=
-						(1 << ((fd) % NFDBITS));
+					    ((fd_mask)1 << ((fd) % NFDBITS));
 					n++;
 				}
 			}
