@@ -9,17 +9,16 @@
 /*
  * Interprocessor interrupts for SMP. The following values are indices
  * into the IPI vector table. The SAL gives us the vector used for AP
- * wake-up. Keep the IPI_AP_WAKEUP at index 0.
+ * wake-up. We base the other vectors on that. Keep IPI_AP_WAKEUP at
+ * index 0.
  */
-#define	IPI_AP_WAKEUP		0
+#define	IPI_AP_WAKEUP		0		/* ia64 specific */
 #define	IPI_AST			1
-#define	IPI_CHECKSTATE		2
-#define	IPI_INVLTLB		3
-#define	IPI_RENDEZVOUS		4
-#define	IPI_STOP		5
-#define	IPI_TEST		6
+#define	IPI_RENDEZVOUS		2
+#define	IPI_STOP		3
+#define	IPI_TEST		4		/* ia64 specific */
 
-#define	IPI_COUNT		7
+#define	IPI_COUNT		5
 
 #ifndef LOCORE
 
