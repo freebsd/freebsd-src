@@ -90,7 +90,7 @@ static struct freebsd_syscall {
 } fsc;
 
 /* Clear up and free parts of the fsc structure. */
-static inline void
+static __inline void
 clear_fsc() {
   if (fsc.args) {
     free(fsc.args);

@@ -78,7 +78,7 @@ static struct linux_syscall {
 	char **s_args;	/* the printable arguments */
 } lsc;
 
-static inline void
+static __inline void
 clear_lsc() {
   if (lsc.s_args) {
     int i;
