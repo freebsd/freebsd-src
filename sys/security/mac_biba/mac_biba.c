@@ -1482,25 +1482,6 @@ mac_biba_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 	if (error)
 		return (error);
 
-	/*
-	 * If the Biba label is to be changed, authorize as appropriate.
-	 */
-	if (new->mb_flags & MAC_BIBA_FLAGS_BOTH) {
-		/*
-		 * Rely on the traditional superuser status for the Biba
-		 * interface relabel requirements.  XXXMAC: This will go
-		 * away.
-		 */
-		error = suser_cred(cred, 0);
-		if (error)
-			return (EPERM);
-
-		/*
-		 * XXXMAC: Additional consistency tests regarding the single
-		 * and the range of the new label might be performed here.
-		 */
-	}
-
 	return (0);
 }
 
