@@ -529,10 +529,20 @@ Fdopen(dev, flags)
 	if (fdu >= NFD || fd_data[fdu].fdc == NULL
 		|| fd_data[fdu].type == NO_TYPE) return(ENXIO);
 	if (type >= NUMTYPES) return(ENXIO);
-	if (fd_data[fdu].type == FD360 && type != FD360)
-		return(ENXIO);
-	if (fd_data[fdu].type == FD12 && type == FD144)
-		return(ENXIO);
+	switch (fd_data[fdu].type) {
+	case FD360:
+		if (type != FD360)
+			return(ENXIO);
+		break;
+	case FD12:
+		if (type == FD144 || type == FD360)
+			return(ENXIO);
+		break;
+	case FD144:
+		if (type == FD12 || type == FD360 || type == FD360H)
+			return(ENXIO);
+		break;
+	}
 	fd_data[fdu].ft = fd_types + type;
 	fd_data[fdu].flags |= FD_OPEN;
 
