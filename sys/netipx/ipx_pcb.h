@@ -64,6 +64,7 @@ struct ipxpcb {
 #define IPXP_RAWIN		0x2	/* show headers on input */
 #define IPXP_RAWOUT		0x4	/* show header on output */
 #define IPXP_ALL_PACKETS	0x8	/* Turn off higher proto processing */
+#define	IPXP_CHECKSUM		0x10	/* use checksum on this socket */
 
 #define	IPX_WILDCARD		1
 

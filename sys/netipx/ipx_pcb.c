@@ -66,6 +66,8 @@ ipx_pcballoc(so, head, p)
 		return (ENOBUFS);
 	bzero(ipxp, sizeof *ipxp);
 	ipxp->ipxp_socket = so;
+	if (ipxcksum)
+		ipxp->ipxp_flags |= IPXP_CHECKSUM;
 	insque(ipxp, head);
 	so->so_pcb = (caddr_t)ipxp;
 	return (0);

@@ -214,7 +214,7 @@ ipx_output(ipxp, m0)
 		m = mprev;
 		if ((m->m_flags & M_EXT) == 0 &&
 			(m->m_len + m->m_data < &m->m_dat[MLEN])) {
-			m->m_len++;
+			mtod(m, char*)[m->m_len++] = 0;
 		} else {
 			struct mbuf *m1 = m_get(M_DONTWAIT, MT_DATA);
 
@@ -250,9 +250,7 @@ ipx_output(ipxp, m0)
 
 	ipx->ipx_len = htons((u_short)len);
 
-	if (ipxcksum) {
-		ipx->ipx_sum = 0;
-		len = ((len - 1) | 1) + 1;
+	if (ipxp->ipxp_flags & IPXP_CHECKSUM) {
 		ipx->ipx_sum = ipx_cksum(m, len);
 	} else
 		ipx->ipx_sum = 0xffff;
@@ -333,6 +331,10 @@ ipx_ctloutput(so, sopt)
 		case SO_HEADERS_ON_INPUT:
 			mask = IPXP_RAWIN;
 			goto get_flags;
+
+		case SO_IPX_CHECKSUM:
+			mask = IPXP_CHECKSUM;
+			goto get_flags;
 			
 		case SO_HEADERS_ON_OUTPUT:
 			mask = IPXP_RAWOUT;
@@ -371,6 +373,9 @@ ipx_ctloutput(so, sopt)
 		case SO_HEADERS_ON_INPUT:
 			mask = IPXP_RAWIN;
 			goto set_head;
+
+		case SO_IPX_CHECKSUM:
+			mask = IPXP_CHECKSUM;
 
 		case SO_HEADERS_ON_OUTPUT:
 			mask = IPXP_RAWOUT;
