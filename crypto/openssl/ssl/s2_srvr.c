@@ -58,12 +58,12 @@
  * $FreeBSD$
  */
 
+#include "ssl_locl.h"
 #ifndef NO_SSL2
 #include <stdio.h>
 #include <openssl/bio.h>
 #include <openssl/rand.h>
 #include <openssl/objects.h>
-#include "ssl_locl.h"
 #include <openssl/evp.h>
 
 static SSL_METHOD *ssl2_get_server_method(int ver);
@@ -111,7 +111,7 @@ int ssl2_accept(SSL *s)
 	void (*cb)()=NULL;
 	int new_state,state;
 
-	RAND_seed(&l,sizeof(l));
+	RAND_add(&l,sizeof(l),0);
 	ERR_clear_error();
 	clear_sys_error();
 
@@ -417,7 +417,7 @@ static int get_client_master_key(SSL *s)
 			i=ek;
 		else
 			i=EVP_CIPHER_key_length(c);
-		RAND_bytes(p,i);
+		RAND_pseudo_bytes(p,i);
 		}
 #else
 	if (i < 0)
@@ -682,7 +682,7 @@ static int server_hello(SSL *s)
 		/* make and send conn_id */
 		s2n(SSL2_CONNECTION_ID_LENGTH,p);	/* add conn_id length */
 		s->s2->conn_id_length=SSL2_CONNECTION_ID_LENGTH;
-		RAND_bytes(s->s2->conn_id,(int)s->s2->conn_id_length);
+		RAND_pseudo_bytes(s->s2->conn_id,(int)s->s2->conn_id_length);
 		memcpy(d,s->s2->conn_id,SSL2_CONNECTION_ID_LENGTH);
 		d+=SSL2_CONNECTION_ID_LENGTH;
 
@@ -691,7 +691,7 @@ static int server_hello(SSL *s)
 		s->init_off=0;
 		}
 	/* SSL2_ST_SEND_SERVER_HELLO_B */
- 	/* If we are using TCP/IP, the performace is bad if we do 2
+ 	/* If we are using TCP/IP, the performance is bad if we do 2
  	 * writes without a read between them.  This occurs when
  	 * Session-id reuse is used, so I will put in a buffering module
  	 */
@@ -800,7 +800,7 @@ static int request_certificate(SSL *s)
 		p=(unsigned char *)s->init_buf->data;
 		*(p++)=SSL2_MT_REQUEST_CERTIFICATE;
 		*(p++)=SSL2_AT_MD5_WITH_RSA_ENCRYPTION;
-		RAND_bytes(ccd,SSL2_MIN_CERT_CHALLENGE_LENGTH);
+		RAND_pseudo_bytes(ccd,SSL2_MIN_CERT_CHALLENGE_LENGTH);
 		memcpy(p,ccd,SSL2_MIN_CERT_CHALLENGE_LENGTH);
 
 		s->state=SSL2_ST_SEND_REQUEST_CERTIFICATE_B;
@@ -900,7 +900,7 @@ static int request_certificate(SSL *s)
 		EVP_VerifyUpdate(&ctx,ccd,SSL2_MIN_CERT_CHALLENGE_LENGTH);
 
 		i=i2d_X509(s->cert->pkeys[SSL_PKEY_RSA_ENC].x509,NULL);
-		buf2=(unsigned char *)Malloc((unsigned int)i);
+		buf2=Malloc((unsigned int)i);
 		if (buf2 == NULL)
 			{
 			SSLerr(SSL_F_REQUEST_CERTIFICATE,ERR_R_MALLOC_FAILURE);
@@ -923,6 +923,7 @@ static int request_certificate(SSL *s)
 				X509_free(s->session->peer);
 			s->session->peer=x509;
 			CRYPTO_add(&x509->references,1,CRYPTO_LOCK_X509);
+			s->session->verify_result = s->verify_result;
 			ret=1;
 			goto end;
 			}
@@ -967,4 +968,10 @@ static int ssl_rsa_private_decrypt(CERT *c, int len, unsigned char *from,
 		SSLerr(SSL_F_SSL_RSA_PRIVATE_DECRYPT,ERR_R_RSA_LIB);
 	return(i);
 	}
+#else /* !NO_SSL2 */
+
+# if PEDANTIC
+static void *dummy=&dummy;
+# endif
+
 #endif
