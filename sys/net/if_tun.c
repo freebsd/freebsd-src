@@ -197,19 +197,23 @@ tunclose(dev, foo, bar, p)
 	if (ifp->if_flags & IFF_UP) {
 		s = splimp();
 		if_down(ifp);
-		if (ifp->if_flags & IFF_RUNNING) {
-		    /* find internet addresses and delete routes */
-		    register struct ifaddr *ifa;
-		    for (ifa = ifp->if_addrhead.tqh_first; ifa;
-			 ifa = ifa->ifa_link.tqe_next) {
-			if (ifa->ifa_addr->sa_family == AF_INET) {
-			    rtinit(ifa, (int)RTM_DELETE,
-				   tp->tun_flags & TUN_DSTADDR ? RTF_HOST : 0);
-			}
-		    }
-		}
 		splx(s);
 	}
+
+	if (ifp->if_flags & IFF_RUNNING) {
+		register struct ifaddr *ifa;
+
+		s = splimp();
+		/* find internet addresses and delete routes */
+		for (ifa = ifp->if_addrhead.tqh_first; ifa;
+		    ifa = ifa->ifa_link.tqe_next)
+			if (ifa->ifa_addr->sa_family == AF_INET)
+				rtinit(ifa, (int)RTM_DELETE,
+				    tp->tun_flags & TUN_DSTADDR ? RTF_HOST : 0);
+		ifp->if_flags &= ~IFF_RUNNING;
+		splx(s);
+	}
+
 	funsetown(tp->tun_sigio);
 	selwakeup(&tp->tun_rsel);
 
