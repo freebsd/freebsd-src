@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- * $Id: tcp_input.c,v 1.11 1995/02/09 23:13:23 wollman Exp $
+ * $Id: tcp_input.c,v 1.12 1995/02/14 02:35:16 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -2064,7 +2064,6 @@ tcp_mss(tp, offer)
 	extern int tcp_do_rfc1644;
 #endif
 	extern int tcp_mssdflt;
-	extern int tcp_do_rfc1323;
 
 	inp = tp->t_inpcb;
 	if ((rt = tcp_rtlookup(inp)) == NULL) {

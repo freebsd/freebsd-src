@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.13 1995/01/26 18:59:02 wollman Exp $
+ * $Id: raw_ip.c,v 1.14 1995/02/07 02:53:14 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -239,7 +239,8 @@ rip_ctloutput(op, so, level, optname, m)
 			return(EINVAL);
 		}
 	
-		if (op = PRCO_SETOPT) {
+		op = PRCO_SETOPT;
+		if (op) {
 			error=(*ip_acct_ctl_ptr)(optname, *m);
 			if (*m)
 				(void)m_free(*m);
