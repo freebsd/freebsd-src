@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.61 1999/08/11 13:34:30 marcel Exp $
+ *  $Id: linux_misc.c,v 1.62 1999/08/15 13:28:35 marcel Exp $
  */
 
 #include "opt_compat.h"
@@ -61,6 +61,8 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
+
+#include <posix4/sched.h>
 
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] =
 { RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
@@ -1253,4 +1255,66 @@ linux_getrlimit(p, uap)
 
     bsd.rlp = uap->rlim;
     return ogetrlimit(p, &bsd);
+}
+
+int
+linux_sched_setscheduler(p, uap)
+	struct proc *p;
+	struct linux_sched_setscheduler_args *uap;
+{
+	struct sched_setscheduler_args bsd;
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): sched_setscheduler(%d, %d, %p)\n",
+	       (long)p->p_pid, uap->pid, uap->policy, (void *)uap->param);
+#endif
+
+	switch (uap->policy) {
+	case LINUX_SCHED_OTHER:
+		bsd.policy = SCHED_OTHER;
+		break;
+	case LINUX_SCHED_FIFO:
+		bsd.policy = SCHED_FIFO;
+		break;
+	case LINUX_SCHED_RR:
+		bsd.policy = SCHED_RR;
+		break;
+	default:
+		return EINVAL;
+	}
+
+	bsd.pid = uap->pid;
+	bsd.param = uap->param;
+	return sched_setscheduler(p, &bsd);
+}
+
+int
+linux_sched_getscheduler(p, uap)
+	struct proc *p;
+	struct linux_sched_getscheduler_args *uap;
+{
+	struct sched_getscheduler_args bsd;
+	int error;
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): sched_getscheduler(%d)\n",
+	       (long)p->p_pid, uap->pid);
+#endif
+
+	bsd.pid = uap->pid;
+	error = sched_getscheduler(p, &bsd);
+
+	switch (p->p_retval[0]) {
+	case SCHED_OTHER:
+		p->p_retval[0] = LINUX_SCHED_OTHER;
+		break;
+	case SCHED_FIFO:
+		p->p_retval[0] = LINUX_SCHED_FIFO;
+		break;
+	case SCHED_RR:
+		p->p_retval[0] = LINUX_SCHED_RR;
+		break;
+	}
+
+	return error;
 }
