@@ -50,10 +50,11 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/kthread.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
-#include <sys/kthread.h>
 #elif defined(__FreeBSD__)
+#include <sys/unistd.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/filio.h>
@@ -116,12 +117,7 @@ struct usb_softc {
 	usbd_bus_handle sc_bus;		/* USB controller */
 	struct usbd_port sc_port;	/* dummy port for root hub */
 
-#if defined(__FreeBSD__)
-	/* This part should be deleted when kthreads is available */
-	struct selinfo	sc_consel;	/* waiting for connect change */
-#else
 	struct proc    *sc_event_thread;
-#endif
 
 	char		sc_dying;
 };
@@ -153,18 +149,16 @@ struct cdevsw usb_cdevsw = {
 #endif
 
 Static usbd_status usb_discover(struct usb_softc *);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 Static void	usb_create_event_thread(void *);
 Static void	usb_event_thread(void *);
-#endif
 
 #define USB_MAX_EVENTS 50
 struct usb_event_q {
 	struct usb_event ue;
-	SIMPLEQ_ENTRY(usb_event_q) next;
+	TAILQ_ENTRY(usb_event_q) next;
 };
-Static SIMPLEQ_HEAD(, usb_event_q) usb_events =
-	SIMPLEQ_HEAD_INITIALIZER(usb_events);
+Static TAILQ_HEAD(, usb_event_q) usb_events =
+	TAILQ_HEAD_INITIALIZER(usb_events);
 Static int usb_nevents = 0;
 Static struct selinfo usb_selevent;
 Static struct proc *usb_async_proc;  /* process who wants USB SIGIO */
@@ -257,10 +251,14 @@ USB_ATTACH(usb)
 		sc->sc_dying = 1;
 	}
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	kthread_create(usb_create_event_thread, sc);
+#endif
 
 #if defined(__FreeBSD__)
+	usb_create_event_thread(sc);
 	/* The per controller devices (used for usb_discover) */
+	/* XXX This is redundant now, but old usbd's will want it */
 	make_dev(&usb_cdevsw, device_get_unit(self), UID_ROOT, GID_OPERATOR,
 		0660, "usb%d", device_get_unit(self));
 	if (!global_init_done) {
@@ -274,7 +272,6 @@ USB_ATTACH(usb)
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 void
 usb_create_event_thread(arg)
 	void *arg;
@@ -282,9 +279,9 @@ usb_create_event_thread(arg)
 	struct usb_softc *sc = arg;
 
 	if (kthread_create1(usb_event_thread, sc, &sc->sc_event_thread,
-			   "%s", sc->sc_dev.dv_xname)) {
+			   "%s", USBDEVNAME(sc->sc_dev))) {
 		printf("%s: unable to create event thread for\n",
-		       sc->sc_dev.dv_xname);
+		       USBDEVNAME(sc->sc_dev));
 		panic("usb_create_event_thread");
 	}
 }
@@ -294,6 +291,11 @@ usb_event_thread(arg)
 	void *arg;
 {
 	struct usb_softc *sc = arg;
+	int to;
+
+#ifdef __FreeBSD__
+	mtx_lock(&Giant);
+#endif
 
 	DPRINTF(("usb_event_thread: start\n"));
 
@@ -302,12 +304,12 @@ usb_event_thread(arg)
 		if (usb_noexplore < 2)
 #endif
 		usb_discover(sc);
-		(void)tsleep(&sc->sc_bus->needs_explore, PWAIT, "usbevt",
+		to = hz * 60;
 #ifdef USB_DEBUG
-			     usb_noexplore ? 0 :
+		if (usb_noexplore)
+			to = 0;
 #endif
-			     hz*60
-                       );
+		(void)tsleep(&sc->sc_bus->needs_explore, PWAIT, "usbevt", to);
 		DPRINTFN(2,("usb_event_thread: woke up\n"));
 	}
 	sc->sc_event_thread = 0;
@@ -319,6 +321,7 @@ usb_event_thread(arg)
 	kthread_exit(0);
 }
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 int
 usbctlprint(aux, pnp)
 	void *aux;
@@ -446,9 +449,8 @@ usbioctl(devt, cmd, data, flag, p)
 
 	switch (cmd) {
 #if defined(__FreeBSD__) 
-	/* This part should be deleted when kthreads is available */
+	/* This part should be deleted */
   	case USB_DISCOVER:
-  		usb_discover(sc);
   		break;
 #endif
 #ifdef USB_DEBUG
@@ -567,22 +569,7 @@ usbpoll(dev, events, p)
 		return (revents);
 	} else {
 #if defined(__FreeBSD__)
-		/* This part should be deleted when kthreads is available */
-		struct usb_softc *sc;
-
-		USB_GET_SC(usb, unit, sc);
-
-		revents = 0;
-		mask = POLLOUT | POLLRDNORM;
-
-		s = splusb();
-		if ((events & mask) && sc->sc_bus->needs_explore)
-			revents |= events & mask;
-		if (revents == 0 && (events & mask))
-			selrecord(p, &sc->sc_consel);
-		splx(s);
-
-		return (revents);
+		return (0);	/* select/poll never wakes up - back compat */
 #else
 		return (ENXIO);
 #endif
@@ -595,7 +582,7 @@ usb_discover(sc)
 	struct usb_softc *sc;
 {
 #if defined(__FreeBSD__)
-	/* The splxxx parts should be deleted when kthreads is available */
+	/* splxxx should be changed to mutexes for preemption safety some day */
 	int s;
 #endif
 
@@ -629,10 +616,6 @@ usb_needs_explore(bus)
 	usbd_bus_handle bus;
 {
 	bus->needs_explore = 1;
-#if defined(__FreeBSD__)
-	/* This part should be deleted when kthreads is available */
-	selwakeup(&bus->usbctl->sc_consel);
-#endif
 	wakeup(&bus->needs_explore);
 }
 
@@ -645,9 +628,14 @@ usb_get_next_event(ue)
 
 	if (usb_nevents <= 0)
 		return (0);
-	ueq = SIMPLEQ_FIRST(&usb_events);
+	ueq = TAILQ_FIRST(&usb_events);
+	if (ueq == NULL) {
+		printf("usb: usb_nevents got out of sync! %d\n", usb_nevents);
+		usb_nevents = 0;
+		return (0);
+	}
 	*ue = ueq->ue;
-	SIMPLEQ_REMOVE_HEAD(&usb_events, ueq, next);
+	TAILQ_REMOVE(&usb_events, ueq, next);
 	free(ueq, M_USBDEV);
 	usb_nevents--;
 	return (1);
@@ -658,13 +646,24 @@ usbd_add_event(type, dev)
 	int type;
 	usbd_device_handle dev;
 {
-	struct usb_event_q *ueq;
+	struct usb_event_q *ueq, *ueq_next;
 	struct usb_event ue;
 	struct timeval thetime;
 	int s;
 
 	s = splusb();
-	if (++usb_nevents >= USB_MAX_EVENTS) {
+	if (type == USB_EVENT_DETACH) {
+		for (ueq = TAILQ_FIRST(&usb_events); ueq; ueq = ueq_next) {
+			ueq_next = TAILQ_NEXT(ueq, next);
+			if (ueq->ue.ue_cookie.cookie == dev->cookie.cookie) {
+				TAILQ_REMOVE(&usb_events, ueq, next);
+				free(ueq, M_USBDEV);
+				usb_nevents--;
+				ueq_next = TAILQ_FIRST(&usb_events);
+			}
+		}
+	}
+	if (usb_nevents >= USB_MAX_EVENTS) {
 		/* Too many queued events, drop an old one. */
 		DPRINTF(("usb: event dropped\n"));
 		(void)usb_get_next_event(&ue);
@@ -681,7 +680,8 @@ usbd_add_event(type, dev)
 	usbd_fill_deviceinfo(dev, &ueq->ue.ue_device);
 	microtime(&thetime);
 	TIMEVAL_TO_TIMESPEC(&thetime, &ueq->ue.ue_time);
-	SIMPLEQ_INSERT_TAIL(&usb_events, ueq, next);
+	TAILQ_INSERT_TAIL(&usb_events, ueq, next);
+	usb_nevents++;
 	wakeup(&usb_events);
 	selwakeup(&usb_selevent);
 	if (usb_async_proc != NULL) {

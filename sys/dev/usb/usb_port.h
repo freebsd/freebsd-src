@@ -290,9 +290,8 @@ __CONCAT(dname,_detach)(self, flags) \
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
 #define bswap32(x)		swap32(x)
-#define kthread_create1(function, sc, priv, string, name)
-#define kthread_create(create_function, sc)
-#define kthread_exit(err)
+#define kthread_create1(f, s, p, a0, a1) \
+		kthread_create((f), (s), (p), RFHIGHPID, (a0), (a1))
 
 #define usb_timeout(f, d, t, h) ((h) = timeout((f), (d), (t)))
 #define usb_untimeout(f, d, h) untimeout((f), (d), (h))
