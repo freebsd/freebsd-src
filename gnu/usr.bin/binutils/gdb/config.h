@@ -3,18 +3,6 @@
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
-/* Whether malloc must be declared even if <stdlib.h> is included.  */
-/* #undef NEED_DECLARATION_MALLOC */
-
-/* Whether realloc must be declared even if <stdlib.h> is included.  */
-/* #undef NEED_DECLARATION_REALLOC */
-
-/* Whether free must be declared even if <stdlib.h> is included.  */
-/* #undef NEED_DECLARATION_FREE */
-
-/* Whether strerror must be declared even if <string.h> is included.  */
-/* #undef NEED_DECLARATION_STRERROR */
-
 /* Define if on AIX 3.
    System headers sometimes define this.
    We just want to avoid a redefinition error message.  */
@@ -44,17 +32,23 @@
 /* Define if you have a working `mmap' system call.  */
 #define HAVE_MMAP 1
 
+/* Define if you have <vfork.h>.  */
+/* #undef HAVE_VFORK_H */
+
 /* Define as __inline if that's what the C compiler calls it.  */
 /* #undef inline */
 
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
 
-/* Define if you need to in order for stat and other things to work.  */
-/* #undef _POSIX_SOURCE */
+/* Define to `int' if <sys/types.h> doesn't define.  */
+/* #undef pid_t */
 
 /* Define as the return type of signal handlers (int or void).  */
 #define RETSIGTYPE void
+
+/* Define if the `setpgrp' function takes no argument.  */
+/* #undef SETPGRP_VOID */
 
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 /* #undef size_t */
@@ -74,12 +68,43 @@
 /* Define if you have the ANSI C header files.  */
 #define STDC_HEADERS 1
 
+/* Define vfork as fork if vfork does not work.  */
+/* #undef vfork */
+
+/* Define if compiling on Solaris 7. */
+/* #undef _MSE_INT_H */
+
+/* Define if your struct reg has r_fs.  */
+#define HAVE_STRUCT_REG_R_FS 1
+
+/* Define if your struct reg has r_gs.  */
+#define HAVE_STRUCT_REG_R_GS 1
+
+/* Define if <link.h> exists and defines struct link_map which has
+   members with an ``l_'' prefix.  (For Solaris, SVR4, and
+   SVR4-like systems.) */
+#define HAVE_STRUCT_LINK_MAP_WITH_L_MEMBERS 1
+
+/* Define if <link.h> exists and defines struct link_map which has
+  members with an ``lm_'' prefix.  (For SunOS.)  */
+/* #undef HAVE_STRUCT_LINK_MAP_WITH_LM_MEMBERS */
+
+/* Define if <link.h> exists and defines a struct so_map which has
+  members with an ``som_'' prefix.  (Found on older *BSD systems.)  */
+/* #undef HAVE_STRUCT_SO_MAP_WITH_SOM_MEMBERS */
+
+/* Define if <sys/link.h> has struct link_map32 */
+/* #undef HAVE_STRUCT_LINK_MAP32 */
+
+/* Define if the prfpregset_t type is broken. */
+/* #undef PRFPREGSET_T_BROKEN */
+
+/* Define if you want to use new multi-fd /proc interface
+   (replaces HAVE_MULTIPLE_PROC_FDS as well as other macros). */
+/* #undef NEW_PROC_API */
+
 /* Define if ioctl argument PIOCSET is available. */
 /* #undef HAVE_PROCFS_PIOCSET */
-
-/* /proc PID entries are directories containing the files
-   ctl as map status */
-/* #undef HAVE_MULTIPLE_PROC_FDS */
 
 /* Define if the `long long' type works.  */
 #define CC_HAS_LONG_LONG 1
@@ -112,18 +137,55 @@
    to explicitly deallocate that memory when gdb calls exit. */
 /* #undef MMCHECK_FORCE */
 
-/* Define if you want to use the full-screen terminal user interface.  */
-/* #undef TUI */
-
 /* Define if <proc_service.h> on solaris uses int instead of
    size_t, and assorted other type changes. */
 /* #undef PROC_SERVICE_IS_OLD */
 
+/* If you want to specify a default CPU variant, define this to be its
+   name, as a C string.  */
+/* #undef TARGET_CPU_DEFAULT */
+
+/* Define if the simulator is being linked in.  */
+/* #undef WITH_SIM */
+
 /* Set to true if the save_state_t structure is present */
-#define HAVE_STRUCT_SAVE_STATE_T 0
+/* #undef HAVE_STRUCT_SAVE_STATE_T */
 
 /* Set to true if the save_state_t structure has the ss_wide member */
-#define HAVE_STRUCT_MEMBER_SS_WIDE 0
+/* #undef HAVE_STRUCT_MEMBER_SS_WIDE */
+
+/* Define if <sys/ptrace.h> defines the PTRACE_GETREGS request.  */
+/* #undef HAVE_PTRACE_GETREGS */
+
+/* Define if <sys/ptrace.h> defines the PTRACE_GETFPXREGS request.  */
+/* #undef HAVE_PTRACE_GETFPXREGS */
+
+/* Define if <sys/ptrace.h> defines the PT_GETDBREGS request.  */
+#define HAVE_PT_GETDBREGS 1
+
+/* Define if <sys/ptrace.h> defines the PT_GETXMMREGS request.  */
+/* #undef HAVE_PT_GETXMMREGS */
+
+/* Define if gnu-regex.c included with GDB should be used. */
+#define USE_INCLUDED_REGEX 1
+
+/* BFD's default architecture. */
+#define DEFAULT_BFD_ARCH bfd_i386_arch
+
+/* BFD's default target vector. */
+#define DEFAULT_BFD_VEC bfd_elf32_i386_vec
+
+/* Multi-arch enabled. */
+/* #undef GDB_MULTI_ARCH */
+
+/* hostfile */
+#define GDB_XM_FILE config/i386/xm-i386.h
+
+/* targetfile */
+#define GDB_TM_FILE config/i386/tm-fbsd.h
+
+/* nativefile */
+#define GDB_NM_FILE config/i386/nm-fbsd.h
 
 /* Define if you have the __argz_count function.  */
 /* #undef HAVE___ARGZ_COUNT */
@@ -143,6 +205,9 @@
 /* Define if you have the bzero function.  */
 #define HAVE_BZERO 1
 
+/* Define if you have the canonicalize_file_name function.  */
+/* #undef HAVE_CANONICALIZE_FILE_NAME */
+
 /* Define if you have the dcgettext function.  */
 /* #undef HAVE_DCGETTEXT */
 
@@ -158,8 +223,14 @@
 /* Define if you have the munmap function.  */
 #define HAVE_MUNMAP 1
 
+/* Define if you have the poll function.  */
+#define HAVE_POLL 1
+
 /* Define if you have the putenv function.  */
 #define HAVE_PUTENV 1
+
+/* Define if you have the realpath function.  */
+#define HAVE_REALPATH 1
 
 /* Define if you have the sbrk function.  */
 #define HAVE_SBRK 1
@@ -173,8 +244,20 @@
 /* Define if you have the setpgid function.  */
 #define HAVE_SETPGID 1
 
+/* Define if you have the setpgrp function.  */
+#define HAVE_SETPGRP 1
+
 /* Define if you have the sigaction function.  */
 #define HAVE_SIGACTION 1
+
+/* Define if you have the sigprocmask function.  */
+#define HAVE_SIGPROCMASK 1
+
+/* Define if you have the sigsetmask function.  */
+#define HAVE_SIGSETMASK 1
+
+/* Define if you have the socketpair function.  */
+#define HAVE_SOCKETPAIR 1
 
 /* Define if you have the stpcpy function.  */
 /* #undef HAVE_STPCPY */
@@ -197,8 +280,8 @@
 /* Define if you have the <curses.h> header file.  */
 #define HAVE_CURSES_H 1
 
-/* Define if you have the <endian.h> header file.  */
-/* #undef HAVE_ENDIAN_H */
+/* Define if you have the <dirent.h> header file.  */
+#define HAVE_DIRENT_H 1
 
 /* Define if you have the <limits.h> header file.  */
 #define HAVE_LIMITS_H 1
@@ -215,11 +298,26 @@
 /* Define if you have the <memory.h> header file.  */
 #define HAVE_MEMORY_H 1
 
+/* Define if you have the <ncurses.h> header file.  */
+#define HAVE_NCURSES_H 1
+
+/* Define if you have the <ndir.h> header file.  */
+/* #undef HAVE_NDIR_H */
+
 /* Define if you have the <nl_types.h> header file.  */
 #define HAVE_NL_TYPES_H 1
 
+/* Define if you have the <nlist.h> header file.  */
+#define HAVE_NLIST_H 1
+
 /* Define if you have the <objlist.h> header file.  */
 /* #undef HAVE_OBJLIST_H */
+
+/* Define if you have the <poll.h> header file.  */
+#define HAVE_POLL_H 1
+
+/* Define if you have the <proc_service.h> header file.  */
+/* #undef HAVE_PROC_SERVICE_H */
 
 /* Define if you have the <ptrace.h> header file.  */
 /* #undef HAVE_PTRACE_H */
@@ -230,6 +328,9 @@
 /* Define if you have the <stddef.h> header file.  */
 #define HAVE_STDDEF_H 1
 
+/* Define if you have the <stdint.h> header file.  */
+#define HAVE_STDINT_H 1
+
 /* Define if you have the <stdlib.h> header file.  */
 #define HAVE_STDLIB_H 1
 
@@ -239,8 +340,29 @@
 /* Define if you have the <sys/debugreg.h> header file.  */
 /* #undef HAVE_SYS_DEBUGREG_H */
 
+/* Define if you have the <sys/dir.h> header file.  */
+/* #undef HAVE_SYS_DIR_H */
+
+/* Define if you have the <sys/fault.h> header file.  */
+/* #undef HAVE_SYS_FAULT_H */
+
+/* Define if you have the <sys/file.h> header file.  */
+#define HAVE_SYS_FILE_H 1
+
+/* Define if you have the <sys/filio.h> header file.  */
+#define HAVE_SYS_FILIO_H 1
+
+/* Define if you have the <sys/ioctl.h> header file.  */
+#define HAVE_SYS_IOCTL_H 1
+
+/* Define if you have the <sys/ndir.h> header file.  */
+/* #undef HAVE_SYS_NDIR_H */
+
 /* Define if you have the <sys/param.h> header file.  */
 #define HAVE_SYS_PARAM_H 1
+
+/* Define if you have the <sys/poll.h> header file.  */
+#define HAVE_SYS_POLL_H 1
 
 /* Define if you have the <sys/procfs.h> header file.  */
 #define HAVE_SYS_PROCFS_H 1
@@ -250,6 +372,15 @@
 
 /* Define if you have the <sys/reg.h> header file.  */
 /* #undef HAVE_SYS_REG_H */
+
+/* Define if you have the <sys/select.h> header file.  */
+#define HAVE_SYS_SELECT_H 1
+
+/* Define if you have the <sys/syscall.h> header file.  */
+#define HAVE_SYS_SYSCALL_H 1
+
+/* Define if you have the <sys/user.h> header file.  */
+#define HAVE_SYS_USER_H 1
 
 /* Define if you have the <sys/wait.h> header file.  */
 #define HAVE_SYS_WAIT_H 1
@@ -263,6 +394,12 @@
 /* Define if you have the <termios.h> header file.  */
 #define HAVE_TERMIOS_H 1
 
+/* Define if you have the <thread_db.h> header file.  */
+/* #undef HAVE_THREAD_DB_H */
+
+/* Define if you have the <time.h> header file.  */
+#define HAVE_TIME_H 1
+
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
 
@@ -273,16 +410,19 @@
 /* #undef HAVE_WAIT_H */
 
 /* Define if you have the <wchar.h> header file.  */
-/* #undef HAVE_WCHAR_H */
+#define HAVE_WCHAR_H 1
 
 /* Define if you have the <wctype.h> header file.  */
-/* #undef HAVE_WCTYPE_H */
+#define HAVE_WCTYPE_H 1
 
 /* Define if you have the dl library (-ldl).  */
 /* #undef HAVE_LIBDL */
 
 /* Define if you have the m library (-lm).  */
 #define HAVE_LIBM 1
+
+/* Define if you have the socket library (-lsocket).  */
+/* #undef HAVE_LIBSOCKET */
 
 /* Define if you have the w library (-lw).  */
 /* #undef HAVE_LIBW */
@@ -299,6 +439,9 @@
 /* Define as 1 if you have gettext and don't want to use GNU gettext. */
 /* #undef HAVE_GETTEXT */
 
+/* Define if sigsetjmp is available.  */
+#define HAVE_SIGSETJMP 1
+
 /* Define if malloc is not declared in system header files. */
 /* #undef NEED_DECLARATION_MALLOC */
 
@@ -314,6 +457,9 @@
 /* Define if strdup is not declared in system header files. */
 /* #undef NEED_DECLARATION_STRDUP */
 
+/* Define if strstr is not declared in system header files. */
+/* #undef NEED_DECLARATION_STRSTR */
+
 /* Define if <sys/procfs.h> has pstatus_t. */
 /* #undef HAVE_PSTATUS_T */
 
@@ -327,4 +473,34 @@
 
 /* Define if <sys/procfs.h> has fpregset_t. */
 #define HAVE_FPREGSET_T 1
+
+/* Define if <sys/procfs.h> has prgregset_t. */
+/* #undef HAVE_PRGREGSET_T */
+
+/* Define if <sys/procfs.h> has prfpregset_t. */
+#define HAVE_PRFPREGSET_T 1
+
+/* Define if <sys/procfs.h> has prgregset32_t. */
+/* #undef HAVE_PRGREGSET32_T */
+
+/* Define if <sys/procfs.h> has prfpregset32_t. */
+/* #undef HAVE_PRFPREGSET32_T */
+
+/* Define if <sys/procfs.h> has lwpid_t. */
+/* #undef HAVE_LWPID_T */
+
+/* Define if <sys/procfs.h> has psaddr_t. */
+/* #undef HAVE_PSADDR_T */
+
+/* Define if <sys/procfs.h> has prsysent_t. */
+/* #undef HAVE_PRSYSENT_T */
+
+/* Define if <sys/procfs.h> has pr_sigset_t. */
+/* #undef HAVE_PR_SIGSET_T */
+
+/* Define if <sys/procfs.h> has pr_sigaction64_t. */
+/* #undef HAVE_PR_SIGACTION64_T */
+
+/* Define if <sys/procfs.h> has pr_siginfo64_t. */
+/* #undef HAVE_PR_SIGINFO64_T */
 
