@@ -63,7 +63,7 @@ dofs_vn () {
 	trap "umount ${MNT}; vnconfig -u /dev/r${VNDEVICE}; rm -f /dev/*vnn*" EXIT
 
 	disklabel -w ${BOOT} ${VNDEVICE} ${FSLABEL}
-	newfs -i ${FSINODE} -o space -m 0 /dev/r${VNDEVICE}c
+	newfs -O1 -i ${FSINODE} -o space -m 0 /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
 
@@ -105,7 +105,7 @@ dofs_md () {
 	trap "umount ${MNT}; mdconfig -d -u ${MDDEVICE}" EXIT
 
 	${DISKLABEL} ${MACHINE} -w ${BOOT} ${MDDEVICE} ${FSLABEL}
-	newfs -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
+	newfs -O1 -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
 
 	mount /dev/${MDDEVICE}c ${MNT}
 
