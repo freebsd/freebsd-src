@@ -77,7 +77,6 @@ vop_unlock_t coda_unlock;
 vop_islocked_t coda_islocked;
 int coda_vop_error(void *);
 int coda_vop_nop(void *);
-int coda_fbsd_getpages	(void *);
 vop_pathconf_t coda_pathconf;
 
 int coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw,
