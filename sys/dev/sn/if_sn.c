@@ -228,8 +228,7 @@ sn_attach(device_t dev)
 	ifp->if_ioctl = snioctl;
 	ifp->if_watchdog = snwatchdog;
 	ifp->if_init = sninit;
-	ifp->if_snd.ifq_maxlen = 8;
-
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_timer = 0;
 
 	if_attach(ifp);
@@ -1287,7 +1286,7 @@ sn_activate(device_t dev)
 	    0, ~0, 1, RF_ACTIVE);
 	if (!sc->irq_res) {
 #ifdef SN_DEBUG
-		deivce_printf(dev, "Cannot allocate irq\n");
+		device_printf(dev, "Cannot allocate irq\n");
 #endif
 		sn_deactivate(dev);
 		return ENOMEM;
