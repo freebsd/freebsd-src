@@ -61,15 +61,15 @@ square brackets (`[' and `]') are used to show optional
 keywords and parameters.
 The vertical bar (`|') is used to indicate
 between a choice of optional parameters.
-Parentheses (`(' and
-`)') are used to group keywords and parameters when necessary.
+Curly braces (`{' and
+`}') are used to group keywords and parameters when necessary.
 .\"
 .Sh Interface specification
 There are some statements that may or have to specify interface.
 Interfaces are specified in the form of "name unit", such as
 .Ar lo0
 and
-.Ar ep1.
+.Ar ep1 .
 .\"
 .Sh Configuration Statements
 .Bl -tag -width Ds
@@ -164,7 +164,7 @@ copied to the starting part of prefixes to be added on
 .Cm add|change|setglobal
 command, as decimal bit number.
 .It Cm keeplen Ar keeplen-val
-Specify the midium part of
+Specify the medium part of
 .Ar use-prefix-val
 just next to the starting part specified by
 .Ar use-prefix-len
@@ -250,7 +250,7 @@ fec0:0:0::/48 and with its own subnet number.
 (in this case,
 subnet number is 7th and 8th octet value of the prefix)
 .Pp
-If you want to assigne prefixes beginning with fec0:1:1::/48
+If you want to assign prefixes beginning with fec0:1:1::/48
 to each subnet, then following configuration will be enough,
 if each of your routers supports IPv6 multicast forwarding.
 The subnet number of the existing fec0:0:0::/48 prefix and the
@@ -278,7 +278,7 @@ add match-prefix fec0:0:0:: /48 use-prefix fec0:1:1:: /48 keeplen 16;
 If you are going to do renumbering, then following procedure will be natural.
 .Bl -enum -offset indent
 .It
-Assigne new prefix.
+Assign new prefix.
 .It
 Set old prefix lifetimes to some appropriate transition
 period.
@@ -334,7 +334,7 @@ command is almost same with
 command except that it deletes all pre-defined IPv6 global address.
 
 .Sh SEE ALSO
-.Xr rrenumd 8
+.Xr rrenumd 8 ,
 .Xr prefix 8
 .Sh HISTORY
 The
