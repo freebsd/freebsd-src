@@ -23,9 +23,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include <stand.h>
 #include <string.h>
@@ -50,7 +53,7 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 {
 	int i;
 	EFI_PHYSICAL_ADDRESS mem;
-    
+
 	efi_init(image_handle, system_table);
 
 	/* 
@@ -73,7 +76,7 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	/*
 	 * Initialise the block cache
 	 */
-	bcache_init(32, 512);	/* 16k XXX tune this */
+	bcache_init(32, 512);		/* 16k XXX tune this */
 
 	/*
 	 * March through the device switch probing for things.
@@ -89,7 +92,6 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	printf("Memory: %ld k\n", memsize() / 1024);
 #endif
     
-	/* We're booting from an SRM disk, try to spiff this */
 	/* XXX presumes that biosdisk is first in devsw */
 	currdev.d_dev = devsw[0];
 	currdev.d_type = currdev.d_dev->dv_type;
@@ -105,13 +107,13 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	if (bootfile)
 		setenv("bootfile", bootfile, 1);
 
-	env_setenv("currdev", EV_VOLATILE,
-		   arc_fmtdev(&currdev), arc_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE,
-		   arc_fmtdev(&currdev), env_noset, env_nounset);
+	env_setenv("currdev", EV_VOLATILE, arc_fmtdev(&currdev),
+	    arc_setcurrdev, env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, arc_fmtdev(&currdev), env_noset,
+	    env_nounset);
 #endif
 
-	setenv("LINES", "24", 1);				/* optional */
+	setenv("LINES", "24", 1);	/* optional */
     
 	archsw.arch_autoload = efi_autoload;
 	archsw.arch_getdev = efi_getdev;
@@ -121,7 +123,7 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 
 	interact();			/* doesn't return */
 
-	return EFI_SUCCESS;		/* keep compiler happy */
+	return (EFI_SUCCESS);		/* keep compiler happy */
 }
 
 COMMAND_SET(quit, "quit", "exit the loader", command_quit);
@@ -129,6 +131,6 @@ COMMAND_SET(quit, "quit", "exit the loader", command_quit);
 static int
 command_quit(int argc, char *argv[])
 {
-    exit(0);
-    return(CMD_OK);
+	exit(0);
+	return (CMD_OK);
 }

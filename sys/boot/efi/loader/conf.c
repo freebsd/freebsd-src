@@ -1,9 +1,4 @@
 /*
- * $FreeBSD$
- * From	$NetBSD: conf.c,v 1.2 1997/03/22 09:03:29 thorpej Exp $	 
- */
-
-/*
  * Copyright (c) 1997
  *	Matthias Drochner.  All rights reserved.
  *
@@ -32,8 +27,14 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$NetBSD: conf.c,v 1.2 1997/03/22 09:03:29 thorpej Exp $	 
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include <stand.h>
 #include <efi.h>
@@ -52,14 +53,14 @@
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
-/*    &efi_disk, */
-    NULL
+/*	&efi_disk, */
+	NULL
 };
 
 struct fs_ops *file_system[] = {
-    &ufs_fsops,
-    &zipfs_fsops,
-    NULL
+	&ufs_fsops,
+	&zipfs_fsops,
+	NULL
 };
 
 /* Exported for ia64 only */
@@ -70,8 +71,8 @@ struct fs_ops *file_system[] = {
 extern struct file_format ia64_elf;
 
 struct file_format *file_formats[] = {
-/*    &ia64_elf, */
-    NULL
+/*	&ia64_elf, */
+	NULL
 };
 
 /* 
@@ -83,6 +84,6 @@ struct file_format *file_formats[] = {
 extern struct console efi_console;
 
 struct console *consoles[] = {
-    &efi_console,
-    NULL
+	&efi_console,
+	NULL
 };
