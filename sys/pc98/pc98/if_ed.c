@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.52 1998/09/14 11:37:29 kato Exp $
+ *	$Id: if_ed.c,v 1.53 1998/10/08 17:04:58 kato Exp $
  */
 
 /*
@@ -356,16 +356,6 @@ static unsigned short ed_intr_mask[] = {
  * Interrupt conversion table for 83C790
  */
 static unsigned short ed_790_intr_mask[] = {
-#ifdef PC98
-	0,
-	IRQ3,
-	IRQ5,
-	IRQ6,
-	0,
-	IRQ9,
-	IRQ12,
-	IRQ13
-#else
 	0,
 	IRQ9,
 	IRQ3,
@@ -374,7 +364,6 @@ static unsigned short ed_790_intr_mask[] = {
 	IRQ10,
 	IRQ11,
 	IRQ15
-#endif
 };
 
 /*
