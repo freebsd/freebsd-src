@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.20 1996/06/13 02:54:03 davidg Exp $
+ * $Id: if_ethersubr.c,v 1.21 1996/06/19 01:50:10 julian Exp $
  */
 
 #include <sys/param.h>
@@ -785,3 +785,87 @@ ether_delmulti(ifr, ac)
 }
 
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
+
+void
+ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
+{
+	struct ifaddr *ifa = (struct ifaddr *) data;
+	struct ifreq *ifr = (struct ifreq *) data;
+
+	switch (command) {
+	case SIOCSIFADDR:
+		ifp->if_flags |= IFF_UP;
+
+		switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+		case AF_INET:
+			ifp->if_init(ifp->if_softc);	/* before arpwhohas */
+			arp_ifinit((struct arpcom *)ifp, ifa);
+			break;
+#endif
+#ifdef IPX
+		/*
+		 * XXX - This code is probably wrong
+		 */
+		case AF_IPX:
+			{
+			register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+
+			if (ipx_nullhost(*ina))
+				ina->x_host =
+				    *(union ipx_host *) (sc->arpcom.ac_enaddr);
+			else {
+				bcopy((caddr_t) ina->x_host.c_host,
+				      (caddr_t) sc->arpcom.ac_enaddr,
+				      sizeof(sc->arpcom.ac_enaddr));
+			}
+
+			/*
+			 * Set new address
+			 */
+			ifp->if_init(ifp->if_softc);
+			break;
+			}
+#endif
+#ifdef NS
+		/*
+		 * XXX - This code is probably wrong
+		 */
+		case AF_NS:
+		{
+			register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
+
+			if (ns_nullhost(*ina))
+				ina->x_host =
+				    *(union ns_host *) (sc->arpcom.ac_enaddr);
+			else {
+				bcopy((caddr_t) ina->x_host.c_host,
+				      (caddr_t) sc->arpcom.ac_enaddr,
+				      sizeof(sc->arpcom.ac_enaddr));
+			}
+
+			/*
+			 * Set new address
+			 */
+			ifp->if_init(ifp->if_softc);
+			break;
+		}
+#endif
+		default:
+			ifp->if_init(ifp->if_softc);
+			break;
+		}
+		break;
+
+	case SIOCGIFADDR:
+		{
+			struct sockaddr *sa;
+
+			sa = (struct sockaddr *) & ifr->ifr_data;
+			bcopy((caddr_t) ifp->if_softc,
+			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
+		}
+		break;
+	}
+	return;
+}
