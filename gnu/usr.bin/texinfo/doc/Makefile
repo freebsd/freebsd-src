@@ -1,8 +1,7 @@
-INFO=		info info-stnd makeinfo texi
-.if exists(${.OBJDIR}/../makeinfo)
-MAKEINFO=	${.OBJDIR}/../makeinfo/makeinfo
-.else
-MAKEINFO=      	${.CURDIR}/../makeinfo/makeinfo
-.endif
+#	$Id$
+
+INFO=	texinfo info info-stnd makeinfo
 
 .include <bsd.info.mk>
+
+.PATH: ${TXIDIR} ${TXIDIR}/info ${TXIDIR}/makeinfo

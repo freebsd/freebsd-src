@@ -1,3 +1,11 @@
-# Texinfo defaults.
-# $Id: Makefile.inc,v 1.4 1995/07/16 10:23:51 joerg Exp $
+#	$Id$
 
+TXIDIR=	${.CURDIR}/../../../../contrib/texinfo
+
+.if exists(${.OBJDIR}/../libtxi)
+LIBTXI=	${.OBJDIR}/../libtxi/libtxi.a
+.else
+LIBTXI=	${.CURDIR}/../libtxi/libtxi.a
+.endif
+
+.include "../../Makefile.inc"
