@@ -953,17 +953,17 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 		       c_linker_sym_t* sym, long* diffp)
 {
 	elf_file_t ef = lf->priv;
-	u_long off = (uintptr_t) value;
+	u_long off = (uintptr_t) (void *) value;
 	u_long diff = off;
+	u_long st_value;
 	const Elf_Sym* es;
 	const Elf_Sym* best = 0;
 	int i;
-	u_long st_value;
 
 	for (i = 0, es = ef->ddbsymtab; i < ef->ddbsymcnt; i++, es++) {
 		if (es->st_name == 0)
 			continue;
-		st_value = es->st_value + (u_long)ef->address;
+		st_value = es->st_value + (uintptr_t) (void *) ef->address;
 		if (off >= st_value) {
 			if (off - st_value < diff) {
 				diff = off - st_value;
