@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.17 1997/11/06 19:29:24 phk Exp $ */
+/*	$Id: sysv_msg.c,v 1.18 1998/03/30 09:50:35 phk Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -993,10 +993,10 @@ msgrcv(p, uap)
 	for (len = 0; len < msgsz; len += msginfo.msgssz) {
 		size_t tlen;
 
-		if (msgsz > msginfo.msgssz)
+		if (msgsz - len > msginfo.msgssz)
 			tlen = msginfo.msgssz;
 		else
-			tlen = msgsz;
+			tlen = msgsz - len;
 		if (next <= -1)
 			panic("next too low #3");
 		if (next >= msginfo.msgseg)
