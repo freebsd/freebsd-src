@@ -20,7 +20,9 @@ NOASM=
 .include "${.CURDIR}/../libc/db/Makefile.inc"
 .include "${.CURDIR}/../libc/compat-43/Makefile.inc"
 .include "${.CURDIR}/../libc/gen/Makefile.inc"
+.if ${MACHINE_ARCH} != "powerpc"
 .include "${.CURDIR}/../libc/gmon/Makefile.inc"
+.endif
 .include "${.CURDIR}/../libc/locale/Makefile.inc"
 .include "${.CURDIR}/../libc/net/Makefile.inc"
 .include "${.CURDIR}/../libc/nls/Makefile.inc"
