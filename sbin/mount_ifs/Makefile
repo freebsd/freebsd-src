@@ -3,7 +3,10 @@
 
 PROG=	mount_ifs
 SRCS=	mount.c mount_ufs.c getmntopts.c
-NOMAN=	true
-# We do NOT install the getmntopts.3 man page.
+NOMAN=	noman
+
+MOUNT=	${.CURDIR}/../mount
+CFLAGS+= -I${MOUNT}
+.PATH:	${MOUNT}
 
 .include <bsd.prog.mk>
