@@ -29,6 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
+ *
  */
 
 #ifndef lint
@@ -121,7 +124,7 @@ int uu_unlock (char *ttyname)
 
 char *uu_lockerr (int uu_lockresult)
 {
-	static char errbuf[512];
+	static char errbuf[128];
 	char *fmt;
 
 	switch (uu_lockresult) {
