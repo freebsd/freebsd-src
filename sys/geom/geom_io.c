@@ -209,16 +209,63 @@ g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr)
 	return (error);
 }
 
+static int
+g_io_check(struct bio *bp)
+{
+	struct g_consumer *cp;
+	struct g_provider *pp;
+
+	cp = bp->bio_from;
+	pp = bp->bio_to;
+
+	/* Fail if access counters dont allow the operation */
+	switch(bp->bio_cmd) {
+	case BIO_READ:
+	case BIO_GETATTR:
+		if (cp->acr == 0)
+			return (EPERM);
+		break;
+	case BIO_WRITE:
+	case BIO_DELETE:
+	case BIO_SETATTR:
+		if (cp->acw == 0)
+			return (EPERM);
+		break;
+	default:
+		return (EPERM);
+	}
+	/* if provider is marked for error, don't disturb. */
+	if (pp->error)
+		return (pp->error);
+
+	switch(bp->bio_cmd) {
+	case BIO_READ:
+	case BIO_WRITE:
+	case BIO_DELETE:
+		/* Reject I/O not on sector boundary */
+		if (bp->bio_offset % pp->sectorsize)
+			return (EINVAL);
+		/* Reject I/O not integral sector long */
+		if (bp->bio_length % pp->sectorsize)
+			return (EINVAL);
+		/* Reject requests past the end of media. */
+		if (bp->bio_offset > pp->mediasize)
+			return (EIO);
+		break;
+	default:
+		break;
+	}
+	return (0);
+}
+
 void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
-	int error;
-	off_t excess;
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
 	KASSERT(bp->bio_data != NULL, ("NULL bp->data in g_io_request"));
-	error = 0;
+	KASSERT(bp->bio_to == NULL, ("consumer not attached in g_io_request"));
 	bp->bio_from = cp;
 	bp->bio_to = cp->provider;
 	bp->bio_error = 0;
@@ -227,82 +274,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	/* begin_stats(&bp->stats); */
 
 	atomic_add_int(&cp->biocount, 1);
-	/* Fail on unattached consumers */
-	if (bp->bio_to == NULL) {
-		g_io_deliver(bp, ENXIO);
-		return;
-	}
-	/* Fail if access doesn't allow operation */
-	switch(bp->bio_cmd) {
-	case BIO_READ:
-	case BIO_GETATTR:
-		if (cp->acr == 0) {
-			g_io_deliver(bp, EPERM);
-			return;
-		}
-		break;
-	case BIO_WRITE:
-	case BIO_DELETE:
-		if (cp->acw == 0) {
-			g_io_deliver(bp, EPERM);
-			return;
-		}
-		break;
-	case BIO_SETATTR:
-		/* XXX: Should ideally check for (cp->ace == 0) */
-		if ((cp->acw == 0)) {
-#ifdef DIAGNOSTIC
-			printf("setattr on %s mode (%d,%d,%d)\n",
-				cp->provider->name,
-				cp->acr, cp->acw, cp->ace);
-#endif
-			g_io_deliver(bp, EPERM);
-			return;
-		}
-		break;
-	default:
-		g_io_deliver(bp, EPERM);
-		return;
-	}
-	/* if provider is marked for error, don't disturb. */
-	if (bp->bio_to->error) {
-		g_io_deliver(bp, bp->bio_to->error);
-		return;
-	}
-	switch(bp->bio_cmd) {
-	case BIO_READ:
-	case BIO_WRITE:
-	case BIO_DELETE:
-		/* Reject I/O not on sector boundary */
-		if (bp->bio_offset % bp->bio_to->sectorsize) {
-			g_io_deliver(bp, EINVAL);
-			return;
-		}
-		/* Reject I/O not integral sector long */
-		if (bp->bio_length % bp->bio_to->sectorsize) {
-			g_io_deliver(bp, EINVAL);
-			return;
-		}
-		/* Reject requests past the end of media. */
-		if (bp->bio_offset > bp->bio_to->mediasize) {
-			g_io_deliver(bp, EIO);
-			return;
-		}
-		/* Truncate requests to the end of providers media. */
-		excess = bp->bio_offset + bp->bio_length;
-		if (excess > bp->bio_to->mediasize) {
-			excess -= bp->bio_to->mediasize;
-			bp->bio_length -= excess;
-		}
-		/* Deliver zero length transfers right here. */
-		if (bp->bio_length == 0) {
-			g_io_deliver(bp, 0);
-			return;
-		}
-		break;
-	default:
-		break;
-	}
+	
 	/* Pass it on down. */
 	g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
 	    bp, bp->bio_from, bp->bio_from->geom->name,
@@ -347,11 +319,29 @@ void
 g_io_schedule_down(struct thread *tp __unused)
 {
 	struct bio *bp;
+	off_t excess;
+	int error;
 
 	for(;;) {
 		bp = g_bioq_first(&g_bio_run_down);
 		if (bp == NULL)
 			break;
+		error = g_io_check(bp);
+		if (error) {
+			g_io_deliver(bp, error);
+			continue;
+		}
+		/* Truncate requests to the end of providers media. */
+		excess = bp->bio_offset + bp->bio_length;
+		if (excess > bp->bio_to->mediasize) {
+			excess -= bp->bio_to->mediasize;
+			bp->bio_length -= excess;
+		}
+		/* Deliver zero length transfers right here. */
+		if (bp->bio_length == 0) {
+			g_io_deliver(bp, 0);
+			continue;
+		}
 		bp->bio_to->geom->start(bp);
 		if (pace) {
 			pace--;
