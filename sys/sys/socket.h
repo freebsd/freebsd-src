@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.21 1997/08/16 19:16:14 wollman Exp $
+ * $Id: socket.h,v 1.22 1997/10/12 20:26:04 phk Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -378,12 +378,6 @@ int	socket __P((int, int, int));
 int	socketpair __P((int, int, int, int *));
 __END_DECLS
 
-#else /* KERNEL */
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_SOCKET);
-MALLOC_DECLARE(M_SONAME);
-MALLOC_DECLARE(M_PCB);
-#endif
-void	pfctlinput __P((int, struct sockaddr *));
 #endif /* !KERNEL */
+
 #endif /* !_SYS_SOCKET_H_ */
