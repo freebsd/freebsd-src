@@ -26,34 +26,36 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PSTATE_H_
-#define	_MACHINE_PSTATE_H_
+#ifndef	_MACHINE_VER_H_
+#define	_MACHINE_VER_H_
 
-#define	PSTATE_AG		(1<<0)
-#define	PSTATE_IE		(1<<1)
-#define	PSTATE_PRIV		(1<<2)
-#define	PSTATE_AM		(1<<3)
-#define	PSTATE_PEF		(1<<4)
-#define	PSTATE_RED		(1<<5)
+#define	VER_MANUF_SHIFT		(48)
+#define	VER_IMPL_SHIFT		(32)
+#define	VER_MASK_SHIFT		(24)
+#define	VER_MAXTL_SHIFT		(8)
+#define	VER_MAXWIN_SHIFT	(0)
 
-#define	PSTATE_MM_SHIFT		(6)
-#define	PSTATE_MM_MASK		((1<<PSTATE_MM_SHIFT)|(1<<(PSTATE_MM_SHIFT+1)))
-#define	PSTATE_MM_TSO		(0<<PSTATE_MM_SHIFT)
-#define	PSTATE_MM_PSO		(1<<PSTATE_MM_SHIFT)
-#define	PSTATE_MM_RMO		(2<<PSTATE_MM_SHIFT)
+#define	VER_MANUF_SIZE		(16)
+#define	VER_IMPL_SIZE		(16)
+#define	VER_MASK_SIZE		(8)
+#define	VER_MAXTL_SIZE		(8)
+#define	VER_MAXWIN_SIZE		(5)
 
-#define	PSTATE_TLE		(1<<8)
-#define	PSTATE_CLE		(1<<9)
-#define	PSTATE_MG		(1<<10)
-#define	PSTATE_IG		(1<<11)
+#define	VER_MANUF_MASK		(((1L<<VER_MANUF_SIZE)-1)<<VER_MANUF_SHIFT)
+#define	VER_IMPL_MASK		(((1L<<VER_IMPL_SIZE)-1)<<VER_IMPL_SHIFT)
+#define	VER_MASK_MASK		(((1L<<VER_MASK_SIZE)-1)<<VER_MASK_SHIFT)
+#define	VER_MAXTL_MASK		(((1L<<VER_MAXTL_SIZE)-1)<<VER_MAXTL_SHIFT)
+#define	VER_MAXWIN_MASK		(((1L<<VER_MAXWIN_SIZE)-1)<<VER_MAXWIN_SHIFT)
 
-#define	PSTATE_MM		PSTATE_MM_TSO
+#define	VER_MANUF(ver) \
+	(((ver) & VER_MANUF_MASK) >> VER_MANUF_SHIFT)
+#define	VER_IMPL(ver) \
+	(((ver) & VER_IMPL_MASK) >> VER_IMPL_SHIFT)
+#define	VER_MASK(ver) \
+	(((ver) & VER_MASK_MASK) >> VER_MASK_SHIFT)
+#define	VER_MAXTL(ver) \
+	(((ver) & VER_MAXTL_MASK) >> VER_MAXTL_SHIFT)
+#define	VER_MAXWIN(ver) \
+	(((ver) & VER_MAXWIN_MASK) >> VER_MAXWIN_SHIFT)
 
-#define	PSTATE_NORMAL		(PSTATE_MM | PSTATE_PEF | PSTATE_PRIV)
-#define	PSTATE_ALT		(PSTATE_NORMAL | PSTATE_AG)
-#define	PSTATE_INTR		(PSTATE_NORMAL | PSTATE_IG)
-#define	PSTATE_MMU		(PSTATE_NORMAL | PSTATE_MG)
-
-#define	PSTATE_KERNEL		(PSTATE_NORMAL | PSTATE_IE)
-
-#endif /* !_MACHINE_PSTATE_H_ */
+#endif /* !_MACHINE_VER_H_ */
