@@ -28,7 +28,7 @@ objc-parse.c c-parse.h: c-parse.in
 	${YACC} -d -o objc-parse.c objc-parse.y
 	mv objc-parse.h c-parse.h
 
-CLEANFILES+=	objc-parse.c c-parse.h objc-parse.y 	# insurance
+CLEANFILES+=	objc-parse.c c-parse.h objc-parse.y		# insurance
 
 #-----------------------------------------------------------------------
 
