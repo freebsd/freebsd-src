@@ -263,7 +263,7 @@ main(int ac, char **av)
 	/* Get user data. */
 	pw = getpwuid(original_real_uid);
 	if (!pw) {
-		log("You don't exist, go away!");
+		log("unknown user %d", original_real_uid);
 		exit(1);
 	}
 	/* Take a copy of the returned structure. */
