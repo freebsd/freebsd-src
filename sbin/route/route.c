@@ -33,13 +33,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1989, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -66,6 +70,8 @@ static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 #include <stdlib.h>
 #include <string.h>
 #include <paths.h>
+#include <err.h>
+#include <sysexits.h>
 
 struct keytab {
 	char	*kt_cp;
@@ -99,30 +105,19 @@ void	flushroutes(), newroute(), monitor(), sockaddr(), sodump(), bprintf();
 void	print_getmsg(), print_rtmsg(), pmsg_common(), pmsg_addrs(), mask_addr();
 int	getaddr(), rtmsg(), x25_makemask();
 extern	char *inet_ntoa(), *iso_ntoa(), *link_ntoa();
+extern	int ccitt_addr __P((char *, struct sockaddr_x25 *));
+
+__dead	void usage __P((const char *)) __dead2;
 
 __dead void
 usage(cp)
-	char *cp;
+	const char *cp;
 {
 	if (cp)
-		(void) fprintf(stderr, "route: botched keyword: %s\n", cp);
+		warnx("bad keyword: %s", cp);
 	(void) fprintf(stderr,
 	    "usage: route [ -nqv ] cmd [[ -<qualifers> ] args ]\n");
-	exit(1);
-	/* NOTREACHED */
-}
-
-void
-quit(s)
-	char *s;
-{
-	int sverrno = errno;
-
-	(void) fprintf(stderr, "route: ");
-	if (s)
-		(void) fprintf(stderr, "%s: ", s);
-	(void) fprintf(stderr, "%s\n", strerror(sverrno));
-	exit(1);
+	exit(EX_USAGE);
 	/* NOTREACHED */
 }
 
@@ -172,7 +167,7 @@ main(argc, argv)
 	else
 		s = socket(PF_ROUTE, SOCK_RAW, 0);
 	if (s < 0)
-		quit("socket");
+		err(EX_OSERR, "socket");
 	if (*argv)
 		switch (keyword(*argv)) {
 		case K_GET:
@@ -214,8 +209,7 @@ flushroutes(argc, argv)
 	register struct rt_msghdr *rtm;
 
 	if (uid) {
-		errno = EACCES;
-		quit("must be root to alter routing table");
+		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 	shutdown(s, 0); /* Don't want to read back our messages */
 	if (argc > 1) {
@@ -249,11 +243,11 @@ bad:			usage(*argv);
 	mib[4] = NET_RT_DUMP;
 	mib[5] = 0;		/* no flags */
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
-		quit("route-sysctl-estimate");
+		err(EX_OSERR, "route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
-		quit("malloc");
+		err(EX_OSERR, "malloc");
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
-		quit("actual retrieval of routing table");
+		err(EX_OSERR, "route-sysctl-get");
 	lim = buf + needed;
 	if (verbose)
 		(void) printf("Examining routing table from sysctl\n");
@@ -276,9 +270,7 @@ bad:			usage(*argv);
 		rtm->rtm_seq = seqno;
 		rlen = write(s, next, rtm->rtm_msglen);
 		if (rlen < (int)rtm->rtm_msglen) {
-			(void) fprintf(stderr,
-			    "route: write to routing socket: %s\n",
-			    strerror(errno));
+			warn("write to routing socket");
 			(void) printf("got only %d for rlen\n", rlen);
 			break;
 		}
@@ -342,7 +334,8 @@ routename(sa)
 		if (cp)
 			strcpy(line, cp);
 		else {
-#define C(x)	((x) & 0xff)
+			/* XXX - why not inet_ntoa()? */
+#define C(x)	(unsigned)((x) & 0xff)
 			in.s_addr = ntohl(in.s_addr);
 			(void) sprintf(line, "%u.%u.%u.%u", C(in.s_addr >> 24),
 			   C(in.s_addr >> 16), C(in.s_addr >> 8), C(in.s_addr));
@@ -505,8 +498,7 @@ newroute(argc, argv)
 	struct hostent *hp = 0;
 
 	if (uid) {
-		errno = EACCES;
-		quit("must be root to alter routing table");
+		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 	cmd = argv[0];
 	if (*cmd != 'g')
@@ -626,6 +618,7 @@ newroute(argc, argv)
 				gateway = *argv;
 				(void) getaddr(RTA_GATEWAY, *argv, &hp);
 			} else {
+#ifdef CRUFT
 				int ret = atoi(*argv);
 
 				if (ret == 0) {
@@ -643,6 +636,7 @@ newroute(argc, argv)
 				    iflag = 0;
 				    continue;
 				}
+#endif
 				(void) getaddr(RTA_NETMASK, *argv, 0);
 			}
 		}
@@ -873,8 +867,7 @@ netdone:
 		bcopy(hp->h_addr, (char *)&su->sin.sin_addr, hp->h_length);
 		return (1);
 	}
-	(void) fprintf(stderr, "%s: bad value\n", s);
-	exit(1);
+	errx(EX_NOHOST, "bad address: %s");
 }
 
 int
@@ -935,7 +928,8 @@ ns_print(sns)
 	else
 		*cport = 0;
 
-	(void) sprintf(mybuf,"%XH.%s%s", ntohl(net.long_e), host, cport);
+	(void) sprintf(mybuf,"%lxH.%s%s", (unsigned long)ntohl(net.long_e),
+		       host, cport);
 	return (mybuf);
 }
 
@@ -954,11 +948,11 @@ interfaces()
 	mib[4] = NET_RT_IFLIST;
 	mib[5] = 0;		/* no flags */
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
-		quit("route-sysctl-estimate");
+		err(EX_OSERR, "route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
-		quit("malloc");
+		err(EX_OSERR, "malloc");
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
-		quit("actual retrieval of interface table");
+		err(EX_OSERR, "actual retrieval of interface table");
 	lim = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
@@ -1013,8 +1007,8 @@ rtmsg(cmd, flags)
 	else if (cmd == 'g') {
 		cmd = RTM_GET;
 		if (so_ifp.sa.sa_family == 0) {
-			so_ifp.sa.sa_family == AF_LINK;
-			so_ifp.sa.sa_len == sizeof(struct sockaddr_dl);
+			so_ifp.sa.sa_family = AF_LINK;
+			so_ifp.sa.sa_len = sizeof(struct sockaddr_dl);
 			rtm_addrs |= RTA_IFP;
 		}
 	} else
@@ -1050,9 +1044,7 @@ rtmsg(cmd, flags)
 			l = read(s, (char *)&m_rtmsg, sizeof(m_rtmsg));
 		} while (l > 0 && (rtm.rtm_seq != seq || rtm.rtm_pid != pid));
 		if (l < 0)
-			(void) fprintf(stderr,
-			    "route: read from routing socket: %s\n",
-			    strerror(errno));
+			warn("read from routing socket");
 		else
 			print_getmsg(&rtm, l);
 	}
@@ -1157,8 +1149,8 @@ print_rtmsg(rtm, msglen)
 		pmsg_addrs((char *)(ifam + 1), ifam->ifam_addrs);
 		break;
 	default:
-		(void) printf("pid: %d, seq %d, errno %d, flags:",
-			rtm->rtm_pid, rtm->rtm_seq, rtm->rtm_errno);
+		(void) printf("pid: %ld, seq %d, errno %d, flags:",
+			(long)rtm->rtm_pid, rtm->rtm_seq, rtm->rtm_errno);
 		bprintf(stdout, rtm->rtm_flags, routeflags);
 		pmsg_common(rtm);
 	}
@@ -1177,19 +1169,17 @@ print_getmsg(rtm, msglen)
 
 	(void) printf("   route to: %s\n", routename(&so_dst));
 	if (rtm->rtm_version != RTM_VERSION) {
-		(void)fprintf(stderr,
-		    "routing message version %d not understood\n",
-		    rtm->rtm_version);
+		warnx("routing message version %d not understood",
+		     rtm->rtm_version);
 		return;
 	}
 	if (rtm->rtm_msglen > msglen) {
-		(void)fprintf(stderr,
-		    "message length mismatch, in packet %d, returned %d\n",
-		    rtm->rtm_msglen, msglen);
+		warnx("message length mismatch, in packet %d, returned %d\n",
+		      rtm->rtm_msglen, msglen);
 	}
 	if (rtm->rtm_errno)  {
-		(void) fprintf(stderr, "RTM_GET: %s (errno %d)\n",
-		    strerror(rtm->rtm_errno), rtm->rtm_errno);
+		errno = rtm->rtm_errno;
+		warn("message indicates error %d", errno);
 		return;
 	}
 	cp = ((char *)(rtm + 1));
@@ -1239,16 +1229,16 @@ print_getmsg(rtm, msglen)
 
 	(void) printf("\n%s\n", "\
  recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire");
-	printf("%8d%c ", rtm->rtm_rmx.rmx_recvpipe, lock(RPIPE));
-	printf("%8d%c ", rtm->rtm_rmx.rmx_sendpipe, lock(SPIPE));
-	printf("%8d%c ", rtm->rtm_rmx.rmx_ssthresh, lock(SSTHRESH));
-	printf("%8d%c ", msec(rtm->rtm_rmx.rmx_rtt), lock(RTT));
-	printf("%8d%c ", msec(rtm->rtm_rmx.rmx_rttvar), lock(RTTVAR));
-	printf("%8d%c ", rtm->rtm_rmx.rmx_hopcount, lock(HOPCOUNT));
-	printf("%8d%c ", rtm->rtm_rmx.rmx_mtu, lock(MTU));
+	printf("%8ld%c ", rtm->rtm_rmx.rmx_recvpipe, lock(RPIPE));
+	printf("%8ld%c ", rtm->rtm_rmx.rmx_sendpipe, lock(SPIPE));
+	printf("%8ld%c ", rtm->rtm_rmx.rmx_ssthresh, lock(SSTHRESH));
+	printf("%8ld%c ", msec(rtm->rtm_rmx.rmx_rtt), lock(RTT));
+	printf("%8ld%c ", msec(rtm->rtm_rmx.rmx_rttvar), lock(RTTVAR));
+	printf("%8ld%c ", rtm->rtm_rmx.rmx_hopcount, lock(HOPCOUNT));
+	printf("%8ld%c ", rtm->rtm_rmx.rmx_mtu, lock(MTU));
 	if (rtm->rtm_rmx.rmx_expire)
 		rtm->rtm_rmx.rmx_expire -= time(0);
-	printf("%8d%c\n", rtm->rtm_rmx.rmx_expire, lock(EXPIRE));
+	printf("%8ld%c\n", rtm->rtm_rmx.rmx_expire, lock(EXPIRE));
 #undef lock
 #undef msec
 #define	RTA_IGN	(RTA_DST|RTA_GATEWAY|RTA_NETMASK|RTA_IFP|RTA_IFA|RTA_BRD)
@@ -1307,7 +1297,7 @@ bprintf(fp, b, s)
 
 	if (b == 0)
 		return;
-	while (i = *s++) {
+	while ((i = *s++) != 0) {
 		if (b & (1 << (i-1))) {
 			if (gotsome == 0)
 				i = '<';
@@ -1379,7 +1369,7 @@ sockaddr(addr, sa)
 	register char *cp = (char *)sa;
 	int size = sa->sa_len;
 	char *cplim = cp + size;
-	register int byte = 0, state = VIRGIN, new;
+	register int byte = 0, state = VIRGIN, new = 0 /* foil gcc */;
 
 	bzero(cp, size);
 	cp++;
