@@ -257,8 +257,6 @@ ia64_fetch_bundle(db_addr_t loc, struct ia64_bundle *bp)
 {
 	u_int64_t low, high;
 
-	loc &= ~15;
-
 	db_read_bytes(loc, 8, (caddr_t) &low);
 	db_read_bytes(loc+8, 8, (caddr_t) &high);
 
@@ -668,9 +666,9 @@ ia64_print_I20(const char *name, u_int64_t ins, db_addr_t loc)
 	db_printf("%s %s,",
 		  name,
 		  register_names[u.I20.r2]);
-	db_printsym((loc & ~15) + (sign_extend((u.I20.s << 20)
-					       | (u.I20.imm13c << 7)
-					       | u.I20.imm7a, 21) << 4),
+	db_printsym(loc + (sign_extend((u.I20.s << 20)
+				       | (u.I20.imm13c << 7)
+				       | u.I20.imm7a, 21) << 4),
 		    DB_STGY_PROC);
 }
 
@@ -692,7 +690,7 @@ ia64_print_I21(const char *name, u_int64_t ins, db_addr_t loc)
 		  register_names[u.I21.r2]);
 	if (u.I21.timm9c)
 		db_printf(",%lx",
-			  (loc & ~15) + (sign_extend(u.I21.timm9c, 9) << 4));
+			  loc + (sign_extend(u.I21.timm9c, 9) << 4));
 }
 
 static void
@@ -1038,9 +1036,9 @@ ia64_print_M20(const char *name, u_int64_t ins, db_addr_t loc)
 	db_printf("%s %s,",
 		  name,
 		  register_names[u.M20.r2]);
-	db_printsym((loc & ~15) + (sign_extend((u.M20.s << 20)
-					       | (u.M20.imm13c << 7)
-					       | u.M20.imm7a, 21) << 4),
+	db_printsym(loc + (sign_extend((u.M20.s << 20)
+				       | (u.M20.imm13c << 7)
+				       | u.M20.imm7a, 21) << 4),
 		    DB_STGY_PROC);
 }
 
@@ -1052,9 +1050,9 @@ ia64_print_M21(const char *name, u_int64_t ins, db_addr_t loc)
 	db_printf("%s f%d,",
 		  name,
 		  u.M21.f2);
-	db_printsym((loc & ~15) + (sign_extend((u.M21.s << 20)
-					       | (u.M21.imm13c << 7)
-					       | u.M21.imm7a, 21) << 4),
+	db_printsym(loc + (sign_extend((u.M21.s << 20)
+				       | (u.M21.imm13c << 7)
+				       | u.M21.imm7a, 21) << 4),
 		    DB_STGY_PROC);
 }
 
@@ -1066,8 +1064,8 @@ ia64_print_M22(const char *name, u_int64_t ins, db_addr_t loc)
 	db_printf("%s %s,",
 		  name,
 		  register_names[u.M22.r1]);
-	db_printsym((loc & ~15) + (sign_extend((u.M22.s << 20)
-					       | u.M22.imm20b, 21) << 4),
+	db_printsym(loc + (sign_extend((u.M22.s << 20)
+				       | u.M22.imm20b, 21) << 4),
 		    DB_STGY_PROC);
 }
 
@@ -1079,8 +1077,8 @@ ia64_print_M23(const char *name, u_int64_t ins, db_addr_t loc)
 	db_printf("%s f%d,",
 		  name,
 		  u.M23.f1);
-	db_printsym((loc & ~15) + (sign_extend((u.M23.s << 20)
-					       | u.M23.imm20b, 21) << 4),
+	db_printsym(loc + (sign_extend((u.M23.s << 20)
+				       | u.M23.imm20b, 21) << 4),
 		    DB_STGY_PROC);
 }
 
@@ -1353,8 +1351,8 @@ ia64_print_B1(const char *name, u_int64_t ins, db_addr_t loc)
 		  whtable[u.B1.wh],
 		  ptable[u.B1.p],
 		  dtable[u.B1.d]);
-	db_printsym((loc & ~15)
-		    + (sign_extend((u.B1.s << 20) | u.B1.imm20b, 21) << 4),
+	db_printsym(loc + (sign_extend((u.B1.s << 20)
+				       | u.B1.imm20b, 21) << 4),
 		    DB_STGY_PROC);
 }
 
@@ -1369,8 +1367,8 @@ ia64_print_B3(const char *name, u_int64_t ins, db_addr_t loc)
 		  ptable[u.B3.p],
 		  dtable[u.B3.d],
 		  branch_names[u.B3.b1]);
-	db_printsym((loc & ~15)
-		    + (sign_extend((u.B3.s << 20) | u.B3.imm20b, 21) << 4),
+	db_printsym(loc + (sign_extend((u.B3.s << 20)
+				       | u.B3.imm20b, 21) << 4),
 		    DB_STGY_PROC);
 }
 
@@ -1411,8 +1409,8 @@ ia64_print_B6(const char *name, u_int64_t ins, db_addr_t loc)
 		  name,
 		  whtable[u.B6.wh],
 		  ihtable[u.B6.ih]);
-	db_printsym((loc & ~15)
-		    + (sign_extend((u.B6.s << 20) | u.B6.imm20b, 21) << 4),
+	db_printsym(loc + (sign_extend((u.B6.s << 20)
+				       | u.B6.imm20b, 21) << 4),
 		    DB_STGY_PROC);
 	db_printf("%x", (u.B6.t2e << 7) | u.B6.timm7a);
 }
@@ -1621,8 +1619,8 @@ ia64_print_F14(const char *name, u_int64_t ins, db_addr_t loc)
 	db_printf("%s%s ",
 		  name,
 		  sftable[u.F14.sf]);
-	db_printsym((loc & ~15) + (sign_extend((u.F14.s << 20)
-					       | u.F14.imm20a, 21) << 4),
+	db_printsym(loc + (sign_extend((u.F14.s << 20)
+				       | u.F14.imm20a, 21) << 4),
 		    DB_STGY_PROC);
 }
 
@@ -2372,7 +2370,7 @@ static struct ia64_opcode M_opcodes[] = {
 	{"lfetch.fault", OPMXX6(6,1,0,0x2e),	ia64_print_M14},
 	{"lfetch.fault.excl", OPMXX6(6,1,0,0x2f), ia64_print_M14},
 
-	/* Table 4-36 */
+	/* Table 4-35 */
 	{"ldfe",	OPX6(7,0x00),		ia64_print_M8},
 	{"ldf8",	OPX6(7,0x01),		ia64_print_M8},
 	{"ldfs",	OPX6(7,0x02),		ia64_print_M8},
@@ -2588,6 +2586,7 @@ static struct ia64_opcode M_opcodes[] = {
 	OP(a)|Ta(b),			mOP|mTa
 
 static struct ia64_opcode F_opcodes[] = {
+
 	/* Table 4-58 */
 	{"break.f",	OPXX6(0,0,0x00),	ia64_print_F15},
 	{"nop.f",	OPXX6(0,0,0x01),	ia64_print_F15},
@@ -2847,8 +2846,9 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	/*
 	 * We encode the slot number into the low bits of the address.
 	 */
-	ia64_fetch_bundle(loc, &b);
 	slot = loc & 15;
+	loc &= ~15;
+	ia64_fetch_bundle(loc, &b);
 
 	if (b.slot[slot] & 63)
 		db_printf("(p%ld) ", b.slot[slot] & 63);
@@ -2862,12 +2862,12 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 		if (slot == 0)
 			loc += 2;
 		else
-			loc = (loc & ~15) + 16;
+			loc += 16;
 	} else {
 		if (slot == 2)
-			loc = (loc & ~15) + 16;
+			loc += 16;
 		else
-			loc++;
+			loc += slot+1;
 	}
 
 	return loc;
