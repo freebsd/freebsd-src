@@ -121,7 +121,7 @@ To boot FreeBSD in serial console mode, you must do the following:
 	as the console instead. (Can you say 'toggle' boys and girls? 
   	I knew you could. :)
   -D	toggle single and dual console configurations. In the single
-	configuraion the console will be either the VGA display (internal 
+	configuration the console will be either the VGA display (internal 
 	console) or the serial port, depending on the state of the -h option
 	above. In the dual console configuration, both the VGA display 
 	and the serial port will become the console at the same time, 
@@ -147,7 +147,7 @@ To boot FreeBSD in serial console mode, you must do the following:
 
   This is identical to the prompt that normally appears on the VGA console,
   except for the 'No keyboard found' message that indicates a keyboard
-  couldn't be detected, if the -P option is in `boot.conf'. 
+  couldn't be detected, if the -P option is in `boot.config'. 
 
   From here you can boot the system (or let it autoboot by itself) just
   like you can from the VGA console and the kernel will automatically
@@ -193,4 +193,4 @@ CAVEATS:
 	  from the new kernel.
 
 
-$Id: README.serial,v 1.3 1997/02/22 09:43:03 peter Exp $
+$Id: README.serial,v 1.4 1997/06/09 13:44:03 kato Exp $
