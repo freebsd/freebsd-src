@@ -105,9 +105,11 @@ extern linker_file_t	linker_kernel_file;
 int linker_add_class(linker_class_t _cls);
 
 /*
- * Load a file, trying each file class until one succeeds.
+ * Load a kernel module.
  */
-int linker_load_file(const char* _filename, linker_file_t* _result);
+int linker_load_module(const char *_kldname, const char *_modname,
+    struct linker_file *_parent, struct mod_depend *_verinfo,
+    struct linker_file **_lfpp);
 
 /*
  * Obtain a reference to a module, loading it if required.
