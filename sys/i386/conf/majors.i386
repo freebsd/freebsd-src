@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.30 1998/02/18 13:43:43 msmith Exp $
+$Id: majors.i386,v 1.31 1998/02/19 01:33:29 jkh Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -39,6 +39,7 @@ blkdev	name		comments
 23	worm		SCSI "worm type"
 24	wstb		ATAPI tape client of "ata"
 25	vinum		RAID fs
+26	sw		VM internal swap device
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
