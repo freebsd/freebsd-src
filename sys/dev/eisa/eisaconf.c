@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.21 1996/08/31 14:47:30 bde Exp $
+ *	$Id: eisaconf.c,v 1.22 1996/09/06 23:06:57 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -347,11 +347,6 @@ eisa_reg_end(e_dev)
 {
 	if( reg_state.in_registration )
 	{
-		/*
-		 * The device should have called eisa_registerdev()
-		 * during its probe.  So hopefully we can use the kdc
-		 * to weed out ISA/VL devices that use EISA id registers.
-		 */
 		char string[25];
 
 		sprintf(string, " on %s0 slot %d",
