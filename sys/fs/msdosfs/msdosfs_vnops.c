@@ -646,13 +646,15 @@ msdosfs_write(ap)
 	/*
 	 * If they've exceeded their filesize limit, tell them about it.
 	 */
-	if (td &&
-	    ((uoff_t)uio->uio_offset + uio->uio_resid >
-	    td->td_proc->p_rlimit[RLIMIT_FSIZE].rlim_cur)) {
+	if (td != NULL) {
 		PROC_LOCK(td->td_proc);
-		psignal(td->td_proc, SIGXFSZ);
+		if ((uoff_t)uio->uio_offset + uio->uio_resid >
+		    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
+			psignal(td->td_proc, SIGXFSZ);
+			PROC_UNLOCK(td->td_proc);
+			return (EFBIG);
+		}
 		PROC_UNLOCK(td->td_proc);
-		return (EFBIG);
 	}
 
 	if ((uoff_t)uio->uio_offset + uio->uio_resid > DOS_FILESIZE_MAX)

@@ -277,11 +277,15 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 	}
 	if (uiop->uio_resid == 0)
 		return 0;
-	if (p && uiop->uio_offset + uiop->uio_resid > p->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
-		PROC_LOCK(td->td_proc);
-		psignal(td->td_proc, SIGXFSZ);
-		PROC_UNLOCK(td->td_proc);
-		return EFBIG;
+	if (p != NULL) {
+		PROC_LOCK(p);
+		if (uiop->uio_offset + uiop->uio_resid >
+		    lim_cur(p, RLIMIT_FSIZE)) {
+			psignal(p, SIGXFSZ);
+			PROC_UNLOCK(p);
+			return EFBIG;
+		}
+		PROC_UNLOCK(p);
 	}
 	smb_makescred(&scred, td, cred);
 	error = smb_write(smp->sm_share, np->n_fid, uiop, &scred);

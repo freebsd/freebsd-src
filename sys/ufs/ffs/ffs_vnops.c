@@ -634,13 +634,15 @@ ffs_write(ap)
 	 * file servers have no limits, I don't think it matters.
 	 */
 	td = uio->uio_td;
-	if (vp->v_type == VREG && td &&
-	    uio->uio_offset + uio->uio_resid >
-	    td->td_proc->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
+	if (vp->v_type == VREG && td != NULL) {
 		PROC_LOCK(td->td_proc);
-		psignal(td->td_proc, SIGXFSZ);
+		if (uio->uio_offset + uio->uio_resid >
+		    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
+			psignal(td->td_proc, SIGXFSZ);
+			PROC_UNLOCK(td->td_proc);
+			return (EFBIG);
+		}
 		PROC_UNLOCK(td->td_proc);
-		return (EFBIG);
 	}
 
 	resid = uio->uio_resid;

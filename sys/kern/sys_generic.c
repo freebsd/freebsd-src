@@ -961,11 +961,14 @@ poll(td, uap)
 	 * least enough for the current limits.  We want to be reasonably
 	 * safe, but not overly restrictive.
 	 */
-	if ((nfds > td->td_proc->p_rlimit[RLIMIT_NOFILE].rlim_cur) &&
+	PROC_LOCK(td->td_proc);
+	if ((nfds > lim_cur(td->td_proc, RLIMIT_NOFILE)) &&
 	    (nfds > FD_SETSIZE)) {
+		PROC_UNLOCK(td->td_proc);
 		error = EINVAL;
 		goto done2;
 	}
+	PROC_UNLOCK(td->td_proc);
 	ni = nfds * sizeof(struct pollfd);
 	if (ni > sizeof(smallbits))
 		bits = malloc(ni, M_TEMP, M_WAITOK);

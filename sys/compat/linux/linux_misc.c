@@ -378,20 +378,19 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 		goto cleanup;
 	}
 
-	/* To protect td->td_proc->p_rlimit in the if condition. */
-	mtx_assert(&Giant, MA_OWNED);
-
 	/*
 	 * text/data/bss must not exceed limits
 	 * XXX - this is not complete. it should check current usage PLUS
 	 * the resources needed by this library.
 	 */
+	PROC_LOCK(td->td_proc);
 	if (a_out->a_text > maxtsiz ||
-	    a_out->a_data + bss_size >
-	    td->td_proc->p_rlimit[RLIMIT_DATA].rlim_cur) {
+	    a_out->a_data + bss_size > lim_cur(td->td_proc, RLIMIT_DATA)) {
+		PROC_UNLOCK(td->td_proc);
 		error = ENOMEM;
 		goto cleanup;
 	}
+	PROC_UNLOCK(td->td_proc);
 
 	mp_fixme("Unlocked vflags access.");
 	/* prevent more writers */
@@ -1111,7 +1110,7 @@ linux_setrlimit(struct thread *td, struct linux_setrlimit_args *args)
 
 	bsd_rlim.rlim_cur = (rlim_t)rlim.rlim_cur;
 	bsd_rlim.rlim_max = (rlim_t)rlim.rlim_max;
-	return (dosetrlimit(td, which, &bsd_rlim));
+	return (kern_setrlimit(td, which, &bsd_rlim));
 }
 
 int
@@ -1119,7 +1118,7 @@ linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 {
 	struct l_rlimit rlim;
 	struct proc *p = td->td_proc;
-	struct rlimit *bsd_rlp;
+	struct rlimit bsd_rlim;
 	u_int which;
 
 #ifdef DEBUG
@@ -1134,12 +1133,15 @@ linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 	which = linux_to_bsd_resource[args->resource];
 	if (which == -1)
 		return (EINVAL);
-	bsd_rlp = &p->p_rlimit[which];
 
-	rlim.rlim_cur = (unsigned long)bsd_rlp->rlim_cur;
+	PROC_LOCK(p);
+	lim_rlimit(p, which, &bsd_rlim);
+	PROC_UNLOCK(p);
+
+	rlim.rlim_cur = (unsigned long)bsd_rlim.rlim_cur;
 	if (rlim.rlim_cur == ULONG_MAX)
 		rlim.rlim_cur = LONG_MAX;
-	rlim.rlim_max = (unsigned long)bsd_rlp->rlim_max;
+	rlim.rlim_max = (unsigned long)bsd_rlim.rlim_max;
 	if (rlim.rlim_max == ULONG_MAX)
 		rlim.rlim_max = LONG_MAX;
 	return (copyout(&rlim, args->rlim, sizeof(rlim)));
@@ -1150,7 +1152,7 @@ linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 {
 	struct l_rlimit rlim;
 	struct proc *p = td->td_proc;
-	struct rlimit *bsd_rlp;
+	struct rlimit bsd_rlim;
 	u_int which;
 
 #ifdef DEBUG
@@ -1165,10 +1167,13 @@ linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 	which = linux_to_bsd_resource[args->resource];
 	if (which == -1)
 		return (EINVAL);
-	bsd_rlp = &p->p_rlimit[which];
 
-	rlim.rlim_cur = (l_ulong)bsd_rlp->rlim_cur;
-	rlim.rlim_max = (l_ulong)bsd_rlp->rlim_max;
+	PROC_LOCK(p);
+	lim_rlimit(p, which, &bsd_rlim);
+	PROC_UNLOCK(p);
+
+	rlim.rlim_cur = (l_ulong)bsd_rlim.rlim_cur;
+	rlim.rlim_max = (l_ulong)bsd_rlim.rlim_max;
 	return (copyout(&rlim, args->rlim, sizeof(rlim)));
 }
 #endif /*!__alpha__*/

@@ -682,6 +682,7 @@ vm_init_limits(udata)
 	void *udata;
 {
 	struct proc *p = udata;
+	struct plimit *limp;
 	int rss_limit;
 
 	/*
@@ -691,14 +692,15 @@ vm_init_limits(udata)
 	 * of memory - half of main memory helps to favor smaller processes,
 	 * and reduces thrashing of the object cache.
 	 */
-	p->p_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
-	p->p_rlimit[RLIMIT_STACK].rlim_max = maxssiz;
-	p->p_rlimit[RLIMIT_DATA].rlim_cur = dfldsiz;
-	p->p_rlimit[RLIMIT_DATA].rlim_max = maxdsiz;
+	limp = p->p_limit;
+	limp->pl_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
+	limp->pl_rlimit[RLIMIT_STACK].rlim_max = maxssiz;
+	limp->pl_rlimit[RLIMIT_DATA].rlim_cur = dfldsiz;
+	limp->pl_rlimit[RLIMIT_DATA].rlim_max = maxdsiz;
 	/* limit the limit to no less than 2MB */
 	rss_limit = max(cnt.v_free_count, 512);
-	p->p_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
-	p->p_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
+	limp->pl_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
+	limp->pl_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
 
 void

@@ -93,7 +93,6 @@ struct	thread thread0;
 struct	kse kse0;
 struct	ksegrp ksegrp0;
 static struct filedesc0 filedesc0;
-static struct plimit limit0;
 struct	vmspace vmspace0;
 struct	proc *initproc;
 
@@ -419,19 +418,18 @@ proc0_init(void *dummy __unused)
 	fdp->fd_fd.fd_map = fdp->fd_dmap;
 
 	/* Create the limits structures. */
-	p->p_limit = &limit0;
-	for (i = 0; i < sizeof(p->p_rlimit)/sizeof(p->p_rlimit[0]); i++)
-		limit0.pl_rlimit[i].rlim_cur =
-		    limit0.pl_rlimit[i].rlim_max = RLIM_INFINITY;
-	limit0.pl_rlimit[RLIMIT_NOFILE].rlim_cur =
-	    limit0.pl_rlimit[RLIMIT_NOFILE].rlim_max = maxfiles;
-	limit0.pl_rlimit[RLIMIT_NPROC].rlim_cur =
-	    limit0.pl_rlimit[RLIMIT_NPROC].rlim_max = maxproc;
+	p->p_limit = lim_alloc();
+	for (i = 0; i < RLIM_NLIMITS; i++)
+		p->p_limit->pl_rlimit[i].rlim_cur =
+		    p->p_limit->pl_rlimit[i].rlim_max = RLIM_INFINITY;
+	p->p_limit->pl_rlimit[RLIMIT_NOFILE].rlim_cur =
+	    p->p_limit->pl_rlimit[RLIMIT_NOFILE].rlim_max = maxfiles;
+	p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_cur =
+	    p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_max = maxproc;
 	i = ptoa(cnt.v_free_count);
-	limit0.pl_rlimit[RLIMIT_RSS].rlim_max = i;
-	limit0.pl_rlimit[RLIMIT_MEMLOCK].rlim_max = i;
-	limit0.pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = i / 3;
-	limit0.p_refcnt = 1;
+	p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_max = i;
+	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_max = i;
+	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = i / 3;
 	p->p_cpulimit = RLIM_INFINITY;
 
 	/* Allocate a prototype map so we have something to fork. */

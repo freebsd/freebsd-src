@@ -93,42 +93,41 @@ ibcs2_ulimit(td, uap)
 	struct thread *td;
 	struct ibcs2_ulimit_args *uap;
 {
-#ifdef notyet
-	int error;
 	struct rlimit rl;
-	struct setrlimit_args {
-		int resource;
-		struct rlimit *rlp;
-	} sra;
-#endif
+	struct proc *p;
+	int error;
 #define IBCS2_GETFSIZE		1
 #define IBCS2_SETFSIZE		2
 #define IBCS2_GETPSIZE		3
 #define IBCS2_GETDTABLESIZE	4
-	
+
+	p = td->td_proc;
 	switch (uap->cmd) {
 	case IBCS2_GETFSIZE:
-		td->td_retval[0] = td->td_proc->p_rlimit[RLIMIT_FSIZE].rlim_cur;
-		if (td->td_retval[0] == -1) td->td_retval[0] = 0x7fffffff;
+		PROC_LOCK(p);
+		td->td_retval[0] = lim_cur(p, RLIMIT_FSIZE);
+		PROC_UNLOCK(p);
+		if (td->td_retval[0] == -1)
+			td->td_retval[0] = 0x7fffffff;
 		return 0;
-	case IBCS2_SETFSIZE:	/* XXX - fix this */
-#ifdef notyet
+	case IBCS2_SETFSIZE:
+		PROC_LOCK(p);
+		rl.rlim_max = lim_max(p, RLIMIT_FSIZE);
+		PROC_UNLOCK(p);
 		rl.rlim_cur = uap->newlimit;
-		sra.resource = RLIMIT_FSIZE;
-		sra.rlp = &rl;
-		error = setrlimit(td, &sra);
-		if (!error)
-			td->td_retval[0] = td->td_proc->p_rlimit[RLIMIT_FSIZE].rlim_cur;
-		else
+		error = kern_setrlimit(td, RLIMIT_FSIZE, &rl);
+		if (!error) {
+			PROC_LOCK(p);
+			td->td_retval[0] = lim_cur(p, RLIMIT_FSIZE);
+			PROC_UNLOCK(p);
+		} else {
 			DPRINTF(("failed "));
+		}
 		return error;
-#else
-		td->td_retval[0] = uap->newlimit;
-		return 0;
-#endif
 	case IBCS2_GETPSIZE:
-		mtx_assert(&Giant, MA_OWNED);
-		td->td_retval[0] = td->td_proc->p_rlimit[RLIMIT_RSS].rlim_cur; /* XXX */
+		PROC_LOCK(p);
+		td->td_retval[0] = lim_cur(p, RLIMIT_RSS); /* XXX */
+		PROC_UNLOCK(p);
 		return 0;
 	case IBCS2_GETDTABLESIZE:
 		uap->cmd = IBCS2_SC_OPEN_MAX;
@@ -775,25 +774,19 @@ ibcs2_sysconf(td, uap)
 	struct ibcs2_sysconf_args *uap;
 {
 	int mib[2], value, len, error;
-	struct sysctl_args sa;
-	struct __getrlimit_args ga;
+	struct proc *p;
 
+	p = td->td_proc;
 	switch(uap->name) {
 	case IBCS2_SC_ARG_MAX:
 		mib[1] = KERN_ARGMAX;
 		break;
 
 	case IBCS2_SC_CHILD_MAX:
-	    {
-		caddr_t sg = stackgap_init();
-
-		ga.which = RLIMIT_NPROC;
-		ga.rlp = stackgap_alloc(&sg, sizeof(struct rlimit *));
-		if ((error = getrlimit(td, &ga)) != 0)
-			return error;
-		td->td_retval[0] = ga.rlp->rlim_cur;
+		PROC_LOCK(p);
+		td->td_retval[0] = lim_cur(td->td_proc, RLIMIT_NPROC);
+		PROC_UNLOCK(p);
 		return 0;
-	    }
 
 	case IBCS2_SC_CLK_TCK:
 		td->td_retval[0] = hz;
@@ -804,16 +797,10 @@ ibcs2_sysconf(td, uap)
 		break;
 
 	case IBCS2_SC_OPEN_MAX:
-	    {
-		caddr_t sg = stackgap_init();
-
-		ga.which = RLIMIT_NOFILE;
-		ga.rlp = stackgap_alloc(&sg, sizeof(struct rlimit *));
-		if ((error = getrlimit(td, &ga)) != 0)
-			return error;
-		td->td_retval[0] = ga.rlp->rlim_cur;
+		PROC_LOCK(p);
+		td->td_retval[0] = lim_cur(td->td_proc, RLIMIT_NOFILE);
+		PROC_UNLOCK(p);
 		return 0;
-	    }
 		
 	case IBCS2_SC_JOB_CONTROL:
 		mib[1] = KERN_JOB_CONTROL;
@@ -841,13 +828,8 @@ ibcs2_sysconf(td, uap)
 
 	mib[0] = CTL_KERN;
 	len = sizeof(value);
-	sa.name = mib;
-	sa.namelen = 2;
-	sa.old = &value;
-	sa.oldlenp = &len;
-	sa.new = NULL;
-	sa.newlen = 0;
-	if ((error = __sysctl(td, &sa)) != 0)
+	error = kernel_sysctl(td, mib, 2, &value, &len, NULL, 0, NULL);
+	if (error)
 		return error;
 	td->td_retval[0] = value;
 	return 0;

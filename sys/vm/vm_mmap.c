@@ -266,7 +266,7 @@ mmap(td, uap)
 			return (EINVAL);
 		if (addr + size < addr)
 			return (EINVAL);
-	}
+	} else {
 	/*
 	 * XXX for non-fixed mappings where no hint is provided or
 	 * the hint would fall in the potential heap space,
@@ -275,13 +275,15 @@ mmap(td, uap)
 	 * There should really be a pmap call to determine a reasonable
 	 * location.
 	 */
-	else if (addr == 0 ||
-	    (addr >= round_page((vm_offset_t)vms->vm_taddr) &&
-	     addr < round_page((vm_offset_t)vms->vm_daddr +
-	      td->td_proc->p_rlimit[RLIMIT_DATA].rlim_max)))
-		addr = round_page((vm_offset_t)vms->vm_daddr +
-		    td->td_proc->p_rlimit[RLIMIT_DATA].rlim_max);
-
+		PROC_LOCK(td->td_proc);
+		if (addr == 0 ||
+		    (addr >= round_page((vm_offset_t)vms->vm_taddr) &&
+		    addr < round_page((vm_offset_t)vms->vm_daddr +
+		    lim_max(td->td_proc, RLIMIT_DATA))))
+			addr = round_page((vm_offset_t)vms->vm_daddr +
+			    lim_max(td->td_proc, RLIMIT_DATA));
+		PROC_UNLOCK(td->td_proc);
+	}
 	mtx_lock(&Giant);	/* syscall marked mp-safe but isn't */
 	do {
 		if (flags & MAP_ANON) {
@@ -1002,9 +1004,13 @@ mlock(td, uap)
 		return (EAGAIN);
 
 #if 0
+	PROC_LOCK(td->td_proc);
 	if (size + ptoa(pmap_wired_count(vm_map_pmap(&td->td_proc->p_vmspace->vm_map))) >
-	    td->td_proc->p_rlimit[RLIMIT_MEMLOCK].rlim_cur)
+	    lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
+		PROC_UNLOCK(td->td_proc);
 		return (ENOMEM);
+	}
+	PROC_UNLOCK(td->td_proc);
 #else
 	error = suser(td);
 	if (error)
@@ -1044,9 +1050,13 @@ mlockall(td, uap)
 	 * If wiring all pages in the process would cause it to exceed
 	 * a hard resource limit, return ENOMEM.
 	 */
+	PROC_LOCK(td->td_proc);
 	if (map->size - ptoa(pmap_wired_count(vm_map_pmap(map)) >
-		td->td_proc->p_rlimit[RLIMIT_MEMLOCK].rlim_cur))
+		lim_cur(td->td_proc, RLIMIT_MEMLOCK))) {
+		PROC_UNLOCK(td->td_proc);
 		return (ENOMEM);
+	}
+	PROC_UNLOCK(td->td_proc);
 #else
 	error = suser(td);
 	if (error)
@@ -1176,10 +1186,13 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 
 	objsize = size = round_page(size);
 
+	PROC_LOCK(td->td_proc);
 	if (td->td_proc->p_vmspace->vm_map.size + size >
-	    td->td_proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+	    lim_cur(td->td_proc, RLIMIT_VMEM)) {
+		PROC_UNLOCK(td->td_proc);
 		return(ENOMEM);
 	}
+	PROC_UNLOCK(td->td_proc);
 
 	/*
 	 * We currently can only deal with page aligned file offsets.

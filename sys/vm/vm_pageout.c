@@ -1486,6 +1486,7 @@ vm_daemon()
 	struct proc *p;
 	int breakout;
 	struct thread *td;
+	struct rlimit rsslim;
 
 	mtx_lock(&Giant);
 	while (TRUE) {
@@ -1511,6 +1512,7 @@ vm_daemon()
 				PROC_UNLOCK(p);
 				continue;
 			}
+			lim_rlimit(p, RLIMIT_RSS, &rsslim);
 			/*
 			 * if the process is in a non-running type state,
 			 * don't touch it.
@@ -1534,8 +1536,7 @@ vm_daemon()
 			 * get a limit
 			 */
 			limit = OFF_TO_IDX(
-			    qmin(p->p_rlimit[RLIMIT_RSS].rlim_cur,
-				p->p_rlimit[RLIMIT_RSS].rlim_max));
+			    qmin(rsslim.rlim_cur, rsslim.rlim_max));
 
 			/*
 			 * let processes that are swapped out really be

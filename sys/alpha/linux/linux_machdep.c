@@ -382,7 +382,7 @@ linux_setrlimit(td, uap)
 	if ((error =
 	   copyin(uap->rlim, &rlim, sizeof (struct rlimit))))
 		return (error);
-	return dosetrlimit(td,  which, &rlim);
+	return (kern_setrlimit(td,  which, &rlim));
 }
 
 int
@@ -390,7 +390,9 @@ linux_getrlimit(td, uap)
 	struct thread *td;
 	struct linux_getrlimit_args *uap;
 {
+	struct rlimit rlim;
 	u_int which;
+	int error;
 
 #ifdef DEBUG
 	if (ldebug(getrlimit))
@@ -405,6 +407,9 @@ linux_getrlimit(td, uap)
 	if (which == -1)
 		return EINVAL;
 
-	return (copyout(&td->td_proc->p_rlimit[which],
-	    uap->rlim, sizeof (struct rlimit)));
+	PROC_LOCK(td->td_proc);
+	lim_rlimit(td->td_proc, which, &rlim);
+	PROC_UNLOCK(td->td_proc);
+	error = copyout(&rlim, uap->rlim, sizeof (struct rlimit));
+	return (error);
 }

@@ -66,10 +66,13 @@ svr4_sys_poll(td, uap)
      int idx = 0, cerr;
      u_long siz;
 
-	mtx_assert(&Giant, MA_OWNED);
-	if (uap->nfds > td->td_proc->p_rlimit[RLIMIT_NOFILE].rlim_cur &&
-	    uap->nfds > FD_SETSIZE)
-		return (EINVAL);
+     PROC_LOCK(td->td_proc);
+     if (uap->nfds > lim_cur(td->td_proc, RLIMIT_NOFILE) &&
+       uap->nfds > FD_SETSIZE) {
+       PROC_UNLOCK(td->td_proc);
+       return (EINVAL);
+     }
+     PROC_UNLOCK(td->td_proc);
 
      pa.fds = uap->fds;
      pa.nfds = uap->nfds;
