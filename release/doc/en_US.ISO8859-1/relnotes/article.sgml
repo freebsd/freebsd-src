@@ -1911,6 +1911,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       maintainable.  These scripts now reside in
       <filename>/etc/periodic/security/</filename>. &merged;</para>
 
+    <para>&man.expr.1; is now compliant with the POSIX Utility Syntax
+      Guidelines.  Some programs depend on the old, historic behavior
+      (the <filename role="package">devel/libtool</filename>
+      port/package was/is a notable example).  In these situations,
+      the <envar>EXPR_COMPAT</envar> environment variable can be
+      defined, which causes &man.expr.1; to behave more like previous
+      versions.</para>
+
     <para>&man.fbtab.5; now accepts glob matching patterns for target
       devices, not just individual devices and directories.</para>
 
@@ -2256,6 +2264,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-G</option> flag (and appropriate terminal support).
       The <envar>CLICOLOR</envar> environment variable can be set to
       enable colorized listings by default. &merged;</para>
+
+    <para>&man.m4.1; now accepts a <option>-s</option> flag to cause
+      it to emit <literal>#line</literal> directives for use by
+      &man.cpp.1;. &merged;</para>
 
     <para>&man.mail.1; now takes a <option>-E</option> flag to avoid
       sending messages with empty bodies. &merged;</para>
@@ -2925,6 +2937,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<application>lukemftpd</application>, has been imported and is
 	available as &man.lukemftpd.8;.</para>
 
+      <para>&man.m4.1; has been imported from OpenBSD, as of 19 April
+	2002.</para>
+
       <para><application>ncurses</application> has been updated to
 	5.2-20010512.</para>
 
@@ -3351,6 +3366,31 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	programs such as &man.pkg.version.1; to determine the
 	directory from which a package was built. &merged;</para>
     </sect3>
+  </sect2>
+
+  <sect2>
+    <title>Release Engineering and Integration</title>
+
+    <para>The <filename>bin</filename> distribution has been renamed
+      <filename>base</filename>, in order to make creation of combined
+      install/recovery disks easier.</para>
+
+    <para arch="i386">ISO images and CDROMs now use the
+      <filename>cdboot</filename> boot loader by default.  This
+      eliminates the need for an emulated floppy disk image on
+      a bootable CDROM and allows for a full
+      <filename>GENERIC</filename> kernel to be used for CDROM
+      installations, at the expense of compatability with some old
+      BIOSs.</para>
+
+    <para arch="i386,alpha"><application>XFree86</application> 4.2.0
+      is now the default version of the X Window System supported by
+      &man.sysinstall.8;.  It installs
+      <application>XFree86</application> as a set of standard binary
+      packages, so the usual package utilities such as
+      &man.pkg.info.1; can be used to examine/manipulate its
+      components. &merged;</para>
+
   </sect2>
 </sect1>
 
