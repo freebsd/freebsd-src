@@ -240,7 +240,7 @@ awi_wep_setalgo(sc, algo)
 	int ctxlen;
 
 	awi_crc_init();	/* XXX: not belongs here */
-	if (algo < 0 || algo > sizeof(awi_wep_algo)/sizeof(awi_wep_algo[0]))
+	if (algo < 0 || algo >= sizeof(awi_wep_algo)/sizeof(awi_wep_algo[0]))
 		return EINVAL;
 	awa = &awi_wep_algo[algo];
 	if (awa->awa_name == NULL)
