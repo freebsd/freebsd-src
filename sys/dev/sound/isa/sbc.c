@@ -83,135 +83,46 @@ static int release_resource(sc_p scp);
 static devclass_t sbc_devclass;
 
 #if NISA > 0 && NPNP > 0
+static struct isa_pnp_id sbc_ids[] = {
+#if notdef
+	{0x0000630e, "CS423x"},
+#endif
+	{0x01008c0e, "Creative ViBRA16C PnP"},
+	{0x43008c0e, "Creative ViBRA16X PnP"},
+	{0x31008c0e, "Creative SB16 PnP/SB32"},
+	{0x42008c0e, "Creative SB AWE64"}, /* CTL00c1 */
+	{0x45008c0e, "Creative SB AWE64"}, /* CTL0045 */
+#if notdef
+	{0x01200001, "Avance Logic ALS120"},
+	{0x01100001, "Avance Asound 110"},
+	{0x68187316, "ESS ES1868 Plug and Play AudioDrive"}, /* ESS1868 */
+	{0x79187316, "ESS ES1879 Plug and Play AudioDrive"}, /* ESS1879 */
+	{0x2100a865, "Yamaha OPL3-SA2/SAX Sound Board"},
+	{0x80719304, "Terratec Soundsystem Base 1"},
+#endif
+	{0}
+};
+
 static int
 sbc_probe(device_t dev)
 {
-	device_t child;
-	u_int32_t vend_id, logical_id, vend_id2;
-	char *s;
-	struct sndcard_func *func;
+	int error;
 
-	vend_id = isa_get_vendorid(dev);
-	vend_id2 = vend_id & 0xff00ffff;
-	logical_id = isa_get_logicalid(dev);
-	s = NULL;
-
-	switch (logical_id) {
-#if notdef
-	case 0x0000630e: /* Crystal Semiconductor */
-		if (vend_id2 ==0x3600630e) /* CS4236 */
-			s = "CS4236";
-		else if (vend_id2 ==0x3200630e) /* CS4232 */
-			s = "CS4232";
-		else if (vend_id2 ==0x3500630e) /* CS4236B */
-			s = "CS4236B";
-		break;
-#endif /* notdef */
-	case 0x01008c0e: /* Creative ViBRA16C */
-		if (vend_id2 == 0x70008c0e)
-			s = "Creative ViBRA16C PnP";
-		break;
-	case 0x43008c0e: /* Creative ViBRA16X */
-		if (vend_id2 == 0xf0008c0e)
-			s = "Creative ViBRA16C PnP";
-		break;
-	case 0x31008c0e: /* Creative SB */
-		if (vend_id2 == 0x26008c0e)
-			s = "Creative SB16 PnP";
-		else if (vend_id2 == 0x42008c0e)
-			s = "Creative SB32 (CTL0042)";
-		else if (vend_id2 == 0x44008c0e)
-			s = "Creative SB32 (CTL0044)";
-		else if (vend_id2 == 0x48008c0e)
-			s = "Creative SB32 (CTL0048)";
-		else if (vend_id2 == 0x49008c0e)
-			s = "Creative SB32 (CTL0049)";
-		else if (vend_id2 == 0xf1008c0e)
-			s = "Creative SB32 (CTL00f1)";
-		break;
-	case 0x42008c0e: /* Creative SB AWE64 (CTL00c1) */
-		if (vend_id2 == 0xc1008c0e)
-			s = "Creative SB AWE64 (CTL00c1)";
-		break;
-	case 0x45008c0e: /* Creative SB AWE64 (CTL0045) */
-		if (vend_id2 == 0xe4008c0e)
-			s = "Creative SB AWE64 (CTL0045)";
-		break;
-#if notdef
-	case 0x01200001: /* Avance Logic */
-		if (vend_id2 == 0x20009305)
-			s = "Avance Logic ALS120";
-		break;
-	case 0x01100001: /* Avance Asound */
-		if (vend_id2 == 0x10009305)
-			s = "Avance Asound 110";
-		break;
-	case 0x68187316: /* ESS1868 */
-		if (vend_id2 == 0x68007316)
-			s = "ESS ES1868 Plug and Play AudioDrive";
-		break;
-	case 0x79187316: /* ESS1879 */
-		if (vend_id2 == 0x79007316)
-			s = "ESS ES1879 Plug and Play AudioDrive";
-		break;
-	case 0x2100a865: /* Yamaha */
-		if (vend_id2 == 0x2000a865)
-			s = "Yamaha OPL3-SA2/SAX Sound Board";
-		break;
-	case 0x80719304: /* Terratec */
-		if (vend_id2 == 0x1114b250)
-			s = "Terratec Soundsystem Base 1";
-		break;
-	case 0x0300561e: /* Gravis */
-		if (vend_id2 == 0x0100561e)
-			s = "Gravis UltraSound Plug & Play";
-		break;
-#endif /* notdef */
-	}
-
-	if (s != NULL) {
-		device_set_desc(dev, s);
-
-		/* PCM Audio */
-		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-		if (func == NULL)
-			return (ENOMEM);
-		bzero(func, sizeof(*func));
-		func->func = SCF_PCM;
-		child = device_add_child(dev, "pcm", -1);
-		device_set_ivars(child, func);
-
-#if notyet
-		/* Midi Interface */
-		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-		if (func == NULL)
-			return (ENOMEM);
-		bzero(func, sizeof(*func));
-		func->func = SCF_MIDI;
-		child = device_add_child(dev, "midi", -1);
-		device_set_ivars(child, func);
-
-		/* OPL FM Synthesizer */
-		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
-		if (func == NULL)
-			return (ENOMEM);
-		bzero(func, sizeof(*func));
-		func->func = SCF_SYNTH;
-		child = device_add_child(dev, "midi", -1);
-		device_set_ivars(child, func);
-#endif /* notyet */
-
-		return (0);
-	}
-
-	return (ENXIO);
+	/* Check pnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, sbc_ids);
+	if (error)
+		return error;
+	else
+		return -100;
 }
 
 static int
 sbc_attach(device_t dev)
 {
 	sc_p scp;
+	device_t child;
 	int unit;
+	struct sndcard_func *func;
 
 	scp = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -223,6 +134,35 @@ sbc_attach(device_t dev)
 		release_resource(scp);
 		return (ENXIO);
 	}
+
+	/* PCM Audio */
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	if (func == NULL)
+		return (ENOMEM);
+	bzero(func, sizeof(*func));
+	func->func = SCF_PCM;
+	child = device_add_child(dev, "pcm", -1);
+	device_set_ivars(child, func);
+
+#if notyet
+	/* Midi Interface */
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	if (func == NULL)
+		return (ENOMEM);
+	bzero(func, sizeof(*func));
+	func->func = SCF_MIDI;
+	child = device_add_child(dev, "midi", -1);
+	device_set_ivars(child, func);
+
+	/* OPL FM Synthesizer */
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	if (func == NULL)
+		return (ENOMEM);
+	bzero(func, sizeof(*func));
+	func->func = SCF_SYNTH;
+	child = device_add_child(dev, "midi", -1);
+	device_set_ivars(child, func);
+#endif /* notyet */
 
 	bus_generic_attach(dev);
 
