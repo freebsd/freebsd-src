@@ -38,19 +38,19 @@ Generic printer device driver
 .Cd "device ppbus0"
 .Cd "device lpt0 at ppbus?"
 .Pp
-.Cd "device	ppc0	at isa? port" \&"IO_LPT1\&" tty irq 7
-.Cd "device	ppc1	at isa? port" \&"IO_LPT2\&" tty irq 7
-.Cd "device	ppc2	at isa? port" \&"IO_LPT3\&" tty irq 7
+.Cd "device	ppc0	at isa? port" \&"IO_LPT1\&" irq 7
+.Cd "device	ppc1	at isa? port" \&"IO_LPT2\&" irq 7
+.Cd "device	ppc2	at isa? port" \&"IO_LPT3\&" irq 7
 .Pp
 For BIOS-probed ports:
-.Cd "device ppc0 at isa? port? tty irq 7"
+.Cd "device ppc0 at isa? port? irq 7"
 .Pp
 For polled ports:
-.Cd "device ppc0 at isa? port? tty"
-.Cd "device ppc1 at isa? port" \&"IO_LPT2\&" tty
+.Cd "device ppc0 at isa? port?"
+.Cd "device ppc1 at isa? port" \&"IO_LPT2\&"
 .Pp
 For DMA capable parallel port:
-.Cd "device ppc0 at isa? port? tty irq 7 drq 1"
+.Cd "device ppc0 at isa? port? irq 7 drq 1"
 .Sh DESCRIPTION
 The current
 .Em lpt
@@ -101,9 +101,5 @@ It is only possible to open a lpt port when a printer is connected and
 on-line, making it impossible to run 
 .Xr lptcontrol 8 
 when there is no printer connected.
-.Pp
-Please, ensure the
-.Xr ppc 4
-entry in you MACHINE file has the tty interrupt mask.
 .Pp
 This driver could still stand a rewrite.
