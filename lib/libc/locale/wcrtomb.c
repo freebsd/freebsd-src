@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,10 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
-#include <limits.h>
-#include <rune.h>
-#include <stdlib.h>
 #include <wchar.h>
 
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
@@ -40,27 +36,4 @@ wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
 
 	return (__wcrtomb(s, wc, ps));
-}
-
-/*
- * Emulate the ISO C wcrtomb() function in terms of the deprecated
- * 4.4BSD sputrune() function.
- */
-size_t
-__emulated_wcrtomb(char * __restrict s, wchar_t wc,
-    mbstate_t * __restrict ps __unused)
-{
-	char *e;
-	char buf[MB_LEN_MAX];
-
-	if (s == NULL) {
-		s = buf;
-		wc = L'\0';
-	}
-	sputrune(wc, s, MB_CUR_MAX, &e);
-	if (e == NULL) {
-		errno = EILSEQ;
-		return ((size_t)-1);
-	}
-	return ((size_t)(e - s));
 }

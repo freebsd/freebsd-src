@@ -47,11 +47,6 @@ __FBSDID("$FreeBSD$");
 extern size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 		    mbstate_t * __restrict);
 extern size_t	_none_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
-extern size_t	__emulated_mbrtowc(wchar_t * __restrict,
-		    const char * __restrict, size_t,
-		    mbstate_t * __restrict ps);
-extern size_t	__emulated_wcrtomb(char * __restrict, wchar_t,
-		    mbstate_t * __restrict ps);
 extern rune_t	__emulated_sgetrune(const char *, size_t, const char **);
 extern int	__emulated_sputrune(rune_t, char *, size_t, char **);
 
