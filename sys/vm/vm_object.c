@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.17 1995/01/11 20:19:20 davidg Exp $
+ * $Id: vm_object.c,v 1.18 1995/01/13 13:30:24 davidg Exp $
  */
 
 /*
@@ -140,6 +140,7 @@ _vm_object_allocate(size, object)
 	object->flags = OBJ_INTERNAL;	/* vm_allocate_with_pager will reset */
 	object->paging_in_progress = 0;
 	object->copy = NULL;
+	object->last_read = 0;
 
 	/*
 	 * Object starts out read-write, with no pager.

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.29 1995/01/09 16:05:53 davidg Exp $
+ * $Id: vm_pageout.c,v 1.30 1995/01/10 07:32:49 davidg Exp $
  */
 
 /*
@@ -341,7 +341,7 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 		if (object->shadow->ref_count == 1)
 			dcount += vm_pageout_object_deactivate_pages(map, object->shadow, count / 2 + 1, map_remove_only);
 		else
-			dcount += vm_pageout_object_deactivate_pages(map, object->shadow, count / 2 + 1, 1);
+			vm_pageout_object_deactivate_pages(map, object->shadow, count, 1);
 	}
 	if (object->paging_in_progress || !vm_object_lock_try(object))
 		return dcount;
@@ -518,8 +518,8 @@ vm_pageout_inactive_stats(int maxiscan)
 			 * heuristic alert -- if a page is being re-activated,
 			 * it probably will be used one more time...
 			 */
-			++m->act_count;
-			++m->act_count;
+			if (m->act_count < ACT_MAX)
+				m->act_count += ACT_ADVANCE;
 		}
 		m = next;
 	}
@@ -574,6 +574,7 @@ vm_pageout_scan()
 	 */
 
 
+rescan0:
 	vm_pageout_inactive_stats(MAXISCAN);
 	maxlaunder = (cnt.v_inactive_target > MAXLAUNDER) ?
 	    MAXLAUNDER : cnt.v_inactive_target;
@@ -620,17 +621,21 @@ rescan1:
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 			vm_page_activate(m);
-			++m->act_count;
-			++m->act_count;
+			if (m->act_count < ACT_MAX)
+				m->act_count += ACT_ADVANCE;
 			m = next;
 			continue;
 		}
 		vm_page_test_dirty(m);
 
 		if ((m->dirty & m->valid) == 0) {
-			if (((cnt.v_free_count + cnt.v_cache_count) < desired_free) ||
-			    (cnt.v_cache_count < cnt.v_cache_min))
+			if (m->valid == 0) {
+				pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
+				vm_page_free(m);
+			} else if (((cnt.v_free_count + cnt.v_cache_count) < desired_free) ||
+			    (cnt.v_cache_count < cnt.v_cache_min)) {
 				vm_page_cache(m);
+			}
 		} else if (maxlaunder > 0) {
 			int written;
 
@@ -684,6 +689,8 @@ rescan1:
 				    desired_free - (cnt.v_free_count + cnt.v_cache_count);
 			}
 		}
+		if( (page_shortage <= 0) && (cnt.v_free_count < cnt.v_free_min))
+			page_shortage = 1;
 	}
 	maxscan = cnt.v_active_count;
 	minscan = cnt.v_active_count;
@@ -706,6 +713,8 @@ rescan1:
 		    (m->flags & PG_BUSY) ||
 		    (m->hold_count != 0) ||
 		    (m->bmapped != 0)) {
+			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 			m = next;
 			continue;
 		}
@@ -725,6 +734,8 @@ rescan1:
 			TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
 			splx(s);
 		} else {
+			m->flags &= ~PG_REFERENCED;
+			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 			m->act_count -= min(m->act_count, ACT_DECLINE);
 
 			/*
@@ -733,10 +744,6 @@ rescan1:
 			if (!m->act_count && (page_shortage > 0)) {
 				if (m->object->ref_count == 0) {
 					vm_page_test_dirty(m);
-
-					m->flags &= ~PG_REFERENCED;
-					pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-
 					--page_shortage;
 					if ((m->dirty & m->valid) == 0) {
 						m->act_count = 0;
@@ -745,14 +752,10 @@ rescan1:
 						vm_page_deactivate(m);
 					}
 				} else {
-
-					m->flags &= ~PG_REFERENCED;
-					pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-
 					vm_page_deactivate(m);
 					--page_shortage;
 				}
-			} else {
+			} else if (m->act_count) {
 				TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
 				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 			}
@@ -764,7 +767,7 @@ rescan1:
 	 * We try to maintain some *really* free pages, this allows interrupt
 	 * code to be guaranteed space.
 	 */
-	while (cnt.v_free_count < MINFREE) {
+	while (cnt.v_free_count < cnt.v_free_min) {
 		m = vm_page_queue_cache.tqh_first;
 		if (!m)
 			break;
@@ -840,7 +843,7 @@ vm_pageout()
 	 * free_reserved needs to include enough for the largest swap pager
 	 * structures plus enough for any pv_entry structs when paging.
 	 */
-	cnt.v_pageout_free_min = 5 + cnt.v_page_count / 1024;
+	cnt.v_pageout_free_min = 6 + cnt.v_page_count / 1024;
 	cnt.v_free_reserved = cnt.v_pageout_free_min + 2;
 	cnt.v_free_target = 3 * cnt.v_free_min + cnt.v_free_reserved;
 	cnt.v_inactive_target = cnt.v_free_count / 4;
@@ -926,8 +929,6 @@ vm_daemon()
 			size = p->p_vmspace->vm_pmap.pm_stats.resident_count * NBPG;
 			if (limit >= 0 && size >= limit) {
 				overage = (size - limit) / NBPG;
-				if (limit == 0)
-					overage += 20;
 				vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
 				    (vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages);
 			}

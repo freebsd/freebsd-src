@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.15 1995/01/10 09:19:46 davidg Exp $
+ *	$Id: vm_page.c,v 1.16 1995/01/15 07:31:34 davidg Exp $
  */
 
 /*
@@ -601,16 +601,22 @@ vm_page_requeue(vm_page_t mem, int flags)
  *	Allocate and return a memory cell associated
  *	with this VM object/offset pair.
  *
+ *	page_req -- 0	normal process request			VM_ALLOC_NORMAL
+ *	page_req -- 1	interrupt time request			VM_ALLOC_INTERRUPT
+ *	page_req -- 2	system *really* needs a page	VM_ALLOC_SYSTEM
+ *					but *cannot* be at interrupt time
+ *
  *	Object must be locked.
  */
 vm_page_t
-vm_page_alloc(object, offset, inttime)
+vm_page_alloc(object, offset, page_req)
 	vm_object_t object;
 	vm_offset_t offset;
-	int inttime;
+	int page_req;
 {
 	register vm_page_t mem;
 	int s;
+	int msgflg;
 
 	simple_lock(&vm_page_queue_free_lock);
 
@@ -625,22 +631,20 @@ vm_page_alloc(object, offset, inttime)
 		splx(s);
 		return (NULL);
 	}
-	if (inttime) {
+	if (page_req == VM_ALLOC_INTERRUPT) {
 		if ((mem = vm_page_queue_free.tqh_first) == 0) {
-			for (mem = vm_page_queue_cache.tqh_first; mem; mem = mem->pageq.tqe_next) {
-				if ((mem->object->flags & OBJ_ILOCKED) == 0) {
-					TAILQ_REMOVE(&vm_page_queue_cache, mem, pageq);
-					vm_page_remove(mem);
-					cnt.v_cache_count--;
-					goto gotpage;
-				}
-			}
 			simple_unlock(&vm_page_queue_free_lock);
 			splx(s);
+			/*
+			 * need to wakeup at interrupt time -- it doesn't do VM_WAIT
+			 */
+			wakeup((caddr_t) &vm_pages_needed);
 			return NULL;
 		}
+		if( cnt.v_free_count < cnt.v_pageout_free_min)
+			wakeup((caddr_t) &vm_pages_needed);
 	} else {
-		if ((cnt.v_free_count < 3) ||
+		if ((cnt.v_free_count < cnt.v_pageout_free_min) ||
 		    (mem = vm_page_queue_free.tqh_first) == 0) {
 			mem = vm_page_queue_cache.tqh_first;
 			if (mem) {
@@ -649,9 +653,15 @@ vm_page_alloc(object, offset, inttime)
 				cnt.v_cache_count--;
 				goto gotpage;
 			}
-			simple_unlock(&vm_page_queue_free_lock);
-			splx(s);
-			return (NULL);
+			if( page_req == VM_ALLOC_SYSTEM) {
+				mem = vm_page_queue_free.tqh_first;
+				if( !mem) {
+					simple_unlock(&vm_page_queue_free_lock);
+					splx(s);
+					wakeup((caddr_t) &vm_pages_needed);
+					return (NULL);
+				}
+			}
 		}
 	}
 
@@ -661,7 +671,7 @@ vm_page_alloc(object, offset, inttime)
 gotpage:
 	simple_unlock(&vm_page_queue_free_lock);
 
-	mem->flags = PG_BUSY | PG_CLEAN;
+	mem->flags = PG_BUSY;
 	mem->wire_count = 0;
 	mem->hold_count = 0;
 	mem->act_count = 0;
@@ -680,7 +690,8 @@ gotpage:
  * we would be nearly out of memory.
  */
 	if (curproc != pageproc &&
-	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min))
+	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) ||
+		(cnt.v_free_count < cnt.v_pageout_free_min))
 		wakeup((caddr_t) &vm_pages_needed);
 
 	return (mem);
@@ -1109,8 +1120,8 @@ void
 vm_page_test_dirty(m)
 	vm_page_t m;
 {
-	if ((!m->dirty || (m->dirty != vm_page_bits(0, PAGE_SIZE))) &&
-	    pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
+	if ((m->dirty != VM_PAGE_BITS_ALL) &&
+		pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
 		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 		m->dirty = VM_PAGE_BITS_ALL;
 	}
