@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.146 1996/05/01 03:58:21 bde Exp $
+ *  $Id: syscons.c,v 1.147 1996/05/02 21:47:50 ache Exp $
  */
 
 #include "sc.h"
@@ -204,7 +204,7 @@ mask2attr(struct term_stat *term)
 static int
 scprobe(struct isa_device *dev)
 {
-    int i, retries = 5;
+    int i, j, retries = 5;
     unsigned char val;
 
     /* Enable interrupts and keyboard controller */
@@ -236,15 +236,17 @@ gotres:
     if (!retries)
 	printf("scprobe: keyboard won't accept RESET command\n");
     else {
+	i = 10;			/* At most 10 retries. */
 gotack:
 	DELAY(10);
-	while ((inb(KB_STAT) & KB_BUF_FULL) == 0) DELAY(10);
+	j = 1000;		/* Wait at most 10 ms (supposedly). */
+	while ((inb(KB_STAT) & KB_BUF_FULL) == 0 && --j > 0) DELAY(10);
 	DELAY(10);
 	val = inb(KB_DATA);
-	if (val == KB_ACK)
+	if (val == KB_ACK && --i > 0)
 	    goto gotack;
 	if (val != KB_RESET_DONE)
-	    printf("scprobe: keyboard RESET failed %02x\n", val);
+	    printf("scprobe: keyboard RESET failed (result = 0x%02x)\n", val);
     }
 #ifdef XT_KEYBOARD
     kbd_wait();
