@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.11 1998/01/03 05:53:04 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.12 1998/01/04 09:54:13 kato Exp $
  */
 
 /*
@@ -413,7 +413,6 @@ ed_probe(isa_dev)
 	 * IO-DATA PCLA/T
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LPC) {
-		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LPC;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_LPC);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
@@ -424,7 +423,6 @@ ed_probe(isa_dev)
 	 * Generic probe routine
 	 * Allied Telesis CenterCom LA-98-T
 	 */
-	ed_softc[isa_dev->id_unit].type = ED_TYPE98_GENERIC;
 	nports98 = pc98_set_register(isa_dev, ED_TYPE98_GENERIC);
 
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) {
@@ -447,7 +445,6 @@ ed_probe(isa_dev)
 	 * Allied Telesis SIC-98
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_SIC) {
-		ed_softc[isa_dev->id_unit].type = ED_TYPE98_SIC;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_SIC);
 		nports = ed_probe_SIC98(isa_dev);
 		if (nports)
@@ -460,7 +457,6 @@ ed_probe(isa_dev)
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_BDN) {
 		/* LD-BDN */
-		ed_softc[isa_dev->id_unit].type = ED_TYPE98_BDN;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_BDN);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
@@ -473,7 +469,6 @@ ed_probe(isa_dev)
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LGY) {
 		/* LGY-98 */
-		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LGY;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_LGY);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
@@ -486,7 +481,6 @@ ed_probe(isa_dev)
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_ICM) {
 		/* ICM */
-		ed_softc[isa_dev->id_unit].type = ED_TYPE98_ICM;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_ICM);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
@@ -499,7 +493,6 @@ ed_probe(isa_dev)
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_EGY) {
 		/* EGY-98 */
-		ed_softc[isa_dev->id_unit].type = ED_TYPE98_EGY;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_EGY);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
@@ -511,7 +504,6 @@ ed_probe(isa_dev)
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LA98) {
 		/* LA-98 */
-		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LA98;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_LA98);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
@@ -523,7 +515,6 @@ ed_probe(isa_dev)
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_108) {
 		/* PC-9801-108 */
-		ed_softc[isa_dev->id_unit].type = ED_TYPE98_108;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_108);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
@@ -535,7 +526,6 @@ ed_probe(isa_dev)
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98EL) {
 		/* C-NET(98)E/L */
-		ed_softc[isa_dev->id_unit].type = ED_TYPE98_CNET98EL;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_CNET98EL);
 		nports = ed_probe_CNET98EL(isa_dev);
 		if (nports)
@@ -547,7 +537,6 @@ ed_probe(isa_dev)
 	 */
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98) {
 		/* C-NET(98) */
-		ed_softc[isa_dev->id_unit].type = ED_TYPE98_CNET98;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_CNET98);
 		nports = ed_probe_CNET98(isa_dev);
 		if (nports)
@@ -1569,6 +1558,9 @@ ed_probe_pccard(isa_dev, ether)
 {
 	int     nports;
 
+#ifdef PC98
+	(void)pc98_set_register(isa_dev, ED_TYPE98_GENERIC);
+#endif
 	nports = ed_probe_WD80x3(isa_dev);
 	if (nports)
 		return (nports);
@@ -2500,6 +2492,9 @@ ed_attach_NE2000_pci(unit, port)
 		return sc;
 
 	bzero(sc, sizeof *sc);
+#ifdef PC98
+	(void)pc98_set_register_unit(sc, ED_TYPE98_GENERIC, 0);
+#endif
 	if (ed_probe_Novell_generic(sc, port, unit, isa_flags) == 0
 	    || ed_attach(sc, unit, isa_flags) == 0) {
 		free(sc, M_DEVBUF);
