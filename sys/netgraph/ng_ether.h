@@ -47,7 +47,7 @@
 
 /* Node type name and magic cookie */
 #define NG_ETHER_NODE_TYPE	"ether"
-#define NGM_ETHER_COOKIE	1108206947
+#define NGM_ETHER_COOKIE	917786906
 
 /* Hook names */
 #define NG_ETHER_HOOK_LOWER	"lower"		/* connection to raw device */
