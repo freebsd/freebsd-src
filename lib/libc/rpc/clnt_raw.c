@@ -44,7 +44,7 @@ static char *rcsid = "$FreeBSD$";
  * Memory based rpc for simple testing and timing.
  * Interface to create an rpc client and server in the same process.
  * This lets us similate rpc and get round trip overhead, without
- * any interference from the kernal.
+ * any interference from the kernel.
  */
 
 #include "namespace.h"
