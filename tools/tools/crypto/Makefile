@@ -27,6 +27,7 @@
 
 ALL=	cryptotest cryptokeytest cryptostats \
 	ubsecstats hifnstats ipsecstats safestats
+BINDIR=	/usr/local/bin
 
 all:	${ALL}
 
@@ -60,3 +61,8 @@ ipsecstats: ipsecstats.c
 
 clean:
 	rm -f ${ALL} core a.out
+
+install: ${ALL}
+	for i in ${ALL}; do \
+		install $$i ${DESTDIR}${BINDIR}; \
+	done
