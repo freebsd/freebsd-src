@@ -183,6 +183,15 @@ cpu_startup(void *arg)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
+	struct intr_request *ir;
+	int i;
+
+	pcpu->pc_irtail = &pcpu->pc_irhead;
+	for (i = 0; i < IR_FREE; i++) {
+		ir = &pcpu->pc_irpool[i];
+		ir->ir_next = pcpu->pc_irfree;
+		pcpu->pc_irfree = ir;
+	}
 }
 
 unsigned
