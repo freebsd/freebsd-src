@@ -36,9 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.22 1997/12/29 00:22:38 dyson Exp $
+ * $Id: vfs_lookup.c,v 1.23 1998/01/06 05:16:09 dyson Exp $
  */
 
+#include "opt_diagnostic.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>

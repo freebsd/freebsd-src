@@ -39,6 +39,8 @@
  *	@(#)ext2_subr.c	8.2 (Berkeley) 9/21/93
  */
 
+#include "opt_diagnostic.h"
+
 #include <sys/param.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>

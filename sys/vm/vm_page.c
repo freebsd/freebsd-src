@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.88 1998/01/31 11:56:47 dyson Exp $
+ *	$Id: vm_page.c,v 1.89 1998/01/31 20:30:18 dyson Exp $
  */
 
 /*
@@ -67,6 +67,8 @@
 /*
  *	Resident memory management module.
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

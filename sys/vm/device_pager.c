@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.27 1997/09/01 03:17:12 bde Exp $
+ * $Id: device_pager.c,v 1.28 1998/01/31 11:56:25 dyson Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -26,8 +26,10 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hostcache.c,v 1.2 1997/10/12 20:25:06 phk Exp $
+ *	$Id: hostcache.c,v 1.3 1997/11/07 08:53:17 phk Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

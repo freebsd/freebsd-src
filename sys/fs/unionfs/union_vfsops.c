@@ -35,12 +35,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.22 1997/11/18 15:07:35 phk Exp $
+ * $Id: union_vfsops.c,v 1.23 1998/01/18 07:56:41 kato Exp $
  */
 
 /*
  * Union Layer
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.70 1997/12/16 17:40:42 eivind Exp $
+ * $Id: vm_mmap.c,v 1.71 1997/12/31 02:35:29 alex Exp $
  */
 
 /*
@@ -46,6 +46,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_diagnostic.h"
 #include "opt_rlimit.h"
 
 #include <sys/param.h>

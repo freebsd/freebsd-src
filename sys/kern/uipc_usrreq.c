@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.29 1997/11/07 08:53:02 phk Exp $
+ *	$Id: uipc_usrreq.c,v 1.30 1997/11/23 10:43:49 bde Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

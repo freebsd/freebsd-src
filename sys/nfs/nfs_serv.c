@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.54 1997/12/29 00:23:34 dyson Exp $
+ * $Id: nfs_serv.c,v 1.55 1998/01/31 11:56:14 dyson Exp $
  */
 
 /*
@@ -56,6 +56,8 @@
  *	For Version 3, nfsm_reply() does not return for the error case, since
  *	most version 3 rpcs return more than the status for error cases.
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

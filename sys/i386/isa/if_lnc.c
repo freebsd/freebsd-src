@@ -65,6 +65,7 @@
 #if NLNC > 0
 
 #include "bpfilter.h"
+#include "opt_diagnostic.h"
 #include "opt_inet.h"
 
 /* Some defines that should really be in generic locations */

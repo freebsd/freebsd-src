@@ -61,12 +61,14 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.108 1998/01/22 17:30:39 dyson Exp $
+ * $Id: vm_object.c,v 1.109 1998/01/31 11:56:41 dyson Exp $
  */
 
 /*
  *	Virtual memory object module.
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

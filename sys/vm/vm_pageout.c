@@ -65,12 +65,14 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.109 1998/01/22 17:30:42 dyson Exp $
+ * $Id: vm_pageout.c,v 1.110 1998/01/31 11:56:49 dyson Exp $
  */
 
 /*
  *	The proverbial page-out daemon.
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

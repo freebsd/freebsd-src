@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.6 1997/12/19 02:25:51 dyson Exp $
+ *	$Id: ide_pci.c,v 1.7 1998/01/14 08:13:32 kato Exp $
  */
 
 #include "pci.h"
@@ -35,6 +35,8 @@
 #include "wd.h"
 
 #if NWDC > 0
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.75 1998/01/08 23:42:03 eivind Exp $
+ * $Id: nfs_vnops.c,v 1.76 1998/01/25 06:14:26 dyson Exp $
  */
 
 
@@ -42,6 +42,7 @@
  * vnode op calls for Sun NFS version 2 and 3
  */
 
+#include "opt_diagnostic.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>
