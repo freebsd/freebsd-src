@@ -102,6 +102,37 @@ except that they write rather than read.
 The
 .Fa data
 argument supplies the value to be written.
+.It Dv PT_IO
+This request allows reading and writing arbitrary amounts of data in
+the traced process's address space.
+The 
+.Fa addr
+argument specifies a pointer to a 
+.Vt struct ptrace_io_desc ,
+which is defined as follows:
+.Bd -literal
+struct ptrace_io_desc {
+	int	piod_op;	/* I/O operation */
+	void	*piod_offs;	/* child offset */
+	void	*piod_addr;	/* parent offset */
+	size_t	piod_len;	/* request length */
+};
+
+/*
+ * Operations in piod_op.
+ */
+#define PIOD_READ_D	1	/* Read from D space */
+#define PIOD_WRITE_D	2	/* Write to D space */
+#define PIOD_READ_I	3	/* Read from I space */
+#define PIOD_WRITE_I	4	/* Write to I space */
+.Ed
+.Pp
+The
+.Fa data
+argument is ignored.
+The actual number of bytes read or written is stored in
+.Va piod_len
+upon return.
 .It Dv PT_CONTINUE
 The traced process continues execution.
 .Fa addr
@@ -146,11 +177,6 @@ This request is like PT_CONTINUE, except that it does not allow
 specifying an alternate place to continue execution, and after it
 succeeds, the traced process is no longer traced and continues
 execution normally.
-.El
-.Pp
-Additionally, machine-specific requests can exist.
-On the i386, these are:
-.Bl -tag -width 12n
 .It Dv PT_GETREGS
 This request reads the traced process's machine registers into the
 .Do
@@ -214,6 +240,8 @@ it loads the traced process's debug registers from the
 pointed to by
 .Fa addr .
 .El
+.Pp
+Additionally, machine-specific requests can exist.
 .Sh RETURN VALUES
 Some requests can cause
 .Fn ptrace
