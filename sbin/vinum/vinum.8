@@ -545,7 +545,7 @@ reboot in order to leave the debugger.
 .It Ic debug Ar flags
 Set a bit mask of internal debugging flags.  These will change without warning
 as the product matures; to be certain, read the header file
-.Aq Pa sys/dev/vinumvar.h .
+.In sys/dev/vinumvar.h .
 The bit mask is composed of the following values:
 .Bl -tag -width indent
 .It Dv DEBUG_ADDRESSES Pq No 1
@@ -1105,7 +1105,7 @@ have an existing configuration which you never want to see again.
 .Xc
 .Nm
 maintains a number of statistical counters for each object.  See the header file
-.Aq Pa sys/dev/vinumvar.h
+.In sys/dev/vinumvar.h
 for more information.
 .\" XXX put it in here when it's finalized
 Use the

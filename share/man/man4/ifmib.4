@@ -78,7 +78,7 @@ The manifest constants for each level in the
 .Xr sysctl 3
 .Ar name
 are defined in
-.Aq Pa net/if_mib.h .
+.In net/if_mib.h .
 The index of the last row in the table is given by
 .Dq Li net.link.generic.system.ifcount
 (or, using the manifest constants,
@@ -132,7 +132,7 @@ the number of promiscuous listeners
 .It Li ifmd_flags
 .Pq Li int
 the interface's flags (defined in
-.Aq Pa net/if.h )
+.In net/if.h )
 .It Li ifmd_snd_len
 .Pq Li int
 the current instantaneous length of the send queue
@@ -143,7 +143,7 @@ was full
 .It Li ifmd_data
 .Pq Li struct if_data
 more information from a structure defined in
-.Aq Pa net/if.h
+.In net/if.h
 (see
 .Xr if_data 9 )
 .El
@@ -161,7 +161,7 @@ and
 interfaces, the structure is called
 .Dq Li struct ifmib_iso_8802_3
 (defined in
-.Aq Pa net/if_mib.h ) ,
+.In net/if_mib.h ) ,
 and implements a superset of the
 .Tn "RFC 1650"
 MIB for Ethernet-like networks.
@@ -170,7 +170,7 @@ For
 .Dv IFT_SLIP ,
 the structure is a
 .Dq Li struct sl_softc
-.Pq Aq Pa net/if_slvar.h .
+.Pq In net/if_slvar.h .
 .Sh SEE ALSO
 .Xr sysctl 3 ,
 .Xr intro 4 ,

@@ -823,7 +823,7 @@ Routines that need to control certain terminal
 .Tn I/O
 characteristics
 do so by using the termios structure as defined in the header
-.Aq Pa termios.h .
+.In termios.h .
 This structure contains minimally four scalar elements of bit flags
 and one array of special characters.
 The scalar flag elements are named:
@@ -1494,7 +1494,7 @@ This table lists the array index, the corresponding special character,
 and the system default value.
 For an accurate list of
 the system defaults, consult the header file
-.Aq Pa ttydefaults.h .
+.In ttydefaults.h .
 .Pp
 .Bl -column "Index Name" "Special Character" -offset indent -compact
 .It Em "Index Name	Special Character	Default Value"
@@ -1543,4 +1543,4 @@ after
 .Fn open
 is set according to
 the values in the header
-.Aq Pa sys/ttydefaults.h .
+.In sys/ttydefaults.h .

@@ -72,7 +72,7 @@ Any data transfers requested by the user CCBs are done via zero-copy IO.
 The following
 .Xr ioctl 2
 calls are defined in the header file
-.Aq Pa cam/scsi/scsi_targetio.h .
+.In cam/scsi/scsi_targetio.h .
 .Bl -tag -width ".Dv TARGIOCDISABLE"
 .It Dv TARGIOCENABLE
 .Pq Vt "struct ioc_enable_lun"
@@ -114,7 +114,7 @@ it.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /sys/cam/scsi/scsi_target.c" -compact
-.It Aq Pa cam/scsi/scsi_targetio.h
+.It In cam/scsi/scsi_targetio.h
 describes the usermode interface.
 .It Pa /sys/cam/scsi/scsi_target.c
 is the driver source file.
