@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.33 1995/09/20 06:48:54 jkh Exp $
+ **      $Id: userconfig.c,v 1.34 1995/09/20 12:07:22 jkh Exp $
  **/
 
 /**
@@ -201,7 +201,7 @@ static DEV_INFO device_info[] = {
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
 {"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},
 {"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
-{"matcd",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
+{"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
 {"wt",          "Wangtek/Archive QIC-02 Tape drive",	0,		CLS_STORAGE},
 
 {"ed",          "NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters",0,	CLS_NETWORK},
@@ -2143,7 +2143,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.33 1995/09/20 06:48:54 jkh Exp $
+ *      $Id: userconfig.c,v 1.34 1995/09/20 12:07:22 jkh Exp $
  */
 
 
