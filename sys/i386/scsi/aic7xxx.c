@@ -772,22 +772,6 @@ ahc_intr(arg)
 			int_cleared++;
 		} 
 
-		if ((ahc->flags & AHC_PAGESCBS) != 0) {
-			pause_sequencer(ahc);
-
-			/*
-			 * We've emptied the Queue, so reset our
-			 * QOUTQCNT variable to the current QOUTCNT
-			 * setting while the sequencer is paused.
-			 * QOUTCNT will most likely be 0, be we have no
-			 * guarantee that the sequencer did not post
-			 * more work just after our last check.
-			 */
-			ahc_outb(ahc, QOUTQCNT, ahc_inb(ahc, QOUTCNT));
-
-			unpause_sequencer(ahc, /*unpause_always*/FALSE);
-		}
-
 		if (int_cleared == 0)
 			ahc_outb(ahc, CLRINT, CLRCMDINT);
 	}
@@ -1258,25 +1242,6 @@ ahc_handle_seqint(ahc, intstat)
 		}
 		break;
 	}
-	case ABORT_TAG:
-	{
-		u_int8_t scb_index;
-		struct scsi_xfer *xs;
-
-		scb_index = ahc_inb(ahc, SCB_TAG);
-		scb = ahc->scb_data->scbarray[scb_index];
-		xs = scb->xs;
-		/*
-		 * We didn't recieve a valid tag back from
-		 * the target on a reconnect.
-		 */
-		sc_print_addr(xs->sc_link);
-		printf("invalid tag recieved -- sending ABORT_TAG\n");
-		xs->error = XS_DRIVER_STUFFUP;
-		untimeout(ahc_timeout, (caddr_t)scb);
-		ahc_done(ahc, scb);
-		break;
-	}
 	case AWAITING_MSG:
 	{
 		int   scb_index;
@@ -1298,7 +1263,7 @@ ahc_handle_seqint(ahc, intstat)
 					   BUS_16_BIT);
 		} else if (scb->flags & SCB_MSGOUT_SDTR) {
 			u_int8_t target_scratch;
-			u_int8_t ultraenable;			
+			u_int16_t ultraenable;			
 			int sxfr;
 			int i;
 
@@ -1307,10 +1272,8 @@ ahc_handle_seqint(ahc, intstat)
 						 + scratch_offset);
 			
 			sxfr = target_scratch & SXFR;
-			if (scratch_offset < 8)
-				ultraenable = ahc_inb(ahc, ULTRA_ENB);
-			else
-				ultraenable = ahc_inb(ahc, ULTRA_ENB + 1);
+			ultraenable = ahc_inb(ahc, ULTRA_ENB)
+				    | (ahc_inb(ahc, ULTRA_ENB + 1) << 8);
 			
 			if (ultraenable & targ_mask)
 				/* Want an ultra speed in the table */
@@ -1511,6 +1474,7 @@ ahc_handle_scsiint(ahc, intstat)
 						printerror = 0;
 					} else if (scb->flags & SCB_ABORTED) {
 						ahc_done(ahc, scb);
+						scb = NULL;
 						printerror = 0;
 					}
 				}
@@ -1521,6 +1485,7 @@ ahc_handle_scsiint(ahc, intstat)
 				scb->xs->error = XS_DRIVER_STUFFUP;
 				sc_print_addr(scb->xs->sc_link);
 				ahc_done(ahc, scb);
+				scb = NULL;
 			} else
 				printf("%s: ", ahc_name(ahc));
 			printf("Unexpected busfree.  LASTPHASE == 0x%x\n",
@@ -1754,6 +1719,22 @@ ahc_done(ahc, scb)
 		}
 	}
 #endif /* AHC_TAGENABLE */
+	if ((scb->flags & SCB_MSGOUT_WDTR|SCB_MSGOUT_SDTR) != 0) {
+		/*
+		 * Turn off the pending flags for any DTR messages
+		 * regardless of whether they completed successfully 
+		 * or not.  This ensures that we don't have lingering
+		 * state after we abort an SCB.
+		 */
+		u_int16_t mask;
+
+		mask = (0x01 << (xs->sc_link->target
+			| (IS_SCSIBUS_B(ahc, xs->sc_link) ? SELBUSB : 0)));
+		if (scb->flags & SCB_MSGOUT_WDTR)
+			ahc->wdtrpending &= ~mask;
+		if (scb->flags & SCB_MSGOUT_SDTR)
+			ahc->sdtrpending &= ~mask;
+	}
 	ahc_free_scb(ahc, scb);
 	scsi_done(xs);
 }
@@ -2146,8 +2127,6 @@ ahc_init(ahc)
 
 	if (bootverbose)
 		printf("Done\n");
-
-	ahc_outb(ahc, SEQCTL, FASTMODE);
 
 	unpause_sequencer(ahc, /*unpause_always*/TRUE);
 
@@ -2543,21 +2522,23 @@ ahc_alloc_scb(ahc)
 	return newscb;
 }
 
-static void ahc_loadseq(ahc)
+static void
+ahc_loadseq(ahc)
 	struct ahc_softc *ahc;
 {
         static u_char seqprog[] = {
 #               include "aic7xxx_seq.h"
 	};
 
-	ahc_outb(ahc, SEQCTL, PERRORDIS|SEQRESET|LOADRAM);
+	ahc_outb(ahc, SEQCTL, PERRORDIS|LOADRAM);
+	ahc_outb(ahc, SEQADDR0, 0);
+	ahc_outb(ahc, SEQADDR1, 0);
 
 	ahc_outsb(ahc, SEQRAM, seqprog, sizeof(seqprog));
 
-	do {
-		ahc_outb(ahc, SEQCTL, SEQRESET|FASTMODE);
-	} while ((ahc_inb(ahc, SEQADDR0) != 0)
-	      || (ahc_inb(ahc, SEQADDR1) != 0));
+	ahc_outb(ahc, SEQCTL, FASTMODE);
+	ahc_outb(ahc, SEQADDR0, 0);
+	ahc_outb(ahc, SEQADDR1, 0);
 }
 
 /*
