@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.40 1997/03/29 12:40:18 bde Exp $
+ * $Id: nfs_serv.c,v 1.41 1997/05/10 16:12:03 dfr Exp $
  */
 
 /*
@@ -96,6 +96,7 @@ extern enum vtype nv3tov_type[8];
 extern struct nfsstats nfsstats;
 
 int nfsrvw_procrastinate = NFS_GATHERDELAY * 1000;
+int nfsrvw_procrastinate_v3 = 0;
 
 int nfs_async;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0, "");
@@ -929,7 +930,8 @@ nfsrv_writegather(ndp, slp, procp, mrq)
 	    nfsd->nd_mreq = NULL;
 	    nfsd->nd_stable = NFSV3WRITE_FILESYNC;
 	    cur_usec = (u_quad_t)time.tv_sec * 1000000 + (u_quad_t)time.tv_usec;
-	    nfsd->nd_time = cur_usec + nfsrvw_procrastinate;
+	    nfsd->nd_time = cur_usec +
+		(v3 ? nfsrvw_procrastinate_v3 : nfsrvw_procrastinate);
     
 	    /*
 	     * Now, get the write header..
