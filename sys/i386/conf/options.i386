@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.77 1998/04/18 04:58:01 ahasty Exp $
+#	$Id: options.i386,v 1.78 1998/05/11 02:13:33 dyson Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
@@ -124,3 +124,7 @@ PCVT_VT220KEYB		opt_pcvt.h
 # give bktr an opt_bktr.h file
 OVERRIDE_TUNER		opt_bktr.h
 
+# voxware options
+GUS_DMA2		opt_sound.h
+GUS_DMA			opt_sound.h
+GUS_IRQ			opt_sound.h
