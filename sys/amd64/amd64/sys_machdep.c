@@ -108,7 +108,7 @@ sysarch(p, uap)
 		error = vm86_sysarch(p, uap->parms);
 		break;
 	default:
-		error = EINVAL;
+		error = EOPNOTSUPP;
 		break;
 	}
 	return (error);
@@ -162,12 +162,6 @@ i386_extend_pcb(struct proc *p)
 
 	return 0;
 }
-
-struct i386_ioperm_args {
-	u_int start;
-	u_int length;
-	int enable;
-};
 
 static int
 i386_set_ioperm(p, args)
@@ -265,12 +259,6 @@ set_user_ldt(struct pcb *pcb)
 	currentldt = GSEL(GUSERLDT_SEL, SEL_KPL);
 }
 
-struct i386_get_ldt_args {
-	int start;
-	union descriptor *desc;
-	int num;
-};
-
 static int
 i386_get_ldt(p, args)
 	struct proc *p;
@@ -281,15 +269,14 @@ i386_get_ldt(p, args)
 	int nldt, num;
 	union descriptor *lp;
 	int s;
-	struct i386_get_ldt_args ua;
-	struct i386_get_ldt_args *uap = &ua;
+	struct i386_ldt_args ua, *uap = &ua;
 
-	if ((error = copyin(args, uap, sizeof(struct i386_get_ldt_args))) < 0)
+	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
 		return(error);
 
 #ifdef	DEBUG
 	printf("i386_get_ldt: start=%d num=%d descs=%p\n",
-	    uap->start, uap->num, (void *)uap->desc);
+	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
 	/* verify range of LDTs exist */
@@ -312,19 +299,13 @@ i386_get_ldt(p, args)
 		return(EINVAL);
 	}
 
-	error = copyout(lp, uap->desc, num * sizeof(union descriptor));
+	error = copyout(lp, uap->descs, num * sizeof(union descriptor));
 	if (!error)
 		p->p_retval[0] = num;
 
 	splx(s);
 	return(error);
 }
-
-struct i386_set_ldt_args {
-	int start;
-	union descriptor *desc;
-	int num;
-};
 
 static int
 i386_set_ldt(p, args)
@@ -335,16 +316,14 @@ i386_set_ldt(p, args)
  	int largest_ld;
 	struct pcb *pcb = &p->p_addr->u_pcb;
 	int s;
-	struct i386_set_ldt_args ua, *uap;
+	struct i386_ldt_args ua, *uap = &ua;
 
-	if ((error = copyin(args, &ua, sizeof(struct i386_set_ldt_args))) < 0)
+	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
 		return(error);
-
-	uap = &ua;
 
 #ifdef	DEBUG
 	printf("i386_set_ldt: start=%d num=%d descs=%p\n",
-	    uap->start, uap->num, (void *)uap->desc);
+	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
  	/* verify range of descriptors to modify */
@@ -381,7 +360,7 @@ i386_set_ldt(p, args)
 	/* Check descriptors for access violations */
 	for (i = 0, n = uap->start; i < uap->num; i++, n++) {
 		union descriptor desc, *dp;
-		dp = &uap->desc[i];
+		dp = &uap->descs[i];
 		error = copyin(dp, &desc, sizeof(union descriptor));
 		if (error)
 			return(error);
@@ -446,7 +425,7 @@ i386_set_ldt(p, args)
 	s = splhigh();
 
 	/* Fill in range */
- 	error = copyin(uap->desc, 
+ 	error = copyin(uap->descs, 
  		 &((union descriptor *)(pcb->pcb_ldt))[uap->start],
  		uap->num * sizeof(union descriptor));
  	if (!error)
