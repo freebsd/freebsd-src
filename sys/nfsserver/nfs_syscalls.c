@@ -498,9 +498,7 @@ nfssvc_nfsd(struct thread *td)
 				(void) nfs_slplock(slp, 1);
 			if (slp->ns_flag & SLP_VALID) {
 			    NFSD_UNLOCK();
-			    NET_LOCK_GIANT();
 			    error = nfsrv_send(slp->ns_so, nd->nd_nam2, m);
-			    NET_UNLOCK_GIANT();
 			    NFSD_LOCK();
 			} else {
 			    error = EPIPE;
