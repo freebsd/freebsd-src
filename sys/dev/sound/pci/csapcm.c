@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1999 Seigo Tanimura
  * All rights reserved.
  *
@@ -55,6 +55,7 @@ struct csa_info {
 	csa_res		res; /* resource */
 	void		*ih; /* Interrupt cookie */
 	bus_dma_tag_t	parent_dmat; /* DMA tag */
+	struct csa_bridgeinfo *binfo; /* The state of the parent. */
 
 	/* Contents of board's registers */
 	u_long		pfie;
@@ -438,6 +439,9 @@ csa_stopplaydma(struct csa_info *csa)
 	csa->pctl = ul & 0xffff0000;
 	csa_writemem(resp, BA1_PCTL, ul & 0x0000ffff);
 	csa_writemem(resp, BA1_PVOL, 0xffffffff);
+
+	/* Clear the serial fifos. */
+	csa_clearserialfifos(resp);
 }
 
 static void
@@ -619,27 +623,11 @@ static void
 csa_intr (void *p)
 {
 	struct csa_info *csa = p;
-	csa_res *resp;
-	u_int hisr;
 
-	resp = &csa->res;
-
-	/* Is this interrupt for us? */
-	/* XXX The parent device should handle this. */
-	hisr = csa_readio(resp, BA0_HISR);
-	if ((hisr & ~HISR_INTENA) == 0) {
-		/* Throw an eoi. */
-		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
-		return;
-	}
-
-	if ((hisr & HISR_VC0) != 0)
+	if ((csa->binfo->hisr & HISR_VC0) != 0)
 		chn_intr(csa->pch.channel);
-	if ((hisr & HISR_VC1) != 0)
+	if ((csa->binfo->hisr & HISR_VC1) != 0)
 		chn_intr(csa->rch.channel);
-
-	/* Throw an eoi. */
-	csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
 }
 
 /* -------------------------------------------------------------------- */
@@ -756,6 +744,7 @@ pcmcsa_attach(device_t dev)
 	int unit;
 	char status[SND_STATUSLEN];
 	struct ac97_info *codec;
+	struct sndcard_func *func;
 
 	devinfo = device_get_softc(dev);
 	csa = malloc(sizeof(*csa), M_DEVBUF, M_NOWAIT);
@@ -763,6 +752,8 @@ pcmcsa_attach(device_t dev)
 		return (ENOMEM);
 	bzero(csa, sizeof(*csa));
 	unit = device_get_unit(dev);
+	func = device_get_ivars(dev);
+	csa->binfo = func->varinfo;
 
 	/* Allocate the resources. */
 	resp = &csa->res;
@@ -790,8 +781,6 @@ pcmcsa_attach(device_t dev)
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
-	if ((csa_readio(resp, BA0_HISR) & HISR_INTENA) == 0)
-		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
 	csa_writemem(resp, BA1_PFIE, csa_readmem(resp, BA1_PFIE) & ~0x0000f03f);
 	csa_writemem(resp, BA1_CIE, (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
 
