@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.14 1995/09/17 21:47:24 ache Exp $
+ * $Id: startslip.c,v 1.15 1995/09/18 14:01:11 ache Exp $
  */
 
 #ifndef lint
@@ -292,18 +292,6 @@ restart:
 	}
 	printd(" %d", fd);
 	signal(SIGHUP, sighup);
-	if (debug) {
-		if (ioctl(fd, TIOCGETD, &disc) < 0)
-			syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
-		else
-			printd(" (disc was %d)", disc);
-	}
-	disc = TTYDISC;
-	if (ioctl(fd, TIOCSETD, &disc) < 0) {
-		syslog(LOG_ERR, "%s: ioctl (TIOCSETD 0): %m\n",
-		    devicename);
-		down(2);
-	}
 	if (ioctl(fd, TIOCSCTTY, 0) < 0) {
 		syslog(LOG_ERR, "ioctl (TIOCSCTTY): %m");
 		down(2);
@@ -430,16 +418,11 @@ restart:
 		syslog(LOG_ERR, "ioctl(SLIOCSUNIT): %m");
 		down(2);
 	}
-	if (ioctl(fd, SLIOCGUNIT, (caddr_t)&unitnum) < 0) {
+	if (ioctl(fd, SLIOCGUNIT, &unitnum) < 0) {
 		syslog(LOG_ERR, "ioctl(SLIOCGUNIT): %m");
 		down(2);
 	}
 	sprintf(unitname, "sl%d", unitnum);
-
-	sprintf(buf, "LINE=%d %s %s up",
-		diali ? (dialc - 1) % diali : 0,
-		upscript ? upscript : "/sbin/ifconfig" , unitname);
-	(void) system(buf);
 
 	if (keepal > 0) {
 		signal(SIGURG, sigurg);
@@ -452,6 +435,12 @@ restart:
 		syslog(LOG_ERR, "ioctl(SLIOCSOUTFILL): %m");
 		down(2);
 	}
+
+	sprintf(buf, "LINE=%d %s %s up",
+		diali ? (dialc - 1) % diali : 0,
+		upscript ? upscript : "/sbin/ifconfig" , unitname);
+	(void) system(buf);
+
 	printd(", ready\n");
 	if (!first)
 		syslog(LOG_INFO, "reconnected on %s (%d tries).\n", unitname, tries);
@@ -565,11 +554,8 @@ carrier()
 
 down(code)
 {
-	int disc = TTYDISC;
-
-	if (fd > -1 && ioctl(fd, TIOCSETD, &disc) < 0)
-		syslog(LOG_ERR, "%s: ioctl (TIOCSETD 0): %m",
-		    devicename);
+	if (fd > -1)
+		close(fd);
 	if (pfd)
 		unlink(pidfile);
 	if (locked)
