@@ -63,7 +63,7 @@ MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
  * Hooks for the ACPI CA debugging infrastructure
  */
 #define _COMPONENT	ACPI_BUS
-MODULE_NAME("ACPI")
+ACPI_MODULE_NAME("ACPI")
 
 /*
  * Character device 
@@ -213,7 +213,7 @@ acpi_identify(driver_t *driver, device_t parent)
     char			*debugpoint = getenv("debug.acpi.debugger");
 #endif
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     if(!cold){
 	    printf("Don't load this driver from userland!!\n");
@@ -243,7 +243,7 @@ acpi_identify(driver_t *driver, device_t parent)
     if (debugpoint && !strcmp(debugpoint, "init"))
 	acpi_EnterDebugger();
 #endif
-    if ((error = AcpiInitializeSubsystem()) != AE_OK) {
+    if (ACPI_FAILURE(error = AcpiInitializeSubsystem())) {
 	printf("ACPI: initialisation failed: %s\n", AcpiFormatException(error));
 	return_VOID;
     }
@@ -254,8 +254,7 @@ acpi_identify(driver_t *driver, device_t parent)
 
     if ((acpi_dsdt = preload_search_by_type("acpi_dsdt")) != NULL) {
         if ((p = preload_search_info(acpi_dsdt, MODINFO_ADDR)) != NULL) {
-	    error = AcpiSetDsdtTablePtr(*(void **)p);
-            if (error != AE_OK) {
+	    if (ACPI_FAILURE(error = AcpiSetDsdtTablePtr(*(void **)p))) {
 		printf("ACPI: DSDT overriding failed: %s\n",
 		       AcpiFormatException(error));
 	    } else {
@@ -264,7 +263,7 @@ acpi_identify(driver_t *driver, device_t parent)
         }
     }
 
-    if ((error = AcpiLoadTables()) != AE_OK) {
+    if (ACPI_FAILURE(error = AcpiLoadTables())) {
 	printf("ACPI: table load failed: %s\n", AcpiFormatException(error));
 	return_VOID;
     }
@@ -289,7 +288,7 @@ acpi_probe(device_t dev)
     ACPI_STATUS		status;
     int			error;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     if (power_pm_get_type() != POWER_PM_TYPE_NONE &&
         power_pm_get_type() != POWER_PM_TYPE_ACPI) {
@@ -299,7 +298,7 @@ acpi_probe(device_t dev)
 
     ACPI_LOCK;
 
-    if ((status = AcpiGetTableHeader(ACPI_TABLE_XSDT, 1, &th)) != AE_OK) {
+    if (ACPI_FAILURE(status = AcpiGetTableHeader(ACPI_TABLE_XSDT, 1, &th))) {
 	device_printf(dev, "couldn't get XSDT header: %s\n", AcpiFormatException(status));
 	error = ENXIO;
     } else {
@@ -323,7 +322,7 @@ acpi_attach(device_t dev)
     char		*debugpoint = getenv("debug.acpi.debugger");
 #endif
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
     ACPI_LOCK;
     sc = device_get_softc(dev);
     bzero(sc, sizeof(*sc));
@@ -338,24 +337,24 @@ acpi_attach(device_t dev)
      * Install the default address space handlers.
      */
     error = ENXIO;
-    if ((status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
+    if (ACPI_FAILURE(status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 						ACPI_ADR_SPACE_SYSTEM_MEMORY,
 						ACPI_DEFAULT_HANDLER,
-						NULL, NULL)) != AE_OK) {
+						NULL, NULL))) {
 	device_printf(dev, "could not initialise SystemMemory handler: %s\n", AcpiFormatException(status));
 	goto out;
     }
-    if ((status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
+    if (ACPI_FAILURE(status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 						ACPI_ADR_SPACE_SYSTEM_IO,
 						ACPI_DEFAULT_HANDLER,
-						NULL, NULL)) != AE_OK) {
+						NULL, NULL))) {
 	device_printf(dev, "could not initialise SystemIO handler: %s\n", AcpiFormatException(status));
 	goto out;
     }
-    if ((status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
+    if (ACPI_FAILURE(status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 						ACPI_ADR_SPACE_PCI_CONFIG,
 						ACPI_DEFAULT_HANDLER,
-						NULL, NULL)) != AE_OK) {
+						NULL, NULL))) {
 	device_printf(dev, "could not initialise PciConfig handler: %s\n", AcpiFormatException(status));
 	goto out;
     }
@@ -379,7 +378,7 @@ acpi_attach(device_t dev)
     flags = 0;
     if (getenv("debug.acpi.avoid") != NULL)
 	flags = ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT;
-    if ((status = AcpiEnableSubsystem(flags)) != AE_OK) {
+    if (ACPI_FAILURE(status = AcpiEnableSubsystem(flags))) {
 	device_printf(dev, "could not enable ACPI: %s\n", AcpiFormatException(status));
 	goto out;
     }
@@ -708,7 +707,7 @@ acpi_isa_get_logicalid(device_t dev)
     ACPI_STATUS		error;
     u_int32_t		pnpid;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     pnpid = 0;
     ACPI_LOCK;
@@ -716,7 +715,7 @@ acpi_isa_get_logicalid(device_t dev)
     /* fetch and validate the HID */
     if ((h = acpi_get_handle(dev)) == NULL)
 	goto out;
-    if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
+    if (ACPI_FAILURE(error = AcpiGetObjectInfo(h, &devinfo)))
 	goto out;
     if (!(devinfo.Valid & ACPI_VALID_HID))
 	goto out;
@@ -733,7 +732,7 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
     int			result;
     u_int32_t		pnpid;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     /*
      * ISA-style drivers attached to ACPI may persist and
@@ -768,7 +767,7 @@ acpi_probe_children(device_t bus)
     static char		*scopes[] = {"\\_PR_", "\\_TZ_", "\\_SI", "\\_SB_", NULL};
     int			i;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
     ACPI_ASSERTLOCK;
 
     /*
@@ -788,7 +787,7 @@ acpi_probe_children(device_t bus)
      */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "namespace scan\n"));
     for (i = 0; scopes[i] != NULL; i++)
-	if ((AcpiGetHandle(ACPI_ROOT_OBJECT, scopes[i], &parent)) == AE_OK)
+	if (ACPI_SUCCESS(AcpiGetHandle(ACPI_ROOT_OBJECT, scopes[i], &parent)))
 	    AcpiWalkNamespace(ACPI_TYPE_ANY, parent, 100, acpi_probe_child, bus, NULL);
 
     /*
@@ -818,7 +817,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
     ACPI_OBJECT_TYPE	type;
     device_t		child, bus = (device_t)context;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     /*
      * Skip this device if we think we'll have trouble with it.
@@ -826,7 +825,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
     if (acpi_avoid(handle))
 	return_ACPI_STATUS(AE_OK);
 
-    if (AcpiGetType(handle, &type) == AE_OK) {
+    if (ACPI_SUCCESS(AcpiGetType(handle, &type))) {
 	switch(type) {
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_PROCESSOR:
@@ -864,7 +863,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    acpi_parse_resources(child, handle, &acpi_res_parse_set);
 
 	    /* if we're debugging, probe/attach now rather than later */
-	    DEBUG_EXEC(device_probe_and_attach(child));
+	    ACPI_DEBUG_EXEC(device_probe_and_attach(child));
 	    break;
 	}
     }
@@ -897,13 +896,12 @@ acpi_shutdown_final(void *arg, int howto)
 
     if (howto & RB_POWEROFF) {
 	printf("Power system off using ACPI...\n");
-	status = AcpiEnterSleepStatePrep(acpi_off_state);
-	if (status != AE_OK) {
+	if (ACPI_FAILURE(status = AcpiEnterSleepStatePrep(acpi_off_state))) {
 	    printf("AcpiEnterSleepStatePrep failed - %s\n",
 		   AcpiFormatException(status));
 	    return;
 	}
-	if ((status = AcpiEnterSleepState(acpi_off_state)) != AE_OK) {
+	if (ACPI_FAILURE(status = AcpiEnterSleepState(acpi_off_state))) {
 	    printf("ACPI power-off failed - %s\n", AcpiFormatException(status));
 	} else {
 	    DELAY(1000000);
@@ -959,13 +957,38 @@ acpi_DeviceIsPresent(device_t dev)
     
     if ((h = acpi_get_handle(dev)) == NULL)
 	return(FALSE);
-    if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
+    if (ACPI_FAILURE(error = AcpiGetObjectInfo(h, &devinfo)))
 	return(FALSE);
     /* if no _STA method, must be present */
     if (!(devinfo.Valid & ACPI_VALID_STA))
 	return(TRUE);
     /* return true for 'present' and 'functioning' */
     if ((devinfo.CurrentStatus & 0x9) == 0x9)
+	return(TRUE);
+    return(FALSE);
+}
+
+/*
+ * Returns true if the battery is actually present and inserted.
+ */
+BOOLEAN
+acpi_BatteryIsPresent(device_t dev)
+{
+    ACPI_HANDLE		h;
+    ACPI_DEVICE_INFO	devinfo;
+    ACPI_STATUS		error;
+
+    ACPI_ASSERTLOCK;
+    
+    if ((h = acpi_get_handle(dev)) == NULL)
+	return(FALSE);
+    if (ACPI_FAILURE(error = AcpiGetObjectInfo(h, &devinfo)))
+	return(FALSE);
+    /* if no _STA method, must be present */
+    if (!(devinfo.Valid & ACPI_VALID_STA))
+	return(TRUE);
+    /* return true for 'present' and 'functioning' */
+    if ((devinfo.CurrentStatus & 0x19) == 0x19)
 	return(TRUE);
     return(FALSE);
 }
@@ -987,11 +1010,11 @@ acpi_MatchHid(device_t dev, char *hid)
 	return(FALSE);
     if ((h = acpi_get_handle(dev)) == NULL)
 	return(FALSE);
-    if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
+    if (ACPI_FAILURE(error = AcpiGetObjectInfo(h, &devinfo)))
 	return(FALSE);
     if ((devinfo.Valid & ACPI_VALID_HID) && !strcmp(hid, devinfo.HardwareId))
 	return(TRUE);
-    if ((error = acpi_EvaluateInteger(h, "_CID", &cid)) != AE_OK)
+    if (ACPI_FAILURE(error = acpi_EvaluateInteger(h, "_CID", &cid)))
 	return(FALSE);
     if (cid == PNP_EISAID(hid))
 	return(TRUE);
@@ -1012,14 +1035,13 @@ acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result)
 
     /* walk back up the tree to the root */
     for (;;) {
-	status = AcpiGetHandle(parent, path, &r);
-	if (status == AE_OK) {
+	if (ACPI_SUCCESS(status = AcpiGetHandle(parent, path, &r))) {
 	    *result = r;
 	    return(AE_OK);
 	}
 	if (status != AE_NOT_FOUND)
 	    return(AE_OK);
-	if (AcpiGetParent(parent, &r) != AE_OK)
+	if (ACPI_FAILURE(AcpiGetParent(parent, &r)))
 	    return(AE_NOT_FOUND);
 	parent = r;
     }
@@ -1038,72 +1060,6 @@ acpi_AllocBuffer(int size)
     buf->Length = size;
     buf->Pointer = (void *)(buf + 1);
     return(buf);
-}
-
-/*
- * Perform the tedious double-get procedure required for fetching something into
- * an ACPI_BUFFER that has not been initialised.
- */
-ACPI_STATUS
-acpi_GetIntoBuffer(ACPI_HANDLE handle, ACPI_STATUS (*func)(ACPI_HANDLE, ACPI_BUFFER *), ACPI_BUFFER *buf)
-{
-    ACPI_STATUS	status;
-
-    ACPI_ASSERTLOCK;
-
-    buf->Length = 0;
-    buf->Pointer = NULL;
-
-    if ((status = func(handle, buf)) != AE_BUFFER_OVERFLOW)
-	return(status);
-    if ((buf->Pointer = AcpiOsCallocate(buf->Length)) == NULL)
-	return(AE_NO_MEMORY);
-    return(func(handle, buf));
-}
-
-/*
- * Perform the tedious double-get procedure required for fetching a table into
- * an ACPI_BUFFER that has not been initialised.
- */
-ACPI_STATUS
-acpi_GetTableIntoBuffer(ACPI_TABLE_TYPE table, UINT32 instance, ACPI_BUFFER *buf)
-{
-    ACPI_STATUS	status;
-
-    ACPI_ASSERTLOCK;
-
-    buf->Length = 0;
-    buf->Pointer = NULL;
-
-    if ((status = AcpiGetTable(table, instance, buf)) != AE_BUFFER_OVERFLOW)
-	return(status);
-    if ((buf->Pointer = AcpiOsCallocate(buf->Length)) == NULL)
-	return(AE_NO_MEMORY);
-    return(AcpiGetTable(table, instance, buf));
-}
-
-/*
- * Perform the tedious double-evaluate procedure for evaluating something into
- * an ACPI_BUFFER if it has not been initialised.  Note that this evaluates
- * twice, so avoid applying this to things that may have side-effects.
- *
- * This is like AcpiEvaluateObject with automatic buffer allocation.
- */
-ACPI_STATUS
-acpi_EvaluateIntoBuffer(ACPI_HANDLE object, ACPI_STRING pathname, ACPI_OBJECT_LIST *params,
-			ACPI_BUFFER *buf)
-{
-    ACPI_STATUS	status;
-    
-    ACPI_ASSERTLOCK;
-
-    if ((status = AcpiEvaluateObject(object, pathname, params, buf)) != AE_BUFFER_OVERFLOW)
-	return(status);
-    if (buf->Pointer != NULL)
-	AcpiOsFree(buf->Pointer);
-    if ((buf->Pointer = AcpiOsCallocate(buf->Length)) == NULL)
-	return(AE_NO_MEMORY);
-    return(AcpiEvaluateObject(object, pathname, params, buf));
 }
 
 /*
@@ -1127,7 +1083,7 @@ acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
      */
     buf.Pointer = &param;
     buf.Length = sizeof(param);
-    if ((error = AcpiEvaluateObject(handle, path, NULL, &buf)) == AE_OK) {
+    if (ACPI_SUCCESS(error = AcpiEvaluateObject(handle, path, NULL, &buf))) {
 	if (param.Type == ACPI_TYPE_INTEGER) {
 	    *number = param.Integer.Value;
 	} else {
@@ -1144,10 +1100,10 @@ acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
      * This is a hack.
      */
     if (error == AE_BUFFER_OVERFLOW) {
-	if ((buf.Pointer = AcpiOsCallocate(buf.Length)) == NULL) {
+	if ((buf.Pointer = AcpiOsAllocate(buf.Length)) == NULL) {
 	    error = AE_NO_MEMORY;
 	} else {
-	    if ((error = AcpiEvaluateObject(handle, path, NULL, &buf)) == AE_OK) {
+	    if (ACPI_SUCCESS(error = AcpiEvaluateObject(handle, path, NULL, &buf))) {
 		error = acpi_ConvertBufferToInteger(&buf, number);
 	    }
 	}
@@ -1331,7 +1287,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     UINT8	TypeA;
     UINT8	TypeB;
 
-    FUNCTION_TRACE_U32(__func__, state);
+    ACPI_FUNCTION_TRACE_U32(__func__, state);
     ACPI_ASSERTLOCK;
 
     if (sc->acpi_sstate != ACPI_STATE_S0)
@@ -1342,8 +1298,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 
     switch (state) {
     case ACPI_STATE_S0:	/* XXX only for testing */
-	status = AcpiEnterSleepState((UINT8)state);
-	if (status != AE_OK) {
+	if (ACPI_FAILURE(status = AcpiEnterSleepState((UINT8)state))) {
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", AcpiFormatException(status));
 	}
 	break;
@@ -1352,9 +1307,8 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     case ACPI_STATE_S2:
     case ACPI_STATE_S3:
     case ACPI_STATE_S4:
-	status = AcpiHwObtainSleepTypeRegisterData((UINT8)state, &TypeA, &TypeB);
-	if (status != AE_OK) {
-	    device_printf(sc->acpi_dev, "AcpiHwObtainSleepTypeRegisterData failed - %s\n", AcpiFormatException(status));
+	if (ACPI_FAILURE(status = AcpiHwGetSleepTypeData((UINT8)state, &TypeA, &TypeB))) {
+	    device_printf(sc->acpi_dev, "AcpiHwGetSleepTypeData failed - %s\n", AcpiFormatException(status));
 	    break;
 	}
 
@@ -1373,8 +1327,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    return_ACPI_STATUS(AE_ERROR);
 	}
 
-	status = AcpiEnterSleepStatePrep(state);
-	if (status != AE_OK) {
+	if (ACPI_FAILURE(status = AcpiEnterSleepStatePrep(state))) {
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepStatePrep failed - %s\n",
 			  AcpiFormatException(status));
 	    break;
@@ -1394,8 +1347,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 		AcpiEnable();
 	    }
 	} else {
-	    status = AcpiEnterSleepState((UINT8)state);
-	    if (status != AE_OK) {
+	    if (ACPI_FAILURE(status = AcpiEnterSleepState((UINT8)state))) {
 		device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", AcpiFormatException(status));
 		break;
 	    }
@@ -1434,7 +1386,7 @@ acpi_Enable(struct acpi_softc *sc)
     ACPI_STATUS	status;
     u_int32_t	flags;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
     ACPI_ASSERTLOCK;
 
     flags = ACPI_NO_ADDRESS_SPACE_INIT | ACPI_NO_HARDWARE_INIT |
@@ -1454,7 +1406,7 @@ acpi_Disable(struct acpi_softc *sc)
 {
     ACPI_STATUS	status;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
     ACPI_ASSERTLOCK;
 
     if (sc->acpi_enabled) {
@@ -1476,7 +1428,7 @@ acpi_Disable(struct acpi_softc *sc)
 static void
 acpi_system_eventhandler_sleep(void *arg, int state)
 {
-    FUNCTION_TRACE_U32(__func__, state);
+    ACPI_FUNCTION_TRACE_U32(__func__, state);
 
     ACPI_LOCK;
     if (state >= ACPI_STATE_S0 && state <= ACPI_S_STATES_MAX)
@@ -1488,7 +1440,7 @@ acpi_system_eventhandler_sleep(void *arg, int state)
 static void
 acpi_system_eventhandler_wakeup(void *arg, int state)
 {
-    FUNCTION_TRACE_U32(__func__, state);
+    ACPI_FUNCTION_TRACE_U32(__func__, state);
 
     /* Well, what to do? :-) */
 
@@ -1506,11 +1458,11 @@ acpi_eventhandler_power_button_for_sleep(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     EVENTHANDLER_INVOKE(acpi_sleep_event, sc->acpi_power_button_sx);
 
-    return_VALUE(INTERRUPT_HANDLED);
+    return_VALUE(ACPI_INTERRUPT_HANDLED);
 }
 
 UINT32
@@ -1518,11 +1470,11 @@ acpi_eventhandler_power_button_for_wakeup(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     EVENTHANDLER_INVOKE(acpi_wakeup_event, sc->acpi_power_button_sx);
 
-    return_VALUE(INTERRUPT_HANDLED);
+    return_VALUE(ACPI_INTERRUPT_HANDLED);
 }
 
 UINT32
@@ -1530,11 +1482,11 @@ acpi_eventhandler_sleep_button_for_sleep(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     EVENTHANDLER_INVOKE(acpi_sleep_event, sc->acpi_sleep_button_sx);
 
-    return_VALUE(INTERRUPT_HANDLED);
+    return_VALUE(ACPI_INTERRUPT_HANDLED);
 }
 
 UINT32
@@ -1542,11 +1494,11 @@ acpi_eventhandler_sleep_button_for_wakeup(void *context)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)context;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     EVENTHANDLER_INVOKE(acpi_wakeup_event, sc->acpi_sleep_button_sx);
 
-    return_VALUE(INTERRUPT_HANDLED);
+    return_VALUE(ACPI_INTERRUPT_HANDLED);
 }
 
 /*
@@ -1567,7 +1519,7 @@ acpi_name(ACPI_HANDLE handle)
     buf.buffer.Length = 512;
     buf.buffer.Pointer = &buf.data[0];
 
-    if (AcpiGetName(handle, ACPI_FULL_PATHNAME, &buf.buffer) == AE_OK)
+    if (ACPI_SUCCESS(AcpiGetName(handle, ACPI_FULL_PATHNAME, &buf.buffer)))
 	return(buf.buffer.Pointer);
     return("(unknown path)");
 }
@@ -1839,6 +1791,7 @@ static struct debugtag	dbg_layer[] = {
     {"ACPI_THERMAL",		ACPI_THERMAL},
     {"ACPI_FAN",		ACPI_FAN},
 
+    {"ACPI_ALL_DRIVERS",	ACPI_ALL_DRIVERS},
     {"ACPI_ALL_COMPONENTS",	ACPI_ALL_COMPONENTS},
     {NULL, 0}
 };
