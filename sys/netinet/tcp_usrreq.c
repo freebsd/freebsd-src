@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.20 1995/11/14 20:34:47 phk Exp $
+ *	$Id: tcp_usrreq.c,v 1.21 1995/12/06 23:37:42 bde Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>

@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.16 1996/01/19 08:00:58 peter Exp $
+ *	$Id: in_pcb.c,v 1.17 1996/02/22 21:32:21 peter Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -45,7 +46,6 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/proc.h>
-#include <sys/queue.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 

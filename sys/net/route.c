@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.30 1996/01/24 20:27:19 wollman Exp $
+ *	$Id: route.c,v 1.31 1996/03/02 18:24:08 peter Exp $
  */
 
 #include "opt_mrouting.h"
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>

@@ -33,10 +33,11 @@
  * 
  *	@(#)ipx.c
  *
- * $Id: ipx.c,v 1.2 1995/10/31 23:36:19 julian Exp $
+ * $Id: ipx.c,v 1.3 1995/11/04 09:02:34 julian Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/ioctl.h>

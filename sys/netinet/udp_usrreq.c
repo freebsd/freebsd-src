@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.18 1995/12/14 09:53:49 phk Exp $
+ *	$Id: udp_usrreq.c,v 1.19 1995/12/16 02:14:22 bde Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -43,7 +44,6 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
-#include <sys/queue.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
