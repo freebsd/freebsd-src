@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.138 1996/04/10 18:09:58 scrappy Exp $
+ *	$Id: sio.c,v 1.139 1996/04/11 21:18:49 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2015,7 +2015,7 @@ comparam(tp, t)
 	if (cflag & CSTOPB)
 		cfcr |= CFCR_STOPB;
 
-	if (com->hasfifo) {
+	if (com->hasfifo && divisor != 0) {
 		/*
 		 * Use a fifo trigger level low enough so that the input
 		 * latency from the fifo is less than about 16 msec and
@@ -2024,7 +2024,7 @@ comparam(tp, t)
 		 * protocols shouldn't expect anything better since modem
 		 * latencies are larger.
 		 */
-		com->fifo_image = t->c_ospeed != 0 && t->c_ospeed <= 4800
+		com->fifo_image = t->c_ospeed <= 4800
 				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_HIGH;
 		outb(iobase + com_fifo, com->fifo_image);
 	}
