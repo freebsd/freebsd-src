@@ -108,7 +108,7 @@ struct	inpcbinfo udbinfo;
 #endif
 
 struct	udpstat udpstat;	/* from udp_var.h */
-SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RD,
+SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW,
     &udpstat, udpstat, "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
 static struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
