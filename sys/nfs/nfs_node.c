@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.10 1995/07/21 10:25:13 davidg Exp $
+ * $Id: nfs_node.c,v 1.11 1995/07/22 03:32:18 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -268,7 +268,6 @@ nfs_lock(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	struct nfsnode *np = VTONFS(vp);
 
 	/*
 	 * Ugh, another place where interruptible mounts will get hung.

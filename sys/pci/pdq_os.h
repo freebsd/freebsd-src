@@ -21,9 +21,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_os.h,v 1.2 1995/03/25 22:40:49 bde Exp $
+ * $Id: pdq_os.h,v 1.3 1995/07/16 10:07:20 bde Exp $
  *
  * $Log: pdq_os.h,v $
+ * Revision 1.3  1995/07/16  10:07:20  bde
+ * Fix compiler warnings (systm.h wasn't included).
+ *
  * Revision 1.2  1995/03/25  22:40:49  bde
  * Remove wrong redeclarations of printf() and bzero().  Include the correct
  * header to declare DELAY().
@@ -175,31 +178,7 @@ extern void pdq_os_receive_pdu(pdq_t *, PDQ_OS_DATABUF_T *pdu, size_t pdulen);
 extern void pdq_os_restart_transmitter(pdq_t *pdq);
 extern void pdq_os_transmit_done(pdq_t *pdq, PDQ_OS_DATABUF_T *pdu);
 
-extern void pdq_print_fddi_chars(pdq_t *pdq, const pdq_response_status_chars_get_t *rsp);
-
-extern void pdq_init_csrs(pdq_csrs_t *csrs, void *csrs_va, size_t csr_size);
-extern void pdq_init_pci_csrs(pdq_pci_csrs_t *csrs, void *csrs_va, size_t csr_size);
-
-extern void pdq_flush_databuf_queue(pdq_databuf_queue_t *q);
-
-extern pdq_boolean_t pdq_do_port_control(const pdq_csrs_t * const csrs, pdq_uint32_t cmd);
-extern void pdq_read_mla(const pdq_csrs_t * const csrs, pdq_lanaddr_t *hwaddr);
-extern void pdq_read_fwrev(const pdq_csrs_t * const csrs, pdq_fwrev_t *fwrev);
-extern pdq_boolean_t pdq_read_error_log(pdq_t *pdq, pdq_response_error_log_get_t *log_entry);
-extern pdq_chip_rev_t pdq_read_chiprev(const pdq_csrs_t * const csrs);
-
-extern void pdq_queue_commands(pdq_t *pdq);
-extern void pdq_process_command_responses(pdq_t *pdq);
-extern void pdq_process_unsolicited_events(pdq_t *pdq);
-
-extern void pdq_process_received_data(pdq_t *pdq, pdq_rx_info_t *rx,
-				      pdq_rxdesc_t *receives,
-				      pdq_uint32_t completion_goal,
-				      pdq_uint32_t ring_mask);
-
 extern pdq_boolean_t pdq_queue_transmit_data(pdq_t *pdq, PDQ_OS_DATABUF_T *pdu);
-extern void pdq_process_transmitted_data(pdq_t *pdq);
-extern void pdq_flush_transmitter(pdq_t *pdq);
 
 
 extern pdq_state_t pdq_stop(pdq_t *pdq);

@@ -96,7 +96,6 @@ tunattach(udata)
 {
 	register int i;
 	struct ifnet *ifp;
-	struct sockaddr_in *sin;
 
 	/*
 	 * In case we are an LKM, set up device switch.
@@ -239,7 +238,6 @@ tunifioctl(ifp, cmd, data)
 	caddr_t	data;
 {
 	register struct ifreq *ifr = (struct ifreq *)data;
-	struct tun_softc *tp = &tunctl[ifp->if_unit];
 	int		error = 0, s;
 
 	s = splimp();

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.6 1995/09/09 18:10:21 davidg Exp $
+ *	$Id: if_disc.c,v 1.7 1995/09/22 17:57:47 wollman Exp $
  */
 
 /*
@@ -116,9 +116,6 @@ dsoutput(ifp, m, dst, rt)
 	struct sockaddr *dst;
 	register struct rtentry *rt;
 {
-	int s, isr;
-	register struct ifqueue *ifq = 0;
-
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("dsoutput no HDR");
 	ifp->if_lastchange = time;

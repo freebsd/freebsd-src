@@ -21,9 +21,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.4 1995/04/01 01:43:56 davidg Exp $
+ * $Id: pdq.c,v 1.5 1995/05/30 08:13:13 rgrimes Exp $
  *
  * $Log: pdq.c,v $
+ * Revision 1.5  1995/05/30  08:13:13  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.4  1995/04/01  01:43:56  davidg
  * Patch from Matt Thomas to fix mbuf leak in FDDI driver.
  *
@@ -84,13 +87,37 @@
 #define	PDQ_PRINTF(x)
 #endif
 
-const char * const pdq_halt_codes[] = {
+static void pdq_process_transmitted_data(pdq_t *pdq);
+static void pdq_flush_transmitter(pdq_t *pdq);
+static void pdq_print_fddi_chars(pdq_t *pdq, const pdq_response_status_chars_get_t *rsp);
+
+static void pdq_init_csrs(pdq_csrs_t *csrs, void *csrs_va, size_t csr_size);
+static void pdq_init_pci_csrs(pdq_pci_csrs_t *csrs, void *csrs_va, size_t csr_size);
+
+static void pdq_flush_databuf_queue(pdq_databuf_queue_t *q);
+
+static pdq_boolean_t pdq_do_port_control(const pdq_csrs_t * const csrs, pdq_uint32_t cmd);
+static void pdq_read_mla(const pdq_csrs_t * const csrs, pdq_lanaddr_t *hwaddr);
+static void pdq_read_fwrev(const pdq_csrs_t * const csrs, pdq_fwrev_t *fwrev);
+static pdq_boolean_t pdq_read_error_log(pdq_t *pdq, pdq_response_error_log_get_t *log_entry);
+static pdq_chip_rev_t pdq_read_chiprev(const pdq_csrs_t * const csrs);
+
+static void pdq_queue_commands(pdq_t *pdq);
+static void pdq_process_command_responses(pdq_t *pdq);
+static void pdq_process_unsolicited_events(pdq_t *pdq);
+
+static void pdq_process_received_data(pdq_t *pdq, pdq_rx_info_t *rx,
+				      pdq_rxdesc_t *receives,
+				      pdq_uint32_t completion_goal,
+				      pdq_uint32_t ring_mask);
+
+static const char * const pdq_halt_codes[] = {
     "Selftest Timeout", "Host Bus Parity Error", "Host Directed Fault",
     "Software Fault", "Hardware Fault", "PC Trace Path Test",
     "DMA Error", "Image CRC Error", "Adapter Processer Error"
 };
 
-const char * const pdq_adapter_states[] = {
+static const char * const pdq_adapter_states[] = {
     "Reset", "Upgrade", "DMA Unavailable", "DMA Available",
     "Link Available", "Link Unavailable", "Halted", "Ring Member"
 };
@@ -99,19 +126,19 @@ const char * const pdq_adapter_states[] = {
  * The following are used in conjunction with
  * unsolicited events
  */
-const char * const pdq_entities[] = {
+static const char * const pdq_entities[] = {
     "Station", "Link", "Phy Port"
 };
 
-const char * const pdq_station_events[] = {
+static const char * const pdq_station_events[] = {
     "Trace Received"
 };
 
-const char * const pdq_station_arguments[] = {
+static const char * const pdq_station_arguments[] = {
     "Reason"
 };
 
-const char * const pdq_link_events[] = {
+static const char * const pdq_link_events[] = {
     "Transmit Underrun",
     "Transmit Failed",
     "Block Check Error (CRC)",
@@ -133,63 +160,63 @@ const char * const pdq_link_events[] = {
     "Directed Beacon Received",
 };
 
-const char * const pdq_link_arguments[] = {
+static const char * const pdq_link_arguments[] = {
     "Reason",
     "Data Link Header",
     "Source",
     "Upstream Neighbor"
 };
 
-const char * const pdq_phy_events[] = {
+static const char * const pdq_phy_events[] = {
     "LEM Error Monitor Reject",
     "Elasticy Buffer Error",
     "Link Confidence Test Reject"
 };
 
-const char * const pdq_phy_arguments[] = {
+static const char * const pdq_phy_arguments[] = {
     "Direction"
 };
 
-const char * const * const pdq_event_arguments[] = {
+static const char * const * const pdq_event_arguments[] = {
     pdq_station_arguments,
     pdq_link_arguments,
     pdq_phy_arguments
 };
 
-const char * const * const pdq_event_codes[] = {
+static const char * const * const pdq_event_codes[] = {
     pdq_station_events,
     pdq_link_events,
     pdq_phy_events
 };
 
-const char * const pdq_station_types[] = {
+static const char * const pdq_station_types[] = {
     "SAS", "DAC", "SAC", "NAC", "DAS"
 };
 
-const char * const pdq_smt_versions[] = { "", "V6.2", "V7.2" };
+static const char * const pdq_smt_versions[] = { "", "V6.2", "V7.2" };
 
-const char pdq_phy_types[] = "ABSM";
+static const char pdq_phy_types[] = "ABSM";
 
-const char * const pdq_pmd_types0[] = {
+static const char * const pdq_pmd_types0[] = {
     "ANSI Multi-Mode", "ANSI Single-Mode Type 1", "ANSI Single-Mode Type 2",
     "ANSI Sonet"
 };
 
-const char * const pdq_pmd_types100[] = {
+static const char * const pdq_pmd_types100[] = {
     "Low Power", "Thin Wire", "Shielded Twisted Pair",
     "Unshielded Twisted Pair"
 };
 
-const char * const * const pdq_pmd_types[] = {
+static const char * const * const pdq_pmd_types[] = {
     pdq_pmd_types0, pdq_pmd_types100
 };
 
-const char * const pdq_descriptions[] = {
+static const char * const pdq_descriptions[] = {
     "DEFPA PCI",
     "DEFEA EISA",
 };
 
-void
+static void
 pdq_print_fddi_chars(
     pdq_t *pdq,
     const pdq_response_status_chars_get_t *rsp)
@@ -236,7 +263,7 @@ pdq_print_fddi_chars(
     printf("\n");
 }
 
-void
+static void
 pdq_init_csrs(
     pdq_csrs_t *csrs,
     void *csr_va,
@@ -259,7 +286,7 @@ pdq_init_csrs(
     csrs->csr_unsolicited_producer	= &csr_base[13 * csrsize];
 }
 
-void
+static void
 pdq_init_pci_csrs(
     pdq_pci_csrs_t *csrs,
     void *csr_va,
@@ -273,7 +300,7 @@ pdq_init_pci_csrs(
     csrs->csr_fifo_read		= &csr_base[19 * csrsize];
 }
 
-void
+static void
 pdq_flush_databuf_queue(
     pdq_databuf_queue_t *q)
 {
@@ -286,7 +313,7 @@ pdq_flush_databuf_queue(
     }
 }
 
-pdq_boolean_t
+static pdq_boolean_t
 pdq_do_port_control(
     const pdq_csrs_t * const csrs,
     pdq_uint32_t cmd)
@@ -306,7 +333,7 @@ pdq_do_port_control(
     return PDQ_FALSE;
 }
 
-void
+static void
 pdq_read_mla(
     const pdq_csrs_t * const csrs,
     pdq_lanaddr_t *hwaddr)
@@ -330,7 +357,7 @@ pdq_read_mla(
     hwaddr->lanaddr_bytes[5] = (data >> 8) & 0xFF;
 }
 
-void
+static void
 pdq_read_fwrev(
     const pdq_csrs_t * const csrs,
     pdq_fwrev_t *fwrev)
@@ -346,7 +373,7 @@ pdq_read_fwrev(
     fwrev->fwrev_bytes[0] = (data >> 24) & 0xFF;
 }
 
-pdq_boolean_t
+static pdq_boolean_t
 pdq_read_error_log(
     pdq_t *pdq,
     pdq_response_error_log_get_t *log_entry)
@@ -364,7 +391,7 @@ pdq_read_error_log(
     return (ptr == (pdq_uint32_t *) log_entry) ? PDQ_FALSE : PDQ_TRUE;
 }
 
-pdq_chip_rev_t
+static pdq_chip_rev_t
 pdq_read_chiprev(
     const pdq_csrs_t * const csrs)
 {
@@ -460,7 +487,7 @@ static const struct {
 #endif
 };
 
-void
+static void
 pdq_queue_commands(
     pdq_t *pdq)
 {
@@ -610,7 +637,7 @@ pdq_queue_commands(
     }
 }
 
-void
+static void
 pdq_process_command_responses(
     pdq_t *pdq)
 {
@@ -666,7 +693,7 @@ pdq_process_command_responses(
  * event buffers so it can be used to initialize the queue
  * as well.
  */
-void
+static void
 pdq_process_unsolicited_events(
     pdq_t *pdq)
 {
@@ -713,7 +740,7 @@ pdq_process_unsolicited_events(
     *csrs->csr_unsolicited_producer = ui->ui_producer | (ui->ui_completion << 8);
 }
 
-void
+static void
 pdq_process_received_data(
     pdq_t *pdq,
     pdq_rx_info_t *rx,
@@ -945,7 +972,7 @@ pdq_queue_transmit_data(
     return PDQ_TRUE;
 }
 
-void
+static void
 pdq_process_transmitted_data(
     pdq_t *pdq)
 {
@@ -972,7 +999,7 @@ pdq_process_transmitted_data(
     PDQ_DO_TYPE2_PRODUCER(pdq);
 }
 
-void
+static void
 pdq_flush_transmitter(
     pdq_t *pdq)
 {

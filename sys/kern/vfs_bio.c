@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.66 1995/10/08 00:06:08 swallace Exp $
+ * $Id: vfs_bio.c,v 1.67 1995/10/19 23:48:25 dyson Exp $
  */
 
 /*
@@ -640,7 +640,6 @@ getnewbuf(int slpflag, int slptimeo, int doingvmio)
 {
 	struct buf *bp;
 	int s;
-	int firstbp = 1;
 
 	s = splbio();
 start:
@@ -789,7 +788,6 @@ inmem(struct vnode * vp, daddr_t blkno)
 	off = blkno * vp->v_mount->mnt_stat.f_iosize;
 
 	for (toff = 0; toff < vp->v_mount->mnt_stat.f_iosize; toff += tinc) {
-		int mask;
 
 		m = vm_page_lookup(obj, trunc_page(toff + off));
 		if (!m)
@@ -869,8 +867,6 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	struct buf *bp;
 	int s;
 	struct bufhashhdr *bh;
-	vm_offset_t off;
-	int nleft;
 
 	s = splbio();
 loop:
@@ -1092,13 +1088,11 @@ allocbuf(struct buf * bp, int size)
 				curbpnpages = bp->b_npages;
 				bp->b_flags |= B_CACHE;
 				for (toff = 0; toff < newbsize; toff += tinc) {
-					int mask;
 					int bytesinpage;
 
 					pageindex = toff / PAGE_SIZE;
 					objoff = trunc_page(toff + off);
 					if (pageindex < curbpnpages) {
-						int pb;
 
 						m = bp->b_pages[pageindex];
 						if (m->offset != objoff)
@@ -1145,7 +1139,6 @@ allocbuf(struct buf * bp, int size)
 
 						goto doretry;
 					} else {
-						int pb;
 						if ((curproc != pageproc) &&
 							(m->flags & PG_CACHE) &&
 						    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
@@ -1229,7 +1222,6 @@ biodone(register struct buf * bp)
 	bp->b_flags |= B_DONE;
 
 	if ((bp->b_flags & B_READ) == 0) {
-		struct vnode *vp = bp->b_vp;
 		vwakeup(bp);
 	}
 #ifdef BOUNCE_BUFFERS

@@ -3,7 +3,7 @@
  *
  * (C) 1991 Linus Torvalds
  *
- *	$Id$
+ *	$Id: math_emu.h,v 1.2 1993/10/16 14:15:02 rgrimes Exp $
  */
 #ifndef _LINUX_MATH_EMU_H
 #define _LINUX_MATH_EMU_H
@@ -105,52 +105,52 @@ struct i387_struct {
 
 /* ea.c */
 
-char * ea(struct trapframe *, unsigned short);
+static char * ea(struct trapframe *, unsigned short);
 
 /* convert.c */
 
-void frndint(const temp_real * __a, temp_real * __b);
-void Fscale(const temp_real *, const temp_real *, temp_real *);
-void short_to_temp(const short_real * __a, temp_real * __b);
-void long_to_temp(const long_real * __a, temp_real * __b);
-void temp_to_short(const temp_real * __a, short_real * __b);
-void temp_to_long(const temp_real * __a, long_real * __b);
-void real_to_int(const temp_real * __a, temp_int * __b);
-void int_to_real(const temp_int * __a, temp_real * __b);
+static void frndint(const temp_real * __a, temp_real * __b);
+static void Fscale(const temp_real *, const temp_real *, temp_real *);
+static void short_to_temp(const short_real * __a, temp_real * __b);
+static void long_to_temp(const long_real * __a, temp_real * __b);
+static void temp_to_short(const temp_real * __a, short_real * __b);
+static void temp_to_long(const temp_real * __a, long_real * __b);
+static void real_to_int(const temp_real * __a, temp_int * __b);
+static void int_to_real(const temp_int * __a, temp_real * __b);
 
 /* get_put.c */
 
-void get_short_real(temp_real *, struct trapframe *, unsigned short);
-void get_long_real(temp_real *, struct trapframe *, unsigned short);
-void get_temp_real(temp_real *, struct trapframe *, unsigned short);
-void get_short_int(temp_real *, struct trapframe *, unsigned short);
-void get_long_int(temp_real *, struct trapframe *, unsigned short);
-void get_longlong_int(temp_real *, struct trapframe *, unsigned short);
-void get_BCD(temp_real *, struct trapframe *, unsigned short);
-void put_short_real(const temp_real *, struct trapframe *, unsigned short);
-void put_long_real(const temp_real *, struct trapframe *, unsigned short);
-void put_temp_real(const temp_real *, struct trapframe *, unsigned short);
-void put_short_int(const temp_real *, struct trapframe *, unsigned short);
-void put_long_int(const temp_real *, struct trapframe *, unsigned short);
-void put_longlong_int(const temp_real *, struct trapframe *, unsigned short);
-void put_BCD(const temp_real *, struct trapframe *, unsigned short);
+static void get_short_real(temp_real *, struct trapframe *, unsigned short);
+static void get_long_real(temp_real *, struct trapframe *, unsigned short);
+static void get_temp_real(temp_real *, struct trapframe *, unsigned short);
+static void get_short_int(temp_real *, struct trapframe *, unsigned short);
+static void get_long_int(temp_real *, struct trapframe *, unsigned short);
+static void get_longlong_int(temp_real *, struct trapframe *, unsigned short);
+static void get_BCD(temp_real *, struct trapframe *, unsigned short);
+static void put_short_real(const temp_real *, struct trapframe *, unsigned short);
+static void put_long_real(const temp_real *, struct trapframe *, unsigned short);
+static void put_temp_real(const temp_real *, struct trapframe *, unsigned short);
+static void put_short_int(const temp_real *, struct trapframe *, unsigned short);
+static void put_long_int(const temp_real *, struct trapframe *, unsigned short);
+static void put_longlong_int(const temp_real *, struct trapframe *, unsigned short);
+static void put_BCD(const temp_real *, struct trapframe *, unsigned short);
 
 /* add.c */
 
-void fadd(const temp_real *, const temp_real *, temp_real *);
+static void fadd(const temp_real *, const temp_real *, temp_real *);
 
 /* mul.c */
 
-void fmul(const temp_real *, const temp_real *, temp_real *);
+static void fmul(const temp_real *, const temp_real *, temp_real *);
 
 /* div.c */
 
-void fdiv(const temp_real *, const temp_real *, temp_real *);
+static void fdiv(const temp_real *, const temp_real *, temp_real *);
 
 /* compare.c */
 
-void fcom(const temp_real *, const temp_real *);
-void fucom(const temp_real *, const temp_real *);
-void ftst(const temp_real *);
+static void fcom(const temp_real *, const temp_real *);
+static void fucom(const temp_real *, const temp_real *);
+static void ftst(const temp_real *);
 
 #endif
