@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.46 1999/01/05 11:56:35 danny Exp $";
+	"$Id: inetd.c,v 1.47 1999/03/28 10:50:30 markm Exp $";
 #endif /* not lint */
 
 /*
@@ -207,6 +207,7 @@ struct	servtab {
 #endif
 	struct	biltin *se_bi;		/* if built-in, description */
 	char	*se_server;		/* server program */
+	char	*se_server_name;	/* server program without path */
 #define	MAXARGV 20
 	char	*se_argv[MAXARGV+1];	/* program arguments */
 	int	se_fd;			/* open descriptor */
@@ -624,8 +625,8 @@ main(argc, argv, envp)
 			    if (sep->se_accept
 				&& sep->se_socktype == SOCK_STREAM) {
 				request_init(&req,
-				    RQ_DAEMON, sep->se_argv[0] ?
-					 sep->se_argv[0] : sep->se_service,
+				    RQ_DAEMON, sep->se_server_name ?
+					sep->se_server_name : sep->se_service,
 					RQ_FILE, ctrl, NULL);
 				fromhost(&req);
 				denied = !hosts_access(&req);
@@ -1390,6 +1391,8 @@ more:
 	} else
 		sep->se_group = NULL;
 	sep->se_server = newstr(sskip(&cp));
+	if ((sep->se_server_name = rindex(sep->se_server, '/')))
+		sep->se_server_name++;
 	if (strcmp(sep->se_server, "internal") == 0) {
 		struct biltin *bi;
 
@@ -1406,11 +1409,12 @@ more:
 		sep->se_bi = bi;
 	} else
 		sep->se_bi = NULL;
-	if (sep->se_maxchild < 0)	/* apply default max-children */
+	if (sep->se_maxchild < 0) {	/* apply default max-children */
 		if (sep->se_bi)
 			sep->se_maxchild = sep->se_bi->bi_maxchild;
 		else
 			sep->se_maxchild = sep->se_accept ? 0 : 1;
+	}
 	if (sep->se_maxchild) {
 		sep->se_pids = malloc(sep->se_maxchild * sizeof(*sep->se_pids));
 		if (sep->se_pids == NULL) {
