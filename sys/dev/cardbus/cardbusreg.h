@@ -1,105 +1,87 @@
 /*
- * Copyright (c) 1998 HAYAKAWA Koichi.  All rights reserved.
+ * Copyright (c) 2000,2001 Jonathan Chen.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the author.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
  *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * $FreeBSD$
  */
-/* $FreeBSD$ */
 
-typedef u_int32_t cardbusreg_t;
-typedef int cardbus_intr_line_t;
-
-typedef void *cardbus_chipset_tag_t;
-typedef int cardbus_intr_handle_t;
-
-typedef u_int16_t cardbus_vendor_id_t;
-typedef u_int16_t cardbus_product_id_t;
-
-#define	CARDBUS_ID_REG			0x00
-
-#  define CARDBUS_VENDOR_SHIFT  0
-#  define CARDBUS_VENDOR_MASK   0xffff
-#  define CARDBUS_VENDOR(id) \
-	    (((id) >> CARDBUS_VENDOR_SHIFT) & CARDBUS_VENDOR_MASK)
-
-#  define CARDBUS_PRODUCT_SHIFT  16
-#  define CARDBUS_PRODUCT_MASK   0xffff
-#  define CARDBUS_PRODUCT(id) \
-	    (((id) >> CARDBUS_PRODUCT_SHIFT) & CARDBUS_PRODUCT_MASK)
+/*
+ * Register definitions for the Cardbus Bus
+ */
 
 
-#define	CARDBUS_COMMAND_STATUS_REG  0x04
+/* Cardbus bus constants */
+#define CARDBUS_SLOTMAX 0
+#define CARDBUS_FUNCMAX 7
 
-#  define CARDBUS_COMMAND_IO_ENABLE     0x00000001
-#  define CARDBUS_COMMAND_MEM_ENABLE    0x00000002
-#  define CARDBUS_COMMAND_MASTER_ENABLE 0x00000004
+/* Cardbus configuration header registers */
+#define CARDBUS_BASE0_REG	0x10
+#define CARDBUS_BASE1_REG	0x14
+#define CARDBUS_BASE2_REG	0x18
+#define CARDBUS_BASE3_REG	0x1C
+#define CARDBUS_BASE4_REG	0x20
+#define CARDBUS_BASE5_REG	0x24
+#define CARDBUS_CIS_REG		0x28
+# define CARDBUS_CIS_ASIMASK		0x07
+# define CARDBUS_CIS_ADDRMASK		0x0ffffff8
+# define CARDBUS_CIS_ASI_TUPLE		0x00
+# define CARDBUS_CIS_ASI_BAR0		0x01
+# define CARDBUS_CIS_ASI_BAR1		0x02
+# define CARDBUS_CIS_ASI_BAR2		0x03
+# define CARDBUS_CIS_ASI_BAR3		0x04
+# define CARDBUS_CIS_ASI_BAR4		0x05
+# define CARDBUS_CIS_ASI_BAR5		0x06
+# define CARDBUS_CIS_ASI_ROM		0x07
+#define CARDBUS_ROM_REG		0x30
 
+/* EXROM offsets for reading CIS */
+#define CARDBUS_EXROM_SIGNATURE	0x00
+#define CARDBUS_EXROM_DATA_PTR	0x18
 
-#define CARDBUS_CLASS_REG       0x08
+#define CARDBUS_EXROM_DATA_SIGNATURE	0x00 /* Signature ("PCIR") */
+#define CARDBUS_EXROM_DATA_VENDOR_ID	0x04 /* Vendor Identification */
+#define CARDBUS_EXROM_DATA_DEVICE_ID	0x06 /* Device Identification */
+#define CARDBUS_EXROM_DATA_LENGTH	0x0a /* PCI Data Structure Length */
+#define CARDBUS_EXROM_DATA_REV		0x0c /* PCI Data Structure Revision */
+#define CARDBUS_EXROM_DATA_CLASS_CODE	0x0d /* Class Code */
+#define CARDBUS_EXROM_DATA_IMAGE_LENGTH	0x10 /* Image Length */
+#define CARDBUS_EXROM_DATA_DATA_REV	0x12 /* Revision Level of Code/Data */
+#define CARDBUS_EXROM_DATA_CODE_TYPE	0x14 /* Code Type */
+#define CARDBUS_EXROM_DATA_INDICATOR	0x15 /* Indicator */
 
-/* BIST, Header Type, Latency Timer, Cache Line Size */
-#define CARDBUS_BHLC_REG        0x0c
+/* useful macros */
+#define CARDBUS_CIS_ADDR(x)						\
+	(CARDBUS_CIS_ADDRMASK & (x))
+#define CARDBUS_CIS_ASI_BAR(x)						\
+	(((CARDBUS_CIS_ASIMASK & (x))-1)*4+0x10)
+#define CARDBUS_CIS_ASI_ROM_IMAGE(x)					\
+	(((x) >> 28) & 0xf)
 
-#define	CARDBUS_BIST_SHIFT        24
-#define	CARDBUS_BIST_MASK       0xff
-#define	CARDBUS_BIST(bhlcr) \
-	    (((bhlcr) >> CARDBUS_BIST_SHIFT) & CARDBUS_BIST_MASK)
-
-#define	CARDBUS_HDRTYPE_SHIFT     16
-#define	CARDBUS_HDRTYPE_MASK    0xff
-#define	CARDBUS_HDRTYPE(bhlcr) \
-	    (((bhlcr) >> CARDBUS_HDRTYPE_SHIFT) & CARDBUS_HDRTYPE_MASK)
-
-#define	CARDBUS_HDRTYPE_TYPE(bhlcr) \
-	    (CARDBUS_HDRTYPE(bhlcr) & 0x7f)
-#define	CARDBUS_HDRTYPE_MULTIFN(bhlcr) \
-	    ((CARDBUS_HDRTYPE(bhlcr) & 0x80) != 0)
-
-#define	CARDBUS_LATTIMER_SHIFT      8
-#define	CARDBUS_LATTIMER_MASK    0xff
-#define	CARDBUS_LATTIMER(bhlcr) \
-	    (((bhlcr) >> CARDBUS_LATTIMER_SHIFT) & CARDBUS_LATTIMER_MASK)
-
-#define	CARDBUS_CACHELINE_SHIFT     0
-#define	CARDBUS_CACHELINE_MASK   0xff
-#define	CARDBUS_CACHELINE(bhlcr) \
-	    (((bhlcr) >> CARDBUS_CACHELINE_SHIFT) & CARDBUS_CACHELINE_MASK)
-
-
-/* Base Resisters */
-#define CARDBUS_BASE0_REG  0x10
-#define CARDBUS_BASE1_REG  0x14
-#define CARDBUS_BASE2_REG  0x18
-#define CARDBUS_BASE3_REG  0x1C
-#define CARDBUS_BASE4_REG  0x20
-#define CARDBUS_BASE5_REG  0x24
-#define CARDBUS_CIS_REG    0x28
-#  define CARDBUS_CIS_ASIMASK 0x07
-#  define CARDBUS_CIS_ADDRMASK 0x0ffffff8
-
-#define	CARDBUS_INTERRUPT_REG   0x3c
-
+#define CARDBUS_MAPREG_MEM_ADDR_MASK	0x0ffffff0
+#define CARDBUS_MAPREG_MEM_ADDR(mr)					\
+	((mr) & CARDBUS_MAPREG_MEM_ADDR_MASK)
+#define CARDBUS_MAPREG_MEM_SIZE(mr)					\
+	(CARDBUS_MAPREG_MEM_ADDR(mr) & -CARDBUS_MAPREG_MEM_ADDR(mr))
