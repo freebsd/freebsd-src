@@ -1,4 +1,5 @@
 /* $FreeBSD$ */
+
 /*
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  *
