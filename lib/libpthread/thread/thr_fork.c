@@ -31,6 +31,7 @@
  *
  * $FreeBSD$
  */
+#include <sys/param.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -220,28 +221,16 @@ _fork(void)
 static void
 free_thread_resources(struct pthread *thread)
 {
-	struct stack	*spare_stack;
 
 	/* Check to see if the threads library allocated the stack. */
 	if ((thread->attr.stackaddr_attr == NULL) && (thread->stack != NULL)) {
-		if (thread->attr.stacksize_attr != PTHREAD_STACK_DEFAULT) {
-			/*
-			 * The threads library malloc()'d the stack;
-			 * just free() it.
-			 */
-			free(thread->stack);
-		} else {
-			/*
-			 * This stack was allocated from the main threads
-			 * stack; cache it for future use.  Since this is
-			 * being called from fork, we are currently single
-			 * threaded so there is no need to protect the
-			 * queue insertion.
-			 */
-			spare_stack = (thread->stack + PTHREAD_STACK_DEFAULT -
-			    sizeof(struct stack));
-			SLIST_INSERT_HEAD(&_stackq, spare_stack, qe);
-		}
+		/*
+		 * Since this is being called from fork, we are currently single
+		 * threaded so there is no need to protect the call to
+		 * _thread_stack_free() with _gc_mutex.
+		 */
+		_thread_stack_free(thread->stack, thread->attr.stacksize_attr,
+		    thread->attr.guardsize_attr);
 	}
 
 	if (thread->specific_data != NULL)

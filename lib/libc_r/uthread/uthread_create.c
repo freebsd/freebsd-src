@@ -38,8 +38,6 @@
 #include <unistd.h>
 #include <stddef.h>
 #include <sys/time.h>
-#include <sys/param.h>
-#include <sys/mman.h>
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"
@@ -99,67 +97,14 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		/* Check if a stack was specified in the thread attributes: */
 		if ((stack = pattr->stackaddr_attr) != NULL) {
 		}
-		/* Allocate memory for a default-size stack: */
-		else if (pattr->stacksize_attr == PTHREAD_STACK_DEFAULT) {
-			struct stack	*spare_stack;
-			
-			/* Allocate or re-use a default-size stack. */
-			
-			/*
-			 * Use the garbage collector mutex for synchronization
-			 * of the spare stack list.
-			 */
-			if (pthread_mutex_lock(&_gc_mutex) != 0)
-				PANIC("Cannot lock gc mutex");
-			
-			if ((spare_stack = SLIST_FIRST(&_stackq)) != NULL) {
-				/* Use the spare stack. */
-				SLIST_REMOVE_HEAD(&_stackq, qe);
-				
-				/* Unlock the garbage collector mutex. */
-				if (pthread_mutex_unlock(&_gc_mutex) != 0)
-					PANIC("Cannot unlock gc mutex");
-				
-				stack = sizeof(struct stack)
-				    + (void *) spare_stack
-				    - PTHREAD_STACK_DEFAULT;
-			} else {
-				/* Allocate a new stack. */
-				stack = _next_stack + PTHREAD_STACK_GUARD;
-
-				/*
-				 * Even if stack allocation fails, we don't want
-				 * to try to use this location again, so
-				 * unconditionally decrement _next_stack.  Under
-				 * normal operating conditions, the most likely
-				 * reason for an mmap() error is a stack
-				 * overflow of the adjacent thread stack.
-				 */
-				_next_stack -= (PTHREAD_STACK_DEFAULT
-				    + PTHREAD_STACK_GUARD);
-
-				/* Unlock the garbage collector mutex. */
-				if (pthread_mutex_unlock(&_gc_mutex) != 0)
-					PANIC("Cannot unlock gc mutex");
-
-				/* Stack: */
-				if (mmap(stack, PTHREAD_STACK_DEFAULT,
-				    PROT_READ | PROT_WRITE, MAP_STACK,
-				    -1, 0) == MAP_FAILED) {
-					ret = EAGAIN;
-					free(new_thread);
-				}
+		/* Allocate a stack: */
+		else {
+			stack = _thread_stack_alloc(pattr->stacksize_attr,
+			    pattr->guardsize_attr);
+			if (stack == NULL) {
+				ret = EAGAIN;
+				free(new_thread);
 			}
-		}
-		/*
-		 * The user wants a stack of a particular size.  Lets hope they
-		 * really know what they want, and simply malloc the stack.
-		 */
-		else if ((stack = (void *) malloc(pattr->stacksize_attr))
-		    == NULL) {
-			/* Insufficient memory to create a thread: */
-			ret = EAGAIN;
-			free(new_thread);
 		}
 
 		/* Check for errors: */

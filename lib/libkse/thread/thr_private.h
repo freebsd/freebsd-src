@@ -389,6 +389,7 @@ struct pthread_attr {
 	void	(*cleanup_attr) ();
 	void	*stackaddr_attr;
 	size_t	stacksize_attr;
+	size_t	guardsize_attr;
 };
 
 /*
@@ -414,13 +415,13 @@ enum pthread_susp {
  */
 #define PTHREAD_STACK_DEFAULT			65536
 /*
- * Size of red zone at the end of each stack.  In actuality, this "red zone" is
- * merely an unmapped region, except in the case of the initial stack.  Since
- * mmap() makes it possible to specify the maximum growth of a MAP_STACK region,
- * an unmapped gap between thread stacks achieves the same effect as explicitly
- * mapped red zones.
+ * Size of default red zone at the end of each stack.  In actuality, this "red
+ * zone" is merely an unmapped region, except in the case of the initial stack.
+ * Since mmap() makes it possible to specify the maximum growth of a MAP_STACK
+ * region, an unmapped gap between thread stacks achieves the same effect as
+ * explicitly mapped red zones.
  */
-#define PTHREAD_STACK_GUARD			PAGE_SIZE
+#define	PTHREAD_GUARD_DEFAULT			PAGE_SIZE
 
 /*
  * Maximum size of initial thread's stack.  This perhaps deserves to be larger
@@ -875,11 +876,6 @@ struct pthread {
 	int			lineno;	/* Source line number.      */
 };
 
-/* Spare thread stack. */
-struct stack {
-	SLIST_ENTRY(stack)	qe; /* Queue entry for this stack. */
-};
-
 /*
  * Global variables for the uthread kernel.
  */
@@ -992,8 +988,9 @@ SCLASS struct pthread *_thread_initial
 /* Default thread attributes: */
 SCLASS struct pthread_attr pthread_attr_default
 #ifdef GLOBAL_PTHREAD_PRIVATE
-= { SCHED_RR, 0, TIMESLICE_USEC, PTHREAD_DEFAULT_PRIORITY, PTHREAD_CREATE_RUNNING,
-	PTHREAD_CREATE_JOINABLE, NULL, NULL, NULL, PTHREAD_STACK_DEFAULT };
+= { SCHED_RR, 0, TIMESLICE_USEC, PTHREAD_DEFAULT_PRIORITY,
+	PTHREAD_CREATE_RUNNING, PTHREAD_CREATE_JOINABLE, NULL, NULL, NULL,
+	PTHREAD_STACK_DEFAULT, PTHREAD_GUARD_DEFAULT };
 #else
 ;
 #endif
@@ -1142,31 +1139,6 @@ SCLASS pthread_switch_routine_t _sched_switch_hook
 ;
 
 /*
- * Spare stack queue.  Stacks of default size are cached in order to reduce
- * thread creation time.  Spare stacks are used in LIFO order to increase cache
- * locality.
- */
-SCLASS SLIST_HEAD(, stack)	_stackq;
-
-/*
- * Base address of next unallocated default-size {stack, red zone}.  Stacks are
- * allocated contiguously, starting below the bottom of the main stack.  When a
- * new stack is created, a red zone is created (actually, the red zone is simply
- * left unmapped) below the bottom of the stack, such that the stack will not be
- * able to grow all the way to the top of the next stack.  This isn't
- * fool-proof.  It is possible for a stack to grow by a large amount, such that
- * it grows into the next stack, and as long as the memory within the red zone
- * is never accessed, nothing will prevent one thread stack from trouncing all
- * over the next.
- */
-SCLASS void *	_next_stack
-#ifdef GLOBAL_PTHREAD_PRIVATE
-/* main stack top   - main stack size       - stack size            - (red zone + main stack red zone) */
-= (void *) USRSTACK - PTHREAD_STACK_INITIAL - PTHREAD_STACK_DEFAULT - (2 * PTHREAD_STACK_GUARD)
-#endif
-;
-
-/*
  * Declare the kernel scheduler jump buffer and stack:
  */
 SCLASS jmp_buf	_thread_kern_sched_jb;
@@ -1210,6 +1182,8 @@ void	_fd_lock_backout(pthread_t);
 int     _find_thread(pthread_t);
 struct pthread *_get_curthread(void);
 void	_set_curthread(struct pthread *);
+void	*_thread_stack_alloc(size_t, size_t);
+void	_thread_stack_free(void *, size_t, size_t);
 int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
 int     _thread_fd_lock(int, int, struct timespec *);
 int     _thread_fd_lock_debug(int, int, struct timespec *,char *fname,int lineno);
