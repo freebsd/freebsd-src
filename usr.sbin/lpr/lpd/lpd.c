@@ -114,8 +114,7 @@ static void	 doit(void);
 static void	 startup(void);
 static void	 chkhost(struct sockaddr *_f, int _ch_opts);
 static int	 ckqueue(struct printer *_pp);
-static void	 fhosterr(int _dosys, const char *_sysmsg, const char *_usermsg,
-			  ...) __printf0like(3, 4);
+static void	 fhosterr(int _ch_opts, char *_sysmsg, char *_usermsg);
 static int	*socksetup(int _af, int _debuglvl);
 static void	 usage(void);
 
@@ -127,6 +126,7 @@ uid_t	uid, euid;
 
 #define LPD_NOPORTCHK	0001		/* skip reserved-port check */
 #define LPD_LOGCONNERR	0002		/* (sys)log connection errors */
+#define LPD_ADDFROMLINE	0004		/* just used for fhosterr() */
 
 int
 main(int argc, char **argv)
@@ -659,6 +659,7 @@ chkhost(struct sockaddr *f, int ch_opts)
 	register FILE *hostf;
 	char hostbuf[NI_MAXHOST], ip[NI_MAXHOST];
 	char serv[NI_MAXSERV];
+	char *syserr, *usererr;
 	int error, errsav, fpass, good, wantsl;
 
 	wantsl = 0;
@@ -674,26 +675,39 @@ chkhost(struct sockaddr *f, int ch_opts)
 		errsav = error;
 		error = getnameinfo(f, f->sa_len, hostbuf, sizeof(hostbuf),
 		    NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
-		if (error)
-			fhosterr(wantsl,
-			    "can not determine hostname for remote host (%d)",
-			    "Host name for your address not known", error);
-		else
-			fhosterr(wantsl,
-			    "Host name for remote host (%s) not known (%d)",
-			    "Host name for your address (%s) not known",
-			    hostbuf, errsav);
+		if (error) {
+			asprintf(&syserr,
+			    "can not determine hostname for remote host (%d,%d)",
+			    errsav, error);
+			asprintf(&usererr,
+			    "Host name for your address is not known");
+			fhosterr(ch_opts, syserr, usererr);
+			/* NOTREACHED */
+		}
+		asprintf(&syserr,
+		    "Host name for remote host (%s) not known (%d)",
+		    hostbuf, errsav);
+		asprintf(&usererr,
+		    "Host name for your address (%s) is not known",
+		    hostbuf);
+		fhosterr(ch_opts, syserr, usererr);
+		/* NOTREACHED */
 	}
 
 	strlcpy(frombuf, hostbuf, sizeof(frombuf));
 	from_host = frombuf;
+	ch_opts |= LPD_ADDFROMLINE;
 
 	/* Need address in stringform for comparison (no DNS lookup here) */
 	error = getnameinfo(f, f->sa_len, hostbuf, sizeof(hostbuf), NULL, 0,
 	    NI_NUMERICHOST | NI_WITHSCOPEID);
-	if (error)
-		fhosterr(wantsl, "Cannot print IP address (error %d)",
-		    "Cannot print IP address", error);
+	if (error) {
+		asprintf(&syserr, "Cannot print IP address (error %d)",
+		    error);
+		asprintf(&usererr, "Cannot print IP address for your host");
+		fhosterr(ch_opts, syserr, usererr);
+		/* NOTREACHED */
+	}
 	from_ip = strdup(hostbuf);
 
 	/* Reject numeric addresses */
@@ -703,8 +717,13 @@ chkhost(struct sockaddr *f, int ch_opts)
 	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
 	if (getaddrinfo(from_host, NULL, &hints, &res) == 0) {
 		freeaddrinfo(res);
-		fhosterr(wantsl, NULL, "reverse lookup results in non-FQDN %s",
+		/* This syslog message already includes from_host */
+		ch_opts &= ~LPD_ADDFROMLINE;
+		asprintf(&syserr, "reverse lookup results in non-FQDN %s",
 		    from_host);
+		/* same message to both syslog and remote user */
+		fhosterr(ch_opts, syserr, syserr);
+		/* NOTREACHED */
 	}
 
 	/* Check for spoof, ala rlogind */
@@ -713,9 +732,12 @@ chkhost(struct sockaddr *f, int ch_opts)
 	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
 	error = getaddrinfo(from_host, NULL, &hints, &res);
 	if (error) {
-		fhosterr(wantsl, "dns lookup for address %s failed: %s",
-		    "hostname for your address (%s) unknown: %s", from_ip,
-		    gai_strerror(error));
+		asprintf(&syserr, "dns lookup for address %s failed: %s",
+		    from_ip, gai_strerror(error));
+		asprintf(&usererr, "hostname for your address (%s) unknown: %s",
+		    from_ip, gai_strerror(error));
+		fhosterr(ch_opts, syserr, usererr);
+		/* NOTREACHED */
 	}
 	good = 0;
 	for (r = res; good == 0 && r; r = r->ai_next) {
@@ -726,9 +748,14 @@ chkhost(struct sockaddr *f, int ch_opts)
 	}
 	if (res)
 		freeaddrinfo(res);
-	if (good == 0)
-		fhosterr(wantsl, "address for remote host (%s) not matched",
+	if (good == 0) {
+		asprintf(&syserr, "address for remote host (%s) not matched",
+		    from_ip);
+		asprintf(&usererr,
 		    "address for your hostname (%s) not matched", from_ip);
+		fhosterr(ch_opts, syserr, usererr);
+		/* NOTREACHED */
+	}
 
 	fpass = 1;
 	hostf = fopen(_PATH_HOSTSEQUIV, "r");
@@ -745,10 +772,14 @@ again:
 		hostf = fopen(_PATH_HOSTSLPD, "r");
 		goto again;
 	}
-	fhosterr(wantsl, "refused connection from %s, sip=%s",
-	    "Print-services are not available to your host (%s).", from_host,
+	/* This syslog message already includes from_host */
+	ch_opts &= ~LPD_ADDFROMLINE;
+	asprintf(&syserr, "refused connection from %s, sip=%s", from_host,
 	    from_ip);
-	/*NOTREACHED*/
+	asprintf(&usererr,
+	    "Print-services are not available to your host (%s).", from_host);
+	fhosterr(ch_opts, syserr, usererr);
+	/* NOTREACHED */
 
 foundhost:
 	if (ch_opts & LPD_NOPORTCHK)
@@ -756,22 +787,24 @@ foundhost:
 
 	error = getnameinfo(f, f->sa_len, NULL, 0, serv, sizeof(serv),
 	    NI_NUMERICSERV);
-	if (error)
-		fhosterr(wantsl, NULL, "malformed from-address (%d)", error);
+	if (error) {
+		/* same message to both syslog and remote user */
+		asprintf(&syserr, "malformed from-address (%d)", error);
+		fhosterr(ch_opts, syserr, syserr);
+		/* NOTREACHED */
+	}
 
-	if (atoi(serv) >= IPPORT_RESERVED)
-		fhosterr(wantsl, NULL, "connected from invalid port (%s)",
-		    serv);
+	if (atoi(serv) >= IPPORT_RESERVED) {
+		/* same message to both syslog and remote user */
+		asprintf(&syserr, "connected from invalid port (%s)", serv);
+		fhosterr(ch_opts, syserr, syserr);
+		/* NOTREACHED */
+	}
 }
 
-#include <stdarg.h>
 /*
- * Handle fatal errors in chkhost.  The first message will optionally be sent
- * to syslog, the second one is sent to the connecting host.  If the first
- * message is NULL, then the same message is used for both.  Note that the
- * argument list for both messages are assumed to be the same (or at least
- * the initial arguments for one must be EXACTLY the same as the complete
- * argument list for the other message).
+ * Handle fatal errors in chkhost.  The first message will optionally be
+ * sent to syslog, the second one is sent to the connecting host.
  *
  * The idea is that the syslog message is meant for an administrator of a
  * print server (the host receiving connections), while the usermsg is meant
@@ -783,41 +816,32 @@ foundhost:
  * Given that hostnames can theoretically be fairly long (well, over 250
  * bytes), it would probably be helpful to have the 'from_host' field at
  * the end of any error messages which include that info.
+ *
+ * These are Fatal host-connection errors, so this routine does not return.
  */
-void
-fhosterr(int dosys, const char *sysmsg, const char *usermsg, ...)
+static void
+fhosterr(int ch_opts, char *sysmsg, char *usermsg)
 {
-	va_list ap;
-	char *sbuf, *ubuf;
-	const char *testone;
 
-	va_start(ap, usermsg);
-	vasprintf(&ubuf, usermsg, ap);
-	va_end(ap);
-
-	if (dosys) {
-		sbuf = ubuf;			/* assume sysmsg == NULL */
-		if (sysmsg != NULL) {
-			va_start(ap, usermsg);
-			vasprintf(&sbuf, sysmsg, ap);
-			va_end(ap);
-		}
-		/*
-		 * If the first variable-parameter is not the 'from_host',
-		 * then first write THAT information as a line to syslog.
-		 */
-		va_start(ap, usermsg);
-		testone = va_arg(ap, const char *);
-		if (testone != from_host) {
+	/*
+	 * If lpd was started up to print connection errors, then write
+	 * the syslog message before the user message.
+	 * And for many of the syslog messages, it is helpful to first
+	 * write the from_host (if it is known) as a separate syslog
+	 * message, since the hostname may be so long.
+	 */
+	if (ch_opts & LPD_LOGCONNERR) {
+		if (ch_opts & LPD_ADDFROMLINE) {
 		    syslog(LOG_WARNING, "for connection from %s:", from_host);
 		}
-		va_end(ap);
-		
-		/* now write the syslog message */
-		syslog(LOG_WARNING, "%s", sbuf);
+		syslog(LOG_WARNING, "%s", sysmsg);
 	}
 
-	printf("%s [@%s]: %s\n", progname, local_host, ubuf);
+	/*
+	 * Now send the error message to the remote host which is trying
+	 * to make the connection.
+	 */
+	printf("%s [@%s]: %s\n", progname, local_host, usermsg);
 	fflush(stdout);
 
 	/* 
