@@ -1090,6 +1090,7 @@ END(tl0_sftrap)
 	tl0_split
 	b	%xcc, tl0_syscall
 	 mov	T_SYSCALL, %o0
+	.align	32
 	.endm
 
 	.macro	tl0_soft	count
