@@ -34,9 +34,6 @@ __FBSDID("$FreeBSD$");
  * Intel EtherExpress Pro/100B PCI Fast Ethernet driver
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
