@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.7.2.1 1996/12/04 16:01:43 phk Exp $
+ *	$Id: syscons.h,v 1.7.2.2 1997/01/21 08:11:20 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -168,6 +168,8 @@ typedef struct scr_stat {
 #endif
 	int 		xpos;			/* current X position */
 	int 		ypos;			/* current Y position */
+	int             saved_xpos;             /* saved X position */
+	int             saved_ypos;             /* saved Y position */
 	int 		xsize;			/* X text size */
 	int 		ysize;			/* Y text size */
 	int 		xpixel;			/* X graphics size */
