@@ -431,7 +431,7 @@ static struct cmd {
 #define IMPLEMENTATION ""
 #endif
 
-static char *usage_string = "\
+static const char usage_string[] = "\
 pppd version %s patch level %d%s\n\
 Usage: %s [ options ], where options are:\n\
 	<device>	Communicate over the named device\n\
@@ -1812,7 +1812,7 @@ setnetmask(argv)
 {
     struct in_addr mask;
 
-    if ((inet_aton(*argv, &mask)) == -1 || (netmask & ~mask.s_addr)) {
+    if (!inet_aton(*argv, &mask) || (netmask & ~mask.s_addr)) {
 	fprintf(stderr, "Invalid netmask %s\n", *argv);
 	return (0);
     }
@@ -2234,7 +2234,7 @@ setdeflate(argv)
     } else
 	ccp_allowoptions[0].deflate = 0;
 
-    /* XXX copy over settings for switch compatability */
+    /* XXX copy over settings for switch compatibility */
     ccp_wantoptions[0].baddeflate = ccp_wantoptions[0].deflate;
     ccp_wantoptions[0].baddeflate_size = ccp_wantoptions[0].deflate_size;
     ccp_allowoptions[0].baddeflate = ccp_allowoptions[0].deflate;
