@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.13 1994/08/13 00:37:03 phk Exp $
+ *	$Id: lpt.c,v 1.14 1994/08/13 03:50:08 wollman Exp $
  */
 
 /*
@@ -143,11 +143,11 @@
 #endif
 
 #ifndef LPMAXSPIN1		/* DELAY factor for the lp# interfaces */
-#define	LPMAXSPIN1	1000   /* Spinning for remote intr to happen */
+#define	LPMAXSPIN1	8000   /* Spinning for remote intr to happen */
 #endif
 
 #ifndef LPMAXSPIN2		/* DELAY factor for the lp# interfaces */
-#define	LPMAXSPIN2	200	/* Spinning for remote handshake to happen */
+#define	LPMAXSPIN2	500	/* Spinning for remote handshake to happen */
 #endif
 
 #ifndef LPMAXERRS		/* Max errors before !RUNNING */
