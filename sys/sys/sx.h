@@ -58,14 +58,14 @@ void	_sx_xunlock(struct sx *sx, const char *file, int line);
 int	_sx_try_upgrade(struct sx *sx, const char *file, int line);
 void	_sx_downgrade(struct sx *sx, const char *file, int line);
 
-#define	sx_slock(sx)		_sx_slock((sx), __FILE__, __LINE__)
-#define	sx_xlock(sx)		_sx_xlock((sx), __FILE__, __LINE__)
-#define	sx_try_slock(sx)	_sx_try_slock((sx), __FILE__, __LINE__)
-#define	sx_try_xlock(sx)	_sx_try_xlock((sx), __FILE__, __LINE__)
-#define	sx_sunlock(sx)		_sx_sunlock((sx), __FILE__, __LINE__)
-#define	sx_xunlock(sx)		_sx_xunlock((sx), __FILE__, __LINE__)
-#define	sx_try_upgrade(sx)	_sx_try_upgrade((sx), __FILE__, __LINE__)
-#define	sx_downgrade(sx)	_sx_downgrade((sx), __FILE__, __LINE__)
+#define	sx_slock(sx)		_sx_slock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_xlock(sx)		_sx_xlock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_try_slock(sx)	_sx_try_slock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_try_xlock(sx)	_sx_try_xlock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_sunlock(sx)		_sx_sunlock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_xunlock(sx)		_sx_xunlock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_try_upgrade(sx)	_sx_try_upgrade((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_downgrade(sx)	_sx_downgrade((sx), LOCK_FILE, LOCK_LINE)
 
 #ifdef INVARIANTS
 /*
@@ -89,8 +89,8 @@ void	_sx_downgrade(struct sx *sx, const char *file, int line);
 	    (sx)->sx_object.lo_name, file, line));			\
 } while (0)
 #endif
-#define	SX_ASSERT_LOCKED(sx)	_SX_ASSERT_LOCKED((sx), __FILE__, __LINE__)
-#define	SX_ASSERT_SLOCKED(sx)	_SX_ASSERT_SLOCKED((sx), __FILE__, __LINE__)
+#define	SX_ASSERT_LOCKED(sx)	_SX_ASSERT_LOCKED((sx), LOCK_FILE, LOCK_LINE)
+#define	SX_ASSERT_SLOCKED(sx)	_SX_ASSERT_SLOCKED((sx), LOCK_FILE, LOCK_LINE)
 
 /*
  * SX_ASSERT_XLOCKED() detects and guarantees that *we* own the xlock.
@@ -100,7 +100,7 @@ void	_sx_downgrade(struct sx *sx, const char *file, int line);
 	    ("Lock %s not exclusively locked @ %s:%d",			\
 	    (sx)->sx_object.lo_name, file, line));			\
 } while (0)
-#define SX_ASSERT_XLOCKED(sx)	_SX_ASSERT_XLOCKED((sx), __FILE__, __LINE__)
+#define SX_ASSERT_XLOCKED(sx)	_SX_ASSERT_XLOCKED((sx), LOCK_FILE, LOCK_LINE)
 
 #else	/* INVARIANTS */
 #define	SX_ASSERT_SLOCKED(sx)

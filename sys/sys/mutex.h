@@ -91,8 +91,8 @@
  * Prototypes
  *
  * NOTE: Functions prepended with `_' (underscore) are exported to other parts
- *	 of the kernel via macros, thus allowing us to use the cpp __FILE__
- *	 and __LINE__. These functions should not be called directly by any
+ *	 of the kernel via macros, thus allowing us to use the cpp LOCK_FILE
+ *	 and LOCK_LINE. These functions should not be called directly by any
  *	 code using the API. Their macros cover their functionality.
  *
  * [See below for descriptions]
@@ -240,22 +240,22 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 
 #ifdef LOCK_DEBUG
 #define	mtx_lock_flags(m, opts)						\
-	_mtx_lock_flags((m), (opts), __FILE__, __LINE__)
+	_mtx_lock_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_flags(m, opts)					\
-	_mtx_unlock_flags((m), (opts), __FILE__, __LINE__)
+	_mtx_unlock_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_lock_spin_flags(m, opts)					\
-	_mtx_lock_spin_flags((m), (opts), __FILE__, __LINE__)
+	_mtx_lock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_spin_flags(m, opts)					\
-	_mtx_unlock_spin_flags((m), (opts), __FILE__, __LINE__)
+	_mtx_unlock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #else
 #define	mtx_lock_flags(m, opts)						\
-	__mtx_lock_flags((m), (opts), __FILE__, __LINE__)
+	__mtx_lock_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_flags(m, opts)					\
-	__mtx_unlock_flags((m), (opts), __FILE__, __LINE__)
+	__mtx_unlock_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_lock_spin_flags(m, opts)					\
-	__mtx_lock_spin_flags((m), (opts), __FILE__, __LINE__)
+	__mtx_lock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_spin_flags(m, opts)					\
-	__mtx_unlock_spin_flags((m), (opts), __FILE__, __LINE__)
+	__mtx_unlock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #endif
 
 #define __mtx_lock_flags(m, opts, file, line) do {			\
@@ -299,7 +299,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 } while (0)
 
 #define mtx_trylock_flags(m, opts)					\
-	_mtx_trylock((m), (opts), __FILE__, __LINE__)
+	_mtx_trylock((m), (opts), LOCK_FILE, LOCK_LINE)
 
 #define	mtx_initialized(m)	((m)->mtx_object.lo_flags & LO_INITIALIZED)
 
@@ -376,7 +376,7 @@ do {									\
 
 #ifdef INVARIANTS
 #define	mtx_assert(m, what)						\
-	_mtx_assert((m), (what), __FILE__, __LINE__)
+	_mtx_assert((m), (what), LOCK_FILE, LOCK_LINE)
 
 #define GIANT_REQUIRED	mtx_assert(&Giant, MA_OWNED)
 
