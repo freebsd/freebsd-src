@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.44 1994/12/16 06:03:24 phk Exp $
+ *      $Id: sd.c,v 1.45 1994/12/22 21:18:48 se Exp $
  */
 
 #define SPLSD splbio
@@ -649,7 +649,7 @@ sdstart(unit)
 			if(sd->dkunit >= 0) {
 				dk_xfer[sd->dkunit]++;
 				dk_seek[sd->dkunit]++; /* don't know */
-				dk_wds[sd->dkunit] += bp->b_bcount >> 1;
+				dk_wds[sd->dkunit] += bp->b_bcount / DEV_BSIZE;
 			}
 		} else {
 bad:
