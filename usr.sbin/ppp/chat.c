@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.9 1996/04/06 02:00:17 ache Exp $
+ * $Id: chat.c,v 1.10 1996/05/11 20:48:20 phk Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -393,6 +393,15 @@ char *command, *out;
     nb = open("/dev/tty", O_RDWR);
     dup2(nb, 0);
 LogPrintf(LOG_CHAT_BIT, "exec: %s\n", command);
+    /* switch back to original privileges */
+    if (setgid(getgid()) < 0) {
+      LogPrintf(LOG_CHAT_BIT, "setgid: %s\n", strerror(errno));
+      exit(1);
+    }
+    if (setuid(getuid()) < 0) {
+      LogPrintf(LOG_CHAT_BIT, "setuid: %s\n", strerror(errno));
+      exit(1);
+    }
     pid = execvp(command, vector);
     LogPrintf(LOG_CHAT_BIT, "execvp failed for (%d/%d): %s\n", pid, errno, command);
     exit(127);
