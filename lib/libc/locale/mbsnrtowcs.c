@@ -27,45 +27,65 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
 #include <errno.h>
 #include <limits.h>
-#include <stdio.h>
+#include <stdlib.h>
 #include <wchar.h>
-#include "un-namespace.h"
-#include "fvwrite.h"
-#include "libc_private.h"
-#include "local.h"
 #include "mblocal.h"
 
-int
-fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
+size_t
+mbsnrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
+    size_t nms, size_t len, mbstate_t * __restrict ps)
 {
-	size_t nbytes;
-	char buf[BUFSIZ];
-	struct __suio uio;
-	struct __siov iov;
+	static mbstate_t mbs;
 
-	FLOCKFILE(fp);
-	ORIENT(fp, 1);
-	if (prepwrite(fp) != 0)
-		goto error;
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	iov.iov_base = buf;
-	do {
-		nbytes = __wcsnrtombs(buf, &ws, SIZE_T_MAX, sizeof(buf),
-		    &fp->_extra->mbstate);
-		if (nbytes == (size_t)-1)
-			goto error;
-		iov.iov_len = uio.uio_resid = nbytes;
-		if (__sfvwrite(fp, &uio) != 0)
-			goto error;
-	} while (ws != NULL);
-	FUNLOCKFILE(fp);
-	return (0);
+	if (ps == NULL)
+		ps = &mbs;
+	return (__mbsnrtowcs(dst, src, nms, len, ps));
+}
 
-error:
-	FUNLOCKFILE(fp);
-	return (-1);
+size_t
+__mbsnrtowcs_std(wchar_t * __restrict dst, const char ** __restrict src,
+    size_t nms, size_t len, mbstate_t * __restrict ps)
+{
+	const char *s;
+	size_t nchr;
+	wchar_t wc;
+	size_t nb;
+
+	s = *src;
+	nchr = 0;
+
+	if (dst == NULL) {
+		for (;;) {
+			if ((nb = __mbrtowc(&wc, s, nms, ps)) == (size_t)-1)
+				/* Invalid sequence - mbrtowc() sets errno. */
+				return ((size_t)-1);
+			else if (nb == 0 || nb == (size_t)-2)
+				return (nchr);
+			s += nb;
+			nms -= nb;
+			nchr++;
+		}
+		/*NOTREACHED*/
+	}
+
+	while (len-- > 0) {
+		if ((nb = __mbrtowc(dst, s, nms, ps)) == (size_t)-1) {
+			*src = s;
+			return ((size_t)-1);
+		} else if (nb == (size_t)-2) {
+			*src = s + nms;
+			return (nchr);
+		} else if (nb == 0) {
+			*src = NULL;
+			return (nchr);
+		}
+		s += nb;
+		nms -= nb;
+		nchr++;
+		dst++;
+	}
+	*src = s;
+	return (nchr);
 }
