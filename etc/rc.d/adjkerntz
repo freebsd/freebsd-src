@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: adjkerntz
-# REQUIRE: diskless mountcritlocal random
+# REQUIRE: mountcritlocal random
 # BEFORE: netif
 # KEYWORD: FreeBSD nojail
 
