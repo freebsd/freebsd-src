@@ -296,7 +296,7 @@ ccd_clone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 	if (u >= numccd)
 		return;
-	if (*s <= 'a' || *s >= 'h')
+	if (*s < 'a' || *s > 'h')
 		return;
 	if (s[1] != '\0')
 		return;
