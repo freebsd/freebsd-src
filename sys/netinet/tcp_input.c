@@ -358,7 +358,14 @@ tcp_input(m, off0)
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
 #endif /* INET6 */
+	struct sockaddr_in *next_hop = NULL;
 	int rstreason; /* For badport_bandlim accounting purposes */
+
+	/* Grab info from MT_TAG mbufs prepended to the chain. */
+	for (;m && m->m_type == MT_TAG; m = m->m_next) { 
+		if (m->m_tag_id == PACKET_TAG_IPFORWARD)
+			next_hop = (struct sockaddr_in *)m->m_hdr.mh_data;
+	}
 
 #ifdef INET6
 	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
@@ -512,14 +519,14 @@ tcp_input(m, off0)
 	 INP_INFO_WLOCK(&tcbinfo);
 	 headlocked = 1;
 findpcb:
-#ifdef IPFIREWALL_FORWARD
-	if (ip_fw_fwd_addr != NULL
+	/* IPFIREWALL_FORWARD section */
+	if (next_hop != NULL
 #ifdef INET6
 	    && isipv6 == NULL /* IPv6 support is not yet */
 #endif /* INET6 */
 	    ) {
 		/*
-		 * Diverted. Pretend to be the destination.
+		 * Transparently forwarded. Pretend to be the destination.
 		 * already got one like this? 
 		 */
 		inp = in_pcblookup_hash(&tcbinfo, ip->ip_src, th->th_sport,
@@ -528,21 +535,19 @@ findpcb:
 			/* 
 			 * No, then it's new. Try find the ambushing socket
 			 */
-			if (!ip_fw_fwd_addr->sin_port) {
+			if (next_hop->sin_port == 0) {
 				inp = in_pcblookup_hash(&tcbinfo, ip->ip_src,
-				    th->th_sport, ip_fw_fwd_addr->sin_addr,
+				    th->th_sport, next_hop->sin_addr,
 				    th->th_dport, 1, m->m_pkthdr.rcvif);
 			} else {
 				inp = in_pcblookup_hash(&tcbinfo,
 				    ip->ip_src, th->th_sport,
-	    			    ip_fw_fwd_addr->sin_addr,
-				    ntohs(ip_fw_fwd_addr->sin_port), 1,
+	    			    next_hop->sin_addr,
+				    ntohs(next_hop->sin_port), 1,
 				    m->m_pkthdr.rcvif);
 			}
 		}
-		ip_fw_fwd_addr = NULL;
 	} else
-#endif	/* IPFIREWALL_FORWARD */
       {
 #ifdef INET6
 	if (isipv6)
