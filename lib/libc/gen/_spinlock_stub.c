@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 __weak_reference(_atomic_lock_stub, _atomic_lock);
 __weak_reference(_spinlock_stub, _spinlock);
+__weak_reference(_spinlock_stub, _spinunlock);
 __weak_reference(_spinlock_debug_stub, _spinlock_debug);
 
 
@@ -61,6 +62,14 @@ _atomic_lock_stub(volatile long *lck)
  */
 void
 _spinlock_stub(spinlock_t *lck)
+{
+}
+
+/*
+ * This function is a stub for the spinunlock function in libpthread.
+ */
+void
+_spinunlock_stub(spinlock_t *lck)
 {
 }
 

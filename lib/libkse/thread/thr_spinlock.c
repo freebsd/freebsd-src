@@ -44,6 +44,13 @@
 
 #include "thr_private.h"
 
+void
+_spinunlock(spinlock_t *lck)
+{
+	lck->access_lock = 0;
+}
+
+
 /*
  * Lock a location for the running thread. Yield to allow other
  * threads to run if this thread is blocked because the lock is
