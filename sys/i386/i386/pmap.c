@@ -2777,7 +2777,7 @@ pmap_ts_referenced(vm_page_t m)
 			pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 
 			if (pte && ((v = pte_load(pte)) & PG_A) != 0) {
-				pte_store(pte, v & ~PG_A);
+				atomic_clear_int((u_int *)pte, PG_A);
 				pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 
 				rtval++;
