@@ -667,7 +667,7 @@ network_pass3() {
 				amd_flags="${amd_flags} `eval\
 					${amd_map_program}`"
 				;;
-		esac
+			esac
 
 			if [ -n "${amd_flags}" ]; then
 				amd -p ${amd_flags}\
