@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.99 1997/03/24 11:23:43 bde Exp $
+ *	$Id: fd.c,v 1.100 1997/07/20 14:09:54 bde Exp $
  *
  */
 
@@ -52,6 +52,7 @@
 #undef NFDC
 #endif
 #include "fd.h"
+#include "opt_fdc.h"
 
 #if NFDC > 0
 
@@ -233,7 +234,7 @@ static int fdformat(dev_t, struct fd_formb *, struct proc *);
 #define	MOTORWAIT	10
 #define	IOTIMEDOUT	11
 
-#ifdef	DEBUG
+#ifdef	FDC_DEBUG
 static char const * const fdstates[] =
 {
 "DEVIDLE",
@@ -254,10 +255,10 @@ static char const * const fdstates[] =
 static int volatile fd_debug = 0;
 #define TRACE0(arg) if(fd_debug) printf(arg)
 #define TRACE1(arg1, arg2) if(fd_debug) printf(arg1, arg2)
-#else /* DEBUG */
+#else /* FDC_DEBUG */
 #define TRACE0(arg)
 #define TRACE1(arg1, arg2)
-#endif /* DEBUG */
+#endif /* FDC_DEBUG */
 
 /* autoconfig structure */
 
@@ -541,23 +542,33 @@ fdattach(struct isa_device *dev)
 		if (ic_type == 0 &&
 		    fd_cmd(fdcu, 1, NE7CMD_VERSION, 1, &ic_type) == 0)
 		{
+#ifdef FDC_PRINT_BOGUS_CHIPTYPE
 			printf("fdc%d: ", fdcu);
+#endif
 			ic_type = (u_char)ic_type;
 			switch( ic_type ) {
 			case 0x80:
+#ifdef FDC_PRINT_BOGUS_CHIPTYPE
 				printf("NEC 765\n");
+#endif
 				fdc->fdct = FDC_NE765;
 				break;
 			case 0x81:
+#ifdef FDC_PRINT_BOGUS_CHIPTYPE
 				printf("Intel 82077\n");
+#endif
 				fdc->fdct = FDC_I82077;
 				break;
 			case 0x90:
+#ifdef FDC_PRINT_BOGUS_CHIPTYPE
 				printf("NEC 72065B\n");
+#endif
 				fdc->fdct = FDC_NE72065;
 				break;
 			default:
+#ifdef FDC_PRINT_BOGUS_CHIPTYPE
 				printf("unknown IC type %02x\n", ic_type);
+#endif
 				fdc->fdct = FDC_UNKNOWN;
 				break;
 			}
@@ -853,13 +864,13 @@ in_fdc(fdcu_t fdcu)
 			return fdc_err(fdcu, "ready for output in input\n");
 	if (j <= 0)
 		return fdc_err(fdcu, bootverbose? "input ready timeout\n": 0);
-#ifdef	DEBUG
+#ifdef	FDC_DEBUG
 	i = inb(baseport+FDDATA);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
 	return(i);
-#else
+#else	/* !FDC_DEBUG */
 	return inb(baseport+FDDATA);
-#endif
+#endif	/* FDC_DEBUG */
 }
 
 /*
@@ -876,17 +887,17 @@ fd_in(fdcu_t fdcu, int *ptr)
 			return fdc_err(fdcu, "ready for output in input\n");
 	if (j <= 0)
 		return fdc_err(fdcu, bootverbose? "input ready timeout\n": 0);
-#ifdef	DEBUG
+#ifdef	FDC_DEBUG
 	i = inb(baseport+FDDATA);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
 	*ptr = i;
 	return 0;
-#else
+#else	/* !FDC_DEBUG */
 	i = inb(baseport+FDDATA);
 	if (ptr)
 		*ptr = i;
 	return 0;
-#endif
+#endif	/* FDC_DEBUG */
 }
 
 int

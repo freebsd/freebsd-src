@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.57 1997/08/31 23:08:19 bde Exp $
+#	$Id: options.i386,v 1.58 1997/09/04 23:03:11 yokota Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -100,3 +100,6 @@ VISUAL_USERCONFIG	opt_userconfig.h
 USERCONFIG_BOOT		opt_userconfig.h
 
 EISA_SLOTS		opt_eisa.h
+
+FDC_DEBUG			opt_fdc.h
+FDC_PRINT_BOGUS_CHIPTYPE	opt_fdc.h
