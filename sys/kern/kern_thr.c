@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sysctl.h>
 #include <sys/smp.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
@@ -46,6 +47,15 @@ __FBSDID("$FreeBSD$");
 
 extern int max_threads_per_proc;
 extern int max_groups_per_proc;
+
+SYSCTL_DECL(_kern_threads);
+static int thr_scope_sys = 0;
+SYSCTL_INT(_kern_threads, OID_AUTO, thr_scope_sys, CTLFLAG_RW,
+	&thr_scope_sys, 0, "sys or proc scope scheduling");
+
+static int thr_concurency = 0;
+SYSCTL_INT(_kern_threads, OID_AUTO, thr_concurrency, CTLFLAG_RW,
+	&thr_concurrency, 0, "a concurrency value if not default");
 
 /*
  * Back end support functions.
@@ -79,14 +89,18 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 	}
 	/* Initialize our td and new ksegrp.. */
 	newtd = thread_alloc();
-	newkg = ksegrp_alloc();
+	if (thr_scope_sys)
+		newkg = ksegrp_alloc();
+	else
+		newkg = kg;
 	/*
 	 * Try the copyout as soon as we allocate the td so we don't have to
 	 * tear things down in a failure case below.
 	 */
 	id = newtd->td_tid;
 	if ((error = copyout(&id, uap->id, sizeof(long)))) {
-		ksegrp_free(newkg);
+		if (thr_scope_sys)
+			ksegrp_free(newkg);
 		thread_free(newtd);
 		return (error);
 	}
@@ -96,10 +110,12 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
 
-	bzero(&newkg->kg_startzero,
-	    (unsigned) RANGEOF(struct ksegrp, kg_startzero, kg_endzero));
-	bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
-	    (unsigned) RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
+	if (thr_scope_sys) {
+		bzero(&newkg->kg_startzero,
+		    (unsigned)RANGEOF(struct ksegrp, kg_startzero, kg_endzero));
+		bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
+		    (unsigned)RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
+	}
 
 	newtd->td_proc = td->td_proc;
 	newtd->td_ucred = crhold(td->td_ucred);
@@ -108,7 +124,8 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 	cpu_set_upcall(newtd, td);
 	error = set_mcontext(newtd, &ctx.uc_mcontext);
 	if (error != 0) {
-		ksegrp_free(newkg);
+		if (thr_scope_sys)
+			ksegrp_free(newkg);
 		thread_free(newtd);
 		crfree(td->td_ucred);
 		goto out;
@@ -116,18 +133,28 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 
 	/* Link the thread and kse into the ksegrp and make it runnable. */
 	PROC_LOCK(td->td_proc);
+	if (thr_scope_sys) {
+			sched_init_concurrency(newkg);
+	} else {
+		if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
+			sched_set_concurrency(kg,
+			    thr_concurrency ? thr_concurrency : (2*mp_ncpus));
+		}
+	}
+			
 	td->td_proc->p_flag |= P_HADTHREADS; 
 	newtd->td_sigmask = td->td_sigmask;
 	mtx_lock_spin(&sched_lock);
-	ksegrp_link(newkg, p);
+	if (thr_scope_sys)
+		ksegrp_link(newkg, p);
 	thread_link(newtd, newkg);
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
-	sched_init_concurrency(newkg);
 
 	/* let the scheduler know about these things. */
 	mtx_lock_spin(&sched_lock);
-	sched_fork_ksegrp(td, newkg);
+	if (thr_scope_sys)
+		sched_fork_ksegrp(td, newkg);
 	sched_fork_thread(td, newtd);
 
 	TD_SET_CAN_RUN(newtd);
