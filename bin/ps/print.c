@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.16 1996/10/21 07:30:24 peter Exp $
+ *	$Id: print.c,v 1.16.2.1 1997/04/16 16:10:48 jdp Exp $
  */
 
 #ifndef lint
@@ -405,7 +405,7 @@ lstarted(k, ve)
 		(void)printf("%-*s", v->width, "-");
 		return;
 	}
-	(void)strftime(buf, sizeof(buf) -1, "%C",
+	(void)strftime(buf, sizeof(buf) -1, "%c",
 	    localtime(&k->ki_u.u_start.tv_sec));
 	(void)printf("%-*s", v->width, buf);
 }
