@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- *	$Id: npx.h,v 1.4 1994/08/14 23:32:45 ats Exp $
+ *	$Id: npx.h,v 1.5 1994/11/04 02:13:15 jkh Exp $
  */
 
 /*
@@ -42,8 +42,8 @@
  * W. Jolitz 1/90
  */
 
-#ifndef	___NPX87___
-#define	___NPX87___
+#ifndef _MACHINE_NPX_H_
+#define	_MACHINE_NPX_H_
 
 /* Environment information of floating point unit */
 struct	env87 {
@@ -136,4 +136,17 @@ struct	emcsts {
 #define	__INITIAL_NPXCW__	__BDE_NPXCW__
 #endif
 
-#endif	___NPX87___
+#ifdef KERNEL
+#include <sys/cdefs.h>
+#include <machine/frame.h>
+
+struct proc;
+
+int	npxdna __P((void));
+void	npxexit __P((struct proc *p));
+void	npxinit __P((u_int control));
+void	npxintr __P((struct intrframe frame));
+void	npxsave __P((struct save87 *addr));
+#endif
+
+#endif /* !_MACHINE_NPX_H_ */
