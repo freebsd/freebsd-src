@@ -1,0 +1,79 @@
+/*-
+ * Copyright (c) 1991 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)ns16550.h	7.1 (Berkeley) 5/9/91
+ */
+
+/*
+ * modified for PC9801 by M.Ishii 
+ *			Kyoto University Microcomputer Club (KMC)
+ */
+
+/* define command and status code */
+#define	CMD8251_TxEN	0x01	/* transmit enable */
+#define	CMD8251_DTR	0x02	/* assert DTR */
+#define	CMD8251_RxEN	0x04	/* receive enable */
+#define	CMD8251_SBRK	0x08	/* send break */
+#define	CMD8251_ER	0x10	/* error reset */
+#define	CMD8251_RTS	0x20	/* assert RTS */
+#define	CMD8251_RESET	0x40	/* internal reset */
+#define	CMD8251_EH	0x80	/* enter hunt mode (only synchronous mode)*/
+
+#define	STS8251_TxRDY	0x01	/* transmit READY */
+#define	STS8251_RxRDY	0x02	/* data exists in receive buffer */
+#define	STS8251_TxEMP	0x04	/* transmit buffer EMPTY */
+#define	STS8251_PE	0x08	/* perity error */
+#define	STS8251_OE	0x10	/* overrun error */
+#define	STS8251_FE	0x20	/* framing error */
+#define	STS8251_BD_SD	0x40	/* break detect (async) / sync detect (sync) */
+#define	STS8251_DSR	0x80	/* DSR is asserted */
+
+#define	MOD8251_5BITS	0x00
+#define	MOD8251_6BITS	0x04
+#define	MOD8251_7BITS	0x08
+#define	MOD8251_8BITS	0x0c
+#define MOD8251_PDISAB	0x00	/* parity disable */
+#define	MOD8251_PODD	0x10	/* parity odd */
+#define	MOD8251_PEVEN	0x30	/* parity even */
+#define	MOD8251_STOP1	0x40	/* stop bit len = 1bit */
+#define	MOD8251_STOP2	0xc0	/* stop bit len = 2bit */
+#define	MOD8251_CLKX16	0x02	/* x16 */
+#define	MOD8251_CLKX1	0x01	/* x1 */
+
+#define	CICSCD_CI	0x80	/* CI */
+#define	CICSCD_CS	0x40	/* CS */
+#define	CICSCD_CD	0x20	/* CD */
+
+/* interrupt mask control */
+#define	IEN_Rx		0x01
+#define	IEN_TxEMP	0x02
+#define	IEN_Tx		0x04
