@@ -2,27 +2,27 @@ This directory contains virgin copies of the original distribution files
 on a "vendor" branch.  Do not, under any circumstances, attempt to upgrade
 the files in this directory via patches and a cvs commit.
 
-To upgrade to a newer version of tcpdump, when it is available:
+To upgrade to a newer version of libpcap, when it is available:
 	1. Unpack the new version into an empty directory.
 	   [Do not make ANY changes to the files.]
 
 	2. Use the command:
 		cvs import -m 'Virgin import of LBL libpcap v<version>' \
-			-I SUNOS4 /usr/src/contrib/libpcap LBL v<version>
+			-I SUNOS4 src/contrib/libpcap LBL v<version>
 
 	   For example, to do the import of version 0.2.1, I typed:
 		cvs import -m 'Virgin import of LBL libpcap v0.2.1' \
-			-I SUNOS4 /usr/src/contrib/libpcap LBL v0_2_1
+			-I SUNOS4 src/contrib/libpcap LBL v0_2_1
 
 	3. Follow the instructions printed out in step 2 to resolve any
 	   conflicts between local FreeBSD changes and the newer version.
 
 Do not, under any circumstances, deviate from this procedure.
 
-To make local changes to tcpdump, simply patch and commit to the main
+To make local changes to libpcap, simply patch and commit to the main
 branch (aka HEAD).  Never make local changes on the LBL branch.
 
-All local changes should be submitted to "tcpdump@ee.lbl.gov" for
+All local changes should be submitted to "tcpdump@ee.lbl.gov" [sic] for
 inclusion in the next vendor release of tcpdump and libpcap.
 
 pst@freebsd.org - 19 Aug 1996
