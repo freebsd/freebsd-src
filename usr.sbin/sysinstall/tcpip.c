@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.40 1996/06/12 17:09:34 jkh Exp $
+ * $Id: tcpip.c,v 1.41 1996/06/13 17:07:41 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -480,6 +480,7 @@ tcpOpenDialog(Device *devp)
 	char *ifaces;
 
 	variable_set2(VAR_HOSTNAME, hostname);
+	sethostname(hostname, strlen(hostname));
 	if (domainname[0])
 	    variable_set2(VAR_DOMAINNAME, domainname);
 	if (gateway[0])
