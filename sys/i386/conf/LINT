@@ -2328,6 +2328,10 @@ controller	umass0
 # USB mouse
 device		ums0
 #
+# ADMtek USB ethernet. Supports the LinkSys USB100TX,
+# the Billionton USB100 and the Melco LU-ATX NICs. Also
+# works with the ADMtek AN986 Pegasus eval board.
+device		aue0
 
 # debugging options for the USB subsystem
 #
