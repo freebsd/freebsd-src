@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.76 1997/03/02 11:06:22 bde Exp $
+ * $Id: vfs_subr.c,v 1.77 1997/03/02 17:53:37 bde Exp $
  */
 
 /*
@@ -1644,26 +1644,58 @@ printlockedvnodes()
 }
 #endif
 
-#ifdef notyet
-static int
-sysctl_vfs_conf SYSCTL_HANDLER_ARGS
+/*
+ * Top level filesystem related information gathering.
+ */
+extern int	vfs_sysctl __P(SYSCTL_HANDLER_ARGS);
+static int	sysctl_ovfs_conf __P(SYSCTL_HANDLER_ARGS);
+
+int
+vfs_sysctl SYSCTL_HANDLER_ARGS
 {
-	int error;
+	int *name = (int *)arg1;
+	u_int namelen = arg2;
 	struct vfsconf *vfsp;
 
-	if (req->newptr)
-		return EINVAL;
-	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
-		error = SYSCTL_OUT(req, vfsp, sizeof *vfsp);
-		if (error)
-			return error;
-	}
-	return 0;
-}
-
-SYSCTL_PROC(_vfs, VFS_VFSCONF, vfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_vfs_conf, "S,vfsconf", "");
+#ifndef NO_COMPAT_PRELITE2
+	/* Resolve ambiguity between VFS_VFSCONF and VFS_GENERIC. */
+	if (namelen == 1 && name[0] == VFS_VFSCONF)
+		return (sysctl_ovfs_conf(oidp, arg1, arg2, req));
 #endif
+
+	/* all sysctl names at this level are at least name and field */
+	if (namelen < 2)
+		return (ENOTDIR);		/* overloaded */
+	if (name[0] != VFS_GENERIC) {
+		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
+			if (vfsp->vfc_typenum == name[0])
+				break;
+		if (vfsp == NULL)
+			return (EOPNOTSUPP);
+#ifdef notyet
+		return ((*vfsp->vfc_vfsops->vfs_sysctl)(&name[1], namelen - 1,
+		    oldp, oldlenp, newp, newlen, p));
+#else
+		return (EOPNOTSUPP);
+#endif
+	}
+	switch (name[1]) {
+	case VFS_MAXTYPENUM:
+		if (namelen != 2)
+			return (ENOTDIR);
+		return (SYSCTL_OUT(req, &maxvfsconf, sizeof(int)));
+	case VFS_CONF:
+		if (namelen != 3)
+			return (ENOTDIR);	/* overloaded */
+		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
+			if (vfsp->vfc_typenum == name[2])
+				break;
+		if (vfsp == NULL)
+			return (EOPNOTSUPP);
+		return (SYSCTL_OUT(req, vfsp, sizeof *vfsp));
+	}
+	return (EOPNOTSUPP);
+}
 
 #ifndef NO_COMPAT_PRELITE2
 
@@ -1672,11 +1704,9 @@ sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
 {
 	int error;
 	struct vfsconf *vfsp;
+	struct ovfsconf ovfs;
 
-	if (req->newptr)
-		return EINVAL;
 	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
-		struct ovfsconf ovfs;
 		ovfs.vfc_vfsops = vfsp->vfc_vfsops;	/* XXX used as flag */
 		strcpy(ovfs.vfc_name, vfsp->vfc_name);
 		ovfs.vfc_index = vfsp->vfc_typenum;
@@ -1688,9 +1718,6 @@ sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
 	}
 	return 0;
 }
-
-SYSCTL_PROC(_vfs, VFS_VFSCONF, ovfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_ovfs_conf, "S,ovfsconf", "");
 
 #endif /* !NO_COMPAT_PRELITE2 */
 
