@@ -2128,11 +2128,11 @@ determined_type: ;
 }
 
 static int
-sioopen(dev, flag, mode, p)
+sioopen(dev, flag, mode, td)
 	dev_t		dev;
 	int		flag;
 	int		mode;
-	struct proc	*p;
+	struct thread	*td;
 {
 	struct com_s	*com;
 	int		error;
@@ -2190,7 +2190,7 @@ open_top:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser(p)) {
+		    suser_td(td)) {
 			error = EBUSY;
 			goto out;
 		}
@@ -2360,11 +2360,11 @@ out:
 }
 
 static int
-sioclose(dev, flag, mode, p)
+sioclose(dev, flag, mode, td)
 	dev_t		dev;
 	int		flag;
 	int		mode;
-	struct proc	*p;
+	struct thread	*td;
 {
 	struct com_s	*com;
 	int		mynor;
@@ -3124,12 +3124,12 @@ cont:
 }
 
 static int
-sioioctl(dev, cmd, data, flag, p)
+sioioctl(dev, cmd, data, flag, td)
 	dev_t		dev;
 	u_long		cmd;
 	caddr_t		data;
 	int		flag;
-	struct proc	*p;
+	struct thread	*td;
 {
 	struct com_s	*com;
 	int		error;
@@ -3160,7 +3160,7 @@ sioioctl(dev, cmd, data, flag, p)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(p);
+			error = suser_td(td);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -3210,7 +3210,7 @@ sioioctl(dev, cmd, data, flag, p)
 		if (lt->c_ospeed != 0)
 			dt->c_ospeed = tp->t_ospeed;
 	}
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error != ENOIOCTL)
 		return (error);
 	s = spltty();
@@ -3253,7 +3253,7 @@ sioioctl(dev, cmd, data, flag, p)
 		break;
 	    case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser(p);
+		error = suser_td(td);
 		if (error != 0) {
 			splx(s);
 			return (error);
@@ -3311,7 +3311,7 @@ sioioctl(dev, cmd, data, flag, p)
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser(p);
+		error = suser_td(td);
 		if (error != 0) {
 			splx(s);
 			return (error);
