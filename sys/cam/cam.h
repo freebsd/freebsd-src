@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_H
@@ -73,6 +73,17 @@ typedef struct {
 #define CAM_ACTIVE_INDEX	-2	
 #define CAM_DONEQ_INDEX		-3	
 } cam_pinfo;
+
+/*
+ * Macro to compare two generation numbers.  It is used like this:  
+ *
+ *	if (GENERATIONCMP(a, >=, b))
+ *		...;
+ *
+ * GERERATIONCMP uses modular arithmetic to guard against wraps
+ * wraps in the generation number.
+ */
+#define GENERATIONCMP(x, op, y) ((int32_t)((x) - (y)) op 0)
 
 /* CAM flags */
 typedef enum {
