@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.22 1999/04/04 21:15:41 obrien Exp $
+ *	$Id: boot2.c,v 1.23 1999/04/05 07:36:30 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -251,7 +251,7 @@ load(const char *fname)
 	}
     } else {
 	fs_off = hdr.eh.e_phoff;
-	for (j = i = 0; i < hdr.eh.e_phoff && j < 2; i++) {
+	for (j = i = 0; i < hdr.eh.e_phnum && j < 2; i++) {
 	    if (xfsread(ino, ep + j, sizeof(ep[0])))
 		return;
 	    if (ep[j].p_type == PT_LOAD)
