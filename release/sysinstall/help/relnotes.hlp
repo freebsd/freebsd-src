@@ -33,6 +33,11 @@ Update to gcc 2.7.2.1 & add support for weak symbols.
 Many things moved/brought into /usr/src/contrib, updating and
 cleaning up the source tree accordingly.
 
+The ppp command now supports Network Address Translation (IP Aliasing),
+allowing multiple machines to share a single IP address (the one used
+by the PPP link) transparently.  There is also new support for dedicated
+connections and for "background mode."
+
 Support for compiled-in shared library ld paths.
 
 Update sgmlfmt to `instant'.
@@ -538,4 +543,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.17.2.5 1996/12/15 18:29:52 jkh Exp $
+$Id: relnotes.hlp,v 1.17.2.6 1996/12/23 01:52:15 jkh Exp $
