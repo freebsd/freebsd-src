@@ -738,7 +738,8 @@ readrest:
 				/*
 				 * Oh, well, lets copy it.
 				 */
-				vm_page_copy(fs.m, fs.first_m);
+				pmap_copy_page(fs.m, fs.first_m);
+				fs.first_m->valid = VM_PAGE_BITS_ALL;
 			}
 			if (fs.m) {
 				/*
@@ -1183,7 +1184,8 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		if (src_m == NULL)
 			panic("vm_fault_copy_wired: page missing");
 
-		vm_page_copy(src_m, dst_m);
+		pmap_copy_page(src_m, dst_m);
+		dst_m->valid = VM_PAGE_BITS_ALL;
 
 		/*
 		 * Enter it in the pmap...
