@@ -1,7 +1,8 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id$
+#	$Id: Makefile.inc,v 1.5 1997/05/03 03:50:02 jb Exp $
 
 # Quad support, if needed
+.PATH: ${.CURDIR}/../libc/${MACHINE}/quad ${.CURDIR}/../libc/quad
 
 .if ${MACHINE} == "i386"
 
@@ -16,5 +17,3 @@ SRCS+=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c divdi3.c fixdfdi.c \
 	xordi3.c
 
 .endif
-
-.PATH: ${.CURDIR}/../libc/${MACHINE}/quad ${.CURDIR}/../libc/quad
