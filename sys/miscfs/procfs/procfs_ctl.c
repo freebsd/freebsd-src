@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
  *
- *	$Id: procfs_ctl.c,v 1.8 1995/12/07 12:47:14 davidg Exp $
+ *	$Id: procfs_ctl.c,v 1.9 1996/01/24 18:40:49 peter Exp $
  */
 
 #include <sys/param.h>
@@ -133,6 +133,10 @@ procfs_control(curp, p, op)
 		/* can't trace yourself! */
 		if (p->p_pid == curp->p_pid)
 			return (EINVAL);
+
+		/* can't trace init when securelevel > 0 */
+		if (securelevel > 0 && p->p_pid == 1)
+			return (EPERM);
 
 		/*
 		 * Go ahead and set the trace flag.
