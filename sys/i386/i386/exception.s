@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.52 1998/05/17 11:51:53 phk Exp $
+ *	$Id: exception.s,v 1.53 1998/05/28 09:29:54 phk Exp $
  */
 
 #include "npx.h"
@@ -345,9 +345,19 @@ ENTRY(fork_trampoline)
 	call	_spl0
 	movl	_curproc,%eax
 	addl	$P_SWITCHTIME,%eax
+	movl	_switchtime,%ecx
+	testl	%ecx,%ecx
+	jne	1f
+	/* XXX unreachable? */
 	pushl	%eax
 	call	_microuptime
 	popl	%eax
+	jmp	2f
+1:
+	movl	%ecx,(%eax)
+	movl	_switchtime+4,%edx
+	movl	%edx,4(%eax)
+2:
 
 	/*
 	 * cpu_set_fork_handler intercepts this function call to
