@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.10 1997/08/29 09:03:02 kato Exp $
+ * $Id: kern_mib.c,v 1.11 1997/08/30 02:52:04 kato Exp $
  */
 
 #include <sys/param.h>
@@ -79,7 +79,7 @@ SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD, ostype, 0, "");
 extern int osreldate;
 SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD, &osreldate, 0, "");
 
-SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RW, &maxproc, 0, "");
+SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RD, &maxproc, 0, "");
 
 SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid,
 	CTLFLAG_RW, &maxprocperuid, 0, "");
