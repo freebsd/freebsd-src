@@ -304,7 +304,7 @@ SelectStringObj(StringObj *so)
     strcpy(tmp, so->s);
     key = line_edit(so->win, so->y+2, so->x+1, 
 		    so->len, so->w-2, inputbox_attr, TRUE, tmp);
-    if ((key == '\n') || (key == '\r')) {
+    if ((key == '\n') || (key == '\r') || (key == '\t') || key == (KEY_BTAB) ) {
 	strcpy(so->s, tmp);
     }
     RefreshStringObj(so);
@@ -318,7 +318,6 @@ SelectStringObj(StringObj *so)
 	return(SEL_BACKTAB);
     }
     if ((key == '\n') || (key == '\r')) {
-	strcpy(so->s, tmp);
 	return(SEL_CR);
     }
     return(key);
