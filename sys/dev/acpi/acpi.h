@@ -86,6 +86,15 @@ struct acpi_event {
 
 /* softc */
 typedef struct acpi_softc {
+	device_t dev;
+	dev_t	dev_t;
+
+	struct resource	*port;
+	int	port_rid;
+	struct resource	*irq;
+	int	irq_rid;
+	void	*irq_handle;
+
 	struct	ACPIsdt *rsdt;
 	struct	ACPIsdt *facp;
 	struct	FACPbody *facp_body;
@@ -124,5 +133,5 @@ void		 acpi_powerres_set_sleeping_state(acpi_softc_t *, u_int8_t);
 void		 acpi_gpe_enable_bit(acpi_softc_t *, u_int32_t, boolean_t);
 
 /*Event queue*/
-void acpi_queue_event(int, int);
+void acpi_queue_event(acpi_softc_t *, int, int);
 #endif	/* !_DEV_ACPI_ACPI_H_ */
