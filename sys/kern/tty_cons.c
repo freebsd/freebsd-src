@@ -334,17 +334,18 @@ static int
 cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 {
 	char path[CNDEVPATHMAX];
-        struct nameidata nd;
+	struct nameidata nd;
+	struct vnode *vp;
 	dev_t dev;
 	int error;
 
-	if (cnd->cnd_vp != NULL) {
-		if (!forceopen) {
-			dev = cnd->cnd_vp->v_rdev;
+	if ((vp = cnd->cnd_vp) != NULL) {
+		if (!forceopen && vp->v_type != VBAD) {
+			dev = vp->v_rdev;
 			return ((*devsw(dev)->d_open)(dev, openflag, 0, td));
 		}
-		vn_close(cnd->cnd_vp, openflag, td->td_proc->p_ucred, td);
 		cnd->cnd_vp = NULL;
+		vn_close(vp, openflag, td->td_proc->p_ucred, td);
 	}
 	if (cnd->cnd_name[0] == '\0')
 		strncpy(cnd->cnd_name, devtoname(cnd->cnd_cn->cn_dev),
