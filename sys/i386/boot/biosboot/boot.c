@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.36 1995/04/16 13:02:52 joerg Exp $
+ *	$Id: boot.c,v 1.37 1995/04/20 06:08:27 phk Exp $
  */
 
 
@@ -271,30 +271,30 @@ getbootdev(int *howto)
 			if (!c)
 				return;
 			if (c=='-')
-				while ((c = *++ptr) && c!=' ')
-					switch (c) {
-					      case 'a':
-						*howto |= RB_ASKNAME; continue;
-					      case 'b':
-						*howto |= RB_HALT; continue;
-					      case 'c':
-						*howto |= RB_CONFIG; continue;
-					      case 'C':
-						*howto |= RB_CDROM; continue;
-					      case 'd':
-						*howto |= RB_KDB; continue;
-					      case 'h':
+				while ((c = *++ptr) && c!=' ') {
+					if (c == 'C')
+					    { *howto |= RB_CDROM; continue; }
+					if (c == 'a')
+					    { *howto |= RB_ASKNAME; continue; }
+					if (c == 'b')
+					    { *howto |= RB_HALT; continue; }
+					if (c == 'c')
+					    { *howto |= RB_CONFIG; continue; }
+					if (c == 'd')
+					    { *howto |= RB_KDB; continue; }
+					if (c == 'r')
+					    { *howto |= RB_DFLTROOT; continue;}
+					if (c == 's')
+					    { *howto |= RB_SINGLE; continue;}
+					if (c == 'v')
+					    { *howto |= RB_VERBOSE; continue;}
+					if (c == 'h') {
 						*howto ^= RB_SERIAL;
 						if (*howto & RB_SERIAL)
 							init_serial();
 						continue;
-					      case 'r':
-						*howto |= RB_DFLTROOT; continue;
-					      case 's':
-						*howto |= RB_SINGLE; continue;
-					      case 'v':
-						*howto |= RB_VERBOSE; continue;
 					}
+				}
 			else {
 				name = ptr;
 				while ((c = *++ptr) && c!=' ');
