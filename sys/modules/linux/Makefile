@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.16 1998/03/19 12:35:55 bde Exp $
+#	$Id: Makefile,v 1.17 1998/07/01 17:10:00 bde Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/linux
 KMOD=	linux_mod
@@ -14,6 +14,8 @@ EXPORT_SYMS=_linux_mod
 CLEANFILES+= vnode_if.h vnode_if.c linux_genassym.o linux_genassym \
 	linux_assym.h opt_compat.h opt_linux.h opt_vmpage.h
 
+build-tools: linux_genassym
+
 linux_assym.h:	linux_genassym
 	./linux_genassym > linux_assym.h
 
@@ -25,7 +27,7 @@ linux_genassym.o:	linux_genassym.c linux.h @ machine
 	${CC} -c ${CFLAGS} -UKERNEL ${.IMPSRC}
 
 linux_genassym:	linux_genassym.o
-	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
