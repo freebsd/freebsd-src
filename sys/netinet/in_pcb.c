@@ -164,6 +164,7 @@ in_pcballoc(so, pcbinfo, td)
 #if defined(IPSEC) || defined(FAST_IPSEC)
 	int error;
 #endif
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT | M_ZERO);
 	if (inp == NULL)
 		return (ENOBUFS);
@@ -207,6 +208,9 @@ in_pcbbind(inp, nam, td)
 {
 	int anonport, error;
 
+	INP_LOCK_ASSERT(inp);
+
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
 	anonport = inp->inp_lport == 0 && (nam == NULL ||
@@ -251,6 +255,9 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
 	int error, prison = 0;
 
+	INP_LOCK_ASSERT(inp);
+
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	if (TAILQ_EMPTY(&in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
 	laddr.s_addr = *laddrp;
@@ -656,6 +663,7 @@ void
 in_pcbdisconnect(inp)
 	struct inpcb *inp;
 {
+	INP_LOCK_ASSERT(inp);
 
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	inp->inp_fport = 0;
@@ -673,6 +681,8 @@ in_pcbdetach(inp)
 {
 	struct socket *so = inp->inp_socket;
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
+
+	INP_LOCK_ASSERT(inp);
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
 	ipsec4_delete_pcbpolicy(inp);
@@ -872,6 +882,8 @@ in_losing(inp)
 	register struct rtentry *rt;
 	struct rt_addrinfo info;
 
+	INP_LOCK_ASSERT(inp);
+
 	if ((rt = inp->inp_route.ro_rt)) {
 		RT_LOCK(rt);
 		inp->inp_route.ro_rt = NULL;
@@ -900,6 +912,8 @@ in_rtchange(inp, errno)
 	register struct inpcb *inp;
 	int errno;
 {
+	INP_LOCK_ASSERT(inp);
+
 	if (inp->inp_route.ro_rt) {
 		RTFREE(inp->inp_route.ro_rt);
 		inp->inp_route.ro_rt = 0;
@@ -925,6 +939,7 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 	int matchwild = 3, wildcard;
 	u_short lport = lport_arg;
 
+	INP_INFO_RLOCK_ASSERT(pcbinfo);
 	if (!wild_okay) {
 		struct inpcbhead *head;
 		/*
@@ -1029,6 +1044,7 @@ in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard,
 	register struct inpcb *inp;
 	u_short fport = fport_arg, lport = lport_arg;
 
+	INP_INFO_RLOCK_ASSERT(pcbinfo);
 	/*
 	 * First look for an exact match.
 	 */
@@ -1104,6 +1120,7 @@ in_pcbinshash(inp)
 	struct inpcbport *phd;
 	u_int32_t hashkey_faddr;
 
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
 		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
@@ -1152,9 +1169,12 @@ void
 in_pcbrehash(inp)
 	struct inpcb *inp;
 {
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbhead *head;
 	u_int32_t hashkey_faddr;
 
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	/* XXX? INP_LOCK_ASSERT(inp); */
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
 		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
@@ -1162,8 +1182,8 @@ in_pcbrehash(inp)
 #endif /* INET6 */
 	hashkey_faddr = inp->inp_faddr.s_addr;
 
-	head = &inp->inp_pcbinfo->hashbase[INP_PCBHASH(hashkey_faddr,
-		inp->inp_lport, inp->inp_fport, inp->inp_pcbinfo->hashmask)];
+	head = &pcbinfo->hashbase[INP_PCBHASH(hashkey_faddr,
+		inp->inp_lport, inp->inp_fport, pcbinfo->hashmask)];
 
 	LIST_REMOVE(inp, inp_hash);
 	LIST_INSERT_HEAD(head, inp, inp_hash);
@@ -1176,7 +1196,12 @@ void
 in_pcbremlists(inp)
 	struct inpcb *inp;
 {
-	inp->inp_gencnt = ++inp->inp_pcbinfo->ipi_gencnt;
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
+
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
+	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	if (inp->inp_lport) {
 		struct inpcbport *phd = inp->inp_phd;
 
@@ -1188,7 +1213,7 @@ in_pcbremlists(inp)
 		}
 	}
 	LIST_REMOVE(inp, inp_list);
-	inp->inp_pcbinfo->ipi_count--;
+	pcbinfo->ipi_count--;
 }
 
 int
