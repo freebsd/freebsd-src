@@ -715,6 +715,7 @@ product MCT DU_H3SP_USB232	0x0200	D-Link DU-H3SP USB BAY Hub
 /* Melco, Inc products */
 product MELCO LUATX1		0x0001	LUA-TX Ethernet
 product MELCO LUATX5		0x0005	LUA-TX Ethernet
+product MELCO LUA2TX5		0x0009	LUA2-TX Ethernet
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
