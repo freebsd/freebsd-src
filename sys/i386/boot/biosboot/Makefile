@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.31 1995/07/25 00:35:40 bde Exp $
+#	$Id: Makefile,v 1.32 1995/08/19 15:59:19 joerg Exp $
 #
 
 PROG=	boot
@@ -8,7 +8,8 @@ SRCS+=  probe_keyboard.c io.c disk.c sys.c
 
 BINDIR=		/usr/mdec
 BINMODE=	444
-CFLAGS=		-O2 -DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DCOMCONSOLE=0x3F8
+CFLAGS=         -O2 -fno-strength-reduce \
+		-DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DCOMCONSOLE=0x3F8
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
 
