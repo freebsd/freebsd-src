@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.55 1995/12/14 14:35:27 peter Exp $
+#	$Id: GENERIC,v 1.56 1995/12/24 08:11:44 davidg Exp $
 #
 
 machine		"i386"
@@ -103,6 +103,7 @@ device		lpt2	at isa? port? tty
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
 device de0
+device fxp0
 device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
 device ed1 at isa? port 0x300 net irq  5 iomem 0xd8000 vector edintr
 device ie0 at isa? port 0x360 net irq  7 iomem 0xd0000 vector ieintr
