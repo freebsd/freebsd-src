@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp.c,v 1.19 1996/12/11 09:34:59 jkh Exp $
+ * $Id: ftp.c,v 1.18.2.1 1996/12/12 11:18:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,6 +55,7 @@ mediaInitFTP(Device *dev)
     int i, code;
     char *cp, *rel, *hostname, *dir;
     char *user, *login_name, password[80];
+    Device *netdev = (Device *)dev->private;
 
     if (ftpInitted)
 	return TRUE;
@@ -66,6 +67,10 @@ mediaInitFTP(Device *dev)
 	fclose(OpenConn);
 	OpenConn = NULL;
     }
+
+    /* If we can't initialize the network, bag it! */
+    if (!netdev->init(netdev))
+	return FALSE;
 
 try:
     cp = variable_get(VAR_FTP_PATH);
@@ -80,10 +85,8 @@ try:
 	msgFatal("Missing FTP host or directory specification - something's wrong!");
 
     user = variable_get(VAR_FTP_USER);
-    if (!user || !*user)
-	login_name = "anonymous";
-    else
-	login_name = user;
+    login_name = (!user || !*user) ? "anonymous" : user;
+
     if (variable_get(VAR_FTP_PASS))
 	SAFE_STRCPY(password, variable_get(VAR_FTP_PASS));
     else
@@ -216,6 +219,6 @@ mediaShutdownFTP(Device *dev)
 	fclose(OpenConn);
 	OpenConn = NULL;
     }
-    /* (*netdev->shutdown)(netdev); */
+    /* netdev->shutdown(netdev); */
     ftpInitted = FALSE;
 }

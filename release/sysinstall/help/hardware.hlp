@@ -1,6 +1,6 @@
-ardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.6 1996/12/23 01:52:13 jkh Exp $
+ardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.7 1996/12/26 21:31:37 joerg Exp $
 
-Contents last changed:  December 22nd, 1996
+Contents last changed:  July 4th, 1996
 
 Table of Contents
 -----------------
@@ -124,7 +124,7 @@ or reliably access the devices in your system.
 --      --------------------------------------------------
 
 The FreeBSD kernel on the install floppy contains drivers for every
-piece of hardware that could concievably be used to install the rest
+piece of hardware that could conceivably be used to install the rest
 of the system with.  Unfortunately, PC hardware being what it is, some
 of these devices can be difficult to detect accurately, and for some,
 the process of detecting another can cause irreversible confusion.
@@ -138,11 +138,11 @@ Once FreeBSD is installed, it will remember the changes made using
 UserConfig, so that they only need be made once.
 
 It is important to disable drivers that are not relevant to a system
-in order to minimise the possibility of interference, which can cause
+in order to minimize the possibility of interference, which can cause
 problems that are difficult to track down.
 
-UserConfig features a commandline interface for users with serial
-consoles or a need to type commands, and a fullscreen 'visual'
+UserConfig features a command line interface for users with serial
+consoles or a need to type commands, and a full screen 'visual'
 interface, which provides point-and-shoot configuration functionality.
 
 Here is a sample UserConfig screen shot in 'visual' mode:
@@ -393,7 +393,7 @@ A: There's a limitation in the current sysinstall that the tape MUST
 Q: I've installed FreeBSD onto my system, but it hangs when booting from 
    the hard drive with the message: ``Changing root to /dev/sd0a''.
 
-A: This problem may occur in a system with a 3com 3c509 ethernet adaptor.
+A: This problem may occur in a system with a 3com 3c509 Ethernet adaptor.
    The ep0 device driver appears to be sensitive to probes for other
    devices that also use address 0x300.  Boot your FreeBSD system by power
    cycling the machine (turn off and on).  At the ``Boot:'' prompt specify
