@@ -1776,7 +1776,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	}
 	ki=p->p_aioinfo;
 	if (ki == NULL)
-		return (EINVAL);
+		goto done;
 	s = splnet();
 
 	for (cbe = TAILQ_FIRST(&ki->kaio_jobqueue); cbe; cbe = cbn) {
@@ -1809,7 +1809,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 		}
 	}
 	splx(s);
-
+done:
 	if (notcancelled) {
 		td->td_retval[0] = AIO_NOTCANCELED;
 		return 0;
