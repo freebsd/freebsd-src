@@ -721,6 +721,8 @@ int	nfsrv_write __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 struct proc *procp, struct mbuf **mrq));
 void	nfsrv_rcv __P((struct socket *so, void *arg, int waitflag));
 void	nfsrv_slpderef __P((struct nfssvc_sock *slp));
+int	nfs_meta_setsize __P((struct vnode *vp, struct ucred *cred, struct proc *p, u_quad_t nsize));
+
 #endif	/* _KERNEL */
 
 #endif
