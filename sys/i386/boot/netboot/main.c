@@ -308,7 +308,7 @@ cfg_done:
 	while (((int)loadpoint) & PAGE_MASK)
 		*(loadpoint++) = 0;
 
-	bootinfo.bi_symtab = (int) loadpoint;
+	bootinfo.bi_symtab = (u_int32_t)loadpoint;
 
 	p = (char*)&head.a_syms;
 	for (i=0;i<sizeof(head.a_syms);i++)
@@ -324,14 +324,14 @@ cfg_done:
 	printf("+0x%x]\n", i);
 	i -= sizeof(int);
 	nfsload(i);
-	bootinfo.bi_esymtab = (int) loadpoint;
+	bootinfo.bi_esymtab = (u_int32_t)loadpoint;
 
 	printf("entry=0x%X.\n\r",head.a_entry);
 
 		/* Jump to kernel */
 	bootinfo.bi_version = BOOTINFO_VERSION;
-	bootinfo.bi_kernelname = kernel;
-	bootinfo.bi_nfs_diskless = &nfsdiskless;
+	bootinfo.bi_kernelname = (u_int32_t)kernel;
+	bootinfo.bi_nfs_diskless = (u_int32_t)&nfsdiskless;
 	bootinfo.bi_size = sizeof bootinfo;
 	kernelentry = (void *)(head.a_entry & 0x00FFFFFF);
 	(*kernelentry)(howto|RB_BOOTINFO,NODEV,0,0,0,&bootinfo,0,0,0);

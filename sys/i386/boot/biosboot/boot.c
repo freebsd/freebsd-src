@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.71 1998/09/23 06:50:45 yokota Exp $
+ *	$Id: boot.c,v 1.72 1998/10/01 18:22:46 msmith Exp $
  */
 
 
@@ -314,8 +314,8 @@ loadprog(void)
 	bootdev = MAKEBOOTDEV(maj, (slice >> 4), slice & 0xf, unit, part);
 
 	bootinfo.bi_version = BOOTINFO_VERSION;
-	bootinfo.bi_kernelname = name + ouraddr;
-	bootinfo.bi_nfs_diskless = NULL;
+	bootinfo.bi_kernelname = (u_int32_t)(name + ouraddr);
+	bootinfo.bi_nfs_diskless = 0;
 	bootinfo.bi_size = sizeof(bootinfo);
 	bootinfo.bi_bios_dev = dosdev;
 
