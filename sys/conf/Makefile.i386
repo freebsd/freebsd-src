@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.147 1999/04/19 14:14:08 peter Exp $
+#	$Id: Makefile.i386,v 1.148 1999/04/24 21:38:50 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -240,6 +240,10 @@ install install.debug:
 	fi
 	install -c -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/install//} ${DESTDIR}/${KERNEL}
+
+reinstall reinstall.debug:
+	install -c -m 555 -o root -g wheel -fschg \
+		${KERNEL}${.TARGET:S/reinstall//} ${DESTDIR}/${KERNEL}
 
 config.o:
 	${NORMAL_C}
