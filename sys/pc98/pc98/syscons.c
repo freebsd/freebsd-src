@@ -717,6 +717,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_CURSORTYPE:   	/* set cursor type blink/noblink */
+	s = spltty();
 	if (!ISGRAPHSC(sc->cur_scp))
 	    sc_remove_cursor_image(sc->cur_scp);
 	if ((*(int*)data) & 0x01)
@@ -732,11 +733,10 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * are affected. Update the cursor in the current console...
 	 */
 	if (!ISGRAPHSC(sc->cur_scp)) {
-	    s = spltty();
 	    sc_set_cursor_image(sc->cur_scp);
 	    sc_draw_cursor_image(sc->cur_scp);
-	    splx(s);
 	}
+	splx(s);
 	return 0;
 
     case CONS_BELLTYPE: 	/* set bell type sound/visual */
@@ -1796,7 +1796,6 @@ scrn_update(scr_stat *scp, int show_cursor)
                 scp->cursor_oldpos > scp->end) {
                 sc_remove_cursor_image(scp);
             }
-            scp->cursor_oldpos = scp->cursor_pos;
             sc_draw_cursor_image(scp);
         }
         else {
@@ -2340,6 +2339,8 @@ exchange_scr(sc_softc_t *sc)
 
     /* save the current state of video and keyboard */
     sc_move_cursor(sc->old_scp, sc->old_scp->xpos, sc->old_scp->ypos);
+    if (!ISGRAPHSC(sc->old_scp))
+	sc_remove_cursor_image(sc->old_scp);
     if (sc->old_scp->kbd_mode == K_XLATE)
 	save_kbd_state(sc->old_scp);
 
@@ -2395,6 +2396,7 @@ sc_draw_cursor_image(scr_stat *scp)
     (*scp->rndr->draw_cursor)(scp, scp->cursor_pos,
 			      scp->sc->flags & SC_BLINK_CURSOR, TRUE,
 			      sc_inside_cutmark(scp, scp->cursor_pos));
+    scp->cursor_oldpos = scp->cursor_pos;
     --scp->sc->videoio_in_progress;
 }
 
