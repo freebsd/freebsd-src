@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 1998
+.Dd January 6, 2005
 .Dt DEVICE_PROBE 9
 .Os
 .Sh NAME
@@ -40,7 +40,9 @@
 .Ft int
 .Fn DEVICE_PROBE "device_t dev"
 .Sh DESCRIPTION
-This device method should probe to see if the device is present.
+The
+.Fn DEVICE_PROBE
+method should probe to see if the device is present.
 It should return 0 if the device exists,
 .Er ENXIO
 if it cannot be found.
