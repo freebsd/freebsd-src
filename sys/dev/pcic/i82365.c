@@ -79,7 +79,6 @@ int	pcic_debug = 0;
 
 #define	PCIC_MEM_ALIGN	PCIC_MEM_PAGESIZE
 
-static void	pcic_attach_socket(device_t, struct pcic_handle *);
 static void	pcic_init_socket(struct pcic_handle *);
 
 int	pcic_intr_socket(struct pcic_handle *);
@@ -88,8 +87,8 @@ void	pcic_attach_card(struct pcic_handle *);
 void	pcic_detach_card(struct pcic_handle *, int);
 void	pcic_deactivate_card(struct pcic_handle *);
 
-void	pcic_chip_do_mem_map(struct pcic_handle *, int);
-void	pcic_chip_do_io_map(struct pcic_handle *, int);
+static void	pcic_chip_do_mem_map(struct pcic_handle *, int);
+static void	pcic_chip_do_io_map(struct pcic_handle *, int);
 
 void	pcic_create_event_thread(void *);
 void	pcic_event_thread(void *);
@@ -175,6 +174,7 @@ pcic_attach(device_t dev)
 {
 	struct pcic_softc *sc = (struct pcic_softc *)
 	    device_get_softc(dev);
+	struct pcic_handle *h;
 	int vendor, count, i, reg;
 
 	/* now check for each controller/socket */
@@ -329,43 +329,20 @@ pcic_attach(device_t dev)
 		if (sc->handle[3].flags & PCIC_FLAG_SOCKETP)
 			sc->handle[3].vendor = vendor;
 	}
-}
 
-void
-pcic_attach_sockets(device_t dev)
-{
-	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
-	int i;
-
-	for (i = 0; i < PCIC_NSLOTS; i++)
-		if (sc->handle[i].flags & PCIC_FLAG_SOCKETP)
-			pcic_attach_socket(dev, &sc->handle[i]);
-}
-
-void
-pcic_attach_socket(device_t dev, struct pcic_handle *h)
-{
-	/* initialize the rest of the handle */
-
-	h->shutdown = 0;
-	h->memalloc = 0;
-	h->ioalloc = 0;
-	h->ih_irq = 0;
-
-	/* 
-	 * now, config one pccard device per socket
-	 *
-	 * XXX This should add all devices that can attach to pcic, which
-	 * is what we want in the general case.
-	 */
-	device_add_child(dev, NULL, -1);
-	device_set_ivars(dev, h);
-
-	/* if there's actually a pccard device attached, initialize the slot */
-	/* XXX WE SHOULD MOVE THIS TO CHILD ATTACHED */
-
-	if (h->pccard)
+	for (i = 0; i < PCIC_NSLOTS; i++) {
+		if ((sc->handle[i].flags & PCIC_FLAG_SOCKETP) == 0)
+			continue;
+		h = &sc->handle[i];
+		/* initialize the rest of the handle */
+		h->shutdown = 0;
+		h->memalloc = 0;
+		h->ioalloc = 0;
+		h->ih_irq = 0;
+		h->dev = device_add_child(dev, "pccard", -1);
+		device_set_ivars(h->dev, h);
 		pcic_init_socket(h);
+	}
 }
 
 void
@@ -664,7 +641,7 @@ pcic_deactivate_card(struct pcic_handle *h)
 	pcic_write(h, PCIC_INTR, 0);
 }
 
-int 
+static int 
 pcic_chip_mem_alloc(struct pcic_handle *h, bus_size_t size, 
     struct pccard_mem_handle *pcmhp)
 {
@@ -705,7 +682,7 @@ pcic_chip_mem_alloc(struct pcic_handle *h, bus_size_t size,
 	return (1);
 }
 
-void 
+static void 
 pcic_chip_mem_free(struct pcic_handle *h, struct pccard_mem_handle *pcmhp)
 {
 	struct pcic_softc *sc = (struct pcic_softc *)(h->ph_parent);
@@ -769,7 +746,7 @@ static struct mem_map_index_st {
 	},
 };
 
-void 
+static void 
 pcic_chip_do_mem_map(struct pcic_handle *h, int win)
 {
 	int reg;
@@ -825,7 +802,7 @@ pcic_chip_do_mem_map(struct pcic_handle *h, int win)
 #endif
 }
 
-int 
+static int 
 pcic_chip_mem_map(struct pcic_handle *h, int kind, bus_addr_t card_addr,
     bus_size_t size, struct pccard_mem_handle *pcmhp, bus_addr_t *offsetp,
     int *windowp)
@@ -889,7 +866,7 @@ pcic_chip_mem_map(struct pcic_handle *h, int kind, bus_addr_t card_addr,
 	return (0);
 }
 
-void 
+static void 
 pcic_chip_mem_unmap(struct pcic_handle *h, int window)
 {
 	int reg;
@@ -904,7 +881,7 @@ pcic_chip_mem_unmap(struct pcic_handle *h, int window)
 	h->memalloc &= ~(1 << window);
 }
 
-int 
+static int 
 pcic_chip_io_alloc(struct pcic_handle *h, bus_addr_t start, bus_size_t size,
     bus_size_t align, struct pccard_io_handle *pcihp)
 {
@@ -941,7 +918,7 @@ pcic_chip_io_alloc(struct pcic_handle *h, bus_addr_t start, bus_size_t size,
 	return (0);
 }
 
-void 
+static void 
 pcic_chip_io_free(struct pcic_handle *h, struct pccard_io_handle *pcihp)
 {
 }
@@ -990,7 +967,7 @@ static struct io_map_index_st {
 	},
 };
 
-void 
+static void 
 pcic_chip_do_io_map(struct pcic_handle *h, int win)
 {
 	int reg;
@@ -1018,7 +995,7 @@ pcic_chip_do_io_map(struct pcic_handle *h, int win)
 	pcic_write(h, PCIC_ADDRWIN_ENABLE, reg);
 }
 
-int 
+static int 
 pcic_chip_io_map(struct pcic_handle *h, int width, bus_addr_t offset,
     bus_size_t size, struct pccard_io_handle *pcihp, int *windowp)
 {
@@ -1068,7 +1045,7 @@ pcic_chip_io_map(struct pcic_handle *h, int width, bus_addr_t offset,
 	return (0);
 }
 
-void 
+static void 
 pcic_chip_io_unmap(struct pcic_handle *h, int window)
 {
 	int reg;
@@ -1106,7 +1083,7 @@ pcic_wait_ready(struct pcic_handle *h)
 #endif
 }
 
-void
+static void
 pcic_chip_socket_enable(struct pcic_handle *h)
 {
 	int cardtype, reg, win;
@@ -1206,7 +1183,7 @@ pcic_chip_socket_enable(struct pcic_handle *h)
 			pcic_chip_do_io_map(h, win);
 }
 
-void
+static void
 pcic_chip_socket_disable(struct pcic_handle *h)
 {
 	DPRINTF(("pcic_chip_socket_disable\n"));
