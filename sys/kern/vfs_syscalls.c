@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.51 1996/09/19 18:20:27 nate Exp $
+ * $Id: vfs_syscalls.c,v 1.51.2.1 1996/12/21 19:04:24 bde Exp $
  */
 
 /*
@@ -1864,7 +1864,8 @@ fsync(p, uap, retval)
 		vm_object_page_clean(vp->v_object, 0, 0 ,0, FALSE);
 	}
 	error = VOP_FSYNC(vp, fp->f_cred,
-		(vp->v_mount->mnt_flag & MNT_ASYNC) ? MNT_NOWAIT : MNT_WAIT, p);
+		(vp->v_mount && (vp->v_mount->mnt_flag & MNT_ASYNC)) ? 
+		MNT_NOWAIT : MNT_WAIT, p);
 	VOP_UNLOCK(vp);
 	return (error);
 }
