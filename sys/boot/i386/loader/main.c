@@ -102,6 +102,8 @@ main(void)
 	setenv("console", "comconsole", 1);
     if (initial_howto & RB_MUTE)
 	setenv("console", "nullconsole", 1);
+    if (initial_howto & RB_MULTIPLE)
+	setenv("boot_multicons", "YES", 1);
     cons_probe();
 
     /*
