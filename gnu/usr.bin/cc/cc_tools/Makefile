@@ -81,10 +81,13 @@ GENSRCS+=	c-gperf.h
 
 #-----------------------------------------------------------------------
 # C++ hash codes
-hash.h: gxx.gperf
+gxx-hash.h: gxx.gperf
 	gperf -p -j1 -g -o -t -N is_reserved_word '-k1,4,7,$$' \
-	    ${GCCDIR}/cp/gxx.gperf >hash.h
-GENSRCS+=	hash.h
+	    ${GCCDIR}/cp/gxx.gperf >gxx-hash.h
+
+hash.h: gxx-hash.h
+	ln -s ${.ALLSRC} ${.TARGET}
+GENSRCS+=	gxx-hash.h hash.h
 
 #-----------------------------------------------------------------------
 # Common parser stuff.
