@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.18 1997/06/09 03:27:42 brian Exp $
+ * $Id: vars.h,v 1.7.2.8 1997/06/10 09:44:46 brian Exp $
  *
  *	TODO:
  */
@@ -68,7 +68,7 @@ struct pppvars {
   int    redial_timeout;	/* Redial timeout value */
   int    redial_next_timeout;	/* Redial next timeout value */
   int    dial_tries;		/* Dial attempts before giving up, 0 == inf */
-  char   modem_dev[20];		/* Name of device */
+  char   modem_dev[40];		/* Name of device / host:port */
   char  *base_modem_dev;        /* Pointer to base of modem_dev */
   int	 open_mode;		/* LCP open mode */
 #define LOCAL_AUTH	0x01
