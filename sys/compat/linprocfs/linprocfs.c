@@ -419,18 +419,19 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	name[0] = CTL_HW;
 	name[1] = HW_NCPU;
 	if (kernel_sysctl(td, name, 2, &ncpu, &olen, NULL, 0, &plen) != 0)
-		ncpu = 0;
+		ncpu = 1;
 	sbuf_printf(sb, "cpu %ld %ld %ld %ld\n",
 	    T2J(cp_time[CP_USER]),
 	    T2J(cp_time[CP_NICE]),
 	    T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
 	    T2J(cp_time[CP_IDLE]));
-	for (i = 0; i < ncpu; ++i)
-		sbuf_printf(sb, "cpu%d %ld %ld %ld %ld\n", i,
-		    T2J(cp_time[CP_USER]) / ncpu,
-		    T2J(cp_time[CP_NICE]) / ncpu,
-		    T2J(cp_time[CP_SYS]) / ncpu,
-		    T2J(cp_time[CP_IDLE]) / ncpu);
+	if (ncpu > 1)
+		for (i = 0; i < ncpu; ++i)
+			sbuf_printf(sb, "cpu%d %ld %ld %ld %ld\n", i,
+			    T2J(cp_time[CP_USER]) / ncpu,
+			    T2J(cp_time[CP_NICE]) / ncpu,
+			    T2J(cp_time[CP_SYS]) / ncpu,
+			    T2J(cp_time[CP_IDLE]) / ncpu);
 	sbuf_printf(sb,
 	    "disk 0 0 0 0\n"
 	    "page %u %u\n"
@@ -568,7 +569,7 @@ linprocfs_doprocstatm(PFS_FILL_ARGS)
 {
 	struct kinfo_proc kp;
 	segsz_t lsize;
-	
+
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
 	PROC_UNLOCK(p);
