@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_simple.c 1.35 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_simple.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_simple.c,v 1.4 1996/06/10 20:13:03 jraynard Exp $";
+static char *rcsid = "$Id: clnt_simple.c,v 1.5 1996/08/12 14:00:20 peter Exp $";
 #endif
 
 /*
@@ -40,6 +40,7 @@ static char *rcsid = "$Id: clnt_simple.c,v 1.4 1996/06/10 20:13:03 jraynard Exp 
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -55,7 +56,8 @@ static struct callrpc_private {
 	char	*oldhost;
 } *callrpc_private;
 
-int callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
+int
+callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 	char *host;
 	int prognum, versnum, procnum;
 	xdrproc_t inproc, outproc;
@@ -74,7 +76,7 @@ int callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 		callrpc_private = crp;
 	}
 	if (crp->oldhost == NULL) {
-		crp->oldhost = malloc(256);
+		crp->oldhost = malloc(MAXHOSTNAMELEN);
 		crp->oldhost[0] = 0;
 		crp->socket = RPC_ANYSOCK;
 	}
@@ -83,7 +85,8 @@ int callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 		/* reuse old client */
 	} else {
 		crp->valid = 0;
-		(void)close(crp->socket);
+		if (crp->socket != -1)
+			(void)close(crp->socket);
 		crp->socket = RPC_ANYSOCK;
 		if (crp->client) {
 			clnt_destroy(crp->client);
@@ -94,7 +97,7 @@ int callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 		timeout.tv_usec = 0;
 		timeout.tv_sec = 5;
 		memset(&server_addr, 0, sizeof(server_addr));
-		bcopy(hp->h_addr, (char *)&server_addr.sin_addr, hp->h_length);
+		memcpy((char *)&server_addr.sin_addr, hp->h_addr, hp->h_length);
 		server_addr.sin_len = sizeof(struct sockaddr_in);
 		server_addr.sin_family = AF_INET;
 		server_addr.sin_port =  0;
