@@ -249,6 +249,7 @@ ENTRY(epc_syscall, 8)
 	.prologue
 	.unwabi		@svr4, 'E'
 	.save		rp, r0
+	.body
 {	.mmi
 	mov		r16=ar.rsc
 	mov		ar.rsc=0
