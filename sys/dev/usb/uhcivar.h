@@ -130,6 +130,12 @@ typedef struct uhci_softc {
 	struct usbd_bus sc_bus;		/* base device */
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
+#if defined(__FreeBSD__)
+	void *ih;
+
+	struct resource *io_res;
+	struct resource *irq_res;
+#endif
 
 	uhci_physaddr_t *sc_pframes;
 	usb_dma_t sc_dma;
