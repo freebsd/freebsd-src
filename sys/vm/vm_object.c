@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.43 1995/04/16 12:56:19 davidg Exp $
+ * $Id: vm_object.c,v 1.44 1995/04/21 02:48:40 dyson Exp $
  */
 
 /*
@@ -119,9 +119,10 @@ struct vm_object kmem_object_store;
 
 int vm_object_cache_max;
 
-#define	VM_OBJECT_HASH_COUNT	509
+#define	VM_OBJECT_HASH_COUNT	1021
 
 struct vm_object_hash_head vm_object_hashtable[VM_OBJECT_HASH_COUNT];
+#define OBJECT_HASH(pager) ((unsigned long)(pager) % VM_OBJECT_HASH_COUNT)
 
 long object_collapses;
 long object_bypasses;
@@ -176,7 +177,7 @@ vm_object_init(vm_offset_t nothing)
 		vm_object_cache_max += (cnt.v_page_count - 1000) / 4;
 
 	for (i = 0; i < VM_OBJECT_HASH_COUNT; i++)
-		TAILQ_INIT(&vm_object_hashtable[i]);
+		LIST_INIT(&vm_object_hashtable[i]);
 
 	kernel_object = &kernel_object_store;
 	_vm_object_allocate(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
@@ -1005,12 +1006,6 @@ vm_object_shadow(object, offset, length)
 	*object = result;
 }
 
-/*
- *	vm_object_hash hashes the pager/id pair.
- */
-
-#define vm_object_hash(pager) \
-	(((unsigned)pager >> 5)%VM_OBJECT_HASH_COUNT)
 
 /*
  *	vm_object_lookup looks in the object cache for an object with the
@@ -1026,9 +1021,8 @@ vm_object_lookup(pager)
 
 	vm_object_cache_lock();
 
-	for (entry = vm_object_hashtable[vm_object_hash(pager)].tqh_first;
-	    entry != NULL;
-	    entry = entry->hash_links.tqe_next) {
+	for (entry = vm_object_hashtable[OBJECT_HASH(pager)].lh_first;
+	    entry != NULL; entry = entry->hash_links.le_next) {
 		object = entry->object;
 		if (object->pager == pager) {
 			vm_object_lock(object);
@@ -1071,13 +1065,13 @@ vm_object_enter(object, pager)
 	if (pager == NULL)
 		return;
 
-	bucket = &vm_object_hashtable[vm_object_hash(pager)];
+	bucket = &vm_object_hashtable[OBJECT_HASH(pager)];
 	entry = (vm_object_hash_entry_t)
 	    malloc((u_long) sizeof *entry, M_VMOBJHASH, M_WAITOK);
 	entry->object = object;
 
 	vm_object_cache_lock();
-	TAILQ_INSERT_TAIL(bucket, entry, hash_links);
+	LIST_INSERT_HEAD(bucket, entry, hash_links);
 	vm_object_cache_unlock();
 }
 
@@ -1097,14 +1091,13 @@ vm_object_remove(pager)
 	register vm_object_hash_entry_t entry;
 	register vm_object_t object;
 
-	bucket = &vm_object_hashtable[vm_object_hash(pager)];
+	bucket = &vm_object_hashtable[OBJECT_HASH(pager)];
 
-	for (entry = bucket->tqh_first;
-	    entry != NULL;
-	    entry = entry->hash_links.tqe_next) {
+	for (entry = bucket->lh_first;
+	    entry != NULL; entry = entry->hash_links.le_next) {
 		object = entry->object;
 		if (object->pager == pager) {
-			TAILQ_REMOVE(bucket, entry, hash_links);
+			LIST_REMOVE(entry, hash_links);
 			free((caddr_t) entry, M_VMOBJHASH);
 			break;
 		}
@@ -1761,9 +1754,8 @@ vm_object_check() {
 	 */
 	for (i=0; i<VM_OBJECT_HASH_COUNT;i++) {
 		int lsize = 0;
-		for (entry = vm_object_hashtable[i].tqh_first;
-		    entry != NULL;
-		    entry = entry->hash_links.tqe_next) {
+		for (entry = vm_object_hashtable[i].lh_first;
+		    entry != NULL; entry = entry->hash_links.le_next) {
 			if( entry->object->flags & OBJ_INTERNAL) {
 				printf("vmochk: internal obj on hash: size: %d\n", entry->object->size);
 			}
@@ -1782,13 +1774,14 @@ vm_object_check() {
 	for (object = vm_object_list.tqh_first;
 			object != NULL;
 			object = object->object_list.tqe_next) {
-		if( object->flags & OBJ_INTERNAL) {
-			if( object->ref_count == 0) {
+		if (object->flags & OBJ_INTERNAL) {
+			if (object->ref_count == 0) {
 				printf("vmochk: internal obj has zero ref count: %d\n",
 					object->size);
 			}
-			if( !vm_object_in_map(object)) {
-				printf("vmochk: internal obj is not in a map: ref: %d, size: %d, pager: 0x%x, shadow: 0x%x\n", object->ref_count, object->size, object->pager, object->shadow);
+			if (!vm_object_in_map(object)) {
+				printf("vmochk: internal obj is not in a map: ref: %d, size: %d, pager: 0x%x, shadow: 0x%x\n",
+				    object->ref_count, object->size, object->pager, object->shadow);
 			}
 		}
 	}
