@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.43 1996/08/10 22:06:09 joerg Exp $
+ **      $Id: userconfig.c,v 1.44 1996/09/11 19:53:45 phk Exp $
  **/
 
 /**
@@ -86,9 +86,7 @@
  ** 
  ** For this tool to be useful, the list of devices below _MUST_ be updated 
  ** when a new driver is brought into the kernel.  It is not possible to 
- ** extract this information from the drivers in the kernel, as the devconf
- ** structure for the device is not registered until the device is probed,
- ** which is too late.
+ ** extract this information from the drivers in the kernel.
  **
  ** XXX - TODO:
  ** 
@@ -105,9 +103,10 @@
  ** - Only display headings with devices under them. (difficult)
  **/
 
+#include "opt_userconfig.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 
 #include <machine/clock.h>
@@ -117,8 +116,6 @@
 #include <i386/isa/isa_device.h>
 
 #include <pci/pcivar.h>
-
-#include <opt_userconfig.h>
 
 static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
 
@@ -2112,8 +2109,8 @@ visuserconfig(void)
 	}
     }
 }
-
 #endif /* VISUAL_USERCONFIG */
+
 /*
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
@@ -2156,7 +2153,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.43 1996/08/10 22:06:09 joerg Exp $
+ *      $Id: userconfig.c,v 1.44 1996/09/11 19:53:45 phk Exp $
  */
 
 #include "scbus.h"
