@@ -284,6 +284,9 @@ patch file.
 A script that will be run in the
 .Xr chroot 8
 environment immediately after any local patches are applied.
+.It Va MAKE_FLOPPIES
+If defined, boot and fixit floppy disk images will be created (for those
+platforms supporting them).
 .It Va MAKE_ISOS
 If defined, bootable ISO CD-ROM images will be created from the
 contents of the CD-ROM stage directory.
@@ -314,8 +317,6 @@ However, the
 distribution will still be created with the minimal documentation set
 provided in
 .Pa src/share/doc .
-.It Va NO_FLOPPIES
-If defined, no boot and fixit floppy disk images will be created (i386-only).
 .It Va NOPORTS
 If defined, the Ports Collection will be omitted from the release.
 .It Va NOPORTREADMES
