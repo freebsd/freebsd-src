@@ -56,10 +56,11 @@ function pushes the character
 (converted to an unsigned char)
 back onto the input stream pointed to by
 .Fa stream .
-The pushed-backed characters will be returned by subsequent reads on the
+The pushed-back characters will be returned by subsequent reads on the
 stream (in reverse order).
-A successful intervening call, using the same stream, to one of the file
-positioning functions
+A successful intervening call,
+using the same stream,
+to one of the file positioning functions
 .Po
 .Xr fseek 3 ,
 .Xr fsetpos 3 ,
@@ -69,17 +70,16 @@ or
 will discard the pushed back characters.
 .Pp
 One character of push-back is guaranteed,
-but as long as there is
-sufficient memory, an effectively infinite amount of pushback is allowed.
+but as long as there is sufficient memory,
+an effectively infinite amount of pushback is allowed.
 .Pp
 If a character is successfully pushed-back,
 the end-of-file indicator for the stream is cleared.
 .Sh RETURN VALUES
 The
 .Fn ungetc
-function
-returns
-the character pushed-back after the conversion, or
+function returns the character pushed-back after the conversion,
+or
 .Dv EOF
 if the operation fails.
 If the value of the argument
