@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.22 1996/03/27 17:03:51 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.23 1996/03/30 19:40:28 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -418,7 +418,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.22 1996/03/27 17:03:51 jkh Exp $
+	$Id: submitters.sgml,v 1.23 1996/03/30 19:40:28 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
@@ -465,8 +465,8 @@ Routing #: 121-000-358
 Account #: 01411-07441 (FreeBSD, Inc.)
 </verb></tscreen>
 
-If you do not wish to be listed in our `donors' section, please specify
-this in a note accompanying your donation.  Thanks!
+If you do not wish to be listed in our <ref id="donors" name="donors">
+section, please specify this when making your donation.  Thanks!
 
 <sect2><heading>Donating hardware</heading>
 
@@ -499,7 +499,7 @@ If you'd like to be such a mirror, please contact
 <htmlurl url="mailto:admin@freebsd.org" name="the FreeBSD project
 administrators"> for more information.
 
-<sect><heading>Donors Gallery</heading>
+<sect><heading>Donors Gallery<label id="donors"></heading>
 
 <p>The FreeBSD Project is indebted to the following donors and would
 like to publically thank them here!
