@@ -730,10 +730,10 @@ uifree(uip)
 	if (--uip->ui_ref == 0) {
 		if (uip->ui_sbsize != 0)
 			/* XXX no %qd in kernel.  Truncate. */
-			printf("freeing uidinfo: uid = %d, sbsize = %ld",
+			printf("freeing uidinfo: uid = %d, sbsize = %ld\n",
 			    uip->ui_uid, (long)uip->ui_sbsize);
 		if (uip->ui_proccnt != 0)
-			printf("freeing uidinfo: uid = %d, proccnt = %ld",
+			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
 			    uip->ui_uid, uip->ui_proccnt);
 		LIST_REMOVE(uip, ui_hash);
 		FREE(uip, M_UIDINFO);
@@ -757,7 +757,7 @@ chgproccnt(uip, diff, max)
 		return (0);
 	uip->ui_proccnt += diff;
 	if (uip->ui_proccnt < 0)
-		printf("negative proccnt for uid = %d", uip->ui_uid);
+		printf("negative proccnt for uid = %d\n", uip->ui_uid);
 	return (1);
 }
 
@@ -784,7 +784,7 @@ chgsbsize(uip, hiwat, to, max)
 	uip->ui_sbsize = new;
 	*hiwat = to;
 	if (uip->ui_sbsize < 0)
-		printf("negative sbsize for uid = %d", uip->ui_uid);
+		printf("negative sbsize for uid = %d\n", uip->ui_uid);
 	splx(s);
 	return (1);
 }
