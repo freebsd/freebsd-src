@@ -37,7 +37,7 @@
 
 #ifdef BOOT_FORTH
 #include "ficl.h"
-#define	RETURN(x)	stackPushINT32(bf_vm->pStack,!x); return(x)
+#define	RETURN(x)	stackPushINT(bf_vm->pStack,!x); return(x)
 
 extern FICL_VM *bf_vm;
 #else

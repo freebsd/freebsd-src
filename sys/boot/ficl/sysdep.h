@@ -32,6 +32,8 @@
 ** send me email at the address above. 
 */
 
+/* $FreeBSD$ */
+
 #if !defined (__SYSDEP_H__)
 #define __SYSDEP_H__ 
 
@@ -60,48 +62,75 @@
 #endif
 
 
+/*
+** System dependent data type declarations...
+*/
 #if !defined INT32
-#define INT32 int32_t
+#define INT32 long
 #endif
 
 #if !defined UNS32
-#define UNS32 u_int32_t
+#define UNS32 unsigned long
 #endif
 
 #if !defined UNS16
-#define UNS16 u_int16_t
+#define UNS16 unsigned short
 #endif
 
 #if !defined UNS8
-#define UNS8 u_int8_t
+#define UNS8 unsigned char
 #endif
 
 #if !defined NULL
 #define NULL ((void *)0)
 #endif
 
-typedef struct
-{
-    UNS32 hi;
-    UNS32 lo;
-} UNS64;
+/*
+** FICL_UNS and FICL_INT must have the same size as a void* on
+** the target system. A CELL is a union of void*, FICL_UNS, and
+** FICL_INT. 
+*/
+#if !defined FICL_INT
+#define FICL_INT INT32
+#endif
+
+#if !defined FICL_UNS
+#define FICL_UNS UNS32
+#endif
+
+/*
+** Ficl presently supports values of 32 and 64 for BITS_PER_CELL
+*/
+#if !defined BITS_PER_CELL
+#define BITS_PER_CELL 32
+#endif
+
+#if ((BITS_PER_CELL != 32) && (BITS_PER_CELL != 64))
+    Error!
+#endif
 
 typedef struct
 {
-    UNS32 quot;
-    UNS32 rem;
+    FICL_UNS hi;
+    FICL_UNS lo;
+} DPUNS;
+
+typedef struct
+{
+    FICL_UNS quot;
+    FICL_UNS rem;
 } UNSQR;
 
 typedef struct
 {
-    INT32 hi;
-    INT32 lo;
-} INT64;
+    FICL_INT hi;
+    FICL_INT lo;
+} DPINT;
 
 typedef struct
 {
-    INT32 quot;
-    INT32 rem;
+    FICL_INT quot;
+    FICL_INT rem;
 } INTQR;
 
 
@@ -112,6 +141,30 @@ typedef struct
 */
 #if !defined FICL_MULTITHREAD
 #define FICL_MULTITHREAD 0
+#endif
+
+/*
+** PORTABLE_LONGMULDIV causes ficlLongMul and ficlLongDiv to be
+** defined in C in sysdep.c. Use this if you cannot easily 
+** generate an inline asm definition
+*/ 
+#if !defined (PORTABLE_LONGMULDIV)
+#define PORTABLE_LONGMULDIV 0
+#endif
+
+
+/*
+** INLINE_INNER_LOOP causes the inner interpreter to be inline code
+** instead of a function call. This is mainly because MS VC++ 5
+** chokes with an internal compiler error on the function version.
+** in release mode. Sheesh.
+*/
+#if !defined INLINE_INNER_LOOP
+#if defined _DEBUG
+#define INLINE_INNER_LOOP 0
+#else
+#define INLINE_INNER_LOOP 1
+#endif
 #endif
 
 /*
@@ -192,7 +245,7 @@ typedef struct
 ** pointer address must be aligned. This value is usually
 ** either 1 or 2, depending on the memory architecture
 ** of the target system; 2 is safe on any 16 or 32 bit
-** machine.
+** machine. 3 would be appropriate for a 64 bit machine.
 */
 #if !defined FICL_ALIGN
 #define FICL_ALIGN 2
@@ -215,9 +268,8 @@ typedef struct
 struct vm;
 void  ficlTextOut(struct vm *pVM, char *msg, int fNewline);
 void *ficlMalloc (size_t size);
-void *ficlRealloc (void *p, size_t size);
 void  ficlFree   (void *p);
-
+void *ficlRealloc(void *p, size_t size);
 /*
 ** Stub function for dictionary access control - does nothing
 ** by default, user can redefine to guarantee exclusive dict
@@ -241,12 +293,12 @@ int ficlLockDictionary(short fLock);
 
 /*
 ** 64 bit integer math support routines: multiply two UNS32s
-** to get a 64 bit prodict, & divide the product by an UNS32
+** to get a 64 bit product, & divide the product by an UNS32
 ** to get an UNS32 quotient and remainder. Much easier in asm
 ** on a 32 bit CPU than in C, which usually doesn't support 
 ** the double length result (but it should).
 */
-UNS64 ficlLongMul(UNS32 x, UNS32 y);
-UNSQR ficlLongDiv(UNS64 q, UNS32 y);
+DPUNS ficlLongMul(FICL_UNS x, FICL_UNS y);
+UNSQR ficlLongDiv(DPUNS    q, FICL_UNS y);
 
 #endif /*__SYSDEP_H__*/
