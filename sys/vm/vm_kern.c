@@ -401,8 +401,10 @@ retry:
 		}
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
+		vm_page_lock_queues();
 		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
+		vm_page_unlock_queues();
 	}
 	vm_object_unlock(kmem_object);
 
