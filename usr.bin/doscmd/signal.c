@@ -29,7 +29,7 @@
  *
  *	BSDI signal.c,v 2.2 1996/04/08 19:33:06 bostic Exp
  *
- * $Id: signal.c,v 1.1 1997/08/09 01:42:55 dyson Exp $
+ * $Id: signal.c,v 1.2 1998/02/28 16:02:24 jraynard Exp $
  */
 
 #include "doscmd.h"
@@ -66,9 +66,9 @@ sanity_check(struct sigframe *sf)
 static void
 generichandler(struct sigframe sf)
 {
-    if (sf.sf_sc.sc_efl & PSL_VM) {
+    if (sf.sf_siginfo.si_sc.sc_efl & PSL_VM) {
 	saved_sigframe = &sf;
-	saved_regcontext = (regcontext_t *)&(sf.sf_sc);
+	saved_regcontext = (regcontext_t *)&(sf.sf_siginfo.si_sc);
 	saved_valid = 1;
 	if (handler[sf.sf_signum])
 	    (*handler[sf.sf_signum])(&sf);

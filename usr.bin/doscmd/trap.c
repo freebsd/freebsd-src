@@ -29,7 +29,7 @@
  *
  *	BSDI trap.c,v 2.3 1996/04/08 19:33:08 bostic Exp
  *
- * $Id: trap.c,v 1.1 1997/08/09 01:42:58 dyson Exp $
+ * $Id: trap.c,v 1.2 1997/09/30 22:04:05 jlemon Exp $
  */
 
 #include "doscmd.h"
@@ -287,14 +287,14 @@ sigbus(struct sigframe *sf)
     int			intnum;
     int			port;
     callback_t		func;
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
 
     if (!(R_EFLAGS && PSL_VM))
 	fatal("SIGBUS in the emulator\n");
 
-    if (sf->sf_code != 0) {
+    if (sf->sf_arg2 != 0) {
         fatal("SIGBUS code %d, trapno: %d, err: %d\n",
-            sf->sf_code, sf->sf_sc.sc_trapno, sf->sf_sc.sc_err); 
+            sf->sf_arg2, sf->sf_siginfo.si_sc.sc_trapno, sf->sf_siginfo.si_sc.sc_err); 
     }
 
     addr = (u_char *)GETPTR(R_CS, R_IP);
@@ -500,7 +500,7 @@ void
 sigtrace(struct sigframe *sf)
 {
     int			x;
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
 
     if (R_EFLAGS & PSL_VM) {
 	debug(D_ALWAYS, "Currently in DOS\n");
@@ -519,7 +519,7 @@ sigtrap(struct sigframe *sf)
 {   
     int			intnum;
     int			trapno;
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
 
     if ((R_EFLAGS & PSL_VM) == 0) {
 	dump_regs(REGS);
@@ -531,7 +531,7 @@ sigtrap(struct sigframe *sf)
 	    goto doh;
 
 #ifdef __FreeBSD__
-    trapno = sf->sf_code;			/* XXX GROSTIC HACK ALERT */
+    trapno = sf->sf_arg2;			/* XXX GROSTIC HACK ALERT */
 #else
     trapno = sc->sc_trapno;
 #endif
@@ -554,7 +554,7 @@ doh:
 void
 breakpoint(struct sigframe *sf)
 {
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
 
     if (R_EFLAGS & PSL_VM)
 	printf("doscmd ");
@@ -572,7 +572,7 @@ breakpoint(struct sigframe *sf)
 void
 sigalrm(struct sigframe *sf)
 {
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
 
     if (tmode)
 	resettrace(REGS);
@@ -590,7 +590,7 @@ sigalrm(struct sigframe *sf)
 void
 sigill(struct sigframe *sf)
 {
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
 
     fprintf(stderr, "Signal %d from DOS program\n", sf->sf_signum);
     dump_regs(REGS);
@@ -601,7 +601,7 @@ sigill(struct sigframe *sf)
 void
 sigfpe(struct sigframe *sf)
 {
-    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_sc);
+    regcontext_t	*REGS = (regcontext_t *)(&sf->sf_siginfo.si_sc);
 
     if (R_EFLAGS & PSL_VM) {
 	dump_regs(REGS);
