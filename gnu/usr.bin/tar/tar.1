@@ -403,6 +403,11 @@ The TAR_RSH environment variable allows you to override the default
 shell used as the transport for
 .Nm .
 .El
+.Sh FILES
+.Bl -tag -width "/dev/sa0"
+.It Pa /dev/sa0
+The default tape drive.
+.El
 .Sh EXAMPLES
 To create an archive on tape drive
 .Pa /dev/sa0
@@ -489,11 +494,6 @@ To specify the correct time zone use either e.g.\&
 .Sq "13:15 CEST"
 or
 .Sq "13:15+200" .
-.Sh FILES
-.Bl -tag -width "/dev/sa0"
-.It Pa /dev/sa0
-The default tape drive.
-.El
 .Sh COMPATIBILITY
 The
 .Fl y
