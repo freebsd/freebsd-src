@@ -74,9 +74,7 @@ static struct file_list *fcur;
 static char *tail(char *);
 static void do_clean(FILE *);
 static void do_rules(FILE *);
-static void do_sfiles(FILE *);
-static void do_mfiles(FILE *);
-static void do_cfiles(FILE *);
+static void do_xxfiles(char *, FILE *);
 static void do_objs(FILE *);
 static void do_before_depend(FILE *);
 static int opteq(char *, char *);
@@ -183,12 +181,8 @@ makefile(void)
 			do_before_depend(ofp);
 		else if (eq(line, "%OBJS\n"))
 			do_objs(ofp);
-		else if (eq(line, "%MFILES\n"))
-			do_mfiles(ofp);
-		else if (eq(line, "%CFILES\n"))
-			do_cfiles(ofp);
-		else if (eq(line, "%SFILES\n"))
-			do_sfiles(ofp);
+		else if (strncmp(line, "%FILES.", 7) == 0)
+			do_xxfiles(line, ofp);
 		else if (eq(line, "%RULES\n"))
 			do_rules(ofp);
 		else if (eq(line, "%CLEAN\n"))
@@ -644,17 +638,28 @@ do_objs(FILE *fp)
 }
 
 static void
-do_cfiles(FILE *fp)
+do_xxfiles(char *tag, FILE *fp)
 {
 	struct file_list *tp;
-	int lpos, len;
+	int lpos, len, slen;
+	char *suff, *SUFF;
 
-	fputs("CFILES=", fp);
+	if (tag[strlen(tag) - 1] == '\n')
+		tag[strlen(tag) - 1] = '\0';
+
+	suff = ns(tag + 7);
+	SUFF = ns(suff);
+	raisestr(SUFF);
+	slen = strlen(suff);
+
+	fprintf(fp, "%sFILES=", SUFF);
 	lpos = 8;
 	for (tp = ftab; tp; tp = tp->f_next)
 		if (tp->f_type != INVISIBLE && tp->f_type != NODEPEND) {
 			len = strlen(tp->f_fn);
-			if (tp->f_fn[len - 1] != 'c')
+			if (tp->f_fn[len - slen - 1] != '.')
+				continue;
+			if (strcasecmp(&tp->f_fn[len - slen], suff) != 0)
 				continue;
 			if ((len = 3 + len) + lpos > 72) {
 				lpos = 8;
@@ -664,55 +669,6 @@ do_cfiles(FILE *fp)
 				fprintf(fp, "$S/%s ", tp->f_fn);
 			else
 				fprintf(fp, "%s ", tp->f_fn);
-
-			lpos += len + 1;
-		}
-	if (lpos != 8)
-		putc('\n', fp);
-}
-
-static void
-do_mfiles(FILE *fp)
-{
-	struct file_list *tp;
-	int lpos, len;
-
-	fputs("MFILES=", fp);
-	lpos = 8;
-	for (tp = ftab; tp; tp = tp->f_next)
-		if (tp->f_type != INVISIBLE) {
-			len = strlen(tp->f_fn);
-			if (tp->f_fn[len - 1] != 'm' || tp->f_fn[len - 2] != '.')
-				continue;
-			if ((len = 3 + len) + lpos > 72) {
-				lpos = 8;
-				fputs("\\\n\t", fp);
-			}
-			fprintf(fp, "$S/%s ", tp->f_fn);
-			lpos += len + 1;
-		}
-	if (lpos != 8)
-		putc('\n', fp);
-}
-
-static void
-do_sfiles(FILE *fp)
-{
-	struct file_list *tp;
-	int lpos, len;
-
-	fputs("SFILES=", fp);
-	lpos = 8;
-	for (tp = ftab; tp; tp = tp->f_next)
-		if (tp->f_type != INVISIBLE) {
-			len = strlen(tp->f_fn);
-			if (tp->f_fn[len - 1] != 'S' && tp->f_fn[len - 1] != 's')
-				continue;
-			if ((len = 3 + len) + lpos > 72) {
-				lpos = 8;
-				fputs("\\\n\t", fp);
-			}
-			fprintf(fp, "$S/%s ", tp->f_fn);
 			lpos += len + 1;
 		}
 	if (lpos != 8)
