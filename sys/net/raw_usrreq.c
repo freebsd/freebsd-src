@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- *	$Id: raw_usrreq.c,v 1.12 1997/04/27 20:00:59 wollman Exp $
+ *	$Id: raw_usrreq.c,v 1.13 1997/08/02 14:32:40 bde Exp $
  */
 
 #include <sys/param.h>
@@ -164,13 +164,13 @@ raw_uattach(struct socket *so, int proto, struct proc *p)
 }
 
 static int
-raw_ubind(struct socket *so, struct mbuf *nam, struct proc *p)
+raw_ubind(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	return EINVAL;
 }
 
 static int
-raw_uconnect(struct socket *so, struct mbuf *nam, struct proc *p)
+raw_uconnect(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	return EINVAL;
 }
@@ -208,7 +208,7 @@ raw_udisconnect(struct socket *so)
 /* pru_listen is EOPNOTSUPP */
 
 static int
-raw_upeeraddr(struct socket *so, struct mbuf *nam)
+raw_upeeraddr(struct socket *so, struct sockaddr **nam)
 {
 	struct rawcb *rp = sotorawcb(so);
 	unsigned len;
@@ -218,9 +218,7 @@ raw_upeeraddr(struct socket *so, struct mbuf *nam)
 	if (rp->rcb_faddr == 0) {
 		return ENOTCONN;
 	}
-	len = rp->rcb_faddr->sa_len;
-	bcopy((caddr_t)rp->rcb_faddr, mtod(nam, caddr_t), len);
-	nam->m_len = len;
+	*nam = dup_sockaddr(rp->rcb_faddr, 1);
 	return 0;
 }
 
@@ -229,7 +227,7 @@ raw_upeeraddr(struct socket *so, struct mbuf *nam)
 
 static int
 raw_usend(struct socket *so, int flags, struct mbuf *m,
-	  struct mbuf *nam, struct mbuf *control, struct proc *p)
+	  struct sockaddr *nam, struct mbuf *control, struct proc *p)
 {
 	int error;
 	struct rawcb *rp = sotorawcb(so);
@@ -253,7 +251,7 @@ raw_usend(struct socket *so, int flags, struct mbuf *m,
 			error = EISCONN;
 			goto release;
 		}
-		rp->rcb_faddr = mtod(nam, struct sockaddr *);
+		rp->rcb_faddr = nam;
 	} else if (rp->rcb_faddr == 0) {
 		error = ENOTCONN;
 		goto release;
@@ -282,7 +280,7 @@ raw_ushutdown(struct socket *so)
 }
 
 static int
-raw_usockaddr(struct socket *so, struct mbuf *nam)
+raw_usockaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct rawcb *rp = sotorawcb(so);
 	unsigned len;
@@ -291,9 +289,7 @@ raw_usockaddr(struct socket *so, struct mbuf *nam)
 		return EINVAL;
 	if (rp->rcb_laddr == 0)
 		return EINVAL;
-	len = rp->rcb_laddr->sa_len;
-	bcopy((caddr_t)rp->rcb_laddr, mtod(nam, caddr_t), len);
-	nam->m_len = len;
+	*nam = dup_sockaddr(rp->rcb_laddr, 1);
 	return 0;
 }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.43 1997/07/16 18:04:52 dfr Exp $
+ *	$Id: mount.h,v 1.44 1997/07/22 08:03:19 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -334,7 +334,7 @@ struct vfsops {
 	int	(*vfs_vget)	__P((struct mount *mp, ino_t ino,
 				    struct vnode **vpp));
 	int	(*vfs_fhtovp)	__P((struct mount *mp, struct fid *fhp,
-				    struct mbuf *nam, struct vnode **vpp,
+				    struct sockaddr *nam, struct vnode **vpp,
 				    int *exflagsp, struct ucred **credanonp));
 	int	(*vfs_vptofh)	__P((struct vnode *vp, struct fid *fhp));
 	int	(*vfs_init)	__P((struct vfsconf *));
@@ -426,7 +426,7 @@ int	vfs_busy __P((struct mount *, int, struct simplelock *, struct proc *));
 int	vfs_export			    /* process mount export info */
 	  __P((struct mount *, struct netexport *, struct export_args *));
 struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
-	  __P((struct mount *, struct netexport *, struct mbuf *));
+	  __P((struct mount *, struct netexport *, struct sockaddr *));
 void	vfs_getnewfsid __P((struct mount *));
 struct	mount *vfs_getvfs __P((fsid_t *));      /* return vfs given fsid */
 int	vfs_mountedon __P((struct vnode *));    /* is a vfs mounted on vp */

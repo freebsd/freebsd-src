@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.25 1997/05/24 17:23:10 peter Exp $
+ *	$Id: uipc_socket2.c,v 1.26 1997/07/19 20:15:35 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -814,159 +814,18 @@ sbcreatecontrol(p, size, type, level)
 	return (m);
 }
 
-#ifdef PRU_OLDSTYLE
-/*
- * The following routines mediate between the old-style `pr_usrreq'
- * protocol implementations and the new-style `struct pr_usrreqs'
- * calling convention.
- */
-
-/* syntactic sugar */
-#define	nomb	(struct mbuf *)0
-
-static int
-old_abort(struct socket *so)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_ABORT, nomb, nomb, nomb);
-}
-
-static int
-old_accept(struct socket *so, struct mbuf *nam)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_ACCEPT, nomb,  nam, nomb);
-}
-
-static int
-old_attach(struct socket *so, int proto)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_ATTACH, nomb,
-				       (struct mbuf *)proto, /* XXX */
-				       nomb);
-}
-
-static int
-old_bind(struct socket *so, struct mbuf *nam)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_BIND, nomb, nam, nomb);
-}
-
-static int
-old_connect(struct socket *so, struct mbuf *nam)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_CONNECT, nomb, nam, nomb);
-}
-
-static int
-old_connect2(struct socket *so1, struct socket *so2)
-{
-	return so1->so_proto->pr_ousrreq(so1, PRU_CONNECT2, nomb, 
-				       (struct mbuf *)so2, nomb);
-}
-
-static int
-old_control(struct socket *so, int cmd, caddr_t data, struct ifnet *ifp)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_CONTROL, (struct mbuf *)cmd, 
-				       (struct mbuf *)data, 
-				       (struct mbuf *)ifp);
-}
-
-static int
-old_detach(struct socket *so)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_DETACH, nomb, nomb, nomb);
-}
-
-static int
-old_disconnect(struct socket *so)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_DISCONNECT, nomb, nomb, nomb);
-}
-
-static int
-old_listen(struct socket *so)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_LISTEN, nomb, nomb, nomb);
-}
-
-static int
-old_peeraddr(struct socket *so, struct mbuf *nam)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_PEERADDR, nomb, nam, nomb);
-}
-
-static int
-old_rcvd(struct socket *so, int flags)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_RCVD, nomb,
-				       (struct mbuf *)flags, /* XXX */
-				       nomb);
-}
-
-static int
-old_rcvoob(struct socket *so, struct mbuf *m, int flags)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_RCVOOB, m,
-				       (struct mbuf *)flags, /* XXX */
-				       nomb);
-}
-
-static int
-old_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *addr,
-	 struct mbuf *control)
-{
-	int req;
-
-	if (flags & PRUS_OOB) {
-		req = PRU_SENDOOB;
-	} else if(flags & PRUS_EOF) {
-		req = PRU_SEND_EOF;
-	} else {
-		req = PRU_SEND;
-	}
-	return so->so_proto->pr_ousrreq(so, req, m, addr, control);
-}
-
-static int
-old_sense(struct socket *so, struct stat *sb)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_SENSE, (struct mbuf *)sb,
-				       nomb, nomb);
-}
-
-static int
-old_shutdown(struct socket *so)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_SHUTDOWN, nomb, nomb, nomb);
-}
-
-static int
-old_sockaddr(struct socket *so, struct mbuf *nam)
-{
-	return so->so_proto->pr_ousrreq(so, PRU_SOCKADDR, nomb, nam, nomb);
-}
-
-struct pr_usrreqs pru_oldstyle = {
-	old_abort, old_accept, old_attach, old_bind, old_connect,
-	old_connect2, old_control, old_detach, old_disconnect,
-	old_listen, old_peeraddr, old_rcvd, old_rcvoob, old_send,
-	old_sense, old_shutdown, old_sockaddr
-};
-
-#endif /* PRU_OLDSTYLE */
-
 /*
  * Some routines that return EOPNOTSUPP for entry points that are not
  * supported by a protocol.  Fill in as needed.
  */
 int
-pru_accept_notsupp(struct socket *so, struct mbuf *nam)
+pru_accept_notsupp(struct socket *so, struct sockaddr **nam)
 {
 	return EOPNOTSUPP;
 }
 
 int
-pru_connect_notsupp(struct socket *so, struct mbuf *nam, struct proc *p)
+pru_connect_notsupp(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	return EOPNOTSUPP;
 }
@@ -1014,6 +873,23 @@ pru_sense_null(struct socket *so, struct stat *sb)
 }
 
 /*
+ * Make a copy of a sockaddr in a malloced buffer of type M_SONAME.
+ */
+struct sockaddr *
+dup_sockaddr(sa, canwait)
+	struct sockaddr *sa;
+	int canwait;
+{
+	struct sockaddr *sa2;
+
+	MALLOC(sa2, struct sockaddr *, sa->sa_len, M_SONAME, 
+	       canwait ? M_WAITOK : M_NOWAIT);
+	if (sa2)
+		bcopy(sa, sa2, sa->sa_len);
+	return sa2;
+}
+
+/*
  * Here is the definition of some of the basic objects in the kern.ipc
  * branch of the MIB.
  */
@@ -1026,3 +902,4 @@ SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");
 SYSCTL_INT(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, &sb_max, 0, "")
 SYSCTL_INT(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
 	   &sb_efficiency, 0, "");
+

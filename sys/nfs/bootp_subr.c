@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.3 1997/05/14 01:31:54 tegge Exp $	*/
+/*	$Id: bootp_subr.c,v 1.4 1997/06/12 14:08:20 tegge Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -260,15 +260,12 @@ bootpc_call(call,reply,procp)
      struct proc *procp;
 {
 	struct socket *so;
-	struct sockaddr_in *sin,sa;
-	struct mbuf *m, *nam;
+	struct sockaddr_in *sin, sa;
+	struct mbuf *m;
 	struct uio auio;
 	struct iovec aio;
 	int error, rcvflg, timo, secs, len;
 	u_int tport;
-
-	/* Free at end if not null. */
-	nam = NULL;
 
 	/*
 	 * Create socket and set its recieve timeout.
@@ -310,14 +307,13 @@ bootpc_call(call,reply,procp)
 	/*
 	 * Bind the local endpoint to a bootp client port.
 	 */
-	m = m_getclr(M_WAIT, MT_SONAME);
-	sin = mtod(m, struct sockaddr_in *);
-	sin->sin_len = m->m_len = sizeof(*sin);
+	sin = &sa;
+	bzero(sin, sizeof *sin);
+	sin->sin_len = sizeof(*sin);
 	sin->sin_family = AF_INET;
 	sin->sin_addr.s_addr = INADDR_ANY;
 	sin->sin_port = htons(IPPORT_BOOTPC);
-	error = sobind(so, m, procp);
-	m_freem(m);
+	error = sobind(so, (struct sockaddr *)sin, procp);
 	if (error) {
 		printf("bind failed\n");
 		goto out;
@@ -326,18 +322,12 @@ bootpc_call(call,reply,procp)
 	/*
 	 * Setup socket address for the server.
 	 */
-	nam = m_get(M_WAIT, MT_SONAME);
-	if (nam == NULL) {
-		error = ENOBUFS;
-		goto out;
-	}
-	sin = mtod(nam, struct sockaddr_in *);
-	sin-> sin_len = sizeof(*sin);
-	sin-> sin_family = AF_INET;
+	sin = &sa;
+	bzero(sin, sizeof *sin);
+	sin->sin_len = sizeof(*sin);
+	sin->sin_family = AF_INET;
 	sin->sin_addr.s_addr = INADDR_BROADCAST;
 	sin->sin_port = htons(IPPORT_BOOTPS);
-
-	nam->m_len = sizeof(*sin);
 
 	/*
 	 * Send it, repeatedly, until a reply is received,
@@ -359,7 +349,8 @@ bootpc_call(call,reply,procp)
 		auio.uio_resid = sizeof(*call);
 		auio.uio_procp = procp;
 
-		error = sosend(so, nam, &auio, NULL, NULL, 0);
+		error = sosend(so, (struct sockaddr *)sin, &auio, NULL, 
+			       NULL, 0, procp);
 		if (error) {
 			printf("bootpc_call: sosend: %d\n", error);
 			goto out;
@@ -427,7 +418,6 @@ bootpc_call(call,reply,procp)
 
  gotreply:
  out:
-	if (nam) m_freem(nam);
 	soclose(so);
 	return error;
 }

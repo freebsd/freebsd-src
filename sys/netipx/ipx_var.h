@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_var.h
  *
- * $Id: ipx_var.h,v 1.6 1997/05/10 09:58:55 jhay Exp $
+ * $Id: ipx_var.h,v 1.7 1997/06/26 19:35:59 jhay Exp $
  */
 
 #ifndef _NETIPX_IPX_VAR_H_
@@ -92,9 +92,9 @@ void	ipx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
 void	ipxintr __P((void));
 int	ipx_outputfl __P((struct mbuf *m0, struct route *ro, int flags));
 int	ipx_output_type20 __P((struct mbuf *));
-int	ipx_peeraddr __P((struct socket *so, struct mbuf *nam));
+int	ipx_peeraddr __P((struct socket *so, struct sockaddr **nam));
 void	ipx_printhost __P((struct ipx_addr *addr));
-int	ipx_sockaddr __P((struct socket *so, struct mbuf *nam));
+int	ipx_sockaddr __P((struct socket *so, struct sockaddr **nam));
 void	ipx_watch_output __P((struct mbuf *m, struct ifnet *ifp));
 
 #endif /* KERNEL */

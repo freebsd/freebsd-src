@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.13 1997/05/10 09:58:58 jhay Exp $
+ * $Id: spx_usrreq.c,v 1.14 1997/06/26 19:36:02 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -87,17 +87,19 @@ static	struct spxpcb *spx_timers(struct spxpcb *cb, int timer);
 static	struct spxpcb *spx_usrclosed(struct spxpcb *cb);
 
 static	int spx_usr_abort(struct socket *so);
-static	int spx_accept(struct socket *so, struct mbuf *nam);
+static	int spx_accept(struct socket *so, struct sockaddr **nam);
 static	int spx_attach(struct socket *so, int proto, struct proc *p);
-static	int spx_bind(struct socket *so, struct mbuf *nam, struct proc *p);
-static	int spx_connect(struct socket *so, struct mbuf *nam, struct proc *p);
+static	int spx_bind(struct socket *so, struct sockaddr *nam, struct proc *p);
+static	int spx_connect(struct socket *so, struct sockaddr *nam,
+			struct proc *p);
 static	int spx_detach(struct socket *so);
 static	int spx_usr_disconnect(struct socket *so);
 static	int spx_listen(struct socket *so, struct proc *p);
 static	int spx_rcvd(struct socket *so, int flags);
 static	int spx_rcvoob(struct socket *so, struct mbuf *m, int flags);
 static	int spx_send(struct socket *so, int flags, struct mbuf *m,
-		     struct mbuf *addr, struct mbuf *control, struct proc *p);
+		     struct sockaddr *addr, struct mbuf *control, 
+		     struct proc *p);
 static	int spx_shutdown(struct socket *so);
 static	int spx_sp_attach(struct socket *so, int proto, struct proc *p);
 
@@ -200,8 +202,7 @@ spx_input(m, ipxp)
 	switch (cb->s_state) {
 
 	case TCPS_LISTEN:{
-		struct mbuf *am;
-		register struct sockaddr_ipx *sipx;
+		struct sockaddr_ipx *sipx, ssipx;
 		struct ipx_addr laddr;
 
 		/*
@@ -213,24 +214,19 @@ spx_input(m, ipxp)
 			spx_istat.gonawy++;
 			goto dropwithreset;
 		}
-		am = m_get(M_DONTWAIT, MT_SONAME);
-		if (am == NULL)
-			goto drop;
-		am->m_len = sizeof(struct sockaddr_ipx);
-		sipx = mtod(am, struct sockaddr_ipx *);
+		sipx = &ssipx;
+		bzero(sipx, sizeof *sipx);
 		sipx->sipx_len = sizeof(*sipx);
 		sipx->sipx_family = AF_IPX;
 		sipx->sipx_addr = si->si_sna;
 		laddr = ipxp->ipxp_laddr;
 		if (ipx_nullhost(laddr))
 			ipxp->ipxp_laddr = si->si_dna;
-		if (ipx_pcbconnect(ipxp, am, &proc0)) {
+		if (ipx_pcbconnect(ipxp, (struct sockaddr *)sipx, &proc0)) {
 			ipxp->ipxp_laddr = laddr;
-			m_free(am);
 			spx_istat.noconn++;
 			goto drop;
 		}
-		m_free(am);
 		spx_template(cb);
 		dropsocket = 0;		/* committed to socket */
 		cb->s_did = si->si_sid;
@@ -1307,17 +1303,18 @@ spx_usr_abort(so)
 static int
 spx_accept(so, nam)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr **nam;
 {
 	struct ipxpcb *ipxp;
-	struct sockaddr_ipx *sipx;
+	struct sockaddr_ipx *sipx, ssipx;
 
 	ipxp = sotoipxpcb(so);
-	sipx = mtod(nam, struct sockaddr_ipx *);
-
-	nam->m_len = sizeof(struct sockaddr_ipx);
+	sipx = &ssipx;
+	bzero(sipx, sizeof *sipx);
+	sipx->sipx_len = sizeof *sipx;
 	sipx->sipx_family = AF_IPX;
 	sipx->sipx_addr = ipxp->ipxp_faddr;
+	*nam = dup_sockaddr((struct sockaddr *)sipx, 0);
 	return (0);
 }
 
@@ -1350,17 +1347,18 @@ spx_attach(so, proto, p)
 	}
 	ipxp = sotoipxpcb(so);
 
-	mm = m_getclr(M_DONTWAIT, MT_PCB);
+	MALLOC(cb, struct spxpcb *, sizeof *cb, M_PCB, M_NOWAIT);
+	bzero(cb, sizeof *cb);
 	sb = &so->so_snd;
 
-	if (mm == NULL) {
+	if (cb == NULL) {
 		error = ENOBUFS;
 		goto spx_attach_end;
 	}
-	cb = mtod(mm, struct spxpcb *);
+
 	mm = m_getclr(M_DONTWAIT, MT_HEADER);
 	if (mm == NULL) {
-		m_freem(dtom(cb));
+		FREE(cb, M_PCB);
 		error = ENOBUFS;
 		goto spx_attach_end;
 	}
@@ -1390,7 +1388,7 @@ spx_attach_end:
 static int
 spx_bind(so, nam, p)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {  
 	struct ipxpcb *ipxp;
@@ -1409,7 +1407,7 @@ spx_bind(so, nam, p)
 static int
 spx_connect(so, nam, p)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
 	int error;
@@ -1422,7 +1420,7 @@ spx_connect(so, nam, p)
 
 	s = splnet();
 	if (ipxp->ipxp_lport == 0) {
-		error = ipx_pcbbind(ipxp, (struct mbuf *)NULL, p);
+		error = ipx_pcbbind(ipxp, (struct sockaddr *)NULL, p);
 		if (error)
 			goto spx_connect_end;
 	}
@@ -1509,7 +1507,7 @@ spx_listen(so, p)
 	cb = ipxtospxpcb(ipxp);
 
 	if (ipxp->ipxp_lport == 0)
-		error = ipx_pcbbind(ipxp, (struct mbuf *)NULL, p);
+		error = ipx_pcbbind(ipxp, (struct sockaddr *)NULL, p);
 	if (error == 0)
 		cb->s_state = TCPS_LISTEN;
 	return (error);
@@ -1565,7 +1563,7 @@ spx_send(so, flags, m, addr, controlp, p)
 	struct socket *so;
 	int flags;
 	struct mbuf *m;
-	struct mbuf *addr;
+	struct sockaddr *addr;
 	struct mbuf *controlp;
 	struct proc *p;
 {
@@ -1698,7 +1696,7 @@ spx_close(cb)
 		m_freem(m);
 	}
 	m_free(dtom(cb->s_ipx));
-	m_free(dtom(cb));
+	FREE(cb, M_PCB);
 	ipxp->ipxp_pcb = 0;
 	soisdisconnected(so);
 	ipx_pcbdetach(ipxp);

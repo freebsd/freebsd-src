@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.3 (Berkeley) 3/30/95
- * $Id: nfs_srvcache.c,v 1.12 1997/05/10 16:12:03 dfr Exp $
+ * $Id: nfs_srvcache.c,v 1.13 1997/08/02 14:33:07 bde Exp $
  */
 
 #ifndef NFS_NOSERVER 
@@ -49,6 +49,7 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>	/* for dup_sockaddr */
 
 #include <netinet/in.h>
 #ifdef ISO
@@ -239,13 +240,13 @@ loop:
 		if (rp->rc_flag & RC_REPMBUF)
 			m_freem(rp->rc_reply);
 		if (rp->rc_flag & RC_NAM)
-			MFREE(rp->rc_nam, mb);
+			FREE(rp->rc_nam, M_SONAME);
 		rp->rc_flag &= (RC_LOCKED | RC_WANTED);
 	}
 	TAILQ_INSERT_TAIL(&nfsrvlruhead, rp, rc_lru);
 	rp->rc_state = RC_INPROG;
 	rp->rc_xid = nd->nd_retxid;
-	saddr = mtod(nd->nd_nam, struct sockaddr_in *);
+	saddr = (struct sockaddr_in *)nd->nd_nam;
 	switch (saddr->sin_family) {
 	case AF_INET:
 		rp->rc_flag |= RC_INETADDR;
@@ -254,7 +255,7 @@ loop:
 	case AF_ISO:
 	default:
 		rp->rc_flag |= RC_NAM;
-		rp->rc_nam = m_copym(nd->nd_nam, 0, M_COPYALL, M_WAIT);
+		rp->rc_nam = dup_sockaddr(nd->nd_nam, 1);
 		break;
 	};
 	rp->rc_proc = nd->nd_procnum;

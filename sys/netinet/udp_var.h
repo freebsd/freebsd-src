@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: udp_var.h,v 1.12 1997/02/22 09:41:44 peter Exp $
  */
 
 #ifndef _NETINET_UDP_VAR_H_
@@ -56,6 +56,16 @@ struct	udpiphdr {
 #define	ui_ulen		ui_u.uh_ulen
 #define	ui_sum		ui_u.uh_sum
 
+struct	udpcb {
+	/* XXX - these should be by reference so we can do options quickly */
+	struct	ip udb_ip;
+	struct	udphdr udb_uh;
+	struct	sockaddr_in udb_conn;
+	struct	in_hostcache *udb_hc;
+	struct	mbuf *udb_queue;
+};
+#define	inptoudpcb(inp)	((struct udpdb *)(inp)->inp_ppcb)
+
 struct	udpstat {
 				/* input statistics: */
 	u_long	udps_ipackets;		/* total input packets */
@@ -69,6 +79,7 @@ struct	udpstat {
 	u_long	udpps_pcbhashmiss;	/* input packets not for hashed pcb */
 				/* output statistics: */
 	u_long	udps_opackets;		/* total output packets */
+	u_long	udps_fastout;		/* output packets on fast path */
 };
 
 /*

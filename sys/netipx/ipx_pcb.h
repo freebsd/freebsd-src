@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.h
  *
- * $Id: ipx_pcb.h,v 1.10 1997/05/10 09:58:54 jhay Exp $
+ * $Id: ipx_pcb.h,v 1.11 1997/06/26 19:35:54 jhay Exp $
  */
 
 #ifndef _NETIPX_IPX_PCB_H_
@@ -83,9 +83,9 @@ extern struct ipxpcb ipxpcb;			/* head of list */
 
 int	ipx_pcballoc __P((struct socket *so, struct ipxpcb *head,
 			  struct proc *p));
-int	ipx_pcbbind __P((struct ipxpcb *ipxp, struct mbuf *nam,
+int	ipx_pcbbind __P((struct ipxpcb *ipxp, struct sockaddr *nam,
 			 struct proc *p));
-int	ipx_pcbconnect __P((struct ipxpcb *ipxp, struct mbuf *nam,
+int	ipx_pcbconnect __P((struct ipxpcb *ipxp, struct sockaddr *nam,
 			    struct proc *p));
 void	ipx_pcbdetach __P((struct ipxpcb *ipxp));
 void	ipx_pcbdisconnect __P((struct ipxpcb *ipxp));
@@ -93,8 +93,8 @@ struct ipxpcb *
 	ipx_pcblookup __P((struct ipx_addr *faddr, int lport, int wildp));
 void	ipx_pcbnotify __P((struct ipx_addr *dst, int errno,
 			   void (*notify)(struct ipxpcb *), long param));
-void	ipx_setpeeraddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
-void	ipx_setsockaddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
+void	ipx_setpeeraddr __P((struct ipxpcb *ipxp, struct sockaddr **nam));
+void	ipx_setsockaddr __P((struct ipxpcb *ipxp, struct sockaddr **nam));
 #endif /* KERNEL */
 
 #endif /* !_NETIPX_IPX_PCB_H_ */

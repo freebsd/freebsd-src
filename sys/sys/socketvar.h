@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id: socketvar.h,v 1.19 1997/04/27 20:01:28 wollman Exp $
+ * $Id: socketvar.h,v 1.20 1997/07/19 20:15:43 fenner Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -216,8 +216,10 @@ int	soo_stat __P((struct socket *so, struct stat *ub));
 /*
  * From uipc_socket and friends
  */
+struct	sockaddr *dup_sockaddr __P((struct sockaddr *sa, int canwait));
 int	getsock __P((struct filedesc *fdp, int fdes, struct file **fpp));
 int	sockargs __P((struct mbuf **mp, caddr_t buf, int buflen, int type));
+int	getsockaddr __P((struct sockaddr **namp, caddr_t uaddr, size_t len));
 void	sbappend __P((struct sockbuf *sb, struct mbuf *m));
 int	sbappendaddr __P((struct sockbuf *sb, struct sockaddr *asa,
 	    struct mbuf *m0, struct mbuf *control));
@@ -237,12 +239,12 @@ int	sbreserve __P((struct sockbuf *sb, u_long cc));
 int	sbwait __P((struct sockbuf *sb));
 int	sb_lock __P((struct sockbuf *sb));
 int	soabort __P((struct socket *so));
-int	soaccept __P((struct socket *so, struct mbuf *nam));
-int	sobind __P((struct socket *so, struct mbuf *nam, struct proc *p));
+int	soaccept __P((struct socket *so, struct sockaddr **nam));
+int	sobind __P((struct socket *so, struct sockaddr *nam, struct proc *p));
 void	socantrcvmore __P((struct socket *so));
 void	socantsendmore __P((struct socket *so));
 int	soclose __P((struct socket *so));
-int	soconnect __P((struct socket *so, struct mbuf *nam, struct proc *p));
+int	soconnect __P((struct socket *so, struct sockaddr *nam, struct proc *p));
 int	soconnect2 __P((struct socket *so1, struct socket *so2));
 int	socreate __P((int dom, struct socket **aso, int type, int proto,
 	    struct proc *p));
@@ -260,13 +262,15 @@ struct socket *
 	sodropablereq __P((struct socket *head));
 struct socket *
 	sonewconn __P((struct socket *head, int connstatus));
-int	soreceive __P((struct socket *so, struct mbuf **paddr, struct uio *uio,
-	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp));
+int	soreceive __P((struct socket *so, struct sockaddr **paddr,
+		       struct uio *uio, struct mbuf **mp0,
+		       struct mbuf **controlp, int *flagsp));
 int	soreserve __P((struct socket *so, u_long sndcc, u_long rcvcc));
 void	sorflush __P((struct socket *so));
 int	soselect __P((struct socket *so, int which, struct proc *p));
-int	sosend __P((struct socket *so, struct mbuf *addr, struct uio *uio,
-	    struct mbuf *top, struct mbuf *control, int flags));
+int	sosend __P((struct socket *so, struct sockaddr *addr, struct uio *uio,
+		    struct mbuf *top, struct mbuf *control, int flags,
+		    struct proc *p));
 int	sosetopt __P((struct socket *so, int level, int optname,
 	    struct mbuf *m0, struct proc *p));
 int	soshutdown __P((struct socket *so, int how));

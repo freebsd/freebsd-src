@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.89 1997/07/17 07:17:31 dfr Exp $
+ * $Id: vfs_subr.c,v 1.90 1997/08/04 07:43:28 dyson Exp $
  */
 
 /*
@@ -2145,7 +2145,7 @@ struct netcred *
 vfs_export_lookup(mp, nep, nam)
 	register struct mount *mp;
 	struct netexport *nep;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 {
 	register struct netcred *np;
 	register struct radix_node_head *rnh;
@@ -2157,7 +2157,7 @@ vfs_export_lookup(mp, nep, nam)
 		 * Lookup in the export list first.
 		 */
 		if (nam != NULL) {
-			saddr = mtod(nam, struct sockaddr *);
+			saddr = nam;
 			rnh = nep->ne_rtable[saddr->sa_family];
 			if (rnh != NULL) {
 				np = (struct netcred *)

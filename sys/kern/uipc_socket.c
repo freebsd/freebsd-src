@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.26 1997/04/27 20:00:44 wollman Exp $
+ *	$Id: uipc_socket.c,v 1.27 1997/06/27 15:28:54 peter Exp $
  */
 
 #include <sys/param.h>
@@ -101,7 +101,7 @@ socreate(dom, aso, type, proto, p)
 int
 sobind(so, nam, p)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
 	int s = splnet();
@@ -233,7 +233,7 @@ soabort(so)
 int
 soaccept(so, nam)
 	register struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr **nam;
 {
 	int s = splnet();
 	int error;
@@ -249,7 +249,7 @@ soaccept(so, nam)
 int
 soconnect(so, nam, p)
 	register struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
 	int s;
@@ -327,15 +327,15 @@ bad:
  * Data and control buffers are freed on return.
  */
 int
-sosend(so, addr, uio, top, control, flags)
+sosend(so, addr, uio, top, control, flags, p)
 	register struct socket *so;
-	struct mbuf *addr;
+	struct sockaddr *addr;
 	struct uio *uio;
 	struct mbuf *top;
 	struct mbuf *control;
 	int flags;
+	struct proc *p;
 {
-	struct proc *p = curproc;		/* XXX */
 	struct mbuf **mp;
 	register struct mbuf *m;
 	register long space, len, resid;
@@ -512,9 +512,9 @@ out:
  * only for the count in uio_resid.
  */
 int
-soreceive(so, paddr, uio, mp0, controlp, flagsp)
+soreceive(so, psa, uio, mp0, controlp, flagsp)
 	register struct socket *so;
-	struct mbuf **paddr;
+	struct sockaddr **psa;
 	struct uio *uio;
 	struct mbuf **mp0;
 	struct mbuf **controlp;
@@ -528,8 +528,8 @@ soreceive(so, paddr, uio, mp0, controlp, flagsp)
 	int orig_resid = uio->uio_resid;
 
 	mp = mp0;
-	if (paddr)
-		*paddr = 0;
+	if (psa)
+		*psa = 0;
 	if (controlp)
 		*controlp = 0;
 	if (flagsp)
@@ -630,21 +630,15 @@ dontblock:
 			panic("receive 1a");
 #endif
 		orig_resid = 0;
+		if (psa)
+			*psa = dup_sockaddr(mtod(m, struct sockaddr *),
+					    mp0 == 0);
 		if (flags & MSG_PEEK) {
-			if (paddr)
-				*paddr = m_copy(m, 0, m->m_len);
 			m = m->m_next;
 		} else {
 			sbfree(&so->so_rcv, m);
-			if (paddr) {
-				*paddr = m;
-				so->so_rcv.sb_mb = m->m_next;
-				m->m_next = 0;
-				m = so->so_rcv.sb_mb;
-			} else {
-				MFREE(m, so->so_rcv.sb_mb);
-				m = so->so_rcv.sb_mb;
-			}
+			MFREE(m, so->so_rcv.sb_mb);
+			m = so->so_rcv.sb_mb;
 		}
 	}
 	while (m && m->m_type == MT_CONTROL && error == 0) {

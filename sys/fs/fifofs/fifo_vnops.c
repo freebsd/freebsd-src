@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.23 1997/03/23 03:36:49 bde Exp $
+ * $Id: fifo_vnops.c,v 1.24 1997/03/24 11:37:53 bde Exp $
  */
 
 #include <sys/param.h>
@@ -264,7 +264,7 @@ fifo_read(ap)
 		rso->so_state |= SS_NBIO;
 	startresid = uio->uio_resid;
 	VOP_UNLOCK(ap->a_vp, 0, p);
-	error = soreceive(rso, (struct mbuf **)0, uio, (struct mbuf **)0,
+	error = soreceive(rso, (struct sockaddr **)0, uio, (struct mbuf **)0,
 	    (struct mbuf **)0, (int *)0);
 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, p);
 	/*
@@ -301,7 +301,8 @@ fifo_write(ap)
 	if (ap->a_ioflag & IO_NDELAY)
 		wso->so_state |= SS_NBIO;
 	VOP_UNLOCK(ap->a_vp, 0, p);
-	error = sosend(wso, (struct mbuf *)0, ap->a_uio, 0, (struct mbuf *)0, 0);
+	error = sosend(wso, (struct sockaddr *)0, ap->a_uio, 0,
+		       (struct mbuf *)0, 0, p);
 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, p);
 	if (ap->a_ioflag & IO_NDELAY)
 		wso->so_state &= ~SS_NBIO;

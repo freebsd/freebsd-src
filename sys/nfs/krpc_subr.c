@@ -1,5 +1,5 @@
 /*	$NetBSD: krpc_subr.c,v 1.12.4.1 1996/06/07 00:52:26 cgd Exp $	*/
-/*	$Id: krpc_subr.c,v 1.2 1997/05/11 18:05:39 tegge Exp $	*/
+/*	$Id: krpc_subr.c,v 1.3 1997/06/12 14:03:16 tegge Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -192,12 +192,13 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	struct sockaddr_in *sa;
 	u_int prog, vers, func;
 	struct mbuf **data;	/* input/output */
-	struct mbuf **from_p;	/* output */
+	struct sockaddr **from_p;	/* output */
 	struct proc *procp;
 {
 	struct socket *so;
-	struct sockaddr_in *sin;
-	struct mbuf *m, *nam, *mhead, *from;
+	struct sockaddr_in *sin, ssin;
+	struct sockaddr *from;
+	struct mbuf *m, *nam, *mhead;
 	struct rpc_call *call;
 	struct rpc_reply *reply;
 	struct uio auio;
@@ -258,19 +259,18 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	 * because some NFS servers refuse requests from
 	 * non-reserved (non-privileged) ports.
 	 */
-	m = m_getclr(M_WAIT, MT_SONAME);
-	sin = mtod(m, struct sockaddr_in *);
-	sin->sin_len = m->m_len = sizeof(*sin);
+	sin = &ssin;
+	bzero(sin, sizeof *sin);
+	sin->sin_len = sizeof(*sin);
 	sin->sin_family = AF_INET;
 	sin->sin_addr.s_addr = INADDR_ANY;
 	tport = IPPORT_RESERVED;
 	do {
 		tport--;
 		sin->sin_port = htons(tport);
-		error = sobind(so, m, procp);
+		error = sobind(so, (struct sockaddr *)sin, procp);
 	} while (error == EADDRINUSE &&
 			 tport > IPPORT_RESERVED / 2);
-	m_freem(m);
 	if (error) {
 		printf("bind failed\n");
 		goto out;
@@ -279,14 +279,6 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	/*
 	 * Setup socket address for the server.
 	 */
-	nam = m_get(M_WAIT, MT_SONAME);
-	if (nam == NULL) {
-		error = ENOBUFS;
-		goto out;
-	}
-	sin = mtod(nam, struct sockaddr_in *);
-	bcopy((caddr_t)sa, (caddr_t)sin,
-		  (nam->m_len = sa->sin_len));
 
 	/*
 	 * Prepend RPC message header.
@@ -336,7 +328,8 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 			error = ENOBUFS;
 			goto out;
 		}
-		error = sosend(so, nam, NULL, m, NULL, 0);
+		error = sosend(so, (struct sockaddr *)sa, NULL, m,
+			       NULL, 0, 0);
 		if (error) {
 			printf("krpc_call: sosend: %d\n", error);
 			goto out;
@@ -357,7 +350,7 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 		secs = timo;
 		while (secs > 0) {
 			if (from) {
-				m_freem(from);
+				FREE(from, M_SONAME);
 				from = NULL;
 			}
 			if (m) {
@@ -445,9 +438,8 @@ krpc_call(sa, prog, vers, func, data, from_p, procp)
 	}
 
  out:
-	if (nam) m_freem(nam);
 	if (mhead) m_freem(mhead);
-	if (from) m_freem(from);
+	if (from) free(from, M_SONAME);
 	soclose(so);
 	return error;
 }
