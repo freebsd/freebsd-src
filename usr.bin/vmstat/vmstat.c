@@ -881,7 +881,6 @@ dointr(void)
 	    "rate");
 	inttotal = 0;
 	for (i = 0; i < nintr; i++) {
-		const char *p;
 		if (intrname[0] != '\0' && (*intrcnt != 0 || aflag))
 			(void)printf("%-*s %20lu %10lu\n", istrnamlen, intrname,
 			    *intrcnt, *intrcnt / uptime);
@@ -932,7 +931,7 @@ dosysctl(const char *name)
 static void
 kread(int nlx, void *addr, size_t size)
 {
-	char *sym;
+	const char *sym;
 
 	if (namelist[nlx].n_type == 0 || namelist[nlx].n_value == 0) {
 		sym = namelist[nlx].n_name;
