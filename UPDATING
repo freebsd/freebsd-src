@@ -17,6 +17,21 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040130:
+	libkse has been renamed back to libpthread and is now the
+	default threads library.  The gcc -pthread option has also
+	been changed to link to libpthread instead of libc_r.  For
+	alpha and sparc64 machines, libkse is not renamed and links
+	are installed so that libpthread points to libc_r.  Until
+	the ports system is updated to handle this change, it is
+	recommended that folks install an /etc/libmap.conf(5) that
+	maps libc_r to libpthread.  If you have any binaries or
+	libraries linked to libkse, then it is also recommended
+	that you map libkse to libpthread.  Anyone that is using
+	nvidia supplied drivers and libraries should use a libmap.conf
+	that maps libpthread to libc_r since their drivers/libraries
+	do not work with libpthread.
+
 20040125:
 	ULE has entered into its probationary period as the default scheduler
 	in GENERIC.  For the average user, interactivity is reported to be
