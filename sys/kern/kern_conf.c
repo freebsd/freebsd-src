@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.3 1995/10/04 08:58:00 julian Exp $
+ * $Id: kern_conf.c,v 1.4 1995/11/29 12:38:46 julian Exp $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,7 @@ int TTYPE##_add(dev_t *descrip,						\
 			return ENFILE;					\
 		}							\
 	} else {				/* assign */		\
-		i = major(descrip);					\
+		i = major(*descrip);					\
 		if (i < 0 || i >= NXXXDEV) {				\
 			return EINVAL;					\
 		}							\
