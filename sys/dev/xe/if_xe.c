@@ -184,7 +184,7 @@ static void      xe_phy_writereg	(struct xe_softc *scp, u_int16_t reg, u_int16_t
  * Debugging functions
  */
 static void      xe_mii_dump		(struct xe_softc *scp);
-static void      xe_reg_dump		(struct xe_softc *scp);
+void      xe_reg_dump		(struct xe_softc *scp);
 
 /*
  * Debug logging levels - set with hw.xe.debug sysctl
@@ -1828,7 +1828,7 @@ xe_mii_dump(struct xe_softc *scp) {
   (void)splx(s);
 }
 
-static void
+void
 xe_reg_dump(struct xe_softc *scp) {
   int page, i, s;
 
