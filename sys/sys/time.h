@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.16 1997/12/28 13:36:09 phk Exp $
+ * $Id: time.h,v 1.17 1998/02/20 16:36:16 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -77,6 +77,7 @@ struct timezone {
 #define	DST_EET		5	/* Eastern European dst */
 #define	DST_CAN		6	/* Canada */
 
+#ifndef	_POSIX_SOURCE
 /*
  * Structure used to interface to the machine dependent hardware
  * support for timekeeping.
@@ -140,6 +141,7 @@ struct timecounter {
 	struct timecounter	*other;
 	struct timecounter	*tweak;
 };
+#endif
 
 /* Operations on timevals. */
 #define	timerclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
