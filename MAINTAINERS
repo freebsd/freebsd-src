@@ -22,7 +22,11 @@ OLDCARD		imp	Pre-commit review requested.
 wi		imp	Pre-commit review requested.
 telnet		markm	commits _must_ be made to src/crypto/telnet
 			first, only then to "base" telnet via "make
-			unifdef"
+			unifdef". The "base" commit _must_ be made.
+secure/*	markm	please ensure that a security-aware person
+			sanity-checks your work.
+kerberos5/*	markm	please ensure that a security-aware person
+			sanity-checks your work.
 cdboot		jhb	Pre-commit review requested.
 pxeboot		jhb	Pre-commit review requested.
 witness		jhb	Pre-commit review requested.
