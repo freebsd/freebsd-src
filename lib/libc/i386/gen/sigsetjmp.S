@@ -35,12 +35,11 @@
  *
  *
  *	from: @(#)setjmp.s	5.1 (Berkeley) 4/23/90"
- *	$Id: sigsetjmp.S,v 1.1 1994/08/05 01:18:08 wollman Exp $
+ *	$Id: sigsetjmp.S,v 1.2 1994/10/25 14:08:13 bde Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-	.text
-	.asciz "$Id: sigsetjmp.S,v 1.1 1994/08/05 01:18:08 wollman Exp $"
+	.asciz "$Id: sigsetjmp.S,v 1.2 1994/10/25 14:08:13 bde Exp $"
 #endif /* LIBC_SCCS and not lint */
 
 #include "DEFS.h"
