@@ -678,7 +678,7 @@ nfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 	size_t len;
 	u_char nfh[NFSX_V3FHMAX];
 
-	if (path == NULL)
+	if (mp->mnt_flag & MNT_ROOTFS)
 		return (nfs_mountroot(mp, td));
 	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
 	if (error)
