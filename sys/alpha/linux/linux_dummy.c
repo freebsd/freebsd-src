@@ -34,16 +34,13 @@
 #include <sys/proc.h>
 
 #include <alpha/linux/linux.h>
-#include <linux_proto.h>
+#include <alpha/linux/linux_proto.h>
 #include <compat/linux/linux_util.h>
 
-
 DUMMY(mount);
-DUMMY(umount);
 DUMMY(ptrace);
-DUMMY(ksyslog);
+DUMMY(syslog);
 DUMMY(vhangup);
-DUMMY(idle);
 DUMMY(swapoff);
 DUMMY(sysinfo);
 DUMMY(adjtimex);
@@ -54,14 +51,10 @@ DUMMY(get_kernel_syms);
 DUMMY(quotactl);
 DUMMY(bdflush);
 DUMMY(sysfs);
-DUMMY(afs_syscall);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
-DUMMY(getsid);
-DUMMY(sysctl);
 DUMMY(query_module);
 DUMMY(nfsservctl);
-DUMMY(getresgid);
 DUMMY(prctl);
 DUMMY(rt_sigpending);
 DUMMY(rt_sigtimedwait);
@@ -69,3 +62,22 @@ DUMMY(rt_sigqueueinfo);
 DUMMY(capget);
 DUMMY(capset);
 DUMMY(sendfile);
+
+DUMMY(getdtablesize);
+DUMMY(gethostname);
+DUMMY(getpagesize);
+DUMMY(madvise);
+DUMMY(mincore);
+DUMMY(old_adjtimex);
+DUMMY(pciconfig_iobase);
+DUMMY(pciconfig_read);
+DUMMY(pciconfig_write);
+DUMMY(pivot_root);
+DUMMY(recvmsg);
+DUMMY(sendmsg);
+DUMMY(sethae);
+DUMMY(sigaltstack);
+DUMMY(sigpending);
+DUMMY(socketpair);
+DUMMY(utimes);
+

@@ -37,30 +37,36 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/sysent.h>
+#include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/imgact_elf.h>
-#include <sys/signalvar.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/proc.h>
+#include <sys/signalvar.h>
+#include <sys/sysent.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
-#include <sys/exec.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
+
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 
 #include <alpha/linux/linux.h>
-#include <linux_proto.h>
+#include <alpha/linux/linux_proto.h>
 #include <compat/linux/linux_util.h>
 #undef szsigcode
 
 MODULE_VERSION(linux, 1);
 MODULE_DEPEND(linux, osf1, 1, 1, 1);
+MODULE_DEPEND(linux, sysvmsg, 1, 1, 1);
+MODULE_DEPEND(linux, sysvsem, 1, 1, 1);
+MODULE_DEPEND(linux, sysvshm, 1, 1, 1);
 
 MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 
@@ -70,11 +76,12 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 #define	SHELLMAGIC	0x2321
 #endif
 
-
 extern struct linker_set linux_ioctl_handler_set;
+void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 
 static int	elf_linux_fixup __P((long **stack_base,
     struct image_params *iparams));
+static int	exec_linux_imgact_try __P((struct image_params *iparams));
 
 static int
 elf_linux_fixup(long **stack_base, struct image_params *imgp)
@@ -112,19 +119,12 @@ elf_linux_fixup(long **stack_base, struct image_params *imgp)
 	return 0;
 }
 
-extern int _ucodesel, _udatasel;
-
-void osf1_sendsig __P((sig_t, int , sigset_t *, u_long ));
-void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
-
 /*
  * If a linux binary is exec'ing something, try this image activator 
  * first.  We override standard shell script execution in order to
  * be able to modify the interpreter path.  We only do this if a linux
  * binary is doing the exec, so we do not create an EXEC module for it.
  */
-static int	exec_linux_imgact_try __P((struct image_params *iparams));
-
 static int
 exec_linux_imgact_try(imgp)
 	struct image_params *imgp;
@@ -149,7 +149,7 @@ exec_linux_imgact_try(imgp)
 		if ((error = exec_shell_imgact(imgp)) == 0) {
 			char *rpath = NULL;
 
-			linux_emul_find(imgp->proc, NULL, linux_emul_path, 
+			linux_emul_find(imgp->proc, NULL, linux_emul_path,
 			    imgp->interpreter_name, &rpath, 0);
 			if (rpath != imgp->interpreter_name) {
 				int len = strlen(rpath) + 1;
@@ -226,37 +226,37 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		    ++brandinfo)
 			if (elf_insert_brand_entry(*brandinfo) < 0)
 				error = EINVAL;
-		if (error)
-			printf("cannot insert Linux elf brand handler\n");
-		else {
+		if (error == 0) {
 			linux_ioctl_register_handlers(&linux_ioctl_handler_set);
 			if (bootverbose)
-				printf("Linux-ELF exec handler installed\n");
-		}
+				printf("Linux ELF exec handler installed\n");
+		} else
+			printf("cannot insert Linux ELF brand handler\n");
 		break;
 	case MOD_UNLOAD:
-		linux_ioctl_unregister_handlers(&linux_ioctl_handler_set);
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
 		    ++brandinfo)
 			if (elf_brand_inuse(*brandinfo))
 				error = EBUSY;
-
 		if (error == 0) {
 			for (brandinfo = &linux_brandlist[0];
 			    *brandinfo != NULL; ++brandinfo)
 				if (elf_remove_brand_entry(*brandinfo) < 0)
 					error = EINVAL;
 		}
-		if (error)
+		if (error == 0) {
+			linux_ioctl_unregister_handlers(&linux_ioctl_handler_set);
+			if (bootverbose)
+				printf("Linux ELF exec handler removed\n");
+		} else
 			printf("Could not deinstall ELF interpreter entry\n");
-		else if (bootverbose)
-			printf("Linux-elf exec handler removed\n");
 		break;
 	default:
 		break;
 	}
 	return error;
 }
+
 static moduledata_t linux_elf_mod = {
 	"linuxelf",
 	linux_elf_modevent,

@@ -30,21 +30,18 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sysproto.h>
 
 #include <machine/../linux/linux.h>
-#ifdef __alpha__
-#include <linux_proto.h>
-#else
 #include <machine/../linux/linux_proto.h>
-#endif
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
 void
-linux_to_bsd_sigset(linux_sigset_t *lss, sigset_t *bss)
+linux_to_bsd_sigset(l_sigset_t *lss, sigset_t *bss)
 {
 	int b, l;
 
@@ -65,7 +62,7 @@ linux_to_bsd_sigset(linux_sigset_t *lss, sigset_t *bss)
 }
 
 void
-bsd_to_linux_sigset(sigset_t *bss, linux_sigset_t *lss)
+bsd_to_linux_sigset(sigset_t *bss, l_sigset_t *lss)
 {
 	int b, l;
 
@@ -86,7 +83,7 @@ bsd_to_linux_sigset(sigset_t *bss, linux_sigset_t *lss)
 }
 
 static void
-linux_to_bsd_sigaction(linux_sigaction_t *lsa, struct sigaction *bsa)
+linux_to_bsd_sigaction(l_sigaction_t *lsa, struct sigaction *bsa)
 {
 
 	linux_to_bsd_sigset(&lsa->lsa_mask, &bsa->sa_mask);
@@ -109,7 +106,7 @@ linux_to_bsd_sigaction(linux_sigaction_t *lsa, struct sigaction *bsa)
 }
 
 static void
-bsd_to_linux_sigaction(struct sigaction *bsa, linux_sigaction_t *lsa)
+bsd_to_linux_sigaction(struct sigaction *bsa, l_sigaction_t *lsa)
 {
 
 	bsd_to_linux_sigset(&bsa->sa_mask, &lsa->lsa_mask);
@@ -133,8 +130,8 @@ bsd_to_linux_sigaction(struct sigaction *bsa, linux_sigaction_t *lsa)
 }
 
 int
-linux_do_sigaction(struct proc *p, int linux_sig, linux_sigaction_t *linux_nsa,
-		   linux_sigaction_t *linux_osa)
+linux_do_sigaction(struct proc *p, int linux_sig, l_sigaction_t *linux_nsa,
+		   l_sigaction_t *linux_osa)
 {
 	struct sigaction *nsa, *osa;
 	struct sigaction_args sa_args;
@@ -175,16 +172,18 @@ linux_do_sigaction(struct proc *p, int linux_sig, linux_sigaction_t *linux_nsa,
 	return (0);
 }
 
+
 #ifndef __alpha__
 int
 linux_signal(struct proc *p, struct linux_signal_args *args)
 {
-	linux_sigaction_t nsa, osa;
+	l_sigaction_t nsa, osa;
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): signal(%d, %p)\n",
-	       (long)p->p_pid, args->sig, (void *)args->handler);
+	if (ldebug(signal))
+		printf(ARGS(signal, "%d, %p"),
+		    args->sig, (void *)args->handler);
 #endif
 
 	nsa.lsa_handler = args->handler;
@@ -201,20 +200,21 @@ linux_signal(struct proc *p, struct linux_signal_args *args)
 int
 linux_rt_sigaction(struct proc *p, struct linux_rt_sigaction_args *args)
 {
-	linux_sigaction_t nsa, osa;
+	l_sigaction_t nsa, osa;
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sigaction(%ld, %p, %p, %ld)\n",
-	       (long)p->p_pid, (long)args->sig, (void *)args->act,
-	       (void *)args->oact, (long)args->sigsetsize);
+	if (ldebug(rt_sigaction))
+		printf(ARGS(rt_sigaction, "%ld, %p, %p, %ld"),
+		    (long)args->sig, (void *)args->act,
+		    (void *)args->oact, (long)args->sigsetsize);
 #endif
 
-	if (args->sigsetsize != sizeof(linux_sigset_t))
+	if (args->sigsetsize != sizeof(l_sigset_t))
 		return (EINVAL);
 
 	if (args->act != NULL) {
-		error = copyin(args->act, &nsa, sizeof(linux_sigaction_t));
+		error = copyin(args->act, &nsa, sizeof(l_sigaction_t));
 		if (error)
 			return (error);
 	}
@@ -224,17 +224,17 @@ linux_rt_sigaction(struct proc *p, struct linux_rt_sigaction_args *args)
 				   args->oact ? &osa : NULL);
 
 	if (args->oact != NULL && !error) {
-		error = copyout(&osa, args->oact, sizeof(linux_sigaction_t));
+		error = copyout(&osa, args->oact, sizeof(l_sigaction_t));
 	}
 
 	return (error);
 }
 
 static int
-linux_do_sigprocmask(struct proc *p, int how, linux_sigset_t *new,
-		     linux_sigset_t *old)
+linux_do_sigprocmask(struct proc *p, int how, l_sigset_t *new,
+		     l_sigset_t *old)
 {
-	int error, s;
+	int error;
 	sigset_t mask;
 
 	error = 0;
@@ -245,8 +245,6 @@ linux_do_sigprocmask(struct proc *p, int how, linux_sigset_t *new,
 
 	if (new != NULL) {
 		linux_to_bsd_sigset(new, &mask);
-
-		s = splhigh();
 
 		switch (how) {
 		case LINUX_SIG_BLOCK:
@@ -264,8 +262,6 @@ linux_do_sigprocmask(struct proc *p, int how, linux_sigset_t *new,
 			error = EINVAL;
 			break;
 		}
-
-		splx(s);
 	}
 
 	return (error);
@@ -275,16 +271,17 @@ linux_do_sigprocmask(struct proc *p, int how, linux_sigset_t *new,
 int
 linux_sigprocmask(struct proc *p, struct linux_sigprocmask_args *args)
 {
-	linux_osigset_t mask;
-	linux_sigset_t set, oset;
+	l_osigset_t mask;
+	l_sigset_t set, oset;
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): sigprocmask(%d, *, *)\n", p->p_pid, args->how);
+	if (ldebug(sigprocmask))
+		printf(ARGS(sigprocmask, "%d, *, *"), args->how);
 #endif
 
 	if (args->mask != NULL) {
-		error = copyin(args->mask, &mask, sizeof(linux_osigset_t));
+		error = copyin(args->mask, &mask, sizeof(l_osigset_t));
 		if (error)
 			return (error);
 		LINUX_SIGEMPTYSET(set);
@@ -297,7 +294,7 @@ linux_sigprocmask(struct proc *p, struct linux_sigprocmask_args *args)
 
 	if (args->omask != NULL && !error) {
 		mask = oset.__bits[0];
-		error = copyout(&mask, args->omask, sizeof(linux_osigset_t));
+		error = copyout(&mask, args->omask, sizeof(l_osigset_t));
 	}
 
 	return (error);
@@ -307,20 +304,21 @@ linux_sigprocmask(struct proc *p, struct linux_sigprocmask_args *args)
 int
 linux_rt_sigprocmask(struct proc *p, struct linux_rt_sigprocmask_args *args)
 {
-	linux_sigset_t set, oset;
+	l_sigset_t set, oset;
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sigprocmask(%d, %p, %p, %ld)\n",
-	       (long)p->p_pid, args->how, (void *)args->mask,
-	       (void *)args->omask, (long)args->sigsetsize);
+	if (ldebug(rt_sigprocmask))
+		printf(ARGS(rt_sigprocmask, "%d, %p, %p, %ld"),
+		    args->how, (void *)args->mask,
+		    (void *)args->omask, (long)args->sigsetsize);
 #endif
 
-	if (args->sigsetsize != sizeof(linux_sigset_t))
+	if (args->sigsetsize != sizeof(l_sigset_t))
 		return EINVAL;
 
 	if (args->mask != NULL) {
-		error = copyin(args->mask, &set, sizeof(linux_sigset_t));
+		error = copyin(args->mask, &set, sizeof(l_sigset_t));
 		if (error)
 			return (error);
 	}
@@ -330,7 +328,7 @@ linux_rt_sigprocmask(struct proc *p, struct linux_rt_sigprocmask_args *args)
 				     args->omask ? &oset : NULL);
 
 	if (args->omask != NULL && !error) {
-		error = copyout(&oset, args->omask, sizeof(linux_sigset_t));
+		error = copyout(&oset, args->omask, sizeof(l_sigset_t));
 	}
 
 	return (error);
@@ -338,12 +336,13 @@ linux_rt_sigprocmask(struct proc *p, struct linux_rt_sigprocmask_args *args)
 
 #ifndef __alpha__
 int
-linux_siggetmask(struct proc *p, struct linux_siggetmask_args *args)
+linux_sgetmask(struct proc *p, struct linux_sgetmask_args *args)
 {
-	linux_sigset_t mask;
+	l_sigset_t mask;
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): siggetmask()\n", p->p_pid);
+	if (ldebug(sgetmask))
+		printf(ARGS(sgetmask, ""));
 #endif
 
 	bsd_to_linux_sigset(&p->p_sigmask, &mask);
@@ -352,15 +351,14 @@ linux_siggetmask(struct proc *p, struct linux_siggetmask_args *args)
 }
 
 int
-linux_sigsetmask(struct proc *p, struct linux_sigsetmask_args *args)
+linux_ssetmask(struct proc *p, struct linux_ssetmask_args *args)
 {
-	linux_sigset_t lset;
+	l_sigset_t lset;
 	sigset_t bset;
-	int s;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sigsetmask(%08lx)\n",
-	       (long)p->p_pid, (unsigned long)args->mask);
+	if (ldebug(ssetmask))
+		printf(ARGS(ssetmask, "%08lx"), (unsigned long)args->mask);
 #endif
 
 	bsd_to_linux_sigset(&p->p_sigmask, &lset);
@@ -368,10 +366,8 @@ linux_sigsetmask(struct proc *p, struct linux_sigsetmask_args *args)
 	LINUX_SIGEMPTYSET(lset);
 	lset.__bits[0] = args->mask;
 	linux_to_bsd_sigset(&lset, &bset);
-	s = splhigh();
 	p->p_sigmask = bset;
 	SIG_CANTMASK(p->p_sigmask);
-	splx(s);
 	return (0);
 }
 
@@ -379,11 +375,12 @@ int
 linux_sigpending(struct proc *p, struct linux_sigpending_args *args)
 {
 	sigset_t bset;
-	linux_sigset_t lset;
-	linux_osigset_t mask;
+	l_sigset_t lset;
+	l_osigset_t mask;
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): sigpending(*)\n", p->p_pid);
+	if (ldebug(sigpending))
+		printf(ARGS(sigpending, "*"));
 #endif
 
 	bset = p->p_siglist;
@@ -403,8 +400,8 @@ linux_kill(struct proc *p, struct linux_kill_args *args)
 	} */ tmp;
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): kill(%d, %d)\n",
-	       p->p_pid, args->pid, args->signum);
+	if (ldebug(kill))
+		printf(ARGS(kill, "%d, %d"), args->pid, args->signum);
 #endif
 
 	/*

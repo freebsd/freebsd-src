@@ -43,7 +43,7 @@ const char      linux_emul_path[] = "/compat/linux";
 
 /*
  * Search an alternate path before passing pathname arguments on
- * to system calls. Useful for keeping a seperate 'emulation tree'.
+ * to system calls. Useful for keeping a separate 'emulation tree'.
  *
  * If cflag is set, we check if an attempt can be made to create
  * the named file, i.e. we check if the directory it should
@@ -130,7 +130,7 @@ linux_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		 * to the emulation root directory. This is expensive :-(
 		 */
 		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path,
-		       p);
+		    p);
 
 		if ((error = namei(&ndroot)) != 0) {
 			/* Cannot happen! */

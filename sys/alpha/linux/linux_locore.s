@@ -1,8 +1,7 @@
 /* $FreeBSD$ */
-	
-#include <machine/asm.h>
-#include <linux_syscall.h>
 
+#include <machine/asm.h>
+#include <alpha/linux/linux_syscall.h>
 
 /*
  * Signal "trampoline" code. Invoked from RTE setup by sendsig().

@@ -35,15 +35,77 @@
 
 #include <i386/linux/linux_syscall.h>
 
+/*
+ * debugging support
+ */
+extern u_char linux_debug_map[];
+#define ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
+#define ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)p->p_pid
+#define LMSG(fmt)	"linux(%ld): "fmt"\n", (long)p->p_pid
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINUX);
 #endif
+
+/*
+ * Provide a seperate set of types for the Linux types.
+ */
+typedef int		l_int;
+typedef int32_t		l_long;
+typedef int64_t		l_longlong;
+typedef short		l_short;
+typedef unsigned int	l_uint;
+typedef uint32_t	l_ulong;
+typedef uint64_t	l_ulonglong;
+typedef unsigned short	l_ushort;
+
+typedef char		*l_caddr_t;
+typedef l_long		l_clock_t;
+typedef l_int		l_daddr_t;
+typedef l_ushort	l_dev_t;
+typedef l_uint		l_gid_t;
+typedef l_ushort	l_gid16_t;
+typedef l_ulong		l_ino_t;
+typedef l_int		l_key_t;
+typedef l_longlong	l_loff_t;
+typedef l_ushort	l_mode_t;
+typedef l_long		l_off_t;
+typedef l_int		l_pid_t;
+typedef l_uint		l_size_t;
+typedef l_long		l_suseconds_t;
+typedef l_long		l_time_t;
+typedef l_uint		l_uid_t;
+typedef l_ushort	l_uid16_t;
+
+typedef struct {
+	l_int		val[2];
+} l_fsid_t;
+
+typedef struct {
+	l_time_t	tv_sec;
+	l_suseconds_t	tv_usec;
+} l_timeval;
+
+#define	l_fd_set	fd_set
 
 /*
  * Miscellaneous
  */
 #define	LINUX_NAME_MAX		255
 #define	LINUX_MAX_UTSNAME	65
+
+#define	LINUX_CTL_MAXNAME	10
+
+struct l___sysctl_args
+{
+	l_int		*name;
+	l_int		nlen;
+	void		*oldval;
+	l_size_t	*oldlenp;
+	void		*newval;
+	l_size_t	newlen;
+	l_ulong		__spare[4];
+};
 
 /* Scheduling policies */
 #define	LINUX_SCHED_OTHER	0
@@ -64,6 +126,11 @@ MALLOC_DECLARE(M_LINUX);
 
 #define	LINUX_RLIM_NLIMITS	10
 
+struct l_rlimit {
+	l_ulong rlim_cur;
+	l_ulong rlim_max;
+};
+
 /* mmap options */
 #define	LINUX_MAP_SHARED	0x0001
 #define	LINUX_MAP_PRIVATE	0x0002
@@ -71,25 +138,55 @@ MALLOC_DECLARE(M_LINUX);
 #define	LINUX_MAP_ANON		0x0020
 #define	LINUX_MAP_GROWSDOWN	0x0100
 
-typedef char *	linux_caddr_t;
-typedef long	linux_clock_t;
-typedef u_short	linux_dev_t;
-typedef u_short	linux_gid_t;
-typedef u_long	linux_ino_t;
-typedef int	linux_key_t;	/* XXX */
-typedef u_short	linux_mode_t;
-typedef u_short	linux_nlink_t;
-typedef long	linux_off_t;
-typedef int	linux_pid_t;
-typedef u_int	linux_size_t;
-typedef long	linux_time_t;
-typedef u_short	linux_uid_t;
+/*
+ * stat family of syscalls
+ */
+struct l_timespec {
+	l_ulong		tv_sec;
+	l_ulong		tv_nsec;
+};
 
-typedef struct {
-	long	val[2];
-} linux_fsid_t;
+struct l_newstat {
+	l_ushort	st_dev;
+	l_ushort	__pad1;
+	l_ulong		st_ino;
+	l_ushort	st_mode;
+	l_ushort	st_nlink;
+	l_ushort	st_uid;
+	l_ushort	st_gid;
+	l_ushort	st_rdev;
+	l_ushort	__pad2;
+	l_ulong		st_size;
+	l_ulong		st_blksize;
+	l_ulong		st_blocks;
+	struct l_timespec	st_atimespec;
+	struct l_timespec	st_mtimespec;
+	struct l_timespec	st_ctimespec;
+	l_ulong		__unused4;
+	l_ulong		__unused5;
+};
 
-struct linux_new_utsname {
+struct l_stat64 {
+	l_ushort	st_dev;
+	u_char		__pad0[10];
+	l_ulong		__st_ino;
+	l_uint		st_mode;
+	l_uint		st_nlink;
+	l_ulong		st_uid;
+	l_ulong		st_gid;
+	l_ushort	st_rdev;
+	u_char		__pad3[10];
+	l_longlong	st_size;
+	l_ulong		st_blksize;
+	l_ulong		st_blocks;
+	l_ulong		__pad4;
+	struct l_timespec	st_atimespec;
+	struct l_timespec	st_mtimespec;
+	struct l_timespec	st_ctimespec;
+	l_ulonglong	st_ino;
+};
+
+struct l_new_utsname {
 	char	sysname[LINUX_MAX_UTSNAME];
 	char	nodename[LINUX_MAX_UTSNAME];
 	char	release[LINUX_MAX_UTSNAME];
@@ -166,117 +263,114 @@ struct linux_new_utsname {
 #define LINUX_SS_ONSTACK	1
 #define LINUX_SS_DISABLE	2
 
-
 int linux_to_bsd_sigaltstack(int lsa);
 int bsd_to_linux_sigaltstack(int bsa);
 
-
-typedef void	(*linux_handler_t)(int);
-typedef u_long	linux_osigset_t;
-
-typedef struct {
-	u_int	__bits[LINUX_NSIG_WORDS];
-} linux_sigset_t;
+typedef void	(*l_handler_t)(l_int);
+typedef l_ulong	l_osigset_t;
 
 typedef struct {
-	linux_handler_t lsa_handler;
-	linux_osigset_t	lsa_mask;
-	u_long	lsa_flags;
+	l_uint	__bits[LINUX_NSIG_WORDS];
+} l_sigset_t;
+
+typedef struct {
+	l_handler_t	lsa_handler;
+	l_osigset_t	lsa_mask;
+	l_ulong		lsa_flags;
 	void	(*lsa_restorer)(void);
-} linux_osigaction_t;
+} l_osigaction_t;
 
 typedef struct {
-	linux_handler_t lsa_handler;
-	u_long	lsa_flags;
+	l_handler_t	lsa_handler;
+	l_ulong		lsa_flags;
 	void	(*lsa_restorer)(void);
-	linux_sigset_t	lsa_mask;
-} linux_sigaction_t;
+	l_sigset_t	lsa_mask;
+} l_sigaction_t;
 
 typedef struct {
-	void	*ss_sp;
-	int	ss_flags;
-	linux_size_t ss_size;
-} linux_stack_t;
+	void		*ss_sp;
+	l_int		ss_flags;
+	l_size_t	ss_size;
+} l_stack_t;
 
 /* The Linux sigcontext, pretty much a standard 386 trapframe. */
-struct linux_sigcontext {
-	int	sc_gs;
-	int	sc_fs;
-	int     sc_es;
-	int     sc_ds;
-	int     sc_edi;
-	int     sc_esi;
-	int     sc_ebp;
-	int	sc_esp;
-	int     sc_ebx;
-	int     sc_edx;
-	int     sc_ecx;
-	int     sc_eax;
-	int     sc_trapno;
-	int     sc_err;
-	int     sc_eip;
-	int     sc_cs;
-	int     sc_eflags;
-	int     sc_esp_at_signal;
-	int     sc_ss;
-	int	sc_387;
-	int	sc_mask;
-	int	sc_cr2;
+struct l_sigcontext {
+	l_int		sc_gs;
+	l_int		sc_fs;
+	l_int		sc_es;
+	l_int		sc_ds;
+	l_int		sc_edi;
+	l_int		sc_esi;
+	l_int		sc_ebp;
+	l_int		sc_esp;
+	l_int		sc_ebx;
+	l_int		sc_edx;
+	l_int		sc_ecx;
+	l_int		sc_eax;
+	l_int		sc_trapno;
+	l_int		sc_err;
+	l_int		sc_eip;
+	l_int		sc_cs;
+	l_int		sc_eflags;
+	l_int		sc_esp_at_signal;
+	l_int		sc_ss;
+	l_int		sc_387;
+	l_int		sc_mask;
+	l_int		sc_cr2;
 };
 
-struct linux_ucontext {
-	unsigned long     	uc_flags;
-	void  			*uc_link;
-	linux_stack_t		uc_stack;
-	struct linux_sigcontext uc_mcontext;
-        linux_sigset_t		uc_sigmask;   
+struct l_ucontext {
+	l_ulong		uc_flags;
+	void		*uc_link;
+	l_stack_t	uc_stack;
+	struct l_sigcontext	uc_mcontext;
+        l_sigset_t	uc_sigmask;
 };
-
 
 #define LINUX_SI_MAX_SIZE     128
-#define LINUX_SI_PAD_SIZE     ((LINUX_SI_MAX_SIZE/sizeof(int)) - 3)
+#define LINUX_SI_PAD_SIZE     ((LINUX_SI_MAX_SIZE/sizeof(l_int)) - 3)
 
-typedef struct siginfo {
-	int lsi_signo;
-	int lsi_errno;
-	int lsi_code;
-
+typedef struct l_siginfo {
+	l_int		lsi_signo;
+	l_int		lsi_errno;
+	l_int		lsi_code;
 	union {
-		int _pad[LINUX_SI_PAD_SIZE];
+		l_int	_pad[LINUX_SI_PAD_SIZE];
+
 		struct {
-			linux_pid_t _pid;
-			linux_uid_t _uid;
+			l_pid_t		_pid;
+			l_uid16_t	_uid;
 		} _kill;
 
 		struct {
-			unsigned int _timer1;
-			unsigned int _timer2;
+			l_uint		_timer1;
+			l_uint		_timer2;
 		} _timer;
-		
+
 		struct {
-			linux_pid_t _pid;             /* sender's pid */
-			linux_uid_t _uid;             /* sender's uid */
+			l_pid_t		_pid;		/* sender's pid */
+			l_uid16_t	_uid;		/* sender's uid */
 			union sigval _sigval;
 		} _rt;
 
 		struct {
-			linux_pid_t _pid;             /* which child */
-			linux_uid_t _uid;             /* sender's uid */
-			int _status;            /* exit code */
-			linux_clock_t _utime;
-			linux_clock_t _stime;
+			l_pid_t		_pid;		/* which child */
+			l_uid16_t	_uid;		/* sender's uid */
+			l_int		_status;	/* exit code */
+			l_clock_t	_utime;
+			l_clock_t	_stime;
 		} _sigchld;
 
 		struct {
-			void *_addr; /* faulting insn/memory ref. */
+			void		*_addr; /* faulting insn/memory ref. */
 		} _sigfault;
 
 		struct {
-			int _band;      /* POLL_IN, POLL_OUT, POLL_MSG */
-			int _fd;
+			l_int		_band;  /* POLL_IN,POLL_OUT,POLL_MSG */
+			l_int		_fd;
 		} _sigpoll;
 	} _sifields;
-} linux_siginfo_t;
+} l_siginfo_t;
 
 #define lsi_pid          _sifields._kill._pid
 #define lsi_uid          _sifields._kill._uid
@@ -290,22 +384,22 @@ typedef struct siginfo {
 #define lsi_band         _sifields._sigpoll._band
 #define lsi_fd           _sifields._sigpoll._fd
 
-struct linux_fpreg {
+struct l_fpreg {
 	u_int16_t significand[4];
 	u_int16_t exponent;
 };
 
-struct linux_fpxreg {
+struct l_fpxreg {
 	u_int16_t significand[4];
 	u_int16_t exponent;
 	u_int16_t padding[3];
 };
 
-struct linux_xmmreg {
+struct l_xmmreg {
 	u_int32_t element[4];
 };
 
-struct linux_fpstate {
+struct l_fpstate {
 	/* Regular FPU environment */
 	u_int32_t		cw;
 	u_int32_t		sw;
@@ -314,7 +408,7 @@ struct linux_fpstate {
 	u_int32_t		cssel;
 	u_int32_t		dataoff;
 	u_int32_t		datasel;
-	struct linux_fpreg	_st[8];
+	struct l_fpreg		_st[8];
 	u_int16_t		status;
 	u_int16_t		magic;  /* 0xffff = regular FPU data */
 
@@ -322,8 +416,8 @@ struct linux_fpstate {
 	u_int32_t		_fxsr_env[6]; /* env is ignored */
 	u_int32_t		mxcsr;
 	u_int32_t		reserved;
-	struct linux_fpxreg	_fxsr_st[8];  /* reg data is ignored */
-	struct linux_xmmreg	_xmm[8];
+	struct l_fpxreg		_fxsr_st[8];  /* reg data is ignored */
+	struct l_xmmreg		_xmm[8];
 	u_int32_t		padding[56];
 };
 
@@ -333,21 +427,21 @@ struct linux_fpstate {
  * This means that we need to pass the pointer to the handler too.
  * It is appended to the frame to not interfere with the rest of it.
  */
-struct linux_sigframe {
-	int			sf_sig;
-	struct linux_sigcontext sf_sc;
-	struct linux_fpstate	sf_fpstate;
-	u_int			sf_extramask[LINUX_NSIG_WORDS-1];
-	linux_handler_t		sf_handler;
+struct l_sigframe {
+	l_int			sf_sig;
+	struct l_sigcontext	sf_sc;
+	struct l_fpstate	sf_fpstate;
+	l_uint			sf_extramask[LINUX_NSIG_WORDS-1];
+	l_handler_t		sf_handler;
 };
 
-struct linux_rt_sigframe {
-	int			sf_sig;
-	linux_siginfo_t 	*sf_siginfo;
-	struct linux_ucontext	*sf_ucontext;
-	linux_siginfo_t		sf_si;
-	struct linux_ucontext 	sf_sc;
-	linux_handler_t 	sf_handler;
+struct l_rt_sigframe {
+	l_int			sf_sig;
+	l_siginfo_t 		*sf_siginfo;
+	struct l_ucontext	*sf_ucontext;
+	l_siginfo_t		sf_si;
+	struct l_ucontext 	sf_sc;
+	l_handler_t 		sf_handler;
 };
 
 extern int bsd_to_linux_signal[];
@@ -406,6 +500,15 @@ int	linux_ioctl_unregister_handlers(struct linker_set *s);
 #define	LINUX_F_UNLCK		2
 
 /*
+ * mount flags
+ */
+#define LINUX_MS_RDONLY         0x0001
+#define LINUX_MS_NOSUID         0x0002
+#define LINUX_MS_NODEV          0x0004
+#define LINUX_MS_NOEXEC         0x0008
+#define LINUX_MS_REMOUNT        0x0020
+        
+/*
  * SystemV IPC defines
  */
 #define	LINUX_SEMOP		1
@@ -442,6 +545,16 @@ int	linux_ioctl_unregister_handlers(struct linker_set *s);
 #define	LINUX_GETZCNT		15
 #define	LINUX_SETVAL		16
 #define	LINUX_SETALL		17
+#define	LINUX_SEM_STAT		18
+#define	LINUX_SEM_INFO		19
+
+union l_semun {
+	l_int		val;
+	struct l_semid_ds	*buf;
+	l_ushort	*array;
+	struct l_seminfo	*__buf;
+	void		*__pad;
+};
 
 /*
  * Socket defines
@@ -503,44 +616,65 @@ int	linux_ioctl_unregister_handlers(struct linker_set *s);
 #define	LINUX_IP_ADD_MEMBERSHIP		35
 #define	LINUX_IP_DROP_MEMBERSHIP	36
 
-struct linux_sockaddr {
-	u_short	sa_family;
-	char	sa_data[14];
+struct l_sockaddr {
+	l_ushort	sa_family;
+	char		sa_data[14];
 };
 
-struct linux_ifmap {
-	u_long	mem_start;
-	u_long	mem_end;
-	u_short	base_addr; 
-	u_char	irq;
-	u_char	dma;
-	u_char	port;
+struct l_ifmap {
+	l_ulong		mem_start;
+	l_ulong		mem_end;
+	l_ushort	base_addr;
+	u_char		irq;
+	u_char		dma;
+	u_char		port;
 };
 
 #define	LINUX_IFHWADDRLEN	6
 #define	LINUX_IFNAMSIZ		16
 
-struct linux_ifreq {
+struct l_ifreq {
 	union {
 		char	ifrn_name[LINUX_IFNAMSIZ];
 	} ifr_ifrn;
 
 	union {
-		struct	linux_sockaddr ifru_addr;
-		struct	linux_sockaddr ifru_dstaddr;
-		struct	linux_sockaddr ifru_broadaddr;
-		struct	linux_sockaddr ifru_netmask;
-		struct	linux_sockaddr ifru_hwaddr;
-		short	ifru_flags;
-		int	ifru_metric;
-		int	ifru_mtu;
-		struct	linux_ifmap ifru_map;
-		char	ifru_slave[LINUX_IFNAMSIZ]; /* Just fits the size */
-		linux_caddr_t ifru_data;
+		struct l_sockaddr	ifru_addr;
+		struct l_sockaddr	ifru_dstaddr;
+		struct l_sockaddr	ifru_broadaddr;
+		struct l_sockaddr	ifru_netmask;
+		struct l_sockaddr	ifru_hwaddr;
+		l_short		ifru_flags[1];
+		l_int		ifru_metric;
+		l_int		ifru_mtu;
+		struct l_ifmap	ifru_map;
+		char		ifru_slave[LINUX_IFNAMSIZ];
+		l_caddr_t	ifru_data;
 	} ifr_ifru;
 };
 
 #define	ifr_name	ifr_ifrn.ifrn_name	/* interface name */
 #define	ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address */
+
+/*
+ * poll()
+ */
+#define	LINUX_POLLIN		0x0001
+#define	LINUX_POLLPRI		0x0002
+#define	LINUX_POLLOUT		0x0004
+#define	LINUX_POLLERR		0x0008
+#define	LINUX_POLLHUP		0x0010
+#define	LINUX_POLLNVAL		0x0020
+#define	LINUX_POLLRDNORM	0x0040
+#define	LINUX_POLLRDBAND	0x0080
+#define	LINUX_POLLWRNORM	0x0100
+#define	LINUX_POLLWRBAND	0x0200
+#define	LINUX_POLLMSG		0x0400
+
+struct l_pollfd {
+	l_int		fd;
+	l_short		events;
+	l_short		revents;
+};
 
 #endif /* !_I386_LINUX_LINUX_H_ */

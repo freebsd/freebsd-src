@@ -69,7 +69,7 @@ SYSCTL_PROC(_compat_linux, OID_AUTO, osname,
 	    0, 0, linux_sysctl_osname, "A",
 	    "Linux kernel OS name");
 
-static char	linux_osrelease[LINUX_MAX_UTSNAME] = "2.2.12";
+static char	linux_osrelease[LINUX_MAX_UTSNAME] = "2.4.2";
 
 static int
 linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
@@ -123,8 +123,7 @@ get_prison(struct proc *p)
 
 	if (pr->pr_linux == NULL) {
 		MALLOC(lpr, struct linux_prison *, sizeof *lpr,
-		       M_PRISON, M_WAITOK);
-		bzero((caddr_t)lpr, sizeof *lpr);
+		    M_PRISON, M_WAITOK|M_ZERO);
 		pr->pr_linux = lpr;
 	}
 
@@ -229,3 +228,64 @@ linux_set_oss_version(p, oss_version)
 
 	return (0);
 }
+
+#ifdef DEBUG
+
+u_char linux_debug_map[howmany(LINUX_SYS_MAXSYSCALL, sizeof(u_char))];
+
+static int
+linux_debug(int syscall, int toggle, int global)
+{
+
+	if (global) {
+		char c = toggle ? 0 : 0xff;
+
+		memset(linux_debug_map, c, sizeof(linux_debug_map));
+		return (0);
+	}
+	if (syscall < 0 || syscall >= LINUX_SYS_MAXSYSCALL)
+		return (EINVAL);
+	if (toggle)
+		clrbit(linux_debug_map, syscall);
+	else
+		setbit(linux_debug_map, syscall);
+	return (0);
+}
+
+/*
+ * Usage: sysctl -w linux.debug=<syscall_nr>.<0/1>
+ *
+ *    E.g.: sysctl -w linux.debug=21.0
+ *
+ * As a special case, syscall "all" will apply to all syscalls globally.
+ */
+#define LINUX_MAX_DEBUGSTR	16
+static int
+linux_sysctl_debug(SYSCTL_HANDLER_ARGS)
+{
+	char value[LINUX_MAX_DEBUGSTR], *p;
+	int error, sysc, toggle;
+	int global = 0;
+
+	value[0] = '\0';
+	error = sysctl_handle_string(oidp, value, LINUX_MAX_DEBUGSTR, req);
+	if (error || req->newptr == NULL)
+		return (error);
+	for (p = value; *p != '\0' && *p != '.'; p++);
+	if (*p == '\0')
+		return (EINVAL);
+	*p++ = '\0';
+	sysc = strtol(value, NULL, 0);
+	toggle = strtol(p, NULL, 0);
+	if (strcmp(value, "all") == 0)
+		global = 1;
+	error = linux_debug(sysc, toggle, global);
+	return (error);
+}
+
+SYSCTL_PROC(_compat_linux, OID_AUTO, debug,
+            CTLTYPE_STRING | CTLFLAG_RW,
+            0, 0, linux_sysctl_debug, "A",
+            "Linux debugging control");
+
+#endif /* DEBUG */
