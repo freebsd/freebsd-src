@@ -30,7 +30,22 @@
 .Dt PTHREAD_ATTR 3
 .Os
 .Sh NAME
-.Nm pthread_attr
+.Nm pthread_attr_init ,
+.Nm pthread_attr_destroy ,
+.Nm pthread_attr_setstacksize ,
+.Nm pthread_attr_getstacksize ,
+.Nm pthread_attr_setstackaddr ,
+.Nm pthread_attr_getstackaddr ,
+.Nm pthread_attr_setdetachstate ,
+.Nm pthread_attr_getdetachstate ,
+.Nm pthread_attr_setinheritsched ,
+.Nm pthread_attr_getinheritsched ,
+.Nm pthread_attr_setschedparam ,
+.Nm pthread_attr_getschedparam ,
+.Nm pthread_attr_setschedpolicy ,
+.Nm pthread_attr_getschedpolicy ,
+.Nm pthread_attr_setscope ,
+.Nm pthread_attr_getscope
 .Nd thread attribute operations
 .Sh LIBRARY
 .Lb libc_r
@@ -74,27 +89,26 @@ Thread attributes are used to specify parameters to
 One attribute object can be used in multiple calls to
 .Fn pthread_create ,
 with or without modifications between calls.
-
+.Pp
 The
 .Fn pthread_attr_init
 function initializes
 .Fa attr
 with all the default thread attributes.
-
+.Pp
 The
 .Fn pthread_attr_destroy
 function destroys
 .Fa attr .
-
+.Pp
 The
 .Fn pthread_attr_set*
 functions set the attribute that corresponds to each function name.
-
+.Pp
 The
 .Fn pthread_attr_get*
 functions copy the value of the attribute that corresponds to each function name
 to the location pointed to by the second function parameter. 
-
 .Sh RETURN VALUES
 If successful, these functions return 0.
 Otherwise, an error number is returned to indicate the error.
@@ -105,7 +119,7 @@ will fail if:
 .It Bq Er ENOMEM
 Out of memory.
 .El
-
+.Pp
 .Fn pthread_attr_destroy
 will fail if:
 .Bl -tag -width Er
@@ -113,7 +127,7 @@ will fail if:
 Invalid value for
 .Fa attr .
 .El
-
+.Pp
 .Fn pthread_attr_setstacksize
 will fail if:
 .Bl -tag -width Er
@@ -122,7 +136,7 @@ will fail if:
 is less than
 .Dv PTHREAD_STACK_MIN .
 .El
-
+.Pp
 .Fn pthread_attr_setdetachstate
 will fail if:
 .Bl -tag -width Er
@@ -130,7 +144,7 @@ will fail if:
 Invalid value for
 .Fa detachstate .
 .El
-
+.Pp
 .Fn pthread_attr_setinheritsched
 will fail if:
 .Bl -tag -width Er
@@ -138,7 +152,7 @@ will fail if:
 Invalid value for
 .Fa attr .
 .El
-
+.Pp
 .Fn pthread_attr_setschedparam
 will fail if:
 .Bl -tag -width Er
@@ -149,7 +163,7 @@ Invalid value for
 Invalid value for
 .Fa param .
 .El
-
+.Pp
 .Fn pthread_attr_setschedpolicy
 will fail if:
 .Bl -tag -width Er
@@ -160,7 +174,7 @@ Invalid value for
 Invalid or unsupported value for
 .Fa policy .
 .El
-
+.Pp
 .Fn pthread_attr_setscope
 will fail if:
 .Bl -tag -width Er
@@ -171,7 +185,6 @@ Invalid value for
 Invalid or unsupported value for
 .Fa contentionscope .
 .El
-
 .Sh SEE ALSO
 .Xr pthread_create 3
 .Sh STANDARDS
@@ -184,10 +197,9 @@ Invalid or unsupported value for
 .Fn pthread_attr_setdetachstate ,
 and
 .Fn pthread_attr_getdetachstate
-conform to ISO/IEC 9945-1 ANSI/IEEE
-.Pq Dq Tn POSIX
-Std 1003.1 1996 Edition.
-
+conform to
+.St -iso9945-1
+.Pp
 .Fn pthread_attr_setinheritsched ,
 .Fn pthread_attr_getinheritsched ,
 .Fn pthread_attr_setschedparam ,
@@ -197,5 +209,5 @@ Std 1003.1 1996 Edition.
 .Fn pthread_attr_setscope ,
 and
 .Fn pthread_attr_getscope
-conform to the Single UNIX Specification, Version 2
-.Pq Dq Tn SUSv2 .
+conform to
+.St -susv2

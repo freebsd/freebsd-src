@@ -30,7 +30,8 @@
 .Dt PTHREAD_SCHEDPARAM 3
 .Os
 .Sh NAME
-.Nm pthread_schedparam
+.Nm pthread_setschedparam ,
+.Nm pthread_getschedparam
 .Nd thread scheduling parameter manipulation
 .Sh LIBRARY
 .Lb libc_r
@@ -73,7 +74,7 @@ Invalid value for scheduling parameters.
 Non-existent thread
 .Va thread .
 .El
-
+.Pp
 .Fn pthread_getschedparam
 will fail if:
 .Bl -tag -width Er
@@ -85,5 +86,5 @@ Non-existent thread
 .Fn pthread_setschedparam
 and
 .Fn pthread_getschedparam
-conform to the Single UNIX Specification, Version 2
-.Pq Dq Tn SUSv2 .
+conform to
+.St -susv2

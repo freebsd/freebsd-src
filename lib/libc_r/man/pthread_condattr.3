@@ -30,7 +30,8 @@
 .Dt PTHREAD_CONDATTR 3
 .Os
 .Sh NAME
-.Nm pthread_condattr
+.Nm pthread_condattr_init ,
+.Nm pthread_condattr_destroy
 .Nd condition attribute operations
 .Sh LIBRARY
 .Lb libc_r
@@ -45,12 +46,13 @@ Condition attribute objects are used to specify parameters to
 .Fn pthread_cond_init .
 FreeBSD's implementation of conditions does not support any non-default
 attributes, so these functions are not very useful, though they are required to
-to be present by POSIX.
-
+to be present by
+.Tn POSIX .
+.Pp
 The
 .Fn pthread_condattr_init
 function initializes a condition attribute object with the default attributes.
-
+.Pp
 The
 .Fn pthread_condattr_destroy
 function destroys a condition attribute object.
@@ -64,7 +66,7 @@ will fail if:
 .It Bq Er ENOMEM
 Out of memory.
 .El
-
+.Pp
 .Fn pthread_condattr_destroy
 will fail if:
 .Bl -tag -width Er
@@ -77,6 +79,5 @@ Invalid value for
 .Fn pthread_condattr_init
 and
 .Fn pthread_condattr_destroy
-conform to ISO/IEC 9945-1 ANSI/IEEE
-.Pq Dq Tn POSIX
-Std 1003.1 1996 Edition.
+conform to
+.St -iso9945-1
