@@ -209,5 +209,5 @@ discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	default:
 		error = EINVAL;
 	}
-	return error;
+	return (error);
 }
