@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.23 1998/10/06 11:57:08 dfr Exp $
+ * $Id: write_disk.c,v 1.24 1998/10/27 21:14:03 msmith Exp $
  *
  */
 
@@ -109,6 +109,14 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	dl->d_checksum = dkcksum(dl);
 
 #ifdef __alpha__
+	/*
+	 * Tell SRM where the bootstrap is.
+	 */
+	lp = (u_long *)buf;
+	lp[60] = 15;
+	lp[61] = 1;
+	lp[62] = 0;
+
 	/*
 	 * Generate the bootblock checksum for the SRM console.
 	 */
@@ -242,6 +250,7 @@ Write_Disk(struct disk *d1)
 			if (dp[i].dp_typ == 0xa5)
 				dp[i].dp_flag = 0x80;
 
+#ifndef __alpha__
 	mbr = read_block(fd,WHERE(0,d1));
 	if (d1->bootmgr)
 		memcpy(mbr,d1->bootmgr,DOSPARTOFF);
@@ -249,6 +258,7 @@ Write_Disk(struct disk *d1)
 	mbr[512-2] = 0x55;
 	mbr[512-1] = 0xaa;
 	write_block(fd,WHERE(0,d1),mbr);
+#endif
 
 	i = 1;
 	i = ioctl(fd,DIOCSYNCSLICEINFO,&i);
