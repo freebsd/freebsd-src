@@ -41,7 +41,6 @@ _tcb_ctor(struct pthread *thread)
 	if ((tcb = malloc(sizeof(struct tcb))) != NULL) {
 		bzero(tcb, sizeof(struct tcb));
 		tcb->tcb_thread = thread;
-		tcb->tcb_tp.tp_self = tcb;
 		/* Allocate TDV */
 	}
 	return (tcb);
@@ -63,7 +62,6 @@ _kcb_ctor(struct kse *kse)
 		bzero(kcb, sizeof(struct kcb));
 		kcb->kcb_faketcb.tcb_isfake = 1;
 		kcb->kcb_faketcb.tcb_tmbx.tm_flags = TMF_NOUPCALL;
-		kcb->kcb_faketcb.tcb_tp.tp_self = &kcb->kcb_faketcb;
 		kcb->kcb_curtcb = &kcb->kcb_faketcb;
 		kcb->kcb_kse = kse;
 	}
