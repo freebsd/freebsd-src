@@ -454,7 +454,7 @@ void
 if_detach(ifp)
 	struct ifnet *ifp;
 {
-	struct ifaddr *ifa;
+	struct ifaddr *ifa, *next;
 	struct radix_node_head	*rnh;
 	int s;
 	int i;
@@ -476,8 +476,11 @@ if_detach(ifp)
 	while (if_index > 0 && ifaddr_byindex(if_index) == NULL)
 		if_index--;
 
-	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
-	     ifa = TAILQ_FIRST(&ifp->if_addrhead)) {
+	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; ifa = next) {
+		next = TAILQ_NEXT(ifa, ifa_link);
+
+		if (ifa->ifa_addr->sa_family == AF_LINK)
+			continue;
 #ifdef INET
 		/* XXX: Ugly!! ad hoc just for INET */
 		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
@@ -512,6 +515,11 @@ if_detach(ifp)
 	 */
 	in6_ifdetach(ifp);
 #endif
+
+	/* We can now free link ifaddr. */
+	ifa = TAILQ_FIRST(&ifp->if_addrhead);
+	TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
+	IFAFREE(ifa);
 
 	/*
 	 * Delete all remaining routes using this interface
