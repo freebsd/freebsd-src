@@ -44,7 +44,7 @@ do
 		  -b ${RD}/trees/bin/usr/mdec/fdboot \
 		  -s ${RD}/trees/bin/usr/mdec/bootfd \
 		  /dev/r${VNDEVICE} minimum
-
+	fi
 	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T minimum -o space /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
