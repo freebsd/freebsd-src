@@ -81,7 +81,7 @@ thr_exit1(void)
 	/* Clean up cpu resources. */
 	cpu_thread_exit(td);
 
-	/* Unlink the thread from the process and kseg.
+	/* Unlink the thread from the process and kseg. */
 	thread_unlink(td);
 
 	ke->ke_state = KES_UNQUEUED;
