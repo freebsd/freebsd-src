@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: brandelf.c,v 1.7 1997/06/23 06:47:12 charnier Exp $
+ *  $Id: brandelf.c,v 1.8 1997/08/23 15:51:14 joerg Exp $
  */
 
 #include <elf.h>
@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include <err.h>
 
+static int iselftype(const char *);
 static void usage __P((void));
 
 int
@@ -44,10 +45,13 @@ main(int argc, char **argv)
 
 	const char *type = "FreeBSD";
 	int retval = 0;
-	int ch, change = 0, verbose = 0;
+	int ch, change = 0, verbose = 0, force = 0;
 
-	while ((ch = getopt(argc, argv, "t:v")) != -1)
+	while ((ch = getopt(argc, argv, "ft:v")) != -1)
 		switch (ch) {
+		case 'f':
+			force = 1;
+			break;
 		case 'v':
 			verbose = 1;
 			break;
@@ -62,6 +66,10 @@ main(int argc, char **argv)
 	argv += optind;
 	if (!argc)
 		errx(1, "no file(s) specified");
+
+	if (!force && !iselftype(type))
+		errx(1, "invalid ELF type '%s'", type);
+
 	while (argc) {
 		int fd;
 		char buffer[EI_NIDENT];
@@ -71,7 +79,6 @@ main(int argc, char **argv)
 			warn("error opening file %s", argv[0]);
 			retval = 1;
 			goto fail;
-			
 		}
 		if (read(fd, buffer, EI_NIDENT) < EI_NIDENT) {
 			warnx("file '%s' too short", argv[0]);
@@ -83,13 +90,17 @@ main(int argc, char **argv)
 			warnx("file '%s' is not ELF format", argv[0]);
 			retval = 1;
 			goto fail;
-		}		
+		}
 		if (!change) {
 			bzero(string, sizeof(string));
 			strncpy(string, &buffer[EI_BRAND], EI_NIDENT-EI_BRAND);
 			if (strlen(string)) {
-				fprintf(stdout, "File '%s' is of brand '%s'.\n",
+				fprintf(stdout,
+					"File '%s' is of brand '%s'.\n",
 					argv[0], string);
+				if (!force && !iselftype(string))
+					warnx("Brand '%s' is unknown",
+					      string);
 			}
 			else
 				fprintf(stdout, "File '%s' has no branding.\n",
@@ -115,6 +126,20 @@ fail:
 static void
 usage()
 {
-	fprintf(stderr, "usage: brandelf [-t string] file ...\n");
+	fprintf(stderr, "usage: brandelf [-f] [-v] [-t string] file ...\n");
 	exit(1);
+}
+
+int
+iselftype(const char *elftype) {
+	/* XXX - any more types? */
+	const char *elftypes[] = { "FreeBSD", "Linux" };
+	int elfwalk;
+
+	for (elfwalk = 0;
+	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
+	     elfwalk++)
+		if (strcmp(elftype, elftypes[elfwalk]) == 0)
+			return 1;
+	return 0;
 }
