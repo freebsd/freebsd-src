@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.16 1993/11/25 01:31:48 wollman Exp $
+ *	$Id: sio.c,v 1.17 1993/12/09 17:24:19 ache Exp $
  */
 
 #include "sio.h"
@@ -668,11 +668,13 @@ bidir_open_top:
 			tp->t_ispeed = tp->t_ospeed = comdefaultrate;
 		}
 #ifdef COM_BIDIR
-		if (com->bidir)
+		if (com->bidir) {
 			if (callout)
 				tp->t_cflag |= CLOCAL;
 			else
 				tp->t_cflag &= ~CLOCAL;
+			tp->t_cflag |= HUPCL;
+		}
 #endif
 		(void) commctl(com, MCR_DTR | MCR_RTS, DMSET);
 		error = comparam(tp, &tp->t_termios);
