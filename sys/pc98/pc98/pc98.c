@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.10 1996/10/29 08:36:23 asami Exp $
+ *	$Id: pc98.c,v 1.10.2.1 1996/11/16 21:18:40 phk Exp $
  */
 
 /*
@@ -573,8 +573,7 @@ static u_int8_t	dma_inuse = 0;		/* User for acquire/release */
 
 /* high byte of address is stored in this port for i-th dma channel */
 #ifdef PC98
-/* SCSI driver use the variable */
-int dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
+static int dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
 #else /* IBM-PC */
 static int dmapageport[8] = { 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
 #endif
@@ -856,7 +855,7 @@ void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
  * Return true if special handling needed.
  */
 
-int
+static int
 isa_dmarangecheck(caddr_t va, u_int length, int chan) {
 	vm_offset_t phys, priorpage = 0, endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
