@@ -967,19 +967,21 @@ do_setup_env(char **env, Session *s, const char *shell)
 		child_set_env(&env, &envsize, "USER", pw->pw_name);
 		child_set_env(&env, &envsize, "LOGNAME", pw->pw_name);
 		child_set_env(&env, &envsize, "HOME", pw->pw_dir);
-#ifndef LOGIN_CAP
+#ifndef HAVE_LOGIN_CAP
 		child_set_env(&env, &envsize, "PATH", _PATH_STDPATH);
 
 		snprintf(buf, sizeof buf, "%.200s/%.50s",
 			 _PATH_MAILDIR, pw->pw_name);
 		child_set_env(&env, &envsize, "MAIL", buf);
-#endif /* !LOGIN_CAP */
+#endif /* !HAVE_LOGIN_CAP */
 
 		/* Normal systems set SHELL by default. */
 		child_set_env(&env, &envsize, "SHELL", shell);
 	}
+#ifndef HAVE_LOGIN_CAP
 	if (getenv("TZ"))
 		child_set_env(&env, &envsize, "TZ", getenv("TZ"));
+#endif /* !HAVE_LOGIN_CAP */
 
 	/* Set custom environment options from RSA authentication. */
 	if (!options.use_login) {
@@ -1005,8 +1007,10 @@ do_setup_env(char **env, Session *s, const char *shell)
 
 	if (s->ttyfd != -1)
 		child_set_env(&env, &envsize, "SSH_TTY", s->tty);
+#ifndef HAVE_LOGIN_CAP
 	if (s->term)
 		child_set_env(&env, &envsize, "TERM", s->term);
+#endif /* !HAVE_LOGIN_CAP */
 	if (s->display)
 		child_set_env(&env, &envsize, "DISPLAY", s->display);
 	if (original_command)
@@ -1139,7 +1143,7 @@ do_nologin(struct passwd *pw)
 
 /* Set login name, uid, gid, and groups. */
 static char **
-do_setusercontext(struct passwd *pw)
+do_setusercontext(struct passwd *pw, Session *s)
 {
 	char **env = NULL;
 #ifdef HAVE_LOGIN_CAP
@@ -1163,6 +1167,9 @@ do_setusercontext(struct passwd *pw)
 
 	if (getenv("TZ"))
 		child_set_env(&env, &envsize, "TZ", getenv("TZ"));
+
+	if (s->term)
+		child_set_env(&env, &envsize, "TERM", s->term);
 
 	/* Save parent environment */
 	tmpenv = environ;
@@ -1229,7 +1236,7 @@ do_child(Session *s, const char *command)
 	 */
 	if (!options.use_login) {
 		do_nologin(pw);
-		env = do_setusercontext(pw);
+		env = do_setusercontext(pw, s);
 	}
 
 	/*
