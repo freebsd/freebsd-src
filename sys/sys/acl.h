@@ -25,21 +25,22 @@
  *
  * $FreeBSD$
  */
+
 /* 
- * Userland/kernel interface for Access Control Lists
+ * Userland/kernel interface for Access Control Lists.
  *
  * The POSIX.1e implementation page may be reached at:
- *   http://www.watson.org/fbsd-hardening/posix1e/
+ * http://www.watson.org/fbsd-hardening/posix1e/
  */
 
 #ifndef _SYS_ACL_H
 #define	_SYS_ACL_H
 
 /*
- * POSIX.1e ACL types
+ * POSIX.1e ACL types and related constants
  */
 
-#define	ACL_MAX_ENTRIES	32	/* maximum entries in an ACL */
+#define	ACL_MAX_ENTRIES		32 /* maximum entries in an ACL */
 #define	_POSIX_ACL_PATH_MAX     ACL_MAX_ENTRIES
 
 typedef int	acl_type_t;
@@ -94,17 +95,11 @@ MALLOC_DECLARE(M_ACL);
 #endif
 
 /*
- * Dummy declarations so that we can expose acl_access all over the place
- * without worrying about including ucred and friends.  vnode.h does the
- * same thing.
- */
-struct ucred;
-struct proc;
-
-/*
  * POSIX.1e and generic kernel/vfs semantics functions--not currently in the
  * base distribution, but will be soon.
  */
+struct proc;
+struct ucred;
 struct vattr;
 struct vop_getacl_args;
 struct vop_aclcheck_args;
@@ -123,8 +118,7 @@ int	posix1e_vop_aclcheck(struct vop_aclcheck_args *ap);
  * have strict acl entry ordering requirements
  */
 __BEGIN_DECLS
-int	__acl_aclcheck_fd(int filedes, acl_type_t type,
-	    struct acl *aclp);
+int	__acl_aclcheck_fd(int filedes, acl_type_t type, struct acl *aclp);
 int	__acl_aclcheck_file(const char *path, acl_type_t type,
 	    struct acl *aclp);
 int	__acl_delete_fd(int filedes, acl_type_t type);
@@ -156,4 +150,5 @@ int	acl_valid_file(const char *path_p, acl_type_t type, acl_t acl);
 __END_DECLS
 
 #endif /* !_KERNEL */
+
 #endif /* !_SYS_ACL_H */
