@@ -345,8 +345,8 @@ char *	ip6_get_prevhdr __P((struct mbuf *, int));
 int	ip6_nexthdr __P((struct mbuf *, int, int, int *));
 int	ip6_lasthdr __P((struct mbuf *, int, int, int *));
 
-struct ip6aux *ip6_addaux __P((struct mbuf *));
-struct ip6aux *ip6_findaux __P((struct mbuf *));
+struct m_tag *ip6_addaux __P((struct mbuf *));
+struct m_tag *ip6_findaux __P((struct mbuf *));
 void	ip6_delaux __P((struct mbuf *));
 
 int	ip6_mforward __P((struct ip6_hdr *, struct ifnet *, struct mbuf *));
