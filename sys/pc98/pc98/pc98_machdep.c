@@ -147,8 +147,6 @@ pc98_getmemsize(unsigned *base, unsigned *ext, unsigned *under16)
 	}
 }
 
-#include "da.h"
-
 /*
  * Read a geometry information of SCSI HDD from BIOS work area.
  *
@@ -158,7 +156,6 @@ pc98_getmemsize(unsigned *base, unsigned *ext, unsigned *under16)
 int
 scsi_da_bios_params(struct ccb_calc_geometry *ccg)
 {
-#if NDA > 0
 	u_char *tmp;
 	int	target;
 	int	bus;
@@ -196,6 +193,6 @@ scsi_da_bios_params(struct ccb_calc_geometry *ccg)
 		}
 		return 1;
 	}
-#endif	/* NDA > 0 */
+
 	return 0;
 }
