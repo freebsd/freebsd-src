@@ -169,7 +169,7 @@ field can be one of the following values:
 .Ql whole, unknown, fat, freebsd, extended, part, unused .
 .Pp
 These are the valid
-.Ql flag
+.Ql flags
 values for a
 .Ql struct chunk .
 .Bl -tag -offset indent -width CHUNK_BSD_COMPATXX
@@ -293,9 +293,9 @@ rounds
 up to next track according to the BIOS geometry.
 .Pp
 .Fn Prev_Track_Aligned
-checks if
+rounds
 .Ql offset
-is aligned on a track according to the BIOS geometry.
+up to previous track according to the BIOS geometry.
 .Pp
 .Fn Create_Chunk_DWIM
 creates a partition inside the given parent of the given size, and
