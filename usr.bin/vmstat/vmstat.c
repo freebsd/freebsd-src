@@ -148,7 +148,7 @@ static void	doforkst(void);
 static void	domem(void);
 static void	dointr(void);
 static void	dosum(void);
-static void	dosysctl(char *);
+static void	dosysctl(const char *);
 static void	dovmstat(u_int, int);
 static void	dozmem(void);
 static void	kread(int, void *, size_t);
@@ -836,8 +836,7 @@ dointr(void)
 {
 	u_long *intrcnt, uptime;
 	u_int64_t inttotal;
-	size_t clen, nintr, inamlen;
-	int i, istrnamlen;
+	size_t clen, nintr, inamlen, i, istrnamlen;
 	char *intrname, *tintrname;
 
 	uptime = getuptime();
@@ -915,7 +914,7 @@ dozmem(void)
 }
 
 static void
-dosysctl(char *name)
+dosysctl(const char *name)
 {
 	char *buf;
 	size_t bufsize;
