@@ -188,7 +188,6 @@ audio_write(int dev, struct fileinfo * file, snd_rw_buf * buf, int count)
 
     p = 0;
     c = count;
-
     if ((audio_mode[dev] & AM_READ) &&
 	!(audio_devs[dev]->flags & DMA_DUPLEX)) {	/* Direction change */
 	wr_buff_no[dev] = -1;
@@ -253,7 +252,6 @@ audio_write(int dev, struct fileinfo * file, snd_rw_buf * buf, int count)
 	    wr_buff_no[dev] = -1;
 	}
     }
-
     return count;
 }
 
@@ -442,7 +440,7 @@ audio_poll(int dev, struct fileinfo * file, int events, select_table * wait)
 {
     dev = dev >> 4;
 
- if (events & (POLLOUT | POLLWRNORM)) {
+ if (events & (POLLIN | POLLRDNORM)) {
 	if ((audio_mode[dev] & AM_WRITE) &&
 		!(audio_devs[dev]->flags & DMA_DUPLEX))
 	    return 0;	/* Not recording */
@@ -451,7 +449,7 @@ audio_poll(int dev, struct fileinfo * file, int events, select_table * wait)
 	return (DMAbuf_poll(dev, file, events, wait));
  }
 
- if (events & (POLLIN | POLLRDNORM)) {
+ if (events & (POLLOUT | POLLWRNORM)) {
 	if ((audio_mode[dev] & AM_READ) &&
 		!(audio_devs[dev]->flags & DMA_DUPLEX))
 	    return 0;	/* Wrong direction */
