@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.134 1995/01/31 06:33:58 amurai Exp $
+#	$Id: LINT,v 1.135 1995/02/05 10:56:45 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -515,7 +515,14 @@ device pca0 at isa? tty
 # wt: Wangtek and Archive QIC-02/QIC-36 tape drives
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
+# spigot: The Creative Labs Video Spigot video-aquisition board
 #
+# Notes on the spigot:
+#  The video spigot is at 0xad6.  This port address can not be changed.
+#  The irq values may only be 10, 11, or 15
+#  I/O memory is an 8kb region.  Possible values are:
+#    0a0000, 0a2000, ..., 0fffff, f00000, f02000, ..., ffffff
+#  Note that the start address must be on an even boundary.
 
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # for the soundblaster 16 multicd
@@ -524,6 +531,7 @@ device		scd0	at isa? port 0x230 bio
 device		pcd0	at isa? port 0x220 bio
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		ctx0	at isa? port 0x230 iomem 0xd0000
+device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000 vector spigintr
 
 # NB: both lines are required
 device		apm0	at isa?
