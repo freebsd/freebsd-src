@@ -28,6 +28,19 @@
  */
 
 /*
+ * XXX TODO XXX
+ *
+ * I've pushed this fairly far, but there are some things that need to be
+ * done here.  I'm documenting them here in case I get destracted. -- imp
+ *
+ * xe_memwrite -- maybe better handled pccard layer?
+ * xe_cem56fix -- need to figure out how to map the extra stuff.
+ * xe_activate -- need to write it, and add some stuff to it.  Look at if_sn
+ *                for guidance.  resources/interrupts.
+ * xe_deactivate -- turn off resources/interrupts.
+ */
+
+/*
  * Portions of this software were derived from Werner Koch's xirc2ps driver
  * for Linux under the terms of the following license (from v1.30 of the
  * xirc2ps driver):
@@ -103,16 +116,6 @@
 #define XE_DEBUG 1	/* Increase for more voluminous output! */
 #endif
 
-#include "xe.h"
-#include "card.h"
-#include "apm.h"
-
-#if NXE > 0
-
-#undef NCARD
-#define NCARD 0
-#if NCARD > 0
-
 #include <sys/param.h>
 #include <sys/cdefs.h>
 #include <sys/errno.h>
@@ -126,6 +129,13 @@
 #include <sys/uio.h>
 #include <sys/conf.h>
 
+#include <sys/module.h>
+#include <sys/bus.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
+ 
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -134,58 +144,10 @@
 #include <net/if_mib.h>
 #include <net/bpf.h>
 
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
-#include <dev/pccard/if_xereg.h>
+#include <dev/xe/if_xereg.h>
+#include <dev/xe/if_xevar.h>
+
 #include <machine/clock.h>
-#if NAPM > 0
-#include <machine/apm_bios.h>
-#endif /* NAPM > 0 */
-
-#include <pccard/cardinfo.h>
-#include <pccard/cis.h>
-#include <pccard/driver.h>
-#include <pccard/slot.h>
-
-
-
-/*
- * One of these structures per allocated device
- */
-struct xe_softc {
-  struct arpcom arpcom;
-  struct ifmedia ifmedia;
-  struct ifmib_iso_8802_3 mibdata;
-  struct callout_handle chand;
-  struct isa_device *dev;
-  struct pccard_devinfo *crd;
-  struct ifnet *ifp;
-  struct ifmedia *ifm;
-  char *card_type;	/* Card model name */
-  char *vendor;		/* Card manufacturer */
-  int unit;		/* Unit number, from dev->id_unit */
-  int srev;     	/* Silicon revision */
-  int tx_queued;	/* Packets currently waiting to transmit */
-  int tx_tpr;		/* Last value of TPR reg on card */
-  int tx_collisions;	/* Collisions since last successful send */
-  int tx_timeouts;	/* Count of transmit timeouts */
-  int autoneg_status;	/* Autonegotiation progress state */
-  int media;		/* Private media word */
-  u_char version;	/* Bonding Version register from card */
-  u_char modem;		/* 1 = Card has a modem */
-  u_char ce2;		/* 1 = Card has CE2 silicon */
-  u_char mohawk;      	/* 1 = Card has Mohawk (CE3) silicon */
-  u_char dingo;    	/* 1 = Card has Dingo (CEM56) silicon */
-  u_char phy_ok;	/* 1 = MII-compliant PHY found and initialised */
-  u_char gone;		/* 1 = Card bailed out */
-#if NAPM > 0
-  struct apmhook suspend_hook;
-  struct apmhook resume_hook;
-#endif /* NAPM > 0 */
-};
-
-static struct xe_softc *sca[MAXSLOT];
-
 
 /*
  * MII command structure
@@ -200,24 +162,6 @@ struct xe_mii_frame {
 };
 
 /*
- * For accessing card registers
- */
-#define XE_INB(r)         inb(scp->dev->id_iobase+(r))
-#define XE_INW(r)         inw(scp->dev->id_iobase+(r))
-#define XE_OUTB(r, b)     outb(scp->dev->id_iobase+(r), (b))
-#define XE_OUTW(r, w)     outw(scp->dev->id_iobase+(r), (w))
-#define XE_SELECT_PAGE(p) XE_OUTB(XE_PR, (p))
-
-/*
- * Horrid stuff for accessing CIS tuples
- */
-#define CARD_MAJOR		50
-#define CISTPL_BUFSIZE		512
-#define CISTPL_TYPE(tpl)	tpl[0]
-#define CISTPL_LEN(tpl)		tpl[2]
-#define CISTPL_DATA(tpl,pos)	tpl[4 + ((pos)<<1)]
-
-/*
  * Media autonegotiation progress constants
  */
 #define XE_AUTONEG_NONE		0	/* No autonegotiation in progress */
@@ -230,13 +174,14 @@ struct xe_mii_frame {
 /*
  * Prototypes start here
  */
-static int       xe_probe		(struct isa_device *dev);
-static int       xe_card_init		(struct pccard_devinfo *devi);
-static int       xe_attach		(struct isa_device *dev);
+static int	 xe_probe		(device_t dev);
+static int	 xe_attach		(device_t dev);
+static int	 xe_detach		(device_t dev);
+static int	 xe_activate		(device_t dev);
+static void	 xe_deactivate		(device_t dev);
 static void      xe_init		(void *xscp);
 static void      xe_start		(struct ifnet *ifp);
 static int       xe_ioctl		(struct ifnet *ifp, u_long command, caddr_t data);
-static int       xe_card_intr		(struct pccard_devinfo *devi);
 static void      xe_watchdog		(struct ifnet *ifp);
 static int       xe_media_change	(struct ifnet *ifp);
 static void      xe_media_status	(struct ifnet *ifp, struct ifmediareq *mrp);
@@ -249,7 +194,6 @@ static void      xe_disable_intr	(struct xe_softc *scp);
 static void      xe_setmulti		(struct xe_softc *scp);
 static void      xe_setaddrs		(struct xe_softc *scp);
 static int       xe_pio_write_packet	(struct xe_softc *scp, struct mbuf *mbp);
-static void      xe_card_unload		(struct pccard_devinfo *devi);
 static u_int32_t xe_compute_crc		(u_int8_t *data, int len);
 static int       xe_compute_hashbit	(u_int32_t crc);
 
@@ -277,61 +221,6 @@ static void      xe_mii_dump		(struct xe_softc *scp);
 #define XE_MII_DUMP(scp)
 #endif
 
-#if NAPM > 0
-/*
- * APM hook functions
- */
-static int       xe_suspend		(void *xunit);
-static int       xe_resume		(void *xunit);
-#endif /* NAPM > 0 */
-
-
-/*
- * PCMCIA driver hooks
- */
-#ifdef PCCARD_MODULE
-PCCARD_MODULE(xe, xe_card_init, xe_card_unload, xe_card_intr, 0, net_imask);
-#else
-static struct pccard_device xe_info = {	/* For pre 3.1-STABLE code */
-	"xe",
-	xe_card_init,
-	xe_card_unload,
-	xe_card_intr,
-	0,
-	&net_imask
-};
-DATA_SET(pccarddrv_set, xe_info);
-#endif /* PCCARD_MODULE */
-
-
-/*
- * ISA driver hooks.  I'd like to do without these but the kernel config stuff 
- * seems to require them.
- */
-struct isa_driver xedriver = {
-  xe_probe,
-  xe_attach,
-  "xe"
-};
-
-
-
-/*
- * ISA probe routine.
- * All of the supported devices are PCMCIA cards.  I have no idea if it's even 
- * possible to successfully probe/attach these at boot time (pccardd normally
- * does a lot of setup work) so I don't even bother trying.
- */
-static int
-xe_probe (struct isa_device *dev) {
-#ifdef XE_DEBUG
-  printf("xe%d: probe\n", dev->id_unit);
-#endif
-  bzero(sca, MAXSLOT * sizeof(sca[0]));
-  return 0;
-}
-
-
 /*
  * Two routines to read from/write to the attribute memory
  * the write portion is used only for fixing up the RealPort cards,
@@ -341,54 +230,11 @@ xe_probe (struct isa_device *dev) {
  * -aDe Lovett
  */
 static int
-xe_memwrite(struct pccard_devinfo *devi, off_t offset, u_char byte)
+xe_memwrite(device_t dev, off_t offset, u_char byte)
 {
-  struct iovec iov;
-  struct uio uios;
-
-  iov.iov_base = &byte;
-  iov.iov_len = sizeof(byte);
-
-  uios.uio_iov = &iov;
-  uios.uio_iovcnt = 1;
-  uios.uio_offset = offset;
-  uios.uio_resid = sizeof(byte);
-  uios.uio_segflg = UIO_SYSSPACE;
-  uios.uio_rw = UIO_WRITE;
-  uios.uio_procp = 0;
-
-#if 0 /* THIS IS BOGUS */
-  return cdevsw[CARD_MAJOR]->d_write(makedev(CARD_MAJOR, devi->slt->slotnum), &uios, 0);
-#else
+	/* XXX */
   return (-1);
-#endif
 }
-
-
-static int
-xe_memread(struct pccard_devinfo *devi, off_t offset, u_char *buf, int size)
-{
-  struct iovec iov;
-  struct uio uios;
-
-  iov.iov_base = buf;
-  iov.iov_len = size;
-
-  uios.uio_iov = &iov;
-  uios.uio_iovcnt = 1;
-  uios.uio_offset = offset;
-  uios.uio_resid = size;
-  uios.uio_segflg = UIO_SYSSPACE;
-  uios.uio_rw = UIO_READ;
-  uios.uio_procp = 0;
-
-#if 0 /* THIS IS BOGUS */
-  return cdevsw[CARD_MAJOR]->d_read(makedev(CARD_MAJOR, devi->slt->slotnum), &uios, 0);
-#else
-  return (-1);
-#endif
-}
-
 
 /*
  * Hacking for RealPort cards
@@ -396,15 +242,8 @@ xe_memread(struct pccard_devinfo *devi, off_t offset, u_char *buf, int size)
 static int
 xe_cem56fix(struct xe_softc *scp)
 {
-  struct pccard_devinfo *devi;
-  struct slot *slt;
-  struct slot_ctrl *ctrl;
+#if XXX		/* Need to revisit */
   int ioport, fail;
-
-  /* initialise a few variables */
-  devi = scp->crd;
-  slt = devi->slt;
-  ctrl = slt->ctrl;
 
   /* allocate a new I/O slot for the ethernet */
   /* XXX: ctrl->mapio() always appears to return 0 (success), so
@@ -420,7 +259,7 @@ xe_cem56fix(struct xe_softc *scp)
 
 #ifdef	XE_IOBASE
 
-  printf( "xe%d: user requested ioport 0x%x\n", scp->unit, XE_IOBASE );
+  device_printf(scp->dev, "user requested ioport 0x%x\n", XE_IOBASE );
   ioport = XE_IOBASE;
   slt->io[1].start = ioport;
   fail = ctrl->mapio(slt, 1);
@@ -437,34 +276,39 @@ xe_cem56fix(struct xe_softc *scp)
 
   /* did we find one? */
   if (fail) {
-    printf( "xe%d: xe_cem56fix: no free address space\n", scp->unit );
+    device_printf(scp->dev, "xe_cem56fix: no free address space\n");
     return -1;
   }
 
 
   /* munge the id_iobase entry for use by the rest of the driver */
 #if XE_DEBUG > 1
-  printf( "xe%d: using 0x%x for RealPort ethernet\n", scp->unit, ioport );
+  device_printf(scp->dev, "using 0x%x for RealPort ethernet\n", ioport);
 #endif
+#if 0
   scp->dev->id_iobase = ioport;
   scp->dev->id_alive  = 0x10;
+#endif
 
   /* magic to set up the ethernet */
-  xe_memwrite( devi, DINGO_ECOR, DINGO_ECOR_IRQ_LEVEL|DINGO_ECOR_INT_ENABLE|
-	       DINGO_ECOR_IOB_ENABLE|DINGO_ECOR_ETH_ENABLE );
-  xe_memwrite( devi, DINGO_EBAR0, ioport & 0xff );
-  xe_memwrite( devi, DINGO_EBAR1, (ioport >> 8) & 0xff );
+  xe_memwrite( scp->dev, DINGO_ECOR, DINGO_ECOR_IRQ_LEVEL|
+               DINGO_ECOR_INT_ENABLE|DINGO_ECOR_IOB_ENABLE|
+               DINGO_ECOR_ETH_ENABLE );
+  xe_memwrite( scp->dev, DINGO_EBAR0, ioport & 0xff );
+  xe_memwrite( scp->dev, DINGO_EBAR1, (ioport >> 8) & 0xff );
 
-  xe_memwrite( devi, DINGO_DCOR0, DINGO_DCOR0_SF_INT );
-  xe_memwrite( devi, DINGO_DCOR1, DINGO_DCOR1_INT_LEVEL|DINGO_DCOR1_EEDIO );
-  xe_memwrite( devi, DINGO_DCOR2, 0x00 );
-  xe_memwrite( devi, DINGO_DCOR3, 0x00 );
-  xe_memwrite( devi, DINGO_DCOR4, 0x00 );
+  xe_memwrite( scp->dev, DINGO_DCOR0, DINGO_DCOR0_SF_INT );
+  xe_memwrite( scp->dev, DINGO_DCOR1, DINGO_DCOR1_INT_LEVEL|DINGO_DCOR1_EEDIO );
+  xe_memwrite( scp->dev, DINGO_DCOR2, 0x00 );
+  xe_memwrite( scp->dev, DINGO_DCOR3, 0x00 );
+  xe_memwrite( scp->dev, DINGO_DCOR4, 0x00 );
 
   /* success! */
   return 0;
+#else
+  return -1;
+#endif /* XXX */
 }
-
 	
 /*
  * PCMCIA probe routine.
@@ -473,50 +317,32 @@ xe_cem56fix(struct xe_softc *scp)
  * structure has been initialised already.
  */
 static int
-xe_card_init(struct pccard_devinfo *devi)
+xe_probe(device_t dev)
 {
-  struct xe_softc *scp;
-  struct isa_device *dev;
-  u_char buf[CISTPL_BUFSIZE];
+  struct xe_softc *scp = (struct xe_softc *) device_get_softc(dev);
+  u_char *buf;
   u_char ver_str[CISTPL_BUFSIZE>>1];
   off_t offs;
-  int unit, success, rc, i;
+  int success, rc, i;
+  int rid;
+  struct resource *r;
 
-  unit = devi->isahd.id_unit;
-  scp = sca[unit];
-  dev = &devi->isahd;
   success = 0;
 
 #ifdef XE_DEBUG
-  printf("xe: Probing for unit %d\n", unit);
+  device_printf(dev, "xe: Probing\n");
 #endif
 
-  /* Check that unit number is OK */
-  if (unit > MAXSLOT) {
-    printf("xe%d: bad unit\n", unit);
-    return (ENODEV);
+  /* Map in the CIS */
+  /* XXX This CANNOT work as it needs RF_PCCARD_ATTR support */
+  r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 4 << 10, RF_ACTIVE);
+  if (!r) {
+#ifdef XE_DEBUG
+    device_printf(dev, "Can't map in cis\n");
+#endif
+    return ENOMEM;
   }
-
-  /* Don't attach an active device */
-  if (scp && !scp->gone) {
-    printf("xe%d: already attached\n", unit);
-    return (EBUSY);
-  }
-
-  /* Allocate per-instance storage */
-  if (!scp) {
-    if ((scp = malloc(sizeof(*scp), M_DEVBUF, M_NOWAIT)) == NULL) {
-      printf("xe%d: failed to allocage driver storage\n", unit);
-      return (ENOMEM);
-    }
-    bzero(scp, sizeof(*scp));
-  }
-
-  /* Re-attach an existing device */
-  if (scp->gone) {
-    scp->gone = 0;
-    return 0;
-  }
+  buf = (u_char *) rman_get_start(r);
 
   /* Grep through CIS looking for relevant tuples */
   offs = 0;
@@ -524,136 +350,129 @@ xe_card_init(struct pccard_devinfo *devi)
     u_int16_t vendor;
     u_int8_t rev, media, prod;
 
-    /*
-     * Read tuples one at a time into buf.  Sucks, but it only happens once.
-     * XXX - This assumes that attribute has been mapped by pccardd, which
-     * XXX - seems to be the default situation.  If not, we're well and truly
-     * XXX - FUBAR.  This is a general PCCARD problem, not our fault :)
-     */
-    if ((rc = xe_memread( devi, offs, buf, CISTPL_BUFSIZE )) == 0) {
+    switch (CISTPL_TYPE(buf)) {
 
-      switch (CISTPL_TYPE(buf)) {
+    case 0x15:	/* Grab version string (needed to ID some weird CE2's) */
+#if XE_DEBUG > 1
+      device_printf(dev, "Got version string (0x15)\n");
+#endif
+      for (i = 0; i < CISTPL_LEN(buf); ver_str[i] = CISTPL_DATA(buf, i++));
+      ver_str[i] = '\0';
+      ver_str[(CISTPL_BUFSIZE>>1) - 1] = CISTPL_LEN(buf);
+      success++;
+      break;
 
-       case 0x15:	/* Grab version string (needed to ID some weird CE2's) */
+    case 0x20:	/* Figure out what type of card we have */
 #if XE_DEBUG > 1
-	printf("xe%d: Got version string (0x15)\n", unit);
+      device_printf(dev, "Got card ID (0x20)\n");
 #endif
-	for (i = 0; i < CISTPL_LEN(buf); ver_str[i] = CISTPL_DATA(buf, i++));
-	ver_str[i] = '\0';
-	ver_str[(CISTPL_BUFSIZE>>1) - 1] = CISTPL_LEN(buf);
-	success++;
-	break;
+      vendor = CISTPL_DATA(buf, 0) + (CISTPL_DATA(buf, 1) << 8);
+      rev = CISTPL_DATA(buf, 2);
+      media = CISTPL_DATA(buf, 3);
+      prod = CISTPL_DATA(buf, 4);
 
-       case 0x20:	/* Figure out what type of card we have */
-#if XE_DEBUG > 1
-	printf("xe%d: Got card ID (0x20)\n", unit);
-#endif
-	vendor = CISTPL_DATA(buf, 0) + (CISTPL_DATA(buf, 1) << 8);
-	rev = CISTPL_DATA(buf, 2);
-	media = CISTPL_DATA(buf, 3);
-	prod = CISTPL_DATA(buf, 4);
-
-	switch (vendor) {	/* Get vendor ID */
-	 case 0x0105:
-	  scp->vendor = "Xircom"; break;
-	 case 0x0138:
-	 case 0x0183:
-	  scp->vendor = "Compaq"; break;
-	 case 0x0089:
-	  scp->vendor = "Intel"; break;
-	 default:
-	  scp->vendor = "Unknown";
-	}
-
-	if (!((prod & 0x40) && (media & 0x01))) {
-#if XE_DEBUG > 1
-	printf("xe%d: Not a PCMCIA Ethernet card!\n", unit);
-#endif
-	  rc = ENODEV;		/* Not a PCMCIA Ethernet device */
-	}
-	else {
-	  if (media & 0x10) {	/* Ethernet/modem cards */
-#if XE_DEBUG > 1
-	printf("xe%d: Card is Ethernet/modem combo\n", unit);
-#endif
-	    scp->modem = 1;
-	    switch (prod & 0x0f) {
-	     case 1:
-	      scp->card_type = "CEM"; break;
-	     case 2:
-	      scp->ce2 = 1;
-	      scp->card_type = "CEM2"; break;
-	     case 3:
-	      scp->ce2 = 1;
-	      scp->card_type = "CEM3"; break;
-	     case 4:
-	      scp->ce2 = 1;
-	      scp->card_type = "CEM33"; break;
-	     case 5:
-	      scp->mohawk = 1;
-	      scp->card_type = "CEM56M"; break;
-	     case 6:
-	     case 7:		/* Some kind of RealPort card */
-	      scp->mohawk = 1;
-	      scp->dingo = 1;
-	      scp->card_type = "CEM56"; break;
-	     default:
-	      rc = ENODEV;
-	    }
-	  }
-	  else {		/* Ethernet-only cards */
-#if XE_DEBUG > 1
-	printf("xe%d: Card is Ethernet only\n", unit);
-#endif
-	    switch (prod & 0x0f) {
-	     case 1:
-	      scp->card_type = "CE"; break;
-	     case 2:
-	      scp->ce2 = 1;
-	      scp->card_type = "CE2"; break;
-	     case 3:
-	      scp->mohawk = 1;
-	      scp->card_type = "CE3"; break;
-	     default:
-	      rc = ENODEV;
-	    }
-	  }
-	}
-	success++;
-	break;
-
-       case 0x22:	/* Get MAC address */
-	if ((CISTPL_LEN(buf) == 8) &&
-	    (CISTPL_DATA(buf, 0) == 0x04) &&
-	    (CISTPL_DATA(buf, 1) == ETHER_ADDR_LEN)) {
-#if XE_DEBUG > 1
-	  printf("xe%d: Got MAC address (0x22)\n", unit);
-#endif
-	  for (i = 0; i < ETHER_ADDR_LEN; scp->arpcom.ac_enaddr[i] = CISTPL_DATA(buf, i+2), i++);
-	}
-	success++;
-	break;
-       default:
+      switch (vendor) {	/* Get vendor ID */
+      case 0x0105:
+        scp->vendor = "Xircom"; break;
+      case 0x0138:
+      case 0x0183:
+	scp->vendor = "Compaq"; break;
+      case 0x0089:
+	scp->vendor = "Intel"; break;
+      default:
+	scp->vendor = "Unknown";
       }
+
+      if (!((prod & 0x40) && (media & 0x01))) {
+#if XE_DEBUG > 1
+	device_printf(dev, "Not a PCMCIA Ethernet card!\n");
+#endif
+	rc = ENODEV;		/* Not a PCMCIA Ethernet device */
+      } else {
+	if (media & 0x10) {	/* Ethernet/modem cards */
+#if XE_DEBUG > 1
+	  device_printf(dev, "Card is Ethernet/modem combo\n");
+#endif
+	  scp->modem = 1;
+	  switch (prod & 0x0f) {
+	  case 1:
+	    scp->card_type = "CEM"; break;
+	  case 2:
+	    scp->ce2 = 1;
+	    scp->card_type = "CEM2"; break;
+	  case 3:
+	    scp->ce2 = 1;
+	    scp->card_type = "CEM3"; break;
+	  case 4:
+	    scp->ce2 = 1;
+	    scp->card_type = "CEM33"; break;
+	  case 5:
+	    scp->mohawk = 1;
+	    scp->card_type = "CEM56M"; break;
+	  case 6:
+	  case 7:		/* Some kind of RealPort card */
+	    scp->mohawk = 1;
+	    scp->dingo = 1;
+	    scp->card_type = "CEM56"; break;
+	  default:
+	    rc = ENODEV;
+	  }
+	} else {		/* Ethernet-only cards */
+#if XE_DEBUG > 1
+	  device_printf(dev, "Card is Ethernet only\n");
+#endif
+	  switch (prod & 0x0f) {
+	  case 1:
+	    scp->card_type = "CE"; break;
+	  case 2:
+	    scp->ce2 = 1;
+	    scp->card_type = "CE2"; break;
+	  case 3:
+	    scp->mohawk = 1;
+	    scp->card_type = "CE3"; break;
+	  default:
+	    rc = ENODEV;
+	  }
+	}
+      }
+      success++;
+      break;
+
+    case 0x22:	/* Get MAC address */
+      if ((CISTPL_LEN(buf) == 8) &&
+	  (CISTPL_DATA(buf, 0) == 0x04) &&
+	  (CISTPL_DATA(buf, 1) == ETHER_ADDR_LEN)) {
+#if XE_DEBUG > 1
+	device_printf(dev, "Got MAC address (0x22)\n");
+#endif
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+          scp->arpcom.ac_enaddr[i] = CISTPL_DATA(buf, i+2);
+      }
+      success++;
+      break;
+    default:
+      break;
     }
 
+    if (CISTPL_TYPE(buf) == 0xff)
+      break;
     /* Skip to next tuple */
-    offs += ((CISTPL_LEN(buf) + 2) << 1);
+    buf += ((CISTPL_LEN(buf) + 2) << 1);
 
-  } while ((CISTPL_TYPE(buf) != 0xff) && (CISTPL_LEN(buf) != 0xff) && (rc == 0));
+  } while (1);
 
+  /* unmap the cis */
+  bus_release_resource(dev, SYS_RES_MEMORY, rid, r);
 
   /* Die now if something went wrong above */
-  if ((rc != 0) || (success < 3)) {
-    free(scp, M_DEVBUF);
-    return rc;
-  }
+  if (success < 3)
+    return ENXIO;
 
   /* Check for certain strange CE2's that look like CE's */
   if (strcmp(scp->card_type, "CE") == 0) {
     u_char *str = ver_str;
 #if XE_DEBUG > 1
-    printf("xe%d: Checking for weird CE2 string\n", unit);
+    device_printf(dev, "Checking for weird CE2 string\n");
 #endif
     str += strlen(str) + 1;			/* Skip forward to 3rd version string */
     str += strlen(str) + 1;
@@ -667,25 +486,53 @@ xe_card_init(struct pccard_devinfo *devi)
 
   /* Reject unsupported cards */
   if (strcmp(scp->card_type, "CE") == 0 || strcmp(scp->card_type, "CEM") == 0) {
-    printf("xe%d: Sorry, your %s card is not supported :(\n", unit, scp->card_type);
-    free(scp, M_DEVBUF);
+    device_printf(dev, "Sorry, your %s card is not supported :(\n",
+     scp->card_type);
     return ENODEV;
   }
 
+  /* Success */
+  return 0;
+}
+
+/*
+ * The device entry is being removed, probably because someone ejected the
+ * card.  The interface should have been brought down manually before calling
+ * this function; if not you may well lose packets.  In any case, I shut down
+ * the card and the interface, and hope for the best.
+ */
+static int
+xe_detach(device_t dev) {
+  struct xe_softc *sc = device_get_softc(dev);
+
+  sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
+  if_detach(&sc->arpcom.ac_if);
+  xe_deactivate(dev);
+  return 0;
+}
+
+/*
+ * Attach a device.
+ */
+static int
+xe_attach (device_t dev) {
+  struct xe_softc *scp = device_get_softc(dev);
+
+#ifdef XE_DEBUG
+  device_printf(dev, "attach\n");
+#endif
+
+  xe_activate(dev);
+
   /* Fill in some private data */
-  sca[unit] = scp;
-  scp->dev = &devi->isahd;
-  scp->crd = devi;
   scp->ifp = &scp->arpcom.ac_if;
   scp->ifm = &scp->ifmedia;
-  scp->unit = unit;
   scp->autoneg_status = 0;
 
   /* Hack RealPorts into submission */
   if (scp->dingo && xe_cem56fix(scp) < 0) {
-    printf( "xe%d: Unable to fix your RealPort\n", unit );
-    sca[unit] = 0;
-    free(scp, M_DEVBUF);
+    device_printf(dev, "Unable to fix your RealPort\n");
+    xe_deactivate(dev);
     return ENODEV;
   }
 
@@ -693,51 +540,12 @@ xe_card_init(struct pccard_devinfo *devi)
   XE_SELECT_PAGE(4);
   scp->version = XE_INB(XE_BOV);
 
-  /* Attempt to attach the device */
-  if (!xe_attach(scp->dev)) {
-    sca[unit] = 0;
-    free(scp, M_DEVBUF);
-    return ENXIO;
-  }
-
-#if NAPM > 0
-  /* Establish APM hooks once device attached */
-  scp->suspend_hook.ah_name = "xe_suspend";
-  scp->suspend_hook.ah_fun = xe_suspend;
-  scp->suspend_hook.ah_arg = (void *)unit;
-  scp->suspend_hook.ah_order = APM_MIN_ORDER;
-  apm_hook_establish(APM_HOOK_SUSPEND, &scp->suspend_hook);
-  scp->resume_hook.ah_name = "xe_resume";
-  scp->resume_hook.ah_fun = xe_resume;
-  scp->resume_hook.ah_arg = (void *)unit;
-  scp->resume_hook.ah_order = APM_MIN_ORDER;
-  apm_hook_establish(APM_HOOK_RESUME, &scp->resume_hook);
-#endif /* NAPM > 0 */
-
-  /* Success */
-  return 0;
-}
-
-
-/*
- * Attach a device (called when xe_card_init succeeds).  Assume that the probe
- * routine has set up the softc structure correctly and that we can trust the
- * unit number.
- */
-static int
-xe_attach (struct isa_device *dev) {
-  struct xe_softc *scp = sca[dev->id_unit];
-  int i;
-
-#ifdef XE_DEBUG
-  printf("xe%d: attach\n", scp->unit);
-#endif
-
+  scp->dev = dev;
   /* Initialise the ifnet structure */
   if (!scp->ifp->if_name) {
     scp->ifp->if_softc = scp;
     scp->ifp->if_name = "xe";
-    scp->ifp->if_unit = scp->unit;
+    scp->ifp->if_unit = device_get_unit(dev);
     scp->ifp->if_timer = 0;
     scp->ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
     scp->ifp->if_linkmib = &scp->mibdata;
@@ -773,9 +581,7 @@ xe_attach (struct isa_device *dev) {
   ifmedia_set(scp->ifm, IFM_ETHER|IFM_AUTO);
 
   /* Print some useful information */
-  printf("\n");
-  printf("xe%d: %s %s, bonding version %#x%s%s\n",
-	 scp->unit,
+  device_printf(dev, "%s %s, bonding version %#x%s%s\n",
 	 scp->vendor,
 	 scp->card_type,
 	 scp->version,
@@ -783,33 +589,26 @@ xe_attach (struct isa_device *dev) {
 	 scp->modem ?  ", with modem"      : "");
   if (scp->mohawk) {
     XE_SELECT_PAGE(0x10);
-    printf("xe%d: DingoID = %#x, RevisionID = %#x, VendorID = %#x\n",
-	   scp->unit,
+    device_printf(dev, "DingoID = %#x, RevisionID = %#x, VendorID = %#x\n",
 	   XE_INW(XE_DINGOID),
 	   XE_INW(XE_RevID),
 	   XE_INW(XE_VendorID));
   }
   if (scp->ce2) {
     XE_SELECT_PAGE(0x45);
-    printf("xe%d: CE2 version = %#x\n",
-	   scp->unit,
-	   XE_INB(XE_REV));
+    device_printf(dev, "CE2 version = %#x\n", XE_INB(XE_REV));
   }
 
   /* Print MAC address */
-  printf("xe%d: Ethernet address %02x", scp->unit, scp->arpcom.ac_enaddr[0]);
-  for (i = 1; i < ETHER_ADDR_LEN; i++) {
-    printf(":%02x", scp->arpcom.ac_enaddr[i]);
-  }
-  printf("\n");
+  device_printf(dev, "Ethernet address %6D\n", scp->arpcom.ac_enaddr, ":");
 
   /* Attach the interface */
   if_attach(scp->ifp);
   ether_ifattach(scp->ifp);
 
-  /* If BPF is in the kernel, call the attach for it */
+  /* BPF is in the kernel, call the attach for it */
 #if XE_DEBUG > 1
-  printf("xe%d: BPF listener attached\n", scp->unit);
+  device_printf(dev, "BPF listener attached\n");
 #endif
   bpfattach(scp->ifp, DLT_EN10MB, sizeof(struct ether_header));
 
@@ -829,10 +628,8 @@ xe_init(void *xscp) {
   int s;
 
 #ifdef XE_DEBUG
-  printf("xe%d: init\n", scp->unit);
+  device_printf(scp->dev, "init\n");
 #endif
-
-  if (scp->gone) return;
 
   if (TAILQ_EMPTY(&scp->ifp->if_addrhead)) return;
 
@@ -915,8 +712,6 @@ xe_start(struct ifnet *ifp) {
   struct xe_softc *scp = ifp->if_softc;
   struct mbuf *mbp;
 
-  if (scp->gone) return;
-
   /*
    * Loop while there are packets to be sent, and space to send them.
    */
@@ -944,7 +739,7 @@ xe_start(struct ifnet *ifp) {
     /* Tap off here if there is a bpf listener */
     if (ifp->if_bpf) {
 #if XE_DEBUG > 1
-      printf("xe%d: sending output packet to BPF\n", scp->unit);
+      device_printf(scp->dev, "sending output packet to BPF\n");
 #endif
       bpf_mtap(ifp, mbp);
     }
@@ -967,10 +762,6 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
 
   scp = ifp->if_softc;
   error = 0;
-
-  if (scp->gone) {
-    return ENXIO;
-  }
 
   s = splimp();
 
@@ -1029,9 +820,7 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
 
 
 /*
- * Card interrupt handler: should return true if the interrupt was for us, in
- * case we are sharing our IRQ line with other devices (this will probably be
- * the case for multifunction cards).
+ * Card interrupt handler.
  *
  * This function is probably more complicated than it needs to be, as it
  * attempts to deal with the case where multiple packets get sent between
@@ -1048,22 +837,18 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
  * get your work done, don't buy a Xircom card.  Or convince them to tell me
  * how to do memory-mapped I/O :)
  */
-static int
-xe_card_intr(struct pccard_devinfo *devi) {
-  struct xe_softc *scp;
+static void
+xe_intr(void *xscp) 
+{
+  struct xe_softc *scp = (struct xe_softc *) xscp;
   struct ifnet *ifp;
-  int unit, result;
+  int result;
   u_int16_t rx_bytes, rxs, txs;
   u_int8_t psr, isr, esr, rsr;
 
-  unit = devi->isahd.id_unit;
-  scp = sca[unit];
   ifp = &scp->arpcom.ac_if;
   rx_bytes = 0;			/* Bytes received on this interrupt */
   result = 0;			/* Set true if the interrupt is for us */
-
-  if (scp->gone)
-    return 0;
 
   if (scp->mohawk) {
     XE_OUTB(XE_CR, 0);		/* Disable interrupts */
@@ -1256,10 +1041,12 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	      }
 	    }
 	    else
-	      insw(scp->dev->id_iobase+XE_EDP, ehp, len >> 1);
+	      bus_space_read_multi_2(scp->bst, scp->bsh, XE_EDP, 
+	       (u_int16_t *) ehp, len >> 1);
 	  }
 	  else
-	    insw(scp->dev->id_iobase+XE_EDP, ehp, len >> 1);
+	    bus_space_read_multi_2(scp->bst, scp->bsh, XE_EDP, 
+	     (u_int16_t *) ehp, len >> 1);
 
 	  /*
 	   * Check if there's a BPF listener on this interface. If so, hand
@@ -1267,7 +1054,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	   */
 	  if (ifp->if_bpf) {
 #if XE_DEBUG > 1
-	    printf("xe%d: passing input packet to BPF\n", scp->unit);
+	    device_printf(scp->dev, "passing input packet to BPF\n");
 #endif
 	    bpf_mtap(ifp, mbp);
 
@@ -1319,7 +1106,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
   /* Could force an int here, instead of dropping packets? */
   /* XE_OUTB(XE_CR, XE_CR_ENABLE_INTR|XE_CE_FORCE_INTR); */
 
-  return result;
+  return;
 }
 
 
@@ -1333,9 +1120,7 @@ static void
 xe_watchdog(struct ifnet *ifp) {
   struct xe_softc *scp = ifp->if_softc;
 
-  if (scp->gone) return;
-
-  printf("xe%d: watchdog timeout; resetting card\n", scp->unit);
+  device_printf(scp->dev, "watchdog timeout; resetting card\n");
   scp->tx_timeouts++;
   ifp->if_oerrors += scp->tx_queued;
   xe_stop(scp);
@@ -1396,7 +1181,7 @@ static void xe_setmedia(void *xscp) {
   u_int16_t bmcr, bmsr, anar, lpar;
 
 #ifdef XE_DEBUG
-  printf("xe%d: setmedia\n", scp->unit);
+  device_printf(scp->dev, "setmedia\n");
 #endif
 
   /* Cancel any pending timeout */
@@ -1443,7 +1228,7 @@ static void xe_setmedia(void *xscp) {
 
      case XE_AUTONEG_NONE:
 #if XE_DEBUG > 1
-      printf("xe%d: Waiting for idle transmitter\n", scp->unit);
+      device_printf(scp->dev, "Waiting for idle transmitter\n");
 #endif
       scp->arpcom.ac_if.if_flags |= IFF_OACTIVE;
       scp->autoneg_status = XE_AUTONEG_WAITING;
@@ -1454,7 +1239,7 @@ static void xe_setmedia(void *xscp) {
       xe_soft_reset(scp);
       if (scp->phy_ok) {
 #if XE_DEBUG > 1
-	printf("xe%d: Starting autonegotiation\n", scp->unit);
+	device_printf(scp->dev, "Starting autonegotiation\n");
 #endif
 	bmcr = xe_phy_readreg(scp, PHY_BMCR);
 	bmcr &= ~(PHY_BMCR_AUTONEGENBL);
@@ -1479,7 +1264,7 @@ static void xe_setmedia(void *xscp) {
       lpar = xe_phy_readreg(scp, PHY_LPAR);
       if (bmsr & (PHY_BMSR_AUTONEGCOMP|PHY_BMSR_LINKSTAT)) {
 #if XE_DEBUG > 1
-	printf("xe%d: Autonegotiation complete!\n", scp->unit);
+	device_printf(scp->dev, "Autonegotiation complete!\n");
 #endif
 	/*
 	 * XXX - Shouldn't have to do this, but (on my hub at least) the
@@ -1518,7 +1303,7 @@ static void xe_setmedia(void *xscp) {
       }
       else {
 #if XE_DEBUG > 1
-	printf("xe%d: Autonegotiation failed; trying 100baseTX\n", scp->unit);
+	device_printf(scp->dev, "Autonegotiation failed; trying 100baseTX\n");
 #endif
 	XE_MII_DUMP(scp);
 	xe_soft_reset(scp);
@@ -1539,7 +1324,7 @@ static void xe_setmedia(void *xscp) {
       bmsr = xe_phy_readreg(scp, PHY_BMSR);
       if (bmsr & PHY_BMSR_LINKSTAT) {
 #if XE_DEBUG > 1
-	printf("xe%d: Got 100baseTX link!\n", scp->unit);
+	device_printf(scp->dev, "Got 100baseTX link!\n");
 #endif
 	XE_MII_DUMP(scp);
 	XE_SELECT_PAGE(2);
@@ -1549,7 +1334,7 @@ static void xe_setmedia(void *xscp) {
       }
       else {
 #if XE_DEBUG > 1
-	printf("xe%d: Autonegotiation failed; disabling PHY\n", scp->unit);
+	device_printf(scp->dev, "Autonegotiation failed; disabling PHY\n");
 #endif
 	XE_MII_DUMP(scp);
 	xe_phy_writereg(scp, PHY_BMCR, 0x0000);
@@ -1569,7 +1354,7 @@ static void xe_setmedia(void *xscp) {
      */
     if (scp->autoneg_status == XE_AUTONEG_FAIL) {
 #if XE_DEBUG > 1
-      printf("xe%d: Selecting 10baseX\n", scp->unit);
+      device_printf(scp->dev, "Selecting 10baseX\n");
 #endif
       if (scp->mohawk) {
 	XE_SELECT_PAGE(0x42);
@@ -1599,7 +1384,7 @@ static void xe_setmedia(void *xscp) {
     xe_soft_reset(scp);
     if (scp->phy_ok) {
 #if XE_DEBUG > 1
-      printf("xe%d: Selecting 100baseTX\n", scp->unit);
+      device_printf(scp->dev, "Selecting 100baseTX\n");
 #endif
       XE_SELECT_PAGE(0x42);
       XE_OUTB(XE_SWC1, 0);
@@ -1614,7 +1399,7 @@ static void xe_setmedia(void *xscp) {
    case IFM_10_T:	/* Force 10baseT */
     xe_soft_reset(scp);
 #if XE_DEBUG > 1
-    printf("xe%d: Selecting 10baseT\n", scp->unit);
+    device_printf(csp->dev, "Selecting 10baseT\n");
 #endif
     if (scp->phy_ok) {
       xe_phy_writereg(scp, PHY_BMCR, 0x0000);
@@ -1629,7 +1414,7 @@ static void xe_setmedia(void *xscp) {
    case IFM_10_2:
     xe_soft_reset(scp);
 #if XE_DEBUG > 1
-    printf("xe%d: Selecting 10base2\n", scp->unit);
+    device_printf(scp->dev, "Selecting 10base2\n");
 #endif
     XE_SELECT_PAGE(0x42);
     XE_OUTB(XE_SWC1, 0xc0);
@@ -1643,7 +1428,7 @@ static void xe_setmedia(void *xscp) {
    * transmitter is unblocked. 
    */
 #if XE_DEBUG > 1
-  printf("xe%d: Setting LEDs\n", scp->unit);
+  device_printf(scp->dev, "Setting LEDs\n");
 #endif
   XE_SELECT_PAGE(2);
   switch (IFM_SUBTYPE(scp->media)) {
@@ -1673,10 +1458,8 @@ xe_hard_reset(struct xe_softc *scp) {
   int s;
 
 #ifdef XE_DEBUG
-  printf("xe%d: hard_reset\n", scp->unit);
+  device_printf(scp->dev, "hard_reset\n");
 #endif
-
-  if (scp->gone) return;
 
   s = splimp();
 
@@ -1710,10 +1493,8 @@ xe_soft_reset(struct xe_softc *scp) {
   int s;
 
 #ifdef XE_DEBUG
-  printf("xe%d: soft_reset\n", scp->unit);
+  device_printf(scp->dev, "soft_reset\n");
 #endif
-
-  if (scp->gone) return;
 
   s = splimp();
 
@@ -1750,7 +1531,7 @@ xe_soft_reset(struct xe_softc *scp) {
   else
     scp->srev = (XE_INB(XE_BOV) & 0x30) >> 4;
 #ifdef XE_DEBUG
-  printf("xe%d: silicon revision = %d\n", scp->unit, scp->srev);
+  device_printf(scp->dev, "silicon revision = %d\n", scp->srev);
 #endif
   
   /*
@@ -1781,10 +1562,8 @@ xe_stop(struct xe_softc *scp) {
   int s;
 
 #ifdef XE_DEBUG
-  printf("xe%d: stop\n", scp->unit);
+  device_printf(scp->dev, "stop\n");
 #endif
-
-  if (scp->gone) return;
 
   s = splimp();
 
@@ -1817,7 +1596,7 @@ xe_stop(struct xe_softc *scp) {
 static void
 xe_enable_intr(struct xe_softc *scp) {
 #ifdef XE_DEBUG
-  printf("xe%d: enable_intr\n", scp->unit);
+  device_printf(scp->dev, "enable_intr\n");
 #endif
 
   XE_SELECT_PAGE(1);
@@ -1841,7 +1620,7 @@ xe_enable_intr(struct xe_softc *scp) {
 static void
 xe_disable_intr(struct xe_softc *scp) {
 #ifdef XE_DEBUG
-  printf("xe%d: disable_intr\n", scp->unit);
+  device_printf(scp->dev, "disable_intr\n");
 #endif
 
   XE_SELECT_PAGE(0);
@@ -1942,7 +1721,7 @@ xe_setaddrs(struct xe_softc *scp) {
       if (i)
 	printf(":%x", addr[i]);
       else
-	printf("xe%d: individual addresses %d: %x", scp->unit, slot, addr[0]);
+	device_printf(scp->dev, "individual addresses %d: %x", slot, addr[0]);
 #endif
 
       if (byte > 15) {
@@ -2013,7 +1792,8 @@ xe_pio_write_packet(struct xe_softc *scp, struct mbuf *mbp) {
 	wantbyte = 0;
       }
       if (len > 1) {		/* Output contiguous words */
-	outsw(scp->dev->id_iobase+XE_EDP, data, len >> 1);
+	bus_space_write_multi_2(scp->bst, scp->bsh, XE_EDP, (u_int16_t *) data,
+	 len >> 1);
 	data += len & ~1;
 	len &= 1;
       }
@@ -2042,36 +1822,6 @@ xe_pio_write_packet(struct xe_softc *scp, struct mbuf *mbp) {
 
   return 0;
 }
-
-
-/*
- * The device entry is being removed, probably because someone ejected the
- * card.  The interface should have been brought down manually before calling
- * this function; if not you may well lose packets.  In any case, I shut down
- * the card and the interface, and hope for the best.  The 'gone' flag is set, 
- * so hopefully no-one else will try to access the missing card.
- */
-static void
-xe_card_unload(struct pccard_devinfo *devi) {
-  struct xe_softc *scp;
-  struct ifnet *ifp;
-  int unit;
-
-  unit = devi->isahd.id_unit;
-  scp = sca[unit];
-  ifp = &scp->arpcom.ac_if;
-
-  if (scp->gone) {
-    printf("xe%d: already unloaded\n", unit);
-    return;
-  }
-
-  if_down(ifp);
-  ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
-  xe_stop(scp);
-  scp->gone = 1;
-}
-
 
 /*
  * Compute the 32-bit Ethernet CRC for the given buffer.
@@ -2174,13 +1924,13 @@ xe_mii_init(struct xe_softc *scp) {
   status = xe_phy_readreg(scp, PHY_BMSR);
   if ((status & 0xff00) != 0x7800) {
 #if XE_DEBUG > 1
-    printf("xe%d: no PHY found, %0x\n", scp->unit, status);
+    device_printf(scp->dev, "no PHY found, %0x\n", status);
 #endif
     return 0;
   }
   else {
 #if XE_DEBUG > 1
-    printf("xe%d: PHY OK!\n", scp->unit);
+    device_printf(scp->dev, "PHY OK!\n");
 #endif
 
     /* Reset the PHY */
@@ -2403,7 +2153,7 @@ xe_mii_dump(struct xe_softc *scp) {
 
   s = splimp();
 
-  printf("xe%d: MII registers: ", scp->unit);
+  device_printf(scp->dev, "MII registers: ");
   for (i = 0; i < 2; i++) {
     printf(" %d:%04x", i, xe_phy_readreg(scp, i));
   }
@@ -2421,14 +2171,14 @@ xe_reg_dump(struct xe_softc *scp) {
 
   s = splimp();
 
-  printf("xe%d: Common registers: ", scp->unit);
+  device_printf(scp->dev, "Common registers: ");
   for (i = 0; i < 8; i++) {
     printf(" %2.2x", XE_INB(i));
   }
   printf("\n");
 
   for (page = 0; page <= 8; page++) {
-    printf("xe%d: Register page %2.2x: ", scp->unit, page);
+    device_printf(scp->dev, "Register page %2.2x: ", page);
     XE_SELECT_PAGE(page);
     for (i = 8; i < 16; i++) {
       printf(" %2.2x", XE_INB(i));
@@ -2442,7 +2192,7 @@ xe_reg_dump(struct xe_softc *scp) {
 	(page >= 0x43 && page <= 0x4f) ||
 	(page >= 0x59))
       continue;
-    printf("xe%d: Register page %2.2x: ", scp->unit, page);
+    device_printf(scp->dev, "Register page %2.2x: ", page);
     XE_SELECT_PAGE(page);
     for (i = 8; i < 16; i++) {
       printf(" %2.2x", XE_INB(i));
@@ -2454,47 +2204,77 @@ xe_reg_dump(struct xe_softc *scp) {
 }
 #endif
 
+int
+xe_activate(device_t dev)
+{
+	struct xe_softc *sc = device_get_softc(dev);
+	int err;
 
+	sc->port_rid = 0;
+	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
+	    0, ~0, 16, RF_ACTIVE);
+	if (!sc->port_res) {
+#if XE_DEBUG > 0
+		device_printf(dev, "Cannot allocate ioport\n");
+#endif		
+		return ENOMEM;
+	}
 
-#if NAPM > 0
-/**************************************************************
- *                                                            *
- *                  A P M  F U N C T I O N S                  *
- *                                                            *
- **************************************************************/
-
-/*
- * This is called when we go into suspend/standby mode
- */
-static int
-xe_suspend(void *xunit) {
-
-#ifdef XE_DEBUG
-  struct xe_softc *scp = sca[(int)xunit];
-
-  printf("xe%d: APM suspend\n", scp->unit);
+	sc->irq_rid = 0;
+	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid, 
+	    0, ~0, 1, RF_ACTIVE);
+	if (!sc->irq_res) {
+#if XE_DEBUG > 0
+		device_printf(dev, "Cannot allocate irq\n");
 #endif
-
-  return 0;
+		xe_deactivate(dev);
+		return ENOMEM;
+	}
+	if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, xe_intr, sc,
+	    &sc->intrhand)) != 0) {
+		xe_deactivate(dev);
+		return err;
+	}
+	
+	sc->bst = rman_get_bustag(sc->port_res);
+	sc->bsh = rman_get_bushandle(sc->port_res);
+	return (0);
 }
 
-/*
- * This is called when we wake up again
- */
-static int
-xe_resume(void *xunit) {
-
-#ifdef XE_DEBUG
-  struct xe_softc *scp = sca[(int)xunit];
-
-  printf("xe%d: APM resume\n", scp->unit);
-#endif
-
-  return 0;
+void
+xe_deactivate(device_t dev)
+{
+	struct xe_softc *sc = device_get_softc(dev);
+	
+	if (sc->intrhand)
+		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
+	sc->intrhand = 0;
+	if (sc->port_res)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->port_rid, 
+		    sc->port_res);
+	sc->port_res = 0;
+	if (sc->irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, 
+		    sc->irq_res);
+	sc->irq_res = 0;
+	return;
 }
 
-#endif /* NAPM > 0 */
+static device_method_t xe_pccard_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		xe_probe),
+	DEVMETHOD(device_attach,	xe_attach),
+	DEVMETHOD(device_detach,	xe_detach),
 
-#endif /* NCARD > 0 */
+	{ 0, 0 }
+};
 
-#endif /* NXE > 0 */
+static driver_t xe_pccard_driver = {
+	"xe",
+	xe_pccard_methods,
+	sizeof(struct xe_softc),
+};
+
+devclass_t xe_devclass;
+
+DRIVER_MODULE(xe, pccard, xe_pccard_driver, xe_devclass, 0, 0);

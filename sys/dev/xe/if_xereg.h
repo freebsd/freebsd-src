@@ -26,6 +26,8 @@
  *	$Id: if_xereg.h,v 1.5 1999/05/20 21:53:58 scott Exp $
  * $FreeBSD$
  */
+#ifndef DEV_XE_IF_XEREG_H
+#define DEV_XE_IF_XEREG_H
 
 /*
  * Register definitions for Xircom PCMCIA Ethernet controllers, based on
@@ -65,11 +67,6 @@
  *    that aren't documented in the Xircom spec.  Available for download from
  *    http://www.d.shuttle.de/isil/xircom/xirc2ps.html
  */
-
-#include "xe.h"
-#if NXE > 0
-
-
 
 /*******************
  * PCMCIA registers
@@ -693,5 +690,4 @@
 #define PHY_ANER_PAGERX		0x0002	/* Page received */
 #define PHY_ANER_LPAUTONEG	0x0001	/* Link partner can auto-negotiate */
 
-
-#endif /* NXE > 0 */
+#endif /* DEV_XE_IF_XEREG_H */
