@@ -53,7 +53,7 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_access.c,v 1.9 1996/06/05 02:01:29 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_access.c,v 1.11 1996/10/24 18:58:22 wpaul Exp $";
 #endif
 
 extern int debug;
@@ -255,6 +255,7 @@ int yp_access(map, rqstp)
 possible spoof attempt from %s:%d",
 				map, inet_ntoa(rqhost->sin_addr),
 				ntohs(rqhost->sin_port));
+			return(1);
 		}
 #ifdef DB_CACHE
 		if ((yp_testflag((char *)map, (char *)domain, YP_SECURE) ||
