@@ -279,6 +279,7 @@ encap6_input(mp, offp, proto)
 }
 #endif
 
+/*lint -sem(encap_add, custodial(1)) */
 static void
 encap_add(ep)
 	struct encaptab *ep;
@@ -302,21 +303,17 @@ encap_attach(af, proto, sp, sm, dp, dm, psw, arg)
 	void *arg;
 {
 	struct encaptab *ep;
-	int error;
 	int s;
 
 	s = splnet();
 	/* sanity check on args */
 	if (sp->sa_len > sizeof(ep->src) || dp->sa_len > sizeof(ep->dst)) {
-		error = EINVAL;
 		goto fail;
 	}
 	if (sp->sa_len != dp->sa_len) {
-		error = EINVAL;
 		goto fail;
 	}
 	if (af != sp->sa_family || af != dp->sa_family) {
-		error = EINVAL;
 		goto fail;
 	}
 
@@ -335,13 +332,11 @@ encap_attach(af, proto, sp, sm, dp, dm, psw, arg)
 		    bcmp(&ep->dstmask, dm, dp->sa_len) != 0)
 			continue;
 
-		error = EEXIST;
 		goto fail;
 	}
 
 	ep = malloc(sizeof(*ep), M_NETADDR, M_NOWAIT);	/*XXX*/
 	if (ep == NULL) {
-		error = ENOBUFS;
 		goto fail;
 	}
 	bzero(ep, sizeof(*ep));
@@ -357,7 +352,6 @@ encap_attach(af, proto, sp, sm, dp, dm, psw, arg)
 
 	encap_add(ep);
 
-	error = 0;
 	splx(s);
 	return ep;
 
@@ -375,21 +369,16 @@ encap_attach_func(af, proto, func, psw, arg)
 	void *arg;
 {
 	struct encaptab *ep;
-	int error;
 	int s;
 
 	s = splnet();
 	/* sanity check on args */
-	if (!func) {
-		error = EINVAL;
+	if (!func)
 		goto fail;
-	}
 
 	ep = malloc(sizeof(*ep), M_NETADDR, M_NOWAIT);	/*XXX*/
-	if (ep == NULL) {
-		error = ENOBUFS;
+	if (ep == NULL)
 		goto fail;
-	}
 	bzero(ep, sizeof(*ep));
 
 	ep->af = af;
@@ -400,7 +389,6 @@ encap_attach_func(af, proto, func, psw, arg)
 
 	encap_add(ep);
 
-	error = 0;
 	splx(s);
 	return ep;
 
