@@ -93,6 +93,7 @@ acpi_restorecpu:			\n\
 	movl	r_esi,%esi		\n\
 	movl	r_edi,%edi		\n\
 	movl	r_esp,%esp		\n\
+	popl	%eax			\n\
 					\n\
 	pushl	r_efl			\n\
 	popfl				\n\
