@@ -87,6 +87,8 @@ static struct mbuf *arc_defrag __P((struct ifnet *, struct mbuf *));
 static int arc_resolvemulti __P((struct ifnet *, struct sockaddr **,
 				 struct sockaddr *));
 
+#define ARC_LLADDR(ifp)	(*(u_int8_t *)IF_LLADDR(ifp))
+
 #define senderr(e) { error = (e); goto bad;}
 #define SIN(s)	((struct sockaddr_in *)s)
 #define SIPX(s)	((struct sockaddr_ipx *)s)
@@ -109,6 +111,7 @@ arc_output(ifp, m, dst, rt0)
 	int			error;
 	u_int8_t		atype, adst;
 	int			loop_copy = 0;
+	int			isphds;
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		return(ENETDOWN); /* m, m1 aren't initialized yet */
@@ -207,13 +210,19 @@ arc_output(ifp, m, dst, rt0)
 		senderr(EAFNOSUPPORT);
 	}
 
-	M_PREPEND(m, ARC_HDRLEN, M_DONTWAIT);
+	isphds = arc_isphds(atype);
+	M_PREPEND(m, isphds ? ARC_HDRNEWLEN : ARC_HDRLEN, M_DONTWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
 	ah = mtod(m, struct arc_header *);
 	ah->arc_type = atype;
 	ah->arc_dhost = adst;
 	ah->arc_shost = *IF_LLADDR(ifp);
+	ah->arc_shost = ARC_LLADDR(ifp);
+	if (isphds) {
+		ah->arc_flag = 0;
+		ah->arc_seqid = 0;
+	}
 
 	if ((ifp->if_flags & IFF_SIMPLEX) && (loop_copy != -1)) {
 		if ((m->m_flags & M_BCAST) || (loop_copy > 0)) {
@@ -282,7 +291,7 @@ arc_frag_next(ifp)
 		ac->arc_shost = ah->arc_shost;
 		ac->arc_type = ah->arc_type;
 
-		m_adj(m, ARC_HDRLEN);
+		m_adj(m, ARC_HDRNEWLEN);
 		ac->curr_frag = m;
 	}
 
@@ -536,9 +545,9 @@ arc_input(ifp, m)
 
 	ah = mtod(m, struct arc_header *);
 	/* does this belong to us? */
-	if ((ifp->if_flags & IFF_PROMISC) != 0
+	if ((ifp->if_flags & IFF_PROMISC) == 0
 	    && ah->arc_dhost != arcbroadcastaddr
-	    && ah->arc_dhost != *IF_LLADDR(ifp)) {
+	    && ah->arc_dhost != ARC_LLADDR(ifp)) {
 		m_freem(m);
 		return;
 	}
@@ -627,7 +636,7 @@ arc_storelladdr(ifp, lla)
 	struct ifnet *ifp;
 	u_int8_t lla;
 {
-	*IF_LLADDR(ifp) = lla;
+	ARC_LLADDR(ifp) = lla;
 }
 
 /*
@@ -712,7 +721,7 @@ arc_ioctl(ifp, command, data)
 			struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
 
 			if (ipx_nullhost(*ina))
-				ina->x_host.c_host[5] = *IF_LLADDR(ifp);
+				ina->x_host.c_host[5] = ARC_LLADDR(ifp);
 			else
 				arc_storelladdr(ifp, ina->x_host.c_host[5]);
 
@@ -734,8 +743,7 @@ arc_ioctl(ifp, command, data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *) &ifr->ifr_data;
-			bcopy(IF_LLADDR(ifp),
-			    (caddr_t) sa->sa_data, ARC_ADDR_LEN);
+			*(u_int8_t *)sa->sa_data = ARC_LLADDR(ifp);
 		}
 		break;
 
