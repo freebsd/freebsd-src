@@ -1349,6 +1349,7 @@ pci/xrpu.c		optional xrpu
 posix4/ksched.c	optional _kposix_priority_scheduling
 posix4/p1003_1b.c	standard
 posix4/posix4_mib.c	standard
+security/mac_none/mac_none.c	optional mac_none
 ufs/ffs/ffs_alloc.c	optional ffs
 ufs/ffs/ffs_balloc.c	optional ffs
 ufs/ffs/ffs_inode.c	optional ffs
