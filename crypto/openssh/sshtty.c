@@ -35,9 +35,9 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshtty.c,v 1.5 2003/09/19 17:43:35 markus Exp $");
+RCSID("$OpenBSD: sshtty.c,v 1.6 2004/05/08 00:01:37 deraadt Exp $");
 
-#include "sshtty.h"
+#include "sshpty.h"
 #include "log.h"
 
 static struct termios _saved_tio;

@@ -15,10 +15,11 @@ Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos, Theo de Raadt,
 and Dug Song. It has a homepage at http://www.openssh.com/
 
 This port consists of the re-introduction of autoconf support, PAM
-support (for Linux and Solaris), EGD[1]/PRNGD[2] support and replacements
-for OpenBSD library functions that are (regrettably) absent from other
-unices. This port has been best tested on Linux, Solaris, HP-UX, NetBSD,
-Irix and AIX. Support for SCO, NeXT and other Unices is underway.
+support, EGD[1]/PRNGD[2] support and replacements for OpenBSD library
+functions that are (regrettably) absent from other unices. This port
+has been best tested on AIX, Cygwin, HP-UX, Linux, MacOS/X,
+NetBSD, OpenBSD, OpenServer, Solaris, Unicos, and UnixWare.
+
 This version actively tracks changes in the OpenBSD CVS repository.
 
 The PAM support is now more functional than the popular packages of
@@ -32,13 +33,8 @@ refer to http://www.openssh.com/list.html for details on how to join.
 
 Please send bug reports and patches to the mailing list
 openssh-unix-dev@mindrot.org. The list is open to posting by
-unsubscribed users.
-
-If you are a citizen of an USA-embargoed country to which export of
-cryptographic products is restricted, then please refrain from sending
-crypto-related code or patches to the list. We cannot accept them.
-Other code contribution are accepted, but please follow the OpenBSD
-style guidelines[6].
+unsubscribed users.Code contribution are welcomed, but please follow the 
+OpenBSD style guidelines[6].
 
 Please refer to the INSTALL document for information on how to install
 OpenSSH on your system. There are a number of differences between this
@@ -65,4 +61,4 @@ References -
 [6] http://www.openbsd.org/cgi-bin/man.cgi?query=style&sektion=9
 [7] http://www.openssh.com/faq.html
 
-$Id: README,v 1.54 2004/04/18 10:32:56 djm Exp $
+$Id: README,v 1.56 2004/08/14 00:26:30 djm Exp $

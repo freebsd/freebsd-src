@@ -1,8 +1,13 @@
-#	$OpenBSD: test-exec.sh,v 1.15 2004/02/24 16:56:30 markus Exp $
+#	$OpenBSD: test-exec.sh,v 1.23 2004/06/25 01:25:12 djm Exp $
 #	Placed in the Public Domain.
 
-PORT=4242
 #SUDO=sudo
+
+if [ ! -z "$TEST_SSH_PORT" ]; then
+	PORT="$TEST_SSH_PORT"
+else
+	PORT=4242
+fi
 
 if [ -x /usr/ucb/whoami ]; then
 	USER=`/usr/ucb/whoami`
@@ -47,6 +52,7 @@ SSHKEYGEN=ssh-keygen
 SSHKEYSCAN=ssh-keyscan
 SFTP=sftp
 SFTPSERVER=/usr/libexec/openssh/sftp-server
+SCP=scp
 
 if [ "x$TEST_SSH_SSH" != "x" ]; then
 	SSH="${TEST_SSH_SSH}"
@@ -72,10 +78,16 @@ fi
 if [ "x$TEST_SSH_SFTPSERVER" != "x" ]; then
 	SFTPSERVER="${TEST_SSH_SFTPSERVER}"
 fi
+if [ "x$TEST_SSH_SCP" != "x" ]; then
+	SCP="${TEST_SSH_SCP}"
+fi
+
+# Path to sshd must be absolute for rexec
+SSHD=`which sshd`
 
 # these should be used in tests
-export SSH SSHD SSHAGENT SSHADD SSHKEYGEN SSHKEYSCAN SFTP SFTPSERVER
-#echo $SSH $SSHD $SSHAGENT $SSHADD $SSHKEYGEN $SSHKEYSCAN $SFTP $SFTPSERVER
+export SSH SSHD SSHAGENT SSHADD SSHKEYGEN SSHKEYSCAN SFTP SFTPSERVER SCP
+#echo $SSH $SSHD $SSHAGENT $SSHADD $SSHKEYGEN $SSHKEYSCAN $SFTP $SFTPSERVER $SCP
 
 # helper
 echon()
@@ -156,14 +168,22 @@ trap fatal 3 2
 
 # create server config
 cat << EOF > $OBJ/sshd_config
+	StrictModes		no
 	Port			$PORT
 	ListenAddress		127.0.0.1
 	#ListenAddress		::1
 	PidFile			$PIDFILE
 	AuthorizedKeysFile	$OBJ/authorized_keys_%u
 	LogLevel		QUIET
-	StrictModes		no
+	AcceptEnv		_XXX_TEST_*
+	AcceptEnv		_XXX_TEST
+	Subsystem	sftp	$SFTPSERVER
 EOF
+
+if [ ! -z "$TEST_SSH_SSHD_CONFOPTS" ]; then
+	trace "adding sshd_config option $TEST_SSH_SSHD_CONFOPTS"
+	echo "$TEST_SSH_SSHD_CONFOPTS" >> $OBJ/sshd_config
+fi
 
 # server config for proxy connects
 cp $OBJ/sshd_config $OBJ/sshd_proxy
@@ -189,6 +209,11 @@ Host *
 	BatchMode		yes
 	StrictHostKeyChecking	yes
 EOF
+
+if [ ! -z "$TEST_SSH_SSH_CONFOPTS" ]; then
+	trace "adding ssh_config option $TEST_SSH_SSHD_CONFOPTS"
+	echo "$TEST_SSH_SSH_CONFOPTS" >> $OBJ/ssh_config
+fi
 
 rm -f $OBJ/known_hosts $OBJ/authorized_keys_$USER
 

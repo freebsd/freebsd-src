@@ -101,7 +101,7 @@ aix_remove_embedded_newlines(char *p)
 int
 sys_auth_passwd(Authctxt *ctxt, const char *password)
 {
-	char *authmsg = NULL, *host, *msg, *name = ctxt->pw->pw_name;
+	char *authmsg = NULL, *msg, *name = ctxt->pw->pw_name;
 	int authsuccess = 0, expired, reenter, result;
 
 	do {
@@ -115,30 +115,21 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
 	if (result == 0) {
 		authsuccess = 1;
 
-		host = (char *)get_canonical_hostname(options.use_dns);
-
 	       	/*
 		 * Record successful login.  We don't have a pty yet, so just
 		 * label the line as "ssh"
 		 */
 		aix_setauthdb(name);
-	       	if (loginsuccess((char *)name, (char *)host, "ssh", &msg) == 0) {
-			if (msg != NULL) {
-				debug("%s: msg %s", __func__, msg);
-				buffer_append(&loginmsg, msg, strlen(msg));
-				xfree(msg);
-			}
-		}
 
 		/*
 		 * Check if the user's password is expired.
 		 */
-                expired = passwdexpired(name, &msg);
-                if (msg && *msg) {
-                        buffer_append(&loginmsg, msg, strlen(msg));
-                        aix_remove_embedded_newlines(msg);
-                }
-                debug3("AIX/passwdexpired returned %d msg %.100s", expired, msg);
+		expired = passwdexpired(name, &msg);
+		if (msg && *msg) {
+			buffer_append(&loginmsg, msg, strlen(msg));
+			aix_remove_embedded_newlines(msg);
+		}
+		debug3("AIX/passwdexpired returned %d msg %.100s", expired, msg);
 
 		switch (expired) {
 		case 0: /* password not expired */
@@ -163,7 +154,70 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
 
 	return authsuccess;
 }
-  
+
+/*
+ * Check if specified account is permitted to log in.
+ * Returns 1 if login is allowed, 0 if not allowed.
+ */
+int
+sys_auth_allowed_user(struct passwd *pw)
+{
+	char *msg = NULL;
+	int result, permitted = 0;
+	struct stat st;
+
+	/*
+	 * Don't perform checks for root account (PermitRootLogin controls
+	 * logins via * ssh) or if running as non-root user (since
+	 * loginrestrictions will always fail due to insufficient privilege).
+	 */
+	if (pw->pw_uid == 0 || geteuid() != 0) {
+		debug3("%s: not checking", __func__);
+		return 1;
+	}
+
+	result = loginrestrictions(pw->pw_name, S_RLOGIN, NULL, &msg);
+	if (result == 0)
+		permitted = 1;
+	/*
+	 * If restricted because /etc/nologin exists, the login will be denied
+	 * in session.c after the nologin message is sent, so allow for now
+	 * and do not append the returned message.
+	 */
+	if (result == -1 && errno == EPERM && stat(_PATH_NOLOGIN, &st) == 0)
+		permitted = 1;
+	else if (msg != NULL)
+		buffer_append(&loginmsg, msg, strlen(msg));
+	if (msg == NULL)
+		msg = xstrdup("(none)");
+	aix_remove_embedded_newlines(msg);
+	debug3("AIX/loginrestrictions returned %d msg %.100s", result, msg);
+
+	if (!permitted)
+		logit("Login restricted for %s: %.100s", pw->pw_name, msg);
+	xfree(msg);
+	return permitted;
+}
+
+int
+sys_auth_record_login(const char *user, const char *host, const char *ttynm)
+{
+	char *msg;
+	int success = 0;
+
+	aix_setauthdb(user);
+	if (loginsuccess((char *)user, host, ttynm, &msg) == 0) {
+		success = 1;
+		if (msg != NULL) {
+			debug("AIX/loginsuccess: msg %s", __func__, msg);
+			buffer_append(&loginmsg, msg, strlen(msg));
+			xfree(msg);
+		}
+	}
+	aix_restoreauthdb();
+	return (success);
+}
+
 #  ifdef CUSTOM_FAILED_LOGIN
 /*
  * record_failed_login: generic "login failed" interface function

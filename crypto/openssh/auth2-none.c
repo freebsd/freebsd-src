@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth2-none.c,v 1.6 2003/08/26 09:58:43 markus Exp $");
+RCSID("$OpenBSD: auth2-none.c,v 1.7 2004/05/11 19:01:43 deraadt Exp $");
 
 #include "auth.h"
 #include "xmalloc.h"
@@ -46,7 +46,7 @@ auth2_read_banner(void)
 {
 	struct stat st;
 	char *banner = NULL;
-	off_t len, n;
+	size_t len, n;
 	int fd;
 
 	if ((fd = open(options.banner, O_RDONLY)) == -1)
@@ -55,7 +55,12 @@ auth2_read_banner(void)
 		close(fd);
 		return (NULL);
 	}
-	len = st.st_size;
+	if (st.st_size > 1*1024*1024) {
+		close(fd);
+		return (NULL);
+	}
+
+	len = (size_t)st.st_size;		/* truncate */
 	banner = xmalloc(len + 1);
 	n = atomicio(read, fd, banner, len);
 	close(fd);
