@@ -144,7 +144,6 @@ int vm_pageout_pages_needed=0;	/* flag saying that the pageout daemon needs page
 static int vm_pageout_req_swapout;	/* XXX */
 static int vm_daemon_needed;
 #endif
-extern int vm_swap_size;
 static int vm_max_launder = 32;
 static int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
 static int vm_pageout_full_stats_interval = 0;
