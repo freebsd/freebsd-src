@@ -117,25 +117,37 @@
 
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
-#ifdef linux
-#include <sys/sysmacros.h>
-#endif
 
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
 
-struct	device cur;
-struct	device *curp = 0;
+static struct	device cur;
+static struct	device *curp = 0;
+
+struct  device *dtab;
+char	*ident;
+int	yyline;
+struct  file_list *ftab, *conf_list, **confp, *comp_list, **compp;
+char	errbuf[80];
+int	maxusers;
+int	do_trace;
+
+#if MACHINE_I386        
+int	seen_isa;
+int	seen_scbus;
+#endif
 
 #define ns(s)	strdup(s)
 
-int alreadychecked __P((dev_t, dev_t[], dev_t *));
-void deverror __P((char *, char *));
-int finddev __P((dev_t));
-void init_dev __P((struct device *));
-void verifycomp __P((struct file_list *));
+static int alreadychecked __P((dev_t, dev_t[], dev_t *));
+static void deverror __P((char *, char *));
+static int finddev __P((dev_t));
+static void verifycomp __P((struct file_list *));
+static struct device *connect __P((char *, int));
+static struct device *huhcon __P((char *));
+static dev_t *verifyswap __P((struct file_list *, dev_t *, dev_t *));
 
 %}
 %%
@@ -165,33 +177,12 @@ Spec:
 Config_spec:
 	MACHINE Save_id
 	    = {
-		if (!strcmp($2, "vax")) {
-			machine = MACHINE_VAX;
-			machinename = "vax";
-		} else if (!strcmp($2, "tahoe")) {
-			machine = MACHINE_TAHOE;
-			machinename = "tahoe";
-		} else if (!strcmp($2, "hp300")) {
-			machine = MACHINE_HP300;
-			machinename = "hp300";
-		} else if (!strcmp($2, "i386")) {
+		if (!strcmp($2, "i386")) {
 			machine = MACHINE_I386;
 			machinename = "i386";
 		} else if (!strcmp($2, "pc98")) {
 			machine = MACHINE_PC98;
 			machinename = "pc98";
-		} else if (!strcmp($2, "mips")) {
-			machine = MACHINE_MIPS;
-			machinename = "mips";
-		} else if (!strcmp($2, "pmax")) {
-			machine = MACHINE_PMAX;
-			machinename = "pmax";
-		} else if (!strcmp($2, "luna68k")) {
-			machine = MACHINE_LUNA68K;
-			machinename = "luna68k";
-		} else if (!strcmp($2, "news3400")) {
-			machine = MACHINE_NEWS3400;
-			machinename = "news3400";
 		} else if (!strcmp($2, "alpha")) {
 			machine = MACHINE_ALPHA;
 			machinename = "alpha";
@@ -501,7 +492,6 @@ Device_spec:
 	      = {
 		if (!eq(cur.d_name, "cd"))
 			yyerror("improper spec for pseudo-device");
-		seen_cd = 1;
 		cur.d_type = DEVICE;
 		verifycomp(*compp);
 		};
@@ -560,13 +550,7 @@ Dev_name:
 	Init_dev Dev NUMBER
 	      = {
 		cur.d_name = $2;
-		if (eq($2, "mba"))
-			seen_mba = 1;
-		else if (eq($2, "uba"))
-			seen_uba = 1;
-		else if (eq($2, "vba"))
-			seen_vba = 1;
-		else if (eq($2, "isa"))
+		if (eq($2, "isa"))
 			seen_isa = 1;
 		else if (eq($2, "scbus"))
 			seen_scbus = 1;
@@ -691,7 +675,7 @@ yyerror(s)
 /*
  * add a device to the list of devices
  */
-void
+static void
 newdev(dp)
 	register struct device *dp;
 {
@@ -711,7 +695,7 @@ newdev(dp)
 /*
  * note that a configuration should be made
  */
-void
+static void
 mkconf(sysname)
 	char *sysname;
 {
@@ -731,7 +715,7 @@ mkconf(sysname)
 	confp = flp;
 }
 
-struct file_list *
+static struct file_list *
 newflist(ftype)
 	u_char ftype;
 {
@@ -750,7 +734,7 @@ newflist(ftype)
 /*
  * Add a swap device to the system's configuration
  */
-void
+static void
 mkswap(system, fl, size, flag)
 	struct file_list *system, *fl;
 	int size, flag;
@@ -788,7 +772,7 @@ mkswap(system, fl, size, flag)
 		system->f_fn = ns(system->f_needs);
 }
 
-void
+static void
 mkcomp(dp)
 	register struct device *dp;
 {
@@ -809,7 +793,7 @@ mkcomp(dp)
 	compp = flp;
 }
 
-void
+static void
 addcomp(compdev, fl)
 	struct file_list *compdev, *fl;
 {
@@ -833,13 +817,12 @@ addcomp(compdev, fl)
  * find the pointer to connect to the given device and number.
  * returns 0 if no such device and prints an error message
  */
-struct device *
+static struct device *
 connect(dev, num)
 	register char *dev;
 	register int num;
 {
 	register struct device *dp;
-	struct device *huhcon();
 
 	if (num == QUES)
 		return (huhcon(dev));
@@ -862,7 +845,7 @@ connect(dev, num)
 /*
  * connect to an unspecific thing
  */
-struct device *
+static struct device *
 huhcon(dev)
 	register char *dev;
 {
@@ -945,32 +928,13 @@ init_dev(dp)
 /*
  * make certain that this is a reasonable type of thing to connect to a nexus
  */
-void
+static void
 check_nexus(dev, num)
 	register struct device *dev;
 	int num;
 {
 
 	switch (machine) {
-
-	case MACHINE_VAX:
-		if (!eq(dev->d_name, "uba") && !eq(dev->d_name, "mba") &&
-		    !eq(dev->d_name, "bi"))
-			yyerror("only uba's, mba's, and bi's should be connected to the nexus");
-		if (num != QUES)
-			yyerror("can't give specific nexus numbers");
-		break;
-
-	case MACHINE_TAHOE:
-		if (!eq(dev->d_name, "vba")) 
-			yyerror("only vba's should be connected to the nexus");
-		break;
-
-	case MACHINE_HP300:
-	case MACHINE_LUNA68K:
-		if (num != QUES)
-			dev->d_addr = num;
-		break;
 
 	case MACHINE_I386:
 	case MACHINE_PC98:
@@ -980,11 +944,6 @@ check_nexus(dev, num)
 #endif
 		break;
 
-	case MACHINE_NEWS3400:
-		if (!eq(dev->d_name, "iop") && !eq(dev->d_name, "hb") &&
-		    !eq(dev->d_name, "vme"))
-			yyerror("only iop's, hb's and vme's should be connected to the nexus");
-		break;
 	}
 }
 
@@ -992,7 +951,7 @@ check_nexus(dev, num)
  * Check system specification and apply defaulting
  * rules on root, argument, dump, and swap devices.
  */
-void
+static void
 checksystemspec(fl)
 	register struct file_list *fl;
 {
@@ -1060,11 +1019,11 @@ checksystemspec(fl)
  * Verify all devices specified in the system specification
  * are present in the device specifications.
  */
-void
+static void
 verifysystemspecs()
 {
 	register struct file_list *fl;
-	dev_t checked[50], *verifyswap();
+	dev_t checked[50];
 	register dev_t *pchecked = checked;
 
 	for (fl = conf_list; fl; fl = fl->f_next) {
@@ -1085,7 +1044,7 @@ verifysystemspecs()
 /*
  * Do as above, but for swap devices.
  */
-dev_t *
+static dev_t *
 verifyswap(fl, checked, pchecked)
 	register struct file_list *fl;
 	dev_t checked[];
@@ -1107,7 +1066,7 @@ verifyswap(fl, checked, pchecked)
 /*
  * Verify that components of a compound device have themselves been config'ed
  */
-void
+static void
 verifycomp(fl)
 	register struct file_list *fl;
 {
@@ -1124,7 +1083,7 @@ verifycomp(fl)
  * Has a device already been checked
  * for its existence in the configuration?
  */
-int
+static int
 alreadychecked(dev, list, last)
 	dev_t dev, list[];
 	register dev_t *last;
@@ -1137,7 +1096,7 @@ alreadychecked(dev, list, last)
 	return (0);
 }
 
-void
+static void
 deverror(systemname, devtype)
 	char *systemname, *devtype;
 {
@@ -1151,7 +1110,7 @@ deverror(systemname, devtype)
  * take into account stuff wildcarded.
  */
 /*ARGSUSED*/
-int
+static int
 finddev(dev)
 	dev_t dev;
 {
