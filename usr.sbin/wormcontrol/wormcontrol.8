@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: wormcontrol.8,v 1.1.1.1 1996/01/27 17:52:20 joerg Exp $
 .\"
 .\" arrgh, hilit19 needs this" :-(
 .Dd Jan 27, 1996
@@ -165,7 +165,7 @@ The typical sequence of burning a data CD-R looks like:
 # wormcontrol select PLASMON RF4100
 # wormcontrol prepdisk double
 # wormcontrol track data
-# rtprio team -v 1m 5 < cdrom.image | dd of=/dev/rworm0 obs=20k
+# rtprio 5 team -v 1m 5 < cdrom.image | dd of=/dev/rworm0 obs=20k
 # wormcontrol fixate 1
 .Ed
 .Pp
