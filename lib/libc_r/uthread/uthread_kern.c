@@ -113,7 +113,7 @@ _thread_kern_sched(ucontext_t *ucp)
 
 	/* Check if this function was called from the signal handler: */
 	if (ucp != NULL) {
-#if 0
+#if 1
 		/* XXX - Save FP registers? */
 		FP_SAVE_UC(ucp);
 #endif
@@ -158,7 +158,7 @@ _thread_kern_sched(ucontext_t *ucp)
 		if (ucp == NULL)
 			return;
 		else {
-#if 0
+#if 1
 			/* XXX - Restore FP registers? */
 			FP_RESTORE_UC(ucp);
 #endif
