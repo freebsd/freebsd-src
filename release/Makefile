@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.440 1998/12/29 07:27:55 jkh Exp $
+#	$Id: Makefile,v 1.441 1999/01/03 02:18:55 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -71,7 +71,6 @@ MNT=			/mnt
 
 # Various floppy image parameters.
 #
-# These are adjusted down to the minimum needed by doFS.sh.
 .if ${MACHINE_ARCH} == "i386"
 BOOTSIZE=		1440
 BOOTMFSSIZE=		1440
@@ -465,21 +464,20 @@ release.8: write_mfs_in_kernel dumpnlist
 	@echo "Making the regular boot floppy."
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
+	@cp ${.CURDIR}/texts/*.TXT ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
-	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
+	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp ${RD}/mfsfd/stand/help/*.TXT
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
 		${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
-	@cp fs-image fs-image.std
+	@mv fs-image fs-image.std
 	@mv fs-image.size fs-image.std.size
-	@gzip -c fs-image > mfsroot.gz; rm fs-image
+	@gzip -c fs-image.std > mfsroot.gz
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTSIZE} \
 		mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 	mv fs-image ${RD}/floppies/mfsroot.flp
 	@rm -f mfsroot.gz fs-image.size
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
-	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/kern.flp
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std _MFSKERN=YES
-	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/boot.flp
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern 
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot _MFSKERN=YES
 	@echo "Regular and MFS boot floppies made."
 	touch release.8
 
@@ -673,57 +671,49 @@ doMFSKERN:
 	  ${.CURDIR}/../sys/${MACHINE_ARCH}/conf/BOOTMFS
 .endif
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
-	@rm -rf ${RD}/boot.${FSIMAGE}
-	@mkdir  ${RD}/boot.${FSIMAGE}
-	@mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	@cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
+	@rm -rf ${RD}/image.${FSIMAGE}
+	@mkdir  ${RD}/image.${FSIMAGE}
+	@cp ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
+	@mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
 .if !defined(_MFSKERN) || ${MACHINE_ARCH} == "alpha"
-	@mkdir -p ${RD}/boot.${FSIMAGE}/boot
-	@cp /boot/* ${RD}/boot.${FSIMAGE}/boot
-	@echo "@load /kernel" > ${RD}/boot.${FSIMAGE}/boot/boot.conf
-	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
-	@echo "@read" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
-	@echo "@load -t mfs_root /mfsroot" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
-	@echo "@boot" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
-	@echo "/boot/loader" >${RD}/boot.${FSIMAGE}/boot.config
-	@touch ${RD}/boot.${FSIMAGE}/boot/loader.config
+	@mkdir -p ${RD}/image.${FSIMAGE}/boot
+	@cp /boot/* ${RD}/image.${FSIMAGE}/boot
+	@echo "@load /kernel" > ${RD}/image.${FSIMAGE}/boot/boot.conf
+	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
+	@echo "@read" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
+	@echo "@load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
+	@echo "@boot" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
+	@echo "/boot/loader" >${RD}/image.${FSIMAGE}/boot.config
+	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
 .endif
 	@vnconfig /dev/${VNDEVICE} fs-image.${FSIMAGE}
 	@mkdir -p /tmp/mnt_xx
 	@mount /dev/${VNDEVICE} /tmp/mnt_xx
-	./dumpnlist ${RD}/boot.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
+	./dumpnlist ${RD}/image.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
 	@umount /tmp/mnt_xx
 	@vnconfig -u /dev/${VNDEVICE}
 	@rmdir /tmp/mnt_xx
 .if defined(_MFSKERN)
-	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
-		fs-image.${FSIMAGE}
+	./write_mfs_in_kernel ${RD}/image.${FSIMAGE}/kernel fs-image.${FSIMAGE}
+	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
+	kzip -v ${RD}/image.${FSIMAGE}/kernel
+	@mv ${RD}/image.${FSIMAGE}/kernel.kz ${RD}/image.${FSIMAGE}/kernel
+.else
+	gzip -v ${RD}/image.${FSIMAGE}/kernel
 .endif
 .if ${MACHINE_ARCH} == "i386"
-.if defined (_MFSKERN)
-	kzip -v ${RD}/boot.${FSIMAGE}/kernel
-	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
-.else
-	gzip -c ${RD}/boot.${FSIMAGE}/kernel > ${RD}/boot.${FSIMAGE}/kernel.gz
+	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/image.${FSIMAGE}
+	@printf \\a\\a\\a >> ${RD}/image.${FSIMAGE}/boot.help
 .endif
-	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
-	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/boot.${FSIMAGE}
-.else
-	@cp ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
-	gzip -v ${RD}/boot.${FSIMAGE}/kernel
-	@mv ${RD}/boot.${FSIMAGE}/kernel.gz ${RD}/boot.${FSIMAGE}/kernel.gz
-.endif
-	@printf \\a\\a\\a >> ${RD}/boot.${FSIMAGE}/boot.help
-	@touch ${RD}/boot.${FSIMAGE}/boot.config
-	@touch ${RD}/boot.${FSIMAGE}/kernel.config
-	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
+	@touch ${RD}/image.${FSIMAGE}/kernel.config
+	@rm -f ${RD}/floppies/${FSIMAGE}.flp
 .if defined(_MFSKERN)
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
-		${RD}/boot.${FSIMAGE} ${BOOTINODE} ${BOOTMFSLABEL}
+		${RD}/image.${FSIMAGE} ${BOOTINODE} ${BOOTMFSLABEL}
 .else
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTSIZE} \
-		${RD}/boot.${FSIMAGE} ${BOOTINODE} ${BOOTLABEL}
+		${RD}/image.${FSIMAGE} ${BOOTINODE} ${BOOTLABEL}
 .endif
-	mv fs-image ${RD}/floppies/boot${FSIMAGE}.flp
+	mv fs-image ${RD}/floppies/${FSIMAGE}.flp
 
 .include <bsd.prog.mk>
