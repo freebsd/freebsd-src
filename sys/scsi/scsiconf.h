@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id$
+ *	$Id: scsiconf.h,v 1.3 93/08/26 21:09:43 julian Exp Locker: julian $
  */
 
 /***********************************************\
@@ -24,18 +24,18 @@
 \***********************************************/
 struct scsi_switch
 {
-	char		*name; /* name of scsi bus controller */
 	int		(*scsi_cmd)();
 	void		(*scsi_minphys)();
 	int		(*open_target_lu)();
 	int		(*close_target_lu)();
 	long	int	(*adapter_info)(); /* see definitions below */
-	u_long	spare[3];
+	char		*name; /* name of scsi bus controller */
+	u_long	spare[2];
 };
 #define	AD_INF_MAX_CMDS		0x000000FF /* maximum number of entries
 						queuable to a device by 
 						the adapter */
-/* 24 bits of other adapter charcteristics go here */
+/* 24 bits of other adapter characteristics go here */
 
 /***********************************************\
 * The scsi debug control bits			*
@@ -57,6 +57,7 @@ extern	int	scsi_debug;
 #define TRY_AGAIN_LATER		1
 #define	COMPLETE		2
 #define	HAD_ERROR		3
+#define	ESCAPE_NOT_SUPPORTED	4
 
 struct scsi_xfer
 {
@@ -78,6 +79,13 @@ struct scsi_xfer
 	int	error;
 	struct	buf *bp;
 	struct	scsi_sense_data	sense;
+
+	/* Believe it or not, Some targets fall on the ground with
+	 * anything but a certain sense length.
+	 */
+	int req_sense_length;	/* Explicit request sense length */
+
+	int status;		/* SCSI status */
 };
 /********************************/
 /* Flag values			*/
@@ -94,6 +102,17 @@ struct scsi_xfer
 #define	SCSI_DATA_IN	0x400	/* expect data to come INTO memory	*/
 #define	SCSI_DATA_OUT	0x800	/* expect data to flow OUT of memory	*/
 #define	SCSI_TARGET	0x1000	/* This defines a TARGET mode op.	*/
+#define	SCSI_ESCAPE	0x2000	/* Escape operation			*/
+
+/*************************************************************************/
+/* Escape op codes.  This provides an extensible setup for operations    */
+/* that are not scsi commands.  They are intended for modal operations.  */
+/*************************************************************************/
+
+#define SCSI_OP_TARGET	0x0001
+#define	SCSI_OP_RESET	0x0002
+#define	SCSI_OP_BDINFO	0x0003
+
 /********************************/
 /* Error values			*/
 /********************************/
