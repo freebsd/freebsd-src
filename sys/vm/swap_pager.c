@@ -1045,11 +1045,10 @@ swap_pager_getpages(object, m, count, reqpage)
 	 * Get a swap buffer header to perform the IO
 	 */
 	bp = getpbuf(&nsw_rcount);
+	bp->b_flags |= B_PAGING;
 
 	/*
 	 * map our page(s) into kva for input
-	 *
-	 * NOTE: B_PAGING is set by pbgetvp()
 	 */
 	pmap_qenter((vm_offset_t)bp->b_data, m + i, j - i);
 
@@ -1287,8 +1286,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		/*
 		 * All I/O parameters have been satisfied, build the I/O
 		 * request and assign the swap space.
-		 *
-		 * NOTE: B_PAGING is set by pbgetvp()
 		 */
 		if (sync == TRUE) {
 			bp = getpbuf(&nsw_wcount_sync);
@@ -1296,6 +1293,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			bp = getpbuf(&nsw_wcount_async);
 			bp->b_flags = B_ASYNC;
 		}
+		bp->b_flags |= B_PAGING;
 		bp->b_iocmd = BIO_WRITE;
 
 		pmap_qenter((vm_offset_t)bp->b_data, &m[i], n);
