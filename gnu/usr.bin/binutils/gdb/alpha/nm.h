@@ -57,11 +57,10 @@ extern CORE_ADDR alpha_u_regs_offset();
 /* Support for shared libraries.  */
 
 #include "solib.h"
+#include "elf/common.h"
 
-#ifdef __ELF__
 #define SVR4_SHARED_LIBS
 #define TARGET_ELF64
-#endif
 
 /* This is a lie.  It's actually in stdio.h. */
 

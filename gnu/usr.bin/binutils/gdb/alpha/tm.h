@@ -27,6 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define S0_REGNUM (T7_REGNUM+1)
 #endif
 
+#ifndef VM_MIN_ADDRESS
+#define VM_MIN_ADDRESS (0)
+#endif
 
 /* Number of traps that happen between exec'ing the shell to run an
    inferior, and when we finally get to the inferior code.  This is 2
