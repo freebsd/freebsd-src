@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.240 1999/06/23 21:47:21 luoqi Exp $
+ *	$Id: pmap.c,v 1.241 1999/07/08 06:05:49 mckusick Exp $
  */
 
 /*
@@ -1172,9 +1172,6 @@ pmap_pinit(pmap)
 	if ((ptdpg->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_pdir, PAGE_SIZE);
 
-	/* wire in kernel global address entries */
-	/* XXX copies current process, does not fill in MPPTDI */
-	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * PTESIZE);
 #ifdef SMP
 	pmap->pm_pdir[MPPTDI] = PTD[MPPTDI];
 #endif
@@ -1188,6 +1185,20 @@ pmap_pinit(pmap)
 	pmap->pm_ptphint = NULL;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+}
+
+/*
+ * Wire in kernel global address entries.  To avoid a race condition
+ * between pmap initialization and pmap_growkernel, this procedure
+ * should be called after the vmspace is attached to the process
+ * but before this pmap is activated.
+ */
+void
+pmap_pinit2(pmap)
+	struct pmap *pmap;
+{
+	/* XXX copies current process, does not fill in MPPTDI */
+	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * PTESIZE);
 }
 
 static int
