@@ -807,9 +807,7 @@ options 	NFS_MAXATTRTIMO=60
 options 	NFS_MINDIRATTRTIMO=30	# VDIR attrib cache timeout in sec
 options 	NFS_MAXDIRATTRTIMO=60
 options 	NFS_GATHERDELAY=10	# Default write gather delay (msec)
-options 	NFS_UIDHASHSIZ=29	# Tune the size of nfssvc_sock with this
 options 	NFS_WDELAYHASHSIZ=16	# and with this
-options 	NFS_MUIDHASHSIZ=63	# Tune the size of nfsmount with this
 options 	NFS_DEBUG		# Enable NFS Debugging
 
 # Coda stuff:
@@ -1172,7 +1170,6 @@ device		agp
 #
 #Enable pci resources left off by a "lazy" BIOS:
 options 	PCI_ENABLE_IO_MODES
-#options 	PCI_QUIET	#quiets PCI code on chipset settings
 
 
 #####################################################################
@@ -2088,7 +2085,6 @@ hint.pca.0.port="0x040"
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
 # joy: joystick (including IO DATA PCJOY PC Card joystick)
-# The LOUTB option specifies a slower outb() for debugging purposes. 
 # rc: RISCom/8 multiport card
 # rp: Comtrol Rocketport(ISA) - single card
 # tw: TW-523 power line interface for use with X-10 home control products
@@ -2973,9 +2969,6 @@ options 	KBD_MAXRETRY=4
 options 	KBD_MAXWAIT=6
 options 	KBD_RESETDELAY=201
 
-# Enable the PF_KEY Key Management API.
-options 	KEY
-
 # Kernel filelock debugging.
 options 	LOCKF_DEBUG
 
@@ -3004,7 +2997,6 @@ options 	SC_DEBUG_LEVEL=5	# Syscons debug level
 options 	SC_RENDER_DEBUG	# syscons rendering debugging
 
 options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
-options 	SIMPLELOCK_DEBUG
 options 	SLIP_IFF_OPTS
 options 	TIMER_FREQ="((14318182+6)/12)"
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging

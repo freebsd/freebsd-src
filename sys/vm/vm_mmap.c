@@ -45,7 +45,6 @@
  * Mapped file (mmap) interface to VM
  */
 
-#include "opt_bleed.h"
 #include "opt_compat.h"
 
 #include <sys/param.h>
