@@ -923,7 +923,7 @@ static int al_attach(dev)
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	sc->al_ldata = contigmalloc(sizeof(struct al_list_data), M_DEVBUF,
-	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->al_ldata == NULL) {
 		printf("al%d: no memory for list buffers!\n", unit);

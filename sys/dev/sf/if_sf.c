@@ -766,7 +766,7 @@ static int sf_attach(dev)
 
 	/* Allocate the descriptor queues. */
 	sc->sf_ldata = contigmalloc(sizeof(struct sf_list_data), M_DEVBUF,
-	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->sf_ldata == NULL) {
 		printf("sf%d: no memory for list buffers!\n", unit);
