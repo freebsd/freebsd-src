@@ -443,7 +443,6 @@ fetch(char *URL, const char *path)
 	if (S_size) {
 		if (us.size == -1) {
 			warnx("%s: size unknown", URL);
-			goto failure;
 		} else if (us.size != S_size) {
 			warnx("%s: size mismatch: expected %jd, actual %jd",
 			    URL, (intmax_t)S_size, (intmax_t)us.size);
