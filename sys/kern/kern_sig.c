@@ -2078,7 +2078,7 @@ nosys(td, args)
 	psignal(p, SIGSYS);
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
-	return (EINVAL);
+	return (ENOSYS);
 }
 
 /*
