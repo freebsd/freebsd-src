@@ -68,6 +68,10 @@ Rijndael encryption algorithm. [MERGED]
 The bug that made certain CDROM drives fail to attach when connected
 to a SCSI card driven by 'isp' has been fixed. 
 
+A bug in FFS that could cause superblock corruption on very large
+filesystems has been corrected.
+
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -117,6 +121,28 @@ device.
 All packages and ports now contain an "origin" directive, which makes
 it easier for programs like pkg_version(1) to determine the directory
 from which a package was built.
+
+awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
+of non-critical bugs and includes a few performance tweaks.
+
+Shortly after the receipt of a SIGINFO signal (normally control-T from
+the controlling tty), fsck_ffs will now output a line indicating the
+current phase number and progress information relevant to the current
+phase.
+
+pwd(1) can now double as realpath(1), a program to resolve pathnames
+to their underlying physical paths.
+
+gcc now uses a unified libgcc rather than a separate one for threaded
+and non-threaded programs.  /usr/lib/libgcc_r.a can be removed.
+
+config(8) is now better about converting various warnings that should
+have been errors into actual fatal errors with an exit code.  This
+ensures that that 'make buildkernel' doesn't quitely ignore them and
+build a bogus kernel without a human to read the errors.
+
+In /etc/ssh/sshd_config, the ConnectionsPerPeriod parameter has been
+deprecated in favor of MaxStartups.
 
 
 2. Supported Configurations
