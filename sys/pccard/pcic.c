@@ -60,6 +60,7 @@
  *	Prototypes for interrupt handler.
  */
 static driver_intr_t	pcicintr;
+static int		pcicintr1(void *);
 static int		pcic_ioctl(struct slot *, int, caddr_t);
 static int		pcic_power(struct slot *);
 static void		pcic_mapirq(struct slot *, int);
@@ -818,6 +819,15 @@ pcic_disable(struct slot *slt)
 }
 
 /*
+ * Wrapper function for pcicintr so that signatures match.
+ */
+static void
+pcicintr(void *arg)
+{
+	pcicintr1(arg);
+}
+
+/*
  *	PCIC timer.  If the controller doesn't have a free IRQ to use
  *	or if interrupt steering doesn't work, poll the controller for
  *	insertion/removal events.
@@ -825,7 +835,11 @@ pcic_disable(struct slot *slt)
 static void
 pcictimeout(void *chan)
 {
-	pcicintr(chan);
+	if (pcicintr1(chan) != 0) {
+		printf("pcic%d: Static bug detected, ignoring hardware.\n",
+		    (int) chan);
+		return;
+	}
 	pcictimeout_ch = timeout(pcictimeout, chan, hz/2);
 }
 
@@ -835,8 +849,8 @@ pcictimeout(void *chan)
  *	register. If this is non-zero, then a change has occurred
  *	on this card, so send an event to the main code.
  */
-static void
-pcicintr(void *arg)
+static int
+pcicintr1(void *arg)
 {
 	int	slot, s;
 	unsigned char chg;
@@ -862,9 +876,21 @@ pcicintr(void *arg)
 		for (slot = 0; slot < PCIC_CARD_SLOTS; slot++, sp++) {
 			if (sp->slt &&
 			    (chg = sp->getb(sp, PCIC_STAT_CHG)) != 0) {
-				if (bootverbose)
-					printf("Slot %d chg = 0x%x\n", slot,
-					    chg);
+				/*
+				 * if chg is 0xff, then we know that
+				 * we've hit the famous "static bug" for
+				 * some desktop pcmcia cards.  This is
+				 * caused by static discharge frying the
+				 * poor card's mind and it starts return 0xff
+				 * forever.  We return an error and stop
+				 * polling the card.  When we're interrupt
+				 * based, we never see this.  The card just
+				 * goes away silently.
+				 */
+				if (chg == 0xff) {
+					splx(s);
+					return (EIO);
+				}
 				if (chg & PCIC_CDTCH) {
 					if ((sp->getb(sp, PCIC_STATUS) &
 					    PCIC_CD) == PCIC_CD) {
@@ -880,6 +906,7 @@ pcicintr(void *arg)
 		}
 	}
 	splx(s);
+	return (0);
 }
 
 /*
