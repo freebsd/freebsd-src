@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.22 1997/10/15 09:21:04 phk Exp $
+ * $Id: kernfs_vnops.c,v 1.23 1997/10/15 10:04:23 phk Exp $
  */
 
 /*
@@ -116,7 +116,6 @@ static int	kernfs_read __P((struct vop_read_args *ap));
 static int	kernfs_readdir __P((struct vop_readdir_args *ap));
 static int	kernfs_reclaim __P((struct vop_reclaim_args *ap));
 static int	kernfs_setattr __P((struct vop_setattr_args *ap));
-static int	kernfs_vfree __P((struct vop_vfree_args *ap));
 static int	kernfs_write __P((struct vop_write_args *ap));
 static int	kernfs_xread __P((struct kern_target *kt, char *buf, int len,
 				  int *lenp));
@@ -689,19 +688,6 @@ kernfs_print(ap)
 	return (0);
 }
 
-/*void*/
-static int
-kernfs_vfree(ap)
-	struct vop_vfree_args /* {
-		struct vnode *a_pvp;
-		ino_t a_ino;
-		int a_mode;
-	} */ *ap;
-{
-
-	return (0);
-}
-
 /*
  * Kernfs "should never get here" operation
  */
@@ -711,84 +697,28 @@ kernfs_badop()
 	return (EIO);
 }
 
-#define kernfs_create ((int (*) __P((struct  vop_create_args *)))eopnotsupp)
-#define kernfs_mknod ((int (*) __P((struct  vop_mknod_args *)))eopnotsupp)
-#define kernfs_close ((int (*) __P((struct  vop_close_args *)))nullop)
-#define kernfs_ioctl ((int (*) __P((struct  vop_ioctl_args *)))eopnotsupp)
-#define kernfs_poll vop_nopoll
-#define kernfs_revoke vop_revoke
-#define kernfs_mmap ((int (*) __P((struct  vop_mmap_args *)))eopnotsupp)
-#define kernfs_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
-#define kernfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
-#define kernfs_remove ((int (*) __P((struct  vop_remove_args *)))eopnotsupp)
-#define kernfs_link ((int (*) __P((struct  vop_link_args *)))eopnotsupp)
-#define kernfs_rename ((int (*) __P((struct  vop_rename_args *)))eopnotsupp)
-#define kernfs_mkdir ((int (*) __P((struct  vop_mkdir_args *)))eopnotsupp)
-#define kernfs_rmdir ((int (*) __P((struct  vop_rmdir_args *)))eopnotsupp)
-#define kernfs_symlink ((int (*) __P((struct vop_symlink_args *)))eopnotsupp)
-#define kernfs_readlink ((int (*) __P((struct  vop_readlink_args *)))eopnotsupp)
-#define kernfs_abortop ((int (*) __P((struct  vop_abortop_args *)))nullop)
-#define kernfs_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
-#define kernfs_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
-#define kernfs_bmap ((int (*) __P((struct  vop_bmap_args *)))kernfs_badop)
-#define kernfs_strategy \
-	((int (*) __P((struct  vop_strategy_args *)))kernfs_badop)
-#define kernfs_islocked \
-	((int (*) __P((struct vop_islocked_args *)))vop_noislocked)
-#define kernfs_advlock ((int (*) __P((struct vop_advlock_args *)))eopnotsupp)
-#define kernfs_blkatoff ((int (*) __P((struct  vop_blkatoff_args *)))eopnotsupp)
-#define kernfs_valloc ((int(*) __P(( \
-		struct vnode *pvp, \
-		int mode, \
-		struct ucred *cred, \
-		struct vnode **vpp))) eopnotsupp)
-#define kernfs_truncate ((int (*) __P((struct  vop_truncate_args *)))eopnotsupp)
-#define kernfs_update ((int (*) __P((struct  vop_update_args *)))eopnotsupp)
-#define kernfs_bwrite ((int (*) __P((struct  vop_bwrite_args *)))eopnotsupp)
 
 vop_t	**kernfs_vnodeop_p;
 static struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_abortop_desc,		(vop_t *) kernfs_abortop },
 	{ &vop_access_desc,		(vop_t *) kernfs_access },
-	{ &vop_advlock_desc,		(vop_t *) kernfs_advlock },
-	{ &vop_blkatoff_desc,		(vop_t *) kernfs_blkatoff },
-	{ &vop_bmap_desc,		(vop_t *) kernfs_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) kernfs_bwrite },
-	{ &vop_close_desc,		(vop_t *) kernfs_close },
-	{ &vop_create_desc,		(vop_t *) kernfs_create },
-	{ &vop_fsync_desc,		(vop_t *) kernfs_fsync },
+	{ &vop_bmap_desc,		(vop_t *) kernfs_badop },
+	{ &vop_close_desc,		(vop_t *) nullop },
+	{ &vop_fsync_desc,		(vop_t *) nullop },
 	{ &vop_getattr_desc,		(vop_t *) kernfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) kernfs_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) kernfs_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) kernfs_islocked },
-	{ &vop_link_desc,		(vop_t *) kernfs_link },
-	{ &vop_lock_desc,		(vop_t *) kernfs_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) kernfs_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) kernfs_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) kernfs_mknod },
-	{ &vop_mmap_desc,		(vop_t *) kernfs_mmap },
 	{ &vop_open_desc,		(vop_t *) kernfs_open },
 	{ &vop_pathconf_desc,		(vop_t *) kernfs_pathconf },
-	{ &vop_poll_desc,		(vop_t *) kernfs_poll },
 	{ &vop_print_desc,		(vop_t *) kernfs_print },
 	{ &vop_read_desc,		(vop_t *) kernfs_read },
 	{ &vop_readdir_desc,		(vop_t *) kernfs_readdir },
-	{ &vop_readlink_desc,		(vop_t *) kernfs_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) kernfs_reclaim },
-	{ &vop_remove_desc,		(vop_t *) kernfs_remove },
-	{ &vop_rename_desc,		(vop_t *) kernfs_rename },
-	{ &vop_revoke_desc,		(vop_t *) kernfs_revoke },
-	{ &vop_rmdir_desc,		(vop_t *) kernfs_rmdir },
-	{ &vop_seek_desc,		(vop_t *) kernfs_seek },
+	{ &vop_seek_desc,		(vop_t *) nullop },
 	{ &vop_setattr_desc,		(vop_t *) kernfs_setattr },
-	{ &vop_strategy_desc,		(vop_t *) kernfs_strategy },
-	{ &vop_symlink_desc,		(vop_t *) kernfs_symlink },
-	{ &vop_truncate_desc,		(vop_t *) kernfs_truncate },
-	{ &vop_unlock_desc,		(vop_t *) kernfs_unlock },
-	{ &vop_update_desc,		(vop_t *) kernfs_update },
-	{ &vop_valloc_desc,		(vop_t *) kernfs_valloc },
-	{ &vop_vfree_desc,		(vop_t *) kernfs_vfree },
+	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) kernfs_write },
 	{ NULL, NULL }
 };

@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.42 1997/10/15 10:04:08 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.43 1997/10/15 13:23:01 phk Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -1488,20 +1488,6 @@ DBPRINT(("bmap\n"));
 }
 
 static int
-devfs_strategy(struct vop_strategy_args *ap)
-        /*struct vop_strategy_args {
-                struct buf *a_bp;
-        } */
-{
-DBPRINT(("strategy\n"));
-
-	if (ap->a_bp->b_vp->v_type == VBLK  ||  ap->a_bp->b_vp->v_type == VCHR)
-		printf("devfs_strategy: spec");
-	return 0;
-}
-
-
-static int
 devfs_advlock(struct vop_advlock_args *ap)
         /*struct vop_advlock_args {
                 struct vnode *a_vp;
@@ -1590,18 +1576,6 @@ devfs_print(struct vop_print_args *ap)
 	return (0);
 }
 
-static int
-devfs_vfree(struct vop_vfree_args *ap)
-	/*struct vop_vfree_args {
-		struct vnode *a_pvp;
-		ino_t a_ino;
-		int a_mode;
-	} */
-{
-
-	return (0);
-}
-
 /**************************************************************************\
 * pseudo ops *
 \**************************************************************************/
@@ -1650,68 +1624,24 @@ devfs_dropvnode(dn_p dnp)
 	dnp->vn = NULL; /* be pedantic about this */
 }
 
-#define devfs_create ((int (*) __P((struct  vop_create_args *)))devfs_enotsupp)
-#define devfs_mknod ((int (*) __P((struct  vop_mknod_args *)))devfs_enotsupp)
-#define devfs_close ((int (*) __P((struct  vop_close_args *)))nullop)
-#define devfs_ioctl ((int (*) __P((struct  vop_ioctl_args *)))devfs_enotsupp)
-#define devfs_poll	vop_nopoll
-#define devfs_mmap ((int (*) __P((struct  vop_mmap_args *)))devfs_enotsupp)
-#define devfs_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
-#define devfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
-#define devfs_mkdir ((int (*) __P((struct  vop_mkdir_args *)))devfs_enotsupp)
-#define devfs_rmdir ((int (*) __P((struct  vop_rmdir_args *)))devfs_enotsupp)
-/*
-#define devfs_symlink ((int (*) __P((struct vop_symlink_args *)))devfs_enotsupp)
-#define devfs_readlink \
-	((int (*) __P((struct  vop_readlink_args *)))devfs_enotsupp)
-*/
-#define devfs_abortop ((int (*) __P((struct  vop_abortop_args *)))nullop)
-#define devfs_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
-#define devfs_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
-#define devfs_bmap ((int (*) __P((struct  vop_bmap_args *)))devfs_badop)
-#define devfs_strategy ((int (*) __P((struct  vop_strategy_args *)))devfs_badop)
-#define devfs_islocked \
-	((int (*) __P((struct vop_islocked_args *)))vop_noislocked)
-#define devfs_advlock ((int (*) __P((struct vop_advlock_args *)))devfs_enotsupp)
-#define devfs_blkatoff \
-	((int (*) __P((struct  vop_blkatoff_args *)))devfs_enotsupp)
-#define devfs_valloc ((int(*) __P(( \
-		struct vnode *pvp, \
-		int mode, \
-		struct ucred *cred, \
-		struct vnode **vpp))) devfs_enotsupp)
-#define devfs_truncate \
-	((int (*) __P((struct  vop_truncate_args *)))devfs_enotsupp)
-#define devfs_update ((int (*) __P((struct  vop_update_args *)))devfs_enotsupp)
-#define devfs_bwrite ((int (*) __P((struct  vop_bwrite_args *)))devfs_enotsupp)
-
 /* These are the operations used by directories etc in a devfs */
 
 vop_t **devfs_vnodeop_p;
 static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_abortop_desc,		(vop_t *) devfs_abortop },
+	{ &vop_abortop_desc,		(vop_t *) nullop },
 	{ &vop_access_desc,		(vop_t *) devfs_access },
-	{ &vop_advlock_desc,		(vop_t *) devfs_advlock },
-	{ &vop_blkatoff_desc,		(vop_t *) devfs_blkatoff },
-	{ &vop_bmap_desc,		(vop_t *) devfs_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) devfs_bwrite },
-	{ &vop_close_desc,		(vop_t *) devfs_close },
-	{ &vop_create_desc,		(vop_t *) devfs_create },
-	{ &vop_fsync_desc,		(vop_t *) devfs_fsync },
+	{ &vop_bmap_desc,		(vop_t *) devfs_badop },
+	{ &vop_close_desc,		(vop_t *) nullop },
+	{ &vop_fsync_desc,		(vop_t *) nullop },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) devfs_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) devfs_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) devfs_islocked },
+	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_link_desc,		(vop_t *) devfs_link },
-	{ &vop_lock_desc,		(vop_t *) devfs_lock },
+	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) devfs_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) devfs_mknod },
-	{ &vop_mmap_desc,		(vop_t *) devfs_mmap },
 	{ &vop_open_desc,		(vop_t *) devfs_open },
 	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
-	{ &vop_poll_desc,		(vop_t *) devfs_poll },
 	{ &vop_print_desc,		(vop_t *) devfs_print },
 	{ &vop_read_desc,		(vop_t *) devfs_read },
 	{ &vop_readdir_desc,		(vop_t *) devfs_readdir },
@@ -1719,16 +1649,10 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) devfs_remove },
 	{ &vop_rename_desc,		(vop_t *) devfs_rename },
-	{ &vop_rmdir_desc,		(vop_t *) devfs_rmdir },
-	{ &vop_seek_desc,		(vop_t *) devfs_seek },
+	{ &vop_seek_desc,		(vop_t *) nullop },
 	{ &vop_setattr_desc,		(vop_t *) devfs_setattr },
-	{ &vop_strategy_desc,		(vop_t *) devfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) devfs_symlink },
-	{ &vop_truncate_desc,		(vop_t *) devfs_truncate },
-	{ &vop_unlock_desc,		(vop_t *) devfs_unlock },
-	{ &vop_update_desc,		(vop_t *) devfs_update },
-	{ &vop_valloc_desc,		(vop_t *) devfs_valloc },
-	{ &vop_vfree_desc,		(vop_t *) devfs_vfree },
+	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) devfs_write },
 	{ NULL, NULL }
 };
@@ -1781,7 +1705,6 @@ vop_t **dev_spec_vnodeop_p;
 static struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
 	{ &vop_access_desc,		(vop_t *) devfs_access },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
 	{ &vop_read_desc,		(vop_t *) devfs_read },
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },

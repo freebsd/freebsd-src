@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
-# $Id: vnode_if.src,v 1.12 1997/08/25 20:28:49 phk Exp $
+# $Id: vnode_if.src,v 1.13 1997/09/14 02:35:25 peter Exp $
 #
 
 #
@@ -440,51 +440,11 @@ vop_advlock {
 };
 
 #
-#% blkatoff	vp	L L L
-#
-vop_blkatoff {
-	IN struct vnode *vp;
-	IN off_t offset;
-	OUT char **res;
-	OUT struct buf **bpp;
-};
-
-#
-#% valloc	pvp	L L L
-#
-vop_valloc {
-	IN struct vnode *pvp;
-	IN int mode;
-	IN struct ucred *cred;
-	OUT struct vnode **vpp;
-};
-
-#
 #% reallocblks	vp	L L L
 #
 vop_reallocblks {
 	IN struct vnode *vp;
 	IN struct cluster_save *buflist;
-};
-
-#
-#% vfree	pvp	L L L
-#
-vop_vfree {
-	IN struct vnode *pvp;
-	IN ino_t ino;
-	IN int mode;
-};
-
-#
-#% truncate	vp	L L L
-#
-vop_truncate {
-	IN struct vnode *vp;
-	IN off_t length;
-	IN int flags;
-	IN struct ucred *cred;
-	IN struct proc *p;
 };
 
 #

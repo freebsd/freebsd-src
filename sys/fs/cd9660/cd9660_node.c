@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.19 1997/04/14 18:15:45 phk Exp $
+ * $Id: cd9660_node.c,v 1.20 1997/08/02 14:31:18 bde Exp $
  */
 
 #include <sys/param.h>
@@ -241,7 +241,7 @@ cd9660_defattr(isodir, inop, bp, ftype)
 	if (!bp
 	    && ((imp = inop->i_mnt)->im_flags & ISOFSMNT_EXTATT)
 	    && (off = isonum_711(isodir->ext_attr_length))) {
-		VOP_BLKATOFF(ITOV(inop), (off_t)-(off << imp->im_bshift), NULL,
+		cd9660_blkatoff(ITOV(inop), (off_t)-(off << imp->im_bshift), NULL,
 			     &bp2);
 		bp = bp2;
 	}
@@ -293,7 +293,7 @@ cd9660_deftstamp(isodir,inop,bp,ftype)
 	if (!bp
 	    && ((imp = inop->i_mnt)->im_flags & ISOFSMNT_EXTATT)
 	    && (off = isonum_711(isodir->ext_attr_length))) {
-		VOP_BLKATOFF(ITOV(inop), (off_t)-(off << imp->im_bshift), NULL,
+		cd9660_blkatoff(ITOV(inop), (off_t)-(off << imp->im_bshift), NULL,
 			     &bp2);
 		bp = bp2;
 	}

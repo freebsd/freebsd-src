@@ -307,7 +307,7 @@ WRITE(ap)
 		ip->i_mode &= ~(ISUID | ISGID);
 	if (error) {
 		if (ioflag & IO_UNIT) {
-			(void)VOP_TRUNCATE(vp, osize,
+			(void)UFS_TRUNCATE(vp, osize,
 			    ioflag & IO_SYNC, ap->a_cred, uio->uio_procp);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;

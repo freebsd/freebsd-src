@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.11 1997/02/22 09:47:04 peter Exp $
+ * $Id: ffs_subr.c,v 1.12 1997/03/09 06:00:42 mpp Exp $
  */
 
 #include <sys/param.h>
@@ -57,13 +57,11 @@
  * remaining space in the directory.
  */
 int
-ffs_blkatoff(ap)
-	struct vop_blkatoff_args /* {
-		struct vnode *a_vp;
-		off_t a_offset;
-		char **a_res;
-		struct buf **a_bpp;
-	} */ *ap;
+ffs_blkatoff(vp, offset, res, bpp)
+	struct vnode *vp;
+	off_t offset;
+	char **res;
+	struct buf **bpp;
 {
 	struct inode *ip;
 	register struct fs *fs;
@@ -71,20 +69,20 @@ ffs_blkatoff(ap)
 	ufs_daddr_t lbn;
 	int bsize, error;
 
-	ip = VTOI(ap->a_vp);
+	ip = VTOI(vp);
 	fs = ip->i_fs;
-	lbn = lblkno(fs, ap->a_offset);
+	lbn = lblkno(fs, offset);
 	bsize = blksize(fs, ip, lbn);
 
-	*ap->a_bpp = NULL;
-	error = bread(ap->a_vp, lbn, bsize, NOCRED, &bp);
+	*bpp = NULL;
+	error = bread(vp, lbn, bsize, NOCRED, &bp);
 	if (error) {
 		brelse(bp);
 		return (error);
 	}
-	if (ap->a_res)
-		*ap->a_res = (char *)bp->b_data + blkoff(fs, ap->a_offset);
-	*ap->a_bpp = bp;
+	if (res)
+		*res = (char *)bp->b_data + blkoff(fs, offset);
+	*bpp = bp;
 	return (0);
 }
 #endif

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.33 1997/09/24 15:54:10 phk Exp $
+ * $Id: vfs_cache.c,v 1.34 1997/10/15 13:22:52 phk Exp $
  */
 
 #include <sys/param.h>
@@ -450,6 +450,5 @@ vfs_cache_lookup(ap)
 	error = vn_lock(pdp, LK_EXCLUSIVE, p);
 	if (error)
 		return (error);
-	return (VCALL(vdp, VOFFSET(vop_cachedlookup), 
-	    (struct vop_cachedlookup_args *)ap));
+	return (VOP_CACHEDLOOKUP(ap->a_dvp, ap->a_vpp, ap->a_cnp));
 }

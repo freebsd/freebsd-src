@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.28 1997/09/21 04:22:59 dyson Exp $
+ * $Id: vfs_init.c,v 1.29 1997/10/12 20:24:24 phk Exp $
  */
 
 
@@ -78,17 +78,6 @@ extern struct vnodeop_desc *vfs_op_descs[];
  * Zone for namei
  */
 struct vm_zone *namei_zone;
-
-/*
- * A miscellaneous routine.
- * A generic "default" routine that just returns an error.
- */
-int
-vn_default_error()
-{
-
-	return (EOPNOTSUPP);
-}
 
 /*
  * vfs_init.c
@@ -283,6 +272,8 @@ vfsinit(dummy)
 
 /*
  * This goop is here to support a loadable NFS module... grumble...
+ *
+ * XXX: NFS could plug this into default_vnodeop_p now!
  */
 int (*lease_check_hook) __P((struct vop_lease_args *))
      = 0;

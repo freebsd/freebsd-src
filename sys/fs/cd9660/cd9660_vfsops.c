@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.29 1997/09/27 13:38:48 kato Exp $
+ * $Id: cd9660_vfsops.c,v 1.30 1997/10/12 20:23:38 phk Exp $
  */
 
 #include <sys/param.h>
@@ -765,7 +765,7 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		ip->iso_start = ino >> imp->im_bshift;
 		if (bp != 0)
 			brelse(bp);
-		if (error = VOP_BLKATOFF(vp, (off_t)0, NULL, &bp)) {
+		if (error = cd9660_blkatoff(vp, (off_t)0, NULL, &bp)) {
 			vput(vp);
 			return (error);
 		}
@@ -787,7 +787,7 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		int off;
 		if ((imp->im_flags & ISOFSMNT_EXTATT)
 		    && (off = isonum_711(isodir->ext_attr_length)))
-			VOP_BLKATOFF(vp, (off_t)-(off << imp->im_bshift), NULL,
+			cd9660_blkatoff(vp, (off_t)-(off << imp->im_bshift), NULL,
 				     &bp2);
 		else
 			bp2 = NULL;

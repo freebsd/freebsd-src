@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.13 (Berkeley) 6/10/95
- * $Id: lfs_vnops.c,v 1.26 1997/10/15 10:05:23 phk Exp $
+ * $Id: lfs_vnops.c,v 1.27 1997/10/15 13:23:52 phk Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,7 @@
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/lfs/lfs.h>
@@ -73,17 +74,12 @@ static int	 lfs_write __P((struct vop_write_args *));
 vop_t **lfs_vnodeop_p;
 static struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperate },
-
-	{ &vop_blkatoff_desc,		(vop_t *) lfs_blkatoff },
 	{ &vop_bwrite_desc,		(vop_t *) lfs_bwrite },
 	{ &vop_close_desc,		(vop_t *) lfs_close },
 	{ &vop_fsync_desc,		(vop_t *) lfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) lfs_getattr },
 	{ &vop_read_desc,		(vop_t *) lfs_read },
-	{ &vop_truncate_desc,		(vop_t *) lfs_truncate },
 	{ &vop_update_desc,		(vop_t *) lfs_update },
-	{ &vop_valloc_desc,		(vop_t *) lfs_valloc },
-	{ &vop_vfree_desc,		(vop_t *) lfs_vfree },
 	{ &vop_write_desc,		(vop_t *) lfs_write },
 	{ &vop_lookup_desc,		(vop_t *) ufs_lookup },
 	{ NULL, NULL }
@@ -97,7 +93,6 @@ static struct vnodeopv_entry_desc lfs_specop_entries[] = {
 	{ &vop_bwrite_desc,		(vop_t *) lfs_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) lfs_getattr },
 	{ &vop_update_desc,		(vop_t *) lfs_update },
-	{ &vop_vfree_desc,		(vop_t *) lfs_vfree },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc lfs_specop_opv_desc =
@@ -109,7 +104,6 @@ static struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 	{ &vop_bwrite_desc,		(vop_t *) lfs_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) lfs_getattr },
 	{ &vop_update_desc,		(vop_t *) lfs_update },
-	{ &vop_vfree_desc,		(vop_t *) lfs_vfree },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc lfs_fifoop_opv_desc =

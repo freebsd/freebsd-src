@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.26 1997/03/22 06:53:29 bde Exp $
+ * $Id: ffs_inode.c,v 1.27 1997/09/02 20:06:44 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -149,21 +149,18 @@ ffs_update(ap)
  * disk blocks.
  */
 int
-ffs_truncate(ap)
-	struct vop_truncate_args /* {
-		struct vnode *a_vp;
-		off_t a_length;
-		int a_flags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
+ffs_truncate(vp, length, flags, cred, p)
+	struct vnode *vp;
+	off_t length;
+	int flags;
+	struct ucred *cred;
+	struct proc *p;
 {
-	register struct vnode *ovp = ap->a_vp;
+	register struct vnode *ovp = vp;
 	ufs_daddr_t lastblock;
 	register struct inode *oip;
 	ufs_daddr_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
 	ufs_daddr_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
-	off_t length = ap->a_length;
 	register struct fs *fs;
 	struct buf *bp;
 	int offset, size, level;
@@ -210,9 +207,9 @@ ffs_truncate(ap)
 		offset = blkoff(fs, length - 1);
 		lbn = lblkno(fs, length - 1);
 		aflags = B_CLRBUF;
-		if (ap->a_flags & IO_SYNC)
+		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
-		error = ffs_balloc(oip, lbn, offset + 1, ap->a_cred,
+		error = ffs_balloc(oip, lbn, offset + 1, cred,
 		    &bp, aflags);
 		if (error)
 			return (error);
@@ -240,9 +237,9 @@ ffs_truncate(ap)
 	} else {
 		lbn = lblkno(fs, length);
 		aflags = B_CLRBUF;
-		if (ap->a_flags & IO_SYNC)
+		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
-		error = ffs_balloc(oip, lbn, offset, ap->a_cred, &bp, aflags);
+		error = ffs_balloc(oip, lbn, offset, cred, &bp, aflags);
 		if (error)
 			return (error);
 		oip->i_size = length;
@@ -296,7 +293,7 @@ ffs_truncate(ap)
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof oldblks);
 	oip->i_size = osize;
 	vflags = ((length > 0) ? V_SAVE : 0) | V_SAVEMETA;
-	allerror = vinvalbuf(ovp, vflags, ap->a_cred, ap->a_p, 0, 0);
+	allerror = vinvalbuf(ovp, vflags, cred, p, 0, 0);
 
 	/*
 	 * Indirect blocks first.
