@@ -29,7 +29,7 @@
  * $FreeBSD$
  */
 
-#include "opt_key.h"
+#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -57,13 +57,11 @@
 #include <netinet6/ipsec.h>
 #include <netinet6/ipsec6.h>
 #include <netkey/key.h>
-#ifdef KEY_DEBUG
+#ifdef IPSEC_DEBUG
 #include <netkey/key_debug.h>
 #else
-#define DPRINTF(lev,arg)
-#define DDO(lev, stmt)
-#define DP(x, y, z)
-#endif /* KEY_DEBUG */
+#define KEYDEBUG(lev,arg)
+#endif
 #endif /* IPSEC_IPV6FWD */
 
 #ifdef IPV6FIREWALL

@@ -173,6 +173,9 @@ struct	ip6stat {
 /* flags passed to ip6_output as last parameter */
 #define	IPV6_DADOUTPUT		0x01	/* DAD */
 #define	IPV6_FORWARDING		0x02	/* most of IPv6 header exists */
+#define	IPV6_SOCKINMRCVIF	0x100	/* IPSEC hack;
+					 * socket pointer in sending
+					 * packet's m_pkthdr.rcvif */
 
 extern struct	ip6stat ip6stat;	/* statistics */
 extern u_int32_t	ip6_id;		/* fragment identifier */

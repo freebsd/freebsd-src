@@ -52,11 +52,14 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/in_gif.h>
-
 #ifdef INET6
 #include <netinet/ip6.h>
+#endif
+#include <netinet/ip_var.h>
+#include <netinet/in_gif.h>
+#include <netinet/ip_ecn.h>
+#ifdef INET6
+#include <netinet6/ip6_ecn.h>
 #endif
 
 #ifdef MROUTING
@@ -168,6 +171,8 @@ in_gif_output(ifp, family, m, rt)
 	/* version will be set in ip_output() */
 	iphdr.ip_ttl = ip_gif_ttl;
 	iphdr.ip_len = m->m_pkthdr.len + sizeof(struct ip);
+	if (ifp->if_flags & IFF_LINK1)
+		ip_ecn_ingress(ECN_ALLOWED, &iphdr.ip_tos, &tos);
 
 	/* prepend new IP header */
 	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
@@ -200,33 +205,18 @@ in_gif_output(ifp, family, m, rt)
 		}
 	}
 
-#ifdef IPSEC
-	m->m_pkthdr.rcvif = NULL;
-#endif /*IPSEC*/
 	error = ip_output(m, 0, &sc->gif_ro, 0, 0);
 	return(error);
 }
 
 void
-#if __STDC__
-in_gif_input(struct mbuf *m, ...)
-#else
-in_gif_input(m, va_alist)
-	struct mbuf *m;
-	va_dcl
-#endif
+in_gif_input(struct mbuf *m, int off, int proto)
 {
-	int off, proto;
 	struct gif_softc *sc;
 	struct ifnet *gifp = NULL;
 	struct ip *ip;
 	int i, af;
-	va_list ap;
-
-	va_start(ap, m);
-	off = va_arg(ap, int);
-	proto = va_arg(ap, int);
-	va_end(ap);
+	u_int8_t otos;
 
 	ip = mtod(m, struct ip *);
 
@@ -262,7 +252,7 @@ in_gif_input(m, va_alist)
 #ifdef MROUTING
 		/* for backward compatibility */
 		if (proto == IPPROTO_IPV4) {
-			ipip_input(m, off);
+			ipip_input(m, off, proto);
 			return;
 		}
 #endif /*MROUTING*/
@@ -271,6 +261,7 @@ in_gif_input(m, va_alist)
 		return;
 	}
 
+	otos = ip->ip_tos;
 	m_adj(m, off);
 
 	switch (proto) {
@@ -284,12 +275,15 @@ in_gif_input(m, va_alist)
 				return;
 		}
 		ip = mtod(m, struct ip *);
+		if (gifp->if_flags & IFF_LINK1)
+			ip_ecn_egress(ECN_ALLOWED, &otos, &ip->ip_tos);
 		break;
 	    }
 #ifdef INET6
 	case IPPROTO_IPV6:
 	    {
 		struct ip6_hdr *ip6;
+		u_int8_t itos;
 		af = AF_INET6;
 		if (m->m_len < sizeof(*ip6)) {
 			m = m_pullup(m, sizeof(*ip6));
@@ -297,7 +291,11 @@ in_gif_input(m, va_alist)
 				return;
 		}
 		ip6 = mtod(m, struct ip6_hdr *);
+		itos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+		if (gifp->if_flags & IFF_LINK1)
+			ip_ecn_egress(ECN_ALLOWED, &otos, &itos);
 		ip6->ip6_flow &= ~htonl(0xff << 20);
+		ip6->ip6_flow |= htonl((u_int32_t)itos << 20);
 		break;
 	    }
 #endif /* INET6 */

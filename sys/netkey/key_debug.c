@@ -1,759 +1,689 @@
 /*
- * modified by Jun-ichiro itojun Itoh <itojun@itojun.org>, 1997
- */
-/*
- * in6_debug.c  --  Insipired by Craig Metz's Net/2 in6_debug.c, but
- *                  not quite as heavyweight (initially, anyway).
+ * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * All rights reserved.
  *
- * The idea is to have globals here, and dump netinet6/ data structures.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the project nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * Copyright 1995 by Dan McDonald, Bao Phan, and Randall Atkinson,
- *	All Rights Reserved.  
- *      All Rights under this copyright have been assigned to NRL.
+ * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-/*----------------------------------------------------------------------
-#       @(#)COPYRIGHT   1.1a (NRL) 17 August 1995
+/* KAME @(#)$Id: key_debug.c,v 1.1.6.2.4.3 1999/07/06 12:05:13 itojun Exp $ */
 
-COPYRIGHT NOTICE
+#ifdef _KERNEL
+# ifndef KERNEL
+#  define KERNEL
+# endif
+#endif
 
-All of the documentation and software included in this software
-distribution from the US Naval Research Laboratory (NRL) are
-copyrighted by their respective developers.
+#ifdef KERNEL
+#include "opt_inet6.h"
+#include "opt_ipsec.h"
+#endif
 
-This software and documentation were developed at NRL by various
-people.  Those developers have each copyrighted the portions that they
-developed at NRL and have assigned All Rights for those portions to
-NRL.  Outside the USA, NRL also has copyright on the software
-developed at NRL. The affected files all contain specific copyright
-notices and those notices must be retained in any derived work.
-
-NRL LICENSE
-
-NRL grants permission for redistribution and use in source and binary
-forms, with or without modification, of the software and documentation
-created at NRL provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-3. All advertising materials mentioning features or use of this software
-   must display the following acknowledgement:
-
-        This product includes software developed at the Information
-        Technology Division, US Naval Research Laboratory.
-
-4. Neither the name of the NRL nor the names of its contributors
-   may be used to endorse or promote products derived from this software
-   without specific prior written permission.
-
-THE SOFTWARE PROVIDED BY NRL IS PROVIDED BY NRL AND CONTRIBUTORS ``AS
-IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL NRL OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation
-are those of the authors and should not be interpreted as representing
-official policies, either expressed or implied, of the US Naval
-Research Laboratory (NRL).
-
-----------------------------------------------------------------------*/
-
-
-#define INET6_DEBUG_C
-
-#include "opt_key.h"
-
-#ifdef KEY
-#ifdef KEY_DEBUG	/*wraps the whole code*/
-
-/*#include <netkey/osdep_44bsd.h>*/
-
+#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/mbuf.h>
+#ifdef KERNEL
 #include <sys/systm.h>
+#include <sys/mbuf.h>
+#endif
+#include <sys/socket.h>
 
-#include <net/if.h>
-#include <net/if_dl.h>
 #include <net/route.h>
 
-#include <netinet/in.h>
-
-#include <netinet/in_systm.h>
-#include <netinet/in_pcb.h>
-
-#ifdef INET6
-#include <netinet6/in6.h>
-#include <netinet6/in6_var.h>
-#include <netinet6/ip6.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/icmp6.h>
-#include <netinet6/in6_pcb.h>
-#else /* INET6 */
-#if 0
-#include "in6_types.h"
-#endif
-#endif /* INET6 */
-
-#define SA_LEN	1
-#define SIN_LEN	1
-
-#ifdef KEY_DEBUG
-#include <netkey/key.h>
+#include <netkey/key_var.h>
 #include <netkey/key_debug.h>
-#endif /* KEY_DEBUG */
-#ifdef IPSEC_DEBUG
-#include <netsec/ipsec.h>
-#endif /* IPSEC_DEBUG */
 
-#if 0
-#include <netinet6/in6_debug.h>
+#include <netinet/in.h>
+#include <netinet6/in6.h>
+#include <netinet6/ipsec.h>
+
+#if !defined(KERNEL)
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#endif /* defined(KERNEL) */
+
+#if !defined(KERNEL) || (defined(KERNEL) && defined(IPSEC_DEBUG))
+
+static void kdebug_sadb_prop __P((struct sadb_ext *));
+static void kdebug_sadb_identity __P((struct sadb_ext *));
+static void kdebug_sadb_supported __P((struct sadb_ext *));
+static void kdebug_sadb_lifetime __P((struct sadb_ext *));
+static void kdebug_sadb_sa __P((struct sadb_ext *));
+static void kdebug_sadb_address __P((struct sadb_ext *));
+static void kdebug_sadb_key __P((struct sadb_ext *));
+
+#ifdef KERNEL
+static void kdebug_secreplay __P((struct secreplay *));
 #endif
 
-/*
- * Globals
- */
-
-/* The following should be sysctl-tweakable. */
-
-unsigned int in6_debug_level = IDL_FINISHED + 1;  /* 0 is no debugging */
-
-/*
- * Functions and macros.
- */
-
-void in6_debug_init()
-{
-  /* For now, nothing. */
-}
-
-/*----------------------------------------------------------------------
- * dump_* dumps various data structures.  These should be called within
- * the context of a DDO() macro.  They assume address and port fields
- * are in network order.
- ----------------------------------------------------------------------*/
-
-#ifdef INET6
-/*----------------------------------------------------------------------
- * Dump an IPv6 address.  Don't compress 0's out because of debugging.
- ----------------------------------------------------------------------*/
-void dump_in6_addr(in6_addr)
-     struct in6_addr *in6_addr;
-{
-  u_short *shorts = (u_short *)in6_addr;
-  int i = 0;
-
-  if (!in6_addr) {
-    printf("Dereference a NULL in6_addr? I don't think so.\n");
-    return;
-  }
-
-  printf("(conv. for printing) ");
-  while (i < 7)
-    printf("%4x:",htons(shorts[i++]));
-  printf("%4x\n",htons(shorts[7]));
-}
-#endif /* INET6 */
-
-/*----------------------------------------------------------------------
- * Dump and IPv4 address in x.x.x.x form.
- ----------------------------------------------------------------------*/
-void dump_in_addr(in_addr)
-     struct in_addr *in_addr;
-{
-  u_char *chars = (u_char *)in_addr;
-  int i = 0;
-
-  if (!in_addr) {
-    printf("Dereference a NULL in_addr? I don't think so.\n");
-    return;
-  }
-
-  while (i < 3)
-    printf("%d.",chars[i++]);
-  printf("%d\n",chars[3]);
-}
-
-#ifdef INET6
-/*----------------------------------------------------------------------
- * Dump an IPv6 socket address.
- ----------------------------------------------------------------------*/
-void dump_sockaddr_in6(sin6)
-     struct sockaddr_in6 *sin6;
-{
-  if (!sin6) {
-    printf("Dereference a NULL sockaddr_in6? I don't think so.\n");
-    return;
-  }
-
-  printf("sin6_len = %d, sin6_family = %d, sin6_port = %d (0x%x)\n",
-	 sin6->sin6_len,sin6->sin6_family, htons(sin6->sin6_port),
-	 htons(sin6->sin6_port));
-  printf("sin6_flowinfo = 0x%x\n",sin6->sin6_flowinfo);
-  printf("sin6_addr = ");
-  dump_in6_addr(&sin6->sin6_addr);
-}
-#endif /* INET6 */
-
-/*----------------------------------------------------------------------
- * Dump an IPv4 socket address.
- ----------------------------------------------------------------------*/
-void dump_sockaddr_in(sin)
-     struct sockaddr_in *sin;
-{
-  int i;
-
-  if (!sin) {
-    printf("Dereference a NULL sockaddr_in? I don't think so.\n");
-    return;
-  }
-
-#ifdef SIN_LEN
-  printf("sin_len = %d, ", sin->sin_len);
-#endif /* SIN_LEN */
-  printf("sin_family = %d, sin_port (conv.) = %d (0x%x)\n",
-	 sin->sin_family, htons(sin->sin_port),
-	 htons(sin->sin_port));
-  printf("sin_addr = ");
-  dump_in_addr(&sin->sin_addr);
-  printf("sin_zero == ");
-  for(i=0;i<8;i++)
-    printf("0x%2x ",sin->sin_zero[i]);
-  printf("\n");
-}
-
-/*----------------------------------------------------------------------
- * Dump a generic socket address.  Use if no family-specific routine is
- * available.
- ----------------------------------------------------------------------*/
-void dump_sockaddr(sa)
-	struct sockaddr *sa;
-{
-  if (!sa) {
-	printf("Dereference a NULL sockaddr? I don't think so.\n");
-        return;
-  }
-
-#ifdef SA_LEN
-  printf("sa_len = %d, ", sa->sa_len);
-#endif /* SA_LEN */
-  printf("sa_family = %d", sa->sa_family);
-#ifdef SA_LEN
-  printf(", remaining bytes are:\n");
-  {
-    int i;
-    for (i = 0; i <sa->sa_len - 2; i++)
-      printf("0x%2x ",(unsigned char)sa->sa_data[i]);
-  }
-#endif /* SA_LEN */
-  printf("\n");
-}
-
-/*----------------------------------------------------------------------
- * Dump a link-layer socket address.  (Not that there are user-level link
- * layer sockets, but there are plenty of link-layer addresses in the kernel.)
- ----------------------------------------------------------------------*/
-void dump_sockaddr_dl(sdl)
-     struct sockaddr_dl *sdl;
-{
-  char buf[256];
-
-  if (!sdl) {
-	printf("Dereference a NULL sockaddr_dl? I don't think so.\n");
-        return;
-  }
-
-  printf("sdl_len = %d, sdl_family = %d, sdl_index = %d, sdl_type = %d,\n",
-	 sdl->sdl_len, sdl->sdl_family, sdl->sdl_index, sdl->sdl_type);
-  buf[sdl->sdl_nlen] = 0;
-  if (sdl->sdl_nlen)
-    bcopy(sdl->sdl_data,buf,sdl->sdl_nlen);
-  printf("sdl_nlen = %d, (name = '%s'\n",sdl->sdl_nlen,buf);
-  printf("sdl_alen = %d, ",sdl->sdl_alen);
-  if (sdl->sdl_alen)
-    {
-      int i;
-
-      printf("(addr = ");
-      for (i = 0; i<sdl->sdl_alen; i++)
-	printf("0x%2x ",(unsigned char)sdl->sdl_data[i+sdl->sdl_nlen]);
-    }
-  printf("\n");
-  printf("sdl_slen = %d, ",sdl->sdl_slen);
-  if (sdl->sdl_slen)
-    {
-      int i;
-
-      printf("(addr = ");
-      for (i = 0; i<sdl->sdl_slen; i++)
-	printf("0x%2x ",
-	       (unsigned char)sdl->sdl_data[i+sdl->sdl_nlen+sdl->sdl_alen]);
-    }
-  printf("\n");
-}
-
-/*----------------------------------------------------------------------
- * Dump a socket address, calling a family-specific routine if available.
- ----------------------------------------------------------------------*/
-void dump_smart_sockaddr(sa)
-	struct sockaddr *sa;
-{
-  DPRINTF(IDL_MAJOR_EVENT, ("Entering dump_smart_sockaddr\n"));
-  if (!sa) {
-	printf("Dereference a NULL sockaddr? I don't think so.\n");
-        return;
-  }
-
-  switch (sa->sa_family)
-    {
-#ifdef INET6
-    case AF_INET6:
-      dump_sockaddr_in6((struct sockaddr_in6 *)sa);
-      break;
-#endif /* INET6 */
-    case AF_INET:
-      dump_sockaddr_in((struct sockaddr_in *)sa);
-      break;
-    case AF_LINK:
-      dump_sockaddr_dl((struct sockaddr_dl *)sa);
-      break;
-    default:
-      dump_sockaddr(sa);
-      break;
-    }
-}
-
-#ifdef INET6
-/*----------------------------------------------------------------------
- * Dump an IPv6 header.
- ----------------------------------------------------------------------*/
-void dump_ipv6(ip6)
-     struct ip6 *ip6;
-{
-  if (!ip6) {
-	printf("Dereference a NULL ip6? I don't think so.\n");
-        return;
-  }
-
-  printf("Vers = %d, pri = 0x%x, flow label = 0x%x\n",
-	ip6->ip6_v, ip6->ip6_pri, htonl(ip6->ip6_flbl));
-  printf("Length (conv) = %d, nexthdr = %d, hoplimit = %d.\n",
-	 htons(ip6->ip6_len),ip6->ip6_nh,ip6->ip6_hlim);
-  printf("Src: ");
-  dump_in6_addr(&ip6->ip6_src);
-  printf("Dst: ");
-  dump_in6_addr(&ip6->ip6_dst);
-}
-
-/*----------------------------------------------------------------------
- * Dump an ICMPv6 header.  This function is not very smart beyond the
- * type, code, and checksum.
- ----------------------------------------------------------------------*/
-void dump_ipv6_icmp(icp)
-     struct icmp6 *icp;
-{
-  int i;
-
-  if (!icp) {
-	printf("Dereference a NULL ipv6_icmp? I don't think so.\n");
-        return;
-  }
-
-  printf("type %d, code %d, cksum (conv) = 0x%x\n",icp->icmp6_type,
-	 icp->icmp6_code,htons(icp->icmp6_cksum));
-  printf("First four bytes:  0x%x",htonl(icp->icmp6_flags));
-  printf("\n");
-}
-#endif /* INET6 */
-
-/*----------------------------------------------------------------------
- * Dump only the header fields of a single mbuf.
- ----------------------------------------------------------------------*/
-void dump_mbuf_hdr(m)
-     struct mbuf *m;
-{
-  if (!m) {
-	printf("Dereference a NULL mbuf? I don't think so.\n");
-        return;
-  }
-
-  printf("Single mbuf at %p\n", (void *)m);
-  printf("m_len = %d, m_data = %p, m_type = %d\n",m->m_len,
-	 (void *)m->m_data, m->m_type);
-  printf("m_flags = 0x%x ",m->m_flags);
-  if (m->m_flags & M_PKTHDR)
-    printf("m_pkthdr.len = %d, m_pkthdr.rcvif = %p",m->m_pkthdr.len,
-	   (void *)m->m_pkthdr.rcvif);
-  if (m->m_flags & M_EXT)
-    printf(" (IS CLUSTER MBUF)");
-  printf("\nm_next = %p  m_nextpkt = %p\n",(void *)m->m_next,
-	 (void *)m->m_nextpkt);
-}
-
-/*----------------------------------------------------------------------
- * Dump the entire contents of a single mbuf.
- ----------------------------------------------------------------------*/
-void dump_mbuf(m)
-     struct mbuf *m;
-{
-  int i;
-
-  dump_mbuf_hdr(m);
-  printf("m_data:\n");
-  for (i = 0; i < m->m_len; i++)
-    printf("0x%2x%s",(unsigned char)m->m_data[i] , ((i+1) % 16)?" ":"\n");
-  printf((i % 16)?"\n":"");
-}
-
-/*----------------------------------------------------------------------
- * Dump the contents of an mbuf chain.  (WARNING:  Lots of text may
- * result.
- ----------------------------------------------------------------------*/
-void dump_mchain(m)
-     struct mbuf *m;
-{
-  struct mbuf *walker;
-  int i;
-
-  for (walker = m, i = 0; walker != NULL && (i < 10); 
-       walker = walker->m_next, i++)
-    dump_mbuf(walker);
-}
-
-/*----------------------------------------------------------------------
- * Dump an mbuf chain's data in a format similar to tcpdump(8).
- ----------------------------------------------------------------------*/
-void dump_tcpdump(m)
-     struct mbuf *m;
-{
-  int i, j, count;
-
-  for (i = count = 0; m && (i < 10); m = m->m_next, i++) {
-    for (j = 0; j < m->m_len; j++, count++) {
-      if (!(count % (2 * 8)))
-	printf("\n\t\t\t");
-      if (!(count % 2))
-	printf(" ");
-      printf("%02x", (u_int8_t)(m->m_data[j]));
-    }
-  }
-}
-
-#if 0
-/*----------------------------------------------------------------------
- * Dump an IPv6 header index table, which is terminated by an entry with
- * a NULL mbuf pointer.
- ----------------------------------------------------------------------*/
-void dump_ihitab(ihi)
-     struct in6_hdrindex *ihi;
-{
-  int i=0;
-
-  if (!ihi) {
-    printf("Dereference a NULL hdrindex/ihi? I don't think so.\n");
-    return;
-  }
-
-  /* This is dangerous, make sure ihitab was bzeroed. */
-  while (ihi[i].ihi_mbuf)
-    {
-      printf("ihi_nexthdr = %d, ihi_mbuf = 0x%x.\n",ihi[i].ihi_nexthdr,
-	     ihi[i].ihi_mbuf);
-      i++;
-    }
-}
-#endif /* INET6 */
-
-/*----------------------------------------------------------------------
- * Dump an interface address.
- ----------------------------------------------------------------------*/
-void dump_ifa(ifa)
-     struct ifaddr *ifa;
-{
-  if (ifa == NULL)
-    {
-      printf("ifa of NULL.\n");
-      return;
-    }
-
-  printf("ifa_addr: ");
-  dump_smart_sockaddr(ifa->ifa_addr);
-  printf("ifa_netmask: ");
-  dump_smart_sockaddr(ifa->ifa_netmask);
-}
-
-/*----------------------------------------------------------------------
- * Dump an interface structure.
- ----------------------------------------------------------------------*/
-void dump_ifp(ifp)
-     struct ifnet *ifp;
-{
-  if (!ifp) {
-    printf("Dereference a NULL ifnet/ifp? I don't think so.\n");
-    return;
-  }
-
-  printf("Interface name: %s.\n",ifp->if_name);
-  printf("Interface type: %d.  ",ifp->if_type);
-  printf("MTU: %lu.\n",ifp->if_mtu);
-}
-
-/*----------------------------------------------------------------------
- * Dump a route structure (sockaddr/rtentry pair).
- ----------------------------------------------------------------------*/
-void dump_route(ro)
-     struct route *ro;
-{
-  if (!ro) {
-    printf("Dereference a NULL route? I don't think so.\n");
-    return;
-  }
-
-  printf("ro_rt = %p, ro_dst is:\n",(void *)ro->ro_rt);
-  dump_smart_sockaddr(&ro->ro_dst);
-}
-
-/*----------------------------------------------------------------------
- * Dump a routing entry.
- ----------------------------------------------------------------------*/
-void dump_rtentry(rt)
-     struct rtentry *rt;
-{
-  if (!rt) {
-    printf("Dereference a NULL rtentry? I don't think so.\n");
-    return;
-  }
-
-  printf("rt_key is:\n");
-  dump_smart_sockaddr(rt_key(rt));
-  printf("rt_mask is:\n");
-  dump_smart_sockaddr(rt_mask(rt));
-  printf("rt_llinfo = %p ",(void *)rt->rt_llinfo);
-  printf("rt_rmx.rmx_mtu = %lu ",rt->rt_rmx.rmx_mtu);
-  printf("rt_refcnt = %ld ",rt->rt_refcnt);
-  printf("rt_flags = 0x%lx\n",rt->rt_flags);
-  printf("rt_ifp is:\n");
-  dump_ifp(rt->rt_ifp);
-  printf("rt_ifa is:\n");
-  dump_ifa(rt->rt_ifa);
-}
-
-/*----------------------------------------------------------------------
- * Dump an Internet v4 protocol control block.
- ----------------------------------------------------------------------*/
-void dump_inpcb(inp)
-     struct inpcb *inp;
-{
-  if (!inp) {
-    printf("Dereference a NULL inpcb? I don't think so.\n");
-    return;
-  }
-
-#if 0
-  printf("inp_next = 0x%x, inp_prev = 0x%x, inp_head = 0x%x.\n",
-	inp->inp_next, inp->inp_prev, inp->inp_head);
+#ifndef KERNEL
+#define	panic(param)	{ printf(param); exit(-1); }
 #endif
-  printf("inp_socket = %p, inp_ppcb = %p\n",
-	 (void *)inp->inp_socket,(void *)inp->inp_ppcb);
-  printf("faddr:\n");
-  dump_in_addr(&inp->inp_faddr);
-  printf("laddr:\n");
-  dump_in_addr(&inp->inp_laddr);
-  printf("inp_route: ");
-  dump_route(&inp->inp_route);
-  printf("inp_ip:");
-  printf("<Coming soon.>\n");
-  printf("inp_options = %p, inp_moptions{6,} = %p,\n",
-	 (void *)inp->inp_options, (void *)inp->inp_moptions);
-  printf("inp_flags = 0x%x, inp_fport = %d, inp_lport = %d.\n",
-	 (unsigned)inp->inp_flags,inp->inp_fport, inp->inp_lport);
+
+/* NOTE: host byte order */
+
+/* %%%: about struct sadb_msg */
+void
+kdebug_sadb(base)
+	struct sadb_msg *base;
+{
+	struct sadb_ext *ext;
+	int tlen, extlen;
+
+	/* sanity check */
+	if (base == NULL)
+		panic("kdebug_sadb: NULL pointer was passed.\n");
+
+	printf("sadb_msg{ version=%u type=%u errno=%u satype=%u\n",
+	    base->sadb_msg_version, base->sadb_msg_type,
+	    base->sadb_msg_errno, base->sadb_msg_satype);
+	printf("  len=%u mode=%u reserved=%u seq=%u pid=%u }\n",
+	    base->sadb_msg_len, base->sadb_msg_mode,
+	    base->sadb_msg_reserved, base->sadb_msg_seq, base->sadb_msg_pid);
+
+	tlen = PFKEY_UNUNIT64(base->sadb_msg_len) - sizeof(struct sadb_msg);
+	ext = (struct sadb_ext *)((caddr_t)base + sizeof(struct sadb_msg));
+
+	while (tlen > 0) {
+		printf("sadb_ext{ len=%u type=%u }\n",
+		    ext->sadb_ext_len, ext->sadb_ext_type);
+
+		if (ext->sadb_ext_len == 0) {
+			printf("kdebug_sadb: invalid ext_len=0 was passed.\n");
+			return;
+		}
+
+		switch (ext->sadb_ext_type) {
+		case SADB_EXT_SA:
+			kdebug_sadb_sa(ext);
+			break;
+		case SADB_EXT_LIFETIME_CURRENT:
+		case SADB_EXT_LIFETIME_HARD:
+		case SADB_EXT_LIFETIME_SOFT:
+			kdebug_sadb_lifetime(ext);
+			break;
+		case SADB_EXT_ADDRESS_SRC:
+		case SADB_EXT_ADDRESS_DST:
+		case SADB_EXT_ADDRESS_PROXY:
+			kdebug_sadb_address(ext);
+			break;
+		case SADB_EXT_KEY_AUTH:
+		case SADB_EXT_KEY_ENCRYPT:
+			kdebug_sadb_key(ext);
+			break;
+		case SADB_EXT_IDENTITY_SRC:
+		case SADB_EXT_IDENTITY_DST:
+			kdebug_sadb_identity(ext);
+			break;
+		case SADB_EXT_SENSITIVITY:
+			break;
+		case SADB_EXT_PROPOSAL:
+			kdebug_sadb_prop(ext);
+			break;
+		case SADB_EXT_SUPPORTED_AUTH:
+		case SADB_EXT_SUPPORTED_ENCRYPT:
+			kdebug_sadb_supported(ext);
+			break;
+		case SADB_EXT_SPIRANGE:
+		case SADB_X_EXT_KMPRIVATE:
+			break;
+		case SADB_X_EXT_POLICY:
+			kdebug_sadb_x_policy(ext);
+			break;
+		default:
+			printf("kdebug_sadb: invalid ext_type %u was passed.\n",
+			    ext->sadb_ext_type);
+			return;
+		}
+
+		extlen = PFKEY_UNUNIT64(ext->sadb_ext_len);
+		tlen -= extlen;
+		ext = (struct sadb_ext *)((caddr_t)ext + extlen);
+	}
+
+	return;
 }
+
+static void
+kdebug_sadb_prop(ext)
+	struct sadb_ext *ext;
+{
+	struct sadb_prop *prop = (struct sadb_prop *)ext;
+	struct sadb_comb *comb;
+	int len;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("kdebug_sadb_prop: NULL pointer was passed.\n");
+
+	len = (PFKEY_UNUNIT64(prop->sadb_prop_len) - sizeof(*prop))
+		/ sizeof(*comb);
+	comb = (struct sadb_comb *)(prop + 1);
+	printf("sadb_prop{ replay=%u\n", prop->sadb_prop_replay);
+
+	while (len--) {
+		printf("sadb_comb{ auth=%u encrypt=%u "
+			"flags=0x%04x reserved=0x%08x\n",
+			comb->sadb_comb_auth, comb->sadb_comb_encrypt,
+			comb->sadb_comb_flags, comb->sadb_comb_reserved);
+
+		printf("  auth_minbits=%u auth_maxbits=%u "
+			"encrypt_minbits=%u encrypt_maxbits=%u\n",
+			comb->sadb_comb_auth_minbits,
+			comb->sadb_comb_auth_maxbits,
+			comb->sadb_comb_encrypt_minbits,
+			comb->sadb_comb_encrypt_maxbits);
+
+		printf("  soft_alloc=%u hard_alloc=%u "
+			"soft_bytes=%lu hard_bytes=%lu\n",
+			comb->sadb_comb_soft_allocations,
+			comb->sadb_comb_hard_allocations,
+			(unsigned long)comb->sadb_comb_soft_bytes,
+			(unsigned long)comb->sadb_comb_hard_bytes);
+
+		printf("  soft_alloc=%lu hard_alloc=%lu "
+			"soft_bytes=%lu hard_bytes=%lu }\n",
+			(unsigned long)comb->sadb_comb_soft_addtime,
+			(unsigned long)comb->sadb_comb_hard_addtime,
+			(unsigned long)comb->sadb_comb_soft_usetime,
+			(unsigned long)comb->sadb_comb_hard_usetime);
+		comb++;
+	}
+	printf("}\n");
+
+	return;
+}
+
+static void
+kdebug_sadb_identity(ext)
+	struct sadb_ext *ext;
+{
+	struct sadb_ident *id = (struct sadb_ident *)ext;
+	int len;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("kdebug_sadb_identity: NULL pointer was passed.\n");
+
+	len = PFKEY_UNUNIT64(id->sadb_ident_len) - sizeof(*id);
+	printf("sadb_ident_%s{",
+	    id->sadb_ident_exttype == SADB_EXT_IDENTITY_SRC ? "src" : "dst");
+	printf(" type=%d id=%lu",
+	    id->sadb_ident_type, (u_long)id->sadb_ident_id);
+	if (len) {
+#ifdef KERNEL
+		ipsec_hexdump((caddr_t)(id + 1), len); /*XXX cast ?*/
+#else
+		char *p, *ep;
+		printf("\n  str=\"");
+		p = (char *)(id + 1);
+		ep = p + len;
+		for (/*nothing*/; *p && p < ep; p++) {
+			if (isprint(*p))
+				printf("%c", *p & 0xff);
+			else
+				printf("\\%03o", *p & 0xff);
+		}
+#endif
+		printf("\"");
+	}
+	printf(" }\n");
+
+	return;
+}
+
+static void
+kdebug_sadb_supported(ext)
+	struct sadb_ext *ext;
+{
+	struct sadb_supported *sup = (struct sadb_supported *)ext;
+	struct sadb_alg *alg;
+	int len;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("kdebug_sadb_supported: NULL pointer was passed.\n");
+
+	len = (PFKEY_UNUNIT64(sup->sadb_supported_len) - sizeof(*sup))
+		/ sizeof(*alg);
+	alg = (struct sadb_alg *)(sup + 1);
+	printf("sadb_sup{\n");
+	while (len--) {
+		printf("  { id=%d ivlen=%d min=%d max=%d }\n",
+			alg->sadb_alg_id, alg->sadb_alg_ivlen,
+			alg->sadb_alg_minbits, alg->sadb_alg_maxbits);
+		alg++;
+	}
+	printf("}\n");
+
+	return;
+}
+
+static void
+kdebug_sadb_lifetime(ext)
+	struct sadb_ext *ext;
+{
+	struct sadb_lifetime *lft = (struct sadb_lifetime *)ext;
+
+	/* sanity check */
+	if (ext == NULL)
+		printf("kdebug_sadb_lifetime: NULL pointer was passed.\n");
+
+	printf("sadb_lifetime{ alloc=%u, bytes=%u\n",
+		lft->sadb_lifetime_allocations,
+		(u_int32_t)lft->sadb_lifetime_bytes);
+	printf("  addtime=%u, usetime=%u }\n",
+		(u_int32_t)lft->sadb_lifetime_addtime,
+		(u_int32_t)lft->sadb_lifetime_usetime);
+
+	return;
+}
+
+static void
+kdebug_sadb_sa(ext)
+	struct sadb_ext *ext;
+{
+	struct sadb_sa *sa = (struct sadb_sa *)ext;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("kdebug_sadb_sa: NULL pointer was passed.\n");
+
+	printf("sadb_sa{ spi=%u replay=%u state=%u\n",
+	    (u_int32_t)ntohl(sa->sadb_sa_spi), sa->sadb_sa_replay,
+	    sa->sadb_sa_state);
+	printf("  auth=%u encrypt=%u flags=0x%08x }\n",
+	    sa->sadb_sa_auth, sa->sadb_sa_encrypt, sa->sadb_sa_flags);
+
+	return;
+}
+
+static void
+kdebug_sadb_address(ext)
+	struct sadb_ext *ext;
+{
+	struct sadb_address *addr = (struct sadb_address *)ext;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("kdebug_sadb_address: NULL pointer was passed.\n");
+
+	printf("sadb_address{ proto=%u prefixlen=%u reserved=0x%02x%02x }\n",
+	    addr->sadb_address_proto, addr->sadb_address_prefixlen,
+	    ((u_char *)&addr->sadb_address_reserved)[0],
+	    ((u_char *)&addr->sadb_address_reserved)[1]);
+
+	kdebug_sockaddr((struct sockaddr *)((caddr_t)ext + sizeof(*addr)));
+
+	return;
+}
+
+static void
+kdebug_sadb_key(ext)
+	struct sadb_ext *ext;
+{
+	struct sadb_key *key = (struct sadb_key *)ext;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("kdebug_sadb_key: NULL pointer was passed.\n");
+
+	printf("sadb_key{ bits=%u reserved=%u\n",
+	    key->sadb_key_bits, key->sadb_key_reserved);
+	printf("  key=");
+
+	/* sanity check 2 */
+	if ((key->sadb_key_bits >> 3) >
+		(PFKEY_UNUNIT64(key->sadb_key_len) - sizeof(struct sadb_key))) {
+		printf("kdebug_sadb_key: key length mismatch, bit:%d len:%ld.\n",
+			key->sadb_key_bits >> 3,
+			(long)PFKEY_UNUNIT64(key->sadb_key_len) - sizeof(struct sadb_key));
+	}
+
+	ipsec_hexdump((caddr_t)key + sizeof(struct sadb_key),
+	              key->sadb_key_bits >> 3);
+	printf(" }\n");
+	return;
+}
+
+void
+kdebug_sadb_x_policy(ext)
+	struct sadb_ext *ext;
+{
+	struct sadb_x_policy *xpl = (struct sadb_x_policy *)ext;
+	struct sockaddr *addr;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("kdebug_sadb_x_policy: NULL pointer was passed.\n");
+
+	printf("sadb_x_policy{ type=%u dir=%u reserved=%x }\n",
+		xpl->sadb_x_policy_type, xpl->sadb_x_policy_dir,
+		xpl->sadb_x_policy_reserved);
+
+	if (xpl->sadb_x_policy_type == IPSEC_POLICY_IPSEC) {
+		int tlen;
+		struct sadb_x_ipsecrequest *xisr;
+
+		tlen = PFKEY_UNUNIT64(xpl->sadb_x_policy_len) - sizeof(*xpl);
+		xisr = (struct sadb_x_ipsecrequest *)(xpl + 1);
+
+		while (tlen > 0) {
+			printf(" { len=%u proto=%u mode=%u level=%u\n",
+				xisr->sadb_x_ipsecrequest_len,
+				xisr->sadb_x_ipsecrequest_proto,
+				xisr->sadb_x_ipsecrequest_mode,
+				xisr->sadb_x_ipsecrequest_level);
+
+			addr = (struct sockaddr *)(xisr + 1);
+			kdebug_sockaddr(addr);
+			addr = (struct sockaddr *)((caddr_t)addr + addr->sa_len);
+			kdebug_sockaddr(addr);
+
+			printf(" }\n");
+
+			/* prevent infinite loop */
+			if (xisr->sadb_x_ipsecrequest_len <= 0)
+				panic("kdebug_sadb_x_policy: wrong policy struct.\n");
+
+			tlen -= xisr->sadb_x_ipsecrequest_len;
+
+			xisr = (struct sadb_x_ipsecrequest *)((caddr_t)xisr
+			                + xisr->sadb_x_ipsecrequest_len);
+		}
+
+		if (tlen != 0)
+			panic("kdebug_sadb_x_policy: wrong policy struct.\n");
+	}
+
+	return;
+}
+
+#ifdef KERNEL
+/* %%%: about SPD and SAD */
+void
+kdebug_secpolicy(sp)
+	struct secpolicy *sp;
+{
+	/* sanity check */
+	if (sp == NULL)
+		panic("kdebug_secpolicy: NULL pointer was passed.\n");
+
+	printf("secpolicy{ refcnt=%u state=%u policy=%u\n",
+		sp->refcnt, sp->state, sp->policy);
+
+	kdebug_secpolicyindex(&sp->spidx);
+
+	switch (sp->policy) {
+	case IPSEC_POLICY_DISCARD:
+		printf("  type=discard }\n");
+		break;
+	case IPSEC_POLICY_NONE:
+		printf("  type=none }\n");
+		break;
+	case IPSEC_POLICY_IPSEC:
+	    {
+		struct ipsecrequest *isr;
+		for (isr = sp->req; isr != NULL; isr = isr->next) {
+
+			printf("  level=%u\n", isr->level);
+			kdebug_secasindex(&isr->saidx);
+
+			if (isr->sav != NULL)
+				kdebug_secasv(isr->sav);
+		}
+		printf("  }\n");
+	    }
+		break;
+	case IPSEC_POLICY_BYPASS:
+		printf("  type=bypass }\n");
+		break;
+	case IPSEC_POLICY_ENTRUST:
+		printf("  type=entrust }\n");
+		break;
+	default:
+		printf("kdebug_secpolicy: Invalid policy found. %d\n",
+			sp->policy);
+		break;
+	}
+
+	return;
+}
+
+void
+kdebug_secpolicyindex(spidx)
+	struct secpolicyindex *spidx;
+{
+	/* sanity check */
+	if (spidx == NULL)
+		panic("kdebug_secpolicyindex: NULL pointer was passed.\n");
+
+	printf("secpolicyindex{ dir=%u prefs=%u prefd=%u ul_proto=%u\n",
+		spidx->dir, spidx->prefs, spidx->prefd, spidx->ul_proto);
+
+	ipsec_hexdump((caddr_t)&spidx->src, spidx->src.__ss_len);
+	printf("\n");
+	ipsec_hexdump((caddr_t)&spidx->dst, spidx->dst.__ss_len);
+	printf("}\n");
+
+	return;
+}
+
+void
+kdebug_secasindex(saidx)
+	struct secasindex *saidx;
+{
+	/* sanity check */
+	if (saidx == NULL)
+		panic("kdebug_secpolicyindex: NULL pointer was passed.\n");
+
+	printf("secasindex{ mode=%u proto=%u\n",
+		saidx->mode, saidx->proto);
+
+	ipsec_hexdump((caddr_t)&saidx->src, saidx->src.__ss_len);
+	printf("\n");
+	ipsec_hexdump((caddr_t)&saidx->dst, saidx->dst.__ss_len);
+	printf("\n");
+
+	return;
+}
+
+void
+kdebug_secasv(sav)
+	struct secasvar *sav;
+{
+	/* sanity check */
+	if (sav == NULL)
+		panic("kdebug_secasv: NULL pointer was passed.\n");
+
+	printf("secas{");
+	kdebug_secasindex(&sav->sah->saidx);
+
+	printf("  refcnt=%u state=%u auth=%u enc=%u\n",
+	    sav->refcnt, sav->state, sav->alg_auth, sav->alg_enc);
+	printf("  spi=%u flags=%u\n",
+	    (u_int32_t)ntohl(sav->spi), sav->flags);
+
+	if (sav->key_auth != NULL)
+		kdebug_sadb_key((struct sadb_ext *)sav->key_auth);
+	if (sav->key_enc != NULL)
+		kdebug_sadb_key((struct sadb_ext *)sav->key_enc);
+	if (sav->iv != NULL) {
+		printf("  iv=");
+		ipsec_hexdump(sav->iv, sav->ivlen ? sav->ivlen : 8);
+		printf("\n");
+	}
+
+	if (sav->replay != NULL)
+		kdebug_secreplay(sav->replay);
+	if (sav->lft_c != NULL)
+		kdebug_sadb_lifetime((struct sadb_ext *)sav->lft_c);
+	if (sav->lft_h != NULL)
+		kdebug_sadb_lifetime((struct sadb_ext *)sav->lft_h);
+	if (sav->lft_s != NULL)
+		kdebug_sadb_lifetime((struct sadb_ext *)sav->lft_s);
+
+	return;
+}
+
+static void
+kdebug_secreplay(rpl)
+	struct secreplay *rpl;
+{
+	int len, l;
+
+	/* sanity check */
+	if (rpl == NULL)
+		panic("kdebug_secreplay: NULL pointer was passed.\n");
+
+	printf(" secreplay{ count=%u wsize=%u seq=%u lastseq=%u",
+	    rpl->count, rpl->wsize, rpl->seq, rpl->lastseq);
+
+	if (rpl->bitmap == NULL) {
+		printf(" }\n");
+		return;
+	}
+
+	printf("\n   bitmap { ");
+
+	for (len = 0; len < rpl->wsize; len++) {
+		for (l = 7; l >= 0; l--)
+			printf("%u", (((rpl->bitmap)[len] >> l) & 1) ? 1 : 0);
+	}
+	printf(" }\n");
+
+	return;
+}
+
+void
+kdebug_mbufhdr(m)
+	struct mbuf *m;
+{
+	/* sanity check */
+	if (m == NULL)
+		panic("debug_mbufhdr: NULL pointer was passed.\n");
+
+	printf("mbuf(%p){ m_next:%p m_nextpkt:%p m_data:%p "
+	       "m_len:%d m_type:0x%02x m_flags:0x%02x }\n",
+		m, m->m_next, m->m_nextpkt, m->m_data,
+		m->m_len, m->m_type, m->m_flags);
+
+	if (m->m_flags & M_PKTHDR) {
+		printf("  m_pkthdr{ len:%d rcvif:%p }\n",
+		    m->m_pkthdr.len, m->m_pkthdr.rcvif);
+	}
+	if (m->m_flags & M_EXT) {
+		printf("  m_ext{ ext_buf:%p ext_free:%p "
+		       "ext_size:%u ext_ref:%p }\n",
+			m->m_ext.ext_buf, m->m_ext.ext_free,
+			m->m_ext.ext_size, m->m_ext.ext_ref);
+	}
+	return;
+}
+
+void
+kdebug_mbuf(m0)
+	struct mbuf *m0;
+{
+	struct mbuf *m = m0;
+	int i, j;
+
+	kdebug_mbufhdr(m);
+	printf("  m_data=\n");
+	for (j = 0; m; m = m->m_next) {
+		for (i = 0; i < m->m_len; i++) {
+			if (i != 0 && i % 32 == 0) printf("\n");
+			if (i % 4 == 0) printf(" ");
+			printf("%02x", mtod(m, u_char *)[i]);
+			j++;
+		}
+	}
+
+	printf("\n");
+
+	return;
+}
+#endif /* KERNEL */
+
+void
+kdebug_sockaddr(addr)
+	struct sockaddr *addr;
+{
+	/* sanity check */
+	if (addr == NULL)
+		panic("kdebug_sockaddr: NULL pointer was passed.\n");
+
+	/* NOTE: We deal with port number as host byte order. */
+	printf("sockaddr{ len=%u family=%u port=%u\n",
+		addr->sa_len, addr->sa_family, ntohs(_INPORTBYSA(addr)));
 
 #ifdef INET6
-/*----------------------------------------------------------------------
- * Dump an Internet v6 protocol control block.
- ----------------------------------------------------------------------*/
-void dump_in6pcb(in6p)
-     struct in6pcb *in6p;
-{
-  if (!in6p) {
-    printf("Dereference a NULL in6pcb? I don't think so.\n");
-    return;
-  }
+	if (addr->sa_family == PF_INET6) {
+		struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)addr;
+		printf("  flowinfo=0x%08x, scope_id=0x%08x\n",
+		    in6->sin6_flowinfo, in6->sin6_scope_id);
+	}
+#endif
 
-  printf("in6p_next = 0x%x, in6p_prev = 0x%x, in6p_head = 0x%x.\n",
-	in6p->in6p_next, in6p->in6p_prev, in6p->in6p_head);
-  printf("in6p_socket = 0x%x, in6p_ppcb\n",
-	in6p->in6p_socket, in6p->in6p_ppcb);
-  printf("faddr:\n");
-  dump_in6_addr(&in6p->in6p_faddr);
-  printf("laddr:\n");
-  dump_in6_addr(&in6p->in6p_laddr);
-  printf("in6p_route: ");
-  dump_route(&in6p->in6p_route);
-  printf("in6p_ip6:");
-  dump_ipv6(&in6p->in6p_ip6);
-  printf("in6p_options = 0x%x, in6p_moptions{6,} = 0x%x,\n",
-	in6p->in6p_options, in6p->in6p_moptions);
-  printf("in6p_flags = 0x%x, in6p_fport = %d, in6p_lport = %d.\n",
-	 (unsigned)in6p->in6p_flags, in6p->in6p_fport, in6p->in6p_lport);
+	ipsec_hexdump(_INADDRBYSA(addr), _INALENBYAF(addr->sa_family));
+
+	printf("  }\n");
+
+	return;
 }
-#endif /*INET6*/
 
-#if 0
-/*----------------------------------------------------------------------
- * Dump an IPv6 discovery queue structure.
- ----------------------------------------------------------------------*/
-void dump_discq(dq)
-     struct discq *dq;
+#endif /* !defined(KERNEL) || (defined(KERNEL) && defined(IPSEC_DEBUG)) */
+
+void
+ipsec_bindump(buf, len)
+	caddr_t buf;
+	int len;
 {
-  if (!dq) {
-    printf("Dereference a NULL discq? I don't think so.\n");
-    return;
-  }
+	int i;
 
-  printf("dq_next = 0x%x, dq_prev = 0x%x, dq_rt = 0x%x,\n",dq->dq_next,
-	 dq->dq_prev, dq->dq_rt);
-  printf("dq_queue = 0x%x.\n",dq->dq_queue);
-  /* Dump first mbuf chain? */
-  /*printf("dq_expire = %d (0x%x).\n",dq->dq_expire,dq->dq_expire);*/
-}
-#endif /* INET6 */
+	for (i = 0; i < len; i++)
+		printf("%c", (unsigned char)buf[i]);
 
-/*----------------------------------------------------------------------
- * Dump a data buffer 
- ----------------------------------------------------------------------*/
-void dump_buf(buf, len)
-     char *buf;
-     int len;
-{
-  int i;
-
-  printf("buf=0x%x len=%d:\n", (unsigned int)buf, len);
-  for (i = 0; i < len; i++) {
-    printf("0x%x ", (u_int8_t)*(buf+i));
-  }
-  printf("\n");
+	return;
 }
 
 
-/*----------------------------------------------------------------------
- * Dump a key_tblnode structrue
- ----------------------------------------------------------------------*/
-void dump_keytblnode(ktblnode)
-     struct key_tblnode *ktblnode;
+void
+ipsec_hexdump(buf, len)
+	caddr_t buf;
+	int len;
 {
-  if (!ktblnode) {
-    printf("NULL key table node pointer!\n");
-    return;
-  }
-  printf("solist=0x%x ", (unsigned int)ktblnode->solist);
-  printf("secassoc=0x%x ", (unsigned int)ktblnode->secassoc);
-  printf("next=0x%x\n", (unsigned int)ktblnode->next);
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if (i != 0 && i % 32 == 0) printf("\n");
+		if (i % 4 == 0) printf(" ");
+		printf("%02x", (unsigned char)buf[i]);
+	}
+
+	return;
 }
 
-/*----------------------------------------------------------------------
- * Dump an ipsec_assoc structure
- ----------------------------------------------------------------------*/
-void dump_secassoc(seca)
-	struct key_secassoc *seca;
-{
-  u_int8_t *p;
-  int i;
-
-  if (seca) {
-    printf("secassoc_len=%u ", seca->len);
-    printf("secassoc_type=%d ", seca->type);
-    printf("secassoc_state=0x%x\n", seca->state);
-    printf("secassoc_label=%u ", seca->label);
-    printf("secassoc_spi=0x%x ", (unsigned int)seca->spi);
-    printf("secassoc_keylen=%u\n", seca->keylen);
-    printf("secassoc_ivlen=%u ", seca->ivlen);
-    printf("secassoc_algorithm=%u ", seca->algorithm);
-    printf("secassoc_lifetype=%u\n", seca->lifetype);
-    printf("secassoc_iv=0x%x:\n", (unsigned int)seca->iv);
-    p = (u_int8_t *)(seca->iv);
-    for (i = 0 ; i < seca->ivlen; i++)
-      printf("0x%x ", *(p + i));
-    printf("secassoc_key=0x%x:\n", (unsigned int)seca->key);
-    p = (u_int8_t *)(seca->key);
-    for (i = 0 ; i < seca->keylen; i++)
-      printf("0x%x ", *(p + i));
-    printf("secassoc_lifetime1=%u ", (unsigned int)seca->lifetime1);
-    printf("secassoc_lifetime2=%u\n", (unsigned int)seca->lifetime2);
-    dump_smart_sockaddr(seca->src);
-    dump_smart_sockaddr(seca->dst);
-    dump_smart_sockaddr(seca->from);
-  } else
-    printf("can't dump null secassoc pointer!\n");
-}
-
-
-/*----------------------------------------------------------------------
- * Dump a key_msghdr structure
- ----------------------------------------------------------------------*/
-void dump_keymsghdr(km)
-     struct key_msghdr *km;
-{
-  if (km) {
-    printf("key_msglen=%d\n", km->key_msglen);
-    printf("key_msgvers=%d\n", km->key_msgvers);
-    printf("key_msgtype=%d\n", km->key_msgtype);    
-    printf("key_pid=%d\n", km->key_pid);
-    printf("key_seq=%d\n", km->key_seq);
-    printf("key_errno=%d\n", km->key_errno);
-    printf("type=0x%x\n", (unsigned int)km->type);
-    printf("state=0x%x\n", (unsigned int)km->state);
-    printf("label=0x%x\n", (unsigned int)km->label);
-    printf("spi=0x%x\n", (unsigned int)km->spi);
-    printf("keylen=%d\n", km->keylen);
-    printf("ivlen=%d\n", km->ivlen);
-    printf("algorithm=%d\n", km->algorithm);
-    printf("lifetype=0x%x\n", (unsigned int)km->lifetype);
-    printf("lifetime1=%u\n", (unsigned int)km->lifetime1);
-    printf("lifetime2=%u\n", (unsigned int)km->lifetime2);
-  } else
-    printf("key_msghdr pointer is NULL!\n");
-}
-
-
-/*----------------------------------------------------------------------
- * Dump a key_msgdata structure
- ----------------------------------------------------------------------*/
-void dump_keymsginfo(kp)
-     struct key_msgdata *kp;
-{
-  int i;
-
-  if (kp) {
-    printf("src addr:\n");
-    dump_smart_sockaddr(kp->src);
-    printf("dest addr:\n");
-    dump_smart_sockaddr(kp->dst);
-    printf("from addr:\n");
-    dump_smart_sockaddr(kp->from);
-#define dumpbuf(a, b) \
-    { for (i= 0; i < (b); i++) \
-      printf("0x%2x%s", (unsigned char)(*((caddr_t)a+i)),((i+1)%16)?" ":"\n");\
-      printf("\n"); }
-    printf("iv is:\n");
-    dumpbuf(kp->iv, kp->ivlen);
-    printf("key is:\n");
-    dumpbuf(kp->key, kp->keylen);
-#undef dumpbuf    
-  } else
-    printf("key_msgdata point is NULL!\n");
-}
-
-#endif /*KEY_DEBUG*/
-#endif /*KEY*/

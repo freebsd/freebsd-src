@@ -63,6 +63,19 @@ cam/scsi/scsi_pass.c	optional pass
 cam/scsi/scsi_scan.c	optional scan
 cam/scsi/scsi_target.c	optional targ
 cam/scsi/scsi_targ_bh.c	optional targbh
+crypto/sha1.c		optional ipsec
+crypto/des/des_cbc.c	optional ipsec
+crypto/des/des_ecb.c	optional ipsec
+crypto/des/des_setkey.c	optional ipsec
+crypto/des/des_3cbc.c	optional ipsec
+crypto/blowfish/bf_cbc.c	optional ipsec
+crypto/blowfish/bf_cbc_m.c	optional ipsec
+crypto/blowfish/bf_enc.c	optional ipsec
+crypto/blowfish/bf_skey.c	optional ipsec
+crypto/cast128/cast128.c	optional ipsec
+crypto/cast128/cast128_cbc.c	optional ipsec
+crypto/rc5/rc5.c		optional ipsec
+crypto/rc5/rc5_cbc.c		optional ipsec
 ddb/db_access.c		optional ddb
 ddb/db_kld.c		optional ddb
 ddb/db_aout.c		optional ddb
@@ -607,6 +620,8 @@ netinet/in.c		optional inet
 netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
 netinet/in_rmx.c	optional inet
+netinet/ip_ecn.c	optional inet
+netinet/ip_ecn.c	optional inet6
 netinet/ip_divert.c	optional ipdivert
 netinet/ip_dummynet.c	optional dummynet
 netinet/ip_flow.c	optional inet
@@ -632,6 +647,13 @@ netinet/ip_auth.c	optional ipfilter inet
 netinet/ip_proxy.c	optional ipfilter inet
 netinet/ip_log.c	optional ipfilter inet
 netinet/mlfk_ipl.c	optional ipfilter inet
+netinet6/ah_core.c	optional ipsec
+netinet6/ah_input.c	optional ipsec
+netinet6/ah_output.c	optional ipsec
+netinet6/esp_core.c	optional ipsec
+netinet6/esp_input.c	optional ipsec
+netinet6/esp_output.c	optional ipsec
+netinet6/ipsec.c	optional ipsec
 netinet6/dest6.c	optional inet6
 netinet6/frag6.c	optional inet6
 netinet6/icmp6.c	optional inet6
@@ -664,8 +686,9 @@ netipx/ipx_tun.c	optional ipx
 netipx/ipx_usrreq.c	optional ipx
 netipx/spx_debug.c	optional ipx
 netipx/spx_usrreq.c	optional ipx
-netkey/key.c		optional key
-netkey/key_debug.c	optional key_debug
+netkey/key.c		optional ipsec
+netkey/key_debug.c	optional ipsec
+netkey/keysock.c	optional ipsec
 netnatm/natm.c		optional natm
 netnatm/natm_pcb.c	optional natm
 netnatm/natm_proto.c	optional natm

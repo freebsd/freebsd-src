@@ -1,299 +1,78 @@
-/*----------------------------------------------------------------------
- * key.h :     Declarations and Definitions for Key Engine for BSD.
+/*
+ * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * All rights reserved.
  *
- * Copyright 1995 by Bao Phan, Randall Atkinson, & Dan McDonald,
- * All Rights Reserved.  All rights have been assigned to the US
- * Naval Research Laboratory (NRL).  The NRL Copyright Notice and
- * License Agreement governs distribution and use of this software.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the project nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * Patents are pending on this technology.  NRL grants a license
- * to use this technology at no cost under the terms below with
- * the additional requirement that software, hardware, and
- * documentation relating to use of this technology must include
- * the note that:
- *    	This product includes technology developed at and
- *      licensed from the Information Technology Division,
- *	US Naval Research Laboratory.
+ * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- ----------------------------------------------------------------------*/
-/*----------------------------------------------------------------------
-#	@(#)COPYRIGHT	1.1a (NRL) 17 August 1995
-
-COPYRIGHT NOTICE
-
-All of the documentation and software included in this software
-distribution from the US Naval Research Laboratory (NRL) are
-copyrighted by their respective developers.
-
-This software and documentation were developed at NRL by various
-people.  Those developers have each copyrighted the portions that they
-developed at NRL and have assigned All Rights for those portions to
-NRL.  Outside the USA, NRL also has copyright on the software
-developed at NRL. The affected files all contain specific copyright
-notices and those notices must be retained in any derived work.
-
-NRL LICENSE
-
-NRL grants permission for redistribution and use in source and binary
-forms, with or without modification, of the software and documentation
-created at NRL provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-3. All advertising materials mentioning features or use of this software
-   must display the following acknowledgement:
-
-	This product includes software developed at the Information
-	Technology Division, US Naval Research Laboratory.
-
-4. Neither the name of the NRL nor the names of its contributors
-   may be used to endorse or promote products derived from this software
-   without specific prior written permission.
-
-THE SOFTWARE PROVIDED BY NRL IS PROVIDED BY NRL AND CONTRIBUTORS ``AS
-IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL NRL OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation
-are those of the authors and should not be interpreted as representing
-official policies, either expressed or implied, of the US Naval
-Research Laboratory (NRL).
-
-----------------------------------------------------------------------*/
-
-#ifndef _netkey_key_h
-#define	_netkey_key_h	1
-
-/*
- * PF_KEY messages
+ * $FreeBSD$
  */
 
-#define KEY_ADD		1
-#define KEY_DELETE	2
-#define KEY_UPDATE	3
-#define KEY_GET		4
-#define KEY_ACQUIRE	5
-#define KEY_GETSPI	6
-#define KEY_REGISTER	7
-#define KEY_EXPIRE	8
-#define KEY_DUMP	9
-#define KEY_FLUSH	10
+/* $Id: key.h,v 1.1.6.1.6.1 1999/05/17 17:03:14 itojun Exp $ */
 
-#define KEY_VERSION	1
-#define POLICY_VERSION	1
+#ifndef _NETKEY_KEY_H_
+#define	_NETKEY_KEY_H_
 
-#define SECURITY_TYPE_NONE	0
+#if defined(KERNEL)
 
-#define KEY_TYPE_AH	1
-#define KEY_TYPE_ESP	2
-#define KEY_TYPE_RSVP	3
-#define KEY_TYPE_OSPF	4
-#define KEY_TYPE_RIPV2	5
-#define KEY_TYPE_MIPV4	6
-#define KEY_TYPE_MIPV6	7
-#define KEY_TYPE_MAX	7
+extern struct key_cb key_cb;
 
-/*
- * Security association state
- */
+struct secpolicy;
+struct secpolicyindex;
+struct ipsecrequest;
+struct secasvar;
+struct sockaddr;
+struct socket;
+struct sadb_msg;
+struct sadb_x_policy;
 
-#define K_USED		0x1	/* Key used/not used */
-#define K_UNIQUE	0x2	/* Key unique/reusable */
-#define K_LARVAL	0x4	/* SPI assigned, but sa incomplete */
-#define K_ZOMBIE	0x8	/* sa expired but still useable */
-#define K_DEAD		0x10	/* sa marked for deletion, ready for reaping */
-#define K_INBOUND	0x20	/* sa for inbound packets, ie. dst=myhost */
-#define K_OUTBOUND	0x40	/* sa for outbound packets, ie. src=myhost */
+extern struct secpolicy *key_allocsp __P((struct secpolicyindex *spidx,
+					u_int dir));
+extern int key_checkrequest __P((struct ipsecrequest *isr));
+extern struct secasvar *key_allocsa __P((u_int family, caddr_t src, caddr_t dst,
+					u_int proto, u_int32_t spi));
+extern void key_freesp __P((struct secpolicy *sp));
+extern void key_freeso __P((struct socket *so));
+extern void key_freesav __P((struct secasvar *sav));
+extern struct secpolicy *key_newsp __P((void));
+extern struct secpolicy *key_msg2sp __P((struct sadb_x_policy *xpl0));
+extern struct sadb_x_policy *key_sp2msg __P((struct secpolicy *sp));
+extern int key_ismyaddr __P((u_int family, caddr_t addr));
+extern void key_timehandler __P((void));
+extern void key_srandom __P((void));
+extern void key_freereg __P((struct socket *so));
+extern int key_parse __P((struct sadb_msg **msgp, struct socket *so,
+			int *targetp));
+extern void key_init __P((void));
+extern int key_checktunnelsanity __P((struct secasvar *sav, u_int family,
+					caddr_t src, caddr_t dst));
+extern void key_sa_recordxfer __P((struct secasvar *sav, struct mbuf *m));
+extern void key_sa_routechange __P((struct sockaddr *dst));
 
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_SECA);
+#endif /* MALLOC_DECLARE */
 
-#ifndef MAX_SOCKADDR_SZ
-#ifdef INET6
-#define MAX_SOCKADDR_SZ (sizeof(struct sockaddr_in6))
-#else /* INET6 */
-#define MAX_SOCKADDR_SZ (sizeof(struct sockaddr_in))
-#endif /* INET6 */
-#endif /* MAX_SOCKADDR_SZ */
-
-#ifndef MAX_KEY_SZ
-#define MAX_KEY_SZ 16
-#endif /* MAX_KEY_SZ */
-
-#ifndef MAX_IV_SZ
-#define MAX_IV_SZ 16
-#endif /* MAX_IV_SZ */
-
-/* Security association data for IP Security */
-struct key_secassoc {
-	u_int8_t	len;		/* Length of the data (for radix) */
-	u_int8_t	type;		/* Type of association */
-	u_int8_t	vers;		/* Version of association (AH/ESP) */
-	u_int8_t	state;		/* State of the association */
-	u_int8_t	label;		/* Sensitivity label (unused) */
-	u_int32_t	spi;		/* SPI */
-	u_int8_t	keylen;		/* Key length */
-	u_int8_t	ekeylen;	/* Extra key length */
-	u_int8_t	ivlen;		/* Initialization vector length */
-	u_int8_t	algorithm;	/* Algorithm switch index */
-	u_int8_t	lifetype;	/* Type of lifetime */
-	caddr_t		iv;		/* Initialization vector */
-	caddr_t		key;		/* Key */
-	caddr_t		ekey;		/* Extra key */
-	u_int32_t	lifetime1;	/* Lifetime value 1 */
-	u_int32_t	lifetime2;	/* Lifetime value 2 */
-	struct sockaddr	*src;		/* Source host address */
-	struct sockaddr	*dst;		/* Destination host address */
-	struct sockaddr	*from;		/* Originator of association */
-
-	int		antireplay;	/*anti replay flag*/
-	u_int32_t	sequence;	/*send: sequence number*/
-	u_int32_t	replayright;	/*receive: replay window, right*/
-	u_int64_t	replaywindow;	/*receive: replay window*/
-};
-
-/*
- * Structure for key message header. PF_KEY message consists of key_msghdr
- * followed by src struct sockaddr, dest struct sockaddr, from struct
- * sockaddr, key, and iv. Assumes size of key message header less than MHLEN.
- */
-
-struct key_msghdr {
-	u_short		key_msglen;	/* length of message including
-					 * src/dst/from/key/iv */
-	u_char		key_msgvers;	/* key version number */
-	u_char		key_msgtype;	/* key message type, eg. KEY_ADD */
-	pid_t		key_pid;	/* process id of message sender */
-	int		key_seq;	/* message sequence number */
-	int		key_errno;	/* error code */
-	u_int8_t	type;		/* type of security association */
-	u_int8_t	vers;		/* version of sassoc (AH/ESP) */
-	u_int8_t	state;		/* state of security association */
-	u_int8_t	label;		/* sensitivity level */
-	u_int8_t	pad;		/* padding for allignment */
-	u_int32_t	spi;		/* spi value */
-	u_int8_t	keylen;		/* key length */
-	u_int8_t	ekeylen;	/* extra key length */
-	u_int8_t	ivlen;		/* iv length */
-	u_int8_t	algorithm;	/* algorithm identifier */
-	u_int8_t	lifetype;	/* type of lifetime */
-	u_int32_t	lifetime1;	/* lifetime value 1 */
-	u_int32_t	lifetime2;	/* lifetime value 2 */
-
-	int		antireplay;	/* anti replay flag */
-};
-
-struct key_msgdata {
-	struct sockaddr	*src;	/* source host address */
-	struct sockaddr	*dst;	/* destination host address */
-	struct sockaddr	*from;	/* originator of security association */
-	caddr_t		iv;	/* initialization vector */
-	caddr_t		key;	/* key */
-	caddr_t		ekey;	/* extra key */
-	int		ivlen;	/* key length */
-	int		keylen;	/* iv length */
-	int		ekeylen; /* extra key length */
-};
-
-struct policy_msghdr {
-	u_short	policy_msglen;	/* message length */
-	u_char	policy_msgvers;	/* message version */
-	u_char	policy_msgtype;	/* message type */
-	int	policy_seq;	/* message sequence number */
-	int	policy_errno;	/* error code */
-};
-
-/*
- * Key engine table structures
- */
-
-struct socketlist {
-	struct socket *socket;		/* pointer to socket */
-	struct socketlist *next;	/* next */
-};
-
-struct key_tblnode {
-	int	alloc_count;		/* number of sockets allocated to
-					 * secassoc */
-	int	ref_count;		/* number of sockets referencing
-					 * secassoc */
-	struct socketlist *solist;	/* list of sockets allocated to
-					 * secassoc */
-	struct key_secassoc *secassoc;	/* security association */
-	struct key_tblnode *next;	/* next node */
-};
-
-struct key_allocnode {
-	struct key_tblnode *keynode;
-	struct key_allocnode *next;
-};
-
-struct key_so2spinode {
-	struct socket *socket;		/* socket pointer */
-	struct key_tblnode *keynode;	/* pointer to tblnode containing
-					 * secassoc */
-	/* info for socket  */
-	struct key_so2spinode *next;
-};
-
-struct key_registry {
-	u_int8_t type;		/* secassoc type that key mgnt. daemon can
-				 * acquire */
-	struct socket *socket;	/* key management daemon socket pointer */
-	struct key_registry *next;
-};
-
-struct key_acquirelist {
-	u_int8_t type;		/* secassoc type to acquire */
-	struct sockaddr *target; /* destination address of secassoc */
-	u_int32_t count;	/* number of acquire messages sent */
-	u_long expiretime;	/* expiration time for acquire message */
-	struct key_acquirelist *next;
-};
-
-struct keyso_cb {
-	int ip4_count;
-#ifdef INET6
-	int ip6_count;
-#endif /*INET6*/
-	int any_count;	/* Sum of above counters */
-};
-
-#ifdef KERNEL
-extern int key_secassoc2msghdr __P((struct key_secassoc *, struct key_msghdr *,
-				struct key_msgdata *));
-extern int key_msghdr2secassoc __P((struct key_secassoc *, struct key_msghdr *,
-				struct key_msgdata *));
-extern int key_inittables __P((void));
-extern void key_sodelete __P((struct socket *, int));
-extern int key_add __P((struct key_secassoc *));
-extern int key_delete __P((struct key_secassoc *));
-extern int key_get __P((u_int, struct sockaddr *, struct sockaddr *,
-			u_int32_t, struct key_secassoc **));
-extern void key_flush __P((void));
-extern int key_dump __P((struct socket *));
-extern int key_getspi __P((u_int, u_int, struct sockaddr *, struct sockaddr *,
-			u_int32_t, u_int32_t, u_int32_t *));
-extern int key_update __P((struct key_secassoc *));
-extern int key_register __P((struct socket *, u_int));
-extern void key_unregister __P((struct socket *, u_int, int));
-extern int key_acquire __P((u_int, struct sockaddr *, struct sockaddr *));
-extern int getassocbyspi __P((u_int, struct sockaddr *, struct sockaddr *,
-			u_int32_t, struct key_tblnode **));
-extern int getassocbysocket __P((u_int, struct sockaddr *, struct sockaddr *, 
-			  struct socket *, u_int, struct key_tblnode **));
-extern void key_free __P((struct key_tblnode *));
-extern int key_parse __P((struct key_msghdr ** km, struct socket * so,
-			int *));
-#endif /* KERNEL */
-
-#endif /* _netkey_key_h */
+#endif /* defined(KERNEL) */
+#endif /* _NETKEY_KEY_H_ */

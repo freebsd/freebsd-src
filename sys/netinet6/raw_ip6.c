@@ -64,6 +64,8 @@
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
  */
 
+#include "opt_ipsec.h"
+
 #include <stddef.h>
 
 #include <sys/param.h>
@@ -140,7 +142,7 @@ rip6_input(mp, offp, proto)
 	init_sin6(&rip6src, m); /* general init */
 
 	LIST_FOREACH(in6p, &ripcb, inp_list) {
-		if ((in6p->in6p_vflag & INP_IPV6) == NULL)
+		if ((in6p->in6p_vflag & INP_IPV6) == 0)
 			continue;
 		if (in6p->in6p_ip6_nxt &&
 		    in6p->in6p_ip6_nxt != proto)
@@ -328,9 +330,10 @@ rip6_output(m, va_alist)
 		if (in6p->in6p_route.ro_rt)
 			oifp = ifindex2ifnet[in6p->in6p_route.ro_rt->rt_ifp->if_index];
 	}
-
-	ip6->ip6_flow = in6p->in6p_flowinfo & IPV6_FLOWINFO_MASK;
-	ip6->ip6_vfc  = IPV6_VERSION;
+	ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
+		(in6p->in6p_flowinfo & IPV6_FLOWINFO_MASK);
+	ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
+		(IPV6_VERSION & IPV6_VERSION_MASK);
 	/* ip6_plen will be filled in ip6_output, so not fill it here. */
 	ip6->ip6_nxt = in6p->in6p_ip6_nxt;
 	ip6->ip6_hlim = in6_selecthlim(in6p, oifp);
@@ -370,8 +373,8 @@ rip6_output(m, va_alist)
 	m->m_pkthdr.rcvif = (struct ifnet *)so;
 #endif /*IPSEC*/
 
-	error = ip6_output(m, optp, &in6p->in6p_route, 0, in6p->in6p_moptions,
-			   &oifp);
+	error = ip6_output(m, optp, &in6p->in6p_route, IPV6_SOCKINMRCVIF,
+			   in6p->in6p_moptions, &oifp);
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);
@@ -446,11 +449,9 @@ rip6_attach(struct socket *so, int proto, struct proc *p)
 	if (p && (error = suser(p)) != 0)
 		return error;
 
-	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		error = soreserve(so, rip_sendspace, rip_recvspace);
-		if (error)
-			return error;
-	}
+	error = soreserve(so, rip_sendspace, rip_recvspace);
+	if (error)
+		return error;
 	s = splnet();
 	error = in_pcballoc(so, &ripcbinfo, p);
 	splx(s);

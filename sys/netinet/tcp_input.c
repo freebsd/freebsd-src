@@ -273,10 +273,11 @@ present:
  * protocol specification dated September, 1981 very closely.
  */
 void
-tcp_input(m, iphlen)
+tcp_input(m, off0, proto)
 	register struct mbuf *m;
-	int iphlen;
+	int off0, proto;
 {
+	int iphlen = off0;
 	register struct tcpiphdr *ti;
 	register struct inpcb *inp;
 	u_char *optp = NULL;

@@ -64,7 +64,7 @@
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
  */
 
-#include "opt_key.h"
+#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -92,13 +92,11 @@
 #include <netinet6/ipsec.h>
 #include <netinet6/ipsec6.h>
 #include <netkey/key.h>
-#ifdef KEY_DEBUG
+#ifdef IPSEC_DEBUG
 #include <netkey/key_debug.h>
 #else
-#define DPRINTF(lev,arg)
-#define DDO(lev, stmt)
-#define DP(x, y, z)
-#endif /* KEY_DEBUG */
+#define KEYDEBUG(lev,arg)
+#endif
 #endif /* IPSEC */
 
 #include "loop.h"
@@ -166,8 +164,11 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp)
 	struct secpolicy *sp = NULL;
 
 	/* for AH processing. stupid to have "socket" variable in IP layer... */
-	so = (struct socket *)m->m_pkthdr.rcvif;
-	m->m_pkthdr.rcvif = NULL;
+	if ((flags & IPV6_SOCKINMRCVIF) != 0) {
+		so = (struct socket *)m->m_pkthdr.rcvif;
+		m->m_pkthdr.rcvif = NULL;
+	} else
+		so = NULL;
 	ip6 = mtod(m, struct ip6_hdr *);
 #endif /* IPSEC */
 
@@ -1321,9 +1322,11 @@ ip6_ctloutput(so, sopt)
 				caddr_t req = NULL;
 				struct mbuf *m;
 
-				if (error = soopt_getm(sopt, &m)) /* XXX */
+				if ((error = soopt_getm(sopt, &m))
+				    != 0) /* XXX */
 					break;
-				if (error = soopt_mcopyin(sopt, m)) /* XXX */
+				if ((error = soopt_mcopyin(sopt, m))
+				    != 0) /* XXX */
 					break;
 				if (m != 0)
 					req = mtod(m, caddr_t);
@@ -1345,9 +1348,11 @@ ip6_ctloutput(so, sopt)
 
 				if (ip6_fw_ctl_ptr == NULL)
 					return EINVAL;
-				if (error = soopt_getm(sopt, &m)) /* XXX */
+				if ((error = soopt_getm(sopt, &m))
+				    != 0) /* XXX */
 					break;
-				if (error = soopt_mcopyin(sopt, m)) /* XXX */
+				if ((error = soopt_mcopyin(sopt, m))
+				    != 0) /* XXX */
 					break;
 				error = (*ip6_fw_ctl_ptr)(optname, mp);
 				m = *mp;

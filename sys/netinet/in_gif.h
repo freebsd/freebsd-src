@@ -36,7 +36,7 @@
 
 extern int ip_gif_ttl;
 
-void in_gif_input __P((struct mbuf *, ...));
+void in_gif_input __P((struct mbuf *, int off, int proto));
 int in_gif_output __P((struct ifnet *, int, struct mbuf *, struct rtentry *));
 
 #endif /*_NETINET_IN_GIF_H_*/

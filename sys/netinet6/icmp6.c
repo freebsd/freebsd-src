@@ -64,7 +64,7 @@
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
  */
 
-#include "opt_key.h"
+#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -96,15 +96,15 @@
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
+#include <netinet6/ah.h>
 #include <netinet6/ipsec6.h>
+#include <netinet6/ah6.h>
 #include <netkey/key.h>
-#ifdef KEY_DEBUG
+#ifdef IPSEC_DEBUG
 #include <netkey/key_debug.h>
 #else
-#define DPRINTF(lev,arg)
-#define DDO(lev, stmt)
-#define DP(x, y, z)
-#endif /* KEY_DEBUG */
+#define KEYDEBUG(lev,arg)
+#endif
 #endif /* IPSEC */
 
 #include "faith.h"
@@ -1285,9 +1285,6 @@ icmp6_reflect(m, off)
 	 */
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
-#ifdef IPSEC
-	m->m_pkthdr.rcvif = NULL;
-#endif /*IPSEC*/
 
 #ifdef COMPAT_RFC1885
 	ip6_output(m, NULL, &icmp6_reflect_rt, 0, NULL, &outif);
@@ -1725,9 +1722,6 @@ noredhdropt:;
 		= in6_cksum(m, IPPROTO_ICMPV6, sizeof(*ip6), ntohs(ip6->ip6_plen));
 
 	/* send the packet to outside... */
-#ifdef IPSEC
-	m->m_pkthdr.rcvif = NULL;
-#endif /*IPSEC*/
 	ip6_output(m, NULL, NULL, 0, NULL, &outif);
 	if (outif) {
 		icmp6_ifstat_inc(outif, ifs6_out_msg);

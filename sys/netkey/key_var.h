@@ -43,40 +43,12 @@
 #define	KEYCTL_BLOCKACQ_LIFETIME	8
 #define	KEYCTL_MAXID			9
 
-#define	KEYCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "debug", CTLTYPE_INT }, \
-	{ "spi_try", CTLTYPE_INT }, \
-	{ "spi_min_value", CTLTYPE_INT }, \
-	{ "spi_max_value", CTLTYPE_INT }, \
-	{ "random_int", CTLTYPE_INT }, \
-	{ "larval_lifetime", CTLTYPE_INT }, \
-	{ "blockacq_count", CTLTYPE_INT }, \
-	{ "blockacq_lifetime", CTLTYPE_INT }, \
-}
-
-#define	KEYCTL_VARS { \
-	0, \
-	&key_debug_level, \
-	&key_spi_trycnt, \
-	&key_spi_minval, \
-	&key_spi_maxval, \
-	&key_int_random, \
-	&key_larval_lifetime, \
-	&key_blockacq_count, \
-	&key_blockacq_lifetime, \
-}
-
 #define	_ARRAYLEN(p) (sizeof(p)/sizeof(p[0]))
 #define	_KEYLEN(key) ((u_int)((key)->sadb_key_bits >> 3))
 #define	_KEYBITS(key) ((u_int)((key)->sadb_key_bits))
 #define	_KEYBUF(key) ((caddr_t)((caddr_t)(key) + sizeof(struct sadb_key)))
 
 #define	_INADDR(in) ((struct sockaddr_in *)(in))
-
-/* should not ifdef kernel opt in kernel header file */
-#if !defined(KERNEL) && !defined(_KERNEL)
-#if defined(INET6)
 #define	_IN6ADDR(in6) ((struct sockaddr_in6 *)(in6))
 #define	_SALENBYAF(family) \
 	(((family) == AF_INET) ? \
@@ -94,13 +66,9 @@
 	((((struct sockaddr *)(saddr))->sa_family == AF_INET) ? \
 		((struct sockaddr_in *)(saddr))->sin_port : \
 		((struct sockaddr_in6 *)(saddr))->sin6_port)
-#else
-#define	_IN6ADDR(in6) "#error"
-#define	_SALENBYAF(family) sizeof(struct sockaddr_in)
-#define	_INALENBYAF(family) sizeof(struct in_addr)
-#define	_INADDRBYSA(saddr) ((caddr_t)&((struct sockaddr_in *)(saddr))->sin_addr)
-#define	_INPORTBYSA(saddr) (((struct sockaddr_in *)(saddr))->sin_port)
-#endif /* defined(INET6) */
-#endif /* !defined(KERNEL) && !defined(_KERNEL) */
+
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_key);
+#endif
 
 #endif /* _NETKEY_KEY_VAR_H_ */

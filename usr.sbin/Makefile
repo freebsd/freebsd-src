@@ -35,7 +35,6 @@ SUBDIR=	IPXrouted \
 	kbdcontrol \
 	kbdmap \
 	kernbb \
-	keyadmin \
 	keyserv \
 	kvm_mkdb \
 	lpr \
