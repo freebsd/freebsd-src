@@ -179,7 +179,7 @@ archive_compressor_gzip_init(struct archive *a)
 /*
  * Write data to the compressed stream.
  */
-static ssize_t
+static int
 archive_compressor_gzip_write(struct archive *a, const void *buff,
     size_t length)
 {
@@ -187,7 +187,7 @@ archive_compressor_gzip_write(struct archive *a, const void *buff,
 	int ret;
 
 	state = a->compression_data;
-	if (!a->client_writer) {
+	if (a->client_writer == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
 		    "This is probably an internal programming error.");
@@ -205,7 +205,7 @@ archive_compressor_gzip_write(struct archive *a, const void *buff,
 		return (ret);
 
 	a->file_position += length;
-	return (length);
+	return (ARCHIVE_OK);
 }
 
 
@@ -215,7 +215,7 @@ archive_compressor_gzip_write(struct archive *a, const void *buff,
 static int
 archive_compressor_gzip_finish(struct archive *a)
 {
-	ssize_t block_length, target_block_length;
+	ssize_t block_length, target_block_length, bytes_written;
 	int ret;
 	struct private_data *state;
 	unsigned tocopy;
@@ -273,9 +273,13 @@ archive_compressor_gzip_finish(struct archive *a)
 
 	/* If it overflowed, flush and start a new block. */
 	if (tocopy < 8) {
-		ret = (a->client_writer)(a, a->client_data, state->compressed,
-		    state->compressed_buffer_size);
-		a->raw_position += ret;
+		bytes_written = (a->client_writer)(a, a->client_data,
+		    state->compressed, state->compressed_buffer_size);
+		if (bytes_written <= 0) {
+			ret = ARCHIVE_FATAL;
+			goto cleanup;
+		}
+		a->raw_position += bytes_written;
 		state->stream.next_out = state->compressed;
 		state->stream.avail_out = state->compressed_buffer_size;
 		memcpy(state->stream.next_out, trailer + tocopy, 8-tocopy);
@@ -306,9 +310,13 @@ archive_compressor_gzip_finish(struct archive *a)
 	}
 
 	/* Write the last block */
-	ret = (a->client_writer)(a, a->client_data, state->compressed,
-	    block_length);
-	a->raw_position += ret;
+	bytes_written = (a->client_writer)(a, a->client_data,
+	    state->compressed, block_length);
+	if (bytes_written <= 0) {
+		ret = ARCHIVE_FATAL;
+		goto cleanup;
+	}
+	a->raw_position += bytes_written;
 
 	/* Cleanup: shut down compressor, release memory, etc. */
 cleanup:
@@ -340,27 +348,28 @@ cleanup:
 static int
 drive_compressor(struct archive *a, struct private_data *state, int finishing)
 {
-	size_t ret;
+	ssize_t bytes_written;
+	int ret;
 
 	for (;;) {
 		if (state->stream.avail_out == 0) {
-			ret = (a->client_writer)(a, a->client_data,
+			bytes_written = (a->client_writer)(a, a->client_data,
 			    state->compressed, state->compressed_buffer_size);
-			if (ret <= 0) {
+			if (bytes_written <= 0) {
 				/* TODO: Handle this write failure */
 				return (ARCHIVE_FATAL);
-			} else if (ret < state->compressed_buffer_size) {
+			} else if ((size_t)bytes_written < state->compressed_buffer_size) {
 				/* Short write: Move remaining to
 				 * front of block and keep filling */
 				memmove(state->compressed,
-				    state->compressed + ret,
-				    state->compressed_buffer_size - ret);
+				    state->compressed + bytes_written,
+				    state->compressed_buffer_size - bytes_written);
 			}
-			a->raw_position += ret;
+			a->raw_position += bytes_written;
 			state->stream.next_out
 			    = state->compressed +
-			    state->compressed_buffer_size - ret;
-			state->stream.avail_out = ret;
+			    state->compressed_buffer_size - bytes_written;
+			state->stream.avail_out = bytes_written;
 		}
 
 		ret = deflate(&(state->stream),

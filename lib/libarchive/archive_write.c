@@ -215,9 +215,12 @@ archive_write_header(struct archive *a, struct archive_entry *entry)
 /*
  * Note that the compressor is responsible for blocking.
  */
+/* Should be "ssize_t", but that breaks the ABI.  <sigh> */
 int
 archive_write_data(struct archive *a, const void *buff, size_t s)
 {
+	int ret;
 	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_DATA);
-	return (a->format_write_data(a, buff, s));
+	ret = (a->format_write_data)(a, buff, s);
+	return (ret == ARCHIVE_OK ? (ssize_t)s : -1);
 }

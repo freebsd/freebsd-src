@@ -622,7 +622,7 @@ archive_write_pax_header(struct archive *a,
 	__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1, 0);
 
 	/* If we built any extended attributes, write that entry first. */
-	ret = 0;
+	ret = ARCHIVE_OK;
 	if (archive_strlen(&(pax->pax_header)) > 0) {
 		struct stat st;
 		struct archive_entry *pax_attr_entry;
@@ -663,7 +663,7 @@ archive_write_pax_header(struct archive *a,
 			exit(1);
 		}
 		r = (a->compression_write)(a, paxbuff, 512);
-		if (r < 512) {
+		if (r != ARCHIVE_OK) {
 			pax->entry_bytes_remaining = 0;
 			pax->entry_padding = 0;
 			return (ARCHIVE_FATAL);
@@ -677,7 +677,7 @@ archive_write_pax_header(struct archive *a,
 		r = archive_write_data(a, pax->pax_header.s,
 		    archive_strlen(&(pax->pax_header)));
 		a->state = oldstate;
-		if (r < (int)archive_strlen(&(pax->pax_header))) {
+		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
 			return (ARCHIVE_FATAL);
 		}
@@ -687,8 +687,8 @@ archive_write_pax_header(struct archive *a,
 
 	/* Write the header for main entry. */
 	r = (a->compression_write)(a, ustarbuff, 512);
-	if (ret != ARCHIVE_OK)
-		ret = (r < 512) ? ARCHIVE_FATAL : ARCHIVE_OK;
+	if (r != ARCHIVE_OK)
+		return (r);
 
 	/*
 	 * Inform the client of the on-disk size we're using, so
@@ -839,9 +839,9 @@ write_nulls(struct archive *a, size_t padding)
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
 		ret = (a->compression_write)(a, a->nulls, to_write);
-		if (ret <= 0)
-			return (ARCHIVE_FATAL);
-		padding -= ret;
+		if (ret != ARCHIVE_OK)
+			return (ret);
+		padding -= to_write;
 	}
 	return (ARCHIVE_OK);
 }
