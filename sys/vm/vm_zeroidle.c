@@ -143,10 +143,10 @@ vm_pagezero(void)
 	}
 }
 
-static struct proc *pagezero;
+static struct proc *pagezero_proc;
 static struct kproc_desc pagezero_kp = {
 	 "pagezero",
 	 vm_pagezero,
-	 &pagezero
+	 &pagezero_proc
 };
 SYSINIT(pagezero, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, kproc_start, &pagezero_kp)
