@@ -2900,12 +2900,12 @@ cmdrc(m1, m2)
     int gotmachine = 0;
     int l1 = strlen(m1);
     int l2 = strlen(m2);
-    char m1save[64];
+    char m1save[MAXHOSTNAMELEN];
 
     if (skiprc)
 	return;
 
-    strcpy(m1save, m1);
+    strlcpy(m1save, m1, sizeof(m1save));
     m1 = m1save;
 
     if (rcname == 0) {
