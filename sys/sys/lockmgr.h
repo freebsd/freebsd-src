@@ -120,6 +120,7 @@ struct lock {
 #define	LK_NOWAIT	0x00000010	/* do not sleep to await lock */
 #define	LK_SLEEPFAIL	0x00000020	/* sleep, then return failure */
 #define	LK_CANRECURSE	0x00000040	/* allow recursive exclusive lock */
+#define	LK_NOSHARE	0x00000080	/* Only allow exclusive locks */
 #define	LK_TIMELOCK	0x00000100	/* use lk_timo, else no timeout */
 /*
  * Nonpersistent external flags.

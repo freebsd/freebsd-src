@@ -218,7 +218,11 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		mtx_unlock(lkp->lk_interlock);
 		return (0);
 	}
-
+	if ((lkp->lk_flags & LK_NOSHARE) &&
+	    (flags & LK_TYPE_MASK) == LK_SHARED) {
+		flags &= ~LK_TYPE_MASK;
+		flags |= LK_EXCLUSIVE;
+	}
 	extflags = (flags | lkp->lk_flags) & LK_EXTFLG_MASK;
 
 	switch (flags & LK_TYPE_MASK) {
