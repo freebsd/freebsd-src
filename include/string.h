@@ -36,7 +36,17 @@
 
 #ifndef _STRING_H_
 #define	_STRING_H_
+
+#include <sys/cdefs.h>
 #include <machine/ansi.h>
+
+/*
+ * Prototype functions which were historically defined in <string.h>, but
+ * are required by POSIX to be prototyped in <strings.h>.
+ */
+#if __BSD_VISIBLE
+#include <strings.h>
+#endif
 
 #ifdef	_BSD_SIZE_T_
 typedef	_BSD_SIZE_T_	size_t;
@@ -47,53 +57,45 @@ typedef	_BSD_SIZE_T_	size_t;
 #define	NULL	0
 #endif
 
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
 void	*memchr(const void *, int, size_t);
 int	 memcmp(const void *, const void *, size_t);
-void	*memcpy(void *, const void *, size_t);
+void	*memcpy(void * __restrict, const void * __restrict, size_t);
 void	*memmove(void *, const void *, size_t);
 void	*memset(void *, int, size_t);
-char	*strcat(char *, const char *);
+char	*strcat(char * __restrict, const char * __restrict);
 char	*strchr(const char *, int);
 int	 strcmp(const char *, const char *);
 int	 strcoll(const char *, const char *);
-char	*strcpy(char *, const char *);
+char	*strcpy(char * __restrict, const char * __restrict);
 size_t	 strcspn(const char *, const char *);
 char	*strerror(int);
 size_t	 strlen(const char *);
-char	*strncat(char *, const char *, size_t);
+char	*strncat(char * __restrict, const char * __restrict, size_t);
 int	 strncmp(const char *, const char *, size_t);
-char	*strncpy(char *, const char *, size_t);
+char	*strncpy(char * __restrict, const char * __restrict, size_t);
 char	*strpbrk(const char *, const char *);
 char	*strrchr(const char *, int);
 size_t	 strspn(const char *, const char *);
 char	*strstr(const char *, const char *);
-char	*strtok(char *, const char *);
-size_t	 strxfrm(char *, const char *, size_t);
+char	*strtok(char * __restrict, const char * __restrict);
+size_t	 strxfrm(char * __restrict, const char * __restrict, size_t);
 
-/* Nonstandard routines */
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-int	 bcmp(const void *, const void *, size_t);
-void	 bcopy(const void *, void *, size_t);
-void	 bzero(void *, size_t);
-int	 ffs(int);
-char	*index(const char *, int);
-void	*memccpy(void *, const void *, int, size_t);
-char	*rindex(const char *, int);
-int	 strcasecmp(const char *, const char *);
-char	*strcasestr(const char *, const char *);
+#if __POSIX_VISIBLE >= 200112
+void	*memccpy(void * __restrict, const void * __restrict, int, size_t);
 char	*strdup(const char *);
 int	 strerror_r(int, char *, size_t);
+char	*strtok_r(char *, const char *, char **);
+#endif
+
+#if __BSD_VISIBLE
+char	*strcasestr(const char *, const char *);
 size_t	 strlcat(char *, const char *, size_t);
 size_t	 strlcpy(char *, const char *, size_t);
 void	 strmode(int, char *);
-int	 strncasecmp(const char *, const char *, size_t);
 char	*strnstr(const char *, const char *, size_t);
 char	*strsep(char **, const char *);
 char	*strsignal(int);
-char	*strtok_r(char *, const char *, char **);
 void	 swab(const void *, void *, size_t);
 #endif
 __END_DECLS
