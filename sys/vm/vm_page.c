@@ -817,13 +817,7 @@ loop:
 	 * Remove from free queue
 	 */
 
-	{
-		struct vpgqueues *pq = &vm_page_queues[m->queue];
-
-		TAILQ_REMOVE(&pq->pl, m, pageq);
-		(*pq->cnt)--;
-		pq->lcnt--;
-	}
+	vm_page_unqueue_nowakeup(m);
 
 	/*
 	 * Initialize structure.  Only the PG_ZERO flag is inherited.
@@ -841,7 +835,6 @@ loop:
 	m->busy = 0;
 	m->valid = 0;
 	KASSERT(m->dirty == 0, ("vm_page_alloc: free/cache page %p was dirty", m));
-	m->queue = PQ_NONE;
 
 	/*
 	 * vm_page_insert() is safe prior to the splx().  Note also that
@@ -1106,9 +1099,7 @@ vm_page_free_toq(vm_page_t m)
 				m->wire_count, (long)m->pindex);
 		}
 #endif
-		printf("vm_page_free: freeing wired page\n");
-		m->wire_count = 0;
-		cnt.v_wire_count--;
+		panic("vm_page_free: freeing wired page\n");
 	}
 
 	/*
