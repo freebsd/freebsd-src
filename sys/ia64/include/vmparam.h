@@ -121,6 +121,11 @@
 					   protected against replacement */
 
 /*
+ * We need region 7 virtual addresses for pagetables.
+ */
+#define UMA_MD_SMALL_ALLOC
+
+/*
  * Manipulating region bits of an address.
  */
 #define IA64_RR_BASE(n)         (((u_int64_t) (n)) << 61)
