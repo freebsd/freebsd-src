@@ -994,13 +994,13 @@ options 	PCVT_SCANSET=2 		# IBM keyboards are non-std
 # Other PCVT options are documented in pcvt(4).
 options 	PCVT_24LINESDEF
 options 	PCVT_CTRL_ALT_DEL
-options 	PCVT_FREEBSD=211
 options 	PCVT_META_ESC
 options 	PCVT_NSCREENS=9
 options 	PCVT_PRETTYSCRNS
 options 	PCVT_SCREENSAVER
 options 	PCVT_USEKBDSEC
 options 	PCVT_VT220KEYB
+options 	PCVT_GREENSAVER
 
 # The syscons console driver (sco color console compatible).
 device		sc0	at isa?
