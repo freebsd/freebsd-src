@@ -1,5 +1,5 @@
 #
-#	$Id$
+#	$Id: Makefile.inc1,v 1.9 1998/09/09 17:30:30 markm Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -31,9 +31,6 @@
 
 # Put initial settings here.
 SUBDIR=
-
-#Break perl while the PERL5 import happens
-NOPERL=	yes
 
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
