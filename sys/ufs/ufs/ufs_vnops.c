@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.20 1995/04/09 06:03:45 davidg Exp $
+ * $Id: ufs_vnops.c,v 1.21 1995/04/24 05:13:17 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -1540,9 +1540,7 @@ start:
 	ip = VTOI(vp);
 	if (ip->i_flag & IN_LOCKED) {
 		if (p->p_pid == ip->i_lockholder) {
-			if( ip->i_flag & IN_RECURSE)
-				++ip->i_lockcount;
-			else
+			if( (ip->i_flag & IN_RECURSE) == 0)
 				panic("ufs_lock: recursive lock not expected, pid: %d\n",
 					ip->i_lockholder);
 		} else {
@@ -1559,11 +1557,17 @@ start:
 	}
 #ifdef DIAGNOSTIC
 	ip->i_lockwaiter = 0;
-	if (ip->i_lockholder != 0)
+	if (((ip->i_flag & IN_RECURSE) == 0) && (ip->i_lockholder != 0))
 		panic("lockholder (%d) != 0", ip->i_lockholder);
 	if (p && p->p_pid == 0)
 		printf("locking by process 0\n");
 #endif
+
+	if ((ip->i_flag & IN_RECURSE) == 0)
+		ip->i_lockcount = 1;
+	else
+		++ip->i_lockcount;
+
 	if (p)
 		ip->i_lockholder = p->p_pid;
 	else
