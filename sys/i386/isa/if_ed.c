@@ -17,6 +17,10 @@
  * Modification history
  *
  * $Log:	if_ed.c,v $
+ * Revision 1.11  93/06/27  03:07:01  davidg
+ * fixed bugs in the 3Com part of the probe routine that were uncovered by
+ * the previous fix.
+ * 
  * Revision 1.10  93/06/25  19:23:19  davidg
  * fixed bug that caused erroneous 'Invalid irq configuration' message when
  * no board is present (during autoconfiguration).
@@ -421,7 +425,7 @@ type_3Com:
 	 * Verify that the kernel configured I/O address matches the board
 	 *	configured address
 	 */
-	switch (sc->asic_addr + ED_3COM_BCFR) {
+	switch (inb(sc->asic_addr + ED_3COM_BCFR)) {
 	case ED_3COM_BCFR_300:
 		if (isa_dev->id_iobase != 0x300)
 			return(0);
@@ -462,21 +466,21 @@ type_3Com:
 	 * Verify that the kernel shared memory address matches the
 	 *	board configured address.
 	 */
-	switch (sc->asic_addr + ED_3COM_PCFR) {
+	switch (inb(sc->asic_addr + ED_3COM_PCFR)) {
 	case ED_3COM_PCFR_DC000:
-		if (kvtop(isa_dev->id_maddr) != ED_3COM_PCFR_DC000)
+		if (kvtop(isa_dev->id_maddr) != 0xdc000)
 			return(0);
 		break;
 	case ED_3COM_PCFR_D8000:
-		if (kvtop(isa_dev->id_maddr) != ED_3COM_PCFR_D8000)
+		if (kvtop(isa_dev->id_maddr) != 0xd8000)
 			return(0);
 		break;
 	case ED_3COM_PCFR_CC000:
-		if (kvtop(isa_dev->id_maddr) != ED_3COM_PCFR_CC000)
+		if (kvtop(isa_dev->id_maddr) != 0xcc000)
 			return(0);
 		break;
 	case ED_3COM_PCFR_C8000:
-		if (kvtop(isa_dev->id_maddr) != ED_3COM_PCFR_C8000)
+		if (kvtop(isa_dev->id_maddr) != 0xc8000)
 			return(0);
 		break;
 	default:
@@ -618,7 +622,7 @@ type_3Com:
 #if 0
 printf("Starting write\n");
 for (i = 0; i < 8192; ++i)
-	bzero(sc->smem_start, 8192);
+	bzerow(sc->smem_start, 8192);
 printf("Done.\n");
 #endif
 #if 0
