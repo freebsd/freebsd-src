@@ -78,6 +78,7 @@ u_int	 w_secs;	/*    -w: retry delay */
 int	 family = PF_UNSPEC;	/* -[46]: address family to use */
 
 int	 sigalrm;	/* SIGALRM received */
+int	 siginfo;	/* SIGINFO received */
 int	 sigint;	/* SIGINT received */
 
 u_int	 ftp_timeout;	/* default timeout for FTP transfers */
@@ -91,6 +92,9 @@ sig_handler(int sig)
     switch (sig) {
     case SIGALRM:
 	sigalrm = 1;
+	break;
+    case SIGINFO:
+	siginfo = 1;
 	break;
     case SIGINT:
 	sigint = 1;
@@ -183,11 +187,12 @@ fetch(char *URL, char *path)
     struct stat sb;
     struct xferstat xs;
     FILE *f, *of;
-    size_t size;
+    size_t size, wr;
     off_t count;
     char flags[8];
     int n, r;
     u_int timeout;
+    u_char *ptr;
 
     f = of = NULL;
 
@@ -385,9 +390,10 @@ fetch(char *URL, char *path)
     /* start the counter */
     stat_start(&xs, path, us.size, count);
 
-    sigint = sigalrm = 0;
+    sigalrm = siginfo = sigint = 0;
 
     /* suck in the data */
+    signal(SIGINFO, sig_handler);
     for (n = 0; !sigint && !sigalrm; ++n) {
 	if (us.size != -1 && us.size - count < B_size)
 	    size = us.size - count;
@@ -395,12 +401,30 @@ fetch(char *URL, char *path)
 	    size = B_size;
 	if (timeout)
 	    alarm(timeout);
-	if ((size = fread(buf, 1, size, f)) <= 0)
-	    break;
+	if ((size = fread(buf, 1, size, f)) == 0) {
+	    if (ferror(f) && errno == EINTR && !sigalrm && !sigint)
+		clearerr(f);
+	    else
+		break;
+	}
+	if (timeout)
+	    alarm(0);
+	if (siginfo) {
+	    stat_end(&xs);
+	    siginfo = 0;
+	}
 	stat_update(&xs, count += size, 0);
-	if (fwrite(buf, size, 1, of) != 1)
+	for (ptr = buf; size > 0; ptr += wr, size -= wr)
+	    if ((wr = fwrite(ptr, 1, size, of)) < size) {
+		if (ferror(of) && errno == EINTR && !sigalrm && !sigint)
+		    clearerr(of);
+		else
+		    break;
+	    }
+	if (size != 0)
 	    break;
     }
+    signal(SIGINFO, SIG_DFL);
 
     if (timeout)
 	alarm(0);
