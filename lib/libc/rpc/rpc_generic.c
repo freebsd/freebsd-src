@@ -555,21 +555,27 @@ int
 __rpc_sockinfo2netid(struct __rpc_sockinfo *sip, const char **netid)
 {
 	int i;
+	struct netconfig *nconf;
+
+	nconf = getnetconfigent("local");
 
 	for (i = 0; i < (sizeof na_cvt) / (sizeof (struct netid_af)); i++) {
 		if (na_cvt[i].af == sip->si_af &&
 		    na_cvt[i].protocol == sip->si_proto) {
-			if (strcmp(na_cvt[i].netid, "local") == 0 &&
-			     getnetconfigent("local") == NULL) {
+			if (strcmp(na_cvt[i].netid, "local") == 0 && nconf == NULL) {
 				if (netid)
 					*netid = "unix";
 			} else {
 				if (netid)
 					*netid = na_cvt[i].netid;
 			}
+			if (nconf != NULL)
+				freenetconfigent(nconf);
 			return 1;
 		}
 	}
+	if (nconf != NULL)
+		freenetconfigent(nconf);
 
 	return 0;
 }
