@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
     }
 
 static const u_int32_t in_masks[] = {
-#if 0
+#ifndef __ARMEB__
 	/*0 bytes*/ /*1 byte*/	/*2 bytes*/ /*3 bytes*/
 	0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF,	/* offset 0 */
 	0x00000000, 0x0000FF00, 0x00FFFF00, 0xFFFFFF00,	/* offset 1 */
