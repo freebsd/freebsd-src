@@ -115,8 +115,11 @@ _EXTRADEPEND:
 
 .if !target(install)
 
-.if defined(PRECIOUSPROG) && !defined(NOFSCHG)
+.if defined(PRECIOUSPROG)
+.if !defined(NOFSCHG)
 INSTALLFLAGS+= -fschg
+.endif
+INSTALLFLAGS+= -S
 .endif
 
 _INSTALLFLAGS:=	${INSTALLFLAGS}
