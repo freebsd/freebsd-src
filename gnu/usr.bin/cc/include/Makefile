@@ -8,6 +8,10 @@
 INCS=	emmintrin.h mmintrin.h pmmintrin.h xmmintrin.h
 .elif ${TARGET_ARCH} == "ia64"
 INCS=	ia64intrin.h
+.elif ${TARGET_ARCH} == "arm"
+INCS=	mmintrin.h
+.elif ${TARGET_ARCH} == "powerpc"
+INCS=	ppc-asm.h altivec.h spe.h
 .endif
 
 NOOBJ=

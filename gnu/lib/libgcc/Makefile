@@ -44,41 +44,43 @@ OBJS=		# added to below in various ways depending on TARGET_ARCH
 #
 # When upgrading GCC, get the following defintions straight from Makefile.in
 #
-
 # Library members defined in libgcc2.c.
-# Variable length limited to 255 charactes when passed to a shell script.
-LIB2FUNCS_1 = _muldi3 _negdi2 _lshrdi3 _ashldi3 _ashrdi3 _ffsdi2 _clz \
-    _cmpdi2 _ucmpdi2 _floatdidf _floatdisf _fixunsdfsi _fixunssfsi \
-    _fixunsdfdi _fixdfdi _fixunssfdi _fixsfdi _fixxfdi _fixunsxfdi
-
-LIB2FUNCS_2 = _floatdixf _fixunsxfsi _fixtfdi _fixunstfdi _floatditf \
-    _clear_cache _trampoline __main _exit _absvsi2 _absvdi2 _addvsi3 \
-    _addvdi3 _subvsi3 _subvdi3 _mulvsi3 _mulvdi3 _negvsi2 _negvdi2 _ctors
+LIB2FUNCS = _muldi3 _negdi2 _lshrdi3 _ashldi3 _ashrdi3 \
+	_cmpdi2 _ucmpdi2 _floatdidf _floatdisf _fixunsdfsi _fixunssfsi \
+	_fixunsdfdi _fixdfdi _fixunssfdi _fixsfdi _fixxfdi _fixunsxfdi \
+	_floatdixf _fixunsxfsi _fixtfdi _fixunstfdi _floatditf _clear_cache \
+	_enable_execute_stack _trampoline __main _absvsi2 _absvdi2 _addvsi3 \
+	_addvdi3 _subvsi3 _subvdi3 _mulvsi3 _mulvdi3 _negvsi2 _negvdi2 _ctors \
+	_ffssi2 _ffsdi2 _clz _clzsi2 _clzdi2 _ctzsi2 _ctzdi2 _popcount_tab \
+	_popcountsi2 _popcountdi2 _paritysi2 _paritydi2 
 
 # Defined in libgcc2.c, included only in the static library.
-LIB2FUNCS_ST = _eprintf _bb __gcc_bcmp
+LIB2FUNCS_ST = _eprintf __gcc_bcmp
 
 FPBIT_FUNCS = _pack_sf _unpack_sf _addsub_sf _mul_sf _div_sf \
     _fpcmp_parts_sf _compare_sf _eq_sf _ne_sf _gt_sf _ge_sf \
     _lt_sf _le_sf _unord_sf _si_to_sf _sf_to_si _negate_sf _make_sf \
-    _sf_to_df _thenan_sf _sf_to_usi _usi_to_sf
+    _sf_to_df _sf_to_tf _thenan_sf _sf_to_usi _usi_to_sf
 
 DPBIT_FUNCS = _pack_df _unpack_df _addsub_df _mul_df _div_df \
     _fpcmp_parts_df _compare_df _eq_df _ne_df _gt_df _ge_df \
     _lt_df _le_df _unord_df _si_to_df _df_to_si _negate_df _make_df \
-    _df_to_sf _thenan_df _df_to_usi _usi_to_df
+    _df_to_sf _df_to_tf _thenan_df _df_to_usi _usi_to_df
+
+TPBIT_FUNCS = _pack_tf _unpack_tf _addsub_tf _mul_tf _div_tf \
+    _fpcmp_parts_tf _compare_tf _eq_tf _ne_tf _gt_tf _ge_tf \
+    _lt_tf _le_tf _unord_tf _si_to_tf _tf_to_si _negate_tf _make_tf \
+    _tf_to_df _tf_to_sf _thenan_tf _tf_to_usi _usi_to_tf
 
 # These might cause a divide overflow trap and so are compiled with
 # unwinder info.
 LIB2_DIVMOD_FUNCS = _divdi3 _moddi3 _udivdi3 _umoddi3 _udiv_w_sdiv _udivmoddi4
 
-MACHMODE_H = machmode.h machmode.def
-
 LIB2ADD = $(LIB2FUNCS_EXTRA)
 LIB2ADD_ST = $(LIB2FUNCS_STATIC_EXTRA)
 
-# Additional sources to handle exceptions; overridden on ia64.
-LIB2ADDEH = unwind-dw2.c unwind-dw2-fde.c unwind-sjlj.c unwind-c.c
+# Additional sources to handle exceptions; overridden by targets as needed.
+LIB2ADDEH = unwind-dw2.c unwind-dw2-fde.c unwind-sjlj.c gthr-gnat.c unwind-c.c
 
 #-----------------------------------------------------------------------
 #
@@ -93,8 +95,10 @@ LIB2FUNCS_EXTRA = qrnnd.asm
 
 .if ${TARGET_ARCH} == "arm"
 #	from config/arm/t-strongarm-elf
-LIB1ASMSRC = lib1funcs.asm
-LIB1ASMFUNCS = _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func
+CFLAGS+=	-Dinhibit_libc -fno-inline
+LIB1ASMSRC =	lib1funcs.asm
+LIB1ASMFUNCS =	_udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func
+OBJS+=	dp-bit.o fp-bit.o
 # We want fine grained libraries, so use the new code to build the
 # floating point emulation libraries.
 XXX fix this: NEED_FP_EMULATION set to "yes" with different rules per platform
@@ -103,11 +107,11 @@ XXX fix this: NEED_FP_EMULATION set to "yes" with different rules per platform
 .if ${TARGET_ARCH} == "ia64"
 #	from config/ia64/t-ia64
 LIB1ASMSRC    = lib1funcs.asm
-LIB1ASMFUNCS  = __divtf3 __divdf3 __divsf3 \
-	__divdi3 __moddi3 __udivdi3 __umoddi3 \
-	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
-	__nonlocal_goto __restore_stack_nonlocal __trampoline
-LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c
+LIB1ASMFUNCS  = __divxf3 __divdf3 __divsf3 \
+        __divdi3 __moddi3 __udivdi3 __umoddi3 \
+        __divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
+        __nonlocal_goto __restore_stack_nonlocal __trampoline __compat
+LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c gthr-gnat.c
 .endif
 
 .if ${TARGET_ARCH} == "powerpc"
@@ -178,11 +182,11 @@ OBJS_S=		${SYMS:S/$/.So/}
 STATICOBJS=	${SYMS_ST:S/$/.o/}
 SRCS=		${LIB2ADD} ${LIB2ADDEH}
 
-COMMONHDRS=	tconfig.h
+COMMONHDRS=	tm.h tconfig.h
 SRCS+=		${COMMONHDRS}
 CLEANFILES+=	${COMMONHDRS}
 
-tconfig.h: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
+${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
 	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
 
 ${OBJS} beforedepend: ${COMMONHDRS}

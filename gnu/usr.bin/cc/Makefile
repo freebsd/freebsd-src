@@ -10,7 +10,7 @@ SUBDIR+= cpp
 .endif
 
 .if !defined(NO_CXX)
-SUBDIR+= cc1plus c++ c++filt
+SUBDIR+= cc1plus c++
 .if !defined(NO_COLLECT2)
 #SUBDIR+= collect2
 .endif

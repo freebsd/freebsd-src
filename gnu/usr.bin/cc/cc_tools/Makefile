@@ -16,9 +16,42 @@ CFLAGS+=	-I.
 
 .include "../Makefile.inc"
 
-.PATH: ${GCCDIR}
+.PATH: ${GCCDIR} ${GCCDIR}/f
 
 CFLAGS+=	-DGENERATOR_FILE
+
+#
+#-----------------------------------------------------------------------
+# Build 'pocket' libiberty exclusively for build tools use.
+
+LIBIBERTY_SRCS=	choose-temp.c concat.c cp-demangle.c cp-demint.c cplus-dem.c \
+	dyn-string.c errors.c fibheap.c \
+	getpwd.c getruntime.c hashtab.c hex.c lbasename.c make-temp-file.c \
+	md5.c obstack.c partition.c pexecute.c physmem.c splay-tree.c xexit.c \
+	xmalloc.c xmemdup.c xstrdup.c xstrerror.c xexit.c
+LIBIBERTY_OBJS=	${LIBIBERTY_SRCS:R:S/$/.o/g}
+
+SRCS+=	${LIBIBERTY_SRCS}
+
+LIBIBERTY=libiberty.a
+${LIBIBERTY}: ${LIBIBERTY_OBJS}
+	@rm -f ${.TARGET}
+	@${AR} cq ${.TARGET} `lorder ${LIBIBERTY_OBJS} | tsort -q`
+	${RANLIB} ${.TARGET}
+CLEANFILES+=	${LIBIBERTY}
+
+#
+#-----------------------------------------------------------------------
+# options
+OPTION_FILES=${GCCDIR}/f/lang.opt ${GCCDIR}/c.opt ${GCCDIR}/common.opt
+
+.ORDER: options.h options.c
+options.h options.c: opts.sh ${OPTION_FILES}
+	/bin/sh ${GCCDIR}/opts.sh mv options.c options.h ${OPTION_FILES}
+	
+
+GENSRCS+=	options.c options.h
+CLEANFILES+=	options.c options.h
 
 #-----------------------------------------------------------------------
 # insn-* gunk
@@ -43,8 +76,8 @@ gen-time-stamp: genattr genattrtab genconditions genconstants genemit \
 .for F in attr codes config emit extract flags opinit output peep recog
 build-tools: gen$F
 
-gen$F: gen$F.o rtl.o obstack.o print-rtl.o bitmap.o errors.o gensupport.o \
-	ggc-none.o hashtab.o read-rtl.o concat.o insn-conditions.o
+gen$F: gen$F.o rtl.o print-rtl.o bitmap.o gensupport.o  ggc-none.o \
+	read-rtl.o insn-conditions.o min-insn-modes.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
@@ -56,9 +89,9 @@ CLEANFILES+=	gen$F
 #
 build-tools: genattrtab
 
-genattrtab : genattrtab.o rtl.o obstack.o print-rtl.o bitmap.o errors.o \
-	gensupport.o ggc-none.o hashtab.o read-rtl.o concat.o \
-	insn-conditions.o genautomata.o varray.o getruntime.o
+genattrtab : genattrtab.o rtl.o print-rtl.o bitmap.o gensupport.o ggc-none.o \
+	read-rtl.o insn-conditions.o genautomata.o varray.o min-insn-modes.o \
+	${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} -lm
 
 GENSRCS+=	genattrtab.c
@@ -71,18 +104,17 @@ CLEANFILES+=	genattrtab
 .for F in constants conditions
 build-tools: gen$F
 
-gen$F: gen$F.o rtl.o obstack.o bitmap.o errors.o gensupport.o \
-       ggc-none.o hashtab.o read-rtl.o concat.o dummy-conditions.o
+gen$F: gen$F.o rtl.o bitmap.o gensupport.o ggc-none.o read-rtl.o dummy-conditions.o min-insn-modes.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
 CLEANFILES+=	gen$F
 .endfor
 
-.for F in check genrtl preds
+.for F in modes check genrtl preds
 build-tools: gen$F
 
-gen$F: gen$F.o
+gen$F: gen$F.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
@@ -96,9 +128,24 @@ genrtl.c genrtl.h: gengenrtl
 
 GENSRCS+=	genrtl.c genrtl.h
 
-SRCS+=	bitmap.c concat.c dummy-conditions.c errors.c genautomata.c \
+SRCS+=	bitmap.c concat.c dummy-conditions.c genautomata.c \
 	gensupport.c getruntime.c ggc-none.c hashtab.c \
 	obstack.c physmem.c print-rtl.c read-rtl.c rtl.c varray.c xmemdup.c
+
+#-----------------------------------------------------------------------
+# insn modes stuff.
+
+.ORDER: insn-modes.c insn-modes.h
+insn-modes.h: genmodes
+	./genmodes -h > insn-modes.h
+
+insn-modes.c: genmodes
+	./genmodes > insn-modes.c
+
+min-insn-modes.c: genmodes
+	./genmodes -m > min-insn-modes.c
+
+GENSRCS+= insn-modes.c min-insn-modes.c insn-modes.h
 
 #-----------------------------------------------------------------------
 # Common parser stuff.
@@ -136,7 +183,7 @@ gengtype-yacc+%DIKED.c: gengtype-yacc.c
 	    -e "s/realloc/xrealloc/g" \
 	    ${.ALLSRC} > ${.TARGET}
 
-gengtype: gengtype.o gengtype-yacc+%DIKED.o gengtype-lex.o xmemdup.o
+gengtype: gengtype.o gengtype-yacc+%DIKED.o gengtype-lex.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gengtype.c
@@ -156,13 +203,28 @@ gtype-time-stamp: gengtype ${GTFILES}
 GENSRCS+=	gtype-desc.c gtype-desc.h
 CLEANFILES+=	gt-*.h gtype-*.h
 
+#
+#-----------------------------------------------------------------------
+# Fortran build tools
+
+.if !defined(NO_FORTRAN)
+gen-time-stamp: fini
+build-tools: fini
+fini: fini.o ${LIBIBERTY}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+SRCS+=		fini.c
+CLEANFILES+=	fini
+.endif
+
 #-----------------------------------------------------------------------
 # Determine content of variables used by the target/host config files
 
 #
-# The list of headers to go into tconfig.h
+# The list of headers to go into tm.h
 #
-TARGET_INC=	ansidecl.h
+.if ${TARGET_ARCH} == "amd64"
+TARGET_INC=	i386/biarch64.h
+.endif
 TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
 .if ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "amd64"
 TARGET_INC+=	${GCC_CPU}/unix.h
@@ -189,13 +251,16 @@ TARGET_INC+=	${GCC_CPU}/x86-64.h
 TARGET_INC+=	${GCC_CPU}/freebsd64.h
 TARGET_INC+=	freebsd64-fix.h
 .endif
+.if ${TARGET_ARCH} == "powepc"
+TARGET_INC+=	altivec-defs.h
+.endif
 TARGET_INC+=	defaults.h
 
 #
 # Use TARGET_INC as a template and build a list of target specific
 # include files for gengtype to scan
 #
-GCONFIG_H=	${.OBJDIR}/tconfig.h ${.CURDIR}/auto-host.h
+GCONFIG_H=	${.CURDIR}/auto-host.h
 
 .for H in ${TARGET_INC}
 .for D in ${GCCDIR}/config ${GCCDIR} ${.CURDIR}
@@ -210,29 +275,29 @@ GCONFIG_H+=	$D/$H
 #
 srcdir=		${GCCDIR}
 HASHTAB_H=	${GCCDIR}/hashtab.h
+SPLAY_TREE_H=	${GCCDIR}/splay-tree.h
 out_file=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.c
 GTFILES_SRCDIR=	${GCCDIR}
 
 #
 # Copied unchanged from gcc/Makefile.in
 #
-GTFILES = $(GCONFIG_H) $(srcdir)/location.h \
-  $(HASHTAB_H) \
-  $(srcdir)/bitmap.h $(srcdir)/function.h  $(srcdir)/rtl.h $(srcdir)/optabs.h \
-  $(srcdir)/tree.h $(srcdir)/libfuncs.h $(srcdir)/hashtable.h $(srcdir)/real.h \
-  $(srcdir)/varray.h $(srcdir)/ssa.h $(srcdir)/insn-addr.h $(srcdir)/cselib.h \
+GTFILES = $(srcdir)/input.h $(srcdir)/coretypes.h $(srcdir)/cpplib.h \
+  $(GCONFIG_H) $(HASHTAB_H) $(SPLAY_TREE_H) \
+  $(srcdir)/bitmap.h $(srcdir)/coverage.c $(srcdir)/function.h  $(srcdir)/rtl.h \
+  $(srcdir)/optabs.h $(srcdir)/tree.h $(srcdir)/libfuncs.h $(srcdir)/hashtable.h \
+  $(srcdir)/real.h $(srcdir)/varray.h $(srcdir)/insn-addr.h \
+  $(srcdir)/cselib.h $(srcdir)/basic-block.h  $(srcdir)/cgraph.h \
   $(srcdir)/c-common.h $(srcdir)/c-tree.h \
-  $(srcdir)/basic-block.h \
-  $(srcdir)/alias.c $(srcdir)/bitmap.c $(srcdir)/cselib.c \
-  $(srcdir)/dwarf2out.c $(srcdir)/emit-rtl.c \
-  $(srcdir)/except.c $(srcdir)/explow.c $(srcdir)/expr.c \
+  $(srcdir)/alias.c $(srcdir)/bitmap.c $(srcdir)/cselib.c $(srcdir)/cgraph.c \
+  $(srcdir)/dbxout.c $(srcdir)/dwarf2out.c $(srcdir)/dwarf2asm.c \
+  $(srcdir)/emit-rtl.c $(srcdir)/except.c $(srcdir)/explow.c $(srcdir)/expr.c \
   $(srcdir)/fold-const.c $(srcdir)/function.c \
   $(srcdir)/gcse.c $(srcdir)/integrate.c $(srcdir)/lists.c $(srcdir)/optabs.c \
   $(srcdir)/profile.c $(srcdir)/ra-build.c $(srcdir)/regclass.c \
-  $(srcdir)/reg-stack.c \
+  $(srcdir)/reg-stack.c $(srcdir)/cfglayout.c $(srcdir)/langhooks.c \
   $(srcdir)/sdbout.c $(srcdir)/stmt.c $(srcdir)/stor-layout.c \
-  $(srcdir)/tree.c $(srcdir)/varasm.c \
-  $(out_file)
+  $(srcdir)/stringpool.c $(srcdir)/tree.c $(srcdir)/varasm.c  $(out_file)
 
 #
 # Build a list of frontend directories to look into
@@ -271,9 +336,10 @@ GTFILES+=	${GTFILES_FILES}
 #-----------------------------------------------------------------------
 # the host/target compiler config.
 
-COMMONHDRS=	config.h hconfig.h multilib.h options.h specs.h tconfig.h \
-		tm_p.h configargs.h safe-ctype.h
-GENSRCS+=	${COMMONHDRS} gencheck.h gtyp-gen.h
+COMMONHDRS=	bconfig.h config.h configargs.h gencheck.h multilib.h \
+		specs.h safe-ctype.h tconfig.h tm.h tm_p.h gcov-iov.h \
+		gtyp-gen.h
+GENSRCS+=	${COMMONHDRS}
 
 MFILE?=	${.CURDIR}/Makefile
 ${COMMONHDRS}: ${MFILE}
@@ -282,10 +348,31 @@ configargs.h:
 	echo 'static const char configuration_arguments[] ='	> ${.TARGET}
 	echo '	"FreeBSD/${TARGET_ARCH} system compiler";'	>> ${.TARGET}
 	echo 'static const char thread_model[] = "posix";'	>> ${.TARGET}
+	echo 'static const struct {'				>> ${.TARGET}
+	echo '	const char *name, *value;'			>> ${.TARGET}
+	echo '} configure_default_options[] = {'		>> ${.TARGET}
+	echo '	{ "NULL", "NULL" } };'				>> ${.TARGET}
 
-hconfig.h:
-	echo '#include "auto-host.h"'			> ${.TARGET}
-	echo '#include <tconfig.h>'			>> ${.TARGET}
+tconfig.h:
+	echo '#ifndef GCC_TCONFIG_H'			> ${.TARGET}
+	echo '#define GCC_TCONFIG_H'			>> ${.TARGET}
+	echo '#ifdef IN_GCC'				>> ${.TARGET}
+	echo '# include "ansidecl.h"'			>> ${.TARGET}
+	echo '#endif'					>> ${.TARGET}
+	echo '#define USED_FOR_TARGET'			>> ${.TARGET}
+	echo '#endif /* GCC_TCONFIG_H */'		>> ${.TARGET}
+
+bconfig.h:
+	echo '#ifndef GCC_BCONFIG_H'			> ${.TARGET}
+	echo '#define GCC_BCONFIG_H'			>> ${.TARGET}
+	echo '#include "auto-host.h"'			>> ${.TARGET}
+.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-modes.def)
+	echo '#define EXTRA_MODES_FILE "${GCC_CPU}/${GCC_CPU}-modes.def"' >> ${.TARGET}
+.endif
+	echo '#ifdef IN_GCC'				>> ${.TARGET}
+	echo '# include "ansidecl.h"'			>> ${.TARGET}
+	echo '#endif'					>> ${.TARGET}
+	echo '#endif /* GCC_BCONFIG_H */'		>> ${.TARGET}
 
 gencheck.h:
 	echo '#include "cp/cp-tree.def"'		> ${.TARGET}
@@ -301,56 +388,39 @@ multilib.h:
 	echo 'static const char *const multilib_exclusions_raw[] = { \
 	    NULL };'					>> ${.TARGET}
 
-options.h:
-	echo '#include "cp/lang-options.h"'		> ${.TARGET}
-	echo '#include "f/lang-options.h"'		>> ${.TARGET}
-	echo '#include "objc/lang-options.h"'		>> ${.TARGET}
-
 specs.h:
 	echo '#include "cp/lang-specs.h"'		> ${.TARGET}
 	echo '#include "f/lang-specs.h"'		>> ${.TARGET}
 	echo '#include "objc/lang-specs.h"'		>> ${.TARGET}
 
-config.h:
-	echo '#include <hconfig.h>'			> ${.TARGET}
-	echo '#ifndef GENERATOR_FILE'			>> ${.TARGET}
-	echo '#include "insn-constants.h"'		>> ${.TARGET}
-	echo '#include "insn-flags.h"'			>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
+config.h: bconfig.h
+	echo '#include <bconfig.h>'			> ${.TARGET}
 
-tconfig.h:
-	echo 'struct rtx_def;'				> ${.TARGET}
-	echo 'typedef struct rtx_def *rtx;'		>> ${.TARGET}
-	echo 'struct rtvec_def;'			>> ${.TARGET}
-	echo 'typedef struct rtvec_def *rtvec;'		>> ${.TARGET}
-	echo 'union tree_node;'				>> ${.TARGET}
-	echo 'typedef union tree_node *tree;'		>> ${.TARGET}
-	echo '#ifndef GTY'				>> ${.TARGET}
-	echo '# define GTY(x)'				>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
-	echo ''						>> ${.TARGET}
-.if ${TARGET_ARCH} == "amd64"
-	echo '#include "i386/biarch64.h"'		>> ${.TARGET}
+tm.h:
+	echo '#ifndef GCC_TM_H'				> ${.TARGET}
+	echo '#define GCC_TM_H'				>> ${.TARGET}
+.if defined(TARGET_CPU_DEFAULT)
+	echo "#define TARGET_CPU_DEFAULT (${TARGET_CPU_DEFAULT})" >> ${.TARGET}
 .endif
-.if ${TARGET_ARCH} == "ia64"
-	echo '#define TARGET_CPU_DEFAULT (MASK_GNU_AS|MASK_GNU_LD)' >>${.TARGET}
-.endif
+	echo '#ifdef IN_GCC'				>> ${.TARGET}
 .for H in ${TARGET_INC}
 	echo '#include "$H"'				>> ${.TARGET}
 .endfor
-	echo '#ifndef POSIX'				>> ${.TARGET}
-	echo '# define POSIX'				>> ${.TARGET}
+	echo '#if !defined GENERATOR_FILE && !defined USED_FOR_TARGET' >> ${.TARGET}
+	echo '# include "insn-constants.h"'		>> ${.TARGET}
+	echo '# include "insn-flags.h"'			>> ${.TARGET}
+	echo '#endif'					>> ${.TARGET}
 	echo '#endif'					>> ${.TARGET}
 .if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-modes.def)
 	echo '#define EXTRA_MODES_FILE "${GCC_CPU}/${GCC_CPU}-modes.def"' >> ${.TARGET}
-	echo '#define EXTRA_CC_MODES 1'			>> ${.TARGET}
 .endif
+	echo '#endif /* GCC_TM_H */'			>> ${.TARGET}
 
 tm_p.h:
 	echo '#include "${GCC_CPU}/${GCC_CPU}-protos.h"'	>> ${.TARGET}
 	echo '#include "tm-preds.h"'				>> ${.TARGET}
 
-safe-ctype.h: Makefile
+safe-ctype.h:
 	echo '#include <ctype.h>'				> ${.TARGET}
 .for Z in TOUPPER TOLOWER ISDIGIT ISXDIGIT ISUPPER ISLOWER ISALPHA ISALNUM \
     ISSPACE ISPUNCT ISGRAPH ISBLANK ISPRINT ISCNTRL
@@ -391,8 +461,9 @@ gtyp-gen.h:
 	echo "\"$F\", "						>> ${.TARGET}
 .endfor
 	echo "NULL};"						>> ${.TARGET}
-	echo "#define	xexit exit"				>> ${.TARGET}
 
+gcov-iov.h:
+	echo "#define GCOV_VERSION ((gcov_unsigned_t)0x33303470)" >> ${.TARGET}
 
 #-----------------------------------------------------------------------
 # General things.
@@ -400,7 +471,8 @@ gtyp-gen.h:
 SRCS+=		${GENSRCS}
 CLEANFILES+=	${GENSRCS}
 
-all: ${SRCS}
+all:		${SRCS}
+build-tools:	${SRCS}
 
 .include <bsd.prog.mk>
 
@@ -415,19 +487,42 @@ CLEANFILES+=	${OBJS}
 
 .if !exists(${DEPENDFILE})
 # Fudge pre-dependfile dependencies of objects in much the same way as
-# bsd.prog.mk would do if we defined PROG.  There are complications to
-# avoid circular dependencies.  First, only make most objects depend on
-# all headers.  Filter out the objects that would cause problems (i.e.,
-# objects that will be used to create programs that will generate headers).
-#
-${OBJS}: ${SRCS:M*.h:Ngtype-desc.h:Ngenrtl.h:Ntree-check.h:Ntm-preds.h:Ninsn-*.h}
+# bsd.prog.mk would do if we defined PROG.
 
-${OBJS:Ngencheck.o:Ngengenrtl.o:Ngenpreds.o}: tree-check.h tm-preds.h genrtl.h
+${OBJS}: ${COMMONHDRS}
 
-${OBJS:Ngengtype*.o:Nxmemdup.o:Ngengenrtl.o:Ngencheck.o:Ngenpreds.o}: gtype-desc.h
+dummy-conditions.o:
+gencheck.o:
+genmodes.o:
 
-genextract.o: insn-config.h
+genpreds.o: insn-modes.h
+genconstants.o: insn-modes.h genrtl.h
+gengtype.o: insn-modes.h genrtl.h gtyp-gen.h
+rtl.o: insn-modes.h gtype-desc.h genrtl.h
+bitmap.o: insn-modes.h gtype-desc.h genrtl.h
+ggc-none.o: gtype-desc.h
+gensupport.o: insn-modes.h genrtl.h
+varray.o: gtype-desc.h
+genautomata.o: insn-modes.h genrtl.h
+genconditions.o: insn-modes.h genrtl.h
+gencodes.o: insn-modes.h genrtl.h
+genconfig.o: insn-modes.h genrtl.h
+print-rtl.o: insn-modes.h genrtl.h tm-preds.h tree-check.h
+read-rtl.o: insn-modes.h genrtl.h 
+genattr.o: insn-modes.h genrtl.h
+genemit.o: insn-modes.h genrtl.h
+genflags.o: insn-modes.h genrtl.h
+genopinit.o: insn-modes.h genrtl.h
+genoutput.o: insn-modes.h genrtl.h
+genpeep.o: insn-modes.h genrtl.h
+genrecog.o: insn-modes.h genrtl.h
+genextract.o: genrtl.h insn-config.h
+genattrtab.o: insn-modes.h gtype-desc.h genrtl.h
+genrtl.o: insn-modes.h genrtl.h gtype-desc.h
 
-insn-conditions.o: insn-constants.h
+insn-conditions.o: insn-constants.h tm-preds.h
+insn-modes.o: insn-modes.h
+min-insn-modes.o: insn-modes.h
+gtype-desc.o: insn-modes.h insn-config.h insn-codes.h tree-check.h
 
 .endif

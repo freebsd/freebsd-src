@@ -14,7 +14,7 @@ SRCS=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc \
 	pure.cc tinfo.cc tinfo2.cc vec.cc
 
 # from libiberty:
-SRCS+=	cp-demangle.c dyn-string.c
+SRCS+=	cp-demangle.c
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
 CFLAGS+=	-I${SRCDIR} -I${GCCDIR} -I${.CURDIR}/../libstdc++
@@ -22,6 +22,6 @@ CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections
 
 HDRS=	exception new typeinfo cxxabi.h exception_defines.h
 INCS=	${HDRS:S;^;${SRCDIR}/;}
-INCSDIR=${INCLUDEDIR}/c++/3.3
+INCSDIR=${INCLUDEDIR}/c++/3.4
 
 .include <bsd.lib.mk>

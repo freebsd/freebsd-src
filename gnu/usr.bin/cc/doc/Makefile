@@ -23,7 +23,7 @@ gccint.info: gccint.texi include/gcc-common.texi contribute.texi \
     passes.texi c-tree.texi rtl.texi md.texi tm.texi hostconfig.texi \
     fragments.texi configfiles.texi collect2.texi headerdirs.texi \
     include/funding.texi gnu.texi include/gpl.texi include/fdl.texi \
-    contrib.texi languages.texi sourcebuild.texi gty.texi
+    contrib.texi languages.texi sourcebuild.texi gty.texi libgcc.texi
 
 cpp.info: cpp.texi include/fdl.texi cppenv.texi cppopts.texi
 
