@@ -1140,80 +1140,6 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     return(AE_OK);
 }
 
-static ACPI_STATUS __inline
-acpi_wakeup(UINT8 state)
-{
-    ACPI_STATUS		Status;
-    ACPI_OBJECT_LIST	Arg_list;
-    ACPI_OBJECT		Arg;
-    ACPI_OBJECT		Objects[3]; /* package plus 2 number objects */
-    ACPI_BUFFER		ReturnBuffer;
-
-    FUNCTION_TRACE_U32(__func__, state);
-    ACPI_ASSERTLOCK;
-
-    /*
-     * Evaluate the _WAK method
-     */
-    bzero(&Arg_list, sizeof(Arg_list));
-    Arg_list.Count = 1;
-    Arg_list.Pointer = &Arg;
-
-    bzero(&Arg, sizeof(Arg));
-    Arg.Type = ACPI_TYPE_INTEGER;
-    Arg.Integer.Value = state;
-
-    /* 
-     * Set up _WAK result code buffer.
-     *
-     * XXX should use acpi_EvaluateIntoBuffer
-     */
-    bzero(Objects, sizeof(Objects));
-    ReturnBuffer.Length = sizeof(Objects);
-    ReturnBuffer.Pointer = Objects;
-    AcpiEvaluateObject (NULL, "\\_WAK", &Arg_list, &ReturnBuffer);
-
-    Status = AE_OK;
-
-    /* Check result code for _WAK */
-    if (Objects[0].Type != ACPI_TYPE_PACKAGE ||
-	Objects[1].Type != ACPI_TYPE_INTEGER  ||
-	Objects[2].Type != ACPI_TYPE_INTEGER) {
-	/*
-	 * In many BIOSes, _WAK doesn't return a result code.
-	 * We don't need to worry about it too much :-).
-	 */
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "acpi_wakeup: _WAK result code is corrupted, "
-			  "but should be OK.\n"));
-    } else {
-	/* evaluate status code */
-	switch (Objects[1].Integer.Value) {
-	case 0x00000001:
-	    ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			      "acpi_wakeup: Wake was signaled "
-			      "but failed due to lack of power.\n"));
-	    Status = AE_ERROR;
-	    break;
-
-	case 0x00000002:
-	    ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			      "acpi_wakeup: Wake was signaled "
-			      "but failed due to thermal condition.\n"));
-	    Status = AE_ERROR;
-	    break;
-	}
-	/* evaluate PSS code */
-	if (Objects[2].Integer.Value == 0) {
-	    ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			      "acpi_wakeup: The targeted S-state "
-			      "was not entered because of too much current "
-			      "being drawn from the power supply.\n"));
-	    Status = AE_ERROR;
-	}
-    }
-    return_ACPI_STATUS(Status);
-}
 
 /*
  * Set the system sleep state
@@ -1296,7 +1222,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 		Count++;
 	    }
 	}
-	acpi_wakeup((UINT8)state);
+	AcpiLeaveSleepState((UINT8)state);
 	DEVICE_RESUME(root_bus);
 	sc->acpi_sstate = ACPI_STATE_S0;
 	acpi_enable_fixed_events(sc);
