@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.41 1997/04/27 20:01:47 peter Exp $
+#	$Id: options.i386,v 1.42 1997/04/28 00:24:28 fsmp Exp $
 XXXCreateMe		opt_global.h
 
 BOUNCEPAGES		opt_bounce.h
@@ -87,6 +87,8 @@ KBDIO_DEBUG		opt_kbdio.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h
+
+CMD640			opt_wd.h
 
 USERCONFIG		opt_userconfig.h
 VISUAL_USERCONFIG	opt_userconfig.h
