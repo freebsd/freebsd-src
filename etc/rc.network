@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.10 1997/09/11 10:59:02 danny Exp $
+#	$Id: rc.network,v 1.11 1997/09/18 22:43:48 danny Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -222,9 +222,18 @@ network_pass3() {
 
     # Kerberos runs ONLY on the Kerberos server machine
     if [ "X${kerberos_server_enable}" = X"YES" ]; then
-	    echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
-	    echo -n ' kadmind'; \
-		    (sleep 20; kadmind -n >/dev/null 2>&1 &) &
+	    if [ "X${kerberos_stash}" = "XYES" ]; then
+		stash_flag=-n
+	    else
+		stash_flag=
+	    fi
+	    echo -n ' kerberos'; \
+		kerberos ${stash_flags} >> /var/log/kerberos.log &
+	    if [ "X${kadmind_server_enable}" = "XYES" ]; then
+		echo -n ' kadmind'; \
+		(sleep 20; kadmind ${stash_flags} >/dev/null 2>&1 &) &
+	    fi
+	    unset stash_flag
     fi
     
     # IP multicast routing daemon

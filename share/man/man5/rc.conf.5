@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.4 1997/10/20 08:37:59 danny Exp $
+.\"     $Id: rc.conf.5,v 1.5 1997/11/02 21:45:31 jdp Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -204,6 +204,26 @@ these are the flags to pass to
 .Ar YES
 if you want to run a Kerberos authentication server
 at boot time.
+.It Ar kadmind_server_enable
+.Ar YES
+if you want to run
+.Xr kadmind 8
+the Kerberos Administration Daemon); set to
+.Ar NO
+on a slave server.
+.It Ar kerberos_stash
+(str)
+If
+.Ar YES ,
+instruct the Kerberos servers to use the stashed master key instead of
+prompting for it (only if
+.Ar kerberos_server_enable
+is set to
+.Ar YES ,
+and is used for both
+.Xr kerberos 1
+and
+.Xr kadmind 8 ).
 .It Ar rwhod_enable
 (bool) If set to
 .Ar YES ,
