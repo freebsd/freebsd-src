@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.11 1995/02/22 08:40:54 davidg Exp $
+ * $Id: vm_mmap.c,v 1.12 1995/03/07 17:27:49 davidg Exp $
  */
 
 /*
@@ -437,7 +437,7 @@ munmapfd(p, fd)
 #endif
 
 	/*
-	 * XXX should vm_deallocate any regions mapped to this file
+	 * XXX should unmap any regions mapped to this file
 	 */
 	p->p_fd->fd_ofileflags[fd] &= ~UF_MAPPED;
 }
