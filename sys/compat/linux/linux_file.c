@@ -1127,3 +1127,45 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 	return (fcntl_common(td, args));
 }
 #endif /* __i386__ */
+
+int
+linux_chown(struct thread *td, struct linux_chown_args *args)
+{
+	struct chown_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(td, &sg, args->path);
+
+#ifdef DEBUG
+	if (ldebug(chown))
+		printf(ARGS(chown, "%s, %d, %d"), args->path, args->uid,
+		    args->gid);
+#endif
+
+	bsd.path = args->path;
+	bsd.uid = args->uid;
+	bsd.gid = args->gid;
+	return (chown(td, &bsd));
+}
+
+int
+linux_lchown(struct thread *td, struct linux_lchown_args *args)
+{
+	struct lchown_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(td, &sg, args->path);
+
+#ifdef DEBUG
+	if (ldebug(lchown))
+		printf(ARGS(lchown, "%s, %d, %d"), args->path, args->uid,
+		    args->gid);
+#endif
+
+	bsd.path = args->path;
+	bsd.uid = args->uid;
+	bsd.gid = args->gid;
+	return (lchown(td, &bsd));
+}
