@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.31 1997/09/14 12:16:36 jkh Exp $
+#	$Id: rc.i386,v 1.32 1998/03/07 09:02:08 jkh Exp $
 #	Do i386 specific processing
 #
 
@@ -103,6 +103,15 @@ if [ "X${moused_enable}" = X"YES" ] ; then
 	echo -n ' moused'
 	moused ${moused_flags} -p ${moused_port} -t ${moused_type}
 	vidcontrol <${viddev} -m on
+fi
+
+# set this mode for all screens
+if [ "X${allscreens_mode}" != X -a "X${allscreens_mode}" != X"NO" ] ; then
+	echo -n ' allscreens'
+	for ttyv in /dev/ttyv*
+	do
+		vidcontrol <$ttyv ${allscreens_mode}
+	done
 fi
 echo '.'
 
