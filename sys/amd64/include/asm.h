@@ -84,15 +84,19 @@
 			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):
 
 #ifdef PROF
-#define	ENTRY(x)	_ENTRY(x); 9: \
+#define	ALTENTRY(x)	_ENTRY(x); \
 			pushl %ebp; movl %esp,%ebp; \
 			call PIC_PLT(HIDENAME(mcount)); \
-			popl %ebp
-
-#define ALTENTRY(x)	_ENTRY(x) ; call PIC_PLT(HIDENAME(mcount)) ; jmp 9f
+			popl %ebp; \
+			jmp 9f
+#define	ENTRY(x)	_ENTRY(x); \
+			pushl %ebp; movl %esp,%ebp; \
+			call PIC_PLT(HIDENAME(mcount)); \
+			popl %ebp; \
+			9:
 #else
+#define	ALTENTRY(x)	_ENTRY(x)
 #define	ENTRY(x)	_ENTRY(x)
-#define ALTENTRY(x)	_ENTRY(x)
 #endif
 
 #define RCSID(x)	.text; .asciz x
