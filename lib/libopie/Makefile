@@ -1,6 +1,6 @@
 # Makefile for libopie
 #
-# $Id: Makefile,v 1.6 1997/09/29 11:38:36 ache Exp $
+# $Id: Makefile,v 1.7 1997/09/29 21:40:17 ache Exp $
 #
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 DIST_DIR=	${OPIE_DIST}/${.CURDIR:T}
@@ -21,6 +21,9 @@ SRCS=	atob8.c btoa8.c btoh.c challenge.c getsequence.c hash.c hashlen.c \
 
 CFLAGS+=-I${.CURDIR} -I${OPIE_DIST} -I${DIST_DIR} \
 	-DKEY_FILE=${KEYFILE}
+
+LDADD+=	-lmd
+DPADD+=	${LIBMD}
 
 MAN4=	${OPIE_DIST}/opie.4
 MAN5=	${OPIE_DIST}/opiekeys.5 ${OPIE_DIST}/opieaccess.5
