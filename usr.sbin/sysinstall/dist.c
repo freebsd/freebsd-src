@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.32 1995/05/29 11:01:10 jkh Exp $
+ * $Id: dist.c,v 1.33 1995/05/29 13:37:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -306,15 +306,19 @@ distExtract(char *parent, Distribution *me)
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int n, retval;
 	    char prompt[80];
+	    int retries = 0;
 
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist,	(chunk / 26) + 'a', (chunk % 26) + 'a');
+retry:
 	    fd = (*mediaDevice->get)(buf);
 	    if (fd < 0) {
-		msgConfirm("failed to retreive piece file %s!\nAborting the transfer", buf);
+		if (++retries < 5)
+		    goto retry;
+		msgConfirm("failed to retreive piece file %s after 5 retries!\nAborting the transfer", buf);
 		goto punt;
 	    }
 	    snprintf(prompt, 80, "Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
-	    dialog_gauge(" Progress ", prompt, 8, 15, 6, 40, (chunk + 1 ) / numchunks * 100);
+	    dialog_gauge(" Progress ", prompt, 8, 15, 6, 50, (int) ((float) (chunk + 1) / numchunks * 100));
 	    while ((n = read(fd, buf, sizeof buf)) > 0) {
 		retval = write(fd2, buf, n);
 		if (retval != n)
@@ -363,6 +367,11 @@ distExtract(char *parent, Distribution *me)
 void
 distExtractAll(void)
 {
-    while (Dists)
+    int retries = 0;
+
+    /* Try for 3 times around the loop, then give up. */
+    while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
+    if (Dists)
+	msgConfirm("Couldn't extract all of the dists.  Residue: %0x", Dists);
 }
