@@ -42,10 +42,12 @@
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
 
-#ifdef __i386__
-#include <gnu/ext2fs/i386-bitops.h>
-#elif __alpha__
+#ifdef __alpha__
 #include <gnu/ext2fs/alpha-bitops.h>
+#elif __i386__
+#include <gnu/ext2fs/i386-bitops.h>
+#elif __ia64__
+#include <gnu/ext2fs/ia64-bitops.h>
 #else
 #error Provide a bitops.h file, please!
 #endif
