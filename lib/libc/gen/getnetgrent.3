@@ -42,9 +42,9 @@
 .Nd netgroup database operations
 .Sh SYNOPSIS
 .Ft int
-.Fn getnetgrent "char **host, char **user, char **domain"
+.Fn getnetgrent "char **host" "char **user" "char **domain"
 .Ft int
-.Fn innetgr "const char *netgroup, const char *host, const char *user, const char *domain"
+.Fn innetgr "const char *netgroup" "const char *host" "const char *user" "const char *domain"
 .Ft void
 .Fn setnetgrent "const char *netgroup"
 .Ft void
