@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.22 1997/06/01 03:43:22 brian Exp $
+ * $Id: lcp.c,v 1.23 1997/06/09 03:27:24 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -183,8 +183,7 @@ GenerateMagic()
 {
   if (!randinit) {
     randinit = 1;
-    if (srandomdev() < 0)
-      srandom((unsigned long)(time(NULL) ^ getpid()));
+    srandomdev();
   }
 
   return (random());

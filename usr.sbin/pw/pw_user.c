@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.19 1997/03/24 15:09:41 ache Exp $
+ *	$Id: pw_user.c,v 1.20 1997/05/24 10:41:49 davidn Exp $
  */
 
 #include <unistd.h>
@@ -840,9 +840,10 @@ pw_pwcrypt(char *password)
 	if (!randinit) {
 		randinit = 1;
 #ifdef __FreeBSD__
-		if (srandomdev() < 0)
+		srandomdev();
+#else
+		srandom((unsigned long) (time(NULL) ^ getpid()));
 #endif
-			srandom((unsigned long) (time(NULL) ^ getpid()));
 	}
 	for (i = 0; i < 8; i++)
 		salt[i] = chars[random() % 63];
@@ -912,9 +913,10 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 		if (!randinit) {
 			randinit = 1;
 #ifdef __FreeBSD__
-			if (srandomdev() < 0)
+			srandomdev();
+#else
+			srandom((unsigned long) (time(NULL) ^ getpid()));
 #endif
-				srandom((unsigned long) (time(NULL) ^ getpid()));
 		}
 		l = (random() % 8 + 8);	/* 8 - 16 chars */
 		pw_getrand(rndbuf, l);
