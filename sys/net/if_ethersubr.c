@@ -677,10 +677,10 @@ ether_ifattach(ifp, bpf)
 	register struct ifaddr *ifa;
 	register struct sockaddr_dl *sdl;
 
-	if_attach(ifp);
 	ifp->if_type = IFT_ETHER;
 	ifp->if_addrlen = 6;
 	ifp->if_hdrlen = 14;
+	if_attach(ifp);
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_resolvemulti = ether_resolvemulti;
 	if (ifp->if_baudrate == 0)
