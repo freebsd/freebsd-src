@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#include "splash.h"
 #include "opt_syscons.h"
+#include "opt_splash.h"
 #include "opt_ddb.h"
 #ifdef __i386__
 #include "opt_apm.h"
@@ -102,7 +102,7 @@ static	char		sc_malloc = FALSE;
 static	int		saver_mode = CONS_NO_SAVER; /* LKM/user saver */
 static	int		run_scrn_saver = FALSE;	/* should run the saver? */
 static	long        	scrn_blank_time = 0;    /* screen saver timeout value */
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
 static	int     	scrn_blanked;		/* # of blanked screen */
 static	int		sticky_splash = FALSE;
 
@@ -154,7 +154,7 @@ static timeout_t scrn_timer;
 static int and_region(int *s1, int *e1, int s2, int e2);
 static void scrn_update(scr_stat *scp, int show_cursor);
 
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
 static int scsplash_callback(int event, void *arg);
 static void scsplash_saver(sc_softc_t *sc, int show);
 static int add_scrn_saver(void (*this_saver)(sc_softc_t *, int));
@@ -164,9 +164,9 @@ static int restore_scrn_saver_mode(scr_stat *scp, int changemode);
 static void stop_scrn_saver(sc_softc_t *sc, void (*saver)(sc_softc_t *, int));
 static int wait_scrn_saver_stop(sc_softc_t *sc);
 #define scsplash_stick(stick)		(sticky_splash = (stick))
-#else /* !NSPLASH */
+#else /* !DEV_SPLASH */
 #define scsplash_stick(stick)
-#endif /* NSPLASH */
+#endif /* DEV_SPLASH */
 
 static int do_switch_scr(sc_softc_t *sc, int s);
 static int vt_proc_alive(scr_stat *scp);
@@ -333,14 +333,14 @@ sc_attach_unit(int unit, int flags)
 #ifdef SC_PIXEL_MODE
     if ((sc->config & SC_VESA800X600)
 	&& ((*vidsw[sc->adapter]->get_info)(sc->adp, M_VESA_800x600, &info) == 0)) {
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
 	if (sc->flags & SC_SPLASH_SCRN)
 	    splash_term(sc->adp);
 #endif
 	sc_set_graphics_mode(scp, NULL, M_VESA_800x600);
 	sc_set_pixel_mode(scp, NULL, COL, ROW, 16);
 	sc->initial_mode = M_VESA_800x600;
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
 	/* put up the splash again! */
 	if (sc->flags & SC_SPLASH_SCRN)
     	    splash_init(sc->adp, scsplash_callback, sc);
@@ -790,12 +790,12 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    scsplash_stick(FALSE);
 	    saver_mode = *(int *)data;
 	    s = spltty();
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
 	    if ((error = wait_scrn_saver_stop(NULL))) {
 		splx(s);
 		return error;
 	    }
-#endif /* NSPLASH */
+#endif
 	    run_scrn_saver = TRUE;
 	    if (saver_mode == CONS_USR_SAVER)
 		scp->status |= SAVER_RUNNING;
@@ -1577,11 +1577,11 @@ sccnupdate(scr_stat *scp)
 
     if (!run_scrn_saver)
 	scp->sc->flags &= ~SC_SCRN_IDLE;
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
     if ((saver_mode != CONS_LKM_SAVER) || !(scp->sc->flags & SC_SCRN_IDLE))
 	if (scp->sc->flags & SC_SCRN_BLANKED)
             stop_scrn_saver(scp->sc, current_saver);
-#endif /* NSPLASH */
+#endif
 
     if (scp != scp->sc->cur_scp || scp->sc->blink_in_progress
 	|| scp->sc->switch_in_progress)
@@ -1655,11 +1655,11 @@ scrn_timer(void *arg)
 	if (scrn_blank_time > 0)
 	    run_scrn_saver = TRUE;
     }
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
     if ((saver_mode != CONS_LKM_SAVER) || !(sc->flags & SC_SCRN_IDLE))
 	if (sc->flags & SC_SCRN_BLANKED)
             stop_scrn_saver(sc, current_saver);
-#endif /* NSPLASH */
+#endif
 
     /* should we just return ? */
     if (sc->blink_in_progress || sc->switch_in_progress
@@ -1675,12 +1675,12 @@ scrn_timer(void *arg)
     if (!ISGRAPHSC(scp) && !(sc->flags & SC_SCRN_BLANKED))
 	scrn_update(scp, TRUE);
 
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
     /* should we activate the screen saver? */
     if ((saver_mode == CONS_LKM_SAVER) && (sc->flags & SC_SCRN_IDLE))
 	if (!ISGRAPHSC(scp) || (sc->flags & SC_SCRN_BLANKED))
 	    (*current_saver)(sc, TRUE);
-#endif /* NSPLASH */
+#endif
 
     if (again)
 	timeout(scrn_timer, sc, hz / 25);
@@ -1819,7 +1819,7 @@ scrn_update(scr_stat *scp, int show_cursor)
     --scp->sc->videoio_in_progress;
 }
 
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
 static int
 scsplash_callback(int event, void *arg)
 {
@@ -2047,7 +2047,7 @@ wait_scrn_saver_stop(sc_softc_t *sc)
     run_scrn_saver = FALSE;
     return error;
 }
-#endif /* NSPLASH */
+#endif /* DEV_SPLASH */
 
 void
 sc_touch_scrn_saver(void)
@@ -2393,7 +2393,7 @@ exchange_scr(sc_softc_t *sc)
 void
 sc_puts(scr_stat *scp, u_char *buf, int len)
 {
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
     /* make screensaver happy */
     if (!sticky_splash && scp == scp->sc->cur_scp)
 	run_scrn_saver = FALSE;
@@ -2709,13 +2709,13 @@ scinit(int unit, int flags)
 	save_palette(sc->adp, sc->palette);
 #endif
 
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
 	if (!(sc->flags & SC_SPLASH_SCRN) && (flags & SC_KERNEL_CONSOLE)) {
 	    /* we are ready to put up the splash image! */
 	    splash_init(sc->adp, scsplash_callback, sc);
 	    sc->flags |= SC_SPLASH_SCRN;
 	}
-#endif /* NSPLASH */
+#endif
     }
 
     /* the rest is not necessary, if we have done it once */
@@ -2740,13 +2740,13 @@ scterm(int unit, int flags)
     if (sc == NULL)
 	return;			/* shouldn't happen */
 
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
     /* this console is no longer available for the splash screen */
     if (sc->flags & SC_SPLASH_SCRN) {
 	splash_term(sc->adp);
 	sc->flags &= ~SC_SPLASH_SCRN;
     }
-#endif /* NSPLASH */
+#endif
 
 #if 0 /* XXX */
     /* move the hardware cursor to the upper-left corner */
@@ -2803,16 +2803,16 @@ scshutdown(void *arg, int howto)
 int
 sc_clean_up(scr_stat *scp)
 {
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
     int error;
-#endif /* NSPLASH */
+#endif
 
     if (scp->sc->flags & SC_SCRN_BLANKED) {
 	sc_touch_scrn_saver();
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
 	if ((error = wait_scrn_saver_stop(scp->sc)))
 	    return error;
-#endif /* NSPLASH */
+#endif
     }
     scp->status |= MOUSE_HIDDEN;
     sc_remove_mouse_image(scp);
@@ -3174,7 +3174,7 @@ next_code:
 		break;
 
 	    case SPSC:
-#if NSPLASH > 0
+#ifdef DEV_SPLASH
 		/* force activatation/deactivation of the screen saver */
 		if (!(sc->flags & SC_SCRN_BLANKED)) {
 		    run_scrn_saver = TRUE;
@@ -3195,7 +3195,7 @@ next_code:
 			}
 		    }
 		}
-#endif /* NSPLASH */
+#endif /* DEV_SPLASH */
 		break;
 
 	    case RBT:

@@ -198,6 +198,7 @@ NDGBPORTS		opt_dgb.h
 # Device options
 DEV_NPX			opt_npx.h
 DEV_APM			opt_apm.h
+DEV_SPLASH		opt_splash.h
 
 # SMB/CIFS requester
 NETSMB			opt_netsmb.h

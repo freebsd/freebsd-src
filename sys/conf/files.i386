@@ -97,7 +97,7 @@ dev/ed/if_ed_isa.c		optional	ed isa
 dev/eisa/eisaconf.c		optional	eisa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
-dev/fb/splash.c			count		splash
+dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/fe/if_fe_isa.c		optional	fe isa
 dev/kbd/atkbd.c			optional	atkbd

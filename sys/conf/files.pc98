@@ -97,7 +97,7 @@ dev/ed/if_ed_cbus.c		optional	ed isa
 dev/eisa/eisaconf.c		optional	eisa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	gdc
-dev/fb/splash.c			count		splash
+dev/fb/splash.c			optional	splash
 dev/fe/if_fe_cbus.c		optional	fe isa
 dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
