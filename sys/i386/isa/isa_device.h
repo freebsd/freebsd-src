@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.23 1995/05/11 07:41:52 jkh Exp $
+ *	$Id: isa_device.h,v 1.24 1995/09/10 21:35:10 bde Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -110,7 +110,6 @@ struct isa_driver {
 };
 
 #define ISA_EXTERNALLEN (sizeof(struct isa_device))
-#define EISA_EXTERNALLEN (sizeof(struct isa_device) + sizeof(int))
 
 #ifdef KERNEL
 
@@ -159,11 +158,9 @@ int update_intr_masks __P((void));
 
 extern int isa_externalize(struct isa_device *, void *, size_t *);
 extern int isa_internalize(struct isa_device *, void **, size_t *);
-extern int eisa_externalize(struct isa_device *, int, void *, size_t *);
 
 struct kern_devconf;
 extern int isa_generic_externalize(struct proc *, struct kern_devconf *, void *, size_t);
-extern int eisa_generic_externalize(struct proc *,struct kern_devconf *, void *, size_t);
 extern struct kern_devconf kdc_isa0;
 #endif /* KERNEL */
 
