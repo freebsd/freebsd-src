@@ -480,6 +480,7 @@ main(argc, argv)
 	char cdpath[MAXPATHLEN + 1];
     	char *machine = getenv("MACHINE");
 	char *machine_arch = getenv("MACHINE_ARCH");
+	char *machine_cpu = getenv("MACHINE_CPU");
 	Lst sysMkPath;			/* Path of sys.mk */
 	char *cp = NULL, *start;
 					/* avoid faults on read-only strings */
@@ -571,6 +572,19 @@ main(argc, argv)
 #endif
 	}
 
+	/*
+	 * Set machine_cpu to the minumum supported CPU revision based
+	 * on the target architecture, if not already set.
+	 */
+	if (!machine_cpu) {
+		if (!strcmp(machine_arch, "i386"))
+			machine_cpu = "i386";
+		else if (!strcmp(machine_arch, "alpha"))
+			machine_cpu = "ev4";
+		else
+			machine_cpu = "unknown";
+	}
+	
 	/*
 	 * The object directory location is determined using the
 	 * following order of preference:
@@ -673,6 +687,7 @@ main(argc, argv)
 	Var_Set("MFLAGS", "", VAR_GLOBAL);
 	Var_Set("MACHINE", machine, VAR_GLOBAL);
 	Var_Set("MACHINE_ARCH", machine_arch, VAR_GLOBAL);
+	Var_Set("MACHINE_CPU", machine_cpu, VAR_GLOBAL);
 
 	/*
 	 * First snag any flags out of the MAKE environment variable.
