@@ -337,31 +337,6 @@ Specifies whether
 should check for new mail for interactive logins.
 The default is
 .Dq yes .
-.It Cm ConnectionsPerPeriod
-This keyword allows for rate-limiting of connections, and
-is followed by two numbers in the format
-.Dq n/s ,
-where
-.Ar n
-is the number of connections from a certain address group
-accepted per period of
-.Ar s
-seconds.  Any connection after the number
-.Ar n
-connection in the period of
-.Ar s
-seconds will be dropped, and an informational message will be logged.
-A connection will belong to a certain group, of which there are 13
-by default, according to its IP address.
-The default for this keyword is
-.Dq 0/0 ,
-and rate-limiting can be explicitly turned off by using an
-.Ar n
-parameter of
-.Ql 0
-and any
-.Ar s
-parameter.
 .It Cm DenyGroups
 This keyword can be followed by a number of group names, separated
 by spaces.
