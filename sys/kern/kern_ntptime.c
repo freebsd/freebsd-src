@@ -373,9 +373,9 @@ ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	 * returned only by ntp_gettime();
 	 */
 	if (time_status & STA_NANO)
-		ntv.offset = time_monitor;
+		ntv.offset = L_GINT(time_offset);
 	else
-		ntv.offset = time_monitor / 1000; /* XXX rounding ? */
+		ntv.offset = L_GINT(time_offset) / 1000; /* XXX rounding ? */
 	ntv.freq = L_GINT((time_freq / 1000LL) << 16);
 	ntv.maxerror = time_maxerror;
 	ntv.esterror = time_esterror;
