@@ -36,13 +36,13 @@
 .sp 2.75i
 .ft B
 .ce 2
-UNIX Programmer's Reference Manual
+FreeBSD Programmer's Reference Manual
 (PRM)
 .ps 14
 .vs 16
 .sp |4i
 .ce 2
-4.4 Berkeley Software Distribution
+For FreeBSD version 2.1
 .sp |5.75i
 .ft R
 .pt 12
@@ -51,11 +51,8 @@ UNIX Programmer's Reference Manual
 June, 1993
 .sp |8.2i
 .ce 5
-Computer Systems Research Group
-Computer Science Division
-Department of Electrical Engineering and Computer Science
-University of California
-Berkeley, California  94720
+The FreeBSD Project
+<hackers@FreeBSD.ORG>
 .bp
 \&
 .sp |1i
@@ -127,16 +124,6 @@ Standards Committee X3, on Information Processing Systems.  Computer and
 Business Equipment Manufacturers Association (CBEMA), 311 First St., NW,
 Suite 500, Washington, DC 20001-2178.  The developmental work of
 Programming Language C was completed by the X3J11 Technical Committee.''
-.sp 2
-Manual pages ptrace.2, ecvt.3, mp.3, plot.3, L-devices.5, L-dialcodes.5,
-L.aliases.5, L.cmds.5, L.sys.5, USERFILE.5, dump.5, and plot.5
-are copyright 1979, AT&T Bell Laboratories, Incorporated.
-Holders of \x'-1p'UNIX\v'-4p'\s-3TM\s0\v'4p'/32V,
-System III, or System V software licenses are
-permitted to copy these documents, or any portion of them,
-as necessary for licensed use of the software,
-provided this copyright notice and statement of permission
-are included.
 .sp 2
 The views and conclusions contained in this manual are those of the
 authors and should not be interpreted as representing official policies,
