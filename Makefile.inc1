@@ -57,6 +57,9 @@ SUBDIR+= lib
 .if exists(${.CURDIR}/bin)
 SUBDIR+= bin
 .endif
+.if exists(${.CURDIR}/etc)
+SUBDIR+= etc
+.endif
 .if exists(${.CURDIR}/games) && !defined(NOGAMES)
 SUBDIR+= games
 .endif
@@ -93,11 +96,6 @@ SUBDIR+= usr.bin
 SUBDIR+= usr.sbin
 .endif
 
-# etc must be last for "distribute" to work
-.if exists(${.CURDIR}/etc)
-SUBDIR+= etc
-.endif
-
 # These are last, since it is nice to at least get the base system
 # rebuilt before you do them.
 .if defined(LOCAL_DIRS)
@@ -106,6 +104,10 @@ SUBDIR+= etc
 SUBDIR+= ${_DIR}
 .endif
 .endfor
+.endif
+
+.if defined(SUBDIR_OVERRIDE)
+SUBDIR=		${SUBDIR_OVERRIDE}
 .endif
 
 .if defined(NOCLEANDIR)
@@ -239,7 +241,7 @@ INCDIRS=	arpa dev fs g++/std isc isofs objc protocols \
 # Attempt to rebuild the entire system, with reasonable chance of
 # success, regardless of how old your existing system is.
 #
-buildworld:
+_worldtmp:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding the temporary build tree"
@@ -258,11 +260,13 @@ buildworld:
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
+_bootstrap-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 1: bootstrap tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} bootstrap-tools
+_cleanobj:
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -270,47 +274,62 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
 .endif
+_obj:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} par-obj
+_build-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2: build tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${TMAKE} build-tools
+_cross-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${XMAKE} cross-tools
+_includes:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: populating ${WORLDTMP}/usr/include"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks includes
+_libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} -DNOHTML -DNOINFO -DNOMAN -DNOFSCHG libraries
+_depend:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: make dependencies"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} par-depend
+everything:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} all
 
-everything:
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Building everything.."
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} all
+
+WMAKE_TGTS=
+.if !defined(SUBDIR_OVERRIDE)
+WMAKE_TGTS+=	_worldtmp _bootstrap-tools
+.endif
+WMAKE_TGTS+=	_cleanobj _obj _build-tools
+.if !defined(SUBDIR_OVERRIDE)
+WMAKE_TGTS+=	_cross-tools
+.endif
+WMAKE_TGTS+=	_includes _libraries _depend everything
+
+buildworld: ${WMAKE_TGTS}
+.ORDER: ${WMAKE_TGTS}
 
 #
 # installcheck
@@ -361,7 +380,7 @@ reinstall:
 	@echo ">>> Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if !defined(NOMAN)
+.if !defined(NOMAN) && !defined(NO_MAKEDB_RUN)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding man page indices"
@@ -472,12 +491,9 @@ buildkernel:
 #
 # Install the kernel defined by INSTALLKERNEL
 #
-installkernel:
+installkernel reinstallkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} install
-reinstallkernel:
-	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} reinstall
+	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel$//}
 
 #
 # kernel

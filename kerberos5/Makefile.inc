@@ -1,8 +1,6 @@
 # $FreeBSD$
 
-.if !defined(DISTRIBUTION)
-
-DISTRIBUTION=	krb5
+DISTRIBUTION?=	krb5
 
 .if !defined(INCLUDEOBJDIR)
 
@@ -14,8 +12,7 @@ TELNETDIR=	${.CURDIR}/../../../crypto/telnet
 
 CFLAGS+=-Wall -I${INCLUDEDIR} -I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
 
-.if defined(MAKE_KERBEROS4) && \
-	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
+.if defined(MAKE_KERBEROS4)
 CFLAGS+=-DKRB5_KRB4_COMPAT -DKRB4
 .endif
 
@@ -175,7 +172,5 @@ INCLUDEDIR=	${.CURDIR}/../../include
 KRB4DIR=	${.CURDIR}/../../crypto/kerberosIV
 KRB5DIR=	${.CURDIR}/../../crypto/heimdal
 ROKENDIR=	${.CURDIR}/../../lib/libroken
-
-.endif
 
 .endif
