@@ -14,6 +14,10 @@ the common items quick how-tos, followed by entries for versions of
 	should update your pccardd at the same time as you update your
 	kernel.
 
+	Note: Interrupts will now be shared between the CardBus bridge
+	and the cards.  This is a change over the hand configuration
+	before.
+
 20010811:
 	isdn4bsd was updated to version 1.00.1. for users of the isp<N>
 	(kernel PPP over ISDN) devices, this means that they now _must_
