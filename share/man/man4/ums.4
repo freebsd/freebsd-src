@@ -65,12 +65,40 @@ blocking device node
 Add the
 .Nm ums
 driver to the kernel.
+.Pp
+.Dl moused -p /dev/ums0 -t auto
+.Pp
+Use the first 
+.Nm USB
+mouse on the system as your console mouse.
+.Pp
+Change the "Pointer" section in
+.Nm XF86Config
+to the following
+.Pp
+.Dl Device "/dev/ums0"
+.Dl Protocol "Auto"
+.Pp
+to be able to use the USB mouse under X. When using the XiG accelerated X
+server, change the mouse device to /dev/ums0 and the mouse type to
+Mouse Systems.
+.Pp
+If you want to be able to use the mouse in both virtual consoles as well
+as in X change the "Pointer" section in
+.Nm XF86Config
+to the following:
+.Pp
+.Dl Device "/dev/sysmouse"
+.Dl Protocol "Auto"
+.Pp
+For XFree86 3.3.1 the mouse type should not be "Auto" but "MouseSystems".
 .Sh SEE ALSO
 .Xr uhci 4 ,
 .Xr ohci 4 ,
 .Xr usb 4 ,
 .Xr moused 8 ,
-.Xr sysmouse 4
+.Xr sysmouse 4 ,
+.Xr XF86Config 4/5
 .\".Sh HISTORY
 .Sh AUTHOR
 The
@@ -81,4 +109,6 @@ for NetBSD and was adapted for FreeBSD by
 .An MAEKAWA Masahide Aq bishop@rr.iij4u.or.jp .
 .Pp
 This manual page was written by
-.An Nick Hibma Aq hibma@skylink.it .
+.An Nick Hibma Aq hibma@skylink.it 
+with input from
+.An Kazutaka YOKOTA Aq yokota@zodiac.mech.utsunomiya-u.ac.jp .
