@@ -248,6 +248,7 @@ struct aue_softc {
 	u_int16_t		aue_flags;
 	char			aue_dying;
 	struct timeval		aue_rx_notice;
+	struct usb_qdat		aue_qdat;
 };
 
 #if 0

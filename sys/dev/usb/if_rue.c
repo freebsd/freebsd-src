@@ -127,8 +127,6 @@ Static struct rue_type rue_devs[] = {
 	{ 0, 0 }
 };
 
-Static struct usb_qdat rue_qdat;
-
 Static int rue_match(device_ptr_t);
 Static int rue_attach(device_ptr_t);
 Static int rue_detach(device_ptr_t);
@@ -704,8 +702,8 @@ USB_ATTACH(rue)
 		goto error1;
 	}
 
-	rue_qdat.ifp = ifp;
-	rue_qdat.if_rxstart = rue_rxstart;
+	sc->rue_qdat.ifp = ifp;
+	sc->rue_qdat.if_rxstart = rue_rxstart;
 
 	/* Call MI attach routine */
 #if __FreeBSD_version >= 500000
@@ -975,7 +973,7 @@ rue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	total_len -= ETHER_CRC_LEN;
 
 	ifp->if_ipackets++;
-	m->m_pkthdr.rcvif = (struct ifnet *)&rue_qdat;
+	m->m_pkthdr.rcvif = (struct ifnet *)&sc->rue_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
 
 	/* Put the packet on the special USB input queue. */

@@ -151,10 +151,6 @@ USB_DECLARE_DRIVER(udav);
 #endif
 
 #if defined(__FreeBSD__)
-Static struct usb_qdat udav_qdat;
-#endif
-
-#if defined(__FreeBSD__)
 Static int udav_match(device_ptr_t);
 Static int udav_attach(device_ptr_t);
 Static int udav_detach(device_ptr_t);
@@ -452,8 +448,8 @@ USB_ATTACH(udav)
 		USB_ATTACH_ERROR_RETURN;
 	}
 
-	udav_qdat.ifp = ifp;
-	udav_qdat.if_rxstart = udav_rxstart;
+	sc->sc_qdat.ifp = ifp;
+	sc->sc_qdat.if_rxstart = udav_rxstart;
 
 	/*
 	 * Call MI attach routine.
@@ -1487,7 +1483,7 @@ udav_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 #if defined(__NetBSD__)
 	m->m_pkthdr.rcvif = ifp;
 #elif defined(__FreeBSD__)
-	m->m_pkthdr.rcvif = (struct ifnet *)&udav_qdat;
+	m->m_pkthdr.rcvif = (struct ifnet *)&sc->sc_qdat;
 #endif
 
 #if defined(__NetBSD__)
