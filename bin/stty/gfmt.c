@@ -59,11 +59,10 @@ gerr(s)
 }
 
 void
-gprint(tp, wp, ldisc, timeout)
+gprint(tp, wp, ldisc)
 	struct termios *tp;
 	struct winsize *wp;
 	int ldisc;
-	int timeout;
 {
 	struct cchar *cp;
 
@@ -72,21 +71,19 @@ gprint(tp, wp, ldisc, timeout)
 	    (u_long)tp->c_oflag);
 	for (cp = cchars1; cp->name; ++cp)
 		(void)printf("%s=%x:", cp->name, tp->c_cc[cp->sub]);
-	(void)printf("ispeed=%lu:ospeed=%lu:drainwait=%d\n",
-	    (u_long)cfgetispeed(tp), (u_long)cfgetospeed(tp), timeout);
+	(void)printf("ispeed=%lu:ospeed=%lu\n",
+	    (u_long)cfgetispeed(tp), (u_long)cfgetospeed(tp));
 }
 
 void
-gread(i, s)
-	struct info *i;
+gread(tp, s)
+	struct termios *tp;
 	char *s;
 {
 	struct cchar *cp;
-	struct termios *tp;
 	char *ep, *p;
 	long tmp;
 
-	tp = &(i->t);
 	if ((s = strchr(s, ':')) == NULL)
 		gerr(NULL);
 	for (++s; s != NULL;) {
@@ -101,42 +98,28 @@ gread(i, s)
 #define	CHK(s)	(*p == s[0] && !strcmp(p, s))
 		if (CHK("cflag")) {
 			tp->c_cflag = tmp;
-			i->set = 1;
 			continue;
 		}
 		if (CHK("iflag")) {
 			tp->c_iflag = tmp;
-			i->set = 1;
 			continue;
 		}
 		if (CHK("ispeed")) {
 			(void)sscanf(ep, "%ld", &tmp);
 			tp->c_ispeed = tmp;
-			i->set = 1;
 			continue;
 		}
 		if (CHK("lflag")) {
 			tp->c_lflag = tmp;
-			i->set = 1;
 			continue;
 		}
 		if (CHK("oflag")) {
 			tp->c_oflag = tmp;
-			i->set = 1;
 			continue;
 		}
 		if (CHK("ospeed")) {
 			(void)sscanf(ep, "%ld", &tmp);
 			tp->c_ospeed = tmp;
-			i->set = 1;
-			continue;
-		}
-		if (CHK("drainwait")) {
-			(void)sscanf(ep, "%ld", &tmp);
-			if (i->timeout != tmp) {
-				i->timeout = tmp;
-				i->tset = 1;
-			}
 			continue;
 		}
 		for (cp = cchars1; cp->name != NULL; ++cp)
@@ -144,7 +127,6 @@ gread(i, s)
 				if (cp->sub == VMIN || cp->sub == VTIME)
 					(void)sscanf(ep, "%ld", &tmp);
 				tp->c_cc[cp->sub] = tmp;
-				i->set = 1;
 				break;
 			}
 		if (cp->name == NULL)

@@ -56,7 +56,6 @@ void	f_all __P((struct info *));
 void	f_cbreak __P((struct info *));
 void	f_columns __P((struct info *));
 void	f_dec __P((struct info *));
-void    f_drainwait __P((struct info *));
 void	f_everything __P((struct info *));
 void	f_extproc __P((struct info *));
 void	f_ispeed __P((struct info *));
@@ -83,7 +82,6 @@ static struct key {
 	{ "columns",	f_columns,	F_NEEDARG },
 	{ "cooked", 	f_sane,		0 },
 	{ "dec",	f_dec,		0 },
-	{ "drainwait",  f_drainwait,    F_NEEDARG },
 	{ "everything",	f_everything,	0 },
 	{ "extproc",	f_extproc,	F_OFFOK },
 	{ "ispeed",	f_ispeed,	F_NEEDARG },
@@ -142,7 +140,7 @@ void
 f_all(ip)
 	struct info *ip;
 {
-	print(&ip->t, &ip->win, ip->ldisc, ip->timeout, BSD);
+	print(&ip->t, &ip->win, ip->ldisc, BSD);
 }
 
 void
@@ -185,20 +183,11 @@ f_dec(ip)
 }
 
 void
-f_drainwait(ip)
-	struct info *ip;
-{
-
-	ip->timeout = atoi(ip->arg);
-	ip->tset = 1;
-}
-
-void
 f_everything(ip)
 	struct info *ip;
 {
 
-	print(&ip->t, &ip->win, ip->ldisc, ip->timeout, BSD);
+	print(&ip->t, &ip->win, ip->ldisc, BSD);
 }
 
 void
