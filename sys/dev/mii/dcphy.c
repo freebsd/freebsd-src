@@ -329,17 +329,22 @@ dcphy_service(sc, mii, cmd)
 		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
 			break;
 
-		reg = CSR_READ_4(dc_sc, DC_10BTSTAT) &
-		    (DC_TSTAT_LS10|DC_TSTAT_LS100);
-
+		reg = CSR_READ_4(dc_sc, DC_10BTSTAT);
 		if (!(reg & DC_TSTAT_LS10) || !(reg & DC_TSTAT_LS100))
 			break;
 
                 /*
                  * Only retry autonegotiation every 5 seconds.
+		 *
+		 * Otherwise, fall through to calling dcphy_status()
+		 * since real Intel 21143 chips don't show valid link
+		 * status until autonegotiation is switched off, and
+		 * that only happens in dcphy_status().  Without this,
+		 * successful autonegotation is never recognised on
+		 * these chips.
                  */
                 if (++sc->mii_ticks != 50)
-                        return (0);
+			break;
 
 		sc->mii_ticks = 0;
 		/*if (DC_IS_INTEL(dc_sc))*/
@@ -373,9 +378,7 @@ dcphy_status(sc)
 	if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 		return;
 
-	reg = CSR_READ_4(dc_sc, DC_10BTSTAT) &
-	    (DC_TSTAT_LS10|DC_TSTAT_LS100);
-
+	reg = CSR_READ_4(dc_sc, DC_10BTSTAT);
 	if (!(reg & DC_TSTAT_LS10) || !(reg & DC_TSTAT_LS100))
 		mii->mii_media_status |= IFM_ACTIVE;
 
