@@ -95,8 +95,7 @@ start:		cld				# String ops inc
 #
 main:		pushw %dx			# Save
 		xorw %dx,%dx			# Port: COM1
-		movb $0xE3,%al			# 9600 8-N-1
-
+		movb COMSPEED,%al		# defined by Makefile
 		movb $0x00,%ah			# BIOS: Set COM Port
 		int $0x14			#  Parameters
 		popw %dx			# Restore
