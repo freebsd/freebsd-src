@@ -434,7 +434,7 @@ September 14, 1990:
 	defined to the telnet escape character.
 
 	Handle TERMIOS systems that have separate input and output
-	line speed settings imbedded in the flags.
+	line speed settings embedded in the flags.
 
 	Many other minor bug fixes.
 
