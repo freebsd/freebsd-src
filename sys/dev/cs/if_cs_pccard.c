@@ -114,9 +114,7 @@ static device_method_t cs_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
-#ifdef CS_HAS_DETACH
 	DEVMETHOD(device_detach,	cs_detach),
-#endif
 
 	/* Card interface */
 	DEVMETHOD(card_compat_match,	cs_pccard_match),

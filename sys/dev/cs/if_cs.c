@@ -689,6 +689,22 @@ cs_attach(device_t dev)
 	return (0);
 }
 
+int
+cs_detach(device_t dev)
+{
+	struct cs_softc *sc;
+	struct ifnet *ifp;
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	cs_stop(sc);
+	ifp->if_flags &= ~IFF_RUNNING;
+	ether_ifdetach(ifp);
+	cs_release_resources(dev);
+	return (0);
+}
+
 /*
  * Initialize the board
  */
