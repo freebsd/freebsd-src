@@ -1,5 +1,5 @@
 .\" Copyright (c) 2003 M. Warner Losh
-.\" 	<imp@freebsd.org>. All rights reserved.
+.\" 	<imp@FreeBSD.org>. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -44,18 +44,18 @@ This design is used in the D-Link DSB-R100 USB Radio.
 The
 .Nm
 device must be configured in the kernel, along with
-.Em usb
+.Xr usb 4
 and one of the
-.Em uhci
+.Xr uhci 4
 or
-.Em ohci
+.Xr ohci 4
 controllers.
 .Pp
 Subsequently, the
 .Pa /dev/ufm0
 device can be used by userland applications.
 .Sh FILES
-.Bl -tag -width /dev/ums0 -compact
+.Bl -tag -width ".Pa /dev/ufm0" -compact
 .It Pa /dev/ufm0
 blocking device node
 .El
@@ -68,6 +68,6 @@ blocking device node
 The
 .Nm
 driver was written by
-.An M. Warner Losh Aq imp@freebsd.org
+.An M. Warner Losh Aq imp@FreeBSD.org
 for
 .Fx .
