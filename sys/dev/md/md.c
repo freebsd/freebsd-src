@@ -386,15 +386,18 @@ mdstart_vnode(struct md_s *sc)
 			auio.uio_rw = UIO_WRITE;
 		auio.uio_resid = bp->bio_bcount;
 		auio.uio_td = curthread;
-		if (VOP_ISLOCKED(sc->vnode, NULL))
-			vprint("unexpected md driver lock", sc->vnode);
+		/*
+		 * When reading set IO_DIRECT to try to avoid double-caching
+		 * the data.  When writing IO_DIRECT is not optimal, but we
+		 * must set IO_NOWDRAIN to avoid a wdrain deadlock.
+		 */
 		if (bp->bio_cmd == BIO_READ) {
 			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
-			error = VOP_READ(sc->vnode, &auio, 0, sc->cred);
+			error = VOP_READ(sc->vnode, &auio, IO_DIRECT, sc->cred);
 		} else {
 			(void) vn_start_write(sc->vnode, &mp, V_WAIT);
 			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
-			error = VOP_WRITE(sc->vnode, &auio, 0, sc->cred);
+			error = VOP_WRITE(sc->vnode, &auio, IO_NOWDRAIN, sc->cred);
 			vn_finished_write(mp);
 		}
 		VOP_UNLOCK(sc->vnode, 0, curthread);

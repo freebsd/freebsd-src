@@ -758,11 +758,15 @@ bwrite(struct buf * bp)
 		int rtval = bufwait(bp);
 		brelse(bp);
 		return (rtval);
-	} else {
+	} else if ((oldflags & B_NOWDRAIN) == 0) {
 		/*
 		 * don't allow the async write to saturate the I/O
-		 * system.  There is no chance of deadlock here because
-		 * we are blocking on I/O that is already in-progress.
+		 * system.  Deadlocks can occur only if a device strategy
+		 * routine (like in MD) turns around and issues another
+		 * high-level write, in which case B_NOWDRAIN is expected
+		 * to be set.  Otherwise we will not deadlock here because
+		 * we are blocking waiting for I/O that is already in-progress
+		 * to complete.
 		 */
 		waitrunningbufspace();
 	}
@@ -1286,7 +1290,8 @@ brelse(struct buf * bp)
 
 	/* unlock */
 	BUF_UNLOCK(bp);
-	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF | B_DIRECT);
+	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF | 
+			B_DIRECT | B_NOWDRAIN);
 	bp->b_ioflags &= ~BIO_ORDERED;
 	if ((bp->b_flags & B_DELWRI) == 0 && (bp->b_xflags & BX_VNDIRTY))
 		panic("brelse: not dirty");

@@ -836,7 +836,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		bp->b_data = (char *)((vm_offset_t)bp->b_data |
 		    ((vm_offset_t)tbp->b_data & PAGE_MASK));
 		bp->b_flags |= B_CLUSTER |
-				(tbp->b_flags & (B_VMIO | B_NEEDCOMMIT));
+				(tbp->b_flags & (B_VMIO | B_NEEDCOMMIT | B_NOWDRAIN));
 		bp->b_iodone = cluster_callback;
 		pbgetvp(vp, bp);
 		/*
