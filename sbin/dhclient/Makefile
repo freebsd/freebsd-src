@@ -14,13 +14,13 @@ SUBDIR= common dst minires omapip client
 OBJS=  client/clparse.o client/dhclient.o
 
 # common
-OBJS+=	client/alloc.o client/bpf.o client/comapi.o client/conflex.o \
-	client/ctrace.o client/discover.o client/dispatch.o client/dlpi.o \
-	client/dns.o client/ethernet.o client/execute.o client/fddi.o \
-	client/icmp.o client/inet.o client/lpf.o client/memory.o \
-	client/nit.o client/options.o client/packet.o client/parse.o \
-	client/print.o client/raw.o client/resolv.o client/socket.o \
-	client/tables.o client/tr.o client/tree.o client/upf.o
+OBJS+=	common/alloc.o common/bpf.o common/comapi.o common/conflex.o \
+	common/ctrace.o common/discover.o common/dispatch.o common/dlpi.o \
+	common/dns.o common/ethernet.o common/execute.o common/fddi.o \
+	common/icmp.o common/inet.o common/lpf.o common/memory.o \
+	common/nit.o common/options.o common/packet.o common/parse.o \
+	common/print.o common/raw.o common/resolv.o common/socket.o \
+	common/tables.o common/tr.o common/tree.o common/upf.o
 
 # dst
 OBJS+=	dst/base64.o dst/dst_api.o dst/dst_support.o dst/hmac_link.o \
