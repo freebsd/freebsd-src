@@ -1,12 +1,12 @@
 /*
  * Streamer tape driver for 386bsd and FreeBSD.
- * Supports Archive QIC-02 and Wangtek QIC-02/QIC-36 boards.
+ * Supports Archive and Wangtek compatible QIC-02/QIC-36 boards.
  *
  * Copyright (C) 1993 by:
  *      Sergey Ryzhkov       <sir@kiae.su>
  *      Serge Vakulenko      <vak@zebub.msk.su>
  *
- * Placed in the public domain with NO WARRANTIES, not even the implied
+ * This software is distributed with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * Authors grant any other persons or organisations permission to use
@@ -18,8 +18,9 @@
  * Authors thank Robert Baron, CMU and Intel and retain here
  * the original CMU copyright notice.
  *
- *	from: Version 1.1, Fri Sep 24 02:14:31 MSD 1993
- *	$Id$
+ * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
+ * $Id$
+ *
  */
 
 /*
@@ -63,8 +64,12 @@
 #include "i386/isa/isa_device.h"
 #include "i386/isa/wtreg.h"
 
+/*
+ * Uncomment this to enable internal device tracing.
+ */
+#define DEBUG(s)                /* printf s */
+
 #define WTPRI                   (PZERO+10)      /* sleep priority */
-#define BLKSIZE                 512             /* streamer tape block size */
 
 /*
  * Wangtek controller ports
@@ -85,7 +90,7 @@
 #define WT_ONLINE               0x01            /* device selected */
 #define WT_RESET                0x02            /* reset command */
 #define WT_REQUEST              0x04            /* request command */
-#define WT_IEN(chan)            ((chan)>2 ? 0x10 : 0x8) /* enable intr */
+#define WT_IEN                  0x08            /* enable dma */
 
 /*
  * Archive controller ports
@@ -109,8 +114,11 @@
 #define AV_REQUEST              0x40            /* request command */
 #define AV_IEN                  0x20            /* enable interrupts */
 
-#define DMA_STATUSREG           0x8
-#define DMA_DONE(chan)          (1 << (chan))
+enum wttype {
+	UNKNOWN = 0,                    /* unknown type, driver disabled */
+	ARCHIVE,                        /* Archive Viper SC499, SC402 etc */
+	WANGTEK,                        /* Wangtek */
+};
 
 typedef struct {
 	unsigned short err;             /* code for error encountered */
@@ -119,11 +127,13 @@ typedef struct {
 } wtstatus_t;
 
 typedef struct {
+	enum wttype type;               /* type of controller */
 	unsigned unit;                  /* unit number */
 	unsigned port;                  /* base i/o port */
 	unsigned chan;                  /* dma channel number, 1..3 */
 	unsigned flags;                 /* state of tape drive */
 	unsigned dens;                  /* tape density */
+	int bsize;                      /* tape block size */
 	void *buf;                      /* internal i/o buffer */
 
 	void *dmavaddr;                 /* virtual address of dma i/o buffer */
@@ -149,12 +159,12 @@ static void wtdma (wtinfo_t *t);
 static void wtimer (wtinfo_t *t);
 static void wtclock (wtinfo_t *t);
 static int wtreset (wtinfo_t *t);
-static int wtsense (wtinfo_t *t, int ignor);
+static int wtsense (wtinfo_t *t, int verb, int ignor);
 static int wtstatus (wtinfo_t *t);
 static void wtrewind (wtinfo_t *t);
 static int wtreadfm (wtinfo_t *t);
 static int wtwritefm (wtinfo_t *t);
-static int wtpoll (wtinfo_t *t);
+static int wtpoll (wtinfo_t *t, int mask, int bits);
 
 extern void DELAY (int usec);
 extern void bcopy (void *from, void *to, unsigned len);
@@ -176,25 +186,26 @@ int wtprobe (struct isa_device *id)
 
 	t->unit = id->id_unit;
 	t->chan = id->id_drq;
-	t->port = 0;                    /* Mark it as not configured. */
+	t->port = id->id_iobase;
 	if (t->chan<1 || t->chan>3) {
 		printf ("wt%d: Bad drq=%d, should be 1..3\n", t->unit, t->chan);
 		return (0);
 	}
-	t->port = id->id_iobase;
 
 	/* Try Wangtek. */
+	t->type = WANGTEK;
 	t->CTLPORT = WT_CTLPORT (t->port);  t->STATPORT = WT_STATPORT (t->port);
 	t->CMDPORT = WT_CMDPORT (t->port);  t->DATAPORT = WT_DATAPORT (t->port);
 	t->SDMAPORT = 0;                    t->RDMAPORT = 0;
 	t->BUSY = WT_BUSY;                  t->NOEXCEP = WT_NOEXCEP;
 	t->RESETMASK = WT_RESETMASK;        t->RESETVAL = WT_RESETVAL;
 	t->ONLINE = WT_ONLINE;              t->RESET = WT_RESET;
-	t->REQUEST = WT_REQUEST;            t->IEN = WT_IEN (t->chan);
+	t->REQUEST = WT_REQUEST;            t->IEN = WT_IEN;
 	if (wtreset (t))
 		return (WT_NPORT);
 
 	/* Try Archive. */
+	t->type = ARCHIVE;
 	t->CTLPORT = AV_CTLPORT (t->port);  t->STATPORT = AV_STATPORT (t->port);
 	t->CMDPORT = AV_CMDPORT (t->port);  t->DATAPORT = AV_DATAPORT (t->port);
 	t->SDMAPORT = AV_SDMAPORT (t->port); t->RDMAPORT = AV_RDMAPORT (t->port);
@@ -206,7 +217,7 @@ int wtprobe (struct isa_device *id)
 		return (AV_NPORT);
 
 	/* Tape controller not found. */
-	t->port = 0;
+	t->type = UNKNOWN;
 	return (0);
 }
 
@@ -217,14 +228,13 @@ int wtattach (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
 
-	if (t->RDMAPORT) {
+	if (t->type == ARCHIVE) {
 		printf ("wt%d: type <Archive>\n", t->unit);
 		outb (t->RDMAPORT, 0);          /* reset dma */
 	} else
 		printf ("wt%d: type <Wangtek>\n", t->unit);
 	t->flags = TPSTART;                     /* tape is rewound */
 	t->dens = -1;                           /* unknown density */
-	t->buf = malloc (BLKSIZE, M_TEMP, M_NOWAIT);
 	return (1);
 }
 
@@ -251,7 +261,7 @@ int wtopen (int dev, int flag)
 	wtinfo_t *t = wttab + u;
 	int error;
 
-	if (u >= NWT || !t->port)
+	if (u >= NWT || t->type == UNKNOWN)
 		return (ENXIO);
 
 	/* Check that device is not in use */
@@ -261,41 +271,54 @@ int wtopen (int dev, int flag)
 	/* If the tape is in rewound state, check the status and set density. */
 	if (t->flags & TPSTART) {
 		/* If rewind is going on, wait */
-		error = wtwait (t, PCATCH, "wtrew");
-		if (error)
+		if (error = wtwait (t, PCATCH, "wtrew"))
 			return (error);
 
-		if (! wtsense (t, (flag & FWRITE) ? 0 : TP_WRP)) {
-			/* Bad status. Reset the controller. */
+		/* Check the controller status */
+		if (! wtsense (t, 0, (flag & FWRITE) ? 0 : TP_WRP)) {
+			/* Bad status, reset the controller */
 			if (! wtreset (t))
-				return (ENXIO);
-			if (! wtsense (t, (flag & FWRITE) ? 0 : TP_WRP))
-				return (ENXIO);
+				return (EIO);
+			if (! wtsense (t, 1, (flag & FWRITE) ? 0 : TP_WRP))
+				return (EIO);
 		}
 
 		/* Set up tape density. */
-		if (t->dens != (minor (dev) & T_DENSEL)) {
-			int d;
+		if (t->dens != (minor (dev) & WT_DENSEL)) {
+			int d = 0;
 
-			switch (minor (dev) & T_DENSEL) {
-			default:
-			case T_800BPI:  d = QIC_FMT150; break;  /* minor 000 */
-			case T_1600BPI: d = QIC_FMT120; break;  /* minor 010 */
-			case T_6250BPI: d = QIC_FMT24;  break;  /* minor 020 */
-			case T_BADBPI:  d = QIC_FMT11;  break;  /* minor 030 */
+			switch (minor (dev) & WT_DENSEL) {
+			case WT_DENSDFLT: default: break; /* default density */
+			case WT_QIC11:  d = QIC_FMT11;  break; /* minor 010 */
+			case WT_QIC24:  d = QIC_FMT24;  break; /* minor 020 */
+			case WT_QIC120: d = QIC_FMT120; break; /* minor 030 */
+			case WT_QIC150: d = QIC_FMT150; break; /* minor 040 */
+			case WT_QIC300: d = QIC_FMT300; break; /* minor 050 */
+			case WT_QIC600: d = QIC_FMT600; break; /* minor 060 */
 			}
-			if (! wtcmd (t, d))
-				return (ENXIO);
+			if (d) {
+				/* Change tape density. */
+				if (! wtcmd (t, d))
+					return (EIO);
+				if (! wtsense (t, 1, TP_WRP | TP_ILL))
+					return (EIO);
 
-			/* Check the status of the controller. */
-			if (! wtsense (t, (flag & FWRITE) ? 0 : TP_WRP))
-				return (ENXIO);
-
-			t->dens = minor (dev) & T_DENSEL;
+				/* Check the status of the controller. */
+				if (t->error.err & TP_ILL) {
+					printf ("wt%d: invalid tape density\n", t->unit);
+					return (ENODEV);
+				}
+			}
+			t->dens = minor (dev) & WT_DENSEL;
 		}
 		t->flags &= ~TPSTART;
-	} else if (t->dens != (minor (dev) & T_DENSEL))
+	} else if (t->dens != (minor (dev) & WT_DENSEL))
 		return (ENXIO);
+
+	t->bsize = (minor (dev) & WT_BSIZE) ? 1024 : 512;
+	t->buf = malloc (t->bsize, M_TEMP, M_WAITOK);
+	if (! t->buf)
+		return (EAGAIN);
 
 	t->flags = TPINUSE;
 	if (flag & FREAD)
@@ -313,7 +336,7 @@ int wtclose (int dev)
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
 
-	if (u >= NWT || !t->port)
+	if (u >= NWT || t->type == UNKNOWN)
 		return (ENXIO);
 
 	/* If rewind is pending, do nothing */
@@ -321,11 +344,13 @@ int wtclose (int dev)
 		goto done;
 
 	/* If seek forward is pending and no rewind on close, do nothing */
-	if ((t->flags & TPRMARK) && (minor (dev) & T_NOREWIND))
-		goto done;
+	if (t->flags & TPRMARK) {
+		if (minor (dev) & T_NOREWIND)
+			goto done;
 
-	/* If file mark read is going on, wait */
-	wtwait (t, 0, "wtrfm");
+		/* If read file mark is going on, wait */
+		wtwait (t, 0, "wtrfm");
+	}
 
 	if (t->flags & TPWANY)
 		/* Tape was written.  Write file mark. */
@@ -343,6 +368,7 @@ int wtclose (int dev)
 		wtreadfm (t);
 done:
 	t->flags &= TPREW | TPRMARK | TPSTART | TPTIMER;
+	free (t->buf, M_TEMP);
 	return (0);
 }
 
@@ -360,7 +386,7 @@ int wtioctl (int dev, int cmd, void *arg, int mode)
 	wtinfo_t *t = wttab + u;
 	int error, count, op;
 
-	if (u >= NWT || !t->port)
+	if (u >= NWT || t->type == UNKNOWN)
 		return (ENXIO);
 
 	switch (cmd) {
@@ -396,7 +422,8 @@ int wtioctl (int dev, int cmd, void *arg, int mode)
 	case MTIOCEEOT:         /* enable EOT errors */
 		return (0);
 	case MTIOCGET:
-		((struct mtget*)arg)->mt_type = t->RDMAPORT ? MT_ISVIPER1 : 0x11;
+		((struct mtget*)arg)->mt_type =
+			t->type == ARCHIVE ? MT_ISVIPER1 : 0x11;
 		((struct mtget*)arg)->mt_dsreg = t->flags;      /* status */
 		((struct mtget*)arg)->mt_erreg = t->error.err;  /* errors */
 		((struct mtget*)arg)->mt_resid = 0;
@@ -454,7 +481,7 @@ void wtstrategy (struct buf *bp)
 	int s;
 
 	bp->b_resid = bp->b_bcount;
-	if (u >= NWT || !t->port)
+	if (u >= NWT || t->type == UNKNOWN)
 		goto errxit;
 
 	/* at file marks and end of tape, we just return '0 bytes available' */
@@ -469,10 +496,10 @@ void wtstrategy (struct buf *bp)
 		/* For now, we assume that all data will be copied out */
 		/* If read command outstanding, just skip down */
 		if (! (t->flags & TPRO)) {
-			if (! wtsense (t, TP_WRP))      /* clear status */
+			if (! wtsense (t, 1, TP_WRP))   /* clear status */
 				goto errxit;
 			if (! wtcmd (t, QIC_RDDATA)) {  /* sed read mode */
-				wtsense (t, TP_WRP);
+				wtsense (t, 1, TP_WRP);
 				goto errxit;
 			}
 			t->flags |= TPRO | TPRANY;
@@ -485,10 +512,10 @@ void wtstrategy (struct buf *bp)
 
 		/* If write command outstanding, just skip down */
 		if (! (t->flags & TPWO)) {
-			if (! wtsense (t, 0))           /* clear status */
+			if (! wtsense (t, 1, 0))        /* clear status */
 				goto errxit;
 			if (! wtcmd (t, QIC_WRTDATA)) { /* set write mode */
-				wtsense (t, 0);
+				wtsense (t, 1, 0);
 				goto errxit;
 			}
 			t->flags |= TPWO | TPWANY;
@@ -522,20 +549,26 @@ void wtintr (int u)
 	wtinfo_t *t = wttab + u;
 	unsigned char s;
 
-	if (u >= NWT || !t->port)
+	if (u >= NWT || t->type == UNKNOWN) {
+		DEBUG (("wtintr() -- device not configured\n"));
 		return;
+	}
 
 	s = inb (t->STATPORT);                  /* get status */
-	if ((s & (t->BUSY | t->NOEXCEP)) == (t->BUSY | t->NOEXCEP))
+	DEBUG (("wtintr() status=0x%x -- ", s));
+	if ((s & (t->BUSY | t->NOEXCEP)) == (t->BUSY | t->NOEXCEP)) {
+		DEBUG (("busy\n"));
 		return;                         /* device is busy */
-	outb (t->CTLPORT, t->ONLINE);           /* stop controller */
+	}
 
 	/*
 	 * Check if rewind finished.
 	 */
 	if (t->flags & TPREW) {
+		DEBUG (((s & (t->BUSY | t->NOEXCEP)) == (t->BUSY | t->NOEXCEP) ?
+			"rewind busy?\n" : "rewind finished\n"));
 		t->flags &= ~TPREW;             /* Rewind finished. */
-		wtsense (t, TP_WRP);
+		wtsense (t, 1, TP_WRP);
 		wakeup (t);
 		return;
 	}
@@ -544,9 +577,11 @@ void wtintr (int u)
 	 * Check if writing/reading of file mark finished.
 	 */
 	if (t->flags & (TPRMARK | TPWMARK)) {
-		if (! (s & t->NOEXCEP))         /* Operation failed. */
-			wtsense (t, (t->flags & TPRMARK) ? TP_WRP : 0);
-		t->flags &= ~(TPRMARK | TPWMARK); /* Operation finished. */
+		DEBUG (((s & (t->BUSY | t->NOEXCEP)) == (t->BUSY | t->NOEXCEP) ?
+			"marker r/w busy?\n" : "marker r/w finished\n"));
+		if (! (s & t->NOEXCEP))         /* operation failed */
+			wtsense (t, 1, (t->flags & TPRMARK) ? TP_WRP : 0);
+		t->flags &= ~(TPRMARK | TPWMARK); /* operation finished */
 		wakeup (t);
 		return;
 	}
@@ -554,29 +589,30 @@ void wtintr (int u)
 	/*
 	 * Do we started any i/o?  If no, just return.
 	 */
-	if (! (t->flags & TPACTIVE))
+	if (! (t->flags & TPACTIVE)) {
+		DEBUG (("unexpected interrupt\n"));
 		return;
+	}
 	t->flags &= ~TPACTIVE;
-
-	if (inb (DMA_STATUSREG) & DMA_DONE (t->chan))   /* if dma finished */
-		t->dmacount += BLKSIZE;                 /* increment counter */
+	t->dmacount += t->bsize;                /* increment counter */
 
 	/*
 	 * Clean up dma.
 	 */
-	if ((t->dmaflags & B_READ) && (t->dmatotal - t->dmacount) < BLKSIZE) {
-		/* If the address crosses 64-k boundary, or reading short block,
-		 * copy the internal buffer to the user memory. */
-		isa_dmadone (t->dmaflags, t->buf, BLKSIZE, t->chan);
+	if ((t->dmaflags & B_READ) && (t->dmatotal - t->dmacount) < t->bsize) {
+		/* If reading short block, copy the internal buffer
+		 * to the user memory. */
+		isa_dmadone (t->dmaflags, t->buf, t->bsize, t->chan);
 		bcopy (t->buf, t->dmavaddr, t->dmatotal - t->dmacount);
 	} else
-		isa_dmadone (t->dmaflags, t->dmavaddr, BLKSIZE, t->chan);
+		isa_dmadone (t->dmaflags, t->dmavaddr, t->bsize, t->chan);
 
 	/*
 	 * On exception, check for end of file and end of volume.
 	 */
 	if (! (s & t->NOEXCEP)) {
-		wtsense (t, (t->dmaflags & B_READ) ? TP_WRP : 0);
+		DEBUG (("i/o exception\n"));
+		wtsense (t, 1, (t->dmaflags & B_READ) ? TP_WRP : 0);
 		if (t->error.err & (TP_EOM | TP_FIL))
 			t->flags |= TPVOL;      /* end of file */
 		else
@@ -586,20 +622,32 @@ void wtintr (int u)
 	}
 
 	if (t->dmacount < t->dmatotal) {        /* continue i/o */
-		t->dmavaddr += BLKSIZE;
+		t->dmavaddr += t->bsize;
 		wtdma (t);
+		DEBUG (("continue i/o, %d\n", t->dmacount));
 		return;
 	}
 	if (t->dmacount > t->dmatotal)          /* short last block */
 		t->dmacount = t->dmatotal;
 	wakeup (t);                             /* wake up user level */
+	DEBUG (("i/o finished, %d\n", t->dmacount));
 }
 
 /* start the rewind operation */
 static void wtrewind (wtinfo_t *t)
 {
+	int rwmode = (t->flags & (TPRO | TPWO));
+
 	t->flags &= ~(TPRO | TPWO | TPVOL);
-	if (! wtcmd (t, QIC_REWIND))
+	/*
+	 * Wangtek strictly follows QIC-02 standard:
+	 * clearing ONLINE in read/write modes causes rewind.
+	 * REWIND command is not allowed in read/write mode
+	 * and gives `illegal command' error.
+	 */
+	if (t->type==WANGTEK && rwmode) {
+		outb (t->CTLPORT, 0);
+	} else if (! wtcmd (t, QIC_REWIND))
 		return;
 	t->flags |= TPSTART | TPREW;
 	wtclock (t);
@@ -610,7 +658,7 @@ static int wtreadfm (wtinfo_t *t)
 {
 	t->flags &= ~(TPRO | TPWO | TPVOL);
 	if (! wtcmd (t, QIC_READFM)) {
-		wtsense (t, TP_WRP);
+		wtsense (t, 1, TP_WRP);
 		return (EIO);
 	}
 	t->flags |= TPRMARK | TPRANY;
@@ -625,7 +673,7 @@ static int wtwritefm (wtinfo_t *t)
 	tsleep (wtwritefm, WTPRI, "wtwfm", hz);         /* timeout: 1 second */
 	t->flags &= ~(TPRO | TPWO);
 	if (! wtcmd (t, QIC_WRITEFM)) {
-		wtsense (t, 0);
+		wtsense (t, 1, 0);
 		return (EIO);
 	}
 	t->flags |= TPWMARK | TPWANY;
@@ -633,32 +681,48 @@ static int wtwritefm (wtinfo_t *t)
 	return (wtwait (t, 0, "wtwfm"));
 }
 
-/* wait for controller ready or exception */
-static int wtpoll (wtinfo_t *t)
+/* while controller status & mask == bits continue waiting */
+static int wtpoll (wtinfo_t *t, int mask, int bits)
 {
-	int s, NOTREADY = t->BUSY | t->NOEXCEP;
+	int s, i;
 
-	/* Poll status port, waiting for ready or exception. */
-	do s = inb (t->STATPORT);
-	while ((s & NOTREADY) == NOTREADY);
-	return (s);
+	/* Poll status port, waiting for specified bits. */
+	for (i=0; i<1000; ++i) {                        /* up to 1 msec */
+		s = inb (t->STATPORT);
+		if ((s & mask) != bits)
+			return (s);
+		DELAY (1);
+	}
+	for (i=0; i<100; ++i) {                         /* up to 10 msec */
+		s = inb (t->STATPORT);
+		if ((s & mask) != bits)
+			return (s);
+		DELAY (100);
+	}
+	for (;;) {                                      /* forever */
+		s = inb (t->STATPORT);
+		if ((s & mask) != bits)
+			return (s);
+		tsleep (wtpoll, WTPRI, "wtpoll", 1);    /* timeout: 1 tick */
+	}
 }
 
 /* execute QIC command */
 static int wtcmd (wtinfo_t *t, int cmd)
 {
-	if (! (wtpoll (t) & t->NOEXCEP))                /* wait for ready */
-		return (0);                             /* error */
+	int s;
+
+	DEBUG (("wtcmd() cmd=0x%x\n", cmd));
+	s = wtpoll (t, t->BUSY | t->NOEXCEP, t->BUSY | t->NOEXCEP); /* ready? */
+	if (! (s & t->NOEXCEP))                         /* error */
+		return (0);
 	
 	outb (t->CMDPORT, cmd);                         /* output the command */
 
 	outb (t->CTLPORT, t->REQUEST | t->ONLINE);      /* set request */
-	while (inb (t->STATPORT) & t->BUSY)             /* wait for ready */
-		continue;
+	wtpoll (t, t->BUSY, t->BUSY);                   /* wait for ready */
 	outb (t->CTLPORT, t->IEN | t->ONLINE);          /* reset request */
-	while (! (inb (t->STATPORT) & t->BUSY))         /* wait for not ready */
-		continue;
-
+	wtpoll (t, t->BUSY, 0);                         /* wait for not ready */
 	return (1);
 }
 
@@ -667,6 +731,7 @@ static int wtwait (wtinfo_t *t, int catch, char *msg)
 {
 	int error;
 
+	DEBUG (("wtwait() `%s'\n", msg));
 	while (t->flags & (TPACTIVE | TPREW | TPRMARK | TPWMARK))
 		if (error = tsleep (t, WTPRI | catch, msg, 0))
 			return (error);
@@ -679,22 +744,24 @@ static void wtdma (wtinfo_t *t)
 	t->flags |= TPACTIVE;
 	wtclock (t);
 
-	if (t->SDMAPORT)
+	if (t->type == ARCHIVE)
 		outb (t->SDMAPORT, 0);          /* set dma */
 
-	if ((t->dmaflags & B_READ) && (t->dmatotal - t->dmacount) < BLKSIZE)
+	if ((t->dmaflags & B_READ) && (t->dmatotal - t->dmacount) < t->bsize)
 		/* Reading short block.  Do it through the internal buffer. */
-		isa_dmastart (t->dmaflags, t->buf, BLKSIZE, t->chan);
+		isa_dmastart (t->dmaflags, t->buf, t->bsize, t->chan);
 	else
-		isa_dmastart (t->dmaflags, t->dmavaddr, BLKSIZE, t->chan);
-
-	outb (t->CTLPORT, t->IEN | t->ONLINE);
+		isa_dmastart (t->dmaflags, t->dmavaddr, t->bsize, t->chan);
 }
 
 /* start i/o operation */
 static int wtstart (wtinfo_t *t, unsigned flags, void *vaddr, unsigned len)
 {
-	if (! (wtpoll (t) & t->NOEXCEP)) {      /* wait for ready or error */
+	int s;
+
+	DEBUG (("wtstart()\n"));
+	s = wtpoll (t, t->BUSY | t->NOEXCEP, t->BUSY | t->NOEXCEP); /* ready? */
+	if (! (s & t->NOEXCEP)) {
 		t->flags |= TPEXCEP;            /* error */
 		return (0);
 	}
@@ -712,7 +779,9 @@ static void wtclock (wtinfo_t *t)
 {
 	if (! (t->flags & TPTIMER)) {
 		t->flags |= TPTIMER;
-		timeout (wtimer, t, hz);
+		/* Some controllers seem to lose dma interrupts too often.
+		 * To make the tape stream we need 1 tick timeout. */
+		timeout (wtimer, t, (t->flags & TPACTIVE) ? 1 : hz);
 	}
 }
 
@@ -731,7 +800,10 @@ static void wtimer (wtinfo_t *t)
 
 	/* If i/o going, simulate interrupt. */
 	s = splbio ();
-	wtintr (t->unit);
+	if ((inb (t->STATPORT) & (t->BUSY | t->NOEXCEP)) != (t->BUSY | t->NOEXCEP)) {
+		DEBUG (("wtimer() -- "));
+		wtintr (t->unit);
+	}
 	splx (s);
 
 	/* Restart timer if i/o pending. */
@@ -742,21 +814,38 @@ static void wtimer (wtinfo_t *t)
 /* reset the controller */
 static int wtreset (wtinfo_t *t)
 {
-	outb (t->CTLPORT, t->RESET);            /* send reset */
-	DELAY (25);
-	outb (t->CTLPORT, 0);                   /* turn off reset */
-	if ((inb (t->STATPORT) & t->RESETMASK) != t->RESETVAL)
+	/* Perform QIC-02 and QIC-36 compatible reset sequence. */
+	/* Thanks to Mikael Hybsch <micke@dynas.se>. */
+	int s, i;
+
+	outb (t->CTLPORT, t->RESET | t->ONLINE); /* send reset */
+	DELAY (30);
+	outb (t->CTLPORT, t->ONLINE);           /* turn off reset */
+	DELAY (30);
+
+	/* Read the controller status. */
+	s = inb (t->STATPORT);
+	if (s == 0xff)                          /* no port at this address? */
 		return (0);
-	return (1);
+
+	/* Wait 3 sec for reset to complete. Needed for QIC-36 boards? */
+	for (i=0; i<3000; ++i) {
+		if (! (s & t->BUSY) || ! (s & t->NOEXCEP))
+			break;
+		DELAY (1000);
+		s = inb (t->STATPORT);
+	}
+	return ((s & t->RESETMASK) == t->RESETVAL);
 }
 
 /* get controller status information */
 /* return 0 if user i/o request should receive an i/o error code */
-static int wtsense (wtinfo_t *t, int ignor)
+static int wtsense (wtinfo_t *t, int verb, int ignor)
 {
 	char *msg = 0;
 	int err;
 
+	DEBUG (("wtsense() ignor=0x%x\n", ignor));
 	t->flags &= ~(TPRO | TPWO);
 	if (! wtstatus (t))
 		return (0);
@@ -769,6 +858,8 @@ static int wtsense (wtinfo_t *t, int ignor)
 		TP_USL | TP_CNI | TP_MBD | TP_NDT | TP_ILL);
 	if (! err)
 		return (1);
+	if (! verb)
+		return (0);
 
 	/* lifted from tdriver.c from Wangtek */
 	if      (err & TP_USL)  msg = "Drive not online";
@@ -793,28 +884,25 @@ static int wtstatus (wtinfo_t *t)
 {
 	char *p;
 
-	wtpoll (t);                     /* wait for ready or exception */
+	wtpoll (t, t->BUSY | t->NOEXCEP, t->BUSY | t->NOEXCEP); /* ready? */
 	outb (t->CMDPORT, QIC_RDSTAT);  /* send `read status' command */
 
 	outb (t->CTLPORT, t->REQUEST | t->ONLINE);      /* set request */
-	while (inb (t->STATPORT) & t->BUSY)             /* wait for ready */
-		continue;
+	wtpoll (t, t->BUSY, t->BUSY);                   /* wait for ready */
 	outb (t->CTLPORT, t->ONLINE);                   /* reset request */
-	while (! (inb (t->STATPORT) & t->BUSY))         /* wait for not ready */
-		continue;
+	wtpoll (t, t->BUSY, 0);                         /* wait for not ready */
 
 	p = (char*) &t->error;
 	while (p < (char*)&t->error + 6) {
-		if (! (wtpoll (t) & t->NOEXCEP))        /* wait for ready */
-			return (0);                     /* error */
+		int s = wtpoll (t, t->BUSY | t->NOEXCEP, t->BUSY | t->NOEXCEP);
+		if (! (s & t->NOEXCEP))                 /* error */
+			return (0);
 
 		*p++ = inb (t->DATAPORT);               /* read status byte */
 
-		outb (t->CTLPORT, t->REQUEST);          /* set request */
-		while (! (inb (t->STATPORT) & t->BUSY)) /* wait for not ready */
-			continue;
-		/* DELAY (50); */                       /* wait 50 usec */
-		outb (t->CTLPORT, 0);                   /* unset request */
+		outb (t->CTLPORT, t->REQUEST | t->ONLINE); /* set request */
+		wtpoll (t, t->BUSY, 0);                 /* wait for not ready */
+		outb (t->CTLPORT, t->ONLINE);           /* unset request */
 	}
 	return (1);
 }
