@@ -29,7 +29,6 @@
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 
 #include "setfacl.h"
 
@@ -40,6 +39,6 @@ zmalloc(size_t size)
 
 	ptr = calloc(1, size);
 	if (ptr == NULL)
-		err(EX_OSERR, "calloc() failed");
-	return ptr;
+		err(1, "calloc() failed");
+	return (ptr);
 }

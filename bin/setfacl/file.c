@@ -32,43 +32,44 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
-#include <sysexits.h>
 
 #include "setfacl.h"
 
-/* read acl text from a file and return the corresponding acl */
+/*
+ * read acl text from a file and return the corresponding acl
+ */
 acl_t
 get_acl_from_file(const char *filename)
 {
 	FILE *file;
 	char buf[BUFSIZ];
 
-	if (!filename)
-		err(EX_USAGE, "(null) filename in get_acl_from_file()");
+	if (filename == NULL)
+		err(1, "(null) filename in get_acl_from_file()");
 
 	bzero(&buf, sizeof(buf));
 
-	if (!strcmp(filename, "-")) {
-		if (have_stdin)
-			err(EX_USAGE, "cannot specify more than one stdin");
+	if (strcmp(filename, "-") == 0) {
+		if (have_stdin != 0)
+			err(1, "cannot specify more than one stdin");
 		file = stdin;
 		have_stdin = 1;
 	} else {
 		file = fopen(filename, "r");
-		if (!file)
-			err(EX_OSERR, "fopen() %s failed", filename);
+		if (file == NULL)
+			err(1, "fopen() %s failed", filename);
 	}
 
 	fread(buf, sizeof(buf), (size_t)1, file);
-	if (ferror(file)) {
+	if (ferror(file) != 0) {
 		fclose(file);
-		err(EX_USAGE, "error reading from %s", filename);
-	} else if (!feof(file)) {
+		err(1, "error reading from %s", filename);
+	} else if (feof(file) == 0) {
 		fclose(file);
-		errx(EX_USAGE, "line too long in %s", filename);
+		errx(1, "line too long in %s", filename);
 	}
 
 	fclose(file);
 
-	return acl_from_text(buf);
+	return (acl_from_text(buf));
 }
