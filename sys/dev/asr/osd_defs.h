@@ -63,7 +63,7 @@
 # define _DPT_SCO
 #endif
 
-#if defined (ZIL_CURSES)
+#if defined(ZIL_CURSES)
 #define		_DPT_CURSES
 #else
 #define		_DPT_MOTIF

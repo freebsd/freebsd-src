@@ -108,39 +108,39 @@
 /* OS dependent defines */
 /*--------------------- */
 
-#if defined (_DPT_MSDOS) || defined (_DPT_WIN_3X)
+#if defined(_DPT_MSDOS) || defined(_DPT_WIN_3X)
    #define	     _DPT_16_BIT
 #else
    #define	     _DPT_32_BIT
 #endif
 
-#if defined (_DPT_SCO) || defined (_DPT_UNIXWARE) || defined (_DPT_SOLARIS) || defined (_DPT_AIX) || defined (SNI_MIPS) || defined (_DPT_BSDI) || defined (_DPT_FREE_BSD) || defined(_DPT_LINUX)
+#if defined(_DPT_SCO) || defined(_DPT_UNIXWARE) || defined(_DPT_SOLARIS) || defined(_DPT_AIX) || defined(SNI_MIPS) || defined(_DPT_BSDI) || defined(_DPT_FREE_BSD) || defined(_DPT_LINUX)
    #define	     _DPT_UNIX
 #endif
 
-#if defined (_DPT_WIN_3x) || defined (_DPT_WIN_4X) || defined (_DPT_WIN_NT) \
-	    || defined (_DPT_OS2)
+#if defined(_DPT_WIN_3x) || defined(_DPT_WIN_4X) || defined(_DPT_WIN_NT) \
+	    || defined(_DPT_OS2)
    #define	     _DPT_DLL_SUPPORT
 #endif
 
-#if !defined (_DPT_MSDOS) && !defined (_DPT_WIN_3X) && !defined (_DPT_NETWARE)
+#if !defined(_DPT_MSDOS) && !defined(_DPT_WIN_3X) && !defined(_DPT_NETWARE)
    #define	     _DPT_PREEMPTIVE
 #endif
 
-#if !defined (_DPT_MSDOS) && !defined (_DPT_WIN_3X)
+#if !defined(_DPT_MSDOS) && !defined(_DPT_WIN_3X)
    #define	     _DPT_MULTI_THREADED
 #endif
 
-#if !defined (_DPT_MSDOS)
+#if !defined(_DPT_MSDOS)
    #define	     _DPT_MULTI_TASKING
 #endif
 
   /* These exist for platforms that   */
   /* chunk when accessing mis-aligned */
   /* data			      */
-#if defined (SNI_MIPS) || defined (_DPT_SOLARIS)
-   #if defined (_DPT_BIG_ENDIAN)
-	#if !defined (_DPT_STRICT_ALIGN)
+#if defined(SNI_MIPS) || defined(_DPT_SOLARIS)
+   #if defined(_DPT_BIG_ENDIAN)
+	#if !defined(_DPT_STRICT_ALIGN)
 	    #define	_DPT_STRICT_ALIGN
 	#endif
    #endif
@@ -167,8 +167,8 @@
 /* In the meantime, just pray that we can all move to Win32 as soon  */
 /* as possible...						     */
 /*-------------------------------------------------------------------*/
-#if !defined (DPTSQO)
-   #if defined (_DPT_SOLARIS)
+#if !defined(DPTSQO)
+   #if defined(_DPT_SOLARIS)
       #define	DPTSQO
       #define	DPTSQC
    #else
@@ -182,7 +182,7 @@
 /* OS dependent typedefs */
 /*---------------------- */
 
-#if defined (_DPT_MSDOS) || defined (_DPT_SCO)
+#if defined(_DPT_MSDOS) || defined(_DPT_SCO)
    #define	BYTE unsigned char
    #define	WORD unsigned short
 #endif
@@ -201,7 +201,7 @@
    } access_U;
 #endif
 
-#if !defined (NULL)
+#if !defined(NULL)
    #define	     NULL    0
 #endif
 
@@ -267,7 +267,7 @@
  *-------------------------------------*/
 uLONG	netSwap4(uLONG val);
 
-#if defined (_DPT_BIG_ENDIAN)
+#if defined(_DPT_BIG_ENDIAN)
 
 /* for big-endian we need to swap */
 
