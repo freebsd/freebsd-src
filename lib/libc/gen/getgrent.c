@@ -819,8 +819,30 @@ compat_endstate(void *p)
 static int
 compat_setgrent(void *retval, void *mdata, va_list ap)
 {
+	static const ns_src compatsrc[] = {
+#ifdef YP
+		{ NSSRC_NIS, NS_SUCCESS },
+#endif
+		{ NULL, 0 }
+	};
+	ns_dtab dtab[] = {
+#ifdef HESIOD
+		{ NSSRC_DNS, dns_setgrent, NULL },
+#endif
+#ifdef YP
+		{ NSSRC_NIS, nis_setgrent, NULL },
+#endif
+		{ NULL, NULL, NULL }
+	};
 	struct compat_state *st;
 	int		 rv, stayopen;
+
+#define set_setent(x, y) do {	 				\
+	int i;							\
+								\
+	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
+		x[i].mdata = (void *)y;				\
+} while (0)
 
 	rv = compat_getstate(&st);
 	if (rv != 0) 
@@ -832,12 +854,18 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 			rewind(st->fp);
 		else if (stayopen)
 			st->fp = fopen(_PATH_GROUP, "r");
+		set_setent(dtab, mdata);
+		(void)_nsdispatch(NULL, dtab, NSDB_GROUP_COMPAT, "setgrent",
+		    compatsrc, 0);
 		break;
 	case ENDGRENT:
 		if (st->fp != NULL) {
 			fclose(st->fp);
 			st->fp = NULL;
 		}
+		set_setent(dtab, mdata);
+		(void)_nsdispatch(NULL, dtab, NSDB_GROUP_COMPAT, "endgrent",
+		    compatsrc, 0);
 		break;
 	default:
 		break;
@@ -846,6 +874,7 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 	free(st->name);
 	st->name = NULL;
 	return (NS_UNAVAIL);
+#undef set_setent
 }
 
 
