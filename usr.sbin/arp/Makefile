@@ -1,8 +1,8 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/18/94
+# $FreeBSD$
 
 PROG=	arp
-MAN8=	arp.8
-MAN4=	arp.4
+MAN=	arp.4 arp.8
 COPTS+=	-Wall
 
 .include <bsd.prog.mk>

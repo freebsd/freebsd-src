@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	dpt_ctls
+MAN=	dpt_ctls.8
 
 CFLAGS+=-Wall -I${.CURDIR}/../../../sys
 BINMODE=500

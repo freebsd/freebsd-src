@@ -6,5 +6,6 @@ CFLAGS+= -I${.CURDIR}/../../lib/libc/gen	# for pw_scan.h
 
 PROG=	pwd_mkdb
 SRCS=	pw_scan.c pwd_mkdb.c
+MAN=	pwd_mkdb.8
 
 .include <bsd.prog.mk>

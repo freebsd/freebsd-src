@@ -7,13 +7,11 @@
 #---------------------------------------------------------------------------
 
 PROG            =       dtmfdecode
-SRC             =       dtmfdecode.c
 
 # libm is only necessary if USE_COS is defined in the source
 #LDADD          +=      -lm
 
 CFLAGS          +=      -Wall -DDEBUG
-MAN1		=	dtmfdecode.1
 
 test:   ${PROG}
 	uudecode -p < dtmfsounds.al.uu | ./${PROG}

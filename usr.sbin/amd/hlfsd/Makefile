@@ -9,6 +9,7 @@
 .PATH:		${.CURDIR}/../../../contrib/amd/hlfsd
 
 PROG=		hlfsd
+MAN=		hlfsd.8
 
 SRCS=		hlfsd.c homedir.c nfs_prot_svc.c stubs.c
 

@@ -3,6 +3,7 @@
 
 PROG=	pac
 CFLAGS+=-I${.CURDIR}/../common_source ${CWARNFLAGS}
+MAN=	pac.8
 .PATH:	${.CURDIR}/../common_source
 DPADD=	${LIBLPR}
 LDADD=	${LIBLPR}

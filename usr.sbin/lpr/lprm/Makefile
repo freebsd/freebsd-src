@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	lprm
-MAN1=	${PROG}.1
 CFLAGS+=-I${.CURDIR}/../common_source ${CWARNFLAGS}
 .PATH:	${.CURDIR}/../common_source
 DPADD=	${LIBLPR}

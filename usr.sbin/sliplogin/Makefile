@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	sliplogin
+MAN=	sliplogin.8
 BINGRP=	network
 BINMODE=4550
 INSTALLFLAGS=-fschg

@@ -3,6 +3,7 @@
 
 PROG=	timedc
 SRCS=	cmds.c cmdtab.c timedc.c byteorder.c measure.c cksum.c
+MAN=	timedc.8
 BINMODE=4555
 .PATH:	${.CURDIR}/../timed
 

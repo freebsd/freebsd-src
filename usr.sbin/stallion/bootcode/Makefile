@@ -8,7 +8,7 @@
 FILES=	2681.sys cdk.sys
 CLEANFILES= 	${FILES}
 
-MAN4=	stl.4
+MAN=	stl.4
 MLINKS=	stl.4 stli.4
 MANSUBDIR=/i386
 
