@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.9 1995/04/26 18:10:45 pst Exp $
+ * $Id: if_loop.c,v 1.10 1995/05/30 08:08:06 rgrimes Exp $
  */
 
 /*
@@ -75,6 +75,9 @@
 
 #include "bpfilter.h"
 
+static void loopattach __P((caddr_t));
+PSEUDO_SET(loopattach, if_loop);
+
 #ifdef TINY_LOMTU
 #define	LOMTU	(1024+512)
 #else
@@ -84,8 +87,9 @@
 struct	ifnet loif[NLOOP];
 
 /* ARGSUSED */
-void
-loopattach(void)
+static void
+loopattach(udata)
+	caddr_t udata;
 {
 	register struct ifnet *ifp;
 	register int i = 0;
@@ -107,8 +111,6 @@ loopattach(void)
 #endif
 	}
 }
-
-PSEUDO_SET(loopattach, if_loop);
 
 int
 looutput(ifp, m, dst, rt)

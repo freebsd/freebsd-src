@@ -32,7 +32,7 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $Id: if_slvar.h,v 1.5 1995/03/30 20:43:32 ache Exp $
+ * $Id: if_slvar.h,v 1.6 1995/05/30 08:08:13 rgrimes Exp $
  */
 
 #ifndef _NET_IF_SLVAR_H_
@@ -75,7 +75,6 @@ struct sl_softc {
 #define	SC_AUTOCOMP	IFF_LINK2	/* auto-enable TCP compression */
 
 #ifdef KERNEL
-void	slattach __P((void));
 int	slclose __P((struct tty *,int));
 int	slinput __P((int, struct tty *));
 int	slioctl __P((struct ifnet *, int, caddr_t));

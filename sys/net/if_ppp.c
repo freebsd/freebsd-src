@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.18 1995/07/31 21:01:34 bde Exp $ */
+/* $Id: if_ppp.c,v 1.19 1995/07/31 21:54:46 bde Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -123,6 +123,9 @@
 #include <net/if_ppp.h>
 #include <machine/cpu.h>
 
+static void pppattach __P((caddr_t));
+PSEUDO_SET(pppattach, if_ppp);
+
 /* This is a FreeBSD-2.x kernel. */
 #define CCOUNT(q)	((q)->c_cc)
 
@@ -131,7 +134,6 @@
 
 struct ppp_softc ppp_softc[NPPP];
 
-void	pppattach __P((void));
 int	pppopen __P((dev_t dev, struct tty *tp));
 int	pppclose __P((struct tty *tp, int flag));
 int	pppread __P((struct tty *tp, struct uio *uio, int flag));
@@ -188,8 +190,9 @@ static u_short interactive_ports[8] = {
 /*
  * Called from boot code to establish ppp interfaces.
  */
-void
-pppattach()
+static void
+pppattach(udata)
+    caddr_t udata;
 {
     register struct ppp_softc *sc;
     register int i = 0;
@@ -1634,7 +1637,5 @@ pppdumpb(b, l)
     *bp = 0;
     printf("%s\n", buf);
 }
-
-PSEUDO_SET(pppattach, if_ppp);
 
 #endif	/* NPPP > 0 */
