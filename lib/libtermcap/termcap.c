@@ -35,21 +35,22 @@
 static char sccsid[] = "@(#)termcap.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
-#define	PBUFSIZ		512	/* max length of filename path */
-#define	PVECSIZ		32	/* max number of names in path */
-#define TBUFSIZ         1024    /* max length of tgetent buffer */
-
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <termios.h>
+#include <sys/param.h>
 #include <signal.h>
 #include <errno.h>
 #include <sys/syscall.h>
 #include "termcap.h"
 #include "pathnames.h"
+
+#define	PBUFSIZ		MAXPATHLEN /* max length of filename path */
+#define	PVECSIZ		32	/* max number of names in path */
+#define TBUFSIZ         1024    /* max length of tgetent buffer */
 
 /*
  * termcap - routines for dealing with the terminal capability data base
