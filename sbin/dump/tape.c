@@ -87,7 +87,7 @@ static	void rollforward(void);
  * The following structure defines the instruction packets sent to slaves.
  */
 struct req {
-	daddr_t dblk;
+	ufs_daddr_t dblk;
 	int count;
 };
 int reqsiz;
@@ -161,7 +161,7 @@ void
 writerec(char *dp, int isspcl)
 {
 
-	slp->req[trecno].dblk = (daddr_t)0;
+	slp->req[trecno].dblk = (ufs_daddr_t)0;
 	slp->req[trecno].count = 1;
 	/* Can't do a structure assignment due to alignment problems */
 	bcopy(dp, *(nextblock)++, sizeof (union u_spcl));
@@ -174,7 +174,7 @@ writerec(char *dp, int isspcl)
 }
 
 void
-dumpblock(daddr_t blkno, int size)
+dumpblock(ufs_daddr_t blkno, int size)
 {
 	int avail, tpblks, dblkno;
 

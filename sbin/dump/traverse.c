@@ -65,10 +65,10 @@ typedef	quad_t fsizeT;
 typedef	long fsizeT;
 #endif
 
-static	int dirindir(ino_t ino, daddr_t blkno, int level, long *size,
+static	int dirindir(ino_t ino, ufs_daddr_t blkno, int level, long *size,
     long *tapesize, int nodump);
-static	void dmpindir(ino_t ino, daddr_t blk, int level, fsizeT *size);
-static	int searchdir(ino_t ino, daddr_t blkno, long size, long filesize,
+static	void dmpindir(ino_t ino, ufs_daddr_t blk, int level, fsizeT *size);
+static	int searchdir(ino_t ino, ufs_daddr_t blkno, long size, long filesize,
     long *tapesize, int nodump);
 
 /*
@@ -256,12 +256,12 @@ mapdirs(ino_t maxino, long *tapesize)
  * require the directory to be dumped.
  */
 static int
-dirindir(ino_t ino, daddr_t blkno, int ind_level, long *filesize,
+dirindir(ino_t ino, ufs_daddr_t blkno, int ind_level, long *filesize,
   long *tapesize, int nodump)
 {
 	int ret = 0;
 	int i;
-	daddr_t	idblk[MAXNINDIR];
+	ufs_daddr_t	idblk[MAXNINDIR];
 
 	bread(fsbtodb(sblock, blkno), (char *)idblk, (int)sblock->fs_bsize);
 	if (ind_level <= 0) {
@@ -293,7 +293,7 @@ dirindir(ino_t ino, daddr_t blkno, int ind_level, long *filesize,
  * contains any subdirectories.
  */
 static int
-searchdir(ino_t ino, daddr_t blkno, long size, long filesize, 
+searchdir(ino_t ino, ufs_daddr_t blkno, long size, long filesize, 
   long *tapesize, int nodump)
 {
 	struct direct *dp;
@@ -431,10 +431,10 @@ dumpino(struct dinode *dp, ino_t ino)
  * Read indirect blocks, and pass the data blocks to be dumped.
  */
 static void
-dmpindir(ino_t ino, daddr_t blk, int ind_level, fsizeT *size)
+dmpindir(ino_t ino, ufs_daddr_t blk, int ind_level, fsizeT *size)
 {
 	int i, cnt;
-	daddr_t idblk[MAXNINDIR];
+	ufs_daddr_t idblk[MAXNINDIR];
 
 	if (blk != 0)
 		bread(fsbtodb(sblock, blk), (char *)idblk, (int) sblock->fs_bsize);
@@ -461,9 +461,9 @@ dmpindir(ino_t ino, daddr_t blk, int ind_level, fsizeT *size)
  * Collect up the data into tape record sized buffers and output them.
  */
 void
-blksout(daddr_t *blkp, int frags, ino_t ino)
+blksout(ufs_daddr_t *blkp, int frags, ino_t ino)
 {
-	daddr_t *bp;
+	ufs_daddr_t *bp;
 	int i, j, count, blks, tbperdb;
 
 	blks = howmany(frags * sblock->fs_fsize, TP_BSIZE);
@@ -535,7 +535,7 @@ writeheader(ino_t ino)
 struct dinode *
 getino(ino_t inum)
 {
-	static daddr_t minino, maxino;
+	static ufs_daddr_t minino, maxino;
 	static struct dinode inoblock[MAXINOPB];
 
 	curino = inum;
@@ -558,7 +558,7 @@ int	breaderrors = 0;
 #define	BREADEMAX 32
 
 void
-bread(daddr_t blkno, char *buf, int size)
+bread(ufs_daddr_t blkno, char *buf, int size)
 {
 	int cnt, i;
 
