@@ -143,6 +143,13 @@ struct vm_page {
 	u_int cow;			/* page cow mapping count */
 };
 
+/* Make sure that u_long is at least 64 bits when PAGE_SIZE is 32K. */
+#if PAGE_SIZE == 32768
+#ifdef CTASSERT
+CTASSERT(sizeof(u_long) >= 8);
+#endif
+#endif
+
 /*
  * note: currently use SWAPBLK_NONE as an absolute value rather then 
  * a flag bit.
