@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.59 1994/10/22 23:02:39 jkh Exp $
+# $Id: bsd.port.mk,v 1.60 1994/10/31 22:51:09 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -110,6 +110,7 @@ PKGDIR?=		${.CURDIR}/pkg
 EXTRACT_COOKIE?=	${WRKDIR}/.extract_done
 CONFIGURE_COOKIE?=	${WRKDIR}/.configure_done
 INSTALL_COOKIE?=	${WRKDIR}/.install_done
+BUILD_COOKIE?=		${WRKDIR}/.build_done
 
 # How to do nothing.  Override if you, for some strange reason, would rather
 # do something.
@@ -123,6 +124,9 @@ MAKEFILE?=		Makefile
 
 NCFTP?=			ncftp
 NCFTPFLAGS?=	-N
+
+TOUCH?=			touch
+TOUCH_FLAGS?=	-f
 
 PATCH?=			patch
 PATCH_STRIP?=	-p0
@@ -200,15 +204,15 @@ is_depended:	all install
 # a variable in make!).
 .if defined(NO_EXTRACT) && !target(extract)
 extract:
-	@touch -f ${EXTRACT_COOKIE}
+	@${TOUCH} ${TOUCH_FLAGS} ${EXTRACT_COOKIE}
 .endif
 .if defined(NO_CONFIGURE) && !target(configure)
 configure:
-	@touch -f ${CONFIGURE_COOKIE}
+	@${TOUCH} ${TOUCH_FLAGS} ${CONFIGURE_COOKIE}
 .endif
 .if defined(NO_BUILD) && !target(build)
 build:
-	@${DO_NADA}
+	@${TOUCH} ${TOUCH_FLAGS} ${BUILD_COOKIE}
 .endif
 .if defined(NO_PACKAGE) && !target(package)
 package:
@@ -216,7 +220,7 @@ package:
 .endif
 .if defined(NO_INSTALL) && !target(install)
 install:
-	@touch -f ${INSTALL_COOKIE}
+	@${TOUCH} ${TOUCH_FLAGS} ${INSTALL_COOKIE}
 .endif
 
 # More standard targets start here.
@@ -240,7 +244,7 @@ ${INSTALL_COOKIE}:
 	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
 .endif
 .endif
-	@touch -f ${INSTALL_COOKIE}
+	@${TOUCH} ${TOUCH_FLAGS} ${INSTALL_COOKIE}
 .endif
 
 .if !target(pre-package)
@@ -265,7 +269,9 @@ pre-build:
 .endif
 
 .if !target(build)
-build: configure pre-build
+build: configure pre-build ${BUILD_COOKIE}
+
+${BUILD_COOKIE}:
 	@echo "===>  Building for ${DISTNAME}"
 .if defined(DEPENDS)
 	@echo "===>  ${DISTNAME} depends on:  ${DEPENDS}"
@@ -293,6 +299,7 @@ build: configure pre-build
 		  DEPENDS="${DEPENDS}" \
 		sh ${SCRIPTDIR}/post-build; \
 	fi
+	@${TOUCH} ${TOUCH_FLAGS} ${BUILD_COOKIE}
 .endif
 
 .if !target(pre-configure)
@@ -339,7 +346,7 @@ ${CONFIGURE_COOKIE}:
 		  DEPENDS="${DEPENDS}" \
 		sh ${SCRIPTDIR}/post-configure; \
 	fi
-	@touch -f ${CONFIGURE_COOKIE}
+	@${TOUCH} ${TOUCH_FLAGS} ${CONFIGURE_COOKIE}
 .endif
 
 .if !target(pre-fetch)
@@ -394,7 +401,7 @@ ${EXTRACT_COOKIE}:
 		${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/$$file ; \
 	done
 .endif
-	@touch -f ${EXTRACT_COOKIE}
+	@${TOUCH} ${TOUCH_FLAGS} ${EXTRACT_COOKIE}
 .endif
 
 .if !target(pre-clean)
