@@ -58,7 +58,7 @@ static char sccsid[] = "@(#)os.c	8.1 (Berkeley) 6/6/93";
 #include <less.h>
 #include "pathnames.h"
 
-int reading;
+volatile int reading;
 
 extern int screen_trashed;
 
@@ -182,6 +182,7 @@ iread(fd, buf, len)
 
 intread()
 {
+	reading = 0;
 	(void)sigsetmask(0L);
 	longjmp(read_label, 1);
 }
