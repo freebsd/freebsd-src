@@ -1,36 +1,36 @@
-$ $Id: set2,v 1.1 2000/11/11 23:03:43 christos Exp $
+$ $Id: set2,v 1.2 2002/07/01 20:50:22 christos Exp $
 $ Signal names
 $set 2 
-1 Null signal
+1 Нульовий сигнал
 2 Hangup
-3 Interrupt
-4 Quit
-5 Illegal instruction
+3 Переривання
+4 Вих╕д
+5 Некоректна ╕нструкц╕яn
 6 Trace/BPT trap
-7 Abort
+7 Авар╕йне завершення
 8 IOT trap
 9 System Crash Imminent
-10 Error exit
+10 Помилка завершення
 11 EMT trap
-12 Floating exception
+12 Помилка операц╕╖ з плаваючою комою
 13 Вбито
-14 User signal 1
-15 User signal 2
-16 Segmentation fault
+14 Сигнал користувача 1
+15 Сигнал користувача 2
+16 Помилка адресац╕╖
 17 Bus error
 18 Program range error
 19 Operand range error
-20 Bad system call
-21 Broken pipe
+20 Поганий системний виклик
+21 Обрив каналу
 22 Alarm clock
 23 Terminated
-24 Child status change
-25 Death of child
+24 Зм╕на статусу нащадка
+25 Смерть нащадка
 26 Apollo-specific fault
 27 Child stopped or exited
 28 Child exited
-29 Power failure
-30 Resource Lost
+29 Зб╕й живлення
+30 Втрата ресурсу
 31 Break (Ctrl-Break)
 32 Input/output possible signal
 33 Asynchronous I/O (select)
@@ -40,21 +40,21 @@ $set 2
 37 Fortran asynchronous I/O completion
 38 Recovery
 39 Uncorrectable memory error
-40 CPU time limit exceeded
+40 Досягнуто л╕м╕ту CPU time
 41 System shutdown imminent
 42 micro-tasking group-no wakeup flag set
 43 Thread error - (use cord -T for detailed info)
 44 CRAY Y-MP register parity error
 45 Information request
-46 Suspended (signal)
-47 Stopped (signal)
-48 Suspended
-49 Stopped
-50 Continued
-51 Suspended (tty input)
-52 Stopped (tty input)
-53 Suspended (tty output)
-54 Stopped (tty output)
+46 П╕дв╕шено (сигнал)
+47 Призупинено (сигнал)
+48 П╕дв╕шено
+49 Призупинено
+50 Продовжено
+51 П╕дв╕шено (tty input)
+52 Призупинено (tty input)
+53 П╕дв╕шено (tty output)
+54 Призупинено (tty output)
 55 Window status changed
 56 Window size changed
 57 Phone status changed

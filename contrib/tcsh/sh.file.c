@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.file.c,v 3.16 2000/06/11 02:14:14 kim Exp $ */
+/* $Header: /src/pub/tcsh/sh.file.c,v 3.22 2002/07/01 20:53:00 christos Exp $ */
 /*
  * sh.file.c: File completion for csh. This file is not used in tcsh.
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -35,10 +31,11 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
+#include "ed.h"
 
-RCSID("$Id: sh.file.c,v 3.16 2000/06/11 02:14:14 kim Exp $")
+RCSID("$Id: sh.file.c,v 3.22 2002/07/01 20:53:00 christos Exp $")
 
-#ifdef FILEC
+#if defined(FILEC) && defined(TIOCSTI)
 
 /*
  * Tenex style file name recognition, .. and more.
@@ -77,6 +74,7 @@ static	void	 extract_dir_and_name	__P((Char *, Char *, Char *));
 static	Char	*getitem		__P((DIR *, int));
 static	void	 free_items		__P((Char **));
 static	int	 tsearch		__P((Char *, COMMAND, int));
+static	int	 compare		__P((const ptr_t, const ptr_t));
 static	int	 recognize		__P((Char *, Char *, int, int));
 static	int	 is_prefix		__P((Char *, Char *));
 static	int	 is_suffix		__P((Char *, Char *));
@@ -227,7 +225,7 @@ static void
 pushback(string)
     Char   *string;
 {
-    register Char *p;
+    Char *p;
     char    c;
 #ifdef TERMIO
 # ifdef POSIX
@@ -259,14 +257,13 @@ pushback(string)
     (void) ioctl(SHOUT, TCSETAW, (ioctl_t) &tty);
 # endif /* POSIX */
 
-    for (p = string; c = *p; p++)
+    for (p = string; (c = *p) != '\0'; p++)
 	(void) ioctl(SHOUT, TIOCSTI, (ioctl_t) & c);
 # ifdef POSIX
     (void) tcsetattr(SHOUT, TCSANOW, &tty_normal);
 # else
     (void) ioctl(SHOUT, TCSETAW, (ioctl_t) &tty_normal);
 # endif /* POSIX */
-    (void) sigsetmask(omask);
 #else
     (void) ioctl(SHOUT, TIOCGETP, (ioctl_t) & tty);
     tty_normal = tty;
@@ -292,8 +289,8 @@ pushback(string)
  */
 static void
 catn(des, src, count)
-    register Char *des, *src;
-    register count;
+    Char *des, *src;
+    int count;
 {
     while (--count >= 0 && *des)
 	des++;
@@ -309,8 +306,8 @@ catn(des, src, count)
  */
 static void
 copyn(des, src, count)
-    register Char *des, *src;
-    register count;
+    Char *des, *src;
+    int count;
 {
     while (--count >= 0)
 	if ((*des++ = *src++) == 0)
@@ -359,7 +356,7 @@ print_by_column(dir, items, count)
     Char   *dir, *items[];
     int     count;
 {
-    register int i, rows, r, c, maxwidth = 0, columns;
+    int i, rows, r, c, maxwidth = 0, columns;
 
     if (ioctl(SHOUT, TIOCGWINSZ, (ioctl_t) & win) < 0 || win.ws_col == 0)
 	win.ws_col = 80;
@@ -374,7 +371,7 @@ print_by_column(dir, items, count)
 	for (c = 0; c < columns; c++) {
 	    i = c * rows + r;
 	    if (i < count) {
-		register int w;
+		int w;
 
 		xprintf("%S", items[i]);
 		xputchar(dir ? filetype(dir, items[i]) : ' ');
@@ -400,8 +397,8 @@ static Char *
 tilde(new, old)
     Char   *new, *old;
 {
-    register Char *o, *p;
-    register struct passwd *pw;
+    Char *o, *p;
+    struct passwd *pw;
     static Char person[40];
 
     if (old[0] != '~')
@@ -507,7 +504,7 @@ static void
 extract_dir_and_name(path, dir, name)
     Char   *path, *dir, *name;
 {
-    register Char *p;
+    Char *p;
 
     p = Strrchr(path, '/');
     if (p == NULL) {
@@ -529,8 +526,8 @@ getitem(dir_fd, looking_for_lognames)
     DIR    *dir_fd;
     int     looking_for_lognames;
 {
-    register struct passwd *pw;
-    register struct dirent *dirp;
+    struct passwd *pw;
+    struct dirent *dirp;
 
     if (looking_for_lognames) {
 #ifdef _VMS_POSIX
@@ -541,16 +538,16 @@ getitem(dir_fd, looking_for_lognames)
 	return (str2short(pw->pw_name));
 #endif /* atp vmsposix */
     }
-    if (dirp = readdir(dir_fd))
+    if ((dirp = readdir(dir_fd)) != NULL)
 	return (str2short(dirp->d_name));
     return (NULL);
 }
 
 static void
 free_items(items)
-    register Char **items;
+    Char **items;
 {
-    register int i;
+    int i;
 
     for (i = 0; items[i]; i++)
 	xfree((ptr_t) items[i]);
@@ -585,9 +582,9 @@ tsearch(word, command, max_word_length)
     COMMAND command;
 {
     static Char **items = NULL;
-    register DIR *dir_fd;
-    register numitems = 0, ignoring = TRUE, nignored = 0;
-    register name_length, looking_for_lognames;
+    DIR *dir_fd;
+    int numitems = 0, ignoring = TRUE, nignored = 0;
+    int name_length, looking_for_lognames;
     Char    tilded_dir[MAXPATHLEN + 1], dir[MAXPATHLEN + 1];
     Char    name[MAXNAMLEN + 1], extended_name[MAXNAMLEN + 1];
     Char   *item;
@@ -616,7 +613,8 @@ tsearch(word, command, max_word_length)
 
 again:				/* search for matches */
     name_length = Strlen(name);
-    for (numitems = 0; item = getitem(dir_fd, looking_for_lognames);) {
+    for (numitems = 0;
+	(item = getitem(dir_fd, looking_for_lognames)) != NULL;) {
 	if (!is_prefix(name, item))
 	    continue;
 	/* Don't match . files on null prefix match */
@@ -628,7 +626,7 @@ again:				/* search for matches */
 		xprintf(CGETS(14, 1, "\nYikes!! Too many %s!!\n"),
 			looking_for_lognames ?
 			CGETS(14, 2, "names in password file") :
-			CGETS(14, 3, "files");
+			CGETS(14, 3, "files"));
 		break;
 	    }
 	    /*
@@ -687,13 +685,28 @@ again:				/* search for matches */
 	return (numitems);
     }
     else {			/* LIST */
-	qsort((ptr_t) items, (size_t) numitems, sizeof(items[0]), sortscmp);
+	qsort((ptr_t) items, (size_t) numitems, sizeof(items[0]), 
+	    (int (*) __P((const void *, const void *))) compare);
 	print_by_column(looking_for_lognames ? NULL : tilded_dir,
 			items, numitems);
 	if (items != NULL)
 	    FREE_ITEMS(items);
     }
     return (0);
+}
+
+
+static int
+compare(p, q)
+    const ptr_t  p, q;
+{
+#if defined(NLS) && !defined(NOSTRCOLL)
+    errno = 0;  /* strcoll sets errno, another brain-damage */
+ 
+    return (strcoll(*(char **) p, *(char **) q));
+#else
+    return (strcmp(*(char **) p, *(char **) q));
+#endif /* NLS && !NOSTRCOLL */
 }
 
 /*
@@ -712,8 +725,8 @@ recognize(extended_name, item, name_length, numitems)
     if (numitems == 1)		/* 1st match */
 	copyn(extended_name, item, MAXNAMLEN);
     else {			/* 2nd & subsequent matches */
-	register Char *x, *ent;
-	register int len = 0;
+	Char *x, *ent;
+	int len = 0;
 
 	x = extended_name;
 	for (ent = item; *x && *x == *ent++; x++, len++);
@@ -731,7 +744,7 @@ recognize(extended_name, item, name_length, numitems)
  */
 static int
 is_prefix(check, template)
-    register Char *check, *template;
+    Char *check, *template;
 {
     do
 	if (*check == 0)
@@ -748,7 +761,7 @@ static int
 is_suffix(check, template)
     Char   *check, *template;
 {
-    register Char *c, *t;
+    Char *c, *t;
 
     for (c = check; *c++;);
     for (t = template; *t++;);
@@ -765,7 +778,7 @@ tenex(inputline, inputline_size)
     Char   *inputline;
     int     inputline_size;
 {
-    register int numitems, num_read;
+    int numitems, num_read;
     char    tinputline[BUFSIZE];
 
 
@@ -775,8 +788,8 @@ tenex(inputline, inputline_size)
 	int     i;
 	static Char delims[] = {' ', '\'', '"', '\t', ';', '&', '<',
 	'>', '(', ')', '|', '^', '%', '\0'};
-	register Char *str_end, *word_start, last_Char, should_retype;
-	register int space_left;
+	Char *str_end, *word_start, last_Char, should_retype;
+	int space_left;
 	COMMAND command;
 
 	for (i = 0; i < num_read; i++)
@@ -833,10 +846,10 @@ tenex(inputline, inputline_size)
 
 static int
 ignored(item)
-    register Char *item;
+    Char *item;
 {
     struct varent *vp;
-    register Char **cp;
+    Char **cp;
 
     if ((vp = adrof(STRfignore)) == NULL || (cp = vp->vec) == NULL)
 	return (FALSE);
@@ -845,4 +858,4 @@ ignored(item)
 	    return (TRUE);
     return (FALSE);
 }
-#endif	/* FILEC */
+#endif	/* FILEC && TIOCSTI */

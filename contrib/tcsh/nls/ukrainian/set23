@@ -1,4 +1,4 @@
-$ $Id: set23,v 1.1 2000/11/11 23:03:43 christos Exp $
+$ $Id: set23,v 1.2 2002/07/01 20:50:22 christos Exp $
 $ tc.os.c
 $set 23 
 1 Bad cpu/site name
@@ -17,7 +17,7 @@ $set 23
 14 sysname:  %s\n
 15 nodename: %s\n
 16 release:  %s\n
-17 version:  %s\n
+17 верс╕я:   %s\n
 18 machine:  %s\n
 19 getwd: Cannot open ".." (%s)
 20 getwd: Cannot chdir to ".." (%s)
@@ -28,7 +28,7 @@ $set 23
 25 getwd: Cannot stat directory "%s" (%s)
 26 getwd: Cannot open directory "%s" (%s)
 27 getwd: Cannot find "." in ".." (%s)
-28 Invalid system type
-29 System type is not set
-30 Too many arguments
-31 Invalid argument
+28 Нев╕рний тип системи
+29 Тип системи не визначено
+30 Забагато аргумент╕в
+31 Нев╕рний аргумент

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.const.c,v 3.62 2001/08/06 23:52:04 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.const.c,v 3.67 2002/07/06 22:21:07 christos Exp $ */
 /*
  * sh.const.c: String constants for tcsh.
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.const.c,v 3.62 2001/08/06 23:52:04 christos Exp $")
+RCSID("$Id: tc.const.c,v 3.67 2002/07/06 22:21:07 christos Exp $")
 
 Char STRlogout[]	= { 'l', 'o', 'g', 'o', 'u', 't', '\0' };
 Char STRautologout[]	= { 'a', 'u', 't', 'o', 'l', 'o', 'g', 'o', 'u', 't', 
@@ -117,6 +113,7 @@ Char STRtildothist[]	= { '~', '/', '.', 'h', 'i', 's', 't', 'o', 'r',
 
 #ifdef NLS_CATALOGS
 Char STRcatalog[]	= { 'c', 'a', 't', 'a', 'l', 'o', 'g', '\0' };
+Char STRNLSPATH[]	= { 'N', 'L', 'S', 'P', 'A', 'T', 'H', '\0' };
 #endif /* NLS_CATALOGS */
 #ifdef KANJI
 Char STRnokanji[]	= { 'n', 'o', 'k', 'a', 'n', 'j', 'i', '\0' };
@@ -126,6 +123,7 @@ Char STRmmliteral[]	= { '-', '-', 'l', 'i', 't', 'e', 'r', 'a', 'l', '\0' };
 Char STRKEUC[]		= { 'e', 'u', 'c', '\0' };
 Char STRKSJIS[]		= { 's', 'j', 'i', 's', '\0' };
 Char STRKBIG5[]         = { 'b', 'i', 'g', '5', '\0' };
+Char STRKUTF8[]         = { 'u', 't', 'f', '8', '\0' };
 #  ifdef MBYTEDEBUG	/* Sorry, use for beta testing */
 Char STRmbytemap[]	= { 'm', 'b', 'y', 't', 'e', 'm', 'a', 'p', '\0' };
 #  endif /* MBYTEMAP */
@@ -320,6 +318,9 @@ Char STRcontinue_args[] = { 'c', 'o', 'n', 't', 'i', 'n', 'u', 'e', '_', 'a',
 Char STRunderpause[]	= { '_', 'p', 'a', 'u', 's', 'e', '\0' };
 #endif
 Char STRbackqpwd[]	= { '`', 'p', 'w', 'd', '`', '\0' };
+#if defined(FILEC) && defined(TIOCSTI)
+Char STRfilec[]		= { 'f', 'i', 'l', 'e', 'c', '\0' };
+#endif /* FILEC && TIOCSTI */
 Char STRhistchars[]	= { 'h', 'i', 's', 't', 'c', 'h', 'a', 'r', 's', '\0' };
 Char STRpromptchars[]	= { 'p', 'r', 'o', 'm', 'p', 't', 'c', 'h', 'a', 'r',
 			    's', '\0' };
@@ -466,3 +467,4 @@ Char STRcolorcat[]	= { 'c', 'o', 'l', 'o', 'r', 'c', 'a', 't', '\0' };
 
 Char STRshwspace[]	= { ' ', '\t', '\0' };
 Char STRshwordsep[]	= { ' ', '\t', '&', '|', ';', '<', '>', '(', ')', '\0' };
+Char STRrepeat[]	= { 'r', 'e', 'p', 'e', 'a', 't', '\0' };
