@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id$
+ * $Id: doc.c,v 1.22 1997/02/07 04:25:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,7 +69,8 @@ docBrowser(dialogMenuItem *self)
 		      "location to load the package from (go to Media menu) and see if that\n"
 		      "makes a difference.\n\n"
 		      "I suggest that we remove the version that was extracted since it does\n"
-		      "not appear to be correct.   Would you like me to do that now?"))
+		      "not appear to be correct.   Would you like me to do that now?",
+		      browser, variable_get(VAR_BROWSER_BINARY)))
 	    vsystem("pkg_delete %s %s", !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v" : "", browser);
 	return DITEM_FAILURE | DITEM_RESTORE;
     }
