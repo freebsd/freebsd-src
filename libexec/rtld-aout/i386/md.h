@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.h,v 1.9 1994/02/13 20:42:11 jkh Exp $
+ *	$Id: md.h,v 1.10 1994/06/15 22:40:46 rich Exp $
  */
 
 
@@ -63,7 +63,7 @@
 /*
  * FreeBSD does it differently
  */
-#ifdef FreeBSD
+#ifdef __FreeBSD__
 #define N_SET_FLAG(ex,f)	(oldmagic ? (0) :			\
 				  (netzmagic == 0 ?			\
 					N_SETMAGIC(ex,			\

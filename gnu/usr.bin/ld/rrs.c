@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.11 1994/02/13 20:41:40 jkh Exp $
+ *	$Id: rrs.c,v 1.12 1994/06/15 22:39:52 rich Exp $
  */
 
 #include <sys/param.h>
@@ -62,6 +62,7 @@ static struct shobj		*rrs_shobjs;
 
 static int	reserved_rrs_relocs;
 static int	claimed_rrs_relocs;
+static int	discarded_rrs_relocs;
 
 static int	number_of_gotslots;
 static int	number_of_jmpslots;
@@ -144,6 +145,7 @@ init_rrs()
 {
 	reserved_rrs_relocs = 0;
 	claimed_rrs_relocs = 0;
+	discarded_rrs_relocs = 0;
 
 	number_of_rrs_symbols = 0;
 	rrs_strtab_size = 0;
@@ -212,9 +214,7 @@ symbol *sp;
 		sp->jmpslot_offset = current_jmpslot_offset;
 		current_jmpslot_offset += sizeof(jmpslot_t);
 		number_of_jmpslots++;
-		if (!(link_mode & SYMBOLIC) || JMPSLOT_NEEDS_RELOC) {
-			reserved_rrs_relocs++;
-		}
+		reserved_rrs_relocs++;
 	}
 }
 
@@ -242,13 +242,7 @@ struct localsymbol	*lsp;
 			lsp->gotslot_offset = current_got_offset;
 			current_got_offset += sizeof(got_t);
 			number_of_gotslots++;
-			/*
-			 * Now, see if slot needs run-time fixing
-			 * If the load address is known (entry_symbol), this
-			 * slot will have its final value set by `claim_got'
-			 */
-			if ((link_mode & SHAREABLE) || (link_mode & SYMBOLIC))
-				reserved_rrs_relocs++;
+			reserved_rrs_relocs++;
 		}
 
 	} else {
@@ -262,16 +256,12 @@ struct localsymbol	*lsp;
 		if (sp->alias)
 			sp = sp->alias;
 
-		if (sp->gotslot_offset != -1)
-			return;
-
-		/*
-		 * External symbols always get a relocation entry
-		 */
-		sp->gotslot_offset = current_got_offset;
-		reserved_rrs_relocs++;
-		current_got_offset += sizeof(got_t);
-		number_of_gotslots++;
+		if (sp->gotslot_offset == -1) {
+			sp->gotslot_offset = current_got_offset;
+			current_got_offset += sizeof(got_t);
+			number_of_gotslots++;
+			reserved_rrs_relocs++;
+		}
 	}
 
 }
@@ -378,7 +368,10 @@ printf("claim_rrs_jmpslot: %s: %s(%d) -> offset %x\n",
 		md_fix_jmpslot( rrs_plt + sp->jmpslot_offset/sizeof(jmpslot_t),
 				rrs_sdt.sdt_plt + sp->jmpslot_offset,
 				sp->value);
-		if (!JMPSLOT_NEEDS_RELOC) {
+		if (rrs_section_type == RRS_PARTIAL || !JMPSLOT_NEEDS_RELOC) {
+			/* PLT is self-contained */
+			sp->flags |= GS_JMPSLOTCLAIMED;
+			discarded_rrs_relocs++;
 			return rrs_sdt.sdt_plt + sp->jmpslot_offset;
 		}
 	} else {
@@ -386,10 +379,6 @@ printf("claim_rrs_jmpslot: %s: %s(%d) -> offset %x\n",
 				sp->jmpslot_offset,
 				claimed_rrs_relocs);
 	}
-
-	if (rrs_section_type == RRS_PARTIAL)
-		/* PLT is self-contained */
-		return rrs_sdt.sdt_plt + sp->jmpslot_offset;
 
 	/*
 	 * Install a run-time relocation for this PLT entry.
@@ -436,20 +425,29 @@ long			addend;
 		sp = sp->alias;
 
 #ifdef DEBUG
-printf("claim_rrs_gotslot: %s(%d) slot offset %#x, addend %#x\n",
-	 sp->name, sp->rrs_symbolnum, sp->gotslot_offset, addend);
+printf("claim_rrs_gotslot: %s(%d,%#x) slot offset %#x, addend %#x\n",
+	 sp->name, sp->rrs_symbolnum, sp->value, sp->gotslot_offset, addend);
 #endif
 	if (sp->gotslot_offset == -1)
 		errx(1,
 		"internal error: %s: claim_rrs_gotslot: %s: gotslot_offset == -1\n",
 			get_file_name(entry), sp->name);
 
-	if (sp->flags & GS_GOTSLOTCLAIMED)
+	if (sp->flags & GS_GOTSLOTCLAIMED) {
+#ifdef DEBUG
+		if (*(long *)((long)rrs_got + sp->gotslot_offset) != addend +
+		    (!(link_mode & SHAREABLE) || (link_mode & SYMBOLIC))
+		    ?sp->value:0)
+			errx(1, "%s: %s: gotslot at %#x is multiple valued\n",
+				get_file_name(entry), sp->name,
+				sp->gotslot_offset);
+#endif
 		/* This symbol already passed here before. */
 		return sp->gotslot_offset;
+	}
 
 	if (sp->defined &&
-		(!(link_mode & SHAREABLE) || (link_mode & SYMBOLIC))) {
+	    (!(link_mode & SHAREABLE) || (link_mode & SYMBOLIC))) {
 
 		/*
 		 * Reduce to just a base-relative translation.
@@ -471,7 +469,7 @@ printf("claim_rrs_gotslot: %s(%d) slot offset %#x, addend %#x\n",
 	} else {
 
 		/*
-		 * This gotslot will be updated with symbol value at run-rime.
+		 * This gotslot will be updated with symbol value at run-time.
 		 */
 
 		*(got_t *)((long)rrs_got + sp->gotslot_offset) = addend;
@@ -486,6 +484,8 @@ printf("claim_rrs_gotslot: %s(%d) slot offset %#x, addend %#x\n",
 		if (!sp->defined)
 			warnx("Cannot reduce symbol \"%s\" in %s",
 					sp->name, get_file_name(entry));
+		discarded_rrs_relocs++;
+		sp->flags |= GS_GOTSLOTCLAIMED;
 		return sp->gotslot_offset;
 	}
 
@@ -509,7 +509,7 @@ printf("claim_rrs_gotslot: %s(%d) slot offset %#x, addend %#x\n",
 
 /*
  * Claim a GOT entry for a static symbol. Return offset of the
- * allocated GOT entry. If RELOC_STATICS_THROUGH_GOT_P is in effect
+ * allocated GOT entry. If RELOC_STATICS_THROUGH_GOT_P is in effect,
  * return the offset of the symbol with respect to the *location* of
  * the GOT.
  */
@@ -537,14 +537,21 @@ printf("claim_rrs_internal_gotslot: %s: slot offset %#x, addend = %#x\n",
 		"internal error: %s: claim_rrs_internal_gotslot at %#x: slot_offset == -1\n",
 			get_file_name(entry), RELOC_ADDRESS(rp));
 
-	if (lsp->flags & LS_GOTSLOTCLAIMED)
+	if (lsp->flags & LS_GOTSLOTCLAIMED) {
 		/* Already done */
+		if (addend != *(long *)((long)rrs_got + lsp->gotslot_offset))
+			errx(1, "%s: gotslot at %#x is multiple valued\n",
+				get_file_name(entry), lsp->gotslot_offset);
 		return lsp->gotslot_offset;
+	}
 
 	*(long *)((long)rrs_got + lsp->gotslot_offset) = addend;
 
-	if (!(link_mode & SHAREABLE))
+	if (rrs_section_type == RRS_PARTIAL) {
+		lsp->flags |= LS_GOTSLOTCLAIMED;
+		discarded_rrs_relocs++;
 		return lsp->gotslot_offset;
+	}
 
 	/*
 	 * Relocation entry needed for this static GOT entry.
@@ -597,6 +604,7 @@ struct relocation_info	*rp;
 printf("claim_rrs_segment_reloc: %s at %#x\n",
 	get_file_name(entry), rp->r_address);
 #endif
+
 	r->r_address = rp->r_address;
 	RELOC_TYPE(r) = RELOC_TYPE(rp);
 	RELOC_EXTERN_P(r) = 0;
@@ -702,8 +710,7 @@ consider_rrs_section_lengths()
 	 * from crt0), as this is the method used to determine whether the
 	 * run-time linker must be called.
 	 */
-	if (!(link_mode & SHAREABLE) &&
-			!(dynamic_symbol->flags & GS_REFERENCED))
+	if (!(link_mode & SHAREABLE) && !(dynamic_symbol->flags & GS_REFERENCED))
 		errx(1, "No reference to __DYNAMIC");
 
 	dynamic_symbol->flags |= GS_REFERENCED;
@@ -736,24 +743,33 @@ consider_rrs_section_lengths()
 
 	/*
 	 * Walk the symbol table, assign RRS symbol numbers
+	 * and calculate string space.
 	 * Assign number 0 to __DYNAMIC (!! Sun compatibility)
 	 */
 	dynamic_symbol->rrs_symbolnum = number_of_rrs_symbols++;
 	FOR_EACH_SYMBOL(i ,sp) {
-		if (sp->flags & GS_REFERENCED) {
-			rrs_strtab_size += 1 + strlen(sp->name);
-			if (sp != dynamic_symbol)
-				sp->rrs_symbolnum = number_of_rrs_symbols++;
-			if (sp->alias) {
-				/*
-				 * (sigh) Always allocate space to hold the
-				 * indirection. At this point there's not
-				 * enough information to decide whether it's
-				 * actually needed or not.
-				 */
-				number_of_rrs_symbols++;
-				rrs_strtab_size += 1 + strlen(sp->alias->name);
-			}
+		if ((link_mode & SHAREABLE) && sp->warning) {
+			/* Allocate N_WARNING & co */
+			rrs_strtab_size +=
+				2 + strlen(sp->name) + strlen(sp->warning);
+			number_of_rrs_symbols += 2;
+		}
+
+		if (!(sp->flags & GS_REFERENCED))
+			continue;
+
+		rrs_strtab_size += 1 + strlen(sp->name);
+		if (sp != dynamic_symbol)
+			sp->rrs_symbolnum = number_of_rrs_symbols++;
+		if (sp->alias) {
+			/*
+			 * (sigh) Always allocate space to hold the
+			 * indirection. At this point there's not
+			 * enough information to decide whether it's
+			 * actually needed or not.
+			 */
+			number_of_rrs_symbols++;
+			rrs_strtab_size += 1 + strlen(sp->alias->name);
 		}
 	} END_EACH_SYMBOL;
 
@@ -828,7 +844,7 @@ relocate_rrs_addresses()
 	if (rrs_section_type == RRS_PARTIAL) {
 		got_symbol->value = rrs_sdt.sdt_got = rrs_data_start;
 		rrs_sdt.sdt_plt = rrs_sdt.sdt_got +
-					number_of_gotslots * sizeof(got_t);
+				  number_of_gotslots * sizeof(got_t);
 		return;
 	}
 
@@ -837,12 +853,12 @@ relocate_rrs_addresses()
 	 */
 	rrs_dyn.d_version = soversion;
 	rrs_dyn.d_debug = (struct so_debug *)
-			(rrs_data_start + sizeof(struct _dynamic));
+			  (rrs_data_start + sizeof(struct _dynamic));
 	rrs_dyn.d_un.d_sdt = (struct section_dispatch_table *)
-			    ((long)rrs_dyn.d_debug + sizeof(struct so_debug));
+			     ((long)rrs_dyn.d_debug + sizeof(struct so_debug));
 
 	rrs_sdt.sdt_got = (long)rrs_dyn.d_un.d_sdt +
-					sizeof(struct section_dispatch_table);
+			  sizeof(struct section_dispatch_table);
 	rrs_sdt.sdt_plt = rrs_sdt.sdt_got + number_of_gotslots*sizeof(got_t);
 
 	/*
@@ -898,19 +914,12 @@ write_rrs_data()
 		/*
 		 * Only a GOT and PLT are needed.
 		 */
-		if (number_of_gotslots <= 1)
-			errx(1, "write_rrs_data: # gotslots <= 1");
-
 		md_swapout_got(rrs_got, number_of_gotslots);
-		mywrite(rrs_got, number_of_gotslots,
-					sizeof(got_t), outdesc);
-
-		if (number_of_jmpslots <= 1)
-			errx(1, "write_rrs_data: # jmpslots <= 1");
+		mywrite(rrs_got, number_of_gotslots, sizeof(got_t), outdesc);
 
 		md_swapout_jmpslot(rrs_plt, number_of_jmpslots);
-		mywrite(rrs_plt, number_of_jmpslots,
-					sizeof(jmpslot_t), outdesc);
+		mywrite(rrs_plt, number_of_jmpslots, sizeof(jmpslot_t), outdesc);
+
 		return;
 	}
 
@@ -951,11 +960,12 @@ write_rrs_text()
 	/* Write relocation records */
 	md_swapout_reloc(rrs_reloc, reserved_rrs_relocs);
 	mywrite(rrs_reloc, reserved_rrs_relocs,
-				sizeof(struct relocation_info), outdesc);
+		sizeof(struct relocation_info), outdesc);
 
 	/* Write the RRS symbol hash tables */
 	md_swapout_rrs_hash(rrs_hashtab, number_of_rrs_hash_entries);
-	mywrite(rrs_hashtab, number_of_rrs_hash_entries, sizeof(struct rrs_hash), outdesc);
+	mywrite(rrs_hashtab, number_of_rrs_hash_entries,
+		sizeof(struct rrs_hash), outdesc);
 
 	/*
 	 * Determine size of an RRS symbol entry, allocate space
@@ -985,11 +995,39 @@ write_rrs_text()
 	 */
 	FOR_EACH_SYMBOL(i, sp) {
 
-		if (!(sp->flags & GS_REFERENCED) || sp == dynamic_symbol)
+		if (sp == dynamic_symbol)
+			continue;
+
+		if ((link_mode & SHAREABLE) && sp->warning) {
+			/*
+			 * Write a N_WARNING duo.
+			 */
+			nlp->nz_type = N_WARNING;
+			nlp->nz_un.n_strx = offset;
+			nlp->nz_value = 0;
+			nlp->nz_other = 0;
+			nlp->nz_desc = 0;
+			nlp->nz_size = 0;
+			strcpy(rrs_strtab + offset, sp->warning);
+			offset += 1 + strlen(sp->warning);
+			INCR_NLP(nlp);
+
+			nlp->nz_type = N_UNDF + N_EXT;
+			nlp->nz_un.n_strx = offset;
+			nlp->nz_value = 0;
+			nlp->nz_other = 0;
+			nlp->nz_desc = 0;
+			nlp->nz_size = 0;
+			strcpy(rrs_strtab + offset, sp->name);
+			offset += 1 + strlen(sp->name);
+			INCR_NLP(nlp);
+		}
+
+		if (!(sp->flags & GS_REFERENCED))
 			continue;
 
 		if ((long)nlp - (long)rrs_symbols >=
-					number_of_rrs_symbols * rrs_symbol_size)
+		    number_of_rrs_symbols * rrs_symbol_size)
 			errx(1,
 			    "internal error: rrs symbols exceed allocation %d ",
 				number_of_rrs_symbols);
@@ -1002,7 +1040,7 @@ write_rrs_text()
 		if (sp->defined > 1) {
 			/* defined with known type */
 			if (!(link_mode & SHAREABLE) &&
-					sp->alias && sp->alias->defined > 1) {
+			    sp->alias && sp->alias->defined > 1) {
 				/*
 				 * If the target of an indirect symbol has
 				 * been defined and we are outputting an
@@ -1125,7 +1163,7 @@ write_rrs_text()
 	if (i < number_of_shobjs)
 		errx(1,
 		"internal error: # of link objects less then expected %d",
-				number_of_shobjs);
+			number_of_shobjs);
 
 	md_swapout_sod(sodp, number_of_shobjs);
 	mywrite(sodp, number_of_shobjs, sizeof(struct sod), outdesc);
@@ -1157,21 +1195,19 @@ write_rrs()
 	}
 
 #ifdef DEBUG
-printf("rrs_relocs %d, gotslots %d, jmpslots %d\n",
-	reserved_rrs_relocs, number_of_gotslots-1, number_of_jmpslots-1);
+printf("rrs_relocs: reserved %d claimed %d discarded %d, gotslots %d jmpslots %d\n",
+	reserved_rrs_relocs, claimed_rrs_relocs, discarded_rrs_relocs,
+	number_of_gotslots-1, number_of_jmpslots-1);
 #endif
 
-#if 0
-	/* Must fix this check: misses out when linking PIC code but no
-	   shared object involved: reserved relocs are never claimed!
-	*/
-	if (claimed_rrs_relocs != reserved_rrs_relocs) {
-		errx(1, "internal error: reserved relocs(%d) != claimed(%d)",
-			reserved_rrs_relocs, claimed_rrs_relocs);
-		printf("FIX:internal error: reserved relocs(%d) != claimed(%d)\n",
-			reserved_rrs_relocs, claimed_rrs_relocs);
+	/* Final consistency check */
+	if (claimed_rrs_relocs  + discarded_rrs_relocs != reserved_rrs_relocs) {
+		errx(1,
+	"internal error: reserved relocs(%d) != claimed(%d) + discarded(%d)",
+			reserved_rrs_relocs,
+			claimed_rrs_relocs,
+			discarded_rrs_relocs);
 	}
-#endif
 
 	/* Write the RRS segments. */
 	write_rrs_text ();

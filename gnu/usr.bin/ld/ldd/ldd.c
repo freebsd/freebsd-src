@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldd.c,v 1.3 1994/02/13 20:42:43 jkh Exp $
+ *	$Id: ldd.c,v 1.4 1994/06/15 22:41:03 rich Exp $
  */
 
 #include <sys/types.h>
@@ -91,9 +91,12 @@ char	*argv[];
 			argv++;
 			continue;
 		}
-		if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
-		    !(N_GETFLAG(hdr) & EX_DYNAMIC) ||
-		    hdr.a_entry < __LDPGSZ) {
+		if (read(fd, &hdr, sizeof hdr) != sizeof hdr
+		    || (N_GETFLAG(hdr) & EX_DPMASK) != EX_DYNAMIC
+#if 1 /* Compatibility */
+		    || hdr.a_entry < __LDPGSZ
+#endif
+		    ) {
 
 			warnx("%s: not a dynamic executable", *argv);
 			(void)close(fd);

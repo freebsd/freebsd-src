@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.17 1994/06/15 22:41:15 rich Exp $
+ *	$Id: rtld.c,v 1.18 1994/09/15 20:48:55 bde Exp $
  */
 
 #include <sys/param.h>
@@ -403,7 +403,7 @@ alloc_link_map(path, sodp, parent, addr, dp)
 	link_map_tail = &smp->som_next;
 
 	smp->som_addr = addr;
-	smp->som_path = strdup(path);
+	smp->som_path = path?strdup(path):NULL;
 	smp->som_sod = sodp;
 	smp->som_dynamic = dp;
 	smp->som_spd = (caddr_t)smpp;
@@ -442,7 +442,7 @@ map_object(sodp, smp)
 		usehints = 1;
 again:
 		path = rtfindlib(name, sodp->sod_major,
-						sodp->sod_minor, &usehints);
+				 sodp->sod_minor, &usehints);
 		if (path == NULL) {
 			errno = ENOENT;
 			return NULL;
@@ -484,17 +484,17 @@ again:
 	}
 
 	if ((addr = mmap(0, hdr.a_text + hdr.a_data,
-				PROT_READ|PROT_EXEC,
-				MAP_FILE|MAP_COPY, fd, 0)) == (caddr_t)-1) {
+	     PROT_READ|PROT_EXEC,
+	     MAP_COPY, fd, 0)) == (caddr_t)-1) {
 		(void)close(fd);
 		return NULL;
 	}
 
 #if 0
 	if (mmap(addr + hdr.a_text, hdr.a_data,
-				PROT_READ|PROT_WRITE|PROT_EXEC,
-				MAP_FILE|MAP_FIXED|MAP_COPY,
-				fd, hdr.a_text) == (caddr_t)-1) {
+	    PROT_READ|PROT_WRITE|PROT_EXEC,
+	    MAP_FIXED|MAP_COPY,
+	    fd, hdr.a_text) == (caddr_t)-1) {
 		(void)close(fd);
 		return NULL;
 	}
@@ -548,9 +548,9 @@ caddr_t			addr;
 	else
 		sym = "";
 
-	if (getenv("LD_WARN_NON_PURE_CODE") != NULL)
-		fprintf(stderr,
-			"ld.so: warning: non pure code in %s at %x (%s)\n",
+	if (getenv("LD_SUPPRESS_WARNINGS") == NULL &&
+	    getenv("LD_WARN_NON_PURE_CODE") != NULL)
+		warnx("ld.so: warning: non pure code in %s at %x (%s)\n",
 				smp->som_path, r->r_address, sym);
 
 	if (smp->som_write == 0 &&
@@ -972,7 +972,7 @@ maphints()
 	}
 
 	msize = PAGSIZ;
-	addr = mmap(0, msize, PROT_READ, MAP_FILE|MAP_COPY, fd, 0);
+	addr = mmap(0, msize, PROT_READ, MAP_COPY, fd, 0);
 
 	if (addr == (caddr_t)-1) {
 		close(fd);
@@ -999,7 +999,7 @@ maphints()
 	if (hheader->hh_ehints > msize) {
 		hmsize = hheader->hh_ehints;
 		if (mmap(addr+msize, hheader->hh_ehints - msize,
-				PROT_READ, MAP_FILE|MAP_COPY|MAP_FIXED,
+				PROT_READ, MAP_COPY|MAP_FIXED,
 				fd, msize) != (caddr_t)(addr+msize)) {
 
 			munmap((caddr_t)hheader, msize);
@@ -1092,41 +1092,50 @@ rtfindlib(name, major, minor, usehints)
 	int	major, minor;
 	int	*usehints;
 {
-	char	*hint;
 	char	*cp, *ld_path = getenv("LD_LIBRARY_PATH");
+	int	realminor;
 
 	if (hheader == NULL)
 		maphints();
 
-	if (!HINTS_VALID || !(*usehints)) {
-		*usehints = 0;
-		return (char *)findshlib(name, &major, &minor, 0);
-	}
+	if (!HINTS_VALID || !(*usehints))
+		goto lose;
 
 	if (ld_path != NULL) {
 		/* Prefer paths from LD_LIBRARY_PATH */
 		while ((cp = strsep(&ld_path, ":")) != NULL) {
 
-			hint = findhint(name, major, minor, cp);
+			cp = findhint(name, major, minor, cp);
 			if (ld_path)
 				*(ld_path-1) = ':';
-			if (hint)
-				return hint;
+			if (cp)
+				return cp;
 		}
 		/* Not found in hints, try directory search */
-		hint = (char *)findshlib(name, &major, &minor, 0);
-		if (hint)
-			return hint;
+		realminor = -1;
+		cp = (char *)findshlib(name, &major, &realminor, 0);
+		if (cp && realminor >= minor)
+			return cp;
 	}
 
 	/* No LD_LIBRARY_PATH or lib not found in there; check default */
-	hint = findhint(name, major, minor, NULL);
-	if (hint)
-		return hint;
+	cp = findhint(name, major, minor, NULL);
+	if (cp)
+		return cp;
 
+lose:
 	/* No hints available for name */
 	*usehints = 0;
-	return (char *)findshlib(name, &major, &minor, 0);
+	realminor = -1;
+	cp = (char *)findshlib(name, &major, &realminor, 0);
+	if (cp) {
+		if (realminor < minor && getenv("LD_SUPPRESS_WARNINGS") == NULL)
+			warnx("warning: lib%s.so.%d.%d: "
+			      "minor version >= %d expected, using it anyway",
+			      name, major, realminor, minor);
+		return cp;
+	}
+	return NULL;
 }
 
 static struct somap_private dlmap_private = {
