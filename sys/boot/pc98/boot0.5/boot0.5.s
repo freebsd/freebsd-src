@@ -125,7 +125,7 @@ key_release:
 	orw	%di, %di
 	jnz	dont_try_default	# TAB pressed.
 	call	trydefault
-	# NOTREACHED
+	# Default partition not found.
 dont_try_default:
 	call	show_usage
 	call	showdevices
