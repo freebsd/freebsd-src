@@ -342,7 +342,7 @@ getpwd()
 
 		INTOFF;
 		if (pipe(pip) < 0)
-			error("Pipe call failed");
+			error("Pipe call failed: %s", strerror(errno));
 		jp = makejob((union node *)NULL, 1);
 		if (forkshell(jp, (union node *)NULL, FORK_NOJOB) == 0) {
 			(void) close(pip[0]);

@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include "options.h"
 #include "output.h"
 #include "error.h"
+#include "nodes.h" /* show.h needs nodes.h */
 #include "show.h"
 #include "trap.h"
 #include <signal.h>
