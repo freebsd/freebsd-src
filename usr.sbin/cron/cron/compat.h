@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: compat.h,v 1.8 1994/01/15 20:43:43 vixie Exp $
+ * $Id: compat.h,v 1.1.1.1 1994/08/27 13:43:04 jkh Exp $
  */
 
 #ifndef __P
@@ -106,8 +106,11 @@
 # define NEED_GETDTABLESIZE
 #endif
 
-#if (BSD >= 199103)
+#ifdef POSIX
+#include <unistd.h>
+#ifdef _POSIX_SAVED_IDS
 # define HAVE_SAVED_UIDS
+#endif
 #endif
 
 #if !defined(ATT) && !defined(__linux) && !defined(IRIX) && !defined(UNICOS)
