@@ -908,27 +908,29 @@ For the AlphaServer1000/1000A/800 machines the kernel config file must contain:
 	cpu		EV5		# depends on the CPU model installed
 
 *
-* DS10/VS10/XP900 ("Webbrick") / XP1000 ("Monet")
+* DS10/VS10/XP900 ("Webbrick") / XP1000 ("Monet") / DS10L ("Slate")
 *
 Webbrick and Monet are high performance workstations/servers based on the
 EV6 CPU and the Tsunami chipset. Tsunami is also used in much higher-end 
 systems and as such has plenty of performance to offer. DS10, VS10 and XP900
 are different names for essentially the same system. The difference are the 
-software and options that are supported.
+software and options that are supported. DS10L is a DS10 based machine in a 1U 
+high rackmount enclosure. DS10L is intended for ISPs and for HPTC clusters
+(e.g. Beowulf).
 
 Monet has, by 1999 standards, *stunning* (the words of a satisfied
 user) memory and I/O system bandwidth.
 
-** Webbrick 
+** Webbrick / Slate
 
 Features:
 - 21264 EV6 CPU at 466 MHz
-- L2 / Bcache: 2MB 
-- memory bus: 128 bit via crossbar
+- L2 / Bcache: 2MB, ECC protected
+- memory bus: 128 bit via crossbar, 1.3GB/sec to memory
 - memory: industry standard 200 pin 83 MHz buffered ECC SDRAM DIMMs
-	  4 DIMM slots
+	  4 DIMM slots (2 for DS10L)
 	  installed in pairs of 2
-	  max memory is 2 Gb
+	  max memory is 2 Gb (1Gb for DS10L)
 - 21271 Core Logic chipset ("Tsunami")
 - 2 on-board 21143 Fast Ethernet controllers
 - AcerLabs M5237 (Aladdin-V) USB controller
@@ -937,6 +939,7 @@ Features:
 - embedded dual EIDE 
 - expansion: 3 64-bit PCI slots
              1 32-bit PCI slots
+	     DS10L has a single 64bit PCI slot
 - 2x 16550A serial ports
 - 1x parallel port
 - 2x USB
@@ -951,16 +954,24 @@ Case:
 Webbrick is shipped in a desktop-style case similar to the older 21164
 "Maverick" workstations but which offers much better access to        
 components. If you intend to build a farm you can rackmount them in a 19"
-rack.
+rack, they are 3U high. Slate is 1U high but has only one PCI slot.
 
 Memory:
 DS10 has 4 DIMM slots. DIMMs are installed as pairs. Please note that 
 DIMM pairs are not installed in adjacent DIMM sockets but rather physically
 interleaved. DIMM sizes of 32, 64, 128, 256 and 512 Mbytes are supported.
 
+When 2 pairs of identical-sized DIMMs are installed DS10 will use memory 
+interleaving for higher performance. DS10L, which has only 2 DIMM slots cannot 
+do interleaving.
+
 EIDE:
 The base model comes with a FUJITSU 9.5GB ATA disk as its boot device.
-FreeBSD/alpha works just fine using EIDE disks on Webbrick.
+FreeBSD/alpha works just fine using EIDE disks on Webbrick. DS10 has 2 IDE 
+interfaces on the mainboard.
+
+Expansion:
+On the PCI bus 32 and 64 bit cards are supported, in 3.3V and 5V variants.
 
 USB:
 whether this works on FreeBSD on DS10 is as yet unknown.
