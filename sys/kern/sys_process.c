@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.17 1995/12/07 12:46:54 davidg Exp $
+ *	$Id: sys_process.c,v 1.18 1995/12/16 21:43:47 bde Exp $
  */
 
 #include <sys/param.h>
@@ -66,7 +66,7 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 	vm_map_entry_t	out_entry;
 	vm_prot_t	out_prot;
 	boolean_t	wired, single_use;
-	vm_offset_t	off;
+	vm_pindex_t	pindex;
 
 	/* Map page into kernel space */
 
@@ -77,7 +77,7 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 
 	tmap = map;
 	rv = vm_map_lookup (&tmap, pageno, VM_PROT_READ, &out_entry,
-		&object, &off, &out_prot, &wired, &single_use);
+		&object, &pindex, &out_prot, &wired, &single_use);
 
 	if (rv != KERN_SUCCESS)
 		return EINVAL;
@@ -85,7 +85,8 @@ pread (struct proc *procp, unsigned int addr, unsigned int *retval) {
 	vm_map_lookup_done (tmap, out_entry);
 
 	/* Find space in kernel_map for the page we're interested in */
-	rv = vm_map_find (kernel_map, object, off, &kva, PAGE_SIZE, 1);
+	rv = vm_map_find (kernel_map, object, IDX_TO_OFF(pindex), &kva,
+			  PAGE_SIZE, 1);
 
 	if (!rv) {
 		vm_object_reference (object);
@@ -113,7 +114,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 	vm_map_entry_t	out_entry;
 	vm_prot_t	out_prot;
 	boolean_t	wired, single_use;
-	vm_offset_t	off;
+	vm_pindex_t	pindex;
 	boolean_t	fix_prot = 0;
 
 	/* Map page into kernel space */
@@ -150,7 +151,7 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 
 	tmap = map;
 	rv = vm_map_lookup (&tmap, pageno, VM_PROT_WRITE, &out_entry,
-		&object, &off, &out_prot, &wired, &single_use);
+		&object, &pindex, &out_prot, &wired, &single_use);
 	if (rv != KERN_SUCCESS) {
 		return EINVAL;
 	}
@@ -174,7 +175,8 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 		return EFAULT;
 
 	/* Find space in kernel_map for the page we're interested in */
-	rv = vm_map_find (kernel_map, object, off, &kva, PAGE_SIZE, 1);
+	rv = vm_map_find (kernel_map, object, IDX_TO_OFF(pindex), &kva,
+			  PAGE_SIZE, 1);
 
 	if (!rv) {
 		vm_object_reference (object);
