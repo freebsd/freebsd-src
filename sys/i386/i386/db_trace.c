@@ -226,7 +226,9 @@ db_nextframe(fp, ip, p)
 		} else if (!strncmp(name, "Xintr", 5) ||
 		    !strncmp(name, "Xfastintr", 9)) {
 			frame_type = INTERRUPT;
-		} else if (!strcmp(name, "syscall_with_err_pushed")) {
+		} else if (!strcmp(name, "Xlcall_syscall")) {
+			frame_type = SYSCALL;
+		} else if (!strcmp(name, "Xint0x80_syscall")) {
 			frame_type = SYSCALL;
 		}
 	}

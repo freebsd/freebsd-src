@@ -191,7 +191,20 @@ IDTVEC(lcall_syscall)
 	pushfl				/* save eflags */
 	popl	8(%esp)			/* shuffle into tf_eflags */
 	pushl	$7			/* sizeof "lcall 7,0" */
-	jmp	syscall_with_err_pushed
+	subl	$4,%esp			/* skip over tf_trapno */
+	pushal
+	pushl	%ds
+	pushl	%es
+	pushl	%fs
+	mov	$KDSEL,%ax		/* switch to kernel segments */
+	mov	%ax,%ds
+	mov	%ax,%es
+	mov	$KPSEL,%ax
+	mov	%ax,%fs
+	FAKE_MCOUNT(13*4(%esp))
+	call	syscall
+	MEXITCOUNT
+	jmp	doreti
 
 /*
  * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
@@ -203,7 +216,6 @@ IDTVEC(lcall_syscall)
 	SUPERALIGN_TEXT
 IDTVEC(int0x80_syscall)
 	pushl	$2			/* sizeof "int 0x80" */
-syscall_with_err_pushed:
 	subl	$4,%esp			/* skip over tf_trapno */
 	pushal
 	pushl	%ds
