@@ -32,7 +32,7 @@
 .\"     @(#)core.5	8.3 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd January 9, 2002
 .Dt CORE 5
 .Os
 .Sh NAME
@@ -64,22 +64,26 @@ The name of the file is controlled via the
 variable
 .Va kern.corefile .
 The contents of this variable describes a filename to store
-the core image to.  This filename can be absolute, or relative (which
+the core image to.
+This filename can be absolute, or relative (which
 will resolve to the current working directory of the program
-generating it).  Any sequence of
+generating it).
+Any sequence of
 .Em \&%N
 in this filename template will be replaced by the process name,
 .Em \&%P
 by the processes PID, and
 .Em \&%U
-by the UID.  The name defaults to
+by the UID.
+The name defaults to
 .Em \&%N.core ,
 yielding the traditional
 .Fx
 behaviour.
 .Pp
 By default, a process that changes user or group credentials whether
-real or effective will not create a corefile.  This behaviour can be
+real or effective will not create a corefile.
+This behaviour can be
 changed to generate a core dump by setting the
 .Xr sysctl 8
 variable
@@ -87,14 +91,15 @@ variable
 to 1.
 .Pp
 The core file consists of the
-.Fa u .
+.Fa u.
 area, whose size (in pages) is
 defined by the
 .Dv UPAGES
 manifest in the
 .Aq Pa sys/param.h
-file.  The
-.Fa u .
+file.
+The
+.Fa u.
 area starts with a
 .Fa user
 structure as given in
@@ -107,13 +112,13 @@ file is given (in pages) by the
 variable
 .Fa u_dsize
 in the
-.Fa u .
+.Fa u.
 area.
 The amount of stack image in the core file is given (in pages) by the
 variable
 .Fa u_ssize
 in the
-.Ar u .
+.Fa u.
 area.
 The size of a ``page'' is given by the constant
 .Dv PAGE_SIZE
