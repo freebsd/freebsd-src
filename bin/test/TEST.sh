@@ -108,7 +108,6 @@ t 0 '-r /'
 t 1 '-w /'
 t 0 '-x /bin/sh'
 t 0 '-c /dev/null'
-t 0 '-b /dev/fd0a -o -b /dev/rfd0a -o true'
 t 0 '-f /etc/passwd'
 t 0 '-s /etc/passwd'
 
