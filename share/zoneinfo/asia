@@ -1,4 +1,4 @@
-# @(#)asia	7.71
+# @(#)asia	7.72
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -736,44 +736,19 @@ Zone	Asia/Jerusalem	2:20:56 -	LMT	1880
 			2:20:40	-	JMT	1918	# Jerusalem Mean Time?
 			2:00	Zion	I%sT
 
-# From Ephraim Silverberg (2002-07-07):
+# From Ephraim Silverberg (2003-03-23):
 #
-# The Israeli government today adopted a proposal by Minister of Interior
-# Eli Yishai to shorten the period of Daylight Savings Time for the year
-# 2002 (only -- the dates for 2003 and 2004 are, so far, unaffected).
+# Minister of Interior Poraz has announced that he will respect the law
+# passed in July 2000 (proposed at the time jointly by himself and
+# then-MK David Azulai [Shas]) fixing the dates for 2000-2004.  Hence,
+# the dates for 2003 and 2004 remain unchanged....
 #
-# The proposed date to Daylight Savings Time is September 13, 2002 instead
-# of the current date: October 7, 2002.  The hour of changeover has not
-# yet been decided.
-#
-# (2002-07-10):
-# While today the Knesset passed the initial proposal to reduce DST by
-# some three weeks, a new compromise is being worked out between
-# Minister of Justice Meir Sheetrit and Minister of Interior Eli
-# Yishai to revert to standard time for a period of 48-96 _hours_
-# (sic) around the Yom Kippur fast day (September 15-16) and then go
-# *back* to DST until the end of October.  The details of the proposal
-# have yet to be worked out, but the second and final readings of the
-# bill have until July 24 to pass.
-#
-# (2002-07-25):
-# Thanks go to Yitschak Goldberg from E&M for bringing this (Hebrew) article
-# to my attention:
-#
-#	http://www.ynet.co.il/articles/0,7340,L-2019315,00.html
-#
-# Hence, the proposal to shorten DST was withdrawn yesterday and the timezone
-# files that have been in effect since July 2000 are still valid for all of
-# 2002.
-#
-# Please note that the article mentions that the Shas MK's intend to
-# bring up their amendment for future years (2003 and beyond).  What this
-# means exactly is anyone's guess since there are no set dates yet beyond
-# 2004 and the end day set for 2003 and 2004 is already the 7th of Tishrei
-# (i.e. before the fast of Yom Kippur).  The only thing they may want to
-# change is the start date of DST in 2003 from Mar.28.03 (24th of Adar II)
-# to Apr.18.03 (16th of Nisan) so that the Passover Seder will take place
-# during Standard Time.  The start date for 2004 is already Nisan 16th.
+# As far as 2005 and beyond, no dates have been set.  However, the
+# minister has mentioned that he wishes to propose to move Israel's
+# timezone in 2005 from GMT+2 to GMT+3 and upon that have DST during
+# the summer months (i.e. GMT+4).  However, no legislation in this
+# direction is expected until the latter part of 2004 which is a long
+# time off in terms of Israeli politics.
 
 
 
@@ -926,7 +901,7 @@ Zone	Asia/Aqtau	3:21:04	-	LMT	1924 May  2
 			6:00	-	SHET	1982 Apr  1
 			5:00 RussiaAsia	SHE%sT	1991
 			5:00	-	SHET	1991 Dec 16 # independence
-			5:00 RussiaAsia	AQT%sT	1995 Sep lastSun # Aqtau Time
+			5:00 RussiaAsia	AQT%sT	1995 Mar lastSun 2:00 # Aqtau Time
 			4:00 RussiaAsia	AQT%sT
 # West Kazakhstan
 Zone	Asia/Oral	3:25:24	-	LMT	1924 May  2 # or Ural'sk
