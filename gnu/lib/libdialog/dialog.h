@@ -57,6 +57,7 @@ typedef struct _dmenu_item {
   void (*selected)(struct _dmenu_item *self, int is_selected);
   void *data;
   char lbra, mark, rbra;
+  int aux;
 } dialogMenuItem;
 
 #define VERSION "0.4"
