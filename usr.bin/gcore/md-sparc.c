@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)md-sparc.c	8.1 (Berkeley) 6/6/93";
 #include <sys/sysctl.h>
 #include <machine/vmparam.h>
 
+#include <err.h>
 #include <kvm.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -101,10 +102,10 @@ md_core(kd, fd, ki)
 		      /* XXX */
 		      (void *)&tf, sizeof(tf));
 	if (cc < 0)
-		err(1, "kvm_read: %s (reading kernel trapframe)",
+		errx(1, "kvm_read: %s (reading kernel trapframe)",
 		      kvm_geterr(kd));
 	if (cc != sizeof(tf))
-		err(1, "cannot read kernel trapframe");
+		errx(1, "cannot read kernel trapframe");
 
 	/*
 	 * Write out the real trap frame.
@@ -112,7 +113,7 @@ md_core(kd, fd, ki)
 	off = offsetof(struct user, u_md);
 	off += offsetof(struct md_coredump, md_tf);
 	if (lseek(fd, off, SEEK_SET) == -1)
-		err(1, "lseek: %s", strerror(errno));
+		err(1, "lseek");
 	(void)write(fd, &tf, sizeof(tf));
 
 	if (ki->kp_proc.p_md.md_fpstate != 0) {
@@ -124,21 +125,21 @@ md_core(kd, fd, ki)
 		cc = kvm_read(kd, (u_long)ki->kp_proc.p_md.md_fpstate,
 			      (void *)&fs, sizeof(fs));
 		if (cc < 0)
-			err(1, "kvm_read: %s (fpu state)", kvm_geterr(kd));
+			errx(1, "kvm_read: %s (fpu state)", kvm_geterr(kd));
 		if (cc != sizeof(fs))
-			err(1, "cannot read fpu state");
+			errx(1, "cannot read fpu state");
 		(void)write(fd, (char *)&fs, sizeof(fs));
 	}
 	/*
 	 * Read pcb.
 	 */
 	if (lseek(fd, (off_t)offsetof(struct user, u_pcb), SEEK_SET) == -1)
-		err(1, "lseek: %s", strerror(errno));
+		err(1, "lseek");
 	cc = read(fd, (char *)&pcb, sizeof(pcb));
 	if (cc != sizeof(pcb)) {
 		if (cc < 0)
-			err(1, "read: %s", strerror(errno));
-		err(1, "couldn't read pcb from core file");
+			err(1, "read");
+		errx(1, "couldn't read pcb from core file");
 	}
 
 	/*
@@ -159,7 +160,7 @@ md_core(kd, fd, ki)
 		s = ssize - (USRSTACK - sp);
 		if (s < 0) {
 			if (s < -NBPG)
-				err(1, "cannot copy pcb windows to stack");
+				errx(1, "cannot copy pcb windows to stack");
 			/*
 			 * It's possible to be missing the bottomost
 			 * page because a stack page hasn't been allocated
@@ -178,7 +179,7 @@ md_core(kd, fd, ki)
 			    &ki->kp_eproc.e_vm, sizeof(ki->kp_eproc.e_vm));
 		}
 		if (lseek(fd, off + s, SEEK_SET) == -1)
-			err(1, "cannot copy pcb windows to stack");
+			errx(1, "cannot copy pcb windows to stack");
 
 		(void)write(fd, rw, sizeof(*rw));
 		sp = rw->rw_in[6];
