@@ -329,11 +329,10 @@ exit1(p, rv)
 
 	/*
 	 * Notify parent that we're gone.  If parent has the PS_NOCLDWAIT
-	 * flag set, or if the handler is set to SIG_IGN, notify process 
-	 * 1 instead (and hope it will handle this situation).
+	 * flag set, notify process 1 instead (and hope it will handle
+	 * this situation).
 	 */
-	if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDWAIT)
-	    || p->p_pptr->p_sigacts->ps_sigact[_SIG_IDX(SIGCHLD)] == SIG_IGN) {
+	if (p->p_pptr->p_procsig->ps_flag & PS_NOCLDWAIT) {
 		struct proc *pp = p->p_pptr;
 		proc_reparent(p, initproc);
 		/*
