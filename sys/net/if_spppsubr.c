@@ -17,7 +17,7 @@
  *
  * From: Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.23 1997/08/06 01:43:09 itojun Exp $
+ * $Id: if_spppsubr.c,v 1.24 1997/08/10 14:28:16 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -539,7 +539,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	}
 	h = mtod (m, struct ppp_header*);
 	if (sp->pp_flags & PP_CISCO) {
-		h->address = CISCO_MULTICAST;        /* broadcast address */
+		h->address = CISCO_UNICAST;        /* unicast address */
 		h->control = 0;
 	} else {
 		h->address = PPP_ALLSTATIONS;        /* broadcast address */
