@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.27 1999/03/30 17:07:20 wpaul Exp $
+ *	$Id: if_tl.c,v 1.38 1999/03/31 04:00:05 wpaul Exp $
  */
 
 /*
@@ -221,7 +221,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_tl.c,v 1.27 1999/03/30 17:07:20 wpaul Exp $";
+	"$Id: if_tl.c,v 1.38 1999/03/31 04:00:05 wpaul Exp $";
 #endif
 
 /*
@@ -1763,6 +1763,7 @@ tl_attach(config_id, unit)
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
+		ifmedia_set(&sc->ifmedia, IFM_ETHER|IFM_10_T);
 		/* Reset again, this time setting bitrate mode. */
 		tl_softreset(sc, 1);
 		ifm = &sc->ifmedia;
