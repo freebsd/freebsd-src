@@ -28,8 +28,10 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"	$Id$
+.\"
 .\"/
-.Dd August 17, 1995
+.Dd November 24, 1997
 .Dt MSGRCV 3
 .Os FreeBSD
 .Sh NAME
@@ -172,7 +174,7 @@ and the
 .Dv MSG_NOERROR
 flag was not set in
 .Fa msgflg .
-.It Bq Er EACCESS
+.It Bq Er EACCES
 The calling process does not have read access to the message queue.
 .It Bq Er EFAULT
 .Fa msgp

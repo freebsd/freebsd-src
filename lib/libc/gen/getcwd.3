@@ -30,8 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getcwd.3	8.2 (Berkeley) 12/11/93
+.\"	$Id$
 .\"
-.Dd December 11, 1993
+.Dd November 24, 1997
 .Dt GETCWD 3
 .Os BSD 4.2
 .Sh NAME
@@ -108,8 +109,8 @@ The
 .Fn getcwd
 function
 will fail if:
-.Bl -tag -width [EACCESS]
-.It Bq Er EACCESS
+.Bl -tag -width [EACCES]
+.It Bq Er EACCES
 Read or search permission was denied for a component of the pathname.
 .It Bq Er EINVAL
 The
