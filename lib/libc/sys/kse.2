@@ -198,6 +198,13 @@ it is added to the KSE group's list of
 threads.
 This list is presented to the user code at the next upcall as a linked list
 of thread mailboxes.
+.Pp
+There is a kernel-imposed limit on the number of threads in a KSE group
+that may be simultaneously blocked in the kernel (this number is not
+currently visible to the user).
+When this limit is reached, upcalls are blocked and no work is performed
+for the KSE group until one of the threads completes (or a signal is
+received).
 .\"
 .Ss Managing KSEs
 .\"
