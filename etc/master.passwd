@@ -1,7 +1,7 @@
 root::0:0::0:0:Charlie &:/root:/bin/csh
 toor:*:0:0::0:0:Bourne-again Superuser:/root:
 daemon:*:1:1::0:0:Owner of many system processes:/root:/sbin/nologin
-operator:*:2:20::0:0:System &:/usr/guest/operator:/bin/csh
+operator:*:2:5::0:0:System &:/usr/guest/operator:/bin/csh
 bin:*:3:7::0:0:Binaries Commands and Source,,,:/:/sbin/nologin
 games:*:7:13::0:0:Games pseudo-user:/usr/games:/sbin/nologin
 news:*:8:8::0:0:News Subsystem:/:/sbin/nologin
