@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.31 1994/09/17 18:08:36 joerg Exp $
+ *	$Id: fd.c,v 1.32 1994/09/25 06:04:21 phk Exp $
  *
  */
 
@@ -718,8 +718,8 @@ fdstrategy(struct buf *bp)
 #endif
 	if (!(bp->b_flags & B_FORMAT)) {
 		if ((fdu >= NFD) || (bp->b_blkno < 0)) {
-			printf("fdstrat: fdu = %d, blkno = %d, bcount = %d\n",
-			       fdu, bp->b_blkno, bp->b_bcount);
+			printf("fdstrat: fdu = %d, blkno = %lu, bcount = %ld\n",
+			       fdu, (u_long)bp->b_blkno, bp->b_bcount);
 			bp->b_error = EINVAL;
 			bp->b_flags |= B_ERROR;
 			goto bad;
@@ -1255,7 +1255,7 @@ retrier(fdcu)
 			printf(" (ST0 %b ", fdc->status[0], NE7_ST0BITS);
 			printf(" ST1 %b ", fdc->status[1], NE7_ST1BITS);
 			printf(" ST2 %b ", fdc->status[2], NE7_ST2BITS);
-			printf("cyl %d hd %d sec %d)\n",
+			printf("cyl %ld hd %ld sec %ld)\n",
 			       fdc->status[3], fdc->status[4], fdc->status[5]);
 		}
 		bp->b_flags |= B_ERROR;
