@@ -117,7 +117,7 @@ static struct opt {
  */
 static const char *
 remountable_fs_names[] = {
-	"ufs", "ffs", "lfs", "ext2fs",
+	"ufs", "ffs", "ext2fs",
 	0
 };
 
