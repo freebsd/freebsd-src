@@ -457,6 +457,20 @@ skipif:
 	    if (!strncmp(names[i], "md", 2))
 		continue;
 
+	    /*
+	     * XXX 
+	     *  Due to unknown reasons, Disk_Names() returns SCSI CDROM as a
+	     * valid disk. This is main reason why sysinstall presents SCSI
+	     * CDROM to available disks in Fdisk/Label menu. In addition,
+	     * adding a blank SCSI CDROM to the menu generates floating point
+	     * exception in sparc64. Disk_Names() just extracts sysctl
+	     * "kern.disks". Why GEOM treats SCSI CDROM as a disk is beyond
+	     * me and that should be investigated.
+	     * For temporary workaround, ignore SCSI CDROM device.
+	     */
+	    if (!strncmp(names[i], "cd", 2))
+		continue;
+
 	    d = Open_Disk(names[i]);
 	    if (!d) {
 		msgDebug("Unable to open disk %s\n", names[i]);
