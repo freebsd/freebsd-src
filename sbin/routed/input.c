@@ -484,7 +484,8 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 		if (from->sin_port != ntohs(RIP_PORT)) {
 			msglim(&bad_router, FROM_NADDR,
 			       "    discard RIP response from unknown port"
-			       " %d", from->sin_port);
+			       " %d on host %s", ntohs(from->sin_port),
+				naddr_ntoa(FROM_NADDR));
 			return;
 		}
 
