@@ -160,6 +160,9 @@ static driver_t ixgb_driver = {
 static devclass_t ixgb_devclass;
 DRIVER_MODULE(if_ixgb, pci, ixgb_driver, ixgb_devclass, 0, 0);
 
+MODULE_DEPEND(if_ixgb, pci, 1, 1, 1);
+MODULE_DEPEND(if_ixgb, ether, 1, 1, 1);
+
 /* some defines for controlling descriptor fetches in h/w */
 #define RXDCTL_PTHRESH_DEFAULT 128	/* chip considers prefech below this */
 #define RXDCTL_HTHRESH_DEFAULT 16	/* chip will only prefetch if tail is
@@ -259,19 +262,8 @@ ixgb_attach(device_t dev)
 	ixgb_adapter_list = adapter;
 
 	/* SYSCTL APIs */
-	sysctl_ctx_init(&adapter->sysctl_ctx);
-	adapter->sysctl_tree = SYSCTL_ADD_NODE(&adapter->sysctl_ctx,
-					       SYSCTL_STATIC_CHILDREN(_hw),
-					       OID_AUTO,
-					       device_get_nameunit(dev),
-					       CTLFLAG_RD,
-					       0, "");
-	if (adapter->sysctl_tree == NULL) {
-		error = EIO;
-		goto err_sysctl;
-	}
-	SYSCTL_ADD_PROC(&adapter->sysctl_ctx,
-			SYSCTL_CHILDREN(adapter->sysctl_tree),
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 			OID_AUTO, "stats", CTLTYPE_INT | CTLFLAG_RW,
 			(void *)adapter, 0,
 			ixgb_sysctl_stats, "I", "Statistics");
@@ -355,7 +347,6 @@ err_tx_desc:
 err_pci:
 	ixgb_free_pci_resources(adapter);
 	sysctl_ctx_free(&adapter->sysctl_ctx);
-err_sysctl:
 	splx(s);
 	return (error);
 
@@ -413,9 +404,6 @@ ixgb_detach(device_t dev)
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	ifp->if_timer = 0;
-
-	adapter->sysctl_tree = NULL;
-	sysctl_ctx_free(&adapter->sysctl_ctx);
 
 	splx(s);
 	return (0);
@@ -1315,7 +1303,6 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_name = "ixgb";
 #endif
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_output = ether_output;
 	ifp->if_baudrate = 1000000000;
 	ifp->if_init = ixgb_init;
 	ifp->if_softc = adapter;
@@ -1396,18 +1383,12 @@ ixgb_dma_malloc(struct adapter * adapter, bus_size_t size,
 		       "error %u\n", adapter->unit, r);
 		goto fail_0;
 	}
-	r = bus_dmamap_create(dma->dma_tag, BUS_DMA_NOWAIT, &dma->dma_map);
-	if (r != 0) {
-		printf("ixgb%d: ixgb_dma_malloc: bus_dmamap_create failed; "
-		       "error %u\n", adapter->unit, r);
-		goto fail_1;
-	}
 	r = bus_dmamem_alloc(dma->dma_tag, (void **)&dma->dma_vaddr,
 			     BUS_DMA_NOWAIT, &dma->dma_map);
 	if (r != 0) {
 		printf("ixgb%d: ixgb_dma_malloc: bus_dmamem_alloc failed; "
 		       "error %u\n", adapter->unit, r);
-		goto fail_2;
+		goto fail_1;
 	}
 	r = bus_dmamap_load(dma->dma_tag, dma->dma_map, dma->dma_vaddr,
 			    size,
@@ -1417,16 +1398,13 @@ ixgb_dma_malloc(struct adapter * adapter, bus_size_t size,
 	if (r != 0) {
 		printf("ixgb%d: ixgb_dma_malloc: bus_dmamap_load failed; "
 		       "error %u\n", adapter->unit, r);
-		goto fail_3;
+		goto fail_2;
 	}
 	dma->dma_size = size;
 	return (0);
-fail_3:
-	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 fail_2:
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 fail_1:
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 fail_0:
 	dma->dma_map = NULL;
@@ -1441,7 +1419,6 @@ ixgb_dma_free(struct adapter * adapter, struct ixgb_dma_alloc * dma)
 {
 	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 }
 
@@ -1523,7 +1500,7 @@ static void
 ixgb_initialize_transmit_unit(struct adapter * adapter)
 {
 	u_int32_t       reg_tctl;
-	u_int64_t       tdba = vtophys((vm_offset_t) adapter->tx_desc_base);
+	u_int64_t       tdba = adapter->txdma.dma_paddr;
 
 	/* Setup the Base and Length of the Tx Descriptor Ring */
 	IXGB_WRITE_REG(&adapter->hw, TDBAL,
@@ -1901,7 +1878,7 @@ ixgb_initialize_receive_unit(struct adapter * adapter)
 	u_int32_t       reg_rxcsum;
 	u_int32_t       reg_rxdctl;
 	struct ifnet   *ifp;
-	u_int64_t       rdba = vtophys((vm_offset_t) adapter->rx_desc_base);
+	u_int64_t       rdba = adapter->rxdma.dma_paddr;
 
 	ifp = &adapter->interface_data.ac_if;
 
