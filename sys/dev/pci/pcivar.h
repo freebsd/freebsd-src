@@ -279,7 +279,7 @@ PCIB_ACCESSOR(hose,		HOSE,		u_int32_t)
 
 #ifdef PCI_COMPAT
 
-#ifdef _KERNEL
+#if defined(_KERNEL) && !defined(KLD_MODULE)
 #include "opt_compat_oldpci.h"
 #endif
 
