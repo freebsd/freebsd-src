@@ -101,6 +101,12 @@
 #endif /* SMP */
 
 /*
+ * Compiled KERNBASE location
+ */
+	.globl	kernbase
+	.set	kernbase,KERNBASE
+
+/*
  * Globals
  */
 	.data
