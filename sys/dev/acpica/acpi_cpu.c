@@ -66,6 +66,7 @@ struct acpi_cx {
     uint32_t		 type;		/* C1-3 (C4 and up treated as C3). */
     uint32_t		 trans_lat;	/* Transition latency (usec). */
     uint32_t		 power;		/* Power consumed (mW). */
+    int			 res_type;	/* Resource type for p_lvlx. */
 };
 #define MAX_CX_STATES	 8
 
@@ -77,6 +78,7 @@ struct acpi_cpu_softc {
     uint32_t		 cpu_p_blk;	/* ACPI P_BLK location */
     uint32_t		 cpu_p_blk_len;	/* P_BLK length (must be 6). */
     struct resource	*cpu_p_cnt;	/* Throttling control register */
+    int			 cpu_p_type;	/* Resource type for cpu_p_cnt. */
     struct acpi_cx	 cpu_cx_states[MAX_CX_STATES];
     int			 cpu_cx_count;	/* Number of valid Cx states. */
     int			 cpu_prev_sleep;/* Last idle sleep duration. */
@@ -502,7 +504,8 @@ acpi_cpu_throttle_probe(struct acpi_cpu_softc *sc)
 	    return (ENXIO);
 	}
 	memcpy(&gas, obj.Buffer.Pointer + 3, sizeof(gas));
-	sc->cpu_p_cnt = acpi_bus_alloc_gas(sc->cpu_dev, &cpu_rid, &gas);
+	acpi_bus_alloc_gas(sc->cpu_dev, &sc->cpu_p_type, &cpu_rid, &gas,
+	    &sc->cpu_p_cnt);
 	if (sc->cpu_p_cnt != NULL) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_INFO, "acpi_cpu%d: P_CNT from _PTC\n",
 			     device_get_unit(sc->cpu_dev)));
@@ -521,7 +524,8 @@ acpi_cpu_throttle_probe(struct acpi_cpu_softc *sc)
 	gas.Address = sc->cpu_p_blk;
 	gas.AddressSpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
 	gas.RegisterBitWidth = 32;
-	sc->cpu_p_cnt = acpi_bus_alloc_gas(sc->cpu_dev, &cpu_rid, &gas);
+	acpi_bus_alloc_gas(sc->cpu_dev, &sc->cpu_p_type, &cpu_rid, &gas,
+	    &sc->cpu_p_cnt);
 	if (sc->cpu_p_cnt != NULL) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_INFO, "acpi_cpu%d: P_CNT from P_BLK\n",
 			     device_get_unit(sc->cpu_dev)));
@@ -595,7 +599,8 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 	gas.RegisterBitWidth = 8;
 	if (AcpiGbl_FADT->Plvl2Lat <= 100) {
 	    gas.Address = sc->cpu_p_blk + 4;
-	    cx_ptr->p_lvlx = acpi_bus_alloc_gas(sc->cpu_dev, &cpu_rid, &gas);
+	    acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &cpu_rid, &gas,
+		&cx_ptr->p_lvlx);
 	    if (cx_ptr->p_lvlx != NULL) {
 		cpu_rid++;
 		cx_ptr->type = ACPI_STATE_C2;
@@ -611,9 +616,9 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 	/* Validate and allocate resources for C3 (P_LVL3). */
 	if (AcpiGbl_FADT->Plvl3Lat <= 1000 &&
 	    (cpu_quirks & CPU_QUIRK_NO_C3) == 0) {
-
 	    gas.Address = sc->cpu_p_blk + 5;
-	    cx_ptr->p_lvlx = acpi_bus_alloc_gas(sc->cpu_dev, &cpu_rid, &gas);
+	    acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &cpu_rid, &gas,
+		&cx_ptr->p_lvlx);
 	    if (cx_ptr->p_lvlx != NULL) {
 		cpu_rid++;
 		cx_ptr->type = ACPI_STATE_C3;
@@ -728,8 +733,9 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 #endif
 
 	/* Allocate the control register for C2 or C3. */
-	acpi_PkgGas(sc->cpu_dev, pkg, 0, &cpu_rid, &cx_ptr->p_lvlx);
-	if (cx_ptr->p_lvlx != NULL) {
+	acpi_PkgGas(sc->cpu_dev, pkg, 0, &cx_ptr->res_type, &cpu_rid,
+	    &cx_ptr->p_lvlx);
+	if (cx_ptr->p_lvlx) {
 	    cpu_rid++;
 	    ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			     "acpi_cpu%d: Got C%d - %d latency\n",
