@@ -27,13 +27,10 @@ suggestions here.
 This guide was originally written for SLIP Server services on a
 FreeBSD 1.x system.  It has been modified to reflect changes in the
 pathnames and the removal of the SLIP interface compression flags in
-early versions of FreeBSD 2, which appear to be the only major
+early versions of FreeBSD 2.X, which appear to be the only major
 changes between FreeBSD versions.  If you do encounter mistakes in
 this document, please email the author with enough information to
 help correct the problem.
-
-For FreeBSD 1.x users, all of the files referenced in the directory
-<tt>/etc/sliphome</tt> are actually in the <tt>/etc</tt> directory.
 
 <sect1><heading>Prerequisites<label id="slips:prereqs"></>
 
@@ -151,24 +148,14 @@ Internet RFC requirements for Internet hosts (see RFC's 1009
 &lsqb;Requirements for Internet Hosts -- Communication Layers&rsqb;,
 and perhaps 1127 &lsqb;A Perspective on the Host Requirements
 RFCs&rsqb;), so if you want your FreeBSD SLIP Server to act as a
-router, you'll have to add the line <tt>options GATEWAY </tt> to your
-machine's kernel configuration file and re-compile the kernel anyway.
-(Trivia: ``Gateways'' are the Internet's old name for what are now
-usually called ``routers''.)
-
-Please see the BSD System Manager's Manual chapter on ``Building
-Berkeley Kernels with Config'' &lsqb;the source for which is in
-<tt>/usr/src/share/doc/smm</tt>&rsqb; and ``FreeBSD Configuration
-Options'' &lsqb;in <tt>/sys/doc/options.doc</tt>&rsqb; for more
-information on configuring and building kernels.  You may have to
-unpack the kernel source distribution if haven't installed the system
-sources already (<tt>srcdist/srcsys.??</tt> in FreeBSD 1.1,
-<tt>srcdist/sys.??</tt> in FreeBSD 1.1.5.1, or the entire source
-distribution in FreeBSD 2.0) to be able to configure and build
-kernels.
+router, you'll have to add the line
+<verb>
+sysctl -w net.inet.ip.forwarding = 0
+</verb>
+to your rc.local file.
 
 You'll notice that near the end of the default kernel configuration
-file (<tt>/sys/i386/conf/GENERICAH</tt>) is a line that reads:
+file (<tt>/sys/i386/conf/GENERIC</tt>) is a line that reads:
 
 <tscreen><verb>
 pseudo-device sl 2
@@ -178,9 +165,8 @@ which is the line that defines the number of SLIP devices available in
 the kernel; the number at the end of the line is the maximum number of
 SLIP connections that may be operating simultaneously.
 
-See the document ``Building Berkeley Kernels with Config'' and the
-manual page for <tt>config(8)</tt> to see how to configure and build
-kernels.
+Please refer to <ref id="kernelconfig" name="Configuring the FreeBSD Kernel">
+for help in reconfiguring your kernel.
 
 <sect1><heading>Sliplogin Configuration</heading>
 
