@@ -43,40 +43,11 @@ static char sccsid[] = "@(#)setlocale.c	8.1 (Berkeley) 7/4/93";
 #include <rune.h>
 #include <stdlib.h>
 #include <string.h>
+#include "common_setlocale.h"
+#include "common_rune.h"
 
-/*
- * Category names for getenv()
- */
-static char *categories[_LC_LAST] = {
-    "LC_ALL",
-    "LC_COLLATE",
-    "LC_CTYPE",
-    "LC_MONETARY",
-    "LC_NUMERIC",
-    "LC_TIME",
-};
+char *_PathLocale;
 
-/*
- * Current locales for each category
- */
-static char current_categories[_LC_LAST][32] = {
-    "C",
-    "C",
-    "C",
-    "C",
-    "C",
-    "C",
-};
-
-/*
- * The locales we are going to try and load
- */
-static char new_categories[_LC_LAST][32];
-
-static char current_locale_string[_LC_LAST * 33];
-static char *PathLocale;
-
-static char	*currentlocale __P((void));
 static char	*loadlocale __P((int));
 
 char *
@@ -169,30 +140,12 @@ setlocale(category, locale)
 }
 
 static char *
-currentlocale()
-{
-	int i;
-
-	(void)strcpy(current_locale_string, current_categories[1]);
-
-	for (i = 2; i < _LC_LAST; ++i)
-		if (strcmp(current_categories[1], current_categories[i])) {
-			(void)snprintf(current_locale_string,
-			    sizeof(current_locale_string), "%s/%s/%s/%s/%s",
-			    current_categories[1], current_categories[2],
-			    current_categories[3], current_categories[4],
-			    current_categories[5]);
-			break;
-		}
-	return (current_locale_string);
-}
-
-static char *
 loadlocale(category)
 	int category;
 {
+#if 0
 	char name[PATH_MAX];
-
+#endif
 	if (strcmp(new_categories[category],
 	    current_categories[category]) == 0)
 		return (current_categories[category]);
@@ -217,13 +170,13 @@ loadlocale(category)
 		    new_categories[category]);
 		return (current_categories[category]);
 	}
-
+#if 0
 	/*
 	 * Some day we will actually look at this file.
 	 */
 	(void)snprintf(name, sizeof(name), "%s/%s/%s",
 	    PathLocale, new_categories[category], categories[category]);
-
+#endif
 	switch (category) {
 		case LC_COLLATE:
 		case LC_MONETARY:
