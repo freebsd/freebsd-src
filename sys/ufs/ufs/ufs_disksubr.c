@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.33 1997/11/07 08:53:36 phk Exp $
+ * $Id: ufs_disksubr.c,v 1.34 1998/02/20 13:37:40 bde Exp $
  */
 
 #include <sys/param.h>
@@ -344,7 +344,7 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 	register int (*pr) __P((const char *, ...));
 	char partname[2];
 	char *sname;
-	int sn;
+	daddr_t sn;
 
 	if (pri != LOG_PRINTF) {
 		log(pri, "");
@@ -356,14 +356,14 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 	      bp->b_flags & B_READ ? "read" : "writ");
 	sn = bp->b_blkno;
 	if (bp->b_bcount <= DEV_BSIZE)
-		(*pr)("%d", sn);
+		(*pr)("%ld", (long)sn);
 	else {
 		if (blkdone >= 0) {
 			sn += blkdone;
-			(*pr)("%d of ", sn);
+			(*pr)("%ld of ", (long)sn);
 		}
-		(*pr)("%d-%d", bp->b_blkno,
-		    bp->b_blkno + (bp->b_bcount - 1) / DEV_BSIZE);
+		(*pr)("%ld-%ld", (long)bp->b_blkno,
+		    (long)(bp->b_blkno + (bp->b_bcount - 1) / DEV_BSIZE));
 	}
 	if (lp && (blkdone >= 0 || bp->b_bcount <= lp->d_secsize)) {
 #ifdef tahoe
@@ -377,8 +377,10 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 		 * independent of slices, labels and bad sector remapping,
 		 * but some drivers don't set bp->b_pblkno.
 		 */
-		(*pr)(" (%s bn %d; cn %d", sname, sn, sn / lp->d_secpercyl);
-		sn %= lp->d_secpercyl;
-		(*pr)(" tn %d sn %d)", sn / lp->d_nsectors, sn % lp->d_nsectors);
+		(*pr)(" (%s bn %ld; cn %ld", sname, (long)sn,
+		    (long)(sn / lp->d_secpercyl));
+		sn %= (long)lp->d_secpercyl;
+		(*pr)(" tn %ld sn %ld)", (long)(sn / lp->d_nsectors),
+		    (long)(sn % lp->d_nsectors));
 	}
 }
