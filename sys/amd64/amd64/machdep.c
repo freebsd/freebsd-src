@@ -751,6 +751,8 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * ie: an int32_t immediately precedes smap.
 	 */
 	smapbase = (struct bios_smap *)preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_SMAP);
+	if (smapbase == 0)
+		smapbase = (struct bios_smap *)preload_search_info(kmdp, MODINFO_METADATA | 0x0009);	/* Old value for MODINFOMD_SMAP */
 	if (smapbase == 0) {
 		panic("No BIOS smap info from loader!");
 		goto deep_shit;
@@ -1154,9 +1156,9 @@ hammer_time(void)
 
 	preload_metadata = (caddr_t)(uintptr_t)(modulep + KERNBASE);
 	preload_bootstrap_relocate(KERNBASE);
-	kmdp = preload_search_by_type("elf64 kernel");
+	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf kernel");
+		kmdp = preload_search_by_type("elf64 kernel");
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
 
