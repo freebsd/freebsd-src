@@ -331,8 +331,14 @@ pcm_unregister(device_t dev)
 	r = 0;
 	for (i = 0; i < d->chancount; i++)
 		if (d->ref[i]) r = EBUSY;
-	if (r) return r;
-	if (mixer_isbusy(d) || status_isopen) return EBUSY;
+	if (r) {
+		device_printf(dev, "unregister: channel busy");
+		return r;
+	}
+	if (mixer_isbusy(d)) {
+		device_printf(dev, "unregister: mixer busy");
+		return EBUSY;
+	}
 
 	pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_CTL, 0));
 	destroy_dev(pdev);
@@ -631,6 +637,8 @@ sndpcm_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		break;
 	case MOD_UNLOAD:
+		if (status_isopen)
+			return EBUSY;
 		if (status_dev)
 			destroy_dev(status_dev);
 		status_dev = 0;
