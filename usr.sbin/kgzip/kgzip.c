@@ -31,6 +31,7 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <err.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,13 +65,12 @@ main(int argc, char *argv[])
     static char *fn[FN_CNT];
     struct kgz_hdr kh;
     const char *output;
+    char *tmpdir;
     int cflag, vflag, c;
 
-    if (getenv("TMPDIR") == NULL)
-	tname = strdup("/tmp/kgzXXXXXXXXXX");
-    else
-	if (asprintf(&tname, "%s/kgzXXXXXXXXXX", getenv("TMPDIR")) == -1)
-	    errx(1, "Out of memory");
+    tmpdir = getenv("TMPDIR");
+    if (asprintf(&tname, "%s/kgzXXXXXXXXXX", tmpdir == NULL ? _PATH_TMP : tmpdir) == -1)
+        errx(1, "Out of memory");
 
     output = NULL;
     cflag = vflag = 0;
