@@ -323,7 +323,7 @@ static struct mtx allpmaps_lock;
  */
 static uma_zone_t pvzone;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
-static int pmap_pagedaemon_waken = 0;
+int pmap_pagedaemon_waken;
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
@@ -1722,36 +1722,6 @@ get_pv_entry(void)
 	}
 	return uma_zalloc(pvzone, M_NOWAIT);
 }
-
-/*
- * This routine is very drastic, but can save the system
- * in a pinch.
- */
-void
-pmap_collect()
-{
-	int i;
-	vm_page_t m;
-	static int warningdone = 0;
-
-	if (pmap_pagedaemon_waken == 0)
-		return;
-
-	if (warningdone < 5) {
-		printf("pmap_collect: collecting pv entries -- suggest increasing PMAP_SHPGPERPROC\n");
-		warningdone++;
-	}
-
-	for(i = 0; i < vm_page_array_size; i++) {
-		m = &vm_page_array[i];
-		if (m->wire_count || m->hold_count || m->busy ||
-		    (m->flags & (PG_BUSY | PG_UNMANAGED)))
-			continue;
-		pmap_remove_all(m);
-	}
-	pmap_pagedaemon_waken = 0;
-}
-	
 
 /*
  * If it is the first entry on the list, it is actually
