@@ -113,6 +113,15 @@ FindPptpIn(struct in_addr, struct in_addr, u_short);
 struct alias_link *
 FindPptpOut(struct in_addr, struct in_addr, u_short);
 
+struct alias_link *
+QueryUdpTcpIn (struct in_addr, struct in_addr, u_short, u_short, u_char);
+
+struct alias_link *
+QueryUdpTcpOut(struct in_addr, struct in_addr, u_short, u_short, u_char);
+
+struct alias_link *
+FindRtspOut(struct in_addr, struct in_addr, u_short, u_short, u_char);
+
 struct in_addr
 FindOriginalAddress(struct in_addr);
 
@@ -120,6 +129,8 @@ struct in_addr
 FindAliasAddress(struct in_addr);
 
 /* External data access/modification */
+int FindNewPortGroup(struct in_addr, struct in_addr,
+                     u_short, u_short, u_short, u_char, u_char);
 void GetFragmentAddr(struct alias_link *, struct in_addr *);
 void SetFragmentAddr(struct alias_link *, struct in_addr);
 void GetFragmentPtr(struct alias_link *, char **);
@@ -164,6 +175,9 @@ void AliasHandleFtpOut(struct ip *, struct alias_link *, int);
 
 /* IRC routines */
 void AliasHandleIrcOut(struct ip *, struct alias_link *, int);
+
+/* RTSP routines */
+void AliasHandleRtspOut(struct ip *, struct alias_link *, int);
 
 /* PPTP routines */
 int  PptpGetCallID(struct ip *, u_short *);
