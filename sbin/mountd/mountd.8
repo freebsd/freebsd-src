@@ -96,7 +96,9 @@ When
 .Nm
 is started,
 it loads the export host addresses and options into the kernel
-using the mount(2) system call.
+using the
+.Xr mount 2
+system call.
 After changing the exports file,
 a hangup signal should be sent to the
 .Nm
