@@ -21,22 +21,22 @@ Revision History
 
 --*/
 
-//
-// EFI Specification Revision
-//
+/*
+ * EFI Specification Revision
+ */
 
 #define EFI_SPECIFICATION_MAJOR_REVISION 1
 #define EFI_SPECIFICATION_MINOR_REVISION 02
 
-//
-// Declare forward referenced data structures
-//
+/*
+ * Declare forward referenced data structures
+ */
 
 INTERFACE_DECL(_EFI_SYSTEM_TABLE);
 
-//
-// EFI Memory
-//
+/*
+ * EFI Memory
+ */
 
 typedef
 EFI_STATUS
@@ -92,8 +92,8 @@ EFI_STATUS
 
 
 #define EFI_OPTIONAL_PTR            0x00000001
-#define EFI_INTERNAL_FNC            0x00000002      // Pointer to internal runtime fnc
-#define EFI_INTERNAL_PTR            0x00000004      // Pointer to internal runtime data
+#define EFI_INTERNAL_FNC            0x00000002      /* Pointer to internal runtime fnc */
+#define EFI_INTERNAL_PTR            0x00000004      /* Pointer to internal runtime data */
 
 
 typedef 
@@ -104,9 +104,9 @@ EFI_STATUS
     );
 
 
-//
-// EFI Events
-//
+/*
+ * EFI Events
+ */
 
 
 
@@ -181,9 +181,9 @@ EFI_STATUS
     IN EFI_EVENT                Event
     );
 
-//
-// Task priority level
-//
+/*
+ * Task priority level
+ */
 
 #define TPL_APPLICATION    4
 #define TPL_CALLBACK       8
@@ -203,19 +203,19 @@ VOID
     );
 
 
-//
-// EFI platform varibles
-//
+/*
+ * EFI platform varibles
+ */
 
 #define EFI_GLOBAL_VARIABLE     \
     { 0x8BE4DF61, 0x93CA, 0x11d2, 0xAA, 0x0D, 0x00, 0xE0, 0x98, 0x03, 0x2B, 0x8C }
 
-// Variable attributes
+/* Variable attributes */
 #define EFI_VARIABLE_NON_VOLATILE           0x00000001
 #define EFI_VARIABLE_BOOTSERVICE_ACCESS     0x00000002
 #define EFI_VARIABLE_RUNTIME_ACCESS         0x00000004
 
-// Variable size limitation
+/* Variable size limitation */
 #define EFI_MAXIMUM_VARIABLE_SIZE           1024
 
 typedef
@@ -248,14 +248,14 @@ EFI_STATUS
     );
 
 
-//
-// EFI Time
-//
+/*
+ * EFI Time
+ */
 
 typedef struct {
-        UINT32                      Resolution;     // 1e-6 parts per million
-        UINT32                      Accuracy;       // hertz
-        BOOLEAN                     SetsToZero;     // Set clears sub-second time
+        UINT32              Resolution;     /* 1e-6 parts per million */
+        UINT32              Accuracy;       /* hertz */
+        BOOLEAN             SetsToZero;     /* Set clears sub-second time */
 } EFI_TIME_CAPABILITIES;
 
 
@@ -288,12 +288,12 @@ EFI_STATUS
     );
 
 
-//
-// Image functions
-//
+/*
+ * Image functions
+ */
 
 
-// PE32+ Subsystem type for EFI images
+/* PE32+ Subsystem type for EFI images */
 
 #if !defined(IMAGE_SUBSYSTEM_EFI_APPLICATION)
 #define IMAGE_SUBSYSTEM_EFI_APPLICATION             10
@@ -301,7 +301,7 @@ EFI_STATUS
 #define IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER          12
 #endif
 
-// PE32+ Machine type for EFI images
+/* PE32+ Machine type for EFI images */
 
 #if !defined(EFI_IMAGE_MACHINE_IA32)
 #define EFI_IMAGE_MACHINE_IA32      0x014c
@@ -311,7 +311,7 @@ EFI_STATUS
 #define EFI_IMAGE_MACHINE_IA64      0x0200
 #endif
 
-// Image Entry prototype
+/* Image Entry prototype */
 
 typedef 
 EFI_STATUS
@@ -355,7 +355,7 @@ EFI_STATUS
     );
 
 
-// Image handle
+/* Image handle */
 #define LOADED_IMAGE_PROTOCOL      \
     { 0x5B1B31A1, 0x9562, 0x11d2, 0x8E, 0x3F, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }
 
@@ -365,22 +365,22 @@ typedef struct {
     EFI_HANDLE                      ParentHandle;
     struct _EFI_SYSTEM_TABLE        *SystemTable;
 
-    // Source location of image
+	/* Source location of image */
     EFI_HANDLE                      DeviceHandle;
     EFI_DEVICE_PATH                 *FilePath;
     VOID                            *Reserved;
 
-    // Images load options
+	/* Images load options */
     UINT32                          LoadOptionsSize;
     VOID                            *LoadOptions;
 
-    // Location of where image was loaded
+	/* Location of where image was loaded */
     VOID                            *ImageBase;
     UINT64                          ImageSize;
     EFI_MEMORY_TYPE                 ImageCodeType;
     EFI_MEMORY_TYPE                 ImageDataType;
 
-    // If the driver image supports a dynamic unload request
+	/* If the driver image supports a dynamic unload request */
     EFI_IMAGE_UNLOAD                Unload;
 
 } EFI_LOADED_IMAGE;
@@ -393,9 +393,9 @@ EFI_STATUS
     IN UINTN                        MapKey
     );
 
-//
-// Misc
-//
+/*
+ * Misc
+ */
 
 
 typedef
@@ -440,9 +440,9 @@ EFI_STATUS
     OUT UINT32                  *HighCount
     );
 
-//
-// Protocol handler functions
-//
+/*
+ * Protocol handler functions
+ */
 
 typedef enum {
     EFI_NATIVE_INTERFACE,
@@ -528,9 +528,9 @@ EFI_STATUS
     VOID
     );
 
-//
-// Standard EFI table header
-//
+/*
+ * Standard EFI table header
+ */
 
 typedef struct _EFI_TABLE_HEARDER {
     UINT64                      Signature;
@@ -541,9 +541,9 @@ typedef struct _EFI_TABLE_HEARDER {
 } EFI_TABLE_HEADER;
 
 
-//
-// EFI Runtime Serivces Table
-//
+/*
+ * EFI Runtime Serivces Table
+ */
 
 #define EFI_RUNTIME_SERVICES_SIGNATURE  0x56524553544e5552
 #define EFI_RUNTIME_SERVICES_REVISION   (EFI_SPECIFICATION_MAJOR_REVISION<<16) | (EFI_SPECIFICATION_MINOR_REVISION)
@@ -551,33 +551,25 @@ typedef struct _EFI_TABLE_HEARDER {
 typedef struct  {
     EFI_TABLE_HEADER                Hdr;
 
-    //
-    // Time services
-    //
+	/* Time services */
 
     EFI_GET_TIME                    GetTime;
     EFI_SET_TIME                    SetTime;
     EFI_GET_WAKEUP_TIME             GetWakeupTime;
     EFI_SET_WAKEUP_TIME             SetWakeupTime;
 
-    //
-    // Virtual memory services
-    //
+	/* Virtual memory services */
 
     EFI_SET_VIRTUAL_ADDRESS_MAP     SetVirtualAddressMap;
     EFI_CONVERT_POINTER             ConvertPointer;
 
-    //
-    // Variable serviers
-    //
+	/* Variable serviers */
 
     EFI_GET_VARIABLE                GetVariable;
     EFI_GET_NEXT_VARIABLE_NAME      GetNextVariableName;
     EFI_SET_VARIABLE                SetVariable;
 
-    //
-    // Misc
-    //
+	/* Misc */
 
     EFI_GET_NEXT_HIGH_MONO_COUNT    GetNextHighMonotonicCount;
     EFI_RESET_SYSTEM                ResetSystem;
@@ -585,9 +577,9 @@ typedef struct  {
 } EFI_RUNTIME_SERVICES;
 
 
-//
-// EFI Boot Services Table
-//
+/*
+ * EFI Boot Services Table
+ */
 
 #define EFI_BOOT_SERVICES_SIGNATURE     0x56524553544f4f42
 #define EFI_BOOT_SERVICES_REVISION      (EFI_SPECIFICATION_MAJOR_REVISION<<16) | (EFI_SPECIFICATION_MINOR_REVISION)
@@ -596,16 +588,12 @@ typedef struct _EFI_BOOT_SERVICES {
 
     EFI_TABLE_HEADER                Hdr;
 
-    //
-    // Task priority functions
-    //
+	/* Task priority functions */
 
     EFI_RAISE_TPL                   RaiseTPL;
     EFI_RESTORE_TPL                 RestoreTPL;
 
-    //
-    // Memory functions
-    //
+	/* Memory functions */
 
     EFI_ALLOCATE_PAGES              AllocatePages;
     EFI_FREE_PAGES                  FreePages;
@@ -613,9 +601,7 @@ typedef struct _EFI_BOOT_SERVICES {
     EFI_ALLOCATE_POOL               AllocatePool;
     EFI_FREE_POOL                   FreePool;
 
-    //
-    // Event & timer functions
-    //
+	/* Event & timer functions */
 
     EFI_CREATE_EVENT                CreateEvent;
     EFI_SET_TIMER                   SetTimer;
@@ -624,9 +610,7 @@ typedef struct _EFI_BOOT_SERVICES {
     EFI_CLOSE_EVENT                 CloseEvent;
     EFI_CHECK_EVENT                 CheckEvent;
 
-    //
-    // Protocol handler functions
-    //
+	/* Protocol handler functions */
 
     EFI_INSTALL_PROTOCOL_INTERFACE  InstallProtocolInterface;
     EFI_REINSTALL_PROTOCOL_INTERFACE ReinstallProtocolInterface;
@@ -638,9 +622,7 @@ typedef struct _EFI_BOOT_SERVICES {
     EFI_LOCATE_DEVICE_PATH          LocateDevicePath;
     EFI_INSTALL_CONFIGURATION_TABLE InstallConfigurationTable;
 
-    //
-    // Image functions
-    //
+	/* Image functions */
 
     EFI_IMAGE_LOAD                  LoadImage;
     EFI_IMAGE_START                 StartImage;
@@ -648,9 +630,7 @@ typedef struct _EFI_BOOT_SERVICES {
     EFI_IMAGE_UNLOAD                UnloadImage;
     EFI_EXIT_BOOT_SERVICES          ExitBootServices;
 
-    //
-    // Misc functions
-    //
+	/* Misc functions */
 
     EFI_GET_NEXT_MONOTONIC_COUNT    GetNextMonotonicCount;
     EFI_STALL                       Stall;
@@ -659,9 +639,9 @@ typedef struct _EFI_BOOT_SERVICES {
 } EFI_BOOT_SERVICES;
 
 
-//
-// EFI Configuration Table and GUID definitions
-//
+/*
+ * EFI Configuration Table and GUID definitions
+ */
 
 #define MPS_TABLE_GUID    \
     { 0xeb9d2d2f, 0x2d88, 0x11d3, { 0x9a, 0x16, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d } }
@@ -685,9 +665,9 @@ typedef struct _EFI_CONFIGURATION_TABLE {
 } EFI_CONFIGURATION_TABLE;
 
 
-//
-// EFI System Table
-//
+/*
+ * EFI System Table
+ */
 
 
 
