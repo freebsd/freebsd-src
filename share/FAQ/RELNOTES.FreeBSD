@@ -269,6 +269,7 @@ extended features are used.]
 Adaptec 152x series ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
+Adaptec 2742/2842 series ISA/EISA SCSI controllers
 
 [Note that Buslogic was formerly known as "Bustec"]
 Buslogic 545S & 545c
@@ -514,4 +515,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.12 1994/11/14 23:52:42 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.13 1994/11/17 12:35:22 jkh Exp $
