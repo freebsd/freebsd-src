@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: m_freebsd2.c,v 1.15 1997/02/21 08:47:59 asami Exp $
+ * $Id: machine.c,v 1.1.1.1 1997/03/23 18:55:20 joerg Exp $
  */
 
 
@@ -122,7 +122,7 @@ static struct nlist nlst[] = {
 #ifdef P_IDLEPROC	/* FreeBSD SMP kernel */
 
 static char header[] =
-  "  PID X        PRI NICE SIZE    RES STATE C   TIME   WCPU    CPU COMMAND";
+  "  PID X        PRI NICE SIZE   RES STATE C   TIME   WCPU    CPU COMMAND";
 /* 0123456   -- field to fill in starts at header+6 */
 #define UNAME_START 6
 
