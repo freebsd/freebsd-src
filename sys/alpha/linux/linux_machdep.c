@@ -247,7 +247,7 @@ linux_mmap(struct proc *p, struct linux_mmap_args *linux_args)
 		 */
 
 		/* This gives us TOS */
-		bsd_args.addr = linux_args->addr + linux_args->len;
+		bsd_args.addr = (caddr_t)(linux_args->addr + linux_args->len);
 
 		/* This gives us our maximum stack size */
 		if (linux_args->len > STACK_SIZE - GUARD_SIZE)
@@ -264,7 +264,7 @@ linux_mmap(struct proc *p, struct linux_mmap_args *linux_args)
 		bsd_args.addr -= bsd_args.len;
 		bsd_args.addr = (caddr_t)round_page(bsd_args.addr); /* XXXX */
 	} else {
-		bsd_args.addr = linux_args->addr;
+		bsd_args.addr = (caddr_t)linux_args->addr;
 		bsd_args.len  = linux_args->len;
 	}
 
@@ -299,7 +299,7 @@ linux_rt_sigsuspend(p, uap)
 	struct linux_rt_sigsuspend_args *uap;
 {
 	int error;
-	linux_sigset_t lmask;
+	l_sigset_t lmask;
 	sigset_t *bmask;
 	struct sigsuspend_args bsd;
 	caddr_t sg;
@@ -311,10 +311,10 @@ linux_rt_sigsuspend(p, uap)
 		printf(ARGS(rt_sigsuspend, "%p, %d"),
 		    (void *)uap->newset, uap->sigsetsize);
 #endif
-	if (uap->sigsetsize != sizeof(linux_sigset_t))
+	if (uap->sigsetsize != sizeof(l_sigset_t))
 		return (EINVAL);
 
-	error = copyin(uap->newset, &lmask, sizeof(linux_sigset_t));
+	error = copyin(uap->newset, &lmask, sizeof(l_sigset_t));
 	if (error)
 		return (error);
 
@@ -372,8 +372,6 @@ static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
 	RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NOFILE, -1,
 	RLIMIT_NPROC, RLIMIT_MEMLOCK
 };
-
-int dosetrlimit __P((struct proc *p, u_int which, struct rlimit *limp));
 
 int
 linux_setrlimit(p, uap)

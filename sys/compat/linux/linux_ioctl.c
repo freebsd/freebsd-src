@@ -1379,7 +1379,7 @@ linux_ioctl_socket(struct proc *p, struct linux_ioctl_args *args)
 		struct ifnet *ifp;
 		struct ifaddr *ifa;
 		struct sockaddr_dl *sdl;
-		struct linux_ifreq *ifr = (struct linux_ifreq *)args->arg;
+		struct l_ifreq *ifr = (struct l_ifreq *)args->arg;
 
 		/* Note that we don't actually respect the name in the ifreq
 		 * structure, as Linux interface names are all different.
@@ -1424,7 +1424,7 @@ linux_ioctl_socket(struct proc *p, struct linux_ioctl_args *args)
 int
 linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp;
 	struct file *fp;
 	struct handler_element *he;
 	int error, cmd;
@@ -1434,9 +1434,9 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 		printf(ARGS(ioctl, "%d, %04lx, *"), args->fd, args->cmd);
 #endif
 
+	fdp = p->p_fd;
 	if ((unsigned)args->fd >= fdp->fd_nfiles)
 		return (EBADF);
-
 	fp = fdp->fd_ofiles[args->fd];
 	if (fp == NULL || (fp->f_flag & (FREAD|FWRITE)) == 0)
 		return (EBADF);
