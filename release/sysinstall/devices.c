@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.41 1996/03/18 15:27:46 jkh Exp $
+ * $Id: devices.c,v 1.42 1996/03/24 09:36:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -368,24 +368,21 @@ deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
 	return NULL;
 
     for (numdevs = 0; devs[numdevs]; numdevs++);
-    tmp = (DMenu *)safe_malloc(sizeof(DMenu) + (sizeof(DMenuItem) * (numdevs + 1)));
+    tmp = (DMenu *)safe_malloc(sizeof(DMenu) + (sizeof(dialogMenuItem) * (numdevs + 1)));
     bcopy(menu, tmp, sizeof(DMenu));
     for (i = 0; devs[i]; i++) {
-	tmp->items[i].title = devs[i]->name;
+	tmp->items[i].prompt = devs[i]->name;
 	for (j = 0; device_names[j].name; j++) {
 	    if (!strncmp(devs[i]->name, device_names[j].name, strlen(device_names[j].name))) {
-		tmp->items[i].prompt = device_names[j].description;
+		tmp->items[i].title = device_names[j].description;
 		break;
 	    }
 	}
 	if (!device_names[j].name)
-	    tmp->items[i].prompt = "<unknown device type>";
-	tmp->items[i].type = DMENU_CALL;
-	tmp->items[i].ptr = hook;
-	tmp->items[i].disabled = FALSE;
-	tmp->items[i].check = NULL;
+	    tmp->items[i].title = "<unknown device type>";
+	tmp->items[i].fire = hook;
+	tmp->items[i].checked = NULL;
     }
-    tmp->items[i].type = DMENU_NOP;
     tmp->items[i].title = NULL;
     return tmp;
 }

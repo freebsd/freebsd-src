@@ -12,11 +12,12 @@
 #define DIST_INFO		0x0080
 #define DIST_COMPAT1X		0x0100
 #define DIST_COMPAT20		0x0200
-#define DIST_XF86		0x0400
-#define DIST_COMMERCIAL		0x0800
-#define DIST_DES		0x1000
-#define DIST_EXPERIMENTAL	0x2000
-#define DIST_ALL		0x0FFF
+#define DIST_COMPAT21		0x0400
+#define DIST_XF86		0x0800
+#define DIST_COMMERCIAL		0x1000
+#define DIST_DES		0x2000
+#define DIST_EXPERIMENTAL	0x4000
+#define DIST_ALL		0x0FFF	/* Don't include commerce, DES or experimental in "all" */
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \

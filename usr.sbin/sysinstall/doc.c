@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.9 1995/11/04 08:47:22 jkh Exp $
+ * $Id: doc.c,v 1.10 1995/11/06 12:49:23 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -19,7 +19,7 @@
  * and fire it up on the first copy of the handbook we can find.
  */
 int
-docBrowser(char *junk)
+docBrowser(dialogMenuItem *self)
 {
     char *browser = variable_get(VAR_BROWSER_PACKAGE);
 
@@ -53,17 +53,20 @@ docBrowser(char *junk)
     }
 
     /* Run browser on the appropriate doc */
-    dmenuOpenSimple(&MenuHTMLDoc);
-    return RET_SUCCESS;
+    if (dmenuOpenSimple(&MenuHTMLDoc))
+	return RET_SUCCESS;
+    else
+	return RET_FAIL;
 }
 
 /* Try to show one of the documents requested from the HTML doc menu */
 int
-docShowDocument(char *str)
+docShowDocument(dialogMenuItem *self)
 {
     char tmp[512], target[512];
     char *where = NULL;
     char *browser = variable_get(VAR_BROWSER_BINARY);
+    char *str = self->prompt;
 
     if (!file_executable(browser)) {
 	dialog_clear();
