@@ -120,7 +120,12 @@ CDROM_SET_1="${CDROM_SET_1} net/samba"
 CDROM_SET_1="${CDROM_SET_1} news/slrn"
 CDROM_SET_1="${CDROM_SET_1} news/tin"
 CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
-CDROM_SET_1="${CDROM_SET_1} print/acroread"
+if [ "X`uname -m`" = "Xalpha" ]; then
+CDROM_SET_1="${CDROM_SET_1} print/acroread4"
+fi
+if [ "X`uname -m`" = "Xi386" ]; then
+CDROM_SET_1="${CDROM_SET_1} print/acroread5"
+fi
 CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
 CDROM_SET_1="${CDROM_SET_1} print/ghostscript-gnu-nox11"
 CDROM_SET_1="${CDROM_SET_1} print/ghostview"
@@ -131,11 +136,12 @@ CDROM_SET_1="${CDROM_SET_1} shells/bash2"
 CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
 CDROM_SET_1="${CDROM_SET_1} shells/zsh"
 CDROM_SET_1="${CDROM_SET_1} sysutils/portupgrade"
-CDROM_SET_1="${CDROM_SET_1} www/linux-netscape47-communicator"
-CDROM_SET_1="${CDROM_SET_1} www/linux-netscape47-navigator"
 CDROM_SET_1="${CDROM_SET_1} www/lynx"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
+CDROM_SET_1="${CDROM_SET_1} www/netscape48-communicator"
+CDROM_SET_1="${CDROM_SET_1} www/netscape48-navigator"
+CDROM_SET_1="${CDROM_SET_1} www/opera"
 CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 
 # VERY common build dependencies
@@ -158,7 +164,6 @@ CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
 CDROM_SET_3="${CDROM_SET_3} editors/xemacs21"
 CDROM_SET_3="${CDROM_SET_3} lang/gnat"
 CDROM_SET_3="${CDROM_SET_3} net/cvsup-without-gui"
-CDROM_SET_3="${CDROM_SET_3} print/acroread4"
 CDROM_SET_3="${CDROM_SET_3} print/teTeX"
 CDROM_SET_3="${CDROM_SET_3} textproc/docproj-jadetex"
 
