@@ -70,7 +70,6 @@ static int	portal_connect(struct socket *so, struct socket *so2);
 static int	portal_getattr(struct vop_getattr_args *ap);
 static int	portal_lookup(struct vop_lookup_args *ap);
 static int	portal_open(struct vop_open_args *ap);
-static int	portal_print(struct vop_print_args *ap);
 static int	portal_readdir(struct vop_readdir_args *ap);
 static int	portal_reclaim(struct vop_reclaim_args *ap);
 static int	portal_setattr(struct vop_setattr_args *ap);
@@ -546,22 +545,6 @@ portal_reclaim(ap)
 	return (0);
 }
 
-
-/*
- * Print out the contents of a Portal vnode.
- */
-/* ARGSUSED */
-static int
-portal_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	printf("tag %s, portal vnode\n", ap->a_vp->v_tag);
-	return (0);
-}
-
 vop_t **portal_vnodeop_p;
 static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
@@ -570,7 +553,7 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_lookup_desc,		(vop_t *) portal_lookup },
 	{ &vop_open_desc,		(vop_t *) portal_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
-	{ &vop_print_desc,		(vop_t *) portal_print },
+	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_readdir_desc,		(vop_t *) portal_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) portal_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) portal_setattr },

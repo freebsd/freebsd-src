@@ -74,7 +74,6 @@ static int iso_shipdir(struct isoreaddir *idp);
 static int cd9660_readdir(struct vop_readdir_args *);
 static int cd9660_readlink(struct vop_readlink_args *ap);
 static int cd9660_strategy(struct vop_strategy_args *);
-static int cd9660_print(struct vop_print_args *);
 
 /*
  * Setattr call. Only allowed for block and character special devices.
@@ -737,20 +736,6 @@ cd9660_strategy(ap)
 }
 
 /*
- * Print out the contents of an inode.
- */
-static int
-cd9660_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	printf("tag %s, isofs vnode\n", ap->a_vp->v_tag);
-	return (0);
-}
-
-/*
  * Return POSIX pathconf information applicable to cd9660 filesystems.
  */
 static int
@@ -806,7 +791,7 @@ static struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_pathconf_desc,		(vop_t *) cd9660_pathconf },
-	{ &vop_print_desc,		(vop_t *) cd9660_print },
+	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_read_desc,		(vop_t *) cd9660_read },
 	{ &vop_readdir_desc,		(vop_t *) cd9660_readdir },
 	{ &vop_readlink_desc,		(vop_t *) cd9660_readlink },
@@ -831,7 +816,7 @@ static struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
-	{ &vop_print_desc,		(vop_t *) cd9660_print },
+	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
@@ -849,7 +834,7 @@ static struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
-	{ &vop_print_desc,		(vop_t *) cd9660_print },
+	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
