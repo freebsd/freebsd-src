@@ -456,9 +456,9 @@ network_pass1() {
 	esac
 
 	case ${tcp_keepalive} in
-	[Yy][Ee][Ss])
-		echo -n ' TCP keepalive=YES'
-		sysctl -w net.inet.tcp.always_keepalive=1 >/dev/null
+	[Nn][Oo])
+		echo -n ' TCP keepalive=NO'
+		sysctl -w net.inet.tcp.always_keepalive=0 >/dev/null
 		;;
 	esac
 
