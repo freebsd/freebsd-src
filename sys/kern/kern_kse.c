@@ -1683,12 +1683,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 * kmem_free(kernel_map, ...)
 		 */
 		cpu_set_upcall_kse(td, ku);
-
-		/*
-		 * Clear TDF_UPCALLING after set upcall context,
-		 * profiling code looks TDF_UPCALLING to avoid account
-		 * a wrong user %EIP
-		 */
 		mtx_lock_spin(&sched_lock);
 		td->td_flags &= ~TDF_UPCALLING;
 		if (ku->ku_flags & KUF_DOUPCALL)
