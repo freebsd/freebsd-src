@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.229 1999/04/07 03:57:45 msmith Exp $
+ *	$Id: pmap.c,v 1.230 1999/04/10 02:58:17 alc Exp $
  */
 
 /*
@@ -206,7 +206,8 @@ static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static unsigned * get_ptbase __P((pmap_t pmap));
 static pv_entry_t get_pv_entry __P((void));
 static void	i386_protection_init __P((void));
-static void	pmap_changebit __P((vm_offset_t pa, int bit, boolean_t setem));
+static __inline void	pmap_changebit __P((vm_offset_t pa, int bit, boolean_t setem));
+static void	pmap_clearbit __P((vm_offset_t pa, int bit));
 
 static PMAP_INLINE int	pmap_is_managed __P((vm_offset_t pa));
 static void	pmap_remove_all __P((vm_offset_t pa));
@@ -1062,7 +1063,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 			 * take effect immediately.
 			 */
 			pteva = UPT_MIN_ADDRESS + i386_ptob(m->pindex);
-			invltlb_1pg(pteva);
+			pmap_TLB_invalidate(pmap, pteva);
 		}
 
 		if (pmap->pm_ptphint == m)
@@ -1744,7 +1745,7 @@ pmap_remove_page(pmap, va)
 	ptq = get_ptbase(pmap) + i386_btop(va);
 	if (*ptq) {
 		(void) pmap_remove_pte(pmap, ptq, va);
-		invltlb_1pg(va);
+		pmap_TLB_invalidate(pmap, va);
 	}
 	return;
 }
@@ -1843,9 +1844,8 @@ pmap_remove(pmap, sva, eva)
 		}
 	}
 
-	if (anyvalid) {
-		invltlb();
-	}
+	if (anyvalid)
+		pmap_TLB_invalidate_all(pmap);
 }
 
 /*
@@ -2011,7 +2011,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		}
 	}
 	if (anychanged)
-		invltlb();
+		pmap_TLB_invalidate_all(pmap);
 }
 
 /*
@@ -2610,7 +2610,12 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 	dst_frame = ((unsigned) dst_pmap->pm_pdir[PTDPTDI]) & PG_FRAME;
 	if (dst_frame != (((unsigned) APTDpde) & PG_FRAME)) {
 		APTDpde = (pd_entry_t) (dst_frame | PG_RW | PG_V);
+#if defined(SMP)
+		/* The page directory is not shared between CPUs */
+		cpu_invltlb();
+#else
 		invltlb();
+#endif
 	}
 
 	for(addr = src_addr; addr < end_addr; addr = pdnxt) {
@@ -2991,7 +2996,7 @@ pmap_remove_pages(pmap, sva, eva)
 		free_pv_entry(pv);
 	}
 	splx(s);
-	invltlb();
+	pmap_TLB_invalidate_all(pmap);
 }
 
 /*
@@ -3051,7 +3056,7 @@ pmap_testbit(pa, bit)
 /*
  * this routine is used to modify bits in ptes
  */
-static void
+static __inline void
 pmap_changebit(pa, bit, setem)
 	vm_offset_t pa;
 	int bit;
@@ -3115,6 +3120,19 @@ pmap_changebit(pa, bit, setem)
 }
 
 /*
+ *	pmap_clearbit:
+ *
+ *	Clear a bit/bits in every pte mapping a given physical page.
+ */
+static void
+pmap_clearbit(
+	vm_offset_t pa,
+	int	bit)
+{
+	pmap_changebit(pa, bit, FALSE);
+}
+
+/*
  *      pmap_page_protect:
  *
  *      Lower the permission for all mappings to a given page.
@@ -3124,7 +3142,7 @@ pmap_page_protect(vm_offset_t phys, vm_prot_t prot)
 {
 	if ((prot & VM_PROT_WRITE) == 0) {
 		if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
-			pmap_changebit(phys, PG_RW, FALSE);
+			pmap_clearbit(phys, PG_RW);
 		} else {
 			pmap_remove_all(phys);
 		}
@@ -3210,7 +3228,7 @@ pmap_is_modified(vm_offset_t pa)
 void
 pmap_clear_modify(vm_offset_t pa)
 {
-	pmap_changebit((pa), PG_M, FALSE);
+	pmap_clearbit(pa, PG_M);
 }
 
 /*
@@ -3221,7 +3239,7 @@ pmap_clear_modify(vm_offset_t pa)
 void
 pmap_clear_reference(vm_offset_t pa)
 {
-	pmap_changebit((pa), PG_A, FALSE);
+	pmap_clearbit(pa, PG_A);
 }
 
 /*
