@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.17 1999/01/15 00:31:45 abial Exp $
+ *	$Id: bootstrap.h,v 1.20 1999/02/04 17:06:45 dcs Exp $
  */
 
 #include <sys/types.h>
@@ -56,10 +56,14 @@ extern char	command_errbuf[];	/* XXX blah, length */
 
 /* interp.c */
 extern void	interact(void);
-extern int	source(char *filename);
+extern int	include(char *filename);
 
 /* interp_parse.c */
 extern int	parse(int *argc, char ***argv, char *str);
+
+/* interp_forth.c */
+extern void	bf_init(void);
+extern int	bf_run(char *line);
 
 /* boot.c */
 extern int	autoboot(int delay, char *prompt);
@@ -70,6 +74,9 @@ extern char	*unargv(int argc, char *argv[]);
 extern void	hexdump(caddr_t region, size_t len);
 extern size_t	strlenout(vm_offset_t str);
 extern char	*strdupout(vm_offset_t str);
+
+/* bcache.c */
+extern int	bcache_init(int nblks, size_t bsize);
 
 /*
  * Disk block cache

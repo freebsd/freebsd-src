@@ -66,11 +66,17 @@ void *ficlMalloc (size_t size)
     return malloc(size);
 }
 
+void *ficlRealloc (void *p, size_t size)
+{
+    return realloc(p, size);
+}
+
 void  ficlFree   (void *p)
 {
     free(p);
 }
 
+#ifndef TESTMAIN
 #ifdef __i386__
 /* 
  * outb ( port# c -- )
@@ -101,6 +107,7 @@ ficlInb(FICL_VM *pVM)
 	c=inb(port);
 	stackPushINT32(pVM->pStack,c);
 }
+#endif
 #endif
 
 /*

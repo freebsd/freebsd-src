@@ -29,6 +29,10 @@
 #include <string.h>
 #include "ficl.h"
 
+#ifdef FICL_TRACE
+int ficl_trace = 0;
+#endif
+
 
 /*
 ** Local prototypes
@@ -170,22 +174,25 @@ int ficlBuild(char *name, FICL_CODE code, char flags)
 **      time to delete the vm, etc -- or you can ignore this
 **      signal.
 **************************************************************************/
-int ficlExec(FICL_VM *pVM, char *pText)
+int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
 {
     int        except;
     FICL_WORD *tempFW;
     jmp_buf    vmState;
-    jmp_buf   *oldState;
     TIB        saveTib;
+    FICL_VM         VM;
+    FICL_STACK      rStack;
 
     assert(pVM);
 
-    vmPushTib(pVM, pText, &saveTib);
+    vmPushTib(pVM, pText, size, &saveTib);
 
     /*
-    ** Save and restore VM's jmp_buf to enable nested calls to ficlExec 
+    ** Save and restore pVM and pVM->rStack to enable nested calls to ficlExec 
     */
-    oldState = pVM->pState;
+    memcpy((void*)&VM, (void*)pVM, sizeof(FICL_VM));
+    memcpy((void*)&rStack, (void*)pVM->rStack, sizeof(FICL_STACK));
+
     pVM->pState = &vmState; /* This has to come before the setjmp! */
     except = setjmp(vmState);
 
@@ -204,7 +211,91 @@ int ficlExec(FICL_VM *pVM, char *pText)
         */
         for (;;)
         {
+#ifdef FICL_TRACE
+	    CELL c;
+            char buffer[40];
+#endif
             tempFW = *pVM->ip++;
+#ifdef FICL_TRACE
+            if (ficl_trace && isAFiclWord(tempFW))
+            {
+	        extern void literalParen(FICL_VM*);
+	        extern void stringLit(FICL_VM*);
+	        extern void ifParen(FICL_VM*);
+	        extern void branchParen(FICL_VM*);
+	        extern void qDoParen(FICL_VM*);
+	        extern void doParen(FICL_VM*);
+	        extern void loopParen(FICL_VM*);
+	        extern void plusLoopParen(FICL_VM*);
+    
+                if      (tempFW->code == literalParen)
+                {
+               	    c = *(pVM->ip);
+               	    if (isAFiclWord(c.p))
+               	    {
+                   	    FICL_WORD *pLit = (FICL_WORD *)c.p;
+                   	    sprintf(buffer, "    literal %.*s (%#lx)",
+                       	    pLit->nName, pLit->name, c.u);
+               	    }
+               	    else
+                   	    sprintf(buffer, "    literal %ld (%#lx)", c.i, c.u);
+                }
+                else if (tempFW->code == stringLit)
+                {
+               	    FICL_STRING *sp = (FICL_STRING *)(void *)pVM->ip;
+               	    sprintf(buffer, "    s\" %.*s\"", sp->count, sp->text);
+                }
+                else if (tempFW->code == ifParen)
+                {
+               	    c = *pVM->ip;
+               	    if (c.i > 0)
+                   	    sprintf(buffer, "    if / while (branch rel %ld)", c.i);
+               	    else
+                   	    sprintf(buffer, "    until (branch rel %ld)", c.i);
+                }
+                else if (tempFW->code == branchParen)
+                {
+               	    c = *pVM->ip;
+               	    if (c.i > 0)
+                   	    sprintf(buffer, "    else (branch rel %ld)", c.i);
+               	    else
+                   	    sprintf(buffer, "    repeat (branch rel %ld)", c.i);
+                }
+                else if (tempFW->code == qDoParen)
+                {
+               	    c = *pVM->ip;
+               	    sprintf(buffer, "    ?do (leave abs %#lx)", c.u);
+                }
+                else if (tempFW->code == doParen)
+                {
+               	    c = *pVM->ip;
+               	    sprintf(buffer, "    do (leave abs %#lx)", c.u);
+                }
+                else if (tempFW->code == loopParen)
+                {
+               	    c = *pVM->ip;
+               	    sprintf(buffer, "    loop (branch rel %#ld)", c.i);
+                }
+                else if (tempFW->code == plusLoopParen)
+                {
+               	    c = *pVM->ip;
+               	    sprintf(buffer, "    +loop (branch rel %#ld)", c.i);
+                }
+                else /* default: print word's name */
+                {
+               	    sprintf(buffer, "    %.*s", tempFW->nName, tempFW->name);
+                }
+    
+                vmTextOut(pVM, buffer, 1);
+            }
+            else if (ficl_trace) /* probably not a word 
+				  * - punt and print value
+				  */
+            {
+           	    sprintf(buffer, "    %ld (%#lx)", ((CELL*)pVM->ip)->i, ((CELL*)pVM->ip)->u);
+           	    vmTextOut(pVM, buffer, 1);
+            }
+#endif FICL_TRACE
             /*
             ** inline code for
             ** vmExecute(pVM, tempFW);
@@ -233,10 +324,14 @@ int ficlExec(FICL_VM *pVM, char *pText)
     case VM_QUIT:
         if (pVM->state == COMPILE)
             dictAbortDefinition(dp);
-        vmQuit(pVM);
+
+        memcpy((void*)pVM, (void*)&VM, sizeof(FICL_VM));
+        memcpy((void*)pVM->rStack, (void*)&rStack, sizeof(FICL_STACK));
         break;
 
     case VM_ERREXIT:
+    case VM_ABORT:
+    case VM_ABORTQ:
     default:    /* user defined exit code?? */
         if (pVM->state == COMPILE)
         {
@@ -246,11 +341,14 @@ int ficlExec(FICL_VM *pVM, char *pText)
 #endif
         }
         dictResetSearchOrder(dp);
-        vmReset(pVM);
+        memcpy((void*)pVM, (void*)&VM, sizeof(FICL_VM));
+        memcpy((void*)pVM->rStack, (void*)&rStack, sizeof(FICL_STACK));
+	stackReset(pVM->pStack);
+	pVM->base = 10;
         break;
    }
 
-    pVM->pState    = oldState;
+    pVM->pState = VM.pState;
     vmPopTib(pVM, &saveTib);
     return (except);
 }
@@ -285,12 +383,11 @@ int ficlExecFD(FICL_VM *pVM, int fd)
 		break;
 	    continue;
 	}
-	cp[i] = '\0';
-        if ((rval = ficlExec(pVM, cp)) >= VM_ERREXIT)
+        rval = ficlExec(pVM, cp, i);
+	if(rval != VM_QUIT && rval != VM_USEREXIT && rval != VM_OUTOFTEXT)
         {
             pVM->sourceID = id;
-            vmThrowErr(pVM, "ficlExecFD: Error at line %d", nLine);
-            break; 
+            return rval; 
         }
     }
     /*
@@ -298,7 +395,7 @@ int ficlExecFD(FICL_VM *pVM, int fd)
     ** any pending REFILLs (as required by FILE wordset)
     */
     pVM->sourceID.i = -1;
-    ficlExec(pVM, "");
+    ficlExec(pVM, "", 0);
 
     pVM->sourceID = id;
     return rval;

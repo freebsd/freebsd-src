@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.11 1999/01/13 21:59:58 abial Exp $
+ *	$Id: interp.c,v 1.14 1999/02/04 17:06:46 dcs Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -99,8 +99,8 @@ interact(void)
     /*
      * Read our default configuration
      */
-    if(source("/boot/loader.rc")!=CMD_OK)
-	source("/boot/boot.conf");
+    if(include("/boot/loader.rc")!=CMD_OK)
+	include("/boot/boot.conf");
     printf("\n");
     /*
      * Before interacting, we might want to autoboot.
@@ -141,38 +141,44 @@ interact(void)
  * Commands may be prefixed with '@' (so they aren't displayed) or '-' (so
  * that the script won't stop if they fail).
  */
-COMMAND_SET(source, "source", "read commands from a file", command_source);
+COMMAND_SET(include, "include", "read commands from a file", command_include);
 
 static int
-command_source(int argc, char *argv[])
+command_include(int argc, char *argv[])
 {
     int		i;
     int		res;
 
     res=CMD_OK;
     for (i = 1; (i < argc) && (res == CMD_OK); i++)
-	res=source(argv[i]);
+	res = include(argv[i]);
     return(res);
 }
 
-struct sourceline 
+struct includeline 
 {
     char		*text;
     int			flags;
     int			line;
 #define SL_QUIET	(1<<0)
 #define SL_IGNOREERR	(1<<1)
-    struct sourceline	*next;
+    struct includeline	*next;
 };
 
 int
-source(char *filename)
+include(char *filename)
 {
-    struct sourceline	*script, *se, *sp;
+    struct includeline	*script, *se, *sp;
     char		input[256];			/* big enough? */
+#ifdef BOOT_FORTH
+    int			res;
+    char		*cp;
+    int			fd, line;
+#else
     int			argc,res;
     char		**argv, *cp;
     int			fd, flags, line;
+#endif
 
     if (((fd = open(filename, O_RDONLY)) == -1)) {
 	sprintf(command_errbuf,"can't open '%s': %s\n", filename, strerror(errno));
@@ -187,6 +193,9 @@ source(char *filename)
 	
     while (fgetstr(input, sizeof(input), fd) > 0) {
 	line++;
+#ifdef BOOT_FORTH
+	cp = input;
+#else
 	flags = 0;
 	/* Discard comments */
 	if (input[0] == '#')
@@ -202,11 +211,14 @@ source(char *filename)
 	    cp++;
 	    flags |= SL_IGNOREERR;
 	}
+#endif
 	/* Allocate script line structure and copy line, flags */
-	sp = malloc(sizeof(struct sourceline) + strlen(cp) + 1);
-	sp->text = (char *)sp + sizeof(struct sourceline);
+	sp = malloc(sizeof(struct includeline) + strlen(cp) + 1);
+	sp->text = (char *)sp + sizeof(struct includeline);
 	strcpy(sp->text, cp);
+#ifndef BOOT_FORTH
 	sp->flags = flags;
+#endif
 	sp->line = line;
 	sp->next = NULL;
 	    
@@ -222,10 +234,21 @@ source(char *filename)
     /*
      * Execute the script
      */
+#ifndef BOOT_FORTH
     argv = NULL;
+#endif
     res = CMD_OK;
     for (sp = script; sp != NULL; sp = sp->next) {
 	
+#ifdef BOOT_FORTH
+	res = bf_run(sp->text);
+	if (res != VM_OUTOFTEXT) {
+		sprintf(command_errbuf, "Error while including %s:\n%s", filename, sp->text);
+		res = CMD_ERROR;
+		break;
+	} else
+		res = CMD_OK;
+#else
 	/* print if not being quiet */
 	if (!(sp->flags & SL_QUIET)) {
 	    prompt();
@@ -249,9 +272,12 @@ source(char *filename)
 	    res=CMD_ERROR;
 	    break;
 	}
+#endif
     }
+#ifndef BOOT_FORTH
     if (argv != NULL)
 	free(argv);
+#endif
     while(script != NULL) {
 	se = script;
 	script = script->next;
