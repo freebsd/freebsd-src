@@ -51,7 +51,7 @@ SUBDIR!=cat ${SUBDIR_CHANGE}/${DIRPRFX}/subdirlist
 .endif
 
 .if defined(SUBDIR_CHANGE) && !empty(SUBDIR_CHANGE) && \
-	exists(${SUBDIR_CHANGE}/${DIRPRFX}/subdirlist)
+	exists(${SUBDIR_CHANGE}/${DIRPRFX}/subdiradd)
 _SUBDIR_EXTRA!=cat ${SUBDIR_CHANGE}/${DIRPRFX}/subdiradd
 .endif
 
