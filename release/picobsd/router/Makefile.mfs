@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.mfs,v 1.1 1999/08/22 21:44:42 dwhite Exp $
+# $Id: Makefile,v 1.2.2.1 1999/05/09 22:04:09 abial Exp $
 #
 
 DESTDIR?=/mnt
