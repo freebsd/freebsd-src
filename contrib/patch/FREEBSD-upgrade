@@ -6,11 +6,6 @@ To prepare a new patch dist for import, extract it into a fresh directory
 and remove the following files (and any others that are non-FreeBSD
 specific):
 
-Makefile.in
-config.hin
-configure
-configure.in
-install-sh
 mkinstalldirs
 pc/*
 
