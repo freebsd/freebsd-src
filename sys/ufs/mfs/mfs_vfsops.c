@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.58 1999/04/05 06:39:10 peter Exp $
+ * $Id: mfs_vfsops.c,v 1.59 1999/04/06 03:08:43 peter Exp $
  */
 
 
@@ -184,7 +184,7 @@ mfs_mount(mp, path, data, ndp, p)
 	u_char *base;
 #endif
 	struct mfsnode *mfsp;
-	u_int size;
+	size_t size;
 	int flags, err;
 
 	/*
