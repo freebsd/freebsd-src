@@ -2801,11 +2801,11 @@ softdep_disk_io_initiation(bp)
 			/*
 			 * Replace up-to-date version with safe version.
 			 */
+			MALLOC(indirdep->ir_saveddata, caddr_t, bp->b_bcount,
+			    M_INDIRDEP, M_WAITOK);
 			ACQUIRE_LOCK(&lk);
 			indirdep->ir_state &= ~ATTACHED;
 			indirdep->ir_state |= UNDONE;
-			MALLOC(indirdep->ir_saveddata, caddr_t, bp->b_bcount,
-			    M_INDIRDEP, M_WAITOK);
 			bcopy(bp->b_data, indirdep->ir_saveddata, bp->b_bcount);
 			bcopy(indirdep->ir_savebp->b_data, bp->b_data,
 			    bp->b_bcount);
