@@ -76,6 +76,11 @@ kvm_readswap(kd, p, va, cnt)
 	u_long va;
 	u_long *cnt;
 {
+#ifdef __FreeBSD__
+	/* XXX Stubbed out, our vm system is differnet */
+	_kvm_err(kd, kd->program, "kvm_readswap not implemented");
+	return(0);
+#else
 	register int ix;
 	register u_long addr, head;
 	register u_long offset, pagestart, sbstart, pgoff;
@@ -166,6 +171,7 @@ kvm_readswap(kd, p, va, cnt)
 	offset %= NBPG;
 	*cnt = NBPG - offset;
 	return (&page[offset]);
+#endif	/* __FreeBSD__ */
 }
 
 #define KREAD(kd, addr, obj) \
