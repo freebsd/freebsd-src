@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)unix.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: unix.c,v 1.9 1998/07/06 21:01:27 bde Exp $";
+	"$Id: unix.c,v 1.10 1998/08/08 08:13:04 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -78,7 +78,7 @@ unixpr()
 	struct	xunpcb *xunp;
 	char mibvar[sizeof "net.local.seqpacket.pcblist"];
 
-	for (type = SOCK_STREAM; type < SOCK_SEQPACKET; type++) {
+	for (type = SOCK_STREAM; type <= SOCK_SEQPACKET; type++) {
 		sprintf(mibvar, "net.local.%s.pcblist", socktype[type]);
 
 		len = 0;
