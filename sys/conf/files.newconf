@@ -169,6 +169,8 @@ file	netinet/fil.c		ipfilter
 file	netinet/ip_nat.c	ipfilter
 file	netinet/ip_frag.c	ipfilter
 file	netinet/ip_state.c	ipfilter
+file	netinet/ip_proxy.c	ipfilter
+file	netinet/mln_ipl.c	ipfilter
 file	netinet/raw_ip.c	inet
 file	netinet/tcp_debug.c	inet
 file	netinet/tcp_input.c	inet

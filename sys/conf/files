@@ -235,6 +235,8 @@ netinet/fil.c		optional ipfilter inet
 netinet/ip_nat.c	optional ipfilter inet
 netinet/ip_frag.c	optional ipfilter inet
 netinet/ip_state.c	optional ipfilter inet
+netinet/ip_proxy.c	optional ipfilter inet
+netinet/mln_ipl.c	optional ipfilter inet
 netipx/ipx.c		optional ipx
 netipx/ipx_cksum.c	optional ipx
 netipx/ipx_error.c	optional ipx
