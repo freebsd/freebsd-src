@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.1 1995/07/21 11:15:28 rgrimes Exp $
+#	$Id: Makefile,v 1.193.2.2 1995/07/21 11:29:27 rgrimes Exp $
 #
 # How to roll a release:
 #
@@ -169,10 +169,8 @@ release.2:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. ; make distribute DISTDIR=${RD}/trees
-	cd ${.CURDIR}/../eBones && ( \
-		make obj all help-distribute DISTDIR=${RD}/trees ;\
-		make bootstrap \
-	)
+	cd ${.CURDIR}/../eBones && make beforeinstall
+	cd ${.CURDIR}/../eBones && make obj all help-distribute DISTDIR=${RD}/trees
 	chflags -R noschg ${RD}/trees
 	uudecode ${.CURDIR}/compat20/libgcc.so.261.0.uu
 	install -m 444 -o bin -g bin libgcc.so.261.0 ${RD}/trees/bin/usr/lib
