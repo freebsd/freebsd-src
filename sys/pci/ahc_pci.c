@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.5.2.2 1999/03/07 00:42:43 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.5.2.4 1999/05/16 00:07:45 gibbs Exp $
  */
 
 #include <pci.h>
@@ -42,7 +42,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/queue.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -64,33 +63,369 @@
 
 #include <aic7xxx_reg.h>
 
-#define PCI_BASEADR0	PCI_MAP_REG_START	/* I/O Address */
-#define PCI_BASEADR1	PCI_MAP_REG_START + 4	/* Mem I/O Address */
+#define AHC_PCI_IOADDR	PCIR_MAPS		/* I/O Address */
+#define AHC_PCI_MEMADDR	(PCIR_MAPS + 4)	/* Mem I/O Address */
 
-#define PCI_DEVICE_ID_ADAPTEC_398XU	0x83789004ul
-#define PCI_DEVICE_ID_ADAPTEC_3940U	0x82789004ul
-#define PCI_DEVICE_ID_ADAPTEC_3950U2	0x00509005ul
-#define PCI_DEVICE_ID_ADAPTEC_2944U	0x84789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2940U	0x81789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2940AU	0x61789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2940U2	0x00109005ul
-#define PCI_DEVICE_ID_ADAPTEC_2930U2	0x00119005ul
-#define PCI_DEVICE_ID_ADAPTEC_398X	0x73789004ul
-#define PCI_DEVICE_ID_ADAPTEC_3940	0x72789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2944	0x74789004ul
-#define PCI_DEVICE_ID_ADAPTEC_2940	0x71789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7890	0x001F9005ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7895C	0x78939004ul /* RAID Port */
-#define PCI_DEVICE_ID_ADAPTEC_AIC7895	0x78959004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7896	0x005F9005ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7880	0x80789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7870	0x70789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7860	0x60789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7855	0x55789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7850	0x50789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7810	0x10789004ul
-#define PCI_DEVICE_ID_ADAPTEC_AIC7815	0x15789004ul
+static __inline u_int64_t
+ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
+{
+	u_int64_t id;
 
+	id = subvendor
+	   | (subdevice << 16)
+	   | ((u_int64_t)vendor << 32)
+	   | ((u_int64_t)device << 48);
+
+	return (id);
+}
+
+#define ID_ALL_MASK		0xFFFFFFFFFFFFFFFFull
+#define ID_DEV_VENDOR_MASK	0xFFFFFFFF00000000ull
+#define ID_AIC7850		0x5078900400000000ull
+#define ID_AHA_2910_15_20_30C	0x5078900478509004ull
+#define ID_AIC7855		0x5578900400000000ull
+#define ID_AIC7860		0x6078900400000000ull
+#define ID_AIC7860C		0x6078900478609004ull
+#define ID_AHA_2940AU_0		0x6178900400000000ull
+#define ID_AHA_2940AU_1		0x6178900478619004ull
+#define ID_AHA_2930C_VAR	0x6038900438689004ull
+
+#define ID_AIC7870		0x7078900400000000ull
+#define ID_AHA_2940		0x7178900400000000ull
+#define ID_AHA_3940		0x7278900400000000ull
+#define ID_AHA_398X		0x7378900400000000ull
+#define ID_AHA_2944		0x7478900400000000ull
+#define ID_AHA_3944		0x7578900400000000ull
+
+#define ID_AIC7880		0x8078900400000000ull
+#define ID_AIC7880_B		0x8078900478809004ull
+#define ID_AHA_2940AU_CN	0x2178900478219004ull
+#define ID_AHA_2940U		0x8178900400000000ull
+#define ID_AHA_3940U		0x8278900400000000ull
+#define ID_AHA_2944U		0x8478900400000000ull
+#define ID_AHA_3944U		0x8578900400000000ull
+#define ID_AHA_398XU		0x8378900400000000ull
+#define ID_AHA_4944U		0x8678900400000000ull
+#define ID_AHA_2940UB		0x8178900478819004ull
+#define ID_AHA_2930U		0x8878900478889004ull
+#define ID_AHA_2940U_PRO	0x8778900478879004ull
+#define ID_AHA_2940U_CN		0x0078900478009004ull
+
+#define ID_AIC7895		0x7895900478959004ull
+#define ID_AIC7895_RAID_PORT	0x7893900478939004ull
+#define ID_AHA_2940U_DUAL	0x7895900478919004ull
+#define ID_AHA_3940AU		0x7895900478929004ull
+#define ID_AHA_3944AU		0x7895900478949004ull
+
+#define ID_AIC7890		0x001F9005000F9005ull
+#define ID_AHA_2930U2		0x0011900501819005ull
+#define ID_AHA_2940U2B		0x00109005A1009005ull
+#define ID_AHA_2940U2_OEM	0x0010900521809005ull
+#define ID_AHA_2940U2		0x00109005A1809005ull
+#define ID_AHA_2950U2B		0x00109005E1009005ull
+
+#define ID_AIC7896		0x005F9005FFFF9005ull
+#define ID_AHA_3950U2B_0	0x00509005FFFF9005ull
+#define ID_AHA_3950U2B_1	0x00509005F5009005ull
+#define ID_AHA_3950U2D_0	0x00519005FFFF9005ull
+#define ID_AHA_3950U2D_1	0x00519005B5009005ull
+
+#define ID_AIC7810		0x1078900400000000ull
+#define ID_AIC7815		0x1578900400000000ull
+
+typedef int (ahc_device_setup_t)(pcici_t, char *, ahc_chip *,
+				 ahc_feature *, ahc_flag *);
+
+static ahc_device_setup_t ahc_aic7850_setup;
+static ahc_device_setup_t ahc_aic7860_setup;
+static ahc_device_setup_t ahc_aic7870_setup;
+static ahc_device_setup_t ahc_aha394X_setup;
+static ahc_device_setup_t ahc_aha398X_setup;
+static ahc_device_setup_t ahc_aic7880_setup;
+static ahc_device_setup_t ahc_aha394XU_setup;
+static ahc_device_setup_t ahc_aha398XU_setup;
+static ahc_device_setup_t ahc_aic7890_setup;
+static ahc_device_setup_t ahc_aic7895_setup;
+static ahc_device_setup_t ahc_aic7896_setup;
+static ahc_device_setup_t ahc_raid_setup;
+static ahc_device_setup_t ahc_aha394XX_setup;
+static ahc_device_setup_t ahc_aha398XX_setup;
+
+struct ahc_pci_identity {
+	u_int64_t		 full_id;
+	u_int64_t		 id_mask;
+	char			*name;
+	ahc_device_setup_t	*setup;
+};
+
+struct ahc_pci_identity ahc_pci_ident_table [] =
+{
+	/* aic7850 based controllers */
+	{
+		ID_AHA_2910_15_20_30C,
+		ID_ALL_MASK,
+		"Adaptec 2910/15/20/30C SCSI adapter",
+		ahc_aic7850_setup
+	},
+	/* aic7860 based controllers */
+	{
+		ID_AHA_2940AU_0 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec 2940A Ultra SCSI adapter",
+		ahc_aic7860_setup
+	},
+	{
+		ID_AHA_2930C_VAR,
+		ID_ALL_MASK,
+		"Adaptec 2930C SCSI adapter (VAR)",
+		ahc_aic7860_setup
+	},
+	/* aic7870 based controllers */
+	{
+		ID_AHA_2940,
+		ID_ALL_MASK,
+		"Adaptec 2940 SCSI adapter",
+		ahc_aic7870_setup
+	},
+	{
+		ID_AHA_3940,
+		ID_ALL_MASK,
+		"Adaptec 3940 SCSI adapter",
+		ahc_aha394X_setup
+	},
+	{
+		ID_AHA_398X,
+		ID_ALL_MASK,
+		"Adaptec 398X SCSI RAID adapter",
+		ahc_aha398X_setup
+	},
+	{
+		ID_AHA_2944,
+		ID_ALL_MASK,
+		"Adaptec 2944 SCSI adapter",
+		ahc_aic7870_setup
+	},
+	{
+		ID_AHA_3944,
+		ID_ALL_MASK,
+		"Adaptec 3944 SCSI adapter",
+		ahc_aha394X_setup
+	},
+	/* aic7880 based controllers */
+	{
+		ID_AHA_2940AU_CN,
+		ID_ALL_MASK,
+		"Adaptec 2940A/CN Ultra SCSI adapter",
+		ahc_aic7880_setup
+	},
+	{
+		ID_AHA_2940U,
+		ID_ALL_MASK,
+		"Adaptec 2940 Ultra SCSI adapter",
+		ahc_aic7880_setup
+	},
+	{
+		ID_AHA_3940U,
+		ID_ALL_MASK,
+		"Adaptec 3940 Ultra SCSI adapter",
+		ahc_aha394XU_setup
+	},
+	{
+		ID_AHA_2944U,
+		ID_ALL_MASK,
+		"Adaptec 2944 Ultra SCSI adapter",
+		ahc_aic7880_setup
+	},
+	{
+		ID_AHA_3944U,
+		ID_ALL_MASK,
+		"Adaptec 3944 Ultra SCSI adapter",
+		ahc_aha394XU_setup
+	},
+	{
+		ID_AHA_398XU,
+		ID_ALL_MASK,
+		"Adaptec 398X Ultra SCSI RAID adapter",
+		ahc_aha398XU_setup
+	},
+	{
+		/* XXX Don't know the slot numbers so can't identify channels */
+		ID_AHA_4944U,
+		ID_ALL_MASK,
+		"Adaptec 4944 Ultra SCSI adapter",
+		ahc_aic7880_setup
+	},
+	{
+		ID_AHA_2940UB,
+		ID_ALL_MASK,
+		"Adaptec 2940B Ultra SCSI adapter",
+		ahc_aic7880_setup
+	},
+	{
+		ID_AHA_2930U,
+		ID_ALL_MASK,
+		"Adaptec 2930 Ultra SCSI adapter",
+		ahc_aic7880_setup
+	},
+	{
+		ID_AHA_2940U_PRO,
+		ID_ALL_MASK,
+		"Adaptec 2940 Pro Ultra SCSI adapter",
+		ahc_aic7880_setup
+	},
+	{
+		ID_AHA_2940U_CN,
+		ID_ALL_MASK,
+		"Adaptec 2940/CN Ultra SCSI adapter",
+		ahc_aic7880_setup
+	},
+	/* aic7890 based controllers */
+	{
+		ID_AHA_2930U2,
+		ID_ALL_MASK,
+		"Adaptec 2930 Ultra2 SCSI adapter",
+		ahc_aic7890_setup
+	},
+	{
+		ID_AHA_2940U2B,
+		ID_ALL_MASK,
+		"Adaptec 2940B Ultra2 SCSI adapter",
+		ahc_aic7890_setup
+	},
+	{
+		ID_AHA_2940U2_OEM,
+		ID_ALL_MASK,
+		"Adaptec 2940 Ultra2 SCSI adapter (OEM)",
+		ahc_aic7890_setup
+	},
+	{
+		ID_AHA_2940U2,
+		ID_ALL_MASK,
+		"Adaptec 2940 Ultra2 SCSI adapter",
+		ahc_aic7890_setup
+	},
+	{
+		ID_AHA_2950U2B,
+		ID_ALL_MASK,
+		"Adaptec 2950 Ultra2 SCSI adapter",
+		ahc_aic7890_setup
+	},
+	/* aic7895 based controllers */	
+	{
+		ID_AHA_2940U_DUAL,
+		ID_ALL_MASK,
+		"Adaptec 2940/DUAL Ultra SCSI adapter",
+		ahc_aic7895_setup
+	},
+	{
+		ID_AHA_3940AU,
+		ID_ALL_MASK,
+		"Adaptec 3940A Ultra SCSI adapter",
+		ahc_aic7895_setup
+	},
+	{
+		ID_AHA_3944AU,
+		ID_ALL_MASK,
+		"Adaptec 3944A Ultra SCSI adapter",
+		ahc_aic7895_setup
+	},
+	/* aic7896/97 based controllers */	
+	{
+		ID_AHA_3950U2B_0,
+		ID_ALL_MASK,
+		"Adaptec 3950B Ultra2 SCSI adapter",
+		ahc_aic7896_setup
+	},
+	{
+		ID_AHA_3950U2B_1,
+		ID_ALL_MASK,
+		"Adaptec 3950B Ultra2 SCSI adapter",
+		ahc_aic7896_setup
+	},
+	{
+		ID_AHA_3950U2D_0,
+		ID_ALL_MASK,
+		"Adaptec 3950D Ultra2 SCSI adapter",
+		ahc_aic7896_setup
+	},
+	{
+		ID_AHA_3950U2D_1,
+		ID_ALL_MASK,
+		"Adaptec 3950D Ultra2 SCSI adapter",
+		ahc_aic7896_setup
+	},
+	/* Generic chip probes for devices we don't know 'exactly' */
+	{
+		ID_AIC7850 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7850 SCSI adapter",
+		ahc_aic7850_setup
+	},
+	{
+		ID_AIC7855 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7855 SCSI adapter",
+		ahc_aic7850_setup
+	},
+	{
+		ID_AIC7860 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7860 SCSI adapter",
+		ahc_aic7860_setup
+	},
+	{
+		ID_AIC7870 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7870 SCSI adapter",
+		ahc_aic7870_setup
+	},
+	{
+		ID_AIC7880 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7880 Ultra SCSI adapter",
+		ahc_aic7880_setup
+	},
+	{
+		ID_AIC7890 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7890/91 Ultra2 SCSI adapter",
+		ahc_aic7890_setup
+	},
+	{
+		ID_AIC7895 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7895 Ultra SCSI adapter",
+		ahc_aic7895_setup
+	},
+	{
+		ID_AIC7895_RAID_PORT & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7895 Ultra SCSI adapter (RAID PORT)",
+		ahc_aic7895_setup
+	},
+	{
+		ID_AIC7896 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7896/97 Ultra2 SCSI adapter",
+		ahc_aic7896_setup
+	},
+	{
+		ID_AIC7810 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7810 RAID memory controller",
+		ahc_raid_setup
+	},
+	{
+		ID_AIC7815 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7815 RAID memory controller",
+		ahc_raid_setup
+	}
+};
+
+static const int ahc_num_pci_devs =
+	sizeof(ahc_pci_ident_table) / sizeof(*ahc_pci_ident_table);
+		
 #define AHC_394X_SLOT_CHANNEL_A	4
 #define AHC_394X_SLOT_CHANNEL_B	5
 
@@ -116,6 +451,7 @@
 #define		CACHESIZE	0x0000003ful	/* only 5 bits */
 #define		LATTIME		0x0000ff00ul
 
+static struct ahc_pci_identity *ahc_find_pci_device(pcici_t tag);
 static void check_extport(struct ahc_softc *ahc, u_int *sxfrctl1);
 static void configure_termination(struct ahc_softc *ahc,
 				  struct seeprom_config *sc,
@@ -149,246 +485,100 @@ static void ahc_pci_attach(pcici_t config_id, int unit);
 /* Exported for use in the ahc_intr routine */
 void ahc_pci_intr(struct ahc_softc *ahc);
 
-static struct  pci_device ahc_pci_driver = {
+static struct	pci_device ahc_pci_driver = {
 	"ahc",
-        ahc_pci_probe,
-        ahc_pci_attach,
-        &ahc_unit,
+	ahc_pci_probe,
+	ahc_pci_attach,
+	&ahc_unit,
 	NULL
-};
+}; 
 
 DATA_SET (pcidevice_set, ahc_pci_driver);
 
-static const char*
-ahc_pci_probe (pcici_t tag, pcidi_t type)
+static struct ahc_pci_identity *
+ahc_find_pci_device(pcici_t tag)
 {
-	switch (type) {
-	case PCI_DEVICE_ID_ADAPTEC_398XU:
-		return ("Adaptec 398X Ultra SCSI RAID adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_3940U:
-		return ("Adaptec 3940 Ultra SCSI host adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_398X:
-		return ("Adaptec 398X SCSI RAID adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_3940:
-		return ("Adaptec 3940 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_3950U2:
-		return ("Adaptec 3950 Ultra2 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2930U2:
-		return ("Adaptec 2930 Ultra2 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2944U:
-		return ("Adaptec 2944 Ultra SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2940U:
-		return ("Adaptec 2940 Ultra SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2940U2:
-		return ("Adaptec 2940 Ultra2 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2944:
-		return ("Adaptec 2944 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2940:
-		return ("Adaptec 2940 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2940AU:
-		return ("Adaptec 2940A Ultra SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7895:
-		return ("Adaptec aic7895 Ultra SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7895C:
-		return ("Adaptec aic7895 `Raid Port' Ultra SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7890:
-		return ("Adaptec aic7890/91 Ultra2 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7896:
-		return ("Adaptec aic7896/97 Ultra2 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7880:
-		return ("Adaptec aic7880 Ultra SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7870:
-		return ("Adaptec aic7870 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7860:
-		return ("Adaptec aic7860 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7855:
-		return ("Adaptec aic7855 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7850:
-		return ("Adaptec aic7850 SCSI adapter");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
-		return ("Adaptec aic7810 RAID memory controller");
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7815:
-		return ("Adaptec aic7815 RAID memory controller");
-		break;
-	default:
-		break;
-	}
-	return (0);
+	u_int64_t  full_id;
+	struct	   ahc_pci_identity *entry;
+	u_int	   deviceid;
+	u_int	   vendorid;
+	u_int	   subdeviceid;
+	u_int	   subvendorid;
+	u_int	   i;
 
+	deviceid = pci_cfgread(tag, PCIR_DEVICE, /*bytes*/2);
+	vendorid = pci_cfgread(tag, PCIR_VENDOR, /*bytes*/2);
+	subdeviceid = pci_cfgread(tag, PCIR_SUBDEV_0, /*bytes*/2);
+	subvendorid = pci_cfgread(tag, PCIR_SUBVEND_0, /*bytes*/2);
+	full_id = ahc_compose_id(deviceid,
+				 vendorid,
+				 subdeviceid,
+				 subvendorid);
+
+	for (i = 0; i < ahc_num_pci_devs; i++) {
+		entry = &ahc_pci_ident_table[i];
+		if (entry->full_id == (full_id & entry->id_mask))
+			return (entry);
+	}
+	return (NULL);
+}
+
+static const char*
+ahc_pci_probe(pcici_t tag, pcidi_t type)
+{
+	struct	   ahc_pci_identity *entry;
+
+	entry = ahc_find_pci_device(tag);
+	if (entry != NULL)
+		return (entry->name);
+	return (NULL);
 }
 
 static void
 ahc_pci_attach(pcici_t config_id, int unit)
 {
-	pci_port_t	 io_port;
-	struct		 ahc_softc *ahc;
-	u_int32_t	 id;
-	u_int32_t	 command;
-	struct scb_data *shared_scb_data;
-	int opri;
-	ahc_chip	 ahc_t = AHC_NONE;
-	ahc_feature	 ahc_fe = AHC_FENONE;
-	ahc_flag	 ahc_f = AHC_FNONE;
-	vm_offset_t	 vaddr;
-	vm_offset_t	 paddr;
-	u_int		 our_id = 0;
-	u_int		 sxfrctl1;
-	u_int		 scsiseq;
-	int		 error;
-	char		 channel;
+	pci_port_t	   io_port;
+	bus_dma_tag_t	   parent_dmat;
+	struct		   ahc_softc *ahc;
+	struct		   ahc_pci_identity *entry;
+	vm_offset_t	   vaddr;
+#ifdef AHC_ALLOW_MEMIO
+	vm_offset_t	   paddr;
+#endif
+	u_int		   command;
+	struct scb_data   *shared_scb_data;
+	ahc_chip	   ahc_t = AHC_NONE;
+	ahc_feature	   ahc_fe = AHC_FENONE;
+	ahc_flag	   ahc_f = AHC_FNONE;
+	u_int		   our_id = 0;
+	u_int		   sxfrctl1;
+	u_int		   scsiseq;
+	int		   error;
+	int		   opri;
+	char		   channel;
 
-	if (config_id->func == 1)
-		channel = 'B';
-	else
-		channel = 'A';
 	shared_scb_data = NULL;
+	command = pci_cfgread(config_id, PCIR_COMMAND, /*bytes*/1);
+	entry = ahc_find_pci_device(config_id);
+	if (entry == NULL)
+		return;
+
+	error = entry->setup(config_id, &channel, &ahc_t, &ahc_fe, &ahc_f);
+	if (error != 0)
+		return;
+
 	vaddr = NULL;
-	paddr = NULL;
-	io_port = 0;
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 #ifdef AHC_ALLOW_MEMIO
 	if ((command & PCI_COMMAND_MEM_ENABLE) == 0
-	 || (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr)) == 0)
+	 || (pci_map_mem(config_id, AHC_PCI_MEMADDR, &vaddr, &paddr)) == 0)
 #endif
 		if ((command & PCI_COMMAND_IO_ENABLE) == 0
-		 || (pci_map_port(config_id, PCI_BASEADR0, &io_port)) == 0)
+		 || (pci_map_port(config_id, AHC_PCI_IOADDR, &io_port)) == 0)
 			return;
 
-	switch ((id = pci_conf_read(config_id, PCI_ID_REG))) {
-	case PCI_DEVICE_ID_ADAPTEC_398XU:
-	case PCI_DEVICE_ID_ADAPTEC_398X:
-		if (id == PCI_DEVICE_ID_ADAPTEC_398XU) {
-			ahc_t = AHC_AIC7880;
-			ahc_fe = AHC_AIC7880_FE;
-		} else {
-			ahc_t = AHC_AIC7870;
-			ahc_fe = AHC_AIC7870_FE;
-		}
-
-		switch (config_id->slot) {
-		case AHC_398X_SLOT_CHANNEL_A:
-			break;
-		case AHC_398X_SLOT_CHANNEL_B:
-			channel = 'B';
-			break;
-		case AHC_398X_SLOT_CHANNEL_C:
-			channel = 'C';
-			break;
-		default:
-			printf("adapter at unexpected slot %d\n"
-			       "unable to map to a channel\n",
-			       config_id->slot);
-		}
-		ahc_f |= AHC_LARGE_SEEPROM;
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_3940U:
-	case PCI_DEVICE_ID_ADAPTEC_3940:
-		if (id == PCI_DEVICE_ID_ADAPTEC_3940U) {
-			ahc_t = AHC_AIC7880;
-			ahc_fe = AHC_AIC7880_FE;
-		} else {
-			ahc_t = AHC_AIC7870;
-			ahc_fe = AHC_AIC7870_FE;
-		}
-
-		switch (config_id->slot) {
-		case AHC_394X_SLOT_CHANNEL_A:
-			break;
-		case AHC_394X_SLOT_CHANNEL_B:
-			channel = 'B';
-			break;
-		default:
-			printf("adapter at unexpected slot %d\n"
-			       "unable to map to a channel\n",
-			       config_id->slot);
-		}
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7890:
-	case PCI_DEVICE_ID_ADAPTEC_2940U2:
-	case PCI_DEVICE_ID_ADAPTEC_2930U2:
-	{
-		ahc_t = AHC_AIC7890;
-		ahc_fe = AHC_AIC7890_FE;
-		break;
-	}
-	case PCI_DEVICE_ID_ADAPTEC_AIC7896:
-	case PCI_DEVICE_ID_ADAPTEC_3950U2:
-	{
-		ahc_t = AHC_AIC7896;
-		ahc_fe = AHC_AIC7896_FE;
-		break;
-	}
-	case PCI_DEVICE_ID_ADAPTEC_2944U:
-	case PCI_DEVICE_ID_ADAPTEC_2940U:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7880:
-		ahc_t = AHC_AIC7880;
-		ahc_fe = AHC_AIC7880_FE;
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2944:
-	case PCI_DEVICE_ID_ADAPTEC_2940:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7870:
-		ahc_t = AHC_AIC7870;
-		ahc_fe = AHC_AIC7870_FE;
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_2940AU:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7860:
-		ahc_fe = AHC_AIC7860_FE;
-		ahc_t = AHC_AIC7860;
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7895:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7895C:
-	{
-		u_int32_t devconfig;
-
-		ahc_t = AHC_AIC7895;
-		ahc_fe = AHC_AIC7895_FE;
-		devconfig = pci_conf_read(config_id, DEVCONFIG);
-		devconfig &= ~SCBSIZE32;
-		pci_conf_write(config_id, DEVCONFIG, devconfig);
-		break;
-	}
-	case PCI_DEVICE_ID_ADAPTEC_AIC7855:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7850:
-		ahc_t = AHC_AIC7850;
-		ahc_fe = AHC_AIC7850_FE;
-		break;
-	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
-	case PCI_DEVICE_ID_ADAPTEC_AIC7815:
-		printf("RAID functionality unsupported\n");
-		return;
-	default:
-		break;
-	}
-
-	/* On all PCI adapters, we allow SCB paging */
-	ahc_f |= AHC_PAGESCBS;
-	if ((ahc = ahc_alloc(unit, io_port, vaddr, ahc_t|AHC_PCI, ahc_fe, ahc_f,
-	     shared_scb_data)) == NULL)
-		return;  /* XXX PCI code should take return status */
-
-	ahc->channel = channel;
+	/* Ensure busmastering is enabled */
+	command |= PCIM_CMD_BUSMASTEREN;
+	pci_cfgwrite(config_id, PCIR_COMMAND, command, /*bytes*/1);
 
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
@@ -399,15 +589,22 @@ ahc_pci_attach(pcici_t config_id, int unit)
 				   /*filter*/NULL, /*filterarg*/NULL,
 				   /*maxsize*/MAXBSIZE, /*nsegments*/AHC_NSEG,
 				   /*maxsegsz*/AHC_MAXTRANSFER_SIZE,
-				    /*flags*/BUS_DMA_ALLOCNOW, &ahc->dmat);
+				   /*flags*/BUS_DMA_ALLOCNOW, &parent_dmat);
 
 	if (error != 0) {
-		printf("%s: Could not allocate DMA tag - error %d\n",
-		       ahc_name(ahc), error);
-		ahc_free(ahc);
+		printf("ahc_pci_attach: Could not allocate DMA tag "
+		       "- error %d\n", error);
 		return;
 	}
 
+	/* On all PCI adapters, we allow SCB paging */
+	ahc_f |= AHC_PAGESCBS;
+	if ((ahc = ahc_alloc(unit, io_port, vaddr, parent_dmat,
+			     ahc_t|AHC_PCI, ahc_fe, ahc_f,
+			     shared_scb_data)) == NULL)
+		return;
+
+	ahc->channel = channel;
 
 	/* Store our PCI bus information for use in our PCI error handler */
 	ahc->pci_config_id = config_id;
@@ -439,7 +636,8 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		if ((dscommand0 & RAMPS) != 0) {
 			u_int32_t devconfig;
 
-			devconfig = pci_conf_read(config_id, DEVCONFIG);
+			devconfig = pci_cfgread(config_id, DEVCONFIG,
+						/*bytes*/4);
 			if ((devconfig & MPORTMODE) != 0) {
 				/* Single user mode */
 
@@ -448,7 +646,8 @@ ahc_pci_attach(pcici_t config_id, int unit)
 				 * parity checking
 				 */
 				devconfig |= EXTSCBPEN;
-				pci_conf_write(config_id, DEVCONFIG, devconfig);
+				pci_cfgwrite(config_id, DEVCONFIG,
+					     devconfig, /*bytes*/4);
 
 				/*
 				 * Set the bank select apropriately.
@@ -474,7 +673,9 @@ ahc_pci_attach(pcici_t config_id, int unit)
 
 		}
 	} else if ((ahc->chip & AHC_CHIPID_MASK) >= AHC_AIC7870) {
-		u_int32_t devconfig = pci_conf_read(config_id, DEVCONFIG);
+		u_int32_t devconfig;
+
+		devconfig = pci_cfgread(config_id, DEVCONFIG, /*bytes*/4);
 		if ((devconfig & RAMPSM) != 0
 		 && (devconfig & MPORTMODE) != 0) {
 
@@ -496,12 +697,14 @@ ahc_pci_attach(pcici_t config_id, int unit)
 
 			/* Select external SRAM */
 			devconfig &= ~SCBRAMSEL;
-			pci_conf_write(config_id, DEVCONFIG, devconfig);
+			pci_cfgwrite(config_id, DEVCONFIG,
+				     devconfig, /*bytes*/4);
 
 			if (ahc_probe_scbs(ahc) == 0) {
 				/* External ram isn't really there */
 				devconfig |= SCBRAMSEL;
-				pci_conf_write(config_id, DEVCONFIG, devconfig);
+				pci_cfgwrite(config_id, DEVCONFIG,
+					     devconfig, /*bytes*/4);
 			} else if (bootverbose)
 				printf("%s: External SRAM bank%d\n",
 				       ahc_name(ahc),
@@ -513,6 +716,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		ahc_free(ahc);
 		return;
 	}
+
 	/*
 	 * Protect ourself from spurrious interrupts during
 	 * intialization.
@@ -637,7 +841,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 	if (ahc_init(ahc)) {
 		ahc_free(ahc);
 		splx(opri);
-		return; /* XXX PCI code should take return status */
+		return;
 	}
 
 	/* XXX Crude hack - fix sometime */
@@ -1103,7 +1307,7 @@ acquire_seeprom(struct ahc_softc *ahc, struct seeprom_descriptor *sd)
 
 	if ((ahc->features & AHC_SPIOCAP) != 0
 	 && (ahc_inb(ahc, SPIOCAP) & SEEPROM) == 0)
-			return (0);
+		return (0);
 
 	/*
 	 * Request access of the memory port.  When access is
@@ -1228,6 +1432,179 @@ ahc_pci_intr(struct ahc_softc *ahc)
 	if (status1 & (DPR|RMA|RTA)) {
 		ahc_outb(ahc, CLRINT, CLRPARERR);
 	}
+}
+
+static int
+ahc_aic7850_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	*channel = 'A';
+	*chip = AHC_AIC7850;
+	*features = AHC_AIC7850_FE;
+	return (0);
+}
+
+static int
+ahc_aic7860_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	*channel = 'A';
+	*chip = AHC_AIC7860;
+	*features = AHC_AIC7860_FE;
+	return (0);
+}
+
+static int
+ahc_aic7870_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	*channel = 'A';
+	*chip = AHC_AIC7870;
+	*features = AHC_AIC7870_FE;
+	return (0);
+}
+
+static int
+ahc_aha394X_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	int error;
+
+	error = ahc_aic7870_setup(dev, channel, chip, features, flags);
+	if (error == 0)
+		error = ahc_aha394XX_setup(dev, channel, chip, features, flags);
+	return (error);
+}
+
+static int
+ahc_aha398X_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	int error;
+
+	error = ahc_aic7870_setup(dev, channel, chip, features, flags);
+	if (error == 0)
+		error = ahc_aha398XX_setup(dev, channel, chip, features, flags);
+	return (error);
+}
+
+static int
+ahc_aic7880_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	*channel = 'A';
+	*chip = AHC_AIC7880;
+	*features = AHC_AIC7880_FE;
+	return (0);
+}
+
+static int
+ahc_aha394XU_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		   ahc_feature *features, ahc_flag *flags)
+{
+	int error;
+
+	error = ahc_aic7880_setup(dev, channel, chip, features, flags);
+	if (error == 0)
+		error = ahc_aha394XX_setup(dev, channel, chip, features, flags);
+	return (error);
+}
+
+static int
+ahc_aha398XU_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		   ahc_feature *features, ahc_flag *flags)
+{
+	int error;
+
+	error = ahc_aic7880_setup(dev, channel, chip, features, flags);
+	if (error == 0)
+		error = ahc_aha398XX_setup(dev, channel, chip, features, flags);
+	return (error);
+}
+
+static int
+ahc_aic7890_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	*channel = 'A';
+	*chip = AHC_AIC7890;
+	*features = AHC_AIC7890_FE;
+	return (0);
+}
+
+static int
+ahc_aic7895_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	u_int32_t devconfig;
+
+	*channel = dev->func == 1 ? 'B' : 'A';
+	*chip = AHC_AIC7895;
+	*features = AHC_AIC7895_FE;
+	devconfig = pci_cfgread(dev, DEVCONFIG, /*bytes*/4);
+	devconfig &= ~SCBSIZE32;
+	pci_cfgwrite(dev, DEVCONFIG, devconfig, /*bytes*/4);
+	return (0);
+}
+
+static int
+ahc_aic7896_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	*channel = dev->func == 1 ? 'B' : 'A';
+	*chip = AHC_AIC7896;
+	*features = AHC_AIC7896_FE;
+	return (0);
+}
+
+static int
+ahc_raid_setup(pcici_t dev, char *channel, ahc_chip *chip,
+	       ahc_feature *features, ahc_flag *flags)
+{
+	printf("RAID functionality unsupported\n");
+	return (ENXIO);
+}
+
+static int
+ahc_aha394XX_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		   ahc_feature *features, ahc_flag *flags)
+{
+	switch (dev->slot) {
+	case AHC_394X_SLOT_CHANNEL_A:
+		*channel = 'A';
+		break;
+	case AHC_394X_SLOT_CHANNEL_B:
+		*channel = 'B';
+		break;
+	default:
+		printf("adapter at unexpected slot %d\n"
+		       "unable to map to a channel\n",
+		       dev->slot);
+	}
+	return (0);
+}
+
+static int
+ahc_aha398XX_setup(pcici_t dev, char *channel, ahc_chip *chip,
+		   ahc_feature *features, ahc_flag *flags)
+{
+	switch (dev->slot) {
+	case AHC_398X_SLOT_CHANNEL_A:
+		*channel = 'A';
+		break;
+	case AHC_398X_SLOT_CHANNEL_B:
+		*channel = 'B';
+		break;
+	case AHC_398X_SLOT_CHANNEL_C:
+		*channel = 'C';
+		break;
+	default:
+		printf("adapter at unexpected slot %d\n"
+		       "unable to map to a channel\n",
+		       dev->slot);
+	}
+	*flags |= AHC_LARGE_SEEPROM;
+	return (0);
 }
 
 #endif /* NPCI > 0 */

@@ -29,7 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_setschedparam.c,v 1.2 1999/06/20 08:28:44 jb Exp $
  */
 #include <errno.h>
 #include <sys/param.h>
@@ -51,10 +50,10 @@ pthread_setschedparam(pthread_t pthread, int policy, struct sched_param *param)
 	/* Find the thread in the list of active threads: */
 	else if ((ret = _find_thread(pthread)) == 0) {
 		/*
-		 * Defer signals to protect the scheduling queues from
-		 * access by the signal handler:
+		 * Guard against being preempted by a scheduling
+		 * signal:
 		 */
-		_thread_kern_sig_defer();
+		_thread_kern_sched_defer();
 
 		if (param->sched_priority != pthread->base_priority) {
 			/*
@@ -62,7 +61,8 @@ pthread_setschedparam(pthread_t pthread, int policy, struct sched_param *param)
 			 * queue before any adjustments are made to its
 			 * active priority:
 			 */
-			if ((pthread->flags & PTHREAD_FLAGS_IN_PRIOQ) != 0) {
+			if ((pthread != _thread_run) &&
+			   (pthread->state == PS_RUNNING)) {
 				in_readyq = 1;
 				old_prio = pthread->active_priority;
 				PTHREAD_PRIOQ_REMOVE(pthread);
@@ -103,10 +103,10 @@ pthread_setschedparam(pthread_t pthread, int policy, struct sched_param *param)
 		pthread->attr.sched_policy = policy;
 
 		/*
-		 * Undefer and handle pending signals, yielding if
-		 * necessary:
+		 * Renable preemption and yield if a scheduling signal
+		 * arrived while in the critical region:
 		 */
-		_thread_kern_sig_undefer();
+		_thread_kern_sched_undefer();
 	}
 	return(ret);
 }
