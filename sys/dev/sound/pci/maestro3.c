@@ -1281,9 +1281,9 @@ m3_pci_suspend(device_t dev)
 
 	/* Save the state of the ASSP */
 	for (i = REV_B_CODE_MEMORY_BEGIN; i <= REV_B_CODE_MEMORY_END; i++)
-		sc->savemem[++index] = m3_rd_assp_code(sc, i);
+		sc->savemem[index++] = m3_rd_assp_code(sc, i);
 	for (i = REV_B_DATA_MEMORY_BEGIN; i <= REV_B_DATA_MEMORY_END; i++)
-		sc->savemem[++index] = m3_rd_assp_data(sc, i);
+		sc->savemem[index++] = m3_rd_assp_data(sc, i);
 
 	/* Power down the card to D3 state */
 	m3_power(sc, 3);
