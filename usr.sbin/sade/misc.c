@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.4 1995/05/08 21:39:39 jkh Exp $
+ * $Id: misc.c,v 1.5 1995/05/16 11:37:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -206,15 +206,20 @@ Mkdir(char *ipath, void *data)
 }
 
 int
-Mount(char *device, void *data)
+Mount(char *mountp, void *dev)
 {
     struct ufs_args ufsargs;
+    char device[80];
     char mountpoint[FILENAME_MAX];
 
-    strcpy(mountpoint, "/mnt");
-    if (data)
-	sprintf(mountpoint + 4, "/%s", (char *)data);
-
+    if (*((char *)dev) != "/") {
+    	sprintf(device, "/mnt/dev/%s", dev);
+	sprintf(mountpoint, "/mnt%s", mountp);
+    }
+    else {
+	strcpy(device, dev);
+	strcpy(mountpoint, mountp);
+    }
     memset(&ufsargs,0,sizeof ufsargs);
 
     if (access(mountpoint, R_OK))
