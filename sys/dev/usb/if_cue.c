@@ -98,7 +98,6 @@ Static int cue_detach(device_ptr_t);
 
 Static int cue_tx_list_init(struct cue_softc *);
 Static int cue_rx_list_init(struct cue_softc *);
-Static int cue_newbuf(struct cue_softc *, struct cue_chain *, struct mbuf *);
 Static int cue_encap(struct cue_softc *, struct mbuf *, int);
 Static void cue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void cue_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -450,6 +449,7 @@ USB_ATTACH(cue)
 	int			i;
 
 	bzero(sc, sizeof(struct cue_softc));
+	sc->cue_dev = self;
 	sc->cue_iface = uaa->iface;
 	sc->cue_udev = uaa->device;
 	sc->cue_unit = device_get_unit(self);
@@ -568,42 +568,6 @@ cue_detach(device_ptr_t dev)
 	return(0);
 }
 
-/*
- * Initialize an RX descriptor and attach an MBUF cluster.
- */
-Static int
-cue_newbuf(struct cue_softc *sc, struct cue_chain *c, struct mbuf *m)
-{
-	struct mbuf		*m_new = NULL;
-
-	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("cue%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->cue_unit);
-			return(ENOBUFS);
-		}
-
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			printf("cue%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->cue_unit);
-			m_freem(m_new);
-			return(ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-		m_new->m_data = m_new->m_ext.ext_buf;
-	}
-
-	m_adj(m_new, ETHER_ALIGN);
-	c->cue_mbuf = m_new;
-
-	return(0);
-}
-
 Static int
 cue_rx_list_init(struct cue_softc *sc)
 {
@@ -616,7 +580,8 @@ cue_rx_list_init(struct cue_softc *sc)
 		c = &cd->cue_rx_chain[i];
 		c->cue_sc = sc;
 		c->cue_idx = i;
-		if (cue_newbuf(sc, c, NULL) == ENOBUFS)
+		c->cue_mbuf = usb_ether_newbuf(USBDEVNAME(sc->cue_dev));
+		if (c->cue_mbuf == NULL)
 			return(ENOBUFS);
 		if (c->cue_xfer == NULL) {
 			c->cue_xfer = usbd_alloc_xfer(sc->cue_udev);
@@ -664,7 +629,8 @@ cue_rxstart(struct ifnet *ifp)
 	CUE_LOCK(sc);
 	c = &sc->cue_cdata.cue_rx_chain[sc->cue_cdata.cue_rx_prod];
 
-	if (cue_newbuf(sc, c, NULL) == ENOBUFS) {
+	c->cue_mbuf = usb_ether_newbuf(USBDEVNAME(sc->cue_dev));
+	if (c->cue_mbuf == NULL) {
 		ifp->if_ierrors++;
 		CUE_UNLOCK(sc);
 		return;

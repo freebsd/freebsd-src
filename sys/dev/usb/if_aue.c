@@ -183,7 +183,6 @@ Static int aue_detach(device_ptr_t);
 Static void aue_reset_pegasus_II(struct aue_softc *sc);
 Static int aue_tx_list_init(struct aue_softc *);
 Static int aue_rx_list_init(struct aue_softc *);
-Static int aue_newbuf(struct aue_softc *, struct aue_chain *, struct mbuf *);
 Static int aue_encap(struct aue_softc *, struct mbuf *, int);
 #ifdef AUE_INTR_PIPE
 Static void aue_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -649,6 +648,7 @@ USB_ATTACH(aue)
 
 	usbd_devinfo(uaa->device, 0, devinfo);
 
+	sc->aue_dev = self;
 	sc->aue_udev = uaa->device;
 	sc->aue_unit = device_get_unit(self);
 
@@ -803,42 +803,6 @@ aue_detach(device_ptr_t dev)
 	return (0);
 }
 
-/*
- * Initialize an RX descriptor and attach an MBUF cluster.
- */
-Static int
-aue_newbuf(struct aue_softc *sc, struct aue_chain *c, struct mbuf *m)
-{
-	struct mbuf		*m_new = NULL;
-
-	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("aue%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->aue_unit);
-			return (ENOBUFS);
-		}
-
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			printf("aue%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->aue_unit);
-			m_freem(m_new);
-			return (ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-		m_new->m_data = m_new->m_ext.ext_buf;
-	}
-
-	m_adj(m_new, ETHER_ALIGN);
-	c->aue_mbuf = m_new;
-
-	return (0);
-}
-
 Static int
 aue_rx_list_init(struct aue_softc *sc)
 {
@@ -851,7 +815,8 @@ aue_rx_list_init(struct aue_softc *sc)
 		c = &cd->aue_rx_chain[i];
 		c->aue_sc = sc;
 		c->aue_idx = i;
-		if (aue_newbuf(sc, c, NULL) == ENOBUFS)
+		c->aue_mbuf = usb_ether_newbuf(USBDEVNAME(sc->aue_dev));
+		if (c->aue_mbuf == NULL)
 			return (ENOBUFS);
 		if (c->aue_xfer == NULL) {
 			c->aue_xfer = usbd_alloc_xfer(sc->aue_udev);
@@ -941,7 +906,8 @@ aue_rxstart(struct ifnet *ifp)
 	AUE_LOCK(sc);
 	c = &sc->aue_cdata.aue_rx_chain[sc->aue_cdata.aue_rx_prod];
 
-	if (aue_newbuf(sc, c, NULL) == ENOBUFS) {
+	c->aue_mbuf = usb_ether_newbuf(USBDEVNAME(sc->aue_dev));
+	if (c->aue_mbuf == NULL) {
 		ifp->if_ierrors++;
 		AUE_UNLOCK(sc);
 		return;

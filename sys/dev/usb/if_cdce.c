@@ -83,8 +83,6 @@ MODULE_VERSION(cdce, 0);
 
 Static int	 cdce_tx_list_init(struct cdce_softc *);
 Static int	 cdce_rx_list_init(struct cdce_softc *);
-Static int	 cdce_newbuf(struct cdce_softc *, struct cdce_chain *,
-		    struct mbuf *);
 Static int	 cdce_encap(struct cdce_softc *, struct mbuf *, int);
 Static void	 cdce_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void	 cdce_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -582,30 +580,6 @@ cdce_init(void *xsc)
 }
 
 Static int
-cdce_newbuf(struct cdce_softc *sc, struct cdce_chain *c, struct mbuf *m)
-{
-	struct mbuf	*m_new = NULL;
-
-	if (m == NULL) {
-		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if (m_new == NULL) {
-			printf("%s: no memory for rx list "
-			    "-- packet dropped!\n", USBDEVNAME(sc->cdce_dev));
-			return (ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-		m_new->m_data = m_new->m_ext.ext_buf;
-	}
-
-	m_adj(m_new, ETHER_ALIGN);
-	c->cdce_mbuf = m_new;
-	return (0);
-}
-
-Static int
 cdce_rx_list_init(struct cdce_softc *sc)
 {
 	struct cdce_cdata	*cd;
@@ -617,7 +591,8 @@ cdce_rx_list_init(struct cdce_softc *sc)
 		c = &cd->cdce_rx_chain[i];
 		c->cdce_sc = sc;
 		c->cdce_idx = i;
-		if (cdce_newbuf(sc, c, NULL) == ENOBUFS)
+		c->cdce_mbuf = usb_ether_newbuf(USBDEVNAME(sc->cdce_dev));
+		if (c->cdce_mbuf == NULL)
 			return (ENOBUFS);
 		if (c->cdce_xfer == NULL) {
 			c->cdce_xfer = usbd_alloc_xfer(sc->cdce_udev);
@@ -792,7 +767,8 @@ cdce_rxstart(struct ifnet *ifp)
 
 	c = &sc->cdce_cdata.cdce_rx_chain[sc->cdce_cdata.cdce_rx_prod];
 
-	if (cdce_newbuf(sc, c, NULL) == ENOBUFS) {
+	c->cdce_mbuf = usb_ether_newbuf(USBDEVNAME(sc->cdce_dev));
+	if (c->cdce_mbuf == NULL) {
 		ifp->if_ierrors++;
 		CDCE_UNLOCK(sc);
 		return;
