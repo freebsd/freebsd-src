@@ -65,8 +65,6 @@ g_slice_init(unsigned nslice, unsigned scsize)
 {
 	struct g_slicer *gsp;
 
-	gsp = g_malloc(sizeof *gsp + nslice * sizeof(struct g_slice) + scsize,
-	    M_WAITOK | M_ZERO);
 	gsp = g_malloc(sizeof *gsp, M_WAITOK | M_ZERO);
 	gsp->softc = g_malloc(scsize, M_WAITOK | M_ZERO);
 	gsp->slices = g_malloc(nslice * sizeof(struct g_slice), M_WAITOK | M_ZERO);
