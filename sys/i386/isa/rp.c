@@ -62,8 +62,8 @@
 #include <pci/pcivar.h>
 
 #define ROCKET_C
-#include "/sys/i386/isa/rpreg.h"
-#include "/sys/i386/isa/rpvar.h"
+#include <i386/isa/rpreg.h>
+#include <i386/isa/rpvar.h>
 
 #ifndef TRUE
 #define TRUE 1
