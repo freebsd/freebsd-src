@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rshd.c,v 1.8 1996/09/22 21:55:08 wosch Exp $
  */
 
 #ifndef lint
@@ -363,7 +363,7 @@ doit(fromp)
 				if (!bcmp(hp->h_addr_list[0],
 				    (caddr_t)&fromp->sin_addr,
 				    sizeof(fromp->sin_addr))) {
-					hostname = hp->h_name;
+					hostname = remotehost;
 					break;
 				}
 			}
