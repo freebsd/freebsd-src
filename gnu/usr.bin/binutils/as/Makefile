@@ -1,25 +1,23 @@
-#
 # $FreeBSD$
-#
 
 .include "${.CURDIR}/../Makefile.inc0"
 
-GASES=		${BINUTIL_ARCH}
-FORMATS=	freebsd
+GASES=	${BINUTIL_ARCH}
+FORMATS=freebsd
 
 # Only build the cross tools when not cross-compiling.
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
 .if defined(CROSS_ARCH)
 .for _g in ${CROSS_ARCH}
 .if (${GASES:R:M${_g:R}} == "")
-GASES+=$(_g)
+GASES+= $(_g)
 .endif
 .endfor
 .endif
 .if defined(CROSS_FORMATS)
 .for _f in ${CROSS_FORMATS}
 .if (${FORMATS:R:M${_f:R}} == "")
-FORMATS+=$(_f)
+FORMATS+= $(_f)
 .endif
 .endfor
 .endif
