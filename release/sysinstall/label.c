@@ -586,7 +586,7 @@ diskLabelEditor(char *str)
 		    msgConfirm("Can't find any disk devicse!");
 		    break;
 		}
-		for (i = 0; ((Disk *)devs[i]->private); i++) {
+		for (i = 0; devs[i] && ((Disk *)devs[i]->private); i++) {
 		    if (devs[i]->enabled)
 		    	slice_wizard(((Disk *)devs[i]->private));
 		}
