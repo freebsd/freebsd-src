@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" Copyright (c) 2002, 2004 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by Chris
@@ -29,7 +29,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd March 13, 2003
+.Dd February 17, 2004
 .Dt SETFMAC 8
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Nd set MAC label for a file system object
 .Sh SYNOPSIS
 .Nm setfmac
-.Op Fl hR
+.Op Fl hqR
 .Ar label
 .Ar
 .Sh DESCRIPTION
@@ -52,6 +52,8 @@ just the files themselves.
 .It Fl h
 If the file is a symbolic link, change the label of the link rather
 than the file that the link points to.
+.It Fl q
+Do not print non-fatal warnings during execution.
 .El
 .Sh SEE ALSO
 .Xr mac 3 ,
