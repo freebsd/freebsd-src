@@ -1816,6 +1816,9 @@ struct bge_status_block {
 #define BCOM_DEVICEID_BCM5705M		0x165D
 #define BCOM_DEVICEID_BCM5705M_ALT	0x165E
 #define BCOM_DEVICEID_BCM5782		0x1696
+#define BCOM_DEVICEID_BCM5788		0x169C
+#define BCOM_DEVICEID_BCM5901		0x170D
+#define BCOM_DEVICEID_BCM5901A2		0x170E
 
 /*
  * Alteon AceNIC PCI vendor/device ID.
@@ -1846,6 +1849,7 @@ struct bge_status_block {
  */
 #define ALTIMA_VENDORID			0x173b
 #define ALTIMA_DEVICE_AC1000		0x03e8
+#define ALTIMA_DEVICE_AC1002		0x03e9
 #define ALTIMA_DEVICE_AC9100	 	0x03ea			
 
 /*
