@@ -89,4 +89,4 @@ struct sockaddr_at {
 
 #define sat_zero sat_range.r_zero
 
-#endif __AT_HEADER__
+#endif /* !__AT_HEADER__ */
