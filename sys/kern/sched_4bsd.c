@@ -63,7 +63,6 @@
 
 struct ke_sched {
 	int	ske_cpticks;	/* (j) Ticks of cpu time. */
-	fixpt_t	ske_pctcpu;	/* (j) %cpu during p_swtime. */
 };
 
 struct ke_sched ke_sched;
@@ -285,8 +284,8 @@ schedcpu(void *arg)
 				 * Do it per kse.. and add them up at the end?
 				 * XXXKSE
 				 */
-				ke->ke_sched->ske_pctcpu
-				    = (ke->ke_sched->ske_pctcpu * ccpu) >>
+				ke->ke_pctcpu
+				    = (ke->ke_pctcpu * ccpu) >>
 				    FSHIFT;
 				/*
 				 * If the kse has been idle the entire second,
@@ -296,13 +295,13 @@ schedcpu(void *arg)
 				if (ke->ke_sched->ske_cpticks == 0)
 					continue;
 #if	(FSHIFT >= CCPU_SHIFT)
-				ke->ke_sched->ske_pctcpu += (realstathz == 100)
+				ke->ke_pctcpu += (realstathz == 100)
 				    ? ((fixpt_t) ke->ke_sched->ske_cpticks) <<
 				    (FSHIFT - CCPU_SHIFT) :
 				    100 * (((fixpt_t) ke->ke_sched->ske_cpticks)
 				    << (FSHIFT - CCPU_SHIFT)) / realstathz;
 #else
-				ke->ke_sched->ske_pctcpu += ((FSCALE - ccpu) *
+				ke->ke_pctcpu += ((FSCALE - ccpu) *
 				    (ke->ke_sched->ske_cpticks *
 				    FSCALE / realstathz)) >> FSHIFT;
 #endif
@@ -482,7 +481,6 @@ sched_fork(struct ksegrp *kg, struct ksegrp *child)
 
 	/* Set up scheduler specific data */
 	ke = FIRST_KSE_IN_KSEGRP(kg);
-	ke->ke_sched->ske_pctcpu = 0;
 	ke->ke_sched->ske_cpticks = 0;
 }
 
@@ -667,5 +665,5 @@ sched_sizeof_thread(void)
 fixpt_t
 sched_pctcpu(struct kse *ke)
 {
-	return (ke->ke_sched->ske_pctcpu);
+	return (ke->ke_pctcpu);
 }
