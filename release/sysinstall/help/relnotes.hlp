@@ -365,6 +365,12 @@ SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra.  SMC Etherpower II.
 
+Texas Instruments ThunderLAN PCI NICs, including the following:
+Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
+Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
+Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
+Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
