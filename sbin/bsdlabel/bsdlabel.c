@@ -308,18 +308,17 @@ readboot(void)
 	if (fd < 0)
 		err(1, "cannot open %s", xxboot);
 	fstat(fd, &st);
-	if (st.st_size == BBSIZE) {
-		i = read(fd, bootarea, BBSIZE);
-		if (i != BBSIZE)
+	if (alphacksum && st.st_size <= BBSIZE - 512) {
+		i = read(fd, bootarea + 512, st.st_size);
+		if (i != st.st_size)
+			err(1, "read error %s", xxboot);
+		return;
+	} else if ((!alphacksum) && st.st_size <= BBSIZE) {
+		i = read(fd, bootarea, st.st_size);
+		if (i != st.st_size)
 			err(1, "read error %s", xxboot);
 		return;
 	} 
-	if (alphacksum && st.st_size == BBSIZE - 512) {
-		i = read(fd, bootarea + 512, BBSIZE - 512);
-		if (i != BBSIZE - 512)
-			err(1, "read error %s", xxboot);
-		return;
-	}
 	errx(1, "boot code %s is wrong size", xxboot);
 }
 
@@ -424,7 +423,6 @@ readlabel(int flag)
 	gctl_rw_param(grq, "mbroffset", sizeof(mbroffset), &mbroffset);
 	errstr = gctl_issue(grq);
 	if (errstr != NULL) {
-		warnx("%s", errstr);
 		mbroffset = 0;
 		gctl_free(grq);
 		return (error);
