@@ -1,9 +1,8 @@
-#	$Id: bsd.info.mk,v 1.44 1997/10/11 17:30:18 wosch Exp $
+#	$Id: bsd.info.mk,v 1.45 1997/10/12 18:54:34 wosch Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
 # file to produce both on-line information and printed output.
-# <bsd.info.mk> includes the files <bsd.dep.mk> and <bsd.obj.mk>.
 #
 #
 # +++ variables +++
