@@ -579,7 +579,7 @@ esp6_input(mp, offp, proto)
 		goto noreplaycheck;
 	siz = (((*sumalgo->sumsiz)(sav) + 3) & ~(4 - 1));
 	if (m->m_pkthdr.len < off + ESPMAXLEN + siz) {
-		ipsecstat.in_inval++;
+		ipsec6stat.in_inval++;
 		goto bad;
 	}
 	if (AH_MAXSUMSIZE < siz) {
