@@ -1,4 +1,4 @@
-.\"	$Id$
+.\"	$Id: pciconf.8,v 1.2 1997/02/22 16:09:06 peter Exp $
 .\" Copyright (c) 1997
 .\"	Stefan Esser <se@freebsd.org>. All rights reserved.
 .\"
@@ -41,7 +41,7 @@
 .Ar reg value
 .Sh DESCRIPTION
 The
-.Em pciconf
+.Nm
 command provides a command line interface to the functionality provided by
 .Pa /dev/pci Ns 's
 .Xr ioctl 2
@@ -93,7 +93,7 @@ The
 .Fl l
 option is the only one available to non-root users.
 All other invocations of 
-.Nm pciconf 
+.Nm
 require a
 .Ar selector 
 of the form
@@ -102,14 +102,14 @@ of the form
 .Li \&: Ns Va function ) .
 A final colon may be appended and
 will be ignored; this is so that the first column in the output of
-.Nm pciconf
+.Nm
 .Fl l
 can be used without modification.  All numbers are base 10.
 .Pp
 With the
 .Fl a
 flag,
-.Nm pciconf
+.Nm
 determines whether any driver has been assigned to the device
 identified by 
 .Ar selector .
@@ -147,7 +147,7 @@ write a longword (four bytes).
 .Xr modload 8 
 .Sh HISTORY
 The 
-.Nm pciconf
+.Nm
 command appeared first in
 .Fx 2.2 .
 The 
@@ -159,7 +159,10 @@ LKM support in
 .Sh AUTHORS
 The
 .Nm
-facility was written by Stefan Esser and Garrett Wollman.
+facility was written by
+.An Stefan Esser
+and
+.An Garrett Wollman .
 .Sh BUGS
 The 
 .Fl b 
