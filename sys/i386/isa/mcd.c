@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.82 1996/07/23 21:51:36 phk Exp $
+ *	$Id: mcd.c,v 1.83 1996/09/06 23:07:50 phk Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -249,7 +249,7 @@ int mcd_attach(struct isa_device *dev)
 	cd->iobase = dev->id_iobase;
 	cd->flags |= MCDINIT;
 	mcd_soft_reset(unit);
-	TAILQ_INIT(&cd->head);
+	bufq_init(&cd->head);
 
 #ifdef NOTYET
 	/* wire controller for interrupts and dma */
@@ -447,7 +447,7 @@ MCD_TRACE("strategy: drive not valid\n");
 
 	/* queue it */
 	s = splbio();
-	tqdisksort(&cd->head, bp);
+	bufqdisksort(&cd->head, bp);
 	splx(s);
 
 	/* now check whether we can perform processing */
@@ -474,11 +474,11 @@ static void mcd_start(int unit)
 		return;
 	}
 
-	bp = TAILQ_FIRST(&cd->head);
+	bp = bufq_first(&cd->head);
 	if (bp != 0) {
 		/* block found to process, dequeue */
 		/*MCD_TRACE("mcd_start: found block bp=0x%x\n",bp,0,0,0);*/
-		TAILQ_REMOVE(&cd->head, bp, b_act);
+		bufq_remove(&cd->head, bp);
 		splx(s);
 	} else {
 		/* nothing to do */

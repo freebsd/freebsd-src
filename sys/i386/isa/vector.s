@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.21.2.2 1996/11/09 21:08:53 phk Exp $
+ *	$Id: vector.s,v 1.21.2.3 1998/03/06 23:45:00 julian Exp $
  */
 
 /*
@@ -261,30 +261,24 @@ MCOUNT_LABEL(bintr)
 MCOUNT_LABEL(eintr)
 
 	.data
-#ifdef DPTOPT
 	.globl	_ihandlers
 _ihandlers:
-#endif /* DPTOPT */
 ihandlers:			/* addresses of interrupt handlers */
 				/* actually resumption addresses for HWI's */
 	.long	Xresume0, Xresume1, Xresume2, Xresume3 
 	.long	Xresume4, Xresume5, Xresume6, Xresume7
 	.long	Xresume8, Xresume9, Xresume10, Xresume11
 	.long	Xresume12, Xresume13, Xresume14, Xresume15 
-#ifndef DPTOPT
-	.long	swi_tty, swi_net, 0, 0, 0, 0, 0, 0
-#else
-	.long	swi_tty, swi_dpt, swi_net, 0, 0, 0, 0, 0
-#endif /* DPTOPT */
-	.long	0, 0, 0, 0, 0, 0, _softclock, swi_ast
+	.long	swi_tty, swi_net, dummycamisr, dummycamisr
+	.long	_swi_vm, 0, 0, 0
+	.long	0, 0, 0, 0
+	.long   0, 0, _softclock, swi_ast
 imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
-#ifndef DPTOPT
-	.long	SWI_TTY_MASK, SWI_NET_MASK, 0, 0, 0, 0, 0, 0
-#else
-	.long	SWI_TTY_MASK, SWI_DPT_MASK, SWI_NET_MASK, 0, 0, 0, 0, 0
-#endif /* DPTOPT */
-	.long	0, 0, 0, 0, 0, 0, SWI_CLOCK_MASK, SWI_AST_MASK
+	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CAMNET_MASK, SWI_CAMBIO_MASK
+	.long	SWI_VM_MASK, 0, 0, 0
+	.long	0, 0, 0, 0
+	.long	0, 0, SWI_CLOCK_MASK, SWI_AST_MASK
 	.globl	_intr_nesting_level
 _intr_nesting_level:
 	.byte	0

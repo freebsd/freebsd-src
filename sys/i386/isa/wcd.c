@@ -289,6 +289,7 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	}
 	wcdtab[wcdnlun] = t;
 	bzero (t, sizeof (struct wcd));
+	bufq_init(&t->buf_queue);
 	t->ata = ata;
 	t->unit = unit;
 	lun = t->lun = wcdnlun++;
@@ -502,10 +503,11 @@ void wcdstrategy (struct buf *bp)
 	/* Process transfer request. */
 	bp->b_pblkno = bp->b_blkno;
 	bp->b_resid = bp->b_bcount;
+
 	x = splbio();
 
 	/* Place it in the queue of disk activities for this disk. */
-	tqdisksort (&t->buf_queue, bp);
+	bufqdisksort (&t->buf_queue, bp);
 
 	/* Tell the device to get going on the transfer if it's
 	 * not doing anything, otherwise just wait for completion. */
@@ -523,7 +525,7 @@ void wcdstrategy (struct buf *bp)
  */
 static void wcd_start (struct wcd *t)
 {
-	struct buf *bp = TAILQ_FIRST(&t->buf_queue);
+	struct buf *bp = bufq_first(&t->buf_queue);
 	u_long blkno, nblk;
 
 	/* See if there is a buf to do and we are not already doing one. */
@@ -531,7 +533,7 @@ static void wcd_start (struct wcd *t)
 		return;
 
 	/* Unqueue the request. */
-	TAILQ_REMOVE(&t->buf_queue, bp, b_act);
+	bufq_remove(&t->buf_queue, bp);
 
 	/* Should reject all queued entries if media have changed. */
 	if (t->flags & F_MEDIA_CHANGED) {

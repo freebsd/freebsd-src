@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.24 1996/07/23 21:51:39 phk Exp $ */
+/* $Id: scd.c,v 1.25 1996/09/06 23:07:59 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -212,7 +212,7 @@ int scd_attach(struct isa_device *dev)
 
 	cd->flags = SCDINIT;
 	cd->audio_status = CD_AS_AUDIO_INVALID;
-	TAILQ_INIT(&cd->head);
+	bufq_init(&cd->head);
 
 #ifdef DEVFS
 	cd->ra_devfs_token = 
@@ -365,7 +365,7 @@ scdstrategy(struct buf *bp)
 
 	/* queue it */
 	s = splbio();
-	tqdisksort(&cd->head, bp);
+	bufqdisksort(&cd->head, bp);
 	splx(s);
 
 	/* now check whether we can perform processing */
@@ -393,10 +393,10 @@ scd_start(int unit)
 		return;
 	}
 
-	bp = TAILQ_FIRST(&cd->head);
+	bp = bufq_first(&cd->head);
 	if (bp != 0) {
 		/* block found to process, dequeue */
-		TAILQ_REMOVE(&cd->head, bp, b_act);
+		bufq_remove(&cd->head, bp);
 		cd->flags |= SCDMBXBSY;
 		splx(s);
 	} else {
