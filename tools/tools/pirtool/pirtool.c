@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2004 Bruce M. Simpson.
+ * Copyright (c) 2002-2005 Bruce M. Simpson.
  * All rights reserved
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,7 +101,7 @@ main(int argc, char *argv[])
 	/*
 	 * Find and print the PIR table.
 	 */
-	if ((pir = find_pir_table(map_addr)) != NULL) {
+	if ((pir = find_pir_table(map_addr)) == NULL) {
 		fprintf(stderr, "PIR table signature not found.\r\n");
 	} else {
 		dump_pir_table(pir, map_addr);
@@ -152,7 +152,7 @@ find_pir_table(unsigned char *base)
 	pend = base + PIR_SIZE;
 	for (p = base; p < pend; p += 16) {
 		if (strncmp(p, "$PIR", 4) == 0) {
-			pir = (pir_table_t *) p;
+			pir = (pir_table_t *)p;
 			break;
 		}
 	}
@@ -172,7 +172,8 @@ find_pir_table(unsigned char *base)
 			csum += *p++;
 
 		if ((csum % 256) != 0)
-			pir = NULL;
+			fprintf(stderr,
+			    "WARNING: PIR table checksum is invalid.\n");
 	}
 
 	return ((pir_table_t *)pir);
