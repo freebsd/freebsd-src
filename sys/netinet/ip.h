@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
- *	$Id: ip.h,v 1.5 1995/05/30 08:09:33 rgrimes Exp $
+ *	$Id: ip.h,v 1.6 1995/09/21 18:01:11 wollman Exp $
  */
 
 #ifndef _NETINET_IP_H_
@@ -51,6 +51,9 @@
  * against negative integers quite easily, and fail in subtle ways.
  */
 struct ip {
+#ifdef _IP_VHL
+	u_char	ip_vhl;			/* version << 4 | header length >> 2 */
+#else
 #if BYTE_ORDER == LITTLE_ENDIAN
 	u_char	ip_hl:4,		/* header length */
 		ip_v:4;			/* version */
@@ -59,6 +62,7 @@ struct ip {
 	u_char	ip_v:4,			/* version */
 		ip_hl:4;		/* header length */
 #endif
+#endif /* not _IP_VHL */
 	u_char	ip_tos;			/* type of service */
 	short	ip_len;			/* total length */
 	u_short	ip_id;			/* identification */
