@@ -47,6 +47,7 @@ ch(4)		ken	Pre-commit review requested.
 isp(4)		mjacob	{isp_freebsd.?,isp_pci.c}: heads-up on changes please.
 			All other files need pre-commit with mjacob as they're
 			shared with five other platforms.
+tdfx(4)  cokane  Just keep me informed of changes, try not to break it.
 sendmail	gshapiro	Pre-commit review requested.
 etc/mail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
