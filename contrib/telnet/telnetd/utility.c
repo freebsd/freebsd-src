@@ -318,33 +318,6 @@ netflush()
 
 
 /*
- * writenet
- *
- * Just a handy little function to write a bit of raw data to the net.
- * It will force a transmit of the buffer if necessary
- *
- * arguments
- *    ptr - A pointer to a character string to write
- *    len - How many bytes to write
- */
-	void
-writenet(ptr, len)
-	register unsigned char *ptr;
-	register int len;
-{
-	/* flush buffer if no room for new data) */
-	if ((&netobuf[BUFSIZ] - nfrontp) < len) {
-		/* if this fails, don't worry, buffer is a little big */
-		netflush();
-	}
-
-	memmove(nfrontp, ptr, len);
-	nfrontp += len;
-
-}  /* end of writenet */
-
-
-/*
  * miscellaneous functions doing a variety of little jobs follow ...
  */
 
