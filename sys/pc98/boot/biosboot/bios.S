@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.1.1.1.2.1 1996/11/09 21:11:36 phk Exp $
+ *	$Id: bios.S,v 1.1.1.1.2.2 1996/12/04 16:00:20 phk Exp $
  */
 
 /*
@@ -302,8 +302,6 @@ ENTRY(memsize)
 	push	%ebp
 	mov	%esp, %ebp
 	push	%ebx
-	push    %esi
-	push    %edi
 	push    %esi
 	push    %edi
 
