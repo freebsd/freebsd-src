@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.9.2.2 1997/03/06 07:59:33 mpp Exp $
+.\"	$Id: inetd.8,v 1.9.2.3 1997/09/22 06:23:24 charnier Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -100,7 +100,7 @@ fields of the configuration file are as follows:
 service name
 socket type
 protocol
-{wait|nowait}[/max-child]
+{wait|nowait}[/max-child[/max-connections-per-ip-per-minute]]
 user
 server program
 server program arguments
@@ -270,6 +270,12 @@ once the maximum is reached, further connection attempts will be
 queued up until an existing child process exits. This also works
 in the case of ``wait'' mode, although a value other than one (the
 default) might not make sense in some cases.
+You can also specify the maximum number of connections per minute
+for a given IP address by appending
+a ``/'' followed by the number to the maximum number of
+outstanding child processes. Once the maximum is reached, further
+conections from this IP address will be dropped until the end of the
+minute.
 .Pp
 The
 .Em user
