@@ -249,7 +249,6 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey)
     struct preloaded_file	*xp;
     vm_offset_t			addr, bootinfo_addr;
     u_int			pad;
-    char			*kernelname;
     vm_offset_t			ssym, esym;
     struct file_metadata	*md;
     EFI_STATUS			status;
@@ -327,11 +326,6 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey)
 
     /* all done copying stuff in, save end of loaded object space */
     bi->bi_kernend = addr;
-
-    kernelname = getenv("kernelname");
-    if (kernelname) {
-	strncpy(bi->bi_kernel, kernelname, sizeof(bi->bi_kernel) - 1);
-    }
 
     /* read memory map and stash it after bootinfo */
     bi->bi_memmap = (u_int64_t)(bi + 1);

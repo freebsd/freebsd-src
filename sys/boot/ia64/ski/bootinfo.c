@@ -318,11 +318,6 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, char *args)
     /* all done copying stuff in, save end of loaded object space */
     bi->bi_kernend = addr;
 
-    kernelname = getenv("kernelname");
-    if (kernelname) {
-	strncpy(bi->bi_kernel, kernelname, sizeof(bi->bi_kernel) - 1);
-    }
-
     /* Describe the SKI memory map. */
     bi->bi_memmap = (u_int64_t)(bi + 1);
     bi->bi_memmap_size = 2 * sizeof(EFI_MEMORY_DESCRIPTOR);
