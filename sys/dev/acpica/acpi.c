@@ -528,8 +528,9 @@ acpi_attach(device_t dev)
     sc->acpi_sleep_delay = 1;
     if (bootverbose)
 	sc->acpi_verbose = 1;
-    if ((env = getenv("hw.acpi.verbose")) && strcmp(env, "0")) {
-	sc->acpi_verbose = 1;
+    if ((env = getenv("hw.acpi.verbose")) != NULL) {
+	if (strcmp(env, "0") != 0)
+	    sc->acpi_verbose = 1;
 	freeenv(env);
     }
 
