@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id$
+ *	$Id: apm_setup.s,v 1.2 1994/10/01 05:12:24 davidg Exp $
  */
 
 #ifdef APM
@@ -24,62 +24,6 @@
 #include <machine/apm_bios.h>
 
 	.file	"apm_setup.s"
-
-	.text
-
-	/* void call_apm(union real_regs *); */
-_call_apm:
-	.globl	_call_apm
-	pushl	%ebp
-	movl	%esp, %ebp
-	pushl	%esi
-	pushl	%edi
-	pushl	%ebx
-	pushl	%ecx
-
-	movl	8(%ebp), %eax
-	movl	%eax, struct_regs
-	movw	2(%eax), %bx
-	movw	4(%eax), %cx
-	movw	6(%eax), %dx
-	movw	8(%eax), %si
-	movw	10(%eax), %di
-	movw	0(%eax), %ax
-
-	lcall	_apm_addr		/* intersegment call */
-
-	setc	cf_result
-	movb	%ah, _apm_errno
-	push	%eax
-	movl	struct_regs, %eax
-	movw	%bx, 2(%eax)
-	movw	%cx, 4(%eax)
-	movw	%dx, 6(%eax)
-	movw	%si, 8(%eax)
-	movw	%di, 10(%eax)
-	movb	cf_result, %bl
-	xorb	%bh, %bh
-	movw	%bx, 12(%eax)
-	popl	%ebx
-	movl	%ebx, 0(%eax)
-
-	popl	%ecx
-	popl	%ebx
-	popl	%edi
-	popl	%esi
-	leave
-	ret
-
-	.data
-struct_regs:
-	.long	0
-
-cf_result:
-	.byte	0
-
-_apm_errno:
-	.globl	_apm_errno
-	.byte	0
 
 	.data
 _apm_init_image:
