@@ -1205,9 +1205,9 @@ struct vop_strategy_args {
 	lbn = ap->a_bp->b_lblkno;
 	if (VTOI(vp)->i_fs->fs_magic == FS_UFS2_MAGIC &&
 	    lbn < 0 && lbn >= -NXADDR)
-		return ufs_vnodeops.vop_strategy(ap);
+		return (VOP_STRATEGY_APV(&ufs_vnodeops, ap));
 	if (vp->v_type == VFIFO)
-		return ufs_fifoops.vop_strategy(ap);
+		return (VOP_STRATEGY_APV(&ufs_fifoops, ap));
 	panic("spec nodes went here");
 }
 
