@@ -348,9 +348,15 @@ sofree(so)
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_flags |= SB_NOINTR;
 	(void)sblock(&so->so_snd, M_WAITOK);
-	socantsendmore(so);
+	/*
+	 * socantsendmore_locked() drops the socket buffer mutex so that it
+	 * can safely perform wakeups.  Re-acquire the mutex before
+	 * continuing.
+	 */
+	socantsendmore_locked(so);
+	SOCKBUF_LOCK(&so->so_snd);
 	sbunlock(&so->so_snd);
-	sbrelease(&so->so_snd, so);
+	sbrelease_locked(&so->so_snd, so);
 	SOCKBUF_UNLOCK(&so->so_snd);
 	sorflush(so);
 	sodealloc(so);
@@ -1202,7 +1208,7 @@ dontblock:
 		flags |= MSG_TRUNC;
 		if ((flags & MSG_PEEK) == 0) {
 			SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-			(void) sbdroprecord(&so->so_rcv);
+			(void) sbdroprecord_locked(&so->so_rcv);
 		}
 	}
 	if ((flags & MSG_PEEK) == 0) {
@@ -1271,23 +1277,41 @@ sorflush(so)
 	struct protosw *pr = so->so_proto;
 	struct sockbuf asb;
 
+	/*
+	 * XXXRW: This is quite ugly.  The existing code made a copy of the
+	 * socket buffer, then zero'd the original to clear the buffer
+	 * fields.  However, with mutexes in the socket buffer, this causes
+	 * problems.  We only clear the zeroable bits of the original;
+	 * however, we have to initialize and destroy the mutex in the copy
+	 * so that dom_dispose() and sbrelease() can lock t as needed.
+	 */
 	SOCKBUF_LOCK(sb);
 	sb->sb_flags |= SB_NOINTR;
 	(void) sblock(sb, M_WAITOK);
-	socantrcvmore(so);
-	sbunlock(sb);
-	asb = *sb;
 	/*
-	 * Invalidate/clear most of the sockbuf structure, but keep
-	 * its selinfo structure valid.
+	 * socantrcvmore_locked() drops the socket buffer mutex so that it
+	 * can safely perform wakeups.  Re-acquire the mutex before
+	 * continuing.
 	 */
+	socantrcvmore_locked(so);
+	SOCKBUF_LOCK(sb);
+	sbunlock(sb);
+	/*
+	 * Invalidate/clear most of the sockbuf structure, but leave
+	 * selinfo and mutex data unchanged.
+	 */
+	bzero(&asb, offsetof(struct sockbuf, sb_startzero));
+	bcopy(&sb->sb_startzero, &asb.sb_startzero,
+	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
 	bzero(&sb->sb_startzero,
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
 	SOCKBUF_UNLOCK(sb);
 
+	SOCKBUF_LOCK_INIT(&asb, "so_rcv");
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
 		(*pr->pr_domain->dom_dispose)(asb.sb_mb);
 	sbrelease(&asb, so);
+	SOCKBUF_LOCK_DESTROY(&asb);
 }
 
 #ifdef INET
