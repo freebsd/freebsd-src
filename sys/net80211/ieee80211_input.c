@@ -237,8 +237,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				 * discovered member of the IBSS.
 				 */
 				ni = ieee80211_fakeup_adhoc_node(&ic->ic_sta,
-						type == IEEE80211_FC0_TYPE_CTL ?
-						    wh->i_addr1 : wh->i_addr2);
+						    wh->i_addr2);
 				if (ni == NULL) {
 					/* NB: stat kept for alloc failure */
 					goto err;
