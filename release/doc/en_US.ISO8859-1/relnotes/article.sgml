@@ -495,7 +495,7 @@
 	3.2.2 (release version).</para>
 
       <para>The <application>ISC DHCP</application> client has been
-	updated to 3.0.1RC11.</para>
+	updated to 3.0.1RC11. &merged;</para>
 
       <para><application>libpcap</application> now has support for
 	selecting among multiple data link types on an
@@ -510,9 +510,10 @@
         devices. &merged;</para>
 
       <para><application>sendmail</application> has been updated to
-        version 8.12.7. &merged;</para>
+        version 8.12.8. &merged;</para>
 
-      <para>&man.tcpdump.1; now supports a <option>-L</option> flag to
+      <para>&man.tcpdump.1; has been updated to version 3.7.2.  &merged;
+	It also now supports a <option>-L</option> flag to
 	list the data link types available on an interface and a
 	<option>-y</option> option to specify the data link type to use while
 	capturing packets.</para>
