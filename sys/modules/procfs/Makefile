@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.1 1994/09/21 23:27:13 wollman Exp $
+#	$Id: Makefile,v 1.2 1996/01/24 19:34:49 peter Exp $
 
 .PATH:	${.CURDIR}/../../sys/miscfs/procfs
 KMOD=	procfs_mod
-SRCS=	procfs_ctl.c procfs_note.c procfs_status.c procfs_subr.c \
-	procfs_vfsops.c procfs_vnops.c
+SRCS=   procfs_ctl.c procfs_map.c procfs_note.c procfs_status.c procfs_subr.c \
+	procfs_type.c procfs_vfsops.c procfs_vnops.c
 NOMAN=
 VFS_LKM=
 CFLAGS+= -DPROCFS
