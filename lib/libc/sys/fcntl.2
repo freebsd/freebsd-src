@@ -195,7 +195,7 @@ as well as remove either type of lock
 If a shared or exclusive lock cannot be set,
 .Fn fcntl
 returns immediately with
-.Er EACCES .
+.Er EAGAIN .
 .It Dv F_SETLKW
 This command is the same as
 .Dv F_SETLK
@@ -377,9 +377,9 @@ is set to indicate the error.
 .Fn Fcntl
 will fail if:
 .Bl -tag -width Er
-.It Bq Er EACCES
+.It Bq Er EAGAIN
 The argument
-.Fa arg
+.Fa cmd
 is
 .Dv F_SETLK ,
 the type of lock
