@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.195 1997/07/23 15:13:18 jkh Exp $
+ * $Id: install.c,v 1.196 1997/08/18 21:47:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -804,8 +804,6 @@ installFixup(dialogMenuItem *self)
 	vsystem("newaliases");
 
 	/* BOGON #6: deal with new boot files */
-	if (file_readable("/sys/i386/boot/biosboot/boot.help"))
-	    vsystem("cp /sys/i386/boot/biosboot/boot.help /");
 	vsystem("touch /kernel.config");
 	vsystem("touch /boot.config");
 
@@ -1030,6 +1028,8 @@ copySelf(void)
 {
     int i;
 
+    if (file_readable("/boot.help"))
+	vsystem("cp /boot.help /mnt");
     msgWeHaveOutput("Copying the boot floppy to /stand on root filesystem");
     i = vsystem("find -x /stand | cpio %s -pdum /mnt", cpioVerbosity());
     if (i) {
