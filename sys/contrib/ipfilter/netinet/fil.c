@@ -97,7 +97,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fil.c,v 2.35.2.60 2002/04/26 10:20:34 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fil.c,v 2.35.2.61 2002/06/05 08:18:09 darrenr Exp $";
 #endif
 
 #ifndef	_KERNEL
@@ -1501,7 +1501,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.60 2002/04/26 10:20:34 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.61 2002/06/05 08:18:09 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -1616,7 +1616,6 @@ frgroup_t ***fgpp;
 		fgp = &ipfgroups[0][set];
 	else
 		return NULL;
-	num &= 0xffff;
 
 	while ((fg = *fgp))
 		if (fg->fg_num == num)

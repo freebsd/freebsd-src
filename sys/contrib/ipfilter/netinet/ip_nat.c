@@ -109,7 +109,7 @@ extern struct ifnet vpnif;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.67 2002/04/27 15:23:39 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.68 2002/06/04 14:46:08 darrenr Exp $";
 #endif
 
 nat_t	**nat_table[2] = { NULL, NULL },
@@ -469,8 +469,12 @@ int mode;
 		}
 		for (np = &nat_list; (n = *np); np = &n->in_next)
 			if (!bcmp((char *)&nat->in_flags, (char *)&n->in_flags,
-					IPN_CMPSIZ))
+					IPN_CMPSIZ)) {
+				if (n->in_redir == NAT_REDIRECT &&
+				    n->in_pnext != nat->in_pnext)
+					continue;
 				break;
+			}
 	}
 
 	switch (cmd)
