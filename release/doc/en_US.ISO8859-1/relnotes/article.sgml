@@ -1090,6 +1090,10 @@
     <para>The default root partition in &man.sysinstall.8; is now
     100MB on the i386 and 120MB on the alpha.</para>
 
+    <para>&man.xargs.1; gained a <option>-J</option> option which allows
+    the user to specify exactly where in the command line the input should
+    be retrofitted. &merged;</para>
+
     <para>Shortly after the receipt of a <literal>SIGINFO</literal>
     signal (normally control-T from the controlling tty), &man.fsck.ffs.8;
     will now output a line indicating the current phase number and
