@@ -204,13 +204,13 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 		goto bad;
 
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+		v = snd_mixerdefaults[i];
+
 		if (resource_int_value(device_get_name(dev),
 		    device_get_unit(dev), snd_mixernames[i], &val) == 0) {
 			if (val >= 0 && val <= 100) {
 				v = (u_int16_t) val;
 			}
-		} else {
-			v = snd_mixerdefaults[i];
 		}
 
 		mixer_set(m, i, v | (v << 8));
