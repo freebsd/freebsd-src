@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	ping
+MAN=	ping.8
 BINMODE=4555
 COPTS+=	-Wall -Wmissing-prototypes
 .if ${MACHINE_ARCH} == "alpha"

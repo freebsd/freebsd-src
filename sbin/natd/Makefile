@@ -7,5 +7,6 @@ SRCS		= natd.c icmp.c
 CFLAGS	       += -Wall
 LDADD		= -lalias
 DPADD		= ${LIBALIAS}
+MAN		= natd.8
 
 .include <bsd.prog.mk>

@@ -28,6 +28,7 @@
 #
 
 PROG=	fore_dnld
+MAN=	fore_dnld.8
 SRCS=	fore_dnld.c pca200e.c
 
 CFLAGS+=	-I${.CURDIR}/../../../sys

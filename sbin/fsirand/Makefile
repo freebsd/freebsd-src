@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	fsirand
+MAN=	fsirand.8
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
