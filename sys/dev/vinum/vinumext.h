@@ -142,8 +142,6 @@ void sdio(struct buf *bp);
 /* XXX Do we need this? */
 int vinumpart(dev_t);
 
-/* Why aren't these declared anywhere? XXX */
-int setjmp(jmp_buf);
 extern jmp_buf command_fail;				    /* return here if config fails */
 
 #ifdef VINUMDEBUG
@@ -156,6 +154,7 @@ char *basename(char *);
 #else
 void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
 #endif
+int setjmp(jmp_buf);
 
 void expand_table(void **, int, int);
 

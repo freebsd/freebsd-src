@@ -33,11 +33,9 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.18 1999/03/28 08:54:25 grog Exp $
+ * $Id: vinumrequest.c,v 1.23 1999/03/20 21:58:38 grog Exp grog $
  */
 
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 #include <miscfs/specfs/specdev.h>

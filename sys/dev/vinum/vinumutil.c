@@ -38,12 +38,9 @@
 
 /* This file contains utility routines used both in kernel and user context */
 
-#ifdef KERNEL
-#include "opt_vinum.h"
-#endif
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/statetexts.h>
-#ifndef REALLYKERNEL
+#ifndef KERNEL
 #include <stdio.h>
 extern jmp_buf command_fail;				    /* return on a failed command */
 #endif
@@ -217,14 +214,14 @@ sizespec(char *spec)
 		return size * sign * 1024 * 1024 * 1024;
 	    }
 	}
-#ifdef REALLYKERNEL
+#ifdef KERNEL
 	throw_rude_remark(EINVAL, "Invalid length specification: %s", spec);
 #else
 	fprintf(stderr, "Invalid length specification: %s", spec);
 	longjmp(command_fail, -1);
 #endif
     }
-#ifdef REALLYKERNEL
+#ifdef KERNEL
     throw_rude_remark(EINVAL, "Missing length specification");
 #else
     fprintf(stderr, "Missing length specification");
