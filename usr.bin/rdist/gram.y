@@ -171,8 +171,8 @@ cmd:		  INSTALL options opt_namelist SM = {
 			char errbuf[_POSIX2_LINE_MAX];
 
 			for (nl = $2; nl != NULL; nl = nl->n_next) {
-				if (val = regcomp(&rx, nl->n_name, 
-						  REG_EXTENDED)) {
+				if ((val = regcomp(&rx, nl->n_name, 
+						  REG_EXTENDED))) {
 					regerror(val, &rx, errbuf, 
 						 sizeof errbuf);
 					yyerror(errbuf);
@@ -477,7 +477,7 @@ makestr(str)
 	str = cp = malloc(strlen(s = str) + 1);
 	if (cp == NULL)
 		fatal("ran out of memory\n");
-	while (*cp++ = *s++)
+	while ((*cp++ = *s++))
 		;
 	return(str);
 }

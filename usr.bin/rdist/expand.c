@@ -91,7 +91,7 @@ expand(list, wh)
 	char *argvbuf[GAVSIZ];
 
 	if (debug) {
-		printf("expand(%x, %d)\nlist = ", list, wh);
+		printf("expand(%p, %d)\nlist = ", list, wh);
 		prnames(list);
 	}
 
@@ -217,7 +217,7 @@ expstr(s)
 			cp1 = pw->pw_dir;
 			s = cp;
 		}
-		for (cp = path; *cp++ = *cp1++; )
+		for (cp = path; (*cp++ = *cp1++); )
 			;
 		tpathp = pathp = cp - 1;
 	} else {
@@ -451,7 +451,7 @@ amatch(s, p)
 		case '[':
 			ok = 0;
 			lc = 077777;
-			while (cc = *p++) {
+			while ((cc = *p++)) {
 				if (cc == ']') {
 					if (ok)
 						break;
@@ -534,7 +534,7 @@ smatch(s, p)
 		case '[':
 			ok = 0;
 			lc = 077777;
-			while (cc = *p++) {
+			while ((cc = *p++)) {
 				if (cc == ']') {
 					if (ok)
 						break;
@@ -592,10 +592,10 @@ Cat(s1, s2)
 	eargv[eargc - 1] = s = malloc(len);
 	if (s == NULL)
 		fatal("ran out of memory\n");
-	while (*s++ = *s1++ & TRIM)
+	while ((*s++ = *s1++ & TRIM))
 		;
 	s--;
-	while (*s++ = *s2++ & TRIM)
+	while ((*s++ = *s2++ & TRIM))
 		;
 }
 
@@ -655,12 +655,12 @@ exptilde(buf, file)
 			*s3 = '/';
 		s2 = pw->pw_dir;
 	}
-	for (s1 = buf; *s1++ = *s2++; )
+	for (s1 = buf; (*s1++ = *s2++); )
 		;
 	s2 = --s1;
 	if (s3 != NULL) {
 		s2++;
-		while (*s1++ = *s3++)
+		while ((*s1++ = *s3++))
 			;
 	}
 	return(s2);
