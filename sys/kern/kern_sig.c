@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.16 1995/12/14 08:31:32 phk Exp $
+ * $Id: kern_sig.c,v 1.17 1996/01/03 21:42:09 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -73,8 +73,6 @@
 
 static int coredump     __P((struct proc *p));
 static int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
-/* XXX killproc may be a supported interface, but it isn't used anywhere... */
-static void killproc	__P((struct proc *p, char *why));
 static void stop	__P((struct proc *));
 
 /*
@@ -1150,9 +1148,8 @@ killproc(p, why)
 	struct proc *p;
 	char *why;
 {
-
-	log(LOG_ERR, "pid %d was killed: %s\n", p->p_pid, why);
-	uprintf("sorry, pid %d was killed: %s\n", p->p_pid, why);
+	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid, p->p_comm,
+		p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1, why);
 	psignal(p, SIGKILL);
 }
 
@@ -1179,8 +1176,10 @@ sigexit(p, signum)
 		 * these messages.)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 */
-		log(LOG_INFO, "pid %d: %s: uid %d: exited on signal %d\n",
-			p->p_pid, p->p_comm, p->p_ucred->cr_uid, signum);
+		log(LOG_INFO, "pid %d (%s), uid %d: exited on signal %d\n",
+			p->p_pid, p->p_comm,
+			p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1,
+			signum);
 		if (coredump(p) == 0)
 			signum |= WCOREFLAG;
 	}

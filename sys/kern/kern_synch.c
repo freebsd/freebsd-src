@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.16 1995/12/07 12:46:51 davidg Exp $
+ * $Id: kern_synch.c,v 1.17 1996/01/03 21:42:12 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -586,7 +586,7 @@ mi_switch()
 		rlim = &p->p_rlimit[RLIMIT_CPU];
 		if (s >= rlim->rlim_cur) {
 			if (s >= rlim->rlim_max)
-				psignal(p, SIGKILL);
+				killproc(p, "exceeded maximum CPU limit");
 			else {
 				psignal(p, SIGXCPU);
 				if (rlim->rlim_cur < rlim->rlim_max)
