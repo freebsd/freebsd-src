@@ -119,7 +119,6 @@ u_int	ipf_nattable_sz = NAT_TABLE_SZ;
 u_int	ipf_natrules_sz = NAT_SIZE;
 u_int	ipf_rdrrules_sz = RDR_SIZE;
 u_int	ipf_hostmap_sz = HOSTMAP_SIZE;
-int	nat_wilds = 0;
 u_32_t	nat_masks = 0;
 u_32_t	rdr_masks = 0;
 ipnat_t	**nat_rules = NULL;
@@ -145,7 +144,7 @@ static	void	nat_delnat __P((struct ipnat *));
 static	int	fr_natgetent __P((caddr_t));
 static	int	fr_natgetsz __P((caddr_t));
 static	int	fr_natputent __P((caddr_t));
-static	void	nat_tabmove __P((nat_t *, u_int));
+static	void	nat_tabmove __P((nat_t *));
 static	int	nat_match __P((fr_info_t *, ipnat_t *, ip_t *));
 static	hostmap_t *nat_hostmap __P((ipnat_t *, struct in_addr,
 				    struct in_addr));
@@ -1005,7 +1004,7 @@ struct nat *natd;
 	struct ipnat *ipn;
 
 	if (natd->nat_flags & FI_WILDP)
-		nat_wilds--;
+		nat_stats.ns_wilds--;
 	if (natd->nat_hnext[0])
 		natd->nat_hnext[0]->nat_phnext[0] = natd->nat_phnext[0];
 	*natd->nat_phnext[0] = natd->nat_hnext[0];
@@ -1149,7 +1148,7 @@ int direction;
 	bzero((char *)nat, sizeof(*nat));
 	nat->nat_flags = flags;
 	if (flags & FI_WILDP)
-		nat_wilds++;
+		nat_stats.ns_wilds++;
 	/*
 	 * Search the current table for a match.
 	 */
@@ -1917,7 +1916,7 @@ u_32_t ports;
 		      ((nat->nat_outport == dport) || (nflags & FI_W_SPORT)))))
 			return nat;
 	}
-	if (!nat_wilds || !(flags & IPN_TCPUDP))
+	if (!nat_stats.ns_wilds || !(flags & IPN_TCPUDP))
 		return NULL;
 	RWLOCK_EXIT(&ipf_nat);
 	hv = NAT_HASH_FN(dst, 0, ipf_nattable_sz);
@@ -1936,8 +1935,7 @@ u_32_t ports;
 			continue;
 		if (((nat->nat_oport == sport) || (nflags & FI_W_DPORT)) &&
 		    ((nat->nat_outport == dport) || (nflags & FI_W_SPORT))) {
-			hv = NAT_HASH_FN(dst, dport, ipf_nattable_sz);
-			nat_tabmove(nat, hv);
+			nat_tabmove(nat);
 			break;
 		}
 	}
@@ -1946,11 +1944,11 @@ u_32_t ports;
 }
 
 
-static void nat_tabmove(nat, hv)
+static void nat_tabmove(nat)
 nat_t *nat;
-u_int hv;
 {
 	nat_t **natp;
+	u_int hv;
 
 	/*
 	 * Remove the NAT entry from the old location
@@ -1960,9 +1958,14 @@ u_int hv;
 	*nat->nat_phnext[0] = nat->nat_hnext[0];
 
 	if (nat->nat_hnext[1])
-		nat->nat_hnext[0]->nat_phnext[1] = nat->nat_phnext[1];
+		nat->nat_hnext[1]->nat_phnext[1] = nat->nat_phnext[1];
 	*nat->nat_phnext[1] = nat->nat_hnext[1];
 
+	/*
+	 * Add into the NAT table in the new position
+	 */
+	hv = NAT_HASH_FN(nat->nat_inip.s_addr, nat->nat_inport,
+			 ipf_nattable_sz);
 	natp = &nat_table[0][hv];
 	if (*natp)
 		(*natp)->nat_phnext[0] = &nat->nat_hnext[0];
@@ -1970,9 +1973,8 @@ u_int hv;
 	nat->nat_hnext[0] = *natp;
 	*natp = nat;
 
-	/*
-	 * Add into the NAT table in the new position
-	 */
+	hv = NAT_HASH_FN(nat->nat_outip.s_addr, nat->nat_outport,
+			 ipf_nattable_sz);
 	natp = &nat_table[1][hv];
 	if (*natp)
 		(*natp)->nat_phnext[1] = &nat->nat_hnext[1];
@@ -2019,7 +2021,7 @@ u_32_t ports;
 		      (nat->nat_oport == dport || nflags & FI_W_DPORT))))
 			return nat;
 	}
-	if (!nat_wilds || !(flags & IPN_TCPUDP))
+	if (!nat_stats.ns_wilds || !(flags & IPN_TCPUDP))
 		return NULL;
 	RWLOCK_EXIT(&ipf_nat);
 	hv = NAT_HASH_FN(srcip, 0, ipf_nattable_sz);
@@ -2038,8 +2040,7 @@ u_32_t ports;
 			continue;
 		if (((nat->nat_inport == sport) || (nflags & FI_W_DPORT)) &&
 		    ((nat->nat_oport == dport) || (nflags & FI_W_SPORT))) {
-			hv = NAT_HASH_FN(srcip, sport, ipf_nattable_sz);
-			nat_tabmove(nat, hv);
+			nat_tabmove(nat);
 			break;
 		}
 	}
@@ -2180,7 +2181,7 @@ fr_info_t *fin;
 				nat->nat_outport = sport;
 			nat->nat_flags &= ~(FI_W_DPORT|FI_W_SPORT);
 			nflags = nat->nat_flags;
-			nat_wilds--;
+			nat_stats.ns_wilds--;
 		}
 	} else {
 		RWLOCK_EXIT(&ipf_nat);
@@ -2393,7 +2394,7 @@ fr_info_t *fin;
 				nat->nat_outport = dport;
 			nat->nat_flags &= ~(FI_W_SPORT|FI_W_DPORT);
 			nflags = nat->nat_flags;
-			nat_wilds--;
+			nat_stats.ns_wilds--;
 		}
 	} else {
 		RWLOCK_EXIT(&ipf_nat);

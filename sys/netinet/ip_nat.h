@@ -208,6 +208,7 @@ typedef	struct	natstat	{
 	u_int	ns_rultab_sz;
 	u_int	ns_rdrtab_sz;
 	nat_t	*ns_instances;
+	u_int	ns_wilds;
 } natstat_t;
 
 #define	IPN_ANY		0x000

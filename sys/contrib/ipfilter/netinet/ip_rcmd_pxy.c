@@ -1,5 +1,5 @@
 /*
- * $Id: ip_rcmd_pxy.c,v 1.4.2.2 2000/07/15 12:38:30 darrenr Exp $
+ * $Id: ip_rcmd_pxy.c,v 1.4.2.3 2000/10/27 22:54:04 darrenr Exp $
  */
 /*
  * Simple RCMD transparent proxy for in-kernel use.  For use with the NAT
@@ -147,6 +147,7 @@ nat_t *nat;
 		fi.fin_data[0] = ntohs(sp);
 		fi.fin_data[1] = 0;
 		fi.fin_dp = (char *)tcp2;
+		fi.fin_dlen = sizeof(*tcp2);
 		swip = ip->ip_src;
 		ip->ip_src = nat->nat_inip;
 		ipn = nat_new(nat->nat_ptr, ip, &fi, IPN_TCP|FI_W_DPORT,
