@@ -12,40 +12,43 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"     @(#)vidcontrol.1
-.\"	$Id: vidcontrol.1,v 1.14.2.1 1999/04/08 13:53:31 ghelmer Exp $
+.\"	$Id: vidcontrol.1,v 1.16 1999/06/03 12:44:16 yokota Exp $
 .\"
-.Dd May 22, 1994
+.Dd June 30, 1999
 .Dt VIDCONTROL 1
 .Os
 .Sh NAME
 .Nm vidcontrol
-.Nd a utility for manipulating the syscons video driver.
+.Nd a utility for manipulating the syscons console driver.
 .Sh SYNOPSIS
 .Nm
-.Op Fl r Ar fg Ar bg
 .Op Fl b Ar color
 .Op Fl c Ar appearance
 .Op Fl d
-.Op Fl i Ar adapter|mode
-.Op Fl l Ar scrmap
-.Op Fl L
-.Op Fl m Ar on|off
 .Op Fl f Ar size Ar file
+.Op Fl i Cm adapter | mode
+.Op Fl l Ar screen_map
+.Op Fl L
+.Op Fl m Cm on | off
+.Op Fl r Ar foreground Ar background
 .Op Fl s Ar number
-.Op Fl t Ar N|off
+.Op Fl t Ar N | Cm off
 .Op Fl x
-.Op mode
-.Op fgcol Op bgcol
-.Op show
+.Op Ar mode
+.Op Ar foreground Op Ar background
+.Op Cm show
 .Sh DESCRIPTION
 The
 .Nm
-command is used to set various options for the syscons video driver,
-such as video mode, colors, cursors, scrnmaps, font and screensaver timeout.
+command is used to set various options for the 
+.Xr syscons 4
+console driver,
+such as video mode, colors, cursor shape, screen output map, font and screen
+saver timeout.
 .Pp
 The following command line options are supported:
 .Bl -tag -width indent
-.It mode
+.It Ar mode
 Select a new video mode. The modes currently recognized are:
 .Ar 40x25 ,
 .Ar 80x25 ,
@@ -79,58 +82,85 @@ can also be chosen.
 See
 .Sx Video Mode Support
 below.
-.It fgcol Op bgcol
+.It Ar foreground Op Ar background
 Change colors when displaying text. Specify the foreground color
-(e.g. "vidcontrol white"), or both a foreground & background color
-(e.g. "vidcontrol yellow blue").
-.It show
+(e.g. ``vidcontrol white''), or both a foreground and background colors
+(e.g. ``vidcontrol yellow blue'').
+Use the
+.Cm show
+command below to see available colors.
+.It Cm show
 See the supported colors on a given platform.
-.It Fl r Ar foreground Ar background
+.It Fl r Ar foreground background
 Change reverse mode colors to
 .Ar foreground 
 and 
 .Ar background .
 .It Fl b Ar color
 Set border color to 
-.Ar color 
-(only supported on VGA hardware).
-.It Fl c Ar normal|blink|destructive
+.Ar color .
+This option may not be always supported by the video driver.
+.It Fl c Cm normal | blink | destructive
 Change the cursor appearance. The cursor is either an inverting block 
-(normal) that eventually can "blink". Or it can be like the old hardware cursor
-(destructive). The latter is actually a simulation.
+.Pq Cm normal
+that eventually can 
+.Cm blink .
+Or it can be like the old hardware cursor
+.Pq Cm destructive .
+The latter is actually a simulation.
 .It Fl d
-Print out current screen output map.
-.It Fl l Ar scrmap
+Print out current output screen map.
+.It Fl l Ar screen_map
 Install screen output map file from
-.Ar scrmap
+.Ar screen_map
+See also
+.Xr syscons 4 .
 .It Fl L
 Install default screen output map.
-.It Fl i Ar adapter
-Shows info about the current videoadapter.
-.It Fl i Ar mode
-Shows the possible videomodes with the current video hardware.
-.It Fl m Ar on|off
-Switch the mousepointer
-.Ar on
+.It Fl i Cm adapter
+Shows info about the current video adapter.
+.It Fl i Cm mode
+Shows the possible video modes with the current video hardware.
+.It Fl m Cm on | off
+Switch the mouse pointer
+.Cm on
 or
-.Ar off .
-Used together with the moused
-daemon for textmode cut & paste functionality.
+.Cm off .
+Used together with the 
+.Xr moused 8
+daemon for text mode cut & paste functionality.
 .It Fl f Ar size Ar file
 Load font
 .Ar file
 for
 .Ar size
-(currently, only 8x8, 8x14 or 8x16).
+(currently, only
+.Cm 8x8 ,
+.Cm 8x14
+or
+.Cm 8x16
+).
 The font file can be either uuencoded or in raw binary format.
+You can also use the menu-driven
+.Xr vidfont 1
+command to load the font of your choice.
+.Pp
+Note that older video cards, such as MDA and CGA, do not support 
+software font.
+See also
+.Sx Video Mode Support
+and
+.Sx EXAMPLE
+below and the man page for
+.Xr syscons 4 .
 .It Fl s Ar number
 Set the current vty to
 .Ar number .
-.It Fl t Ar N|off
+.It Fl t Ar N | Cm off
 Set the screensaver timeout to
 .Ar N
 seconds, or turns it
-.Ar off .
+.Cm off .
 .It Fl x
 Use hexadecimal digits for output.
 .El
@@ -138,7 +168,7 @@ Use hexadecimal digits for output.
 Note that not all modes listed above may be supported by the video
 hardware.
 You can verify which mode is supported by the video hardware, using the
-.Fl i Ar mode
+.Fl i Cm mode
 option.
 .Pp
 The VESA BIOS support must be linked to the kernel
@@ -170,25 +200,85 @@ Modes	Font size
 It is better to always load all three sizes (8x8, 8x14 and 8x16)
 of the same font.
 .Pp
-You may set
-.Ar font8x8 ,
-.Ar font8x14 
-and
-.Ar font8x16
-variables in
+You may set variables in 
+.Pa /etc/rc.conf
+or
 .Pa /etc/rc.conf.local
-to the desired font files so that they will be automatically loaded
+so that desired font files will be automatically loaded
 when the system starts up.
+See below.
+.Sh VIDEO OUTPUT CONFIGURATION
+.Ss Boot Time Configuration
+You may set the following variables in
+.Pa /etc/rc.conf
+or
+.Pa /etc/rc.conf.local
+in order to configure the video output at boot time.
+.Pp
+.Bl -tag -width foo_bar_var -compact 
+.It Ar blanktime
+Sets the timeout value for the 
+.Fl t
+option.
+.It Ar font8x16, font8x14, font8x8
+Specifies font files for the
+.Fl f
+option.
+.It Ar scrnmap
+Specifies a screen output map file for the
+.Fl l
+option.
+.El 
+.Pp 
+See 
+.Xr rc.conf 5
+for more details. 
+.Ss Driver Configuration
+The video card driver may let you change default configuration
+options, such as the default font, so that you do not need to set up
+the options at boot time.
+See video card driver manuals,
+.Pq e.g. Xr vga 4
+for details.
 .Sh FILES
-.Bl -tag -width /usr/share/syscons/scrnmaps -compact
-.It Pa /usr/share/syscons/fonts
-.It Pa /usr/share/syscons/scrnmaps
+.Bl -tag -width /usr/share/syscons/scrnmaps/foo-bar -compact
+.It Pa /usr/share/syscons/fonts/*
+font files.
+.It Pa /usr/share/syscons/scrnmaps/*
+screen output map files.
 .El
+.Sh EXAMPLE
+If you want to load
+.Pa /usr/share/syscons/fonts/iso-8x16.fnt
+to the kernel, run
+.Nm
+as:
+.Pp
+.Dl vidcontrol -f 8x16 /usr/share/syscons/fonts/iso-8x16.fnt
+.Pp
+So long as the font file is in
+.Pa /usr/share/syscons/fonts ,
+you may abbreviate the file name as
+.Pa iso-8x16 :
+.Pp
+.Dl vidcontrol -f 8x16 iso-8x16
+.Pp
+Likewise, you can also abbreviate the screen output map file name for
+the
+.Fl l
+option if the file is found in
+.Pa /usr/share/syscons/scrnmaps .
+.Pp
+.Dl vidcontrol -l iso-8859-1_to_cp437
+.Pp
+The above command will load
+.Pa /usr/share/syscons/scrnmaps/iso-8859-1_to_cp437.scm .
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr keyboard 4 ,
 .Xr screen 4 ,
 .Xr syscons 4 ,
+.Xr vidfont 1 ,
 .Xr vga 4 ,
 .Xr rc.conf 5 ,
 .Xr moused 8
