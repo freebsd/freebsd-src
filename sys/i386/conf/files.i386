@@ -200,8 +200,10 @@ i386/ibcs2/ibcs2_xenix_sysent.c	optional	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
 i386/isa/adv_isa.c		optional	adv
 i386/isa/asc.c			optional	asc
-i386/isa/atapi-cd.c		optional	wcd
-i386/isa/atapi.c		optional	wdc
+i386/isa/atapi-cd.c		optional	wcd	\
+	warning "The wcd driver is obsolete.  Please use the atapicd driver!"
+i386/isa/atapi.c		optional	wdc	\
+	warning "The wdc driver is obsolete.  Please use the ata driver!"
 i386/isa/clock.c		standard
 i386/isa/cronyx.c		optional	cx
 i386/isa/ctx.c			optional	ctx
@@ -325,10 +327,13 @@ i386/isa/spkr.c			optional	speaker
 i386/isa/stallion.c		optional	stl
 i386/isa/tw.c			optional	tw
 i386/isa/vesa.c			optional	vga
-i386/isa/wd.c			optional	wd
+i386/isa/wd.c			optional	wd	\
+	warning "The wd  driver is obsolete.  Please use the atadisk driver!"
 i386/isa/wd.c			optional	wdc
-i386/isa/wfd.c			optional	wfd
-i386/isa/wst.c			optional	wst
+i386/isa/wfd.c			optional	wfd	\
+	warning "The wfd driver is obsolete.  Please use the atapifd driver!"
+i386/isa/wst.c			optional	wst	\
+	warning "The wst driver is obsolete.  Please use the atapist driver!"
 i386/isa/wt.c			optional	wt
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
@@ -405,4 +410,4 @@ libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-pci/ide_pci.c			optional	wd pci
+pci/ide_pci.c			optional	wdc pci
