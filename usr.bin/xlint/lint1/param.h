@@ -65,6 +65,9 @@
 #ifdef __ia64__
 #define PTRDIFF_IS_LONG		1
 #define SIZEOF_IS_ULONG		1
+#elif __amd64__
+#define PTRDIFF_IS_LONG		1
+#define SIZEOF_IS_ULONG		1
 #elif __alpha__
 #define PTRDIFF_IS_LONG		1
 #define SIZEOF_IS_ULONG		1
