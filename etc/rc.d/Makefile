@@ -19,11 +19,10 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	ipnat ipsec ipxrouted isdnd \
 	jail \
 	kadmind kerberos keyserv kldxref kpasswdd \
-	ldconfig local localdaemons localpkg lomac lpd \
+	ldconfig local localpkg lomac lpd \
 	motd mountcritlocal mountcritremote \
 	mountd moused mroute6d mrouted msgs \
 	named netif netoptions \
-	network1 network2 network3 \
 	network_ipv6 nfsclient nfsd \
 	nfslocking nfsserver nisdomain ntpd ntpdate \
 	othermta \
