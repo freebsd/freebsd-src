@@ -1252,8 +1252,8 @@ writemsg(int rfd, const u_char *msg, int msglen) {
 	iov[1].iov_len = msglen;
 	ret = writev(rfd, iov, 2);
 	if (ret != INT16SZ + msglen) {
-		syslog(LOG_DEBUG, "writemsg(%d,%#x,%d) failed: %s",
-		       rfd, msg, msglen, strerror(errno));
+		syslog(LOG_DEBUG, "writemsg(%d,%p,%d) failed: %s",
+		       rfd, (void *)msg, msglen, strerror(errno));
 		return (-1);
 	}
 	return (ret);

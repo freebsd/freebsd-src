@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ypxfr_main.c,v 1.11 1997/12/08 07:49:54 charnier Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -441,7 +441,7 @@ the local domain name isn't set");
 	 * master name, input file name (we actually make up a bogus
 	 * name for that) and output file name.
 	 */
-	snprintf(buf, sizeof(buf), "%d", ypxfr_order);
+	snprintf(buf, sizeof(buf), "%lu", ypxfr_order);
 	data.data = buf;
 	data.size = strlen(buf);
 
