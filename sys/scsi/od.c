@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.22.2.1 1996/11/06 19:12:01 joerg Exp $
+ *	$Id: od.c,v 1.22.2.2 1998/04/27 11:39:04 des Exp $
  */
 
 /*
@@ -218,7 +218,7 @@ odattach(struct scsi_link *sc_link)
 	if (sc_link->opennings > ODOUTSTANDING)
 		sc_link->opennings = ODOUTSTANDING;
 
-	TAILQ_INIT(&od->buf_queue);
+	bufq_init(&od->buf_queue);
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
@@ -485,7 +485,7 @@ od_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	TAILQ_INSERT_TAIL(&od->buf_queue, bp, b_act);
+	bufq_insert_tail(&od->buf_queue, bp);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
@@ -560,11 +560,11 @@ odstart(u_int32_t unit, u_int32_t flags)
 		/*
 		 * See if there is a buf with work for us to do..
 		 */
-		bp = od->buf_queue.tqh_first;
+		bp = bufq_first(&od->buf_queue);
 		if (bp == NULL) {	/* yes, an assign */
 			return;
 		}
-		TAILQ_REMOVE( &od->buf_queue, bp, b_act);
+		bufq_remove(&od->buf_queue, bp);
 
 		/*
 		 *  If the device has become invalid, abort all the
