@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.131 1995/04/04 04:23:37 gpalmer Exp $
+# $Id: bsd.port.mk,v 1.132 1995/04/04 05:57:19 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -267,8 +267,10 @@ MAINTAINER?=	ports@FreeBSD.ORG
 CATEGORIES?=	orphans
 KEYWORDS?=		${CATEGORIES}
 
+PKGREPOSITORYSUBDIR?=	.package
+PKGREPOSITORY?=		${PACKAGES}/${PKGREPOSITORYSUBDIR}
 .if exists(${PACKAGES})
-PKGFILE?=		${PACKAGES}/${PKGNAME}${PKG_SUFX}
+PKGFILE?=		${PKGREPOSITORY}/${PKGNAME}${PKG_SUFX}
 .else
 PKGFILE?=		${PKGNAME}${PKG_SUFX}
 .endif
@@ -420,12 +422,29 @@ pre-package:
 
 .if !target(package)
 package: pre-package
-# Makes some gross assumptions about a fairly simple package with no
-# install, require or deinstall scripts.  Override the arguments with
-# PKG_ARGS if your package is anything but run-of-the-mill.
-	@if [ -d ${PKGDIR} ]; then \
+	@if [ -e ${PKGDIR}/PLIST ]; then \
 		${ECHO_MSG} "===>  Building package for ${DISTNAME}"; \
+		if [ -d ${PACKAGES} ]; then \
+			if [ ! -d ${PKGREPOSITORY} ]; then \
+				if ! mkdir -p ${PKGREPOSITORY}; then \
+					${ECHO_MSG} ">> Can't create directory ${PKGREPOSITORY}."; \
+					exit 1; \
+				fi; \
+			fi; \
+		fi; \
 		${PKG_CMD} ${PKG_ARGS} ${PKGFILE}; \
+		if [ -d ${PACKAGES} ]; then \
+			rm -f ${PACKAGES}/*/${PKGNAME}${PKG_SUFX}; \
+			for cat in ${CATEGORIES}; do \
+				if [ ! -d ${PACKAGES}/$$cat ]; then \
+					if ! mkdir -p ${PACKAGES}/$$cat; then \
+						${ECHO_MSG} ">> Can't create directory ${PACKAGES}/$$cat."; \
+						exit 1; \
+					fi; \
+				fi; \
+				ln -s ../${PKGREPOSITORYSUBDIR}/${PKGNAME}${PKG_SUFX} ${PACKAGES}/$$cat; \
+			done; \
+		fi; \
 	fi
 .endif
 
