@@ -4,7 +4,7 @@
 # Date:		Mon Jul 10 01:18:20 2000
 # Version:	$FreeBSD$
 #
-# MAINTAINER:	jkh
+# MAINTAINER:	re
 #
 # This script prints out the list of "minimum required packages" for
 # a given CDROM number, that numer currently referring to the 4 CD
