@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.20 1996/03/28 14:27:52 scrappy Exp $";
-/*******************************************************************************
- *  II - Version 0.1 $Revision: 1.20 $   $State: Exp $
+/* @(#)$Id: iitty.c,v 1.21 1996/04/02 22:06:23 gpalmer Exp $
+ *******************************************************************************
+ *  II - Version 0.1 $Revision: 1.21 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -295,8 +295,7 @@ ityparam(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
 {
-	register        ity;
-	register int    cfcr, cflag = t->c_cflag;
+	register int    cflag = t->c_cflag;
 	int             unit = UNIT(tp->t_dev);
 	int             ospeed = t->c_ospeed;
 

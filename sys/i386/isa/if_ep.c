@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.43 1996/02/28 17:19:03 gibbs Exp $
+ *  $Id: if_ep.c,v 1.44 1996/05/24 15:22:36 gibbs Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -196,7 +196,7 @@ static struct ep_board *
 ep_look_for_board_at(is)
     struct isa_device *is;
 {
-    int data, i, j, io_base, id_port = ELINK_ID_PORT;
+    int data, i, j, id_port = ELINK_ID_PORT;
     int count = 0;
 
     if (ep_current_tag == (EP_LAST_TAG + 1)) {
@@ -364,7 +364,6 @@ ep_isa_probe(is)
     struct ep_softc *sc;
     struct ep_board *epb;
     u_short k;
-    int i;
 
     if(( epb=ep_look_for_board_at(is) )==0)
 	return (0);
@@ -573,7 +572,7 @@ epinit(sc)
     struct ep_softc *sc;
 {
     register struct ifnet *ifp = &sc->arpcom.ac_if;
-    int s, i, j;
+    int s, i;
 
 	/*
     if (ifp->if_addrlist == (struct ifaddr *) 0)

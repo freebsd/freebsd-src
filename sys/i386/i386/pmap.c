@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.101 1996/06/07 02:36:08 dyson Exp $
+ *	$Id: pmap.c,v 1.102 1996/06/08 06:48:27 dyson Exp $
  */
 
 /*
@@ -725,7 +725,6 @@ pmap_release(pmap)
 {
 	vm_page_t p,n,ptdpg;
 	vm_object_t object = pmap->pm_pteobj;
-	int s;
 
 	if (object->ref_count != 1)
 		panic("pmap_release: pteobj reference count != 1");
@@ -1172,8 +1171,6 @@ pmap_remove_pte_mapping(pa)
 {
 	register pv_entry_t pv, *ppv, npv;
 	register unsigned *pte;
-	vm_offset_t va;
-	int anyvalid = 0;
 
 	ppv = pa_to_pvh(pa);
 
@@ -1289,8 +1286,6 @@ pmap_protect(pmap, sva, eva, prot)
 	vm_offset_t sva, eva;
 	vm_prot_t prot;
 {
-	register unsigned *pte;
-	register vm_offset_t va;
 	register unsigned *ptbase;
 	vm_offset_t pdnxt;
 	vm_offset_t ptpaddr;

@@ -30,13 +30,13 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.41 1996/05/30 23:41:35 peter Exp $
+ *	$Id: si.c,v 1.42 1996/06/08 10:18:12 peter Exp $
  */
 
 #ifndef lint
-static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
-            si_copyright2[] =  "@(#) (C) Andy Rutter 1993",
-            si_copyright3[] =  "@(#) (C) Peter Wemm 1995";
+static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
+                  si_copyright2[] =  "@(#) (C) Andy Rutter 1993",
+                  si_copyright3[] =  "@(#) (C) Peter Wemm 1995";
 #endif	/* not lint */
 
 #include <sys/param.h>
@@ -234,7 +234,6 @@ static int si_pollrate;			/* in addition to irq */
 SYSCTL_INT(_machdep, OID_AUTO, si_pollrate, CTLFLAG_RD, &si_pollrate, 0, "");
 		 
 static int init_finished = 0;
-static int fastpoll = 0;
 static void si_poll __P((void *));
 #endif
 
@@ -494,9 +493,6 @@ siattach(id)
 	struct speedtab *spt;
 	int nmodule, nport, x, y;
 	int uart_type;
-#ifdef DEVFS
-	char	name[32];
-#endif
 
 	DPRINT((0, DBG_AUTOBOOT, "si%d: siattach\n", id->id_unit));
 

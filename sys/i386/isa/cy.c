@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.31 1996/03/27 20:03:23 bde Exp $
+ *	$Id: cy.c,v 1.32 1996/05/02 09:34:34 phk Exp $
  */
 
 #include "cy.h"
@@ -343,7 +343,9 @@ static	int	sioattach	__P((struct isa_device *dev));
 static	void	cd1400_channel_cmd __P((cy_addr iobase, int cmd));
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
+#if 0
 static	void	siointr1	__P((struct com_s *com));
+#endif
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	int	sioprobe	__P((struct isa_device *dev));
@@ -1352,11 +1354,13 @@ cont:
 	schedsofttty();
 }
 
+#if 0
 static void
 siointr1(com)
 	struct com_s	*com;
 {
 }
+#endif
 
 static int
 sioioctl(dev, cmd, data, flag, p)

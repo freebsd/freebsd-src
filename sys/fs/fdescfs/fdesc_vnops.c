@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.15 1995/12/08 11:17:40 julian Exp $
+ * $Id: fdesc_vnops.c,v 1.16 1996/06/12 03:37:02 davidg Exp $
  */
 
 /*
@@ -98,7 +98,6 @@ static struct fdcache *
 static int	fdesc_inactive __P((struct vop_inactive_args *ap));
 static int	fdesc_ioctl __P((struct vop_ioctl_args *ap));
 static int	fdesc_lookup __P((struct vop_lookup_args *ap));
-static int	fdesc_nullop __P((void));
 static int	fdesc_open __P((struct vop_open_args *ap));
 static int	fdesc_pathconf __P((struct vop_pathconf_args *ap));
 static int	fdesc_print __P((struct vop_print_args *ap));
@@ -923,16 +922,6 @@ fdesc_badop()
 
 	panic("fdesc: bad op");
 	/* NOTREACHED */
-}
-
-/*
- * /dev/fd vnode null operation
- */
-static int
-fdesc_nullop()
-{
-
-	return (0);
 }
 
 #define fdesc_create ((int (*) __P((struct  vop_create_args *)))fdesc_enotsupp)

@@ -41,7 +41,7 @@
  * This version is for use with mbufs on BSD-derived systems.
  *
  * from: Id: bsd-comp.c,v 1.11 1995/07/04 03:35:11 paulus Exp
- * $Id$
+ * $Id: bsd_comp.c,v 1.3 1995/10/31 20:51:22 peter Exp $
  */
 
 #include <sys/param.h>
@@ -487,11 +487,10 @@ bsd_compress(state, mret, mp, slen, maxolen)
     struct bsd_dict *dictp;
     u_char c;
     int hval, disp, ent, ilen;
-    struct mbuf *np;
     u_char *rptr, *wptr;
     u_char *cp_end;
     int olen;
-    struct mbuf *m, **mnp;
+    struct mbuf *m;
 
 #define PUTBYTE(v) {					\
     ++olen;						\
@@ -837,7 +836,6 @@ bsd_decompress(state, cmp, dmpp)
     struct mbuf *m, *dmp, *mret;
     int adrs, ctrl, ilen;
     int space, codelen, extra;
-    struct mbuf *last;
 
     /*
      * Save the address/control from the PPP header

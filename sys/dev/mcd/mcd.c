@@ -40,9 +40,9 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.78 1996/05/03 16:49:02 phk Exp $
+ *	$Id: mcd.c,v 1.79 1996/06/08 09:18:21 bde Exp $
  */
-static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
+static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
 #include "mcd.h"
 #if NMCD > 0

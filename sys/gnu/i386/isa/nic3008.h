@@ -1,5 +1,5 @@
-static char     nic38hid[] = "@(#)$Id: nic3008.h,v 1.1 1995/01/25 14:06:18 jkr Exp jkr $";
-/*******************************************************************************
+/* @(#)$Id: nic3008.h,v 1.1 1995/02/14 15:00:12 jkh Exp $
+ *******************************************************************************
  *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
@@ -10,6 +10,15 @@ static char     nic38hid[] = "@(#)$Id: nic3008.h,v 1.1 1995/01/25 14:06:18 jkr E
  *
  *******************************************************************************
  * $Log: nic3008.h,v $
+ * Revision 1.1  1995/02/14 15:00:12  jkh
+ * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
+ * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
+ * Obtained from: Dietmar Friede <dfriede@drnhh.neuhaus.de> and
+ * 	Juergen Krause <jkr@saarlink.de>
+ *
+ * This is only one part - the rest to follow in a couple of hours.
+ * This part is a benign import, since it doesn't affect anything else.
+ *
  *
  ******************************************************************************/
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.37 1996/03/11 02:24:39 hsu Exp $
+ * $Id: tty_pty.c,v 1.38 1996/04/11 18:43:37 bde Exp $
  */
 
 /*
@@ -56,7 +56,9 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
+#ifdef notyet
 static void ptyattach __P((int n));
+#endif
 static void ptsstart __P((struct tty *tp));
 static void ptcwakeup __P((struct tty *tp, int flag));
 
@@ -71,7 +73,6 @@ static	d_open_t	ptcopen;
 static	d_close_t	ptcclose;
 static	d_read_t	ptcread;
 static	d_write_t	ptcwrite;
-static	d_ioctl_t	ptcioctl;
 static	d_select_t	ptcselect;
 
 #define CDEV_MAJOR_S 5
@@ -113,6 +114,7 @@ static int	npty = NPTY;		/* for pstat -t */
 #define	PF_NOSTOP	0x40
 #define PF_UCNTL	0x80		/* user control mode */
 
+#ifdef notyet
 /*
  * Establish n (or default if n is 1) ptys in the system.
  *
@@ -122,7 +124,6 @@ static void
 ptyattach(n)
 	int n;
 {
-#ifdef notyet
 	char *mem;
 	register u_long ntb;
 #define	DEFAULT_NPTY	32
@@ -137,8 +138,8 @@ ptyattach(n)
 	mem = (char *)ALIGN(mem + ntb);
 	pt_ioctl = (struct pt_ioctl *)mem;
 	npty = n;
-#endif
 }
+#endif
 
 /*ARGSUSED*/
 static	int
@@ -789,7 +790,6 @@ ptc_drvinit(void *unused)
 {
 #ifdef DEVFS
 	int i,j,k;
-	char name[16];
 #endif
 	dev_t dev;
 
@@ -806,8 +806,6 @@ ptc_drvinit(void *unused)
 #define NPTY MAXUNITS
 #endif
 		for ( i = 0 ; i<NPTY ; i++ ) {
-			void *x;
-
 			j = i / 32;
 			k = i % 32;
 			devfs_token_pts[i] = 
@@ -824,5 +822,3 @@ ptc_drvinit(void *unused)
 }
 
 SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR_C,ptc_drvinit,NULL)
-
-

@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.15.1.3 1996/05/06 15:14:57 shun Exp $
+ *	$Id: od.c,v 1.16 1996/05/19 19:26:21 joerg Exp $
  */
 
 /*
@@ -113,7 +113,9 @@ struct scsi_data {
 static void	od_get_geometry __P((u_int32_t, u_int16_t *,
 				     u_char *, u_char *));
 static errval	od_get_parms __P((int unit, int flags));
+#ifdef notyet
 static errval	od_reassign_blocks __P((int unit, int block));
+#endif
 static u_int32_t	od_size __P((int unit, int flags));
 static int	od_sense_handler __P((struct scsi_xfer *));
 static void	odstart __P((u_int32_t, u_int32_t));

@@ -1,6 +1,6 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.12 1996/03/28 14:27:51 scrappy Exp $";
-/*******************************************************************************
- *  II - Version 0.1 $Revision: 1.12 $   $State: Exp $
+/* @(#)$Id: iitel.c,v 1.13 1996/04/07 13:20:40 bde Exp $
+ *******************************************************************************
+ *  II - Version 0.1 $Revision: 1.13 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -146,7 +146,6 @@ itel_disconnect(int no)
 int
 itelopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	int             err;
 	struct itel_data *itel;
 
 	if (minor(dev)>NITEL)
@@ -179,8 +178,6 @@ itelclose(dev_t dev, int flags, int fmt, struct proc *p)
 int
 itelioctl (dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
-        int     unit = minor(dev);
-
         switch (cmd) {
             default:
                 return (ENOTTY);

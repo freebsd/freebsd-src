@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.18 1996/01/26 09:27:27 phk Exp $
+ *	$Id: if_ix.c,v 1.19 1996/02/06 18:50:46 wollman Exp $
  */
 
 #include "ix.h"
@@ -567,8 +567,6 @@ ixattach(struct isa_device *dvp) {
 	int 			unit = dvp->id_unit;
 	ix_softc_t		*sc = &ix_softc[unit];
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	struct ifaddr		*ifa;
-	struct sockaddr_dl	*sdl;
 
 	DEBUGBEGIN(DEBUGATTACH)
 	DEBUGDO(printf("ixattach:");)

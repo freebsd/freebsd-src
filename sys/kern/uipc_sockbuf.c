@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.8 1996/01/05 21:41:54 wollman Exp $
+ * $Id: uipc_socket2.c,v 1.9 1996/03/11 15:37:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -162,7 +162,6 @@ sonewconn1(head, connstatus)
 	int connstatus;
 {
 	register struct socket *so;
-	int soqueue = connstatus ? 1 : 0;
 
 	if (head->so_qlen > 3 * head->so_qlimit / 2)
 		return ((struct socket *)0);

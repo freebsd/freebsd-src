@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.4 1996/03/12 06:20:10 peter Exp $
+ *	$Id: imgact_elf.c,v 1.5 1996/05/01 02:42:43 bde Exp $
  */
 
 #include <sys/param.h>
@@ -139,7 +139,7 @@ static int
 map_pages(struct vnode *vp, vm_offset_t offset, 
 	     vm_offset_t *buf, vm_size_t size)
 {
-	int error, aresid;
+	int error;
 	vm_offset_t kern_buf;
 	vm_size_t pageoff;
 	
@@ -170,7 +170,6 @@ map_pages(struct vnode *vp, vm_offset_t offset,
 static void
 unmap_pages(struct vnode *vp, vm_offset_t buf, vm_size_t size)
 {
-	int error, aresid;
 	vm_size_t pageoff;
 	
 	pageoff = (buf & PAGE_MASK);

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.14 1996/03/17 04:52:10 dyson Exp $
+ * $Id: sys_pipe.c,v 1.15 1996/03/25 01:48:28 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -125,7 +125,6 @@ static struct fileops pipeops =
 int amountpipekva;
 
 static void pipeclose __P((struct pipe *cpipe));
-static void pipebufferinit __P((struct pipe *cpipe));
 static void pipeinit __P((struct pipe *cpipe));
 static __inline int pipelock __P((struct pipe *cpipe, int catch));
 static __inline void pipeunlock __P((struct pipe *cpipe));
@@ -135,7 +134,6 @@ static int pipe_build_write_buffer __P((struct pipe *wpipe, struct uio *uio));
 static void pipe_destroy_write_buffer __P((struct pipe *wpipe));
 static int pipe_direct_write __P((struct pipe *wpipe, struct uio *uio));
 static void pipe_clone_write_buffer __P((struct pipe *wpipe));
-static void pipe_mark_pages_clean __P((struct pipe *cpipe));
 #endif
 static int pipewrite __P((struct pipe *wpipe, struct uio *uio, int nbio));
 static void pipespace __P((struct pipe *cpipe));
@@ -1004,8 +1002,8 @@ pipe_close(fp, p)
 	struct file *fp;
 	struct proc *p;
 {
-	int error = 0;
 	struct pipe *cpipe = (struct pipe *)fp->f_data;
+
 	pipeclose(cpipe);
 	fp->f_data = NULL;
 	return 0;

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.18 1996/04/07 17:03:12 bde Exp $
+ *	$Id: eisaconf.c,v 1.19 1996/04/20 21:21:49 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -673,8 +673,6 @@ eisa_registerdev(e_dev, driver, kdc_template)
 	struct eisa_driver *driver;
 	struct kern_devconf *kdc_template;
 {
-	resvaddr_t *node;
-
 	e_dev->driver = driver;	/* Driver now owns this device */
 	e_dev->kdc = (struct kern_devconf *)malloc(sizeof(struct kern_devconf),
 						   M_DEVBUF, M_NOWAIT);
