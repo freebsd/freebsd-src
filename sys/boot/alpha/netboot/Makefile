@@ -3,7 +3,7 @@
 BASE= 		netboot
 PROG= 		${BASE}
 NOMAN=
-NEWVERSWHAT=	"SRM net boot"
+NEWVERSWHAT=	"SRM net boot" alpha
 
 .PATH:		${.CURDIR}/../common
 
@@ -33,8 +33,8 @@ BINDIR?=	/boot
 
 all: ${BASE}
 
-vers.o: ${.CURDIR}/newvers.sh ${.CURDIR}/Makefile
-	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
+	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
 ${BASE}: ${BASE}.sym
