@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header$
+$ $Header: /home/ncvs/src/usr.bin/ee/nls/de_DE.ISO_8859-1/ee.msg,v 1.1 1995/10/21 23:47:40 joerg Exp $
 $ 
 $set 1
 $quote "
@@ -50,7 +50,7 @@ $quote "
 41 "^f Zeichen zurückholen  ^n nächste Seite        ^x Weitersuchen            "
 42 "^g zum Zeilenanfang     ^o zum Zeilenende       ^y Zeile löschen           "
 43 "^h Rückschritt          ^p vorige Seite         ^z Zeile zurückholen       "
-44 "^[ (Escape) Menü                                                           "
+44 "^[ (Escape) Menü        ESC-Enter: ee beenden                              "
 45 "                                                                           "
 46 "Befehle:                                                                   "
 47 "hilfe   : diese Hilfe anzeigen          datei   : Dateinamen anzeigen      "
@@ -67,7 +67,7 @@ $quote "
 58 "^a ASCII-Code     ^x Weitersuchen   ^z Zeile rückhl.  ^d runter ^n Seite vor  "
 59 "^b Textende       ^g Zeilenanfang   ^w Wort löschen   ^l links                "
 60 "^t Textanfang     ^o Zeilenende     ^v Wort rückhol.  ^r rechts               "
-61 "^c Befehl         ^k Zeichen lösch. ^f Zeichen rückholen                      "
+61 "^c Befehl         ^k Zeichen lösch. ^f Zeichen rückholen  ESC-Enter: Ende ee  "
 62 "hilfe: Hilfe          |datei : Dateiname anzeigen      |zeile: Zeilennumer  "
 63 "lesen: Datei lesen    |zeichen:ASCII-Code des Zeichens |0-9 : zur Zeile     "
 64 "schre: Datei schreib. |grosskl:Suche mit Groß/Klein    |ende : Speichern,Ende "
