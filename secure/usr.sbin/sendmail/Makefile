@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.8 (Berkeley) 3/28/97
 # $FreeBSD$
 
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+SENDMAIL_DIR=${.CURDIR}/../../../contrib/sendmail
 SMDIR=	${SENDMAIL_DIR}/src
 .PATH:	${SMDIR}
 
@@ -34,15 +34,22 @@ MAN5=	aliases.5
 MAN8=	sendmail.8 
 BINMODE=4555
 
-.if exists(${.OBJDIR}/../../lib/libsmutil)
-LIBSMUTILDIR:=	${.OBJDIR}/../../lib/libsmutil
+.if exists(${.OBJDIR}/../../../lib/libsmutil)
+LIBSMUTILDIR:=	${.OBJDIR}/../../../lib/libsmutil
 .else
-LIBSMUTILDIR!=	cd ${.CURDIR}/../../lib/libsmutil; make -V .OBJDIR
+LIBSMUTILDIR!=	cd ${.CURDIR}/../../../lib/libsmutil; make -V .OBJDIR
 .endif
 LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
 
 DPADD+=	${LIBSMUTIL}
 LDADD+=	${LIBSMUTIL}
+
+.if !defined(NO_OPENSSL)
+# STARTTLS support
+CFLAGS+=-DSTARTTLS -D_FFR_TLS_O_T -D_FFR_TLS_1 -D_FFR_TLS_TOREK
+LDADD+=	-lssl -lcrypto
+DPADD+=	${LIBSSL} ${LIBCRYPTO}
+.endif
 
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
