@@ -70,7 +70,7 @@ sysarch(td, uap)
 {
 	int error = 0;
 
-	switch(SCARG(uap,op)) {
+	switch(uap->op) {
 	default:
 		error = EINVAL;
 		break;
