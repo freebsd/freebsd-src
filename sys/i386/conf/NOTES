@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.288 1996/11/08 02:38:35 asami Exp $
+#	$Id: LINT,v 1.289 1996/11/11 05:17:34 gibbs Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -71,20 +71,6 @@ options		GPL_MATH_EMULATE	#Support for x87 emulation via
 # When this is set, be extra conservative in various parts of the kernel
 # and choose functionality over speed (on the widest variety of systems).
 options		FAILSAFE
-
-
-# When this is set, bcopy() will use an unrolled loop using
-# floating point registers.  It makes bcopy() run 30-100%
-# faster on Pentiums and makes no difference or slower on non-Pentium
-# (including P6) systems.
-#
-# However, even when this is set, there is a run-time check for CPU
-# type so the routine will never be invoked for a wrong architecture.
-# It will become the default after some testing period.
-options		"I586_OPTIMIZED_BCOPY"
-
-# This is like I586_OPTIMIZED_BCOPY except it controls bzero().
-options		"I586_OPTIMIZED_BZERO"
 
 #
 # This directive defines a number of things:
@@ -517,8 +503,34 @@ options		XT_KEYBOARD		# extra initialization for XT keyboard
 # coprocessor or enable math emulation.  If your machine doesn't contain
 # a math co-processor, you must *also* add the option "MATH_EMULATE".
 # THIS IS NOT AN OPTIONAL ENTRY, DO NOT REMOVE IT
+device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
+
 #
-device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+# `flags' for npx0:
+#	0x01	don't use the npx registers to optimize bcopy
+#	0x02	don't use the npx registers to optimize bzero
+#	0x04	don't use the npx registers to optimize copyin or copyout.
+# The npx registers are normally used to optimize copying and zeroing when
+# all of the following conditions are satisfied:
+#	"I586_CPU" is an option
+#	the cpu is an i586 (perhaps not a Pentium)
+#	the probe for npx0 succeeds
+#	INT 16 exception handling works.
+# Then copying and zeroing using the npx registers is normally 30-100% faster.
+# The flags can be used to control cases where it doesn't work or is slower.
+# Setting them at boot time using userconfig works right (the optimizations
+# are not used until later in the bootstrap when npx0 is attached).
+#
+
+#
+# `iosiz' for npx0:
+# This can be used instead of the MAXMEM option to set the memory size.  If
+# it is nonzero, then it overrides both the MAXMEM option and the memory
+# size reported by the BIOS.  Setting it at boot time using userconfig takes
+# effect on the next reboot after the change has been recorded in the kernel
+# binary (the size is used early in the boot before userconfig has a chance
+# to change it).
+#
 
 #
 # Optional ISA and EISA devices:
