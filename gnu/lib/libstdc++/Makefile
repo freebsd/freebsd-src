@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1997/04/09 16:00:07 peter Exp $
+# $Id: Makefile,v 1.6 1997/05/06 00:49:35 jdp Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
@@ -11,7 +11,7 @@ LIB=		stdc++
 SHLIB_MAJOR=	2
 SHLIB_MINOR=	0
 
-CFLAGS+=	-I${GPPDIR}/include -I/usr/include/g++ -I.
+CFLAGS+=	-I${GPPDIR}/include -I${DESTDIR}/usr/include/g++ -I.
 CXXFLAGS+=	-I${GPPDIR}/include -I${GPPDIR}/libio -I${GPPDIR}/libstdc++
 CXXFLAGS+=	-fno-implicit-templates
 
