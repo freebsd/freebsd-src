@@ -163,6 +163,7 @@ typedef struct {
 #define OHCI_ED_SET_MAXP(s)	((s) << 16)
 #define OHCI_ED_MAXPMASK	(0x7ff << 16)
 	ohci_physaddr_t	ed_tailp;
+#define OHCI_TAILMASK		0xfffffffc
 	ohci_physaddr_t	ed_headp;
 #define OHCI_HALTED		0x00000001
 #define OHCI_TOGGLECARRY	0x00000002
