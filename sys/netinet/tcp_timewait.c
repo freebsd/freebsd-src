@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.42 1998/01/27 09:15:10 davidg Exp $
+ *	$Id: tcp_subr.c,v 1.43 1998/03/24 18:06:28 wollman Exp $
  */
 
 #include "opt_compat.h"
@@ -46,6 +46,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
+
 #include <vm/vm_zone.h>
 
 #include <net/route.h>
@@ -102,8 +103,8 @@ static void	tcp_notify __P((struct inpcb *, int));
  * we avoid changing most of the rest of the code (although it needs
  * to be changed, eventually, for greater efficiency).
  */
-#define ALIGNMENT	32
-#define	ALIGNM1		(ALIGNMENT-1)
+#define	ALIGNMENT	32
+#define	ALIGNM1		(ALIGNMENT - 1)
 struct	inp_tp {
 	union {
 		struct	inpcb inp;
@@ -127,7 +128,8 @@ tcp_init()
 	LIST_INIT(&tcb);
 	tcbinfo.listhead = &tcb;
 	tcbinfo.hashbase = hashinit(TCBHASHSIZE, M_PCB, &tcbinfo.hashmask);
-	tcbinfo.porthashbase = hashinit(TCBHASHSIZE, M_PCB, &tcbinfo.porthashmask);
+	tcbinfo.porthashbase = hashinit(TCBHASHSIZE, M_PCB,
+					&tcbinfo.porthashmask);
 	/* For the moment, we just worry about putting inpcbs here. */
 	/*
 	 * Rationale for a maximum of `nmbclusters':
@@ -291,7 +293,7 @@ struct tcpcb *
 tcp_newtcpcb(inp)
 	struct inpcb *inp;
 {
-	struct	inp_tp *it;
+	struct inp_tp *it;
 	register struct tcpcb *tp;
 
 	it = (struct inp_tp *)inp;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.23 1998/01/27 09:15:04 davidg Exp $
+ * $Id: in_pcb.h,v 1.24 1998/03/24 18:06:11 wollman Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -74,8 +74,8 @@ struct inpcb {
 	u_char	pad[1];			/* alignment */
 	struct	ip_moptions *inp_moptions; /* IP multicast options */
 	LIST_ENTRY(inpcb) inp_portlist;	/* list for this PCB's local port */
-	struct	inpcbport *inp_phd;	/* head of list for this PCB's local port */
-	u_quad_t inp_gencnt;	/* generation count of this instance */
+	struct	inpcbport *inp_phd;	/* head of this list */
+	u_quad_t inp_gencnt;		/* generation count of this instance */
 };
 /*
  * The range of the generation count, as used in this implementation,
@@ -147,7 +147,6 @@ void	in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
 void	in_pcbrehash __P((struct inpcb *));
 int	in_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
 int	in_setsockaddr __P((struct socket *so, struct sockaddr **nam));
+#endif /* KERNEL */
 
-#endif
-
-#endif
+#endif /* !_NETINET_IN_PCB_H_ */
