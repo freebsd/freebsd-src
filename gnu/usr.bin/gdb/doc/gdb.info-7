@@ -1,0 +1,1233 @@
+This is Info file ./gdb.info, produced by Makeinfo-1.52 from the input
+file gdb.texinfo.
+
+START-INFO-DIR-ENTRY
+* Gdb::                         The GNU debugger.
+END-INFO-DIR-ENTRY
+   This file documents the GNU debugger GDB.
+
+   This is Edition 4.09, August 1993, of `Debugging with GDB: the GNU
+Source-Level Debugger' for GDB Version 4.11.
+
+   Copyright (C) 1988, '89, '90, '91, '92, '93 Free Software
+Foundation, Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the entire resulting derived work is distributed under the terms
+of a permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions.
+
+
+File: gdb.info,  Node: Bug Reporting,  Prev: Bug Criteria,  Up: GDB Bugs
+
+How to report bugs
+==================
+
+   A number of companies and individuals offer support for GNU products.
+If you obtained GDB from a support organization, we recommend you
+contact that organization first.
+
+   You can find contact information for many support companies and
+individuals in the file `etc/SERVICE' in the GNU Emacs distribution.
+
+   In any event, we also recommend that you send bug reports for GDB to
+one of these addresses:
+
+     bug-gdb@prep.ai.mit.edu
+     {ucbvax|mit-eddie|uunet}!prep.ai.mit.edu!bug-gdb
+
+   *Do not send bug reports to `info-gdb', or to `help-gdb', or to any
+newsgroups.* Most users of GDB do not want to receive bug reports.
+Those that do, have arranged to receive `bug-gdb'.
+
+   The mailing list `bug-gdb' has a newsgroup `gnu.gdb.bug' which
+serves as a repeater.  The mailing list and the newsgroup carry exactly
+the same messages.  Often people think of posting bug reports to the
+newsgroup instead of mailing them.  This appears to work, but it has one
+problem which can be crucial: a newsgroup posting often lacks a mail
+path back to the sender.  Thus, if we need to ask for more information,
+we may be unable to reach you.  For this reason, it is better to send
+bug reports to the mailing list.
+
+   As a last resort, send bug reports on paper to:
+
+     GNU Debugger Bugs
+     Free Software Foundation
+     545 Tech Square
+     Cambridge, MA 02139
+
+   The fundamental principle of reporting bugs usefully is this:
+*report all the facts*.  If you are not sure whether to state a fact or
+leave it out, state it!
+
+   Often people omit facts because they think they know what causes the
+problem and assume that some details do not matter.  Thus, you might
+assume that the name of the variable you use in an example does not
+matter.  Well, probably it does not, but one cannot be sure.  Perhaps
+the bug is a stray memory reference which happens to fetch from the
+location where that name is stored in memory; perhaps, if the name were
+different, the contents of that location would fool the debugger into
+doing the right thing despite the bug.  Play it safe and give a
+specific, complete example.  That is the easiest thing for you to do,
+and the most helpful.
+
+   Keep in mind that the purpose of a bug report is to enable us to fix
+the bug if it is new to us.  It is not as important as what happens if
+the bug is already known.  Therefore, always write your bug reports on
+the assumption that the bug has not been reported previously.
+
+   Sometimes people give a few sketchy facts and ask, "Does this ring a
+bell?"  Those bug reports are useless, and we urge everyone to *refuse
+to respond to them* except to chide the sender to report bugs properly.
+
+   To enable us to fix the bug, you should include all these things:
+
+   * The version of GDB.  GDB announces it if you start with no
+     arguments; you can also print it at any time using `show version'.
+
+     Without this, we will not know whether there is any point in
+     looking for the bug in the current version of GDB.
+
+   * The type of machine you are using, and the operating system name
+     and version number.
+
+   * What compiler (and its version) was used to compile GDB--e.g.
+     "gcc-2.0".
+
+   * What compiler (and its version) was used to compile the program you
+     are debugging--e.g.  "gcc-2.0".
+
+   * The command arguments you gave the compiler to compile your
+     example and observe the bug.  For example, did you use `-O'?  To
+     guarantee you will not omit something important, list them all.  A
+     copy of the Makefile (or the output from make) is sufficient.
+
+     If we were to try to guess the arguments, we would probably guess
+     wrong and then we might not encounter the bug.
+
+   * A complete input script, and all necessary source files, that will
+     reproduce the bug.
+
+   * A description of what behavior you observe that you believe is
+     incorrect.  For example, "It gets a fatal signal."
+
+     Of course, if the bug is that GDB gets a fatal signal, then we will
+     certainly notice it.  But if the bug is incorrect output, we might
+     not notice unless it is glaringly wrong.  We are human, after all.
+     You might as well not give us a chance to make a mistake.
+
+     Even if the problem you experience is a fatal signal, you should
+     still say so explicitly.  Suppose something strange is going on,
+     such as, your copy of GDB is out of synch, or you have encountered
+     a bug in the C library on your system.  (This has happened!)  Your
+     copy might crash and ours would not.  If you told us to expect a
+     crash, then when ours fails to crash, we would know that the bug
+     was not happening for us.  If you had not told us to expect a
+     crash, then we would not be able to draw any conclusion from our
+     observations.
+
+   * If you wish to suggest changes to the GDB source, send us context
+     diffs.  If you even discuss something in the GDB source, refer to
+     it by context, not by line number.
+
+     The line numbers in our development sources will not match those
+     in your sources.  Your line numbers would convey no useful
+     information to us.
+
+   Here are some things that are not necessary:
+
+   * A description of the envelope of the bug.
+
+     Often people who encounter a bug spend a lot of time investigating
+     which changes to the input file will make the bug go away and which
+     changes will not affect it.
+
+     This is often time consuming and not very useful, because the way
+     we will find the bug is by running a single example under the
+     debugger with breakpoints, not by pure deduction from a series of
+     examples.  We recommend that you save your time for something else.
+
+     Of course, if you can find a simpler example to report *instead*
+     of the original one, that is a convenience for us.  Errors in the
+     output will be easier to spot, running under the debugger will take
+     less time, etc.
+
+     However, simplification is not vital; if you do not want to do
+     this, report the bug anyway and send us the entire test case you
+     used.
+
+   * A patch for the bug.
+
+     A patch for the bug does help us if it is a good one.  But do not
+     omit the necessary information, such as the test case, on the
+     assumption that a patch is all we need.  We might see problems
+     with your patch and decide to fix the problem another way, or we
+     might not understand it at all.
+
+     Sometimes with a program as complicated as GDB it is very hard to
+     construct an example that will make the program follow a certain
+     path through the code.  If you do not send us the example, we will
+     not be able to construct one, so we will not be able to verify
+     that the bug is fixed.
+
+     And if we cannot understand what bug you are trying to fix, or why
+     your patch should be an improvement, we will not install it.  A
+     test case will help us to understand.
+
+   * A guess about what the bug is or what it depends on.
+
+     Such guesses are usually wrong.  Even we cannot guess right about
+     such things without first using the debugger to find the facts.
+
+
+File: gdb.info,  Node: Command Line Editing,  Next: Using History Interactively,  Prev: GDB Bugs,  Up: Top
+
+Command Line Editing
+********************
+
+   This text describes GNU's command line editing interface.
+
+* Menu:
+
+* Introduction and Notation::	Notation used in this text.
+* Readline Interaction::	The minimum set of commands for editing a line.
+* Readline Init File::		Customizing Readline from a user's view.
+
+
+File: gdb.info,  Node: Introduction and Notation,  Next: Readline Interaction,  Up: Command Line Editing
+
+Introduction to Line Editing
+============================
+
+   The following paragraphs describe the notation we use to represent
+keystrokes.
+
+   The text C-k is read as `Control-K' and describes the character
+produced when the Control key is depressed and the k key is struck.
+
+   The text M-k is read as `Meta-K' and describes the character
+produced when the meta key (if you have one) is depressed, and the k
+key is struck.  If you do not have a meta key, the identical keystroke
+can be generated by typing ESC first, and then typing k.  Either
+process is known as "metafying" the k key.
+
+   The text M-C-k is read as `Meta-Control-k' and describes the
+character produced by "metafying" C-k.
+
+   In addition, several keys have their own names.  Specifically, DEL,
+ESC, LFD, SPC, RET, and TAB all stand for themselves when seen in this
+text, or in an init file (*note Readline Init File::., for more info).
+
+
+File: gdb.info,  Node: Readline Interaction,  Next: Readline Init File,  Prev: Introduction and Notation,  Up: Command Line Editing
+
+Readline Interaction
+====================
+
+   Often during an interactive session you type in a long line of text,
+only to notice that the first word on the line is misspelled.  The
+Readline library gives you a set of commands for manipulating the text
+as you type it in, allowing you to just fix your typo, and not forcing
+you to retype the majority of the line.  Using these editing commands,
+you move the cursor to the place that needs correction, and delete or
+insert the text of the corrections.  Then, when you are satisfied with
+the line, you simply press RETURN.  You do not have to be at the end of
+the line to press RETURN; the entire line is accepted regardless of the
+location of the cursor within the line.
+
+* Menu:
+
+* Readline Bare Essentials::	The least you need to know about Readline.
+* Readline Movement Commands::	Moving about the input line.
+* Readline Killing Commands::	How to delete text, and how to get it back!
+* Readline Arguments::		Giving numeric arguments to commands.
+
+
+File: gdb.info,  Node: Readline Bare Essentials,  Next: Readline Movement Commands,  Up: Readline Interaction
+
+Readline Bare Essentials
+------------------------
+
+   In order to enter characters into the line, simply type them.  The
+typed character appears where the cursor was, and then the cursor moves
+one space to the right.  If you mistype a character, you can use DEL to
+back up, and delete the mistyped character.
+
+   Sometimes you may miss typing a character that you wanted to type,
+and not notice your error until you have typed several other
+characters.  In that case, you can type C-b to move the cursor to the
+left, and then correct your mistake.  Aftwerwards, you can move the
+cursor to the right with C-f.
+
+   When you add text in the middle of a line, you will notice that
+characters to the right of the cursor get `pushed over' to make room
+for the text that you have inserted.  Likewise, when you delete text
+behind the cursor, characters to the right of the cursor get `pulled
+back' to fill in the blank space created by the removal of the text.  A
+list of the basic bare essentials for editing the text of an input line
+follows.
+
+C-b
+     Move back one character.
+
+C-f
+     Move forward one character.
+
+DEL
+     Delete the character to the left of the cursor.
+
+C-d
+     Delete the character underneath the cursor.
+
+Printing characters
+     Insert itself into the line at the cursor.
+
+C-_
+     Undo the last thing that you did.  You can undo all the way back
+     to an empty line.
+
+
+File: gdb.info,  Node: Readline Movement Commands,  Next: Readline Killing Commands,  Prev: Readline Bare Essentials,  Up: Readline Interaction
+
+Readline Movement Commands
+--------------------------
+
+   The above table describes the most basic possible keystrokes that
+you need in order to do editing of the input line.  For your
+convenience, many other commands have been added in addition to C-b,
+C-f, C-d, and DEL.  Here are some commands for moving more rapidly
+about the line.
+
+C-a
+     Move to the start of the line.
+
+C-e
+     Move to the end of the line.
+
+M-f
+     Move forward a word.
+
+M-b
+     Move backward a word.
+
+C-l
+     Clear the screen, reprinting the current line at the top.
+
+   Notice how C-f moves forward a character, while M-f moves forward a
+word.  It is a loose convention that control keystrokes operate on
+characters while meta keystrokes operate on words.
+
+
+File: gdb.info,  Node: Readline Killing Commands,  Next: Readline Arguments,  Prev: Readline Movement Commands,  Up: Readline Interaction
+
+Readline Killing Commands
+-------------------------
+
+   "Killing" text means to delete the text from the line, but to save
+it away for later use, usually by "yanking" it back into the line.  If
+the description for a command says that it `kills' text, then you can
+be sure that you can get the text back in a different (or the same)
+place later.
+
+   Here is the list of commands for killing text.
+
+C-k
+     Kill the text from the current cursor position to the end of the
+     line.
+
+M-d
+     Kill from the cursor to the end of the current word, or if between
+     words, to the end of the next word.
+
+M-DEL
+     Kill from the cursor to the start of the previous word, or if
+     between words, to the start of the previous word.
+
+C-w
+     Kill from the cursor to the previous whitespace.  This is
+     different than M-DEL because the word boundaries differ.
+
+   And, here is how to "yank" the text back into the line.  Yanking is
+
+C-y
+     Yank the most recently killed text back into the buffer at the
+     cursor.
+
+M-y
+     Rotate the kill-ring, and yank the new top.  You can only do this
+     if the prior command is C-y or M-y.
+
+   When you use a kill command, the text is saved in a "kill-ring".
+Any number of consecutive kills save all of the killed text together, so
+that when you yank it back, you get it in one clean sweep.  The kill
+ring is not line specific; the text that you killed on a previously
+typed line is available to be yanked back later, when you are typing
+another line.
+
+
+File: gdb.info,  Node: Readline Arguments,  Prev: Readline Killing Commands,  Up: Readline Interaction
+
+Readline Arguments
+------------------
+
+   You can pass numeric arguments to Readline commands.  Sometimes the
+argument acts as a repeat count, other times it is the sign of the
+argument that is significant.  If you pass a negative argument to a
+command which normally acts in a forward direction, that command will
+act in a backward direction.  For example, to kill text back to the
+start of the line, you might type M- C-k.
+
+   The general way to pass numeric arguments to a command is to type
+meta digits before the command.  If the first `digit' you type is a
+minus sign (-), then the sign of the argument will be negative.  Once
+you have typed one meta digit to get the argument started, you can type
+the remainder of the digits, and then the command.  For example, to give
+the C-d command an argument of 10, you could type M-1 0 C-d.
+
+
+File: gdb.info,  Node: Readline Init File,  Prev: Readline Interaction,  Up: Command Line Editing
+
+Readline Init File
+==================
+
+   Although the Readline library comes with a set of Emacs-like
+keybindings, it is possible that you would like to use a different set
+of keybindings.  You can customize programs that use Readline by putting
+commands in an "init" file in your home directory.  The name of this
+file is `~/.inputrc'.
+
+   When a program which uses the Readline library starts up, the
+`~/.inputrc' file is read, and the keybindings are set.
+
+   In addition, the C-x C-r command re-reads this init file, thus
+incorporating any changes that you might have made to it.
+
+* Menu:
+
+* Readline Init Syntax::	Syntax for the commands in `~/.inputrc'.
+* Readline Vi Mode::		Switching to `vi' mode in Readline.
+
+
+File: gdb.info,  Node: Readline Init Syntax,  Next: Readline Vi Mode,  Up: Readline Init File
+
+Readline Init Syntax
+--------------------
+
+   There are only four constructs allowed in the `~/.inputrc' file:
+
+Variable Settings
+     You can change the state of a few variables in Readline.  You do
+     this by using the `set' command within the init file.  Here is how
+     you would specify that you wish to use Vi line editing commands:
+
+          set editing-mode vi
+
+     Right now, there are only a few variables which can be set; so few
+     in fact, that we just iterate them here:
+
+    `editing-mode'
+          The `editing-mode' variable controls which editing mode you
+          are using.  By default, GNU Readline starts up in Emacs
+          editing mode, where the keystrokes are most similar to Emacs.
+          This variable can either be set to `emacs' or `vi'.
+
+    `horizontal-scroll-mode'
+          This variable can either be set to `On' or `Off'.  Setting it
+          to `On' means that the text of the lines that you edit will
+          scroll horizontally on a single screen line when they are
+          larger than the width of the screen, instead of wrapping onto
+          a new screen line.  By default, this variable is set to `Off'.
+
+    `mark-modified-lines'
+          This variable when set to `On', says to display an asterisk
+          (`*') at the starts of history lines which have been modified.
+          This variable is off by default.
+
+    `prefer-visible-bell'
+          If this variable is set to `On' it means to use a visible
+          bell if one is available, rather than simply ringing the
+          terminal bell.  By default, the value is `Off'.
+
+Key Bindings
+     The syntax for controlling keybindings in the `~/.inputrc' file is
+     simple.  First you have to know the name of the command that you
+     want to change.  The following pages contain tables of the command
+     name, the default keybinding, and a short description of what the
+     command does.
+
+     Once you know the name of the command, simply place the name of
+     the key you wish to bind the command to, a colon, and then the
+     name of the command on a line in the `~/.inputrc' file.  The name
+     of the key can be expressed in different ways, depending on which
+     is most comfortable for you.
+
+    KEYNAME: FUNCTION-NAME or MACRO
+          KEYNAME is the name of a key spelled out in English.  For
+          example:
+               Control-u: universal-argument
+               Meta-Rubout: backward-kill-word
+               Control-o: ">&output"
+
+          In the above example, C-u is bound to the function
+          `universal-argument', and C-o is bound to run the macro
+          expressed on the right hand side (that is, to insert the text
+          `>&output' into the line).
+
+    "KEYSEQ": FUNCTION-NAME or MACRO
+          KEYSEQ differs from KEYNAME above in that strings denoting an
+          entire key sequence can be specified.  Simply place the key
+          sequence in double quotes.  GNU Emacs style key escapes can
+          be used, as in the following example:
+
+               "\C-u": universal-argument
+               "\C-x\C-r": re-read-init-file
+               "\e[11~": "Function Key 1"
+
+          In the above example, C-u is bound to the function
+          `universal-argument' (just as it was in the first example),
+          C-x C-r is bound to the function `re-read-init-file', and ESC
+          [ 1 1 ~ is bound to insert the text `Function Key 1'.
+
+* Menu:
+
+* Commands For Moving::		Moving about the line.
+* Commands For History::	Getting at previous lines.
+* Commands For Text::		Commands for changing text.
+* Commands For Killing::	Commands for killing and yanking.
+* Numeric Arguments::		Specifying numeric arguments, repeat counts.
+* Commands For Completion::	Getting Readline to do the typing for you.
+* Miscellaneous Commands::	Other miscillaneous commands.
+
+
+File: gdb.info,  Node: Commands For Moving,  Next: Commands For History,  Up: Readline Init Syntax
+
+Commands For Moving
+-------------------
+
+`beginning-of-line (C-a)'
+     Move to the start of the current line.
+
+`end-of-line (C-e)'
+     Move to the end of the line.
+
+`forward-char (C-f)'
+     Move forward a character.
+
+`backward-char (C-b)'
+     Move back a character.
+
+`forward-word (M-f)'
+     Move forward to the end of the next word.
+
+`backward-word (M-b)'
+     Move back to the start of this, or the previous, word.
+
+`clear-screen (C-l)'
+     Clear the screen leaving the current line at the top of the screen.
+
+
+File: gdb.info,  Node: Commands For History,  Next: Commands For Text,  Prev: Commands For Moving,  Up: Readline Init Syntax
+
+Commands For Manipulating The History
+-------------------------------------
+
+`accept-line (Newline, Return)'
+     Accept the line regardless of where the cursor is.  If this line is
+     non-empty, add it to the history list.  If this line was a history
+     line, then restore the history line to its original state.
+
+`previous-history (C-p)'
+     Move `up' through the history list.
+
+`next-history (C-n)'
+     Move `down' through the history list.
+
+`beginning-of-history (M-<)'
+     Move to the first line in the history.
+
+`end-of-history (M->)'
+     Move to the end of the input history, i.e., the line you are
+     entering!
+
+`reverse-search-history (C-r)'
+     Search backward starting at the current line and moving `up'
+     through the history as necessary.  This is an incremental search.
+
+`forward-search-history (C-s)'
+     Search forward starting at the current line and moving `down'
+     through the the history as neccessary.
+
+
+File: gdb.info,  Node: Commands For Text,  Next: Commands For Killing,  Prev: Commands For History,  Up: Readline Init Syntax
+
+Commands For Changing Text
+--------------------------
+
+`delete-char (C-d)'
+     Delete the character under the cursor.  If the cursor is at the
+     beginning of the line, and there are no characters in the line, and
+     the last character typed was not C-d, then return EOF.
+
+`backward-delete-char (Rubout)'
+     Delete the character behind the cursor.  A numeric arg says to kill
+     the characters instead of deleting them.
+
+`quoted-insert (C-q, C-v)'
+     Add the next character that you type to the line verbatim.  This is
+     how to insert things like C-q for example.
+
+`tab-insert (M-TAB)'
+     Insert a tab character.
+
+`self-insert (a, b, A, 1, !, ...)'
+     Insert yourself.
+
+`transpose-chars (C-t)'
+     Drag the character before point forward over the character at
+     point.  Point moves forward as well.  If point is at the end of
+     the line, then transpose the two characters before point.
+     Negative args don't work.
+
+`transpose-words (M-t)'
+     Drag the word behind the cursor past the word in front of the
+     cursor moving the cursor over that word as well.
+
+`upcase-word (M-u)'
+     Uppercase all letters in the current (or following) word.  With a
+     negative argument, do the previous word, but do not move point.
+
+`downcase-word (M-l)'
+     Lowercase all letters in the current (or following) word.  With a
+     negative argument, do the previous word, but do not move point.
+
+`capitalize-word (M-c)'
+     Uppercase the first letter in the current (or following) word.
+     With a negative argument, do the previous word, but do not move
+     point.
+
+
+File: gdb.info,  Node: Commands For Killing,  Next: Numeric Arguments,  Prev: Commands For Text,  Up: Readline Init Syntax
+
+Killing And Yanking
+-------------------
+
+`kill-line (C-k)'
+     Kill the text from the current cursor position to the end of the
+     line.
+
+`backward-kill-line ()'
+     Kill backward to the beginning of the line.  This is normally
+     unbound.
+
+`kill-word (M-d)'
+     Kill from the cursor to the end of the current word, or if between
+     words, to the end of the next word.
+
+`backward-kill-word (M-DEL)'
+     Kill the word behind the cursor.
+
+`unix-line-discard (C-u)'
+     Do what C-u used to do in Unix line input.  We save the killed
+     text on the kill-ring, though.
+
+`unix-word-rubout (C-w)'
+     Do what C-w used to do in Unix line input.  The killed text is
+     saved on the kill-ring.  This is different than backward-kill-word
+     because the word boundaries differ.
+
+`yank (C-y)'
+     Yank the top of the kill ring into the buffer at point.
+
+`yank-pop (M-y)'
+     Rotate the kill-ring, and yank the new top.  You can only do this
+     if the prior command is yank or yank-pop.
+
+
+File: gdb.info,  Node: Numeric Arguments,  Next: Commands For Completion,  Prev: Commands For Killing,  Up: Readline Init Syntax
+
+Specifying Numeric Arguments
+----------------------------
+
+`digit-argument (M-0, M-1, ... M--)'
+     Add this digit to the argument already accumulating, or start a new
+     argument.  M- starts a negative argument.
+
+`universal-argument ()'
+     Do what C-u does in emacs.  By default, this is not bound.
+
+
+File: gdb.info,  Node: Commands For Completion,  Next: Miscellaneous Commands,  Prev: Numeric Arguments,  Up: Readline Init Syntax
+
+Letting Readline Type For You
+-----------------------------
+
+`complete (TAB)'
+     Attempt to do completion on the text before point.  This is
+     implementation defined.  Generally, if you are typing a filename
+     argument, you can do filename completion; if you are typing a
+     command, you can do command completion, if you are typing in a
+     symbol to GDB, you can do symbol name completion, if you are
+     typing in a variable to Bash, you can do variable name
+     completion...
+
+`possible-completions (M-?)'
+     List the possible completions of the text before point.
+
+
+File: gdb.info,  Node: Miscellaneous Commands,  Prev: Commands For Completion,  Up: Readline Init Syntax
+
+Some Miscellaneous Commands
+---------------------------
+
+`re-read-init-file (C-x C-r)'
+     Read in the contents of your `~/.inputrc' file, and incorporate
+     any bindings found there.
+
+`abort (C-g)'
+     Stop running the current editing command.
+
+`prefix-meta (ESC)'
+     Make the next character that you type be metafied.  This is for
+     people without a meta key.  Typing ESC f is equivalent to typing
+     M-f.
+
+`undo (C-_)'
+     Incremental undo, separately remembered for each line.
+
+`revert-line (M-r)'
+     Undo all changes made to this line.  This is like typing the `undo'
+     command enough times to get back to the beginning.
+
+
+File: gdb.info,  Node: Readline Vi Mode,  Prev: Readline Init Syntax,  Up: Readline Init File
+
+Readline Vi Mode
+----------------
+
+   While the Readline library does not have a full set of Vi editing
+functions, it does contain enough to allow simple editing of the line.
+
+   In order to switch interactively between Emacs and Vi editing modes,
+use the command M-C-j (toggle-editing-mode).
+
+   When you enter a line in Vi mode, you are already placed in
+`insertion' mode, as if you had typed an `i'.  Pressing ESC switches
+you into `edit' mode, where you can edit the text of the line with the
+standard Vi movement keys, move to previous history lines with `k', and
+following lines with `j', and so forth.
+
+
+File: gdb.info,  Node: Using History Interactively,  Next: Renamed Commands,  Prev: Command Line Editing,  Up: Top
+
+Using History Interactively
+***************************
+
+   This chapter describes how to use the GNU History Library
+interactively, from a user's standpoint.
+
+* Menu:
+
+* History Interaction::		What it feels like using History as a user.
+
+
+File: gdb.info,  Node: History Interaction,  Up: Using History Interactively
+
+History Interaction
+===================
+
+   The History library provides a history expansion feature that is
+similar to the history expansion in Csh.  The following text describes
+the sytax that you use to manipulate the history information.
+
+   History expansion takes place in two parts.  The first is to
+determine which line from the previous history should be used during
+substitution.  The second is to select portions of that line for
+inclusion into the current one.  The line selected from the previous
+history is called the "event", and the portions of that line that are
+acted upon are called "words".  The line is broken into words in the
+same fashion that the Bash shell does, so that several English (or
+Unix) words surrounded by quotes are considered as one word.
+
+* Menu:
+
+* Event Designators::	How to specify which history line to use.
+* Word Designators::	Specifying which words are of interest.
+* Modifiers::		Modifying the results of susbstitution.
+
+
+File: gdb.info,  Node: Event Designators,  Next: Word Designators,  Up: History Interaction
+
+Event Designators
+-----------------
+
+   An event designator is a reference to a command line entry in the
+history list.
+
+`!'
+     Start a history subsititution, except when followed by a space,
+     tab, or the end of the line... = or (.
+
+`!!'
+     Refer to the previous command.  This is a synonym for `!-1'.
+
+`!n'
+     Refer to command line N.
+
+`!-n'
+     Refer to the command line N lines back.
+
+`!string'
+     Refer to the most recent command starting with STRING.
+
+`!?string'[`?']
+     Refer to the most recent command containing STRING.
+
+
+File: gdb.info,  Node: Word Designators,  Next: Modifiers,  Prev: Event Designators,  Up: History Interaction
+
+Word Designators
+----------------
+
+   A : separates the event specification from the word designator.  It
+can be omitted if the word designator begins with a ^, $, * or %.
+Words are numbered from the beginning of the line, with the first word
+being denoted by a 0 (zero).
+
+`0 (zero)'
+     The zero'th word.  For many applications, this is the command word.
+
+`n'
+     The N'th word.
+
+`^'
+     The first argument.  that is, word 1.
+
+`$'
+     The last argument.
+
+`%'
+     The word matched by the most recent `?string?' search.
+
+`x-y'
+     A range of words; `-Y' Abbreviates `0-Y'.
+
+`*'
+     All of the words, excepting the zero'th.  This is a synonym for
+     `1-$'.  It is not an error to use * if there is just one word in
+     the event.  The empty string is returned in that case.
+
+
+File: gdb.info,  Node: Modifiers,  Prev: Word Designators,  Up: History Interaction
+
+Modifiers
+---------
+
+   After the optional word designator, you can add a sequence of one or
+more of the following modifiers, each preceded by a :.
+
+`#'
+     The entire command line typed so far.  This means the current
+     command, not the previous command, so it really isn't a word
+     designator, and doesn't belong in this section.
+
+`h'
+     Remove a trailing pathname component, leaving only the head.
+
+`r'
+     Remove a trailing suffix of the form `.'SUFFIX, leaving the
+     basename.
+
+`e'
+     Remove all but the suffix.
+
+`t'
+     Remove all leading  pathname  components, leaving the tail.
+
+`p'
+     Print the new command but do not execute it.
+
+
+File: gdb.info,  Node: Renamed Commands,  Next: Formatting Documentation,  Prev: Using History Interactively,  Up: Top
+
+Renamed Commands
+****************
+
+   The following commands were renamed in GDB 4, in order to make the
+command set as a whole more consistent and easier to use and remember:
+
+     OLD COMMAND               NEW COMMAND
+     ---------------           -------------------------------
+     add-syms                  add-symbol-file
+     delete environment        unset environment
+     info convenience          show convenience
+     info copying              show copying
+     info directories          show directories
+     info editing              show commands
+     info history              show values
+     info targets              help target
+     info values               show values
+     info version              show version
+     info warranty             show warranty
+     set/show addressprint     set/show print address
+     set/show array-max        set/show print elements
+     set/show arrayprint       set/show print array
+     set/show asm-demangle     set/show print asm-demangle
+     set/show caution          set/show confirm
+     set/show demangle         set/show print demangle
+     set/show history write    set/show history save
+     set/show prettyprint      set/show print pretty
+     set/show screen-height    set/show height
+     set/show screen-width     set/show width
+     set/show sevenbit-strings set/show print sevenbit-strings
+     set/show unionprint       set/show print union
+     set/show vtblprint        set/show print vtbl
+     
+     unset                     [No longer an alias for delete]
+
+
+File: gdb.info,  Node: Formatting Documentation,  Next: Installing GDB,  Prev: Renamed Commands,  Up: Top
+
+Formatting Documentation
+************************
+
+   The GDB 4 release includes an already-formatted reference card, ready
+for printing with PostScript or GhostScript, in the `gdb' subdirectory
+of the main source directory(1).  If you can use PostScript or
+GhostScript with your printer, you can print the reference card
+immediately with `refcard.ps'.
+
+   The release also includes the source for the reference card.  You
+can format it, using TeX, by typing:
+
+     make refcard.dvi
+
+   The GDB reference card is designed to print in landscape mode on US
+"letter" size paper; that is, on a sheet 11 inches wide by 8.5 inches
+high.  You will need to specify this form of printing as an option to
+your DVI output program.
+
+   All the documentation for GDB comes as part of the machine-readable
+distribution.  The documentation is written in Texinfo format, which is
+a documentation system that uses a single source file to produce both
+on-line information and a printed manual.  You can use one of the Info
+formatting commands to create the on-line version of the documentation
+and TeX (or `texi2roff') to typeset the printed version.
+
+   GDB includes an already formatted copy of the on-line Info version of
+this manual in the `gdb' subdirectory.  The main Info file is
+`gdb-VERSION-NUMBER/gdb/gdb.info', and it refers to subordinate files
+matching `gdb.info*' in the same directory.  If necessary, you can
+print out these files, or read them with any editor; but they are
+easier to read using the `info' subsystem in GNU Emacs or the
+standalone `info' program, available as part of the GNU Texinfo
+distribution.
+
+   If you want to format these Info files yourself, you need one of the
+Info formatting programs, such as `texinfo-format-buffer' or `makeinfo'.
+
+   If you have `makeinfo' installed, and are in the top level GDB
+source directory (`gdb-4.11', in the case of version 4.11), you can
+make the Info file by typing:
+
+     cd gdb
+     make gdb.info
+
+   If you want to typeset and print copies of this manual, you need TeX,
+a program to print its DVI output files, and `texinfo.tex', the Texinfo
+definitions file.
+
+   TeX is a typesetting program; it does not print files directly, but
+produces output files called DVI files.  To print a typeset document,
+you need a program to print DVI files.  If your system has TeX
+installed, chances are it has such a program.  The precise command to
+use depends on your system; `lpr -d' is common; another (for PostScript
+devices) is `dvips'.  The DVI print command may require a file name
+without any extension or a `.dvi' extension.
+
+   TeX also requires a macro definitions file called `texinfo.tex'.
+This file tells TeX how to typeset a document written in Texinfo
+format.  On its own, TeX cannot read, much less typeset a Texinfo file.
+`texinfo.tex' is distributed with GDB and is located in the
+`gdb-VERSION-NUMBER/texinfo' directory.
+
+   If you have TeX and a DVI printer program installed, you can typeset
+and print this manual.  First switch to the the `gdb' subdirectory of
+the main source directory (for example, to `gdb-4.11/gdb') and then
+type:
+
+     make gdb.dvi
+
+   ---------- Footnotes ----------
+
+   (1)  In `gdb-4.11/gdb/refcard.ps' of the version 4.11 release.
+
+
+File: gdb.info,  Node: Installing GDB,  Next: Index,  Prev: Formatting Documentation,  Up: Top
+
+Installing GDB
+**************
+
+   GDB comes with a `configure' script that automates the process of
+preparing GDB for installation; you can then use `make' to build the
+`gdb' program.
+
+   The GDB distribution includes all the source code you need for GDB in
+a single directory, whose name is usually composed by appending the
+version number to `gdb'.
+
+   For example, the GDB version 4.11 distribution is in the `gdb-4.11'
+directory.  That directory contains:
+
+`gdb-4.11/configure (and supporting files)'
+     script for configuring GDB and all its supporting libraries.
+
+`gdb-4.11/gdb'
+     the source specific to GDB itself
+
+`gdb-4.11/bfd'
+     source for the Binary File Descriptor library
+
+`gdb-4.11/include'
+     GNU include files
+
+`gdb-4.11/libiberty'
+     source for the `-liberty' free software library
+
+`gdb-4.11/opcodes'
+     source for the library of opcode tables and disassemblers
+
+`gdb-4.11/readline'
+     source for the GNU command-line interface
+
+`gdb-4.11/glob'
+     source for the GNU filename pattern-matching subroutine
+
+`gdb-4.11/mmalloc'
+     source for the GNU memory-mapped malloc package
+
+   The simplest way to configure and build GDB is to run `configure'
+from the `gdb-VERSION-NUMBER' source directory, which in this example
+is the `gdb-4.11' directory.
+
+   First switch to the `gdb-VERSION-NUMBER' source directory if you are
+not already in it; then run `configure'.  Pass the identifier for the
+platform on which GDB will run as an argument.
+
+   For example:
+
+     cd gdb-4.11
+     ./configure HOST
+     make
+
+where HOST is an identifier such as `sun4' or `decstation', that
+identifies the platform where GDB will run.  (You can often leave off
+HOST; `configure' tries to guess the correct value by examining your
+system.)
+
+   Running `configure HOST' and then running `make' builds the `bfd',
+`readline', `mmalloc', and `libiberty' libraries, then `gdb' itself.
+The configured source files, and the binaries, are left in the
+corresponding source directories.
+
+   `configure' is a Bourne-shell (`/bin/sh') script; if your system
+does not recognize this automatically when you run a different shell,
+you may need to run `sh' on it explicitly:
+
+     sh configure HOST
+
+   If you run `configure' from a directory that contains source
+directories for multiple libraries or programs, such as the `gdb-4.11'
+source directory for version 4.11, `configure' creates configuration
+files for every directory level underneath (unless you tell it not to,
+with the `--norecursion' option).
+
+   You can run the `configure' script from any of the subordinate
+directories in the GDB distribution if you only want to configure that
+subdirectory, but be sure to specify a path to it.
+
+   For example, with version 4.11, type the following to configure only
+the `bfd' subdirectory:
+
+     cd gdb-4.11/bfd
+     ../configure HOST
+
+   You can install `gdb' anywhere; it has no hardwired paths.  However,
+you should make sure that the shell on your path (named by the `SHELL'
+environment variable) is publicly readable.  Remember that GDB uses the
+shell to start your program--some systems refuse to let GDB debug child
+processes whose programs are not readable.
+
+* Menu:
+
+* Separate Objdir::             Compiling GDB in another directory
+* Config Names::                Specifying names for hosts and targets
+* configure Options::           Summary of options for configure
+
+
+File: gdb.info,  Node: Separate Objdir,  Next: Config Names,  Up: Installing GDB
+
+Compiling GDB in another directory
+==================================
+
+   If you want to run GDB versions for several host or target machines,
+you need a different `gdb' compiled for each combination of host and
+target.  `configure' is designed to make this easy by allowing you to
+generate each configuration in a separate subdirectory, rather than in
+the source directory.  If your `make' program handles the `VPATH'
+feature (GNU `make' does), running `make' in each of these directories
+builds the `gdb' program specified there.
+
+   To build `gdb' in a separate directory, run `configure' with the
+`--srcdir' option to specify where to find the source.  (You also need
+to specify a path to find `configure' itself from your working
+directory.  If the path to `configure' would be the same as the
+argument to `--srcdir', you can leave out the `--srcdir' option; it
+will be assumed.)
+
+   For example, with version 4.11, you can build GDB in a separate
+directory for a Sun 4 like this:
+
+     cd gdb-4.11
+     mkdir ../gdb-sun4
+     cd ../gdb-sun4
+     ../gdb-4.11/configure sun4
+     make
+
+   When `configure' builds a configuration using a remote source
+directory, it creates a tree for the binaries with the same structure
+(and using the same names) as the tree under the source directory.  In
+the example, you'd find the Sun 4 library `libiberty.a' in the
+directory `gdb-sun4/libiberty', and GDB itself in `gdb-sun4/gdb'.
+
+   One popular reason to build several GDB configurations in separate
+directories is to configure GDB for cross-compiling (where GDB runs on
+one machine--the host--while debugging programs that run on another
+machine--the target).  You specify a cross-debugging target by giving
+the `--target=TARGET' option to `configure'.
+
+   When you run `make' to build a program or library, you must run it
+in a configured directory--whatever directory you were in when you
+called `configure' (or one of its subdirectories).
+
+   The `Makefile' that `configure' generates in each source directory
+also runs recursively.  If you type `make' in a source directory such
+as `gdb-4.11' (or in a separate configured directory configured with
+`--srcdir=PATH/gdb-4.11'), you will build all the required libraries,
+and then build GDB.
+
+   When you have multiple hosts or targets configured in separate
+directories, you can run `make' on them in parallel (for example, if
+they are NFS-mounted on each of the hosts); they will not interfere
+with each other.
+
+
+File: gdb.info,  Node: Config Names,  Next: configure Options,  Prev: Separate Objdir,  Up: Installing GDB
+
+Specifying names for hosts and targets
+======================================
+
+   The specifications used for hosts and targets in the `configure'
+script are based on a three-part naming scheme, but some short
+predefined aliases are also supported.  The full naming scheme encodes
+three pieces of information in the following pattern:
+
+     ARCHITECTURE-VENDOR-OS
+
+   For example, you can use the alias `sun4' as a HOST argument, or as
+the value for TARGET in a `--target=TARGET' option.  The equivalent
+full name is `sparc-sun-sunos4'.
+
+   The `configure' script accompanying GDB does not provide any query
+facility to list all supported host and target names or aliases.
+`configure' calls the Bourne shell script `config.sub' to map
+abbreviations to full names; you can read the script, if you wish, or
+you can use it to test your guesses on abbreviations--for example:
+
+     % sh config.sub sun4
+     sparc-sun-sunos4.1.1
+     % sh config.sub sun3
+     m68k-sun-sunos4.1.1
+     % sh config.sub decstation
+     mips-dec-ultrix4.2
+     % sh config.sub hp300bsd
+     m68k-hp-bsd
+     % sh config.sub i386v
+     i386-unknown-sysv
+     % sh config.sub i786v
+     Invalid configuration `i786v': machine `i786v' not recognized
+
+`config.sub' is also distributed in the GDB source directory
+(`gdb-4.11', for version 4.11).
+
+
+File: gdb.info,  Node: configure Options,  Prev: Config Names,  Up: Installing GDB
+
+`configure' options
+===================
+
+   Here is a summary of the `configure' options and arguments that are
+most often useful for building GDB.  `configure' also has several other
+options not listed here.  *note : (configure.info)What Configure Does,
+for a full explanation of `configure'.
+
+     configure [--help]
+               [--prefix=DIR]
+               [--srcdir=PATH]
+               [--norecursion] [--rm]
+               [--target=TARGET] HOST
+
+You may introduce options with a single `-' rather than `--' if you
+prefer; but you may abbreviate option names if you use `--'.
+
+`--help'
+     Display a quick summary of how to invoke `configure'.
+
+`-prefix=DIR'
+     Configure the source to install programs and files under directory
+     `DIR'.
+
+`--srcdir=PATH'
+     *Warning: using this option requires GNU `make', or another `make'
+     that implements the `VPATH' feature.*
+     Use this option to make configurations in directories separate
+     from the GDB source directories.  Among other things, you can use
+     this to build (or maintain) several configurations simultaneously,
+     in separate directories.  `configure' writes configuration
+     specific files in the current directory, but arranges for them to
+     use the source in the directory PATH.  `configure' will create
+     directories under the working directory in parallel to the source
+     directories below PATH.
+
+`--norecursion'
+     Configure only the directory level where `configure' is executed;
+     do not propagate configuration to subdirectories.
+
+`--rm'
+     *Remove* files otherwise built during configuration.
+
+`--target=TARGET'
+     Configure GDB for cross-debugging programs running on the specified
+     TARGET.  Without this option, GDB is configured to debug programs
+     that run on the same machine (HOST) as GDB itself.
+
+     There is no convenient way to generate a list of all available
+     targets.
+
+`HOST ...'
+     Configure GDB to run on the specified HOST.
+
+     There is no convenient way to generate a list of all available
+     hosts.
+
+`configure' accepts other options, for compatibility with configuring
+other GNU tools recursively; but these are the only options that affect
+GDB or its supporting libraries.
+
