@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tcp.c,v 1.1 1999/05/08 11:07:45 brian Exp $
+ *	$Id: udp.c,v 1.1 1999/05/12 09:49:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -135,21 +135,17 @@ struct device *
 udp_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
                int maxiov)
 {
-  struct device *dev;
-
   if (type == UDP_DEVICE) {
-    /* It's one of ours !  Let's create the device */
+    struct udpdevice *dev = (struct udpdevice *)iov[(*niov)++].iov_base;
 
-    dev = (struct device *)iov[(*niov)++].iov_base;
     /* Refresh function pointers etc */
-    memcpy(dev, &baseudpdevice, sizeof *dev);
-    /* Remember, there's really more than (sizeof *dev) there */
+    memcpy(&dev->dev, &baseudpdevice, sizeof dev->dev);
 
-    physical_SetupStack(p, PHYSICAL_FORCE_SYNC);
-  } else
-    dev = NULL;
+    physical_SetupStack(p, dev->dev.name, PHYSICAL_FORCE_SYNC);
+    return &dev->dev;
+  }
 
-  return dev;
+  return NULL;
 }
 
 static struct udpdevice *
@@ -261,7 +257,7 @@ udp_Create(struct physical *p)
 
   if (dev) {
     memcpy(&dev->dev, &baseudpdevice, sizeof dev->dev);
-    physical_SetupStack(p, PHYSICAL_FORCE_SYNC);
+    physical_SetupStack(p, dev->dev.name, PHYSICAL_FORCE_SYNC);
     return &dev->dev;
   }
 

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.12 1999/05/13 19:29:40 brian Exp $
+ *  $Id: physical.c,v 1.13 1999/05/18 01:37:46 brian Exp $
  *
  */
 
@@ -571,7 +571,7 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
     p->handler = (*devices[h].iov2device)(type, p, iov, niov, maxiov);
 
   if (p->handler == NULL)
-    physical_SetupStack(p, PHYSICAL_NOFORCE);
+    physical_SetupStack(p, "unknown", PHYSICAL_NOFORCE);
 
   return p;
 }
@@ -855,7 +855,7 @@ physical_Open(struct physical *p, struct bundle *bundle)
         p->handler = (*devices[h].create)(p);
     if (p->fd >= 0) {
       if (p->handler == NULL) {
-        physical_SetupStack(p, PHYSICAL_NOFORCE);
+        physical_SetupStack(p, "unknown", PHYSICAL_NOFORCE);
         log_Printf(LogDEBUG, "%s: stdin is unidentified\n", p->link.name);
       }
       physical_Found(p);
@@ -893,7 +893,7 @@ physical_Open(struct physical *p, struct bundle *bundle)
 }
 
 void
-physical_SetupStack(struct physical *p, int how)
+physical_SetupStack(struct physical *p, const char *who, int how)
 {
   link_EmptyStack(&p->link);
   if (how == PHYSICAL_FORCE_SYNC ||
@@ -912,12 +912,11 @@ physical_SetupStack(struct physical *p, int how)
   link_Stack(&p->link, &aliaslayer);
 #endif
   if (how == PHYSICAL_FORCE_ASYNC && physical_IsSync(p)) {
-    log_Printf(LogWARN, "Sync device setting ignored for ``%s'' device\n",
-               p->handler ? p->handler->name : "unknown");
+    log_Printf(LogWARN, "Sync device setting ignored for ``%s'' device\n", who);
     p->cfg.speed = MODEM_SPEED;
   } else if (how == PHYSICAL_FORCE_SYNC && !physical_IsSync(p)) {
     log_Printf(LogWARN, "Async device setting ignored for ``%s'' device\n",
-               p->handler ? p->handler->name : "unknown");
+               who);
     physical_SetSync(p);
   }
 }
