@@ -276,7 +276,7 @@ db_write_bytes(addr, size, data)
 		}
 	    }
 
-	    pmap_invalidate_all(kernel_pmap);
+	    invltlb();
 	}
 
 	dst = (char *)addr;
@@ -292,7 +292,7 @@ db_write_bytes(addr, size, data)
 	    if (ptep1)
 		*ptep1 = oldmap1;
 
-	    pmap_invalidate_all(kernel_pmap);
+	    invltlb();
 	}
 }
 
