@@ -1,7 +1,7 @@
 /*
  * Fundamental constants relating to ethernet.
  *
- * $Id: ethernet.h,v 1.3 1996/12/18 21:42:38 wpaul Exp $
+ * $Id: ethernet.h,v 1.4 1996/12/19 15:42:52 wollman Exp $
  *
  */
 
@@ -66,10 +66,13 @@ struct	ether_addr {
 /*
  * Ethernet address conversion/parsing routines.
  */
+__BEGIN_DECLS
 struct	ether_addr *ether_aton __P((char *));
-char 	*ether_ntoa __P((struct ether_addr *));
-int	ether_line __P((char *, struct ether_addr *, char *));
-int	ether_ntohost __P((char *, struct ether_addr *));
 int	ether_hostton __P((char *, struct ether_addr *));
-#endif /* KERNEL */
-#endif /* _NET_ETHERNET_H */
+int	ether_line __P((char *, struct ether_addr *, char *));
+char 	*ether_ntoa __P((struct ether_addr *));
+int	ether_ntohost __P((char *, struct ether_addr *));
+__END_DECLS
+#endif /* !KERNEL */
+
+#endif /* !_NET_ETHERNET_H_ */
