@@ -125,6 +125,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -293,12 +294,8 @@ struct alias_link                /* Main data structure */
 
     int sockfd;                  /* socket descriptor                   */
 
-    u_int start_point_out;       /* Index number in output lookup table */
-    u_int start_point_in;
-    struct alias_link *next_out; /* Linked list pointers for input and  */
-    struct alias_link *last_out; /* output tables                       */
-    struct alias_link *next_in;  /*  .                                  */
-    struct alias_link *last_in;  /*  .                                  */
+    LIST_ENTRY(alias_link) list_out; /* Linked list of pointers for     */
+    LIST_ENTRY(alias_link) list_in;  /* input and output lookup tables  */
 
     union                        /* Auxiliary data                      */
     {
@@ -331,10 +328,10 @@ static struct in_addr targetAddress; /* IP address incoming packets     */
 
 static struct in_addr nullAddress;   /* Used as a dummy parameter for   */
                                      /*   some function calls           */
-static struct alias_link *
+static LIST_HEAD(, alias_link)
 linkTableOut[LINK_TABLE_OUT_SIZE];   /* Lookup table of pointers to     */
                                      /*   chains of link records. Each  */
-static struct alias_link *           /*   link record is doubly indexed */
+static LIST_HEAD(, alias_link)       /*   link record is doubly indexed */
 linkTableIn[LINK_TABLE_IN_SIZE];     /*   into input and output lookup  */
                                      /*   tables.                       */
 
@@ -825,11 +822,11 @@ CleanupAliasData(void)
     icount = 0;
     for (i=0; i<LINK_TABLE_OUT_SIZE; i++)
     {
-        link = linkTableOut[i];
+        link = LIST_FIRST(&linkTableOut[i]);
         while (link != NULL)
         {
             struct alias_link *link_next;
-            link_next = link->next_out;
+            link_next = LIST_NEXT(link, list_out);
             icount++;
             DeleteLink(link);
             link = link_next;
@@ -847,13 +844,13 @@ IncrementalCleanup(void)
     struct alias_link *link;
 
     icount = 0;
-    link = linkTableOut[cleanupIndex++];
+    link = LIST_FIRST(&linkTableOut[cleanupIndex++]);
     while (link != NULL)
     {
         int idelta;
         struct alias_link *link_next;
 
-        link_next = link->next_out; 
+        link_next = LIST_NEXT(link, list_out);
         idelta = timeStamp - link->timestamp;
         switch (link->link_type)
         {
@@ -886,11 +883,9 @@ IncrementalCleanup(void)
         cleanupIndex = 0;
 }
 
-void
+static void
 DeleteLink(struct alias_link *link)
 {
-    struct alias_link *link_last;
-    struct alias_link *link_next;
 
 /* Don't do anything if the link is marked permanent */
     if (deleteAllLinks == 0 && link->flags & LINK_PERMANENT)
@@ -913,28 +908,10 @@ DeleteLink(struct alias_link *link)
     }
 
 /* Adjust output table pointers */
-    link_last = link->last_out;
-    link_next = link->next_out;
-
-    if (link_last != NULL)
-        link_last->next_out = link_next;
-    else
-        linkTableOut[link->start_point_out] = link_next;
-
-    if (link_next != NULL)
-        link_next->last_out = link_last;
+    LIST_REMOVE(link, list_out);
 
 /* Adjust input table pointers */
-    link_last = link->last_in;
-    link_next = link->next_in;
-
-    if (link_last != NULL)
-        link_last->next_in = link_next;
-    else
-        linkTableIn[link->start_point_in] = link_next;
-
-    if (link_next != NULL)
-        link_next->last_in = link_last;
+    LIST_REMOVE(link, list_in);
 
 /* Close socket, if one has been allocated */
     if (link->sockfd != -1)
@@ -997,7 +974,6 @@ AddLink(struct in_addr  src_addr,
 {                                          /* chosen. If greater than    */
     u_int start_point;                     /* zero, equal to alias port  */
     struct alias_link *link;
-    struct alias_link *first_link;
 
     link = malloc(sizeof(struct alias_link));
     if (link != NULL)
@@ -1060,29 +1036,11 @@ AddLink(struct in_addr  src_addr,
     /* Set up pointers for output lookup table */
         start_point = StartPointOut(src_addr, dst_addr, 
                                     src_port, dst_port, link_type);
-        first_link = linkTableOut[start_point];
-
-        link->last_out        = NULL;
-        link->next_out        = first_link;
-        link->start_point_out = start_point;
-
-        if (first_link != NULL)
-            first_link->last_out = link;
-
-        linkTableOut[start_point] = link;
+        LIST_INSERT_HEAD(&linkTableOut[start_point], link, list_out);
 
     /* Set up pointers for input lookup table */
         start_point = StartPointIn(alias_addr, link->alias_port, link_type); 
-        first_link = linkTableIn[start_point];
-
-        link->last_in        = NULL;
-        link->next_in        = first_link;
-        link->start_point_in = start_point;
-
-        if (first_link != NULL)
-            first_link->last_in = link;
-
-        linkTableIn[start_point] = link;
+        LIST_INSERT_HEAD(&linkTableIn[start_point], link, list_in);
 
     /* Link-type dependent initialization */
         switch(link_type)
@@ -1190,8 +1148,7 @@ _FindLinkOut(struct in_addr src_addr,
     struct alias_link *link;
 
     i = StartPointOut(src_addr, dst_addr, src_port, dst_port, link_type);
-    link = linkTableOut[i];
-    while (link != NULL)
+    LIST_FOREACH(link, &linkTableOut[i], list_out)
     {
         if (link->src_addr.s_addr == src_addr.s_addr
          && link->server          == NULL
@@ -1203,7 +1160,6 @@ _FindLinkOut(struct in_addr src_addr,
             link->timestamp = timeStamp;
             break;
         }
-        link = link->next_out;
     }
 
 /* Search for partially specified links. */
@@ -1299,8 +1255,7 @@ _FindLinkIn(struct in_addr dst_addr,
 
 /* Search loop */
     start_point = StartPointIn(alias_addr, alias_port, link_type);
-    link = linkTableIn[start_point];
-    while (link != NULL)
+    LIST_FOREACH(link, &linkTableIn[start_point], list_in)
     {
         int flags;
 
@@ -1350,7 +1305,6 @@ _FindLinkIn(struct in_addr dst_addr,
                     link_unknown_dst_port = link;
             }
         }
-        link = link->next_in;
     }
 
 
@@ -2554,9 +2508,9 @@ PacketAliasInit(void)
         houseKeepingResidual = 0;
 
         for (i=0; i<LINK_TABLE_OUT_SIZE; i++)
-            linkTableOut[i] = NULL;
+            LIST_INIT(&linkTableOut[i]);
         for (i=0; i<LINK_TABLE_IN_SIZE; i++)
-            linkTableIn[i] = NULL;
+            LIST_INIT(&linkTableIn[i]);
 
         atexit(PacketAliasUninit);
         firstCall = 0;
@@ -2649,7 +2603,6 @@ PacketAliasCheckNewLink(void)
   ****************/
 
 /* Firewall include files */
-#include <sys/queue.h>
 #include <net/if.h>
 #include <netinet/ip_fw.h>
 #include <string.h>
