@@ -970,6 +970,8 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 	fs->fs_fmod = 1;
 	if (DOINGSOFTDEP(ITOV(ip)))
 		softdep_setup_blkmapdep(bp, fs, bprev);
+	if (fs->fs_active != 0)
+		atomic_clear_char(&fs->fs_active[cg / NBBY], 1 << (cg % NBBY));
 	bdwrite(bp);
 	return (bprev);
 }
@@ -1014,6 +1016,9 @@ ffs_alloccg(ip, cg, bpref, size)
 	cgp->cg_time = time_second;
 	if (size == fs->fs_bsize) {
 		bno = ffs_alloccgblk(ip, bp, bpref);
+		if (fs->fs_active != 0)
+			atomic_clear_char(&fs->fs_active[cg / NBBY],
+			    1 << (cg % NBBY));
 		bdwrite(bp);
 		return (bno);
 	}
@@ -1046,6 +1051,9 @@ ffs_alloccg(ip, cg, bpref, size)
 		fs->fs_cs(fs, cg).cs_nffree += i;
 		fs->fs_fmod = 1;
 		cgp->cg_frsum[i]++;
+		if (fs->fs_active != 0)
+			atomic_clear_char(&fs->fs_active[cg / NBBY],
+			    1 << (cg % NBBY));
 		bdwrite(bp);
 		return (bno);
 	}
@@ -1066,6 +1074,8 @@ ffs_alloccg(ip, cg, bpref, size)
 	blkno = cg * fs->fs_fpg + bno;
 	if (DOINGSOFTDEP(ITOV(ip)))
 		softdep_setup_blkmapdep(bp, fs, blkno);
+	if (fs->fs_active != 0)
+		atomic_clear_char(&fs->fs_active[cg / NBBY], 1 << (cg % NBBY));
 	bdwrite(bp);
 	return ((u_long)blkno);
 }
@@ -1298,6 +1308,8 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	for (i = 0; i < len; i += fs->fs_frag)
 		if ((got = ffs_alloccgblk(ip, bp, bno + i)) != bno + i)
 			panic("ffs_clusteralloc: lost block");
+	if (fs->fs_active != 0)
+		atomic_clear_char(&fs->fs_active[cg / NBBY], 1 << (cg % NBBY));
 	bdwrite(bp);
 	return (bno);
 
@@ -1516,6 +1528,8 @@ ffs_blkfree(ip, bno, size)
 		}
 	}
 	fs->fs_fmod = 1;
+	if (fs->fs_active != 0)
+		atomic_clear_char(&fs->fs_active[cg / NBBY], 1 << (cg % NBBY));
 	bdwrite(bp);
 }
 
