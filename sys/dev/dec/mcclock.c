@@ -85,9 +85,10 @@ mcclock_get(device_t dev, time_t base, struct clocktime *ct)
 	ct->mon = regs[MC_MONTH];
 	ct->year = regs[MC_YEAR];
 	/*
-	 * This chip is not y2k compliant, so we'll do a 10 year window fix.
+	 * This chip is not y2k compliant- If it's less than
+	 * 70, we're clearly past the year 2000.
 	 */
-	if (ct->year >= 0 && ct->year < 10) {
+	if (ct->year < 70) {
 		ct->year += 100;
 	}
 }
@@ -111,15 +112,11 @@ mcclock_set(device_t dev, struct clocktime *ct)
 	regs[MC_DOW] = ct->dow;
 	regs[MC_DOM] = ct->day;
 	regs[MC_MONTH] = ct->mon;
-	regs[MC_YEAR] = ct->year;
 	/*
-	 * This chip is not y2k compliant, so we'll do a 10 year window fix.
-	 * It's probably okay to write more than 100, but let's not and
-	 * and say we didn't.
+	 * This chip is not y2k compliant- write it with
+	 * no more than two digits.
 	 */
-	if (ct->year >= 100) {
-		ct->year -= 100;
-	}
+	regs[MC_YEAR] = ct->year % 100;
 	s = splclock();
 	MC146818_PUTTOD(dev, &regs);
 	splx(s);
