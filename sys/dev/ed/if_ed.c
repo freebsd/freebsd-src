@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.105 1996/09/06 23:07:30 phk Exp $
+ *	$Id: if_ed.c,v 1.106 1996/10/11 15:19:23 wollman Exp $
  */
 
 /*
@@ -227,6 +227,16 @@ static struct pccard_drv ed_info = {
 static void
 edsuspend(struct pccard_dev *dp)
 {
+	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
+        /*
+	 * Some 'ed' cards will generate a interrupt as they go away, 
+	 * and by the time the interrupt handler gets to the card,
+	 * the interrupt can't be cleared.
+	 * By setting gone here, we tell the handler to ignore the
+	 * interrupt when it happens.
+	 */
+        sc->gone = 1;		/* avoid spinning endlessly in interrupt handler */
+
 	printf("ed%d: suspending\n", dp->isahd.id_unit);
 }
 
@@ -254,6 +264,8 @@ edinit(struct pccard_dev *dp, int first)
 			return(ENXIO);
 		if (ed_attach_isa(&dp->isahd)==0)
 			return(ENXIO);
+	} else {
+	        sc->gone = 0;	/* reenable after a suspend */
 	}
 	/*
 	 * XXX TODO:
@@ -1310,110 +1322,26 @@ ed_probe_Novell(isa_dev)
 #if NCRD > 0
 
 /*
- * Probe and vendor-specific initialization routine for PCCARDs
+ * Probe framework for pccards.  Replicates the standard framework, 
+ * minus the pccard driver registration and ignores the ether address
+ * supplied (from the CIS), relying on the probe to find it instead.
  */
 static int
 ed_probe_pccard(isa_dev, ether)
 	struct isa_device *isa_dev;
 	u_char *ether;
 {
-	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
-	int     i;
-	u_int   memsize;
-	u_char  isa16bit;
+	int     nports;
 
-	sc->nic_addr = isa_dev->id_iobase; 
-	sc->gone = 0;
-	sc->is790 = 0;
-	sc->cr_proto = ED_CR_RD2;
-	sc->vendor = ED_VENDOR_PCCARD;
-	sc->type = 0;
-	sc->type_str = "PCCARD";
-	sc->mem_size = isa_dev->id_msize = memsize = 16384;
-	sc->isa16bit = isa16bit = 1;
+	nports = ed_probe_WD80x3(isa_dev);
+	if (nports)
+		return (nports);
 
-	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		sc->arpcom.ac_enaddr[i] = ether[i];
+	nports = ed_probe_Novell(isa_dev);
+	if (nports)
+		return (nports);
 
-#if ED_DEBUG
-	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%d\n",
-	       sc->type, sc->type_str, isa16bit, memsize, isa_dev->id_msize);
-#endif
-
-	i = inb(sc->nic_addr + ED_PC_RESET);
-	DELAY(100000);
-	outb(sc->nic_addr + ED_PC_RESET,i);
-	DELAY(100000);
-	i = inb(sc->nic_addr + ED_PC_MISC);
-	if (!i) {
-		int j;
-		printf("ed_probe_pccard: possible failure\n");
-		for (j=0;j<20 && !i;j++) {
-			printf(".");
-			DELAY(100000);
-			i = inb(sc->nic_addr + ED_PC_MISC);
-		}
-		if (!i) {
-			printf("dead :-(\n");
-			return 0;
-		}
-		printf("\n");
-	}
-	/*
-	 * Set initial values for width/size.
-	 */
-
-	/* Make sure that we really have an 8390 based board */
-	if (!ed_probe_generic8390(sc)) {
-		printf("ed_probe_generic8390 failed\n");
-		return (0);
-	}
-	sc->txb_cnt = 2;
-	sc->tx_page_start = ED_PC_PAGE_OFFSET;
-	sc->rec_page_start = sc->tx_page_start + ED_TXBUF_SIZE * sc->txb_cnt;
-	sc->rec_page_stop = sc->tx_page_start + memsize / ED_PAGE_SIZE;
-
-	sc->mem_shared = 1;
-	sc->mem_start = (caddr_t) isa_dev->id_maddr;
-	sc->mem_size = memsize;
-	sc->mem_end = sc->mem_start + memsize;
-
-	sc->mem_ring = sc->mem_start + 
-		sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
-
-	/*
-	 * Now zero memory and verify that it is clear
-	 */
-	bzero(sc->mem_start, memsize);
-
-	for (i = 0; i < memsize; ++i) {
-		if (sc->mem_start[i]) {
-			printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
-			    isa_dev->id_unit, kvtop(sc->mem_start + i));
-
-			return (0);
-		}
-		sc->mem_start[i] = (i - 5) & 0xff;
-	}
-	for (i = 0; i < memsize; ++i) {
-		if ((sc->mem_start[i] & 0xff) != ((i - 5) & 0xff)) {
-			printf("ed%d: shared memory failed at %lx (%x != %x) - check configuration\n",
-			    isa_dev->id_unit, kvtop(sc->mem_start + i),
-			    sc->mem_start[i], (i-5) & 0xff);
-			return (0);
-
-		}
-	}
-
-	i = inb(sc->nic_addr + ED_PC_MISC);
-	if (!i) {
-		printf("ed_probe_pccard: possible failure(2)\n");
-	}
-
-	/* clear any pending interupts that we may have caused */
-	outb(sc->nic_addr + ED_P0_ISR, 0xff);
-
-	return (ED_PC_IO_PORTS);
+	return (0);
 }
 
 #endif /* NCRD > 0 */
