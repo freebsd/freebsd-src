@@ -127,7 +127,6 @@ struct da_softc {
 	struct	 disk_params params;
 	struct	 disk disk;
 	union	 ccb saved_ccb;
-	dev_t    dev;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 };
@@ -449,10 +448,7 @@ static struct da_quirk_entry da_quirk_table[] =
 	}
 };
 
-static	d_open_t	daopen;
-static	d_close_t	daclose;
-static	d_strategy_t	dastrategy;
-static	d_ioctl_t	daioctl;
+static	disk_strategy_t	dastrategy;
 static	dumper_t	dadump;
 static	periph_init_t	dainit;
 static	void		daasync(void *callback_arg, u_int32_t code,
@@ -515,35 +511,10 @@ static struct periph_driver dadriver =
 
 PERIPHDRIVER_DECLARE(da, dadriver);
 
-#define DA_CDEV_MAJOR 13
-
-/* For 2.2-stable support */
-#ifndef D_DISK
-#define D_DISK 0
-#endif
-
-static struct cdevsw da_cdevsw = {
-	/* open */	daopen,
-	/* close */	daclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	daioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	dastrategy,
-	/* name */	"da",
-	/* maj */	DA_CDEV_MAJOR,
-	/* dump */	dadump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
-};
-
-static struct cdevsw dadisk_cdevsw;
-
 static SLIST_HEAD(,da_softc) softc_list;
 
 static int
-daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unused)
+daopen(struct disk *dp)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
@@ -554,7 +525,7 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 	int s;
 
 	s = splsoftcam();
-	periph = (struct cam_periph *)dev->si_drv1;
+	periph = (struct cam_periph *)dp->d_drv1;
 	unit = periph->unit_number;
 	if (periph == NULL) {
 		splx(s);
@@ -564,7 +535,7 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 	softc = (struct da_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-	    ("daopen: dev=%s (unit %d)\n", devtoname(dev),
+	    ("daopen: disk=%s%d (unit %d)\n", dp->d_name, dp->d_unit,
 	     unit));
 
 	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0)
@@ -644,13 +615,13 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 }
 
 static int
-daclose(dev_t dev, int flag __unused, int fmt __unused, struct thread *td __unused)
+daclose(struct disk *dp)
 {
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
 	int	error;
 
-	periph = (struct cam_periph *)dev->si_drv1;
+	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -738,7 +709,7 @@ dastrategy(struct bio *bp)
 	struct da_softc *softc;
 	int    s;
 	
-	periph = (struct cam_periph *)bp->bio_dev->si_drv1;
+	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
 	if (periph == NULL) {
 		biofinish(bp, NULL, ENXIO);
 		return;
@@ -788,13 +759,13 @@ dastrategy(struct bio *bp)
 #endif
 
 static int
-daioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+daioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
 	int error;
 
-	periph = (struct cam_periph *)dev->si_drv1;
+	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -823,7 +794,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	struct	    disk *dp;
 
 	dp = arg;
-	periph = (struct cam_periph *)dp->d_dev->si_drv1;
+	periph = dp->d_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 	softc = (struct da_softc *)periph->softc;
@@ -1008,9 +979,7 @@ dacleanup(struct cam_periph *periph)
 	devstat_remove_entry(&softc->device_stats);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
-	if (softc->dev) {
-		disk_destroy(&softc->disk);
-	}
+	disk_destroy(&softc->disk);
 	free(softc, M_DEVBUF);
 }
 
@@ -1234,10 +1203,16 @@ daregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Register this media as a disk
 	 */
-	softc->dev = disk_create(periph->unit_number, &softc->disk, 0, 
-	    &da_cdevsw, &dadisk_cdevsw);
-	softc->dev->si_drv1 = periph;
-	softc->dev->si_iosize_max = DFLTPHYS;
+
+	softc->disk.d_open = daopen;
+	softc->disk.d_close = daclose;
+	softc->disk.d_strategy = dastrategy;
+	softc->disk.d_ioctl = daioctl;
+	softc->disk.d_dump = dadump;
+	softc->disk.d_name = "da";
+	softc->disk.d_drv1 = periph;
+	softc->disk.d_maxsize = DFLTPHYS; /* XXX: probably not arbitrary */
+	disk_create(periph->unit_number, &softc->disk, 0, NULL, NULL);
 
 	/*
 	 * Add async callbacks for bus reset and
