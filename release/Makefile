@@ -457,10 +457,10 @@ release rerelease:
 	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
-.if !defined(NOPORTS) && !defined(NOPORTREADMES)
-	echo "if true; then"			>> ${CHROOTDIR}/mk
-.else
+.if defined(NOPORTS) || defined(NOPORTREADMES)
 	echo "if false; then"			>> ${CHROOTDIR}/mk
+.else
+	echo "if true; then"			>> ${CHROOTDIR}/mk
 .endif
 	echo "	echo \">>> make readmes started on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	echo "	cd /usr/ports"			>> ${CHROOTDIR}/mk
@@ -906,25 +906,25 @@ cdrom.1:
 	touch cdrom.1
 
 iso.1:
-	@if [ -r ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ]; then \
-		echo "Creating ISO images..."; \
-		sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-		    fbsd_miniinst \
-		    ${CD}/${BUILDNAME}-${TARGET}-miniinst.iso ${CD_DISC1}; \
-		sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-		    fbsd_livefs \
-		    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2}; \
-		if [ "x${CD_EXTRA_BITS}" != "x" ]; then \
-			sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
-			    ${BOOTABLE} fbsd_boot \
-			    ${CD}/${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} \
-			    ${CD_EXTRA_BITS} \
-			    && false; \
-		fi \
-	else \
-		echo "Do not know how to create an ISO for ${TARGET_ARCH}."; \
-	fi
+.if exist(${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh)
+	@echo "Creating ISO images..."
+	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	    fbsd_miniinst \
+	    ${CD}/${BUILDNAME}-${TARGET}-miniinst.iso ${CD_DISC1}; \
+	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	    fbsd_livefs \
+	    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2}; \
+.if defined(CD_EXTRA_BITS)
+	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
+	    ${BOOTABLE} fbsd_boot \
+	    ${CD}/${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} \
+	    ${CD_EXTRA_BITS} \
+	    && false
+.endif
 	touch iso.1
+.else
+	@echo "Do not know how to create an ISO for ${TARGET_ARCH}."; \
+.endif
 
 #
 # --==## Documentation Project files such as the Handbook and FAQ ##==--
