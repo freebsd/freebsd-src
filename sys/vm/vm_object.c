@@ -108,6 +108,10 @@ static int msync_flush_flags = MSYNC_FLUSH_HARDSEQ | MSYNC_FLUSH_SOFTSEQ;
 SYSCTL_INT(_vm, OID_AUTO, msync_flush_flags,
         CTLFLAG_RW, &msync_flush_flags, 0, "");
 
+static int old_msync;
+SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
+    "Use old (insecure) msync behavior");
+
 static void	vm_object_qcollapse(vm_object_t object);
 static int	vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration, int pagerflags);
 
@@ -1027,7 +1031,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		vm_object_page_remove(object,
 		    OFF_TO_IDX(offset),
 		    OFF_TO_IDX(offset + size + PAGE_MASK),
-		    FALSE);
+		    old_msync ? FALSE : TRUE);
 	}
 	VM_OBJECT_UNLOCK(object);
 }
