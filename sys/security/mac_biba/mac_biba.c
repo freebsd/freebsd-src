@@ -233,19 +233,6 @@ mac_biba_equal_element(struct mac_biba_element *a, struct mac_biba_element *b)
 }
 
 static int
-mac_biba_equal_range(struct mac_biba *a, struct mac_biba *b)
-{
-
-	KASSERT((a->mb_flags & MAC_BIBA_FLAG_RANGE) != 0,
-	    ("mac_biba_equal_range: a not range"));
-	KASSERT((b->mb_flags & MAC_BIBA_FLAG_RANGE) != 0,
-	    ("mac_biba_equal_range: b not range"));
-
-	return (mac_biba_equal_element(&a->mb_rangelow, &b->mb_rangelow) &&
-	    mac_biba_equal_element(&a->mb_rangehigh, &b->mb_rangehigh));
-}
-
-static int
 mac_biba_equal_single(struct mac_biba *a, struct mac_biba *b)
 {
 
