@@ -404,11 +404,11 @@ startagain:
 	return;
     }
     /* We need to use m->m_pkthdr.len, so require the header */
-     if ((m->m_flags & M_PKTHDR) == 0)
+    if ((m->m_flags & M_PKTHDR) == 0)
 	panic("vxstart: no header mbuf");
-     len = m->m_pkthdr.len;
+    len = m->m_pkthdr.len;
 
-     pad = (4 - len) & 3;
+    pad = (4 - len) & 3;
 
     /*
      * The 3c509 automatically pads short packets to minimum ethernet length,

@@ -291,7 +291,7 @@ literal:
 						inp += n;
 						if (sum == 0)
 							goto input_failure;
-							break;
+						break;
 					} else {
 						sum += width;
 						inr -= width;
