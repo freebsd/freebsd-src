@@ -247,8 +247,7 @@ fdc_isa_attach(device_t dev)
 	if (error == 0)
 		fdc->flags |= FDC_ISPNP;
 	if (fd_cmd(fdc, 1, NE7CMD_VERSION, 1, &ic_type) == 0) {
-		ic_type = (u_char)ic_type;
-		switch (ic_type) {
+		switch (ic_type & 0xff) {
 		case 0x80:
 			fdc->fdct = FDC_NE765;
 			break;
