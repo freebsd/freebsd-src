@@ -293,7 +293,7 @@ adv_pci_attach(device_t dev)
 	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 				    RF_SHAREABLE | RF_ACTIVE);
 	if (irqres == NULL ||
-	    bus_setup_intr(dev, irqres, INTR_TYPE_CAM, adv_intr, adv, &ih)) {
+	    bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY, adv_intr, adv, &ih)) {
 		adv_free(adv);
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 		return ENXIO;

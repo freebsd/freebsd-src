@@ -186,7 +186,7 @@ mly_pci_attach(device_t dev)
 	mly_printf(sc, "can't allocate interrupt\n");
 	goto fail;
     }
-    if (bus_setup_intr(sc->mly_dev, sc->mly_irq, INTR_TYPE_CAM,  mly_pci_intr, sc, &sc->mly_intr)) {
+    if (bus_setup_intr(sc->mly_dev, sc->mly_irq, INTR_TYPE_CAM | INTR_ENTROPY,  mly_pci_intr, sc, &sc->mly_intr)) {
 	mly_printf(sc, "can't set up interrupt\n");
 	goto fail;
     }
