@@ -376,6 +376,9 @@ dev/drm/radeon_drv.c	optional radeondrm
 dev/drm/radeon_irq.c	optional radeondrm
 dev/drm/radeon_mem.c	optional radeondrm
 dev/drm/radeon_state.c	optional radeondrm
+dev/drm/sis_drv.c	optional sisdrm
+dev/drm/sis_ds.c	optional sisdrm
+dev/drm/sis_mm.c	optional sisdrm
 dev/drm/tdfx_drv.c	optional tdfxdrm
 dev/ed/if_ed.c		optional ed
 dev/ed/if_ed_pccard.c	optional ed card
