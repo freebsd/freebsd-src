@@ -1159,7 +1159,7 @@ acpi_shutdown_pre_sync(void *arg, int howto)
 static void
 acpi_shutdown_final(void *arg, int howto)
 {
-
+    ACPI_STATUS	status;
     ACPI_ASSERTLOCK;
 
     /*
