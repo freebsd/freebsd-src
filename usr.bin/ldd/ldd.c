@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldd.c,v 1.6 1996/10/01 01:34:32 peter Exp $
+ *	$Id: ldd.c,v 1.7 1996/10/01 02:16:15 peter Exp $
  */
 
 #include <sys/types.h>
@@ -64,7 +64,7 @@ char	*argv[];
 	char		*fmt1 = NULL, *fmt2 = NULL;
 	int		rval;
 	int		c;
-	int		vflag;
+	int		vflag = 0;
 
 	while ((c = getopt(argc, argv, "vf:")) != EOF) {
 		switch (c) {
