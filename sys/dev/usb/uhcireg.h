@@ -1,4 +1,4 @@
-/*	$NetBSD: uhcireg.h,v 1.14 2001/08/06 15:15:08 augustss Exp $	*/
+/*	$NetBSD: uhcireg.h,v 1.15 2002/02/11 11:41:30 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -75,6 +75,7 @@
 #define  UHCI_STS_HSE		0x0008
 #define  UHCI_STS_HCPE		0x0010
 #define  UHCI_STS_HCH		0x0020
+#define  UHCI_STS_ALLINTRS	0x003f
 
 #define UHCI_INTR		0x04
 #define  UHCI_INTR_TOCRCIE	0x0001
