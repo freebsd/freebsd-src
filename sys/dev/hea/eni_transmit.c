@@ -110,6 +110,7 @@ int	eni_pdu_print = 0;
 int
 eni_set_dma ( eup, rx, dma_list, list_size, idx, val, addr, size )
 Eni_unit *eup;
+int	rx;
 u_long	*dma_list;
 int	list_size;
 long	*idx;

@@ -213,6 +213,7 @@ static void
 pcn_csr_write(sc, reg, val)
 	struct pcn_softc	*sc;
 	int			reg;
+	int			val;
 {
 	CSR_WRITE_4(sc, PCN_IO32_RAP, reg);
 	CSR_WRITE_4(sc, PCN_IO32_RDP, val);
@@ -241,6 +242,7 @@ static void
 pcn_bcr_write(sc, reg, val)
 	struct pcn_softc	*sc;
 	int			reg;
+	int			val;
 {
 	CSR_WRITE_4(sc, PCN_IO32_RAP, reg);
 	CSR_WRITE_4(sc, PCN_IO32_BDP, val);
