@@ -2173,7 +2173,7 @@ void client_envadd (struct client_state *client,
 
 int dhcp_option_ev_name (buf, buflen, option)
 	char *buf;
-	unsigned buflen;
+	size_t buflen;
 	struct option *option;
 {
 	int i;
