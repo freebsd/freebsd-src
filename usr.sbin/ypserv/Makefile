@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.13 1998/02/11 19:15:31 wpaul Exp $
+# $Id: Makefile,v 1.14 1998/03/06 14:51:35 bde Exp $
 
 PROG=	ypserv
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
@@ -17,12 +17,12 @@ RPCGEN= rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # yp_main.c can see it.
-yp_svc.c: yp.x yp.h
+yp_svc.c: yp.x
 	rm -f ${.TARGET}
 	${RPCGEN} -DYPSERV_ONLY -m ${RPCDIR}/yp.x | \
 	sed s/"static int _rpcsvcstate"/"int _rpcsvcstate"/g > ${.TARGET}
 
-ypxfr_clnt.c: yp.x yp.h
+ypxfr_clnt.c: yp.x
 	${RPCGEN} -DYPPUSH_ONLY -l -o ${.TARGET} ${RPCDIR}/yp.x
 
 yp.h: yp.x

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1997/07/29 15:43:12 wpaul Exp $
+# $Id: Makefile,v 1.9 1998/04/26 16:30:09 bde Exp $
 
 PROG=	rpc.yppasswdd
 SRCS=	pw_copy.c pw_util.c util.c yp_access.c yp_dblookup.c yp_dbwrite.c \
@@ -26,7 +26,7 @@ RPCGEN= rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # yppasswdd_main.c can see it.
-yppasswd_svc.c: yppasswd.x yppasswd.h
+yppasswd_svc.c: yppasswd.x
 	rm -f ${.TARGET}
 	${RPCGEN} -m ${RPCDIR}/yppasswd.x | \
 	sed s/"static int _rpcsvcstate"/"int _rpcsvcstate"/g > ${.TARGET}
@@ -39,7 +39,7 @@ yp.h: yp.x
 	rm -f ${.TARGET}
 	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/yp.x
 
-yp_clnt.c: yp.x yp.h
+yp_clnt.c: yp.x
 	rm -f ${.TARGET}
 	${RPCGEN} -DYPSERV_ONLY -l -o ${.TARGET} ${RPCDIR}/yp.x
 
@@ -47,11 +47,11 @@ yppasswd_private.h: yppasswd_private.x
 	rm -f ${.TARGET}
 	${RPCGEN} -h -o ${.TARGET} ${.CURDIR}/yppasswd_private.x
 
-yppasswd_private_xdr.c: yppasswd_private.x yppasswd_private.h
+yppasswd_private_xdr.c: yppasswd_private.x
 	rm -f ${.TARGET}
 	${RPCGEN} -c -o ${.TARGET} ${.CURDIR}/yppasswd_private.x
 
-yppasswd_private_svc.c: yppasswd_private.x yppasswd_private.h
+yppasswd_private_svc.c: yppasswd_private.x
 	rm -f ${.TARGET}
 	${RPCGEN} -m ${.CURDIR}/yppasswd_private.x | \
 	sed s/"static int _rpcsvcstate = _IDLE"/"extern int _rpcsvcstate"/g > ${.TARGET}

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1997/12/16 17:43:33 bde Exp $
+# $Id: Makefile,v 1.4 1998/03/06 14:40:42 bde Exp $
 
 PROG=	rpc.ypupdated
 SRCS=	ypupdate_prot_svc.c ypupdate_prot.h ypupdated_main.c \
@@ -25,7 +25,7 @@ RPCGEN= rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # ypupdated_main.c can see it.
-ypupdate_prot_svc.c: ${RPCDIR}/ypupdate_prot.x ypupdate_prot.h
+ypupdate_prot_svc.c: ${RPCDIR}/ypupdate_prot.x
 	rm -f ${.TARGET}
 	${RPCGEN} -m ${RPCDIR}/ypupdate_prot.x | \
 	sed s/"static int _rpcsvcstate"/"int _rpcsvcstate"/g > ${.TARGET}
