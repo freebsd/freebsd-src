@@ -1,7 +1,7 @@
 /* challenge.c: The opiechallenge() library function.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -67,11 +67,11 @@ int opiechallenge FUNCTION((mp, name, ss), struct opie *mp AND char *name AND ch
 #endif /* DEBUG */
   }
 
-  if (rval) {
+  if (rval ||
+    (snprintf(ss, OPIE_CHALLENGE_MAX, "otp-%s %d %s ext", algids[MDX], mp->opie_n - 1, mp->opie_seed) >= OPIE_CHALLENGE_MAX)) {
     opierandomchallenge(ss);
     memset(mp, 0, sizeof(*mp));
-  } else
-    sprintf(ss, "otp-%s %d %s ext", algids[MDX], mp->opie_n - 1, mp->opie_seed);
+  }
 
   return rval;
 }
