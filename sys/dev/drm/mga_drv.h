@@ -93,7 +93,6 @@ typedef struct drm_mga_private {
 	unsigned int texture_size;
 
 	drm_local_map_t *sarea;
-	drm_local_map_t *fb;
 	drm_local_map_t *mmio;
 	drm_local_map_t *status;
 	drm_local_map_t *warp;

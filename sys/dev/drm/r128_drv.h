@@ -99,7 +99,6 @@ typedef struct drm_r128_private {
 	u32 span_pitch_offset_c;
 
 	drm_local_map_t *sarea;
-	drm_local_map_t *fb;
 	drm_local_map_t *mmio;
 	drm_local_map_t *cce_ring;
 	drm_local_map_t *ring_rptr;

@@ -137,7 +137,6 @@ typedef struct drm_radeon_private {
 	unsigned long gart_textures_offset;
 
 	drm_local_map_t *sarea;
-	drm_local_map_t *fb;
 	drm_local_map_t *mmio;
 	drm_local_map_t *cp_ring;
 	drm_local_map_t *ring_rptr;
