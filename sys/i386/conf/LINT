@@ -995,6 +995,8 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 # `flags' for atkbd:
 #       0x01    Force detection of keyboard, else we always assume a keyboard
 #       0x02    Don't reset keyboard, useful for some newer ThinkPads
+#	0x03	Force detection and avoid reset, might help with certain
+#		dockingstations
 #       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
 
 # PS/2 mouse
