@@ -776,6 +776,9 @@ vn_ioctl(fp, com, data, active_cred, td)
 		}
 		if (com == FIONBIO || com == FIOASYNC)	/* XXX */
 			error = 0;
+		else
+			error = VOP_IOCTL(vp, com, data, fp->f_flag,
+			    active_cred, td);
 		break;
 
 	default:
