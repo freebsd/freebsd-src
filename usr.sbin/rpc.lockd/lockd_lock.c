@@ -312,11 +312,14 @@ dump_netobj(const struct netobj *nobj)
 	}
 }
 
+/* #define DUMP_FILELOCK_VERBOSE */
 void
 dump_filelock(const struct file_lock *fl)
 {
+#ifdef DUMP_FILELOCK_VERBOSE
 	char hbuff[MAXBUFFERSIZE*2];
 	char cbuff[MAXBUFFERSIZE];
+#endif
 
 	if (debug_level < 2) {
 		return;
@@ -325,19 +328,19 @@ dump_filelock(const struct file_lock *fl)
 	if (fl != NULL) {
 		debuglog("Dumping file lock structure @ %p\n", fl);
 
-		/*
+#ifdef DUMP_FILELOCK_VERBOSE
 		dump_static_object((unsigned char *)&fl->filehandle,
 		    sizeof(fl->filehandle), hbuff, sizeof(hbuff),
 		    cbuff, sizeof(cbuff));
 		debuglog("Filehandle: %8s  :::  %8s\n", hbuff, cbuff);
-		*/
+#endif
 		
 		debuglog("Dumping nlm4_holder:\n"
 		    "exc: %x  svid: %x  offset:len %llx:%llx\n",
 		    fl->client.exclusive, fl->client.svid,
 		    fl->client.l_offset, fl->client.l_len);
 
-		/*
+#ifdef DUMP_FILELOCK_VERBOSE
 		debuglog("Dumping client identity:\n");
 		dump_netobj(&fl->client.oh);
 		
@@ -347,7 +350,7 @@ dump_filelock(const struct file_lock *fl)
 		debuglog("nsm: %d  status: %d  flags: %d  locker: %d"
 		    "  fd:  %d\n", fl->nsm_status, fl->status,
 		    fl->flags, fl->locker, fl->fd);
-		*/
+#endif
 	} else {
 		debuglog("NULL file lock structure\n");
 	}
@@ -1150,7 +1153,9 @@ unlock_hwlock(const struct file_lock *fl)
 }
 
 enum hwlock_status
-test_hwlock(const struct file_lock *fl, struct file_lock **conflicting_fl)
+test_hwlock(fl, conflicting_fl)
+	const struct file_lock *fl __unused;
+	struct file_lock **conflicting_fl __unused;
 {
 
 	/*
@@ -1840,7 +1845,7 @@ do_clear(const char *hostname)
  */
 
 struct nlm4_holder *
-testlock(struct nlm4_lock *lock, bool_t exclusive, int flags)
+testlock(struct nlm4_lock *lock, bool_t exclusive, int flags __unused)
 {
 	struct file_lock test_fl, *conflicting_fl;
 
@@ -1940,7 +1945,7 @@ getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp, const int flags)
 
 /* unlock a filehandle */
 enum nlm_stats
-unlock(nlm4_lock *lock, const int flags)
+unlock(nlm4_lock *lock, const int flags __unused)
 {
 	struct file_lock fl;
 	enum nlm_stats err;
@@ -2130,7 +2135,7 @@ notify(const char *hostname, const int state)
 void
 send_granted(fl, opcode)
 	struct file_lock *fl;
-	int opcode;
+	int opcode __unused;
 {
 	CLIENT *cli;
 	static char dummy;
