@@ -61,7 +61,7 @@ time_t trace_mr_time (time_t *);
 int trace_mr_select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 unsigned int trace_mr_res_randomid (unsigned int);
 
-extern time_t cur_time;
+extern TIME cur_time;
 
 #if defined (TRACING)
 void trace_mr_init ()
