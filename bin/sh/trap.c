@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif
 static const char rcsid[] =
-	"$Id: trap.c,v 1.13 1998/08/25 08:49:47 cracauer Exp $";
+	"$Id: trap.c,v 1.14 1998/08/25 09:33:34 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -77,7 +77,7 @@ static const char rcsid[] =
 MKINIT char sigmode[NSIG];	/* current value of signal */
 int pendingsigs;		/* indicates some signal received */
 int in_dotrap;			/* do we execute in a trap handler? */
-static char *trap[NSIG];	/* trap handler commands */
+static char *volatile trap[NSIG];	/* trap handler commands */
 static volatile sig_atomic_t gotsig[NSIG]; 
 				/* indicates specified signal received */
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
@@ -190,7 +190,7 @@ trapcmd(argc, argv)
 void
 clear_traps()
 {
-	char **tp;
+	char *volatile *tp;
 
 	for (tp = trap ; tp <= &trap[NSIG - 1] ; tp++) {
 		if (*tp && **tp) {	/* trap not NULL or SIG_IGN */
@@ -347,6 +347,7 @@ void
 onsig(signo)
 	int signo;
 {
+	int i;
 
 #ifndef BSD
 	signal(signo, onsig);
@@ -355,12 +356,24 @@ onsig(signo)
 		onint();
 		return;
 	}
+
 	if (signo != SIGCHLD || !ignore_sigchld)
 		gotsig[signo] = 1;
 	pendingsigs++;
-	if (signo == SIGINT && in_waitcmd != 0) {
-		dotrap();
+
+	/* If we are currently in a wait builtin, prepare to break it */
+	if ((signo == SIGINT || signo == SIGQUIT) && in_waitcmd != 0)
 		breakwaitcmd = 1;
+	/* 
+	 * If a trap is set, we need to make sure it is executed even
+	 * when a childs blocks all signals.
+	 */
+	for (i = 0; i < NSIG; i++) {
+		if (signo == i && trap[i] != NULL && 
+		    ! (trap[i][0] == ':' && trap[i][1] == '\0')) {
+			breakwaitcmd = 1;
+			break;
+		}
 	}
 }
 

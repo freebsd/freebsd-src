@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)jobs.h	8.2 (Berkeley) 5/4/95
- *	$Id: jobs.h,v 1.7 1998/08/24 10:20:36 cracauer Exp $
+ *	$Id: jobs.h,v 1.8 1998/08/25 09:33:34 cracauer Exp $
  */
 
 /* Mode argument to forkshell.  Don't change FORK_FG or FORK_BG. */
@@ -79,6 +79,7 @@ struct job {
 extern pid_t backgndpid;	/* pid of last background process */
 extern int job_warning;		/* user was warned about stopped jobs */
 extern int in_waitcmd;		/* are we in waitcmd()? */
+extern int in_dowait;		/* are we in dowait()? */
 extern volatile sig_atomic_t breakwaitcmd; /* should wait be terminated? */
 
 void setjobctl __P((int));
