@@ -750,7 +750,7 @@ static int pcib_probe(device_t dev)
 	desc = pcib_match(dev);
 	if (desc) {
 		device_set_desc_copy(dev, desc);
-		return 0;
+		return -10000;
 	}
 
 	return ENXIO;
@@ -759,14 +759,19 @@ static int pcib_probe(device_t dev)
 static int pcib_attach(device_t dev)
 {
 	u_int8_t secondary;
+	device_t child;
+	int *ivar;
 
 	chipset_attach(dev, device_get_unit(dev));
 
 	secondary = pci_get_secondarybus(dev);
 	if (secondary) {
-		device_t child;
 		child = device_add_child(dev, "pci", -1);
-		pcib_set_bus(child, secondary);
+		ivar = malloc(sizeof ivar[0], M_DEVBUF /* XXX */, M_NOWAIT);
+		if (ivar == NULL)
+			panic("out of memory");
+		device_set_ivars(child, ivar);
+		ivar[0] = secondary;
 		return bus_generic_attach(dev);
 	} else
 		return 0;
@@ -777,7 +782,7 @@ pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	switch (which) {
 	case PCIB_IVAR_BUS:
-		*result = *(int*) device_get_softc(dev);
+		*result = *(int*) device_get_ivars(dev);
 		return 0;
 	}
 	return ENOENT;
@@ -788,7 +793,7 @@ pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
 	switch (which) {
 	case PCIB_IVAR_BUS:
-		*(int*) device_get_softc(dev) = value;
+		*(int*) device_get_ivars(dev) = value;
 		return 0;
 	}
 	return ENOENT;
@@ -854,7 +859,7 @@ static device_method_t pcib_methods[] = {
 static driver_t pcib_driver = {
 	"pcib",
 	pcib_methods,
-	sizeof(int),
+	1,
 };
 
 static devclass_t pcib_devclass;
