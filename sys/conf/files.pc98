@@ -11,7 +11,7 @@
 #
 linux_genassym.o		optional	compat_linux		\
 	dependency 	"$S/i386/linux/linux_genassym.c"		\
-	compile-with	"${CC} ${CFLAGS} -c ${.IMPSRC}"			\
+	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
 	no-obj no-implicit-rule						\
 	clean		"linux_genassym.o"
 #
@@ -23,7 +23,7 @@ linux_assym.h			optional	compat_linux		\
 #
 svr4_genassym.o			optional	compat_svr4		\
 	dependency 	"$S/i386/svr4/svr4_genassym.c"			\
-	compile-with	"${CC} ${CFLAGS} -c ${.IMPSRC}"			\
+	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
 	no-obj no-implicit-rule						\
 	clean		"svr4_genassym.o"
 #
