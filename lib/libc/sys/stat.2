@@ -95,30 +95,42 @@ are as follows:
 Time when file data last accessed.
 Changed by the
 .Xr mknod 2 ,
-.Xr utimes 2
-and
+.Xr utimes 2 ,
 .Xr read 2
+and
+.Xr readv 2
 system calls.
 .It Va st_mtime
 Time when file data last modified.
 Changed by the
+.Xr mkdir 2 ,
+.Xr mkfifo 2 ,
 .Xr mknod 2 ,
-.Xr utimes 2
-and
+.Xr utimes 2 ,
 .Xr write 2
+and
+.Xr writev 2
 system calls.
 .It Va st_ctime
 Time when file status was last changed (inode data modification).
 Changed by the
+.Xr chflags 2 ,
 .Xr chmod 2 ,
 .Xr chown 2 ,
+.Xr creat 2 ,
 .Xr link 2 ,
+.Xr mkdir 2 ,
+.Xr mkfifo 2 ,
 .Xr mknod 2 ,
 .Xr rename 2 ,
+.Xr rmdir 2 ,
+.Xr symlink 2 ,
+.Xr truncate 2 ,
 .Xr unlink 2 ,
-.Xr utimes 2
-and
+.Xr utimes 2 ,
 .Xr write 2
+and
+.Xr writev 2
 system calls.
 .It Va st_birthtime
 Time when the inode was created.
