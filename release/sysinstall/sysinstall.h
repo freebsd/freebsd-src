@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.17 1995/06/07 06:50:07 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.18 1995/06/07 07:21:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -237,6 +237,7 @@ extern Boolean		OnVTY;			/* On a syscons VTY?				*/
 extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
+extern unsigned int	DESDists;		/* Which naughty distributions we want		*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
 extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
 extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
@@ -268,6 +269,7 @@ extern DMenu		MenuNetworking;		/* Network configuration menu			*/
 extern DMenu		MenuInstall;		/* Installation menu				*/
 extern DMenu		MenuInstallType;	/* Installation type menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
+extern DMenu		MenuDESDistributions;	/* DES distribution menu			*/
 extern DMenu		MenuSrcDistributions;	/* Source distribution menu			*/
 extern DMenu		MenuXF86;		/* XFree86 main menu				*/
 extern DMenu		MenuXF86Select;		/* XFree86 distribution selection menu		*/

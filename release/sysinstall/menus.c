@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.36 1995/06/07 20:37:14 jkh Exp $
+ * $Id: menus.c,v 1.41.2.37 1995/06/08 23:25:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -351,6 +351,14 @@ the list of distributions yourself, simply select \"custom\".",
 };
 
 static char *
+DESFlagCheck(DMenuItem *item)
+{
+    if (isDebug())
+	msgDebug("Dists & DIST_DES = %d\n", Dists & DIST_DES);
+    return (Dists & DIST_DES) ? "ON" : "OFF";
+}
+
+static char *
 srcFlagCheck(DMenuItem *item)
 {
     if (isDebug())
@@ -383,9 +391,7 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
       { "compat20", "FreeBSD 2.0 binary compatibility package [2MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_COMPAT20, 0, dmenuFlagCheck	},
       { "DES", "NOT FOR EXPORT! DES encryption code [.3MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_DES, 0, dmenuFlagCheck		},
-      { "eBones", "NOT FOR EXPORT! Kerberos Authentication [1.3MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_KRB, 0, dmenuFlagCheck		},
+	DMENU_CALL,	distSetDES, 0, 0, DESFlagCheck			},
       { "dict", "Spelling checker dictionary files [4.2MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_DICT, 0, dmenuFlagCheck		},
       { "games", "Games and other amusements (non-commercial) [6.4MB]",
@@ -405,6 +411,27 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
       { NULL } },
 };
 
+DMenu MenuDESDistributions = {
+    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
+    "Select the encryption facilities you wish to install.",
+    "Please check off any special DES-based encryption distributions\n\
+you would like to install.  Please note that these services are NOT FOR\n\
+EXPORT from the United States, nor are they available on CDROM (for the\n\
+same reason).  For information on non-U.S. FTP distributions of this\n\
+software, please consult the release notes.",
+    NULL,
+    NULL,
+    { { "des", "Basic DES services (rlogin, init, etc) [1MB]",
+	DMENU_SET_FLAG, &DESDists, DIST_DES_DES, 0, dmenuFlagCheck	},
+      { "krb", "Kerberos encryption services [2MB]",
+	DMENU_SET_FLAG, &DESDists, DIST_DES_KERBEROS, 0, dmenuFlagCheck	},
+      { "sebones", "Sources for eBones (Kerberos) [1MB]",
+	DMENU_SET_FLAG, &DESDists, DIST_DES_SEBONES, 0, dmenuFlagCheck	},
+      { "ssecure", "Sources for DES libs and utilities [1MB]",
+	DMENU_SET_FLAG, &DESDists, DIST_DES_SSECURE, 0, dmenuFlagCheck	},
+      { NULL } },
+};
+	
 DMenu MenuSrcDistributions = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Select the sub-components of src you wish to install.",
@@ -440,10 +467,6 @@ you wish to install.",
 	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_UBIN, 0, dmenuFlagCheck	},
       { "usbin", "/usr/src/usr.sbin (aux system binaries) [14MB]",
 	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_USBIN, 0, dmenuFlagCheck	},
-      { "secure", "/usr/src/secure (NO EXPORT! DES and others) [1.3MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SECURE, 0, dmenuFlagCheck	},
-      { "eBones", "/usr/src/eBones (NO EXPORT! Kerberos) [1.1MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_EBONES, 0, dmenuFlagCheck	},
       { NULL } },
 };
 
