@@ -345,7 +345,7 @@ g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int se
 /*
  * Implement certain ioctls to modify disklabels with.  This function
  * is called by the event handler thread with topology locked as result
- * of the g_call_me() in g_bsd_start().  It is not necessary to keep
+ * of the g_post_event() in g_bsd_start().  It is not necessary to keep
  * topology locked all the time but make sure to return with topology
  * locked as well.
  */
@@ -592,7 +592,7 @@ g_bsd_start(struct bio *bp)
 		 * some I/O requests.  Ask the event-handler to schedule
 		 * us in a less restricted environment.
 		 */
-		error = g_call_me(g_bsd_ioctl, bp, gp, NULL);
+		error = g_post_event(g_bsd_ioctl, bp, M_NOWAIT, gp, NULL);
 		if (error)
 			g_io_deliver(bp, error);
 		/*

@@ -105,7 +105,7 @@ g_add_class(struct g_class *mp)
 	LIST_INIT(&mp->geom);
 	LIST_INSERT_HEAD(&g_classes, mp, class);
 	if (g_nproviders > 0 && mp->taste != NULL)
-		g_call_me(g_new_class_event, mp, mp, NULL);
+		g_post_event(g_new_class_event, mp, M_WAITOK, mp, NULL);
 	g_topology_unlock();
 }
 
@@ -242,7 +242,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_nproviders++;
-	g_call_me(g_new_provider_event, pp, pp, NULL);
+	g_post_event(g_new_provider_event, pp, M_WAITOK, pp, NULL);
 	return (pp);
 }
 
@@ -491,7 +491,8 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 			g_spoil(pp, cp);
 		else if (pp->acw != 0 && pp->acw == -dcw && 
 		    !(pp->geom->flags & G_GEOM_WITHER))
-			g_call_me(g_new_provider_event, pp, pp, NULL);
+			g_post_event(g_new_provider_event, pp, M_WAITOK, 
+			    pp, NULL);
 
 		pp->acr += dcr;
 		pp->acw += dcw;
@@ -633,7 +634,7 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 		KASSERT(cp2->ace == 0, ("spoiling cp->ace = %d", cp2->ace));
 		cp2->spoiled++;
 	}
-	g_call_me(g_spoil_event, pp, pp, NULL);
+	g_post_event(g_spoil_event, pp, M_WAITOK, pp, NULL);
 }
 
 int
