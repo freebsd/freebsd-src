@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.69 1995/04/12 20:47:45 wollman Exp $
+ * $Id: if_ed.c,v 1.70 1995/05/04 07:56:23 davidg Exp $
  */
 
 #include "ed.h"
@@ -503,9 +503,10 @@ ed_probe_WD80x3(isa_dev)
 		      (ED_WD_IRR_IR0 | ED_WD_IRR_IR1)) >> 5);
 
 		/*
-		 * Use what the board tells us.
+		 * If no interrupt specified (or "?"), use what the board tells us.
 		 */
-		isa_dev->id_irq = ed_intr_mask[iptr];
+		if (isa_dev->id_irq <= 0)
+			isa_dev->id_irq = ed_intr_mask[iptr];
 
 		/*
 		 * Enable the interrupt.
@@ -523,9 +524,10 @@ ed_probe_WD80x3(isa_dev)
 		 inb(isa_dev->id_iobase + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
 
 		/*
-		 * Use what the board tells us.
+		 * If no interrupt specified (or "?"), use what the board tells us.
 		 */
-		isa_dev->id_irq = ed_790_intr_mask[iptr];
+		if (isa_dev->id_irq <= 0)
+			isa_dev->id_irq = ed_790_intr_mask[iptr];
 
 		/*
 		 * Enable interrupts.
