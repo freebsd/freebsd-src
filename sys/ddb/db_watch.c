@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.c,v 1.14 1997/02/22 09:28:33 peter Exp $
+ *	$Id: db_watch.c,v 1.15 1997/06/14 11:52:37 bde Exp $
  */
 
 /*
@@ -32,6 +32,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 
 #include <vm/vm.h>
 #include <sys/lock.h>
@@ -212,13 +213,11 @@ db_watchpoint_cmd(addr, have_addr, count, modif)
 	db_set_watchpoint(db_map_addr(addr), addr, size);
 }
 
-/* list watchpoints */
-void
-db_listwatch_cmd(dummy1, dummy2, dummy3, dummy4)
-	db_expr_t	dummy1;
-	boolean_t	dummy2;
-	db_expr_t	dummy3;
-	char *		dummy4;
+/*
+ * At least one non-optional show-command must be implemented using
+ * DB_SHOW_COMMAND() so that db_show_cmd_set gets created.  Here is one.
+ */
+DB_SHOW_COMMAND(watches, db_listwatch_cmd)
 {
 	db_list_watchpoints();
 }
