@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.107 1996/06/25 00:39:21 dyson Exp $
+ *	$Id: pmap.c,v 1.108 1996/06/26 05:05:52 dyson Exp $
  */
 
 /*
@@ -2087,11 +2087,8 @@ pmap_copy_page(src, dst)
 	*(int *) CMAP1 = PG_V | PG_RW | (src & PG_FRAME);
 	*(int *) CMAP2 = PG_V | PG_RW | (dst & PG_FRAME);
 
-#if __GNUC__ > 1
-	memcpy(CADDR2, CADDR1, PAGE_SIZE);
-#else
 	bcopy(CADDR1, CADDR2, PAGE_SIZE);
-#endif
+
 	*(int *) CMAP1 = 0;
 	*(int *) CMAP2 = 0;
 	pmap_update_2pg( (vm_offset_t) CADDR1, (vm_offset_t) CADDR2);
