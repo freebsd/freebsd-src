@@ -420,9 +420,8 @@ struct vr_chain_data {
 
 	struct vr_chain_onefrag	*vr_rx_head;
 
-	struct vr_chain		*vr_tx_head;
-	struct vr_chain		*vr_tx_tail;
-	struct vr_chain		*vr_tx_free;
+	struct vr_chain		*vr_tx_cons;
+	struct vr_chain		*vr_tx_prod;
 };
 
 struct vr_type {
@@ -468,6 +467,9 @@ struct vr_softc {
 	struct vr_list_data	*vr_ldata;
 	struct vr_chain_data	vr_cdata;
 	struct callout_handle	vr_stat_ch;
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif
 };
 
 #define VR_F_RESTART		0x01		/* Restart unit on next tick */

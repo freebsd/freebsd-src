@@ -139,7 +139,6 @@ static int vr_encap		__P((struct vr_softc *, struct vr_chain *,
 static void vr_rxeof		__P((struct vr_softc *));
 static void vr_rxeoc		__P((struct vr_softc *));
 static void vr_txeof		__P((struct vr_softc *));
-static void vr_txeoc		__P((struct vr_softc *));
 static void vr_tick		__P((void *));
 static void vr_intr		__P((void *));
 static void vr_start		__P((struct ifnet *));
@@ -887,6 +886,10 @@ static int vr_attach(dev)
 	ifp->if_init = vr_init;
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = VR_TX_LIST_CNT - 1;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
+	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
 	 * Do MII setup.
@@ -966,8 +969,7 @@ static int vr_list_tx_init(sc)
 				&cd->vr_tx_chain[i + 1];
 	}
 
-	cd->vr_tx_free = &cd->vr_tx_chain[0];
-	cd->vr_tx_tail = cd->vr_tx_head = NULL;
+	cd->vr_tx_cons = cd->vr_tx_prod = &cd->vr_tx_chain[0];
 
 	return(0);
 }
@@ -1060,7 +1062,7 @@ static void vr_rxeof(sc)
 	struct vr_softc		*sc;
 {
         struct ether_header	*eh;
-        struct mbuf		*m;
+        struct mbuf		*m, *m0;
         struct ifnet		*ifp;
 	struct vr_chain_onefrag	*cur_rx;
 	int			total_len = 0;
@@ -1070,8 +1072,14 @@ static void vr_rxeof(sc)
 
 	while(!((rxstat = sc->vr_cdata.vr_rx_head->vr_ptr->vr_status) &
 							VR_RXSTAT_OWN)) {
-		struct mbuf		*m0 = NULL;
-
+#ifdef DEVICE_POLLING
+		if (ifp->if_ipending & IFF_POLLING) {
+			if (sc->rxcycles <= 0)
+				break;
+			sc->rxcycles--;
+		}
+#endif /* DEVICE_POLLING */
+		m0 = NULL;
 		cur_rx = sc->vr_cdata.vr_rx_head;
 		sc->vr_cdata.vr_rx_head = cur_rx->vr_nextdesc;
 		m = cur_rx->vr_mbuf;
@@ -1184,22 +1192,15 @@ static void vr_txeof(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	/* Reset the timeout timer; if_txeoc will clear it. */
-	ifp->if_timer = 5;
-
-	/* Sanity check. */
-	if (sc->vr_cdata.vr_tx_head == NULL)
-		return;
-
 	/*
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been transmitted.
 	 */
-	while(sc->vr_cdata.vr_tx_head->vr_mbuf != NULL) {
+	cur_tx = sc->vr_cdata.vr_tx_cons;
+	while (cur_tx->vr_mbuf != NULL) {
 		u_int32_t		txstat;
 		int			i;
 
-		cur_tx = sc->vr_cdata.vr_tx_head;
 		txstat = cur_tx->vr_ptr->vr_status;
 
 		if ((txstat & VR_TXSTAT_ABRT) ||
@@ -1232,40 +1233,15 @@ static void vr_txeof(sc)
 		ifp->if_collisions +=(txstat & VR_TXSTAT_COLLCNT) >> 3;
 
 		ifp->if_opackets++;
-		if (cur_tx->vr_mbuf != NULL) {
-			m_freem(cur_tx->vr_mbuf);
-			cur_tx->vr_mbuf = NULL;
-		}
-
-		if (sc->vr_cdata.vr_tx_head == sc->vr_cdata.vr_tx_tail) {
-			sc->vr_cdata.vr_tx_head = NULL;
-			sc->vr_cdata.vr_tx_tail = NULL;
-			break;
-		}
-
-		sc->vr_cdata.vr_tx_head = cur_tx->vr_nextdesc;
-	}
-
-	return;
-}
-
-/*
- * TX 'end of channel' interrupt handler.
- */
-static void vr_txeoc(sc)
-	struct vr_softc		*sc;
-{
-	struct ifnet		*ifp;
-
-	ifp = &sc->arpcom.ac_if;
-
-	if (sc->vr_cdata.vr_tx_head == NULL) {
+		m_freem(cur_tx->vr_mbuf);
+		cur_tx->vr_mbuf = NULL;
 		ifp->if_flags &= ~IFF_OACTIVE;
-		sc->vr_cdata.vr_tx_tail = NULL;
-		ifp->if_timer = 0;
-	}
 
-	return;
+		cur_tx = cur_tx->vr_nextdesc;
+	}
+	sc->vr_cdata.vr_tx_cons = cur_tx;
+	if (cur_tx->vr_mbuf == NULL)
+		ifp->if_timer = 0;
 }
 
 static void vr_tick(xsc)
@@ -1296,6 +1272,77 @@ static void vr_tick(xsc)
 	return;
 }
 
+#ifdef DEVICE_POLLING
+static poll_handler_t vr_poll;
+
+static void
+vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct vr_softc *sc = ifp->if_softc;
+
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
+	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
+		CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
+		return;
+	}
+
+	sc->rxcycles = count;
+	vr_rxeof(sc);
+	vr_txeof(sc);
+	if (ifp->if_snd.ifq_head != NULL)
+		vr_start(ifp);
+
+	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
+		u_int16_t status;
+
+		status = CSR_READ_2(sc, VR_ISR);
+		if (status)
+			CSR_WRITE_2(sc, VR_ISR, status);
+
+		if ((status & VR_INTRS) == 0)
+			return;
+
+		if (status & VR_ISR_RX_DROPPED) {
+			printf("vr%d: rx packet lost\n", sc->vr_unit);
+			ifp->if_ierrors++;
+		}
+
+		if ((status & VR_ISR_RX_ERR) || (status & VR_ISR_RX_NOBUF) ||
+		    (status & VR_ISR_RX_NOBUF) || (status & VR_ISR_RX_OFLOW)) {
+			printf("vr%d: receive error (%04x)",
+			       sc->vr_unit, status);
+			if (status & VR_ISR_RX_NOBUF)
+				printf(" no buffers");
+			if (status & VR_ISR_RX_OFLOW)
+				printf(" overflow");
+			if (status & VR_ISR_RX_DROPPED)
+				printf(" packet lost");
+			printf("\n");
+			vr_rxeoc(sc);
+		}
+
+		if ((status & VR_ISR_BUSERR) || (status & VR_ISR_TX_UNDERRUN)) {
+			vr_reset(sc);
+			vr_init(sc);
+			return;
+		}
+
+		if ((status & VR_ISR_UDFI) ||
+		    (status & VR_ISR_TX_ABRT2) ||
+		    (status & VR_ISR_TX_ABRT)) {
+			ifp->if_oerrors++;
+			if (sc->vr_cdata.vr_tx_cons->vr_mbuf != NULL) {
+				VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_ON);
+				VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_GO);
+			}
+		}
+	}
+}
+#endif /* DEVICE_POLLING */
+
 static void vr_intr(arg)
 	void			*arg;
 {
@@ -1305,6 +1352,17 @@ static void vr_intr(arg)
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_ipending & IFF_POLLING)
+		return;
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(vr_poll, ifp)) { /* ok, disable interrupts */
+		CSR_WRITE_2(sc, VR_IMR, 0x0000);
+		vr_poll(ifp, 0, 1);
+		return;
+	}
+#endif /* DEVICE_POLLING */
 
 	/* Supress unwanted interrupts. */
 	if (!(ifp->if_flags & IFF_UP)) {
@@ -1359,12 +1417,11 @@ static void vr_intr(arg)
 			    (status & VR_ISR_TX_ABRT2) ||
 			    (status & VR_ISR_TX_ABRT)) {
 				ifp->if_oerrors++;
-				if (sc->vr_cdata.vr_tx_head != NULL) {
+				if (sc->vr_cdata.vr_tx_cons->vr_mbuf != NULL) {
 					VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_ON);
 					VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_GO);
 				}
-			} else
-				vr_txeoc(sc);
+			}
 		}
 
 	}
@@ -1388,13 +1445,8 @@ static int vr_encap(sc, c, m_head)
 	struct vr_chain		*c;
 	struct mbuf		*m_head;
 {
-	int			frag = 0;
 	struct vr_desc		*f = NULL;
-	int			total_len;
 	struct mbuf		*m;
-
-	m = m_head;
-	total_len = 0;
 
 	/*
 	 * The VIA Rhine wants packet buffers to be longword
@@ -1402,48 +1454,29 @@ static int vr_encap(sc, c, m_head)
 	 * waste time trying to decide when to copy and when not
 	 * to copy, just do it all the time.
 	 */
-	if (m != NULL) {
-		struct mbuf		*m_new = NULL;
-
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("vr%d: no memory for tx list\n", sc->vr_unit);
-			return(1);
-		}
-		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_DONTWAIT);
-			if (!(m_new->m_flags & M_EXT)) {
-				m_freem(m_new);
-				printf("vr%d: no memory for tx list\n",
-						sc->vr_unit);
-				return(1);
-			}
-		}
-		m_copydata(m_head, 0, m_head->m_pkthdr.len,	
-					mtod(m_new, caddr_t));
-		m_new->m_pkthdr.len = m_new->m_len = m_head->m_pkthdr.len;
-		m_freem(m_head);
-		m_head = m_new;
-		/*
-		 * The Rhine chip doesn't auto-pad, so we have to make
-		 * sure to pad short frames out to the minimum frame length
-		 * ourselves.
-		 */
-		if (m_head->m_len < VR_MIN_FRAMELEN) {
-			m_new->m_pkthdr.len += VR_MIN_FRAMELEN - m_new->m_len;
-			m_new->m_len = m_new->m_pkthdr.len;
-		}
-		f = c->vr_ptr;
-		f->vr_data = vtophys(mtod(m_new, caddr_t));
-		f->vr_ctl = total_len = m_new->m_len;
-		f->vr_ctl |= VR_TXCTL_TLINK|VR_TXCTL_FIRSTFRAG;
-		f->vr_status = 0;
-		frag = 1;
+	m = m_defrag(m_head, M_DONTWAIT);
+	if (m == NULL) {
+		return(1);
 	}
 
-	c->vr_mbuf = m_head;
-	c->vr_ptr->vr_ctl |= VR_TXCTL_LASTFRAG|VR_TXCTL_FINT;
-	c->vr_ptr->vr_next = vtophys(c->vr_nextdesc->vr_ptr);
+	/*
+	 * The Rhine chip doesn't auto-pad, so we have to make
+	 * sure to pad short frames out to the minimum frame length
+	 * ourselves.
+	 */
+	if (m->m_len < VR_MIN_FRAMELEN) {
+		m->m_pkthdr.len += VR_MIN_FRAMELEN - m->m_len;
+		m->m_len = m->m_pkthdr.len;
+	}
+
+	c->vr_mbuf = m;
+	f = c->vr_ptr;
+	f->vr_data = vtophys(mtod(m, caddr_t));
+	f->vr_ctl = m->m_len;
+	f->vr_ctl |= VR_TXCTL_TLINK|VR_TXCTL_FIRSTFRAG;
+	f->vr_status = 0;
+	f->vr_ctl |= VR_TXCTL_LASTFRAG|VR_TXCTL_FINT;
+	f->vr_next = vtophys(c->vr_nextdesc->vr_ptr);
 
 	return(0);
 }
@@ -1454,49 +1487,32 @@ static int vr_encap(sc, c, m_head)
  * copy of the pointers since the transmit list fragment pointers are
  * physical addresses.
  */
-
 static void vr_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct vr_softc		*sc;
-	struct mbuf		*m_head = NULL;
-	struct vr_chain		*cur_tx = NULL, *start_tx;
-
-	sc = ifp->if_softc;
+	struct mbuf		*m_head;
+	struct vr_chain		*cur_tx;
 
 	if (ifp->if_flags & IFF_OACTIVE)
 		return;
 
-	/*
-	 * Check for an available queue slot. If there are none,
-	 * punt.
-	 */
-	if (sc->vr_cdata.vr_tx_free->vr_mbuf != NULL) {
-		ifp->if_flags |= IFF_OACTIVE;
-		return;
-	}
+	sc = ifp->if_softc;
 
-	start_tx = sc->vr_cdata.vr_tx_free;
-
-	while(sc->vr_cdata.vr_tx_free->vr_mbuf == NULL) {
+	cur_tx = sc->vr_cdata.vr_tx_prod;
+	while (cur_tx->vr_mbuf == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
-		/* Pick a descriptor off the free list. */
-		cur_tx = sc->vr_cdata.vr_tx_free;
-		sc->vr_cdata.vr_tx_free = cur_tx->vr_nextdesc;
-
 		/* Pack the data into the descriptor. */
 		if (vr_encap(sc, cur_tx, m_head)) {
+			/* Rollback, send what we were able to encap. */
 			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
-			cur_tx = NULL;
 			break;
 		}
 
-		if (cur_tx != start_tx)
-			VR_TXOWN(cur_tx) = VR_TXSTAT_OWN;
+		VR_TXOWN(cur_tx) = VR_TXSTAT_OWN;
 
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
@@ -1505,25 +1521,20 @@ static void vr_start(ifp)
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, cur_tx->vr_mbuf);
 
-		VR_TXOWN(cur_tx) = VR_TXSTAT_OWN;
-		VR_SETBIT16(sc, VR_COMMAND, /*VR_CMD_TX_ON|*/VR_CMD_TX_GO);
+		cur_tx = cur_tx->vr_nextdesc;
 	}
+	if (cur_tx != sc->vr_cdata.vr_tx_prod || cur_tx->vr_mbuf != NULL) {
+		sc->vr_cdata.vr_tx_prod = cur_tx;
 
-	/*
-	 * If there are no frames queued, bail.
-	 */
-	if (cur_tx == NULL)
-		return;
+		/* Tell the chip to start transmitting. */
+		VR_SETBIT16(sc, VR_COMMAND, /*VR_CMD_TX_ON|*/VR_CMD_TX_GO);
 
-	sc->vr_cdata.vr_tx_tail = cur_tx;
+		/* Set a timeout in case the chip goes out to lunch. */
+		ifp->if_timer = 5;
 
-	if (sc->vr_cdata.vr_tx_head == NULL)
-		sc->vr_cdata.vr_tx_head = start_tx;
-
-	/*
-	 * Set a timeout in case the chip goes out to lunch.
-	 */
-	ifp->if_timer = 5;
+		if (cur_tx->vr_mbuf != NULL)
+			ifp->if_flags |= IFF_OACTIVE;
+	}
 
 	return;
 }
@@ -1615,10 +1626,18 @@ static void vr_init(xsc)
 
 	CSR_WRITE_4(sc, VR_TXADDR, vtophys(&sc->vr_ldata->vr_tx_list[0]));
 
+	CSR_WRITE_2(sc, VR_ISR, 0xFFFF);
+#ifdef DEVICE_POLLING
+	/*
+	 * Disable interrupts if we are polling.
+	 */
+	if (ifp->if_ipending & IFF_POLLING)
+		CSR_WRITE_2(sc, VR_IMR, 0);
+	else   
+#endif /* DEVICE_POLLING */
 	/*
 	 * Enable interrupts.
 	 */
-	CSR_WRITE_2(sc, VR_ISR, 0xFFFF);
 	CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
 
 	mii_mediachg(mii);
@@ -1705,6 +1724,9 @@ static int vr_ioctl(ifp, command, data)
 		mii = device_get_softc(sc->vr_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -1749,6 +1771,10 @@ static void vr_stop(sc)
 	ifp->if_timer = 0;
 
 	untimeout(vr_tick, sc, sc->vr_stat_ch);
+	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+#ifdef DEVICE_POLLING
+	ether_poll_deregister(ifp);
+#endif /* DEVICE_POLLING */
 
 	VR_SETBIT16(sc, VR_COMMAND, VR_CMD_STOP);
 	VR_CLRBIT16(sc, VR_COMMAND, (VR_CMD_RX_ON|VR_CMD_TX_ON));
@@ -1780,8 +1806,6 @@ static void vr_stop(sc)
 
 	bzero((char *)&sc->vr_ldata->vr_tx_list,
 		sizeof(sc->vr_ldata->vr_tx_list));
-
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
 	return;
 }
