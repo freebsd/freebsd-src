@@ -47,8 +47,9 @@
 #include <sys/conf.h>
 #include <sys/sysctl.h>
 
-#include <machine/cpufunc.h>    /* for rdtsc proto for clock.h below */
-#include <machine/clock.h>
+#if __FreeBSD_version < 500000
+#include <machine/clock.h>	/* for DELAY() */
+#endif
 
 #include <sys/bus.h>		/* used by smbus and newbus */
 #include <machine/bus.h>
