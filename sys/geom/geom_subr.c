@@ -189,6 +189,35 @@ g_destroy_consumer(struct g_consumer *cp)
 	g_free(cp);
 }
 
+static void
+g_new_provider_event(void *arg, int flag)
+{
+	struct g_class *mp;
+	struct g_provider *pp;
+	struct g_consumer *cp;
+	int i;
+
+	g_topology_assert();
+	if (flag == EV_CANCEL)
+		return;
+	if (g_shutdown)
+		return;
+	pp = arg;
+	LIST_FOREACH(mp, &g_classes, class) {
+		if (mp->taste == NULL)
+			continue;
+		i = 1;
+		LIST_FOREACH(cp, &pp->consumers, consumers)
+			if (cp->geom->class == mp)
+				i = 0;
+		if (!i)
+			continue;
+		mp->taste(mp, pp, 0);
+		g_topology_assert();
+	}
+}
+
+
 struct g_provider *
 g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 {
@@ -213,7 +242,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_nproviders++;
-	g_post_event(EV_NEW_PROVIDER, pp, NULL);
+	g_call_me(g_new_provider_event, pp, pp, NULL);
 	return (pp);
 }
 
@@ -462,7 +491,7 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 			g_spoil(pp, cp);
 		else if (pp->acw != 0 && pp->acw == -dcw && 
 		    !(pp->geom->flags & G_GEOM_WITHER))
-			g_post_event(EV_NEW_PROVIDER, pp, NULL);
+			g_call_me(g_new_provider_event, pp, pp, NULL);
 
 		pp->acr += dcr;
 		pp->acw += dcw;
