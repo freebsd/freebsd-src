@@ -30,18 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	From:
- *	@(#)com.c	7.5 (Berkeley) 5/16/91
- *
- * 27 May 93	Bruce Evans		From com-0.2 package, fast interrupt
- *					com port driver.
- * 27 May 93	Guido van Rooij		Ported in Chris Demetriou's BIDIR
- *					code, add multiport support.
- * 27 May 93	Rodney W. Grimes	I then renamed it to sio.c for putting
- *					into the patch kit.  Added in sioselect
- *					from com.c.  Added port 4 support.
+ *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
+ *	$Id$
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/isa/sio.c,v 1.10 1993/10/12 06:32:28 davidg Exp $";
 
 #include "sio.h"
 #if NSIO > 0

@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nec765.h	7.1 (Berkeley) 5/9/91
+ *	from: @(#)nec765.h	7.1 (Berkeley) 5/9/91
+ *	$Id$
  */
 
 /*

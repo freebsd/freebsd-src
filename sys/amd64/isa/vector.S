@@ -1,14 +1,6 @@
-/* vector.s */
 /*
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00167
- * --------------------         -----   ----------------------
- *
- * 04 Jun 93	Bruce Evans		Fixed irq_num vs id_num for multiple
- *					devices configed on the same irq with
- *					respect to ipending.  
- *
+ *	from: vector.s, 386BSD 0.1 unknown origin
+ *	$Id$
  */
 
 #include "i386/isa/icu.h"

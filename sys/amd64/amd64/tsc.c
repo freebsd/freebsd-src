@@ -33,27 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)clock.c	7.2 (Berkeley) 5/12/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         5       00158
- * --------------------         -----   ----------------------
- *
- * 14 Aug 92	Arne Henrik Juul	Added code in the kernel to
- *					allow for DST in the BIOS.
- * 17 Jan 93	Bruce Evans		Fixed leap year and second
- *					calculations
- * 01 Feb 93	Julian Elischer		Added code to for the cpu
- *					speed independent spinwait()
- *					function, (used by scsi and others)
- * 25 Mar 93	Sean Eric Fagan		Add microtimer support using timer 1
- * 08 Apr 93	Poul-Henning Kamp/P-HK	Fixes, and support for dcfclock
- * 26 Apr 93	Bruce Evans		Eliminate findspeed, new spinwait
- * 26 Apr 93	Rodney W. Grimes	I merged in Bruce changes and hope I
- *					still kept the other fixes... Had to
- *					add back in findcpuspeed that Bruce
- *					had removed.
+ *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
+ *	$Id$
  */
 
 /*

@@ -5,6 +5,8 @@
  *      modified for 386bsd by Andrew A. Chernov <ache@astral.msk.su>
  *      386bsd only clean version, all SYSV stuff removed
  *      use hz value from param.c
+ *
+ *	$Id$
  */
 
 #include "speaker.h"

@@ -33,14 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)icu.h	5.6 (Berkeley) 5/9/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00158
- * --------------------         -----   ----------------------
- *
- * 25 Apr 93	Bruce Evans		New fast interrupt code (intr-0.1)
+ *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
+ *	$Id$
  */
 
 /*
