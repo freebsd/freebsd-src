@@ -44,7 +44,7 @@ rc=0
 
 case "$daily_status_security_kernelmsg_enable" in
     [Yy][Ee][Ss])
-	dmesg 2>/dev/null > ${TMP} |
+	dmesg 2>/dev/null |
 	    check_diff new_only dmesg - "${host} kernel log messages:"
 	rc=$?;;
     *)	rc=0;;
