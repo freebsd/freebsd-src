@@ -1,3 +1,5 @@
-SUBDIR=libacu tip
+# $FreeBSD$
+
+SUBDIR=tip
 
 .include <bsd.subdir.mk>

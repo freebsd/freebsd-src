@@ -1,3 +1,7 @@
+/*	$OpenBSD: pathnames.h,v 1.2 1996/06/26 05:40:45 deraadt Exp $	*/
+/*	$NetBSD: pathnames.h,v 1.3 1994/12/08 09:30:59 jtc Exp $	*/
+/*	$FreeBSD$	*/
+
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,24 +39,7 @@
 
 #include <paths.h>
 
-/*
-	Specify path to ACU (modem) log
-*/
 #define	_PATH_ACULOG		"/var/log/aculog"
-
-/*
-	Specify path and format of lock files
-*/
-/* #define _PATH_LOCKDIRNAME "/usr/spool/uucp/LCK..%s" */
-/* #define _PATH_LOCKDIRNAME "/etc/locks/LCK..%s" */
-/* #define _PATH_LOCKDIRNAME "/usr/spool/locks/LCK..%s" */
-/* #define _PATH_LOCKDIRNAME "/usr/spool/uucp/LCK/LCK..%s" */
-#define _PATH_LOCKDIRNAME _PATH_UUCPLOCK "LCK..%s"
-
-/*
-	Specify location for system wide databases
-*/
-#define	_PATH_MODEMS		"/etc/modems"
+#define	_PATH_LOCKDIRNAME	"/var/spool/lock/LCK..%s"
 #define	_PATH_PHONES		"/etc/phones"
 #define	_PATH_REMOTE		"/etc/remote"
-

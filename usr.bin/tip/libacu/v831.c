@@ -1,3 +1,6 @@
+/*	$OpenBSD: v831.c,v 1.6 2001/11/19 19:02:16 mpech Exp $	*/
+/*	$NetBSD: v831.c,v 1.5 1996/12/29 10:42:01 cgd Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -29,33 +32,38 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)v831.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$OpenBSD: v831.c,v 1.6 2001/11/19 19:02:16 mpech Exp $";
+#endif
 #endif /* not lint */
 
 /*
  * Routines for dialing up on Vadic 831
  */
-#include "tipconf.h"
 #include "tip.h"
-#include <errno.h>
+#include <termios.h>
 
-int	v831_abort();
+void	v831_abort();
 static	void alarmtr();
+static	int dialit();
+static	char *sanitize();
 
 static jmp_buf jmpbuf;
 static int child = -1;
 
+int
 v831_dialer(num, acu)
         char *num, *acu;
 {
-        int status, pid, connected = 1;
-        register int timelim;
-	static int dialit();
+        int status, pid;
+        int timelim;
 
         if (boolean(value(VERBOSE)))
                 printf("\nstarting call...");
@@ -104,9 +112,6 @@ v831_dialer(num, acu)
                 return (0);
         }
         alarm(0);
-#ifdef notdef
-        ioctl(AC, TIOCHPCL, 0);
-#endif
         signal(SIGALRM, SIG_DFL);
         while ((pid = wait(&status)) != child && pid != -1)
                 ;
@@ -128,20 +133,27 @@ alarmtr()
  * Insurance, for some reason we don't seem to be
  *  hanging up...
  */
+void
 v831_disconnect()
 {
+	struct termios	cntrl;
+
         sleep(2);
 #ifdef DEBUG
         printf("[disconnect: FD=%d]\n", FD);
 #endif
         if (FD > 0) {
                 ioctl(FD, TIOCCDTR, 0);
-								acu_setspeec (0);
-                ioctl(FD, TIOCNXCL, 0);
+		tcgetattr(FD, &cntrl);
+		cfsetospeed(&cntrl, 0);
+		cfsetispeed(&cntrl, 0);
+		tcsetattr(FD, TCSAFLUSH, &cntrl);
+                ioctl(FD, TIOCNXCL, NULL);
         }
         close(FD);
 }
 
+void
 v831_abort()
 {
 
@@ -152,7 +164,7 @@ v831_abort()
         if (child > 0)
                 kill(child, SIGKILL);
         if (AC > 0)
-                ioctl(FD, TIOCNXCL, 0);
+                ioctl(FD, TIOCNXCL, NULL);
                 close(AC);
         if (FD > 0)
                 ioctl(FD, TIOCCDTR, 0);
@@ -180,13 +192,13 @@ struct vaconfig {
 
 static int
 dialit(phonenum, acu)
-	register char *phonenum;
+	char *phonenum;
 	char *acu;
 {
-        register struct vaconfig *vp;
+        struct vaconfig *vp;
+	struct termios cntrl;
         char c;
-        int i, two = 2;
-	static char *sanitize();
+        int i;
 
         phonenum = sanitize(phonenum);
 #ifdef DEBUG
@@ -201,28 +213,13 @@ dialit(phonenum, acu)
 		printf("Unable to locate dialer (%s)\n", acu);
 		return ('K');
 	}
-	{
-#if HAVE_TERMIOS
-				struct termios termios;
-				tcgetattr (AC, &termios);
-				termios.c_iflag = 0;
-#ifndef _POSIX_SOURCE
-				termios.c_lflag = (PENDIN|ECHOKE|ECHOE);
-#else
-				termios.c_lflag = (PENDIN|ECHOE);
-#endif
-				termios.c_cflag = (CLOCAL|HUPCL|CREAD|CS8);
-				termios.c_ispeed = termios.c_ospeed = B2400;
-				tcsetattr (AC, TCSANOW, &termios);
-#else /* HAVE_TERMIOS */
-				struct sgttyb cntrl;
-        ioctl(AC, TIOCGETP, &cntrl);
-        cntrl.sg_ispeed = cntrl.sg_ospeed = B2400;
-        cntrl.sg_flags = RAW | EVENP | ODDP;
-        ioctl(AC, TIOCSETP, &cntrl);
- #endif
-	}
-	ioctl(AC, TIOCFLUSH, &two);
+	tcgetattr(AC, &cntrl);
+	cfsetospeed(&cntrl, B2400);
+	cfsetispeed(&cntrl, B2400);
+	cntrl.c_cflag |= PARODD | PARENB;
+	cntrl.c_lflag &= ~(ISIG | ICANON);
+	tcsetattr(AC, TCSANOW, &cntrl);
+	tcflush(AC, TCIOFLUSH);
         pc(STX);
 	pc(vp->vc_rack);
 	pc(vp->vc_modem);
@@ -257,10 +254,10 @@ dialit(phonenum, acu)
 
 static char *
 sanitize(s)
-	register char *s;
+	char *s;
 {
         static char buf[128];
-        register char *cp;
+        char *cp;
 
         for (cp = buf; *s; s++) {
 		if (!isdigit(*s) && *s == '<' && *s != '_')

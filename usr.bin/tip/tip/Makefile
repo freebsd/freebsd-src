@@ -1,4 +1,4 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+#	$OpenBSD: Makefile,v 1.9 2001/09/23 06:15:30 pvalchev Exp $
 # $FreeBSD$
 #
 # Files are:
@@ -7,29 +7,46 @@
 #				mode 6??
 #	/var/log/aculog		ACU accounting file, owned by ${OWNER} and
 #				mode 6?? {if ACULOG defined}
-
-.if exists(${.OBJDIR}/../libacu)
-LIBACU=${.OBJDIR}/../libacu/libacu.a
-.else
-LIBACU=${.CURDIR}/../libacu/libacu.a
-.endif
+# Presently supports:
+#	BIZCOMP
+#	DEC DF02-AC, DF03-AC
+#	DEC DN-11/Able Quadracall
+#	HAYES and Hayes emulators
+#	USR COURIER (2400 baud)
+#	VENTEL 212+
+#	VADIC 831 RS232 adaptor
+#	VADIC 3451
+#	TELEBIT T3000
+#
+# Configuration defines:
+#	DF02, DF03, DN11	ACU's supported
+#	  BIZ1031, BIZ1022, VENTEL, V831, V3451, HAYES, COURIER, T3000
+#	ACULOG			turn on tip logging of ACU use
+#	PRISTINE		no phone #'s put in ACU log file
+#	CONNECT			worthless command
+#	DEFBR			default baud rate to make connection at
+#	DEFFS			default frame size for FTP buffering of
+#				writes on local side
+#	BUFSIZ			buffer sizing from stdio, must be fed
+#				explicitly to remcap.c if not 1024
+#	CONNECT			enable ~C command (connect pgm to remote)
 
 PROG=	tip
-DPADD=	${LIBACU} ${LIBUTIL}
-LDADD=	${LIBACU} -lutil
 LINKS=	${BINDIR}/tip ${BINDIR}/cu
-MAN=	tip.1 modems.5
 MLINKS=	tip.1 cu.1
+CFLAGS+=-I${.CURDIR} \
+	-DDEFBR=9600 -DDEFFS=BUFSIZ -DACULOG -DPRISTINE -DCONNECT \
+	-DV831 -DVENTEL -DHAYES -DCOURIER -DT3000
+WARNS?=	0
+.PATH:	${.CURDIR}/../libacu
 SRCS=	acu.c acutab.c cmds.c cmdtab.c cu.c hunt.c log.c partab.c \
-	remote.c tip.c tipout.c value.c vars.c
+	remote.c tip.c tipout.c uucplock.c value.c vars.c \
+	biz22.c courier.c df.c dn11.c hayes.c t3000.c v3451.c v831.c ventel.c
 
-BINDIR?=	/usr/bin
-BINOWN=		uucp
-BINGRP=		dialer
-#BINMODE?=	4510
-
-# XXX: there is some concern that `tip' in its current state shouldn't run
-#      SUID.  If it believed it should, the mode above may still no be proper.
+# -- acutab is configuration dependent, and so depends on the Makefile
+# -- remote.o depends on the Makefile because of DEFBR and DEFFS
+# -- log.o depends on the Makefile because of ACULOG
+acutab.o log.o remote.o: Makefile
 
 # Dirty, rotten hack. This can be removed when we are confident that there
 # is no cu(1) with the schg-bit set.

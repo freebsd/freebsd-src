@@ -1,3 +1,6 @@
+/*	$OpenBSD: uucplock.c,v 1.6 1998/07/13 02:11:44 millert Exp $	*/
+/*	$NetBSD: uucplock.c,v 1.7 1997/02/11 09:24:08 mrg Exp $	*/
+
 /*
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -29,39 +32,45 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$OpenBSD: uucplock.c,v 1.6 1998/07/13 02:11:44 millert Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/file.h>
-#include <sys/dir.h>
+#include <sys/dirent.h>
+#include <stdio.h>
+#include <string.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <errno.h>
-
-#include "tipconf.h"
 #include "pathnames.h"
 
-/* Forward declarations */
-static int put_pid (int fd, int pid);
-static int get_pid (int fd);
-
-/*
+/* 
  * uucp style locking routines
  * return: 0 - success
  * 	  -1 - failure
  */
 
-uu_lock (char *ttyname)
+int
+uu_lock(ttyname)
+	char *ttyname;
 {
 	int fd, pid;
 	char tbuf[sizeof(_PATH_LOCKDIRNAME) + MAXNAMLEN];
-	off_t lseek();
+	char text_pid[81];
+	int len;
 
-	(void)sprintf(tbuf, _PATH_LOCKDIRNAME, ttyname);
+	(void)snprintf(tbuf, sizeof tbuf, _PATH_LOCKDIRNAME, ttyname);
 	fd = open(tbuf, O_RDWR|O_CREAT|O_EXCL, 0660);
 	if (fd < 0) {
 		/*
@@ -70,14 +79,19 @@ uu_lock (char *ttyname)
 		 */
 		fd = open(tbuf, O_RDWR, 0);
 		if (fd < 0) {
-			perror("lock open");
+			perror(tbuf);
+			fprintf(stderr, "Can't open lock file.\n");
 			return(-1);
 		}
-		if ((pid = get_pid (fd)) == -1) {
+		len = read(fd, text_pid, sizeof(text_pid)-1);
+		if(len<=0) {
+			perror(tbuf);
 			(void)close(fd);
-			perror("lock read");
+			fprintf(stderr, "Can't read lock file.\n");
 			return(-1);
 		}
+		text_pid[len] = 0;
+		pid = atol(text_pid);
 
 		if (kill(pid, 0) == 0 || errno != ESRCH) {
 			(void)close(fd);	/* process is still running */
@@ -87,15 +101,20 @@ uu_lock (char *ttyname)
 		 * The process that locked the file isn't running, so
 		 * we'll lock it ourselves
 		 */
-		if (lseek(fd, 0L, L_SET) < 0) {
+		fprintf(stderr, "Stale lock on %s PID=%d... overriding.\n",
+			ttyname, pid);
+		if (lseek(fd, (off_t)0, SEEK_SET) < 0) {
+			perror(tbuf);
 			(void)close(fd);
-			perror("lock lseek");
+			fprintf(stderr, "Can't seek lock file.\n");
 			return(-1);
 		}
 		/* fall out and finish the locking process */
 	}
 	pid = getpid();
-	if (!put_pid (fd, pid)) {
+	(void)sprintf(text_pid, "%10d\n", pid);
+	len = strlen(text_pid);
+	if (write(fd, text_pid, len) != len) {
 		(void)close(fd);
 		(void)unlink(tbuf);
 		perror("lock write");
@@ -105,44 +124,12 @@ uu_lock (char *ttyname)
 	return(0);
 }
 
-uu_unlock (char *ttyname)
+int
+uu_unlock(ttyname)
+	char *ttyname;
 {
 	char tbuf[sizeof(_PATH_LOCKDIRNAME) + MAXNAMLEN];
 
-	(void)sprintf(tbuf, _PATH_LOCKDIRNAME, ttyname);
+	(void)snprintf(tbuf, sizeof tbuf, _PATH_LOCKDIRNAME, ttyname);
 	return(unlink(tbuf));
 }
-
-static int put_pid (int fd, int pid)
-{
-#if HAVE_V2_LOCKFILES
-	return write (fd, (char *)&pid, sizeof (pid)) == sizeof (pid);
-#else
-	char buf [32];
-	int len;
-  len = sprintf (buf, "%10ld\n", (long) pid);
-  return write (fd, buf, len) == len;
-#endif
-}
-
-static int get_pid (int fd)
-{
-	int bytes_read, pid;
-#if HAVE_V2_LOCKFILES
-      bytes_read = read (fd, &pid, sizeof (pid));
-			if (bytes_read != sizeof (pid))
-				pid = -1;
-#else
-			char buf [32];
-      bytes_read = read (fd, buf, sizeof (buf) - 1);
-      if (bytes_read > 0) {
-      	buf [bytes_read] = '\0';
-      	pid = strtol (buf, (char **) NULL, 10);
-      }
-      else
-	pid = -1;
-#endif
-	return pid;
-}
-
-/* end of uucplock.c */
