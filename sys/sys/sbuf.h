@@ -29,7 +29,7 @@
  */
 
 #ifndef _SYS_SBUF_H_
-#define _SYS_SBUF_H_
+#define	_SYS_SBUF_H_
 
 #include <machine/ansi.h>
 
@@ -42,12 +42,12 @@ struct sbuf {
 	int		 s_size;	/* size of storage buffer */
 	int		 s_len;		/* current length of string */
 #define	SBUF_FIXEDLEN	0x00000000	/* fixed length buffer (default) */
-#define SBUF_AUTOEXTEND	0x00000001	/* automatically extend buffer */
+#define	SBUF_AUTOEXTEND	0x00000001	/* automatically extend buffer */
 #define	SBUF_USRFLAGMSK 0x0000ffff	/* mask of flags the user may specify */
-#define SBUF_DYNAMIC	0x00010000	/* s_buf must be freed */
-#define SBUF_FINISHED	0x00020000	/* set by sbuf_finish() */
-#define SBUF_OVERFLOWED	0x00040000	/* sbuf overflowed */
-#define SBUF_DYNSTRUCT	0x00080000	/* sbuf must be freed */
+#define	SBUF_DYNAMIC	0x00010000	/* s_buf must be freed */
+#define	SBUF_FINISHED	0x00020000	/* set by sbuf_finish() */
+#define	SBUF_OVERFLOWED	0x00040000	/* sbuf overflowed */
+#define	SBUF_DYNSTRUCT	0x00080000	/* sbuf must be freed */
 	int		 s_flags;	/* flags */
 };
 
