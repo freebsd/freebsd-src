@@ -76,6 +76,7 @@
 #include "card_if.h"
 #include "pcib_if.h"
 
+#define CBB_DEBUG
 #if defined CBB_DEBUG
 #define	DPRINTF(x) printf x
 #define	DEVPRINTF(x) device_printf x
@@ -389,6 +390,8 @@ pccbb_attach(device_t dev)
 {
 	struct pccbb_softc *sc = (struct pccbb_softc *)device_get_softc(dev);
 	int rid;
+	struct pccbb_sclist *sclist;
+	u_int32_t sockbase;
 	u_int32_t tmp;
 
 	if (!softcs_init) {
@@ -407,39 +410,36 @@ pccbb_attach(device_t dev)
 	SLIST_INIT(&sc->rl);
 
 	/* Ths PCI bus should have given me memory... right? */
-	rid=PCCBBR_SOCKBASE;
+	rid = PCCBBR_SOCKBASE;
 	sc->sc_base_res=bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-					   0,~0,1, RF_ACTIVE);
-	if (!sc->sc_base_res) {
+	    0, ~0, 1, RF_ACTIVE);
+	if (sc->sc_base_res == NULL) {
 		/*
 		 * XXX eVILE HACK BAD THING! XXX
 		 * The pci bus device should do this for us.
 		 * Some BIOSes doesn't assign a memory space properly.
 		 * So we try to manually put one in...
 		 */
-		u_int32_t sockbase;
-
 		sockbase = pci_read_config(dev, rid, 4);
 		if (sockbase < 0x100000 || sockbase >= 0xfffffff0) {
 			pci_write_config(dev, rid, 0xffffffff, 4);
 			sockbase = pci_read_config(dev, rid, 4);
 			sockbase = (sockbase & 0xfffffff0) &
-				-(sockbase & 0xfffffff0);
-			sc->sc_base_res = bus_generic_alloc_resource(
-				device_get_parent(dev), dev, SYS_RES_MEMORY,
-				&rid, CARDBUS_SYS_RES_MEMORY_START,
-				CARDBUS_SYS_RES_MEMORY_END, sockbase,
-				RF_ACTIVE|rman_make_alignment_flags(sockbase));
-			if (!sc->sc_base_res){
+			    -(sockbase & 0xfffffff0);
+			sc->sc_base_res = bus_alloc_resource(dev, 
+			    SYS_RES_MEMORY, &rid, CARDBUS_SYS_RES_MEMORY_START,
+			    CARDBUS_SYS_RES_MEMORY_END, sockbase,
+			    RF_ACTIVE | rman_make_alignment_flags(sockbase));
+			if (sc->sc_base_res == NULL) {
 				device_printf(dev,
-					"Could not grab register memory\n");
+				    "Could not grab register memory\n");
 				mtx_destroy(&sc->sc_mtx);
 				return ENOMEM;
 			}
 			pci_write_config(dev, PCCBBR_SOCKBASE,
-					 rman_get_start(sc->sc_base_res), 4);
+			    rman_get_start(sc->sc_base_res), 4);
 			DEVPRINTF((dev, "PCI Memory allocated: %08lx\n",
-				   rman_get_start(sc->sc_base_res)));
+			    rman_get_start(sc->sc_base_res)));
 		} else {
 			device_printf(dev, "Could not map register memory\n");
 			mtx_destroy(&sc->sc_mtx);
@@ -448,7 +448,7 @@ pccbb_attach(device_t dev)
 	}
 
 	sc->sc_socketreg =
-		(struct pccbb_socketreg *)rman_get_virtual(sc->sc_base_res);
+	    (struct pccbb_socketreg *) rman_get_virtual(sc->sc_base_res);
 	pccbb_chipinit(sc);
 
 	/* CSC Interrupt: Card detect interrupt on */
@@ -459,63 +459,57 @@ pccbb_attach(device_t dev)
 	sc->sc_socketreg->socket_event = tmp;
 
 	/* Map and establish the interrupt. */
-	rid=0;
+	rid = 0;
 	sc->sc_irq_res=bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					  RF_SHAREABLE | RF_ACTIVE);
+	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq_res == NULL)  {
 		printf("pccbb: Unable to map IRQ...\n");
 		bus_release_resource(dev, SYS_RES_MEMORY, PCCBBR_SOCKBASE,
-				     sc->sc_base_res);
+		    sc->sc_base_res);
 		mtx_destroy(&sc->sc_mtx);
 		return ENOMEM;
 	}
 
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO, pccbb_intr, sc,
-		     &(sc->sc_intrhand))) {
+	    &sc->sc_intrhand)) {
 		device_printf(dev, "couldn't establish interrupt");
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY, PCCBBR_SOCKBASE,
-				     sc->sc_base_res);
+		    sc->sc_base_res);
 		mtx_destroy(&sc->sc_mtx);
 		return ENOMEM;
 	}
 
 	/* attach children */
 	sc->sc_cbdev = device_add_child(dev, "cardbus", -1);
-	if (sc->sc_cbdev == NULL)
+	if (sc->sc_cbdev == NULL) {
 		DEVPRINTF((dev, "WARNING: cannot add cardbus bus.\n"));
-	else if (device_probe_and_attach(sc->sc_cbdev) != 0) {
+	} else if (device_probe_and_attach(sc->sc_cbdev) != 0) {
 		DEVPRINTF((dev, "WARNING: cannot attach cardbus bus!\n"));
 		sc->sc_cbdev = NULL;
 	}
 
 	sc->sc_pccarddev = device_add_child(dev, "pccard", -1);
-	if (sc->sc_pccarddev == NULL)
+	if (sc->sc_pccarddev == NULL) {
 		DEVPRINTF((dev, "WARNING: cannot add pccard bus.\n"));
-	else if (device_probe_and_attach(sc->sc_pccarddev) != 0) {
+	} else if (device_probe_and_attach(sc->sc_pccarddev) != 0) {
 		DEVPRINTF((dev, "WARNING: cannot attach pccard bus.\n"));
 		sc->sc_pccarddev = NULL;
 	}
 
-#ifndef KLD_MODULE
 	if (sc->sc_cbdev == NULL && sc->sc_pccarddev == NULL) {
-		device_printf(dev, "ERROR: Failed to attach cardbus/pccard bus!\n");
+		device_printf(dev,
+		    "ERROR: Failed to attach cardbus/pccard bus!\n");
 		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY, PCCBBR_SOCKBASE,
-				     sc->sc_base_res);
+		    sc->sc_base_res);
 		mtx_destroy(&sc->sc_mtx);
 		return ENOMEM;
 	}
-#endif
-
-	{
-		struct pccbb_sclist *sclist;
-		sclist = malloc(sizeof(struct pccbb_sclist), M_DEVBUF,
-				M_WAITOK);
-		sclist->sc = sc;
-		STAILQ_INSERT_TAIL(&softcs, sclist, entries);
-	}
+	sclist = malloc(sizeof(struct pccbb_sclist), M_DEVBUF, M_WAITOK);
+	sclist->sc = sc;
+	STAILQ_INSERT_TAIL(&softcs, sclist, entries);
 	return 0;
 }
 
