@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.3 (Berkeley) 3/30/95
- * $Id: nfsmount.h,v 1.13 1997/08/16 19:16:05 wollman Exp $
+ * $Id: nfsmount.h,v 1.14 1998/05/19 07:11:27 peter Exp $
  */
 
 
@@ -92,6 +92,7 @@ struct	nfsmount {
 	short	nm_bufqlen;		/* number of buffers in queue */
 	short	nm_bufqwant;		/* process wants to add to the queue */
 	int	nm_bufqiods;		/* number of iods processing queue */
+	u_int64_t nm_maxfilesize;	/* maximum file size */
 };
 
 #if defined(KERNEL) || defined(_KERNEL)
