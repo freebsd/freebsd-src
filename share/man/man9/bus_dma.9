@@ -331,10 +331,6 @@ that overlaps the exclusion window.
 .It Fa filtfuncarg
 Argument passed to all calls to the filter function for this tag.
 May be NULL.
-.It Fa maxsegsz
-Maximum size, in bytes, of a segment in any DMA mapped region associated
-with
-.Fa dmat .
 .It Fa maxsize
 Maximum size, in bytes, of the sum of all segment lengths in a given
 DMA mapping associated with this tag.
@@ -344,6 +340,10 @@ in a DMA mapped region.
 If there is no restriction, 
 .Dv BUS_SPACE_UNRESTRICTED
 may be specified.
+.It Fa maxsegsz
+Maximum size, in bytes, of a segment in any DMA mapped region associated
+with
+.Fa dmat .
 .It Fa flags
 Are as follows:
 .Bl -tag -width "BUS_DMA_ALLOCNOW" -compact
