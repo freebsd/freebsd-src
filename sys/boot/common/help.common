@@ -121,7 +121,7 @@
 	semicolon-separated list of paths, which will be searched for in turn.
 
 ################################################################################
-# Tset Sboot_askname DPrompt for root device when kernel is booted
+# Tset Sboot_askname DPrompt for root device
 
 	set boot_askname
 
@@ -129,7 +129,7 @@
 	when the kernel is booted.
 
 ################################################################################
-# Tset Sboot_ddb DDrop to the kernel debugger (DDB) when the kernel is loaded
+# Tset Sboot_ddb DDrop to the kernel debugger (DDB)
 
 	set boot_ddb
 
@@ -137,14 +137,14 @@
 	proceeding to initialise when booted.
 
 ################################################################################
-# Tset Sboot_gdb DSelect gdb-remote mode for kernel debugger
+# Tset Sboot_gdb DSelect gdb-remote mode
 
 	set boot_gdb
 
 	Selects gdb-remote mode for the kernel debugger by default.
 
 ################################################################################
-# Tset Sboot_single DRequest the kernel start in single-user mode
+# Tset Sboot_single DStart system in single-user mode
 
 	set boot_single
 
@@ -152,7 +152,7 @@
 	mode will be entered when the kernel has finished device probes.
 
 ################################################################################
-# Tset Sboot_verbose DDisplay verbose device probes and debugging information
+# Tset Sboot_verbose DVerbose boot messages
 
 	set boot_verbose
 
