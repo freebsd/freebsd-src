@@ -233,6 +233,9 @@ rerelease release:
 .if defined(NOSHARED)
 	echo "export NOSHARED=${NOSHARED}"	>> ${CHROOTDIR}/mk
 .endif
+.if defined(USA_RESIDENT)
+	echo "export USA_RESIDENT=${USA_RESIDENT}" >> ${CHROOTDIR}/mk
+.endif
 .if defined(BOOT_CONFIG)
 	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
 .endif
