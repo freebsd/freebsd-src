@@ -132,6 +132,8 @@ int	 gethostname __P((char *, int));
 mode_t	 getmode __P((const void *, mode_t));
 int	 getpagesize __P((void)) __pure2;
 char	*getpass __P((const char *));
+int	 getpgid __P((pid_t _pid));
+int	 getsid __P((pid_t _pid));
 char	*getusershell __P((void));
 char	*getwd __P((char *));			/* obsoleted by getcwd() */
 int	 initgroups __P((const char *, int));
@@ -167,7 +169,7 @@ int	 sethostname __P((const char *, int));
 int	 setkey __P((const char *));
 int	 setlogin __P((const char *));
 void	*setmode __P((const char *));
-int	 setpgrp __P((pid_t pid, pid_t pgrp));	/* obsoleted by setpgid() */
+int	 setpgrp __P((pid_t _pid, pid_t _pgrp)); /* obsoleted by setpgid() */
 int	 setregid __P((gid_t, gid_t));
 int	 setreuid __P((uid_t, uid_t));
 int	 setrgid __P((gid_t));
