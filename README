@@ -61,7 +61,7 @@ release		Release building Makefile & associated tools.
 
 sbin		System commands.
 
-secure		DES and DES-related utilities
+secure		Cryptographic libraries and commands.
 
 share		Shared resources.
 
