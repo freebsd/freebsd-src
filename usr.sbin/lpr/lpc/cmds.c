@@ -318,7 +318,8 @@ doselect(struct dirent *d)
 {
 	int c = d->d_name[0];
 
-	if ((c == 't' || c == 'c' || c == 'd') && d->d_name[1] == 'f')
+	if ((c == 'c' || c == 'd' || c == 'r' || c == 't') &&
+	    d->d_name[1] == 'f')
 		return 1;
 	if (c == 'c') {
 		if (!strcmp(d->d_name, "core"))
@@ -335,11 +336,17 @@ doselect(struct dirent *d)
  * Comparison routine that clean_q() uses for scandir.
  *
  * The purpose of this sort is to have all `df' files end up immediately
- * after the matching `cf' file.  For files matching `cf', `df', or `tf',
- * it sorts by job number and machine, then by `cf', `df', or `tf', then
- * by the sequence letter A-Z, a-z.    This routine may also see filenames
- * which do not start with `cf', `df', or `tf' (such as `errs.*'), and
- * those are simply sorted by the full filename.
+ * after the matching `cf' file.  For files matching `cf', `df', `rf', or
+ * `tf', it sorts by job number and machine, then by `cf', `df', `rf', or
+ * `tf', and then by the sequence letter (which is A-Z, or a-z).    This
+ * routine may also see filenames which do not start with `cf', `df', `rf',
+ * or `tf' (such as `errs.*'), and those are simply sorted by the full
+ * filename.
+ *
+ * XXX
+ *   This assumes that all control files start with `cfA*', and it turns
+ *   out there are a few implementations of lpr which will create `cfB*'
+ *   filenames (they will have datafile names which start with `dfB*').
  */
 static int
 sortq(const void *a, const void *b)
@@ -353,9 +360,9 @@ sortq(const void *a, const void *b)
 
 	/*
 	 * First separate filenames into cagatories.  Catagories are
-	 * legitimate `cf', `df', & `tf' filenames, and "other" - in
-	 * that order.  It is critical that the mapping be exactly
-	 * the same for 'a' vs 'b', so define a macro for the job.
+	 * legitimate `cf', `df', `rf' & `tf' filenames, and "other" - in
+	 * that order.  It is critical that the mapping be exactly the
+	 * same for 'a' vs 'b', so define a macro for the job.
 	 *
 	 * [aside: the standard `cf' file has the jobnumber start in
 	 * position 4, but some implementations have that as an extra
@@ -372,8 +379,10 @@ sortq(const void *a, const void *b)
 			cat_X = 1; \
 		else if (*fname_X == 'd') \
 			cat_X = 2; \
-		else if (*fname_X == 't') \
+		else if (*fname_X == 'r') \
 			cat_X = 3; \
+		else if (*fname_X == 't') \
+			cat_X = 4; \
 		if (cat_X != cat_other) { \
 			ch = *jnum_X; \
 			if (!isdigit(ch)) { \
@@ -407,7 +416,7 @@ sortq(const void *a, const void *b)
 	}
 
 	/*
-	 * At this point, we know both files are legitimate `cf', `df',
+	 * At this point, we know both files are legitimate `cf', `df', `rf',
 	 * or `tf' files.  Compare them by job-number and machine name.
 	 */
 	res = strcmp(jnum_a, jnum_b);
@@ -595,8 +604,8 @@ clean_q(struct printer *pp)
 		} else {
 			/*
 			 * Must be a df with no cf (otherwise, it would have
-			 * been skipped above) or a tf file (which can always
-			 * be removed if it's old enough).
+			 * been skipped above) or an rf or tf file (which can
+			 * always be removed if it is old enough).
 			 */
 			rmcp = 1;
 		}
