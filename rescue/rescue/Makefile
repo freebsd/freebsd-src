@@ -92,9 +92,6 @@ CRUNCH_SUPPRESS_LINK_-csh=1
 CRUNCH_SUPPRESS_LINK_-tcsh=1
 .endif
 
-#Is rmail of any use at all here?  I think not.
-#CRUNCH_PROGS_bin+= rmail  
-
 ###################################################################
 # Programs from standard /sbin
 #
