@@ -30,6 +30,7 @@
  */
 
 #include "opt_devfs.h"
+#ifndef NODEVFS
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -431,3 +432,4 @@ devfs_destroy(dev_t dev)
 devfs_create_t *devfs_create_hook = devfs_create;
 devfs_destroy_t *devfs_destroy_hook = devfs_destroy;
 int devfs_present = 1;
+#endif
