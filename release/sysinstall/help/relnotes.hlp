@@ -168,6 +168,8 @@ SECURITY CHANGES:
 The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
 also believed to be fixed.
 
+KerberosIV is now merged.
+
 
 USERLAND CHANGES:
 
@@ -196,6 +198,9 @@ immediately followed by a close of the connection.
 
 netstat(1) now uses sysctl(3) to retrieve more statitistics groups, and
 uses the correct, unsigned format for printing most of them out.
+
+A new VGA library (/usr/src/lib/libvgl) now exists for doing simple
+VGA graphics to syscons ttys (sort of like Linux's libSVGA).
 
 
 2. Supported Configurations
