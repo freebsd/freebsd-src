@@ -8,8 +8,10 @@ NON_GPROF_ENTRY(svr4_sigcode)
 	leal	SVR4_SIGF_UC(%esp),%eax	# ucp (the call may have clobbered the
 					# copy at SIGF_UCP(%esp))
 #if defined(NOTYET)
+#ifdef VM86
 	testl	$PSL_VM,SVR4_UC_EFLAGS(%eax)
 	jnz	1f
+#endif
 #endif
 	movl	SVR4_UC_GS(%eax),%edx
 	movl	%dx,%gs
