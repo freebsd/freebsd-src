@@ -248,12 +248,12 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	bp->bio_error = 0;
 	bp->bio_completed = 0;
 
-	if (g_collectstats) {
-		devstat_start_transaction_bio(cp->stat, bp);
+	if (g_collectstats & 1)
 		devstat_start_transaction_bio(pp->stat, bp);
-	}
-	cp->nstart++;
 	pp->nstart++;
+	if (g_collectstats & 2)
+		devstat_start_transaction_bio(cp->stat, bp);
+	cp->nstart++;
 
 	/* Pass it on down. */
 	g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
@@ -289,11 +289,11 @@ g_io_deliver(struct bio *bp, int error)
 	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
 
 	bp->bio_bcount = bp->bio_length;
-	if (g_collectstats) {
-		bp->bio_resid = bp->bio_bcount - bp->bio_completed;
-		devstat_end_transaction_bio(cp->stat, bp);
+	bp->bio_resid = bp->bio_bcount - bp->bio_completed;
+	if (g_collectstats & 1)
 		devstat_end_transaction_bio(pp->stat, bp);
-	}
+	if (g_collectstats & 2)
+		devstat_end_transaction_bio(cp->stat, bp);
 	cp->nend++;
 	pp->nend++;
 
