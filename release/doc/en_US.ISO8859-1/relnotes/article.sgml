@@ -221,7 +221,7 @@
 
 	<note>
 	  <para>Some other versions of &os;, including early
-	    5.0-STABLE snapshots and 4.8-RELEASE, used
+	    5.0-CURRENT snapshots and 4.8-RELEASE, used
 	    <literal>options&nbsp;HTT</literal> to enable
 	    HyperThreading support at kernel configuration time.  This
 	    option is no longer necessary.</para>
