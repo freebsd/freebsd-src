@@ -7,7 +7,7 @@
 
 # PROVIDE: network2
 # REQUIRE: netif ppp-user
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nostart
 
 . /etc/rc.subr
 

@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: mrouted
-# REQUIRE: netif network2
+# REQUIRE: netif routing
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
