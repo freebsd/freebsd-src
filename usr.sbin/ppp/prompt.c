@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.22 1998/04/06 09:12:35 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.23 1998/04/07 23:46:06 brian Exp $
  */
 
 #include <sys/param.h>
@@ -344,11 +344,11 @@ prompt_Printf(struct prompt *p, const char *fmt,...)
 {
   if (p && p->active) {
     va_list ap;
-
     va_start(ap, fmt);
     vfprintf(p->Term, fmt, ap);
     fflush(p->Term);
     va_end(ap);
+    p->nonewline = 1;
   }
 }
 
@@ -358,6 +358,7 @@ prompt_vPrintf(struct prompt *p, const char *fmt, va_list ap)
   if (p && p->active) {
     vfprintf(p->Term, fmt, ap);
     fflush(p->Term);
+    p->nonewline = 1;
   }
 }
 
