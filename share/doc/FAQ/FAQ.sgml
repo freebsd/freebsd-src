@@ -1,11 +1,11 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.9 1996/10/06 17:59:23 wosch Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.10 1996/10/06 20:28:13 jfieber Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date>$Date:$
+<date>$Date: 1996/10/06 20:28:13 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -210,11 +210,11 @@ Any entries with a &lt;XXX&gt; are under construction.
           At present, yes. If your machine has a different architecture, we 
          suggest you look at
          
-         <htmlurl url="http://www.netbsd.org/" name="NetBSD">
+         <url url="http://www.netbsd.org/" name="NetBSD">
 
          or 
 
-         <htmlurl url="http://www.openbsd.org/" name="OpenBSD">.
+         <url url="http://www.openbsd.org/" name="OpenBSD">.
 
        <sect1>
          <heading> Who is responsible for FreeBSD?</heading>
@@ -1584,7 +1584,7 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
         <heading>How do I configure INN (Internet News) for my machine?</heading>
         
         <p>After installing the inn package or port, the
-        <htmlurl url="http://www.math.psu.edu/barr/INN.html" name="Dave Barr's INN Page"> where you'll find the INN FAQ may be an excellent place to start.
+        <url url="http://www.math.psu.edu/barr/INN.html" name="Dave Barr's INN Page"> where you'll find the INN FAQ may be an excellent place to start.
 
     <sect>
       <heading>Miscellaneous Questions</heading>
