@@ -1,4 +1,4 @@
-.\"	$Id: psm.4,v 1.7 1997/02/22 13:25:39 peter Exp $
+.\"	$Id: psm.4,v 1.1.2.3 1997/02/28 03:27:04 mpp Exp $
 .\"
 .Dd January 13, 1997
 .Dt PSM 4 i386
@@ -11,6 +11,8 @@ PS/2 mouse style pointing device driver
 .Cd "options PSM_CHECKSYNC"
 .\".Cd "options PSM_EMULATION"
 .Cd "options" \&"PSM_ACCEL=N\&"
+.Cd "options" \&"PSM_HOOKAPM\&"
+.Cd "options" \&"PSM_RESETAFTERSUSPEND\&"
 .Cd "options" \&"KBD_RESETDELAY=N\&"
 .Cd "options" \&"KBD_MAXWAIT=N\&"
 .Cd "options" \&"PSM_DEBUG=N\&"
@@ -128,6 +130,27 @@ The acceleration effect can also be controlled via the
 .Fn ioctl
 command
 .Dv MOUSE_SETMODE .
+.It Em PSM_HOOKAPM
+The built-in PS/2 pointing device of some laptop computers is somehow
+not operable immediately after the system `resumes' from 
+the power saving mode,
+though it will eventually become available. 
+There are reports that
+stimulating the device by performing I/O will help
+waking up the device quickly. This option will add a piece of code 
+to the 
+.Nm
+driver to hook
+the APM `resume' event and exercise some harmless I/O operations to the
+device.
+.It Em PSM_RESETAFTERSUSPEND
+This option adds more drastic action for the above problem.
+It will make the
+.Nm
+driver to reset the pointing device after the APM resume event.
+It has no effect unless the
+.Em PSM_HOOKAPM
+option is enabled as well.
 .It Em KBD_RESETDELAY=X, KBD_MAXWAIT=Y
 The
 .Nm
