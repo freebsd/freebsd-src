@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: freebsd-nat.c,v 1.8 1996/05/02 09:42:45 phk Exp $
+	$Id: freebsd-nat.c,v 1.9 1996/05/02 13:08:51 phk Exp $
 */
 
 #include <sys/types.h>
@@ -521,7 +521,7 @@ CORE_ADDR addr;
 			PTD = kvtophys(fd, ksym_lookup("PTD"));
 		current_ptd = PTD;
 	} else
-		current_ptd = pcb.pcb_ptd;
+		current_ptd = pcb.pcb_cr3;
 
 	/*
 	 * Read the first-level page table (ptd).
