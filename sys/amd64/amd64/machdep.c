@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.66 1994/09/24 12:22:47 davidg Exp $
+ *	$Id: machdep.c,v 1.67 1994/10/01 02:56:02 davidg Exp $
  */
 
 #include "npx.h"
@@ -146,8 +146,6 @@ extern int bootdev;
 int biosmem;
 
 vm_offset_t	phys_avail[6];
-
-extern cyloffset;
 
 int cpu_class;
 
