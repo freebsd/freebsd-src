@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_debug.c,v 1.2 1994/08/02 07:48:54 davidg Exp $
+ * $Id: tcp_debug.c,v 1.3 1995/02/09 23:13:22 wollman Exp $
  */
 
 #ifdef TCPDEBUG
@@ -49,6 +49,7 @@
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/errno.h>
+#include <sys/queue.h>
 
 #include <net/route.h>
 #include <net/if.h>
