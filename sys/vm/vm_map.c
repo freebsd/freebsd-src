@@ -325,14 +325,15 @@ vm_map_init(map, min, max, pageable)
  *
  *	Inverse of vm_map_entry_create.
  */
-static __inline void
+static void
 vm_map_entry_dispose(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
 {
 	int s;
 
-	if (kentry_count < KENTRY_LOW_WATER) {
+	if (map == kernel_map || map == kmem_map ||
+		map == mb_map || map == pager_map) {
 		s = splvm();
 		entry->next = kentry_free;
 		kentry_free = entry;
@@ -394,7 +395,8 @@ vm_map_entry_create(map)
 		splx(s);
 	}
 
-	if (map == kernel_map || map == kmem_map || map == mb_map || map == pager_map) {
+	if (map == kernel_map || map == kmem_map ||
+		map == mb_map || map == pager_map) {
 		s = splvm();
 		entry = kentry_free;
 		if (entry) {
