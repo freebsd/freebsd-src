@@ -1987,7 +1987,7 @@ telsnd()
 		}
 		if ((sc == '\n') || (sc == '\r'))
 			bol = 1;
-	} else if (sc == escape) {
+	} else if (escape != _POSIX_VDISABLE && sc == escape) {
 	    /*
 	     * Double escape is a pass through of a single escape character.
 	     */
