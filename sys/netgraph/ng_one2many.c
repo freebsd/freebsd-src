@@ -238,7 +238,7 @@ ng_one2many_newhook(node_p node, hook_p hook, const char *name)
 		return (EISCONN);
 
 	/* Setup private info for this link */
-	NG_HOOK_SET_PRIVATE(hook, (void *)linkNum);
+	NG_HOOK_SET_PRIVATE(hook, (void *)(intptr_t)linkNum);
 	link->hook = hook;
 	bzero(&link->stats, sizeof(link->stats));
 	if (linkNum != NG_ONE2MANY_ONE_LINKNUM) {
@@ -388,7 +388,7 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 
 	m = NGI_M(item); /* just peaking, mbuf still owned by item */
 	/* Get link number */
-	linkNum = (int)NG_HOOK_PRIVATE(hook);
+	linkNum = (intptr_t)NG_HOOK_PRIVATE(hook);
 	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM
 	    || (linkNum >= 0 && linkNum < NG_ONE2MANY_MAX_LINKS),
 	    ("%s: linkNum=%d", __func__, linkNum));
@@ -492,7 +492,7 @@ ng_one2many_disconnect(hook_p hook)
 	int linkNum;
 
 	/* Get link number */
-	linkNum = (int)NG_HOOK_PRIVATE(hook);
+	linkNum = (intptr_t)NG_HOOK_PRIVATE(hook);
 	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM
 	    || (linkNum >= 0 && linkNum < NG_ONE2MANY_MAX_LINKS),
 	    ("%s: linkNum=%d", __func__, linkNum));
