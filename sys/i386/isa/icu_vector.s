@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: icu_vector.s,v 1.1 1997/05/26 17:58:26 fsmp Exp $
+ *	$Id: icu_vector.s,v 1.2 1997/05/31 08:59:51 peter Exp $
  */
 
 /*
@@ -58,7 +58,6 @@ IDTVEC(vec_name) ; \
 	movl	%ax,%ds ; \
 	MAYBE_MOVW_AX_ES ; \
 	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ; \
-	GET_MPLOCK ;		/* SMP Spin lock */ \
 	pushl	_intr_unit + (irq_num) * 4 ; \
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	enable_icus ;		/* (re)enable ASAP (helps edge trigger?) */ \
@@ -72,7 +71,6 @@ IDTVEC(vec_name) ; \
 	jne	2f ; 		/* yes, maybe handle them */ \
 1: ; \
 	MEXITCOUNT ; \
-	REL_MPLOCK ;		/* SMP release global lock */ \
 	MAYBE_POPL_ES ; \
 	popl	%ds ; \
 	popl	%edx ; \
@@ -118,7 +116,6 @@ IDTVEC(vec_name) ; \
 	movl	$KDSEL,%eax ;	/* ... and reload with kernel's own ... */ \
 	movl	%ax,%ds ;	/* ... early for obsolete reasons */ \
 	movl	%ax,%es ; \
-	GET_MPLOCK ;		/* SMP Spin lock */ \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	orb	$IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
@@ -155,7 +152,6 @@ __CONCAT(Xresume,irq_num): ; \
 2: ; \
 	/* XXX skip mcounting here to avoid double count */ \
 	orb	$IRQ_BIT(irq_num),_ipending + IRQ_BYTE(irq_num) ; \
-	REL_MPLOCK ;		/* SMP release global lock */  \
 	popl	%es ; \
 	popl	%ds ; \
 	popal ; \
