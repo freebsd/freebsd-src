@@ -37,15 +37,12 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <dev/acpi/acpireg.h>
-#include <dev/acpi/acpivar.h>
-
 #include "pcib_if.h"
 
 #ifdef ACPI_NO_OSDFUNC_INLINE
 #define _ACPICA_INLINE_
 #else
-#define _ACPICA_INLINE_ static __inline
+#define _ACPICA_INLINE_	static __inline
 #endif
 
 /*
