@@ -78,7 +78,6 @@ struct ah_algorithm {
 };
 
 #define	AH_MAXSUMSIZE	(512 / 8)
-#define	AH_MAXSUMSIZE	16
 
 extern const struct ah_algorithm *ah_algorithm_lookup __P((int));
 
