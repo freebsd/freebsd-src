@@ -34,6 +34,7 @@
 #include "machine/cpufunc.h"
 #include "machine/pio.h"
 #include "machine/pcaudioio.h"
+#include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 #include "i386/isa/timerreg.h"
 
@@ -82,16 +83,17 @@ struct	isa_driver pcadriver = {
 };
 
 
-inline void translate_bytes(const void *table, void *buff, unsigned long n)
+inline void conv(const void *table, void *buff, unsigned long n)
 {
-  __asm__("cld\n"
-          "1:\tlodsb\n\t"
-          "xlatb\n\t"
-          "stosb\n\t"
-          "loop 1b\n\t"
+  __asm__("1:\tmovb (%2), %3\n"
+          "\txlatb\n"
+          "\tmovb %3, (%2)\n"
+	  "\tinc %2\n"
+	  "\tdec %1\n"
+	  "\tjnz 1b\n"
           :
-          :"b" ((long)table), "c" (n), "D" ((long)buff), "S" ((long)buff)
-          :"bx","cx","di","si","ax");
+          :"b" ((long)table), "c" (n), "D" ((long)buff), "a" ((char)n)
+          :"bx","cx","di","ax");
 }
 
 
@@ -101,7 +103,7 @@ pca_volume(int volume)
 	int i, j;
 
 	for (i=0; i<256; i++) {
-		j = ((i-128)*volume) >> 8;
+		j = ((i-128)*volume)/100;
 		if (j<-128)
 			j = -128;
 		if (j>127)
@@ -139,7 +141,7 @@ pca_start(void)
 	pca_status.index = 0;
 	pca_status.counter = 0;
         pca_status.buffer  = pca_status.buf[pca_status.current];
-        pca_status.oldval = inb(0x61) | 0x03;
+        pca_status.oldval = inb(IO_PPI) | 0x03;
         /* acquire the timers */
 	if (acquire_timer2(TIMER_LSB|TIMER_ONESHOT)) {
 		return -1;
@@ -181,7 +183,7 @@ pca_pause()
 static void 
 pca_continue()
 {
-        pca_status.oldval = inb(0x61) | 0x03;
+        pca_status.oldval = inb(IO_PPI) | 0x03;
 	acquire_timer2(TIMER_LSB|TIMER_ONESHOT);
 	acquire_timer0(INTERRUPT_RATE, pcaintr);
 	pca_status.timer_on = 1;
@@ -191,7 +193,7 @@ pca_continue()
 static void 
 pca_wait(void)
 {
-	while (pca_status.in_use[1] || pca_status.in_use[2]) {
+	while (pca_status.in_use[0] || pca_status.in_use[1]) {
 		pca_sleep = 1;
 		tsleep((caddr_t)&pca_sleep, PZERO|PCATCH, "pca_drain", 0);
         }
@@ -208,7 +210,7 @@ pcaprobe(struct isa_device *dvp)
 int
 pcaattach(struct isa_device *dvp)
 {
-	printf(" internal speaker audio driver\n", dvp->id_unit);
+	printf(" PCM audio driver\n", dvp->id_unit);
 	pca_init();
 	return 1;
 }
@@ -274,8 +276,7 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 			pca_status.processed += count;
 			switch (pca_status.encoding) {
 			case AUDIO_ENCODING_ULAW:
-				translate_bytes(ulaw_dsp, 
-						pca_status.buf[which], count);
+				conv(ulaw_dsp, pca_status.buf[which], count);
 				break;
 
 			case AUDIO_ENCODING_ALAW:
@@ -314,7 +315,6 @@ audio_info_t *auptr;
 
 		auptr->play.gain = pca_status.volume;
 		auptr->play.port = 0;
-
 
 		auptr->play.samples = pca_status.processed;
 		auptr->play.eof = 0;
@@ -366,14 +366,25 @@ void
 pcaintr(int regs)
 {
 	if (pca_status.index < pca_status.in_use[pca_status.current]) {
-		outb(0x61, pca_status.oldval);
-		__asm__("xorb $1,%0\n\t"
-			"outb %0,$97"
+#if 1
+		disable_intr();
+		__asm__("outb %0,$0x61\n"
+			"andb $0xFE,%0\n"
+			"outb %0,$0x61"
 			: : "a" ((char)pca_status.oldval) );
-		__asm__("xlatb\n\t"
-			"outb %0,$66"
+		__asm__("xlatb\n"
+			"outb %0,$0x42"
 			: : "a" ((char)pca_status.buffer[pca_status.index]),
 			    "b" ((long)volume_table) );
+		enable_intr();
+#else
+		disable_intr();
+		outb(IO_PPI, pca_status.oldval);
+		outb(IO_PPI, pca_status.oldval & 0xFE);
+		outb(TIMER_CNTR2, 
+			volume_table[pca_status.buffer[pca_status.index]]);
+		enable_intr();
+#endif
 		pca_status.counter += pca_status.scale;
 		pca_status.index = (pca_status.counter >> 8);
 	}
