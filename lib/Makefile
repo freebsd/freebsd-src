@@ -14,14 +14,15 @@
 # libopie must be built before libpam.
 # libradius must be built before libpam.
 # librpcsvc must be built before libpam.
+# libsbuf must be built before libcam.
 # libtacplus must be built before libpam.
 # libutil must be built before libpam.
-# libsbuf must be built before libcam.
+# libypclnt must be built before libpam.
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
 SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
-	libncurses libradius librpcsvc libtacplus libutil libsbuf \
+	libncurses libradius librpcsvc libsbuf libtacplus libutil libypclnt \
 	${_compat} libalias libatm ${_libbind} libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libedit libfetch libform libftpio ${_libgnumalloc} ${_libio} libipsec \
