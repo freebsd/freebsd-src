@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.12 1999/02/04 17:06:46 dcs Exp $
+ *	$Id: interp_forth.c,v 1.9.2.1 1999/02/06 14:27:30 dcs Exp $
  */
 
 #include <sys/param.h>		/* to pick up __FreeBSD_version */
@@ -232,7 +232,7 @@ bf_init(void)
     char create_buf[41];	/* 31 characters-long builtins */
     int fd;
    
-    ficlInitSystem(4000);	/* Default dictionary ~4000 cells */
+    ficlInitSystem(8000);	/* Default dictionary ~4000 cells */
     bf_vm = ficlNewVM();
 
     /* Builtin constructor word  */
