@@ -76,6 +76,7 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 
 struct vmstate {
 	vm_offset_t	vm_tsb;
+	vm_size_t	vm_tsb_mask;
 };
 
 void
@@ -91,7 +92,8 @@ _kvm_initvtop(kvm_t *kd)
 {
 	struct nlist nlist[2];
 	struct vmstate *vm;
-	u_long pa;
+	vm_offset_t pa;
+	vm_size_t mask;
 
 	vm = (struct vmstate *)_kvm_malloc(kd, sizeof(*vm));
 	if (vm == NULL) {
@@ -102,17 +104,21 @@ _kvm_initvtop(kvm_t *kd)
 	vm->vm_tsb = 0;
 
 	nlist[0].n_name = "tsb_kernel_phys";
-	nlist[1].n_name = 0;
+	nlist[1].n_name = "tsb_kernel_mask";
+	nlist[2].n_name = 0;
 
 	if (kvm_nlist(kd, nlist) != 0) {
 		_kvm_err(kd, kd->program, "bad namelist");
 		return (-1);
 	}
-	if (kvm_read(kd, nlist[0].n_value, &pa, sizeof(pa)) != sizeof(pa)) {
+	if (kvm_read(kd, nlist[0].n_value, &pa, sizeof(pa)) != sizeof(pa) ||
+	    kvm_read(kd, nlist[1].n_value, &mask, sizeof(mask)) !=
+	    sizeof(mask)) {
 		_kvm_err(kd, kd->program, "cannot read tsb_kernel_phys");
 		return (-1);
 	}
 	vm->vm_tsb = pa;
+	vm->vm_tsb_mask = mask;
 	return (0);
 }
 
@@ -127,7 +133,8 @@ _kvm_kvatop(kvm_t *kd, u_long va, u_long *pa)
 
 	vpn = btop(va);
 	offset = va & PAGE_MASK;
-	tte_pa = kd->vmst->vm_tsb + ((vpn & TSB_KERNEL_MASK) << TTE_SHIFT);
+	tte_pa = kd->vmst->vm_tsb +
+	    ((vpn & kd->vmst->vm_tsb_mask) << TTE_SHIFT);
 
 	/* XXX This has to be a physical address read, kvm_read is virtual */
 	if (lseek(kd->pmfd, tte_pa, 0) == -1) {

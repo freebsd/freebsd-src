@@ -88,9 +88,9 @@
  * that if this moves above the va hole, we will have to deal with sign
  * extension of virtual addresses.
  */
-#define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x7fe00000000)
+#define	VM_MAXUSER_ADDRESS	(0x7fe00000000UL)
 
-#define	VM_MIN_ADDRESS		((vm_offset_t)0)
+#define	VM_MIN_ADDRESS		(0UL)
 #define	VM_MAX_ADDRESS		(VM_MAXUSER_ADDRESS)
 
 /*
@@ -116,19 +116,6 @@
 #endif
 
 /*
- * Number of 4 meg pages to use for the kernel tsb.
- */
-#ifndef	KVA_PAGES
-#define	KVA_PAGES		(1)
-#endif
-
-/*
- * Range of kernel virtual addresses.  max = min + range.
- */
-#define	KVA_RANGE \
-	((KVA_PAGES * PAGE_SIZE_4M) << (PAGE_SHIFT - TTE_SHIFT))
-
-/*
  * Lowest kernel virtual address, where the kernel is loaded.  This is also
  * arbitrary.  We pick a resonably low address, which allows all of kernel
  * text, data and bss to be below the 4 gigabyte mark, yet still high enough
@@ -136,11 +123,11 @@
  * same as for x86 with default KVA_PAGES...
  */
 #define	VM_MIN_KERNEL_ADDRESS	(0xc0000000)
-#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + KVA_RANGE - PAGE_SIZE)
-#define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
-
 #define	VM_MIN_PROM_ADDRESS	(0xf0000000)
 #define	VM_MAX_PROM_ADDRESS	(0xffffe000)
+
+#define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
+#define	VM_MAX_KERNEL_ADDRESS	(vm_max_kernel_address)
 
 /*
  * Initial pagein size of beginning of executable file.
@@ -148,5 +135,7 @@
 #ifndef	VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif
+
+extern vm_offset_t vm_max_kernel_address;
 
 #endif /* !_MACHINE_VMPARAM_H_ */
