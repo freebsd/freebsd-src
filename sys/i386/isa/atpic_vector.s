@@ -59,7 +59,7 @@ IDTVEC(vec_name) ;							\
 	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
 	movl	%eax, %fs ;						\
 ;									\
-	FAKE_MCOUNT(13*4(%esp)) ;					\
+	FAKE_MCOUNT(TF_EIP(%esp)) ;					\
 	pushl	$irq_num; 	/* pass the IRQ */			\
 	call	atpic_handle_intr ;					\
 	addl	$4, %esp ;	/* discard the parameter */		\

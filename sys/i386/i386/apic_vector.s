@@ -77,7 +77,7 @@ IDTVEC(vec_name) ;							\
 	movl	%eax, %es ;						\
 	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
 	movl	%eax, %fs ;						\
-	FAKE_MCOUNT(13*4(%esp)) ;					\
+	FAKE_MCOUNT(TF_EIP(%esp)) ;					\
 	movl	lapic, %edx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
 	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
@@ -263,7 +263,7 @@ IDTVEC(statclock)
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
 
-	FAKE_MCOUNT(13*4(%esp))
+	FAKE_MCOUNT(TF_EIP(%esp))
 
 	pushl	$0		/* XXX convert trapframe to clockframe */
 	call	forwarded_statclock
@@ -292,7 +292,7 @@ IDTVEC(cpuast)
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
 
-	FAKE_MCOUNT(13*4(%esp))
+	FAKE_MCOUNT(TF_EIP(%esp))
 
 	MEXITCOUNT
 	jmp	doreti

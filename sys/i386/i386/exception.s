@@ -134,7 +134,7 @@ alltraps_with_regs_pushed:
 	movl	%eax,%es
 	movl	$KPSEL,%eax
 	movl	%eax,%fs
-	FAKE_MCOUNT(13*4(%esp))
+	FAKE_MCOUNT(TF_EIP(%esp))
 calltrap:
 	FAKE_MCOUNT(btrap)		/* init "from" btrap -> calltrap */
 	call	trap
@@ -172,7 +172,7 @@ IDTVEC(lcall_syscall)
 	movl	%eax,%es
 	movl	$KPSEL,%eax
 	movl	%eax,%fs
-	FAKE_MCOUNT(13*4(%esp))
+	FAKE_MCOUNT(TF_EIP(%esp))
 	call	syscall
 	MEXITCOUNT
 	jmp	doreti
@@ -197,7 +197,7 @@ IDTVEC(int0x80_syscall)
 	movl	%eax,%es
 	movl	$KPSEL,%eax
 	movl	%eax,%fs
-	FAKE_MCOUNT(13*4(%esp))
+	FAKE_MCOUNT(TF_EIP(%esp))
 	call	syscall
 	MEXITCOUNT
 	jmp	doreti
