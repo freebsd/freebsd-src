@@ -3,7 +3,7 @@ CFLAGS +=	-I${.CURDIR}/../lib \
 		-DDIRENT -DSTDC_HEADERS -DPOSIX -DBROKEN_SIGISMEMBER \
 		-DFTIME_MISSING -DHAVE_TIMEZONE -DUTIME_NULL_MISSING -DDO_LINKS
 
-LDADD=  -L${.CURDIR}/../lib/obj -lcvs
+LDADD=  -L${.CURDIR}/../lib/${.CURDIR} -lcvs
 
 SRCS = add.c admin.c checkin.c checkout.c classify.c commit.c \
 create_adm.c diff.c entries.c find_names.c history.c ignore.c \
