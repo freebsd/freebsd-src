@@ -7,7 +7,7 @@ AC_CANONICAL_SYSTEM
 AC_ISC_POSIX
 
 changequote(,)dnl
-BFD_VERSION_STRING=`sed -n -e 's/^.._INIT_AUTOMAKE.*,[ 	]*\([^ 	]*\)[ 	]*).*/\1/p' < ${srcdir}/../bfd/configure.in`
+BFD_VERSION=`sed -n -e 's/^.._INIT_AUTOMAKE.*,[ 	]*\([^ 	]*\)[ 	]*).*/\1/p' < ${srcdir}/../bfd/configure.in`
 changequote([,])dnl
 AM_INIT_AUTOMAKE(binutils, ${BFD_VERSION})
 

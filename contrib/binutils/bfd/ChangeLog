@@ -1,3 +1,8 @@
+2002-07-20  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* elf64-alpha.c (elf64_alpha_size_dynamic_sections): Only insert
+	DT_PLTGOT into the dynamic section if there is a PLT.
+
 2002-05-14  Daniel Jacobowitz  <drow@mvista.com>
 
 	* configure.in: Set is_release=y for 2.12.1 release.

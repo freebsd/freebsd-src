@@ -1,3 +1,11 @@
+2002-01-26  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* Makefile.in (install): Depend on install-info.
+
+2001-03-25  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* texi2pod.pl: New file (from gcc/contrib).
+
 1999-04-01  Jim Blandy  <jimb@zwingli.cygnus.com>
 
 	* add-log.el, add-log.vi: New files.
