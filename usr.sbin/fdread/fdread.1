@@ -49,7 +49,9 @@ utility reads floppy disks.  Effective read blocking based on the track
 size is performed, and floppy-specific error recovery of otherwise
 bad blocks can be enabled.
 .Pp
+The
 .Nm
+utility
 will always read an entire floppy medium, and write its contents to
 the respective output file.  Unlike other tools like
 .Xr dd 1 ,
@@ -150,8 +152,9 @@ option.
 Default device to read from.
 .El
 .Sh DIAGNOSTICS
+The
 .Nm
-sets the exit value according to
+utility sets the exit value according to
 .Xr sysexits 3 .
 In recovery mode, the exit value will be set to
 .Dv EX_IOERR

@@ -45,8 +45,9 @@
 .Op job # ...\&
 .Op Ar user ...\&
 .Sh DESCRIPTION
-.Nm Lprm
-will remove a job, or jobs, from a printer's spool queue.
+The
+.Nm
+utility will remove a job, or jobs, from a printer's spool queue.
 Since the spooling directory is protected from users, using
 .Nm
 is normally the only method by which a user may remove a job.
@@ -97,12 +98,14 @@ will delete the currently active job if it is
 owned by the user who invoked
 .Nm .
 .Pp
-.Nm Lprm
-announces the names of any files it removes and is silent if
+The
+.Nm
+utility announces the names of any files it removes and is silent if
 there are no jobs in the queue which match the request list.
 .Pp
-.Nm Lprm
-will kill off an active daemon, if necessary, before removing
+The
+.Nm
+utility will kill off an active daemon, if necessary, before removing
 any spooling files.  If a daemon is killed, a new one is
 automatically restarted upon completion of file removals.
 .Sh ENVIRONMENT

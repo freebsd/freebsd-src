@@ -54,8 +54,9 @@
 .Op Fl cdfghlnmprstv
 .Op Ar name ...
 .Sh DESCRIPTION
-.Nm Lpr
-uses a spooling daemon to print the named files when facilities
+The
+.Nm
+utility uses a spooling daemon to print the named files when facilities
 become available.  If no names appear, the standard input is assumed.
 .Pp
 The following single letter options are used to notify the line printer
@@ -272,8 +273,9 @@ command appeared in
 .Bx 3 .
 .Sh DIAGNOSTICS
 If you try to spool too large a file, it will be truncated.
-.Nm Lpr
-will object to printing binary files.
+The
+.Nm
+utility will object to printing binary files.
 If a user other than root prints a file and spooling is disabled,
 .Nm
 will print a message saying so and will not put jobs in the queue.

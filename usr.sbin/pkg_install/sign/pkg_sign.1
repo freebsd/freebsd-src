@@ -47,8 +47,9 @@
 .Op Fl k Ar cert
 .Op Ar
 .Sh DESCRIPTION
+The
 .Nm
-embeds a cryptographic signature within a gzip file
+utility embeds a cryptographic signature within a gzip file
 .Ar file .
 .Ar type
 can be
@@ -72,8 +73,9 @@ you must supply an
 which will be recorded as the name of the package, and printed as the
 SHA1 checksum.
 .Pp
+The
 .Nm pkg_check
-checks that cryptographic signature.
+utility checks that cryptographic signature.
 It currently disregards
 .Ar type
 and checks only the topmost signature.
@@ -126,10 +128,11 @@ signing scheme uses eight bytes markers such
 + length for its signatures (those markers are conveniently
 eight bytes long).
 .Sh DIAGNOSTICS
+The
 .Nm
 and
 .Nm pkg_check
-return with an exit code >0 if anything went wrong for any
+utilities return with an exit code >0 if anything went wrong for any
 .Ar file .
 For
 .Nm pkg_check ,
@@ -138,8 +141,9 @@ signature is forged.
 .Bl -diag
 .It "File %s is already signed"
 There is a signature embedded within the gzip file already.
+The
 .Nm
-currently does not handle multiple signatures.
+utility currently does not handle multiple signatures.
 .It "File %s is not a signed gzip file"
 This is an unsigned package.
 .It "File %s is not a gzip file"
@@ -191,8 +195,9 @@ Default package verification certificate(s).
 .Xr sha1 1
 .Sh AUTHORS
 .An -nosplit
+A
 .Nm
-was created by
+utility was created by
 .An Marc Espie
 for the
 .Ox
