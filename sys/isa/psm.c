@@ -2505,14 +2505,31 @@ enable_mmanplus(struct psm_softc *sc)
 static int
 enable_msexplorer(struct psm_softc *sc)
 {
-    static unsigned char rate[] = { 200, 200, 80, };
+    static unsigned char rate0[] = { 200, 100, 80, };
+    static unsigned char rate1[] = { 200, 200, 80, };
     KBDC kbdc = sc->kbdc;
     int id;
     int i;
 
+    /*
+     * XXX: this is a kludge to fool some KVM switch products
+     * which think they are clever enough to know the 4-byte IntelliMouse
+     * protocol, and assume any other protocols use 3-byte packets.
+     * They don't convey 4-byte data packets from the IntelliMouse Explorer 
+     * correctly to the host computer because of this!
+     * The following sequence is actually IntelliMouse's "wake up"
+     * sequence; it will make the KVM think the mouse is IntelliMouse
+     * when it is in fact IntelliMouse Explorer.
+     */
+    for (i = 0; i < sizeof(rate0)/sizeof(rate0[0]); ++i) {
+        if (set_mouse_sampling_rate(kbdc, rate0[i]) != rate0[i])
+	    return FALSE;
+    }
+    id = get_aux_id(kbdc);
+
     /* the special sequence to enable the extra buttons and the roller. */
-    for (i = 0; i < sizeof(rate)/sizeof(rate[0]); ++i) {
-        if (set_mouse_sampling_rate(kbdc, rate[i]) != rate[i])
+    for (i = 0; i < sizeof(rate1)/sizeof(rate1[0]); ++i) {
+        if (set_mouse_sampling_rate(kbdc, rate1[i]) != rate1[i])
 	    return FALSE;
     }
     /* the device will give the genuine ID only after the above sequence */
@@ -2575,9 +2592,9 @@ enable_4dmouse(struct psm_softc *sc)
     }
     id = get_aux_id(kbdc);
     /*
-     * WinEasy 4D: 6
+     * WinEasy 4D, 4 Way Scroll 4D: 6
      * Cable-Free 4D: 8 (4DPLUS)
-     * 4 Way ScrollMouse 4D+: 8 (4DPLUS)
+     * WinBest 4D+, 4 Way Scroll 4D+: 8 (4DPLUS)
      */
     if (id != PSM_4DMOUSE_ID)
 	return FALSE;
