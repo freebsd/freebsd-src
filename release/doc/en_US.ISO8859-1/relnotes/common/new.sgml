@@ -208,6 +208,9 @@
       and VLAN tag insertion/stripping are supported, as well as
       interrupt moderation.</para>
 
+      <para>The &man.dc.4; driver now supports NICs based on the
+      Conexant LANfinity RS7112 chip.</para>
+
       <para>The &man.de.4; driver now performs round-robin arbitration
       between the transmit and receive units of the 21143, instead of
       giving priority to the receive unit.  This gives a 10&ndash;15%
