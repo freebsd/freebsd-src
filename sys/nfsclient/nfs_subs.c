@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.53 1998/04/06 11:41:07 phk Exp $
+ * $Id: nfs_subs.c,v 1.54 1998/05/19 07:11:24 peter Exp $
  */
 
 /*
@@ -1099,17 +1099,11 @@ nfs_init(vfsp)
 {
 	register int i;
 
+	nfsmount_zone = zinit("NFSMOUNT", sizeof(struct nfsmount), 0, 0, 1);
+
 	/*
 	 * Check to see if major data structures haven't bloated.
 	 */
-	if (sizeof (struct nfsnode) > NFS_NODEALLOC) {
-		printf("struct nfsnode bloated (> %dbytes)\n", NFS_NODEALLOC);
-		printf("Try reducing NFS_SMALLFH\n");
-	}
-	if (sizeof (struct nfsmount) > NFS_MNTALLOC) {
-		printf("struct nfsmount bloated (> %dbytes)\n", NFS_MNTALLOC);
-		printf("Try reducing NFS_MUIDHASHSIZ\n");
-	}
 	if (sizeof (struct nfssvc_sock) > NFS_SVCALLOC) {
 		printf("struct nfssvc_sock bloated (> %dbytes)\n",NFS_SVCALLOC);
 		printf("Try reducing NFS_UIDHASHSIZ\n");

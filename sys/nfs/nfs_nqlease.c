@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.33 1998/03/30 09:53:48 phk Exp $
+ * $Id: nfs_nqlease.c,v 1.34 1998/05/19 07:11:23 peter Exp $
  */
 
 
@@ -62,6 +62,8 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
+
+#include <vm/vm_zone.h>
 
 #include <netinet/in.h>
 #include <nfs/rpcv2.h>
@@ -1166,7 +1168,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 		TAILQ_REMOVE(&nmp->nm_uidlruhead, nuidp, nu_lru);
 		free((caddr_t)nuidp, M_NFSUID);
 	}
-	free((caddr_t)nmp, M_NFSMNT);
+	zfree(nfsmount_zone, nmp);
 	if (error == EWOULDBLOCK)
 		error = 0;
 	return (error);
