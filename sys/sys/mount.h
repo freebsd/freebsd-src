@@ -479,20 +479,19 @@ extern	char *mountrootfsname;
 /*
  * exported vnode operations
  */
-int	dounmount(struct mount *, int, struct thread *td);
-int	kernel_mount(struct iovec *iovp, unsigned int iovcnt, int flags);
+int	dounmount(struct mount *, int, struct thread *);
+int	kernel_mount(struct iovec *, u_int, int);
 int	kernel_vmount(int flags, ...);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
-int	vfs_mount(struct thread *td, const char *type, char *path,
-	    int flags, void *data);
-int	vfs_nmount(struct thread *td, int fsflags, struct uio *fsoptions);
+int	vfs_mount(struct thread *, const char *, char *, int, void *);
+int	vfs_nmount(struct thread *, int, struct uio *);
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 int	vfs_lock(struct mount *);         /* lock a vfs */
 void	vfs_msync(struct mount *, int);
 void	vfs_unlock(struct mount *);       /* unlock a vfs */
-int	vfs_busy(struct mount *, int, struct mtx *, struct thread *td);
+int	vfs_busy(struct mount *, int, struct mtx *, struct thread *);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
 struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
@@ -506,7 +505,7 @@ int	vfs_mountedon(struct vnode *);    /* is a vfs mounted on vp */
 void	vfs_mountroot(void);			/* mount our root filesystem */
 int	vfs_rootmountalloc(char *, char *, struct mount **);
 void	vfs_mount_destroy(struct mount *, struct thread *);
-void	vfs_unbusy(struct mount *, struct thread *td);
+void	vfs_unbusy(struct mount *, struct thread *);
 void	vfs_unmountall(void);
 int	vfs_register(struct vfsconf *);
 int	vfs_unregister(struct vfsconf *);
@@ -553,13 +552,13 @@ int	getfsstat(struct statfs *, long, int);
 int	getmntinfo(struct statfs **, int);
 int	lgetfh(const char *, fhandle_t *);
 int	mount(const char *, const char *, int, void *);
-int	nmount(struct iovec *, u_int, int);
+int	nmount(struct iovec *, unsigned int, int);
 int	statfs(const char *, struct statfs *);
 int	unmount(const char *, int);
 
 /* C library stuff */
-int	getvfsbyname(const char *, struct xvfsconf *);
 void	endvfsent(void);
+int	getvfsbyname(const char *, struct xvfsconf *);
 struct	ovfsconf *getvfsbytype(int);
 struct	ovfsconf *getvfsent(void);
 void	setvfsent(int);
