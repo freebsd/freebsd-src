@@ -2265,7 +2265,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		pml4_entry_t *pml4e;
 		pdp_entry_t *pdpe;
 		pd_entry_t srcptepaddr, *pde;
-		vm_pindex_t ptepindex;
 
 		if (addr >= UPT_MIN_ADDRESS)
 			panic("pmap_copy: invalid to pmap_copy page tables\n");
@@ -2292,7 +2291,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		}
 
 		va_next = (addr + NBPDR) & ~PDRMASK;
-		ptepindex = pmap_pde_pindex(addr);
 
 		pde = pmap_pde(src_pmap, addr);
 		if (pde)
