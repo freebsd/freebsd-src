@@ -879,15 +879,7 @@ set_timer_freq(u_int freq, int intr_freq)
 	write_eflags(ef);
 }
 
-/*
- * i8254_restore is called from apm_default_resume() to reload
- * the countdown register.
- * this should not be necessary but there are broken laptops that
- * do not restore the countdown register on resume.
- * when it happnes, it messes up the hardclock interval and system clock,
- * which leads to the infamous "calcru: negative time" problem.
- */
-void
+static void
 i8254_restore(void)
 {
 	u_long ef;
@@ -899,6 +891,35 @@ i8254_restore(void)
 	outb(TIMER_CNTR0, timer0_max_count >> 8);
 	CLOCK_UNLOCK();
 	write_eflags(ef);
+}
+
+#ifndef PC98
+static void
+rtc_restore(void)
+{
+
+	/* Restore all of the RTC's "status" (actually, control) registers. */
+	writertc(RTC_STATUSB, RTCSB_24HR);
+	writertc(RTC_STATUSA, rtc_statusa);
+	writertc(RTC_STATUSB, rtc_statusb);
+}
+#endif
+
+/*
+ * Restore all the timers non-atomically (XXX: should be atomically).
+ *
+ * This function is called from apm_default_resume() to restore all the timers.
+ * This should not be necessary, but there are broken laptops that do not
+ * restore all the timers on resume.
+ */
+void
+timer_restore(void)
+{
+
+	i8254_restore();		/* restore timer_freq and hz */
+#ifndef PC98
+	rtc_restore();			/* reenable RTC interrupts */
+#endif
 }
 
 /*
