@@ -670,10 +670,6 @@ pps_event(struct pps_state *pps, int event)
 		return;
 	}
 
-	/* Return if nothing really happened. */
-	if (*pcount == pps->capcount)
-		return;
-
 	/* Convert the count to a timespec. */
 	tcount = pps->capcount - pps->capth->th_offset_count;
 	tcount &= pps->capth->th_counter->tc_counter_mask;
