@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.66 1996/11/13 11:58:27 jkh Exp $
+#	$Id: Makefile,v 1.193.2.67 1996/11/13 13:15:43 jkh Exp $
 #
 # How to roll a release:
 #
@@ -35,7 +35,7 @@ MNT=			/mnt
 
 # other floppy parameters.
 FDSIZE=			1200
-FDLABEL=		fd1200
+FDLABEL=		auto
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
@@ -222,6 +222,7 @@ release.5:
 		( cd ${.CURDIR}/../$$i; \
 		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
 	done
+	chflags noschg ${RD}/trees/bin/sbin/init
 
 	# Move all the manpages out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
