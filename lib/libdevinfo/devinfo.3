@@ -167,8 +167,9 @@ invokes its callback argument
 .Fa fn
 on every device which is an immediate child of
 .Fa device .
+The
 .Fa fn
-is also passed
+function is also passed
 .Fa arg ,
 allowing state to be passed to the callback function.
 If
@@ -183,8 +184,9 @@ invokes its callback argument
 .Fa fn
 on every resource which is owned by
 .Fa device .
+The
 .Fa fn
-is also passed
+function is also passed
 .Fa device
 and
 .Fa arg ,
@@ -201,8 +203,9 @@ invokes its callback argument
 .Fa fn
 on every resource within the resource manager
 .Fa rman .
+The
 .Fa fn
-is also passed
+function is also passed
 .Fa arg ,
 allowing state to be passed to the callback function.
 If
@@ -216,8 +219,9 @@ returns the error value to its caller.
 invokes its callback argument
 .Fa fn
 on every resource manager.
+The
 .Fa fn
-is also passed
+function is also passed
 .Fa arg ,
 allowing state to be passed to the callback function.
 If
