@@ -670,6 +670,9 @@ extern WINDOW	*savescr(void);
 extern void	restorescr(WINDOW *w);
 extern char	*sstrncpy(char *dst, const char *src, int size);
 
+/* modules.c */
+extern void	moduleInitialize(void);
+
 /* mouse.c */
 extern int	mousedTest(dialogMenuItem *self);
 extern int	mousedDisable(dialogMenuItem *self);
