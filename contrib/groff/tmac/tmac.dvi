@@ -2,6 +2,8 @@
 .cp 0
 .ftr CR CW
 .ftr C CW
+.ftr CO CWI
+.ftr CI CWI
 .ftr TT CW
 .ftr HR H
 .\" This uses the dvi-char_1 string in font CW, dvi-char_0 otherwise.
@@ -16,8 +18,16 @@
 .if !c\[br] .char \[br] \Z'\v'.25m'\D'R .04m -1m''
 .if !c\[ru] .char \[ru] \Z'\v'-.02m'\D'R .54m .04m''\h'.5m'
 .if !c\[rn] .char \[rn] \Z'\v'-.77m'\D'R .54m .04m''\h'.5m'
-.if !c\[co] .char \[co] \z\(ci\h'\w'\(ci'u-\w'c'u/2u'c\h'\w'\(ci'u-\w'c'u/2u'
-.if !c\[rg] .char \[rg] \z\(ci\h'\w'\(ci'u-\w'r'u/2u'r\h'\w'\(ci'u-\w'r'u/2u'
+.if !c\[co] .char \[co] \
+\z\s-2\(ci\s0\
+\h'\w'\s-2\(ci\s0'u-\w'\s-4C\s0'u/2u'\
+\s-4C\s0\
+\h'\w'\s-2\(ci\s0'u-\w'\s-4C\s0'u/2u'
+.if !c\[rg] .char \[rg] \
+\z\s-2\(ci\s0\
+\h'\w'\s-2\(ci\s0'u-\w'\s-4R\s0'u/2u'\
+\s-4R\s0\
+\h'\w'\s-2\(ci\s0'u-\w'\s-4R\s0'u/2u'
 .if !c\[fm] .char \[fm] \v'-.35m'\s[\\n(.s*7u/10u]\[prime]\s0\v'.35m'
 .if !c\[de] .char \[de] \h'.05m'\v'-.54m'\D'c .3m'\v'.54m'\h'.05m'
 .if !c\[ct] .char \[ct] \o'c/'

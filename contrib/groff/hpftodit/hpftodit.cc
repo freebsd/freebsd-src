@@ -39,6 +39,7 @@ put filename in error messages (or fix lib)
 #include "errarg.h"
 #include "error.h"
 #include "cset.h"
+#include "nonposix.h"
 
 #define SIZEOF(v) (sizeof(v)/sizeof(v[0]))
 
@@ -219,8 +220,8 @@ int main(int argc, char **argv)
       break;
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "hpftodit version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "hpftodit version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }
@@ -273,7 +274,9 @@ void usage()
 
 File::File(const char *s)
 {
-  int fd = open(s, O_RDONLY);
+  // We need to read the file in binary mode because hpftodit relies
+  // on byte counts.
+  int fd = open(s, O_RDONLY | O_BINARY);
   if (fd < 0)
     fatal("cannot open `%1': %2", s, strerror(errno));
   current_filename = s;
@@ -290,6 +293,24 @@ File::File(const char *s)
     fatal("read unexpected number of bytes");
   ptr_ = buf_;
   end_ = buf_ + sb.st_size;
+  // These are actually text files, so we must get rid of the `\r'
+  // characters.  This is also enabled for Posix systems, in case the
+  // input came from Windows...
+  unsigned char *p = buf_, *q = buf_;
+  while (q < end_)
+    {
+      if (*q == '\r')
+	{
+	  if (*++q != '\n')
+	    *p++ = '\r';
+	}
+#if defined(__MSDOS__) || defined(_MSC_VER)
+      if (*q == '\032')	// ^Z means ``software EOF''
+	break;
+#endif
+      *p++ = *q++;
+    }
+  end_ = p;
 }
 
 void File::skip(int n)
@@ -774,6 +795,18 @@ int read_map(const char *file)
 static
 const char *xbasename(const char *s)
 {
-  const char *b = strrchr(s, '/');
+  // DIR_SEPS[] are possible directory separator characters, see
+  // nonposix.h.  We want the rightmost separator of all possible
+  // ones.  Example: d:/foo\\bar.
+  const char *b = strrchr(s, DIR_SEPS[0]), *b1;
+  const char *sep = &DIR_SEPS[1];
+
+  while (*sep)
+    {
+      b1 = strrchr(s, *sep);
+      if (b1 && (!b || b1 > b))
+	b = b1;
+      sep++;
+    }
   return b ? b + 1 : s;
 }

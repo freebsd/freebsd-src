@@ -29,7 +29,7 @@ line_type::line_type()
 {
 }
 
-output::output() : desired_height(0.0), desired_width(0.0), args(0)
+output::output() : args(0), desired_height(0.0), desired_width(0.0)
 {
 }
 
@@ -391,12 +391,12 @@ place *object::find_label(const char *)
 }
 
 segment::segment(const position &a, int n, segment *p)
-: pos(a), is_absolute(n), next(p)
+: is_absolute(n), pos(a), next(p)
 {
 }
 
 text_item::text_item(char *t, const char *fn, int ln)
-: filename(fn), lineno(ln), text(t), next(0)
+: next(0), text(t), filename(fn), lineno(ln) 
 {
   adj.h = CENTER_ADJUST;
   adj.v = NONE_ADJUST;
@@ -855,7 +855,7 @@ public:
 
 block_object::block_object(const position &d, const object_list &ol,
 			   PTABLE(place) *t)
-: oblist(ol), tbl(t), rectangle_object(d)
+: rectangle_object(d), oblist(ol), tbl(t)
 {
 }
 
@@ -1194,7 +1194,7 @@ public:
 };
 
 linear_object::linear_object(const position &s, const position &e)
-: strt(s), en(e), arrow_at_start(0), arrow_at_end(0)
+: arrow_at_start(0), arrow_at_end(0), strt(s), en(e)
 {
 }
 
@@ -1214,7 +1214,7 @@ void linear_object::add_arrows(int at_start, int at_end,
 
 line_object::line_object(const position &s, const position &e,
 			 position *p, int i)
-: v(p), n(i), linear_object(s, e)
+: linear_object(s, e), v(p), n(i)
 {
 }
 
@@ -1743,7 +1743,7 @@ place and follow the path through the place to place within the place.
 Note that `.A.B.C.sw' will work. */
 
 path::path(corner c)
-: label_list(0), crn(c), ypath(0)
+: crn(c), label_list(0), ypath(0)
 {
 }
 

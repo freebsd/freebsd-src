@@ -77,7 +77,7 @@ static char *srealloc(char *ptr, int oldsz, int oldlen, int newlen, int *sizep)
   }
 }
 
-string::string() : len(0), ptr(0), sz(0)
+string::string() : ptr(0), len(0), sz(0)
 {
 }
 

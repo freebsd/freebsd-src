@@ -1,6 +1,7 @@
 # Map MSL numbers to troff names for a text font.
 1 !
 2 "
+2 dq
 3 #
 3 sh
 4 $
@@ -8,6 +9,7 @@
 5 %
 6 &
 8 '
+8 cq
 9 (
 10 )
 11 *
@@ -296,6 +298,7 @@
 200 char185
 201 char215
 202 char247
+302 pc
 302 char183
 310 fm
 311 sd

@@ -1,0 +1,6 @@
+.\"
+.\" final startup file for troff
+.\" this file is parsed after all macro sets have been read
+.\"
+.if '\*(.T'html' .mso tmac.html
+.\" Don't let blank lines creep in here.

@@ -1536,7 +1536,7 @@
 .	if "\\$1"-literal" \&\\*(lI\c
 .	if "\\$1"-symbolic" \&\\*(sY\c
 .\}
-.el .tm Usage .Bf [Em | emphasis | Li | literal | Sy | symbolic] (#\\n(.c)
+.el .tm Usage .Bf [Em | -emphasis | Li | -literal | Sy | -symbolic] (#\\n(.c)
 ..
 .de Ef
 .ds mN Ef

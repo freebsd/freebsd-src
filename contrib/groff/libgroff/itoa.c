@@ -19,7 +19,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #define INT_DIGITS 19		/* enough for 64 bit integer */
 
-char *itoa(i)
+char *i_to_a(i)
      int i;
 {
   /* Room for INT_DIGITS digits, - and '\0' */

@@ -23,8 +23,7 @@ public:
   simple_output(FILE *, int max_line_length);
   simple_output &put_string(const char *, int);
   simple_output &put_string(const char *s);
-  simple_output &html_write_string(const char *s);
-  simple_output &put_translated_char (const char *s);
+  simple_output &put_troffps_char (const char *s);
   simple_output &put_translated_string(const char *s);
   simple_output &put_number(int);
   simple_output &put_float(double);
@@ -39,13 +38,14 @@ public:
   simple_output &include_file(FILE *);
   simple_output &copy_file(FILE *);
   simple_output &end_line();
-  simple_output &put_delimiter(char);
+  simple_output &put_raw_char(char);
   simple_output &special(const char *);
+  simple_output &put_html_char (char);
   FILE *get_file();
 private:
   FILE *fp;
-  int col;
   int max_line_length;		// not including newline
+  int col;
   int need_space;
   int fixed_point;
 };

@@ -38,7 +38,7 @@ box *make_accent_box(box *p, box *q)
   return new accent_box(p, q);
 }
 
-accent_box::accent_box(box *pp, box *qq) : ab(qq), pointer_box(pp)
+accent_box::accent_box(box *pp, box *qq) : pointer_box(pp), ab(qq)
 {
 }
 
@@ -386,7 +386,7 @@ void underline_box::debug_print()
   fprintf(stderr, " } under");
 }
 
-size_box::size_box(char *s, box *pp) : size(s), pointer_box(pp)
+size_box::size_box(char *s, box *pp) : pointer_box(pp), size(s)
 {
 }
 
@@ -495,7 +495,7 @@ void fat_box::debug_print()
 }
 
 
-vmotion_box::vmotion_box(int i, box *pp) : n(i), pointer_box(pp)
+vmotion_box::vmotion_box(int i, box *pp) : pointer_box(pp), n(i)
 {
 }
 
@@ -534,7 +534,7 @@ void vmotion_box::debug_print()
   fprintf(stderr, " }");
 }
 
-hmotion_box::hmotion_box(int i, box *pp) : n(i), pointer_box(pp)
+hmotion_box::hmotion_box(int i, box *pp) : pointer_box(pp), n(i)
 {
 }
 

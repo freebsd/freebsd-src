@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -41,6 +41,9 @@ options
 .BR \-mm ,
 .BR \-ms ,
 .BR \-p ,
+.BR \-R ,
+.BR \-g ,
+.BR \-G ,
 .BR \-s ,
 and
 .BR \-t
@@ -69,4 +72,7 @@ option.
 .BR @g@tbl (@MAN1EXT@),
 .BR @g@pic (@MAN1EXT@),
 .BR @g@eqn (@MAN1EXT@),
+.BR @g@refer (@MAN1EXT@),
+.BR @g@grn (@MAN1EXT@),
+.BR grap (1),
 .BR @g@soelim (@MAN1EXT@)

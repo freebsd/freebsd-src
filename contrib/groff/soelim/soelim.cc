@@ -28,6 +28,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "errarg.h"
 #include "error.h"
 #include "stringclass.h"
+#include "nonposix.h"
 
 static int include_list_length;
 static char **include_list;
@@ -43,8 +44,16 @@ static void
 include_path_append(char *path)
 {
   ++include_list_length;
-  size_t nbytes = include_list_length * sizeof(include_list[0]);
-  include_list = (char **)realloc((void *)include_list, nbytes);
+  size_t nbytes = include_list_length * sizeof(char *);
+  if (include_list)
+    include_list = (char **)realloc((void *)include_list, nbytes);
+  else
+    include_list = (char **)malloc(nbytes);
+  if (include_list == NULL)
+    {
+      fprintf(stderr, "%s: out of memory\n", program_name);
+      exit(2);
+    }
   include_list[include_list_length - 1] = path;
 }
 
@@ -64,8 +73,8 @@ int main(int argc, char **argv)
     switch (opt) {
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "GNU soelim version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "GNU soelim version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }
@@ -149,7 +158,7 @@ int do_file(const char *filename)
     whole_filename = filename;
     whole_filename += '\0';
   }
-  else if (filename[0] == '/') {
+  else if (IS_ABSOLUTE(filename)) {
     whole_filename = filename;
     whole_filename += '\0';
     errno = 0;

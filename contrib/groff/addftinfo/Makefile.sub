@@ -1,6 +1,11 @@
 PROG=addftinfo
 MAN1=addftinfo.n
 XLIBS=$(LIBGROFF)
-OBJS=addftinfo.o guess.o
-CCSRCS=addftinfo.cc guess.cc
-HDRS=guess.h
+OBJS=\
+  addftinfo.o \
+  guess.o
+CCSRCS=\
+  $(srcdir)/addftinfo.cc \
+  $(srcdir)/guess.cc
+HDRS=\
+  $(srcdir)/guess.h

@@ -2,9 +2,22 @@ PROG=refer
 MAN1=refer.n
 XLIBS=$(LIBBIB) $(LIBGROFF)
 MLIB=$(LIBM)
-OBJS=command.o label.o ref.o refer.o token.o
-CCSRCS=command.cc ref.cc refer.cc token.cc
-HDRS=refer.h token.h command.h ref.h
-GRAM=label.y
-YTABC=label.cc
+OBJS=\
+  command.o \
+  label.o \
+  ref.o \
+  refer.o \
+  token.o
+CCSRCS=\
+  $(srcdir)/command.cc \
+  $(srcdir)/ref.cc \
+  $(srcdir)/refer.cc \
+  $(srcdir)/token.cc
+HDRS=\
+  $(srcdir)/refer.h \
+  $(srcdir)/token.h \
+  $(srcdir)/command.h \
+  $(srcdir)/ref.h
+GRAM=$(srcdir)/label.y
+YTABC=$(srcdir)/label.cc
 NAMEPREFIX=$(g)

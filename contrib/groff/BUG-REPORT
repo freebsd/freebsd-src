@@ -20,18 +20,18 @@ OS:
 [The operating system you are using.  For example, `SunOS 4.1.1']
 
 COMPILER:
-[The compiler you are used to compile groff. For example, `g++ 1.40.3']
+[The compiler you are used to compile groff.  For example, `g++ 1.40.3']
 
 INPUT FILES:
 [Include all the files necessary to reproduce the problem that are not
 part of the standard groff distribution.  This includes font
 description files, DESC files and macro files (with the exception of
-the -ms and -mm macros: we have them).  Send them as a shell archive
-or as a uuencoded, compressed tar file.
+the -ms and -mm macros: we have them).  Send them as a shell archive or
+as a uuencoded, compressed tar file.
 
-It's easier for us if you can provide an example that doesn't depend
-on any macro package, but obviously if you're reporting a problem with
-a macro package that won't be possible.  Also a short example is more
+It's easier for us if you can provide an example that doesn't depend on
+any macro package, but obviously if you're reporting a problem with a
+macro package that won't be possible.  Also a short example is more
 convenient than a long one, but don't worry if you can't find a short
 example.  Don't say something like ``any file that X'': Always send a
 definite example.]
@@ -45,11 +45,11 @@ the macros.]
 DESCRIPTION OF INCORRECT BEHAVIOUR:
 [What goes wrong when that command line is run?  For example, `gtroff
 gets a segmentation fault', or `The output looks bad because the bar
-over the x is too long and is too far over to the left.'  If you get
-an error message, include it here without modification: Don't edit it
-to make it more readable.]
+over the x is too long and is too far over to the left.'  If you get an
+error message, include it here without modification: Don't edit it to
+make it more readable.]
 
 SUGGESTED FIX [optional]:
-[If you can suggest a fix for the problem, include a context diff
-here.  But don't delay sending in a bug report in the hope of finding
-a fix.  Guesses about the cause of the bug are not usually helpful.]
+[If you can suggest a fix for the problem, include a context diff here. 
+But don't delay sending in a bug report in the hope of finding a fix. 
+Guesses about the cause of the bug are not usually helpful.]
