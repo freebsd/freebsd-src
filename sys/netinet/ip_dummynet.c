@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.2 1998/12/14 18:09:13 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.3 1998/12/31 07:35:49 luigi Exp $
  */
 
 /*
@@ -71,6 +71,7 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, idle, CTLFLAG_RD, &dn_idle, 0, "");
 
 static int ip_dn_ctl(struct sockopt *sopt);
 
+static void rt_unref(struct rtentry *);
 static void dummynet(void);
 static void dn_restart(void);
 static void dn_move(struct dn_pipe *pipe, int immediate);
@@ -101,6 +102,16 @@ dn_restart()
 	    return ;
 	}
     }
+}
+
+static void
+rt_unref(struct rtentry *rt)
+{
+    if (rt == NULL)
+	return ;
+    if (rt->rt_refcnt <= 0)
+	printf("-- warning, refcnt now %d, decreasing\n", rt->rt_refcnt);
+    RTFREE(rt);
 }
 
 /*
@@ -203,8 +214,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
 
 	    (void)ip_output((struct mbuf *)pkt, (struct mbuf *)pkt->ifp,
 			&(pkt->ro), pkt->dn_hlen, NULL);
-	    if (tmp_rt)
-		 tmp_rt->rt_refcnt--; /* XXX return a reference count */
+	    rt_unref (tmp_rt) ;
 	    }
 	    break ;
 	case DN_TO_IP_IN :
@@ -308,6 +318,7 @@ dummynet_io(int pipe_nr, int dir,
 	m_freem(m);
 	return 0 ; /* XXX error */
     }
+    bzero(pkt, sizeof(*pkt) );
     /* build and enqueue packet */
     pkt->hdr.mh_type = MT_DUMMYNET ;
     (struct ip_fw_chain *)pkt->hdr.mh_data = rule ;
@@ -354,16 +365,14 @@ purge_pipe(struct dn_pipe *pipe)
     struct rtentry *tmp_rt ;
 
     for (pkt = pipe->r.head ; pkt ; ) {
-	if (tmp_rt = pkt->ro.ro_rt )
-	     tmp_rt->rt_refcnt--; /* XXX return a reference count */
+	rt_unref (tmp_rt = pkt->ro.ro_rt ) ;
 	m_freem(pkt->dn_m);
 	n = pkt ;
 	pkt = (struct dn_pkt *)pkt->dn_next ;
 	free(n, M_IPFW) ;
     }
     for (pkt = pipe->p.head ; pkt ; ) {
-	if (tmp_rt = pkt->ro.ro_rt )
-	     tmp_rt->rt_refcnt--; /* XXX return a reference count */
+	rt_unref (tmp_rt = pkt->ro.ro_rt ) ;
 	m_freem(pkt->dn_m);
 	n = pkt ;
 	pkt = (struct dn_pkt *)pkt->dn_next ;
@@ -401,10 +410,10 @@ extern struct ip_fw_chain *ip_fw_default_rule ;
 void
 dn_rule_delete(void *r)
 {
-
-    struct dn_pipe *p = all_pipes ;
+    struct dn_pipe *p ;
     int matches = 0 ;
-    for ( p= all_pipes ; p ; p = p->next ) {
+
+    for ( p = all_pipes ; p ; p = p->next ) {
 	struct dn_pkt *x ;
 	for (x = p->r.head ; x ; x = (struct dn_pkt *)x->dn_next )
 	    if (x->hdr.mh_data == r) {
@@ -415,11 +424,11 @@ dn_rule_delete(void *r)
 	    if (x->hdr.mh_data == r) {
 		matches++ ;
 		x->hdr.mh_data = (void *)ip_fw_default_rule ;
+	    }
     }
-}
     printf("dn_rule_delete, r 0x%x, default 0x%x%s, %d matches\n",
 	    r, ip_fw_default_rule,
-	r == ip_fw_default_rule ? "  AARGH!":"",  matches);
+	    r == ip_fw_default_rule ? "  AARGH!":"",  matches);
 }
 
 /*
