@@ -84,6 +84,8 @@ struct	sockaddr_storage asin;
 static void doit(struct sockaddr *);
 static void getstr(char *, int, char *);
 static void error(const char *fmt, ...);
+static struct passwd *xgetpwnam(const char *, struct passwd *, char **,
+    size_t *);
 
 int no_uid_0 = 1;
 
@@ -133,7 +135,9 @@ doit(struct sockaddr *fromp)
 	char cmdbuf[NCARGS+1], *cp;
 	const char *namep;
 	char user[16], pass[16];
-	struct passwd *pwd;
+	struct passwd *pwd, pwd_storage;
+	char *pwdbuf;
+	int pwdbuflen;
 	int fd, r, sd;
 	u_short port;
 	int pv[2], pid, cc, nfds;
@@ -184,12 +188,16 @@ doit(struct sockaddr *fromp)
 	getstr(cmdbuf, sizeof(cmdbuf), "command");
 	(void) alarm(0);
 
-	if ((pwd = getpwnam(user))  == NULL || (pwd->pw_uid = 0 && no_uid_0) ||
-	    !pam_ok(pam_start("rexecd", user, &pamc, &pamh)) ||
+	pwdbuflen = 0;
+	pwdbuf = NULL;
+	if (!pam_ok(pam_start("rexecd", user, &pamc, &pamh)) ||
 	    !pam_ok(pam_set_item(pamh, PAM_RHOST, remote)) ||
 	    !pam_ok(pam_set_item(pamh, PAM_AUTHTOK, pass)) ||
 	    !pam_ok(pam_authenticate(pamh, pam_flags)) ||
-	    !pam_ok(pam_acct_mgmt(pamh, pam_flags))) {
+	    !pam_ok(pam_acct_mgmt(pamh, pam_flags)) ||
+	    !pam_ok(pam_get_item(pamh, PAM_USER, (const void **)&user)) ||
+	    (pwd = xgetpwnam(user, &pwd_storage, &pwdbuf,
+	    &pwdbuflen)) == NULL || (pwd->pw_uid == 0 && no_uid_0)) {
 		syslog(LOG_ERR, "%s LOGIN REFUSED from %s", user, remote);
 		error("Login incorrect.\n");
 		exit(1);
@@ -313,4 +321,28 @@ getstr(char *buf, int cnt, char *err)
 			exit(1);
 		}
 	} while (c != 0);
+}
+
+static struct passwd *
+xgetpwnam(const char *user, struct passwd *pwd_storage, char **pwdbuf,
+    size_t *pwdbuflen)
+{
+	struct passwd *pwd;
+	size_t needed;
+	int rv;
+
+	needed = (*pwdbuflen == 0) ? BUFSIZ : *pwdbuflen;
+	pwd = NULL;
+	do {
+		if (needed != *pwdbuflen) {
+			if ((*pwdbuf = reallocf(*pwdbuf, needed)) == NULL) {
+				syslog(LOG_ERR, "Cannot allocate memory");
+				error("Cannot allocate memory.\n");
+				exit(1);
+			} else
+				*pwdbuflen = needed;
+		}
+		rv = getpwnam_r(user, pwd_storage, *pwdbuf, *pwdbuflen, &pwd);
+	} while (pwd == NULL && rv == ERANGE && (needed <<= 1));
+	return pwd;
 }
