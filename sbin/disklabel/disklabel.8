@@ -44,25 +44,30 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl r
+.Op Fl f
 .Ar disk
 .Nm
 .Fl w
 .Op Fl r
 .Op Fl n
+.Op Fl f
 .Ar disk Ar disktype/auto
 .Oo Ar packid Oc
 .Nm
 .Fl e
 .Op Fl r
 .Op Fl n
+.Op Fl f
 .Ar disk
 .Nm
 .Fl R
 .Op Fl r
 .Op Fl n
+.Op Fl f
 .Ar disk Ar protofile
 .Nm
 .Op Fl NW
+.Op Fl f
 .Ar disk
 .Pp
 .Nm
@@ -71,6 +76,7 @@
 .Fl b Ar boot1
 .Fl s Ar boot2
 .Oc
+.Op Fl f
 .Ar disk
 .Oo Ar disktype/auto Oc
 .Nm
@@ -81,6 +87,7 @@
 .Fl b Ar boot1
 .Fl s Ar boot2
 .Oc
+.Op Fl f
 .Ar disk Ar disktype/auto
 .Oo Ar packid Oc
 .Nm
@@ -91,13 +98,15 @@
 .Fl b Ar boot1
 .Fl s Ar boot2
 .Oc
+.Op Fl f
 .Ar disk Ar protofile
 .Oo Ar disktype/auto Oc
 .Sh DESCRIPTION
 The
 .Nm
 utility
-installs, examines or modifies the label on a disk drive or pack.  When writing
+installs, examines or modifies the label on a disk drive or pack,
+or a regular file representing a disk image.  When writing
 the label, it can be used to change the drive identification, the disk
 partitions on the drive, or to replace a damaged label.  There are several forms
 of the command that read (display), install or edit the label on a disk.  In
@@ -117,12 +126,25 @@ support for a label, such as when labels are first installed on a system; it
 must be used when first installing a label on a disk.  The specific effect of
 .Fl r
 is described under each command.
-.Pp
-.Ss Disk device name
-.Pp
-All
+.Br
+Note that
+.Fl r
+is implicit when
 .Nm
-forms require a disk device name, which should always be the raw
+operates on a regular file (
+.Fl f )
+option.
+.Pp
+.Ss Disk device name 
+.Pp
+Unless the
+.Fl f
+option is used,
+all
+.Nm
+forms require a
+.Em disk
+device name, which should always be the raw
 device name representing the disk or slice.  For example
 .Pa da0
 represents the entire disk regardless of any DOS partitioning,
@@ -142,6 +164,20 @@ path prefix when specifying the device.
 The
 .Nm
 utility will automatically prepend it.
+.Br
+If the
+.Fl f
+option is used,
+.Nm
+will interpret the
+.Em disk
+name (which must be an absolute pathname)
+as the name of a regular file representing a disk image, and will work on
+it instead of a device.
+Note that when it operates on a regular file, the
+.Fl r
+option becomes implicit as the kernel will not cache disklabel
+info.
 .Ss Reading the disk label
 .Pp
 To examine the label on a disk drive, use
@@ -231,11 +267,14 @@ In this case, the driver is requested to produce a virgin label for the
 disk.  This might or might not be successful, depending on whether the
 driver for the disk is able to get the required data without reading
 anything from the disk at all.  It will likely succeed for all SCSI
-disks, most IDE disks, and vnode devices.  Writing a label to the
+disks, most IDE disks, vnode devices, and regular files.  Writing a label to the
 disk is the only supported operation, and the
 .Ar disk
 itself must be provided as the canonical name, i.e. not as a full
-path name.
+path name (full pathnames are still required when operating with
+regular files and the
+.Fl f
+option).
 .Pp
 For most harddisks, a label based on percentages for most partitions (and
 one partition with a size of

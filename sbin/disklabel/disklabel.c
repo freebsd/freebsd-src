@@ -158,6 +158,8 @@ int	debug;
 #define OPTIONS	"BNRWb:enrs:w"
 #endif
 
+int	is_file;	/* work on a file (absolute pathname), "-f" option */
+
 int
 main(int argc, char *argv[])
 {
@@ -166,8 +168,13 @@ main(int argc, char *argv[])
 	int ch, f = 0, flag, error = 0;
 	char *name = 0;
 
-	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
+	while ((ch = getopt(argc, argv, OPTIONS "f")) != -1)
 		switch (ch) {
+			case 'f':
+				++is_file;
+				++rflag;
+				break;
+
 #if NUMBOOT > 0
 			case 'B':
 				++installboot;
@@ -242,6 +249,8 @@ main(int argc, char *argv[])
 
 	dkname = argv[0];
 	if (dkname[0] != '/') {
+		if (is_file)
+			errx(1, "-f requires an absolute pathname");
 		(void)sprintf(np, "%s%s%c", _PATH_DEV, dkname, 'a' + RAW_PART);
 		specname = np;
 		np += strlen(specname) + 1;
@@ -450,7 +459,7 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 			 * disable after writing.
 			 */
 			flag = 1;
-			if (ioctl(f, DIOCWLABEL, &flag) < 0)
+			if (!is_file && ioctl(f, DIOCWLABEL, &flag) < 0)
 				warn("ioctl DIOCWLABEL");
 			if (write(f, boot, lp->d_bbsize) != lp->d_bbsize) {
 				warn("write");
@@ -1575,6 +1584,31 @@ getvirginlabel(void)
 	char namebuf[BBSIZE];
 	int f;
 
+	if (is_file) {
+		struct disklabel *lp = &lab;
+		off_t sz;
+
+		if ((f = open(dkname, O_RDONLY)) == -1) {
+			warn("cannot open %s", namebuf);
+			return (NULL);
+		}
+		sz = lseek(f, (off_t)0, SEEK_END);
+		bzero(lp, sizeof(*lp));
+		lp->d_magic = lp->d_magic2 = DISKMAGIC;
+		lp->d_secsize = DEV_BSIZE;
+		lp->d_bbsize = BBSIZE;
+		lp->d_sbsize = SBSIZE;
+		lp->d_npartitions = 8; /* XXX */
+		lp->d_nsectors = sz/DEV_BSIZE; /* XXX */
+		lp->d_ntracks = 1;
+		lp->d_ncylinders = 1;
+		lp->d_interleave = 1;
+		lp->d_rpm = 3600;
+		lp->d_secpercyl = lp->d_nsectors;
+		lp->d_secperunit = lp->d_nsectors;
+		lp->d_partitions[2].p_size = lp->d_nsectors;
+		goto done;
+    	}
 	if (dkname[0] == '/') {
 		warnx("\"auto\" requires the usage of a canonical disk name");
 		return (NULL);
@@ -1596,6 +1630,7 @@ getvirginlabel(void)
 			return (NULL);
 		}
 	}
+    done:
 	close(f);
 	lab.d_boot0 = NULL;
 	lab.d_boot1 = NULL;
