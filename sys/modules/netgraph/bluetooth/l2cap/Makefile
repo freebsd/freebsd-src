@@ -9,6 +9,5 @@ CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include \
 KMOD=		ng_l2cap
 SRCS=		ng_l2cap_main.c ng_l2cap_cmds.c ng_l2cap_evnt.c \
 		ng_l2cap_ulpi.c ng_l2cap_llpi.c ng_l2cap_misc.c
-MAN4=		ng_l2cap.4
 
 .include <bsd.kmod.mk>

@@ -9,6 +9,5 @@ CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include \
 KMOD=		ng_hci
 SRCS=		ng_hci_main.c ng_hci_cmds.c ng_hci_evnt.c  \
 		ng_hci_ulpi.c ng_hci_misc.c
-MAN4=		ng_hci.4
 
 .include <bsd.kmod.mk>
