@@ -25,6 +25,5 @@ SRCS		+= ohci_pci.c ohci.c ohcireg.h ohcivar.h
 SRCS		+= opt_bus.h pci_if.h
 
 NOMAN		 =
-CFLAGS		+= ${DEBUG_FLAGS}
 
 .include <bsd.kmod.mk>

@@ -4,7 +4,6 @@
 KMOD	= if_ti
 SRCS	= if_ti.c opt_bdg.h vlan.h device_if.h bus_if.h pci_if.h
 CLEANFILES	= vlan.h
-CFLAGS	+= ${DEBUG_FLAGS}
 
 vlan.h:
 	touch vlan.h
