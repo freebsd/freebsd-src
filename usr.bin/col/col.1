@@ -71,6 +71,11 @@ Normally characters printed on a half line boundary are printed
 on the following line.
 .It Fl h
 Don't output multiple spaces instead of tabs (default).
+.It Fl l Ar num
+Buffer at least
+.Ar num
+lines in memory.
+By default, 128 lines are buffered.
 .It Fl p
 Force unknown control sequences to be passed through unchanged.
 Normally,
@@ -79,11 +84,6 @@ will filter out any control sequences from the input other than those
 recognized and interpreted by itself, which are listed below.
 .It Fl x
 Output multiple spaces instead of tabs.
-.It Fl l Ar num
-Buffer at least
-.Ar num
-lines in memory.
-By default, 128 lines are buffered.
 .El
 .Pp
 The control sequences for carriage motion that
@@ -131,6 +131,11 @@ will display a warning message.
 .Xr expand 1 ,
 .Xr nroff 1 ,
 .Xr tbl 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -susv2 .
 .Sh HISTORY
 A
 .Nm
