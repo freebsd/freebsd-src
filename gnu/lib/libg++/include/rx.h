@@ -691,6 +691,7 @@ enum rx_search_return
  */
 extern __const__ char *re_error_msg[];
 
+#if !defined(BSD) || (BSD < 199306)
 /* If any error codes are removed, changed, or added, update the
    `re_error_msg' table in regex.c.  */
 typedef enum
@@ -718,6 +719,7 @@ typedef enum
   REG_ESIZE,		/* Compiled pattern bigger than 2^16 bytes.  */
   REG_ERPAREN		/* Unmatched ) or \); not returned from regcomp.  */
 } reg_errcode_t;
+#endif
 
 /* The regex.c support, as a client of rx, defines a set of possible
  * side effects that can be added to the edge lables of nfa edges.
@@ -833,6 +835,7 @@ struct re_pattern_buffer
   rx_Bitset fastset;
 };
 
+#if !defined(BSD) || (BSD < 199306)
 /* Type for byte offsets within the string.  POSIX mandates this.  */
 typedef int regoff_t;
 
@@ -855,7 +858,7 @@ typedef struct
   regoff_t rm_so;  /* Byte offset from string's start to substring's start.  */
   regoff_t rm_eo;  /* Byte offset from string's start to substring's end.  */
 } regmatch_t;
-
+#endif
 
 /* The following bits are used to determine the regexp syntax we
    recognize.  The set/not-set meanings are chosen so that Emacs syntax
@@ -1031,7 +1034,7 @@ extern reg_syntax_t re_syntax_options;
 #define RE_DUP_MAX ((1 << 15) - 1) 
 
 
-
+#if !defined(BSD) || (BSD < 199306)
 /* POSIX `cflags' bits (i.e., information for `regcomp').  */
 
 /* If this bit is set, then use extended regular expression syntax.
@@ -1063,6 +1066,7 @@ extern reg_syntax_t re_syntax_options;
 
 /* Like REG_NOTBOL, except for the end-of-line.  */
 #define REG_NOTEOL (1 << 1)
+#endif
 
 /* If `regs_allocated' is REGS_UNALLOCATED in the pattern buffer,
  * `re_match_2' returns information about at least this many registers
@@ -1268,6 +1272,7 @@ extern __const__ char * re_compile_pattern (__const__ char *pattern,
 					int length,
 					struct re_pattern_buffer * rxb);
 extern int re_compile_fastmap (struct re_pattern_buffer * rxb);
+#if !defined(BSD) || (BSD < 199306)
 extern char * re_comp (__const__ char *s);
 extern int re_exec (__const__ char *s);
 extern int regcomp (regex_t * preg, __const__ char * pattern, int cflags);
@@ -1277,7 +1282,7 @@ extern int regexec (__const__ regex_t *preg, __const__ char *string,
 extern size_t regerror (int errcode, __const__ regex_t *preg,
 			char *errbuf, size_t errbuf_size);
 extern void regfree (regex_t *preg);
-
+#endif
 #else /* STDC */
 extern int re_search_2 ();
 extern int re_search ();
@@ -1287,13 +1292,14 @@ extern reg_syntax_t re_set_syntax ();
 extern void re_set_registers ();
 extern __const__ char * re_compile_pattern ();
 extern int re_compile_fastmap ();
+#if !defined(BSD) || (BSD < 199306)
 extern char * re_comp ();
 extern int re_exec ();
 extern int regcomp ();
 extern int regexec ();
 extern size_t regerror ();
 extern void regfree ();
-
+#endif
 #endif /* STDC */
 
 
