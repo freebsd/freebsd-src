@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.59 1999/08/11 14:02:20 alfred Exp $
+ * $Id: kern_shutdown.c,v 1.60 1999/08/13 10:29:21 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -46,6 +46,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/buf.h>
 #include <sys/reboot.h>
 #include <sys/proc.h>
@@ -107,34 +108,26 @@ watchdog_tickle_fn wdog_tickler = NULL;
  */
 const char *panicstr;
 
-/*
- * callout list for things to do a shutdown
- */
-typedef struct shutdown_list_element {
-	LIST_ENTRY(shutdown_list_element) links;
-	bootlist_fn function;
-	void *arg;
-	int priority;
-} *sle_p;
-
-/*
- * There are three shutdown lists. Some things need to be shut down
- * earlier than others.
- */
-LIST_HEAD(shutdown_list, shutdown_list_element);
-
-static struct shutdown_list shutdown_lists[SHUTDOWN_FINAL + 1];
-
 static void boot __P((int)) __dead2;
 static void dumpsys __P((void));
 static int setdumpdev __P((dev_t dev));
+static void poweroff_wait __P((void *, int));
+static void shutdown_halt __P((void *junk, int howto));
+static void shutdown_panic __P((void *junk, int howto));
+static void shutdown_reset __P((void *junk, int howto));
 
+/* register various local shutdown events */
+static void 
+shutdown_conf(void *unused)
+{
+	EVENTHANDLER_REGISTER(shutdown_final, poweroff_wait, NULL, SHUTDOWN_PRI_FIRST);
+	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL, SHUTDOWN_PRI_LAST + 100);
+	EVENTHANDLER_REGISTER(shutdown_final, shutdown_panic, NULL, SHUTDOWN_PRI_LAST + 100);
+	EVENTHANDLER_REGISTER(shutdown_final, shutdown_reset, NULL, SHUTDOWN_PRI_LAST + 200);
+}
 
-#ifndef _SYS_SYSPROTO_H_
-struct reboot_args {
-	int	opt;
-};
-#endif
+SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL)
+
 /* ARGSUSED */
 
 /*
@@ -181,7 +174,6 @@ static void
 boot(howto)
 	int howto;
 {
-	sle_p ep;
 
 #ifdef SMP
 	if (smp_active) {
@@ -191,8 +183,7 @@ boot(howto)
 	/*
 	 * Do any callouts that should be done BEFORE syncing the filesystems.
 	 */
-	LIST_FOREACH(ep, &shutdown_lists[SHUTDOWN_PRE_SYNC], links)
-		(*ep->function)(howto, ep->arg);
+	EVENTHANDLER_INVOKE(shutdown_pre_sync, howto);
 
 	/* 
 	 * Now sync filesystems
@@ -282,8 +273,7 @@ boot(howto)
 	 * Ok, now do things that assume all filesystem activity has
 	 * been completed.
 	 */
-	LIST_FOREACH(ep, &shutdown_lists[SHUTDOWN_POST_SYNC], links)
-		(*ep->function)(howto, ep->arg);
+	EVENTHANDLER_INVOKE(shutdown_post_sync, howto);
 	splhigh();
 	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold) {
 		savectx(&dumppcb);
@@ -294,9 +284,18 @@ boot(howto)
 	}
 
 	/* Now that we're going to really halt the system... */
-	LIST_FOREACH(ep, &shutdown_lists[SHUTDOWN_FINAL], links)
-		(*ep->function)(howto, ep->arg);
+	EVENTHANDLER_INVOKE(shutdown_final, howto);
 
+	for(;;) ;	/* safety against shutdown_reset not working */
+	/* NOTREACHED */
+}
+
+/*
+ * If the shutdown was a clean halt, behave accordingly.
+ */
+static void
+shutdown_halt(void *junk, int howto)
+{
 	if (howto & RB_HALT) {
 		printf("\n");
 		printf("The operating system has halted.\n");
@@ -309,12 +308,21 @@ boot(howto)
 			howto &= ~RB_HALT;
 			break;
 		}
-	} else if (howto & RB_DUMP) {
-		/* System Paniced */
+	}
+}
 
+/*
+ * Check to see if the system paniced, pause and then reboot
+ * according to the specified delay.
+ */
+static void
+shutdown_panic(void *junk, int howto)
+{
+	int loop;
+
+	if (howto & RB_DUMP) {
 		if (PANIC_REBOOT_WAIT_TIME != 0) {
 			if (PANIC_REBOOT_WAIT_TIME != -1) {
-				int loop;
 				printf("Automatic reboot in %d seconds - "
 				       "press a key on the console to abort\n",
 					PANIC_REBOOT_WAIT_TIME);
@@ -326,21 +334,27 @@ boot(howto)
 						break;
 				}
 				if (!loop)
-					goto die;
+					return;
 			}
 		} else { /* zero time specified - reboot NOW */
-			goto die;
+			return;
 		}
 		printf("--> Press a key on the console to reboot <--\n");
 		cngetc();
 	}
-die:
+}
+
+/*
+ * Everything done, now reset
+ */
+static void
+shutdown_reset(void *junk, int howto)
+{
 	printf("Rebooting...\n");
 	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */
 	/* cpu_boot(howto); */ /* doesn't do anything at the moment */
 	cpu_reset();
-	for(;;) ;
-	/* NOTREACHED */
+	/* NOTREACHED */ /* assuming reset worked */
 }
 
 /*
@@ -516,109 +530,16 @@ panic(const char *fmt, ...)
 }
 
 /*
- * Three routines to handle adding/deleting items on the
- * shutdown callout lists
- *
- * at_shutdown():
- * Take the arguments given and put them onto the shutdown callout list.
- * However first make sure that it's not already there.
- * returns 0 on success.
- */
-int
-at_shutdown(bootlist_fn function, void *arg, int queue)
-{
-	return(at_shutdown_pri(function, arg, queue, SHUTDOWN_PRI_DEFAULT));
-}
-
-/*
- * at_shutdown_pri():
- * Take the arguments given and put them onto the shutdown callout list
- * with the given execution priority.
- * returns 0 on success.
- */
-int
-at_shutdown_pri(bootlist_fn function, void *arg, int queue, int pri)
-{
-	sle_p op, ep, ip;
-
-	op = NULL;		/* shut up gcc */
-	if (queue < SHUTDOWN_PRE_SYNC
-	 || queue > SHUTDOWN_FINAL) {
-		printf("at_shutdown: bad exit callout queue %d specified\n",
-		       queue);
-		return (EINVAL);
-	}
-	if (rm_at_shutdown(function, arg))
-		printf("at_shutdown: exit callout entry was already present\n");
-	ep = malloc(sizeof(*ep), M_TEMP, M_NOWAIT);
-	if (ep == NULL)
-		return (ENOMEM);
-	ep->function = function;
-	ep->arg = arg;
-	ep->priority = pri;
-
-	/* Sort into list of items on this queue */
-	ip = LIST_FIRST(&shutdown_lists[queue]);
-	if (ip == NULL) {
-		LIST_INSERT_HEAD(&shutdown_lists[queue], ep, links);
-	} else {
-		for (; ip != NULL; op = ip, ip = LIST_NEXT(ip, links)) {
-			if (ep->priority < ip->priority) {
-				LIST_INSERT_BEFORE(ip, ep, links);
-				ep = NULL;
-				break;
-			}
-		}
-		if (ep != NULL)
-			LIST_INSERT_AFTER(op, ep, links);
-	}
-	return (0);
-}
-
-/*
- * Scan the exit callout lists for the given items and remove them.
- * Returns the number of items removed.
- */
-int
-rm_at_shutdown(bootlist_fn function, void *arg)
-{
-	sle_p ep;
-	int   count;
-	int   queue;
-
-	count = 0;
-	for (queue = SHUTDOWN_PRE_SYNC; queue < SHUTDOWN_FINAL; queue++) {
-		LIST_FOREACH(ep, &shutdown_lists[queue], links) {
-			if ((ep->function == function) && (ep->arg == arg)) {
-				LIST_REMOVE(ep, links);
-				free(ep, M_TEMP);
-				count++;
-			}
-		}
-	}
-	return (count);
-}
-
-/*
  * Support for poweroff delay.
  */
 static int poweroff_delay = 0;
 SYSCTL_INT(_kern_shutdown, OID_AUTO, poweroff_delay, CTLFLAG_RW,
 	&poweroff_delay, 0, "");
 
-static void poweroff_wait(int howto, void *unused)
+static void 
+poweroff_wait(void *junk, int howto)
 {
 	if(!(howto & RB_POWEROFF) || poweroff_delay <= 0)
 		return;
 	DELAY(poweroff_delay * 1000);
 }
-
-/*
- * XXX OK? This implies I know SHUTDOWN_PRI_LAST > SHUTDOWN_PRI_FIRST
- */
-static void poweroff_conf(void *unused)
-{
-	at_shutdown_pri(poweroff_wait, NULL, SHUTDOWN_FINAL, SHUTDOWN_PRI_FIRST);
-}
-
-SYSINIT(poweroff_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, poweroff_conf, NULL)

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.19 1999/07/06 19:23:28 des Exp $
+ *	$Id: if_rl.c,v 1.20 1999/07/22 20:56:49 wpaul Exp $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.19 1999/07/06 19:23:28 des Exp $";
+	"$Id: if_rl.c,v 1.20 1999/07/22 20:56:49 wpaul Exp $";
 #endif
 
 /*
@@ -177,7 +177,7 @@ static int rl_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void rl_init		__P((void *));
 static void rl_stop		__P((struct rl_softc *));
 static void rl_watchdog		__P((struct ifnet *));
-static void rl_shutdown		__P((int, void *));
+static void rl_shutdown		__P((void *, int));
 static int rl_ifmedia_upd	__P((struct ifnet *));
 static void rl_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -1234,7 +1234,8 @@ rl_attach(config_id, unit)
 #if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-	at_shutdown(rl_shutdown, sc, SHUTDOWN_POST_SYNC);
+	EVENTHANDLER_REGISTER(shutdown_post_sync, rl_shutdown, sc,
+			      SHUTDOWN_PRI_DEFAULT);
 
 fail:
 	splx(s);
@@ -1925,9 +1926,9 @@ static void rl_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void rl_shutdown(howto, arg)
-	int			howto;
+static void rl_shutdown(arg, howto)
 	void			*arg;
+	int			howto;
 {
 	struct rl_softc		*sc = (struct rl_softc *)arg;
 

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fpa.c,v 1.9 1999/04/24 20:14:00 peter Exp $
+ * $Id: if_fpa.c,v 1.10 1999/05/09 17:06:54 peter Exp $
  *
  */
 
@@ -128,7 +128,7 @@ pdq_pci_ifintr(
 #endif /* __FreeBSD && BSD */
 
 #if defined(__FreeBSD__)
-static void pdq_pci_shutdown(int, void *);
+static void pdq_pci_shutdown(void *, int);
 
 /*
  * This is the PCI configuration support.  Since the PDQ is available
@@ -192,14 +192,15 @@ pdq_pci_attach(
     pdqs_pci[unit] = sc;
     pdq_ifattach(sc, pdq_pci_ifwatchdog);
     pci_map_int(config_id, pdq_pci_ifintr, (void*) sc, &net_imask);
-    at_shutdown(pdq_pci_shutdown, (void *) sc, SHUTDOWN_POST_SYNC);
+    EVENTHANDLER_REGISTER(shutdown_post_sync, pdq_pci_shutdown, sc,
+			  SHUTDOWN_PRI_DEFAULT);
 
 }
 
 static void
 pdq_pci_shutdown(
-    int howto,
-    void *sc)
+    void *sc,
+    int howto)
 {
     pdq_hwreset(((pdq_softc_t *)sc)->sc_pdq);
 }

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wi.c,v 1.7 1999/07/04 14:40:22 wpaul Exp $
+ *	$Id: if_wi.c,v 1.8 1999/07/06 19:22:53 des Exp $
  */
 
 /*
@@ -116,7 +116,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_wi.c,v 1.7 1999/07/04 14:40:22 wpaul Exp $";
+	"$Id: if_wi.c,v 1.8 1999/07/06 19:22:53 des Exp $";
 #endif
 
 static struct wi_softc wi_softc[NWI];
@@ -136,7 +136,7 @@ static void wi_init		__P((void *));
 static void wi_start		__P((struct ifnet *));
 static void wi_stop		__P((struct wi_softc *));
 static void wi_watchdog		__P((struct ifnet *));
-static void wi_shutdown		__P((int, void *));
+static void wi_shutdown		__P((void *, int));
 static void wi_rxeof		__P((struct wi_softc *));
 static void wi_txeof		__P((struct wi_softc *, int));
 static void wi_update_stats	__P((struct wi_softc *));
@@ -367,7 +367,8 @@ static int wi_attach(isa_dev)
 		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
-		at_shutdown(wi_shutdown, sc, SHUTDOWN_POST_SYNC);
+		EVENTHANDLER_REGISTER(shutdown_post_sync, wi_shutdown, sc,
+				      SHUTDOWN_PRI_DEFAULT);
 	}
 
 	return(0);
@@ -1336,9 +1337,9 @@ static void wi_watchdog(ifp)
 	return;
 }
 
-static void wi_shutdown(howto, arg)
-	int			howto;
+static void wi_shutdown(arg, howto)
 	void			*arg;
+	int			howto;
 {
 	struct wi_softc		*sc;
 

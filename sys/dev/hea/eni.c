@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni.c,v 1.7 1999/05/09 17:07:27 peter Exp $
+ *	@(#) $Id: eni.c,v 1.8 1999/05/10 22:53:41 mks Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef	lint
-__RCSID("@(#) $Id: eni.c,v 1.7 1999/05/09 17:07:27 peter Exp $");
+__RCSID("@(#) $Id: eni.c,v 1.8 1999/05/10 22:53:41 mks Exp $");
 #endif
 
 /*
@@ -57,7 +57,7 @@ static void	eni_read_seeprom __P((Eni_unit *));
 #if BSD < 199506
 static int	eni_pci_shutdown __P((struct kern_devconf *, int));
 #else
-static void	eni_pci_shutdown __P((int, void *));
+static void	eni_pci_shutdown __P((void *, int));
 #endif
 static void	eni_pci_reset __P((Eni_unit *));
 #endif	/* __FreeBSD__ */
@@ -549,7 +549,9 @@ eni_pci_attach ( pcici_t config_id, int unit )
 	/*
 	 * Add hook to out shutdown function
 	 */
-	at_shutdown ( (bootlist_fn)eni_pci_shutdown, eup, SHUTDOWN_POST_SYNC );
+	EVENTHANDLER_REGISTER(shutdown_post_sync, eni_pci_shutdown, eup,
+			      SHUTDOWN_PRI_DEFAULT);
+	
 #endif
 
 	/*
@@ -654,9 +656,9 @@ eni_pci_shutdown ( kdc, force )
  *
  */
 static void
-eni_pci_shutdown ( howto, eup )
-	int	howto;
+eni_pci_shutdown ( eup, howto )
 	void	*eup;
+	int	howto;
 {
 
 	/* Do device reset */

@@ -15,13 +15,14 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.98 1999/08/02 18:46:34 msmith Exp $
+ *	$Id: apm.c,v 1.99 1999/08/14 18:39:40 iwasaki Exp $
  */
 
 #include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
@@ -302,7 +303,7 @@ apm_display(int newstate)
  * Turn off the entire system.
  */
 static void
-apm_power_off(int howto, void *junk)
+apm_power_off(void *junk, int howto)
 {
 	struct apm_softc *sc = &apm_softc;
 
@@ -1047,7 +1048,8 @@ apm_attach(device_t dev)
         apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
 
 	/* Power the system off using APM */
-	at_shutdown_pri(apm_power_off, NULL, SHUTDOWN_FINAL, SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(shutdown_final, apm_power_off, NULL, 
+			      SHUTDOWN_PRI_LAST);
 
 	sc->initialized = 1;
 
