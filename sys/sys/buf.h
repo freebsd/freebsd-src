@@ -528,6 +528,8 @@ void	pbrelvp(struct buf *);
 int	allocbuf(struct buf *bp, int size);
 void	reassignbuf(struct buf *, struct vnode *);
 struct	buf *trypbuf(int *);
+void	bwait(struct buf *, u_char, const char *);
+void	bdone(struct buf *);
 
 #endif /* _KERNEL */
 
