@@ -134,7 +134,7 @@ The following options are available for
 .Nm uudecode :
 .Bl -tag -width ident
 .It Fl c
-Decode more than one uuencode'd file from
+Decode more than one uuencoded file from
 .Ar file
 if possible.
 .It Fl i
@@ -168,14 +168,14 @@ tar cf \- src_tree \&| compress \&|
 uuencode src_tree.tar.Z \&| mail sys1!sys2!user
 .Ed
 .Pp
-The following example unpack all uuencode'd
+The following example unpacks all uuencoded
 files from your mailbox into your current working directory.
 .Pp
 .Bd -literal -offset indent -compact
 uudecode -c < $MAIL
 .Ed
 .Pp
-The following example extract a compress'ed tar
+The following example extracts a compressed tar
 archive from your mailbox
 .Pp
 .Bd -literal -offset indent -compact
