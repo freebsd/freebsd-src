@@ -108,8 +108,10 @@ struct vnode {
 	int	v_holdcnt;			/* i page & buffer references */
 	struct	buflists v_cleanblkhd;		/* i SORTED clean blocklist */
 	struct buf	*v_cleanblkroot;	/* i clean buf splay tree  */
+	int	v_cleanbufcnt;			/* i number of clean buffers */
 	struct	buflists v_dirtyblkhd;		/* i SORTED dirty blocklist */
 	struct buf	*v_dirtyblkroot;	/* i dirty buf splay tree */
+	int	v_dirtybufcnt;			/* i number of dirty buffers */
 	u_long	v_vflag;			/* v vnode flags */
 	int	v_writecount;			/* v ref count of writers */
 	struct vm_object *v_object;		/* v Place to store VM object */
