@@ -194,8 +194,8 @@ static	d_ioctl_t	ti_ioctl2;
 static struct cdevsw ti_cdevsw = {
         /* open */      ti_open,
         /* close */     ti_close,
-        /* read */      NULL,
-        /* write */     NULL,
+        /* read */      noread,
+        /* write */     nowrite,
         /* ioctl */     ti_ioctl2,
         /* poll */      seltrue,
         /* mmap */      nommap,
