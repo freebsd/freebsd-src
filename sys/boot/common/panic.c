@@ -50,5 +50,8 @@ panic(const char *fmt,...)
 	va_end(ap);
 	printf("\n");
 
+	printf("--> Press a key on the console to reboot <--\n");
+	getchar();
+	printf("Rebooting...\n");
 	exit(1);
 }
