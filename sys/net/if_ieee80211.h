@@ -45,9 +45,14 @@ struct ieee80211_frame {
 #define	IEEE80211_FC0_SUBTYPE_CF_END		0xe0
 #define	IEEE80211_FC0_SUBTYPE_CF_END_ACK	0xf0
 /* for TYPE_DATA (bit combination) */
+#define IEEE80211_FC0_SUBTYPE_DATA		0x00
 #define	IEEE80211_FC0_SUBTYPE_CF_ACK		0x10
 #define	IEEE80211_FC0_SUBTYPE_CF_POLL		0x20
+#define	IEEE80211_FC0_SUBTYPE_CF_ACPL		0x30
 #define	IEEE80211_FC0_SUBTYPE_NODATA		0x40
+#define	IEEE80211_FC0_SUBTYPE_CFACK		0x50
+#define	IEEE80211_FC0_SUBTYPE_CFPOLL		0x60
+#define	IEEE80211_FC0_SUBTYPE_CF_ACK_CF_ACK	0x70
 
 #define	IEEE80211_FC1_DIR_MASK			0x03
 #define	IEEE80211_FC1_DIR_NODS			0x00	/* STA->STA */
@@ -75,6 +80,25 @@ struct ieee80211_frame {
 #define	IEEE80211_ELEMID_IBSSPARMS		6
 #define	IEEE80211_ELEMID_CHALLENGE		16
 
+/*
+ * AUTH management packets
+ *
+ *	octect algo[2]
+ *	octect seq[2]
+ *	octect status[2]
+ *	octect chal.id
+ *	octect chal.length
+ *	octect chal.text[253]
+ */
+typedef u_int8_t *	ieee80211_mgt_auth_t;
+
+#define IEEE80211_AUTH_ALGORITHM(auth) \
+    (auth[0] + (auth[1] << 8))
+#define IEEE80211_AUTH_TRANSACTION(auth) \
+    (auth[2] + (auth[3] << 8))
+#define IEEE80211_AUTH_STATUS(auth) \
+    (auth[4] + (auth[5] << 8))
+ 
 #define	IEEE80211_AUTH_ALG_OPEN			0x0000
 #define	IEEE80211_AUTH_ALG_SHARED		0x0001
 
@@ -84,6 +108,11 @@ struct ieee80211_frame {
 #define	IEEE80211_CAPINFO_CF_POLLREQ		0x08
 #define	IEEE80211_CAPINFO_PRIVACY		0x10
 
+/*
+ * Reason codes
+ *
+ * Unlisted codes are reserved
+ */
 #define	IEEE80211_REASON_UNSPECIFIED		1
 #define	IEEE80211_REASON_AUTH_EXPIRE		2
 #define	IEEE80211_REASON_AUTH_LEAVE		3
@@ -94,6 +123,12 @@ struct ieee80211_frame {
 #define	IEEE80211_REASON_ASSOC_LEAVE		8
 #define	IEEE80211_REASON_ASSOC_NOT_AUTHED	9
 
+/*
+ * Status code
+ *
+ * Unlisted codes are reserved
+ */
+#define IEEE80211_STATUS_SUCCESS		0x0000
 #define	IEEE80211_STATUS_UNSPECIFIED		1
 #define	IEEE80211_STATUS_CAPINFO		10
 #define	IEEE80211_STATUS_NOT_ASSOCED		11
