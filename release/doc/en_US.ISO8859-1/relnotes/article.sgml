@@ -122,6 +122,18 @@
       it was not noted in the release documentation.  See security advisory 
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>. &merged;</para>
 
+    <para>A bug that could allow the kernel to attempt delivery of
+      invalid signals has been fixed.  The bug could have led to a
+      kernel panic or, under some circumstances, unauthorized
+      modification of kernel memory.  For more information, see
+      security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>. &merged;</para>
+
+    <para>A bug in the iBCS2 emulation module, which could result in
+      disclosing the contents of kernel memory, has been fixed.  This
+      module is not enabled in &os; by default.  For more information,
+      see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>. &merged;</para>
   </sect2>
 
   <sect2 id="kernel">
