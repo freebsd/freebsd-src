@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2004
+.Dd December 6, 2004
 .Dt TI 4
 .Os
 .Sh NAME
@@ -86,7 +86,7 @@ for more discussion on zero copy receive and header splitting.
 The
 .Nm
 driver normally uses jumbo receive buffers allocated by the
-.Xr jumbo 9
+.Xr sendfile 2
 buffer allocator, but can be configured to use its own private pool of
 jumbo buffers that are contiguous instead of buffers from the jumbo
 allocator, which are made up of multiple page sized chunks.
@@ -300,12 +300,12 @@ The device has stopped responding to the network, or there is a problem with
 the network connection (cable).
 .El
 .Sh SEE ALSO
+.Xr sendfile 2 ,
 .Xr arp 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8 ,
-.Xr jumbo 9 ,
 .Xr zero_copy 9
 .Sh HISTORY
 The
