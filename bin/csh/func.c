@@ -1142,6 +1142,7 @@ static struct limits {
     { RLIMIT_MEMLOCK,	"memorylocked",	1024,	"kbytes" },
     { RLIMIT_NPROC,	"maxproc",	1,	"" },
     { RLIMIT_NOFILE,	"openfiles",	1,	"" },
+    { RLIMIT_SBSIZE,	"sbsize ",	1,	"bytes" },
     { -1,		NULL,		0,	NULL }
 };
 

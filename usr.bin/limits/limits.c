@@ -82,7 +82,8 @@ static struct {
 	  { "  memoryuse%-4s    %8s", " kb\n",    1024 },
 	  { "  memorylocked%-4s %8s", " kb\n",    1024 },
 	  { "  maxprocesses%-4s %8s", "\n",       1    },
-	  { "  openfiles%-4s    %8s", "\n",       1    }
+	  { "  openfiles%-4s    %8s", "\n",       1    },
+	  { "  sbsize%-4s       %8s", " bytes\n", 1    }
       }
     },
     { "sh", "unlimited", "", " -H", " -S", "",
@@ -95,7 +96,8 @@ static struct {
 	  { "ulimit%s -m %s", ";\n",  1024 },
 	  { "ulimit%s -l %s", ";\n",  1024 },
 	  { "ulimit%s -u %s", ";\n",  1    },
-	  { "ulimit%s -n %s", ";\n",  1    }
+	  { "ulimit%s -n %s", ";\n",  1    },
+	  { "ulimit%s -b %s", ";\n",  1    }
       }
     },
     { "csh", "unlimited", "", " -h", "", NULL,
@@ -108,7 +110,8 @@ static struct {
 	  { "limit%s memoryuse %s",    ";\n",  1024 },
 	  { "limit%s memorylocked %s", ";\n",  1024 },
 	  { "limit%s maxproc %s",      ";\n",  1    },
-	  { "limit%s openfiles %s",    ";\n",  1    }
+	  { "limit%s openfiles %s",    ";\n",  1    },
+	  { "limit%s sbsize %s",       ";\n",  1    }
       }
     },
     { "bash|bash2", "unlimited", "", " -H", " -S", "",
@@ -121,7 +124,8 @@ static struct {
 	  { "ulimit%s -m %s", ";\n",  1024 },
 	  { "ulimit%s -l %s", ";\n",  1024 },
 	  { "ulimit%s -u %s", ";\n",  1    },
-	  { "ulimit%s -n %s", ";\n",  1    }
+	  { "ulimit%s -n %s", ";\n",  1    },
+	  { "ulimit%s -b %s", ";\n",  1    }
       }
     },
     { "tcsh", "unlimited", "", " -h", "", NULL,
@@ -134,7 +138,8 @@ static struct {
 	  { "limit%s memoryuse %s",    ";\n",  1024 },
 	  { "limit%s memorylocked %s", ";\n",  1024 },
 	  { "limit%s maxproc %s",      ";\n",  1    },
-	  { "limit%s descriptors %s",  ";\n",  1    }
+	  { "limit%s descriptors %s",  ";\n",  1    },
+	  { "limit%s sbsize %s",       ";\n",  1    }
       }
     },
     { "ksh|pdksh", "unlimited", "", " -H", " -S", "",
@@ -147,7 +152,8 @@ static struct {
 	  { "ulimit%s -m %s", ";\n",  1024 },
 	  { "ulimit%s -l %s", ";\n",  1024 },
 	  { "ulimit%s -p %s", ";\n",  1    },
-	  { "ulimit%s -n %s", ";\n",  1    }
+	  { "ulimit%s -n %s", ";\n",  1    },
+	  { "ulimit%s -b %s", ";\n",  1    }
       }
     },
     { "zsh", "unlimited", "", " -H", " -S", "",
@@ -160,7 +166,8 @@ static struct {
 	  { "ulimit%s -m %s", ";\n",  1024 },
 	  { "ulimit%s -l %s", ";\n",  1024 },
 	  { "ulimit%s -u %s", ";\n",  1    },
-	  { "ulimit%s -n %s", ";\n",  1    }
+	  { "ulimit%s -n %s", ";\n",  1    },
+	  { "ulimit%s -b %s", ";\n",  1    }
       }
     },
     { "rc|es", "unlimited", "", " -h", "", NULL,
@@ -173,7 +180,8 @@ static struct {
 	  { "limit%s memoryuse %s",    ";\n",  1024 },
 	  { "limit%s lockedmemory %s", ";\n",  1024 },
 	  { "limit%s processes %s",    ";\n",  1    },
-	  { "limit%s descriptors %s",  ";\n",  1    }
+	  { "limit%s descriptors %s",  ";\n",  1    },
+	  { "limit%s sbsize %s",       ";\n",  1    }
       }
     },
     { NULL }
@@ -190,8 +198,9 @@ static struct {
     { "coredumpsize",	login_getcapsize },
     { "memoryuse",	login_getcapsize },
     { "memorylocked",	login_getcapsize },
-    { "maxproc",	login_getcapnum, },
-    { "openfiles",	login_getcapnum  }
+    { "maxproc",	login_getcapnum  },
+    { "openfiles",	login_getcapnum  },
+    { "sbsize",		login_getcapnum  }
 };
 
 /*
@@ -202,7 +211,7 @@ static struct {
  * to be modified accordingly!
  */
 
-#define RCS_STRING  "tfdscmlun"
+#define RCS_STRING  "tfdscmlunb"
 
 static rlim_t resource_num(int which, int ch, const char *str);
 static void usage(const char *msg, ...);
@@ -238,7 +247,7 @@ main(int argc, char *argv[])
     }
 
     optarg = NULL;
-    while ((ch = getopt(argc, argv, ":EeC:U:BSHac:d:f:l:m:n:s:t:u:")) != -1) {
+    while ((ch = getopt(argc, argv, ":EeC:U:BSHabc:d:f:l:m:n:s:t:u:")) != -1) {
 	switch(ch) {
 	case 'a':
 	    doall = 1;
@@ -450,7 +459,7 @@ usage(char const *msg, ...)
 	va_end(argp);
     }
     (void)fprintf(stderr,
-"usage: limits [-C class|-U user] [-eaSHBE] [-cdflmnstu [val]] [[name=val ...] cmd]\n");
+"usage: limits [-C class|-U user] [-eaSHBE] [-bcdflmnstu [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
 }
 
