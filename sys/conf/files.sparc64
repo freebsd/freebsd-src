@@ -13,6 +13,7 @@ crypto/des/des_enc.c		optional	ipsec ipsec_esp
 dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 dev/sio/sio.c			optional	sio
+dev/sio/sio_isa.c		optional	sio isa
 dev/sio/sio_ebus.c		optional	sio ebus
 libkern/ffs.c			standard
 kern/subr_diskmbr.c		standard
