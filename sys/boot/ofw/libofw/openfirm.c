@@ -68,8 +68,8 @@ int (*openfirmware)(void *);
 static ihandle_t stdin;
 static ihandle_t stdout;
 
-static ihandle_t mmu;
-static ihandle_t memory;
+ihandle_t mmu;
+ihandle_t memory;
 
 /* Initialiaser */
 

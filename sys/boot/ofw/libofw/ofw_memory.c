@@ -47,17 +47,15 @@ struct ofw_mapping {
 void
 ofw_memmap(void)
 {
-        ihandle_t       mmui;
-        phandle_t       mmu;
+        phandle_t       mmup;
         int             nmapping, i;
         struct          ofw_mapping mappings[256];
    
-        OF_getprop(chosen, "mmu", &mmui, 4);
-        mmu = OF_instance_to_package(mmui);
+        mmup = OF_instance_to_package(mmu);
  
         bzero(mappings, sizeof(mappings));
  
-        nmapping = OF_getprop(mmu, "translations", mappings, sizeof(mappings));
+        nmapping = OF_getprop(mmup, "translations", mappings, sizeof(mappings));
 	if (nmapping == -1) {
 		printf("Could not get memory map (%d)\n",
 		    nmapping);
@@ -79,14 +77,12 @@ ofw_memmap(void)
 void *
 ofw_alloc_heap(unsigned int size)
 {
-	ihandle_t	meminstance;
-	phandle_t	memory;
+	phandle_t	memoryp;
 	struct		ofw_reg available;
 	void		*base;
 
-	OF_getprop(chosen, "memory", &meminstance, sizeof(meminstance));
-	memory = OF_instance_to_package(meminstance);
-	OF_getprop(memory, "available", &available, sizeof(available));
+	memoryp = OF_instance_to_package(memory);
+	OF_getprop(memoryp, "available", &available, sizeof(available));
 
 	heap_base = OF_claim((void *)available.base, size, sizeof(register_t));
 
