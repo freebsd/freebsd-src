@@ -95,8 +95,8 @@
 #include "ip.h"
 #include "iface.h"
 
-#define SCATTER_SEGMENTS 6  /* version, datalink, name, physical,
-                               throughput, device                   */
+#define SCATTER_SEGMENTS 7  /* version, datalink, name, physical,
+                               throughput, throughput, device       */
 
 #define SEND_MAXFD 3        /* Max file descriptors passed through
                                the local domain socket              */
@@ -1117,28 +1117,31 @@ bundle_ShowLinks(struct cmdargs const *arg)
 {
   struct datalink *dl;
   struct pppThroughput *t;
+  unsigned long long octets;
   int secs;
 
   for (dl = arg->bundle->links; dl; dl = dl->next) {
+    octets = MAX(dl->physical->link.stats.total.in.OctetsPerSecond,
+                 dl->physical->link.stats.total.out.OctetsPerSecond);
+
     prompt_Printf(arg->prompt, "Name: %s [%s, %s]",
                   dl->name, mode2Nam(dl->physical->type), datalink_State(dl));
     if (dl->physical->link.stats.total.rolling && dl->state == DATALINK_OPEN)
       prompt_Printf(arg->prompt, " bandwidth %d, %llu bps (%llu bytes/sec)",
                     dl->mp.bandwidth ? dl->mp.bandwidth :
                                        physical_GetSpeed(dl->physical),
-                    dl->physical->link.stats.total.OctetsPerSecond * 8,
-                    dl->physical->link.stats.total.OctetsPerSecond);
+                    octets * 8, octets);
     prompt_Printf(arg->prompt, "\n");
   }
 
   t = &arg->bundle->ncp.mp.link.stats.total;
+  octets = MAX(t->in.OctetsPerSecond, t->out.OctetsPerSecond);
   secs = t->downtime ? 0 : throughput_uptime(t);
   if (secs > t->SamplePeriod)
     secs = t->SamplePeriod;
   if (secs)
     prompt_Printf(arg->prompt, "Currently averaging %llu bps (%llu bytes/sec)"
-                  " over the last %d secs\n", t->OctetsPerSecond * 8,
-                  t->OctetsPerSecond, secs);
+                  " over the last %d secs\n", octets * 8, octets, secs);
 
   return 0;
 }
