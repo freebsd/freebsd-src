@@ -851,13 +851,13 @@ agg_intr(void *sc)
 		event = bus_space_read_1(ess->st, ess->sh, PORT_HWVOL_MASTER);
 		switch (event) {
 		case HWVOL_MUTE:
-			mixer_hwmute(ess->dev);
+			mixer_hwvol_mute(ess->dev);
 			break;
 		case HWVOL_UP:
-			mixer_hwstep(ess->dev, 1, 1);
+			mixer_hwvol_step(ess->dev, 1, 1);
 			break;
 		case HWVOL_DOWN:
-			mixer_hwstep(ess->dev, -1, -1);
+			mixer_hwvol_step(ess->dev, -1, -1);
 			break;
 		case HWVOL_NOP:
 			break;
@@ -1035,7 +1035,7 @@ agg_attach(device_t dev)
 	if (pcm_register(dev, ess, AGG_MAXPLAYCH, 1))
 		goto bad;
 
-	mixer_hwinit(dev);
+	mixer_hwvol_init(dev);
 	for (data = 0; data < AGG_MAXPLAYCH; data++)
 		pcm_addchan(dev, PCMDIR_PLAY, &aggch_class, ess);
 #if 0	/* XXX - RECORDING */
