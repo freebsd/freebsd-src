@@ -115,7 +115,7 @@ state_func_t catatonia __P((void));
 state_func_t death __P((void));
 
 enum { AUTOBOOT, FASTBOOT } runcom_mode = AUTOBOOT;
-int reboot = FALSE;
+int Reboot = FALSE;
 
 void transition __P((state_t));
 state_t requested_transition = runcom;
@@ -562,7 +562,7 @@ single_user()
 	if (getsecuritylevel() > 0)
 		setsecuritylevel(0);
 
-	if (reboot) {
+	if (Reboot) {
 		/* Instead of going single user, let's halt the machine */
 		sync();
 		alarm(2);
@@ -1141,7 +1141,7 @@ transition_handler(sig)
 		requested_transition = clean_ttys;
 		break;
 	case SIGINT:
-		reboot = TRUE;
+		Reboot = TRUE;
 	case SIGTERM:
 		requested_transition = death;
 		break;
