@@ -729,6 +729,9 @@
     <para arch="i386,pc98,amd64">RealTek RTL8150-based USB Ethernet NICs
       (&man.rue.4; driver)</para>
 
+    <para arch="i386,pc98,amd64">Davicom DM9601-based USB Ethernet
+      NICs (&man.udav.4; driver)</para>
+
     <para arch="i386">DEC EtherWORKS II and III NICs (&man.le.4; driver)
     </para>
 
