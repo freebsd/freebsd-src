@@ -361,10 +361,6 @@ file system table
 .Xr umount 8
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.
-.Pp
-Switching a filesystem back and forth between asynchronous and normal
-operation or between read/write and read/only access using ``mount
--u'' may gradually bring about severe filesystem corruption.
 .Sh CAVEATS
 After a successful mount, the permissions on the original mount point 
 determine if 
