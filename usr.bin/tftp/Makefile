@@ -3,6 +3,7 @@
 
 PROG=	tftp
 SRCS=	main.c tftp.c tftpsubs.c
+NO_WERROR=yes
 DPADD=	${LIBEDIT} ${LIBTERMCAP}
 LDADD=	-ledit -ltermcap
 
