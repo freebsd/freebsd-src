@@ -36,4 +36,27 @@
 #ifndef _SYS_SELECT_H_
 #define	_SYS_SELECT_H_
 
+#include <sys/cdefs.h>
+#include <sys/_types.h>
+
+#include <sys/timespec.h>
+
+/*
+ * Other things required for this header which we do not presently implement:
+ *
+ * struct timeval (with suseconds_t)
+ * sigset_t
+ * fd_set (but we assume that it is defined)
+ * FD_* macros
+ */
+#include <signal.h>	/* XXX allowed but unnecessary pollution */
+#include <sys/types.h>	/* XXX dependency reversed */
+
+#ifndef _KERNEL
+__BEGIN_DECLS
+int pselect(int, fd_set *__restrict, fd_set *__restrict, fd_set *__restrict,
+	const struct timespec *__restrict, const struct __sigset *__restrict);
+__END_DECLS
+#endif /* !_KERNEL */
+
 #endif /* _SYS_SELECT_H_ */
