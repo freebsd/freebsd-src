@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.7.4.4 1997/07/17 15:29:35 nate Exp $
+ *	$Id: cy.c,v 1.7.4.5 1997/07/17 15:50:19 nate Exp $
  */
 
 #include "cy.h"
@@ -1447,6 +1447,10 @@ sioioctl(dev, cmd, data, flag, p)
 	case TIOCSDTR:
 		(void)commctl(com, TIOCM_DTR, DMBIS);
 		break;
+	/*
+	 * XXX should disallow changing MCR_RTS if CS_RTS_IFLOW is set.  The
+	 * changes get undone on the next call to comparam().
+	 */
 	case TIOCCDTR:
 		(void)commctl(com, TIOCM_DTR, DMBIC);
 		break;
@@ -1552,13 +1556,6 @@ repeat:
 			 * There is now room for another low-level buffer full
 			 * of input, so enable RTS if it is now disabled and
 			 * there is room in the high-level buffer.
-			 */
-			/*
-			 * XXX this used not to look at CS_RTS_IFLOW.  The
-			 * change is to allow full control of MCR_RTS via
-			 * ioctls after turning CS_RTS_IFLOW off.  Check
-			 * for races.  We shouldn't allow the ioctls while
-			 * CS_RTS_IFLOW is on.
 			 */
 			if ((com->state & CS_RTS_IFLOW)
 			    && !(com->mcr_image & MCR_RTS)
@@ -1943,10 +1940,26 @@ comparam(tp, t)
 	com->state &= ~CS_TTGO;
 	if (!(tp->t_state & TS_TTSTOP))
 		com->state |= CS_TTGO;
-	if (cflag & CRTS_IFLOW)
-		com->state |= CS_RTS_IFLOW;	/* XXX - secondary changes? */
-	else
+	if (cflag & CRTS_IFLOW) {
+		com->state |= CS_RTS_IFLOW;
+		/*
+		* If CS_RTS_IFLOW just changed from off to on, the change
+		* needs to be propagated to MCR_RTS.  This isn't urgent,
+		* so do it later by calling comstart() instead of repeating
+		* a lot of code from comstart() here.
+		*/
+	} else if (com->state & CS_RTS_IFLOW) {
 		com->state &= ~CS_RTS_IFLOW;
+		/*
+		 * CS_RTS_IFLOW just changed from on to off.  Force MCR_RTS
+		 * on here, since comstart() won't do it later.
+		 */
+#if 0
+		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
+#else
+		cd_outb(iobase, CD1400_MSVR1, com->mcr_image |= MCR_RTS);
+#endif
+	}
 
 	/*
 	 * Set up state to handle output flow control.
@@ -1985,6 +1998,7 @@ comparam(tp, t)
 
 	enable_intr();
 	splx(s);
+	comstart(tp);
 	return (0);
 }
 
@@ -2033,12 +2047,8 @@ comstart(tp)
 				com->mcr_image &= ~MCR_RTS);
 #endif
 	} else {
-		/*
-		 * XXX don't raise MCR_RTS if CTS_RTS_IFLOW is off.  Set it
-		 * appropriately in comparam() if RTS-flow is being changed.
-		 * Check for races.
-		 */
-		if (!(com->mcr_image & MCR_RTS) && com->iptr < com->ihighwater)
+		if (!(com->mcr_image & MCR_RTS) && com->iptr < com->ihighwater
+		    && com->state & CS_RTS_IFLOW)
 #if 0
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 #else
