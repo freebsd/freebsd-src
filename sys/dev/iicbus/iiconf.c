@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.c,v 1.5 1999/01/28 15:59:15 roger Exp $
+ *	$Id: iiconf.c,v 1.6 1999/02/06 10:56:09 roger Exp $
  *
  */
 #include <sys/param.h>
@@ -104,16 +104,12 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 	int s, error = 0;
 
 	/* first, ask the underlying layers if the request is ok */
-	do {
-		error = IICBUS_CALLBACK(device_get_parent(bus),
-						IIC_REQUEST_BUS, (caddr_t)&how);
-		if (error)
-			error = iicbus_poll(sc, how);
-	} while (error);
+	error = IICBUS_CALLBACK(device_get_parent(bus), IIC_REQUEST_BUS,
+				(caddr_t)&how);
 
 	while (!error) {
 		s = splhigh();	
-		if (sc->owner) {
+		if (sc->owner && sc->owner != dev) {
 			splx(s);
 
 			error = iicbus_poll(sc, how);
@@ -123,6 +119,11 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 			splx(s);
 			return (0);
 		}
+
+		/* free any allocated resource */
+		if (error)
+			IICBUS_CALLBACK(device_get_parent(bus), IIC_RELEASE_BUS,
+					(caddr_t)&how);
 	}
 
 	return (error);
