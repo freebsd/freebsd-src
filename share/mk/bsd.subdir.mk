@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.9 1996/04/05 22:22:44 wosch Exp $
+#	$Id: bsd.subdir.mk,v 1.10 1996/06/24 21:33:23 jkh Exp $
 
 .MAIN: all
 
@@ -26,7 +26,8 @@ ${SUBDIR}::
 	${MAKE} all
 
 
-.for __target in all clean cleandir cleandepend obj objlink depend maninstall lint tags 
+.for __target in all checkdpadd clean cleandepend cleandir depend lint \
+		 maninstall obj objlink tags
 .if !target(__target)
 ${__target}: _SUBDIRUSE
 .endif
