@@ -1895,11 +1895,12 @@ em_initialize_transmit_unit(struct adapter * adapter)
 {
 	u_int32_t       reg_tctl;
 	u_int32_t       reg_tipg = 0;
+	u_int64_t	bus_addr;
 
 	/* Setup the Base and Length of the Tx Descriptor Ring */
-	E1000_WRITE_REG(&adapter->hw, TDBAL, 
-			vtophys((vm_offset_t) adapter->tx_desc_base));
-	E1000_WRITE_REG(&adapter->hw, TDBAH, 0);
+	bus_addr = adapter->txdma.dma_paddr;
+	E1000_WRITE_REG(&adapter->hw, TDBAL, (u_int32_t)bus_addr);
+	E1000_WRITE_REG(&adapter->hw, TDBAH, (u_int32_t)(bus_addr >> 32));
 	E1000_WRITE_REG(&adapter->hw, TDLEN, 
 			adapter->num_tx_desc *
 			sizeof(struct em_tx_desc));
@@ -2170,7 +2171,7 @@ em_get_buf(int i, struct adapter *adapter,
         register struct mbuf    *mp = nmp;
         struct em_buffer *rx_buffer;
         struct ifnet   *ifp;
-        u_int32_t paddr;
+        bus_addr_t paddr;
         int error;
 
         ifp = &adapter->interface_data.ac_if;
@@ -2317,6 +2318,7 @@ em_initialize_receive_unit(struct adapter * adapter)
 	u_int32_t       reg_rctl;
 	u_int32_t       reg_rxcsum;
 	struct ifnet    *ifp;
+	u_int64_t	bus_addr;
 
 	ifp = &adapter->interface_data.ac_if;
 
@@ -2338,9 +2340,9 @@ em_initialize_receive_unit(struct adapter * adapter)
         }       
 
 	/* Setup the Base and Length of the Rx Descriptor Ring */
-	E1000_WRITE_REG(&adapter->hw, RDBAL, 
-			vtophys((vm_offset_t) adapter->rx_desc_base));
-	E1000_WRITE_REG(&adapter->hw, RDBAH, 0);
+	bus_addr = adapter->rxdma.dma_paddr;
+	E1000_WRITE_REG(&adapter->hw, RDBAL, (u_int32_t)bus_addr);
+	E1000_WRITE_REG(&adapter->hw, RDBAH, (u_int32_t)(bus_addr >> 32));
 	E1000_WRITE_REG(&adapter->hw, RDLEN, adapter->num_rx_desc *
 			sizeof(struct em_rx_desc));
 
