@@ -228,9 +228,9 @@ static const	char *compat_princ_component(krb5_context, krb5_principal, int);
 static void	compat_free_data_contents(krb5_context, krb5_data *);
 
 #define USER_PROMPT		"Username: "
-#define PASSWORD_PROMPT		"Password: "
-#define NEW_PASSWORD_PROMPT	"New Password: "
-#define NEW_PASSWORD_PROMPT_2	"New Password (again): "
+#define PASSWORD_PROMPT		"Password:"
+#define NEW_PASSWORD_PROMPT	"New Password:"
+#define NEW_PASSWORD_PROMPT_2	"New Password (again):"
 
 enum { PAM_OPT_AUTH_AS_SELF=PAM_OPT_STD_MAX, PAM_OPT_CCACHE, PAM_OPT_FORWARDABLE, PAM_OPT_NO_CCACHE, PAM_OPT_REUSE_CCACHE };
 
