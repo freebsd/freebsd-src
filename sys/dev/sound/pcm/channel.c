@@ -120,7 +120,7 @@ chn_polltrigger(pcm_channel *c)
 
 	if (c->flags & CHN_F_MAPPED)
 		trig = ((bs->int_count > bs->prev_int_count) || bs->first_poll);
-	else trig = (((c->direction == PCMDIR_PLAY)? bs->rl : bs->fl) < lim);
+	else trig = (((c->direction == PCMDIR_PLAY)? bs->fl : bs->rl) > lim);
 	return trig;
 }
 
@@ -487,7 +487,7 @@ chn_write(pcm_channel *c, struct uio *buf)
 
 			/* Wait for new free space to write new pcm samples. */
 			splx(s);
-			timeout = (buf->uio_resid >= b->dl)? hz / 20 : 1;
+			timeout = 1; /*(buf->uio_resid >= b->dl)? hz / 20 : 1; */
    			ret = tsleep(b, PRIBIO | PCATCH, "pcmwr", timeout);
    			s = spltty();
  			/* if (ret == EINTR) chn_abort(c); */
