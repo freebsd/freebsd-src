@@ -1232,8 +1232,15 @@ config_subdisk(int update)
 		PLEX[sd->plexno].name,
 		sizeof(sd->name));
 	else {						    /* no way */
-	    if (sd->state == sd_unallocated)		    /* haven't finished allocating the sd, */
-		free_sd(sdno);				    /* free it to return drive space */
+	    if (sd->state == sd_unallocated) {		    /* haven't finished allocating the sd, */
+		if (autosize != 0) {			    /* but we might have allocated drive space */
+		    vinum_conf.subdisks_used++;		    /* ugly hack needed for free_sd() */
+		    free_sd(sdno);			    /* free it to return drive space */
+		} else {				    /* just clear it */
+		    bzero(sd, sizeof(struct sd));
+		    sd->state = sd_unallocated;
+		}
+	    }
 	    throw_rude_remark(EINVAL, "Unnamed sd is not associated with a plex");
 	}
 	sprintf(sdsuffix, ".s%d", sdindex);		    /* form the suffix */
