@@ -31,8 +31,6 @@ maxusers	0
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
-options		NO_GEOM
-
 # Platforms supported
 options 	API_UP1000		# UP1000, UP1100 (Nautilus)
 options 	DEC_AXPPCI_33		# UDB, Multia, AXPpci33, NoName
