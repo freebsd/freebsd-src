@@ -367,7 +367,8 @@ interpret:
 	if (error)
 		goto exec_fail_dealloc;
 
-	if (VOP_GETVOBJECT(imgp->vp, &imgp->object) == 0)
+	imgp->object = imgp->vp->v_object;
+	if (imgp->object != NULL)
 		vm_object_reference(imgp->object);
 
 	/*
@@ -775,7 +776,7 @@ exec_map_first_page(imgp)
 	if (imgp->firstpage != NULL)
 		exec_unmap_first_page(imgp);
 
-	VOP_GETVOBJECT(imgp->vp, &object);
+	object = imgp->vp->v_object;
 	VM_OBJECT_LOCK(object);
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if ((ma[0]->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {

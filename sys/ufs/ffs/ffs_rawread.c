@@ -126,12 +126,11 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		/* Attempt to msync mmap() regions to clean dirty mmap */ 
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_OBJDIRTY) != 0) {
-			struct vm_object *obj;
 			VI_UNLOCK(vp);
-			if (VOP_GETVOBJECT(vp, &obj) == 0) {
-				VM_OBJECT_LOCK(obj);
-				vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-				VM_OBJECT_UNLOCK(obj);
+			if (vp->v_object != NULL) {
+				VM_OBJECT_LOCK(vp->v_object);
+				vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
+				VM_OBJECT_UNLOCK(vp->v_object);
 			}
 			VI_LOCK(vp);
 		}

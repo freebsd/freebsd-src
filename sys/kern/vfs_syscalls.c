@@ -3166,7 +3166,6 @@ fsync(td, uap)
 	struct vnode *vp;
 	struct mount *mp;
 	struct file *fp;
-	vm_object_t obj;
 	int vfslocked;
 	int error;
 
@@ -3177,10 +3176,10 @@ fsync(td, uap)
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (VOP_GETVOBJECT(vp, &obj) == 0) {
-		VM_OBJECT_LOCK(obj);
-		vm_object_page_clean(obj, 0, 0, 0);
-		VM_OBJECT_UNLOCK(obj);
+	if (vp->v_object != NULL) {
+		VM_OBJECT_LOCK(vp->v_object);
+		vm_object_page_clean(vp->v_object, 0, 0, 0);
+		VM_OBJECT_UNLOCK(vp->v_object);
 	}
 	error = VOP_FSYNC(vp, MNT_WAIT, td);
 	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP)
