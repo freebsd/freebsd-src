@@ -47,6 +47,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -322,7 +323,7 @@ ng_alloc_node(void)
 #define NG_FREE_ITEM_REAL(item) do { FREE((item), M_NETGRAPH_ITEM); } while (0)
 
 
-/* Set this to Debugger("X") to catch all errors as they occur */
+/* Set this to kdb_enter("X") to catch all errors as they occur */
 #ifndef TRAP_ERROR
 #define TRAP_ERROR()
 #endif
@@ -3366,12 +3367,12 @@ ng_setisr(node_p node)
 	do {								\
 		if (NGI_NODE(item) ) {					\
 			printf("item already has node");		\
-			Debugger("has node");				\
+			kdb_enter("has node");				\
 			NGI_CLR_NODE(item);				\
 		}							\
 		if (NGI_HOOK(item) ) {					\
 			printf("item already has hook");		\
-			Debugger("has hook");				\
+			kdb_enter("has hook");				\
 			NGI_CLR_HOOK(item);				\
 		}							\
 	} while (0)
