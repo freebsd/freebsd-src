@@ -21,7 +21,7 @@ SRCS =	version.c tcpdump.c \
 CLEANFILES+=	version.c
 DPADD+=	${LIBL} ${LIBPCAP}
 LDADD+=	-ll -lpcap
-.if exists(../../../crypto) && !defined(NOCRYPT) && !defined(NOSECURE) && \
+.if exists(../../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && \
 	!defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 DISTRIBUTION=crypto
 DPADD+= ${LIBCRYPTO}
