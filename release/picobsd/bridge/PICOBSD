@@ -18,7 +18,6 @@ maxusers	20
 options 	INET			#InterNETworking
 #options	INET6
 options 	FFS			#Berkeley Fast Filesystem
-options 	FFS_ROOT		#FFS usable as root device [keep this!]
 #options	BOOTP			#Use BOOTP to obtain IP address/hostname
 options 	MD_ROOT			#MD is a potential root device
 

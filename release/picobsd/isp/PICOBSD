@@ -17,7 +17,6 @@ maxusers	20
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
-options		FFS_ROOT		#FFS usable as root device [keep this!]
 options		NFS			#Network Filesystem
 options		NFS_NOSERVER		#Network Filesystem
 #options		BOOTP
