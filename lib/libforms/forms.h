@@ -80,7 +80,6 @@ struct Form {
 	char *startfield;
 	struct Field *current_field;
 	struct Field *prev_field;
-	struct Field *fieldlist;
 	int height;
 	int width;
 	int y;
@@ -88,6 +87,7 @@ struct Form {
 	int attr;
 	char *colortable;
 	WINDOW *window;
+	hash_table *bindings;
 };
 
 struct TextField {
@@ -117,6 +117,8 @@ struct help_link {
 
 struct Field {
 	char *defname;
+	char *enter;
+	char *leave;
 	int type;
 	int y;
 	int x;
@@ -136,7 +138,6 @@ struct Field {
 		struct InputField *input;
 		struct MenuField *menu;
 	}field;
-	struct Field *next;
 	/*
 	struct help_link help;
 	*/
@@ -146,18 +147,11 @@ struct Field {
 extern unsigned int keymap[];
 
 /* Externally visible function declarations */
-struct Form *form_start(const char *);
-struct Tuple *form_get_tuple(const char *, TupleType);
-struct Tuple *form_next_tuple(const char *, TupleType, struct Tuple *);
-int form_bind_tuple(char *, TupleType, void *);
+struct Form *form_start(char *);
+struct Tuple *form_get_tuple(hash_table *, char *, TupleType);
+int form_bind_tuple(hash_table *, char *, TupleType, void *);
 void print_status(char *);
 void exit_form(struct Form *form);
 void cancel_form(struct Form *form);
-
-
-#ifdef not
-int update_form(struct form *);
-int initfrm(struct form *);
-void endfrm(struct form *);
 void print_status(char *);
-#endif
+int add_menu_option(struct MenuField *, char *);
