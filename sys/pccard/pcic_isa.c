@@ -26,9 +26,10 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <pccard/i82365.h>
 #include <pccard/cardinfo.h>
@@ -77,6 +78,16 @@ static struct {
 static driver_intr_t	pcicintr;
 static int		pcicintr1(void *);
 static timeout_t 	pcictimeout;
+
+		
+static int pcic_override_irq = 0;
+TUNABLE_INT("machdep.pccard.pcic_irq", &pcic_override_irq);
+TUNABLE_INT("hw.pcic.irq", &pcic_override_irq);
+SYSCTL_DECL(_hw_pcic);
+SYSCTL_INT(_hw_pcic, OID_AUTO, override_irq, CTLFLAG_RD,
+    &pcic_override_irq, 0,
+    "Override the IRQ configured by the config system for all pcic devices");
+
 
 /*
  *	Look for an Intel PCIC (or compatible).
@@ -298,11 +309,10 @@ pcic_isa_attach(device_t dev)
 	rid = 0;
 	r = NULL;
 	r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
-	if (r == NULL) {
-		/* See if the user has requested a specific IRQ */
-		if (getenv_int("machdep.pccard.pcic_irq", &irq))
-			r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-			    irq, irq, 1, RF_ACTIVE);
+	if (r == NULL && pcic_override_irq != 0) {
+		irq = pcic_override_irq;
+		r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq, irq, 1,
+		    RF_ACTIVE);
 	}
 	if (r && ((1 << (rman_get_start(r))) & PCIC_INT_MASK_ALLOWED) == 0) {
 		device_printf(dev,
