@@ -744,11 +744,16 @@ m_copym(m, off0, len, wait)
 		n->m_len = min(len, m->m_len - off);
 		if (m->m_flags & M_EXT) {
 			n->m_data = m->m_data + off;
-			if(!m->m_ext.ext_ref)
-				mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
-			else
-				(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
-							m->m_ext.ext_size);
+			if (m->m_ext.ext_ref == NULL) {
+				atomic_add_char(
+				    &mclrefcnt[mtocl(m->m_ext.ext_buf)], 1);
+			} else {
+				int s = splimp();
+
+				(*m->m_ext.ext_ref)(m->m_ext.ext_buf,
+				    m->m_ext.ext_size);
+				splx(s);
+			}
 			n->m_ext = m->m_ext;
 			n->m_flags |= M_EXT;
 		} else
@@ -794,11 +799,15 @@ m_copypacket(m, how)
 	n->m_len = m->m_len;
 	if (m->m_flags & M_EXT) {
 		n->m_data = m->m_data;
-		if(!m->m_ext.ext_ref)
-			mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
-		else
-			(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
-						m->m_ext.ext_size);
+		if (m->m_ext.ext_ref == NULL)
+			atomic_add_char(&mclrefcnt[mtocl(m->m_ext.ext_buf)], 1);
+		else {
+			int s = splimp();
+
+			(*m->m_ext.ext_ref)(m->m_ext.ext_buf,
+			    m->m_ext.ext_size);
+			splx(s);
+		}
 		n->m_ext = m->m_ext;
 		n->m_flags |= M_EXT;
 	} else {
@@ -818,11 +827,16 @@ m_copypacket(m, how)
 		n->m_len = m->m_len;
 		if (m->m_flags & M_EXT) {
 			n->m_data = m->m_data;
-			if(!m->m_ext.ext_ref)
-				mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
-			else
-				(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
-							m->m_ext.ext_size);
+			if (m->m_ext.ext_ref == NULL) {
+				atomic_add_char(
+				    &mclrefcnt[mtocl(m->m_ext.ext_buf)], 1);
+			} else {
+				int s = splimp();
+
+				(*m->m_ext.ext_ref)(m->m_ext.ext_buf,
+				    m->m_ext.ext_size);
+				splx(s);
+			}
 			n->m_ext = m->m_ext;
 			n->m_flags |= M_EXT;
 		} else {
@@ -1173,11 +1187,15 @@ extpacket:
 	if (m->m_flags & M_EXT) {
 		n->m_flags |= M_EXT;
 		n->m_ext = m->m_ext;
-		if(!m->m_ext.ext_ref)
-			mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
-		else
-			(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
-						m->m_ext.ext_size);
+		if (m->m_ext.ext_ref == NULL)
+			atomic_add_char(&mclrefcnt[mtocl(m->m_ext.ext_buf)], 1);
+		else {
+			int s = splimp();
+
+			(*m->m_ext.ext_ref)(m->m_ext.ext_buf,
+			    m->m_ext.ext_size);
+			splx(s);
+		}
 		n->m_data = m->m_data + len;
 	} else {
 		bcopy(mtod(m, caddr_t) + len, mtod(n, caddr_t), remain);
