@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.44 1996/04/25 17:31:21 jkh Exp $
+ * $Id: label.c,v 1.45 1996/04/28 03:27:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,12 +66,19 @@
 /* The smallest /var partition we're willing to create by default */
 #define VAR_MIN_SIZE			30
 
+/* The bottom-most row we're allowed to scribble on */
+#define CHUNK_ROW_MAX		16
+
+
 /* All the chunks currently displayed on the screen */
 static struct {
     struct chunk *c;
     PartType type;
 } label_chunk_info[MAX_CHUNKS + 1];
 static int here;
+
+static int ChunkPartStartRow;
+static WINDOW *ChunkWin;
 
 static int diskLabel(char *str);
 
@@ -171,6 +178,7 @@ record_label_chunks(Device **devs)
     struct chunk *c1, *c2;
     Disk *d;
 
+    ChunkPartStartRow = CHUNK_SLICE_START_ROW + 3;
     j = p = 0;
     /* First buzz through and pick up the FreeBSD slices */
     for (i = 0; devs[i]; i++) {
@@ -186,6 +194,7 @@ record_label_chunks(Device **devs)
 		label_chunk_info[j].type = PART_SLICE;
 		label_chunk_info[j].c = c1;
 		++j;
+		++ChunkPartStartRow;
 	    }
 	}
     }
@@ -219,6 +228,10 @@ record_label_chunks(Device **devs)
     label_chunk_info[j].c = NULL;
     if (here >= j)
 	here = j  ? j - 1 : 0;
+    if (ChunkWin)
+	wclear(ChunkWin);
+    else
+	ChunkWin = newwin(CHUNK_ROW_MAX - ChunkPartStartRow, 76, ChunkPartStartRow, 0);
 }
 
 /* A new partition entry */
@@ -309,6 +322,7 @@ get_partition_type(void)
 {
     char selection[20];
     int i;
+    WINDOW *w = savescr();
 
     static unsigned char *fs_types[] = {
 	"FS",
@@ -320,6 +334,7 @@ get_partition_type(void)
 		    "If you want to use this partition for swap space, select Swap.\n"
 		    "If you want to put a filesystem on it, choose FS.",
 		    -1, -1, 2, 2, fs_types, selection, NULL, NULL);
+    restorescr(w);
     if (!i) {
 	if (!strcmp(selection, "FS"))
 	    return PART_FILESYSTEM;
@@ -350,9 +365,6 @@ getNewfsCmd(PartInfo *p)
 #define PART_NEWFS_COL	(PART_SIZE_COL + 7)
 #define PART_OFF	38
 
-/* How many mounted partitions to display in column before going to next */
-#define CHUNK_COLUMN_MAX	5
-
 /* stick this all up on the screen */
 static void
 print_label_chunks(void)
@@ -362,36 +374,39 @@ print_label_chunks(void)
 
     attrset(A_REVERSE);
     mvaddstr(0, 25, "FreeBSD Disklabel Editor");
-    clrtobot();
     attrset(A_NORMAL);
 
     for (i = 0; i < 2; i++) {
-	mvaddstr(CHUNK_PART_START_ROW - 2, PART_PART_COL + (i * PART_OFF), "Part");
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_PART_COL + (i * PART_OFF), "----");
+	mvaddstr(ChunkPartStartRow - 2, PART_PART_COL + (i * PART_OFF), "Part");
+	mvaddstr(ChunkPartStartRow - 1, PART_PART_COL + (i * PART_OFF), "----");
 
-	mvaddstr(CHUNK_PART_START_ROW - 2, PART_MOUNT_COL + (i * PART_OFF), "Mount");
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_MOUNT_COL + (i * PART_OFF), "-----");
+	mvaddstr(ChunkPartStartRow - 2, PART_MOUNT_COL + (i * PART_OFF), "Mount");
+	mvaddstr(ChunkPartStartRow - 1, PART_MOUNT_COL + (i * PART_OFF), "-----");
 
-	mvaddstr(CHUNK_PART_START_ROW - 2, PART_SIZE_COL + (i * PART_OFF) + 2, "Size");
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_SIZE_COL + (i * PART_OFF) + 2, "----");
+	mvaddstr(ChunkPartStartRow - 2, PART_SIZE_COL + (i * PART_OFF) + 2, "Size");
+	mvaddstr(ChunkPartStartRow - 1, PART_SIZE_COL + (i * PART_OFF) + 2, "----");
 
-	mvaddstr(CHUNK_PART_START_ROW - 2, PART_NEWFS_COL + (i * PART_OFF), "Newfs");
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_NEWFS_COL + (i * PART_OFF), "-----");
+	mvaddstr(ChunkPartStartRow - 2, PART_NEWFS_COL + (i * PART_OFF), "Newfs");
+	mvaddstr(ChunkPartStartRow - 1, PART_NEWFS_COL + (i * PART_OFF), "-----");
     }
     srow = CHUNK_SLICE_START_ROW;
-    prow = CHUNK_PART_START_ROW;
+    prow = 0;
     pcol = 0;
 
     for (i = 0; label_chunk_info[i].c; i++) {
-	if (i == here)
-	    attrset(A_REVERSE);
 	/* Is it a slice entry displayed at the top? */
 	if (label_chunk_info[i].type == PART_SLICE) {
 	    sz = space_free(label_chunk_info[i].c);
+	    if (i == here)
+		attrset(A_REVERSE);
 	    mvprintw(srow++, 0, "Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
 		     label_chunk_info[i].c->disk->name, label_chunk_info[i].c->name, sz, (sz / ONE_MEG));
+	    attrset(A_NORMAL);
+	    clrtoeol();
+	    move(0, 0);
+	    refresh();
 	}
-	/* Otherwise it's a DOS, swap or filesystem entry, at the bottom */
+	/* Otherwise it's a DOS, swap or filesystem entry in the Chunk window */
 	else {
 	    char onestr[PART_OFF], num[10], *mountpoint, *newfs;
 
@@ -401,10 +416,10 @@ print_label_chunks(void)
 	     */
 	    memset(onestr, ' ', PART_OFF - 1);
 	    onestr[PART_OFF - 1] = '\0';
-	    /* Go for two columns */
-	    if (prow == (CHUNK_PART_START_ROW + CHUNK_COLUMN_MAX)) {
+	    /* Go for two columns if we've written one full columns worth */
+	    if (prow == (CHUNK_ROW_MAX - ChunkPartStartRow)) {
 		pcol = PART_OFF;
-		prow = CHUNK_PART_START_ROW;
+		prow = 0;
 	    }
 	    memcpy(onestr + PART_PART_COL, label_chunk_info[i].c->name, strlen(label_chunk_info[i].c->name));
 	    /* If it's a filesystem, display the mountpoint */
@@ -429,11 +444,14 @@ print_label_chunks(void)
 	    memcpy(onestr + PART_SIZE_COL, num, strlen(num));
 	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
 	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
-	    mvaddstr(prow, pcol, onestr);
+	    if (i == here)
+		wattrset(ChunkWin, A_REVERSE);
+	    mvwaddstr(ChunkWin, prow, pcol, onestr);
+	    wattrset(ChunkWin, A_NORMAL);
+	    wrefresh(ChunkWin);
+	    move(0, 0);
 	    ++prow;
 	}
-	if (i == here)
-	    attrset(A_NORMAL);
     }
 }
 
@@ -441,7 +459,9 @@ static void
 print_command_summary()
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
-    mvprintw(18, 0, "C = Create      D = Delete         M = Mount   W = Write");
+    mvprintw(18, 0, "C = Create      D = Delete         M = Mount");
+    if (!RunningAsInit)
+	mvprintw(18, 48, "W = Write");
     mvprintw(19, 0, "N = Newfs Opts  T = Newfs Toggle   U = Undo    Q = Finish");
     mvprintw(20, 0, "A = Auto Defaults for all!");
     mvprintw(22, 0, "The default target will be displayed in ");
@@ -457,7 +477,7 @@ print_command_summary()
 static int
 diskLabel(char *str)
 {
-    int sz, key = 0;
+    int sz, key = 0, first_time = 1;
     Boolean labeling;
     char *msg = NULL;
     PartInfo *p, *oldp;
@@ -478,19 +498,20 @@ diskLabel(char *str)
     w = savescr();
     dialog_clear(); clear();
     while (labeling) {
-	clear();
 	print_label_chunks();
-	print_command_summary();
+	if (first_time) {
+	    print_command_summary();
+	    first_time = 0;
+	}
 	if (msg) {
 	    attrset(A_REVERSE); mvprintw(23, 0, msg); attrset(A_NORMAL);
 	    clrtoeol();
 	    beep();
 	    msg = NULL;
 	}
-	refresh();
 	key = toupper(getch());
 	switch (key) {
-	    int i, cnt;
+	    int i;
 
 	case '\014':	/* ^L */
 	    continue;
@@ -530,137 +551,109 @@ diskLabel(char *str)
 
 	case 'A':
 	    if (label_chunk_info[here].type != PART_SLICE) {
-		msg = "You can only do this in a master partition (see top of screen)";
+		msg = "You can only do this in a disk slice (at top of screen)";
 		break;
 	    }
-	    
-	    cnt = i = 0;
-	    while (label_chunk_info[i].c)
-		if (label_chunk_info[i++].type != PART_SLICE)
-		    cnt++;
-	    if (cnt == (CHUNK_COLUMN_MAX * 2) + 4) {
-		msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\n"
-			   "this limitation by partitioning your disks individually rather than all\n"
-			   "at once.  This will be fixed just as soon as we get a scrolling partition\n"
-			   "box written.  Sorry for the inconvenience!");
-		break;
-	    }
-	    
 	    sz = space_free(label_chunk_info[here].c);
 	    if (sz <= FS_MIN_SIZE) {
-		msg = "Not enough space to create an additional FreeBSD partition";
+		msg = "Not enough free space to create a new partition in the slice";
 		break;
 	    }
-	{
-	    struct chunk *tmp;
-	    int mib[2];
-	    int physmem;
-	    size_t size, swsize;
-	    char *cp;
-
-	    cp = variable_get(VAR_ROOT_SIZE);
-	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-				    label_chunk_info[here].c,
-				    (cp ? atoi(cp) : 32) * ONE_MEG, part, FS_BSDFFS, 
-				    CHUNK_IS_ROOT);
-	    
-	    if (!tmp) {
-		msgConfirm("Unable to create the root partition. Too big?");
-		break;
-	    }
-	    tmp->private_data = new_part("/", TRUE, tmp->size);
-	    tmp->private_free = safe_free;
-	    record_label_chunks(devs);
-	    
-	    cp = variable_get(VAR_SWAP_SIZE);
-	    if (cp)
-		swsize = atoi(cp) * ONE_MEG;
 	    else {
-		mib[0] = CTL_HW;
-		mib[1] = HW_PHYSMEM;
-		size = sizeof physmem;
-		sysctl(mib, 2, &physmem, &size, (void *)0, (size_t)0);
-		swsize = 16 * ONE_MEG + (physmem * 2 / 512);
-	    }
-	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-				    label_chunk_info[here].c,
-				    swsize,
-				    part, FS_SWAP, 0);
-	    if (!tmp) {
-		msgConfirm("Unable to create the swap partition. Too big?");
-		break;
-	    }
-	    
-	    tmp->private_data = 0;
-	    tmp->private_free = safe_free;
-	    record_label_chunks(devs);
-	    
-	    cp = variable_get(VAR_VAR_SIZE);
-	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-				    label_chunk_info[here].c,
-				    (cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
-	    if (!tmp) {
-		msgConfirm("Less than %dMB free for /var - you will need to\n"
-			   "partition your disk manually with a custom install!", (cp ? atoi(cp) : VAR_MIN_SIZE));
-		break;
-	    }
-	    tmp->private_data = new_part("/var", TRUE, tmp->size);
-	    tmp->private_free = safe_free;
-	    record_label_chunks(devs);
-	    
-	    cp = variable_get(VAR_USR_SIZE);
-	    if (cp)
-		sz = atoi(cp) * ONE_MEG;
-	    else
-		sz = space_free(label_chunk_info[here].c);
-	    if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
-		msgConfirm("Less than %dMB free for /usr - you will need to\n"
-			   "partition your disk manually with a custom install!", USR_MIN_SIZE);
-		break;
-	    }
+		struct chunk *tmp;
+		int mib[2];
+		int physmem;
+		size_t size, swsize;
+		char *cp;
 
-	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-				    label_chunk_info[here].c,
-				    sz, part, FS_BSDFFS, 0);
-	    if (!tmp) {
-		msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
-			   "You will need to partition your disk manually with a custom install!");
-		break;
+		cp = variable_get(VAR_ROOT_SIZE);
+		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+					label_chunk_info[here].c,
+					(cp ? atoi(cp) : 32) * ONE_MEG, part, FS_BSDFFS, 
+					CHUNK_IS_ROOT);
+	    
+		if (!tmp) {
+		    msgConfirm("Unable to create the root partition. Too big?");
+		    break;
+		}
+		tmp->private_data = new_part("/", TRUE, tmp->size);
+		tmp->private_free = safe_free;
+		record_label_chunks(devs);
+	    
+		cp = variable_get(VAR_SWAP_SIZE);
+		if (cp)
+		    swsize = atoi(cp) * ONE_MEG;
+		else {
+		    mib[0] = CTL_HW;
+		    mib[1] = HW_PHYSMEM;
+		    size = sizeof physmem;
+		    sysctl(mib, 2, &physmem, &size, (void *)0, (size_t)0);
+		    swsize = 16 * ONE_MEG + (physmem * 2 / 512);
+		}
+		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+					label_chunk_info[here].c,
+					swsize,
+					part, FS_SWAP, 0);
+		if (!tmp) {
+		    msgConfirm("Unable to create the swap partition. Too big?");
+		    break;
+		}
+	    
+		tmp->private_data = 0;
+		tmp->private_free = safe_free;
+		record_label_chunks(devs);
+	    
+		cp = variable_get(VAR_VAR_SIZE);
+		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+					label_chunk_info[here].c,
+					(cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
+		if (!tmp) {
+		    msgConfirm("Less than %dMB free for /var - you will need to\n"
+			       "partition your disk manually with a custom install!", (cp ? atoi(cp) : VAR_MIN_SIZE));
+		    break;
+		}
+		tmp->private_data = new_part("/var", TRUE, tmp->size);
+		tmp->private_free = safe_free;
+		record_label_chunks(devs);
+		
+		cp = variable_get(VAR_USR_SIZE);
+		if (cp)
+		    sz = atoi(cp) * ONE_MEG;
+		else
+		    sz = space_free(label_chunk_info[here].c);
+		if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
+		    msgConfirm("Less than %dMB free for /usr - you will need to\n"
+			       "partition your disk manually with a custom install!", USR_MIN_SIZE);
+		    break;
+		}
+
+		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+					label_chunk_info[here].c,
+					sz, part, FS_BSDFFS, 0);
+		if (!tmp) {
+		    msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
+			       "You will need to partition your disk manually with a custom install!");
+		    break;
+		}
+		/* At this point, we're reasonably "labelled" */
+		variable_set2(DISK_LABELLED, "yes");
+		tmp->private_data = new_part("/usr", TRUE, tmp->size);
+		tmp->private_free = safe_free;
+		record_label_chunks(devs);
 	    }
-	    /* At this point, we're reasonably "labelled" */
-	    variable_set2(DISK_LABELLED, "yes");
-	    tmp->private_data = new_part("/usr", TRUE, tmp->size);
-	    tmp->private_free = safe_free;
-	    record_label_chunks(devs);
-	}
-	break;
+	    break;
 	    
 	case 'C':
 	    if (label_chunk_info[here].type != PART_SLICE) {
 		msg = "You can only do this in a master partition (see top of screen)";
 		break;
 	    }
-	    else {
-		int i, cnt;
-
-		cnt = i = 0;
-		while (label_chunk_info[i].c)
-		    if (label_chunk_info[i++].type != PART_SLICE)
-			cnt++;
-		if (cnt == (CHUNK_COLUMN_MAX * 2)) {
-		    msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\n"
-			       "this limitation by partitioning your disks individually rather than all\n"
-			       "at once.  This will be fixed just as soon as we get a scrolling partition\n"
-			       "box written.  Sorry for the inconvenience!");
-		    break;
-		}
-	    }
 	    sz = space_free(label_chunk_info[here].c);
 	    if (sz <= FS_MIN_SIZE) {
 		msg = "Not enough space to create an additional FreeBSD partition";
 		break;
 	    }
-	    {
+	    else {
 		char *val, *cp;
 		int size;
 		struct chunk *tmp;
@@ -839,7 +832,6 @@ diskLabel(char *str)
 			  "use during new installations but rather for modifying existing ones.\n\n"
 			  "Are you absolutely SURE you want to do this now?")) {
 		variable_set2(DISK_LABELLED, "yes");
-		clear();
 		diskLabelCommit(NULL);
 	    }
 	    break;
@@ -850,6 +842,7 @@ diskLabel(char *str)
 			  "expected to understand!")) {
 		int i;
 		Device **devs;
+		WINDOW *save = savescr();
 
 		dialog_clear();
 		end_dialog();
@@ -866,6 +859,7 @@ diskLabel(char *str)
 		variable_set2(DISK_LABELLED, "yes");
 		DialogActive = TRUE;
 		dialog_clear();
+		restorescr(save);
 		record_label_chunks(devs);
 	    }
 	    else
