@@ -209,11 +209,10 @@ mfs_mount(mp, path, data, ndp, p)
 
 		mfs_rootbase = base;
 		mfs_rootsize = fs->fs_fsize * fs->fs_size;
-		rootdev = makedev(255, mfs_minor++);
 		printf("rootfs is %ld Kbyte compiled in MFS\n",
 		       mfs_rootsize/1024);
 		if ((err = bdevvp(rootdev, &rootvp))) {
-			printf("mfs_mountroot: can't find rootvp");
+			printf("mfs_mount: can't find rootvp - ");
 			return (err);
 		}
 
@@ -453,8 +452,6 @@ mfs_statfs(mp, sbp, p)
 	return (error);
 }
 
-static struct cdevsw mfs_cdevsw = {};
-
 /*
  * Memory based filesystem initialization.
  */
@@ -462,8 +459,14 @@ static int
 mfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
-	dev_t dev = NODEV;
-	cdevsw_add(&dev, &mfs_cdevsw, NULL);
-	cdevsw_add_generic(255, major(dev), &mfs_cdevsw);
+#ifdef MFS_ROOT
+	if (bootverbose)
+		printf("Considering MFS root f/s.\n");
+	if (mfs_getimage()) {
+		mountrootfsname = "mfs";
+		rootdev = makedev(255, mfs_minor++);
+	} else if (bootverbose)
+		printf("No MFS image available as root f/s.\n");
+#endif
 	return (0);
 }
