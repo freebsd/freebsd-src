@@ -1,5 +1,4 @@
 /*	$NetBSD: clnt_bcast.c,v 1.3 2000/07/06 03:05:20 christos Exp $	*/
-/*	$FreeBSD$ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
@@ -38,6 +37,8 @@
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)clnt_bcast.c 1.15 89/04/21 Copyr 1988 Sun Micro";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 
 /*

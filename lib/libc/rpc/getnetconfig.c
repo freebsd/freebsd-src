@@ -1,5 +1,4 @@
 /*	$NetBSD: getnetconfig.c,v 1.3 2000/07/06 03:10:34 christos Exp $	*/
-/*	$FreeBSD$ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
@@ -35,6 +34,8 @@
 static        char sccsid[] = "@(#)getnetconfig.c	1.12 91/12/19 SMI";
 #endif
 */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Copyright (c) 1989 by Sun Microsystems, Inc.

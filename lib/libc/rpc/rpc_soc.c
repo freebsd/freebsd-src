@@ -1,5 +1,4 @@
 /*	$NetBSD: rpc_soc.c,v 1.6 2000/07/06 03:10:35 christos Exp $	*/
-/*	$FreeBSD$ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
@@ -39,11 +38,11 @@
  * California.
  */
 
-#if 0
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)rpc_soc.c 1.41 89/05/02 Copyr 1988 Sun Micro";
 #endif
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifdef PORTMAP
 /*

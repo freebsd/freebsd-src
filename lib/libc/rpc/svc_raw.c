@@ -34,12 +34,11 @@
 
 /* #ident	"@(#)svc_raw.c	1.16	94/04/24 SMI" */
 
-#if 0
 #if defined(SCCSIDS) && !defined(lint)
 static char sccsid[] = "@(#)svc_raw.c 1.25 89/01/31 Copyr 1984 Sun Micro";
-static char *rcsid = "$FreeBSD$";
 #endif
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * svc_raw.c,   This a toy for simple testing and timing.

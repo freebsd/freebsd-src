@@ -1,5 +1,4 @@
 /*	$NetBSD: rpcb_st_xdr.c,v 1.3 2000/07/14 08:40:42 fvdl Exp $	*/
-/*	$FreeBSD$ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
@@ -38,6 +37,9 @@
  * This file was generated from rpcb_prot.x, but includes only those
  * routines used with the rpcbind stats facility.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <rpc/rpc.h>
