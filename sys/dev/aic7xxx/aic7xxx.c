@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.25 1999/05/06 20:16:17 ken Exp $
+ *      $Id: aic7xxx.c,v 1.26 1999/05/08 21:58:56 dfr Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -1107,18 +1107,27 @@ ahc_update_target_msg_request(struct ahc_softc *ahc,
 
 	if (ahc->targ_msg_req != targ_msg_req_orig) {
 		/* Update the message request bit for this target */
-		if (!paused) {
-			pause_sequencer(ahc);
-			DELAY(1000);
-		}
+		if ((ahc->features & AHC_HS_MAILBOX) != 0) {
+			if (paused) {
+				ahc_outb(ahc, TARGET_MSG_REQUEST,
+					 ahc->targ_msg_req & 0xFF);
+				ahc_outb(ahc, TARGET_MSG_REQUEST + 1,
+					 (ahc->targ_msg_req >> 8) & 0xFF);
+			} else {
+				ahc_outb(ahc, HS_MAILBOX,
+					 0x01 << HOST_MAILBOX_SHIFT);
+			}
+		} else {
+			if (!paused)
+				pause_sequencer(ahc);
 
-		ahc_outb(ahc, TARGET_MSG_REQUEST, ahc->targ_msg_req & 0xFF);
-		ahc_outb(ahc, TARGET_MSG_REQUEST + 1,
-			 (ahc->targ_msg_req >> 8) & 0xFF);
+			ahc_outb(ahc, TARGET_MSG_REQUEST,
+				 ahc->targ_msg_req & 0xFF);
+			ahc_outb(ahc, TARGET_MSG_REQUEST + 1,
+				 (ahc->targ_msg_req >> 8) & 0xFF);
 
-		if (!paused) {
-			unpause_sequencer(ahc, /*unpause always*/FALSE);
-			DELAY(1000);
+			if (!paused)
+				unpause_sequencer(ahc, /*unpause always*/FALSE);
 		}
 	}
 }
@@ -2086,6 +2095,12 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		ahc_outb(ahc, SCSISIGO, ahc_inb(ahc, LASTPHASE) | ATNO);
 		break;
 	}
+	case UPDATE_TMSG_REQ:
+		ahc_outb(ahc, TARGET_MSG_REQUEST, ahc->targ_msg_req & 0xFF);
+		ahc_outb(ahc, TARGET_MSG_REQUEST + 1,
+			 (ahc->targ_msg_req >> 8) & 0xFF);
+		ahc_outb(ahc, HS_MAILBOX, 0);
+		break;
 	case SEND_REJECT: 
 	{
 		u_int rejbyte = ahc_inb(ahc, ACCUM);
