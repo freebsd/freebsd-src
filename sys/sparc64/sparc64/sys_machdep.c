@@ -31,7 +31,7 @@
 #include <sys/sysproto.h>
 
 #ifndef	_SYS_SYSPROTO_H_
-struct	sysarch_args {
+struct sysarch_args {
 	int	op;
 	char	*parms;
 };
