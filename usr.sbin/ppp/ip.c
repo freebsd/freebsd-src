@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.9.2.5 1997/05/10 01:24:35 brian Exp $
+ * $Id: ip.c,v 1.9.2.6 1997/05/19 02:02:18 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -32,9 +32,9 @@
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <alias.h>
 #include "vars.h"
 #include "filter.h"
-#include "alias.h"
 
 extern void SendPppFrame();
 extern void LcpClose();
@@ -334,22 +334,68 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
   }
 
   if (mode & MODE_ALIAS) {
-    PacketAliasIn((struct ip *)tunbuff);
-    nb = ntohs(((struct ip *)tunbuff)->ip_len);
-  }
+    int iresult;
+    char *fptr;
 
-  if ( PacketCheck(tunbuff, nb, FL_IN ) < 0) {
-    pfree(bp);
-    return;
-  }
+    iresult = PacketAliasIn(tunbuff, sizeof tunbuff);
+    nb = ntohs(((struct ip *) tunbuff)->ip_len);
 
-  ipInOctets += nb;
-  /*
-   *  Pass it to tunnel device
-   */
-  nw = write(tun_out, tunbuff, nb);
-  if (nw != nb)
-    fprintf(stderr, "wrote %d, got %d\r\n", nb, nw);
+    if (nb > MAX_MRU) {
+      fprintf(stderr, "Problem with IP header length\n");
+      pfree(bp);
+      return;
+    }
+
+    if (iresult == PKT_ALIAS_OK
+     || iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
+      if ( PacketCheck(tunbuff, nb, FL_IN ) < 0) {
+          pfree(bp);
+          return;
+      }
+
+      ipInOctets += nb;
+
+      nb = ntohs(((struct ip *) tunbuff)->ip_len);
+      nw = write(tun_out, tunbuff, nb);
+      if (nw != nb)
+        fprintf(stderr, "wrote %d, got %d\r\n", nb, nw);
+
+      if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
+        while ((fptr = GetNextFragmentPtr(tunbuff)) != NULL) {
+          FragmentAliasIn(tunbuff, fptr);
+          nb = ntohs(((struct ip *) fptr)->ip_len);
+          nw = write(tun_out, fptr, nb);
+          if (nw != nb)
+            fprintf(stderr, "wrote %d, got %d\r\n", nb, nw);
+          free(fptr);
+        }
+      }
+    }
+    else if (iresult == PKT_ALIAS_UNRESOLVED_FRAGMENT) {
+      nb = ntohs(((struct ip *) tunbuff)->ip_len);
+      fptr = malloc(nb);
+      if (fptr == NULL) {
+        fprintf(stderr, "Cannot allocate memory for fragment\n");
+      }
+      else {
+        memcpy(fptr, tunbuff, nb);
+        SaveFragmentPtr(fptr);
+      }
+    }
+  }
+  else
+  { /* no aliasing */
+    if ( PacketCheck(tunbuff, nb, FL_IN ) < 0)
+    {
+      pfree(bp);
+      return;
+    }
+
+    ipInOctets += nb;
+    nw = write(tun_out, tunbuff, nb);
+    if (nw != nb)
+      fprintf(stderr, "wrote %d, got %d\r\n", nb, nw);
+  }
   pfree(bp);
 
   RestartIdleTimer();
