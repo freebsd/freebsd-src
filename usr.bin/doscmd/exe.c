@@ -50,7 +50,7 @@ static int		env_s[10];
 static regcontext_t	frames[10];
 
 static int
-make_environment (char *cmdname, char **env)
+make_environment(char *cmd_name, char **env)
 {
     int i;
     int total;
@@ -62,7 +62,7 @@ make_environment (char *cmdname, char **env)
     total = 0;
     for (i = 0; env[i]; i++) {
 	debug (D_EXEC,"env: %s\n", env[i]);
-	len = strlen (env[i]);
+	len = strlen(env[i]);
 	if (total + len >= 32 * 1024)
 	    break;
 	total += len + 1;
@@ -70,7 +70,7 @@ make_environment (char *cmdname, char **env)
 
     total++; /* terminating null */
     total += 2; /* word count */
-    total += strlen (cmdname) + 1;
+    total += strlen(cmd_name) + 1;
     total += 4; /* some more zeros, just in case */
 
     if ((envseg = mem_alloc(total/16 + 1, 1, NULL)) == 0)
@@ -82,17 +82,17 @@ make_environment (char *cmdname, char **env)
     p = env_block;
     total = 0;
     for (i = 0; env[i]; i++) {
-	len = strlen (env[i]);
+	len = strlen(env[i]);
 	if (total + len >= 32 * 1024)
 	    break;
 	total += len + 1;
 	strcpy (p, env[i]);
-	p += strlen (p) + 1;
+	p += strlen(p) + 1;
     }	
     *p++ = 0;
-    *(short *)p = strlen(cmdname);
+    *(short *)p = strlen(cmd_name);
     p += 2;
-    strcpy (p, cmdname);
+    strcpy (p, cmd_name);
     while(*p) {
 	if (*p == '/')
 	    *p = '\\';
@@ -155,7 +155,7 @@ load_exe(int fd, int start_segment, int reloc_segment, struct exehdr *hdr, int t
 }
 
 void
-load_command(regcontext_t *REGS, int run, int fd, char *cmdname, 
+load_command(regcontext_t *REGS, int run, int fd, char *cmd_name, 
 	     u_short *param, char **argv, char **envs)
 {
     struct exehdr hdr;
@@ -174,7 +174,7 @@ load_command(regcontext_t *REGS, int run, int fd, char *cmdname,
     u_short init_cs, init_ip, init_ss, init_sp, init_ds, init_es;
 
     if (envs)
-	envseg = make_environment(cmdname, envs);
+	envseg = make_environment(cmd_name, envs);
     else
 	envseg = env_s[curpsp];
 
@@ -373,7 +373,7 @@ get_env(void)
 
 void
 exec_command(regcontext_t *REGS, int run,
-	     int fd, char *cmdname, u_short *param)
+	     int fd, char *cmd_name, u_short *param)
 {
     char *arg;
     char *env;
@@ -392,9 +392,9 @@ exec_command(regcontext_t *REGS, int run,
     argv[0] = arg;
     argv[1] = NULL;
 
-    debug (D_EXEC, "exec_command: cmdname = %s\n"
+    debug (D_EXEC, "exec_command: cmd_name = %s\n"
 		   "env = 0x0%x, arg = %04x:%04x(%s)\n",
-    	cmdname, param[0], param[2], param[1], arg);
+    	cmd_name, param[0], param[2], param[1], arg);
 
     if (env) {
 	int i;
@@ -403,9 +403,9 @@ exec_command(regcontext_t *REGS, int run,
 	    env += strlen(env)+1;
 	}
 	envs[i] = NULL;
-	load_command(REGS, run, fd, cmdname, param, argv, envs);
+	load_command(REGS, run, fd, cmd_name, param, argv, envs);
     } else
-	load_command(REGS, run, fd, cmdname, param, argv, NULL);
+	load_command(REGS, run, fd, cmd_name, param, argv, NULL);
 }
 
 void

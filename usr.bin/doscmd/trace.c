@@ -194,7 +194,9 @@ printtrace(regcontext_t *REGS, char *buf)
 {
 
     static int first = 1;
+#if BIG_DEBUG
     u_char *addr = (u_char *)MAKEPTR(R_CS, R_IP);
+#endif
     char *bigfmt = "%04x:%04x "
 #if BIG_DEBUG
 	   	   "%02x %02x %02x %02x %02x %02x "

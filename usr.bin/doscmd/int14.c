@@ -147,7 +147,7 @@ com_set_line(struct com_data_struct *cdsp, unsigned char port, unsigned char par
     struct stat stat_buf;
     int reg_num;
 
-    debug (D_PORT, "com_set_line: cdsp = 0x%08X, port = 0x%04x,"
+    debug (D_PORT, "com_set_line: cdsp = %8p, port = 0x%04x,"
 		   "param = 0x%04X.\n", cdsp, port, param);
     if (cdsp->fd > 0) {
 	    debug (D_PORT, "Re-initialize serial port com%d\n", port);
