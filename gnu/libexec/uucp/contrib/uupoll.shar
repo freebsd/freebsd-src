@@ -493,22 +493,10 @@ X                  not scan the uucico log.
 X
 X
 #if !defined(lint)
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: uupoll.shar,v 1.4 1997/02/22 15:27:02 peter Exp $";
 #endif /* not lint */
 X
-/* $Log: uupoll.shar,v $
- * Revision 1.3  1997/01/14 05:48:20  jkh
- * Make the long-awaited change from $Id$ to $Id$
- *
- * This will make a number of things easier in the future, as well as (finally!)
- * avoiding the Id-smashing problem which has plagued developers for so long.
- *
- * Boy, I'm glad we're not using sup anymore.  This update would have been
- * insane otherwise.
- *
- * Revision 1.2  1995/08/19 21:24:34  ache
- * Commit delta: current -> 1.06 + FreeBSD configuration
- *
+X/* Log: uupoll.shar,v
 X * Revision 2.8  1994/04/14  17:22:54  kdburg
 X * corrected misspelled AT_OPTION
 X *
@@ -1640,20 +1628,8 @@ sed 's/^X//' << 'SHAR_EOF' > 'uupoll/conf.h' &&
 #ifndef CONF
 X  #define CONF
 X
-/* $Id$ */
-/* $Log: uupoll.shar,v $
- * Revision 1.3  1997/01/14 05:48:20  jkh
- * Make the long-awaited change from $Id$ to $Id$
- *
- * This will make a number of things easier in the future, as well as (finally!)
- * avoiding the Id-smashing problem which has plagued developers for so long.
- *
- * Boy, I'm glad we're not using sup anymore.  This update would have been
- * insane otherwise.
- *
- * Revision 1.2  1995/08/19 21:24:34  ache
- * Commit delta: current -> 1.06 + FreeBSD configuration
- *
+X/* $Id: uupoll.shar,v 1.4 1997/02/22 15:27:02 peter Exp $ */
+X/* Log: uupoll.shar,v
 X * Revision 1.9  1994/04/14  17:24:58  kdburg
 X * added comment to the AT_OPTION
 X *
@@ -2010,22 +1986,10 @@ X                - No alias expansion is done on the given names.
 */
 X
 #if !defined(lint)
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: uupoll.shar,v 1.4 1997/02/22 15:27:02 peter Exp $";
 #endif /* not lint */
 X
-/* $Log: uupoll.shar,v $
- * Revision 1.3  1997/01/14 05:48:20  jkh
- * Make the long-awaited change from $Id$ to $Id$
- *
- * This will make a number of things easier in the future, as well as (finally!)
- * avoiding the Id-smashing problem which has plagued developers for so long.
- *
- * Boy, I'm glad we're not using sup anymore.  This update would have been
- * insane otherwise.
- *
- * Revision 1.2  1995/08/19 21:24:34  ache
- * Commit delta: current -> 1.06 + FreeBSD configuration
- *
+X/* Log: uupoll.shar,v
 X * Revision 2.7  1994/04/14  17:22:04  kdburg
 X * major rework done
 X *
