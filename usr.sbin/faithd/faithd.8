@@ -30,29 +30,26 @@
 .\"
 .Dd January 27, 2000
 .Dt FAITHD 8
-.Os KAME
+.Os
 .Sh NAME
 .Nm faithd
 .Nd FAITH IPv6/v4 translator daemon
 .Sh SYNOPSIS
-.Nm faithd
+.Nm
 .Op Fl dp
-.Oo
-.Ar service
-.Oo
-.Ar serverpath
-.Op Ar serverargs
-.Oc
-.Oc
+.Op Ar service Op Ar serverpath Op Ar serverargs
 .Sh DESCRIPTION
 .Nm
 provides IPv6/v4 TCP relay for the specified
 .Ar service .
 .Pp
 .Nm
-must be invoked on IPv4/v6 dual stack router.
+must be invoked on IPv4/v6
+dual stack router.
 The router must be configured to capture all the TCP traffic
-toward reserved IPv6 address prefix, by using
+toward reserved
+.Tn IPv6
+address prefix, by using
 .Xr route 8
 and
 .Xr sysctl 8
@@ -61,20 +58,32 @@ commands.
 will daemonize itself on invocation.
 .Pp
 .Nm
-will listen to TCPv6 port
+will listen to
+.Tn TCPv6
+port
 .Ar service .
-If TCPv6 traffic to port
+If
+.Tn TCPv6
+traffic to port
 .Ar service
 is found,
 .Nm
-will relay the TCPv6 traffic to TCPv4.
-Destination for relayed TCPv4 connection will be determined by the
-last 4 octets of the original IPv6 destination.
+will relay the
+.Tn TCPv6
+traffic to
+.Tn TCPv4 .
+Destination for relayed
+.Tn TCPv4
+connection will be determined by the last 4 octets of the original
+.Tn IPv6
+destination.
 For example, if
 .Li 3ffe:0501:4819:ffff::
 is reserved for
-.Nm faithd ,
-and the TCPv6 destination address is
+.Nm Ns ,
+and the
+.Tn TCPv6
+destination address is
 .Li 3ffe:0501:4819:ffff::0a01:0101 ,
 the traffic will be relayed to IPv4 destination
 .Li 10.1.1.1 .
@@ -106,7 +115,7 @@ or other standard mechanisms.
 By specifying
 .Ar serverpath
 to
-.Nm faithd ,
+.Nm Ns ,
 you can run local daemons on the router.
 .Nm
 will invoke local daemon at
@@ -177,13 +186,10 @@ on client.
 Inactive sessions will be disconnected in 30 minutes,
 to avoid stale sessions from chewing up resources.
 This may be inappropriate for some of the services
-.Po
-should this be configurable?
-.Pc .
-.\"
+.Pq should this be configurable? .
 .Sh EXAMPLES
 Before invoking
-.Nm faithd ,
+.Nm Ns ,
 .Xr faith 4
 interface has to be configured properly.
 .Pp
@@ -200,24 +206,23 @@ as either of the following:
 If you would like to provide local telnet service via
 .Xr telnetd 8
 on
-.Pa /usr/local/v6/libexec/telnetd ,
+.Pa /usr/libexec/telnetd ,
 user the following command line:
 .Bd -literal -offset
-# faithd telnet /usr/local/v6/libexec/telnetd telnetd
+# faithd telnet /usr/libexec/telnetd telnetd
 .Ed
 .Pp
 If you would like to pass extra arguments to the local daemon:
 .Bd -literal -offset
-# faithd ftpd /usr/local/v6/libexec/ftpd ftpd -l
+# faithd ftpd /usr/libexec/ftpd ftpd -l
 .Ed
 .Pp
 Here are some other examples:
 .Bd -literal -offset
-# faithd login /usr/local/v6/libexec/rlogin rlogind
-# faithd shell /usr/local/v6/libexec/rshd rshd
+# faithd login /usr/libexec/rlogin rlogind
+# faithd shell /usr/libexec/rshd rshd
 # faithd sshd
 .Ed
-.\"
 .Sh RETURN VALUES
 .Nm
 exits with
@@ -227,7 +232,6 @@ on success, and
 .Dv EXIT_FAILURE
 .Pq 1
 on error.
-.\"
 .Sh SEE ALSO
 .Xr faith 4 ,
 .Xr route 8 ,
@@ -240,17 +244,17 @@ on error.
 .%N draft-ietf-ngtrans-tcpudp-relay-00.txt
 .%O work in progress material
 .Re
-.\"
 .Sh SECURITY NOTICE
 It is very insecure to use
 .Xr rhosts 5
 and other IP-address based authentication, for connections relayed by
 .Nm
-.Po
-and any other TCP relaying services
-.Pc .
-.\"
+.Pq and any other TCP relaying services .
 .Sh HISTORY
 The
 .Nm
 command first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initially integrated into
+.Fx 4.0
