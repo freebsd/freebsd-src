@@ -36,8 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ext2_inode.c	8.5 (Berkeley) 12/30/93
- *
+ *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
  * $FreeBSD$
  */
 

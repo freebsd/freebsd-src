@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ext2_subr.c	8.2 (Berkeley) 9/21/93
+ *	@(#)ffs_subr.c	8.2 (Berkeley) 9/21/93
  * $FreeBSD$
  */
 
