@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.19 1995/09/07 14:17:46 se Exp $
+**  $Id: pcisupport.c,v 1.20 1995/09/07 15:40:51 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -40,8 +40,6 @@
 **
 ***************************************************************************
 */
-
-#define __PCISUPPORT_C__     "pl4 95/03/21"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -100,10 +98,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82424ZX (Saturn) cache DRAM controller");
 	case 0x04828086:
 		return ("Intel 82375EB PCI-EISA bridge");
-#ifdef undef
-	case 0x04868086:
-		return ("Intel 82430ZX (Aries)");
-#endif /* undef */
 	case 0x04a38086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 16 || rev == 17)
@@ -129,6 +123,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 
 	return ((char*)0);
 }
+
+#ifndef PCI_QUIET
 
 #define M_EQ 0  /* mask and return true if equal */
 #define M_NE 1  /* mask and return true if not equal */
@@ -405,9 +401,12 @@ writeconfig (pcici_t config_id, const struct condmsg *tbl)
     }
 }
 
+#endif /* PCI_QUIET */
+
 static void
 chipset_attach (pcici_t config_id, int unit)
 {
+#ifndef PCI_QUIET
 	if (!bootverbose)
 		return;
 
@@ -432,8 +431,10 @@ chipset_attach (pcici_t config_id, int unit)
 			pci_conf_read (config_id, 0x54));
 		break;
 	};
+#endif /* PCI_QUIET */
 }
 
+#ifdef undef
 /*---------------------------------------------------------
 **
 **	Catchall driver for VGA devices
@@ -472,7 +473,7 @@ static char* vga_probe (pcici_t tag, pcidi_t type)
 	case PCI_CLASS_DISPLAY:
 		if ((data & PCI_SUBCLASS_MASK)
 		    == PCI_SUBCLASS_DISPLAY_VGA)
-			return "VGA-compatible display device";
+			return ("VGA-compatible display device");
 		else
 			return ("Display device");
 	};
@@ -493,6 +494,7 @@ static void vga_attach (pcici_t tag, int unit)
 		(void) pci_map_mem (tag, reg, &va, &pa);
 #endif
 }
+#endif /* undef */
 
 /*---------------------------------------------------------
 **
