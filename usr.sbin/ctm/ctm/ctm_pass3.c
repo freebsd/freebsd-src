@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.11 1995/07/12 09:16:13 phk Exp $
+ * $Id: ctm_pass3.c,v 1.12 1996/02/05 16:06:53 phk Exp $
  *
  */
 
@@ -16,6 +16,17 @@
 /*---------------------------------------------------------------------------*/
 /* Pass3 -- Validate the incoming CTM-file.
  */
+
+int
+settime(const char *name, const struct timeval *times)
+{
+	if (SetTime)
+	    if (utimes(name,times)) {
+		fprintf(stderr, "  utimes(): %s: %s\n", name, strerror(errno));
+		return -1;
+	    }
+	return 0;
+}
 
 int
 Pass3(FILE *fd)
@@ -28,6 +39,7 @@ Pass3(FILE *fd)
     FILE *ed=0;
     struct stat st;
     char md5_1[33];
+    struct timeval times[2];
 
     if(Verbose>3)
 	printf("Pass3 -- Applying the CTM-patch\n");
@@ -39,6 +51,59 @@ Pass3(FILE *fd)
     GETFIELD(p,' '); if(strcmp(Nbr,p)) WRONG
     GETFIELD(p,' '); if(strcmp(TimeStamp,p)) WRONG
     GETFIELD(p,'\n'); if(strcmp(Prefix,p)) WRONG
+
+    /*
+     * This would be cleaner if mktime() worked in UTC rather than
+     * local time.
+     */
+    if (SetTime) {
+        struct tm tm;
+        char *tz;
+        char buf[5];
+        int i;
+
+#define SUBSTR(off,len)	strncpy(buf, &TimeStamp[off], len), buf[len] = '\0'
+#define WRONGDATE { fprintf(stderr, " %s failed date validation\n",\
+	TimeStamp); WRONG}
+
+        if (strlen(TimeStamp) != 15 || TimeStamp[14] != 'Z') WRONGDATE
+	for (i = 0; i < 14; i++)
+	    if (!isdigit(TimeStamp[i])) WRONGDATE
+
+        tz = getenv("TZ");
+	if (setenv("TZ", "UTC", 1) < 0) WRONG
+	tzset();
+
+	tm.tm_isdst = tm.tm_gmtoff = 0;
+
+        SUBSTR(0, 4);
+        tm.tm_year = atoi(buf) - 1900;
+        SUBSTR(4, 2);
+        tm.tm_mon = atoi(buf) - 1;
+        if (tm.tm_mon < 0 || tm.tm_mon > 11) WRONGDATE
+        SUBSTR(6, 2);
+        tm.tm_mday = atoi(buf);
+        if (tm.tm_mday < 1 || tm.tm_mday > 31) WRONG;
+        SUBSTR(8, 2);
+        tm.tm_hour = atoi(buf);
+        if (tm.tm_hour > 24) WRONGDATE
+        SUBSTR(10, 2);
+        tm.tm_min = atoi(buf);
+        if (tm.tm_min > 59) WRONGDATE
+        SUBSTR(12, 2);
+        tm.tm_sec = atoi(buf);
+        if (tm.tm_min > 62) WRONGDATE	/* allow leap seconds */
+    
+        times[0].tv_sec = times[1].tv_sec = mktime(&tm);
+        if (times[0].tv_sec == -1) WRONGDATE
+	times[0].tv_usec = times[1].tv_usec = 0;
+
+        if (tz) {
+            if (setenv("TZ", tz, 1) < 0) WRONGDATE
+         } else {
+            unsetenv("TZ");
+        }
+    }
 
     for(;;) {
 	Delete(md5);
@@ -105,6 +170,7 @@ Pass3(FILE *fd)
 		   sp->Key,name);
 		WRONG
 	    }
+	    if (settime(name,times)) WRONG
 	    continue;
 	}
 	if(!strcmp(sp->Key,"FE")) {
@@ -128,6 +194,7 @@ Pass3(FILE *fd)
 		   sp->Key,name);
 		WRONG
 	    }
+	    if (settime(name,times)) WRONG
 	    continue;
 	}
 	if(!strcmp(sp->Key,"FN")) {
@@ -145,6 +212,7 @@ Pass3(FILE *fd)
 		    sp->Key,name);
 	        WRONG
 	    }
+	    if (settime(name,times)) WRONG
 	    continue;
 	}
 	if(!strcmp(sp->Key,"DM")) {
@@ -156,6 +224,7 @@ Pass3(FILE *fd)
 		fprintf(stderr,"<%s> mkdir failed\n",name);
 		WRONG
 	    }
+	    if (settime(name,times)) WRONG
 	    continue;
 	}
 	if(!strcmp(sp->Key,"FR")) {

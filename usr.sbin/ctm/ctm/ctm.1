@@ -10,7 +10,7 @@
 .\"
 .\" CTM and ctm(1) by <phk@login.dknet.dk>
 .\"
-.\" $Id: ctm.1,v 1.3 1996/01/31 01:58:29 nate Exp $
+.\" $Id: ctm.1,v 1.4 1996/02/05 16:06:44 phk Exp $
 .\"
 .Dd Mar 25, 1995
 .Os
@@ -20,7 +20,7 @@
 .Nd source code mirror program
 .Sh SYNOPSIS
 .Nm ctm
-.Op Fl cFpPqv
+.Op Fl cFpPquv
 .Op Fl b Ar basedir
 .Op Fl T Ar tmpdir
 .Op Fl V Ar level
@@ -59,7 +59,7 @@ Before working one a file
 .Ar name
 .Nm ctm
 first checks for the existence of the file
-.Ar name#ctm .
+.Ar name.ctm .
 If this file exists,
 .Nm ctm
 works on it instead.
@@ -111,6 +111,10 @@ Tell us less.
 .It Fl T Ar tmpdir
 Put temporary files under
 .Ar tmpdir .
+
+.It Fl u
+Set modification time of created and modified files to the CTM delta
+creation time.
 
 .It Fl v
 Tell us more.
