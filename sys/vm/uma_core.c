@@ -126,8 +126,12 @@ static int uma_boot_free = 0;
 /* Is the VM done starting up? */
 static int booted = 0;
 
-/* This is the handle used to schedule our working set calculator */
+/*
+ * This is the handle used to schedule events that need to happen
+ * outside of the allocation fast path.
+ */
 static struct callout uma_callout;
+#define	UMA_TIMEOUT	20		/* Seconds for callout interval. */
 
 /* This is mp_maxid + 1, for use while looping over each cpu */
 static int maxcpu;
@@ -174,9 +178,8 @@ static void *obj_alloc(uma_zone_t, int, u_int8_t *, int);
 static void *page_alloc(uma_zone_t, int, u_int8_t *, int);
 static void page_free(void *, int, u_int8_t);
 static uma_slab_t slab_zalloc(uma_zone_t, int);
-static void cache_drain(uma_zone_t, int);
+static void cache_drain(uma_zone_t);
 static void bucket_drain(uma_zone_t, uma_bucket_t);
-static void zone_drain_common(uma_zone_t, int);
 static void zone_ctor(void *, int, void *);
 static void zone_dtor(void *, int, void *);
 static void zero_init(void *, int);
@@ -199,7 +202,7 @@ static void bucket_zone_drain(void);
 static int uma_zalloc_bucket(uma_zone_t zone, int flags);
 static uma_slab_t uma_zone_slab(uma_zone_t zone, int flags);
 static void *uma_slab_alloc(uma_zone_t zone, uma_slab_t slab);
-static __inline void zone_drain(uma_zone_t);
+static void zone_drain(uma_zone_t);
 
 void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
@@ -295,7 +298,7 @@ bucket_zone_drain(void)
 
 /*
  * Routine called by timeout which is used to fire off some time interval
- * based calculations.  (working set, stats, etc.)
+ * based calculations.  (stats, hash size, etc.)
  *
  * Arguments:
  *	arg   Unused
@@ -310,12 +313,12 @@ uma_timeout(void *unused)
 	zone_foreach(zone_timeout);
 
 	/* Reschedule this event */
-	callout_reset(&uma_callout, UMA_WORKING_TIME * hz, uma_timeout, NULL);
+	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
 }
 
 /*
- * Routine to perform timeout driven calculations.  This does the working set
- * as well as hash expanding, and per cpu statistics aggregation.
+ * Routine to perform timeout driven calculations.  This expands the
+ * hashes and does per cpu statistics aggregation.
  *
  *  Arguments:
  *	zone  The zone to operate on
@@ -393,20 +396,6 @@ zone_timeout(uma_zone_t zone)
 			ZONE_LOCK(zone);
 		}
 	}
-
-	/*
-	 * Here we compute the working set size as the total number of items 
-	 * left outstanding since the last time interval.  This is slightly
-	 * suboptimal. What we really want is the highest number of outstanding
-	 * items during the last time quantum.  This should be close enough.
-	 *
-	 * The working set size is used to throttle the zone_drain function.
-	 * We don't want to return memory that we may need again immediately.
-	 */
-	alloc = zone->uz_allocs - zone->uz_oallocs;
-	zone->uz_oallocs = zone->uz_allocs;
-	zone->uz_wssize = alloc;
-
 	ZONE_UNLOCK(zone);
 }
 
@@ -568,33 +557,20 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
  *
  * Arguments:
  *	zone     The zone to drain, must be unlocked.
- *	destroy  Whether or not to destroy the pcpu buckets (from zone_dtor)
  *
  * Returns:
  *	Nothing
- *
- * This function returns with the zone locked so that the per cpu queues can
- * not be filled until zone_drain is finished.
  */
 static void
-cache_drain(uma_zone_t zone, int destroy)
+cache_drain(uma_zone_t zone)
 {
 	uma_bucket_t bucket;
 	uma_cache_t cache;
 	int cpu;
 
 	/*
-	 * Flush out the per cpu queues.
-	 *
-	 * XXX This causes unnecessary thrashing due to immediately having
-	 * empty per cpu queues.  I need to improve this.
-	 */
-
-	/*
 	 * We have to lock each cpu cache before locking the zone
 	 */
-	ZONE_UNLOCK(zone);
-
 	for (cpu = 0; cpu < maxcpu; cpu++) {
 		if (CPU_ABSENT(cpu))
 			continue;
@@ -602,13 +578,11 @@ cache_drain(uma_zone_t zone, int destroy)
 		cache = &zone->uz_cpu[cpu];
 		bucket_drain(zone, cache->uc_allocbucket);
 		bucket_drain(zone, cache->uc_freebucket);
-		if (destroy) {
-			if (cache->uc_allocbucket != NULL)
-				bucket_free(cache->uc_allocbucket);
-			if (cache->uc_freebucket != NULL)
-				bucket_free(cache->uc_freebucket);
-			cache->uc_allocbucket = cache->uc_freebucket = NULL;
-		}
+		if (cache->uc_allocbucket != NULL)
+			bucket_free(cache->uc_allocbucket);
+		if (cache->uc_freebucket != NULL)
+			bucket_free(cache->uc_freebucket);
+		cache->uc_allocbucket = cache->uc_freebucket = NULL;
 	}
 
 	/*
@@ -629,13 +603,12 @@ cache_drain(uma_zone_t zone, int destroy)
 		LIST_REMOVE(bucket, ub_link);
 		bucket_free(bucket);
 	}
-
-	/* We unlock here, but they will all block until the zone is unlocked */
 	for (cpu = 0; cpu < maxcpu; cpu++) {
 		if (CPU_ABSENT(cpu))
 			continue;
 		CPU_UNLOCK(cpu);
 	}
+	ZONE_UNLOCK(zone);
 }
 
 /*
@@ -645,18 +618,16 @@ cache_drain(uma_zone_t zone, int destroy)
  * Arguments:
  *	zone  The zone to free pages from
  *	 all  Should we drain all items?
- *   destroy  Whether to destroy the zone and pcpu buckets (from zone_dtor)
  *
  * Returns:
  *	Nothing.
  */
 static void
-zone_drain_common(uma_zone_t zone, int destroy)
+zone_drain(uma_zone_t zone)
 {
 	struct slabhead freeslabs = {};
 	uma_slab_t slab;
 	uma_slab_t n;
-	u_int64_t extra;
 	u_int8_t flags;
 	u_int8_t *mem;
 	int i;
@@ -670,28 +641,14 @@ zone_drain_common(uma_zone_t zone, int destroy)
 
 	ZONE_LOCK(zone);
 
-	if (!(zone->uz_flags & UMA_ZFLAG_INTERNAL))
-		cache_drain(zone, destroy);
-
-	if (destroy)
-		zone->uz_wssize = 0;
-
-	if (zone->uz_free < zone->uz_wssize)
-		goto finished;
 #ifdef UMA_DEBUG
-	printf("%s working set size: %llu free items: %u\n",
-	    zone->uz_name, (unsigned long long)zone->uz_wssize, zone->uz_free);
+	printf("%s free items: %u\n", zone->uz_name, zone->uz_free);
 #endif
-	extra = zone->uz_free - zone->uz_wssize;
-	extra /= zone->uz_ipers;
-
-	/* extra is now the number of extra slabs that we can free */
-
-	if (extra == 0)
+	if (zone->uz_free == 0)
 		goto finished;
 
 	slab = LIST_FIRST(&zone->uz_free_slab);
-	while (slab && extra) {
+	while (slab) {
 		n = LIST_NEXT(slab, us_link);
 
 		/* We have no where to free these to */
@@ -710,7 +667,6 @@ zone_drain_common(uma_zone_t zone, int destroy)
 		SLIST_INSERT_HEAD(&freeslabs, slab, us_hlink);
 
 		slab = n;
-		extra--;
 	}
 finished:
 	ZONE_UNLOCK(zone);
@@ -745,12 +701,6 @@ finished:
 		zone->uz_freef(mem, UMA_SLAB_SIZE * zone->uz_ppera, flags);
 	}
 
-}
-
-static __inline void
-zone_drain(uma_zone_t zone)
-{
-	zone_drain_common(zone, 0);
 }
 
 /*
@@ -1188,9 +1138,12 @@ zone_dtor(void *arg, int size, void *udata)
 	uma_zone_t zone;
 
 	zone = (uma_zone_t)arg;
+
+	if (!(zone->uz_flags & UMA_ZFLAG_INTERNAL))
+		cache_drain(zone);
 	mtx_lock(&uma_mtx);
 	LIST_REMOVE(zone, uz_link);
-	zone_drain_common(zone, 1);
+	zone_drain(zone);
 	mtx_unlock(&uma_mtx);
 
 	ZONE_LOCK(zone);
@@ -1334,7 +1287,7 @@ uma_startup3(void)
 	printf("Starting callout.\n");
 #endif
 	callout_init(&uma_callout, 0);
-	callout_reset(&uma_callout, UMA_WORKING_TIME * hz, uma_timeout, NULL);
+	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
 #ifdef UMA_DEBUG
 	printf("UMA startup3 complete.\n");
 #endif
@@ -2045,7 +1998,7 @@ uma_reclaim(void)
 	 * we visit again so that we can free pages that are empty once other
 	 * zones are drained.  We have to do the same for buckets.
 	 */
-	zone_drain_common(slabzone, 0);
+	zone_drain(slabzone);
 	bucket_zone_drain();
 }
 
