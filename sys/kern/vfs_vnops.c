@@ -873,3 +873,77 @@ filt_vnread(struct knote *kn, long hint)
 	kn->kn_data = ip->i_size - kn->kn_fp->f_offset;
 	return (kn->kn_data != 0);
 }
+
+/*
+ * Simplified in-kernel wrapper calls for extended attribute access.
+ * Both calls pass in a NULL credential, authorizing as "kernel" access.
+ * Set IO_NODELOCKED in ioflg if the vnode is already locked.
+ */
+int
+vn_extattr_get(struct vnode *vp, int ioflg, const char *attrname, int *buflen,
+    char *buf, struct proc *p)
+{
+	struct uio	auio;
+	struct iovec	iov;
+	int	error;
+
+	iov.iov_len = *buflen;
+	iov.iov_base = buf;
+
+	auio.uio_iov = &iov;
+	auio.uio_iovcnt = 1;
+	auio.uio_rw = UIO_READ;
+	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_procp = p;
+	auio.uio_offset = 0;
+	auio.uio_resid = *buflen;
+
+	if ((ioflg & IO_NODELOCKED) == 0)
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+
+	/* authorize attribute retrieval as kernel */
+	error = VOP_GETEXTATTR(vp, attrname, &auio, NULL, p);
+
+	if ((ioflg & IO_NODELOCKED) == 0)
+		VOP_UNLOCK(vp, 0, p);
+
+	if (error == 0) {
+		*buflen = *buflen - auio.uio_resid;
+	}
+
+	return (error);
+}
+
+/*
+ * XXX failure mode if partially written?
+ */
+int
+vn_extattr_set(struct vnode *vp, int ioflg, const char *attrname, int buflen,
+    char *buf, struct proc *p)
+{
+	struct uio	auio;
+	struct iovec	iov;
+	int	error;
+
+	iov.iov_len = buflen;
+	iov.iov_base = buf;
+
+	auio.uio_iov = &iov;
+	auio.uio_iovcnt = 1;
+	auio.uio_rw = UIO_WRITE;
+	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_procp = p;
+	auio.uio_offset = 0;
+	auio.uio_resid = buflen;
+
+	if ((ioflg & IO_NODELOCKED) == 0)
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+
+	/* authorize attribute setting as kernel */
+	error = VOP_SETEXTATTR(vp, attrname, &auio, NULL, p);
+
+	if ((ioflg & IO_NODELOCKED) == 0)
+		VOP_UNLOCK(vp, 0, p);
+
+	return (error);
+}
