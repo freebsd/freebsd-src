@@ -1,6 +1,6 @@
 /* inttostr.h -- convert integers to printable strings
 
-   Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,13 +25,11 @@
 #if HAVE_INTTYPES_H
 # include <inttypes.h>
 #endif
+#if HAVE_STDINT_H
+# include <stdint.h>
+#endif
 
-#if HAVE_LIMITS_H
-# include <limits.h>
-#endif
-#ifndef CHAR_BIT
-# define CHAR_BIT 8
-#endif
+#include <limits.h>
 
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>

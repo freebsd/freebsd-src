@@ -301,7 +301,7 @@ translation percentage of at least 50%.
                         +-------------------------------------------+
                           am az be bg ca cs da de el en en_GB eo es
                            0  0  8  3 37 38 56 73 15  1   5   12 64
-     
+
                           et fa fi fr ga gl he hr hu id is it ja
                         +----------------------------------------+
      a2ps               | []    [] []                      ()    |
@@ -427,7 +427,7 @@ translation percentage of at least 50%.
                         +----------------------------------------+
                           et fa fi fr ga gl he hr hu id is it ja
                           21  1 25 86 24 24  8 10 38 31  1 23 32
-     
+
                           ko lg lt lv ms nb nl nn no pl pt pt_BR ro
                         +-------------------------------------------+
      a2ps               | ()          []    []    () ()     []   [] |
@@ -553,7 +553,7 @@ translation percentage of at least 50%.
                         +-------------------------------------------+
                           ko lg lt lv ms nb nl nn no pl pt pt_BR ro
                           12  0  1  2 12 10 60  4  4 38 25  35   76
-     
+
                           ru sk sl sr sv ta tr uk vi wa zh_CN zh_TW
                         +-------------------------------------------+
      a2ps               | []    []    []    [] []                   | 16
@@ -714,4 +714,3 @@ developed inside the GNU project.  Therefore the information given above
 applies also for every other Free Software Project.  Contact
 `translation@iro.umontreal.ca' to make the `.pot' files available to
 the translation teams.
-

@@ -1,5 +1,5 @@
 /* Locale-specific memory comparison.
-   Copyright (C) 1999, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2002, 2003, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,10 +24,6 @@
 #include "memcoll.h"
 
 #include <errno.h>
-#ifndef errno
-extern int errno;
-#endif
-
 #include <string.h>
 
 /* Compare S1 (with length S1LEN) and S2 (with length S2LEN) according

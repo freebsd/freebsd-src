@@ -34,16 +34,16 @@ file shouldn't affect how it operates, so that people can get the
 behavior they want with whatever name they want.
 
 Special thanks to Paul Eggert, Brian Matthews, Bruce Evans, Karl Berry,
-Kaveh Ghazi, and François Pinard for help with debugging and porting
+Kaveh Ghazi, and FranÃ§ois Pinard for help with debugging and porting
 these programs.  Many thanks to all of the people who have taken the
 time to submit problem reports and fixes.  All contributed changes are
 attributed in the ChangeLog file.
 
 And thanks to the following people who have provided accounts for
 portability testing on many different types of systems: Bob Proulx,
-Christian Robert, François Pinard, Greg McGary, Harlan Stenn,
+Christian Robert, FranÃ§ois Pinard, Greg McGary, Harlan Stenn,
 Joel N. Weber, Mark D. Roth, Matt Schalit, Nelson H. F. Beebe,
-Réjean Payette, Sam Tardieu.
+RÃ©jean Payette, Sam Tardieu.
 
 Thanks to Michael Stone for inflicting test releases of the fileutils
 on Debian's unstable distribution, and to all the kind folks who used
