@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24
-#  $Id: Makefile,v 1.5 1995/05/30 05:47:47 rgrimes Exp $
+#  $Id: Makefile,v 1.5.4.1 1997/02/15 05:38:02 bde Exp $
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -51,6 +51,7 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 
 # Broken
 # ARCH_SRCS+=	s_log1p.S
+.endif
 
 .PATH:	${.CURDIR}/man
 .PATH:	${.CURDIR}/src
