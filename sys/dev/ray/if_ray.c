@@ -3136,7 +3136,7 @@ ray_com_init(struct ray_comq_entry *com, ray_comqfn_t function, int flags, char 
 	com->c_function = function;
 	com->c_flags = flags;
 	com->c_retval = 0;
-	com->c_ccs = NULL;
+	com->c_ccs = 0;
 	com->c_wakeup = NULL;
 	com->c_pr = NULL;
 	com->c_mesg = mesg;
@@ -3235,7 +3235,7 @@ cleanup:
 				RAY_DCOM(sc, RAY_DBG_DCOM, com[i], "removing");
 				TAILQ_REMOVE(&sc->sc_comq, com[i], c_chain);
 				ray_ccs_free(sc, com[i]->c_ccs);
-				com[i]->c_ccs = NULL;
+				com[i]->c_ccs = 0;
 			}
 
 	return (error);
@@ -3291,7 +3291,7 @@ ray_com_runq_done(struct ray_softc *sc)
 	com->c_flags |= RAY_COM_FCOMPLETED;
 	com->c_retval = 0;
 	ray_ccs_free(sc, com->c_ccs);
-	com->c_ccs = NULL;
+	com->c_ccs = 0;
 
 	if (com->c_flags & RAY_COM_FWOK)
 		wakeup(com->c_wakeup);
@@ -3486,7 +3486,7 @@ ray_ccs_fill(struct ray_softc *sc, size_t ccs, u_int cmd)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CCS, "");
 	RAY_MAP_CM(sc);
 
-	if (ccs == NULL)
+	if (ccs == 0)
 		RAY_PANIC(sc, "ccs not allocated");
 
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_status, RAY_CCS_STATUS_BUSY);
