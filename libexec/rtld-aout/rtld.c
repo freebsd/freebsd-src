@@ -188,6 +188,7 @@ static int		careful;
 static int		anon_fd = -1;
 
 static char		*ld_bind_now;
+static char		*ld_ignore_missing_objects;
 static char		*ld_library_path;
 static char		*ld_preload;
 static char		*ld_tracing;
@@ -869,6 +870,15 @@ map_sods(parent)
 			 * "not found" message.
 			 */
 			(void)alloc_link_map(NULL, sodp, parent, 0, 0);
+		} else if (ld_ignore_missing_objects) {
+			char *msg;
+			/*
+			 * Call __dlerror() even it we're not going to use
+			 * the message, in order to clear the saved message.
+			 */
+			msg = __dlerror();  /* Should never be NULL */
+			if (!ld_suppress_warnings)
+				warnx("warning: %s", msg);
 		} else  /* Give up */
 			break;
 
@@ -2022,6 +2032,7 @@ struct env_scan_tab {
 } scan_tab[] = {
 	L("LD_LIBRARY_PATH=",		1, &ld_library_path)
 	L("LD_PRELOAD=",		1, &ld_preload)
+	L("LD_IGNORE_MISSING_OBJECTS=",	1, &ld_ignore_missing_objects)
 	L("LD_TRACE_LOADED_OBJECTS=",	0, &ld_tracing)
 	L("LD_BIND_NOW=",		0, &ld_bind_now)
 	L("LD_SUPPRESS_WARNINGS=",	0, &ld_suppress_warnings)
