@@ -170,7 +170,9 @@ int	 reboot __P((int));
 int	 revoke __P((const char *));
 pid_t	 rfork __P((int));
 int	 rresvport __P((int *));
+int	 rresvport_af __P((int *, int));
 int	 ruserok __P((const char *, int, const char *, const char *));
+int	 ruserok_af __P((const char *, int, const char *, const char *, int));
 char	*sbrk __P((int));
 int	 select __P((int, fd_set *, fd_set *, fd_set *, struct timeval *));
 int	 setdomainname __P((const char *, int));
@@ -204,9 +206,6 @@ int	 unwhiteout __P((const char *));
 int	 usleep __P((unsigned int));
 void	*valloc __P((size_t));			/* obsoleted by malloc() */
 pid_t	 vfork __P((void));
-int	rresvport_af __P((int *, int));
-int	ruserok_af __P((const char *, int, const char *, const char *, int));
-int	iruserok_af __P((void *, int, const char *, const char *, int));
 
 extern char *suboptarg;			/* getsubopt(3) external variable */
 int	 getsubopt __P((char **, char * const *, char **));
