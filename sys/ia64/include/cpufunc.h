@@ -285,7 +285,7 @@ enable_intr(void)
 }
 
 static __inline critical_t
-cpu_critical_enter(void)
+intr_disable(void)
 {
 	critical_t psr;
 
@@ -295,9 +295,21 @@ cpu_critical_enter(void)
 }
 
 static __inline void
-cpu_critical_exit(critical_t psr)
+intr_enable(critical_t psr)
 {
 	__asm __volatile ("mov psr.l=%0;; srlz.d" :: "r" (psr));
+}
+
+static __inline critical_t
+cpu_critical_enter(void)
+{
+	return (intr_disable());
+}
+
+static __inline void
+cpu_critical_exit(critical_t psr)
+{
+	intr_enable(psr);
 }
 
 #endif /* _KERNEL */
