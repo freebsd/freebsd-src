@@ -33,6 +33,7 @@
 #include <sys/sysproto.h>
 #include <sys/cdio.h>
 #include <sys/dvdio.h>
+#include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/consio.h>
 #include <sys/ctype.h>
