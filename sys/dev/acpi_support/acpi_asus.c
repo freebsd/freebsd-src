@@ -22,7 +22,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
 #include <sys/cdefs.h>
@@ -39,7 +38,6 @@ __FBSDID("$FreeBSD$");
  * Particularly the display-switching stuff is a bit hairy.  If you have an
  * Asus laptop which doesn't appear to be supported, or strange things happen
  * when using this driver, please report to <acpi@FreeBSD.org>.
- *
  */
 
 #include "opt_acpi.h"
@@ -236,7 +234,7 @@ static int	acpi_asus_sysctl_disp(SYSCTL_HANDLER_ARGS);
 static void	acpi_asus_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 
 static device_method_t acpi_asus_methods[] = {
-	DEVMETHOD(device_probe,	 acpi_asus_probe),
+	DEVMETHOD(device_probe,  acpi_asus_probe),
 	DEVMETHOD(device_attach, acpi_asus_attach),
 	DEVMETHOD(device_detach, acpi_asus_detach),
 
@@ -263,7 +261,7 @@ acpi_asus_probe(device_t dev)
 	ACPI_BUFFER		Buf;
 	ACPI_OBJECT		Arg, *Obj;
 	ACPI_OBJECT_LIST	Args;
-	static char 		*asus_ids[] = { "ATK0100", NULL };
+	static char		*asus_ids[] = { "ATK0100", NULL };
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -272,7 +270,7 @@ acpi_asus_probe(device_t dev)
 		sc = device_get_softc(dev);
 		sc->dev = dev;
 		sc->handle = acpi_get_handle(dev);
-	
+
 		Arg.Type = ACPI_TYPE_INTEGER;
 		Arg.Integer.Value = 0;
 
@@ -281,7 +279,7 @@ acpi_asus_probe(device_t dev)
 
 		Buf.Pointer = NULL;
 		Buf.Length = ACPI_ALLOCATE_BUFFER;
-	
+
 		AcpiEvaluateObject(sc->handle, "INIT", &Args, &Buf);
 		Obj = Buf.Pointer;
 
@@ -310,7 +308,6 @@ acpi_asus_probe(device_t dev)
 		}
 
 		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-				
 		if (sb == NULL)
 			return (ENOMEM);
 
@@ -454,7 +451,7 @@ acpi_asus_attach(device_t dev)
 	/* Handle notifies */
 	AcpiInstallNotifyHandler(sc->handle, ACPI_SYSTEM_NOTIFY,
 	    acpi_asus_notify, dev);
-	
+
 	return (0);
 }
 
@@ -462,7 +459,7 @@ static int
 acpi_asus_detach(device_t dev)
 {
 	struct acpi_asus_softc	*sc;
-	
+
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = device_get_softc(dev);
