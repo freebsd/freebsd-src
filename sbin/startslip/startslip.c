@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.16 1995/09/19 03:37:05 ache Exp $
+ * $Id: startslip.c,v 1.17 1995/09/20 04:56:09 ache Exp $
  */
 
 #ifndef lint
@@ -72,12 +72,14 @@ int     modem_control = 1;      /* !CLOCAL+HUPCL iff we watch carrier. */
 int     sl_unit = -1;
 int     uucp_lock = 0;          /* uucp locking */
 char	*annex;
+char    *username;
 int	hup;
 int     terminate;
 int     locked = 0;             /* uucp lock active */
 int	logged_in = 0;
 int	wait_time = 60;		/* then back off */
 int     script_timeout = 90;    /* connect script default timeout */
+time_t  conn_time, start_time;
 int     MAXTRIES = 6;           /* w/60 sec and doubling, takes an hour */
 #define PIDFILE         "%sstartslip.%s.pid"
 
@@ -115,7 +117,7 @@ main(argc, argv)
 	char *dialerstring = 0, buf[BUFSIZ];
 	int unitnum, keepal = 0, outfill = 0;
 	char unitname[32];
-	char *username, *password;
+	char *password;
 	char *upscript = NULL, *downscript = NULL;
 	int first = 1, tries = 0;
 	time_t fintimeout;
@@ -224,7 +226,28 @@ restart:
 	signal(SIGHUP, SIG_IGN);
 	signal(SIGURG, SIG_IGN);
 	hup = 0;
+	if (wfd) {
+		printd("fclose, ");
+		fclose(wfd);
+		conn_time = time(NULL) - start_time;
+		if (uucp_lock)
+			uu_unlock(dvname);
+		locked = 0;
+		wfd = NULL;
+		fd = -1;
+		sleep(5);
+	} else if (fd >= 0) {
+		printd("close, ");
+		close(fd);
+		conn_time = time(NULL) - start_time;
+		if (uucp_lock)
+			uu_unlock(dvname);
+		locked = 0;
+		fd = -1;
+		sleep(5);
+	}
 	if (logged_in) {
+		syslog(LOG_INFO, "%s: connection time elapsed: %ld secs", username, conn_time);
 		sprintf(buf, "LINE=%d %s %s down",
 		diali ? (dialc - 1) % diali : 0,
 		downscript ? downscript : "/sbin/ifconfig" , unitname);
@@ -235,42 +258,22 @@ restart:
 		down(0);
 	tries++;
 	if (MAXTRIES > 0 && tries > MAXTRIES) {
-		syslog(LOG_ERR, "exiting login after %d tries\n", tries);
+		syslog(LOG_ERR, "%s: exiting login after %d tries", username, tries);
 		/* ???
 		if (first)
 		*/
 			down(3);
 	}
-	if (wfd) {
-		printd("fclose, ");
-		fclose(wfd);
-		if (uucp_lock)
-			uu_unlock(dvname);
-		locked = 0;
-		wfd = NULL;
-		fd = -1;
-		sleep(5);
-	} else if (fd >= 0) {
-		printd("close, ");
-		close(fd);
-		if (uucp_lock)
-			uu_unlock(dvname);
-		locked = 0;
-		fd = -1;
-		sleep(5);
-	}
-	if (terminate)
-		goto restart;
 	if (tries > 1) {
-		syslog(LOG_INFO, "sleeping %d seconds (%d tries)",
-			wait_time * (tries - 1), tries);
+		syslog(LOG_INFO, "%s: sleeping %d seconds (%d tries)",
+			username, wait_time * (tries - 1), tries);
 		sleep(wait_time * (tries - 1));
 		if (terminate)
 			goto restart;
 	}
 
 	if (daemon(1, debug) < 0) {
-		syslog(LOG_ERR, "daemon: %m");
+		syslog(LOG_ERR, "%s: daemon: %m", username);
 		down(2);
 	}
 
@@ -283,13 +286,13 @@ restart:
 	printd("open");
 	if (uucp_lock) {
 		if (uu_lock(dvname)) {
-			syslog(LOG_ERR, "can't lock %s", devicename);
+			syslog(LOG_ERR, "%s: can't lock %s", username, devicename);
 			goto restart;
 		}
 		locked = 1;
 	}
 	if ((fd = open(devicename, O_RDWR | O_NONBLOCK)) < 0) {
-		syslog(LOG_ERR, "open %s: %m\n", devicename);
+		syslog(LOG_ERR, "%s: open %s: %m", username, devicename);
 		if (first)
 			down(1);
 		else {
@@ -302,16 +305,16 @@ restart:
 	printd(" %d", fd);
 	signal(SIGHUP, sighup);
 	if (ioctl(fd, TIOCSCTTY, 0) < 0) {
-		syslog(LOG_ERR, "ioctl (TIOCSCTTY): %m");
+		syslog(LOG_ERR, "%s: ioctl (TIOCSCTTY): %m", username);
 		down(2);
 	}
 	if (tcsetpgrp(fd, getpid()) < 0) {
-		syslog(LOG_ERR, "tcsetpgrp failed: %m");
+		syslog(LOG_ERR, "%s: tcsetpgrp failed: %m", username);
 		down(2);
 	}
 	printd(", ioctl\n");
 	if (tcgetattr(fd, &t) < 0) {
-		syslog(LOG_ERR, "%s: tcgetattr: %m\n", devicename);
+		syslog(LOG_ERR, "%s: tcgetattr(%s): %m", username, devicename);
 		down(2);
 	}
 	cfmakeraw(&t);
@@ -328,9 +331,10 @@ restart:
 	else
 		t.c_cflag &= ~(HUPCL);
 	t.c_cflag |= CLOCAL;    /* until modem commands passes */
-	cfsetspeed(&t, speed);
+	cfsetispeed(&t, speed);
+	cfsetospeed(&t, speed);
 	if (tcsetattr(fd, TCSAFLUSH, &t) < 0) {
-		syslog(LOG_ERR, "%s: tcsetattr: %m\n", devicename);
+		syslog(LOG_ERR, "%s: tcsetattr(%s): %m", username, devicename);
 		down(2);
 	}
 	sleep(2);		/* wait for flakey line to settle */
@@ -339,7 +343,7 @@ restart:
 
 	wfd = fdopen(fd, "w+");
 	if (wfd == NULL) {
-		syslog(LOG_ERR, "can't fdopen %s: %m", devicename);
+		syslog(LOG_ERR, "%s: can't fdopen %s: %m", username, devicename);
 		down(2);
 	}
 	setbuf(wfd, NULL);
@@ -347,7 +351,7 @@ restart:
 	if (diali > 0)
 		dialerstring = dials[dialc++ % diali];
 	if (dialerstring) {
-		printd("send dialstring: %s\\r", dialerstring);
+		syslog(LOG_INFO, "%s: dialer string: %s\\r", username, dialerstring);
 		fprintf(wfd, "%s\r", dialerstring);
 	}
 	printd("\n");
@@ -364,7 +368,7 @@ restart:
 			goto restart;
 		t.c_cflag &= ~(CLOCAL);
 		if (tcsetattr(fd, TCSANOW, &t) < 0) {
-			syslog(LOG_ERR, "%s: tcsetattr: %m", devicename);
+			syslog(LOG_ERR, "%s: tcsetattr(%s): %m", username, devicename);
 			down(2);
 		}
 		/* Only now we able to receive HUP on carier drop! */
@@ -410,22 +414,23 @@ restart:
 	sleep(5);       /* Wait until login completed */
 	if (hup || terminate)
 		goto restart;
+	start_time = time(NULL);
 	/*
 	 * Attach
 	 */
 	printd("setd");
 	disc = SLIPDISC;
 	if (ioctl(fd, TIOCSETD, &disc) < 0) {
-		syslog(LOG_ERR, "%s: ioctl (TIOCSETD SLIP): %m\n",
-		    devicename);
+		syslog(LOG_ERR, "%s: ioctl (%s, TIOCSETD): %m",
+		    username, devicename);
 		down(2);
 	}
 	if (sl_unit >= 0 && ioctl(fd, SLIOCSUNIT, &sl_unit) < 0) {
-		syslog(LOG_ERR, "ioctl(SLIOCSUNIT): %m");
+		syslog(LOG_ERR, "%s: ioctl(SLIOCSUNIT): %m", username);
 		down(2);
 	}
 	if (ioctl(fd, SLIOCGUNIT, &unitnum) < 0) {
-		syslog(LOG_ERR, "ioctl(SLIOCGUNIT): %m");
+		syslog(LOG_ERR, "%s: ioctl(SLIOCGUNIT): %m", username);
 		down(2);
 	}
 	sprintf(unitname, "sl%d", unitnum);
@@ -433,12 +438,12 @@ restart:
 	if (keepal > 0) {
 		signal(SIGURG, sigurg);
 		if (ioctl(fd, SLIOCSKEEPAL, &keepal) < 0) {
-			syslog(LOG_ERR, "ioctl(SLIOCSKEEPAL): %m");
+			syslog(LOG_ERR, "%s: ioctl(SLIOCSKEEPAL): %m", username);
 			down(2);
 		}
 	}
 	if (outfill > 0 && ioctl(fd, SLIOCSOUTFILL, &outfill) < 0) {
-		syslog(LOG_ERR, "ioctl(SLIOCSOUTFILL): %m");
+		syslog(LOG_ERR, "%s: ioctl(SLIOCSOUTFILL): %m", username);
 		down(2);
 	}
 
@@ -449,7 +454,9 @@ restart:
 
 	printd(", ready\n");
 	if (!first)
-		syslog(LOG_INFO, "reconnected on %s (%d tries).\n", unitname, tries);
+		syslog(LOG_INFO, "%s: reconnected on %s (%d tries)", username, unitname, tries);
+	else
+		syslog(LOG_INFO, "%s: connected on %s", username, unitname);
 	first = 0;
 	tries = 0;
 	logged_in = 1;
@@ -466,7 +473,7 @@ sighup()
 
 	printd("hup\n");
 	if (hup == 0 && logged_in)
-		syslog(LOG_INFO, "hangup signal\n");
+		syslog(LOG_INFO, "%s: got hangup signal", username);
 	hup = 1;
 }
 
@@ -476,7 +483,7 @@ sigurg()
 
 	printd("urg\n");
 	if (hup == 0 && logged_in)
-		syslog(LOG_INFO, "dead line signal\n");
+		syslog(LOG_INFO, "%s: got dead line signal", username);
 	hup = 1;
 }
 
@@ -486,7 +493,7 @@ sigterm()
 
 	printd("terminate\n");
 	if (terminate == 0 && logged_in)
-		syslog(LOG_INFO, "terminate signal\n");
+		syslog(LOG_INFO, "%s: got terminate signal", username);
 	terminate = 1;
 }
 
@@ -513,7 +520,7 @@ getline(buf, size, fd, fintimeout)
 		tv.tv_usec = 0;
 		if ((ret = select(fd + 1, &readfds, NULL, NULL, &tv)) < 0) {
 			if (errno != EINTR)
-				syslog(LOG_ERR, "getline: select: %m");
+				syslog(LOG_ERR, "%s: getline: select: %m", username);
 		} else {
 			if (! ret) {
 			tout:
@@ -534,9 +541,9 @@ getline(buf, size, fd, fintimeout)
 			}
 			if (ret <= 0) {
 				if (ret < 0) {
-					syslog(LOG_ERR, "getline: read: %m");
+					syslog(LOG_ERR, "%s: getline: read: %m", username);
 				} else
-					syslog(LOG_ERR, "read returned 0");
+					syslog(LOG_ERR, "%s: read returned 0", username);
 				buf[i] = '\0';
 				printd("returning %d after %d: %s\n", ret, i, buf);
 				return (0);
@@ -551,8 +558,8 @@ carrier()
 	int comstate;
 
 	if (ioctl(fd, TIOCMGET, &comstate) < 0) {
-		syslog(LOG_ERR, "%s: ioctl (TIOCMGET): %m",
-		    devicename);
+		syslog(LOG_ERR, "%s: ioctl (%s, TIOCMGET): %m",
+		    username, devicename);
 		down(2);
 	}
 	return !!(comstate & TIOCM_CD);
