@@ -28,9 +28,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yppasswdd_main.c,v 1.2 1997/07/28 18:31:11 wpaul Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "yppasswd.h"
 #include <stdio.h>
@@ -71,9 +74,6 @@ struct dom_binding {};
 #endif
 
 #define	_RPCSVC_CLOSEDOWN 120
-#ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.2 1997/07/28 18:31:11 wpaul Exp $";
-#endif /* not lint */
 int _rpcpmstart = 0;		/* Started by a port monitor ? */
 static int _rpcfdtype;
 		 /* Whether Stream or Datagram ? */
@@ -145,9 +145,9 @@ closedown(int sig)
 
 static void usage()
 {
-	fprintf(stderr, "Usage: %s [-t master.passwd file] [-d domain] \
-[-p path] [-s] [-f] [-m] [-i] [-a] [-v] [-u] [-h]\n",
-		progname);
+	fprintf(stderr, "%s\n%s\n",
+"usage: rpc.yppasswdd [-t master.passwd file] [-d domain] [-p path] [-s]",
+"                     [-f] [-m] [-i] [-a] [-v] [-u] [-h]");
 	exit(1);
 }
 
@@ -257,14 +257,14 @@ the %s domain -- aborting", yppasswd_domain);
 		sock = 0;
 		_rpcpmstart = 1;
 		proto = 0;
-		openlog(progname, LOG_PID, LOG_DAEMON);
+		openlog("rpc.yppasswdd", LOG_PID, LOG_DAEMON);
 	} else {
 		if (!debug) {
 			if (daemon(0,0)) {
 				err(1,"cannot fork");
 			}
 		}
-		openlog(progname, LOG_PID, LOG_DAEMON);
+		openlog("rpc.yppasswdd", LOG_PID, LOG_DAEMON);
 		sock = RPC_ANYSOCK;
 		(void) pmap_unset(YPPASSWDPROG, YPPASSWDVERS);
 		(void) pmap_unset(MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS);
