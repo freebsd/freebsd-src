@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/asn1.c,v 1.24 2003/01/28 13:44:34 hbb Exp $
+ * $Begemot: bsnmp/lib/asn1.c,v 1.27 2003/12/08 17:11:58 hbb Exp $
  *
  * ASN.1 for SNMP.
  */
@@ -244,6 +244,13 @@ asn_get_real_integer(struct asn_buf *b, asn_len_t len, int64_t *vp)
 	err = ASN_ERR_OK;
 	if (len > 8)
 		err = ASN_ERR_RANGE;
+	else if (len > 1 &&
+	    ((*b->asn_cptr == 0x00 && (b->asn_cptr[1] & 0x80) == 0) ||
+	    (*b->asn_cptr == 0xff && (b->asn_cptr[1] & 0x80) == 0x80))) {
+		asn_error(b, "non-minimal integer");
+		err = ASN_ERR_BADLEN;
+	}
+
 	if (*b->asn_cptr & 0x80)
 		neg = 1;
 	val = 0;
@@ -332,6 +339,10 @@ asn_get_real_unsigned(struct asn_buf *b, asn_len_t len, u_int64_t *vp)
 		/* negative integer or too larger */
 		*vp = 0xffffffffffffffffULL;
 		err = ASN_ERR_RANGE;
+	} else if (len > 1 &&
+	    *b->asn_cptr == 0x00 && (b->asn_cptr[1] & 0x80) == 0) {
+		asn_error(b, "non-minimal unsigned");
+		err = ASN_ERR_BADLEN;
 	}
 
 	while (len--) {
@@ -717,7 +728,6 @@ asn_get_sequence(struct asn_buf *b, asn_len_t *len)
 	}
 	return (ASN_ERR_OK);
 }
-
 
 /*
  * Application types

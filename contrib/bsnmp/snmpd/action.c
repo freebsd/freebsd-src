@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/action.c,v 1.53 2003/01/28 13:44:35 hbb Exp $
+ * $Begemot: bsnmp/snmpd/action.c,v 1.56 2003/12/09 12:28:52 hbb Exp $
  *
  * Variable access for SNMPd
  */
@@ -557,6 +557,9 @@ op_snmpd_config(struct snmp_context *ctx, struct snmp_value *value,
 			break;
 		  case LEAF_begemotSnmpdTrap1Addr:
 			return (ip_get(value, snmpd.trap1addr));
+		  case LEAF_begemotSnmpdVersionEnable:
+			value->v.uint32 = snmpd.version_enable;
+			break;
 		  default:
 			return (SNMP_ERR_NOSUCHNAME);
 		}
@@ -595,6 +598,16 @@ op_snmpd_config(struct snmp_context *ctx, struct snmp_value *value,
 
 		  case LEAF_begemotSnmpdTrap1Addr:
 			return (ip_save(value, ctx, snmpd.trap1addr));
+
+		  case LEAF_begemotSnmpdVersionEnable:
+			if (community != COMM_INITIALIZE)
+				return (SNMP_ERR_NOT_WRITEABLE);
+			ctx->scratch->int1 = snmpd.version_enable;
+			if (value->v.uint32 == 0 ||
+			    (value->v.uint32 & ~VERS_ENABLE_ALL))
+				return (SNMP_ERR_WRONG_VALUE);
+			snmpd.version_enable = value->v.uint32;
+			return (SNMP_ERR_NOERROR);
 		}
 		abort();
 
@@ -613,6 +626,9 @@ op_snmpd_config(struct snmp_context *ctx, struct snmp_value *value,
 		  case LEAF_begemotSnmpdTrap1Addr:
 			ip_rollback(ctx, snmpd.trap1addr);
 			return (SNMP_ERR_NOERROR);
+		  case LEAF_begemotSnmpdVersionEnable:
+			snmpd.version_enable = ctx->scratch->int1;
+			return (SNMP_ERR_NOERROR);
 		}
 		abort();
 
@@ -625,6 +641,8 @@ op_snmpd_config(struct snmp_context *ctx, struct snmp_value *value,
 			return (SNMP_ERR_NOERROR);
 		  case LEAF_begemotSnmpdTrap1Addr:
 			ip_commit(ctx);
+			return (SNMP_ERR_NOERROR);
+		  case LEAF_begemotSnmpdVersionEnable:
 			return (SNMP_ERR_NOERROR);
 		}
 		abort();
@@ -701,203 +719,6 @@ op_community(struct snmp_context *ctx, struct snmp_value *value,
 	}
 	abort();
 }
-
-/*
- * Port table
- */
-int
-op_snmp_port(struct snmp_context *ctx, struct snmp_value *value,
-    u_int sub, u_int iidx, enum snmp_op op)
-{
-	asn_subid_t which = value->var.subs[sub-1];
-	struct snmp_port *p;
-	u_int8_t addr[4];
-	u_int32_t port;
-
-	switch (op) {
-
-	  case SNMP_OP_GETNEXT:
-		if ((p = NEXT_OBJECT_OID(&snmp_port_list, &value->var, sub))
-		    == NULL)
-			return (SNMP_ERR_NOSUCHNAME);
-		index_append(&value->var, sub, &p->index);
-		break;
-
-	  case SNMP_OP_GET:
-		if ((p = FIND_OBJECT_OID(&snmp_port_list, &value->var, sub))
-		    == NULL)
-			return (SNMP_ERR_NOSUCHNAME);
-		break;
-
-	  case SNMP_OP_SET:
-		p = FIND_OBJECT_OID(&snmp_port_list, &value->var, sub);
-		ctx->scratch->int1 = (p != NULL);
-
-		if (which != LEAF_begemotSnmpdPortStatus)
-			abort();
-		if (!TRUTH_OK(value->v.integer))
-			return (SNMP_ERR_WRONG_VALUE);
-
-		ctx->scratch->int2 = TRUTH_GET(value->v.integer);
-
-		if (ctx->scratch->int2) {
-			/* open an SNMP port */
-			if (p != NULL)
-				/* already open - do nothing */
-				return (SNMP_ERR_NOERROR);
-
-			if (index_decode(&value->var, sub, iidx, addr, &port))
-				return (SNMP_ERR_NO_CREATION);
-			return (open_snmp_port(addr, port, &p));
-
-		} else {
-			/* close SNMP port - do in commit */
-		}
-		return (SNMP_ERR_NOERROR);
-
-	  case SNMP_OP_ROLLBACK:
-		p = FIND_OBJECT_OID(&snmp_port_list, &value->var, sub);
-		if (ctx->scratch->int1 == 0) {
-			/* did not exist */
-			if (ctx->scratch->int2 == 1) {
-				/* created */
-				if (p != NULL)
-					close_snmp_port(p);
-			}
-		}
-		return (SNMP_ERR_NOERROR);
-
-	  case SNMP_OP_COMMIT:
-		p = FIND_OBJECT_OID(&snmp_port_list, &value->var, sub);
-		if (ctx->scratch->int1 == 1) {
-			/* did exist */
-			if (ctx->scratch->int2 == 0) {
-				/* delete */
-				if (p != NULL)
-					close_snmp_port(p);
-			}
-		}
-		return (SNMP_ERR_NOERROR);
-
-	  default:
-		abort();
-	}
-
-	/*
-	 * Come here to fetch the value
-	 */
-	switch (which) {
-
-	  case LEAF_begemotSnmpdPortStatus:
-		value->v.integer = 1;
-		break;
-
-	  default:
-		abort();
-	}
-
-	return (SNMP_ERR_NOERROR);
-}
-
-/*
- * Local port table
- */
-int
-op_local_port(struct snmp_context *ctx, struct snmp_value *value,
-    u_int sub, u_int iidx, enum snmp_op op)
-{
-	asn_subid_t which = value->var.subs[sub-1];
-	struct local_port *p;
-	u_char *name;
-	size_t namelen;
-
-	switch (op) {
-
-	  case SNMP_OP_GETNEXT:
-		if ((p = NEXT_OBJECT_OID(&local_port_list, &value->var, sub))
-		    == NULL)
-			return (SNMP_ERR_NOSUCHNAME);
-		index_append(&value->var, sub, &p->index);
-		break;
-
-	  case SNMP_OP_GET:
-		if ((p = FIND_OBJECT_OID(&local_port_list, &value->var, sub))
-		    == NULL)
-			return (SNMP_ERR_NOSUCHNAME);
-		break;
-
-	  case SNMP_OP_SET:
-		p = FIND_OBJECT_OID(&local_port_list, &value->var, sub);
-		ctx->scratch->int1 = (p != NULL);
-
-		if (which != LEAF_begemotSnmpdLocalPortStatus)
-			abort();
-		if (!TRUTH_OK(value->v.integer))
-			return (SNMP_ERR_WRONG_VALUE);
-
-		ctx->scratch->int2 = TRUTH_GET(value->v.integer);
-
-		if (ctx->scratch->int2) {
-			/* open a local port */
-			if (p != NULL)
-				/* already open - do nothing */
-				return (SNMP_ERR_NOERROR);
-
-			if (index_decode(&value->var, sub, iidx,
-			    &name, &namelen))
-				return (SNMP_ERR_NO_CREATION);
-			return (open_local_port(name, namelen, &p));
-
-		} else {
-			/* close local port - do in commit */
-		}
-		return (SNMP_ERR_NOERROR);
-
-	  case SNMP_OP_ROLLBACK:
-		p = FIND_OBJECT_OID(&local_port_list, &value->var, sub);
-		if (ctx->scratch->int1 == 0) {
-			/* did not exist */
-			if (ctx->scratch->int2 == 1) {
-				/* created */
-				if (p != NULL)
-					close_local_port(p);
-			}
-		}
-		return (SNMP_ERR_NOERROR);
-
-	  case SNMP_OP_COMMIT:
-		p = FIND_OBJECT_OID(&local_port_list, &value->var, sub);
-		if (ctx->scratch->int1 == 1) {
-			/* did exist */
-			if (ctx->scratch->int2 == 0) {
-				/* delete */
-				if (p != NULL)
-					close_local_port(p);
-			}
-		}
-		return (SNMP_ERR_NOERROR);
-
-	  default:
-		abort();
-	}
-
-	/*
-	 * Come here to fetch the value
-	 */
-	switch (which) {
-
-	  case LEAF_begemotSnmpdLocalPortStatus:
-		value->v.integer = 1;
-		break;
-
-	  default:
-		abort();
-	}
-
-	return (SNMP_ERR_NOERROR);
-}
-
-
 
 /*
  * Module table.
@@ -1142,4 +963,80 @@ op_snmp_set(struct snmp_context *ctx __unused, struct snmp_value *value,
 		return (SNMP_ERR_NOERROR);
 	}
 	abort();
+}
+
+/*
+ * Transport table
+ */
+int
+op_transport_table(struct snmp_context *ctx __unused, struct snmp_value *value,
+    u_int sub, u_int iidx, enum snmp_op op)
+{
+	asn_subid_t which = value->var.subs[sub - 1];
+	struct transport *t;
+	u_char *tname, *ptr;
+	size_t tnamelen;
+
+	switch (op) {
+
+	  case SNMP_OP_GETNEXT:
+		if ((t = NEXT_OBJECT_OID(&transport_list, &value->var, sub))
+		    == NULL)
+			return (SNMP_ERR_NOSUCHNAME);
+		index_append(&value->var, sub, &t->index);
+		break;
+
+	  case SNMP_OP_GET:
+		if ((t = FIND_OBJECT_OID(&transport_list, &value->var, sub))
+		    == NULL)
+			return (SNMP_ERR_NOSUCHNAME);
+		break;
+
+	  case SNMP_OP_SET:
+		t = FIND_OBJECT_OID(&transport_list, &value->var, sub);
+		if (which != LEAF_begemotSnmpdTransportStatus) {
+			if (t == NULL)
+				return (SNMP_ERR_NO_CREATION);
+			return (SNMP_ERR_NOT_WRITEABLE);
+		}
+
+		/* the errors in the next few statements can only happen when
+		 * t is NULL, hence the NO_CREATION error. */
+		if (index_decode(&value->var, sub, iidx,
+		    &tname, &tnamelen))
+			return (SNMP_ERR_NO_CREATION);
+
+		/* check the section name */
+		if (tnamelen >= TRANS_NAMELEN || tnamelen == 0) {
+			free(tname);
+			return (SNMP_ERR_NO_CREATION);
+		}
+		for (ptr = tname; ptr < tname + tnamelen; ptr++) {
+			if (!isascii(*ptr) || !isalnum(*ptr)) {
+				free(tname);
+				return (SNMP_ERR_NO_CREATION);
+			}
+		}
+
+		/* for now */
+		return (SNMP_ERR_NOT_WRITEABLE);
+
+	  case SNMP_OP_ROLLBACK:
+	  case SNMP_OP_COMMIT:
+		return (SNMP_ERR_NOERROR);
+	  default:
+		abort();
+	}
+
+	switch (which) {
+
+	    case LEAF_begemotSnmpdTransportStatus:
+		value->v.integer = 1;
+		break;
+
+	    case LEAF_begemotSnmpdTransportOid:
+		memcpy(&value->v.oid, &t->vtab->id, sizeof(t->vtab->id));
+		break;
+	}
+	return (SNMP_ERR_NOERROR);
 }

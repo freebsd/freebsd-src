@@ -30,7 +30,7 @@
 .\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.3 2003/01/28 13:44:35 hbb Exp $
+.\" $Begemot: bsnmp/snmpd/snmpmod.3,v 1.5 2003/12/08 16:55:58 hbb Exp $
 .\"
 .Dd August 16, 2002
 .Dt snmpmod 3
@@ -166,7 +166,7 @@ Begemot SNMP library
 .Fn buf_size "int tx"
 .Ft enum snmpd_input_err
 .Fn snmp_input_start "const u_char *buf" "size_t len" "const char *source" \
-    "struct snmp_pdu *pdu" "int32_t *ip"
+    "struct snmp_pdu *pdu" "int32_t *ip" "size_t *pdulen"
 .Ft enum snmpd_input_err
 .Fn snmp_input_finish "struct snmp_pdu *pdu" "const u_char *rcvbuf" \
     "size_t rcvlen" "u_char *sndbuf" "size_t *sndlen" "const char *source" \
@@ -175,8 +175,8 @@ Begemot SNMP library
 .Fn snmp_output "struct snmp_pdu *pdu" "u_char *sndbuf" "size_t *sndlen" \
     "const char *dest"
 .Ft void
-.Fn snmp_send_port "const struct asn_oid *port" "struct snmp_pdu *pdu" \
-    "const struct sockaddr *addr" "socklen_t addrlen"
+.Fn snmp_send_port "void *trans" "const struct asn_oid *port" \
+    "struct snmp_pdu *pdu" "const struct sockaddr *addr" "socklen_t addrlen"
 .Ft void
 .Fn snmp_send_trap "const struct asn_oid *oid" "..."
 .Ft int
@@ -245,7 +245,7 @@ a global symbol
 This symbol should be a variable of type
 .Vt struct snmp_module :
 .Bd -literal -offset indent
-typedef enum snmpd_proxy_err (*proxy_err_f)(struct snmp_pdu *,
+typedef enum snmpd_proxy_err (*proxy_err_f)(struct snmp_pdu *, void *,
     const struct asn_oid *, const struct sockaddr *, socklen_t,
     enum snmpd_input_err, int32_t);
 
@@ -657,6 +657,12 @@ A SET PDU had a value field in a binding with a value that is out of range
 for the given ASN.1 type.
 .It Er SNMPD_INPUT_VALBADENC
 A SET PDU had a value field in a binding with wrong ASN.1 encoding.
+.It Er SNMPD_INPUT_TRUNC
+The buffer appears to contain a valid begin of a PDU, but is too short.
+For streaming transports this means that the caller must save what he
+already has and trying to obtain more input and reissue this input to
+the function. For datagram transports this means that part of the
+datagram was lost and the input should be ignored.
 .El
 .Pp
 The function
@@ -680,7 +686,7 @@ takes a PDU and encodes it.
 The function
 .Fn snmp_send_port
 takes a PDU, encodes it and sends it through the given port (identified by
-the index in the port table) to the given address.
+the transport and the index in the port table) to the given address.
 .Pp
 The function
 .Fn snmp_send_trap

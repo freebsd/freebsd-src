@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.34 2003/01/28 13:44:34 hbb Exp $
+ * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.36 2003/12/03 09:56:57 hbb Exp $
  *
  * Generate OID table from table description.
  *

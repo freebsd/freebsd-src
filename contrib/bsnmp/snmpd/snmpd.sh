@@ -31,7 +31,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $Begemot: bsnmp/snmpd/snmpd.sh,v 1.1 2002/12/04 11:15:23 hbb Exp $
+# $Begemot: bsnmp/snmpd/snmpd.sh,v 1.2 2003/12/03 10:08:47 hbb Exp $
 #
 # SNMPd startup script
 #
