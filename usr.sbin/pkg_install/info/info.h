@@ -45,6 +45,7 @@
 #define SHOW_MTREE	0x0800
 #define SHOW_SIZE	0x1000
 #define SHOW_ORIGIN	0x2000
+#define SHOW_CKSUM	0x4000
 
 extern int Flags;
 extern Boolean AllInstalled;
