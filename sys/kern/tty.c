@@ -2760,3 +2760,21 @@ ttyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		return (error);
 	return (ENOTTY);
 }
+
+int
+ttyldoptim(struct tty *tp)
+{
+	struct termios	*t;
+
+	t = &tp->t_termios;
+	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
+	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
+	    && (!(t->c_iflag & PARMRK)
+		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
+	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
+	    && linesw[tp->t_line].l_rint == ttyinput)
+		tp->t_state |= TS_CAN_BYPASS_L_RINT;
+	else
+		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
+	return (linesw[tp->t_line].l_hotchar);
+}

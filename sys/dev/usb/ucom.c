@@ -155,7 +155,6 @@ Static usbd_status ucomstartread(struct ucom_softc *);
 Static void ucomreadcb(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void ucomwritecb(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void ucomstopread(struct ucom_softc *);
-static void disc_optim(struct tty *, struct termios *, struct ucom_softc *);
 
 devclass_t ucom_devclass;
 
@@ -402,7 +401,7 @@ ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	if (error)
 		goto bad;
 
-	disc_optim(tp, &tp->t_termios, sc);
+	sc->hotchar = ttyldoptim(tp);
 
 	DPRINTF(("%s: ucomopen: success\n", USBDEVNAME(sc->sc_dev)));
 
@@ -462,7 +461,7 @@ ucomclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 
 	s = spltty();
 	ttyld_close(tp, flag);
-	disc_optim(tp, &tp->t_termios, sc);
+	sc->hotchar = ttyldoptim(tp);
 	ttyclose(tp);
 	splx(s);
 
@@ -564,7 +563,7 @@ ucomioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 #endif
 
 	error = ttyioctl(dev, cmd, data, flag, p);
-	disc_optim(tp, &tp->t_termios, sc);
+	sc->hotchar = ttyldoptim(tp);
 	if (error != ENOTTY) {
 		DPRINTF(("ucomioctl: l_ioctl: error = %d\n", error));
 		return (error);
@@ -824,7 +823,7 @@ ucomparam(struct tty *tp, struct termios *t)
 		(void)ucomctl(sc, UMCR_RTS, DMBIS);
 	}
 
-	disc_optim(tp, t, sc);
+	sc->hotchar = ttyldoptim(tp);
 
 	uerr = ucomstartread(sc);
 	if (uerr != USBD_NORMAL_COMPLETION)
@@ -1167,22 +1166,4 @@ ucomstopread(struct ucom_softc *sc)
 	}
 
 	DPRINTF(("ucomstopread: leave\n"));
-}
-
-static void
-disc_optim(struct tty *tp, struct termios *t, struct ucom_softc *sc)
-{
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
-	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
-	    && (!(t->c_iflag & PARMRK)
-		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
-	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
-	    && linesw[tp->t_line].l_rint == ttyinput) {
-		DPRINTF(("disc_optim: bypass l_rint\n"));
-		tp->t_state |= TS_CAN_BYPASS_L_RINT;
-	} else {
-		DPRINTF(("disc_optim: can't bypass l_rint\n"));
-		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	}
-	sc->hotchar = linesw[tp->t_line].l_hotchar;
 }

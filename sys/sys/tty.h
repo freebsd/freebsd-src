@@ -303,6 +303,7 @@ void	 ttyfree(struct tty *tp);
 void	 ttyinfo(struct tty *tp);
 int	 ttyinput(int c, struct tty *tp);
 int	 ttylclose(struct tty *tp, int flag);
+int	 ttyldoptim(struct tty *tp);
 struct tty *ttymalloc(struct tty *tp);
 int	 ttymodem(struct tty *tp, int flag);
 int	 ttyopen(dev_t device, struct tty *tp);

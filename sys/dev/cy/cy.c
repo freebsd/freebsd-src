@@ -2585,21 +2585,7 @@ disc_optim(tp, t, com)
 	u_char	opt;
 #endif
 
-	/*
-	 * XXX can skip a lot more cases if Smarts.  Maybe
-	 * (IGNCR | ISTRIP | IXON) in c_iflag.  But perhaps we
-	 * shouldn't skip if (TS_CNTTB | TS_LNCH) is set in t_state.
-	 */
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
-	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
-	    && (!(t->c_iflag & PARMRK)
-		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
-	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
-	    && linesw[tp->t_line].l_rint == ttyinput)
-		tp->t_state |= TS_CAN_BYPASS_L_RINT;
-	else
-		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	com->hotchar = linesw[tp->t_line].l_hotchar;
+	com->hotchar = ttyldoptim(tp);
 #ifndef SOFT_HOTCHAR
 	opt = com->cor[2] & ~CD1400_COR3_SCD34;
 	if (com->hotchar != 0) {
