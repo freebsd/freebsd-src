@@ -73,7 +73,7 @@ filedup(const char *path, int flags)
     /* Read everything until we know how big it is */
     for (;;) {
 	result = read(fd, buf, LOAD_TINYBUF);
-	if (size == -1) {
+	if (result == -1) {
 	    free(buf, LOAD_TINYBUF);
 	    close(fd);
 	    return(NULL);
