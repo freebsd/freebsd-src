@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.11 1995/12/10 14:57:04 bde Exp $
+ *      $Id: su.c,v 1.12 1995/12/10 20:34:53 bde Exp $
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig
@@ -165,11 +165,11 @@ getsws(dev_t dev, int type,
 		int bmaj, cmaj;
 
 		cmaj = major(scsi_link->dev);
-		cdev = cdevsw + cmaj;
+		cdev = cdevsw[cmaj];
 		chr_dev = OLD_DEV(dev, scsi_link->dev);
 
 		bmaj = chrtoblk(cmaj);
-		bdev = (bmaj == NODEV) ? &bnxio : bdevsw + bmaj;
+		bdev = (bmaj == NODEV) ? &bnxio : bdevsw[bmaj];
 		blk_dev = OLD_DEV(dev, makedev(bmaj, minor(scsi_link->dev)));
 	}
 
