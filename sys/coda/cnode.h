@@ -154,6 +154,7 @@ struct coda_mntinfo {
     struct mount	*mi_vfsp;
     struct vcomm	 mi_vcomm;
     dev_t                dev;
+    int                  mi_started;
 };
 extern struct coda_mntinfo coda_mnttbl[]; /* indexed by minor device number */
 
