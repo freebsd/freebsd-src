@@ -158,17 +158,13 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 				    !memcmp(&in6->s6_addr[12], in,
 					    sizeof(*in))) {
 					result = HOSTNAME_FOUND;
-					if (res->ai_canonname == 0) {
+					if (res->ai_canonname == 0 ||
+					    strlen(res->ai_canonname) > hsize) {
 						freeaddrinfo(ores);
 						goto numeric;
 					}
-					if (strlen(res->ai_canonname) > hsize)
-						strncpy(host, inet_ntoa(*in),
-							hsize);
-					else
-						strncpy(host,
-							res->ai_canonname,
-							hsize);
+					strncpy(host, res->ai_canonname,
+						hsize);
 					break;
 				}
 			}
@@ -176,7 +172,26 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 		}
 		freeaddrinfo(ores);
 	} else {
+		struct sockaddr_in sin;
     numeric:
+#ifdef INET6
+		if (addr->sa_family == AF_INET6) {
+			struct sockaddr_in6 *sin6;
+
+			sin6 = (struct sockaddr_in6 *)addr;
+			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+				memset(&sin, 0, sizeof(sin));
+				sin.sin_len = sizeof(struct sockaddr_in);
+				sin.sin_family = AF_INET;
+				sin.sin_port = sin6->sin6_port;
+				memcpy(&sin.sin_addr,
+				       &sin6->sin6_addr.s6_addr[12],
+				       sizeof(struct in_addr));
+				addr = (struct sockaddr *)&sin;
+				addrlen = sin.sin_len;
+			}
+		}
+#endif
 		if (getnameinfo(addr, addrlen, buf, sizeof(buf), NULL, 0,
 				NI_NUMERICHOST|NI_WITHSCOPEID) == 0)
 			strncpy(host, buf, hsize);
