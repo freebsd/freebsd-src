@@ -278,8 +278,8 @@ hw.ata.atapi_dma="1"</programlisting>
       </step>
     </procedure>
 
-    <para>This problem has been corrected in &os; &release.current
-      snapshots.</para>
+    <para>This problem was fixed in &os; &release.current;
+      on 31 July 2002.</para>
 
     <para>Due to a bug in the release generation process, some of the
       directories under <filename>/usr/share/examples</filename> are
@@ -292,8 +292,8 @@ hw.ata.atapi_dma="1"</programlisting>
       <guimenuitem>src</guimenuitem>, then
       <guimenuitem>share</guimenuitem>).
       <filename>/usr/src/share/examples</filename> will then contain 
-      the missing files.  This problem has been corrected in recent
-      &os; &release.current; snapshots.</para>
+      the missing files.  This problem was corrected in
+      &os; &release.current; on 16 July 2002.</para>
 
 ]]>
   </sect1>
