@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.265 1997/10/08 05:04:48 asami Exp $
+#	$Id: bsd.port.mk,v 1.266 1997/11/12 10:25:17 markm Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -564,6 +564,10 @@ MASTER_SITE_SUNSITE+=	\
 MASTER_SITES?=
 PATCH_SITES?=
 
+# To avoid double-slashes
+MASTER_SITE_SUBDIR?=	.
+PATCH_SITE_SUBDIR?=	.
+
 # Substitute subdirectory names
 MASTER_SITES:=	${MASTER_SITES:S/%SUBDIR%/${MASTER_SITE_SUBDIR}/}
 PATCH_SITES:=	${PATCH_SITES:S/%SUBDIR%/${PATCH_SITE_SUBDIR}/}
@@ -746,6 +750,12 @@ IGNORE=	"is restricted: ${RESTRICTED}"
 IGNORE=	"uses X11, but ${X11BASE} not found"
 .elif defined(BROKEN)
 IGNORE=	"is marked as broken: ${BROKEN}"
+.endif
+
+.if (defined(MANUAL_PACKAGE_BUILD) && defined(PACKAGE_BUILDING))
+IGNORE=	"package has to be built manually: ${MANUAL_PACKAGE_BUILD}"
+clean:
+	@${IGNORECMD}
 .endif
 
 .if defined(IGNORE)
