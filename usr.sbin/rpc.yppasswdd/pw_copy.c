@@ -56,6 +56,15 @@ pw_copy(ffd, tfd, pw)
 	FILE *from, *to;
 	int done;
 	char *p, buf[8192];
+	char uidstr[20];
+	char gidstr[20];
+	char chgstr[20];
+	char expstr[20];
+
+	snprintf(uidstr, sizeof(uidstr), "%d", pw->pw_uid);
+	snprintf(gidstr, sizeof(gidstr), "%d", pw->pw_gid);
+	snprintf(chgstr, sizeof(chgstr), "%ld", pw->pw_change);
+	snprintf(expstr, sizeof(expstr), "%ld", pw->pw_expire);
 
 	if (!(from = fdopen(ffd, "r"))) {
 		pw_error(passfile, 1, 1);
@@ -90,20 +99,28 @@ pw_copy(ffd, tfd, pw)
 				goto err;
 			continue;
 		}
-		(void)fprintf(to, "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s\n",
-		    pw->pw_name, pw->pw_passwd, pw->pw_uid, pw->pw_gid,
-		    pw->pw_class, pw->pw_change, pw->pw_expire, pw->pw_gecos,
-		    pw->pw_dir, pw->pw_shell);
+		(void)fprintf(to, "%s:%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
+		    pw->pw_name, pw->pw_passwd,
+		    pw->pw_fields & _PWF_UID ? uidstr : "",
+		    pw->pw_fields & _PWF_GID ? gidstr : "",
+		    pw->pw_class,
+		    pw->pw_fields & _PWF_CHANGE ? chgstr : "",
+		    pw->pw_fields & _PWF_EXPIRE ? expstr : "",
+		    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
 		done = 1;
 		if (ferror(to))
 			goto err;
 	}
 	if (!done) {
 		if (allow_additions) {
-			(void)fprintf(to, "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s\n",
-			pw->pw_name, pw->pw_passwd, pw->pw_uid, pw->pw_gid,
-		    	pw->pw_class, pw->pw_change, pw->pw_expire,
-		    	pw->pw_gecos, pw->pw_dir, pw->pw_shell);
+			(void)fprintf(to, "%s:%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
+			pw->pw_name, pw->pw_passwd,
+			pw->pw_fields & _PWF_UID ? uidstr : "",
+			pw->pw_fields & _PWF_GID ? gidstr : "",
+			pw->pw_class,
+			pw->pw_fields & _PWF_CHANGE ? chgstr : "",
+			pw->pw_fields & _PWF_EXPIRE ? expstr : "",
+			pw->pw_gecos, pw->pw_dir, pw->pw_shell);
 		} else {
 			yp_error("user \"%s\" not found in %s -- \
 NIS maps and password file possibly out of sync", pw->pw_name, passfile);
