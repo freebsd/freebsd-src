@@ -275,13 +275,20 @@ See the
 .Xr mount 8
 man page for possible options and their meanings.
 .El
+.Sh EXAMPLES
+.Pp
+.Dl mount_mfs -s=20480 -o nosuid,nodev /dev/sd0b /tmp
+.Pp
+Mount a 10240 KB large memory file system on /tmp, with
+.Xr mount 8
+options nosuid and nodev.
 .Sh SEE ALSO
 .Xr fdformat 1 ,
 .Xr disktab 5 ,
 .Xr fs 5 ,
-.Xr dumpfs 8 ,
 .Xr disklabel 8 ,
 .Xr diskpart 8 ,
+.Xr dumpfs 8 ,
 .Xr fsck 8 ,
 .Xr mount 8 ,
 .Xr scsiformat 8 ,
