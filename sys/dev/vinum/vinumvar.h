@@ -20,7 +20,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *	This product includes software developed by Nan Yang Computer
- *      Services Limited.
+ *	Services Limited.
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -37,12 +37,14 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.25 2000/05/11 05:28:47 grog Exp grog $
+ * $Id: vinumvar.h,v 1.26 2001/01/09 06:37:42 grog Exp grog $
  * $FreeBSD$
  */
 
 #include <sys/time.h>
 #include <dev/vinum/vinumstate.h>
+#include <sys/mutex.h>
+
 /*
  * Some configuration maxima.  They're an enum because
  * we can't define global constants.  Sorry about that.
@@ -97,48 +99,48 @@ enum constants {
     MAXNAME = 64,					    /* maximum length of any name */
 
 
-/*
- * Define a minor device number.
- * This is not used directly; instead, it's
- * called by the other macros.
- */
+    /*
+     * Define a minor device number.
+     * This is not used directly; instead, it's
+     * called by the other macros.
+     */
 #define VINUMMINOR(v,p,s,t)  ( (v << VINUM_VOL_SHIFT)		\
 			      | (p << VINUM_PLEX_SHIFT)		\
-			      | (s << VINUM_SD_SHIFT) 		\
+			      | (s << VINUM_SD_SHIFT)		\
 			      | (t << VINUM_TYPE_SHIFT) )
 
-/* Create device minor numbers */
+    /* Create device minor numbers */
 #define VINUMDEV(v,p,s,t)  makedev (VINUM_CDEV_MAJOR, VINUMMINOR (v, p, s, t))
 
 #define VINUM_PLEX(p)	makedev (VINUM_CDEV_MAJOR,				\
-					 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
-					 | (p & 0xff)				\
-					 | ((p & ~0xff) << 8) )
+				 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
+				 | (p & 0xff)				\
+				 | ((p & ~0xff) << 8) )
 
 #define VINUM_SD(s)	makedev (VINUM_CDEV_MAJOR,				\
-					 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
-					 | (s & 0xff)				\
-					 | ((s & ~0xff) << 8) )
+				 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
+				 | (s & 0xff)				\
+				 | ((s & ~0xff) << 8) )
 
-/* Create a bit mask for x bits */
-#define MASK(x)  ((1 << (x)) - 1)
+    /* Create a bit mask for x bits */
+#define MASK(x)	 ((1 << (x)) - 1)
 
-/* Create a raw block device minor number */
+    /* Create a raw block device minor number */
 #define VINUMRMINOR(d,t) ( ((d & MASK (VINUM_VOL_WIDTH)) << VINUM_VOL_SHIFT)	\
 			  | ((d & ~MASK (VINUM_VOL_WIDTH))			\
-			     << (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH)) 		\
+			     << (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH))		\
 			  | (t << VINUM_TYPE_SHIFT) )
 
 #define VINUMRBDEV(d,t)	makedev (VINUM_BDEV_MAJOR, VINUMRMINOR (d, t))
 
-/* extract device type */
+    /* extract device type */
 #define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 7)
 
-/*
- * This mess is used to catch people who compile
- * a debug vinum(8) and non-debug kernel module,
- * or the other way round.
- */
+    /*
+     * This mess is used to catch people who compile
+     * a debug vinum(8) and non-debug kernel module,
+     * or the other way round.
+     */
 
 #ifdef VINUMDEBUG
 #define	VINUM_SUPERDEV VINUMMINOR (1, 0, 0, VINUM_SUPERDEV_TYPE) /* superdevice number */
@@ -166,7 +168,7 @@ enum constants {
     INITIAL_SUBDISKS_IN_DRIVE = 4,			    /* number of subdisks to allocate to a drive */
     INITIAL_DRIVE_FREELIST = 16,			    /* number of entries in drive freelist */
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
-    INITIAL_LOCKS = 256,				    /* number of locks to allocate to a plex */
+    PLEX_LOCKS = 256,					    /* number of locks to allocate to a plex */
     MAX_REVIVE_BLOCKSIZE = MAXPHYS,			    /* maximum revive block size */
     DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* default revive block size */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
@@ -479,7 +481,7 @@ struct plex {
     int volno;						    /* index of volume */
     int volplexno;					    /* number of plex in volume */
     /* Lock information */
-    int alloclocks;					    /* number of locks allocated */
+    struct mtx lockmtx;
     int usedlocks;					    /* number currently in use */
     int lockwaits;					    /* and number of waits for locks */
     struct rangelock *lock;				    /* ranges of locked addresses */
