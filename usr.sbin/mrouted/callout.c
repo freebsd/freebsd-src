@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: callout.c,v 3.6 1995/06/25 18:47:29 fenner Exp $
+ * $Id: callout.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
  */
 
 #include "defs.h"
@@ -16,7 +16,7 @@
 static int id = 0;
 static struct timeout_q  *Q = 0; /* pointer to the beginning of timeout queue */
 
-static int in_callout= 0;
+static int in_callout = 0;
 
 struct timeout_q {
 	struct timeout_q *next;		/* next event */
@@ -53,12 +53,15 @@ age_callout_queue()
     in_callout = 1;
     ptr = Q;
     
-    while (ptr){
-	if (!ptr->time ) {
+    while (ptr) {
+	if (!ptr->time) {
 	    /* timeout has happened */
+	    Q = Q->next;
+
+	    in_callout = 0;
 	    if (ptr->func)
 		ptr->func(ptr->data);
-	    Q = Q->next;
+	    in_callout = 1;
 	    
 	    free(ptr);
 	    ptr = Q;
@@ -206,3 +209,18 @@ print_Q()
 	log(LOG_DEBUG,0,"(%d,%d) ", ptr->id, ptr->time);
 }
 #endif /* IGMP_DEBUG */
+int
+secs_remaining( timer_id)
+    int  timer_id;
+{
+    struct timeout_q  *ptr;
+    int left=0;
+
+    for (ptr = Q; ptr && ptr->id != timer_id; ptr = ptr->next)
+       left += ptr->time;
+
+    if (!ptr) /* not found */
+       return 0;
+
+    return left + ptr->time;
+}
