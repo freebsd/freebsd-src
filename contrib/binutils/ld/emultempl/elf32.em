@@ -168,7 +168,7 @@ gld${EMULATION_NAME}_vercheck (s)
 
   soname = bfd_elf_get_dt_soname (s->the_bfd);
   if (soname == NULL)
-    soname = basename (bfd_get_filename (s->the_bfd));
+    soname = lbasename (bfd_get_filename (s->the_bfd));
 
   for (l = global_vercheck_needed; l != NULL; l = l->next)
     {
@@ -250,7 +250,7 @@ gld${EMULATION_NAME}_stat_needed (s)
 
   soname = bfd_elf_get_dt_soname (s->the_bfd);
   if (soname == NULL)
-    soname = basename (s->filename);
+    soname = lbasename (s->filename);
 
   if (strncmp (soname, global_needed->name, suffix - global_needed->name) == 0)
     einfo ("%P: warning: %s, needed by %B, may conflict with %s\n",
@@ -354,7 +354,7 @@ cat >>e${EMULATION_NAME}.c <<EOF
     einfo ("%F%P:%B: bfd_stat failed: %E\n", abfd);
 
   /* First strip off everything before the last '/'.  */
-  soname = basename (abfd->filename);
+  soname = lbasename (abfd->filename);
 
   if (trace_file_tries)
     info_msg (_("found %s at %s\n"), soname, name);
@@ -371,9 +371,6 @@ cat >>e${EMULATION_NAME}.c <<EOF
   /* Tell the ELF backend that we don't want the output file to have a
      DT_NEEDED entry for this file.  */
   bfd_elf_set_dt_needed_name (abfd, "");
-
-  /* Previos basename call was clobbered in lang_for_each_input_file.  */
-  soname = basename (abfd->filename);
 
   /* Tell the ELF backend that the output file needs a DT_NEEDED
      entry for this file if it is used to resolve the reference in
@@ -1047,7 +1044,7 @@ gld${EMULATION_NAME}_open_dynamic_archive (arch, search, entry)
       /* Rather than duplicating the logic above.  Just use the
 	 filename we recorded earlier.  */
 
-      filename = xstrdup (basename (entry->filename));
+      filename = lbasename (entry->filename);
       bfd_elf_set_dt_needed_name (entry->the_bfd, filename);
     }
 
