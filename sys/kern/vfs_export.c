@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.153 1998/05/17 19:38:55 tegge Exp $
+ * $Id: vfs_subr.c,v 1.154 1998/06/07 17:11:46 dfr Exp $
  */
 
 /*
@@ -580,13 +580,23 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	int s, error;
 	vm_object_t object;
 
-	if ((flags & V_SAVE) && vp->v_dirtyblkhd.lh_first != NULL) {
-		if ((error = VOP_FSYNC(vp, cred, MNT_WAIT, p)))
-			return (error);
-		if (vp->v_dirtyblkhd.lh_first != NULL)
-			panic("vinvalbuf: dirty bufs");
-	}
-
+	if (flags & V_SAVE) {
+		s = splbio();
+		while (vp->v_numoutput) {
+			vp->v_flag |= VBWAIT;
+			sleep((caddr_t)&vp->v_numoutput, PRIBIO + 1);
+		}
+		if (vp->v_dirtyblkhd.lh_first != NULL) {
+			splx(s);
+			if ((error = VOP_FSYNC(vp, cred, MNT_WAIT, p)) != 0)
+				return (error);
+			s = splbio();
+			if (vp->v_numoutput > 0 ||
+			    vp->v_dirtyblkhd.lh_first != NULL)
+				panic("vinvalbuf: dirty bufs");
+		}
+		splx(s);
+  	}
 	s = splbio();
 	for (;;) {
 		if ((blist = vp->v_cleanblkhd.lh_first) && (flags & V_SAVEMETA))
