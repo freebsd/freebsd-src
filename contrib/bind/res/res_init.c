@@ -55,7 +55,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static char rcsid[] = "$Id: res_init.c,v 8.5 1996/08/05 08:31:35 vixie Exp $";
+static char rcsid[] = "$Id: res_init.c,v 8.7 1996/09/28 06:51:07 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -126,7 +126,11 @@ static u_int32_t net_mask __P((struct in_addr));
  * Resolver state default settings.
  */
 
-struct __res_state _res;
+struct __res_state _res
+# if defined(__BIND_RES_TEXT)
+	= { RES_TIMEOUT, }	/* Motorola, et al. */
+# endif
+	;
 
 /*
  * Set up default settings.  If the configuration file exist, the values
@@ -641,7 +645,7 @@ netinfo_res_init(haveenv, havesearch)
 }
 #endif	/* NeXT */
 
-u_int16_t
+u_int
 res_randomid()
 {
 	struct timeval now;

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_lookup.c	4.18 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_lookup.c,v 8.7 1996/08/05 08:31:30 vixie Exp $";
+static char rcsid[] = "$Id: db_lookup.c,v 8.9 1996/09/22 00:13:10 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -119,7 +119,8 @@ nlookup(name, htpp, fname, insert)
 		/* rotate left HASHSHIFT */
 		hval = (hval << HASHSHIFT) |
 			(hval>>((sizeof(hval)*8)-HASHSHIFT));
-		hval += (isupper(c) ? tolower(c) : c) & HASHMASK;
+		hval += ((isascii(c) && isupper(c)) ? tolower(c) : c)
+			& HASHMASK;
 		if (escaped)
 			escaped = 0;
 		else if (c == '\\')
@@ -133,7 +134,7 @@ nlookup(name, htpp, fname, insert)
 	     np != NULL;
 	     np = np->n_next) {
 		if (np->n_hashval == hval &&
-		    (NAMELEN(*np) == (cp - name)) && 
+		    ((size_t)NAMELEN(*np) == (cp - name)) && 
 		    (strncasecmp(name, NAME(*np), cp - name) == 0)) {
 			*fname = name;
 			return (np);

@@ -128,22 +128,23 @@ The following is a small example:
 ;
 directory	/usr/local/adm/named
 
-.ta \w'forwarders\ 'u +\w'6.32.128.IN-ADDR.ARPA\ 'u +\w'128.32.137.8 128.32.137.3\ 'u
+.ta \w'check-names\ 'u +\w'6.32.128.IN-ADDR.ARPA\ 'u +\w'128.32.137.8 128.32.137.3\ 'u
 ; type	domain	source host/file				backup file
 
-cache	.							root.cache
+cache	.	root.cache
 primary	Berkeley.EDU	berkeley.edu.zone
 primary	32.128.IN-ADDR.ARPA	ucbhosts.rev
 secondary	CC.Berkeley.EDU	128.32.137.8 128.32.137.3	cc.zone.bak
 secondary	6.32.128.IN-ADDR.ARPA	128.32.137.8 128.32.137.3	cc.rev.bak
-primary	0.0.127.IN-ADDR.ARPA					localhost.rev
+primary	0.0.127.IN-ADDR.ARPA	localhost.rev
 forwarders	10.0.0.78 10.2.0.78
 limit	transfers-in 10
 limit	datasize 64M
+limit	files 256
 options	forward-only query-log fake-iquery
-check-names primary fail
-check-names secondary warn
-check-names response ignore
+check-names	primary fail
+check-names	secondary warn
+check-names	response ignore
 
 .DT
 .fi
@@ -241,6 +242,10 @@ a warning message.
 which \s-1BIND\s+1 will spawn at any one time.
 \fBtransfers-per-ns\fP's argument is the maximum number of zone transfers to
 be simultaneously initiated to any given remote name server.
+\fBfiles\fP's argument sets the number of file descriptors available to
+the process. \fINote:\fP not all systems provide a call to implement
+this -- on such systems, the use of the \fBfiles\fP parameter of ``limit''
+will result in a warning message.
 .LP
 The ``options'' directive introduces a boolean specifier that changes the
 behaviour of \s-1BIND\s+1.  More than one option can be specified in a single
@@ -263,7 +268,7 @@ bogus reply to ``inverse queries'' rather than responding with an error --
 this is helpful if you have a lot of microcomputers or SunOS hosts or both.
 .LP
 The ``check-names'' directive tells \s-1BIND\s+1 to check names in either
-``primary'' or ``secondary'' zone files, or in messages (``response'')
+``primary'' or ``secondary'' zone files, or in messages (``response'')
 received during recursion (for example, those which would be forwarded back
 to a firewalled requestor).  For each type of name,
 \s-1BIND\s+1 can be told to ``fail'', such that a zone would not be loaded
@@ -356,12 +361,13 @@ Each master zone file should begin with an SOA record for the zone.
 An example SOA record is as follows:
 .LP
 .nf
-@	IN	SOA	ucbvax.Berkeley.EDU. rwh.ucbvax.Berkeley.EDU. (
-				1989020501	; serial
-				10800	; refresh
-				3600	; retry
-				3600000	; expire
-				86400 )	; minimum
+@ IN SOA ucbvax.Berkeley.EDU. rwh.ucbvax.Berkeley.EDU. (
+.ta \w'x\ IN\ SOA\ 'u +\w'1989020501\ 'u
+	1989020501	; serial
+	10800	; refresh
+	3600	; retry
+	3600000	; expire
+	86400 )	; minimum
 .fi
 .LP
 The SOA specifies a serial number, which should be changed each time the
