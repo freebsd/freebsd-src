@@ -1,10 +1,9 @@
 /* 
- * parsetime.c - parse time for at(1)
- * Copyright (C) 1993  Thomas Koenig
+ *  parsetime.c - parse time for at(1)
+ *  Copyright (C) 1993, 1994  Thomas Koenig
  *
- * modifications for english-language times
- * Copyright (C) 1993  David Parsons
- * All rights reserved.
+ *  modifications for english-language times
+ *  Copyright (C) 1993  David Parsons
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,11 +28,13 @@
  *  at [NOW] PLUS NUMBER MINUTES|HOURS|DAYS|WEEKS
  *     /NUMBER [DOT NUMBER] [AM|PM]\ /[MONTH NUMBER [NUMBER]]             \
  *     |NOON                       | |[TOMORROW]                          |
- *     |MIDNIGHT                   | |NUMBER [SLASH NUMBER [SLASH NUMBER]]|
- *     \TEATIME                    / \PLUS NUMBER MINUTES|HOURS|DAYS|WEEKS/
+ *     |MIDNIGHT                   | |[DAY OF WEEK]                       |
+ *     \TEATIME                    / |NUMBER [SLASH NUMBER [SLASH NUMBER]]|
+ *                                   \PLUS NUMBER MINUTES|HOURS|DAYS|WEEKS/
  */
 
 /* System Headers */
+
 
 #include <sys/types.h>
 #include <errno.h>
@@ -43,6 +44,9 @@
 #include <time.h>
 #include <unistd.h>
 #include <ctype.h>
+#ifndef __FreeBSD__
+#include <getopt.h>
+#endif
 
 /* Local headers */
 
@@ -58,51 +62,60 @@ enum {	/* symbols */
     MINUTES, HOURS, DAYS, WEEKS,
     NUMBER, PLUS, DOT, SLASH, ID, JUNK,
     JAN, FEB, MAR, APR, MAY, JUN,
-    JUL, AUG, SEP, OCT, NOV, DEC
-};
+    JUL, AUG, SEP, OCT, NOV, DEC,
+    SUN, MON, TUE, WED, THU, FRI, SAT
+    };
 
-/*
- * parse translation table - table driven parsers can be your FRIEND!
+/* parse translation table - table driven parsers can be your FRIEND!
  */
 struct {
     char *name;	/* token name */
     int value;	/* token id */
+    int plural;	/* is this plural? */
 } Specials[] = {
-    { "midnight", MIDNIGHT },	/* 00:00:00 of today or tomorrow */
-    { "noon", NOON },		/* 12:00:00 of today or tomorrow */
-    { "teatime", TEATIME },	/* 16:00:00 of today or tomorrow */
-    { "am", AM },		/* morning times for 0-12 clock */
-    { "pm", PM },		/* evening times for 0-12 clock */
-    { "tomorrow", TOMORROW },	/* execute 24 hours from time */
-    { "today", TODAY },		/* execute today - don't advance time */
-    { "now", NOW },		/* opt prefix for PLUS */
+    { "midnight", MIDNIGHT,0 },	/* 00:00:00 of today or tomorrow */
+    { "noon", NOON,0 },		/* 12:00:00 of today or tomorrow */
+    { "teatime", TEATIME,0 },	/* 16:00:00 of today or tomorrow */
+    { "am", AM,0 },		/* morning times for 0-12 clock */
+    { "pm", PM,0 },		/* evening times for 0-12 clock */
+    { "tomorrow", TOMORROW,0 },	/* execute 24 hours from time */
+    { "today", TODAY, 0 },	/* execute today - don't advance time */
+    { "now", NOW,0 },		/* opt prefix for PLUS */
 
-    { "minute", MINUTES },	/* minutes multiplier */
-    { "min", MINUTES },
-    { "m", MINUTES },
-    { "minutes", MINUTES },	/* (pluralized) */
-    { "hour", HOURS },		/* hours ... */
-    { "hr", HOURS },		/* abbreviated */
-    { "h", HOURS },
-    { "hours", HOURS },		/* (pluralized) */
-    { "day", DAYS },		/* days ... */
-    { "d", DAYS },
-    { "days", DAYS },		/* (pluralized) */
-    { "week", WEEKS },		/* week ... */
-    { "w", WEEKS },
-    { "weeks", WEEKS },		/* (pluralized) */
-    { "jan", JAN },
-    { "feb", FEB },
-    { "mar", MAR },
-    { "apr", APR },
-    { "may", MAY },
-    { "jun", JUN },
-    { "jul", JUL },
-    { "aug", AUG },
-    { "sep", SEP },
-    { "oct", OCT },
-    { "nov", NOV },
-    { "dec", DEC }
+    { "minute", MINUTES,0 },	/* minutes multiplier */
+    { "minutes", MINUTES,1 },	/* (pluralized) */
+    { "hour", HOURS,0 },	/* hours ... */
+    { "hours", HOURS,1 },	/* (pluralized) */
+    { "day", DAYS,0 },		/* days ... */
+    { "days", DAYS,1 },		/* (pluralized) */
+    { "week", WEEKS,0 },	/* week ... */
+    { "weeks", WEEKS,1 },	/* (pluralized) */
+    { "jan", JAN,0 },
+    { "feb", FEB,0 },
+    { "mar", MAR,0 },
+    { "apr", APR,0 },
+    { "may", MAY,0 },
+    { "jun", JUN,0 },
+    { "jul", JUL,0 },
+    { "aug", AUG,0 },
+    { "sep", SEP,0 },
+    { "oct", OCT,0 },
+    { "nov", NOV,0 },
+    { "dec", DEC,0 },
+    { "sunday", SUN, 0 },
+    { "sun", SUN, 0 },
+    { "monday", MON, 0 },
+    { "mon", MON, 0 },
+    { "tuesday", TUE, 0 },
+    { "tue", TUE, 0 },
+    { "wednesday", WED, 0 },
+    { "wed", WED, 0 },
+    { "thursday", THU, 0 },
+    { "thu", THU, 0 },
+    { "friday", FRI, 0 },
+    { "fri", FRI, 0 },
+    { "saturday", SAT, 0 },
+    { "sat", SAT, 0 },
 } ;
 
 /* File scope variables */
@@ -115,8 +128,9 @@ static int need;	/* scanner - need to advance to next argument */
 static char *sc_token;	/* scanner - token buffer */
 static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
+static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.1 1994/01/05 01:09:08 nate Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.1 1994/05/10 18:23:08 kernel Exp $";
 
 /* Local functions */
 
@@ -124,13 +138,13 @@ static char rcsid[] = "$Id: parsetime.c,v 1.1 1994/01/05 01:09:08 nate Exp $";
  * parse a token, checking if it's something special to us
  */
 static int
-parse_token(arg)
-	char *arg;
+parse_token(char *arg)
 {
     int i;
 
     for (i=0; i<(sizeof Specials/sizeof Specials[0]); i++)
 	if (strcasecmp(Specials[i].name, arg) == 0) {
+	    sc_tokplur = Specials[i].plural;
 	    return sc_tokid = Specials[i].value;
 	}
 
@@ -143,9 +157,7 @@ parse_token(arg)
  * init_scanner() sets up the scanner to eat arguments
  */
 static void
-init_scanner(argc, argv)
-	int argc;
-	char **argv;
+init_scanner(int argc, char **argv)
 {
     scp = argv;
     scc = argc;
@@ -154,9 +166,7 @@ init_scanner(argc, argv)
     while (--argc > 0)
 	sc_len += strlen(*++argv);
 
-    sc_token = (char *) malloc(sc_len);
-    if (sc_token == NULL)
-	panic("Insufficient virtual memory");
+    sc_token = (char *) mymalloc(sc_len);
 } /* init_scanner */
 
 /*
@@ -170,10 +180,10 @@ token()
     while (1) {
 	memset(sc_token, 0, sc_len);
 	sc_tokid = EOF;
+	sc_tokplur = 0;
 	idx = 0;
 
-	/*
-	 * if we need to read another argument, walk along the argument list;
+	/* if we need to read another argument, walk along the argument list;
 	 * when we fall off the arglist, we'll just return EOF forever
 	 */
 	if (need) {
@@ -184,8 +194,7 @@ token()
 	    scc--;
 	    need = 0;
 	}
-	/*
-	 * eat whitespace now - if we walk off the end of the argument,
+	/* eat whitespace now - if we walk off the end of the argument,
 	 * we'll continue, which puts us up at the top of the while loop
 	 * to fetch the next argument in
 	 */
@@ -196,20 +205,19 @@ token()
 	    continue;
 	}
 
-	/*
-	 * preserve the first character of the new token
+	/* preserve the first character of the new token
 	 */
 	sc_token[0] = *sct++;
 
-	/*
-	 * then see what it is
+	/* then see what it is
 	 */
 	if (isdigit(sc_token[0])) {
 	    while (isdigit(*sct))
 		sc_token[++idx] = *sct++;
 	    sc_token[++idx] = 0;
 	    return sc_tokid = NUMBER;
-	} else if (isalpha(sc_token[0])) {
+	}
+	else if (isalpha(sc_token[0])) {
 	    while (isalpha(*sct))
 		sc_token[++idx] = *sct++;
 	    sc_token[++idx] = 0;
@@ -219,7 +227,7 @@ token()
 	    return sc_tokid = DOT;
 	else if (sc_token[0] == '+')
 	    return sc_tokid = PLUS;
-	else if (*sct == '/')
+	else if (sc_token[0] == '/')
 	    return sc_tokid = SLASH;
 	else
 	    return sc_tokid = JUNK;
@@ -231,8 +239,7 @@ token()
  * plonk() gives an appropriate error message if a token is incorrect
  */
 static void
-plonk(tok)
-	int tok;
+plonk(int tok)
 {
     panic((tok == EOF) ? "incomplete time"
 		       : "garbled time");
@@ -243,8 +250,7 @@ plonk(tok)
  * expect() gets a token and dies most horribly if it's not the token we want
  */
 static void
-expect(desired)
-	int desired;
+expect(int desired)
 {
     if (token() != desired)
 	plonk(sc_tokid);	/* and we die here... */
@@ -257,9 +263,7 @@ expect(desired)
  * work properly
  */
 static void
-dateadd(minutes, tm)
-	int minutes;
-	struct tm *tm;
+dateadd(int minutes, struct tm *tm)
 {
     /* increment days */
 
@@ -300,14 +304,15 @@ dateadd(minutes, tm)
  *
  */
 static void
-plus(tm)
-	struct tm *tm;
+plus(struct tm *tm)
 {
     int delay;
+    int expectplur;
 
     expect(NUMBER);
 
     delay = atoi(sc_token);
+    expectplur = (delay != 1) ? 1 : 0;
 
     switch (token()) {
     case WEEKS:
@@ -317,6 +322,8 @@ plus(tm)
     case HOURS:
 	    delay *= 60;
     case MINUTES:
+	    if (expectplur != sc_tokplur)
+		fprintf(stderr, "at: pluralization is wrong\n");
 	    dateadd(delay, tm);
 	    return;
     }
@@ -329,8 +336,7 @@ plus(tm)
  *     [NUMBER [DOT NUMBER] [AM|PM]]
  */
 static void
-tod(tm)
-	struct tm *tm;
+tod(struct tm *tm)
 {
     int hour, minute = 0;
     int tlen;
@@ -338,8 +344,7 @@ tod(tm)
     hour = atoi(sc_token);
     tlen = strlen(sc_token);
 
-    /*
-     * first pick out the time of day - if it's 4 digits, we assume
+    /* first pick out the time of day - if it's 4 digits, we assume
      * a HHMM time, otherwise it's HH DOT MM time
      */
     if (token() == DOT) {
@@ -348,15 +353,15 @@ tod(tm)
 	if (minute > 59)
 	    panic("garbled time");
 	token();
-    } else if (tlen == 4) {
+    }
+    else if (tlen == 4) {
 	minute = hour%100;
 	if (minute > 59)
 	    panic("garbeld time");
 	hour = hour/100;
     }
 
-    /*
-     * check if an AM or PM specifier was given
+    /* check if an AM or PM specifier was given
      */
     if (sc_tokid == AM || sc_tokid == PM) {
 	if (hour > 12)
@@ -365,16 +370,18 @@ tod(tm)
 	if (sc_tokid == PM)
 	    hour += 12;
 	token();
-    } else if (hour > 23)
+    }
+    else if (hour > 23)
 	panic("garbled time");
 
-    /*
-     * if we specify an absolute time, we don't want to bump the day even
+    /* if we specify an absolute time, we don't want to bump the day even
      * if we've gone past that time - but if we're specifying a time plus
      * a relative offset, it's okay to bump things
      */
-    if ((sc_tokid == EOF || sc_tokid == PLUS) && tm->tm_hour > hour)
+    if ((sc_tokid == EOF || sc_tokid == PLUS) && tm->tm_hour > hour) {
 	tm->tm_mday++;
+	tm->tm_wday++;
+    }
 
     tm->tm_hour = hour;
     tm->tm_min = minute;
@@ -389,9 +396,7 @@ tod(tm)
  * assign_date() assigns a date, wrapping to next year if needed
  */
 static void
-assign_date(tm, mday, mon, year)
-	struct tm *tm;
-	long mday, mon, year;
+assign_date(struct tm *tm, long mday, long mon, long year)
 {
     if (year > 99) {
 	if (year > 1899)
@@ -417,15 +422,15 @@ assign_date(tm, mday, mon, year)
  *
  *  /[<month> NUMBER [NUMBER]]           \
  *  |[TOMORROW]                          |
+ *  |[DAY OF WEEK]                       |
  *  |NUMBER [SLASH NUMBER [SLASH NUMBER]]|
  *  \PLUS NUMBER MINUTES|HOURS|DAYS|WEEKS/
  */
 static void
-month(tm)
-	struct tm *tm;
+month(struct tm *tm)
 {
     long year= (-1);
-    long mday, mon;
+    long mday, wday, mon;
     int tlen;
 
     switch (sc_tokid) {
@@ -436,14 +441,14 @@ month(tm)
     case TOMORROW:
 	    /* do something tomorrow */
 	    tm->tm_mday ++;
+	    tm->tm_wday ++;
     case TODAY:	/* force ourselves to stay in today - no further processing */
 	    token();
 	    break;
 
     case JAN: case FEB: case MAR: case APR: case MAY: case JUN:
     case JUL: case AUG: case SEP: case OCT: case NOV: case DEC:
-	    /*
-	     * do month mday [year]
+	    /* do month mday [year]
 	     */
 	    mon = (sc_tokid-JAN);
 	    expect(NUMBER);
@@ -455,9 +460,29 @@ month(tm)
 	    assign_date(tm, mday, mon, year);
 	    break;
 
+    case SUN: case MON: case TUE:
+    case WED: case THU: case FRI:
+    case SAT:
+	    /* do a particular day of the week
+	     */
+	    wday = (sc_tokid-SUN);
+
+	    mday = tm->tm_mday;
+
+	    /* if this day is < today, then roll to next week
+	     */
+	    if (wday < tm->tm_wday)
+		mday += 7 - (tm->tm_wday - wday);
+	    else
+		mday += (wday - tm->tm_wday);
+
+	    tm->tm_wday = wday;
+
+	    assign_date(tm, mday, tm->tm_mon, tm->tm_year);
+	    break;
+
     case NUMBER:
-	    /*
-	     * get numeric MMDDYY, mm/dd/yy, or dd.mm.yy
+	    /* get numeric MMDDYY, mm/dd/yy, or dd.mm.yy
 	     */
 	    tlen = strlen(sc_token);
 	    mon = atol(sc_token);
@@ -475,25 +500,27 @@ month(tm)
 		    token();
 		}
 
-		/*
-		 * flip months and days for european timing
+		/* flip months and days for european timing
 		 */
 		if (sep == DOT) {
 		    int x = mday;
 		    mday = mon;
 		    mon = x;
 		}
-	    } else if (tlen == 6 || tlen == 8) {
+	    }
+	    else if (tlen == 6 || tlen == 8) {
 		if (tlen == 8) {
 		    year = (mon % 10000) - 1900;
 		    mon /= 10000;
-		} else {
+		}
+		else {
 		    year = mon % 100;
 		    mon /= 100;
 		}
 		mday = mon % 100;
 		mon /= 100;
-	    } else
+	    }
+	    else
 		panic("garbled time");
 
 	    mon--;
@@ -509,12 +536,9 @@ month(tm)
 /* Global functions */
 
 time_t
-parsetime(argc, argv)
-	int argc;
-	char **argv;
+parsetime(int argc, char **argv)
 {
-/*
- * Do the argument parsing, die if necessary, and return the time the job
+/* Do the argument parsing, die if necessary, and return the time the job
  * should be run.
  */
     time_t nowtimer, runtimer;
@@ -546,8 +570,7 @@ parsetime(argc, argv)
 	    month(&runtime);
 	    break;
 
-	    /*
-	     * evil coding for TEATIME|NOON|MIDNIGHT - we've initialised
+	    /* evil coding for TEATIME|NOON|MIDNIGHT - we've initialised
 	     * hr to zero up above, then fall into this case in such a
 	     * way so we add +12 +4 hours to it for teatime, +12 hours
 	     * to it for noon, and nothing at all for midnight, then
@@ -559,8 +582,10 @@ parsetime(argc, argv)
     case NOON:
 	    hr += 12;
     case MIDNIGHT:
-	    if (runtime.tm_hour >= hr)
+	    if (runtime.tm_hour >= hr) {
 		runtime.tm_mday++;
+		runtime.tm_wday++;
+	    }
 	    runtime.tm_hour = hr;
 	    runtime.tm_min = 0;
 	    token();
@@ -571,8 +596,7 @@ parsetime(argc, argv)
     } /* ugly case statement */
     expect(EOF);
 
-    /*
-     * adjust for daylight savings time
+    /* adjust for daylight savings time
      */
     runtime.tm_isdst = -1;
     runtimer = mktime(&runtime);

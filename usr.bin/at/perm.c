@@ -1,6 +1,6 @@
 /* 
- *  panic.c - terminate fast in case of error
- *  Copyright (C) 1993  Thomas Koenig
+ *  perm.c - check user permission for at(1)
+ *  Copyright (C) 1994  Thomas Koenig
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,56 +25,99 @@
 
 /* System Headers */
 
+#include <sys/types.h>
 #include <errno.h>
+#include <pwd.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 /* Local headers */
 
-#include "panic.h"
+#include "privs.h"
 #include "at.h"
+
+/* Macros */
+
+#define MAXUSERID 10
+
+/* Structures and unions */
+
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: panic.c,v 1.1 1994/05/10 18:23:08 kernel Exp $";
+static char rcsid[] = "$Id: perm.c,v 1.1 1994/05/10 18:23:08 kernel Exp $";
 
-/* External variables */
+/* Function declarations */
 
+static int check_for_user(FILE *fp,const char *name);
+
+/* Local functions */
+
+static int check_for_user(FILE *fp,const char *name)
+{
+    char *buffer;
+    size_t len;
+    int found = 0;
+
+    len = strlen(name);
+    buffer = mymalloc(len+2);
+
+    while(fgets(buffer, len+2, fp) != NULL)
+    {
+	if ((strncmp(name, buffer, len) == 0) &&
+	    (buffer[len] == '\n'))
+	{
+	    found = 1;
+	    break;
+	}
+    }
+    fclose(fp);
+    free(buffer);
+    return found;
+}
 /* Global functions */
-
-void
-panic(char *a)
+int check_permission()
 {
-/* Something fatal has happened, print error message and exit.
- */
-	fprintf(stderr,"%s: %s\n",namep,a);
-	if (fcreated)
-		unlink(atfile);
+    FILE *fp;
+    uid_t uid = geteuid();
+    struct passwd *pentry;
 
-	exit (EXIT_FAILURE);
-}
+    if (uid==0)
+	return 1;
 
-void
-perr(char *a)
-{
-/* Some operating system error; print error message and exit.
- */
-	perror(a);
-	if (fcreated)
-		unlink(atfile);
-
+    if ((pentry = getpwuid(uid)) == NULL)
+    {
+	perror("Cannot access user database");
 	exit(EXIT_FAILURE);
-}
+    }
 
-void
-usage(void)
-{
-/* Print usage and exit.
-*/
-    fprintf(stderr, "Usage: at [-V] [-q x] [-f file] [-m] time\n"
-		    "       atq [-V] [-q x] [-v]\n"
-		    "       atrm [-V] [-q x] job ...\n"
-		    "       batch [-V] [-f file] [-m]\n");
-    exit(EXIT_FAILURE);
+    PRIV_START
+
+    fp=fopen(PERM_PATH "at.allow","r");
+
+    PRIV_END
+
+    if (fp != NULL)
+    {
+	return check_for_user(fp, pentry->pw_name);
+    }
+    else
+    {
+
+	PRIV_START
+
+	fp=fopen(PERM_PATH "at.deny", "r");
+
+	PRIV_END
+
+	if (fp != NULL)
+	{
+	    return !check_for_user(fp, pentry->pw_name);
+	}
+	perror("at.deny");
+    }
+    return 0;
 }
