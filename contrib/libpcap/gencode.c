@@ -23,7 +23,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/gencode.c,v 1.140.2.1 2001/01/14 06:48:35 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/gencode.c,v 1.160 2001/11/30 07:25:48 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -53,20 +53,23 @@ struct rtentry;
 
 #include "ethertype.h"
 #include "nlpid.h"
+#include "llc.h"
 #include "gencode.h"
 #include "ppp.h"
 #include "sll.h"
+#include "arcnet.h"
 #include <pcap-namedb.h>
 #ifdef INET6
 #include <netdb.h>
 #include <sys/socket.h>
 #endif /*INET6*/
 
-#define LLC_SNAP_LSAP	0xaa
-#define LLC_ISO_LSAP	0xfe
-
 #undef ETHERMTU
 #define ETHERMTU	1500
+
+#ifndef IPPROTO_SCTP
+#define IPPROTO_SCTP 132
+#endif
 
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
@@ -77,6 +80,9 @@ struct rtentry;
 /* Locals */
 static jmp_buf top_ctx;
 static pcap_t *bpf_pcap;
+
+/* Hack for updating VLAN offsets. */
+static u_int	orig_linktype = -1, orig_nl = -1;
 
 /* XXX */
 #ifdef PCAP_FDDIPAD
@@ -146,6 +152,7 @@ static struct block *gen_hostop(bpf_u_int32, bpf_u_int32, int, int, u_int, u_int
 #ifdef INET6
 static struct block *gen_hostop6(struct in6_addr *, struct in6_addr *, int, int, u_int, u_int);
 #endif
+static struct block *gen_ahostop(const u_char *, int);
 static struct block *gen_ehostop(const u_char *, int);
 static struct block *gen_fhostop(const u_char *, int);
 static struct block *gen_thostop(const u_char *, int);
@@ -550,7 +557,15 @@ init_linktype(type)
 {
 	linktype = type;
 
+	orig_linktype = -1;
+	orig_nl = -1;
+
 	switch (type) {
+
+	case DLT_ARCNET:
+		off_linktype = 2;
+		off_nl = 6;	/* XXX in reality, variable! */
+		return;
 
 	case DLT_EN10MB:
 		off_linktype = 12;
@@ -580,10 +595,19 @@ init_linktype(type)
 		return;
 
 	case DLT_PPP:
-	case DLT_C_HDLC:
-	case DLT_PPP_SERIAL:
+	case DLT_C_HDLC:		/* BSD/OS Cisco HDLC */
+	case DLT_PPP_SERIAL:		/* NetBSD sync/async serial PPP */
 		off_linktype = 2;
 		off_nl = 4;
+		return;
+
+	case DLT_PPP_ETHER:
+		/*
+		 * This does no include the Ethernet header, and
+		 * only covers session state.
+		 */
+		off_linktype = 6;
+		off_nl = 8;
 		return;
 
 	case DLT_PPP_BSDOS:
@@ -594,12 +618,13 @@ init_linktype(type)
 	case DLT_FDDI:
 		/*
 		 * FDDI doesn't really have a link-level type field.
-		 * We assume that SSAP = SNAP is being used and pick
-		 * out the encapsulated Ethernet type.
+		 * We set "off_linktype" to the offset of the LLC header.
 		 *
+		 * To check for Ethernet types, we assume that SSAP = SNAP
+		 * is being used and pick out the encapsulated Ethernet type.
 		 * XXX - should we generate code to check for SNAP?
 		 */
-		off_linktype = 19;
+		off_linktype = 13;
 #ifdef PCAP_FDDIPAD
 		off_linktype += pcap_fddipad;
 #endif
@@ -612,9 +637,10 @@ init_linktype(type)
 	case DLT_IEEE802:
 		/*
 		 * Token Ring doesn't really have a link-level type field.
-		 * We assume that SSAP = SNAP is being used and pick
-		 * out the encapsulated Ethernet type.
+		 * We set "off_linktype" to the offset of the LLC header.
 		 *
+		 * To check for Ethernet types, we assume that SSAP = SNAP
+		 * is being used and pick out the encapsulated Ethernet type.
 		 * XXX - should we generate code to check for SNAP?
 		 *
 		 * XXX - the header is actually variable-length.
@@ -632,8 +658,40 @@ init_linktype(type)
 		 * the 16-bit value at an offset of 14 (shifted right
 		 * 8 - figure out which byte that is).
 		 */
-		off_linktype = 20;
+		off_linktype = 14;
 		off_nl = 22;
+		return;
+
+	case DLT_IEEE802_11:
+		/*
+		 * 802.11 doesn't really have a link-level type field.
+		 * We set "off_linktype" to the offset of the LLC header.
+		 *
+		 * To check for Ethernet types, we assume that SSAP = SNAP
+		 * is being used and pick out the encapsulated Ethernet type.
+		 * XXX - should we generate code to check for SNAP?
+		 *
+		 * XXX - the header is actually variable-length.  We
+		 * assume a 24-byte link-layer header, as appears in
+		 * data frames in networks with no bridges.
+		 */
+		off_linktype = 24;
+		off_nl = 30;
+		return;
+
+	case DLT_PRISM_HEADER:
+		/*
+		 * Same as 802.11, but with an additional header before
+		 * the 802.11 header, containing a bunch of additional
+		 * information including radio-level information.
+		 *
+		 * The header is 144 bytes long.
+		 *
+		 * XXX - same variable-length header problem; at least
+		 * the Prism header is fixed-length.
+		 */
+		off_linktype = 144+24;
+		off_nl = 144+30;
 		return;
 
 	case DLT_ATM_RFC1483:
@@ -658,6 +716,16 @@ init_linktype(type)
 	case DLT_LINUX_SLL:	/* fake header for Linux cooked socket */
 		off_linktype = 14;
 		off_nl = 16;
+		return;
+
+	case DLT_LTALK:
+		/*
+		 * LocalTalk does have a 1-byte type field in the LLAP header,
+		 * but really it just indicates whether there is a "short" or
+		 * "long" DDP packet following.
+		 */
+		off_linktype = -1;
+		off_nl = 0;
 		return;
 	}
 	bpf_error("unknown data link type %d", linktype);
@@ -705,28 +773,108 @@ gen_linktype(proto)
 {
 	struct block *b0, *b1;
 
-	/* If we're not using encapsulation, we're done */
-	if (off_linktype == -1)
-		return gen_true();
-
 	switch (linktype) {
 
 	case DLT_EN10MB:
-		/*
-		 * XXX - handle other LLC-encapsulated protocols here
-		 * (IPX, OSI)?
-		 */
 		switch (proto) {
 
-		case LLC_ISO_LSAP:
+		case LLCSAP_ISONS:
 			/*
 			 * OSI protocols always use 802.2 encapsulation.
+			 * XXX - should we check both the DSAP and the
+			 * SSAP, like this, or should we check just the
+			 * DSAP?
 			 */
 			b0 = gen_cmp_gt(off_linktype, BPF_H, ETHERMTU);
 			gen_not(b0);
 			b1 = gen_cmp(off_linktype + 2, BPF_H, (bpf_int32)
-				     ((LLC_ISO_LSAP << 8) | LLC_ISO_LSAP));
+				     ((LLCSAP_ISONS << 8) | LLCSAP_ISONS));
 			gen_and(b0, b1);
+			return b1;
+
+		case LLCSAP_NETBEUI:
+			/*
+			 * NetBEUI always uses 802.2 encapsulation.
+			 * XXX - should we check both the DSAP and the
+			 * SSAP, like this, or should we check just the
+			 * DSAP?
+			 */
+			b0 = gen_cmp_gt(off_linktype, BPF_H, ETHERMTU);
+			gen_not(b0);
+			b1 = gen_cmp(off_linktype + 2, BPF_H, (bpf_int32)
+				     ((LLCSAP_NETBEUI << 8) | LLCSAP_NETBEUI));
+			gen_and(b0, b1);
+			return b1;
+
+		case LLCSAP_IPX:
+			/*
+			 * Check for;
+			 *
+			 *	Ethernet_II frames, which are Ethernet
+			 *	frames with a frame type of ETHERTYPE_IPX;
+			 *
+			 *	Ethernet_802.3 frames, which are 802.3
+			 *	frames (i.e., the type/length field is
+			 *	a length field, <= ETHERMTU, rather than
+			 *	a type field) with the first two bytes
+			 *	after the Ethernet/802.3 header being
+			 *	0xFFFF;
+			 *
+			 *	Ethernet_802.2 frames, which are 802.3
+			 *	frames with an 802.2 LLC header and
+			 *	with the IPX LSAP as the DSAP in the LLC
+			 *	header;
+			 *
+			 *	Ethernet_SNAP frames, which are 802.3
+			 *	frames with an LLC header and a SNAP
+			 *	header and with an OUI of 0x000000
+			 *	(encapsulated Ethernet) and a protocol
+			 *	ID of ETHERTYPE_IPX in the SNAP header.
+			 *
+			 * XXX - should we generate the same code both
+			 * for tests for LLCSAP_IPX and for ETHERTYPE_IPX?
+			 */
+
+			/*
+			 * This generates code to check both for the
+			 * IPX LSAP (Ethernet_802.2) and for Ethernet_802.3.
+			 */
+			b0 = gen_cmp(off_linktype + 2, BPF_B,
+			    (bpf_int32)LLCSAP_IPX);
+			b1 = gen_cmp(off_linktype + 2, BPF_H,
+			    (bpf_int32)0xFFFF);
+			gen_or(b0, b1);
+
+			/*
+			 * Now we add code to check for SNAP frames with
+			 * ETHERTYPE_IPX, i.e. Ethernet_SNAP.
+			 */
+			b0 = gen_snap(0x000000, ETHERTYPE_IPX, 14);
+			gen_or(b0, b1);
+
+			/*
+			 * Now we generate code to check for 802.3
+			 * frames in general.
+			 */
+			b0 = gen_cmp_gt(off_linktype, BPF_H, ETHERMTU);
+			gen_not(b0);
+
+			/*
+			 * Now add the check for 802.3 frames before the
+			 * check for Ethernet_802.2 and Ethernet_802.3,
+			 * as those checks should only be done on 802.3
+			 * frames, not on Ethernet frames.
+			 */
+			gen_and(b0, b1);
+
+			/*
+			 * Now add the check for Ethernet_II frames, and
+			 * do that before checking for the other frame
+			 * types.
+			 */
+			b0 = gen_cmp(off_linktype, BPF_H,
+			    (bpf_int32)ETHERTYPE_IPX);
+			gen_or(b0, b1);
 			return b1;
 
 		case ETHERTYPE_ATALK:
@@ -770,14 +918,301 @@ gen_linktype(proto)
 
 			gen_or(b0, b1);
 			return b1;
+
+		default:
+			if (proto <= ETHERMTU) {
+				/*
+				 * This is an LLC SAP value, so the frames
+				 * that match would be 802.2 frames.
+				 * Check that the frame is an 802.2 frame
+				 * (i.e., that the length/type field is
+				 * a length field, <= ETHERMTU) and
+				 * then check the DSAP.
+				 */
+				b0 = gen_cmp_gt(off_linktype, BPF_H, ETHERMTU);
+				gen_not(b0);
+				b1 = gen_cmp(off_linktype + 2, BPF_B,
+				     (bpf_int32)proto);
+				gen_and(b0, b1);
+				return b1;
+			} else {
+				/*
+				 * This is an Ethernet type, so compare
+				 * the length/type field with it (if
+				 * the frame is an 802.2 frame, the length
+				 * field will be <= ETHERMTU, and, as
+				 * "proto" is > ETHERMTU, this test
+				 * will fail and the frame won't match,
+				 * which is what we want).
+				 */
+				return gen_cmp(off_linktype, BPF_H,
+				    (bpf_int32)proto);
+			}
+		}
+		break;
+
+	case DLT_IEEE802_11:
+	case DLT_PRISM_HEADER:
+	case DLT_FDDI:
+	case DLT_IEEE802:
+	case DLT_ATM_RFC1483:
+	case DLT_ATM_CLIP:
+		/*
+		 * XXX - handle token-ring variable-length header.
+		 */
+		switch (proto) {
+
+		case LLCSAP_ISONS:
+			return gen_cmp(off_linktype, BPF_H, (long)
+				     ((LLCSAP_ISONS << 8) | LLCSAP_ISONS));
+
+		case LLCSAP_NETBEUI:
+			return gen_cmp(off_linktype, BPF_H, (long)
+				     ((LLCSAP_NETBEUI << 8) | LLCSAP_NETBEUI));
+
+		case LLCSAP_IPX:
+			/*
+			 * XXX - are there ever SNAP frames for IPX on
+			 * non-Ethernet 802.x networks?
+			 */
+			return gen_cmp(off_linktype, BPF_B,
+			    (bpf_int32)LLCSAP_IPX);
+
+		case ETHERTYPE_ATALK:
+			/*
+			 * 802.2-encapsulated ETHERTYPE_ATALK packets are
+			 * SNAP packets with an organization code of
+			 * 0x080007 (Apple, for Appletalk) and a protocol
+			 * type of ETHERTYPE_ATALK (Appletalk).
+			 *
+			 * XXX - check for an organization code of
+			 * encapsulated Ethernet as well?
+			 */
+			return gen_snap(0x080007, ETHERTYPE_ATALK,
+			    off_linktype);
+			break;
+
+		default:
+			/*
+			 * XXX - we don't have to check for IPX 802.3
+			 * here, but should we check for the IPX Ethertype?
+			 */
+			if (proto <= ETHERMTU) {
+				/*
+				 * This is an LLC SAP value, so check
+				 * the DSAP.
+				 */
+				return gen_cmp(off_linktype, BPF_B,
+				     (bpf_int32)proto);
+			} else {
+				/*
+				 * This is an Ethernet type; we assume
+				 * that it's unlikely that it'll
+				 * appear in the right place at random,
+				 * and therefore check only the
+				 * location that would hold the Ethernet
+				 * type in a SNAP frame with an organization
+				 * code of 0x000000 (encapsulated Ethernet).
+				 *
+				 * XXX - if we were to check for the SNAP DSAP
+				 * and LSAP, as per XXX, and were also to check
+				 * for an organization code of 0x000000
+				 * (encapsulated Ethernet), we'd do
+				 *
+				 *	return gen_snap(0x000000, proto,
+				 *	    off_linktype);
+				 *
+				 * here; for now, we don't, as per the above.
+				 * I don't know whether it's worth the
+				 * extra CPU time to do the right check
+				 * or not.
+				 */
+				return gen_cmp(off_linktype+6, BPF_H,
+				    (bpf_int32)proto);
+			}
+		}
+		break;
+
+	case DLT_LINUX_SLL:
+		switch (proto) {
+
+		case LLCSAP_ISONS:
+			/*
+			 * OSI protocols always use 802.2 encapsulation.
+			 * XXX - should we check both the DSAP and the
+			 * LSAP, like this, or should we check just the
+			 * DSAP?
+			 */
+			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
+			b1 = gen_cmp(off_linktype + 2, BPF_H, (bpf_int32)
+				     ((LLCSAP_ISONS << 8) | LLCSAP_ISONS));
+			gen_and(b0, b1);
+			return b1;
+
+		case LLCSAP_NETBEUI:
+			/*
+			 * NetBEUI always uses 802.2 encapsulation.
+			 * XXX - should we check both the DSAP and the
+			 * LSAP, like this, or should we check just the
+			 * DSAP?
+			 */
+			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
+			b1 = gen_cmp(off_linktype + 2, BPF_H, (bpf_int32)
+				     ((LLCSAP_NETBEUI << 8) | LLCSAP_NETBEUI));
+			gen_and(b0, b1);
+			return b1;
+
+		case LLCSAP_IPX:
+			/*
+			 *	Ethernet_II frames, which are Ethernet
+			 *	frames with a frame type of ETHERTYPE_IPX;
+			 *
+			 *	Ethernet_802.3 frames, which have a frame
+			 *	type of LINUX_SLL_P_802_3;
+			 *
+			 *	Ethernet_802.2 frames, which are 802.3
+			 *	frames with an 802.2 LLC header (i.e, have
+			 *	a frame type of LINUX_SLL_P_802_2) and
+			 *	with the IPX LSAP as the DSAP in the LLC
+			 *	header;
+			 *
+			 *	Ethernet_SNAP frames, which are 802.3
+			 *	frames with an LLC header and a SNAP
+			 *	header and with an OUI of 0x000000
+			 *	(encapsulated Ethernet) and a protocol
+			 *	ID of ETHERTYPE_IPX in the SNAP header.
+			 *
+			 * First, do the checks on LINUX_SLL_P_802_2
+			 * frames; generate the check for either
+			 * Ethernet_802.2 or Ethernet_SNAP frames, and
+			 * then put a check for LINUX_SLL_P_802_2 frames
+			 * before it.
+			 */
+			b0 = gen_cmp(off_linktype + 2, BPF_B,
+			    (bpf_int32)LLCSAP_IPX);
+			b1 = gen_snap(0x000000, ETHERTYPE_IPX,
+			    off_linktype + 2);
+			gen_or(b0, b1);
+			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
+			gen_and(b0, b1);
+
+			/*
+			 * Now check for 802.3 frames and OR that with
+			 * the previous test.
+			 */
+			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_3);
+			gen_or(b0, b1);
+
+			/*
+			 * Now add the check for Ethernet_II frames, and
+			 * do that before checking for the other frame
+			 * types.
+			 */
+			b0 = gen_cmp(off_linktype, BPF_H,
+			    (bpf_int32)ETHERTYPE_IPX);
+			gen_or(b0, b1);
+			return b1;
+
+		case ETHERTYPE_ATALK:
+		case ETHERTYPE_AARP:
+			/*
+			 * EtherTalk (AppleTalk protocols on Ethernet link
+			 * layer) may use 802.2 encapsulation.
+			 */
+
+			/*
+			 * Check for 802.2 encapsulation (EtherTalk phase 2?);
+			 * we check for the 802.2 protocol type in the
+			 * "Ethernet type" field.
+			 */
+			b0 = gen_cmp(off_linktype, BPF_H, LINUX_SLL_P_802_2);
+
+			/*
+			 * 802.2-encapsulated ETHERTYPE_ATALK packets are
+			 * SNAP packets with an organization code of
+			 * 0x080007 (Apple, for Appletalk) and a protocol
+			 * type of ETHERTYPE_ATALK (Appletalk).
+			 *
+			 * 802.2-encapsulated ETHERTYPE_AARP packets are
+			 * SNAP packets with an organization code of
+			 * 0x000000 (encapsulated Ethernet) and a protocol
+			 * type of ETHERTYPE_AARP (Appletalk ARP).
+			 */
+			if (proto == ETHERTYPE_ATALK)
+				b1 = gen_snap(0x080007, ETHERTYPE_ATALK,
+				    off_linktype + 2);
+			else	/* proto == ETHERTYPE_AARP */
+				b1 = gen_snap(0x000000, ETHERTYPE_AARP,
+				    off_linktype + 2);
+			gen_and(b0, b1);
+
+			/*
+			 * Check for Ethernet encapsulation (Ethertalk
+			 * phase 1?); we just check for the Ethernet
+			 * protocol type.
+			 */
+			b0 = gen_cmp(off_linktype, BPF_H, (bpf_int32)proto);
+
+			gen_or(b0, b1);
+			return b1;
+
+		default:
+			if (proto <= ETHERMTU) {
+				/*
+				 * This is an LLC SAP value, so the frames
+				 * that match would be 802.2 frames.
+				 * Check for the 802.2 protocol type
+				 * in the "Ethernet type" field, and
+				 * then check the DSAP.
+				 */
+				b0 = gen_cmp(off_linktype, BPF_H,
+				    LINUX_SLL_P_802_2);
+				b1 = gen_cmp(off_linktype + 2, BPF_B,
+				     (bpf_int32)proto);
+				gen_and(b0, b1);
+				return b1;
+			} else {
+				/*
+				 * This is an Ethernet type, so compare
+				 * the length/type field with it (if
+				 * the frame is an 802.2 frame, the length
+				 * field will be <= ETHERMTU, and, as
+				 * "proto" is > ETHERMTU, this test
+				 * will fail and the frame won't match,
+				 * which is what we want).
+				 */
+				return gen_cmp(off_linktype, BPF_H,
+				    (bpf_int32)proto);
+			}
 		}
 		break;
 
 	case DLT_SLIP:
-		return gen_false();
+	case DLT_SLIP_BSDOS:
+	case DLT_RAW:
+		/*
+		 * These types don't provide any type field; packets
+		 * are always IP.
+		 *
+		 * XXX - for IPv4, check for a version number of 4, and,
+		 * for IPv6, check for a version number of 6?
+		 */
+		switch (proto) {
+
+		case ETHERTYPE_IP:
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+#endif
+			return gen_true();		/* always true */
+
+		default:
+			return gen_false();		/* always false */
+		}
+		break;
 
 	case DLT_PPP:
 	case DLT_PPP_SERIAL:
+	case DLT_PPP_ETHER:
 		/*
 		 * We use Ethernet protocol types inside libpcap;
 		 * map them to the corresponding PPP protocol types.
@@ -806,8 +1241,21 @@ gen_linktype(proto)
 			proto = PPP_NS;
 			break;
 
-		case LLC_ISO_LSAP:
+		case LLCSAP_ISONS:
 			proto = PPP_OSI;
+			break;
+
+		case LLCSAP_8021D:
+			/*
+			 * I'm assuming the "Bridging PDU"s that go
+			 * over PPP are Spanning Tree Protocol
+			 * Bridging PDUs.
+			 */
+			proto = PPP_BRPDU;
+			break;
+
+		case LLCSAP_IPX:
+			proto = PPP_IPX;
 			break;
 		}
 		break;
@@ -846,8 +1294,21 @@ gen_linktype(proto)
 			proto = PPP_NS;
 			break;
 
-		case LLC_ISO_LSAP:
+		case LLCSAP_ISONS:
 			proto = PPP_OSI;
+			break;
+
+		case LLCSAP_8021D:
+			/*
+			 * I'm assuming the "Bridging PDU"s that go
+			 * over PPP are Spanning Tree Protocol
+			 * Bridging PDUs.
+			 */
+			proto = PPP_BRPDU;
+			break;
+
+		case LLCSAP_IPX:
+			proto = PPP_IPX;
 			break;
 		}
 		break;
@@ -913,7 +1374,73 @@ gen_linktype(proto)
 			proto = htonl(proto);
 		}
 		return (gen_cmp(0, BPF_W, (bpf_int32)proto));
+
+	case DLT_ARCNET:
+		/*
+		 * XXX should we check for first fragment if the protocol
+		 * uses PHDS?
+		 */
+		switch(proto) {
+		default:
+			return gen_false();
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+			return(gen_cmp(2, BPF_B,
+					(bpf_int32)htonl(ARCTYPE_INET6)));
+#endif /* INET6 */
+		case ETHERTYPE_IP:
+			b0 = gen_cmp(2, BPF_B, (bpf_int32)htonl(ARCTYPE_IP));
+			b1 = gen_cmp(2, BPF_B,
+					(bpf_int32)htonl(ARCTYPE_IP_OLD));
+			gen_or(b0, b1);
+			return(b1);
+		case ETHERTYPE_ARP:
+			b0 = gen_cmp(2, BPF_B, (bpf_int32)htonl(ARCTYPE_ARP));
+			b1 = gen_cmp(2, BPF_B,
+					(bpf_int32)htonl(ARCTYPE_ARP_OLD));
+			gen_or(b0, b1);
+			return(b1);
+		case ETHERTYPE_REVARP:
+			return(gen_cmp(2, BPF_B,
+					(bpf_int32)htonl(ARCTYPE_REVARP)));
+		case ETHERTYPE_ATALK:
+			return(gen_cmp(2, BPF_B,
+					(bpf_int32)htonl(ARCTYPE_ATALK)));
+		}
+		break;
+
+	case DLT_LTALK:
+		switch (proto) {
+		case ETHERTYPE_ATALK:
+			return gen_true();
+		default:
+			return gen_false();
+		}
+		break;
 	}
+
+	/*
+	 * All the types that have no encapsulation should either be
+	 * handled as DLT_SLIP, DLT_SLIP_BSDOS, and DLT_RAW are, if
+	 * all packets are IP packets, or should be handled in some
+	 * special case, if none of them are (if some are and some
+	 * aren't, the lack of encapsulation is a problem, as we'd
+	 * have to find some other way of determining the packet type).
+	 *
+	 * Therefore, if "off_linktype" is -1, there's an error.
+	 */
+	if (off_linktype == -1)
+		abort();
+
+	/*
+	 * Any type not handled above should always have an Ethernet
+	 * type at an offset of "off_linktype".  (PPP is partially
+	 * handled above - the protocol type is mapped from the
+	 * Ethernet and LLC types we use internally to the corresponding
+	 * PPP type - but the PPP type is always specified by a value
+	 * at "off_linktype", so we don't have to do the code generation
+	 * above.)
+	 */
 	return gen_cmp(off_linktype, BPF_H, (bpf_int32)proto);
 }
 
@@ -932,8 +1459,8 @@ gen_snap(orgcode, ptype, offset)
 {
 	u_char snapblock[8];
 
-	snapblock[0] = LLC_SNAP_LSAP;	/* DSAP = SNAP */
-	snapblock[1] = LLC_SNAP_LSAP;	/* SSAP = SNAP */
+	snapblock[0] = LLCSAP_SNAP;	/* DSAP = SNAP */
+	snapblock[1] = LLCSAP_SNAP;	/* SSAP = SNAP */
 	snapblock[2] = 0x03;	/* control = UI */
 	snapblock[3] = (orgcode >> 16);	/* upper 8 bits of organization code */
 	snapblock[4] = (orgcode >> 8);	/* middle 8 bits of organization code */
@@ -1273,6 +1800,9 @@ gen_host(addr, mask, proto, dir)
 	case Q_TCP:
 		bpf_error("'tcp' modifier applied to host");
 
+	case Q_SCTP:
+		bpf_error("'sctp' modifier applied to host");
+
 	case Q_UDP:
 		bpf_error("'udp' modifier applied to host");
 
@@ -1287,6 +1817,9 @@ gen_host(addr, mask, proto, dir)
 
 	case Q_PIM:
 		bpf_error("'pim' modifier applied to host");
+
+	case Q_VRRP:
+		bpf_error("'vrrp' modifier applied to host");
 
 	case Q_ATALK:
 		bpf_error("ATALK host filtering not implemented");
@@ -1335,6 +1868,15 @@ gen_host(addr, mask, proto, dir)
 	case Q_CLNP:
 		bpf_error("'clnp' modifier applied to host");
 
+	case Q_STP:
+		bpf_error("'stp' modifier applied to host");
+
+	case Q_IPX:
+		bpf_error("IPX host filtering not implemented");
+
+	case Q_NETBEUI:
+		bpf_error("'netbeui' modifier applied to host");
+
 	default:
 		abort();
 	}
@@ -1363,6 +1905,9 @@ gen_host6(addr, mask, proto, dir)
 	case Q_ARP:
 		bpf_error("'arp' modifier applied to ip6 host");
 
+	case Q_SCTP:
+		bpf_error("'sctp' modifier applied to host");
+
 	case Q_TCP:
 		bpf_error("'tcp' modifier applied to host");
 
@@ -1380,6 +1925,9 @@ gen_host6(addr, mask, proto, dir)
 
 	case Q_PIM:
 		bpf_error("'pim' modifier applied to host");
+
+	case Q_VRRP:
+		bpf_error("'vrrp' modifier applied to host");
 
 	case Q_ATALK:
 		bpf_error("ATALK host filtering not implemented");
@@ -1426,6 +1974,15 @@ gen_host6(addr, mask, proto, dir)
 
 	case Q_CLNP:
 		bpf_error("'clnp' modifier applied to host");
+
+	case Q_STP:
+		bpf_error("'stp' modifier applied to host");
+
+	case Q_IPX:
+		bpf_error("IPX host filtering not implemented");
+
+	case Q_NETBEUI:
+		bpf_error("'netbeui' modifier applied to host");
 
 	default:
 		abort();
@@ -1488,6 +2045,14 @@ gen_proto_abbrev(proto)
 
 	switch (proto) {
 
+	case Q_SCTP:
+		b1 = gen_proto(IPPROTO_SCTP, Q_IP, Q_DEFAULT);
+#ifdef INET6
+		b0 = gen_proto(IPPROTO_SCTP, Q_IPV6, Q_DEFAULT);
+		gen_or(b0, b1);
+#endif
+		break;
+
 	case Q_TCP:
 		b1 = gen_proto(IPPROTO_TCP, Q_IP, Q_DEFAULT);
 #ifdef INET6
@@ -1533,6 +2098,14 @@ gen_proto_abbrev(proto)
 		b0 = gen_proto(IPPROTO_PIM, Q_IPV6, Q_DEFAULT);
 		gen_or(b0, b1);
 #endif
+		break;
+
+#ifndef IPPROTO_VRRP
+#define IPPROTO_VRRP	112
+#endif
+
+	case Q_VRRP:
+		b1 = gen_proto(IPPROTO_VRRP, Q_IP, Q_DEFAULT);
 		break;
 
 	case Q_IP:
@@ -1614,7 +2187,7 @@ gen_proto_abbrev(proto)
 		break;
 
 	case Q_ISO:
-	        b1 = gen_linktype(LLC_ISO_LSAP);
+	        b1 = gen_linktype(LLCSAP_ISONS);
 		break;
 
 	case Q_ESIS:
@@ -1627,6 +2200,18 @@ gen_proto_abbrev(proto)
 
 	case Q_CLNP:
 	        b1 = gen_proto(ISO8473_CLNP, Q_ISO, Q_DEFAULT);
+		break;
+
+	case Q_STP:
+	        b1 = gen_linktype(LLCSAP_8021D);
+		break;
+
+	case Q_IPX:
+	        b1 = gen_linktype(LLCSAP_IPX);
+		break;
+
+	case Q_NETBEUI:
+	        b1 = gen_linktype(LLCSAP_NETBEUI);
 		break;
 
 	default:
@@ -1738,12 +2323,15 @@ gen_port(port, ip_proto, dir)
 	switch (ip_proto) {
 	case IPPROTO_UDP:
 	case IPPROTO_TCP:
+	case IPPROTO_SCTP:
 		b1 = gen_portop(port, ip_proto, dir);
 		break;
 
 	case PROTO_UNDEF:
 		tmp = gen_portop(port, IPPROTO_TCP, dir);
 		b1 = gen_portop(port, IPPROTO_UDP, dir);
+		gen_or(tmp, b1);
+		tmp = gen_portop(port, IPPROTO_SCTP, dir);
 		gen_or(tmp, b1);
 		break;
 
@@ -1808,12 +2396,15 @@ gen_port6(port, ip_proto, dir)
 	switch (ip_proto) {
 	case IPPROTO_UDP:
 	case IPPROTO_TCP:
+	case IPPROTO_SCTP:
 		b1 = gen_portop6(port, ip_proto, dir);
 		break;
 
 	case PROTO_UNDEF:
 		tmp = gen_portop6(port, IPPROTO_TCP, dir);
 		b1 = gen_portop6(port, IPPROTO_UDP, dir);
+		gen_or(tmp, b1);
+		tmp = gen_portop6(port, IPPROTO_SCTP, dir);
 		gen_or(tmp, b1);
 		break;
 
@@ -1836,6 +2427,7 @@ lookup_proto(name, proto)
 
 	case Q_DEFAULT:
 	case Q_IP:
+	case Q_IPV6:
 		v = pcap_nametoproto(name);
 		if (v == PROTO_UNDEF)
 			bpf_error("unknown ip proto '%s'", name);
@@ -2200,7 +2792,7 @@ gen_proto(v, proto, dir)
 		return b1;
 
 	case Q_ISO:
-		b0 = gen_linktype(LLC_ISO_LSAP);
+		b0 = gen_linktype(LLCSAP_ISONS);
 		b1 = gen_cmp(off_nl + 3, BPF_B, (long)v);
 		gen_and(b0, b1);
 		return b1;
@@ -2248,6 +2840,10 @@ gen_proto(v, proto, dir)
 		bpf_error("'tcp proto' is bogus");
 		/* NOTREACHED */
 
+	case Q_SCTP:
+		bpf_error("'sctp proto' is bogus");
+		/* NOTREACHED */
+
 	case Q_ICMP:
 		bpf_error("'icmp proto' is bogus");
 		/* NOTREACHED */
@@ -2262,6 +2858,10 @@ gen_proto(v, proto, dir)
 
 	case Q_PIM:
 		bpf_error("'pim proto' is bogus");
+		/* NOTREACHED */
+
+	case Q_VRRP:
+		bpf_error("'vrrp proto' is bogus");
 		/* NOTREACHED */
 
 #ifdef INET6
@@ -2284,6 +2884,15 @@ gen_proto(v, proto, dir)
 
 	case Q_ESP:
 		bpf_error("'ah proto' is bogus");
+
+	case Q_STP:
+		bpf_error("'stp proto' is bogus");
+
+	case Q_IPX:
+		bpf_error("'ipx proto' is bogus");
+
+	case Q_NETBEUI:
+		bpf_error("'netbeui proto' is bogus");
 
 	default:
 		abort();
@@ -2338,21 +2947,27 @@ gen_scode(name, q)
 				if (eaddr == NULL)
 					bpf_error(
 					    "unknown ether host '%s'", name);
-				return gen_ehostop(eaddr, dir);
+				b = gen_ehostop(eaddr, dir);
+				free(eaddr);
+				return b;
 
 			case DLT_FDDI:
 				eaddr = pcap_ether_hostton(name);
 				if (eaddr == NULL)
 					bpf_error(
 					    "unknown FDDI host '%s'", name);
-				return gen_fhostop(eaddr, dir);
+				b = gen_fhostop(eaddr, dir);
+				free(eaddr);
+				return b;
 
 			case DLT_IEEE802:
 				eaddr = pcap_ether_hostton(name);
 				if (eaddr == NULL)
 					bpf_error(
 					    "unknown token ring host '%s'", name);
-				return gen_thostop(eaddr, dir);
+				b = gen_thostop(eaddr, dir);
+				free(eaddr);
+				return b;
 
 			default:
 				bpf_error(
@@ -2413,6 +3028,8 @@ gen_scode(name, q)
 					tmp = gen_host6(&sin6->sin6_addr,
 						&mask128, tproto6, dir);
 					break;
+				default:
+					continue;
 				}
 				if (b)
 					gen_or(b, tmp);
@@ -2430,13 +3047,16 @@ gen_scode(name, q)
 		}
 
 	case Q_PORT:
-		if (proto != Q_DEFAULT && proto != Q_UDP && proto != Q_TCP)
+		if (proto != Q_DEFAULT &&
+		    proto != Q_UDP && proto != Q_TCP && proto != Q_SCTP)
 			bpf_error("illegal qualifier of 'port'");
 		if (pcap_nametoport(name, &port, &real_proto) == 0)
 			bpf_error("unknown port '%s'", name);
 		if (proto == Q_UDP) {
 			if (real_proto == IPPROTO_TCP)
 				bpf_error("port '%s' is tcp", name);
+			else if (real_proto == IPPROTO_SCTP)
+				bpf_error("port '%s' is sctp", name);
 			else
 				/* override PROTO_UNDEF */
 				real_proto = IPPROTO_UDP;
@@ -2444,9 +3064,22 @@ gen_scode(name, q)
 		if (proto == Q_TCP) {
 			if (real_proto == IPPROTO_UDP)
 				bpf_error("port '%s' is udp", name);
+
+			else if (real_proto == IPPROTO_SCTP)
+				bpf_error("port '%s' is sctp", name);
 			else
 				/* override PROTO_UNDEF */
 				real_proto = IPPROTO_TCP;
+		}
+		if (proto == Q_SCTP) {
+			if (real_proto == IPPROTO_UDP)
+				bpf_error("port '%s' is udp", name);
+
+			else if (real_proto == IPPROTO_TCP)
+				bpf_error("port '%s' is tcp", name);
+			else
+				/* override PROTO_UNDEF */
+				real_proto = IPPROTO_SCTP;
 		}
 #ifndef INET6
 		return gen_port(port, real_proto, dir);
@@ -2468,7 +3101,9 @@ gen_scode(name, q)
 		alist = pcap_nametoaddr(name);
 		if (alist == NULL || *alist == NULL)
 			bpf_error("unknown host '%s'", name);
-		return gen_gateway(eaddr, alist, proto, dir);
+		b = gen_gateway(eaddr, alist, proto, dir);
+		free(eaddr);
+		return b;
 #else
 		bpf_error("'gateway' not supported in this configuration");
 #endif /*INET6*/
@@ -2585,6 +3220,8 @@ gen_ncode(s, v, q)
 			proto = IPPROTO_UDP;
 		else if (proto == Q_TCP)
 			proto = IPPROTO_TCP;
+		else if (proto == Q_SCTP)
+			proto = IPPROTO_SCTP;
 		else if (proto == Q_DEFAULT)
 			proto = PROTO_UNDEF;
 		else
@@ -2647,6 +3284,7 @@ gen_mcode6(s1, s2, masklen, q)
 
 	if (sizeof(mask) * 8 < masklen)
 		bpf_error("mask length must be <= %u", (unsigned int)(sizeof(mask) * 8));
+	memset(&mask, 0, sizeof(mask));
 	memset(&mask, 0xff, masklen / 8);
 	if (masklen % 8) {
 		mask.s6_addr[masklen / 8] =
@@ -2797,12 +3435,14 @@ gen_load(proto, index, size)
 		index->b = b;
 		break;
 
+	case Q_SCTP:
 	case Q_TCP:
 	case Q_UDP:
 	case Q_ICMP:
 	case Q_IGMP:
 	case Q_IGRP:
 	case Q_PIM:
+	case Q_VRRP:
 		s = new_stmt(BPF_LDX|BPF_MSH|BPF_B);
 		s->s.k = off_nl;
 		sappend(s, xfer_to_a(index));
@@ -3077,6 +3717,8 @@ gen_byteop(op, idx, val)
 	return b;
 }
 
+static u_char abroadcast[] = { 0x0 };
+
 struct block *
 gen_broadcast(proto)
 	int proto;
@@ -3089,6 +3731,8 @@ gen_broadcast(proto)
 
 	case Q_DEFAULT:
 	case Q_LINK:
+		if (linktype == DLT_ARCNET)
+			return gen_ahostop(abroadcast, Q_DST);
 		if (linktype == DLT_EN10MB)
 			return gen_ehostop(ebroadcast, Q_DST);
 		if (linktype == DLT_FDDI)
@@ -3122,6 +3766,10 @@ gen_multicast(proto)
 
 	case Q_DEFAULT:
 	case Q_LINK:
+		if (linktype == DLT_ARCNET)
+			/* all ARCnet multicasts use the same address */
+			return gen_ahostop(abroadcast, Q_DST);
+
 		if (linktype == DLT_EN10MB) {
 			/* ether[0] & 1 != 0 */
 			s = new_stmt(BPF_LD|BPF_B|BPF_ABS);
@@ -3199,6 +3847,51 @@ gen_inbound(dir)
 	return (b0);
 }
 
+struct block *
+gen_acode(eaddr, q)
+	register const u_char *eaddr;
+	struct qual q;
+{
+	if ((q.addr == Q_HOST || q.addr == Q_DEFAULT) && q.proto == Q_LINK) {
+		if (linktype == DLT_ARCNET)
+			return gen_ahostop(eaddr, (int)q.dir);
+	}
+	bpf_error("ARCnet address used in non-arc expression");
+	/* NOTREACHED */
+}
+
+static struct block *
+gen_ahostop(eaddr, dir)
+	register const u_char *eaddr;
+	register int dir;
+{
+	register struct block *b0, *b1;
+
+	switch (dir) {
+	/* src comes first, different from Ethernet */
+	case Q_SRC:
+		return gen_bcmp(0, 1, eaddr);
+
+	case Q_DST:
+		return gen_bcmp(1, 1, eaddr);
+
+	case Q_AND:
+		b0 = gen_ahostop(eaddr, Q_SRC);
+		b1 = gen_ahostop(eaddr, Q_DST);
+		gen_and(b0, b1);
+		return b1;
+
+	case Q_DEFAULT:
+	case Q_OR:
+		b0 = gen_ahostop(eaddr, Q_SRC);
+		b1 = gen_ahostop(eaddr, Q_DST);
+		gen_or(b0, b1);
+		return b1;
+	}
+	abort();
+	/* NOTREACHED */
+}
+
 /*
  * support IEEE 802.1Q VLAN trunk over ethernet
  */
@@ -3206,7 +3899,6 @@ struct block *
 gen_vlan(vlan_num)
 	int vlan_num;
 {
-	static u_int	orig_linktype = -1, orig_nl = -1;
 	struct	block	*b0;
 
 	/*

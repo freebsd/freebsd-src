@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/nametoaddr.c,v 1.57.2.1 2001/01/17 18:21:56 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/nametoaddr.c,v 1.60 2001/07/28 22:56:35 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -324,7 +324,7 @@ pcap_ether_aton(const char *s)
 		if (*s == ':')
 			s += 1;
 		d = xdtoi(*s++);
-		if (isxdigit(*s)) {
+		if (isxdigit((unsigned char)*s)) {
 			d <<= 4;
 			d |= xdtoi(*s++);
 		}
@@ -415,5 +415,6 @@ __pcap_nametodnaddr(const char *name)
 #else
 	bpf_error("decnet name support not included, '%s' cannot be translated\n",
 		name);
+	return(0);
 #endif
 }

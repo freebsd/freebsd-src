@@ -24,7 +24,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/scanner.l,v 1.70 2000/10/28 10:18:40 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/scanner.l,v 1.81 2001/09/14 01:40:57 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -172,15 +172,29 @@ fddi|tr		return LINK;
 arp		return ARP;
 rarp		return RARP;
 ip		return IP;
+sctp		return SCTP;
 tcp		return TCP;
 udp		return UDP;
 icmp		return ICMP;
 igmp		return IGMP;
 igrp		return IGRP;
 pim		return PIM;
+vrrp		return VRRP;
 
-ip6		return IPV6;
-icmp6		return ICMPV6;
+ip6		{
+#ifdef INET6
+		return IPV6;
+#else
+		bpf_error("%s not supported", yytext);
+#endif
+		}
+icmp6		{
+#ifdef INET6
+		return ICMPV6;
+#else
+		bpf_error("%s not supported", yytext);
+#endif
+		}
 ah		return AH;
 esp		return ESP;
 
@@ -198,6 +212,12 @@ es-is		return ESIS;
 isis		return ISIS;
 is-is		return ISIS;
 clnp		return CLNP;
+
+stp		return STP;
+
+ipx		return IPX;
+
+netbeui		return NETBEUI;
 
 host		return HOST;
 net		return NET;
@@ -238,6 +258,8 @@ vlan		return VLAN;
 "=="			return '=';
 "<<"			return LSH;
 ">>"			return RSH;
+${B}			{ yylval.e = pcap_ether_aton(((char *)yytext)+1);
+			  return AID; }
 {N}			{ yylval.i = stoi((char *)yytext); return NUM; }
 ({N}\.{N})|({N}\.{N}\.{N})|({N}\.{N}\.{N}\.{N})	{
 			yylval.s = sdup((char *)yytext); return HID; }
@@ -259,11 +281,35 @@ vlan		return VLAN;
 #endif /*INET6*/
 			}
 {B}:+({B}:+)+		{ bpf_error("bogus ethernet address %s", yytext); }
-[A-Za-z0-9][-_.A-Za-z0-9]*[.A-Za-z0-9] {
+icmptype		{ yylval.i = 0; return NUM; }
+icmpcode		{ yylval.i = 1; return NUM; }
+icmp-echoreply		{ yylval.i = 0; return NUM; }
+icmp-unreach		{ yylval.i = 3; return NUM; }
+icmp-sourcequench	{ yylval.i = 4; return NUM; }
+icmp-redirect		{ yylval.i = 5; return NUM; }
+icmp-echo		{ yylval.i = 8; return NUM; }
+icmp-routeradvert	{ yylval.i = 9; return NUM; }
+icmp-routersolicit	{ yylval.i = 10; return NUM; }
+icmp-timxceed		{ yylval.i = 11; return NUM; }
+icmp-paramprob		{ yylval.i = 12; return NUM; }
+icmp-tstamp		{ yylval.i = 13; return NUM; }
+icmp-tstampreply	{ yylval.i = 14; return NUM; }
+icmp-ireq		{ yylval.i = 15; return NUM; }
+icmp-ireqreply		{ yylval.i = 16; return NUM; }
+icmp-maskreq		{ yylval.i = 17; return NUM; }
+icmp-maskreply		{ yylval.i = 18; return NUM; }
+tcpflags		{ yylval.i = 13; return NUM; }
+tcp-fin			{ yylval.i = 0x01; return NUM; }
+tcp-syn			{ yylval.i = 0x02; return NUM; }
+tcp-rst			{ yylval.i = 0x04; return NUM; }
+tcp-push		{ yylval.i = 0x08; return NUM; }
+tcp-ack			{ yylval.i = 0x10; return NUM; }
+tcp-urg			{ yylval.i = 0x20; return NUM; }
+[A-Za-z0-9]([-_.A-Za-z0-9]*[.A-Za-z0-9])? {
 			 yylval.s = sdup((char *)yytext); return ID; }
 "\\"[^ !()\n\t]+	{ yylval.s = sdup((char *)yytext + 1); return ID; }
-[^ \[\]\t\n\-_.A-Za-z0-9!<>()&|=]+i {
-			bpf_error("illegal token: %s\n", yytext); }
+[^ \[\]\t\n\-_.A-Za-z0-9!<>()&|=]+ {
+			bpf_error("illegal token: %s", yytext); }
 .			{ bpf_error("illegal char '%c'", *yytext); }
 %%
 void

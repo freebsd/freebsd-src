@@ -30,8 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.33 2001/08/24 07:46:52 guy Exp $ (LBL)
+ *
  * $FreeBSD$
- * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.32 2000/12/21 10:29:23 guy Exp $ (LBL)
  */
 
 #ifndef pcap_int_h
@@ -66,7 +67,6 @@ struct pcap_md {
 	long	OrigMissed;	/* missed by i/f before this run */
 #ifdef linux
 	int	sock_packet;	/* using Linux 2.0 compatible interface */
-	int	readlen;	/* byte count to hand to "recvmsg()" */
 	int	timeout;	/* timeout specified to pcap_open_live */
 	int	clear_promisc;	/* must clear promiscuous mode when we close */
 	int	cooked;		/* using SOCK_DGRAM rather than SOCK_RAW */
