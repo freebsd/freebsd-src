@@ -129,6 +129,17 @@
       group.  For more information, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>.</para>
 
+    <para>A bug with the System V Shared Memory interface
+      (specifically the &man.shmat.2; system call) has been fixed.
+      This bug can cause a shared memory segment to reference
+      unallocated kernel memory.  In turn, this can permit a local
+      attacker to gain unauthorized access to parts of kernel memory,
+      possibly resulting in disclosure of sensitive information,
+      bypass of access control mechanisms, or privilege escalation.
+      More details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
