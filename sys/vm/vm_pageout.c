@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.88 1997/01/01 04:45:05 dyson Exp $
+ * $Id: vm_pageout.c,v 1.89 1997/01/03 17:02:28 dyson Exp $
  */
 
 /*
@@ -811,10 +811,12 @@ rescan0:
 			if (vm_pageout_algorithm_lru ||
 				(m->object->ref_count == 0) || (m->act_count == 0)) {
 				--page_shortage;
-				vm_page_protect(m, VM_PROT_NONE);
-				if ((m->dirty == 0) &&
-					(m->object->ref_count == 0)) {
-					vm_page_cache(m);
+				if (m->object->ref_count == 0) {
+					vm_page_protect(m, VM_PROT_NONE);
+					if (m->dirty == 0)
+						vm_page_cache(m);
+					else
+						vm_page_deactivate(m);
 				} else {
 					vm_page_deactivate(m);
 				}
