@@ -1,11 +1,7 @@
 $FreeBSD$
 
-ReleaseNotes for isdn4bsd             last edit-date: [Sat Jul 21 12:27:43 2001]
+ReleaseNotes for isdn4bsd             last edit-date: [Fri May 25 14:12:55 2001]
 ================================================================================
-
- - add keyword "maxconnecttime" to isdnd to prevent a potential telco bill
-   desaster. Caution: use only in conjunction with budgets to limit the number
-   of dials per timeunit otherwise you will get endless redials and reconnects!
 
 release 1.00
 --------------------------------------------------------------------------------
