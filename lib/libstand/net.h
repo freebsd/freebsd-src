@@ -114,7 +114,7 @@ ssize_t	sendrecv(struct iodesc *,
 			void *, size_t);
 
 /* bootp/DHCP */
-void	bootp(int);
+void	bootp(int, int);
 
 /* Utilities: */
 char	*ether_sprintf(u_char *);
