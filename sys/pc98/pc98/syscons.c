@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.12 1997/03/04 06:49:40 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.13 1997/03/09 13:30:06 kato Exp $
  */
 
 #include "sc.h"
@@ -435,14 +435,10 @@ scprobe(struct isa_device *dev)
     c |= KBD_OVERRIDE_KBD_LOCK;
 #endif
 
-    /*
-     * enable the keyboard port, but disable the keyboard intr. 
-     * the aux port (mouse port) is disabled too.
-     */
+    /* enable the keyboard port, but disable the keyboard intr. */
     if (!set_controller_command_byte(sc_kbdc,
-            KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS,
-            KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT
-                | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+            KBD_KBD_CONTROL_BITS, 
+            KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT)) {
 	/* CONTROLLER ERROR 
 	 * there is very little we can do...
 	 */
@@ -514,8 +510,8 @@ scprobe(struct isa_device *dev)
     }
     /* enable the keyboard port and intr. */
     if (!set_controller_command_byte(sc_kbdc, 
-            KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS | KBD_OVERRIDE_KBD_LOCK,
-	    (c & (KBD_AUX_CONTROL_BITS | KBD_OVERRIDE_KBD_LOCK))
+            KBD_KBD_CONTROL_BITS | KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK,
+	    (c & (KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK))
 	        | KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT)) {
 	/* CONTROLLER ERROR 
 	 * This is serious; we are left with the disabled keyboard intr. 
@@ -4046,11 +4042,12 @@ set_keyboard(int command, int data)
 
     /* disable the keyboard and mouse interrupt */
     s = spltty();
+#if 0
     c = get_controller_command_byte(sc_kbdc);
     if ((c == -1) 
 	|| !set_controller_command_byte(sc_kbdc, 
             kbdc_get_device_mask(sc_kbdc),
-            KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+            KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
                 | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 	/* CONTROLLER ERROR */
         kbdc_lock(sc_kbdc, FALSE);
@@ -4065,15 +4062,21 @@ set_keyboard(int command, int data)
      * by the lock flag set via `kbdc_lock()'
      */
     splx(s);
+#endif
 
-    send_kbd_command_and_data(sc_kbdc, command, data);
+    if (send_kbd_command_and_data(sc_kbdc, command, data) != KBD_ACK)
+        send_kbd_command(sc_kbdc, KBDC_ENABLE_KBD);
 
+#if 0
     /* restore the interrupts */
     if (!set_controller_command_byte(sc_kbdc,
             kbdc_get_device_mask(sc_kbdc),
 	    c & (KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS))) { 
 	/* CONTROLLER ERROR */
     }
+#else
+    splx(s);
+#endif
     kbdc_lock(sc_kbdc, FALSE);
 #endif
 }
