@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.6 1994/10/01 02:56:15 davidg Exp $
+ *	$Id: isa.h,v 1.7 1994/11/14 14:19:10 bde Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
@@ -141,6 +141,7 @@
 #define	IO_TMRSIZE	16		/* 8253 programmable timers */
 #define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
 #define	IO_VGASIZE	16		/* VGA controllers */
+#define IO_EISASIZE	8192		/* EISA controllers */
 #define	IO_PMPSIZE	2		/* 82347 power management peripheral */
 
 #endif	/* IO_ISASIZES */
