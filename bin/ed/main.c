@@ -1400,7 +1400,7 @@ handle_hup(signo)
 		strcat(hup, "ed.hup");
 		write_file(hup, "w", 1, addr_last);
 	}
-	quit(2);
+	_exit(2);
 }
 
 
@@ -1409,7 +1409,7 @@ handle_int(signo)
 	int signo;
 {
 	if (!sigactive)
-		quit(1);
+		_exit(1);
 	sigflags &= ~(1 << (signo - 1));
 #ifdef _POSIX_SOURCE
 	siglongjmp(env, -1);

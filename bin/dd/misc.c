@@ -104,6 +104,5 @@ terminate(sig)
 	int sig;
 {
 
-	/* XXX exit() shouldn't call exit() from a signal handler. */
-	exit(sig == 0 ? 0 : 1);
+	_exit(sig == 0 ? 0 : 1);
 }
