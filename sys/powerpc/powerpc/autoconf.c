@@ -74,6 +74,10 @@ configure(void *dummy)
 
 	cold = 0;
 
+	device_add_child(root_bus, "nexus", 0);
+
+	root_bus_configure();
+
 	msr = mfmsr();
 	msr = PSL_EE|PSL_FP|PSL_ME|PSL_IR|PSL_DR|PSL_RI;
 	mtmsr(msr);
