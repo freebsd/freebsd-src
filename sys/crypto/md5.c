@@ -177,15 +177,15 @@ void md5_pad(ctxt)
 	/* Don't count up padding. Keep md5_n. */	
 	gap = MD5_BUFLEN - ctxt->md5_i;
 	if (gap > 8) {
-		bcopy((void *)md5_paddat,
+		bcopy(md5_paddat,
 		      (void *)(ctxt->md5_buf + ctxt->md5_i),
 		      gap - sizeof(ctxt->md5_n));
 	} else {
 		/* including gap == 8 */
-		bcopy((void *)md5_paddat, (void *)(ctxt->md5_buf + ctxt->md5_i),
+		bcopy(md5_paddat, (void *)(ctxt->md5_buf + ctxt->md5_i),
 			gap);
 		md5_calc(ctxt->md5_buf, ctxt);
-		bcopy((void *)(md5_paddat + gap),
+		bcopy((md5_paddat + gap),
 		      (void *)ctxt->md5_buf,
 		      MD5_BUFLEN - sizeof(ctxt->md5_n));
 	}
