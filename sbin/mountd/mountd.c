@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95"; */
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.29 1998/06/15 15:41:41 joerg Exp $";
+	"$Id: mountd.c,v 1.30 1998/06/15 15:43:13 joerg Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -1483,10 +1483,12 @@ get_host(cp, grp, tgrp)
          * for this host in the grouplist.
          */
         checkgrp = tgrp;
-        while (checkgrp) {
+        while (checkgrp != NULL) {
 		if (checkgrp->gr_type == GT_HOST &&
                     checkgrp->gr_ptr.gt_hostent != NULL &&
-                    !strcmp(checkgrp->gr_ptr.gt_hostent->h_name, hp->h_name)) {
+                    (!strcmp(checkgrp->gr_ptr.gt_hostent->h_name, hp->h_name)
+		|| *(unsigned long *)checkgrp->gr_ptr.gt_hostent->h_addr ==
+			*(unsigned long *)hp->h_addr)) {
                         grp->gr_type = GT_IGNORE;
 			return(0);
 		}
