@@ -8,3 +8,4 @@ SHOW_BUSYBUFS
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 
 POWERMAC		opt_platform.h
+PSIM			opt_psim.h
