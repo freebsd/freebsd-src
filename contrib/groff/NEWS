@@ -1,21 +1,72 @@
-This file describes recent user-visible changes in groff.  Bug fixes
-are not described.  There are more details in the man pages.
+This file describes recent user-visible changes in groff.  Bug fixes are not
+described.  There are more details in the man pages.
+
+VERSION 1.17.2
+==============
+
+This is major bug-fixing release which should replace 1.17.1.
+
+Troff
+-----
+
+o The `IMAGE' macro in www.tmac has changed: Now the optional 2nd parameter
+  gives the horizontal image location (left, centered, or right), and the
+  optional 3rd and 4th parameter the image dimensions.
+
+VERSION 1.17.1
+==============
+
+This is mainly a bug-fixing release.
+
+Troff
+-----
+
+o Two new requests `de1' and `am1' which are similar to `de' and `am' but
+  with compatibility mode disabled during expansion of macros defined by
+  them.
+
+o Added request `brp'.  This is the same as `\p'.
+
+o Similar to other versions of troff, `.ns' now works in all diversions,
+  not only in the top-level one.
+
+o New read-only number register `.ns'.  Returns 1 if in no-space mode,
+  0 otherwise.
+
+Nroff
+-----
+
+o Options -p (pic) and -t (tbl) added.
+
+o The environment variable GROFF_BIN_PATH is now checked before PATH for
+  finding groff.
+
+Grohtml
+-------
+
+o New option `-D dir' to specify a directory in which all images are placed.
+
+o New option `-I stem' to specify an image name stame.  If not given,
+  `grohtml-XXX' is used (`XXX' is the process ID).
+
+VERSION 1.17
+============
 
 Groff
 -----
 
-o `-mFOO' will now search first for `FOO.tmac' and then for `tmac.FOO'.  The
+o `-mFOO' now searches first for `FOO.tmac' and then for `tmac.FOO'.  The
   old behaviour has been changed to overcome problems with platforms which
   have an 8+3 file name limit, and platforms which have other versions of
   troff installed also. Additionally, all macro files have been renamed
   using the latter scheme to avoid 8+3 name clashes.
 
-o The new environment variable GROFF_BIN_PATH will be checked for programs
-  groff is calling (preprocessors, troff, and output devices) before PATH.
-  If not set, it defaults to the directory where the groff binary is
-  located.  Previously, it was PATH only.  The nroff script will only use
-  GROFF_BIN_PATH to find the groff binary but passes both the GROFF_BIN_PATH
-  and PATH environment variable to groff.
+o The new environment variable GROFF_BIN_PATH is checked for programs groff
+  is calling (preprocessors, troff, and output devices) before PATH.  If not
+  set, it defaults to the directory where the groff binary is located. 
+  Previously, it was PATH only.  The nroff script only uses GROFF_BIN_PATH
+  to find the groff binary but passes both the GROFF_BIN_PATH and PATH
+  environment variable to groff.
 
 Troff
 -----
@@ -47,9 +98,9 @@ o The mdoc package has been completely rewritten, using the full power of
   encounter any abnormal results, please report them to bug-groff@gnu.org.
 
 o A new command line option for the `man' macros (similar to the `mdoc'
-  package has been implemented: `-rcR=1' (now the default in nroff mode) will
-  produce one single, very long page instead of multiple pages.  `-rcR=0'
-  will deactivate it.
+  package has been implemented: `-rcR=1' (now the default in nroff mode)
+  produces one single, very long page instead of multiple pages.  `-rcR=0'
+  deactivates it.
 
 o The `return' request has been added to return immediately from a macro.
 
@@ -73,7 +124,7 @@ o `box' and `boxa' are two new requests which behave similarly to `di' and
 o The `asciify' request has been extended to `unformat' space characters
   and some other escape sequences also.
 
-  `\ ' will no longer be unformatted as a space but remains an unpaddable,
+  `\ ' is no longer unformatted as a space but remains an unpaddable,
   unbreakable space character.
 
 o The new `unformat' request is similar to `asciify' but only handles space
@@ -164,7 +215,7 @@ o Calling the `fam' request without an argument switches back to the
   previous font family.
 
 o The new read-only register `.int' is set to a positive value if the last
-  output line is interrupted (i.e., if it contains `\c').
+  output line is interrupted (i.e., if the input line contains `\c').
 
 o The `writem' request is not new, but hasn't been documented before.  This
   is similar to `write' but instead of a string the contents of a given
@@ -174,23 +225,16 @@ o The read/write number register `hp' to get/set the current horizontal
   position relative to the input line isn't new but hasn't been documented
   properly before.
 
-o `\X' and `\Y' are no transparent for end-of-sentence recognition.
+o `\X' and `\Y' are now transparent for end-of-sentence recognition.
 
-o The `cu' request in nroff mode now works as documented (i.e., it does
-  underline spaces also).
-
-Nroff
------
-
-Option -v shows the version number.
+o The `cu' request in nroff mode now works as documented (i.e., it
+  underlines spaces also).
 
 Grog
 ----
 
-o The grog script will now work in non-compatibility mode also (which is the
+o The grog script now works in non-compatibility mode also (which is the
   default).  As usual, use the `-C' option to activate compatibility mode.
-
-o Option -v shows the version number.
 
 Grops
 -----
@@ -227,16 +271,15 @@ o For security reasons the following changes have been done:
     Use the `-F' command line option or the GROFF_FONT_PATH environment
     variable if you really need the current directory.
 
-o groff will now install its data files into
-  /usr/local/share/groff/<version> by default, following the GNU standard.
-  Additionally, a local tmac directory (by default
-  /usr/local/share/groff/site-tmac) will be scanned before the standard tmac
-  directory.  Wrapper files for system-specific macro packages (if
-  necessary) are put into /usr/local/lib/groff/site-tmac; this directory
-  will be searched before the local tmac directory.
+o groff now installs its data files into /usr/local/share/groff/<version> by
+  default, following the GNU standard.  Additionally, a local tmac directory
+  (by default /usr/local/share/groff/site-tmac) is scanned before the
+  standard tmac directory.  Wrapper files for system-specific macro packages
+  (if necessary) are put into /usr/local/lib/groff/site-tmac; this directory
+  is searched before the local tmac directory.
 
-o All programs now have option `-v' to show the version number; they will
-  exit immediately afterwards, following the GNU standards.  Additionally,
+o All programs now have option `-v' to show the version number; they exit
+  immediately afterwards, following the GNU standards.  Additionally,
   `--version' and `--help' have been added, doing the obvious actions.
 
 VERSION 1.16.1

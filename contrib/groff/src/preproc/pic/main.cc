@@ -21,6 +21,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "pic.h"
 
 extern int yyparse();
+extern "C" const char *Version_string;
 
 output *out;
 
@@ -568,7 +569,6 @@ int main(int argc, char **argv)
       break;
     case 'v':
       {
-	extern const char *Version_string;
 	printf("GNU pic (groff) version %s\n", Version_string);
 	exit(0);
 	break;

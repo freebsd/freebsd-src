@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
 Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -327,13 +327,13 @@ void sortify_title(const char *s, int len, string &key)
       break;
   }
   if (ptr < end) {
-    int first_word_len = ptr - s - 1;
+    unsigned int first_word_len = ptr - s - 1;
     const char *ae = articles.contents() + articles.length();
     for (const char *a = articles.contents();
 	 a < ae;
 	 a = strchr(a, '\0') + 1)
       if (first_word_len == strlen(a)) {
-	int j;
+	unsigned int j;
 	for (j = 0; j < first_word_len; j++)
 	  if (a[j] != cmlower(s[j]))
 	    break;
@@ -951,7 +951,7 @@ static int find_month(const char *start, const char *end)
     while (ptr < end && csalpha(*ptr))
       ptr++;
     if (ptr - start >= 3) {
-      for (int i = 0; i < sizeof(months)/sizeof(months[0]); i++) {
+      for (unsigned int i = 0; i < sizeof(months)/sizeof(months[0]); i++) {
 	const char *q = months[i];
 	const char *p = start;
 	for (; p < ptr; p++, q++)

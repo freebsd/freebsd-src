@@ -30,6 +30,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #define STARTUP_FILE "eqnrc"
 
 extern int yyparse();
+extern "C" const char *Version_string;
 
 static char *delim_search    (char *, int);
 static int   inline_equation (FILE *, string &, string &);
@@ -303,7 +304,6 @@ int main(int argc, char **argv)
       break;
     case 'v':
       {
-	extern const char *Version_string;
 	printf("GNU eqn (groff) version %s\n", Version_string);
 	exit(0);
 	break;

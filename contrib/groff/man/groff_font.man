@@ -1,4 +1,4 @@
-.ig \"-*- nroff -*-
+.ig
 Copyright (C) 1989-1995, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
@@ -417,3 +417,7 @@ of device
 .SH "SEE ALSO"
 .BR groff_out (@MAN5EXT@),
 .BR @g@troff (@MAN1EXT@).
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

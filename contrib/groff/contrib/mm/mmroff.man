@@ -1,5 +1,5 @@
 .\"
-.\" $Id: mmroff.man,v 2.0 2000/09/14 03:40:24 jhaegg Exp $
+.\" $Id: mmroff.man,v 2.1 2001/06/27 12:47:16 wlemb Exp $
 .\"
 .TH MMROFF @MAN7EXT@ "@MDATE@" "Groff Version @VERSION@"
 .SH NAME
@@ -46,3 +46,7 @@ Jörgen Hägg, Lund, Sweden <jh@axis.se>.
 .br
 .BR mm (@MAN7EXT@)
 .BR m@TMAC_M_PREFIX@mse (@MAN7EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:
