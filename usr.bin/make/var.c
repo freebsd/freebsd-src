@@ -902,7 +902,7 @@ VarExpand(Var *v, VarParser *vp)
 }
 
 /**
- * Select only those words that match the modifier.
+ * Select only those words in value that match the modifier.
  */
 static char *
 modifier_M(const char mod[], const char value[], char endc, size_t *consumed)
@@ -948,6 +948,10 @@ modifier_M(const char mod[], const char value[], char endc, size_t *consumed)
 	return (newValue);
 }
 
+/**
+ * Substitute the replacement string for the pattern.  The substitution
+ * is applied to each word in value.
+ */
 static char *
 modifier_S(const char mod[], const char value[], Var *v, VarParser *vp, size_t *consumed)
 {
@@ -1127,6 +1131,79 @@ modifier_S(const char mod[], const char value[], Var *v, VarParser *vp, size_t *
 	return (newValue);
 }
 
+static char *
+modifier_C(const char mod[], char value[], Var *v, VarParser *vp, size_t *consumed)
+{
+	VarREPattern	patt;
+	int		delim;
+	char		*re;
+	const char	*cur;
+	int		error;
+	char		*newValue;
+
+	patt.flags = 0;
+
+	delim = mod[1];	/* delimiter between sections */
+
+	cur = mod + 2;
+
+	re = VarGetPattern(vp, &cur, delim, NULL, NULL, NULL);
+	if (re == NULL) {
+		Fatal("Unclosed substitution for %s (%c missing)",
+		      v->name, delim);
+	}
+
+	patt.replace = VarGetPattern(vp, &cur, delim, NULL, NULL, NULL);
+	if (patt.replace == NULL) {
+		Fatal("Unclosed substitution for %s (%c missing)",
+		      v->name, delim);
+	}
+
+	for (;; cur++) {
+		switch (*cur) {
+		case 'g':
+			patt.flags |= VAR_SUB_GLOBAL;
+			continue;
+		case '1':
+			patt.flags |= VAR_SUB_ONE;
+			continue;
+		default:
+			break;
+		}
+		break;
+	}
+
+	error = regcomp(&patt.re, re, REG_EXTENDED);
+	if (error) {
+		*consumed = cur - mod;
+		VarREError(error, &patt.re, "RE substitution error");
+		free(patt.replace);
+		free(re);
+		return (var_Error);
+	}
+
+	patt.nsub = patt.re.re_nsub + 1;
+	if (patt.nsub < 1)
+		patt.nsub = 1;
+	if (patt.nsub > 10)
+		patt.nsub = 10;
+	patt.matches = emalloc(patt.nsub * sizeof(regmatch_t));
+
+	newValue = VarModify(value, VarRESubstitute, &patt);
+
+	regfree(&patt.re);
+	free(patt.matches);
+	free(patt.replace);
+	free(re);
+
+	*consumed += (cur - mod);
+
+	if (cur[0] == ':') {
+		*consumed += 1;	/* include colin as part of modifier */
+	}
+	return (newValue);
+}
+
 /*
  * Now we need to apply any modifiers the user wants applied.
  * These are:
@@ -1175,94 +1252,20 @@ ParseModifier(const char input[], const char tstr[],
 	    switch (*tstr) {
 		case 'N':
 		case 'M':
-			readonly = TRUE; /* tstr isn't modified here */
-
+			readonly = TRUE;
 			newStr = modifier_M(tstr, value, endc, &consumed);
 			tstr += consumed;
 			break;
 		case 'S':
-
-			readonly = TRUE; /* tstr isn't modified here */
-
+			readonly = TRUE;
 			newStr = modifier_S(tstr, value, v, vp, &consumed);
 			tstr += consumed;
 			break;
 		case 'C':
-		{
-		    int		delim;
-		    VarREPattern    pattern;
-		    char	   *re;
-		    int		    error;
-
-		    pattern.flags = 0;
-		    delim = tstr[1];
-		    tstr += 2;
-
-		    cp = tstr;
-
-		    if ((re = VarGetPattern(vp, &cp, delim, NULL,
-			NULL, NULL)) == NULL) {
-			*lengthPtr = cp - input + 1;
-			if (*freePtr)
-			    free(value);
-			if (delim != '\0')
-			    Fatal("Unclosed substitution for %s (%c missing)",
-				  v->name, delim);
-			return (var_Error);
-		    }
-
-		    if ((pattern.replace = VarGetPattern(vp, &cp,
-			delim, NULL, NULL, NULL)) == NULL){
-			free(re);
-
-			/* was: goto cleanup */
-			*lengthPtr = cp - input + 1;
-			if (*freePtr)
-			    free(value);
-			if (delim != '\0')
-			    Fatal("Unclosed substitution for %s (%c missing)",
-				  v->name, delim);
-			return (var_Error);
-		    }
-
-		    for (;; cp++) {
-			switch (*cp) {
-			case 'g':
-			    pattern.flags |= VAR_SUB_GLOBAL;
-			    continue;
-			case '1':
-			    pattern.flags |= VAR_SUB_ONE;
-			    continue;
-			default:
-			    break;
-			}
+			readonly = TRUE;
+			newStr = modifier_C(tstr, value, v, vp, &consumed);
+			tstr += consumed;
 			break;
-		    }
-
-		    termc = *cp;
-
-		    error = regcomp(&pattern.re, re, REG_EXTENDED);
-		    free(re);
-		    if (error)	{
-			*lengthPtr = cp - input + 1;
-			VarREError(error, &pattern.re, "RE substitution error");
-			free(pattern.replace);
-			return (var_Error);
-		    }
-
-		    pattern.nsub = pattern.re.re_nsub + 1;
-		    if (pattern.nsub < 1)
-			pattern.nsub = 1;
-		    if (pattern.nsub > 10)
-			pattern.nsub = 10;
-		    pattern.matches = emalloc(pattern.nsub *
-					      sizeof(regmatch_t));
-		    newStr = VarModify(value, VarRESubstitute, &pattern);
-		    regfree(&pattern.re);
-		    free(pattern.replace);
-		    free(pattern.matches);
-		    break;
-		}
 		case 'L':
 		    if (tstr[1] == endc || tstr[1] == ':') {
 			Buffer *buf;
