@@ -70,7 +70,8 @@ main(int argc, char *argv[])
 	struct passwd *pw;
 	int ch, howto, i, lflag, nflag, qflag, pflag, sverrno;
 	u_int pageins;
-	char *p, *user;
+	char *p;
+	const char *user;
 
 	if (strstr((p = rindex(*argv, '/')) ? p + 1 : *argv, "halt")) {
 		dohalt = 1;
