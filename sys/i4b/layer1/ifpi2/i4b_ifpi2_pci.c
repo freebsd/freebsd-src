@@ -42,9 +42,8 @@
 
 #include "ifpi2.h"
 #include "opt_i4b.h"
-#include "pci.h"
 
-#if (NIFPI2 > 0) && (NPCI > 0)
+#if (NIFPI2 > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
