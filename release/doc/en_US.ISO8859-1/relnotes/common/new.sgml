@@ -139,6 +139,11 @@
       <para arch="i386">A bug which prevented the kernel from booting
 	on an Intel 80386 processor has been corrected.</para>
 
+      <para arch="i386">Support for the Physical Address Extensions
+	(PAE) capability on Intel Pentium Pro and higher processors
+	has been added.  This allows the use of up to 64GB of RAM in a
+	machine, although the amount of memory usable by any single
+	process (or the &os; kernel) is unchanged.</para>
     </sect3>
 
     <sect3 id="boot">
@@ -193,8 +198,14 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The &man.da.4; driver no longer tries to send 6-byte
+	commands to USB and Firewire devices.  The quirks for these
+	devices (which hopefully are now unnecessary) have been
+	disabled; to restore the old behavior, add <literal>options
+	DA_OLD_QUIRKS</literal> to the kernel configuration.</para>
 
+      <para>The &man.twe.4; driver now supports the 3ware generic
+	API.</para>
     </sect3>
 
     <sect3 id="fs">
