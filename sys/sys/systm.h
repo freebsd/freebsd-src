@@ -168,9 +168,9 @@ int	suser __P((struct proc *));
 int	suser_xxx __P((struct ucred *cred, struct proc *proc, int flag));
 int	u_cansee __P((struct ucred *u1, struct ucred *u2));
 
-char	*getenv __P((char *name));
-int	getenv_int __P((char *name, int *data));
-quad_t	getenv_quad __P((char *name, quad_t *data));
+char	*getenv __P((const char *name));
+int	getenv_int __P((const char *name, int *data));
+quad_t	getenv_quad __P((const char *name, quad_t *data));
 extern char *kern_envp;
 
 #ifdef APM_FIXUP_CALLTODO 
