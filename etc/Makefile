@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.98 1995/01/14 12:48:39 jkh Exp $
+#	$Id: Makefile,v 1.99 1995/01/15 06:13:46 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -500,7 +500,7 @@ srcusrbin-tarball:
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/usrbin.)
 
 srcusrsbin-tarball:
-	(cd ${RELEASEDIR}/usr/src; \
+	(cd ${RELEASEDIR}/src/usr/src; \
 		mkdir -p ${RELEASEDIR}/tarballs/src; \
 		tar -cf - usr.sbin | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/usrsbin.)
