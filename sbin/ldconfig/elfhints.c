@@ -217,8 +217,8 @@ update_elf_hints(const char *hintsfile, int argc, char **argv, int merge)
 		struct stat	s;
 
 		if (stat(argv[i], &s) == -1)
-			err(1, "%s", argv[i]);
-		if (S_ISREG(s.st_mode))
+			warn("warning: %s", argv[i]);
+		else if (S_ISREG(s.st_mode))
 			read_dirs_from_file(hintsfile, argv[i]);
 		else
 			add_dir(hintsfile, argv[i]);
