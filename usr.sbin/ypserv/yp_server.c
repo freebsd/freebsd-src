@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static char rcsid[] = "$Id: yp_server.c,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $";
+static char rcsid[] = "$Id: yp_server.c,v 1.2 1995/12/23 21:35:35 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -280,8 +280,9 @@ static void ypxfr_callback(rval,addr,transid,prognum,port)
 	int sock = RPC_ANYSOCK;
 	struct timeval timeout;
 	yppushresp_xfr ypxfr_resp;
+	struct rpc_err err;
 
-	timeout.tv_sec = 20;
+	timeout.tv_sec = 5;
 	timeout.tv_usec = 0;
 	addr->sin_port = htons(port);
 
@@ -292,8 +293,18 @@ callback handle"));
 	ypxfr_resp.status = rval;
 	ypxfr_resp.transid = transid;
 
-	if (yppushproc_xfrresp_1(&ypxfr_resp, clnt) == NULL)
-		yp_error("%s", clnt_sperror(clnt, "ypxfr callback failed"));
+	/* Turn the timeout off -- we don't want to block. */
+	timeout.tv_sec = 0;
+	if (clnt_control(clnt, CLSET_TIMEOUT, (char *)&timeout) == FALSE)
+		yp_error("failed to set timeout on ypproc_xfr callback");
+
+	if (yppushproc_xfrresp_1(&ypxfr_resp, clnt) == NULL) {
+		clnt_geterr(clnt, &err);
+		if (err.re_status != RPC_SUCCESS &&
+		    err.re_status != RPC_TIMEDOUT)
+			yp_error("%s", clnt_sperror(clnt,
+				"ypxfr callback failed"));
+	}
 
 	clnt_destroy(clnt);
 	return;
@@ -305,22 +316,33 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 	static ypresp_xfr  result;
 	struct sockaddr_in *rqhost;
 
+	result.transid = argp->transid;
+	rqhost = svc_getcaller(rqstp->rq_xprt);
+
 	if (yp_access(argp->map_parms.map, (struct svc_req *)rqstp)) {
+		/* Order is important: send regular RPC reply, then callback */
 		result.xfrstat = YPXFR_REFUSED;
-		return(&result);
+		svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result);
+		ypxfr_callback(YPXFR_REFUSED,rqhost,argp->transid,
+			       argp->prog,argp->port);
+		return(NULL);
 	}
 
 	if (argp->map_parms.domain == NULL) {
 		result.xfrstat = YPXFR_BADARGS;
-		return (&result);
+		svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result);
+		ypxfr_callback(YPXFR_BADARGS,rqhost,argp->transid,
+			       argp->prog,argp->port);
+		return(NULL);
 	}
 
 	if (yp_validdomain(argp->map_parms.domain)) {
 		result.xfrstat = YPXFR_NODOM;
-		return(&result);
+		svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result);
+		ypxfr_callback(YPXFR_NODOM,rqhost,argp->transid,
+			       argp->prog,argp->port);
+		return(NULL);
 	}
-
-	rqhost = svc_getcaller(rqstp->rq_xprt);
 
 	switch(fork()) {
 	case 0:
@@ -336,37 +358,40 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 			close(0); close(1); close(2);
 		if (strcmp(yp_dir, _PATH_YP)) {
 			execl(ypxfr_command, "ypxfr", "-d", argp->map_parms.domain,
-		      	"-h", argp->map_parms.peer, "-f", "-p", yp_dir, "-C", t,
+		      	"-h", argp->map_parms.peer, "-p", yp_dir, "-C", t,
 		      	g, inet_ntoa(rqhost->sin_addr), p, argp->map_parms.map,
 		      	NULL);
 		} else {
 			execl(ypxfr_command, "ypxfr", "-d", argp->map_parms.domain,
-		      	"-h", argp->map_parms.peer, "-f", "-C", t, g,
+		      	"-h", argp->map_parms.peer, "-C", t, g,
 		      	inet_ntoa(rqhost->sin_addr), p, argp->map_parms.map,
 		      	NULL);
 		}
 		forked++;
+		result.xfrstat = YPXFR_XFRERR;
 		yp_error("ypxfr execl(): %s", strerror(errno));
+		svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result);
 		ypxfr_callback(YPXFR_XFRERR,rqhost,argp->transid,
 			       argp->prog,argp->port);
-		result.xfrstat = YPXFR_XFRERR;
-		return(&result);
+		return(NULL);
 		break;
 	}
 	case -1:
 		yp_error("ypxfr fork(): %s", strerror(errno));
+		result.xfrstat = YPXFR_XFRERR;
+		svc_sendreply(rqstp->rq_xprt, xdr_ypresp_xfr, (char *)&result);
 		ypxfr_callback(YPXFR_XFRERR,rqhost,argp->transid,
 			       argp->prog,argp->port);
-		result.xfrstat = YPXFR_XFRERR;
-		return(&result);
+		return(NULL);
 		break;
 	default:
+		result.xfrstat = YPXFR_SUCC;
 		children++;
 		forked = 0;
 		break;
 	}
-	/* Don't return anything -- it's up to ypxfr to do that. */
-	return (NULL);
+
+	return (&result);
 }
 
 void *
