@@ -39,7 +39,11 @@ up-to-date.  Many thanks.
 #define	NL_SETD		0
 #define	NL_CAT_LOCALE	1
 
-typedef	int	nl_item;
+#ifndef _NL_ITEM_DECLARED
+typedef	__nl_item	nl_item;
+#define	_NL_ITEM_DECLARED
+#endif
+
 typedef	void	*nl_catd;
 
 __BEGIN_DECLS
