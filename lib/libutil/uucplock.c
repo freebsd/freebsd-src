@@ -42,12 +42,12 @@ static const char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
 #include <sys/file.h>
 #include <dirent.h>
 #include <errno.h>
-#include <unistd.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <paths.h>
 #include <string.h>
+#include <unistd.h>
 #include "libutil.h"
 
 #define MAXTRIES 5

@@ -32,14 +32,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <ctype.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <err.h>
 #include <sys/types.h>
+#include <ctype.h>
+#include <err.h>
 #include <libutil.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 static properties
 property_alloc(char *name, char *value)

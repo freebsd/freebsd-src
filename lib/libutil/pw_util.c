@@ -58,8 +58,8 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include <err.h>
 #include <ctype.h>
+#include <err.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <libgen.h>
