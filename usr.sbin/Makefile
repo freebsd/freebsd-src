@@ -44,6 +44,7 @@ SUBDIR=	IPXrouted \
 	ifmcstat \
 	inetd \
 	iostat \
+	ip6addrctl \
 	jail \
 	jexec \
 	jls \
