@@ -1183,11 +1183,12 @@ bundle_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, " Auth name:         %s\n",
                 arg->bundle->cfg.auth.name);
   prompt_Printf(arg->prompt, " Diagnostic socket: ");
-  if (*server.cfg.sockname != '\0')
-    prompt_Printf(arg->prompt, "%s, mask 0%03o%s\n",
-                  server.cfg.sockname, (int)server.cfg.mask,
-                  server.fd == -1 ? " (not open)" : "");
-  else if (server.cfg.port != 0)
+  if (*server.cfg.sockname != '\0') {
+    prompt_Printf(arg->prompt, "%s", server.cfg.sockname);
+    if (server.cfg.mask != (mode_t)-1)
+      prompt_Printf(arg->prompt, ", mask 0%03o", (int)server.cfg.mask);
+    prompt_Printf(arg->prompt, "%s\n", server.fd == -1 ? " (not open)" : "");
+  } else if (server.cfg.port != 0)
     prompt_Printf(arg->prompt, "TCP port %d%s\n", server.cfg.port,
                   server.fd == -1 ? " (not open)" : "");
   else
