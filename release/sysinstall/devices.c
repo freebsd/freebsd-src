@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.16 1995/05/16 11:37:08 jkh Exp $
+ * $Id: devices.c,v 1.17 1995/05/17 14:39:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -105,6 +105,9 @@ static struct {
     { DEVICE_TYPE_NETWORK, "lnc",	"Lance/PCnet cards (Isolan/Novell NE2100/NE32-VL)"	},
     { DEVICE_TYPE_NETWORK, "ze",	"IBM/National Semiconductor PCMCIA ethernet"		},
     { DEVICE_TYPE_NETWORK, "zp",	"3Com PCMCIA Etherlink III"				},
+    { DEVICE_TYPE_NETWORK, "cuaa0",	"Serial port (COM1) - possible PPP device"					},
+    { DEVICE_TYPE_NETWORK, "cuaa1",	"Serial port (COM2) - possible PPP devic
+e",					},
     { NULL },
 };
 
@@ -267,7 +270,7 @@ deviceGetAll(void)
 	CHECK_DEVS;
 	Devices[numDevs] = new_device(ifptr->ifr_name);
 	Devices[numDevs]->type = DEVICE_TYPE_NETWORK;
-	Devices[numDevs]->enabled = TRUE;
+	Devices[numDevs]->enabled = FALSE;
 	Devices[numDevs]->init = mediaInitNetwork;
 	Devices[numDevs]->get = mediaGetNetwork;
 	Devices[numDevs]->close = mediaCloseNetwork;
