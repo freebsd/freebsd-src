@@ -5,8 +5,7 @@
 .Os HEIMDAL
 .Sh NAME
 .Nm push
-.Nd
-fetch mail via POP
+.Nd fetch mail via POP
 .Sh SYNOPSIS
 .Nm
 .Op Fl 4 | Fl -krb4
@@ -16,9 +15,9 @@ fetch mail via POP
 .Op Fl l | -leave
 .Op Fl -from
 .Op Fl c | -count
-.Op Fl -headers= Ns Ar headers
+.Op Fl -headers Ns = Ns Ar headers
 .Oo Fl p Ar port-spec  \*(Ba Xo
-.Fl -port= Ns Ar port-spec
+.Fl -port Ns = Ns Ar port-spec
 .Xc
 .Oc
 .Ar po-box
@@ -81,12 +80,12 @@ behave like from.
 .Xc
 first print how many messages and bytes there are.
 .It Xo
-.Fl -headers= Ns Ar headers
+.Fl -headers Ns = Ns Ar headers
 .Xc
 a list of comma-separated headers that should get printed.
 .It Xo
 .Fl p Ar port-spec Ns ,
-.Fl -port= Ns Ar port-spec
+.Fl -port Ns = Ns Ar port-spec
 .Xc
 use this port instead of the default
 .Ql kpop 
@@ -119,7 +118,7 @@ $ push --from -5 havregryn
 .Ed
 .Pp
 tries to fetch 
-.Nm From: 
+.Sy From: 
 lines for current user at post office
 .Dq havregryn
 using Kerberos 5.
