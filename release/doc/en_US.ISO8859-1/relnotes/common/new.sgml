@@ -591,6 +591,15 @@
       <command>bthidd</command> command, which support Bluetooth
       HID (Human Interface Device), have been added.</para>
 
+    <para>The &man.cron.8 daemon now accepts two new options,
+      <option>-j</option> and <option>-J</option>, to enable
+      time jitter for jobs to run as unpriviliged users and the
+      superuser, respectively.  Time jitter means that &man.cron.8
+      will sleep for a small random period of time in the specified
+      range before executing a job.  This feature is intended to
+      smooth load peaks appearing when a lot of jobs are scheduled
+      for a particular moment.</para>
+
     <para>&man.df.1; now supports a <option>-c</option> to display
       a grand total of statistics for file systems.</para>
 
