@@ -8,11 +8,11 @@
 # This makefile is constructed from a machine description:
 #	config machineid
 # Most changes should be made in the machine description
-#	/sys/powerpc/conf/``machineid''
+#	/sys/arm/conf/``machineid''
 # after which you should do
 #	 config machineid
 # Generic makefile changes should be made in
-#	/sys/conf/Makefile.powerpc
+#	/sys/conf/Makefile.arm
 # after which config should be rerun for all machines.
 #
 
@@ -33,7 +33,8 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-
+SYSTEM_LD:= ${SYSTEM_LD:$S/conf/ldscript.$M=ldscript.$M}
+SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 %BEFORE_DEPEND
 
 %OBJS
@@ -46,6 +47,9 @@ S=	../../..
 
 %CLEAN
 
+ldscript.$M: $S/conf/ldscript.$M
+	cat $S/conf/ldscript.$M|sed s/KERNPHYSADDR/${KERNPHYSADDR}/g| \
+	  sed s/KERNVIRTADDR/${KERNVIRTADDR}/g > ldscript.$M
 %RULES
 	
 .include "$S/conf/kern.post.mk"
