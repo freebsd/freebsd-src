@@ -46,9 +46,6 @@
  * Also supported:  IP in IP encaps (proto 55) as of RFC 2004
  */
 
-#include <sys/cdefs.h>
-__RCSID("@(#) $FreeBSD$");
-
 #include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_ns.h"
