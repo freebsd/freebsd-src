@@ -84,11 +84,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 
 	pam_err = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
 	if (pam_err != PAM_SUCCESS)
-		return (pam_err);
-
+		goto err;
 	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
 	if (pam_err != PAM_SUCCESS)
-		return (pam_err);
+		goto err;
 	if (tty == NULL)
 		return (PAM_SERVICE_ERR);
 	if (strncmp(tty, _PATH_DEV, strlen(_PATH_DEV)) == 0)
@@ -149,13 +148,15 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 
 	return (PAM_SUCCESS);
 
- file_err:
+file_err:
 	syslog(LOG_ERR, "%s: %m", _PATH_LASTLOG);
 	if (fd != -1)
 		close(fd);
+	pam_err = PAM_SYSTEM_ERR;
+err:
 	if (openpam_get_option(pamh, "no_fail"))
 		return (PAM_SUCCESS);
-	return (PAM_SERVICE_ERR);
+	return (pam_err);
 }
 
 PAM_EXTERN int
