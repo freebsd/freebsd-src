@@ -149,7 +149,7 @@ translate_bytes (const unsigned char *table, unsigned char *buff, unsigned long 
 }
 
 #else
-extern inline void
+static inline void
 translate_bytes (const void *table, void *buff, unsigned long n)
 {
   __asm__ ("cld\n"
