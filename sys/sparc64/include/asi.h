@@ -62,6 +62,8 @@
 #define		AA_IMMU_TSB			0x28
 #define		AA_IMMU_TAR			0x30
 
+#define	ASI_LSU_CTL_REG				0x45
+
 #define	ASI_INTR_DISPATCH_STATUS		0x48
 #define	ASI_INTR_RECEIVE			0x49
 
