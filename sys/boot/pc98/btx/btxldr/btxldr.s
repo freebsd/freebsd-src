@@ -115,7 +115,7 @@ ifdef(`BTXLDR_VERBOSE',`
 #
 # Relocate caller's arguments.
 #
-ifdef('BTXLDR_VERBOSE',`
+ifdef(`BTXLDR_VERBOSE',`
 		movl $m_esp,%esi		# Display
 		movl %esp,%eax			#  caller
 		call hexout			#  stack
