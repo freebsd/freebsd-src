@@ -111,6 +111,14 @@
     <para role="historic">The &man.agp.4; driver for AGP devices has been
       added. &merged;</para>
 
+    <para>A new in-kernel cryptographic framework (see &man.crypto.4;
+      and &man.crypto.9;) has been imported from OpenBSD.  It provides
+      a consistent interface to hardware and software implementations
+      of cryptographic algorithms for use by the kernel and access to
+      cryptographic hardware for user-mode applications.
+      Hardware device drivers are provided to support hifn-based cards
+      (&man.hifn.4;) and Broadcom-based cards (&man.ubsec.4;).</para>
+
     <para>A new &man.ddb.4; command <command>show pcpu</command> lists
       some of the per-CPU data.</para>
 
@@ -469,12 +477,11 @@
 
     <para>The &os; kernel scheduler now supports Kernel-Scheduled
       Entities (KSEs), which provides support for multiple threads of
-      execution per process similar to Schedular Activations.  At this
+      execution per process similar to Scheduler Activations.  At this
       point, the kernel has most of the changes needed to support
       threading.  The kernel scheduler can schedule multiple threads per
-      process, but only on a single CPU at a time.  Support for
-      userland programs to create and utilize multiple threads is not
-      yet completed.
+      process, but only on a single CPU at a time.  More information
+      can be found in &man.kse.2;.
 
         <note>
 	  <para>KSE is a work in progress.</para>
@@ -3670,7 +3677,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <application>less</application> has been imported.</para>
 
       <para>An XML processing library, named
-        <filename>libbsdxml</filename> has been added for the benefit
+        <filename>libbsdxml</filename>, has been added for the benefit
         of XML-using utilities in the base system.  It is based almost
         entirely on an import of <application>expat</application>
         1.95.5, but is installed under a different name to avoid
