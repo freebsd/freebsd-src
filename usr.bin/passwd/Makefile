@@ -1,15 +1,47 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.17 1995/09/03 11:40:37 markm Exp $
+# $Id: Makefile,v 1.18 1995/09/14 21:02:16 gibbs Exp $
 
 PROG=	passwd
-SRCS=	local_passwd.c yp_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c
+SRCS=	local_passwd.c yppasswd_private_xdr.c yppasswd_comm.c yp_passwd.c \
+	passwd.c pw_copy.c pw_util.c pw_yp.c
+
 DPADD=	${LIBCRYPT} ${LIBRPCSVC}
 LDADD=	-lcrypt -lrpcsvc
 .PATH:  ${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
-	${.CURDIR}/../rlogin
+	${.CURDIR}/../rlogin ${.CURDIR}/../../libexec/ypxfr \
+	${.CURDIR}/../../usr.sbin/rpc.yppasswdd
 
-CFLAGS+=-DCRYPT -DYP -I${.CURDIR} -I${.CURDIR}/../../usr.sbin/vipw \
-	-I${.CURDIR}/../../usr.bin/chpass
+CFLAGS+= -DCRYPT -DYP -I. -I${.CURDIR} -I${.CURDIR}/../../usr.sbin/vipw \
+	-I${.CURDIR}/../../usr.bin/chpass -I${.CURDIR}/../../libexec/ypxfr \
+	-I${.CURDIR}/../../usr.sbin/rpc.yppasswdd -Dyp_error=warnx
+
+SRCS+= ypxfr_misc.c yp_clnt.c yppasswd_clnt.c
+
+CLEANFILES= yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c \
+	    yppasswd_private.h yppasswd_private_xdr.c
+
+RPCGEN= rpcgen -C
+RPCSRC= ${DESTDIR}/usr/include/rpcsvc/yp.x
+RPCSRC_PW= ${DESTDIR}/usr/include/rpcsvc/yppasswd.x
+RPCSRC_PRIV= ${.CURDIR}/../../usr.sbin/rpc.yppasswdd/yppasswd_private.x
+
+yp.h: ${RPCSRC}
+	${RPCGEN} -h -o ${.TARGET} ${RPCSRC}
+
+yp_clnt.c: ${RPCSRC} yp.h
+	${RPCGEN} -l -o ${.TARGET} ${RPCSRC}
+
+yppasswd.h: ${RPCSRC_PW}
+	${RPCGEN} -h -o ${.TARGET} ${RPCSRC_PW}
+
+yppasswd_clnt.c: ${RPCSRC_PW} yppasswd.h
+	${RPCGEN} -l -o ${.TARGET} ${RPCSRC_PW}
+
+yppasswd_private.h: ${RPCSRC_PRIV}
+	${RPCGEN} -h -o ${.TARGET} ${RPCSRC_PRIV}
+
+yppasswd_private_xdr.c: ${RPCSRC_PRIV} yppasswd_private.h
+	${RPCGEN} -c -o ${.TARGET} ${RPCSRC_PRIV}
 
 BINOWN=	root
 BINMODE=4555
