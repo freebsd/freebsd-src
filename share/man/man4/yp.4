@@ -434,8 +434,9 @@ Some systems, such as SunOS 4.x, need
 .Tn NIS
 to be running in order
 for their hostname resolution functions
-.Pq Fn gethostbyname , Fn gethostbyaddr , etc.
-to work properly.
+.Fn ( gethostbyname ,
+.Fn gethostbyaddr ,
+etc.) to work properly.
 On these systems,
 .Xr ypserv 8
 performs
