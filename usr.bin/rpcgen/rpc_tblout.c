@@ -30,13 +30,18 @@
 #ident	"@(#)rpc_tblout.c	1.11	93/07/05 SMI" 
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rpc_tblout.c 1.4 89/02/22 (C) 1988 SMI";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 /*
  * rpc_tblout.c, Dispatch table outputter for the RPC protocol compiler
  * Copyright (C) 1989, Sun Microsystems, Inc.
  */
+#include <err.h>
 #include <stdio.h>
 #include <string.h>
 #include "rpc_parse.h"
@@ -107,9 +112,7 @@ write_table(def)
 				f_print(fout,
 			"\n/*\n * WARNING: table out of order\n */\n");
 				if (warning == 0) {
-					f_print(stderr,
-				    "WARNING %s table is out of order\n",
-					    progvers);
+					warnx("WARNING %s table is out of order", progvers);
 					warning = 1;
 					nonfatalerrors = 1;
 				}
