@@ -6,3 +6,5 @@
 
 /bin/sh
 /bin/csh
+/bin/tcsh
+
