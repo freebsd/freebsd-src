@@ -1,6 +1,13 @@
 /*
  * Copyright (c) 1983, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -76,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <openssl/des.h>
 #include <krb.h>
 
-#include "../../bin/rcp/pathnames.h"
 #include "krb.h"
 
 CREDENTIALS cred;
@@ -140,7 +146,7 @@ main(int argc, char *argv[])
 #ifdef KERBEROS
 	char *k;
 #endif
-        struct sockaddr_storage ss;
+	struct sockaddr_storage ss;
 	int sslen;
 
 	argoff = dflag = Dflag = 0;

@@ -1,6 +1,13 @@
 /*
  * Copyright (c) 1983, 1990, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -61,6 +68,7 @@ static const char rcsid[] =
 #include <libutil.h>
 #include <limits.h>
 #include <netdb.h>
+#include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -69,7 +77,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include "pathnames.h"
 #include "extern.h"
 
 #ifdef KERBEROS
@@ -80,7 +87,7 @@ static const char rcsid[] =
 char	dst_realm_buf[REALM_SZ];
 char	*dest_realm = NULL;
 int	use_kerberos = 1;
-CREDENTIALS 	cred;
+CREDENTIALS	cred;
 Key_schedule	schedule;
 extern	char	*krb_realmofhost();
 #ifdef CRYPT
@@ -429,7 +436,7 @@ source(int argc, char *argv[])
 	char *last, *name, buf[BUFSIZ];
 
 	for (indx = 0; indx < argc; ++indx) {
-                name = argv[indx];
+		name = argv[indx];
 		if ((fd = open(name, O_RDONLY, 0)) < 0)
 			goto syserr;
 		if (fstat(fd, &stb)) {
