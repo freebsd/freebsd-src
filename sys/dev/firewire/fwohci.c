@@ -491,10 +491,10 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 	u_int32_t reg, reg2;
 	struct fwohcidb_tr *db_tr;
 
-	/* Disable interrupt */ 
+	/* Disable interrupts */ 
 	OWRITE(sc, FWOHCI_INTMASKCLR, ~0);
 
-	/* Now stopping all DMA channel */
+	/* Now stopping all DMA channels */
 	OWRITE(sc,  OHCI_ARQCTLCLR, OHCI_CNTL_DMA_RUN);
 	OWRITE(sc,  OHCI_ARSCTLCLR, OHCI_CNTL_DMA_RUN);
 	OWRITE(sc,  OHCI_ATQCTLCLR, OHCI_CNTL_DMA_RUN);
@@ -580,7 +580,7 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 	}
 
 
-	/* Enable interrupt */
+	/* Enable interrupts */
 	OWRITE(sc, FWOHCI_INTMASK,
 			OHCI_INT_ERR  | OHCI_INT_PHY_SID 
 			| OHCI_INT_DMA_ATRQ | OHCI_INT_DMA_ATRS 
@@ -611,7 +611,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 		return (ENXIO);
 	}
 
-/* Available Isochrounous DMA channel probe */
+/* Available Isochronous DMA channel probe */
 	OWRITE(sc, OHCI_IT_MASK, 0xffffffff);
 	OWRITE(sc, OHCI_IR_MASK, 0xffffffff);
 	reg = OREAD(sc, OHCI_IT_MASK) & OREAD(sc, OHCI_IR_MASK);
@@ -621,7 +621,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 		if ((reg & (1 << i)) == 0)
 			break;
 	sc->fc.nisodma = i;
-	device_printf(dev, "No. of Isochronous channel is %d.\n", i);
+	device_printf(dev, "No. of Isochronous channels is %d.\n", i);
 	if (i == 0)
 		return (ENXIO);
 
@@ -692,7 +692,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 #endif
 
 
-/* SID recieve buffer must allign 2^11 */
+/* SID recieve buffer must align 2^11 */
 #define	OHCI_SIDSIZE	(1 << 11)
 	sc->sid_buf = fwdma_malloc(&sc->fc, OHCI_SIDSIZE, OHCI_SIDSIZE,
 						&sc->sid_dma, BUS_DMA_WAITOK);
@@ -1739,7 +1739,7 @@ fwohci_resume(struct fwohci_softc *sc, device_t dev)
 	struct fw_bulkxfer *chunk;
 
 	fwohci_reset(sc, dev);
-	/* XXX resume isochronus receive automatically. (how about TX?) */
+	/* XXX resume isochronous receive automatically. (how about TX?) */
 	for(i = 0; i < sc->fc.nisodma; i ++) {
 		ir = &sc->ir[i].xferq;
 		if((ir->flag & FWXFERQ_RUNNING) != 0) {
