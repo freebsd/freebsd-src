@@ -80,6 +80,7 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Standard busses
 device		isa
+device		eisa
 device		pci
 
 # Floppy drives
