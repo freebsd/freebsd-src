@@ -44,7 +44,8 @@ _sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
     off_t *sbytes, int flags)
 {
 	struct pthread	*curthread = _get_curthread();
-	int	ret, type, blocking;
+	int	type, blocking;
+	int	ret = 0;
 	ssize_t wvret, num = 0;
 	off_t	n, nwritten = 0;
 
@@ -186,5 +187,5 @@ _sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 		 */
 		*sbytes = nwritten + num;
 	}
-	return ret;
+	return (ret);
 }
