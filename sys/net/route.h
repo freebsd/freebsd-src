@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.11 1995/02/07 19:05:12 wollman Exp $
+ * $Id: route.h,v 1.12 1995/02/08 20:01:13 wollman Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -101,10 +101,9 @@ struct rtentry {
 #define	rt_key(r)	((struct sockaddr *)((r)->rt_nodes->rn_key))
 #define	rt_mask(r)	((struct sockaddr *)((r)->rt_nodes->rn_mask))
 	struct	sockaddr *rt_gateway;	/* value */
-	/* XXX - rt_flags should be unified with rt_prflags */
-	short	rt_filler;		/* up/down?, host/net */
+	short	rt_filler;		/* was short flags field */
 	short	rt_refcnt;		/* # held references */
-	u_long	rt_flags;		/* protocol-specific flags */
+	u_long	rt_flags;		/* up/down?, host/net */
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
 	struct	ifaddr *rt_ifa;		/* the answer: interface to use */
 	struct	sockaddr *rt_genmask;	/* for generation of cloned routes */
@@ -115,7 +114,7 @@ struct rtentry {
 				  struct sockaddr *, int));
 					/* output routine for this (rt,if) */
 	struct	rtentry *rt_parent; 	/* cloning parent of this route */
-	struct	rtentry *rt_nextchild;	/* next cloned child of this route */
+	void	*rt_filler2;		/* more filler */
 };
 
 /*
