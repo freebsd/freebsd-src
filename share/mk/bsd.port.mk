@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.290 1998/09/17 01:22:05 asami Exp $
+#	$Id: bsd.port.mk,v 1.291 1998/09/22 23:58:49 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -112,6 +112,9 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # USE_PERL5		- Says that the port uses perl5 for building and running.
 # PERL5			- Set to full path of perl5, either in the system or
 #				  installed from a port.
+# PERL			- Set to full path of perl5, either in the system or
+#				  installed from a port, but without the version number.
+#				  Use this if you need to replace "#!" lines in scripts.
 # PERL_VERSION	- Full version of perl5 (see below for current value).
 # PERL_VER		- Short version of perl5 (see below for current value).
 # USE_IMAKE		- Says that the port uses imake.  Implies USE_X_PREFIX.
@@ -174,8 +177,10 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  (default: ${PORTSDIR}/distfiles).
 # PACKAGES		- A top level directory where all packages go (rather than
 #				  going locally to each port). (default: ${PORTSDIR}/packages).
+# WRKDIRPREFIX	- The place to root the temporary working directory
+#				  hierarchy (default: none).
 # WRKDIR 		- A temporary working directory that gets *clobbered* on clean
-#				  (default: ${.CURDIR}/work).
+#				  (default: ${WRKDIRPREFIX}${.CURDIR}/work).
 # WRKSRC		- A subdirectory of ${WRKDIR} where the distribution actually
 #				  unpacks to.  (Default: ${WRKDIR}/${DISTNAME} unless
 #				  NO_WRKSUBDIR is set, in which case simply ${WRKDIR}).
@@ -425,9 +430,9 @@ _DISTDIR?=		${DISTDIR}/${DIST_SUBDIR}
 PACKAGES?=		${PORTSDIR}/packages
 TEMPLATES?=		${PORTSDIR}/templates
 .if !defined(NO_WRKDIR)
-WRKDIR?=		${.CURDIR}/work
+WRKDIR?=		${WRKDIRPREFIX}${.CURDIR}/work
 .else
-WRKDIR?=		${.CURDIR}
+WRKDIR?=		${WRKDIRPREFIX}${.CURDIR}
 .endif
 .if defined(NO_WRKSUBDIR)
 WRKSRC?=		${WRKDIR}
@@ -522,8 +527,10 @@ PLIST_SUB+=		PERL_VERSION=${PERL_VERSION} \
 	@${FALSE}
 .endif
 PERL5=			/usr/bin/perl${PERL_VERSION}
+PERL=			/usr/bin/perl
 .else
 PERL5=			${LOCALBASE}/bin/perl${PERL_VERSION}
+PERL=			${LOCALBASE}/bin/perl
 .if defined(USE_PERL5)
 BUILD_DEPENDS+=	perl${PERL_VERSION}:${PORTSDIR}/lang/perl5
 RUN_DEPENDS+=	perl${PERL_VERSION}:${PORTSDIR}/lang/perl5
