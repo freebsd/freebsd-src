@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.113 1997/12/28 02:46:26 brian Exp $
+ * $Id: main.c,v 1.114 1997/12/28 21:55:04 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -105,10 +105,10 @@ TtyInit(int DontWantInt)
   struct termios newtio;
   int stat;
 
-  stat = fcntl(0, F_GETFL, 0);
+  stat = fcntl(netfd, F_GETFL, 0);
   if (stat > 0) {
     stat |= O_NONBLOCK;
-    (void) fcntl(0, F_SETFL, stat);
+    (void) fcntl(netfd, F_SETFL, stat);
   }
   newtio = oldtio;
   newtio.c_lflag &= ~(ECHO | ISIG | ICANON);
@@ -120,7 +120,7 @@ TtyInit(int DontWantInt)
   newtio.c_cc[VMIN] = 1;
   newtio.c_cc[VTIME] = 0;
   newtio.c_cflag |= CS8;
-  tcsetattr(0, TCSADRAIN, &newtio);
+  tcsetattr(netfd, TCSANOW, &newtio);
   comtio = newtio;
 }
 
@@ -135,15 +135,15 @@ TtyCommandMode(int prompt)
 
   if (!(mode & MODE_INTER))
     return;
-  tcgetattr(0, &newtio);
+  tcgetattr(netfd, &newtio);
   newtio.c_lflag |= (ECHO | ISIG | ICANON);
   newtio.c_iflag = oldtio.c_iflag;
   newtio.c_oflag |= OPOST;
-  tcsetattr(0, TCSADRAIN, &newtio);
-  stat = fcntl(0, F_GETFL, 0);
+  tcsetattr(netfd, TCSADRAIN, &newtio);
+  stat = fcntl(netfd, F_GETFL, 0);
   if (stat > 0) {
     stat |= O_NONBLOCK;
-    (void) fcntl(0, F_SETFL, stat);
+    (void) fcntl(netfd, F_SETFL, stat);
   }
   TermMode = 0;
   if (prompt)
@@ -158,11 +158,11 @@ TtyTermMode()
 {
   int stat;
 
-  tcsetattr(0, TCSADRAIN, &comtio);
-  stat = fcntl(0, F_GETFL, 0);
+  tcsetattr(netfd, TCSADRAIN, &comtio);
+  stat = fcntl(netfd, F_GETFL, 0);
   if (stat > 0) {
     stat &= ~O_NONBLOCK;
-    (void) fcntl(0, F_SETFL, stat);
+    (void) fcntl(netfd, F_SETFL, stat);
   }
   TermMode = 1;
 }
@@ -172,12 +172,12 @@ TtyOldMode()
 {
   int stat;
 
-  stat = fcntl(0, F_GETFL, 0);
+  stat = fcntl(netfd, F_GETFL, 0);
   if (stat > 0) {
     stat &= ~O_NONBLOCK;
-    (void) fcntl(0, F_SETFL, stat);
+    (void) fcntl(netfd, F_SETFL, stat);
   }
-  tcsetattr(0, TCSANOW, &oldtio);
+  tcsetattr(netfd, TCSADRAIN, &oldtio);
 }
 
 void
@@ -237,7 +237,7 @@ TerminalCont(int signo)
 {
   pending_signal(SIGCONT, SIG_DFL);
   pending_signal(SIGTSTP, TerminalStop);
-  TtyCommandMode(getpgrp() == tcgetpgrp(0));
+  TtyCommandMode(getpgrp() == tcgetpgrp(netfd));
 }
 
 static void
@@ -378,6 +378,8 @@ main(int argc, char **argv)
   name = strrchr(argv[0], '/');
   LogOpen(name ? name + 1 : argv[0]);
 
+  tcgetattr(STDIN_FILENO, &oldtio);	/* Save original tty mode */
+
   argc--;
   argv++;
   label = ProcessArgs(argc, argv);
@@ -405,7 +407,6 @@ main(int argc, char **argv)
     if (mode & MODE_DIRECT) {
       const char *l;
       l = label ? label : "default";
-      VarTerm = 0;
       LogPrintf(LogWARN, "Label %s rejected -direct connection\n", l);
     }
     LogClose();
@@ -427,18 +428,15 @@ main(int argc, char **argv)
     LogPrintf(LogWARN, "OpenTunnel: %s\n", strerror(errno));
     return EX_START;
   }
-  if (mode & MODE_INTER) {
+  if (mode & MODE_INTER)
     fprintf(VarTerm, "Interactive mode\n");
-    netfd = STDOUT_FILENO;
-  } else if ((mode & MODE_OUTGOING_DAEMON) && !(mode & MODE_DEDICATED))
+  else if ((mode & MODE_OUTGOING_DAEMON) && !(mode & MODE_DEDICATED))
     if (label == NULL) {
       if (VarTerm)
 	fprintf(VarTerm, "Destination system must be specified in"
 		" auto, background or ddial mode.\n");
       return EX_START;
     }
-
-  tcgetattr(0, &oldtio);	/* Save original tty mode */
 
   pending_signal(SIGHUP, CloseSession);
   pending_signal(SIGTERM, CloseSession);
@@ -531,19 +529,23 @@ main(int argc, char **argv)
     }
 
     VarTerm = 0;		/* We know it's currently stdout */
-    close(1);
-    close(2);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
 
     if (mode & MODE_DIRECT)
-      /* fd 0 gets used by OpenModem in DIRECT mode */
+      /* STDIN_FILENO gets used by OpenModem in DIRECT mode */
       TtyInit(1);
     else if (mode & MODE_DAEMON) {
       setsid();
-      close(0);
+      close(STDIN_FILENO);
     }
   } else {
-    close(0);
-    close(2);
+    close(STDIN_FILENO);
+    if ((netfd = open(_PATH_TTY, O_RDONLY)) < 0) {
+      fprintf(stderr, "Cannot open %s for intput !\n", _PATH_TTY);
+      return 2;
+    }
+    close(STDERR_FILENO);
     TtyInit(0);
     TtyCommandMode(1);
   }
@@ -639,7 +641,7 @@ ReadTty(void)
   /*
    * We are in terminal mode, decode special sequences
    */
-  n = read(fileno(VarTerm), &ch, 1);
+  n = read(netfd, &ch, 1);
   LogPrintf(LogDEBUG, "Got %d bytes (reading from the terminal)\n", n);
 
   if (n > 0) {

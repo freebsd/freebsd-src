@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.71 1997/12/24 09:29:08 brian Exp $
+ * $Id: modem.c,v 1.72 1997/12/28 02:56:43 brian Exp $
  *
  *  TODO:
  */
@@ -444,17 +444,17 @@ OpenModem()
     struct cmdargs arg;
     arg.cmd = NULL;
     arg.data = (const void *)VAR_DEVICE;
-    if (isatty(0)) {
+    if (isatty(STDIN_FILENO)) {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is a tty\n");
-      cp = ttyname(0);
+      cp = ttyname(STDIN_FILENO);
       arg.argc = 1;
       arg.argv = (char const *const *)&cp;
       SetVariable(&arg);
       if (LockModem() == -1) {
-        close(0);
+        close(STDIN_FILENO);
         return -1;
       }
-      modem = 0;
+      modem = STDIN_FILENO;
       HaveModem();
     } else {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
@@ -463,7 +463,7 @@ OpenModem()
       SetVariable(&arg);
       /* We don't call ModemTimeout() with this type of connection */
       HaveModem();
-      return modem = 0;
+      return modem = STDIN_FILENO;
     }
   } else {
     strncpy(tmpDeviceList, VarDeviceList, sizeof tmpDeviceList - 1);
