@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: popen.c,v 1.4 1996/09/22 21:53:32 wosch Exp $
  */
 
 #if 0
@@ -55,6 +55,9 @@ static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 
 #include "extern.h"
 
+#define	MAXUSRARGS	100
+#define	MAXGLOBARGS	1000
+
 /*
  * Special version of popen which avoids call to shell.  This ensures noone
  * may create a pipe to a hidden program as a side effect of a list or dir
@@ -70,7 +73,7 @@ ftpd_popen(program, type)
 	char *cp;
 	FILE *iop;
 	int argc, gargc, pdes[2], pid;
-	char **pop, *argv[100], *gargv[1000];
+	char **pop, *argv[MAXUSRARGS], *gargv[MAXGLOBARGS];
 
 	if (((*type != 'r') && (*type != 'w')) || type[1])
 		return (NULL);
@@ -86,13 +89,13 @@ ftpd_popen(program, type)
 		return (NULL);
 
 	/* break up string into pieces */
-	for (argc = 0, cp = program;; cp = NULL)
+	for (argc = 0, cp = program; argc < MAXUSRARGS; cp = NULL)
 		if (!(argv[argc++] = strtok(cp, " \t\n")))
 			break;
 
 	/* glob each piece */
 	gargv[0] = argv[0];
-	for (gargc = argc = 1; argv[argc]; argc++) {
+	for (gargc = argc = 1; argv[argc] && gargc < (MAXGLOBARGS-1); argc++) {
 		glob_t gl;
 		int flags = GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE;
 
@@ -100,7 +103,8 @@ ftpd_popen(program, type)
 		if (glob(argv[argc], flags, NULL, &gl))
 			gargv[gargc++] = strdup(argv[argc]);
 		else
-			for (pop = gl.gl_pathv; *pop; pop++)
+			for (pop = gl.gl_pathv; *pop && gargc < (MAXGLOBARGS-1);
+			     pop++)
 				gargv[gargc++] = strdup(*pop);
 		globfree(&gl);
 	}
