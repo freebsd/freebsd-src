@@ -173,6 +173,14 @@
       given in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>.</para>
 
+    <para>Due to a buffer overflow in header parsing in <application>sendmail</application>, a remote
+      attacker can create a specially-crafted message that may cause
+      &man.sendmail.8; to execute arbitrary code
+      with the privileges of the user running it, typically
+      <username>root</username>.  More information, including pointers
+      to patches, can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>.</para>
+
 ]]>
   </sect1>
 
