@@ -852,10 +852,10 @@ socktrans(sock, i)
 				char shoconn[4], *cp;
 
 				cp = shoconn;
-				if (!(so.so_state & SS_CANTRCVMORE))
+				if (!(so.so_rcv.sb_state & SBS_CANTRCVMORE))
 					*cp++ = '<';
 				*cp++ = '-';
-				if (!(so.so_state & SS_CANTSENDMORE))
+				if (!(so.so_snd.sb_state & SBS_CANTSENDMORE))
 					*cp++ = '>';
 				*cp = '\0';
 				printf(" %s %lx", shoconn,
