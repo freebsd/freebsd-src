@@ -563,6 +563,7 @@ typedef void	(*thread_continuation_t) (void *);
 struct pthread_sigframe {
 	int			psf_valid;
 	int			psf_flags;
+	int			psf_cancelflags;
 	int			psf_interrupted;
 	int			psf_timeout;
 	int			psf_signo;
