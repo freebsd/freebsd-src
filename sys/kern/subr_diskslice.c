@@ -758,15 +758,16 @@ dsopen(dev, mode, flags, sspp, lp)
 		if (msg == NULL && lp1->d_secsize != ssp->dss_secsize)
 			msg = "inconsistent sector size";
 		if (msg != NULL) {
-			free(lp1, M_DEVBUF);
 			if (sp->ds_type == DOSPTYP_386BSD /* XXX */)
 				log(LOG_WARNING, "%s: cannot find label (%s)\n",
 				    sname, msg);
+			free(lp1, M_DEVBUF);
 			continue;
 		}
 		if (lp1->d_flags & D_BADSECT) {
 			log(LOG_ERR, "%s: bad sector table not supported\n",
 			    sname);
+			free(lp1, M_DEVBUF);
 			continue;
 		}
 		set_ds_label(ssp, slice, lp1);
