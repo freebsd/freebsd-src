@@ -255,10 +255,19 @@ ATOMIC_ACQ_REL(subtract,	long)
 
 #undef ATOMIC_ACQ_REL
 
+#if defined(KLD_MODULE)
+#define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)			\
+u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p);	\
+void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
+#else
+#if defined(I386_CPU)
 /*
  * We assume that a = b will do atomic loads and stores.
+ *
+ * XXX: This is _NOT_ safe on a P6 or higher because it does not guarantee
+ * memory ordering.  These should only be used on a 386.
  */
-#define ATOMIC_STORE_LOAD(TYPE)				\
+#define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 {							\
@@ -271,11 +280,40 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	*p = v;						\
 	__asm __volatile("" : : : "memory");		\
 }
+#else
 
-ATOMIC_STORE_LOAD(char)
-ATOMIC_STORE_LOAD(short)
-ATOMIC_STORE_LOAD(int)
-ATOMIC_STORE_LOAD(long)
+#define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
+static __inline u_##TYPE				\
+atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
+{							\
+	u_##TYPE res;					\
+							\
+	__asm __volatile(MPLOCKED LOP			\
+	: "+a" (res),			/* 0 (result) */\
+	  "+m" (*p)			/* 1 */		\
+	: : "memory");				 	\
+							\
+	return (res);					\
+}							\
+							\
+/*							\
+ * The XCHG instruction asserts LOCK automagically.	\
+ */							\
+static __inline void					\
+atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	__asm __volatile(SOP				\
+	: "+m" (*p),			/* 0 */		\
+	  "+r" (v)			/* 1 */		\
+	: : "memory");				 	\
+}
+#endif	/* defined(I386_CPU) */
+#endif	/* defined(KLD_MODULE) */
+
+ATOMIC_STORE_LOAD(char,	"cmpxchgb %b0,%1", "xchgb %b1,%0")
+ATOMIC_STORE_LOAD(short,"cmpxchgw %w0,%1", "xchgw %w1,%0")
+ATOMIC_STORE_LOAD(int,	"cmpxchgl %0,%1",  "xchgl %1,%0")
+ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0")
 
 #undef ATOMIC_STORE_LOAD
 
