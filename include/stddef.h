@@ -40,6 +40,11 @@
 
 #include <machine/ansi.h>
 
+#ifdef	_BSD_MBSTATE_T_
+typedef	_BSD_MBSTATE_T_	mbstate_t;
+#undef	_BSD_MBSTATE_T_
+#endif
+
 typedef	_BSD_PTRDIFF_T_	ptrdiff_t;
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
@@ -57,6 +62,11 @@ typedef	_BSD_SIZE_T_	size_t;
 #ifdef	_BSD_WCHAR_T_
 typedef	_BSD_WCHAR_T_	wchar_t;
 #undef	_BSD_WCHAR_T_
+#endif
+
+#ifdef	_BSD_WINT_T_
+typedef	_BSD_WINT_T_	wint_t;
+#undef	_BSD_WINT_T_
 #endif
 
 #ifndef	NULL
