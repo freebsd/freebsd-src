@@ -808,7 +808,9 @@ network_pass3() {
 			pppoed_flags="${pppoed_flags} -p ${pppoed_provider}"
 		fi
 		echo -n ' pppoed';
+		_opts=$-; set -f
 		/usr/libexec/pppoed ${pppoed_flags} ${pppoed_interface}
+		set +f; set -${_opts}
 		;;
 	esac
 
