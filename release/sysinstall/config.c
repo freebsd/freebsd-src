@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.54 1996/11/07 08:03:18 jkh Exp $
+ * $Id: config.c,v 1.55 1996/11/07 15:35:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -385,12 +385,8 @@ configResolv(void)
     }
 
     cp = variable_get(VAR_NAMESERVER);
-    if (!cp || !*cp) {
-	msgConfirm("Warning:  Missing name server value - be sure to refer\n"
-		   "to other hosts in any network operation by IP address\n"
-		   "rather than name (or go back and fill in a name server).");
+    if (!cp || !*cp)
 	goto skip;
-    }
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp) {
 	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
