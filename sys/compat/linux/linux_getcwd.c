@@ -413,7 +413,7 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 
 #ifdef DEBUG
 	printf("Linux-emul(%ld): getcwd(%p, %ld)\n", (long)td->td_proc->p_pid,
-	       args->buf, args->bufsize);
+	       args->buf, (long)args->bufsize);
 #endif
 
 	sg = stackgap_init();
