@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.23 1999/04/17 08:36:07 peter Exp $
+ * $Id: pci_compat.c,v 1.24 1999/04/24 19:55:41 peter Exp $
  *
  */
 
@@ -74,7 +74,8 @@ pci_conf_write(pcici_t cfg, u_long reg, u_long data)
 	pci_write_config(cfg->dev, reg, data, 4);
 }
 
-int pci_map_port(pcici_t cfg, u_long reg, pci_port_t* pa)
+int
+pci_map_port(pcici_t cfg, u_long reg, pci_port_t* pa)
 {
 	int rid;
 	struct resource *res;
@@ -89,7 +90,8 @@ int pci_map_port(pcici_t cfg, u_long reg, pci_port_t* pa)
 	return (0);
 }
 
-int pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
+int
+pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
 	int rid;
 	struct resource *res;
