@@ -56,10 +56,24 @@ __FBSDID("$FreeBSD$");
 #include "card_if.h"
 
 /*
- * Set XE_DEBUG to enable debug messages
- * Larger values increase verbosity
+ * Debug logging levels - set with hw.xe.debug sysctl
+ * 0 = None
+ * 1 = More hardware details, probe/attach progress
+ * 2 = Most function calls, ioctls and media selection progress
+ * 3 = Everything - interrupts, packets in/out and multicast address setup
  */
-#define XE_DEBUG 0
+#define XE_DEBUG
+#ifdef XE_DEBUG
+
+extern int xe_debug;
+
+#define DEVPRINTF(level, arg) if (xe_debug >= (level)) device_printf arg
+#define DPRINTF(level, arg) if (xe_debug >= (level)) printf arg
+#else
+#define DEVPRINTF(level, arg)
+#define DPRINTF(level, arg)
+#endif
+
 
 struct xe_vendor_table {
 	u_int32_t vendor_id;
@@ -134,19 +148,17 @@ xe_cemfix(device_t dev)
 	int rid;
 	int ioport;
 
-#if XE_DEBUG > 1
-	device_printf(dev, "cemfix\n");
-#endif
+	DEVPRINTF(2, (dev, "cemfix\n"));
 
-	device_printf(dev, "CEM I/O port 0x%0lx, size 0x%0lx\n",
+	DEVPRINTF(1, (dev, "CEM I/O port 0x%0lx, size 0x%0lx\n",
 		bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
-		bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid));
+		bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid)));
 
 	rid = 0;
 	r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0,
 			       ~0, 4 << 10, RF_ACTIVE);
 	if (!r) {
-		device_printf(dev, "Can't map in attribute memory\n");
+		device_printf(dev, "cemfix: Can't map in attribute memory\n");
 		return (-1);
 	}
 
@@ -212,16 +224,16 @@ xe_pccard_probe(device_t dev)
 	struct xe_softc *scp = (struct xe_softc *) device_get_softc(dev);
 	u_int32_t vendor,prodid,prod;
 	u_int16_t prodext;
+	const char* vendor_str = NULL;
+	const char* product_str = NULL;
+	const char* cis4_str = NULL;
 	const char *cis3_str=NULL;
 	struct xe_vendor_table *vendor_itm;
 	struct xe_card_type_table *card_itm;
 	int i;
 
-#if XE_DEBUG > 1
-	const char* vendor_str = NULL;
-	const char* product_str = NULL;
-	const char* cis4_str = NULL;
-	device_printf(dev, "pccard_probe\n");
+	DEVPRINTF(2, (dev, "pccard_probe\n"));
+
 	pccard_get_vendor(dev, &vendor);
 	pccard_get_product(dev, &prodid);
 	pccard_get_prodext(dev, &prodext);
@@ -229,14 +241,14 @@ xe_pccard_probe(device_t dev)
 	pccard_get_product_str(dev, &product_str);
 	pccard_get_cis3_str(dev, &cis3_str);
 	pccard_get_cis4_str(dev, &cis4_str);
-	device_printf(dev, "vendor = 0x%04x\n", vendor);
-	device_printf(dev, "product = 0x%04x\n", prodid);
-	device_printf(dev, "prodext = 0x%02x\n", prodext);
-	device_printf(dev, "vendor_str = %s\n", vendor_str);
-	device_printf(dev, "product_str = %s\n", product_str);
-	device_printf(dev, "cis3_str = %s\n", cis3_str);
-	device_printf(dev, "cis4_str = %s\n", cis4_str);
-#endif
+
+	DEVPRINTF(1, (dev, "vendor = 0x%04x\n", vendor));
+	DEVPRINTF(1, (dev, "product = 0x%04x\n", prodid));
+	DEVPRINTF(1, (dev, "prodext = 0x%02x\n", prodext));
+	DEVPRINTF(1, (dev, "vendor_str = %s\n", vendor_str));
+	DEVPRINTF(1, (dev, "product_str = %s\n", product_str));
+	DEVPRINTF(1, (dev, "cis3_str = %s\n", cis3_str));
+	DEVPRINTF(1, (dev, "cis4_str = %s\n", cis4_str));
 
 	/*
 	 * PCCARD_CISTPL_MANFID = 0x20
@@ -303,9 +315,7 @@ xe_pccard_attach(device_t dev)
 	struct xe_softc *scp = device_get_softc(dev);
 	int err;
 
-#if XE_DEBUG > 1
-	device_printf(dev, "pccard_attach\n");
-#endif
+	DEVPRINTF(2, (dev, "pccard_attach\n"));
 
 	if ((err = xe_activate(dev)) != 0)
 		return (err);
@@ -335,9 +345,7 @@ xe_pccard_detach(device_t dev)
 {
 	struct xe_softc *sc = device_get_softc(dev);
 
-#if XE_DEBUG > 1
-	device_printf(dev, "pccard_detach\n");
-#endif
+	DEVPRINTF(2, (dev, "pccard_detach\n"));
 
 	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(&sc->arpcom.ac_if);
@@ -365,9 +373,7 @@ xe_pccard_match(device_t dev)
 {
 	const struct pccard_product *pp;
 
-#if XE_DEBUG > 1
-	device_printf(dev, "pccard_match\n");
-#endif
+	DEVPRINTF(2, (dev, "pccard_match\n"));
 
 	if ((pp = pccard_product_lookup(dev, xe_pccard_products,
 		sizeof(xe_pccard_products[0]), NULL)) != NULL) {
