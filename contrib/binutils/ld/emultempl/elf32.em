@@ -139,8 +139,69 @@ gld${EMULATION_NAME}_open_dynamic_archive (arch, search, entry)
 EOF
 if [ "x${host}" = "x${target}" ] ; then
   if [ "x${DEFAULT_EMULATION}" = "x${EMULATION_NAME}" ] ; then
-cat >>e${EMULATION_NAME}.c <<EOF
+    case ${target} in
+      *-*-freebsd*)
+	cat >>e${EMULATION_NAME}.c <<EOF
+/*
+ * Read the system search path the FreeBSD way rather than like Linux.
+ */
+#include <elf.h>
 
+static boolean gld${EMULATION_NAME}_check_ld_elf_hints
+  PARAMS ((const char *, int));
+
+static boolean
+gld${EMULATION_NAME}_check_ld_elf_hints (name, force)
+     const char *name;
+     int force;
+{
+  static boolean initialized;
+  static char *ld_elf_hints;
+
+  if (! initialized)
+    {
+      FILE *f;
+
+      f = fopen (_PATH_ELF_HINTS, FOPEN_RB);
+      if (f != NULL)
+	{
+	  struct elfhints_hdr hdr;
+
+	  if (fread(&hdr, 1, sizeof(hdr), f) == sizeof(hdr) &&
+	      hdr.magic == ELFHINTS_MAGIC &&
+	      hdr.version == 1)
+	    {
+	      if (fseek(f, hdr.strtab + hdr.dirlist, SEEK_SET) != -1)
+		{
+		  char *b;
+
+		  b = (char *) xmalloc (hdr.dirlistlen + 1);
+		  if (fread(b, 1, hdr.dirlistlen + 1, f) !=
+		      hdr.dirlistlen + 1)
+		    {
+		      free(b);
+		    }
+		  else
+		    {
+		      ld_elf_hints = b;
+		    }
+		}
+	    }
+	  fclose (f);
+	}
+
+      initialized = true;
+    }
+
+  if (ld_elf_hints == NULL)
+    return false;
+
+  return gld${EMULATION_NAME}_search_needed (ld_elf_hints, name, force);
+}
+EOF
+	;;
+      *)
+	cat >>e${EMULATION_NAME}.c <<EOF
 /* For a native linker, check the file /etc/ld.so.conf for directories
    in which we may find shared libraries.  /etc/ld.so.conf is really
    only meaningful on Linux, but we check it on other systems anyhow.  */
@@ -221,8 +282,8 @@ gld${EMULATION_NAME}_check_ld_so_conf (name, force)
 
   return gld${EMULATION_NAME}_search_needed (ld_so_conf, name, force);
 }
-
 EOF
+    esac
   fi
 fi
 cat >>e${EMULATION_NAME}.c <<EOF
@@ -335,10 +396,20 @@ cat >>e${EMULATION_NAME}.c <<EOF
 EOF
 if [ "x${host}" = "x${target}" ] ; then
   if [ "x${DEFAULT_EMULATION}" = "x${EMULATION_NAME}" ] ; then
-cat >>e${EMULATION_NAME}.c <<EOF
+    case ${target} in
+      *-*-freebsd*)
+	cat >>e${EMULATION_NAME}.c <<EOF
+	  if (gld${EMULATION_NAME}_check_ld_elf_hints (l->name, force))
+	    break;
+EOF
+        ;;
+      *)
+	cat >>e${EMULATION_NAME}.c <<EOF
 	  if (gld${EMULATION_NAME}_check_ld_so_conf (l->name, force))
 	    break;
 EOF
+        ;;
+    esac
   fi
 fi
 cat >>e${EMULATION_NAME}.c <<EOF
