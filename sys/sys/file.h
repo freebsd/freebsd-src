@@ -79,22 +79,19 @@ struct file {
 	int	f_msgcount;	/* (f) references from message queue */
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
 	struct fileops {
-		int	(*fo_read)	(struct file *fp, struct uio *uio,
-					    struct ucred *cred, int flags,
-					    struct thread *td);
-		int	(*fo_write)	(struct file *fp, struct uio *uio,
-					    struct ucred *cred, int flags,
-					    struct thread *td);
+		int	(*fo_read)(struct file *fp, struct uio *uio,
+			    struct ucred *cred, int flags, struct thread *td);
+		int	(*fo_write)(struct file *fp, struct uio *uio,
+			    struct ucred *cred, int flags, struct thread *td);
 #define	FOF_OFFSET	1
-		int	(*fo_ioctl)	(struct file *fp, u_long com,
-					    caddr_t data, struct thread *td);
-		int	(*fo_poll)	(struct file *fp, int events,
-					    struct ucred *cred,
-					    struct thread *td);
-		int	(*fo_kqfilter)	(struct file *fp, struct knote *kn);
-		int	(*fo_stat)	(struct file *fp, struct stat *sb,
-					    struct thread *td);
-		int	(*fo_close)	(struct file *fp, struct thread *td);
+		int	(*fo_ioctl)(struct file *fp, u_long com, caddr_t data,
+			    struct thread *td);
+		int	(*fo_poll)(struct file *fp, int events,
+			    struct ucred *cred, struct thread *td);
+		int	(*fo_kqfilter)(struct file *fp, struct knote *kn);
+		int	(*fo_stat)(struct file *fp, struct stat *sb,
+			    struct thread *td);
+		int	(*fo_close)(struct file *fp, struct thread *td);
 	} *f_ops;
 	int	f_seqcount;	/*
 				 * count of sequential accesses -- cleared

@@ -49,7 +49,7 @@ struct msgbuf {
 #ifdef _KERNEL
 extern int	msgbuftrigger;
 extern struct	msgbuf *msgbufp;
-void	msgbufinit	(void *ptr, size_t size);
+void	msgbufinit(void *ptr, size_t size);
 
 #if !defined(MSGBUF_SIZE)
 #define	MSGBUF_SIZE	32768

@@ -100,19 +100,18 @@ MALLOC_DECLARE(M_IP6NDP); /* for INET6 */
 MALLOC_DECLARE(M_IOV);
 
 /* XXX struct malloc_type is unused for contig*(). */
-void	contigfree(void *addr, unsigned long size,
-			struct malloc_type *type);
-void	*contigmalloc(unsigned long size, struct malloc_type *type,
-			   int flags, unsigned long low, unsigned long high,
-			   unsigned long alignment, unsigned long boundary);
+void	contigfree(void *addr, unsigned long size, struct malloc_type *type);
+void	*contigmalloc(unsigned long size, struct malloc_type *type, int flags,
+	    unsigned long low, unsigned long high, unsigned long alignment,
+	    unsigned long boundary);
 void	free(void *addr, struct malloc_type *type);
 void	*malloc(unsigned long size, struct malloc_type *type, int flags);
 void	malloc_init(void *);
 void	malloc_uninit(void *);
-void	*realloc(void *addr, unsigned long size,
-		      struct malloc_type *type, int flags);
-void	*reallocf(void *addr, unsigned long size,
-		      struct malloc_type *type, int flags);
+void	*realloc(void *addr, unsigned long size, struct malloc_type *type,
+	    int flags);
+void	*reallocf(void *addr, unsigned long size, struct malloc_type *type,
+	    int flags);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_MALLOC_H_ */

@@ -136,9 +136,9 @@ MALLOC_DECLARE(M_KQUEUE);
 
 struct filterops {
 	int	f_isfd;		/* true if ident == filedescriptor */
-	int	(*f_attach)	(struct knote *kn);
-	void	(*f_detach)	(struct knote *kn);
-	int	(*f_event)	(struct knote *kn, long hint);
+	int	(*f_attach)(struct knote *kn);
+	void	(*f_detach)(struct knote *kn);
+	int	(*f_event)(struct knote *kn, long hint);
 };
 
 struct knote {
@@ -188,8 +188,8 @@ struct timespec;
 __BEGIN_DECLS
 int     kqueue(void);
 int     kevent(int kq, const struct kevent *changelist, int nchanges,
-		    struct kevent *eventlist, int nevents,
-		    const struct timespec *timeout);
+	    struct kevent *eventlist, int nevents,
+	    const struct timespec *timeout);
 __END_DECLS
 
 #endif /* !_KERNEL */

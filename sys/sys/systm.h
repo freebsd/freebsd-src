@@ -135,7 +135,7 @@ void	init_param1(void);
 void	init_param2(int physpages);
 void	tablefull(const char *);
 int	kvprintf(char const *, void (*)(int, void*), void *, int,
-		      _BSD_VA_LIST_) __printflike(1, 0);
+	    _BSD_VA_LIST_) __printflike(1, 0);
 void	log(int, const char *, ...) __printflike(2, 3);
 void	log_console(struct uio *);
 int	printf(const char *, ...) __printflike(1, 2);
@@ -166,9 +166,9 @@ void	bzero(void *buf, size_t len);
 void	*memcpy(void *to, const void *from, size_t len);
 
 int	copystr(const void *kfaddr, void *kdaddr, size_t len,
-		size_t *lencopied);
+	    size_t *lencopied);
 int	copyinstr(const void *udaddr, void *kaddr, size_t len,
-		size_t *lencopied);
+	    size_t *lencopied);
 int	copyin(const void *udaddr, void *kaddr, size_t len);
 int	copyout(const void *kaddr, void *udaddr, size_t len);
 
@@ -269,8 +269,7 @@ int	at_exit(exitlist_fn function);
 int	rm_at_exit(exitlist_fn function);
 
 /* Fork callout list declarations. */
-typedef void (*forklist_fn)(struct proc *parent, struct proc *child,
-				 int flags);
+typedef void (*forklist_fn)(struct proc *parent, struct proc *child, int flags);
 
 int	at_fork(forklist_fn function);
 int	rm_at_fork(forklist_fn function);
@@ -297,7 +296,7 @@ extern watchdog_tickle_fn	wdog_tickler;
  * less often.
  */
 int	msleep(void *chan, struct mtx *mtx, int pri, const char *wmesg,
-		    int timo);
+	    int timo);
 #define	tsleep(chan, pri, wmesg, timo)	msleep(chan, NULL, pri, wmesg, timo)
 void	wakeup(void *chan);
 void	wakeup_one(void *chan);

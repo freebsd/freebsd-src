@@ -81,16 +81,14 @@ struct disklabel;
 int	dscheck(struct bio *bp, struct diskslices *ssp);
 void	dsclose(dev_t dev, int mode, struct diskslices *ssp);
 void	dsgone(struct diskslices **sspp);
-int	dsinit(dev_t dev, struct disklabel *lp,
-		     struct diskslices **sspp);
-int	dsioctl(dev_t dev, u_long cmd, caddr_t data,
-		     int flags, struct diskslices **sspp);
+int	dsinit(dev_t dev, struct disklabel *lp, struct diskslices **sspp);
+int	dsioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
+	    struct diskslices **sspp);
 int	dsisopen(struct diskslices *ssp);
 struct diskslices *dsmakeslicestruct(int nslices, struct disklabel *lp);
-char	*dsname(dev_t dev, int unit, int slice, int part,
-		     char *partname);
-int	dsopen(dev_t dev, int mode, u_int flags,
-		    struct diskslices **sspp, struct disklabel *lp);
+char	*dsname(dev_t dev, int unit, int slice, int part, char *partname);
+int	dsopen(dev_t dev, int mode, u_int flags, struct diskslices **sspp,
+	    struct disklabel *lp);
 int	dssize(dev_t dev, struct diskslices **sspp);
 
 #endif /* _KERNEL */
