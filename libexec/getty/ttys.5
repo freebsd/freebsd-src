@@ -135,6 +135,10 @@ Words are separated by any combinations of tabs and spaces.
 Arguments containing whitespace should be enclosed in single quotes
 .Pq Li ' .
 Note that no shell-style globbing or other variable substitution occurs.
+.Sh FILES
+.Bl -tag -width /etc/ttys -compact
+.It Pa /etc/ttys
+.El
 .Sh EXAMPLES
 .Bd -literal
 # root login on console at 1200 baud
@@ -151,10 +155,6 @@ ttyv0	"/usr/new/xterm -L :0"		vs100	on window="/usr/new/Xvs100 0"
 ttyp0	none	network 	group=pty
 ttyp1	none	network	off	group=pty
 .Ed
-.Sh FILES
-.Bl -tag -width /etc/ttys -compact
-.It Pa /etc/ttys
-.El
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr getttyent 3 ,
