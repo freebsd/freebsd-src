@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.37 1998/10/25 17:44:52 phk Exp $
+ * $Id: vfs_init.c,v 1.38 1998/11/04 03:18:10 peter Exp $
  */
 
 
@@ -49,24 +49,8 @@
 #include <sys/malloc.h>
 #include <vm/vm_zone.h>
 
-static void	vfs_op_init __P((void));
-
-static void vfsinit __P((void *));
-SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
 
 MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
-
-/*
- * Sigh, such primitive tools are these...
- */
-#if 0
-#define DODEBUG(A) A
-#else
-#define DODEBUG(A)
-#endif
-
-extern struct vnodeop_desc *vfs_op_descs[];
-				/* and the operations they perform */
 
 /*
  * XXX this bloat just exands the sysctl__vfs linker set a little so that
@@ -99,113 +83,223 @@ struct vm_zone *namei_zone;
  * listing those new operations Ficus adds to NFS, all without modifying the
  * NFS code. (Of couse, the OTW NFS protocol still needs to be munged, but
  * that is a(whole)nother story.) This is a feature.
- *
- * Without an explicit reserve area, however, you must replace vnode_if.c
- * and vnode_if.h when you do this, or you will be derefrencing of the
- * end of vfs_op_descs[].  This is a flaw in the use of a structure
- * pointer array rather than an agregate to define vfs_op_descs.  So
- * it's not a very dynamic "feature".
  */
-void
-vfs_opv_init(struct vnodeopv_desc *opv)
+
+/* Table of known vnodeop vectors (list of VFS vnode vectors) */
+static struct vnodeopv_desc **vnodeopv_descs;
+static int vnodeopv_num;
+
+/* Table of known descs (list of vnode op handlers "vop_access_desc") */
+static struct vnodeop_desc **vfs_op_descs;
+static int *vfs_op_desc_refs;			/* reference counts */
+static int num_op_descs;
+static int vfs_opv_numops;
+
+static void
+vfs_opv_recalc(void)
 {
-	int j;
+	int i, j;
 	vop_t ***opv_desc_vector_p;
 	vop_t **opv_desc_vector;
 	struct vnodeopv_entry_desc *opve_descp;
-	int default_vector;
+	struct vnodeopv_desc *opv;
 
-	default_vector = VOFFSET(vop_default);
+	if (vfs_op_descs == NULL)
+		panic("vfs_opv_recalc called with null vfs_op_descs");
+
 	/*
-	 * Allocate the dynamic vectors and fill them in.
+	 * Run through and make sure all known descs have an offset
+	 *
+	 * vop_default_desc is hardwired at offset 1, and offset 0
+	 * is a panic sanity check.
 	 */
-	opv_desc_vector_p = opv->opv_desc_vector_p;
+	vfs_opv_numops = 0;
+	for (i = 0; i < num_op_descs; i++)
+		if (vfs_opv_numops < (vfs_op_descs[i]->vdesc_offset + 1))
+			vfs_opv_numops = vfs_op_descs[i]->vdesc_offset + 1;
+	for (i = 0; i < num_op_descs; i++)
+		if (vfs_op_descs[i]->vdesc_offset == 0)
+			vfs_op_descs[i]->vdesc_offset = vfs_opv_numops++;
 	/*
-	 * Allocate and init the vector, if it needs it.
-	 * Also handle backwards compatibility.
+	 * Allocate and fill in the vectors
 	 */
-	if (*opv_desc_vector_p == NULL) {
-		/* XXX - shouldn't be M_VNODE */
+	for (i = 0; i < vnodeopv_num; i++) {
+		opv = vnodeopv_descs[i];
+		opv_desc_vector_p = opv->opv_desc_vector_p;
+		if (*opv_desc_vector_p)
+			FREE(*opv_desc_vector_p, M_VNODE);
 		MALLOC(*opv_desc_vector_p, vop_t **,
 		       vfs_opv_numops * sizeof(vop_t *), M_VNODE, M_WAITOK);
-		bzero(*opv_desc_vector_p,
-		      vfs_opv_numops * sizeof(vop_t *));
-		DODEBUG(printf("vector at %x allocated\n",
-		    opv_desc_vector_p));
-	}
-	opv_desc_vector = *opv_desc_vector_p;
-	for (j = 0; opv->opv_desc_ops[j].opve_op; j++) {
-		opve_descp = &(opv->opv_desc_ops[j]);
+		if (*opv_desc_vector_p == NULL)
+			panic("no memory for vop_t ** vector");
+		bzero(*opv_desc_vector_p, vfs_opv_numops * sizeof(vop_t *));
 
-		/*
-		 * Sanity check:  is this operation listed
-		 * in the list of operations?  We check this
-		 * by seeing if its offest is zero.  Since
-		 * the default routine should always be listed
-		 * first, it should be the only one with a zero
-		 * offset.  Any other operation with a zero
-		 * offset is probably not listed in
-		 * vfs_op_descs, and so is probably an error.
-		 *
-		 * A panic here means the layer programmer
-		 * has committed the all-too common bug
-		 * of adding a new operation to the layer's
-		 * list of vnode operations but
-		 * not adding the operation to the system-wide
-		 * list of supported operations.
-		 */
-		if (opve_descp->opve_op->vdesc_offset == 0 &&
-		    opve_descp->opve_op->vdesc_offset != default_vector) {
-			printf("operation %s not listed in vfs_op_descs[].\n",
-			    opve_descp->opve_op->vdesc_name);
-			panic ("vfs_opv_init: bad operation");
-		}
-		/*
-		 * Fill in this entry.
-		 */
-		opv_desc_vector[opve_descp->opve_op->vdesc_offset] =
+		/* Fill in, with slot 0 being panic */
+		opv_desc_vector = *opv_desc_vector_p;
+		opv_desc_vector[0] = (vop_t *)vop_panic;
+		for (j = 0; opv->opv_desc_ops[j].opve_op; j++) {
+			opve_descp = &(opv->opv_desc_ops[j]);
+			opv_desc_vector[opve_descp->opve_op->vdesc_offset] =
 				opve_descp->opve_impl;
+		}
+
+		/* Replace unfilled routines with their default (slot 1). */
+		opv_desc_vector = *(opv->opv_desc_vector_p);
+		if (opv_desc_vector[1] == NULL)
+			panic("vfs_opv_recalc: vector without a default.");
+		for (j = 0; j < vfs_opv_numops; j++)
+			if (opv_desc_vector[j] == NULL)
+				opv_desc_vector[j] = opv_desc_vector[1];
 	}
-	/*
-	 * Finally, go back and replace unfilled routines with their default.
-	 */
-	opv_desc_vector = *(opv->opv_desc_vector_p);
-	if (opv_desc_vector[default_vector] == NULL)
-		panic("vfs_opv_init: operation vector without a default.");
-	for (j = 0; j < vfs_opv_numops; j++)
-		if (opv_desc_vector[j] == NULL)
-			opv_desc_vector[j] = opv_desc_vector[default_vector];
 }
 
-/*
- * Initialize known vnode operations vectors.
- */
-static void
-vfs_op_init()
+void
+vfs_add_vnodeops(void *data)
 {
-	int i;
+	struct vnodeopv_desc *opv;
+	struct vnodeopv_desc **newopv;
+	struct vnodeop_desc **newop;
+	int *newref;
+	vop_t **opv_desc_vector;
+	struct vnodeop_desc *desc;
+	struct vnodeopv_entry_desc *opve_descp;
+	int i, j, k;
 
-	DODEBUG(printf("Vnode_interface_init.\n"));
-	DODEBUG(printf ("vfs_opv_numops=%d\n", vfs_opv_numops));
-	/*
-	 * assign each op to its offset
-	 *
-	 * XXX This should not be needed, but is because the per
-	 * XXX FS ops tables are not sorted according to the
-	 * XXX vnodeop_desc's offset in vfs_op_descs.  This
-	 * XXX is the same reason we have to take the hit for
-	 * XXX the static inline function calls instead of using
-	 * XXX simple macro references.
-	 */
-	for (i = 0; i < vfs_opv_numops; i++)
-		vfs_op_descs[i]->vdesc_offset = i;
+	opv = (struct vnodeopv_desc *)data;
+	MALLOC(newopv, struct vnodeopv_desc **,
+	       (vnodeopv_num + 1) * sizeof(*newopv), M_VNODE, M_WAITOK);
+	if (newopv == NULL)
+		panic("vfs_add_vnodeops: no memory");
+	if (vnodeopv_descs) {
+		bcopy(vnodeopv_descs, newopv, vnodeopv_num * sizeof(*newopv));
+		FREE(vnodeopv_descs, M_VNODE);
+	}
+	newopv[vnodeopv_num] = opv;
+	vnodeopv_descs = newopv;
+	vnodeopv_num++;
+
+	/* See if we have turned up a new vnode op desc */
+	opv_desc_vector = *(opv->opv_desc_vector_p);
+	for (i = 0; (desc = opv->opv_desc_ops[i].opve_op); i++) {
+		for (j = 0; j < num_op_descs; j++) {
+			if (desc == vfs_op_descs[j]) {
+				/* found it, increase reference count */
+				vfs_op_desc_refs[j]++;
+				break;
+			}
+		}
+		if (j == num_op_descs) {
+			/* not found, new entry */
+			MALLOC(newop, struct vnodeop_desc **,
+			       (num_op_descs + 1) * sizeof(*newop),
+			       M_VNODE, M_WAITOK);
+			if (newop == NULL)
+				panic("vfs_add_vnodeops: no memory for desc");
+			/* new reference count (for unload) */
+			MALLOC(newref, int *,
+				(num_op_descs + 1) * sizeof(*newref),
+				M_VNODE, M_WAITOK);
+			if (newref == NULL)
+				panic("vfs_add_vnodeops: no memory for refs");
+			if (vfs_op_descs) {
+				bcopy(vfs_op_descs, newop,
+					num_op_descs * sizeof(*newop));
+				FREE(vfs_op_descs, M_VNODE);
+			}
+			if (vfs_op_desc_refs) {
+				bcopy(vfs_op_desc_refs, newref,
+					num_op_descs * sizeof(*newref));
+				FREE(vfs_op_desc_refs, M_VNODE);
+			}
+			newop[num_op_descs] = desc;
+			newref[num_op_descs] = 1;
+			vfs_op_descs = newop;
+			vfs_op_desc_refs = newref;
+			num_op_descs++;
+		}
+	}
+	vfs_opv_recalc();
+}
+
+void
+vfs_rm_vnodeops(void *data)
+{
+	struct vnodeopv_desc *opv;
+	struct vnodeopv_desc **newopv;
+	struct vnodeop_desc **newop;
+	int *newref;
+	vop_t **opv_desc_vector;
+	struct vnodeop_desc *desc;
+	struct vnodeopv_entry_desc *opve_descp;
+	int i, j, k;
+
+	opv = (struct vnodeopv_desc *)data;
+	/* Lower ref counts on descs in the table and release if zero */
+	opv_desc_vector = *(opv->opv_desc_vector_p);
+	for (i = 0; (desc = opv->opv_desc_ops[i].opve_op); i++) {
+		for (j = 0; j < num_op_descs; j++) {
+			if (desc == vfs_op_descs[j]) {
+				/* found it, decrease reference count */
+				vfs_op_desc_refs[j]--;
+				break;
+			}
+		}
+		for (j = 0; j < num_op_descs; j++) {
+			if (vfs_op_desc_refs[j] > 0)
+				continue;
+			if (vfs_op_desc_refs[j] < 0)
+				panic("vfs_remove_vnodeops: negative refcnt");
+			MALLOC(newop, struct vnodeop_desc **,
+			       (num_op_descs - 1) * sizeof(*newop),
+			       M_VNODE, M_WAITOK);
+			if (newop == NULL)
+				panic("vfs_remove_vnodeops: no memory for desc");
+			/* new reference count (for unload) */
+			MALLOC(newref, int *,
+				(num_op_descs - 1) * sizeof(*newref),
+				M_VNODE, M_WAITOK);
+			if (newref == NULL)
+				panic("vfs_remove_vnodeops: no memory for refs");
+			for (k = j; k < (num_op_descs - 1); k++) {
+				vfs_op_descs[k] = vfs_op_descs[k + 1];
+				vfs_op_desc_refs[k] = vfs_op_desc_refs[k + 1];
+			}
+			bcopy(vfs_op_descs, newop,
+				(num_op_descs - 1) * sizeof(*newop));
+			bcopy(vfs_op_desc_refs, newref,
+				(num_op_descs - 1) * sizeof(*newref));
+			FREE(vfs_op_descs, M_VNODE);
+			FREE(vfs_op_desc_refs, M_VNODE);
+			vfs_op_descs = newop;
+			vfs_op_desc_refs = newref;
+			num_op_descs--;
+		}
+	}
+
+	for (i = 0; i < vnodeopv_num; i++) {
+		if (vnodeopv_descs[i] == opv) {
+			for (j = i; j < (vnodeopv_num - 1); j++)
+				vnodeopv_descs[j] = vnodeopv_descs[j + 1];
+			break;
+		}
+	}
+	if (i == vnodeopv_num)
+		panic("vfs_remove_vnodeops: opv not found");
+	MALLOC(newopv, struct vnodeopv_desc **,
+	       (vnodeopv_num - 1) * sizeof(*newopv), M_VNODE, M_WAITOK);
+	if (newopv == NULL)
+		panic("vfs_remove_vnodeops: no memory");
+	bcopy(vnodeopv_descs, newopv, (vnodeopv_num - 1) * sizeof(*newopv));
+	FREE(vnodeopv_descs, M_VNODE);
+	vnodeopv_descs = newopv;
+	vnodeopv_num--;
+
+	vfs_opv_recalc();
 }
 
 /*
  * Routines having to do with the management of the vnode table.
  */
-extern struct vnodeops dead_vnodeops;
-extern struct vnodeops spec_vnodeops;
 struct vattr va_null;
 
 /*
@@ -213,8 +307,7 @@ struct vattr va_null;
  */
 /* ARGSUSED*/
 static void
-vfsinit(dummy)
-	void *dummy;
+vfsinit(void *dummy)
 {
 
 	namei_zone = zinit("NAMEI", MAXPATHLEN, 0, 0, 2);
@@ -228,20 +321,16 @@ vfsinit(dummy)
 	 */
 	nchinit();
 	/*
-	 * Build vnode operation vectors.
-	 */
-	vfs_op_init();
-	/*
 	 * Initialize each file system type.
 	 * Vfs type numbers must be distinct from VFS_GENERIC (and VFS_VFSCONF).
 	 */
 	vattr_null(&va_null);
 	maxvfsconf = VFS_GENERIC + 1;
 }
+SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
 
 int
-vfs_register(vfc)
-	struct vfsconf *vfc;
+vfs_register(struct vfsconf *vfc)
 {
 	struct linker_set *l;
 	struct sysctl_oid **oidpp;
@@ -300,25 +389,8 @@ vfs_register(vfc)
 }
 
 
-/*
- * To be called at SI_SUB_VFS, SECOND, for each VFS before any are registered.
- */
-void
-vfs_mod_opv_init(handle)
-	void *handle;
-{
-	struct vnodeopv_desc *opv;
-
-	opv = (struct vnodeopv_desc *)handle;
-	*(opv->opv_desc_vector_p) = NULL;
-
-	/* XXX there is a memory leak on unload here */
-	vfs_opv_init(opv);
-}
-
 int
-vfs_unregister(vfc)
-	struct vfsconf *vfc;
+vfs_unregister(struct vfsconf *vfc)
 {
 	struct linker_set *l;
 	struct sysctl_oid **oidpp;
@@ -364,4 +436,30 @@ vfs_unregister(vfc)
 			maxtypenum = vfsp->vfc_typenum;
 	maxvfsconf = maxtypenum + 1;
 	return 0;
+}
+
+int
+vfs_modevent(module_t mod, modeventtype_t type, void *data)
+{
+	struct vfsconf *vfc;
+	struct vnodeopv_desc *opv;
+	int i;
+	int error = 0;
+
+	vfc = (struct vfsconf *)data;
+
+	switch (type) {
+	case MOD_LOAD:
+		if (vfc)
+			error = vfs_register(vfc);
+		break;
+
+	case MOD_UNLOAD:
+		if (vfc)
+			error = vfs_unregister(vfc);
+		break;
+	default:	/* including MOD_SHUTDOWN */
+		break;
+	}
+	return (error);
 }
