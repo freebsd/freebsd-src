@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pppd.h,v 1.3 1995/05/30 03:51:15 rgrimes Exp $
+ * $Id: pppd.h,v 1.3.4.1 1996/03/01 19:34:58 phk Exp $
  */
 
 /*
@@ -48,6 +48,7 @@ extern char ifname[];		/* Interface name */
 extern int fd;			/* Device file descriptor */
 extern int s;			/* socket descriptor */
 extern char hostname[];		/* hostname */
+extern char peername[];
 extern u_char outpacket_buf[];	/* buffer for outgoing packets */
 extern int phase;		/* See values below */
 
