@@ -105,7 +105,7 @@ struct nqhost {
 
 struct nqlease {
 	LIST_ENTRY(nqlease) lc_hash;	/* Fhandle hash list */
-	CIRCLEQ_ENTRY(nqlease) lc_timer; /* Timer queue list */
+	TAILQ_ENTRY(nqlease) lc_timer; /* Timer queue list */
 	time_t		lc_expiry;	/* Expiry time (sec) */
 	struct nqhost	lc_host;	/* Host that got lease */
 	struct nqm	*lc_morehosts;	/* Other hosts that share read lease */
@@ -173,7 +173,7 @@ struct nqm {
 /*
  * List head for timer queue.
  */
-extern CIRCLEQ_HEAD(nqtimerhead, nqlease) nqtimerhead;
+extern TAILQ_HEAD(nqtimerhead, nqlease) nqtimerhead;
 
 /*
  * List head for the file handle hash table.
