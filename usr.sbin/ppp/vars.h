@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.7.2.5 1997/05/24 17:34:57 brian Exp $
+ * $Id: vars.h,v 1.7.2.6 1997/05/26 00:52:27 brian Exp $
  *
  *	TODO:
  */
@@ -55,6 +55,7 @@ extern struct confdesc pppConfs[MAXCONFS+1];
 
 struct pppvars {
   u_long var_mru;		/* Initial MRU value */
+  u_long pref_mtu;		/* Preferred MTU value */
   int    var_accmap;		/* Initial ACCMAP value */
   int    modem_speed;		/* Current modem speed */
   int    modem_parity;		/* Parity setting */
@@ -88,6 +89,7 @@ struct pppvars {
 
 #define VarAccmap	pppVars.var_accmap
 #define VarMRU		pppVars.var_mru
+#define VarPrefMTU	pppVars.pref_mtu
 #define	VarDevice	pppVars.modem_dev
 #define	VarBaseDevice	pppVars.base_modem_dev
 #define	VarSpeed	pppVars.modem_speed
