@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.165.2.26 1997/04/21 00:25:45 asami Exp $
+# $Id: bsd.port.mk,v 1.165.2.27 1997/04/30 03:16:20 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -958,11 +958,6 @@ do-build:
 
 .if !target(do-install)
 do-install:
-	@if [ `/bin/sh -c umask` != 0022 ]; then \
-		${ECHO_MSG} "===>  Warning: your umask is \"`/bin/sh -c umask`"\".; \
-		${ECHO_MSG} "      If this is not desired, set it to an appropriate value"; \
-		${ECHO_MSG} "      and install this port again by \`\`make reinstall''."; \
-	fi
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
 .if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
@@ -1052,6 +1047,11 @@ _PORT_USE: .USE
 		exit 1; \
 	fi
 .endif
+	@if [ `/bin/sh -c umask` != 0022 ]; then \
+		${ECHO_MSG} "===>  Warning: your umask is \"`/bin/sh -c umask`"\".; \
+		${ECHO_MSG} "      If this is not desired, set it to an appropriate value"; \
+		${ECHO_MSG} "      and install this port again by \`\`make reinstall''."; \
+	fi
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} run-depends lib-depends
 .endif
 .if make(real-install)
