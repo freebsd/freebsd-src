@@ -26,18 +26,15 @@
  * 4. This notice may not be removed or altered.
  */
 
-#include <stdio.h>
-#include <string.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
 #include "file.h"
 #include "names.h"
-
-#ifndef	lint
-static char *moduleid = 
-	"@(#)$Id: ascmagic.c,v 1.7 1997/03/18 19:37:17 mpp Exp $";
-#endif	/* lint */
 
 			/* an optimisation over plain strcmp() */
 #define	STREQ(a, b)	(*(a) == *(b) && strcmp((a), (b)) == 0)
@@ -123,5 +120,3 @@ int nbytes;	/* size actually read */
 	}
 	return 1;
 }
-
-
