@@ -1444,26 +1444,15 @@ END(tl1_dmmu_miss_trap)
 
 ENTRY(tl1_dmmu_miss_direct)
 	/*
-	 * Check the cache bits in the virtual address to see if this mapping
-	 * is virtually cacheable.  We set this up so that the masks fit in
-	 * immediates...  Note that the arithmetic shift sign extends, keeping
-	 * all the top bits set.
-	 */
-	srax	%g5, TLB_DIRECT_SHIFT, %g5
-	andcc	%g5, TLB_DIRECT_UNCACHEABLE, %g0
-	mov	TD_CP | TD_CV | TD_W, %g6
-	movnz	%xcc, TD_CP | TD_W, %g6
-	or	%g5, %g6, %g5
-
-	/*
 	 * Mask off the high bits of the virtual address to get the physical
-	 * address, and or in the tte bits.  The high bit is left set in the
-	 * physical address, which corresponds to the tte valid bit, so that
-	 * we don't have to include it in the tte bits.  We ignore the cache
-	 * bits, since they get shifted into the soft tte bits anyway.
+	 * address, and or in the tte bits.  The virtual address bits that
+	 * correspond to the tte valid and page size bits are left set, so
+	 * they don't have to be included in the tte bits below.  We know they
+	 * are set because the virtual address is in the upper va hole.
 	 */
-	setx	TLB_DIRECT_MASK & ~TD_V, %g7, %g6
-	andn	%g5, %g6, %g5
+	setx	TLB_DIRECT_TO_TTE_MASK, %g7, %g6
+	and	%g5, %g6, %g5
+	or	%g5, TD_CP | TD_CV | TD_W, %g5
 
 	/*
 	 * Load the tte data into the TLB and retry the instruction.
