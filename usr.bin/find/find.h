@@ -119,7 +119,7 @@ typedef struct _plandata {
 #define	e_len	p_un.ex._e_len
 
 typedef struct _option {
-	char *name;			/* option name */
+	const char *name;		/* option name */
 	creat_f *create;		/* create function */
 	exec_f *execute;		/* execute function */
 	int flags;
