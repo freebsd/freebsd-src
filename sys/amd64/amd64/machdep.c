@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.264 1997/09/21 15:03:57 peter Exp $
+ *	$Id: machdep.c,v 1.265 1997/09/21 21:38:04 gibbs Exp $
  */
 
 #include "apm.h"
@@ -1319,7 +1319,7 @@ init386(first)
 	 * the MAXMEM option or the npx0 "msize", then don't do the speculative
 	 * memory probe.
 	 */
-	if (Maxmem == 0x4000)
+	if (Maxmem >= 0x4000)
 		speculative_mprobe = TRUE;
 	else
 		speculative_mprobe = FALSE;
