@@ -89,7 +89,11 @@ struct bpf_d {
 	u_char		bd_pad;		/* explicit alignment */
 	struct selinfo	bd_sel;		/* bsd select info */
 #endif
+	struct mtx	bd_mtx;		/* mutex for this descriptor */
 };
+
+#define BPFD_LOCK(bd)		mtx_lock(&(bd)->bd_mtx)
+#define BPFD_UNLOCK(bd)		mtx_unlock(&(bd)->bd_mtx)
 
 /*
  * Descriptor associated with each attached hardware interface.
@@ -100,6 +104,10 @@ struct bpf_if {
 	u_int bif_dlt;			/* link layer type */
 	u_int bif_hdrlen;		/* length of header (with padding) */
 	struct ifnet *bif_ifp;		/* corresponding interface */
+	struct mtx	bif_mtx;	/* mutex for interface */
 };
+
+#define BPFIF_LOCK(bif)		mtx_lock(&(bif)->bif_mtx)
+#define BPFIF_UNLOCK(bif)	mtx_unlock(&(bif)->bif_mtx)
 
 #endif
