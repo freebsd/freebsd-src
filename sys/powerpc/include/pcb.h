@@ -52,6 +52,8 @@ struct pcb {
 		double	fpr[32];
 		double	fpscr;	/* FPSCR stored as double for easier access */
 	} pcb_fpu;		/* Floating point processor */
+	unsigned int	pcb_fpcpu;		/* which CPU had our FPU
+							stuff. */
 };
 
 struct md_coredump {

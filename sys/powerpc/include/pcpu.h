@@ -39,7 +39,8 @@ struct pmap;
 	int		pc_inside_intr;					\
 	u_int32_t	pc_next_asn;		/* next ASN to alloc */	\
 	u_int32_t	pc_current_asngen;	/* ASN rollover check */\
-	struct pmap	*pc_curpmap		/* current pmap */
+	struct pmap	*pc_curpmap;		/* current pmap */	\
+	struct thread	*pc_fputhread		/* current user of the fpu */
 
 #define PCPUP	((struct pcpu *) powerpc_get_pcpup())
 

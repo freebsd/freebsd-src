@@ -68,4 +68,15 @@
 #define	FPSCR_NI	0x00000004
 #define	FPSCR_RN	0x00000003
 
+#ifdef _KERNEL
+
+/* List of PowerPC architectures that support FPUs. */
+#if defined(MPC750)
+#define PPC_HAVE_FPU
+
+void    enable_fpu(struct thread *);
+void    save_fpu(struct thread *);
+#endif /* PPC_HAVE_FPU */
+#endif /* _KERNEL */
+
 #endif	/* _MACHINE_FPU_H_ */
