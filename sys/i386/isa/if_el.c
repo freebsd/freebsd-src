@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  * 
- * $Id: if_el.c,v 1.3 1994/08/02 07:39:32 davidg Exp $
+ * $Id: if_el.c,v 1.4 1994/08/08 13:33:12 davidg Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -23,40 +23,40 @@
 #if NEL > 0
 #include "bpfilter.h"
 
-#include "param.h"
-#include "systm.h"
-#include "errno.h"
-#include "ioctl.h"
-#include "mbuf.h"
-#include "socket.h"
-#include "syslog.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
+#include <sys/ioctl.h>
+#include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <sys/syslog.h>
 
-#include "net/if.h"
-#include "net/if_dl.h"
-#include "net/if_types.h"
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
 
 #ifdef INET
-#include "netinet/in.h"
-#include "netinet/in_systm.h"
-#include "netinet/in_var.h"
-#include "netinet/ip.h"
-#include "netinet/if_ether.h"
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
 #endif
 
 #ifdef NS
-#include "netns/ns.h"
-#include "netns/ns_if.h"
+#include <netns/ns.h>
+#include <netns/ns_if.h>
 #endif
 
 #if NBPFILTER > 0
-#include "net/bpf.h"
-#include "net/bpfdesc.h"
+#include <net/bpf.h>
+#include <net/bpfdesc.h>
 #endif
 
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/icu.h"
-#include "i386/isa/if_elreg.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/icu.h>
+#include <i386/isa/if_elreg.h>
 
 #define ETHER_MIN_LEN	64
 #define ETHER_MAX_LEN	1518

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.4 1993/11/07 17:42:46 wollman Exp $
+ *	$Id: cpu.h,v 1.6 1994/05/25 08:55:47 rgrimes Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -43,8 +43,8 @@
 /*
  * Definitions unique to i386 cpu support.
  */
-#include "machine/frame.h"
-#include "machine/segments.h"
+#include <machine/frame.h>
+#include <machine/segments.h>
 #include <machine/spl.h>
 
 /*

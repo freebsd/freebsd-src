@@ -23,17 +23,17 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.3 1993/11/25 01:30:12 wollman Exp $
+ *	$Id: db_sym.c,v 1.4 1994/01/03 07:54:10 davidg Exp $
  */
 
 /*
  * 	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
  */
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "ddb/ddb.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
 /*

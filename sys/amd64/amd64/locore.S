@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.18 1994/06/06 14:12:48 davidg Exp $
+ *	$Id: locore.s,v 1.19 1994/08/10 03:51:05 wollman Exp $
  */
 
 /*
@@ -45,15 +45,15 @@
  *			Bruce Evans, Wolfgang Solfrank, and many others.
  */
 
-#include "npx.h"				/* for NNPX */
-#include "assym.s"				/* system definitions */
-#include "machine/psl.h"			/* processor status longword defs */
-#include "machine/pte.h"			/* page table entry definitions */
-#include "errno.h"				/* error return codes */
-#include "machine/specialreg.h"			/* x86 special registers */
-#include "machine/cputypes.h"			/* x86 cpu type definitions */
-#include "syscall.h"				/* system call numbers */
-#include "machine/asmacros.h"			/* miscellaneous asm macros */
+#include "npx.h"			/* for NNPX */
+#include "assym.s"			/* system definitions */
+#include <machine/psl.h>		/* processor status longword defs */
+#include <machine/pte.h>		/* page table entry definitions */
+#include <sys/errno.h>			/* error return codes */
+#include <machine/specialreg.h>		/* x86 special registers */
+#include <machine/cputypes.h>		/* x86 cpu type definitions */
+#include <sys/syscall.h>		/* system call numbers */
+#include <machine/asmacros.h>		/* miscellaneous asm macros */
 
 /*
  *	XXX

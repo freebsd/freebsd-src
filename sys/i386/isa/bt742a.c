@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.14 1994/03/24 02:22:58 davidg Exp $
+ *      $Id: bt742a.c,v 1.17 1994/05/27 04:02:01 rgrimes Exp $
  */
 
 /*
@@ -22,7 +22,7 @@
 #include <sys/types.h>
 
 #ifdef	KERNEL		/* don't laugh.. it compiles to a program too.. look */
-#include <bt.h>
+#include "bt.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -39,7 +39,7 @@
 
 #ifdef	KERNEL
 #include "ddb.h"
-#include "kernel.h"
+#include <sys/kernel.h>
 #else /*KERNEL */
 #define	NBT 1
 #endif /*KERNEL */

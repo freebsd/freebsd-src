@@ -36,23 +36,23 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.10 1994/01/23 19:17:17 davidg Exp $
+ *	$Id: cons.c,v 1.12 1994/05/25 08:52:56 rgrimes Exp $
  */
 
 
-#include "sys/param.h"
+#include <sys/param.h>
 #include <sys/systm.h>
-#include "sys/proc.h"
-#include "sys/user.h"
-#include "sys/buf.h"
-#include "sys/ioctl.h"
-#include "sys/tty.h"
-#include "sys/file.h"
-#include "sys/conf.h"
-#include "sys/vnode.h"
-#include "machine/stdarg.h"
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/buf.h>
+#include <sys/ioctl.h>
+#include <sys/tty.h>
+#include <sys/file.h>
+#include <sys/conf.h>
+#include <sys/vnode.h>
+#include <machine/stdarg.h>
 
-#include "machine/cons.h"
+#include <machine/cons.h>
 
 /* XXX - all this could be autoconfig()ed */
 int pccnprobe(), pccninit(), pccngetc(), pccnputc();

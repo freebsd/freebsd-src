@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: fdreg.h,v 1.3 1994/02/07 04:27:10 alm Exp $
+ *	$Id: fdreg.h,v 1.4 1994/02/07 22:12:42 alm Exp $
  */
 
 /*
@@ -39,7 +39,7 @@
  */
 
 /* uses NEC765 controller */
-#include "../i386/isa/ic/nec765.h"
+#include <i386/isa/ic/nec765.h>
 
 /* registers */
 #define	fdout	2	/* Digital Output Register (W) */

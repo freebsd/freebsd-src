@@ -23,17 +23,17 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.5 1993/12/19 00:50:00 wollman Exp $
+ *	$Id: db_interface.c,v 1.7 1994/05/25 08:53:13 rgrimes Exp $
  */
 
 /*
  * Interface to new debugger.
  */
-#include "param.h"
-#include "systm.h"
-#include "kernel.h"
-#include "proc.h"
-#include "ddb/ddb.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/proc.h>
+#include <ddb/ddb.h>
 
 #include <sys/reboot.h>
 /* #include <vm/vm_statistics.h> */

@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.26 1994/05/26 13:38:01 rgrimes Exp $
+#	$Id: Makefile.i386,v 1.27 1994/08/06 10:52:15 davidg Exp $
 #
 # Makefile for FreeBSD
 #
@@ -26,8 +26,12 @@ CC=	cc
 CPP=	cpp
 DBSYM=	/usr/sbin/dbsym
 
+.if exists(./@/.)
+S=	./@
+.else
 S=	../..
-I386=	../../i386
+.endif
+I386=	${S}/i386
 
 CWARNFLAGS=-W -Wreturn-type -Wcomment
 #

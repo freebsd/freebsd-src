@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.44 1994/04/03 12:25:57 ache Exp $
+ *	$Id: sio.c,v 1.47 1994/05/26 13:31:40 rgrimes Exp $
  */
 
 #include "sio.h"
@@ -43,22 +43,22 @@
  * Works for National Semiconductor NS8250-NS16550AF UARTs.
  * COM driver, based on HP dca driver.
  */
-#include "param.h"
-#include "systm.h"
-#include "ioctl.h"
-#include "tty.h"
-#include "proc.h"
-#include "user.h"
-#include "conf.h"
-#include "file.h"
-#include "uio.h"
-#include "kernel.h"
-#include "syslog.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/ioctl.h>
+#include <sys/tty.h>
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/conf.h>
+#include <sys/file.h>
+#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/syslog.h>
 
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/sioreg.h"
-#include "i386/isa/ic/ns16550.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/sioreg.h>
+#include <i386/isa/ic/ns16550.h>
 
 #define	FAKE_DCD(unit)	((unit) == comconsole)
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */

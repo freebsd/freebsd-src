@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.49 1994/08/10 03:53:33 wollman Exp $
+ *	$Id: machdep.c,v 1.50 1994/08/10 23:28:26 wollman Exp $
  */
 
 #include "npx.h"
@@ -61,35 +61,35 @@
 #include <sys/sysctl.h>
 
 #ifdef SYSVSHM
-#include "sys/shm.h"
+#include <sys/shm.h>
 #endif
 
 #ifdef SYSVMSG
-#include "msg.h"
+#include <sys/msg.h>
 #endif
 
 #ifdef SYSVSEM
-#include "sem.h"
+#include <sys/sem.h>
 #endif
 
-#include "vm/vm.h"
-#include "vm/vm_kern.h"
-#include "vm/vm_page.h"
+#include <vm/vm.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_page.h>
 
-#include "sys/exec.h"
-#include "sys/vnode.h"
+#include <sys/exec.h>
+#include <sys/vnode.h>
 
 extern vm_offset_t avail_start, avail_end;
 
-#include "machine/cpu.h"
-#include "machine/reg.h"
-#include "machine/psl.h"
-#include "machine/specialreg.h"
-#include "machine/sysarch.h"
-#include "machine/cons.h"
+#include <machine/cpu.h>
+#include <machine/reg.h>
+#include <machine/psl.h>
+#include <machine/specialreg.h>
+#include <machine/sysarch.h>
+#include <machine/cons.h>
 
-#include "i386/isa/isa.h"
-#include "i386/isa/rtc.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/rtc.h>
 
 static void identifycpu(void);
 static void initcpu(void);

@@ -23,24 +23,24 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.3 1993/11/25 01:30:05 wollman Exp $
+ *	$Id: db_examine.c,v 1.4 1993/12/19 00:49:43 wollman Exp $
  */
 
 /*
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
  */
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
 
-#include "ddb/ddb.h"
+#include <ddb/ddb.h>
 
-#include "ddb/db_lex.h"
-#include "ddb/db_output.h"
-#include "ddb/db_command.h"
-#include "ddb/db_sym.h"
-#include "ddb/db_access.h"
+#include <ddb/db_lex.h>
+#include <ddb/db_output.h>
+#include <ddb/db_command.h>
+#include <ddb/db_sym.h>
+#include <ddb/db_access.h>
 
 char	db_examine_format[TOK_STRING_SIZE] = "x";
 

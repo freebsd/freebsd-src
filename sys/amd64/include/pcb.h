@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.3 1993/11/07 17:42:59 wollman Exp $
+ *	$Id: pcb.h,v 1.5 1994/05/25 08:56:19 rgrimes Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -43,8 +43,8 @@
 /*
  * Intel 386 process control block
  */
-#include "machine/tss.h"
-#include "machine/npx.h"
+#include <machine/tss.h>
+#include <machine/npx.h>
 
 struct pcb {
 	struct	i386tss pcb_tss;

@@ -34,22 +34,22 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.10 1994/05/25 08:58:32 rgrimes Exp $
+ *	$Id: clock.c,v 1.12 1994/08/11 00:28:24 wollman Exp $
  */
 
 /*
  * Primitive clock interrupt routines.
  */
-#include "param.h"
-#include "systm.h"
-#include "time.h"
-#include "kernel.h"
-#include "machine/segments.h"
-#include "machine/frame.h"
-#include "i386/isa/icu.h"
-#include "i386/isa/isa.h"
-#include "i386/isa/rtc.h"
-#include "i386/isa/timerreg.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/time.h>
+#include <sys/kernel.h>
+#include <machine/segments.h>
+#include <machine/frame.h>
+#include <i386/isa/icu.h>
+#include <i386/isa/isa.h>
+#include <i386/isa/rtc.h>
+#include <i386/isa/timerreg.h>
 #include <machine/cpu.h>
 
 /* X-tals being what they are, it's nice to be able to fudge this one... */

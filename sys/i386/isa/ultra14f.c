@@ -19,13 +19,13 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *      $Id: ultra14f.c,v 1.16 1994/03/20 00:30:04 wollman Exp $
+ *      $Id: ultra14f.c,v 1.19 1994/05/27 04:02:08 rgrimes Exp $
  */
 
 #include <sys/types.h>
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
-#include <uha.h>
+#include "uha.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.7 1994/08/08 13:33:15 davidg Exp $
+ *	$Id: if_ie.c,v 1.8 1994/08/12 06:06:19 davidg Exp $
  */
 
 /*
@@ -103,46 +103,46 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include "ie.h"
 #if NIE > 0
 
-#include "param.h"
-#include "systm.h"
-#include "mbuf.h"
-#include "protosw.h"
-#include "socket.h"
-#include "ioctl.h"
-#include "errno.h"
-#include "syslog.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/errno.h>
+#include <sys/syslog.h>
 
-#include "net/if.h"
-#include "net/if_types.h"
-#include "net/if_dl.h"
-#include "net/route.h"
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/if_dl.h>
+#include <net/route.h>
 
 #include "bpfilter.h"
 
 #ifdef INET
-#include "netinet/in.h"
-#include "netinet/in_systm.h"
-#include "netinet/in_var.h"
-#include "netinet/ip.h"
-#include "netinet/if_ether.h"
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
 #endif
 
 #ifdef NS
-#include "netns/ns.h"
-#include "netns/ns_if.h"
+#include <netns/ns.h>
+#include <netns/ns_if.h>
 #endif
 
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/ic/i82586.h"
-#include "i386/isa/if_iereg.h"
-#include "i386/isa/icu.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/ic/i82586.h>
+#include <i386/isa/if_iereg.h>
+#include <i386/isa/icu.h>
 
-#include "vm/vm.h"
+#include <vm/vm.h>
 
 #if NBPFILTER > 0
-#include "net/bpf.h"
-#include "net/bpfdesc.h"
+#include <net/bpf.h>
+#include <net/bpfdesc.h>
 #endif
 
 #if (NBPFILTER > 0) || defined(MULTICAST)
