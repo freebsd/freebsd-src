@@ -102,6 +102,7 @@ See matcd.c for Edit History
 #define STATUS		1		/*Read - bus status*/
 #define RESET		2		/*Write - reset all attached drives*/
 					/*Any value written will reset*/
+#define	ALTDATA		2		/*<20>Read - data on non Creative bds.*/
 #define SELECT		3		/*Write - drive select*/
 
 
