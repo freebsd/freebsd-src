@@ -136,12 +136,6 @@ do_sysconf(const char *name, int key)
 	else if (value == -1)
 		printf("undefined\n");
 	else
-		/*
-		 * SUSv2 specifies that the value, if defined, is to be
-		 * printed using the format "%d\n".  This is clearly
-		 * erroneous, since sysconf is defined to return a long
-		 * and not an int.
-		 */
 		printf("%ld\n", value);
 }
 
@@ -157,11 +151,5 @@ do_pathconf(const char *name, int key, const char *path)
 	else if (value == -1)
 		printf("undefined\n");
 	else
-		/*
-		 * SUSv2 specifies that the value, if defined, is to be
-		 * printed using the format "%d\n".  This is clearly
-		 * erroneous, since sysconf is defined to return a long
-		 * and not an int.
-		 */
 		printf("%ld\n", value);
 }
