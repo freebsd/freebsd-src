@@ -103,7 +103,7 @@ build()
 	/* Copy the saved objects into the archive. */
 	size = lseek(tfd, (off_t)0, SEEK_CUR);
 	(void)lseek(tfd, (off_t)0, SEEK_SET);
-	SETCF(tfd, tname, afd, archive, RPAD|WPAD);
+	SETCF(tfd, tname, afd, archive, WPAD);
 	copy_ar(&cf, size);
 	(void)ftruncate(afd, lseek(afd, (off_t)0, SEEK_CUR));
 	(void)close(tfd);
