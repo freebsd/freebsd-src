@@ -2478,7 +2478,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (gp == NULL) {
 		gp = g_mirror_create(mp, &md);
 		if (gp == NULL) {
-			G_MIRROR_DEBUG(0, "Cannot create device %s.mirror",
+			G_MIRROR_DEBUG(0, "Cannot create device %s.",
 			    md.md_name);
 			return (NULL);
 		}
