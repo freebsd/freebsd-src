@@ -4,8 +4,8 @@ MAN4=	bpf.4 bridge.4 ccd.4 cd.4 ch.4 da.4 ddb.4 divert.4 drum.4 \
 	dummynet.4 fd.4 fpa.4 \
 	icmp.4 ifmib.4 iic.4 iicbb.4 iicbus.4 iicsmb.4 \
 	imm.4 inet.4 intro.4 ip.4 ipfirewall.4 \
-	lkm.4 lo.4 lpbb.4 natm.4 netintro.4 \
-	null.4 od.4 pass.4 plip.4 ppbus.4 ppi.4 ppp.4 pt.4 pty.4 \
+	lkm.4 lo.4 lpbb.4 natm.4 netintro.4 nlpt.4 \
+	null.4 od.4 pass.4 ppbus.4 ppi.4 ppp.4 pt.4 pty.4 \
 	route.4 sa.4 scsi.4 \
 	sd.4 sl.4 smb.4 smbus.4 smp.4 snp.4 sppp.4 ssc.4 st.4 su.4 tcp.4 \
 	ttcp.4 termios.4 tty.4 tun.4 udp.4 uk.4 update.4 unix.4 vinum.4 vn.4 \
@@ -18,6 +18,7 @@ MLINKS+=fpa.4 fea.4
 MLINKS+=yp.4 YP.4 yp.4 nis.4 yp.4 NIS.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=scsi.4 cam.4
+MLINKS+=lp.4 plip.4
 
 # XXX NOT IMPORTED:	man4.hp300 man4.sparc man4.tahoe man4.vax
 SUBDIR=	 man4.i386 
