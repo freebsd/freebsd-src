@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -97,7 +97,7 @@ linux_open(struct thread *td, struct linux_open_args *args)
     bsd_flags = 0;
     if (args->flags & LINUX_O_RDONLY)
 	bsd_flags |= O_RDONLY;
-    if (args->flags & LINUX_O_WRONLY) 
+    if (args->flags & LINUX_O_WRONLY)
 	bsd_flags |= O_WRONLY;
     if (args->flags & LINUX_O_RDWR)
 	bsd_flags |= O_RDWR;
@@ -245,7 +245,7 @@ static int
 getdents_common(struct thread *td, struct linux_getdents64_args *args,
     int is64bit)
 {
-	register struct dirent *bdp;
+	struct dirent *bdp;
 	struct vnode *vp;
 	caddr_t inp, buf;		/* BSD-format */
 	int len, reclen;		/* BSD-format */
@@ -735,23 +735,23 @@ int
 linux_mount(struct thread *td, struct linux_mount_args *args)
 {
 	struct ufs_args ufs;
-        char fstypename[MFSNAMELEN];
-        char mntonname[MNAMELEN], mntfromname[MNAMELEN];
+	char fstypename[MFSNAMELEN];
+	char mntonname[MNAMELEN], mntfromname[MNAMELEN];
 	int error;
 	int fsflags;
 	const char *fstype;
 	void *fsdata;
 
-        error = copyinstr(args->filesystemtype, fstypename, MFSNAMELEN - 1,
+	error = copyinstr(args->filesystemtype, fstypename, MFSNAMELEN - 1,
 	    NULL);
 	if (error)
-                return (error);
-        error = copyinstr(args->specialfile, mntfromname, MFSNAMELEN - 1, NULL);
+		return (error);
+	error = copyinstr(args->specialfile, mntfromname, MFSNAMELEN - 1, NULL);
 	if (error)
-                return (error);
-        error = copyinstr(args->dir, mntonname, MFSNAMELEN - 1, NULL);
+		return (error);
+	error = copyinstr(args->dir, mntonname, MFSNAMELEN - 1, NULL);
 	if (error)
-                return (error);
+		return (error);
 
 #ifdef DEBUG
 	if (ldebug(mount))
@@ -782,15 +782,15 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 		 * FreeBSD has is !ASYNC, which is our default.
 		 */
 		if (args->rwflag & LINUX_MS_RDONLY)
-			fsflags |= MNT_RDONLY; 
+			fsflags |= MNT_RDONLY;
 		if (args->rwflag & LINUX_MS_NOSUID)
-			fsflags |= MNT_NOSUID; 
+			fsflags |= MNT_NOSUID;
 		if (args->rwflag & LINUX_MS_NODEV)
-			fsflags |= MNT_NODEV; 
+			fsflags |= MNT_NODEV;
 		if (args->rwflag & LINUX_MS_NOEXEC)
-			fsflags |= MNT_NOEXEC; 
+			fsflags |= MNT_NOEXEC;
 		if (args->rwflag & LINUX_MS_REMOUNT)
-			fsflags |= MNT_UPDATE; 
+			fsflags |= MNT_UPDATE;
 	}
 
 	return (vfs_mount(td, fstype, mntonname, fsflags, fsdata));

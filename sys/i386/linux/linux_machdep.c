@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -318,7 +318,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 
 #ifdef DEBUG
 	if (ldebug(clone)) {
-		printf(ARGS(clone, "flags %x, stack %x"), 
+		printf(ARGS(clone, "flags %x, stack %x"),
 		    (unsigned int)args->flags, (unsigned int)args->stack);
 		if (args->flags & CLONE_PID)
 			printf(LMSG("CLONE_PID not yet supported"));
@@ -395,9 +395,9 @@ linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 
 #ifdef DEBUG
 	if (ldebug(mmap2))
-		printf(ARGS(mmap2, "%p, %d, %d, 0x%08x, %d, %d"),       
-		    (void *)args->addr, args->len, args->prot,       
-		    args->flags, args->fd, args->pgoff);       
+		printf(ARGS(mmap2, "%p, %d, %d, 0x%08x, %d, %d"),
+		    (void *)args->addr, args->len, args->prot,
+		    args->flags, args->fd, args->pgoff);
 #endif
 
 	linux_args.addr = (l_caddr_t)args->addr;
