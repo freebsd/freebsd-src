@@ -2147,6 +2147,9 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 
     DPRINTF(5, ("sc0: sc_switch_scr() %d ", next_scr + 1));
 
+    if (sc->cur_scp == NULL)
+	return (0);
+
     /* prevent switch if previously requested */
     if (sc->flags & SC_SCRN_VTYLOCK) {
 	    sc_bell(sc->cur_scp, sc->cur_scp->bell_pitch,

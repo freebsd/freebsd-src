@@ -108,6 +108,10 @@ scsuspend(device_t dev)
 	sc_softc_t	*sc;
 
 	sc = &main_softc;
+
+	if (sc->cur_scp == NULL)
+		return (0);
+
 	sc_cur_scr = sc->cur_scp->index;
 
 	if (sc_no_suspend_vtswitch)
