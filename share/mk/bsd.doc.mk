@@ -1,7 +1,7 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.20 1995/07/26 13:51:44 wollman Exp $
+#	$Id: bsd.doc.mk,v 1.21 1995/07/27 15:03:25 wollman Exp $
 
-PRINTER?=	ps
+PRINTER?=	ascii
 
 BIB?=		bib
 EQN?=		eqn -T${PRINTER}
