@@ -89,7 +89,7 @@ connect to your parallel port.
 
 Add a line like the following
 
-	device		tw0	at isa? port 0x278 tty irq 5 vector twintr
+	device		tw0	at isa? port 0x278 tty irq 5
 
 to /sys/i386/conf/YOURSYSTEM, but make sure to change the I/O port and
 interrupt to match your hardware configuration.
@@ -274,8 +274,8 @@ x-10 devices fail to work when plugged in NEXT to a surge protector!
 
 I placed the tw option before the lpt entries in my config file: 
 
-device          tw0     at isa? port 0x378 tty irq 7 vector twintr
-device          lpt0    at isa? port? tty irq 7 vector lptintr
+device          tw0     at isa? port 0x378 tty irq 7
+device          lpt0    at isa? port? tty irq 7
 
 from dmesg I get:
 
