@@ -178,6 +178,7 @@ pci_do_cfgregread(int bus, int slot, int func, int reg, int bytes)
 u_int32_t
 pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 {
+    uint32_t line, pin;
 #ifdef APIC_IO
     /*
      * If we are using the APIC, the contents of the intline register will probably
@@ -186,7 +187,6 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
      * attempts to read them and translate to our private vector numbers.
      */
     if ((reg == PCIR_INTLINE) && (bytes == 1)) {
-	int	pin, line;
 
 	pin = pci_do_cfgregread(bus, slot, func, PCIR_INTPIN, 1);
 	line = pci_do_cfgregread(bus, slot, func, PCIR_INTLINE, 1);
@@ -216,6 +216,18 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 	    }
 	}
 	return(line);
+    }
+#else
+    /*
+     * Some BIOS writers seem to want to ignore the spec and put
+     * 0 in the intline rather than 255 to indicate none.  The rest of
+     * the code uses 255 as an invalid IRQ.
+     */
+    if (reg == PCIR_INTLINE && bytes == 1) {
+	line = pci_do_cfgregread(bus, slot, func, PCIR_INTLINE, 1);
+	pin = pci_do_cfgregread(bus, slot, func, PCIR_INTPIN, 1);
+	if (pin != 0 && (line == 0 || line >= 128))
+	    return (255);
     }
 #endif /* APIC_IO */
     return(pci_do_cfgregread(bus, slot, func, reg, bytes));
@@ -307,9 +319,11 @@ static int
 pci_cfgintr_unique(struct PIR_entry *pe, int pin)
 {
     int		irq;
+    uint32_t	irqmask;
     
-    if (powerof2(pe->pe_intpin[pin - 1].irqs)) {
-	irq = ffs(pe->pe_intpin[pin - 1].irqs) - 1;
+    irqmask = pe->pe_intpin[pin - 1].irqs;
+    if (irqmask != 0 && powerof2(irqmask)) {
+	irq = ffs(irqmask) - 1;
 	PRVERB(("pci_cfgintr_unique: hard-routed to irq %d\n", irq));
 	return(irq);
     }
@@ -344,7 +358,7 @@ pci_cfgintr_linked(struct PIR_entry *pe, int pin)
 		continue;
 	    
 	    /* link destination mapped to a unique interrupt? */
-	    if (powerof2(pi->irqs)) {
+	    if (pi->irqs != 0 && powerof2(pi->irqs)) {
 		irq = ffs(pi->irqs) - 1;
 		PRVERB(("pci_cfgintr_linked: linked (%x) to hard-routed irq %d\n",
 		       pi->link, irq));
@@ -394,14 +408,6 @@ pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int 
 		(pci_get_slot(*childp) == device) &&
 		(pci_get_intpin(*childp) == matchpin)) {
 		irq = pci_get_irq(*childp);
-		/*
-		 * Some BIOS writers seem to want to ignore the spec and put
-		 * 0 in the intline rather than 255 to indicate none.  Once
-		 * we've found one that matches, we break because there can
-		 * be no others (which is why test looks a little odd).
-		 */
-		if (irq == 0)
-		    irq = 255;
 		if (irq != 255)
 		    PRVERB(("pci_cfgintr_search: linked (%x) to configured irq %d at %d:%d:%d\n",
 		      pe->pe_intpin[pin - 1].link, irq,
