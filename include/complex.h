@@ -27,15 +27,15 @@
  */
 
 #ifndef _COMPLEX_H
-#define _COMPLEX_H
+#define	_COMPLEX_H
 
 #ifdef __GNUC__
-#define _Complex	__complex__
-#define _Complex_I	1.0fi
+#define	_Complex	__complex__
+#define	_Complex_I	1.0fi
 #endif
 
-#define complex		_Complex
-#define I		_Complex_I
+#define	complex		_Complex
+#define	I		_Complex_I
 
 #include <sys/cdefs.h>
 
