@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ipx_pcb.c
+ *	@(#)$Id$
  */
 
 #include <sys/param.h>
@@ -284,8 +284,9 @@ ipx_setpeeraddr(ipxp, nam)
 void
 ipx_pcbnotify(dst, errno, notify, param)
 	register struct ipx_addr *dst;
+	int errno;
+	void (*notify)(struct ipxpcb *);
 	long param;
-	int errno, (*notify)();
 {
 	register struct ipxpcb *ipxp, *oinp;
 	int s = splimp();

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	@(#)ipx_ip.c
+ *	@(#)$Id$
  */
 
 /*
@@ -226,12 +226,13 @@ bad:
 
 /* ARGSUSED */
 int
-ipxipoutput(ifn, m, dst)
-	struct ifnet_en *ifn;
+ipxipoutput(ifn_en, m, dst, rt)
+	struct ifnet *ifn_en;
 	register struct mbuf *m;
 	struct sockaddr *dst;
+	struct rtentry *rt;
 {
-
+	register struct ifnet_en *ifn = (struct ifnet_en *)ifn_en;
 	register struct ip *ip;
 	register struct route *ro = &(ifn->ifen_route);
 	register int len = 0;

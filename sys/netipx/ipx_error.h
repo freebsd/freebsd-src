@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ipx_error.h
+ *	@(#)$Id$
  */
 
 #ifndef _NETIPX_IPX_ERROR_H_
