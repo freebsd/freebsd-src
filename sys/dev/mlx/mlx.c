@@ -227,7 +227,7 @@ static int
 mlx_sglist_map(struct mlx_softc *sc)
 {
     size_t	segsize;
-    int		error;
+    int		error, ncmd;
 
     debug_called(1);
 
@@ -239,9 +239,16 @@ mlx_sglist_map(struct mlx_softc *sc)
 
     /*
      * Create a single tag describing a region large enough to hold all of
-     * the s/g lists we will need.
+     * the s/g lists we will need.  If we're called early on, we don't know how
+     * many commands we're going to be asked to support, so only allocate enough
+     * for a couple.
      */
-    segsize = sizeof(struct mlx_sgentry) * sc->mlx_sg_nseg * sc->mlx_maxiop;
+    if (sc->mlx_enq2 == NULL) {
+	ncmd = 2;
+    } else {
+	ncmd = sc->mlx_enq2->me_max_commands;
+    }
+    segsize = sizeof(struct mlx_sgentry) * MLX_NSEG * ncmd;
     error = bus_dma_tag_create(sc->mlx_parent_dmat, 	/* parent */
 			       1, 0, 			/* alignment, boundary */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
@@ -301,21 +308,18 @@ mlx_attach(struct mlx_softc *sc)
 	sc->mlx_findcomplete	= mlx_v3_findcomplete;
 	sc->mlx_intaction	= mlx_v3_intaction;
 	sc->mlx_fw_handshake	= mlx_v3_fw_handshake;
-	sc->mlx_sg_nseg		= MLX_NSEG_OLD;
 	break;
     case MLX_IFTYPE_4:
 	sc->mlx_tryqueue	= mlx_v4_tryqueue;
 	sc->mlx_findcomplete	= mlx_v4_findcomplete;
 	sc->mlx_intaction	= mlx_v4_intaction;
 	sc->mlx_fw_handshake	= mlx_v4_fw_handshake;
-	sc->mlx_sg_nseg		= MLX_NSEG_NEW;
 	break;
     case MLX_IFTYPE_5:
 	sc->mlx_tryqueue	= mlx_v5_tryqueue;
 	sc->mlx_findcomplete	= mlx_v5_findcomplete;
 	sc->mlx_intaction	= mlx_v5_intaction;
 	sc->mlx_fw_handshake	= mlx_v5_fw_handshake;
-	sc->mlx_sg_nseg		= MLX_NSEG_NEW;
 	break;
     default:
 	mlx_free(sc);
@@ -376,7 +380,7 @@ mlx_attach(struct mlx_softc *sc)
 			       BUS_SPACE_MAXADDR,		/* lowaddr */
 			       BUS_SPACE_MAXADDR, 		/* highaddr */
 			       NULL, NULL, 			/* filter, filterarg */
-			       MAXBSIZE, sc->mlx_sg_nseg,	/* maxsize, nsegments */
+			       MAXBSIZE, MLX_NSEG,		/* maxsize, nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,		/* maxsegsize */
 			       0,				/* flags */
 			       &sc->mlx_buffer_dmat);
@@ -387,9 +391,8 @@ mlx_attach(struct mlx_softc *sc)
     }
 
     /*
-     * Create an initial set of s/g mappings.
+     * Create some initial scatter/gather mappings so we can run the probe commands.
      */
-    sc->mlx_maxiop = 8;
     error = mlx_sglist_map(sc);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "can't make initial s/g list mapping\n");
@@ -397,17 +400,19 @@ mlx_attach(struct mlx_softc *sc)
 	return(error);
     }
 
-    /* send an ENQUIRY2 to the controller */
+    /*
+     * We don't (yet) know where the event log is up to.
+     */
+    sc->mlx_currevent = -1;
+
+    /* 
+     * Obtain controller feature information
+     */
     if ((sc->mlx_enq2 = mlx_enquire(sc, MLX_CMD_ENQUIRY2, sizeof(struct mlx_enquiry2), NULL)) == NULL) {
 	device_printf(sc->mlx_dev, "ENQUIRY2 failed\n");
 	mlx_free(sc);
 	return(ENXIO);
     }
-
-    /*
-     * We don't (yet) know where the event log is up to.
-     */
-    sc->mlx_currevent = -1;
 
     /*
      * Do quirk/feature related things.
@@ -456,13 +461,11 @@ mlx_attach(struct mlx_softc *sc)
     }
 
     /*
-     * Create the final set of s/g mappings now that we know how many commands
-     * the controller actually supports.
+     * Create the final scatter/gather mappings now that we have characterised the controller.
      */
-    sc->mlx_maxiop = sc->mlx_enq2->me_max_commands;
     error = mlx_sglist_map(sc);
     if (error != 0) {
-	device_printf(sc->mlx_dev, "can't make permanent s/g list mapping\n");
+	device_printf(sc->mlx_dev, "can't make final s/g list mapping\n");
 	mlx_free(sc);
 	return(error);
     }
@@ -1953,13 +1956,19 @@ static int
 mlx_getslot(struct mlx_command *mc)
 {
     struct mlx_softc	*sc = mc->mc_sc;
-    int			s, slot;
+    int			s, slot, limit;
 
     debug_called(1);
 
-    /* enforce slot-usage limit */
-    if (sc->mlx_busycmds >= ((mc->mc_flags & MLX_CMD_PRIORITY) ? 
-			     sc->mlx_maxiop : sc->mlx_maxiop - 4))
+    /* 
+     * Enforce slot-usage limit, if we have the required information.
+     */
+    if (sc->mlx_enq2 != NULL) {
+	limit = sc->mlx_enq2->me_max_commands;
+    } else {
+	limit = 2;
+    }
+    if (sc->mlx_busycmds >= ((mc->mc_flags & MLX_CMD_PRIORITY) ? limit : limit - 4))
 	return(EBUSY);
 
     /* 
@@ -1968,19 +1977,19 @@ mlx_getslot(struct mlx_command *mc)
      * XXX linear search is slow
      */
     s = splbio();
-    for (slot = 0; slot < sc->mlx_maxiop; slot++) {
+    for (slot = 0; slot < limit; slot++) {
 	debug(2, "try slot %d", slot);
 	if (sc->mlx_busycmd[slot] == NULL)
 	    break;
     }
-    if (slot < sc->mlx_maxiop) {
+    if (slot < limit) {
 	sc->mlx_busycmd[slot] = mc;
 	sc->mlx_busycmds++;
     }
     splx(s);
 
     /* out of slots? */
-    if (slot >= sc->mlx_maxiop)
+    if (slot >= limit)
 	return(EBUSY);
 
     debug(2, "got slot %d", slot);
@@ -2001,12 +2010,16 @@ mlx_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 
     debug_called(1);
 
+    /* XXX should be unnecessary */
+    if (sc->mlx_enq2 && (nsegments > sc->mlx_enq2->me_max_sg))
+	panic("MLX: too many s/g segments (%d, max %d)", nsegments, sc->mlx_enq2->me_max_sg);
+
     /* get base address of s/g table */
-    sg = sc->mlx_sgtable + (mc->mc_slot * sc->mlx_sg_nseg);
+    sg = sc->mlx_sgtable + (mc->mc_slot * MLX_NSEG);
 
     /* save s/g table information in command */
     mc->mc_nsgent = nsegments;
-    mc->mc_sgphys = sc->mlx_sgbusaddr + (mc->mc_slot * sc->mlx_sg_nseg * sizeof(struct mlx_sgentry));
+    mc->mc_sgphys = sc->mlx_sgbusaddr + (mc->mc_slot * MLX_NSEG * sizeof(struct mlx_sgentry));
     mc->mc_dataphys = segs[0].ds_addr;
 
     /* populate s/g table */
@@ -2146,6 +2159,7 @@ mlx_done(struct mlx_softc *sc)
 	    break;
 	}
     }
+    splx(s);
 
     /* if we've completed any commands, try posting some more */
     if (result)

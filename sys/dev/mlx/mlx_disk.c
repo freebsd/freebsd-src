@@ -236,6 +236,7 @@ mlxd_attach(device_t dev)
     device_t		parent;
     char		*state;
     dev_t		dsk;
+    int			s1, s2;
     
     debug_called(1);
 
@@ -272,8 +273,13 @@ mlxd_attach(device_t dev)
     dsk->si_drv1 = sc;
     sc->mlxd_dev_t = dsk;
 
-    /* set maximum I/O size */
-    dsk->si_iosize_max = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
+    /* 
+     * Set maximum I/O size to the lesser of the recommended maximum and the practical
+     * maximum.
+     */
+    s1 = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
+    s2 = (sc->mlxd_controller->mlx_enq2->me_max_sg - 1) * PAGE_SIZE;
+    dsk->si_iosize_max = imin(s1, s2);
 
     return (0);
 }
