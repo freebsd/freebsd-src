@@ -699,6 +699,9 @@ send:
 	if (error) {
 out:
 		if (error == ENOBUFS) {
+                        if (!tp->t_timer[TCPT_REXMT] &&
+                             !tp->t_timer[TCPT_PERSIST])
+                                tp->t_timer[TCPT_REXMT] = tp->t_rxtcur;
 			tcp_quench(tp->t_inpcb, 0);
 			return (0);
 		}
