@@ -1620,12 +1620,16 @@ vm_object_in_map( object)
 	vm_object_t object;
 {
 	struct proc *p;
+	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if( !p->p_vmspace /* || (p->p_flag & (P_SYSTEM|P_WEXIT)) */)
 			continue;
-		if( _vm_object_in_map(&p->p_vmspace->vm_map, object, 0))
+		if( _vm_object_in_map(&p->p_vmspace->vm_map, object, 0)) {
+			lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 			return 1;
+		}
 	}
+	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 	if( _vm_object_in_map( kernel_map, object, 0))
 		return 1;
 	if( _vm_object_in_map( kmem_map, object, 0))
