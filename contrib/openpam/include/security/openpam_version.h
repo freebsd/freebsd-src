@@ -31,14 +31,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/openpam_version.h#9 $
+ * $P4: //depot/projects/openpam/include/security/openpam_version.h#11 $
  */
 
 #ifndef _OPENPAM_VERSION_H_INCLUDED
 #define _OPENPAM_VERSION_H_INCLUDED
 
 #define _OPENPAM
-#define _OPENPAM_VERSION	20030601
-#define _OPENPAM_RELEASE	"Digitalis"
+#define _OPENPAM_VERSION	20030715
+#define _OPENPAM_RELEASE	"Dogwood"
 
 #endif

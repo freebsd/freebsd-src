@@ -31,8 +31,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/modules/pam_permit/pam_permit.c#8 $
+ * $P4: //depot/projects/openpam/modules/pam_permit/pam_permit.c#9 $
  */
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <sys/param.h>
 
