@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pwupd.c,v 1.1.1.3 1996/12/10 23:59:02 joerg Exp $
+ *	$Id: pwupd.c,v 1.2 1996/12/21 15:35:44 davidn Exp $
  */
 
 #include <stdio.h>
@@ -35,7 +35,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <stdarg.h>
 
 #include "pwupd.h"
 
