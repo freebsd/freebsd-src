@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.49 1998/10/22 05:58:39 bde Exp $
+ *	$Id: if_zp.c,v 1.50 1999/03/08 21:21:43 steve Exp $
  */
 /*-
  * TODO:
@@ -552,6 +552,7 @@ zpattach(isa_dev)
 
 	printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
 
+	sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_softc = sc;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
