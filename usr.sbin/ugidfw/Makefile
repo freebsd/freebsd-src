@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ugidfw
-NOMAN=	yes
+MAN=	ugidfw.8
 DPADD=	${LIBUGIDFW}
 LDADD=	-lugidfw
 
