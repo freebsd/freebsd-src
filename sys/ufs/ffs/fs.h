@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.7 (Berkeley) 4/19/94
- * $Id$
+ * $Id: fs.h,v 1.2 1994/08/02 07:54:26 davidg Exp $
  */
+
+#ifndef _UFS_FFS_FS_H_
+#define _UFS_FFS_FS_H_
 
 /*
  * Each disk drive contains some number of file systems.
@@ -488,3 +491,5 @@ struct	ocg {
 
 extern int inside[], around[];
 extern u_char *fragtbl[];
+
+#endif
