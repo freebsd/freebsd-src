@@ -1531,6 +1531,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 		printf("warning: KLD '%s' is newer than the linker.hints"
 		    " file\n", result);
 bad:
+	free(pathbuf, M_LINKER);
 	if (hints)
 		free(hints, M_TEMP);
 	if (nd.ni_vp != NULL) {
