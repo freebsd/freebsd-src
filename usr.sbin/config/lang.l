@@ -84,8 +84,8 @@ struct kt {
 static int endinclude(void);
 int include(const char *, int);
 int kw_lookup(char *);
-int octal(char *);
-int hex(char *);
+unsigned int octal(const char *);
+unsigned int hex(const char *);
 int yyerror(const char *);
 
 %}
@@ -198,19 +198,19 @@ kw_lookup(char *word)
  * Number conversion routines
  */
 
-int
-octal(char *str)
+unsigned int
+octal(const char *str)
 {
-	int num;
+	unsigned int num;
 
 	(void) sscanf(str, "%o", &num);
 	return num;
 }
 
-int
-hex(char *str)
+unsigned int
+hex(const char *str)
 {
-	int num;
+	unsigned int num;
 
 	(void) sscanf(str+2, "%x", &num);
 	return num;
