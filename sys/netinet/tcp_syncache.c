@@ -540,7 +540,7 @@ syncache_socket(sc, lso, m)
 	struct socket *so;
 	struct tcpcb *tp;
 
-	GIANT_REQUIRED;			/* XXX until socket locking */
+	NET_ASSERT_GIANT();
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 	/*
