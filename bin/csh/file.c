@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: file.c,v 1.2 1994/09/24 02:54:03 davidg Exp $
+ *	$Id: file.c,v 1.3 1995/05/30 00:06:33 rgrimes Exp $
  */
 
 #ifndef lint
@@ -112,14 +112,14 @@ static void
 setup_tty(on)
     int     on;
 {
-    static struct termios tchars;
+    struct termios tchars;
 
     (void) tcgetattr(SHIN, &tchars);
 
     if (on) {
 	tchars.c_cc[VEOL] = ESC;
 	if (tchars.c_lflag & ICANON)
-	    on = TCSANOW;
+	    on = TCSADRAIN;
 	else {
 	    on = TCSAFLUSH;
 	    tchars.c_lflag |= ICANON;
@@ -127,10 +127,10 @@ setup_tty(on)
     }
     else {
 	tchars.c_cc[VEOL] = _POSIX_VDISABLE;
-	on = TCSANOW;
+	on = TCSADRAIN;
     }
 
-    (void) tcsetattr(SHIN, TCSANOW, &tchars);
+    (void) tcsetattr(SHIN, on, &tchars);
 }
 
 /*
