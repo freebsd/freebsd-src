@@ -3,9 +3,9 @@
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
- * NAI Labs, the Security Research Division of Network Associates, Inc.
- * under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
- * DARPA CHATS research program.
+ * Network Associates Laboratories, the Security Research Division of
+ * Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_dispatch.c#14 $
+ * $P4: //depot/projects/openpam/lib/openpam_dispatch.c#17 $
  */
 
 #include <sys/param.h>
@@ -114,15 +114,12 @@ openpam_dispatch(pam_handle_t *pamh,
 			 * For pam_setcred() and pam_chauthtok() with the
 			 * PAM_PRELIM_CHECK flag, treat "sufficient" as
 			 * "optional".
-			 *
-			 * Note that Solaris libpam does not terminate
-			 * the chain here if a required module has
-			 * previously failed.  I'm not sure why.
 			 */
-			if (chain->flag == PAM_SUFFICIENT &&
+			if ((chain->flag == PAM_SUFFICIENT ||
+			    chain->flag == PAM_BINDING) && !fail &&
 			    primitive != PAM_SM_SETCRED &&
-			    (primitive != PAM_SM_CHAUTHTOK ||
-				!(flags & PAM_PRELIM_CHECK)))
+			    !(primitive == PAM_SM_CHAUTHTOK &&
+				(flags & PAM_PRELIM_CHECK)))
 				break;
 			continue;
 		}
@@ -136,7 +133,8 @@ openpam_dispatch(pam_handle_t *pamh,
 		 */
 		if (err == 0)
 			err = r;
-		if (chain->flag == PAM_REQUIRED && !fail) {
+		if ((chain->flag == PAM_REQUIRED ||
+		    chain->flag == PAM_BINDING) && !fail) {
 			openpam_log(PAM_LOG_DEBUG, "required module failed");
 			fail = 1;
 			err = r;
@@ -153,7 +151,7 @@ openpam_dispatch(pam_handle_t *pamh,
 		}
 	}
 
-	if (!fail)
+	if (!fail && err != PAM_NEW_AUTHTOK_REQD)
 		err = PAM_SUCCESS;
 	openpam_log(PAM_LOG_DEBUG, "returning: %s", pam_strerror(pamh, err));
 	return (err);

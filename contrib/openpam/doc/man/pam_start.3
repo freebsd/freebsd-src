@@ -3,9 +3,9 @@
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
-.\" NAI Labs, the Security Research Division of Network Associates, Inc.
-.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
-.\" DARPA CHATS research program.
+.\" Network Associates Laboratories, the Security Research Division of
+.\" Network Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_start.3#14 $
+.\" $P4$
 .\"
-.Dd May 24, 2002
+.Dd June 30, 2002
 .Dt PAM_START 3
 .Os
 .Sh NAME
@@ -70,16 +70,10 @@ The
 argument points to a
 .Vt struct pam_conv
 describing the
-conversation function to use.
-This structure is defined as follows:
+conversation function to use; see
+.Va pam_conv
+for details.
 .Pp
-.Bd -literal
-    struct pam_conv {
-         int   (*conv)(int, const struct pam_message **,
-             struct pam_response **, void *);
-         void   *appdata_ptr;
-    };
-.Ed
 .Sh RETURN VALUES
 The
 .Nm
@@ -105,7 +99,8 @@ System error.
 The
 .Nm
 function and this manual page were developed for the FreeBSD Project
-by ThinkSec AS and NAI Labs, the Security Research Division of Network
-Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+by ThinkSec AS and Network Associates Laboratories, the Security
+Research Division of Network Associates, Inc.  under DARPA/SPAWAR
+contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

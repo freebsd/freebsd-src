@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/openpam/MANIFEST#9 $
+# $P4: //depot/projects/openpam/MANIFEST#11 $
 #
 CREDITS
 HISTORY
@@ -14,6 +14,8 @@ bin/su/Makefile
 bin/su/su.c
 doc/Makefile
 doc/man/Makefile
+doc/man/openpam.3
+doc/man/openpam.man
 doc/man/openpam_borrow_cred.3
 doc/man/openpam_free_data.3
 doc/man/openpam_get_option.3
@@ -23,10 +25,12 @@ doc/man/openpam_restore_cred.3
 doc/man/openpam_set_option.3
 doc/man/openpam_ttyconv.3
 doc/man/pam.3
+doc/man/pam.man
 doc/man/pam_acct_mgmt.3
 doc/man/pam_authenticate.3
 doc/man/pam_chauthtok.3
 doc/man/pam_close_session.3
+doc/man/pam_conv.3
 doc/man/pam_end.3
 doc/man/pam_error.3
 doc/man/pam_get_authtok.3
@@ -125,3 +129,5 @@ modules/pam_dummy/Makefile
 modules/pam_dummy/pam_dummy.c
 modules/pam_permit/Makefile
 modules/pam_permit/pam_permit.c
+modules/pam_unix/Makefile
+modules/pam_unix/pam_unix.c
