@@ -34,11 +34,11 @@ extern const union __nan_un {
 	float		__uf;
 } __nan;
 
-#if (defined(__GNUC__) && __GNUC__ >= 3) || defined(__INTEL_COMPILER)
+#if (defined(__GNUC__) && ((__GNUC__ >= 3 && __GNUC_MINOR__ >= 3) || __GNUC__ >= 4)) || defined(__INTEL_COMPILER)
 #define	__MATH_BUILTIN_CONSTANTS
 #endif
 
-#if (defined(__GNUC__) && __GNUC__ >= 3)
+#if (defined(__GNUC__) && __GNUC__ >= 3 && !defined(__INTEL_COMPILER))
 #define	__MATH_BUILTIN_RELOPS
 #endif
 
