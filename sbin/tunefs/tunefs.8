@@ -129,27 +129,6 @@ manual page.
 .It Fl s Ar avgfpdir
 Specify the expected number of files per directory.
 .El
-.Sh ERRORS
-If
-.Nm
-.Fl n
-is run to enable/disable soft update on an unmounted file system
-after booting single-user then
-.Nm
-will output the warning
-.Pp
-reload\&: Invalid argument
-.Pp
-preceded by the raw device name.
-This occurs because the filesystem
-is not currently mounted read-only.
-.Nm
-is trying to reload the incore (r*) device, but it was never loaded
-to begin with.
-When you boot single user, only
-.Dq /
-is mounted, so all other filesystems will give you that warning.
-It is completely harmless.
 .Sh SEE ALSO
 .Xr fs 5 ,
 .Xr dumpfs 8 ,
