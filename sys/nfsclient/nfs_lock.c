@@ -163,7 +163,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 	VOP_UNLOCK(wvp, 0, td);		/* vn_open leaves it locked */
 
 
-	ioflg = IO_UNIT;
+	ioflg = IO_UNIT | IO_NOMACCHECK;
 	for (;;) {
 		VOP_LEASE(wvp, td, thread0.td_ucred, LEASE_WRITE);
 
