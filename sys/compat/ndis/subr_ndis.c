@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/queue.h>
 #include <sys/proc.h>
+#include <sys/filedesc.h>
 #include <sys/namei.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
@@ -2392,6 +2393,14 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 	}
 
 	mtx_lock(&Giant);
+
+	/* Some threads don't have a current working directory. */
+
+	if (td->td_proc->p_fd->fd_rdir == NULL)
+		td->td_proc->p_fd->fd_rdir = rootvnode;
+	if (td->td_proc->p_fd->fd_cdir == NULL)
+		td->td_proc->p_fd->fd_cdir = rootvnode;
+
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
 
 	flags = FREAD;
@@ -2400,6 +2409,7 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 		mtx_unlock(&Giant);
 		*status = NDIS_STATUS_FILE_NOT_FOUND;
 		free(fh, M_TEMP);
+		printf("ndis_open_file(): unable to open file '%s'\n", path);
 		return;
 	}
 

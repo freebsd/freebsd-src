@@ -1061,6 +1061,32 @@ ndis_send_packets(arg, packets, cnt)
 }
 
 int
+ndis_send_packet(arg, packet)
+	void			*arg;
+	ndis_packet		*packet;
+{
+	struct ndis_softc	*sc;
+	ndis_handle		adapter;
+	ndis_status		status;
+	__stdcall ndis_sendsingle_handler	sendfunc;
+	__stdcall ndis_senddone_func		senddonefunc;
+
+	sc = arg;
+	adapter = sc->ndis_block.nmb_miniportadapterctx;
+	sendfunc = sc->ndis_chars.nmc_sendsingle_func;
+	senddonefunc = sc->ndis_block.nmb_senddone_func;
+
+	status = sendfunc(adapter, packet, packet->np_private.npp_flags);
+
+	if (status == NDIS_STATUS_PENDING)
+		return(0);
+
+	senddonefunc(&sc->ndis_block, packet, status);
+
+	return(0);
+}
+
+int
 ndis_init_dma(arg)
 	void			*arg;
 {
