@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.21 1995/02/07 13:33:42 jkh Exp $
+ *	$Id: rtld.c,v 1.23 1995/03/03 06:37:36 nate Exp $
  */
 
 #include <sys/param.h>
@@ -128,6 +128,10 @@ struct somap_private {
 #define LM_ETEXT(smp)	((char *) \
 	((smp)->som_addr + LM_TXTADDR(smp) + LD_TEXTSZ((smp)->som_dynamic)))
 
+/* Needed shared objects */
+#define LM_NEED(smp)	((struct sod *) \
+	((smp)->som_addr + LM_TXTADDR(smp) + LD_NEED((smp)->som_dynamic)))
+
 /* PLT is in data segment, so don't use LM_OFFSET here */
 #define LM_PLT(smp)	((jmpslot_t *) \
 	((smp)->som_addr + LD_PLT((smp)->som_dynamic)))
@@ -182,9 +186,10 @@ static inline struct rt_symbol	*lookup_rts __P((char *));
 static struct rt_symbol	*enter_rts __P((char *, long, int, caddr_t,
 						long, struct so_map *));
 static void		generror __P((char *, ...));
-
 static void		maphints __P((void));
 static void		unmaphints __P((void));
+
+static int		dl_cascade __P((struct so_map *));
 
 static inline int
 strcmp (register const char *s1, register const char *s2)
@@ -254,11 +259,9 @@ struct _dynamic		*dp;
 	if (careful) {
 		unsetenv("LD_LIBRARY_PATH");
 		unsetenv("LD_PRELOAD");
-		unsetenv("LD_RUN_PATH"); /* In case we ever implement this */
 	}
 
 	/* Setup directory search */
-	add_search_path(getenv("LD_RUN_PATH"));
 	add_search_path(getenv("LD_LIBRARY_PATH"));
 	if (getenv("LD_NOSTD_PATH") == NULL)
 		std_search_path();
@@ -507,20 +510,18 @@ again:
 			goto again;
 		}
  		generror ("open failed for \"%s\" : %s",
- 			  path, strerror (errno));
+			  path, strerror (errno));
 		return NULL;
 	}
 
 	if (read(fd, &hdr, sizeof(hdr)) != sizeof(hdr)) {
- 		generror ("header read failed for \"%s\"",
- 			  path);
+ 		generror ("header read failed for \"%s\"", path);
 		(void)close(fd);
 		return NULL;
 	}
 
 	if (N_BADMAG(hdr)) {
- 		generror ("bad magic number in \"%s\"",
- 			  path);
+ 		generror ("bad magic number in \"%s\"", path);
 		(void)close(fd);
 		return NULL;
 	}
@@ -529,7 +530,7 @@ again:
 	         PROT_READ|PROT_EXEC,
 	         MAP_COPY, fd, 0)) == (caddr_t)-1) {
  		generror ("mmap failed for \"%s\" : %s",
- 			  path, strerror (errno));
+			  path, strerror (errno));
 		(void)close(fd);
 		return NULL;
 	}
@@ -537,7 +538,7 @@ again:
 	if (mprotect(addr + hdr.a_text, hdr.a_data,
 	    PROT_READ|PROT_WRITE|PROT_EXEC) != 0) {
  		generror ("mprotect failed for \"%s\" : %s",
- 			  path, strerror (errno));
+			  path, strerror (errno));
 		(void)close(fd);
 		return NULL;
 	}
@@ -1147,11 +1148,11 @@ findhint(name, major, minor, preferred_path)
 	while (1) {
 		/* Sanity check */
 		if (bp->hi_namex >= hheader->hh_strtab_sz) {
-			fprintf(stderr, "Bad name index: %#x\n", bp->hi_namex);
+			warnx("Bad name index: %#x\n", bp->hi_namex);
 			break;
 		}
 		if (bp->hi_pathx >= hheader->hh_strtab_sz) {
-			fprintf(stderr, "Bad path index: %#x\n", bp->hi_pathx);
+			warnx("Bad path index: %#x\n", bp->hi_pathx);
 			break;
 		}
 
@@ -1291,6 +1292,10 @@ __dlopen(name, mode)
 #endif
 		return NULL;
 	}
+
+	if (dl_cascade(smp) == 0)
+		return NULL;
+
 	if (LM_PRIVATE(smp)->spd_refcount++ == 0) {
 		LM_PRIVATE(smp)->spd_flags |= RTLD_DL;
 		if (reloc_map(smp) < 0)
@@ -1406,4 +1411,46 @@ char	*fmt;
 	vsprintf(buf, fmt, ap);
 	(void)write(1, buf, strlen(buf));
 	va_end(ap);
+}
+
+static int
+dl_cascade(smp)
+	struct so_map	*smp;
+{
+	struct sod	*sodp;
+	struct so_map	*smp2;
+	long		next;
+
+	next = LD_NEED(smp->som_dynamic);
+
+	while (next) {
+		sodp = (struct sod *)(LM_LDBASE(smp) + next);
+		if ((smp2 = map_object(sodp, smp)) == NULL) {
+#ifdef DEBUG
+xprintf("ld.so: map_object failed on cascaded %s %s (%d.%d): %s\n",
+	smp->sod_library ? "library" : "file", smp->sod_name,
+	smp->sod_major, smp->sod_minor, strerror(errno));
+#endif
+			return 0;
+		}
+#if 0
+		/*
+		 * XXX - this doesn't work for some reason.  not
+		 * at all sure why.  -mrg
+		 */
+		if (dl_cascade(smp2) == 0)
+			return 0;
+#endif
+
+		if (LM_PRIVATE(smp2)->spd_refcount++ == 0) {
+			LM_PRIVATE(smp2)->spd_flags |= RTLD_DL;
+			reloc_map(smp2);
+			reloc_copy(smp2);
+			init_map(smp2, ".init");
+			init_map(smp2, "_init");
+		}
+
+		next = sodp->sod_next;
+	}
+	return 1;
 }
