@@ -37,7 +37,7 @@ build and install as described in the COMMON ITEMS section.
 	Add PRNG security patch from openssl to prevent guessing of
 	internal state.
 
-20010717:	p6
+20010717:	p6	FreeBSD-SA-01:53
 	Fix ipfw "me" definition.
 
 20010710:	p5	FreeBSD-SA-01:42
