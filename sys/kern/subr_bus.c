@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.34 1999/08/11 22:05:17 peter Exp $
+ *	$Id: subr_bus.c,v 1.35 1999/08/11 22:55:39 peter Exp $
  */
 
 #include <sys/param.h>
@@ -159,8 +159,8 @@ unregister_method(struct device_op_desc *desc)
     if (m->refs == 0) {
 	LIST_REMOVE(m, link);
 	free(m, M_DEVBUF);
+    	desc->method = 0;
     }
-    desc->method = 0;
 }
 
 static int error_method(void)
