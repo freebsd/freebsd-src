@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: syslogd.8,v 1.3 1996/05/20 17:10:03 wollman Exp $
+.\"	$Id: syslogd.8,v 1.4 1996/07/22 16:35:48 pst Exp $
 .\"
 .Dd October 12, 1995
 .Dt SYSLOGD 8
@@ -68,7 +68,7 @@ the default is 20 minutes.
 .It Fl p
 Specify the pathname of an alternate log socket;
 the default is
-.Pa /dev/log .
+.Pa /var/run/log .
 .El
 .Pp
 .Nm Syslogd
@@ -82,7 +82,7 @@ see
 reads messages from the
 .Tn UNIX
 domain socket
-.Pa /dev/log ,
+.Pa /var/run/log ,
 from an Internet domain socket specified in
 .Pa /etc/services ,
 and from the special device
@@ -113,10 +113,13 @@ The configuration file.
 .It Pa /var/run/syslog.pid
 The process id of current
 .Nm syslogd .
-.It Pa /dev/log
+.It Pa /var/run/log
 Name of the
 .Tn UNIX
 domain datagram log socket.
+.Nm syslogd
+might also create a symlink from the location of the old default
+socket, (/dev/log) so as to assist backwards compatibility.
 .It Pa /dev/klog
 The kernel log device.
 .El
@@ -136,4 +139,8 @@ an unauthenticated remote disk-filling service, and should probably be
 disabled by default.  Some sort of
 .No inter- Ns Nm syslogd
 authentication mechanism ought to be worked out.
-
+The log socket was moved from /dev to ease the use
+of a read-only root filesystem. This may confuse some old binaries
+and if possible, syslogd will create a symlink to help these programs,
+however if the root filesystem is already read only, and the link is not
+pre-existing, these binaries will not be able to log messages.
