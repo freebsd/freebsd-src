@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.18.2.4 1998/03/08 09:59:08 jkh Exp $
+.\"	$Id: sio.4,v 1.18.2.5 1998/06/08 06:39:29 jkoshy Exp $
 .\"
 .Dd October 10, 1995
 .Dt SIO 4 i386
@@ -78,8 +78,6 @@ disable FIFO
 no AST/4 compatible IRQ control register
 .It 0x00008
 recover sooner from lost output interrupts
-.It 0x00080
-enable diagnostics in probe
 .It 0x0 Ns Em ?? Ns 00
 minor number of master port
 .El
@@ -137,12 +135,9 @@ The
 keyword may be used on each
 .Em device sio
 line in the kernel configuration file
-to silence the probe
-or to disable the FIFO on 16550A UARTs
+to disable the FIFO on 16550A UARTs
 (see the synopsis).
-Disabling the FIFO should rarely be necessary
-since the driver automatically adjusts the receiver
-FIFO trigger level for low latency and high efficiency.
+Disabling the FIFO should rarely be necessary.
 .Pp
 The
 .Em flags
