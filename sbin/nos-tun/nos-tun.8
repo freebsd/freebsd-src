@@ -6,14 +6,14 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\" 
-.\" $Id$
+.\" $Id: nos-tun.8,v 1.1 1998/04/11 19:33:05 phk Exp $
 .\" 
 .Dd April 11, 1998
 .Dt NOS-TUN 8
 .Os FreeBSD 3.0
 .Sh NAME
 .Nm nos-tun
-.Nd Implement ``nos'' or ``ka9q'' style IP over IP tunnel
+.Nd implement ``nos'' or ``ka9q'' style IP over IP tunnel
 .Sh SYNOPSIS
 .Nm nos-tun
 .Fl t
@@ -24,7 +24,7 @@
 .Ar destination
 .Ar target
 .Sh DESCRIPTION
-.Nm
+.Nm Nos-tun
 is used to establish an
 .Em nos
 style tunnel, (also known as
@@ -35,25 +35,29 @@ tunnel) using a
 .Xr tun 4
 kernel interface.
 .Pp
-.Ar tunnel
+.Ar Tunnel
 is the name of the tunnel device
-.Dq /dev/tun0
+.Pa /dev/tun0
 for example.
 .Pp
-.Ar source
+.Ar Source
 and
 .Ar destination
 are the addresses used on the tunnel device.
 If you configure the tunnel against a cisco router, use a netmask of
 .Dq 255.255.255.252
 on the cisco.  This is because the tunnel is a point-to-point interface
-in the FreeBSD end, a concept cisco doesn't really implement.
+in the
+.Bx Free
+end, a concept cisco doesn't really implement.
 .Pp
-.Ar target
+.Ar Target
 is the address of the remote tunnel device, this must match the source
 address set on the remote end.
 .Sh EXAMPLES
-This end, a FreeBSD box on address 192.168.59.34:
+This end, a
+.Bx Free
+box on address 192.168.59.34:
 .Bd -literal -offset indent 4m 
 nos-tun -t /dev/tun0 -s 192.168.61.1 -d 192.168.61.2 192.168.56.45
 .Ed
@@ -68,6 +72,8 @@ tunnel source 192.168.56.45
 .Ed
 .Sh BUGS
 We don't allow for setting our source address for multihomed machines.
-.Sh AUTHOR
-Nickolay N. Dudorov <nnd@itfs.nsk.su> wrote the program,
-Poul-Henning Kamp <phk@FreeBSD.org> wrote the man-page.
+.Sh AUTHORS
+.An Nickolay N. Dudorov Aq nnd@itfs.nsk.su
+wrote the program,
+.An Poul-Henning Kamp Aq phk@FreeBSD.org
+wrote the man-page.
