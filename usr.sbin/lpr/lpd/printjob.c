@@ -166,7 +166,8 @@ printjob(struct printer *pp)
 	(void) write(1, "", 1);	/* ack that daemon is started */
 	(void) close(2);			/* set up log file */
 	if (open(pp->log_file, O_WRONLY|O_APPEND, LOG_FILE_MODE) < 0) {
-		syslog(LOG_ERR, "%s: %m", pp->log_file);
+		syslog(LOG_ERR, "%s: open(%s): %m", pp->printer,
+		    pp->log_file);
 		(void) open(_PATH_DEVNULL, O_WRONLY);
 	}
 	setgid(getegid());
@@ -189,7 +190,8 @@ printjob(struct printer *pp)
 	 * uses short form file names
 	 */
 	if (chdir(pp->spool_dir) < 0) {
-		syslog(LOG_ERR, "%s: %m", pp->spool_dir);
+		syslog(LOG_ERR, "%s: chdir(%s): %m", pp->printer,
+		    pp->spool_dir);
 		exit(1);
 	}
 	if (stat(pp->lock_file, &stb) == 0 && (stb.st_mode & LFM_PRINT_DIS))
@@ -199,12 +201,14 @@ printjob(struct printer *pp)
 	if (lfd < 0) {
 		if (errno == EWOULDBLOCK)	/* active daemon present */
 			exit(0);
-		syslog(LOG_ERR, "%s: %s: %m", pp->printer, pp->lock_file);
+		syslog(LOG_ERR, "%s: open(%s): %m", pp->printer,
+		    pp->lock_file);
 		exit(1);
 	}
 	/* turn off non-blocking mode (was turned on for lock effects only) */
 	if (fcntl(lfd, F_SETFL, 0) < 0) {
-		syslog(LOG_ERR, "%s: %s: %m", pp->printer, pp->lock_file);
+		syslog(LOG_ERR, "%s: fcntl(%s): %m", pp->printer,
+		    pp->lock_file);
 		exit(1);
 	}
 	ftruncate(lfd, 0);
@@ -214,7 +218,8 @@ printjob(struct printer *pp)
 	sprintf(line, "%u\n", pid);
 	pidoff = i = strlen(line);
 	if (write(lfd, line, i) != i) {
-		syslog(LOG_ERR, "%s: %s: %m", pp->printer, pp->lock_file);
+		syslog(LOG_ERR, "%s: write(%s): %m", pp->printer,
+		    pp->lock_file);
 		exit(1);
 	}
 	/*
@@ -222,26 +227,26 @@ printjob(struct printer *pp)
 	 */
 	if ((nitems = getq(pp, &queue)) < 0) {
 		syslog(LOG_ERR, "%s: can't scan %s", pp->printer, 
-		       pp->spool_dir);
+		    pp->spool_dir);
 		exit(1);
 	}
 	if (nitems == 0)		/* no work to do */
 		exit(0);
 	if (stb.st_mode & LFM_RESET_QUE) { /* reset queue flag */
 		if (fchmod(lfd, stb.st_mode & ~LFM_RESET_QUE) < 0)
-			syslog(LOG_ERR, "%s: %s: %m", pp->printer,
-			       pp->lock_file);
+			syslog(LOG_ERR, "%s: fchmod(%s): %m", pp->printer,
+			    pp->lock_file);
 	}
 
 	/* create a file which will be used to hold stderr from filters */
 	if ((tempfd = mkstemp(tempstderr)) == -1) {
 		syslog(LOG_ERR, "%s: mkstemp(%s): %m", pp->printer,
-		       tempstderr);
+		    tempstderr);
 		exit(1);
 	}
 	if ((i = fchmod(tempfd, 0664)) == -1) {
 		syslog(LOG_ERR, "%s: fchmod(%s): %m", pp->printer,
-		       tempstderr);
+		    tempstderr);
 		exit(1);
 	}
 	/* lpd doesn't need it to be open, it just needs it to exist */
@@ -264,8 +269,8 @@ again:
 		(void) snprintf(line, sizeof(line), "%s\n", q->job_cfname);
 		i = strlen(line);
 		if (write(lfd, line, i) != i)
-			syslog(LOG_ERR, "%s: %s: %m", pp->printer,
-			       pp->lock_file);
+			syslog(LOG_ERR, "%s: write(%s): %m", pp->printer,
+			    pp->lock_file);
 		if (!pp->remote)
 			i = printit(pp, q->job_cfname);
 		else
@@ -284,8 +289,9 @@ again:
 					q = *qp++;
 				if (fchmod(lfd, stb.st_mode & ~LFM_RESET_QUE)
 				    < 0)
-					syslog(LOG_WARNING, "%s: %s: %m",
-					       pp->printer, pp->lock_file);
+					syslog(LOG_WARNING,
+					    "%s: fchmod(%s): %m",
+					    pp->printer, pp->lock_file);
 				break;
 			}
 		}
@@ -306,15 +312,15 @@ again:
 			}
 			(void) close(pfd);	/* close printer */
 			if (ftruncate(lfd, pidoff) < 0)
-				syslog(LOG_WARNING, "%s: %s: %m", 
-				       pp->printer, pp->lock_file);
+				syslog(LOG_WARNING, "%s: ftruncate(%s): %m", 
+				    pp->printer, pp->lock_file);
 			openpr(pp);		/* try to reopen printer */
 			goto restart;
 		} else {
 			syslog(LOG_WARNING, "%s: job could not be %s (%s)", 
-			       pp->printer,
-			       pp->remote ? "sent to remote host" : "printed",
-			       q->job_cfname);
+			    pp->printer,
+			    pp->remote ? "sent to remote host" : "printed",
+			    q->job_cfname);
 			if (i == REPRINT) {
 				/* ensure we don't attempt this job again */
 				(void) unlink(q->job_cfname);
@@ -331,7 +337,7 @@ again:
 	 */
 	if ((nitems = getq(pp, &queue)) < 0) {
 		syslog(LOG_ERR, "%s: can't scan %s", pp->printer,
-		       pp->spool_dir);
+		    pp->spool_dir);
 		exit(1);
 	}
 	if (nitems == 0) {		/* no more work to do */
@@ -378,7 +384,7 @@ printit(struct printer *pp, char *file)
 	 * open control file; ignore if no longer there.
 	 */
 	if ((cfp = fopen(file, "r")) == NULL) {
-		syslog(LOG_INFO, "%s: %s: %m", pp->printer, file);
+		syslog(LOG_INFO, "%s: fopen(%s): %m", pp->printer, file);
 		return (OK);
 	}
 	/*
@@ -524,11 +530,11 @@ printit(struct printer *pp, char *file)
 					continue;
 				if (!didignorehdr) {
 					syslog(LOG_INFO, "%s: in %s :",
-					       pp->printer, file);
+					    pp->printer, file);
 					didignorehdr = 1;
 				}
 				syslog(LOG_INFO, "%s: ignoring line: '%c' %s",
-				       pp->printer, line[0], &line[1]);
+				    pp->printer, line[0], &line[1]);
 				continue;
 			}
 			i = print(pp, line[0], line+1);
@@ -607,7 +613,7 @@ print(struct printer *pp, int format, char *file)
 
 	if (lstat(file, &stb) < 0 || (fi = open(file, O_RDONLY)) < 0) {
 		syslog(LOG_INFO, "%s: unable to open %s ('%c' line)",
-		       pp->printer, file, format);
+		    pp->printer, file, format);
 		return (ERROR);
 	}
 	/*
@@ -714,7 +720,7 @@ print(struct printer *pp, int format, char *file)
 		(void) unlink(".railmag");
 		if ((fo = creat(".railmag", FILMOD)) < 0) {
 			syslog(LOG_ERR, "%s: cannot create .railmag", 
-			       pp->printer);
+			    pp->printer);
 			(void) unlink(".railmag");
 		} else {
 			for (n = 0; n < 4; n++) {
@@ -754,7 +760,7 @@ print(struct printer *pp, int format, char *file)
 	default:
 		(void) close(fi);
 		syslog(LOG_ERR, "%s: illegal format character '%c'",
-			pp->printer, format);
+		    pp->printer, format);
 		return (ERROR);
 	}
 	if (prog == NULL) {
@@ -781,7 +787,8 @@ print(struct printer *pp, int format, char *file)
 		    wait3(&wstatus, WUNTRACED, 0)) > 0 && pid != ofilter)
 			;
 		if (pid < 0)
-			syslog(LOG_WARNING, "%s: after stopping 'of', wait3() returned: %m",
+			syslog(LOG_WARNING,
+			    "%s: after stopping 'of', wait3() returned: %m",
 			    pp->printer);
 		else if (!WIFSTOPPED(wstatus)) {
 			(void) close(fi);
@@ -818,7 +825,8 @@ start:
 			;
 		if (pid < 0) {
 			retcode = 100;
-			syslog(LOG_WARNING, "%s: after execv(%s), wait() returned: %m",
+			syslog(LOG_WARNING,
+			    "%s: after execv(%s), wait() returned: %m",
 			    pp->printer, prog);
 		} else {
 			wstatus_set = 1;
@@ -857,7 +865,7 @@ start:
 		return (ERROR);
 	default:
 		syslog(LOG_WARNING, "%s: filter '%c' exited (retcode=%d)",
-			pp->printer, format, retcode);
+		    pp->printer, format, retcode);
 		return (FILTERERR);
 	}
 }
@@ -1130,7 +1138,7 @@ sendagain:
 				"no space on remote; waiting for queue to drain");
 		if (i == 10)
 			syslog(LOG_ALERT, "%s: can't send to %s; queue full",
-				pp->printer, pp->remote_host);
+			    pp->printer, pp->remote_host);
 		sleep(5 * 60);
 	}
 	if (i)
@@ -1656,7 +1664,7 @@ openpr(const struct printer *pp)
 			opentty(pp);
 	} else {
 		syslog(LOG_ERR, "%s: no line printer device or host name",
-			pp->printer);
+		    pp->printer);
 		exit(1);
 	}
 
@@ -1681,8 +1689,8 @@ openpr(const struct printer *pp)
 				cp++;
 			execl(pp->filters[LPF_OUTPUT], cp, width, length,
 			      (char *)0);
-			syslog(LOG_ERR, "%s: %s: %m", pp->printer, 
-			       pp->filters[LPF_OUTPUT]);
+			syslog(LOG_ERR, "%s: execl(%s): %m", pp->printer,
+			    pp->filters[LPF_OUTPUT]);
 			exit(1);
 		}
 		(void) close(p[0]);		/* close input side */
@@ -1709,7 +1717,7 @@ opennet(const struct printer *pp)
 	port = strtoul(pp->lp, &ep, 0);
 	if (*ep != '@' || port > 65535) {
 		syslog(LOG_ERR, "%s: bad port number: %s", pp->printer,
-		       pp->lp);
+		    pp->lp);
 		exit(1);
 	}
 	ep++;
@@ -1861,7 +1869,8 @@ pstatus(const struct printer *pp, const char *msg, ...)
 	umask(0);
 	fd = open(pp->status_file, O_WRONLY|O_CREAT|O_EXLOCK, STAT_FILE_MODE);
 	if (fd < 0) {
-		syslog(LOG_ERR, "%s: %s: %m", pp->printer, pp->status_file);
+		syslog(LOG_ERR, "%s: open(%s): %m", pp->printer,
+		    pp->status_file);
 		exit(1);
 	}
 	ftruncate(fd, 0);
