@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # Copyright (c) 2000
 #  Paul Richards. All rights reserved.
@@ -29,7 +29,6 @@
 # $FreeBSD$
 #/
 
-use warnings;
 use strict;
 
 use File::Basename;
@@ -117,7 +116,7 @@ my %requires;
 my $pkg = "";
 my $update_pkg = "";
 
-our($opt_a, $opt_c, $opt_v, $opt_r, $opt_n);
+use vars qw($opt_a $opt_c $opt_v $opt_r $opt_n);
 getopts('acnvr:');
 
 if ($opt_a && $opt_c) {
