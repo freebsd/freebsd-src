@@ -46,6 +46,8 @@ int off;
 
 char *startname;
 char *formname;
+char *colortable;
+char *formattr;
 char *text;
 char *label;
 char *fieldname;
@@ -57,6 +59,7 @@ int y, x;
 int width;
 int limit;
 char *attr;
+char *selattr;
 int type;
 int lbl_flag;
 int selected, no_options=0;
@@ -66,6 +69,7 @@ struct field_list {
 	char *fieldname;
 	char *defname;
 	char *attr;
+	char *selattr;
 	struct field field;
 	struct field_list *next;
 };
@@ -97,6 +101,8 @@ struct form_list {
 	struct form_list *next;
 	struct field_list *fields;
 	char *startfield;
+	char *formattr;
+	char *colortable;
 };
 
 struct form_list *cur_form;
@@ -111,6 +117,26 @@ struct menu_list {
 struct menu_list *cur_menu;
 struct menu_list *menu_list;
 struct menu_list *menu;
+
+struct color_list {
+	char *foreground;
+	char *background;
+	struct color_list *next;
+};
+struct color_list *pair;
+struct color_list *cur_pair;
+struct color_list *color_list;
+
+struct color_table {
+	char *tablename;
+	struct color_list *pairs;
+	struct color_table *next;
+};
+
+struct color_table *color_table;
+struct color_table *cur_table;
+struct color_table *color_tables;
+
 %}
 
 %union {
@@ -118,6 +144,17 @@ struct menu_list *menu;
 	char *sval;
 }
 
+%token <ival> COLORTABLE
+%token <ival> COLOR
+%token <ival> BLACK
+%token <ival> RED
+%token <ival> GREEN
+%token <ival> YELLOW
+%token <ival> BLUE
+%token <ival> MAGENTA
+%token <ival> CYAN
+%token <ival> WHITE
+%token <ival> PAIR
 %token <ival> FORM
 %token <sval> NAME
 %token <sval> STRING
@@ -128,12 +165,13 @@ struct menu_list *menu;
 %token <ival> NUMBER
 %token <ival> WIDTH
 %token <ival> STARTFIELD
-%token <ival> COLON
+%token <ival> COMMA
 %token <ival> LBRACE
 %token <ival> RBRACE
 %token <ival> FIELD
 %token <ival> TEXT
 %token <ival> ATTR
+%token <ival> SELATTR
 %token <ival> DEFAULT
 %token <ival> LABEL
 %token <ival> LIMIT
@@ -148,11 +186,13 @@ struct menu_list *menu;
 %token <ival> RIGHT
 %token <ival> NEXT
 
+%type <sval> a_color
+
 %start spec
 
 %%
 
-spec: fields links forms
+spec: colours fields links forms
 		{
 			outf = fopen("frm.tab.h", "w");
 			if (!outf) {
@@ -165,6 +205,74 @@ spec: fields links forms
 				exit (1);
 			}
 		}
+	;
+
+colours: COLOR NAME 
+		{
+			color_table = malloc(sizeof (struct color_table));
+			if (!color_table) {
+				fprintf(stderr, "Couldn't allocate memory for a color table\n");
+				exit (1);
+			}
+			color_table->tablename = cpstr($2);
+		}
+	LBRACE color_pairs RBRACE
+		{
+			color_table->pairs = color_list;
+			cur_pair = 0;
+			if (!cur_table) {
+				color_tables = color_table;
+				cur_table = color_table;
+			} else {
+				cur_table->next = color_table;
+				cur_table = color_table;
+			}
+		}
+	;
+
+color_pairs: pair
+	| color_pairs pair
+	;
+
+pair: PAIR EQUALS a_color
+		{
+			pair = malloc(sizeof (struct color_list));
+			if (!pair) {
+				fprintf(stderr, "Couldn't allocate memory for a color pair\n");
+				exit(1);
+			}
+			pair->foreground = cpstr($3);
+		}
+	COMMA a_color
+		{
+			pair->background = cpstr($6);
+			fprintf(stderr, "for = %s, back = %s\n", pair->foreground, pair->background);
+			if (!cur_pair) {
+				color_list = pair;
+				cur_pair = pair;
+			} else {
+				cur_pair->next = pair;
+				cur_pair = pair;
+			}
+		}
+	;
+
+a_color: BLACK
+		{ $$ = "COLOR_BLACK"; }
+	| RED
+		{ $$ = "COLOR_RED"; }
+	| GREEN
+		{ $$ = "COLOR_GREEN"; }
+	| YELLOW
+		{ $$ = "COLOR_YELLOW"; }
+	| BLUE
+		{ $$ = "COLOR_BLUE"; }
+	| MAGENTA
+		{ $$ = "COLOR_MAGENTA"; }
+	| CYAN
+		{ $$ = "COLOR_CYAN"; }
+	| WHITE
+		{ $$ = "COLOR_WHITE"; }
 	;
 
 fields: field
@@ -251,8 +359,10 @@ form: FORM NAME
 		{
 			form->startfield = startname;
 			form->formname = formname;
+			form->colortable = colortable;
 			form->form.height = height;
 			form->form.width = width;
+			form->formattr = formattr;
 			form->fields = form_field_list;
 			cur_form_field = 0;
 			if (!cur_form) {
@@ -265,7 +375,7 @@ form: FORM NAME
 		}
 	;
 
-formspec: height width startfield fieldlocs
+formspec: height width startfield colortable formattr fieldlocs
 	;
 
 height:	HEIGHT EQUALS NUMBER
@@ -282,6 +392,18 @@ startfield:	/* empty */
 		}
 	| STARTFIELD EQUALS NAME
 		{ startname = cpstr($3); }
+	;
+
+colortable: /*empty */
+		{ colortable = 0; }
+	| COLORTABLE EQUALS NAME
+		{ colortable = cpstr($3); }
+	;
+
+formattr: /* empty */
+		{ formattr = 0; }
+	| ATTR EQUALS NAME
+		{ formattr = cpstr($3); }
 	;
 
 fieldlocs:	/* empty */
@@ -311,7 +433,7 @@ afield: FIELD NAME
 		}
 	;
 
-coord: NUMBER COLON NUMBER
+coord: NUMBER COMMA NUMBER
 		{ y = $1; x = $3; }
 	;
 
@@ -328,6 +450,7 @@ field: FIELD NAME
 			field->field.type = type;
 			field->field.width = width;
 			field->attr = attr;
+			field->selattr = selattr;
 			switch (type) {
 				case F_TEXT:
 					field->field.field.text = malloc(sizeof (struct text_field));
@@ -384,11 +507,12 @@ field: FIELD NAME
 			}
 			width=0;
 			attr=0;
+			selattr=0;
 			limit=0;
 		}
 	;
 
-fieldspec: width attr type
+fieldspec: width attr selattr type
 
 type: textfield
 	| inputfield
@@ -420,7 +544,7 @@ menufield: SELECTED EQUALS NUMBER OPTIONS EQUALS menuoptions
 	;
 
 menuoptions: menuoption
-	| menuoptions COLON menuoption
+	| menuoptions COMMA menuoption
 	;
 
 menuoption: STRING
@@ -456,6 +580,12 @@ attr: /* empty */
 			{ attr = 0; }
 	| ATTR EQUALS NAME
 			{ attr = cpstr($3); }
+	;
+
+selattr: /* empty */
+			{ selattr = 0; }
+	| SELATTR EQUALS NAME
+			{ selattr = cpstr($3); }
 	;
 
 %%
@@ -566,15 +696,49 @@ output_forms(FILE *outf)
 	}
 }
 
+output_coltab(struct color_table *coltab, FILE *outf)
+{
+	struct color_list *pairs;
+
+	/* Output the color pair table */
+
+	fprintf(outf, "struct col_pair %s_coltab[] = {\n",coltab->tablename);
+
+	if (color_list) {
+		for(pairs=coltab->pairs; pairs; pairs=pairs->next)
+			fprintf(outf, "\t{%s, %s},\n",
+					pairs->foreground, pairs->background);
+	} else {
+		/* Output a default color table */
+		fprintf(outf, "\t{7, 0}\n};");
+	}
+	fprintf(outf, "\t{-1, -1}\n};\n\n");
+}
+
 parse_form(struct form_list *form, FILE *outf)
 {
 	struct field_list *fields;
 	struct field_list *def;
 	struct field_list *info;
 	struct link_list *links;
+	struct color_table *coltab;
 	char *fieldname;
 	int no_fields = 0;
 
+	/* If there's a color table defined find it and output it */
+	if (form->colortable) {
+		for (coltab = color_tables; coltab; coltab = coltab->next)
+			if (!strcmp(form->colortable, coltab->tablename)) {
+				output_coltab(coltab, outf);
+				break;
+			}
+		if (!coltab) {
+			fprintf(stderr, "Color table for form %s not found\n",
+					form->formname);
+			form->colortable = 0;
+		}
+	}
+			
 	/*
 	 * Run through the specific instances of the fields referenced by
 	 * this form, filling in the link structures and outputing a field
@@ -611,6 +775,7 @@ parse_form(struct form_list *form, FILE *outf)
 			fields->field.type = def->field.type;
 			fields->field.width = def->field.width;
 			fields->attr = def->attr;
+			fields->selattr = def->selattr;
 		}
 
 		if (!links) {
@@ -639,9 +804,10 @@ parse_form(struct form_list *form, FILE *outf)
 
 	for(fields=form->fields; fields; fields=fields->next) {
 		++no_fields;
-		fprintf(outf, "\t{%d, %d, %d, %d, %s, ",
+		fprintf(outf, "\t{%d, %d, %d, %d, %s, %s, ",
 			fields->field.type, fields->field.y, fields->field.x,
-			fields->field.width, (fields->attr ? fields->attr : "F_DEFATTR"));
+			fields->field.width, (fields->attr ? fields->attr : "F_DEFATTR"),
+			(fields->selattr ? fields->selattr : "F_SELATTR"));
 		fprintf(outf, "%d, %d, %d, %d, %d, ",
 			fields->field.next,
 			fields->field.up,
@@ -663,11 +829,19 @@ parse_form(struct form_list *form, FILE *outf)
 			}
 
 	fprintf(outf,
-			"struct form %s = {%d, %d, %s_fields, %d, %d, %d, %d, 0};\n\n",
+			"struct form %s = {%d, %d, %d, %s_fields, %d, %d, %d, %d, %s, ",
 			form->formname, no_fields,
 			field_id(form->startfield, form->fields),
+			field_id(form->startfield, form->fields),
 			form->formname, form->form.height, form->form.width,
-			form->form.y, form->form.x);
+			form->form.y, form->form.x,
+			(form->formattr ? form->formattr : "F_DEFATTR"));
+	if (form->colortable)
+		fprintf(outf, "%s_coltab, ", form->colortable);
+	else
+		fprintf(outf, "0, ");
+	fprintf(outf, "0};\n\n");
+			
 }
 
 /*
