@@ -93,10 +93,10 @@ Extract values associated with the name list from
 instead of the default
 .Pa /dev/mem .
 .It Fl N Ar system
-Extract the name list from
-.Pa system
-instead of the default
-.Pa /netbsd .
+Use
+.Ar system
+as the kernel instead of the running kernel (as determined from
+.Xr getbootfile 3 ).
 .It Fl u
 Unconfigure a ccd.
 .It Fl U
