@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.61 1994/12/01 20:01:37 jkh Exp $
+#	$Id: Makefile,v 1.62 1994/12/01 20:02:44 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -130,6 +130,11 @@ crunch:
 floppies: crunch boot_144.flp boot_12.flp cpio.flp
 
 release20: 
+.if !defined(RELEASEDIR)
+	@echo "Do NOT invoke this target without a RELEASEDIR defined."
+	@echo "It will otherwise blow away your root directory!"
+	@exit 1
+.endif
 	( cd ${.CURDIR} ; ${MAKE} clean)
 	-mkdir ${RELEASEDIR}
 	chflags -R noschg ${RELEASEDIR}/.
