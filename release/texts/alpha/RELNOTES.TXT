@@ -237,6 +237,8 @@ interface. [MERGED]
 A bug in the NFS client that caused bogus access times with
 O_EXCL|O_CREAT opens was fixed.  [MERGED]
 
+The bug that made certain CDROM drives fail to attach when connected
+to a SCSI card driven by 'isp' has been fixed. [MERGED]
 
 1.2. SECURITY FIXES
 -------------------
