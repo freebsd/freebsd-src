@@ -311,7 +311,7 @@ sis_read_eeprom(struct sis_softc *sc, caddr_t dest, int off, int cnt, int swap)
 	}
 }
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 static device_t
 sis_find_bridge(device_t dev)
 {
@@ -363,7 +363,11 @@ sis_read_cmos(struct sis_softc *sc, device_t dev, caddr_t dest, int off, int cnt
 	pci_write_config(bridge, 0x48, reg|0x40, 1);
 
 	/* XXX */
+#if defined(__i386__)
 	btag = I386_BUS_SPACE_IO;
+#elif defined(__amd64__)
+	btag = AMD64_BUS_SPACE_IO;
+#endif
 
 	for (i = 0; i < cnt; i++) {
 		bus_space_write_1(btag, 0x0, 0x70, i + off);
@@ -1007,7 +1011,7 @@ sis_attach(device_t dev)
 		break;
 	case SIS_VENDORID:
 	default:
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 		/*
 		 * If this is a SiS 630E chipset with an embedded
 		 * SiS 900 controller, we have to read the MAC address
@@ -1441,7 +1445,7 @@ sis_rxeof(struct sis_softc *sc)
 		}
 
 		/* No errors; receive the packet. */	
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 		/*
 		 * On the x86 we do not have alignment problems, so try to
 		 * allocate a new buffer for the receive ring, and pass up
