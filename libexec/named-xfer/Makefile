@@ -21,7 +21,7 @@ LIBISCDIR!=	cd ${.CURDIR}/../../lib/libisc; make -V .OBJDIR
 LIBISC:=	${LIBISCDIR}/libisc.a
 
 DPADD+=		${LIBISC}
-LDADD+=		${LIBISC}
+LDADD+=		${LIBISC} -static
 
 MAN=	named-xfer.8
 
