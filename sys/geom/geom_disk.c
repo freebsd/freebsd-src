@@ -298,7 +298,7 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 	do {
 		tsleep(sb, PZERO, "kern.disks", hz);
 	} while(!sbuf_done(sb));
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb));
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 	return error;
 }
