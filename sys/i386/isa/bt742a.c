@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.31 1995/03/16 18:11:56 bde Exp $
+ *      $Id: bt742a.c,v 1.32 1995/04/12 20:47:38 wollman Exp $
  */
 
 /*
@@ -642,6 +642,22 @@ btprobe(dev)
 	}
 	bzero(bt, sizeof(struct bt_data));
 	btdata[unit] = bt;
+        if(dev->id_iobase > 0xFFF) /*  an EISA card, we have an EISA port */
+        {
+                int i = inb(dev->id_iobase + 0x0C);
+                static unsigned long bt_iobase[8] =
+                { 0x330,0x334,0x230,0x234,0x130,0x134,0x00,0x00 };
+
+                if (!(dev->id_iobase = bt_iobase[i&7])) {
+                        printf("bt_iobase disabled or invalid; index %d\n"
+					,i&7);
+                        return 0;
+                }
+#if defined(DEBUG)
+                printf("btprobe: Trying iobase 0x%x\n",dev->dev_addr);
+#endif /* defined(DEBUG) */
+        }
+
 	bt->bt_base = dev->id_iobase;
 
 #ifndef DEV_LKM
