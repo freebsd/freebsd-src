@@ -66,6 +66,7 @@ static linux_ioctl_function_t linux_ioctl_socket;
 static linux_ioctl_function_t linux_ioctl_sound;
 static linux_ioctl_function_t linux_ioctl_termio;
 static linux_ioctl_function_t linux_ioctl_private;
+static linux_ioctl_function_t linux_ioctl_drm;
 static linux_ioctl_function_t linux_ioctl_special;
 
 static struct linux_ioctl_handler cdrom_handler =
@@ -82,6 +83,8 @@ static struct linux_ioctl_handler termio_handler =
 { linux_ioctl_termio, LINUX_IOCTL_TERMIO_MIN, LINUX_IOCTL_TERMIO_MAX };
 static struct linux_ioctl_handler private_handler =
 { linux_ioctl_private, LINUX_IOCTL_PRIVATE_MIN, LINUX_IOCTL_PRIVATE_MAX };
+static struct linux_ioctl_handler drm_handler =
+{ linux_ioctl_drm, LINUX_IOCTL_DRM_MIN, LINUX_IOCTL_DRM_MAX };
 
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, console_handler);
@@ -90,6 +93,7 @@ DATA_SET(linux_ioctl_handler_set, socket_handler);
 DATA_SET(linux_ioctl_handler_set, sound_handler);
 DATA_SET(linux_ioctl_handler_set, termio_handler);
 DATA_SET(linux_ioctl_handler_set, private_handler);
+DATA_SET(linux_ioctl_handler_set, drm_handler);
 
 struct handler_element 
 {
@@ -1787,6 +1791,16 @@ linux_ioctl_private(struct proc *p, struct linux_ioctl_args *args)
 	if (type == DTYPE_SOCKET)
 		return (linux_ioctl_socket(p, args));
 	return (ENOIOCTL);
+}
+
+/*
+ * DRM ioctl handler (sys/dev/drm)
+ */
+static int
+linux_ioctl_drm(struct proc *p, struct linux_ioctl_args *args)
+{
+	args->cmd = SETDIR(args->cmd);
+	return ioctl(p, (struct ioctl_args *)args);
 }
 
 /*
