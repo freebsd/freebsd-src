@@ -911,18 +911,30 @@ restart:
 	if (ext2fs_inode_hash_lock) {
 		while (ext2fs_inode_hash_lock) {
 			ext2fs_inode_hash_lock = -1;
-			tsleep(&ext2fs_inode_hash_lock, PVM, "ffsvgt", 0);
+			tsleep(&ext2fs_inode_hash_lock, PVM, "e2vget", 0);
 		}
 		goto restart;
 	}
 	ext2fs_inode_hash_lock = 1;
 
+	/*
+	 * If this MALLOC() is performed after the getnewvnode()
+	 * it might block, leaving a vnode with a NULL v_data to be
+	 * found by ext2_sync() if a sync happens to fire right then,
+	 * which will cause a panic because ext2_sync() blindly
+	 * dereferences vp->v_data (as well it should).
+	 */
+	MALLOC(ip, struct inode *, sizeof(struct inode), M_EXT2NODE, M_WAITOK);
+
 	/* Allocate a new vnode/inode. */
 	if (error = getnewvnode(VT_UFS, mp, ext2_vnodeop_p, &vp)) {
+		if (ext2fs_inode_hash_lock < 0)
+			wakeup(&ext2fs_inode_hash_lock);
+		ext2fs_inode_hash_lock = 0;
 		*vpp = NULL;
+		FREE(ip, M_EXT2NODE);
 		return (error);
 	}
-	MALLOC(ip, struct inode *, sizeof(struct inode), M_EXT2NODE, M_WAITOK);
 	bzero((caddr_t)ip, sizeof(struct inode));
 	vp->v_data = ip;
 	ip->i_vnode = vp;
@@ -945,7 +957,6 @@ restart:
 		wakeup(&ext2fs_inode_hash_lock);
 	ext2fs_inode_hash_lock = 0;
 
-	/* Read in the disk contents for the inode, copy into the inode. */
 	/* Read in the disk contents for the inode, copy into the inode. */
 #if 0
 printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
