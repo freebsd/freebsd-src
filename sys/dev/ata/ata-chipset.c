@@ -89,10 +89,10 @@ static void ata_promise_old_intr(void *);
 static void ata_promise_tx2_intr(void *);
 static void ata_promise_mio_intr(void *);
 static void ata_promise_setmode(struct ata_device *, int);
-static int ata_promise_new_dmainit(struct ata_channel *);
+static void ata_promise_new_dmainit(struct ata_channel *);
 static int ata_promise_new_dmastart(struct ata_channel *, caddr_t, int32_t,int);
 static int ata_promise_new_dmastop(struct ata_channel *);
-static int ata_promise_mio_dmainit(struct ata_channel *);
+static void ata_promise_mio_dmainit(struct ata_channel *);
 static int ata_promise_mio_dmastart(struct ata_channel *, caddr_t, int32_t,int);
 static int ata_promise_mio_dmastop(struct ata_channel *);
 static int ata_serverworks_chipinit(device_t);
@@ -1346,18 +1346,14 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
     return;
 }
 
-static int
+static void
 ata_promise_new_dmainit(struct ata_channel *ch)
 {
-    int error;
-
-    if ((error = ata_dmainit(ch)))
-	return error;
-
-    ch->dma->start = ata_promise_new_dmastart;
-    ch->dma->stop = ata_promise_new_dmastop;
-
-    return 0;
+    ata_dmainit(ch);
+    if (ch->dma) {
+	ch->dma->start = ata_promise_new_dmastart;
+	ch->dma->stop = ata_promise_new_dmastop;
+    }
 }
 
 static int
@@ -1404,17 +1400,14 @@ ata_promise_new_dmastop(struct ata_channel *ch)
     return error;
 }
 
-static int
+static void
 ata_promise_mio_dmainit(struct ata_channel *ch)
 {
-    int error;
-
-    if ((error = ata_dmainit(ch)))
-	return error;
-
-    ch->dma->start = ata_promise_mio_dmastart;
-    ch->dma->stop = ata_promise_mio_dmastop;
-    return 0;
+    ata_dmainit(ch);
+    if (ch->dma) {
+	ch->dma->start = ata_promise_mio_dmastart;
+	ch->dma->stop = ata_promise_mio_dmastop;
+    }
 }
 
 static int

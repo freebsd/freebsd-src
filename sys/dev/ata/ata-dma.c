@@ -46,8 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 
 /* prototypes */
-static void ata_dmasetupc_cb(void *, bus_dma_segment_t *, int, int);
-static int ata_dmaalloc(struct ata_channel *);
+static void ata_dmaalloc(struct ata_channel *);
 static void ata_dmafree(struct ata_channel *);
 static void ata_dmasetupd_cb(void *, bus_dma_segment_t *, int, int);
 static int ata_dmasetup(struct ata_device *, caddr_t, int32_t);
@@ -65,20 +64,18 @@ struct ata_dc_cb_args {
     int error;
 };
 
-int 
+void 
 ata_dmainit(struct ata_channel *ch)
 {
-    if (!(ch->dma = 
-	malloc(sizeof(struct ata_dma), M_ATADMA, M_NOWAIT | M_ZERO)))
-	return ENOMEM;
-    ch->dma->alloc = ata_dmaalloc;
-    ch->dma->free = ata_dmafree;
-    ch->dma->setup = ata_dmasetup;
-    ch->dma->start = ata_dmastart;
-    ch->dma->stop = ata_dmastop;
-    ch->dma->alignment = 2;
-    ch->dma->max_iosize = 64*1024;
-    return 0;
+    if ((ch->dma = malloc(sizeof(struct ata_dma), M_ATADMA, M_NOWAIT|M_ZERO))) {
+	ch->dma->alloc = ata_dmaalloc;
+	ch->dma->free = ata_dmafree;
+	ch->dma->setup = ata_dmasetup;
+	ch->dma->start = ata_dmastart;
+	ch->dma->stop = ata_dmastop;
+	ch->dma->alignment = 2;
+	ch->dma->max_iosize = 64*1024;
+    }
 }
 
 
@@ -91,61 +88,48 @@ ata_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	cba->maddr = segs[0].ds_addr;
 }
 
-static int
+static void
 ata_dmaalloc(struct ata_channel *ch)
 {
     struct ata_dc_cb_args ccba;
-    int error;
 
-    if (!ch->dma->dmatag) {
-	if (bus_dma_tag_create(NULL, 1, 0,
-			       BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			       NULL, NULL, MAXCTLDMASZ, ATA_DMA_ENTRIES,
-			       BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
-			       &ch->dma->dmatag)) {
-	    ata_printf(ch, -1, 
-		       "WARNING - DMA tag allocation failed, disabling DMA\n");
-	}
-    }
-    if (!ch->dma->cdmatag) {
-	if ((error = bus_dma_tag_create(ch->dma->dmatag, 1, PAGE_SIZE,
-					BUS_SPACE_MAXADDR_32BIT,
-					BUS_SPACE_MAXADDR, NULL, NULL,
-					MAXTABSZ, 1, MAXTABSZ,
-					BUS_DMA_ALLOCNOW, NULL, NULL,
-					&ch->dma->cdmatag)))
-	    return error;
-    }
-    if (!ch->dma->ddmatag) {
-	if ((error = bus_dma_tag_create(ch->dma->dmatag, ch->dma->alignment, 0,
-					BUS_SPACE_MAXADDR_32BIT,
-					BUS_SPACE_MAXADDR, NULL, NULL,
-					MAXPHYS, ATA_DMA_ENTRIES, MAXSEGSZ,
-					BUS_DMA_ALLOCNOW, NULL, NULL,
-					&ch->dma->ddmatag)))
-	    return error;
-    }
-    if (!ch->dma->mdmatab) {
-	if ((error = bus_dmamem_alloc(ch->dma->cdmatag,
-				      (void **)&ch->dma->dmatab, 0,
-				      &ch->dma->cdmamap)))
-	    return error;
+    if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
+			   BUS_SPACE_MAXADDR, NULL, NULL, MAXCTLDMASZ,
+			   ATA_DMA_ENTRIES, BUS_SPACE_MAXSIZE_32BIT, 0,
+			   NULL, NULL, &ch->dma->dmatag))
+	goto error;
 
-	if ((error = bus_dmamap_load(ch->dma->cdmatag, ch->dma->cdmamap,
-				     ch->dma->dmatab, MAXTABSZ,
-				     ata_dmasetupc_cb, &ccba, 0)) != 0 ||
-	    ccba.error != 0) {
-	    bus_dmamem_free(ch->dma->cdmatag, ch->dma->dmatab,ch->dma->cdmamap);
-	    return error;
-	}
-	ch->dma->mdmatab = ccba.maddr;
+    if (bus_dma_tag_create(ch->dma->dmatag, 1, PAGE_SIZE,
+			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+			   NULL, NULL, MAXTABSZ, 1, MAXTABSZ, BUS_DMA_ALLOCNOW,
+			   NULL, NULL, &ch->dma->cdmatag))
+	goto error;
+
+    if (bus_dma_tag_create(ch->dma->dmatag, ch->dma->alignment, 0,
+			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+			   NULL, NULL, MAXPHYS, ATA_DMA_ENTRIES, MAXSEGSZ,
+			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->ddmatag))
+	goto error;
+
+    if (bus_dmamem_alloc(ch->dma->cdmatag, (void **)&ch->dma->dmatab, 0,
+			 &ch->dma->cdmamap))
+	goto error;
+
+    if (bus_dmamap_load(ch->dma->cdmatag, ch->dma->cdmamap, ch->dma->dmatab,
+			MAXTABSZ, ata_dmasetupc_cb, &ccba, 0) || ccba.error) {
+	bus_dmamem_free(ch->dma->cdmatag, ch->dma->dmatab,ch->dma->cdmamap);
+	goto error;
     }
-    if (!ch->dma->ddmamap) {
-	if ((error = bus_dmamap_create(ch->dma->ddmatag, 0,
-				       &ch->dma->ddmamap)) != 0)
-	    return error;
-    }
-    return 0;
+    ch->dma->mdmatab = ccba.maddr;
+    if (bus_dmamap_create(ch->dma->ddmatag, 0, &ch->dma->ddmamap))
+	goto error;
+    return;
+
+error:
+    ata_printf(ch, -1, "WARNING - DMA tag allocation failed, disabling DMA\n");
+    ata_dmafree(ch);
+    free(ch->dma, M_ATADMA);
+    ch->dma = NULL;
 }
 
 static void
