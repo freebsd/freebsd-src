@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.2 1994/09/23 10:25:38 davidg Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.3 1995/02/16 01:21:44 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@ static char rcsid[] = "$Id: ypbind.c,v 1.2 1994/09/23 10:25:38 davidg Exp $";
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <net/if.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>
@@ -97,6 +98,8 @@ int check;
 #define YPSET_LOCAL	1
 #define YPSET_ALL	2
 int ypsetmode = YPSET_NO;
+
+int ypsecuremode = 0;
 
 int rpcsock;
 struct rmtcallargs rmtca;
@@ -304,7 +307,9 @@ char **argv;
 		if( strcmp("-ypset", argv[i]) == 0)
 			ypsetmode = YPSET_ALL;
 		else if (strcmp("-ypsetme", argv[i]) == 0)
-			ypsetmode = YPSET_LOCAL;
+		        ypsetmode = YPSET_LOCAL;
+		else if (strcmp("-s", argv[i]) == 0)
+		        ypsecuremode++;
 	}
 
 	/* blow away everything in BINDINGDIR */
@@ -444,17 +449,16 @@ checkwork()
 				ypdb->dom_server_addr, ypdb->dom_alive);
 			ypdb->dom_check_t = t + ypdb->dom_interval;
 			ypdb->dom_answered = 0;
-			if (ypdb->dom_vers == 0)
-				syslog (LOG_NOTICE,
-				"NIS server [%s] for domain %s not responding.",
-				inet_ntoa(ypdb->dom_server_addr.sin_addr),	
-				ypdb->dom_domain);
 		} else 
 		if (!ypdb->dom_answered && ypdb->dom_alive &&
 				ypdb->dom_check_t < (t + FAIL_THRESHOLD)) {
-			ypdb->dom_check_t = ypdb->dom_alive = 
+			ypdb->dom_check_t = ypdb->dom_alive =
 				ypdb->dom_vers = 0;
 			ypdb->dom_interval = 5;
+			syslog (LOG_NOTICE,
+				"NIS server [%s] for domain %s not responding.",
+				inet_ntoa(ypdb->dom_server_addr.sin_addr),	
+				ypdb->dom_domain);
 		}
 	}
 }
@@ -570,7 +574,6 @@ int direct;
 				}
 			} else
 				continue;
-
 			in = ((struct sockaddr_in *)&ifreq.ifr_addr)->sin_addr;
 			bsin.sin_addr = in;
 			if( sendto(rpcsock, buf, outlen, 0,	
@@ -650,10 +653,19 @@ int force;
 	char path[MAXPATHLEN];
 	int fd;
 
-	/*printf("returned from %s about %s\n", inet_ntoa(raddrp->sin_addr), dom);*/
+	/*printf("returned from %s/%d about %s\n", inet_ntoa(raddrp->sin_addr),
+	       ntohs(raddrp->sin_port), dom);*/
 
 	if(dom==NULL)
 		return;
+
+	/* if in securemode, check originating port number */
+	if (ypsecuremode && (ntohs(raddrp->sin_port) >= IPPORT_RESERVED)) {
+	    syslog(LOG_WARNING, "Rejected NIS server on [%s/%d] for domain %s.",
+		   inet_ntoa(raddrp->sin_addr), ntohs(raddrp->sin_port),
+		   dom);
+	    return;
+	}
 
 	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext)
 		if( strcmp(ypdb->dom_domain, dom) == 0)
@@ -672,7 +684,8 @@ int force;
 
 	/* soft update, alive, less than FAIL_THRESHOLD seconds old */
 	if(ypdb->dom_alive==1 && (force==0 || ypdb->dom_answered == 0)
-		&& (ypdb->dom_check_t - FAIL_THRESHOLD) > time(NULL)) {
+		&& (ypdb->dom_check_t - FAIL_THRESHOLD) > time(NULL)
+		&& (ypdb->dom_server_addr.sin_port == raddrp->sin_port)) {
 		ypdb->dom_answered = 1;
 		ypdb->dom_interval = 60;
 		return;
@@ -683,8 +696,7 @@ int force;
 	 */
 	if (ypdb->dom_vers == 0)
 		syslog(LOG_NOTICE, "NIS server [%s] for domain %s OK.",
-			inet_ntoa(ypdb->dom_server_addr.sin_addr),
-                        ypdb->dom_domain);
+			inet_ntoa(raddrp->sin_addr), ypdb->dom_domain);
 
 	bcopy((char *)raddrp, (char *)&ypdb->dom_server_addr,
 		sizeof ypdb->dom_server_addr);
