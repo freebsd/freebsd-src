@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.57 1996/05/29 01:35:30 jkh Exp $
+ * $Id: sysinstall.h,v 1.58 1996/06/08 09:08:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -130,7 +130,7 @@
 #define ONE_MEG				2048
 
 /* Which selection attributes to use */
-#define ATTR_SELECTED			(OnVTY ? item_selected_attr : item_attr)
+#define ATTR_SELECTED			(ColorDisplay ? item_selected_attr : item_attr)
 
 /*** Types ***/
 typedef unsigned int Boolean;
