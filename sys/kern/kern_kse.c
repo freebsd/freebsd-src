@@ -621,9 +621,12 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	PROC_LOCK(p);
 	if (ku->ku_mflags & KMF_WAITSIGEVENT) {
 		/* UTS wants to wait for signal event */
-		if (!(p->p_flag & P_SIGEVENT) && !(ku->ku_flags & KUF_DOUPCALL))
+		if (!(p->p_flag & P_SIGEVENT) && !(ku->ku_flags & KUF_DOUPCALL)) {
+			td->td_kflags |= TDK_KSERELSIG;
 			error = msleep(&p->p_siglist, &p->p_mtx, PPAUSE|PCATCH,
 			    "ksesigwait", (uap->timeout ? tvtohz(&tv) : 0));
+			td->td_kflags &= ~(TDK_KSERELSIG | TDK_WAKEUP);
+		}
 		p->p_flag &= ~P_SIGEVENT;
 		sigset = p->p_siglist;
 		PROC_UNLOCK(p);
@@ -632,9 +635,11 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	} else {
 		 if (! kg->kg_completed && !(ku->ku_flags & KUF_DOUPCALL)) {
 			kg->kg_upsleeps++;
+			td->td_kflags |= TDK_KSEREL;
 			error = msleep(&kg->kg_completed, &p->p_mtx,
 				PPAUSE|PCATCH, "kserel",
 				(uap->timeout ? tvtohz(&tv) : 0));
+			td->td_kflags &= ~(TDK_KSEREL | TDK_WAKEUP);
 			kg->kg_upsleeps--;
 		}
 		PROC_UNLOCK(p);
@@ -678,31 +683,36 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	} else {
 		kg = td->td_ksegrp;
 		if (kg->kg_upsleeps) {
-			wakeup_one(&kg->kg_completed);
 			mtx_unlock_spin(&sched_lock);
+			wakeup_one(&kg->kg_completed);
 			PROC_UNLOCK(p);
 			return (0);
 		}
 		ku = TAILQ_FIRST(&kg->kg_upcalls);
 	}
-	if (ku) {
-		if ((td2 = ku->ku_owner) == NULL) {
-			panic("%s: no owner", __func__);
-		} else if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) &&
-		           ((td2->td_wchan == &kg->kg_completed) ||
-			    (td2->td_wchan == &p->p_siglist &&
-			     (ku->ku_mflags & KMF_WAITSIGEVENT)))) {
-			sleepq_abort(td2);
-		} else {
-			ku->ku_flags |= KUF_DOUPCALL;
-		}
+	if (ku == NULL) {
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
-		return (0);
+		return (ESRCH);
 	}
-	mtx_unlock_spin(&sched_lock);
+	if ((td2 = ku->ku_owner) == NULL) {
+		mtx_unlock_spin(&sched_lock);
+		panic("%s: no owner", __func__);
+	} else if (td2->td_kflags & (TDK_KSEREL | TDK_KSERELSIG)) {
+		mtx_unlock_spin(&sched_lock);
+		if (!(td2->td_kflags & TDK_WAKEUP)) {
+			td2->td_kflags |= TDK_WAKEUP;
+			if (td2->td_kflags & TDK_KSEREL)
+				sleepq_remove(td2, &kg->kg_completed);
+			else
+				sleepq_remove(td2, &p->p_siglist);
+		}
+	} else {
+		ku->ku_flags |= KUF_DOUPCALL;
+		mtx_unlock_spin(&sched_lock);
+	}
 	PROC_UNLOCK(p);
-	return (ESRCH);
+	return (0);
 }
 
 /*
@@ -1464,6 +1474,7 @@ thread_link(struct thread *td, struct ksegrp *kg)
 	td->td_ksegrp   = kg;
 	td->td_last_kse = NULL;
 	td->td_flags    = 0;
+	td->td_kflags	= 0;
 	td->td_kse      = NULL;
 
 	LIST_INIT(&td->td_contested);
@@ -2221,4 +2232,14 @@ thread_single_end(void)
 		}
 	}
 	mtx_unlock_spin(&sched_lock);
+}
+
+int
+thread_upcall_check(struct thread *td)
+{
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	if (td->td_kflags & TDK_WAKEUP)
+		return (1);
+	else
+		return (0);
 }
