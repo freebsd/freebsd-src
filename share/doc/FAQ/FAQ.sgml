@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: FAQ.sgml,v 1.4 1996/10/06 12:10:39 jkh Exp $
+<date> $Id: FAQ.sgml,v 1.5 1996/10/06 12:13:38 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -234,8 +234,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           The distribution is available via anonymous ftp from:
           <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="the FreeBSD FTP site">
 
-          For the current release, 2.1.0R, look in:
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.0-RELEASE/" name="FreeBSD 2.1.0-RELEASE">
+          For the current release, 2.1.5R, look in:
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/" name="FreeBSD 2.1.5-RELEASE">
 
           FreeBSD is also available via CDROM, from the following place(s):
  
@@ -437,7 +437,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           SLIP/PPP, sendmail, INN/NNTP, printing, etc..  It's expensive
           (approx. US&dollar;45-&dollar;55), but worth it.  It also
           includes a CDROM with the sources for various tools; most of
-          these, however, are also on the FreeBSD 2.1.0R CDROM (and the
+          these, however, are also on the FreeBSD 2.1.5R CDROM (and the
           FreeBSD CDROM often has newer versions).
 
       <sect1>
@@ -570,11 +570,11 @@ Any entries with a &lt;XXX&gt; are under construction.
           url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/floppies/boot4.flp"
           name="special boot floppy for 4MB systems.">
 
-          FreeBSD 2.1.0 does not install with 4 MB.  To be exact: it does
+          FreeBSD 2.1.5 does not install in 4 MB.  To be exact: it does
           not install with 640 kB base + 3 MB extended memory.  If your
           motherboard can remap some of the ``lost'' memory out of the
           640kB to 1MB region, then you may still be able to get FreeBSD
-          2.1.0 up.
+          2.1.5 up.
 
           Try to go into your BIOS setup and look for a ``remap'' option.
           Enable it.  You may also have to disable ROM shadowing.
@@ -583,8 +583,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           custom kernel with only the options you need and then get the 4
           MB out again.
 
-          You may also install 2.0.5 and then upgrade your system to 2.1.0
-          with the ``upgrade'' option of the 2.1.0 installation program.
+          You may also install 2.0.5 and then upgrade your system to 2.1.5
+          with the ``upgrade'' option of the 2.1.5 installation program.
 
           After the installation, if you build a custom kernel, it will run
           in 4 MB. Someone has even succeeded in booting with 2 MB (the
@@ -641,10 +641,10 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>Help! I can't install from tape!</heading>
         <p> 
-          If you are installing 2.1.0R from tape, you  must create the tape
+          If you are installing 2.1.5R from tape, you  must create the tape
           using a  tar blocksize  of  10  (5120  bytes).  The  default  tar
           blocksize is 20  (10240   bytes), and  tapes  created using  this
-          default size cannot be used to  install 2.1.0R; with these tapes,
+          default size cannot be used to  install 2.1.5R; with these tapes,
           you will get an error that complains about  the record size being
           too big.
  
@@ -772,55 +772,28 @@ Any entries with a &lt;XXX&gt; are under construction.
           Alternatively, if you still have the install floppy, you can just
           reboot from that.
         <p>
-          Select the ``Express Mode for Experts'' option, which will put you
-          straight into the fdisk editor, and create a single slice on the
-          disk. (Make sure you are editing the right disk!) Press `w' to write
-          your changes to the disk. Say ``No'' when asked if you want to
-          remain compatible with other operating systems, and ``Yes'' when
-          asked if you know what you're doing.
-        <p>
-          <bf>NOTE: <tt /sysinstall/ is slightly broken in 2.1.0-RELEASE
-          and will not run disklabel properly. See 
-          <ref id="2_1-disklabel-fix" name="below"> for a workaround.</bf>
-        <p>
-          Pressing `q' to quit will transfer you to the disklabel editor. 
+          Select the ``Express Install'' option, which will put you
+          straight into the partition editor, and create a single slice on the
+          disk with the (A)ll option (make sure you are editing the right
+          disk!). Say ``No'' when asked if you want to remain compatible with
+          other operating systems, and ``Yes'' when asked if you know what
+          you're doing.  Then write it out with the (W)rite command and
+          press (Q)uit to transfer to the disklabel editor. 
+
+	<p>
           Divide up your FreeBSD slice according to taste and press `w' when
           you are happy with the way it looks. Again, say ``Yes'' when asked
           for confirmation, and press `q' to quit.
         <p>
-          At this point, you will be asked if you wish to commit your changes.
-          Do <em /not/ do this! Instead, keep pressing the `escape' key until
-          you exit the installation program. If you booted from the install
-          floppy, the system will reboot at this point. Remember to remove the
-          floppy from the drive first!
-        <p>
-          All we need to do now is to put a filesystem on the disk. Just typing
-          newfs followed by the device name will do this. For example, if the
-          new disk is your second SCSI drive and you put its FreeBSD slice on
-          slice 1, the command would be:-
-          <verb>
-            newfs /dev/sd1s1
-          </verb>
-          ``newfs'' will choose sensible default values which will be good
-          enough for most purposes; if you need to tune the filesystem, the man
-          page for newfs describes all the options. A common optimisation is to
-          use the option `-i 2048' to put more inodes on a disk which is going
-          to be used for a news spool (the default is to have an inode for
-          every 4096 bytes of data - note that there was an error in the man
-          page in 2.1.0 in this respect). 
-        <p>
-          If that sentence did not make any sense to you, you definitely do not
-          need to worry about tuning your filesystem! :-)
-        <p>
           <label id="2_1-disklabel-fix">
-          <bf>Using disklabel(8) manually with 2.1.0-RELEASE</bf>
+          <bf>Using disklabel(8) manually with 2.1.5-RELEASE</bf>
         <p>
           <em>WARNING: There is no substitute for reading carefully
           &amp; understanding what you are doing! Things described here may
           DESTROY your system. Proceed with caution! Remember, a BACKUP is your
           friend!</em>
         <p>
-          <tt /sysinstall/ is broken with 2.1.0-RELEASE and will
+          <tt /sysinstall/ is broken with 2.1.5-RELEASE and will
           insist on mounting something at / in the disklabel editor. You will
           have to manually run <tt /disklabel(8)/ before you can run
           <tt /newfs(8)/. This means doing the math for partitions
