@@ -73,7 +73,7 @@ int cflag, iflag, oflag, pflag, sflag;
 static void usage(void);
 int	decode(void);
 int	decode2(void);
-void	base64_decode(const char *);
+int	base64_decode(const char *);
 
 int
 main(int argc, char *argv[])
@@ -241,18 +241,16 @@ decode2(void)
 	}
 	free(mode);
 
+	if (base64)
+		return (base64_decode(buffn));
+
 	/* for each input line */
 	for (;;) {
 		if (fgets(p = buf, sizeof(buf), stdin) == NULL) {
 			warnx("%s: short file", filename);
 			return (1);
 		}
-		if (base64) {
-			if (strncmp(buf, "====", 4) == 0)
-				return (0);
-			base64_decode(buf);
-			continue;
-		}
+
 #define	DEC(c)	(((c) - ' ') & 077)		/* single character decode */
 #define IS_DEC(c) ( (((c) - ' ') >= 0) &&  (((c) - ' ') <= 077 + 1) )
 /* #define IS_DEC(c) (1) */
@@ -317,20 +315,32 @@ decode2(void)
 	return (0);
 }
 
-void
-base64_decode(const char *stream)
+int
+base64_decode(const char *outname)
 {
+	int n;
+	char buf[MAXPATHLEN+1];
 	unsigned char out[MAXPATHLEN * 4];
-	int rv;
 
-	if (index(stream, '\r') != NULL)
-		*index(stream, '\r') = '\0';
-	if (index(stream, '\n') != NULL)
-		*index(stream, '\n') = '\0';
-	rv = b64_pton(stream, out, (sizeof(out) / sizeof(out[0])));
-	if (rv == -1)
-		errx(1, "b64_pton: error decoding base64 input stream");
-	fwrite(out, 1, rv, stdout);
+	for (;;) {
+		if (fgets(buf, sizeof(buf), stdin) == NULL) {
+			warnx("%s: short file", filename);
+			return (1);
+		}
+		if (strcmp(buf, "====") == 0 ||
+		    strcmp(buf, "====\n") == 0 ||
+		    strcmp(buf, "====\r\n") == 0)
+			return (0);
+		n = strlen(buf);
+		while (n > 0 && (buf[n-1] == '\n' || buf[n-1] == '\r'))
+			buf[--n] = '\0';
+		n = b64_pton(buf, out, sizeof(out));
+		if (n < 0) {
+			warnx("%s: %s: error decoding base64 input stream", filename, outname);
+			return (1);
+		}
+		fwrite(out, 1, n, stdout);
+	}
 }
 
 static void
