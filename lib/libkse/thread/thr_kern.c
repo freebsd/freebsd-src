@@ -611,21 +611,16 @@ _thr_sched_switch(struct pthread *curthread)
 void
 _thr_sched_switch_unlocked(struct pthread *curthread)
 {
-	struct pthread *td;
 	struct pthread_sigframe psf;
 	struct kse *curkse;
-	int ret;
-	volatile int uts_once;
 	volatile int resume_once = 0;
-	ucontext_t uc;
+	ucontext_t *uc;
 
 	/* We're in the scheduler, 5 by 5: */
 	curkse = _get_curkse();
 
 	curthread->need_switchout = 1;	/* The thread yielded on its own. */
 	curthread->critical_yield = 0;	/* No need to yield anymore. */
-	thr_accounting(curthread);
-
 
 	/* Thread can unlock the scheduler lock. */
 	curthread->lock_switch = 1;
@@ -638,109 +633,44 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 	psf.psf_valid = 0;
 	curthread->curframe = &psf;
 
-	/*
-	 * Enter the scheduler if any one of the following is true:
-	 *
-	 *   o The current thread is dead; it's stack needs to be
-	 *     cleaned up and it can't be done while operating on
-	 *     it.
-	 *   o The current thread has signals pending, should
-	 *     let scheduler install signal trampoline for us.  	
-	 *   o There are no runnable threads.
-	 *   o The next thread to run won't unlock the scheduler
-	 *     lock.  A side note: the current thread may be run
-	 *     instead of the next thread in the run queue, but
-	 *     we don't bother checking for that.
-	 */
 	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		kse_sched_single(&curkse->k_kcb->kcb_kmbx);
-	else if ((curthread->state == PS_DEAD) ||
-	    (((td = KSE_RUNQ_FIRST(curkse)) == NULL) &&
-	    (curthread->state != PS_RUNNING)) ||
-	    ((td != NULL) && (td->lock_switch == 0))) {
+	else {
 		curkse->k_switch = 1;
 		_thread_enter_uts(curthread->tcb, curkse->k_kcb);
 	}
-	else {
-		uts_once = 0;
-		THR_GETCONTEXT(&curthread->tcb->tcb_tmbx.tm_context);
-		if (uts_once == 0) {
-			uts_once = 1;
+	
+	/*
+	 * It is ugly we must increase critical count, because we
+	 * have a frame saved, we must backout state in psf
+	 * before we can process signals.
+ 	 */
+	curthread->critical_count += psf.psf_valid;
 
-			/* Switchout the current thread. */
-			kse_switchout_thread(curkse, curthread);
-			_tcb_set(curkse->k_kcb, NULL);
+	/*
+	 * Unlock the scheduling queue and leave the
+	 * critical region.
+	 */
+	/* Don't trust this after a switch! */
+	curkse = _get_curkse();
 
-		 	/* Choose another thread to run. */
-			td = KSE_RUNQ_FIRST(curkse);
-			KSE_RUNQ_REMOVE(curkse, td);
-			curkse->k_curthread = td;
+	curthread->lock_switch = 0;
+	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
 
-			/*
-			 * Make sure the current thread's kse points to
-			 * this kse.
-			 */
-			td->kse = curkse;
-
-			/*
-			 * Reset the time slice if this thread is running
-			 * for the first time or running again after using
-			 * its full time slice allocation.
-			 */
-			if (td->slice_usec == -1)
-				td->slice_usec = 0;
-
-			/* Mark the thread active. */
-			td->active = 1;
-
-			/* Remove the frame reference. */
-			td->curframe = NULL;
-
-			/*
-			 * Continue the thread at its current frame.
-			 * Note: TCB is set in _thread_switch
-			 */
-			ret = _thread_switch(curkse->k_kcb, td->tcb, 0);
-			/* This point should not be reached. */
-			if (ret != 0)
-				PANIC("Bad return from _thread_switch");
-			PANIC("Thread has returned from _thread_switch");
-		}
-	}
-
-	if (psf.psf_valid) {
-		/*
-		 * It is ugly we must increase critical count, because we
-		 * have a frame saved, we must backout state in psf
-		 * before we can process signals.
- 		 */
-		curthread->critical_count++;
-	}
-
-	if (curthread->lock_switch != 0) {
-		/*
-		 * Unlock the scheduling queue and leave the
-		 * critical region.
-		 */
-		/* Don't trust this after a switch! */
-		curkse = _get_curkse();
-
-		curthread->lock_switch = 0;
-		KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
-		_kse_critical_leave(&curthread->tcb->tcb_tmbx);
-	}
 	/*
 	 * This thread is being resumed; check for cancellations.
 	 */
 	if ((psf.psf_valid ||
 	    ((curthread->check_pending || THR_NEED_ASYNC_CANCEL(curthread))
 	    && !THR_IN_CRITICAL(curthread)))) {
+		uc = alloca(sizeof(ucontext_t));
 		resume_once = 0;
-		THR_GETCONTEXT(&uc);
+		THR_GETCONTEXT(uc);
 		if (resume_once == 0) {
 			resume_once = 1;
 			curthread->check_pending = 0;
-			thr_resume_check(curthread, &uc, &psf);
+			thr_resume_check(curthread, uc, &psf);
 		}
 	}
 	THR_ACTIVATE_LAST_LOCK(curthread);
@@ -2443,6 +2373,8 @@ _thr_alloc(struct pthread *curthread)
 			free(thread);
 			thread = NULL;
 		} else {
+			thread->siginfo = calloc(_SIG_MAXSIG,
+				sizeof(siginfo_t));
 			/*
 			 * Initialize thread locking.
 			 * Lock initializing needs malloc, so don't
@@ -2494,6 +2426,7 @@ thr_destroy(struct pthread *thread)
 		_lockuser_destroy(&thread->lockusers[i]);
 	_lock_destroy(&thread->lock);
 	_tcb_dtor(thread->tcb);
+	free(thread->siginfo);
 	free(thread);
 }
 
