@@ -157,6 +157,8 @@ CLEANFILES+=	${GENSRCS}
 
 all: ${SRCS}
 
+build-tools: depend
+
 .include <bsd.prog.mk>
 
 #-----------------------------------------------------------------------
