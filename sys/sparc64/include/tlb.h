@@ -87,8 +87,7 @@ void	tlb_context_demap(struct pmap *pm);
 void	tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va);
 void	tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end);
 
-#define	tlb_tte_demap(tte, pm) \
-	tlb_page_demap(TD_GET_TLB((tte).tte_data), pm, \
-	    TV_GET_VA((tte).tte_vpn));
+#define	tlb_tte_demap(tp, pm) \
+	tlb_page_demap(TTE_GET_TLB(tp), pm, TTE_GET_VA(tp))
 
 #endif /* !_MACHINE_TLB_H_ */
