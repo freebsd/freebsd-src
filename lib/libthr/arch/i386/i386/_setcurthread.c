@@ -50,10 +50,10 @@ ldt_init(void)
 
 	ldt_free = &ldt_entries[NLDT];
 
-	for (i = 0; i < MAXTHR; i++)
+	for (i = 0; i < MAXTHR - 1; i++)
 		ldt_entries[i] = (void *)&ldt_entries[i + 1];
 
-	ldt_entries[MAXTHR] = NULL;
+	ldt_entries[MAXTHR - 1] = NULL;
 
 	ldt_inited = 1;
 }
