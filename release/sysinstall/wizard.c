@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: wizard.c,v 1.1 1995/05/04 23:36:23 jkh Exp $
+ * $Id: wizard.c,v 1.2 1995/05/16 02:53:31 jkh Exp $
  *
  */
 
@@ -17,7 +17,7 @@
 #include <string.h>
 #include <err.h>
 #include <sys/types.h>
-#include "libdisk.h"
+#include "sysinstall.h"
 
 u_char mbr[] = {
     250,51,192,142,208,188,0,124,139,244,80,7,80,31,251,252,191,0,6,185,0,1,

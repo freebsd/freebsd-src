@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.15 1995/05/16 02:53:00 jkh Exp $
+ * $Id: devices.c,v 1.16 1995/05/16 11:37:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -91,10 +91,11 @@ static struct {
     { DEVICE_TYPE_TAPE,  "wt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK,  "sd",		"SCSI disk device"					},
     { DEVICE_TYPE_DISK,  "wd",		"IDE/ESDI/MFM/ST506 disk device"			},
+    { DEVICE_TYPE_FLOPPY, "fd0a",	"Floppy disk drive (unit A)"				},
+    { DEVICE_TYPE_FLOPPY, "fd1a",	"Floppy disk drive (unit B)"				},
     { DEVICE_TYPE_NETWORK, "lo",	"Loop-back (local) network interface"			},
     { DEVICE_TYPE_NETWORK, "sl",	"Serial-line IP (SLIP) interface"			},
     { DEVICE_TYPE_NETWORK, "ppp",	"Point-to-Point Protocol (PPP) interface"		},
-    { DEVICE_TYPE_NETWORK, "tun",	"Tunneling IP driver (not for direct use)"		},
     { DEVICE_TYPE_NETWORK, "ed",	"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 cards"	},
     { DEVICE_TYPE_NETWORK, "ep",	"3Com 3C509 interface card"				},
     { DEVICE_TYPE_NETWORK, "el",	"3Com 3C501 interface card"				},
@@ -210,13 +211,28 @@ deviceGetAll(void)
 		Devices[numDevs]->get = mediaGetTape;
 		Devices[numDevs]->close = mediaCloseTape;
 		Devices[numDevs]->private = NULL;
-		msgDebug("Found a device of type TAPE named: %s\n",
-			 device_names[i].name);
+		msgDebug("Found a device of type TAPE named: %s\n", device_names[i].name);
 		++numDevs;
 	    }
 	    break;
 
 	case DEVICE_TYPE_FLOPPY:
+	    fd = deviceTry(device_names[i].name);
+	    if (fd > 0) {
+		close(fd);
+		CHECK_DEVS;
+		Devices[numDevs] = new_device(device_names[i].name);
+		Devices[numDevs]->type = DEVICE_TYPE_FLOPPY;
+		Devices[numDevs]->enabled = TRUE;
+		Devices[numDevs]->init = mediaInitFloppy;
+		Devices[numDevs]->get = mediaGetFloppy;
+		Devices[numDevs]->close = mediaCloseFloppy;
+		Devices[numDevs]->private = NULL;
+		msgDebug("Found a device of type TAPE named: %s\n", device_names[i].name);
+		++numDevs;
+	    }
+	    break;
+
 	default:
 	    break;
 	}
@@ -241,7 +257,12 @@ deviceGetAll(void)
     ifflags = ifc.ifc_req->ifr_flags;
     end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
     for (ifptr = ifc.ifc_req; ifptr < end; ifptr++) {
+	/* If it's not a link entry, forget it */
 	if (ifptr->ifr_ifru.ifru_addr.sa_family != AF_LINK) 
+	    continue;
+	/* Eliminate network devices that don't make sense */
+	if (!strncmp(ifptr->ifr_name, "tun", 3)
+	    || !strncmp(ifptr->ifr_name, "lo0", 3))
 	    continue;
 	CHECK_DEVS;
 	Devices[numDevs] = new_device(ifptr->ifr_name);
@@ -251,8 +272,7 @@ deviceGetAll(void)
 	Devices[numDevs]->get = mediaGetNetwork;
 	Devices[numDevs]->close = mediaCloseNetwork;
 	Devices[numDevs]->private = NULL;
-	msgDebug("Found a device of type network named: %s\n",
-		 ifptr->ifr_name);
+	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
 	++numDevs;
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -278,8 +298,8 @@ deviceFind(char *name, DeviceType class)
     int i, j;
 
     for (i = 0, j = 0; i < numDevs; i++) {
-	if ((!name || !strcmp(Devices[i]->name, name)) &&
-	    (class == DEVICE_TYPE_ANY || class == Devices[i]->type))
+	if ((!name || !strcmp(Devices[i]->name, name))
+	    && (class == DEVICE_TYPE_ANY || class == Devices[i]->type))
 	    found[j++] = Devices[i];
     }
     found[j] = NULL;
@@ -304,8 +324,7 @@ deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
 	return NULL;
 
     for (numdevs = 0; devs[numdevs]; numdevs++);
-    tmp = (DMenu *)safe_malloc(sizeof(DMenu) +
-			       (sizeof(DMenuItem) * (numdevs + 1)));
+    tmp = (DMenu *)safe_malloc(sizeof(DMenu) + (sizeof(DMenuItem) * (numdevs + 1)));
     bcopy(menu, tmp, sizeof(DMenu));
     for (i = 0; devs[i]; i++) {
 	tmp->items[i].title = devs[i]->name;

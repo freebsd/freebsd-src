@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.2 1995/05/11 06:10:43 jkh Exp $
+ * $Id: decode.c,v 1.3 1995/05/16 02:52:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,7 +99,6 @@ dispatch(DMenuItem *tmp, char *name)
 	
     case DMENU_SET_VARIABLE:
 	variable_set((char *)tmp->ptr);
-	msgInfo("Setting option %s", tmp->ptr);
 	break;
 
     case DMENU_SET_FLAG:

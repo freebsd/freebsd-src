@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.4 1995/05/16 02:53:18 jkh Exp $
+ * $Id: media.c,v 1.5 1995/05/16 11:37:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,8 +51,6 @@
 int
 mediaSetCDROM(char *str)
 {
-    extern DMenu MenuMediaCDROM;
-
     if (OnCDROM == TRUE)
 	return 1;
     else {
@@ -72,8 +70,6 @@ mediaSetCDROM(char *str)
 int
 mediaSetFloppy(char *str)
 {
-    extern DMenu MenuMediaFloppy;
-
     dmenuOpenSimple(&MenuMediaFloppy);
     if (getenv(MEDIA_DEVICE)) {
 	variable_set2(MEDIA_TYPE, "floppy");
@@ -114,8 +110,6 @@ mediaSetTape(char *str)
 int
 mediaSetFTP(char *str)
 {
-    extern DMenu MenuMediaFTP;
-
     dmenuOpenSimple(&MenuMediaFTP);
     if (getenv(MEDIA_DEVICE)) {
 	variable_set2(MEDIA_TYPE, "ftp");
@@ -164,7 +158,6 @@ mediaExtractDist(FILE *fp)
 Boolean
 mediaGetType(void)
 {
-    extern DMenu MenuMedia;
     char *cp;
 
     dmenuOpenSimple(&MenuMedia);
@@ -174,77 +167,13 @@ mediaGetType(void)
     return TRUE;
 }
 
-/* Various media "strategy" routines */
-Boolean
-mediaInitUFS(Device *dev)
-{
-    return TRUE;
-}
-
-Boolean
-mediaGetUFS(char *dist)
-{
-    return TRUE;
-}
-
-/* UFS has no close routine since this is handled at the device level */
-
-Boolean
-mediaInitCDROM(Device *dev)
-{
-    return TRUE;
-}
-
-Boolean
-mediaGetCDROM(char *dist)
-{
-    return TRUE;
-}
-
-void
-mediaCloseCDROM(Device *dev)
-{
-    return;
-}
-
-Boolean
-mediaInitTape(Device *dev)
-{
-    return TRUE;
-}
-
-Boolean
-mediaGetTape(char *dist)
-{
-    return TRUE;
-}
-
-void
-mediaCloseTape(Device *dev)
-{
-    return;
-}
-
-Boolean
-mediaInitNetwork(Device *dev)
-{
-    return TRUE;
-}
-
-Boolean
-mediaGetNetwork(char *dist)
-{
-    return TRUE;
-}
-
-void
-mediaCloseNetwork(Device *dev)
-{
-}
-
 /* Return TRUE if all the media variables are set up correctly */
 Boolean
 mediaVerify(void)
 {
+    if (!getenv(MEDIA_TYPE) || !getenv(MEDIA_DEVICE)) {
+	msgConfirm("Media type or device not set!  Please select a media type\nfrom the Installation menu before proceeding.");
+	return FALSE;
+    }
     return TRUE;
 }
