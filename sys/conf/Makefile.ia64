@@ -16,18 +16,18 @@
 # after which config should be rerun for all machines.
 #
 
-# The Linux cross tools don't understand -fformat-extensions
+# The cross tools don't understand -fformat-extensions
 CWARNFLAGS=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-ffreestanding
-CC=		ia64-unknown-linux-gcc
-LD=		ia64-unknown-linux-ld
-NM=		ia64-unknown-linux-nm
-SIZE=		ia64-unknown-linux-size
-OBJCOPY=	ia64-unknown-linux-objcopy
-OBJDUMP=	ia64-unknown-linux-objdump
+		-Wno-format -ffreestanding
+CC=		ia64-unknown-freebsd5.0-gcc
+LD=		ia64-unknown-freebsd5.0-ld
+NM=		ia64-unknown-freebsd5.0-nm
+SIZE=		ia64-unknown-freebsd5.0-size
+OBJCOPY=	ia64-unknown-freebsd5.0-objcopy
+OBJDUMP=	ia64-unknown-freebsd5.0-objdump
 MACHINE_ARCH=	ia64
-FMT=				# Needs to be blank for linux cross tools.
+FMT=				# Needs to be blank for cross tools.
 
 # Which version of config(8) is required.
 %VERSREQ=	500010
