@@ -105,6 +105,8 @@ vm_contig_launder(int queue)
 			return (TRUE);
 		}
 		vm_page_test_dirty(m);
+		if (m->dirty == 0 && m->busy == 0 && m->hold_count == 0)
+			pmap_remove_all(m);
 		if (m->dirty) {
 			object = m->object;
 			if (object->type == OBJT_VNODE) {
