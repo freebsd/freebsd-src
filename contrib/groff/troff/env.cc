@@ -195,7 +195,7 @@ int font_size::nranges = 0;
 
 extern "C" {
 
-static int compare_ranges(const void *p1, const void *p2)
+int compare_ranges(const void *p1, const void *p2)
 {
   return ((size_range *)p1)->min - ((size_range *)p2)->min;
 }
@@ -430,6 +430,7 @@ void environment::set_font(symbol nm)
     prev_fontno = tem;
   }
   else {
+    prev_fontno = fontno;
     int n = symbol_fontno(nm);
     if (n < 0) {
       n = next_available_font_position();
@@ -438,7 +439,6 @@ void environment::set_font(symbol nm)
     }
     if (family->make_definite(n) < 0)
       return;
-    prev_fontno = fontno;
     fontno = n;
   }
 }
@@ -511,7 +511,7 @@ void environment::set_char_slant(int n)
 }
 
 environment::environment(symbol nm)
-: name(nm),
+: dummy(0),
   prev_line_length((units_per_inch*13)/2),
   line_length((units_per_inch*13)/2),
   prev_title_length((units_per_inch*13)/2),
@@ -538,45 +538,45 @@ environment::environment(symbol nm)
   line_spacing(1),
   prev_indent(0),
   indent(0),
-  have_temporary_indent(0),
   temporary_indent(0),
+  have_temporary_indent(0),
   underline_lines(0),
   input_trap_count(0),
+  line(0),
   prev_text_length(0),
   width_total(0),
   space_total(0),
   input_line_start(0),
-  control_char('.'),
-  no_break_control_char('\''),
-  hyphen_indicator_char(0),
-  spread_flag(0),
-  line(0),
-  pending_lines(0),
-  discarding(0),
   tabs(units_per_inch/2, TAB_LEFT),
   current_tab(TAB_NONE),
+  leader_node(0),
+  tab_char(0),
+  leader_char(charset_table['.']),
   current_field(0),
+  discarding(0),
+  spread_flag(0),
   margin_character_flags(0),
   margin_character_node(0),
   margin_character_distance(points_to_units(10)),
   numbering_nodes(0),
   number_text_separation(1),
-  line_number_multiple(1),
   line_number_indent(0),
+  line_number_multiple(1),
   no_number_count(0),
-  tab_char(0),
-  leader_char(charset_table['.']),
   hyphenation_flags(1),
-  dummy(0),
-  leader_node(0),
-#ifdef WIDOW_CONTROL
-  widow_control(0),
-#endif /* WIDOW_CONTROL */
   hyphen_line_count(0),
   hyphen_line_max(-1),
   hyphenation_space(H0),
   hyphenation_margin(H0),
-  composite(0)
+  composite(0),
+  pending_lines(0),
+#ifdef WIDOW_CONTROL
+  widow_control(0),
+#endif /* WIDOW_CONTROL */
+  name(nm),
+  control_char('.'),
+  no_break_control_char('\''),
+  hyphen_indicator_char(0)
 {
   prev_family = family = lookup_family(default_family);
   prev_fontno = fontno = 1;
@@ -588,17 +588,21 @@ environment::environment(symbol nm)
 }
 
 environment::environment(const environment *e)
-: name(e->name),		// so that eg `.if "\n[.ev]"0"' works
+: dummy(1),
   prev_line_length(e->prev_line_length),
   line_length(e->line_length),
   prev_title_length(e->prev_title_length),
   title_length(e->title_length),
   prev_size(e->prev_size),
   size(e->size),
-  prev_requested_size(e->prev_requested_size),
   requested_size(e->requested_size),
+  prev_requested_size(e->prev_requested_size),
   char_height(e->char_height),
   char_slant(e->char_slant),
+  prev_fontno(e->prev_fontno),
+  fontno(e->fontno),
+  prev_family(e->prev_family),
+  family(e->family),
   space_size(e->space_size),
   sentence_space_size(e->sentence_space_size),
   adjust_mode(e->adjust_mode),
@@ -615,50 +619,119 @@ environment::environment(const environment *e)
   line_spacing(e->line_spacing),
   prev_indent(e->prev_indent),
   indent(e->indent),
-  have_temporary_indent(0),
   temporary_indent(0),
+  have_temporary_indent(0),
   underline_lines(0),
   input_trap_count(0),
+  line(0),
   prev_text_length(e->prev_text_length),
   width_total(0),
   space_total(0),
   input_line_start(0),
-  control_char(e->control_char),
-  no_break_control_char(e->no_break_control_char),
-  hyphen_indicator_char(e->hyphen_indicator_char),
-  spread_flag(0),
-  line(0),
-  pending_lines(0),
-  discarding(0),
   tabs(e->tabs),
   current_tab(TAB_NONE),
+  leader_node(0),
+  tab_char(e->tab_char),
+  leader_char(e->leader_char),
   current_field(0),
+  discarding(0),
+  spread_flag(0),
   margin_character_flags(e->margin_character_flags),
   margin_character_node(e->margin_character_node),
   margin_character_distance(e->margin_character_distance),
   numbering_nodes(0),
   number_text_separation(e->number_text_separation),
-  line_number_multiple(e->line_number_multiple),
   line_number_indent(e->line_number_indent),
+  line_number_multiple(e->line_number_multiple),
   no_number_count(e->no_number_count),
-  tab_char(e->tab_char),
-  leader_char(e->leader_char),
   hyphenation_flags(e->hyphenation_flags),
-  fontno(e->fontno),
-  prev_fontno(e->prev_fontno),
-  dummy(1),
-  family(e->family),
-  prev_family(e->prev_family),
-  leader_node(0),
+  hyphen_line_count(0),
+  hyphen_line_max(e->hyphen_line_max),
+  hyphenation_space(e->hyphenation_space),
+  hyphenation_margin(e->hyphenation_margin),
+  composite(0),
+  pending_lines(0),
 #ifdef WIDOW_CONTROL
   widow_control(e->widow_control),
 #endif /* WIDOW_CONTROL */
-  hyphen_line_max(e->hyphen_line_max),
-  hyphen_line_count(0),
-  hyphenation_space(e->hyphenation_space),
-  hyphenation_margin(e->hyphenation_margin),
-  composite(0)
+  name(e->name),		// so that eg `.if "\n[.ev]"0"' works
+  control_char(e->control_char),
+  no_break_control_char(e->no_break_control_char),
+  hyphen_indicator_char(e->hyphen_indicator_char)
 {
+}
+
+void environment::copy(const environment *e)
+{
+  prev_line_length = e->prev_line_length;
+  line_length = e->line_length;
+  prev_title_length = e->prev_title_length;
+  title_length = e->title_length;
+  prev_size = e->prev_size;
+  size = e->size;
+  prev_requested_size = e->prev_requested_size;
+  requested_size = e->requested_size;
+  char_height = e->char_height;
+  char_slant = e->char_slant;
+  space_size = e->space_size;
+  sentence_space_size = e->sentence_space_size;
+  adjust_mode = e->adjust_mode;
+  fill = e->fill;
+  interrupted = 0;
+  prev_line_interrupted = 0;
+  center_lines = 0;
+  right_justify_lines = 0;
+  prev_vertical_spacing = e->prev_vertical_spacing;
+  vertical_spacing = e->vertical_spacing;
+  prev_post_vertical_spacing = e->prev_post_vertical_spacing,
+  post_vertical_spacing = e->post_vertical_spacing,
+  prev_line_spacing = e->prev_line_spacing;
+  line_spacing = e->line_spacing;
+  prev_indent = e->prev_indent;
+  indent = e->indent;
+  have_temporary_indent = 0;
+  temporary_indent = 0;
+  underline_lines = 0;
+  input_trap_count = 0;
+  prev_text_length = e->prev_text_length;
+  width_total = 0;
+  space_total = 0;
+  input_line_start = 0;
+  control_char = e->control_char;
+  no_break_control_char = e->no_break_control_char;
+  hyphen_indicator_char = e->hyphen_indicator_char;
+  spread_flag = 0;
+  line = 0;
+  pending_lines = 0;
+  discarding = 0;
+  tabs = e->tabs;
+  current_tab = TAB_NONE;
+  current_field = 0;
+  margin_character_flags = e->margin_character_flags;
+  margin_character_node = e->margin_character_node;
+  margin_character_distance = e->margin_character_distance;
+  numbering_nodes = 0;
+  number_text_separation = e->number_text_separation;
+  line_number_multiple = e->line_number_multiple;
+  line_number_indent = e->line_number_indent;
+  no_number_count = e->no_number_count;
+  tab_char = e->tab_char;
+  leader_char = e->leader_char;
+  hyphenation_flags = e->hyphenation_flags;
+  fontno = e->fontno;
+  prev_fontno = e->prev_fontno;
+  dummy = e->dummy;
+  family = e->family;
+  prev_family = e->prev_family;
+  leader_node = 0;
+#ifdef WIDOW_CONTROL
+  widow_control = e->widow_control;
+#endif /* WIDOW_CONTROL */
+  hyphen_line_max = e->hyphen_line_max;
+  hyphen_line_count = 0;
+  hyphenation_space = e->hyphenation_space;
+  hyphenation_margin = e->hyphenation_margin;
+  composite = 0;
 }
 
 environment::~environment()
@@ -896,11 +969,11 @@ void environment_switch()
 	if (n >= 0 && n < NENVIRONMENTS) {
 	  env_stack = new env_list(curenv, env_stack);
 	  if (env_table[n] == 0)
-	    env_table[n] = new environment(itoa(n));
+	    env_table[n] = new environment(i_to_a(n));
 	  curenv = env_table[n];
 	}
 	else
-	  nm = itoa(n);
+	  nm = i_to_a(n);
       }
       else
 	pop = 2;
@@ -935,6 +1008,33 @@ void environment_switch()
   skip_line();
 }
 
+void environment_copy()
+{
+  symbol nm;
+  environment *e=0;
+  tok.skip();
+  if (!tok.delimiter()) {
+    // It looks like a number.
+    int n;
+    if (get_integer(&n)) {
+      if (n >= 0 && n < NENVIRONMENTS)
+	e = env_table[n];
+      else
+	nm = i_to_a(n);
+    }
+  }
+  else
+    nm = get_long_name(1);
+  if (!e && !nm.is_null())
+    e = (environment *)env_dictionary.lookup(nm);
+  if (e == 0) {
+    error("No environment to copy from");
+    return;
+  }
+  else
+    curenv->copy(e);
+  skip_line();
+}
 
 static symbol P_symbol("P");
 
@@ -2117,7 +2217,7 @@ const char *tab_stops::to_string()
   }
   char *ptr = buf;
   for (p = initial_list; p; p = p->next) {
-    strcpy(ptr, itoa(p->pos.to_units()));
+    strcpy(ptr, i_to_a(p->pos.to_units()));
     ptr = strchr(ptr, '\0');
     *ptr++ = 'u';
     *ptr = '\0';
@@ -2138,7 +2238,7 @@ const char *tab_stops::to_string()
   if (repeated_list)
     *ptr++ = TAB_REPEAT_CHAR;
   for (p = repeated_list; p; p = p->next) {
-    strcpy(ptr, itoa(p->pos.to_units()));
+    strcpy(ptr, i_to_a(p->pos.to_units()));
     ptr = strchr(ptr, '\0');
     *ptr++ = 'u';
     *ptr = '\0';
@@ -2521,7 +2621,7 @@ int int_env_reg::get_value(units *val)
 
 const char *int_env_reg::get_string()
 {
-  return itoa((curenv->*func)());
+  return i_to_a((curenv->*func)());
 }
  
 vunits_env_reg::vunits_env_reg(VUNITS_FUNCP f) : func(f)
@@ -2536,7 +2636,7 @@ int vunits_env_reg::get_value(units *val)
 
 const char *vunits_env_reg::get_string()
 {
-  return itoa((curenv->*func)().to_units());
+  return i_to_a((curenv->*func)().to_units());
 }
 
 hunits_env_reg::hunits_env_reg(HUNITS_FUNCP f) : func(f)
@@ -2551,7 +2651,7 @@ int hunits_env_reg::get_value(units *val)
 
 const char *hunits_env_reg::get_string()
 {
-  return itoa((curenv->*func)().to_units());
+  return i_to_a((curenv->*func)().to_units());
 }
 
 string_env_reg::string_env_reg(STRING_FUNCP f) : func(f)
@@ -2602,9 +2702,9 @@ const char *sptoa(int sp)
   assert(sp > 0);
   assert(sizescale > 0);
   if (sizescale == 1)
-    return itoa(sp);
+    return i_to_a(sp);
   if (sp % sizescale == 0)
-    return itoa(sp/sizescale);
+    return i_to_a(sp/sizescale);
   // See if 1/sizescale is exactly representable as a decimal fraction,
   // ie its only prime factors are 2 and 5.
   int n = sizescale;
@@ -2628,7 +2728,7 @@ const char *sptoa(int sp)
       for (t = decimal_point - power5; --t >= 0;)
 	factor *= 5;
       if (factor == 1 || sp <= INT_MAX/factor)
-	return iftoa(sp*factor, decimal_point);
+	return if_to_a(sp*factor, decimal_point);
     }
   }
   double s = double(sp)/double(sizescale);
@@ -2642,7 +2742,7 @@ const char *sptoa(int sp)
     val = v;
     factor *= 10.0;
   } while (++decimal_point < 10);
-  return iftoa(int(val), decimal_point);
+  return if_to_a(int(val), decimal_point);
 }
 
 const char *environment::get_point_size_string()
@@ -2673,6 +2773,7 @@ void init_env_requests()
   init_request("ad", adjust);
   init_request("na", no_adjust);
   init_request("ev", environment_switch);
+  init_request("evc", environment_copy);
   init_request("lt", title_length);
   init_request("ps", point_size);
   init_request("ft", font_change);
@@ -2872,7 +2973,7 @@ struct trie_node {
 };
 
 trie_node::trie_node(char ch, trie_node *p) 
-: c(ch), right(p), down(0), val(0)
+: c(ch), down(0), right(p), val(0)
 {
 }
 
@@ -2941,7 +3042,7 @@ struct operation {
 };
 
 operation::operation(int i, int j, operation *op)
-: num(i), distance(j), next(op)
+: next(op), distance(j), num(i)
 {
 }
 

@@ -3,5 +3,5 @@ MAN1=lookbib.n
 XLIBS=$(LIBBIB) $(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=lookbib.o
-CCSRCS=lookbib.cc
+CCSRCS=$(srcdir)/lookbib.cc
 NAMEPREFIX=$(g)

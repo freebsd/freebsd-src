@@ -1,3 +1,7 @@
 LIB=driver
-OBJS=input.o printer.o
-CCSRCS=input.cc printer.cc
+OBJS=\
+  input.o \
+  printer.o
+CCSRCS=\
+  $(srcdir)/input.cc \
+  $(srcdir)/printer.cc

@@ -19,6 +19,7 @@ with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #include "driver.h"
+#include "nonposix.h"
 
 #define DEFAULT_LINEWIDTH 40
 static int linewidth = DEFAULT_LINEWIDTH;
@@ -186,8 +187,8 @@ public:
 };
 
 dvi_printer::dvi_printer()
-: byte_count(0), last_bop(-1), page_count(0), cur_font(0), fp(stdout),
-  max_h(0), max_v(0), pushed(0), line_thickness(-1), cur_point_size(-1)
+: fp(stdout), byte_count(0), last_bop(-1), page_count(0), max_h(0), max_v(0),
+  cur_font(0), cur_point_size(-1), pushed(0), line_thickness(-1)
 {
   if (font::res != RES)
     fatal("resolution must be %1", RES);
@@ -854,8 +855,8 @@ int main(int argc, char **argv)
     switch(c) {
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "grodvi version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "grodvi version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }
@@ -878,6 +879,9 @@ int main(int argc, char **argv)
     default:
       assert(0);
     }
+#ifdef SET_BINARY
+  SET_BINARY(fileno(stdout));
+#endif
   if (optind >= argc)
     do_file("-");
   else {

@@ -1,5 +1,5 @@
 .\"
-.\" $Id: groff_mm.man,v 1.32 1999/09/03 05:33:12 jh Exp $
+.\" $Id: groff_mm.man,v 1.3 2000/06/04 21:47:19 wlemb Exp $
 .\"
 .de T2
 .ne 2v
@@ -18,7 +18,7 @@
 groff_mm \- groff mm macros
 .SH SYNOPSIS
 .B groff
-.B \-m@TMAC_M@
+.B \-m@TMAC_M_PREFIX@m
 [
 .IR options .\|.\|.
 ]
@@ -38,9 +38,9 @@ the macros OK and PM is not implemented.
 .B \(bu
 groff mm does not support cut marks
 .LP
-\fBm@TMAC_M@\fP is intended to be international. Therefore it is 
+\fBm@TMAC_M_PREFIX@m\fP is intended to be international. Therefore it is 
 possible to write short national macrofiles which change all
-english text to the preferred language. Use \fBm@TMAC_M@se\fP as an example.
+english text to the preferred language. Use \fBm@TMAC_M_PREFIX@mse\fP as an example.
 .\"########################################################################
 .LP
 A file called \fBlocale\fP or \fIlang\fP\fB_locale\fP is read
@@ -72,6 +72,7 @@ Initial blanks in \fIstring\fP should be prefixed with
 a double-quote. (Strings are used in the text as \fB\e*[YYY]\fP.)
 .sp
 \fBSpecial formatting of number registers\fP
+.br
 A number register is printed with normal digits if no format has been
 given.
 Set the format with \fBaf\fP:
@@ -119,7 +120,7 @@ Abstract end, see \fBAS\fP.
 .B "AF [name of firm]"
 Authors firm, should be called before \fBAU\fP, see also \fBCOVER\fP.
 .TP
-.B "AL [type [text-indent [1]]]]"
+.B "AL [type [text-indent [1]]]"
 Start autoincrement list. Items are numbered beginning on one.
 The \fItype\fP argument controls the type of numbers.
 .in +.5i
@@ -186,8 +187,8 @@ The title will show up after the name in the signature block.
 .B "AU [name [initials [loc [dept [ext [room [arg [arg [arg]]]]]]]]]"
 Author information, specifies the author of the memo or paper, and
 will be printed on the cover sheet and on other similar places.
-\fBAU\fP must appear before \fBTL\fP. The author information
-can contain intials, location, department, telephone extension,
+\fBAU\fP must not appear before \fBTL\fP. The author information
+can contain initials, location, department, telephone extension,
 room number or name and up to three extra arguments.
 .TP
 .B "AV [name [1]]"
@@ -198,14 +199,14 @@ with variable \fBLetapp\fP, and the string \fBDate\fP in \fBLetdate\fP.
 .B "AVL [name]"
 Letter signature, generates a line with place for signature. 
 .TP
-.B "B [bold-text [prev-font-tex [bold...]]]"
-Begin boldface
+.B "B [bold-text [prev-font-text [bold...]]]"
+Begin boldface.
 No limit on the number of arguments.
 All arguments will be concatenated to one word, the first, third and so
 on will be printed in boldface.
 .TP
 .B B1
-Begin box (as the ms macro)
+Begin box (as the ms macro).
 Draws a box around the text. The text will be indented one character,
 and the right margin will be one character shorter.
 .TP
@@ -215,7 +216,7 @@ End box. Finish the box started by \fBB1\fP.
 .B BE
 End bottom block, see \fBBS\fP.
 .TP
-.B "BI [bold-text [italic-text [bold-text [...]]]"
+.B "BI [bold-text [italic-text [bold-text [...]]]]"
 Bold-italic.
 No limit on the number of arguments, see \fBB\fP.
 .TP
@@ -228,15 +229,15 @@ number register \fBPi\fP.
 A third argument will prohibit printing of a blank line before each
 item.
 .TP
-.B "BR [bold-text [roman-text [bold-text [...]]]"
+.B "BR [bold-text [roman-text [bold-text [...]]]]"
 Bold-roman.
 No limit on the number of arguments.
 .TP
 .B BS
-Bottom block start. Begins the definition of a text block wich is
+Bottom block start. Begins the definition of a text block which is
 printed at the bottom of each page. Block ends with \fBBE\fP.
 .TP
-.B BVL
+.B "BVL text-indent [mark-indent [1]]"
 Start of 
 broken variable-item list.
 Broken variable-item list has no fixed mark, it assumes that
@@ -299,7 +300,7 @@ one display per page and no text following it.
 Displays are printed at the end of each section (when section-page
 numbering is active) or at the end of the document.
 .T2 1
-A new display will be printed on the current page is there is enough
+A new display will be printed on the current page if there is enough
 space, otherwise it will be printed at the end of the document.
 .T2 2
 One display will be printed at the top of each page or column
@@ -322,8 +323,6 @@ Dash list start. Begins a list where each item is printed
 after a dash. \fIText-indent\fP changes the default indentation
 of the list items set by
 number register \fBPi\fP.
-A third argument will prohibit printing of a blank line before each
-item.
 A second argument prevents the empty line between each list item
 to be printed. See \fBLI\fP.
 .TP
@@ -460,7 +459,7 @@ The string \fBLx\fP controls the title of the
 List of Exhibits, default is \fILIST OF EXHIBITS\fP.
 The List of Exhibits will only be printed if number register \fBLx\fP
 is 1, default 1.
-The string \fBLiex\fP contains the word \fIExhibit\fP, wich
+The string \fBLiex\fP contains the word \fIExhibit\fP, which
 is printed before the number.
 If \fIrefname\fP is used, then the exhibit number is saved with
 \&\fB.SETR\fP, and can be retrieved with \fB.GETST\fP \fIrefname\fP.
@@ -499,8 +498,8 @@ justification (ljust).
 .sp
 .fi
 .DT
-Argument greater than or equal to 11 is considered as arg 0.
-Default for m@TMAC_M@m is 10.
+Argument greater than 11 is considered as arg 0.
+Default for m@TMAC_M_PREFIX@m is 10.
 .TP
 .B FE
 Footnote end.
@@ -534,13 +533,13 @@ is controlled by number register \fBFs\fP, default value is 1.
 .B "GETHN refname [varname]"
 Includes the headernumber where the corresponding \fBSETR\fP \fIrefname\fP
 was placed. Will be X.X.X. in pass 1. See \fBINITR\fP.
-If varname is used, \fBGETHN\fP sets the stringvariable \fIvarname\fP to the 
+If \fIvarname\fP is used, \fBGETHN\fP sets the stringvariable \fIvarname\fP to the 
 headernumber.
 .TP
 .B "GETPN refname [varname]"
 Includes the pagenumber where the corresponding \fBSETR\fP \fIrefname\fP
 was placed. Will be 9999 in pass 1. See \fBINITR\fP.
-If varname is used, \fBGETPN\fP sets the stringvariable \fIvarname\fP
+If \fIvarname\fP is used, \fBGETPN\fP sets the stringvariable \fIvarname\fP
 to the pagenumber.
 .TP
 .B "GETR refname"
@@ -600,6 +599,7 @@ than both \fBHb\fP and \fBHs\fP.
 .br
 Indentation of the text after the heading is controlled by number
 register \fBHi\fP, default value 0.
+.sp
 \fBHi\fP
 .in +.5i
 .T2 0
@@ -620,7 +620,7 @@ is centerered.
 \fBFont control of the heading\fP
 .br
 The font of each heading level is controlled by string \fBHF\fP.
-It contains a fontnumber or fontnam for each level. Default
+It contains a fontnumber or fontname for each level. Default
 is \fB2\ 2\ 2\ 2\ 2\ 2\ 2\fP (all headings in italic).
 Could also be written as \fBI\ I\ I\ I\ I\ I\ I\fP.
 All omitted values are presumed to be a 1.
@@ -641,7 +641,7 @@ Seven number registers, named \fBH1\fP thru \fBH7\fP contains
 the counter for each heading level.
 The values are printed using arabic numerals, this can be changed
 with the macro \fBHM\fP (see below).
-All marks ar concatenated before printing. To avoid this, set
+All marks are concatenated before printing. To avoid this, set
 number register \fBHt\fP to 1. That will only print the current
 heading counter at each heading.
 .sp
@@ -693,6 +693,7 @@ and the needed space after the heading.
 might be used to change indentation.
 .sp
 \fBHZ\ \fP\fIdlevel\ rlevel\ heading-text\fP
+.br
 \fBHZ\fP is called after the printing of the heading, just before
 \fBH\fP or \fBHU\fP exits.
 Could be used to change the page header according to the section heading.
@@ -701,7 +702,7 @@ Could be used to change the page header according to the section heading.
 Set hyphenation character.
 Default value is \e%.
 Resets to the default if called without argument.
-Hyphenation can be turned by setting number
+Hyphenation can be turned off by setting number
 register \fBHy\fP to 0 in the beginning of the file.
 .TP
 .B "HM [arg1 [arg2 [... [arg7]]]]"
@@ -747,7 +748,7 @@ Userdefined heading exit.
 Called just after printing the header.
 See \fBH\fP.
 .TP
-.B "I [italic-text [prev-font-text [italic-text [...]]]"
+.B "I [italic-text [prev-font-text [italic-text [...]]]]"
 Italic.
 Changes the font to italic if called without arguments.
 With one argument it will set the word in italic.
@@ -755,26 +756,30 @@ With two argument it will concatenate them and set the first
 word in italic and the second in the previous font.
 There is no limit on the number of argument, all will be concatenated.
 .TP
-.B "IA [addressee-name [title]]
+.B "IA [addressee-name [title]]"
 Begins specification of the addressee and addressee's address in
 letter style.
 Several names can be specified with empty \fBIA\fP/\fBIE\fP-pairs, but
 only one address.
 See \fBLT\fP.
 .TP
-.B "IB [italic-text [bold-text [italic-text [...]]]"
-Italic-bold
+.B "IB [italic-text [bold-text [italic-text [...]]]]"
+Italic-bold.
 Even arguments is printed in italic, odd in boldface.
 See \fBI\fP.
 .TP
 .B IE
 Ends the address-specification after \fPIA\fP.
 .TP
-.B "INITI filename [type]"
+.B "INITI type filename [macro]"
 Initialize the new index system, sets the filename to collect
 index lines in with \fBIND\fP. Argument \fItype\fP selects
-teh type of index, page number, header marks or both.
+the type of index, page number, header marks or both.
 The default is \fIN\fP.
+
+It is also possible to create a macro that is responsible
+for formatting each row. Add the name of the macro as argument 3.
+The macro will be called with the index as argument(s).
 .sp
 \fBtype\fP
 .in +.5i
@@ -785,6 +790,15 @@ Header marks
 .T2 B
 Both page numbers and header marks, tab separated
 .in
+.TP
+.B "INITR filename"
+Initialize the refencemacros. References will be written to
+\fIfilename.tmp\fP and \fIfilename.qrf\fP. Requires two passes with groff.
+The first looks for references and the second includes them.
+\fBINITR\fP can be used several times, but it is only the first
+occurrence of \fBINITR\fP that is active.
+Option \fB-U\fP might be needed if \fBunsafe\fP-errors occur.
+See also \fBSETR\fP, \fBGETPN\fP and \fBGETHN\fP.
 .TP
 .B "IND arg1 [arg2 [...]]"
 \fBIND\fP writes a line in the index file selected by \fBINITI\fP
@@ -814,19 +828,15 @@ user-defined macros \fBTXIND\fP, \fBTYIND\fP and \fBTZIND\fP if defined.
 is called instead of printing \fBINDEX\fP. \fBTZIND\fP is called
 after the printing and should take care of restoring to normal
 operation again.
-
 .TP
-.B "INITR filename"
-Initialize the refencemacros. References will be written to
-\fIfilename.tmp\fP and \fIfilename.qrf\fP. Requires two passes with groff.
-The first looks for references and the second includes them.
-\fBINITR\fP can be used several times, but it is only the first
-occurrence of \fBINITR\fP that is active.
-Option \fB-U\fP might be needed if \fBunsafe\fP-errors occur.
-See also \fBSETR\fP, \fBGETPN\fP and \fBGETHN\fP.
+.B "ISODATE [0]"
+\fBISODATE\fP changes the predefined date string in \fBDT\fP to
+ISO-format, ie YYYY-MM-DD. This can also be done by
+adding \fB-rIso=1\fP on the command line.
+Reverts to old date format if argument is \fB0\fP.
 .TP
-.B "IR [italic-text [roman-text [italic-text [...]]]"
-Italic-roman
+.B "IR [italic-text [roman-text [italic-text [...]]]]"
+Italic-roman.
 Even arguments is printed in italic, odd in roman.
 See \fBI\fP.
 .TP
@@ -878,7 +888,7 @@ before them. Default is 1.
 \fBLB\fP itself will print \fILB-space\fP blank lines. Default is 0.
 .TP
 .B "LC [list-level]"
-List-status clear
+List-status clear.
 Terminates all current active lists down to \fIlist-level\fP, or 0
 if no argmuent is given. This is used by \fBH\fP to clear any
 active list.
@@ -889,7 +899,7 @@ Terminate the current list. \fBLE\fP outputs a blank line
 if an argument is given.
 .TP
 .B "LI [mark [1]]"
-List item precedes every item in a list. Without argument \fBLS\fP
+List item precedes every item in a list. Without argument \fBLI\fP
 will print the mark determined by the current list type. By giving
 \fBLI\fP one argument, it will use that as the mark instead.
 Two arguments to \fBLI\fP will make \fImark\fP a prefix to
@@ -940,7 +950,7 @@ See also \fBINTERNALS\fP.
 Style\fP
 .T2 BL
 Blocked. Date line, return address, writer's address and closing
-begins at the center of the line. All other lines begins at the left margin.
+begins at the center of the line. All other lines begin at the left margin.
 .T2 SB
 Semi-blocked. Same as blocked, except that the first line in every
 paragraph is indented five spaces.
@@ -948,7 +958,7 @@ paragraph is indented five spaces.
 Full-blocked. All lines begin at the left margin.
 .T2 SP
 Simplified. Almost the same as the full-blocked style. Subject and
-the writer'sidentification is printed in all-capital.
+the writer's identification are printed in all-capital.
 .in
 .TP
 .B "LO type [arg]"
@@ -956,8 +966,8 @@ Specify options in letter (see \fB.LT\fP).
 This is a list of the standard options:
 .in +.5i
 .T2 CN
-Confidential notation. Prints \fBRESTRICTED\fP on the second line
-below the date line. Any argument replaces \fBRESTRICTED\fP.
+Confidential notation. Prints \fBCONFIDENTIAL\fP on the second line
+below the date line. Any argument replaces \fBCONFIDENTIAL\fP.
 See also string variable \fBLetCN\fP.
 .T2 RN
 Reference notation. Prints \fBIn reference to:\fP and the argument
@@ -996,7 +1006,7 @@ item.
 Memorandum type.
 The \fIarg\fP is part of a filename in \fI@TMAC_MDIR@/*.MT\fP.
 Memorandum type 0 thru 5 are supported, including \fI"string"\fP.
-\fIAddresse\fP just sets a variable, used in the AT&T macros.
+\fIAddressee\fP just sets a variable, used in the AT&T macros.
 .br
 \fBarg\fP
 .in +.5i
@@ -1024,11 +1034,11 @@ Use \fBPGFORM\fP without arguments to return to normal.
 .B "MULB cw1 space1 [cw2 space2 [cw3 ...]]"
 Begin a special multi-column mode. Every columns width must be specified.
 Also the space between the columns must be specified. The last column
-does not need any space-definition. MULB starts a diversion and MULE
+does not need any space-definition. \fBMULB\fP starts a diversion and \fBMULE\fP
 ends the diversion and prints the columns.
-The unit for width and space is 'n', but MULB accepts all 
+The unit for width and space is 'n', but \fBMULB\fP accepts all 
 normal unitspecifications like 'c' and 'i'.
-MULB operates in a separate environment.
+\fBMULB\fP operates in a separate environment.
 .TP
 .B "MULN"
 Begin the next column. This is the only way to switch column.
@@ -1037,7 +1047,11 @@ Begin the next column. This is the only way to switch column.
 End the multi-column mode and print the columns.
 .TP
 .B "nP [type]"
-Print numbered paragraph with header level two. Se \fB.P\fP.
+Print numbered paragraph with header level two. See \fB.P\fP.
+.TP
+.B "NCOL"
+Force printing to the next column, don't use this together with
+the \fBMUL*\fP macros, see \fB2C\fP.
 .TP
 .B "NS [arg [1]]"
 Prints different types of notations. The argument selects between
@@ -1135,21 +1149,21 @@ Use the command line arguments
 to change linelength, pagelength and pageoffset instead. Sorry.)
 .TP
 .B PGNH
-No header is printed on the next page. Used to get rid off
-the header in letters or other special texts
+No header is printed on the next page. Used to get rid of
+the header in letters or other special texts.
 This macro must be used before any text to inhibit the pageheader
 on the first page.
 .TP
 .B PIC [-L] [-C] [-R] [-I n] filename [width [height]]
 \fBPIC\fP includes a Postscript file in the document.
-The macro depends on \fBmgm_ref\fP and \fBINITR\fP.
+The macro depends on \fBmmroff\fP and \fBINITR\fP.
 \fB-L\fP, \fB-C\fP, \fB-R\fP and \fB-I n\fP adjusts the picture
 or indents it. The optionally \fIwidth\fP and \fIheight\fP
 can also be given to resize the picture.
 .TP
 .B PE
 Picture end.
-Ends a picture for \fB@TMAC_M@pic\fP, see the manual for \fB@TMAC_M@pic\fP.
+Ends a picture for \fB@TMAC_M_PREFIX@pic\fP, see the manual for \fB@TMAC_M_PREFIX@pic\fP.
 .TP
 .B "PF [arg]"
 Page footer.
@@ -1177,7 +1191,7 @@ in \fIno-space\fP mode.
 Roman.
 Return to roman font, see also \fBI\fP.
 .TP
-.B "RB [roman-text [bold-text [roman-text [...]]]"
+.B "RB [roman-text [bold-text [roman-text [...]]]]"
 Roman-bold.
 Even arguments is printed in roman, odd in boldface.
 See \fBI\fP.
@@ -1194,16 +1208,16 @@ be empty ("").
 Reference end. Ends a reference definition and returns to normal
 processing. See \fBRS\fP.
 .TP
-.B "RI [roman-text [italic-text [roman-text [...]]]"
-Even arguments is printed in roman, odd in italic.
+.B "RI [roman-text [italic-text [roman-text [...]]]]"
+Even arguments are printed in roman, odd in italic.
 See \fBI\fP.
 .TP
 .B "RL [text-indent [1]]"
-Reference list start
+Reference list start.
 Begins a list where each item is preceded with a automatically
 incremented number between
 square brackets.
-\fIText-indent\fP changes the default indentation
+\fIText-indent\fP changes the default indentation.
 .TP
 .B "RP [arg1 [arg2]]"
 Produce reference page.
@@ -1211,7 +1225,7 @@ Produce reference page.
 document. It is not needed if \fBTC\fP is used to produce
 a table of content. The reference page will then be printed automatically.
 .sp
-The reference counter will not be resetted if \fIarg1\fP is 1.
+The reference counter will not be reset if \fIarg1\fP is 1.
 .sp
 \fIArg2\fP tells \fBRP\fP whether to eject a page or not.
 .br
@@ -1258,7 +1272,7 @@ No argumenent or \fB0\fP turns off justification, a \fB1\fP turns on
 justification.
 .TP
 .B "SETR refname [string]"
-Remember the current header and page-number as refname.
+Remember the current header and page-number as \fIrefname\fP.
 Saves \fIstring\fP if \fIstring\fP is defined. \fIstring\fP is retrieved
 with \fB.GETST\fP.
 See \fBINITR\fP.
@@ -1268,10 +1282,11 @@ Signature line. Prints the authors name(s) after the formal closing.
 The argument will be appended to the reference data, printed
 at either the first or last author. The reference data is the location,
 department and initials specified with \fB.AU\fP.
-It will be printed at the first author, otherwise at the last.
+It will be printed at the first author if the second argument is given,
+otherwise at the last.
 No reference data will be printed if the author(s) is specifed
 thru \fB.WA\fP/\fB.WE\fP.
-See \fBLetter internals\fP.
+See \fBINTERNALS\fP.
 .TP
 .B "SK [pages]"
 Skip pages.
@@ -1341,7 +1356,7 @@ The indentation is normally controlled by the maxlength of headings
 in each level.
 .sp
 All texts can be redefined, new stringvariables 
-\fILifg\fP, \fILitb\fP, \fILiex\fP, \fILiec\fP and \fILicon\fP contains
+\fILifg\fP, \fILitb\fP, \fILiex\fP, \fILiec\fP and \fILicon\fP contain
 "Figure", "TABLE", "Exhibit", "Equation" and "CONTENTS".
 These can be redefined to other languages.
 .TP
@@ -1354,10 +1369,10 @@ Table header. See \fBTS\fP.
 be printed again if a page-break occurs.
 Argument \fIN\fP isn't implemented yet.
 .TP
-.B TL [charging-case number(s) [filing-case number(s)]
+.B TL [charging-case number(s) [filing-case number(s)]]
 Begin title of memorandum.
 All text up to the next \fBAU\fP is included in the title.
-\fICharging-case number\fP and \fIfiling-case\fP is saved
+\fICharging-case number\fP and \fIfiling-case\fP are saved
 for use in the front page processing.
 .TP
 .B TM [num1 [num2 [...]]]
@@ -1395,7 +1410,7 @@ All character has equal width.
 The pointsize can be changed with
 the second argument. By specifying the font-argument
 it is possible to use another font instead of courier.
-\fIflag\fP control several special features.
+\fIflag\fP controls several special features.
 It contains the sum of all wanted features.
 .in +.5i
 .T2 Value
@@ -1404,9 +1419,9 @@ Description
 Disable the escape-character (\e). This is normally turned on during
 verbose output.
 .T2 2
-Add en empty line before the verbose text.
+Add an empty line before the verbose text.
 .T2 4
-Add en empty line after the verbose text.
+Add an empty line after the verbose text.
 .T2 8
 Print the verbose text with numbered lines. This adds four digitsized
 spaces in the beginning of each line. Finer control is available with
@@ -1431,7 +1446,7 @@ item.
 .B "VM [top [bottom]]"
 Vertical margin.
 .TP
-.B "WA [writer-name [title]]
+.B "WA [writer-name [title]]"
 Begins specification of the writer and writer's address.
 Several names can be specified with empty \fBWA\fP/\fBWE\fP-pairs, but
 only one address.
@@ -1465,7 +1480,7 @@ Floating displays does not generate line break.
 .LP
 .\"########################################################################
 .LP
-.B "Strings used in m@TMAC_M@:"
+.B "Strings used in m@TMAC_M_PREFIX@m:"
 .TP
 .B App
 A string containing the word "APPENDIX".
@@ -1525,10 +1540,10 @@ Contains "LIST OF EQUATIONS".
 Contains "Yours very truly,", used in \fB.FC\fP.
 .TP
 .B Letapp
-Contains "APPROVED:", used in \fB.AV.\fP.
+Contains "APPROVED:", used in \fB.AV\fP.
 .TP
 .B Letdate
-Contains "Date", used in \fB.AV.\fP.
+Contains "Date", used in \fB.AV\fP.
 .TP
 .B LetCN
 Contains "CONFIDENTIAL", used in \fB.LO CN\fP.
@@ -1609,7 +1624,7 @@ Contains \e(tm, trade mark.
 Argument to \fB.nm\fP in \fB.VERBON\fP, default: \fB1\fP.
 .\"-----------------------------------
 .LP
-.B "Number variables used in m@TMAC_M@:"
+.B "Number variables used in m@TMAC_M_PREFIX@m:"
 .TP
 .B Aph
 Print an appendix-page for every new appendix 
@@ -1712,6 +1727,11 @@ Hyphenation in body, default 1.
 .br
 1\ ->\ hyphenation 14 on
 .TP
+.B Iso
+Set this variable to 1 on the command line to get ISO-formatted date string.
+(\fB-rIso=1\fP)
+Useless inside a document.
+.TP
 .B Letwam
 Max lines in return-address, used in \fB.WA\fP/\fB.WE\fP. Default 14.
 .TP
@@ -1735,7 +1755,6 @@ List space, if current listlevel > Ls then no spacing will occur around lists.
 Default 99.
 .TP
 .B Lsp
-.TP
 The size of an empty line. Normally 0.5v, but it is 1v 
 if \fBn\fP is set (\fB.nroff\fP).
 .TP
@@ -1753,7 +1772,7 @@ Numbering style [0:5], default 0.
 4\ ==\ page header is removed on the first page.
 .br
 5\ ==\ "section-page" and "section-figure" numbering enabled.
-Se also the number-register Sectf and Sectp.
+See also the number-register Sectf and Sectp.
 .TP
 .B Np
 Numbered paragraphs, default 0.
@@ -1804,11 +1823,11 @@ Paragraph type, default 0.
 .TP
 .B Sectf
 Flag controlling "section-figures". A non-zero value enables this.
-Se also register N.
+See also register N.
 .TP
 .B Sectp
 Flag controlling "section-page-numbers". A non-zero value enables this.
-Se also register N.
+See also register N.
 .TP
 .B Si
 Display indent, default 5.
@@ -1824,7 +1843,7 @@ The letter macros is using different submacros depending on
 the letter type. The name of the submacro has the letter type
 as suffix. It is therefore possible to define other letter types, either
 in the national macro-file, or as local additions.
-\&\fB.LT\fP will set the number variables \fBPt\fP and \fBPi\fP to 5 and 0.
+\&\fB.LT\fP will set the number variables \fBPt\fP and \fBPi\fP to 0 and 5.
 The following strings and macros must be defined for a new letter type:
 .TP
 \fBlet@init_\fP\fItype\fP
@@ -1858,7 +1877,7 @@ variable \fBlet*lo-\fP\fItype\fP.
 Jörgen Hägg, Lund, Sweden <jh@axis.se>.
 .SH FILES
 .TP
-.B @MACRODIR@/tmac.@TMAC_M@
+.B @MACRODIR@/tmac.@TMAC_M_PREFIX@m
 .TP
 .B @TMAC_MDIR@/*.cov
 .TP
@@ -1873,4 +1892,4 @@ Jörgen Hägg, Lund, Sweden <jh@axis.se>.
 .BR @g@eqn (@MAN1EXT@)
 .br
 .BR mm (@MAN7EXT@)
-.BR m@TMAC_M@se (@MAN7EXT@)
+.BR m@TMAC_M_PREFIX@mse (@MAN7EXT@)

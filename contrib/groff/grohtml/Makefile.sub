@@ -2,5 +2,9 @@ PROG=grohtml
 MAN1=grohtml.n
 XLIBS=$(LIBDRIVER) $(LIBGROFF)
 MLIB=$(LIBM)
-OBJS=html.o
-CCSRCS=html.cc
+OBJS=\
+  html.o \
+  output.o
+CCSRCS=\
+  $(srcdir)/html.cc \
+  $(srcdir)/output.cc

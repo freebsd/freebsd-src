@@ -21,7 +21,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "pic.h"
 #include "ptable.h"
 #include "object.h"
-#include "pic.tab.h"
+#include "pic_tab.h"
 
 declare_ptable(char)
 implement_ptable(char)
@@ -65,9 +65,8 @@ int input::get_location(const char **, int *)
 }
 
 file_input::file_input(FILE *f, const char *fn)
-: lineno(0), ptr(""), filename(fn)
+: fp(f), filename(fn), lineno(0), ptr("")
 {
-  fp = f;
 }
 
 file_input::~file_input()
@@ -174,7 +173,7 @@ char *process_body(const char *body)
 
 
 argument_macro_input::argument_macro_input(const char *body, int ac, char **av)
-: argc(ac), ap(0)
+: ap(0), argc(ac)
 {
   for (int i = 0; i < argc; i++)
     argv[i] = av[i];
@@ -496,6 +495,7 @@ int lookup_keyword(const char *str, int len)
     { "spline", SPLINE },
     { "sprintf", SPRINTF },
     { "sqrt", SQRT },
+    { "srand", SRAND },
     { "start", START },
     { "the", THE },
     { "then", THEN },
@@ -1328,7 +1328,7 @@ public:
 };
 
 for_input::for_input(char *vr, double t, int bim, double b, char *bd)
-: var(vr), to(t), by_is_multiplicative(bim), by(b), body(bd), p(body),
+: var(vr), body(bd), to(t), by_is_multiplicative(bim), by(b), p(body),
   done_newline(0)
 {
 }
@@ -1441,7 +1441,7 @@ public:
 
 copy_file_thru_input::copy_file_thru_input(input *i, const char *b,
 					   const char *u)
-: in(i), copy_thru_input(b, u)
+: copy_thru_input(b, u), in(i)
 {
 }
 
@@ -1604,7 +1604,7 @@ public:
 };
 
 simple_file_input::simple_file_input(FILE *p, const char *s)
-: filename(s), fp(p), lineno(1)
+: filename(s), lineno(1), fp(p)
 {
 }
 

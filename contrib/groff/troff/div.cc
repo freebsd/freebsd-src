@@ -48,7 +48,7 @@ static vunits truncated_space;
 static vunits needed_space;
 
 diversion::diversion(symbol s) 
-: nm(s), prev(0), vertical_position(V0), marked_place(V0), high_water_mark(V0)
+: prev(0), nm(s), vertical_position(V0), high_water_mark(V0), marked_place(V0)
 {
 }
 
@@ -235,8 +235,7 @@ void macro_diversion::output(node *nd, int retain_size,
       mac->append(temp);
     }
   }
-  if (!v.post_extra.is_zero())
-    last_post_line_extra_space = v.post_extra.to_units();
+  last_post_line_extra_space = v.post_extra.to_units();
   if (!retain_size) {
     v.pre = vs;
     v.post = post_vs;
@@ -284,10 +283,11 @@ void macro_diversion::copy_file(const char *filename)
 }
 
 top_level_diversion::top_level_diversion()
-: page_count(0), have_next_page_number(0), page_length(units_per_inch*11), 
-  page_offset(units_per_inch), prev_page_offset(units_per_inch), 
-  ejecting_page(0), page_trap_list(0), before_first_page(1), no_space_mode(0),
-  page_number(0), last_page_count(-1)
+: page_number(0), page_count(0), last_page_count(-1),
+  page_length(units_per_inch*11),
+  prev_page_offset(units_per_inch), page_offset(units_per_inch),
+  page_trap_list(0), have_next_page_number(0),
+  ejecting_page(0), before_first_page(1), no_space_mode(0)
 {
 }
 
@@ -338,8 +338,7 @@ void top_level_diversion::output(node *nd, int retain_size,
   vertical_size v(vs, post_vs);
   for (node *tem = nd; tem != 0; tem = tem->next)
     tem->set_vertical_size(&v);
-  if (!v.post_extra.is_zero())
-    last_post_line_extra_space = v.post_extra.to_units();
+  last_post_line_extra_space = v.post_extra.to_units();
   if (!retain_size) {
     v.pre = vs;
     v.post = post_vs;
@@ -437,7 +436,7 @@ void top_level_diversion::space(vunits n, int forced)
 }
 
 trap::trap(symbol s, vunits n, trap *p)
-     : nm(s), next(p), position(n)
+     : next(p), position(n), nm(s)
 {
 }
 
@@ -914,7 +913,7 @@ int page_offset_reg::get_value(units *res)
 
 const char *page_offset_reg::get_string()
 {
-  return itoa(topdiv->get_page_offset().to_units());
+  return i_to_a(topdiv->get_page_offset().to_units());
 }
 
 class page_length_reg : public reg {
@@ -931,7 +930,7 @@ int page_length_reg::get_value(units *res)
 
 const char *page_length_reg::get_string()
 {
-  return itoa(topdiv->get_page_length().to_units());
+  return i_to_a(topdiv->get_page_length().to_units());
 }
 
 class vertical_position_reg : public reg {
@@ -954,7 +953,7 @@ const char *vertical_position_reg::get_string()
   if (curdiv == topdiv && topdiv->before_first_page)
     return "-1";
   else
-    return itoa(curdiv->get_vertical_position().to_units());
+    return i_to_a(curdiv->get_vertical_position().to_units());
 }
 
 class high_water_mark_reg : public reg {
@@ -971,7 +970,7 @@ int high_water_mark_reg::get_value(units *res)
 
 const char *high_water_mark_reg::get_string()
 {
-  return itoa(curdiv->get_high_water_mark().to_units());
+  return i_to_a(curdiv->get_high_water_mark().to_units());
 }
 
 class distance_to_next_trap_reg : public reg {
@@ -988,7 +987,7 @@ int distance_to_next_trap_reg::get_value(units *res)
 
 const char *distance_to_next_trap_reg::get_string()
 {
-  return itoa(curdiv->distance_to_next_trap().to_units());
+  return i_to_a(curdiv->distance_to_next_trap().to_units());
 }
 
 class diversion_name_reg : public reg {
@@ -1030,7 +1029,7 @@ public:
 
 const char *next_page_number_reg::get_string()
 {
-  return itoa(topdiv->get_next_page_number());
+  return i_to_a(topdiv->get_next_page_number());
 }
 
 class page_ejecting_reg : public reg {
@@ -1040,7 +1039,7 @@ public:
 
 const char *page_ejecting_reg::get_string()
 {
-  return itoa(topdiv->get_ejecting());
+  return i_to_a(topdiv->get_ejecting());
 }
 
 class constant_vunits_reg : public reg {
@@ -1056,7 +1055,7 @@ constant_vunits_reg::constant_vunits_reg(vunits *q) : p(q)
 
 const char *constant_vunits_reg::get_string()
 {
-  return itoa(p->to_units());
+  return i_to_a(p->to_units());
 }
 
 class nl_reg : public variable_reg {

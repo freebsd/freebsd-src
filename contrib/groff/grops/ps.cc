@@ -21,6 +21,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "driver.h"
 #include "stringclass.h"
 #include "cset.h"
+#include "nonposix.h"
 
 #include "ps.h"
 #include <time.h>
@@ -70,7 +71,7 @@ inline int is_ascii(char c)
 }
 
 ps_output::ps_output(FILE *f, int n)
-: fp(f), max_line_length(n), col(0), need_space(0), fixed_point(0)
+: fp(f), col(0), max_line_length(n), need_space(0), fixed_point(0)
 {
 }
 
@@ -289,7 +290,7 @@ ps_output &ps_output::put_number(int n)
 
 ps_output &ps_output::put_fix_number(int i)
 {
-  const char *p = iftoa(i, fixed_point);
+  const char *p = if_to_a(i, fixed_point);
   int len = strlen(p);
   if (col > 0 && col + len + need_space > max_line_length) {
     putc('\n', fp);
@@ -381,7 +382,7 @@ ps_font *ps_font::load_ps_font(const char *s)
 }
 
 ps_font::ps_font(const char *nm)
-: font(nm), encoding(0), reencoded_name(0), encoding_index(-1)
+: font(nm), encoding_index(-1), encoding(0), reencoded_name(0)
 {
 }
 
@@ -512,15 +513,15 @@ public:
 };
 
 ps_printer::ps_printer()
-: pages_output(0),
+: out(0, MAX_LINE_LENGTH),
+  pages_output(0),
   sbuf_len(0),
   output_hpos(-1),
   output_vpos(-1),
-  out(0, MAX_LINE_LENGTH),
-  ndefined_styles(0),
-  next_encoding_index(0),
   line_thickness(-1),
   fill(FILL_MAX + 1),
+  ndefined_styles(0),
+  next_encoding_index(0),
   ndefs(0),
   invis_count(0)
 {
@@ -819,8 +820,13 @@ void ps_printer::flush_sbuf()
   if (sbuf_kern != 0)
     out.put_fix_number(sbuf_kern);
   out.put_string(sbuf, sbuf_len);
+  char command_array[] = {'A', 'B', 'C', 'D',
+			  'E', 'F', 'G', 'H',
+			  'I', 'J', 'K', 'L',
+			  'M', 'N', 'O', 'P',
+			  'Q', 'R', 'S', 'T'};
   char sym[2];
-  sym[0] = 'A' + motion*4 + space_flag + 2*(sbuf_kern != 0);
+  sym[0] = command_array[motion*4 + space_flag + 2*(sbuf_kern != 0)];
   sym[1] = '\0';
   switch (motion) {
   case NONE:
@@ -1066,8 +1072,8 @@ void ps_printer::draw(int code, int *p, int np, const environment *env)
 
 void ps_printer::begin_page(int n)
 {
-  out.begin_comment("Page:").comment_arg(itoa(n));
-  out.comment_arg(itoa(++pages_output)).end_comment();
+  out.begin_comment("Page:").comment_arg(i_to_a(n));
+  out.comment_arg(i_to_a(++pages_output)).end_comment();
   output_style.f = 0;
   output_space_code = 32;
   output_draw_point_size = -1;
@@ -1106,11 +1112,11 @@ ps_printer::~ps_printer()
   putchar('\n');
   out.set_file(stdout);
   {
-    extern const char *version_string;
+    extern const char *Version_string;
     out.begin_comment("Creator:")
        .comment_arg("groff")
        .comment_arg("version")
-       .comment_arg(version_string)
+       .comment_arg(Version_string)
        .end_comment();
   }
   {
@@ -1128,7 +1134,7 @@ ps_printer::~ps_printer()
     rm.need_font(psf->get_internal_name());
   }
   rm.print_header_comments(out);
-  out.begin_comment("Pages:").comment_arg(itoa(pages_output)).end_comment();
+  out.begin_comment("Pages:").comment_arg(i_to_a(pages_output)).end_comment();
   out.begin_comment("PageOrder:").comment_arg("Ascend").end_comment();
 #if 0
   fprintf(out.get_file(), "%%%%DocumentMedia: () %g %g 0 () ()\n",
@@ -1473,8 +1479,8 @@ int main(int argc, char **argv)
     switch(c) {
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "grops version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "grops version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }
@@ -1514,6 +1520,9 @@ int main(int argc, char **argv)
       assert(0);
     }
   font::set_unknown_desc_command_handler(handle_unknown_desc_command);
+#ifdef SET_BINARY
+  SET_BINARY(fileno(stdout));
+#endif
   if (optind >= argc)
     do_file("-");
   else {

@@ -19,7 +19,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #define INT_DIGITS 19		/* enough for 64-bit integer */
 
-char *iftoa(i, decimal_point)
+char *if_to_a(i, decimal_point)
      int i, decimal_point;
 {
   /* room for a -, INT_DIGITS digits, a decimal point, and a terminating '\0' */

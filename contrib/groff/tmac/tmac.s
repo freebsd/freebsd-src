@@ -70,8 +70,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .ds MONTH11 November
 .ds MONTH12 December
 .ds MO \\*[MONTH\n[mo]]
-.nr *year \n[yr]+1900
-.ds DY \n[dy] \*[MO] \n[*year]
+.ds DY \n[dy] \*[MO] \n[year]
 .de ND
 .if \\n[.$] .ds DY "\\$*
 ..

@@ -229,14 +229,15 @@ void process_input_file(FILE *fp)
 	  c = getc(fp);
 	}
 	putchar('\n');
-	printf(".if '\\*(.T'html' \\X(graphic-start(\n");
+	printf(".if '\\*(.T'html' \\X(table-start(\n");
 	current_lineno++;
 	{
 	  table_input input(fp);
 	  process_table(input);
+	  if (input.ended())
+	    printf(".if '\\*(.T'html' \\X(table-end(\n");
 	  set_troff_location(current_filename, current_lineno);
 	  if (input.ended()) {
-	    printf(".if '\\*(.T'html' \\X(graphic-end(\n");
 	    fputs(".TE", stdout);
 	    while ((c = getc(fp)) != '\n') {
 	      if (c == EOF) {
@@ -334,7 +335,7 @@ struct options {
 };
 
 options::options()
-: flags(0), tab_char('\t'), decimal_point_char('.'), linesize(0)
+: flags(0), linesize(0), tab_char('\t'), decimal_point_char('.')
 {
   delim[0] = delim[1] = '\0';
 }
@@ -1460,8 +1461,8 @@ int main(int argc, char **argv)
       break;
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "GNU tbl version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "GNU tbl version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }

@@ -59,7 +59,7 @@ box *make_special_box(char *s, box *p)
   return new special_box(s, p);
 }
 
-special_box::special_box(char *s, box *pp) :macro_name(s), pointer_box(pp)
+special_box::special_box(char *s, box *pp) : pointer_box(pp), macro_name(s)
 {
 }
 

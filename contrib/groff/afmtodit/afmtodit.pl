@@ -1,6 +1,6 @@
 #! /usr/bin/perl -P-
 # -*- Perl -*-
-#Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+#Copyright (C) 1989-2000 Free Software Foundation, Inc.
 #     Written by James Clark (jjc@jclark.com)
 #
 #This file is part of groff.
@@ -311,7 +311,7 @@ for ($i = 0; $i < 256; $i++) {
 	    printf(",%d", do conv($h));
 	}
 	printf("\t%d", $type);
-	printf("\t0%03o\t%s\n", $i, $ch);
+	printf("\t0%03o\t-- %s\n", $i, $ch);
 	for ($j = 1; $j < $nmap{$ch}; $j++) {
 	    printf("%s\t\"\n", $map{$ch,$j});
 	}
