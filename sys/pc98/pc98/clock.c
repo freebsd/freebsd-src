@@ -95,6 +95,11 @@
 
 #include <i386/isa/intr_machdep.h>
 
+#include "mca.h"
+#if NMCA > 0
+#include <i386/isa/mca_machdep.h>
+#endif
+
 #ifdef SMP
 #define disable_intr()	CLOCK_DISABLE_INTR()
 #define enable_intr()	CLOCK_ENABLE_INTR()
@@ -283,6 +288,11 @@ clkintr(struct clockframe frame)
 		}
 		break;
 	}
+#if NMCA > 0
+	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
+	if (MCA_system)
+		outb(0x61, inb(0x61) | 0x80);
+#endif
 }
 
 /*
