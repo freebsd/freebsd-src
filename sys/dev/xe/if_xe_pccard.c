@@ -106,6 +106,7 @@ static const struct xe_pccard_product xe_pccard_products[] = {
 	{ PCMCIA_CARD_D(ACCTON, EN2226, 0),      0x43, XE_CARD_TYPE_FLAGS_MOHAWK },
 	{ PCMCIA_CARD_D(COMPAQ2, CPQ_10_100, 0), 0x43, XE_CARD_TYPE_FLAGS_MOHAWK },
 	{ PCMCIA_CARD_D(INTEL, EEPRO100, 0),     0x43, XE_CARD_TYPE_FLAGS_MOHAWK },
+	{ PCMCIA_CARD_D(INTEL, PRO100LAN56, 0),  0x46, XE_CARD_TYPE_FLAGS_DINGO },
 	{ PCMCIA_CARD_D(XIRCOM, CE, 0),          0x41, XE_CARD_TYPE_FLAGS_NO },
 	{ PCMCIA_CARD_D(XIRCOM, CE2, 0),         0x41, XE_CARD_TYPE_FLAGS_CE2 },
 	{ PCMCIA_CARD_D(XIRCOM, CE2, 0),         0x42, XE_CARD_TYPE_FLAGS_CE2 },
@@ -409,6 +410,8 @@ xe_pccard_product_match(device_t dev, const struct pccard_product* ent, int vpfm
 
 	if (xpp->prodext != prodext)
 		vpfmatch = 0;
+	else
+		vpfmatch++;
 
 	return (vpfmatch);
 }
@@ -416,12 +419,21 @@ xe_pccard_product_match(device_t dev, const struct pccard_product* ent, int vpfm
 static int
 xe_pccard_match(device_t dev)
 {
+	int		error = 0;
+	u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
 	const struct pccard_product *pp;
 
 	DEVPRINTF(2, (dev, "pccard_match\n"));
 
-	pp = (const struct pccard_product*)xe_pccard_products;
+	/* Make sure we're a network driver */
+	error = pccard_get_function(dev, &fcn);
+	if (error != 0)
+		return (error);
+	if (fcn != PCCARD_FUNCTION_NETWORK)
+		return (ENXIO);
 
+	/* If we match something in the table, it is our device. */
+	pp = (const struct pccard_product *)xe_pccard_products;
 	if ((pp = pccard_product_lookup(dev, pp,
 	     sizeof(xe_pccard_products[0]), xe_pccard_product_match)) != NULL)
 		return (0);
