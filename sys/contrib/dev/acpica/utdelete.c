@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utdelete - object deletion and reference count utilities
- *              $Revision: 74 $
+ *              $Revision: 75 $
  *
  ******************************************************************************/
 
@@ -159,7 +159,6 @@ AcpiUtDeleteInternalObj (
      * Must delete or free any pointers within the object that are not
      * actual ACPI objects (for example, a raw buffer pointer).
      */
-
     switch (Object->Common.Type)
     {
 
@@ -345,7 +344,6 @@ AcpiUtDeleteInternalObjectList (
          * Simple objects are simply stored in the array and do not
          * need to be deleted separately.
          */
-
         if (IS_THIS_OBJECT_TYPE ((*InternalObj), ACPI_TYPE_PACKAGE))
         {
             /* Delete the package */
@@ -403,7 +401,6 @@ AcpiUtUpdateRefCount (
     /*
      * Reference count action (increment, decrement, or force delete)
      */
-
     switch (Action)
     {
 
@@ -472,7 +469,6 @@ AcpiUtUpdateRefCount (
      * Sanity check the reference count, for debug purposes only.
      * (A deleted object will have a huge reference count)
      */
-
     if (Count > MAX_REFERENCE_COUNT)
     {
 
@@ -534,7 +530,6 @@ AcpiUtUpdateObjectReference (
     /*
      * Make sure that this isn't a namespace handle or an AML pointer
      */
-
     if (VALID_DESCRIPTOR_TYPE (Object, ACPI_DESC_TYPE_NAMED))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Object %p is NS handle\n", Object));
@@ -605,7 +600,6 @@ AcpiUtUpdateObjectReference (
                  * Note: There can be null elements within the package,
                  * these are simply ignored
                  */
-
                 Status = AcpiUtCreateUpdateStateAndPush (
                             Object->Package.Elements[i], Action, &StateList);
                 if (ACPI_FAILURE (Status))
@@ -703,7 +697,6 @@ AcpiUtUpdateObjectReference (
          * happen after we update the sub-objects in case this causes the
          * main object to be deleted.
          */
-
         AcpiUtUpdateRefCount (Object, Action);
 
 
@@ -741,7 +734,6 @@ AcpiUtAddReference (
     /*
      * Ensure that we have a valid object
      */
-
     if (!AcpiUtValidInternalObject (Object))
     {
         return_VOID;
@@ -750,7 +742,6 @@ AcpiUtAddReference (
     /*
      * We have a valid ACPI internal object, now increment the reference count
      */
-
     AcpiUtUpdateObjectReference  (Object, REF_INCREMENT);
 
     return_VOID;
@@ -780,7 +771,6 @@ AcpiUtRemoveReference (
     /*
      * Ensure that we have a valid object
      */
-
     if (!AcpiUtValidInternalObject (Object))
     {
         return_VOID;
@@ -794,7 +784,6 @@ AcpiUtRemoveReference (
      * if the reference count becomes 0.  (Must also decrement the ref count
      * of all subobjects!)
      */
-
     AcpiUtUpdateObjectReference  (Object, REF_DECREMENT);
     return_VOID;
 }

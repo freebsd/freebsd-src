@@ -3,7 +3,7 @@
  *
  * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 39 $
+ *              $Revision: 40 $
  *
  *****************************************************************************/
 
@@ -298,7 +298,6 @@ AcpiExStoreObject (
          * The target namespace node is uninitialized (has no target object),
          * and will take on the type of the source object
          */
-
         *TargetDescPtr = SourceDesc;
         break;
 

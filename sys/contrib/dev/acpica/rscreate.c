@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscreate - Create resource lists/tables
- *              $Revision: 35 $
+ *              $Revision: 36 $
  *
  ******************************************************************************/
 
@@ -166,7 +166,6 @@ AcpiRsCreateResourceList (
     /*
      * Params already validated, so we don't re-validate here
      */
-
     ByteStreamBufferLength = ByteStreamBuffer->Buffer.Length;
     ByteStreamStart = ByteStreamBuffer->Buffer.Pointer;
 
@@ -192,7 +191,6 @@ AcpiRsCreateResourceList (
      * If the linked list will fit into the available buffer
      * call to fill in the list
      */
-
     if (ListSizeNeeded <= *OutputBufferLength)
     {
         /*
@@ -268,7 +266,6 @@ AcpiRsCreatePciRoutingTable (
     /*
      * Params already validated, so we don't re-validate here
      */
-
     Status = AcpiRsCalculatePciRoutingTableLength (PackageObject,
                 &BufferSizeNeeded);
 
@@ -530,7 +527,6 @@ AcpiRsCreateByteStream (
      * If the linked list will fit into the available buffer
      * call to fill in the list
      */
-
     if (ByteStreamSizeNeeded <= *OutputBufferLength)
     {
         /*

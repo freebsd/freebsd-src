@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswscope - Scope stack manipulation
- *              $Revision: 46 $
+ *              $Revision: 48 $
  *
  *****************************************************************************/
 
@@ -145,7 +145,7 @@ AcpiDsScopeStackClear (
 {
     ACPI_GENERIC_STATE      *ScopeInfo;
 
-    PROC_NAME ("AcpiDsScopeStackClear");
+    PROC_NAME ("DsScopeStackClear");
 
 
     while (WalkState->ScopeInfo)
@@ -188,7 +188,7 @@ AcpiDsScopeStackPush (
 
     if (!Node)
     {
-        /*  invalid scope   */
+        /* Invalid scope   */
 
         REPORT_ERROR (("DsScopeStackPush: null scope passed\n"));
         return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -249,10 +249,10 @@ AcpiDsScopeStackPop (
 
     FUNCTION_TRACE ("DsScopeStackPop");
 
+
     /*
      * Pop scope info object off the stack.
      */
-
     ScopeInfo = AcpiUtPopGenericState (&WalkState->ScopeInfo);
     if (!ScopeInfo)
     {

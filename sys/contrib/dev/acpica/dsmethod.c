@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 64 $
+ *              $Revision: 65 $
  *
  *****************************************************************************/
 
@@ -453,7 +453,7 @@ AcpiDsCallControlMethod (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiPsParseAml (Op, ObjDesc->Method.Pcode, 
+    Status = AcpiPsParseAml (Op, ObjDesc->Method.Pcode,
                                 ObjDesc->Method.PcodeLength,
                                 ACPI_PARSE_LOAD_PASS1 | ACPI_PARSE_DELETE_TREE,
                                 MethodNode, NULL, NULL,
@@ -476,7 +476,7 @@ AcpiDsCallControlMethod (
     ThisWalkState->NumOperands = 0;
 
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Starting nested execution, newstate=%p\n", 
+    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Starting nested execution, newstate=%p\n",
         NextWalkState));
 
     return_ACPI_STATUS (AE_OK);

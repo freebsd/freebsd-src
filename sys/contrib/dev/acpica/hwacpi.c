@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: hwacpi - ACPI Hardware Initialization/Mode Interface
- *              $Revision: 43 $
+ *              $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -159,24 +159,10 @@ AcpiHwInitialize (
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 
-    /* Must support *some* mode! */
-/*
-    if (!(SystemFlags & SYS_MODES_MASK))
-    {
-        RestoreAcpiChipset = FALSE;
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Supported modes uninitialized!\n"));
-        return_ACPI_STATUS (AE_ERROR);
-    }
-
-*/
-
+    /* Identify current ACPI/legacy mode   */
 
     switch (AcpiGbl_SystemFlags & SYS_MODES_MASK)
     {
-        /* Identify current ACPI/legacy mode   */
-
     case (SYS_MODE_ACPI):
 
         AcpiGbl_OriginalMode = SYS_MODE_ACPI;
@@ -231,7 +217,6 @@ AcpiHwInitialize (
          * coded here. If this changes in the spec, this code will need to
          * be modified. The PM1bEvtBlk behaves as expected.
          */
-
         AcpiGbl_Pm1EnableRegisterSave = (UINT16) AcpiHwRegisterRead (
                                                     ACPI_MTX_LOCK, PM1_EN);
 
@@ -240,7 +225,6 @@ AcpiHwInitialize (
          * The GPEs behave similarly, except that the length of the register
          * block is not fixed, so the buffer must be allocated with malloc
          */
-
         if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XGpe0Blk.Address) &&
             AcpiGbl_FADT->Gpe0BlkLen)
         {
@@ -318,6 +302,7 @@ AcpiHwSetMode (
 
     ACPI_STATUS             Status = AE_NO_HARDWARE_RESPONSE;
 
+
     FUNCTION_TRACE ("HwSetMode");
 
 
@@ -335,11 +320,14 @@ AcpiHwSetMode (
          * BIOS should clear all fixed status bits and restore fixed event
          * enable bits to default
          */
-
         AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->AcpiDisable, 8);
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
                     "Attempting to enable Legacy (non-ACPI) mode\n"));
     }
+
+    /* Give the platform some time to react */
+
+    AcpiOsStall (5000);
 
     if (AcpiHwGetMode () == Mode)
     {
@@ -381,6 +369,7 @@ AcpiHwGetMode (void)
     }
 }
 
+
 /******************************************************************************
  *
  * FUNCTION:    AcpiHwGetModeCapabilities
@@ -411,7 +400,6 @@ AcpiHwGetModeCapabilities (void)
              * tables.  Therefore since we're in SYS_MODE_LEGACY, the system
              * must support both modes
              */
-
             AcpiGbl_SystemFlags |= (SYS_MODE_ACPI | SYS_MODE_LEGACY);
         }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 95 $
+ *              $Revision: 99 $
  *
  *****************************************************************************/
 
@@ -156,6 +156,7 @@ AcpiNsDumpPathname (
 
     FUNCTION_TRACE ("NsDumpPathname");
 
+
     /* Do this only if the requested debug level and component are enabled */
 
     if (!(AcpiDbgLevel & Level) || !(AcpiDbgLayer & Component))
@@ -215,7 +216,7 @@ AcpiNsDumpOneObject (
     UINT32                  WhichBit;
 
 
-    PROC_NAME ("AcpiNsDumpOneObject");
+    PROC_NAME ("NsDumpOneObject");
 
 
     ThisNode = AcpiNsConvertHandleToEntry (ObjHandle);
@@ -314,7 +315,6 @@ AcpiNsDumpOneObject (
     /*
      * Now we can print out the pertinent information
      */
-
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " %4.4s %-9s ", &ThisNode->Name, AcpiUtGetTypeName (Type)));
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "%p S:%p O:%p",  ThisNode, ThisNode->Child, ThisNode->Object));
 
@@ -516,6 +516,9 @@ AcpiNsDumpObjects (
     ACPI_WALK_INFO          Info;
 
 
+    FUNCTION_ENTRY ();
+
+
     Info.DebugLevel = ACPI_LV_TABLES;
     Info.OwnerId = OwnerId;
 
@@ -549,7 +552,8 @@ AcpiNsDumpOneDevice (
     ACPI_STATUS             Status;
     UINT32                  i;
 
-    PROC_NAME ("AcpiNsDumpOneDevice");
+
+    PROC_NAME ("NsDumpOneDevice");
 
 
     Status = AcpiNsDumpOneObject (ObjHandle, Level, Context, ReturnValue);
@@ -585,12 +589,13 @@ AcpiNsDumpRootDevices (void)
 {
     ACPI_HANDLE             SysBusHandle;
 
-    PROC_NAME ("AcpiNsDumpRootDevices");
+
+    PROC_NAME ("NsDumpRootDevices");
 
 
     /* Only dump the table if tracing is enabled */
 
-    if (!(ACPI_DB_TABLES & AcpiDbgLevel))
+    if (!(ACPI_LV_TABLES & AcpiDbgLevel))
     {
         return;
     }
@@ -671,14 +676,13 @@ AcpiNsDumpEntry (
     ACPI_WALK_INFO          Info;
 
 
-    FUNCTION_TRACE_PTR ("NsDumpEntry", Handle);
+    FUNCTION_ENTRY ();
+
 
     Info.DebugLevel = DebugLevel;
     Info.OwnerId = ACPI_UINT32_MAX;
 
     AcpiNsDumpOneObject (Handle, 1, &Info, NULL);
-
-    return_VOID;
 }
 
 #endif

@@ -2,7 +2,7 @@
  *
  * Module Name: evmisc - ACPI device notification handler dispatch
  *                       and ACPI Global Lock support
- *              $Revision: 32 $
+ *              $Revision: 33 $
  *
  *****************************************************************************/
 
@@ -158,7 +158,6 @@ AcpiEvQueueNotifyRequest (
      * For value 0x80 (Status Change) on the power button or sleep button,
      * initiate soft-off or sleep operation?
      */
-
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "Dispatching Notify(%X) on node %p\n", NotifyValue, Node));
 
@@ -189,7 +188,6 @@ AcpiEvQueueNotifyRequest (
     /*
      * Get the notify object attached to the device Node
      */
-
     ObjDesc = AcpiNsGetAttachedObject (Node);
     if (ObjDesc)
     {
@@ -282,11 +280,13 @@ AcpiEvNotifyDispatch (
     ACPI_OPERAND_OBJECT     *HandlerObj;
 
 
+    FUNCTION_ENTRY ();
+
+
     /*
      * We will invoke a global notify handler if installed.
      * This is done _before_ we invoke the per-device handler attached to the device.
      */
-
     if (NotifyInfo->Notify.Value <= MAX_SYS_NOTIFY)
     {
         /* Global system notification handler */
@@ -325,7 +325,6 @@ AcpiEvNotifyDispatch (
         HandlerObj->NotifyHandler.Handler (NotifyInfo->Notify.Node, NotifyInfo->Notify.Value,
                         HandlerObj->NotifyHandler.Context);
     }
-
 
     /* All done with the info object */
 
@@ -387,7 +386,6 @@ AcpiEvGlobalLockHandler (
      * If we don't get it now, it will be marked pending and we will
      * take another interrupt when it becomes free.
      */
-
     GlobalLock = AcpiGbl_FACS->GlobalLock;
     ACPI_ACQUIRE_GLOBAL_LOCK (GlobalLock, Acquired);
     if (Acquired)
@@ -512,14 +510,12 @@ AcpiEvAcquireGlobalLock(void)
      * Did not get the lock.  The pending bit was set above, and we must now
      * wait until we get the global lock released interrupt.
      */
-
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Waiting for the HW Global Lock\n"));
 
      /*
       * Acquire the global lock semaphore first.
       * Since this wait will block, we must release the interpreter
       */
-
     Status = AcpiExSystemWaitSemaphore (AcpiGbl_GlobalLockSemaphore,
                                             ACPI_UINT32_MAX);
     return_ACPI_STATUS (Status);
@@ -543,6 +539,7 @@ AcpiEvReleaseGlobalLock (void)
 
     FUNCTION_TRACE ("EvReleaseGlobalLock");
 
+
     if (!AcpiGbl_GlobalLockThreadCount)
     {
         REPORT_WARNING(("Global Lock has not be acquired, cannot release\n"));
@@ -561,7 +558,6 @@ AcpiEvReleaseGlobalLock (void)
          * No more threads holding lock, we can do the actual hardware
          * release
          */
-
         GlobalLock = AcpiGbl_FACS->GlobalLock;
         ACPI_RELEASE_GLOBAL_LOCK (GlobalLock, Pending);
         AcpiGbl_GlobalLockAcquired = FALSE;

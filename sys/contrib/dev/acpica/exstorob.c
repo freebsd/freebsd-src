@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstorob - AML Interpreter object store support, store to object
- *              $Revision: 35 $
+ *              $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -151,7 +151,8 @@ AcpiExCopyBufferToBuffer (
     UINT32                  Length;
     UINT8                   *Buffer;
 
-    PROC_NAME ("AcpiExCopyBufferToBuffer");
+
+    PROC_NAME ("ExCopyBufferToBuffer");
 
 
     /*
@@ -225,6 +226,9 @@ AcpiExCopyStringToString (
     UINT8                   *Buffer;
 
 
+    FUNCTION_ENTRY ();
+
+
     /*
      * We know that SourceDesc is a string by now.
      */
@@ -262,9 +266,8 @@ AcpiExCopyStringToString (
         {
             return (AE_NO_MEMORY);
         }
+
         TargetDesc->String.Length = Length;
-
-
         MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
     }
 

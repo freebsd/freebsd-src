@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
- *              $Revision: 51 $
+ *              $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -129,7 +129,7 @@
 
 /*******************************************************************************
  *
- * FUNCTION:    _UtCreateInternalObject
+ * FUNCTION:    AcpiUtCreateInternalObjectDbg
  *
  * PARAMETERS:  Address             - Address of the memory to deallocate
  *              Component           - Component type of caller
@@ -150,7 +150,7 @@
  ******************************************************************************/
 
 ACPI_OPERAND_OBJECT  *
-_UtCreateInternalObject (
+AcpiUtCreateInternalObjectDbg (
     NATIVE_CHAR             *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId,
@@ -159,12 +159,12 @@ _UtCreateInternalObject (
     ACPI_OPERAND_OBJECT     *Object;
 
 
-    FUNCTION_TRACE_STR ("UtCreateInternalObject", AcpiUtGetTypeName (Type));
+    FUNCTION_TRACE_STR ("UtCreateInternalObjectDbg", AcpiUtGetTypeName (Type));
 
 
     /* Allocate the raw object descriptor */
 
-    Object = _UtAllocateObjectDesc (ModuleName, LineNumber, ComponentId);
+    Object = AcpiUtAllocateObjectDescDbg (ModuleName, LineNumber, ComponentId);
     if (!Object)
     {
         /* Allocation failure */
@@ -257,7 +257,7 @@ AcpiUtValidInternalObject (
 
 /*******************************************************************************
  *
- * FUNCTION:    _UtAllocateObjectDesc
+ * FUNCTION:    AcpiUtAllocateObjectDescDbg
  *
  * PARAMETERS:  ModuleName          - Caller's module name (for error output)
  *              LineNumber          - Caller's line number (for error output)
@@ -272,7 +272,7 @@ AcpiUtValidInternalObject (
  ******************************************************************************/
 
 void *
-_UtAllocateObjectDesc (
+AcpiUtAllocateObjectDescDbg (
     NATIVE_CHAR             *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId)
@@ -280,7 +280,7 @@ _UtAllocateObjectDesc (
     ACPI_OPERAND_OBJECT     *Object;
 
 
-    FUNCTION_TRACE ("_AllocateObjectDesc");
+    FUNCTION_TRACE ("UtAllocateObjectDescDbg");
 
 
     Object = AcpiUtAcquireFromCache (ACPI_MEM_LIST_OPERAND);
@@ -320,7 +320,7 @@ void
 AcpiUtDeleteObjectDesc (
     ACPI_OPERAND_OBJECT     *Object)
 {
-    FUNCTION_TRACE_PTR ("AcpiUtDeleteObjectDesc", Object);
+    FUNCTION_TRACE_PTR ("UtDeleteObjectDesc", Object);
 
 
     /* Object must be an ACPI_OPERAND_OBJECT  */
@@ -672,6 +672,9 @@ AcpiUtGetObjectSize(
     UINT32                  *ObjLength)
 {
     ACPI_STATUS             Status;
+
+
+    FUNCTION_ENTRY ();
 
 
     if ((VALID_DESCRIPTOR_TYPE (InternalObject, ACPI_DESC_TYPE_INTERNAL)) &&

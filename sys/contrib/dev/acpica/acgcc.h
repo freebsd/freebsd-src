@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acgcc.h - GCC specific defines, etc.
- *       $Revision: 6 $
+ *       $Revision: 9 $
  *
  *****************************************************************************/
 
@@ -192,7 +192,7 @@
 #define disable() __cli()
 #define enable()  __sti()
 #define halt()    __asm__ __volatile__ ("sti; hlt":::"memory")
-#define wbinvd()
+#define wbinvd()  __asm__ __volatile__ ("wbinvd":::"memory")
 
 /*! [Begin] no source code translation
  *

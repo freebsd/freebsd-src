@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 48 $
+ *              $Revision: 49 $
  *
  ******************************************************************************/
 
@@ -359,7 +359,6 @@ AcpiDsMethodDataGetEntry (
      * Get the requested object.
      * The stack "Opcode" is either a LocalVariable or an Argument
      */
-
     switch (Opcode)
     {
 
@@ -428,6 +427,7 @@ AcpiDsMethodDataSetEntry (
 
 
     FUNCTION_TRACE ("DsMethodDataSetEntry");
+
 
     /* Get a pointer to the stack entry to set */
 
@@ -631,7 +631,6 @@ AcpiDsMethodDataGetValue (
          * was referenced by the method (via the ASL)
          * before it was initialized.  Either case is an error.
          */
-
         switch (Opcode)
         {
         case AML_ARG_OP:
@@ -657,7 +656,6 @@ AcpiDsMethodDataGetValue (
      * Index points to initialized and valid object stack value.
      * Return an additional reference to the object
      */
-
     *DestDesc = Object;
     AcpiUtAddReference (Object);
 
@@ -713,7 +711,6 @@ AcpiDsMethodDataDeleteValue (
      */
     *Entry = NULL;
 
-
     if ((Object) &&
         (VALID_DESCRIPTOR_TYPE (Object, ACPI_DESC_TYPE_INTERNAL)))
     {
@@ -724,7 +721,6 @@ AcpiDsMethodDataDeleteValue (
          */
         AcpiUtRemoveReference (Object);
     }
-
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -792,7 +788,6 @@ AcpiDsStoreObjectToLocal (
      * is an object reference stored there, we have to do
      * an indirect store!
      */
-
     if (*Entry)
     {
         /*
@@ -811,7 +806,6 @@ AcpiDsStoreObjectToLocal (
          *
          * Weird, but true.
          */
-
         if ((Opcode == AML_ARG_OP) &&
             (VALID_DESCRIPTOR_TYPE (*Entry, ACPI_DESC_TYPE_NAMED)))
         {

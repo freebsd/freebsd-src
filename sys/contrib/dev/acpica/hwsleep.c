@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 18 $
+ *              $Revision: 21 $
  *
  *****************************************************************************/
 
@@ -245,7 +245,6 @@ AcpiEnterSleepState (
     /*
      * _PSW methods could be run here to enable wake-on keyboard, LAN, etc.
      */
-
     Status = AcpiHwObtainSleepTypeRegisterData (SleepState, &TypeA, &TypeB);
     if (!ACPI_SUCCESS (Status))
     {
@@ -306,7 +305,7 @@ AcpiEnterSleepState (
     AcpiHwRegisterWrite (ACPI_MTX_LOCK, PM1A_CONTROL, PM1AControl);
     AcpiHwRegisterWrite (ACPI_MTX_LOCK, PM1B_CONTROL, PM1BControl);
 
-    /* 
+    /*
      * Wait a second, then try again. This is to get S4/5 to work on all machines.
      */
     if (SleepState > ACPI_STATE_S3)
@@ -319,8 +318,11 @@ AcpiEnterSleepState (
 
     /* wait until we enter sleep state */
 
-    while (!AcpiHwRegisterBitAccess (ACPI_READ,ACPI_MTX_LOCK,WAK_STS))
-    {  }
+    do 
+    {
+        AcpiOsStall(10000);
+    }
+    while (!AcpiHwRegisterBitAccess (ACPI_READ, ACPI_MTX_LOCK, WAK_STS));
 
     enable ();
 
@@ -346,6 +348,7 @@ AcpiLeaveSleepState (
     ACPI_OBJECT_LIST    ArgList;
     ACPI_OBJECT         Arg;
 
+
     FUNCTION_TRACE ("AcpiLeaveSleepState");
 
 
@@ -359,6 +362,7 @@ AcpiLeaveSleepState (
 
     AcpiEvaluateObject (NULL, "\\_BFS", &ArgList, NULL);
     AcpiEvaluateObject (NULL, "\\_WAK", &ArgList, NULL);
+
     /* _WAK returns stuff - do we want to look at it? */
 
     /* Re-enable GPEs */

@@ -2,7 +2,7 @@
  *
  * Module Name: evsci - System Control Interrupt configuration and
  *                      legacy to ACPI mode state transition functions
- *              $Revision: 73 $
+ *              $Revision: 74 $
  *
  ******************************************************************************/
 
@@ -203,17 +203,15 @@ AcpiEvSciHandler (void *Context)
 UINT32
 AcpiEvInstallSciHandler (void)
 {
-    UINT32                  Except = AE_OK;
+    UINT32                  Status = AE_OK;
 
 
     FUNCTION_TRACE ("EvInstallSciHandler");
 
 
-    Except = AcpiOsInstallInterruptHandler ((UINT32) AcpiGbl_FADT->SciInt,
-                                            AcpiEvSciHandler,
-                                            NULL);
-
-    return_ACPI_STATUS (Except);
+    Status = AcpiOsInstallInterruptHandler ((UINT32) AcpiGbl_FADT->SciInt,
+                        AcpiEvSciHandler, NULL);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -236,6 +234,7 @@ ACPI_STATUS
 AcpiEvRemoveSciHandler (void)
 {
     FUNCTION_TRACE ("EvRemoveSciHandler");
+
 
 #if 0
     /* TBD:[Investigate] Figure this out!!  Disable all events first ???  */
@@ -375,7 +374,6 @@ AcpiEvTerminate (void)
     /*
      * Free global tables, etc.
      */
-
     if (AcpiGbl_GpeRegisters)
     {
         ACPI_MEM_FREE (AcpiGbl_GpeRegisters);

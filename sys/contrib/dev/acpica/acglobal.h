@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 103 $
+ *       $Revision: 106 $
  *
  *****************************************************************************/
 
@@ -131,8 +131,6 @@
 #endif
 
 
-extern      NATIVE_CHAR                 *MsgAcpiErrorBreak;
-
 /*****************************************************************************
  *
  * Debug support
@@ -143,7 +141,6 @@ extern      NATIVE_CHAR                 *MsgAcpiErrorBreak;
 
 extern      UINT32                      AcpiDbgLevel;
 extern      UINT32                      AcpiDbgLayer;
-
 
 /* Procedure nesting level for debug output */
 
@@ -226,8 +223,8 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_GlobalLockPresent;
 extern BOOLEAN                          AcpiGbl_Shutdown;
 extern UINT32                           AcpiGbl_SystemFlags;
 extern UINT32                           AcpiGbl_StartupFlags;
-extern UINT8                            AcpiGbl_DecodeTo8bit[8];
-extern NATIVE_CHAR                      AcpiGbl_HexToAscii[16];
+extern const UINT8                      AcpiGbl_DecodeTo8bit[8];
+extern const NATIVE_CHAR                *AcpiGbl_DbSleepStates[ACPI_NUM_SLEEP_STATES];
 
 
 /*****************************************************************************
@@ -243,13 +240,16 @@ extern NATIVE_CHAR                      AcpiGbl_HexToAscii[16];
 ACPI_EXTERN ACPI_NAMESPACE_NODE         AcpiGbl_RootNodeStruct;
 ACPI_EXTERN ACPI_NAMESPACE_NODE        *AcpiGbl_RootNode;
 
-extern UINT8                            AcpiGbl_NsProperties[NUM_NS_TYPES];
-extern PREDEFINED_NAMES                 AcpiGbl_PreDefinedNames [NUM_PREDEFINED_NAMES];
+extern const UINT8                      AcpiGbl_NsProperties[NUM_NS_TYPES];
+extern const PREDEFINED_NAMES           AcpiGbl_PreDefinedNames [NUM_PREDEFINED_NAMES];
 
 #ifdef ACPI_DEBUG
 ACPI_EXTERN UINT32                      AcpiGbl_CurrentNodeCount;
 ACPI_EXTERN UINT32                      AcpiGbl_CurrentNodeSize;
 ACPI_EXTERN UINT32                      AcpiGbl_MaxConcurrentNodeCount;
+ACPI_EXTERN UINT32                      AcpiGbl_EntryStackPointer;
+ACPI_EXTERN UINT32                      AcpiGbl_LowestStackPointer;
+ACPI_EXTERN UINT32                      AcpiGbl_DeepestNesting;
 #endif
 
 /*****************************************************************************
@@ -261,11 +261,9 @@ ACPI_EXTERN UINT32                      AcpiGbl_MaxConcurrentNodeCount;
 
 ACPI_EXTERN ACPI_WALK_LIST             *AcpiGbl_CurrentWalkList;
 
-/*
- * Table of Address Space handlers
- */
-ACPI_EXTERN ACPI_ADR_SPACE_INFO         AcpiGbl_AddressSpaces[ACPI_NUM_ADDRESS_SPACES];
+/* Address Space handlers */
 
+ACPI_EXTERN ACPI_ADR_SPACE_INFO         AcpiGbl_AddressSpaces[ACPI_NUM_ADDRESS_SPACES];
 
 /* Control method single step flag */
 
@@ -288,11 +286,10 @@ ACPI_EXTERN ACPI_PARSE_OBJECT           *AcpiGbl_ParsedNamespaceRoot;
  ****************************************************************************/
 
 ACPI_EXTERN ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventHandlers[ACPI_NUM_FIXED_EVENTS];
-
 ACPI_EXTERN ACPI_HANDLE                 AcpiGbl_GpeObjHandle;
 ACPI_EXTERN UINT32                      AcpiGbl_GpeRegisterCount;
-ACPI_EXTERN ACPI_GPE_REGISTERS          *AcpiGbl_GpeRegisters;
-ACPI_EXTERN ACPI_GPE_LEVEL_INFO         *AcpiGbl_GpeInfo;
+ACPI_EXTERN ACPI_GPE_REGISTERS         *AcpiGbl_GpeRegisters;
+ACPI_EXTERN ACPI_GPE_LEVEL_INFO        *AcpiGbl_GpeInfo;
 
 /*
  * Gpe validation and translation table
@@ -321,8 +318,6 @@ ACPI_EXTERN UINT32                      AcpiGbl_EventCount[ACPI_NUM_FIXED_EVENTS
 ACPI_EXTERN BOOLEAN                     AcpiGbl_MethodExecuting;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbTerminateThreads;
 #endif
-
-
 
 
 #endif /* __ACGLOBAL_H__ */

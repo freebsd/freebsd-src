@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 29 $
+ *              $Revision: 30 $
  *
  *****************************************************************************/
 
@@ -162,12 +162,12 @@ AcpiUtEvaluateNumericObject (
     {
         if (Status == AE_NOT_FOUND)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s on %4.4s was not found\n", 
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s on %4.4s was not found\n",
                 ObjectName, &DeviceNode->Name));
         }
         else
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%s on %4.4s failed with status %s\n", 
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%s on %4.4s failed with status %s\n",
                 ObjectName, &DeviceNode->Name,
                 AcpiFormatException (Status)));
         }
@@ -180,7 +180,7 @@ AcpiUtEvaluateNumericObject (
 
     if (!ObjDesc)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No object was returned from %s\n", 
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No object was returned from %s\n",
             ObjectName));
         return_ACPI_STATUS (AE_TYPE);
     }
@@ -190,7 +190,7 @@ AcpiUtEvaluateNumericObject (
     if (ObjDesc->Common.Type != ACPI_TYPE_INTEGER)
     {
         Status = AE_TYPE;
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Type returned from %s was not a number: %X \n",
             ObjectName, ObjDesc->Common.Type));
     }
