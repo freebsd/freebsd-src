@@ -75,7 +75,7 @@
 int lock_mtx_valid;
 static struct mtx lock_mtx;
 
-static int acquire(struct lock *lkp, int extflags, int wanted);
+static int acquire(struct lock **lkpp, int extflags, int wanted);
 static int apause(struct lock *lkp, int flags);
 static int acquiredrain(struct lock *lkp, int extflags) ;
 
@@ -144,7 +144,8 @@ apause(struct lock *lkp, int flags)
 }
 
 static int
-acquire(struct lock *lkp, int extflags, int wanted) {
+acquire(struct lock **lkpp, int extflags, int wanted) {
+	struct lock *lkp = *lkpp;
 	int s, error;
 
 	CTR3(KTR_LOCKMGR,
@@ -181,6 +182,13 @@ acquire(struct lock *lkp, int extflags, int wanted) {
 		if (extflags & LK_SLEEPFAIL) {
 			splx(s);
 			return ENOLCK;
+		}
+		if (lkp->lk_newlock != NULL) {
+			mtx_lock(lkp->lk_newlock->lk_interlock);
+			mtx_unlock(lkp->lk_interlock);
+			if (lkp->lk_waitcount == 0)
+				wakeup((void *)(&lkp->lk_newlock));
+			*lkpp = lkp = lkp->lk_newlock;
 		}
 	}
 	splx(s);
@@ -255,7 +263,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			if (td != NULL && !(td->td_flags & TDF_DEADLKTREAT))
 				lockflags |= LK_WANT_EXCL | LK_WANT_UPGRADE;
 			mtx_unlock_spin(&sched_lock);
-			error = acquire(lkp, extflags, lockflags);
+			error = acquire(&lkp, extflags, lockflags);
 			if (error)
 				break;
 			sharelock(lkp, 1);
@@ -328,7 +336,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			 * drop to zero, then take exclusive lock.
 			 */
 			lkp->lk_flags |= LK_WANT_UPGRADE;
-			error = acquire(lkp, extflags, LK_SHARE_NONZERO);
+			error = acquire(&lkp, extflags, LK_SHARE_NONZERO);
 			lkp->lk_flags &= ~LK_WANT_UPGRADE;
 
 			if (error)
@@ -378,14 +386,14 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		/*
 		 * Try to acquire the want_exclusive flag.
 		 */
-		error = acquire(lkp, extflags, (LK_HAVE_EXCL | LK_WANT_EXCL));
+		error = acquire(&lkp, extflags, (LK_HAVE_EXCL | LK_WANT_EXCL));
 		if (error)
 			break;
 		lkp->lk_flags |= LK_WANT_EXCL;
 		/*
 		 * Wait for shared locks and upgrades to finish.
 		 */
-		error = acquire(lkp, extflags, LK_WANT_UPGRADE | LK_SHARE_NONZERO);
+		error = acquire(&lkp, extflags, LK_WANT_UPGRADE | LK_SHARE_NONZERO);
 		lkp->lk_flags &= ~LK_WANT_EXCL;
 		if (error)
 			break;
@@ -488,6 +496,28 @@ acquiredrain(struct lock *lkp, int extflags) {
 }
 
 /*
+ * Transfer any waiting processes from one lock to another.
+ */
+void
+transferlockers(from, to)
+	struct lock *from;
+	struct lock *to;
+{
+
+	KASSERT(from != to, ("lock transfer to self"));
+	KASSERT((from->lk_flags&LK_WAITDRAIN) == 0, ("transfer draining lock"));
+	if (from->lk_waitcount == 0)
+		return;
+	from->lk_newlock = to;
+	wakeup((void *)from);
+	msleep(&from->lk_newlock, NULL, from->lk_prio, "lkxfer", 0);
+	from->lk_newlock = NULL;
+	from->lk_flags &= ~(LK_WANT_EXCL | LK_WANT_UPGRADE);
+	KASSERT(from->lk_waitcount == 0, ("active lock"));
+}
+
+
+/*
  * Initialize a lock; required before use.
  */
 void
@@ -524,6 +554,7 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	lkp->lk_wmesg = wmesg;
 	lkp->lk_timo = timo;
 	lkp->lk_lockholder = LK_NOPROC;
+	lkp->lk_newlock = NULL;
 #ifdef DEBUG_LOCKS
 	lkp->lk_filename = "none";
 	lkp->lk_lockername = "never exclusive locked";

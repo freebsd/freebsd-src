@@ -58,6 +58,7 @@ struct lock {
 	const char *lk_wmesg;		/* resource sleeping (for tsleep) */
 	int	lk_timo;		/* maximum sleep time (for tsleep) */
 	pid_t	lk_lockholder;		/* pid of exclusive lock holder */
+	struct	lock *lk_newlock;	/* lock taking over this lock */
 #ifdef	DEBUG_LOCKS
 	const char *lk_filename;
 	const char *lk_lockername;
@@ -220,6 +221,7 @@ int	debuglockmgr(struct lock *, u_int flags,
 int	lockmgr(struct lock *, u_int flags,
 			struct mtx *, struct thread *p);
 #endif
+void	transferlockers(struct lock *, struct lock *);
 void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *, struct thread *);
 int	lockcount(struct lock *);
