@@ -172,7 +172,7 @@ runq_add(struct runq *rq, struct kse *ke)
 	runq_setbit(rq, pri);
 	rqh = &rq->rq_queues[pri];
 	CTR4(KTR_RUNQ, "runq_add: p=%p pri=%d %d rqh=%p",
-	    p, kg->kg_pri.pri_level, pri, rqh);
+	    ke->ke_proc, kg->kg_pri.pri_level, pri, rqh);
 	TAILQ_INSERT_TAIL(rqh, ke, ke_procq);
 	ke->ke_flags |= KEF_ONRUNQ;
 }
