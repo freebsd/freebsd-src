@@ -381,14 +381,8 @@ witness_destroy(struct lock_object *lock)
 	w = lock->lo_witness;
 	if (w != NULL) {
 		mtx_lock_spin(&w_mtx);
+		MPASS(w->w_refcount > 0);
 		w->w_refcount--;
-		if (w->w_refcount == 0) {
-			CTR2(KTR_WITNESS,
-			    "%s: marking witness %s as dead", __func__, w->w_name);
-			w->w_name = "(dead)";
-			w->w_file = "(dead)";
-			w->w_line = 0;
-		}
 		mtx_unlock_spin(&w_mtx);
 	}
 
@@ -451,7 +445,7 @@ witness_display(void(*prnt)(const char *fmt, ...))
 	 */
 	prnt("\nLocks which were never acquired:\n");
 	STAILQ_FOREACH(w, &w_all, w_list) {
-		if (w->w_file != NULL)
+		if (w->w_file != NULL || w->w_refcount == 0)
 			continue;
 		prnt("%s\n", w->w_name);
 	}
@@ -937,7 +931,8 @@ enroll(const char *description, struct lock_class *lock_class)
 		return (NULL);
 	mtx_lock_spin(&w_mtx);
 	STAILQ_FOREACH(w, &w_all, w_list) {
-		if (strcmp(description, w->w_name) == 0) {
+		if (w->w_name == description || (w->w_refcount > 0 &&
+		    strcmp(description, w->w_name) == 0)) {
 			w->w_refcount++;
 			mtx_unlock_spin(&w_mtx);
 			if (lock_class != w->w_class)
@@ -1149,10 +1144,13 @@ witness_displaydescendants(void(*prnt)(const char *fmt, ...),
 	prnt("%-2d", level);
 	for (i = 0; i < level; i++)
 		prnt(" ");
-	prnt("%s", parent->w_name);
-	if (parent->w_file != NULL)
-		prnt(" -- last acquired @ %s:%d\n", parent->w_file,
-		    parent->w_line);
+	if (parent->w_refcount > 0) {
+		prnt("%s", parent->w_name);
+		if (parent->w_file != NULL)
+			prnt(" -- last acquired @ %s:%d\n", parent->w_file,
+			    parent->w_line);
+	} else
+		prnt("(dead)\n");
 	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next)
 		for (i = 0; i < wcl->wcl_count; i++)
 			    witness_displaydescendants(prnt,
