@@ -50,13 +50,30 @@ AHC_TMODE_ENABLE	opt_aic7xxx.h	# Bitmap of units to enable
 AHC_DUMP_EEPROM		opt_aic7xxx.h	# Dump the contents of our
 					# configuration prom.
 
-AHC_DEBUG_SEQUENCER	opt_aic7xxx.h	# Enable diagnostic sequencer code
+AHC_DEBUG		opt_aic7xxx.h	# Compile in Aic7xxx Debugging code.
+
+AHC_DEBUG_OPTS		opt_aic7xxx.h	# Aic7xxx driver debugging options.
+					# See sys/dev/aic7xxx/aic7xxx.h
+
+AHC_REG_PRETTY_PRINT    opt_aic7xxx.h	# Print register bitfields in debug
+					# output.  Adds ~128k to driver.
 
 # Adaptec aic79xx SCSI controller options
-AHD_DEBUG		opt_aic79xx.h	# Compile in aic79xx debugging code.
+AHD_DEBUG		opt_aic79xx.h	# Compile in Aic79xx Debugging code.
 
 AHD_DEBUG_OPTS		opt_aic79xx.h	# Aic79xx driver debugging options.
-					# See sys/dev/aic79xx/aic79xx.h
+					# See sys/dev/aic7xxx/aic79xx.h   
+
+AHD_TMODE_ENABLE	opt_aic79xx.h	# Bitmap of units to enable
+					# targetmode operations.
+
+AHD_DUMP_EEPROM		opt_aic79xx.h	# Dump the contents of our  
+					# configuration prom.
+
+AHD_DEBUG_SEQUENCER	opt_aic79xx.h	# Enable diagnostic sequencer code
+
+AHD_REG_PRETTY_PRINT	opt_aic79xx.h	# Print register bitfields in debug
+					# output.  Adds ~215k to driver.
 
 ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 					# mapped I/O
