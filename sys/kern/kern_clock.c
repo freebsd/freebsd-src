@@ -389,20 +389,18 @@ statclock(frame)
 	}
 	pscnt = psdiv;
 
-	if (p != idleproc) {
-		schedclock(p);
+	schedclock(p);
 
-		/* Update resource usage integrals and maximums. */
-		if ((pstats = p->p_stats) != NULL &&
-		    (ru = &pstats->p_ru) != NULL &&
-		    (vm = p->p_vmspace) != NULL) {
-			ru->ru_ixrss += pgtok(vm->vm_tsize);
-			ru->ru_idrss += pgtok(vm->vm_dsize);
-			ru->ru_isrss += pgtok(vm->vm_ssize);
-			rss = pgtok(vmspace_resident_count(vm));
-			if (ru->ru_maxrss < rss)
-				ru->ru_maxrss = rss;
-		}
+	/* Update resource usage integrals and maximums. */
+	if ((pstats = p->p_stats) != NULL &&
+	    (ru = &pstats->p_ru) != NULL &&
+	    (vm = p->p_vmspace) != NULL) {
+		ru->ru_ixrss += pgtok(vm->vm_tsize);
+		ru->ru_idrss += pgtok(vm->vm_dsize);
+		ru->ru_isrss += pgtok(vm->vm_ssize);
+		rss = pgtok(vmspace_resident_count(vm));
+		if (ru->ru_maxrss < rss)
+			ru->ru_maxrss = rss;
 	}
 }
 
