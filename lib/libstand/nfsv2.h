@@ -1,3 +1,4 @@
+/* $FreeBSD$
 /*	$NetBSD: nfsv2.h,v 1.2 1996/02/26 23:05:23 gwr Exp $	*/
 
 /*
@@ -59,6 +60,7 @@
 #define NFS_MAXPACKET	(NFS_MAXPKTHDR+NFS_MAXDATA)
 #define	NFS_MINPACKET	20
 #define	NFS_FABLKSIZE	512	/* Size in bytes of a block wrt fa_blocks */
+#define	NFS_READDIRSIZE	1024
 
 /* Stat numbers for rpc returns */
 #define	NFS_OK		0
