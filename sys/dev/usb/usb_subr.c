@@ -62,6 +62,7 @@
 #include <dev/usb/usb_quirks.h>
 
 #if defined(__FreeBSD__)
+#include <machine/clock.h>
 #define delay(d)         DELAY(d)
 #endif
 
