@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 /*#include <sys/ioctl.h>*/
 #include <sys/lock.h>
 #include <sys/mac.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -366,16 +367,14 @@ svr4_sys_open(td, uap)
 	struct svr4_sys_open_args *uap;
 {
 	struct proc *p = td->td_proc;
-	int			error, retval;
-	struct open_args	cup;
+	char *newpath;
+	int bsd_flags, error, retval;
 
-	caddr_t sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
+	CHECKALTEXIST(td, uap->path, &newpath);
 
-	(&cup)->path = uap->path;
-	(&cup)->flags = svr4_to_bsd_flags(uap->flags);
-	(&cup)->mode = uap->mode;
-	error = open(td, &cup);
+	bsd_flags = svr4_to_bsd_flags(uap->flags);
+	error = kern_open(td, newpath, UIO_SYSSPACE, bsd_flags, uap->mode);
+	free(newpath, M_TEMP);
 
 	if (error) {
 	  /*	        uprintf("svr4_open(%s, 0x%0x, 0%o): %d\n", uap->path,
@@ -386,8 +385,8 @@ svr4_sys_open(td, uap)
 	retval = td->td_retval[0];
 
 	PROC_LOCK(p);
-	if (!(cup.flags & O_NOCTTY) && SESS_LEADER(p) &&
-	    !(td->td_proc->p_flag & P_CONTROLT)) {
+	if (!(bsd_flags & O_NOCTTY) && SESS_LEADER(p) &&
+	    !(p->p_flag & P_CONTROLT)) {
 #if defined(NOTYET)
 		struct file	*fp;
 
@@ -427,16 +426,15 @@ svr4_sys_creat(td, uap)
 	register struct thread *td;
 	struct svr4_sys_creat_args *uap;
 {
-	struct open_args cup;
+	char *newpath;
+	int error;
 
-	caddr_t sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
+	CHECKALTEXIST(td, uap->path, &newpath);
 
-	cup.path = uap->path;
-	cup.mode = uap->mode;
-	cup.flags = O_WRONLY | O_CREAT | O_TRUNC;
-
-	return open(td, &cup);
+	error = kern_open(td, newpath, UIO_SYSSPACE, O_WRONLY | O_CREAT |
+	    O_TRUNC, uap->mode);
+	free(newpath, M_TEMP);
+	return (error);
 }
 
 int
@@ -473,18 +471,13 @@ svr4_sys_access(td, uap)
 	register struct thread *td;
 	struct svr4_sys_access_args *uap;
 {
-	struct access_args cup;
-	int *retval;
+	char *newpath;
+	int error;
 
-	caddr_t sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
-
-	retval = td->td_retval;
-
-	cup.path = uap->path;
-	cup.flags = uap->flags;
-
-	return access(td, &cup);
+	CHECKALTEXIST(td, uap->path, &newpath);
+	error = kern_access(td, newpath, UIO_SYSSPACE, uap->flags);
+	free(newpath, M_TEMP);
+	return (error);
 }
 
 #if defined(NOTYET)

@@ -527,49 +527,32 @@ svr4_msgctl(p, v, retval)
 	void *v;
 	register_t *retval;
 {
-	int error;
 	struct svr4_sys_msgctl_args *uap = v;
-	struct sys_msgctl_args ap;
 	struct svr4_msqid_ds ss;
 	struct msqid_ds bs;
-	caddr_t sg = stackgap_init();
-
-	ap.msqid = uap->msqid;
-	ap.cmd = uap->cmd;
-	ap.buf = stackgap_alloc(&sg, sizeof(bs));
+	int error;
 
 	switch (uap->cmd) {
 	case SVR4_IPC_STAT:
-		ap.cmd = IPC_STAT;
-		if ((error = sys_msgctl(p, &ap, retval)) != 0)
-			return error;
-		error = copyin(&bs, ap.buf, sizeof bs);
+		error = kern_msgctl(td, uap->msqid, IPC_STAT, &bs);
 		if (error)
 			return error;
 		bsd_to_svr4_msqid_ds(&bs, &ss);
 		return copyout(&ss, uap->buf, sizeof ss);
 
 	case SVR4_IPC_SET:
-		ap.cmd = IPC_SET;
 		error = copyin(uap->buf, &ss, sizeof ss);
 		if (error)
 			return error;
 		svr4_to_bsd_msqid_ds(&ss, &bs);
-		error = copyout(&bs, ap.buf, sizeof bs);
-		if (error)
-			return error;
-		return sys_msgctl(p, &ap, retval);
+		return (kern_msgctl(td, uap->msqid, IPC_SET, &bs));
 
 	case SVR4_IPC_RMID:
-		ap.cmd = IPC_RMID;
 		error = copyin(uap->buf, &ss, sizeof ss);
 		if (error)
 			return error;
 		svr4_to_bsd_msqid_ds(&ss, &bs);
-		error = copyout(&bs, ap.buf, sizeof bs);
-		if (error)
-			return error;
-		return sys_msgctl(p, &ap, retval);
+		return (kern_msgctl(td, uap->msqid, IPC_RMID, &bs));
 
 	default:
 		return EINVAL;
