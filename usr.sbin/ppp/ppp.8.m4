@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.117 1998/08/09 23:40:31 brian Exp $
+.\" $Id: ppp.8,v 1.118 1998/08/11 18:59:36 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2697,6 +2697,36 @@ be agreeable with the peer), or if
 is specified,
 .Nm
 will expect the peer to specify the number.
+.It set choked Op Ar timeout
+This sets the number of seconds that
+.Nm
+will keep a choked output queue before dropping all pending output packets.
+If
+.Ar timeout
+is less than or equal to zero or if
+.Ar timeout
+isn't specified, it is set to the default value of
+.Em 120 seconds .
+.Pp
+A choked output queue occurs when
+.Nm
+has read a certain number of packets from the local network for transmission,
+but cannot send the data due to link failure (the peer is busy etc.).
+.Nm Ppp
+will not read packets indefinitely.  Instead, it reads up to
+.Em 20
+packets (or
+.Em 20 No +
+.Em nlinks No *
+.Em 2
+packets in multi-link mode), then stops reading the network interface
+until either
+.Ar timeout
+seconds have passed or at least one packet has been sent.
+.Pp
+If
+.Ar timeout
+seconds pass, all pending output packets are dropped.
 .It set ctsrts|crtscts on|off
 This sets hardware flow control.  Hardware flow control is
 .Ar on
