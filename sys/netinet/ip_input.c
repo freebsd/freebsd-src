@@ -369,12 +369,12 @@ ip_input(struct mbuf *m)
 	/*
 	 * Convert fields to host representation.
 	 */
-	NTOHS(ip->ip_len);
+	ip->ip_len = ntohs(ip->ip_len);
 	if (ip->ip_len < hlen) {
 		ipstat.ips_badlen++;
 		goto bad;
 	}
-	NTOHS(ip->ip_off);
+	ip->ip_off = ntohs(ip->ip_off);
 
 	/*
 	 * Check that the amount of data in the buffers
@@ -762,15 +762,15 @@ found:
 		/* Restore original checksum before diverting packet */
 		if (divert_info != 0) {
 			ip->ip_len += hlen;
-			HTONS(ip->ip_len);
-			HTONS(ip->ip_off);
+			ip->ip_len = htons(ip->ip_len);
+			ip->ip_off = htons(ip->ip_off);
 			ip->ip_sum = 0;
 			if (hlen == sizeof(struct ip))
 				ip->ip_sum = in_cksum_hdr(ip);
 			else
 				ip->ip_sum = in_cksum(m, hlen);
-			NTOHS(ip->ip_off);
-			NTOHS(ip->ip_len);
+			ip->ip_off = ntohs(ip->ip_off);
+			ip->ip_len = ntohs(ip->ip_len);
 			ip->ip_len -= hlen;
 		}
 #endif
@@ -793,8 +793,8 @@ found:
 
 		/* Restore packet header fields to original values */
 		ip->ip_len += hlen;
-		HTONS(ip->ip_len);
-		HTONS(ip->ip_off);
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
 
 		/* Deliver packet to divert input routine */
 		ip_divert_cookie = divert_cookie;

@@ -90,6 +90,7 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <sys/ioctl.h>
+#include <arpa/inet.h>
 #include <net/if.h>
 
 #include "yp_ping.h"

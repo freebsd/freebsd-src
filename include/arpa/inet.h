@@ -47,9 +47,7 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
- */
-
-/*
+ *
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
  *	From: Id: inet.h,v 8.5 1997/01/29 08:48:09 vixie Exp $
  * $FreeBSD$
@@ -62,6 +60,9 @@
 
 #include <sys/cdefs.h>
 #include <machine/ansi.h>
+
+/* Required for byteorder(3) functions. */
+#include <machine/endian.h>
 
 #ifndef	_IN_ADDR_T_DECLARED_
 typedef	__uint32_t	in_addr_t;
@@ -114,14 +115,23 @@ struct in_addr {
 #define	inet_nsap_ntoa	__inet_nsap_ntoa
 #endif /* !_POSIX_SOURCE */
 
+#ifndef _BYTEORDER_FUNC_DEFINED
+#define	_BYTEORDER_FUNC_DEFINED
+#define	htonl(x)	__htonl(x)
+#define	htons(x)	__htons(x)
+#define	ntohl(x)	__ntohl(x)
+#define	ntohs(x)	__ntohs(x)
+#endif
+
 __BEGIN_DECLS
+__uint32_t	 htonl(__uint32_t);
+__uint16_t	 htons(__uint16_t);
 in_addr_t	 inet_addr __P((const char *));
 char		*inet_ntoa __P((struct in_addr));
 const char	*inet_ntop __P((int, const void *, char *, socklen_t));
 int		 inet_pton __P((int, const char *, void *));
-/*
- * XXX missing: ntohl() family.
- */
+__uint32_t	 ntohl(__uint32_t);
+__uint16_t	 ntohs(__uint16_t);
 
 /* Nonstandard functions. */
 #ifndef _POSIX_SOURCE

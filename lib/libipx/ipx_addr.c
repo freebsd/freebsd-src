@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)ipx_addr.c";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <arpa/inet.h>
 #include <netipx/ipx.h>
 #include <stdio.h>
 #include <string.h>

@@ -53,7 +53,9 @@
 #endif /* SYSLIBC_RCS and not lint */
 
 /* hostorder = ntohl(netorder) */
-ENTRY(ntohl)
+        .weak CNAME(ntohl)
+        .set CNAME(ntohl),CNAME(__ntohl)
+ENTRY(__ntohl)
 	retl
 	 signx	%o0, %o0
-END(ntohl)
+END(__ntohl)

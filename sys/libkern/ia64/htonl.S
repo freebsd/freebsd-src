@@ -28,6 +28,7 @@
  * rights to redistribute these changes.
  */
 
-#define	NAME	htonl
+#define	ALIAS	htonl
+#define	NAME	__htonl
 
 #include <libkern/ia64/byte_swap_4.S>

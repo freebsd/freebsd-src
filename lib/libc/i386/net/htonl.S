@@ -43,7 +43,9 @@
 
 #include <machine/asm.h>
 
-ENTRY(htonl)
+        .weak CNAME(htonl)
+        .set CNAME(htonl),CNAME(__htonl)
+ENTRY(__htonl)
 	movl	4(%esp),%eax
 	xchgb	%al,%ah
 	roll	$16,%eax

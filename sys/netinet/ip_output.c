@@ -513,8 +513,8 @@ sendit:
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 
-	HTONS(ip->ip_len);
-	HTONS(ip->ip_off);
+	ip->ip_len = htons(ip->ip_len);
+	ip->ip_off = htons(ip->ip_off);
 
 	error = ipsec4_output(&state, sp, flags);
 
@@ -573,8 +573,8 @@ sendit:
 	}
 
 	/* make it flipped, again. */
-	NTOHS(ip->ip_len);
-	NTOHS(ip->ip_off);
+	ip->ip_len = ntohs(ip->ip_len);
+	ip->ip_off = ntohs(ip->ip_off);
 skip_ipsec:
 #endif /*IPSEC*/
 
@@ -681,8 +681,8 @@ skip_ipsec:
 			}
 
 			/* Restore packet header fields to original values */
-			HTONS(ip->ip_len);
-			HTONS(ip->ip_off);
+			ip->ip_len = htons(ip->ip_len);
+			ip->ip_off = htons(ip->ip_off);
 
 			/* Deliver packet to divert input routine */
 			ip_divert_cookie = divert_cookie;
@@ -755,8 +755,8 @@ skip_ipsec:
 				}
 				m->m_pkthdr.csum_flags |=
 				    CSUM_IP_CHECKED | CSUM_IP_VALID;
-				HTONS(ip->ip_len);
-				HTONS(ip->ip_off);
+				ip->ip_len = htons(ip->ip_len);
+				ip->ip_off = htons(ip->ip_off);
 				ip_input(m);
 				goto done;
 			}
@@ -837,8 +837,8 @@ pass:
 	 */
 	if ((u_short)ip->ip_len <= ifp->if_mtu ||
 	    ifp->if_hwassist & CSUM_FRAGMENT) {
-		HTONS(ip->ip_len);
-		HTONS(ip->ip_off);
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
 		if (sw_csum & CSUM_DELAY_IP) {
 			if (ip->ip_vhl == IP_VHL_BORING) {
@@ -943,7 +943,7 @@ pass:
 		m->m_pkthdr.len = mhlen + len;
 		m->m_pkthdr.rcvif = (struct ifnet *)0;
 		m->m_pkthdr.csum_flags = m0->m_pkthdr.csum_flags;
-		HTONS(mhip->ip_off);
+		mhip->ip_off = htons(mhip->ip_off);
 		mhip->ip_sum = 0;
 		if (sw_csum & CSUM_DELAY_IP) {
 			if (mhip->ip_vhl == IP_VHL_BORING) {
@@ -972,7 +972,7 @@ pass:
 	m->m_pkthdr.len = hlen + firstlen;
 	ip->ip_len = htons((u_short)m->m_pkthdr.len);
 	ip->ip_off |= IP_MF;
-	HTONS(ip->ip_off);
+	ip->ip_off = htons(ip->ip_off);
 	ip->ip_sum = 0;
 	if (sw_csum & CSUM_DELAY_IP) {
 		if (ip->ip_vhl == IP_VHL_BORING) {
@@ -1950,8 +1950,8 @@ ip_mloopback(ifp, m, dst, hlen)
 		 * than the interface's MTU.  Can this possibly matter?
 		 */
 		ip = mtod(copym, struct ip *);
-		HTONS(ip->ip_len);
-		HTONS(ip->ip_off);
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
 		if (ip->ip_vhl == IP_VHL_BORING) {
 			ip->ip_sum = in_cksum_hdr(ip);

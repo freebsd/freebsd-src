@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)ipx_ntoa.c";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <arpa/inet.h>
 #include <netipx/ipx.h>
 #include <stdio.h>
 

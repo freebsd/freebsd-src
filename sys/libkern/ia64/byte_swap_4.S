@@ -30,8 +30,8 @@
 
 #include <machine/asm.h>
 
-#ifndef NAME
-#define	NAME byte_swap_4
+#if !defined(ALIAS) || !defined(NAME)
+#error ALIAS or NAME not defined
 #endif
 
 /*
@@ -39,6 +39,7 @@
  *
  * Argument is an unsigned 4-byte integer (u_int32_t).
  */
+WEAK_ALIAS(ALIAS, NAME)
 ENTRY(NAME, 1)
 	mux1	r16=in0,@rev
 	;;

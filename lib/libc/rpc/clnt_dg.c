@@ -52,6 +52,7 @@ static char sccsid[] = "@(#)clnt_dg.c 1.19 89/03/16 Copyr 1988 Sun Micro";
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <arpa/inet.h>
 #include <rpc/rpc.h>
 #include <errno.h>
 #include <stdlib.h>
