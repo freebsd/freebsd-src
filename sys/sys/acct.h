@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)acct.h	8.4 (Berkeley) 1/9/95
- * $Id$
+ * $Id: acct.h,v 1.8 1997/02/22 09:44:48 peter Exp $
  */
 
 #ifndef _SYS_ACCT_H_
@@ -77,6 +77,8 @@ struct acct {
 #define	AHZ	64
 
 #ifdef KERNEL
+struct proc;
+
 int	acct_process __P((struct proc *p));
 #endif
 

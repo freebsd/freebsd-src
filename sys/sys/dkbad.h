@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkbad.h	8.2 (Berkeley) 7/10/94
- * $Id$
+ * $Id: dkbad.h,v 1.9 1997/02/22 09:45:07 peter Exp $
  */
 
 #ifndef _SYS_DKBAD_H_
@@ -86,6 +86,7 @@ struct dkbad_intern {
 	long	bi_bad[DKBAD_MAXBAD + 1];	/* actually usually less */
 };
 
+struct buf;
 struct disklabel;
 
 struct dkbad_intern *internbad144 __P((struct dkbad *btp,
