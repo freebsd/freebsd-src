@@ -25,11 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.12 1997/09/14 16:27:33 kato Exp $
+ *	$Id: pcaudio.c,v 1.13 1997/11/19 11:37:06 kato Exp $
  */
 
 #include "pca.h"
 #if NPCA > 0
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

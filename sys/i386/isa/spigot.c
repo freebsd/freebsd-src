@@ -26,11 +26,11 @@
  * This is the minimum driver code required to make a spigot work.
  * Unfortunatly, I can't include a real driver since the information
  * on the spigot is under non-disclosure.  You can pick up a library
- * that will work with this driver from ftp://ftp.cs.uwm.edu/pub/FreeBSD.
- * The library contains the source that I can release as well as several
- * object modules and functions that allows one to read spigot data.
- * See the code for spigot_grab.c that is included with the library
- * data.
+ * that will work with this driver from
+ * ftp://ftp.cs.uwm.edu/pub/FreeBSD-UWM.  The library contains the
+ * source that I can release as well as several object modules and
+ * functions that allows one to read spigot data.  See the code for
+ * spigot_grab.c that is included with the library data.
  *
  * The vendor will not allow me to release the spigot library code.
  * Please don't ask me for it.
@@ -38,7 +38,7 @@
  * To use this driver you will need the spigot library.  The library is
  * available from:
  *
- *	ftp.cs.uwm.edu://pub/FreeBSD/spigot/spigot.tar.gz
+ *	ftp.cs.uwm.edu://pub/FreeBSD-UWM/spigot/spigot.tar.gz
  *
  * Version 1.7, December 1995.
  *
@@ -50,6 +50,8 @@
 #if NSPIGOT > 1
 error "Can only have 1 spigot configured."
 #endif
+
+#include	"opt_devfs.h"
 
 #include	<sys/param.h>
 #include	<sys/systm.h>

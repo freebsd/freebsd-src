@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.10 (Berkeley) 5/14/95
- * $Id: lfs_syscalls.c,v 1.19 1997/03/23 00:45:20 bde Exp $
+ * $Id: lfs_syscalls.c,v 1.20 1997/11/06 19:29:51 phk Exp $
  */
+
+#include "opt_lfs.h"			/* XXX: Indicate bogus header dependency */
 
 #include <sys/param.h>
 #include <sys/systm.h>

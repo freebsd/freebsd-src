@@ -79,6 +79,8 @@
 #include "vt.h"
 #if NVT > 0
 
+#include "opt_devfs.h"
+
 #define EXTERN			/* allocate mem */
 
 #include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */

@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.33 1997/09/21 21:41:32 gibbs Exp $ */
+/* $Id: scd.c,v 1.34 1997/12/02 21:06:26 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -49,6 +49,7 @@
 
 #include "scd.h"
 #if NSCD > 0
+#include "opt_devfs.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>

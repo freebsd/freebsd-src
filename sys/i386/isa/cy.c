@@ -27,10 +27,11 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.58 1997/12/16 17:39:59 eivind Exp $
+ *	$Id: cy.c,v 1.59 1997/12/28 06:23:03 bde Exp $
  */
 
 #include "opt_compat.h"
+#include "opt_devfs.h"
 
 #include "cy.h"
 

@@ -15,10 +15,11 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.118 1997/12/28 09:10:37 julian Exp $
+ *      $Id: sd.c,v 1.119 1997/12/29 07:49:31 julian Exp $
  */
 
 #include "opt_bounce.h"
+#include "opt_devfs.h"
 #include "opt_scsi.h"
 
 #define SPLSD splbio

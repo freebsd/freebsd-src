@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.26 1997/04/14 16:47:38 jkh Exp $
+ * $Id: asc.c,v 1.27 1997/09/14 03:19:05 peter Exp $
  */
 
 #include "asc.h"
@@ -61,6 +61,9 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/poll.h>
+
+#include "opt_devfs.h"
+
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/

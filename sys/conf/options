@@ -1,4 +1,4 @@
-#	$Id: options,v 1.44 1998/01/09 00:51:51 eivind Exp $
+#	$Id: options,v 1.45 1998/01/09 03:20:51 eivind Exp $
 
 # Format:
 # Option name	filename
@@ -8,9 +8,12 @@ BOUNCE_BUFFERS	opt_bounce.h
 DDB
 DDB_UNATTENDED	opt_ddb.h
 GDB_REMOTE_CHAT	opt_ddb.h
+DEVFS
 DEVFS_ROOT	opt_devfs.h
 SUIDDIR		opt_suiddir.h
 KTRACE
+MFS_AUTOLOAD	opt_mfs.h
+MFS_ROOT	opt_mfs.h
 QUOTA
 SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
@@ -36,16 +39,28 @@ PORTAL		opt_dontuse.h
 PROCFS		opt_dontuse.h
 UMAPFS		opt_dontuse.h
 
-# The cd9660 static filesystem has one slightly bogus static dependency
-# in sys/i386/i386/autoconf.c.  If this filesystem is statically
-# compiled into the kernel, code for mounting a CD-ROM root filesystem
-# will be enabled.  This is purposely unavailable for the LKM-based
-# version.
+# These static filesystems has one slightly bogus static dependency in
+# sys/i386/i386/autoconf.c.  If any of these filesystems are
+# statically compiled into the kernel, code for mounting them as root
+# filesystems will be enabled - but look below.  Boot-code is purposely
+# unavailable for the LKM-based versions.
 CD9660
+FFS
+LFS
+NFS
 
-# In particular multi-session CD-Rs might require a huge amount of
-# time in order to "settle".  If we are about mounting them as the
-# root f/s, we gotta wait a little.
+# The above static dependencies are planned removed, with a
+# <filesystem>_ROOT option to control if it usable as root.  This list
+# allows these options to be present in config files already (though
+# they won't make any difference yet).
+CD9660_ROOT	opt_cd9660.h
+FFS_ROOT	opt_ffs.h
+LFS_ROOT	opt_lfs.h
+NFS_ROOT	opt_nfs.h
+
+# Multi-session CD-Rs might require a huge amount of time in order to
+# "settle".  If we are about mounting them as the root f/s, we gotta
+# wait a little.
 CD9660_ROOTDELAY	opt_cd9660.h
 
 # The union static file system has bogus static dependencies, so it isn't

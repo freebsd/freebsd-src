@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.392 1998/01/16 22:12:59 pst Exp $
+#	$Id: LINT,v 1.393 1998/01/21 18:34:47 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -433,22 +433,17 @@ options		TCPDEBUG
 # They are included here as an incentive for some enterprising soul to
 # sit down and fix them.
 #
-# Note: 4.4BSD NQNFS lease checking has relatively high cost for
-# _local_ I/O as well as remote I/O. Don't use it unless you will
-# using NQNFS.
-#
 
 # One of these is mandatory:
 options		FFS			#Fast filesystem
 options		NFS			#Network File System
 
 # The rest are optional:
-options		NQNFS			#Enable NQNFS lease checking
 # options	NFS_NOSERVER		#Disable the NFS-server code.
 options		"CD9660"		#ISO 9660 filesystem
 options		FDESC			#File descriptor filesystem
 options		KERNFS			#Kernel filesystem
-options		LFS			#Log filesystem
+#options	LFS			#Log filesystem
 options		MFS			#Memory File System
 options		MSDOSFS			#MS DOS File System
 options		NULLFS			#NULL filesystem
@@ -456,6 +451,10 @@ options		PORTAL			#Portal filesystem
 options		PROCFS			#Process filesystem
 options		UMAPFS			#UID map filesystem
 options		UNION			#Union filesystem
+options		"CD9660_ROOT"		#CD-ROM usable as root device
+options		FFS_ROOT		#FFS usable as root device
+#options	LFS_ROOT		#LFS usable as root device
+options		NFS_ROOT		#NFS usable as root device
 # This DEVFS is experimental but seems to work
 options		DEVFS			#devices filesystem
 

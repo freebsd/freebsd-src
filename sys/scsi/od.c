@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.33 1997/12/02 21:06:59 phk Exp $
+ *	$Id: od.c,v 1.34 1997/12/06 14:27:49 bde Exp $
  */
 
 /*
@@ -56,6 +56,7 @@
  */
 
 #include "opt_bounce.h"
+#include "opt_devfs.h"
 #include "opt_scsi.h"
 #include "opt_od.h"
 
