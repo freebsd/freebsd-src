@@ -12,13 +12,14 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.1 1999/08/04 17:31:06 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.1.2.2 1999/11/28 03:43:44 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -176,7 +177,8 @@ char	**argv;
 	struct	in_addr	gwip;
 	tcphdr_t	*tcp;
 	ip_t	*ip;
-	char	*name =  argv[0], host[64], *gateway = NULL, *dev = NULL;
+	char	*name =  argv[0], host[MAXHOSTNAMELEN + 1];
+	char	*gateway = NULL, *dev = NULL;
 	char	*src = NULL, *dst, *s;
 	int	mtu = 1500, olen = 0, c, nonl = 0;
 

@@ -20,6 +20,74 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.3.6	28/12/1999 - Released
+
+add in missing rwlock release in fr_checkicmpmatchingstate() and fix check
+for ICMP_ECHO to only be for packet, not state entry which we don't have yet.
+
+handle SIOCIPFFB in nat_ioctl() and fr_state_ioctl()
+
+fix size of friostat for SunOS4
+
+fix bug in running off the end of a buffer in real audio proxy
+
+3.3.5	11/12/1999 - Released
+
+fix parsing of "log level" and printing it back out too
+
+<net/if_types.h> is only present on Solaris2.6/7/8
+
+use send_icmp_err rather than icmp_error to send back a frag-needed error
+when doing PMTU
+
+do not use -b with add_drv on Solaris unless $BASEDIR is set.
+
+fix problem where source address in icmp replies is reversed
+
+fix yet another problem with real audio.
+
+3.3.4	4/12/1999 - Released
+
+patches from Guido: fix panic in ip_state:fr_checkicmpmatchingstate(), fix
+byte order problem in ip_id (host order when called from ip_input(), vs
+network byte order when called from ip_output()) and  fix a problem where the
+fragment cache was never timedout early.
+
+fix up the real audio proxy to properly setup state information and NAT
+entries, thanks to Laine Stump for testing/advice/fixes.
+
+fix ipfr_fastroute to set dst->sin_addr (Sean Farley - appears to prevent
+FreeBSD 3.3 from panic'ing) as this had been removed in prior hacks to this
+routine.
+
+fix kinstall for BSDI
+
+support ICMP errors being allowed through for ICMP packets going out with
+keep state enabled
+
+support hardware checksumming (gigabit ethernet cards) on Solaris thanks to
+Tel.Net Media for providing hardware for testing.
+
+patched from Frank Volf for ipmon (ICMP & fragmented packets) and allowing
+ICMP responses to ICMP packets in the keep state table.
+
+add in patches for hardware checksumming under solaris
+
+Solaris install scripts now use $BASEDIR as appropriate.
+
+add Solaris8 support
+
+fix "ipf -y" on solaris so that it rescans rules also for changes in
+interface pointers
+
+let ipmon become a daemon with -D if it is using syslog
+
+fix parsing of return-icmp-as-dest(foo)
+
+add reference to ipfstat -g to ipfstat.8
+
+ipf_mutex needs to be declared for irix in ip_fil.c
+
 3.3.3	22/10/1999 - Released
 
 add -g command line option to ipfstat to show groups still define.

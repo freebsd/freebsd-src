@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-1998 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.3.2.1 1999/08/14 04:46:07 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.3.2.3 1999/11/28 04:05:28 darrenr Exp $";
 #endif
 
 #ifndef SOLARIS
@@ -670,7 +670,7 @@ int	blen;
 				hostname(res, ip->ip_dst), proto,
 				hl, ip->ip_len);
 		}
-	} else if (p == IPPROTO_ICMP) {
+	} else if ((p == IPPROTO_ICMP) && !(ip->ip_off & IP_OFFMASK)) {
 		ic = (struct icmp *)((char *)ip + hl);
 		(void) sprintf(t, "%s -> ", hostname(res, ip->ip_src));
 		t += strlen(t);
@@ -971,7 +971,7 @@ char *argv[];
 	} else
 		log = NULL;
 
-	if (make_daemon && (log != stdout)) {
+	if (make_daemon && ((log != stdout) || (opts & OPT_SYSLOG))) {
 		if (fork() > 0)
 			exit(0);
 		write_pid(pidfile);

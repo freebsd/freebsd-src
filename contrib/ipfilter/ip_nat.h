@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_nat.h	1.5 2/4/96
- * $Id: ip_nat.h,v 2.1.2.1 1999/08/14 04:47:54 darrenr Exp $
+ * $Id: ip_nat.h,v 2.1.2.2 1999/11/28 11:01:51 darrenr Exp $
  */
 
 #ifndef	__IP_NAT_H__
@@ -57,13 +57,14 @@
 #ifndef	APR_LABELLEN
 #define	APR_LABELLEN	16
 #endif
+#define	NAT_HW_CKSUM	0x80000000
 
 #define	DEF_NAT_AGE	1200     /* 10 minutes (600 seconds) */
 
 typedef	struct	nat	{
 	u_long	nat_age;
 	int	nat_flags;
-	u_32_t	nat_sumd;
+	u_32_t	nat_sumd[2];
 	u_32_t	nat_ipsumd;
 	void	*nat_data;
 	void	*nat_aps;		/* proxy session */
@@ -240,7 +241,7 @@ extern	int	ip_natout __P((ip_t *, fr_info_t *));
 extern	int	ip_natin __P((ip_t *, fr_info_t *));
 extern	void	ip_natunload __P((void)), ip_natexpire __P((void));
 extern	void	nat_log __P((struct nat *, u_int));
-extern	void	fix_incksum __P((u_short *, u_32_t));
-extern	void	fix_outcksum __P((u_short *, u_32_t));
+extern	void	fix_incksum __P((u_short *, u_32_t, int));
+extern	void	fix_outcksum __P((u_short *, u_32_t, int));
 
 #endif /* __IP_NAT_H__ */

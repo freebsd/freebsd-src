@@ -56,7 +56,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.1 1999/08/04 17:30:07 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.1.2.2 1999/12/04 02:09:30 darrenr Exp $";
 #endif
 
 
@@ -77,6 +77,7 @@ int	countbits __P((u_32_t));
 char	*getnattype __P((ipnat_t *));
 int	main __P((int, char*[]));
 void	printaps __P((ap_session_t *, int));
+char	*getsumd __P((u_32_t));
 
 #define	OPT_REM		1
 #define	OPT_NODO	2
@@ -93,6 +94,19 @@ char *name;
 {
 	fprintf(stderr, "%s: [-CFhlnrsv] [-f filename]\n", name);
 	exit(1);
+}
+
+
+char *getsumd(sum)
+u_32_t sum;
+{
+	static char sumdbuf[17];
+
+	if (sum & NAT_HW_CKSUM)
+		sprintf(sumdbuf, "hw(%#0x)", sum & 0xffff);
+	else
+		sprintf(sumdbuf, "%#0x", sum);
+	return sumdbuf;
 }
 
 
@@ -332,10 +346,12 @@ int fd, opts;
 			printf(" [%s %hu]", inet_ntoa(nat.nat_oip),
 				ntohs(nat.nat_oport));
 			if (opts & OPT_VERBOSE) {
-				printf("\n\tage %lu use %hu sumd %x pr %u",
-					nat.nat_age, nat.nat_use, nat.nat_sumd,
-					nat.nat_p);
-				printf(" bkt %d flags %x ", i, nat.nat_flags);
+				printf("\n\tage %lu use %hu sumd %s/",
+					nat.nat_age, nat.nat_use,
+					getsumd(nat.nat_sumd[0]));
+				printf("%s pr %u bkt %d flags %x ",
+					getsumd(nat.nat_sumd[1]), nat.nat_p,
+					i, nat.nat_flags);
 #ifdef	USE_QUAD_T
 				printf("bytes %qu pkts %qu",
 					nat.nat_bytes, nat.nat_pkts);
