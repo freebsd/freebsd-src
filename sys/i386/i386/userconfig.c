@@ -3340,7 +3340,6 @@ lsdevtab(struct isa_device *dt)
 	    dname, /* dt->id_id, dt->id_driver(by name), */ dt->id_iobase,
 	    ffs(dt->id_irq) - 1, dt->id_drq, dt->id_maddr, dt->id_msize,
 	    /* dt->id_intr(by name), */ dt->id_unit, dt->id_flags,
-	    /* dt->id_scsiid, dt->id_alive, dt->id_ri_flags, */
 	    dt->id_enabled ? "Yes" : "No",
 	    dt->id_conflicts ? "Yes" : "No");
 	++lineno;

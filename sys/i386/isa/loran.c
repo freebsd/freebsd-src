@@ -244,9 +244,6 @@ loranprobe(struct isa_device *dvp)
 
 	if (!once++)
 		cdevsw_add(&loran_cdevsw);
-	/* We need to be a "fast-intr" */
-	dvp->id_ri_flags |= RI_FAST;
-
 	dvp->id_iobase = PORT;
 	return (8);
 }
@@ -284,7 +281,7 @@ loranattach(struct isa_device *isdp)
 	isdp->id_ointr = loranintr;
 
 	/* We need to be a "fast-intr" */
-	isdp->id_ri_flags |= RI_FAST;
+	/* isdp->id_ri_flags |= RI_FAST; XXX unimplemented - use newbus! */
 
 	printf("loran0: LORAN-C Receiver\n");
 
