@@ -158,10 +158,6 @@ static	int ath_regdomain = 0;			/* regulatory domain */
 SYSCTL_INT(_hw_ath, OID_AUTO, regdomain, CTLFLAG_RD, &ath_regdomain,
 	    0, "regulatory domain");
 
-static	int ath_bmisshack = 1;
-SYSCTL_INT(_hw_ath, OID_AUTO, bmisshack, CTLFLAG_RW, &ath_bmisshack,
-	    0, "enable/disable hack to discard bmiss interrupts");
-
 #ifdef AR_DEBUG
 int	ath_debug = 0;
 SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
@@ -285,7 +281,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/* XXX not right but it's not used anywhere important */
 	ic->ic_phytype = IEEE80211_T_OFDM;
 	ic->ic_opmode = IEEE80211_M_STA;
-	ic->ic_caps = IEEE80211_C_WEP | IEEE80211_C_IBSS | IEEE80211_C_HOSTAP;
+	ic->ic_caps = IEEE80211_C_WEP | IEEE80211_C_IBSS | IEEE80211_C_HOSTAP
+		| IEEE80211_C_MONITOR;
 	/* NB: 11g support is identified when we fetch the channel set */
 	if (sc->sc_have11g)
 		ic->ic_caps |= IEEE80211_C_SHPREAMBLE;
@@ -347,9 +344,11 @@ ath_resume(struct ath_softc *sc)
 
 	DPRINTF(("ath_resume: if_flags %x\n", ifp->if_flags));
 
-	ath_init(ifp);
-	if (ifp->if_flags & IFF_UP)
-		ath_start(ifp);
+	if (ifp->if_flags & IFF_UP) {
+		ath_init(ifp);
+		if (ifp->if_flags & IFF_RUNNING)
+			ath_start(ifp);
+	}
 }
 
 void
@@ -387,7 +386,6 @@ ath_intr(void *arg)
 	}
 	ath_hal_getisr(ah, &status);		/* NB: clears ISR too */
 	DPRINTF2(("ath_intr: status 0x%x\n", status));
-if (ath_bmisshack) status &= ~HAL_INT_BMISS; /*XXX*/
 #ifdef AR_DEBUG
 	if (ath_debug &&
 	    (status & (HAL_INT_FATAL|HAL_INT_RXORN|HAL_INT_BMISS))) {
@@ -546,7 +544,10 @@ ath_init(void *arg)
 	mode = ieee80211_chan2mode(ic, ni->ni_chan);
 	if (mode != sc->sc_curmode)
 		ath_setcurmode(sc, mode);
-	ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
+	if (ic->ic_opmode != IEEE80211_M_MONITOR)
+		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
+	else
+		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 done:
 	mtx_unlock(&sc->sc_mtx);
 }
@@ -1075,7 +1076,7 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	 */
 	rt = sc->sc_currates;
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
-	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) == 0)
+	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
 		rate = rt->info[0].rateCode | rt->info[0].shortPreamble;
 	else
 		rate = rt->info[0].rateCode;
@@ -1169,7 +1170,7 @@ ath_beacon_config(struct ath_softc *sc)
 	    (LE_READ_4(ni->ni_tstamp) >> 10);
 	DPRINTF(("%s: nexttbtt=%u\n", __func__, nexttbtt));
 	nexttbtt += ni->ni_intval;
-	if (ic->ic_opmode != IEEE80211_M_HOSTAP) {
+	if (ic->ic_opmode == IEEE80211_M_STA) {
 		HAL_BEACON_STATE bs;
 		u_int32_t bmisstime;
 
@@ -1232,7 +1233,8 @@ ath_beacon_config(struct ath_softc *sc)
 		ath_hal_intrset(ah, 0);
 		ath_hal_beaconinit(ah, ic->ic_opmode,
 			nexttbtt, ni->ni_intval);
-		sc->sc_imask |= HAL_INT_SWBA;	/* beacon prepare */
+		if (ic->ic_opmode != IEEE80211_M_MONITOR)
+			sc->sc_imask |= HAL_INT_SWBA;	/* beacon prepare */
 		ath_hal_intrset(ah, sc->sc_imask);
 	}
 }
@@ -2232,7 +2234,8 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		/*
 		 * Allocate and setup the beacon frame for AP or adhoc mode.
 		 */
-		if (ic->ic_opmode != IEEE80211_M_STA) {
+		if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
+		    ic->ic_opmode == IEEE80211_M_IBSS) {
 			error = ath_beacon_alloc(sc, ni);
 			if (error != 0)
 				goto bad;
