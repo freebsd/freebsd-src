@@ -2101,6 +2101,9 @@
   <sect2>
     <title>Miscellaneous Networks</title>
 
+    <para arch="i386">Cronyx-Sigma synchronous / asynchronous serial
+      adapters (&man.cx.4; driver)</para>
+
     <para arch="i386">Granch SBNI12 point-to-point communications
     adapters (&man.sbni.4; driver)
       <itemizedlist>
