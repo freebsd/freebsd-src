@@ -83,7 +83,7 @@
     une plateforme Alpha?</title>
 
     <para>Bien sur, vous devez disposer d'une machine Alpha reconnue
-    par &os. Les machines Alpha ne sont PAS comme des PCs. Il existe
+    par &os;. Les machines Alpha ne sont PAS comme des PCs. Il existe
     un nombre consid&eacute;rable de diff&eacute;rences entre les
     diff&eacute;rents composants de base et les architectures de cartes
     m&egrave;res. Cela veut dire que le noyau doit connaîtres les
@@ -106,9 +106,9 @@
     WindowsNT. Certaines disposent d'un microcode de console SRM dans
     la ROM syst&egrave;me, il suffit de le selectionner (via le menu ARC
     ou AlphaBIOS correspondant). Dans tous les autres cas vous devrez
-    r&eacute;-inscrire le code SRM dans les ROMs. V&eacute;rifiez sur <url
-    ulink="http://ftp.digital.com/pub/DEC/Alpha/firmware"> le site des
-    microcode Alpha</url> pour v&eacute;rifier si il est disponible pour
+    r&eacute;-inscrire le code SRM dans les ROMs. V&eacute;rifiez sur 
+    <ulink url="http://ftp.digital.com/pub/DEC/Alpha/firmware"> le site des
+    microcode Alpha</ulink> pour v&eacute;rifier si il est disponible pour
     votre syst&egrave;me. Dans tous les cas: <quote>no SRM</quote> veut
     dir qu'il n'existe pas pour &os; (ou NetBSD, OpenBSD, Tru64 Unix
     ou OpenVMS). Avec la d&eacute;convenue de WindowNT/alpha, un grand
@@ -467,7 +467,7 @@
       <para>L'interface ATA interface utilise l'irq 14.</para>
 
       <para>La console SRM <emphasis>ne permet n&eacute;anmoins pas de
-      d&eacute;marrer</quote> depuis des disques IDE. Cela veut dire que
+      d&eacute;marrer</emphasis> depuis des disques IDE. Cela veut dire que
       vous devez utiliser un disque SCSI pour p&eacute;riph&eacute;rique de
       d&eacute;marrage.</para>
 
