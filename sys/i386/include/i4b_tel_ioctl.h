@@ -27,9 +27,11 @@
  *	i4b_tel_ioctl.h telephony interface ioctls
  *	------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_tel_ioctl.h,v 1.11 1999/12/13 21:25:28 hm Exp $ 
  *
- *      last edit-date: [Fri Jul  9 08:34:28 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:07:18 1999]
  *
  *---------------------------------------------------------------------------*/
 
