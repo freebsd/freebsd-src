@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chipset.h,v 1.3 1998/07/22 08:25:39 dfr Exp $
+ *	$Id: chipset.h,v 1.4 1998/08/10 07:53:58 dfr Exp $
  */
 
 #ifndef _MACHINE_CHIPSET_H_
@@ -53,6 +53,7 @@ typedef void		alpha_chipset_cfgwritew_t(u_int, u_int, u_int, u_int,
 						  u_int16_t);
 typedef void		alpha_chipset_cfgwritel_t(u_int, u_int, u_int, u_int,
 						  u_int32_t);
+typedef vm_offset_t     alpha_chipset_addrcvt_t(vm_offset_t);
 
 
 typedef struct alpha_chipset {
@@ -86,6 +87,12 @@ typedef struct alpha_chipset {
     alpha_chipset_cfgwriteb_t*	cfgwriteb;
     alpha_chipset_cfgwritew_t*	cfgwritew;
     alpha_chipset_cfgwritel_t*	cfgwritel;
+
+    /*
+     * PCI address space translation functions
+     */
+    alpha_chipset_addrcvt_t*   cvt_to_dense;
+    alpha_chipset_addrcvt_t*   cvt_to_bwx;
 
     /*
      * PCI interrupt device.

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.3 1998/07/22 08:33:30 dfr Exp $
+ * $Id: pcibus.c,v 1.4 1998/08/10 07:53:59 dfr Exp $
  *
  */
 
@@ -88,6 +88,24 @@ int
 pci_cfgopen(void)
 {
 	return 1;
+}
+
+vm_offset_t 
+pci_cvt_to_dense(vm_offset_t sparse)
+{
+	if(chipset.cvt_to_dense)
+		return chipset.cvt_to_dense(sparse);
+	else
+		return NULL;
+}
+
+vm_offset_t
+pci_cvt_to_bwx(vm_offset_t sparse)
+{
+	if(chipset.cvt_to_bwx)
+		return chipset.cvt_to_bwx(sparse);
+	else
+		return NULL;
 }
 
 /*
