@@ -22,7 +22,7 @@ setenv	BLOCKSIZE	K
 
 if ($?prompt) then
 	# An interactive shell -- set some stuff up
-	set prompt = "`hostname -s`# "
+	set prompt = "`/bin/hostname -s`# "
 	set filec
 	set history = 100
 	set savehist = 100
