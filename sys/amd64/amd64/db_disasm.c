@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_disasm.c,v 1.19 1997/02/22 09:32:12 peter Exp $
+ *	$Id: db_disasm.c,v 1.20 1997/04/01 16:22:31 bde Exp $
  */
 
 /*
@@ -1327,43 +1327,43 @@ db_disasm(loc, altfmt)
 		case I:
 		    len = db_lengths[size];
 		    get_value_inc(imm, loc, len, FALSE);
-		    db_printf("$%#n", imm);
+		    db_printf("$%#r", imm);
 		    break;
 
 		case Is:
 		    len = db_lengths[size];
 		    get_value_inc(imm, loc, len, FALSE);
-		    db_printf("$%+#n", imm);
+		    db_printf("$%+#r", imm);
 		    break;
 
 		case Ib:
 		    get_value_inc(imm, loc, 1, FALSE);
-		    db_printf("$%#n", imm);
+		    db_printf("$%#r", imm);
 		    break;
 
 		case Iba:
 		    get_value_inc(imm, loc, 1, FALSE);
 		    if (imm != 0x0a)
-			db_printf("$%#n", imm);
+			db_printf("$%#r", imm);
 		    break;
 
 		case Ibs:
 		    get_value_inc(imm, loc, 1, TRUE);
 		    if (size == WORD)
 			imm &= 0xFFFF;
-		    db_printf("$%+#n", imm);
+		    db_printf("$%+#r", imm);
 		    break;
 
 		case Iw:
 		    get_value_inc(imm, loc, 2, FALSE);
-		    db_printf("$%#n", imm);
+		    db_printf("$%#r", imm);
 		    break;
 
 		case O:
 		    len = (short_addr ? 2 : 4);
 		    get_value_inc(displ, loc, len, FALSE);
 		    if (seg)
-			db_printf("%s:%+#n",seg, displ);
+			db_printf("%s:%+#r",seg, displ);
 		    else
 			db_printsym((db_addr_t)displ, DB_STGY_ANY);
 		    break;
@@ -1397,7 +1397,7 @@ db_disasm(loc, altfmt)
 		    len = db_lengths[size];
 		    get_value_inc(imm, loc, len, FALSE);	/* offset */
 		    get_value_inc(imm2, loc, 2, FALSE);	/* segment */
-		    db_printf("$%#n,%#n", imm2, imm);
+		    db_printf("$%#r,%#r", imm2, imm);
 		    break;
 	    }
 	}
