@@ -121,8 +121,8 @@ ITEMS:'
 	on the topic before even thinking about updating.  You will
 	need to create a /boot/devices.hints or add a hints directive
 	to your config file to compile them in statically.  The format
-	of the config file has changed as well.  Please see LINT,
-	GENERIC or NEWCARD for examples of the new format.
+	of the config file has changed as well.  Please see GENERIC or
+	NEWCARD for examples of the new format.
 
 20000522:
 	A new set of binutils went into the tree today.  Anybody
