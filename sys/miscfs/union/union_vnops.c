@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.22 1997/04/13 13:12:12 kato Exp $
+ * $Id: union_vnops.c,v 1.23 1997/04/14 05:13:55 kato Exp $
  */
 
 #include <sys/param.h>
@@ -1058,6 +1058,7 @@ union_link(ap)
 	struct union_node *un;
 	struct vnode *vp;
 	struct vnode *tdvp;
+	int isvnunlocked = 0;
 
 	un = VTOUNION(ap->a_tdvp);
 
@@ -1096,7 +1097,19 @@ union_link(ap)
 	un->un_flags |= UN_KLOCK;
 	vput(ap->a_tdvp);
 
-	return (VOP_LINK(vp, tdvp, cnp));
+	/*
+	 * XXX -- This is a quick-hack to avoid panic.  Problem still remains!
+	 * The process which access the union filesystem will be hang-up after
+	 * making link in the union fs.
+	 */
+	if (VOP_ISLOCKED(tdvp) && (tdvp->v_op != union_vnodeop_p)) {
+		isvnunlocked = 1;
+		VOP_UNLOCK(tdvp, 0, p);
+	}
+	error = VOP_LINK(vp, tdvp, cnp);
+	if (isvnunlocked)
+		vn_lock(tdvp, LK_EXCLUSIVE | LK_RETRY, p);
+	return error;
 }
 
 int
