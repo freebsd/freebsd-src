@@ -11,16 +11,14 @@ SRCS=	alloc.c hack.Decl.c hack.apply.c hack.bones.c hack.c hack.cmd.c \
 	hack.search.c hack.shk.c hack.shknam.c hack.steal.c hack.termcap.c \
 	hack.timeout.c hack.topl.c hack.track.c hack.trap.c hack.tty.c \
 	hack.u_init.c hack.unix.c hack.vault.c hack.version.c hack.wield.c \
-	hack.wizard.c hack.worm.c hack.worn.c hack.zap.c rnd.c
+	hack.wizard.c hack.worm.c hack.worn.c hack.zap.c rnd.c \
+	hack.onames.h
 MAN6=	hack.6
 DPADD=	${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-ltermcap -lcompat
 CFLAGS+= -fwritable-strings -I${.CURDIR} -I.
 HIDEGAME=hidegame
-DPSRCS+= hack.onames.h
 CLEANFILES+= hack.onames.h makedefs
-
-.depend: hack.onames.h
 
 hack.onames.h: makedefs def.objects.h
 	./makedefs ${.CURDIR}/def.objects.h > hack.onames.h
