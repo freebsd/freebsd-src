@@ -170,6 +170,7 @@ if_getflags(int ifindex, int oifflags)
 		close(s);
 		return (oifflags & ~IFF_UP);
 	}
+	close(s);
 	return (ifr.ifr_flags);
 }
 

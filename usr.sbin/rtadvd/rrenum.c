@@ -206,12 +206,6 @@ do_pco(struct icmp6_router_renum *rr, int len, struct rr_pco_match *rpm)
 	if ((rr_pco_check(len, rpm) != NULL))
 		return 1;
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-		syslog(LOG_ERR, "<%s> socket: %s", __FUNCTION__,
-		       strerror(errno));
-		exit(1);
-	}
-
 	memset(&irr, 0, sizeof(irr));
 	irr.irr_origin = PR_ORIG_RR;
 	irr.irr_m_len = rpm->rpm_matchlen;
@@ -260,6 +254,12 @@ do_rr(int len, struct icmp6_router_renum *rr)
 	/* get iflist block from kernel again, to get up-to-date information */
 	init_iflist();
 
+	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+		syslog(LOG_ERR, "<%s> socket: %s", __FUNCTION__,
+		       strerror(errno));
+		exit(1);
+	}
+
 	while (cp < lim) {
 		int rpmlen;
 
@@ -268,6 +268,7 @@ do_rr(int len, struct icmp6_router_renum *rr)
 		    tooshort:
 			syslog(LOG_ERR, "<%s> pkt too short. left len = %d. "
 			       "gabage at end of pkt?", __FUNCTION__, len);
+			close(s);
 			return 1;
 		}
 		rpmlen = rpm->rpm_len << 3;
@@ -283,7 +284,7 @@ do_rr(int len, struct icmp6_router_renum *rr)
 		cp += rpmlen;
 		len -= rpmlen;
 	}
-
+	close(s);
 	return 0;
 }
 
