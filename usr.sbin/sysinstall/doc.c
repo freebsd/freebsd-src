@@ -4,16 +4,12 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.7 1995/10/27 01:22:53 jkh Exp $
+ * $Id: doc.c,v 1.8 1995/10/27 03:59:31 jkh Exp $
  *
  * Jordan Hubbard
  *
  * My contributions are in the public domain.
  *
- * Parts of this file are also blatently stolen from Poul-Henning Kamp's
- * previous version of sysinstall, and as such fall under his "BEERWARE license"
- * so buy him a beer if you like it!  Buy him a beer for me, too!
- * Heck, get him completely drunk and send me pictures! :-)
  */
 
 #include "sysinstall.h"
@@ -26,7 +22,13 @@ int
 docBrowser(char *junk)
 {
     char *browser = variable_get(VAR_BROWSER_PACKAGE);
- 
+
+    if (!strstr(variable_get(SYSTEM_STATE), "install")) {
+	msgConfirm("This option may only be used after the system is installed, sorry!");
+	return RET_FAIL;
+    }
+
+    /* Make sure we have media available */
     if (!mediaVerify())
 	return RET_FAIL;
 
