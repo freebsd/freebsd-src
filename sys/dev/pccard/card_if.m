@@ -88,6 +88,10 @@ METHOD int detach_card {
 	int	  flags;
 }
 
+HEADER {
+	#define DETACH_FORCE 0x01
+}
+
 #
 # Returns the type of card this is.  Maybe we don't need this.
 #
