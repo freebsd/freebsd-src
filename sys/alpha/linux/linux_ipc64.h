@@ -1,0 +1,133 @@
+/*-
+ * Copyright (c) 2002 Maxim Sobolev <sobomax@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer 
+ *    in this position and unchanged.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+#ifndef _ALPHA_LINUX_LINUX_IPC64_H_
+#define	_ALPHA_LINUX_LINUX_IPC64_H_
+
+/*
+ * The ipc64_perm structure for alpha architecture.
+ * Note extra padding because this structure is passed back and forth
+ * between kernel and user space.
+ *
+ * Pad space is left for:
+ * - 32-bit seq
+ * - 2 miscellaneous 64-bit values
+ */
+
+struct l_ipc64_perm
+{
+	l_key_t		key;
+	l_uid_t		uid;
+	l_gid_t		gid;
+	l_uid_t		cuid;
+	l_gid_t		cgid;
+	l_mode_t	mode;
+	l_ushort	seq;
+	l_ushort	__pad1;
+	l_ulong		__unused1;
+	l_ulong		__unused2;
+};
+
+/*
+ * The msqid64_ds structure for alpha architecture.
+ * Note extra padding because this structure is passed back and forth
+ * between kernel and user space.
+ *
+ * Pad space is left for:
+ * - 2 miscellaneous 64-bit values
+ */
+
+struct l_msqid64_ds {
+	struct l_ipc64_perm msg_perm;
+	l_time_t	msg_stime;	/* last msgsnd time */
+	l_time_t	msg_rtime;	/* last msgrcv time */
+	l_time_t	msg_ctime;	/* last change time */
+	l_ulong		msg_cbytes;	/* current number of bytes on queue */
+	l_ulong		msg_qnum;	/* number of messages in queue */
+	l_ulong		msg_qbytes;	/* max number of bytes on queue */
+	l_pid_t		msg_lspid;	/* pid of last msgsnd */
+	l_pid_t		msg_lrpid;	/* last receive pid */
+	l_ulong		__unused1;
+	l_ulong		__unused2;
+};
+
+/*
+ * The semid64_ds structure for alpha architecture.
+ * Note extra padding because this structure is passed back and forth
+ * between kernel and user space.
+ *
+ * Pad space is left for:
+ * - 2 miscellaneous 64-bit values
+ */
+
+struct l_semid64_ds {
+	struct l_ipc64_perm sem_perm;	/* permissions */
+	l_time_t	sem_otime;	/* last semop time */
+	l_time_t	sem_ctime;	/* last change time */
+	l_ulong		sem_nsems;	/* no. of semaphores in array */
+	l_ulong		__unused1;
+	l_ulong		__unused2;
+};
+
+/*
+ * The shmid64_ds structure for alpha architecture.
+ * Note extra padding because this structure is passed back and forth
+ * between kernel and user space.
+ *
+ * Pad space is left for:
+ * - 2 miscellaneous 64-bit values
+ */
+
+struct l_shmid64_ds {
+	struct l_ipc64_perm shm_perm;	/* operation perms */
+	l_size_t	shm_segsz;	/* size of segment (bytes) */
+	l_time_t	shm_atime;	/* last attach time */
+	l_time_t	shm_dtime;	/* last detach time */
+	l_time_t	shm_ctime;	/* last change time */
+	l_pid_t		shm_cpid;	/* pid of creator */
+	l_pid_t		shm_lpid;	/* pid of last operator */
+	l_ulong		shm_nattch;	/* no. of current attaches */
+	l_ulong		__unused1;
+	l_ulong		__unused2;
+};
+
+struct l_shminfo64 {
+	l_ulong   	shmmax;
+	l_ulong   	shmmin;
+	l_ulong   	shmmni;
+	l_ulong   	shmseg;
+	l_ulong   	shmall;
+	l_ulong   	__unused1;
+	l_ulong   	__unused2;
+	l_ulong   	__unused3;
+	l_ulong   	__unused4;
+};
+
+#endif /* !_ALPHA_LINUX_LINUX_IPC64_H_ */

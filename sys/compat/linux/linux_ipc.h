@@ -31,6 +31,15 @@
 #ifndef _LINUX_IPC_H_
 #define _LINUX_IPC_H_
 
+/*
+ * Version flags for semctl, msgctl, and shmctl commands
+ * These are passed as bitflags or-ed with the actual command
+ */
+#define	LINUX_IPC_OLD	0	/* Old version (no 32-bit UID support on many
+				   architectures) */
+#define	LINUX_IPC_64	0x0100	/* New version (support 32-bit UIDs, bigger
+				   message sizes, etc. */
+
 #ifdef __i386__
 
 struct linux_msgctl_args 
