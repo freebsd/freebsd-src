@@ -48,7 +48,6 @@
 #include <sys/file.h>
 #include <sys/param.h>
 #include <sys/mount.h>
-#include <fs/udf/udf_mount.h>
 
 #include <err.h>
 #include <errno.h>
@@ -71,15 +70,13 @@ void	usage(void);
 int
 main(int argc, char **argv)
 {
-	struct udf_args args;
+	struct iovec iov[6];
 	int ch, mntflags, opts;
 	char *dev, *dir, mntpath[MAXPATHLEN];
 	struct vfsconf vfc;
 	int error, verbose;
 
 	mntflags = opts = verbose = 0;
-	memset(&args, 0, sizeof args);
-	args.ssector = -1;
 	while ((ch = getopt(argc, argv, "o:v")) != -1)
 		switch (ch) {
 		case 'o':
@@ -108,16 +105,10 @@ main(int argc, char **argv)
 	(void)checkpath(dir, mntpath);
 	(void)rmslashes(dev, dev);
 
-#define DEFAULT_ROOTUID	-2
 	/*
 	 * UDF filesystems are not writeable.
 	 */
 	mntflags |= MNT_RDONLY;
-	args.export.ex_flags = MNT_EXRDONLY;
-	args.fspec = dev;
-	args.export.ex_root = DEFAULT_ROOTUID;
-	args.flags = opts;
-
 	error = getvfsbyname("udf", &vfc);
 	if (error && vfsisloadable("udf")) {
 		if (vfsload("udf"))
@@ -128,8 +119,20 @@ main(int argc, char **argv)
 	if (error)
 		errx(1, "udf filesystem is not available");
 
-	if (mount(vfc.vfc_name, mntpath, mntflags, &args) < 0)
-		err(1, "%s", args.fspec);
+	iov[0].iov_base = "fstype";
+	iov[0].iov_len = sizeof("fstype");
+	iov[1].iov_base = vfc.vfc_name;
+	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+	iov[2].iov_base = "fspath";
+	iov[2].iov_len = sizeof("fspath");
+	iov[3].iov_base = mntpath;
+	iov[3].iov_len = strlen(mntpath) + 1;
+	iov[4].iov_base = "from";
+	iov[4].iov_len = sizeof("from");
+	iov[5].iov_base = dev;
+	iov[5].iov_len = strlen(dev) + 1;
+	if (nmount(iov, 6, mntflags) < 0)
+		err(1, "%s", dev);
 	exit(0);
 }
 
