@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.13 1996/08/21 07:28:57 asami Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.14 1996/09/22 15:40:33 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -67,7 +67,7 @@
 	      <htmlurl url="file:/usr/share/doc/handbook/handbook.html">
 
 	    <tag>The FreeBSD FAQ</tag>
-	      <htmlurl url="file:/usr/share/doc/FAQ/freebsd-faq.html">
+	      <htmlurl url="file:/usr/share/doc/FAQ/FAQ.html">
 	  </descrip>
 
 	  You can also visit the master (and most frequently
@@ -84,7 +84,7 @@
 	  anyone.  A freely (from outside the U.S.) exportable
 	  European distribution of DES for our non-U.S. users
 	  also exists and is described in the <htmlurl
-	  url="../FAQ/freebsd-faq.html" name="FreeBSD FAQ">.
+	  url="../FAQ/FAQ.html" name="FreeBSD FAQ">.
 
 	  If password security for FreeBSD is all you need, and
 	  you have no requirement for copying encrypted passwords
