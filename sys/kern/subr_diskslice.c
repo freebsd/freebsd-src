@@ -66,18 +66,18 @@ typedef	u_char	bool_t;
 
 static volatile bool_t ds_debug;
 
-static struct disklabel *clone_label __P((struct disklabel *lp));
-static void dsiodone __P((struct bio *bp));
-static char *fixlabel __P((char *sname, struct diskslice *sp,
-			   struct disklabel *lp, int writeflag));
-static void free_ds_label __P((struct diskslices *ssp, int slice));
-static void partition_info __P((char *sname, int part, struct partition *pp));
-static void slice_info __P((char *sname, struct diskslice *sp));
-static void set_ds_label __P((struct diskslices *ssp, int slice,
-			      struct disklabel *lp));
-static void set_ds_labeldevs __P((dev_t dev, struct diskslices *ssp));
-static void set_ds_wlabel __P((struct diskslices *ssp, int slice,
-			       int wlabel));
+static struct disklabel *clone_label(struct disklabel *lp);
+static void dsiodone(struct bio *bp);
+static char *fixlabel(char *sname, struct diskslice *sp,
+			   struct disklabel *lp, int writeflag);
+static void free_ds_label(struct diskslices *ssp, int slice);
+static void partition_info(char *sname, int part, struct partition *pp);
+static void slice_info(char *sname, struct diskslice *sp);
+static void set_ds_label(struct diskslices *ssp, int slice,
+			      struct disklabel *lp);
+static void set_ds_labeldevs(dev_t dev, struct diskslices *ssp);
+static void set_ds_wlabel(struct diskslices *ssp, int slice,
+			       int wlabel);
 
 /*
  * Duplicate a label for the whole disk, and initialize defaults in the

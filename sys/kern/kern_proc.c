@@ -60,13 +60,13 @@ MALLOC_DEFINE(M_SESSION, "session", "session header");
 static MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
 MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
-static struct proc *dopfind	__P((register pid_t));
+static struct proc *dopfind	(register pid_t);
 
-static void doenterpgrp	__P((struct proc *, struct pgrp *));
+static void doenterpgrp	(struct proc *, struct pgrp *);
 
-static void pgdelete	__P((struct pgrp *));
+static void pgdelete	(struct pgrp *);
 
-static void orphanpg	__P((struct pgrp *pg));
+static void orphanpg	(struct pgrp *pg);
 
 /*
  * Other process lists

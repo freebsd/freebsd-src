@@ -78,7 +78,7 @@ struct execlist {
 TAILQ_HEAD(exec_list_head, execlist);
 static struct exec_list_head exec_list = TAILQ_HEAD_INITIALIZER(exec_list);
 
-static register_t *exec_copyout_strings __P((struct image_params *));
+static register_t *exec_copyout_strings(struct image_params *);
 
 /* XXX This should be vm_size_t. */
 static u_long ps_strings = PS_STRINGS;
@@ -126,7 +126,7 @@ execve(td, uap)
 	int error, len, i;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
-	int (*img_first) __P((struct image_params *));
+	int (*img_first)(struct image_params *);
 	struct pargs *pa;
 
 	imgp = &image_params;

@@ -41,13 +41,13 @@
 #include <machine/in_cksum.h>
 
 #ifndef MROUTING
-extern u_long	_ip_mcast_src __P((int vifi));
-extern int	_ip_mforward __P((struct ip *ip, struct ifnet *ifp,
-				  struct mbuf *m, struct ip_moptions *imo));
-extern int	_ip_mrouter_done __P((void));
-extern int	_ip_mrouter_get __P((struct socket *so, struct sockopt *sopt));
-extern int	_ip_mrouter_set __P((struct socket *so, struct sockopt *sopt));
-extern int	_mrt_ioctl __P((int req, caddr_t data));
+extern u_long	_ip_mcast_src(int vifi);
+extern int	_ip_mforward(struct ip *ip, struct ifnet *ifp,
+				  struct mbuf *m, struct ip_moptions *imo);
+extern int	_ip_mrouter_done(void);
+extern int	_ip_mrouter_get(struct socket *so, struct sockopt *sopt);
+extern int	_ip_mrouter_set(struct socket *so, struct sockopt *sopt);
+extern int	_mrt_ioctl(int req, caddr_t data);
 
 /*
  * Dummy routines and globals used when multicast routing is not compiled in.
@@ -246,13 +246,13 @@ static const struct encaptab *encap_cookie = NULL;
 static u_long last_encap_src;
 static struct vif *last_encap_vif;
 
-static u_long	X_ip_mcast_src __P((int vifi));
-static int	X_ip_mforward __P((struct ip *ip, struct ifnet *ifp, struct mbuf *m, struct ip_moptions *imo));
-static int	X_ip_mrouter_done __P((void));
-static int	X_ip_mrouter_get __P((struct socket *so, struct sockopt *m));
-static int	X_ip_mrouter_set __P((struct socket *so, struct sockopt *m));
-static int	X_legal_vif_num __P((int vif));
-static int	X_mrt_ioctl __P((int cmd, caddr_t data));
+static u_long	X_ip_mcast_src(int vifi);
+static int	X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m, struct ip_moptions *imo);
+static int	X_ip_mrouter_done(void);
+static int	X_ip_mrouter_get(struct socket *so, struct sockopt *m);
+static int	X_ip_mrouter_set(struct socket *so, struct sockopt *m);
+static int	X_legal_vif_num(int vif);
+static int	X_mrt_ioctl(int cmd, caddr_t data);
 
 static int get_sg_cnt(struct sioc_sg_req *);
 static int get_vif_cnt(struct sioc_vif_req *);

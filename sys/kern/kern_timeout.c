@@ -283,7 +283,7 @@ void
 callout_reset(c, to_ticks, ftn, arg)
 	struct	callout *c;
 	int	to_ticks;
-	void	(*ftn) __P((void *));
+	void	(*ftn)(void *);
 	void	*arg;
 {
 

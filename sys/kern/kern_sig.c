@@ -74,16 +74,16 @@
 
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
-static int coredump	__P((struct thread *));
-static int do_sigaction	__P((struct proc *p, int sig, struct sigaction *act,
-			     struct sigaction *oact, int old));
-static int do_sigprocmask __P((struct proc *p, int how, sigset_t *set,
-			       sigset_t *oset, int old));
-static char *expand_name __P((const char *, uid_t, pid_t));
-static int killpg1	__P((struct proc *cp, int sig, int pgid, int all));
-static int sig_ffs	__P((sigset_t *set));
-static int sigprop	__P((int sig));
-static void stop	__P((struct proc *));
+static int coredump	(struct thread *);
+static int do_sigaction(struct proc *p, int sig, struct sigaction *act,
+			     struct sigaction *oact, int old);
+static int do_sigprocmask(struct proc *p, int how, sigset_t *set,
+			       sigset_t *oset, int old);
+static char *expand_name(const char *, uid_t, pid_t);
+static int killpg1	(struct proc *cp, int sig, int pgid, int all);
+static int sig_ffs	(sigset_t *set);
+static int sigprop	(int sig);
+static void stop	(struct proc *);
 
 static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);

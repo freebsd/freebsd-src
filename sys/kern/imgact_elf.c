@@ -70,16 +70,16 @@
 __ElfType(Brandinfo);
 __ElfType(Auxargs);
 
-static int elf_check_header __P((const Elf_Ehdr *hdr));
-static int elf_freebsd_fixup __P((register_t **stack_base,
-    struct image_params *imgp));
-static int elf_load_file __P((struct proc *p, const char *file, u_long *addr,
-    u_long *entry));
-static int elf_load_section __P((struct proc *p,
+static int elf_check_header(const Elf_Ehdr *hdr);
+static int elf_freebsd_fixup(register_t **stack_base,
+    struct image_params *imgp);
+static int elf_load_file(struct proc *p, const char *file, u_long *addr,
+    u_long *entry);
+static int elf_load_section(struct proc *p,
     struct vmspace *vmspace, struct vnode *vp,
     vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
-    vm_prot_t prot));
-static int exec_elf_imgact __P((struct image_params *imgp));
+    vm_prot_t prot);
+static int exec_elf_imgact(struct image_params *imgp);
 
 static int elf_trace = 0;
 SYSCTL_INT(_debug, OID_AUTO, elf_trace, CTLFLAG_RW, &elf_trace, 0, "");
@@ -720,7 +720,7 @@ elf_freebsd_fixup(register_t **stack_base, struct image_params *imgp)
  * Code for generating ELF core dumps.
  */
 
-typedef void (*segment_callback) __P((vm_map_entry_t, void *));
+typedef void (*segment_callback)(vm_map_entry_t, void *);
 
 /* Closure for cb_put_phdr(). */
 struct phdr_closure {
@@ -734,16 +734,15 @@ struct sseg_closure {
 	size_t size;		/* Total size of all writable segments. */
 };
 
-static void cb_put_phdr __P((vm_map_entry_t, void *));
-static void cb_size_segment __P((vm_map_entry_t, void *));
-static void each_writable_segment __P((struct proc *, segment_callback,
-    void *));
-static int elf_corehdr __P((struct thread *, struct vnode *, struct ucred *,
-    int, void *, size_t));
-static void elf_puthdr __P((struct proc *, void *, size_t *,
-    const prstatus_t *, const prfpregset_t *, const prpsinfo_t *, int));
-static void elf_putnote __P((void *, size_t *, const char *, int,
-    const void *, size_t));
+static void cb_put_phdr(vm_map_entry_t, void *);
+static void cb_size_segment(vm_map_entry_t, void *);
+static void each_writable_segment(struct proc *, segment_callback, void *);
+static int elf_corehdr(struct thread *, struct vnode *, struct ucred *,
+    int, void *, size_t);
+static void elf_puthdr(struct proc *, void *, size_t *,
+    const prstatus_t *, const prfpregset_t *, const prpsinfo_t *, int);
+static void elf_putnote(void *, size_t *, const char *, int,
+    const void *, size_t);
 
 extern int osreldate;
 

@@ -73,9 +73,9 @@
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
-static void	addalias __P((struct vnode *vp, dev_t nvp_rdev));
-static void	insmntque __P((struct vnode *vp, struct mount *mp));
-static void	vclean __P((struct vnode *vp, int flags, struct thread *td));
+static void	addalias(struct vnode *vp, dev_t nvp_rdev);
+static void	insmntque(struct vnode *vp, struct mount *mp);
+static void	vclean(struct vnode *vp, int flags, struct thread *td);
 static void	vlruvp(struct vnode *vp);
 
 /*
@@ -389,7 +389,7 @@ int
 lite2_vfs_mountroot()
 {
 	struct vfsconf *vfsp;
-	extern int (*lite2_mountroot) __P((void));
+	extern int (*lite2_mountroot)(void);
 	int error;
 
 	if (lite2_mountroot != NULL)
@@ -1210,7 +1210,7 @@ vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 }
 
 struct  proc *updateproc;
-static void sched_sync __P((void));
+static void sched_sync(void);
 static struct kproc_desc up_kp = {
 	"syncer",
 	sched_sync,
@@ -2404,7 +2404,7 @@ DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 /*
  * Top level filesystem related information gathering.
  */
-static int	sysctl_ovfs_conf __P((SYSCTL_HANDLER_ARGS));
+static int	sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS);
 
 static int
 vfs_sysctl(SYSCTL_HANDLER_ARGS)
@@ -2804,14 +2804,14 @@ vn_pollgone(vp)
 /*
  * Routine to create and manage a filesystem syncer vnode.
  */
-#define sync_close ((int (*) __P((struct  vop_close_args *)))nullop)
-static int	sync_fsync __P((struct  vop_fsync_args *));
-static int	sync_inactive __P((struct  vop_inactive_args *));
-static int	sync_reclaim  __P((struct  vop_reclaim_args *));
-#define sync_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
-#define sync_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
-static int	sync_print __P((struct vop_print_args *));
-#define sync_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
+#define sync_close ((int (*)(struct  vop_close_args *))nullop)
+static int	sync_fsync(struct  vop_fsync_args *);
+static int	sync_inactive(struct  vop_inactive_args *);
+static int	sync_reclaim(struct  vop_reclaim_args *);
+#define sync_lock ((int (*)(struct  vop_lock_args *))vop_nolock)
+#define sync_unlock ((int (*)(struct  vop_unlock_args *))vop_nounlock)
+static int	sync_print(struct vop_print_args *);
+#define sync_islocked ((int(*)(struct vop_islocked_args *))vop_noislocked)
 
 static vop_t **sync_vnodeop_p;
 static struct vnodeopv_entry_desc sync_vnodeop_entries[] = {

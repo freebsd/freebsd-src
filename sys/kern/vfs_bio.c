@@ -81,7 +81,7 @@ static void vfs_setdirty(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
 static void vfs_backgroundwritedone(struct buf *bp);
 static int flushbufqueues(void);
-static void buf_daemon __P((void));
+static void buf_daemon(void);
 
 int vmiodirenable = TRUE;
 SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW, &vmiodirenable, 0,
@@ -2828,7 +2828,7 @@ void
 bufdone(struct buf *bp)
 {
 	int s, error;
-	void    (*biodone) __P((struct buf *));
+	void    (*biodone)(struct buf *);
 
 	GIANT_REQUIRED;
 

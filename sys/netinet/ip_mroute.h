@@ -253,10 +253,10 @@ struct tbf
 
 struct sockopt;
 
-extern int	(*ip_mrouter_set) __P((struct socket *, struct sockopt *));
-extern int	(*ip_mrouter_get) __P((struct socket *, struct sockopt *));
-extern int	(*ip_mrouter_done) __P((void));
-extern int	(*mrt_ioctl) __P((int, caddr_t));
+extern int	(*ip_mrouter_set)(struct socket *, struct sockopt *);
+extern int	(*ip_mrouter_get)(struct socket *, struct sockopt *);
+extern int	(*ip_mrouter_done)(void);
+extern int	(*mrt_ioctl)(int, caddr_t);
 
 #endif /* _KERNEL */
 

@@ -74,8 +74,8 @@
  * The former's operation is described in Leffler, et al., and the latter
  * was provided by UCB with the 4.4BSD-Lite release
  */
-static comp_t	encode_comp_t __P((u_long, u_long));
-static void	acctwatch __P((void *));
+static comp_t	encode_comp_t(u_long, u_long);
+static void	acctwatch(void *);
 
 /*
  * Accounting callout used for periodic scheduling of acctwatch.

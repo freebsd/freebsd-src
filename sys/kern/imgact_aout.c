@@ -56,7 +56,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 
-static int	exec_aout_imgact __P((struct image_params *imgp));
+static int	exec_aout_imgact(struct image_params *imgp);
 
 struct sysentvec aout_sysvec = {
 	SYS_MAXSYSCALL,

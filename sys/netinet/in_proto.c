@@ -201,7 +201,7 @@ struct protosw inetsw[] = {
 },
 };
 
-extern int in_inithead __P((void **, int));
+extern int in_inithead(void **, int);
 
 struct domain inetdomain =
     { AF_INET, "internet", 0, 0, 0, 

@@ -94,16 +94,16 @@ static struct cdevsw fildesc_cdevsw = {
 	/* flags */	0,
 };
 
-static int do_dup __P((struct filedesc *fdp, int old, int new, register_t *retval, struct thread *td));
-static int badfo_readwrite __P((struct file *fp, struct uio *uio,
-    struct ucred *cred, int flags, struct thread *td));
-static int badfo_ioctl __P((struct file *fp, u_long com, caddr_t data,
-    struct thread *td));
-static int badfo_poll __P((struct file *fp, int events,
-    struct ucred *cred, struct thread *td));
-static int badfo_kqfilter __P((struct file *fp, struct knote *kn));
-static int badfo_stat __P((struct file *fp, struct stat *sb, struct thread *td));
-static int badfo_close __P((struct file *fp, struct thread *td));
+static int do_dup(struct filedesc *fdp, int old, int new, register_t *retval, struct thread *td);
+static int badfo_readwrite(struct file *fp, struct uio *uio,
+    struct ucred *cred, int flags, struct thread *td);
+static int badfo_ioctl(struct file *fp, u_long com, caddr_t data,
+    struct thread *td);
+static int badfo_poll(struct file *fp, int events,
+    struct ucred *cred, struct thread *td);
+static int badfo_kqfilter(struct file *fp, struct knote *kn);
+static int badfo_stat(struct file *fp, struct stat *sb, struct thread *td);
+static int badfo_close(struct file *fp, struct thread *td);
 
 /*
  * Descriptor management.
@@ -2106,7 +2106,7 @@ badfo_close(fp, td)
 SYSINIT(fildescdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,
 					fildesc_drvinit,NULL)
 
-static void filelistinit __P((void *));
+static void filelistinit(void *);
 SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, filelistinit, NULL)
 
 /* ARGSUSED*/

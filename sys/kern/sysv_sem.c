@@ -26,25 +26,25 @@
 
 static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 
-static void seminit __P((void));
-static int sysvsem_modload __P((struct module *, int, void *));
-static int semunload __P((void));
-static void semexit_myhook __P((struct proc *p));
-static int sysctl_sema __P((SYSCTL_HANDLER_ARGS));
+static void seminit(void);
+static int sysvsem_modload(struct module *, int, void *);
+static int semunload(void);
+static void semexit_myhook(struct proc *p);
+static int sysctl_sema(SYSCTL_HANDLER_ARGS);
 
 #ifndef _SYS_SYSPROTO_H_
 struct __semctl_args;
-int __semctl __P((struct thread *td, struct __semctl_args *uap));
+int __semctl(struct thread *td, struct __semctl_args *uap);
 struct semget_args;
-int semget __P((struct thread *td, struct semget_args *uap));
+int semget(struct thread *td, struct semget_args *uap);
 struct semop_args;
-int semop __P((struct thread *td, struct semop_args *uap));
+int semop(struct thread *td, struct semop_args *uap);
 #endif
 
-static struct sem_undo *semu_alloc __P((struct thread *td));
-static int semundo_adjust __P((struct thread *td, struct sem_undo **supptr, 
-		int semid, int semnum, int adjval));
-static void semundo_clear __P((int semid, int semnum));
+static struct sem_undo *semu_alloc(struct thread *td);
+static int semundo_adjust(struct thread *td, struct sem_undo **supptr, 
+		int semid, int semnum, int adjval);
+static void semundo_clear(int semid, int semnum);
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *semcalls[] = {

@@ -108,9 +108,9 @@ SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW,
 int	icmpprintfs = 0;
 #endif
 
-static void	icmp_reflect __P((struct mbuf *));
-static void	icmp_send __P((struct mbuf *, struct mbuf *, struct route *));
-static int	ip_next_mtu __P((int, int));
+static void	icmp_reflect(struct mbuf *);
+static void	icmp_send(struct mbuf *, struct mbuf *, struct route *);
+static int	ip_next_mtu(int, int);
 
 extern	struct protosw inetsw[];
 
@@ -236,7 +236,7 @@ icmp_input(m, off)
 	int icmplen = ip->ip_len;
 	register int i;
 	struct in_ifaddr *ia;
-	void (*ctlfunc) __P((int, struct sockaddr *, void *));
+	void (*ctlfunc)(int, struct sockaddr *, void *);
 	int code;
 
 	/*
