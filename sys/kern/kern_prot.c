@@ -1524,15 +1524,15 @@ p_cansignal(struct thread *td, struct proc *p, int signum)
 	if (signum == SIGCONT && td->td_proc->p_session == p->p_session)
 		return (0);
 	/*
-	 * Some compat layers use SIGTHR for communications between
-	 * different kernel threads of the same process, so that
-	 * they are expecting that it's always possible to deliver
-	 * it, even for suid applications where cr_cansignal() can
+	 * Some compat layers use SIGTHR and higher signals for
+	 * communication between different kernel threads of the same
+	 * process, so that they expect that it's always possible to
+	 * deliver them, even for suid applications where cr_cansignal() can
 	 * deny such ability for security consideration.  It should be
 	 * pretty safe to do since the only way to create two processes
 	 * with the same p_leader is via rfork(2).
 	 */
-	if (signum == SIGTHR && td->td_proc->p_leader != NULL &&
+	if (signum >= SIGTHR && td->td_proc->p_leader != NULL &&
 	    td->td_proc->p_leader == p->p_leader)
 		return (0);
 
