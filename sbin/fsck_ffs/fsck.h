@@ -212,6 +212,7 @@ int	cvtlevel;		/* convert to newer file system format */
 int	doinglevel1;		/* converting to new cylinder group format */
 int	doinglevel2;		/* converting to new inode format */
 int	newinofmt;		/* filesystem has new inode format */
+int	bkgrdcheck;		/* determine if background check is possible */
 char	usedsoftdep;		/* just fix soft dependency inconsistencies */
 char	preen;			/* just fix normal inconsistencies */
 char	rerun;			/* rerun fsck. Only used in non-preen mode */
