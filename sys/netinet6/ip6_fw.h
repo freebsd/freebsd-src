@@ -190,6 +190,7 @@ typedef	int ip6_fw_chk_t __P((struct ip6_hdr**, struct ifnet*,
 typedef	int ip6_fw_ctl_t __P((int, struct mbuf**));
 extern	ip6_fw_chk_t *ip6_fw_chk_ptr;
 extern	ip6_fw_ctl_t *ip6_fw_ctl_ptr;
+extern	int ip6_fw_enable;
 
 #endif /* _KERNEL */
 
