@@ -131,6 +131,7 @@ PROCFS		opt_dontuse.h
 UMAPFS		opt_dontuse.h
 NTFS		opt_dontuse.h
 HPFS		opt_dontuse.h
+UNION		opt_dontuse.h
 
 # These static filesystems has one slightly bogus static dependency in
 # sys/i386/i386/autoconf.c.  If any of these filesystems are
@@ -160,10 +161,6 @@ UFS_EXTATTR_AUTOSTART	opt_ufs.h
 # allows these options to be present in config files already (though
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
-
-# The union static file system has bogus static dependencies, so it isn't
-# hidden yet.
-UNION
 
 # Options used only in param.c.
 HZ		opt_param.h
