@@ -85,7 +85,7 @@
 #
 TGTS=	afterdistribute all buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute everything hierarchy includes \
-	install installkernel installmost installworld libraries lint \
+	install installkernel installmost installworld kernel libraries lint \
 	maninstall mk most obj objlink regress rerelease tags update
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
