@@ -1,8 +1,6 @@
 /* $FreeBSD$ */
 #ifndef	PORT_AFTER_H
 #define	PORT_AFTER_H
-#ifndef	PORT_AFTER_H
-#define	PORT_AFTER_H
 #define USE_POSIX
 #define POSIX_SIGNALS
 #define USE_UTIME
