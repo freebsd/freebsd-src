@@ -18,7 +18,7 @@ PROG=	rtadvd
 MAN=	rtadvd.conf.5 rtadvd.8
 SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c dump.c
 
-CFLAGS+= -DINET6
+CFLAGS+= -DINET6 -DHAVE_POLL_H
 
 DPADD=	${LIBCOMPAT}
 LDADD=	-lcompat
