@@ -513,7 +513,8 @@
 	2.12.1 (specifically, a post-release snapshot from 20 July 2002).</para>
 
       <para><application>gcc</application> has been updated to
-	2.95.4.</para>
+	a snapshot from the GCC 2.95 CVS branch from 20 March 2002.  It
+	carries the unofficial version number of 2.95.4.</para>
 
       <para><application>Heimdal Kerberos</application> has been updated to
 	a pre-0.5 snapshot from 29 August 2002.</para>
