@@ -68,7 +68,7 @@ main(argc, argv)
 	struct ntfs_args args;
 	struct stat sb;
 	int c, mntflags, set_gid, set_uid, set_mask, error;
-	char *dev, *dir, ndir[MAXPATHLEN+1], mntpath[MAXPATHLEN];
+	char *dev, *dir, mntpath[MAXPATHLEN];
 #if __FreeBSD_version >= 300000
 	struct vfsconf vfc;
 #else
