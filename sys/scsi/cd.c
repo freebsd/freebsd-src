@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.60 1996/01/30 16:38:30 ache Exp $
+ *      $Id: cd.c,v 1.61 1996/01/30 23:11:06 ache Exp $
  */
 
 #include "opt_bounce.h"
@@ -835,13 +835,13 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 				data.entries[idx].track = 170; /* magic */
 				switch (te->address_format) {
 				case CD_MSF_FORMAT:
-					lba2msf (th->len,
+					lba2msf (cd->params.disksize,
 					    &data.entries[idx].addr.msf.minute,
 					    &data.entries[idx].addr.msf.second,
 					    &data.entries[idx].addr.msf.frame);
 					break;
 				case CD_LBA_FORMAT:
-					data.entries[idx].addr.lba = htonl(th->len);
+					data.entries[idx].addr.lba = htonl(cd->params.disksize);
 					break;
 				}
 			}
