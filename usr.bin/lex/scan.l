@@ -27,7 +27,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: /home/ncvs/src/usr.bin/lex/scan.l,v 1.1.1.2 1996/06/19 20:26:31 nate Exp $ */
+/* $Header: /home/ncvs/src/usr.bin/lex/scan.l,v 1.2 1996/06/19 22:25:32 nate Exp $ */
 
 #include "flexdef.h"
 #include "parse.h"
@@ -65,7 +65,7 @@
 		yymore_used = true;
 %}
 
-%option caseless nodefault stack noyy_top_state
+%option caseless nodefault outfile="scan.c" stack noyy_top_state
 %option nostdinit
 
 %x SECT2 SECT2PROLOG SECT3 CODEBLOCK PICKUPDEF SC CARETISBOL NUM QUOTE
