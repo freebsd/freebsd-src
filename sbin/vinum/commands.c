@@ -69,6 +69,7 @@ vinum_create(int argc, char *argv[], char *arg0[])
     int error;
     FILE *dfd;						    /* file descriptor for the config file */
     char buffer[BUFSIZE];				    /* read config file in here */
+    char commandline[BUFSIZE];				    /* issue command from here */
     struct _ioctl_reply *reply;
     int ioctltype;					    /* for ioctl call */
 
@@ -100,11 +101,12 @@ vinum_create(int argc, char *argv[], char *arg0[])
 	}
 	file_line++;					    /* count the lines */
 	if (verbose)
-	    printf("%4d: %s", file_line, buffer);	    /* XXX */
-	ioctl(superdev, VINUM_CREATE, &buffer);
+	    printf("%4d: %s", file_line, buffer);
+	strcpy(commandline, buffer);			    /* make a copy */
+	ioctl(superdev, VINUM_CREATE, buffer);
 	if (reply->error != 0) {			    /* error in config */
 	    if (!verbose)				    /* print this line anyway */
-		printf("%4d: %s", file_line, buffer);
+		printf("%4d: %s", file_line, commandline);
 	    fprintf(stdout, "** %d %s: %s\n", file_line, reply->msg, strerror(reply->error));
 	    /* XXX at the moment, we reset the config
 	     * lock on error, so try to get it again.
