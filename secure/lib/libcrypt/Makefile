@@ -12,7 +12,7 @@ LCRYPTSO=	${LCRYPTBASE}.so.${SHLIB_MAJOR}
 LSCRYPTSO=	${LSCRYPTBASE}.so.${SHLIB_MAJOR}
 
 .if ${OBJFORMAT} == elf
-SONAME=		${LCRYPTBASE}.so.${SHLIB_MAJOR}
+SONAME=		${LCRYPTSO}
 .endif
 
 .PATH:		${.CURDIR}/../../../lib/libmd ${.CURDIR}/../../../lib/libcrypt
