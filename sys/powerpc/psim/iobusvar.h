@@ -63,11 +63,4 @@ struct iobus_devinfo {
         struct resource_list id_resources;
 };
 
-struct iobus_softc {
-	phandle_t     sc_node;
-	vm_offset_t   sc_addr;
-	vm_offset_t   sc_size;
-	struct        rman sc_mem_rman;
-};
-
 #endif /* _PSIM_IOBUSVAR_H_ */
