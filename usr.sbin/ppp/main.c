@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.25 1997/06/16 20:02:26 brian Exp $
+ * $Id: main.c,v 1.22.2.26 1997/06/17 01:47:10 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -82,7 +82,7 @@ static char if_filename[MAXPATHLEN];
 int tunno;
 
 static void
-TtyInit()
+TtyInit(int DontWantInt)
 {
   struct termios newtio;
   int stat;
@@ -97,7 +97,8 @@ TtyInit()
   newtio.c_iflag = 0;
   newtio.c_oflag &= ~OPOST;
   newtio.c_cc[VEOF] = _POSIX_VDISABLE;
-  newtio.c_cc[VINTR] = _POSIX_VDISABLE;
+  if (DontWantInt)
+    newtio.c_cc[VINTR] = _POSIX_VDISABLE;
   newtio.c_cc[VMIN] = 1;
   newtio.c_cc[VTIME] = 0;
   newtio.c_cflag |= CS8;
@@ -198,21 +199,9 @@ static void
 Hangup(signo)
 int signo;
 {
-#ifdef TRAPSEGV
-  if (signo == SIGSEGV) {
-	LogPrintf(LogPHASE, "Signal %d, core dump.\n", signo);
-	LogClose();
-	abort();
-  }
-#endif
-  if (BGPid) {
-      kill (BGPid, SIGTERM);
-      exit (EX_HANGUP);
-  }
-  else {
-      LogPrintf(LogPHASE, "Signal %d, hangup.\n", signo);
-      Cleanup(EX_HANGUP);
-  }
+  /* NOTE, these are manual, we've done a setsid() */
+  reconnect(RECON_FALSE);
+  DownConnection();
 }
 
 static void
@@ -387,9 +376,6 @@ char **argv;
   pending_signal(SIGTERM, CloseSession);
   pending_signal(SIGINT, CloseSession);
   pending_signal(SIGQUIT, CloseSession);
-#ifdef TRAPSEGV
-  signal(SIGSEGV, Hangup);
-#endif
 #ifdef SIGPIPE
   signal(SIGPIPE, SIG_IGN);
 #endif
@@ -519,13 +505,13 @@ char **argv;
 #else
     if (mode & MODE_DIRECT)
 #endif
-      TtyInit();
+      TtyInit(1);
     else {
       setsid();
       close(1);
     }
   } else {
-    TtyInit();
+    TtyInit(0);
     TtyCommandMode(1);
   }
   LogPrintf(LogPHASE, "PPP Started.\n");
@@ -743,6 +729,7 @@ DoLoop()
   int dial_up;
   int tries;
   int qlen;
+  int res;
   pid_t pgroup;
 
   pgroup = getpgrp();
@@ -834,7 +821,7 @@ DoLoop()
         else
           LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
 
-	if (DialModem() == EX_DONE) {
+	if ((res = DialModem()) == EX_DONE) {
 	  sleep(1);	       /* little pause to allow peer starts */
 	  ModemTimeout();
 	  PacketMode();
@@ -844,13 +831,14 @@ DoLoop()
 	} else {
 	  CloseModem();
 	  if (mode & MODE_BACKGROUND) {
-	    if (VarNextPhone == NULL)
+	    if (VarNextPhone == NULL || res == EX_SIG)
 	      Cleanup(EX_DIAL);  /* Tried all numbers - no luck */
 	    else
 	      /* Try all numbers in background mode */
 	      StartRedialTimer(VarRedialNextTimeout);
-	  } else if (!(mode & MODE_DDIAL) && VarDialTries
-                     && tries >= VarDialTries) {
+	  } else if (!(mode & MODE_DDIAL) &&
+                     ((VarDialTries && tries >= VarDialTries) ||
+                      res == EX_SIG)) {
 	    /* I give up !  Can't get through :( */
 	    StartRedialTimer(VarRedialTimeout);
 	    dial_up = FALSE;
