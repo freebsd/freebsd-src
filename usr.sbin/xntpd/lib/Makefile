@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1 1993/12/21 19:42:18 wollman Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
@@ -7,7 +7,7 @@ CFLAGS+= -I${.CURDIR}/../include
 SRCS=	atoint.c atolfp.c atouint.c auth12crypt.c authdecrypt.c authdes.c \
 	authencrypt.c authkeys.c authparity.c authreadkeys.c authusekey.c \
 	buftvtots.c caljulian.c calleapwhen.c caltontp.c calyearstart.c \
-	clocktime.c dofptoa.c dolfptoa.c emalloc.c fptoa.c fptoms.c getopt.c \
+	clocktime.c dofptoa.c dolfptoa.c emalloc.c fptoa.c fptoms.c \
 	gettstamp.c hextoint.c hextolfp.c humandate.c inttoa.c \
 	lib_strbuf.c mfptoa.c mfptoms.c modetoa.c mstolfp.c \
 	msutotsf.c numtoa.c refnumtoa.c numtohost.c octtoint.c \
