@@ -1213,7 +1213,7 @@ mac_test_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_test_check_vnode_lookup(struct ucred *cred, struct vnode *dvp, 
+mac_test_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel, struct componentname *cnp)
 {
 
