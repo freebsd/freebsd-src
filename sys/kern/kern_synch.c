@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.37 1997/08/21 20:33:39 bde Exp $
+ * $Id: kern_synch.c,v 1.38 1997/09/02 20:05:43 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -331,6 +331,7 @@ tsleep(ident, priority, wmesg, timo)
 {
 	struct proc *p = curproc;
 	int s, sig, catch = priority & PCATCH;
+	struct callout_handle thandle;
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_CSW))
@@ -363,7 +364,7 @@ tsleep(ident, priority, wmesg, timo)
 	p->p_priority = priority & PRIMASK;
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_procq);
 	if (timo)
-		timeout(endtsleep, (void *)p, timo);
+		thandle = timeout(endtsleep, (void *)p, timo);
 	/*
 	 * We put ourselves on the sleep queue and start our timeout
 	 * before calling CURSIG, as we could stop there, and a wakeup
@@ -404,7 +405,7 @@ resume:
 			return (EWOULDBLOCK);
 		}
 	} else if (timo)
-		untimeout(endtsleep, (void *)p);
+		untimeout(endtsleep, (void *)p, thandle);
 	if (catch && (sig != 0 || (sig = CURSIG(p)))) {
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_CSW))
