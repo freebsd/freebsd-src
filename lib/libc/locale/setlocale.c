@@ -262,6 +262,7 @@ loadlocale(category)
 	char *new = new_categories[category];
 	char *old = current_categories[category];
 	int (*func)(const char *);
+	int saved_errno;
 
 	if ((new[0] == '.' &&
 	     (new[1] == '\0' || (new[1] == '.' && new[2] == '\0'))) ||
@@ -270,27 +271,11 @@ loadlocale(category)
 		return (NULL);
 	}
 
-	if (_PathLocale == NULL) {
-		char *p = getenv("PATH_LOCALE");
-
-		if (p != NULL
-#ifndef __NETBSD_SYSCALLS
-			&& !issetugid()
-#endif
-			) {
-			if (strlen(p) + 1/*"/"*/ + ENCODING_LEN +
-			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX) {
-				errno = ENAMETOOLONG;
-				return (NULL);
-			}
-			_PathLocale = strdup(p);
-			if (_PathLocale == NULL) {
-				errno = ENOMEM;
-				return (NULL);
-			}
-		} else
-			_PathLocale = _PATH_LOCALE;
-	}
+	saved_errno = errno;
+	errno = __detect_path_locale();
+	if (errno != 0)
+		return (NULL);
+	errno = saved_errno;
 
 	switch (category) {
 	case LC_CTYPE:
@@ -325,5 +310,31 @@ loadlocale(category)
 	}
 
 	return (NULL);
+}
+
+/*
+ * Detect locale storage location and store its value to _PathLocale variable
+ */
+int
+__detect_path_locale(void)
+{
+	if (_PathLocale == NULL) {
+		char *p = getenv("PATH_LOCALE");
+
+		if (p != NULL
+#ifndef __NETBSD_SYSCALLS
+			&& !issetugid()
+#endif
+			) {
+			if (strlen(p) + 1/*"/"*/ + ENCODING_LEN +
+			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX)
+				return (ENAMETOOLONG);
+			_PathLocale = strdup(p);
+			if (_PathLocale == NULL)
+				return (errno == 0 ? ENOMEM : errno);
+		} else
+			_PathLocale = _PATH_LOCALE;
+	}
+	return (0);
 }
 
