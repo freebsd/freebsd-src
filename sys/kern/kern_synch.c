@@ -506,22 +506,16 @@ mi_switch(void)
 	 */
 	cnt.v_swtch++;
 	PCPU_SET(switchtime, new_switchtime);
+	PCPU_SET(switchticks, ticks);
 	CTR3(KTR_PROC, "mi_switch: old thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
 	if (td->td_proc->p_flag & P_SA)
 		thread_switchout(td);
 	sched_switch(td);
 
-	/* 
-	 * Start setting up stats etc. for the incoming thread.
-	 * Similar code in fork_exit() is returned to by cpu_switch()
-	 * in the case of a new thread/process.
-	 */
 	CTR3(KTR_PROC, "mi_switch: new thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
-	if (PCPU_GET(switchtime.sec) == 0)
-		binuptime(PCPU_PTR(switchtime));
-	PCPU_SET(switchticks, ticks);
+
 	/* 
 	 * If the last thread was exiting, finish cleaning it up.
 	 */

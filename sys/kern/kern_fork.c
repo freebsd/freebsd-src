@@ -782,9 +782,6 @@ fork_exit(callout, arg, frame)
 	cpu_critical_fork_exit();
 	CTR3(KTR_PROC, "fork_exit: new thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
-	if (PCPU_GET(switchtime.sec) == 0)
-		binuptime(PCPU_PTR(switchtime));
-	PCPU_SET(switchticks, ticks);
 	mtx_unlock_spin(&sched_lock);
 
 	/*
