@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.59 1998/06/27 14:17:27 brian Exp $
+ * $Id: ipcp.c,v 1.60 1998/06/27 14:18:06 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -449,7 +449,7 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
 {
   struct sockaddr_in *sock_in;
   int s;
-  u_long mask, addr;
+  u_int32_t mask, addr;
   struct ifaliasreq ifra;
 
   /* If given addresses are alreay set, then ignore this request */
@@ -575,7 +575,7 @@ IpcpSendConfigReq(struct fsm *fp)
       *(u_short *)o->data = htons(PROTO_VJCOMP);
       INC_LCP_OPT(TY_COMPPROTO, 4, o);
     } else {
-      *(u_long *)o->data = htonl(ipcp->my_compproto);
+      *(u_int32_t *)o->data = htonl(ipcp->my_compproto);
       INC_LCP_OPT(TY_COMPPROTO, 6, o);
     }
   }
