@@ -334,6 +334,15 @@ reinstall:
 .endif
 
 #
+# distribworld
+#
+# Front-end to distribute to make sure the search path contains
+# the object directory. Needed for miniperl.
+#
+distribworld:
+	cd ${.CURDIR}; PATH=${TMPPATH} ${MAKE} -f Makefile.inc1 distribute
+
+#
 # buildkernel and installkernel
 #
 # Which kernels to build and/or install is specified by setting

@@ -356,7 +356,7 @@ release.1:
 # Install the system into the various distributions.
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
-	cd ${.CURDIR}/.. && make distribute DISTDIR=${RD}/trees
+	cd ${.CURDIR}/.. && make distribworld DISTDIR=${RD}/trees
 .if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/../kerberosIV && ( \
 		make bootstrap &&\
