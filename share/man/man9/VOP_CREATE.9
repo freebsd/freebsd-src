@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_CREATE.9,v 1.1 1997/03/03 18:00:16 dfr Exp $
+.\" $Id: VOP_CREATE.9,v 1.3 1997/03/07 03:32:22 mpp Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -175,7 +175,7 @@ bad:
 }
 .Ed
 .Sh ERRORS
-.Bl -tag -width [EDQUOT]
+.Bl -tag -width Er
 .It Bq Er ENOSPC
 The filesystem is full.
 .It Bq Er EDQUOT
@@ -187,7 +187,8 @@ Quota exceeded.
 .Sh HISTORY
 The function
 .Nm
-appeared in 4.3BSD.
+appeared in
+.Bx 4.3 .
 .Sh SEE ALSO
 .Xr vnode 9
 .Sh AUTHORS
