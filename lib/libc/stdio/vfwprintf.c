@@ -723,6 +723,9 @@ reswitch:	switch (ch) {
 		case 'z':
 			flags |= SIZET;
 			goto rflag;
+		case 'C':
+			flags |= LONGINT;
+			/*FALLTHROUGH*/
 		case 'c':
 			if (flags & LONGINT)
 				*(cp = buf) = (wchar_t)GETARG(wint_t);
@@ -884,6 +887,9 @@ fp_begin:		if (prec == -1)
 			flags = flags | INTMAXT | HEXPREFIX;
 			ch = 'x';
 			goto nosign;
+		case 'S':
+			flags |= LONGINT;
+			/*FALLTHROUGH*/
 		case 's':
 			if (flags & LONGINT) {
 				if ((cp = GETARG(wchar_t *)) == NULL)
@@ -1256,6 +1262,9 @@ reswitch:	switch (ch) {
 		case 'z':
 			flags |= SIZET;
 			goto rflag;
+		case 'C':
+			flags |= LONGINT;
+			/*FALLTHROUGH*/
 		case 'c':
 			if (flags & LONGINT)
 				ADDTYPE(T_WINT);
@@ -1312,6 +1321,9 @@ reswitch:	switch (ch) {
 		case 'p':
 			ADDTYPE(TP_VOID);
 			break;
+		case 'S':
+			flags |= LONGINT;
+			/*FALLTHROUGH*/
 		case 's':
 			if (flags & LONGINT)
 				ADDTYPE(TP_WCHAR);
