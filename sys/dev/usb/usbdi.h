@@ -140,6 +140,7 @@ usb_interface_descriptor_t *usbd_get_interface_descriptor
 				(usbd_interface_handle);
 usb_config_descriptor_t *usbd_get_config_descriptor(usbd_device_handle);
 usb_device_descriptor_t *usbd_get_device_descriptor(usbd_device_handle);
+int usbd_get_speed(usbd_device_handle);
 usbd_status usbd_set_interface(usbd_interface_handle, int);
 int usbd_get_no_alts(usb_config_descriptor_t *, int);
 usbd_status  usbd_get_interface(usbd_interface_handle, u_int8_t *);
