@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.46 1996/10/07 04:32:42 pst Exp $
+ * $Id: sysctl.h,v 1.47 1996/10/16 00:19:40 julian Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -77,6 +77,13 @@ struct ctlname {
 #define CTLFLAG_NOLOCK	0x20000000	/* XXX Don't Lock */
 #define CTLFLAG_ANYBODY	0x10000000	/* All users can set this var */
 
+/*
+ * USE THIS instead of a hardwired number from the categories below
+ * to get dynamically assigned sysctl entries using the linker-set
+ * technology. This is the way nearly all new sysctl variables should
+ * be implimented.
+ * e.g. SYSCTL_INT(_parent, OID_AUTO, name, CTLFLAG_RW, &variable, 0, "");
+ */ 
 #define OID_AUTO	(-1)
 
 #ifdef KERNEL
@@ -223,8 +230,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	KERN_MAXSOCKBUF		31	/* int: max size of a socket buffer */
 #define	KERN_PS_STRINGS		32	/* int: address of PS_STRINGS */
 #define	KERN_USRSTACK		33	/* int: address of USRSTACK */
-#define	KERN_CONSMUTE		34	/* Mute the console output? */
-#define KERN_MAXID		35      /* number of valid kern ids */
+#define KERN_MAXID		34      /* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -261,7 +267,6 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ "maxsockbuf", CTLTYPE_INT }, \
 	{ "ps_strings", CTLTYPE_INT }, \
 	{ "usrstack", CTLTYPE_INT }, \
-	{ "consmute", CTLTYPE_INT }, \
 }
 
 /*

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.13 1996/05/08 04:28:34 gpalmer Exp $
+ *	$Id: db_input.c,v 1.14 1996/08/10 13:38:44 joerg Exp $
  */
 
 /*
@@ -219,6 +219,13 @@ db_inputchar(c)
 		db_lc = db_le;
 		goto redraw;
 
+	    case -1:
+		/*
+		 * eek! the console returned eof.
+		 * probably that means we HAVE no console.. we should try bail
+		 * XXX
+		 */
+		c = '\r';
 	    case '\n':
 	    case '\r':
 		*db_le++ = c;

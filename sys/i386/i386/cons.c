@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.47 1996/09/14 04:25:32 bde Exp $
+ *	$Id: cons.c,v 1.48 1996/10/16 00:19:38 julian Exp $
  */
 
 #include <sys/param.h>
@@ -90,7 +90,7 @@ static dev_t	cn_dev_t;
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	&cn_dev_t, sizeof cn_dev_t, "T,dev_t", "");
 static int cn_mute;
-SYSCTL_INT(_kern, KERN_CONSMUTE, consmute, CTLFLAG_RW, &cn_mute, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, consmute, CTLFLAG_RW, &cn_mute, 0, "");
 
 int	cons_unavail = 0;	/* XXX:
 				 * physical console not available for
@@ -302,7 +302,7 @@ cngetc()
 {
 	int c;
 	if ((cn_tab == NULL) || cn_mute)
-		return (0);
+		return (-1);
 	c = (*cn_tab->cn_getc)(cn_tab->cn_dev);
 	if (c == '\r') c = '\n'; /* console input is always ICRNL */
 	return (c);
