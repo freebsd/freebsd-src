@@ -21,6 +21,7 @@
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
+#include <sys/ctype.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #else
