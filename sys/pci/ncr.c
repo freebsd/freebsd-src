@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.27 1995/02/25 17:34:03 se Exp $
+**  $Id: ncr.c,v 1.28 1995/02/27 17:10:20 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1254,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.27 1995/02/25 17:34:03 se Exp $\n";
+	"\n$Id: ncr.c,v 1.28 1995/02/27 17:10:20 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -4416,10 +4416,11 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	OUTB (nc_scntl0, 0xca   );      /*  full arb., ena parity, par->ATN  */
 	OUTB (nc_scntl1, 0x00	);	/*  odd parity, and remove CRST!!    */
 	OUTB (nc_scntl3, np->rv_scntl3);/*  timing prescaler                 */
-	OUTB (nc_scid  , RRE|np->myaddr);/*  host adapter SCSI address      */
+	OUTB (nc_scid  , RRE|np->myaddr);/*  host adapter SCSI address       */
 	OUTW (nc_respid, 1ul<<np->myaddr);/*  id to respond to               */
 	OUTB (nc_istat , SIGP	);	/*  Signal Process                   */
-	OUTB (nc_dmode , 0xc0	);	/*  Burst length = 16 transfer       */
+/*	OUTB (nc_dmode , 0xc0	);*/	/*  Burst length = 16 DWORDs         */
+	OUTB (nc_dmode , 0x40	);	/*  Burst length = 4 DWORDs          */
 	OUTB (nc_dcntl , NOCOM	);	/*  no single step mode, protect SFBR*/
 	OUTB (nc_ctest4, 0x08	);	/*  enable master parity checking    */
 	OUTB (nc_stest2, EXT    );	/*  Extended Sreq/Sack filtering     */
