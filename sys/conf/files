@@ -722,6 +722,7 @@ kern/subr_kobj.c	standard
 kern/subr_log.c		standard
 kern/subr_mchain.c	optional libmchain
 kern/subr_module.c	standard
+kern/subr_pcpu.c	standard
 kern/subr_prf.c		standard
 kern/subr_prof.c	standard
 kern/subr_rman.c	standard
