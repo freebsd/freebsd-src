@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.77 1996/01/17 12:51:01 adam Exp $
+#	$Id: Makefile,v 1.78 1996/01/20 00:58:12 nate Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot \
@@ -9,7 +9,7 @@ SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot \
 	pppstats pstat pwd_mkdb quot quotaon rarpd repquota rmt \
 	rndcontrol routed rwhod sa sendmail sliplogin slstat spray sup sysctl \
 	syslogd tcpdump timed traceroute trpt tzsetup vipw vnconfig \
-	watch xntpd xten ypbind yppoll yppush ypset ypserv zic
+	watch wormcontrol xntpd xten ypbind yppoll yppush ypset ypserv zic
 
 #
 # XNSrouted and trsp are of very marginal utility to anyone at this
