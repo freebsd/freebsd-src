@@ -1,8 +1,9 @@
 # Makefile for uuconv
-# $Id: Makefile,v 1.2 1993/08/05 16:15:08 jtc Exp $
+# $Id: Makefile,v 1.1 1993/08/05 18:27:28 conklin Exp $
 
 BINDIR=		$(sbindir)
 BINOWN=		$(owner)
+BINMODE=        550
 
 PROG=		uuconv
 SRCS=		uuconv.c 
