@@ -1414,7 +1414,6 @@ vr_encap(sc, c, m_head)
 
 		m_new = m_defrag(m_head, M_DONTWAIT);
 		if (m_new == NULL) {
-			printf("vr%d: no memory for tx list\n", sc->vr_unit);
 			return(1);
 		}
 
@@ -1456,22 +1455,18 @@ vr_start(ifp)
 {
 	struct vr_softc		*sc;
 	struct mbuf		*m_head = NULL;
-	struct vr_chain		*cur_tx = NULL, *start_tx;
+	struct vr_chain		*cur_tx = NULL, *start_tx, *prev_tx;
 
 	sc = ifp->if_softc;
 
 	VR_LOCK(sc);
-	if (ifp->if_flags & IFF_OACTIVE) {
-		VR_UNLOCK(sc);
-		return;
-	}
 
 	/*
 	 * Check for an available queue slot. If there are none,
 	 * punt.
 	 */
 	if (sc->vr_cdata.vr_tx_free->vr_mbuf != NULL) {
-		ifp->if_flags |= IFF_OACTIVE;
+		VR_UNLOCK(sc);
 		return;
 	}
 
@@ -1483,14 +1478,16 @@ vr_start(ifp)
 			break;
 
 		/* Pick a descriptor off the free list. */
+		prev_tx = cur_tx;
 		cur_tx = sc->vr_cdata.vr_tx_free;
 		sc->vr_cdata.vr_tx_free = cur_tx->vr_nextdesc;
 
 		/* Pack the data into the descriptor. */
 		if (vr_encap(sc, cur_tx, m_head)) {
+			/* Rollback, send what we were able to encap. */
 			IF_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_flags |= IFF_OACTIVE;
-			cur_tx = NULL;
+			sc->vr_cdata.vr_tx_free = cur_tx;
+			cur_tx = prev_tx;
 			break;
 		}
 
@@ -1504,7 +1501,6 @@ vr_start(ifp)
 		BPF_MTAP(ifp, cur_tx->vr_mbuf);
 
 		VR_TXOWN(cur_tx) = VR_TXSTAT_OWN;
-		VR_SETBIT16(sc, VR_COMMAND, /*VR_CMD_TX_ON|*/VR_CMD_TX_GO);
 	}
 
 	/*
@@ -1519,6 +1515,9 @@ vr_start(ifp)
 
 	if (sc->vr_cdata.vr_tx_head == NULL)
 		sc->vr_cdata.vr_tx_head = start_tx;
+	
+	/* Tell the chip to start transmitting. */
+	VR_SETBIT16(sc, VR_COMMAND, /*VR_CMD_TX_ON|*/VR_CMD_TX_GO);
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
