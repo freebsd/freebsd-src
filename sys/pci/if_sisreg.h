@@ -294,6 +294,7 @@ struct sis_desc {
 	/* Driver software section */
 	struct mbuf		*sis_mbuf;
 	struct sis_desc		*sis_nextdesc;
+	bus_dmamap_t		sis_map;
 };
 
 #define SIS_CMDSTS_BUFLEN	0x00000FFF
@@ -336,9 +337,20 @@ struct sis_desc {
 #define SIS_RX_LIST_CNT		64
 #define SIS_TX_LIST_CNT		128
 
+#define SIS_RX_LIST_SZ		SIS_RX_LIST_CNT * sizeof(struct sis_desc)
+#define SIS_TX_LIST_SZ		SIS_TX_LIST_CNT * sizeof(struct sis_desc)
+
 struct sis_list_data {
+#ifdef foo
 	struct sis_desc		sis_rx_list[SIS_RX_LIST_CNT];
 	struct sis_desc		sis_tx_list[SIS_TX_LIST_CNT];
+#endif
+	struct sis_desc		*sis_rx_list;
+	struct sis_desc		*sis_tx_list;
+	bus_dma_tag_t		sis_rx_tag;
+	bus_dmamap_t		sis_rx_dmamap;
+	bus_dma_tag_t		sis_tx_tag;
+	bus_dmamap_t		sis_tx_dmamap;
 };
 
 struct sis_ring_data {
@@ -346,6 +358,8 @@ struct sis_ring_data {
 	int			sis_tx_prod;
 	int			sis_tx_cons;
 	int			sis_tx_cnt;
+	u_int32_t		sis_rx_paddr;
+	u_int32_t		sis_tx_paddr;
 };
 
 
@@ -398,7 +412,9 @@ struct sis_softc {
 	u_int8_t		sis_unit;
 	u_int8_t		sis_type;
 	u_int8_t		sis_link;
-	struct sis_list_data	*sis_ldata;
+	struct sis_list_data	sis_ldata;
+	bus_dma_tag_t		sis_parent_tag;
+	bus_dma_tag_t		sis_tag;
 	struct sis_ring_data	sis_cdata;
 	struct callout_handle	sis_stat_ch;
 	struct mtx		sis_mtx;
@@ -458,8 +474,3 @@ struct sis_softc {
 #define SIS_PSTATE_D3		0x0003
 #define SIS_PME_EN		0x0010
 #define SIS_PME_STATUS		0x8000
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-#endif
