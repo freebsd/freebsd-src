@@ -44,6 +44,7 @@ unset DESTDIR
 
 # libncurses needs a build-tools pass first.  I wish build-tools was a recursive target.
 (cd lib/libncurses; make -s build-tools)
+(cd lib/libmagic; make -s build-tools)
 
 # Now the libraries.  This doesn't work for gnuregex yet. hence -k.
 # libbind is just an internal target, ignore it.
