@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: raw_cb.h,v 1.2 1994/08/02 07:46:36 davidg Exp $
  */
+
+#ifndef _NET_RAW_CB_H_
+#define _NET_RAW_CB_H_
 
 /*
  * Raw protocol interface control block.  Used
@@ -67,4 +70,6 @@ void	 raw_input __P((struct mbuf *,
 	    struct sockproto *, struct sockaddr *, struct sockaddr *));
 int	 raw_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *));
+#endif
+
 #endif
