@@ -376,14 +376,13 @@ static int
 setdumpdev(dev)
 	dev_t dev;
 {
-	int maj, psize;
+	int psize;
 	long newdumplo;
 
 	if (dev == NODEV) {
 		dumpdev = dev;
 		return (0);
 	}
-	maj = major(dev);
 	if (devsw(dev) == NULL)
 		return (ENXIO);		/* XXX is this right? */
 	if (devsw(dev)->d_psize == NULL)
@@ -392,8 +391,7 @@ setdumpdev(dev)
 	if (psize == -1)
 		return (ENXIO);		/* XXX should be ENODEV ? */
 	/*
-	 * XXX should clean up checking in dumpsys() to be more like this,
-	 * and nuke dodump sysctl (too many knobs).
+	 * XXX should clean up checking in dumpsys() to be more like this.
 	 */
 	newdumplo = psize - Maxmem * PAGE_SIZE / DEV_BSIZE;
 	if (newdumplo < 0)
@@ -441,7 +439,12 @@ static void
 dumpsys(void)
 {
 	int	error;
+	static int dumping;
 
+	if (dumping++) {
+		printf("Dump already in progress, bailing...\n");
+		return;
+	}
 	if (!dodump)
 		return;
 	if (dumpdev == NODEV)
@@ -451,8 +454,7 @@ dumpsys(void)
 	if (!(devsw(dumpdev)->d_dump))
 		return;
 	dumpsize = Maxmem;
-	printf("\ndumping to dev (%d,%d), offset %ld\n",
-		major(dumpdev), minor(dumpdev), dumplo);
+	printf("\ndumping to dev %s, offset %ld\n", devtoname(dumpdev), dumplo);
 	printf("dump ");
 	error = (*devsw(dumpdev)->d_dump)(dumpdev);
 	if (error == 0) {
