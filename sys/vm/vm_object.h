@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.55 1999/06/19 18:42:52 alc Exp $
+ * $Id: vm_object.h,v 1.56 1999/06/20 21:47:01 alc Exp $
  */
 
 /*
@@ -94,9 +94,9 @@ struct vm_object {
 	vm_size_t size;			/* Object size */
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
-	int pg_color;			/* color of first page in obj */
 	int hash_rand;			/* vm hash table randomizer	*/
 	u_short flags;			/* see below */
+	u_short pg_color;		/* color of first page in obj */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	u_short	behavior;		/* see below */
 	int resident_page_count;	/* number of resident pages */
