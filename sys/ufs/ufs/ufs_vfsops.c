@@ -36,12 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vfsops.c	8.8 (Berkeley) 5/20/95
- * $Id: ufs_vfsops.c,v 1.10 1997/08/16 19:16:27 wollman Exp $
+ * $Id: ufs_vfsops.c,v 1.11 1997/10/12 20:26:27 phk Exp $
  */
 
 #include "opt_quota.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
