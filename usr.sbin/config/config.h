@@ -49,6 +49,7 @@ struct file_list {
 	u_char	f_flags;		/* see below */
 	char	*f_special;		/* special make rule if present */
 	char	*f_depends;		/* additional dependancies */
+	char	*f_clean;		/* File list to add to clean rule */
 	char	*f_needs;
 	/*
 	 * Random values:
