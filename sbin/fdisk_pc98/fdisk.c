@@ -30,6 +30,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/disklabel.h>
+#include <sys/diskpc98.h>
 #include <sys/stat.h>
 #include <ctype.h>
 #include <fcntl.h>
