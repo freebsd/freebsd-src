@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/12/11 00:45:41 peter Exp $
+#	$Id: Makefile,v 1.5 1995/12/11 01:23:44 peter Exp $
 
 FILES=	ChangeLog INSTALL NEWS README \
 	compile-all.el pcl-cvs-lucid.el pcl-cvs-startup.el \
@@ -10,7 +10,7 @@ EXAMPDIR=	/usr/share/examples/cvs
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
-		${PCLCVS} ${DESTDIR}${EXAMPDIR}/pcl-cvs
+		${FILES} ${DESTDIR}${EXAMPDIR}/pcl-cvs
 
 .include "../../../Makefile.inc"
 .include <bsd.prog.mk>
