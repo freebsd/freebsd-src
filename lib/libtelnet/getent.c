@@ -32,17 +32,23 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)getent.c	8.2 (Berkeley) 12/15/93";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* not lint */
 
+#ifdef	HAS_CGETENT
 #include <stdlib.h>
+#endif
 
 static char *area;
 
 /*ARGSUSED*/
 int
-getent(cp, name)
-char *cp, *name;
+getent(char *cp, char *name)
 {
 #ifdef	HAS_CGETENT
 	char *dba[2];
@@ -58,8 +64,7 @@ char *cp, *name;
 #ifndef	SOLARIS
 /*ARGSUSED*/
 char *
-Getstr(id, cpp)
-char *id, **cpp;
+Getstr(char *id, char **cpp)
 {
 # ifdef	HAS_CGETENT
 	char *answer;
