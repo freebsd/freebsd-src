@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uudecode.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: uudecode.c,v 1.4.2.1 1997/08/25 06:27:29 charnier Exp $";
+	"$Id: uudecode.c,v 1.9 1997/08/22 06:51:43 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 
 #include <err.h>
+#include <fnmatch.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,7 +65,7 @@ static const char rcsid[] =
 char *filename;
 int cflag, pflag;
 
-static void    usage __P((void));
+static void usage __P((void));
 int	decode __P((void));
 int	decode2 __P((int));
 
@@ -75,7 +76,7 @@ main(argc, argv)
 {
 	int rval, ch;
 
-	while ((ch = getopt(argc, argv, "cp")) !=  -1) {
+	while ((ch = getopt(argc, argv, "cp")) != -1) {
 		switch(ch) {
 		case 'c':
 			cflag = 1; /* multiple uudecode'd files */
@@ -136,6 +137,7 @@ decode2(flag)
 	register char ch, *p;
 	int mode, n1;
 	char buf[MAXPATHLEN];
+	char buffn[MAXPATHLEN]; /* file name buffer */
 
 	
 	/* search for header line */
@@ -147,7 +149,9 @@ decode2(flag)
 			warnx("%s: no \"begin\" line", filename);
 			return(1);
 		}
-	} while (strncmp(buf, "begin ", 6));
+	} while (strncmp(buf, "begin ", 6) || 
+		 fnmatch("begin [0-7]* *", buf, 0));
+
 	(void)sscanf(buf, "begin %o %s", &mode, buf);
 
 	/* handle ~user/file format */
@@ -181,6 +185,7 @@ decode2(flag)
 		warn("%s: %s", buf, filename);
 		return(1);
 	}
+	strcpy(buffn, buf); /* store file name from header line */
 
 	/* for each input line */
 	for (;;) {
@@ -189,6 +194,18 @@ decode2(flag)
 			return(1);
 		}
 #define	DEC(c)	(((c) - ' ') & 077)		/* single character decode */
+#define IS_DEC(c) ( (((c) - ' ') >= 0) &&  (((c) - ' ') <= 077 + 1) )
+/* #define IS_DEC(c) (1) */
+
+#define OUT_OF_RANGE \
+{	\
+    warnx( \
+"\n\tinput file: %s\n\tencoded file: %s\n\tcharacter out of range: [%d-%d]", \
+ 	filename, buffn, 1 + ' ', 077 + ' ' + 1); \
+        return(1); \
+}
+
+
 		/*
 		 * `n' is used to avoid writing out all the characters
 		 * at the end of the file.
@@ -197,29 +214,45 @@ decode2(flag)
 			break;
 		for (++p; n > 0; p += 4, n -= 3)
 			if (n >= 3) {
+				if (!(IS_DEC(*p) && IS_DEC(*(p + 1)) && 
+				     IS_DEC(*(p + 2)) && IS_DEC(*(p + 3))))
+                                	OUT_OF_RANGE
+
 				ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
 				putchar(ch);
 				ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
 				putchar(ch);
 				ch = DEC(p[2]) << 6 | DEC(p[3]);
 				putchar(ch);
+				
 			}
 			else {
 				if (n >= 1) {
+					if (!(IS_DEC(*p) && IS_DEC(*(p + 1))))
+	                                	OUT_OF_RANGE
 					ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
 					putchar(ch);
 				}
 				if (n >= 2) {
+					if (!(IS_DEC(*(p + 1)) && 
+						IS_DEC(*(p + 2))))
+		                                OUT_OF_RANGE
+
 					ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
 					putchar(ch);
 				}
 				if (n >= 3) {
+					if (!(IS_DEC(*(p + 2)) && 
+						IS_DEC(*(p + 3))))
+		                                OUT_OF_RANGE
 					ch = DEC(p[2]) << 6 | DEC(p[3]);
 					putchar(ch);
 				}
 			}
 	}
-	if (!fgets(buf, sizeof(buf), stdin) || strncmp(buf, "end", 3) || (buf[3] && buf[3] != '\n')) {
+	if (fgets(buf, sizeof(buf), stdin) == NULL || 
+	    (strcmp(buf, "end") && strcmp(buf, "end\n") &&
+	     strcmp(buf, "end\r\n"))) {
 		warnx("%s: no \"end\" line", filename);
 		return(1);
 	}
