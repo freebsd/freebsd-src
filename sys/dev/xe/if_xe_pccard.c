@@ -98,8 +98,8 @@ extern int xe_debug;
 
 struct xe_pccard_product {
 	struct pccard_product product;
-	u_int16_t prodext;
-	u_int16_t flags;
+	uint16_t prodext;
+	uint16_t flags;
 };
 
 static const struct xe_pccard_product xe_pccard_products[] = {
@@ -199,8 +199,8 @@ xe_macfix(device_t dev, int offset)
 	bus_space_handle_t bsh;
 	struct resource *r;
 	int rid, i;
-	u_int8_t cisdata[9];
-	u_int8_t required[6] = { 0x08, PCCARD_TPLFE_TYPE_LAN_NID, ETHER_ADDR_LEN,
+	uint8_t cisdata[9];
+	uint8_t required[6] = { 0x08, PCCARD_TPLFE_TYPE_LAN_NID, ETHER_ADDR_LEN,
 				 XE_MAC_ADDR_0, XE_MAC_ADDR_1, XE_MAC_ADDR_2 };
 
 	DEVPRINTF(2, (dev, "macfix\n"));
@@ -261,8 +261,8 @@ static int
 xe_pccard_probe(device_t dev)
 {
 	struct xe_softc *scp = (struct xe_softc *) device_get_softc(dev);
-	u_int32_t vendor,product;
-	u_int16_t prodext;
+	uint32_t vendor,product;
+	uint16_t prodext;
 	const char* vendor_str = NULL;
 	const char* product_str = NULL;
 	const char* cis4_str = NULL;
@@ -401,7 +401,7 @@ static int
 xe_pccard_product_match(device_t dev, const struct pccard_product* ent, int vpfmatch)
 {
 	const struct xe_pccard_product* xpp;
-	u_int16_t prodext;
+	uint16_t prodext;
 
 	DEVPRINTF(2, (dev, "pccard_product_match\n"));
 
@@ -420,12 +420,12 @@ static int
 xe_pccard_match(device_t dev)
 {
 	int		error = 0;
-	u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
 	const struct pccard_product *pp;
 
 	DEVPRINTF(2, (dev, "pccard_match\n"));
 
-	/* Make sure we're a network driver */
+	/* Make sure we're a network function */
 	error = pccard_get_function(dev, &fcn);
 	if (error != 0)
 		return (error);
