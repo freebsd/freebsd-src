@@ -198,7 +198,7 @@ __END_DECLS
 #endif
 
 /* To be removed by 5.0-RELEASE */
-#if (defined(__i386__) || defined(__alpha__)) && !defined(_FIXED_STDIO)
+#if (defined(__i386__) || defined(__alpha__)) && defined(_OLD_STDIO)
 #define	stdin	(&__sF[0])
 #define	stdout	(&__sF[1])
 #define	stderr	(&__sF[2])
