@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.153 1999/04/26 08:54:34 brian Exp $
+ * $Id: main.c,v 1.154 1999/05/08 11:07:05 brian Exp $
  *
  *	TODO:
  */
@@ -134,6 +134,7 @@ static pid_t BGPid = 0;
 static void
 KillChild(int signo)
 {
+  signal(signo, SIG_IGN);
   log_Printf(LogPHASE, "Parent: Signal %d\n", signo);
   kill(BGPid, SIGINT);
 }
