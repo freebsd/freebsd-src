@@ -40,6 +40,7 @@
 .Nd write a message to users
 .Sh SYNOPSIS
 .Nm
+.Op Fl g Ar group
 .Op Ar file
 .Sh DESCRIPTION
 .Nm Wall
@@ -52,6 +53,12 @@ Only the super-user can write on the
 terminals of users who have chosen
 to deny messages or are using a program which
 automatically denies messages.
+.Bl -tag -width indent
+.It Fl g
+Send messages to users in this group.  This option may be specified
+multiple times, and any user in any of the specified groups will
+receive the message.
+.El
 .Sh SEE ALSO
 .Xr mesg 1 ,
 .Xr talk 1 ,
