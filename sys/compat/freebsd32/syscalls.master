@@ -561,3 +561,25 @@
 			    int len); }
 391	NOPROTO	BSD	{ int lchflags(const char *path, int flags); }
 392	NOPROTO	BSD	{ int uuidgen(struct uuid *store, int count); }
+393	UNIMPL	NOHIDE	nsendfile
+394	UNIMPL	NOHIDE	mac_syscall
+395	UNIMPL	NOHIDE	nosys
+396	UNIMPL	NOHIDE	nosys
+397	UNIMPL	NOHIDE	nosys
+398	UNIMPL	NOHIDE	nosys
+399	UNIMPL	NOHIDE	nosys
+400	UNIMPL	NOHIDE	ksem_close
+401	UNIMPL	NOHIDE	ksem_post
+402	UNIMPL	NOHIDE	ksem_wait
+403	UNIMPL	NOHIDE	ksem_trywait
+404	UNIMPL	NOHIDE	ksem_init
+405	UNIMPL	NOHIDE	ksem_open
+406	UNIMPL	NOHIDE	ksem_unlink
+407	UNIMPL	NOHIDE	ksem_getvalue
+408	UNIMPL	NOHIDE	ksem_destroy
+409	UNIMPL	BSD	__mac_get_pid
+410	UNIMPL	BSD	__mac_get_link
+411	UNIMPL	BSD	__mac_set_link
+412	UNIMPL	BSD	extattr_set_link
+413	UNIMPL	BSD	extattr_get_link
+414	UNIMPL	BSD	extattr_delete_link
