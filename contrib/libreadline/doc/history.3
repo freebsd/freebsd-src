@@ -6,9 +6,9 @@
 .\"	Case Western Reserve University
 .\"	chet@ins.CWRU.Edu
 .\"
-.\"	Last Change: Thu Jan 31 16:08:07 EST 2002
+.\"	Last Change: Thu Jul 31 08:46:08 EDT 2003
 .\"
-.TH HISTORY 3 "2002 January 31" "GNU History 4.3"
+.TH HISTORY 3 "2003 July 31" "GNU History 5.0"
 .\"
 .\" File Name macro.  This used to be `.PN', for Path Name,
 .\" but Sun doesn't seem to like that very much.
@@ -249,6 +249,10 @@ or `\fB:&\fP'.  If used with
 `\fB:s\fP', any delimiter can be used
 in place of /, and the final delimiter is optional
 if it is the last character of the event line.
+An \fBa\fP may be used as a synonym for \fBg\fP.
+.TP
+.B G
+Apply the following `\fBs\fP' modifier once to each word in the event line.
 .PD
 .SH "PROGRAMMING WITH HISTORY FUNCTIONS"
 This section describes how to use the History library in other programs.
@@ -292,6 +296,7 @@ declared as follows:
 .nf
 typedef struct _hist_entry {
   char *line;
+  char *timestamp;
   histdata_t data;
 } HIST_ENTRY;
 .fi
@@ -345,14 +350,24 @@ parameters managing the list itself.
 Place \fIstring\fP at the end of the history list.  The associated data
 field (if any) is set to \fBNULL\fP.
 
+.Fn1 void add_history_time "const char *string"
+Change the time stamp associated with the most recent history entry to
+\fIstring\fP.
+
 .Fn1 "HIST_ENTRY *" remove_history "int which"
 Remove history entry at offset \fIwhich\fP from the history.  The
 removed element is returned so you can free the line, data,
 and containing structure.
 
+.Fn1 "histdata_t" free_history_entry "HIST_ENTRY *histent"
+Free the history entry \fIhistent\fP and any history library private
+data associated with it.  Returns the application-specific data
+so the caller can dispose of it.
+
 .Fn3 "HIST_ENTRY *" replace_history_entry "int which" "const char *line" "histdata_t data"
 Make the history entry at offset \fIwhich\fP have \fIline\fP and \fIdata\fP.
-This returns the old entry so you can dispose of the data.  In the case
+This returns the old entry so the caller can dispose of any
+application-specific data.  In the case
 of an invalid \fIwhich\fP, a \fBNULL\fP pointer is returned.
 
 .Fn1 void clear_history "void"
@@ -393,6 +408,9 @@ Return the history entry at position \fIoffset\fP, starting from
 \fBhistory_base\fP.
 If there is no entry there, or if \fIoffset\fP
 is greater than the history length, return a \fBNULL\fP pointer.
+
+.Fn1 "time_t" history_get_time "HIST_ENTRY *"
+Return the time stamp associated with the history entry passed as the argument.
 
 .Fn1 int history_total_bytes "void"
 Return the number of bytes that the primary history entries are using.
@@ -550,6 +568,11 @@ The number of entries currently stored in the history list.
 .Vb int history_max_entries
 The maximum number of history entries.  This must be changed using
 \fBstifle_history()\fP.
+
+.Vb int history_write_timestamps
+If non-zero, timestamps are written to the history file, so they can be
+preserved between sessions.  The default value is 0, meaning that
+timestamps are not saved.
 
 .Vb char history_expansion_char
 The character that introduces a history event.  The default is \fB!\fP.

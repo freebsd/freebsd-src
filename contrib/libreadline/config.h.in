@@ -1,10 +1,16 @@
 /* config.h.in.  Maintained by hand. */
 
+/* Define NO_MULTIBYTE_SUPPORT to not compile in support for multibyte
+   characters, even if the OS supports them. */
+#undef NO_MULTIBYTE_SUPPORT
+
 /* Define if on MINIX.  */
 #undef _MINIX
 
 /* Define as the return type of signal handlers (int or void).  */
 #undef RETSIGTYPE
+
+#undef VOID_SIGHANDLER
 
 /* Characteristics of the compiler. */
 #undef const
@@ -20,8 +26,6 @@
 /* Define if the `S_IS*' macros in <sys/stat.h> do not work properly.  */
 #undef STAT_MACROS_BROKEN
 
-#undef VOID_SIGHANDLER
-
 /* Define if you have the isascii function. */
 #undef HAVE_ISASCII
 
@@ -30,6 +34,12 @@
 
 /* Define if you have the lstat function. */
 #undef HAVE_LSTAT
+
+/* Define if you have the mbrlen function. */
+#undef HAVE_MBRLEN
+
+/* Define if you have the mbrtowc function. */
+#undef HAVE_MBRTOWC
 
 /* Define if you have the mbsrtowcs function. */
 #undef HAVE_MBSRTOWCS
@@ -66,8 +76,13 @@
 /* Define if you have the vsnprintf function.  */
 #undef HAVE_VSNPRINTF
 
+/* Define if you have the wctomb function.  */
+#undef HAVE_WCTOMB 
+
 /* Define if you have the wcwidth function.  */
 #undef HAVE_WCWIDTH
+
+#undef STDC_HEADERS
 
 /* Define if you have the <dirent.h> header file.  */
 #undef HAVE_DIRENT_H
@@ -176,6 +191,8 @@
 #undef MUST_REINSTALL_SIGHANDLERS
 
 #undef HAVE_POSIX_SIGSETJMP
+
+#undef CTYPE_NON_ASCII
 
 /* modify settings or make new ones based on what autoconf tells us. */
 
