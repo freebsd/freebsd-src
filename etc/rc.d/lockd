@@ -11,7 +11,7 @@
 
 . /etc/rc.subr
 
-# Save the (one) commandline argument incase it gets clobbered.
+# Save the (one) commandline argument in case it gets clobbered.
 arg=$1
 
 # Either NFS client or server must be enabled or this must be a 'forcestart'
