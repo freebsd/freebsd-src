@@ -85,7 +85,7 @@ device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
 device		adv		# Advansys scsi adapters
 device		adw		# Advansys wide scsi adapters
-device		aha	1	# Adaptec 154x scsi adapters
+device		aha		# Adaptec 154x scsi adapters
 device		aic		# Adaptec 15[012]x scsi adapters, AIC-6[23]60.
 device		bt		# Buslogic/Mylex MultiMaster scsi adapters
 

@@ -1320,7 +1320,7 @@ hint.bt.0.port="0x330"
 device		adv
 hint.adv.0.at="isa"
 device		adw
-device		aha	1
+device		aha
 hint.aha.0.at="isa"
 device		aic
 hint.aic.0.at="isa"
