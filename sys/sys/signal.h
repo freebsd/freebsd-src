@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.4 (Berkeley) 5/4/95
- * $Id: signal.h,v 1.7 1996/03/02 19:38:13 peter Exp $
+ * $Id: signal.h,v 1.8 1996/03/11 02:10:41 hsu Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
@@ -174,6 +174,8 @@ struct	sigvec {
 #define SV_ONSTACK	SA_ONSTACK
 #define SV_INTERRUPT	SA_RESTART	/* same bit, opposite sense */
 #define SV_RESETHAND	SA_RESETHAND
+#define SV_NODEFER	SA_NODEFER
+#define SV_NOCLDSTOP	SA_NOCLDSTOP
 #define sv_onstack sv_flags	/* isn't compatibility wonderful! */
 
 /*
