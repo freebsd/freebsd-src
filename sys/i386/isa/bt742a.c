@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.35 1995/05/11 19:26:16 rgrimes Exp $
+ *      $Id: bt742a.c,v 1.36 1995/05/30 08:01:21 rgrimes Exp $
  */
 
 /*
@@ -121,8 +121,8 @@ typedef unsigned long int physaddr;
 
 /* The following command appeared at FirmWare 3.31 */
 #define	BT_ROUND_ROBIN	0x8f	/* Enable/Disable(default) round robin */
-#define   BT_DISABLE		0x00	/* Parameter value for Disable */
-#define   BT_ENABLE		0x01	/* Parameter value for Enable */
+#define   BT_STRICT_ROUND_ROBIN	0x00	/* Parameter value for strict mode   */
+#define   BT_AGRES_ROUND_ROBIN	0x01	/* Parameter value for backword comp */
 
 struct bt_cmd_buf {
 	u_char  byte[16];
@@ -334,7 +334,8 @@ struct bt_ext_info {
 	u_char  num_mbx;	/* Number of mailbox */
 	int32	mbx_base;	/* mailbox base address */
 	struct	{
-		u_char  resv1:2;	/* ??? */
+		u_char  resv1:1;	/* ??? */
+		u_char  force:1;	/* ON: force sync */
 		u_char	maxsync:1;	/* ON: 10MB/s , OFF: 5MB/s */
 		u_char	resv2:2;	/* ??? */
 		u_char	sync:1;		/* ON: Sync,  OFF: async ONLY!! */
@@ -1306,6 +1307,11 @@ bt_inquire_setup_information(
 	 * If board has a capbility of Syncrhonouse mode,
          * Get a SCSI Synchronous value
 	 */
+
+ 	if (info->s.force) {                 /* Assume fast sync capability */
+             info->s.sync    = 1;            /* It's appear at 4.25? version */
+             info->s.maxsync = 1;
+        }
 	if ( info->s.sync ) {
         	bt_cmd(unit, 1, sizeof(sync), 100,
 				&sync,BT_GET_SYNC_VALUE,sizeof(sync));
@@ -1383,10 +1389,10 @@ bt_inquire_setup_information(
          *    BT_ROUND_ROBIN command  amurai@spec.co.jp
 	 */
 	if ( bID.firm_revision >= '3' ) {
-		printf("bt%d: Enabling Round robin scheme\n", unit);
-		bt_cmd(unit, 1, 0, 0, 0, BT_ROUND_ROBIN, BT_ENABLE);
+		printf("bt%d: Use a Strict Round robin scheme\n", unit);
+		bt_cmd(unit, 1, 0, 0, 0, BT_ROUND_ROBIN, BT_STRICT_ROUND_ROBIN);
 	} else {
-		printf("bt%d: Not Enabling Round robin scheme\n", unit);
+		printf("bt%d: Not Use a Round robin scheme\n", unit);
 	}
 
 }
