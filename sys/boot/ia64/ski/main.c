@@ -45,16 +45,10 @@ struct ski_devdesc	currdev;	/* our current device */
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
 void
-__start(void)
+ski_main(void)
 {
-	static char stack[16384] __aligned(16);
 	static char malloc[512*1024];
 	int i;
-
-	__asm __volatile("movl gp=__gp;;");
-	__asm __volatile("mov sp=%0" :: "r"(&stack[16384]));
-	__asm __volatile("bsw.1;;");
-	__asm __volatile("mov ar.fpsr=%0" :: "r"(IA64_FPSR_DEFAULT));
 
 	/* 
 	 * initialise the heap as early as possible.  Once this is done,
