@@ -131,7 +131,6 @@ ENTRY(vm86_bioscall)
 	/*
 	 * Return via _doreti
 	 */
-	incb	PCPU(INTR_NESTING_LEVEL)
 	MEXITCOUNT
 	jmp	_doreti
 

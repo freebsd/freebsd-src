@@ -48,7 +48,8 @@ IDTVEC(vec_name) ;							\
 	movl	$KPSEL,%eax ;						\
 	mov	%ax,%fs ;						\
 	FAKE_MCOUNT(13*4(%esp)) ;					\
-	incb	PCPU(INTR_NESTING_LEVEL) ;				\
+	movl	PCPU(CURPROC),%ebx ;					\
+	incl	P_INTR_NESTING_LEVEL(%ebx) ;				\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	addl	$4, %esp ;						\
@@ -58,6 +59,7 @@ IDTVEC(vec_name) ;							\
 	movl	_intr_countp + (irq_num) * 4, %eax ;			\
 	lock ; 								\
 	incl	(%eax) ;						\
+	decl	P_INTR_NESTING_LEVEL(%ebx) ;				\
 	MEXITCOUNT ;							\
 	jmp	_doreti
 
@@ -150,7 +152,8 @@ IDTVEC(vec_name) ;							\
 	MASK_LEVEL_IRQ(irq_num) ;					\
 	EOI_IRQ(irq_num) ;						\
 0: ;									\
-	incb	PCPU(INTR_NESTING_LEVEL) ;				\
+	movl	PCPU(CURPROC),%ebx ;					\
+	incl	P_INTR_NESTING_LEVEL(%ebx) ;				\
 ;	 								\
   /* entry point used by doreti_unpend for HWIs. */			\
 __CONCAT(Xresume,irq_num): ;						\
@@ -160,6 +163,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	call	_sched_ithd ;						\
 	addl	$4, %esp ;		/* discard the parameter */	\
 ;									\
+	decl	P_INTR_NESTING_LEVEL(%ebx) ;				\
 	MEXITCOUNT ;							\
 	jmp	_doreti
 
@@ -301,7 +305,8 @@ _Xcpuast:
 	FAKE_MCOUNT(13*4(%esp))
 
 	orl	$AST_PENDING, PCPU(ASTPENDING)	/* XXX */
-	incb	PCPU(INTR_NESTING_LEVEL)
+	movl	PCPU(CURPROC),%ebx
+	incl	P_INTR_NESTING_LEVEL(%ebx)
 	sti
 	
 	movl	PCPU(CPUID), %eax
@@ -316,6 +321,7 @@ _Xcpuast:
 2:		
 	lock
 	incl	CNAME(cpuast_cnt)
+	decl	P_INTR_NESTING_LEVEL(%ebx)
 	MEXITCOUNT
 	jmp	_doreti
 1:
@@ -323,6 +329,7 @@ _Xcpuast:
 	POP_FRAME
 	iret			
 
+#if 0
 
 /*
  *	 Executed by a CPU when it receives an XFORWARD_IRQ IPI.
@@ -360,7 +367,6 @@ _Xforward_irq:
 	POP_FRAME
 	iret
 
-#if 0
 /*
  * 
  */

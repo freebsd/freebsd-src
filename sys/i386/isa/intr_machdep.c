@@ -577,6 +577,7 @@ inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 				if (errcode)
 					panic("inthand_add: Can't create "
 					      "interrupt thread");
+				p->p_intr_nesting_level = 1;
 				p->p_rtprio.type = RTP_PRIO_ITHREAD;
 				p->p_stat = SWAIT; /* we're idle */
 

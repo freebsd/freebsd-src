@@ -581,10 +581,12 @@ mp_enable(u_int boot_addr)
 	/* install an inter-CPU IPI for forcing an additional software trap */
 	setidt(XCPUAST_OFFSET, Xcpuast,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	
+
+#if 0	
 	/* install an inter-CPU IPI for interrupt forwarding */
 	setidt(XFORWARD_IRQ_OFFSET, Xforward_irq,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#endif
 
 	/* install an inter-CPU IPI for CPU stop/restart */
 	setidt(XCPUSTOP_OFFSET, Xcpustop,
