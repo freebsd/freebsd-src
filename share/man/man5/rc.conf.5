@@ -554,9 +554,9 @@ and a NIC using the ed0 driver,
 this could be set to
 .Dq "lo0 ed0"
 An
-.No ifconfig_ Ns Em interface
+.Va ifconfig_ Ns Aq Ar interface
 variable is also assumed to exist for each value of
-.Em interface .
+.Ar interface .
 It is also possible to add IP alias entires here in cases where
 multiple IP addresses registered against a single interface
 are desired.
@@ -588,7 +588,7 @@ be added since the search would
 stop with the missing alias3 entry.
 .Pp
 It is possible to bring up an interface with DHCP by setting the
-.No ifconfig_ Ns Em interface
+.Va ifconfig_ Ns Aq Ar interface
 variable to
 .Dq DHCP .
 For instance, to initialize the ed0 device via DHCP,
@@ -610,15 +610,15 @@ Set to the list of
 .Xr gif 4
 tunnel interfaces to configure on this host.
 A
-.No gifconfig_ Ns Em interface
+.Va gifconfig_ Ns Aq Ar interface
 variable is assumed to exist for each value of
-.Em interface .
+.Ar interface .
 The value of this variable is used to configure the link layer of the
 tunnel according to the syntax of the
 .Cm tunnel
 option to
 .Xr ifconfig 8 .
-Additionaly, this option insures that each listed interface is created
+Additionaly, this option ensures that each listed interface is created
 via the
 .Cm create
 option to
@@ -701,7 +701,7 @@ each consisting of a filesystem type as passed to
 .Xr mount 8
 and a human-readable, one-word description,
 joined with a colon
-.Pq Sq \&: .
+.Pq Ql \&: .
 Extending the default list in this way is only necessary
 when third party filesystem types are used.
 .It Va syslogd_enable
@@ -1157,9 +1157,9 @@ Set to the list of static routes that are to be added at system
 boot time.  If not set to
 .Dq NO
 then for each whitespace separated
-.Em element
+.Ar element
 in the value, a
-.No route_ Ns element
+.Va route_ Ns Aq Ar element
 variable is assumed to exist
 whose contents will later be passed to a
 .Dq route add
@@ -1307,7 +1307,7 @@ For the ATM physical interface
 .Va <intf> ,
 this variable defines the MAC address for interfaces using a UNI signalling
 manager.  If set to
-.Em NO ,
+.Dq NO ,
 then the hardware MAC address contained in the ATM interface card will be used.
 Otherwise, the value will be passed as the parameters of an
 .Dq atm set mac Va <intf>
@@ -1327,7 +1327,7 @@ command.
 .It Va atm_scsparp_<netif>
 .Pq Vt bool
 If set to
-.Em YES ,
+.Dq YES ,
 then SCSP/ATMARP service for the network interface
 .Va <netif>
 will be initiated using the
@@ -1336,7 +1336,7 @@ and
 .Xr atmarpd 8
 daemons.  This variable is only applicable if
 .So
-.No atm_arpserver_ Ns Va <netif>
+.Va atm_arpserver_ Ns Aq Ar netif
 .No = Ns Qq local
 .Sc
 is defined.
@@ -1344,9 +1344,9 @@ is defined.
 .Pq Vt str
 Set to the list of ATM PVCs to be added at system
 boot time.  For each whitespace separated
-.Em element
+.Ar element
 in the value, an
-.No atm_pvc_ Ns Em element
+.Va atm_pvc_ Ns Aq Ar element
 variable is assumed to exist.  The value of each of these variables
 will be passed as the parameters of an
 .Dq atm add pvc
@@ -1355,9 +1355,9 @@ command.
 .Pq Vt str
 Set to the list of permanent ATM ARP entries to be added
 at system boot time.  For each whitespace separated
-.Em element
+.Ar element
 in the value, an
-.No atm_arp_ Ns Em element
+.Va atm_arp_ Ns Aq Ar element
 variable is assumed to exist.  The value of each of these variables
 will be passed as the parameters of an
 .Dq atm add arp
