@@ -329,17 +329,8 @@ lortrequest(cmd, rt, info)
 	struct rt_addrinfo *info;
 {
 	RT_LOCK_ASSERT(rt);
-
-	if (rt) {
-		rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu; /* for ISO */
-		/*
-		 * For optimal performance, the send and receive buffers
-		 * should be at least twice the MTU plus a little more for
-		 * overhead.
-		 */
-		rt->rt_rmx.rmx_recvpipe =
-			rt->rt_rmx.rmx_sendpipe = 3 * LOMTU;
-	}
+	if (rt)
+		rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
 }
 
 /*

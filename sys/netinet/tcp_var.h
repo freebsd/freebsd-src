@@ -213,8 +213,6 @@ struct syncache {
 	struct 		tcpcb *sc_tp;		/* tcb for listening socket */
 	struct		mbuf *sc_ipopts;	/* source route */
 	struct 		in_conninfo sc_inc;	/* addresses */
-#define sc_route	sc_inc.inc_route
-#define sc_route6	sc_inc.inc6_route
 	u_int32_t	sc_tsrecent;
 	tcp_cc		sc_cc_send;		/* holds CC or CCnew */
 	tcp_cc		sc_cc_recv;
@@ -232,7 +230,6 @@ struct syncache {
 #define SCF_TIMESTAMP	0x04			/* negotiated timestamps */
 #define SCF_CC		0x08			/* negotiated CC */
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
-#define SCF_KEEPROUTE	0x20			/* keep cloned route */
 	TAILQ_ENTRY(syncache)	sc_hash;
 	TAILQ_ENTRY(syncache)	sc_timerq;
 };
@@ -240,6 +237,17 @@ struct syncache {
 struct syncache_head {
 	TAILQ_HEAD(, syncache)	sch_bucket;
 	u_int		sch_length;
+};
+
+struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
+	u_long	rmx_mtu;	/* MTU for this path */
+	u_long	rmx_ssthresh;	/* outbound gateway buffer limit */
+	u_long	rmx_rtt;	/* estimated round trip time */
+	u_long	rmx_rttvar;	/* estimated rtt variance */
+	u_long	rmx_bandwidth;	/* estimated bandwidth */
+	u_long	rmx_cwnd;	/* congestion window */
+	u_long	rmx_sendpipe;   /* outbound delay-bandwidth product */
+	u_long	rmx_recvpipe;   /* inbound delay-bandwidth product */
 };
 
 struct tcptw {
@@ -260,8 +268,7 @@ struct tcptw {
 };
  
 /*
- * The TAO cache entry which is stored in the protocol family specific
- * portion of the route metrics.
+ * The TAO cache entry which is stored in the tcp hostcache.
  */
 struct rmxp_tao {
 	tcp_cc	tao_cc;			/* latest CC in valid SYN */
@@ -274,7 +281,6 @@ struct rmxp_tao {
 #define	TAOF_UNDEF	0		/* we don't know yet */
 #endif /* notyet */
 };
-#define rmx_taop(r)	((struct rmxp_tao *)(r).rmx_filler)
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
 #define	intotw(ip)	((struct tcptw *)(ip)->inp_ppcb)
@@ -401,6 +407,9 @@ struct	tcpstat {
 	u_long	tcps_sc_zonefail;	/* zalloc() failed */
 	u_long	tcps_sc_sendcookie;	/* SYN cookie sent */
 	u_long	tcps_sc_recvcookie;	/* SYN cookie received */
+
+	u_long	tcps_hc_added;		/* entry added to hostcache */
+	u_long	tcps_hc_bucketoverflow;	/* hostcache per bucket limit hit */
 };
 
 /*
@@ -451,6 +460,7 @@ struct	xtcpcb {
 	{ "pcblist", CTLTYPE_STRUCT }, \
 	{ "delacktime", CTLTYPE_INT }, \
 	{ "v6mssdflt", CTLTYPE_INT }, \
+	{ "maxid", CTLTYPE_INT }, \
 }
 
 
@@ -482,12 +492,12 @@ struct tcpcb *
 	 tcp_drop(struct tcpcb *, int);
 void	 tcp_drain(void);
 void	 tcp_fasttimo(void);
-struct rmxp_tao *
-	 tcp_gettaocache(struct in_conninfo *);
 void	 tcp_init(void);
 void	 tcp_input(struct mbuf *, int);
+u_long	 tcp_maxmtu(struct in_conninfo *);
+u_long	 tcp_maxmtu6(struct in_conninfo *);
 void	 tcp_mss(struct tcpcb *, int);
-int	 tcp_mssopt(struct tcpcb *);
+int	 tcp_mssopt(struct in_conninfo *);
 struct inpcb *	 
 	 tcp_drop_syn_sent(struct inpcb *, int);
 struct inpcb *
@@ -500,8 +510,6 @@ struct inpcb *
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
 int	 tcp_twrespond(struct tcptw *, struct socket *, struct mbuf *, int);
-struct rtentry *
-	 tcp_rtlookup(struct in_conninfo *);
 void	 tcp_setpersist(struct tcpcb *);
 void	 tcp_slowtimo(void);
 struct tcptemp *
@@ -519,6 +527,20 @@ int	 syncache_add(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct socket **, struct mbuf *);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *);
 void	 syncache_badack(struct in_conninfo *);
+/*
+ * All tcp_hc_* functions are IPv4 and IPv6 (via in_conninfo)
+ */
+void	 tcp_hc_init(void);
+void	 tcp_hc_get(struct in_conninfo *, struct hc_metrics_lite *);
+u_long	 tcp_hc_getmtu(struct in_conninfo *);
+void	 tcp_hc_gettao(struct in_conninfo *, struct rmxp_tao *);
+void	 tcp_hc_updatemtu(struct in_conninfo *, u_long);
+void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
+void	 tcp_hc_updatetao(struct in_conninfo *, int, tcp_cc, u_short);
+/* update which tao field */
+#define	TCP_HC_TAO_CC		0x1
+#define TCP_HC_TAO_CCSENT	0x2
+#define TCP_HC_TAO_MSSOPT	0x3
 
 extern	struct pr_usrreqs tcp_usrreqs;
 extern	u_long tcp_sendspace;

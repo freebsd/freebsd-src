@@ -203,8 +203,7 @@ udp6_output(in6p, m, addr6, control, td)
 
 		if (!IN6_IS_ADDR_V4MAPPED(faddr)) {
 			laddr = in6_selectsrc(sin6, in6p->in6p_outputopts,
-					      in6p->in6p_moptions,
-					      &in6p->in6p_route,
+					      in6p->in6p_moptions, NULL,
 					      &in6p->in6p_laddr, &error);
 		} else
 			laddr = &in6p->in6p_laddr;	/* XXX */
@@ -277,9 +276,7 @@ udp6_output(in6p, m, addr6, control, td)
 		ip6->ip6_plen	= htons((u_short)plen);
 #endif
 		ip6->ip6_nxt	= IPPROTO_UDP;
-		ip6->ip6_hlim	= in6_selecthlim(in6p,
-						 in6p->in6p_route.ro_rt ?
-						 in6p->in6p_route.ro_rt->rt_ifp : NULL);
+		ip6->ip6_hlim	= in6_selecthlim(in6p, NULL);
 		ip6->ip6_src	= *laddr;
 		ip6->ip6_dst	= *faddr;
 
@@ -297,7 +294,7 @@ udp6_output(in6p, m, addr6, control, td)
 			goto release;
 		}
 #endif /* IPSEC */
-		error = ip6_output(m, in6p->in6p_outputopts, &in6p->in6p_route,
+		error = ip6_output(m, in6p->in6p_outputopts, NULL,
 		    flags, in6p->in6p_moptions, NULL, in6p);
 		break;
 	case AF_INET:

@@ -94,31 +94,22 @@ struct in_endpoints {
 
 /*
  * XXX
- * At some point struct route should possibly change to:
- *   struct rtentry *rt
- *   struct in_endpoints *ie; 
+ * the defines for inc_* are hacks and should be changed to direct references
  */
 struct in_conninfo {
 	u_int8_t	inc_flags;
 	u_int8_t	inc_len;
 	u_int16_t	inc_pad;	/* XXX alignment for in_endpoints */
-	/* protocol dependent part; cached route */
+	/* protocol dependent part */
 	struct	in_endpoints inc_ie;
-	union {
-		/* placeholder for routing entry */
-		struct	route inc4_route;
-		struct	route_in6 inc6_route;
-	} inc_dependroute;
 };
 #define inc_isipv6	inc_flags	/* temp compatability */
 #define	inc_fport	inc_ie.ie_fport
 #define	inc_lport	inc_ie.ie_lport
 #define	inc_faddr	inc_ie.ie_faddr
 #define	inc_laddr	inc_ie.ie_laddr
-#define	inc_route	inc_dependroute.inc4_route
 #define	inc6_faddr	inc_ie.ie6_faddr
 #define	inc6_laddr	inc_ie.ie6_laddr
-#define	inc6_route	inc_dependroute.inc6_route
 
 struct	icmp6_filter;
 
@@ -157,7 +148,6 @@ struct inpcb {
 #define inp_lport	inp_inc.inc_lport
 #define	inp_faddr	inp_inc.inc_faddr
 #define	inp_laddr	inp_inc.inc_laddr
-#define	inp_route	inp_inc.inc_route
 #define	inp_ip_tos	inp_depend4.inp4_ip_tos
 #define	inp_options	inp_depend4.inp4_options
 #define	inp_moptions	inp_depend4.inp4_moptions
@@ -182,7 +172,7 @@ struct inpcb {
 
 #define	in6p_faddr	inp_inc.inc6_faddr
 #define	in6p_laddr	inp_inc.inc6_laddr
-#define	in6p_route	inp_inc.inc6_route
+#define	in6p_ip6_hlim	inp_depend6.inp6_hlim
 #define	in6p_hops	inp_depend6.inp6_hops	/* default hop limit */
 #define	in6p_ip6_nxt	inp_ip_p
 #define	in6p_flowinfo	inp_flow
@@ -347,9 +337,6 @@ extern int	ipport_hifirstauto;
 extern int	ipport_hilastauto;
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
-void	in_losing(struct inpcb *);
-struct inpcb *
-	in_rtchange(struct inpcb *, int);
 int	in_pcballoc(struct socket *, struct inpcbinfo *, struct thread *);
 int	in_pcbbind(struct inpcb *, struct sockaddr *, struct thread *);
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,

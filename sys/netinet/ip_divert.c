@@ -336,7 +336,7 @@ div_output(struct socket *so, struct mbuf *m,
 			ipstat.ips_rawout++;			/* XXX */
 
 			error = ip_output((struct mbuf *)&divert_tag,
-				    inp->inp_options, &inp->inp_route,
+				    inp->inp_options, NULL,
 				    (so->so_options & SO_DONTROUTE) |
 				    IP_ALLOWBROADCAST | IP_RAWOUTPUT,
 				    inp->inp_moptions, NULL);
@@ -527,11 +527,8 @@ div_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	faddr = ((struct sockaddr_in *)sa)->sin_addr;
 	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
         	return;
-	if (PRC_IS_REDIRECT(cmd)) {
-		/* flush held routes */
-		in_pcbnotifyall(&divcbinfo, faddr,
-			inetctlerrmap[cmd], in_rtchange);
-	}
+	if (PRC_IS_REDIRECT(cmd))
+		return;
 }
 
 static int

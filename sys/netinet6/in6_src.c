@@ -211,7 +211,6 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 		    != 0) {
 			return (NULL);
 		}
-
 		/*
 		 * determine the appropriate zone id of the source based on
 		 * the zone of the destination and the outgoing interface.
@@ -449,12 +448,19 @@ in6_selectif(dstsock, opts, mopts, ro, retifp)
 	struct route_in6 *ro;
 	struct ifnet **retifp;
 {
-	int error, clone;
+	int error;
+	struct route_in6 sro;
 	struct rtentry *rt = NULL;
 
-	clone = IN6_IS_ADDR_MULTICAST(&dstsock->sin6_addr) ? 0 : 1;
+	if (ro == NULL) {
+		bzero(&sro, sizeof(sro));
+		ro = &sro;
+	}
+
 	if ((error = in6_selectroute(dstsock, opts, mopts, ro, retifp,
-				     &rt, clone)) != 0) {
+				     &rt, 0)) != 0) {
+		if (rt && rt == sro.ro_rt)
+			RTFREE(rt);
 		return (error);
 	}
 
@@ -476,7 +482,11 @@ in6_selectif(dstsock, opts, mopts, ro, retifp)
 	 * We thus reject the case here.
 	 */
 	if (rt && (rt->rt_flags & (RTF_REJECT | RTF_BLACKHOLE))) {
-		return (rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
+		int flags = (rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
+
+		if (rt && rt == sro.ro_rt)
+			RTFREE(rt);
+		return (flags);
 	}
 
 	/*
@@ -489,6 +499,8 @@ in6_selectif(dstsock, opts, mopts, ro, retifp)
 	if (rt && rt->rt_ifa && rt->rt_ifa->ifa_ifp)
 		*retifp = rt->rt_ifa->ifa_ifp;
 
+	if (rt && rt == sro.ro_rt)
+		RTFREE(rt);
 	return (0);
 }
 
@@ -623,6 +635,7 @@ in6_selectroute(dstsock, opts, mopts, ro, retifp, retrt, clone)
 			sa6 = (struct sockaddr_in6 *)&ro->ro_dst;
 			*sa6 = *dstsock;
 			sa6->sin6_scope_id = 0;
+
 			if (clone) {
 				rtalloc((struct route *)ro);
 			} else {
@@ -695,7 +708,7 @@ in6_selectroute(dstsock, opts, mopts, ro, retifp, retrt, clone)
  * 2. (If the outgoing interface is detected) the current
  *     hop limit of the interface specified by router advertisement.
  * 3. The system default hoplimit.
-*/
+ */
 int
 in6_selecthlim(in6p, ifp)
 	struct in6pcb *in6p;
@@ -705,8 +718,24 @@ in6_selecthlim(in6p, ifp)
 		return (in6p->in6p_hops);
 	else if (ifp)
 		return (ND_IFINFO(ifp)->chlim);
-	else
-		return (ip6_defhlim);
+	else if (in6p && !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr)) {
+		struct route_in6 ro6;
+		struct ifnet *lifp;
+
+		bzero(&ro6, sizeof(ro6));
+		ro6.ro_dst.sin6_family = AF_INET6;
+		ro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
+		ro6.ro_dst.sin6_addr = in6p->in6p_faddr;
+		rtalloc((struct route *)&ro6);
+		if (ro6.ro_rt) {
+			lifp = ro6.ro_rt->rt_ifp;
+			RTFREE(ro6.ro_rt);
+			if (lifp)
+				return (ND_IFINFO(lifp)->chlim);
+		} else
+			return (ip6_defhlim);
+	}
+	return (ip6_defhlim);
 }
 
 /*
