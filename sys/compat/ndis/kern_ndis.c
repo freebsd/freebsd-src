@@ -348,7 +348,7 @@ ndis_stop_thread(t)
 
 	/* wait for thread exit */
 
-	tsleep(r, PPAUSE|PCATCH, "ndisthrexit", hz * 60);
+	tsleep(r, curthread->td_priority|PCATCH, "ndisthexit", hz * 60);
 
 	/* Now empty the job list. */
 
