@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.1 1997/03/22 19:00:36 kato Exp $
+ *		$Id: initcpu.c,v 1.2 1997/03/24 07:23:05 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -100,8 +100,6 @@ init_486dlc(void)
 
 	eflags = read_eflags();
 	disable_intr();
-
-	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	invd();
 
 	ccr0 = read_cyrix_reg(CCR0);
