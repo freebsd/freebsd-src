@@ -1282,10 +1282,14 @@ ed_probe_Novell(isa_dev)
 	struct isa_device *isa_dev;
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+	int     nports;
 
-	isa_dev->id_maddr = 0;
-	return ed_probe_Novell_generic(sc, isa_dev->id_iobase, 
+	nports = ed_probe_Novell_generic(sc, isa_dev->id_iobase, 
 				       isa_dev->id_unit, isa_dev->id_flags);
+	if (nports)
+		isa_dev->id_maddr = 0;
+
+	return (nports);
 }
 
 #if NCARD > 0
