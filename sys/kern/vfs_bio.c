@@ -394,6 +394,7 @@ bufinit(void)
 	bogus_page = vm_page_alloc(kernel_object,
 			((bogus_offset - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
 			VM_ALLOC_NORMAL);
+	cnt.v_wire_count++;
 
 }
 
