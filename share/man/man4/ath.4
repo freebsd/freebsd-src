@@ -111,14 +111,16 @@ driver:
 .Pp
 .Bl -column -compact "D-Link DWL-AG650" "AR5212" "Cardbus"
 .Em "Card	Chip	Bus"
-D-Link DWL-AB650	AR5211	Cardbus
+D-Link DWL-AB650	AR5211	CardBus
 D-Link DWL-AG520	AR5212	PCI
-D-Link DWL-AG650	AR5212	Cardbus
+D-Link DWL-AG650	AR5212	CardBus
+I/O Data WN-AG/CB	AR5212	CardBus
 Linksys WMP55AG	AR5212	PCI
-Linksys WPC51AB	AR5211	Cardbus
-Linksys WPC55AG	AR5212	Cardbus
-Netgear WAB501	AR5211	Cardbus
-Netgear WAG511	AR5212	Cardbus
+Linksys WPC51AB	AR5211	CardBus
+Linksys WPC55AG	AR5212	CardBus
+Netgear WAB501	AR5211	CardBus
+Netgear WAG511	AR5212	CardBus
+Proxim Skyline 4030	AR5210	CardBus
 .El
 .Sh EXAMPLES
 Join an existing BSS network (ie: connect to an access point):
@@ -273,6 +275,9 @@ for information on how to change the channel.
 See
 .Xr wicontrol 8
 for information on different regulatory domains.
+Different regulatory domains may not be able to communicate with each
+other with 802.11a as different regualtory domains do not necessarily
+have overlapping channels.
 .Pp
 802.11g support is little tested and may have interoperability problems.
 The software is known to function with an Atheros 11g access point but
