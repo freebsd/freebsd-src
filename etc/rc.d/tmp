@@ -42,7 +42,7 @@ load_rc_config $name
 #
 case "${tmpmfs}" in
 [Yy][Ee][Ss])
-	mount_md ${tmpsize} /tmp
+	mount_md ${tmpsize} /tmp "${tmpmfs_flags}"
 	chmod 01777 /tmp
 	;;
 [Nn][Oo])
@@ -56,7 +56,7 @@ case "${tmpmfs}" in
 			echo "dropping into shell, ^D to continue anyway."
 			/bin/sh
 		else
-			mount_md ${tmpsize} /tmp
+			mount_md ${tmpsize} /tmp "${tmpmfs_flags}"
 			chmod 01777 /tmp
 		fi
 	fi

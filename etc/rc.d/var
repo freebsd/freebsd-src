@@ -61,7 +61,7 @@ _populate_var()
 #
 case "${varmfs}" in
 [Yy][Ee][Ss])
-	mount_md ${varsize} /var
+	mount_md ${varsize} /var "${varmfs_flags}"
 	;;
 [Nn][Oo])
 	;;
@@ -69,7 +69,7 @@ case "${varmfs}" in
 	if (/bin/mkdir -p /var/.diskless 2> /dev/null); then
 		rmdir /var/.diskless
 	else
-		mount_md ${varsize} /var
+		mount_md ${varsize} /var "${varmfs_flags}"
 	fi
 esac
 
