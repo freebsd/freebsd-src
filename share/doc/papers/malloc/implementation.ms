@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: implementation.ms,v 1.2 1996/09/29 18:36:11 phk Exp $
+.\" $Id: implementation.ms,v 1.3 1996/10/04 14:01:54 wosch Exp $
 .\"
 .ds RH Implementation
 .NH
@@ -171,6 +171,16 @@ It's amazing how few programs actually handle this condition correctly,
 and consequently the havoc they can create is the more creative or
 destructive.
 .IP
+.B Dump
+Writes malloc statistics to a file called ``malloc.out'' prior
+to process termination.
+.IP
+.B Hint
+Pass a hint to the kernel about pages we no longer need through the
+madvise(2) system call.  This can help performance on machines that
+page heavily by eliminating unnecessary page-ins and page-outs of
+unused data.
+.IP
 .B Realloc
 Always do a free and malloc when realloc(3) is called.  The default
 is to leave things alone if the size of the allocation is still in
@@ -189,22 +199,13 @@ space after the allocation in the chunk will be filled with the
 junk value to try to catch out of the chunk references.
 .ds RH The road not taken.
 .NH
-The road yet not taken.
+The road not yet taken.
 .PP
 A couple of avenues were explored that could be interesting in some
 set of circumstances.
 .PP
 Using mmap(2) instead of brk(2) was actually slower, since brk(2)
 knows a lot of the things that mmap has to find out first.
-.PP
-A system call where we could tell the kernel that "we don't
-need the contents of this page anymore" would allow us to
-return the pages on the free list to the kernel and to instruct
-the kernel that it doesn't need to page it out nor in.
-It would save some page-out events, and the page-in would be replaced
-by a zero-fill page.
-This is, according to the VM goods in the FreeBSD camp, "easy",
-and it will probably be attempted at some point in the future.
 .PP
 In general there is little room for further improvement of the
 time-overhead of the malloc, further improvements will have to
