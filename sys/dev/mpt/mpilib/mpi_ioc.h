@@ -28,7 +28,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  August 11, 2000
  *
- *    MPI Version:  01.02.04
+ *    MPI_IOC.H Version:  01.02.07
  *
  *  Version History
  *  ---------------
@@ -73,6 +73,11 @@
  *                      MPI_FW_UPLOAD_ITYPE_NVDATA.
  *  09-28-01  01.02.03  Modified Event Data for Integrated RAID.
  *  11-01-01  01.02.04  Added defines for MPI_EXT_IMAGE_HEADER ImageType field.
+ *  03-14-02  01.02.05  Added HeaderVersion field to MSG_IOC_FACTS_REPLY.
+ *  05-31-02  01.02.06  Added define for
+ *                      MPI_IOCFACTS_EXCEPT_RAID_CONFIG_INVALID.
+ *                      Added AliasIndex to EVENT_DATA_LOGOUT structure.
+ *  04-01-03  01.02.07  Added defines for MPI_FW_HEADER_SIGNATURE_.
  *  --------------------------------------------------------------------------
  */
 
@@ -173,7 +178,7 @@ typedef struct _MSG_IOC_FACTS_REPLY
     U16                     MsgVersion;                 /* 00h */
     U8                      MsgLength;                  /* 02h */
     U8                      Function;                   /* 03h */
-    U16                     Reserved;                   /* 04h */
+    U16                     HeaderVersion;              /* 04h */
     U8                      IOCNumber;                  /* 06h */
     U8                      MsgFlags;                   /* 07h */
     U32                     MsgContext;                 /* 08h */
@@ -205,7 +210,11 @@ typedef struct _MSG_IOC_FACTS_REPLY
 #define MPI_IOCFACTS_MSGVERSION_MAJOR_MASK          (0xFF00)
 #define MPI_IOCFACTS_MSGVERSION_MINOR_MASK          (0x00FF)
 
+#define MPI_IOCFACTS_HEADERVERSION_UNIT_MASK        (0xFF00)
+#define MPI_IOCFACTS_HEADERVERSION_DEV_MASK         (0x00FF)
+
 #define MPI_IOCFACTS_EXCEPT_CONFIG_CHECKSUM_FAIL    (0x0001)
+#define MPI_IOCFACTS_EXCEPT_RAID_CONFIG_INVALID     (0x0002)
 
 #define MPI_IOCFACTS_FLAGS_FW_DOWNLOAD_BOOT         (0x01)
 
@@ -486,11 +495,14 @@ typedef struct _EVENT_DATA_LOOP_STATE
 typedef struct _EVENT_DATA_LOGOUT
 {
     U32                     NPortID;                    /* 00h */
-    U8                      Reserved;                   /* 04h */
+    U8                      AliasIndex;                 /* 04h */
     U8                      Port;                       /* 05h */
     U16                     Reserved1;                  /* 06h */
 } EVENT_DATA_LOGOUT, MPI_POINTER PTR_EVENT_DATA_LOGOUT,
   EventDataLogout_t, MPI_POINTER pEventDataLogout_t;
+
+#define MPI_EVENT_LOGOUT_ALL_ALIASES        (0xFF)
+
 
 /* MPI Integrated RAID Event data */
 
@@ -664,6 +676,10 @@ typedef struct _MPI_FW_HEADER
 #define MPI_FW_HEADER_PID_TYPE_MASK             (0xF000)
 #define MPI_FW_HEADER_PID_TYPE_SCSI             (0x0000)
 #define MPI_FW_HEADER_PID_TYPE_FC               (0x1000)
+
+#define MPI_FW_HEADER_SIGNATURE_0               (0x5AEAA55A)
+#define MPI_FW_HEADER_SIGNATURE_1               (0xA55AEAA5)
+#define MPI_FW_HEADER_SIGNATURE_2               (0x5AA55AEA)
 
 #define MPI_FW_HEADER_PID_PROD_MASK                     (0x0F00)
 #define MPI_FW_HEADER_PID_PROD_INITIATOR_SCSI           (0x0100)

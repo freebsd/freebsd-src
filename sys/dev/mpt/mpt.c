@@ -504,11 +504,11 @@ mpt_send_ioc_init(mpt_softc_t *mpt, u_int32_t who)
  */
 
 static int
-mpt_read_cfg_header(mpt_softc_t *, int, int, int, fCONFIG_PAGE_HEADER *);
+mpt_read_cfg_header(mpt_softc_t *, int, int, int, CONFIG_PAGE_HEADER *);
 
 static int
 mpt_read_cfg_header(mpt_softc_t *mpt, int PageType, int PageNumber,
-    int PageAddress, fCONFIG_PAGE_HEADER *rslt)
+    int PageAddress, CONFIG_PAGE_HEADER *rslt)
 {
 	int count;
 	request_t *req;
@@ -549,7 +549,7 @@ mpt_read_cfg_header(mpt_softc_t *mpt, int PageType, int PageNumber,
 		mpt_free_reply(mpt, (req->sequence << 1));
 		return (-1);
 	}
-	bcopy(&reply->Header, rslt, sizeof (fCONFIG_PAGE_HEADER));
+	bcopy(&reply->Header, rslt, sizeof (CONFIG_PAGE_HEADER));
 	mpt_free_reply(mpt, (req->sequence << 1));
 	mpt_free_request(mpt, req);
 	return (0);
@@ -558,7 +558,7 @@ mpt_read_cfg_header(mpt_softc_t *mpt, int PageType, int PageNumber,
 #define	CFG_DATA_OFF	128
 
 int
-mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
+mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, CONFIG_PAGE_HEADER *hdr)
 {
 	int count;
 	request_t *req;
@@ -610,19 +610,19 @@ mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 	    BUS_DMASYNC_POSTREAD);
 	if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
 	    cfgp->Header.PageNumber == 0) {
-		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_0);
+		amt = sizeof (CONFIG_PAGE_SCSI_PORT_0);
 	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
 	    cfgp->Header.PageNumber == 1) {
-		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_1);
+		amt = sizeof (CONFIG_PAGE_SCSI_PORT_1);
 	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
 	    cfgp->Header.PageNumber == 2) {
-		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_2);
+		amt = sizeof (CONFIG_PAGE_SCSI_PORT_2);
 	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_DEVICE  &&
 	    cfgp->Header.PageNumber == 0) {
-		amt = sizeof (fCONFIG_PAGE_SCSI_DEVICE_0);
+		amt = sizeof (CONFIG_PAGE_SCSI_DEVICE_0);
 	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_DEVICE  &&
 	    cfgp->Header.PageNumber == 1) {
-		amt = sizeof (fCONFIG_PAGE_SCSI_DEVICE_1);
+		amt = sizeof (CONFIG_PAGE_SCSI_DEVICE_1);
 	}
 	bcopy(((caddr_t)req->req_vbuf)+CFG_DATA_OFF, hdr, amt);
 	mpt_free_request(mpt, req);
@@ -630,7 +630,7 @@ mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 }
 
 int
-mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
+mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, CONFIG_PAGE_HEADER *hdr)
 {
 	int count, hdr_attr;
 	request_t *req;
@@ -670,19 +670,19 @@ mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 
 	if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
 	    cfgp->Header.PageNumber == 0) {
-		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_0);
+		amt = sizeof (CONFIG_PAGE_SCSI_PORT_0);
 	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
 	    cfgp->Header.PageNumber == 1) {
-		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_1);
+		amt = sizeof (CONFIG_PAGE_SCSI_PORT_1);
 	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_PORT &&
 	    cfgp->Header.PageNumber == 2) {
-		amt = sizeof (fCONFIG_PAGE_SCSI_PORT_2);
+		amt = sizeof (CONFIG_PAGE_SCSI_PORT_2);
 	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_DEVICE  &&
 	    cfgp->Header.PageNumber == 0) {
-		amt = sizeof (fCONFIG_PAGE_SCSI_DEVICE_0);
+		amt = sizeof (CONFIG_PAGE_SCSI_DEVICE_0);
 	} else if (cfgp->Header.PageType == MPI_CONFIG_PAGETYPE_SCSI_DEVICE  &&
 	    cfgp->Header.PageNumber == 1) {
-		amt = sizeof (fCONFIG_PAGE_SCSI_DEVICE_1);
+		amt = sizeof (CONFIG_PAGE_SCSI_DEVICE_1);
 	}
 	bcopy(hdr, ((caddr_t)req->req_vbuf)+CFG_DATA_OFF, amt);
 	/* Restore stripped out attributes */
@@ -876,7 +876,7 @@ mpt_set_initial_config_spi(mpt_softc_t *mpt)
 	mpt->mpt_tag_enable = 0;
 
 	if (mpt->mpt_port_page1.Configuration != pp1val) {
-		fCONFIG_PAGE_SCSI_PORT_1 tmp;
+		CONFIG_PAGE_SCSI_PORT_1 tmp;
 		mpt_prt(mpt,
 		    "SPI Port Page 1 Config value bad (%x)- should be %x",
 		    mpt->mpt_port_page1.Configuration, pp1val);
@@ -897,7 +897,7 @@ mpt_set_initial_config_spi(mpt_softc_t *mpt)
 	}
 
 	for (i = 0; i < 16; i++) {
-		fCONFIG_PAGE_SCSI_DEVICE_1 tmp;
+		CONFIG_PAGE_SCSI_DEVICE_1 tmp;
 		tmp = mpt->mpt_dev_page1[i];
 		tmp.RequestedParameters = 0;
 		tmp.Configuration = 0;
