@@ -55,6 +55,10 @@ The
 .Em value
 string may be placed in quotes (single or double, but matching) to preserve
 leading or trailing blanks.
+The
+.Em name
+string may also be placed in quote (single or double, but matching)
+to preserve leading, traling or inner blanks.
 .Pp
 Several environment variables are set up
 automatically by the
@@ -182,6 +186,21 @@ field matches the current time.  For example,
 ``30 4 1,15 * 5''
 would cause a command to be run at 4:30 am on the 1st and 15th of each
 month, plus every Friday.
+.Pp
+Instead of the first five fields,
+one of eight special strings may appear:
+.Bd -literal -offset indent
+string		meaning
+------		-------
+@reboot		Run once, at startup.
+@yearly		Run once a year, "0 0 1 1 *".
+@annually	(sames as @yearly)
+@monthly	Run once a month, "0 0 1 * *".
+@weekly		Run once a week, "0 0 * * 0".
+@daily		Run once a day, "0 0 * * *".
+@midnight	(same as @daily)
+@hourly		Run once an hour, "0 * * * *".
+.Ed
 .Sh EXAMPLE CRON FILE
 .Bd -literal
 
@@ -221,6 +240,11 @@ Command output is mailed to the crontab owner (BSD can't do this), can be
 mailed to a person other than the crontab owner (SysV can't do this), or the
 feature can be turned off and no mail will be sent at all (SysV can't do this
 either).
+.Pp
+All of the
+.Sq @
+commands that can appear in place of the first five fields
+are extensions.
 .Sh AUTHORS
 .An Paul Vixie Aq paul@vix.com
 .Sh BUGS
