@@ -381,6 +381,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 {
 	vm_object_t object;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (handle) {
 		/*
 		 * Reference existing named region or allocate new one.  There
@@ -393,6 +394,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			sw_alloc_interlock = -1;
 			msleep(&sw_alloc_interlock, &vm_mtx, PVM, "swpalc", 0);
 		}
+		sw_alloc_interlock = 1;
 
 		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
 
@@ -406,7 +408,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
 		}
 
-		if (sw_alloc_interlock < 0)
+		if (sw_alloc_interlock == -1)
 			wakeup(&sw_alloc_interlock);
 		sw_alloc_interlock = 0;
 	} else {
@@ -438,6 +440,7 @@ swap_pager_dealloc(object)
 {
 	int s;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	/*
 	 * Remove from list right away so lookups will fail if we block for
 	 * pageout completion.
@@ -866,6 +869,8 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 	char *data;
 	struct buf *nbp = NULL;
 
+	mtx_assert(&Giant, MA_OWNED);
+	mtx_assert(&vm_mtx, MA_NOTOWNED);
 	/* XXX: KASSERT instead ? */
 	if (bp->bio_bcount & PAGE_MASK) {
 		biofinish(bp, NULL, EINVAL);
@@ -952,7 +957,9 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 				cnt.v_swappgsout += btoc(nbp->b_bcount);
 				nbp->b_dirtyend = nbp->b_bcount;
 			}
+			mtx_unlock(&vm_mtx);
 			flushchainbuf(nbp);
+			mtx_lock(&vm_mtx);
 			s = splvm();
 			nbp = NULL;
 		}
@@ -1001,11 +1008,11 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 			cnt.v_swappgsout += btoc(nbp->b_bcount);
 			nbp->b_dirtyend = nbp->b_bcount;
 		}
+		mtx_unlock(&vm_mtx);
 		flushchainbuf(nbp);
 		/* nbp = NULL; */
-	}
-
-	mtx_unlock(&vm_mtx);
+	} else
+		mtx_unlock(&vm_mtx);
 	/*
 	 * Wait for completion.
 	 */
@@ -1048,6 +1055,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	vm_offset_t kva;
 	vm_pindex_t lastpindex;
 
+	mtx_assert(&Giant, MA_OWNED);
 	mreq = m[reqpage];
 
 	if (mreq->object != object) {
@@ -1176,10 +1184,8 @@ swap_pager_getpages(object, m, count, reqpage)
 	 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
 	 */
 	mtx_unlock(&vm_mtx);
-	mtx_lock(&Giant);
 	BUF_KERNPROC(bp);
 	BUF_STRATEGY(bp);
-	mtx_unlock(&Giant);
 	mtx_lock(&vm_mtx);
 
 	/*
@@ -1259,6 +1265,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	int i;
 	int n = 0;
 
+	mtx_assert(&Giant, MA_OWNED);
 	if (count && m[0]->object != object) {
 		panic("swap_pager_getpages: object mismatch %p/%p", 
 		    object, 
@@ -1426,7 +1433,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		splx(s);
 		mtx_unlock(&vm_mtx);
-		mtx_lock(&Giant);
 
 		/*
 		 * asynchronous
@@ -1438,7 +1444,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
 			BUF_STRATEGY(bp);
-			mtx_unlock(&Giant);
 			mtx_lock(&vm_mtx);
 
 			for (j = 0; j < n; ++j)
@@ -1476,7 +1481,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		 * normal async completion, which frees everything up.
 		 */
 
-		mtx_unlock(&Giant);
 		swp_pager_async_iodone(bp);
 		mtx_lock(&vm_mtx);
 
@@ -1529,6 +1533,7 @@ swp_pager_async_iodone(bp)
 	int i;
 	vm_object_t object = NULL;
 
+	mtx_assert(&vm_mtx, MA_NOTOWNED);
 	bp->b_flags |= B_DONE;
 
 	/*
@@ -1866,7 +1871,7 @@ retry:
  *	out.  This routine does *NOT* operate on swap metadata associated
  *	with resident pages.
  *
- * 	mv_mtx must be held
+ * 	vm_mtx must be held
  *	This routine must be called at splvm()
  */
 
@@ -1989,6 +1994,7 @@ swp_pager_meta_ctl(
 	struct swblock *swap;
 	daddr_t r1;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	/*
 	 * The meta data only exists of the object is OBJT_SWAP 
 	 * and even then might not be allocated yet.
@@ -2087,6 +2093,7 @@ getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 	u_int *count;
 
 	mtx_assert(&vm_mtx, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_OWNED);
 	nbp = getpbuf(NULL);
 	count = (u_int *)&(bp->bio_caller1);
 
@@ -2114,8 +2121,8 @@ void
 flushchainbuf(struct buf *nbp)
 {
 	
-	mtx_unlock(&vm_mtx);
-	mtx_lock(&Giant);
+	mtx_assert(&vm_mtx, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_OWNED);
 	if (nbp->b_bcount) {
 		nbp->b_bufsize = nbp->b_bcount;
 		if (nbp->b_iocmd == BIO_WRITE)
@@ -2125,8 +2132,6 @@ flushchainbuf(struct buf *nbp)
 	} else {
 		bufdone(nbp);
 	}
-	mtx_unlock(&Giant);
-	mtx_lock(&vm_mtx);
 }
 
 static void
@@ -2136,7 +2141,7 @@ waitchainbuf(struct bio *bp, int limit, int done)
 	u_int *count;
 
 	mtx_assert(&vm_mtx, MA_NOTOWNED);
-	mtx_lock(&Giant);
+	mtx_assert(&Giant, MA_OWNED);
 	count = (u_int *)&(bp->bio_caller1);
 	s = splbio();
 	while (*count > limit) {
@@ -2150,7 +2155,6 @@ waitchainbuf(struct bio *bp, int limit, int done)
 		}
 		biodone(bp);
 	}
-	mtx_unlock(&Giant);
 	splx(s);
 }
 
