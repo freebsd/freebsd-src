@@ -46,10 +46,10 @@
 extern image_patch_table hal_functbl[];
 
 __BEGIN_DECLS
-__stdcall extern uint8_t hal_lock(/*kspin_lock * */void);
-__stdcall extern void hal_unlock(/*kspin_lock *, uint8_t*/void);
-__stdcall extern uint8_t hal_raise_irql(/*uint8_t*/ void);
-__stdcall extern void hal_lower_irql(/*uint8_t*/ void);
+__fastcall extern uint8_t hal_lock(REGARGS1(kspin_lock *lock));
+__fastcall void hal_unlock(REGARGS2(kspin_lock *lock, uint8_t newirql));
+__fastcall extern uint8_t hal_raise_irql(REGARGS1(uint8_t irql));
+__fastcall extern void hal_lower_irql(REGARGS1(uint8_t oldirql));
 __stdcall extern uint8_t hal_irql(void);
 __END_DECLS
 

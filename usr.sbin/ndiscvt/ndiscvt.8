@@ -41,10 +41,13 @@ NDIS drivers for use with
 .Fx
 .Sh SYNOPSIS
 .Nm
+.Op Fl O
 .Op Fl i Ar inffile
 .Fl s Ar sysfile
 .Op Fl n Ar devname
 .Op Fl o Ar outfile
+.Nm
+.Op Fl f Ar firmfile
 .Sh DESCRIPTION
 The
 .Nm
@@ -144,10 +147,127 @@ The
 module expects to find the driver data in a file called
 .Pa ndis_driver_data.h ,
 so it is recommended that this name be used.
+.It Fl O
+Generate both an
+.Pa ndis_driver_data.h
+file and
+an
+.Pa ndis_driver.data.o
+file. The latter file will contain a copy of the
+.Tn Windows\[rg]
+.Pa .SYS
+driver image encoded as a
+.Fx
+ELF object file
+.Po
+created with
+.Xr objcopy 1
+.Pc .
+Turning the
+.Tn Windows\[rg]
+driver image directly into an object code file saves disk space
+and compilation time.
+.It Fl f Ar firmfile
+A few NDIS drivers come with additional files that the core
+driver module will load during initialization time. Typically,
+these files contain firmware which the driver will transfer to
+the device in order to make it fully operational. In
+.Tn Windows\[rg] ,
+these files are usually just copied into one of the system
+directories along with the driver itself.
+.Pp
+In
+.Fx
+there are two mechanism for loading these files. If the driver
+is built as a loadable kernel module which is loaded after the
+kernel has finished booting
+.Po
+and after the root filesystem has
+been mounted
+.Pc ,
+the extra files can simply be copied to the
+.Pa /compat/ndis
+directory, and they will be loaded into the kernel on demand when the
+the driver needs them.
+.Pp
+If however the driver is required to bootstrap the system
+.Po
+i.e. if
+the NDIS-based network interface is to be used for diskless/PXE
+booting
+.Pc ,
+the files need to be pre-loaded by the bootstrap
+loader in order to be accessible, since the driver will need them
+before the root filesystem has been mounted. However, the bootstrap
+loader is only able to load files that are shared
+.Fx
+binary objects.
+.Pp
+The
+.Fl f
+flag can be used to convert an arbitrary file
+.Ar firmfile
+into shared object format
+.Po
+the actual conversion is done using
+the
+.Xr objcopy 1
+and
+.Xr ld 1
+commands
+.Pc .
+The resulting files can then be copied to the
+.Pa /boot/kernel
+directory, and can be pre-loaded directly from the boot loader
+prompt, or automatically by editing the
+.Xr loader.conf 5
+file. If desired, the files can also be loaded into memory
+at runtime using the
+.Xr kldload 8
+command.
+.Pp
+When an NDIS driver tries to open an external file, the
+.Xr ndisapi 9
+code will first search for a loaded kernel module that matches the
+name specified in the open request, and if that fails, it will then
+try to open the file from the
+.Pa /compat/ndis
+directory as well. Note that during kernel bootstrap, the ability
+to open files from
+.Pa /compat/ndis
+is disabled: only the module search will be performed.
+.Pp
+When using the
+.Fl f
+flag,
+.Nm
+will generate both a relocatable object file
+.Po
+with a
+.Pa .o
+extension
+.Pc
+and a shared object file
+.Po
+with a
+.Pa .ko
+extension
+.Pc
+. The shared object is the one that should be placed in
+the
+.Pa /boot/kernel
+directory. The relocatable object file is useful if the user wishes
+to create a completely static kernel image: the object file can be
+linked into the kernel directly along with the driver itself. Some
+editing of the kernel configuration files will be necessary in order
+to have the extra object included in the build.
 .El
 .Sh SEE ALSO
+.Xr kldload 8 ,
+.Xr ld 1 ,
 .Xr ndis 4 ,
-.Xr ndisapi 9
+.Xr ndisapi 9 ,
+.Xr objcopy 1
 .Sh HISTORY
 The
 .Nm

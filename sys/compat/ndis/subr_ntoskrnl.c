@@ -62,9 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <compat/ndis/pe_var.h>
+#include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/resource_var.h>
-#include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
 
 #define __regparm __attribute__((regparm(3)))
@@ -81,8 +81,10 @@ __stdcall static ndis_status ntoskrnl_ansi_to_unicode(ndis_unicode_string *,
 	ndis_ansi_string *, uint8_t);
 __stdcall static void *ntoskrnl_iobuildsynchfsdreq(uint32_t, void *,
 	void *, uint32_t, uint32_t *, void *, void *);
-__stdcall static uint32_t ntoskrnl_iofcalldriver(/*void *, void * */ void);
-__stdcall static void ntoskrnl_iofcompletereq(/*void *, uint8_t*/ void);
+__fastcall static uint32_t ntoskrnl_iofcalldriver(REGARGS2(void *dobj,
+	void *irp));
+__fastcall static void ntoskrnl_iofcompletereq(REGARGS2(void *irp,
+	uint8_t prioboost));
 __stdcall static uint32_t ntoskrnl_waitforobjs(uint32_t,
 	nt_dispatch_header **, uint32_t, uint32_t, uint32_t, uint8_t,
 	int64_t *, wait_block *);
@@ -117,19 +119,22 @@ __stdcall static void ntoskrnl_init_nplookaside(npaged_lookaside_list *,
 	lookaside_alloc_func *, lookaside_free_func *,
 	uint32_t, size_t, uint32_t, uint16_t);
 __stdcall static void ntoskrnl_delete_nplookaside(npaged_lookaside_list *);
-__stdcall static slist_entry *ntoskrnl_push_slist(/*slist_header *,
-	slist_entry * */ void);
-__stdcall static slist_entry *ntoskrnl_pop_slist(/*slist_header * */ void);
-__stdcall static slist_entry *ntoskrnl_push_slist_ex(/*slist_header *,
-	slist_entry *,*/ kspin_lock *);
-__stdcall static slist_entry *ntoskrnl_pop_slist_ex(/*slist_header *,
-	kspin_lock * */void);
-__stdcall static uint32_t
-	ntoskrnl_interlock_inc(/*volatile uint32_t * */ void);
-__stdcall static uint32_t
-	ntoskrnl_interlock_dec(/*volatile uint32_t * */ void);
-__stdcall static void ntoskrnl_interlock_addstat(/*uint64_t,
-	uint32_t*/ void);
+__fastcall static slist_entry *ntoskrnl_push_slist(REGARGS2(slist_header *head,
+	slist_entry *entry));
+__fastcall static slist_entry *ntoskrnl_pop_slist(REGARGS1(slist_header
+	*head));
+__fastcall static slist_entry
+	*ntoskrnl_push_slist_ex(REGARGS2(slist_header *head,
+	slist_entry *entry), kspin_lock *lock);
+__fastcall static slist_entry
+	*ntoskrnl_pop_slist_ex(REGARGS2(slist_header *head,
+	kspin_lock *lock));
+__fastcall static uint32_t
+	ntoskrnl_interlock_inc(REGARGS1(volatile uint32_t *addend));
+__fastcall static uint32_t
+	ntoskrnl_interlock_dec(REGARGS1(volatile uint32_t *addend));
+__fastcall static void ntoskrnl_interlock_addstat(REGARGS2(uint64_t *addend,
+	uint32_t inc));
 __stdcall static void ntoskrnl_freemdl(ndis_buffer *);
 __stdcall static uint32_t ntoskrnl_sizeofmdl(void *, size_t);
 __stdcall static void ntoskrnl_build_npaged_mdl(ndis_buffer *);
@@ -162,7 +167,7 @@ __stdcall static uint32_t ntoskrnl_release_mutex(kmutant *, uint8_t);
 __stdcall static uint32_t ntoskrnl_read_mutex(kmutant *);
 __stdcall static ndis_status ntoskrnl_objref(ndis_handle, uint32_t, void *,
     uint8_t, void **, void **);
-__stdcall static void ntoskrnl_objderef(/*void * */ void);
+__fastcall static void ntoskrnl_objderef(REGARGS1(void *object));
 __stdcall static uint32_t ntoskrnl_zwclose(ndis_handle);
 static uint32_t ntoskrnl_dbgprint(char *, ...);
 __stdcall static void ntoskrnl_debugger(void);
@@ -293,25 +298,15 @@ ntoskrnl_iobuildsynchfsdreq(func, dobj, buf, len, off, event, status)
 	return(NULL);
 }
 	
-__stdcall static uint32_t
-ntoskrnl_iofcalldriver(/*dobj, irp*/)
+__fastcall static uint32_t
+ntoskrnl_iofcalldriver(REGARGS2(void *dobj, void *irp))
 {
-	void			*dobj;
-	void			*irp;
-
-	__asm__ __volatile__ ("" : "=c" (dobj), "=d" (irp));
-
 	return(0);
 }
 
-__stdcall static void
-ntoskrnl_iofcompletereq(/*irp, prioboost*/)
+__fastcall static void
+ntoskrnl_iofcompletereq(REGARGS2(void *irp, uint8_t prioboost))
 {
-	void			*irp;
-	uint8_t			prioboost;
-
-	__asm__ __volatile__ ("" : "=c" (irp), "=d" (prioboost));
-
 	return;
 }
 
@@ -957,17 +952,13 @@ ntoskrnl_delete_nplookaside(lookaside)
  * declared to be _fastcall in Windows. gcc 3.4 is supposed
  * to have support for this calling convention, however we
  * don't have that version available yet, so we kludge things
- * up using some inline assembly.
+ * up using __regparm__(3) and some argument shuffling.
  */
 
-__stdcall static slist_entry *
-ntoskrnl_push_slist(/*head, entry*/ void)
+__fastcall static slist_entry *
+ntoskrnl_push_slist(REGARGS2(slist_header *head, slist_entry *entry))
 {
-	slist_header		*head;
-	slist_entry		*entry;
 	slist_entry		*oldhead;
-
-	__asm__ __volatile__ ("" : "=c" (head), "=d" (entry));
 
 	oldhead = (slist_entry *)FASTCALL3(ntoskrnl_push_slist_ex,
 	    head, entry, &ntoskrnl_global);
@@ -975,13 +966,10 @@ ntoskrnl_push_slist(/*head, entry*/ void)
 	return(oldhead);
 }
 
-__stdcall static slist_entry *
-ntoskrnl_pop_slist(/*head*/ void)
+__fastcall static slist_entry *
+ntoskrnl_pop_slist(REGARGS1(slist_header *head))
 {
-	slist_header		*head;
 	slist_entry		*first;
-
-	__asm__ __volatile__ ("" : "=c" (head));
 
 	first = (slist_entry *)FASTCALL2(ntoskrnl_pop_slist_ex,
 	    head, &ntoskrnl_global);
@@ -989,16 +977,12 @@ ntoskrnl_pop_slist(/*head*/ void)
 	return(first);
 }
 
-__stdcall static slist_entry *
-ntoskrnl_push_slist_ex(/*head, entry,*/ lock)
-	kspin_lock		*lock;
+__fastcall static slist_entry *
+ntoskrnl_push_slist_ex(REGARGS2(slist_header *head,
+	slist_entry *entry), kspin_lock *lock)
 {
-	slist_header		*head;
-	slist_entry		*entry;
 	slist_entry		*oldhead;
 	uint8_t			irql;
-
-	__asm__ __volatile__ ("" : "=c" (head), "=d" (entry));
 
 	irql = FASTCALL2(hal_lock, lock, DISPATCH_LEVEL);
 	oldhead = ntoskrnl_pushsl(head, entry);
@@ -1007,15 +991,11 @@ ntoskrnl_push_slist_ex(/*head, entry,*/ lock)
 	return(oldhead);
 }
 
-__stdcall static slist_entry *
-ntoskrnl_pop_slist_ex(/*head, lock*/ void)
+__fastcall static slist_entry *
+ntoskrnl_pop_slist_ex(REGARGS2(slist_header *head, kspin_lock *lock))
 {
-	slist_header		*head;
-	kspin_lock		*lock;
 	slist_entry		*first;
 	uint8_t			irql;
-
-	__asm__ __volatile__ ("" : "=c" (head), "=d" (lock));
 
 	irql = FASTCALL2(hal_lock, lock, DISPATCH_LEVEL);
 	first = ntoskrnl_popsl(head);
@@ -1024,61 +1004,41 @@ ntoskrnl_pop_slist_ex(/*head, lock*/ void)
 	return(first);
 }
 
-__stdcall void
-ntoskrnl_lock_dpc(/*lock*/ void)
+__fastcall void
+ntoskrnl_lock_dpc(REGARGS1(kspin_lock *lock))
 {
-	kspin_lock		*lock;
-
-	__asm__ __volatile__ ("" : "=c" (lock));
-
 	while (atomic_cmpset_acq_int((volatile u_int *)lock, 0, 1) == 0)
 		/* sit and spin */;
 
 	return;
 }
 
-__stdcall void
-ntoskrnl_unlock_dpc(/*lock*/ void)
+__fastcall void
+ntoskrnl_unlock_dpc(REGARGS1(kspin_lock *lock))
 {
-	kspin_lock		*lock;
-
-	__asm__ __volatile__ ("" : "=c" (lock));
-
 	atomic_store_rel_int((volatile u_int *)lock, 0);
 
 	return;
 }
 
-__stdcall static uint32_t
-ntoskrnl_interlock_inc(/*addend*/ void)
+__fastcall static uint32_t
+ntoskrnl_interlock_inc(REGARGS1(volatile uint32_t *addend))
 {
-	volatile uint32_t	*addend;
-
-	__asm__ __volatile__ ("" : "=c" (addend));
-
 	atomic_add_long((volatile u_long *)addend, 1);
 	return(*addend);
 }
 
-__stdcall static uint32_t
-ntoskrnl_interlock_dec(/*addend*/ void)
+__fastcall static uint32_t
+ntoskrnl_interlock_dec(REGARGS1(volatile uint32_t *addend))
 {
-	volatile uint32_t	*addend;
-
-	__asm__ __volatile__ ("" : "=c" (addend));
-
 	atomic_subtract_long((volatile u_long *)addend, 1);
 	return(*addend);
 }
 
-__stdcall static void
-ntoskrnl_interlock_addstat(/*addend, inc*/)
+__fastcall static void
+ntoskrnl_interlock_addstat(REGARGS2(uint64_t *addend, uint32_t inc))
 {
-	uint64_t		*addend;
-	uint32_t		inc;
 	uint8_t			irql;
-
-	__asm__ __volatile__ ("" : "=c" (addend), "=d" (inc));
 
 	irql = FASTCALL2(hal_lock, &ntoskrnl_global, DISPATCH_LEVEL);
 	*addend += inc;
@@ -1510,13 +1470,10 @@ ntoskrnl_objref(handle, reqaccess, otype, accessmode, object, handleinfo)
 	return(NDIS_STATUS_SUCCESS);
 }
 
-__stdcall static void
-ntoskrnl_objderef(/*object*/void)
+__fastcall static void
+ntoskrnl_objderef(REGARGS1(void *object))
 {
-	void			*object;
 	nt_objref		*nr;
-
-	__asm__ __volatile__ ("" : "=c" (object));
 
 	nr = object;
 	TAILQ_REMOVE(&ntoskrnl_reflist, nr, link);
