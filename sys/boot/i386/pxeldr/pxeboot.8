@@ -69,22 +69,12 @@ server-identifier 10.0.0.1;
 default-lease-time 120;
 max-lease-time 120;
 
-option vendor-encapsulated-options 01:04:00:00:00:00:ff;
-option dhcp-class-identifier "PXEClient";
-
 subnet 10.0.0.0 netmask 255.255.255.0 {
        filename "pxeboot";
        range 10.0.0.10 10.0.0.254;
 }
 
 .Ed
-The
-.Va vendor-encapsulated-options
-and
-.Va dhcp-class-identifier
-options are important to PXE;
-it will not recognize the DHCP server response otherwise.
-.Pp
 .Nm
 recognizes
 .Va next-server
