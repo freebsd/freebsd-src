@@ -96,7 +96,7 @@ interrupt(a0, a1, a2, framep)
 
 	atomic_add_int(&PCPU_GET(intr_nesting_level), 1);
 	{
-		struct proc* p = curproc;
+		struct proc *p = curproc;
 		if (!p) p = &proc0;
 		if ((caddr_t) framep < (caddr_t) p->p_addr + 1024) {
 			mtx_enter(&Giant, MTX_DEF);
@@ -573,8 +573,11 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		CTR3(KTR_INTR, "alpha_dispatch_intr: %d: it_need %d, state %d",
 		    ithd->it_proc->p_pid, ithd->it_need, ithd->it_proc->p_stat);
 	}
-	if (i->disable)
+	if (i->disable) {
+		CTR1(KTR_INTR,
+		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
 		i->disable(i->vector);
+	}
 	mtx_exit(&sched_lock, MTX_SPIN);
 
 	need_resched();
