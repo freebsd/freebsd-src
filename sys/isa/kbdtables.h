@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.29 1995/03/28 21:30:13 sos Exp $
+ *	$Id: kbdtables.h,v 1.30 1995/12/10 13:38:53 phk Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
@@ -643,11 +643,11 @@ static keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=02 */  '!',   '1',   NOP,   NOP,  SET8|'1',  SET8|'!',     NOP,       NOP,    0x33, 0x00,
 /* sc=03 */  '"',   '2',  0x00,  0x00,  SET8|'2',  SET8|'@',  SET8|0x00, SET8|0x00, 0x00, 0x00,
 /* sc=04 */  '\'',  '3',   NOP,   NOP,  SET8|'3',  SET8|'#',     NOP,       NOP,    0x33, 0x00,
-/* sc=05 */  ';',   '4',   NOP,   NOP,  SET8|'4',  SET8|'$',     NOP,       NOP,    0x33, 0x00,
+/* sc=05 */  '*',   '4',   NOP,   NOP,  SET8|'4',  SET8|'$',     NOP,       NOP,    0x33, 0x00,
 /* sc=06 */  ':',   '5',   NOP,   NOP,  SET8|'5',  SET8|'%',     NOP,       NOP,    0x33, 0x00,
 /* sc=07 */  ',',   '6',  0x1E,  0x1E,  SET8|'6',  SET8|'^',  SET8|0x1E, SET8|0x1E, 0x00, 0x00,
 /* sc=08 */  '.',   '7',   NOP,   NOP,  SET8|'7',  SET8|'&',     NOP,       NOP,    0x33, 0x00,
-/* sc=09 */  '*',   '8',   NOP,   NOP,  SET8|'8',  SET8|'*',     NOP,       NOP,    0x33, 0x00,
+/* sc=09 */  ';',   '8',   NOP,   NOP,  SET8|'8',  SET8|'*',     NOP,       NOP,    0x33, 0x00,
 /* sc=0a */  '(',   '9',   NOP,   NOP,  SET8|'9',  SET8|'(',     NOP,       NOP,    0x33, 0x00,
 /* sc=0b */  ')',   '0',   NOP,   NOP,  SET8|'0',  SET8|')',     NOP,       NOP,    0x33, 0x00,
 /* sc=0c */  '-',   '_',  0x1F,  0x1F,  SET8|'-',  SET8|'_',  SET8|0x1F, SET8|0x1F, 0x00, 0x00,
