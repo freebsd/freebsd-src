@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.33 1999/07/02 04:17:15 peter Exp $
+ *	$Id: if_tl.c,v 1.34 1999/07/06 19:23:29 des Exp $
  */
 
 /*
@@ -204,6 +204,9 @@
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -221,7 +224,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_tl.c,v 1.33 1999/07/02 04:17:15 peter Exp $";
+	"$Id: if_tl.c,v 1.34 1999/07/06 19:23:29 des Exp $";
 #endif
 
 /*
@@ -276,10 +279,9 @@ static struct tl_type tl_phys[] = {
 	{ 0, 0, "<MII-compliant physical interface>" }
 };
 
-static unsigned long		tl_count;
-
-static const char *tl_probe	__P((pcici_t, pcidi_t));
-static void tl_attach		__P((pcici_t, int));
+static int tl_probe		__P((device_t));
+static int tl_attach		__P((device_t));
+static int tl_detach		__P((device_t));
 static int tl_attach_phy	__P((struct tl_softc *));
 static int tl_intvec_rxeoc	__P((void *, u_int32_t));
 static int tl_intvec_txeoc	__P((void *, u_int32_t));
@@ -300,7 +302,7 @@ static int tl_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void tl_init		__P((void *));
 static void tl_stop		__P((struct tl_softc *));
 static void tl_watchdog		__P((struct ifnet *));
-static void tl_shutdown		__P((int, void *));
+static void tl_shutdown		__P((device_t));
 static int tl_ifmedia_upd	__P((struct ifnet *));
 static void tl_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -336,6 +338,25 @@ static void tl_dio_setbit	__P((struct tl_softc *, int, int));
 static void tl_dio_clrbit	__P((struct tl_softc *, int, int));
 static void tl_dio_setbit16	__P((struct tl_softc *, int, int));
 static void tl_dio_clrbit16	__P((struct tl_softc *, int, int));
+
+static device_method_t tl_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		tl_probe),
+	DEVMETHOD(device_attach,	tl_attach),
+	DEVMETHOD(device_detach,	tl_detach),
+	DEVMETHOD(device_shutdown,	tl_shutdown),
+	{ 0, 0 }
+};
+
+static driver_t tl_driver = {
+	"tl",
+	tl_methods,
+	sizeof(struct tl_softc)
+};
+
+static devclass_t tl_devclass;
+
+DRIVER_MODULE(tl, pci, tl_driver, tl_devclass, 0, 0);
 
 static u_int8_t tl_dio_read8(sc, reg)
 	struct tl_softc		*sc;
@@ -1341,23 +1362,23 @@ static void tl_softreset(sc, internal)
  * Probe for a ThunderLAN chip. Check the PCI vendor and device IDs
  * against our list and return its name if we find a match.
  */
-static const char *
-tl_probe(config_id, device_id)
-	pcici_t			config_id;
-	pcidi_t			device_id;
+static int tl_probe(dev)
+	device_t		dev;
 {
 	struct tl_type		*t;
 
 	t = tl_devs;
 
 	while(t->tl_name != NULL) {
-		if ((device_id & 0xFFFF) == t->tl_vid &&
-		    ((device_id >> 16) & 0xFFFF) == t->tl_did)
-			return(t->tl_name);
+		if ((pci_get_vendor(dev) == t->tl_vid) &&
+		    (pci_get_device(dev) == t->tl_did)) {
+			device_set_desc(dev, t->tl_name);
+			return(0);
+		}
 		t++;
 	}
 
-	return(NULL);
+	return(ENXIO);
 }
 
 /*
@@ -1503,10 +1524,8 @@ static int tl_attach_phy(sc)
 	return(0);
 }
 
-static void
-tl_attach(config_id, unit)
-	pcici_t			config_id;
-	int			unit;
+static int tl_attach(dev)
+	device_t		dev;
 {
 	int			s, i, phys = 0;
 #ifndef TL_USEIOSPACE
@@ -1519,11 +1538,15 @@ tl_attach(config_id, unit)
 	struct tl_softc		*sc;
 	unsigned int		round;
 	caddr_t			roundptr;
+	int			unit, error = 0, rid;
 
 	s = splimp();
 
-	vid = pci_cfgread(config_id, PCIR_VENDOR, 2);
-	did = pci_cfgread(config_id, PCIR_DEVICE, 2);
+	vid = pci_get_vendor(dev);
+	did = pci_get_device(dev);
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
+	bzero(sc, sizeof(struct tl_softc));
 
 	t = tl_devs;
 	while(t->tl_name != NULL) {
@@ -1537,65 +1560,59 @@ tl_attach(config_id, unit)
 		goto fail;
 	}
 
-	/* First, allocate memory for the softc struct. */
-	sc = malloc(sizeof(struct tl_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL) {
-		printf("tl%d: no memory for softc struct!\n", unit);
-		goto fail;
-	}
-
-	bzero(sc, sizeof(struct tl_softc));
-
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 
 #ifdef TL_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("tl%d: failed to enable I/O ports!\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_port(config_id, TL_PCI_LOIO,
-	    (pci_port_t *)&(sc->tl_bhandle))) {
-		if (!pci_map_port(config_id, TL_PCI_LOMEM,
-		    (pci_port_t *)&(sc->tl_bhandle))) {
-			printf ("tl%d: couldn't map ports\n", unit);
-			goto fail;
-		}
+	rid = TL_PCI_LOIO;
+	sc->tl_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+		0, ~0, 1, RF_ACTIVE);
+
+	/*
+	 * Some cards have the I/O and memory mapped address registers
+	 * reversed. Try both combinations before giving up.
+	 */
+	if (sc->tl_res == NULL) {
+		rid = TL_PCI_LOMEM;
+		sc->tl_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+		    0, ~0, 1, RF_ACTIVE);
 	}
-#ifdef __alpha__
-	sc->tl_btag = ALPHA_BUS_SPACE_IO;
-#endif
-#ifdef __i386__
-	sc->tl_btag = I386_BUS_SPACE_IO;
-#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("tl%d: failed to enable memory mapping!\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_mem(config_id, TL_PCI_LOMEM, &vbase, &pbase)) {
-		if (!pci_map_mem(config_id, TL_PCI_LOIO, &vbase, &pbase)) {
-			printf ("tl%d: couldn't map memory\n", unit);
-			goto fail;
-		}
+	rid = TL_PCI_LOMEM;
+	sc->tl_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+	if (sc->tl_res == NULL) {
+		rid = TL_PCI_LOIO;
+		sc->tl_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+		    0, ~0, 1, RF_ACTIVE);
+	}
+#endif
+
+	if (sc->tl_res == NULL) {
+		printf("tl%d: couldn't map ports/memory\n", unit);
+		error = ENXIO;
+		goto fail;
 	}
 
-#ifdef __alpha__
-	sc->tl_btag = ALPHA_BUS_SPACE_MEM;
-#endif
-#ifdef __i386__
-	sc->tl_btag = I386_BUS_SPACE_MEM;
-#endif
-	sc->tl_bhandle = vbase;
-#endif
+	sc->tl_btag = rman_get_bustag(sc->tl_res);
+	sc->tl_bhandle = rman_get_bushandle(sc->tl_res);
 
 #ifdef notdef
 	/*
@@ -1604,14 +1621,27 @@ tl_attach(config_id, unit)
 	 * if this is really necessary, but what the manual wants,
 	 * the manual gets.
 	 */
-	command = pci_conf_read(config_id, TL_PCI_LATENCY_TIMER);
+	command = pci_read_config(dev, TL_PCI_LATENCY_TIMER, 4);
 	command |= 0x0000FF00;
-	pci_conf_write(config_id, TL_PCI_LATENCY_TIMER, command);
+	pci_write_config(dev, TL_PCI_LATENCY_TIMER, command, 4);
 #endif
 
 	/* Allocate interrupt */
-	if (!pci_map_int(config_id, tl_intr, sc, &net_imask)) {
+	rid = 0;
+	sc->tl_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->tl_irq == NULL) {
 		printf("tl%d: couldn't map interrupt\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, sc->tl_irq, INTR_TYPE_NET,
+	    tl_intr, sc, &sc->tl_intrhand);
+
+	if (error) {
+		printf("tl%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -1631,8 +1661,16 @@ tl_attach(config_id, unit)
 				M_DEVBUF, M_NOWAIT);
 
 	if (sc->tl_ldata_ptr == NULL) {
-		free(sc, M_DEVBUF);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
+#ifdef TL_USEIOSPACE
+		bus_release_resource(dev, SYS_RES_IOPORT,
+		    TL_PCI_LOIO, sc->tl_res);
+#else
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    TL_PCI_LOMEM, sc->tl_res);
+#endif
 		printf("tl%d: no memory for list buffers!\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1672,7 +1710,17 @@ tl_attach(config_id, unit)
 	 */
 	if (tl_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
 				sc->tl_eeaddr, ETHER_ADDR_LEN)) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
+#ifdef TL_USEIOSPACE
+		bus_release_resource(dev, SYS_RES_IOPORT,
+		    TL_PCI_LOIO, sc->tl_res);
+#else
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    TL_PCI_LOMEM, sc->tl_res);
+#endif
+		free(sc->tl_ldata_ptr, M_DEVBUF);
 		printf("tl%d: failed to read station address\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1742,7 +1790,17 @@ tl_attach(config_id, unit)
 		if (!sc->tl_phy_sts)
 			continue;
 		if (tl_attach_phy(sc)) {
+			bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
+#ifdef TL_USEIOSPACE
+			bus_release_resource(dev, SYS_RES_IOPORT,
+			    TL_PCI_LOIO, sc->tl_res);
+#else
+			bus_release_resource(dev, SYS_RES_MEMORY,
+			    TL_PCI_LOMEM, sc->tl_res);
+#endif
+			free(sc->tl_ldata_ptr, M_DEVBUF);
 			printf("tl%d: failed to attach a phy %d\n", unit, i);
+			error = ENXIO;
 			goto fail;
 		}
 		phys++;
@@ -1790,11 +1848,40 @@ tl_attach(config_id, unit)
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
-	at_shutdown(tl_shutdown, sc, SHUTDOWN_POST_SYNC);
-
 fail:
 	splx(s);
-	return;
+	return(error);
+}
+
+static int tl_detach(dev)
+	device_t		dev;
+{
+	struct tl_softc		*sc;
+	struct ifnet		*ifp;
+	int			s;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	tl_stop(sc);
+	if_detach(ifp);
+
+	free(sc->tl_ldata_ptr, M_DEVBUF);
+	ifmedia_removeall(&sc->ifmedia);
+
+	bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
+#ifdef TL_USEIOSPACE
+	bus_release_resource(dev, SYS_RES_IOPORT, TL_PCI_LOIO, sc->tl_res);
+#else
+	bus_release_resource(dev, SYS_RES_MEMORY, TL_PCI_LOMEM, sc->tl_res);
+#endif
+
+	splx(s);
+
+	return(0);
 }
 
 /*
@@ -2254,6 +2341,9 @@ static void tl_stats_update(xsc)
 	struct ifnet		*ifp;
 	struct tl_stats		tl_stats;
 	u_int32_t		*p;
+	int			s;
+
+	s = splimp();
 
 	bzero((char *)&tl_stats, sizeof(struct tl_stats));
 
@@ -2278,6 +2368,8 @@ static void tl_stats_update(xsc)
 	ifp->if_oerrors += tl_tx_underrun(tl_stats);
 
 	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
+
+	splx(s);
 
 	return;
 }
@@ -2809,25 +2901,14 @@ static void tl_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void tl_shutdown(howto, xsc)
-	int			howto;
-	void			*xsc;
+static void tl_shutdown(dev)
+	device_t		dev;
 {
 	struct tl_softc		*sc;
 
-	sc = xsc;
+	sc = device_get_softc(dev);
 
 	tl_stop(sc);
 
 	return;
 }
-
-
-static struct pci_device tl_device = {
-	"tl",
-	tl_probe,
-	tl_attach,
-	&tl_count,
-	NULL
-};
-COMPAT_PCI_DRIVER(tl, tl_device);
