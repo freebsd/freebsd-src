@@ -102,7 +102,8 @@ SUBDIR+=aac \
 .endif
 
 .if ${MACHINE} == "pc98"
-SUBDIR+=snc
+SUBDIR+=pmc \
+	snc
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
