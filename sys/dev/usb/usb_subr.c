@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_usb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
