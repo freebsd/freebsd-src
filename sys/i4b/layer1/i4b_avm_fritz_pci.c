@@ -117,6 +117,7 @@ static u_char hscx_read_reg(int, u_int, struct isic_softc *);
 static u_int hscx_read_reg_int(int, u_int, struct isic_softc *);
 static void hscx_read_fifo(int, void *, size_t, struct isic_softc *);
 static void hscx_write_fifo(int, const void *, size_t, struct isic_softc *);
+static int avma1pp_fifo(isic_Bchan_t *, struct isic_softc *);
 static void avma1pp_hscx_int_handler(struct isic_softc *);
 static void avma1pp_hscx_intr(int, u_int, struct isic_softc *);
 static void avma1pp_init_linktab(struct isic_softc *);
@@ -141,7 +142,7 @@ static void hscx_read_fifo(int chan, void *buf, size_t len, struct isic_softc *s
 static void hscx_write_reg(int chan, u_int off, u_int val, struct isic_softc *sc);
 static u_char hscx_read_reg(int chan, u_int off, struct isic_softc *sc);
 static u_int hscx_read_reg_int(int chan, u_int off, struct isic_softc *sc);
-static void avma1pp_fifo(isic_Bchan_t *chan, struct isic_softc *sc);
+static int avma1pp_fifo(isic_Bchan_t *, struct isic_softc *);
 static void avma1pp_bchannel_stat(int unit, int h_chan, bchan_statistics_t *bsp);
 static void avma1pp_map_int(struct pci_isic_softc *sc, struct pci_attach_args *pa);
 static void avma1pp_bchannel_setup(int unit, int h_chan, int bprot, int activate);
@@ -1002,6 +1003,26 @@ avma1pp_hscx_intr(int h_chan, u_int stat, struct isic_softc *sc)
 			DBGL1(L1_H_XFRERR, "avma1pp_hscx_intr", ("receive data overflow\n"));
 			error++;				
 		}
+
+		/*
+		 * check whether we're receiving data for an inactive B-channel
+		 * and discard it. This appears to happen for telephony when
+		 * both B-channels are active and one is deactivated. Since
+		 * it is not really possible to deactivate the channel in that
+		 * case (the ASIC seems to deactivate _both_ channels), the
+		 * "deactivated" channel keeps receiving data which can lead
+		 * to exhaustion of mbufs and a kernel panic.
+		 *
+		 * This is a hack, but it's the only solution I can think of
+		 * without having the documentation for the ASIC.
+		 * GJ - 28 Nov 1999
+		 */
+		 if (chan->state == HSCX_IDLE)
+		 {
+			DBGL1(L1_H_XFRERR, "avma1pp_hscx_intr", ("toss data from %d\n", h_chan));
+			error++;
+		 }
+
 	
 		fifo_data_len = ((stat & HSCX_STAT_RML_MASK) >> 8);
 		
@@ -1095,14 +1116,24 @@ avma1pp_hscx_intr(int h_chan, u_int stat, struct isic_softc *sc)
 							MPH_Trace_Ind(&hdr, chan->in_mbuf->m_len, chan->in_mbuf->m_data);
 						}
 
-					  /* move rx'd data to rx queue */
-
-					  IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
-				
-					  (*chan->drvr_linktab->bch_rx_data_ready)(chan->drvr_linktab->unit);
-
 					  if(!(isic_hscx_silence(chan->in_mbuf->m_data, chan->in_mbuf->m_len)))
 						 activity = ACT_RX;
+				
+				
+					  /* move rx'd data to rx queue */
+
+					  if (!(IF_QFULL(&chan->rx_queue)))
+					  {
+					  	IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
+					  }
+					  else
+				       	  {
+						i4b_Bfreembuf(chan->in_mbuf);
+				          }
+
+					  /* signal upper layer that data are available */
+					  (*chan->drvr_linktab->bch_rx_data_ready)(chan->drvr_linktab->unit);
+
 				
 					  /* alloc new buffer */
 				
@@ -1200,7 +1231,7 @@ avma1pp_hscx_intr(int h_chan, u_int stat, struct isic_softc *sc)
 			}
 		}
 			
-		isic_hscx_fifo(chan, sc);
+		avma1pp_fifo(chan, sc);
 	}
 
 	/* call timeout handling routine */
@@ -1417,7 +1448,7 @@ avma1pp_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	if(activate == 0)
 	{
 		/* deactivation */
-		chan->state &= ~HSCX_AVMA1PP_ACTIVE;
+		chan->state = HSCX_IDLE;
 		avma1pp_hscx_init(sc, h_chan, activate);
 	}
 		
@@ -1530,7 +1561,7 @@ avma1pp_bchannel_start(int unit, int h_chan)
 		MPH_Trace_Ind(&hdr, chan->out_mbuf_cur->m_len, chan->out_mbuf_cur->m_data);
 	}			
 
-	isic_hscx_fifo(chan, sc);
+	avma1pp_fifo(chan, sc);
 
 	/* call timeout handling routine */
 	
@@ -1651,12 +1682,12 @@ avma1pp_bchannel_stat(int unit, int h_chan, bchan_statistics_t *bsp)
  *	Put this here until it can go into i4b_hscx.c
  *---------------------------------------------------------------------------*/
 static int
-isic_hscx_fifo(isic_Bchan_t *chan, struct isic_softc *sc)
+avma1pp_fifo(isic_Bchan_t *chan, struct isic_softc *sc)
 {
 	int len;
 	int nextlen;
 	int i;
-	int cmd;
+	int cmd = 0;
 	/* using a scratch buffer simplifies writing to the FIFO */
 	u_char scrbuf[HSCX_FIFO_LEN];
 
