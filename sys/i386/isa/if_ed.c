@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.107.2.1 1996/11/16 21:31:38 phk Exp $
+ *	$Id: if_ed.c,v 1.107.2.2 1996/12/04 16:11:32 phk Exp $
  */
 
 /*
@@ -461,7 +461,7 @@ ed_probe_WD80x3(isa_dev)
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	int     i;
-	u_int   memsize;
+	u_int   memsize, maddr;
 	u_char  iptr, isa16bit, sum;
 
 	sc->asic_addr = isa_dev->id_iobase;
@@ -639,6 +639,13 @@ ed_probe_WD80x3(isa_dev)
 	if (isa_dev->id_msize)
 		memsize = isa_dev->id_msize;
 
+	maddr = (u_int) isa_dev->id_maddr & 0xffffff;
+	if (maddr < 0xa0000 || maddr + memsize > 0x1000000) {
+		printf("ed%d: Invalid ISA memory address range configured: 0x%x - 0x%x\n",
+		    isa_dev->id_unit, maddr, maddr + memsize);
+		return 0;
+	}
+
 	/*
 	 * (note that if the user specifies both of the following flags that
 	 * '8bit' mode intentionally has precedence)
@@ -727,25 +734,35 @@ ed_probe_WD80x3(isa_dev)
 		sc->arpcom.ac_enaddr[i] = inb(sc->asic_addr + ED_WD_PROM + i);
 
 	/*
-	 * Set upper address bits and 8/16 bit access to shared memory
+	 * Set upper address bits, 8/16 bit access to shared memory, and
+	 * zero waitstate operation for 16 bit cards.
 	 */
 	if (isa16bit) {
 		if (sc->is790) {
 			sc->wd_laar_proto = inb(sc->asic_addr + ED_WD_LAAR);
-			outb(sc->asic_addr + ED_WD_LAAR, ED_WD_LAAR_M16EN);
+			/*
+			 * Enable zero waitstate operation
+			 */
+			outb(sc->asic_addr + ED_WD790_GCR, inb(sc->asic_addr +
+			    ED_WD790_GCR) | ED_WD790_GCR_ZWSEN);
 		} else {
-			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
-			    ED_WD_LAAR_L16EN | ED_WD_LAAR_M16EN |
-			    ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
+			sc->wd_laar_proto = ED_WD_LAAR_L16EN | ED_WD_LAAR_0WS16 |
+			    ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI);
 		}
+		/*
+		 * Enable 16bit access
+		 */
+		outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto |
+		    ED_WD_LAAR_M16EN);
 	} else {
 		if (((sc->type & ED_WD_SOFTCONFIG) ||
 #ifdef TOSH_ETHER
 		    (sc->type == ED_TYPE_TOSHIBA1) || (sc->type == ED_TYPE_TOSHIBA4) ||
 #endif
 		    (sc->type == ED_TYPE_WD8013EBT)) && (!sc->is790)) {
-			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
-			    ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
+			sc->wd_laar_proto = (kvtop(sc->mem_start) >> 19) &
+			    ED_WD_LAAR_ADDRHI;
+			outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto);
 		}
 	}
 
@@ -798,8 +815,8 @@ ed_probe_WD80x3(isa_dev)
 				if (sc->is790) {
 					outb(sc->asic_addr + ED_WD_MSR, 0x00);
 				}
-				outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto &=
-				    ~ED_WD_LAAR_M16EN));
+				outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto &
+				    ~ED_WD_LAAR_M16EN);
 			}
 			return (0);
 		}
@@ -817,8 +834,8 @@ ed_probe_WD80x3(isa_dev)
 		if (sc->is790) {
 			outb(sc->asic_addr + ED_WD_MSR, 0x00);
 		}
-		outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto &=
-		    ~ED_WD_LAAR_M16EN));
+		outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto &
+		    ~ED_WD_LAAR_M16EN);
 	}
 	return (ED_WD_IO_PORTS);
 }
@@ -2154,7 +2171,7 @@ outloop:
 				 */
 			case ED_VENDOR_WD_SMC:{
 					outb(sc->asic_addr + ED_WD_LAAR,
-					     (sc->wd_laar_proto | ED_WD_LAAR_M16EN));
+					     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
 					if (sc->is790) {
 						outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
 					}
@@ -2181,7 +2198,8 @@ outloop:
 					if (sc->is790) {
 						outb(sc->asic_addr + ED_WD_MSR, 0x00);
 					}
-					outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto);
+					outb(sc->asic_addr + ED_WD_LAAR,
+					    sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
 					break;
 				}
 			}
@@ -2544,8 +2562,7 @@ edintr_sc(sc)
 				    (sc->vendor == ED_VENDOR_WD_SMC)) {
 
 					outb(sc->asic_addr + ED_WD_LAAR,
-					     (sc->wd_laar_proto |=
-					      ED_WD_LAAR_M16EN));
+					     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
 					if (sc->is790) {
 						outb(sc->asic_addr + ED_WD_MSR,
 						     ED_WD_MSR_MENB);
@@ -2561,8 +2578,7 @@ edintr_sc(sc)
 						outb(sc->asic_addr + ED_WD_MSR, 0x00);
 					}
 					outb(sc->asic_addr + ED_WD_LAAR,
-					     (sc->wd_laar_proto &=
-					      ~ED_WD_LAAR_M16EN));
+					     sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
 				}
 			}
 		}
