@@ -90,14 +90,15 @@ int pflag, iamremote, iamrecursive, targetshouldbedirectory;
 int family = PF_UNSPEC;
 
 static int argc_copy;
-static char **argv_copy;
+static const char **argv_copy;
+
+static char period[] = ".";
 
 #define	CMDNEEDS	64
 char cmd[CMDNEEDS];		/* must hold "rcp -r -p -d\0" */
 
 int	 response(void);
 void	 rsource(char *, struct stat *);
-void	 run_err(const char *, ...) __printflike(1, 2);
 void	 sink(int, char *[]);
 void	 source(int, char *[]);
 void	 tolocal(int, char *[]);
@@ -109,7 +110,7 @@ main(int argc, char *argv[])
 {
 	struct servent *sp;
 	int ch, fflag, i, tflag;
-	char *targ, *shell;
+	char *targ;
 
 	/*
 	 * Prepare for execing ourselves.
@@ -163,9 +164,9 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	sp = getservbyname(shell = "shell", "tcp");
+	sp = getservbyname("shell", "tcp");
 	if (sp == NULL)
-		errx(1, "%s/tcp: unknown service", shell);
+		errx(1, "shell/tcp: unknown service");
 	port = sp->s_port;
 
 	if ((pwd = getpwuid(userid = getuid())) == NULL)
@@ -217,7 +218,7 @@ toremote(char *targ, int argc, char *argv[])
 
 	*targ++ = 0;
 	if (*targ == 0)
-		targ = ".";
+		targ = period;
 
 	if ((thost = strchr(argv[argc - 1], '@'))) {
 		/* user@host */
@@ -237,7 +238,7 @@ toremote(char *targ, int argc, char *argv[])
 		if (src) {			/* remote to remote */
 			*src++ = 0;
 			if (*src == 0)
-				src = ".";
+				src = period;
 			host = strchr(argv[i], '@');
 			len = strlen(_PATH_RSH) + strlen(argv[i]) +
 			    strlen(src) + (tuser ? strlen(tuser) : 0) +
@@ -317,7 +318,7 @@ tolocal(int argc, char *argv[])
 		}
 		*src++ = 0;
 		if (*src == 0)
-			src = ".";
+			src = period;
 		if ((host = strchr(argv[i], '@')) == NULL) {
 			host = argv[i];
 			suser = pwd->pw_name;
@@ -505,7 +506,8 @@ sink(int argc, char *argv[])
 	int amt, exists, first, mask, mode, ofd, omode;
 	size_t count;
 	int setimes, targisdir, wrerrno = 0;
-	char ch, *cp, *np, *targ, *why, *vect[1], buf[BUFSIZ], path[PATH_MAX];
+	char ch, *cp, *np, *targ, *vect[1], buf[BUFSIZ], path[PATH_MAX];
+	const char *why;
 
 #define	atime	tv[0]
 #define	mtime	tv[1]
@@ -673,7 +675,7 @@ bad:			run_err("%s: %s", np, strerror(errno));
 				/* Keep reading so we stay sync'd up. */
 				if (wrerr == NO) {
 					j = write(ofd, bp->buf, count);
-					if (j != count) {
+					if (j != (off_t)count) {
 						wrerr = YES;
 						wrerrno = j >= 0 ? EIO : errno;
 					}
@@ -683,7 +685,7 @@ bad:			run_err("%s: %s", np, strerror(errno));
 			}
 		}
 		if (count != 0 && wrerr == NO &&
-		    (j = write(ofd, bp->buf, count)) != count) {
+		    (j = write(ofd, bp->buf, count)) != (off_t)count) {
 			wrerr = YES;
 			wrerrno = j >= 0 ? EIO : errno;
 		}

@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "ls.h"
 #include "extern.h"
 
-static int	printaname(FTSENT *, u_long, u_long);
+static int	printaname(const FTSENT *, u_long, u_long);
 static void	printlink(const FTSENT *);
 static void	printtime(time_t);
 static int	printtype(u_int);
@@ -74,7 +74,7 @@ static void	printsize(size_t, off_t);
 static void	endcolor(int);
 static int	colortype(mode_t);
 #endif
-static void	aclmode(char *, FTSENT *, int *);
+static void	aclmode(char *, const FTSENT *, int *);
 
 #define	IS_NOPRINT(p)	((p)->fts_number == NO_PRINT)
 
@@ -128,7 +128,7 @@ static struct {
 #endif
 
 void
-printscol(DISPLAY *dp)
+printscol(const DISPLAY *dp)
 {
 	FTSENT *p;
 
@@ -155,7 +155,7 @@ printname(const char *name)
 }
 
 void
-printlong(DISPLAY *dp)
+printlong(const DISPLAY *dp)
 {
 	struct stat *sp;
 	FTSENT *p;
@@ -179,7 +179,7 @@ printlong(DISPLAY *dp)
 		if (f_inode)
 			(void)printf("%*lu ", dp->s_inode, (u_long)sp->st_ino);
 		if (f_size)
-			(void)printf("%*lld ",
+			(void)printf("%*jd ",
 			    dp->s_block, howmany(sp->st_blocks, blocksize));
 		strmode(sp->st_mode, buf);
 		/*
@@ -207,7 +207,7 @@ printlong(DISPLAY *dp)
 				(void)printf("%3d, %3d ",
 				    major(sp->st_rdev), minor(sp->st_rdev));
 		else if (dp->bcfile)
-			(void)printf("%*s%*lld ",
+			(void)printf("%*s%*jd ",
 			    8 - dp->s_size, "", dp->s_size, sp->st_size);
 		else
 			printsize(dp->s_size, sp->st_size);
@@ -235,10 +235,9 @@ printlong(DISPLAY *dp)
 }
 
 void
-printstream(DISPLAY *dp)
+printstream(const DISPLAY *dp)
 {
 	FTSENT *p;
-	extern int termwidth;
 	int chcnt;
 
 	for (p = dp->list, chcnt = 0; p; p = p->fts_link) {
@@ -260,9 +259,8 @@ printstream(DISPLAY *dp)
 }
 		
 void
-printcol(DISPLAY *dp)
+printcol(const DISPLAY *dp)
 {
-	extern int termwidth;
 	static FTSENT **array;
 	static int lastentries = -1;
 	FTSENT *p;
@@ -352,7 +350,7 @@ printcol(DISPLAY *dp)
  * return # of characters printed, no trailing characters.
  */
 static int
-printaname(FTSENT *p, u_long inodefield, u_long sizefield)
+printaname(const FTSENT *p, u_long inodefield, u_long sizefield)
 {
 	struct stat *sp;
 	int chcnt;
@@ -365,7 +363,7 @@ printaname(FTSENT *p, u_long inodefield, u_long sizefield)
 	if (f_inode)
 		chcnt += printf("%*lu ", (int)inodefield, (u_long)sp->st_ino);
 	if (f_size)
-		chcnt += printf("%*lld ",
+		chcnt += printf("%*jd ",
 		    (int)sizefield, howmany(sp->st_blocks, blocksize));
 #ifdef COLORLS
 	if (f_color)
@@ -385,7 +383,7 @@ static void
 printtime(time_t ftime)
 {
 	char longstring[80];
-	static time_t now;
+	static time_t now = 0;
 	const char *format;
 	static int d_first = -1;
 
@@ -457,7 +455,7 @@ putch(int c)
 static int
 writech(int c)
 {
-	char tmp = c;
+	char tmp = (char)c;
 
 	(void)write(STDOUT_FILENO, &tmp, 1);
 	return 0;
@@ -518,6 +516,7 @@ colortype(mode_t mode)
 	case S_IFCHR:
 		printcolor(C_CHR);
 		return (1);
+	default:;
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
 		if (mode & S_ISUID)
@@ -543,10 +542,10 @@ parsecolors(const char *cs)
 	if (cs == NULL)
 		cs = "";	/* LSCOLORS not set */
 	len = strlen(cs);
-	for (i = 0; i < C_NUMCOLORS; i++) {
+	for (i = 0; i < (int)C_NUMCOLORS; i++) {
 		colors[i].bold = 0;
 
-		if (len <= 2 * i) {
+		if (len <= 2 * (size_t)i) {
 			c[0] = defcolors[2 * i];
 			c[1] = defcolors[2 * i + 1];
 		} else {
@@ -568,7 +567,7 @@ parsecolors(const char *cs)
 			else if (c[j] >= 'A' && c[j] <= 'H') {
 				colors[i].num[j] = c[j] - 'A';
 				colors[i].bold = 1;
-			} else if (tolower((unsigned char)c[j] == 'x'))
+			} else if (tolower((unsigned char)c[j]) == 'x')
 				colors[i].num[j] = -1;
 			else {
 				warnx("invalid character '%c' in LSCOLORS"
@@ -622,12 +621,12 @@ printsize(size_t width, off_t bytes)
 		unit = unit_adjust(&dbytes);
 
 		if (dbytes == 0)
-			(void)printf("%*s ", width, "0B");
+			(void)printf("%*s ", (u_int)width, "0B");
 		else
-			(void)printf("%*.*f%c ", width - 1, dbytes > 10 ? 0 : 1,
-			    dbytes, "BKMGTPE"[unit]);
+			(void)printf("%*.*f%c ", (u_int)width - 1,
+			    dbytes > 10 ? 0 : 1, dbytes, "BKMGTPE"[unit]);
 	} else
-		(void)printf("%*lld ", width, bytes);
+		(void)printf("%*jd ", (u_int)width, bytes);
 }
 
 /*
@@ -658,7 +657,7 @@ unit_adjust(double *val)
 }
 
 static void
-aclmode(char *buf, FTSENT *p, int *haveacls)
+aclmode(char *buf, const FTSENT *p, int *haveacls)
 {
 	char name[MAXPATHLEN + 1];
 	int entries, ret;

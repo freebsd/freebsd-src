@@ -222,7 +222,7 @@ rep_add(char *str)
  */
 
 int
-pat_add(char *str, char *chdname)
+pat_add(char *str, char *chdnam)
 {
 	PATTERN *pt;
 
@@ -249,7 +249,7 @@ pat_add(char *str, char *chdname)
 	pt->plen = strlen(str);
 	pt->fow = NULL;
 	pt->flgs = 0;
-	pt->chdname = chdname;
+	pt->chdname = chdnam;
 
 	if (pathead == NULL) {
 		pattail = pathead = pt;
