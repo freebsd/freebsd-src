@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.10 1998/11/02 16:55:57 msmith Exp $
+ *	$Id: boot.c,v 1.11 1999/05/28 08:01:52 brian Exp $
  */
 
 /*
@@ -61,7 +61,7 @@ command_boot(int argc, char *argv[])
 	
 	/* XXX maybe we should discard everything and start again? */
 	if (mod_findmodule(NULL, NULL) != NULL) {
-	    sprintf(command_errbuf, "can't boot '%s', kernel module already loaded", argv[0]);
+	    sprintf(command_errbuf, "can't boot '%s', kernel module already loaded", argv[1]);
 	    return(CMD_ERROR);
 	}
 	
