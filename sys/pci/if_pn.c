@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.53 1999/05/28 18:45:26 wpaul Exp wpaul $
+ *	$Id: if_pn.c,v 1.24 1999/07/28 02:19:51 wpaul Exp $
  */
 
 /*
@@ -105,7 +105,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.53 1999/05/28 18:45:26 wpaul Exp wpaul $";
+	"$Id: if_pn.c,v 1.24 1999/07/28 02:19:51 wpaul Exp $";
 #endif
 
 /*
@@ -1158,7 +1158,7 @@ static int pn_attach(dev)
 	if (revision == PN_169B_REV || revision == PN_169_REV ||
 	    (revision & 0xF0) == PN_168_REV) {
 		sc->pn_rx_war = 1;
-		sc->pn_rx_buf = malloc(PN_RXLEN * 16, M_DEVBUF, M_NOWAIT);
+		sc->pn_rx_buf = malloc(PN_RXLEN * 5, M_DEVBUF, M_NOWAIT);
 		if (sc->pn_rx_buf == NULL) {
 			printf("pn%d: no memory for workaround buffer\n", unit);
 			bus_teardown_intr(dev, sc->pn_irq, sc->pn_intrhand);
@@ -1496,7 +1496,7 @@ static void pn_rx_bug_war(sc, cur_rx)
 	while ((c->pn_ptr->pn_status & PN_WHOLEFRAME) != PN_WHOLEFRAME) {
 		rxstat = c->pn_ptr->pn_status;
 		m_copydata(c->pn_mbuf, 0, PN_RXLEN, ptr);
-		ptr += PN_RXLEN - 2; /* round down to 32-bit boundary */
+		ptr += PN_RXLEN;
 		if (c == cur_rx)
 			break;
 		if (rxstat & PN_RXSTAT_LASTFRAG)
