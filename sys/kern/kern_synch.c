@@ -678,6 +678,7 @@ resume:
 					ktrcsw(p->p_tracep, 0, 0);
 #endif
 				rval = EWOULDBLOCK;
+				mtx_exit(&sched_lock, MTX_SPIN);
 				goto out;
 			}
 		} else if (timo)
