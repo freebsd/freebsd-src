@@ -111,7 +111,7 @@ u_int seed;
  *
  * Many programs choose the seed value in a totally predictable manner.
  * This often causes problems.  We seed the generator using the much more
- * secure urandom(4) interface.
+ * secure random(4) interface.
  */
 void
 sranddev()
