@@ -464,7 +464,13 @@ struct dc_desc {
 #define DC_MIN_FRAMELEN		60
 #define DC_RXLEN		1536
 
-#define DC_INC(x, y)	(x) = (x + 1) % y
+#define DC_INC(x, y)		(x) = (x + 1) % y
+
+/* Macros to easily get the DMA address of a descriptor. */
+#define DC_RXDESC(sc, i)	(sc->dc_laddr +				\
+    (uintptr_t)(sc->dc_ldata->dc_rx_list + i) - (uintptr_t)sc->dc_ldata)
+#define DC_TXDESC(sc, i)	(sc->dc_laddr +				\
+    (uintptr_t)(sc->dc_ldata->dc_tx_list + i) - (uintptr_t)sc->dc_ldata)
 
 struct dc_list_data {
 	struct dc_desc		dc_rx_list[DC_RX_LIST_CNT];
@@ -474,11 +480,17 @@ struct dc_list_data {
 struct dc_chain_data {
 	struct mbuf		*dc_rx_chain[DC_RX_LIST_CNT];
 	struct mbuf		*dc_tx_chain[DC_TX_LIST_CNT];
-	u_int32_t		dc_sbuf[DC_SFRAME_LEN/sizeof(u_int32_t)];
+	bus_dmamap_t		dc_rx_map[DC_RX_LIST_CNT];
+	bus_dmamap_t		dc_tx_map[DC_TX_LIST_CNT];
+	u_int32_t		*dc_sbuf;
 	u_int8_t		dc_pad[DC_MIN_FRAMELEN];
+	int			dc_tx_err;
+	int			dc_tx_first;
 	int			dc_tx_prod;
 	int			dc_tx_cons;
 	int			dc_tx_cnt;
+	int			dc_rx_err;
+	int			dc_rx_cur;
 	int			dc_rx_prod;
 };
 
@@ -700,6 +712,14 @@ struct dc_softc {
 	struct arpcom		arpcom;		/* interface info */
 	bus_space_handle_t	dc_bhandle;	/* bus space handle */
 	bus_space_tag_t		dc_btag;	/* bus space tag */
+	bus_dma_tag_t		dc_ltag;	/* tag for descriptor ring */
+	bus_dmamap_t		dc_lmap;	/* map for descriptor ring */
+	u_int32_t		dc_laddr;	/* DMA address of dc_ldata */
+	bus_dma_tag_t		dc_mtag;	/* tag for mbufs */
+	bus_dmamap_t		dc_sparemap;
+	bus_dma_tag_t		dc_stag;	/* tag for the setup frame */
+	bus_dmamap_t		dc_smap;	/* map for the setup frame */
+	u_int32_t		dc_saddr;	/* DMA address of setup frame */
 	void			*dc_intrhand;
 	struct resource		*dc_irq;
 	struct resource		*dc_res;
@@ -730,7 +750,6 @@ struct dc_softc {
 	int			rxcycles;	/* ... when polling */
 #endif
 	int			suspended;	/* 0 = normal  1 = suspended */
-
 	u_int32_t		saved_maps[5];	/* pci data */
 	u_int32_t		saved_biosaddr;
 	u_int8_t		saved_intline;
@@ -1178,8 +1197,3 @@ struct dc_eblock_reset {
 	u_int8_t		dc_reset_len;
 /*	u_int16_t		dc_reset_dat[n]; */
 };
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-#endif

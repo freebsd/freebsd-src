@@ -110,8 +110,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
-#include <vm/vm.h>              /* for vtophys */
-#include <vm/pmap.h>            /* for vtophys */
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
@@ -215,8 +213,8 @@ static int dc_resume		(device_t);
 static void dc_acpi		(device_t);
 #endif
 static struct dc_type *dc_devtype	(device_t);
-static int dc_newbuf		(struct dc_softc *, int, struct mbuf *);
-static int dc_encap		(struct dc_softc *, struct mbuf *, u_int32_t *);
+static int dc_newbuf		(struct dc_softc *, int, int);
+static int dc_encap		(struct dc_softc *, struct mbuf *);
 static void dc_pnic_rx_bug_war	(struct dc_softc *, int);
 static int dc_rx_resync		(struct dc_softc *);
 static void dc_rxeof		(struct dc_softc *);
@@ -275,6 +273,11 @@ static void dc_decode_leaf_sia	(struct dc_softc *, struct dc_eblock_sia *);
 static void dc_decode_leaf_mii	(struct dc_softc *, struct dc_eblock_mii *);
 static void dc_decode_leaf_sym	(struct dc_softc *, struct dc_eblock_sym *);
 static void dc_apply_fixup	(struct dc_softc *, int);
+
+static void dc_dma_map_txbuf	(void *, bus_dma_segment_t *, int, bus_size_t,
+				    int);
+static void dc_dma_map_rxbuf	(void *, bus_dma_segment_t *, int, bus_size_t,
+				    int);
 
 #ifdef DC_USEIOSPACE
 #define DC_RES			SYS_RES_IOPORT
@@ -1098,14 +1101,14 @@ dc_setfilt_21143(struct dc_softc *sc)
 	DC_INC(sc->dc_cdata.dc_tx_prod, DC_TX_LIST_CNT);
 	sc->dc_cdata.dc_tx_cnt++;
 	sframe = &sc->dc_ldata->dc_tx_list[i];
-	sp = (u_int32_t *)&sc->dc_cdata.dc_sbuf;
+	sp = sc->dc_cdata.dc_sbuf;
 	bzero(sp, DC_SFRAME_LEN);
 
-	sframe->dc_data = vtophys(&sc->dc_cdata.dc_sbuf);
+	sframe->dc_data = sc->dc_saddr;
 	sframe->dc_ctl = DC_SFRAME_LEN | DC_TXCTL_SETUP | DC_TXCTL_TLINK |
 	    DC_FILTER_HASHPERF | DC_TXCTL_FINT;
 
-	sc->dc_cdata.dc_tx_chain[i] = (struct mbuf *)&sc->dc_cdata.dc_sbuf;
+	sc->dc_cdata.dc_tx_chain[i] = (struct mbuf *)sc->dc_cdata.dc_sbuf;
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1288,14 +1291,14 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	DC_INC(sc->dc_cdata.dc_tx_prod, DC_TX_LIST_CNT);
 	sc->dc_cdata.dc_tx_cnt++;
 	sframe = &sc->dc_ldata->dc_tx_list[i];
-	sp = (u_int32_t *)&sc->dc_cdata.dc_sbuf;
+	sp = sc->dc_cdata.dc_sbuf;
 	bzero(sp, DC_SFRAME_LEN);
 
-	sframe->dc_data = vtophys(&sc->dc_cdata.dc_sbuf);
+	sframe->dc_data = sc->dc_saddr;
 	sframe->dc_ctl = DC_SFRAME_LEN | DC_TXCTL_SETUP | DC_TXCTL_TLINK |
 	    DC_FILTER_HASHPERF | DC_TXCTL_FINT;
 
-	sc->dc_cdata.dc_tx_chain[i] = (struct mbuf *)&sc->dc_cdata.dc_sbuf;
+	sc->dc_cdata.dc_tx_chain[i] = (struct mbuf *)sc->dc_cdata.dc_sbuf;
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1812,6 +1815,16 @@ dc_parse_21143_srom(struct dc_softc *sc)
 	}
 }
 
+static void
+dc_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	u_int32_t *paddr;
+
+	KASSERT(nseg == 1, ("wrong number of segments, should be 1"));
+	paddr = arg;
+	*paddr = segs->ds_addr;
+}
+
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
@@ -1826,6 +1839,7 @@ dc_attach(device_t dev)
 	struct ifnet *ifp;
 	u_int32_t revision;
 	int unit, error = 0, rid, mac_offset;
+	int i;
 	u_int8_t *mac;
 
 	sc = device_get_softc(dev);
@@ -2082,16 +2096,94 @@ dc_attach(device_t dev)
 	sc->dc_unit = unit;
 	bcopy(eaddr, &sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
-	sc->dc_ldata = contigmalloc(sizeof(struct dc_list_data), M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
+	error = bus_dma_tag_create(NULL, PAGE_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof(struct dc_list_data), 1,
+	    sizeof(struct dc_list_data), 0, NULL, NULL, &sc->dc_ltag);
+	if (error) {
+		printf("dc%d: failed to allocate busdma tag\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+	error = bus_dmamem_alloc(sc->dc_ltag, (void **)&sc->dc_ldata,
+	    BUS_DMA_NOWAIT, &sc->dc_lmap);
+	if (error) {
+		printf("dc%d: failed to allocate DMA safe memory\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+	error = bus_dmamap_load(sc->dc_ltag, sc->dc_lmap, sc->dc_ldata,
+	    sizeof(struct dc_list_data), dc_dma_map_addr, &sc->dc_laddr,
+	    BUS_DMA_NOWAIT);
+	if (error) {
+		printf("dc%d: cannot get address of the descriptors\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+	bzero(sc->dc_ldata, sizeof(struct dc_list_data));
 
-	if (sc->dc_ldata == NULL) {
-		printf("dc%d: no memory for list buffers!\n", unit);
+	/*
+	 * Allocate a busdma tag and DMA safe memory for the multicast
+	 * setup frame.
+	 */
+	error = bus_dma_tag_create(NULL, PAGE_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL, DC_SFRAME_LEN + DC_MIN_FRAMELEN, 1,
+	    DC_SFRAME_LEN + DC_MIN_FRAMELEN, 0, NULL, NULL, &sc->dc_stag);
+	if (error) {
+		printf("dc%d: failed to allocate busdma tag\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+	error = bus_dmamem_alloc(sc->dc_stag, (void **)&sc->dc_cdata.dc_sbuf,
+	    BUS_DMA_NOWAIT, &sc->dc_smap);
+	if (error) {
+		printf("dc%d: failed to allocate DMA safe memory\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+	error = bus_dmamap_load(sc->dc_stag, sc->dc_smap, sc->dc_cdata.dc_sbuf,
+	    DC_SFRAME_LEN, dc_dma_map_addr, &sc->dc_saddr, BUS_DMA_NOWAIT);
+	if (error) {
+		printf("dc%d: cannot get address of the descriptors\n", unit);
 		error = ENXIO;
 		goto fail;
 	}
 
-	bzero(sc->dc_ldata, sizeof(struct dc_list_data));
+	/* Allocate a busdma tag for mbufs. */
+	error = bus_dma_tag_create(NULL, PAGE_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * DC_TX_LIST_CNT,
+	    DC_TX_LIST_CNT, MCLBYTES, 0, NULL, NULL, &sc->dc_mtag);
+	if (error) {
+		printf("dc%d: failed to allocate busdma tag\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+
+	/* Create the TX/RX busdma maps. */
+	for (i = 0; i < DC_TX_LIST_CNT; i++) {
+		error = bus_dmamap_create(sc->dc_mtag, 0, 
+		    &sc->dc_cdata.dc_tx_map[i]);
+		if (error) {
+			printf("dc%d: failed to init TX ring\n", unit);
+			error = ENXIO;
+			goto fail;
+		}
+	}
+	for (i = 0; i < DC_RX_LIST_CNT; i++) {
+		error = bus_dmamap_create(sc->dc_mtag, 0, 
+		    &sc->dc_cdata.dc_rx_map[i]);
+		if (error) {
+			printf("dc%d: failed to init RX ring\n", unit);
+			error = ENXIO;
+			goto fail;
+		}
+	}
+	error = bus_dmamap_create(sc->dc_mtag, 0, &sc->dc_sparemap);
+	if (error) {
+		printf("dc%d: failed to init RX ring\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
@@ -2236,6 +2328,7 @@ dc_detach(device_t dev)
 	struct dc_softc *sc;
 	struct ifnet *ifp;
 	struct dc_mediainfo *m;
+	int i;
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->dc_mtx), ("dc mutex not initialized"));
@@ -2259,8 +2352,22 @@ dc_detach(device_t dev)
 	if (sc->dc_res)
 		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 
-	if (sc->dc_ldata)
-		contigfree(sc->dc_ldata, sizeof(struct dc_list_data), M_DEVBUF);
+	if (sc->dc_cdata.dc_sbuf != NULL)
+		bus_dmamem_free(sc->dc_stag, sc->dc_cdata.dc_sbuf, sc->dc_smap);
+	if (sc->dc_ldata != NULL)
+		bus_dmamem_free(sc->dc_ltag, sc->dc_ldata, sc->dc_lmap);
+	for (i = 0; i < DC_TX_LIST_CNT; i++)
+		bus_dmamap_destroy(sc->dc_mtag, sc->dc_cdata.dc_tx_map[i]);
+	for (i = 0; i < DC_RX_LIST_CNT; i++)
+		bus_dmamap_destroy(sc->dc_mtag, sc->dc_cdata.dc_rx_map[i]);
+	bus_dmamap_destroy(sc->dc_mtag, sc->dc_sparemap);
+	if (sc->dc_stag)
+		bus_dma_tag_destroy(sc->dc_stag);
+	if (sc->dc_mtag)
+		bus_dma_tag_destroy(sc->dc_mtag);
+	if (sc->dc_ltag)
+		bus_dma_tag_destroy(sc->dc_ltag);
+
 	free(sc->dc_pnic_rx_buf, M_DEVBUF);
 
 	while (sc->dc_mi != NULL) {
@@ -2293,14 +2400,15 @@ dc_list_tx_init(struct dc_softc *sc)
 			nexti = 0;
 		else
 			nexti = i + 1;
-		ld->dc_tx_list[i].dc_next = vtophys(&ld->dc_tx_list[nexti]);
+		ld->dc_tx_list[i].dc_next = DC_TXDESC(sc, nexti);
 		cd->dc_tx_chain[i] = NULL;
 		ld->dc_tx_list[i].dc_data = 0;
 		ld->dc_tx_list[i].dc_ctl = 0;
 	}
 
 	cd->dc_tx_prod = cd->dc_tx_cons = cd->dc_tx_cnt = 0;
-
+	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
+	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 	return (0);
 }
 
@@ -2321,48 +2429,63 @@ dc_list_rx_init(struct dc_softc *sc)
 	ld = sc->dc_ldata;
 
 	for (i = 0; i < DC_RX_LIST_CNT; i++) {
-		if (dc_newbuf(sc, i, NULL) == ENOBUFS)
+		if (dc_newbuf(sc, i, 1) != 0)
 			return (ENOBUFS);
 		if (i == DC_RX_LIST_CNT - 1)
 			nexti = 0;
 		else
 			nexti = i + 1;
-		ld->dc_rx_list[i].dc_next = vtophys(&ld->dc_rx_list[nexti]);
+		ld->dc_rx_list[i].dc_next = DC_RXDESC(sc, nexti);
 	}
 
 	cd->dc_rx_prod = 0;
-
+	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
+	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 	return (0);
+}
+
+static void
+dc_dma_map_rxbuf(arg, segs, nseg, mapsize, error)
+	void *arg;
+	bus_dma_segment_t *segs;
+	int nseg;
+	bus_size_t mapsize;
+	int error;
+{
+	struct dc_softc *sc;
+	struct dc_desc *c;
+
+	sc = arg;
+	c = &sc->dc_ldata->dc_rx_list[sc->dc_cdata.dc_rx_cur];
+	if (error) {
+		sc->dc_cdata.dc_rx_err = error;
+		return;
+	}
+
+	KASSERT(nseg == 1, ("wrong number of segments, should be 1"));
+	sc->dc_cdata.dc_rx_err = 0;
+	c->dc_data = segs->ds_addr;
 }
 
 /*
  * Initialize an RX descriptor and attach an MBUF cluster.
  */
 static int
-dc_newbuf(struct dc_softc *sc, int i, struct mbuf *m)
+dc_newbuf(struct dc_softc *sc, int i, int alloc)
 {
-	struct mbuf *m_new = NULL;
-	struct dc_desc *c;
+	struct mbuf *m_new;
+	bus_dmamap_t tmp;
+	int error;
 
-	c = &sc->dc_ldata->dc_rx_list[i];
-
-	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+	if (alloc) {
+		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (m_new == NULL)
 			return (ENOBUFS);
-
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			m_freem(m_new);
-			return (ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+		m_new = sc->dc_cdata.dc_rx_chain[i];
 		m_new->m_data = m_new->m_ext.ext_buf;
 	}
-
+	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	m_adj(m_new, sizeof(u_int64_t));
 
 	/*
@@ -2373,11 +2496,32 @@ dc_newbuf(struct dc_softc *sc, int i, struct mbuf *m)
 	if (sc->dc_flags & DC_PNIC_RX_BUG_WAR)
 		bzero(mtod(m_new, char *), m_new->m_len);
 
-	sc->dc_cdata.dc_rx_chain[i] = m_new;
-	c->dc_data = vtophys(mtod(m_new, caddr_t));
-	c->dc_ctl = DC_RXCTL_RLINK | DC_RXLEN;
-	c->dc_status = DC_RXSTAT_OWN;
+	/* No need to remap the mbuf if we're reusing it. */
+	if (alloc) {
+		sc->dc_cdata.dc_rx_cur = i;
+		error = bus_dmamap_load_mbuf(sc->dc_mtag, sc->dc_sparemap,
+		    m_new, dc_dma_map_rxbuf, sc, 0);
+		if (error) {
+			m_freem(m_new);
+			return (error);
+		}
+		if (sc->dc_cdata.dc_rx_err != 0) {
+			m_freem(m_new);
+			return (sc->dc_cdata.dc_rx_err); 
+		}
+		bus_dmamap_unload(sc->dc_mtag, sc->dc_cdata.dc_rx_map[i]);
+		tmp = sc->dc_cdata.dc_rx_map[i];
+		sc->dc_cdata.dc_rx_map[i] = sc->dc_sparemap;
+		sc->dc_sparemap = tmp;
+		sc->dc_cdata.dc_rx_chain[i] = m_new;
+	}
 
+	sc->dc_ldata->dc_rx_list[i].dc_ctl = DC_RXCTL_RLINK | DC_RXLEN;
+	sc->dc_ldata->dc_rx_list[i].dc_status = DC_RXSTAT_OWN;
+	bus_dmamap_sync(sc->dc_mtag, sc->dc_cdata.dc_rx_map[i],
+	    BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
+	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 	return (0);
 }
 
@@ -2459,7 +2603,7 @@ dc_pnic_rx_bug_war(struct dc_softc *sc, int idx)
 		/* If this is the last buffer, break out. */
 		if (i == idx || rxstat & DC_RXSTAT_LASTFRAG)
 			break;
-		dc_newbuf(sc, i, m);
+		dc_newbuf(sc, i, 0);
 		DC_INC(i, DC_RX_LIST_CNT);
 	}
 
@@ -2484,7 +2628,7 @@ dc_pnic_rx_bug_war(struct dc_softc *sc, int idx)
 	 * the status word to make it look like a successful
 	 * frame reception.
 	 */
-	dc_newbuf(sc, i, m);
+	dc_newbuf(sc, i, 0);
 	bcopy(ptr, mtod(m, char *), total_len);
 	cur_rx->dc_status = rxstat | DC_RXSTAT_FIRSTFRAG;
 }
@@ -2541,6 +2685,7 @@ dc_rxeof(struct dc_softc *sc)
 	ifp = &sc->arpcom.ac_if;
 	i = sc->dc_cdata.dc_rx_prod;
 
+	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap, BUS_DMASYNC_POSTREAD);
 	while (!(sc->dc_ldata->dc_rx_list[i].dc_status & DC_RXSTAT_OWN)) {
 #ifdef DEVICE_POLLING
 		if (ifp->if_flags & IFF_POLLING) {
@@ -2552,6 +2697,8 @@ dc_rxeof(struct dc_softc *sc)
 		cur_rx = &sc->dc_ldata->dc_rx_list[i];
 		rxstat = cur_rx->dc_status;
 		m = sc->dc_cdata.dc_rx_chain[i];
+		bus_dmamap_sync(sc->dc_mtag, sc->dc_cdata.dc_rx_map[i],
+		    BUS_DMASYNC_POSTREAD);
 		total_len = DC_RXBYTES(rxstat);
 
 		if (sc->dc_flags & DC_PNIC_RX_BUG_WAR) {
@@ -2568,8 +2715,6 @@ dc_rxeof(struct dc_softc *sc)
 			}
 		}
 
-		sc->dc_cdata.dc_rx_chain[i] = NULL;
-
 		/*
 		 * If an error occurs, update stats, clear the
 		 * status word and leave the mbuf cluster in place:
@@ -2585,7 +2730,7 @@ dc_rxeof(struct dc_softc *sc)
 				ifp->if_ierrors++;
 				if (rxstat & DC_RXSTAT_COLLSEEN)
 					ifp->if_collisions++;
-				dc_newbuf(sc, i, m);
+				dc_newbuf(sc, i, 0);
 				if (rxstat & DC_RXSTAT_CRCERR) {
 					DC_INC(i, DC_RX_LIST_CNT);
 					continue;
@@ -2608,7 +2753,7 @@ dc_rxeof(struct dc_softc *sc)
 		 * if the allocation fails, then use m_devget and leave the
 		 * existing buffer in the receive ring.
 		 */
-		if (dc_quick && dc_newbuf(sc, i, NULL) == 0) {
+		if (dc_quick && dc_newbuf(sc, i, 1) == 0) {
 			m->m_pkthdr.rcvif = ifp;
 			m->m_pkthdr.len = m->m_len = total_len;
 			DC_INC(i, DC_RX_LIST_CNT);
@@ -2619,7 +2764,7 @@ dc_rxeof(struct dc_softc *sc)
 
 			m0 = m_devget(mtod(m, char *), total_len,
 				ETHER_ALIGN, ifp, NULL);
-			dc_newbuf(sc, i, m);
+			dc_newbuf(sc, i, 0);
 			DC_INC(i, DC_RX_LIST_CNT);
 			if (m0 == NULL) {
 				ifp->if_ierrors++;
@@ -2654,6 +2799,7 @@ dc_txeof(struct dc_softc *sc)
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been transmitted.
 	 */
+	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap, BUS_DMASYNC_POSTREAD);
 	idx = sc->dc_cdata.dc_tx_cons;
 	while (idx != sc->dc_cdata.dc_tx_prod) {
 
@@ -2663,7 +2809,7 @@ dc_txeof(struct dc_softc *sc)
 		if (txstat & DC_TXSTAT_OWN)
 			break;
 
-		if (!(cur_tx->dc_ctl & DC_TXCTL_LASTFRAG) ||
+		if (!(cur_tx->dc_ctl & DC_TXCTL_FIRSTFRAG) ||
 		    cur_tx->dc_ctl & DC_TXCTL_SETUP) {
 			if (cur_tx->dc_ctl & DC_TXCTL_SETUP) {
 				/*
@@ -2724,6 +2870,11 @@ dc_txeof(struct dc_softc *sc)
 
 		ifp->if_opackets++;
 		if (sc->dc_cdata.dc_tx_chain[idx] != NULL) {
+			bus_dmamap_sync(sc->dc_mtag,
+			    sc->dc_cdata.dc_tx_map[idx],
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->dc_mtag,
+			    sc->dc_cdata.dc_tx_map[idx]);
 			m_freem(sc->dc_cdata.dc_tx_chain[idx]);
 			sc->dc_cdata.dc_tx_chain[idx] = NULL;
 		}
@@ -3013,16 +3164,69 @@ done:
 	DC_UNLOCK(sc);
 }
 
+static void
+dc_dma_map_txbuf(arg, segs, nseg, mapsize, error)
+	void *arg;
+	bus_dma_segment_t *segs;
+	int nseg;
+	bus_size_t mapsize;
+	int error;
+{
+	struct dc_softc *sc;
+	struct dc_desc *f;
+	int cur, first, frag, i;
+
+	sc = arg;
+	if (error) {
+		sc->dc_cdata.dc_tx_err = error;
+		return;
+	}
+
+	first = cur = frag = sc->dc_cdata.dc_tx_prod;
+	for (i = 0; i < nseg; i++) {
+		if ((sc->dc_flags & DC_TX_ADMTEK_WAR) &&
+		    (frag == (DC_TX_LIST_CNT - 1)) &&
+		    (first != sc->dc_cdata.dc_tx_first)) {
+			bus_dmamap_unload(sc->dc_mtag,
+			    sc->dc_cdata.dc_tx_map[first]);
+			sc->dc_cdata.dc_tx_err = ENOBUFS;
+			return;
+		}
+
+		f = &sc->dc_ldata->dc_tx_list[frag];
+		f->dc_ctl = DC_TXCTL_TLINK | segs[i].ds_len;
+		if (i == 0) {
+			f->dc_status = 0;
+			f->dc_ctl |= DC_TXCTL_FIRSTFRAG;
+		} else
+			f->dc_status = DC_TXSTAT_OWN;
+		f->dc_data = segs[i].ds_addr;
+		cur = frag;
+		DC_INC(frag, DC_TX_LIST_CNT);
+	}
+
+	sc->dc_cdata.dc_tx_err = 0;
+	sc->dc_cdata.dc_tx_prod = frag;
+	sc->dc_cdata.dc_tx_cnt += nseg;
+	sc->dc_ldata->dc_tx_list[cur].dc_ctl |= DC_TXCTL_LASTFRAG;
+	if (sc->dc_flags & DC_TX_INTR_FIRSTFRAG)
+		sc->dc_ldata->dc_tx_list[first].dc_ctl |= DC_TXCTL_FINT;
+	if (sc->dc_flags & DC_TX_INTR_ALWAYS)
+		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= DC_TXCTL_FINT;
+	if (sc->dc_flags & DC_TX_USE_TX_INTR && sc->dc_cdata.dc_tx_cnt > 64)
+		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= DC_TXCTL_FINT;
+	sc->dc_ldata->dc_tx_list[first].dc_status = DC_TXSTAT_OWN;
+}
+
 /*
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
 static int
-dc_encap(struct dc_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
+dc_encap(struct dc_softc *sc, struct mbuf *m_head)
 {
-	struct dc_desc *f = NULL;
 	struct mbuf *m;
-	int frag, cur, cnt = 0, chainlen = 0;
+	int error, idx, chainlen = 0;
 
 	/*
 	 * If there's no way we can send any packets, return now.
@@ -3036,7 +3240,6 @@ dc_encap(struct dc_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	 * by all packets, we'll m_defrag long chains so that they
 	 * do not use up the entire list, even if they would fit.
 	 */
-
 	for (m = m_head; m != NULL; m = m->m_next)
 		chainlen++;
 
@@ -3053,49 +3256,18 @@ dc_encap(struct dc_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	 * the fragment pointers. Stop when we run out
 	 * of fragments or hit the end of the mbuf chain.
 	 */
-	m = m_head;
-	cur = frag = *txidx;
-
-	for (m = m_head; m != NULL; m = m->m_next) {
-		if (m->m_len != 0) {
-			if (sc->dc_flags & DC_TX_ADMTEK_WAR) {
-				if (*txidx != sc->dc_cdata.dc_tx_prod &&
-				    frag == (DC_TX_LIST_CNT - 1))
-					return (ENOBUFS);
-			}
-			if ((DC_TX_LIST_CNT -
-			    (sc->dc_cdata.dc_tx_cnt + cnt)) < 5)
-				return (ENOBUFS);
-
-			f = &sc->dc_ldata->dc_tx_list[frag];
-			f->dc_ctl = DC_TXCTL_TLINK | m->m_len;
-			if (cnt == 0) {
-				f->dc_status = 0;
-				f->dc_ctl |= DC_TXCTL_FIRSTFRAG;
-			} else
-				f->dc_status = DC_TXSTAT_OWN;
-			f->dc_data = vtophys(mtod(m, vm_offset_t));
-			cur = frag;
-			DC_INC(frag, DC_TX_LIST_CNT);
-			cnt++;
-		}
-	}
-
-	if (m != NULL)
-		return (ENOBUFS);
-
-	sc->dc_cdata.dc_tx_cnt += cnt;
-	sc->dc_cdata.dc_tx_chain[cur] = m_head;
-	sc->dc_ldata->dc_tx_list[cur].dc_ctl |= DC_TXCTL_LASTFRAG;
-	if (sc->dc_flags & DC_TX_INTR_FIRSTFRAG)
-		sc->dc_ldata->dc_tx_list[*txidx].dc_ctl |= DC_TXCTL_FINT;
-	if (sc->dc_flags & DC_TX_INTR_ALWAYS)
-		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= DC_TXCTL_FINT;
-	if (sc->dc_flags & DC_TX_USE_TX_INTR && sc->dc_cdata.dc_tx_cnt > 64)
-		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= DC_TXCTL_FINT;
-	sc->dc_ldata->dc_tx_list[*txidx].dc_status = DC_TXSTAT_OWN;
-	*txidx = frag;
-
+	idx = sc->dc_cdata.dc_tx_prod;
+	error = bus_dmamap_load_mbuf(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
+	    m_head, dc_dma_map_txbuf, sc, 0);
+	if (error)
+		return (error);
+	if (sc->dc_cdata.dc_tx_err != 0)
+		return (sc->dc_cdata.dc_tx_err); 
+	sc->dc_cdata.dc_tx_chain[idx] = m_head;
+	bus_dmamap_sync(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
+	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
+	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 	return (0);
 }
 
@@ -3127,7 +3299,7 @@ dc_start(struct ifnet *ifp)
 		return;
 	}
 
-	idx = sc->dc_cdata.dc_tx_prod;
+	idx = sc->dc_cdata.dc_tx_first = sc->dc_cdata.dc_tx_prod;
 
 	while (sc->dc_cdata.dc_tx_chain[idx] == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
@@ -3147,11 +3319,12 @@ dc_start(struct ifnet *ifp)
 			}
 		}
 
-		if (dc_encap(sc, m_head, &idx)) {
+		if (dc_encap(sc, m_head)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
+		idx = sc->dc_cdata.dc_tx_prod;
 
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
@@ -3166,7 +3339,6 @@ dc_start(struct ifnet *ifp)
 	}
 
 	/* Transmit */
-	sc->dc_cdata.dc_tx_prod = idx;
 	if (!(sc->dc_flags & DC_TX_POLL))
 		CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
 
@@ -3286,15 +3458,15 @@ dc_init(void *xsc)
 	}
 
 	/*
-	 * Init tx descriptors.
+	 * Init TX descriptors.
 	 */
 	dc_list_tx_init(sc);
 
 	/*
 	 * Load the address of the RX list.
 	 */
-	CSR_WRITE_4(sc, DC_RXADDR, vtophys(&sc->dc_ldata->dc_rx_list[0]));
-	CSR_WRITE_4(sc, DC_TXADDR, vtophys(&sc->dc_ldata->dc_tx_list[0]));
+	CSR_WRITE_4(sc, DC_RXADDR, DC_RXDESC(sc, 0));
+	CSR_WRITE_4(sc, DC_TXADDR, DC_TXDESC(sc, 0));
 
 	/*
 	 * Enable interrupts.
@@ -3528,8 +3700,8 @@ dc_stop(struct dc_softc *sc)
 	 */
 	for (i = 0; i < DC_RX_LIST_CNT; i++) {
 		if (cd->dc_rx_chain[i] != NULL) {
-			m_freem(sc->dc_cdata.dc_rx_chain[i]);
-			sc->dc_cdata.dc_rx_chain[i] = NULL;
+			m_freem(cd->dc_rx_chain[i]);
+			cd->dc_rx_chain[i] = NULL;
 		}
 	}
 	bzero(&ld->dc_rx_list, sizeof(ld->dc_rx_list));
@@ -3540,11 +3712,12 @@ dc_stop(struct dc_softc *sc)
 	for (i = 0; i < DC_TX_LIST_CNT; i++) {
 		if (cd->dc_tx_chain[i] != NULL) {
 			if ((ld->dc_tx_list[i].dc_ctl & DC_TXCTL_SETUP) ||
-			    !(ld->dc_tx_list[i].dc_ctl & DC_TXCTL_LASTFRAG)) {
+			    !(ld->dc_tx_list[i].dc_ctl & DC_TXCTL_FIRSTFRAG)) {
 				cd->dc_tx_chain[i] = NULL;
 				continue;
 			}
-			m_freem(sc->dc_cdata.dc_tx_chain[i]);
+			bus_dmamap_unload(sc->dc_mtag, cd->dc_tx_map[i]);
+			m_freem(cd->dc_tx_chain[i]);
 			cd->dc_tx_chain[i] = NULL;
 		}
 	}
