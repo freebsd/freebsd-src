@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.6 1998/03/12 03:20:48 jb Exp $
+# $Id: Makefile.alpha,v 1.7 1998/03/23 22:18:42 jb Exp $
 #
 # NOTE:
 #
@@ -312,7 +312,7 @@ includes:
 .endif
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libss &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libss &&		${MAKE} hdrs beforeinstall
 	cd ${.CURDIR}/lib/libscsi &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libutil &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libvgl &&		${MAKE} beforeinstall
