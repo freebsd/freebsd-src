@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: svr4_util.c,v 1.5 1995/01/22 23:44:50 christos Exp
- *	$Id$
+ *	$Id: linux_util.c,v 1.1 1996/03/02 19:38:02 peter Exp $
  */
 
 #include <sys/param.h>
@@ -146,18 +146,18 @@ linux_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		}
 
 		if ((error = VOP_GETATTR(nd.ni_vp, &vat, p->p_ucred, p)) != 0) {
-			goto done;
+			goto bad;
 		}
 
 		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, p->p_ucred, p))
 		    != 0) {
-			goto done;
+			goto bad;
 		}
 
 		if (vat.va_fsid == vatroot.va_fsid &&
 		    vat.va_fileid == vatroot.va_fileid) {
 			error = ENOENT;
-			goto done;
+			goto bad;
 		}
 
 	}
@@ -170,10 +170,14 @@ linux_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		free(buf, M_TEMP);
 	}
 
-
-done:
 	vrele(nd.ni_vp);
 	if (!cflag)
 		vrele(ndroot.ni_vp);
+	return error;
+
+bad:
+	vrele(ndroot.ni_vp);
+	vrele(nd.ni_vp);
+	free(buf, M_TEMP);
 	return error;
 }
