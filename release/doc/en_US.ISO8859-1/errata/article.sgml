@@ -155,7 +155,7 @@
       reversal with the socket layer.  More details can be found in the
       &man.ipfw.8; and &man.pf.conf.5; manual pages.</para>
 
-    <para>(31 Oct 2004) The &man.vinum.4; subsystem
+    <para>(31 Oct 2004, updated on 12 Nov 2004) The &man.vinum.4; subsystem
       works on 5.3, but it can cause a system panic at boot time.
       As a workaround you can add <literal>vinum_load="YES"</literal>
       to <filename>/boot/loader.conf</filename>.</para>
@@ -163,7 +163,9 @@
     <para>As an alternative you can also use the new &man.geom.4;-based
       &man.vinum.4; subsystem.  To activate the &man.geom.4;-aware
       vinum at boot time, add <literal>geom_vinum_load="YES"</literal>
-      to <filename>/boot/loader.conf</filename>.</para>
+      to <filename>/boot/loader.conf</filename> and remove
+      <literal>start_vinum="YES"</literal> in
+      <filename>/etc/rc.conf</filename> if it exists.</para>
 
     <para>While some uncommon configurations, such as
       multiple vinum drives on a disk, are not supported,
