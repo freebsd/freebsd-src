@@ -2,7 +2,6 @@
 
 VOLUME=	smm
 SRCS=	Title
-FILES=	${SRCS}
 DOC=	Title
 
 # unroff(1) requires a macro package as an argument
