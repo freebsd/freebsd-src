@@ -33,17 +33,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)pccons.c	5.11 (Berkeley) 5/21/91
- *	from: @(#)syscons.c	1.0 930928
- *	$Id: syscons.c,v 1.13 1993/10/16 13:46:23 rgrimes Exp $
- *
+ */
+/*
  * Heavily modified by Søren Schmidt (sos@login.dkuug.dk) to provide:
  *
- * 	virtual consoles, SYSV ioctl's, ANSI emulation 
+ * 	virtual consoles, SYSV ioctl's, ANSI emulation ....
+ *
+ *	@(#)syscons.c	1.1 931021
+ *
+ * Derived from:
+ *	@(#)pccons.c	5.11 (Berkeley) 5/21/91
  */
 
 #define STAR_SAVER
-/* #define FAT_CURSOR	/* This breaks on some CGA displays */
+#define FAT_CURSOR
 
 #include "param.h"
 #include "conf.h"
@@ -57,21 +60,29 @@
 #include "kernel.h"
 #include "syslog.h"
 #include "errno.h"
-#include "machine/console.h"
 #include "malloc.h"
 #include "i386/isa/icu.h"
 #include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
-#include "machine/pc/display.h"
+#include "i386/isa/timerreg.h"
 #include "i386/i386/cons.h"
+#include "machine/console.h"
 #include "machine/psl.h"
 #include "machine/frame.h"
+#include "machine/pc/display.h"
 #include "sc.h"
-#include "ddb.h"
 #include "iso8859.font"
 #include "kbdtables.h"
 
+#if !defined(NetBSD)
+#include "ddb.h"
+#if NDDB > 0
+#define DDB
+#endif
+#endif
+
 #if NSC > 0
+
 #ifndef NCONS
 #define NCONS 12
 #endif
@@ -85,11 +96,12 @@
 #define SWITCH_WAIT_ACQ	0x00080
 
 /* virtual video memory addresses */
-#define	MONO_BUF	(KERNBASE + 0xB0000)
-#define	CGA_BUF		(KERNBASE + 0xB8000)
-#define	VGA_BUF		(KERNBASE + 0xA0000)
+#if !defined(NetBSD)
+#define	MONO_BUF	0xFE0B0000
+#define	CGA_BUF		0xFE0B8000
+#define	VGA_BUF		0xFE0A0000
+#endif
 #define VIDEOMEM	0x000A0000
-#define MEMSIZE		0x00020000
 
 /* misc defines */
 #define MAX_ESC_PAR 	3
@@ -97,9 +109,10 @@
 #define TEXT80x50	2
 #define	COL		80
 #define	ROW		25
-#ifndef XTALSPEED
-#define XTALSPEED	1193182			/* should be in isa.h */
-#endif
+#define BELL_DURATION	10
+#define BELL_PITCH	800
+#define TIMER_FREQ	1193182			/* should be in isa.h */
+#define PCBURST		128
 
 /* defines related to hardware addresses */
 #define	MONO_BASE	0x3B4			/* crt controller base mono */
@@ -160,55 +173,50 @@ static default_attr kernel_default = {
 	(FG_BLACK | BG_LIGHTGREY) << 8
 };
 
-static default_attr *current_default;
-
-static	scr_stat	cons_scr_stat[NCONS];
-static	scr_stat	*cur_scr_stat = &cons_scr_stat[0];
-static	scr_stat 	*new_scp, *old_scp;
+static	scr_stat	console[NCONS];
+static	scr_stat	*cur_console = &console[0];
+static	scr_stat	*new_scp, *old_scp;
 static	term_stat	kernel_console; 
+static	default_attr	*current_default;
 static	int		switch_in_progress = 0;
-
-u_short			*Crtat = (u_short *)MONO_BUF;
 static 	u_short	 	*crtat = 0;
 static	u_int		crtc_addr = MONO_BASE;
 static	char		crtc_vga = 0;
-static 	u_char		shfts = 0, ctls = 0, alts = 0, agrs = 0;
+static 	u_char		shfts = 0, ctls = 0, alts = 0, agrs = 0, metas = 0;
 static 	u_char		nlkcnt = 0, clkcnt = 0, slkcnt = 0, alkcnt = 0;
 static	char		palette[3*256];
 static 	const u_int 	n_fkey_tab = sizeof(fkey_tab) / sizeof(*fkey_tab);
 static	int 		cur_cursor_pos = -1;
-static	char 		in_putc, nx_scr;
+static	char 		in_putc = 0;
+static	char	 	polling = 0;
+static	int	 	nx_scr;
 static	char		saved_console = -1;	/* saved console number	*/
 static	long		scrn_blank_time = 0;	/* screen saver timout value */
 static	int		scrn_blanked = 0;	/* screen saver active flag */
 static	long 		scrn_time_stamp;
 static  u_char		scr_map[256];
+static	struct	tty 	*cur_tty = NULL;
 
+#if defined(NetBSD)
+extern	u_short		*Crtat;
+struct	tty 		*pc_tty[NCONS];
+int	ttrstrt();
+#else
+u_short			*Crtat = (u_short *)MONO_BUF;
 struct	tty 		pccons[NCONS];
-struct	tty 		*cur_pccons = &pccons[0];
-struct  tty		*new_pccons;
+#define	timeout_t	caddr_t
+#endif
 
 extern	int hz;
 extern	struct timeval time;
 
-#define	CSF_ACTIVE	0x1			/* timeout active */
-#define	CSF_POLLING	0x2			/* polling for input */
-
-struct	pcconsoftc {
-	char		cs_flags;
-	char		cs_lastc;		/* last char sent */
-	int		cs_timo;		/* timeouts since interrupt */
-	u_long		cs_wedgecnt;		/* times restarted */
-} pcconsoftc = {0, 0, 0, 0};
-
-
 /* special characters */
-#define bs	8
-#define lf	10	
-#define cr	13	
-#define cntlc	3	
-#define del	0177	
-#define cntld	4
+#define cntlc	0x03	
+#define cntld	0x04
+#define bs	0x08
+#define lf	0x0a
+#define cr	0x0d	
+#define del	0x7f	
 
 /* function prototypes */
 int pcprobe(struct isa_device *dev);
@@ -226,8 +234,12 @@ int pccninit(struct consdev *cp);
 int pccnputc(dev_t dev, char c);
 int pccngetc(dev_t dev);
 int scintr(dev_t dev, int irq, int cpl);
-void scrn_saver(int test);
-static struct tty *get_pccons(dev_t dev);
+int pcmmap(dev_t dev, int offset, int nprot);
+u_int sgetc(int noblock);
+int getchar(void);
+static void reset_cpu(void);
+static void scrn_saver(int test);
+static struct tty *get_tty_ptr(dev_t dev);
 static scr_stat *get_scr_stat(dev_t dev);
 static int get_scr_num(scr_stat *scp);
 static void cursor_shape(int start, int end);
@@ -241,14 +253,10 @@ static void move_up(u_short *s, u_short *d, u_int len);
 static void move_down(u_short *s, u_short *d, u_int len);
 static void scan_esc(scr_stat *scp, u_char c);
 static void ansi_put(scr_stat *scp, u_char c);
-void consinit(void);
+static void scinit(void);
 static void sput(u_char c);
 static u_char *get_fstr(u_int c, u_int *len);
 static update_leds(int which);
-void reset_cpu(void);
-u_int sgetc(int noblock);
-int pcmmap(dev_t dev, int offset, int nprot);
-int getchar(void);
 static void kbd_wait(void);
 static void kbd_cmd(u_char command);
 static void set_mode(scr_stat *scp);
@@ -262,6 +270,12 @@ struct	isa_driver scdriver = {
 	pcprobe, pcattach, "sc",
 };
 
+#if !defined(NetBSD)
+void consinit(void)
+{
+	scinit();
+}
+#endif
 
 int pcprobe(struct isa_device *dev)
 {
@@ -293,6 +307,7 @@ int pcattach(struct isa_device *dev)
 	scr_stat *scp;
 	int start = -1, end = -1, i;
 
+	printf("sc%d: ", dev->id_unit);
 	if (crtc_vga)
 		if (crtc_addr == MONO_BASE)
 			printf("VGA mono");
@@ -311,9 +326,9 @@ int pcattach(struct isa_device *dev)
 #ifdef	FAT_CURSOR
                 start = 0;
                 end = 18;
-#endif
 	if (crtc_vga) {
-#ifndef	FAT_CURSOR
+#else
+	if (crtc_vga) {
 		get_cursor_shape(&start, &end);
 #endif
 		save_palette();
@@ -323,7 +338,7 @@ int pcattach(struct isa_device *dev)
 	}
 	current_default = &user_default;
 	for (i = 0; i < NCONS; i++) {
-		scp = &cons_scr_stat[i];
+		scp = &console[i];
 		scp->scr = (u_short *)malloc(COL * ROW * 2, M_DEVBUF, M_NOWAIT);
 		scp->mode = TEXT80x25;
 		scp->term.esc = 0;
@@ -335,8 +350,8 @@ int pcattach(struct isa_device *dev)
 		scp->cursor_end = end;
 		scp->max_posx = COL;
 		scp->max_posy = ROW;
-		scp->bell_pitch = 800;
-		scp->bell_duration = 10;
+		scp->bell_pitch = BELL_PITCH;
+		scp->bell_duration = BELL_DURATION;
 		scp->status = 0;
 		scp->pid = 0;
 		scp->proc = NULL;
@@ -348,30 +363,36 @@ int pcattach(struct isa_device *dev)
 	}
 	/* get cursor going */
 #ifdef	FAT_CURSOR
-        cursor_shape(cons_scr_stat[0].cursor_start,
-                     cons_scr_stat[0].cursor_end);
+        cursor_shape(console[0].cursor_start,
+                     console[0].cursor_end);
 #endif
 	cursor_pos();
 }
 
 
-static struct tty *get_pccons(dev_t dev)
+static struct tty *get_tty_ptr(dev_t dev)
 {
-	int i = minor(dev);
+	int unit = minor(dev);
 
-	if (i >= NCONS)
+	if (unit >= NCONS)
 		return(NULL);
-	return(&pccons[i]);
+#if defined(NetBSD)
+	if (!pc_tty[unit])
+		pc_tty[unit] = ttymalloc();
+	return(pc_tty[unit]);
+#else
+	return(&pccons[unit]);
+#endif
 }
 
 
 static scr_stat *get_scr_stat(dev_t dev)
 {
-	int i = minor(dev);
+	int unit = minor(dev);
 
-	if (i >= NCONS)
+	if (unit >= NCONS)
 		return(NULL);
-	return(&cons_scr_stat[i]);
+	return(&console[unit]);
 }
 
 
@@ -379,17 +400,19 @@ static int get_scr_num(scr_stat *scp)	/* allways call with legal scp !! */
 {
 	int i = 0;
 
-	while ((i < NCONS) && (cur_scr_stat != &cons_scr_stat[i])) i++;
+	while ((i < NCONS) && (cur_console != &console[i])) i++;
 	return i;
 }
 
 pcopen(dev_t dev, int flag, int mode, struct proc *p)
 {
-	struct tty *tp = get_pccons(dev);
+	struct tty *tp = get_tty_ptr(dev);
 
 	if (!tp)
 		return(ENXIO);
-	tp->t_oproc = pcstart;
+	if (!cur_tty)
+		cur_tty = tp;
+	tp->t_oproc = (void*)pcstart;
 	tp->t_param = pcparam;
 	tp->t_dev = dev;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
@@ -411,7 +434,7 @@ pcopen(dev_t dev, int flag, int mode, struct proc *p)
 
 pcclose(dev_t dev, int flag, int mode, struct proc *p)
 {
-	struct tty *tp = get_pccons(dev);
+	struct tty *tp = get_tty_ptr(dev);
 	struct scr_stat *scp;
 
 	if (!tp)
@@ -428,7 +451,7 @@ pcclose(dev_t dev, int flag, int mode, struct proc *p)
 
 pcread(dev_t dev, struct uio *uio, int flag)
 {
-	struct tty *tp = get_pccons(dev);
+	struct tty *tp = get_tty_ptr(dev);
 
 	if (!tp)
 		return(ENXIO);
@@ -438,7 +461,7 @@ pcread(dev_t dev, struct uio *uio, int flag)
 
 pcwrite(dev_t dev, struct uio *uio, int flag)
 {
-	struct tty *tp = get_pccons(dev);
+	struct tty *tp = get_tty_ptr(dev);
 
 	if (!tp)
 		return(ENXIO);
@@ -459,20 +482,31 @@ scintr(dev_t dev, int irq, int cpl)
 	scrn_time_stamp = time.tv_sec;
 	if (scrn_blanked)
 		scrn_saver(0);
+
 	c = sgetc(1);
-	if (c & 0x100)
+	if (!cur_tty)
 		return;
-	if ((cur_pccons->t_state & TS_ISOPEN) == 0)
+	if ((cur_tty->t_state & TS_ISOPEN) == 0 || polling)
 		return;
-	if (pcconsoftc.cs_flags & CSF_POLLING)
+
+	switch (c & 0xff00) {
+	case 0x0000: /* normal key */
+		(*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
+		break;
+	case NOKEY:	/* nothing there */
 		return;
-	if (c < 0x100)
-		(*linesw[cur_pccons->t_line].l_rint)(c & 0xFF, cur_pccons);
-	else if (cp = get_fstr((u_int)c, (u_int *)&len)) {
-		while (len-- >  0)
-			(*linesw[cur_pccons->t_line].l_rint)
-				(*cp++ & 0xFF, cur_pccons);
-	}
+	case FKEY:	/* function key, return string */
+		if (cp = get_fstr((u_int)c, (u_int *)&len)) {
+			while (len-- >  0)
+				(*linesw[cur_tty->t_line].l_rint)
+					(*cp++ & 0xFF, cur_tty);
+		}
+		break;
+	case MKEY:	/* meta is active, prepend ESC */
+		(*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
+		(*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
+		break;
+	}	
 }
 
 
@@ -491,14 +525,22 @@ pcparam(struct tty *tp, struct termios *t)
 }
 
 
+#if defined(NetBSD)
+#define	frametype	struct trapframe 
+#define eflags		tf_eflags
+#else
+#define	frametype	struct syscframe
+#define eflags		sf_eflags
+#endif
+
 pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	int i, error;
 	struct tty *tp;
-	struct syscframe *fp;
+	frametype *fp;
 	scr_stat *scp; 
 
-	tp = get_pccons(dev);
+	tp = get_tty_ptr(dev);
 	if (!tp)
 		return ENXIO;
 	scp = get_scr_stat(tp->t_dev);
@@ -517,7 +559,7 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		free(scp->scr, M_DEVBUF); 
 		scp->scr = (u_short *)malloc(scp->max_posx*scp->max_posy*2,
 					     M_DEVBUF, M_NOWAIT);
-		if (scp != cur_scr_stat)
+		if (scp != cur_console)
 			scp->crt_base = scp->scr;
 		set_mode(scp);
 		clear_screen(scp);
@@ -532,7 +574,7 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		free(scp->scr, M_DEVBUF); 
 		scp->scr = (u_short *)malloc(scp->max_posx*scp->max_posy*2,
 					     M_DEVBUF, M_NOWAIT);
-		if (scp != cur_scr_stat)
+		if (scp != cur_console)
 			scp->crt_base = scp->scr;
 		set_mode(scp);
 		clear_screen(scp);
@@ -615,16 +657,16 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case VT_OPENQRY:	/* return free virtual console */
  		for (i = 0; i < NCONS; i++)
+#if defined(NetBSD)
+ 			if (!(pc_tty[i]->t_state & TS_ISOPEN)) {
+#else
  			if (!(pccons[i].t_state & TS_ISOPEN)) {
+#endif
  				*data = i + 1;
  				return 0;
  			}
  		return EINVAL;
 		/* NOT REACHED */
-
-	case VT_GETACTIVE:	/* return number of active virtual console */
-		*data = get_scr_num(scp) + 1;
-		return 0;
 
 	case VT_ACTIVATE:	/* switch to screen *data */
 		return switch_scr((*data) - 1);
@@ -635,26 +677,29 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		if (minor(dev) == (*data) - 1) 
 			return 0;
 		if (*data == 0) {
-			if (scp == cur_scr_stat)
+			if (scp == cur_console)
 				return 0;
-			while ((error=tsleep(&scp->smode, 
-					     PZERO|PCATCH, "waitvt", 0)) 
-					     == ERESTART) ;
+			while ((error=tsleep((caddr_t)&scp->smode, 
+			    	PZERO|PCATCH, "waitvt", 0)) == ERESTART) ;
 		}
 		else 
-			while ((error=tsleep(&cons_scr_stat[*data].smode, 
-					     PZERO|PCATCH, "waitvt", 0)) 
-					     == ERESTART) ;
+			while ((error=tsleep(
+      				(caddr_t)&console[*data].smode, 
+			    	PZERO|PCATCH, "waitvt", 0)) == ERESTART) ;
 		return error;
 
+	case VT_GETACTIVE:
+		*data = get_scr_num(scp)+1;
+		return 0;
+
 	case KDENABIO:		/* allow io operations */
-	 	fp = (struct syscframe *)p->p_regs;
-	 	fp->sf_eflags |= PSL_IOPL;
+	 	fp = (frametype *)p->p_regs;
+	 	fp->eflags |= PSL_IOPL;
 		return 0; 
 
 	case KDDISABIO:		/* disallow io operations (default) */
-	 	fp = (struct syscframe *)p->p_regs;
-	 	fp->sf_eflags &= ~PSL_IOPL;
+	 	fp = (frametype *)p->p_regs;
+	 	fp->eflags &= ~PSL_IOPL;
 	 	return 0;
 
         case KDSETMODE:		/* set current mode of this (virtual) console */
@@ -692,7 +737,7 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		if (!crtc_vga)
 			return ENXIO;
 		scp->border = *data;
-		if (scp == cur_scr_stat) 
+		if (scp == cur_console) 
 			set_border(scp->border);
 		return 0;
 
@@ -700,7 +745,7 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		if (*data >= 0 && *data <= LOCK_KEY_MASK) {
 			scp->status &= ~LOCK_KEY_MASK;
 			scp->status |= *data;
-			if (scp == cur_scr_stat) 
+			if (scp == cur_console) 
 				update_leds(scp->status & LED_MASK);
 			return 0;
 		}
@@ -737,21 +782,22 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return 0;
 
 	case KDMKTONE:		/* sound the bell */
-		if (scp == cur_scr_stat)
+		if (scp == cur_console)
 			sysbeep(scp->bell_pitch, scp->bell_duration);
 		return 0;
 
 	case KIOCSOUND:		/* make tone (*data) hz */
-		if (scp == cur_scr_stat) {
+		if (scp == cur_console) {
 			if (*(int*)data) {
-			int pitch = XTALSPEED/(*(int*)data);
+			int pitch = TIMER_FREQ/(*(int*)data);
 				/* enable counter 2 */
 				outb(0x61, inb(0x61) | 3);
 				/* set command for counter 2, 2 byte write */
-				outb(0x43, 0xb6);
+				outb(TIMER_MODE, 
+				     	TIMER_SEL2|TIMER_16BIT|TIMER_SQWAVE);
 				/* set pitch */
-				outb(0x42, pitch);
-				outb(0x42, (pitch>>8));
+				outb(TIMER_CNTR2, pitch);
+				outb(TIMER_CNTR2, (pitch>>8));
 			}
 			else {
 				/* disable counter 2 */
@@ -768,7 +814,7 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		if (*data >= 0 && *data <= LED_MASK) {
 			scp->status &= ~LED_MASK;
 			scp->status |= *data;
-			if (scp == cur_scr_stat)
+			if (scp == cur_console)
 			update_leds(scp->status & LED_MASK);
 			return 0;
 		}
@@ -859,10 +905,10 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case CONSOLE_X_MODE_ON:	/* just to be compatible */
 		if (saved_console < 0) {
-			saved_console = get_scr_num(cur_scr_stat);
+			saved_console = get_scr_num(cur_console);
 			switch_scr(minor(dev));
-	 		fp = (struct syscframe *)p->p_regs;
-	 		fp->sf_eflags |= PSL_IOPL;
+	 		fp = (frametype *)p->p_regs;
+	 		fp->eflags |= PSL_IOPL;
 			scp->status |= UNKNOWN_MODE;
 			scp->status |= KBD_RAW_MODE;
 			return 0;
@@ -870,8 +916,8 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return EAGAIN;
 
 	case CONSOLE_X_MODE_OFF:/* just to be compatible */
-	 	fp = (struct syscframe *)p->p_regs;
-	 	fp->sf_eflags &= ~PSL_IOPL;
+	 	fp = (frametype *)p->p_regs;
+	 	fp->eflags &= ~PSL_IOPL;
 		if (crtc_vga) {
 			load_font(0, 16, font_8x16);
 			load_font(1, 8, font_8x8);
@@ -893,9 +939,10 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
                  * is the duration in msec.
                  */
                 if (data)
-		    sysbeep(XTALSPEED/((int*)data)[0], ((int*)data)[1]*hz/3000);
+	    		sysbeep(TIMER_FREQ/((int*)data)[0], 
+				((int*)data)[1]*hz/3000);
                 else
-		    sysbeep(0x31b, hz/4);
+			sysbeep(scp->bell_pitch, scp->bell_duration);
                 return 0;
 
 	default:
@@ -914,18 +961,61 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 pcxint(dev_t dev)
 {
-	pccons[minor(dev)].t_state &= ~TS_BUSY;
-	pcconsoftc.cs_timo = 0;
-	if (pccons[minor(dev)].t_line)
-		(*linesw[pccons[minor(dev)].t_line].l_start)
-			(&pccons[minor(dev)]);
+	int unit = minor(dev);
+
+#if defined(NetBSD)
+	if (!pc_tty[unit])
+		return;
+	pc_tty[unit]->t_state &= ~TS_BUSY;
+	if (pc_tty[unit]->t_line)
+		(*linesw[pc_tty[unit]->t_line].l_start)(pc_tty[unit]);
 	else
-		pcstart(&pccons[minor(dev)]);
+		pcstart(pc_tty[unit]);
+#else
+	pccons[unit].t_state &= ~TS_BUSY;
+	if (pccons[unit].t_line)
+		(*linesw[pccons[unit].t_line].l_start)(&pccons[unit]);
+	else
+		pcstart(&pccons[unit]);
+#endif
 }
 
 
 pcstart(struct tty *tp)
 {
+#if defined(NetBSD)
+	struct clist *rbp;
+	int i, s, len;
+	u_char buf[PCBURST];
+	scr_stat *scp = get_scr_stat(tp->t_dev);
+
+	if (scp->status & SLKED) 
+		return;
+	s = spltty();
+	if (!(tp->t_state & (TS_TIMEOUT|TS_BUSY|TS_TTSTOP))) {
+		tp->t_state |= TS_BUSY;
+		splx(s);
+		rbp = &tp->t_outq;
+		len = q_to_b(rbp, buf, PCBURST);
+		for (i=0; i<len; i++)
+			if (buf[i]) ansi_put(scp, buf[i]);
+		s = spltty();
+		tp->t_state &= ~TS_BUSY;
+		if (rbp->c_cc) {
+			tp->t_state |= TS_TIMEOUT;
+			timeout((timeout_t)ttrstrt, (caddr_t)tp, 1);
+		}
+		if (rbp->c_cc <= tp->t_lowat) {
+			if (tp->t_state & TS_ASLEEP) {
+				tp->t_state &= ~TS_ASLEEP;
+				wakeup((caddr_t)rbp);
+			}
+			selwakeup(&tp->t_wsel);
+		}
+			
+	}
+	splx(s);
+#else
 	int c, s;
 	scr_stat *scp = get_scr_stat(tp->t_dev);
 
@@ -956,6 +1046,7 @@ pcstart(struct tty *tp)
 			tp->t_state &= ~TS_BUSY;
 		}
 	splx(s);
+#endif
 }
 
 
@@ -970,13 +1061,16 @@ pccnprobe(struct consdev *cp)
 
 	/* initialize required fields */
 	cp->cn_dev = makedev(maj, 0);
+#if !defined(NetBSD)
 	cp->cn_tp = &pccons[0];
+#endif
 	cp->cn_pri = CN_INTERNAL;
 }
 
 
 pccninit(struct consdev *cp)
 {
+	scinit();
 }
 
 
@@ -984,12 +1078,12 @@ pccnputc(dev_t dev, char c)
 {
 	int pos;
 
-	if (cur_scr_stat->status & UNKNOWN_MODE) 
+	if (cur_console->status & UNKNOWN_MODE) 
 		return;
 	if (c == '\n')
 		sput('\r');
 	sput(c);
- 	pos = cur_scr_stat->crtat - cur_scr_stat->crt_base;
+ 	pos = cur_console->crtat - cur_console->crt_base;
 	if (pos != cur_cursor_pos) {
 		cur_cursor_pos = pos;
 		outb(crtc_addr,14);
@@ -1013,7 +1107,7 @@ pccngetc(dev_t dev)
 
 #if !defined(STAR_SAVER) && !defined(SNAKE_SAVER)
 
-void scrn_saver(int test)
+static void scrn_saver(int test)
 {
 	u_char val;
 
@@ -1046,9 +1140,9 @@ static rand()
 
 #define NUM_STARS	50
 
-void scrn_saver(int test)
+static void scrn_saver(int test)
 {
-	scr_stat	*scp = cur_scr_stat;
+	scr_stat	*scp = cur_console;
 	int		cell, i;
 	char 		pattern[] = {"...........++++***   "};
 	char		colors[] = {FG_DARKGREY, FG_LIGHTGREY, 
@@ -1098,13 +1192,13 @@ void scrn_saver(int test)
  * alternative screen saver for cards that do not like blanking
  */
 
-void scrn_saver(int test)
+static void scrn_saver(int test)
 {
 	const char	saves[] = {"FreeBSD"};
 	static u_char	*savs[sizeof(saves)-1];
 	static int	dirx, diry;
 	int		f;
-	scr_stat	*scp = cur_scr_stat;
+	scr_stat	*scp = cur_console;
 
 	if (test) {
 		if (!scrn_blanked) {
@@ -1180,11 +1274,11 @@ static void cursor_pos(void)
 {
 	int pos;
 
-	if (cur_scr_stat->status & UNKNOWN_MODE) 
+	if (cur_console->status & UNKNOWN_MODE) 
 		return;
 	if (scrn_blank_time && (time.tv_sec > scrn_time_stamp+scrn_blank_time))
 		scrn_saver(1);
-	pos = cur_scr_stat->crtat - cur_scr_stat->crt_base;
+	pos = cur_console->crtat - cur_console->crt_base;
 	if (!scrn_blanked && pos != cur_cursor_pos) {
 		cur_cursor_pos = pos;
 		outb(crtc_addr, 14);
@@ -1192,7 +1286,7 @@ static void cursor_pos(void)
 		outb(crtc_addr, 15);
 		outb(crtc_addr+1, pos&0xff);
 	}
-	timeout(cursor_pos, 0, hz/20);
+	timeout((timeout_t)cursor_pos, 0, hz/20);
 }
 
 
@@ -1211,21 +1305,20 @@ static switch_scr(u_int next_scr)
 		return 0;
 	}
 	if (switch_in_progress && 
-	    (cur_scr_stat->proc != pfind(cur_scr_stat->pid)))
+	    (cur_console->proc != pfind(cur_console->pid)))
 		switch_in_progress = 0;
 	if (next_scr >= NCONS || switch_in_progress) {
-		sysbeep(800, hz/4);
+		sysbeep(BELL_PITCH, BELL_DURATION);
 		return -1;
 	}
 	switch_in_progress = 1;
-	old_scp = cur_scr_stat;
-	new_scp = &cons_scr_stat[next_scr];
-	wakeup(&new_scp->smode);
+	old_scp = cur_console;
+	new_scp = &console[next_scr];
+	wakeup((caddr_t)&new_scp->smode);
 	if (new_scp == old_scp) {
 		switch_in_progress = 0;
 		return 0;
 	}
-	new_pccons = &pccons[next_scr];
 	
 	/* has controlling process died? */
 	if (old_scp->proc && (old_scp->proc != pfind(old_scp->pid)))
@@ -1256,10 +1349,14 @@ static void exchange_scr(void)
 	bcopy(Crtat, old_scp->scr, old_scp->max_posx * old_scp->max_posy * 2);
 	old_scp->crt_base = old_scp->scr;
 	move_crsr(old_scp, old_scp->posx, old_scp->posy);
-	cur_scr_stat = new_scp;
-	cur_pccons = new_pccons;
+	cur_console = new_scp;
+#if defined(NetBSD)
+	cur_tty = pc_tty[get_scr_num(new_scp)];
+#else
+	cur_tty = &pccons[get_scr_num(new_scp)];
+#endif
 	if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE)
-		shfts = ctls = alts = 0;
+		shfts = ctls = alts = agrs = metas = 0;
 	update_leds(new_scp->status & LED_MASK);
 	set_mode(new_scp);
 	new_scp->crt_base = Crtat;
@@ -1664,7 +1761,7 @@ static void scan_esc(scr_stat *scp, u_char c)
 		case 'A':	/* set display border color */
 			if (scp->term.n_par == 1)
 				scp->border=scp->term.par[0] & 0xff;
-				if (scp == cur_scr_stat)
+				if (scp == cur_console)
 					set_border(scp->border);
 			break;
 
@@ -1679,7 +1776,7 @@ static void scan_esc(scr_stat *scp, u_char c)
 			if (scp->term.n_par == 2) {
 				scp->cursor_start = scp->term.par[0] & 0x1F; 
 				scp->cursor_end = scp->term.par[1] & 0x1F; 
-				if (scp == cur_scr_stat)
+				if (scp == cur_console)
 					cursor_shape(scp->cursor_start,
 						     scp->cursor_end);
 			}
@@ -1724,7 +1821,7 @@ static void ansi_put(scr_stat *scp, u_char c)
 		return;
 
 	/* make screensaver happy */
-	if (scp == cur_scr_stat) {
+	if (scp == cur_console) {
 		scrn_time_stamp = time.tv_sec;
 		if (scrn_blanked)
 			scrn_saver(0);
@@ -1738,7 +1835,7 @@ static void ansi_put(scr_stat *scp, u_char c)
 		scp->term.n_par = 0;
 		break;
 	case 0x07:
-		if (scp == cur_scr_stat)
+		if (scp == cur_console)
 		 	sysbeep(scp->bell_pitch, scp->bell_duration);
 		break;
 	case '\t':	/* non-destructive tab */
@@ -1790,15 +1887,14 @@ static void ansi_put(scr_stat *scp, u_char c)
 		switch_scr(nx_scr - 1);
 }
 
-
-void consinit(void)
+static void scinit(void)
 {
 	u_short volatile *cp = Crtat + (CGA_BUF-MONO_BUF)/sizeof(u_short), was;
 	unsigned cursorat;
 	int i;
 
 	/*
-	 * catch that once in a blue moon occurence when consinit is called 
+	 * catch that once in a blue moon occurence when scinit is called 
 	 * TWICE, adding the CGA_BUF offset again -> poooff
 	 */
 	if (crtat != 0) 	
@@ -1831,23 +1927,23 @@ void consinit(void)
 		crtc_vga = 1;
 
 	current_default = &user_default;
-	cons_scr_stat[0].crtat = crtat;
-	cons_scr_stat[0].crt_base = Crtat;
-	cons_scr_stat[0].term.esc = 0;
-	cons_scr_stat[0].term.std_attr = current_default->std_attr;
-	cons_scr_stat[0].term.rev_attr = current_default->rev_attr;
-	cons_scr_stat[0].term.attr = current_default->std_attr;
-	cons_scr_stat[0].posx = cursorat % COL;
-	cons_scr_stat[0].posy = cursorat / COL;
-	cons_scr_stat[0].border = BG_BLACK;;
-	cons_scr_stat[0].max_posx = COL;
-	cons_scr_stat[0].max_posy = ROW;
-	cons_scr_stat[0].status = 0;
-	cons_scr_stat[0].pid = 0;
-	cons_scr_stat[0].proc = NULL;
-	cons_scr_stat[0].smode.mode = VT_AUTO;
-	cons_scr_stat[0].bell_pitch = 800;
-	cons_scr_stat[0].bell_duration = 10;
+	console[0].crtat = crtat;
+	console[0].crt_base = Crtat;
+	console[0].term.esc = 0;
+	console[0].term.std_attr = current_default->std_attr;
+	console[0].term.rev_attr = current_default->rev_attr;
+	console[0].term.attr = current_default->std_attr;
+	console[0].posx = cursorat % COL;
+	console[0].posy = cursorat / COL;
+	console[0].border = BG_BLACK;;
+	console[0].max_posx = COL;
+	console[0].max_posy = ROW;
+	console[0].status = 0;
+	console[0].pid = 0;
+	console[0].proc = NULL;
+	console[0].smode.mode = VT_AUTO;
+	console[0].bell_pitch = BELL_PITCH;
+	console[0].bell_duration = BELL_DURATION;
 	kernel_console.esc = 0;
 	kernel_console.std_attr = kernel_default.std_attr;
 	kernel_console.rev_attr = kernel_default.rev_attr;
@@ -1855,17 +1951,17 @@ void consinit(void)
 	/* initialize mapscrn array to */
 	for (i=0; i<sizeof(scr_map); i++)
 		scr_map[i] = i;
-	clear_screen(&cons_scr_stat[0]);
+	clear_screen(&console[0]);
 }
 
 
 static void sput(u_char c)
 {
-	scr_stat *scp = &cons_scr_stat[0];
+	scr_stat *scp = &console[0];
 	term_stat save;
 
 	if (crtat == 0)
-		consinit();
+		scinit();
 	save = scp->term;
 	scp->term = kernel_console;
 	current_default = &kernel_default;
@@ -1900,7 +1996,7 @@ static update_leds(int which)
 }
 
 
-volatile void reset_cpu(void)
+static volatile void reset_cpu(void)
 {
 	while (1) {
 		kbd_cmd(KB_RESET_CPU);	/* Reset Command */
@@ -1912,7 +2008,7 @@ volatile void reset_cpu(void)
 
 /*
  * sgetc(noblock) : get a character from the keyboard. 
- * If noblock = 0 wait until a key is gotten.  Otherwise return a 0x100.
+ * If noblock = 0 wait until a key is gotten.  Otherwise return NOKEY.
  */
 u_int sgetc(int noblock)
 {
@@ -1928,30 +2024,16 @@ next_code:
 	if (inb(KB_STAT) & KB_BUF_FULL)
 		val = inb(KB_DATA);
 	else if (noblock)
-		return(0x100);
+		return(NOKEY);
 	else
 		goto next_code;
 
-	if (cur_scr_stat->status & KBD_RAW_MODE)
+	if (cur_console->status & KBD_RAW_MODE)
 		return val;
 
 	code = val & 0x7F;
 	release = val & 0x80;
 
-	/* Check for cntl-alt-del */
-	if ((code == 83) && ctls && alts)
-		cpu_reset();
-#if NDDB > 0
-	/* Check for cntl-alt-esc */
-	if ((val == 1) && ctls && alts) {
-		/* if debugger called, try to switch to console 0 */
-		if (cur_scr_stat->smode.mode == VT_AUTO &&
-		    cons_scr_stat[0].smode.mode == VT_AUTO)
-			switch_scr(0); 
-		Debugger();
-		return(0x100);
-	}
-#endif
 	switch (esc_flag) {
 	case 0x00:		/* normal scancode */
 		switch(code) {
@@ -1959,7 +2041,7 @@ next_code:
 			if (release && compose) {
 				compose = 0;	
 				if (chr > 255) {
-					sysbeep(500, hz/4);
+					sysbeep(BELL_PITCH, BELL_DURATION);
 					chr = 0;
 				}
 			}
@@ -2071,7 +2153,7 @@ next_code:
 		default:
 			if (chr) {
 				compose = chr = 0;
-				sysbeep(500, hz/4);
+				sysbeep(BELL_PITCH, BELL_DURATION);
 				goto next_code;		
 			}
 			break;
@@ -2079,12 +2161,12 @@ next_code:
 	}
 		
 	state = (shfts ? 1 : 0 ) | (2 * (ctls ? 1 : 0)) | (4 * (alts ? 1 : 0));
-	if ((!agrs && (cur_scr_stat->status & ALKED))
-	    || (agrs && !(cur_scr_stat->status & ALKED)))
+	if ((!agrs && (cur_console->status & ALKED))
+	    || (agrs && !(cur_console->status & ALKED)))
 		code += ALTGR_OFFSET;
 	key = &key_map.key[code];
-	if ( ((key->flgs & FLAG_LOCK_C) && (cur_scr_stat->status & CLKED))
-	     || ((key->flgs & FLAG_LOCK_N) && (cur_scr_stat->status & NLKED)) )
+	if ( ((key->flgs & FLAG_LOCK_C) && (cur_console->status & CLKED))
+	     || ((key->flgs & FLAG_LOCK_N) && (cur_console->status & NLKED)) )
 		state ^= 1;
 
 	/* Check for make/break */
@@ -2125,6 +2207,9 @@ next_code:
 			case ALK:
 				alkcnt = 0;
 				break;
+			case META:
+				metas = 0;
+				break;
 			}
 		}
 		if (chr && !compose) {
@@ -2140,46 +2225,66 @@ next_code:
 			case NLK:
 				if (!nlkcnt) {
 					nlkcnt++;
-					if (cur_scr_stat->status & NLKED) 
-						cur_scr_stat->status &= ~NLKED;
+					if (cur_console->status & NLKED) 
+						cur_console->status &= ~NLKED;
 					else
-						cur_scr_stat->status |= NLKED;
-					update_leds(cur_scr_stat->status & LED_MASK); 
+						cur_console->status |= NLKED;
+					update_leds(cur_console->status & LED_MASK); 
 				}
 				break;
 			case CLK:
 				if (!clkcnt) {
 					clkcnt++;
-					if (cur_scr_stat->status & CLKED)
-						cur_scr_stat->status &= ~CLKED;
+					if (cur_console->status & CLKED)
+						cur_console->status &= ~CLKED;
 					else
-						cur_scr_stat->status |= CLKED;
-					update_leds(cur_scr_stat->status & LED_MASK);
+						cur_console->status |= CLKED;
+					update_leds(cur_console->status & LED_MASK);
 				}
 				break;
 			case SLK:
 				if (!slkcnt) {
 					slkcnt++;
-					if (cur_scr_stat->status & SLKED) {
-						cur_scr_stat->status &= ~SLKED;
-						pcstart(&pccons[get_scr_num(cur_scr_stat)]);
+					if (cur_console->status & SLKED) {
+						cur_console->status &= ~SLKED;
+#if defined(NetBSD)
+						pcstart(pc_tty[get_scr_num(cur_console)]);
+#else
+						pcstart(&pccons[get_scr_num(cur_console)]);
+#endif
 					} 
 					else 
-						cur_scr_stat->status |= SLKED;
-					update_leds(cur_scr_stat->status & LED_MASK);
+						cur_console->status |= SLKED;
+					update_leds(cur_console->status & LED_MASK);
 				}
 				break;
  			case ALK:
 				if (!alkcnt) {
 					alkcnt++;
- 					if (cur_scr_stat->status & ALKED)
- 						cur_scr_stat->status &= ~ALKED;
+ 					if (cur_console->status & ALKED)
+ 						cur_console->status &= ~ALKED;
  					else
- 						cur_scr_stat->status |= ALKED;
+ 						cur_console->status |= ALKED;
 				}
   				break;
 
 			/* NON-LOCKING KEYS */
+			case NOP:
+				break;
+			case RBT:
+				cpu_reset();
+				break;	
+			case DBG:
+#if DDB > 0			/* try to switch to console 0 */
+				if (cur_console->smode.mode == VT_AUTO &&
+		    		    console[0].smode.mode == VT_AUTO)
+					switch_scr(0); 
+				Debugger();
+				return(NOKEY);
+#else
+				printf("No debugger in kernel\n");
+#endif
+				break;
 			case LSH:
 				shfts |= 1;
 				break;
@@ -2201,46 +2306,42 @@ next_code:
 			case ASH:
 				agrs = 1;
 				break;
-			case NOP:
+			case META:
+				metas = 1;
+				break;
+			case NEXT:
+				switch_scr((get_scr_num(cur_console)+1)%NCONS);
 				break;
 			default:
 				if (action >= F_SCR && action <= L_SCR) {
 					switch_scr(action - F_SCR);
 					break;
 				}
-				if (action >= F_FN && action <= L_FN) {
-					return(action | FKEY);
-				}
+				if (action >= F_FN && action <= L_FN) 
+					action |= FKEY;
 				return(action);
 			}
 		}
-		else  return(action);
+		else {
+			if (metas)
+				action |= MKEY;
+ 			return(action);
+		}
 	}
 	goto next_code;
 }
 
-/* July '93, jkh.  Added in for init_main.c */
-void cons_highlight() 
-{
-	cons_scr_stat[0].term.attr &= 0xFF00;
-	cons_scr_stat[0].term.attr |= 0x0800;
-}
-
-void cons_normal() 
-{
-	cons_scr_stat[0].term.attr = cons_scr_stat[0].term.std_attr;
-}
 
 int getchar(void)
 {
 	char thechar;
 	int s;
 
-	pcconsoftc.cs_flags |= CSF_POLLING;
+	polling = 1;
 	s = splhigh();
 	sput('>');
 	thechar = (char) sgetc(0);
-	pcconsoftc.cs_flags &= ~CSF_POLLING;
+	polling = 0;
 	splx(s);
 	switch (thechar) {
 	default: 
@@ -2291,11 +2392,11 @@ static void set_mode(scr_stat *scp)
 	u_char byte;
 	int s;
 
-	if (scp != cur_scr_stat)
+	if (scp != cur_console)
 		return;
 
 	/* (re)activate cursor */
-	untimeout(cursor_pos, 0);
+	untimeout((timeout_t)cursor_pos, 0);
 	cursor_pos();
 	
 	/* change cursor type if set */
@@ -2320,7 +2421,7 @@ static void set_mode(scr_stat *scp)
     		outb(TSIDX, 0x03); outb(TSREG, 0x05);	/* select font 1 */
 		break;
 	default:
-		return;
+		break;
 	}
 	splx(s);
 
