@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (C) 1984-2000  Mark Nudelman
  *
@@ -35,6 +36,7 @@ extern int ignore_eoi;
 extern int secure;
 extern int hshift;
 extern int show_attn;
+extern int more_mode;
 extern char *every_first_cmd;
 extern char *curr_altfilename;
 extern char version[];
@@ -468,12 +470,16 @@ mca_char(c)
 		flag = 0;
 		switch (c)
 		{
-		case CONTROL('E'): /* ignore END of file */
 		case '*':
+			if (more_mode)
+				break;
+		case CONTROL('E'): /* ignore END of file */
 			flag = SRCH_PAST_EOF;
 			break;
-		case CONTROL('F'): /* FIRST file */
 		case '@':
+			if (more_mode)
+				break;
+		case CONTROL('F'): /* FIRST file */
 			flag = SRCH_FIRST_FILE;
 			break;
 		case CONTROL('K'): /* KEEP position */
