@@ -357,6 +357,8 @@
             ..
             scsi_target
             ..
+            ses
+            ..
             slattach
             ..
             sliplogin
