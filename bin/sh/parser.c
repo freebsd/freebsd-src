@@ -742,9 +742,9 @@ readtoken(void)
 		 */
 		if (t == TWORD && !quoteflag)
 		{
-			char * const *pp;
+			const char * const *pp;
 
-			for (pp = (char **)parsekwd; *pp; pp++) {
+			for (pp = parsekwd; *pp; pp++) {
 				if (**pp == *wordtext && equal(*pp, wordtext))
 				{
 					lasttoken = t = pp - parsekwd + KWDOFFSET;
