@@ -141,7 +141,7 @@ static u_long	move_ems_to_ems(u_short, u_short, u_short, u_short,
 int
 ems_init()
 {
-    int i;
+    unsigned i;
 
     if (ems_max_size == 0)
 	return 0;
@@ -400,7 +400,7 @@ ems_entry(regcontext_t *REGS)
 	case GET_PAGES_FOR_ALL:
 	{
 	    EMShandlepage *ehp;
-	    int safecount;
+	    unsigned safecount;
 	    int i;
 
 	    debug(D_EMS, "EMS: Get pages for all\n");
@@ -417,7 +417,8 @@ ems_entry(regcontext_t *REGS)
 	    for (i = 0; i < 255; i++) {
 		if (ems_handle[i] != NULL) {
 		    if (safecount > (ems_alloc_handles+1))
-		        fatal("EMS: ems_alloc_handles is wrong, cannot continue\n");
+		        fatal("EMS: ems_alloc_handles is wrong, "
+			      "cannot continue\n");
 		    ehp->handle = i;
 		    ehp->npages = ems_handle[i]->npages;
 		    ehp++;
@@ -1121,7 +1122,7 @@ init_mapfile()
     if (mmap((caddr_t)ems_frame_addr, 64 * 1024,
               PROT_EXEC | PROT_READ | PROT_WRITE,
               MAP_ANON | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-	      -1, 0) < 0) {
+	      -1, 0) == MAP_FAILED) {
 	debug(D_ALWAYS, "Could not map EMS page frame, ");
 	goto fail;
     }
@@ -1169,14 +1170,14 @@ map_page(u_long pagenum, u_char position, short handle, int unmaponly)
     	if (mmap((caddr_t)ems_frame_addr, 64 * 1024,
               PROT_EXEC | PROT_READ | PROT_WRITE,
               MAP_ANON | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-	      -1, 0) < 0)
+	      -1, 0) == MAP_FAILED)
 	    fatal("Could not map EMS page frame during unmap only\n");
 	return;
     }
     if (mmap(map_addr, len,
               PROT_EXEC | PROT_READ | PROT_WRITE,
               MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-              mapfile_fd, file_offs) < 0) {
+              mapfile_fd, file_offs) == MAP_FAILED) {
         fatal("EMS mapping error: %s\nCannot recover\n", strerror(errno));
     }
     ems_mapping_context.pos_mapped[position] = 1;
@@ -1297,7 +1298,7 @@ free_handle(short handle)
 static void
 allocate_pages_to_handle(u_short handle, long npages)
 {
-    int syspagenum;
+    unsigned syspagenum;
     int pages_to_alloc = npages;
     int allocpagenum = 0;
 
@@ -1330,9 +1331,9 @@ allocate_pages_to_handle(u_short handle, long npages)
 static void
 reallocate_pages_to_handle(u_short handle, long npages)
 {
-    int syspagenum;
+    unsigned allocpagenum;
+    unsigned syspagenum;
     int pages_to_alloc;
-    int allocpagenum;
     long delta;
     size_t dynsize;
     EMS_handle *emp;
@@ -1406,7 +1407,7 @@ static void
 free_pages_of_handle(short handle)
 {
     int allocpagenum;
-    int syspagenum;
+    unsigned syspagenum;
     int npages;
 
     /* sanity */

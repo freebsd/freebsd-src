@@ -86,7 +86,7 @@ static u_short scan_code = 0x00;
 int height;
 int width;
 int vattr;
-char *xfont = 0;
+const char *xfont = 0;
 
 #ifndef NO_X
 Display *dpy;

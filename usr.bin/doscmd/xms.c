@@ -361,7 +361,7 @@ void initHMA()
     if (mmap((caddr_t)0x000000, 0x100000,
                    PROT_EXEC | PROT_READ | PROT_WRITE,
                    MAP_ANON | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-                   -1, 0) < 0) {
+                   -1, 0) == MAP_FAILED) {
 	perror("Error mapping HMA, HMA disabled: ");
         HMA_a20 = -1;
 	close(HMA_fd_off);
@@ -371,7 +371,7 @@ void initHMA()
     if (mmap((caddr_t)0x000000, 64 * 1024,
                    PROT_EXEC | PROT_READ | PROT_WRITE,
                    MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-                   HMA_fd_off, 0) < 0) {
+                   HMA_fd_off, 0) == MAP_FAILED) {
 	perror("Error mapping HMA, HMA disabled: ");
         HMA_a20 = -1;
 	close(HMA_fd_off);
@@ -381,7 +381,7 @@ void initHMA()
     if (mmap((caddr_t)0x100000, 64 * 1024,
                    PROT_EXEC | PROT_READ | PROT_WRITE,
                    MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-                   HMA_fd_off, 0) < 0) {
+                   HMA_fd_off, 0) == MAP_FAILED) {
 	perror("Error mapping HMA, HMA disabled: ");
         HMA_a20 = -1;
 	close(HMA_fd_off);
@@ -412,7 +412,7 @@ static void enable_a20()
     if (mmap((caddr_t)0x100000, 64 * 1024,
 		PROT_EXEC | PROT_READ | PROT_WRITE,
 		MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-		HMA_fd_on, 0) < 0) {
+		HMA_fd_on, 0) == MAP_FAILED) {
 	fatal("HMA mapping error: %s\nCannot recover\n", strerror(errno));
     }
 }
@@ -432,7 +432,7 @@ static void disable_a20()
     if (mmap((caddr_t)0x100000, 64 * 1024,
                    PROT_EXEC | PROT_READ | PROT_WRITE,
                    MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-                   HMA_fd_off, 0) < 0) {
+                   HMA_fd_off, 0) == MAP_FAILED) {
 	fatal("HMA mapping error: %s\nCannot recover\n", strerror(errno));
     }
 }

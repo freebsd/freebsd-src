@@ -476,7 +476,8 @@ int2f11_lseek(regcontext_t *REGS)
 static int
 int2f11_fnqual(regcontext_t *REGS)
 {
-    char	*fname,*tname;
+    char	*fname;
+    const char	*tname;
     int		savedrive;
     int		error;
 
@@ -578,7 +579,7 @@ static int
 int2f11_validate(regcontext_t *REGS)
 {
     int		func = R_AL;
-    char	*path = NULL;
+    const char	*path = NULL;
     int		doit = 0;
 
     /* defaults may help trap problems */
