@@ -31,10 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_cksum.c	8.1 (Berkeley) 6/11/93
- * $Id: lfs_cksum.c,v 1.2 1994/08/02 07:54:32 davidg Exp $
+ * $Id: lfs_cksum.c,v 1.3 1995/05/30 08:15:14 rgrimes Exp $
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <sys/vnode.h>
+
+#include <ufs/lfs/lfs.h>
+#include <ufs/lfs/lfs_extern.h>
 
 /*
  * Simple, general purpose, fast checksum.  Data must be short-aligned.
