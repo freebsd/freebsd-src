@@ -723,5 +723,11 @@ sched_sizeof_thread(void)
 fixpt_t
 sched_pctcpu(struct thread *td)
 {
-	return (td->td_kse->ke_pctcpu);
+	struct kse *ke;
+
+	ke = td->td_kse;
+	if (ke)
+		return (ke->ke_pctcpu);
+
+	return (0);
 }
