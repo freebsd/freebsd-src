@@ -153,6 +153,9 @@ MLINKS+=device_set_flags.9 device_get_flags.9
 MLINKS+=devclass_add_driver.9 devclass_delete_driver.9
 MLINKS+=devclass_add_driver.9 devclass_find_driver.9
 MLINKS+=BUS_READ_IVAR.9 BUS_WRITE_IVAR.9
+MLINKS+=BUS_SETUP_INTR.9 bus_setup_intr.9
+MLINKS+=BUS_SETUP_INTR.9 BUS_TEARDOWN_INTR.9
+MLINKS+=BUS_SETUP_INTR.9 bus_teardown_intr.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
 
 MLINKS+=microtime.9 getmicrotime.9 microtime.9 nanotime.9
