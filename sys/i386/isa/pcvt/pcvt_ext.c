@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Hellmuth Michaelis
+ * Copyright (c) 1999, 2000 Hellmuth Michaelis
  *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
@@ -42,7 +42,7 @@
  *	pcvt_ext.c	VT220 Driver Extended Support Routines
  *	------------------------------------------------------
  *
- * 	Last Edit-Date: [Mon Dec 27 14:05:16 1999]
+ * 	Last Edit-Date: [Sun Mar 26 10:38:27 2000]
  *
  * $FreeBSD$
  *
@@ -1002,11 +1002,6 @@ et4000_col(int cols)
 int
 wd90c11_col(int cols)
 {
-
-#if !PCVT_BACKUP_FONTS
-	static unsigned char *sv_fontwd[NVGAFONTS];
-#endif /*  !PCVT_BACKUP_FONTS */
-
 	u_char *sp;
 	u_char byte;
 	int i;
@@ -1038,30 +1033,6 @@ wd90c11_col(int cols)
 			regsaved = 1;
 
 			/* save current fonts */
-
-#if !PCVT_BACKUP_FONTS
-			for(i = 0; i < totalfonts; i++)
-			{
-				if(vgacs[i].loaded)
-				{
-					if((sv_fontwd[i] =
-					    (u_char *)malloc(32 * 256,
-							     M_DEVBUF,
-							     M_WAITOK))
-					   == NULL)
-						printf("pcvt: no font buffer\n");
-					else
-						vga_move_charset(i,
-								 sv_fontwd[i],
-								 1);
-				}
-				else
-				{
-					sv_fontwd[i] = 0;
-				}
-			}
-
-#endif /* !PCVT_BACKUP_FONTS */
 
 			sp = savearea.wd90c11;
 
@@ -1184,17 +1155,9 @@ wd90c11_col(int cols)
 
 	/* restore fonts */
 
-#if !PCVT_BACKUP_FONTS
-	for(i = 0; i < totalfonts; i++)
-	{
-		if(sv_fontwd[i])
-			vga_move_charset(i, sv_fontwd[i], 0);
-	}
-#else
 	for(i = 0; i < totalfonts; i++)
 		if(saved_charsets[i])
 			vga_move_charset(i, 0, 0);
-#endif /* !PCVT_BACKUP_FONTS */
 
 	select_vga_charset(vsp->vga_charset);
 
@@ -2092,30 +2055,21 @@ cl_gd542x_col(int cols)
 	return(1);
 }
 
-#if PCVT_USL_VT_COMPAT
+#ifdef XSERVER
 /*---------------------------------------------------------------------------*
  *	switch screen from text mode to X-mode and vice versa
  *---------------------------------------------------------------------------*/
 void
 switch_screen(int n, int oldgrafx, int newgrafx)
 {
-
 #if PCVT_SCREENSAVER
 	static unsigned saved_scrnsv_tmo = 0;
 #endif	/* PCVT_SCREENSAVER */
-
-#if !PCVT_KBD_FIFO
-	int x;
-#endif	/* !PCVT_KBD_FIFO */
 
 	int cols = vsp->maxcol;		/* get current col val */
 
 	if(n < 0 || n >= totalscreens)
 		return;
-
-#if !PCVT_KBD_FIFO
-	x = spltty();			/* protect us */
-#endif	/* !PCVT_KBD_FIFO */
 
 	if(!oldgrafx && newgrafx)
 	{
@@ -2143,13 +2097,7 @@ switch_screen(int n, int oldgrafx, int newgrafx)
 	/* update global screen pointers/variables */
 	current_video_screen = n;	/* current screen no */
 
-#if !PCVT_NETBSD && !(PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200)
 	pcconsp = &pccons[n];		/* current tty */
-#elif PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200
-	pcconsp = pccons[n];		/* current tty */
-#else
-	pcconsp = pc_tty[n];		/* current tty */
-#endif
 
 	vsp = &vs[n];			/* current video state ptr */
 
@@ -2212,10 +2160,6 @@ switch_screen(int n, int oldgrafx, int newgrafx)
 		outb(addr_6845, CRTC_STARTADRL);
 		outb(addr_6845+1, 0);
 	}
-
-#if !PCVT_KBD_FIFO
-	splx(x);
-#endif	/* !PCVT_KBD_FIFO */
 
 	select_vga_charset(vsp->vga_charset);
 
@@ -2418,7 +2362,6 @@ vgapage(int new_screen)
 			/* we are committed */
 			vt_switch_pending = 0;
 
-#if PCVT_FREEBSD > 206
 			/*
 			 * XXX: If pcvt is acting as the systems console,
 			 * avoid panics going to the debugger while we are in
@@ -2426,7 +2369,6 @@ vgapage(int new_screen)
 			 */
 			if(pcvt_is_console)
 				cons_unavail = 0;
-#endif
 		}
 	}
 	return 0;
@@ -2436,7 +2378,7 @@ vgapage(int new_screen)
  *	ioctl handling for VT_USL mode
  *---------------------------------------------------------------------------*/
 int
-usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	int i, j, error, opri;
 	struct vt_mode newmode;
@@ -2504,7 +2446,6 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		vsp->proc = p;
 		vsp->pid = p->p_pid;
 
-#if PCVT_FREEBSD > 206
 		/*
 		 * XXX: If pcvt is acting as the systems console,
 		 * avoid panics going to the debugger while we are in
@@ -2512,7 +2453,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		 */
 		if(pcvt_is_console)
 			cons_unavail = (newmode.mode == VT_PROCESS);
-#endif
+
 		splx(opri);
 		return 0;
 
@@ -2582,11 +2523,10 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 				{
 					/* we are committed */
 					vt_switch_pending = 0;
-#if PCVT_FREEBSD > 206
+
 					/* XXX */
 					if(pcvt_is_console)
 						cons_unavail = 0;
-#endif
 				}
 				return 0;
 			}
@@ -2597,11 +2537,11 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			if(vsp->vt_status & VT_WAIT_ACK) {
 				vt_switch_pending = 0;
 				vsp->vt_status &= ~VT_WAIT_ACK;
-#if PCVT_FREEBSD > 206
+
 				/* XXX */
 				if(pcvt_is_console)
 					cons_unavail = 1;
-#endif
+
 				return 0;
 			}
 			break;
@@ -2657,14 +2597,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		/* grant the process IO access; only allowed if euid == 0 */
 		/* and insecure */
 	{
-
-#if PCVT_NETBSD > 9 || PCVT_FREEBSD >= 200
 		struct trapframe *fp = p->p_md.md_regs;
-#elif PCVT_NETBSD || (PCVT_FREEBSD && PCVT_FREEBSD > 102)
-		struct trapframe *fp = (struct trapframe *)p->p_regs;
-#else
-		struct syscframe *fp = (struct syscframe *)p->p_regs;
-#endif
 
 		error = suser(p);
 		if (error != 0)
@@ -2672,11 +2605,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		if (securelevel > 0)
 			return (EPERM);
 
-#if PCVT_NETBSD || (PCVT_FREEBSD && PCVT_FREEBSD > 102)
 		fp->tf_eflags |= PSL_IOPL;
-#else
-		fp->sf_eflags |= PSL_IOPL;
-#endif
 
 		return 0;
 	}
@@ -2684,18 +2613,8 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case KDDISABIO:
 		/* abandon IO access permission */
 	{
-
-#if PCVT_NETBSD > 9 || PCVT_FREEBSD >= 200
 		struct trapframe *fp = p->p_md.md_regs;
 		fp->tf_eflags &= ~PSL_IOPL;
-#elif PCVT_NETBSD || (PCVT_FREEBSD && PCVT_FREEBSD > 102)
-		struct trapframe *fp = (struct trapframe *)p->p_regs;
-		fp->tf_eflags &= ~PSL_IOPL;
-#else
-		struct syscframe *fp = (struct syscframe *)p->p_regs;
-		fp->sf_eflags &= ~PSL_IOPL;
-#endif
-
 		return 0;
 	}
 
@@ -2769,16 +2688,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			int duration = *(int *)data >> 16;
 			int pitch = *(int *)data & 0xffff;
 
-#if PCVT_NETBSD
-			if(pitch != 0)
-			{
-			    sysbeep(PCVT_SYSBEEPF / pitch,
-				    duration * hz / 1000);
-			}
-#else /* PCVT_NETBSD */
 			sysbeep(pitch, duration * hz / 3000);
-#endif /* PCVT_NETBSD */
-
 		}
 		else
 		{
@@ -2813,7 +2723,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	return -1;		/* inappropriate usl_vt_compat ioctl */
 }
-#endif /* PCVT_USL_VT_COMPAT */
+#endif /* XSERVER */
 
 #endif	/* NVT > 0 */
 
