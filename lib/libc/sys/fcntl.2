@@ -344,7 +344,7 @@ syscall is assembled to
 .Fn _thread_sys_fcntl
 and
 .Fn fcntl
-is implemented as a function which disables thread resheduling, locks
+is implemented as a function which disables thread rescheduling, locks
 .Va fd
 for read and write, then calls
 .Fn _thread_sys_fcntl .
@@ -352,7 +352,7 @@ Before returning,
 .Fn fcntl
 unlocks
 .Va fd
-and enables thread resheduling.
+and enables thread rescheduling.
 .Sh RETURN VALUES
 Upon successful completion, the value returned depends on
 .Fa cmd
