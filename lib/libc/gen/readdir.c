@@ -60,7 +60,7 @@ readdir(dirp)
 				return (NULL);
 		}
 		dp = (struct dirent *)(dirp->dd_buf + dirp->dd_loc);
-		if ((int)dp & 03)	/* bogus pointer check */
+		if ((long)dp & 03L)	/* bogus pointer check */
 			return (NULL);
 		if (dp->d_reclen <= 0 ||
 		    dp->d_reclen > dirp->dd_len + 1 - dirp->dd_loc)
