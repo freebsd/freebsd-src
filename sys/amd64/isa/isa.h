@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.4 1994/01/05 15:03:28 rgrimes Exp $
+ *	$Id: isa.h,v 1.5 1994/04/21 14:20:54 sos Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
@@ -62,6 +62,7 @@ unsigned char rtcin __P((int));
 		/* CPU Board */
 #define IO_DMA1		0x000		/* 8237A DMA Controller #1 */
 #define IO_ICU1		0x020		/* 8259A Interrupt Controller #1 */
+#define IO_PMP1		0x026		/* 82347 Power Management Peripheral */
 #define IO_TIMER1	0x040		/* 8253 Timer #1 */
 #define IO_TIMER2	0x048		/* 8253 Timer #2 */
 #define IO_KBD		0x060		/* 8042 Keyboard */
@@ -78,7 +79,9 @@ unsigned char rtcin __P((int));
 
 #define IO_WD2		0x170		/* Secondary Fixed Disk Controller */
 
-					/* 0x178 - 0x1EF Open */
+#define IO_PMP2		0x178		/* 82347 Power Management Peripheral */
+
+					/* 0x17A - 0x1EF Open */
 
 #define IO_WD1		0x1f0		/* Primary Fixed Disk Controller */
 #define IO_GAME		0x200		/* Game Controller */
@@ -146,6 +149,7 @@ unsigned char rtcin __P((int));
 #define	IO_TMRSIZE	16		/* 8253 programmable timers */
 #define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
 #define	IO_VGASIZE	16		/* VGA controllers */
+#define	IO_PMPSIZE	2		/* 82347 power management peripheral */
 
 #endif	/* IO_ISASIZES */
 

@@ -36,6 +36,11 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  */
+/*
+ * I doubled delay loops in this file because it is not enough for some
+ * laptop machines' PCIC (especially, on my Chaplet ILFA 350 ^^;). 
+ *                        HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ */ 
 
 #include "ze.h"
 #if	NZE > 0
@@ -77,6 +82,9 @@
 #include "i386/isa/icu.h"
 #include "i386/isa/if_zereg.h"
 
+#ifdef APM
+#include "i386/include/apm_bios.h"
+#endif /* APM */
  
 
 /*****************************************************************************
@@ -368,7 +376,7 @@ pcic_power_on (int slot)
 {
     pcic_putb (slot, PCIC_POWER,
 	       pcic_getb (slot, PCIC_POWER) | PCIC_DISRST | PCIC_PCPWRE);
-    DELAY (50000);
+    DELAY (100000);
     pcic_putb (slot, PCIC_POWER,
 	       pcic_getb (slot, PCIC_POWER) | PCIC_OUTENA);
 }
@@ -379,7 +387,7 @@ pcic_reset (int slot)
     /* assert RESET (by clearing a bit!), wait a bit, and de-assert it */
     pcic_putb (slot, PCIC_INT_GEN,
 	       pcic_getb (slot, PCIC_INT_GEN) & ~PCIC_CARDRESET);
-    DELAY (50000);
+    DELAY (100000);
     pcic_putb (slot, PCIC_INT_GEN,
 	       pcic_getb (slot, PCIC_INT_GEN) | PCIC_CARDRESET);
 }
@@ -424,6 +432,8 @@ struct	ze_softc {
 	u_char	rec_page_start;	/* first page of RX ring-buffer */
 	u_char	rec_page_stop;	/* last page of RX ring-buffer */
 	u_char	next_packet;	/* pointer to next unread RX packet */
+	u_char	last_alive;	/* information for reconfiguration */
+	u_char	last_up;	/* information for reconfiguration */
 } ze_softc[NZE];
 
 int	ze_attach(), ze_ioctl(), ze_probe();
@@ -502,7 +512,7 @@ ze_check_cis (unsigned char *scratch)
  */
 
 static int
-ze_find_adapter (unsigned char *scratch)
+ze_find_adapter (unsigned char *scratch, int reconfig)
 {
     int slot;
 
@@ -523,7 +533,9 @@ ze_find_adapter (unsigned char *scratch)
 	    continue;
 	}
 	if ((pcic_getb (slot, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
-	    printf ("ze: slot %d: no card in slot\n", slot);
+	    if (!reconfig) {
+		printf ("ze: slot %d: no card in slot\n", slot);
+	    }
 	    /* no card in slot */
 	    continue;
 	}
@@ -539,11 +551,16 @@ ze_find_adapter (unsigned char *scratch)
 	
 	if ((ze_check_cis (scratch)) > 0) {
 	    /* found it */
-	    printf ("ze: found card in slot %d\n", slot);
+	    if (!reconfig) {
+		printf ("ze: found card in slot %d\n", slot);
+	    }
 	    return slot;
 	}
-	else
-	    printf ("ze: pcmcia slot %d: %s\n", slot, card_info);
+	else {
+	    if (!reconfig) {
+		printf ("ze: pcmcia slot %d: %s\n", slot, card_info);
+	    }
+	}
 	pcic_unmap_memory (slot, 0);
     }
     return -1;
@@ -577,7 +594,7 @@ ze_probe(isa_dev)
 	u_char iptr, memwidth, sum, tmp;
 	int slot;
 
-        if ((slot = ze_find_adapter (isa_dev->id_maddr)) < 0)
+        if ((slot = ze_find_adapter (isa_dev->id_maddr, isa_dev->id_reconfig)) < 0)
 	    return NULL;
 
 	/*
@@ -627,7 +644,7 @@ ze_probe(isa_dev)
 	pcic_map_memory (slot, 0, kvtop (isa_dev->id_maddr), 0x20000, 8L,
 			 ATTRIBUTE, 1);
 	POKE(isa_dev->id_maddr, 0x80);	/* reset the card (how long?) */
-	DELAY (10000);
+	DELAY (40000);
 	/*
 	 * Set the configuration index.  According to [1], the adapter won't
 	 * respond to any i/o signals until we do this; it uses the
@@ -706,9 +723,9 @@ ze_probe(isa_dev)
 
 	/* reset card to force it into a known state */
 	tmp = inb (isa_dev->id_iobase + ZE_RESET);
-	DELAY(5000);
+	DELAY(20000);
 	outb (isa_dev->id_iobase + ZE_RESET, tmp);
-	DELAY(5000);
+	DELAY(20000);
 
 	/*
 	 * query MAM bit in misc register for 10base2
@@ -735,12 +752,38 @@ ze_probe(isa_dev)
 		sc->arpcom.ac_enaddr[i] = enet_addr[i];
 	
 	isa_dev->id_msize = memsize;
+
+
+	/* information for reconfiguration */
+	sc->last_alive = 0;
+	sc->last_up = 0;
 	return 32;
 }
+
+#ifdef APM
+#define ZEDEVS 4
+static apm_hook_func_t ze_hook;
+struct isa_device* ze_devs[ZEDEVS] = {NULL};
+
+static int 
+ze_resume(void)
+{
+	int i;
+
+	for (i = 0; i < ZEDEVS; i++) {
+		if (ze_devs[i] != NULL) {
+			reconfig_isadev(ze_devs[i], &net_imask);
+		}
+	}
+	
+	return 0;
+}
+#endif /* APM */
  
 /*
  * Install interface into kernel networking data structures
  */
+
 int
 ze_attach(isa_dev)
 	struct isa_device *isa_dev;
@@ -749,6 +792,26 @@ ze_attach(isa_dev)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
+
+	/* PCMCIA card can be offlined. Reconfiguration is required */
+	if (isa_dev->id_reconfig) {
+		if (!isa_dev->id_alive && sc->last_alive) {
+			sc->last_up = (ifp->if_flags & IFF_UP);
+			ifp->if_flags &= ~(IFF_UP);
+			sc->last_alive = 0;
+		}
+		if (isa_dev->id_alive && !sc->last_alive) {
+			if (sc->last_up) {
+				ifp->if_flags |= IFF_UP;
+			}
+			sc->last_alive = 1;
+		}
+		ze_reset(isa_dev->id_unit);
+		return 1;
+	}
+	else {
+		sc->last_alive = 1;
+	}
  
 	/*
 	 * Set interface to stopped condition (reset)
@@ -822,6 +885,11 @@ ze_attach(isa_dev)
 #if NBPFILTER > 0
 	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
+
+#ifdef APM
+	ze_devs[isa_dev->id_unit] = isa_dev;
+	ze_hook = apm_resume_hook_init(ze_resume, "IBM PCMCIA Ethernet", APM_MID_ORDER);
+#endif /* APM */
 	return 1;
 }
  
@@ -1659,6 +1727,17 @@ ze_ioctl(ifp, command, data)
 		break;
 
 	case SIOCSIFFLAGS:
+		/*
+		 * When the card is offlined, `up' operation can't be permitted
+		 */
+		if (!sc->last_alive) {
+			int tmp;
+			tmp = (ifp->if_flags & IFF_UP);
+			if (!sc->last_up && (ifp->if_flags & IFF_UP)) {
+				ifp->if_flags &= ~(IFF_UP);
+			}
+			sc->last_up = tmp;
+		}
 		/*
 		 * If interface is marked down and it is running, then stop it
 		 */

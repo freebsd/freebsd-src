@@ -1,8 +1,10 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.49 1994/09/26 16:15:06 jkh Exp $
+#	$Id: files.i386,v 1.50 1994/10/01 02:36:24 swallace Exp $
 #
+i386/apm/apm.c			optional	apm	device-driver
+i386/apm/apm_setup.s		optional	apm
 i386/i386/autoconf.c		standard	device-driver
 i386/i386/conf.c		standard
 i386/i386/cons.c		standard
