@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.27 1995/12/15 00:54:19 bde Exp $
+ * $Id: if_le.c,v 1.28 1996/01/25 23:00:42 joerg Exp $
  */
 
 /*
@@ -396,10 +396,10 @@ le_attach(
     struct ifaddr *ifa = ifp->if_addrlist;
 
     ifp->if_mtu = ETHERMTU;
-    printf("%s%d: %s ethernet address %s\n",
+    printf("%s%d: %s ethernet address %6D\n",
 	   ifp->if_name, ifp->if_unit,
 	   sc->le_prodname,
-	   ether_sprintf(sc->le_ac.ac_enaddr));
+	   sc->le_ac.ac_enaddr, ":");
 
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
     ifp->if_output = ether_output;

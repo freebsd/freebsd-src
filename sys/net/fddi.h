@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_fddi.h	8.1 (Berkeley) 6/10/93
- * $Id: if_fddi.h,v 1.1 1995/03/14 09:14:14 davidg Exp $
+ * $Id: if_fddi.h,v 1.2 1995/05/30 08:09:21 rgrimes Exp $
  */
 
 #ifndef _NETINET_IF_FDDI_H_
@@ -72,7 +72,6 @@ struct	fddi_header {
 #define	fddi_ipmulticast_max	ether_ipmulticast_max
 #define	fddi_addmulti		ether_addmulti
 #define	fddi_delmulti		ether_delmulti
-#define	fddi_sprintf		ether_sprintf
 
 void    fddi_ifattach __P((struct ifnet *));
 void    fddi_input __P((struct ifnet *, struct fddi_header *, struct mbuf *));

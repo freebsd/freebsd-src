@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.40 1995/12/14 09:53:58 phk Exp $
+ * $Id: if_de.c,v 1.41 1996/01/23 21:47:00 se Exp $
  *
  */
 
@@ -2002,12 +2002,12 @@ tulip_attach(
 #ifdef __FreeBSD__
     printf("%s%d", sc->tulip_name, sc->tulip_unit);
 #endif
-    printf(": %s%s pass %d.%d Ethernet address %s\n", 
+    printf(": %s%s pass %d.%d Ethernet address %6D\n", 
 	   sc->tulip_boardsw->bd_description,
 	   tulip_chipdescs[sc->tulip_chipid],
 	   (sc->tulip_revinfo & 0xF0) >> 4,
 	   sc->tulip_revinfo & 0x0F,
-	   ether_sprintf(sc->tulip_hwaddr));
+	   sc->tulip_hwaddr, ":");
 
     if ((*sc->tulip_boardsw->bd_media_probe)(sc)) {
 	ifp->if_flags |= IFF_ALTPHYS;

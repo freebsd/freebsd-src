@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.26 1995/12/13 10:36:03 phk Exp $
+ * $Id: if_ze.c,v 1.27 1995/12/17 21:22:57 phk Exp $
  */
 
 #include "ze.h"
@@ -660,9 +660,9 @@ ze_attach(isa_dev)
 	/*
 	 * Print additional info when attached
 	 */
-	printf("ze%d: address %s, type %s (%dbit), MAU %s\n",
+	printf("ze%d: address %6D, type %s (%dbit), MAU %s\n",
 	       isa_dev->id_unit,
-	       ether_sprintf(sc->arpcom.ac_enaddr), sc->type_str,
+	       sc->arpcom.ac_enaddr, ":", sc->type_str,
 	       sc->memwidth,
 	       sc->mau);
 

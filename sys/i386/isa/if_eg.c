@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.9 1995/12/10 13:38:38 phk Exp $
+ * $Id: if_eg.c,v 1.10 1995/12/15 00:54:09 bde Exp $
  */
 
 /* To do:
@@ -399,9 +399,8 @@ egattach (struct isa_device *id)
 	}
 	bcopy(&sc->eg_pcb[2], sc->sc_arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
-	printf("eg%d: address %s, type=3COM 3c505 (v%d.%02d, %dk)\n",
-	    id->id_unit,
-	    ether_sprintf(sc->sc_arpcom.ac_enaddr),
+	printf("eg%d: address %6D, type=3COM 3c505 (v%d.%02d, %dk)\n",
+	    id->id_unit, sc->sc_arpcom.ac_enaddr, ":",
 	    sc->eg_rom_major, sc->eg_rom_minor, sc->eg_ram);
 
 	sc->kdc.kdc_description = "Ethernet adapter: 3Com 3C505";
