@@ -149,6 +149,7 @@ static void	nfs_softterm(struct nfsreq *rep);
 static int	nfs_reconnect(struct nfsreq *rep);
 static void nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag);
 static void nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag);
+static void wakeup_nfsreq(struct nfsreq *req);
 
 extern struct mtx nfs_reqq_mtx;
 extern struct mtx nfs_reply_mtx;
@@ -721,12 +722,21 @@ nfsmout:
 	if (rep == 0) {
 		nfsstats.rpcunexpected++;
 		m_freem(mrep);
-	} else {
-		mtx_lock(&nfs_reply_mtx);
-		wakeup((caddr_t)rep);		
-		mtx_unlock(&nfs_reply_mtx);
-	}
+	} else
+		wakeup_nfsreq(rep);
 	mtx_unlock(&nfs_reqq_mtx);
+}
+
+/* 
+ * The wakeup of the requestor should be done under the mutex
+ * to avoid potential missed wakeups.
+ */
+static void 
+wakeup_nfsreq(struct nfsreq *req)
+{
+	mtx_lock(&nfs_reply_mtx);
+	wakeup((caddr_t)req);
+	mtx_unlock(&nfs_reply_mtx);	
 }
 
 static void
@@ -744,7 +754,7 @@ nfs_mark_for_reconnect(struct nfsmount *nmp)
 	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(rp, &nfs_reqq, r_chain) {
 		if (rp->r_nmp == nmp)
-			wakeup(rp);
+			wakeup_nfsreq(rp);
 	}
 	mtx_unlock(&nfs_reqq_mtx);
 }
@@ -1343,7 +1353,7 @@ nfs_softterm(struct nfsreq *rep)
 	 * Request terminated, wakeup the blocked process, so that we
 	 * can return EINTR back.
 	 */
-	wakeup((caddr_t)rep);
+	wakeup_nfsreq(rep);
 }
 
 /*
