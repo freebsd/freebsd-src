@@ -221,7 +221,11 @@ main(argc, argv)
 	rtadvd_timer_init();
 
 	/* random value initialization */
+#ifdef __FreeBSD__
+	srandomdev();
+#else
 	srandom((u_long)time(NULL));
+#endif
 
 	/* get iflist block from kernel */
 	init_iflist();
