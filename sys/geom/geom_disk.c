@@ -164,7 +164,6 @@ g_disk_done(struct bio *bp)
 {
 	struct bio *bp2;
 	struct disk *dp;
-	devstat_trans_flags flg;
 
 	/* See "notes" for why we need a mutex here */
 	/* XXX: will witness accept a mix of Giant/unGiant drivers here ? */
@@ -179,14 +178,8 @@ g_disk_done(struct bio *bp)
 	g_destroy_bio(bp);
 	bp2->bio_inbed++;
 	if (bp2->bio_children == bp2->bio_inbed) {
-		if (bp2->bio_cmd == BIO_DELETE)
-			flg = DEVSTAT_FREE;
-		else if (bp2->bio_cmd == BIO_READ)
-			flg = DEVSTAT_READ;
-		else
-			flg = DEVSTAT_WRITE;
-		devstat_end_transaction(dp->d_devstat, bp2->bio_completed,
-		    DEVSTAT_TAG_SIMPLE, flg);
+		bp2->bio_resid = bp2->bio_bcount - bp2->bio_completed;
+		devstat_end_transaction_bio(dp->d_devstat, bp2);
 		g_io_deliver(bp2, bp2->bio_error);
 	}
 	mtx_unlock(&g_disk_done_mtx);
@@ -219,7 +212,7 @@ g_disk_start(struct bio *bp)
 			error = ENOMEM;
 			break;
 		}
-		devstat_start_transaction(dp->d_devstat);
+		devstat_start_transaction_bio(dp->d_devstat, bp);
 		do {
 			bp2->bio_offset += off;
 			bp2->bio_length -= off;
