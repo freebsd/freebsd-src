@@ -121,14 +121,15 @@ static void	m_reclaim(void);
 static void
 mbinit(void *dummy)
 {
-	vm_offset_t maxaddr, mb_map_size;
+	vm_offset_t maxaddr;
+	vm_size_t mb_map_size;
 
 	/*
 	 * Setup the mb_map, allocate requested VM space.
 	 */
-	mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES + nmbcnt
-	    * sizeof(union mext_refcnt);
-	mb_map_size = roundup2(mb_map_size, PAGE_SIZE);
+	mb_map_size = (vm_size_t)(nmbufs * MSIZE + nmbclusters * MCLBYTES +
+	    nmbcnt * sizeof(union mext_refcnt));
+	mb_map_size = rounddown(mb_map_size, PAGE_SIZE);
 	mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
 	    mb_map_size);
 	/* XXX XXX XXX: mb_map->system_map = 1; */
