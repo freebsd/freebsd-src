@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: trap.c,v 1.8 1997/02/22 13:58:46 peter Exp $
+ *	$Id: trap.c,v 1.9 1997/11/05 23:33:58 ache Exp $
  */
 
 #ifndef lint
@@ -205,14 +205,13 @@ clear_traps()
  * Set the signal handler for the specified signal.  The routine figures
  * out what it should be set to.
  */
-long
+void
 setsignal(signo)
 	int signo;
 {
 	int action;
-	sig_t sigact = SIG_DFL;
+	sig_t sig, sigact = SIG_DFL;
 	char *t;
-	long sig;
 
 	if ((t = trap[signo]) == NULL)
 		action = S_DFL;
@@ -261,7 +260,7 @@ setsignal(signo)
 			 * here, but other shells don't. We don't alter
 			 * sigmode, so that we retry every time.
 			 */
-			return 0;
+			return;
 		}
 		if (sigact == SIG_IGN) {
 			if (mflag && (signo == SIGTSTP ||
@@ -274,19 +273,18 @@ setsignal(signo)
 		}
 	}
 	if (*t == S_HARD_IGN || *t == action)
-		return 0;
+		return;
 	switch (action) {
 		case S_DFL:	sigact = SIG_DFL;	break;
 		case S_CATCH:  	sigact = onsig;		break;
 		case S_IGN:	sigact = SIG_IGN;	break;
 	}
 	*t = action;
-	sig = (long)signal(signo, sigact);
+	sig = signal(signo, sigact);
 #ifdef BSD
-	if (sig != -1 && action == S_CATCH)
-		sig = siginterrupt(signo, 1);
+	if (sig != SIG_ERR && action == S_CATCH)
+		siginterrupt(signo, 1);
 #endif
-	return sig;
 }
 
 
@@ -345,6 +343,7 @@ void
 onsig(signo)
 	int signo;
 {
+
 #ifndef BSD
 	signal(signo, onsig);
 #endif
