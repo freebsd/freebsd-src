@@ -163,7 +163,7 @@ sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "I", "");
+	0, 0, sysctl_hw_physmem, "IU", "");
 
 static int
 sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
@@ -174,7 +174,7 @@ sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_usermem, "I", "");
+	0, 0, sysctl_hw_usermem, "IU", "");
 
 static int
 sysctl_hw_availpages(SYSCTL_HANDLER_ARGS)
