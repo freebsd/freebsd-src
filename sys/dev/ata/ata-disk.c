@@ -90,9 +90,11 @@ static u_int32_t adp_lun_map = 0;
 static int ata_dma = 1;
 static int ata_wc = 1;
 static int ata_tags = 0; 
+static int ata_suspend = 0;
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
 TUNABLE_INT("hw.ata.wc", &ata_wc);
 TUNABLE_INT("hw.ata.tags", &ata_tags);
+TUNABLE_INT("hw.ata.suspend", &ata_suspend);
 static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 
 /* sysctl vars */
@@ -103,7 +105,9 @@ SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RD, &ata_wc, 0,
 	   "ATA disk write caching");
 SYSCTL_INT(_hw_ata, OID_AUTO, tags, CTLFLAG_RD, &ata_tags, 0,
 	   "ATA disk tagged queuing support");
-
+SYSCTL_INT(_hw_ata, OID_AUTO, suspend, CTLFLAG_RD, &ata_suspend, 0,
+	   "ATA disk suspend timer");
+  
 void
 ad_attach(struct ata_device *atadev, int alreadylocked)
 {
@@ -189,6 +193,18 @@ ad_attach(struct ata_device *atadev, int alreadylocked)
 			0, 0, ATA_C_F_DIS_SRVIRQ, ATA_WAIT_INTR))
 	    ata_prtdev(atadev, "disabling service interrupt failed\n");
     }
+
+    if (ata_suspend > 0) {
+         /* 
+	  * Attempt suspend mode. The drive uses increments of ten seconds.
+	  * For the parameters, see ata-all.c and 8.42.4 p. 210 of the 
+	  * ATAPI-5 interface spec at http://www.t13.org.
+	  */  
+         if (ata_command(atadev, ATA_C_STANDBY,
+                     0, ata_suspend / 10, 0, ATA_WAIT_INTR))
+	    ata_prtdev(atadev, "suspend mode failed\n");
+    }
+  
 
     ATA_UNLOCK_CH(atadev->channel);
 
