@@ -2435,6 +2435,7 @@ loop:
 		splx(s);
 		bp->b_flags &= ~B_DONE;
 	}
+	KASSERT(BUF_REFCNT(bp) == 1, ("getblk: bp %p not locked",bp));
 	return (bp);
 }
 
@@ -2456,6 +2457,7 @@ geteblk(int size)
 	splx(s);
 	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;	/* b_dep cleared by getnewbuf() */
+	KASSERT(BUF_REFCNT(bp) == 1, ("geteblk: bp %p not locked",bp));
 	return (bp);
 }
 
