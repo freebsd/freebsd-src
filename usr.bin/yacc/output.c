@@ -35,10 +35,37 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)output.c	5.7 (Berkeley) 5/24/93";
+static char const sccsid[] = "@(#)output.c	5.7 (Berkeley) 5/24/93";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "defs.h"
+
+static int default_goto __P((int));
+static void free_itemsets __P((void));
+static void free_reductions __P((void));
+static void free_shifts __P((void));
+static void goto_actions __P((void));
+static int is_C_identifier __P((char *));
+static int matching_vector __P((int));
+static void output_actions __P((void));
+static void output_base __P((void));
+static void output_check __P((void));
+static void output_debug __P((void));
+static void output_defines __P((void));
+static void output_prefix __P((void));
+static void output_rule_data __P((void));
+static void output_semantic_actions __P((void));
+static void output_stored_text __P((void));
+static void output_stype __P((void));
+static void output_table __P((void));
+static void output_trailing_text __P((void));
+static void output_yydefred __P((void));
+static void pack_table __P((void));
+static int pack_vector __P((int));
+static void save_column __P((int, int));
+static void sort_actions __P((void));
+static void token_actions __P((void));
 
 static int nvectors;
 static int nentries;
@@ -57,6 +84,7 @@ static int lowzero;
 static int high;
 
 
+void
 output()
 {
     free_itemsets();
@@ -80,6 +108,7 @@ output()
 }
 
 
+static void
 output_prefix()
 {
     if (symbol_prefix == NULL)
@@ -140,6 +169,7 @@ output_prefix()
 }
 
 
+static void
 output_rule_data()
 {
     register int i;
@@ -187,6 +217,7 @@ output_rule_data()
 }
 
 
+static void
 output_yydefred()
 {
     register int i, j;
@@ -214,6 +245,7 @@ output_yydefred()
 }
 
 
+static void
 output_actions()
 {
     nvectors = 2*nstates + nvars;
@@ -242,6 +274,7 @@ output_actions()
 }
 
 
+static void
 token_actions()
 {
     register int i, j;
@@ -326,6 +359,7 @@ token_actions()
     FREE(actionrow);
 }
 
+static void
 goto_actions()
 {
     register int i, j, k;
@@ -358,7 +392,7 @@ goto_actions()
     FREE(state_count);
 }
 
-int
+static int
 default_goto(symbol)
 int symbol;
 {
@@ -395,6 +429,7 @@ int symbol;
 
 
 
+static void
 save_column(symbol, default_state)
 int symbol;
 int default_state;
@@ -437,6 +472,7 @@ int default_state;
     width[symno] = sp1[-1] - sp[0] + 1;
 }
 
+static void
 sort_actions()
 {
   register int i;
@@ -472,6 +508,7 @@ sort_actions()
 }
 
 
+static void
 pack_table()
 {
     register int i;
@@ -534,7 +571,7 @@ pack_table()
 /*  faster.  Also, it depends on the vectors being in a specific	*/
 /*  order.								*/
 
-int
+static int
 matching_vector(vector)
 int vector;
 {
@@ -575,7 +612,7 @@ int vector;
 
 
 
-int
+static int
 pack_vector(vector)
 int vector;
 {
@@ -653,6 +690,7 @@ int vector;
 
 
 
+static void
 output_base()
 {
     register int i, j;
@@ -719,6 +757,7 @@ output_base()
 
 
 
+static void
 output_table()
 {
     register int i;
@@ -751,6 +790,7 @@ output_table()
 
 
 
+static void
 output_check()
 {
     register int i;
@@ -780,7 +820,7 @@ output_check()
 }
 
 
-int
+static int
 is_C_identifier(name)
 char *name;
 {
@@ -804,7 +844,7 @@ char *name;
 
     if (!isalpha(c) && c != '_' && c != '$')
 	return (0);
-    while (c = *++s)
+    while ((c = *++s))
     {
 	if (!isalnum(c) && c != '_' && c != '$')
 	    return (0);
@@ -813,6 +853,7 @@ char *name;
 }
 
 
+static void
 output_defines()
 {
     register int c, i;
@@ -841,7 +882,7 @@ output_defines()
 		    putc(c, code_file);
 		    if (dflag) putc(c, defines_file);
 		}
-		while (c = *++s);
+		while ((c = *++s));
 	    }
 	    ++outline;
 	    fprintf(code_file, " %d\n", symbol_value[i]);
@@ -865,6 +906,7 @@ output_defines()
 }
 
 
+static void
 output_stored_text()
 {
     register int c;
@@ -892,6 +934,7 @@ output_stored_text()
 }
 
 
+static void
 output_debug()
 {
     register int i, j, k, max;
@@ -929,7 +972,7 @@ output_debug()
     j = 80;
     for (i = 0; i <= max; ++i)
     {
-	if (s = symnam[i])
+	if ((s = symnam[i]))
 	{
 	    if (s[0] == '"')
 	    {
@@ -1106,6 +1149,7 @@ output_debug()
 }
 
 
+static void
 output_stype()
 {
     if (!unionized && ntags == 0)
@@ -1116,6 +1160,7 @@ output_stype()
 }
 
 
+static void
 output_trailing_text()
 {
     register int c, last;
@@ -1173,6 +1218,7 @@ output_trailing_text()
 }
 
 
+static void
 output_semantic_actions()
 {
     register int c, last;
@@ -1210,6 +1256,7 @@ output_semantic_actions()
 }
 
 
+static void
 free_itemsets()
 {
     register core *cp, *next;
@@ -1223,6 +1270,7 @@ free_itemsets()
 }
 
 
+static void
 free_shifts()
 {
     register shifts *sp, *next;
@@ -1237,6 +1285,7 @@ free_shifts()
 
 
 
+static void
 free_reductions()
 {
     register reductions *rp, *next;

@@ -35,11 +35,14 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)warshall.c	5.4 (Berkeley) 5/24/93";
+static char const sccsid[] = "@(#)warshall.c	5.4 (Berkeley) 5/24/93";
 #endif /* not lint */
 
 #include "defs.h"
 
+static void transitive_closure __P((unsigned *, int));
+
+static void
 transitive_closure(R, n)
 unsigned *R;
 int n;
@@ -92,6 +95,7 @@ int n;
     }
 }
 
+void
 reflexive_transitive_closure(R, n)
 unsigned *R;
 int n;

@@ -35,13 +35,26 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)verbose.c	5.3 (Berkeley) 1/20/91";
+static char const sccsid[] = "@(#)verbose.c	5.3 (Berkeley) 1/20/91";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "defs.h"
+
+static void log_unused __P((void));
+static void log_conflicts __P((void));
+static void print_actions __P((int));
+static void print_conflicts __P((int));
+static void print_core __P((int));
+static void print_gotos __P((int));
+static void print_nulls __P((int));
+static void print_reductions __P((register action *, register int));
+static void print_shifts __P((register action *));
+static void print_state __P((int));
 
 static short *null_rules;
 
+void
 verbose()
 {
     register int i;
@@ -66,6 +79,7 @@ verbose()
 }
 
 
+static void
 log_unused()
 {
     register int i;
@@ -85,6 +99,7 @@ log_unused()
 }
 
 
+static void
 log_conflicts()
 {
     register int i;
@@ -113,6 +128,7 @@ log_conflicts()
 }
 
 
+static void
 print_state(state)
 int state;
 {
@@ -127,10 +143,11 @@ int state;
 }
 
 
+static void
 print_conflicts(state)
 int state;
 {
-    register int symbol, act, number;
+    register int symbol, act = 0, number = 0;
     register action *p;
 
     symbol = -1;
@@ -175,6 +192,7 @@ int state;
 }
 
 
+static void
 print_core(state)
 int state;
 {
@@ -211,6 +229,7 @@ int state;
 }
 
 
+static void
 print_nulls(state)
 int state;
 {
@@ -255,6 +274,7 @@ int state;
 }
 
 
+static void
 print_actions(stateno)
 int stateno;
 {
@@ -282,6 +302,7 @@ int stateno;
 }
 
 
+static void
 print_shifts(p)
 register action *p;
 {
@@ -307,6 +328,7 @@ register action *p;
 }
 
 
+static void
 print_reductions(p, defred)
 register action *p;
 register int defred;
@@ -345,6 +367,7 @@ register int defred;
 }
 
 
+static void
 print_gotos(stateno)
 int stateno;
 {
