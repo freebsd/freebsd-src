@@ -6,7 +6,7 @@
 # the build tree.
 #
 
-ARCHS=		i386 alpha
+ARCHS=		i386 alpha sparc64
 MULTITEXTS=	installation relnotes hardware
 UNITEXTS=	readme errata
 
