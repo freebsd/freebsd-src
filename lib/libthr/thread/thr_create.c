@@ -200,10 +200,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	 * Start a garbage collector thread
 	 * if necessary.
 	 */
-#if 0
 	if (f_gc && pthread_create(&gc_thread,NULL, _thread_gc,NULL) != 0)
 		PANIC("Can't create gc thread");
-#endif
 
 	return (0);
 }
