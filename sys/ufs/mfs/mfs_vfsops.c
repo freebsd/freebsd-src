@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.61 1999/05/10 17:12:45 peter Exp $
+ * $Id: mfs_vfsops.c,v 1.62 1999/05/11 19:55:03 phk Exp $
  */
 
 
@@ -67,7 +67,7 @@ static caddr_t	mfs_rootbase;	/* address of mini-root in kernel virtual memory */
 static u_long	mfs_rootsize;	/* size of mini-root in bytes */
 #endif
 
-static	int mfs_minor;	/* used for building internal dev_t */
+static int mfs_minor;		/* used for building internal dev_t */
 
 extern vop_t **mfs_vnodeop_p;
 
@@ -453,6 +453,8 @@ mfs_statfs(mp, sbp, p)
 	return (error);
 }
 
+static struct cdevsw mfs_cdevsw = {};
+
 /*
  * Memory based filesystem initialization.
  */
@@ -460,5 +462,8 @@ static int
 mfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
+	dev_t dev = NODEV;
+	cdevsw_add(&dev, &mfs_cdevsw, NULL);
+	cdevsw_add_generic(255, major(dev), &mfs_cdevsw);
 	return (0);
 }
