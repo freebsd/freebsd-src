@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.50 1997/04/20 16:54:56 bde Exp $
+ * $Id: soundcard.c,v 1.51 1997/06/08 12:55:26 ache Exp $
  */
 
 #include <i386/isa/sound/sound_config.h>
@@ -36,9 +36,6 @@
 #ifdef CONFIGURE_SOUNDCARD
 
 #include <i386/isa/sound/dev_table.h>
-#include <i386/isa/isa_device.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
