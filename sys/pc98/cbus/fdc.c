@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.54 1999/04/18 14:42:16 kato Exp $
+ *	$Id: fd.c,v 1.55 1999/04/27 11:17:57 phk Exp $
  *
  */
 
@@ -98,6 +98,11 @@
 #endif
 #include <i386/isa/fdc.h>
 #include <i386/isa/rtc.h>
+
+#ifdef FDC_YE
+#undef FDC_YE
+#warning "fix FDC_YE! - newbus casualty"
+#endif
 
 /* misuse a flag to identify format operation */
 #define B_FORMAT B_XXX
@@ -469,7 +474,13 @@ static	d_close_t	fdclose;
 static	d_ioctl_t	fdioctl;
 static	d_strategy_t	fdstrategy;
 
-/* even if SLICE defined, these are needed for the ft support. */
+static struct cdevsw fd_cdevsw = {
+	  Fdopen,	fdclose,	fdread,	fdwrite,
+	  fdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		fdstrategy,	"fd",
+	  NULL,		-1,		nodump,		nopsize,
+	  D_DISK,	0,		-1
+};
 #define CDEV_MAJOR 9
 #define BDEV_MAJOR 2
 
@@ -1141,17 +1152,23 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
+#ifdef DEVFS
+	int	i;
+	int     mynor;
+	int     typemynor;
+	int     typesize;
+#endif
 
 	fd = device_get_softc(dev);
 
 #ifdef DEVFS			/* XXX bitrot */
-	mynor = fdu << 6;
+	mynor = fd->fdu << 6;
 	fd->bdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_BLK,
 					UID_ROOT, GID_OPERATOR, 0640,
-					"fd%d", fdu);
+					"fd%d", fd->fdu);
 	fd->cdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
 					UID_ROOT, GID_OPERATOR, 0640,
-					"rfd%d", fdu);
+					"rfd%d", fd->fdu);
 	for (i = 1; i < 1 + NUMDENS; i++) {
 		/*
 		 * XXX this and the lookup in Fdopen() should be
@@ -1215,19 +1232,19 @@ fd_attach(device_t dev)
 		fd->bdevs[i] =
 			devfs_add_devswf(&fd_cdevsw, typemynor, DV_BLK,
 					 UID_ROOT, GID_OPERATOR, 0640,
-					 "fd%d.%d", fdu, typesize);
+					 "fd%d.%d", fd->fdu, typesize);
 		fd->cdevs[i] =
 			devfs_add_devswf(&fd_cdevsw, typemynor, DV_CHR,
 					 UID_ROOT, GID_OPERATOR, 0640,
-					 "rfd%d.%d", fdu, typesize);
+					 "rfd%d.%d", fd->fdu, typesize);
 	}
 
 	for (i = 0; i < MAXPARTITIONS; i++) {
 		fd->bdevs[1 + NUMDENS + i] = devfs_makelink(fd->bdevs[0],
-							"fd%d%c", fdu, 'a' + i);
+						"fd%d%c", fd->fdu, 'a' + i);
 		fd->cdevs[1 + NUMDENS + i] =
 			devfs_makelink(fd->cdevs[0],
-				   "rfd%d%c", fdu, 'a' + i);
+				   "rfd%d%c", fd->fdu, 'a' + i);
 	}
 #endif /* DEVFS */
 	/*
@@ -2779,14 +2796,6 @@ static driver_t fd_driver = {
 	fd_methods,
 	DRIVER_TYPE_BIO,
 	sizeof(struct fd_data)
-};
-
-static struct cdevsw fd_cdevsw = {
-	  Fdopen,	fdclose,	fdread,	fdwrite,
-	  fdioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		fdstrategy,	"fd",
-	  NULL,		-1,		nodump,		nopsize,
-	  D_DISK,	0,		-1
 };
 
 BDEV_DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, BDEV_MAJOR, CDEV_MAJOR,
