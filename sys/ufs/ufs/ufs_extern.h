@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
- * $Id: ufs_extern.h,v 1.15 1997/08/16 19:16:26 wollman Exp $
+ * $Id: ufs_extern.h,v 1.16 1997/08/26 07:32:50 phk Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_
@@ -110,7 +110,7 @@ int	 ufs_rename __P((struct vop_rename_args *));
 int	 ufs_rmdir __P((struct vop_rmdir_args *));
 int	 ufs_root __P((struct mount *, struct vnode **));
 int	 ufs_seek __P((struct vop_seek_args *));
-int	 ufs_select __P((struct vop_select_args *));
+#define	 ufs_poll vop_nopoll
 int	 ufs_setattr __P((struct vop_setattr_args *));
 int	 ufs_start __P((struct mount *, int, struct proc *));
 int	 ufs_strategy __P((struct vop_strategy_args *));

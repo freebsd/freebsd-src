@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfsnode.h	8.3 (Berkeley) 5/19/95
- * $Id$
+ * $Id: mfsnode.h,v 1.8 1997/02/22 09:47:34 peter Exp $
  */
 
 #ifndef _UFS_MFS_MFSNODE_H_
@@ -66,7 +66,7 @@ struct mfsnode {
 #define mfs_setattr ((int (*) __P((struct  vop_setattr_args *)))mfs_badop)
 #define mfs_read ((int (*) __P((struct  vop_read_args *)))mfs_badop)
 #define mfs_write ((int (*) __P((struct  vop_write_args *)))mfs_badop)
-#define mfs_select ((int (*) __P((struct  vop_select_args *)))mfs_badop)
+#define mfs_poll ((int (*) __P((struct  vop_poll_args *)))mfs_badop)
 #define mfs_mmap ((int (*) __P((struct  vop_mmap_args *)))mfs_badop)
 #define mfs_seek ((int (*) __P((struct  vop_seek_args *)))mfs_badop)
 #define mfs_remove ((int (*) __P((struct  vop_remove_args *)))mfs_badop)

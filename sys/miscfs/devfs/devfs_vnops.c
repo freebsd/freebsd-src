@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.37 1997/08/25 20:31:00 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.38 1997/08/27 02:58:40 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -1654,7 +1654,7 @@ devfs_dropvnode(dn_p dnp)
 #define devfs_mknod ((int (*) __P((struct  vop_mknod_args *)))devfs_enotsupp)
 #define devfs_close ((int (*) __P((struct  vop_close_args *)))nullop)
 #define devfs_ioctl ((int (*) __P((struct  vop_ioctl_args *)))devfs_enotsupp)
-#define devfs_select ((int (*) __P((struct  vop_select_args *)))devfs_enotsupp)
+#define devfs_poll	vop_nopoll
 #define devfs_mmap ((int (*) __P((struct  vop_mmap_args *)))devfs_enotsupp)
 #define devfs_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define devfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
@@ -1691,7 +1691,9 @@ vop_t **devfs_vnodeop_p;
 static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)devfs_lookup },		/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)devfs_create },		/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)devfs_mknod },		/* mknod */
 	{ &vop_open_desc, (vop_t *)devfs_open },		/* open */
 	{ &vop_close_desc, (vop_t *)devfs_close },		/* close */
@@ -1700,8 +1702,10 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)devfs_setattr },		/* setattr */
 	{ &vop_read_desc, (vop_t *)devfs_read },		/* read */
 	{ &vop_write_desc, (vop_t *)devfs_write },		/* write */
+/* XXX: vop_lease */
 	{ &vop_ioctl_desc, (vop_t *)devfs_ioctl },		/* ioctl */
-	{ &vop_select_desc, (vop_t *)devfs_select },		/* select */
+	{ &vop_poll_desc, (vop_t *)devfs_poll },		/* poll */
+/* XXX: vop_revoke */
 	{ &vop_mmap_desc, (vop_t *)devfs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)devfs_fsync },		/* fsync */
 	{ &vop_seek_desc, (vop_t *)devfs_seek },		/* seek */
@@ -1726,9 +1730,12 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)devfs_advlock },		/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)devfs_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)devfs_valloc },		/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)devfs_vfree },		/* vfree */
 	{ &vop_truncate_desc, (vop_t *)devfs_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)devfs_update },		/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)devfs_bwrite },		/* bwrite */
 	{ NULL, NULL }
 };
@@ -1781,7 +1788,9 @@ vop_t **dev_spec_vnodeop_p;
 static struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)spec_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)spec_open },		/* open */
 	{ &vop_close_desc, (vop_t *)spec_close },	/* close */
@@ -1790,8 +1799,10 @@ static struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)devfs_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)devfs_read },	/* read */
 	{ &vop_write_desc, (vop_t *)devfs_write },	/* write */
+/* XXX: vop_lease */
 	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)spec_poll },		/* poll */
+/* XXX: vop_revoke */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)spec_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)spec_seek },		/* seek */
@@ -1816,9 +1827,12 @@ static struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)spec_advlock },	/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)spec_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)spec_valloc },	/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)spec_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)spec_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)spec_update },	/* update */
+	{ &vop_getpages_desc, (vop_t *)spec_getpages},	/* getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
