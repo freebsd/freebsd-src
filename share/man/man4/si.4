@@ -1,4 +1,4 @@
-.\" $Id$
+.\" $Id: si.4,v 1.1 1995/09/26 18:23:38 peter Exp $
 .\" The following requests are required for all man pages.
 .Dd September 16, 1995
 .Os FreeBSD
@@ -53,14 +53,6 @@ The si device driver also responds to the
 utility for configuring drain-on-close timeouts.
 .Pp
 An open on a /dev device node controlled by the si driver obeys the same
-semantics as the
-.Xr sio 4
-driver.  It fully supports the usual semantics of the cua ports, and the
-"initial termios" and "locked termios" settings.  In summary, an open on a
-tty port will block until DCD is raised, unless O_NONBLOCK is specified.
-CLOCAL is honored.  An open on a cua port will always succeed, but DCD
-transitions will be honored after DCD rises for the first time.
-by the si driver obeys the same
 semantics as the
 .Xr sio 4
 driver.  It fully supports the usual semantics of the cua ports, and the
