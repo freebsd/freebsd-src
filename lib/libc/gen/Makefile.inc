@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.49 1998/08/03 15:35:41 bde Exp $
+#	$Id: Makefile.inc,v 1.50 1998/09/09 01:21:24 jdp Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/gen ${.CURDIR}/../libc/gen
@@ -58,7 +58,8 @@ MLINKS+=crypt.3 des_cipher.3 crypt.3 des_setkey.3 crypt.3 encrypt.3 \
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
 	directory.3 readdir.3 directory.3 rewinddir.3 directory.3 seekdir.3 \
 	directory.3 telldir.3
-MLINKS+=dlopen.3 dlclose.3 dlopen.3 dlerror.3 dlopen.3 dlsym.3
+MLINKS+=dlopen.3 dlclose.3 dlopen.3 dlerror.3 dlopen.3 dlsym.3 \
+	dlopen.3 dlversion.3
 MLINKS+=err.3 err_set_exit.3 err.3 err_set_file.3 err.3 errx.3 err.3 verr.3 \
 	err.3 verrx.3 err.3 vwarn.3 err.3 vwarnx.3 err.3 warn.3 err.3 warnx.3
 MLINKS+=exec.3 execl.3 exec.3 execle.3 exec.3 execlp.3 exec.3 exect.3 \
