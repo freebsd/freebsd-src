@@ -422,7 +422,7 @@ void deque<T>::allocate_at_begin() {
 	if (start.node == map) {
 	    difference_type i = finish.node - start.node;
 	    map_size = (i + 1) * 2;
-#ifdef __GNU_G__
+#ifdef __GNUG__
 	    map_pointer tmp = map_allocator_type::allocate(map_size);
 	    copy(start.node, finish.node + 1, tmp + map_size / 4 + 1);
 	    map_allocator_type::deallocate(map);
