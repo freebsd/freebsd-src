@@ -32,18 +32,19 @@
  */
 
 #ifndef lint
-static const char sccsid[] = "@(#)pass4.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)pass4.c	8.4 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
+
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
-#include <stdlib.h>
-#include <string.h>
-#include "fsck.h"
 
-int	pass4check();
+#include <err.h>
+#include <string.h>
+
+#include "fsck.h"
 
 void
 pass4()
@@ -54,7 +55,7 @@ pass4()
 	struct inodesc idesc;
 	int n;
 
-	bzero((char *)&idesc, sizeof(struct inodesc));
+	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = ADDR;
 	idesc.id_func = pass4check;
 	for (inumber = ROOTINO; inumber <= lastino; inumber++) {
@@ -98,7 +99,7 @@ pass4()
 			break;
 
 		default:
-			errexit("BAD STATE %d FOR INODE I=%d",
+			errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
 			    statemap[inumber], inumber);
 		}
 	}
@@ -110,7 +111,7 @@ pass4check(idesc)
 {
 	register struct dups *dlp;
 	int nfrags, res = KEEPON;
-	daddr_t blkno = idesc->id_blkno;
+	ufs_daddr_t blkno = idesc->id_blkno;
 
 	for (nfrags = idesc->id_numfrags; nfrags > 0; blkno++, nfrags--) {
 		if (chkrange(blkno, 1)) {

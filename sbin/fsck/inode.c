@@ -32,32 +32,35 @@
  */
 
 #ifndef lint
-static const char sccsid[] = "@(#)inode.c	8.5 (Berkeley) 2/8/95";
+static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
+
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
+
+#include <err.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "fsck.h"
 
 static ino_t startinum;
 
-static int	iblock __P((struct inodesc *idesc, long ilevel, quad_t isize));
+static int iblock __P((struct inodesc *, long ilevel, quad_t isize));
 
 int
 ckinode(dp, idesc)
 	struct dinode *dp;
 	register struct inodesc *idesc;
 {
-	register daddr_t *ap;
-	int ret;
-	long n, ndb, offset;
+	ufs_daddr_t *ap;
+	long ret, n, ndb, offset;
 	struct dinode dino;
 	quad_t remsize, sizepb;
 	mode_t mode;
@@ -147,9 +150,9 @@ iblock(idesc, ilevel, isize)
 	long ilevel;
 	quad_t isize;
 {
-	register daddr_t *ap;
-	register daddr_t *aplim;
-	register struct bufarea *bp;
+	ufs_daddr_t *ap;
+	ufs_daddr_t *aplim;
+	struct bufarea *bp;
 	int i, n, (*func)(), nif;
 	quad_t sizepb;
 	char buf[BUFSIZ];
@@ -229,7 +232,7 @@ iblock(idesc, ilevel, isize)
  */
 int
 chkrange(blk, cnt)
-	daddr_t blk;
+	ufs_daddr_t blk;
 	int cnt;
 {
 	register int c;
@@ -268,10 +271,10 @@ struct dinode *
 ginode(inumber)
 	ino_t inumber;
 {
-	daddr_t iblk;
+	ufs_daddr_t iblk;
 
 	if (inumber < ROOTINO || inumber > maxino)
-		errexit("bad inode number %d to ginode\n", inumber);
+		errx(EEXIT, "bad inode number %d to ginode", inumber);
 	if (startinum == 0 ||
 	    inumber < startinum || inumber >= startinum + INOPB(&sblock)) {
 		iblk = ino_to_fsba(&sblock, inumber);
@@ -296,11 +299,11 @@ getnextinode(inumber)
 	ino_t inumber;
 {
 	long size;
-	daddr_t dblk;
+	ufs_daddr_t dblk;
 	static struct dinode *dp;
 
 	if (inumber != nextino++ || inumber > maxino)
-		errexit("bad inode number %d to nextinode\n", inumber);
+		errx(EEXIT, "bad inode number %d to nextinode", inumber);
 	if (inumber >= lastinum) {
 		readcnt++;
 		dblk = fsbtodb(&sblock, ino_to_fsba(&sblock, lastinum));
@@ -338,7 +341,7 @@ resetinodebuf()
 	}
 	if (inodebuf == NULL &&
 	    (inodebuf = (struct dinode *)malloc((unsigned)inobufsize)) == NULL)
-		errexit("Cannot allocate space for inode buffer\n");
+		errx(EEXIT, "Cannot allocate space for inode buffer");
 	while (nextino < ROOTINO)
 		(void)getnextinode(nextino);
 }
@@ -372,7 +375,7 @@ cacheino(dp, inumber)
 	if (blks > NDADDR)
 		blks = NDADDR + NIADDR;
 	inp = (struct inoinfo *)
-		malloc(sizeof(*inp) + (blks - 1) * sizeof(daddr_t));
+		malloc(sizeof(*inp) + (blks - 1) * sizeof(ufs_daddr_t));
 	if (inp == NULL)
 		return;
 	inpp = &inphead[inumber % numdirs];
@@ -385,15 +388,14 @@ cacheino(dp, inumber)
 	inp->i_dotdot = (ino_t)0;
 	inp->i_number = inumber;
 	inp->i_isize = dp->di_size;
-	inp->i_numblks = blks * sizeof(daddr_t);
-	bcopy((char *)&dp->di_db[0], (char *)&inp->i_blks[0],
-	    (size_t)inp->i_numblks);
+	inp->i_numblks = blks * sizeof(ufs_daddr_t);
+	memmove(&inp->i_blks[0], &dp->di_db[0], (size_t)inp->i_numblks);
 	if (inplast == listmax) {
 		listmax += 100;
 		inpsort = (struct inoinfo **)realloc((char *)inpsort,
 		    (unsigned)listmax * sizeof(struct inoinfo *));
 		if (inpsort == NULL)
-			errexit("cannot increase directory list");
+			errx(EEXIT, "cannot increase directory list");
 	}
 	inpsort[inplast++] = inp;
 }
@@ -412,7 +414,7 @@ getinoinfo(inumber)
 			continue;
 		return (inp);
 	}
-	errexit("cannot find inode %d\n", inumber);
+	errx(EEXIT, "cannot find inode %d", inumber);
 	return ((struct inoinfo *)0);
 }
 
@@ -472,7 +474,7 @@ findname(idesc)
 
 	if (dirp->d_ino != idesc->id_parent)
 		return (KEEPON);
-	bcopy(dirp->d_name, idesc->id_name, (size_t)dirp->d_namlen + 1);
+	memmove(idesc->id_name, dirp->d_name, (size_t)dirp->d_namlen + 1);
 	return (STOP|FOUND);
 }
 
@@ -514,7 +516,7 @@ pinode(ino)
 	if (preen)
 		printf("%s: ", cdevname);
 	printf("SIZE=%qu ", dp->di_size);
-	p = ctime(&dp->di_mtime.tv_sec);
+	p = ctime(&dp->di_mtime);
 	printf("MTIME=%12.12s %4.4s ", &p[4], &p[20]);
 }
 
@@ -522,7 +524,7 @@ void
 blkerror(ino, type, blk)
 	ino_t ino;
 	char *type;
-	daddr_t blk;
+	ufs_daddr_t blk;
 {
 
 	pfatal("%ld %s I=%lu", blk, type, ino);
@@ -542,7 +544,7 @@ blkerror(ino, type, blk)
 		return;
 
 	default:
-		errexit("BAD STATE %d TO BLKERR", statemap[ino]);
+		errx(EEXIT, "BAD STATE %d TO BLKERR", statemap[ino]);
 		/* NOTREACHED */
 	}
 }
@@ -585,7 +587,7 @@ allocino(request, type)
 		return (0);
 	}
 	dp->di_mode = type;
-	(void)time(&dp->di_atime.tv_sec);
+	(void)time(&dp->di_atime);
 	dp->di_mtime = dp->di_ctime = dp->di_atime;
 	dp->di_size = sblock.fs_fsize;
 	dp->di_blocks = btodb(sblock.fs_fsize);
@@ -606,7 +608,7 @@ freeino(ino)
 	struct inodesc idesc;
 	struct dinode *dp;
 
-	bzero((char *)&idesc, sizeof(struct inodesc));
+	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = ADDR;
 	idesc.id_func = pass4check;
 	idesc.id_number = ino;
