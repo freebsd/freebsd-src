@@ -23,13 +23,11 @@ LDADD+=	${LIBCC_INT}
 objc-parse.c c-parse.h: c-parse.in
 	sed -e "/^ifc$$/,/^end ifc$$/d" \
 	    -e "/^ifobjc$$/d" -e "/^end ifobjc$$/d" \
-	    ${GCCDIR}/c-parse.in > objc-parse.y
+	    ${.ALLSRC} > objc-parse.y
 	${YACC} -d -o objc-parse.c objc-parse.y
 	mv objc-parse.h c-parse.h
-	mv objc-parse.y objc-parse.y.out
 
-CLEANFILES+=	objc-parse.c c-parse.h \
-		objc-parse.y objc-parse.y.out	# insurance
+CLEANFILES+=	objc-parse.c c-parse.h objc-parse.y 	# insurance
 
 #-----------------------------------------------------------------------
 
