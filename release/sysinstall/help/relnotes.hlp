@@ -449,6 +449,20 @@ The following CD-ROM type systems are supported at this time:
 (scd)   Sony proprietary interface (all models)
 (wcd)   ATAPI IDE interface
 
+SCSI TAPE SUPPORT:
+
+  The CAM SCSI tape driver doesn't yet handle older (and many times broken)
+  tape drives very well.  If you've got an older SCSI-1 tape drive, like an
+  Exabyte 8200 or older QIC-type tape drive, it may not work properly with
+  the CAM tape driver.  This is obviously a known problem, and we're
+  working on it.
+
+  Newer tape drives that are mostly SCSI-2 compliant should work fine.
+  e.g., DAT (DDS-1, 2 and 3), DLT, and newer Exabyte 8mm drives should
+  work fine.
+
+  If you want to find out if your particular tape drive is supported, the
+  best way to find out is to try it!
 
 The following drivers were supported under the old SCSI subsystem, but are
 NOT YET supported under the new CAM SCSI subsystem:
