@@ -162,6 +162,9 @@ Dave Boyce		wrote a driver for the Winbond W6692 PCI ISDN
 Hans Petter Selasky	for his contribution of a driver for the
 			Teles 16.3c card (and the complete ihfc driver).
 
+Sergio de Souza Prallon	for the contribution of the itjc driver which
+			supports the NETJet-S and the Teles PCI-TJ cards
+
 
                ------------------------------------------
 
