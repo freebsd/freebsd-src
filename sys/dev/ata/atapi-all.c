@@ -261,10 +261,6 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     /* wait for request to complete */
     tsleep((caddr_t)request, PRIBIO, "atprq", 0);
     splx(s);
-
-#ifdef ATAPI_DEBUG
-    printf("%s: phew, got back from tsleep\n", request->device->devname);
-#endif
     error = request->error;
     free(request, M_ATAPI);
     return error;
@@ -356,9 +352,6 @@ atapi_interrupt(struct atapi_request *request)
     if (request->ccb[0] == ATAPI_REQUEST_SENSE)
 	*buffer = (int8_t *)&request->sense;
 
-#ifdef ATAPI_DEBUG
-    printf("%s: atapi_interrupt: enter\n", atp->devname);
-#endif
     reason = (inb(atp->controller->ioaddr+ATA_IREASON) & (ATA_I_CMD|ATA_I_IN)) |
 	     (atp->controller->status & ATA_S_DRQ);
 
@@ -399,9 +392,6 @@ atapi_interrupt(struct atapi_request *request)
 
     length = inb(atp->controller->ioaddr + ATA_CYL_LSB);
     length |= inb(atp->controller->ioaddr + ATA_CYL_MSB) << 8;
-#ifdef ATAPI_DEBUG
-    printf("%s: length=%d reason=0x%02x\n", atp->devname, length, reason);
-#endif
 
     switch (reason) {
     case ATAPI_P_WRITE:
@@ -439,14 +429,6 @@ atapi_interrupt(struct atapi_request *request)
 	else 
 	    if (request->ccb[0] != ATAPI_REQUEST_SENSE)
 		request->result = 0;
-
-#ifdef ATAPI_DEBUG
-	if (request->bytecount > 0) {
-	    printf("%s: %s size problem, %d bytes residue\n",
-		   atp->devname, (request->flags & A_READ) ? "read" : "write", 
-		   request->bytecount);
-	}
-#endif
 	goto op_finished;
     default:
 	printf("%s: unknown transfer phase %d\n", atp->devname, reason);
@@ -511,9 +493,6 @@ op_finished:
 	else 
             wakeup((caddr_t)request);	
     }
-#ifdef ATAPI_DEBUG
-    printf("%s: error=0x%02x\n", request->device->devname, request->result);
-#endif
     return ATA_OP_FINISHED;
 }
 
@@ -629,9 +608,6 @@ atapi_timeout(struct atapi_request *request)
     atp->controller->running = NULL;
     printf("%s: atapi_timeout: cmd=%s - resetting\n", 
 	   atp->devname, atapi_cmd2str(request->ccb[0]));
-#ifdef ATAPI_DEBUG
-    atapi_dump("ccb = ", &request->ccb[0], sizeof(request->ccb));
-#endif
 
     if (request->flags & ATAPI_F_DMA_USED)
 	ata_dmadone(atp->controller);

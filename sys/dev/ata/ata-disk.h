@@ -71,6 +71,7 @@ struct ata_params {
     int16_t	atavalid;			/* fields valid */
 #define		ATA_FLAG_54_58	      1		/* words 54-58 valid */
 #define		ATA_FLAG_64_70	      2		/* words 64-70 valid */
+#define		ATA_FLAG_88	      4		/* word 88 valid */
 
     int16_t	currcyls;
     int16_t	currheads;
