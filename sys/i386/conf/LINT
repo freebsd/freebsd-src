@@ -1572,7 +1572,7 @@ controller	miibus0
 # FC/AL Host Adapter.
 #
 # The `al' device provides support for PCI fast ethernet adapters
-# based on the ADMtek Inc. AL981 "Comet" chip.
+# based on the ADMtek Inc. AL981 "Comet" and the AN985 "Centaur" chips.
 #
 # The `ax' device provides support for PCI fast ethernet adapters
 # based on the ASIX Electronics AX88140A chip, including the Alfa
