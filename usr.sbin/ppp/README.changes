@@ -100,3 +100,4 @@ o Unbalanced quotes in commands are now warned about and the entire command
   is ignored.
 o It is now only necessary to escape the `-' character in chat scripts twice.
   See the example files for details.
+o Environment variables and ~ are expanded on in commands
