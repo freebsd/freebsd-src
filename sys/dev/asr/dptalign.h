@@ -170,25 +170,25 @@
 # endif
 #endif
 
-#define I2O_TID_MASK	((unsigned DPT_4_BYTES) ((1L<<I2O_TID_SZ)-1))
+#define	I2O_TID_MASK	((unsigned DPT_4_BYTES) ((1L<<I2O_TID_SZ)-1))
 
 /*
  *	Now the access macros used throughout in order to methodize the
  * active alignment.
  */
-#define getUP1(x,y)  (((unsigned char __FAR__ *)(x))+(unsigned DPT_4_BYTES)(y))
-#define getU1(x,y)   (*getUP1(x,y))
-#define setU1(x,y,z) (*((unsigned char *)getUP1(x,y)) = (unsigned char)(z))
-#define orU1(x,y,z)  (*getUP1(x,y) |= (unsigned char)(z))
-#define andU1(x,y,z) (*getUP1(x,y) &= (unsigned char)(z))
-#define getUP2(x,y)  ((unsigned short __FAR__ *)(((unsigned char __FAR__ *) \
+#define	getUP1(x,y)  (((unsigned char __FAR__ *)(x))+(unsigned DPT_4_BYTES)(y))
+#define	getU1(x,y)   (*getUP1(x,y))
+#define	setU1(x,y,z) (*((unsigned char *)getUP1(x,y)) = (unsigned char)(z))
+#define	orU1(x,y,z)  (*getUP1(x,y) |= (unsigned char)(z))
+#define	andU1(x,y,z) (*getUP1(x,y) &= (unsigned char)(z))
+#define	getUP2(x,y)  ((unsigned short __FAR__ *)(((unsigned char __FAR__ *) \
 				(x))+(unsigned DPT_4_BYTES)(y)))
-#define getBU2(x,y)   ((unsigned short)osdLocal2((unsigned short __FAR__ *)  \
+#define	getBU2(x,y)   ((unsigned short)osdLocal2((unsigned short __FAR__ *)  \
 				getUP1(x,y)))
-#define getLU2(x,y)  ((unsigned short)osdSLocal2((unsigned short __FAR__ *) \
+#define	getLU2(x,y)  ((unsigned short)osdSLocal2((unsigned short __FAR__ *) \
 				getUP1(x,y)))
 /* to be deleted  */
-#define getU2(x,y)   ((unsigned short)osdLocal2((unsigned short __FAR__ *)  \
+#define	getU2(x,y)   ((unsigned short)osdLocal2((unsigned short __FAR__ *)  \
 				getUP1(x,y)))
 #if (!defined(setU2))
 # define setU2(x,y,z) { unsigned short hold = (unsigned short)(z);  \
@@ -210,7 +210,7 @@
 #endif
 
 /* to be deleted */
-#define getU3(x,y)   ((unsigned DPT_4_BYTES)osdLocal3((unsigned DPT_4_BYTES __FAR__ *) \
+#define	getU3(x,y)   ((unsigned DPT_4_BYTES)osdLocal3((unsigned DPT_4_BYTES __FAR__ *) \
 				getUP1(x,y)))
 #if (!defined(setU3))
 # if (defined(_DPT_BIG_ENDIAN))
@@ -231,7 +231,7 @@
 #endif
 /* up to here to be deleted */
 
-#define getBU3(x,y)   ((unsigned DPT_4_BYTES)osdLocal3((unsigned DPT_4_BYTES __FAR__ *) \
+#define	getBU3(x,y)   ((unsigned DPT_4_BYTES)osdLocal3((unsigned DPT_4_BYTES __FAR__ *) \
 				getUP1(x,y)))
 #if (!defined(setBU3))
 # if (defined(_DPT_BIG_ENDIAN))
@@ -250,14 +250,14 @@
 	}
 # endif
 #endif
-#define getUP4(x,y)  ((unsigned DPT_4_BYTES __FAR__ *)(((unsigned char __FAR__ *) \
+#define	getUP4(x,y)  ((unsigned DPT_4_BYTES __FAR__ *)(((unsigned char __FAR__ *) \
 				(x))+(unsigned DPT_4_BYTES)(y)))
-#define getBU4(x,y)   ((unsigned DPT_4_BYTES)osdLocal4((unsigned DPT_4_BYTES __FAR__ *)	  \
+#define	getBU4(x,y)   ((unsigned DPT_4_BYTES)osdLocal4((unsigned DPT_4_BYTES __FAR__ *)	  \
 				getUP1(x,y)))
-#define getLU4(x,y)  ((unsigned DPT_4_BYTES)osdSLocal4((unsigned DPT_4_BYTES __FAR__ *)	 \
+#define	getLU4(x,y)  ((unsigned DPT_4_BYTES)osdSLocal4((unsigned DPT_4_BYTES __FAR__ *)	 \
 				getUP1(x,y)))
 /* to be deleted */
-#define getU4(x,y)  ((unsigned DPT_4_BYTES)osdSLocal4((unsigned DPT_4_BYTES __FAR__ *)	\
+#define	getU4(x,y)  ((unsigned DPT_4_BYTES)osdSLocal4((unsigned DPT_4_BYTES __FAR__ *)	\
 				getUP1(x,y)))
 #if (!defined(setU4))
 # define setU4(x,y,z) { unsigned DPT_4_BYTES hold = z;		       \
@@ -280,7 +280,7 @@
 #endif
 
 
-#define osdSwap16bit(x) ( (((unsigned short )x & 0xf000) >> 12) | \
+#define	osdSwap16bit(x) ( (((unsigned short )x & 0xf000) >> 12) | \
 			  (((unsigned short )x & 0x0f00) >> 4) | \
 			  (((unsigned short )x & 0x00f0) << 4)	| \
 			  (((unsigned short )x & 0x000f) << 12 )   )
@@ -289,56 +289,56 @@
  * note that in big endian a 12 bit number (0x123) is stored as	  1203
  */
 
-#define osdSwap12bit(x) (( (((unsigned short )x & 0x0f00) >> 8) | \
+#define	osdSwap12bit(x) (( (((unsigned short )x & 0x0f00) >> 8) | \
 			((unsigned short )x & 0x00f0)  | \
 			(((unsigned short )x & 0x000f) << 8 )  ) )
 
-#define osdSwap8bit(x)	( (((unsigned char )x & 0x0f) << 4) | \
+#define	osdSwap8bit(x)	( (((unsigned char )x & 0x0f) << 4) | \
 			(((unsigned char )x &0xf0) >> 4 ) )
 
-#define getL24bit1(w,x,y)   ((unsigned DPT_4_BYTES)((unsigned char __FAR__ *)(&w->x))[0+(y)] \
+#define	getL24bit1(w,x,y)   ((unsigned DPT_4_BYTES)((unsigned char __FAR__ *)(&w->x))[0+(y)] \
 			+ ((((unsigned DPT_4_BYTES)((unsigned char __FAR__ *)(&w->x))[1+(y)]) << 8) & 0xFF00) \
 			+ ((((unsigned DPT_4_BYTES)((unsigned char __FAR__ *)(&w->x))[2+(y)]) << 16) & 0xFF0000))
 
-#define setL24bit1(w,x,y,z)  { ((unsigned char __FAR__ *)(&w->x))[0+(y)] = (z); \
+#define	setL24bit1(w,x,y,z)  { ((unsigned char __FAR__ *)(&w->x))[0+(y)] = (z); \
 			   ((unsigned char __FAR__ *)(&w->x))[1+(y)] = ((z) >> 8) & 0xFF; \
 			   ((unsigned char __FAR__ *)(&w->x))[2+(y)] = ((z) >> 16) & 0xFF; \
 			   }
 
-#define getL16bit(w,x,y)   ((unsigned short)((unsigned char __FAR__ *)(&w->x))[0+(y)] \
+#define	getL16bit(w,x,y)   ((unsigned short)((unsigned char __FAR__ *)(&w->x))[0+(y)] \
 			 + ((((unsigned short)((unsigned char __FAR__ *)(&w->x))[1+(y)]) << 8) & 0xFF00))
 
-#define setL16bit(w,x,y,z)  { ((unsigned char __FAR__ *)(&w->x))[0+(y)] = (z); \
+#define	setL16bit(w,x,y,z)  { ((unsigned char __FAR__ *)(&w->x))[0+(y)] = (z); \
 			   ((unsigned char __FAR__ *)(&w->x))[1+(y)] = ((z) >> 8) & 0xFF; \
 			   }
 
-#define getL16bit2(w,x,y)   ((unsigned short)((unsigned char __FAR__ *)(&w->x))[2+(y)] \
+#define	getL16bit2(w,x,y)   ((unsigned short)((unsigned char __FAR__ *)(&w->x))[2+(y)] \
 			 + ((((unsigned short)((unsigned char __FAR__ *)(&w->x))[3+(y)]) << 8) & 0xFF00))
 
-#define setL16bit2(w,x,y,z)  { ((unsigned char __FAR__ *)(&w->x))[2+(y)] = (z); \
+#define	setL16bit2(w,x,y,z)  { ((unsigned char __FAR__ *)(&w->x))[2+(y)] = (z); \
 			   ((unsigned char __FAR__ *)(&w->x))[3+(y)] = ((z) >> 8) & 0xFF; \
 			   }
 
 /* y is the number of bytes from beg of DPT_4_BYTES to get upper 4 bit of the addressed byte */
-#define getL4bit(w,x,y) \
+#define	getL4bit(w,x,y) \
 	((unsigned char)(((unsigned char __FAR__ *)(&w->x))[0+(y)] >> 4) & 0x0f)
 
-#define setL4bit(w,x,y,z) { \
+#define	setL4bit(w,x,y,z) { \
 			   ((unsigned char __FAR__ *)(&w->x))[0+(y)] &= 0xF0; \
 				((unsigned char __FAR__ *)(&w->x))[0+(y)] |= ((z) << 4) & 0xF0; \
 				}
 /* y is number of bytes from beg of DPT_4_BYTES */
-#define getL1bit(w,x,y) \
+#define	getL1bit(w,x,y) \
 	((unsigned char)(((unsigned char __FAR__ *)(&w->x))[0+(y)] ) & 0x01)
 
-#define setL1bit(w,x,y,z) { \
+#define	setL1bit(w,x,y,z) { \
 			   ((unsigned char __FAR__ *)(&w->x))[0+(y)] &= 0xFE; \
 				((unsigned char __FAR__ *)(&w->x))[0+(y)] |= (z) & 0x01; \
 				}
-#define getL1bit1(w,x,y) \
+#define	getL1bit1(w,x,y) \
 	((unsigned char)(((unsigned char __FAR__ *)(&w->x))[0+(y)] >> 1) & 0x01)
 
-#define setL1bit1(w,x,y,z) { \
+#define	setL1bit1(w,x,y,z) { \
 			   ((unsigned char __FAR__ *)(&w->x))[0+(y)] &= 0xFD; \
 				((unsigned char __FAR__ *)(&w->x))[0+(y)] |= (z << 1) & 0x02; \
 				}
@@ -346,37 +346,37 @@
 
 
 /* 12 bit at the first 12 bits of a DPT_4_BYTES word */
-#define getL12bit(w,x,y)   ((unsigned short)((unsigned char __FAR__ *)(&w->x))[0+(y)] \
+#define	getL12bit(w,x,y)   ((unsigned short)((unsigned char __FAR__ *)(&w->x))[0+(y)] \
 			 + ((((unsigned short)((unsigned char __FAR__ *)(&w->x))[1+(y)]) << 8) & 0xF00))
 
-#define setL12bit(w,x,y,z) { ((unsigned char __FAR__ *)(&w->x))[0+(y)] = (z); \
+#define	setL12bit(w,x,y,z) { ((unsigned char __FAR__ *)(&w->x))[0+(y)] = (z); \
 			   ((unsigned char __FAR__ *)(&w->x))[1+(y)] &= 0xF0; \
 			   ((unsigned char __FAR__ *)(&w->x))[1+(y)] |= ((z) >> 8) & 0xF; \
 			   }
 /* 12 bit after another 12 bit in DPT_4_BYTES word */
-#define getL12bit1(w,x,y)   (((unsigned short)((unsigned char __FAR__ *)(&w->x))[1+(y)]) >> 4 \
+#define	getL12bit1(w,x,y)   (((unsigned short)((unsigned char __FAR__ *)(&w->x))[1+(y)]) >> 4 \
 			 + ((((unsigned short)((unsigned char __FAR__ *)(&w->x))[2+(y)]) << 4) ))
 
-#define setL12bit1(w,x,y,z) { ((unsigned char __FAR__ *)(&w->x))[1+(y)] &= 0x0F; \
+#define	setL12bit1(w,x,y,z) { ((unsigned char __FAR__ *)(&w->x))[1+(y)] &= 0x0F; \
 			   ((unsigned char __FAR__ *)(&w->x))[1+(y)] |= ((z) & 0xF) << 4; \
 			   ((unsigned char __FAR__ *)(&w->x))[2+(y)] &= 0x00;\
 			   ((unsigned char __FAR__ *)(&w->x))[2+(y)] |= ((z) >> 8) & 0xff;\
 			   }
 
 /* 12 at the 3rd byte in a DPT_4_BYTES word */
-#define getL12bit2(w,x,y)   ((unsigned short)((unsigned char __FAR__ *)(&w->x))[2+(y)] \
+#define	getL12bit2(w,x,y)   ((unsigned short)((unsigned char __FAR__ *)(&w->x))[2+(y)] \
 			 + ((((unsigned short)((unsigned char __FAR__ *)(&w->x))[3+(y)]) << 8) & 0xF00))
 
-#define setL12bit2(w,x,y,z) { ((unsigned char __FAR__ *)(&w->x))[2+(y)] = (z); \
+#define	setL12bit2(w,x,y,z) { ((unsigned char __FAR__ *)(&w->x))[2+(y)] = (z); \
 			   ((unsigned char __FAR__ *)(&w->x))[3+(y)] &= 0xF0; \
 			   ((unsigned char __FAR__ *)(&w->x))[3+(y)] |= ((z) >> 8) & 0xF; \
 			   }
 
-#define getL8bit(w,x,y)	   (\
+#define	getL8bit(w,x,y)	   (\
 	(*(((unsigned char __FAR__ *)(&((w)->x)))\
 		+ y)) )
 
-#define setL8bit(w,x,y,z)  {\
+#define	setL8bit(w,x,y,z)  {\
 	(*(((unsigned char __FAR__ *)(&((w)->x)))\
 		+ y) = (z));\
 	}

@@ -89,9 +89,9 @@
  **********************************************************************/
 
 #if !defined(I2O_MESSAGE_HDR)
-#define I2O_MESSAGE_HDR
+#define	I2O_MESSAGE_HDR
 
-#define I2OMSG_REV 1_5_4  /* I2OMsg header file revision string */
+#define	I2OMSG_REV 1_5_4  /* I2OMsg header file revision string */
 
 /*
 
