@@ -1,9 +1,9 @@
 #
-#	$Id: Makefile,v 1.145 1997/09/16 10:45:41 bde Exp $
+#	$Id$
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
-#	-DMAKE_EBONES to build eBones (KerberosIV)
+#	-DMAKE_KERBEROS4 to build KerberosIV
 #	-DALLLANG to build documentation for all languages
 #	  (where available -- see share/doc/Makefile)
 #
@@ -65,8 +65,8 @@ SUBDIR+= games
 .if exists(gnu)
 SUBDIR+= gnu
 .endif
-.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
-SUBDIR+= eBones
+.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+SUBDIR+= kerberosIV
 .endif
 .if exists(libexec)
 SUBDIR+= libexec
@@ -361,8 +361,8 @@ most:
 	cd ${.CURDIR}/gnu/libexec &&	${MAKE} all
 	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} all
 	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} all
-#.if defined(MAKE_EBONES) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/eBones	&&	${MAKE} most
+#.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
+#	cd ${.CURDIR}/kerberosIV	&&	${MAKE} most
 #.endif
 #.if !defined(NOSECURE) && !defined(NOCRYPT)
 #	cd ${.CURDIR}/secure	&&	${MAKE} most
@@ -386,8 +386,8 @@ installmost:
 	cd ${.CURDIR}/gnu/libexec &&	${MAKE} install
 	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} install
 	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} install
-#.if defined(MAKE_EBONES) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/eBones	&&	${MAKE} installmost
+#.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
+#	cd ${.CURDIR}/kerberosIV &&	${MAKE} installmost
 #.endif
 #.if !defined(NOSECURE) && !defined(NOCRYPT)
 #	cd ${.CURDIR}/secure	&&	${MAKE} installmost
@@ -460,10 +460,18 @@ includes:
 	cd ${.CURDIR}/gnu/lib/libg++ &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libgmp &&		${MAKE} beforeinstall
-.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
-	cd ${.CURDIR}/eBones/include &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/eBones/lib/libkrb &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/eBones/lib/libkadm &&	${MAKE} beforeinstall
+.if exists(secure) && !defined(NOCRYPT)
+	cd ${.CURDIR}/secure/lib/libdes &&	${MAKE} beforeinstall
+.endif
+.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+	cd ${.CURDIR}/kerberosIV/lib/libacl &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkadm &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkafs &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkdb &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkrb &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libtelnet && ${MAKE} beforeinstall
+.else
+	cd ${.CURDIR}/lib/libtelnet &&		${MAKE} beforeinstall
 .endif
 	cd ${.CURDIR}/lib/csu/i386 &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libalias &&		${MAKE} beforeinstall
@@ -556,8 +564,8 @@ libraries:
 	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
-.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
-	cd ${.CURDIR}/eBones/lib && ${MAKE} depend && \
+.if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+	cd ${.CURDIR}/kerberosIV/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.sbin/pcvt/keycap)
