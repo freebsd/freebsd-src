@@ -1,6 +1,6 @@
 # The FreeBSD Russian Documentation Project
 #
-# $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/Makefile,v 1.5 2004/06/24 13:34:36 den Exp $
+# $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/Makefile,v 1.6 2004/06/28 13:24:45 den Exp $
 # $FreeBSD$
 # 
 # Original revision: 1.3
@@ -13,7 +13,7 @@ SUBDIR+= hardware
 SUBDIR+= readme
 #SUBDIR+= errata
 SUBDIR+= installation
-#SUBDIR+= early-adopter
+SUBDIR+= early-adopter
 
 COMPAT_SYMLINK = ru
 
