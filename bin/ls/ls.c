@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.21 1998/04/24 20:15:42 des Exp $";
+	"$Id: ls.c,v 1.22 1998/07/29 00:46:09 hoek Exp $";
 #endif
 #endif /* not lint */
 
@@ -460,10 +460,9 @@ display(p, list)
 		maxblock = makenines(maxblock);
 		maxnlink = makenines(maxnlink);
 		maxsize = makenines(maxsize);
-	}
-	if (initmax == NULL || *initmax == '\0')
+	} else if (initmax == NULL || *initmax == '\0')
 		maxblock = maxinode = maxlen = maxnlink =
-			maxuser = maxgroup = maxflags = maxsize = 0;
+		    maxuser = maxgroup = maxflags = maxsize = 0;
 	bcfile = 0;
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
