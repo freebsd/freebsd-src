@@ -1,5 +1,5 @@
 #	@(#)README	8.1 (Berkeley) 6/5/93
-#	$Id$
+#	$Id: README,v 1.4 1997/02/22 13:55:34 peter Exp $
 
 WEB ---- (introduction provided by jaw@riacs) -------------------------
 
@@ -15,3 +15,5 @@ Chinese, Croatian, Czech, Danish, Dutch, Esperanto, Finnish, French,
 German, Hindi, Hungarian, Italian, Japanese, Latin, Norwegian, Polish,
 Russian, Spanish, Swahili, Swedish, Yiddish, are available
 at ftp://sable.ox.ac.uk/pub/wordlists.
+
+Country names are stored in the file /usr/share/misc/iso3166.
