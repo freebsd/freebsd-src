@@ -58,6 +58,8 @@
 /*
  * Define the code needed before returning to user mode, for
  * trap and syscall.
+ *
+ * MPSAFE
  */
 void
 userret(p, frame, oticks)
@@ -71,8 +73,8 @@ userret(p, frame, oticks)
 	PROC_LOCK(p);
 	while ((sig = CURSIG(p)) != 0)
 		postsig(sig);
-	mtx_unlock(&Giant);
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 
 	mtx_lock_spin(&sched_lock);
 	p->p_pri.pri_level = p->p_pri.pri_user;
@@ -166,7 +168,6 @@ ast(framep)
 			    PCB_NPXTRAP);
 			ucode = npxtrap();
 			if (ucode != -1) {
-				mtx_lock(&Giant);
 				trapsignal(p, SIGFPE, ucode);
 			}
 		}
@@ -178,8 +179,6 @@ ast(framep)
 		}
 
 		userret(p, framep, sticks);
-		if (mtx_owned(&Giant))
-			mtx_unlock(&Giant);
 		s = critical_enter();
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);

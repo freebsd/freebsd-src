@@ -132,6 +132,8 @@ int linux_to_bsd_signal[LINUX_SIGTBLSZ] = {
 /*
  * If FreeBSD & Linux have a difference of opinion about what a trap
  * means, deal with it here.
+ *
+ * MPSAFE
  */
 static int
 translate_traps(int signal, int trap_code)
@@ -687,6 +689,9 @@ linux_rt_sigreturn(p, args)
 	return (EJUSTRETURN);
 }
 
+/*
+ * MPSAFE
+ */
 static void
 linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
 {

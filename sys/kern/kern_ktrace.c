@@ -78,6 +78,9 @@ ktrgetheader(type)
 	return (kth);
 }
 
+/*
+ * MPSAFE
+ */
 void
 ktrsyscall(vp, code, narg, args)
 	struct vnode *vp;
@@ -92,6 +95,7 @@ ktrsyscall(vp, code, narg, args)
 	register_t *argp;
 	int i;
 
+	mtx_lock(&Giant);
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_SYSCALL);
 	MALLOC(ktp, struct ktr_syscall *, len, M_KTRACE, M_WAITOK);
@@ -106,8 +110,12 @@ ktrsyscall(vp, code, narg, args)
 	FREE(ktp, M_KTRACE);
 	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
+	mtx_unlock(&Giant);
 }
 
+/*
+ * MPSAFE
+ */
 void
 ktrsysret(vp, code, error, retval)
 	struct vnode *vp;
@@ -118,6 +126,7 @@ ktrsysret(vp, code, error, retval)
 	struct ktr_sysret ktp;
 	struct proc *p = curproc;	/* XXX */
 
+	mtx_lock(&Giant);
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_SYSRET);
 	ktp.ktr_code = code;
@@ -130,6 +139,7 @@ ktrsysret(vp, code, error, retval)
 	ktrwrite(vp, kth, NULL);
 	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
+	mtx_unlock(&Giant);
 }
 
 void
