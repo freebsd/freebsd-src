@@ -55,7 +55,6 @@ enum requeststatus build_read_request(struct request *rq, int volplexno);
 enum requeststatus build_write_request(struct request *rq);
 enum requeststatus build_rq_buffer(struct rqelement *rqe, struct plex *plex);
 void freerq(struct request *rq);
-void free_rqg(struct rqgroup *rqg);
 int find_alternate_sd(struct request *rq);
 int check_range_covered(struct request *);
 void complete_rqe(struct buf *bp);
@@ -972,14 +971,21 @@ deallocrqg(struct rqgroup *rqg)
 {
     struct rqgroup *rqgc = rqg->rq->rqg;		    /* point to the request chain */
 
-    if (rqg->rq->rqg == rqg)				    /* we're first in line */
+    if (rqgc == rqg)					    /* we're first in line */
 	rqg->rq->rqg = rqg->next;			    /* unhook ourselves */
     else {
-	while (rqgc->next != rqg)			    /* find the group */
+	while ((rqgc->next != NULL)			    /* find the group */
+	&&(rqgc->next != rqg))
 	    rqgc = rqgc->next;
-	rqgc->next = rqg->next;
+	if (rqgc->next == NULL)
+	    log(LOG_ERR,
+		"vinum deallocrqg: rqg %p not found in request %p\n",
+		rqg->rq,
+		rqg);
+	else
+	    rqgc->next = rqg->next;			    /* make the chain jump over us */
     }
-    Free(rqgc);
+    Free(rqg);
 }
 
 /* Character device interface */
