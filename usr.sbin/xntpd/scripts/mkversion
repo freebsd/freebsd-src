@@ -9,12 +9,15 @@ RUN="`expr $RUN + 1`"
 echo $RUN > .version
 
 DATE="`date`"
+TOPDIR=`echo $0 | sed -e 's;mkversion;..;'`
 
 if [ -r VERSION ]; then
   VERSION=VERSION
+else if [ -r ${TOPDIR}/VERSION ]; then
+  VERSION=${TOPDIR}/VERSION
 else
   VERSION=../VERSION
-fi
+fi; fi
 
 if [ -f "$VERSION" ]; then
   FLAGS="`egrep '^[0-9a-zA-Z_]+=' "$VERSION" | tr '\012' ';'` "

@@ -340,22 +340,24 @@ unpeer(peer_to_remove)
  * peer_config - configure a new peer
  */
 struct peer *
-peer_config(srcadr, dstadr, hmode, version, minpoll, maxpoll, key, flags)
+peer_config(srcadr, dstadr, hmode, version, minpoll, maxpoll, flags, ttl, key)
 	struct sockaddr_in *srcadr;
 	struct interface *dstadr;
 	int hmode;
 	int version;
 	int minpoll;
 	int maxpoll;
-	U_LONG key;
 	int flags;
+	int ttl;
+	U_LONG key;
 {
 	register struct peer *peer;
 
 #ifdef DEBUG
 	if (debug)
-		printf("peer_config: addr %s mode %d version %d minpoll %d maxpoll %d key %u\n",
-		    ntoa(srcadr), hmode, version, minpoll, maxpoll, key);
+		printf("peer_config: addr %s mode %d version %d minpoll %d maxpoll %d flags %d ttl %d key %u\n",
+		    ntoa(srcadr), hmode, version, minpoll, maxpoll, flags,
+		    ttl, key);
 #endif
 	/*
 	 * See if we have this guy in the tables already.  If
@@ -387,6 +389,7 @@ peer_config(srcadr, dstadr, hmode, version, minpoll, maxpoll, key, flags)
 		peer->ppoll = peer->minpoll;
 		peer->flags = ((u_char)(flags|FLAG_CONFIG))
 		    |(peer->flags & (FLAG_REFCLOCK|FLAG_DEFBDELAY));
+		peer->ttl = (u_char)ttl;
 		peer->keyid = key;
 		return peer;
 	}
@@ -395,7 +398,8 @@ peer_config(srcadr, dstadr, hmode, version, minpoll, maxpoll, key, flags)
 	 * If we're here this guy is unknown to us.  Make a new peer
 	 * structure for him.
 	 */
-	peer = newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll, key);
+	peer = newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll,
+	    ttl, key);
 	if (peer != 0)
 		peer->flags |= (u_char)(flags|FLAG_CONFIG);
 	return peer;
@@ -406,13 +410,14 @@ peer_config(srcadr, dstadr, hmode, version, minpoll, maxpoll, key, flags)
  * newpeer - initialize a new peer association
  */
 struct peer *
-newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll, key)
+newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll, ttl, key)
 	struct sockaddr_in *srcadr;
 	struct interface *dstadr;
 	int hmode;
 	int version;
 	int minpoll;
 	int maxpoll;
+	int ttl;
 	U_LONG key;
 {
 	register struct peer *peer;
@@ -454,13 +459,10 @@ newpeer(srcadr, dstadr, hmode, version, minpoll, maxpoll, key)
 	peer->maxpoll = (u_char)maxpoll;
 	peer->hpoll = peer->minpoll;
 	peer->ppoll = peer->minpoll;
+	peer->ttl = ttl;
 	peer->keyid = key;
-
-	if (hmode == MODE_BCLIENT) {
-		peer->estbdelay = sys_bdelay;
-		peer->flags |= FLAG_DEFBDELAY;
-	}
-
+	peer->estbdelay = sys_bdelay;
+	peer->flags |= FLAG_DEFBDELAY;
 	peer->leap = LEAP_NOTINSYNC;
 	peer->precision = DEFPRECISION;
 	peer->dispersion = NTP_MAXDISPERSE;

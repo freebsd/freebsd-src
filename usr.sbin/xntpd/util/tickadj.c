@@ -333,10 +333,13 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 
 #if defined(SYS_AUX3) || defined(SYS_AUX2)
 #define X_TICKADJ       0
-#define X_V             1
-#define X_TICK          2
+#define X_TICK          1
 #define X_DEF	
-	static struct nlist	nl[4];
+	static struct nlist nl[] =
+	{	{"tickadj"},
+		{"tick"},
+		{""},
+	};
 #endif
 
 #ifdef	NeXT
@@ -428,13 +431,6 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 		NULL
 	};
 	struct stat stbuf;
-
-#if defined(SYS_AUX3) || defined(SYS_AUX2)
-	strcpy (nl[X_TICKADJ].n_name, "tickadj");
-	strcpy (nl[X_V].n_name, "v");
-	strcpy (nl[X_TICK].n_name, "tick");
-	nl[3].n_name[0] = '\0';
-#endif
 
 	for (kname = kernels; *kname != NULL; kname++) {
 		if (stat(*kname, &stbuf) == -1)

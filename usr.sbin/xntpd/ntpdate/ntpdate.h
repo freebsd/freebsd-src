@@ -54,7 +54,11 @@ struct server {
  * are close, or step the time if the times are farther apart.  The
  * following defines what is "close".
  */
+#ifdef linux
+#define	NTPDATE_THRESHOLD	(FP_SECOND / 8)		/* 1/8 second */
+#else
 #define	NTPDATE_THRESHOLD	(FP_SECOND >> 1)	/* 1/2 second */
+#endif
 
 /*
  * When doing adjustments, ntpdate actually overadjusts (currently

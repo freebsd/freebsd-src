@@ -1,0 +1,50 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa00480; 16 Feb 94 12:17 EST
+Received: from quack.kfu.com by louie.udel.edu id aa24950; 16 Feb 94 12:12 EST
+Received: by quack.kfu.com id AA03532
+  (5.65c8/IDA-1.4.4 for mills@udel.edu); Wed, 16 Feb 1994 09:12:04 -0800
+Date: Wed, 16 Feb 1994 09:12:04 -0800
+From: Nick Sayer <nsayer@quack.kfu.com>
+Message-Id: <199402161712.AA03532@quack.kfu.com>
+To: mills@udel.edu
+Subject: CHU debug patch
+
+I don't know what you think about this, but I thought I'd pass it
+along. I'm sorry I don't have a proper 'patch' format patch, but
+it should be aparent from the context where this goes in refclock_chu.c:
+
+		return;
+	}
+
+	/*
+	 * Get the clock this applies to and a pointer to the data
+	 */
+	chu = (struct chuunit *)rbufp->recv_srcclock;
+	chuc = (struct chucode *)&rbufp->recv_space;
+	chu->responses++;
+	chu->lastupdate = current_time;
+
+	/*
+	 * Just for fun, we can debug the whole frame if
+	 * we want.
+	 */
+
+#ifndef NO_CHU_DEBUG
+	syslog(LOG_DEBUG,"CHU %s packet:",(chuc->chutype==CHU_YEAR)?
+	  "year":"time");
+	for (i=0;i<NCHUCHARS;i++)
+	{
+		char c[64];
+		
+		sprintf(c,"%c%c %s",hexstring[chuc->codechars[i]&0xf],
+		  hexstring[chuc->codechars[i]>>4],
+		  ctime(&(chuc->codetimes[i].tv_sec)));
+		c[strlen(c)-1]=0; /* ctime() adds a damn \n */
+		syslog(LOG_DEBUG,"%s .%06d",c,chuc->codetimes[i].tv_usec);
+	}
+#endif
+
+	/*
+	 * At this point we're assured that both halves of the
+	 * data match because of what the kernel has done.
+

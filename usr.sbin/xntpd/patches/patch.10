@@ -1,0 +1,1925 @@
+diff -c COPYRIGHT:1.1.1.16 COPYRIGHT:1.21
+*** COPYRIGHT:1.1.1.16	Wed Feb  2 18:09:17 1994
+--- COPYRIGHT	Wed Feb  2 18:09:18 1994
+***************
+*** 1,6 ****
+  /******************************************************************************
+   *                                                                            *
+!  * Copyright (c) David L. Mills 1992, 1993, 1994                             *
+   *                                                                            *
+   * Permission to use, copy, modify, and distribute this software and its      *
+   * documentation for any purpose and without fee is hereby granted, provided  *
+--- 1,6 ----
+  /******************************************************************************
+   *                                                                            *
+!  * Copyright (c) David L. Mills 1992, 1993, 1994                              *
+   *                                                                            *
+   * Permission to use, copy, modify, and distribute this software and its      *
+   * documentation for any purpose and without fee is hereby granted, provided  *
+***************
+*** 55,58 ****
+   * Torsten Duwe <duwe@immd4.informatik.uni-erlangen.de> (Linux Port)
+   * Paul A Vixie <vixie@vix.com> (TrueTime GPS driver)
+   * Jim Jagielski <jim@jagubox.gsfc.nasa.gov> (A/UX port)
+! */
+--- 55,58 ----
+   * Torsten Duwe <duwe@immd4.informatik.uni-erlangen.de> (Linux Port)
+   * Paul A Vixie <vixie@vix.com> (TrueTime GPS driver)
+   * Jim Jagielski <jim@jagubox.gsfc.nasa.gov> (A/UX port)
+!  */
+diff -c doc/xntpd.8:1.1.1.12 doc/xntpd.8:3.24
+*** doc/xntpd.8:1.1.1.12	Wed Feb  2 18:10:44 1994
+--- doc/xntpd.8	Wed Feb  2 18:10:45 1994
+***************
+*** 446,451 ****
+--- 446,467 ----
+  .Ip notrust 10
+  Treat these hosts normally in other respects, but never use them as
+  synchronization sources.
++ .Ip limited 10
++ These hosts are subject to limitation of number of clients from the
++ same net. Net in this context refers to the IP notion of net (class A,
++ class B, class C, etc.). Only the first \*(L"client_limit\*(R" hosts
++ that have shown up at the server and that have been active during the
++ last \*(L"client_limit_period\*(R" seconds are accepted. Requests from
++ other clients from the same net are rejected. Only time request
++ packets are taken into account. \*(L"Private\*(R", \*(L"control\*(R",
++ and \*(L"broadcast\*(R" packets are not subject to client limitation
++ and therefore are not contributing to client count. History of clients
++ is kept using the monitoring capability of
++ .IR xntpd .
++ Thus, monitoring is active as long as there is a restriction entry
++ with the \*(L"limited\*(R" flag. The default value for
++ \*(L"client_limit\*(R" is 3. The default value for
++ \*(L"client_limit_period\*(R" is 3600 seconds.
+  .Ip ntpport 10
+  This is actually a match algorithm modifier, rather than a restriction
+  flag.  Its presence causes the restriction entry to be matched only if
+***************
+*** 469,474 ****
+--- 485,505 ----
+  considered an alternative to the standard NTP authentication facility.  Source
+  address based restrictions are easily circumvented by a determined cracker.
+  .PP
++ .B clientlimit
++ .I limit
++ .PP
++ Sets \*(L"client_limit\*(R" to \*(L"limit\*(R", allows configuration
++ of client limitation policy. This variable defines the number of
++ clients from the same network that are allowed to use the server.
++ .PP
++ .B clientperiod
++ .I period
++ .PP
++ Sets \*(L"client_limit_period\*(R", allows configuration of client
++ limitation policy. This variable specifies the number
++ of seconds after which a client is considered inactive and thus no
++ longer is counted for client limit restriction.
++ .PP
+  .B trap
+  .I host_address
+  [
+diff -c doc/xntpdc.8:1.1.1.2 doc/xntpdc.8:3.4
+*** doc/xntpdc.8:1.1.1.2	Wed Feb  2 18:10:46 1994
+--- doc/xntpdc.8	Wed Feb  2 18:10:47 1994
+***************
+*** 539,544 ****
+--- 539,555 ----
+  Ignore all NTP mode 7 packets which attempt to modify the state of the
+  server (i.e. run time reconfiguration).  Queries which return information
+  are permitted.
++ .Ip notrap 10
++ Decline to provide mode 6 control message trap service to matching
++ hosts.  The trap service is a subsystem of the mode 6 control message
++ protocol which is intended for use by remote event logging programs.
++ .Ip lowpriotrap 10
++ Declare traps set by matching hosts to be low priority.  The number
++ of traps a server can maintain is limited (the current limit is 3).
++ Traps are usually assigned on a first come, first served basis, with
++ later trap requestors being denied service.  This flag modifies the
++ assignment algorithm by allowing low priority traps to be overridden
++ by later requests for normal priority traps.
+  .Ip noserve 10
+  Ignore NTP packets whose mode is other than 7.  In effect, time service is
+  denied, though queries may still be permitted.
+***************
+*** 549,554 ****
+--- 560,582 ----
+  .Ip notrust 10
+  Treat these hosts normally in other respects, but never use them as
+  synchronization sources.
++ .Ip limited 10
++ These hosts are subject to limitation of number of clients from the
++ same net. Net in this context refers to the IP notion of net (class A,
++ class B, class C, etc.). Only the first \*(L"client_limit\*(R" hosts
++ that have shown up at the server and that have been active during the
++ last \*(L"client_limit_period\*(R" seconds are accepted. Requests from
++ other clients from the same net are rejected. Only time request
++ packets are taken into account. \*(L"Private\*(R", \*(L"control\*(R",
++ and \*(L"broadcast\*(R" packets are not subject to client limitation
++ and therefore are not contributing to client count. History of clients
++ is kept using the monitoring capability of
++ .IR xntpd.
++ Thus, monitoring is active as long as there is a restriction entry
++ with the \*(L"limited\*(R" flag. The default value for
++ \*(L"client_limit\*(R" is 3. The default value for
++ \*(L"client_limit_period\*(R" is 3600 seconds. Currently both
++ variables are not runtime configurable. 
+  .Ip ntpport 10
+  This is actually a match algorithm modifier, rather than a restriction
+  flag.  Its presence causes the restriction entry to be matched only if
+diff -c hints/linux:1.1.1.1 hints/linux:1.2
+*** hints/linux:1.1.1.1	Wed Feb  2 18:10:58 1994
+--- hints/linux	Wed Feb  2 18:10:59 1994
+***************
+*** 1,29 ****
+  
+! Requirements:	kernel 0.99.14 or newer, libc 4.5 or newer
+  ------------
+  
+! 	With this configuration, xntp should build an run right out of the
+! box (see generic hints for how-to), with one big limitation: tickadj doesn't
+! work yet. This is especially painful since PCs are usually equipped with
+! untuned, badly-drifting quartzes, values up to 200 ppm being no exception.
+! Because the loop filter algorithms are limited to compensating no more than
+! 100 ppm, currently only one workaround is possible:
+! 	Compile your own kernel and adjust linux/include/linux/timex.h, 
+! line 67 (in pl14):
+! 
+! #define CLOCK_TICK_RATE 1193180 /* Underlying HZ */
+! 
+! 	Since this is surely not true for your hardware, adjust the hundreds
+! to match your quartz. Adding 100 compensates for a drift of -83.8 ppm
+! (1/CLOCK_TICK_RATE). The number gets rounded to the nearest 100 so don't
+! bother to tune any finer.
+! 
+! Fixing tickadj is already in my work queue, so the previous comment should be
+! obsolete RSN. If you really need to run xntp on any earlier versions of the
+! kernel or libc, or have any other question not covered in the READMEs / hint
+! files (sorry, necessary comment in the Linux community ;-) feel free to ask
+! me (duwe@informatik.uni-erlangen.de)
+! 
+! xntp3.3b of 1993/12/06 : remember to change #define ntp_adjtime adjtimex to
+! __adjtimex in the Linux section (line 316). This is hopefully done if you
+! (don't :-) see this paragraph in the xntp3.x distribution.
+--- 1,9 ----
+  
+! Requirements:	kernel 0.99.14y or newer, libc 4.5.8 or newer
+  ------------
+  
+! 	With this configuration, xntp should build an run right out of the box
+! (see generic hints for how-to). If you really need to run xntp on any earlier
+! versions of the kernel or libc, or have any other question not covered in the
+! READMEs / hint files (sorry, necessary comment in the Linux community ;-) feel
+! free to ask me (duwe@informatik.uni-erlangen.de)
+diff -c include/ntp.h:1.1.1.17 include/ntp.h:3.23
+*** include/ntp.h:1.1.1.17	Wed Feb  2 18:11:18 1994
+--- include/ntp.h	Wed Feb  2 18:11:18 1994
+***************
+*** 612,617 ****
+--- 612,620 ----
+  	struct mon_data *hash_prev;	/* previous structure in hash list */
+  	struct mon_data *mru_next;	/* next structure in MRU list */
+  	struct mon_data *mru_prev;	/* previous structure in MRU list */
++ 	struct mon_data *fifo_next;	/* next structure in FIFO list */
++ 	struct mon_data *fifo_prev;	/* previous structure in FIFO list */
++ 	U_LONG lastdrop;		/* last time dropped due to RES_LIMIT*/
+  	U_LONG lasttime;		/* last time data updated */
+  	U_LONG firsttime;		/* time structure initialized */
+  	U_LONG count;			/* count we have seen */
+***************
+*** 621,627 ****
+  	u_char version;			/* version of incoming packet */
+  };
+  
+! 
+  /*
+   * Structure used for restrictlist entries
+   */
+--- 624,635 ----
+  	u_char version;			/* version of incoming packet */
+  };
+  
+! /*
+!  * Values used with mon_enabled to indicate reason for enabling monitoring
+!  */
+! #define MON_OFF    0x00			/* no monitoring */
+! #define MON_ON     0x01			/* monitoring explicitly enabled */
+! #define MON_RES    0x02			/* implicit monitoring for RES_LIMITED */
+  /*
+   * Structure used for restrictlist entries
+   */
+***************
+*** 645,654 ****
+  #define	RES_NOPEER		0x20	/* don't allocate memory resources */
+  #define	RES_NOTRAP		0x40	/* don't allow him to set traps */
+  #define	RES_LPTRAP		0x80	/* traps set by him are low priority */
+  
+  #define	RES_ALLFLAGS \
+      (RES_IGNORE|RES_DONTSERVE|RES_DONTTRUST|RES_NOQUERY\
+!     |RES_NOMODIFY|RES_NOPEER|RES_NOTRAP|RES_LPTRAP)
+  
+  /*
+   * Match flags
+--- 653,663 ----
+  #define	RES_NOPEER		0x20	/* don't allocate memory resources */
+  #define	RES_NOTRAP		0x40	/* don't allow him to set traps */
+  #define	RES_LPTRAP		0x80	/* traps set by him are low priority */
++ #define RES_LIMITED		0x100   /* limit per net number of clients */
+  
+  #define	RES_ALLFLAGS \
+      (RES_IGNORE|RES_DONTSERVE|RES_DONTTRUST|RES_NOQUERY\
+!     |RES_NOMODIFY|RES_NOPEER|RES_NOTRAP|RES_LPTRAP|RES_LIMITED)
+  
+  /*
+   * Match flags
+diff -c include/ntp_request.h:1.1.1.7 include/ntp_request.h:3.7
+*** include/ntp_request.h:1.1.1.7	Wed Feb  2 18:11:27 1994
+--- include/ntp_request.h	Wed Feb  2 18:11:28 1994
+***************
+*** 429,438 ****
+--- 429,456 ----
+  	U_LONG processed;	/* packets processed */
+  	U_LONG badauth;		/* packets dropped because of authorization */
+  	U_LONG wanderhold;
++ 	U_LONG limitrejected;	/* rejected because of client limitation */
+  };
+  
+  
+  /*
++  * System stats - old version
++  */
++ struct old_info_sys_stats {
++ 	U_LONG timeup;		/* time we have been up and running */
++ 	U_LONG timereset;	/* time since these were last cleared */
++ 	U_LONG badstratum;	/* packets claiming an invalid stratum */
++ 	U_LONG oldversionpkt;	/* old version packets received */
++ 	U_LONG newversionpkt;	/* new version packets received */
++ 	U_LONG unknownversion;	/* don't know version packets */
++ 	U_LONG badlength;	/* packets with bad length */
++ 	U_LONG processed;	/* packets processed */
++ 	U_LONG badauth;		/* packets dropped because of authorization */
++ 	U_LONG wanderhold;
++ };
++ 
++ 
++ /*
+   * Peer memory statistics.  Collected in the peer module.
+   */
+  struct info_mem_stats {
+***************
+*** 546,551 ****
+--- 564,570 ----
+  struct info_monitor {	
+  	U_LONG lasttime;		/* last packet from this host */
+  	U_LONG firsttime;		/* first time we received a packet */
++ 	U_LONG lastdrop;	        /* last time we rejected a packet due to client limitation policy */
+  	U_LONG count;			/* count of packets received */
+  	U_LONG addr;			/* host address */
+  	u_short port;			/* port number of last reception */
+***************
+*** 553,558 ****
+--- 572,589 ----
+  	u_char version;			/* version number of last packet */
+  };
+  
++ /*
++  * Structure used for returning monitor data (old format
++  */
++ struct old_info_monitor {	
++ 	U_LONG lasttime;		/* last packet from this host */
++ 	U_LONG firsttime;		/* first time we received a packet */
++ 	U_LONG count;			/* count of packets received */
++ 	U_LONG addr;			/* host address */
++ 	u_short port;			/* port number of last reception */
++ 	u_char mode;			/* mode of last packet */
++ 	u_char version;			/* version number of last packet */
++ };
+  
+  /*
+   * Structure used for passing indication of flags to clear
+diff -c include/ntp_stdlib.h:1.1.1.7 include/ntp_stdlib.h:1.2
+*** include/ntp_stdlib.h:1.1.1.7	Wed Feb  2 18:11:31 1994
+--- include/ntp_stdlib.h	Wed Feb  2 18:11:31 1994
+***************
+*** 79,84 ****
+--- 79,85 ----
+  extern	char *	mfptoa		P((U_LONG, U_LONG, int));
+  extern	char *	mfptoms		P((U_LONG, U_LONG, int));
+  extern	char *	modetoa		P((int));
++ extern	U_LONG	netof		P((U_LONG));
+  extern	char *	numtoa		P((U_LONG));
+  extern	char *	numtohost	P((U_LONG));
+  extern	int	octtoint	P((const char *, U_LONG *));
+diff -c include/ntpd.h:1.1.1.7 include/ntpd.h:1.6
+*** include/ntpd.h:1.1.1.7	Wed Feb  2 18:11:38 1994
+--- include/ntpd.h	Wed Feb  2 18:11:38 1994
+***************
+*** 93,100 ****
+  
+  /* ntp_monitor.c */
+  extern	void	init_mon	P((void));
+! extern	void	mon_start	P((void));
+! extern	void	mon_stop	P((void));
+  extern	void	monitor		P((struct recvbuf *));
+  
+  /* ntp_peer.c */
+--- 93,100 ----
+  
+  /* ntp_monitor.c */
+  extern	void	init_mon	P((void));
+! extern	void	mon_start	P((int));
+! extern	void	mon_stop	P((int));
+  extern	void	monitor		P((struct recvbuf *));
+  
+  /* ntp_peer.c */
+diff -c lib/Makefile.tmpl:1.1.1.14 lib/Makefile.tmpl:3.25
+*** lib/Makefile.tmpl:1.1.1.14	Wed Feb  2 18:12:06 1994
+--- lib/Makefile.tmpl	Wed Feb  2 18:12:07 1994
+***************
+*** 31,37 ****
+  	uglydate.c uinttoa.c utvtoa.c machines.c clocktypes.c \
+  	md5.c a_md5encrypt.c a_md5decrypt.c \
+  	a_md512crypt.c decodenetnum.c systime.c msyslog.c syssignal.c \
+! 	findconfig.c
+  
+  OBJS=	atoint.o atolfp.o atouint.o auth12crypt.o authdecrypt.o authdes.o \
+  	authencrypt.o authkeys.o authparity.o authreadkeys.o authusekey.o \
+--- 31,37 ----
+  	uglydate.c uinttoa.c utvtoa.c machines.c clocktypes.c \
+  	md5.c a_md5encrypt.c a_md5decrypt.c \
+  	a_md512crypt.c decodenetnum.c systime.c msyslog.c syssignal.c \
+! 	findconfig.c netof.c
+  
+  OBJS=	atoint.o atolfp.o atouint.o auth12crypt.o authdecrypt.o authdes.o \
+  	authencrypt.o authkeys.o authparity.o authreadkeys.o authusekey.o \
+***************
+*** 44,50 ****
+  	uglydate.o uinttoa.o utvtoa.o machines.o clocktypes.o \
+  	md5.o a_md5encrypt.o a_md5decrypt.o \
+  	a_md512crypt.o decodenetnum.o systime.o msyslog.o syssignal.o \
+! 	findconfig.o
+  
+  $(LIBNAME).a:	$(OBJS)
+  	ar rv $@ $?
+--- 44,50 ----
+  	uglydate.o uinttoa.o utvtoa.o machines.o clocktypes.o \
+  	md5.o a_md5encrypt.o a_md5decrypt.o \
+  	a_md512crypt.o decodenetnum.o systime.o msyslog.o syssignal.o \
+! 	findconfig.o netof.o
+  
+  $(LIBNAME).a:	$(OBJS)
+  	ar rv $@ $?
+diff -c /dev/null lib/netof.c:3.1
+*** /dev/null	Wed Feb  2 18:13:07 1994
+--- lib/netof.c	Wed Feb  2 18:13:07 1994
+***************
+*** 0 ****
+--- 1,25 ----
++ /* 
++  * netof - return the net address part of an ip address
++  *         (zero out host part)
++  */
++ #include <stdio.h>
++ 
++ #include "ntp_fp.h"
++ #include "ntp_stdlib.h"
++ 
++ U_LONG
++ netof(num)
++ 	U_LONG num;
++ {
++ 	register U_LONG netnum;
++ 
++ 	netnum = num;
++ 
++ 	if(IN_CLASSC(netnum))
++ 		netnum &= IN_CLASSC_NET;
++ 	else if (IN_CLASSB(netnum))
++ 		netnum &= IN_CLASSB_NET;
++ 	else			/* treat als other like class A */
++ 		netnum &= IN_CLASSA_NET;
++ 	return netnum;
++ }
+diff -c /dev/null parse/README.new_clocks:3.2
+*** /dev/null	Wed Feb  2 18:14:30 1994
+--- parse/README.new_clocks	Wed Feb  2 18:14:30 1994
+***************
+*** 0 ****
+--- 1,203 ----
++ Here is an attempt to scetch out what you need to do in order to
++ add another clock to the parse driver:
++ 
++ Prerequsites:
++ - Does the system you want the clock connect to have
++   termio.h or termios.h ? (You need that for the parse driver)
++ 
++ What to do:
++ 
++ Make a conversion module (parse/clk_*.c)
++ 
++ - What ist the time code format ?
++   - find year, month, day, hour, minute, second, status (synchronised or
++     not), possibly time zone information (you need to give the offset to UTC)
++     You will have to convert the data from a string into a struct clocktime:
++       struct clocktime                /* clock time broken up from time code */
++       {
++ 	LONG day;
++ 	LONG month;
++ 	LONG year;
++ 	LONG hour;
++ 	LONG minute;
++ 	LONG second;
++ 	LONG usecond;
++ 	LONG utcoffset;       /* in seconds */
++ 	LONG flags;           /* current clock status */
++       };
++ 
++      Conversion is usually simple and straight forward. For the flags following
++      values can be OR'ed together:
++ 
++      PARSEB_ANNOUNCE           switch time zone warning (informational only)
++      PARSEB_POWERUP            no synchronisation - clock confused (must set then)
++      PARSEB_NOSYNC             timecode currently not confirmed (must set then)
++                                usually on reception error when the is still a
++                                chance the the generated time is still ok.
++ 
++      PARSEB_DST                DST in effect (informational only)
++      PARSEB_UTC                timecode contains UTC time (informational only)
++      PARSEB_LEAP               LEAP warning (prior to leap happening - must set when imminent)
++      PARSEB_ALTERNATE          backup transmitter (informational only)
++      PARSEB_POSITION           geographic position available (informational only)
++      PARSEB_LEAPSECOND         actual leap second (this time code is the leap
++                                second - informational only)
++      
++      These are feature flags denoting items that are supported by the clock:
++      PARSEB_S_LEAP             supports LEAP - might set PARSEB_LEAP
++      PARSEB_S_ANTENNA          supports ANTENNA - might set PARSEB_ALTERNATE
++      PARSEB_S_PPS              supports PPS time stamping
++      PARSEB_S_POSITION         supports position information (GPS)
++ 
++      Conversion is done in the cvt_* routine in parse/clk_*.c files. look in
++      them for examples. The basic structure is:
++ 
++      struct clockformat <yourclock>_format = {
++        lots of field for you to fill out (see below)
++      };
++ 
++      static cvt_<yourclock>()
++        ...
++      {
++        if (<I do not recognize my time code>) {
++          return CVT_NONE;
++        } else {
++          if (<conversion into clockformat is ok>) {
++            <set all necessary flags>;
++            return CVT_OK;
++          } else {
++            return CVT_FAIL|CVT_BADFMT;
++          }
++        }
++ 
++      The struct clockformat is the interface to the rest of the parse
++      driver - it holds all information necessary for finding the
++      clock message and doing the appropriate time stamping.
++ 
++ struct clockformat
++ {
++   unsigned LONG (*convert)();
++   /* conversion routine - your routine - cvt_<yourclock> */
++   void          (*syncevt)();
++   /* routine for handling RS232 sync events (time stamps) - usually sync_simple */
++   unsigned LONG (*syncpps)(); 
++   /* PPS input routine - usually pps_simple */
++   unsigned LONG (*synth)();
++   /* time code synthesizer - usually not used - (LONG (*)())0 */
++   void           *data;
++   /* local parameters - any parameters/data/configuration info your conversion
++      routine might need */
++   char           *name;
++   /* clock format name - Name of the time code */
++   unsigned short  length;
++   /* maximum length of data packet for your clock format */
++   unsigned LONG   flags;
++  /* information for the parser what to look for */
++   struct timeval  timeout;
++  /* buffer restart after timeout (us) - some clocks preceede new data by
++     a longer period of silence - unsually not used */
++   unsigned char   startsym;
++   /* start symbol - character at the beginning of the clock data */
++   unsigned char   endsym;
++   /* end symbol - character at the end of the clock data */
++   unsigned char   syncsym;
++   /* sync symbol - character that is "on time" - where the time stamp should be taken */
++ };
++ 
++   The flags:
++   F_START         use startsym to find the beginning of the clock data
++   F_END           use endsym to find the end of the clock data
++   SYNC_TIMEOUT    packet restart after timeout in timeout field
++   SYNC_START      packet start is sync event (time stamp at paket start)
++   SYNC_END        packet end is sync event (time stamp at paket end)
++   SYNC_CHAR       special character (syncsym) is sync event
++   SYNC_ONE        PPS synchronize on 'ONE' transition
++   SYNC_ZERO       PPS synchronize on 'ZERO' transition
++   SYNC_SYNTHESIZE generate intermediate time stamps (very special case!)
++   CVT_FIXEDONLY   convert only in fixed configuration - (data format not
++                   suitable for auto-configuration)
++ 
++ 
++   The above should have given you some hints on how to build a clk_*.c
++   file with the time code conversion. See the examples and pick a clock
++   closest to yours and tweak the code to match your clock.
++ 
++   In order to make your clk_*.c file usable a referenc to the clockformat
++   structure must be put into parse_conf.c.
++ 
++ 
++ 
++ TTY setup and initialisation/configuration will be done in
++ xntpd/refclock_parse.c
++ 
++ - Find out the exact tty settings for your clock (baud rate, parity,
++   stop bits, character size, ...) and note them in terms of
++   termio*.h c_cflag macros.
++ 
++ - in xntpd/refclock_parse.c fill out a new the struct clockinfo element
++   (allocates a new "IP" address - see comments)
++   (see all the other clocks for example)
++   struct clockinfo
++   {
++     U_LONG  cl_flags;             /* operation flags (io modes) */
++     PARSE_F_NOPOLLONLY   always do async io - read whenever input comes
++     PARSE_F_POLLONLY     never do async io - only read when expecting data
++     PARSE_F_PPSPPS       use loopfilter PPS code (CIOGETEV)
++     PARSE_F_PPSONSECOND  PPS pulses are on second
++     usually flags stay 0 as they are used only for special setups
++ 
++     void  (*cl_poll)();           /* active poll routine */
++     The routine to call when the clock needs data sent to it in order to
++     get a time code from the clock (e.g. Trimble clock)
++     int   (*cl_init)();           /* active poll init routine */
++     The routine to call for very special initializations.
++     void  (*cl_end)();            /* active poll end routine */
++     The routine to call to undo any special initialisation (free memory/timers)
++     void   *cl_data;              /* local data area for "poll" mechanism */
++     local data for polling routines
++     u_fp    cl_rootdelay;         /* rootdelay */
++     NTP rottdelay estimate (usually 0)
++     U_LONG  cl_basedelay;         /* current offset - unsigned l_fp fractional par
++     time (fraction) by which the RS232 time code is delayed from the actual time.
++   t */
++     U_LONG  cl_ppsdelay;          /* current PPS offset - unsigned l_fp fractional
++     time (fraction) by which the PPS time stamp is delayed (usually 0)
++    part */
++     char   *cl_id;                /* ID code (usually "DCF") */
++     Refclock id - (max 4 chars)
++     char   *cl_description;       /* device name */
++     Name of this device.
++     char   *cl_format;            /* fixed format */
++     If the data format cann not ne detected automatically this is the name
++     as in clk_*.c clockformat.
++     u_char  cl_type;              /* clock type (ntp control) */
++     Type if clock as in clock status word (ntp control messages) - usually 0
++     U_LONG  cl_maxunsync;         /* time to trust oscillator after loosing synch
++   */
++     seconds a clock can be trusted after loosing synchronisation.
++ 
++     U_LONG  cl_cflag;             /* terminal io flags */
++     U_LONG  cl_iflag;             /* terminal io flags */
++     U_LONG  cl_oflag;             /* terminal io flags */
++     U_LONG  cl_lflag;             /* terminal io flags */
++     termio*.h tty modes.
++   } clockinfo[] = {
++   ...,<other clocks>,...
++   { < your parameters> },
++   };
++ 
++ 
++ Well, this is very sketchy, i know. But I hope it helps a little bit.
++ The best way is to look which clock comes closet to your and tweak that
++ code.
++ Two sorts of clocks are used with parse. Clocks that automatically sent
++ thier time code (once a second) do not nee entries in the poll routines because
++ they sent the data all the time. The second sort are the clocks that need a
++ command sent to then in order to reply with a time code (like the Trimble
++ clock).
++ 
++ For questions: kardel@informatik.uni-erlangen.de. Please include
++ an exact description on how your clock works. (initialisation,
++ TTY modes, strings to be sent to it, responses received from the clock).
++ 
++ Frank Kardel
+diff -c /dev/null parse/README.parse_clocks:3.1
+*** /dev/null	Wed Feb  2 18:14:33 1994
+--- parse/README.parse_clocks	Wed Feb  2 18:14:33 1994
+***************
+*** 0 ****
+--- 1,263 ----
++ The parse driver currently supports several clock with different
++ query mechanisms. In order for you to find a sample that might be
++ similar to a clock you might want to integrate into parse i'll sum
++ up the major features of the clocks (this information is distributed
++ in the parse/clk_*.c and xntpd/refclock_parse.c files).
++ 
++ ---
++ 	Meinberg: 127.127.8. 0- 3 (PZF535TCXO)
++ 		  127.127.8. 4- 7 (PZF535OCXO)
++ 		  127.127.8. 8-11 (DCFUA31)
++ 		  127.127.8.28-31 (GPS166)
++ 	Meinberg: start=<STX>, end=<ETX>, sync on start
++                   pattern="\2D:  .  .  ;T: ;U:  .  .  ;    \3"
++ 		  pattern="\2  .  .  ;  ;   :  :  ;        \3"
++ 		  pattern="\2  .  .  ;  ;   :  :  ;    :  ;        ;   .         .       "
++ 
++ 	Meinberg is a german manufacturer of time code receivers. Those clocks
++ 	have a pretty common output format in the stock version. In order to
++ 	support NTP Meinberg was so kind to produce some special versions of
++ 	the firmware for the use with NTP. So, if you are going to use a
++ 	Meinberg clock please ask whether there is a special Uni Erlangen
++ 	version.
++ 
++ 	General characteristics:
++ 	Meinberg clocks primarily output pulse per second and a describing
++ 	ASCII string. This string can be produced in two modes. either upon
++ 	the reception of a question mark or every second. NTP uses the latter
++ 	mechanism. The DCF77 variants have a pretty good relationship between
++ 	RS232 time code and the PPS signal while the GPS receiver has no fixed
++ 	timeing between the datagram and the pulse (you need to use PPS with
++ 	GPS!) on DCF77 you might get away without the PPS signal.
++ 
++ 	The preferred tty setting for Meinberg is:
++ 		CFLAG		(B9600|CS7|PARENB|CREAD|HUPCL)
++ 		IFLAG		(IGNBRK|IGNPAR|ISTRIP)
++ 		OFLAG		0
++ 		LFLAG		0
++ 
++ 	The clock is run at datagram once per second.
++ 	Stock dataformat is:
++ 
++        <STX>D:<dd>.<mm>.<yy>;T:<w>;U:<hh>:<mm>:<ss>;<S><F><D><A><ETX>
++    pos:  0  00 00 0 00 0 11 111 1 111 12 2 22 2 22 2 2  2  3  3   3
++          1  23 45 6 78 9 01 234 5 678 90 1 23 4 56 7 8  9  0  1   2
++ 
++     <STX>           = '\002' ASCII start of text
++     <ETX>           = '\003' ASCII end of text
++     <dd>,<mm>,<yy>  = day, month, year(2 digits!!)
++     <w>             = day of week (sunday= 0)
++     <hh>,<mm>,<ss>  = hour, minute, second
++     <S>             = '#' if never synced since powerup else ' ' for DCF U/A 31
++                       '#' if not PZF sychronisation available else ' ' for PZF 535
++     <F>             = '*' if time comes from internal quartz else ' '
++     <D>             = 'S' if daylight saving time is active else ' '
++     <A>             = '!' during the hour preceeding an daylight saving time
++                           start/end change
++ 
++     For the university of Erlangen a special format was implemented to support
++     LEAP announcement and anouncement of alternate antenna.
++ 
++     Version for UNI-ERLANGEN Software is: PZFUERL V4.6 (Meinberg)
++ 
++     The use of this software release (or higher) is *ABSOLUTELY*
++     recommended (ask for PZFUERL version as some minor HW fixes have
++     been introduced) due to the LEAP second support and UTC indication.
++     The standard timecode does not indicate when the timecode is in
++     UTC (by front panel configuration) thus we have no chance to find
++     the correct utc offset. For the standard format do not ever use
++     UTC display as this is not detectable in the time code !!!
++ 
++         <STX><dd>.<mm>.<yy>; <w>; <hh>:<mm>:<ss>; <U><S><F><D><A><L><R><ETX>
++     pos:  0   00 0 00 0 00 11 1 11 11 1 11 2 22 22 2  2  2  2  2  3  3   3
++           1   23 4 56 7 89 01 2 34 56 7 89 0 12 34 5  6  7  8  9  0  1   2
++     <STX>           = '\002' ASCII start of text
++     <ETX>           = '\003' ASCII end of text
++     <dd>,<mm>,<yy>  = day, month, year(2 digits!!)
++     <w>             = day of week (sunday= 0)
++     <hh>,<mm>,<ss>  = hour, minute, second
++     <U>             = 'U' UTC time display
++     <S>             = '#' if never synced since powerup else ' ' for DCF U/A 31
++                       '#' if not PZF sychronisation available else ' ' for PZF 535
++     <F>             = '*' if time comes from internal quartz else ' '
++     <D>             = 'S' if daylight saving time is active else ' '
++     <A>             = '!' during the hour preceeding an daylight saving time
++                           start/end change
++     <L>             = 'A' LEAP second announcement
++     <R>             = 'R' alternate antenna
++ 
++     Meinberg GPS166 receiver
++ 
++     You must get the Uni-Erlangen firmware for the GPS receiver support
++     to work to full satisfaction !
++ 
++         <STX><dd>.<mm>.<yy>; <w>; <hh>:<mm>:<ss>; <+/-><00:00>; <U><S><F><D><A><L><R><L>; <position...><ETX>
++  *
++            000000000111111111122222222223333333333444444444455555555556666666
++            123456789012345678901234567890123456789012345678901234567890123456
++         \x0209.07.93; 5; 08:48:26; +00:00;        ; 49.5736N  11.0280E  373m\x03
++  *
++     
++     <STX>           = '\002' ASCII start of text
++     <ETX>           = '\003' ASCII end of text
++     <dd>,<mm>,<yy>  = day, month, year(2 digits!!)
++     <w>             = day of week (sunday= 0)
++     <hh>,<mm>,<ss>  = hour, minute, second
++     <+/->,<00:00>   = offset to UTC
++     <S>             = '#' if never synced since powerup else ' ' for DCF U/A 31
++                       '#' if not PZF sychronisation available else ' ' for PZF 535
++     <U>             = 'U' UTC time display
++     <F>             = '*' if time comes from internal quartz else ' '
++     <D>             = 'S' if daylight saving time is active else ' '
++     <A>             = '!' during the hour preceeding an daylight saving time
++                           start/end change
++     <L>             = 'A' LEAP second announcement
++     <R>             = 'R' alternate antenna (reminiscent of PZF535) usually ' '
++     <L>		   = 'L' on 23:59:60
++ 
++ 
++     For the Meinberg parse look into clock_meinberg.c
++ 
++ ---
++     RAWDCF: 127.127.8.20-23 (Conrad receiver module - delay 210ms)
++ 	    127.127.8.24-27 (FAU receiver - delay 258ms)
++     RAWDCF: end=TIMEOUT>1.5s, sync each char (any char),generate psuedo time
++             codes, fixed format
++ 
++     direct DCF77 code input
++     In Europe it is relatively easy/cheap the receive the german time code
++     transmitter DCF77. The simplest version to process its signal is to
++     feed the 100/200ms pulse of the demodulated AM signal via a level
++     converter to an RS232 port at 50Baud. parse/clk_rawdcf.c holds all
++     necessary decoding logic for the time code which is transmitted each
++     minute for one minute. A bit of the time code is sent once a second.
++ 
++ 	The preferred tty setting is:
++ 		CFLAG           (B50|CS8|CREAD|CLOCAL)
++ 		IFLAG		0
++ 		OFLAG		0
++  		LFLAG		0
++ 
++ 	DCF77 raw time code
++ 
++ 	From "Zur Zeit", Physikalisch-Technische Bundesanstalt (PTB), Braunschweig
++ 	und Berlin, Maerz 1989
++ 
++ 	Timecode transmission:
++ 	AM:
++ 	time marks are send every second except for the second before the
++ 	next minute mark
++ 	time marks consist of a reduction of transmitter power to 25%
++ 	of the nominal level
++ 	the falling edge is the time indication (on time)
++ 	time marks of a 100ms duration constitute a logical 0
++ 	time marks of a 200ms duration constitute a logical 1
++ 	FM:
++ 	see the spec. (basically a (non-)inverted psuedo random phase shift)
++ 
++ 	Encoding:
++ 	Second	Contents
++ 	0  - 10	AM: free, FM: 0
++ 	11 - 14	free
++ 	15		R     - alternate antenna
++ 	16		A1    - expect zone change (1 hour before)
++ 	17 - 18	Z1,Z2 - time zone
++ 		 0  0 illegal
++ 		 0  1 MEZ  (MET)
++ 		 1  0 MESZ (MED, MET DST)
++ 		 1  1 illegal
++ 	19		A2    - expect leap insertion/deletion (1 hour before)
++ 	20		S     - start of time code (1)
++ 	21 - 24	M1    - BCD (lsb first) Minutes
++ 	25 - 27	M10   - BCD (lsb first) 10 Minutes
++ 	28		P1    - Minute Parity (even)
++ 	29 - 32	H1    - BCD (lsb first) Hours
++ 	33 - 34      H10   - BCD (lsb first) 10 Hours
++ 	35		P2    - Hour Parity (even)
++ 	36 - 39	D1    - BCD (lsb first) Days
++ 	40 - 41	D10   - BCD (lsb first) 10 Days
++ 	42 - 44	DW    - BCD (lsb first) day of week (1: Monday -> 7: Sunday)
++ 	45 - 49	MO    - BCD (lsb first) Month
++ 	50           MO0   - 10 Months
++ 	51 - 53	Y1    - BCD (lsb first) Years
++ 	54 - 57	Y10   - BCD (lsb first) 10 Years
++ 	58 		P3    - Date Parity (even)
++ 	59		      - usually missing (minute indication), except for leap insertion
++ 
++ ---
++ 	Schmid clock: 127.127.8.16-19
++ 	Schmid clock: needs poll, binary input, end='\xFC', sync start
++ 
++ 	The Schmid clock is a DCF77 receiver that sends a binary
++ 	time code at the reception of a flag byte. The contents
++ 	if the flag byte determined the time code format. The
++ 	binary time code is delimited by the byte 0xFC.
++ 
++ 	TTY setup is:
++ 		CFLAG		(B1200|CS8|CREAD|CLOCAL)
++ 		IFLAG		0
++ 		OFLAG		0
++  		LFLAG		0
++ 
++ 	The command to Schmid's DCF77 clock is a single byte; each bit
++ 	allows the user to select some part of the time string, as follows (the
++ 	output for the lsb is sent first).
++ 	
++ 	Bit 0:	time in MEZ, 4 bytes *binary, not BCD*; hh.mm.ss.tenths
++ 	Bit 1:	date 3 bytes *binary, not BCD: dd.mm.yy
++ 	Bit 2:	week day, 1 byte (unused here)
++ 	Bit 3:	time zone, 1 byte, 0=MET, 1=MEST. (unused here)
++ 	Bit 4:	clock status, 1 byte,	0=time invalid,
++ 					1=time from crystal backup,
++ 					3=time from DCF77
++ 	Bit 5:	transmitter status, 1 byte,
++ 					bit 0: backup antenna
++ 					bit 1: time zone change within 1h
++ 					bit 3,2: TZ 01=MEST, 10=MET
++ 					bit 4: leap second will be
++ 						added within one hour
++ 					bits 5-7: Zero
++ 	Bit 6:	time in backup mode, units of 5 minutes (unused here)
++ 
++ 
++ ---
++ 	Trimble SV6: 127.127.8.32-35
++ 	Trimble SV6: needs poll, ascii timecode, start='>', end='<',
++                      query='>QTM<', eol='<'
++ 
++         Trimble SV6 is a GPS receiver with PPS output. It needs to be polled.
++ 	It also need a special tty mode setup (EOL='<').
++ 
++ 	TTY setup is:
++ 		CFLAG            (B4800|CS8|CREAD)
++ 		IFLAG            (BRKINT|IGNPAR|ISTRIP|ICRNL|IXON)
++ 		OFLAG            (OPOST|ONLCR)
++ 		LFLAG            (ICANON|ECHOK)
++ 
++ 	Special flags are:
++ 		PARSE_F_PPSPPS	    - use CIOGETEV for PPS time stamping
++ 		PARSE_F_PPSONSECOND - the time code is not related to
++ 				      the PPS pulse (so use the time code
++ 				      only for the second epoch)
++ 
++ 	Timecode
++ 	0000000000111111111122222222223333333	/ char
++ 	0123456789012345678901234567890123456	\ posn
++ 	>RTMhhmmssdddDDMMYYYYoodnnvrrrrr;*xx<	Actual
++ 	----33445566600112222BB7__-_____--99-	Parse
++ 	>RTM                      1     ;*  <",	Check
++ 
++ ---
++ 	ELV DCF7000: 127.127.8.12-15 
++ 	ELV DCF7000: end='\r', pattern="  -  -  -  -  -  -  -  \r"
++ 
++ 	The ELV DCF7000 is a cheap DCF77 receiver sending each second
++ 	a time code (though not very precise!) delimited by '`r'
++ 
++ 	Timecode
++ 	  YY-MM-DD-HH-MM-SS-FF\r
++ 
++ 		FF&0x1	- DST
++ 		FF&0x2	- DST switch warning
++ 		FF&0x4  - unsynchronised
++ 
+diff -c parse/parsesolaris.c:1.1.1.5 parse/parsesolaris.c:3.11
+*** parse/parsesolaris.c:1.1.1.5	Wed Feb  2 18:14:49 1994
+--- parse/parsesolaris.c	Wed Feb  2 18:14:49 1994
+***************
+*** 65,71 ****
+  {
+    "parse",			/* module name */
+    &parseinfo,			/* module information */
+!   0,				/* not clean yet */
+    /* lock ptr */
+  };
+  
+--- 65,71 ----
+  {
+    "parse",			/* module name */
+    &parseinfo,			/* module information */
+!   D_NEW,			/* not clean yet */
+    /* lock ptr */
+  };
+  
+diff -c scripts/support/bin/monl:1.1.1.1 scripts/support/bin/monl:1.2
+*** scripts/support/bin/monl:1.1.1.1	Wed Feb  2 18:16:01 1994
+--- scripts/support/bin/monl	Wed Feb  2 18:16:01 1994
+***************
+*** 143,149 ****
+      {
+        chop;
+        split;
+!       ($host, $count, $mode, $version, $lasttime, $firsttime) = (@_[$[, $[+2 .. $[+6]);
+        
+        $Seen{$host, $mode} = 1;
+  
+--- 143,150 ----
+      {
+        chop;
+        split;
+!       ($host, $count, $mode, $version, $lasttime, $firsttime) =
+! 	  (@_[$[, $[+2 .. $[+4, $#_-1,$#_]);
+        
+        $Seen{$host, $mode} = 1;
+  
+diff -c util/tickadj.c:1.1.1.16 util/tickadj.c:3.17
+*** util/tickadj.c:1.1.1.16	Wed Feb  2 18:16:23 1994
+--- util/tickadj.c	Wed Feb  2 18:16:23 1994
+***************
+*** 1,4 ****
+! /* tickadj.c,v 3.1 1993/07/06 01:11:05 jbj Exp
+   * tickadj - read, and possibly modify, the kernel `tick' and
+   *	     `tickadj' variables, as well as `dosynctodr'.  Note that
+   *	     this operates on the running kernel only.  I'd like to be
+--- 1,4 ----
+! /*
+   * tickadj - read, and possibly modify, the kernel `tick' and
+   *	     `tickadj' variables, as well as `dosynctodr'.  Note that
+   *	     this operates on the running kernel only.  I'd like to be
+***************
+*** 6,11 ****
+--- 6,46 ----
+   *	     mastered this yet.
+   */
+  #include <stdio.h>
++ 
++ #ifdef SYS_LINUX
++ #include <sys/timex.h>
++ 
++ struct timex txc;
++ 
++ int
++ main(int argc, char ** argv)
++ {
++   if (argc > 2)
++     {
++       fprintf(stderr, "Usage: %s [tick_value]\n", argv[0]);
++       exit(-1);
++     }
++   else if (argc == 2)
++     {
++       if ( (txc.tick = atoi(argv[1])) < 1 )
++ 	{
++ 	  fprintf(stderr, "Silly value for tick: %s\n", argv[1]);
++ 	  exit(-1);
++ 	}
++       txc.mode = ADJ_TICK;
++     }
++   else
++     txc.mode = 0;
++     
++   if (__adjtimex(&txc) < 0)
++     perror("adjtimex");
++   else
++     printf("tick = %d\n", txc.tick);
++ 
++   return(0);
++ }
++ #else /* not Linux... kmem tweaking: */
++ 
+  #include <sys/types.h>
+  #include <sys/file.h>
+  #include <sys/stat.h>
+***************
+*** 513,515 ****
+--- 548,551 ----
+  		exit(1);
+  	}
+  }
++ #endif /* not Linux */
+diff -c xntpd/ntp_config.c:1.1.1.19 xntpd/ntp_config.c:3.24
+*** xntpd/ntp_config.c:1.1.1.19	Wed Feb  2 18:16:36 1994
+--- xntpd/ntp_config.c	Wed Feb  2 18:16:37 1994
+***************
+*** 58,63 ****
+--- 58,64 ----
+   * statsdir /var/NTP/
+   * filegen peerstats [ file peerstats ] [ type day ] [ link ]
+   * resolver /path/progname
++  * netlimit integer
+   *
+   * And then some.  See the manual page.
+   */
+***************
+*** 94,99 ****
+--- 95,102 ----
+  #define	CONFIG_PIDFILE		25
+  #define	CONFIG_LOGFILE		26
+  #define CONFIG_SETVAR		27
++ #define CONFIG_CLIENTLIMIT	28
++ #define CONFIG_CLIENTPERIOD	29
+  
+  #define	CONF_MOD_VERSION	1
+  #define	CONF_MOD_KEY		2
+***************
+*** 114,119 ****
+--- 117,123 ----
+  #define	CONF_RES_NOTRAP		8
+  #define	CONF_RES_LPTRAP		9
+  #define	CONF_RES_NTPPORT	10
++ #define CONF_RES_LIMITED        11
+  
+  #define	CONF_TRAP_PORT		1
+  #define	CONF_TRAP_INTERFACE	2
+***************
+*** 179,184 ****
+--- 183,190 ----
+  	{ "pidfile",		CONFIG_PIDFILE },
+  	{ "logfile",		CONFIG_LOGFILE },
+  	{ "setvar",		CONFIG_SETVAR },
++ 	{ "clientlimit",	CONFIG_CLIENTLIMIT },
++ 	{ "clientperiod",	CONFIG_CLIENTPERIOD },
+  	{ "",			CONFIG_UNKNOWN }
+  };
+  
+***************
+*** 217,222 ****
+--- 223,229 ----
+  	{ "notrap",	CONF_RES_NOTRAP },
+  	{ "lowpriotrap",	CONF_RES_LPTRAP },
+  	{ "ntpport",	CONF_RES_NTPPORT },
++ 	{ "limited",    CONF_RES_LIMITED },
+  	{ "",		CONFIG_UNKNOWN }
+  };
+  
+***************
+*** 817,825 ****
+  			errflg = 0;
+  			if (ntokens >= 2) {
+  				if (STREQ(tokens[1], "yes"))
+! 					mon_start();
+  				else if (STREQ(tokens[1], "no"))
+! 					mon_stop();
+  				else
+  					errflg++;
+  			} else {
+--- 824,832 ----
+  			errflg = 0;
+  			if (ntokens >= 2) {
+  				if (STREQ(tokens[1], "yes"))
+! 					mon_start(MON_ON);
+  				else if (STREQ(tokens[1], "no"))
+! 					mon_stop(MON_ON);
+  				else
+  					errflg++;
+  			} else {
+***************
+*** 965,970 ****
+--- 972,981 ----
+  					peerkey |= RESM_NTPONLY;
+  					break;
+  					
++ 				case CONF_RES_LIMITED:
++ 					peerversion |= RES_LIMITED;
++ 					break;
++ 					
+  				case CONFIG_UNKNOWN:
+  					errflg++;
+  					break;
+***************
+*** 1413,1418 ****
+--- 1424,1483 ----
+  			    set_sys_var(tokens[1], strlen(tokens[1])+1, RW |
+  					((((ntokens > 2) && !strcmp(tokens[2], "default"))) ? DEF : 0));
+  			  }
++ 			break;
++ 			
++ 		case CONFIG_CLIENTLIMIT:
++ 			if (ntokens < 2)
++ 			  {
++ 			    syslog(LOG_ERR,
++ 				       "no value for clientlimit command - line ignored");
++ 			  }
++ 			else
++ 			  {
++ 			    U_LONG i;
++ 			    if (!atouint(tokens[1], &i) || !i)
++ 			      {
++ 				syslog(LOG_ERR,
++ 				       "illegal value for clientlimit command - line ignored");
++ 			      }
++ 			    else
++ 			      {
++ 				extern U_LONG client_limit;
++ 				char bp[80];
++ 
++ 				sprintf(bp, "client_limit=%d", i);
++ 				set_sys_var(bp, strlen(bp)+1, RO);
++ 				
++ 				client_limit = i;
++ 			      }
++ 			  }
++ 			break;
++ 
++ 		case CONFIG_CLIENTPERIOD:
++ 			if (ntokens < 2)
++ 			  {
++ 			    syslog(LOG_ERR,
++ 				       "no value for clientperiod command - line ignored");
++ 			  }
++ 			else
++ 			  {
++ 			    U_LONG i;
++ 			    if (!atouint(tokens[1], &i) || i < 64)
++ 			      {
++ 				syslog(LOG_ERR,
++ 				       "illegal value for clientperiod command - line ignored");
++ 			      }
++ 			    else
++ 			      {
++ 				extern U_LONG client_limit_period;
++ 				char bp[80];
++ 
++ 				sprintf(bp, "client_limit_period=%d", i);
++ 				set_sys_var(bp, strlen(bp)+1, RO);
++ 
++ 				client_limit_period = i;
++ 			      }
++ 			  }
+  			break;
+  		}
+  	}
+diff -c xntpd/ntp_monitor.c:1.1.1.10 xntpd/ntp_monitor.c:3.9
+*** xntpd/ntp_monitor.c:1.1.1.10	Wed Feb  2 18:16:48 1994
+--- xntpd/ntp_monitor.c	Wed Feb  2 18:16:48 1994
+***************
+*** 58,64 ****
+  static	struct mon_data *mon_hash;	/* Pointer to array of hash buckets */
+  static	int *mon_hash_count;		/* Point to hash count stats keeper */
+  	struct mon_data mon_mru_list;
+! 
+  /*
+   * List of free structures structures, and counters of free and total
+   * structures.  The free structures are linked with the hash_next field.
+--- 58,64 ----
+  static	struct mon_data *mon_hash;	/* Pointer to array of hash buckets */
+  static	int *mon_hash_count;		/* Point to hash count stats keeper */
+  	struct mon_data mon_mru_list;
+!         struct mon_data mon_fifo_list;
+  /*
+   * List of free structures structures, and counters of free and total
+   * structures.  The free structures are linked with the hash_next field.
+***************
+*** 93,99 ****
+  	 * Don't do much of anything here.  We don't allocate memory
+  	 * until someone explicitly starts us.
+  	 */
+! 	mon_enabled = 0;
+  	mon_have_memory = 0;
+  
+  	mon_free_mem = 0;
+--- 93,99 ----
+  	 * Don't do much of anything here.  We don't allocate memory
+  	 * until someone explicitly starts us.
+  	 */
+! 	mon_enabled = MON_OFF;
+  	mon_have_memory = 0;
+  
+  	mon_free_mem = 0;
+***************
+*** 103,108 ****
+--- 103,109 ----
+  	mon_hash = 0;
+  	mon_hash_count = 0;
+  	memset((char *)&mon_mru_list, 0, sizeof mon_mru_list);
++ 	memset((char *)&mon_fifo_list, 0, sizeof mon_fifo_list);
+  }
+  
+  
+***************
+*** 110,122 ****
+   * mon_start - start up the monitoring software
+   */
+  void
+! mon_start()
+  {
+  	register struct mon_data *md;
+  	register int i;
+  
+! 	if (mon_enabled)
+  		return;
+  	
+  	if (!mon_have_memory) {
+  		mon_hash = (struct mon_data *)
+--- 111,128 ----
+   * mon_start - start up the monitoring software
+   */
+  void
+! mon_start(mode)
+! 	int mode;
+  {
+  	register struct mon_data *md;
+  	register int i;
+  
+! 	if (mon_enabled != MON_OFF) {
+! 		mon_enabled |= mode;
+  		return;
++ 	}
++ 	if (mode == MON_OFF)
++ 		return;		/* Ooops.. */
+  	
+  	if (!mon_have_memory) {
+  		mon_hash = (struct mon_data *)
+***************
+*** 142,148 ****
+  	mon_mru_list.mru_next = &mon_mru_list;
+  	mon_mru_list.mru_prev = &mon_mru_list;
+  
+! 	mon_enabled = 1;
+  }
+  
+  
+--- 148,157 ----
+  	mon_mru_list.mru_next = &mon_mru_list;
+  	mon_mru_list.mru_prev = &mon_mru_list;
+  
+! 	mon_fifo_list.fifo_next = &mon_fifo_list;
+! 	mon_fifo_list.fifo_prev = &mon_fifo_list;
+! 
+! 	mon_enabled = mode;
+  }
+  
+  
+***************
+*** 150,161 ****
+   * mon_stop - stop the monitoring software
+   */
+  void
+! mon_stop()
+  {
+  	register struct mon_data *md;
+  	register int i;
+  
+! 	if (!mon_enabled)
+  		return;
+  	
+  	/*
+--- 159,177 ----
+   * mon_stop - stop the monitoring software
+   */
+  void
+! mon_stop(mode)
+! 	int mode;
+  {
+  	register struct mon_data *md;
+  	register int i;
+  
+! 	if (mon_enabled == MON_OFF)
+! 		return;
+! 	if ((mon_enabled & mode) == 0 || mode == MON_OFF)
+! 		return;
+! 
+! 	mon_enabled &= ~mode;
+! 	if (mon_enabled != MON_OFF)
+  		return;
+  	
+  	/*
+***************
+*** 176,182 ****
+  	mon_mru_list.mru_next = &mon_mru_list;
+  	mon_mru_list.mru_prev = &mon_mru_list;
+  
+! 	mon_enabled = 0;
+  }
+  
+  
+--- 192,199 ----
+  	mon_mru_list.mru_next = &mon_mru_list;
+  	mon_mru_list.mru_prev = &mon_mru_list;
+  
+! 	mon_fifo_list.fifo_next = &mon_fifo_list;
+! 	mon_fifo_list.fifo_prev = &mon_fifo_list;
+  }
+  
+  
+***************
+*** 194,200 ****
+  	register int mode;
+  	register struct mon_data *mdhash;
+  
+! 	if (!mon_enabled)
+  		return;
+  
+  	pkt = &rbufp->recv_pkt;
+--- 211,217 ----
+  	register int mode;
+  	register struct mon_data *mdhash;
+  
+! 	if (mon_enabled == MON_OFF)
+  		return;
+  
+  	pkt = &rbufp->recv_pkt;
+***************
+*** 220,225 ****
+--- 237,243 ----
+  			md->mru_prev = &mon_mru_list;
+  			mon_mru_list.mru_next->mru_prev = md;
+  			mon_mru_list.mru_next = md;
++ 
+  			return;
+  		}
+  		md = md->hash_next;
+***************
+*** 240,245 ****
+--- 258,269 ----
+  		md->hash_next->hash_prev = md->hash_prev;
+  		md->hash_prev->hash_next = md->hash_next;
+  		*(mon_hash_count + MON_HASH(md->rmtadr)) -= 1;
++ 		/*
++ 		 * Get it from FIFO list
++ 		 */
++ 		md->fifo_prev->fifo_next = md->fifo_next;
++ 		md->fifo_next->fifo_prev = md->fifo_prev;
++ 		
+  	} else {
+  		if (mon_free_mem == 0)
+  			mon_getmoremem();
+***************
+*** 252,257 ****
+--- 276,282 ----
+  	 * Got one, initialize it
+  	 */
+  	md->lasttime = md->firsttime = current_time;
++ 	md->lastdrop = 0;
+  	md->count = 1;
+  	md->rmtadr = netnum;
+  	md->rmtport = NSRCPORT(&rbufp->recv_srcadr);
+***************
+*** 260,266 ****
+  
+  	/*
+  	 * Shuffle him into the hash table, inserting him at the
+! 	 * end.  Also put him on top of the MRU list.
+  	 */
+  	mdhash = mon_hash + MON_HASH(netnum);
+  	md->hash_next = mdhash;
+--- 285,292 ----
+  
+  	/*
+  	 * Shuffle him into the hash table, inserting him at the
+! 	 * end.  Also put him on top of the MRU list
+! 	 * and at bottom of FIFO list
+  	 */
+  	mdhash = mon_hash + MON_HASH(netnum);
+  	md->hash_next = mdhash;
+***************
+*** 273,278 ****
+--- 299,309 ----
+  	md->mru_prev = &mon_mru_list;
+  	mon_mru_list.mru_next->mru_prev = md;
+  	mon_mru_list.mru_next = md;
++ 
++ 	md->fifo_prev = mon_fifo_list.fifo_prev;
++ 	md->fifo_next = &mon_fifo_list;
++ 	mon_fifo_list.fifo_prev->fifo_next = md;
++ 	mon_fifo_list.fifo_prev = md;
+  }
+  
+  
+diff -c xntpd/ntp_proto.c:1.1.1.19 xntpd/ntp_proto.c:3.21
+*** xntpd/ntp_proto.c:1.1.1.19	Wed Feb  2 18:16:51 1994
+--- xntpd/ntp_proto.c	Wed Feb  2 18:16:52 1994
+***************
+*** 49,54 ****
+--- 49,55 ----
+  U_LONG	sys_processed;		/* packets processed */
+  U_LONG	sys_badauth;		/* packets dropped because of authorization */
+  U_LONG	sys_wanderhold;		/* sys_peer held to prevent wandering */
++ U_LONG	sys_limitrejected;       /* pkts rejected due toclient count per net */
+  
+  /*
+   * Imported from ntp_timer.c
+***************
+*** 373,378 ****
+--- 374,394 ----
+  		return;
+  
+  	/*
++ 	 * See if we only accept limited number of clients
++ 	 * from the net this guy is from.
++ 	 * Note: the flag is determined dynamically within restrictions()
++ 	 */
++ 	if (restrict & RES_LIMITED) {
++ 		extern U_LONG client_limit;
++ 
++ 		sys_limitrejected++;
++ 		syslog(LOG_NOTICE,
++ 		       "rejected mode %d request from %s - per net client limit (%d) exceeded",
++ 		       PKT_MODE(pkt->li_vn_mode),
++ 		       ntoa(&rbufp->recv_srcadr), client_limit);
++ 		return;
++ 	}
++ 	/*
+  	 * Dump anything with a putrid stratum.  These will most likely
+  	 * come from someone trying to poll us with ntpdc.
+  	 */
+***************
+*** 2165,2168 ****
+--- 2181,2185 ----
+  	sys_badauth = 0;
+  	sys_wanderhold = 0;
+  	sys_stattime = current_time;
++ 	sys_limitrejected = 0;
+  }
+diff -c xntpd/ntp_request.c:1.1.1.14 xntpd/ntp_request.c:3.15
+*** xntpd/ntp_request.c:1.1.1.14	Wed Feb  2 18:16:55 1994
+--- xntpd/ntp_request.c	Wed Feb  2 18:16:55 1994
+***************
+*** 916,921 ****
+--- 916,922 ----
+  	extern U_LONG sys_processed;
+  	extern U_LONG sys_badauth;
+  	extern U_LONG sys_wanderhold;
++ 	extern U_LONG sys_limitrejected;
+  
+  	ss = (struct info_sys_stats *)prepare_pkt(srcadr, inter, inpkt,
+  	    sizeof(struct info_sys_stats));
+***************
+*** 930,936 ****
+  	ss->processed = htonl(sys_processed);
+  	ss->badauth = htonl(sys_badauth);
+  	ss->wanderhold = htonl(sys_wanderhold);
+! 
+  	(void) more_pkt();
+  	flush_pkt();
+  }
+--- 931,937 ----
+  	ss->processed = htonl(sys_processed);
+  	ss->badauth = htonl(sys_badauth);
+  	ss->wanderhold = htonl(sys_wanderhold);
+! 	ss->limitrejected = htonl(sys_limitrejected);
+  	(void) more_pkt();
+  	flush_pkt();
+  }
+***************
+*** 1311,1317 ****
+  	struct interface *inter;
+  	struct req_pkt *inpkt;
+  {
+! 	mon_start();
+  	req_ack(srcadr, inter, inpkt, INFO_OKAY);
+  }
+  
+--- 1312,1318 ----
+  	struct interface *inter;
+  	struct req_pkt *inpkt;
+  {
+! 	mon_start(MON_ON);
+  	req_ack(srcadr, inter, inpkt, INFO_OKAY);
+  }
+  
+***************
+*** 1325,1331 ****
+  	struct interface *inter;
+  	struct req_pkt *inpkt;
+  {
+! 	mon_stop();
+  	req_ack(srcadr, inter, inpkt, INFO_OKAY);
+  }
+  
+--- 1326,1332 ----
+  	struct interface *inter;
+  	struct req_pkt *inpkt;
+  {
+! 	mon_stop(MON_ON);
+  	req_ack(srcadr, inter, inpkt, INFO_OKAY);
+  }
+  
+***************
+*** 1497,1502 ****
+--- 1498,1507 ----
+  	    md = md->mru_next) {
+  		im->lasttime = htonl(current_time - md->lasttime);
+  		im->firsttime = htonl(current_time - md->firsttime);
++ 		if (md->lastdrop)
++ 			im->lastdrop = htonl(current_time - md->lastdrop);
++ 		else
++ 			im->lastdrop = 0;
+  		im->count = htonl(md->count);
+  		im->addr = md->rmtadr;
+  		im->port = md->rmtport;
+diff -c xntpd/ntp_restrict.c:1.1.1.10 xntpd/ntp_restrict.c:3.10
+*** xntpd/ntp_restrict.c:1.1.1.10	Wed Feb  2 18:16:57 1994
+--- xntpd/ntp_restrict.c	Wed Feb  2 18:16:57 1994
+***************
+*** 1,4 ****
+! /* ntp_restrict.c,v 3.1 1993/07/06 01:11:28 jbj Exp
+   * ntp_restrict.c - find out what restrictions this host is running under
+   */
+  #include <stdio.h>
+--- 1,4 ----
+! /*
+   * ntp_restrict.c - find out what restrictions this host is running under
+   */
+  #include <stdio.h>
+***************
+*** 60,65 ****
+--- 60,80 ----
+  U_LONG res_timereset;
+  
+  /*
++  * Parameters of the RES_LIMITED restriction option.
++  * client_limit is the number of hosts allowed per source net
++  * client_limit_period is the number of seconds after which an entry
++  * is no longer considered for client limit determination
++  */
++ U_LONG client_limit;
++ U_LONG client_limit_period;
++ /*
++  * count number of restriction entries referring to RES_LIMITED
++  * controls activation/deactivation of monitoring
++  * (with respect ro RES_LIMITED control)
++  */
++ U_LONG res_limited_refcnt;
++ 
++ /*
+   * Our initial allocation of list entries.
+   */
+  static	struct restrictlist resinit[INITRESLIST];
+***************
+*** 70,81 ****
+--- 85,102 ----
+  extern U_LONG current_time;
+  
+  /*
++  * debug flag
++  */
++ extern int debug;
++ 
++ /*
+   * init_restrict - initialize the restriction data structures
+   */
+  void
+  init_restrict()
+  {
+  	register int i;
++ 	char bp[80];
+  
+  	/*
+  	 * Zero the list and put all but one on the free list
+***************
+*** 108,113 ****
+--- 129,146 ----
+  	res_found = 0;
+  	res_not_found = 0;
+  	res_timereset = 0;
++ 
++ 	/*
++ 	 * set default values for RES_LIMIT functionality
++ 	 */
++ 	client_limit = 3;
++ 	client_limit_period = 3600;
++ 	res_limited_refcnt = 0;
++ 
++ 	sprintf(bp, "client_limit=%d", client_limit);
++ 	set_sys_var(bp, strlen(bp)+1, RO);
++ 	sprintf(bp, "client_limit_period=%d", client_limit_period);
++ 	set_sys_var(bp, strlen(bp)+1, RO);
+  }
+  
+  
+***************
+*** 150,155 ****
+--- 183,302 ----
+  	else
+  		res_found++;
+  	
++ 	/*
++ 	 * The following implements limiting the number of clients
++ 	 * accepted from a given network. The notion of "same network"
++ 	 * is determined by the mask and addr fields of the restrict
++ 	 * list entry. The monitor mechanism has to be enabled for
++ 	 * collecting info on current clients.
++ 	 *
++ 	 * The policy is as follows:
++ 	 *	- take the list of clients recorded
++ 	 *        from the given "network" seen within the last
++ 	 *        client_limit_period seconds
++ 	 *      - if there are at most client_limit entries: 
++ 	 *        --> access allowed
++ 	 *      - otherwise sort by time first seen
++ 	 *      - current client among the first client_limit seen
++ 	 *        hosts?
++ 	 *        if yes: access allowed
++ 	 *        else:   eccess denied
++ 	 */
++ 	if (match->flags & RES_LIMITED) {
++ 		int lcnt;
++ 		struct mon_data *md, *this_client;
++ 		extern int mon_enabled;
++ 		extern struct mon_data mon_fifo_list, mon_mru_list;
++ 
++ #ifdef DEBUG
++ 		if (debug > 2)
++ 			printf("limited clients check: %d clients, period %d seconds, net is 0x%X\n",
++ 			       client_limit, client_limit_period,
++ 			       netof(hostaddr));
++ #endif /*DEBUG*/
++ 		if (mon_enabled == MON_OFF) {
++ #ifdef DEBUG
++ 			if (debug > 4)
++ 				printf("no limit - monitoring is off\n");
++ #endif
++ 			return (int)(match->flags & ~RES_LIMITED);
++ 		}
++ 
++ 		/*
++ 		 * How nice, MRU list provides our current client as the
++ 		 * first entry in the list.
++ 		 * Monitoring was verified to be active above, thus we
++ 		 * know an entry for our client must exist, or some 
++ 		 * brain dead set the memory limit for mon entries to ZERO!!!
++ 		 */
++ 		this_client = mon_mru_list.mru_next;
++ 
++ 		for (md = mon_fifo_list.fifo_next,lcnt = 0;
++ 		     md != &mon_fifo_list;
++ 		     md = md->fifo_next) {
++ 			if ((current_time - md->lasttime)
++ 			    > client_limit_period) {
++ #ifdef DEBUG
++ 				if (debug > 5)
++ 					printf("checking: %s: ignore: too old: %d\n",
++ 					       numtoa(md->rmtadr),
++ 					       current_time - md->lasttime);
++ #endif
++ 				continue;
++ 			}
++ 			if (md->mode == MODE_BROADCAST ||
++ 			    md->mode == MODE_CONTROL ||
++ 			    md->mode == MODE_PRIVATE) {
++ #ifdef DEBUG
++ 				if (debug > 5)
++ 					printf("checking: %s: ignore mode %d\n",
++ 					       numtoa(md->rmtadr),
++ 					       md->mode);
++ #endif
++ 				continue;
++ 			}
++ 			if (netof(md->rmtadr) !=
++ 			    netof(hostaddr)) {
++ #ifdef DEBUG
++ 				if (debug > 5)
++ 					printf("checking: %s: different net 0x%X\n",
++ 					       numtoa(md->rmtadr),
++ 					       netof(md->rmtadr));
++ #endif
++ 				continue;
++ 			}
++ 			lcnt++;
++ 			if (lcnt > client_limit ||
++ 			    md->rmtadr == hostaddr) {
++ #ifdef DEBUG
++ 				if (debug > 5)
++ 					printf("considering %s: found host\n",
++ 					       numtoa(md->rmtadr));
++ #endif
++ 				break;
++ 			}
++ #ifdef DEBUG
++ 			else {
++ 				if (debug > 5)
++ 					printf("considering %s: same net\n",
++ 					       numtoa(md->rmtadr));
++ 			}
++ #endif
++ 
++ 		}
++ #ifdef DEBUG
++ 		if (debug > 4)
++ 			printf("this one is rank %d in list, limit is %d: %s\n",
++ 			       lcnt, client_limit,
++ 			       (lcnt <= client_limit) ? "ALLOW" : "REJECT");
++ #endif
++ 		if (lcnt <= client_limit) {
++ 			this_client->lastdrop = 0;
++ 			return (int)(match->flags & ~RES_LIMITED);
++ 		} else {
++ 			this_client->lastdrop = current_time;
++ 		}
++ 	}
+  	return (int)match->flags;
+  }
+  
+***************
+*** 257,262 ****
+--- 404,413 ----
+  			rlprev->next = rl;
+  			restrictcount++;
+  		}
++ 		if ((rl->flags ^ (u_short)flags) & RES_LIMITED) {
++ 			res_limited_refcnt++;
++ 			mon_start(MON_RES); /* ensure data gets collected */
++ 		}
+  		rl->flags |= (u_short)flags;
+  		break;
+  	
+***************
+*** 265,272 ****
+  		 * Remove some bits from the flags.  If we didn't
+  		 * find this one, just return.
+  		 */
+! 		if (rl != 0)
+  			rl->flags &= (u_short)~flags;
+  		break;
+  	
+  	case RESTRICT_REMOVE:
+--- 416,429 ----
+  		 * Remove some bits from the flags.  If we didn't
+  		 * find this one, just return.
+  		 */
+! 		if (rl != 0) {
+! 			if ((rl->flags ^ (u_short)flags) & RES_LIMITED) {
+! 				res_limited_refcnt--;
+! 				if (res_limited_refcnt == 0)
+! 					mon_stop(MON_RES);
+! 			}
+  			rl->flags &= (u_short)~flags;
++ 		}
+  		break;
+  	
+  	case RESTRICT_REMOVE:
+***************
+*** 280,285 ****
+--- 437,447 ----
+  		    && !(rl->mflags & RESM_INTERFACE)) {
+  			rlprev->next = rl->next;
+  			restrictcount--;
++ 			if (rl->flags & RES_LIMITED) {
++ 				res_limited_refcnt--;
++ 				if (res_limited_refcnt == 0)
++ 					mon_stop(MON_RES);
++ 			}
+  			memset((char *)rl, 0, sizeof(struct restrictlist));
+  
+  			rl->next = resfree;
+diff -c xntpd/ntp_unixclock.c:1.1.1.27 xntpd/ntp_unixclock.c:3.29
+*** xntpd/ntp_unixclock.c:1.1.1.27	Wed Feb  2 18:17:00 1994
+--- xntpd/ntp_unixclock.c	Wed Feb  2 18:17:01 1994
+***************
+*** 556,568 ****
+  #endif /* SOLARIS */
+  
+  #ifdef SYS_LINUX
+! /* XXX should look this up somewhere ! */
+  static void
+  clock_parms(tickadj, tick)
+  	U_LONG *tickadj;
+  	U_LONG *tick;
+  {
+!       *tickadj = (U_LONG)1;
+!       *tick    = (U_LONG)10000;
+  }
+  #endif /* SYS_LINUX */
+--- 556,573 ----
+  #endif /* SOLARIS */
+  
+  #ifdef SYS_LINUX
+! #include <sys/timex.h>
+  static void
+  clock_parms(tickadj, tick)
+  	U_LONG *tickadj;
+  	U_LONG *tick;
+  {
+!   struct timex txc;
+! 
+!   txc.mode = 0;
+!   __adjtimex(&txc);
+! 
+!   *tickadj = (U_LONG)1;		/* our adjtime is accurate */
+!   *tick    = (U_LONG)txc.tick;
+  }
+  #endif /* SYS_LINUX */
+diff -c xntpdc/ntpdc_ops.c:1.1.1.12 xntpdc/ntpdc_ops.c:3.16
+*** xntpdc/ntpdc_ops.c:1.1.1.12	Wed Feb  2 18:17:35 1994
+--- xntpdc/ntpdc_ops.c	Wed Feb  2 18:17:36 1994
+***************
+*** 846,853 ****
+  	if (!check1item(items, fp))
+  		return;
+  
+! 	if (!checkitemsize(itemsize, sizeof(struct info_sys_stats)))
+  		return;
+  
+  	(void) fprintf(fp, "system uptime:          %d\n",
+  	    ntohl(ss->timeup));
+--- 846,857 ----
+  	if (!check1item(items, fp))
+  		return;
+  
+! 	if (itemsize != sizeof(struct info_sys_stats) &&
+! 	    itemsize != sizeof(struct old_info_sys_stats)) {
+! 		/* issue warning according to new structure size */
+! 		checkitemsize(itemsize, sizeof(struct info_sys_stats));
+  		return;
++ 	}
+  
+  	(void) fprintf(fp, "system uptime:          %d\n",
+  	    ntohl(ss->timeup));
+***************
+*** 869,874 ****
+--- 873,883 ----
+  	    ntohl(ss->badauth));
+  	(void) fprintf(fp, "wander hold downs:      %d\n",
+  	    ntohl(ss->wanderhold));
++ 	if (itemsize != sizeof(struct info_sys_stats))
++ 		return;
++ 	
++ 	(void) fprintf(fp, "limitation rejects:     %d\n",
++ 	    ntohl(ss->limitrejected));
+  }
+  
+  
+***************
+*** 1243,1248 ****
+--- 1252,1258 ----
+  	{ "nopeer",	RES_NOPEER },
+  	{ "notrap",	RES_NOTRAP },
+  	{ "lptrap",	RES_LPTRAP },
++ 	{ "limited",	RES_LIMITED },
+  	{ "",		0 }
+  };
+  
+***************
+*** 1463,1468 ****
+--- 1473,1479 ----
+  	FILE *fp;
+  {
+  	struct info_monitor *ml;
++ 	struct old_info_monitor *oml;
+  	int items;
+  	int itemsize;
+  	int res;
+***************
+*** 1476,1498 ****
+  	if (!checkitems(items, fp))
+  		return;
+  
+! 	if (!checkitemsize(itemsize, sizeof(struct info_monitor)))
+! 		return;
+  
+! 	(void) fprintf(fp,
+!     "     address          port     count  mode version lasttime firsttime\n");
+! 	(void) fprintf(fp,
+!     "=====================================================================\n");
+! 	while (items > 0) {
+! 		(void) fprintf(fp, "%-20.20s %5d %9d %4d   %3d %9u %9u\n",
+! 		    nntohost(ml->addr),
+! 		    ntohs(ml->port),
+! 		    ntohl(ml->count),
+! 		    ml->mode, ml->version,
+! 		    ntohl(ml->lasttime),
+! 		    ntohl(ml->firsttime));
+! 		ml++;
+! 		items--;
+  	}
+  }
+  
+--- 1487,1535 ----
+  	if (!checkitems(items, fp))
+  		return;
+  
+! 	if (itemsize == sizeof(struct info_monitor)) {
+  
+! 		(void) fprintf(fp,
+! 			       "     address          port     count  mode version  lastdrop lasttime firsttime\n");
+! 		(void) fprintf(fp,
+! 			       "===============================================================================\n");
+! 		while (items > 0) {
+! 			(void) fprintf(fp, "%-20.20s %5d %9d %4d   %3d %9u %9u %9u\n",
+! 				       nntohost(ml->addr),
+! 				       ntohs(ml->port),
+! 				       ntohl(ml->count),
+! 				       ml->mode,
+! 				       ml->version,
+! 				       ntohl(ml->lastdrop),
+! 				       ntohl(ml->lasttime),
+! 				       ntohl(ml->firsttime));
+! 			ml++;
+! 			items--;
+! 		}
+! 	} else {
+! 		if (itemsize != sizeof(struct old_info_monitor)) {
+! 			/* issue warning according to new info_monitor size */
+! 			checkitemsize(itemsize, sizeof(struct info_monitor));
+! 			return;
+! 		}
+! 
+! 		oml = (struct old_info_monitor *)ml;
+! 		(void) fprintf(fp,
+! 			       "     address          port     count  mode version  lasttime firsttime\n");
+! 		(void) fprintf(fp,
+! 			       "======================================================================\n");
+! 		while (items > 0) {
+! 			(void) fprintf(fp, "%-20.20s %5d %9d %4d   %3d %9u %9u\n",
+! 				       nntohost(oml->addr),
+! 				       ntohs(oml->port),
+! 				       ntohl(oml->count),
+! 				       oml->mode,
+! 				       oml->version,
+! 				       ntohl(oml->lasttime),
+! 				       ntohl(oml->firsttime));
+! 			oml++;
+! 			items--;
+! 		}
+  	}
+  }
+  

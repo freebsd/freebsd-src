@@ -48,8 +48,7 @@ U_LONG	sys_unknownversion;	/* don't know version packets */
 U_LONG	sys_badlength;		/* packets with bad length */
 U_LONG	sys_processed;		/* packets processed */
 U_LONG	sys_badauth;		/* packets dropped because of authorization */
-U_LONG	sys_wanderhold;		/* sys_peer held to prevent wandering */
-U_LONG	sys_limitrejected;       /* pkts rejected due toclient count per net */
+U_LONG	sys_limitrejected;	/* pkts rejected due toclient count per net */
 
 /*
  * Imported from ntp_timer.c
@@ -91,7 +90,8 @@ transmit(peer)
 	struct pkt xpkt;	/* packet to send */
 	U_LONG peer_timer;
 
-	if (peer->hmode != MODE_BCLIENT) {
+	if ((peer->hmode != MODE_BROADCAST && peer->hmode != MODE_BCLIENT) ||
+	    (peer->hmode == MODE_BROADCAST && sys_leap != LEAP_NOTINSYNC)) {
 		U_LONG xkeyid;
 
 		/*
@@ -240,17 +240,14 @@ transmit(peer)
 	/*
 	 * Finally, adjust the hpoll variable for special conditions.
 	 */
-	if (peer->flags & FLAG_SYSPEER && peer->hpoll > sys_poll) {
-		/* clamp it */
+	if (peer->hmode == MODE_BCLIENT)
+		peer->hpoll = peer->ppoll;
+	else if (peer->flags & FLAG_SYSPEER &&
+	    peer->hpoll > sys_poll)
 		peer->hpoll = max(peer->minpoll, sys_poll);
-	}
-	if (peer->hmode == MODE_BROADCAST || peer->hmode == MODE_BCLIENT) {
-		/* clamp it */
-		peer->hpoll = peer->minpoll;
-	}
 
 	/*
-	 * Arrange for our next time out.  hpoll will be less than
+	 * Arrange for our next timeout.  hpoll will be less than
 	 * maxpoll for sure.
 	 */
 	if (peer->event_timer.next != 0)
@@ -262,37 +259,6 @@ transmit(peer)
 	peer->event_timer.event_time = current_time + peer_timer;
 	TIMER_ENQUEUE(timerqueue, &peer->event_timer);
 }
-
-#if 0
-static void
-ct_die(after)
-{
-	syslog(LOG_ERR, "timers garbled (%s)", after?"after":"before");
-	abort();
-}
-
-void
-check_timers(after)
-{
-    	register int i;
-	register struct event *p, *q;
-
-	for (i = 0; i < TIMER_NSLOTS; i++) {
-		p = &timerqueue[i];
-		if (p->event_time != 0)
-			ct_die(after);
-		do {
-			q = p;
-			if ((p = p->next) == 0)
-				ct_die(after);
-			if (p->prev != q)
-				ct_die(after);
-		} while (p->event_time != 0);
-		if (p != &timerqueue[i])
-			ct_die(after);
-	}
-}
-#endif		
 
 /*
  * receive - Receive Procedure.  See section 3.4.2 in the specification.
@@ -533,6 +499,9 @@ receive(rbufp)
 			break;
 
 		case MODE_PASSIVE:
+#ifdef MCAST
+			/* process the packet to determine the rt-delay */
+#endif /* MCAST */
 		case MODE_SERVER:
 			/*
 			 * These are obvious errors.  Ignore.
@@ -550,8 +519,10 @@ receive(rbufp)
 			/*
 			 * Sort of a repeat of the above...
 			 */
+/*
 			if ((restrict & RES_NOPEER) || !sys_bclient)
 				return;
+*/
 			mymode = MODE_BCLIENT;
 			break;
 		}
@@ -562,7 +533,7 @@ receive(rbufp)
 		 */
 		peer = newpeer(&rbufp->recv_srcadr, rbufp->dstadr, mymode,
 		    PKT_VERSION(pkt->li_vn_mode), NTP_MINDPOLL,
-		    NTP_MAXPOLL, hiskeyid);
+		    NTP_MAXPOLL, 0, hiskeyid);
 		if (peer == 0) {
 			/*
 			 * The only way this can happen is if the
@@ -722,12 +693,11 @@ receive(rbufp)
 			 * out to be bad.
 			 */
 			peer2 = newpeer(&rbufp->recv_srcadr,
-					rbufp->dstadr, MODE_PASSIVE,
-					PKT_VERSION(pkt->li_vn_mode),
-					NTP_MINDPOLL, NTP_MAXPOLL,
-					hiskeyid);
+			    rbufp->dstadr, MODE_PASSIVE,
+			    PKT_VERSION(pkt->li_vn_mode),
+			    NTP_MINDPOLL, NTP_MAXPOLL, 0, hiskeyid);
 			if (process_packet(peer2, pkt, &rbufp->recv_time,
-				has_mac, trustable) == 0) {
+			    has_mac, trustable) == 0) {
 				/*
 				 * Strange situation.  We've been receiving
 				 * broadcasts from him which we liked, but
@@ -785,20 +755,21 @@ process_packet(peer, pkt, recv_ts, has_mac, trustable)
 
 	sys_processed++;
 	peer->processed++;
-
-	peer->rec = *recv_ts;
 	p_dist = NTOHS_FP(pkt->rootdelay);
 	p_disp = NTOHS_FP(pkt->rootdispersion);
 	NTOHL_FP(&pkt->rec, &p_rec);
 	NTOHL_FP(&pkt->xmt, &p_xmt);
-	NTOHL_FP(&pkt->org, &p_org);
+	if (PKT_MODE(pkt->li_vn_mode) != MODE_BROADCAST)
+		NTOHL_FP(&pkt->org, &p_org);
+	else
+		p_org = peer->rec;
+	peer->rec = *recv_ts;
 	peer->flash = 0;
 	randomize = POLL_RANDOMCHANGE;
 
 	/*
 	 * Test for old or duplicate packets (tests 1 through 3).
 	 */
-	
 	if (L_ISHIS(&peer->org, &p_xmt))	/* count old packets */
 		peer->oldpkt++;
 	if (L_ISEQU(&peer->org, &p_xmt))	/* test 1 */
@@ -812,6 +783,9 @@ process_packet(peer, pkt, recv_ts, has_mac, trustable)
 		if ((p_rec.l_ui == 0 && p_rec.l_uf == 0) ||
 		    (p_org.l_ui == 0 && p_org.l_uf == 0))
 			peer->flash |= TEST3;	/* unsynchronized */
+	} else {
+		if (p_org.l_ui == 0 && p_org.l_uf == 0)
+			peer->flash |= TEST3;   /* unsynchronized */
 	}
 	peer->org = p_xmt;	/* reuse byte-swapped pkt->xmt */
 	peer->ppoll = pkt->ppoll;
@@ -917,39 +891,23 @@ process_packet(peer, pkt, recv_ts, has_mac, trustable)
 	ci.l_ui = t10_ui;
 	ci.l_uf = t10_uf;
 	ei = (FP_SECOND >> (-(int)sys_precision));
-	if (peer->hmode == MODE_BCLIENT) {
-#ifdef notdef
-		if (PKT_MODE(pkt->li_vn_mode) == MODE_CLIENT) {
-			/*
-			 * A client mode packet, used for delay computation.
-			 * Give the data to the filter.
-			 */
-			bdelay_filter(peer, t23_ui, t23_uf, t10_ui, t10_uf);
-		}
-#endif
-		M_ADDUF(ci.l_ui, ci.l_uf, peer->estbdelay>>1);
+
+	/*
+	 * If broadcast mode, time of last reception has been fiddled
+	 * to p_org, rather than originate timestamp. We use this to
+	 * augment dispersion and previously calcuated estbdelay as
+	 * the delay. We know NTP_SKEWFACTOR == 16, which accounts for
+	 * the simplified ei calculation.
+	 */
+	if (PKT_MODE(pkt->li_vn_mode) == MODE_BROADCAST) {
+		M_ADDUF(ci.l_ui, ci.l_uf, peer->estbdelay >> 1);
 		di = MFPTOFP(0, peer->estbdelay);
+		ei += peer->rec.l_ui - p_org.l_ui;
 	} else {
 		M_ADD(ci.l_ui, ci.l_uf, t23_ui, t23_uf);
 		M_RSHIFT(ci.l_i, ci.l_uf);
-
-		/*
-		 * Calculate di in t23 in full precision, then truncate
-		 * to an s_fp.
-		 */
 		M_SUB(t23_ui, t23_uf, t10_ui, t10_uf);
 		di = MFPTOFP(t23_ui, t23_uf);
-		/*
-		 * Calculate (t3 - t0) in t23 in full precision, convert
-		 * to single, shift down by MAXSKEW and add to ei.
-		 * We know NTP_SKEWFACTOR == 16
-		 */
-#if 0
-		t23_ui = peer->rec.l_ui;	/* peer->rec == t0 */
-		t23_uf = peer->rec.l_uf;
-		M_SUB(t23_ui, t23_uf, p_org.l_ui, p_org.l_uf); /*pkt->org==t3*/
-		ei += (MFPTOFP(t23_ui, t23_uf) >> NTP_SKEWFACTOR);
-#endif
 		ei += peer->rec.l_ui - p_org.l_ui;
 	}
 #ifdef DEBUG
@@ -1073,9 +1031,7 @@ clock_update(peer)
 		if (d < 0)
 			d = -d;
 	 	sys_rootdelay = peer->rootdelay + d;
-		sys_maxd = peer->dispersion;
-		if (peer->flags & FLAG_PREFER)
-			sys_maxd += peer->selectdisp;
+		sys_maxd = peer->dispersion + peer->selectdisp;
 		d = peer->soffset;
 		if (d < 0)
 			d = -d;
@@ -1171,7 +1127,7 @@ poll_update(peer, new_hpoll, randomize)
 	 * Catch reference clocks here.  The polling interval for a
 	 * reference clock is fixed and needn't be maintained by us.
 	 */
-	if (peer->flags & FLAG_REFCLOCK)
+	if (peer->flags & FLAG_REFCLOCK || peer->hmode == MODE_BROADCAST)
 		return;
 
 	/*
@@ -1193,7 +1149,9 @@ poll_update(peer, new_hpoll, randomize)
 	 * less that peer.timer, update peer.timer.
 	 */
 	oldpoll = peer->hpoll;
-	if ((peer->flags & FLAG_SYSPEER) && new_hpoll > sys_poll)
+	if (peer->hmode == MODE_BCLIENT)
+		peer->hpoll = peer->ppoll;
+	else if ((peer->flags & FLAG_SYSPEER) && new_hpoll > sys_poll)
 		peer->hpoll = max(peer->minpoll, sys_poll);
 	else {
 		if (new_hpoll > peer->maxpoll)
@@ -1208,10 +1166,10 @@ poll_update(peer, new_hpoll, randomize)
 	newpoll = max((u_char)min(peer->ppoll, peer->hpoll), peer->minpoll);
 	if (randomize == POLL_MAKERANDOM ||
 	    (randomize == POLL_RANDOMCHANGE && newpoll != oldpoll))
-		new_timer = (1<<(newpoll - 1))
+		new_timer = (1 << (newpoll - 1))
 		    + ranp2(newpoll - 1) + current_time;
 	else
-		new_timer = (1<<newpoll) + current_time;
+		new_timer = (1 << newpoll) + current_time;
 	evp = &(peer->event_timer);
 	if (evp->next == 0 || evp->event_time > new_timer) {
 		TIMER_DEQUEUE(evp);
@@ -1358,26 +1316,10 @@ clock_filter(peer, sample_offset, sample_delay, sample_error)
 		/*
 		 * Find where he goes in, then shift everyone else down
 		 */
-		if (peer->hmode == MODE_BCLIENT) {
-			register s_fp *soffsetp;
-			/*
-			 * Sort by offset.  The most positive offset
-			 * should correspond to the minimum delay.
-			 */
-			soffsetp = peer->filter_soffset;
-			for (i = 0; i < NTP_SHIFT-1; i++)
-				if (errorp[ord[i]] >= NTP_MAXDISPERSE
-				    || sample_soffset >= soffsetp[ord[i]])
-					break;
-		} else {
-			/*
-			 * Sort by distance.
-			 */
-			for (i = 0; i < NTP_SHIFT-1; i++)
-				if (errorp[ord[i]] >= NTP_MAXDISPERSE
-				    || sample_distance <= distance[ord[i]])
-					break;
-		}
+		for (i = 0; i < NTP_SHIFT-1; i++)
+			if (errorp[ord[i]] >= NTP_MAXDISPERSE
+			    || sample_distance <= distance[ord[i]])
+				break;
 
 		for (j = NTP_SHIFT-1; j > i; j--)
 			ord[j] = ord[j-1];
@@ -1692,7 +1634,7 @@ clock_select()
 				if (d < 0)
 					d = -d;
 				sdisp += d;
-				sdisp = ((sdisp>>1) + sdisp) >> 1;
+				sdisp = ((sdisp >> 1) + sdisp) >> 1;
 			}
 			peer_list[i]->selectdisp = sdisp;
 			if (sdisp > maxd) {
@@ -1745,9 +1687,7 @@ clock_select()
 		for (i = 1; i < nlist; i++)
 			if (peer_list[i] == sys_peer)
 				break;
-		if (i < nlist)
-			sys_wanderhold++;
-		else
+		if (i >= nlist)
 			sys_peer = peer_list[0];
 	}
 
@@ -2080,7 +2020,6 @@ init_proto()
 	sys_unknownversion = 0;
 	sys_processed = 0;
 	sys_badauth = 0;
-	sys_wanderhold = 0;
 
 	syslog(LOG_NOTICE, "default precision is initialized to 2**%d", sys_precision);
 }
@@ -2092,7 +2031,7 @@ init_proto()
 void
 proto_config(item, value)
 	int item;
-	LONG value;
+	U_LONG value;
 {
 	/*
 	 * Figure out what he wants to change, then do it
@@ -2103,10 +2042,32 @@ proto_config(item, value)
 		 * Turn on/off facility to listen to broadcasts
 		 */
 		sys_bclient = (int)value;
-		if (sys_bclient)
+		if (value)
 			io_setbclient();
 		else
 			io_unsetbclient();
+		break;
+
+	case PROTO_MULTICAST_ADD:
+		/*
+		 * Add multicast group address
+		 */
+		if (!sys_bclient) {
+			sys_bclient = 1;
+			io_setbclient();
+		}
+#ifdef MCAST
+		io_multicast_add(value);
+#endif /* MCAST */
+		break;
+
+	case PROTO_MULTICAST_DEL:
+		/*
+		 * Delete multicast group address
+		 */
+#ifdef MCAST
+		io_multicast_del(value);
+#endif /* MCAST */
 		break;
 	
 	case PROTO_PRECISION:
@@ -2120,7 +2081,7 @@ proto_config(item, value)
 		/*
 		 * Set default broadcast delay
 		 */
-		sys_bdelay = (((U_LONG)value) + 0x00000800) & 0xfffff000;
+		sys_bdelay = ((value) + 0x00000800) & 0xfffff000;
 		break;
 	
 	case PROTO_AUTHENTICATE:
@@ -2136,23 +2097,7 @@ proto_config(item, value)
 		 * Provide an authentication delay value.  Round it to
 		 * the microsecond.  This is crude.
 		 */
-		sys_authdelay = (((U_LONG)value) + 0x00000800) & 0xfffff000;
-		break;
-
-	case PROTO_MAXSKEW:
-		/*
-		 * Set the maximum skew value
-		 */
-		syslog(LOG_ERR,
-		       "proto_config: attempt to set maxskew (obsolete)");
-		break;
-
-	case PROTO_SELECT:
-		/*
-		 * Set the selection algorithm.
-		 */
-		syslog(LOG_ERR,
-       "proto_config: attempt to set selection algorithm (obsolete)");
+		sys_authdelay = ((value) + 0x00000800) & 0xfffff000;
 		break;
 
 	default:
@@ -2179,7 +2124,6 @@ proto_clr_stats()
 	sys_badlength = 0;
 	sys_processed = 0;
 	sys_badauth = 0;
-	sys_wanderhold = 0;
 	sys_stattime = current_time;
 	sys_limitrejected = 0;
 }

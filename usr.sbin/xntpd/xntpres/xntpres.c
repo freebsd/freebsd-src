@@ -46,6 +46,7 @@ struct conf_entry {
 #define ce_minpoll	ce_config.minpoll
 #define ce_maxpoll	ce_config.maxpoll
 #define	ce_flags	ce_config.flags
+#define ce_ttl		ce_config.ttl
 #define	ce_keyid	ce_config.keyid
 
 /*
@@ -100,8 +101,9 @@ int resolve_value;	/* next value of resolve timer */
 #define	TOK_MINPOLL	3
 #define	TOK_MAXPOLL	4
 #define	TOK_FLAGS	5
-#define	TOK_KEYID	6
-#define	NUMTOK		7
+#define TOK_TTL		6
+#define	TOK_KEYID	7
+#define	NUMTOK		8
 
 #define	MAXLINESIZE	512
 
@@ -128,7 +130,7 @@ extern int errno;
 static	RETSIGTYPE bong		P((int));
 static	void	checkparent	P((void));
 static	void	removeentry	P((struct conf_entry *));
-static	void	addentry	P((char *, int, int, int, int, int, U_LONG));
+static	void	addentry	P((char *, int, int, int, int, int, int, U_LONG));
 static	int	findhostaddr	P((struct conf_entry *));
 static	void	openntp		P((void));
 static	int	request		P((struct conf_peer *));
@@ -338,13 +340,14 @@ removeentry(entry)
  * addentry - add an entry to the configuration list
  */
 static void
-addentry(name, mode, version, minpoll, maxpoll, flags, keyid)
+addentry(name, mode, version, minpoll, maxpoll, flags, ttl, keyid)
 	char *name;
 	int mode;
 	int version;
 	int minpoll;
 	int maxpoll;
 	int flags;
+	int ttl;
 	U_LONG keyid;
 {
 	register char *cp;
@@ -363,6 +366,7 @@ addentry(name, mode, version, minpoll, maxpoll, flags, keyid)
 	ce->ce_minpoll = (u_char)minpoll;
 	ce->ce_maxpoll = (u_char)maxpoll;
 	ce->ce_flags = (u_char)flags;
+	ce->ce_ttl = (u_char)ttl;
 	ce->ce_keyid = htonl(keyid);
 	ce->ce_next = NULL;
 
@@ -802,9 +806,9 @@ readconf(fp, name)
 		 * This is as good as we can check it.  Add it in.
 		 */
 		addentry(token[TOK_HOSTNAME], (int)intval[TOK_HMODE],
-		    (int)intval[TOK_VERSION],
-		    (int)intval[TOK_MINPOLL], (int)intval[TOK_MAXPOLL],
-		    flags, intval[TOK_KEYID]);
+		    (int)intval[TOK_VERSION], (int)intval[TOK_MINPOLL],
+		    (int)intval[TOK_MAXPOLL], flags, (int)intval[TOK_TTL],
+		    intval[TOK_KEYID]);
 	}
 }
 

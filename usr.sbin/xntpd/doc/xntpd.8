@@ -137,6 +137,9 @@ on this computer
 specify the location of the drift file
 .Ip -k 8
 specify the location of the file which contains the NTP authentication keys
+.Ip -m 8
+listen for multicast NTP and sync to this if available (requires multicast
+kernel)
 .Ip -p 8
 specify the name of the file to record the daemon's process id
 .Ip -r 8
@@ -215,7 +218,10 @@ the remote host synchronize to your own time.  The
 .B broadcast
 statement requests your local daemon to transmit broadcast NTP to
 the specified address.  The latter is usually the broadcast address
-on [one of] your local network[s].
+on [one of] your local network[s] or a multicast address assigned to
+NTP. The Numbers Czar has assigned the address 224.0.1.1 to NTP; this
+is presently the only number that should be used.  Note that the use
+of multicast requires a multicast kernel.
 .PP
 The
 .B key
@@ -273,7 +279,7 @@ must have write permission for the directory the drift file is located
 in, and that file system links, symbolic or otherwise, should probably
 be avoided.
 .PP
-.B "monitor yes|no"
+.B monitor yes|no
 .PP
 Indicates whether the
 .I xntpd
@@ -297,10 +303,23 @@ is primarily intended for very popular servers which exchange time with
 large numbers of peers, though it may also be useful for access monitoring
 of local servers if you are willing to accept the overhead.
 .PP
-.B "broadcastclient yes|no"
+.B broadcastclient
 .PP
-This indicates whether the local server should listen for, and attempt to
-synchonize to, broadcast NTP.  The default is \*(L"no\*(R".
+This directs the local server should listen for, and attempt to
+synchonize to, broadcast NTP.  Note that authentication is required in
+this mode.
+.PP
+.B multicastclient
+[
+.I IP address ...
+]
+.PP
+This directs the local server should listen for, and attempt to
+synchonize to, multicast NTP.  This function requires a multicast kernel
+and the use of authentication.
+If one or more IP addresses are given, the server joins the respective
+multicast group.  If none are given, the default address assigned to
+NTP (224.0.1.1) is assumed.
 .PP
 .B broadcastdelay
 .I seconds
@@ -311,7 +330,7 @@ typically (for ethernet) a number between 0.007 and 0.015 seconds.  This
 initial estimate may be improved by polling each server to determine a
 more accurate value.  Defaults to 0.008 seconds.
 .PP
-.B "authenticate yes|no"
+.B authenticate yes|no
 .PP
 Indicates whether the local server should operate in authenticate mode
 or not.  If \*(L"yes\*(R", only peers which include an authentication field

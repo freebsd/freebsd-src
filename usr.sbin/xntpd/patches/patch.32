@@ -1,0 +1,89 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa12910; 27 Mar 94 10:06 EST
+Received: from faui45.informatik.uni-erlangen.de by louie.udel.edu id aa22473;
+          27 Mar 94 10:05 EST
+Received: from faui43.informatik.uni-erlangen.de by uni-erlangen.de with SMTP;
+	id AA09307 (5.65c-6/7.3v-FAU); Sun, 27 Mar 1994 17:05:03 +0200
+Received: from faui45x.informatik.uni-erlangen.de by immd4.informatik.uni-erlangen.de with SMTP;
+	id AA05359 (5.65c-6/7.3m-FAU); Sun, 27 Mar 1994 16:05:01 +0100
+From: Frank Kardel <Frank.Kardel@informatik.uni-erlangen.de>
+Message-Id: <199403271505.AA05359@faui43.informatik.uni-erlangen.de>
+Subject: more PTX related patches...
+To: mills@udel.edu
+Date: Sun, 27 Mar 94 17:04:56 MET DST
+X-Mailer: ELM [version 2.3 PL11]
+
+Hi, Dave !
+
+And another patche to make parse compile on PTX (Sequents
+SysVR2 version).
+
+===================================================================
+RCS file: /src/NTP/REPOSITORY/v3/parse/parse.c,v
+retrieving revision 3.23
+retrieving revision 3.24
+diff -c -r3.23 -r3.24
+*** parse/parse.c:3.23	1994/03/25 13:09:02
+--- parse/parse.c	1994/03/27 15:01:36
+***************
+*** 1,8 ****
+  #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/parse.c,v 3.23 1994/03/25 13:09:02 kardel Exp
+   *  
+!  * parse.c,v 3.23 1994/03/25 13:09:02 kardel Exp
+   *
+   * Parser module for reference clock
+   *
+--- 1,8 ----
+  #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
+  /*
+!  * /src/NTP/REPOSITORY/v3/parse/parse.c,v 3.24 1994/03/27 15:01:36 kardel Exp
+   *  
+!  * parse.c,v 3.24 1994/03/27 15:01:36 kardel Exp
+   *
+   * Parser module for reference clock
+   *
+***************
+*** 29,34 ****
+--- 29,38 ----
+  #include "sys/time.h"
+  #include "sys/errno.h"
+  
++ #include "ntp_fp.h"
++ #include "ntp_unixtime.h"
++ #include "ntp_calendar.h"
++ 
+  #include "ntp_machine.h"
+  
+  #if defined(PARSESTREAM) && (defined(SYS_SUNOS4) || defined(SYS_SOLARIS)) && defined(STREAM)
+***************
+*** 49,58 ****
+  #endif
+  #endif
+  
+- #include "ntp_fp.h"
+- #include "ntp_unixtime.h"
+- #include "ntp_calendar.h"
+- 
+  #include "parse.h"
+  
+  #include "ntp_stdlib.h"
+--- 53,58 ----
+***************
+*** 1162,1167 ****
+--- 1162,1170 ----
+   * History:
+   *
+   * parse.c,v
++  * Revision 3.24  1994/03/27  15:01:36  kardel
++  * reorder include file to cope with PTX
++  *
+   * Revision 3.23  1994/03/25  13:09:02  kardel
+   * considering FIXEDONLY entries only in FIXEDONLY mode
+   *
+-- 
+	   Frank Kardel (kardel@informatik.uni-erlangen.de)
+    All SCSI disks will from now on be required to send an email
+         notice 24 hours prior to complete hardware failure!
+

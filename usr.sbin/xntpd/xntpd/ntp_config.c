@@ -45,8 +45,9 @@
  * peer 128.100.1.1 [ version 3 ] [ key 0 ] [ minpoll 6 ] [ maxpoll 10 ]
  * server 128.100.2.2 [ version 3 ] [ key 0 ] [ minpoll 6 ] [ maxpoll 10 ]
  * precision -7
- * broadcast 128.100.224.255 [ version 3 ] [ key 0 ]
- * broadcastclient yes|no
+ * broadcast 128.100.224.255 [ version 3 ] [ key 0 ] [ ttl 1 ]
+ * broadcastclient
+ * multicastclient [224.0.1.1]
  * broadcastdelay 0.0102
  * authenticate yes|no
  * monitor yes|no
@@ -58,7 +59,16 @@
  * statsdir /var/NTP/
  * filegen peerstats [ file peerstats ] [ type day ] [ link ]
  * resolver /path/progname
- * netlimit integer
+ * clientlimit [ n ]
+ * clientperiod [ 3600 ]
+ * trustedkey [ key ]
+ * requestkey [ key] 
+ * controlkey [ key ]
+ * trap [ address ]
+ * fudge [ ... ]
+ * pidfile [ ]
+ * logfile [ ]
+ * setvar [ ]
  *
  * And then some.  See the manual page.
  */
@@ -85,24 +95,24 @@
 #define	CONFIG_CONTROLKEY	15
 #define	CONFIG_TRAP		16
 #define	CONFIG_FUDGE		17
-#define	CONFIG_MAXSKEW		18
-#define	CONFIG_RESOLVER		19
-#define	CONFIG_SELECT		20
-#define CONFIG_STATSDIR		21
-#define CONFIG_FILEGEN		22
-#define CONFIG_STATISTICS	23
-#define CONFIG_PPS		24
-#define	CONFIG_PIDFILE		25
-#define	CONFIG_LOGFILE		26
-#define CONFIG_SETVAR		27
-#define CONFIG_CLIENTLIMIT	28
-#define CONFIG_CLIENTPERIOD	29
+#define	CONFIG_RESOLVER		18
+#define CONFIG_STATSDIR		19
+#define CONFIG_FILEGEN		20
+#define CONFIG_STATISTICS	21
+#define CONFIG_PPS		22
+#define	CONFIG_PIDFILE		23
+#define	CONFIG_LOGFILE		24
+#define CONFIG_SETVAR		25
+#define CONFIG_CLIENTLIMIT	26
+#define CONFIG_CLIENTPERIOD	27
+#define CONFIG_MULTICASTCLIENT	28
 
 #define	CONF_MOD_VERSION	1
 #define	CONF_MOD_KEY		2
 #define	CONF_MOD_MINPOLL	3
 #define CONF_MOD_MAXPOLL	4
 #define CONF_MOD_PREFER		5	
+#define CONF_MOD_TTL		6
 
 #define CONF_PPS_DELAY		1
 #define CONF_PPS_BAUD		2
@@ -162,6 +172,7 @@ static	struct keyword keywords[] = {
 	{ "driftfile",		CONFIG_DRIFTFILE },
 	{ "broadcast",		CONFIG_BROADCAST },
 	{ "broadcastclient",	CONFIG_BROADCASTCLIENT },
+	{ "multicastclient",	CONFIG_MULTICASTCLIENT },
 	{ "authenticate",	CONFIG_AUTHENTICATE },
 	{ "keys",		CONFIG_KEYS },
 	{ "monitor",		CONFIG_MONITOR },
@@ -174,9 +185,7 @@ static	struct keyword keywords[] = {
 	{ "controlkey",		CONFIG_CONTROLKEY },
 	{ "trap",		CONFIG_TRAP },
 	{ "fudge",		CONFIG_FUDGE },
-	{ "maxskew",		CONFIG_MAXSKEW },
 	{ "resolver",		CONFIG_RESOLVER },
-	{ "select",		CONFIG_SELECT },
 	{ "statsdir",		CONFIG_STATSDIR },
 	{ "filegen",		CONFIG_FILEGEN },  
 	{ "statistics",		CONFIG_STATISTICS },
@@ -197,6 +206,7 @@ static	struct keyword mod_keywords[] = {
 	{ "minpoll",	CONF_MOD_MINPOLL },
 	{ "maxpoll",	CONF_MOD_MAXPOLL },
 	{ "prefer",	CONF_MOD_PREFER },
+	{ "ttl",	CONF_MOD_TTL },
 	{ "",		CONFIG_UNKNOWN }
 };
 
@@ -325,12 +335,12 @@ extern int debug;
 #endif
 extern char *FindConfig();
        char *progname;
-static char *xntp_options = "abc:de:f:k:l:p:r:s:t:v:V:";
+static char *xntp_options = "abc:de:f:k:l:mp:r:s:t:v:V:";
 
 static int	gettokens	P((FILE *, char *, char **, int *));
 static int	matchkey	P((char *, struct keyword *));
 static int	getnetnum	P((char *, struct sockaddr_in *, int));
-static void	save_resolve	P((char *, int, int, int, int, int, U_LONG));
+static void	save_resolve	P((char *, int, int, int, int, int, int, U_LONG));
 static void	do_resolve	P((char *, U_LONG, char *));
 #ifdef RESOLVE_INTERNAL
 static void	do_resolve_internal	P((void));
@@ -417,6 +427,7 @@ getconfig(argc, argv)
 	int peerversion;
 	int minpoll;
 	int maxpoll;
+	int ttl;
 	U_LONG peerkey;
 	int peerflags;
 	int hmode;
@@ -473,12 +484,15 @@ getconfig(argc, argv)
 		case 'a':
 			proto_config(PROTO_AUTHENTICATE, (LONG)1);
 			break;
+
 		case 'b':
 			proto_config(PROTO_BROADCLIENT, (LONG)1);
 			break;
+
 		case 'c':
 			config_file = ntp_optarg;
 			break;
+
 		case 'd':
 #ifdef DEBUG
 			debug++;
@@ -521,6 +535,10 @@ getconfig(argc, argv)
 				have_keyfile = 1;
 				(void)strcpy(keyfile, ntp_optarg);
 			}
+			break;
+
+		case 'm':
+			proto_config(PROTO_MULTICAST_ADD, INADDR_NTP);
 			break;
 
 		case 'p':
@@ -631,6 +649,7 @@ getconfig(argc, argv)
 			maxpoll = NTP_MAXPOLL;
 			peerkey = 0;
 			peerflags = 0;
+			ttl = 1;
 			for (i = 2; i < ntokens; i++)
 				switch (matchkey(tokens[i], mod_keywords)) {
 				case CONF_MOD_VERSION:
@@ -696,6 +715,16 @@ getconfig(argc, argv)
 					peerflags |= FLAG_PREFER;
 					break;
 
+				case CONF_MOD_TTL:
+					if (i >= ntokens-1) {
+						syslog(LOG_ERR,
+						    "ttl: argument required");
+						errflg = 1;
+						break;
+					}
+					ttl = atoi(tokens[++i]);
+					break;
+
 				case CONFIG_UNKNOWN:
 					errflg = 1;
 					break;
@@ -707,14 +736,15 @@ getconfig(argc, argv)
 			if (errflg == 0) {
 				if (peer_config(&peeraddr,
 				    (struct interface *)0, hmode, peerversion, 
-				    minpoll, maxpoll, peerkey, peerflags) == 0) {
+				    minpoll, maxpoll, peerflags, ttl, peerkey)
+				    == 0) {
 					syslog(LOG_ERR,
 					    "configuration of %s failed",
 					    ntoa(&peeraddr));
 				}
 			} else if (errflg == -1) {
 				save_resolve(tokens[1], hmode, peerversion,
-				    minpoll, maxpoll, peerflags, peerkey);
+				    minpoll, maxpoll, peerflags, ttl, peerkey);
 			}
 			break;
 			
@@ -771,23 +801,20 @@ getconfig(argc, argv)
 			} break;
 
 		case CONFIG_BROADCASTCLIENT:
-			errflg = 0;
-			if (ntokens >= 2) {
-				if (STREQ(tokens[1], "yes"))
-					proto_config(PROTO_BROADCLIENT, (LONG)1);
-				else if (STREQ(tokens[1], "no"))
-					proto_config(PROTO_BROADCLIENT, (LONG)0);
-				else
-					errflg++;
-			} else {
-				errflg++;
-			}
-			
-			if (errflg)
-				syslog(LOG_ERR,
-				       "should be `broadcastclient yes|no'");
+			proto_config(PROTO_BROADCLIENT, (U_LONG)1);
 			break;
 			
+		case CONFIG_MULTICASTCLIENT:
+			if (ntokens > 1) {
+				for (i = 1; i < ntokens; i++) {
+					if (getnetnum(tokens[i], &peeraddr, 1));
+						proto_config(PROTO_MULTICAST_ADD,
+						    peeraddr.sin_addr.s_addr);
+				}
+			} else
+				proto_config(PROTO_MULTICAST_ADD, INADDR_NTP);
+			break;
+
 		case CONFIG_AUTHENTICATE:
 			errflg = 0;
 			if (ntokens >= 2) {
@@ -1263,26 +1290,6 @@ getconfig(argc, argv)
 #endif
 			break;
 
-		case CONFIG_MAXSKEW:
-			if (ntokens >= 2) {
-				l_fp tmp;
-				u_fp utmp;
-				
-				if (!atolfp(tokens[1], &tmp)) {
-					syslog(LOG_ERR,
-					       "maxskew value %s undecodable",
-					       tokens[1]);
-				} else if (tmp.l_ui != 0) {
-					syslog(LOG_ERR,
-					       "maxskew value %s is unlikely",
-					       tokens[1]);
-				} else {
-					utmp = LFPTOFP(&tmp);
-					proto_config(PROTO_MAXSKEW, (LONG)utmp);
-				}
-			}
-			break;
-			
 		case CONFIG_RESOLVER:
 			if (ntokens >= 2) {
 				if (strlen(tokens[1]) >= (size_t)MAXFILENAME) {
@@ -1296,18 +1303,6 @@ getconfig(argc, argv)
 #ifdef RESOLVE_INTERNAL
 				resolve_internal = 0;
 #endif
-			}
-			break;
-			
-		case CONFIG_SELECT:
-			if (ntokens >= 2) {
-				i = atoi(tokens[1]);
-				if (i < SELECT_1 || i > SELECT_5)
-					syslog(LOG_ERR,
-					       "invalid selection algorithm %s, line ignored",
-					       tokens[1]);
-				else
-					proto_config(PROTO_SELECT, (LONG)i);
 			}
 			break;
 			
@@ -1708,13 +1703,14 @@ int sig;
  * save_resolve - save configuration info into a file for later name resolution
  */
 static void
-save_resolve(name, mode, version, minpoll, maxpoll, flags, keyid)
+save_resolve(name, mode, version, minpoll, maxpoll, flags, ttl, keyid)
 	char *name;
 	int mode;
 	int version;
 	int minpoll;
 	int maxpoll;
 	int flags;
+	int ttl;
 	U_LONG keyid;
 {
 	if (res_fp == NULL) {
@@ -1733,8 +1729,8 @@ save_resolve(name, mode, version, minpoll, maxpoll, flags, keyid)
 	}
 #endif
 
-	(void) fprintf(res_fp, "%s %d %d %d %d %d %lu\n", name, mode,
-	    version, minpoll, maxpoll, flags, keyid);
+	(void) fprintf(res_fp, "%s %d %d %d %d %d %d %lu\n", name, mode,
+	    version, minpoll, maxpoll, flags, ttl, keyid);
 }
 
 

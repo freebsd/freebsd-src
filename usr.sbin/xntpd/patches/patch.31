@@ -1,0 +1,83 @@
+
+Received: from louie.udel.edu by huey.udel.edu id aa12734; 27 Mar 94 8:52 EST
+Received: from faui45.informatik.uni-erlangen.de by louie.udel.edu id aa20329;
+          27 Mar 94 8:48 EST
+Received: from faui43.informatik.uni-erlangen.de by uni-erlangen.de with SMTP;
+	id AA05771 (5.65c-6/7.3v-FAU); Sun, 27 Mar 1994 15:48:38 +0200
+Received: from faui45x.informatik.uni-erlangen.de by immd4.informatik.uni-erlangen.de with SMTP;
+	id AA01229 (5.65c-6/7.3m-FAU); Sun, 27 Mar 1994 14:48:37 +0100
+From: Frank Kardel <Frank.Kardel@informatik.uni-erlangen.de>
+Message-Id: <199403271348.AA01229@faui43.informatik.uni-erlangen.de>
+Subject: minor patches
+To: mills@udel.edu
+Date: Sun, 27 Mar 94 15:48:32 MET DST
+X-Mailer: ELM [version 2.3 PL11]
+
+Hi, Dave,
+
+I just got through manually read news (in the spool area 8-( - when
+will they ever fix our news installation).
+
+In order to avoid ptx being picked up in AT&T machine i added hope-fully
+an additional check. Why do vendor have to make machine look the
+same when they aren't ? I though uname was supposed to find out - I
+guess I was wrong - every vendor seems to have his own ideas about
+uname and they all do not mix very well. 
+
+The fix to numtohost allows it to compile on ptx - I hope it still
+compiles on all others (should though).
+
+diff -c lib/numtohost.c:1.1.1.9 lib/numtohost.c:3.7
+*** lib/numtohost.c:1.1.1.9	Sun Mar 27 15:36:54 1994
+--- lib/numtohost.c	Sun Mar 27 15:36:54 1994
+***************
+*** 1,12 ****
+! /* numtohost.c,v 3.1 1993/07/06 01:08:40 jbj Exp
+   * numtohost - convert network number to host name.
+   */
+- #include "ntp_types.h"
+  #include <netdb.h>
+  
+  #include "ntp_fp.h"
+- #include "lib_strbuf.h"
+  #include "ntp_stdlib.h"
+  
+  #define	LOOPBACKNET	0x7f000000
+  #define	LOOPBACKHOST	0x7f000001
+--- 1,11 ----
+! /*
+   * numtohost - convert network number to host name.
+   */
+  #include <netdb.h>
+  
+  #include "ntp_fp.h"
+  #include "ntp_stdlib.h"
++ #include "lib_strbuf.h"
+  
+  #define	LOOPBACKNET	0x7f000000
+  #define	LOOPBACKHOST	0x7f000001
+diff -c scripts/Guess.sh:1.1.1.8 scripts/Guess.sh:1.13
+*** scripts/Guess.sh:1.1.1.8	Sun Mar 27 15:38:53 1994
+--- scripts/Guess.sh	Sun Mar 27 15:38:53 1994
+***************
+*** 78,84 ****
+  					3.2.*)
+  						case "$4" in
+  							v*)
+! 								(i386) >/dev/null 2>&1 && guess=ptx;;
+  						esac
+  				esac
+  			fi
+--- 78,84 ----
+  					3.2.*)
+  						case "$4" in
+  							v*)
+! 								(i386) >/dev/null 2>&1 && [ -f /usr/lib/libseq.a ] && guess=ptx;;
+  						esac
+  				esac
+  			fi
+-- 
+	   Frank Kardel (kardel@informatik.uni-erlangen.de)
+    All SCSI disks will from now on be required to send an email
+         notice 24 hours prior to complete hardware failure!
+
