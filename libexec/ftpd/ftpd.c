@@ -1589,6 +1589,8 @@ skip:
 			syslog(LOG_INFO, "FTP LOGIN FROM %s as %s",
 			    remotehost, pw->pw_name);
 	}
+	if (guest || dochroot)
+		syslog(LOG_INFO, "session root changed to %s", chrootdir);
 #ifdef	LOGIN_CAP
 	login_close(lc);
 #endif
@@ -3172,12 +3174,9 @@ logcmd(char *cmd, char *file1, char *file2, off_t cnt)
 
 	if (logging <= 1)
 		return;
-	/* If either filename isn't absolute, get current dir for log message. */
-	if ((file1 && file1[0] != '/') || (file2 && file2[0] != '/')) {
-		if (getcwd(wd, sizeof(wd) - 1) == NULL)
-			strcpy(wd, strerror(errno));
-	} else
-		wd[0] = '\0';
+
+	if (getcwd(wd, sizeof(wd) - 1) == NULL)
+		strcpy(wd, strerror(errno));
 
 	appendf(&msg, "%s", cmd);
 	if (file1)
@@ -3186,10 +3185,10 @@ logcmd(char *cmd, char *file1, char *file2, off_t cnt)
 		appendf(&msg, " %s", file2);
 	if (cnt >= 0)
 		appendf(&msg, " = %jd bytes", (intmax_t)cnt);
-	if (wd[0])
-		appendf(&msg, " (wd: %s)", wd);
+	appendf(&msg, " (wd: %s", wd);
 	if (guest || dochroot)
-		appendf(&msg, " (chroot: %s)", chrootdir);
+		appendf(&msg, "; chrooted");
+	appendf(&msg, ")");
 	syslog(LOG_INFO, "%s", msg);
 	free(msg);
 }
