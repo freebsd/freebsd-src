@@ -11,8 +11,6 @@ FONTOWN?=	bin
 FONTGRP?=	bin
 FONTMODE?=	444
 
-CLEANFILES+=	$(FONTFILES)
-
 all:	$(FONTFILES)
 
 .if !target(maninstall)
