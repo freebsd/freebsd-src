@@ -549,12 +549,7 @@ installNovice(dialogMenuItem *self)
 	WINDOW *w = savescr();
 
 	dialog_clear();
-	if (!msgYesNo("Is this machine's CMOS clock set to local time?\n"
-		      "If it is set to UTC, please select NO here"))
-	    system("touch /etc/wall_cmos_clock");
-	else
-	    system("rm -f /etc/wall_cmos_clock");
-	systemExecute("rm -f /etc/localtime; tzsetup");
+	systemExecute("rm -f /etc/localtime /etc/wall_cmos_clock; tzsetup");
 	restorescr(w);
     }
 
