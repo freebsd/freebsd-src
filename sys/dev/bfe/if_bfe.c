@@ -1214,6 +1214,7 @@ bfe_rxeof(struct bfe_softc *sc)
 			if (flags & BFE_RX_FLAG_SERR)
 				ifp->if_collisions++;
 			bfe_list_newbuf(sc, cons, m);
+			BFE_INC(cons, BFE_RX_LIST_CNT);
 			continue;
 		}
 
@@ -1224,6 +1225,7 @@ bfe_rxeof(struct bfe_softc *sc)
 		} else {
 			bfe_list_newbuf(sc, cons, m);
 			ifp->if_ierrors++;
+			BFE_INC(cons, BFE_RX_LIST_CNT);
 			continue;
 		}
 
