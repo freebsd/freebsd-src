@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.16 1994/11/05 22:44:34 bde Exp $
+ *	$Id: cpu.h,v 1.17 1994/11/26 09:27:58 phk Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -58,8 +58,8 @@
 #define cpu_set_init_frame(p, fp)	(p)->p_md.md_regs = fp
 
 #define	CLKF_USERMODE(framep)	(ISPL((framep)->cf_cs) == SEL_UPL)
-#define CLKF_INTR(framep)	(0)
-#if 0
+#define CLKF_INTR(framep)	(intr_nesting_level >= 2)
+#if 1
 /*
  * XXX splsoftclock() is very broken and barely worth fixing.  It doesn't
  * turn off the clock bit in imen or in the icu.  (This is not a serious
@@ -127,6 +127,7 @@ struct cpu_nameclass {
 extern int	bootverbose;
 extern int	cpu;
 extern int	cpu_class;
+extern u_char	intr_nesting_level;
 extern struct cpu_nameclass i386_cpus[];
 extern int	want_resched;	/* resched was called */
 

@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.14 1994/09/19 22:24:31 wollman Exp $
+ *	$Id: icu.s,v 1.15 1994/09/20 21:35:47 bde Exp $
  */
 
 /*
@@ -102,6 +102,7 @@ doreti_next:
 	jne	doreti_unpend
 doreti_exit:
 	movl	%eax,_cpl
+	decb	_intr_nesting_level
 	MEXITCOUNT
 	popl	%es
 	popl	%ds

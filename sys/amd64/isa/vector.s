@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.9 1994/09/20 21:35:49 bde Exp $
+ *	$Id: vector.s,v 1.10 1994/11/01 23:29:50 bde Exp $
  */
 
 #include <i386/isa/icu.h>
@@ -147,6 +147,7 @@ IDTVEC(fastintr/**/irq_num) ; \
 	movl	(2+8+1)*4(%esp),%eax ;	/* ... cpl from thin frame */ \
 	pushl	%eax ; \
 	subl	$4,%esp ;	/* junk for unit number */ \
+	incb	_intr_nesting_level ; \
 	MEXITCOUNT ; \
 	jmp	_doreti
 
@@ -172,7 +173,7 @@ IDTVEC(intr/**/irq_num) ; \
 	movl	_cpl,%eax ; \
 	testb	$IRQ_BIT(irq_num),%reg ; \
 	jne	2f ; \
-1: ; \
+	incb	_intr_nesting_level ; \
 Xresume/**/irq_num: ; \
 	FAKE_MCOUNT(12*4(%esp)) ;	/* XXX late to avoid double count */ \
 	movl	_intr_countp + (irq_num) * 4,%eax ; \
@@ -254,6 +255,10 @@ imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
 	.long	SWI_TTY_MASK, SWI_NET_MASK, 0, 0, 0, 0, 0, 0
 	.long	0, 0, 0, 0, 0, 0, SWI_CLOCK_MASK, SWI_AST_MASK
+	.globl	_intr_nesting_level
+_intr_nesting_level:
+	.byte	0
+	.space	3
 
 /*
  * Interrupt counters and names.  The format of these and the label names
