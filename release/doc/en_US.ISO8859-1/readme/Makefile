@@ -16,6 +16,7 @@ INSTALL_ONLY_COMPRESSED?=
 # SGML content
 SRCS+=	article.sgml
 SRCS+=	artheader.sgml
+SRCS+=	abstract.sgml
 SRCS+=	intro.sgml
 SRCS+=	about.sgml
 SRCS+=	obtaining.sgml
