@@ -1,0 +1,16 @@
+# Host: IBM PowerPC running AIX
+
+XM_FILE= xm-aix.h
+
+NAT_FILE= nm-aix.h
+NATDEPFILES= fork-child.o infptrace.o inftarg.o corelow.o rs6000-nat.o \
+	     xcoffread.o xcoffsolib.o
+
+# When compiled with cc, for debugging, this argument should be passed.
+# We have no idea who our current compiler is though, so we skip it.
+# MH_CFLAGS = -bnodelcsect
+
+# gdb is too big for all of its external symbols to fit in a small TOC
+# It looks like the GNU linker doesn't understand the -bbigtoc switch.
+# This switch may be needed for some vendor compilers.
+# MH_LDFLAGS = -Wl,-bbigtoc
