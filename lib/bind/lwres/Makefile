@@ -22,7 +22,14 @@ CFLAGS+=	-I${.CURDIR}
 DPADD=		${PTHREAD_DPADD}
 LDADD=		${PTHREAD_LDADD}
 
-.if defined(WANT_BIND_LIBS)
+# Unlike other BIND libs, this should be installed unless the user says NO.
+.if !defined(NO_BIND)
+.if !defined(NO_BIND_LIBS_LWRES)
+.undef INTERNALLIB
+
+SHLIB_MAJOR=	${LIBINTERFACE}
+SHLIB_MINOR=	${LIBINTERFACE}
+
 INCS=		${SRCDIR}/include/lwres/context.h \
 		${SRCDIR}/include/lwres/int.h \
 		${SRCDIR}/include/lwres/ipv6.h \
@@ -38,6 +45,7 @@ INCS=		${SRCDIR}/include/lwres/context.h \
 		lwres/platform.h
 
 INCSDIR=	${INCLUDEDIR}/lwres
+.endif
 .endif
 
 .include <bsd.lib.mk>

@@ -14,7 +14,7 @@ LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBARCHIVE?=	${DESTDIR}${LIBDIR}/libarchive.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
-.if !defined(NO_BIND) && defined(WANT_BIND_LIBS)
+.if !defined(NO_BIND) && defined(WITH_BIND_LIBS)
 LIBBIND?=	${DESTDIR}${LIBDIR}/libbind.a
 LIBBIND9?=	${DESTDIR}${LIBDIR}/libbind9.a
 .endif
@@ -52,7 +52,7 @@ LIBHDB?=	${DESTDIR}${LIBDIR}/libhdb.a
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
-.if !defined(NO_BIND) && defined(WANT_BIND_LIBS)
+.if !defined(NO_BIND) && defined(WITH_BIND_LIBS)
 LIBISC?=	${DESTDIR}${LIBDIR}/libisc.a
 LIBISCCC?=	${DESTDIR}${LIBDIR}/libisccc.a
 LIBISCCFG?=	${DESTDIR}${LIBDIR}/libisccfg.a
@@ -66,7 +66,7 @@ LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
 LIBLN?=		"don't use LIBLN, use LIBL"
-.if !defined(NO_BIND) && defined(WANT_BIND_LIBS)
+.if !defined(NO_BIND)
 LIBLWRES?=	${DESTDIR}${LIBDIR}/liblwres.a
 .endif
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
