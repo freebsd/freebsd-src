@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993, 1994, 1995, 1996
+ * Copyright (c) 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: pcap.h,v 1.20 96/07/12 19:24:15 leres Exp $ (LBL)
+ * @(#) $Header: pcap.h,v 1.21 97/10/15 21:59:13 leres Exp $ (LBL)
  */
 
 #ifndef lib_pcap_h
@@ -107,7 +107,7 @@ typedef void (*pcap_handler)(u_char *, const struct pcap_pkthdr *,
 char	*pcap_lookupdev(char *);
 int	pcap_lookupnet(char *, bpf_u_int32 *, bpf_u_int32 *, char *);
 pcap_t	*pcap_open_live(char *, int, int, int, char *);
-pcap_t	*pcap_open_offline(char *, char *);
+pcap_t	*pcap_open_offline(const char *, char *);
 void	pcap_close(pcap_t *);
 int	pcap_loop(pcap_t *, int, pcap_handler, u_char *);
 int	pcap_dispatch(pcap_t *, int, pcap_handler, u_char *);
@@ -132,7 +132,7 @@ int	pcap_minor_version(pcap_t *);
 FILE	*pcap_file(pcap_t *);
 int	pcap_fileno(pcap_t *);
 
-pcap_dumper_t *pcap_dump_open(pcap_t *, char *);
+pcap_dumper_t *pcap_dump_open(pcap_t *, const char *);
 void	pcap_dump_close(pcap_dumper_t *);
 void	pcap_dump(u_char *, const struct pcap_pkthdr *, const u_char *);
 
