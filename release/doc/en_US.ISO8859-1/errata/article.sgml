@@ -184,6 +184,8 @@
       which could allow a remote attacker to crash an
       <application>OpenSSL</application>-using application or
       to execute arbitrary code with the privileges of the application.
+      These bugs have been fixed via a vendor-supplied patch on the &release.branch;
+      development branch and the &release.prev; security fix branch.
       Note that only applications that use <application>OpenSSL</application>'s
       ASN.1 or X.509 handling code are affected (<application>OpenSSH</application>
       is unaffected, for example).
