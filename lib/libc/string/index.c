@@ -52,8 +52,9 @@ index
 #endif
 (const char *p, int ch)
 {
+	char c = ch;
 	for (;; ++p) {
-		if (*p == ch)
+		if (*p == c)
 			return ((char *)p);
 		if (*p == '\0')
 			return (NULL);
