@@ -47,7 +47,7 @@
 int	quiet, recover;
 unsigned char fillbyte = 0xf0;	/* "foo" */
 
-int	doread(int fd, FILE *of, const char *devname);
+int	doread(int fd, FILE *of, const char *_devname);
 int	doreadid(int fd, unsigned int numids, unsigned int trackno);
 void	usage(void);
 
@@ -66,7 +66,7 @@ main(int argc, char **argv)
 {
 	int c, errs = 0;
 	unsigned int numids = 0, trackno = 0;
-	const char *fname = 0, *devname = "/dev/fd0";
+	const char *fname = 0, *_devname = "/dev/fd0";
 	char *cp;
 	FILE *of = stdout;
 	int fd;
@@ -75,7 +75,7 @@ main(int argc, char **argv)
 	while ((c = getopt(argc, argv, "d:f:I:o:qrt:")) != -1)
 		switch (c) {
 		case 'd':
-			devname = optarg;
+			_devname = optarg;
 			break;
 
 		case 'f':
@@ -149,14 +149,14 @@ main(int argc, char **argv)
 			err(EX_OSERR, "cannot create output file %s", fname);
 	}
 
-	if ((fd = open(devname, O_RDONLY)) == -1)
-		err(EX_OSERR, "cannot open device %s", devname);
+	if ((fd = open(_devname, O_RDONLY)) == -1)
+		err(EX_OSERR, "cannot open device %s", _devname);
 
-	return (numids? doreadid(fd, numids, trackno): doread(fd, of, devname));
+	return (numids? doreadid(fd, numids, trackno): doread(fd, of, _devname));
 }
 
 int
-doread(int fd, FILE *of, const char *devname)
+doread(int fd, FILE *of, const char *_devname)
 {
 	char *trackbuf;
 	int rv, fdopts, recoverable, nerrs = 0;
@@ -178,7 +178,7 @@ doread(int fd, FILE *of, const char *devname)
 
 	if (!quiet)
 		fprintf(stderr, "Reading %d * %d * %d * %d medium at %s\n",
-			fdt.tracks, fdt.heads, fdt.sectrac, secsize, devname);
+			fdt.tracks, fdt.heads, fdt.sectrac, secsize, _devname);
 
 	for (nbytes = 0; nbytes < mediasize;) {
 		if (lseek(fd, nbytes, SEEK_SET) != nbytes)
@@ -189,20 +189,10 @@ doread(int fd, FILE *of, const char *devname)
 			warnx("premature EOF after %u bytes", nbytes);
 			return (EX_OK);
 		}
-		if (rv == tracksize) {
+		if ((unsigned)rv == tracksize) {
 			nbytes += rv;
 			if (!quiet)
 				fprintf(stderr, "%5d KB\r", nbytes / 1024);
-			fwrite(trackbuf, sizeof(unsigned char), rv, of);
-			fflush(of);
-			continue;
-		}
-		if (rv < tracksize) {
-			/* should not happen */
-			nbytes += rv;
-			if (!quiet)
-				fprintf(stderr, "\nshort after %5d KB\r",
-					nbytes / 1024);
 			fwrite(trackbuf, sizeof(unsigned char), rv, of);
 			fflush(of);
 			continue;
@@ -213,7 +203,7 @@ doread(int fd, FILE *of, const char *devname)
 				if (lseek(fd, nbytes, SEEK_SET) != nbytes)
 					err(EX_OSERR, "cannot lseek()");
 				rv = read(fd, trackbuf, secsize);
-				if (rv == secsize) {
+				if ((unsigned) rv == secsize) {
 					nbytes += rv;
 					if (!quiet)
 						fprintf(stderr, "%5d KB\r",
@@ -257,7 +247,7 @@ doread(int fd, FILE *of, const char *devname)
 				    "ioctl(fd, FD_SOPTS, FDOPT_NOERROR)");
 						rv = read(fd, trackbuf,
 							  secsize);
-						if (rv != secsize)
+						if ((unsigned)rv != secsize)
 							err(EX_IOERR,
 				    "read() with FDOPT_NOERROR still fails");
 						fdopts &= ~FDOPT_NOERROR;
@@ -285,6 +275,16 @@ doread(int fd, FILE *of, const char *devname)
 				errx(EX_OSERR, "unexpected read() result: %d",
 				     rv);
 			}
+		}
+		if ((unsigned)rv < tracksize) {
+			/* should not happen */
+			nbytes += rv;
+			if (!quiet)
+				fprintf(stderr, "\nshort after %5d KB\r",
+					nbytes / 1024);
+			fwrite(trackbuf, sizeof(unsigned char), rv, of);
+			fflush(of);
+			continue;
 		}
 	}
 	if (!quiet) {
