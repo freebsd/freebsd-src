@@ -27,9 +27,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -55,6 +58,7 @@ char *X10cmdnames[] = {
  * Log a packet and update device status accordingly
  */
 
+void
 logpacket(p)
 unsigned char *p;
 {
@@ -72,6 +76,7 @@ unsigned char *p;
  * in core and on disk.
  */
 
+void
 processpacket(p)
 unsigned char *p;
 {
