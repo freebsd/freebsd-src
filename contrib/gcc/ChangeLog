@@ -1,3 +1,90 @@
+Thu Jan 20 10:02:07 2000  Richard Henderson  <rth@cygnus.com>
+
+	2000-01-03  Anthony Green  <green@cygnus.com>
+        * config/i386/i386.md (builtin_setjmp_receiver): New pattern.
+        Restore the pic register if required.
+
+Fri Jan  7 14:40:05 2000  Richard Henderson  <rth@cygnus.com>
+
+	Thu Oct 28 18:06:50 1999  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+        * stmt.c (expand_value_return): Correctly convert VAL when promoting
+	function return.
+
+Tue Jan  4 02:22:27 2000  Jeffrey A Law  (law@cygnus.com)
+
+	Mon Oct 18 18:50:51 1999  Andreas Schwab  <schwab@suse.de>
+	* config/m68k/m68k.h (INITIAL_FRAME_POINTER_OFFSET): Add one word
+	if the pic register is used.
+
+	Sat Sep 25 13:11:07 1999  Jeffrey A Law  (law@cygnus.com)
+	* cse.c: Update comments.
+	(cse_insn): When converting a conditional/computed jump into
+	an unconditional jump, always make sure a BARRIER immediately
+	follows the converted jump.  Do not delete unreachable code.
+	(cse_basic_block): Do not delete unreachable code.
+	* toplev.c (rest_of_compilation): Move call to
+	delete_trivially_dead_insns after the conditional call to
+	jump_optimize.
+
+
+Wed Dec 29 22:47:43 1999  Jeffrey A Law  (law@cygnus.com)
+
+	1999-12-12  Stephen L Moshier <moshier@mediaone.net>
+	* loop.c (load_mems): Don't hoist written floating point mem
+	if -ffloat-store.
+
+	* cppinit.c (is_idchar): Only use special initialization for
+	gcc-2.8 and later versions of the compiler.
+
+	Wed Oct 27 01:42:26 1999  Scott Christley  <scottc@net-community.com>
+	* sparc.md (call): Don't bound structure return size to 0xfff.
+
+Mon Dec 27 07:32:59 1999  Jeffrey A Law  (law@cygnus.com)
+
+	Fri Sep  3 10:16:37 HST 1999  Glen Nakamura  <glen.nakamura@usa.net>
+	* cccp.c (rescan): Fixed obp pointer handling around call to
+	check_expand subroutine.
+
+	Thu Sep 16 00:46:35 1999  Geoff Keating  <geoffk@cygnus.com>
+	* loop.c (basic_induction_var): A non-integer variable which is
+	being set by a paradoxical subreg is probably not a biv.
+
+	1999-08-31 12:20 -0700 Zack Weinberg <zack@bitmover.com>
+	* loop.c (check_dbra_loop): Check bl->biv->add_val is a
+	CONST_INT before using its INTVAL.
+
+	Tue Nov  2 15:27:31 1999  Alexandre Oliva  <oliva@lsd.ic.unicamp.br>
+	* configure.in (m68k-hp-hpux*, xm_alloca.h): The underscore should
+	have been an hyphen, fixed.
+	* configure: Rebuilt.
+
+Thu Dec 23 11:59:56 1999  Jeffrey A Law  (law@cygnus.com)
+
+	1999-12-23  Martin v. Löwis  <loewis@informatik.hu-berlin.de>
+        * fold-const.c (operand_equal_p): Use memcmp to compare string
+        constants.
+        Suggested by D. J. Bernstein
+
+	Thu Dec 16 02:26:11 1999  Jeffrey A Law  (law@cygnus.com)
+	* h8300.md (HImode preinc peephole): Fix typo.
+
+	1999-12-14  Bernd Schmidt  <bernds@cygnus.co.uk>
+        * loop.c (check_dbra_loop): Can't reverse a biv that has
+	maybe_multiple set.
+
+1999-12-07  Martin v. Löwis  <loewis@informatik.hu-berlin.de>
+
+	* invoke.texi (C Dialect Options): Remove -flang-c9x, add -std
+	documentation.
+
+Sun Oct 31 22:32:17 1999  Alexandre Oliva  <oliva@lsd.ic.unicamp.br>
+
+	* config/i386/sol2gas.h: I had installed the wrong version of Sept
+	22's patch in the release branch.  Fixed.
+	* configure.in: Likewise.
+	* configure: Rebuilt.
+	Reported by Jason Beardsley <jbeardsley@origin.ea.com>
+
 Sun Oct 24 23:54:10 PDT 1999 Jeff Law  (law@cygnus.com)
 
 	* gcc-2.95.2 Released.
