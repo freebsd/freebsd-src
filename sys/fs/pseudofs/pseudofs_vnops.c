@@ -312,10 +312,14 @@ pfs_lookup(struct vop_lookup_args *va)
 	struct pfs_node *pd = pvd->pvd_pn;
 	struct pfs_node *pn, *pdn = NULL;
 	pid_t pid = pvd->pvd_pid;
+	int lockparent;
+	int wantparent;
 	char *pname;
 	int error, i, namelen;
 
 	PFS_TRACE(("%.*s", (int)cnp->cn_namelen, cnp->cn_nameptr));
+
+	cnp->cn_flags &= ~PDIRUNLOCK;
 
 	if (vn->v_type != VDIR)
 		PFS_RETURN (ENOTDIR);
@@ -336,6 +340,10 @@ pfs_lookup(struct vop_lookup_args *va)
 	if (!pfs_visible(curthread, pd, pvd->pvd_pid))
 		PFS_RETURN (ENOENT);
 
+	lockparent = cnp->cn_flags & LOCKPARENT;
+	wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
+
+
 	/* self */
 	namelen = cnp->cn_namelen;
 	pname = cnp->cn_nameptr;
@@ -350,6 +358,9 @@ pfs_lookup(struct vop_lookup_args *va)
 	if (cnp->cn_flags & ISDOTDOT) {
 		if (pd->pn_type == pfstype_root)
 			PFS_RETURN (EIO);
+		VOP_UNLOCK(vn, 0, cnp->cn_thread);
+		cnp->cn_flags |= PDIRUNLOCK;
+
 		KASSERT(pd->pn_parent, ("non-root directory has no parent"));
 		/*
 		 * This one is tricky.  Descendents of procdir nodes
@@ -390,9 +401,19 @@ pfs_lookup(struct vop_lookup_args *va)
 		pn->pn_parent = pd;
 	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
 		PFS_RETURN (ENOENT);
+
 	error = pfs_vncache_alloc(vn->v_mount, vpp, pn, pid);
 	if (error)
 		PFS_RETURN (error);
+
+	if ((cnp->cn_flags & ISDOTDOT) && (cnp->cn_flags & ISLASTCN)
+	    && lockparent) {
+		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY, cnp->cn_thread);
+		cnp->cn_flags &= ~PDIRUNLOCK;
+	}
+	if (!lockparent || !(cnp->cn_flags & ISLASTCN))
+		VOP_UNLOCK(vn, 0, cnp->cn_thread);
+
 	/*
 	 * XXX See comment at top of the routine.
 	 */
@@ -806,6 +827,9 @@ static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *)pfs_setattr	},
 	{ &vop_symlink_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_write_desc,		(vop_t *)pfs_write	},
+	{ &vop_lock_desc,		(vop_t *)vop_stdlock	},
+	{ &vop_unlock_desc,		(vop_t *)vop_stdunlock	},
+	{ &vop_islocked_desc,		(vop_t *)vop_stdislocked},
 	/* XXX I've probably forgotten a few that need vop_eopnotsupp */
 	{ NULL,				(vop_t *)NULL		}
 };
