@@ -362,7 +362,7 @@ Delete_Chunk2(struct disk *d, struct chunk *c, int rflags)
 {
 	struct chunk *c1=0, *c2, *c3;
 	chunk_e type = c->type;
-	long offset = c->offset;
+	u_long offset = c->offset;
 
 	if(type == whole)
 		return 1;
