@@ -22,6 +22,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *		$Id$
  */
 
 #ifndef lint
@@ -61,6 +63,8 @@ char copyright[] =
 
 #define REPORT_PERIOD (30*60)
 
+static void usage __P((void));
+
 void fake() {}
 
 int main(argc, argv)
@@ -86,26 +90,22 @@ int main(argc, argv)
 		switch((char)ch) {
 		case 'i':               /* initial call, save offset */
 			if (init != Unknown)
-				goto usage;
+				usage();
 			init = True;
 			break;
 		case 'a':               /* adjustment call, use saved offset */
 			if (init != Unknown)
-				goto usage;
+				usage();
 			init = False;
 			break;
 		case 's':
 			sleep_mode = True;
 			break;
 		default:
-		usage:
-			fprintf(stderr, "Usage:\n\
-\tadjkerntz -i\t\t(initial call from /etc/rc)\n\
-\tadjkerntz -a [-s]\t(adjustment call, -s for sleep/retry mode)\n");
-  			return 2;
+			usage();
 		}
 	if (init == Unknown)
-		goto usage;
+		usage();
 	if (init)
 		sleep_mode = True;
 
@@ -347,4 +347,15 @@ recalculate:
 	}
 
 	return 0;
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+		"usage: adjkerntz -i",
+		"\t\t(initial call from /etc/rc)",
+		"       adjkerntz -a [-s]",
+		"\t\t(adjustment call, -s for sleep/retry mode)");
+	exit(2);
 }
