@@ -2408,6 +2408,7 @@ scsi_request_sense(struct ccb_scsiio *csio, u_int32_t retries,
 	scsi_cmd = (struct scsi_request_sense *)&csio->cdb_io.cdb_bytes;
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 	scsi_cmd->opcode = REQUEST_SENSE;
+	scsi_cmd->length = dxfer_len;
 }
 
 void
