@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.479 1999/04/27 05:09:43 max Exp $
+#	$Id: Makefile,v 1.480 1999/04/29 17:56:28 jdp Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -667,9 +667,12 @@ doMFSKERN:
 	@echo "echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "echo \\007\\007\n" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+.endif
+	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
+.if ${MACHINE_ARCH} == "i386"
+	@echo "-P" >> ${RD}/image.${FSIMAGE}/boot.config
 .endif
 .if defined(BIGBOOT)
 	@echo "Writing MFS image into kernel for ${FSIMAGE} floppy"
