@@ -30,6 +30,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -79,14 +81,6 @@ struct device {
 };
 
 #define DV_IFNET 1
-
-struct cfdriver {
-  int zero;
-  char *name;
-  int one;
-  int cd_ndevs;
-  void *cd_devs[NEN];
-};
 
 #endif
 

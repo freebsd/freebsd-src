@@ -22,9 +22,7 @@ typedef caddr_t bus_addr_t;
 #define bus_space_write_4(t, h, o, v)                                   \
     ((void) t, ((void)(*(volatile u_int32_t *)((h) + (o)) = (v))))
 
-#if defined(sparc)
 #define vtophys(x) ((u_int32_t)(x))	/* sun4c dvma */
-#endif
 
 #endif
 
