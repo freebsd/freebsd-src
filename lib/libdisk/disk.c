@@ -69,6 +69,7 @@ chunk_name(chunk_e type)
 	case fat:	return ("fat");
 	case spare:	return ("spare");
 	case efi:	return ("efi");
+	case apple:     return ("apple");
 	default:	return ("??");
 	}
 };
