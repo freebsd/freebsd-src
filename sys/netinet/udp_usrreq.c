@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.29 1996/10/07 19:06:12 davidg Exp $
+ *	$Id: udp_usrreq.c,v 1.30 1996/10/25 17:57:53 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -94,8 +94,6 @@ static	void udp_detach __P((struct inpcb *));
 static	int udp_output __P((struct inpcb *, struct mbuf *, struct mbuf *,
 			    struct mbuf *));
 static	void udp_notify __P((struct inpcb *, int));
-static	struct mbuf *udp_saveopt __P((caddr_t, int, int));
-static struct mbuf *udp_timestamp __P((void));
 
 void
 udp_init()
@@ -180,7 +178,7 @@ udp_input(m, iphlen)
 
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 	    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif)) {
-		struct socket *last;
+		struct inpcb *last;
 		/*
 		 * Deliver a multicast or broadcast datagram to *all* sockets
 		 * for which the local and remote addresses and ports match
@@ -228,16 +226,22 @@ udp_input(m, iphlen)
 				struct mbuf *n;
 
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
-					if (sbappendaddr(&last->so_rcv,
+					if (last->inp_flags & INP_CONTROLOPTS
+					    || last->inp_socket->so_options & SO_TIMESTAMP)
+						ip_savecontrol(last, &opts, ip, n);
+					if (sbappendaddr(&last->inp_socket->so_rcv,
 						(struct sockaddr *)&udp_in,
-						n, (struct mbuf *)0) == 0) {
+						n, opts) == 0) {
 						m_freem(n);
+						if (opts)
+						    m_freem(opts);
 						udpstat.udps_fullsock++;
 					} else
-						sorwakeup(last);
+						sorwakeup(last->inp_socket);
+					opts = 0;
 				}
 			}
-			last = inp->inp_socket;
+			last = inp;
 			/*
 			 * Don't look for additional matches if this one does
 			 * not have either the SO_REUSEPORT or SO_REUSEADDR
@@ -246,7 +250,7 @@ udp_input(m, iphlen)
 			 * port.  It * assumes that an application will never
 			 * clear these options after setting them.
 			 */
-			if ((last->so_options&(SO_REUSEPORT|SO_REUSEADDR) == 0))
+			if ((last->inp_socket->so_options&(SO_REUSEPORT|SO_REUSEADDR) == 0))
 				break;
 		}
 
@@ -259,12 +263,16 @@ udp_input(m, iphlen)
 			udpstat.udps_noportbcast++;
 			goto bad;
 		}
-		if (sbappendaddr(&last->so_rcv, (struct sockaddr *)&udp_in,
-		     m, (struct mbuf *)0) == 0) {
+		if (last->inp_flags & INP_CONTROLOPTS
+		    || last->inp_socket->so_options & SO_TIMESTAMP)
+			ip_savecontrol(last, &opts, ip, m);
+		if (sbappendaddr(&last->inp_socket->so_rcv,
+		     (struct sockaddr *)&udp_in,
+		     m, opts) == 0) {
 			udpstat.udps_fullsock++;
 			goto bad;
 		}
-		sorwakeup(last);
+		sorwakeup(last->inp_socket);
 		return;
 	}
 	/*
@@ -299,36 +307,8 @@ udp_input(m, iphlen)
 	udp_in.sin_port = uh->uh_sport;
 	udp_in.sin_addr = ip->ip_src;
 	if (inp->inp_flags & INP_CONTROLOPTS
-	    || inp->inp_socket->so_options & SO_TIMESTAMP) {
-		struct mbuf **mp = &opts;
-
-		if (inp->inp_socket->so_options & SO_TIMESTAMP) {
-			if (*mp = udp_timestamp())
-				mp = &(*mp)->m_next;
-		}
-		if (inp->inp_flags & INP_RECVDSTADDR) {
-			*mp = udp_saveopt((caddr_t) &ip->ip_dst,
-			    sizeof(struct in_addr), IP_RECVDSTADDR);
-			if (*mp)
-				mp = &(*mp)->m_next;
-		}
-#ifdef notyet
-		/* options were tossed above */
-		if (inp->inp_flags & INP_RECVOPTS) {
-			*mp = udp_saveopt((caddr_t) opts_deleted_above,
-			    sizeof(struct in_addr), IP_RECVOPTS);
-			if (*mp)
-				mp = &(*mp)->m_next;
-		}
-		/* ip_srcroute doesn't do what we want here, need to fix */
-		if (inp->inp_flags & INP_RECVRETOPTS) {
-			*mp = udp_saveopt((caddr_t) ip_srcroute(),
-			    sizeof(struct in_addr), IP_RECVRETOPTS);
-			if (*mp)
-				mp = &(*mp)->m_next;
-		}
-#endif
-	}
+	    || inp->inp_socket->so_options & SO_TIMESTAMP)
+		ip_savecontrol(inp, &opts, ip, m);
 	iphlen += sizeof(struct udphdr);
 	m->m_len -= iphlen;
 	m->m_pkthdr.len -= iphlen;
@@ -344,57 +324,6 @@ bad:
 	m_freem(m);
 	if (opts)
 		m_freem(opts);
-}
-
-/*
- * Create a "control" mbuf containing the specified data
- * with the specified type for presentation with a datagram.
- */
-struct mbuf *
-udp_saveopt(p, size, type)
-	caddr_t p;
-	register int size;
-	int type;
-{
-	register struct cmsghdr *cp;
-	struct mbuf *m;
-
-	if ((m = m_get(M_DONTWAIT, MT_CONTROL)) == NULL)
-		return ((struct mbuf *) NULL);
-	cp = (struct cmsghdr *) mtod(m, struct cmsghdr *);
-	bcopy(p, CMSG_DATA(cp), size);
-	size += sizeof(*cp);
-	m->m_len = size;
-	cp->cmsg_len = size;
-	cp->cmsg_level = IPPROTO_IP;
-	cp->cmsg_type = type;
-	return (m);
-}
-
-/*
- *  Create an mbuf with the SCM_TIMESTAMP socket option data (struct timeval)
- *  inside.  This really isn't UDP specific; but there's not really a better
- *  place for it yet..
- */
-static struct mbuf *
-udp_timestamp()
-{
-	register struct cmsghdr *cp;
-	struct mbuf *m;
-	struct timeval tv;
-
-	MGET(m, M_DONTWAIT, MT_CONTROL);
-	if (m == 0)
-		return (struct mbuf *) 0;
-
-	microtime(&tv);
-	cp = (struct cmsghdr *) mtod(m, struct cmsghdr *);
-	cp->cmsg_len = 
-	    m->m_len = sizeof(*cp) + sizeof(struct timeval);
-	cp->cmsg_level = SOL_SOCKET;
-	cp->cmsg_type = SCM_TIMESTAMP;
-	(void) memcpy(CMSG_DATA(cp), &tv, sizeof(struct timeval));
-	return (m);
 }
 
 /*

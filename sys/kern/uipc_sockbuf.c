@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.15 1996/10/07 04:32:27 pst Exp $
+ * $Id: uipc_socket2.c,v 1.16 1996/10/11 19:26:35 pst Exp $
  */
 
 #include <sys/param.h>
@@ -798,6 +798,32 @@ sbdroprecord(sb)
 			m = mn;
 		} while (m);
 	}
+}
+
+/*
+ * Create a "control" mbuf containing the specified data
+ * with the specified type for presentation on a socket buffer.
+ */
+struct mbuf *
+sbcreatecontrol(p, size, type, level)
+	caddr_t p;
+	register int size;
+	int type, level;
+{
+	register struct cmsghdr *cp;
+	struct mbuf *m;
+
+	if ((m = m_get(M_DONTWAIT, MT_CONTROL)) == NULL)
+		return ((struct mbuf *) NULL);
+	cp = mtod(m, struct cmsghdr *);
+	/* XXX check size? */
+	(void)memcpy(CMSG_DATA(cp), p, size);
+	size += sizeof(*cp);
+	m->m_len = size;
+	cp->cmsg_len = size;
+	cp->cmsg_level = level;
+	cp->cmsg_type = type;
+	return (m);
 }
 
 #ifdef PRU_OLDSTYLE
