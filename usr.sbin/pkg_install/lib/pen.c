@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.13.4.1 1995/08/30 07:50:01 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.13.4.2 1995/10/09 11:16:31 jkh Exp $";
 #endif
 
 /*
@@ -28,24 +28,24 @@ static const char *rcsid = "$Id: pen.c,v 1.13.4.1 1995/08/30 07:50:01 jkh Exp $"
 #include <sys/mount.h>
 
 /* For keeping track of where we are */
-static char Cwd[FILENAME_MAX];
-static char LastPen[FILENAME_MAX];
+static char Current[FILENAME_MAX];
 
 char *
 where_playpen(void)
 {
-    return LastPen;
+    return Current;
 }
 
 /* Find a good place to play. */
-static void
+static char *
 find_play_pen(char *pen, size_t sz)
 {
     char *cp;
     struct stat sb;
 
-    pen[0] = '\0';
-    if ((cp = getenv("PKG_TMPDIR")) != NULL && stat(cp, &sb) != FAIL && (min_free(cp) >= sz))
+    if (pen[0] && stat(pen, &sb) != FAIL && (min_free(pen) >= sz))
+	return pen;
+    else if ((cp = getenv("PKG_TMPDIR")) != NULL && stat(cp, &sb) != FAIL && (min_free(cp) >= sz))
 	sprintf(pen, "%s/instmp.XXXXXX", cp);
     else if ((cp = getenv("TMPDIR")) != NULL && stat(cp, &sb) != FAIL && (min_free(cp) >= sz))
 	sprintf(pen, "%s/instmp.XXXXXX", cp);
@@ -55,9 +55,13 @@ find_play_pen(char *pen, size_t sz)
 	strcpy(pen, "/tmp/instmp.XXXXXX");
     else if ((stat("/usr/tmp", &sb) == SUCCESS | mkdir("/usr/tmp", 01777) == SUCCESS) && min_free("/usr/tmp") >= sz)
 	strcpy(pen, "/usr/tmp/instmp.XXXXXX");
-    else barf("Can't find enough temporary space to extract the files, please set\n"
-	      "your PKG_TMPDIR environment variable to a location with at least %d bytes\n"
-	      "free.", sz);
+    else {
+	barf("Can't find enough temporary space to extract the files, please set\n"
+	     "your PKG_TMPDIR environment variable to a location with at least %d bytes\n"
+	     "free.", sz);
+	return NULL;
+    }
+    return pen;
 }
 
 /*
@@ -67,14 +71,12 @@ find_play_pen(char *pen, size_t sz)
 char *
 make_playpen(char *pen, size_t sz)
 {
-    find_play_pen(pen, sz);
-    if (!pen[0])
+    char *tmp;
+    static char Previous[FILENAME_MAX];
+
+    if (!find_play_pen(pen, sz))
 	return NULL;
 
-    if (!getcwd(Cwd, FILENAME_MAX)) {
-	upchuck("getcwd");
-	return NULL;
-    }
     if (!mktemp(pen)) {
 	barf("Can't mktemp '%s'.", pen);
 	return NULL;
@@ -94,27 +96,34 @@ make_playpen(char *pen, size_t sz)
 	     "with more space and\ntry the command again.", pen);
         return NULL;
     }
+    if (!getcwd(Previous, FILENAME_MAX)) {
+	upchuck("getcwd");
+	return NULL;
+    }
     if (chdir(pen) == FAIL)
 	barf("Can't chdir to '%s'.", pen);
-    strcpy(LastPen, pen);
-    return Cwd;
+    strcpy(Current, pen);
+    return Previous;
 }
 
 /* Convenience routine for getting out of playpen */
 void
-leave_playpen(void)
+leave_playpen(char *to)
 {
     void (*oldsig)(int);
 
     /* Don't interrupt while we're cleaning up */
     oldsig = signal(SIGINT, SIG_IGN);
-    if (Cwd[0]) {
-	if (chdir(Cwd) == FAIL)
-	    barf("Can't chdir back to '%s'.", Cwd);
-	if (vsystem("rm -rf %s", LastPen))
-	    fprintf(stderr, "Couldn't remove temporary dir '%s'\n", LastPen);
-	Cwd[0] = '\0';
+    if (to && chdir(to) == FAIL)
+	barf("Can't chdir back to '%s'.", to);
+    else if (Current[0]) {
+	if (vsystem("rm -rf %s", Current))
+	    fprintf(stderr, "Couldn't remove temporary dir '%s'\n", Current);
     }
+    if (to)
+    	strcpy(Current, to);
+    else
+	Current[0] = '\0';
     signal(SIGINT, oldsig);
 }
 

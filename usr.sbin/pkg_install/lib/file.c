@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.10.4.3 1995/10/09 11:49:45 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.10.4.4 1995/10/09 11:54:27 jkh Exp $";
 #endif
 
 /*
@@ -171,10 +171,9 @@ char *
 fileGetURL(char *base, char *spec)
 {
     char host[HOSTNAME_MAX], file[FILENAME_MAX], dir[FILENAME_MAX];
-    char pword[HOSTNAME_MAX + 40], *uname, *cp, *rp;
+    char pword[HOSTNAME_MAX + 40], *uname, *cp, *rp, *tmp;
     char fname[511];
-    static char pen[FILENAME_MAX];
-    static char tmpl[40];
+    char pen[FILENAME_MAX];
     struct passwd *pw;
     FTP_t ftp;
     pid_t tpid;
@@ -194,17 +193,17 @@ fileGetURL(char *base, char *spec)
 	strncpy(fname, base, 511);
 	fname[511] = '\0';
 	cp = strrchr(fname, '/');
-	len = strlen(fname);
 	if (cp) {
+	    *cp = '\0';	/* Eliminate the filename portion */
+	    len = strlen(fname);
 	    /* Special case for the all category */
-	    if (len > 3 && !strncmp(cp - 3, "All/", 4))
-		strcat(cp + 1, spec);
+	    if (len > 3 && !strcmp(cp - 3, "All"))
+		sprintf(cp, "/%s", spec);
 	    else {
-		*cp = '\0';
 		/* Replace category with All */
 		if ((cp = strrchr(fname, '/')) != NULL) {
 		    strcat(cp + 1, "All/");
-		    strcat(cp, spec);
+		    strcat(cp + 4, spec);
 		}
 		else {
 		    strcat(fname, "All/");
@@ -241,9 +240,9 @@ fileGetURL(char *base, char *spec)
     }
     else
 	snprintf(pword, HOSTNAME_MAX + 40, "%s@%s", pw->pw_name, host);
-    if (Verbose)
-	printf("Trying to fetch %s from %s.\n", file, host);
 
+    if (Verbose)
+	printf("Trying to log into %s as %s.\n", host, uname);
     FtpOpen(ftp, host, uname, pword);
     if (getenv("FTP_PASSIVE_MODE"))
 	FtpPassive(ftp, TRUE);
@@ -258,32 +257,35 @@ fileGetURL(char *base, char *spec)
     }
     FtpBinary(ftp, TRUE);
     if (Verbose) printf("FTP: trying to get %s\n", basename_of(file));
-    fd = FtpGet(ftp, basename_of(file));
-    if (fd < 0)
-	return NULL;
-
-    if (make_playpen(pen, 0)) {
-	(void)time(&start);
-	tpid = fork();
-	if (!tpid) {
-	    dup2(fd, 0); close(fd);
-	    i = execl("tar", "tar", Verbose ? "-xvf" : "-xf", "-", 0);
+    tmp = basename_of(file);
+    if (!strstr(tmp, ".tgz"))
+	tmp = strconcat(tmp, ".tgz");
+    fd = FtpGet(ftp, tmp);
+    if (fd >= 0) {
+	pen[0] = '\0';
+	if (rp = make_playpen(pen, 0)) {
 	    if (Verbose)
-		printf("tar command returns %d status\n", i);
-	    exit(i);
-	}
-	else {
-	    int pstat;
+		printf("Extracting from FTP connection into %s\n", pen);
+	    tpid = fork();
+	    if (!tpid) {
+		dup2(fd, 0);
+		i = execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-", 0);
+		if (Verbose)
+		    printf("tar command returns %d status\n", i);
+		exit(i);
+	    }
+	    else {
+		int pstat;
 
-	    tpid = waitpid(tpid, &pstat, 0);
-	    (void)time(&stop);
-	    if (Verbose)
-		printf("FTP: Read %d bytes from connection, %d elapsed seconds.\n"
-		       "%FTP: Average transfer rate: %d bytes/second.\n",
-		       len, stop - start, len / ((stop - start) + 1));
-	    rp = pen;
+		close(fd);
+		tpid = waitpid(tpid, &pstat, 0);
+	    }
 	}
+	else
+	    printf("Error: Unable to construct a new playpen for FTP!\n");
     }
+    else
+	printf("Error: FTP Unable to get %s\n", basename_of(file));
     FtpEOF(ftp);
     FtpClose(ftp);
     return rp;
