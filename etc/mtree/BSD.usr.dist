@@ -471,63 +471,63 @@
             ..
             cs_CZ.ISO_8859-2
             ..
-            da_DK.DIS_8859-15
+            da_DK.ISO_8859-15
             ..
             da_DK.ISO_8859-1
             ..
-            de_AT.DIS_8859-15
+            de_AT.ISO_8859-15
             ..
             de_AT.ISO_8859-1
             ..
-            de_CH.DIS_8859-15
+            de_CH.ISO_8859-15
             ..
             de_CH.ISO_8859-1
             ..
-            de_DE.DIS_8859-15
+            de_DE.ISO_8859-15
             ..
             de_DE.ISO_8859-1
             ..
             el_GR.ISO_8859-7
             ..
-            en_AU.DIS_8859-15
+            en_AU.ISO_8859-15
             ..
             en_AU.ISO_8859-1
             ..
-            en_CA.DIS_8859-15
+            en_CA.ISO_8859-15
             ..
             en_CA.ISO_8859-1
             ..
-            en_GB.DIS_8859-15
+            en_GB.ISO_8859-15
             ..
             en_GB.ISO_8859-1
             ..
             en_NZ.ISO_8859-1
             ..
-            en_US.DIS_8859-15
+            en_US.ISO_8859-15
             ..
             en_US.ISO_8859-1
             ..
-            es_ES.DIS_8859-15
+            es_ES.ISO_8859-15
             ..
             es_ES.ISO_8859-1
             ..
-            fi_FI.DIS_8859-15
+            fi_FI.ISO_8859-15
             ..
             fi_FI.ISO_8859-1
             ..
-            fr_BE.DIS_8859-15
+            fr_BE.ISO_8859-15
             ..
             fr_BE.ISO_8859-1
             ..
-            fr_CA.DIS_8859-15
+            fr_CA.ISO_8859-15
             ..
             fr_CA.ISO_8859-1
             ..
-            fr_CH.DIS_8859-15
+            fr_CH.ISO_8859-15
             ..
             fr_CH.ISO_8859-1
             ..
-            fr_FR.DIS_8859-15
+            fr_FR.ISO_8859-15
             ..
             fr_FR.ISO_8859-1
             ..
@@ -535,15 +535,15 @@
             ..
             hu_HU.ISO_8859-2
             ..
-            is_IS.DIS_8859-15
+            is_IS.ISO_8859-15
             ..
             is_IS.ISO_8859-1
             ..
-            it_CH.DIS_8859-15
+            it_CH.ISO_8859-15
             ..
             it_CH.ISO_8859-1
             ..
-            it_IT.DIS_8859-15
+            it_IT.ISO_8859-15
             ..
             it_IT.ISO_8859-1
             ..
@@ -557,7 +557,7 @@
             ..
             la_LN.ASCII
             ..
-            la_LN.DIS_8859-15
+            la_LN.ISO_8859-15
             ..
             la_LN.ISO_8859-1
             ..
@@ -567,21 +567,21 @@
             ..
             lt_LT.ISO_8859-4
             ..
-            nl_BE.DIS_8859-15
+            nl_BE.ISO_8859-15
             ..
             nl_BE.ISO_8859-1
             ..
-            nl_NL.DIS_8859-15
+            nl_NL.ISO_8859-15
             ..
             nl_NL.ISO_8859-1
             ..
-            no_NO.DIS_8859-15
+            no_NO.ISO_8859-15
             ..
             no_NO.ISO_8859-1
             ..
             pl_PL.ISO_8859-2
             ..
-            pt_PT.DIS_8859-15
+            pt_PT.ISO_8859-15
             ..
             pt_PT.ISO_8859-1
             ..
@@ -593,7 +593,7 @@
             ..
             sl_SI.ISO_8859-2
             ..
-            sv_SE.DIS_8859-15
+            sv_SE.ISO_8859-15
             ..
             sv_SE.ISO_8859-1
             ..
@@ -767,63 +767,63 @@
             ..
             cs_CZ.ISO_8859-2
             ..
-            da_DK.DIS_8859-15
+            da_DK.ISO_8859-15
             ..
             da_DK.ISO_8859-1
             ..
-            de_AT.DIS_8859-15
+            de_AT.ISO_8859-15
             ..
             de_AT.ISO_8859-1
             ..
-            de_CH.DIS_8859-15
+            de_CH.ISO_8859-15
             ..
             de_CH.ISO_8859-1
             ..
-            de_DE.DIS_8859-15
+            de_DE.ISO_8859-15
             ..
             de_DE.ISO_8859-1
             ..
             el_GR.ISO_8859-7
             ..
-            en_AU.DIS_8859-15
+            en_AU.ISO_8859-15
             ..
             en_AU.ISO_8859-1
             ..
-            en_CA.DIS_8859-15
+            en_CA.ISO_8859-15
             ..
             en_CA.ISO_8859-1
             ..
-            en_GB.DIS_8859-15
+            en_GB.ISO_8859-15
             ..
             en_GB.ISO_8859-1
             ..
             en_NZ.ISO_8859-1
             ..
-            en_US.DIS_8859-15
+            en_US.ISO_8859-15
             ..
             en_US.ISO_8859-1
             ..
-            es_ES.DIS_8859-15
+            es_ES.ISO_8859-15
             ..
             es_ES.ISO_8859-1
             ..
-            fi_FI.DIS_8859-15
+            fi_FI.ISO_8859-15
             ..
             fi_FI.ISO_8859-1
             ..
-            fr_BE.DIS_8859-15
+            fr_BE.ISO_8859-15
             ..
             fr_BE.ISO_8859-1
             ..
-            fr_CA.DIS_8859-15
+            fr_CA.ISO_8859-15
             ..
             fr_CA.ISO_8859-1
             ..
-            fr_CH.DIS_8859-15
+            fr_CH.ISO_8859-15
             ..
             fr_CH.ISO_8859-1
             ..
-            fr_FR.DIS_8859-15
+            fr_FR.ISO_8859-15
             ..
             fr_FR.ISO_8859-1
             ..
@@ -831,15 +831,15 @@
             ..
             hu_HU.ISO_8859-2
             ..
-            is_IS.DIS_8859-15
+            is_IS.ISO_8859-15
             ..
             is_IS.ISO_8859-1
             ..
-            it_CH.DIS_8859-15
+            it_CH.ISO_8859-15
             ..
             it_CH.ISO_8859-1
             ..
-            it_IT.DIS_8859-15
+            it_IT.ISO_8859-15
             ..
             it_IT.ISO_8859-1
             ..
@@ -853,7 +853,7 @@
             ..
             la_LN.ASCII
             ..
-            la_LN.DIS_8859-15
+            la_LN.ISO_8859-15
             ..
             la_LN.ISO_8859-1
             ..
@@ -881,7 +881,7 @@
             ..
             sl_SI.ISO_8859-2
             ..
-            sv_SE.DIS_8859-15
+            sv_SE.ISO_8859-15
             ..
             sv_SE.ISO_8859-1
             ..
