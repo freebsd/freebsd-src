@@ -910,7 +910,6 @@ runq_remove(struct runq *rq, struct kse *ke)
 
 /****** functions that are temporarily here ***********/
 #include <vm/uma.h>
-#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 extern struct mtx kse_zombie_lock;
 
 /*
@@ -929,7 +928,6 @@ sched_newproc(struct proc *p, struct ksegrp *kg, struct thread *td)
 	sched_init_concurrency(kg);
 }
 
-#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 /*
  * thread is being either created or recycled.
  * Fix up the per-scheduler resources associated with it.
