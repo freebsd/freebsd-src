@@ -242,3 +242,16 @@ OF_getetheraddr(device_t dev, u_char *addr)
 	node = ofw_pci_find_node(dev);
 	OF_getprop(node, "local-mac-address", addr, ETHER_ADDR_LEN);
 }
+
+int
+mem_valid(vm_offset_t addr, int len)
+{
+	int i;
+
+	for (i = 0; i < OFMEM_REGIONS; i++)
+		if ((addr >= OFmem[i].mr_start) 
+		    && (addr + len < OFmem[i].mr_start + OFmem[i].mr_size))
+			return (0);
+
+	return (EFAULT);
+}

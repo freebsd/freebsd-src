@@ -2308,6 +2308,22 @@ pmap_bat_mapped(int idx, vm_offset_t pa, vm_size_t size)
 	return (0);
 }
 
+int
+pmap_dev_direct_mapped(vm_offset_t pa, vm_size_t size)
+{
+	int i;
+
+	/*
+	 * This currently does not work for entries that 
+	 * overlap 256M BAT segments.
+	 */
+
+	for(i = 0; i < 16; i++)
+		if (pmap_bat_mapped(i, pa, size) == 0)
+			return (0);
+
+	return (EFAULT);
+}
 
 /*
  * Map a set of physical memory pages into the kernel virtual
