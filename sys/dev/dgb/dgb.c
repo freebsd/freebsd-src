@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.27 1997/07/01 00:22:35 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.28 1997/09/14 03:19:00 peter Exp $
  *
  *  Digiboard driver.
  *
@@ -1688,13 +1688,13 @@ dgbioctl(dev, cmd, data, flag, p)
 		port->mustdrain=1;
 
 	error = linesw[tp->t_line].l_ioctl(tp, cmd, data, flag, p);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		return error;
 	s = spltty();
 	error = ttioctl(tp, cmd, data, flag);
 	disc_optim(tp,&tp->t_termios);
 	port->mustdrain=0;
-	if (error >= 0) {
+	if (error != ENOIOCTL) {
 		splx(s);
 		if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
 			DPRINT6(DB_PARAM,"dgb%d: port%d: dgbioctl-RES c=0x%x i=0x%x l=0x%x\n",unit,pnum,tp->t_cflag,tp->t_iflag,tp->t_lflag);

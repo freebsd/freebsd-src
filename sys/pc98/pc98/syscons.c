@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.63 1997/11/25 09:51:43 kato Exp $
+ *  $Id: syscons.c,v 1.64 1997/11/27 10:14:11 kato Exp $
  */
 
 #include "sc.h"
@@ -1974,10 +1974,10 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     }
 
     error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-    if (error >= 0)
+    if (error != ENOIOCTL)
 	return(error);
     error = ttioctl(tp, cmd, data, flag);
-    if (error >= 0)
+    if (error != ENOIOCTL)
 	return(error);
     return(ENOTTY);
 }

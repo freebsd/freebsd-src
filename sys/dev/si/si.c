@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.60 1997/09/14 03:19:18 peter Exp $
+ *	$Id: si.c,v 1.61 1997/09/21 21:41:37 gibbs Exp $
  */
 
 #ifndef lint
@@ -1174,14 +1174,14 @@ siioctl(dev, cmd, data, flag, p)
 	}
 
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		goto out;
 
 	oldspl = spltty();
 
 	error = ttioctl(tp, cmd, data, flag);
 	si_disc_optim(tp, &tp->t_termios, pp);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		goto outspl;
 
 	switch (cmd) {

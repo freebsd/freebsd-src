@@ -1687,7 +1687,7 @@ rpioctl(dev, cmd, data, flag, p)
 	t = &tp->t_termios;
 
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if(error >= 0) {
+	if(error != ENOIOCTL) {
 		return(error);
 	}
 	oldspl = spltty();
@@ -1697,7 +1697,7 @@ rpioctl(dev, cmd, data, flag, p)
 	error = ttioctl(tp, cmd, data, flag);
 	flags = rp->rp_channel.TxControl[3];
 	rp_disc_optim(tp, &tp->t_termios, rp);
-	if(error >= 0) {
+	if(error != ENOIOCTL) {
 		splx(oldspl);
 		return(error);
 	}

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.46 1997/09/14 02:40:45 peter Exp $
+ * $Id: tty_pty.c,v 1.47 1997/09/16 11:43:32 bde Exp $
  */
 
 /*
@@ -730,9 +730,9 @@ ptyioctl(dev, cmd, data, flag, p)
 			return(0);
 		}
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error < 0)
+	if (error == ENOIOCTL)
 		 error = ttioctl(tp, cmd, data, flag);
-	if (error < 0) {
+	if (error == ENOIOCTL) {
 		if (pti->pt_flags & PF_UCNTL &&
 		    (cmd & ~0xff) == UIOCCMD(0)) {
 			if (cmd & 0xff) {
