@@ -445,6 +445,8 @@
             ..
             devascii
             ..
+            devcp1047
+            ..
             devdvi
             ..
             devhtml
@@ -453,9 +455,13 @@
             ..
             devlatin1
             ..
+            devlbp
+            ..
             devlj4
             ..
             devps
+            ..
+            devutf8
             ..
         ..
         info
