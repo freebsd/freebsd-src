@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.34 1999/02/05 22:15:51 jkh Exp $
+ * $Id: network.c,v 1.35 1999/03/11 18:22:23 brian Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -186,11 +186,12 @@ mediaShutdownNetwork(Device *dev)
 static pid_t
 startPPP(Device *devp)
 {
-    int fd2;
+    int fd2, pulse;
     FILE *fp;
     char *val;
     pid_t pid = 0;
-    char myaddr[16], provider[16], speed[16];
+    char myaddr[16], provider[16], speed[16], authname[32], authkey[16];
+    char phone[16];
 
     /* These are needed to make ppp work */
     Mkdir("/var/log");
@@ -249,6 +250,21 @@ startPPP(Device *devp)
 	msgConfirm("Couldn't open /etc/ppp/ppp.conf file!  This isn't going to work");
 	return 0;
     }
+    authname[0] = '\0';
+    pulse = 0;
+    dialog_clear_norefresh();
+    if (!dialog_yesno("", "Does your ISP support PAP or CHAP ppp logins?", -1, -1)) {
+	val = msgGetInput(NULL, "Enter the name you use to login to your provider.");
+	SAFE_STRCPY(authname, val);
+	dialog_clear_norefresh();
+	val = msgGetInput(NULL, "Enter the password you use to login to your provider.");
+	SAFE_STRCPY(authkey, val);
+	dialog_clear_norefresh();
+	val = msgGetInput(NULL, "Enter the your provider's login phone number.");
+	SAFE_STRCPY(phone, val);
+	dialog_clear_norefresh();
+	pulse = dialog_yesno("", "Does your telephone line support tone dialing?", -1, -1);
+    }
     fprintf(fp, "default:\n");
     fprintf(fp, " set speed %s\n", speed);
     fprintf(fp, " set device %s\n", devp->devname);
@@ -256,6 +272,13 @@ startPPP(Device *devp)
     fprintf(fp, " set timeout 0\n");
     fprintf(fp, " enable dns\n");
     fprintf(fp, " set log local phase\n");
+    if(authname[0] != '\0'){
+	fprintf(fp, " set dial \"ABORT BUSY ABORT NO\\\\sCARRIER TIMEOUT 5 \\\"\\\" AT OK-AT-OK ATE1Q0 OK \\\\dATD%c\\\\T TIMEOUT 40 CONNECT\"\n", pulse ? 'P' : 'T');
+	fprintf(fp, " set login\n");
+	fprintf(fp, " set authname %s\n", authname);
+	fprintf(fp, " set authkey %s\n", authkey);
+	fprintf(fp, " set phone %s\n", phone);
+    }
     if (fchmod(fileno(fp), 0640) != 0)
 	msgConfirm("Warning: Failed to fix permissions on /etc/ppp/ppp.conf !");
     fclose(fp);
@@ -299,13 +322,14 @@ startPPP(Device *devp)
     else {
 	dialog_clear_norefresh();
 	msgConfirm("NOTICE: The PPP command is now started on VTY3 (type ALT-F3 to\n"
-		   "interact with it, ALT-F1 to switch back here). The only command\n"
-		   "you'll probably want or need to use is the \"term\" command\n"
-		   "which starts a terminal emulator you can use to talk to your\n"
-		   "modem and dial the service provider.  Once you're connected,\n"
-		   "come back to this screen and press return.\n\n"
-		   "DO NOT PRESS [ENTER] HERE UNTIL THE CONNECTION IS FULLY\n"
-		   "ESTABLISHED!");
+           "interact with it, ALT-F1 to switch back here). If you are using\n"
+           "a PAP or CHAP login simply enter \"dial\" otherwise you'll need\n"
+           "need to use is the \"term\" command which starts a terminal\n"
+           "emulator you can use to talk to your modem and dial the service\n"
+           "provider.  Once you're connected, come back to this screen and\n"
+           "press return.\n\n"
+           "DO NOT PRESS [ENTER] HERE UNTIL THE CONNECTION IS FULLY\n"
+           "ESTABLISHED!");
     }
     return pid;
 }
