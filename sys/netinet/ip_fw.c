@@ -2147,7 +2147,9 @@ ipfw_modevent(module_t mod, int type, void *unused)
 {
 	int s;
 	int err = 0 ;
+#if defined(KLD_MODULE)
 	struct ip_fw *fcp;
+#endif
 	
 	switch (type) {
 	case MOD_LOAD:
