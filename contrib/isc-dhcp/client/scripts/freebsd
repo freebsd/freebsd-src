@@ -66,6 +66,15 @@ if [ x$alias_subnet_mask != x ]; then
   alias_subnet_arg="netmask $alias_subnet_mask"
 fi
 
+# Get the interface to which our default route is bound to.
+if [ -x /usr/bin/netstat ]; then
+	if_defaultroute=`/usr/bin/netstat -rn \
+		| /usr/bin/grep "^default" \
+		| /usr/bin/awk '{print $6}'`
+else
+	if_defaultroute="x"
+fi
+
 if [ x$reason = xMEDIUM ]; then
   eval "ifconfig $interface $medium"
   eval "ifconfig $interface inet -alias 0.0.0.0 $medium" >/dev/null 2>&1
@@ -155,13 +164,17 @@ if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ] || [ x$reason = xRELEASE ] \
    || [ x$reason = xSTOP ]; then
   if [ x$alias_ip_address != x ]; then
     ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
-    route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
+    if [ $if_defaultroute = x ] || [ $if_defaultroute = $interface ]; then
+	    route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
+    fi
   fi
   if [ x$old_ip_address != x ]; then
     eval "ifconfig $interface inet -alias $old_ip_address $medium"
     route delete $old_ip_address 127.1 >/dev/null 2>&1
     for router in $old_routers; do
-      route delete default $router >/dev/null 2>&1
+      if [ $if_defaultroute = x ] || [ $if_defaultroute = $interface ]; then
+	      route delete default $router >/dev/null 2>&1
+      fi
     done
     if [ -n "$old_static_routes" ]; then
       set -- $old_static_routes
