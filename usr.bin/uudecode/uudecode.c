@@ -152,7 +152,7 @@ decode(void)
 int
 decode2(void)
 {
-	int base64;
+	int base64, i;
 	size_t n;
 	char ch, *p, *q;
 	void *mode;
@@ -261,13 +261,13 @@ decode2(void)
 } while (0)
 
 		/*
-		 * `n' is used to avoid writing out all the characters
+		 * `i' is used to avoid writing out all the characters
 		 * at the end of the file.
 		 */
-		if ((n = DEC(*p)) <= 0)
+		if ((i = DEC(*p)) <= 0)
 			break;
-		for (++p; n > 0; p += 4, n -= 3)
-			if (n >= 3) {
+		for (++p; i > 0; p += 4, i -= 3)
+			if (i >= 3) {
 				if (!(IS_DEC(*p) && IS_DEC(*(p + 1)) &&
 				     IS_DEC(*(p + 2)) && IS_DEC(*(p + 3))))
                                 	OUT_OF_RANGE;
@@ -280,13 +280,13 @@ decode2(void)
 				putchar(ch);
 			}
 			else {
-				if (n >= 1) {
+				if (i >= 1) {
 					if (!(IS_DEC(*p) && IS_DEC(*(p + 1))))
 	                                	OUT_OF_RANGE;
 					ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
 					putchar(ch);
 				}
-				if (n >= 2) {
+				if (i >= 2) {
 					if (!(IS_DEC(*(p + 1)) &&
 						IS_DEC(*(p + 2))))
 		                                OUT_OF_RANGE;
@@ -294,7 +294,7 @@ decode2(void)
 					ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
 					putchar(ch);
 				}
-				if (n >= 3) {
+				if (i >= 3) {
 					if (!(IS_DEC(*(p + 2)) &&
 						IS_DEC(*(p + 3))))
 		                                OUT_OF_RANGE;
