@@ -136,7 +136,7 @@ will search in the following subdirectories, in the order of precedence:
 .El
 .Pp
 For example, for
-.Dq de_DE.ISO_8859-1
+.Dq de_DE.ISO8859-1
 locale,
 .Nm
 will search in the following subdirectories of the
@@ -145,11 +145,11 @@ manpath component:
 .Pp
 .Bl -item -offset indent -compact
 .It
-.Pa /usr/share/man/de_DE.ISO_8859-1
+.Pa /usr/share/man/de_DE.ISO8859-1
 .It
-.Pa /usr/share/man/de.ISO_8859-1
+.Pa /usr/share/man/de.ISO8859-1
 .It
-.Pa /usr/share/man/en.ISO_8859-1
+.Pa /usr/share/man/en.ISO8859-1
 .El
 .Pp
 Finally,
