@@ -4,7 +4,7 @@
 .\"
 .\"    nroff -man ee.1
 .\"
-.\"  $Header: /users/hugh/tmp/old_ae/ee.1,v 1.16 1993/06/22 04:18:33 hugh Exp $
+.\"  $Header: /home/hugh/sources/old_ae/RCS/ee.1,v 1.19 1995/11/29 04:03:15 hugh Exp $
 .\"
 .\"
 .TH ee 1 "" "" "" ""
@@ -143,7 +143,7 @@ menu, or via the initialization file (see below).  The mappings are as follows:
 ^t	Move to the top of the text.
 ^u	Move to the bottom of the text.
 ^v	Move to the next page.
-^w	Delete the word begining at the cursor position.
+^w	Delete the word beginning at the cursor position.
 ^y	Prompt for the string to search for.
 ^z	Next word.
 ^[ (ESC)	Pop up menu.
@@ -211,7 +211,7 @@ Read the named \fIfile\fR.
 Write the text to the named \fIfile\fR.
 .RE
 .\"
-.\"     menu options
+.\"     menu operations
 .\"
 .SS "Menu Operations"
 .PP
@@ -230,6 +230,9 @@ for moving up and
 for moving down to move to the desired items in the menu, then press 
 .B return 
 to perform the indicated task.
+.PP
+To the left of each menu item is a letter, which if the corresponding 
+letter is pressed on the keyboard selects that menu entry.
 .PP
 The main menu in \fIee\fR is as follows:
 .RS 4
@@ -396,7 +399,7 @@ cursor location.  The old information would have to be deleted by the user.
 .PP
 Since different users have different preferences, \fIee\fR allows some 
 slight configurability.  There are three possible locations for an 
-initialization file for ee:  the file \fI/usr/share/misc/init.ee\fR, the 
+initialization file for ee:  the file \fI/usr/local/lib/init.ee\fR, the 
 file \fI.init.ee\fR in the user's home directory, or the file \fI.init.ee\fR 
 in the current directory (if different from the home 
 directory).  This allows system administrators to set some preferences for 
@@ -404,7 +407,7 @@ the users on a system-wide basis (for example, the \fBprint\fR command),
 and the user to customize settings for particular directories (like one 
 for correspondence, and a different directory for programming).
 .PP
-The file \fI\/usr/share/misc/init.ee\fR is read first, then 
+The file \fI\/usr/local/lib/init.ee\fR is read first, then 
 \fI$HOME/.init.ee\fR, then \fI.init.ee\fR, with the settings specified by the 
 most recent file read taking precedence.
 .PP
@@ -454,6 +457,24 @@ Turns on emacs key bindings.
 .IP \fBnoemacs\fR
 Turns off emacs key bindings.
 .RE
+.\"
+.\"     save editor configuration
+.\"
+.SS "Save Editor Configuration"
+.PP
+When using this entry from the 
+.B settings 
+menu, the user may choose to save the current configuration of 
+the editor (see \fBInitializing ee from a 
+file\fR above) to a file named 
+.I .init.ee 
+in the current directory or the user's home directory.  If a file named 
+.I .init.ee 
+already exists, it will be renamed 
+.IR .init.ee.old .
+.\"
+.\"     Caveats
+.\"
 .SH CAVEATS
 .PP
 THIS MATERIAL IS PROVIDED "AS IS".  THERE ARE 
@@ -486,7 +507,7 @@ The automatic paragraph formatting operation
 may be too slow for slower systems.
 .SH FILES
 .PP
-.I /usr/share/misc/init.ee
+.I /usr/local/lib/init.ee
 .br
 .I $HOME/.init.ee
 .br
@@ -501,7 +522,7 @@ This software and documentation contains
 proprietary information which is protected by 
 copyright.  All rights are reserved. 
 .PP
-Copyright (c) 1990, 1991, 1992, 1993 Hugh Mahon.
+Copyright (c) 1990, 1991, 1992, 1993, 1995 Hugh Mahon.
 .SH "SEE ALSO"
 .PP
 termcap(4), terminfo(4), environ(5), spell(1), ispell(1), lp(1)

@@ -1,22 +1,29 @@
-CFLAGS+= -DCAP -DHAS_NCURSES -DHAS_UNISTD -DHAS_STDARG -DHAS_STDLIB \
-	 -DHAS_CTYPE -DHAS_SYS_IOCTL -DHAS_SYS_WAIT -DSLCT_HDR
+# This is the make file for ee, the "easy editor".
+#
+# A file called 'make.local' will be generated which will contain information 
+# specific to the local system, such as if it is a BSD or System V based 
+# version of UNIX, whether or not it has catgets, or select.  
+#
+# The "install" target ("make install") will copy the ee binary to 
+# the /usr/local/bin directory on the local system.  The man page (ee.1) 
+# will be copied into the /usr/local/man/man1 directory.
+#
+# The "clean" target ("make clean") will remove the ee and new_curse.o 
+# object files, and the ee binary.
+#
 
-PROG=	ee
-SRCS=	ee.c
-LINKS=	${BINDIR}/ee ${BINDIR}/ree
-DPADD=	ee.cat ${LIBNCURSES} ${LIBMYTINFO}
-LDADD=	-lncurses -lmytinfo
-CLEANFILES+=	ee.cat
+all :	localmake buildee
 
-# I'm not sure if this is kosher, but I don't see any system default just
-# now.
-LANG?=	en_US.ISO_8859-1
+buildee :	
+	make -f make.local
 
-ee.cat:	${.CURDIR}/ee.msg
-	gencat -new ee.cat ${.CURDIR}/ee.msg
+localmake:
+	@./create.make
 
-afterinstall: ee.cat
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ee.cat \
-		${DESTDIR}/usr/share/nls/${LANG}/ee.cat
+install :
+	cp ee /usr/local/bin/ee
+	cp ee.1 /usr/local/man/man1/ee.1
 
-.include <bsd.prog.mk>
+clean :
+	rm -f ee.o new_curse.o ee 
+
