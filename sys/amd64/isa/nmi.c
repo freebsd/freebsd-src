@@ -148,6 +148,7 @@ static void	init_i8259(void);
 #define ENMI_IOSTATUS (1 << 5)
 #endif
 
+#ifdef DEV_ISA
 /*
  * Bus attachment for the ISA PIC.
  */
@@ -212,6 +213,7 @@ static devclass_t atpic_devclass;
 
 DRIVER_MODULE(atpic, isa, atpic_driver, atpic_devclass, 0, 0);
 DRIVER_MODULE(atpic, acpi, atpic_driver, atpic_devclass, 0, 0);
+#endif /* DEV_ISA */
 
 /*
  * Handle a NMI, possibly a machine check.

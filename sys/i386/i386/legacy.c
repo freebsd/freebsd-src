@@ -40,6 +40,8 @@
  * and I/O memory address space.
  */
 
+#include "opt_isa.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -62,11 +64,13 @@
 #include <machine/mpapic.h>
 #endif
 
+#ifdef DEV_ISA
 #include <isa/isavar.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #else
 #include <i386/isa/isa.h>
+#endif
 #endif
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
@@ -636,6 +640,7 @@ nexus_delete_resource(device_t dev, device_t child, int type, int rid)
 	resource_list_delete(rl, type, rid);
 }
 
+#ifdef DEV_ISA
 /*
  * Placeholder which claims PnP 'devices' which describe system 
  * resources.
@@ -683,3 +688,4 @@ static driver_t sysresource_driver = {
 static devclass_t sysresource_devclass;
 
 DRIVER_MODULE(sysresource, isa, sysresource_driver, sysresource_devclass, 0, 0);
+#endif /* DEV_ISA */
