@@ -3,7 +3,8 @@
  *    Copyright (c) 1989-1992, Brian Berliner
  *
  *    You may distribute under the terms of the GNU General Public License
- *    as specified in the README file that comes with the CVS source distribution.
+ *    as specified in the README file that comes with the CVS source
+ *    distribution.
  *
  * Modules
  *
@@ -30,7 +31,7 @@
 /* Options in modules file.  Note that it is OK to use GNU getopt features;
    we already are arranging to make sure we are using the getopt distributed
    with CVS.  */
-#define	CVSMODULE_OPTS	"+ad:i:lo:e:s:t:u:"
+#define	CVSMODULE_OPTS	"+ad:lo:e:s:t:"
 
 /* Special delimiter.  */
 #define CVSMODULE_SPEC	'&'
@@ -91,14 +92,17 @@ close_module (db)
 	dbm_close (db);
 }
 
+
+
 /*
  * This is the recursive function that processes a module name.
  * It calls back the passed routine for each directory of a module
  * It runs the post checkout or post tag proc from the modules file
  */
-int
-do_module (db, mname, m_type, msg, callback_proc, where, shorten,
-	   local_specified, run_module_prog, build_dirs, extra_arg)
+static int
+my_module (db, mname, m_type, msg, callback_proc, where, shorten,
+	   local_specified, run_module_prog, build_dirs, extra_arg,
+	   stack)
     DBM *db;
     char *mname;
     enum mtype m_type;
@@ -110,12 +114,11 @@ do_module (db, mname, m_type, msg, callback_proc, where, shorten,
     int run_module_prog;
     int build_dirs;
     char *extra_arg;
+    List *stack;
 {
-    char *checkin_prog = NULL;
     char *checkout_prog = NULL;
     char *export_prog = NULL;
     char *tag_prog = NULL;
-    char *update_prog = NULL;
     struct saved_cwd cwd;
     int cwd_saved = 0;
     char *line;
@@ -150,7 +153,7 @@ do_module (db, mname, m_type, msg, callback_proc, where, shorten,
 		       + strlen (msg)
 		       + (where ? strlen (where) : 0)
 		       + (extra_arg ? strlen (extra_arg) : 0));
-	sprintf (buf, "%s-> do_module (%s, %s, %s, %s)\n",
+	sprintf (buf, "%s-> my_module (%s, %s, %s, %s)\n",
 		 CLIENT_SERVER_STR,
 		 mname, msg, where ? where : "",
 		 extra_arg ? extra_arg : "");
@@ -169,6 +172,13 @@ do_module (db, mname, m_type, msg, callback_proc, where, shorten,
      */
     if (isabsolute (mname))
 	error (1, 0, "Absolute module reference invalid: `%s'", mname);
+
+    /* Similarly for directories that attempt to step above the root of the
+     * repository.
+     */
+    if (pathname_levels (mname) > 0)
+	error (1, 0, "up-level in module reference (`..') invalid: `%s'.",
+               mname);
 
     /* if this is a directory to ignore, add it to that list */
     if (mname[0] == '!' && mname[1] != '\0')
@@ -238,7 +248,8 @@ do_module (db, mname, m_type, msg, callback_proc, where, shorten,
 	    *acp = '/';
 	}
 	else
-	    (void) sprintf (attic_file, "%s/%s/%s%s", current_parsed_root->directory,
+	    (void) sprintf (attic_file, "%s/%s/%s%s",
+	                    current_parsed_root->directory,
 			    CVSATTIC, mname, RCSEXT);
 
 	if (isdir (file))
@@ -440,12 +451,6 @@ do_module (db, mname, m_type, msg, callback_proc, where, shorten,
 		mwhere = xstrdup (optarg);
 		nonalias_opt = 1;
 		break;
-	    case 'i':
-		if (checkin_prog)
-		    free (checkin_prog);
-		checkin_prog = xstrdup (optarg);
-		nonalias_opt = 1;
-		break;
 	    case 'l':
 		local_specified = 1;
 		nonalias_opt = 1;
@@ -466,12 +471,6 @@ do_module (db, mname, m_type, msg, callback_proc, where, shorten,
 		if (tag_prog)
 		    free (tag_prog);
 		tag_prog = xstrdup (optarg);
-		nonalias_opt = 1;
-		break;
-	    case 'u':
-		if (update_prog)
-		    free (update_prog);
-		update_prog = xstrdup (optarg);
 		nonalias_opt = 1;
 		break;
 	    case '?':
@@ -510,14 +509,33 @@ do_module (db, mname, m_type, msg, callback_proc, where, shorten,
 
 	for (i = 0; i < modargc; i++)
 	{
-	    if (strcmp (mname, modargv[i]) == 0)
+	    /* 
+	     * Recursion check: if an alias module calls itself or a module
+	     * which causes the first to be called again, print an error
+	     * message and stop recursing.
+	     *
+	     * Algorithm:
+	     *
+	     *   1. Check that MNAME isn't in the stack.
+	     *   2. Push MNAME onto the stack.
+	     *   3. Call do_module().
+	     *   4. Pop MNAME from the stack.
+	     */
+	    if (stack && findnode (stack, mname))
 		error (0, 0,
 		       "module `%s' in modules file contains infinite loop",
 		       mname);
 	    else
-		err += do_module (db, modargv[i], m_type, msg, callback_proc,
-				  where, shorten, local_specified,
-				  run_module_prog, build_dirs, extra_arg);
+	    {
+		if (!stack) stack = getlist();
+		push_string (stack, mname);
+		err += my_module (db, modargv[i], m_type, msg, callback_proc,
+                                   where, shorten, local_specified,
+                                   run_module_prog, build_dirs, extra_arg,
+                                   stack);
+		pop_string (stack);
+		if (isempty (stack)) dellist (&stack);
+	    }
 	}
 	goto do_module_return;
     }
@@ -552,7 +570,7 @@ module `%s' is a request for a file in a module which is not a directory",
 	/* XXX - think about making null repositories at each dir here
 		 instead of just at the bottom */
 	make_directories (dir);
-	if ( CVS_CHDIR (dir) < 0)
+	if (CVS_CHDIR (dir) < 0)
 	{
 	    error (0, errno, "cannot chdir to %s", dir);
 	    spec_opt = NULL;
@@ -654,9 +672,10 @@ module `%s' is a request for a file in a module which is not a directory",
 	    error (0, 0, "Mal-formed %c option for module %s - ignored",
 		   CVSMODULE_SPEC, mname);
 	else
-	    err += do_module (db, spec_opt, m_type, msg, callback_proc,
-			      (char *) NULL, 0, local_specified,
-			      run_module_prog, build_dirs, extra_arg);
+	    err += my_module (db, spec_opt, m_type, msg, callback_proc,
+                               (char *) NULL, 0, local_specified,
+                               run_module_prog, build_dirs, extra_arg,
+	                       stack);
 	spec_opt = next_opt;
     }
 
@@ -667,40 +686,6 @@ module `%s' is a request for a file in a module which is not a directory",
 	server_dir = server_dir_to_restore;
     }
 #endif
-
-    /* run/write out the checkin/update prog files if necessary */
-    if (err == 0 && !noexec && m_type == CHECKOUT && run_module_prog)
-    {
-#ifdef SERVER_SUPPORT
-	if (server_active) {
-	    if (checkin_prog != NULL)
-		server_prog (where ? where : mwhere ? mwhere : mname, checkin_prog, PROG_CHECKIN);
-	    if (update_prog != NULL)
-		server_prog (where ? where : mwhere ? mwhere : mname, update_prog, PROG_UPDATE);
-	}
-	else
-	{
-#endif
-	FILE *fp;
-
-	if (checkin_prog != NULL)
-	{
-	    fp = open_file (CVSADM_CIPROG, "w+");
-	    (void) fprintf (fp, "%s\n", checkin_prog);
-	    if (fclose (fp) == EOF)
-		error (1, errno, "cannot close %s", CVSADM_CIPROG);
-	}
-	if (update_prog != NULL)
-	{
-	    fp = open_file (CVSADM_UPROG, "w+");
-	    (void) fprintf (fp, "%s\n", update_prog);
-	    if (fclose (fp) == EOF)
-		error (1, errno, "cannot close %s", CVSADM_UPROG);
-	}
-#ifdef SERVER_SUPPORT
-	}
-#endif
-    }
 
     /* cd back to where we started */
     if (restore_cwd (&cwd, NULL))
@@ -750,7 +735,7 @@ module `%s' is a request for a file in a module which is not a directory",
 		{
 		    cvs_output (program_name, 0);
 		    cvs_output (" ", 1);
-		    cvs_output (command_name, 0);
+		    cvs_output (cvs_cmd_name, 0);
 		    cvs_output (": Executing '", 0);
 		    run_print (stdout);
 		    cvs_output ("'\n", 0);
@@ -769,16 +754,12 @@ module `%s' is a request for a file in a module which is not a directory",
 	free_names (&xmodargc, xmodargv);
     if (mwhere)
 	free (mwhere);
-    if (checkin_prog)
-	free (checkin_prog);
     if (checkout_prog)
 	free (checkout_prog);
     if (export_prog)
 	free (export_prog);
     if (tag_prog)
 	free (tag_prog);
-    if (update_prog)
-	free (update_prog);
     if (cwd_saved)
 	free_cwd (&cwd);
     if (value != NULL)
@@ -788,6 +769,33 @@ module `%s' is a request for a file in a module which is not a directory",
 	free (xvalue);
     return (err);
 }
+
+
+
+/* External face of do_module so that we can have an internal version which
+ * accepts a stack argument to track alias recursion.
+ */
+int
+do_module (db, mname, m_type, msg, callback_proc, where, shorten,
+	   local_specified, run_module_prog, build_dirs, extra_arg)
+    DBM *db;
+    char *mname;
+    enum mtype m_type;
+    char *msg;
+    CALLBACKPROC callback_proc;
+    char *where;
+    int shorten;
+    int local_specified;
+    int run_module_prog;
+    int build_dirs;
+    char *extra_arg;
+{
+    return my_module (db, mname, m_type, msg, callback_proc, where, shorten,
+                       local_specified, run_module_prog, build_dirs, extra_arg,
+                       NULL);
+}
+
+
 
 /* - Read all the records from the modules database into an array.
    - Sort the array depending on what format is desired.
@@ -799,7 +807,7 @@ module `%s' is a request for a file in a module which is not a directory",
       files and the comment field: (Including aliases)
 
       modulename	-s switches, one per line, even if
-			-i it has many switches.
+			it has many switches.
 			Directories and files involved, formatted
 			to cover multiple lines if necessary.
 			# Comment, also formatted to cover multiple

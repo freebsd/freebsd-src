@@ -42,6 +42,11 @@ rm -f $revfile
 commentfile=/tmp/cvs2vendor_$$_comment
 rm -f $commentfile
 
+if sort -k 1,1 /dev/null 2>/dev/null
+then sort_each_field='-k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9'
+else sort_each_field='+0 +1 +2 +3 +4 +5 +6 +7 +8'
+fi
+
 srcdirs=`cd $tsrcdir && find . -type d -print | sed 's~^\.[/]*~~'`
 
 # the "" is a trick to get $tsrcdir itself without resorting to '.'
@@ -68,7 +73,7 @@ for ldir in "" $srcdirs; do
 		fi
 
 		# work on each rev of that file in ascending order
-		rlog $file | grep "^revision [0-9][0-9]*\." | awk '{print $2}' | sed -e 's/\./ /g' | sort -n -u +0 +1 +2 +3 +4 +5 +6 +7 +8 | sed -e 's/ /./g' > $revfile
+		rlog $file | grep "^revision [0-9][0-9]*\." | awk '{print $2}' | sed -e 's/\./ /g' | sort -n -u $sort_each_field | sed -e 's/ /./g' > $revfile
 
 		for rev in `cat $revfile`; do
 

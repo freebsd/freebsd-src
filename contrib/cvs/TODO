@@ -6,9 +6,10 @@ The "TODO" file!                              -*-Indented-Text-*-
     (If done, this should be configurable via commitinfo or some new
     config file -kingdon, Jun 1995).
 
-30. Add "rdiff" program option to the modules database (and "diff"
-too?).  (perhaps should think a little harder about what this is
-trying to accomplish and what the best way is -kingdon, Jul 1997).
+30. Add "rdiff" & "rtag" program options to the modules database.  These
+    commands seem hard to use since these commands deal directly with the
+    RCS ,v files.  (perhaps should think a little harder about what this is
+    trying to accomplish and what the best way is -kingdon, Jul 1997).
 
 31. Think hard about ^C recovery.
     One particular issue: RCS removes the ,foo.c, file on ^C and CVS
@@ -25,10 +26,6 @@ trying to accomplish and what the best way is -kingdon, Jul 1997).
     track of what has been merged is a pain.  Take a look at PRCS 1.2.
     PRCS 1.0 was particularly bad the way it handled the "invisible
     state", but 1.2 is significantly better.
-
-45. Consider enhancing the "rdiff" and "tag" (rtag??) command support in
-    the module database -- they seem hard to use since these commands
-    deal directly with the RCS ,v files.
 
 49. cvs xxx commands should be able to deal with files in other
     directories.  I want to do a cvs add foo/bar.c.
@@ -56,8 +53,8 @@ trying to accomplish and what the best way is -kingdon, Jul 1997).
 66. Length of the CVS temporary files must be limited to 14 characters for
     System-V stupid support.  As well as the length on the CVS.adm files.
 
-72. Consider re-design of the module -o, -i, -t options to use the file
-    system more intuitively.
+72. Consider re-design of the module -t options to use the file system more
+    intuitively.
 
 73. Consider an option (in .cvsrc?) to automatically add files that are new
     and specified to commit.
@@ -260,10 +257,6 @@ trying to accomplish and what the best way is -kingdon, Jul 1997).
      1.10, -d rewrites the CVS/Root file (but not in subdirectories).
      This behavior was not particularly popular and has been since
      reverted.
-
-     Note also RELATIVE_REPOS in options.h; it needs to be set for
-     changing CVS/Root (not CVS/Repository) to be sufficient in the
-     case where the directory has changed.
 
      This whole area is a rather bad pile of individual decisions which
      accumulated over time, some of them probably bad decisions with
@@ -787,10 +780,6 @@ send differences instead of entire files.  In the degenerate case
 (e.g. "cvs diff" without arguments) the required network traffic is
 reduced to zero, and the client need not even contact the server.
 
-196.  Using a CVSROOT with a trailing slash will confuse CVS.  I think
-we need to add a call to strip_trailing_slashes in root.c
-(parse_cvsroot), but I haven't considered all of the ramifications.
-
 197.  Analyze the difference between CVS_UNLINK & unlink_file.  As far as I
 can tell, unlink_file aborts in noexec mode and CVS_UNLINK does not.  I'm not
 sure it would be possible to remove even the use of temp files in noexec mode,
@@ -824,9 +813,6 @@ wasn't caught by the test suite.
 and other non-canonical paths confuse CVS.  Most of the cases that do
 work are handled on an ad-hoc basis.  We need to come up with a coherent
 strategy to address path canonicalization and apply it consistently.
-
-206.  Restore directory-at-a-time locking for tag operations instead of
-locking the entire tree.
 
 208.  Merge enhancements to the diff package back into the original GNU source.
 
@@ -862,23 +848,11 @@ glibc version.
 216.  Avoid command-line keyword expansion modes overriding binary mode
 (or make binary mode completely separate from keyword expansion mode).
 
-217.  Fix assertion failures that occur when CVSROOT is a symlink to the
-actual repository location.
-
 218.  Fix "checkout -d ." in client/server mode.
-
-219.  Fix "checkout -d multi/level/dir" in client/server mode.
-
-220.  Send correct Max-dotdot in client/server mode (broken by change to
-support multiple repositories).
 
 221.  Handle spaces in file/directory names.  (Most, if not all, of the
 internal infrastructure already handles them correctly, but most of the
 administrative file interfaces do not.)
-
-222.  Fix assertion failure (*rcsnode == NULL in commit.c, line 2056)
-when adding a file from a case-insensitive client that matches an Attic
-file with case differences.
 
 223.  Internationalization support.  This probably means using some kind
 of universal character set (ISO 10646?) internally and converting on
@@ -899,13 +873,18 @@ local time string according to the localization settings before printing it.
 
 225.  Add support for --allow-root to server command.
 
-226.  Add support for upgrading read locks to write locks and use it to
-avoid holding potentially long-term write locks (for example, in tag and
-commit).
-
 227.  'cvs release' should use the CVS/Root in the directory being released
 when such is specified rather than $CVSROOT.  In my work directory with no CVS
 dir, a release of subdirectories causes the released projects to be tested
 against my $CVSROOT environment variable, which often isn't correct but which
 can complete without generating error messages if the project also exists in
 the other CVSROOT.  This happens a lot with my copies of the ccvs project.
+
+228.  Consider adding -d to commit ala ci.
+
+229.  Improve the locking code to use a random delay with exponential
+backoff ala Ethernet and separate the notification interval from the
+wait interval.
+
+230.  Support for options like compression as part of the CVSROOT might be
+nice.  This should be fairly easy to implement now using the method options.

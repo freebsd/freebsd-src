@@ -208,14 +208,6 @@ Do not read the
 .B cvs
 startup file (\fI~/.cvsrc\fP).
 .TP
-.B \-l
-Do not log the
-.I cvs_command
-in the command history (but execute it anyway).  See the description
-of the
-.B history
-command for information on command history.
-.TP
 .B \-n
 Do not change any files.  Attempt to execute the
 .IR cvs_command ,
@@ -297,6 +289,15 @@ it will have the effect of producing context sensitive diffs for
 all executions of
 .` "cvs diff"
 ).
+.SP
+Global options are specified using the \fBcvs\fP keyword.  For example,
+the following:
+.SP
+cvs \-q
+.SP
+will mean that all
+.` "cvs"
+commands will behave as thought he \-q global option had been supplied.
 .SH "CVS COMMAND SUMMARY"
 Here are brief descriptions of all the
 .B cvs
@@ -510,15 +511,6 @@ subdirectories.   Available with the following commands:
 .BR checkout ", " commit ", " diff ", "
 .BR export ", " remove ", " rdiff ", " rtag ", "
 .BR status ", " tag ", and " update .
-.I Warning:
-this is not the same
-as the overall
-.` "cvs \-l"
-option, which you can specify to the
-.I left
-of a
-.B cvs
-command!
 .TP
 .B \-n
 Do
@@ -1046,7 +1038,7 @@ Others would simply do
 .` "cvs checkout -rEXPR1 whatever_module"
 to work with you on the experimental change.
 .TP
-\fBdiff\fP [\fB\-kl\fP] [\fIrcsdiff_options\fP] [[\fB\-r\fP \fIrev1\fP | \fB\-D\fP \fIdate1\fP] [\fB\-r\fP \fIrev2\fP | \fB\-D\fP \fIdate2\fP]] [\fIfiles.\|.\|.\fP]
+\fBdiff\fP [\fB\-kl\fP] [\fIformat_options\fP] [[\fB\-r\fP \fIrev1\fP | \fB\-D\fP \fIdate1\fP] [\fB\-r\fP \fIrev2\fP | \fB\-D\fP \fIdate2\fP]] [\fIfiles.\|.\|.\fP]
 .I Requires:
 working directory, repository.
 .br
@@ -1077,8 +1069,9 @@ and
 options can be mixed together with at most two options ever specified.
 .SP
 See
-.BR rcsdiff ( 1 )
-for a list of other accepted options.
+.` "cvs --help diff"
+for a list of supported
+.IR format_options .
 .SP
 If you don't specify any files,
 .B diff
@@ -1409,7 +1402,7 @@ is able to find the files that are located in other directories.
 .SP
 The standard option \fIflags\fP \fB\-f\fP, and \fB\-l\fP
 are available with this command.  There are also several
-special options flags:
+special option flags:
 .SP
 If you use the
 .B \-s
@@ -1878,7 +1871,7 @@ Files in home directories:
 \&.cvsrc
 The
 .B cvs
-initialisation file.  Lines in this file can be used to specify default
+initialization file.  Lines in this file can be used to specify default
 options for each
 .B cvs
 command.  For example the line

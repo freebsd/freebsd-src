@@ -21,9 +21,9 @@
 extern int gethostname ();
 #endif
 
-char *program_name;
-char *program_path;
-char *command_name;
+const char *program_name;
+const char *program_path;
+const char *cvs_cmd_name;
 
 /* I'd dynamically allocate this, but it seems like gethostname
    requires a fixed size array.  If I'm remembering the RFCs right,
@@ -247,7 +247,6 @@ static const char *const opt_usage[] =
     "    -q           Cause CVS to be somewhat quiet.\n",
     "    -r           Make checked-out files read-only.\n",
     "    -w           Make checked-out files read-write (default).\n",
-    "    -l           Turn history logging off.\n",
     "    -n           Do not execute anything that will change the disk.\n",
     "    -t           Show trace of program execution -- try with -n.\n",
     "    -v           CVS version and copyright.\n",
@@ -407,7 +406,7 @@ main (argc, argv)
     int help = 0;		/* Has the user asked for help?  This
 				   lets us support the `cvs -H cmd'
 				   convention to give help for cmd. */
-    static const char short_options[] = "+Qqrwtnlvb:T:e:d:Hfz:s:xa";
+    static const char short_options[] = "+Qqrwtnvb:T:e:d:Hfz:s:xa";
     static struct option long_options[] =
     {
         {"help", 0, NULL, 'H'},
@@ -537,7 +536,6 @@ main (argc, argv)
 		break;
 	    case 'n':
 		noexec = 1;
-	    case 'l':			/* Fall through */
 		logoff = 1;
 		break;
 	    case 'v':
@@ -545,7 +543,7 @@ main (argc, argv)
 		version (0, (char **) NULL);    
 		(void) fputs ("\n", stdout);
 		(void) fputs ("\
-Copyright (c) 1989-2002 Brian Berliner, david d `zoo' zuhn, \n\
+Copyright (c) 1989-2004 Brian Berliner, david d `zoo' zuhn, \n\
                         Jeff Polk, and other authors\n", stdout);
 		(void) fputs ("\n", stdout);
 		(void) fputs ("CVS may be copied only under the terms of the GNU General Public License,\n", stdout);
@@ -590,14 +588,19 @@ Copyright (c) 1989-2002 Brian Berliner, david d `zoo' zuhn, \n\
 		break;
 	    case 'z':
 #ifdef CLIENT_SUPPORT
-		gzip_level = atoi (optarg);
-		if (gzip_level < 0 || gzip_level > 9)
+		gzip_level = strtol (optarg, &end, 10);
+		if (*end != '\0' || gzip_level < 0 || gzip_level > 9)
 		  error (1, 0,
 			 "gzip compression level must be between 0 and 9");
-#endif
+#endif /* CLIENT_SUPPORT */
 		/* If no CLIENT_SUPPORT, we just silently ignore the gzip
-		   level, so that users can have it in their .cvsrc and not
-		   cause any trouble.  */
+		 * level, so that users can have it in their .cvsrc and not
+		 * cause any trouble.
+		 *
+		 * We still parse the argument to -z for correctness since
+		 * one user complained of being bitten by a run of
+		 * `cvs -z -n up' which read -n as the argument to -z without
+		 * complaining.  */
 		break;
 	    case 's':
 		variable_set (optarg);
@@ -634,24 +637,24 @@ Copyright (c) 1989-2002 Brian Berliner, david d `zoo' zuhn, \n\
 
     /* Look up the command name. */
 
-    command_name = argv[0];
+    cvs_cmd_name = argv[0];
     for (cm = cmds; cm->fullname; cm++)
     {
-	if (cm->nick1 && !strcmp (command_name, cm->nick1))
+	if (cm->nick1 && !strcmp (cvs_cmd_name, cm->nick1))
 	    break;
-	if (cm->nick2 && !strcmp (command_name, cm->nick2))
+	if (cm->nick2 && !strcmp (cvs_cmd_name, cm->nick2))
 	    break;
-	if (!strcmp (command_name, cm->fullname))
+	if (!strcmp (cvs_cmd_name, cm->fullname))
 	    break;
     }
 
     if (!cm->fullname)
     {
-	fprintf (stderr, "Unknown command: `%s'\n\n", command_name);
+	fprintf (stderr, "Unknown command: `%s'\n\n", cvs_cmd_name);
 	usage (cmd_usage);
     }
     else
-	command_name = cm->fullname;	/* Global pointer for later use */
+	cvs_cmd_name = cm->fullname;	/* Global pointer for later use */
 
     if (help)
     {
@@ -685,18 +688,18 @@ Copyright (c) 1989-2002 Brian Berliner, david d `zoo' zuhn, \n\
 	   running as Kerberos server as root.  Do the authentication as
 	   the very first thing, to minimize the amount of time we are
 	   running as root.  */
-	if (strcmp (command_name, "kserver") == 0)
+	if (strcmp (cvs_cmd_name, "kserver") == 0)
 	{
 	    kserver_authenticate_connection ();
 
 	    /* Pretend we were invoked as a plain server.  */
-	    command_name = "server";
+	    cvs_cmd_name = "server";
 	}
 # endif /* HAVE_KERBEROS */
 
 
 # if defined (AUTH_SERVER_SUPPORT) || defined (HAVE_GSSAPI)
-	if (strcmp (command_name, "pserver") == 0)
+	if (strcmp (cvs_cmd_name, "pserver") == 0)
 	{
 	    /* The reason that --allow-root is not a command option
 	       is mainly the comment in server() about how argc,argv
@@ -710,11 +713,11 @@ Copyright (c) 1989-2002 Brian Berliner, david d `zoo' zuhn, \n\
 	    pserver_authenticate_connection ();
       
 	    /* Pretend we were invoked as a plain server.  */
-	    command_name = "server";
+	    cvs_cmd_name = "server";
 	}
 # endif /* AUTH_SERVER_SUPPORT || HAVE_GSSAPI */
 
-	server_active = strcmp (command_name, "server") == 0;
+	server_active = strcmp (cvs_cmd_name, "server") == 0;
 
 #endif /* SERVER_SUPPORT */
 
@@ -781,7 +784,7 @@ Copyright (c) 1989-2002 Brian Berliner, david d `zoo' zuhn, \n\
 #endif /* KLUDGE_FOR_WNT_TESTSUITE */
 
 	if (use_cvsrc)
-	    read_cvsrc (&argc, &argv, command_name);
+	    read_cvsrc (&argc, &argv, cvs_cmd_name);
 
 #ifdef SERVER_SUPPORT
 	/* Fiddling with CVSROOT doesn't make sense if we're running
@@ -922,7 +925,7 @@ Copyright (c) 1989-2002 Brian Berliner, david d `zoo' zuhn, \n\
 		    {
 			save_errno = errno;
 			/* If this is "cvs init", the root need not exist yet.  */
-			if (strcmp (command_name, "init") != 0)
+			if (strcmp (cvs_cmd_name, "init") != 0)
 			{
 			    error (1, save_errno, "%s", path);
 			}
@@ -1020,7 +1023,11 @@ Copyright (c) 1989-2002 Brian Berliner, david d `zoo' zuhn, \n\
 
     Lock_Cleanup ();
 
-    free (program_path);
+    /* It's okay to cast out the const below since we know we allocated this in
+     * this function.  The const was to keep other functions from messing with
+     * this.
+     */
+    free ((char *)program_path);
     if (CVSroot_cmdline != NULL)
 	free (CVSroot_cmdline);
     if (free_CVSroot)
@@ -1154,7 +1161,7 @@ void
 usage (cpp)
     register const char *const *cpp;
 {
-    (void) fprintf (stderr, *cpp++, program_name, command_name);
+    (void) fprintf (stderr, *cpp++, program_name, cvs_cmd_name);
     for (; *cpp; cpp++)
 	(void) fprintf (stderr, *cpp);
     error_exit ();
