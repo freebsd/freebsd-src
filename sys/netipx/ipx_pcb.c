@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_var.h>
 
 static struct	ipx_addr zeroipx_addr;
+static u_short	ipxpcb_lport_cache;  
 
 int
 ipx_pcballoc(so, head, td)
