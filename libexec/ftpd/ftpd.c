@@ -2554,7 +2554,7 @@ pwd(void)
 	char *s, path[MAXPATHLEN + 1];
 
 	if (getcwd(path, sizeof(path)) == NULL)
-		reply(550, "%s.", path);
+		perror_reply(550, "Get current directory");
 	else {
 		if ((s = doublequote(path)) == NULL)
 			fatalerror("Ran out of memory.");
