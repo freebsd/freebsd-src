@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.28 1998/10/25 17:44:50 phk Exp $
+ * $Id: kern_conf.c,v 1.29 1998/11/14 21:58:51 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -59,7 +59,7 @@ chrtoblk(dev_t dev)
 {
 	struct cdevsw *cd;
 
-	if(cd = cdevsw[major(dev)]) {
+	if((cd = cdevsw[major(dev)]) != NULL) {
           if (cd->d_bmaj != -1)
 	    return(makedev(cd->d_bmaj,minor(dev)));
 	}
@@ -173,14 +173,18 @@ cdevsw_module_handler(module_t mod, int what, void *arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		if (error = cdevsw_add(&data->dev, data->cdevsw, NULL))
-			return error;
-		break;
+		error = cdevsw_add(&data->dev, data->cdevsw, NULL);
+		if (!error && data->chainevh)
+			error = data->chainevh(mod, what, data->chainarg);
+		return error;
 
 	case MOD_UNLOAD:
-		if (error = cdevsw_add(&data->dev, NULL, NULL))
-			return error;
-		break;
+		if (data->chainevh) {
+			error = data->chainevh(mod, what, data->chainarg);
+			if (error)
+				return error;
+		}
+		return cdevsw_add(&data->dev, NULL, NULL);
 	}
 
 	if (data->chainevh)
@@ -197,20 +201,23 @@ bdevsw_module_handler(module_t mod, int what, void* arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		if (error = cdevsw_add(&data->cdev, data->cdevsw, NULL))
-			return error;
-		if (error = bdevsw_add(&data->bdev, data->cdevsw, NULL)) {
-			cdevsw_add(&data->bdev, NULL, NULL);
-			return error;
-		}
-		break;
+		error = cdevsw_add(&data->cdev, data->cdevsw, NULL);
+		if (!error)
+			error = bdevsw_add(&data->bdev, data->cdevsw, NULL);
+		if (!error && data->chainevh)
+			error = data->chainevh(mod, what, data->chainarg);
+		return error;
 
 	case MOD_UNLOAD:
-		if (error = bdevsw_add(&data->bdev, NULL, NULL))
-			return error;
-		if (error = cdevsw_add(&data->cdev, NULL, NULL))
-			return error;
-		break;
+		if (data->chainevh) {
+			error = data->chainevh(mod, what, data->chainarg);
+			if (error)
+				return error;
+		}
+		error = bdevsw_add(&data->bdev, NULL, NULL);
+		if (!error)
+			error = cdevsw_add(&data->cdev, NULL, NULL);
+		return error;
 	}
 
 	if (data->chainevh)
