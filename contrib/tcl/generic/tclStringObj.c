@@ -14,7 +14,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclStringObj.c 1.30 97/07/24 18:53:30
+ * SCCS: @(#) tclStringObj.c 1.31 97/10/30 13:56:35
  */
 
 #include "tclInt.h"
@@ -98,7 +98,7 @@ Tcl_NewStringObj(bytes, length)
     register Tcl_Obj *objPtr;
 
     if (length < 0) {
-	length = bytes ? strlen(bytes) : 0 ;
+	length = (bytes? strlen(bytes) : 0);
     }
     TclNewObj(objPtr);
     TclInitStringRep(objPtr, bytes, length);
@@ -154,7 +154,7 @@ Tcl_DbNewStringObj(bytes, length, file, line)
     register Tcl_Obj *objPtr;
 
     if (length < 0) {
-	length = strlen(bytes);
+	length = (bytes? strlen(bytes) : 0);
     }
     TclDbNewObj(objPtr, file, line);
     TclInitStringRep(objPtr, bytes, length);

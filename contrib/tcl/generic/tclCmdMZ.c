@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCmdMZ.c 1.102 97/08/13 10:06:58
+ * SCCS: @(#) tclCmdMZ.c 1.104 97/10/31 13:06:19
  */
 
 #include "tclInt.h"
@@ -1054,7 +1054,7 @@ Tcl_StringObjCmd(dummy, interp, objc, objv)
     int objc;			/* Number of arguments. */
     Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
-    int index, first, left, right;
+    int index, left, right;
     Tcl_Obj *resultPtr;
     char *string1, *string2;
     int length1, length2;
@@ -1103,8 +1103,37 @@ Tcl_StringObjCmd(dummy, interp, objc, objv)
 	    break;
 	}
 	case STR_FIRST: {
-	    first = 1;
-	    goto firstlast;
+	    register char *p, *end;
+	    int match;
+
+	    if (objc != 4) {
+	        badFirstLastArgs:
+	        Tcl_WrongNumArgs(interp, 2, objv, "string1 string2");
+		return TCL_ERROR;
+	    }
+
+	    match = -1;
+	    string1 = Tcl_GetStringFromObj(objv[2], &length1);
+	    string2 = Tcl_GetStringFromObj(objv[3], &length2);
+	    if (length1 > 0) {
+		end = string2 + length2 - length1 + 1;
+		for (p = string2;  p < end;  p++) {
+		  /*
+		   * Scan forward to find the first character.
+		   */
+		    
+		  p = memchr(p, *string1, (unsigned) (end - p));
+		  if (p == NULL) {
+		      break;
+		  }
+		  if (memcmp(string1, p, (unsigned) length1) == 0) {
+		      match = p - string2;
+		      break;
+		  }
+		}
+	    }
+	    Tcl_SetIntObj(resultPtr, match);
+	    break;
 	}
 	case STR_INDEX: {
 	    int index;
@@ -1124,28 +1153,28 @@ Tcl_StringObjCmd(dummy, interp, objc, objv)
 	    break;
 	}
 	case STR_LAST: {
-	    char *p, *end;
+	    register char *p;
 	    int match;
 
-	    first = 0;
-
-	    firstlast:
 	    if (objc != 4) {
-	        Tcl_WrongNumArgs(interp, 2, objv, "string1 string2");
-		return TCL_ERROR;
+	        goto badFirstLastArgs;
 	    }
 
 	    match = -1;
 	    string1 = Tcl_GetStringFromObj(objv[2], &length1);
 	    string2 = Tcl_GetStringFromObj(objv[3], &length2);
 	    if (length1 > 0) {
-		end = string2 + length2 - length1 + 1;
-		for (p = string2; p < end; p++) {
+		for (p = string2 + length2 - length1;  p >= string2;  p--) {
+		    /*
+		     * Scan backwards to find the first character.
+		     */
+		    
+		    while ((p != string2) && (*p != *string1)) {
+			p--;
+		    }
 		    if (memcmp(string1, p, (unsigned) length1) == 0) {
 			match = p - string2;
-			if (first) {
-			    break;
-			}
+			break;
 		    }
 		}
 	    }
@@ -1202,7 +1231,7 @@ Tcl_StringObjCmd(dummy, interp, objc, objv)
 	    break;
 	}
 	case STR_TOLOWER: {
-	    char *p, *end;
+	    register char *p, *end;
 
 	    if (objc != 3) {
 	        Tcl_WrongNumArgs(interp, 2, objv, "string");
@@ -1228,7 +1257,7 @@ Tcl_StringObjCmd(dummy, interp, objc, objv)
 	    break;
 	}
 	case STR_TOUPPER: {
-	    char *p, *end;
+	    register char *p, *end;
 
 	    if (objc != 3) {
 	        Tcl_WrongNumArgs(interp, 2, objv, "string");
@@ -1255,7 +1284,8 @@ Tcl_StringObjCmd(dummy, interp, objc, objv)
 	}
 	case STR_TRIM: {
 	    char ch;
-	    char *p, *end, *check, *checkEnd;
+	    register char *p, *end;
+	    char *check, *checkEnd;
 
 	    left = 1;
 	    right = 1;
@@ -1563,9 +1593,12 @@ Tcl_SwitchObjCmd(dummy, interp, objc, objv)
     switchObjc = objc-1;
     switchObjv = objv+1;
     mode = EXACT;
-    
-    string = Tcl_GetStringFromObj(switchObjv[0], &length);
-    while ((switchObjc > 0) && (*string == '-')) {
+
+    while (switchObjc > 0) {
+	string = Tcl_GetStringFromObj(switchObjv[0], &length);
+	if (*string != '-') {
+	    break;
+	}
 	if (Tcl_GetIndexFromObj(interp, switchObjv[0], switches,
 		"option", 0, &index) != TCL_OK) {
 	    return TCL_ERROR;
@@ -1587,7 +1620,6 @@ Tcl_SwitchObjCmd(dummy, interp, objc, objv)
 	}
 	switchObjc--;
 	switchObjv++;
-	string = Tcl_GetStringFromObj(switchObjv[0], &length);
     }
 
     doneWithSwitches:

@@ -4,4 +4,4 @@
 # the package now, so they can readily use it
 # and even "namespace import tcl::*" ...
 # (tclPkgSetup just makes things slow and do not work so well with namespaces)
-package ifneeded opt 0.1 [list source [file join $dir optparse.tcl]]
+package ifneeded opt 0.2 [list source [file join $dir optparse.tcl]]

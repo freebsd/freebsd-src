@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclPosixStr.c 1.32 96/10/10 10:09:42
+ * SCCS: @(#) tclPosixStr.c 1.33 97/10/08 12:40:12
  */
 
 #include "tclInt.h"
@@ -974,7 +974,7 @@ Tcl_SignalId(sig)
 #ifdef SIGKILL
 	case SIGKILL: return "SIGKILL";
 #endif
-#if defined(SIGLOST) && (!defined(SIGIOT) || (SIGLOST != SIGIOT)) && (!defined(SIGURG) || (SIGLOST != SIGURG)) && (!defined(SIGPROF) || (SIGLOST != SIGPROF))
+#if defined(SIGLOST) && (!defined(SIGIOT) || (SIGLOST != SIGIOT)) && (!defined(SIGURG) || (SIGLOST != SIGURG)) && (!defined(SIGPROF) || (SIGLOST != SIGPROF)) && (!defined(SIGIO) || (SIGLOST != SIGIO))
 	case SIGLOST: return "SIGLOST";
 #endif
 #ifdef SIGPIPE
@@ -1106,7 +1106,7 @@ Tcl_SignalMsg(sig)
 #ifdef SIGKILL
 	case SIGKILL: return "kill signal";
 #endif
-#if defined(SIGLOST) && (!defined(SIGIOT) || (SIGLOST != SIGIOT)) && (!defined(SIGURG) || (SIGLOST != SIGURG))
+#if defined(SIGLOST) && (!defined(SIGIOT) || (SIGLOST != SIGIOT)) && (!defined(SIGURG) || (SIGLOST != SIGURG)) && (!defined(SIGPROF) || (SIGLOST != SIGPROF)) && (!defined(SIGIO) || (SIGLOST != SIGIO))
 	case SIGLOST: return "resource lost";
 #endif
 #ifdef SIGPIPE

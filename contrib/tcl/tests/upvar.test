@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) upvar.test 1.14 96/10/22 11:34:39
+# SCCS: @(#) upvar.test 1.15 97/10/29 18:25:56
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -315,6 +315,18 @@ test upvar-8.8 {create nested array with upvar} {
     catch {unset x}
     list [catch p1 msg] $msg
 } {1 {can't set "b(2)": variable isn't array}}
+test upvar-8.9 {upvar won't create namespace variable that refers to procedure variable} {
+    catch {eval namespace delete [namespace children :: test_ns_*]}
+    catch {rename MakeLink ""}
+    namespace eval ::test_ns_1 {}
+    proc MakeLink {a} {
+        namespace eval ::test_ns_1 {
+	    upvar a a
+        }
+        unset ::test_ns_1::a
+    }
+    list [catch {MakeLink 1} msg] $msg
+} {1 {bad variable name "a": upvar won't create namespace variable that refers to procedure variable}}
 
 if {[info commands testupvar] != {}} {
     test upvar-9.1 {Tcl_UpVar2 procedure} {

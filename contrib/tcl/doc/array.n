@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) array.n 1.8 96/08/26 12:59:53
+'\" SCCS: @(#) array.n 1.9 97/10/29 14:10:13
 '\" 
 .so man.macros
 .TH array n 7.4 Tcl "Tcl Built-In Commands"
@@ -91,6 +91,9 @@ consisting of an even number of elements.
 Each odd-numbered element in \fIlist\fR is treated as an element
 name within \fIarrayName\fR, and the following element in \fIlist\fR
 is used as a new value for that array element.
+If the variable \fIarrayName\fR does not already exist
+and \fIlist\fR is empty,
+\fIarrayName\fR is created with an empty array value.
 .TP
 \fBarray size \fIarrayName\fR
 Returns a decimal string giving the number of elements in the

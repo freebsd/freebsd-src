@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclTest.c 1.115 97/08/13 10:27:26
+ * SCCS: @(#) tclTest.c 1.119 97/10/31 15:57:28
  */
 
 #define TCL_TEST
@@ -59,6 +59,13 @@ static TestAsyncHandler *firstHandler = NULL;
 static Tcl_DString dstring;
 
 /*
+ * The command trace below is used by the "testcmdtraceCmd" command
+ * to test the command tracing facilities.
+ */
+
+static Tcl_Trace cmdTrace;
+
+/*
  * One of the following structures exists for each command created
  * by TestdelCmd:
  */
@@ -84,6 +91,11 @@ static int		CmdProc1 _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, int argc, char **argv));
 static int		CmdProc2 _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, int argc, char **argv));
+static void		CmdTraceDeleteProc _ANSI_ARGS_((
+			    ClientData clientData, Tcl_Interp *interp,
+			    int level, char *command, Tcl_CmdProc *cmdProc,
+			    ClientData cmdClientData, int argc,
+			    char **argv));
 static void		CmdTraceProc _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, int level, char *command,
 			    Tcl_CmdProc *cmdProc, ClientData cmdClientData,
@@ -167,6 +179,9 @@ static int		TestsetobjerrorcodeCmd _ANSI_ARGS_((
 			    int objc, Tcl_Obj *CONST objv[]));
 static int		TestsetplatformCmd _ANSI_ARGS_((ClientData dummy,
 			    Tcl_Interp *interp, int argc, char **argv));
+static int		TestsetrecursionlimitCmd _ANSI_ARGS_((
+                            ClientData dummy, Tcl_Interp *interp,
+			    int objc, Tcl_Obj *CONST objv[]));
 static int		TeststaticpkgCmd _ANSI_ARGS_((ClientData dummy,
 			    Tcl_Interp *interp, int argc, char **argv));
 static int		TesttranslatefilenameCmd _ANSI_ARGS_((ClientData dummy,
@@ -273,6 +288,9 @@ Tcltest_Init(interp)
 	    TestsetobjerrorcodeCmd, (ClientData) 0,
 	    (Tcl_CmdDeleteProc *) NULL);
     Tcl_CreateCommand(interp, "testsetplatform", TestsetplatformCmd,
+	    (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
+    Tcl_CreateObjCommand(interp, "testsetrecursionlimit",
+	    TestsetrecursionlimitCmd,
 	    (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
     Tcl_CreateCommand(interp, "teststaticpkg", TeststaticpkgCmd,
 	    (ClientData) 0, (Tcl_CmdDeleteProc *) NULL);
@@ -661,28 +679,42 @@ TestcmdtraceCmd(dummy, interp, argc, argv)
     int argc;				/* Number of arguments. */
     char **argv;			/* Argument strings. */
 {
-    Tcl_Trace trace;
     Tcl_DString buffer;
     int result;
 
-    if (argc != 2) {
+    if (argc != 3) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-		" script\"", (char *) NULL);
+		" option script\"", (char *) NULL);
 	return TCL_ERROR;
     }
 
-    Tcl_DStringInit(&buffer);
-    trace = Tcl_CreateTrace(interp, 50000,
-	    (Tcl_CmdTraceProc *) CmdTraceProc, (ClientData) &buffer);
-
-    result = Tcl_Eval(interp, argv[1]);
-    if (result == TCL_OK) {
-	Tcl_ResetResult(interp);
-	Tcl_AppendResult(interp, Tcl_DStringValue(&buffer), NULL);
+    if (strcmp(argv[1], "tracetest") == 0) {
+	Tcl_DStringInit(&buffer);
+	cmdTrace = Tcl_CreateTrace(interp, 50000,
+	        (Tcl_CmdTraceProc *) CmdTraceProc, (ClientData) &buffer);
+	result = Tcl_Eval(interp, argv[2]);
+	if (result == TCL_OK) {
+	    Tcl_ResetResult(interp);
+	    Tcl_AppendResult(interp, Tcl_DStringValue(&buffer), NULL);
+	}
+	Tcl_DeleteTrace(interp, cmdTrace);
+	Tcl_DStringFree(&buffer);
+    } else if (strcmp(argv[1], "deletetest") == 0) {
+	/*
+	 * Create a command trace then eval a script to check whether it is
+	 * called. Note that this trace procedure removes itself as a
+	 * further check of the robustness of the trace proc calling code in
+	 * TclExecuteByteCode.
+	 */
+	
+	cmdTrace = Tcl_CreateTrace(interp, 50000,
+	        (Tcl_CmdTraceProc *) CmdTraceDeleteProc, (ClientData) NULL);
+	result = Tcl_Eval(interp, argv[2]);
+    } else {
+	Tcl_AppendResult(interp, "bad option \"", argv[1],
+		"\": must be tracetest or deletetest", (char *) NULL);
+	return TCL_ERROR;
     }
-    
-    Tcl_DeleteTrace(interp, trace);
-    Tcl_DStringFree(&buffer);
     return TCL_OK;
 }
 
@@ -712,6 +744,29 @@ CmdTraceProc(clientData, interp, level, command, cmdProc, cmdClientData,
 	Tcl_DStringAppendElement(bufPtr, argv[i]);
     }
     Tcl_DStringEndSublist(bufPtr);
+}
+
+static void
+CmdTraceDeleteProc(clientData, interp, level, command, cmdProc,
+	cmdClientData, argc, argv)
+    ClientData clientData;	/* Unused. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int level;			/* Current trace level. */
+    char *command;		/* The command being traced (after
+				 * substitutions). */
+    Tcl_CmdProc *cmdProc;	/* Points to command's command procedure. */
+    ClientData cmdClientData;	/* Client data associated with command
+				 * procedure. */
+    int argc;			/* Number of arguments. */
+    char **argv;		/* Argument strings. */
+{
+    /*
+     * Remove ourselves to test whether calling Tcl_DeleteTrace within
+     * a trace callback causes the for loop in TclExecuteByteCode that
+     * calls traces to reference freed memory.
+     */
+    
+    Tcl_DeleteTrace(interp, cmdTrace);
 }
 
 /*
@@ -1794,6 +1849,47 @@ TestsetplatformCmd(clientData, interp, argc, argv)
 /*
  *----------------------------------------------------------------------
  *
+ * TestsetrecursionlimitCmd --
+ *
+ *	This procedure implements the "testsetrecursionlimit" command. It is
+ *	used to change the interp recursion limit (to test the effects
+ *      of Tcl_SetRecursionLimit).
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	Sets the interp's recursion limit.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+TestsetrecursionlimitCmd(dummy, interp, objc, objv)
+    ClientData dummy;		/* Not used. */
+    Tcl_Interp *interp;		/* Current interpreter. */
+    int objc;			/* Number of arguments. */
+    Tcl_Obj *CONST objv[];	/* The argument objects. */
+{
+    int     value;
+
+    if (objc != 2) {
+    	Tcl_WrongNumArgs(interp, 1, objv, "integer");
+	return TCL_ERROR;
+    }
+    if (Tcl_GetIntFromObj(interp, objv[1], &value) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    value = Tcl_SetRecursionLimit(interp, value);
+    Tcl_SetIntObj(Tcl_GetObjResult(interp), value);
+    return TCL_OK;
+}
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * TeststaticpkgCmd --
  *
  *	This procedure implements the "teststaticpkg" command.
@@ -2164,7 +2260,7 @@ TestchmodCmd(dummy, interp, argc, argv)
     }
 
     mode = (int) strtol(argv[1], &rest, 8);
-    if (*rest != '\0') {
+    if ((rest == argv[1]) || (*rest != '\0')) {
 	goto usage;
     }
 

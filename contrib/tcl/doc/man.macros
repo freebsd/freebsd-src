@@ -26,10 +26,12 @@
 '\" .CE
 '\"	End code excerpt.
 '\"
-'\" .VS ?br?
+'\" .VS ?version? ?br?
 '\"	Begin vertical sidebar, for use in marking newly-changed parts
-'\"	of man pages.  If an argument is present, then a line break is
-'\"	forced before starting the sidebar.
+'\"	of man pages.  The first argument is ignored and used for recording
+'\"	the version when the .VS was added, so that the sidebars can be
+'\"	found and removed when they reach a certain age.  If another argument
+'\"	is present, then a line break is forced before starting the sidebar.
 '\"
 '\" .VE
 '\"	End of vertical sidebar.
@@ -57,7 +59,7 @@
 '\" .UL arg1 arg2
 '\"	Print arg1 underlined, then print arg2 normally.
 '\"
-'\" SCCS: @(#) man.macros 1.8 96/02/15 20:02:24
+'\" SCCS: @(#) man.macros 1.9 97/08/22 18:50:59
 '\"
 '\"	# Set up traps and other miscellaneous stuff for Tcl/Tk man pages.
 .if t .wh -1.3i ^B
@@ -131,7 +133,7 @@
 '\"	# ^Y = starting y location
 '\"	# ^v = 1 (for troff;  for nroff this doesn't matter)
 .de VS
-.if !"\\$1"" .br
+.if !"\\$2"" .br
 .mk ^Y
 .ie n 'mc \s12\(br\s0
 .el .nr ^v 1u

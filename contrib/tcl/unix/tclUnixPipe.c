@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixPipe.c 1.36 97/05/14 13:24:24
+ * SCCS: @(#) tclUnixPipe.c 1.37 97/10/31 17:23:37
  */
 
 #include "tclInt.h"
@@ -22,7 +22,7 @@
  * the same as NULL.
  */
 
-#define MakeFile(fd) ((TclFile)((fd)+1))
+#define MakeFile(fd) ((TclFile)(((int)fd)+1))
 #define GetFd(file) (((int)file)-1)
 
 /*
@@ -100,11 +100,11 @@ TclpMakeFile(channel, direction)
     Tcl_Channel channel;	/* Channel to get file from. */
     int direction;		/* Either TCL_READABLE or TCL_WRITABLE. */
 {
-    int fd;
+    ClientData data;
 
-    if (Tcl_GetChannelHandle(channel, direction, (ClientData *) &fd)
+    if (Tcl_GetChannelHandle(channel, direction, (ClientData *) &data)
 	    == TCL_OK) {
-	return MakeFile(fd);
+	return MakeFile((int)data);
     } else {
 	return (TclFile) NULL;
     }

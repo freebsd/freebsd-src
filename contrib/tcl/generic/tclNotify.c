@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclNotify.c 1.15 97/06/18 17:14:04
+ * SCCS: @(#) tclNotify.c 1.16 97/09/15 15:12:52
  */
 
 #include "tclInt.h"
@@ -761,6 +761,25 @@ Tcl_DoOneEvent(flags)
 	if (flags & TCL_DONT_WAIT) {
 	    break;
 	}
+
+	/*
+	 * If Tcl_WaitForEvent has returned 1,
+	 * indicating that one system event has been dispatched
+	 * (and thus that some Tcl code might have been indirectly executed),
+	 * we break out of the loop.
+	 * We do this to give VwaitCmd for instance a chance to check 
+	 * if that system event had the side effect of changing the 
+	 * variable (so the vwait can return and unwind properly).
+	 *
+	 * NB: We will process idle events if any first, because
+	 *     otherwise we might never do the idle events if the notifier
+	 *     always gets system events.
+	 */
+
+	if (result) {
+	    break;
+	}
+
     }
 
     notifier.serviceMode = oldMode;
