@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.53 1994/10/12 03:56:49 se Exp $
+#	$Id: files.i386,v 1.54 1994/10/13 20:19:11 sos Exp $
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -27,6 +27,7 @@ i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
+i386/i386/userconfig.c		optional	userconfig
 i386/i386/vm_machdep.c		standard
 i386/ibcs2/ibcs2_dummy.c	optional 	ibcs2
 i386/ibcs2/ibcs2_file.c		optional 	ibcs2
