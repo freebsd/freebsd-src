@@ -582,7 +582,7 @@ mkmonth(int y, int m, int jd_flag, struct monthlines *mlines)
 	/* Set name of month. */
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_mon = m;
-	strftime(mlines->name, sizeof(mlines->name), "%B", &tm);
+	strftime(mlines->name, sizeof(mlines->name), "%OB", &tm);
 
 	/*
 	 * Set first and last to the day number of the first day of this
@@ -673,7 +673,7 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 	/* Set name of month centered */
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_mon = m;
-	strftime(mlines->name, sizeof(mlines->name), "%B", &tm);
+	strftime(mlines->name, sizeof(mlines->name), "%OB", &tm);
 
 	/*
 	 * Set first and last to the day number of the first day of this
