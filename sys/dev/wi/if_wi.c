@@ -73,6 +73,8 @@
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
+#include <sys/ucred.h>
 #include <sys/socket.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -962,14 +964,17 @@ static int wi_ioctl(ifp, command, data)
 	struct wi_softc		*sc;
 	struct wi_req		wreq;
 	struct ifreq		*ifr;
+	struct proc		*p = curproc;
 
 	s = splimp();
 
 	sc = ifp->if_softc;
 	ifr = (struct ifreq *)data;
 
-	if (sc->wi_gone)
-		return(ENODEV);
+	if (sc->wi_gone) {
+		error = ENODEV;
+		goto out;
+	}
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -1038,6 +1043,8 @@ static int wi_ioctl(ifp, command, data)
 		error = copyout(&wreq, ifr->ifr_data, sizeof(wreq));
 		break;
 	case SIOCSWAVELAN:
+		if ((error = suser(p)))
+			goto out;
 		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 		if (error)
 			break;
@@ -1057,7 +1064,7 @@ static int wi_ioctl(ifp, command, data)
 		error = EINVAL;
 		break;
 	}
-
+out:
 	splx(s);
 
 	return(error);
