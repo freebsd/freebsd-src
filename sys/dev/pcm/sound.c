@@ -147,7 +147,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 
     	if (!pcm_devclass) {
     		pcm_devclass = device_get_devclass(dev);
-		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_STATUS),
+		make_dev(&snd_cdevsw, PCMMKMINOR(0, SND_DEV_STATUS),
 			 UID_ROOT, GID_WHEEL, 0444, "sndstat");
 	}
 	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL),
