@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.8 1999/05/30 16:50:40 phk Exp $
+ *	$Id: cons.c,v 1.9 1999/05/31 11:23:35 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -447,9 +447,8 @@ cnputc(c)
 static void
 cn_drvinit(void *unused)
 {
-	dev_t dev;
 
-	cdevsw_add(&dev);
+	cdevsw_add(&cn_cdevsw);
 #ifdef DEVFS
 	cn_devfs_token = devfs_add_devswf(&cn_cdevsw, 0, DV_CHR,
 		  UID_ROOT, GID_WHEEL, 0600, "console");
