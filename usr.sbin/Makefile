@@ -14,6 +14,7 @@ SUBDIR=	IPXrouted \
 	ancontrol \
 	arp \
 	bootparamd \
+	bsnmpd \
 	burncd \
 	cdcontrol \
 	chkgrp \
