@@ -1,5 +1,7 @@
-#	$Id$
+#	$Id: options,v 1.9 1996/03/02 20:35:51 wollman Exp $
+
 # Option name	filename
+
 BOUNCE_BUFFERS	opt_bounce.h
 DDB
 KTRACE
@@ -15,7 +17,8 @@ SYSVSHM		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVMSG		opt_sysvipc.h
 UCONSOLE
-# Begin options used only in param.c
+
+# Options used only in param.c.
 NMBCLUSTERS	opt_param.h
 SHMMAXPGS	opt_param.h
 SHMMAX		opt_param.h
@@ -40,13 +43,14 @@ MSGTQL		opt_param.h
 MSGSSZ		opt_param.h
 MSGSEG		opt_param.h
 NBUF		opt_param.h
-# end param.c options
-# generic SCSI options
+
+# Generic SCSI options.
 SCSI_REPORT_GEOMETRY	opt_scsi.h
 SCSI_DELAY		opt_scsi.h
-# Resource limits
+
+# Resource limits.
 CHILD_MAX	opt_rlimit.h
 OPEN_MAX	opt_rlimit.h
-# Net stuff
+
+# Net stuff.
 MROUTING	opt_mrouting.h
-GATEWAY		opt_defunct.h
