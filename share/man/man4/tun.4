@@ -206,16 +206,19 @@ The argument should be a pointer to an
 its value must be either
 .Dv IFF_POINTOPOINT
 or
-.Dv IFF_BROADCAST .
+.Dv IFF_BROADCAST
+and should have
+.Dv IFF_MULTICAST
+OR'd into the value if multicast support is required.
 The type of the corresponding
 .Dq Li tun Ns Ar N
 interface is set to the supplied type.
-If the value is anything else, an
+If the value is outside the above range, an
 .Er EINVAL
-error occurs.
+error is returned.
 The interface must be down at the time; if it is up, an
 .Er EBUSY
-error occurs.
+error is returned.
 .It Dv TUNSLMODE
 The argument should be a pointer to an
 .Vt int ;
