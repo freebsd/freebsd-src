@@ -139,7 +139,7 @@ print_half_line (line, indent, out_bound)
 	  break;
 
 	default:
-	  if (! isprint (c))
+	  if (! ISPRINT (c))
 	    goto control_char;
 	  /* falls through */
 	case ' ':

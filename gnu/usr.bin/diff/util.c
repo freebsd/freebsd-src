@@ -1,5 +1,5 @@
 /* Support routines for GNU DIFF.
-   Copyright (C) 1988, 1989, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -18,6 +18,10 @@ along with GNU DIFF; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "diff.h"
+
+#ifndef PR_PROGRAM
+#define PR_PROGRAM "/bin/pr"
+#endif
 
 /* Queue up one-line messages to be printed at the end,
    when -l is specified.  Each message is recorded with a `struct msg'.  */
@@ -48,7 +52,7 @@ perror_with_name (text)
      char const *text;
 {
   int e = errno;
-  fprintf (stderr, "%s: ", program);
+  fprintf (stderr, "%s: ", program_name);
   errno = e;
   perror (text);
 }
@@ -61,7 +65,7 @@ pfatal_with_name (text)
 {
   int e = errno;
   print_message_queue ();
-  fprintf (stderr, "%s: ", program);
+  fprintf (stderr, "%s: ", program_name);
   errno = e;
   perror (text);
   exit (2);
@@ -74,7 +78,7 @@ void
 error (format, arg, arg1)
      char const *format, *arg, *arg1;
 {
-  fprintf (stderr, "%s: ", program);
+  fprintf (stderr, "%s: ", program_name);
   fprintf (stderr, format, arg, arg1);
   fprintf (stderr, "\n");
 }
@@ -157,7 +161,9 @@ setup_output (name0, name1, depth)
   outfile = 0;
 }
 
+#if HAVE_FORK
 static pid_t pr_pid;
+#endif
 
 void
 begin_output ()
@@ -170,19 +176,20 @@ begin_output ()
   /* Construct the header of this piece of diff.  */
   name = xmalloc (strlen (current_name0) + strlen (current_name1)
 		  + strlen (switch_string) + 7);
-  /* Posix.2 section 4.17.6.1.1 specifies this format.  But there are some
-     bugs in the first printing (IEEE Std 1003.2-1992 p 251 l 3304):
-     it says that we must print only the last component of the pathnames,
-     and it requires two spaces after "diff" if there are no options.
-     These requirements are silly and do not match historical practice.  */
+  /* Posix.2 section 4.17.6.1.1 specifies this format.  But there is a
+     bug in the first printing (IEEE Std 1003.2-1992 p 251 l 3304):
+     it says that we must print only the last component of the pathnames.
+     This requirement is silly and does not match historical practice.  */
   sprintf (name, "diff%s %s %s", switch_string, current_name0, current_name1);
 
   if (paginate_flag)
     {
+      /* Make OUTFILE a pipe to a subsidiary `pr'.  */
+
+#if HAVE_FORK
       int pipes[2];
 
-      /* Fork a `pr' and make OUTFILE a pipe to it.  */
-      if (pipe (pipes) < 0)
+      if (pipe (pipes) != 0)
 	pfatal_with_name ("pipe");
 
       fflush (stdout);
@@ -201,14 +208,29 @@ begin_output ()
 	      close (pipes[0]);
 	    }
 
-	  execl (PR_FILE_NAME, PR_FILE_NAME, "-f", "-h", name, 0);
-	  pfatal_with_name (PR_FILE_NAME);
+	  execl (PR_PROGRAM, PR_PROGRAM, "-f", "-h", name, 0);
+	  pfatal_with_name (PR_PROGRAM);
 	}
       else
 	{
 	  close (pipes[0]);
 	  outfile = fdopen (pipes[1], "w");
+	  if (!outfile)
+	    pfatal_with_name ("fdopen");
 	}
+#else /* ! HAVE_FORK */
+      char *command = xmalloc (4 * strlen (name) + strlen (PR_PROGRAM) + 10);
+      char *p;
+      char const *a = name;
+      sprintf (command, "%s -f -h ", PR_PROGRAM);
+      p = command + strlen (command);
+      SYSTEM_QUOTE_ARG (p, a);
+      *p = 0;
+      outfile = popen (command, "w");
+      if (!outfile)
+	pfatal_with_name (command);
+      free (command);
+#endif /* ! HAVE_FORK */
     }
   else
     {
@@ -252,21 +274,15 @@ finish_output ()
       int wstatus;
       if (ferror (outfile))
 	fatal ("write error");
+#if ! HAVE_FORK
+      wstatus = pclose (outfile);
+#else /* HAVE_FORK */
       if (fclose (outfile) != 0)
 	pfatal_with_name ("write error");
-#if HAVE_WAITPID
       if (waitpid (pr_pid, &wstatus, 0) < 0)
 	pfatal_with_name ("waitpid");
-#else
-      for (;;) {
-	pid_t w = wait (&wstatus);
-	if (w < 0)
-	  pfatal_with_name ("wait");
-	if (w == pr_pid)
-	  break;
-      }
-#endif
-      if (! WIFEXITED (wstatus) || WEXITSTATUS (wstatus) != 0)
+#endif /* HAVE_FORK */
+      if (wstatus != 0)
 	fatal ("subsidiary pr failed");
     }
 
@@ -275,56 +291,44 @@ finish_output ()
 
 /* Compare two lines (typically one from each input file)
    according to the command line options.
-   Return 1 if the lines differ, like `memcmp'.  */
+   For efficiency, this is invoked only when the lines do not match exactly
+   but an option like -i might cause us to ignore the difference.
+   Return nonzero if the lines differ.  */
 
 int
-line_cmp (s1, len1, s2, len2)
+line_cmp (s1, s2)
      char const *s1, *s2;
-     size_t len1, len2;
 {
-  register unsigned char const *t1, *t2;
-  register unsigned char end_char = line_end_char;
+  register unsigned char const *t1 = (unsigned char const *) s1;
+  register unsigned char const *t2 = (unsigned char const *) s2;
 
-  /* Check first for exact identity.
-     If that is true, return 0 immediately.
-     This detects the common case of exact identity
-     faster than complete comparison would.  */
-
-  if (len1 == len2 && memcmp (s1, s2, len1) == 0)
-    return 0;
-
-  /* Not exactly identical, but perhaps they match anyway
-     when case or white space is ignored.  */
-
-  if (ignore_case_flag | ignore_space_change_flag | ignore_all_space_flag)
+  while (1)
     {
-      t1 = (unsigned char const *) s1;
-      t2 = (unsigned char const *) s2;
+      register unsigned char c1 = *t1++;
+      register unsigned char c2 = *t2++;
 
-      while (1)
+      /* Test for exact char equality first, since it's a common case.  */
+      if (c1 != c2)
 	{
-	  register unsigned char c1 = *t1++;
-	  register unsigned char c2 = *t2++;
-
 	  /* Ignore horizontal white space if -b or -w is specified.  */
 
 	  if (ignore_all_space_flag)
 	    {
 	      /* For -w, just skip past any white space.  */
-	      while (isspace (c1) && c1 != end_char) c1 = *t1++;
-	      while (isspace (c2) && c2 != end_char) c2 = *t2++;
+	      while (ISSPACE (c1) && c1 != '\n') c1 = *t1++;
+	      while (ISSPACE (c2) && c2 != '\n') c2 = *t2++;
 	    }
 	  else if (ignore_space_change_flag)
 	    {
 	      /* For -b, advance past any sequence of white space in line 1
 		 and consider it just one Space, or nothing at all
 		 if it is at the end of the line.  */
-	      if (isspace (c1))
+	      if (ISSPACE (c1))
 		{
-		  while (c1 != end_char)
+		  while (c1 != '\n')
 		    {
 		      c1 = *t1++;
-		      if (! isspace (c1))
+		      if (! ISSPACE (c1))
 			{
 			  --t1;
 			  c1 = ' ';
@@ -334,12 +338,12 @@ line_cmp (s1, len1, s2, len2)
 		}
 
 	      /* Likewise for line 2.  */
-	      if (isspace (c2))
+	      if (ISSPACE (c2))
 		{
-		  while (c2 != end_char)
+		  while (c2 != '\n')
 		    {
 		      c2 = *t2++;
-		      if (! isspace (c2))
+		      if (! ISSPACE (c2))
 			{
 			  --t2;
 			  c2 = ' ';
@@ -347,23 +351,44 @@ line_cmp (s1, len1, s2, len2)
 			}
 		    }
 		}
+
+	      if (c1 != c2)
+		{
+		  /* If we went too far when doing the simple test
+		     for equality, go back to the first non-white-space
+		     character in both sides and try again.  */
+		  if (c2 == ' ' && c1 != '\n'
+		      && (unsigned char const *) s1 + 1 < t1
+		      && ISSPACE(t1[-2]))
+		    {
+		      --t1;
+		      continue;
+		    }
+		  if (c1 == ' ' && c2 != '\n'
+		      && (unsigned char const *) s2 + 1 < t2
+		      && ISSPACE(t2[-2]))
+		    {
+		      --t2;
+		      continue;
+		    }
+		}
 	    }
 
-	  /* Upcase all letters if -i is specified.  */
+	  /* Lowercase all letters if -i is specified.  */
 
 	  if (ignore_case_flag)
 	    {
-	      if (islower (c1))
-		c1 = toupper (c1);
-	      if (islower (c2))
-		c2 = toupper (c2);
+	      if (ISUPPER (c1))
+		c1 = tolower (c1);
+	      if (ISUPPER (c2))
+		c2 = tolower (c2);
 	    }
 
 	  if (c1 != c2)
 	    break;
-	  if (c1 == end_char)
-	    return 0;
 	}
+      if (c1 == '\n')
+	return 0;
     }
 
   return (1);
@@ -454,8 +479,7 @@ print_1_line (line_flag, line)
 
   output_1_line (text, limit, flag_format, line_flag);
 
-  if ((!line_flag || line_flag[0]) && limit[-1] != '\n'
-      && line_end_char == '\n')
+  if ((!line_flag || line_flag[0]) && limit[-1] != '\n')
     fprintf (out, "\n\\ No newline at end of file\n");
 }
 
@@ -505,7 +529,7 @@ output_1_line (text, limit, flag_format, line_flag)
 	    break;
 
 	  default:
-	    if (isprint (c))
+	    if (ISPRINT (c))
 	      column++;
 	    putc (c, out);
 	    break;
@@ -558,7 +582,7 @@ translate_range (file, a, b, aptr, bptr)
 
 void
 print_number_range (sepchar, file, a, b)
-     char sepchar;
+     int sepchar;
      struct file_data *file;
      int a, b;
 {
@@ -714,7 +738,8 @@ char *
 dir_file_pathname (dir, file)
      char const *dir, *file;
 {
-  return concat (dir, "/" + (*dir && dir[strlen (dir) - 1] == '/'), file);
+  char const *p = filename_lastdirchar (dir);
+  return concat (dir, "/" + (p && !p[1]), file);
 }
 
 void
@@ -727,18 +752,3 @@ debug_script (sp)
 	     sp->line0, sp->line1, sp->deleted, sp->inserted);
   fflush (stderr);
 }
-
-#if !HAVE_MEMCHR
-char *
-memchr (s, c, n)
-     char const *s;
-     int c;
-     size_t n;
-{
-  unsigned char const *p = (unsigned char const *) s, *lim = p + n;
-  for (;  p < lim;  p++)
-    if (*p == c)
-      return (char *) p;
-  return 0;
-}
-#endif

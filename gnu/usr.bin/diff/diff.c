@@ -1,5 +1,5 @@
 /* GNU DIFF main routine.
-   Copyright (C) 1988, 1989, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -22,6 +22,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define GDIFF_MAIN
 #include "diff.h"
+#include <signal.h>
 #include "getopt.h"
 #include "fnmatch.h"
 
@@ -42,7 +43,9 @@ static int specify_format PARAMS((char **, char *));
 static void add_exclude PARAMS((char const *));
 static void add_regexp PARAMS((struct regexp_list **, char const *));
 static void specify_style PARAMS((enum output_style));
-static void usage PARAMS((char const *));
+static void try_help PARAMS((char const *));
+static void check_stdout PARAMS((void));
+static void usage PARAMS((void));
 
 /* Nonzero for -r: if comparing two directories,
    compare their common subdirectories recursively.  */
@@ -52,6 +55,11 @@ static int recursive;
 /* For debugging: don't do discard_confusing_lines.  */
 
 int no_discards;
+
+#if HAVE_SETMODE
+/* I/O mode: nonzero only if using binary input/output.  */
+static int binary_I_O;
+#endif
 
 /* Return a string containing the command options with which diff was invoked.
    Spaces appear between what were separate ARGV-elements.
@@ -189,7 +197,6 @@ static struct option const longopts[] =
   {"print", 0, 0, 'l'},		/* An alias, no longer recommended */
   {"rcs", 0, 0, 'n'},
   {"show-c-function", 0, 0, 'p'},
-  {"binary", 0, 0, 'q'},	/* An alias, no longer recommended */
   {"brief", 0, 0, 'q'},
   {"recursive", 0, 0, 'r'},
   {"report-identical-files", 0, 0, 's'},
@@ -213,6 +220,7 @@ static struct option const longopts[] =
   {"changed-group-format", 1, 0, 139},
   {"horizon-lines", 1, 0, 140},
   {"help", 0, 0, 141},
+  {"binary", 0, 0, 142},
   {0, 0, 0, 0}
 };
 
@@ -225,12 +233,13 @@ main (argc, argv)
   int c;
   int prev = -1;
   int width = DEFAULT_WIDTH;
+  int show_c_function = 0;
 
   /* Do our initializations.  */
-  program = argv[0];
+  initialize_main (&argc, &argv);
+  program_name = argv[0];
   output_style = OUTPUT_NORMAL;
   context = -1;
-  line_end_char = '\n';
 
   /* Decode the options.  */
 
@@ -270,8 +279,8 @@ main (argc, argv)
 	case 'b':
 	  /* Ignore changes in amount of white space.  */
 	  ignore_space_change_flag = 1;
-	  length_varies = 1;
 	  ignore_some_changes = 1;
+	  ignore_some_line_changes = 1;
 	  break;
 
 	case 'B':
@@ -362,6 +371,7 @@ main (argc, argv)
 	  /* Ignore changes in case.  */
 	  ignore_case_flag = 1;
 	  ignore_some_changes = 1;
+	  ignore_some_line_changes = 1;
 	  break;
 
 	case 'I':
@@ -374,6 +384,14 @@ main (argc, argv)
 	case 'l':
 	  /* Pass the output through `pr' to paginate it.  */
 	  paginate_flag = 1;
+#if !defined(SIGCHLD) && defined(SIGCLD)
+#define SIGCHLD SIGCLD
+#endif
+#ifdef SIGCHLD
+	  /* Pagination requires forking and waiting, and
+	     System V fork+wait does not work if SIGCHLD is ignored.  */
+	  signal (SIGCHLD, SIG_DFL);
+#endif
 	  break;
 
 	case 'L':
@@ -400,7 +418,7 @@ main (argc, argv)
 
 	case 'p':
 	  /* Make context-style output and show name of last C function.  */
-	  specify_style (OUTPUT_CONTEXT);
+	  show_c_function = 1;
 	  add_regexp (&function_regexp_list, "^[_a-zA-Z$]");
 	  break;
 
@@ -451,14 +469,14 @@ main (argc, argv)
 	  break;
 
 	case 'v':
-	  printf ("GNU diff version %s\n", version_string);
+	  printf ("diff - GNU diffutils version %s\n", version_string);
 	  exit (0);
 
 	case 'w':
 	  /* Ignore horizontal white space when comparing lines.  */
 	  ignore_all_space_flag = 1;
 	  ignore_some_changes = 1;
-	  length_varies = 1;
+	  ignore_some_line_changes = 1;
 	  break;
 
 	case 'x':
@@ -529,16 +547,27 @@ main (argc, argv)
 	  break;
 
 	case 141:
-	  usage (0);
+	  usage ();
+	  check_stdout ();
+	  exit (0);
+
+	case 142:
+	  /* Use binary I/O when reading and writing data.
+	     On Posix hosts, this has no effect.  */
+#if HAVE_SETMODE
+	  binary_I_O = 1;
+	  setmode (STDOUT_FILENO, O_BINARY);
+#endif
+	  break;
 
 	default:
-	  usage ("");
+	  try_help (0);
 	}
       prev = c;
     }
 
-  if (optind != argc - 2)
-    usage (optind < argc - 2 ? "extra operand" : "missing operand");
+  if (argc - optind != 2)
+    try_help (argc - optind < 2 ? "missing operand" : "extra operand");
 
 
   {
@@ -558,6 +587,9 @@ main (argc, argv)
     sdiff_column2_offset = sdiff_half_width ? off : width;
   }
 
+  if (show_c_function && output_style != OUTPUT_UNIFIED)
+    specify_style (OUTPUT_CONTEXT);
+
   if (output_style != OUTPUT_CONTEXT && output_style != OUTPUT_UNIFIED)
     context = 0;
   else if (context == -1)
@@ -566,6 +598,10 @@ main (argc, argv)
 
   if (output_style == OUTPUT_IFDEF)
     {
+      /* Format arrays are char *, not char const *,
+	 because integer formats are temporarily modified.
+	 But it is safe to assign a constant like "%=" to a format array,
+	 since "%=" does not format any integers.  */
       int i;
       for (i = 0; i < sizeof (line_format) / sizeof (*line_format); i++)
 	if (!line_format[i])
@@ -597,8 +633,7 @@ main (argc, argv)
   /* Print any messages that were saved up for last.  */
   print_message_queue ();
 
-  if (ferror (stdout) || fclose (stdout) != 0)
-    fatal ("write error");
+  check_stdout ();
   exit (val);
   return val;
 }
@@ -626,37 +661,96 @@ add_regexp (reglist, pattern)
 }
 
 static void
-usage (reason)
+try_help (reason)
      char const *reason;
 {
-  if (reason && *reason)
-    fprintf (stderr, "%s: %s\n", program, reason);
-  fflush (stderr);
-  printf ("Usage: %s [options] from-file to-file\n", program);
-  printf ("Options:\n\
-	[-abBcdefhHilnNpPqrstTuvwy] [-C lines] [-D name] [-F regexp]\n\
-	[-I regexp] [-L from-label [-L to-label]] [-S starting-file] [-U lines]\n\
-	[-W columns] [-x pattern] [-X pattern-file]\n");
-  printf ("\
-	[--brief] [--changed-group-format=format] [--context[=lines]] [--ed]\n\
-	[--exclude=pattern] [--exclude-from=pattern-file] [--expand-tabs]\n\
-	[--forward-ed] [--help] [--horizon-lines=lines] [--ifdef=name]\n\
-	[--ignore-all-space] [--ignore-blank-lines] [--ignore-case]\n");
-  printf ("\
-	[--ignore-matching-lines=regexp] [--ignore-space-change]\n\
-	[--initial-tab] [--label=from-label [--label=to-label]]\n\
-	[--left-column] [--minimal] [--new-file] [--new-group-format=format]\n\
-	[--new-line-format=format] [--old-group-format=format]\n");
-  printf ("\
-	[--old-line-format=format] [--paginate] [--rcs] [--recursive]\n\
-	[--report-identical-files] [--sdiff-merge-assist] [--show-c-function]\n\
-	[--show-function-line=regexp] [--side-by-side] [--speed-large-files]\n\
-	[--starting-file=starting-file] [--suppress-common-lines] [--text]\n");
-  printf ("\
-	[--unchanged-group-format=format] [--unchanged-line-format=format]\n\
-	[--unidirectional-new-file] [--unified[=lines]] [--version]\n\
-	[--width=columns]\n");
-  exit (reason ? 2 : 0);
+  if (reason)
+    error ("%s", reason, 0);
+  error ("Try `%s --help' for more information.", program_name, 0);
+  exit (2);
+}
+
+static void
+check_stdout ()
+{
+  if (ferror (stdout) || fclose (stdout) != 0)
+    fatal ("write error");
+}
+
+static char const * const option_help[] = {
+"-i  --ignore-case  Consider upper- and lower-case to be the same.",
+"-w  --ignore-all-space  Ignore all white space.",
+"-b  --ignore-space-change  Ignore changes in the amount of white space.",
+"-B  --ignore-blank-lines  Ignore changes whose lines are all blank.",
+"-I RE  --ignore-matching-lines=RE  Ignore changes whose lines all match RE.",
+#if HAVE_SETMODE
+"--binary  Read and write data in binary mode.",
+#endif
+"-a  --text  Treat all files as text.\n",
+"-c  -C NUM  --context[=NUM]  Output NUM (default 2) lines of copied context.",
+"-u  -U NUM  --unified[=NUM]  Output NUM (default 2) lines of unified context.",
+"  -NUM  Use NUM context lines.",
+"  -L LABEL  --label LABEL  Use LABEL instead of file name.",
+"  -p  --show-c-function  Show which C function each change is in.",
+"  -F RE  --show-function-line=RE  Show the most recent line matching RE.",
+"-q  --brief  Output only whether files differ.",
+"-e  --ed  Output an ed script.",
+"-n  --rcs  Output an RCS format diff.",
+"-y  --side-by-side  Output in two columns.",
+"  -w NUM  --width=NUM  Output at most NUM (default 130) characters per line.",
+"  --left-column  Output only the left column of common lines.",
+"  --suppress-common-lines  Do not output common lines.",
+"-DNAME  --ifdef=NAME  Output merged file to show `#ifdef NAME' diffs.",
+"--GTYPE-group-format=GFMT  Similar, but format GTYPE input groups with GFMT.",
+"--line-format=LFMT  Similar, but format all input lines with LFMT.",
+"--LTYPE-line-format=LFMT  Similar, but format LTYPE input lines with LFMT.",
+"  LTYPE is `old', `new', or `unchanged'.  GTYPE is LTYPE or `changed'.",
+"  GFMT may contain:",
+"    %<  lines from FILE1",
+"    %>  lines from FILE2",
+"    %=  lines common to FILE1 and FILE2",
+"    %[-][WIDTH][.[PREC]]{doxX}LETTER  printf-style spec for LETTER",
+"      LETTERs are as follows for new group, lower case for old group:",
+"        F  first line number",
+"        L  last line number",
+"        N  number of lines = L-F+1",
+"        E  F-1",
+"        M  L+1",
+"  LFMT may contain:",
+"    %L  contents of line",
+"    %l  contents of line, excluding any trailing newline",
+"    %[-][WIDTH][.[PREC]]{doxX}n  printf-style spec for input line number",
+"  Either GFMT or LFMT may contain:",
+"    %%  %",
+"    %c'C'  the single character C",
+"    %c'\\OOO'  the character with octal code OOO\n",
+"-l  --paginate  Pass the output through `pr' to paginate it.",
+"-t  --expand-tabs  Expand tabs to spaces in output.",
+"-T  --initial-tab  Make tabs line up by prepending a tab.\n",
+"-r  --recursive  Recursively compare any subdirectories found.",
+"-N  --new-file  Treat absent files as empty.",
+"-P  --unidirectional-new-file  Treat absent first files as empty.",
+"-s  --report-identical-files  Report when two files are the same.",
+"-x PAT  --exclude=PAT  Exclude files that match PAT.",
+"-X FILE  --exclude-from=FILE  Exclude files that match any pattern in FILE.",
+"-S FILE  --starting-file=FILE  Start with FILE when comparing directories.\n",
+"--horizon-lines=NUM  Keep NUM lines of the common prefix and suffix.",
+"-d  --minimal  Try hard to find a smaller set of changes.",
+"-H  --speed-large-files  Assume large files and many scattered small changes.\n",
+"-v  --version  Output version info.",
+"--help  Output this help.",
+0
+};
+
+static void
+usage ()
+{
+  char const * const *p;
+
+  printf ("Usage: %s [OPTION]... FILE1 FILE2\n\n", program_name);
+  for (p = option_help;  *p;  p++)
+    printf ("  %s\n", *p);
+  printf ("\nIf FILE1 or FILE2 is `-', read standard input.\n");
 }
 
 static int
@@ -710,8 +804,19 @@ filetype (st)
   if (S_ISFIFO (st->st_mode)) return "fifo";
 #endif
 
+  /* other Posix.1b file types */
+#ifdef S_TYPEISMQ
+  if (S_TYPEISMQ (st)) return "message queue";
+#endif
+#ifdef S_TYPEISSEM
+  if (S_TYPEISSEM (st)) return "semaphore";
+#endif
+#ifdef S_TYPEISSHM
+  if (S_TYPEISSHM (st)) return "shared memory object";
+#endif
+
   /* other popular file types */
-  /* S_ISLNK is impossible with `stat'.  */
+  /* S_ISLNK is impossible with `fstat' and `stat'.  */
 #ifdef S_ISSOCK
   if (S_ISSOCK (st->st_mode)) return "socket";
 #endif
@@ -781,7 +886,7 @@ compare_files (dir0, name0, dir1, name1, depth)
 	{
 	  int stat_result;
 
-	  if (i && strcmp (inf[i].name, inf[0].name) == 0)
+	  if (i && filename_cmp (inf[i].name, inf[0].name) == 0)
 	    {
 	      inf[i].stat = inf[0].stat;
 	      stat_result = 0;
@@ -835,7 +940,7 @@ compare_files (dir0, name0, dir1, name1, depth)
       int dir_arg = 1 - fnm_arg;
       char const *fnm = inf[fnm_arg].name;
       char const *dir = inf[dir_arg].name;
-      char const *p = strrchr (fnm, '/');
+      char const *p = filename_lastdirchar (fnm);
       char const *filename = inf[dir_arg].name
 	= dir_file_pathname (dir, p ? p + 1 : fnm);
 
@@ -859,11 +964,8 @@ compare_files (dir0, name0, dir1, name1, depth)
       val = 2;
 
     }
-  else if ((same_files =    inf[0].stat.st_ino == inf[1].stat.st_ino
-			 && inf[0].stat.st_dev == inf[1].stat.st_dev
-			 && inf[0].stat.st_size == inf[1].stat.st_size
-			 && inf[0].desc != -1
-			 && inf[1].desc != -1)
+  else if ((same_files = inf[0].desc != -1 && inf[1].desc != -1
+			 && 0 < same_file (&inf[0].stat, &inf[1].stat))
 	   && no_diff_means_no_output)
     {
       /* The two named files are actually the same physical file.
@@ -956,6 +1058,13 @@ compare_files (dir0, name0, dir1, name1, depth)
 	    perror_with_name (inf[1].name);
 	    failed = 1;
 	  }
+
+#if HAVE_SETMODE
+      if (binary_I_O)
+	for (i = 0; i <= 1; i++)
+	  if (0 <= inf[i].desc)
+	    setmode (inf[i].desc, O_BINARY);
+#endif
 
       /* Compare the files, if no error was found.  */
 
