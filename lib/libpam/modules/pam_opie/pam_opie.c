@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 
 #define PAM_SM_AUTH
@@ -73,7 +72,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	char prompt[OPIE_CHALLENGE_MAX+22];
 	char resp[OPIE_SECRET_MAX];
 	const char *user, *response, *rhost;
-	char *encrypted;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -90,14 +88,16 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	user = NULL;
 	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
-		pwd = getpwnam(getlogin());
+		if ((pwd = getpwnam(getlogin())) == NULL)
+			PAM_RETURN(PAM_AUTH_ERR);
 		user = pwd->pw_name;
 	}
 	else {
 		retval = pam_get_user(pamh, (const char **)&user, NULL);
 		if (retval != PAM_SUCCESS)
 			PAM_RETURN(retval);
-		pwd = getpwnam(user);
+		if ((pwd = getpwnam(user)) == NULL)
+			PAM_RETURN(PAM_AUTH_ERR);
 	}
 
 	PAM_LOG("Got user: %s", user);
@@ -111,8 +111,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	if (opiechallenge(&opie, (char *)user, challenge) == 0) {
 		rhost = NULL;
 		(void) pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
-		pwok = (pwd != NULL) &&
-		       (rhost != NULL) && (*rhost != '\0') &&
+		pwok = (rhost != NULL) && (*rhost != '\0') &&
 		       opieaccessfile((char *)rhost) &&
 		       opiealways(pwd->pw_dir);
 	} else
@@ -135,7 +134,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	}
 
 	/* We have to copy the response, because opieverify mucks with it. */
-	snprintf(resp, sizeof resp, "%s", response);
+	strlcpy(resp, response, sizeof resp);
 
 	/*
 	 * Opieverify is supposed to return -1 only if an error occurs.
@@ -143,19 +142,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	 * it expects.  Thus we can't log an error and can only check for
 	 * success or lack thereof.
 	 */
-	if (opieverify(&opie, resp) == 0)
+	if (opieverify(&opie, resp) != 0)
+		/* Chained pam_unix expected */
+		retval = pwok ? PAM_SUCCESS : PAM_AUTH_ERR;
+	else
 		retval = PAM_SUCCESS;
-	else if (pwok) {
-		encrypted = crypt(resp, pwd->pw_passwd);
-		if (resp[0] == '\0' && pwd->pw_passwd[0] != '\0')
-			encrypted = ":";
-		if (strcmp(encrypted, pwd->pw_passwd) != 0 ||
-		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire))
-			retval = PAM_AUTH_ERR;
-		else
-			retval = PAM_SUCCESS;
-	} else
-		retval = PAM_AUTH_ERR;
 	PAM_RETURN(retval);
 }
 
