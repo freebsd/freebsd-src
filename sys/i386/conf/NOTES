@@ -585,6 +585,14 @@ device		ath_hal		# Atheros HAL (includes binary component)
 device		pst
 
 #
+# 3ware 9000 series PATA/SATA RAID controller driver and options.
+# The driver is implemented as a SIM, and so, needs the CAM infrastructure.
+#
+options		TWA_DEBUG		# 0-10; 10 prints the most messages.
+options		TWA_FLASH_FIRMWARE	# firmware image bundled when defined.
+device		twa			# 3ware 9000 series PATA/SATA RAID
+
+#
 # SCSI host adapters:
 #
 # ncv: NCR 53C500 based SCSI host adapters.
