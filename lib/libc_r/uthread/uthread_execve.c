@@ -69,6 +69,10 @@ _execve(const char *name, char *const * argv, char *const * envp)
 		/* Check if this file descriptor is in use: */
 		if (_thread_fd_table[i] != NULL &&
 		    (_thread_fd_getflags(i) & O_NONBLOCK) == 0) {
+			/* Skip if the close-on-exec flag is set */
+			flags = __sys_fcntl(i, F_GETFD, NULL);
+			if ((flags & FD_CLOEXEC) != 0)
+				continue;	/* don't bother, no point */
 			/* Get the current flags: */
 			flags = __sys_fcntl(i, F_GETFL, NULL);
 			/* Clear the nonblocking file descriptor flag: */
