@@ -56,6 +56,8 @@ struct utmp;
 struct in_addr;
 
 __BEGIN_DECLS
+void	clean_environment(const char * const *_white,
+	    const char * const *_more_white);
 int	extattr_namespace_to_string(int _attrnamespace, char **_string);
 int	extattr_string_to_namespace(const char *_string, int *_attrnamespace);
 void	login(struct utmp *_ut);
