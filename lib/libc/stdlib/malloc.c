@@ -326,6 +326,8 @@ map_pages(size_t pages)
 
     result = (caddr_t)pageround((u_long)sbrk(0));
     tail = result + (pages << malloc_pageshift);
+    if (tail < result)
+	return 0;
 
     if (brk(tail)) {
 #ifdef EXTRA_SANITY
@@ -744,6 +746,8 @@ imalloc(size_t size)
 	abort();
 
     if ((size + malloc_pagesize) < size)	/* Check for overflow */
+	result = 0;
+    else if ((size + malloc_pagesize) >= (uintptr_t)page_dir)
 	result = 0;
     else if (size <= malloc_maxsize)
 	result =  malloc_bytes(size);
