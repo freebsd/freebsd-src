@@ -50,6 +50,8 @@
 static int flag_c;
 static int flag_I = 500000;
 
+static void usage(void);
+
 int
 main(int argc, char **argv)
 {
@@ -88,13 +90,13 @@ main(int argc, char **argv)
 			break;
 		case '?':
 		default:
-			errx(1, "Usage!");
+			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
 	if (argc != 0)
-		errx(1, "Usage!");
+		usage();
 
 	i = geom_gettree(&gmp);
 	if (i != 0)
@@ -232,4 +234,12 @@ main(int argc, char **argv)
 
 	endwin();
 	exit (0);
+}
+
+static void
+usage(void)
+{
+        fprintf(stderr, "usage: gstat [-c] [-I interval]\n");
+        exit(1);
+        /* NOTREACHED */
 }
