@@ -233,7 +233,7 @@ match(fp)   /* group substring between two KDELIM's; then do pattern match */
       if (c == EOF  &&  feof(fp) | ferror(fp))
 	 return c;
       switch (ctab[c]) {
-	 case LETTER: case Letter:
+	 case LETTER: case Letter: case DIGIT:
 	    *tp++ = c;
 	    if (tp < line+sizeof(line)-4)
 	       break;
