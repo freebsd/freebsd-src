@@ -22,13 +22,12 @@ LDADD+=	${LIBCC_INT}
 .ORDER: c-parse.c c-parse.h
 c-parse.c c-parse.h: c-parse.in
 	sed -e "/^ifobjc$$/,/^end ifobjc$$/d" \
-	    -e "/^ifc$$/d" -e "/^end ifc$$/d" \
-	    ${GCCDIR}/c-parse.in > c-parse.y
+	    -e "/^ifc$$/d" \
+	    -e "/^end ifc$$/d" \
+	    ${.ALLSRC} > c-parse.y
 	${YACC} -d -o c-parse.c c-parse.y
-	mv c-parse.y c-parse.y.out
 
-CLEANFILES+=	c-parse.c c-parse.h \
-		c-parse.y c-parse.y.out		# insurance
+CLEANFILES+=	c-parse.c c-parse.h c-parse.y		# insurance
 
 #-----------------------------------------------------------------------
 
