@@ -134,7 +134,7 @@ int main()
 		printf("%s:\n", if_indextoname(ifnet.if_index, ifname));
 
 		if6_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
-		nifp = ifnet.if_link.tqe_next;
+		nifp = TAILQ_NEXT(&ifnet, if_link);
 
 		/* not supported */
 
@@ -191,7 +191,7 @@ if6_addrlist(ifap)
 		KREAD(ifap, &if6a, struct in6_ifaddr);
 		printf("\tinet6 %s\n", inet6_n2a(&if6a.ia_addr.sin6_addr));
 	nextifap:
-		ifap = ifa.ifa_link.tqe_next;
+		ifap = TAILQ_NEXT(&ifa, ifa_link);
 	}
 	if (ifap0) {
 		struct ifnet ifnet;
@@ -203,8 +203,8 @@ if6_addrlist(ifap)
 
 		KREAD(ifap0, &ifa, struct ifaddr);
 		KREAD(ifa.ifa_ifp, &ifnet, struct ifnet);
-		if (ifnet.if_multiaddrs.lh_first)
-			ifmp = ifnet.if_multiaddrs.lh_first;
+		if (LIST_FIRST(&ifnet.if_multiaddrs))
+			ifmp = LIST_FIRST(&ifnet.if_multiaddrs);
 		while (ifmp) {
 			KREAD(ifmp, &ifm, struct ifmultiaddr);
 			if (ifm.ifma_addr == NULL)
@@ -221,7 +221,7 @@ if6_addrlist(ifap)
 			       ether_ntoa((struct ether_addr *)LLADDR(&sdl)),
 			       ifm.ifma_refcount);
 		    nextmulti:
-			ifmp = ifm.ifma_link.le_next;
+			ifmp = LIST_NEXT(&ifm, ifma_link);
 		}
 	}
 #ifdef N_IN6_MK
@@ -235,12 +235,12 @@ if6_addrlist(ifap)
 
 		nam = strdup(ifname(ifa.ifa_ifp));
 
-		for (mkp = in6_mk.lh_first; mkp; mkp = mk.mk_entry.le_next) {
+		LIST_FOREACH(mkp, &in6_mk, mk_entry) {
 			KREAD(mkp, &mk, struct multi6_kludge);
 			if (strcmp(nam, ifname(mk.mk_ifp)) == 0 &&
-			    mk.mk_head.lh_first) {
+			    LIST_FIRST(&mk.mk_head)) {
 				printf("\t(on kludge entry for %s)\n", nam);
-				in6_multilist(mk.mk_head.lh_first);
+				in6_multilist(LIST_FIRST(&mk.mk_head));
 			}
 		}
 
@@ -258,7 +258,7 @@ in6_multientry(mc)
 	KREAD(mc, &multi, struct in6_multi);
 	printf("\t\tgroup %s", inet6_n2a(&multi.in6m_addr));
 	printf(" refcnt %u\n", multi.in6m_refcount);
-	return(multi.in6m_entry.le_next);
+	return(LIST_NEXT(&multi, in6m_entry));
 }
 
 void
