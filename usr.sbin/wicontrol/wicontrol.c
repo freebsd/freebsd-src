@@ -123,6 +123,7 @@ wi_getval(const char *iface, struct wi_req *wreq)
 {
 	struct ifreq		ifr;
 	int			s;
+	int			retval;
 
 	bzero((char *)&ifr, sizeof(ifr));
 
@@ -130,19 +131,12 @@ wi_getval(const char *iface, struct wi_req *wreq)
 	ifr.ifr_data = (caddr_t)wreq;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
-
 	if (s == -1)
 		err(1, "socket");
-
-	if (ioctl(s, SIOCGWAVELAN, &ifr) == -1) {
-		if (errno != EINPROGRESS)
-			err(1, "SIOCGWAVELAN");
-		return (-1);
-	}
-
+	retval = ioctl(s, SIOCGWAVELAN, &ifr);
 	close(s);
 
-	return (0);
+	return (retval);
 }
 
 static void
@@ -321,20 +315,25 @@ wi_setkeys(const char *iface, char *key, int idx)
 	struct wi_req		wreq;
 	struct wi_ltv_keys	*keys;
 	struct wi_key		*k;
+	int			has_wep;
 
 	bzero((char *)&wreq, sizeof(wreq));
 	wreq.wi_len = WI_MAX_DATALEN;
 	wreq.wi_type = WI_RID_WEP_AVAIL;
 
-	wi_getval(iface, &wreq);
-	if (wreq.wi_val[0] == 0)
+	if (wi_getval(iface, &wreq) == 0)
+		has_wep = wreq.wi_val[0];
+	else
+		has_wep = 0;
+	if (!has_wep)
 		errx(1, "no WEP option available on this card");
 
 	bzero((char *)&wreq, sizeof(wreq));
 	wreq.wi_len = WI_MAX_DATALEN;
 	wreq.wi_type = WI_RID_DEFLT_CRYPT_KEYS;
 
-	wi_getval(iface, &wreq);
+	if (wi_getval(iface, &wreq) == -1)
+		errx(1, "Cannot get default key index");
 	keys = (struct wi_ltv_keys *)&wreq;
 
 	keylen = strlen(key);
@@ -540,8 +539,10 @@ wi_printaplist(const char *iface)
 	wreq.wi_len = WI_MAX_DATALEN;
 	wreq.wi_type = WI_RID_PRISM2;
 
-	wi_getval(iface, &wreq);
-	prism2 = wreq.wi_val[0];
+	if (wi_getval(iface, &wreq) == 0)
+		prism2 = wreq.wi_val[0];
+	else
+		prism2 = 0;
 
 	/* send out a scan request */
 	wreq.wi_len = 1;
@@ -666,8 +667,10 @@ wi_dumpinfo(const char *iface)
 	wreq.wi_len = WI_MAX_DATALEN;
 	wreq.wi_type = WI_RID_WEP_AVAIL;
 
-	wi_getval(iface, &wreq);
-	has_wep = wreq.wi_val[0];
+	if (wi_getval(iface, &wreq) == 0)
+		has_wep = wreq.wi_val[0];
+	else
+		has_wep = 0;
 
 	w = wi_table;
 
@@ -677,7 +680,8 @@ wi_dumpinfo(const char *iface)
 		wreq.wi_len = WI_MAX_DATALEN;
 		wreq.wi_type = w[i].wi_code;
 
-		wi_getval(iface, &wreq);
+		if (wi_getval(iface, &wreq) == -1)
+			continue;
 		printf("%s", w[i].wi_str);
 		switch(w[i].wi_type) {
 		case WI_STRING:
@@ -715,7 +719,8 @@ wi_dumpinfo(const char *iface)
 			wreq.wi_len = WI_MAX_DATALEN;
 			wreq.wi_type = w[i].wi_code;
 
-			wi_getval(iface, &wreq);
+			if (wi_getval(iface, &wreq) == -1)
+				continue;
 			printf("%s", w[i].wi_str);
 			switch(w[i].wi_type) {
 			case WI_STRING:
@@ -761,7 +766,8 @@ wi_dumpstats(const char *iface)
 	wreq.wi_len = WI_MAX_DATALEN;
 	wreq.wi_type = WI_RID_IFACE_STATS;
 
-	wi_getval(iface, &wreq);
+	if (wi_getval(iface, &wreq) == -1)
+		errx(1, "Cannot get interface stats");
 
 	c = (struct wi_counters *)&wreq.wi_val;
 
@@ -918,8 +924,8 @@ wi_dumpstations(const char *iface)
 	wreq.wi_len = WI_MAX_DATALEN;
 	wreq.wi_type = WI_RID_READ_APS;
 
-	wi_getval(iface, &wreq);
-
+	if (wi_getval(iface, &wreq) == -1)
+		errx(1, "Cannot get stations");
 	wi_printaps(&wreq);
 }
 
@@ -935,7 +941,6 @@ wi_zerocache(const char *iface)
 	bzero((char *)&wreq, sizeof(wreq));
 	wreq.wi_len = 0;
 	wreq.wi_type = WI_RID_ZERO_CACHE;
-
 	wi_getval(iface, &wreq);
 }
 
@@ -954,8 +959,8 @@ wi_readcache(const char *iface)
 	bzero((char *)&wreq, sizeof(wreq));
 	wreq.wi_len = WI_MAX_DATALEN;
 	wreq.wi_type = WI_RID_READ_CACHE;
-
-	wi_getval(iface, &wreq);
+	if (wi_getval(iface, &wreq) == -1)
+		errx(1, "Cannot read signal cache");
 
 	wi_sigitems = (int *) &wreq.wi_val; 
 	pt = ((char *) &wreq.wi_val);
@@ -985,6 +990,13 @@ wi_readcache(const char *iface)
 	return;
 }
 #endif
+
+static void
+dep(const char *flag, const char *opt)
+{
+	warnx("warning: flag %s deprecated, migrate to ifconfig %s", flag,
+	    opt);
+}
 
 int
 main(int argc, char *argv[])
@@ -1036,7 +1048,7 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
 		case 'c':
-			warnx("c obsolete, use ifconfig mediaopt");
+			dep("c", "mediaopt");
 			wi_setword(iface, WI_RID_CREATE_IBSS, atoi(optarg));
 			exit(0);
 			break;
@@ -1045,12 +1057,12 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
 		case 'e':
-			warnx("e obsolete, use ifconfig wepmode");
+			dep("e", "wepmode");
 			wi_setword(iface, WI_RID_ENCRYPTION, atoi(optarg));
 			exit(0);
 			break;
 		case 'f':
-			warnx("f obsolete, use ifconfig channel");
+			dep("f", "channel");
 			wi_setword(iface, WI_RID_OWN_CHNL, atoi(optarg));
 			exit(0);
 			break;
@@ -1059,7 +1071,7 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
  		case 'k':
-			warnx("k obsolete, use ifconfig wepkey");
+			dep("k", "wepkey");
  			key = optarg;
 			break;
 		case 'L':
@@ -1070,7 +1082,7 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
 		case 'p':
-			warnx("p obsolete, use ifconfig mediaopt");
+			dep("p", "mediaopt");
 			wi_setword(iface, WI_RID_PORTTYPE, atoi(optarg));
 			exit(0);
 			break;
@@ -1079,17 +1091,17 @@ main(int argc, char *argv[])
 			exit(0);
 			break;
 		case 't':
-			warnx("t obsolete, use ifconfig meidaopt");
+			dep("t", "mediaopt");
 			wi_setword(iface, WI_RID_TX_RATE, atoi(optarg));
 			exit(0);
 			break;
 		case 'n':
-			warnx("n obsolete, use ifconfig ssid");
+			dep("n", "ssid");
 			wi_setstr(iface, WI_RID_DESIRED_SSID, optarg);
 			exit(0);
 			break;
 		case 's':
-			warnx("s obsolete, use ifconfig stationname");
+			dep("s", "stationname");
 			wi_setstr(iface, WI_RID_NODENAME, optarg);
 			exit(0);
 			break;
@@ -1101,23 +1113,23 @@ main(int argc, char *argv[])
 			quiet = 1;
 			break;
 		case 'q':
-			warnx("q obsolete, use ifconfig ssid");
+			dep("q", "ssid");
 			wi_setstr(iface, WI_RID_OWN_SSID, optarg);
 			exit(0);
 			break;
 		case 'S':
-			warnx("S obsolete, use ifconfig powersleep");
+			dep("S", "powersleep");
 			wi_setword(iface, WI_RID_MAX_SLEEP, atoi(optarg));
 			exit(0);
 			break;
 		case 'T':
-			warnx("T obsolete, use ifconfig weptxkey");
+			dep("T", "weptxkey");
 			wi_setword(iface,
 			    WI_RID_TX_CRYPT_KEY, atoi(optarg) - 1);
 			exit(0);
 			break;
 		case 'P':
-			warnx("P obsolete, use ifconfig powersave");
+			dep("P", "powersave");
 			wi_setword(iface, WI_RID_PM_ENABLED, atoi(optarg));
 			exit(0);
 			break;
