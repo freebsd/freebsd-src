@@ -145,7 +145,7 @@ soisdisconnecting(so)
 
 	so->so_state &= ~SS_ISCONNECTING;
 	so->so_state |= (SS_ISDISCONNECTING|SS_CANTRCVMORE|SS_CANTSENDMORE);
-	wakeup((caddr_t)&so->so_timeo);
+	wakeup(&so->so_timeo);
 	sowwakeup(so);
 	sorwakeup(so);
 }
@@ -157,7 +157,7 @@ soisdisconnected(so)
 
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
 	so->so_state |= (SS_CANTRCVMORE|SS_CANTSENDMORE|SS_ISDISCONNECTED);
-	wakeup((caddr_t)&so->so_timeo);
+	wakeup(&so->so_timeo);
 	sowwakeup(so);
 	sorwakeup(so);
 }
@@ -216,7 +216,7 @@ sonewconn(head, connstatus)
 	}
 	if (connstatus) {
 		sorwakeup(head);
-		wakeup((caddr_t)&head->so_timeo);
+		wakeup(&head->so_timeo);
 		so->so_state |= connstatus;
 	}
 	return (so);
@@ -259,7 +259,7 @@ sbwait(sb)
 {
 
 	sb->sb_flags |= SB_WAIT;
-	return (tsleep((caddr_t)&sb->sb_cc,
+	return (tsleep(&sb->sb_cc,
 	    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK | PCATCH, "sbwait",
 	    sb->sb_timeo));
 }
@@ -276,7 +276,7 @@ sb_lock(sb)
 
 	while (sb->sb_flags & SB_LOCK) {
 		sb->sb_flags |= SB_WANT;
-		error = tsleep((caddr_t)&sb->sb_flags,
+		error = tsleep(&sb->sb_flags,
 		    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK|PCATCH,
 		    "sblock", 0);
 		if (error)
@@ -301,7 +301,7 @@ sowakeup(so, sb)
 	sb->sb_flags &= ~SB_SEL;
 	if (sb->sb_flags & SB_WAIT) {
 		sb->sb_flags &= ~SB_WAIT;
-		wakeup((caddr_t)&sb->sb_cc);
+		wakeup(&sb->sb_cc);
 	}
 	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGIO, 0);
@@ -605,7 +605,7 @@ sbappendaddr(sb, asa, m0, control)
 	if (m == 0)
 		return (0);
 	m->m_len = asa->sa_len;
-	bcopy((caddr_t)asa, mtod(m, caddr_t), asa->sa_len);
+	bcopy(asa, mtod(m, caddr_t), asa->sa_len);
 	if (n)
 		n->m_next = m0;		/* concatenate data to control */
 	else
