@@ -387,12 +387,15 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		if (lkp->lk_exclusivecount != 0) {
 #if !defined(MAX_PERF)
 			if (lkp->lk_lockholder != pid &&
-			    lkp->lk_lockholder != LK_KERNPROC)
+			    lkp->lk_lockholder != LK_KERNPROC) {
 				panic("lockmgr: pid %d, not %s %d unlocking",
 				    pid, "exclusive lock holder",
 				    lkp->lk_lockholder);
+			}
 #endif
-			COUNT(p, -1);
+			if (lkp->lk_lockholder != LK_KERNPROC) {
+				COUNT(p, -1);
+			}
 			if (lkp->lk_exclusivecount == 1) {
 				lkp->lk_flags &= ~LK_HAVE_EXCL;
 				lkp->lk_lockholder = LK_NOPROC;
