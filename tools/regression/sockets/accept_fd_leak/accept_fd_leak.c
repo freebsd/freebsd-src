@@ -107,6 +107,7 @@ main(int argc, char *argv[])
 	}
 
 	for (i = 0; i < LOOPS; i++) {
+		size = sizeof(sin);
 		if (accept(s, (struct sockaddr *)&sin, &size) != -1) {
 			fprintf(stderr, "accept succeeded!\n");
 			exit(-1);
