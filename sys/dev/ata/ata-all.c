@@ -378,6 +378,9 @@ ata_shutdown(void *arg, int howto)
     struct ata_channel *ch;
     int ctlr;
 
+    if (panicstr != NULL)
+	return;
+
     /* flush cache on all devices */
     for (ctlr = 0; ctlr < devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
