@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.31 1995/03/12 08:08:06 davidg Exp $
+ * $Id: vm_object.c,v 1.32 1995/03/16 18:17:21 bde Exp $
  */
 
 /*
@@ -432,20 +432,10 @@ vm_object_terminate(object)
 	 * Clean and free the pages, as appropriate. All references to the
 	 * object are gone, so we don't need to lock it.
 	 */
-
-	if (((object->flags & OBJ_INTERNAL) == 0) &&
-	    object->pager && (object->pager->pg_type != PG_DEVICE)) {
+	if (vp != NULL) {
 		(void) vm_object_page_clean(object, 0, 0, TRUE, TRUE);
 	}
-	/*
-	 * one last time -- get rid of buffers that might have been created
-	 * for the vm_object_page_clean
-	 */
-	if (vp != NULL) {
-		vm_object_unlock(object);
-		vinvalbuf(vp, 0, NOCRED, NULL, 0, 0);
-		vm_object_lock(object);
-	}
+
 	/*
 	 * Now free the pages. For internal objects, this also removes them
 	 * from paging queues.
