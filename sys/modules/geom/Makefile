@@ -9,7 +9,9 @@ SUBDIR=	geom_apple \
 	geom_gate \
 	geom_gpt \
 	geom_mbr \
+	geom_nop \
 	geom_pc98 \
+	geom_stripe \
 	geom_sunlabel \
 	geom_vol_ffs
 
