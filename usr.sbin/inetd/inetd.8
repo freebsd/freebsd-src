@@ -351,14 +351,46 @@ The
 should be just as arguments
 normally are, starting with argv[0], which is the name of
 the program.  If the service is provided internally, the
-word
+.Em service-name
+of the service (and any arguments to it) or the word
 .Dq internal
 should take the place of this entry.
+.Pp
+Currently, the only internal service to take arguments is
+.Dq auth .
+Without options, the service will always return
+.Dq ERROR\ : HIDDEN-USER .
+The available arguments to this service that alter its behaviour are:
+.Bl -tag -width indent
+.It Fl r
+Offer a real
+.Dq auth
+service, as per RFC 1413. All the following flags apply only in this case.
+.It Fl f
+If the file
+.Pa .fakeid
+exists in the home directory of the identified user, report the username
+found in that file instead of the real username.
+.It Fl n
+If the file
+.Pa .noident
+exists in the home directory of the identified user, return
+.Dq ERROR\ : HIDDEN-USER .
+instead.
+.It Fl o Ar osname
+Use
+.Ar osname
+instead of the name of the system implementation
+returned by
+.Xr uname 3 .
+.It Fl t Ar sec[.usec]
+Specify a timeout for the service. The default timeout is 10.0 seconds.
+.El
 .Pp
 The
 .Nm
 program
-provides several
+also provides several other
 .Dq trivial
 services internally by use of
 routines within itself.  These services are
@@ -597,6 +629,11 @@ socket but was unable to.
 .Xr rshd 8 ,
 .Xr telnetd 8 ,
 .Xr tftpd 8
+.Rs
+.%A Michael C. St. Johns
+.%T Identification Protocol
+.%O RFC1413
+.Re
 .Sh HISTORY
 The
 .Nm
