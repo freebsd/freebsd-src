@@ -434,6 +434,8 @@ main(argc, argv)
 		struct igmp *igmp;
 		int     ipdatalen, iphdrlen, igmpdatalen;
 
+		if (igmp_socket >= FD_SETSIZE)
+			log(LOG_ERR, 0, "descriptor too big");
 		FD_ZERO(&fds);
 		FD_SET(igmp_socket, &fds);
 
