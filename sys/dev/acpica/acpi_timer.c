@@ -248,7 +248,6 @@ acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
     if (error == 0 && req->newptr != NULL) {
 	acpi_timer_frequency = freq;
 	acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
-	tc_update(&acpi_timer_timecounter);
     }
     return (error);
 }
