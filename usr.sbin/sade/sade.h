@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.171 1999/07/19 10:06:17 jkh Exp $
+ * $Id: sysinstall.h,v 1.172 1999/07/26 10:49:36 brian Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -132,6 +132,7 @@
 #define VAR_NETINTERACTIVE		"netInteractive"
 #define VAR_NETMASK			"netmask"
 #define VAR_NETWORK_DEVICE		"netDev"
+#define VAR_NEWFS_ARGS			"newfsArgs"
 #define VAR_NFS_PATH			"nfs"
 #define VAR_NFS_HOST			"nfsHost"
 #define VAR_NFS_SECURE			"nfs_reserved_port_only"
