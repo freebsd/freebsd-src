@@ -141,14 +141,14 @@ archive_write_open(struct archive *a, void *client_data,
 
 
 /*
- * Cleanup and free the archive object.
+ * Close out the archive.
  *
  * Be careful: user might just call write_new and then write_finish.
  * Don't assume we actually wrote anything or performed any non-trivial
  * initialization.
  */
-void
-archive_write_finish(struct archive *a)
+int
+archive_write_close(struct archive *a)
 {
 	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY);
 
@@ -163,6 +163,20 @@ archive_write_finish(struct archive *a)
 	/* Finish the compression and close the stream. */
 	if (a->compression_finish != NULL)
 		(a->compression_finish)(a);
+
+	a->state = ARCHIVE_STATE_CLOSED;
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Destroy the archive structure.
+ */
+void
+archive_write_finish(struct archive *a)
+{
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY);
+	if (a->state != ARCHIVE_STATE_CLOSED)
+		archive_write_close(a);
 
 	/* Release various dynamic buffers. */
 	free((void *)(uintptr_t)(const void *)a->nulls);

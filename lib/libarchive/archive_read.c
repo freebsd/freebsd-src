@@ -441,18 +441,15 @@ archive_read_data_block(struct archive *a,
 }
 
 /*
- * Cleanup and free the archive object.
+ * Close the file and release most resources.
  *
  * Be careful: client might just call read_new and then read_finish.
  * Don't assume we actually read anything or performed any non-trivial
  * initialization.
  */
-void
-archive_read_finish(struct archive *a)
+int
+archive_read_close(struct archive *a)
 {
-	int i;
-	int slots;
-
 	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY);
 	a->state = ARCHIVE_STATE_CLOSED;
 
@@ -465,6 +462,21 @@ archive_read_finish(struct archive *a)
 	/* Close the input machinery. */
 	if (a->compression_finish != NULL)
 		(a->compression_finish)(a);
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Release memory and other resources.
+ */
+void
+archive_read_finish(struct archive *a)
+{
+	int i;
+	int slots;
+
+	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY);
+	if (a->state != ARCHIVE_STATE_CLOSED)
+		archive_read_close(a);
 
 	/* Cleanup format-specific data. */
 	slots = sizeof(a->formats) / sizeof(a->formats[0]);
