@@ -45,7 +45,7 @@
 .In sys/stat.h
 .In fts.h
 .Ft FTS *
-.Fn fts_open "char * const *path_argv" "int options" "int (*compar)(const FTSENT **, const FTSENT **)"
+.Fn fts_open "char * const *path_argv" "int options" "int (*compar)(const FTSENT *const *, const FTSENT *const *)"
 .Ft FTSENT *
 .Fn fts_read "FTS *ftsp"
 .Ft FTSENT *
