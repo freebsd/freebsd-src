@@ -37,6 +37,7 @@
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/ucred.h>
+#include <sys/cons.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -80,7 +81,8 @@ static struct cdevsw prom_cdevsw = {
 	/* bmaj */	-1
 };
 
-static struct  tty prom_tty[1];
+
+static struct tty *prom_tp = NULL;
 static int polltime;
 static struct callout_handle promtimeouthandle
 	= CALLOUT_HANDLE_INITIALIZER(&promtimeouthandle);
@@ -96,19 +98,18 @@ promopen(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
-	int unit = minor(dev);
 	struct tty *tp;
+	int unit = minor(dev);
 	int s;
 	int error = 0, setuptimeout = 0;
  
-	if (!pmap_uses_prom_console() || unit != 0)
+	if (pmap_uses_prom_console() == 0 || unit != 0)
 		return ENXIO;
 
+
+	tp = prom_tp = dev->si_tty = ttymalloc(prom_tp);
+
 	s = spltty();
-
-	tp = &prom_tty[unit];
-	dev->si_tty = tp;
-
 	tp->t_oproc = promstart;
 	tp->t_param = promparam;
 	tp->t_stop = promstop;
@@ -124,8 +125,7 @@ promopen(dev, flag, mode, p)
 		ttsetwater(tp);
 
 		setuptimeout = 1;
-	} else if (tp->t_state & TS_XCLUDE &&
-	    suser(p)) {
+	} else if ((tp->t_state & TS_XCLUDE) && suser(p)) {
 		splx(s);
 		return EBUSY;
 	}
@@ -133,6 +133,7 @@ promopen(dev, flag, mode, p)
 	splx(s);
 
 	error = (*linesw[tp->t_line].l_open)(dev, tp);
+
 	if (error == 0 && setuptimeout) {
 		polltime = hz / PROM_POLL_HZ;
 		if (polltime < 1)
@@ -149,7 +150,10 @@ promclose(dev, flag, mode, p)
 	struct proc *p;
 {
 	int unit = minor(dev);
-	struct tty *tp = &prom_tty[unit];
+	struct tty *tp = prom_tp;
+
+	if (unit != 0)
+		return ENXIO;
 
 	untimeout(promtimeout, tp, promtimeouthandle);
 	(*linesw[tp->t_line].l_close)(tp, flag);
@@ -166,8 +170,11 @@ promioctl(dev, cmd, data, flag, p)
 	struct proc *p;
 {
 	int unit = minor(dev);
-	struct tty *tp = &prom_tty[unit];
+	struct tty *tp = prom_tp;
 	int error;
+
+	if (unit != 0)
+		return ENXIO;
 
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
 	if (error != ENOIOCTL)
@@ -242,6 +249,7 @@ promtimeout(v)
 	promtimeouthandle = timeout(promtimeout, tp, polltime);
 }
 
+#if	0
 static int
 prom_modevent(module_t mod, int type, void *data)
 {
@@ -249,9 +257,23 @@ prom_modevent(module_t mod, int type, void *data)
 		cdevsw_add(&prom_cdevsw);
 		return(0);
 	}
-	return(EOPNOTSUPP);
+	return (EOPNOTSUPP);
+}
+DEV_MODULE(prom, prom_modevent, 0);
+#endif
+
+CONS_DRIVER(prom, NULL, NULL, NULL, promcngetc, promcncheckc, promcnputc, NULL);
+
+void
+promcnattach(int alpha_console)
+{
+	cn_tab = &prom_consdev;
+	prom_consdev.cn_pri = CN_NORMAL;
+	prom_consdev.cn_dev = makedev(CDEV_MAJOR, 0);
+	make_dev(&prom_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "promcons");
 }
 
-DEV_MODULE(prom, prom_modevent, 0);
-
+/*
+ * promcnputc, promcngetc and promchcheckc in prom.c for layering reasons
+ */
 #endif /* _PMAP_MAY_USE_PROM_CONSOLE */
