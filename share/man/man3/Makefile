@@ -71,6 +71,7 @@ MLINKS+=queue.3 TAILQ_REMOVE.3
 MLINKS+=stdarg.3 varargs.3 stdarg.3 va_arg.3 stdarg.3 va_end.3
 MLINKS+=stdarg.3 va_start.3
 
-MLINKS+=timeradd.3 timersub.3 timerclear.3 timerisset.3 timercmp.3
+MLINKS+=timeradd.3 timersub.3 timeradd.3 timerclear.3 timeradd.3 timerisset.3
+MLINKS+=timeradd.3 timercmp.3
 
 .include <bsd.prog.mk>
