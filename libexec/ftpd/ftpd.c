@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -632,7 +634,8 @@ pass(passwd)
 	/*
 	 * Set home directory so that use of ~ (tilde) works correctly.
 	 */
-	setenv("HOME", getcwd(homedir, MAXPATHLEN), 1);
+	if (getcwd(homedir, MAXPATHLEN) != NULL)
+		setenv("HOME", homedir, 1);
 
 	/*
 	 * Display a login message, if it exists.
