@@ -115,10 +115,31 @@ inittodr(time_t base)
 	time_t		deltat;
 	u_int		rtc_time;
 	struct timespec	ts;
+	phandle_t	phandle;
+	ihandle_t	ihandle;
+	char		rtcpath[128];
+	u_int		rtcsecs;
 
 	/*
 	 * If we can't read from RTC, use the fs time.
 	 */
+	phandle = OF_finddevice("rtc");
+	if (phandle != -1) {
+		OF_package_to_path(phandle, rtcpath, sizeof(rtcpath));
+		ihandle = OF_open(rtcpath);
+		if (ihandle != -1) {
+			if (OF_call_method("read-rtc", ihandle,
+			    0, 1, &rtcsecs))
+				printf("RTC call method error\n");
+			else {
+				ts.tv_sec = rtcsecs - DIFF19041970;
+				ts.tv_nsec = 0;
+				tc_setclock(&ts);
+				return;
+			}
+		}
+	}
+
 #if NADB > 0
 	if (adb_read_date_time(&rtc_time) < 0)
 #endif
