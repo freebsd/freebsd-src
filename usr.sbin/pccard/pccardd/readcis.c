@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: readcis.c,v 1.5 1996/06/17 22:30:29 nate Exp $
+ * $Id: readcis.c,v 1.6 1996/06/18 21:58:51 nate Exp $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -493,8 +493,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 		total++;
 		tp->length = length;
 #ifdef	DEBUG
-		fprintf(stderr, "Tuple code = 0x%x, len = %d\n",
-		    code, length);
+		printf("Tuple code = 0x%x, len = %d\n", code, length);
 #endif
 		if (length == 0xFF) {
 			length = tp->length = 0;
