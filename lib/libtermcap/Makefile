@@ -1,8 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 LIB=	termcap
-SHLIB_MAJOR= 3
-SHLIB_MINOR= 0
+SHLIB_MAJOR= 2
+SHLIB_MINOR= 1
 CFLAGS+=-DCM_N -DCM_GT -DCM_B -DCM_D -I${.CURDIR}
 SRCS=   termcap.c tgoto.c tputs.c tparm.c tospeed.c
 
@@ -19,8 +19,19 @@ LINKS+= ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 LINKS+=	${LIBDIR}/libtermcap_p.a ${LIBDIR}/libtermlib_p.a
 .endif
 
+# This is a hack.. Work around a major number bump that should have been
+# done differently.  Back out this delta when it's time to go to 3.0 for real.
+.if !defined(NOPIC)
+LINKS+= ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	/usr/lib/compat/libtermcap.so.3.0
+LINKS+= ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	/usr/lib/compat/libtermlib.so.3.0
+.endif
+
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/termcap.h \
 		${DESTDIR}/usr/include
+	rm -f ${DESTDIR}${SHLIBDIR}/libtermcap.so.3.0 \
+	      ${DESTDIR}${SHLIBDIR}/libtermlib.so.3.0
 
 .include <bsd.lib.mk>
