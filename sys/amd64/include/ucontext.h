@@ -55,6 +55,7 @@ typedef struct __mcontext {
 	__register_t	mc_r15;
 	__register_t	mc_trapno;
 	__register_t	mc_addr;
+	__register_t	mc_flags;
 	__register_t	mc_err;
 	__register_t	mc_rip;
 	__register_t	mc_cs;
@@ -70,12 +71,11 @@ typedef struct __mcontext {
 #define	_MC_FPOWNED_FPU		0x20001	/* FP state came from FPU */
 #define	_MC_FPOWNED_PCB		0x20002	/* FP state came from PCB */
 	long	mc_ownedfp;
-	long	mc_spare1[1];		/* align mc_fpstate to 16 bytes */
 	/*
 	 * See <machine/npx.h> for the internals of mc_fpstate[].
 	 */
 	long	mc_fpstate[64] __aligned(16);
-	long	mc_spare2[8];
+	long	mc_spare[8];
 } mcontext_t;
 
 #endif /* !_MACHINE_UCONTEXT_H_ */
