@@ -40,12 +40,13 @@
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46ADEORSUdro
+.Op Fl 46AdDEoOrRSUv
 .Op Fl l Op Fl l
-.Op Fl T Ar maxtimeout
 .Op Fl a Ar address
 .Op Fl p Ar file
 .Op Fl t Ar timeout
+.Op Fl T Ar maxtimeout
+.Op Fl u Ar umask
 .Sh DESCRIPTION
 .Nm Ftpd
 is the
@@ -80,8 +81,16 @@ When
 is specified, accept connections via
 .Dv AF_INET6
 socket.
+.It Fl a
+When
+.Fl D
+is specified, accept connections only on the specified
+.Ar address .
 .It Fl A
 Allow only anonymous ftp access.
+.It Fl d
+Debugging information is written to the syslog using
+.Dv LOG_FTP .
 .It Fl D
 With this option set,
 .Nm
@@ -95,44 +104,6 @@ and is thus useful on busy servers to reduce load.
 .It Fl E
 Disable the EPSV command.
 This is useful for servers behind older firewalls.
-.It Fl O
-Put server in write-only mode for anonymous users only.
-RETR is disabled for anonymous users, preventing anonymous downloads.
-This has no effect if
-.Fl o
-is also specified.
-.It Fl R
-With this option set,
-.Nm
-will revert to historical behavior with regard to security checks on
-user operations and restrictions on PORT requests.
-Currently,
-.Nm
-will only honor PORT commands directed to unprivileged ports on the
-remote user's host (which violates the FTP protocol specification but
-closes some security holes).
-.It Fl S
-With this option set,
-.Nm
-logs all anonymous file downloads to the file
-.Pa /var/log/ftpd
-when this file exists.
-.It Fl U
-In previous versions of
-.Nm ,
-when a passive mode client requested a data connection to the server,
-the server would use data ports in the range 1024..4999.  Now, by default,
-the server will use data ports in the range 49152..65535.  Specifying this
-option will revert to the old behavior.
-.It Fl d
-Debugging information is written to the syslog using
-.Dv LOG_FTP .
-.It Fl r
-Put server in read-only mode.
-All commands which may modify the local filesystem are disabled.
-.It Fl o
-Put server in write-only mode.
-RETR is disabled, preventing downloads.
 .It Fl l
 Each successful and failed
 .Xr ftp 1
@@ -149,6 +120,43 @@ are not displayed by
 by default, and may have to be enabled in
 .Xr syslogd 8 Ns 's
 configuration file.
+.It Fl o
+Put server in write-only mode.
+RETR is disabled, preventing downloads.
+.It Fl O
+Put server in write-only mode for anonymous users only.
+RETR is disabled for anonymous users, preventing anonymous downloads.
+This has no effect if
+.Fl o
+is also specified.
+.It Fl p
+When
+.Fl D
+is specified, write the daemon's process ID to
+.Ar file .
+.It Fl r
+Put server in read-only mode.
+All commands which may modify the local filesystem are disabled.
+.It Fl R
+With this option set,
+.Nm
+will revert to historical behavior with regard to security checks on
+user operations and restrictions on PORT requests.
+Currently,
+.Nm
+will only honor PORT commands directed to unprivileged ports on the
+remote user's host (which violates the FTP protocol specification but
+closes some security holes).
+.It Fl S
+With this option set,
+.Nm
+logs all anonymous file downloads to the file
+.Pa /var/log/ftpd
+when this file exists.
+.It Fl t
+The inactivity timeout period is set to
+.Ar timeout
+seconds (the default is 15 minutes).
 .It Fl T
 A client may also request a different timeout period;
 the maximum period allowed may be set to
@@ -157,20 +165,23 @@ seconds with the
 .Fl T
 option.
 The default limit is 2 hours.
-.It Fl a
-When
-.Fl D
-is specified, accept connections only on the specified
-.Ar address .
-.It Fl p
-When
-.Fl D
-is specified, write the daemon's process ID to
-.Ar file .
-.It Fl t
-The inactivity timeout period is set to
-.Ar timeout
-seconds (the default is 15 minutes).
+.It Fl u
+The default file creation mode mask is set to
+.Ar umask ,
+which is expected to be an octal numeric value.
+Refer to
+.Xr umask 2
+for details.
+.It Fl U
+In previous versions of
+.Nm ,
+when a passive mode client requested a data connection to the server,
+the server would use data ports in the range 1024..4999.  Now, by default,
+the server will use data ports in the range 49152..65535.  Specifying this
+option will revert to the old behavior.
+.It Fl v
+A synonym for
+.Fl d .
 .El
 .Pp
 The file
@@ -479,6 +490,7 @@ Log file for anonymous transfers.
 .Sh SEE ALSO
 .Xr ftp 1 ,
 .Xr key 1 ,
+.Xr umask 2 ,
 .Xr getusershell 3 ,
 .Xr login.conf 5 ,
 .Xr inetd 8 ,
