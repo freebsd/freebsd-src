@@ -7,7 +7,7 @@ BIN1=   aliases amd.map auth.conf crontab csh.cshrc csh.login csh.logout \
 	dhclient.conf dm.conf fbtab ftpusers gettytab group hosts hosts.allow \
 	host.conf hosts.equiv hosts.lpd inetd.conf login.access login.conf \
 	motd modems networks newsyslog.conf pam.conf pccard.conf.sample \
-	apmd.conf \
+	apmd.conf usbd.conf\
 	phones printcap profile protocols rc rc.atm rc.devfs rc.diskless1 \
 	rc.diskless2 rc.firewall rc.isdn rc.network rc.pccard  rc.serial \
 	rc.shutdown rc.sysctl etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
