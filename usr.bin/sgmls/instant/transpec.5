@@ -311,7 +311,7 @@ l l.
 \fB_filename\fP@filename of notation
 \fB_find\fP \fIrel\fP \fIgi\fP \fIspec-id\fP@find gi based on relationship
 \fB_followlink\fP [\fIattname\fP] \fIspec-id\fP@follow IDREFs [attname] and use spec-id
-\fB_followrel\fP \fIrel\fP \fIgi\fP \fIspec-id\fP@do spec-id on rel if it matches
+\fB_followrel\fP \fIrel\fP \fIgi\fP \fIspec-id\fP [\fIspec-id\fP]@do spec-id on rel if it matches
 \fB_gi\fP [\fBM|L|U\fP]@return GI name; M, L, U case
 \fB_id\fP \fIid [\fP\fIspec-id\fP]@find element with ID and use spec-id
 \fB_include\fP \fIfilename\fP@insert file here
@@ -383,9 +383,11 @@ It will then apply the transpec specified by \fIspec-id\fP to that element.
 If specified, it will follow the link pointed to by \fIattname\fP. 
 By default, \fBinstant\fP assumes the attributes named \fBLINKEND\fP and \fBLINKENDS\fP are if type IDREF or IDREFS. 
 You can change this by setting the variable \fBlink_atts\fP to a space-separated list of attribute names.
-.IP "\fB_followrel\fP \fIrelationship\fP \fIgi\fP \fIspec-id\fP"
+.IP "\fB_followrel\fP \fIrelationship\fP \fIgi\fP \fIspec-id\fP [\fIspec-id2\fP]"
 If the \fIgi\fP has the specified \fIrelationship\fP to the current element, 
-perform the action specified by \fIspec-id\fP on the related element. 
+perform the action specified by \fIspec-id\fP on the related element.
+If the \fIrelationship\fP to \fIgi\fP does not exist,
+and \fIspec-id2\fP is present, perform \fIspec-id2\fP on the current element.
 See the discussion of the criteria field \fBRelation\fP for acceptable relationship names.
 .IP "\fB_gi\fP [\fBM|L|U\fP]"
 Print the name of the current GI to the output stream. 
