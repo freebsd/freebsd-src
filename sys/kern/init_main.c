@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.102 1998/12/30 10:38:58 dfr Exp $
+ * $Id: init_main.c,v 1.103 1999/01/07 21:23:39 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -83,9 +83,7 @@ static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
 static struct pcred cred0;
-#ifdef COMPAT_LINUX_THREADS
 static struct procsig procsig0;
-#endif /* COMPAT_LINUX_THREADS */
 static struct filedesc0 filedesc0;
 static struct plimit limit0;
 static struct vmspace vmspace0;
@@ -418,12 +416,10 @@ proc0_init(dummy)
 	p->p_ucred = crget();
 	p->p_ucred->cr_ngroups = 1;	/* group 0 */
 
-#ifdef COMPAT_LINUX_THREADS
 	/* Create procsig. */
 	p->p_procsig = &procsig0;
 	p->p_procsig->ps_refcnt = 2;
 
-#endif /* COMPAT_LINUX_THREADS */
 	/* Create the file descriptor table. */
 	fdp = &filedesc0;
 	p->p_fd = &fdp->fd_fd;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.50 1998/12/30 21:01:33 sos Exp $
+ *  $Id: linux_misc.c,v 1.51 1999/01/06 23:05:38 julian Exp $
  */
 
 #include <sys/param.h>
@@ -41,9 +41,7 @@
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
-#ifdef COMPAT_LINUX_THREADS
 #include <sys/unistd.h>
-#endif /* COMPAT_LINUX_THREADS */
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #include <sys/time.h>
@@ -563,15 +561,6 @@ linux_fork(struct proc *p, struct linux_fork_args *args)
     return 0;
 }
 
-#ifndef COMPAT_LINUX_THREADS
-int
-linux_clone(struct proc *p, struct linux_clone_args *args)
-{
-    printf("linux_clone(%d): Not enabled\n", p->p_pid);
-    return (EOPNOTSUPP);
-}
-
-#else
 #define CLONE_VM	0x100
 #define CLONE_FS	0x200
 #define CLONE_FILES	0x400
@@ -635,7 +624,6 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
     return 0;
 }
 
-#endif /* COMPAT_LINUX_THREADS */
 /* XXX move */
 struct linux_mmap_argv {
 	linux_caddr_t addr;
@@ -646,11 +634,8 @@ struct linux_mmap_argv {
 	int pos;
 };
 
-#ifdef COMPAT_LINUX_THREADS
 #define STACK_SIZE  (2 * 1024 * 1024)
 #define GUARD_SIZE  (4 * PAGE_SIZE)
-
-#endif /* COMPAT_LINUX_THREADS */
 int
 linux_mmap(struct proc *p, struct linux_mmap_args *args)
 {
@@ -683,10 +668,6 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 	bsd_args.flags |= MAP_FIXED;
     if (linux_args.flags & LINUX_MAP_ANON)
 	bsd_args.flags |= MAP_ANON;
-#ifndef COMPAT_LINUX_THREADS
-    bsd_args.addr = linux_args.addr;
-    bsd_args.len = linux_args.len;
-#else
 
 #ifndef VM_STACK
     /* Linux Threads will map into the proc stack space, unless
@@ -745,7 +726,7 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 	bsd_args.addr = linux_args.addr;
 	bsd_args.len  = linux_args.len;
     }
-#endif /* COMPAT_LINUX_THREADS */
+
     bsd_args.prot = linux_args.prot | PROT_READ;	/* always required */
     bsd_args.fd = linux_args.fd;
     bsd_args.pos = linux_args.pos;
@@ -972,9 +953,6 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
 #endif
     tmp.pid = args->pid;
     tmp.status = args->status;
-#ifndef COMPAT_LINUX_THREADS
-    tmp.options = args->options;
-#else
     /* This filters out the linux option _WCLONE.  I don't
      * think we need it, but I could be wrong.  If we need
      * it, we need to fix wait4, since it will give us an
@@ -982,15 +960,11 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
      * of course, it won't do anything with it.
      */
     tmp.options = (args->options & (WNOHANG | WUNTRACED));
-#endif /* COMPAT_LINUX_THREADS */
     tmp.rusage = NULL;
 
     if (error = wait4(p, &tmp))
-#ifndef COMPAT_LINUX_THREADS
 	return error;
-#else
-	return error;
-#endif /* COMPAT_LINUX_THREADS */
+
     if (args->status) {
 	if (error = copyin(args->status, &tmpstat, sizeof(int)))
 	    return error;
@@ -1023,9 +997,6 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args)
 #endif
     tmp.pid = args->pid;
     tmp.status = args->status;
-#ifndef COMPAT_LINUX_THREADS
-    tmp.options = args->options;
-#else
     /* This filters out the linux option _WCLONE.  I don't
      * think we need it, but I could be wrong.  If we need
      * it, we need to fix wait4, since it will give us an
@@ -1033,7 +1004,6 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args)
      * of course, it won't do anything with it.
      */
     tmp.options = (args->options & (WNOHANG | WUNTRACED));
-#endif /* COMPAT_LINUX_THREADS */
     tmp.rusage = args->rusage;
 
     if (error = wait4(p, &tmp))
