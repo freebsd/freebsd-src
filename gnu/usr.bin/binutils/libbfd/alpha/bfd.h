@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* Main header file for the bfd library -- portable access to object files.
    Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
@@ -54,7 +55,11 @@ extern "C" {
 /* These two lines get substitutions done by commands in Makefile.in.  */
 #define BFD_VERSION  "2.9.1"
 #define BFD_ARCH_SIZE 64
-#define BFD_HOST_64BIT_LONG 1
+#if defined(__i386__)
+#define	BFD_HOST_64BIT_LONG 0
+#else
+#define	BFD_HOST_64BIT_LONG 1
+#endif
 #if 0
 #define BFD_HOST_64_BIT 
 #define BFD_HOST_U_64_BIT 
