@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.54 1996/10/01 12:13:19 jkh Exp $
+ * $Id: media.c,v 1.55 1996/10/01 14:08:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -269,23 +269,6 @@ mediaSetFTP(dialogMenuItem *self)
 	else
 	    cp = variable_get(VAR_FTP_PATH);
 	what = DITEM_RECREATE;
-    }
-    else {
-	static int first_time = 1;
-
-	if (first_time)
-	    first_time = 0;
-	else {
-	    dialog_clear_norefresh();
-	    if (msgYesNo("Do you want to use your old FTP path value of\n%s?", cp)) {
-		dialog_clear_norefresh();
-		if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
-		    return DITEM_FAILURE | DITEM_RECREATE;
-		else
-		    cp = variable_get(VAR_FTP_PATH);
-		what = DITEM_RECREATE;
-	    }
-	}
     }
     if (!cp)
 	return DITEM_FAILURE | what;

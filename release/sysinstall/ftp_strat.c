@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.21 1996/07/08 10:08:03 jkh Exp $
+ * $Id: ftp_strat.c,v 1.22 1996/07/09 14:28:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,9 +69,10 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
 
+try:
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
-	msgConfirm("%s is not set!", VAR_FTP_PATH);
+	msgConfirm("You haven't specified an FTP server!");
 	return FALSE;
     }
 
@@ -106,18 +107,32 @@ mediaInitFTP(Device *dev)
 	    goto punt;
     }
 
-    /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to __RELEASE which signifies that it's not set */
+    /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to
+       __RELEASE which signifies that it's not set */
     rel = variable_get(VAR_RELNAME);
     if (strcmp(rel, "__RELEASE"))
 	i = FtpChdir(ftp, rel);
     else
 	i = 0;
-    if (i == -1)
-	msgConfirm("Warning:  Can't CD to `%s' distribution on this\n"
-		   "FTP server.  You may need to visit the Options menu\n"
-		   "to set the release name explicitly if this FTP server\n"
-		   "isn't exporting a CD (or some other custom release) at\n"
-		   "the top level as a release tree.", rel);
+    if (i == -1) {
+	if (!msgYesNo("Warning:  Can't CD to `%s' distribution on this\n"
+		      "FTP server.  You may need to visit a different\n"
+		      "server for the release you're trying to fetch\n"
+		      "or go to the Options menu and to set the release\n"
+		      "name to explicitly match what's available on\n"
+		      "%s.\n\n"
+		      "Would you like to select another FTP server?",
+		      rel, hostname)) {
+	    dialog_clear_norefresh();
+	    variable_unset(VAR_FTP_PATH);
+	    if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
+		goto punt;
+	    else {
+		cp = variable_get(VAR_FTP_PATH);
+		goto try;
+	    }
+	}
+    }
     else if (i == IO_ERROR)
 	goto punt;
 
@@ -131,6 +146,7 @@ punt:
 	FtpClose(ftp);
 	ftp = NULL;
     }
+    variable_unset(VAR_FTP_PATH);
     return FALSE;
 }
 
