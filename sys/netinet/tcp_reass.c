@@ -2793,7 +2793,7 @@ tcp_mss(tp, offer)
 	so = inp->inp_socket;
 
 	/*
-	 * no route to sender, take default mss and return
+	 * no route to sender, stay with default mss and return
 	 */
 	if (maxmtu == 0)
 		return;
@@ -2851,7 +2851,7 @@ tcp_mss(tp, offer)
 	 * else, use the link mtu.
 	 */
 	if (metrics.rmx_mtu)
-		mss = metrics.rmx_mtu - min_protoh;
+		mss = min(metrics.rmx_mtu, maxmtu) - min_protoh;
 	else {
 #ifdef INET6
 		if (isipv6) {
