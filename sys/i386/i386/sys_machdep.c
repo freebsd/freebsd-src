@@ -40,6 +40,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/ipl.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 
@@ -52,7 +53,6 @@
 #include <sys/user.h>
 
 #include <machine/cpu.h>
-#include <machine/ipl.h>
 #include <machine/pcb_ext.h>	/* pcb.h included by sys/user.h */
 #include <machine/sysarch.h>
 #ifdef SMP

@@ -61,6 +61,7 @@
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#include <sys/ipl.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -68,7 +69,6 @@
 #include <sys/cons.h>
 
 #include <machine/bootinfo.h>
-#include <machine/ipl.h>
 #include <machine/md_var.h>
 #ifdef APIC_IO
 #include <machine/smp.h>

@@ -18,6 +18,7 @@
 #include <sys/unistd.h>
 #include <sys/ipl.h>
 #include <sys/kthread.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/eventhandler.h>
 #include <vm/vm.h>
@@ -29,7 +30,6 @@
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 #include <machine/smp.h>
 
 #include <machine/globaldata.h>

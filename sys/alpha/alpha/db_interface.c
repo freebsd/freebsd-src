@@ -59,13 +59,13 @@
 #include <sys/kernel.h>
 #include <sys/cons.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 
 #include <vm/vm.h>
 
 #include <machine/db_machdep.h>
 #include <machine/pal.h>
 #include <machine/prom.h>
-#include <machine/mutex.h>
 #include <machine/smp.h>
 
 #include <alpha/alpha/db_instruction.h>

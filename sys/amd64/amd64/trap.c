@@ -53,8 +53,10 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
@@ -76,9 +78,7 @@
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
-#include <machine/ipl.h>
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 #include <machine/pcb.h>
 #ifdef SMP
 #include <machine/smp.h>

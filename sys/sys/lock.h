@@ -41,8 +41,8 @@
 #ifndef	_LOCK_H_
 #define	_LOCK_H_
 
+#include <sys/mutex.h>
 #include <machine/lock.h>
-#include <machine/mutex.h>
 
 /*
  * The general lock structure.  Provides for multiple shared locks,

@@ -30,11 +30,10 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rtprio.h>
 #include <sys/queue.h>
-
-#include <machine/mutex.h>
 
 /*
  * We have NQS (32) run queues per scheduling class.  For the normal

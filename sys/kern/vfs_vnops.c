@@ -46,6 +46,7 @@
 #include <sys/stat.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/bio.h>
@@ -53,8 +54,6 @@
 #include <sys/filio.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
-
-#include <machine/mutex.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
