@@ -95,7 +95,9 @@ static int badfo_ioctl __P((struct file *fp, u_long com, caddr_t data,
     struct proc *p));
 static int badfo_poll __P((struct file *fp, int events,
     struct ucred *cred, struct proc *p));
+static int badfo_stat __P((struct file *fp, struct stat *sb, struct proc *p));
 static int badfo_close __P((struct file *fp, struct proc *p));
+
 /*
  * Descriptor management.
  */
@@ -538,25 +540,7 @@ ofstat(p, uap)
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
 		return (EBADF);
-	switch (fp->f_type) {
-
-	case DTYPE_FIFO:
-	case DTYPE_VNODE:
-		error = vn_stat((struct vnode *)fp->f_data, &ub, p);
-		break;
-
-	case DTYPE_SOCKET:
-		error = soo_stat((struct socket *)fp->f_data, &ub);
-		break;
-
-	case DTYPE_PIPE:
-		error = pipe_stat((struct pipe *)fp->f_data, &ub);
-		break;
-
-	default:
-		panic("ofstat");
-		/*NOTREACHED*/
-	}
+	error = fo_stat(fp, &ub, p);
 	cvtstat(&ub, &oub);
 	if (error == 0)
 		error = copyout((caddr_t)&oub, (caddr_t)uap->sb, sizeof (oub));
@@ -587,25 +571,7 @@ fstat(p, uap)
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
 		return (EBADF);
-	switch (fp->f_type) {
-
-	case DTYPE_FIFO:
-	case DTYPE_VNODE:
-		error = vn_stat((struct vnode *)fp->f_data, &ub, p);
-		break;
-
-	case DTYPE_SOCKET:
-		error = soo_stat((struct socket *)fp->f_data, &ub);
-		break;
-
-	case DTYPE_PIPE:
-		error = pipe_stat((struct pipe *)fp->f_data, &ub);
-		break;
-
-	default:
-		panic("fstat");
-		/*NOTREACHED*/
-	}
+	error = fo_stat(fp, &ub, p);
 	if (error == 0)
 		error = copyout((caddr_t)&ub, (caddr_t)uap->sb, sizeof (ub));
 	return (error);
@@ -635,25 +601,7 @@ nfstat(p, uap)
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
 		return (EBADF);
-	switch (fp->f_type) {
-
-	case DTYPE_FIFO:
-	case DTYPE_VNODE:
-		error = vn_stat((struct vnode *)fp->f_data, &ub, p);
-		break;
-
-	case DTYPE_SOCKET:
-		error = soo_stat((struct socket *)fp->f_data, &ub);
-		break;
-
-	case DTYPE_PIPE:
-		error = pipe_stat((struct pipe *)fp->f_data, &ub);
-		break;
-
-	default:
-		panic("fstat");
-		/*NOTREACHED*/
-	}
+	error = fo_stat(fp, &ub, p);
 	if (error == 0) {
 		cvtnstat(&ub, &nub);
 		error = copyout((caddr_t)&nub, (caddr_t)uap->sb, sizeof (nub));
@@ -1314,6 +1262,7 @@ struct fileops badfileops = {
 	badfo_readwrite,
 	badfo_ioctl,
 	badfo_poll,
+	badfo_stat,
 	badfo_close
 };
 
@@ -1352,6 +1301,16 @@ badfo_poll(fp, events, cred, p)
 }
 
 static int
+badfo_stat(fp, sb, p)
+	struct file *fp;
+	struct stat *sb;
+	struct proc *p;
+{
+
+	return (EBADF);
+}
+
+static int
 badfo_close(fp, p)
 	struct file *fp;
 	struct proc *p;
@@ -1362,5 +1321,3 @@ badfo_close(fp, p)
 
 SYSINIT(fildescdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,
 					fildesc_drvinit,NULL)
-
-
