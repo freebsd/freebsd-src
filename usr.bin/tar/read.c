@@ -77,6 +77,9 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		bsdtar->argv++;
         }
 
+	if (bsdtar->names_from_file != NULL)
+		include_from_file(bsdtar, bsdtar->names_from_file);
+
 	a = archive_read_new();
 	archive_read_support_compression_all(a);
 	archive_read_support_format_all(a);
