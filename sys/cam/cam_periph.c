@@ -1441,7 +1441,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				      "CAM_AUTOSENSE_FAILED");
 				/* NOTREACHED */
 				error = EIO;
-			} else if (ccb->ccb_h.retry_count > 0) {
+			} else if (ccb->ccb_h.retry_count == 0) {
 				/*
 				 * XXX KDM shouldn't there be a better
 				 * argument to return??
