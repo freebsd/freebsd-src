@@ -153,7 +153,6 @@ struct kproc_desc g_event_kp = {
 void
 g_init(void)
 {
-	printf("Initializing GEOMetry subsystem\n");
 	sx_init(&topology_lock, "GEOM topology");
 	g_stat_init();
 	g_io_init();
