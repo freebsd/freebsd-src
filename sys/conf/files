@@ -139,6 +139,7 @@ net/if.c		standard
 net/if_ethersubr.c	optional ether
 net/if_loop.c		optional loop
 net/if_ppp.c		optional ppp
+net/if_spppsubr.c	optional sppp
 net/if_sl.c		optional sl
 net/pppcompress.c	optional ppp
 net/radix.c		standard
