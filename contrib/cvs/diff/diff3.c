@@ -1360,6 +1360,7 @@ read_diff (filea, fileb, output_placement)
   if (close (fd) != 0)
     diff3_perror_with_exit ("pipe close");
   unlink (diffout);
+  free( diffout );
 
   return diff_result + total;
 }

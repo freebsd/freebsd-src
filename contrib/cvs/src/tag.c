@@ -20,16 +20,17 @@ static int rtag_proc PROTO((int argc, char **argv, char *xwhere,
 		      int local_specified, char *mname, char *msg));
 static int check_fileproc PROTO ((void *callerdat, struct file_info *finfo));
 static int check_filesdoneproc PROTO ((void *callerdat, int err,
-				       char *repos, char *update_dir,
-				       List *entries));
-static int pretag_proc PROTO((char *repository, char *filter));
+                                       const char *repos,
+                                       const char *update_dir,
+                                       List *entries));
+static int pretag_proc PROTO((const char *repository, const char *filter));
 static void masterlist_delproc PROTO((Node *p));
 static void tag_delproc PROTO((Node *p));
 static int pretag_list_proc PROTO((Node *p, void *closure));
 
-static Dtype tag_dirproc PROTO ((void *callerdat, char *dir,
-				 char *repos, char *update_dir,
-				 List *entries));
+static Dtype tag_dirproc PROTO ((void *callerdat, const char *dir,
+                                 const char *repos, const char *update_dir,
+                                 List *entries));
 static int rtag_fileproc PROTO ((void *callerdat, struct file_info *finfo));
 static int rtag_delete PROTO((RCSNode *rcsfile));
 static int tag_fileproc PROTO ((void *callerdat, struct file_info *finfo));
@@ -110,7 +111,7 @@ cvstag (argc, argv)
     int err = 0;
     int run_module_prog = 1;
 
-    is_rtag = (strcmp (command_name, "rtag") == 0);
+    is_rtag = (strcmp (cvs_cmd_name, "rtag") == 0);
     
     if (argc == -1)
 	usage (is_rtag ? rtag_usage : tag_usage);
@@ -156,7 +157,7 @@ cvstag (argc, argv)
 #endif
 		    error (1, 0,
 			   "-q or -Q must be specified before \"%s\"",
-			   command_name);
+			   cvs_cmd_name);
 		break;
 	    case 'R':
 		local = 0;
@@ -353,14 +354,12 @@ rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 	    free (repository);
 	    return (1);
 	}
-	free (repository);
 	/* End section which is identical to patch_proc.  */
 
 	if (delete_flag || attic_too || (force_tag_match && numtag))
 	    which = W_REPOS | W_ATTIC;
 	else
 	    which = W_REPOS;
-	repository = NULL;
     }
     else
     {
@@ -382,7 +381,7 @@ rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     err = start_recursion (check_fileproc, check_filesdoneproc,
                            (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 			   argc - 1, argv + 1, local_specified, which, 0,
-			   CVS_LOCK_READ, where, 1);
+			   CVS_LOCK_READ, where, 1, repository);
     
     if (err)
     {
@@ -397,7 +396,9 @@ rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     err = start_recursion (is_rtag ? rtag_fileproc : tag_fileproc,
 			   (FILESDONEPROC) NULL, tag_dirproc,
 			   (DIRLEAVEPROC) NULL, NULL, argc - 1, argv + 1,
-			   local_specified, which, 0, CVS_LOCK_WRITE, where, 1);
+			   local_specified, which, 0, CVS_LOCK_WRITE, where, 1,
+			   repository);
+    if ( which & W_REPOS ) free ( repository );
     dellist (&mtlist);
     if (where != NULL)
 	free (where);
@@ -412,7 +413,7 @@ check_fileproc (callerdat, finfo)
     void *callerdat;
     struct file_info *finfo;
 {
-    char *xdir;
+    const char *xdir;
     Node *p;
     Vers_TS *vers;
     
@@ -460,7 +461,7 @@ check_fileproc (callerdat, finfo)
 	ml = (struct master_lists *)
 	    xmalloc (sizeof (struct master_lists));
 	ml->tlist = tlist;
-	p->data = (char *) ml;
+	p->data = ml;
 	p->delproc = masterlist_delproc;
 	(void) addnode (mtlist, p);
     }
@@ -536,8 +537,8 @@ static int
 check_filesdoneproc (callerdat, err, repos, update_dir, entries)
     void *callerdat;
     int err;
-    char *repos;
-    char *update_dir;
+    const char *repos;
+    const char *update_dir;
     List *entries;
 {
     int n;
@@ -565,9 +566,9 @@ check_filesdoneproc (callerdat, err, repos, update_dir, entries)
 }
 
 static int
-pretag_proc(repository, filter)
-    char *repository;
-    char *filter;
+pretag_proc (repository, filter)
+    const char *repository;
+    const char *filter;
 {
     if (filter[0] == '/')
     {
@@ -602,9 +603,8 @@ static void
 masterlist_delproc(p)
     Node *p;
 {
-    struct master_lists *ml;
+    struct master_lists *ml = p->data;
 
-    ml = (struct master_lists *)p->data;
     dellist(&ml->tlist);
     free(ml);
     return;
@@ -866,6 +866,7 @@ tag_fileproc (callerdat, finfo)
     char *rev;
     Vers_TS *vers;
     int retcode = 0;
+    int retval = 0;
 
     vers = Version_TS (finfo, NULL, NULL, NULL, 0, 0);
 
@@ -877,10 +878,7 @@ tag_fileproc (callerdat, finfo)
                                   force_tag_match,
 				  (int *) NULL);
         if (nversion == NULL)
-        {
-	    freevers_ts (&vers);
-            return (0);
-        }
+	    goto free_vars_and_return;
     }
     if (delete_flag)
     {
@@ -898,10 +896,8 @@ tag_fileproc (callerdat, finfo)
 	version = RCS_getversion (vers->srcfile, symtag, (char *) NULL, 1,
 				  (int *) NULL);
 	if (version == NULL || vers->srcfile == NULL)
-	{
-	    freevers_ts (&vers);
-	    return (0);
-	}
+	    goto free_vars_and_return;
+
 	free (version);
 
 	isbranch = RCS_nodeisbranch (finfo->rcs, symtag);
@@ -914,8 +910,8 @@ tag_fileproc (callerdat, finfo)
 			isbranch ? "branch" : "non-branch",
 			symtag, vers->srcfile->path,
 			isbranch ? "" : " due to `-B' option"); 
-	    freevers_ts (&vers);
-	    return (1);
+	    retval = 1;
+	    goto free_vars_and_return;
 	}
 
 	if ((retcode = RCS_deltag(vers->srcfile, symtag)) != 0) 
@@ -924,8 +920,8 @@ tag_fileproc (callerdat, finfo)
 		error (0, retcode == -1 ? errno : 0,
 		       "failed to remove tag %s from %s", symtag,
 		       vers->srcfile->path);
-	    freevers_ts (&vers);
-	    return (1);
+	    retval = 1;
+	    goto free_vars_and_return;
 	}
 	RCS_rewrite (vers->srcfile, NULL, NULL);
 
@@ -937,8 +933,7 @@ tag_fileproc (callerdat, finfo)
 	    cvs_output ("\n", 1);
 	}
 
-	freevers_ts (&vers);
-	return (0);
+	goto free_vars_and_return;
     }
 
     /*
@@ -955,29 +950,25 @@ tag_fileproc (callerdat, finfo)
     }
     if (version == NULL)
     {
-	freevers_ts (&vers);
-	return (0);
+	goto free_vars_and_return;
     }
     else if (strcmp (version, "0") == 0)
     {
 	if (!quiet)
 	    error (0, 0, "couldn't tag added but un-commited file `%s'", finfo->file);
-	freevers_ts (&vers);
-	return (0);
+	goto free_vars_and_return;
     }
     else if (version[0] == '-')
     {
 	if (!quiet)
 	    error (0, 0, "skipping removed but un-commited file `%s'", finfo->file);
-	freevers_ts (&vers);
-	return (0);
+	goto free_vars_and_return;
     }
     else if (vers->srcfile == NULL)
     {
 	if (!quiet)
 	    error (0, 0, "cannot find revision control file for `%s'", finfo->file);
-	freevers_ts (&vers);
-	return (0);
+	goto free_vars_and_return;
     }
 
     /*
@@ -1004,8 +995,7 @@ tag_fileproc (callerdat, finfo)
 	    free (oversion);
 	    if (branch_mode)
 		free (rev);
-	    freevers_ts (&vers);
-	    return (0);
+	    goto free_vars_and_return;
 	}
 
 	if (!force_tag_move)
@@ -1027,8 +1017,7 @@ tag_fileproc (callerdat, finfo)
 	    free (oversion);
 	    if (branch_mode)
 		free (rev);
-	    freevers_ts (&vers);
-	    return (0);
+	    goto free_vars_and_return;
 	}
 	else 	/* force_tag_move == 1 and... */
 		if ((isbranch && !disturb_branch_tags) ||
@@ -1040,9 +1029,9 @@ tag_fileproc (callerdat, finfo)
 		    symtag, oversion, rev,
 		    isbranch ? "" : " due to `-B' option"); 
 	    free (oversion);
-	    if (branch_mode) free(rev);
-	    freevers_ts (&vers);
-	    return (0);
+	    if (branch_mode)
+		free (rev);
+	    goto free_vars_and_return;
 	}
 	free (oversion);
     }
@@ -1054,8 +1043,8 @@ tag_fileproc (callerdat, finfo)
 	       symtag, rev, vers->srcfile->path);
 	if (branch_mode)
 	    free (rev);
-	freevers_ts (&vers);
-	return (1);
+	retval = 1;
+	goto free_vars_and_return;
     }
     if (branch_mode)
 	free (rev);
@@ -1069,12 +1058,11 @@ tag_fileproc (callerdat, finfo)
 	cvs_output ("\n", 1);
     }
 
+ free_vars_and_return:
     if (nversion != NULL)
-    {
         free (nversion);
-    }
     freevers_ts (&vers);
-    return (0);
+    return (retval);
 }
 
 /*
@@ -1084,9 +1072,9 @@ tag_fileproc (callerdat, finfo)
 static Dtype
 tag_dirproc (callerdat, dir, repos, update_dir, entries)
     void *callerdat;
-    char *dir;
-    char *repos;
-    char *update_dir;
+    const char *dir;
+    const char *repos;
+    const char *update_dir;
     List *entries;
 {
 
@@ -1142,14 +1130,17 @@ val_fileproc (callerdat, finfo)
     return 0;
 }
 
-static Dtype val_direntproc PROTO ((void *, char *, char *, char *, List *));
+
+
+static Dtype val_direntproc PROTO ((void *, const char *, const char *,
+                                    const char *, List *));
 
 static Dtype
 val_direntproc (callerdat, dir, repository, update_dir, entries)
     void *callerdat;
-    char *dir;
-    char *repository;
-    char *update_dir;
+    const char *dir;
+    const char *repository;
+    const char *update_dir;
     List *entries;
 {
     /* This is not quite right--it doesn't get right the case of "cvs
@@ -1184,7 +1175,6 @@ tag_check_valid (name, argc, argv, local, aflag, repository)
 {
     DBM *db;
     char *valtags_filename;
-    int err;
     int nowrite = 0;
     datum mytag;
     struct val_args the_val_args;
@@ -1276,16 +1266,16 @@ Numeric tag %s contains characters other than digits and '.'", name);
 	{
 	    if (save_cwd (&cwd))
 		error_exit ();
-	    if ( CVS_CHDIR (repository) < 0)
+	    if (CVS_CHDIR (repository) < 0)
 		error (1, errno, "cannot change to %s directory", repository);
 	}
     }
 
-    err = start_recursion (val_fileproc, (FILESDONEPROC) NULL,
-			   val_direntproc, (DIRLEAVEPROC) NULL,
-			   (void *)&the_val_args,
-			   argc, argv, local, which, aflag,
-			   CVS_LOCK_READ, NULL, 1);
+    start_recursion (val_fileproc, (FILESDONEPROC) NULL,
+		     val_direntproc, (DIRLEAVEPROC) NULL,
+		     (void *)&the_val_args,
+		     argc, argv, local, which, aflag,
+		     CVS_LOCK_READ, NULL, 1, repository);
     if (repository != NULL && repository[0] != '\0')
     {
 	if (restore_cwd (&cwd, NULL))
@@ -1313,7 +1303,7 @@ Numeric tag %s contains characters other than digits and '.'", name);
 	    mode_t omask;
 	    omask = umask (cvsumask);
 	    db = dbm_open (valtags_filename, O_RDWR | O_CREAT | O_TRUNC, 0666);
-	    (void) umask (omask);
+	    (void)umask (omask);
 
 	    if (db == NULL)
 	    {

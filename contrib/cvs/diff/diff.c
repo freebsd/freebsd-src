@@ -233,11 +233,13 @@ static struct option const longopts[] =
   {0, 0, 0, 0}
 };
 
+
+
 int
 diff_run (argc, argv, out, callbacks_arg)
      int argc;
      char *argv[];
-     char *out;
+     const char *out;
      const struct diff_callbacks *callbacks_arg;
 {
   int val;

@@ -84,13 +84,18 @@
 # endif
 #endif
 
-#if !defined(S_ISSOCK) && defined(S_IFSOCK)
-# if defined(S_IFMT)
-# define	S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
-# else
-# define S_ISSOCK(m) ((m) & S_IFSOCK)
-# endif
-#endif
+#ifndef S_ISSOCK
+# if defined( S_IFSOCK )
+#   ifdef S_IFMT
+#     define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+#   else
+#     define S_ISSOCK(m) ((m) & S_IFSOCK)
+#   endif /* S_IFMT */
+# elif defined( S_ISNAM )
+    /* SCO OpenServer 5.0.6a */
+#   define S_ISSOCK S_ISNAM
+# endif /* !S_IFSOCK && S_ISNAM */
+#endif /* !S_ISSOCK */
 
 #if !defined(S_ISMPB) && defined(S_IFMPB) /* V7 */
 # if defined(S_IFMT)
@@ -452,30 +457,65 @@ extern int errno;
 #define CVS_FNMATCH fnmatch
 #endif
 
-#if defined (__CYGWIN32__) || defined (WIN32)
+#ifdef WIN32
+/*
+ * According to GNU conventions, we should avoid referencing any macro
+ * containing "WIN" as a reference to Microsoft Windows, as we would like to
+ * avoid any implication that we consider Microsoft Windows any sort of "win".
+ *
+ * FIXME: As of 2003-06-09, folks on the GNULIB project were discussing
+ * defining a configure macro to define WOE32 appropriately.  If they ever do
+ * write such a beast, we should use it, though in most cases it would be
+ * preferable to avoid referencing any OS or compiler anyhow, per Autoconf
+ * convention, and reference only tested features of the system.
+ */
+# define WOE32 1
+#endif /* WIN32 */
 
-/* Under Windows NT, filenames are case-insensitive, and both / and \
-   are path component separators.  */
 
-#define FOLD_FN_CHAR(c) (WNT_filename_classes[(unsigned char) (c)])
+#ifdef WOE32
+  /* Under Windows NT, filenames are case-insensitive.  */
+# define FILENAMES_CASE_INSENSITIVE 1
+#endif /* WOE32 */
+
+
+
+#ifdef FILENAMES_CASE_INSENSITIVE
+
+# if defined (__CYGWIN32__) || defined (WOE32)
+    /* Under Windows NT, filenames are case-insensitive, and both / and \
+       are path component separators.  */
+#   define FOLD_FN_CHAR(c) (WNT_filename_classes[(unsigned char) (c)])
 extern unsigned char WNT_filename_classes[];
-#define FILENAMES_CASE_INSENSITIVE 1
+    /* Is the character C a path name separator?  Under
+       Windows NT, you can use either / or \.  */
+#   define ISDIRSEP(c) (FOLD_FN_CHAR(c) == '/')
+#   define ISABSOLUTE(s) (ISDIRSEP(s[0]) || FOLD_FN_CHAR(s[0]) >= 'a' && FOLD_FN_CHAR(s[0]) <= 'z' && s[1] == ':' && ISDIRSEP(s[2]))
+# else /* ! WOE32 */
+  /* As far as I know, both Cygwin and Macintosh OS X can make it here,
+   * but since the OS X fold just folds a-z into A-Z or visa-versa, I'm just
+   * using it for Cygwin too.  The var name below could probably use a
+   * rename.
+   *
+   * Under Mac OS X & Cygwin, filenames are case-insensitive.
+   */
+#   define FOLD_FN_CHAR(c) (OSX_filename_classes[(unsigned char) (c)])
+extern unsigned char OSX_filename_classes[];
+# endif /* __CYGWIN32__ || WOE32 */
 
-/* Is the character C a path name separator?  Under
-   Windows NT, you can use either / or \.  */
-#define ISDIRSEP(c) (FOLD_FN_CHAR(c) == '/')
+/* The following need to be declared for all case insensitive filesystems.
+ * When not FOLD_FN_CHAR is not #defined, a default definition for these
+ * functions is provided later in this header file.  */
 
-/* Like strcmp, but with the appropriate tweaks for file names.
-   Under Windows NT, filenames are case-insensitive but case-preserving,
-   and both \ and / are path element separators.  */
+/* Like strcmp, but with the appropriate tweaks for file names.  */
 extern int fncmp (const char *n1, const char *n2);
 
-/* Fold characters in FILENAME to their canonical forms.  
-   If FOLD_FN_CHAR is not #defined, the system provides a default
-   definition for this.  */
+/* Fold characters in FILENAME to their canonical forms.  */
 extern void fnfold (char *FILENAME);
 
-#endif /* defined (__CYGWIN32__) || defined (WIN32) */
+#endif /* FILENAMES_CASE_INSENSITIVE */
+
+
 
 /* Some file systems are case-insensitive.  If FOLD_FN_CHAR is
    #defined, it maps the character C onto its "canonical" form.  In a
@@ -483,15 +523,22 @@ extern void fnfold (char *FILENAME);
    to lower case.  Under Windows NT, / and \ are both path component
    separators, so FOLD_FN_CHAR would map them both to /.  */
 #ifndef FOLD_FN_CHAR
-#define FOLD_FN_CHAR(c) (c)
-#define fnfold(filename) (filename)
-#define fncmp strcmp
+# define FOLD_FN_CHAR(c) (c)
+# define fnfold(filename) (filename)
+# define fncmp strcmp
 #endif
 
 /* Different file systems have different path component separators.
    For the VMS port we might need to abstract further back than this.  */
 #ifndef ISDIRSEP
-#define ISDIRSEP(c) ((c) == '/')
+# define ISDIRSEP(c) ((c) == '/')
+#endif
+
+/* Different file systems can have different naming patterns which designate
+ * a path as absolute
+ */
+#ifndef ISABSOLUTE
+# define ISABSOLUTE(s) ISDIRSEP(s[0])
 #endif
 
 

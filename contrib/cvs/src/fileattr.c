@@ -43,7 +43,7 @@ static struct unrecog *unrecog_head;
    no open(), no nothing.  */
 void
 fileattr_startdir (repos)
-    char *repos;
+    const char *repos;
 {
     assert (fileattr_stored_repos == NULL);
     fileattr_stored_repos = xstrdup (repos);
