@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.17 1997/10/28 10:49:57 kato Exp $
+ *	$Id: linux.h,v 1.19 1997/12/15 06:09:11 msmith Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -99,7 +99,6 @@ struct linux_sigframe {
 	void	(*sf_handler)(int);
 };
 
-extern int bsd_to_linux_errno[];
 extern int bsd_to_linux_signal[];
 extern int linux_to_bsd_signal[];
 extern char linux_sigcode[];
