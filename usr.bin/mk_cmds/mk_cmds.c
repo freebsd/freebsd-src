@@ -2,7 +2,6 @@
  * make_commands.c
  *
  * Header: mk_cmds.c,v 1.6 89/01/25 07:47:26 raeburn Exp
- * $Locker:  $
  *
  * Copyright 1987, 1988 by MIT Student Information Processing Board
  *
