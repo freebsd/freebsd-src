@@ -1543,8 +1543,6 @@ fdfree(struct thread *td)
 			 fdtol->fdl_refcount));
 		if (fdtol->fdl_refcount == 1 &&
 		    (td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
-			i = 0;
-			fpp = fdp->fd_ofiles;
 			for (i = 0, fpp = fdp->fd_ofiles;
 			     i <= fdp->fd_lastfile;
 			     i++, fpp++) {
