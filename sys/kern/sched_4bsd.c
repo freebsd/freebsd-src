@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/kthread.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
@@ -80,11 +81,11 @@ struct td_sched *thread0_sched = NULL;
 static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
 #define	SCHED_QUANTUM	(hz / 10)	/* Default sched quantum */
 
-static struct callout schedcpu_callout;
 static struct callout roundrobin_callout;
 
 static void	roundrobin(void *arg);
-static void	schedcpu(void *arg);
+static void	schedcpu(void);
+static void	schedcpu_thread(void *dummy);
 static void	sched_setup(void *dummy);
 static void	maybe_resched(struct thread *td);
 static void	updatepri(struct ksegrp *kg);
@@ -244,7 +245,7 @@ SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
  */
 /* ARGSUSED */
 static void
-schedcpu(void *arg)
+schedcpu(void)
 {
 	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
 	struct thread *td;
@@ -348,7 +349,20 @@ schedcpu(void *arg)
 		mtx_unlock_spin(&sched_lock);
 	} /* end of process loop */
 	sx_sunlock(&allproc_lock);
-	callout_reset(&schedcpu_callout, hz, schedcpu, NULL);
+}
+
+/*
+ * Main loop for a kthread that executes schedcpu once a second.
+ */
+static void
+schedcpu_thread(void *dummy)
+{
+	int nowake;
+
+	for (;;) {
+		schedcpu();
+		tsleep(&nowake, curthread->td_priority, "-", hz);
+	}
 }
 
 /*
@@ -407,12 +421,13 @@ sched_setup(void *dummy)
 		sched_quantum = SCHED_QUANTUM;
 	hogticks = 2 * sched_quantum;
 
-	callout_init(&schedcpu_callout, CALLOUT_MPSAFE);
 	callout_init(&roundrobin_callout, 0);
 
 	/* Kick off timeout driven events by calling first time. */
 	roundrobin(NULL);
-	schedcpu(NULL);
+
+	/* Kick off schedcpu kernel process. */
+	kthread_create(schedcpu_thread, NULL, NULL, 0, 0, "schedcpu");
 }
 
 /* External interfaces start here */
