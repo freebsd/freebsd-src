@@ -273,12 +273,8 @@ int
 bf_run(char *line)
 {
     int		result;
-    CELL	id;
 
-    id = bf_vm->sourceID;
-    bf_vm->sourceID.i = -1;
     result = ficlExec(bf_vm, line);
-    bf_vm->sourceID = id;
 
     DEBUG("ficlExec '%s' = %d", line, result);
     switch (result) {
