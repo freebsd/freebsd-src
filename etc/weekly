@@ -68,7 +68,7 @@ echo ""
 echo "Rebuilding locate database:"
 locdb=/var/db/locate.database
 touch ${locdb}; chown nobody ${locdb}; chmod 644 ${locdb}
-echo /usr/libexec/locate.updatedb | nice -5 su -m nobody 2>&1 |\
+echo /usr/libexec/locate.updatedb | nice -5 su -fm nobody 2>&1 |\
 	fgrep -v 'Permission denied'
 chmod 444 ${locdb}
 
