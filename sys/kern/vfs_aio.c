@@ -52,6 +52,10 @@
 
 #ifdef VFS_AIO
 
+/*
+ * Counter for allocating reference ids to new jobs.  Wrapped to 1 on
+ * overflow.
+ */
 static	long jobrefid;
 
 #define JOBST_NULL		0x0
@@ -214,8 +218,15 @@ static void	process_signal(void *aioj);
 
 SYSINIT(aio, SI_SUB_VFS, SI_ORDER_ANY, aio_onceonly, NULL);
 
-static vm_zone_t kaio_zone, aiop_zone, aiocb_zone, aiol_zone;
-static vm_zone_t aiolio_zone;
+/*
+ * Zones for:
+ * 	kaio	Per process async io info
+ *	aiop	async io thread data
+ *	aiocb	async io jobs
+ *	aiol	list io job pointer - internal to aio_suspend XXX
+ *	aiolio	list io jobs
+ */
+static vm_zone_t kaio_zone, aiop_zone, aiocb_zone, aiol_zone, aiolio_zone;
 
 /*
  * Startup initialization
@@ -616,8 +627,6 @@ aio_process(struct aiocblist *aiocbe)
 	cnt -= auio.uio_resid;
 	cb->_aiocb_private.error = error;
 	cb->_aiocb_private.status = cnt;
-
-	return;
 }
 
 /*
@@ -691,7 +700,7 @@ aio_daemon(void *uproc)
 
 	/*
 	 * Wakeup parent process.  (Parent sleeps to keep from blasting away
-	 * creating to many daemons.)
+	 * and creating too many daemons.)
 	 */
 	wakeup(mycp);
 
@@ -1217,8 +1226,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	suword(&job->_aiocb_private.error, 0);
 	suword(&job->_aiocb_private.kernelinfo, -1);
 
-	error = copyin((caddr_t)job, (caddr_t) &aiocbe->uaiocb, sizeof
-	    aiocbe->uaiocb);
+	error = copyin(job, &aiocbe->uaiocb, sizeof(aiocbe->uaiocb));
 	if (error) {
 		suword(&job->_aiocb_private.error, error);
 
@@ -1321,7 +1329,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		if (kevp == NULL)
 			goto no_kqueue;
 
-		error = copyin((caddr_t)kevp, (caddr_t)&kev, sizeof(kev));
+		error = copyin(kevp, &kev, sizeof(kev));
 		if (error)
 			goto aqueue_fail;
 	}
@@ -1487,8 +1495,7 @@ aio_return(struct proc *p, struct aio_return_args *uap)
 		return EINVAL;
 
 	s = splnet();
-	for (cb = TAILQ_FIRST(&ki->kaio_jobdone); cb; cb = TAILQ_NEXT(cb,
-	    plist)) {
+	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t) cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			splx(s);
@@ -1597,8 +1604,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 
 	error = 0;
 	for (;;) {
-		for (cb = TAILQ_FIRST(&ki->kaio_jobdone); cb; cb =
-		    TAILQ_NEXT(cb, plist)) {
+		TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 			for (i = 0; i < njoblist; i++) {
 				if (((intptr_t)
 				    cb->uaiocb._aiocb_private.kernelinfo) ==
@@ -1787,8 +1793,7 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 	if ((jobref == -1) || (jobref == 0))
 		return EINVAL;
 
-	for (cb = TAILQ_FIRST(&ki->kaio_jobdone); cb; cb = TAILQ_NEXT(cb,
-	    plist)) {
+	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			p->p_retval[0] = cb->uaiocb._aiocb_private.error;
@@ -1853,6 +1858,7 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 #endif /* VFS_AIO */
 }
 
+/* syscall - asynchronous read from a file (REALTIME) */
 int
 aio_read(struct proc *p, struct aio_read_args *uap)
 {
@@ -1863,6 +1869,7 @@ aio_read(struct proc *p, struct aio_read_args *uap)
 #endif /* VFS_AIO */
 }
 
+/* syscall - asynchronous write to a file (REALTIME) */
 int
 aio_write(struct proc *p, struct aio_write_args *uap)
 {
@@ -1873,6 +1880,7 @@ aio_write(struct proc *p, struct aio_write_args *uap)
 #endif /* VFS_AIO */
 }
 
+/* syscall - XXX undocumented */
 int
 lio_listio(struct proc *p, struct lio_listio_args *uap)
 {
@@ -1993,8 +2001,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 
 				jobref = fuword(&iocb->_aiocb_private.kernelinfo);
 
-				for (cb = TAILQ_FIRST(&ki->kaio_jobdone); cb;
-				    cb = TAILQ_NEXT(cb, plist)) {
+				TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 					if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo)
 					    == jobref) {
 						if (cb->uaiocb.aio_lio_opcode
@@ -2015,8 +2022,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 				}
 
 				s = splbio();
-				for (cb = TAILQ_FIRST(&ki->kaio_bufdone); cb;
-				    cb = TAILQ_NEXT(cb, plist)) {
+				TAILQ_FOREACH(cb, &ki->kaio_bufdone, plist) {
 					if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo)
 					    == jobref) {
 						found++;
@@ -2049,7 +2055,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 
 #ifdef VFS_AIO
 /*
- * This is a wierd hack so that we can post a signal.  It is safe to do so from
+ * This is a weird hack so that we can post a signal.  It is safe to do so from
  * a timeout routine, but *not* from an interrupt routine.
  */
 static void
@@ -2140,6 +2146,7 @@ aio_physwakeup(struct buf *bp)
 }
 #endif /* VFS_AIO */
 
+/* syscall - wait for the next completion of an aio request */
 int
 aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 {
@@ -2158,8 +2165,7 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 	timo = 0;
 	if (uap->timeout) {
 		/* Get timespec struct. */
-		error = copyin((caddr_t)uap->timeout, (caddr_t)&ts,
-		    sizeof(ts));
+		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
 			return error;
 
