@@ -13,7 +13,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: eisadevs.c,v 1.1 1995/03/13 09:10:17 root Exp root $
+ * $Id: eisadevs.c,v 1.1 1995/04/23 08:55:43 julian Exp $
  */
 
 /*
@@ -33,6 +33,10 @@
 extern struct isa_driver btdriver;
 int btintr();
 #endif
+#if NSI > 0
+extern struct isa_driver sidriver;
+int siintr();
+#endif
 
 struct eisa_dev eisa_dev[] = {
 #if NBT > 0
@@ -40,6 +44,9 @@ struct eisa_dev eisa_dev[] = {
   { "BUS",0x470,0,&bio_imask,{-1,&btdriver,0,0,-1,0,0,btintr,0,0,0,0,0}},
 #endif  /* NBT > 0 */
 /* add your devices here */
+#if NSI > 0
+  { "SLX",0x411,0,&tty_imask,{-1,&sidriver,0,0,-1,0,0,siintr,0,0,0,0,0}},
+#endif  /* NSI > 0 */
 
   {0,0,0}
 };
