@@ -110,6 +110,23 @@ extern char *alloca ();
 int noglob_dot_filenames = 1;
 
 static int glob_match_after_star ();
+
+#ifdef __FreeBSD__
+static int collate_range_cmp (a, b)
+	int a, b;
+{
+	int r;
+	static char s[2][2];
+
+	if ((unsigned char)a == (unsigned char)b)
+		return 0;
+	s[0][0] = a;
+	s[1][0] = b;
+	if ((r = strcoll(s[0], s[1])) == 0)
+		r = (unsigned char)a - (unsigned char)b;
+	return r;
+}
+#endif
 
 /* Return nonzero if PATTERN has any special globbing chars in it.  */
 
@@ -239,7 +256,13 @@ glob_match (pattern, text, dot_special)
 		    return 0;
 		  c = *p++;
 		}
+#ifdef __FreeBSD__
+	      if (   collate_range_cmp (c1, cstart) >= 0
+		  && collate_range_cmp (c1, cend) <= 0
+		 )
+#else
 	      if (c1 >= cstart && c1 <= cend)
+#endif
 		goto match;
 	      if (c == ']')
 		break;
