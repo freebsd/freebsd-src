@@ -248,7 +248,8 @@ SUBDIR+=doscmd \
 SUBDIR+=uac
 .endif
 
-.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL) \
+    && !defined(NOSECURE)
 SUBDIR+=chkey newkey
 .endif
 
