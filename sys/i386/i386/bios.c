@@ -362,8 +362,8 @@ bios16(struct bios_args *args, char *fmt, ...)
 	    stack -= 2;
 	    break;
 	    
-	case 's':			/* 16-bit integer */
-	    i = va_arg(ap, u_short);
+	case 's':			/* 16-bit integer passed as an int */
+	    i = va_arg(ap, int);
 	    stack -= 2;
 	    break;
 
@@ -434,8 +434,8 @@ bios16(struct bios_args *args, char *fmt, ...)
 	    stack += 2;
 	    break;
 
-	case 's':			/* 16-bit integer */
-	    i = va_arg(ap, u_short);
+	case 's':			/* 16-bit integer passed as an int */
+	    i = va_arg(ap, int);
 	    *(u_short *)stack = i;
 	    stack += 2;
 	    break;
@@ -559,7 +559,7 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	bzero(pd, bigdev);
 	pda->next = currdev;
 	/* get current configuration */
-	if ((error = bios16(&args, PNP_GET_DEVNODE, &pda->next, &pda->node, (u_int16_t)1))) {
+	if ((error = bios16(&args, PNP_GET_DEVNODE, &pda->next, &pda->node, 1))) {
 	    printf("pnpbios: error %d making BIOS16 call\n", error);
 	    break;
 	}
