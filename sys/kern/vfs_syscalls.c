@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.73 1997/09/24 07:46:54 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.74 1997/09/27 13:39:06 kato Exp $
  */
 
 /*
@@ -2809,6 +2809,10 @@ __getcwd(p, uap, retval)
 	*bp = '\0';
 	numcwdcalls++;
 	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
+		if (vp->v_flag & VROOT) {
+			vp = vp->v_mount->mnt_vnodecovered;
+			continue;
+		}
 		if (vp->v_dd->v_id != vp->v_ddid) {
 			numcwdfail1++;
 			free(buf, M_TEMP);
@@ -2841,8 +2845,6 @@ __getcwd(p, uap, retval)
 		*--bp = '/';
 		j++;
 		vp = vp->v_dd;
-		if (vp->v_flag & VROOT) 
-			vp = vp->v_mount->mnt_vnodecovered;
 	}
 	if (!j) {
 		if (bp == buf) {
