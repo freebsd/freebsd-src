@@ -5,6 +5,15 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20001009:
+	The ports tree's new layout is in place.  Be sure to update
+	your entire ports tree, or you will have problems.
+
+20001006:
+	The perl build proceedure no longer installs miniperl, nor uses
+	the installed miniperl.  It is recommended that you delete
+	/usr/bin/miniperl.
+
 20001005:
 	This weekend the ports tree will be updated to a new layout.
 	It will be in an inconsistant state until noted in the UPDATING
