@@ -56,7 +56,7 @@ struct enddisc {
 
 struct peerid {
   struct enddisc enddisc;	/* Peers endpoint discriminator */
-  char authname[50];		/* Peers name (authenticated) */
+  char authname[AUTHLEN];	/* Peers name (authenticated) */
 };
 
 struct mpserver {
