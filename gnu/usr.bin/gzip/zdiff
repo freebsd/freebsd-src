@@ -1,4 +1,5 @@
 #!/bin/sh
+# sh is buggy on RS/6000 AIX 3.2. Replace above line with #!/bin/ksh
 
 # Zcmp and zdiff are used to invoke the cmp or the  diff  pro-
 # gram  on compressed files.  All options specified are passed
@@ -8,6 +9,7 @@
 # necessary) and fed to cmp or diff.  The exit status from cmp
 # or diff is preserved.
 
+PATH="/usr/local/bin:$PATH"; export PATH
 prog=`echo $0 | sed 's|.*/||'`
 case "$prog" in
   *cmp) comp=${CMP-cmp}   ;;

@@ -60,7 +60,7 @@
 #endif
 
 #ifndef lint
-static char rcsid[] = "$Id: bits.c,v 0.8 1993/02/04 13:21:06 jloup Exp $";
+static char rcsid[] = "$Id: bits.c,v 0.9 1993/06/11 10:16:58 jloup Exp $";
 #endif
 
 /* ===========================================================================
@@ -84,7 +84,7 @@ local int bi_valid;
  * are always zero.
  */
 
-int (*read_buf) OF((char *buf, unsigned size)) = file_read;
+int (*read_buf) OF((char *buf, unsigned size));
 /* Current input function. Set to mem_read for in-memory compression */
 
 #ifdef DEBUG

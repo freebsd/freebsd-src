@@ -5,10 +5,8 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: unpack.c,v 1.3 1993/05/28 17:56:07 jloup Exp $";
+static char rcsid[] = "$Id: unpack.c,v 1.4 1993/06/11 19:25:36 jloup Exp $";
 #endif
-
-#include <stdio.h>
 
 #include "tailor.h"
 #include "gzip.h"
@@ -26,11 +24,7 @@ static char rcsid[] = "$Id: unpack.c,v 1.3 1993/05/28 17:56:07 jloup Exp $";
 #define LITERALS 256
 /* Number of literals, excluding the End of Block (EOB) code */
 
-#ifdef SMALL_MEM
-#  define MAX_PEEK 10
-#else
-#  define MAX_PEEK 12
-#endif
+#define MAX_PEEK 12
 /* Maximum number of 'peek' bits used to optimize traversal of the
  * Huffman tree.
  */
@@ -54,7 +48,8 @@ local int parents[MAX_BITLEN+1]; /* Number of parents for each bit length */
 
 local int peek_bits; /* Number of peek bits currently used */
 
-local uch prefix_len[1 << MAX_PEEK];
+/* local uch prefix_len[1 << MAX_PEEK]; */
+#define prefix_len outbuf
 /* For each bit pattern b of peek_bits bits, prefix_len[b] is the length
  * of the Huffman code starting with a prefix of b (upper bits), or 0
  * if all codes of prefix b have more than peek_bits bits. It is not
@@ -62,6 +57,9 @@ local uch prefix_len[1 << MAX_PEEK];
  * codes encountered in the input stream are short codes (by construction).
  * So for most codes a single lookup will be necessary.
  */
+#if 1<<MAX_PEEK > OUTBUFSIZ
+    error cannot overlay prefix_len and outbuf
+#endif
 
 local ulg bitbuf;
 /* Bits are added on the low part of bitbuf and read from the high part. */

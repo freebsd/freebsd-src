@@ -27,6 +27,13 @@ This utility is most useful on systems with very small disks.
 Decompress the given executables instead of compressing them.
 .SH "SEE ALSO"
 gzip(1), znew(1), zmore(1), zcmp(1), zforce(1)
+.SH CAVEATS
+The compressed executable is a shell script. This may create some
+security holes. In particular, the compressed executable relies
+on the PATH environment variable to find
+.I gzip
+and some other utilities
+.I (tail, chmod, ln, sleep).
 .SH "BUGS"
 .I gzexe 
 attempts to retain the original file attributes on the compressed executable,

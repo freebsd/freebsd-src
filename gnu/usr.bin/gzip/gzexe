@@ -8,8 +8,9 @@
 # We also try to retain the original file permissions on the compressed file.
 # For safety reasons, gzexe will not create setuid or setgid shell scripts.
 
-# Warning: the first line of this file must be either : or #!/bin/sh
+# WARNING: the first line of this file must be either : or #!/bin/sh
 # The : is required for some old versions of csh.
+# On Ultrix, /bin/sh is too buggy, change the first line to: #!/bin/sh5
 
 x=`basename $0`
 if test $# = 0; then
@@ -37,6 +38,21 @@ if test -z "`(${CPMOD-cpmod} zfoo1$$ zfoo2$$) 2>&1`"; then
 fi
 rm -f zfoo[12]$$
 
+tail=""
+IFS="${IFS= 	}"; saveifs="$IFS"; IFS="${IFS}:"
+for dir in $PATH; do
+  test -z "$dir" && dir=.
+  if test -f $dir/tail; then
+    tail="$dir/tail"
+    break
+  fi
+done
+IFS="$saveifs"
+if test -z "$tail"; then
+  echo cannot find tail
+  exit 1
+fi
+
 for i do
   if test ! -f "$i" ; then
     echo ${x}: $i not a file
@@ -57,10 +73,10 @@ for i do
     echo "${x}: $i has setgid permission, unchanged"
     continue
   fi
-  if test "`basename $i`" = gzip; then
-    echo "${x}: cannot compress gzip itself"
-    continue
-  fi
+  case "`basename $i`" in
+  gzip | tail | chmod | ln | sleep | rm)
+	echo "${x}: $i would depend on itself"; continue ;;
+  esac
   if test -z "$cpmod"; then
     cp -p "$i" $tmp 2>/dev/null || cp "$i" $tmp
     if test -w $tmp 2>/dev/null; then
@@ -72,25 +88,25 @@ for i do
   fi
   if test $decomp -eq 0; then
     sed 1q $0 > $tmp
-    cat >> $tmp <<'EOF'
+    sed "s|^if tail|if $tail|" >> $tmp <<'EOF'
 skip=18
-if tail +$skip $0 | gzip -cd > /tmp/gztmp$$; then
-  chmod 755 /tmp/gztmp$$
-  prog="`basename $0`"
-  if ln /tmp/gztmp$$ "/tmp/$prog" 2>/dev/null; then
+if tail +$skip $0 | "/usr/local/bin"/gzip -cd > /tmp/gztmp$$; then
+  /bin/chmod 700 /tmp/gztmp$$
+  prog="`echo $0 | /bin/sed 's|^.*/||`"
+  if /bin/ln /tmp/gztmp$$ "/tmp/$prog" 2>/dev/null; then
     trap '/bin/rm -f /tmp/gztmp$$ "/tmp/$prog"; exit $res' 0
-    (sleep 5; /bin/rm -f /tmp/gztmp$$ "/tmp/$prog") 2>/dev/null &
+    (/bin/sleep 5; /bin/rm -f /tmp/gztmp$$ "/tmp/$prog") 2>/dev/null &
     /tmp/"$prog" ${1+"$@"}; res=$?
   else
     trap '/bin/rm -f /tmp/gztmp$$; exit $res' 0
-    (sleep 5; /bin/rm -f /tmp/gztmp$$) 2>/dev/null &
+    (/bin/sleep 5; /bin/rm -f /tmp/gztmp$$) 2>/dev/null &
     /tmp/gztmp$$ ${1+"$@"}; res=$?
   fi
 else
   echo Cannot decompress $0; exit 1
 fi; exit $res
 EOF
-    gzip -cv9 "$i" >> $tmp || {
+    "/usr/local/bin"/gzip -cv9 "$i" >> $tmp || {
       /bin/rm -f $tmp
       echo ${x}: compression not possible for $i, file unchanged.
       res=1
@@ -103,7 +119,7 @@ EOF
     if sed -e 1d -e 2q "$i" | grep "^skip=[0-9]*$" >/dev/null; then
       eval `sed -e 1d -e 2q "$i"`
     fi
-    if tail +$skip "$i" | gzip -cd > $tmp; then
+    if tail +$skip "$i" | "/usr/local/bin"/gzip -cd > $tmp; then
       :
     else
       echo ${x}: $i probably not in gzexe format, file unchanged.

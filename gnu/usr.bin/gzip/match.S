@@ -9,7 +9,7 @@
  * Kristoffer Eriksson <ske@pkmab.se>
  */
  
-/* $Id: match.S,v 0.13 1993/05/24 12:03:03 jloup Exp $ */
+/* $Id: match.S,v 0.14 1993/06/11 18:33:24 jloup Exp $ */
 
 /* Preprocess with -DNO_UNDERLINE if your C compiler does not prefix
  * external symbols with an underline character '_'.
@@ -44,11 +44,11 @@
 
 	.file   "match.S"
 
-#define MAX_MATCH 	258
-#define MAX_MATCH2      128     /* MAX_MATCH/2-1 */
+#define MAX_MATCH	258
+#define MAX_MATCH2	$128 /* MAX_MATCH/2-1 */
 #define MIN_MATCH	3
-#define WSIZE 		32768
-#define MAX_DIST 	WSIZE - MAX_MATCH - MIN_MATCH - 1
+#define    WSIZE	$32768
+#define MAX_DIST	WSIZE - MAX_MATCH - MIN_MATCH - 1
 
 	.globl	_match_init
 	.globl  _longest_match
@@ -87,11 +87,11 @@ _longest_match:	/* int longest_match(cur_match) */
         mov 	_max_chain_length,%ebp /* chain_length = max_chain_length */
 	mov 	_strstart,%edi
 	mov 	%edi,%edx
-	sub	$ MAX_DIST,%edx        /* limit = strstart-MAX_DIST */
+	sub	MAX_DIST,%edx          /* limit = strstart-MAX_DIST */
 	jae	limit_ok
 	sub	%edx,%edx              /* limit = NIL */
 limit_ok:
-        add	$ _window+2,%edi       /* edi = offset(window+strstart+2) */
+        add	$2+_window,%edi        /* edi = offset(window+strstart+2) */
         mov	_prev_length,%ebx      /* best_len = prev_length */
         movw 	-3(%ebx,%edi),%ax      /* ax = scan[best_len-1..best_len] */
         movw 	-2(%edi),%cx           /* cx = scan[0..1] */
@@ -110,7 +110,7 @@ short_loop:
  * at this point, di == scan+2, si == cur_match,
  * ax = scan[best_len-1..best_len] and cx = scan[0..1]
  */
-        and     $ WSIZE-1, %esi
+        and     WSIZE-1, %esi
         movw    _prev(%esi,%esi),%si    /* cur_match = prev[cur_match] */
                                         /* top word of esi is still 0 */
         cmp     %edx,%esi		/* cur_match <= limit ? */
@@ -125,7 +125,7 @@ do_scan:
 
         lea     _window+2(%esi),%esi    /* si = match */
         mov     %edi,%eax               /* ax = scan+2 */
-        mov 	$ MAX_MATCH2,%ecx       /* scan for at most MAX_MATCH bytes */
+        mov 	MAX_MATCH2,%ecx         /* scan for at most MAX_MATCH bytes */
         rep;    cmpsw                   /* loop until mismatch */
         je      maxmatch                /* match of length MAX_MATCH? */
 mismatch:
@@ -134,7 +134,7 @@ mismatch:
         xchg    %edi,%eax           /* edi = scan+2, eax = end of scan */
         sub     %edi,%eax           /* eax = len */
 	sub	%eax,%esi           /* esi = cur_match + 2 + offset(window) */
-	sub	$ _window+2,%esi    /* esi = cur_match */
+	sub	$2+_window,%esi     /* esi = cur_match */
         subb    $1,%cl              /* set carry if cl == 0 (cannot use DEC) */
         adc     $0,%eax             /* eax = carry ? len+1 : len */
         cmp     %ebx,%eax           /* len > best_len ? */
