@@ -285,7 +285,7 @@ findvar(char *p)
 		warnx("%s: keyword not found", p);
 		eval = 1;
 	} else if (hp)
-		v->header = hp;
+		v->header = strdup(hp);
 	return (v);
 }
 
