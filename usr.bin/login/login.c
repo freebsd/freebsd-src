@@ -82,11 +82,6 @@ __FBSDID("$FreeBSD$");
 #include "login.h"
 #include "pathnames.h"
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
 static int		 auth_pam(void);
 static void		 bail(int, int);
 static int		 export(const char *);
