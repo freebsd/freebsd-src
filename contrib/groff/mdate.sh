@@ -1,6 +1,4 @@
 #! /bin/sh
-#
-# $FreeBSD$
 
 # Print the modification date of $1 `nicely'.
 
