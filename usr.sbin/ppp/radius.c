@@ -96,43 +96,56 @@ radius_Process(struct radius *r, int got)
   struct in_range dest;
   struct in_addr gw;
   const void *data;
+  const char *stype;
 
   r->cx.fd = -1;		/* Stop select()ing */
+  stype = r->cx.auth ? "auth" : "acct";
 
   switch (got) {
     case RAD_ACCESS_ACCEPT:
-      log_Printf(LogPHASE, "Radius: ACCEPT received\n");
+      log_Printf(LogPHASE, "Radius(%s): ACCEPT received\n", stype);
+      if (!r->cx.auth) {
+        rad_close(r->cx.rad);
+        return;
+      }
       break;
 
     case RAD_ACCESS_REJECT:
-      log_Printf(LogPHASE, "Radius: REJECT received\n");
-      auth_Failure(r->cx.auth);
+      log_Printf(LogPHASE, "Radius(%s): REJECT received\n", stype);
+      if (r->cx.auth)
+        auth_Failure(r->cx.auth);
       rad_close(r->cx.rad);
       return;
 
     case RAD_ACCESS_CHALLENGE:
       /* we can't deal with this (for now) ! */
       log_Printf(LogPHASE, "Radius: CHALLENGE received (can't handle yet)\n");
-      auth_Failure(r->cx.auth);
+      if (r->cx.auth)
+        auth_Failure(r->cx.auth);
       rad_close(r->cx.rad);
       return;
 
     case RAD_ACCOUNTING_RESPONSE:
-      log_Printf(LogPHASE, "Radius: Accounting response received\n");
+      log_Printf(LogPHASE, "Radius(%s): Accounting response received\n", stype);
+      if (r->cx.auth)
+        auth_Failure(r->cx.auth);		/* unexpected !!! */
+
       /* No further processing for accounting requests, please */
       rad_close(r->cx.rad);
       return;
 
     case -1:
-      log_Printf(LogPHASE, "radius: %s\n", rad_strerror(r->cx.rad));
-      auth_Failure(r->cx.auth);
+      log_Printf(LogPHASE, "radius(%s): %s\n", stype, rad_strerror(r->cx.rad));
+      if (r->cx.auth)
+        auth_Failure(r->cx.auth);
       rad_close(r->cx.rad);
       return;
 
     default:
-      log_Printf(LogERROR, "rad_send_request: Failed %d: %s\n",
+      log_Printf(LogERROR, "rad_send_request(%s): Failed %d: %s\n", stype,
                  got, rad_strerror(r->cx.rad));
-      auth_Failure(r->cx.auth);
+      if (r->cx.auth)
+        auth_Failure(r->cx.auth);
       rad_close(r->cx.rad);
       return;
   }
@@ -455,6 +468,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   }
 
 
+  r->cx.auth = authp;
   if ((got = rad_init_send_request(r->cx.rad, &r->cx.fd, &tv)))
     radius_Process(r, got);
   else {
@@ -462,9 +476,8 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     log_Printf(LogDEBUG, "Using radius_Timeout [%p]\n", radius_Timeout);
     r->cx.timer.load = tv.tv_usec / TICKUNIT + tv.tv_sec * SECTICKS;
     r->cx.timer.func = radius_Timeout;
-    r->cx.timer.name = "radius";
+    r->cx.timer.name = "radius auth";
     r->cx.timer.arg = r;
-    r->cx.auth = authp;
     timer_Start(&r->cx.timer);
   }
 }
@@ -609,15 +622,15 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
       return;
     }
 
+  r->cx.auth = NULL;			/* Not valid for accounting requests */
   if ((got = rad_init_send_request(r->cx.rad, &r->cx.fd, &tv)))
     radius_Process(r, got);
   else {
     log_Printf(LogDEBUG, "Using radius_Timeout [%p]\n", radius_Timeout);
     r->cx.timer.load = tv.tv_usec / TICKUNIT + tv.tv_sec * SECTICKS;
     r->cx.timer.func = radius_Timeout;
-    r->cx.timer.name = "radius";
+    r->cx.timer.name = "radius acct";
     r->cx.timer.arg = r;
-    r->cx.auth = NULL; /* Not valid for accounting requests */
     timer_Start(&r->cx.timer);
   }
 }
