@@ -544,13 +544,18 @@ int
 _fetch_putln(conn_t *conn, const char *str, size_t len)
 {
 	struct iovec iov[2];
+	int ret;
 
 	DEBUG(fprintf(stderr, ">>> %s\n", str));
 	iov[0].iov_base = __DECONST(char *, str);
 	iov[0].iov_len = len;
 	iov[1].iov_base = __DECONST(char *, ENDL);
 	iov[1].iov_len = sizeof ENDL;
-	if (_fetch_writev(conn, iov, 2) == -1)
+	if (len == 0)
+		ret = _fetch_writev(conn, &iov[1], 1);
+	else
+		ret = _fetch_writev(conn, iov, 2);
+	if (ret == -1)
 		return (-1);
 	return (0);
 }
