@@ -508,6 +508,8 @@ snpioctl(dev, cmd, data, flags, td)
 		tp = snpdevtotty(tdev);
 		if (!tp)
 			return (EINVAL);
+		if (tp->t_state & TS_SNOOP)
+			return (EBUSY);
 
 		s = spltty();
 
