@@ -330,7 +330,7 @@ OpenBSD 2.8		2000-12-01 [OBD]
 NetBSD 1.5              2000-12-06 [NBD]
 FreeBSD 4.3  		2001-04-20 [FBD]
 OpenBSD 2.9  		2001-06-01 [OBD]
-NetBSD 1.5.1		2001-06-xx [NBD] (patch release)
+NetBSD 1.5.1		2001-07-xx [NBD] (patch release)
 
 
 Bibliography
@@ -354,7 +354,7 @@ Presented to the Tasmanian Unix Special Interest Group of the
 Australian Computer Society, Hobart, August 1993.
 
 Peter H. Salus. Unix at 25. Byte Magazine, October 1994.
-URL: http://www.byte.com/art/9410/sec8/art3.htm
+URL: http://www.byte.com/art/9410/sec8/art3.htm (unreachable)
 
 Andreas Klemm, Lars Köller. If you're going to San Francisco ...
 Die freien BSD-Varianten von Unix. c't April 1997, page 368ff.
@@ -363,16 +363,16 @@ BSD Release Announcements collection.
 URL: http://www.de.FreeBSD.org/de/ftp/releases/
 
 BSD Hypertext Man Pages
-http://www.FreeBSD.org/cgi/man.cgi
+URL: http://www.FreeBSD.org/cgi/man.cgi
 
 UNIX history graphing project
-http://minnie.cs.adfa.edu.au/Unix_History/index.html
+URL: http://minnie.tuhs.org/Unix_History/index.html
 
 UNIX history
-http://perso.wanadoo.fr/levenez/unix/
+URL: http://perso.wanadoo.fr/levenez/unix/
 
 James Howard: The BSD Family Tree
-http://www.daemonnews.org/200104/bsd_family.html
+URL: http://www.daemonnews.org/200104/bsd_family.html
 ("what are the differences between FreeBSD, NetBSD, and OpenBSD?")
 
 
