@@ -83,6 +83,7 @@ struct pt_softc {
 	pt_flags flags;	
 	union	 ccb saved_ccb;
 	int	 io_timeout;
+	dev_t	 dev;
 };
 
 static	d_open_t	ptopen;
@@ -306,9 +307,6 @@ ptinit(void)
 	if (status != CAM_REQ_CMP) {
 		printf("pt: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
-	} else {
-		/* If we were successfull, register our devsw */
-		cdevsw_add(&pt_cdevsw);
 	}
 }
 
@@ -349,20 +347,15 @@ ptctor(struct cam_periph *periph, void *arg)
 	
 	cam_extend_set(ptperiphs, periph->unit_number, periph);
 
-	/*
-	 * The DA driver supports a blocksize, but
-	 * we don't know the blocksize until we do 
-	 * a read capacity.  So, set a flag to
-	 * indicate that the blocksize is 
-	 * unavailable right now.  We'll clear the
-	 * flag as soon as we've done a read capacity.
-	 */
 	devstat_add_entry(&softc->device_stats, "pt",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE,
 			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_OTHER);
 
+	softc->dev = make_dev(&pt_cdevsw, periph->unit_number, UID_ROOT,
+			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
+			      periph->unit_number);
 	/*
 	 * Add async callbacks for bus reset and
 	 * bus device reset calls.  I don't bother
@@ -441,6 +434,8 @@ ptdtor(struct cam_periph *periph)
 	softc = (struct pt_softc *)periph->softc;
 
 	devstat_remove_entry(&softc->device_stats);
+
+	destroy_dev(softc->dev);
 
 	cam_extend_release(ptperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
