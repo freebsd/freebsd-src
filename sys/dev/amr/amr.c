@@ -847,11 +847,6 @@ amr_wait_command(struct amr_command *ac)
     while ((ac->ac_flags & AMR_CMD_BUSY) && (count < 30)) {
 	tsleep(ac, PRIBIO | PCATCH, "amrwcmd", hz);
     }
-    
-    if (ac->ac_status != 0) {
-	device_printf(sc->amr_dev, "I/O error - 0x%x\n", ac->ac_status);
-	return(EIO);
-    }
     return(0);
 }
 
