@@ -413,7 +413,8 @@ static void tl_dio_write32(sc, reg, val)
 	return;
 }
 
-static void tl_dio_setbit(sc, reg, bit)
+static void
+tl_dio_setbit(sc, reg, bit)
 	struct tl_softc		*sc;
 	int			reg;
 	int			bit;
@@ -428,7 +429,8 @@ static void tl_dio_setbit(sc, reg, bit)
 	return;
 }
 
-static void tl_dio_clrbit(sc, reg, bit)
+static void
+tl_dio_clrbit(sc, reg, bit)
 	struct tl_softc		*sc;
 	int			reg;
 	int			bit;
@@ -588,7 +590,8 @@ static u_int8_t tl_eeprom_getbyte(sc, addr, dest)
 /*
  * Read a sequence of bytes from the EEPROM.
  */
-static int tl_read_eeprom(sc, dest, off, cnt)
+static int
+tl_read_eeprom(sc, dest, off, cnt)
 	struct tl_softc		*sc;
 	caddr_t			dest;
 	int			off;
@@ -607,7 +610,8 @@ static int tl_read_eeprom(sc, dest, off, cnt)
 	return(err ? 1 : 0);
 }
 
-static void tl_mii_sync(sc)
+static void
+tl_mii_sync(sc)
 	struct tl_softc		*sc;
 {
 	register int		i;
@@ -622,7 +626,8 @@ static void tl_mii_sync(sc)
 	return;
 }
 
-static void tl_mii_send(sc, bits, cnt)
+static void
+tl_mii_send(sc, bits, cnt)
 	struct tl_softc		*sc;
 	u_int32_t		bits;
 	int			cnt;
@@ -640,7 +645,8 @@ static void tl_mii_send(sc, bits, cnt)
 	}
 }
 
-static int tl_mii_readreg(sc, frame)
+static int
+tl_mii_readreg(sc, frame)
 	struct tl_softc		*sc;
 	struct tl_mii_frame	*frame;
 	
@@ -735,7 +741,8 @@ fail:
 	return(0);
 }
 
-static int tl_mii_writereg(sc, frame)
+static int
+tl_mii_writereg(sc, frame)
 	struct tl_softc		*sc;
 	struct tl_mii_frame	*frame;
 	
@@ -791,7 +798,8 @@ static int tl_mii_writereg(sc, frame)
 	return(0);
 }
 
-static int tl_miibus_readreg(dev, phy, reg)
+static int
+tl_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
@@ -808,7 +816,8 @@ static int tl_miibus_readreg(dev, phy, reg)
 	return(frame.mii_data);
 }
 
-static int tl_miibus_writereg(dev, phy, reg, data)
+static int
+tl_miibus_writereg(dev, phy, reg, data)
 	device_t		dev;
 	int			phy, reg, data;
 {
@@ -827,7 +836,8 @@ static int tl_miibus_writereg(dev, phy, reg, data)
 	return(0);
 }
 
-static void tl_miibus_statchg(dev)
+static void
+tl_miibus_statchg(dev)
 	device_t		dev;
 {
 	struct tl_softc		*sc;
@@ -850,7 +860,8 @@ static void tl_miibus_statchg(dev)
 /*
  * Set modes for bitrate devices.
  */
-static void tl_setmode(sc, media)
+static void
+tl_setmode(sc, media)
 	struct tl_softc		*sc;
 	int			media;
 {
@@ -879,7 +890,8 @@ static void tl_setmode(sc, media)
  * Bytes 0-2 and 3-5 are symmetrical, so are folded together.  Then
  * the folded 24-bit value is split into 6-bit portions and XOR'd.
  */
-static int tl_calchash(addr)
+static int
+tl_calchash(addr)
 	caddr_t			addr;
 {
 	int			t;
@@ -896,7 +908,8 @@ static int tl_calchash(addr)
  * hold the station address, which leaves us free to use the other
  * three for multicast addresses.
  */
-static void tl_setfilt(sc, addr, slot)
+static void
+tl_setfilt(sc, addr, slot)
 	struct tl_softc		*sc;
 	caddr_t			addr;
 	int			slot;
@@ -928,7 +941,8 @@ static void tl_setfilt(sc, addr, slot)
  * the list once to find the tail, then traverse it again backwards to
  * update the multicast filter.
  */
-static void tl_setmulti(sc)
+static void
+tl_setmulti(sc)
 	struct tl_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -986,7 +1000,8 @@ static void tl_setmulti(sc)
  * second pause at the end to 'wait for the clocks to start' but in my
  * experience this isn't necessary.
  */
-static void tl_hardreset(dev)
+static void
+tl_hardreset(dev)
 	device_t		dev;
 {
 	struct tl_softc		*sc;
@@ -1012,7 +1027,8 @@ static void tl_hardreset(dev)
 	return;
 }
 
-static void tl_softreset(sc, internal)
+static void
+tl_softreset(sc, internal)
 	struct tl_softc		*sc;
 	int			internal;
 {
@@ -1074,7 +1090,8 @@ static void tl_softreset(sc, internal)
  * Probe for a ThunderLAN chip. Check the PCI vendor and device IDs
  * against our list and return its name if we find a match.
  */
-static int tl_probe(dev)
+static int
+tl_probe(dev)
 	device_t		dev;
 {
 	struct tl_type		*t;
@@ -1093,7 +1110,8 @@ static int tl_probe(dev)
 	return(ENXIO);
 }
 
-static int tl_attach(dev)
+static int
+tl_attach(dev)
 	device_t		dev;
 {
 	int			i;
@@ -1340,7 +1358,8 @@ fail:
 	return(error);
 }
 
-static int tl_detach(dev)
+static int
+tl_detach(dev)
 	device_t		dev;
 {
 	struct tl_softc		*sc;
@@ -1373,7 +1392,8 @@ static int tl_detach(dev)
 /*
  * Initialize the transmit lists.
  */
-static int tl_list_tx_init(sc)
+static int
+tl_list_tx_init(sc)
 	struct tl_softc		*sc;
 {
 	struct tl_chain_data	*cd;
@@ -1400,7 +1420,8 @@ static int tl_list_tx_init(sc)
 /*
  * Initialize the RX lists and allocate mbufs for them.
  */
-static int tl_list_rx_init(sc)
+static int
+tl_list_rx_init(sc)
 	struct tl_softc		*sc;
 {
 	struct tl_chain_data	*cd;
@@ -1431,7 +1452,8 @@ static int tl_list_rx_init(sc)
 	return(0);
 }
 
-static int tl_newbuf(sc, c)
+static int
+tl_newbuf(sc, c)
 	struct tl_softc		*sc;
 	struct tl_chain_onefrag	*c;
 {
@@ -1484,7 +1506,8 @@ static int tl_newbuf(sc, c)
  * the buffers, it will generate an end of channel interrupt and wait
  * for us to empty the chain and restart the receiver.
  */
-static int tl_intvec_rxeof(xsc, type)
+static int
+tl_intvec_rxeof(xsc, type)
 	void			*xsc;
 	u_int32_t		type;
 {
@@ -1553,7 +1576,8 @@ static int tl_intvec_rxeof(xsc, type)
  * the card has hit the end of the receive buffer chain and we need to
  * empty out the buffers and shift the pointer back to the beginning again.
  */
-static int tl_intvec_rxeoc(xsc, type)
+static int
+tl_intvec_rxeoc(xsc, type)
 	void			*xsc;
 	u_int32_t		type;
 {
@@ -1576,7 +1600,8 @@ static int tl_intvec_rxeoc(xsc, type)
 	return(r);
 }
 
-static int tl_intvec_txeof(xsc, type)
+static int
+tl_intvec_txeof(xsc, type)
 	void			*xsc;
 	u_int32_t		type;
 {
@@ -1628,7 +1653,8 @@ static int tl_intvec_txeof(xsc, type)
  * if the tl_txeoc flag is set, and only the TXEOC interrupt handler
  * can set this flag once tl_start() has cleared it.
  */
-static int tl_intvec_txeoc(xsc, type)
+static int
+tl_intvec_txeoc(xsc, type)
 	void			*xsc;
 	u_int32_t		type;
 {
@@ -1664,7 +1690,8 @@ static int tl_intvec_txeoc(xsc, type)
 	return(1);
 }
 
-static int tl_intvec_adchk(xsc, type)
+static int
+tl_intvec_adchk(xsc, type)
 	void			*xsc;
 	u_int32_t		type;
 {
@@ -1684,7 +1711,8 @@ static int tl_intvec_adchk(xsc, type)
 	return(0);
 }
 
-static int tl_intvec_netsts(xsc, type)
+static int
+tl_intvec_netsts(xsc, type)
 	void			*xsc;
 	u_int32_t		type;
 {
@@ -1701,7 +1729,8 @@ static int tl_intvec_netsts(xsc, type)
 	return(1);
 }
 
-static void tl_intr(xsc)
+static void
+tl_intr(xsc)
 	void			*xsc;
 {
 	struct tl_softc		*sc;
@@ -1776,7 +1805,8 @@ static void tl_intr(xsc)
 	return;
 }
 
-static void tl_stats_update(xsc)
+static void
+tl_stats_update(xsc)
 	void			*xsc;
 {
 	struct tl_softc		*sc;
@@ -1838,7 +1868,8 @@ static void tl_stats_update(xsc)
  * Encapsulate an mbuf chain in a list by coupling the mbuf data
  * pointers to the fragment pointers.
  */
-static int tl_encap(sc, c, m_head)
+static int
+tl_encap(sc, c, m_head)
 	struct tl_softc		*sc;
 	struct tl_chain		*c;
 	struct mbuf		*m_head;
@@ -1935,7 +1966,8 @@ static int tl_encap(sc, c, m_head)
  * copy of the pointers since the transmit list fragment pointers are
  * physical addresses.
  */
-static void tl_start(ifp)
+static void
+tl_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct tl_softc		*sc;
@@ -2028,7 +2060,8 @@ static void tl_start(ifp)
 	return;
 }
 
-static void tl_init(xsc)
+static void
+tl_init(xsc)
 	void			*xsc;
 {
 	struct tl_softc		*sc = xsc;
@@ -2117,7 +2150,8 @@ static void tl_init(xsc)
 /*
  * Set media options.
  */
-static int tl_ifmedia_upd(ifp)
+static int
+tl_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct tl_softc		*sc;
@@ -2138,7 +2172,8 @@ static int tl_ifmedia_upd(ifp)
 /*
  * Report current media status.
  */
-static void tl_ifmedia_sts(ifp, ifmr)
+static void
+tl_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
@@ -2169,7 +2204,8 @@ static void tl_ifmedia_sts(ifp, ifmr)
 	return;
 }
 
-static int tl_ioctl(ifp, command, data)
+static int
+tl_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -2234,7 +2270,8 @@ static int tl_ioctl(ifp, command, data)
 	return(error);
 }
 
-static void tl_watchdog(ifp)
+static void
+tl_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct tl_softc		*sc;
@@ -2255,7 +2292,8 @@ static void tl_watchdog(ifp)
  * Stop the adapter and free any mbufs allocated to the
  * RX and TX lists.
  */
-static void tl_stop(sc)
+static void
+tl_stop(sc)
 	struct tl_softc		*sc;
 {
 	register int		i;
@@ -2322,7 +2360,8 @@ static void tl_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void tl_shutdown(dev)
+static void
+tl_shutdown(dev)
 	device_t		dev;
 {
 	struct tl_softc		*sc;
