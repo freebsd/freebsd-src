@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: boot0cfg.c,v 1.2 1999/02/22 09:36:54 rnordier Exp $";
+	"$Id: boot0cfg.c,v 1.3 1999/02/26 14:57:17 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -85,17 +85,17 @@ main(int argc, char *argv[])
     const char *bpath, *fpath, *disk;
     ssize_t n;
     int B_flag, v_flag, o_flag;
-    int d_arg, t_arg;
+    int d_arg, m_arg, t_arg;
     int o_and, o_or;
     int fd, fd1, up, c, i;
 
     bpath = "/boot/boot0";
     fpath = NULL;
     B_flag = v_flag = o_flag = 0;
-    d_arg = t_arg = -1;
+    d_arg = m_arg = t_arg = -1;
     o_and = 0xff;
     o_or = 0;
-    while ((c = getopt(argc, argv, "Bvb:d:f:o:t:")) != -1)
+    while ((c = getopt(argc, argv, "Bvb:d:f:m:o:t:")) != -1)
         switch (c) {
         case 'B':
             B_flag = 1;
@@ -111,6 +111,9 @@ main(int argc, char *argv[])
             break;
         case 'f':
             fpath = optarg;
+            break;
+        case 'm':
+            m_arg = argtoi(optarg, 0, 0xf, 'm');
             break;
         case 'o':
             stropt(optarg, &o_and, &o_or);
@@ -157,6 +160,10 @@ main(int argc, char *argv[])
     }
     if (d_arg != -1)
 	buf[OFF_DRIVE] = d_arg;
+    if (m_arg != -1) {
+	buf[OFF_FLAGS] &= 0xf0;
+	buf[OFF_FLAGS] |= m_arg;
+    }
     if (o_flag) {
         buf[OFF_FLAGS] &= o_and;
         buf[OFF_FLAGS] |= o_or;
@@ -188,7 +195,8 @@ main(int argc, char *argv[])
                        part[i].dp_size);
             }
         printf("\n");
-        printf("drive=0x%x  options=", buf[OFF_DRIVE]);
+        printf("drive=0x%x  mask=0x%x  options=", buf[OFF_DRIVE],
+	       buf[OFF_FLAGS] & 0xf);
         for (i = 0; i < nopt; i++) {
             if (i)
                 printf(",");
@@ -264,7 +272,7 @@ static void
 usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
-    "usage: boot0cfg [-Bv] [-b boot0] [-d drive] [-f file] [-o options]",
-    "                [-t ticks] disk");
+    "usage: boot0cfg [-Bv] [-b boot0] [-d drive] [-f file] [-m mask]",
+    "                [-o options] [-t ticks] disk");
     exit(1);
 }
