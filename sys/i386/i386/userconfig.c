@@ -40,7 +40,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.28 1995/05/30 07:59:44 rgrimes Exp $
+ *      $Id: userconfig.c,v 1.29 1995/06/25 13:57:55 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -107,8 +107,6 @@ static int set_device_mem(CmdParm *);
 static int set_device_flags(CmdParm *);
 static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
-static int device_attach(CmdParm *);
-static int device_probe(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
 
@@ -133,7 +131,6 @@ static CmdParm dev_parms[] = {
 
 static Cmd CmdList[] = {
     { "?", 	helpfunc, 		NULL },		/* ? (help)	*/
-    { "a",	device_attach,		dev_parms },	/* attach dev */
     { "di",	set_device_disable,	dev_parms },	/* disable dev	*/
     { "dr",	set_device_drq,		int_parms },	/* drq dev #	*/
     { "en",	set_device_enable,	dev_parms },	/* enable dev	*/
@@ -145,7 +142,6 @@ static Cmd CmdList[] = {
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
     { "l",	list_devices,		NULL },		/* ls, list	*/
     { "po",	set_device_ioaddr,	int_parms },	/* port dev addr */
-    { "pr",	device_probe,		dev_parms },	/* probe dev	*/
     { "res",	(CmdFunc)cpu_reset,	NULL },		/* reset CPU	*/
     { "q", 	quitfunc, 		NULL },		/* quit		*/
 #if NSCBUS > 0
@@ -359,26 +355,6 @@ set_device_disable(CmdParm *parms)
 }
 
 static int
-device_attach(CmdParm *parms)
-{
-    int status;
-
-    status = (*(parms[0].parm.dparm->id_driver->attach))(parms[0].parm.dparm);
-    printf("attach returned status of 0x%x\n", status);
-    return 0;
-}
-
-static int
-device_probe(CmdParm *parms)
-{
-    int status;
-
-    status = (*(parms[0].parm.dparm->id_driver->probe))(parms[0].parm.dparm);
-    printf("probe returned status of 0x%x\n", status);
-    return 0;
-}
-
-static int
 quitfunc(CmdParm *parms)
 {
     return 1;
@@ -389,7 +365,6 @@ helpfunc(CmdParm *parms)
 {
     printf("Command\t\t\tDescription\n");
     printf("-------\t\t\t-----------\n");
-    printf("attach <devname>\tReturn results of device attach\n");
     printf("ls\t\t\tList currently configured devices\n");
     printf("port <devname> <addr>\tSet device port (i/o address)\n");
     printf("irq <devname> <number>\tSet device irq\n");
@@ -398,7 +373,6 @@ helpfunc(CmdParm *parms)
     printf("iosize <devname> <size>\tSet device memory size\n");
     printf("flags <devname> <mask>\tSet device flags\n");
     printf("enable <devname>\tEnable device\n");
-    printf("probe <devname>\t\tReturn results of device probe\n");
     printf("disable <devname>\tDisable device (will not be probed)\n");
     printf("quit\t\t\tExit this configuration utility\n");
     printf("reset\t\t\tReset CPU\n");
