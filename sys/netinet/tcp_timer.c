@@ -41,6 +41,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/mbuf.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -222,6 +223,7 @@ tcp_timer_keep(xtp)
 	void *xtp;
 {
 	struct tcpcb *tp = xtp;
+	struct tcptemp *t_template;
 	int s;
 #ifdef TCPDEBUG
 	int ostate;
@@ -259,9 +261,13 @@ tcp_timer_keep(xtp)
 		 * correspondent TCP to respond.
 		 */
 		tcpstat.tcps_keepprobe++;
-		tcp_respond(tp, tp->t_template->tt_ipgen,
-			    &tp->t_template->tt_t, (struct mbuf *)NULL,
-			    tp->rcv_nxt, tp->snd_una - 1, 0);
+		t_template = tcp_maketemplate(tp);
+		if (t_template) {
+			tcp_respond(tp, t_template->tt_ipgen,
+				    &t_template->tt_t, (struct mbuf *)NULL,
+				    tp->rcv_nxt, tp->snd_una - 1, 0);
+			(void) m_free(dtom(t_template));
+		}
 		callout_reset(tp->tt_keep, tcp_keepintvl, tcp_timer_keep, tp);
 	} else
 		callout_reset(tp->tt_keep, tcp_keepidle, tcp_timer_keep, tp);
