@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)rpc_main.c 1.30 89/03/30 (C) 1987 SMI";
 #endif
 static const char rcsid[] =
-	"$Id: rpc_main.c,v 1.7 1998/01/09 06:32:54 jb Exp $";
+	"$Id: rpc_main.c,v 1.8 1998/01/15 08:46:58 jb Exp $";
 #endif
 
 /*
@@ -1271,7 +1271,7 @@ parseargs(argc, argv, cmd)
 		}
 	} else {		/* 4.1 mode */
 		pmflag = 0;	/* set pmflag only in tirpcmode */
-#if defined(__FreeBSD__) || defined(__NetBSD__)
+#if !defined(__FreeBSD__) && !defined(__NetBSD__)
 		inetdflag = 1;	/* inetdflag is TRUE by default */
 #endif
 		if (cmd->nflag) { /* netid needs TIRPC */
