@@ -40,7 +40,10 @@
         phantasia
         ..
     ..
-/set gname=wheel mode=0755
+/set gname=wheel mode=0700
+    heimdal
+    ..
+/set mode=0755
     log
     ..
     mail            gname=mail mode=0775
