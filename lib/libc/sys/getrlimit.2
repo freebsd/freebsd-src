@@ -92,6 +92,10 @@ from processes that are exceeding their declared resident set size.
 The maximum size (in bytes) of the stack segment for a process;
 this defines how far a program's stack segment may be extended.
 Stack extension is performed automatically by the system.
+.It Li RLIMIT_SBSIZE
+The maximum size (in bytes) of socket buffer usage for this user.
+This limits the amount of network memory, and hence the amount of
+mbufs, that this user may hold at any time.
 .El
 .Pp
 A resource limit is specified as a soft limit and a hard limit.  When a
