@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: elf_freebsd.c,v 1.2 1998/10/02 08:04:56 peter Exp $
+ *	$Id: elf_freebsd.c,v 1.3 1998/10/02 20:53:17 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -71,6 +71,7 @@ elf_exec(struct loaded_module *mp)
 	return(err);
     entry = ehdr->e_entry & 0xffffff;
 
+    ssym = esym = 0;
     if ((md = mod_findmetadata(mp, MODINFOMD_ELFSSYM)) != NULL)
 	ssym = *((vm_offset_t *)&(md->md_data));
     if ((md = mod_findmetadata(mp, MODINFOMD_ELFESYM)) != NULL)
