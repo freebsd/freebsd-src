@@ -2998,7 +2998,7 @@ vaccess(type, file_mode, uid, gid, acc_mode, cred)
 
 	/*
 	 * At this point, uid == 0 can do anything.
-	 * XXX: should use suser() ? */
+	 * XXX: should use suser() ?
 	 * XXX: Should only check root-ness after other checks fail.
 	 */
 	if (cred->cr_uid == 0)
@@ -3037,4 +3037,3 @@ vaccess(type, file_mode, uid, gid, acc_mode, cred)
 		mask |= S_IWOTH;
 	return ((file_mode & mask) == mask ? 0 : EACCES);
 }
-
