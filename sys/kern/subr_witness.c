@@ -778,8 +778,10 @@ enroll(const char *description, struct lock_class *lock_class)
 	 * This isn't quite right, as witness_cold is still 0 while we
 	 * enroll all the locks initialized before witness_initialize().
 	 */
-	if ((lock_class->lc_flags & LC_SPINLOCK) && !witness_cold)
+	if ((lock_class->lc_flags & LC_SPINLOCK) && !witness_cold) {
+		mtx_unlock_spin(&w_mtx);
 		panic("spin lock %s not in order list", description);
+	}
 	if ((w = witness_get()) == NULL)
 		return (NULL);
 	w->w_name = description;
@@ -790,9 +792,11 @@ enroll(const char *description, struct lock_class *lock_class)
 		STAILQ_INSERT_HEAD(&w_spin, w, w_typelist);
 	else if (lock_class->lc_flags & LC_SLEEPLOCK)
 		STAILQ_INSERT_HEAD(&w_sleep, w, w_typelist);
-	else
+	else {
+		mtx_unlock_spin(&w_mtx);
 		panic("lock class %s is not sleep or spin",
 		    lock_class->lc_name);
+	}
 	mtx_unlock_spin(&w_mtx);
 
 	return (w);
