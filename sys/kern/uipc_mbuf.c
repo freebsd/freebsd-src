@@ -1003,7 +1003,7 @@ m_pullup(struct mbuf *n, int len)
 bad:
 	m_freem(n);
 	mtx_lock(&mbuf_mtx);
-	mbstat.m_mcfail++;
+	mbstat.m_mpfail++;
 	mtx_unlock(&mbuf_mtx);
 	return (NULL);
 }
