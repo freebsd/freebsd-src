@@ -274,12 +274,6 @@ options 	SYSVSHM
 options 	SYSVSEM
 options 	SYSVMSG
 
-#
-# This option includes a MD5 routine in the kernel, this is used for
-# various authentication and privacy uses.
-#
-options 	MD5
-
 
 #####################################################################
 # DEBUGGING OPTIONS
