@@ -48,7 +48,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "command.h"
 #include "target.h"
 #include "frame.h"
-#include "regex.h"
+#include "gnuregex.h"
 #include "inferior.h"
 #include "language.h"
 
