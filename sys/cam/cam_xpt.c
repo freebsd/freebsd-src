@@ -397,7 +397,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/* Really only one LUN */
-		{ T_ENCLOSURE, SIP_MEDIA_FIXED, "SUN", "SENA*", "*" },
+		{ T_ENCLOSURE, SIP_MEDIA_FIXED, "SUN", "SENA", "*" },
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
@@ -433,6 +433,17 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		{
 			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "EXABYTE",
 			"EXB-8200*", "*"
+		},
+		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
+		 * Let's try the same as above, but for a drive that says
+		 * it's an IPL-6860 but is actually an EXB 8200.
+		 */
+		{
+			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "EXABYTE",
+			"IPL-6860*", "*"
 		},
 		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
