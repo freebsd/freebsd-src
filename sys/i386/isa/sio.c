@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.225 1999/01/26 04:02:54 steve Exp $
+ *	$Id: sio.c,v 1.226 1999/01/30 12:17:34 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -111,7 +111,6 @@
 #define NSIOTOT (NSIO + EXTRA_SIO)
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
-#define	RS_IBUFSIZE	256
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
@@ -143,18 +142,6 @@
 #define	COM_FIFOSIZE(dev)	(((dev)->id_flags & 0xff000000) >> 24)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
-
-/*
- * Input buffer watermarks.
- * The external device is asked to stop sending when the buffer exactly reaches
- * high water, or when the high level requests it.
- * The high level is notified immediately (rather than at a later clock tick)
- * when this watermark is reached.
- * The buffer size is chosen so the watermark should almost never be reached.
- * The low watermark is invisibly 0 since the buffer is always emptied all at
- * once.
- */
-#define	RS_IHIGHWATER (3 * RS_IBUFSIZE / 4)
 
 /*
  * com state bits.
@@ -245,8 +232,11 @@ struct com_s {
 	u_char	hotchar;	/* ldisc-specific char to be handled ASAP */
 	u_char	*ibuf;		/* start of input buffer */
 	u_char	*ibufend;	/* end of input buffer */
+	u_char	*ibufold;	/* old input buffer, to be freed */
 	u_char	*ihighwater;	/* threshold in input buffer */
 	u_char	*iptr;		/* next free spot in input buffer */
+	int	ibufsize;	/* size of ibuf (not include error bytes) */
+	int	ierroff;	/* offset of error bytes in ibuf */
 
 	struct lbq	obufq;	/* head of queue of output buffers */
 	struct lbq	obufs[2];	/* output buffers */
@@ -283,14 +273,6 @@ struct com_s {
 	u_long	error_counts[CE_NTYPES];
 
 	/*
-	 * Ping-pong input buffers.  The extra factor of 2 in the sizes is
-	 * to allow for an error byte for each input byte.
-	 */
-#define	CE_INPUT_OFFSET		RS_IBUFSIZE
-	u_char	ibuf1[2 * RS_IBUFSIZE];
-	u_char	ibuf2[2 * RS_IBUFSIZE];
-
-	/*
 	 * Data area for output buffers.  Someday we should build the output
 	 * buffer queue without copying data.
 	 */
@@ -314,6 +296,7 @@ static	int	sioattach	__P((struct isa_device *dev));
 static	timeout_t siobusycheck;
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
+static	void	sioinput	__P((struct com_s *com));
 static	ointhand2_t	siointr;
 static	void	siointr1	__P((struct com_s *com));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
@@ -321,6 +304,7 @@ static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	swihand_t siopoll;
 static	int	sioprobe	__P((struct isa_device *dev));
 static	void	siosettimeout	__P((void));
+static	int	siosetwater	__P((struct com_s *com, speed_t speed));
 static	void	comstart	__P((struct tty *tp));
 static	timeout_t comwakeup;
 static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
@@ -900,9 +884,6 @@ sioattach(isdp)
 	com->loses_outints = COM_LOSESOUTINTS(isdp) != 0;
 	com->no_irq = isdp->id_irq == 0;
 	com->tx_fifo_size = 1;
-	com->iptr = com->ibuf = com->ibuf1;
-	com->ibufend = com->ibuf1 + RS_IBUFSIZE;
-	com->ihighwater = com->ibuf1 + RS_IHIGHWATER;
 	com->obufs[0].l_head = com->obuf1;
 	com->obufs[1].l_head = com->obuf2;
 
@@ -936,6 +917,12 @@ sioattach(isdp)
 		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
 	} else
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
+	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
+		enable_intr();
+		free(com, M_TTYS);
+		return (0);
+	}
+	enable_intr();
 	termioschars(&com->it_in);
 	com->it_out = com->it_in;
 
@@ -1171,9 +1158,6 @@ open_top:
 		tp->t_dev = dev;
 		tp->t_termios = mynor & CALLOUT_MASK
 				? com->it_out : com->it_in;
-		tp->t_ififosize = 2 * RS_IBUFSIZE;
-		tp->t_ispeedwat = (speed_t)-1;
-		tp->t_ospeedwat = (speed_t)-1;
 		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
 		com->poll = com->no_irq;
 		com->poll_output = com->loses_outints;
@@ -1458,6 +1442,88 @@ siodtrwakeup(chan)
 }
 
 static void
+sioinput(com)
+	struct com_s	*com;
+{
+	u_char		*buf;
+	int		incc;
+	u_char		line_status;
+	int		recv_data;
+	struct tty	*tp;
+
+	buf = com->ibuf;
+	tp = com->tp;
+	if (!(tp->t_state & TS_ISOPEN) || !(tp->t_cflag & CREAD)) {
+		com_events -= (com->iptr - com->ibuf);
+		com->iptr = com->ibuf;
+		return;
+	}
+	if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
+		/*
+		 * Avoid the grotesquely inefficient lineswitch routine
+		 * (ttyinput) in "raw" mode.  It usually takes about 450
+		 * instructions (that's without canonical processing or echo!).
+		 * slinput is reasonably fast (usually 40 instructions plus
+		 * call overhead).
+		 */
+		do {
+			enable_intr();
+			incc = com->iptr - buf;
+			if (tp->t_rawq.c_cc + incc > tp->t_ihiwat
+			    && (com->state & CS_RTS_IFLOW
+				|| tp->t_iflag & IXOFF)
+			    && !(tp->t_state & TS_TBLOCK))
+				ttyblock(tp);
+			com->delta_error_counts[CE_TTY_BUF_OVERFLOW]
+				+= b_to_q((char *)buf, incc, &tp->t_rawq);
+			buf += incc;
+			tk_nin += incc;
+			tk_rawcc += incc;
+			tp->t_rawcc += incc;
+			ttwakeup(tp);
+			if (tp->t_state & TS_TTSTOP
+			    && (tp->t_iflag & IXANY
+				|| tp->t_cc[VSTART] == tp->t_cc[VSTOP])) {
+				tp->t_state &= ~TS_TTSTOP;
+				tp->t_lflag &= ~FLUSHO;
+				comstart(tp);
+			}
+			disable_intr();
+		} while (buf < com->iptr);
+	} else {
+		do {
+			enable_intr();
+			line_status = buf[com->ierroff];
+			recv_data = *buf++;
+			if (line_status
+			    & (LSR_BI | LSR_FE | LSR_OE | LSR_PE)) {
+				if (line_status & LSR_BI)
+					recv_data |= TTY_BI;
+				if (line_status & LSR_FE)
+					recv_data |= TTY_FE;
+				if (line_status & LSR_OE)
+					recv_data |= TTY_OE;
+				if (line_status & LSR_PE)
+					recv_data |= TTY_PE;
+			}
+			(*linesw[tp->t_line].l_rint)(recv_data, tp);
+			disable_intr();
+		} while (buf < com->iptr);
+	}
+	com_events -= (com->iptr - com->ibuf);
+	com->iptr = com->ibuf;
+
+	/*
+	 * There is now room for another low-level buffer full of input,
+	 * so enable RTS if it is now disabled and there is room in the
+	 * high-level buffer.
+	 */
+	if ((com->state & CS_RTS_IFLOW) && !(com->mcr_image & MCR_RTS) &&
+	    !(tp->t_state & TS_TBLOCK))
+		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
+}
+
+static void
 siointr(unit)
 	int	unit;
 {
@@ -1572,7 +1638,7 @@ if (com->iptr - com->ibuf == 8)
 	setsofttty();
 #endif
 				ioptr[0] = recv_data;
-				ioptr[CE_INPUT_OFFSET] = line_status;
+				ioptr[com->ierroff] = line_status;
 				com->iptr = ++ioptr;
 				if (ioptr == com->ihighwater
 				    && com->state & CS_RTS_IFLOW)
@@ -1842,9 +1908,7 @@ siopoll()
 		return;
 repeat:
 	for (unit = 0; unit < NSIOTOT; ++unit) {
-		u_char		*buf;
 		struct com_s	*com;
-		u_char		*ibuf;
 		int		incc;
 		struct tty	*tp;
 
@@ -1868,38 +1932,11 @@ repeat:
 			enable_intr();
 			continue;
 		}
-
-		/* switch the role of the low-level input buffers */
-		if (com->iptr == (ibuf = com->ibuf)) {
-			buf = NULL;     /* not used, but compiler can't tell */
-			incc = 0;
-		} else {
-			buf = ibuf;
+		if (com->iptr != com->ibuf) {
 			disable_intr();
-			incc = com->iptr - buf;
-			com_events -= incc;
-			if (ibuf == com->ibuf1)
-				ibuf = com->ibuf2;
-			else
-				ibuf = com->ibuf1;
-			com->ibufend = ibuf + RS_IBUFSIZE;
-			com->ihighwater = ibuf + RS_IHIGHWATER;
-			com->iptr = ibuf;
-
-			/*
-			 * There is now room for another low-level buffer full
-			 * of input, so enable RTS if it is now disabled and
-			 * there is room in the high-level buffer.
-			 */
-			if ((com->state & CS_RTS_IFLOW)
-			    && !(com->mcr_image & MCR_RTS)
-			    && !(tp->t_state & TS_TBLOCK))
-				outb(com->modem_ctl_port,
-				     com->mcr_image |= MCR_RTS);
+			sioinput(com);
 			enable_intr();
-			com->ibuf = ibuf;
 		}
-
 		if (com->state & CS_CHECKMSR) {
 			u_char	delta_modem_status;
 
@@ -1925,56 +1962,6 @@ repeat:
 				com->extra_state |= CSE_BUSYCHECK;
 			}
 			(*linesw[tp->t_line].l_start)(tp);
-		}
-		if (incc <= 0 || !(tp->t_state & TS_ISOPEN) ||
-		    !(tp->t_cflag & CREAD))
-			continue;
-		/*
-		 * Avoid the grotesquely inefficient lineswitch routine
-		 * (ttyinput) in "raw" mode.  It usually takes about 450
-		 * instructions (that's without canonical processing or echo!).
-		 * slinput is reasonably fast (usually 40 instructions plus
-		 * call overhead).
-		 */
-		if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
-			if (tp->t_rawq.c_cc + incc > tp->t_ihiwat
-			    && (com->state & CS_RTS_IFLOW
-				|| tp->t_iflag & IXOFF)
-			    && !(tp->t_state & TS_TBLOCK))
-				ttyblock(tp);
-			tk_nin += incc;
-			tk_rawcc += incc;
-			tp->t_rawcc += incc;
-			com->delta_error_counts[CE_TTY_BUF_OVERFLOW]
-				+= b_to_q((char *)buf, incc, &tp->t_rawq);
-			ttwakeup(tp);
-			if (tp->t_state & TS_TTSTOP
-			    && (tp->t_iflag & IXANY
-				|| tp->t_cc[VSTART] == tp->t_cc[VSTOP])) {
-				tp->t_state &= ~TS_TTSTOP;
-				tp->t_lflag &= ~FLUSHO;
-				comstart(tp);
-			}
-		} else {
-			do {
-				u_char	line_status;
-				int	recv_data;
-
-				line_status = (u_char) buf[CE_INPUT_OFFSET];
-				recv_data = (u_char) *buf++;
-				if (line_status
-				    & (LSR_BI | LSR_FE | LSR_OE | LSR_PE)) {
-					if (line_status & LSR_BI)
-						recv_data |= TTY_BI;
-					if (line_status & LSR_FE)
-						recv_data |= TTY_FE;
-					if (line_status & LSR_OE)
-						recv_data |= TTY_OE;
-					if (line_status & LSR_PE)
-						recv_data |= TTY_PE;
-				}
-				(*linesw[tp->t_line].l_rint)(recv_data, tp);
-			} while (--incc > 0);
 		}
 		if (com_events == 0)
 			break;
@@ -2062,7 +2049,12 @@ comparam(tp, t)
 		outb(iobase + com_fifo, com->fifo_image);
 	}
 
-	disable_intr();		/* very important while com_data is hidden */
+	/*
+	 * This returns with interrupts disabled so that we can complete
+	 * the speed change atomically.  Keeping interrupts disabled is
+	 * especially important while com_data is hidden.
+	 */
+	(void) siosetwater(com, t->c_ispeed);
 
 	if (divisor != 0) {
 		outb(iobase + com_cfcr, cfcr | CFCR_DLAB);
@@ -2151,6 +2143,80 @@ comparam(tp, t)
 	enable_intr();
 	splx(s);
 	comstart(tp);
+	if (com->ibufold != NULL) {
+		free(com->ibufold, M_TTYS);
+		com->ibufold = NULL;
+	}
+	return (0);
+}
+
+static int
+siosetwater(com, speed)
+	struct com_s	*com;
+	speed_t		speed;
+{
+	int		cp4ticks;
+	u_char		*ibuf;
+	int		ibufsize;
+	struct tty	*tp;
+
+	/*
+	 * Make the buffer size large enough to handle a softtty interrupt
+	 * latency of about 2 ticks without loss of throughput or data
+	 * (about 3 ticks if input flow control is not used or not honoured,
+	 * but a bit less for CS5-CS7 modes).
+	 */
+	cp4ticks = speed / 10 / hz * 4;
+	for (ibufsize = 128; ibufsize < cp4ticks;)
+		ibufsize <<= 1;
+	if (ibufsize == com->ibufsize) {
+		disable_intr();
+		return (0);
+	}
+
+	/*
+	 * Allocate input buffer.  The extra factor of 2 in the size is
+	 * to allow for an error byte for each input byte.
+	 */
+	ibuf = malloc(2 * ibufsize, M_TTYS, M_NOWAIT);
+	if (ibuf == NULL) {
+		disable_intr();
+		return (ENOMEM);
+	}
+
+	/* Initialize non-critical variables. */
+	com->ibufold = com->ibuf;
+	com->ibufsize = ibufsize;
+	tp = com->tp;
+	if (tp != NULL) {
+		tp->t_ififosize = 2 * ibufsize;
+		tp->t_ispeedwat = (speed_t)-1;
+		tp->t_ospeedwat = (speed_t)-1;
+	}
+
+	/*
+	 * Read current input buffer, if any.  Continue with interrupts
+	 * disabled.
+	 */
+	disable_intr();
+	if (com->iptr != com->ibuf)
+		sioinput(com);
+
+	/*-
+	 * Initialize critical variables, including input buffer watermarks.
+	 * The external device is asked to stop sending when the buffer
+	 * exactly reaches high water, or when the high level requests it.
+	 * The high level is notified immediately (rather than at a later
+	 * clock tick) when this watermark is reached.
+	 * The buffer size is chosen so the watermark should almost never
+	 * be reached.
+	 * The low watermark is invisibly 0 since the buffer is always
+	 * emptied all at once.
+	 */
+	com->iptr = com->ibuf = ibuf;
+	com->ibufend = ibuf + ibufsize;
+	com->ierroff = ibufsize;
+	com->ihighwater = ibuf + 3 * ibufsize / 4;
 	return (0);
 }
 
