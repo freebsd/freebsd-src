@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.5.2.20 1996/05/24 06:09:01 jkh Exp $
+ * $Id: nfs.c,v 1.11 1996/08/23 07:55:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -75,7 +75,8 @@ mediaGetNFS(Device *dev, char *file, Boolean probe)
 {
     char	buf[PATH_MAX];
 
-    msgDebug("Request for %s from NFS\n", file);
+    if (isDebug())
+	msgDebug("Request for %s from NFS\n", file);
     snprintf(buf, PATH_MAX, "/dist/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.62 1996/07/11 20:06:57 jkh Exp $
+ * $Id: menus.c,v 1.89 1996/10/14 21:32:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -258,7 +258,6 @@ DMenu MenuIndex = {
       { "Packages",		"The packages collection",		NULL, configPackages },
       { "Partition",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "PCNFSD",		"Run authentication server for PC-NFS.",	dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
-      { "Ports",		"Link to FreeBSD ports collection.",	NULL, configPorts },
       { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "Routed",		"Set flags for routed (default: -q)",	dmenuVarCheck, configRoutedFlags, NULL, "routed" },
       { "Samba",		"Configure Samba for LanManager access.", dmenuVarCheck, configSamba, NULL, "samba" },
@@ -406,8 +405,8 @@ of the following CDROM drives as your installation drive.",
 DMenu MenuMediaFloppy = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a Floppy drive",
-    "You have more than one floppy drive.  Please chose the drive\n\
-you would like to use for this operation",
+    "You have more than one floppy drive.  Please chose which drive\n\
+you would like to use.",
     NULL,
     NULL,
     { { NULL } },
@@ -440,8 +439,10 @@ guaranteed to carry the full range of possible distributions.",
     "install",
 { { "Primary Site",	"ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
-  { "Other",		"Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
+  { "URL",		"Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=other" },
+  { "Argentina",	"ftp.ar.freebsd.org", NULL, dmenuSetVariable, NULL,
+    VAR_FTP_PATH "=ftp://ftp.ar.freebsd.org/pub/FreeBSD/" },
   { "Australia",	"ftp.au.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.au.freebsd.org/pub/FreeBSD/" },
   { "Australia #2",	"ftp2.au.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -490,10 +491,10 @@ guaranteed to carry the full range of possible distributions.",
     VAR_FTP_PATH "=ftp://ftp.hk.super.net/pub/FreeBSD/" },
   { "Ireland",		"ftp.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.ie.freebsd.org/pub/FreeBSD/" },
-  { "Israel",		"orgchem.weizmann.ac.il", NULL, dmenuSetVariable, NULL,
-    VAR_FTP_PATH "=ftp://orgchem.weizmann.ac.il/pub/FreeBSD/" },
-  { "Israel #2",	"xray4.weizmann.ac.il", NULL, dmenuSetVariable, NULL,
-    VAR_FTP_PATH "=ftp://xray4.weizmann.ac.il/pub/FreeBSD/" },
+  { "Israel",		"ftp.il.freebsd.org", NULL, dmenuSetVariable, NULL,
+    VAR_FTP_PATH "=ftp://ftp.il.freebsd.org/pub/FreeBSD/" },
+  { "Israel #2",	"ftp2.il.freebsd.org", NULL, dmenuSetVariable, NULL,
+    VAR_FTP_PATH "=ftp://ftp2.il.freebsd.org/pub/FreeBSD/" },
   { "Japan",		"ftp.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.jp.freebsd.org/pub/FreeBSD/" },
   { "Japan #2",		"ftp2.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -574,11 +575,11 @@ select one of the following tape devices detected on your system.",
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
-    "If you are using PPP over a serial device as opposed\n"
-    "to a direct ethernet connection, then you may first need to dial your\n"
-    "service provider using the ppp utility we provide for that purpose.\n"
-    "If you're using SLIP over a serial device then it's expected that you\n"
-    "have a hardwired connection.\n\n"
+    "If you are using PPP over a serial device, as opposed to a direct\n"
+    "ethernet connection, then you may first need to dial your Internet\n"
+    "Service Provider using the ppp utility we provide for that purpose.\n"
+    "If you're using SLIP over a serial device then the expectation is\n"
+    "that you have a HARDWIRED connection.\n\n"
     "You can also install over a parallel port using a special \"laplink\"\n"
     "cable to another machine running a fairly recent (2.0R or later) version\n"
     "of FreeBSD.",
@@ -600,18 +601,18 @@ media.",
     "media",
 { { "1 CDROM",		"Install from a FreeBSD CDROM",
     NULL, mediaSetCDROM },
-  { "2 DOS",		"Install from a DOS partition",
-    NULL, mediaSetDOS },
-  { "3 File System",	"Install from an existing filesystem",
-    NULL, mediaSetUFS },
-  { "4 Floppy",		"Install from a floppy disk set",
-    NULL, mediaSetFloppy },
-  { "5 FTP",		"Install from an FTP server",
+  { "2 FTP",		"Install from an FTP server",
     NULL, mediaSetFTPActive },
-  { "6 FTP Passive",	"Install from an FTP server through a firewall",
+  { "3 FTP Passive",	"Install from an FTP server through a firewall",
     NULL, mediaSetFTPPassive },
-  { "7 NFS",		"Install over NFS",
+  { "4 DOS",		"Install from a DOS partition",
+    NULL, mediaSetDOS },
+  { "5 NFS",		"Install over NFS",
     NULL, mediaSetNFS },
+  { "6 File System",	"Install from an existing filesystem",
+    NULL, mediaSetUFS },
+  { "7 Floppy",		"Install from a floppy disk set",
+    NULL, mediaSetFloppy },
   { "8 Tape",		"Install from SCSI or QIC tape",
     NULL, mediaSetTape },
   { NULL } },
@@ -731,6 +732,8 @@ you wish to install.",
     NULL,
 { { "base",	"top-level files in /usr/src [300K]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_BASE },
+  { "contrib",	"/usr/src/contrib (contributed software) [33MB]",
+    dmenuFlagCheck, dmenuSetFlag,	NULL, &SrcDists, '[', 'X', ']', DIST_SRC_CONTRIB },
   { "gnu",	"/usr/src/gnu (software from the GNU Project) [42MB]",
     dmenuFlagCheck, dmenuSetFlag,	NULL, &SrcDists, '[', 'X', ']', DIST_SRC_GNU },
   { "etc",	"/usr/src/etc (miscellaneous system files) [460K]",
@@ -1007,15 +1010,13 @@ software not provided in the base distributions.",
     NULL, optionsEditor },
   { "8 Packages",	"Install pre-packaged software for FreeBSD",
     NULL, configPackages },
-  { "9 Ports",		"Link to FreeBSD Ports Collection on CD",
-    NULL, configPorts },
-  { "A Root Password",	"Set the system manager's password",
+  { "9 Root Password",	"Set the system manager's password",
     NULL, dmenuSystemCommand, NULL, "passwd root" },
-  { "B HTML Docs",	"Go to the HTML documentation menu (post-install)",
+  { "A HTML Docs",	"Go to the HTML documentation menu (post-install)",
     NULL, docBrowser },
-  { "C XFree86",	"Configure XFree86",
+  { "B XFree86",	"Configure XFree86",
     NULL, configXFree86 },
-  { "0 Exit",		"Exit this menu (returning to previous)",
+  { "Exit",		"Exit this menu (returning to previous)",
     NULL, dmenuExit },
   { NULL } },
 };
@@ -1143,9 +1144,6 @@ the other keymaps below.",
   { "German ISO", "German ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=german.iso" },
   { "Italian", "Italian ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=it.iso" },
   { "Japanese 106", "Japanese 106 keymap",  dmenuVarCheck, dmenuSetVariable, NULL, "keymap=jp.106" },
-  { "Russian CP866", "Russian Code Page 866 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=ru.cp866" },
-  { "Russian KOI8", "Russian koi8 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=ru.koi8-r" },
-  { "Russian s-KOI8", "Russian shifted koi8 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=ru.koi8-r.shift" },
   { "Swedish CP850", "Swedish Code Page 850 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=swedish.cp850" },
   { "Swedish ISO", "Swedish ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=swedish.iso" },
   { "U.K. CP850", "United Kingdom Code Page 850 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=uk.cp850" },

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.67 1996/07/13 05:44:51 jkh Exp $
+ * $Id: dist.c,v 1.73 1996/10/10 09:22:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -91,6 +91,7 @@ static Distribution DESDistTable[] = {
 /* The /usr/src distribution */
 static Distribution SrcDistTable[] = {
 { "sbase",	"/usr/src",		&SrcDists,	DIST_SRC_BASE,		NULL		},
+{ "scontrib",	"/usr/src",		&SrcDists,	DIST_SRC_CONTRIB,	NULL		},
 { "sgnu",	"/usr/src",		&SrcDists,	DIST_SRC_GNU,		NULL		},
 { "setc",	"/usr/src",		&SrcDists,	DIST_SRC_ETC,		NULL		},
 { "sgames",	"/usr/src",		&SrcDists,	DIST_SRC_GAMES,		NULL		},
@@ -264,7 +265,7 @@ distMaybeSetDES(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS;
 
-    dialog_clear();
+    dialog_clear_norefresh();
     if (!msgYesNo("Do wish to install DES cryptographic software?\n\n"
 		  "If you choose No, FreeBSD will use an MD5 based password scheme which,\n"
 		  "while perhaps more secure, is not interoperable with the traditional\n"
@@ -338,7 +339,7 @@ distExtract(char *parent, Distribution *me)
     struct timeval start, stop;
 
     status = TRUE;
-    dialog_clear();
+    dialog_clear_norefresh();
     if (isDebug())
 	msgDebug("distExtract: parent: %s, me: %s\n", parent ? parent : "(none)", me->my_name);
 
@@ -364,30 +365,9 @@ distExtract(char *parent, Distribution *me)
 	    goto done;
 	}
 
-	/* First try to get the distribution as a single file */
-        snprintf(buf, 512, "%s/%s.tgz", path, dist);
 	/*
-	 * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
-	 * are not considered too significant.
-	 */
-	fd = mediaDevice->get(mediaDevice, buf, TRUE);
-	if (fd >= 0) {
-	    char *dir = root_bias(me[i].my_dir);
-
-	    msgNotify("Extracting %s into %s directory...", dist, dir);
-	    status = mediaExtractDist(dir, fd);
-	    mediaDevice->close(mediaDevice, fd);
-	    goto done;
-	}
-	else if (fd == IO_ERROR) {	/* Hard error, can't continue */
-	    mediaDevice->shutdown(mediaDevice);
-	    status = FALSE;
-	    goto done;
-	}
-
-	/*
-	 * If we couldn't get it as one file then we need to get multiple pieces; locate and parse an
-	 * info file telling us how many we need for this distribution.
+	 * Try to get distribution as multiple pieces, locating and parsing an
+	 * info file which tells us how many we need for this distribution.
 	 */
 	dist_attr = NULL;
 	numchunks = 0;
@@ -399,7 +379,7 @@ distExtract(char *parent, Distribution *me)
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
 	    if (DITEM_STATUS(attr_parse(dist_attr, fd)) == DITEM_FAILURE)
-		msgConfirm("Cannot load information file for %s distribution!\n"
+		msgConfirm("Cannot parse information file for the %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
 	    else {
 		if (isDebug())
@@ -410,12 +390,40 @@ distExtract(char *parent, Distribution *me)
 	    }
 	    safe_free(dist_attr);
 	    mediaDevice->close(mediaDevice, fd);
+	    if (!numchunks)
+		continue;
 	}
 	else if (fd == IO_ERROR) {	/* Hard error, can't continue */
 	    mediaDevice->shutdown(mediaDevice);
 	    status = FALSE;
 	    goto done;
 	}
+	else {
+	    /* Try to get the distribution as a single file */
+	    snprintf(buf, 512, "%s/%s.tgz", path, dist);
+	    /*
+	     * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
+	     * are not considered too significant.
+	     */
+	    fd = mediaDevice->get(mediaDevice, buf, TRUE);
+	    if (fd >= 0) {
+		char *dir = root_bias(me[i].my_dir);
+
+		msgNotify("Extracting %s into %s directory...", dist, dir);
+		status = mediaExtractDist(dir, fd);
+		mediaDevice->close(mediaDevice, fd);
+		goto done;
+	    }
+	    else if (fd == IO_ERROR) {	/* Hard error, can't continue */
+		mediaDevice->shutdown(mediaDevice);
+		status = FALSE;
+		goto done;
+	    }
+	    else
+		numchunks = 0;
+	}
+
+	/* Fall through from "we got the attribute file, now get the pieces" step */
 	if (!numchunks)
 	    continue;
 
@@ -428,8 +436,10 @@ distExtract(char *parent, Distribution *me)
 	/* We have one or more chunks, go pick them up */
 	mediaExtractDistBegin(root_bias(me[i].my_dir), &fd2, &zpid, &cpid);
 	for (chunk = 0; chunk < numchunks; chunk++) {
-	    int n, retval;
+	    int n, retval, last_msg;
 	    char prompt[80];
+
+	    last_msg = 0;
 
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
@@ -459,12 +469,16 @@ distExtract(char *parent, Distribution *me)
 		seconds = stop.tv_sec + (stop.tv_usec / 1000000.0);
 		if (!seconds)
 		    seconds = 1;
-		msgInfo("%10d bytes read from %s dist, chunk %2d of %2d @ %.1f KB/sec.",
-			total, dist, chunk + 1, numchunks, (total / seconds) / 1024.0);
+
+		if (seconds != last_msg) {
+		    last_msg = seconds;
+		    msgInfo("%10d bytes read from %s dist, chunk %2d of %2d @ %.1f KB/sec.",
+			    total, dist, chunk + 1, numchunks, (total / seconds) / 1024.0);
+		}
 		retval = write(fd2, buf, n);
 		if (retval != n) {
 		    mediaDevice->close(mediaDevice, fd);
-		    dialog_clear();
+		    dialog_clear_norefresh();
 		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
 		    goto punt;
 		}
@@ -551,7 +565,7 @@ distExtractAll(dialogMenuItem *self)
 
     if (!mediaDevice->init(mediaDevice))
 	return DITEM_FAILURE;
-    dialog_clear();
+    dialog_clear_norefresh();
     msgNotify("Attempting to install all selected distributions..");
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
@@ -562,10 +576,16 @@ distExtractAll(dialogMenuItem *self)
 
 	buf[0] = '\0';
 	printSelected(buf, Dists, DistTable, &col);
-	dialog_clear();
+	dialog_clear_norefresh();
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
 		   "be because they were not available on the installation\n"
 		   "media you've chosen:\n\n\t%s", buf);
+	/* Assume that if we couldn't get all the dists, our media probably needs changing at this point */
+	if (mediaDevice->type == DEVICE_TYPE_FTP)
+	    variable_unset(VAR_FTP_PATH);
+	mediaDevice->shutdown(mediaDevice);
+	return DITEM_FAILURE | DITEM_RESTORE;
     }
     return DITEM_SUCCESS;
 }
+

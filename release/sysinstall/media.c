@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.49 1996/07/08 12:00:40 jkh Exp $
+ * $Id: media.c,v 1.62 1996/10/14 21:50:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -259,19 +259,27 @@ mediaSetFTP(dialogMenuItem *self)
     static Device ftpDevice;
     char *cp, *hostname, *dir;
     extern int FtpPort;
+    static Boolean network_init = 1;
+    int what = DITEM_RESTORE;
 
-    dialog_clear();
-    if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
-	return DITEM_FAILURE | DITEM_RECREATE;
-    else
-	cp = variable_get(VAR_FTP_PATH);
+    cp = variable_get(VAR_FTP_PATH);
+    /* If we've been through here before ... */
+    if (!network_init && cp && msgYesNo("Re-use old FTP site selection values?"))
+	cp = NULL;
+
     if (!cp) {
-	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", VAR_FTP_PATH);
-	return DITEM_FAILURE | DITEM_RECREATE;
+	dialog_clear_norefresh();
+	if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
+	    return DITEM_FAILURE | DITEM_RECREATE;
+	else
+	    cp = variable_get(VAR_FTP_PATH);
+	what = DITEM_RECREATE;
     }
+    if (!cp)
+	return DITEM_FAILURE | what;
     else if (!strcmp(cp, "other")) {
 	variable_set2(VAR_FTP_PATH, "ftp://");
-	dialog_clear();
+	dialog_clear_norefresh();
 	cp = variable_get_value(VAR_FTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
 				"remote ftp site.  This site must accept either anonymous\n"
 				"ftp or you should have set an ftp username and password\n"
@@ -279,22 +287,35 @@ mediaSetFTP(dialogMenuItem *self)
 				"A URL looks like this:  ftp://<hostname>/<path>\n"
 				"Where <path> is relative to the anonymous ftp directory or the\n"
 				"home directory of the user being logged in as.");
-	if (!cp || !*cp)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	if (!cp || !*cp || !strcmp(cp, "ftp://")) {
+	    variable_unset(VAR_FTP_PATH);
+	    return DITEM_FAILURE | what;
+	}
     }
     if (strncmp("ftp://", cp, 6)) {
 	msgConfirm("Sorry, %s is an invalid URL!", cp);
-	return DITEM_FAILURE | DITEM_RECREATE;
+	variable_unset(VAR_FTP_PATH);
+	return DITEM_FAILURE | what;
     }
     strcpy(ftpDevice.name, cp);
 
-    if (!tcpDeviceSelect())
-	return DITEM_FAILURE | DITEM_RECREATE;
-    if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
-	if (isDebug())
-	    msgDebug("mediaSetFTP: Net device init failed.\n");
-	return DITEM_FAILURE | DITEM_RECREATE;
+    dialog_clear_norefresh();
+    if (network_init || msgYesNo("You've already done the network configuration once,\n"
+			       "would you like to skip over it now?") != 0) {
+	if (mediaDevice)
+	    mediaDevice->shutdown(mediaDevice);
+	if (!tcpDeviceSelect()) {
+	    variable_unset(VAR_FTP_PATH);
+	    return DITEM_FAILURE | what;
+	}
+	if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
+	    if (isDebug())
+		msgDebug("mediaSetFTP: Net device init failed.\n");
+	    variable_unset(VAR_FTP_PATH);
+	    return DITEM_FAILURE | what;
+	}
     }
+    network_init = FALSE;
     hostname = cp + 6;
     if ((cp = index(hostname, ':')) != NULL) {
 	*(cp++) = '\0';
@@ -309,12 +330,15 @@ mediaSetFTP(dialogMenuItem *self)
 	msgDebug("dir = `%s'\n", dir ? dir : "/");
 	msgDebug("port # = `%d'\n", FtpPort);
     }
-    msgNotify("Looking up host %s..", hostname);
-    if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
-	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
-		   "name server, gateway and network interface are correctly configured?", hostname);
-	mediaDevice->shutdown(mediaDevice);
-	return DITEM_FAILURE | DITEM_RECREATE;
+    if (variable_get(VAR_NAMESERVER)) {
+	msgNotify("Looking up host %s..", hostname);
+	if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
+	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
+		       "name server, gateway and network interface are correctly configured?", hostname);
+	    mediaDevice->shutdown(mediaDevice);
+	    network_init = TRUE;
+	    return DITEM_FAILURE | what;
+	}
     }
     variable_set2(VAR_FTP_HOST, hostname);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/");
@@ -326,7 +350,7 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
-    return DITEM_LEAVE_MENU | DITEM_RECREATE;
+    return DITEM_SUCCESS | DITEM_LEAVE_MENU | what;
 }
 
 int
@@ -349,6 +373,7 @@ mediaSetUFS(dialogMenuItem *self)
     static Device ufsDevice;
     char *cp;
 
+    dialog_clear_norefresh();
     cp = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
 			    "containing the FreeBSD distribution files:");
     if (!cp)
@@ -370,6 +395,7 @@ mediaSetNFS(dialogMenuItem *self)
     static Device nfsDevice;
     char *cp, *idx;
 
+    dialog_clear_norefresh();
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
 			    "host and directory containing the FreeBSD distribution files.\n"
 			    "This should be in the format:  hostname:/some/freebsd/dir");
@@ -390,11 +416,13 @@ mediaSetNFS(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     *idx = '\0';
-    msgNotify("Looking up host %s..", cp);
-    if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
-	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
-		   "name server, gateway and network interface are correctly configured?", cp);
-	return DITEM_FAILURE;
+    if (variable_get(VAR_NAMESERVER)) {
+	msgNotify("Looking up host %s..", cp);
+	if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
+	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
+		       "name server, gateway and network interface are correctly configured?", cp);
+	    return DITEM_FAILURE;
+	}
     }
     variable_set2(VAR_NFS_HOST, cp);
     nfsDevice.type = DEVICE_TYPE_NFS;
@@ -473,7 +501,7 @@ mediaExtractDistEnd(int zpid, int cpid)
     int i,j;
 
     i = waitpid(zpid, &j, 0);
-    /* Don't check status - gunzip seems to return a bogus one! */
+    /* Don't check exit status - gunzip seems to return a bogus one! */
     if (i < 0) {
 	if (isDebug())
 	    msgDebug("wait for gunzip returned status of %d!\n", i);
@@ -545,7 +573,7 @@ mediaExtractDist(char *dir, int fd)
     close(pfd[1]);
 
     i = waitpid(zpid, &j, 0);
-    /* Don't check status - gunzip seems to return a bogus one! */
+    /* Don't check exit status - gunzip seems to return a bogus one! */
     if (i < 0) {
 	if (isDebug())
 	    msgDebug("wait for gunzip returned status of %d!\n", i);
@@ -583,15 +611,18 @@ mediaVerify(void)
 
 /* Set the FTP username and password fields */
 int
-mediaSetFtpUserPass(dialogMenuItem *self)
+mediaSetFTPUserPass(dialogMenuItem *self)
 {
     char *pass;
 
-    if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:"))
+    dialog_clear_norefresh();
+    if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:")) {
+	dialog_clear_norefresh();
 	pass = variable_get_value(VAR_FTP_PASS, "Please enter the password for this user:");
+    }
     else
 	pass = NULL;
-    return pass ? DITEM_SUCCESS : DITEM_FAILURE;
+    return (pass ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 /* Set CPIO verbosity level */

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.6.2.16 1996/05/24 06:09:06 jkh Exp $
+ * $Id: tape.c,v 1.13 1996/08/23 07:56:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -84,7 +84,8 @@ mediaGetTape(Device *dev, char *file, Boolean probe)
     int fd;
 
     sprintf(buf, "%s/%s", (char *)dev->private, file);
-    msgDebug("Request for %s from tape (looking in %s)\n", file, buf);
+    if (isDebug())
+	msgDebug("Request for %s from tape (looking in %s)\n", file, buf);
     if (file_readable(buf))
 	fd = open(buf, O_RDONLY);
     else {

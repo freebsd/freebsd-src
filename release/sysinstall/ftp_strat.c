@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.22 1996/07/09 14:28:14 jkh Exp $
+ * $Id: ftp_strat.c,v 1.29 1996/10/12 23:48:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,9 +69,10 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
 
+try:
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
-	msgConfirm("%s is not set!", VAR_FTP_PATH);
+	if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE || (cp = variable_get(VAR_FTP_PATH)) == NULL)
 	return FALSE;
     }
 
@@ -101,23 +102,36 @@ mediaInitFTP(Device *dev)
     FtpPassive(ftp, !strcmp(variable_get(VAR_FTP_STATE), "passive"));
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
-	msgDebug("Attempt to chdir to distribution in %s\n", dir);
-	if (FtpChdir(ftp, dir) == IO_ERROR)
+	if (FtpChdir(ftp, dir) == IO_ERROR) {
+	    msgDebug("Attempt to chdir to distribution in %s returns I/O error\n", dir);
 	    goto punt;
+	}
     }
 
-    /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to __RELEASE which signifies that it's not set */
+    /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to
+       __RELEASE or "none" which signifies that it's not set */
     rel = variable_get(VAR_RELNAME);
-    if (strcmp(rel, "__RELEASE"))
+    if (strcmp(rel, "__RELEASE") && strcmp(rel, "none"))
 	i = FtpChdir(ftp, rel);
     else
 	i = 0;
-    if (i == -1)
-	msgConfirm("Warning:  Can't CD to `%s' distribution on this\n"
-		   "FTP server.  You may need to visit the Options menu\n"
-		   "to set the release name explicitly if this FTP server\n"
-		   "isn't exporting a CD (or some other custom release) at\n"
-		   "the top level as a release tree.", rel);
+    if (i == -1) {
+	if (!msgYesNo("Warning:  Can't CD to `%s' distribution on this\n"
+		      "FTP server.  You may need to visit a different server for\n"
+		      "the release you're trying to fetch or go to the Options\n"
+		      "menu and to set the release name to explicitly match what's\n"
+		      "available on %s (or set to \"none\").\n\n"
+		      "Would you like to select another FTP server?",
+		      rel, hostname)) {
+	    variable_unset(VAR_FTP_PATH);
+	    if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE)
+		goto punt;
+	    else
+		goto try;
+	}
+	else
+	    goto punt;
+    }
     else if (i == IO_ERROR)
 	goto punt;
 
@@ -131,6 +145,7 @@ punt:
 	FtpClose(ftp);
 	ftp = NULL;
     }
+    variable_unset(VAR_FTP_PATH);
     return FALSE;
 }
 
@@ -148,11 +163,16 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
     lastRequest = file;
     while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
-	if (fd == IO_ERROR) {	
+	if (fd == IO_ERROR) {
+	    char *cp = variable_get(VAR_FTP_PATH);
+
 	    dev->shutdown(dev);
+	    variable_unset(VAR_FTP_PATH);
 	    /* If we can't re-initialize, just forget it */
 	    if (!dev->init(dev))
 		return IO_ERROR;
+	    else
+		variable_set2(VAR_FTP_PATH, cp);
 	}
 	else if (probe)
 	    return EOF;

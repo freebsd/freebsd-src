@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.55 1996/07/09 03:07:47 jkh Exp $
+ * $Id: disks.c,v 1.70 1996/10/09 09:53:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,12 +48,13 @@ static int current_chunk;
 static void
 record_chunks(Disk *d)
 {
-    struct chunk *c1;
+    struct chunk *c1 = NULL;
     int i = 0;
     int last_free = 0;
+
     if (!d->chunks)
 	msgFatal("No chunk list found for %s!", d->name);
-    current_chunk = 0;
+
     for (c1 = d->chunks->part; c1; c1 = c1->next) {
 	if (c1->type == unused && c1->size > last_free) {
 	    last_free = c1->size;
@@ -62,7 +63,11 @@ record_chunks(Disk *d)
 	chunk_info[i++] = c1;
     }
     chunk_info[i] = NULL;
+    if (current_chunk >= i)
+	current_chunk = i - 1;
 }
+
+static int Total;
 
 static void
 print_chunks(Disk *d)
@@ -70,24 +75,22 @@ print_chunks(Disk *d)
     int row;
     int i;
 
-    if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64)) {
-	int sz;
-
-	dialog_clear();
-	msgConfirm("WARNING:  The current geometry for %s is incorrect.  Using\n"
+    for (i = Total = 0; chunk_info[i]; i++)
+	Total += chunk_info[i]->size;
+    if (d->bios_hd <= 1 && d->bios_sect <= 1) {
+	All_FreeBSD(d, TRUE);
+	d->bios_hd = d->bios_sect = d->bios_cyl = 1;
+    }
+    else if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
+	dialog_clear_norefresh();
+	msgConfirm("WARNING:  A geometry of %d/%d/%d for %s is incorrect.  Using\n"
 		   "a default geometry of 64 heads and 32 sectors.  If this geometry\n"
 		   "is incorrect or you are unsure as to whether or not it's correct,\n"
 		   "please consult the Hardware Guide in the Documentation submenu\n"
-		   "or use the (G)eometry command to change it now.", d->name);
+		   "or use the (G)eometry command to change it now.", d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
 	d->bios_hd = 64;
 	d->bios_sect = 32;
-	sz = 0;
-	for (i = 0; chunk_info[i]; i++)
-	    sz += chunk_info[i]->size;
-	if (sz)
-	    d->bios_cyl = sz / ONE_MEG;
-	else
-	    msgConfirm("Couldn't set geometry!  You'll have to do it by hand.");
+	d->bios_cyl = Total / ONE_MEG;
     }
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
@@ -168,20 +171,27 @@ getBootMgr(char *dname)
 void
 diskPartition(Device *dev, Disk *d)
 {
-    char *p;
-    int key = 0;
+    char *cp, *p;
+    int rv, key = 0;
     Boolean chunking;
     char *msg = NULL;
     u_char *mbrContents;
-    WINDOW *w;
+    WINDOW *w = savescr();
 
     chunking = TRUE;
     keypad(stdscr, TRUE);
 
-    w = savescr();
-    clear();
+    /* Flush both the dialog and curses library views of the screen
+       since we don't always know who called us */
+    dialog_clear_norefresh(), clear();
+
+    /* Set up the chunk array */
     record_chunks(d);
+
     while (chunking) {
+	char *val, geometry[80];
+	    
+	/* Now print our overall state */
 	print_chunks(d);
 	print_command_summary();
 	if (msg) {
@@ -189,21 +199,25 @@ diskPartition(Device *dev, Disk *d)
 	    beep();
 	    msg = NULL;
 	}
+	else {
+	    move(23, 0);
+	    clrtoeol();
+	}
 
-	key = toupper(getch());
-	switch (key) {
-
-	case '\014':	/* ^L */
+	/* Get command character */
+	key = getch();
+	switch (toupper(key)) {
+	case '\014':	/* ^L (redraw) */
 	    clear();
-	    print_command_summary();
-	    continue;
-
+	    msg = NULL;
+	    break;
+	    
 	case KEY_UP:
 	case '-':
 	    if (current_chunk != 0)
 		--current_chunk;
 	    break;
-
+	    
 	case KEY_DOWN:
 	case '+':
 	case '\r':
@@ -224,15 +238,14 @@ diskPartition(Device *dev, Disk *d)
 	case KEY_F(1):
 	case '?':
 	    systemDisplayHelp("slice");
+	    clear();
 	    break;
 
-	case 'A': {
-	    int rv;
-
+	case 'A':
 	    rv = msgYesNo("Do you want to do this with a true partition entry\n"
 			  "so as to remain cooperative with any future possible\n"
 			  "operating systems on the drive(s)?");
-	    if (rv) {
+	    if (rv != 0) {
 		rv = !msgYesNo("This is dangerous in that it will make the drive totally\n"
 			       "uncooperative with other potential operating systems on the\n"
 			       "same disk.  It will lead instead to a totally dedicated disk,\n"
@@ -246,14 +259,21 @@ diskPartition(Device *dev, Disk *d)
 			       "less at risk.\n\n"
 			       "Do you insist on dedicating the entire disk this way?");
 	    }
+	    if (rv == -1)
+		rv = 0;
 	    All_FreeBSD(d, rv);
 	    if (rv)
 		d->bios_hd = d->bios_sect = d->bios_cyl = 1;
+	    else {
+		d->bios_hd = 64;
+		d->bios_sect = 32;
+		d->bios_cyl = Total / ONE_MEG;
+	    }
 	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
-	}
-	break;
-
+	    clear();
+	    break;
+	    
 	case 'B':
 	    if (chunk_info[current_chunk]->type != freebsd)
 		msg = "Can only scan for bad blocks in FreeBSD partition.";
@@ -265,8 +285,9 @@ diskPartition(Device *dev, Disk *d)
 		else
 		    chunk_info[current_chunk]->flags |= CHUNK_BAD144;
 	    }
+	    clear();
 	    break;
-
+	    
 	case 'C':
 	    if (chunk_info[current_chunk]->type != unused)
 		msg = "Partition in use, delete it first or move to an unused one.";
@@ -274,10 +295,10 @@ diskPartition(Device *dev, Disk *d)
 		char *val, tmp[20], *cp;
 		int size, subtype;
 		chunk_e partitiontype;
-
+		
 		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
 		val = msgGetInput(tmp, "Please specify the size for new FreeBSD partition in blocks\n"
-				       "or append a trailing `M' for megabytes (e.g. 20M).");
+				  "or append a trailing `M' for megabytes (e.g. 20M).");
 		if (val && (size = strtol(val, &cp, 0)) > 0) {
 		    if (*cp && toupper(*cp) == 'M')
 			size *= ONE_MEG;
@@ -292,21 +313,22 @@ diskPartition(Device *dev, Disk *d)
 				      "and use the partition.");
 		    if (val && (subtype = strtol(val, NULL, 0)) > 0) {
 			if (subtype==165)
-				partitiontype=freebsd;
+			    partitiontype=freebsd;
 			else if (subtype==6)
-				partitiontype=fat;
+			    partitiontype=fat;
 			else
-				partitiontype=unknown;
-		    Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
-				 (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
-		    variable_set2(DISK_PARTITIONED, "yes");
-		    record_chunks(d);
+			    partitiontype=unknown;
+			Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
+				     (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
+			variable_set2(DISK_PARTITIONED, "yes");
+			record_chunks(d);
 		    }
 		}
+		clear();
 	    }
 	    break;
-
-	case '\177':
+	    
+	case KEY_DC:
 	case 'D':
 	    if (chunk_info[current_chunk]->type == unused)
 		msg = "Partition is already unused!";
@@ -316,10 +338,8 @@ diskPartition(Device *dev, Disk *d)
 		record_chunks(d);
 	    }
 	    break;
-
-	case 'G': {
-	    char *val, geometry[80];
-
+	    
+	case 'G':
 	    snprintf(geometry, 80, "%lu/%lu/%lu", d->bios_cyl, d->bios_hd, d->bios_sect);
 	    val = msgGetInput(geometry, "Please specify the new geometry in cyl/hd/sect format.\n"
 			      "Don't forget to use the two slash (/) separator characters!\n"
@@ -329,41 +349,48 @@ diskPartition(Device *dev, Disk *d)
 		d->bios_hd = strtol(val + 1, &val, 0);
 		d->bios_sect = strtol(val + 1, 0, 0);
 	    }
-	}
-	break;
-
-    case 'S':
-	/* Set Bootable */
-	chunk_info[current_chunk]->flags |= CHUNK_ACTIVE;
-	break;
-	
-    case 'U':
 	    clear();
-	    if (msgYesNo("Are you SURE you want to Undo everything?"))
-		break;
-	    d = Open_Disk(d->name);
-	    if (!d) {
-		msgConfirm("Can't reopen disk %s! Internal state is probably corrupted", d->name);
-		break;
+	    break;
+	
+	case 'S':
+	    /* Set Bootable */
+	    chunk_info[current_chunk]->flags |= CHUNK_ACTIVE;
+	    break;
+	
+	case 'U':
+	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+		msgConfirm("You've already written this information out - you\n"
+			   "can't undo it.");
 	    }
-	    Free_Disk(dev->private);
-	    dev->private = d;
-	    variable_unset(DISK_PARTITIONED);
-	    variable_unset(DISK_LABELLED);
-	    record_chunks(d);
+	    else if (!msgYesNo("Are you SURE you want to Undo everything?")) {
+		d = Open_Disk(d->name);
+		if (!d) {
+		    msgConfirm("Can't reopen disk %s! Internal state is probably corrupted", d->name);
+		    clear();
+		    break;
+		}
+		Free_Disk(dev->private);
+		dev->private = d;
+		variable_unset(DISK_PARTITIONED);
+		variable_unset(DISK_LABELLED);
+		record_chunks(d);
+	    }
+	    clear();
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("WARNING:  This should only be used for modifying an\n"
-			  "EXISTING installation - DO NOT USE this option if you\n"
-			  "are installing FreeBSD for the first time!  This is not\n"
-			  "an option for use during the standard install.\n\n"
-			  "Are you absolutely sure you want to do this now?")) {
-		WINDOW *save = savescr();
-
+	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+		msgConfirm("You've already written this information out - if\n"
+			   "you wish to overwrite it, you'll have to restart.");
+	    }
+	    else if (!msgYesNo("WARNING:  This should only be used when modifying an EXISTING\n"
+			       "installation.  If you are installing FreeBSD for the first time\n"
+			       "then you should simply type Q when you're finished here and your\n"
+			       "changes will be committed in one batch automatically at the end of\n"
+			       "these questions.\n\n"
+			       "Are you absolutely sure you want to do this now?")) {
 		variable_set2(DISK_PARTITIONED, "yes");
-		clear();
-
+		
 		/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
 		 * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
 		 * booteasy or a "standard" MBR -- both would be fatal in this case.
@@ -371,38 +398,31 @@ diskPartition(Device *dev, Disk *d)
 		if ((d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL
 		    && (mbrContents = getBootMgr(d->name)) != NULL)
 		    Set_Boot_Mgr(d, mbrContents);
-
+		
 		if (DITEM_STATUS(diskPartitionWrite(NULL)) != DITEM_SUCCESS)
 		    msgConfirm("Disk partition write returned an error status!");
 		else
 		    msgConfirm("Wrote FDISK partition information out successfully.");
-		restorescr(save);
 	    }
+	    clear();
 	    break;
-
+	    
 	case '|':
 	    if (!msgYesNo("Are you SURE you want to go into Wizard mode?\n"
 			  "No seat belts whatsoever are provided!")) {
-		WINDOW *w;
-
-		w = savescr();
-		dialog_clear();
-		end_dialog();
-		DialogActive = FALSE;
+		clear();
+		refresh();
 		slice_wizard(d);
 		variable_set2(DISK_PARTITIONED, "yes");
-		dialog_clear();
-		DialogActive = TRUE;
 		record_chunks(d);
-		restorescr(w);
 	    }
 	    else
 		msg = "Wise choice!";
+	    clear();
 	    break;
 
 	case 'Q':
 	    chunking = FALSE;
-	    clear();
 	    /* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
 	     * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
 	     * booteasy or a "standard" MBR -- both would be fatal in this case.
@@ -411,7 +431,7 @@ diskPartition(Device *dev, Disk *d)
 		&& (mbrContents = getBootMgr(d->name)) != NULL)
 		Set_Boot_Mgr(d, mbrContents);
 	    break;
-
+	    
 	default:
 	    beep();
 	    msg = "Type F1 or ? for help";
@@ -421,8 +441,8 @@ diskPartition(Device *dev, Disk *d)
     p = CheckRules(d);
     if (p) {
 	char buf[FILENAME_MAX];
-
-	dialog_clear();
+	
+	dialog_clear_norefresh();
         use_helpline("Press F1 to read more about disk partitioning.");
 	use_helpfile(systemHelpFile("partition", buf));
 	dialog_mesgbox("Disk partitioning warning:", p, -1, -1);

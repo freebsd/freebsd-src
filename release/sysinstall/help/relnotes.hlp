@@ -1,11 +1,13 @@
                                  RELEASE NOTES
-                          FreeBSD Release 2.1.5 RELEASE
+                          FreeBSD Release 2.1.6 RELEASE
 
 0. What is this release?
 ------------------------
-FreeBSD 2.1.5R is the follow-on release to 2.1R and focuses primarily
-on fixing bugs, closing security holes and conservative enhancements.
-For more information on bleeding-edge development, please see
+FreeBSD 2.1.6R is the follow-on release to 2.1.6R and focuses primarily
+on fixing bugs, closing security holes and making the system easier to
+install than 2.1.5.
+
+For more information on our bleeding-edge development, please see
 http://www.freebsd.org/handbook/current.html.
 
 
@@ -526,5 +528,5 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.24 1996/07/12 11:41:44 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.25 1996/07/16 17:34:39 jkh Exp $
  LocalWords:  Adaptec

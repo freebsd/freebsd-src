@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.56 1996/07/09 17:01:49 jkh Exp $
+#	$Id: Makefile,v 1.246 1996/10/14 13:29:40 jkh Exp $
 #
 # How to roll a release:
 #
@@ -79,17 +79,30 @@ rerelease release:
 	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/.. && ${MAKE} install DESTDIR=${CHROOTDIR}
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr && cvs co -P src
+	cd ${CHROOTDIR}/usr && rm -rf src && \
+		cvs -d ${CVSROOT} co -P src
+.if defined(INTCVSROOT)
+	cd ${CHROOTDIR}/usr && \
+	    cvs -d ${INTCVSROOT} co -P src/secure src/eBones
+.endif
 .else
-	cd ${CHROOTDIR}/usr && cvs co -P -r ${RELEASETAG} src
+	cd ${CHROOTDIR}/usr && rm -rf src && \
+		cvs co -d ${CVSROOT} -P -r ${RELEASETAG} src
+.if defined(INTCVSROOT)
+	cd ${CHROOTDIR}/usr && \
+	    cvs -d ${INTCVSROOT} co -P -r ${RELEASETAG} src/secure src/eBones
+.endif
+.endif
+.if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
+	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
 .endif
 .endif
 .if make(rerelease)
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr && cvs -q update -P -d  src
+	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d
 .else
-	cd ${CHROOTDIR}/usr && cvs -q update -P -d  -r ${RELEASETAG} src
+	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d -r ${RELEASETAG}
 .endif
 .endif
 .endif
@@ -98,7 +111,9 @@ rerelease release:
 	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh&& rm foo )
 	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
 	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && \
-	  mv version.h.new version.h )
+	  mv version.h.new version.h && \
+	  echo XXXX )
+	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
@@ -185,7 +200,7 @@ release.3:
 # You are not supposed to like this :-)
 release.4:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	cd ${.CURDIR}/sysinstall && make obj && make depend && make all
+	cd ${.CURDIR}/sysinstall && make depend all
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 	for j in ${WHICH_CRUNCH} ; do \
@@ -205,7 +220,7 @@ release.4:
 #
 release.5:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	# Handle some grief caused by the ammunition braindeadness.
+	# Handle some grief caused by the munition braindeadness.
 	for i in sbin/init bin/ed ; do \
 		( cd ${.CURDIR}/../$$i; \
 		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
@@ -213,43 +228,43 @@ release.5:
 
 	# Move all the manpages out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
-		rm -rf ${RD}/trees/manpages/usr/share/man &&\
-		mv ${RD}/trees/bin/usr/share/man \
-			${RD}/trees/manpages/usr/share/man ;\
+		tar -cf - -C ${RD}/trees/bin/usr/share/man . | \
+			tar xf - -C ${RD}/trees/manpages/usr/share/man && \
+		rm -rf ${RD}/trees/bin/usr/share/man; \
 	fi
 	# Move all the games out to their own dist
 	if [ -d ${RD}/trees/bin/usr/games ] ; then \
-		rm -rf ${RD}/trees/games/usr/games &&\
-		mv ${RD}/trees/bin/usr/games \
-			${RD}/trees/games/usr/games ;\
+		tar -cf - -C ${RD}/trees/bin/usr/games . | \
+			tar -xf - -C ${RD}/trees/games/usr/games && \
+		rm -rf ${RD}/trees/bin/usr/games; \
 	fi
 	if [ -d ${RD}/trees/bin/usr/share/games ] ; then \
-		rm -rf ${RD}/trees/games/usr/share/games &&\
-		mv ${RD}/trees/bin/usr/share/games \
-			${RD}/trees/games/usr/share/games ;\
+		tar -cf - -C ${RD}/trees/bin/usr/share/games . | \
+			tar -xf - -C ${RD}/trees/games/usr/share/games && \
+		rm -rf ${RD}/trees/bin/usr/share/games; \
 	fi
 	if [ -d ${RD}/trees/bin/var/games ] ; then \
-		rm -rf ${RD}/trees/games/var/games &&\
-		mv ${RD}/trees/bin/var/games \
-			${RD}/trees/games/var/games ;\
+		tar -cf - -C ${RD}/trees/bin/var/games . | \
+			tar -xf - -C ${RD}/trees/games/var/games && \
+		rm -rf ${RD}/trees/bin/var/games; \
 	fi
 	# Move the dict out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/dict ] ; then \
-		rm -rf ${RD}/trees/dict/usr/share/dict &&\
-		mv ${RD}/trees/bin/usr/share/dict \
-			${RD}/trees/dict/usr/share/dict ;\
+		tar -cf - -C ${RD}/trees/bin/usr/share/dict . | \
+			tar -xf - -C ${RD}/trees/dict/usr/share/dict && \
+		rm -rf ${RD}/trees/bin/usr/share/dict; \
 	fi
 	for i in airport birthtoken flowers na.phone zipcodes ; do \
 		if [ -f ${RD}/trees/bin/usr/share/misc/$$i ] ; then \
 			mv ${RD}/trees/bin/usr/share/misc/$$i \
-				${RD}/trees/dict/usr/share/misc ; \
+				${RD}/trees/dict/usr/share/misc; \
 		fi ; \
 	done
 	# Move the info files out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/info ] ; then \
-		rm -rf ${RD}/trees/info/usr/share/info &&\
-		mv ${RD}/trees/bin/usr/share/info \
-			${RD}/trees/info/usr/share ;\
+		tar -cf - -C ${RD}/trees/bin/usr/share/info . | \
+			tar -xf - -C ${RD}/trees/info/usr/share/info && \
+		rm -rf ${RD}/trees/bin/usr/share/info; \
 	fi
 	# Move the profiled libraries out to their own dist
 	for i in ${RD}/trees/bin/usr/lib/*_p.a ; do \
@@ -341,7 +356,7 @@ release.7:
 #                            +-----------------------------------------+
 #
 
-release.8: write_mfs_in_kernel
+release.8: write_mfs_in_kernel dumpnlist
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
@@ -361,6 +376,7 @@ release.8: write_mfs_in_kernel
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
+	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	# make the small bootfd
 	@echo "Making the small 4MB boot floppy."
 		sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
@@ -421,7 +437,8 @@ ftp.1:
 #
 cdrom.1:
 	mkdir -p ${CD}/filesys
-	cd ${RD} && find floppies dists -print | cpio -dumpl ${CD}
+	cd ${RD} && find floppies -print | cpio -dumpl ${CD}
+	cd ${RD}/dists && find . -print | cpio -dumpl ${CD}
 	ln -f ${RD}/kernels/MFSKERNEL.std ${CD}/kernel
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
 	for i in ${DISTRIBUTIONS} ; \
@@ -487,6 +504,9 @@ fixit.flp:
 write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
 	${CC} ${CFLAGS} -o write_mfs_in_kernel ${.CURDIR}/write_mfs_in_kernel.c
 
+dumpnlist:	${.CURDIR}/dumpnlist.c
+	${CC} ${CFLAGS} -o dumpnlist ${.CURDIR}/dumpnlist.c
+
 ckRELEASEDIR:
 .if !defined(RELEASEDIR)
 	@echo "To make a release RELEASEDIR must be defined" && false
@@ -532,33 +552,46 @@ doKERNEL:
 #
 doMFSKERN:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
-	cd ${.CURDIR}/../sys/i386/conf && \
+	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
+	@rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
+	@cd ${.CURDIR}/../sys/i386/conf && \
 	  sed	-e '/SYSV/d' \
 		-e '/pty/d' \
 		-e '/PROCFS/d' \
+		-e '/KTRACE/d' \
 		-e 's/GENERIC/BOOTMFS/g' \
 		-e '/maxusers/s/10/4/' < GENERIC > BOOTMFS && \
 	  echo "options  MFS" >> BOOTMFS && \
 	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
-	  echo 'options  "MAXCONS=4"' >> BOOTMFS
-	echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
+	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
+	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
+	@echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
 	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
-	rm -rf ${RD}/boot.${FSIMAGE}
-	mkdir  ${RD}/boot.${FSIMAGE}
-	mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
+	@rm -rf ${RD}/boot.${FSIMAGE}
+	@mkdir  ${RD}/boot.${FSIMAGE}
+	@mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
+	@cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
+	@vnconfig /dev/vn0 fs-image.${FSIMAGE}
+	@mkdir -p /tmp/mnt_xx
+	@mount /dev/vn0 /tmp/mnt_xx
+	./dumpnlist ${RD}/boot.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
+	@umount /tmp/mnt_xx
+	@vnconfig -u /dev/vn0
+	@rmdir /tmp/mnt_xx
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
-	mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
-	mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
-	ls -l ${RD}/boot.${FSIMAGE}/kernel
-	rm -f ${RD}/floppies/boot${FSIMAGE}.flp
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
-		100000 ${FDLABEL}
-	mv fs-image ${RD}/floppies/boot${FSIMAGE}.flp
+	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
+	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
+	@ls -l ${RD}/boot.${FSIMAGE}/kernel
+	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
+	cat /usr/mdec/rawboot ${RD}/boot.${FSIMAGE}/kernel | \
+		dd conv=sync of=${RD}/floppies/boot${FSIMAGE}.flp
+	@echo 'USERCONFIG' > startup_foo
+	@echo 'intro' >> startup_foo
+	dd if=startup_foo of=${RD}/floppies/boot${FSIMAGE}.flp \
+	  seek=1 bs=512 count=1 conv=sync
+	@rm -f startup_foo
 
 .include <bsd.prog.mk>

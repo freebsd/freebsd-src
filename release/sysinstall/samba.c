@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: samba.c,v 1.6 1996/07/10 04:52:27 jkh Exp $
+ * $Id: samba.c,v 1.9 1996/10/09 09:53:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -52,8 +52,8 @@ static DMenu MenuSamba = {
 };
 
 /* These probably shouldn't be hard-coded, but making them options might prove to be even more confusing! */
-#define SMB_CONF_DIR "/usr/local/samba/lib"
-#define SMB_CONF "/usr/local/samba/lib/smb.conf"
+#define SMB_CONF_DIR "/usr/local/etc"
+#define SMB_CONF "/usr/local/etc/smb.conf"
 
 int
 configSamba(dialogMenuItem *self)
@@ -115,7 +115,7 @@ configSamba(dialogMenuItem *self)
 	    }
 
 	    if (variable_get("SAMBA_export")) {
-		dialog_clear();
+		dialog_clear_norefresh();
 		for (tval = 0; ! tval; tval = msgYesNo("Another?")) {
 		    tptr = msgGetInput(NULL,"What directory to export?");
 		    if (tptr && *tptr && (tptr[0] == '/')) {
@@ -131,7 +131,7 @@ configSamba(dialogMenuItem *self)
 				tptr = msgGetInput(NULL, "Enter a short description of this share?");
 				if (tptr && *tptr)
 				    fprintf(fptr, "comment = %s\n", tptr);
-				if (msgYesNo("Do you want this share to be read only?"))
+				if (msgYesNo("Do you want this share to be read only?") != 0)
 				    fprintf(fptr, "read only = no\n\n");
 				else
 				    fprintf(fptr, "read only = yes\n\n");

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.24 1996/07/08 09:07:29 jkh Exp $
+ * $Id: system.c,v 1.66 1996/10/01 12:13:29 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -37,8 +37,12 @@
 static void
 handle_intr(int sig)
 {
+    WINDOW *save = savescr();
+
     if (!msgYesNo("Are you sure you want to abort the installation?"))
 	systemShutdown(1);
+    else
+	restorescr(save);
 }
 
 /* Expand a file into a convenient location, nuking it each time */
@@ -64,7 +68,11 @@ systemInitialize(int argc, char **argv)
     /* Are we running as init? */
     if (getpid() == 1) {
 	setsid();
-	close(0); open("/dev/ttyv0", O_RDWR);
+	close(0);
+	if (open("/dev/ttyv0", O_RDWR) < 0)
+	    open("/dev/console", O_RDWR);
+	else
+	    OnVTY = TRUE;
 	close(1); dup(0);
 	close(2); dup(0);
 	printf("%s running as init\n", argv[0]);
@@ -153,7 +161,6 @@ systemDisplayHelp(char *file)
 {
     char *fname = NULL;
     char buf[FILENAME_MAX];
-    WINDOW *old = savescr();
     int ret = 0;
 
     fname = systemHelpFile(file, buf);
@@ -169,7 +176,6 @@ systemDisplayHelp(char *file)
 	use_helpline(NULL);
 	dialog_textbox(file, fname, LINES, COLS);
     }
-    restorescr(old);
     return ret;
 }
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.103 1996/07/13 05:14:52 jkh Exp $
+ * $Id: install.c,v 1.134 1996/10/14 21:32:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,6 +35,7 @@
  */
 
 #include "sysinstall.h"
+#include "uc_main.h"
 #include <ctype.h>
 #include <sys/disklabel.h>
 #include <sys/errno.h>
@@ -50,24 +51,27 @@
 #include <sys/mount.h>
 
 static void	create_termcap(void);
+#ifdef SAVE_USERCONFIG
+static void	save_userconfig_to_kernel(char *);
+#endif
 
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
 
 static void	installConfigure(void);
 
-static Boolean
-checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
+Boolean
+checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev)
 {
     Device **devs;
     Boolean status;
     Disk *disk;
-    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
+    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev;
     int i;
 
     status = TRUE;
-    *rdev = *sdev = *udev = rootdev = swapdev = usrdev = NULL;
+    *rdev = *sdev = *udev = *vdev = rootdev = swapdev = usrdev = vardev = NULL;
 
-    /* We don't need to worry about root/usr/swap if we already have it */
+    /* We don't need to worry about root/usr/swap if we're already multiuser */
     if (!RunningAsInit)
 	return status;
 
@@ -86,8 +90,9 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
 			if (c2->flags & CHUNK_IS_ROOT) {
 			    if (rootdev) {
-				msgConfirm("WARNING:  You have more than one root device set?!\n"
-					   "Using the first one found.");
+				if (whinge)
+				    msgConfirm("WARNING:  You have more than one root device set?!\n"
+					       "Using the first one found.");
 				continue;
 			    }
 			    else {
@@ -98,14 +103,28 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 			}
 			else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/usr")) {
 			    if (usrdev) {
-				msgConfirm("WARNING:  You have more than one /usr filesystem.\n"
-					   "Using the first one found.");
+				if (whinge)
+				    msgConfirm("WARNING:  You have more than one /usr filesystem.\n"
+					       "Using the first one found.");
 				continue;
 			    }
 			    else {
 				usrdev = c2;
 				if (isDebug())
 				    msgDebug("Found usrdev at %s!\n", usrdev->name);
+			    }
+			}
+			else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/var")) {
+			    if (vardev) {
+				if (whinge)
+				    msgConfirm("WARNING:  You have more than one /var filesystem.\n"
+					       "Using the first one found.");
+				continue;
+			    }
+			    else {
+				vardev = c2;
+				if (isDebug())
+				    msgDebug("Found vardev at %s!\n", vardev->name);
 			    }
 			}
 		    }
@@ -140,22 +159,30 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
     *rdev = rootdev;
     *sdev = swapdev;
     *udev = usrdev;
+    *vdev = vardev;
 
-    if (!rootdev) {
+    if (!rootdev && whinge) {
 	msgConfirm("No root device found - you must label a partition as /\n"
 		   "in the label editor.");
 	status = FALSE;
     }
-    if (!swapdev) {
+    if (!swapdev && whinge) {
 	msgConfirm("No swap devices found - you must create at least one\n"
 		   "swap partition.");
 	status = FALSE;
     }
-    if (!usrdev) {
+    if (!usrdev && whinge) {
 	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\n"
 		   "an error if your root filesystem is big enough (or you later\n"
 		   "intend to mount your /usr filesystem over NFS), but it may otherwise\n"
 		   "cause you trouble if you're not exactly sure what you are doing!");
+    }
+    if (!vardev && whinge) {
+	msgConfirm("WARNING:  No /var filesystem found.  This is not technically\n"
+		   "an error if your root filesystem is big enough (or you later\n"
+		   "intend to link /var to someplace else), but it may otherwise\n"
+		   "cause your root filesystem to fill up if you receive lots of mail\n"
+		   "or edit large temporary files.");
     }
     return status;
 }
@@ -178,12 +205,12 @@ installInitial(void)
 	variable_set2(DISK_PARTITIONED, "yes");
 
     /* If we refuse to proceed, bail. */
-    dialog_clear();
+    dialog_clear_norefresh();
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\n"
 		 "If you're running this on a disk with data you wish to save\n"
 		 "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
 		 "proceeding!\n\n"
-		 "We can take no responsibility for lost disk contents!"))
+		 "We can take no responsibility for lost disk contents!") != 0)
 	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (DITEM_STATUS(diskLabelCommit(NULL)) != DITEM_SUCCESS) {
@@ -239,11 +266,10 @@ installFixitFloppy(dialogMenuItem *self)
 	msgConfirm("Please insert a writable fixit floppy and press return");
 	if (mount(MOUNT_UFS, "/mnt2", 0, (caddr_t)&args) != -1)
 	    break;
-	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?"))
+	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?") != 0)
 	    return DITEM_FAILURE;
     }
     dialog_clear();
-    dialog_update();
     end_dialog();
     DialogActive = FALSE;
     if (!directory_exists("/tmp"))
@@ -286,7 +312,6 @@ installFixitFloppy(dialogMenuItem *self)
     DialogActive = TRUE;
     clear();
     dialog_clear();
-    dialog_update();
     unmount("/mnt2", MNT_FORCE);
     msgConfirm("Please remove the fixit floppy now.");
     return DITEM_SUCCESS;
@@ -305,13 +330,13 @@ installExpress(dialogMenuItem *self)
 	return i;
 
     if (!Dists) {
-	dialog_clear();
+	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
 	    return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     if (!mediaDevice) {
-	dialog_clear();
+	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RECREATE;
     }
@@ -333,10 +358,9 @@ int
 installNovice(dialogMenuItem *self)
 {
     int i;
-    extern int cdromMounted;
 
     variable_set2(SYSTEM_STATE, "novice");
-    dialog_clear();
+    dialog_clear_norefresh();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
 	       "to FreeBSD (overwritting anything else that might be on the disk(s) selected)\n"
@@ -347,7 +371,7 @@ installNovice(dialogMenuItem *self)
     if (DITEM_STATUS(diskPartitionEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
     
-    dialog_clear();
+    dialog_clear_norefresh();
     msgConfirm("Next, you need to create BSD partitions inside of the fdisk partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
@@ -358,12 +382,8 @@ installNovice(dialogMenuItem *self)
     if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
 
-    dialog_clear();
-    msgConfirm("Now it is time to select an installation subset.  There are a number of\n"
-	       "canned distribution sets, ranging from minimal installation sets to full\n"
-	       "X11 developer oriented configurations.  You can also select a custom set\n"
-	       "of distributions if none of the provided ones are suitable.");
     while (1) {
+	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
 	    return DITEM_FAILURE | DITEM_RECREATE;
 	
@@ -371,13 +391,11 @@ installNovice(dialogMenuItem *self)
 	    break;
     }
 
-    if (!mediaDevice) {
-	msgConfirm("Finally, you must specify an installation medium.");
-	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RECREATE;
-    }
+    if (!mediaDevice && !dmenuOpenSimple(&MenuMedia, FALSE))
+	return DITEM_FAILURE | DITEM_RECREATE;
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
+	dialog_clear_norefresh();
 	msgConfirm("Installation completed with some errors.  You may wish to\n"
 		   "scroll through the debugging messages on VTY1 with the\n"
 		   "scroll-lock feature.  You can also chose \"No\" at the next\n"
@@ -386,47 +404,55 @@ installNovice(dialogMenuItem *self)
 	return i | DITEM_RECREATE;
 
     }
-    else
-	msgConfirm("Congradulations!  You now have FreeBSD installed on your system.\n\n"
+    else {
+	dialog_clear_norefresh();
+	msgConfirm("Congratulations!  You now have FreeBSD installed on your system.\n\n"
 		   "We will now move on to the final configuration questions.\n"
 		   "For any option you do not wish to configure, simply select\n"
 		   "No.\n\n"
 		   "If you wish to re-enter this utility after the system is up, you\n"
 		   "may do so by typing: /stand/sysinstall.");
-
+    }
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	if (!msgYesNo("Does this system have a network interface card?")) {
+	if (!msgYesNo("Would you like to configure any SLIP/PPP or network interface devices?")) {
 	    Device *save = mediaDevice;
 
 	    /* This will also set the media device, which we don't want */
 	    tcpDeviceSelect();
 	    /* so we restore our saved value below */
 	    mediaDevice = save;
-	    dialog_clear();
+	    dialog_clear_norefresh();
 	}
     }
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to configure Samba for connecting NETBUI clients to this\n"
 		  "machine?  Windows 95, Windows NT and Windows for Workgroups\n"
 		  "machines can use NETBUI transport for disk and printer sharing."))
 	configSamba(self);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
 		  "between interfaces)?"))
 	variable_set2("gateway", "YES");
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
 	configAnonFTP(self);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
 	configNFSServer(self);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
 	variable_set2("nfs_client", "YES");
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as a WEB server?"))
 	configApache(self);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to customize your system console settings?")) {
 	WINDOW *w = savescr();
 
@@ -434,6 +460,7 @@ installNovice(dialogMenuItem *self)
 	restorescr(w);
     }
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to set this machine's time zone now?")) {
 	WINDOW *w = savescr();
 
@@ -442,6 +469,7 @@ installNovice(dialogMenuItem *self)
 	restorescr(w);
     }
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Does this system have a mouse attached to it?")) {
 	WINDOW *w = savescr();
 
@@ -450,20 +478,13 @@ installNovice(dialogMenuItem *self)
     }
 
     if (directory_exists("/usr/X11R6")) {
+	dialog_clear_norefresh();
 	if (!msgYesNo("Would you like to configure your X server at this time?"))
 	    configXFree86(self);
     }
 
-    if (cdromMounted) {
-	if (!msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
-		      "This will require that you have your FreeBSD CD in the CDROM\n"
-		      "drive to use the ports collection, but at a substantial savings\n"
-		      "in disk space (NOTE:  This may take as long as 15 or 20 minutes\n"
-		      "depending on the speed of your CDROM drive)."))
-	    configPorts(self);
-    }
-
-    if (!msgYesNo("The FreeBSD package collection is a collection of over 450 ready-to-run\n"
+    dialog_clear_norefresh();
+    if (!msgYesNo("The FreeBSD package collection is a collection of over 550 ready-to-run\n"
 		  "applications, from text editors to games to WEB servers.  Would you like\n"
 		  "to browse the collection now?"))
 	configPackages(self);
@@ -516,6 +537,7 @@ installCommit(dialogMenuItem *self)
 {
     int i;
     char *str;
+    Boolean need_bin = FALSE;
 
     if (!mediaVerify())
 	return DITEM_FAILURE;
@@ -532,23 +554,12 @@ installCommit(dialogMenuItem *self)
 	    return i;
     }
 
+    if (Dists & DIST_BIN)
+	need_bin = TRUE;
     i = distExtractAll(self);
-    if (DITEM_STATUS(i) == DITEM_FAILURE)
-    	(void)installFixup(self);
-    else
-    	i = installFixup(self);
+    if (DITEM_STATUS(i) != DITEM_FAILURE || !need_bin || !(Dists & DIST_BIN))
+	i = installFixup(self);
 
-    /* Don't print this if we're express or novice installing - they have their own error reporting */
-    if (strcmp(str, "express") && strcmp(str, "novice")) {
-	if (Dists || DITEM_STATUS(i) == DITEM_FAILURE)
-	    msgConfirm("Installation completed with some errors.  You may wish to\n"
-		       "scroll through the debugging messages on VTY1 with the\n"
-		       "scroll-lock feature.");
-	else
-	    msgConfirm("Installation completed successfully.\n\n"
-		       "If you have any network devices you have not yet configured,\n"
-		       "see the Interfaces configuration item on the Configuration menu.");
-    }
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
     return i | DITEM_RECREATE;
 }
@@ -557,6 +568,7 @@ static void
 installConfigure(void)
 {
     /* Final menu of last resort */
+    dialog_clear_norefresh();
     if (!msgYesNo("Visit the general configuration menu for a chance to set\n"
 		  "any last options?")) {
 	WINDOW *w = savescr();
@@ -574,6 +586,10 @@ installFixup(dialogMenuItem *self)
 
     if (!file_readable("/kernel")) {
 	if (file_readable("/kernel.GENERIC")) {
+#ifdef SAVE_USERCONFIG
+	    /* Snapshot any boot -c changes back to the GENERIC kernel */
+	    save_userconfig_to_kernel("/kernel.GENERIC");
+#endif
 	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
 		msgConfirm("Unable to link /kernel into place!");
 		return DITEM_FAILURE;
@@ -586,6 +602,7 @@ installFixup(dialogMenuItem *self)
 	    return DITEM_FAILURE;
 	}
     }
+
     /* Resurrect /dev after bin distribution screws it up */
     if (RunningAsInit) {
 	msgNotify("Remaking all devices.. Please wait!");
@@ -647,16 +664,20 @@ installFilesystems(dialogMenuItem *self)
 {
     int i;
     Disk *disk;
-    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
+    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev;
     Device **devs;
     PartInfo *root;
     char dname[80], *str;
     extern int MakeDevChunk(Chunk *c, char *n);
     Boolean upgrade = FALSE;
 
+    /* If we've already done this, bail out */
+    if ((str = variable_get(DISK_LABELLED)) && !strcmp(str, "written"))
+	return DITEM_SUCCESS;
+
     str = variable_get(SYSTEM_STATE);
 
-    if (!checkLabels(&rootdev, &swapdev, &usrdev))
+    if (!checkLabels(TRUE, &rootdev, &swapdev, &usrdev, &vardev))
 	return DITEM_FAILURE;
 
     if (rootdev)
@@ -871,3 +892,61 @@ create_termcap(void)
     }
 }
 
+#ifdef SAVE_USERCONFIG
+static void
+save_userconfig_to_kernel(char *kern)
+{
+    struct kernel *core, *boot;
+    struct list *c_isa, *b_isa, *c_dev, *b_dev;
+    int i, d;
+
+    if ((core = uc_open("-incore")) == NULL) {
+	msgDebug("save_userconf: Can't read in-core information for kernel.\n");
+	return;
+    }
+
+    if ((boot = uc_open(kern)) == NULL) {
+	msgDebug("save_userconf: Can't read device information for kernel image %s\n", kern);
+	return;
+    }
+
+    msgNotify("Saving any boot -c changes to new kernel...");
+    c_isa = uc_getdev(core, "-isa");
+    b_isa = uc_getdev(boot, "-isa");
+    if (isDebug())
+	msgDebug("save_userconf: got %d ISA device entries from core, %d from boot.\n", c_isa->ac, b_isa->ac);
+    for (d = 0; d < c_isa->ac; d++) {
+	if (isDebug())
+	    msgDebug("save_userconf: ISA device loop, c_isa->av[%d] = %s\n", d, c_isa->av[d]);
+	if (strcmp(c_isa->av[d], "npx0")) { /* special case npx0, which mucks with its id_irq member */
+	    c_dev = uc_getdev(core, c_isa->av[d]);
+	    b_dev = uc_getdev(boot, b_isa->av[d]);
+	    if (!c_dev || !b_dev) {
+		msgDebug("save_userconf: c_dev: %x b_dev: %x\n", c_dev, b_dev);
+		continue;
+	    }
+	    if (isDebug())
+		msgDebug("save_userconf: ISA device %s: %d config parameters (core), %d (boot)\n",
+			 c_isa->av[d], c_dev->ac, b_dev->ac);
+	    for (i = 0; i < c_dev->ac; i++) {
+		if (isDebug())
+		    msgDebug("save_userconf: c_dev->av[%d] = %s, b_dev->av[%d] = %s\n", i, c_dev->av[i], i, b_dev->av[i]);
+		if (strcmp(c_dev->av[i], b_dev->av[i])) {
+		    if (isDebug())
+			msgDebug("save_userconf: %s (boot) -> %s (core)\n",
+				 c_dev->av[i], b_dev->av[i]);
+		    isa_setdev(boot, c_dev);
+		}
+	    }
+	}
+	else {
+	    if (isDebug())
+		msgDebug("skipping npx0\n");
+	}
+    }
+    if (isDebug())
+	msgDebug("Closing kernels\n");
+    uc_close(core, 0);
+    uc_close(boot, 1);
+}
+#endif

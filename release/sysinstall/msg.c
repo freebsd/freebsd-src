@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.29.2.15 1996/06/14 18:35:11 jkh Exp $
+ * $Id: msg.c,v 1.41 1996/10/01 04:56:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -39,9 +39,6 @@
 #include <sys/ioctl.h>
 #include <machine/console.h>
 
-#define VTY_STATLINE	24
-#define TTY_STATLINE	23
-
 Boolean
 isDebug(void)
 {
@@ -64,7 +61,7 @@ msgYap(char *fmt, ...)
     va_end(args);
     attrs = getattrs(stdscr);
     attrset(A_REVERSE);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
+    mvaddstr(StatusLine, 0, errstr);
     attrset(attrs);
     refresh();
 }
@@ -81,10 +78,8 @@ msgInfo(char *fmt, ...)
     attrs = getattrs(stdscr);
     /* NULL is a special convention meaning "erase the old stuff" */
     if (!fmt) {
-	move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0);
-	attrset(A_NORMAL);
+	move(StatusLine, 0);
 	clrtoeol();
-	attrset(attrs);
 	return;
     }
     errstr = (char *)alloca(FILENAME_MAX);
@@ -100,9 +95,9 @@ msgInfo(char *fmt, ...)
     }
     line[80] = '\0';
     attrset(ATTR_TITLE);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, line);
+    mvaddstr(StatusLine, 0, line);
     attrset(attrs);
-    move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 79);
+    move(StatusLine, 79);
     refresh();
 }
 
@@ -122,7 +117,7 @@ msgWarn(char *fmt, ...)
     attrs = getattrs(stdscr);
     beep();
     attrset(ATTR_TITLE);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
+    mvaddstr(StatusLine, 0, errstr);
     attrset(attrs);
     refresh();
     if (OnVTY && isDebug())
@@ -145,7 +140,7 @@ msgError(char *fmt, ...)
     beep();
     attrs = getattrs(stdscr);
     attrset(ATTR_TITLE);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
+    mvaddstr(StatusLine, 0, errstr);
     attrset(attrs);
     refresh();
     if (OnVTY && isDebug())
@@ -168,7 +163,7 @@ msgFatal(char *fmt, ...)
     beep();
     attrs = getattrs(stdscr);
     attrset(ATTR_TITLE);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
+    mvaddstr(StatusLine, 0, errstr);
     addstr(" - ");
     addstr("PRESS ANY KEY TO ");
     if (getpid() == 1)
@@ -189,7 +184,6 @@ msgConfirm(char *fmt, ...)
 {
     va_list args;
     char *errstr;
-    WINDOW *w;
 
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
@@ -197,14 +191,12 @@ msgConfirm(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);
 	msgInfo(NULL);
     }
     dialog_notify(errstr);
-    restorescr(w);
 }
 
 /* Put up a message in a popup information box */
@@ -222,7 +214,7 @@ msgNotify(char *fmt, ...)
     use_helpfile(NULL);
     if (isDebug())
 	msgDebug("Notify: %s\n", errstr);
-    dialog_clear();
+    dialog_clear_norefresh();
     dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
 }
 
@@ -233,7 +225,6 @@ msgYesNo(char *fmt, ...)
     va_list args;
     char *errstr;
     int ret;
-    WINDOW *w;
 
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
@@ -241,14 +232,12 @@ msgYesNo(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
-    restorescr(w);
     return ret;
 }
 
@@ -260,7 +249,6 @@ msgGetInput(char *buf, char *fmt, ...)
     char *errstr;
     static char input_buffer[256];
     int rval;
-    WINDOW *w;
 
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
@@ -272,14 +260,12 @@ msgGetInput(char *buf, char *fmt, ...)
 	strcpy(input_buffer, buf);
     else
 	input_buffer[0] = '\0';
-    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
-    restorescr(w);
     if (!rval)
 	return input_buffer;
     else
@@ -317,7 +303,7 @@ msgWeHaveOutput(char *fmt, ...)
     use_helpline(NULL);
     use_helpfile(NULL);
     msgDebug("Notify: %s\n", errstr);
-    dialog_clear();
+    dialog_clear_norefresh();
     dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
 }
 
