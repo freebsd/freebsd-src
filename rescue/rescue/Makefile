@@ -109,7 +109,7 @@ CRUNCH_PROGS+=atm adjkerntz atacontrol badsect bsdlabel camcontrol 	\
 	fsirand gbde growfs ifconfig ilmid init ip6fw ipf ipfs ipfstat	\
 	ipfw ipmon ipnat kldconfig kldload kldstat kldunload ldconfig 	\
 	md5 mdconfig mdmfs mknod mount mount_cd9660 mount_ext2fs	\
-	mount_msdosfs mount_nfs mount_ntfs mount_nullfs	mount_portalfs	\
+	mount_msdosfs mount_nfs mount_ntfs mount_nullfs			\
 	mount_std mount_udf mount_umapfs mount_unionfs natd newfs	\
 	newfs_msdos nfsiod nos-tun ping ping6 quotacheck raidctl reboot	\
 	restore rcorder route routed rtquery rtsol savecore shutdown	\
