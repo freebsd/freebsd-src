@@ -275,7 +275,14 @@ evaltree(n, flags)
 out:
 	if (pendingsigs)
 		dotrap();
-	if ((flags & EV_EXIT) || (eflag && exitstatus && !(flags & EV_TESTED)))
+	/*
+	 * XXX - Like "!(n->type == NSEMI)", more types will probably
+	 * need to be excluded from this test. It's probably better
+	 * to set or unset EV_TESTED in the loop above than to bloat
+	 * the conditional here.
+	 */
+	if ((flags & EV_EXIT) || (eflag && exitstatus 
+	    && !(flags & EV_TESTED) && !(n->type == NSEMI)))
 		exitshell(exitstatus);
 }
 
@@ -492,7 +499,8 @@ evalpipe(n)
 				close(prevfd);
 			}
 			if (pip[1] >= 0) {
-				close(pip[0]);
+				if (!(prevfd >= 0 && pip[0] == 0))
+					close(pip[0]);
 				if (pip[1] != 1) {
 					close(1);
 					copyfd(pip[1], 1);
