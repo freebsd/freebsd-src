@@ -473,6 +473,7 @@ static int
 ich_pci_attach(device_t dev)
 {
 	u_int32_t		data;
+	u_int16_t		extcaps;
 	struct sc_info 		*sc;
 	char 			status[SND_STATUSLEN];
 
@@ -522,10 +523,11 @@ ich_pci_attach(device_t dev)
 	mixer_init(dev, ac97_getmixerclass(), sc->codec);
 
 	/* check and set VRA function */
-	if (ac97_setextmode(sc->codec, AC97_EXTCAP_VRA) == 0)
-		sc->hasvra = 1;
-	if (ac97_setextmode(sc->codec, AC97_EXTCAP_VRM) == 0)
-		sc->hasvrm = 1;
+	extcaps = ac97_getcaps(sc->codec);
+	sc->hasvra = extcaps & AC97_EXTCAP_VRA;
+	sc->hasvrm = extcaps & AC97_EXTCAP_VRM;
+	ac97_setextmode(sc->codec, 
+			extcaps & (AC97_EXTCAP_VRA | AC97_EXTCAP_VRM));
 	if (ac97_getcaps(sc->codec) & AC97_CAP_MICCHANNEL)
 		sc->hasmic = 1;
 
