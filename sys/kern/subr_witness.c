@@ -1274,13 +1274,19 @@ witness_list(struct proc *p)
 	critical_t savecrit;
 	int nheld;
 
+	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
+#ifdef DDB
 	KASSERT(p == curproc || db_active,
 	    ("%s: p != curproc and we aren't in the debugger", __func__));
-	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 
 	if (!db_active && witness_dead)
 		return (0);
+#else
+	KASSERT(p == curproc, ("%s: p != curproc", __func__));
 
+	if (witness_dead)
+		return (0);
+#endif
 	nheld = witness_list_locks(&p->p_sleeplocks);
 
 	/*
