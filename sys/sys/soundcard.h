@@ -798,6 +798,7 @@ typedef struct buffmem_desc {
 #define SNDCTL_DSP_MAPINBUF	_IOR ('P', 19, buffmem_desc)
 #define SNDCTL_DSP_MAPOUTBUF	_IOR ('P', 20, buffmem_desc)
 #define SNDCTL_DSP_SETSYNCRO	_IO  ('P', 21)
+#define SNDCTL_DSP_GETODELAY	_IOR ('P', 23, int)
 
 /*
  * I guess these are the readonly version of the same
