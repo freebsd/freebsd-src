@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.101 1998/12/21 22:40:54 luigi Exp $
+ *	$Id: ip_fw.c,v 1.102 1998/12/22 20:38:06 luigi Exp $
  */
 
 /*
@@ -400,7 +400,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	if (fw_verbose_limit != 0 && count == fw_verbose_limit)
 		printf("ipfw: limit reached on rule #%d\n",
 		f ? f->fw_number : -1);
-}
+    }
 }
 
 /*
@@ -430,9 +430,9 @@ lookup_next_rule(struct ip_fw_chain *me)
  * Parameters:
  *
  *	pip	Pointer to packet header (struct ip **)
- *  XXX future extension: pip = NULL means a complete ethernet packet
- *     including ethernet header in the mbuf. Other fields
- *     are ignored/invalid.
+ *      bridge_ipfw extension: pip = NULL means a complete ethernet packet
+ *      including ethernet header in the mbuf. Other fields
+ *      are ignored/invalid.
  *
  *	hlen	Packet header length
  *	oif	Outgoing interface, or NULL if packet is incoming
@@ -459,7 +459,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 	struct ip_fw *rule = NULL;
 	struct ip *ip = NULL ;
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
-	u_short offset ;
+	u_short offset = 0 ;
 	u_short src_port, dst_port;
 	u_int16_t skipto = *cookie;
 
@@ -482,7 +482,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 		    printf("-- m_len %d, need more...\n", (*m)->m_len);
 		    goto non_ip ;
 		}
-		offset = (ip->ip_off & IP_OFFMASK);
+		offset = (ntohs(ip->ip_off) & IP_OFFMASK);
 		break ;
 	    default :
 non_ip:         ip = NULL ;
@@ -569,7 +569,7 @@ again:
 		}
 
 		/* Fragments */
-		if ((f->fw_flg & IP_FW_F_FRAG) && !(ip->ip_off & IP_OFFMASK))
+		if ((f->fw_flg & IP_FW_F_FRAG) && offset == 0 )
 			continue;
 
 		/* If src-addr doesn't match, not this rule. */
@@ -615,14 +615,19 @@ again:
 		if (ip->ip_p != f->fw_prot) 
 			continue;
 
-#define PULLUP_TO(len)	do {						\
-			    if ((*m)->m_len < (len) ) {			\
-				if ( (*m = m_pullup(*m, (len))) == 0)	\
-				    goto bogusfrag;			\
-			    *pip = ip = mtod(*m, struct ip *);		\
-			    offset = (ip->ip_off & IP_OFFMASK);		\
-			    }						\
-			} while (0)
+#define PULLUP_TO(len)							\
+	do {								\
+	    if ((*m)->m_len < (len) ) {					\
+		if ( (*m = m_pullup(*m, (len))) == 0)			\
+		    goto bogusfrag;					\
+		ip = mtod(*m, struct ip *);				\
+		if (pip) {						\
+		    *pip = ip ;						\
+		    offset = (ip->ip_off & IP_OFFMASK);			\
+		} else							\
+		    offset = (ntohs(ip->ip_off) & IP_OFFMASK);		\
+	    }								\
+	} while (0)
 
 		/* Protocol specific checks */
 		switch (ip->ip_p) {
@@ -708,15 +713,8 @@ got_match:
 		*flow_id = chain ; /* XXX set flow id */
 		/* Update statistics */
 		f->fw_pcnt += 1;
-		/*
-		 * note -- bridged-ip packets still have some fields
-		 * in network order, including ip_len
-		 */
 		if (ip) {
-		    if (pip)
-		f->fw_bcnt += ip->ip_len;
-		    else
-			f->fw_bcnt += ntohs(ip->ip_len);
+		    f->fw_bcnt += pip ? ip->ip_len : ntohs(ip->ip_len);
 		}
 		f->timestamp = time_second;
 
