@@ -36,21 +36,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the following series of PATA/SATA RAID
-controllers:
-.Pp
-.Bl -bullet -compact
-.It
-9500S-4LP
-.It
-9500S-8
-.It
-9500S-8MI
-.It
-9500S-12
-.It
-9500S-12MI
-.El
+driver provides support for the 3ware 9000 series PATA/SATA controllers.
 .Pp
 These controllers are available in 4, 8 or 12-port configurations,
 and support the following RAID levels: 0, 1, 10, 5, 50.
@@ -66,6 +52,23 @@ via the device nodes,
 where
 .Ar Y
 is the logical unit number.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following 3ware PATA/SATA RAID controllers:
+.Pp
+.Bl -bullet -compact
+.It
+9500S-4LP
+.It
+9500S-8
+.It
+9500S-8MI
+.It
+9500S-12
+.It
+9500S-12MI
+.El
 .Sh DIAGNOSTICS
 Whenever the driver encounters a command failure, it prints out an error code in
 the format:
