@@ -1967,6 +1967,7 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 			case SCSI_DENSITY_QIC_24:
 			case SCSI_DENSITY_QIC_120:
 			case SCSI_DENSITY_QIC_150:
+			case SCSI_DENSITY_QIC_525_320:
 			case SCSI_DENSITY_QIC_1320:
 			case SCSI_DENSITY_QIC_3080:
 				softc->quirks &= ~SA_QUIRK_2FM;
@@ -1975,7 +1976,6 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 				break;
 			case SCSI_DENSITY_QIC_4GB:
 			case SCSI_DENSITY_QIC_2GB:
-			case SCSI_DENSITY_QIC_525_320:
 				softc->quirks &= ~SA_QUIRK_2FM;
 				softc->quirks |= SA_QUIRK_FIXED|SA_QUIRK_1FM;
 				softc->last_media_blksize = 1024;
