@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.5 1996/12/24 07:52:52 wpaul Exp $
+ *	$Id: yp_main.c,v 1.10 1996/12/25 18:10:34 wpaul Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yp_main.c,v 1.5 1996/12/24 07:52:52 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_main.c,v 1.10 1996/12/25 18:10:34 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -77,8 +77,8 @@ static int _rpcfdtype;
 #define	_SERVED 1
 #define	_SERVING 2
 
-extern void ypprog_1 __P((struct svc_req, register SVCXPRT));
-extern void ypprog_2 __P((struct svc_req, register SVCXPRT));
+extern void ypprog_1 __P((struct svc_req *, register SVCXPRT *));
+extern void ypprog_2 __P((struct svc_req *, register SVCXPRT *));
 extern int _rpc_dtablesize __P((void));
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
 char *progname = "ypserv";
