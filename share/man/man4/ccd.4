@@ -180,7 +180,11 @@ Changing the interleave or other parameters for a
 .Nm
 disk usually destroys whatever data previously existed on that disk.
 .Sh FILES
-/dev/{,r}ccd* - ccd device special files.
+.Bl -tag -width ".Pa /dev/ccd*"
+.It Pa /dev/ccd*
+.Nm
+device special files
+.El
 .Sh HISTORY
 The concatenated disk driver was originally written at the University of
 Utah.

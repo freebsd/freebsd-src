@@ -34,12 +34,11 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.4,v 1.12 1999/10/13 03:03:07 grog Exp grog $
 .\" $FreeBSD$
 .\"
 .Dd October 5, 1999
 .Dt vinum 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm vinum
 .Nd Logical Volume Manager
@@ -190,7 +189,8 @@ as described above.
 .Pp
 If the VINUMDEBUG variables do not match,
 .Xr vinum 8
-will fail with a message explaining the problem and what to do to correct it.
+will fail with a message
+explaining the problem and what to do to correct it.
 .Pp
 .Nm
 was previously available in two versions: a freely available version which did
@@ -780,7 +780,7 @@ In order to analyse a panic which you suspect comes from
 you will need to build a debug kernel.  See the online handbook at
 .Pa /usr/share/doc/handbook/kerneldebug.html
 (if installed) or
-.Pa http://www.freebsd.org/handbook/kerneldebug.html
+.Pa http://www.FreeBSD.org/handbook/kerneldebug.html
 for more details of how to do this.
 .Pp
 Perform the following steps to analyse a
@@ -854,7 +854,8 @@ To perform remote serial debugging,
 link
 .Pa /var/crash/.gdbinit.serial
 to
-.Pa /var/crash/.gdbinit and enter
+.Pa /var/crash/.gdbinit
+and enter
 .Bd -literal
 # cd /var/crash
 # gdb -k kernel.debug
@@ -965,7 +966,7 @@ was developed by Cybernet Inc.
 .Pa www.cybernet.com
 for its NetMAX product.
 .Sh SEE ALSO
-.Xr vinum 8 ,
 .Xr disklabel 5 ,
 .Xr disklabel 8 ,
-.Xr newfs 8
+.Xr newfs 8 ,
+.Xr vinum 8

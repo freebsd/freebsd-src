@@ -35,8 +35,8 @@
 .Nm VOP_LEASE
 .Nd "validate a vnode for a particular set of credentials and operation type"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/mount.h>
+.In sys/param.h
+.In sys/mount.h
 .Ft int
 .Fn VOP_LEASE "struct vnode *vp" "struct proc *p" "struct ucred *cred" "int type"
 .Sh DESCRIPTION

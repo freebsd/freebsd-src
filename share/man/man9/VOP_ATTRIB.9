@@ -36,8 +36,8 @@
 .Nm VOP_SETATTR
 .Nd get and set attributes on a file or directory
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_GETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred" "struct proc *p"
 .Ft int

@@ -44,9 +44,9 @@
 .Nm useracc
 .Nd check memory regions for accessibility
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <vm/vm.h>
-.Fd #include <vm/vm_extern.h>
+.In sys/types.h
+.In vm/vm.h
+.In vm/vm_extern.h
 .Ft int
 .Fn kernacc "caddr_t addr" "int len" "int rw"
 .Ft int

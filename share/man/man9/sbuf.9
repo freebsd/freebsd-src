@@ -47,9 +47,9 @@
 .Nm sbuf_delete
 .Nd safe string formatting
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/sbuf.h>
-.Ft struct sbuf *s
+.In sys/types.h
+.In sys/sbuf.h
+.Ft struct sbuf *
 .Fn sbuf_new "struct sbuf *s" "char *buf" "int length" "int flags"
 .Ft void
 .Fn sbuf_clear "struct sbuf *s"

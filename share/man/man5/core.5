@@ -39,7 +39,7 @@
 .Nm core
 .Nd memory image file format
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
+.In sys/param.h
 .Sh DESCRIPTION
 A small number of signals which cause abnormal termination of a process
 also cause a record of the process's in-core state to be written
@@ -118,7 +118,7 @@ the following
 .Xr sysctl 8
 command can be used:
 .Pp
-.Dl sysctl -w kern.corefile="/var/coredumps/\&%U/\&%N.core"
+.Dl sysctl kern.corefile="/var/coredumps/\&%U/\&%N.core"
 .Sh SEE ALSO
 .Xr gdb 1 ,
 .Xr kgdb 1 ,

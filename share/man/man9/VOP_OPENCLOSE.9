@@ -36,8 +36,8 @@
 .Nm VOP_CLOSE
 .Nd open or close a file
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_OPEN "struct vnode *vp" "int mode" "struct ucred *cred" "struct proc *p"
 .Ft int

@@ -56,11 +56,13 @@ Fibre Channel support uses FCP SCSI profile for
 and utilizes Class 3 and Class 2 connections (Qlogic 2100 is Class
 3 only, minor patches to the Qlogic 2200 to force Class 2 mode).
 Support is available for Public and Private loops, and for
-point-to-point connections (Qlogic 2200 only). The newer 2-Gigabit
-cards (2300, 2312) are also supported. Command tagging is
+point-to-point connections (Qlogic 2200 only).
+The newer 2-Gigabit cards (2300, 2312) are also supported.
+Command tagging is
 supported for all (in fact,
 .Tn FibreChannel
-requires tagging). Fabric support is enabled by default (but may
+requires tagging).
+Fabric support is enabled by default (but may
 be contingent upon the correct firmware being loaded).
 .Sh FIRMWARE
 Firmware is now available if the
@@ -127,7 +129,8 @@ option.
 The following options are switchable by setting values in the loader
 configuration file (see the
 .Xr loader 8
-manual page). They are:
+manual page).
+They are:
 .Pp
 .Bl -tag -width "isp_no_fwload" -compact
 .It isp_disable
@@ -165,7 +168,8 @@ The driver currently ignores some NVRAM settings.
 The driver currently doesn't do error recovery for timed out commands
 very gracefully.
 .Pp
-Target mode support isn't completely debugged yet. It works reasonably
+Target mode support isn't completely debugged yet.
+It works reasonably
 well for Fibre Channel, somewhat well for Qlogic 1040 cards, but
 doesn't yet work for the other cards (due to last minute unnanounced
 changes in firmware interfaces).
@@ -173,7 +177,8 @@ changes in firmware interfaces).
 Sometimes, when booting, the driver gets stuck waiting for the
 Fibre Channel f/w to tell it that the loop port database is ready,
 or waiting for a good loop to be seen (this does not yet support
-booting without being connected to a fibre channel device).  To
+booting without being connected to a fibre channel device).
+To
 unwedge the system, unplug and replug the fibre channel connection,
 or otherwise cause a LIP (Loop Initialization Primitive sequence)-
 this will kick the f/w into getting unstuck.

@@ -35,9 +35,9 @@
 .Nm VFS_VPTOFH
 .Nd turn a vnode into an NFS filehandle
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/mount.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/mount.h
+.In sys/vnode.h
 .Ft int
 .Fn VFS_VPTOFH "struct vnode *vp" "struct fid *fhp"
 .Sh DESCRIPTION

@@ -106,7 +106,7 @@ is provided as a set of
 settings suggested by
 .An "Bruce Evans" Aq bde@FreeBSD.org
 for developing and testing changes.
-They can be used by:
+They can be used, if set, by:
 .Pp
 .Bd -literal -offset indent
 CXFLAGS+=${BDECFLAGS}
@@ -320,6 +320,12 @@ compatibility libraries.
 Set to install the
 .Fx
 3
+compatibility libraries.
+.It Va COMPAT4X
+.Pq Vt bool
+Set to install the
+.Fx
+4
 compatibility libraries.
 .It Va ENABLE_SUIDPERL
 .Pq Vt bool

@@ -1,4 +1,4 @@
-.\" Copyright (c) 1995 FreeBSD Inc.
+.\" Copyright (c) 1995-2001 FreeBSD Inc.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"
-.Dd December 14, 1995
+.Dd December 7, 2001
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -32,7 +32,8 @@
 .Sh DESCRIPTION
 This file specifies the preferred style for kernel source files in the
 .Fx
-source tree.  It is also a guide for preferred userland code style.
+source tree.
+It is also a guide for preferred userland code style.
 .Bd -literal
 /*
  * Style guide for FreeBSD.  Based on the CSRG's KNF (Kernel Normal Form).
@@ -63,8 +64,11 @@ follow the one below.
 All VCS (version control system) revision identification from files obtained
 from elsewhere should be maintained, including, where applicable, multiple IDs
 showing a file's history.
-In general, keep the IDs intact, including any `$'s.
-There is no reason to add "From" in front of foreign VCS IDs.
+In general, keep the IDs intact, including any
+.So Li $ Sc Ns s .
+There is no reason to add
+.Qq Li "From"
+in front of foreign VCS IDs.
 Most
 .No non- Ns Fx
 VCS IDs should be indented by a tab if in a comment.
@@ -76,10 +80,17 @@ __FBSDID("$FreeBSD$");
 .Pp
 Leave another blank line before the header files.
 .Pp
-Kernel include files (i.e. sys/*.h) come first; normally, include
-<sys/types.h>
-OR <sys/param.h>, but not both.  <sys/types.h> includes <sys/cdefs.h>,
-and it's okay to depend on that.
+Kernel include files (i.e.\&
+.Pa sys/*.h )
+come first; normally, include
+.Aq Pa sys/types.h
+OR
+.Aq Pa sys/param.h ,
+but not both.
+.Aq Pa sys/types.h
+includes
+.Aq Pa sys/cdefs.h ,
+and it is okay to depend on that.
 .Bd -literal
 #include <sys/types.h>	/* Non-local includes in angle brackets. */
 .Ed
@@ -93,14 +104,20 @@ For a network program, put the network include files next.
 #include <protocols/rwhod.h>
 .Ed
 .Pp
-Leave a blank line before the next group, the /usr include files,
+Leave a blank line before the next group, the
+.Pa /usr
+include files,
 which should be sorted alphabetically by name.
 .Bd -literal
 #include <stdio.h>
 .Ed
 .Pp
-Global pathnames are defined in /usr/include/paths.h.  Pathnames local
-to the program go in pathnames.h in the local directory.
+Global pathnames are defined in
+.Aq Pa paths.h .
+Pathnames local
+to the program go in
+.Qq Pa pathnames.h
+in the local directory.
 .Bd -literal
 #include <paths.h>
 .Ed
@@ -110,7 +127,9 @@ Leave another blank line before the user include files.
 #include "pathnames.h"		/* Local includes in double quotes. */
 .Ed
 .Pp
-Do not #define or declare names in the implementation namespace except
+Do not
+.Ic #define
+or declare names in the implementation namespace except
 for implementing application interfaces.
 .Pp
 The names of
@@ -120,7 +139,7 @@ manifest constants, are all in uppercase.
 The expansions of expression-like macros are either a single token
 or have outer parentheses.
 Put a single tab character between the
-.Ql #define
+.Ic #define
 and the macro name.
 If a macro is an inline expansion of a function, the function name is
 all in lowercase and the macro has the same name all in uppercase.
@@ -130,16 +149,16 @@ all in lowercase and the macro has the same name all in uppercase.
 .\" functions are used.
 If a
 macro needs more than a single line, use braces
-.Sq ( \&{
+.Ql ( \&{
 and
-.Sq \&} ) .
+.Ql \&} ) .
 Right-justify the
 backslashes; it makes it easier to read.
 If the macro encapsulates a compound statement, enclose it in a
-.Dq Li do
+.Ic do
 loop,
 so that it can safely be used in
-.Dq Li if
+.Ic if
 statements.
 Any final statement-terminating semicolon should be
 supplied by the macro invocation rather than the macro, to make parsing easier
@@ -157,8 +176,9 @@ enum enumtype { ONE, TWO } et;
 .Ed
 .Pp
 When declaring variables in structures, declare them sorted by use, then
-by size, and then by alphabetical order.  The first category normally
-doesn't apply, but there are exceptions.  Each one gets its own line.
+by size, and then in alphabetical order.
+The first category normally does not apply, but there are exceptions.
+Each one gets its own line.
 Try to make the structure
 readable by aligning the member names using either one or two tabs
 depending upon your judgment.
@@ -168,8 +188,11 @@ should be separated by a single space.
 .Pp
 Major structures should be declared at the top of the file in which they
 are used, or in separate header files if they are used in multiple
-source files.  Use of the structures should be by separate declarations
-and should be "extern" if they are declared in a header file.
+source files.
+Use of the structures should be by separate declarations
+and should be
+.Ic extern
+if they are declared in a header file.
 .Bd -literal
 struct foo {
 	struct foo	*next;		/* List of active foo. */
@@ -182,10 +205,12 @@ struct foo *foohead;			/* Head of global foo list. */
 .Pp
 Use
 .Xr queue 3
-macros rather than rolling your own lists, whenever possible.  Thus,
+macros rather than rolling your own lists, whenever possible.
+Thus,
 the previous example would be better written:
 .Bd -literal
 #include <sys/queue.h>
+
 struct foo {
 	LIST_ENTRY(foo)	link;		/* Use queue macros for foo lists. */
 	struct mumble	amumble;	/* Comment for mumble. */
@@ -195,14 +220,16 @@ struct foo {
 LIST_HEAD(, foo) foohead;		/* Head of global foo list. */
 .Ed
 .Pp
-Avoid using typedefs for structure types.  This makes it impossible
+Avoid using typedefs for structure types.
+This makes it impossible
 for applications to use pointers to such a structure opaquely, which
 is both possible and beneficial when using an ordinary struct tag.
-When convention requires a typedef, make its name match the struct
-tag.  Avoid typedefs ending in
-.Dq Li \&_t ,
-except as specified in Standard C or by
-.Tn POSIX .
+When convention requires a
+.Ic typedef ,
+make its name match the struct tag.
+Avoid typedefs ending in
+.Dq Li _t ,
+except as specified in Standard C or by \*[Px].
 .Bd -literal
 /* Make the structure name match the typedef. */
 typedef struct bar {
@@ -213,26 +240,36 @@ typedef struct bar {
 All functions are prototyped somewhere.
 .Pp
 Function prototypes for private functions (i.e. functions not used
-elsewhere) go at the top of the first source module.  Functions
+elsewhere) go at the top of the first source module.
+Functions
 local to one source module should be declared
-.Ql static .
+.Ic static .
 .Pp
 Functions used from other parts of the kernel are prototyped in the
 relevant include file.
 .Pp
 Functions that are used locally in more than one module go into a
 separate header file, e.g.\&
-.Pa extern.h .
+.Qq Pa extern.h .
 .Pp
-Only use the __P macro from the include file <sys/cdefs.h> if the source
+Only use the
+.Dv __P
+macro from the include file
+.Aq Pa sys/cdefs.h
+if the source
 file in general is (to be) compilable with a K&R Old Testament compiler.
-Use of the __P macro in new code is discouraged, although modifications
+Use of the
+.Dv __P
+macro in new code is discouraged, although modifications
 to existing files should be consistent with that file's conventions.
 .Pp
 In general code can be considered
-.Dq new code
-when it makes up about 50% or more of the file[s] involved.  This is enough
-to break precedents in the existing code and use the current style guidelines.
+.Dq "new code"
+when it makes up about 50% or more of the file(s) involved.
+This is enough
+to break precedents in the existing code and use the current
+.Nm
+guidelines.
 .Pp
 The kernel has a name associated with parameter types, e.g., in the kernel
 use:
@@ -243,7 +280,8 @@ void	function(int fd);
 In header files visible to userland applications, prototypes that are
 visible must use either
 .Dq protected
-names (ones beginning with an underscore) or no names with the types.
+names (ones beginning with an underscore)
+or no names with the types.
 It is preferable to use protected names.
 E.g., use:
 .Bd -literal
@@ -276,12 +314,27 @@ main(int argc, char *argv[])
 
 .Ed
 .Pp
-For consistency, getopt should be used to parse options.  Options
-should be sorted in the getopt call and the switch statement, unless
-parts of the switch cascade.  Elements in a switch statement that
-cascade should have a FALLTHROUGH comment.  Numerical arguments
-should be checked for accuracy.  Code that cannot be reached should
-have a NOTREACHED comment.
+For consistency,
+.Xr getopt 3
+should be used to parse options.
+Options
+should be sorted in the
+.Xr getopt 3
+call and the
+.Ic switch
+statement, unless
+parts of the
+.Ic switch
+cascade.
+Elements in a
+.Ic switch
+statement that cascade should have a
+.Li FALLTHROUGH
+comment.
+Numerical arguments should be checked for accuracy.
+Code that cannot be reached should have a
+.Li NOTREACHED
+comment.
 .Bd -literal
 	while ((ch = getopt(argc, argv, "abn:")) != -1)
 		switch (ch) {		/* Indent the switch. */
@@ -306,13 +359,17 @@ have a NOTREACHED comment.
 		}
 	argc -= optind;
 	argv += optind;
-
 .Ed
 .Pp
-Space after keywords (if, while, for, return, switch).  No braces are
+Space after keywords
+.Pq Ic if , while , for , return , switch .
+No braces are
 used for control statements with zero or only a single statement unless that
 statement is more than a single line in which case they are permitted.
-Forever loops are done with for's, not while's.
+Forever loops are done with
+.Ic for Ns 's ,
+not
+.Ic while Ns 's .
 .Bd -literal
 	for (p = buf; *p != '\e0'; ++p)
 		;	/* nothing */
@@ -331,7 +388,10 @@ Forever loops are done with for's, not while's.
 		val = realloc(val, newsize);
 .Ed
 .Pp
-Parts of a for loop may be left empty.  Don't put declarations
+Parts of a
+.Ic for
+loop may be left empty.
+Do not put declarations
 inside blocks unless the routine is unusually complicated.
 .Bd -literal
 	for (; cnt < 15; cnt++) {
@@ -354,11 +414,13 @@ line.
 .Pp
 Do not add whitespace at the end of a line, and only use tabs
 followed by spaces
-to form the indentation.  Do not use more spaces than a tab will produce
+to form the indentation.
+Do not use more spaces than a tab will produce
 and do not use spaces in front of tabs.
 .Pp
-Closing and opening braces go on the same line as the else.
-Braces that aren't necessary may be left out.
+Closing and opening braces go on the same line as the
+.Ic else .
+Braces that are not necessary may be left out.
 .Bd -literal
 	if (test)
 		stmt;
@@ -369,15 +431,17 @@ Braces that aren't necessary may be left out.
 		stmt;
 .Ed
 .Pp
-No spaces after function names.  Commas have a space after them.  No spaces
+No spaces after function names.
+Commas have a space after them.
+No spaces
 after
-.Sq \&(
+.Ql \&(
 or
-.Sq \&[
+.Ql \&[
 or preceding
-.Sq \&]
+.Ql \&]
 or
-.Sq \&)
+.Ql \&)
 characters.
 .Bd -literal
 	error = function(a1, a2);
@@ -385,10 +449,12 @@ characters.
 		exit(error);
 .Ed
 .Pp
-Unary operators don't require spaces, binary operators do.  Don't
-use parentheses unless they're required for precedence or unless the
-statement is confusing without them.  Remember that other people may
-confuse easier than you.  Do YOU understand the following?
+Unary operators do not require spaces, binary operators do.
+Do not use parentheses unless they are required for precedence or unless the
+statement is confusing without them.
+Remember that other people may
+confuse easier than you.
+Do YOU understand the following?
 .Bd -literal
 	a = b->c[0] + ~d == (e || f) || g && h ? i : j >> 1;
 	k = !(l & FLAGS);
@@ -418,7 +484,8 @@ then in alphabetical order; multiple ones per line are okay.
 If a line overflows reuse the type keyword.
 .Pp
 Be careful to not obfuscate the code by initializing variables in
-the declarations.  Use this feature only thoughtfully.
+the declarations.
+Use this feature only thoughtfully.
 DO NOT use function calls in initializers.
 .Bd -literal
 	struct foo one, *two;
@@ -431,21 +498,38 @@ DO NOT use function calls in initializers.
 .Pp
 Do not declare functions inside other functions; ANSI C says that
 such declarations have file scope regardless of the nesting of the
-declaration.  Hiding file declarations in what appears to be a local
+declaration.
+Hiding file declarations in what appears to be a local
 scope is undesirable and will elicit complaints from a good compiler.
 .Pp
-Casts and sizeof's are not followed by a space.  Note that
+Casts and
+.Ic sizeof Ns 's
+are not followed by a space.
+Note that
 .Xr indent 1
 does not understand this rule.
 .Pp
-NULL is the preferred null pointer constant.  Use NULL instead of
-(type *)0 or (type *)NULL in contexts where the compiler knows the
-type, e.g., in assignments.  Use (type *)NULL in other contexts,
-in particular for all function args.  (Casting is essential for
+.Dv NULL
+is the preferred null pointer constant.
+Use
+.Dv NULL
+instead of
+.Vt ( "type *" ) Ns 0
+or
+.Vt ( "type *" ) Ns Dv NULL
+in contexts where the compiler knows the
+type, e.g., in assignments.
+Use
+.Vt ( "type *" ) Ns Dv NULL
+in other contexts,
+in particular for all function args.
+(Casting is essential for
 variadic args and is necessary for other args if the function prototype
 might not be in scope.)
-Test pointers
-against NULL, e.g., use:
+Test pointers against
+.Dv NULL ,
+e.g., use:
+.Pp
 .Bd -literal
 (p = f()) == NULL
 .Ed
@@ -455,7 +539,9 @@ not:
 !(p = f())
 .Ed
 .Pp
-Don't use '!' for tests unless it's a boolean, e.g. use
+Do not use
+.Ic \&!
+for tests unless it is a boolean, e.g. use
 .Bd -literal
 if (*p == '\e0')
 .Ed
@@ -465,14 +551,16 @@ not
 if (!*p)
 .Ed
 .Pp
-Routines returning void * should not have their return values cast
+Routines returning
+.Vt "void *"
+should not have their return values cast
 to any pointer type.
 .Pp
 Use
 .Xr err 3
 or
 .Xr warn 3 ,
-don't roll your own.
+do not roll your own.
 .Bd -literal
 	if ((four = malloc(sizeof(struct foo))) == NULL)
 		err(1, (char *)NULL);
@@ -518,20 +606,24 @@ usage()
 .Pp
 Use
 .Xr printf 3 ,
-not fputs/puts/putchar/whatever; it's faster and usually cleaner, not
+not
+.Xr fputs 3 ,
+.Xr puts 3 ,
+.Xr putchar 3 ,
+whatever; it is faster and usually cleaner, not
 to mention avoiding stupid bugs.
 .Pp
-Usage statements should look like the manual pages synopsis.
+Usage statements should look like the manual pages
+.Sx SYNOPSIS .
 The usage statement should be structured in the following order:
-.Pp
 .Bl -enum
 .It
 Options without operands come first,
 in alphabetical order,
 inside a single set of brackets
-.Sq ( \&[
+.Ql ( \&[
 and
-.Sq \&] ) .
+.Ql \&] ) .
 .It
 Options with operands come next,
 also in alphabetical order,
@@ -540,7 +632,7 @@ with each option and its argument inside its own pair of brackets.
 Required arguments
 (if any)
 are next,
-listed in the order they should be specified in the command line.
+listed in the order they should be specified on the command line.
 .It
 Finally,
 any optional arguments should be listed,
@@ -549,12 +641,13 @@ and all inside brackets.
 .El
 .Pp
 A bar
-.Pq Sq \&|
-separates either-or options/arguments,
+.Pq Ql \&|
+separates
+.Dq either-or
+options/arguments,
 and multiple options/arguments which are specified together are
 placed in a single set of brackets.
-.Pp
-.Bd -ragged -offset 4n
+.Bd -literal -offset 4n
 "usage: f [-aDde] [-b b_arg] [-m m_arg] req1 req2 [opt1 [opt2]]\en"
 "usage: f [-a | -b] [-c [-dEe] [-n number]]\en"
 .Ed
@@ -570,23 +663,26 @@ That is, without regard to whether an option takes arguments or not.
 The alphabetical ordering should take into account the case ordering
 shown above.
 .Pp
-New core kernel code should be reasonably compliant with the style guides.
+New core kernel code should be reasonably compliant with the
+.Nm
+guides.
 The guidelines for third-party maintained modules and device drivers are more
 relaxed but at a minimum should be internally consistent with their style.
 .Pp
 Stylistic changes (including whitespace changes) are hard on the source
-repository and are to be avoided without good reason.  Code that is
-approximately
+repository and are to be avoided without good reason.
+Code that is approximately
 .Fx
 KNF
-.Xr style 9
+.Nm
 compliant in the repository must not diverge from compliance.
 .Pp
 Whenever possible, code should be run through a code checker
 (e.g.,
 .Xr lint 1
 or
-"gcc -Wall") and produce minimal warnings.
+.Nm gcc Fl Wall )
+and produce minimal warnings.
 .Sh SEE ALSO
 .Xr indent 1 ,
 .Xr lint 1 ,
@@ -594,8 +690,9 @@ or
 .Xr sysexits 3 ,
 .Xr warn 3
 .Sh HISTORY
-This man page is largely based on the src/admin/style/style file from
-the
+This man page is largely based on the
+.Pa src/admin/style/style
+file from the
 .Bx 4.4 Lite2
 release, with occasional updates to reflect the current practice and
 desire of the

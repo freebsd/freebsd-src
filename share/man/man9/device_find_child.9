@@ -35,8 +35,8 @@
 .Nm device_find_child
 .Nd search for a child of a device
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/bus.h>
+.In sys/param.h
+.In sys/bus.h
 .Ft device_t
 .Fn device_find_child "device_t dev" "const char* name" "int unit"
 .Sh DESCRIPTION

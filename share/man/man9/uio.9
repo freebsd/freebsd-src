@@ -24,17 +24,17 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" "
+.\"
 .Dd February 2, 1997
 .Os
 .Dt UIO 9
 .Sh NAME
 .Nm uio ,
 .Nm uiomove
-.Nd device driver IO routines
+.Nd device driver I/O routines
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/uio.h>
+.In sys/types.h
+.In sys/uio.h
 .Pp
 .Bd -literal
 struct uio {
@@ -52,7 +52,7 @@ struct uio {
 .Sh DESCRIPTION
 The function
 .Fn uiomove
-is used to handle transfer of data between buffers and IO vectors
+is used to handle transfer of data between buffers and I/O vectors
 that might possibly also cross the user/kernel space boundary.
 .Pp
 As a result of any
@@ -63,59 +63,66 @@ or
 .Xr writev 2
 system call that is being passed to a character-device driver, the
 appropriate driver
-.Em read
+.Va d_read
 or
-.Em write
+.Va d_write
 entry will be called with a pointer to a
-.Fa "struct uio"
-being passed.  The transfer request is encoded in this structure.
+.Vt "struct uio"
+being passed.
+The transfer request is encoded in this structure.
 The driver itself should use
 .Fn uiomove
 to get at the data in this structure.
 .Pp
-The fields in the uio structure are:
-.Bl -tag -width "uio_iovcntXXXX" -compact
-.It Dv uio_iov
-The array of IO vectors to be processed.  In the case of scatter/gather
-IO, this will be more than one vector.
-.It Dv uio_iovcnt
-The number of IO vectors present.
-.It Dv uio_offset
+The fields in the
+.Vt uio
+structure are:
+.Bl -tag -width ".Va uio_iovcnt"
+.It Va uio_iov
+The array of I/O vectors to be processed.
+In the case of scatter/gather
+I/O, this will be more than one vector.
+.It Va uio_iovcnt
+The number of I/O vectors present.
+.It Va uio_offset
 The offset into the device.
-.It Dv uio_resid
+.It Va uio_resid
 The number of bytes to process.
-.It Dv uio_segflg
+.It Va uio_segflg
 One of the following flags:
-.Bl -tag -width "UIO_USERISPACEX" -compact
+.Bl -tag -width ".Dv UIO_USERISPACE"
 .It Dv UIO_USERSPACE
-The IO vector points into a process's address space.
+The I/O vector points into a process's address space.
 .It Dv UIO_SYSSPACE
-The IO vector points into the kernel address space.
+The I/O vector points into the kernel address space.
 .It Dv UIO_USERISPACE
-The IO vector points into the instruction area of a process's address
+The I/O vector points into the instruction area of a process's address
 space.
 .It Dv UIO_NOCOPY
 Don't copy, already in object.
 .El
-.It Dv uio_rw
+.It Va uio_rw
 The direction of the desired transfer, either
 .Dv UIO_READ ,
 or
 .Dv UIO_WRITE .
-.It Dv uio_procp
+.It Va uio_td
 The pointer to a
-.Li struct proc
-for the associated process; used if
-.Dv uio_segflg
+.Vt "struct thread"
+for the associated thread; used if
+.Va uio_segflg
 indicates that the transfer is to be made from/to a process's address
 space.
 .El
 .Sh EXAMPLES
 The idea is that the driver maintains a private buffer for its data,
 and processes the request in chunks of maximal the size of this
-buffer.  Note that the buffer handling below is very simplified and
+buffer.
+Note that the buffer handling below is very simplified and
 won't work (the buffer pointer is not being advanced in case of a
-partial read), it's just here to demonstrate the uio handling.
+partial read), it's just here to demonstrate the
+.Nm
+handling.
 .Bd -literal
 /* MIN() can be found there: */
 #include <sys/param.h>
@@ -146,7 +153,6 @@ error:
 	/* do error cleanup here */
 	return rv;
 }
-
 .Ed
 .Sh RETURN VALUES
 .Fn uiomove
@@ -166,7 +172,9 @@ in case the transfer was to/from a process's address space.
 .Xr copyout 9 ,
 .Xr sleep 9
 .Sh HISTORY
-The uio mechanism appeared in some early version of
+The
+.Nm
+mechanism appeared in some early version of
 .Ux .
 .Sh AUTHORS
 This man page was written by

@@ -35,9 +35,9 @@
 .Nm VOP_READLINK
 .Nd read the target of a symbolic link
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
-.Fd #include <sys/uio.h>
+.In sys/param.h
+.In sys/vnode.h
+.In sys/uio.h
 .Ft int
 .Fn VOP_READLINK "struct vnode *vp" "struct uio *uio" "struct ucred *cred"
 .Sh DESCRIPTION

@@ -31,8 +31,8 @@
 .Nm BUS_SETUP_INTR
 .Nd create and attach to an interrupt handler
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/bus.h>
+.In sys/param.h
+.In sys/bus.h
 .Ft int
 .Fn BUS_SETUP_INTR "device_t dev" "device_t child" "struct resource *irq" "int flags" "driver_intr_t *intr" "void *arg" "void **cookiep"
 .Sh DESCRIPTION

@@ -35,8 +35,8 @@
 .Nm VOP_IOCTL
 .Nd device specific control
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_IOCTL "struct vnode *vp" "u_long command" "caddr_t data" "int fflag" "struct ucred *cred" "struct proc *p"
 .Sh DESCRIPTION
