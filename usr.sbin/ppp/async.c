@@ -17,78 +17,64 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.14 1997/11/22 03:37:23 brian Exp $
+ * $Id: async.c,v 1.15.2.14 1998/05/01 19:23:51 brian Exp $
  *
  */
-#include <sys/param.h>
-#include <netinet/in.h>
+#include <sys/types.h>
 
-#include <stdio.h>
 #include <string.h>
 #include <termios.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "lcp.h"
 #include "lcpproto.h"
-#include "modem.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "async.h"
-
-#define HDLCSIZE	(MAX_MRU*2+6)
-
-static struct async_state {
-  int mode;
-  int length;
-  u_char hbuff[HDLCSIZE];	/* recv buffer */
-  u_char xbuff[HDLCSIZE];	/* xmit buffer */
-  u_long my_accmap;
-  u_long his_accmap;
-} AsyncState;
+#include "throughput.h"
+#include "ccp.h"
+#include "link.h"
+#include "descriptor.h"
+#include "physical.h"
 
 #define MODE_HUNT 0x01
 #define MODE_ESC  0x02
 
 void
-AsyncInit()
+async_Init(struct async *async)
 {
-  struct async_state *stp = &AsyncState;
-
-  stp->mode = MODE_HUNT;
-  stp->length = 0;
-  stp->my_accmap = stp->his_accmap = 0xffffffff;
+  async->mode = MODE_HUNT;
+  async->length = 0;
+  async->my_accmap = async->his_accmap = 0xffffffff;
+  memset(async->cfg.EscMap, '\0', sizeof async->cfg.EscMap);
 }
 
 void
-SetLinkParams(struct lcpstate *lcp)
+async_SetLinkParams(struct async *async, struct lcp *lcp)
 {
-  struct async_state *stp = &AsyncState;
-
-  stp->my_accmap = lcp->want_accmap;
-  stp->his_accmap = lcp->his_accmap;
+  async->my_accmap = lcp->want_accmap;
+  async->his_accmap = lcp->his_accmap;
 }
 
 /*
  * Encode into async HDLC byte code if necessary
  */
 static void
-HdlcPutByte(u_char **cp, u_char c, int proto)
+HdlcPutByte(struct async *async, u_char **cp, u_char c, int proto)
 {
   u_char *wp;
 
   wp = *cp;
-  if ((c < 0x20 && (proto == PROTO_LCP || (AsyncState.his_accmap & (1 << c))))
+  if ((c < 0x20 && (proto == PROTO_LCP || (async->his_accmap & (1 << c))))
       || (c == HDLC_ESC) || (c == HDLC_SYN)) {
     *wp++ = HDLC_ESC;
     c ^= HDLC_XOR;
   }
-  if (EscMap[32] && EscMap[c >> 3] & (1 << (c & 7))) {
+  if (async->cfg.EscMap[32] && async->cfg.EscMap[c >> 3] & (1 << (c & 7))) {
     *wp++ = HDLC_ESC;
     c ^= HDLC_XOR;
   }
@@ -97,27 +83,26 @@ HdlcPutByte(u_char **cp, u_char c, int proto)
 }
 
 void
-AsyncOutput(int pri, struct mbuf *bp, int proto)
+async_Output(int pri, struct mbuf *bp, int proto, struct physical *physical)
 {
-  struct async_state *hs = &AsyncState;
   u_char *cp, *sp, *ep;
   struct mbuf *wp;
   int cnt;
 
-  if (plength(bp) > HDLCSIZE) {
-    pfree(bp);
+  if (mbuf_Length(bp) > HDLCSIZE) {
+    mbuf_Free(bp);
     return;
   }
-  cp = hs->xbuff;
+  cp = physical->async.xbuff;
   ep = cp + HDLCSIZE - 10;
   wp = bp;
   *cp++ = HDLC_SYN;
   while (wp) {
     sp = MBUF_CTOP(wp);
     for (cnt = wp->cnt; cnt > 0; cnt--) {
-      HdlcPutByte(&cp, *sp++, proto);
+      HdlcPutByte(&physical->async, &cp, *sp++, proto);
       if (cp >= ep) {
-	pfree(bp);
+	mbuf_Free(bp);
 	return;
       }
     }
@@ -125,72 +110,73 @@ AsyncOutput(int pri, struct mbuf *bp, int proto)
   }
   *cp++ = HDLC_SYN;
 
-  cnt = cp - hs->xbuff;
-  LogDumpBuff(LogASYNC, "WriteModem", hs->xbuff, cnt);
-  WriteModem(pri, (char *) hs->xbuff, cnt);
-  ModemAddOutOctets(cnt);
-  pfree(bp);
+  cnt = cp - physical->async.xbuff;
+  log_DumpBuff(LogASYNC, "WriteModem", physical->async.xbuff, cnt);
+  link_Write(&physical->link, pri, (char *)physical->async.xbuff, cnt);
+  link_AddOutOctets(&physical->link, cnt);
+  mbuf_Free(bp);
 }
 
 static struct mbuf *
-AsyncDecode(u_char c)
+async_Decode(struct async *async, u_char c)
 {
-  struct async_state *hs = &AsyncState;
   struct mbuf *bp;
 
-  if ((hs->mode & MODE_HUNT) && c != HDLC_SYN)
+  if ((async->mode & MODE_HUNT) && c != HDLC_SYN)
     return NULL;
 
   switch (c) {
   case HDLC_SYN:
-    hs->mode &= ~MODE_HUNT;
-    if (hs->length) {		/* packet is ready. */
-      bp = mballoc(hs->length, MB_ASYNC);
-      mbwrite(bp, hs->hbuff, hs->length);
-      hs->length = 0;
+    async->mode &= ~MODE_HUNT;
+    if (async->length) {		/* packet is ready. */
+      bp = mbuf_Alloc(async->length, MB_ASYNC);
+      mbuf_Write(bp, async->hbuff, async->length);
+      async->length = 0;
       return bp;
     }
     break;
   case HDLC_ESC:
-    if (!(hs->mode & MODE_ESC)) {
-      hs->mode |= MODE_ESC;
+    if (!(async->mode & MODE_ESC)) {
+      async->mode |= MODE_ESC;
       break;
     }
     /* Fall into ... */
   default:
-    if (hs->length >= HDLCSIZE) {
+    if (async->length >= HDLCSIZE) {
       /* packet is too large, discard it */
-      LogPrintf(LogERROR, "Packet too large (%d), discarding.\n", hs->length);
-      hs->length = 0;
-      hs->mode = MODE_HUNT;
+      log_Printf(LogERROR, "Packet too large (%d), discarding.\n", async->length);
+      async->length = 0;
+      async->mode = MODE_HUNT;
       break;
     }
-    if (hs->mode & MODE_ESC) {
+    if (async->mode & MODE_ESC) {
       c ^= HDLC_XOR;
-      hs->mode &= ~MODE_ESC;
+      async->mode &= ~MODE_ESC;
     }
-    hs->hbuff[hs->length++] = c;
+    async->hbuff[async->length++] = c;
     break;
   }
   return NULL;
 }
 
 void
-AsyncInput(u_char *buff, int cnt)
+async_Input(struct bundle *bundle, u_char *buff, int cnt,
+            struct physical *physical)
 {
   struct mbuf *bp;
 
-  ModemAddInOctets(cnt);
-  if (DEV_IS_SYNC) {
-    bp = mballoc(cnt, MB_ASYNC);
+  link_AddInOctets(&physical->link, cnt);
+
+  if (physical_IsSync(physical)) {
+    bp = mbuf_Alloc(cnt, MB_ASYNC);
     memcpy(MBUF_CTOP(bp), buff, cnt);
     bp->cnt = cnt;
-    HdlcInput(bp);
+    hdlc_Input(bundle, bp, physical);
   } else {
     while (cnt > 0) {
-      bp = AsyncDecode(*buff++);
+      bp = async_Decode(&physical->async, *buff++);
       if (bp)
-	HdlcInput(bp);
+	hdlc_Input(bundle, bp, physical);
       cnt--;
     }
   }

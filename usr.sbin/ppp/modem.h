@@ -15,27 +15,28 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.h,v 1.15 1998/01/10 01:55:11 brian Exp $
+ * $Id: modem.h,v 1.16.2.17 1998/05/02 21:57:49 brian Exp $
  *
  *	TODO:
  */
 
-extern int RawModem(void);
-extern void WriteModem(int, const char *, int);
-extern void ModemStartOutput(int);
-extern int OpenModem(void);
-extern int ModemSpeed(void);
-extern int ModemQlen(void);
-extern int DialModem(void);
+struct iovec;
+struct datalink;
+struct physical;
+struct bundle;
+struct ccp;
+struct cmdargs;
+
+extern int modem_Raw(struct physical *, struct bundle *);
+extern struct physical *modem_Create(struct datalink *, int);
+extern int modem_Open(struct physical *, struct bundle *);
+extern int modem_Speed(struct physical *);
 extern speed_t IntToSpeed(int);
-extern void ModemTimeout(void *v);
-extern void DownConnection(void);
-extern void ModemOutput(int, struct mbuf *);
-extern int ChangeParity(const char *);
-extern void HangupModem(int);
-extern int ShowModemStatus(struct cmdargs const *);
-extern void Enqueue(struct mqueue *, struct mbuf *);
-extern struct mbuf *Dequeue(struct mqueue *);
-extern void SequenceQueues(void);
-extern void ModemAddInOctets(int);
-extern void ModemAddOutOctets(int);
+extern int modem_SetParity(struct physical *, const char *);
+extern int modem_ShowStatus(struct cmdargs const *);
+extern void modem_Close(struct physical *);
+extern void modem_Offline(struct physical *);
+extern void modem_Destroy(struct physical *);
+extern struct physical *iov2modem(struct datalink *, struct iovec *, int *,
+                                  int, int);
+extern int modem2iov(struct physical *, struct iovec *, int *, int);

@@ -17,41 +17,43 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.14 1997/11/22 03:37:50 brian Exp $
+ * $Id: slcompress.c,v 1.15.2.11 1998/05/01 19:25:59 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <stdio.h>
 #include <string.h>
+#include <termios.h>
 
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
 #include "slcompress.h"
-#include "loadalias.h"
-#include "vars.h"
-
-static struct slstat {
-  int sls_packets;		/* outbound packets */
-  int sls_compressed;		/* outbound compressed packets */
-  int sls_searches;		/* searches for connection state */
-  int sls_misses;		/* times couldn't find conn. state */
-  int sls_uncompressedin;	/* inbound uncompressed packets */
-  int sls_compressedin;		/* inbound compressed packets */
-  int sls_errorin;		/* inbound unknown type packets */
-  int sls_tossed;		/* inbound packets tossed because of error */
-} slstat;
-
-#define INCR(counter)	slstat.counter++;
+#include "descriptor.h"
+#include "prompt.h"
+#include "timer.h"
+#include "fsm.h"
+#include "throughput.h"
+#include "iplist.h"
+#include "ipcp.h"
+#include "filter.h"
+#include "lqr.h"
+#include "hdlc.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "link.h"
+#include "mp.h"
+#include "bundle.h"
 
 void
 sl_compress_init(struct slcompress * comp, int max_state)
@@ -129,7 +131,8 @@ sl_compress_init(struct slcompress * comp, int max_state)
 u_char
 sl_compress_tcp(struct mbuf * m,
 		struct ip * ip,
-		struct slcompress * comp,
+		struct slcompress *comp,
+                struct slstat *slstat,
 		int compress_cid)
 {
   register struct cstate *cs = comp->last_cs->cs_next;
@@ -147,15 +150,15 @@ sl_compress_tcp(struct mbuf * m,
    * the caller has already made sure the packet is IP proto TCP).
    */
   if ((ip->ip_off & htons(0x3fff)) || m->cnt < 40) {
-    LogPrintf(LogDEBUG, "??? 1 ip_off = %x, cnt = %d\n",
+    log_Printf(LogDEBUG, "??? 1 ip_off = %x, cnt = %d\n",
 	      ip->ip_off, m->cnt);
-    LogDumpBp(LogDEBUG, "", m);
+    log_DumpBp(LogDEBUG, "", m);
     return (TYPE_IP);
   }
   th = (struct tcphdr *) & ((int *) ip)[hlen];
   if ((th->th_flags & (TH_SYN | TH_FIN | TH_RST | TH_ACK)) != TH_ACK) {
-    LogPrintf(LogDEBUG, "??? 2 th_flags = %x\n", th->th_flags);
-    LogDumpBp(LogDEBUG, "", m);
+    log_Printf(LogDEBUG, "??? 2 th_flags = %x\n", th->th_flags);
+    log_DumpBp(LogDEBUG, "", m);
     return (TYPE_IP);
   }
 
@@ -166,10 +169,10 @@ sl_compress_tcp(struct mbuf * m,
    * it's most likely to be used again & we don't have to do any reordering
    * if it's used.
    */
-  INCR(sls_packets)
-    if (ip->ip_src.s_addr != cs->cs_ip.ip_src.s_addr ||
-	ip->ip_dst.s_addr != cs->cs_ip.ip_dst.s_addr ||
-	*(int *) th != ((int *) &cs->cs_ip)[cs->cs_ip.ip_hl]) {
+  slstat->sls_packets++;
+  if (ip->ip_src.s_addr != cs->cs_ip.ip_src.s_addr ||
+      ip->ip_dst.s_addr != cs->cs_ip.ip_dst.s_addr ||
+      *(int *) th != ((int *) &cs->cs_ip)[cs->cs_ip.ip_hl]) {
 
     /*
      * Wasn't the first -- search for it.
@@ -187,10 +190,10 @@ sl_compress_tcp(struct mbuf * m,
     do {
       lcs = cs;
       cs = cs->cs_next;
-      INCR(sls_searches)
-	if (ip->ip_src.s_addr == cs->cs_ip.ip_src.s_addr
-	    && ip->ip_dst.s_addr == cs->cs_ip.ip_dst.s_addr
-	    && *(int *) th == ((int *) &cs->cs_ip)[cs->cs_ip.ip_hl])
+      slstat->sls_searches++;
+      if (ip->ip_src.s_addr == cs->cs_ip.ip_src.s_addr
+	  && ip->ip_dst.s_addr == cs->cs_ip.ip_dst.s_addr
+	  && *(int *) th == ((int *) &cs->cs_ip)[cs->cs_ip.ip_hl])
 	goto found;
     } while (cs != lastcs);
 
@@ -201,7 +204,7 @@ sl_compress_tcp(struct mbuf * m,
      * state points to the newest and we only need to set last_cs to update
      * the lru linkage.
      */
-    INCR(sls_misses)
+    slstat->sls_misses++;
       comp->last_cs = lcs;
 #define	THOFFSET(th)	(th->th_off)
     hlen += th->th_off;
@@ -382,8 +385,8 @@ found:
   *cp++ = deltaA >> 8;
   *cp++ = deltaA;
   memcpy(cp, new_seq, deltaS);
-  INCR(sls_compressed)
-    return (TYPE_COMPRESSED_TCP);
+  slstat->sls_compressed++;
+  return (TYPE_COMPRESSED_TCP);
 
   /*
    * Update connection state cs & send uncompressed packet ('uncompressed'
@@ -399,10 +402,8 @@ uncompressed:
 
 
 int
-sl_uncompress_tcp(u_char ** bufp,
-		  int len,
-		  u_int type,
-		  struct slcompress * comp)
+sl_uncompress_tcp(u_char ** bufp, int len, u_int type,
+		  struct slcompress *comp, struct slstat *slstat)
 {
   register u_char *cp;
   register u_int hlen, changes;
@@ -414,7 +415,7 @@ sl_uncompress_tcp(u_char ** bufp,
 
   case TYPE_UNCOMPRESSED_TCP:
     ip = (struct ip *) * bufp;
-    if (ip->ip_p >= MAX_STATES)
+    if (ip->ip_p >= MAX_VJ_STATES)
       goto bad;
     cs = &comp->rstate[comp->last_recv = ip->ip_p];
     comp->flags &= ~SLF_TOSS;
@@ -434,8 +435,8 @@ sl_uncompress_tcp(u_char ** bufp,
     memcpy(&cs->cs_ip, ip, hlen);
     cs->cs_ip.ip_sum = 0;
     cs->cs_hlen = hlen;
-    INCR(sls_uncompressedin)
-      return (len);
+    slstat->sls_uncompressedin++;
+    return (len);
 
   default:
     goto bad;
@@ -444,17 +445,17 @@ sl_uncompress_tcp(u_char ** bufp,
     break;
   }
   /* We've got a compressed packet. */
-  INCR(sls_compressedin)
-    cp = *bufp;
+  slstat->sls_compressedin++;
+  cp = *bufp;
   changes = *cp++;
-  LogPrintf(LogDEBUG, "compressed: changes = %02x\n", changes);
+  log_Printf(LogDEBUG, "compressed: changes = %02x\n", changes);
   if (changes & NEW_C) {
 
     /*
      * Make sure the state index is in range, then grab the state. If we have
      * a good state index, clear the 'discard' flag.
      */
-    if (*cp >= MAX_STATES || comp->last_recv == 255)
+    if (*cp >= MAX_VJ_STATES || comp->last_recv == 255)
       goto bad;
 
     comp->flags &= ~SLF_TOSS;
@@ -467,8 +468,8 @@ sl_uncompress_tcp(u_char ** bufp,
      * the packet.
      */
     if (comp->flags & SLF_TOSS) {
-      INCR(sls_tossed)
-	return (0);
+      slstat->sls_tossed++;
+      return (0);
     }
   }
   cs = &comp->rstate[comp->last_recv];
@@ -507,7 +508,7 @@ sl_uncompress_tcp(u_char ** bufp,
 	if (changes & NEW_A)
 	DECODEL(th->th_ack)
 	  if (changes & NEW_S) {
-	  LogPrintf(LogDEBUG, "NEW_S: %02x, %02x, %02x\n",
+	  log_Printf(LogDEBUG, "NEW_S: %02x, %02x, %02x\n",
 		    *cp, cp[1], cp[2]);
 	  DECODEL(th->th_seq)
 	}
@@ -518,8 +519,8 @@ sl_uncompress_tcp(u_char ** bufp,
   } else
     cs->cs_ip.ip_id = htons(ntohs(cs->cs_ip.ip_id) + 1);
 
-  LogPrintf(LogDEBUG, "Uncompress: id = %04x, seq = %08x\n",
-	    cs->cs_ip.ip_id, ntohl(th->th_seq));
+  log_Printf(LogDEBUG, "Uncompress: id = %04x, seq = %08lx\n",
+	    cs->cs_ip.ip_id, (u_long)ntohl(th->th_seq));
 
   /*
    * At this point, cp points to the first byte of data in the packet.  If
@@ -565,23 +566,25 @@ sl_uncompress_tcp(u_char ** bufp,
   return (len);
 bad:
   comp->flags |= SLF_TOSS;
-  INCR(sls_errorin)
-    return (0);
+  slstat->sls_errorin++;
+  return (0);
 }
 
 int
-ReportCompress(struct cmdargs const *arg)
+sl_Show(struct cmdargs const *arg)
 {
-  if (!VarTerm)
-    return 1;
-
-  fprintf(VarTerm, "Out:  %d (compress) / %d (total)",
-	  slstat.sls_compressed, slstat.sls_packets);
-  fprintf(VarTerm, "  %d (miss) / %d (search)\n",
-	  slstat.sls_misses, slstat.sls_searches);
-  fprintf(VarTerm, "In:  %d (compress), %d (uncompress)",
-	  slstat.sls_compressedin, slstat.sls_uncompressedin);
-  fprintf(VarTerm, "  %d (error),  %d (tossed)\n",
-	  slstat.sls_errorin, slstat.sls_tossed);
+  prompt_Printf(arg->prompt, "VJ compression statistics:\n");
+  prompt_Printf(arg->prompt, "  Out:  %d (compress) / %d (total)",
+	        arg->bundle->ncp.ipcp.vj.slstat.sls_compressed,
+                arg->bundle->ncp.ipcp.vj.slstat.sls_packets);
+  prompt_Printf(arg->prompt, "  %d (miss) / %d (search)\n",
+	        arg->bundle->ncp.ipcp.vj.slstat.sls_misses,
+                arg->bundle->ncp.ipcp.vj.slstat.sls_searches);
+  prompt_Printf(arg->prompt, "  In:  %d (compress), %d (uncompress)",
+	        arg->bundle->ncp.ipcp.vj.slstat.sls_compressedin,
+                arg->bundle->ncp.ipcp.vj.slstat.sls_uncompressedin);
+  prompt_Printf(arg->prompt, "  %d (error),  %d (tossed)\n",
+	        arg->bundle->ncp.ipcp.vj.slstat.sls_errorin,
+                arg->bundle->ncp.ipcp.vj.slstat.sls_tossed);
   return 0;
 }

@@ -15,16 +15,17 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.h,v 1.4 1997/12/28 21:55:05 brian Exp $
+ * $Id: timer.h,v 1.5.4.5 1998/05/08 01:15:19 brian Exp $
  *
  *	TODO:
  */
 
-#define	TICKUNIT	100000	/* Unit in usec */
-#define	SECTICKS	(1000000/TICKUNIT)
+#define	TICKUNIT	100000			/* usec's per Unit */
+#define	SECTICKS	(1000000/TICKUNIT)	/* Units per second */
 
 struct pppTimer {
   int state;
+  const char *name;
   u_long rest;			/* Ticks to expire */
   u_long load;			/* Initial load value */
   void (*func)(void *);		/* Function called when timer is expired */
@@ -37,12 +38,9 @@ struct pppTimer {
 #define	TIMER_RUNNING	1
 #define	TIMER_EXPIRED	2
 
-extern void StartTimer(struct pppTimer *);
-extern void StopTimer(struct pppTimer *);
-extern void TermTimerService(void);
-extern void ShowTimers(void);
+struct prompt;
 
-#ifdef SIGALRM
-extern void nointr_sleep(u_int);
-extern void nointr_usleep(u_int);
-#endif
+extern void timer_Start(struct pppTimer *);
+extern void timer_Stop(struct pppTimer *);
+extern void timer_TermService(void);
+extern void timer_Show(int LogLevel, struct prompt *);

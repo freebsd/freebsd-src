@@ -23,54 +23,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.11 1998/01/21 02:15:14 brian Exp $
+ *	$Id: defs.c,v 1.11.4.12 1998/05/15 23:58:21 brian Exp $
  */
 
-#include <sys/param.h>
-#include <netinet/in.h>
 
-#include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/errno.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "defs.h"
-#include "command.h"
-#include "mbuf.h"
-#include "log.h"
-#include "loadalias.h"
-#include "vars.h"
-
-int mode = MODE_INTER;
-int BGFiledes[2] = { -1, -1 };
-int modem = -1;
-int tun_in = -1;
-int tun_out = -1;
-int netfd = -1;
-
-static char dstsystem[50];
-
-void
-SetLabel(const char *label)
-{
-  if (label)
-    strncpy(dstsystem, label, sizeof dstsystem - 1);
-  else
-    *dstsystem = '\0';
-}
-
-const char *
-GetLabel()
-{
-  return *dstsystem ? dstsystem : NULL;
-}
 
 void
 randinit()
 {
-#if __FreeBSD__ >= 3
+#if __FreeBSD__ >= 2
   static int initdone;
 
   if (!initdone) {
@@ -78,40 +46,69 @@ randinit()
     srandomdev();
   }
 #else
-  srandom(time(NULL)^getpid());
+  srandom((time(NULL)^getpid())+random());
 #endif
 }
 
-
-int
-GetShortHost()
+ssize_t
+fullread(int fd, void *v, size_t n)
 {
-  char *p;
+  size_t got, total;
 
-  if (gethostname(VarShortHost, sizeof VarShortHost)) {
-    LogPrintf(LogERROR, "GetShortHost: gethostname: %s\n", strerror(errno));
-    return 0;
-  }
-
-  if ((p = strchr(VarShortHost, '.')))
-    *p = '\0';
-
-  return 1;
+  for (total = 0; total < n; total += got)
+    switch ((got = read(fd, (char *)v + total, n - total))) {
+      case 0:
+        return total;
+      case -1:
+        if (errno == EINTR)
+          got = 0;
+        else
+          return -1;
+    }
+  return total;
 }
 
-void
-DropClient(int verbose)
-{
-  FILE *oVarTerm;
+static struct {
+  int mode;
+  const char *name;
+} modes[] = {
+  { PHYS_MANUAL, "interactive" },
+  { PHYS_DEMAND, "auto" },
+  { PHYS_DIRECT, "direct" },
+  { PHYS_DEDICATED, "dedicated" },
+  { PHYS_PERM, "ddial" },
+  { PHYS_1OFF, "background" },
+  { PHYS_ALL, "*" },
+  { 0, 0 }
+};
 
-  if (VarTerm && !(mode & MODE_INTER)) {
-    oVarTerm = VarTerm;
-    VarTerm = 0;
-    if (oVarTerm)
-      fclose(oVarTerm);
-    close(netfd);
-    netfd = -1;
-    if (verbose)
-      LogPrintf(LogPHASE, "Client connection dropped.\n");
-  }
+const char *
+mode2Nam(int mode)
+{
+  int m;
+
+  for (m = 0; modes[m].mode; m++)
+    if (modes[m].mode == mode)
+      return modes[m].name;
+
+  return "unknown";
+}
+
+int
+Nam2mode(const char *name)
+{
+  int m, got, len;
+
+  len = strlen(name);
+  got = -1;
+  for (m = 0; modes[m].mode; m++)
+    if (!strncasecmp(name, modes[m].name, len)) {
+      if (modes[m].name[len] == '\0')
+	return modes[m].mode;
+      if (got != -1)
+        return 0;
+      got = m;
+    }
+
+  return got == -1 ? 0 : modes[got].mode;
 }

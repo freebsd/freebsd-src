@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.13 1998/01/10 01:55:09 brian Exp $
+ * $Id: ccp.h,v 1.14.2.20 1998/05/01 19:24:00 brian Exp $
  *
  *	TODO:
  */
@@ -35,58 +35,93 @@
 #define	TY_PPPD_DEFLATE	24	/* Deflate (gzip) - (mis) numbered by pppd */
 #define	TY_DEFLATE	26	/* Deflate (gzip) - rfc 1979 */
 
-struct ccpstate {
+#define CCP_NEG_DEFLATE		0
+#define CCP_NEG_PRED1		1
+#define CCP_NEG_DEFLATE24	2
+#define CCP_NEG_TOTAL		3
+
+struct mbuf;
+struct link;
+
+struct ccp_config {
+  struct {
+    struct {
+      int winsize;
+    } in, out;
+  } deflate;
+  u_int fsmretry;		/* FSM retry frequency */
+  unsigned neg[CCP_NEG_TOTAL];
+};
+
+struct ccp_opt {
+  struct ccp_opt *next;
+  int algorithm;
+  struct lcp_opt val;
+};
+
+struct ccp {
+  struct fsm fsm;		/* The finite state machine */
+
   int his_proto;		/* peer's compression protocol */
   int my_proto;			/* our compression protocol */
 
   int reset_sent;		/* If != -1, ignore compressed 'till ack */
   int last_reset;		/* We can receive more (dups) w/ this id */
 
+  struct {
+    int algorithm;		/* Algorithm in use */
+    void *state;		/* Returned by implementations Init() */
+    struct lcp_opt opt;		/* Set by implementations OptInit() */
+  } in;
+
+  struct {
+    int algorithm;		/* Algorithm in use */
+    void *state;		/* Returned by implementations Init() */
+    struct ccp_opt *opt;	/* Set by implementations OptInit() */
+  } out;
+
   u_int32_t his_reject;		/* Request codes rejected by peer */
   u_int32_t my_reject;		/* Request codes I have rejected */
 
-  int out_init;			/* Init called for out algorithm */
-  int in_init;			/* Init called for in algorithm */
-
   u_long uncompout, compout;
   u_long uncompin, compin;
+
+  struct ccp_config cfg;
 };
 
-extern struct ccpstate CcpInfo;
+#define fsm2ccp(fp) (fp->proto == PROTO_CCP ? (struct ccp *)fp : NULL)
 
 struct ccp_algorithm {
   int id;
-  int Conf;					/* A Conf value from vars.h */
+  int Neg;			/* ccp_config neg array item */
   const char *(*Disp)(struct lcp_opt *);
   struct {
-    void (*Get)(struct lcp_opt *);
-    int (*Set)(struct lcp_opt *);
-    int (*Init)(void);
-    void (*Term)(void);
-    void (*Reset)(void);
-    struct mbuf *(*Read)(u_short *, struct mbuf *);
-    void (*DictSetup)(u_short, struct mbuf *);
+    int (*Set)(struct lcp_opt *, const struct ccp_config *);
+    void *(*Init)(struct lcp_opt *);
+    void (*Term)(void *);
+    void (*Reset)(void *);
+    struct mbuf *(*Read)(void *, struct ccp *, u_short *, struct mbuf *);
+    void (*DictSetup)(void *, struct ccp *, u_short, struct mbuf *);
   } i;
   struct {
-    void (*Get)(struct lcp_opt *);
+    void (*OptInit)(struct lcp_opt *, const struct ccp_config *);
     int (*Set)(struct lcp_opt *);
-    int (*Init)(void);
-    void (*Term)(void);
-    void (*Reset)(void);
-    int (*Write)(int, u_short, struct mbuf *);
+    void *(*Init)(struct lcp_opt *);
+    void (*Term)(void *);
+    void (*Reset)(void *);
+    int (*Write)(void *, struct ccp *, struct link *, int, u_short,
+                 struct mbuf *);
   } o;
 };
 
-extern struct fsm CcpFsm;
+extern void ccp_Init(struct ccp *, struct bundle *, struct link *,
+                     const struct fsm_parent *);
+extern void ccp_Setup(struct ccp *);
 
-extern void CcpRecvResetReq(struct fsm *);
-extern void CcpSendResetReq(struct fsm *);
-extern void CcpInput(struct mbuf *);
-extern void CcpUp(void);
-extern void CcpOpen(void);
-extern void CcpInit(void);
-extern int ReportCcpStatus(struct cmdargs const *);
-extern void CcpResetInput(u_char);
-extern int CcpOutput(int, u_short, struct mbuf *);
-extern struct mbuf *CompdInput(u_short *, struct mbuf *);
-extern void CcpDictSetup(u_short, struct mbuf *);
+extern void ccp_SendResetReq(struct fsm *);
+extern void ccp_Input(struct ccp *, struct bundle *, struct mbuf *);
+extern int ccp_ReportStatus(struct cmdargs const *);
+extern int ccp_Compress(struct ccp *, struct link *, int, u_short, struct mbuf *);
+extern struct mbuf *ccp_Decompress(struct ccp *, u_short *, struct mbuf *);
+extern u_short ccp_Proto(struct ccp *);
+extern void ccp_SetupCallbacks(struct ccp *);

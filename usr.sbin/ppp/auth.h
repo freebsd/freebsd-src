@@ -15,27 +15,34 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.h,v 1.9 1997/10/26 01:02:09 brian Exp $
+ * $Id: auth.h,v 1.10.2.9 1998/05/01 19:23:54 brian Exp $
  *
  *	TODO:
  */
 
-typedef enum {
-  VALID,
-  INVALID,
-  NOT_FOUND
-} LOCAL_AUTH_VALID;
+struct physical;
+struct bundle;
 
 struct authinfo {
-  void (*ChallengeFunc) (int);
+  void (*ChallengeFunc)(struct authinfo *, int, struct physical *);
   struct pppTimer authtimer;
   int retry;
   int id;
+  struct physical *physical;
+  struct {
+    u_int fsmretry;
+  } cfg;
 };
 
-extern LOCAL_AUTH_VALID LocalAuthValidate(const char *, const char *, const char *);
-extern void StopAuthTimer(struct authinfo *);
-extern void StartAuthChallenge(struct authinfo *);
-extern void LocalAuthInit(void);
-extern int AuthValidate(const char *, const char *, const char *);
-extern char *AuthGetSecret(const char *, const char *, int, int);
+extern const char *Auth2Nam(u_short);
+
+extern void auth_Init(struct authinfo *);
+extern void auth_StopTimer(struct authinfo *);
+extern void auth_StartChallenge(struct authinfo *, struct physical *,
+                                void (*fn)(struct authinfo *, int,
+                                struct physical *));
+extern int auth_Validate(struct bundle *, const char *, const char *,
+                         struct physical *);
+extern char *auth_GetSecret(struct bundle *, const char *, int,
+                            struct physical *);
+extern int auth_Select(struct bundle *, const char *, struct physical *);

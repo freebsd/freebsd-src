@@ -23,23 +23,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: throughput.c,v 1.4.4.9 1998/05/01 19:26:04 brian Exp $
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 
 #include <stdio.h>
+#include <string.h>
+#include <termios.h>
 #include <time.h>
-#include <netinet/in.h>
 
-#include "command.h"
-#include "mbuf.h"
 #include "log.h"
 #include "timer.h"
 #include "throughput.h"
-#include "defs.h"
-#include "loadalias.h"
-#include "vars.h"
+#include "descriptor.h"
+#include "prompt.h"
 
 void
 throughput_init(struct pppThroughput *t)
@@ -50,26 +48,33 @@ throughput_init(struct pppThroughput *t)
   for (f = 0; f < SAMPLE_PERIOD; f++)
     t->SampleOctets[f] = 0;
   t->OctetsPerSecond = t->BestOctetsPerSecond = t->nSample = 0;
+  memset(&t->Timer, '\0', sizeof t->Timer);
+  t->Timer.name = "throughput";
+  t->uptime = 0;
+  t->rolling = 0;
   throughput_stop(t);
 }
 
 void
-throughput_disp(struct pppThroughput *t, FILE *f)
+throughput_disp(struct pppThroughput *t, struct prompt *prompt)
 {
   int secs_up;
 
   secs_up = t->uptime ? time(NULL) - t->uptime : 0;
-  fprintf(f, "Connect time: %d secs\n", secs_up);
+  prompt_Printf(prompt, "Connect time: %d secs\n", secs_up);
   if (secs_up == 0)
     secs_up = 1;
-  fprintf(f, "%ld octets in, %ld octets out\n", t->OctetsIn, t->OctetsOut);
-  if (Enabled(ConfThroughput)) {
-    fprintf(f, "  overall   %5ld bytes/sec\n",
-            (t->OctetsIn+t->OctetsOut)/secs_up);
-    fprintf(f, "  currently %5d bytes/sec\n", t->OctetsPerSecond);
-    fprintf(f, "  peak      %5d bytes/sec\n", t->BestOctetsPerSecond);
+  prompt_Printf(prompt, "%ld octets in, %ld octets out\n",
+                t->OctetsIn, t->OctetsOut);
+  if (t->rolling) {
+    prompt_Printf(prompt, "  overall   %5ld bytes/sec\n",
+                  (t->OctetsIn+t->OctetsOut)/secs_up);
+    prompt_Printf(prompt, "  currently %5d bytes/sec\n", t->OctetsPerSecond);
+    prompt_Printf(prompt, "  peak      %5d bytes/sec\n",
+                  t->BestOctetsPerSecond);
   } else
-    fprintf(f, "Overall %ld bytes/sec\n", (t->OctetsIn+t->OctetsOut)/secs_up);
+    prompt_Printf(prompt, "Overall %ld bytes/sec\n",
+                  (t->OctetsIn+t->OctetsOut)/secs_up);
 }
 
 
@@ -81,18 +86,18 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
 
     secs_up = t->uptime ? time(NULL) - t->uptime : 0;
     if (title)
-      LogPrintf(level, "%s: Connect time: %d secs: %ld octets in, %ld octets"
+      log_Printf(level, "%s: Connect time: %d secs: %ld octets in, %ld octets"
                 " out\n", title, secs_up, t->OctetsIn, t->OctetsOut);
     else
-      LogPrintf(level, "Connect time: %d secs: %ld octets in, %ld octets out\n",
+      log_Printf(level, "Connect time: %d secs: %ld octets in, %ld octets out\n",
                 secs_up, t->OctetsIn, t->OctetsOut);
     if (secs_up == 0)
       secs_up = 1;
-    if (Enabled(ConfThroughput))
-      LogPrintf(level, " total %ld bytes/sec, peak %d bytes/sec\n",
+    if (t->rolling)
+      log_Printf(level, " total %ld bytes/sec, peak %d bytes/sec\n",
                 (t->OctetsIn+t->OctetsOut)/secs_up, t->BestOctetsPerSecond);
     else
-      LogPrintf(level, " total %ld bytes/sec\n",
+      log_Printf(level, " total %ld bytes/sec\n",
                 (t->OctetsIn+t->OctetsOut)/secs_up);
   }
 }
@@ -103,8 +108,7 @@ throughput_sampler(void *v)
   struct pppThroughput *t = (struct pppThroughput *)v;
   u_long old;
 
-  StopTimer(&t->Timer);
-  t->Timer.state = TIMER_STOPPED;
+  timer_Stop(&t->Timer);
 
   old = t->SampleOctets[t->nSample];
   t->SampleOctets[t->nSample] = t->OctetsIn + t->OctetsOut;
@@ -114,28 +118,29 @@ throughput_sampler(void *v)
   if (++t->nSample == SAMPLE_PERIOD)
     t->nSample = 0;
 
-  StartTimer(&t->Timer);
+  timer_Start(&t->Timer);
 }
 
 void
-throughput_start(struct pppThroughput *t)
+throughput_start(struct pppThroughput *t, const char *name, int rolling)
 {
+  timer_Stop(&t->Timer);
   throughput_init(t);
+  t->rolling = rolling ? 1 : 0;
   time(&t->uptime);
-  if (Enabled(ConfThroughput)) {
-    t->Timer.state = TIMER_STOPPED;
+  if (t->rolling) {
     t->Timer.load = SECTICKS;
     t->Timer.func = throughput_sampler;
+    t->Timer.name = name;
     t->Timer.arg = t;
-    StartTimer(&t->Timer);
+    timer_Start(&t->Timer);
   }
 }
 
 void
 throughput_stop(struct pppThroughput *t)
 {
-  if (Enabled(ConfThroughput))
-    StopTimer(&t->Timer);
+  timer_Stop(&t->Timer);
 }
 
 void
