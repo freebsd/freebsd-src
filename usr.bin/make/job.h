@@ -209,7 +209,7 @@ void Shell_Init(void);
 void Job_Touch(GNode *, Boolean);
 Boolean Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...));
 void Job_CatchChildren(Boolean);
-void Job_CatchOutput(void);
+void Job_CatchOutput(int flag);
 void Job_Make(GNode *);
 void Job_Init(int);
 Boolean Job_Full(void);
