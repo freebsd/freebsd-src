@@ -39,7 +39,7 @@
  */
 
 /*
- * 386 Trap and System call handling
+ * AMD64 Trap and System call handling
  */
 
 #include "opt_clock.h"
@@ -194,10 +194,10 @@ trap(frame)
 			printf("kernel trap %d with interrupts disabled\n",
 			    type);
 			/*
-			 * We shouldn't enable interrupts while holding a
-			 * spin lock.
+			 * We shouldn't enable interrupts while in a critical
+			 * section.
 			 */
-			if (PCPU_GET(spinlocks) == NULL)
+			if (td->td_critnest == 0)
 				enable_intr();
 		}
 	}
@@ -205,14 +205,14 @@ trap(frame)
 	code = frame.tf_err;
 	if (type == T_PAGEFLT) {
 		/*
-		 * If we get a page fault while holding a spin lock, then
+		 * If we get a page fault while in a critical section, then
 		 * it is most likely a fatal kernel page fault.  The kernel
 		 * is already going to panic trying to get a sleep lock to
 		 * do the VM lookup, so just consider it a fatal trap so the
 		 * kernel can print out a useful trap message and even get
 		 * to the debugger.
 		 */
-		if (PCPU_GET(spinlocks) != NULL)
+		if (td->td_critnest == 0)
 			trap_fatal(&frame, frame.tf_addr);
 	}
 
