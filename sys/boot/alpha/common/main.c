@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.4 1998/09/03 02:10:02 msmith Exp $
+ *	$Id: main.c,v 1.5 1998/09/26 10:51:36 dfr Exp $
  */
 
 
@@ -70,18 +70,26 @@ main(void)
     char	bootfile[128];
     
     /* 
-     * Initialise the heap as early as possible.  Once this is done, alloc() is usable.
-     * The stack is buried inside us, so this is safe 
+     * Initialise the heap as early as possible.  Once this is done,
+     * alloc() is usable. The stack is buried inside us, so this is
+     * safe.
      */
     setheap((void *)end, (void *)0x20040000);
 
+#ifdef LOADER
+    /*
+     * If this is the two stage disk loader, add the memory used by
+     * the first stage to the heap.
+     */
+    free_region((void *)PRIMARY_LOAD_ADDRESS,
+		(void *)SECONDARY_LOAD_ADDRESS);
+#endif
 
     /* 
-     * XXX Chicken-and-egg problem; we want to have console output early, but some
-     * console attributes may depend on reading from eg. the boot device, which we
-     * can't do yet.
-     *
-     * We can use printf() etc. once this is done.
+     * XXX Chicken-and-egg problem; we want to have console output
+     * early, but some console attributes may depend on reading from
+     * eg. the boot device, which we can't do yet.  We can use
+     * printf() etc. once this is done.
      */
     cons_probe();
 
