@@ -594,7 +594,6 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
-	/* Meta-data ends its life here... */
         NG_FREE_ITEM(item);
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
