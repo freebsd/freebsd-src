@@ -61,9 +61,10 @@ which results in something like:
 .Pp
 .Bd -literal -offset indent
 kern.random.sys.seeded: 1
-kern.random.sys.harvest_ethernet: 0
-kern.random.sys.harvest_point_to_point: 0
-kern.random.sys.harvest_interrupt: 0
+kern.random.sys.burst: 20
+kern.random.sys.harvest.ethernet: 0
+kern.random.sys.harvest.point_to_point: 0
+kern.random.sys.harvest.interrupt: 0
 kern.random.yarrow.gengateinterval: 10
 kern.random.yarrow.bins: 10
 kern.random.yarrow.fastthresh: 100
@@ -85,7 +86,24 @@ or as a result of entropy harvesting).
 A reseed will set the value to 1 (non-blocking).
 .Pp
 The
-.Va kern.random.sys.harvest_ethernet
+.Va kern.random.sys.burst
+variable instructs the kernel thread
+that processes the harvest queue
+to
+.Xr tsleep 9
+briefly after that many events
+have been processed.
+This helps prevent the random device
+from being so compute-bound
+that it takes over all processing ability.
+A value of zero (0) is treated as
+.Em infinity ,
+and will only allow the kernel to pause
+if the queue is empty.
+Only values in the range [0..20] are accepted.
+.Pp
+The
+.Va kern.random.sys.harvest.ethernet
 variable is used to select LAN traffic as an entropy source.
 A zero (0) value means that LAN traffic
 is not considered as an entropy source.
@@ -93,7 +111,7 @@ Set the variable to one (1)
 if you wish to use LAN traffic for entropy harvesting.
 .Pp
 The
-.Va kern.random.sys.harvest_point_to_point
+.Va kern.random.sys.harvest.point_to_point
 variable is used to select serial line traffic as an entropy source.
 (Serial line traffic includes PPP, SLIP and all tun0 traffic.)
 A zero (0) value means such traffic
@@ -102,7 +120,7 @@ Set the variable to one (1)
 if you wish to use it for entropy harvesting.
 .Pp
 The
-.Va kern.random.sys.harvest_interrupt
+.Va kern.random.sys.harvest.interrupt
 variable is used to select hardware interrupts
 as an entropy source.
 A zero (0) value means interrupts
@@ -116,6 +134,26 @@ The other variables are explained in the paper describing the
 .Em Yarrow
 algorithm at
 .Pa http://www.counterpane.com/yarrow.html .
+.Pp
+These variables are all limited
+in terms of the values they may contain:
+.Bl -tag -width "kern.random.yarrow.gengateinterval" -compact -offset indent
+.It Va kern.random.yarrow.gengateinterval
+[4..64]
+.It Va kern.random.yarrow.bins
+[2..16]
+.It Va kern.random.yarrow.fastthresh
+[64..256]
+.It Va kern.random.yarrow.slowthresh
+[64..256]
+.It Va kern.random.yarrow.slowoverthresh
+[1..5]
+.El
+.Pp
+Internal
+.Xr sysctl 9
+handlers force the above variables
+into the stated ranges.
 .Sh FILES
 .Bl -tag -width /dev/random
 .It Pa /dev/random
