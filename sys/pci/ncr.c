@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.96 1997/03/22 06:53:19 bde Exp $
+**  $Id: ncr.c,v 1.97 1997/04/20 15:48:17 bde Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -380,6 +380,7 @@
 #define	QUIRK_NOMSG	(0x02)
 #define QUIRK_NOSYNC	(0x10)
 #define QUIRK_NOWIDE16	(0x20)
+#define QUIRK_NOTAGS	(0x40)
 #define	QUIRK_UPDATE	(0x80)
 
 /*==========================================================
@@ -1214,9 +1215,6 @@ static	void	ncr_intr	(void *vnp);
 static	void	ncr_int_ma	(ncb_p np);
 static	void	ncr_int_sir	(ncb_p np);
 static  void    ncr_int_sto     (ncb_p np);
-#ifndef NEW_SCSICONF
-static	u_long	ncr_lookup	(char* id);
-#endif /* NEW_SCSICONF */
 static	void	ncr_min_phys	(struct buf *bp);
 static	void	ncr_negotiate	(struct ncb* np, struct tcb* tp);
 static	void	ncr_opennings	(ncb_p np, lcb_p lp, struct scsi_xfer * xp);
@@ -1228,7 +1226,7 @@ static	int	ncr_scatter	(struct dsb* phys, vm_offset_t vaddr,
 				 vm_size_t datalen);
 static	void	ncr_setmaxtags	(tcb_p tp, u_long usrtags);
 static	void	ncr_setsync	(ncb_p np, ccb_p cp, u_char sxfer);
-static	void	ncr_settags     (tcb_p tp, lcb_p lp);
+static	void	ncr_settags     (tcb_p tp, lcb_p lp, u_long usrtags);
 static	void	ncr_setwide	(ncb_p np, ccb_p cp, u_char wide);
 static	int	ncr_show_msg	(u_char * msg);
 static	int	ncr_snooptest	(ncb_p np);
@@ -1258,7 +1256,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.96 1997/03/22 06:53:19 bde Exp $\n";
+	"\n$Id: ncr.c,v 1.97 1997/04/20 15:48:17 bde Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1286,9 +1284,14 @@ static int ncr_cache; /* to be aligned _NOT_ static */
 
 #define	NCR_810_ID	(0x00011000ul)
 #define	NCR_815_ID	(0x00041000ul)
+#define	NCR_820_ID	(0x00021000ul)
 #define	NCR_825_ID	(0x00031000ul)
 #define	NCR_860_ID	(0x00061000ul)
 #define	NCR_875_ID	(0x000f1000ul)
+#define	NCR_875_ID2	(0x008f1000ul)
+#define	NCR_885_ID	(0x000d1000ul)
+#define	NCR_895_ID	(0x000c1000ul)
+#define	NCR_896_ID	(0x000b1000ul)
 
 #ifdef __NetBSD__
 
@@ -3168,7 +3171,11 @@ ncr_probe(parent, match, aux)
 	    pa->pa_id != NCR_815_ID &&
 	    pa->pa_id != NCR_825_ID &&
 	    pa->pa_id != NCR_860_ID &&
-	    pa->pa_id != NCR_875_ID)
+	    pa->pa_id != NCR_875_ID &&
+	    pa->pa_id != NCR_875_ID2 &&
+	    pa->pa_id != NCR_885_ID &&
+	    pa->pa_id != NCR_895_ID &&
+	    pa->pa_id != NCR_896_ID)
 		return 0;
 
 	return 1;
@@ -3196,10 +3203,17 @@ static	char* ncr_probe (pcici_t tag, pcidi_t type)
 			: ("ncr 53c825a wide scsi");
 
 	case NCR_860_ID:
-		return ("ncr 53c860 scsi");
+		return ("ncr 53c860 ultra scsi");
 
 	case NCR_875_ID:
-		return ("ncr 53c875 wide scsi");
+	case NCR_875_ID2:
+		return ("ncr 53c875 ultra wide scsi");
+	case NCR_885_ID:
+		return ("ncr 53c885 ultra wide scsi");
+	case NCR_895_ID:
+		return ("ncr 53c895 ultra wide scsi");
+	case NCR_896_ID:
+		return ("ncr 53c896 ultra wide scsi");
 	}
 	return (NULL);
 }
@@ -3356,6 +3370,10 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		/*np->ns_sync   = 12;*/	/* in units of 4ns */
 		break;
 	case NCR_875_ID:
+	case NCR_875_ID2:
+	case NCR_885_ID:
+	case NCR_895_ID:
+	case NCR_896_ID:
 		np->maxwide = 1;
 		/*np->ns_sync   = 12;*/	/* in units of 4ns */
 		np->maxoffs = 16;
@@ -3709,25 +3727,26 @@ static int32_t ncr_start (struct scsi_xfer * xp)
 	**
 	**	Get device quirks from a speciality table.
 	**
-	**	@GENSCSI@
-	**	This should be a part of the device table
-	**	in "scsi_conf.c".
-	**
 	**----------------------------------------------------
 	*/
 
 	if (tp->quirks & QUIRK_UPDATE) {
-#ifdef NEW_SCSICONF
-		tp->quirks = xp->sc_link->quirks;
-#else
-		tp->quirks = ncr_lookup ((char*) &tp->inqdata[0]);
-#endif
-#ifndef NCR_GETCC_WITHMSG
-		if (tp->quirks) {
+		int q = xp->sc_link->quirks;
+		tp->quirks = QUIRK_NOMSG;
+		if (q & SD_Q_NO_TAGS)
+			tp->quirks |= QUIRK_NOTAGS;
+		if (q & SD_Q_NO_SYNC)
+			tp->quirks |= QUIRK_NOSYNC;
+		if (q & SD_Q_NO_WIDE)
+			tp->quirks |= QUIRK_NOWIDE16;
+		if (bootverbose && tp->quirks) {
 			PRINT_ADDR(xp);
-			printf ("quirks=%x.\n", tp->quirks);
+			printf ("NCR quirks=0x%x\n", tp->quirks);
 		};
-#endif
+		/*
+		**	set number of tags
+		*/
+		ncr_setmaxtags (tp, tp->usrtags);
 	};
 
 	/*---------------------------------------------------
@@ -4214,12 +4233,6 @@ void ncr_complete (ncb_p np, ccb_p cp)
 			bcopy (	xp->data,
 				&tp->inqdata,
 				sizeof (tp->inqdata));
-
-			/*
-			**	set number of tags
-			*/
-			ncr_setmaxtags (tp, tp->usrtags);
-
 			/*
 			**	prepare negotiation of synch and wide.
 			*/
@@ -4235,7 +4248,6 @@ void ncr_complete (ncb_p np, ccb_p cp)
 		**	Announce changes to the generic driver
 		*/
 		if (lp) {
-			ncr_settags (tp, lp);
 			if (lp->reqlink != lp->actlink)
 				ncr_opennings (np, lp, xp);
 		};
@@ -4705,17 +4717,16 @@ static void ncr_setwide (ncb_p np, ccb_p cp, u_char wide)
 static void ncr_setmaxtags (tcb_p tp, u_long usrtags)
 {
 	int l;
-	tp->usrtags = usrtags;
 	for (l=0; l<MAX_LUN; l++) {
 		lcb_p lp;
 		if (!tp) break;
 		lp=tp->lp[l];
 		if (!lp) continue;
-		ncr_settags (tp, lp);
+		ncr_settags (tp, lp, usrtags);
 	};
 }
 
-static void ncr_settags (tcb_p tp, lcb_p lp)
+static void ncr_settags (tcb_p tp, lcb_p lp, u_long usrtags)
 {
 	u_char reqtags, tmp;
 
@@ -4726,11 +4737,13 @@ static void ncr_settags (tcb_p tp, lcb_p lp)
 	**	only disk devices
 	**	only if enabled by user ..
 	*/
-	if ((tp->inqdata[7] & INQ7_QUEUE) == 0) {
-	    tp->usrtags=0;
+	if ((tp->inqdata[0] & 0x1f) != 0x00
+	    || (tp->inqdata[7] & INQ7_QUEUE) == 0
+	    || (tp->quirks & QUIRK_NOTAGS) != 0) {
+	    usrtags=0;
 	}
-	if (tp->usrtags && ((tp->inqdata[0] & 0x1f) == 0x00)) {
-		reqtags = tp->usrtags;
+	if (usrtags) {
+		reqtags = usrtags;
 		if (lp->actlink <= 1)
 			lp->usetags=reqtags;
 	} else {
@@ -4752,6 +4765,8 @@ static void ncr_settags (tcb_p tp, lcb_p lp)
 	tmp = lp->actlink;
 	if (tmp < reqtags) tmp = reqtags;
 	lp->reqccbs = tmp;
+	if (lp->reqlink < lp->reqccbs)
+		lp->reqlink = lp->reqccbs;
 }
 
 /*----------------------------------------------------
@@ -4784,7 +4799,9 @@ static void ncr_usercmd (ncb_p np)
 			break;
 		for (t=0; t<MAX_TARGET; t++) {
 			if (!((np->user.target>>t)&1)) continue;
-			ncr_setmaxtags (&np->target[t], np->user.data);
+			tp = &np->target[t];
+			tp->usrtags = np->user.data;
+			ncr_setmaxtags (tp, tp->usrtags);
 		};
 		break;
 
@@ -6262,7 +6279,8 @@ static	void ncr_alloc_ccb (ncb_p np, u_long target, u_long lun)
 		tp->jump_lcb.l_paddr = NCB_SCRIPT_PHYS (np, abort);
 		np->jump_tcb.l_paddr = vtophys (&tp->jump_tcb);
 
-		ncr_setmaxtags (tp, SCSI_NCR_DFLT_TAGS);
+		tp->usrtags = SCSI_NCR_DFLT_TAGS;
+		ncr_setmaxtags (tp, tp->usrtags);
 	}
 
 	/*
@@ -6718,65 +6736,6 @@ static	void ncb_profile (ncb_p np, ccb_p cp)
 	np->profile.ms_post	+= post;
 }
 #undef PROFILE
-
-/*==========================================================
-**
-**
-**	Device lookup.
-**
-**	@GENSCSI@ should be integrated to scsiconf.c
-**
-**
-**==========================================================
-*/
-
-#ifndef NEW_SCSICONF
-
-struct table_entry {
-	char *	manufacturer;
-	char *	model;
-	char *	version;
-	u_long	info;
-};
-
-static struct table_entry device_tab[] =
-{
-#ifdef NCR_GETCC_WITHMSG
-	{"", "", "", QUIRK_NOMSG},
-	{"SONY", "SDT-5000", "3.17", QUIRK_NOMSG},
-	{"WangDAT", "Model 2600", "01.7", QUIRK_NOMSG},
-	{"WangDAT", "Model 3200", "02.2", QUIRK_NOMSG},
-	{"WangDAT", "Model 1300", "02.4", QUIRK_NOMSG},
-#endif
-	{"", "", "", 0} /* catch all: must be last entry. */
-};
-
-static u_long ncr_lookup(char * id)
-{
-	struct table_entry * p = device_tab;
-	char *d, *r, c;
-
-	for (;;p++) {
-
-		d = id+8;
-		r = p->manufacturer;
-		while ((c=*r++)) if (c!=*d++) break;
-		if (c) continue;
-
-		d = id+16;
-		r = p->model;
-		while ((c=*r++)) if (c!=*d++) break;
-		if (c) continue;
-
-		d = id+32;
-		r = p->version;
-		while ((c=*r++)) if (c!=*d++) break;
-		if (c) continue;
-
-		return (p->info);
-	}
-}
-#endif
 
 /*==========================================================
 **
