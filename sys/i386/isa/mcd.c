@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.40 1995/03/28 07:55:42 bde Exp $
+ *	$Id: mcd.c,v 1.41 1995/04/12 20:47:58 wollman Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -70,7 +70,14 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <i386/isa/isa_device.h>
 #include <i386/isa/mcdreg.h>
 
-#define MCD_TRACE(fmt,a,b,c,d)  {if (mcd_data[unit].debug) {printf("mcd%d: status=0x%02x: ",unit,mcd_data[unit].status); printf(fmt,a,b,c,d);}}
+#define	MCD_TRACE(format, args...)						\
+{									\
+	if (mcd_data[unit].debug) {					\
+		printf("mcd%d: status=0x%02x: ",			\
+			unit, mcd_data[unit].status);			\
+		printf(format, ## args);				\
+	}								\
+}
 
 #define mcd_part(dev)	((minor(dev)) & 7)
 #define mcd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
@@ -293,15 +300,15 @@ int mcdopen(dev_t dev)
 		}
 
 	if (cd->status & MCDDOOROPEN) {
-		printf("mcd%d: door is open\n");
+		printf("mcd%d: door is open\n", unit);
 		return ENXIO;
 	}
 	if (!(cd->status & MCDDSKIN)) {
-		printf("mcd%d: no CD inside\n");
+		printf("mcd%d: no CD inside\n", unit);
 		return ENXIO;
 	}
 	if (cd->status & MCDDSKCHNG) {
-		printf("mcd%d: CD not sensed\n");
+		printf("mcd%d: CD not sensed\n", unit);
 		return ENXIO;
 	}
 
@@ -314,8 +321,8 @@ int mcdopen(dev_t dev)
 	/* XXX get a default disklabel */
 	mcd_getdisklabel(unit);
 
-MCD_TRACE("open: partition=%d, disksize = %d, blksize=%d\n",
-	part,cd->disksize,cd->blksize,0);
+MCD_TRACE("open: partition=%d, disksize = %ld, blksize=%d\n",
+	part, cd->disksize, cd->blksize);
 
 	if (part == RAW_PART ||
 		(part < cd->dlabel.d_npartitions &&
@@ -359,7 +366,7 @@ int mcdclose(dev_t dev)
 	/* close channel */
 	cd->partflags[part] &= ~(MCDOPEN|MCDREADRAW);
 	cd->openflags &= ~(1<<part);
-	MCD_TRACE("close: partition=%d\n",part,0,0,0);
+	MCD_TRACE("close: partition=%d\n", part);
 
 	return 0;
 }
@@ -379,7 +386,7 @@ mcdstrategy(struct buf *bp)
 /*MCD_TRACE("strategy: buf=0x%lx, unit=%ld, block#=%ld bcount=%ld\n",
 	bp,unit,bp->b_blkno,bp->b_bcount);*/
 	if (unit >= NMCD || bp->b_blkno < 0) {
-		printf("mcdstrategy: unit = %d, blkno = %d, bcount = %d\n",
+		printf("mcdstrategy: unit = %d, blkno = %ld, bcount = %ld\n",
 			unit, bp->b_blkno, bp->b_bcount);
 		pg("mcd: mcdstratregy failure");
 		bp->b_error = EINVAL;
@@ -389,7 +396,7 @@ mcdstrategy(struct buf *bp)
 
 	/* if device invalidated (e.g. media change, door open), error */
 	if (!(cd->flags & MCDVALID)) {
-MCD_TRACE("strategy: drive not valid\n",0,0,0,0);
+MCD_TRACE("strategy: drive not valid\n");
 		bp->b_error = EIO;
 		goto bad;
 	}
@@ -463,7 +470,7 @@ static void mcd_start(int unit)
 
 	/* changed media? */
 	if (!(cd->flags	& MCDVALID)) {
-		MCD_TRACE("mcd_start: drive not valid\n",0,0,0,0);
+		MCD_TRACE("mcd_start: drive not valid\n");
 		return;
 	}
 
@@ -495,7 +502,7 @@ int mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
 
 	if (mcd_getstat(unit, 1) == -1) /* detect disk change too */
 		return EIO;
-MCD_TRACE("ioctl called 0x%x\n",cmd,0,0,0);
+MCD_TRACE("ioctl called 0x%x\n", cmd);
 
 	switch (cmd) {
 	case DIOCSBAD:
@@ -832,7 +839,7 @@ mcd_setflags(int unit, struct mcd_data *cd)
 	/* check flags */
 	if (    (cd->status & (MCDDSKCHNG|MCDDOOROPEN))
 	    || !(cd->status & MCDDSKIN)) {
-		MCD_TRACE("setflags: sensed DSKCHNG or DOOROPEN or !DSKIN\n",0,0,0,0);
+		MCD_TRACE("setflags: sensed DSKCHNG or DOOROPEN or !DSKIN\n");
 		mcd_soft_reset(unit);
 		return -1;
 	}
@@ -950,7 +957,7 @@ void
 mcdintr(unit)
 	int unit;
 {
-	MCD_TRACE("stray interrupt\n",0,0,0,0);
+	MCD_TRACE("stray interrupt\n");
 }
 
 /* state machine to process read requests
@@ -1004,7 +1011,7 @@ retry_status:
 			if (mcd_setflags(unit,cd) < 0)
 				goto changed;
 			MCD_TRACE("got WAITSTAT delay=%d\n",
-				RDELAY_WAITSTAT-mbx->count,0,0,0);
+				RDELAY_WAITSTAT-mbx->count);
 			/* reject, if audio active */
 			if (cd->status & MCDAUDIOBSY) {
 				printf("mcd%d: audio is active\n",unit);
@@ -1058,7 +1065,7 @@ retry_mode:
 			goto changed;
 		cd->curr_mode = mbx->mode;
 		MCD_TRACE("got WAITMODE delay=%d\n",
-			RDELAY_WAITMODE-mbx->count,0,0,0);
+			RDELAY_WAITMODE-mbx->count);
 modedone:
 		/* for first block */
 		mbx->nblk = (bp->b_bcount + (mbx->sz-1)) / mbx->sz;
@@ -1069,7 +1076,7 @@ nextblock:
 			+ mbx->p_offset + mbx->skip/mbx->sz;
 
 		MCD_TRACE("mcd_doread: read blknum=%d for bp=0x%x\n",
-			blknum,bp,0,0);
+			blknum, bp);
 
 		/* build parameter block */
 		hsg2msf(blknum,rbuf.start_msf);
@@ -1103,7 +1110,7 @@ retry_read:
 			k = inb(port+MCD_FLAGS);
 			if (!(k & MFL_DATA_NOT_AVAIL)) { /* XXX */
 				MCD_TRACE("got data delay=%d\n",
-					RDELAY_WAITREAD-mbx->count,0,0,0);
+					RDELAY_WAITREAD-mbx->count);
 			got_it:
 				/* data is ready */
 				addr	= bp->b_un.b_addr + mbx->skip;
