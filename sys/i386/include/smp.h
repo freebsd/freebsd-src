@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.25 1997/08/15 02:34:32 fsmp Exp $
+ * $Id: smp.h,v 1.26 1997/08/18 03:35:59 fsmp Exp $
  *
  */
 
@@ -59,6 +59,7 @@ void	bootMP			__P((void));
 
 /* global data in mplock.s */
 extern u_int			mp_lock;
+extern u_int			isr_lock;
 
 /* functions in mplock.s */
 void	get_mplock		__P((void));
@@ -74,7 +75,10 @@ extern volatile u_int		started_cpus;
 extern u_int			vec[];
 extern u_int			Xintr8254;
 extern u_int			mask8254;
-extern volatile struct simplelock	imen_lock;
+extern struct simplelock	imen_lock;
+extern struct simplelock	cpl_lock;
+extern struct simplelock	fast_intr_lock;
+extern struct simplelock	intr_lock;
 
 /* functions in apic_ipl.s */
 void	vec8254			__P((void));
@@ -108,6 +112,8 @@ extern int			apic_id_to_logical[];
 extern u_int			all_cpus;
 extern u_int			SMP_prvpt[];
 extern u_char			SMP_ioapic[];
+
+extern struct simplelock	com_lock;
 
 /* functions in mp_machdep.c */
 u_int	mp_bootaddress		__P((u_int));
