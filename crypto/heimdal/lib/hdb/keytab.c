@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,20 +35,24 @@
 
 /* keytab backend for HDB databases */
 
-RCSID("$Id: keytab.c,v 1.2 1999/08/26 13:24:05 joda Exp $");
+RCSID("$Id: keytab.c,v 1.3 2000/08/27 04:31:42 assar Exp $");
 
 struct hdb_data {
     char *dbname;
     char *mkey;
-    HDB *db;
 };
+
+/*
+ * the format for HDB keytabs is:
+ * HDB:[database:mkey]
+ */
 
 static krb5_error_code
 hdb_resolve(krb5_context context, const char *name, krb5_keytab id)
 {
-    krb5_error_code ret;
     struct hdb_data *d;
     const char *db, *mkey;
+
     d = malloc(sizeof(*d));
     if(d == NULL)
 	return ENOMEM;
@@ -74,7 +78,7 @@ hdb_resolve(krb5_context context, const char *name, krb5_keytab id)
 		free(d);
 		return ENOMEM;
 	    }
-	    strncpy(d->dbname, db, mkey - db);
+	    memmove(d->dbname, db, mkey - db);
 	    d->dbname[mkey - db] = '\0';
 	}
 	d->mkey = strdup(mkey + 1);
@@ -84,21 +88,6 @@ hdb_resolve(krb5_context context, const char *name, krb5_keytab id)
 	    return ENOMEM;
 	}
     }
-    ret = hdb_create(context, &d->db, d->dbname);
-    if(ret) {
-	free(d->dbname);
-	free(d->mkey);
-	free(d);
-	return ret;
-    }
-    ret = hdb_set_master_keyfile (context, d->db, d->mkey);
-    if(ret) {
-	(*d->db->destroy)(context, d->db);
-	free(d->dbname);
-	free(d->mkey);
-	free(d);
-	return ret;
-    }
     id->data = d;
     return 0;
 }
@@ -107,7 +96,9 @@ static krb5_error_code
 hdb_close(krb5_context context, krb5_keytab id)
 {
     struct hdb_data *d = id->data;
-    (*d->db->destroy)(context, d->db);
+
+    free(d->dbname);
+    free(d->mkey);
     free(d);
     return 0;
 }
@@ -119,12 +110,75 @@ hdb_get_name(krb5_context context,
 	     size_t namesize)
 {
     struct hdb_data *d = id->data;
+
     snprintf(name, namesize, "%s%s%s", 
 	     d->dbname ? d->dbname : "",
 	     (d->dbname || d->mkey) ? ":" : "",
 	     d->mkey ? d->mkey : "");
     return 0;
 }
+
+static void
+set_config (krb5_context context,
+	    krb5_config_binding *binding,
+	    const char **dbname,
+	    const char **mkey)
+{
+    *dbname = krb5_config_get_string(context, binding, "dbname", NULL);
+    *mkey   = krb5_config_get_string(context, binding, "mkey_file", NULL);
+}
+
+/*
+ * try to figure out the database (`dbname') and master-key (`mkey')
+ * that should be used for `principal'.
+ */
+
+static void
+find_db (krb5_context context,
+	 const char **dbname,
+	 const char **mkey,
+	 krb5_const_principal principal)
+{
+    krb5_config_binding *top_bind = NULL;
+    krb5_config_binding *default_binding = NULL;
+    krb5_config_binding *db;
+    krb5_realm *prealm = krb5_princ_realm(context, (krb5_principal)principal);
+
+    *dbname = *mkey = NULL;
+
+    while ((db = (krb5_config_binding *)
+	    krb5_config_get_next(context,
+				 NULL,
+				 &top_bind,
+				 krb5_config_list,
+				 "kdc",
+				 "database",
+				 NULL)) != NULL) {
+	const char *p;
+	
+	p = krb5_config_get_string (context, db, "realm", NULL);
+	if (p == NULL) {
+	    if(default_binding) {
+		krb5_warnx(context, "WARNING: more than one realm-less "
+			   "database specification");
+		krb5_warnx(context, "WARNING: using the first encountered");
+	    } else
+		default_binding = db;
+	} else if (strcmp (*prealm, p) == 0) {
+	    set_config (context, db, dbname, mkey);
+	    break;
+	}
+    }
+    if (*dbname == NULL && default_binding != NULL)
+	set_config (context, default_binding, dbname, mkey);
+    if (*dbname == NULL)
+	*dbname = HDB_DEFAULT_DB;
+}
+
+/*
+ * find the keytab entry in `id' for `principal, kvno, enctype' and return
+ * it in `entry'.  return 0 or an error code
+ */
 
 static krb5_error_code
 hdb_get_entry(krb5_context context,
@@ -138,13 +192,32 @@ hdb_get_entry(krb5_context context,
     krb5_error_code ret;
     struct hdb_data *d = id->data;
     int i;
+    HDB *db;
+    const char *dbname = d->dbname;
+    const char *mkey   = d->mkey;
 
-    ret = (*d->db->open)(context, d->db, O_RDONLY, 0);
+    if (dbname == NULL)
+	find_db (context, &dbname, &mkey, principal);
+
+    ret = hdb_create (context, &db, dbname);
     if (ret)
 	return ret;
+    ret = hdb_set_master_keyfile (context, db, mkey);
+    if (ret) {
+	(*db->destroy)(context, db);
+	return ret;
+    }
+	
+    ret = (*db->open)(context, db, O_RDONLY, 0);
+    if (ret) {
+	(*db->destroy)(context, db);
+	return ret;
+    }
     ent.principal = (krb5_principal)principal;
-    ret = (*d->db->fetch)(context, d->db, HDB_F_DECRYPT, &ent);
-    (*d->db->close)(context, d->db);
+    ret = (*db->fetch)(context, db, HDB_F_DECRYPT, &ent);
+    (*db->close)(context, db);
+    (*db->destroy)(context, db);
+
     if(ret == HDB_ERR_NOENTRY)
 	return KRB5_KT_NOTFOUND;
     else if(ret)
@@ -184,4 +257,3 @@ krb5_kt_ops hdb_kt_ops = {
     NULL,		/* add */
     NULL		/* remove */
 };
-

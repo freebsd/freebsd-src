@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_free.c,v 1.7 1999/12/02 17:05:02 joda Exp $");
+RCSID("$Id: gen_free.c,v 1.8 2000/04/06 17:24:02 assar Exp $");
 
 static void
 free_primitive (const char *typename, const char *name)
@@ -52,6 +52,7 @@ free_type (const char *name, const Type *t)
       fprintf (codefile, "free_%s(%s);\n", t->symbol->gen_name, name);
       break;
   case TInteger:
+  case TUInteger:
       break;
   case TOctetString:
       free_primitive ("octet_string", name);

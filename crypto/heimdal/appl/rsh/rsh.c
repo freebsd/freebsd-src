@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,12 +32,12 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rsh.c,v 1.47 2000/02/06 05:58:55 assar Exp $");
+RCSID("$Id: rsh.c,v 1.57 2000/12/31 07:36:54 assar Exp $");
 
 enum auth_method auth_method;
-int do_encrypt;
-int do_forward;
-int do_forwardable;
+int do_encrypt       = -1;
+int do_forward       = -1;
+int do_forwardable   = -1;
 int do_unique_tkfile = 0;
 char *unique_tkfile  = NULL;
 char tkfile[MAXPATHLEN];
@@ -62,6 +62,9 @@ loop (int s, int errsock)
     fd_set real_readset;
     int count = 1;
 
+    if (s >= FD_SETSIZE || errsock >= FD_SETSIZE)
+	errx (1, "fd too large");
+    
     FD_ZERO(&real_readset);
     FD_SET(s, &real_readset);
     if (errsock != -1) {
@@ -404,7 +407,7 @@ proto (int s, int errsock,
     struct sockaddr *thataddr = (struct sockaddr *)&thataddr_ss;
     struct sockaddr_storage erraddr_ss;
     struct sockaddr *erraddr = (struct sockaddr *)&erraddr_ss;
-    int addrlen;
+    socklen_t addrlen;
     int ret;
 
     addrlen = sizeof(thisaddr_ss);
@@ -441,14 +444,48 @@ proto (int s, int errsock,
 	    return 1;
 	}
 
-	errsock2 = accept (errsock, NULL, NULL);
-	if (errsock2 < 0) {
-	    warn ("accept");
-	    close (errsock);
-	    return 1;
-	}
-	close (errsock);
 
+	for (;;) {
+	    fd_set fdset;
+
+	    if (errsock >= FD_SETSIZE || s >= FD_SETSIZE)
+		errx (1, "fd too large");
+
+	    FD_ZERO(&fdset);
+	    FD_SET(errsock, &fdset);
+	    FD_SET(s, &fdset);
+
+	    ret = select (max(errsock, s) + 1, &fdset, NULL, NULL, NULL);
+	    if (ret < 0) {
+		if (errno == EINTR)
+		    continue;
+		warn ("select");
+		close (errsock);
+		return 1;
+	    }
+	    if (FD_ISSET(errsock, &fdset)) {
+		errsock2 = accept (errsock, NULL, NULL);
+		close (errsock);
+		if (errsock2 < 0) {
+		    warn ("accept");
+		    return 1;
+		}
+		break;
+	    }
+
+	    /*
+	     * there should not arrive any data on this fd so if it's
+	     * readable it probably indicates that the other side when
+	     * away.
+	     */
+
+	    if (FD_ISSET(s, &fdset)) {
+		warnx ("socket closed");
+		close (errsock);
+		errsock2 = -1;
+		break;
+	    }
+	}
     } else {
 	if (net_write (s, "0", 2) != 2) {
 	    warn ("write");
@@ -490,8 +527,7 @@ proto (int s, int errsock,
 
 /*
  * Return in `res' a copy of the concatenation of `argc, argv' into
- * malloced space.
- */
+ * malloced space.  */
 
 static size_t
 construct_command (char **res, int argc, char **argv)
@@ -673,7 +709,7 @@ doit (const char *hostname,
 	    continue;
 	}
 	if (do_errsock) {
-	    struct addrinfo *ea;
+	    struct addrinfo *ea, *eai;
 	    struct addrinfo hints;
 
 	    memset (&hints, 0, sizeof(hints));
@@ -682,15 +718,23 @@ doit (const char *hostname,
 	    hints.ai_family   = a->ai_family;
 	    hints.ai_flags    = AI_PASSIVE;
 
-	    error = getaddrinfo (NULL, "0", &hints, &ea);
+	    errsock = -1;
+
+	    error = getaddrinfo (NULL, "0", &hints, &eai);
 	    if (error)
 		errx (1, "getaddrinfo: %s", gai_strerror(error));
-	    errsock = socket (ea->ai_family, ea->ai_socktype, ea->ai_protocol);
+	    for (ea = eai; ea != NULL; ea = ea->ai_next) {
+		errsock = socket (ea->ai_family, ea->ai_socktype,
+				  ea->ai_protocol);
+		if (errsock < 0)
+		    continue;
+		if (bind (errsock, ea->ai_addr, ea->ai_addrlen) < 0)
+		    err (1, "bind");
+		break;
+	    }
 	    if (errsock < 0)
 		err (1, "socket");
-	    if (bind (errsock, ea->ai_addr, ea->ai_addrlen) < 0)
-		err (1, "bind");
-	    freeaddrinfo (ea);
+	    freeaddrinfo (eai);
 	} else
 	    errsock = -1;
     
@@ -732,7 +776,7 @@ struct getargs args[] = {
       NULL },
     { "encrypt", 'x', arg_flag,		&do_encrypt,	"Encrypt connection",
       NULL },
-    { "encrypt", 'z', arg_negative_flag,      &do_encrypt,
+    { NULL, 	'z', arg_negative_flag,      &do_encrypt,
       "Don't encrypt connection", NULL },
     { "forward", 'f', arg_flag,		&do_forward,	"Forward credentials",
       NULL },
@@ -782,12 +826,15 @@ main(int argc, char **argv)
     const char *local_user;
     char *host = NULL;
     int host_index = -1;
-    int status; 
+    int status;
+    uid_t uid;
 
     priv_port1 = priv_port2 = IPPORT_RESERVED-1;
     priv_socket1 = rresvport(&priv_port1);
     priv_socket2 = rresvport(&priv_port2);
-    setuid(getuid());
+    uid = getuid ();
+    if (setuid (uid) || (uid != 0 && setuid(0) == 0))
+	err (1, "setuid");
     
     set_progname (argv[0]);
 
@@ -798,26 +845,31 @@ main(int argc, char **argv)
     
     status = krb5_init_context (&context);
     if (status)
-        errx(1, "krb5_init_context failed: %u", status);
+        errx(1, "krb5_init_context failed: %d", status);
       
-    do_forwardable = krb5_config_get_bool (context, NULL,
-					   "libdefaults",
-					   "forwardable",
-					   NULL);
-	
-    do_forward = krb5_config_get_bool (context, NULL,
-				       "libdefaults",
-				       "forward",
-				       NULL);
-
-    do_encrypt = krb5_config_get_bool (context, NULL,
-				       "libdefaults",
-				       "encrypt",
-				       NULL);
-
     if (getarg (args, sizeof(args) / sizeof(args[0]), argc, argv,
 		&optind))
 	usage (1);
+
+    if (do_forwardable == -1)
+	do_forwardable = krb5_config_get_bool (context, NULL,
+					       "libdefaults",
+					       "forwardable",
+					       NULL);
+	
+    if (do_forward == -1)
+	do_forward = krb5_config_get_bool (context, NULL,
+					   "libdefaults",
+					   "forward",
+					   NULL);
+    else if (do_forward == 0)
+	do_forwardable = 0;
+
+    if (do_encrypt == -1)
+	do_encrypt = krb5_config_get_bool (context, NULL,
+					   "libdefaults",
+					   "encrypt",
+					   NULL);
 
     if (do_forwardable)
 	do_forward = 1;
@@ -939,6 +991,8 @@ main(int argc, char **argv)
 	else
 	    tmp_port = krb5_getportbyname(context, "shell", "tcp", 514);
 	auth_method = AUTH_BROKEN;
+	if (do_encrypt)
+	    errx (1, "encryption not supported with priv port authentication");
 	ret = doit_broken (argc, argv, host_index, host,
 			   user, local_user,
 			   tmp_port,

@@ -1,6 +1,6 @@
-# Makefile.in generated automatically by automake 1.4 from Makefile.am
+# Makefile.in generated automatically by automake 1.4a from Makefile.am
 
-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# Copyright (C) 1994, 1995-9, 2000 Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -9,15 +9,6 @@
 # but WITHOUT ANY WARRANTY, to the extent permitted by law; without
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE.
-
-# $Id: Makefile.am,v 1.5 1999/03/20 13:58:14 joda Exp $
-
-
-# $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
-
-
-# $Id: Makefile.am.common,v 1.13 1999/11/01 03:19:58 assar Exp $
-
 
 SHELL = @SHELL@
 
@@ -40,8 +31,6 @@ mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
 
-DESTDIR =
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
@@ -54,9 +43,10 @@ AUTOMAKE = @AUTOMAKE@
 AUTOHEADER = @AUTOHEADER@
 
 INSTALL = @INSTALL@
-INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_STRIP_FLAG =
 transform = @program_transform_name@
 
 NORMAL_INSTALL = :
@@ -65,26 +55,39 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
+
+@SET_MAKE@
 host_alias = @host_alias@
 host_triplet = @host@
-AFS_EXTRA_LD = @AFS_EXTRA_LD@
 AIX_EXTRA_KAFS = @AIX_EXTRA_KAFS@
+AMDEP = @AMDEP@
+AMTAR = @AMTAR@
+AS = @AS@
 AWK = @AWK@
 CANONICAL_HOST = @CANONICAL_HOST@
 CATMAN = @CATMAN@
 CATMANEXT = @CATMANEXT@
 CC = @CC@
+CPP = @CPP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
 DBLIB = @DBLIB@
+DEPDIR = @DEPDIR@
+DIR_des = @DIR_des@
+DIR_roken = @DIR_roken@
+DLLTOOL = @DLLTOOL@
 EXEEXT = @EXEEXT@
 EXTRA_LIB45 = @EXTRA_LIB45@
 GROFF = @GROFF@
+INCLUDES_roken = @INCLUDES_roken@
 INCLUDE_ = @INCLUDE_@
-LD = @LD@
 LEX = @LEX@
 LIBOBJS = @LIBOBJS@
 LIBTOOL = @LIBTOOL@
 LIB_ = @LIB_@
 LIB_AUTH_SUBDIRS = @LIB_AUTH_SUBDIRS@
+LIB_des = @LIB_des@
+LIB_des_appl = @LIB_des_appl@
 LIB_kdb = @LIB_kdb@
 LIB_otp = @LIB_otp@
 LIB_roken = @LIB_roken@
@@ -92,30 +95,42 @@ LIB_security = @LIB_security@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
-MAKE_X_PROGS_BIN_PROGS = @MAKE_X_PROGS_BIN_PROGS@
-MAKE_X_PROGS_BIN_SCRPTS = @MAKE_X_PROGS_BIN_SCRPTS@
-MAKE_X_PROGS_LIBEXEC_PROGS = @MAKE_X_PROGS_LIBEXEC_PROGS@
 NEED_WRITEAUTH_FALSE = @NEED_WRITEAUTH_FALSE@
 NEED_WRITEAUTH_TRUE = @NEED_WRITEAUTH_TRUE@
-NM = @NM@
 NROFF = @NROFF@
+OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
+STRIP = @STRIP@
 VERSION = @VERSION@
 VOID_RETSIGTYPE = @VOID_RETSIGTYPE@
 WFLAGS = @WFLAGS@
 WFLAGS_NOIMPLICITINT = @WFLAGS_NOIMPLICITINT@
 WFLAGS_NOUNUSED = @WFLAGS_NOUNUSED@
 YACC = @YACC@
+dpagaix_CFLAGS = @dpagaix_CFLAGS@
+dpagaix_LDADD = @dpagaix_LDADD@
+install_sh = @install_sh@
+
+# $Id: Makefile.am,v 1.5 1999/03/20 13:58:14 joda Exp $
+
+
+# $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
+
+
+# $Id: Makefile.am.common,v 1.23 2000/12/05 09:11:09 joda Exp $
+
 
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
 SUFFIXES = .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x
 
-INCLUDES = -I$(top_builddir)/include
+INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken)
 
 AM_CFLAGS =  $(WFLAGS)
+
+CP = cp
 
 COMPILE_ET = $(top_builddir)/lib/com_err/compile_et
 
@@ -136,6 +151,7 @@ LIB_getsockopt = @LIB_getsockopt@
 LIB_logout = @LIB_logout@
 LIB_logwtmp = @LIB_logwtmp@
 LIB_odm_initialize = @LIB_odm_initialize@
+LIB_pidfile = @LIB_pidfile@
 LIB_readline = @LIB_readline@
 LIB_res_search = @LIB_res_search@
 LIB_setpcred = @LIB_setpcred@
@@ -143,6 +159,8 @@ LIB_setsockopt = @LIB_setsockopt@
 LIB_socket = @LIB_socket@
 LIB_syslog = @LIB_syslog@
 LIB_tgetent = @LIB_tgetent@
+
+LIBS = @LIBS@
 
 HESIODLIB = @HESIODLIB@
 HESIODINCLUDE = @HESIODINCLUDE@
@@ -152,28 +170,25 @@ LIB_hesiod = @LIB_hesiod@
 INCLUDE_krb4 = @INCLUDE_krb4@
 LIB_krb4 = @LIB_krb4@
 
+INCLUDE_openldap = @INCLUDE_openldap@
+LIB_openldap = @LIB_openldap@
+
 INCLUDE_readline = @INCLUDE_readline@
 
 LEXLIB = @LEXLIB@
 
-cat1dir = $(mandir)/cat1
-cat3dir = $(mandir)/cat3
-cat5dir = $(mandir)/cat5
-cat8dir = $(mandir)/cat8
-
-MANRX = \(.*\)\.\([0-9]\)
-CATSUFFIX = @CATSUFFIX@
-
 NROFF_MAN = groff -mandoc -Tascii
 
-@KRB4_TRUE@LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
+@KRB4_TRUE@LIB_kafs = @KRB4_TRUE@$(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
 
-@KRB5_TRUE@LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la 	$(top_builddir)/lib/asn1/libasn1.la
-@KRB5_TRUE@LIB_gssapi = $(top_builddir)/lib/gssapi/libgssapi.la
+@KRB5_TRUE@LIB_krb5 = @KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
+@KRB5_TRUE@LIB_gssapi = @KRB5_TRUE@$(top_builddir)/lib/gssapi/libgssapi.la
 
 CHECK_LOCAL = $(PROGRAMS)
 
 SUBDIRS = common ftp ftpd
+subdir = appl/ftp
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../../include/config.h
 CONFIG_CLEAN_FILES = 
@@ -181,13 +196,14 @@ CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
-LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
+LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+DIST_SOURCES = 
+depcomp = 
 DIST_COMMON =  ChangeLog Makefile.am Makefile.in
 
 
-DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
-TAR = tar
 GZIP_ENV = --best
 all: all-redirect
 .SUFFIXES:
@@ -206,8 +222,6 @@ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 # (1) if the variable is set in `config.status', edit `config.status'
 #     (which will cause the Makefiles to be regenerated when you run `make');
 # (2) otherwise, pass the desired values on the `make' command line.
-
-@SET_MAKE@
 
 all-recursive install-data-recursive install-exec-recursive \
 installdirs-recursive install-recursive uninstall-recursive  \
@@ -236,7 +250,7 @@ maintainer-clean-recursive:
 	dot_seen=no; \
 	rev=''; list='$(SUBDIRS)'; for subdir in $$list; do \
 	  rev="$$subdir $$rev"; \
-	  test "$$subdir" = "." && dot_seen=yes; \
+	  if test "$$subdir" = "."; then dot_seen=yes; else :; fi; \
 	done; \
 	test "$$dot_seen" = "no" && rev=". $$rev"; \
 	target=`echo $@ | sed s/-recursive//`; \
@@ -257,15 +271,17 @@ tags-recursive:
 
 tags: TAGS
 
-ID: $(HEADERS) $(SOURCES) $(LISP)
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  awk '    { files[$$0] = 1; } \
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
-	here=`pwd` && cd $(srcdir) \
-	  && mkid -f$$here/ID $$unique $(LISP)
+	mkid -fID $$unique $(LISP)
 
-TAGS: tags-recursive $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
+TAGS: tags-recursive $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
 	list='$(SUBDIRS)'; for subdir in $$list; do \
@@ -273,12 +289,14 @@ TAGS: tags-recursive $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
 	    test -f $$subdir/TAGS && tags="$$tags -i $$here/$$subdir/TAGS"; \
    fi; \
 	done; \
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  awk '    { files[$$0] = 1; } \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
-	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags  $$unique $(LISP) -o $$here/TAGS)
+	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
 mostlyclean-tags:
 
@@ -291,17 +309,16 @@ maintainer-clean-tags:
 
 distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
 
-subdir = appl/ftp
-
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$/$$file $(distdir)/$$file; \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
 	  else \
 	    test -f $(distdir)/$$file \
-	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
-	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
 	  fi; \
 	done
 	for subdir in $(SUBDIRS); do \
@@ -309,7 +326,6 @@ distdir: $(DISTFILES)
 	    test -d $(distdir)/$$subdir \
 	    || mkdir $(distdir)/$$subdir \
 	    || exit 1; \
-	    chmod 777 $(distdir)/$$subdir; \
 	    (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) top_distdir=../$(top_distdir) distdir=../$(distdir)/$$subdir distdir) \
 	      || exit 1; \
 	  fi; \
@@ -340,7 +356,7 @@ uninstall: uninstall-recursive
 all-am: Makefile all-local
 all-redirect: all-recursive
 install-strip:
-	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
 installdirs: installdirs-recursive
 installdirs-am:
 
@@ -354,6 +370,7 @@ distclean-generic:
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
+	-rm -f Makefile.in
 mostlyclean-am:  mostlyclean-tags mostlyclean-generic
 
 mostlyclean: mostlyclean-recursive
@@ -374,19 +391,19 @@ maintainer-clean-am:  maintainer-clean-tags maintainer-clean-generic \
 
 maintainer-clean: maintainer-clean-recursive
 
-.PHONY: install-data-recursive uninstall-data-recursive \
-install-exec-recursive uninstall-exec-recursive installdirs-recursive \
-uninstalldirs-recursive all-recursive check-recursive \
-installcheck-recursive info-recursive dvi-recursive \
-mostlyclean-recursive distclean-recursive clean-recursive \
+.PHONY: install-recursive uninstall-recursive install-data-recursive \
+uninstall-data-recursive install-exec-recursive \
+uninstall-exec-recursive installdirs-recursive uninstalldirs-recursive \
+all-recursive check-recursive installcheck-recursive info-recursive \
+dvi-recursive mostlyclean-recursive distclean-recursive clean-recursive \
 maintainer-clean-recursive tags tags-recursive mostlyclean-tags \
 distclean-tags clean-tags maintainer-clean-tags distdir info-am info \
 dvi-am dvi check-local check check-am installcheck-am installcheck \
 install-exec-am install-exec install-data-local install-data-am \
 install-data install-am install uninstall-am uninstall all-local \
-all-redirect all-am all installdirs-am installdirs mostlyclean-generic \
-distclean-generic clean-generic maintainer-clean-generic clean \
-mostlyclean distclean maintainer-clean
+all-redirect all-am all install-strip installdirs-am installdirs \
+mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
 
 install-suid-programs:
@@ -394,7 +411,10 @@ install-suid-programs:
 	for file in $$foo; do \
 	x=$(DESTDIR)$(bindir)/$$file; \
 	if chown 0:0 $$x && chmod u+s $$x; then :; else \
-	chmod 0 $$x; fi; done
+	echo "*"; \
+	echo "* Failed to install $$x setuid root"; \
+	echo "*"; \
+	fi; done
 
 install-exec-hook: install-suid-programs
 
@@ -406,8 +426,8 @@ install-build-headers:: $(include_HEADERS) $(build_HEADERZ)
 		else file="$$f"; fi; \
 		if cmp -s  $$file $(buildinclude)/$$f 2> /dev/null ; then \
 		: ; else \
-			echo " cp $$file $(buildinclude)/$$f"; \
-			cp $$file $(buildinclude)/$$f; \
+			echo " $(CP) $$file $(buildinclude)/$$f"; \
+			$(CP) $$file $(buildinclude)/$$f; \
 		fi ; \
 	done
 
@@ -476,87 +496,8 @@ dist-cat8-mans:
 
 dist-hook: dist-cat1-mans dist-cat3-mans dist-cat5-mans dist-cat8-mans
 
-install-cat1-mans:
-	@ext=1;\
-	foo='$(man1_MANS)'; \
-	bar='$(man_MANS)'; \
-	for i in $$bar; do \
-	case $$i in \
-	*.1) foo="$$foo $$i";; \
-	esac; done; \
-	if test "$$foo"; then \
-		$(mkinstalldirs) $(DESTDIR)$(cat1dir); \
-		for x in $$foo; do \
-			f=`echo $$x | sed 's/\.[^.]*$$/.cat1/'`; \
-			if test -f "$(srcdir)/$$f"; then \
-				b=`echo $$x | sed 's!$(MANRX)!\1!'`; \
-				echo "$(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(cat1dir)/$$b.$(CATSUFFIX)";\
-				$(INSTALL_DATA) $(srcdir)/$$g $(DESTDIR)$(cat1dir)/$$b.$(CATSUFFIX);\
-			 fi; \
-		done ;\
-	fi
-
-install-cat3-mans:
-	@ext=3;\
-	foo='$(man3_MANS)'; \
-	bar='$(man_MANS)'; \
-	for i in $$bar; do \
-	case $$i in \
-	*.3) foo="$$foo $$i";; \
-	esac; done; \
-	if test "$$foo"; then \
-		$(mkinstalldirs) $(DESTDIR)$(cat3dir); \
-		for x in $$foo; do \
-			f=`echo $$x | sed 's/\.[^.]*$$/.cat3/'`; \
-			if test -f "$(srcdir)/$$f"; then \
-				b=`echo $$x | sed 's!$(MANRX)!\1!'`; \
-				echo "$(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(cat3dir)/$$b.$(CATSUFFIX)";\
-				$(INSTALL_DATA) $(srcdir)/$$g $(DESTDIR)$(cat3dir)/$$b.$(CATSUFFIX);\
-			 fi; \
-		done ;\
-	fi
-
-install-cat5-mans:
-	@ext=5;\
-	foo='$(man5_MANS)'; \
-	bar='$(man_MANS)'; \
-	for i in $$bar; do \
-	case $$i in \
-	*.5) foo="$$foo $$i";; \
-	esac; done; \
-	if test "$$foo"; then \
-		$(mkinstalldirs) $(DESTDIR)$(cat5dir); \
-		for x in $$foo; do \
-			f=`echo $$x | sed 's/\.[^.]*$$/.cat5/'`; \
-			if test -f "$(srcdir)/$$f"; then \
-				b=`echo $$x | sed 's!$(MANRX)!\1!'`; \
-				echo "$(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(cat5dir)/$$b.$(CATSUFFIX)";\
-				$(INSTALL_DATA) $(srcdir)/$$g $(DESTDIR)$(cat5dir)/$$b.$(CATSUFFIX);\
-			 fi; \
-		done ;\
-	fi
-
-install-cat8-mans:
-	@ext=8;\
-	foo='$(man8_MANS)'; \
-	bar='$(man_MANS)'; \
-	for i in $$bar; do \
-	case $$i in \
-	*.8) foo="$$foo $$i";; \
-	esac; done; \
-	if test "$$foo"; then \
-		$(mkinstalldirs) $(DESTDIR)$(cat8dir); \
-		for x in $$foo; do \
-			f=`echo $$x | sed 's/\.[^.]*$$/.cat8/'`; \
-			if test -f "$(srcdir)/$$f"; then \
-				b=`echo $$x | sed 's!$(MANRX)!\1!'`; \
-				echo "$(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(cat8dir)/$$b.$(CATSUFFIX)";\
-				$(INSTALL_DATA) $(srcdir)/$$g $(DESTDIR)$(cat8dir)/$$b.$(CATSUFFIX);\
-			 fi; \
-		done ;\
-	fi
-
-install-cat-mans: install-cat1-mans install-cat3-mans install-cat5-mans install-cat8-mans
+install-cat-mans:
+	$(SHELL) $(top_srcdir)/cf/install-catman.sh "$(INSTALL_DATA)" "$(mkinstalldirs)" "$(srcdir)" "$(DESTDIR)$(mandir)" '$(CATMANEXT)' $(man_MANS) $(man1_MANS) $(man3_MANS) $(man5_MANS) $(man8_MANS)
 
 install-data-local: install-cat-mans
 

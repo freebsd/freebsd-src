@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,21 +33,31 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: del_enctype.c,v 1.4 1999/12/14 02:37:49 assar Exp $");
-
-static void
-usage(void)
-{
-    fprintf (stderr, "Usage: del_enctype principal enctypes...\n");
-}
+RCSID("$Id: del_enctype.c,v 1.6 2000/09/10 19:17:23 joda Exp $");
 
 /*
  * del_enctype principal enctypes...
  */
 
+static struct getargs args[] = {
+    { "help", 'h', arg_flag, NULL }
+};
+
+static int num_args = sizeof(args) / sizeof(args[0]);
+
+static void
+usage(void)
+{
+    arg_printusage (args, num_args, "del_enctype", "principal enctypes...");
+}
+
+
 int
 del_enctype(int argc, char **argv)
 {
+    int optind = 0;
+    int help_flag = 0;
+
     kadm5_principal_ent_rec princ;
     krb5_principal princ_ent = NULL;
     krb5_error_code ret;
@@ -57,7 +67,13 @@ del_enctype(int argc, char **argv)
     int n_etypes;
     krb5_enctype *etypes;
 
-    if (argc < 3) {
+    args[0].value = &help_flag;
+
+    if(getarg(args, num_args, argc, argv, &optind)) {
+	usage ();
+	return 0;
+    }
+    if(argc - optind < 3 || help_flag) {
 	usage ();
 	return 0;
     }
@@ -110,7 +126,7 @@ del_enctype(int argc, char **argv)
 	if (docopy) {
 	    new_key_data[j++] = *key;
 	} else {
-	    int16_t ignore;
+	    int16_t ignore = 1;
 
 	    kadm5_free_key_data (kadm_handle, &ignore, key);
 	}

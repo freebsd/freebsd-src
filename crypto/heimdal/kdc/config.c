@@ -35,7 +35,7 @@
 #include <getarg.h>
 #include <parse_bytes.h>
 
-RCSID("$Id: config.c,v 1.30 2000/02/11 17:47:19 assar Exp $");
+RCSID("$Id: config.c,v 1.33 2000/09/10 19:27:17 joda Exp $");
 
 static char *config_file;	/* location of kdc config file */
 
@@ -58,12 +58,15 @@ krb5_boolean encode_as_rep_as_tgs_rep; /* bug compatibility */
 
 krb5_boolean check_ticket_addresses;
 krb5_boolean allow_null_ticket_addresses;
+krb5_boolean allow_anonymous;
 
 static struct getarg_strings addresses_str;	/* addresses to listen on */
 krb5_addresses explicit_addresses;
 
 #ifdef KRB4
 char *v4_realm;
+int enable_v4 = -1;
+int enable_524 = -1;
 #endif
 #ifdef KASERVER
 krb5_boolean enable_kaserver = -1;
@@ -93,6 +96,12 @@ static struct getargs args[] = {
 #endif
     { "enable-http", 'H', arg_flag, &enable_http, "turn on HTTP support" },
 #ifdef KRB4
+    {	"kerberos4",	0, 	arg_negative_flag, &enable_v4,
+	"don't respond to kerberos 4 requests" 
+    },
+    {	"524",		0, 	arg_negative_flag, &enable_524,
+	"don't respond to 524 requests" 
+    },
     { 
 	"v4-realm",	'r',	arg_string, &v4_realm, 
 	"realm to serve v4-requests for"
@@ -239,7 +248,7 @@ configure(int argc, char **argv)
 	usage(1);
     
     if(config_file == NULL)
-	config_file = HDB_DB_DIR "/kdc.conf";
+	config_file = _PATH_KDC_CONF;
     
     if(krb5_config_parse_file(config_file, &cf))
 	cf = NULL;
@@ -288,6 +297,15 @@ configure(int argc, char **argv)
 	}
     }
 
+#ifdef KRB4
+    if(enable_v4 == -1)
+	enable_v4 = krb5_config_get_bool_default(context, cf, TRUE, "kdc", 
+					 "enable-kerberos4", NULL);
+    if(enable_524 == -1)
+	enable_524 = krb5_config_get_bool_default(context, cf, enable_v4, 
+						  "kdc", "enable-524", NULL);
+#endif
+
     if(enable_http == -1)
 	enable_http = krb5_config_get_bool(context, cf, "kdc", 
 					   "enable-http", NULL);
@@ -297,6 +315,10 @@ configure(int argc, char **argv)
     allow_null_ticket_addresses = 
 	krb5_config_get_bool(context, cf, "kdc", 
 			     "allow-null-ticket-addresses", NULL);
+
+    allow_anonymous = 
+	krb5_config_get_bool(context, cf, "kdc", 
+			     "allow-anonymous", NULL);
 #ifdef KRB4
     if(v4_realm == NULL){
 	p = krb5_config_get_string (context, cf, 

@@ -1,4 +1,4 @@
-dnl $Id: krb-ipv6.m4,v 1.8 2000/01/01 11:44:45 assar Exp $
+dnl $Id: krb-ipv6.m4,v 1.9 2000/12/26 20:27:30 assar Exp $
 dnl
 dnl test for IPv6
 dnl
@@ -17,7 +17,7 @@ AC_MSG_CHECKING([ipv6 stack type])
 for i in v6d toshiba kame inria zeta linux; do
 	case $i in
 	v6d)
-		AC_EGREP_CPP(yes, [dnl
+		AC_EGREP_CPP(yes, [
 #include </usr/local/v6/include/sys/types.h>
 #ifdef __V6D__
 yes
@@ -27,7 +27,7 @@ yes
 			CFLAGS="-I/usr/local/v6/include $CFLAGS"])
 		;;
 	toshiba)
-		AC_EGREP_CPP(yes, [dnl
+		AC_EGREP_CPP(yes, [
 #include <sys/param.h>
 #ifdef _TOSHIBA_INET6
 yes
@@ -37,7 +37,7 @@ yes
 			CFLAGS="-DINET6 $CFLAGS"])
 		;;
 	kame)
-		AC_EGREP_CPP(yes, [dnl
+		AC_EGREP_CPP(yes, [
 #include <netinet/in.h>
 #ifdef __KAME__
 yes
@@ -47,7 +47,7 @@ yes
 			CFLAGS="-DINET6 $CFLAGS"])
 		;;
 	inria)
-		AC_EGREP_CPP(yes, [dnl
+		AC_EGREP_CPP(yes, [
 #include <netinet/in.h>
 #ifdef IPV6_INRIA_VERSION
 yes
@@ -55,7 +55,7 @@ yes
 			[v6type=$i; CFLAGS="-DINET6 $CFLAGS"])
 		;;
 	zeta)
-		AC_EGREP_CPP(yes, [dnl
+		AC_EGREP_CPP(yes, [
 #include <sys/param.h>
 #ifdef _ZETA_MINAMI_INET6
 yes

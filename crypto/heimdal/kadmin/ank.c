@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: ank.c,v 1.19 1999/12/02 17:04:57 joda Exp $");
+RCSID("$Id: ank.c,v 1.21 2000/09/10 19:16:39 joda Exp $");
 
 /*
  * fetch the default principal corresponding to `princ'
@@ -68,6 +68,7 @@ add_one_principal (const char *name,
 		   int rand_key,
 		   int rand_password,
 		   char *password,
+		   krb5_key_data *key_data,
 		   const char *max_ticket_life,
 		   const char *max_renewable_life,
 		   const char *attributes,
@@ -108,7 +109,7 @@ add_one_principal (const char *name,
     }
 
     edit_entry(&princ, &mask, default_ent, default_mask);
-    if(rand_key) {
+    if(rand_key || key_data) {
 	princ.attributes |= KRB5_KDB_DISALLOW_ALL_TIX;
 	mask |= KADM5_ATTRIBUTES;
 	strlcpy (pwbuf, "hemlig", sizeof(pwbuf));
@@ -152,6 +153,17 @@ add_one_principal (const char *name,
 	kadm5_modify_principal(kadm_handle, &princ, 
 			       KADM5_ATTRIBUTES | KADM5_KVNO);
 	kadm5_free_principal_ent(kadm_handle, &princ);
+    } else if (key_data) {
+	ret = kadm5_chpass_principal_with_key (kadm_handle, princ_ent,
+					       3, key_data);
+	if (ret) {
+	    krb5_warn(context, ret, "kadm5_chpass_principal_with_key");
+	}
+	kadm5_get_principal(kadm_handle, princ_ent, &princ, 
+			    KADM5_PRINCIPAL | KADM5_ATTRIBUTES);
+	princ.attributes &= (~KRB5_KDB_DISALLOW_ALL_TIX);
+	kadm5_modify_principal(kadm_handle, &princ, KADM5_ATTRIBUTES);
+	kadm5_free_principal_ent(kadm_handle, &princ);
     } else if (rand_password) {
 	char *princ_name;
 
@@ -170,6 +182,10 @@ out:
 }
 
 /*
+ * parse the string `key_string' into `key', returning 0 iff succesful.
+ */
+
+/*
  * the ank command
  */
 
@@ -177,6 +193,7 @@ static struct getargs args[] = {
     { "random-key",	'r',	arg_flag,	NULL, "set random key" },
     { "random-password", 0,	arg_flag,	NULL, "set random password" },
     { "password",	'p',	arg_string,	NULL, "princial's password" },
+    { "key",		0,	arg_string,	NULL, "DES-key in hex" },
     { "max-ticket-life",  0,	arg_string,	NULL, "max ticket lifetime",
       "lifetime"},
     { "max-renewable-life",  0,	arg_string,	NULL,
@@ -194,7 +211,7 @@ static int num_args = sizeof(args) / sizeof(args[0]);
 static void
 usage(void)
 {
-    arg_printusage (args, num_args, "ank", "principal");
+    arg_printusage (args, num_args, "add", "principal...");
 }
 
 /*
@@ -205,6 +222,7 @@ int
 add_new_key(int argc, char **argv)
 {
     char *password = NULL;
+    char *key = NULL;
     int random_key = 0;
     int random_password = 0;
     int optind = 0;
@@ -216,15 +234,18 @@ add_new_key(int argc, char **argv)
     char *pw_expiration		= NULL;
     int i;
     int num;
+    krb5_key_data key_data[3];
+    krb5_key_data *kdp = NULL;
 
     args[0].value = &random_key;
     args[1].value = &random_password;
     args[2].value = &password;
-    args[3].value = &max_ticket_life;
-    args[4].value = &max_renewable_life;
-    args[5].value = &attributes;
-    args[6].value = &expiration;
-    args[7].value = &pw_expiration;
+    args[3].value = &key;
+    args[4].value = &max_ticket_life;
+    args[5].value = &max_renewable_life;
+    args[6].value = &attributes;
+    args[7].value = &expiration;
+    args[8].value = &pw_expiration;
     
     if(getarg(args, num_args, argc, argv, &optind)) {
 	usage ();
@@ -242,16 +263,29 @@ add_new_key(int argc, char **argv)
 	++num;
     if (password)
 	++num;
+    if (key)
+	++num;
 
     if (num > 1) {
 	printf ("give only one of "
-		"--random-key, --random-password, --password\n");
+		"--random-key, --random-password, --password, --key\n");
 	return 0;
+    }
+
+    if (key) {
+	const char *error;
+
+	if (parse_des_key (key, key_data, &error)) {
+	    printf ("failed parsing key `%s': %s\n", key, error);
+	    return 0;
+	}
+	kdp = key_data;
     }
 
     for (i = optind; i < argc; ++i) {
 	ret = add_one_principal (argv[i], random_key, random_password,
 				 password,
+				 kdp,
 				 max_ticket_life,
 				 max_renewable_life,
 				 attributes,
@@ -261,6 +295,10 @@ add_new_key(int argc, char **argv)
 	    krb5_warn (context, ret, "adding %s", argv[i]);
 	    break;
 	}
+    }
+    if (kdp) {
+	int16_t dummy = 3;
+	kadm5_free_key_data (kadm_handle, &dummy, key_data);
     }
     return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "krb5_locl.h"
 #include <err.h>
 
-RCSID("$Id: warn.c,v 1.10 1999/12/02 17:05:13 joda Exp $");
+RCSID("$Id: warn.c,v 1.11 2000/08/16 07:37:41 assar Exp $");
 
 static krb5_error_code
 _warnerr(krb5_context context, int do_errtext, 
@@ -44,6 +44,7 @@ _warnerr(krb5_context context, int do_errtext,
     const char *args[2], **arg;
     char *msg = NULL;
     
+    args[0] = args[1] = NULL;
     arg = args;
     if(fmt){
 	strcat(xfmt, "%s");

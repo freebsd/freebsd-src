@@ -33,7 +33,7 @@
  *	@(#)extern.h	8.3 (Berkeley) 10/9/94
  */
 
-/* $Id: extern.h,v 1.18 1999/10/28 20:49:10 assar Exp $ */
+/* $Id: extern.h,v 1.19 2000/09/19 13:15:12 assar Exp $ */
 
 #include <setjmp.h>
 #include <stdlib.h>
@@ -60,7 +60,8 @@ void	cdup (int, char **);
 void	changetype (int, int);
 void	cmdabort (int);
 void	cmdscanner (int);
-int	command (char *fmt, ...);
+int	command (char *fmt, ...)
+    __attribute__ ((format (printf, 1,2)));
 int	confirm (char *, char *);
 FILE   *dataconn (const char *);
 void	delete (int, char **);

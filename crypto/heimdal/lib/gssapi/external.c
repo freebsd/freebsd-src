@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: external.c,v 1.4 1999/12/02 17:05:03 joda Exp $");
+RCSID("$Id: external.c,v 1.5 2000/07/22 03:45:28 assar Exp $");
 
 /*
  * The implementation must reserve static storage for a
@@ -94,14 +94,37 @@ gss_OID GSS_C_NT_STRING_UID_NAME = &gss_c_nt_string_uid_name_oid_desc;
  * gss_OID_desc object containing the value
  * {6, (void *)"\x2b\x06\x01\x05\x06\x02"},
  * corresponding to an object-identifier value of
- * {1(iso), 3(org), 6(dod), 1(internet), 5(security),
- * 6(nametypes), 2(gss-host-based-services)}.  The constant
- * GSS_C_NT_HOSTBASED_SERVICE should be initialized to point
- * to that gss_OID_desc.
+ * {iso(1) org(3) dod(6) internet(1) security(5)
+ * nametypes(6) gss-host-based-services(2)).  The constant
+ * GSS_C_NT_HOSTBASED_SERVICE_X should be initialized to point
+ * to that gss_OID_desc.  This is a deprecated OID value, and
+ * implementations wishing to support hostbased-service names
+ * should instead use the GSS_C_NT_HOSTBASED_SERVICE OID,
+ * defined below, to identify such names;
+ * GSS_C_NT_HOSTBASED_SERVICE_X should be accepted a synonym
+ * for GSS_C_NT_HOSTBASED_SERVICE when presented as an input
+ * parameter, but should not be emitted by GSS-API
+ * implementations
  */
 
-static gss_OID_desc gss_c_nt_hostbased_service_oid_desc =
+static gss_OID_desc gss_c_nt_hostbased_service_x_oid_desc =
 {6, (void *)"\x2b\x06\x01\x05\x06\x02"};
+
+gss_OID GSS_C_NT_HOSTBASED_SERVICE_X = &gss_c_nt_hostbased_service_x_oid_desc;
+
+/*
+ * The implementation must reserve static storage for a
+ * gss_OID_desc object containing the value
+ * {10, (void *)"\x2a\x86\x48\x86\xf7\x12"
+ *              "\x01\x02\x01\x04"}, corresponding to an
+ * object-identifier value of {iso(1) member-body(2)
+ * Unites States(840) mit(113554) infosys(1) gssapi(2)
+ * generic(1) service_name(4)}.  The constant
+ * GSS_C_NT_HOSTBASED_SERVICE should be initialized
+ * to point to that gss_OID_desc.
+ */
+static gss_OID_desc gss_c_nt_hostbased_service_oid_desc =
+{10, (void *)"\x2a\x86\x48\x86\xf7\x12" "\x01\x02\x01\x04"};
 
 gss_OID GSS_C_NT_HOSTBASED_SERVICE = &gss_c_nt_hostbased_service_oid_desc;
 

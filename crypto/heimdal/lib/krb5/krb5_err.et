@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: krb5_err.et,v 1.8 2000/02/07 12:54:17 joda Exp $"
+id "$Id: krb5_err.et,v 1.9 2000/04/06 00:41:37 assar Exp $"
 
 error_table krb5
 
@@ -68,10 +68,30 @@ index 60
 error_code GENERIC,		"Generic error (see e-text)"
 error_code FIELD_TOOLONG,	"Field is too long for this implementation"
 
-# 62-127 are reserved
+# pkinit
+index 62
+prefix KDC_ERROR
+error_code CLIENT_NOT_TRUSTED,	"Client not trusted"
+error_code KDC_NOT_TRUSTED,	"KDC not trusted"
+error_code INVALID_SIG,		"Invalid signature"
+error_code KEY_TOO_WEAK,	"Key too weak"
+error_code CERTIFICATE_MISMATCH, "Certificate mismatch"
+prefix KRB5_AP_ERR
+error_code USER_TO_USER_REQUIRED, "User to user required"
+prefix KDC_ERROR
+error_code CANT_VERIFY_CERTIFICATE, "Cannot verify certificate"
+error_code INVALID_CERTIFICATE,	"Invalid certificate"
+error_code REVOKED_CERTIFICATE,	"Revoked certificate"
+error_code REVOCATION_STATUS_UNKNOWN,	"Revocation status unknown"
+error_code REVOCATION_STATUS_UNAVAILABLE,"Revocation status unavailable"
+error_code CLIENT_NAME_MISMATCH,	"Client name mismatch"
+error_code KDC_NAME_MISMATCH,	"KDC name mismatch"
+
+# 77-127 are reserved
+
 index 128
 prefix
-error_code KRB5_ERR_RCSID,	"$Id: krb5_err.et,v 1.8 2000/02/07 12:54:17 joda Exp $"
+error_code KRB5_ERR_RCSID,	"$Id: krb5_err.et,v 1.9 2000/04/06 00:41:37 assar Exp $"
 
 error_code KRB5_LIBOS_BADLOCKFLAG,	"Invalid flag for file lock mode"
 error_code KRB5_LIBOS_CANTREADPWD,	"Cannot read password"

@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: warnerr.c,v 1.8 1999/12/02 16:58:54 joda Exp $");
+RCSID("$Id: warnerr.c,v 1.9 2000/07/25 09:54:05 joda Exp $");
 #endif
 
 #include "roken.h"
@@ -42,6 +42,12 @@ RCSID("$Id: warnerr.c,v 1.8 1999/12/02 16:58:54 joda Exp $");
 #ifndef HAVE___PROGNAME
 const char *__progname;
 #endif
+
+const char *
+get_progname(void)
+{
+    return __progname;
+}
 
 void
 set_progname(char *argv0)

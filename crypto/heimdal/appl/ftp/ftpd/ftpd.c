@@ -38,7 +38,7 @@
 #endif
 #include "getarg.h"
 
-RCSID("$Id: ftpd.c,v 1.137 2000/01/05 13:46:04 joda Exp $");
+RCSID("$Id: ftpd.c,v 1.153 2001/01/18 09:14:59 joda Exp $");
 
 static char version[] = "Version 6.00";
 
@@ -195,7 +195,6 @@ parse_auth_level(char *str)
  * Print usage and die.
  */
 
-static int debug_flag;
 static int interactive_flag;
 static char *guest_umask_string;
 static char *port_string;
@@ -207,6 +206,8 @@ int use_builtin_ls = -1;
 static int help_flag;
 static int version_flag;
 
+static const char *good_chars = "+-=_,.";
+
 struct getargs args[] = {
     { NULL, 'a', arg_string, &auth_string, "required authentication" },
     { NULL, 'i', arg_flag, &interactive_flag, "don't assume stdin is a socket" },
@@ -216,9 +217,10 @@ struct getargs args[] = {
     { NULL, 't', arg_integer, &ftpd_timeout, "initial timeout" },
     { NULL, 'T', arg_integer, &maxtimeout, "max timeout" },
     { NULL, 'u', arg_string, &umask_string, "umask for user logins" },
-    { NULL, 'd', arg_flag, &debug_flag, "enable debugging" },
-    { NULL, 'v', arg_flag, &debug_flag, "enable debugging" },
+    { NULL, 'd', arg_flag, &debug, "enable debugging" },
+    { NULL, 'v', arg_flag, &debug, "enable debugging" },
     { "builtin-ls", 'B', arg_flag, &use_builtin_ls, "use built-in ls to list files" },
+    { "good-chars", 0, arg_string, &good_chars, "allowed anonymous upload filename chars" },
     { "version", 0, arg_flag, &version_flag },
     { "help", 'h', arg_flag, &help_flag }
 };
@@ -253,9 +255,8 @@ show_file(const char *file, int code)
 int
 main(int argc, char **argv)
 {
-    int his_addr_len, ctrl_addr_len, on = 1, tos;
-    char *cp, line[LINE_MAX];
-    FILE *fd;
+    socklen_t his_addr_len, ctrl_addr_len;
+    int on = 1;
     int port;
     struct servent *sp;
 
@@ -263,17 +264,20 @@ main(int argc, char **argv)
 
     set_progname (argv[0]);
 
-#ifdef KRB4
     /* detach from any tickets and tokens */
     {
+#ifdef KRB4
 	char tkfile[1024];
 	snprintf(tkfile, sizeof(tkfile),
 		 "/tmp/ftp_%u", (unsigned)getpid());
 	krb_set_tkt_string(tkfile);
+#endif
+#if defined(KRB4) && defined(KRB5)
 	if(k_hasafs())
 	    k_setpag();
-    }
 #endif
+    }
+
     if(getarg(args, num_args, argc, argv, &optind))
 	usage(1);
 
@@ -350,10 +354,13 @@ main(int argc, char **argv)
 	exit(1);
     }
 #if defined(IP_TOS) && defined(HAVE_SETSOCKOPT)
-    tos = IPTOS_LOWDELAY;
-    if (setsockopt(STDIN_FILENO, IPPROTO_IP, IP_TOS,
-		   (void *)&tos, sizeof(int)) < 0)
-	syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
+    {
+	int tos = IPTOS_LOWDELAY;
+
+	if (setsockopt(STDIN_FILENO, IPPROTO_IP, IP_TOS,
+		       (void *)&tos, sizeof(int)) < 0)
+	    syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
+    }
 #endif
     data_source->sa_family = ctrl_addr->sa_family;
     socket_set_port (data_source,
@@ -709,7 +716,6 @@ checkaccess(char *name)
 
 int do_login(int code, char *passwd)
 {
-    FILE *fd;
     login_attempts = 0;		/* this time successful */
     if (setegid((gid_t)pw->pw_gid) < 0) {
 	reply(550, "Can't set gid.");
@@ -833,6 +839,51 @@ end_login(void)
 	dochroot = 0;
 }
 
+#ifdef KRB5
+static int
+krb5_verify(struct passwd *pwd, char *passwd)
+{
+   krb5_context context;  
+   krb5_ccache  id;
+   krb5_principal princ;
+   krb5_error_code ret;
+  
+   ret = krb5_init_context(&context);
+   if(ret)
+        return ret;
+
+  ret = krb5_parse_name(context, pwd->pw_name, &princ);
+  if(ret){
+        krb5_free_context(context);
+        return ret;
+  }
+  ret = krb5_cc_gen_new(context, &krb5_mcc_ops, &id);
+  if(ret){
+        krb5_free_principal(context, princ);
+        krb5_free_context(context);
+        return ret;
+  }
+  ret = krb5_verify_user(context,
+                         princ,
+                         id,
+                         passwd,
+                         1,
+                         NULL);
+  krb5_free_principal(context, princ);
+#ifdef KRB4
+  if (k_hasafs()) {
+      k_setpag();
+      krb5_afslog_uid_home(context, id,NULL, NULL,pwd->pw_uid, pwd->pw_dir);
+  }
+#endif /* KRB4 */
+  krb5_cc_destroy(context, id);
+  krb5_free_context (context);
+  if(ret) 
+      return ret;
+  return 0;
+}
+#endif /* KRB5 */
+
 void
 pass(char *passwd)
 {
@@ -840,8 +891,8 @@ pass(char *passwd)
 
 	/* some clients insists on sending a password */
 	if (logged_in && askpasswd == 0){
-	     reply(230, "Dumpucko!");
-	     return;
+	    reply(230, "Password not necessary");
+	    return;
 	}
 
 	if (logged_in || askpasswd == 0) {
@@ -859,19 +910,25 @@ pass(char *passwd)
 		}
 #endif
 		else if((auth_level & AUTH_OTP) == 0) {
-#ifdef KRB4
-		    char realm[REALM_SZ];
-		    if((rval = krb_get_lrealm(realm, 1)) == KSUCCESS)
-			rval = krb_verify_user(pw->pw_name,
-					       "", realm, 
-					       passwd, 
-					       KRB_VERIFY_SECURE, NULL);
-		    if (rval == KSUCCESS ) {
-			chown (tkt_string(), pw->pw_uid, pw->pw_gid);
-			if(k_hasafs())
-			    krb_afslog(0, 0);
-		    } else 
+#ifdef KRB5
+		    rval = krb5_verify(pw, passwd);
 #endif
+#ifdef KRB4
+		    if (rval) {
+			char realm[REALM_SZ];
+			if((rval = krb_get_lrealm(realm, 1)) == KSUCCESS)
+			    rval = krb_verify_user(pw->pw_name,
+						   "", realm, 
+						   passwd, 
+						   KRB_VERIFY_SECURE, NULL);
+			if (rval == KSUCCESS ) {
+			    chown (tkt_string(), pw->pw_uid, pw->pw_gid);
+			    if(k_hasafs())
+				krb_afslog(0, 0);
+			}
+		    }
+#endif
+		    if (rval)
 			rval = unix_verify_user(pw->pw_name, passwd);
 		} else {
 		    char *s;
@@ -1048,7 +1105,6 @@ done:
 int 
 filename_check(char *filename)
 {
-  static const char good_chars[] = "+-=_,.";
     char *p;
 
     p = strrchr(filename, '/');
@@ -1064,7 +1120,7 @@ filename_check(char *filename)
 	if(*p == '\0')
 	    return 0;
     }
-    lreply(553, "\"%s\" is an illegal filename.", filename);
+    lreply(553, "\"%s\" is not an acceptable filename.", filename);
     lreply(553, "The filename must start with an alphanumeric "
 	   "character and must only");
     reply(553, "consist of alphanumeric characters or any of the following: %s", 
@@ -1201,7 +1257,7 @@ dataconn(const char *name, off_t size, const char *mode)
 		struct sockaddr_storage from_ss;
 		struct sockaddr *from = (struct sockaddr *)&from_ss;
 		int s;
-		int fromlen = sizeof(from_ss);
+		socklen_t fromlen = sizeof(from_ss);
 
 		s = accept(pdata, from, &fromlen);
 		if (s < 0) {
@@ -1869,7 +1925,7 @@ myoob(int signo)
 void
 pasv(void)
 {
-	int len;
+	socklen_t len;
 	char *p, *a;
 	struct sockaddr_in *sin;
 
@@ -1878,6 +1934,9 @@ pasv(void)
 		      "You cannot do PASV with something that's not IPv4");
 		return;
 	}
+
+	if(pdata != -1)
+	    close(pdata);
 
 	pdata = socket(ctrl_addr->sa_family, SOCK_STREAM, 0);
 	if (pdata < 0) {
@@ -1919,7 +1978,7 @@ pasv_error:
 void
 epsv(char *proto)
 {
-	int len;
+	socklen_t len;
 
 	pdata = socket(ctrl_addr->sa_family, SOCK_STREAM, 0);
 	if (pdata < 0) {
@@ -2080,9 +2139,9 @@ list_file(char *file)
 	pdata = -1;
     } else {
 #ifdef HAVE_LS_A
-	const char *cmd = "/bin/ls -lA -- %s";
+	const char *cmd = "/bin/ls -lA %s";
 #else
-	const char *cmd = "/bin/ls -la -- %s";
+	const char *cmd = "/bin/ls -la %s";
 #endif
 	retrieve(cmd, file);
     }
@@ -2133,8 +2192,8 @@ send_file_list(char *whichf)
        */
       if (dirname[0] == '-' && *dirlist == NULL &&
 	  transflag == 0) {
-	retrieve("/bin/ls -- %s", dirname);
-	goto out;
+	  list_file(dirname);
+	  goto out;
       }
       perror_reply(550, whichf);
       if (dout != NULL) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: kdc_locl.h,v 1.40 2000/02/11 17:46:29 assar Exp $ 
+ * $Id: kdc_locl.h,v 1.48 2001/01/30 01:44:07 assar Exp $ 
  */
 
 #ifndef __KDC_LOCL_H__
@@ -61,38 +61,52 @@ extern int enable_http;
 extern krb5_boolean encode_as_rep_as_tgs_rep;
 extern krb5_boolean check_ticket_addresses;
 extern krb5_boolean allow_null_ticket_addresses;
+extern krb5_boolean allow_anonymous;
 
 #ifdef KRB4
 extern char *v4_realm;
+extern int enable_v4;
+extern int enable_524;
 #endif
 #ifdef KASERVER
 extern krb5_boolean enable_kaserver;
 #endif
+
+#define _PATH_KDC_CONF		HDB_DB_DIR "/kdc.conf"
+#define DEFAULT_LOG_DEST	"0-1/FILE:" HDB_DB_DIR "/kdc.log"
 
 extern struct timeval now;
 #define kdc_time (now.tv_sec)
 
 krb5_error_code as_rep (KDC_REQ*, krb5_data*, const char*, struct sockaddr*);
 void configure (int, char**);
-hdb_entry* db_fetch (krb5_principal);
-void kdc_log (int, const char*, ...);
-char* kdc_log_msg (int, const char*, ...);
-char* kdc_log_msg_va (int, const char*, va_list);
+krb5_error_code db_fetch (krb5_principal, hdb_entry**);
+void free_ent(hdb_entry *);
+void kdc_log (int, const char*, ...)
+    __attribute__ ((format (printf, 2,3)));
+
+char* kdc_log_msg (int, const char*, ...)
+    __attribute__ ((format (printf, 2,3)));
+char* kdc_log_msg_va (int, const char*, va_list)
+    __attribute__ ((format (printf, 2,0)));
 void kdc_openlog (krb5_config_section*);
 void loop (void);
 void set_master_key (EncryptionKey);
 krb5_error_code tgs_rep (KDC_REQ*, krb5_data*, const char*, struct sockaddr *);
 Key* unseal_key (Key*);
+krb5_error_code check_flags(hdb_entry *client, const char *client_name,
+			    hdb_entry *server, const char *server_name,
+			    krb5_boolean is_as_req);
 
 #ifdef KRB4
-hdb_entry* db_fetch4 (const char*, const char*, const char*);
-krb5_error_code do_524 (Ticket*, krb5_data*, const char*, struct sockaddr*);
+krb5_error_code db_fetch4 (const char*, const char*, const char*, hdb_entry**);
+krb5_error_code do_524 (const Ticket*, krb5_data*, const char*, struct sockaddr*);
 krb5_error_code do_version4 (unsigned char*, size_t, krb5_data*, const char*, 
 			     struct sockaddr_in*);
-krb5_error_code encode_v4_ticket (void*, size_t, EncTicketPart*, 
-				  PrincipalName*, size_t*);
+krb5_error_code encode_v4_ticket (void*, size_t, const EncTicketPart*, 
+				  const PrincipalName*, size_t*);
 krb5_error_code encrypt_v4_ticket (void*, size_t, des_cblock*, EncryptedData*);
-krb5_error_code get_des_key(hdb_entry*, Key**);
+krb5_error_code get_des_key(hdb_entry*, krb5_boolean, Key**);
 int maybe_version4 (unsigned char*, int);
 #endif
 

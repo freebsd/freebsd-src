@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: rename_c.c,v 1.3 1999/12/02 17:05:07 joda Exp $");
+RCSID("$Id: rename_c.c,v 1.4 2000/07/11 16:00:08 joda Exp $");
 
 kadm5_ret_t
 kadm5_c_rename_principal(void *server_handle, 
@@ -46,6 +46,10 @@ kadm5_c_rename_principal(void *server_handle,
     unsigned char buf[1024];
     int32_t tmp;
     krb5_data reply;
+
+    ret = _kadm5_connect(server_handle);
+    if(ret)
+	return ret;
 
     sp = krb5_storage_from_mem(buf, sizeof(buf));
     if (sp == NULL)

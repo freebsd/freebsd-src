@@ -1,3 +1,5 @@
+@c $Id: ack.texi,v 1.13 2001/01/30 01:57:31 assar Exp $
+
 @node  Acknowledgments, , Windows 2000 compatability, Top
 @comment  node-name,  next,  previous,  up
 @appendix Acknowledgments
@@ -26,7 +28,7 @@ Bugfixes, documentation, encouragement, and code has been contributed by:
 @item Johan Ihrén
 @email{johani@@pdc.kth.se}
 @item Love Hörnquist-Åstrand
-@email{e96_lho@@e.kth.se}
+@email{lha@@stacken.kth.se}
 @item Magnus Ahltorp
 @email{map@@stacken.kth.se}
 @item Mark Eichin
@@ -51,6 +53,10 @@ Bugfixes, documentation, encouragement, and code has been contributed by:
 @email{bmay@@snoopy.apana.org.au}
 @item Chaskiel M Grundman
 @email{cg2v@@andrew.cmu.edu}
+@item Richard Nyberg
+@email{rnyberg@@it.su.se}
+@item Frank van der Linden
+@email{fvdl@@netbsd.org}
 @item and we hope that those not mentioned here will forgive us.
 @end table
 

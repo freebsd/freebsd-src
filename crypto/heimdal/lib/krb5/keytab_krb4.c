@@ -32,9 +32,8 @@
  */
 
 #include "krb5_locl.h"
-#include <krb.h>
 
-RCSID("$Id: keytab_krb4.c,v 1.5 2000/01/06 08:04:58 assar Exp $");
+RCSID("$Id: keytab_krb4.c,v 1.6 2000/12/15 17:10:40 joda Exp $");
 
 struct krb4_kt_data {
     char *filename;
@@ -227,6 +226,9 @@ krb4_kt_add_entry (krb5_context context,
     struct krb4_kt_data *d = id->data;
     krb5_error_code ret;
     int fd;
+#define ANAME_SZ 40
+#define INST_SZ 40
+#define REALM_SZ 40
     char service[ANAME_SZ];
     char instance[INST_SZ];
     char realm[REALM_SZ];
@@ -258,7 +260,7 @@ krb4_kt_add_entry (krb5_context context,
     return 0;
 }
 
-krb5_kt_ops krb4_fkt_ops = {
+const krb5_kt_ops krb4_fkt_ops = {
     "krb4",
     krb4_kt_resolve,
     krb4_kt_get_name,

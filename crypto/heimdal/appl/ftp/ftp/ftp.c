@@ -32,7 +32,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID ("$Id: ftp.c,v 1.63 2000/01/08 07:43:47 assar Exp $");
+RCSID ("$Id: ftp.c,v 1.69 2000/10/08 13:15:33 assar Exp $");
 
 struct sockaddr_storage hisctladdr_ss;
 struct sockaddr *hisctladdr = (struct sockaddr *)&hisctladdr_ss;
@@ -60,7 +60,7 @@ hookup (const char *host, int port)
     struct addrinfo hints;
     int error;
     char portstr[NI_MAXSERV];
-    int len;
+    socklen_t len;
     int s;
 
     memset (&hints, 0, sizeof(hints));
@@ -190,8 +190,9 @@ login (char *host)
 	    printf ("Name (%s:%s): ", host, myname);
 	else
 	    printf ("Name (%s): ", host);
-	fgets (tmp, sizeof (tmp) - 1, stdin);
-	tmp[strlen (tmp) - 1] = '\0';
+	*tmp = '\0';
+	if (fgets (tmp, sizeof (tmp) - 1, stdin) != NULL)
+	    tmp[strlen (tmp) - 1] = '\0';
 	if (*tmp == '\0')
 	    user = myname;
 	else
@@ -199,25 +200,29 @@ login (char *host)
     }
     strlcpy(username, user, sizeof(username));
     n = command("USER %s", user);
-    if (n == CONTINUE) {
-	if(sec_complete)
-	    pass = myname;
-	else if (pass == NULL) {
+    if (n == COMPLETE) 
+       n = command("PASS dummy"); /* DK: Compatibility with gssftp daemon */
+    else if(n == CONTINUE) {
+	if (pass == NULL) {
 	    char prompt[128];
 	    if(myname && 
-	       (!strcmp(user, "ftp") || !strcmp(user, "anonymous"))){
+	       (!strcmp(user, "ftp") || !strcmp(user, "anonymous"))) {
 		snprintf(defaultpass, sizeof(defaultpass), 
 			 "%s@%s", myname, mydomain);
 		snprintf(prompt, sizeof(prompt), 
 			 "Password (%s): ", defaultpass);
-	    }else{
+	    } else if (sec_complete) {
+		pass = myname;
+	    } else {
 		*defaultpass = '\0';
 		snprintf(prompt, sizeof(prompt), "Password: ");
 	    }
-	    pass = defaultpass;
-	    des_read_pw_string (tmp, sizeof (tmp), prompt, 0);
-	    if (tmp[0])
-		pass = tmp;
+	    if (pass == NULL) {
+		pass = defaultpass;
+		des_read_pw_string (tmp, sizeof (tmp), prompt, 0);
+		if (tmp[0])
+		    pass = tmp;
+	    }
 	}
 	n = command ("PASS %s", pass);
     }
@@ -525,9 +530,9 @@ empty (fd_set * mask, int sec)
 {
     struct timeval t;
 
-    t.tv_sec = (long) sec;
+    t.tv_sec = sec;
     t.tv_usec = 0;
-    return (select (32, mask, NULL, NULL, &t));
+    return (select (FD_SETSIZE, mask, NULL, NULL, &t));
 }
 
 jmp_buf sendabort;
@@ -617,7 +622,7 @@ sendrequest (char *cmd, char *local, char *remote, char *lmode, int printnames)
     int c, d;
     FILE *fin, *dout = 0;
     int (*closefunc) (FILE *);
-    RETSIGTYPE (*oldintr)(), (*oldintp)();
+    RETSIGTYPE (*oldintr)(int), (*oldintp)(int);
     long bytes = 0, hashbytes = HASHBYTES;
     char *rmode = "w";
 
@@ -1235,7 +1240,7 @@ static int
 active_mode (void)
 {
     int tmpno = 0;
-    int len;
+    socklen_t len;
     int result;
 
 noport:
@@ -1361,7 +1366,8 @@ dataconn (const char *lmode)
 {
     struct sockaddr_storage from_ss;
     struct sockaddr *from = (struct sockaddr *)&from_ss;
-    int s, fromlen = sizeof (from_ss);
+    socklen_t fromlen = sizeof(from_ss);
+    int s;
 
     if (passivemode)
 	return (fdopen (data, lmode));
@@ -1621,6 +1627,8 @@ abort:
     pswitch (!proxy);
     if (cpend) {
 	FD_ZERO (&mask);
+	if (fileno(cin) >= FD_SETSIZE)
+	    errx (1, "fd too large");
 	FD_SET (fileno (cin), &mask);
 	if ((nfnd = empty (&mask, 10)) <= 0) {
 	    if (nfnd < 0) {
@@ -1649,6 +1657,8 @@ reset (int argc, char **argv)
 
     FD_ZERO (&mask);
     while (nfnd > 0) {
+	if (fileno (cin) >= FD_SETSIZE)
+	    errx (1, "fd too large");
 	FD_SET (fileno (cin), &mask);
 	if ((nfnd = empty (&mask, 0)) < 0) {
 	    warn ("reset");
@@ -1722,8 +1732,12 @@ abort_remote (FILE * din)
     fprintf (cout, "%cABOR\r\n", DM);
     fflush (cout);
     FD_ZERO (&mask);
+    if (fileno (cin) >= FD_SETSIZE)
+	errx (1, "fd too large");
     FD_SET (fileno (cin), &mask);
     if (din) {
+    if (fileno (din) >= FD_SETSIZE)
+	errx (1, "fd too large");
 	FD_SET (fileno (din), &mask);
     }
     if ((nfnd = empty (&mask, 10)) <= 0) {

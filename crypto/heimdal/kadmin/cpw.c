@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,18 +33,20 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: cpw.c,v 1.9 1999/12/02 17:04:57 joda Exp $");
+RCSID("$Id: cpw.c,v 1.11 2000/04/12 10:45:54 assar Exp $");
 
 struct cpw_entry_data {
     int random_key;
     int random_password;
     char *password;
+    krb5_key_data *key_data;
 };
 
 static struct getargs args[] = {
     { "random-key",	'r',	arg_flag,	NULL, "set random key" },
     { "random-password", 0,	arg_flag,	NULL, "set random password" },
     { "password",	'p',	arg_string,	NULL, "princial's password" },
+    { "key",		 0,	arg_string,	NULL, "DES key in hex" }
 };
 
 static int num_args = sizeof(args) / sizeof(args[0]);
@@ -119,6 +121,16 @@ set_password (krb5_principal principal, char *password)
 }
 
 static int
+set_key_data (krb5_principal principal, krb5_key_data *key_data)
+{
+    krb5_error_code ret;
+
+    ret = kadm5_chpass_principal_with_key (kadm_handle, principal,
+					   3, key_data);
+    return ret;
+}
+
+static int
 do_cpw_entry(krb5_principal principal, void *data)
 {
     struct cpw_entry_data *e = data;
@@ -127,6 +139,8 @@ do_cpw_entry(krb5_principal principal, void *data)
 	return set_random_key (principal);
     else if (e->random_password)
 	return set_random_password (principal);
+    else if (e->key_data)
+	return set_key_data (principal, e->key_data);
     else
 	return set_password (principal, e->password);
 }
@@ -139,14 +153,20 @@ cpw_entry(int argc, char **argv)
     int optind = 0;
     struct cpw_entry_data data;
     int num;
+    char *key_string;
+    krb5_key_data key_data[3];
 
     data.random_key      = 0;
     data.random_password = 0;
     data.password        = NULL;
+    data.key_data	 = NULL;
+
+    key_string = NULL;
 
     args[0].value = &data.random_key;
     args[1].value = &data.random_password;
     args[2].value = &data.password;
+    args[3].value = &key_string;
     if(getarg(args, num_args, argc, argv, &optind)){
 	usage();
 	return 0;
@@ -159,19 +179,35 @@ cpw_entry(int argc, char **argv)
 	++num;
     if (data.password)
 	++num;
+    if (key_string)
+	++num;
 
     if (num > 1) {
 	printf ("give only one of "
-		"--random-key, --random-password, --password\n");
+		"--random-key, --random-password, --password, --key\n");
 	return 0;
     }
 	
+    if (key_string) {
+	const char *error;
+
+	if (parse_des_key (key_string, key_data, &error)) {
+	    printf ("failed parsing key `%s': %s\n", key_string, error);
+	    return 0;
+	}
+	data.key_data = key_data;
+    }
+
     argc -= optind;
     argv += optind;
 
     for(i = 0; i < argc; i++)
 	ret = foreach_principal(argv[i], do_cpw_entry, &data);
 
+    if (data.key_data) {
+	int16_t dummy;
+	kadm5_free_key_data (kadm_handle, &dummy, key_data);
+    }
+
     return 0;
 }
-

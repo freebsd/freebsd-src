@@ -1,4 +1,4 @@
-.\" $Id: kdc.8,v 1.5 2000/02/13 21:04:32 assar Exp $
+.\" $Id: kdc.8,v 1.11 2001/01/26 22:46:28 assar Exp $
 .\"
 .Dd July 27, 1997
 .Dt KDC 8
@@ -9,11 +9,15 @@
 Kerberos 5 server
 .Sh SYNOPSIS
 .Nm
-.Op Fl c Ar file
-.Op Fl -config-file= Ns Ar file
+.Oo Fl c Ar file \*(Ba Xo
+.Fl -config-file= Ns Ar file Oc
+.Xc
 .Op Fl p | Fl -no-require-preauth
 .Op Fl -max-request= Ns Ar size
 .Op Fl H | Fl -enable-http
+.Oo Fl r Ar string \*(Ba Xo
+.Fl -v4-realm= Ns Ar string Oc
+.Xc
 .Op Fl K | Fl -no-kaserver
 .Op Fl r Ar realm
 .Op Fl -v4-realm= Ns Ar realm
@@ -21,7 +25,6 @@ Kerberos 5 server
 .Fl -ports= Ns Ar string Oc
 .Xc
 .Op Fl -addresses= Ns Ar list of addresses
-
 .Sh DESCRIPTION
 .Nm
 serves requests for tickets. When it starts, it first checks the flags
@@ -99,14 +102,33 @@ and then start the KDC with
 .Fl -config-file= Ns Ar /etc/krb5.conf ) .
 All options should be in a section called
 .Dq kdc .
-Options are called the same as the long option name, and takes the
-same arguments. The only difference is the pre-authentication flag,
+All the command-line options can preferably be added in the
+configuration file.  The only difference is the pre-authentication flag,
 that has to be specified as:
 .Pp
 .Dl require-preauth = no
 .Pp
 (in fact you can specify the option as
 .Fl -require-preauth=no ) .
+.Pp
+And there are some configuration options which do not have
+command-line equivalents:
+.Bl -tag -width "xxx" -offset indent
+.It Li check-ticket-addresses = Va boolean
+Check the addresses in the ticket when processing TGS requests.  The
+default is FALSE.
+.It Li allow-null-ticket-addresses = Va boolean
+Permit tickets with no addresses.  This option is only relevant when
+check-ticket-addresses is TRUE.
+.It Li allow-anonymous = Va boolean
+Permit anonymous tickets with no addresses.
+.It encode_as_rep_as_tgs_rep = Va boolean
+Encode AS-Rep as TGS-Rep to be bug-compatible with old DCE code.  The
+Heimdal clients allow both.
+.It kdc_warn_pwexpire = Va time
+How long before password/principal expiration the KDC should start
+sending out warning messages.
+.El
 .Pp
 An example of a config file:
 .Bd -literal -offset indent

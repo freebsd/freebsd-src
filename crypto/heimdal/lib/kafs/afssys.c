@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 200 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: afssys.c,v 1.65 1999/12/02 16:58:40 joda Exp $");
+RCSID("$Id: afssys.c,v 1.67 2000/07/08 12:06:03 assar Exp $");
 
 int _kafs_debug; /* this should be done in a better way */
 
@@ -113,6 +113,9 @@ map_syscall_name_to_number (const char *str, int *res)
     if (f == NULL)
 	return -1;
     while (fgets (buf, sizeof(buf), f) != NULL) {
+	if (buf[0] == '#')
+	    continue;
+
 	if (strncmp (str, buf, str_len) == 0) {
 	    char *begptr = buf + str_len;
 	    char *endptr;
@@ -280,7 +283,7 @@ int
 k_hasafs(void)
 {
 #if !defined(NO_AFS) && defined(SIGSYS)
-    RETSIGTYPE (*saved_func)();
+    RETSIGTYPE (*saved_func)(int);
 #endif
     int saved_errno;
     char *env = getenv ("AFS_SYSCALL");

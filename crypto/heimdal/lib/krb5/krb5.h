@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5.h,v 1.164 2000/02/06 07:40:57 assar Exp $ */
+/* $Id: krb5.h,v 1.179 2000/12/15 17:11:12 joda Exp $ */
 
 #ifndef __KRB5_H__
 #define __KRB5_H__
@@ -68,24 +68,7 @@ typedef octet_string krb5_data;
 struct krb5_crypto_data;
 typedef struct krb5_crypto_data *krb5_crypto;
 
-typedef enum krb5_cksumtype { 
-  CKSUMTYPE_NONE		= 0,
-  CKSUMTYPE_CRC32		= 1,
-  CKSUMTYPE_RSA_MD4		= 2,
-  CKSUMTYPE_RSA_MD4_DES		= 3,
-  CKSUMTYPE_DES_MAC		= 4,
-  CKSUMTYPE_DES_MAC_K		= 5,
-  CKSUMTYPE_RSA_MD4_DES_K	= 6,
-  CKSUMTYPE_RSA_MD5		= 7,
-  CKSUMTYPE_RSA_MD5_DES		= 8,
-  CKSUMTYPE_RSA_MD5_DES3	= 9,
-/*  CKSUMTYPE_SHA1		= 10,*/
-  CKSUMTYPE_HMAC_SHA1_DES3	= 12,
-  CKSUMTYPE_SHA1		= 1000, /* correct value? */
-  CKSUMTYPE_HMAC_MD5		= -138, /* unofficial microsoft number */
-  CKSUMTYPE_HMAC_MD5_ENC	= -1138 /* even more unofficial */
-} krb5_cksumtype;
-
+typedef CKSUMTYPE krb5_cksumtype;
 
 typedef enum krb5_enctype { 
   ETYPE_NULL			= 0,
@@ -101,17 +84,14 @@ typedef enum krb5_enctype {
   ETYPE_ARCFOUR_HMAC_MD5	= 23,
   ETYPE_ARCFOUR_HMAC_MD5_56	= 24,
   ETYPE_ENCTYPE_PK_CROSS	= 48,
-  ETYPE_DES_CBC_NONE		= 0x1000,
-  ETYPE_DES3_CBC_NONE		= 0x1001
+  ETYPE_DES_CBC_NONE		= -0x1000,
+  ETYPE_DES3_CBC_NONE		= -0x1001,
+  ETYPE_DES_CFB64_NONE		= -0x1002,
+  ETYPE_DES_PCBC_NONE		= -0x1003,
+  ETYPE_DES3_CBC_NONE_IVEC	= -0x1004
 } krb5_enctype;
 
-typedef enum krb5_preauthtype {
-  KRB5_PADATA_NONE		= 0,
-  KRB5_PADATA_AP_REQ,
-  KRB5_PADATA_TGS_REQ		= 1,
-  KRB5_PADATA_ENC_TIMESTAMP	= 2,
-  KRB5_PADATA_ENC_SECURID
-} krb5_preauthtype;
+typedef PADATA_TYPE krb5_preauthtype;
 
 typedef enum krb5_key_usage {
     KRB5_KU_PA_ENC_TIMESTAMP = 1,
@@ -165,14 +145,28 @@ typedef enum krb5_key_usage {
     KRB5_KU_OTHER_ENCRYPTED = 16,
     /* Data which is defined in some specification outside of
        Kerberos to be encrypted using an RFC1510 encryption type. */
-    KRB5_KU_OTHER_CKSUM = 17
+    KRB5_KU_OTHER_CKSUM = 17,
     /* Data which is defined in some specification outside of
        Kerberos to be checksummed using an RFC1510 checksum type. */
+    KRB5_KU_KRB_ERROR = 18,
+    /* Krb-error checksum */
+    KRB5_KU_AD_KDC_ISSUED = 19,
+    /* AD-KDCIssued checksum */
+    KRB5_KU_MANDATORY_TICKET_EXTENSION = 20,
+    /* Checksum for Mandatory Ticket Extensions */
+    KRB5_KU_AUTH_DATA_TICKET_EXTENSION = 21,
+    /* Checksum in Authorization Data in Ticket Extensions */
+    KRB5_KU_USAGE_SEAL = 22,
+    /* seal in GSSAPI krb5 mechanism */
+    KRB5_KU_USAGE_SIGN = 23,
+    /* sign in GSSAPI krb5 mechanism */
+    KRB5_KU_USAGE_SEQ = 24
+    /* SEQ in GSSAPI krb5 mechanism */
 } krb5_key_usage;
 
 typedef enum krb5_salttype {
-    KRB5_PW_SALT = pa_pw_salt,
-    KRB5_AFS3_SALT = pa_afs3_salt
+    KRB5_PW_SALT = KRB5_PADATA_PW_SALT,
+    KRB5_AFS3_SALT = KRB5_PADATA_AFS3_SALT
 }krb5_salttype;
 
 typedef struct krb5_salt {
@@ -221,7 +215,14 @@ typedef AP_REQ krb5_ap_req;
 
 struct krb5_cc_ops;
 
-#define KRB5_DEFAULT_CCROOT "FILE:/tmp/krb5cc_"
+#define KRB5_DEFAULT_CCFILE_ROOT "/tmp/krb5cc_"
+
+#define KRB5_DEFAULT_CCROOT "FILE:" KRB5_DEFAULT_CCFILE_ROOT
+
+#define KRB5_ACCEPT_NULL_ADDRESSES(C) 					 \
+    krb5_config_get_bool_default((C), NULL, TRUE, 			 \
+				 "libdefaults", "accept_null_addresses", \
+				 NULL)
 
 typedef void *krb5_cc_cursor;
 
@@ -373,17 +374,8 @@ typedef struct krb5_context_data {
                                            version */
     int num_kt_types;			/* # of registered keytab types */
     struct krb5_keytab_data *kt_types;  /* registered keytab types */
+    const char *date_fmt;
 } krb5_context_data;
-
-enum {
-  KRB5_NT_UNKNOWN	= 0,
-  KRB5_NT_PRINCIPAL	= 1,
-  KRB5_NT_SRV_INST	= 2,
-  KRB5_NT_SRV_HST	= 3,
-  KRB5_NT_SRV_XHST	= 4,
-  KRB5_NT_UID		= 5
-};
-
 
 typedef struct krb5_ticket {
     EncTicketPart ticket;
@@ -397,7 +389,7 @@ typedef krb5_authenticator_data *krb5_authenticator;
 
 struct krb5_rcache_data;
 typedef struct krb5_rcache_data *krb5_rcache;
-typedef Authenticator krb5_donot_reply;
+typedef Authenticator krb5_donot_replay;
 
 #define KRB5_STORAGE_HOST_BYTEORDER			0x01
 #define KRB5_STORAGE_PRINCIPAL_WRONG_NUM_COMPONENTS	0x02
@@ -407,7 +399,7 @@ typedef Authenticator krb5_donot_reply;
 typedef struct krb5_storage {
     void *data;
     ssize_t (*fetch)(struct krb5_storage*, void*, size_t);
-    ssize_t (*store)(struct krb5_storage*, void*, size_t);
+    ssize_t (*store)(struct krb5_storage*, const void*, size_t);
     off_t (*seek)(struct krb5_storage*, off_t, int);
     void (*free)(struct krb5_storage*);
     krb5_flags flags;
@@ -456,11 +448,27 @@ struct krb5_keytab_key_proc_args {
 
 typedef struct krb5_keytab_key_proc_args krb5_keytab_key_proc_args;
 
+typedef struct krb5_replay_data {
+    krb5_timestamp timestamp;
+    u_int32_t usec;
+    u_int32_t seq;
+} krb5_replay_data;
+
+/* flags for krb5_auth_con_setflags */
 enum {
     KRB5_AUTH_CONTEXT_DO_TIME      = 1,
     KRB5_AUTH_CONTEXT_RET_TIME     = 2,
     KRB5_AUTH_CONTEXT_DO_SEQUENCE  = 4,
-    KRB5_AUTH_CONTEXT_RET_SEQUENCE = 8
+    KRB5_AUTH_CONTEXT_RET_SEQUENCE = 8,
+    KRB5_AUTH_CONTEXT_PERMIT_ALL   = 16
+};
+
+/* flags for krb5_auth_con_genaddrs */
+enum {
+    KRB5_AUTH_CONTEXT_GENERATE_LOCAL_ADDR       = 1,
+    KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR  = 3,
+    KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR      = 4,
+    KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR = 12
 };
 
 typedef struct krb5_auth_context_data {
@@ -474,8 +482,8 @@ typedef struct krb5_auth_context_data {
     krb5_keyblock *local_subkey;
     krb5_keyblock *remote_subkey;
 
-    int32_t local_seqnumber;
-    int32_t remote_seqnumber;
+    u_int32_t local_seqnumber;
+    u_int32_t remote_seqnumber;
 
     krb5_authenticator authenticator;
   
@@ -494,7 +502,7 @@ typedef struct {
     KRB_ERROR error;
 } krb5_kdc_rep;
 
-extern char *heimdal_version, *heimdal_long_version;
+extern const char *heimdal_version, *heimdal_long_version;
 
 typedef void (*krb5_log_log_func_t)(const char*, const char*, void*);
 typedef void (*krb5_log_close_func_t)(void*);
@@ -549,6 +557,7 @@ typedef struct _krb5_get_init_creds_opt {
     krb5_deltat renew_life;
     int forwardable;
     int proxiable;
+    int anonymous;
     krb5_enctype *etype_list;
     int etype_list_length;
     krb5_addresses *address_list;
@@ -570,6 +579,7 @@ typedef struct _krb5_get_init_creds_opt {
 #define KRB5_GET_INIT_CREDS_OPT_ADDRESS_LIST	0x0020
 #define KRB5_GET_INIT_CREDS_OPT_PREAUTH_LIST	0x0040
 #define KRB5_GET_INIT_CREDS_OPT_SALT		0x0080
+#define KRB5_GET_INIT_CREDS_OPT_ANONYMOUS	0x0100
 
 typedef struct _krb5_verify_init_creds_opt {
     krb5_flags flags;
@@ -584,6 +594,7 @@ extern const krb5_cc_ops krb5_mcc_ops;
 extern const krb5_kt_ops krb5_fkt_ops;
 extern const krb5_kt_ops krb5_mkt_ops;
 extern const krb5_kt_ops krb5_akf_ops;
+extern const krb5_kt_ops krb4_fkt_ops;
 
 #define KRB5_KPASSWD_SUCCESS	0
 #define KRB5_KPASSWD_MALFORMED	0

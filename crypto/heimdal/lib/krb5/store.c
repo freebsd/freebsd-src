@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: store.c,v 1.32 1999/12/02 17:05:12 joda Exp $");
+RCSID("$Id: store.c,v 1.34 2000/04/11 00:46:09 assar Exp $");
 
 void
 krb5_storage_set_flags(krb5_storage *sp, krb5_flags flags)
@@ -275,8 +275,7 @@ krb5_ret_string(krb5_storage *sp,
 }
 
 krb5_error_code
-krb5_store_stringz(krb5_storage *sp,
-		  char *s)
+krb5_store_stringz(krb5_storage *sp, const char *s)
 {
     size_t len = strlen(s) + 1;
     ssize_t ret;
@@ -554,20 +553,46 @@ krb5_ret_authdata(krb5_storage *sp, krb5_authdata *auth)
     return ret;
 }
 
+/*
+ * store `creds' on `sp' returning error or zero
+ */
+
 krb5_error_code
 krb5_store_creds(krb5_storage *sp, krb5_creds *creds)
 {
-    krb5_store_principal(sp, creds->client);
-    krb5_store_principal(sp, creds->server);
-    krb5_store_keyblock(sp, creds->session);
-    krb5_store_times(sp, creds->times);
-    krb5_store_int8(sp, 0);  /* this is probably the
+    int ret;
+
+    ret = krb5_store_principal(sp, creds->client);
+    if (ret)
+	return ret;
+    ret = krb5_store_principal(sp, creds->server);
+    if (ret)
+	return ret;
+    ret = krb5_store_keyblock(sp, creds->session);
+    if (ret)
+	return ret;
+    ret = krb5_store_times(sp, creds->times);
+    if (ret)
+	return ret;
+    ret = krb5_store_int8(sp, 0);  /* this is probably the
 				enc-tkt-in-skey bit from KDCOptions */
-    krb5_store_int32(sp, creds->flags.i);
-    krb5_store_addrs(sp, creds->addresses);
-    krb5_store_authdata(sp, creds->authdata);
-    krb5_store_data(sp, creds->ticket);
-    krb5_store_data(sp, creds->second_ticket);
+    if (ret)
+	return ret;
+    ret = krb5_store_int32(sp, creds->flags.i);
+    if (ret)
+	return ret;
+    ret = krb5_store_addrs(sp, creds->addresses);
+    if (ret)
+	return ret;
+    ret = krb5_store_authdata(sp, creds->authdata);
+    if (ret)
+	return ret;
+    ret = krb5_store_data(sp, creds->ticket);
+    if (ret)
+	return ret;
+    ret = krb5_store_data(sp, creds->second_ticket);
+    if (ret)
+	return ret;
     return 0;
 }
 

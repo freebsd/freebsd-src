@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_copy.c,v 1.10 1999/12/02 17:05:02 joda Exp $");
+RCSID("$Id: gen_copy.c,v 1.11 2000/04/06 17:22:05 assar Exp $");
 
 static void
 copy_primitive (const char *typename, const char *from, const char *to)
@@ -54,6 +54,7 @@ copy_type (const char *from, const char *to, const Type *t)
 	       t->symbol->gen_name, from, to);
       break;
   case TInteger:
+  case TUInteger:
       fprintf(codefile, "*(%s) = *(%s);\n", to, from);
       break;
   case TOctetString:

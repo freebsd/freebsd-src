@@ -34,7 +34,7 @@
 #include "test_locl.h"
 #include <gssapi.h>
 #include "gss_common.h"
-RCSID("$Id: gssapi_client.c,v 1.12 2000/02/12 21:33:17 assar Exp $");
+RCSID("$Id: gssapi_client.c,v 1.16 2000/08/09 20:53:06 assar Exp $");
 
 static int
 do_trans (int sock, gss_ctx_id_t context_hdl)
@@ -85,7 +85,7 @@ static int
 proto (int sock, const char *hostname, const char *service)
 {
     struct sockaddr_in remote, local;
-    int addrlen;
+    socklen_t addrlen;
 
     int context_established = 0;
     gss_ctx_id_t context_hdl = GSS_C_NO_CONTEXT;
@@ -95,6 +95,9 @@ proto (int sock, const char *hostname, const char *service)
     OM_uint32 maj_stat, min_stat;
     gss_name_t server;
     gss_buffer_desc name_token;
+    struct gss_channel_bindings_struct input_chan_bindings;
+    u_char init_buf[4];
+    u_char acct_buf[4];
 
     name_token.length = asprintf ((char **)&name_token.value,
 				  "%s@%s", service, hostname);
@@ -120,6 +123,32 @@ proto (int sock, const char *hostname, const char *service)
     input_token->length = 0;
     output_token->length = 0;
 
+    input_chan_bindings.initiator_addrtype = GSS_C_AF_INET;
+    input_chan_bindings.initiator_address.length = 4;
+    init_buf[0] = (local.sin_addr.s_addr >> 24) & 0xFF;
+    init_buf[1] = (local.sin_addr.s_addr >> 16) & 0xFF;
+    init_buf[2] = (local.sin_addr.s_addr >>  8) & 0xFF;
+    init_buf[3] = (local.sin_addr.s_addr >>  0) & 0xFF;
+    input_chan_bindings.initiator_address.value = init_buf;
+
+    input_chan_bindings.acceptor_addrtype = GSS_C_AF_INET;
+    input_chan_bindings.acceptor_address.length = 4;
+    acct_buf[0] = (remote.sin_addr.s_addr >> 24) & 0xFF;
+    acct_buf[1] = (remote.sin_addr.s_addr >> 16) & 0xFF;
+    acct_buf[2] = (remote.sin_addr.s_addr >>  8) & 0xFF;
+    acct_buf[3] = (remote.sin_addr.s_addr >>  0) & 0xFF;
+    input_chan_bindings.acceptor_address.value = acct_buf;
+    
+#if 0
+    input_chan_bindings.application_data.value = emalloc(4);
+    * (unsigned short*)input_chan_bindings.application_data.value = local.sin_port;
+    * ((unsigned short *)input_chan_bindings.application_data.value + 1) = remote.sin_port;
+    input_chan_bindings.application_data.length = 4;
+#else
+    input_chan_bindings.application_data.length = 0;
+    input_chan_bindings.application_data.value = NULL;
+#endif
+
     while(!context_established) {
 	maj_stat =
 	    gss_init_sec_context(&min_stat,
@@ -127,9 +156,10 @@ proto (int sock, const char *hostname, const char *service)
 				 &context_hdl,
 				 server,
 				 GSS_C_NO_OID,
-				 GSS_C_MUTUAL_FLAG | GSS_C_SEQUENCE_FLAG,
+				 GSS_C_MUTUAL_FLAG | GSS_C_SEQUENCE_FLAG
+				 | GSS_C_DELEG_FLAG,
 				 0,
-				 GSS_C_NO_CHANNEL_BINDINGS,
+				 &input_chan_bindings,
 				 input_token,
 				 NULL,
 				 output_token,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,10 +33,11 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: signal.c,v 1.10 1999/12/14 01:37:58 assar Exp $");
+RCSID("$Id: signal.c,v 1.12 2000/07/08 12:39:06 assar Exp $");
 #endif
 
 #include <signal.h>
+#include "roken.h"
 
 /*
  * We would like to always use this signal but there is a link error
@@ -48,8 +49,6 @@ RCSID("$Id: signal.c,v 1.10 1999/12/14 01:37:58 assar Exp $");
  *
  * Do we need any extra hacks for SIGCLD and/or SIGCHLD?
  */
-
-typedef RETSIGTYPE (*SigAction)(/* int??? */);
 
 SigAction
 signal(int iSig, SigAction pAction)

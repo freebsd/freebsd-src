@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -37,7 +37,7 @@
 #include "ftp_locl.h"
 #endif
 
-RCSID("$Id: security.c,v 1.16 2000/02/07 03:11:43 assar Exp $");
+RCSID("$Id: security.c,v 1.17 2000/11/08 23:30:32 joda Exp $");
 
 static enum protection_level command_prot;
 static enum protection_level data_prot;
@@ -237,7 +237,7 @@ sec_read(int fd, void *data, int length)
 	ret = sec_get_data(fd, &in_buffer, data_prot);
 	if (ret < 0)
 	    return -1;
-	if(ret == 0 || in_buffer.size == 0) {
+	if(ret == 0 && in_buffer.size == 0) {
 	    if(rx)
 		in_buffer.eof_flag = 1;
 	    return rx;

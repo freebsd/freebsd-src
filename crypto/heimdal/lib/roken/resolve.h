@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: resolve.h,v 1.8 1999/12/02 16:58:52 joda Exp $ */
+/* $Id: resolve.h,v 1.12 2000/10/15 21:28:56 assar Exp $ */
 
 #ifndef __RESOLVE_H__
 #define __RESOLVE_H__
@@ -44,11 +44,20 @@
 #ifndef T_AFSDB
 #define T_AFSDB		18
 #endif
+#ifndef T_SIG
+#define T_SIG		24
+#endif
+#ifndef T_KEY
+#define T_KEY		25
+#endif
 #ifndef T_SRV
 #define T_SRV		33
 #endif
 #ifndef T_NAPTR
 #define T_NAPTR		35
+#endif
+#ifndef T_CERT
+#define T_CERT		37
 #endif
 
 struct dns_query{
@@ -69,6 +78,35 @@ struct srv_record{
     char target[1];
 };
 
+struct key_record {
+    unsigned flags;
+    unsigned protocol;
+    unsigned algorithm;
+    size_t   key_len;
+    u_char   key_data[1];
+};
+
+struct sig_record {
+    unsigned type;
+    unsigned algorithm;
+    unsigned labels;
+    unsigned orig_ttl;
+    unsigned sig_expiration;
+    unsigned sig_inception;
+    unsigned key_tag;
+    char     *signer;
+    unsigned sig_len;
+    char     sig_data[1];	/* also includes signer */
+};
+
+struct cert_record {
+    unsigned type;
+    unsigned tag;
+    unsigned algorithm;
+    size_t   cert_len;
+    u_char   cert_data[1];
+};
+
 struct resource_record{
     char *domain;
     unsigned type;
@@ -82,6 +120,9 @@ struct resource_record{
 	struct srv_record *srv;
 	struct in_addr *a;
 	char *txt;
+	struct key_record *key;
+	struct cert_record *cert;
+	struct sig_record *sig;
     }u;
     struct resource_record *next;
 };
@@ -99,5 +140,7 @@ struct dns_reply{
 
 struct dns_reply* dns_lookup(const char *, const char *);
 void dns_free_data(struct dns_reply *);
+int dns_string_to_type(const char *name);
+const char *dns_type_to_string(int type);
 
 #endif /* __RESOLVE_H__ */

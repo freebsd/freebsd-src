@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_in_tkt.c,v 1.94 2000/02/06 05:18:20 assar Exp $");
+RCSID("$Id: get_in_tkt.c,v 1.97 2000/08/18 06:47:54 assar Exp $");
 
 krb5_error_code
 krb5_init_etype (krb5_context context,
@@ -85,7 +85,9 @@ decrypt_tkt (krb5_context context,
     size_t size;
     krb5_crypto crypto;
 
-    krb5_crypto_init(context, key, 0, &crypto);
+    ret = krb5_crypto_init(context, key, 0, &crypto);
+    if (ret)
+	return ret;
 
     ret = krb5_decrypt_EncryptedData (context,
 				      crypto,
@@ -124,6 +126,7 @@ _krb5_extract_ticket(krb5_context context,
 		     krb5_addresses *addrs,
 		     unsigned nonce,
 		     krb5_boolean allow_server_mismatch,
+		     krb5_boolean ignore_cname,
 		     krb5_decrypt_proc decrypt_proc,
 		     krb5_const_pointer decryptarg)
 {
@@ -133,20 +136,26 @@ _krb5_extract_ticket(krb5_context context,
     time_t tmp_time;
     krb5_timestamp sec_now;
 
-    /* compare client */
-
     ret = principalname2krb5_principal (&tmp_principal,
 					rep->kdc_rep.cname,
 					rep->kdc_rep.crealm);
     if (ret)
 	goto out;
-    tmp = krb5_principal_compare (context, tmp_principal, creds->client);
-    krb5_free_principal (context, tmp_principal);
-    if (!tmp) {
-	ret = KRB5KRB_AP_ERR_MODIFIED;
-	goto out;
+
+    /* compare client */
+
+    if (!ignore_cname) {
+	tmp = krb5_principal_compare (context, tmp_principal, creds->client);
+	if (!tmp) {
+	    krb5_free_principal (context, tmp_principal);
+	    ret = KRB5KRB_AP_ERR_MODIFIED;
+	    goto out;
+	}
     }
-    
+
+    krb5_free_principal (context, creds->client);
+    creds->client = tmp_principal;
+
     /* extract ticket */
     {
 	unsigned char *buf;
@@ -314,7 +323,9 @@ make_pa_enc_timestamp(krb5_context context, PA_DATA *pa,
     if (ret)
 	return ret;
 
-    krb5_crypto_init(context, key, 0, &crypto);
+    ret = krb5_crypto_init(context, key, 0, &crypto);
+    if (ret)
+	return ret;
     ret = krb5_encrypt_EncryptedData(context, 
 				     crypto,
 				     KRB5_KU_PA_ENC_TIMESTAMP,
@@ -333,7 +344,7 @@ make_pa_enc_timestamp(krb5_context context, PA_DATA *pa,
     free_EncryptedData(&encdata);
     if (ret)
 	return ret;
-    pa->padata_type = pa_enc_timestamp;
+    pa->padata_type = KRB5_PADATA_ENC_TIMESTAMP;
     pa->padata_value.length = 0;
     krb5_data_copy(&pa->padata_value,
 		   buf + sizeof(buf) - len,
@@ -575,10 +586,10 @@ set_ptypes(krb5_context context,
 			   NULL);
 	for(i = 0; i < md.len; i++){
 	    switch(md.val[i].padata_type){
-	    case pa_enc_timestamp:
+	    case KRB5_PADATA_ENC_TIMESTAMP:
 		*ptypes = ptypes2;
 		break;
-	    case pa_etype_info:
+	    case KRB5_PADATA_ETYPE_INFO:
 		*preauth = &preauth2;
 		ALLOC_SEQ(*preauth, 1);
 		(*preauth)->val[0].type = KRB5_PADATA_ENC_TIMESTAMP;
@@ -587,6 +598,8 @@ set_ptypes(krb5_context context,
 				       md.val[i].padata_value.length,
 				       &(*preauth)->val[0].info,
 				       NULL);
+		break;
+	    default:
 		break;
 	    }
 	}
@@ -707,12 +720,12 @@ krb5_get_in_cred(krb5_context context,
     if(rep.kdc_rep.padata){
 	int index = 0;
 	pa = krb5_find_padata(rep.kdc_rep.padata->val, rep.kdc_rep.padata->len, 
-			      pa_pw_salt, &index);
+			      KRB5_PADATA_PW_SALT, &index);
 	if(pa == NULL) {
 	    index = 0;
 	    pa = krb5_find_padata(rep.kdc_rep.padata->val, 
 				  rep.kdc_rep.padata->len, 
-				  pa_afs3_salt, &index);
+				  KRB5_PADATA_AFS3_SALT, &index);
 	}
     }
     if(pa) {
@@ -741,6 +754,7 @@ krb5_get_in_cred(krb5_context context,
 			       NULL, 
 			       nonce, 
 			       FALSE, 
+			       opts.b.request_anonymous,
 			       decrypt_proc, 
 			       decryptarg);
     memset (key->keyvalue.data, 0, key->keyvalue.length);

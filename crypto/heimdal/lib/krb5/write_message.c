@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: write_message.c,v 1.4 1999/12/02 17:05:13 joda Exp $");
+RCSID("$Id: write_message.c,v 1.6 2000/07/21 23:49:09 joda Exp $");
 
 krb5_error_code
 krb5_write_message (krb5_context context,
@@ -44,12 +44,42 @@ krb5_write_message (krb5_context context,
     u_int8_t buf[4];
 
     len = data->length;
-    buf[0] = (len >> 24) & 0xFF;
-    buf[1] = (len >> 16) & 0xFF;
-    buf[2] = (len >>  8) & 0xFF;
-    buf[3] = (len >>  0) & 0xFF;
+    _krb5_put_int(buf, len, 4);
     if (krb5_net_write (context, p_fd, buf, 4) != 4
 	|| krb5_net_write (context, p_fd, data->data, len) != len)
 	return errno;
     return 0;
+}
+
+krb5_error_code
+krb5_write_priv_message(krb5_context context,
+			krb5_auth_context ac,
+			krb5_pointer p_fd,
+			krb5_data *data)
+{
+    krb5_error_code ret;
+    krb5_data packet;
+    ret = krb5_mk_priv (context, ac, data, &packet, NULL);
+    if(ret)
+	return ret;
+    ret = krb5_write_message(context, p_fd, &packet);
+    krb5_data_free(&packet);
+    return ret;
+}
+
+krb5_error_code
+krb5_write_safe_message(krb5_context context,
+			krb5_auth_context ac,
+			krb5_boolean priv,
+			krb5_pointer p_fd,
+			krb5_data *data)
+{
+    krb5_error_code ret;
+    krb5_data packet;
+    ret = krb5_mk_safe (context, ac, data, &packet, NULL);
+    if(ret)
+	return ret;
+    ret = krb5_write_message(context, p_fd, &packet);
+    krb5_data_free(&packet);
+    return ret;
 }

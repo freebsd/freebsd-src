@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997, 1998, 1999, 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: config_file.c,v 1.38 1999/12/02 17:05:08 joda Exp $");
+RCSID("$Id: config_file.c,v 1.41 2000/08/16 07:40:36 assar Exp $");
 
 #ifndef HAVE_NETINFO
 
@@ -210,7 +210,7 @@ krb5_config_parse_file_debug (const char *fname,
     krb5_config_section *s;
     krb5_config_binding *b;
     char buf[BUFSIZ];
-    int ret;
+    int ret = 0;
 
     s = NULL;
     b = NULL;
@@ -218,7 +218,7 @@ krb5_config_parse_file_debug (const char *fname,
     f = fopen (fname, "r");
     if (f == NULL) {
 	*error_message = "cannot open file";
-	return -1;
+	return ENOENT;
     }
     *res = NULL;
     while (fgets(buf, sizeof(buf), f) != NULL) {
@@ -234,20 +234,23 @@ krb5_config_parse_file_debug (const char *fname,
 	    continue;
 	if (*p == '[') {
 	    ret = parse_section(p, &s, res, error_message);
-	    if (ret)
-		return ret;
+	    if (ret) {
+		goto out;
+	    }
 	    b = NULL;
 	} else if (*p == '}') {
 	    *error_message = "unmatched }";
-	    return -1;
+	    ret = -1;
+	    goto out;
 	} else if(*p != '\0') {
 	    ret = parse_binding(f, lineno, p, &b, &s->u.list, error_message);
 	    if (ret)
-		return ret;
+		goto out;
 	}
     }
+out:
     fclose (f);
-    return 0;
+    return ret;
 }
 
 krb5_error_code
@@ -420,6 +423,35 @@ krb5_config_vget_string (krb5_context context,
 			 va_list args)
 {
     return krb5_config_vget (context, c, krb5_config_string, args);
+}
+
+const char *
+krb5_config_vget_string_default (krb5_context context,
+				 krb5_config_section *c,
+				 const char *def_value,
+				 va_list args)
+{
+    const char *ret;
+
+    ret = krb5_config_vget_string (context, c, args);
+    if (ret == NULL)
+	ret = def_value;
+    return ret;
+}
+
+const char *
+krb5_config_get_string_default (krb5_context context,
+				krb5_config_section *c,
+				const char *def_value,
+				...)
+{
+    const char *ret;
+    va_list args;
+
+    va_start(args, def_value);
+    ret = krb5_config_vget_string_default (context, c, def_value, args);
+    va_end(args);
+    return ret;
 }
 
 char **

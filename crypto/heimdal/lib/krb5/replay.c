@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,6 +32,9 @@
  */
 
 #include "krb5_locl.h"
+#include <vis.h>
+
+RCSID("$Id: replay.c,v 1.7 2001/01/29 02:09:00 assar Exp $");
 
 struct krb5_rcache_data {
     char *name;
@@ -80,6 +83,12 @@ const char *
 krb5_rc_default_name(krb5_context context)
 {
     return "FILE:/var/run/default_rcache";
+}
+
+const char *
+krb5_rc_default_type(krb5_context context)
+{
+    return "FILE";
 }
 
 krb5_error_code
@@ -140,20 +149,20 @@ checksum_authenticator(Authenticator *auth, void *data)
     MD5_CTX md5;
     int i;
 
-    MD5Init (&md5);
-    MD5Update (&md5, auth->crealm, strlen(auth->crealm));
+    MD5_Init (&md5);
+    MD5_Update (&md5, auth->crealm, strlen(auth->crealm));
     for(i = 0; i < auth->cname.name_string.len; i++)
-	MD5Update(&md5, auth->cname.name_string.val[i], 
-		  strlen(auth->cname.name_string.val[i]));
-    MD5Update (&md5, &auth->ctime, sizeof(auth->ctime));
-    MD5Update (&md5, &auth->cusec, sizeof(auth->cusec));
-    MD5Final (&md5, data);
+	MD5_Update(&md5, auth->cname.name_string.val[i], 
+		   strlen(auth->cname.name_string.val[i]));
+    MD5_Update (&md5, &auth->ctime, sizeof(auth->ctime));
+    MD5_Update (&md5, &auth->cusec, sizeof(auth->cusec));
+    MD5_Final (data, &md5);
 }
 
 krb5_error_code
 krb5_rc_store(krb5_context context,
 	      krb5_rcache id,
-	      krb5_donot_reply *rep)
+	      krb5_donot_replay *rep)
 {
     struct rc_entry ent, tmp;
     time_t t;
@@ -209,6 +218,7 @@ krb5_rc_get_lifespan(krb5_context context,
     }
     return KRB5_RC_IO_UNKNOWN;
 }
+
 const char*
 krb5_rc_get_name(krb5_context context,
 		 krb5_rcache id)
@@ -223,3 +233,32 @@ krb5_rc_get_type(krb5_context context,
     return "FILE";
 }
 		 
+krb5_error_code
+krb5_get_server_rcache(krb5_context context, 
+		       const krb5_data *piece, 
+		       krb5_rcache *id)
+{
+    krb5_rcache rcache;
+    krb5_error_code ret;
+
+    char *tmp = malloc(4 * piece->length + 1);
+    char *name;
+    if(tmp == NULL)
+	return ENOMEM;
+    strvisx(tmp, piece->data, piece->length, VIS_WHITE | VIS_OCTAL);
+#ifdef HAVE_GETEUID
+    asprintf(&name, "FILE:rc_%s_%u", tmp, geteuid());
+#else
+    asprintf(&name, "FILE:rc_%s", tmp);
+#endif
+    free(tmp);
+    if(name == NULL)
+	return ENOMEM;
+
+    ret = krb5_rc_resolve_full(context, &rcache, name);
+    free(name);
+    if(ret)
+	return ret;
+    *id = rcache;
+    return ret;
+}

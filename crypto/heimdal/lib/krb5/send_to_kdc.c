@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: send_to_kdc.c,v 1.36 2000/01/06 07:59:11 assar Exp $");
+RCSID("$Id: send_to_kdc.c,v 1.40 2000/11/15 01:48:23 assar Exp $");
 
 /*
  * send the data in `req' on the socket `fd' (which is datagram iff udp)
@@ -53,6 +53,10 @@ recv_loop (int fd,
      struct timeval timeout;
      int ret;
      int nbytes;
+
+     if (fd >= FD_SETSIZE) {
+	 return -1;
+     }
 
      krb5_data_zero(rep);
      do {
@@ -237,7 +241,8 @@ send_via_proxy (krb5_context context,
 		const krb5_data *send,
 		krb5_data *receive)
 {
-    char *proxy = strdup(context->http_proxy);
+    char *proxy2 = strdup(context->http_proxy);
+    char *proxy  = proxy2;
     char *prefix;
     char *colon;
     struct addrinfo hints;
@@ -246,6 +251,11 @@ send_via_proxy (krb5_context context,
     int s;
     char portstr[NI_MAXSERV];
 		 
+    if (proxy == NULL)
+	return ENOMEM;
+    if (strncmp (proxy, "http://", 7) == 0)
+	proxy += 7;
+
     colon = strchr(proxy, ':');
     if(colon != NULL)
 	*colon++ = '\0';
@@ -254,10 +264,10 @@ send_via_proxy (krb5_context context,
     hints.ai_socktype = SOCK_STREAM;
     snprintf (portstr, sizeof(portstr), "%d",
 	      ntohs(init_port (colon, htons(80))));
-    ret = getaddrinfo (proxy, portstr, NULL, &ai);
-    free (proxy);
+    ret = getaddrinfo (proxy, portstr, &hints, &ai);
+    free (proxy2);
     if (ret)
-	return ret;
+	return krb5_eai_to_heim_errno(ret);
 
     for (a = ai; a != NULL; a = a->ai_next) {
 	s = socket (a->ai_family, a->ai_socktype, a->ai_protocol);
@@ -295,25 +305,16 @@ send_via_proxy (krb5_context context,
  */
 
 krb5_error_code
-krb5_sendto_kdc (krb5_context context,
-		 const krb5_data *send,
-		 const krb5_realm *realm,
-		 krb5_data *receive)
+krb5_sendto (krb5_context context,
+	     const krb5_data *send,
+	     char **hostlist,
+	     int port,
+	     krb5_data *receive)
 {
-     krb5_error_code ret;
-     char **hostlist, **hp, *p;
+     krb5_error_code ret = 0;
+     char **hp, *p;
      int fd;
-     int port;
      int i;
-
-     port = krb5_getportbyname (context, "kerberos", "udp", 88);
-
-     if (context->use_admin_kdc)
-	 ret = krb5_get_krb_admin_hst (context, realm, &hostlist);
-     else
-	 ret = krb5_get_krbhst (context, realm, &hostlist);
-     if (ret)
-	  return ret;
 
      for (i = 0; i < context->max_retries; ++i)
 	 for (hp = hostlist; (p = *hp); ++hp) {
@@ -390,6 +391,38 @@ krb5_sendto_kdc (krb5_context context,
 	 }
      ret = KRB5_KDC_UNREACH;
 out:
-     krb5_free_krbhst (context, hostlist);
      return ret;
+}
+
+krb5_error_code
+krb5_sendto_kdc2(krb5_context context,
+		 const krb5_data *send,
+		 const krb5_realm *realm,
+		 krb5_data *receive,
+		 krb5_boolean master)
+{
+    krb5_error_code ret;
+    char **hostlist;
+    int port;
+    
+    port = krb5_getportbyname (context, "kerberos", "udp", 88);
+    
+    if (master || context->use_admin_kdc)
+	ret = krb5_get_krb_admin_hst (context, realm, &hostlist);
+    else
+	ret = krb5_get_krbhst (context, realm, &hostlist);
+    if (ret)
+	return ret;
+    ret = krb5_sendto(context, send, hostlist, port, receive);
+    krb5_free_krbhst (context, hostlist);
+    return ret;
+}
+
+krb5_error_code
+krb5_sendto_kdc(krb5_context context,
+		const krb5_data *send,
+		const krb5_realm *realm,
+		krb5_data *receive)
+{
+    return krb5_sendto_kdc2(context, send, realm, receive, FALSE);
 }

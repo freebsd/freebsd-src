@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: crc.c,v 1.8 1999/12/02 17:05:08 joda Exp $");
+RCSID("$Id: crc.c,v 1.9 2000/08/03 01:45:14 assar Exp $");
 
 static u_long table[256];
 
@@ -63,7 +63,7 @@ _krb5_crc_init_table(void)
 }
 
 u_int32_t
-_krb5_crc_update (char *p, size_t len, u_int32_t res)
+_krb5_crc_update (const char *p, size_t len, u_int32_t res)
 {
     while (len--)
 	res = table[(res ^ *p++) & 0xFF] ^ (res >> 8);

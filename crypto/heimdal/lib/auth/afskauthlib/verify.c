@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: verify.c,v 1.20 1999/12/02 16:58:37 joda Exp $");
+RCSID("$Id: verify.c,v 1.24 2000/12/31 07:57:08 assar Exp $");
 #endif
 #include <unistd.h>
 #include <sys/types.h>
@@ -123,7 +123,11 @@ verify_krb5(struct passwd *pwd,
     krb5_ccache ccache;
     krb5_principal principal;
     
-    krb5_init_context(&context);
+    ret = krb5_init_context(&context);
+    if (ret) {
+	syslog(LOG_AUTH|LOG_DEBUG, "krb5_init_context failed: %d", ret);
+	goto out;
+    }
 
     ret = krb5_parse_name (context, pwd->pw_name, &principal);
     if (ret) {
@@ -193,9 +197,11 @@ verify_krb5(struct passwd *pwd,
     if (!pag_set && k_hasafs()) {
 	k_setpag();
 	pag_set = 1;
+    }
+
+    if (pag_set)
 	krb5_afslog_uid_home(context, ccache, NULL, NULL, 
 			     pwd->pw_uid, pwd->pw_dir);
-    }
 #endif
 out:
     if(ret && !quiet)
@@ -222,8 +228,9 @@ verify_krb4(struct passwd *pwd,
 	    if (!pag_set && k_hasafs()) {
 		k_setpag ();
 		pag_set = 1;
+            }
+            if (pag_set)
 		krb_afslog_uid_home (0, 0, pwd->pw_uid, pwd->pw_dir);
-	    }
 	} else if (!quiet)
 	    printf ("%s\n", krb_get_err_text (ret));
     }
@@ -242,6 +249,12 @@ afs_verify(char *name,
 
     if(pwd == NULL)
 	return 1;
+
+    if (!pag_set && k_hasafs()) {
+        k_setpag();
+        pag_set=1;
+    }
+
     if (ret)
 	ret = unix_verify_user (name, password);
 #ifdef KRB5
@@ -277,10 +290,10 @@ afs_gettktstring (void)
 	}
     }
 #ifdef KRB5
-    setenv("KRB5CCNAME",krb5ccname,1);
+    esetenv("KRB5CCNAME",krb5ccname,1);
 #endif
 #ifdef KRB4
-    setenv("KRBTKFILE",krbtkfile,1);
+    esetenv("KRBTKFILE",krbtkfile,1);
     return krbtkfile;
 #else
     return "";

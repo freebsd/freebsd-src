@@ -76,17 +76,11 @@ FILE   *ftpd_popen(char *, char *, int, int);
 char   *ftpd_getline(char *, int);
 void	ftpd_logwtmp(char *, char *, char *);
 void	lreply(int, const char *, ...)
-#ifdef __GNUC__
-__attribute__ ((format (printf, 2, 3)))
-#endif
-;
+    __attribute__ ((format (printf, 2, 3)));
 void	makedir(char *);
 void	nack(char *);
 void	nreply(const char *, ...)
-#ifdef __GNUC__
-__attribute__ ((format (printf, 1, 2)))
-#endif
-;
+    __attribute__ ((format (printf, 1, 2)));
 void	pass(char *);
 void	pasv(void);
 void	perror_reply(int, const char *);
@@ -95,17 +89,11 @@ void	removedir(char *);
 void	renamecmd(char *, char *);
 char   *renamefrom(char *);
 void	reply(int, const char *, ...)
-#ifdef __GNUC__
-__attribute__ ((format (printf, 2, 3)))
-#endif
-;
+    __attribute__ ((format (printf, 2, 3)));
 void	retrieve(const char *, char *);
 void	send_file_list(char *);
 void	setproctitle(const char *, ...)
-#ifdef __GNUC__
-__attribute__ ((format (printf, 1, 2)))
-#endif
-;
+    __attribute__ ((format (printf, 1, 2)));
 void	statcmd(void);
 void	statfilecmd(char *);
 void	do_store(char *, char *, int);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,15 +33,17 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: kadmind.c,v 1.16 1999/12/02 17:04:58 joda Exp $");
+RCSID("$Id: kadmind.c,v 1.24 2000/12/31 07:45:23 assar Exp $");
 
+static char *check_library  = NULL;
+static char *check_function = NULL;
 static char *config_file;
 static char *keyfile;
 static char *keytab_str = "HDB:";
 static int help_flag;
 static int version_flag;
 static int debug_flag;
-static int debug_port;
+static char *port_str;
 char *realm;
 
 static struct getargs args[] = {
@@ -60,11 +62,17 @@ static struct getargs args[] = {
     {	"realm",	'r',	arg_string,   &realm, 
 	"realm to use", "realm" 
     },
+#ifdef HAVE_DLOPEN
+    { "check-library", 0, arg_string, &check_library, 
+      "library to load password check function from", "library" },
+    { "check-function", 0, arg_string, &check_function,
+      "password check function to load", "function" },
+#endif
     {	"debug",	'd',	arg_flag,   &debug_flag, 
 	"enable debugging" 
     },
-    {	"debug-port",	'p',	arg_integer,&debug_port, 
-	"port to use with debug", "port" },
+    {	"ports",	'p',	arg_string, &port_str, 
+	"ports to listen to", "port" },
     {	"help",		'h',	arg_flag,   &help_flag },
     {	"version",	'v',	arg_flag,   &version_flag }
 };
@@ -80,9 +88,6 @@ usage(int ret)
     exit (ret);
 }
 
-krb5_error_code
-kadmind_loop (krb5_context, krb5_auth_context, krb5_keytab, int);
-
 int
 main(int argc, char **argv)
 {
@@ -95,7 +100,9 @@ main(int argc, char **argv)
 
     set_progname(argv[0]);
 
-    krb5_init_context(&context);
+    ret = krb5_init_context(&context);
+    if (ret)
+	errx (1, "krb5_init_context failed: %d", ret);
 
     ret = krb5_openlog(context, "kadmind", &logf);
     ret = krb5_set_warn_dest(context, logf);
@@ -132,16 +139,27 @@ main(int argc, char **argv)
     if(ret)
 	krb5_err(context, 1, ret, "krb5_kt_resolve");
 
+    kadm5_setup_passwd_quality_check (context, check_library, check_function);
+
     {
 	int fd = 0;
+	struct sockaddr sa;
+	socklen_t sa_size;
 	krb5_auth_context ac = NULL;
-	if(debug_flag){
-	    if(debug_port == 0)
+	int debug_port;
+	sa_size = sizeof(sa);
+	if(debug_flag) {
+	    if(port_str == NULL)
 		debug_port = krb5_getportbyname (context, "kerberos-adm", 
 						 "tcp", 749);
 	    else
-		debug_port = htons(debug_port);
+		debug_port = htons(atoi(port_str));
 	    mini_inetd(debug_port);
+	} else if(roken_getsockname(STDIN_FILENO, &sa, &sa_size) < 0 && 
+		   errno == ENOTSOCK) {
+	    parse_ports(context, port_str ? port_str : "+");
+	    pidfile(NULL);
+	    start_server(context);
 	}
 	if(realm)
 	    krb5_set_default_realm(context, realm); /* XXX */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: verify_user.c,v 1.11 1999/12/02 17:05:13 joda Exp $");
+RCSID("$Id: verify_user.c,v 1.12 2001/01/04 17:40:00 joda Exp $");
 
 static krb5_error_code
 verify_common (krb5_context context,
@@ -101,6 +101,9 @@ krb5_verify_user(krb5_context context,
     krb5_creds cred;
     
     krb5_get_init_creds_opt_init (&opt);
+    krb5_get_init_creds_opt_set_default_flags(context, NULL, 
+					      *krb5_princ_realm(context, principal), 
+					      &opt);
 
     ret = krb5_get_init_creds_password (context,
 					&cred,
@@ -152,6 +155,9 @@ krb5_verify_user_lrealm(krb5_context context,
 	free (*krb5_princ_realm (context, principal));
 	krb5_princ_set_realm (context, principal, &tmp);
 
+	krb5_get_init_creds_opt_set_default_flags(context, NULL, 
+						  *krb5_princ_realm(context, principal), 
+						  &opt);
 	ret = krb5_get_init_creds_password (context,
 					    &cred,
 					    principal,

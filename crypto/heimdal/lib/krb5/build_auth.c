@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: build_auth.c,v 1.32 1999/12/02 17:05:08 joda Exp $");
+RCSID("$Id: build_auth.c,v 1.34 2000/11/15 06:58:51 assar Exp $");
 
 krb5_error_code
 krb5_build_authenticator (krb5_context context,
@@ -42,7 +42,8 @@ krb5_build_authenticator (krb5_context context,
 			  krb5_creds *cred,
 			  Checksum *cksum,
 			  Authenticator **auth_result,
-			  krb5_data *result)
+			  krb5_data *result,
+			  krb5_key_usage usage)
 {
   Authenticator *auth;
   u_char *buf = NULL;
@@ -126,9 +127,11 @@ krb5_build_authenticator (krb5_context context,
   } while(ret == ASN1_OVERFLOW);
 
   ret = krb5_crypto_init(context, &cred->session, enctype, &crypto);
+  if (ret)
+      goto fail;
   ret = krb5_encrypt (context,
 		      crypto,
-		      KRB5_KU_AP_REQ_AUTH,
+		      usage /* KRB5_KU_AP_REQ_AUTH */,
 		      buf + buf_size - len, 
 		      len,
 		      result);

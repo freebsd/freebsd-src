@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -36,13 +36,13 @@
 #include <krb5.h>
 #include "nt_gss_common.h"
 
-RCSID("$Id: nt_gss_server.c,v 1.3 1999/12/16 10:29:58 assar Exp $");
+RCSID("$Id: nt_gss_server.c,v 1.5 2000/08/09 20:53:07 assar Exp $");
 
 /*
  * This program tries to act as a server for the sample in `Sample
  * SSPI Code' in Windows 2000 RC1 SDK.
  *
- * use --dump-add to get a binary dump of the authorization data in the ticket
+ * use --dump-auth to get a binary dump of the authorization data in the ticket
  */
 
 static int help_flag;
@@ -66,7 +66,7 @@ static int
 proto (int sock, const char *service)
 {
     struct sockaddr_in remote, local;
-    int addrlen;
+    socklen_t addrlen;
     gss_ctx_id_t context_hdl = GSS_C_NO_CONTEXT;
     gss_buffer_t input_token, output_token;
     gss_buffer_desc real_input_token, real_output_token;

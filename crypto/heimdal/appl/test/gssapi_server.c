@@ -34,7 +34,7 @@
 #include "test_locl.h"
 #include <gssapi.h>
 #include "gss_common.h"
-RCSID("$Id: gssapi_server.c,v 1.12 2000/02/12 21:34:11 assar Exp $");
+RCSID("$Id: gssapi_server.c,v 1.15 2000/08/09 20:53:07 assar Exp $");
 
 static int
 process_it(int sock,
@@ -105,13 +105,18 @@ static int
 proto (int sock, const char *service)
 {
     struct sockaddr_in remote, local;
-    int addrlen;
+    socklen_t addrlen;
     gss_ctx_id_t context_hdl = GSS_C_NO_CONTEXT;
     gss_buffer_desc real_input_token, real_output_token;
     gss_buffer_t input_token = &real_input_token,
 	output_token = &real_output_token;
     OM_uint32 maj_stat, min_stat;
     gss_name_t client_name;
+    struct gss_channel_bindings_struct input_chan_bindings;
+    gss_cred_id_t delegated_cred_handle = NULL;
+    krb5_ccache ccache;
+    u_char init_buf[4];
+    u_char acct_buf[4];
 
     addrlen = sizeof(local);
     if (getsockname (sock, (struct sockaddr *)&local, &addrlen) < 0
@@ -123,6 +128,37 @@ proto (int sock, const char *service)
 	|| addrlen != sizeof(remote))
 	err (1, "getpeername");
 
+    input_chan_bindings.initiator_addrtype = GSS_C_AF_INET;
+    input_chan_bindings.initiator_address.length = 4;
+    init_buf[0] = (remote.sin_addr.s_addr >> 24) & 0xFF;
+    init_buf[1] = (remote.sin_addr.s_addr >> 16) & 0xFF;
+    init_buf[2] = (remote.sin_addr.s_addr >>  8) & 0xFF;
+    init_buf[3] = (remote.sin_addr.s_addr >>  0) & 0xFF;
+
+    input_chan_bindings.initiator_address.value = init_buf;
+    input_chan_bindings.acceptor_addrtype = GSS_C_AF_INET;
+
+    input_chan_bindings.acceptor_address.length = 4;
+    acct_buf[0] = (local.sin_addr.s_addr >> 24) & 0xFF;
+    acct_buf[1] = (local.sin_addr.s_addr >> 16) & 0xFF;
+    acct_buf[2] = (local.sin_addr.s_addr >>  8) & 0xFF;
+    acct_buf[3] = (local.sin_addr.s_addr >>  0) & 0xFF;
+    input_chan_bindings.acceptor_address.value = acct_buf;
+    input_chan_bindings.application_data.value = emalloc(4);
+#if 0
+    * (unsigned short *)input_chan_bindings.application_data.value =
+                          remote.sin_port;
+    * ((unsigned short *)input_chan_bindings.application_data.value + 1) =
+                          local.sin_port;
+    input_chan_bindings.application_data.length = 4;
+#else
+    input_chan_bindings.application_data.length = 0;
+    input_chan_bindings.application_data.value = NULL;
+#endif
+    
+    delegated_cred_handle = emalloc(sizeof(*delegated_cred_handle));
+    memset((char*)delegated_cred_handle, 0, sizeof(*delegated_cred_handle));
+    
     do {
 	read_token (sock, input_token);
 	maj_stat =
@@ -130,13 +166,13 @@ proto (int sock, const char *service)
 				    &context_hdl,
 				    GSS_C_NO_CREDENTIAL,
 				    input_token,
-				    GSS_C_NO_CHANNEL_BINDINGS,
+				    &input_chan_bindings,
 				    &client_name,
 				    NULL,
 				    output_token,
 				    NULL,
 				    NULL,
-				    NULL);
+				    /*&delegated_cred_handle*/ NULL);
 	if(GSS_ERROR(maj_stat))
 	    gss_err (1, min_stat, "gss_accept_sec_context");
 	if (output_token->length != 0)
@@ -149,6 +185,17 @@ proto (int sock, const char *service)
 	    break;
 	}
     } while(maj_stat & GSS_S_CONTINUE_NEEDED);
+    
+    if (delegated_cred_handle->ccache) {
+       krb5_context context;
+
+       maj_stat = krb5_init_context(&context);
+       maj_stat = krb5_cc_resolve(context, "FILE:/tmp/krb5cc_test", &ccache);
+       maj_stat = krb5_cc_copy_cache(context,
+                                      delegated_cred_handle->ccache, ccache);
+       krb5_cc_close(context, ccache);
+       krb5_cc_destroy(context, delegated_cred_handle->ccache);
+    }
 
     if (fork_flag) {
 	pid_t pid;

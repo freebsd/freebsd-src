@@ -1,22 +1,23 @@
-.\" $Id: ktutil.8,v 1.6 2000/01/02 05:07:50 assar Exp $
+.\" $Id: ktutil.8,v 1.9 2000/12/16 00:58:49 joda Exp $
 .\"
-.Dd Aug 27, 1997
+.Dd December 16, 2000
 .Dt KTUTIL 8
 .Os HEIMDAL
 .Sh NAME
 .Nm ktutil
-.Ar command
 .Nd
-handle a keytab
+manage Kerberos keytabs
 .Sh SYNOPSIS
 .Nm
-.Op Fl k Ar keytab
-.Op Fl -keytab= Ns Ar keytab
-.Op Fl v
+.Oo Fl k Ar keytab \*(Ba Xo
+.Fl -keytab= Ns Ar keytab 
+.Xc
+.Oc
+.Op Fl v | Fl -verbose
 .Op Fl -version
-.Op Fl h
-.Op Fl -help
-.Ar command
+.Op Fl h | Fl -help
+.Ar command 
+.Op Ar args
 .Sh DESCRIPTION
 .Nm
 is a program for managing keytabs.
@@ -43,7 +44,7 @@ prompted for.
 .Op Fl r Ar realm
 .Op Fl -realm= Ns Ar realm
 .Op Fl -a Ar host
-.Op Fl -admin-server= Ns Ar hots
+.Op Fl -admin-server= Ns Ar host
 .Op Fl -s Ar port
 .Op Fl -server-port= Ns Ar port
 .Xc
@@ -74,7 +75,10 @@ to
 Get a key for
 .Nm principal
 and store it in a keytab.
-.It list
+.It list Xo
+.Op Fl -keys
+.Op Fl -timestamp
+.Xc
 List the keys stored in the keytab.
 .It remove Xo
 .Op Fl p Ar principal
@@ -94,8 +98,8 @@ removes keys of any type.
 .Xc
 Removes all old entries (for which there is a newer version) that are
 older than
-.Ar age
-seconds.
+.Ar age 
+(default one week).
 .It srvconvert
 .It srv2keytab Xo
 .Op Fl s Ar srvtab
@@ -104,7 +108,13 @@ seconds.
 Converts the version 4 srvtab in
 .Ar srvtab
 to a version 5 keytab and stores it in
-.Ar keytab .
+.Ar keytab . 
+Identical to:
+.Bd -ragged -offset indent
+.Li ktutil copy 
+.Li krb4: Ns Ar srvtab
+.Ar keytab 
+.Ed
 .It srvcreate
 .It key2srvtab Xo
 .Op Fl s Ar srvtab
@@ -114,6 +124,12 @@ Converts the version 5 keytab in
 .Ar keytab
 to a version 4 srvtab and stores it in
 .Ar srvtab .
+Identical to:
+.Bd -ragged -offset indent
+.Li ktutil copy 
+.Ar keytab 
+.Li krb4: Ns Ar srvtab
+.Ed
 .El
 .Sh SEE ALSO
 .Xr kadmin 8
