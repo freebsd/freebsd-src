@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <uuid.h>
 
 #include "map.h"
 #include "gpt.h"
@@ -126,63 +127,6 @@ unicode16(short *dst, const wchar_t *src, size_t len)
 	if (len)
 		*dst = 0;
 }
-
-#ifdef NEED_UUID_FUNCTIONS
-void
-uuid_create(uuid_t *u, uint32_t *st __unused)
-{
-	uuidgen(u, 1);
-}
-
-void
-uuid_from_string(const char *s, uuid_t *u, uint32_t *st)
-{
-	int n;
-
-	*st = uuid_s_invalid_string_uuid;
-
-	if (strlen(s) != 36 || s[8] != '-')
-		return;
-
-	n = sscanf(s,
-	    "%8x-%4hx-%4hx-%2hhx%2hhx-%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
-	    &u->time_low, &u->time_mid, &u->time_hi_and_version,
-	    &u->clock_seq_hi_and_reserved, &u->clock_seq_low, &u->node[0],
-	    &u->node[1], &u->node[2], &u->node[3], &u->node[4], &u->node[5]);
-
-	if (n != 11)
-		return;
-
-	n = u->clock_seq_hi_and_reserved;
-	if ((n & 0x80) != 0x00 &&			/* variant 0? */
-	    (n & 0xc0) != 0x80 &&			/* variant 1? */
-	    (n & 0xe0) != 0xc0)				/* variant 2? */
-		*st = uuid_s_bad_version;
-	else
-		*st = uuid_s_ok;
-}
-
-int32_t
-uuid_is_nil(uuid_t *u, uint32_t *st __unused)
-{
-	uint32_t *p;
-
-	p = (uint32_t*)u;
-	return ((p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 0) ? 1 : 0);
-}
-
-void
-uuid_to_string(uuid_t *u, char **s, uint32_t *st __unused)
-{
-	char buf[40];
-
-	sprintf(buf, "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-	    u->time_low, u->time_mid, u->time_hi_and_version,
-	    u->clock_seq_hi_and_reserved, u->clock_seq_low, u->node[0],
-	    u->node[1], u->node[2], u->node[3], u->node[4], u->node[5]);
-	*s = strdup(buf);
-}
-#endif
 
 void*
 gpt_read(int fd, off_t lba, size_t count)
