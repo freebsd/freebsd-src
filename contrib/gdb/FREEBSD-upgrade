@@ -1,9 +1,18 @@
+$FreeBSD$
+
 To strip down a new version of gdb for import, extract
 the files like this:
 
-    tar -xvzf gdb-4.18.tar.gz -X FREEBSD-Xlist
-    tar -xvzf gdb-4.18.tar.gz gdb-4.18/gdb/config/i386
-    tar -xvzf gdb-4.18.tar.gz gdb-4.18/gdb/config/alpha
-    tar -xvzf gdb-4.18.tar.gz gdb-4.18/gdb/config/mips
-
-
+    tar xzf gdb-5.2.1.tar.gz -X FREEBSD-Xlist
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/gdb/config/i386
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/gdb/config/alpha
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/gdb/config/powerpc
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/gdb/config/ia64
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/gdb/config/none
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/gdb/config/sparc
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/gdb/config/arm
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/gdb/config/nm-linux.h
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/gdb/config/tm-linux.h
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/gdb/config/tm-vxworks.h
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/include/gdb/ChangeLog
+    tar xzf gdb-5.2.1.tar.gz gdb-5.2.1/include/gdb/signals.h
