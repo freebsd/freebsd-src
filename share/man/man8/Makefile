@@ -3,5 +3,8 @@
 MAN8=	adding_user.8 intro.8 rc.8 sticky.8
 # XXX NOT IMPORTED:	man8.hp300 man8.tahoe man8.vax
 SUBDIR=	man8.i386
+MANDEPEND=_PROGSUBDIR
+
+install: maninstall
 
 .include <bsd.prog.mk>
