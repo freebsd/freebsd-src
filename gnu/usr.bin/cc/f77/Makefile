@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.6 1999/03/05 04:55:03 obrien Exp $
+# $Id: Makefile,v 1.5 1999/04/18 09:22:56 obrien Exp $
 #
 
 .include "../Makefile.inc"
@@ -8,7 +8,6 @@
 
 PROG=	f77
 SRCS=	gcc.c g77spec.c version.c
-BINDIR=	/usr/bin
 
 CFLAGS+=	-DLANG_SPECIFIC_DRIVER -DHAVE_CONFIG_H
 

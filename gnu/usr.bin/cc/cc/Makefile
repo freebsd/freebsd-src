@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.15 1999/03/05 04:55:03 obrien Exp $
+# $Id: Makefile,v 1.14 1999/04/04 16:36:32 obrien Exp $
 #
 
 .include "../Makefile.inc"
@@ -9,7 +9,6 @@
 PROG =	cc
 MAN1 =  gcc.1
 SRCS =	gcc.c
-BINDIR=	/usr/bin
 
 LINKS=	${BINDIR}/cc ${BINDIR}/gcc
 MLINKS= gcc.1 cc.1 gcc.1 c++.1 gcc.1 g++.1 gcc.1 CC.1
