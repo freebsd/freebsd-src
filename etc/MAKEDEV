@@ -852,10 +852,10 @@ ast*)
 	chr=119
 	case $unit in
 	0|1|2|3)
-		mknod rast${unit} c $chr $(($unit * 8 + 0)) root:operator
-		chmod 640 rast${unit}
-		mknod nrast${unit} c $chr $(($unit * 8 + 1)) root:operator
-		chmod 640 nrast${unit}
+		mknod ast${unit} c $chr $(($unit * 8 + 0)) root:operator
+		chmod 640 ast${unit}
+		mknod nast${unit} c $chr $(($unit * 8 + 1)) root:operator
+		chmod 640 nast${unit}
 		;;
 	*)
 		echo bad unit for tape in: $i
