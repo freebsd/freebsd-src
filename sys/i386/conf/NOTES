@@ -1917,6 +1917,8 @@ hint.spigot.0.irq="15"
 hint.spigot.0.maddr="0xee000"
 device		apm
 hint.apm.0.flags="0x20"
+device		pmtimer
+hint.pmtimer.0.at="isa"
 device		gp
 hint.gp.0.at="isa"
 hint.gp.0.port="0x2c0"
