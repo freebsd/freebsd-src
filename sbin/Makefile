@@ -63,7 +63,7 @@ SUBDIR=	adjkerntz \
 	vinum
 
 .if ${MACHINE_ARCH} == i386
-SUBDIR+=	kget
+SUBDIR+=	kget mount_nwfs
 .endif
 
 .if exists(${.CURDIR}/${MACHINE_ARCH})
