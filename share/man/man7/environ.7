@@ -87,16 +87,19 @@ from the password file
 .It Ev LANG
 This variable configures all programs which use
 .Xr setlocale 3
-to use the specified locale.
+to use the specified locale unless the
+.Ev LC_*
+variables are set.
 .It Ev LC_ALL
 Overrides the values of
 .Ev LC_COLLATE ,
 .Ev LC_CTYPE ,
 .Ev LC_MESSAGES ,
 .Ev LC_MONETARY ,
-.Ev LC_NUMERIC
+.Ev LC_NUMERIC ,
+.Ev LC_TIME
 and
-.Ev LC_TIME .
+.Ev LANG .
 .It Ev LC_COLLATE
 Locale to be used for ordering of strings.
 .It Ev LC_CTYPE
