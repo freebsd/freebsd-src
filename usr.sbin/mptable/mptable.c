@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mptable.c,v 1.9 1997/09/25 06:47:33 charnier Exp $";
+	"$Id: mptable.c,v 1.10 1998/02/24 01:11:47 bde Exp $";
 #endif /* not lint */
 
 #define VMAJOR			2
@@ -321,7 +321,7 @@ main( int argc, char *argv[] )
 
     printf( "MPTable, version %d.%d.%d\n", VMAJOR, VMINOR, VDELTA );
 
-    while ((ch = getopt(argc, argv, "d:g:h:v:")) != EOF) {
+    while ((ch = getopt(argc, argv, "d:g:h:v:")) != -1) {
 	switch(ch) {
 	case 'd':
 	    if ( strcmp( optarg, "mesg") == 0 )

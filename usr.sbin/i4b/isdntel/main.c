@@ -27,7 +27,7 @@
  *	isdntel - isdn4bsd telephone answering machine support
  *      ======================================================
  *
- *      $Id: main.c,v 1.8 1999/04/26 12:10:39 hm Exp $ 
+ *      $Id: main.c,v 1.3 1999/05/20 10:13:55 hm Exp $ 
  *
  *      last edit-date: [Mon Apr 26 13:56:35 1999]
  *
@@ -61,7 +61,7 @@ main(int argc, char **argv)
 	
 	extern char *optarg;	
 	
-	while ((i = getopt(argc, argv, "a:d:p:t:?")) != EOF)
+	while ((i = getopt(argc, argv, "a:d:p:t:?")) != -1)
 	{
 		switch (i)
 		{
