@@ -36,9 +36,6 @@ struct disk {
 	struct g_geom		*d_softc;
 };
 
-#define DISKFLAG_LOCK		0x1
-#define DISKFLAG_WANTED		0x2
-
 dev_t disk_create(int unit, struct disk *disk, int flags, struct cdevsw *cdevsw, void *unused);
 void disk_destroy(dev_t dev);
 struct disk *disk_enumerate(struct disk *disk);
