@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.119 1997/03/11 09:29:16 jkh Exp $
+ * $Id: install.c,v 1.134.2.40 1997/03/28 02:25:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -281,7 +281,7 @@ installFixitCDROM(dialogMenuItem *self)
      */
     if (symlink("/dist", "/mnt2")) {
 	msgConfirm("Unable to symlink /mnt2 to the CDROM mount point.  Please report this\n"
-		   "unexpected failure to bugs@freebsd.org.");
+		   "unexpected failure to freebsd-bugs@FreeBSD.org.");
 	return DITEM_FAILURE;
     }
 
@@ -498,14 +498,15 @@ installNovice(dialogMenuItem *self)
 		   "may do so by typing: /stand/sysinstall.");
     }
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	if (!msgYesNo("Would you like to configure any SLIP/PPP or network interface devices?")) {
+	if (!msgYesNo("Would you like to configure any Ethernet or SLIP/PPP network devices?")) {
 	    Device *tmp;
 
+	    dialog_clear_norefresh();
 	    tmp = tcpDeviceSelect();
+	    dialog_clear_norefresh();
 	    if (tmp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
 		if (!tmp->init(tmp))
 		    msgConfirm("Initialization of %s device failed.", tmp->name);
-	    dialog_clear_norefresh();
 	}
     }
 
@@ -585,11 +586,13 @@ installNovice(dialogMenuItem *self)
 	configUsers(self);
 
     dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to set the system manager's password now?\n\n"
-		  "This is the password you'll use to log in as \"root\".")) {
+    msgConfirm("Now you must set the system manager's password.\n"
+	       "This is the password you'll use to log in as \"root\".");
+    {
 	WINDOW *w = savescr();
 
-	systemExecute("passwd root");
+	if (!systemExecute("passwd root"))
+	    variable_set2("root_password", "YES");
 	restorescr(w);
     }
 
