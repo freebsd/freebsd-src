@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: trap.c,v 1.4.2.4 1998/09/09 10:55:02 cracauer Exp $
+ *	$Id: trap.c,v 1.4.2.5 1998/09/10 14:58:03 cracauer Exp $
  */
 
 #ifndef lint
@@ -41,7 +41,7 @@
 static char const sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif
 static const char rcsid[] =
-	"$Id: trap.c,v 1.4.2.4 1998/09/09 10:55:02 cracauer Exp $";
+	"$Id: trap.c,v 1.4.2.5 1998/09/10 14:58:03 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -366,10 +366,11 @@ onsig(signo)
 	if ( (signo == SIGINT || signo == SIGQUIT) && in_waitcmd != 0)
 		breakwaitcmd = 1;
 	/* 
-	 * If a trap is set, we need to make sure it is executed even
-	 * when a childs blocks all signals.
+	 * If a trap is set, not ignored and not the null command, we need 
+	 * to make sure traps are executed even when a child blocks signals.
 	 */
 	if (trap[signo] != NULL && 
+	    ! trap[signo][0] == '\0' &&
 	    ! (trap[signo][0] == ':' && trap[signo][1] == '\0'))
 		breakwaitcmd = 1;
 }
