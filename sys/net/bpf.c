@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.11 1995/09/08 11:08:52 bde Exp $
+ * $Id: bpf.c,v 1.13 1995/09/22 17:57:45 wollman Exp $
  */
 
 #include "bpfilter.h"
@@ -52,6 +52,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <machine/cpu.h>	/* for bootverbose */
 #include <sys/mbuf.h>
 #include <sys/buf.h>
 #include <sys/time.h>
@@ -191,10 +192,10 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 	if ((unsigned)len > MCLBYTES)
 		return (EIO);
 
-	MGET(m, M_WAIT, MT_DATA);
+	MGETHDR(m, M_WAIT, MT_DATA);
 	if (m == 0)
 		return (ENOBUFS);
-	if (len > MLEN) {
+	if (len > MHLEN) {
 #if BSD >= 199103
 		MCLGET(m, M_WAIT);
 		if ((m->m_flags & M_EXT) == 0) {
@@ -206,7 +207,8 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 			goto bad;
 		}
 	}
-	m->m_len = len;
+	m->m_pkthdr.len = m->m_len = len;
+	m->m_pkthdr.rcvif = NULL;
 	*mp = m;
 	/*
 	 * Make room for link header.
@@ -1304,7 +1306,8 @@ bpfattach(driverp, ifp, dlt, hdrlen)
 		for (i = 0; i < NBPFILTER; ++i)
 			D_MARKFREE(&bpf_dtab[i]);
 
-	printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
+	if (bootverbose)
+		printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
 }
 
 #if BSD >= 199103
