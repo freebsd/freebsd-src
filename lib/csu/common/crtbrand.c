@@ -1,5 +1,5 @@
 /*-
- * Copyright 1996, 1997, 1998, 2000 John D. Polstra.
+ * Copyright 2000 David E. O'Brien, John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
