@@ -1285,6 +1285,16 @@ for a bus mouse, for example.
 is set, these are the additional flags to pass to the
 .Xr moused 8
 daemon.
+.It Ar mousechar_start
+(int) If set to
+.Ar NO
+then the default mouse cursor character range 0xd0-0xd4 is used,
+otherwise range start is set
+to 
+.Ar value 
+character, see
+.Xr vidcontrol 1 .
+Use if the default range is occuped in your language code table.
 .It Ar allscreens_flags
 (str) If set,
 .Xr vidcontrol 1
