@@ -1,0 +1,111 @@
+.\" Copyright (c) 2003  Poul-Henning Kamp <phk@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 23, 2003
+.Dt CPU_ELAN 4
+.Os
+.Sh NAME
+.Nm CPU_ELAN
+.Nd AMD Elan 520 CPU support
+.Sh SYNOPSIS
+.Cd options CPU_ELAN
+.Cd options CPU_ELAN_PPS
+.Cd options CPU_ELAN_XTAL
+.Cd sysctl machdep.elan_gpio_config
+.Cd sysctl machdep.elan_freq
+.Cd options CPU_SOEKRIS
+.Sh DESCRIPTION
+.Cd options CPU_ELAN
+Enables support for the AMD Elan 520 CPU.
+.Pp
+A device "/dev/elan-mmcr" exports the MMCR register bank to userland
+using
+.Xr mmap 2 .
+.Pp
+The "i8254" timer will be adjusted to the slightly unorthodox
+frequency 1189161Hz (32768 * 45 * 25 / 31) employed by the Elan.
+.Pp
+A timecounter named "ELAN" is implemented using the general purpose timer 2,
+but it will not be usable unless HZ is configured at 150 or higher.
+This timecounter is much better than the "i8254" timecounter and should be
+used at all times.
+.Pp
+The
+.Cd sysctl machdep.elan_gpio_config
+enables configuration of the GPIO pins of the CPU.
+The string must be exactly 32 characters long.
+A '-' means the GPIO is unavailable.
+A 'l' (lower-case L) configures a
+.Xr led 4
+device (active low).
+A 'L'  configures a
+.Xr led 4
+device (active higH).
+A '.' means no configuration for this GPIO.
+These
+.Xr led 4
+devices will be named "/dev/led/gpio%d".
+For meaning of 'P', 'e' and 'E', see under
+.Cd options CPU_ELAN_PPS .
+.Pp
+The
+.Cd options CPU_ELAN_XTAL
+and
+.Cd sysctl machdep.elan_freq
+can be used to set the CPU clock crystal frequency in Hz.
+The default is 33333333 Hz.
+.Pp
+The
+.Cd options CPU_ELAN_PPS
+enables precision timestamping using the RFC2783 PPS-API via the
+"/dev/elan-mmcr" device.
+The resolution will be approx 125nsec and the precision \(+- 125nsec.
+(for 125 nsec read "4 / CPU clock crystal frequency")
+.Pp
+The input signal must be connected to the TMR1IN pin and
+a GPIO pin.
+The GPIO pin must be configured with a 'P' in 
+.Cd sysctl machdep.elan_gpio_config .
+.Pp
+In addition one GPIO pin can be configured with either 'e' (active low)
+or 'E' (active high) to become a "echo" output of the input signal.
+Please notice that this signal is not suitable for calibration.
+.Pp
+If the
+.Cd options CPU_SOEKRIS
+option is given, the support will additionally be tailored to the
+Soekris Engineering 45xx series of embedded computers.
+The "error" led will be configured (as "/dev/led/error") and the GPIO pins which are not
+available will be disabled.
+.Sh SEE ALSO
+.Xr sysctl 8 ,
+.Sh HISTORY
+The
+.Nm
+code first appeared in
+.Fx 5.x .
+.Sh AUTHORS
+.An "Poul-Henning Kamp" Aq phk@FreeBSD.org
