@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_update.c	4.28 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_update.c,v 1.2 1995/05/30 03:48:44 rgrimes Exp $";
+static char rcsid[] = "$Id: db_update.c,v 1.3 1995/08/20 21:18:31 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -343,12 +343,7 @@ db_update(name, odp, newdp, flags, htp)
 				if (!newdp || newdp->d_class != dp->d_class)
 					goto skip;
 
-				/* XXX:
-				 * The next three clauses do not deal
-				 * correctly with glue records. mpa.
-				 */
-
-				/* if the new data is authorative
+				/* if the new data is authorative 
 				 * remove any data for this domain with
 				 * the same class that isn't as credable
 				 */
@@ -360,12 +355,14 @@ db_update(name, odp, newdp, flags, htp)
 					 */
 					goto delete;
 
+#if 0	/* caught by findMyZone() now. */
 				/* if we have authoritative data for a
 				 * node, don't add in other data.
 				 */
 				if (dp->d_cred == DB_C_ZONE &&
 				    newdp->d_cred < dp->d_cred)
 					return (AUTH);
+#endif
 
 				/* if the new data is authoritative but
 				 * but isn't as credible, reject it.

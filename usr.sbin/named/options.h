@@ -1,7 +1,7 @@
 /* options.h - specify the conditionally-compiled features
  * vix 28mar92 [moved out of the Makefile because they were getting too big]
  *
- * $Id: options.h,v 8.4 1995/06/29 09:25:56 vixie Exp $
+ * $Id: options.h,v 1.4 1995/08/20 21:19:08 peter Exp $
  */
 
 /*
@@ -95,7 +95,7 @@
 #define DOTTED_SERIAL	/* if you want to be able to specify dotted serial#s */
 /*#define SENSIBLE_DOTS*//* if you want dotted serial#s to make numeric sense */
 #define NCACHE		/* negative caching (anant@isi.edu) */
-/*#define VALIDATE*/	/* validation procedure (anant@isi.edu) (DO NOT USE!)*/
+/*#define VALIDATE*/	/* validation procedure (anant@isi.edu) (BUGGY!)*/
 /*#define SHORT_FNAMES*//* file names used in named-xfer need to be short */
 #define RESOLVSORT	/* allow sorting of addresses in gethostbyname (mpa) */
 #define STUBS		/* allow transfers of NS only for a zone (mpa) */
@@ -105,7 +105,7 @@
 #define SECURE_ZONES	/* if you want to inhibit world access to zones (gns)*/
 #define ROUND_ROBIN	/* rotate databuf list after each access (mtr) */
 #define ADDAUTH 	/* return NS and glue w/ authorative answers (mpa) */
-/*#define RFC1535*/	/* use RFC 1535 default for "search" list (vix) */
+#define RFC1535		/* use RFC 1535 default for "search" list (vix) */
 #define GEN_AXFR	/* distinct zones within each class */
 #define DATUMREFCNT	/* use reference counts on datums (mpa) */
 #define LAME_DELEGATION	/* lame delegations (original-del,reworked-bb&del)*/
@@ -119,6 +119,7 @@
 #define XSTATS		/* extended statistics, syslogged periodically (bg) */
 /*#define BIND_NOTIFY*/	/* experimental - do not enable in customer products */
 /*#define LOC_RR*/	/* support for (draft) LOC record parsing (ckd) */
+#define SORT_RESPONSE	/* should we try to sort responses optimally? (vix) */
 
 /*--------------------------------------------*
  * no user-servicable parts beyond this point *

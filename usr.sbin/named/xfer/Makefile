@@ -10,7 +10,7 @@ BINDIR=	/usr/libexec
 MAN8= named-xfer.8
 
 
-VER	= 4.9.3-BETA26-LOCAL
+VER	= 4.9.3-REL
 
 version.c: ${.CURDIR}/../Version.c ${.CURDIR}/Makefile ${SRCS}
 	(LC_TIME=; export LC_TIME; u=$${USER-root} d=`pwd |sed -e 's|/obj/|/src/|'` \
