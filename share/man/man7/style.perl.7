@@ -137,7 +137,7 @@ blank line:
 	my $pid;		# Child PID
 	local *PIPE;		# Pipe
 	my $output;		# Output from command
-}
+ }
 .Ed
 .Pp
 Whenever possible code should be run through the code checker
@@ -149,6 +149,38 @@ or
 .Ar -wcT
 .Ar script.pl
 and produce no warnings.
+.Pp
+Opening braces should be at the end of the controlling line.  Else
+and elsif belong on the same line as the closing brace for the
+previous if or elsif block:
+.Bd -literal -offset 0i
+ sub foo($@) {
+	my $cmd = shift;            # Command to run
+	my @args = @_;              # Arguments to command
+
+	my $pid;                    # Child PID
+	local *PIPE;                # Pipe
+	my $output;                 # Output from command
+
+	unless (defined($pid = open(PIPE, "-|"))) {
+		die("open(): $!\\n");
+	} elsif ($pid == 0) {
+		exec($cmd, @args);
+		die("exec(): $!\\n");
+	}
+	$output = "";
+	while (<PIPE>) {
+		$output .= $_;
+	}
+	waitpid($pid, 0);
+	if ($? & 0xff) {
+		die("$cmd caught a signal " . ($? & 0x7f) . "\\n");
+	} elsif ($?) {
+		die("$cmd returned exit code " . ($? >> 8) . "\\n");
+	}
+	return $output;
+ }
+.Ed
 .Pp
 Indentation and block style should follow
 .Xr style 9
