@@ -187,6 +187,9 @@ chn_wrfeed(struct pcm_channel *c)
 		sndbuf_dump(bs, "bs", 0x02);
 	})
 
+	if (c->flags & CHN_F_MAPPED)
+		sndbuf_acquire(bs, NULL, sndbuf_getfree(bs));
+
 	amt = sndbuf_getfree(b);
 	ret = (amt > 0)? sndbuf_feed(bs, b, c, c->feeder, amt) : ENOSPC;
 	if (ret == 0 && sndbuf_getfree(b) < amt)
