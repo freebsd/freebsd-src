@@ -98,8 +98,10 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 		 * check resource ranges.
 		 */
 		i = rman_get_start(res) & 0x7;
-		if (i + rman_get_size(res) - 1 > FDC_MAXREG)
+		if (i + rman_get_size(res) - 1 > FDC_MAXREG) {
+			bus_release_resource(dev, SYS_RES_IOPORT, newrid, res);
 			return (ENXIO);
+		}
 		for (j = 0; j < rman_get_size(res); j++) {
 			fdc->resio[i + j] = res;
 			fdc->ridio[i + j] = newrid;
