@@ -885,6 +885,7 @@ getnewvnode(tag, mp, vops, vpp)
 	int s;
 	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp = NULL;
+	struct vpollinfo *pollinfo = NULL;
 	struct mount *vnmp;
 
 	s = splbio();
@@ -958,9 +959,12 @@ getnewvnode(tag, mp, vops, vpp)
 				panic("Non-zero write count");
 		}
 #endif
-		if (vp->v_pollinfo) {
-			mtx_destroy(&vp->v_pollinfo->vpi_lock);
-			uma_zfree(vnodepoll_zone, vp->v_pollinfo);
+		if ((pollinfo = vp->v_pollinfo) != NULL) {
+			/*
+			 * To avoid lock order reversals, the call to
+			 * uma_zfree() must be delayed until the vnode
+			 * interlock is released.   
+			 */
 			vp->v_pollinfo = NULL;
 		}
 #ifdef MAC
@@ -1002,6 +1006,10 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_data = 0;
 	vp->v_cachedid = -1;
 	VI_UNLOCK(vp);
+	if (pollinfo != NULL) {
+		mtx_destroy(&pollinfo->vpi_lock);
+		uma_zfree(vnodepoll_zone, pollinfo);
+	}
 #ifdef MAC
 	mac_init_vnode(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
