@@ -268,18 +268,6 @@ trap(frame)
 		if (td->td_ucred != p->p_ucred) 
 			cred_update_thread(td);
 
-		/*
-		 * First check that we shouldn't just abort.
-		 * But check if we are the single thread first!
-		 */
-		PROC_LOCK(p);
-		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
-			mtx_lock_spin(&sched_lock);
-			thread_exit();
-			/* NOTREACHED */
-		}
-		PROC_UNLOCK(p);
-
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
 			ucode = type;

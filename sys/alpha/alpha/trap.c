@@ -298,13 +298,6 @@ trap(a0, a1, a2, entry, framep)
 		td->td_frame = framep;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
-		PROC_LOCK(p);
-		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
-			mtx_lock_spin(&sched_lock);
-			thread_exit();
-			/* NOTREACHED */
-		}
-		PROC_UNLOCK(p);
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 		KASSERT(cold || td->td_ucred != NULL,
