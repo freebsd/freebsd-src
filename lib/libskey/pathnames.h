@@ -1,4 +1,4 @@
-/* $Id$ (FreeBSD) */
+/* $FreeBSD$ (FreeBSD) */
 
 #include <paths.h>
 

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.34.2.2 1999/05/12 23:51:56 msmith Exp $
+ * $FreeBSD$
  *
  */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rtld_machdep.h,v 1.1.2.2 1999/05/02 09:36:07 brian Exp $
+ * $FreeBSD$
  */
 
 #ifndef RTLD_MACHDEP_H

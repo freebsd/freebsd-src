@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devstat.h,v 1.1 1998/09/15 06:23:21 gibbs Exp $
+ * $FreeBSD$
  */
 
 #ifndef _DEVSTAT_H

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.27 1998/09/11 05:41:29 imp Exp $
+# $FreeBSD$
 
 LIB=	md
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c

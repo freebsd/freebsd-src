@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_auth.c,v 1.8 1997/07/19 04:47:05 davidn Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

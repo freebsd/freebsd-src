@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_cond.c,v 1.12.2.2 1999/07/23 13:00:25 deischen Exp $
+ * $FreeBSD$
  */
 #include <stdlib.h>
 #include <errno.h>

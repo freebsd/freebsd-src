@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: libutil.h,v 1.21 1998/12/16 17:52:15 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _LIBUTIL_H_

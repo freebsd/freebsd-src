@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$Id: s_cos.S,v 1.4 1997/02/22 15:08:55 peter Exp $")
+RCSID("$FreeBSD$")
 
 ENTRY(cos)
 	fldl	4(%esp)

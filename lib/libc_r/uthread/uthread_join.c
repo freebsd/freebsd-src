@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_join.c,v 1.7 1999/06/20 08:28:29 jb Exp $
+ * $FreeBSD$
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE

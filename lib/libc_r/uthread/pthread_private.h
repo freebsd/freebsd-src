@@ -31,7 +31,7 @@
  *
  * Private thread definitions for the uthread kernel.
  *
- * $Id: pthread_private.h,v 1.25 1999/08/05 12:08:09 deischen Exp $
+ * $FreeBSD$
  */
 
 #ifndef _PTHREAD_PRIVATE_H
