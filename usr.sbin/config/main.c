@@ -72,7 +72,6 @@ char *	PREFIX;
 char 	destdir[MAXPATHLEN];
 char 	srcdir[MAXPATHLEN];
 
-static int no_config_clobber = TRUE;
 int	debugging;
 int	profiling;
 
@@ -92,7 +91,7 @@ main(int argc, char **argv)
 	int ch, len;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "d:gprn")) != -1)
+	while ((ch = getopt(argc, argv, "d:gp")) != -1)
 		switch (ch) {
 		case 'd':
 			if (*destdir == '\0')
@@ -105,14 +104,6 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			profiling++;
-			break;
-		case 'n':
-			/* no_config_clobber is now true by default, no-op */
-			fprintf(stderr,
-				"*** Using obsolete config option '-n' ***\n");
-			break;
-		case 'r':
-			no_config_clobber = FALSE;
 			break;
 		case '?':
 		default:
@@ -142,23 +133,8 @@ main(int argc, char **argv)
 		if (mkdir(p, 0777))
 			err(2, "%s", p);
 	}
-	else if ((buf.st_mode & S_IFMT) != S_IFDIR) {
+	else if ((buf.st_mode & S_IFMT) != S_IFDIR)
 		errx(2, "%s isn't a directory", p);
-	}
-	else if (!no_config_clobber) {
-		char tmp[strlen(p) + 8];
-
-		fprintf(stderr, "Removing old directory %s:  ", p);
-		fflush(stderr);
-		snprintf(tmp, sizeof(tmp), "rm -rf %s", p);
-		if (system(tmp)) {
-			fprintf(stderr, "Failed!\n");
-			err(2, "%s", tmp);
-		}
-		fprintf(stderr, "Done.\n");
-		if (mkdir(p, 0777))
-			err(2, "%s", p);
-	}
 
 	dtab = NULL;
 	if (yyparse())
@@ -214,7 +190,7 @@ get_srcdir(void)
 static void
 usage(void)
 {
-		fprintf(stderr, "usage: config [-gpr] [-d destdir] sysname\n");
+		fprintf(stderr, "usage: config [-gp] [-d destdir] sysname\n");
 		exit(1);
 }
 
