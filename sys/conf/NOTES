@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id$
+#	$Id: LINT,v 1.1 1993/08/22 02:59:49 rgrimes Exp $
 #
 
 machine		"i386"
@@ -12,6 +12,7 @@ cpu		"i386"
 ident		LINT
 timezone	8 dst
 maxusers	10
+maxfdescs	2048			#Max file descriptors per process
 
 config		"386bsd"	root on wd0 swap on wd0 and sd0
 
