@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1.1.1 1998/03/01 23:41:11 jdp Exp $
+# $Id: Makefile,v 1.2 1998/03/12 02:55:32 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -11,7 +11,7 @@ SRCS+=		dis-buf.c disassemble.c
 CFLAGS+=	-I${SRCDIR}/opcodes
 NOPROFILE=	true
 NOPIC=		true
-
-install:
+INTERNALLIB=	true
+INTERNALSTATICLIB=true
 
 .include <bsd.lib.mk>
