@@ -102,7 +102,6 @@ static	LIST_HEAD(, llinfo_arp) llinfo_arp;
 
 static struct	ifqueue arpintrq;
 static int	arp_allocated;
-static int	arpinit_done;
 
 static int	arp_maxtries = 5;
 static int	useloopback = 1; /* use loopback interface for local traffic */
@@ -168,10 +167,6 @@ arp_rtrequest(req, rt, info)
 
 	RT_LOCK_ASSERT(rt);
 
-	if (!arpinit_done) {
-		arpinit_done = 1;
-		callout_reset(&arp_callout, hz, arptimer, NULL);
-	}
 	if (rt->rt_flags & RTF_GATEWAY)
 		return;
 	gate = rt->rt_gateway;
@@ -466,11 +461,6 @@ arpintr(struct mbuf *m)
 {
 	struct arphdr *ar;
 
-	if (!arpinit_done) {
-		/* NB: this race should not matter */
-		arpinit_done = 1;
-		callout_reset(&arp_callout, hz, arptimer, NULL);
-	}
 	if (m->m_len < sizeof(struct arphdr) &&
 	    ((m = m_pullup(m, sizeof(struct arphdr))) == NULL)) {
 		log(LOG_ERR, "arp: runt packet -- m_pullup failed\n");
@@ -902,5 +892,6 @@ arp_init(void)
 	LIST_INIT(&llinfo_arp);
 	callout_init(&arp_callout, CALLOUT_MPSAFE);
 	netisr_register(NETISR_ARP, arpintr, &arpintrq, NETISR_MPSAFE);
+	callout_reset(&arp_callout, hz, arptimer, NULL);
 }
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);
