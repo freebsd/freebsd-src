@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.14 1998/03/09 05:18:56 hosokawa Exp $";
+	"$Id: file.c,v 1.15 1998/04/25 17:52:15 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -52,8 +52,6 @@ static char *keys[] = {
 	"ether",		/* 9 */
 	"insert",		/* 10 */
 	"remove",		/* 11 */
-	"iosize",		/* 12 */
-	"memsize",		/* 13 */
 	0
 };
 
@@ -68,8 +66,6 @@ static char *keys[] = {
 #define KWD_ETHER		9
 #define KWD_INSERT		10
 #define KWD_REMOVE		11
-#define KWD_IOSIZE		12
-#define KWD_MEMSIZE		13
 
 struct flags {
 	char   *name;
