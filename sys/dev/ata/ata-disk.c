@@ -869,10 +869,7 @@ ad_timeout(struct ad_request *request)
 
     /* if retries still permit, reinject this request */
     if (request->retries++ < AD_MAX_RETRIES) {
-	int s = splbio();
-
 	TAILQ_INSERT_HEAD(&adp->device->channel->ata_queue, request, chain);
-	splx(s);
     }
     else {
 	/* retries all used up, return error */
