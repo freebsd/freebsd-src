@@ -51,11 +51,11 @@ hid_get_report_desc(int fd)
 {
 	struct usb_ctl_report_desc rep;
 
-	rep.size = 0;
+	rep.ucrd_size = 0;
 	if (ioctl(fd, USB_GET_REPORT_DESC, &rep) < 0)
 		return (NULL);
 
-	return hid_use_report_desc(rep.data, (unsigned int)rep.size);
+	return hid_use_report_desc(rep.ucrd_data, (unsigned int)rep.ucrd_size);
 }
 
 report_desc_t

@@ -1156,37 +1156,37 @@ usbd_fill_deviceinfo(usbd_device_handle dev, struct usb_device_info *di,
 	struct usbd_port *p;
 	int i, err, s;
 
-	di->bus = USBDEVUNIT(dev->bus->bdev);
-	di->addr = dev->address;
-	di->cookie = dev->cookie;
-	usbd_devinfo_vp(dev, di->vendor, di->product, usedev);
-	usbd_printBCD(di->release, UGETW(dev->ddesc.bcdDevice));
-	di->vendorNo = UGETW(dev->ddesc.idVendor);
-	di->productNo = UGETW(dev->ddesc.idProduct);
-	di->releaseNo = UGETW(dev->ddesc.bcdDevice);
-	di->class = dev->ddesc.bDeviceClass;
-	di->subclass = dev->ddesc.bDeviceSubClass;
-	di->protocol = dev->ddesc.bDeviceProtocol;
-	di->config = dev->config;
-	di->power = dev->self_powered ? 0 : dev->power;
-	di->speed = dev->speed;
+	di->udi_bus = USBDEVUNIT(dev->bus->bdev);
+	di->udi_addr = dev->address;
+	di->udi_cookie = dev->cookie;
+	usbd_devinfo_vp(dev, di->udi_vendor, di->udi_product, usedev);
+	usbd_printBCD(di->udi_release, UGETW(dev->ddesc.bcdDevice));
+	di->udi_vendorNo = UGETW(dev->ddesc.idVendor);
+	di->udi_productNo = UGETW(dev->ddesc.idProduct);
+	di->udi_releaseNo = UGETW(dev->ddesc.bcdDevice);
+	di->udi_class = dev->ddesc.bDeviceClass;
+	di->udi_subclass = dev->ddesc.bDeviceSubClass;
+	di->udi_protocol = dev->ddesc.bDeviceProtocol;
+	di->udi_config = dev->config;
+	di->udi_power = dev->self_powered ? 0 : dev->power;
+	di->udi_speed = dev->speed;
 
 	if (dev->subdevs != NULL) {
 		for (i = 0; dev->subdevs[i] &&
 			     i < USB_MAX_DEVNAMES; i++) {
-			strncpy(di->devnames[i], USBDEVPTRNAME(dev->subdevs[i]),
+			strncpy(di->udi_devnames[i], USBDEVPTRNAME(dev->subdevs[i]),
 				USB_MAX_DEVNAMELEN);
-			di->devnames[i][USB_MAX_DEVNAMELEN-1] = '\0';
+			di->udi_devnames[i][USB_MAX_DEVNAMELEN-1] = '\0';
                 }
         } else {
                 i = 0;
         }
         for (/*i is set */; i < USB_MAX_DEVNAMES; i++)
-                di->devnames[i][0] = 0;                 /* empty */
+                di->udi_devnames[i][0] = 0;                 /* empty */
 
 	if (dev->hub) {
 		for (i = 0; 
-		     i < sizeof(di->ports) / sizeof(di->ports[0]) &&
+		     i < sizeof(di->udi_ports) / sizeof(di->udi_ports[0]) &&
 			     i < dev->hub->hubdesc.bNbrPorts;
 		     i++) {
 			p = &dev->hub->ports[i];
@@ -1203,11 +1203,11 @@ usbd_fill_deviceinfo(usbd_device_handle dev, struct usb_device_info *di,
 				else
 					err = USB_PORT_DISABLED;
 			}
-			di->ports[i] = err;
+			di->udi_ports[i] = err;
 		}
-		di->nports = dev->hub->hubdesc.bNbrPorts;
+		di->udi_nports = dev->hub->hubdesc.bNbrPorts;
 	} else
-		di->nports = 0;
+		di->udi_nports = 0;
 }
 
 void

@@ -633,9 +633,9 @@ uhid_do_ioctl(sc, cmd, addr, flag, p)
 
 	case USB_GET_REPORT_DESC:
 		rd = (struct usb_ctl_report_desc *)addr;
-		size = min(sc->sc_repdesc_size, sizeof rd->data);
-		rd->size = size;
-		memcpy(rd->data, sc->sc_repdesc, size);
+		size = min(sc->sc_repdesc_size, sizeof rd->ucrd_data);
+		rd->ucrd_size = size;
+		memcpy(rd->ucrd_data, sc->sc_repdesc, size);
 		break;
 
 	case USB_SET_IMMED:
@@ -653,7 +653,7 @@ uhid_do_ioctl(sc, cmd, addr, flag, p)
 
 	case USB_GET_REPORT:
 		re = (struct usb_ctl_report *)addr;
-		switch (re->report) {
+		switch (re->ucr_report) {
 		case UHID_INPUT_REPORT:
 			size = sc->sc_isize;
 			id = sc->sc_iid;
@@ -669,7 +669,7 @@ uhid_do_ioctl(sc, cmd, addr, flag, p)
 		default:
 			return (EINVAL);
 		}
-		err = usbd_get_report(sc->sc_iface, re->report, id, re->data,
+		err = usbd_get_report(sc->sc_iface, re->ucr_report, id, re->ucr_data,
 			  size);
 		if (err)
 			return (EIO);
@@ -677,7 +677,7 @@ uhid_do_ioctl(sc, cmd, addr, flag, p)
 
 	case USB_SET_REPORT:
 		re = (struct usb_ctl_report *)addr;
-		switch (re->report) {
+		switch (re->ucr_report) {
 		case UHID_INPUT_REPORT:
 			size = sc->sc_isize;
 			id = sc->sc_iid;
@@ -693,7 +693,7 @@ uhid_do_ioctl(sc, cmd, addr, flag, p)
 		default:
 			return (EINVAL);
 		}
-		err = usbd_set_report(sc->sc_iface, re->report, id, re->data,
+		err = usbd_set_report(sc->sc_iface, re->ucr_report, id, re->ucr_data,
 			  size);
 		if (err)
 			return (EIO);

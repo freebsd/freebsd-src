@@ -582,23 +582,23 @@ print_event(struct usb_event *event)
 
 		printf(" at %ld.%09ld, %s, %s:\n",
 			timespec->tv_sec, timespec->tv_nsec,
-			devinfo->product, devinfo->vendor);
+			devinfo->udi_product, devinfo->udi_vendor);
 
 		printf("  vndr=0x%04x prdct=0x%04x rlse=0x%04x "
 		       "clss=0x%04x subclss=0x%04x prtcl=0x%04x\n",
-		       devinfo->vendorNo, devinfo->productNo,
-		       devinfo->releaseNo,
-		       devinfo->class, devinfo->subclass, devinfo->protocol);
+		       devinfo->udi_vendorNo, devinfo->udi_productNo,
+		       devinfo->udi_releaseNo,
+		       devinfo->udi_class, devinfo->udi_subclass, devinfo->udi_protocol);
 
-		if (devinfo->devnames[0][0] != '\0') {
+		if (devinfo->udi_devnames[0][0] != '\0') {
 			char c = ' ';
 
 			printf("  device names:");
 			for (i = 0; i < USB_MAX_DEVNAMES; i++) {
-				if (devinfo->devnames[i][0] == '\0')
+				if (devinfo->udi_devnames[i][0] == '\0')
 					break;
 
-				printf("%c%s", c, devinfo->devnames[i]);
+				printf("%c%s", c, devinfo->udi_devnames[i]);
 				c = ',';
 			}
 		}
@@ -681,15 +681,15 @@ match_devname(action_t *action, struct usb_device_info *devinfo)
 	int error;
 
 	for (i = 0; i < USB_MAX_DEVNAMES; i++) {
-		if (devinfo->devnames[i][0] == '\0')
+		if (devinfo->udi_devnames[i][0] == '\0')
 			break;
 
-		error = regexec(&action->devname_regex, devinfo->devnames[i],
+		error = regexec(&action->devname_regex, devinfo->udi_devnames[i],
 				1, &match, 0);
 		if (error == 0) {
 			if (verbose >= 2)
 				printf("%s: %s matches %s\n", __progname,
-					devinfo->devnames[i], action->devname);
+					devinfo->udi_devnames[i], action->devname);
 			return(i);
 		}
 	}
@@ -707,17 +707,17 @@ find_action(struct usb_device_info *devinfo, action_match_t *action_match)
 
 	STAILQ_FOREACH(action, &actions, next) {
 		if ((action->vendor == WILDCARD_INT ||
-		     action->vendor == devinfo->vendorNo) &&
+		     action->vendor == devinfo->udi_vendorNo) &&
 		    (action->product == WILDCARD_INT ||
-		     action->product == devinfo->productNo) &&
+		     action->product == devinfo->udi_productNo) &&
 		    (action->release == WILDCARD_INT ||
-		     action->release == devinfo->releaseNo) &&
+		     action->release == devinfo->udi_releaseNo) &&
 		    (action->class == WILDCARD_INT ||
-		     action->class == devinfo->class) &&
+		     action->class == devinfo->udi_class) &&
 		    (action->subclass == WILDCARD_INT ||
-		     action->subclass == devinfo->subclass) &&
+		     action->subclass == devinfo->udi_subclass) &&
 		    (action->protocol == WILDCARD_INT ||
-		     action->protocol == devinfo->protocol) &&
+		     action->protocol == devinfo->udi_protocol) &&
 		    (action->devname == WILDCARD_STRING ||
 		     (match = match_devname(action, devinfo)) != -1)) {
 			/* found match !*/
@@ -727,16 +727,16 @@ find_action(struct usb_device_info *devinfo, action_match_t *action_match)
 			 * one devname for that device, use that.
 			 */
 			if (match >= 0)
-				devname = devinfo->devnames[match];
-			else if (devinfo->devnames[0][0] != '\0' &&
-				 devinfo->devnames[1][0] == '\0')
+				devname = devinfo->udi_devnames[match];
+			else if (devinfo->udi_devnames[0][0] != '\0' &&
+				 devinfo->udi_devnames[1][0] == '\0')
 				/* if we have exactly 1 device name */
-				devname = devinfo->devnames[0];
+				devname = devinfo->udi_devnames[0];
 
 			if (verbose) {
 				printf("%s: Found action '%s' for %s, %s",
 					__progname, action->name,
-					devinfo->product, devinfo->vendor);
+					devinfo->udi_product, devinfo->udi_vendor);
 				if (devname)
 					printf(" at %s", devname);
 				printf("\n");
