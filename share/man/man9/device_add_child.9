@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: device_add_child.9,v 1.1 1998/09/03 21:52:05 dfr Exp $
 .\"
 .Dd June 16, 1998
 .Dt device_add_child 9
@@ -41,7 +41,7 @@
 .Ft int
 .Fn bus_add_child "device_t dev" "const char *name" "int unit" "void *ivars"
 .Ft int
-.Fn bus_add_child_after "device_t dev" "device_t place" "const char *name" "int unit" "void *ivars"
+.Fn bus_add_child_ordered "device_t dev" "int order" "const char *name" "int unit" "void *ivars"
 .Sh DESCRIPTION
 .Pp
 Create a new child device of
@@ -83,22 +83,18 @@ be passed.  If the specified unit number is already allocated, a new
 unit will be allocated and a diagnostic message printed.
 .Pp
 If the devices attached to a bus must be probed in a specific order
-(e.g. for ISA bus devices which are sensitive to failed probe attempts 
-of unrelated drivers), the
-.Fa place
+(e.g. for the ISA bus some devices are sensitive to failed probe attempts 
+of unrelated drivers and therefore must be probed first),
+the
+.Fa order
 argument of
-.Xr device_add_child_after 9
-should be used.  If
-.Dv NULL
-is passed, the new device will be added as the first child of
-.Fa dev ,
-otherwise it will be added immediately after
-.Fa place
-(which must be an existing child of
-.Fa dev )
-in the list of children.  If
+.Xr device_add_child_ordered 9
+should be used to specify a partial ordering.
+The new device will be added before any existing device with a greater 
+order.
+If 
 .Xr device_add_child 9
-is used, then the new child will be added at the end of the list.
+is used, then the new child will be added as if its order was zero.
 .Sh RETURN VALUES
 The new device if successful, NULL otherwise.
 .Sh SEE ALSO
