@@ -815,6 +815,13 @@ pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic card
+pci/agp.c		optional agp
+pci/agp_if.m		optional agp
+pci/agp_intel.c		optional agp
+pci/agp_via.c		optional agp
+pci/agp_sis.c		optional agp
+pci/agp_ali.c		optional agp
+pci/agp_amd.c		optional agp
 pci/alpm.c		optional alpm
 pci/amd.c		optional amd
 pci/cy_pci.c		optional cy pci
