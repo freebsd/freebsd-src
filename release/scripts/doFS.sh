@@ -55,7 +55,7 @@ dofs_vn () {
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} ${FSIMG}
 	disklabel -w -B ${BOOT1} ${BOOT2} ${VNDEVICE} ${FSLABEL}
-	newfs -i ${FSINODE} -o space -m 1 /dev/r${VNDEVICE}c
+	newfs -i ${FSINODE} -o space -m 0 /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
 
