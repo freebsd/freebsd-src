@@ -655,7 +655,6 @@ in_ifinit(ifp, ia, sin, scrub)
 
 	oldaddr = ia->ia_addr;
 	ia->ia_addr = *sin;
-	LIST_INSERT_HEAD(INADDR_HASH(ia->ia_addr.sin_addr.s_addr), ia, ia_hash);
 	/*
 	 * Give the interface a chance to initialize
 	 * if this is its first address,
@@ -667,6 +666,11 @@ in_ifinit(ifp, ia, sin, scrub)
 		ia->ia_addr = oldaddr;
 		return (error);
 	}
+	if (oldaddr.sin_family == AF_INET)
+		LIST_REMOVE(ia, ia_hash);
+	if (ia->ia_addr.sin_family == AF_INET)
+		LIST_INSERT_HEAD(INADDR_HASH(ia->ia_addr.sin_addr.s_addr),
+		    ia, ia_hash);
 	splx(s);
 	if (scrub) {
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&oldaddr;
