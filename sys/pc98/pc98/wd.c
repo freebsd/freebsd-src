@@ -2167,11 +2167,10 @@ wddump(dev_t dev)
 		}
 		while (blkcnt != 0) {
 			if (is_physical_memory((vm_offset_t)addr))
-				pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-					   trunc_page((vm_offset_t)addr), VM_PROT_READ, TRUE);
+				pmap_kenter((vm_offset_t)CADDR1,
+					   trunc_page((vm_offset_t)addr));
 			else
-				pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-					   trunc_page(0), VM_PROT_READ, TRUE);
+				pmap_kenter((vm_offset_t)CADDR1, trunc_page(0));
 
 			/* Ready to send data? */
 			DELAY(5);	/* ATA spec */
