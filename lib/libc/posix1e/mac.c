@@ -40,10 +40,10 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <sys/syslimits.h>
 
 #include <dlfcn.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

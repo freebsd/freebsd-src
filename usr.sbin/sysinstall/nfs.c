@@ -37,9 +37,10 @@
 #include "sysinstall.h"
 #include <sys/errno.h>
 #include <sys/fcntl.h>
-#include <sys/syslimits.h>
 #include <sys/param.h>
 #include <sys/mount.h>
+
+#include <limits.h>
 
 Boolean NFSMounted;
 static char mountpoint[] = "/dist";
