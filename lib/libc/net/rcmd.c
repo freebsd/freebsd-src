@@ -390,10 +390,6 @@ __ivaliduser(hostf, raddr, luser, ruser)
 			/* comment... */
 			continue;
 		}
-		if (*p == '\n' || *p == '#') {
-			/* comment... */
-			continue;
-		}
 		while (*p != '\n' && *p != ' ' && *p != '\t' && *p != '\0') {
 			*p = isupper(*p) ? tolower(*p) : *p;
 			p++;
