@@ -88,6 +88,11 @@ main(argc, argv)
 
 			p = lookup(&argv[0][1]);
 			if (p == (struct cmdtab *)-1) {
+				fprintf(stderr, "%s: ambiguous request\n",
+				    &argv[0][1]);
+				exit(1);
+			}
+			if (p == (struct cmdtab *)0) {
 				fprintf(stderr, "%s: unknown request\n",
 				    &argv[0][1]);
 				exit(1);
