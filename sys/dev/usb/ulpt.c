@@ -408,8 +408,13 @@ ulptopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 #endif
 
 
-	if ((flags & ULPT_NOPRIME) == 0)
+	if ((flags & ULPT_NOPRIME) == 0) {
 		ulpt_reset(sc);
+		if (sc->sc_dying) {
+			sc->sc_state = 0;
+			return (ENXIO);
+		}
+	}
 
 	for (spin = 0; (ulpt_status(sc) & LPS_SELECT) == 0; spin += STEP) {
 		if (spin >= TIMEOUT) {
