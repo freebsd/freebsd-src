@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.57 1996/09/14 11:54:55 bde Exp $
+ * $Id: vm_map.c,v 1.57.2.1 1996/12/15 09:57:13 davidg Exp $
  */
 
 /*
@@ -2023,13 +2023,24 @@ vmspace_fork(vm1)
 			break;
 
 		case VM_INHERIT_SHARE:
+                        /*
+                         * Clone the entry, creating the shared object if necessary.
+                         */
+                        object = old_entry->object.vm_object;
+                        if (object == NULL) {
+                                object = vm_object_allocate(OBJT_DEFAULT,
+                                                            OFF_TO_IDX(old_entry->end -
+                                                                       old_entry->start));
+                                old_entry->object.vm_object = object;
+                                old_entry->offset = (vm_offset_t) 0;
+                        }
+
 			/*
 			 * Clone the entry, referencing the sharing map.
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
 			new_entry->wired_count = 0;
-			object = new_entry->object.vm_object;
 			++object->ref_count;
 
 			/*
