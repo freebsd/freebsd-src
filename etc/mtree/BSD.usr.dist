@@ -273,13 +273,23 @@
             ..
             cvsup
             ..
+            diskless
+                209.157.86.12
+                ..
+                HT.DISKLESS
+                ..
+                archive.backplane.com
+                ..
+                HT.STD
+                ..
+            ..
             drivers
             ..
             etc
-		defaults
-		..
-	    ..
-	    find_interface
+                defaults
+                ..
+            ..
+            find_interface
             ..
             ibcs2
             ..
