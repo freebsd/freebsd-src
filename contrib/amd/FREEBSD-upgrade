@@ -1,105 +1,24 @@
 # ex:ts=8
 $FreeBSD$
 
-AMD (am-utils) 6.0
-	originals can be found at: ftp://shekel.mcl.cs.columbia.edu/pub/am-utils
-	(http://www.cs.columbia.edu/~ezk/am-utils/index.html)
+AMD (am-utils) 6.0.1
+    originals can be found at: ftp://shekel.mcl.cs.columbia.edu/pub/am-utils/
+    (http://www.cs.columbia.edu/~ezk/am-utils/index.html)
 
 
-For the import of AMD the following files were removed:
-	Makefile.am     README.autofs   buildall
-	Makefile.in     aux/*           configure
+For the import of AMD many files were pruned by:
 
-	amd/
-	Makefile.am     Makefile.in
+	tar -X FREEBSD-Xlist -xf am-utils-6.0.1.tar.gz
 
-	amq/
-	Makefile.am     Makefile.in
+Then imported by:
 
-	conf/checkmount/
-	checkmount_aix.c	checkmount_osf.c	checkmount_ultrix.c
-	checkmount_default.c	checkmount_svr4.c
+	cvs import -m 'Virgin import of AMD (am-utils) v6.0.1' \
+		src/contrib/amd COLUMBIA amd_6_0_1
 
-	conf/fh_dref/
-	fh_dref_aix3.h		fh_dref_irix.h		fh_dref_osf4.h
-	fh_dref_aix42.h		fh_dref_isc3.h		fh_dref_sunos3.h
-	fh_dref_bsd44.h		fh_dref_linux.h		fh_dref_sunos4.h
-	fh_dref_default.h	fh_dref_nextstep.h	fh_dref_svr4.h
-	fh_dref_hpux.h		fh_dref_osf2.h
-
-	conf/hn_dref/
-	hn_dref_isc3.h		hn_dref_linux.h
-
-	conf/mount/
-	mount_aix.c		mount_irix6.c		mount_stellix.c
-	mount_bsdi3.c		mount_isc3.c		mount_svr4.c
-	mount_hpux.c		mount_linux.c		mount_freebsd3.c
-	mount_irix5.c		mount_mach3.c		(was for pre-3.0-R)
-
-	conf/mtab/
-	mtab_aix.c	mtab_isc3.c	mtab_osf.c	mtab_ultrix.c
-	mtab_file.c	mtab_mach3.c	mtab_svr4.c
-
-	conf/nfs_prot/
-	nfs_prot_aix3.h		nfs_prot_irix6.h	nfs_prot_sunos3.h
-	nfs_prot_aix4.h		nfs_prot_linux.h	nfs_prot_sunos4.h
-	nfs_prot_aix4_2.h	nfs_prot_ncr2.h		nfs_prot_sunos5_3.h
-	nfs_prot_bsdi2.h	nfs_prot_netbsd.h	nfs_prot_sunos5_4.h
-	nfs_prot_bsdi3.h	nfs_prot_netbsd1_3.h	nfs_prot_sunos5_5.h
-	nfs_prot_default.h	nfs_prot_nextstep.h	nfs_prot_sunos5_6.h
-	nfs_prot_hpux.h		nfs_prot_openbsd.h	nfs_prot_svr4.h
-	nfs_prot_hpux11.h	nfs_prot_osf2.h		nfs_prot_ultrix.h
-	nfs_prot_irix5.h	nfs_prot_osf4.h
-
-	conf/sa_dref/
-	sa_dref_386bsd.h	sa_dref_default.h	sa_dref_svr4.h
-	sa_dref_aix3.h		sa_dref_isc3.h
-	sa_dref_aoi.h		sa_dref_linux.h
-
-	conf/transp/
-	transp_tli.c
-
-	conf/trap/
-	trap_aix3.h     trap_hpux.h     trap_linux.h    trap_stellix.h
-	trap_aux.h      trap_hpux11.h   trap_mach3.h    trap_svr4.h
-	trap_dgux.h     trap_irix.h     trap_news4.h    trap_ultrix.h
-	trap_hcx.h      trap_isc3.h     trap_rtu6.h	trap_freebsd3.h
-							(was for pre-3.0-R)
-
-	conf/umount/
-	umount_default.c	umount_osf.c
-
-	doc/
-	Makefile.am             am-utils.info-1         am-utils.info-5
-	Makefile.in             am-utils.info-2         am-utils.info-6
-	am-utils.dvi            am-utils.info-3         am-utils.ps
-	am-utils.info           am-utils.info-4         hlfsd.ps
-
-	fixmount/
-	Makefile.am     Makefile.in
-
-	fsinfo/
-	Makefile.am     Makefile.in
-
-	hlfsd/
-	Makefile.am     Makefile.in
-
-	libamu/
-	Makefile.am     Makefile.in     clnt_sperrno.c  memcmp.c
-	strcasecmp.c    strdup.c        strstr.c        ualarm.c
-
-	mk-amd-map/
-	Makefile.am     Makefile.in
-
-	wire-test/
-	Makefile.am     Makefile.in
-	
-
-Imported by:
-
-	cvs import -m 'Virgin import of AMD (am-utils) v6.0' \
-		src/contrib/amd COLUMBIA amd_6_0
-
+After the import, a separate extraction of am-utils was GNU configured in
+the "normal" way.  The resulting config.h file should be compared with
+src/usr.sbin/amd/include/config.h, and src/usr.sbin/amd/include/config.h
+updated as needed.
 
 To make local changes to amd, simply patch and commit to the main
 branch (aka HEAD).  Never make local changes on the vendor (COLUMBIA) branch.
@@ -108,4 +27,4 @@ All local changes should be submitted to "amd-dev@majordomo.cs.columbia.edu"
 for inclusion in the next vendor release.
 
 obrien@NUXI.com
-13-January-1999
+14-September-1999
