@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.13 1995/11/03 12:02:36 jkh Exp $
+ * $Id: installUpgrade.c,v 1.14 1995/11/04 08:47:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -327,7 +327,7 @@ installUpgrade(char *str)
 	msgConfirm("Unable to go to your saved /etc directory in %s?!  Argh!\n"
 		   "Something went seriously wrong!  It's quite possible that\n"
 		   "your former /etc is toast.  I hope you didn't have any\n"
-		   "important customizations you wanted to keep in there.. :(\n");
+		   "important customizations you wanted to keep in there.. :(");
     }
     else {
 	/* Now try to resurrect the /etc files */
