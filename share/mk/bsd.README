@@ -90,10 +90,14 @@ environment or otherwise.  You probably don't want to touch this file.
 The include file <bsd.man.mk> handles installing manual pages and their
 links.
 
-It has a single target:
+It has three targets:
 
+	all-man:
+		build manual pages.
 	maninstall:
-		Install the manual pages and their links.
+		install the manual pages and their links.
+	manlint:
+		verify the validity of manual pages.
 
 It sets/uses the following variables:
 
