@@ -82,6 +82,7 @@ struct sb_info {
     	void *ih;
     	bus_dma_tag_t parent_dmat;
 
+	unsigned int bufsize;
     	int bd_id;
     	u_long bd_flags;       /* board-specific flags */
 	int prio, prio16;
@@ -89,6 +90,7 @@ struct sb_info {
 	device_t parent_dev;
 };
 
+#if 0
 static void sb_lock(struct sb_info *sb);
 static void sb_unlock(struct sb_info *sb);
 static int sb_rd(struct sb_info *sb, int reg);
@@ -102,6 +104,7 @@ static int sb_getmixer(struct sb_info *sb, u_int port);
 static int sb_reset_dsp(struct sb_info *sb);
 
 static void sb_intr(void *arg);
+#endif
 
 /*
  * Common code for the midi and pcm functions
@@ -111,6 +114,18 @@ static void sb_intr(void *arg);
  * sb_cmd2 write a CMD + 2 byte arg
  * sb_get_byte returns a single byte from the DSP data port
  */
+
+static void
+sb_lock(struct sb_info *sb) {
+
+	sbc_lock(device_get_softc(sb->parent_dev));
+}
+
+static void
+sb_unlock(struct sb_info *sb) {
+
+	sbc_unlock(device_get_softc(sb->parent_dev));
+}
 
 static int
 port_rd(struct resource *port, int off)
@@ -181,13 +196,23 @@ sb_cmd1(struct sb_info *sb, u_char cmd, int val)
 static int
 sb_cmd2(struct sb_info *sb, u_char cmd, int val)
 {
+	int r;
+
 #if 0
     	printf("sb_cmd2: %x, %x\n", cmd, val);
 #endif
+	sb_lock(sb);
+	r = 0;
     	if (sb_dspwr(sb, cmd)) {
-		return sb_dspwr(sb, val & 0xff) &&
-		       sb_dspwr(sb, (val >> 8) & 0xff);
-    	} else return 0;
+		if (sb_dspwr(sb, val & 0xff)) {
+			if (sb_dspwr(sb, (val >> 8) & 0xff)) {
+				r = 1;
+			}
+		}
+    	}
+	sb_unlock(sb);
+
+	return r;
 }
 
 /*
@@ -376,9 +401,11 @@ sb16_release_resources(struct sb_info *sb, device_t dev)
  		bus_release_resource(dev, SYS_RES_IRQ, 0, sb->irq);
 		sb->irq = 0;
     	}
-    	if (sb->drq2 && (sb->drq2 != sb->drq1)) {
-		isa_dma_release(rman_get_start(sb->drq2));
-		bus_release_resource(dev, SYS_RES_DRQ, 1, sb->drq2);
+    	if (sb->drq2) {
+		if (sb->drq2 != sb->drq1) {
+			isa_dma_release(rman_get_start(sb->drq2));
+			bus_release_resource(dev, SYS_RES_DRQ, 1, sb->drq2);
+		}
 		sb->drq2 = 0;
     	}
      	if (sb->drq1) {
@@ -419,14 +446,12 @@ sb16_alloc_resources(struct sb_info *sb, device_t dev)
         	sb->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ, &rid, 0, ~0, 1, RF_ACTIVE);
 
     	if (sb->io_base && sb->drq1 && sb->irq) {
-		int bs = SB16_BUFFSIZE;
-
 		isa_dma_acquire(rman_get_start(sb->drq1));
-		isa_dmainit(rman_get_start(sb->drq1), bs);
+		isa_dmainit(rman_get_start(sb->drq1), sb->bufsize);
 
 		if (sb->drq2) {
 			isa_dma_acquire(rman_get_start(sb->drq2));
-			isa_dmainit(rman_get_start(sb->drq2), bs);
+			isa_dmainit(rman_get_start(sb->drq2), sb->bufsize);
 		} else {
 			sb->drq2 = sb->drq1;
 			pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
@@ -617,7 +642,7 @@ sb16chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->buffer = b;
 	ch->dir = dir;
 
-	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, SB16_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, sb->bufsize) == -1)
 		return NULL;
 
 	return ch;
@@ -747,8 +772,7 @@ sb16_attach(device_t dev)
 {
     	struct sb_info *sb;
 	uintptr_t ver;
-    	char status[SND_STATUSLEN];
-	int bs = SB16_BUFFSIZE;
+    	char status[SND_STATUSLEN], status2[SND_STATUSLEN];
 
     	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT | M_ZERO);
     	if (!sb)
@@ -758,6 +782,7 @@ sb16_attach(device_t dev)
 	BUS_READ_IVAR(sb->parent_dev, dev, 1, &ver);
 	sb->bd_id = ver & 0x0000ffff;
 	sb->bd_flags = (ver & 0xffff0000) >> 16;
+	sb->bufsize = pcm_getbuffersize(dev, 4096, SB16_BUFFSIZE, 65536);
 
     	if (sb16_alloc_resources(sb, dev))
 		goto no;
@@ -777,19 +802,21 @@ sb16_attach(device_t dev)
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
-			/*maxsize*/bs, /*nsegments*/1,
+			/*maxsize*/sb->bufsize, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
 			/*flags*/0, &sb->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;
     	}
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld",
-    	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
-		rman_get_start(sb->drq1));
     	if (!(pcm_getflags(dev) & SD_F_SIMPLEX))
-		snprintf(status + strlen(status), SND_STATUSLEN - strlen(status),
-			":%ld", rman_get_start(sb->drq2));
+		snprintf(status2, SND_STATUSLEN, ":%ld", rman_get_start(sb->drq2));
+	else
+		status2[0] = '\0';
+
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %ud",
+    	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
+		rman_get_start(sb->drq1), status2, sb->bufsize);
 
     	if (pcm_register(dev, sb, 1, 1))
 		goto no;
@@ -818,18 +845,6 @@ sb16_detach(device_t dev)
 	sb = pcm_getdevinfo(dev);
     	sb16_release_resources(sb, dev);
 	return 0;
-}
-
-static void
-sb_lock(struct sb_info *sb) {
-
-	sbc_lock(device_get_softc(sb->parent_dev));
-}
-
-static void
-sb_unlock(struct sb_info *sb) {
-
-	sbc_unlock(device_get_softc(sb->parent_dev));
 }
 
 static device_method_t sb16_methods[] = {
