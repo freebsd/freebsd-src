@@ -11,7 +11,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. The name of the author may not be used to endorse or promote products
-.\"    derived from this software withough specific prior written permission
+.\"    derived from this software without specific prior written permission
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
 .\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: chkgrp.8,v 1.1 1998/05/24 15:09:22 des Exp $
 .\"
 .Dd May 5, 1998
 .Dt CHKGRP 8
@@ -47,8 +47,8 @@ numeric.
 .Xr group 5
 .Sh DIAGNOSTICS
 For each error found,
-.Nm chkgrp
-will print an error message containins the name of the file being
+.Nm
+will print an error message containing the name of the file being
 scanned and the line number on which the error was found. Otherwise no
 output is produced.
 .Pp
@@ -59,12 +59,11 @@ otherwise.
 The
 .Nm
 command appeared in
-.Tn FreeBSD
-3.0
+.Fx 3.0
 .Sh AUTHORS
 .Nm Chkgrp
 and this manual page were written by
-.An Dag-Erling Coïdan Smørgav Aq des@FreeBSD.ORG .
+.An Dag-Erling Coïdan Smørgav Aq des@FreeBSD.org .
 .Sh BUGS
 Should check fields more thoroughly for allowed / disallowed
 characters, and the range of the group ID.
