@@ -102,8 +102,8 @@ its resource limit).  The
 structure is used to specify the hard and soft limits on a resource,
 .Bd -literal -offset indent
 struct rlimit {
-	quad_t	rlim_cur;	/* current (soft) limit */
-	quad_t	rlim_max;	/* hard limit */
+	rlim_t	rlim_cur;	/* current (soft) limit */
+	rlim_t	rlim_max;	/* maximum value for rlim_cur */
 };
 .Ed
 .Pp
