@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.18 1997/10/06 11:36:06 charnier Exp $";
+	"$Id: cardd.c,v 1.19 1997/10/26 04:36:24 nate Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -226,6 +226,9 @@ slot_change(struct slot *sp)
 		break;
 	case filled:
 		card_inserted(sp);
+		break;
+	case suspend:
+		/* ignored */
 		break;
 	}
 }
