@@ -1210,7 +1210,15 @@ not known, but they are certainly not consistent.  As a result, by default
 .Nm
 sets the state of all newly-created plexes except the first to
 .Ar stale .
-.sp
+In order to synchronize them with the first plex, you must
+.Nm start
+their subdisks, which causes
+.Nm
+to copy the data from a plex which is in the 
+.Ar up
+state.  Depending on the size of the subdisks involved, this can take a long
+time.
+.Pp
 In practice, people aren't too interested in what was in the plex when it was
 created, and other volume managers cheat by setting them 
 .Ar up
@@ -1220,8 +1228,8 @@ provides two ways to ensure that newly created plexes are
 .Ar up :
 .Bl -bullet
 .It
-Create the plexes and then initialize them with
-.Nm vinum init .
+Create the plexes and then synchronize them with
+.Nm vinum start .
 .It
 Create the volume (not the plex) with the keyword
 .Ar setupstate ,
