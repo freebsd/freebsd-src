@@ -2074,7 +2074,7 @@ int
 device_set_devclass(device_t dev, const char *classname)
 {
 	devclass_t dc;
-	int error;
+	int error, flags;
 
 	if (!classname) {
 		if (dev->devclass)
@@ -2092,6 +2092,10 @@ device_set_devclass(device_t dev, const char *classname)
 		return (ENOMEM);
 
 	error = devclass_add_device(dc, dev);
+
+	/* Fetch any hints for the device before it is probed. */
+	if (resource_int_value(classname, dev->unit, "flags", &flags) == 0)
+		dev->devflags = flags;
 
 	bus_data_generation_update();
 	return (error);
