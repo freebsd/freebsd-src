@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.37 1995/12/07 10:33:38 peter Exp $
+ * $Id: devices.c,v 1.38 1995/12/11 16:32:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,16 +54,6 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
-
-#define	NSIP
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#include <netdb.h>
-
-#define EON
-#include <netiso/iso.h>
-#include <netiso/iso_var.h>
-#include <sys/protosw.h>
 
 #include <ctype.h>
 
