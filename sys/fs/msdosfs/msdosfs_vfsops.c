@@ -186,6 +186,9 @@ msdosfs_omount(mp, path, data, td)
 		pmp = VFSTOMSDOSFS(mp);
 		error = 0;
 		if (!(pmp->pm_flags & MSDOSFSMNT_RONLY) && (mp->mnt_flag & MNT_RDONLY)) {
+			error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td);
+			if (error)
+				return (error);
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
