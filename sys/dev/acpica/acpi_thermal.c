@@ -51,7 +51,7 @@ struct acpi_tz_softc {
 
 static int	acpi_tz_probe(device_t dev);
 static int	acpi_tz_attach(device_t dev);
-
+static void     acpi_tz_check_tripping_point(void *context);
 static device_method_t acpi_tz_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_tz_probe),
@@ -82,7 +82,38 @@ acpi_tz_probe(device_t dev)
     }
     return_VALUE(ENXIO);
 }
+static void acpi_tz_check_tripping_point(void *context)
+{
+	device_t dev = context;
+	struct acpi_tz_softc *sc;
+	UINT32 param[4];
+	ACPI_BUFFER b;
+	sc = device_get_softc(dev);
+	b.Pointer = &param[0];
+	b.Length = sizeof(param);
+	if((AcpiEvaluateObject(sc->tz_handle,"_TMP",NULL,&b)) != AE_OK){
+		device_printf(dev,"CANNOT FOUND _TMP\n");
+		return;
+	}
+	
+	device_printf(dev,"%d.%d K\n",param[1]/10,param[1]%10);
+	return;
+}
+#define ACPI_TZ_STATUS_CHANGE 0x80
+#define ACPI_TZ_TRIPPOINT_CHANGE 0x81
+static void acpi_tz_notify_handler( ACPI_HANDLE h,UINT32 notify, void *context)
+{
+	device_t dev = context;
 
+	switch(notify){
+	case ACPI_TZ_STATUS_CHANGE:
+	case ACPI_TZ_TRIPPOINT_CHANGE:
+		/*Check trip point*/
+		AcpiOsQueueForExecution(OSD_PRIORITY_LO,
+		    acpi_tz_check_tripping_point,context);
+		break;
+  }
+}
 static int
 acpi_tz_attach(device_t dev)
 {
@@ -109,6 +140,15 @@ acpi_tz_attach(device_t dev)
 	return_VALUE(ENXIO);
     }
     device_printf(sc->tz_dev, "current temperature %d.%dC\n", TZ_KELVTOC(param[1]));
-    
+
+    AcpiInstallNotifyHandler(sc->tz_handle,ACPI_DEVICE_NOTIFY,
+			     acpi_tz_notify_handler,dev);
     return_VALUE(0);
 }
+
+
+
+
+
+
+
