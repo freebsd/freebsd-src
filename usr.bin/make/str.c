@@ -515,7 +515,7 @@ Str_SYSVSubst(Buffer *buf, const char *pat, const char *src, int len)
 
     if ((m = strchr(pat, '%')) != NULL) {
 	/* Copy the prefix */
-	Buf_AddBytes(buf, m - pat, (const Byte *)pat);
+	Buf_AppendRange(buf, pat, m);
 	/* skip the % */
 	pat = m + 1;
     }
