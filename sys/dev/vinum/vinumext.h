@@ -100,7 +100,7 @@ void write_config(char *, int);
 int start_config(int);
 void finish_config(int);
 void remove(struct vinum_ioctl_msg *msg);
-void remove_drive_entry(int driveno, int force, int recurse);
+void remove_drive_entry(int driveno, int force);
 void remove_sd_entry(int sdno, int force, int recurse);
 void remove_plex_entry(int plexno, int force, int recurse);
 void remove_volume_entry(int volno, int force, int recurse);
@@ -191,6 +191,7 @@ enum requeststatus sddownstate(struct request *rq);
 int restart_plex(int plexno);
 int revive_read(struct sd *sd);
 int revive_block(int sdno);
+void parityops(struct vinum_ioctl_msg *, enum parityop op);
 
 /* Auxiliary functions */
 enum sdstates sdstatemap(struct plex *plex);
@@ -237,3 +238,6 @@ int vinum_finddaemon(void);
 int vinum_setdaemonopts(int);
 extern struct daemonq *daemonq;				    /* daemon's work queue */
 extern struct daemonq *dqend;				    /* and the end of the queue */
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
