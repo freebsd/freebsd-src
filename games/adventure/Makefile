@@ -13,6 +13,6 @@ data.c: glorkz setup
 	./setup ${.CURDIR}/glorkz > data.c
 
 setup: setup.o
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 .include <bsd.prog.mk>
