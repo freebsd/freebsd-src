@@ -200,6 +200,10 @@ struct _bktr_clip {
  * b31-b24:  1 = write, 0 = read 
  */
 #define BT848_I2CWR     _IOWR('x', 57, u_long)    /* i2c read-write */
+/* Support for radio tuner */
+#define RADIO_SETMODE	 _IOW('x', 58, unsigned int)  /* set radio modes */
+#define RADIO_SETFREQ    _IOW('x', 59, unsigned int)  /* set frequency   */
+#define RADIO_GETFREQ    _IOR('x', 59, unsigned int)  /* set frequency   */
 
 /*  XXX - Copied from /sys/pci/brktree_reg.h  */
 #define BT848_IFORM_FORMAT              (0x7<<0)

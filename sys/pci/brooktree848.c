@@ -201,7 +201,16 @@
                            Added yuv support mpeg encoding 
 1.24            12/27/97   Jonathan Hanna <pangolin@rogers.wave.ca>
                            Patch to support Philips FR1236MK2 tuner
-
+1.25            02/02/98   Takeshi Ohashi 
+                           <ohashi@atohasi.mickey.ai.kyutech.ac.jp> submitted
+                           code to support bktr_read .
+                           Flemming Jacobsen <fj@schizo.dk.tfs.com>
+                           submitted code to support  radio available with in
+                           some bt848 based cards;additionally, wrote code to
+                           correctly recognized his bt848 card.
+                           Roger Hardiman <roger@cs.strath.ac.uk> submitted 
+                           various fixes to smooth out the microcode and made 
+                           all modes consistent.
 */
 
 #define DDB(x) x
@@ -209,7 +218,6 @@
 
 #ifdef __FreeBSD__
 #include "bktr.h"
-#include "opt_devfs.h"
 #include "pci.h"
 #endif /* __FreeBSD__ */
 
@@ -423,9 +431,9 @@ struct devsw bktrsw = {
 
 static struct format_params format_params[] = {
 /* # define BT848_IFORM_F_AUTO             (0x0) - don't matter. */
-  { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, 0 },
+  { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, 0 },
 /* # define BT848_IFORM_F_NTSCM            (0x1) */
-  { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0 },
+  { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0 },
 /* # define BT848_IFORM_F_NTSCJ            (0x2) */
   { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0 },
 /* # define BT848_IFORM_F_PALBDGHI         (0x3) */
@@ -478,6 +486,9 @@ static struct {
 	u_long               meteor_format;
 	struct meteor_pixfmt public;
 } meteor_pixfmt_table[] = {
+    { METEOR_GEO_YUV_12,
+      { 0, METEOR_PIXTYPE_YUV_12, 2, { 0xff0000,0x00ff00,0x0000ff }, 1,1 }
+    },
 
       /* FIXME: Should byte swap flag be on for this one; negative in drvr? */
     { METEOR_GEO_YUV_422,
@@ -541,6 +552,10 @@ static struct {
 #define TSA552x_WADDR		0xc2
 #define TSA552x_RADDR		0xc3
 
+#define PHILIPS_PAL_WADDR       0xc2
+#define PHILIPS_PAL_RADDR       0xc3
+
+
 #define TSA552x_CB_MSB		(0x80)
 #define TSA552x_CB_CP		(1<<6)
 #define TSA552x_CB_T2		(1<<5)
@@ -549,6 +564,13 @@ static struct {
 #define TSA552x_CB_RSA		(1<<2)
 #define TSA552x_CB_RSB		(1<<1)
 #define TSA552x_CB_OS		(1<<0)
+#define TSA552x_RADIO		(TSA552x_CB_MSB |       \
+				 TSA552x_CB_T0)
+
+/* Add RADIO_OFFSET to the "frequency" to indicate that we want to tune	*/
+/* the radio (if present) not the TV tuner.				*/
+/* 20000 is equivalent to 20000MHz/16 = 1.25GHz - this area is unused.	*/
+#define RADIO_OFFSET		20000
 
 
 /* address of BTSC/SAP decoder chip */
@@ -652,6 +674,8 @@ static int	dump_bt848( bt848_ptr_t bt848 );
 static void	yuvpack_prog( bktr_ptr_t bktr, char i_flag, int cols,
 			      int rows,  int interlace );
 static void	yuv422_prog( bktr_ptr_t bktr, char i_flag, int cols,
+			     int rows, int interlace );
+static void	yuv12_prog( bktr_ptr_t bktr, char i_flag, int cols,
 			     int rows, int interlace );
 static void	rgb_prog( bktr_ptr_t bktr, char i_flag, int cols,
 			  int rows, int interlace );
@@ -859,13 +883,13 @@ bktr_attach( ATTACH_ARGS )
 	probeCard( bktr, TRUE );
 
 #ifdef DEVFS
-	bktr->devfs_bktr_token = devfs_add_devswf(&bktr_cdevsw, unit,
-					     DV_CHR, 0, 0, 0444, "bktr%d", unit);
-	bktr->devfs_tuner_token = devfs_add_devswf(&bktr_cdevsw, unit+16,
-					     DV_CHR, 0, 0, 0444, "tuner%d", unit);
+	bktr->devfs_token = devfs_add_devswf(&bktr_cdevsw, unit,
+					     DV_CHR, 0, 0, 0644, "brooktree");
 #endif /* DEVFS */
+#if __FreeBSD__ > 2 
 	fun = pci_conf_read(tag, PCI_COMMAND_STATUS_REG);
 	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, fun | 4);
+#endif
 
 }
 
@@ -920,12 +944,14 @@ bktr_intr( void *arg )
 		*/		
 	/* if risc was disabled re-start process again */
 	if ( !(bktr_status & BT848_INT_RISC_EN) ||
-	     ((bktr_status & (BT848_INT_FTRGT  |
+	     ((bktr_status &(BT848_INT_FBUS   |
+			      BT848_INT_FTRGT  |
+			      BT848_INT_FDSR   |
 			      BT848_INT_PPERR  |
 			      BT848_INT_RIPERR |
 			      BT848_INT_PABORT |
 			      BT848_INT_OCERR  |
-			      BT848_INT_SCERR)) != 0) ||
+			      BT848_INT_SCERR) ) != 0) ||
 	     ((bt848->tdec == 0) && (bktr_status & TDEC_BITS)) ) {
 
 		u_short	tdec_save = bt848->tdec;
@@ -1069,6 +1095,7 @@ bktr_intr( void *arg )
 		 * If the user requested to be notified via signal,
 		 * let them know the frame is complete.
 		 */
+
 		if (bktr->proc && !(bktr->signal & METEOR_SIG_MODE_MASK))
 			psignal( bktr->proc,
 				 bktr->signal&(~METEOR_SIG_MODE_MASK) );
@@ -1339,15 +1366,17 @@ bktr_read( dev_t dev, struct uio *uio, int ioflag )
 	if (unit >= NBKTR)	/* unit out of range */
 		return( ENXIO );
 
-	printf("btkr driver : use ioctl interface . read function not implemented \n");
-	return( ENXIO );
-
 	bktr = &(brooktree[unit]);
+        bt848 = bktr->base;
+
 	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
 		return( ENOMEM );
 
 	if (bktr->flags & METEOR_CAP_MASK)
 		return( EIO );	/* already capturing */
+
+        bt848->cap_ctl = bktr->bktr_cap_ctl;
+
 
 	count = bktr->rows * bktr->cols * 
 		pixfmt_table[ bktr->pixfmt ].public.Bpp;
@@ -1357,10 +1386,17 @@ bktr_read( dev_t dev, struct uio *uio, int ioflag )
 
 	bktr->flags &= ~(METEOR_CAP_MASK | METEOR_WANT_MASK);
 
-	/* Start capture */
-	bt848 = bktr->base;
+	/* capture one frame */
+	start_capture(bktr, METEOR_SINGLE);
+	/* wait for capture to complete */
+	bt848->int_stat = ALL_INTS_CLEARED;
 	bt848->gpio_dma_ctl = FIFO_ENABLED;
-	bt848->gpio_dma_ctl = FIFO_RISC_ENABLED;
+	bt848->gpio_dma_ctl = bktr->capcontrol;
+	bt848->int_mask = BT848_INT_MYSTERYBIT |
+                          BT848_INT_RISCI      |
+                          BT848_INT_VSYNC      |
+                          BT848_INT_FMTCHG;
+
 
 	status = tsleep((caddr_t)bktr, BKTRPRI, "captur", 0);
 	if (!status)		/* successful capture */
@@ -1412,6 +1448,7 @@ bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
 
 	return( ENXIO );
 }
+
 
 /*
  * video ioctls
@@ -1538,6 +1575,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			break;
 
 		}
+		bktr->dma_prog_loaded = FALSE;		
 		break;
 
 	case METEORSFMT:	/* set input format */
@@ -1547,7 +1585,8 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_NTSC;
 			bt848->iform &= ~BT848_IFORM_FORMAT;
-			bt848->iform |= BT848_IFORM_F_NTSCM;
+			bt848->iform |= BT848_IFORM_F_NTSCM | 
+		                        format_params[BT848_IFORM_F_NTSCM].iform_xtsel;
 			bt848->adelay = 0x68;
 			bt848->bdelay = 0x5d;
 			bktr->format_params = BT848_IFORM_F_NTSCM;
@@ -1557,7 +1596,8 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_PAL;
 			bt848->iform &= ~BT848_IFORM_FORMAT;
-			bt848->iform |= BT848_IFORM_F_PALBDGHI;
+			bt848->iform |= BT848_IFORM_F_PALBDGHI |
+		                        format_params[BT848_IFORM_F_PALBDGHI].iform_xtsel;
 			bt848->adelay = 0x7f;
 			bt848->bdelay = 0x72;
 			bktr->format_params = BT848_IFORM_F_PALBDGHI;
@@ -1572,6 +1612,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		default:
 			return( EINVAL );
 		}
+		bktr->dma_prog_loaded = FALSE;		
 		break;
 
 	case METEORGFMT:	/* get input format */
@@ -1786,7 +1827,6 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 
 		geo = (struct meteor_geomet *) arg;
-		fp = &format_params[bktr->format_params];
 
 		error = 0;
 		/* Either even or odd, if even & odd, then these a zero */
@@ -1866,64 +1906,6 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		bktr->rows = geo->rows;
 		bktr->cols = geo->columns;
 		bktr->frames = geo->frames;
-
-		temp = ((quad_t ) fp->htotal* (quad_t) fp->horizontal * 4096
-			/ fp->vertical / bktr->cols) -  4096;
-		bt848->e_hscale_lo = temp & 0xff;
-		bt848->o_hscale_lo = temp & 0xff;
-		bt848->e_hscale_hi = (temp >> 8) & 0xff;
-		bt848->o_hscale_hi = (temp >> 8) & 0xff;
-
-		/* horizontal active */
-		temp = bktr->cols;
-		bt848->e_hactive_lo = temp & 0xff;
-		bt848->o_hactive_lo = temp & 0xff;
-		bt848->e_crop &= ~0x3;
-		bt848->o_crop  &= ~0x3;
-		bt848->e_crop |= (temp >> 8) & 0x3;
-		bt848->o_crop  |= (temp >> 8) & 0x3;
-
-		/* horizontal delay */
-		temp = (fp->hdelay * bktr->cols) / fp->hactive;
-		temp = temp + 2; /* why?? - rmt */
-		temp = temp & 0x3fe;
-		bt848->e_delay_lo = temp & 0xff;
-		bt848->o_delay_lo = temp & 0xff;
-		bt848->e_crop &= ~0xc;
-		bt848->o_crop &= ~0xc;
-		bt848->e_crop |= (temp >> 6) & 0xc;
-		bt848->o_crop |= (temp >> 6) & 0xc;
-
-		/* vertical scale */
-		if (geo->oformat & METEOR_GEO_ODD_ONLY ||
-		    geo->oformat & METEOR_GEO_EVEN_ONLY)
-		        tmp_int = 65536 -
-			  ((fp->vactive  * 256 / bktr->rows) - 512);
-		else {
-		        tmp_int = 65536  -
-			  (((fp->vactive * 512) /  bktr->rows) - 512);
-		}
-
-		tmp_int &= 0x1fff;
-
-		bt848->e_vscale_lo = tmp_int & 0xff;
-		bt848->o_vscale_lo = tmp_int & 0xff;
-		bt848->e_vscale_hi &= ~0x1f;
-		bt848->o_vscale_hi &= ~0x1f;
-		bt848->e_vscale_hi |= (tmp_int >> 8) & 0x1f;
-		bt848->o_vscale_hi |= (tmp_int >> 8) & 0x1f;
-
-		/* vertical active */
-		bt848->e_crop &= ~0x30;
-		bt848->e_crop |= (fp->vactive >> 4) & 0x30;
-		bt848->e_vactive_lo = fp->vactive & 0xff;
-		bt848->o_crop &= ~0x30;
-		bt848->o_crop |= (fp->vactive >> 4) & 0x30;
-		bt848->o_vactive_lo = fp->vactive & 0xff;
-
-		/* vertical delay */
-		bt848->e_vdelay_lo = fp->vdelay;
-		bt848->o_vdelay_lo = fp->vdelay;
 
 		/*  Pixel format (if in meteor pixfmt compatibility mode)  */
 		if ( bktr->pixfmt_compat ) {
@@ -2265,6 +2247,51 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		if ( signCard( bktr, offset, count, buf ) < 0 )
 			return( EIO );
 		break;
+	/* Ioctl's for running the tuner device in radio mode		*/
+#if 0
+	case RADIO_SETMODE:	/* XXX  Todo: implement me ...		*/
+	    break;
+	case RADIO_GETFREQ;	/* XXX  Todo: implement me ...		*/
+	    break;
+#endif
+	case RADIO_SETFREQ:
+	    /* The argument to this ioctl is NOT freq*16. It is
+	    ** freq*100.
+	    */
+
+	    /* The radio in my stereo and the linear regression function
+	    ** in my HP48 have reached the conclusion that in order to
+	    ** set the radio tuner of the FM1216 to f MHz, the value to
+	    ** enter into the PLL is: f*20-407
+	    ** If anyone has the exact values from the spec. sheet
+	    ** please forward them  -- fj@login.dknet.dk
+	    */
+	    temp=(int)*(unsigned long *)arg/5-407  +RADIO_OFFSET;
+
+#ifdef BKTR_RADIO_DEBUG
+  printf("bktr%d: arg=%d temp=%d\n",unit,(int)*(unsigned long *)arg,temp);
+#endif
+
+#ifndef BKTR_RADIO_NOFREQCHECK
+	    /* According to the spec. sheet the band: 87.5MHz-108MHz	*/
+	    /* is supported.						*/
+	    if(temp<1343+RADIO_OFFSET || temp>1753+RADIO_OFFSET) {
+	      printf("bktr%d: Radio frequency out of range\n",unit);
+	      return(EINVAL);
+	      }
+#endif
+	    temp_mute( bktr, TRUE );
+	    temp = tv_freq( bktr, temp );
+	    temp_mute( bktr, FALSE );
+#ifdef BKTR_RADIO_DEBUG
+  if(temp)
+    printf("bktr%d: tv_freq returned: %d\n",unit,temp);
+#endif
+	    if ( temp < 0 )
+		    return( EINVAL );
+	    *(unsigned long *)arg = temp;
+	    break;
+ 
 
 	default:
 		return common_ioctl( bktr, bt848, cmd, arg );
@@ -2666,7 +2693,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 	}
 
 	buffer = target_buffer;
-	if (interlace == 2 && rows < 320 ) target_buffer += pitch; 
+
 
 	/* contruct sync : for video packet format */
 	*dma_prog++ = OP_SYNC  | 1 << 15 | BKTR_FM1;
@@ -2705,16 +2732,16 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 	switch (i_flag) {
 	case 1:
 		/* sync vre */
-		*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 24 | BKTR_VRE;
+		*dma_prog++ = OP_SYNC | 1 << 24 | BKTR_VRE;
 		*dma_prog++ = 0;  /* NULL WORD */
 
-		*dma_prog++ = OP_JUMP	| 0xC << 24;
+		*dma_prog++ = OP_JUMP;
 		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
 		return;
 
 	case 2:
 		/* sync vro */
-		*dma_prog++ = OP_SYNC | 1 << 24 | 1 << 20 | BKTR_VRO;
+		*dma_prog++ = OP_SYNC | 1 << 24 | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
 
 		*dma_prog++ = OP_JUMP;
@@ -2725,16 +2752,14 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 		/* sync vro */
 		*dma_prog++ = OP_SYNC | 1 << 24 | 1 << 15 | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
-		*dma_prog++ = OP_JUMP | 0xc << 24 ;
+		*dma_prog++ = OP_JUMP; ;
 		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
 		break;
 	}
 
 	if (interlace == 2) {
-	     if (rows < 320 )
-		target_buffer = buffer ;
-	     else
-		target_buffer = buffer + pitch; 
+
+	        target_buffer = buffer + pitch; 
 
 		dma_prog = (u_long *) bktr->odd_dma_prog;
 
@@ -2845,7 +2870,7 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 	switch (i_flag) {
 	case 1:
 		/* sync vre */
-		*dma_prog++ = OP_SYNC  | 0xC << 24  | BKTR_VRE;
+		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRE;
 		*dma_prog++ = 0;  /* NULL WORD */
 
 		*dma_prog++ = OP_JUMP;
@@ -2854,15 +2879,15 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 
 	case 2:
 		/* sync vro */
-		*dma_prog++ = OP_SYNC  | 0xC << 24 | BKTR_VRO;
+		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
 		*dma_prog++ = OP_JUMP;
 		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
 		return;
 
 	case 3:
-		/* sync vre */
-		*dma_prog++ = OP_SYNC	 | BKTR_VRE;
+		/* sync vro */
+		*dma_prog++ = OP_SYNC	 | 1 << 24 | 1 << 15 | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
 		*dma_prog++ = OP_JUMP  ;
 		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
@@ -2889,7 +2914,7 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 	}
 
 	/* sync vro IRQ bit */
-	*dma_prog++ = OP_SYNC   |  1 << 24  |  BKTR_VRE;
+	*dma_prog++ = OP_SYNC   |  1 << 24  | 1 << 15 |  BKTR_VRE;
 	*dma_prog++ = 0;  /* NULL WORD */
 	*dma_prog++ = OP_JUMP ;
 	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
@@ -2948,13 +2973,13 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
     
 	buffer = target_buffer;
 
-	t1 = target_buffer;
+	t1 = buffer;
 
 	/* contruct sync : for video packet format */
 	*dma_prog++ = OP_SYNC  | 1 << 15 |	BKTR_FM3; /*sync, mode indicator packed data*/
 	*dma_prog++ = 0;  /* NULL WORD */
 
-	for (i = 0; i < (rows/interlace ) - 1; i++) {
+	for (i = 0; i < (rows/interlace ) ; i++) {
 		*dma_prog++ = inst;
 		*dma_prog++ = cols/2 | cols/2 << 16;
 		*dma_prog++ = target_buffer;
@@ -2965,15 +2990,15 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 
 	switch (i_flag) {
 	case 1:
-		*dma_prog++ = OP_SYNC  | 0xC << 24 | 1 << 24 |	BKTR_VRE;  /*sync vre*/
+		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRE;  /*sync vre*/
 		*dma_prog++ = 0;  /* NULL WORD */
 
-		*dma_prog++ = OP_JUMP | 0xc << 24;
+		*dma_prog++ = OP_JUMP ;
 		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
 		return;
 
 	case 2:
-		*dma_prog++ = OP_SYNC  | 0xC << 24 | 1 << 24 |	BKTR_VRO;  /*sync vre*/
+		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRO;  /*sync vre*/
 		*dma_prog++ = 0;  /* NULL WORD */
 
 		*dma_prog++ = OP_JUMP;
@@ -2981,7 +3006,7 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 		return;
 
 	case 3:
-		*dma_prog++ = OP_SYNC	| 1 << 15 |   BKTR_VRO; 
+		*dma_prog++ = OP_SYNC	| 1 << 24 |  1 << 15 |   BKTR_VRO; 
 		*dma_prog++ = 0;  /* NULL WORD */
 
 		*dma_prog++ = OP_JUMP  ;
@@ -2994,11 +3019,11 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 		dma_prog = (u_long * ) bktr->odd_dma_prog;
 
 		target_buffer  = (u_long) buffer + cols;
-		t1 = target_buffer + cols/2;
+		t1 = buffer + cols/2;
 		*dma_prog++ = OP_SYNC	|   1 << 15 | BKTR_FM3; 
 		*dma_prog++ = 0;  /* NULL WORD */
 
-		for (i = 0; i < (rows/interlace )  - 1; i++) {
+		for (i = 0; i < (rows/interlace )  ; i++) {
 			*dma_prog++ = inst;
 			*dma_prog++ = cols/2 | cols/2 << 16;
 			*dma_prog++ = target_buffer;
@@ -3008,7 +3033,7 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 		}
 	}
     
-	*dma_prog++ = OP_SYNC  | 1 << 24 |   BKTR_VRE; 
+	*dma_prog++ = OP_SYNC  | 1 << 24 | 1 << 15 |   BKTR_VRE; 
 	*dma_prog++ = 0;  /* NULL WORD */
 	*dma_prog++ = OP_JUMP ;
 	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog) ;
@@ -3023,7 +3048,7 @@ static void
 yuv12_prog( bktr_ptr_t bktr, char i_flag,
 	     int cols, int rows, int interlace ){
 
-	int			i, k;
+	int			i;
 	volatile unsigned int	inst;
 	volatile unsigned int	inst1;
 	volatile u_long		target_buffer, t1, buffer;
@@ -3069,11 +3094,8 @@ yuv12_prog( bktr_ptr_t bktr, char i_flag,
  
  	*dma_prog++ = OP_SYNC  | 1 << 15 |	BKTR_FM3; /*sync, mode indicator packed data*/
  	*dma_prog++ = 0;  /* NULL WORD */
- 	if (i_flag > 2) 
- 	    k = 1;
- 	else k = 0;
  	       
- 	for (i = 0; i < (rows/interlace )/2 - k; i++) {
+ 	for (i = 0; i < (rows/interlace )/2 ; i++) {
 		*dma_prog++ = inst;
  		*dma_prog++ = cols/2 | (cols/2 << 16);
  		*dma_prog++ = target_buffer;
@@ -3089,25 +3111,25 @@ yuv12_prog( bktr_ptr_t bktr, char i_flag,
  
  	switch (i_flag) {
  	case 1:
- 		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRO;  /*sync vro*/
+ 		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRE;  /*sync vre*/
  		*dma_prog++ = 0;  /* NULL WORD */
- 
- 		*dma_prog++ = OP_JUMP ;
- 		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
  		return;
 
  	case 2:
- 		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRE;  /*sync vre*/
+ 		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRO;  /*sync vro*/
  		*dma_prog++ = 0;  /* NULL WORD */
- 
- 		*dma_prog++ = OP_JUMP ;
- 		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
  		return;
  
  	case 3:
  		*dma_prog++ = OP_SYNC |  1 << 24 | 1 << 15 | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
-		*dma_prog++ = OP_JUMP | 0xC << 24;
+		*dma_prog++ = OP_JUMP ;
 		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
 		break;
 	}
@@ -3117,8 +3139,8 @@ yuv12_prog( bktr_ptr_t bktr, char i_flag,
 		dma_prog = (u_long * ) bktr->odd_dma_prog;
 
 		target_buffer  = (u_long) buffer + cols;
-		t1 = target_buffer + cols/2;
-		*dma_prog++ = OP_SYNC   | 1 << 24 | BKTR_FM3; 
+		t1 = buffer + cols/2;
+		*dma_prog++ = OP_SYNC   | 1 << 15 | BKTR_FM3; 
 		*dma_prog++ = 0;  /* NULL WORD */
 
 		for (i = 0; i < ((rows/interlace )/2 ) ; i++) {
@@ -3140,7 +3162,7 @@ yuv12_prog( bktr_ptr_t bktr, char i_flag,
     
 	*dma_prog++ = OP_SYNC |  1 << 24 | 1 << 15 | BKTR_VRE;
 	*dma_prog++ = 0;  /* NULL WORD */
-	*dma_prog++ = OP_JUMP | 0xC << 24;
+	*dma_prog++ = OP_JUMP;
 	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
 	*dma_prog++ = 0;  /* NULL WORD */
 }
@@ -3155,13 +3177,80 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 {
 	int			rows, cols,  interlace;
 	bt848_ptr_t		bt848;
+	int			tmp_int;
+	unsigned int		temp;	
+	struct format_params	*fp;
         struct meteor_pixfmt_internal *pf_int = &pixfmt_table[ bktr->pixfmt ];
+	
 
+	fp = &format_params[bktr->format_params];
+	
 	bt848 = bktr->base;
 	bt848->int_mask = ALL_INTS_DISABLED;
 
 	/* disable FIFO & RISC, leave other bits alone */
 	bt848->gpio_dma_ctl &= ~FIFO_RISC_ENABLED;
+
+	/* set video parameters */
+	temp = ((quad_t ) fp->htotal* (quad_t) fp->horizontal * 4096
+		  / fp->vertical / bktr->cols) -  4096;
+	bt848->e_hscale_lo = temp & 0xff;
+	bt848->o_hscale_lo = temp & 0xff;
+	bt848->e_hscale_hi = (temp >> 8) & 0xff;
+	bt848->o_hscale_hi = (temp >> 8) & 0xff;
+  
+	/* horizontal active */
+	temp = bktr->cols;
+	bt848->e_hactive_lo = temp & 0xff;
+	bt848->o_hactive_lo = temp & 0xff;
+	bt848->e_crop &= ~0x3;
+	bt848->o_crop  &= ~0x3;
+	bt848->e_crop |= (temp >> 8) & 0x3;
+	bt848->o_crop  |= (temp >> 8) & 0x3;
+  
+	/* horizontal delay */
+	temp = (fp->hdelay * bktr->cols) / fp->hactive;
+	temp = temp & 0x3fe;
+	bt848->e_delay_lo = temp & 0xff;
+	bt848->o_delay_lo = temp & 0xff;
+	bt848->e_crop &= ~0xc;
+	bt848->o_crop &= ~0xc;
+	bt848->e_crop |= (temp >> 6) & 0xc;
+	bt848->o_crop |= (temp >> 6) & 0xc;
+  
+	/* vertical scale */
+
+	if (bktr->flags  & METEOR_ONLY_ODD_FIELDS ||
+	    bktr->flags & METEOR_ONLY_EVEN_FIELDS)
+	  tmp_int = 65536 -
+	    (((fp->vactive  * 256 + (bktr->rows/2)) / bktr->rows) - 512);
+	else {
+	  tmp_int = 65536  -
+	    (((fp->vactive * 512 + (bktr->rows / 2)) /  bktr->rows) - 512);
+	}
+  
+	tmp_int &= 0x1fff;
+	bt848->e_vscale_lo = tmp_int & 0xff;
+	bt848->o_vscale_lo = tmp_int & 0xff;
+	bt848->e_vscale_hi &= ~0x1f;
+	bt848->o_vscale_hi &= ~0x1f;
+	bt848->e_vscale_hi |= (tmp_int >> 8) & 0x1f;
+	bt848->o_vscale_hi |= (tmp_int >> 8) & 0x1f;
+  
+
+	/* vertical active */
+	bt848->e_crop &= ~0x30;
+	bt848->e_crop |= (fp->vactive >> 4) & 0x30;
+	bt848->e_vactive_lo = fp->vactive & 0xff;
+	bt848->o_crop &= ~0x30;
+	bt848->o_crop |= (fp->vactive >> 4) & 0x30;
+	bt848->o_vactive_lo = fp->vactive & 0xff;
+  
+	/* vertical delay */
+	bt848->e_vdelay_lo = fp->vdelay;
+	bt848->o_vdelay_lo = fp->vdelay;
+
+	/* end of video params */
 
 	/* capture control */
 	switch (i_flag) {
@@ -3751,82 +3840,117 @@ const struct TUNER tuners[] = {
 	/* NO_TUNER */
 	{ "<none>",				/* the 'name' */
 	   TTYPE_XXX,				/* input type */
-	   0x00,				/* PLL write address */
-	   0x00,				/* control byte for PLL */
+  	   0x00,				/* PLL write address */
+ 	   { 0x00,				/* control byte for PLL */
+ 	     0x00,
+ 	     0x00,
+ 	     0x00 },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0x00, 0x00, 0x00 } },		/* the band-switch values */
+	   { 0x00, 0x00, 0x00,0x00} },		/* the band-switch values */
 
 	/* TEMIC_NTSC */
 	{ "Temic NTSC",				/* the 'name' */
 	   TTYPE_NTSC,				/* input type */
 	   TEMIC_NTSC_WADDR,			/* PLL write address */
-	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { TSA552x_SCONTROL,			/* control byte for PLL */
+	     TSA552x_SCONTROL,
+	     TSA552x_SCONTROL,
+	     0x00 },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0x02, 0x04, 0x01 } },		/* the band-switch values */
+	   { 0x02, 0x04, 0x01, 0x00 } },	/* the band-switch values */
 
 	/* TEMIC_PAL */
 	{ "Temic PAL",				/* the 'name' */
 	   TTYPE_PAL,				/* input type */
 	   TEMIC_PALI_WADDR,			/* PLL write address */
-	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { TSA552x_SCONTROL,			/* control byte for PLL */
+	     TSA552x_SCONTROL,
+	     TSA552x_SCONTROL,
+	     0x00 },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0x02, 0x04, 0x01 } },		/* the band-switch values */
+	   { 0x02, 0x04, 0x01, 0x00 } },	/* the band-switch values */
 
 	/* TEMIC_SECAM */
 	{ "Temic SECAM",			/* the 'name' */
 	   TTYPE_SECAM,				/* input type */
 	   0x00,				/* PLL write address */
-	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { TSA552x_SCONTROL,			/* control byte for PLL */
+	     TSA552x_SCONTROL,
+	     TSA552x_SCONTROL,
+	     0x00 },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0x02, 0x04, 0x01 } },		/* the band-switch values */
+	   { 0x02, 0x04, 0x01,0x00 } },		/* the band-switch values */
 
 	/* PHILIPS_NTSC */
 	{ "Philips NTSC",			/* the 'name' */
 	   TTYPE_NTSC,				/* input type */
 	   PHILIPS_NTSC_WADDR,			/* PLL write address */
-	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { TSA552x_SCONTROL,			/* control byte for PLL */
+	     TSA552x_SCONTROL,
+	     TSA552x_SCONTROL,
+	     0x00 },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30 } },		/* the band-switch values */
+	   { 0xa0, 0x90, 0x30, 0x00 } },	/* the band-switch values */
 
 	/* PHILIPS_PAL */
 	{ "Philips PAL",			/* the 'name' */
 	   TTYPE_PAL,				/* input type */
-	   0x00,				/* PLL write address */
-	   TSA552x_SCONTROL,			/* control byte for PLL */
+  	   PHILIPS_PAL_WADDR,			/* PLL write address */
+	   { TSA552x_FCONTROL,			/* control byte for PLL */
+	     TSA552x_FCONTROL,
+	     TSA552x_FCONTROL,
+	     TSA552x_RADIO },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30 } },		/* the band-switch values */
+	   { 0xa0, 0x90, 0x30, 0xa5 } },	/* the band-switch values */
+	   					/* Radio: (for FM1216)
+						** 0xa4 sets radiomode
+						**    bit0 - AFC
+						**    bit1 - Mono
+						**    bit3 - Mute */
 
 	/* PHILIPS_SECAM */
 	{ "Philips SECAM",			/* the 'name' */
 	   TTYPE_SECAM,				/* input type */
 	   0x00,				/* PLL write address */
-	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { TSA552x_SCONTROL,			/* control byte for PLL */
+	     TSA552x_SCONTROL,
+	     TSA552x_SCONTROL,
+	     0x00 },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30 } },		/* the band-switch values */
+	   { 0xa0, 0x90, 0x30,0x00 } },		/* the band-switch values */
 
 	/* TEMIC_PAL I */
 	{ "Temic PAL I",			/* the 'name' */
 	   TTYPE_PAL,				/* input type */
 	   TEMIC_PALI_WADDR,			/* PLL write address */
-	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { TSA552x_SCONTROL,			/* control byte for PLL */
+	     TSA552x_SCONTROL,
+	     TSA552x_SCONTROL,
+	     0x00 },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0x02, 0x04, 0x01 } },		/* the band-switch values */
+	   { 0x02, 0x04, 0x01,0x00 } },		/* the band-switch values */
 
 	/* PHILIPS_PAL */
 	{ "Philips PAL I",			/* the 'name' */
 	   TTYPE_PAL,				/* input type */
-	   0x00,				/* PLL write address */
-          TSA552x_SCONTROL,                    /* control byte for PLL */
+  	   TEMIC_PALI_WADDR,			/* PLL write address */
+	   { TSA552x_SCONTROL,			/* control byte for PLL */
+	     TSA552x_SCONTROL,
+	     TSA552x_SCONTROL,
+	     0x00 },
           { 0x00, 0x00 },                      /* band-switch crosspoints */
-          { 0xa0, 0x90, 0x30 } },              /* the band-switch values */
+          { 0xa0, 0x90, 0x30,0x00 } },         /* the band-switch values */
 
        /* PHILIPS_FR1236_NTSC */
        { "Philips FR1236 NTSC FM",             /* the 'name' */
           TTYPE_NTSC,                          /* input type */
           PHILIPS_FR1236_NTSC_WADDR,           /* PLL write address */
-	  TSA552x_SCONTROL,			/* control byte for PLL */
+	  { TSA552x_SCONTROL,			/* control byte for PLL */
+	    TSA552x_SCONTROL,
+	    TSA552x_SCONTROL,
+	    0x00},
           { 0x00, 0x00 },			/* band-switch crosspoints */
-	  { 0xa0, 0x90, 0x30 } },		/* the band-switch values */
+	  { 0xa0, 0x90, 0x30,0x00 } },		/* the band-switch values */
 };
 
 
@@ -4312,15 +4436,24 @@ tv_freq( bktr_ptr_t bktr, int frequency )
 	 * XXX FIXME: get the cross-over points from the tuner struct
 	 */
 	if ( frequency < (160 * FREQFACTOR) )
-		band = tuner->bandAddrs[ 0 ];
+	  N = 0;
 	else if ( frequency < (454 * FREQFACTOR) )
-		band = tuner->bandAddrs[ 1 ];
+	  N = 1;
 	else
-		band = tuner->bandAddrs[ 2 ];
+	  N = 2;
 
+	if(frequency > RADIO_OFFSET) {
+	  N=3;
+	  frequency -= RADIO_OFFSET;
+	}
+  
 	/* set the address of the PLL */
-	addr = tuner->pllAddr;
-	control = tuner->pllControl;
+	addr    = tuner->pllAddr;
+	control = tuner->pllControl[ N ];
+	band    = tuner->bandAddrs[ N ];
+	if(!(band && control))			/* Don't try to set un-	*/
+	  return(-1);				/* supported modes.	*/
+
 
 	/*
 	 * N = 16 * { fRF(pc) + fIF(pc) }
