@@ -179,6 +179,9 @@ sysctl_kern_securelvl SYSCTL_HANDLER_ARGS
 		return (error);
 }
 
+SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel, CTLTYPE_INT|CTLFLAG_RW,
+    0, 0, sysctl_kern_securelvl, "I", "Current secure level");
+
 char domainname[MAXHOSTNAMELEN];
 SYSCTL_STRING(_kern, KERN_NISDOMAINNAME, domainname, CTLFLAG_RW,
     &domainname, sizeof(domainname), "Name of the current YP/NIS domain");
