@@ -397,8 +397,9 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 				setrunqueue(curthread);
 			curthread->td_proc->p_stats->p_ru.ru_nivcsw++;
 			mi_switch();
-		} else
+		} else {
 			curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
+		}
 	} else {
 		CTR4(KTR_INTR, "%s: pid %d: it_need %d, state %d",
 		    __func__, p->p_pid, ithread->it_need, p->p_stat);
