@@ -950,6 +950,14 @@ tty_iscrnl()
 }
 
 /*
+ * Try to guess whether speeds are "encoded" (4.2BSD) or just numeric (4.4BSD).
+ */
+#if B4800 != 4800
+#define	DECODE_BAUD
+#endif
+
+#ifdef	DECODE_BAUD
+/*
  * A table of available terminal speeds
  */
 struct termspeeds {
@@ -963,27 +971,36 @@ struct termspeeds {
 	{ 4800,  B4800 }, { 9600,  B9600 }, { 19200, B9600 },
 	{ 38400, B9600 }, { -1,    B9600 }
 };
+#endif	/* DECODE_BUAD */
 
 	void
 tty_tspeed(val)
 	int val;
 {
+#ifdef	DECODE_BAUD
 	register struct termspeeds *tp;
 
 	for (tp = termspeeds; (tp->speed != -1) && (val > tp->speed); tp++)
 		;
 	cfsetospeed(&termbuf, tp->value);
+#else	/* DECODE_BUAD */
+	cfsetospeed(&termbuf, val);
+#endif	/* DECODE_BUAD */
 }
 
 	void
 tty_rspeed(val)
 	int val;
 {
+#ifdef	DECODE_BAUD
 	register struct termspeeds *tp;
 
 	for (tp = termspeeds; (tp->speed != -1) && (val > tp->speed); tp++)
 		;
 	cfsetispeed(&termbuf, tp->value);
+#else	/* DECODE_BAUD */
+	cfsetispeed(&termbuf, val);
+#endif	/* DECODE_BAUD */
 }
 
 #if	defined(CRAY2) && defined(UNICOS5)
