@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57 1994/11/21 08:15:25 phk Exp $
+#	$Id: Makefile,v 1.58 1994/11/22 05:21:06 phk Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -33,6 +33,7 @@ CPIO2=  etc/services etc/protocols
 CPIO3=	miscfuncs.sh instdist.sh netinst.sh adduser.sh bininst
 
 CPIO4=	/usr/sbin/tzsetup
+CPIO4B=	tzsetup
 
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
@@ -104,7 +105,7 @@ cpio.flp:
 	( cd /${DESTDIR} ; ls ${CPIO2} | cpio -H newc -oa ) | cpio -ivd
 	( cd ${.CURDIR} ; ls ${CPIO3} | cpio -H newc -oa ) | cpio -ivd
 	cp ${CPIO4} .
-	ls ${CPIO1} ${CPIO2} ${CPIO3} ${CPIO4} | \
+	ls ${CPIO1} ${CPIO2} ${CPIO3} ${CPIO4B} | \
 		cpio -H newc -oa | gzip -9 | \
 		dd conv=osync > cpio.flp
 	gzip -9 -v < cpio.flp > cpio.flp.gz
