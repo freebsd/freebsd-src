@@ -563,6 +563,16 @@ acpi_pci_link_is_valid_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	if (irq == 0)
 		return (FALSE);
 
+	/*
+	 * Some systems have the initial irq set to the SCI but don't list
+	 * it in the valid IRQs.  Add a special case to allow routing to the
+	 * SCI if the system really wants to.  This is similar to how
+	 * Windows often stacks all PCI IRQs on the SCI (and this is vital
+	 * on some systems.)
+	 */
+	if (irq == AcpiGbl_FADT->SciInt)
+		return (TRUE);
+
 	for (i = 0; i < link->number_of_interrupts; i++) {
 		if (link->interrupts[i] == irq)
 			return (TRUE);
