@@ -558,7 +558,7 @@ restart:
 				top->m_flags |= M_EOR;
 		    } else do {
 			if (top == 0) {
-				MGETHDR(m, M_WAIT, MT_DATA);
+				MGETHDR(m, M_TRYWAIT, MT_DATA);
 				if (m == NULL) {
 					error = ENOBUFS;
 					goto release;
@@ -567,7 +567,7 @@ restart:
 				m->m_pkthdr.len = 0;
 				m->m_pkthdr.rcvif = (struct ifnet *)0;
 			} else {
-				MGET(m, M_WAIT, MT_DATA);
+				MGET(m, M_TRYWAIT, MT_DATA);
 				if (m == NULL) {
 					error = ENOBUFS;
 					goto release;
@@ -575,7 +575,7 @@ restart:
 				mlen = MLEN;
 			}
 			if (resid >= MINCLSIZE) {
-				MCLGET(m, M_WAIT);
+				MCLGET(m, M_TRYWAIT);
 				if ((m->m_flags & M_EXT) == 0)
 					goto nopages;
 				mlen = MCLBYTES;
@@ -695,7 +695,7 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 	else
 		flags = 0;
 	if (flags & MSG_OOB) {
-		m = m_get(M_WAIT, MT_DATA);
+		m = m_get(M_TRYWAIT, MT_DATA);
 		if (m == NULL)
 			return (ENOBUFS);
 		error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
@@ -887,7 +887,7 @@ dontblock:
 				moff += len;
 			else {
 				if (mp)
-					*mp = m_copym(m, 0, len, M_WAIT);
+					*mp = m_copym(m, 0, len, M_TRYWAIT);
 				m->m_data += len;
 				m->m_len -= len;
 				so->so_rcv.sb_cc -= len;
@@ -1390,11 +1390,11 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	struct mbuf *m, *m_prev;
 	int sopt_size = sopt->sopt_valsize;
 
-	MGET(m, sopt->sopt_p ? M_WAIT : M_DONTWAIT, MT_DATA);
+	MGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
 	if (m == 0)
 		return ENOBUFS;
 	if (sopt_size > MLEN) {
-		MCLGET(m, sopt->sopt_p ? M_WAIT : M_DONTWAIT);
+		MCLGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			return ENOBUFS;
@@ -1408,13 +1408,13 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	m_prev = m;
 
 	while (sopt_size) {
-		MGET(m, sopt->sopt_p ? M_WAIT : M_DONTWAIT, MT_DATA);
+		MGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
 		if (m == 0) {
 			m_freem(*mp);
 			return ENOBUFS;
 		}
 		if (sopt_size > MLEN) {
-			MCLGET(m, sopt->sopt_p ? M_WAIT : M_DONTWAIT);
+			MCLGET(m, sopt->sopt_p ? M_TRYWAIT : M_DONTWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				m_freem(*mp);
 				return ENOBUFS;

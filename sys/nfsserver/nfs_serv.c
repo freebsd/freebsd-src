@@ -689,8 +689,8 @@ nfsrv_readlink(nfsd, slp, procp, mrq)
 	len = 0;
 	i = 0;
 	while (len < NFS_MAXPATHLEN) {
-		MGET(mp, M_WAIT, MT_DATA);
-		MCLGET(mp, M_WAIT);
+		MGET(mp, M_TRYWAIT, MT_DATA);
+		MCLGET(mp, M_TRYWAIT);
 		mp->m_len = NFSMSIZ(mp);
 		if (len == 0)
 			mp3 = mp2 = mp;
@@ -940,8 +940,8 @@ nfsrv_read(nfsd, slp, procp, mrq)
 				i++;
 			}
 			if (left > 0) {
-				MGET(m, M_WAIT, MT_DATA);
-				MCLGET(m, M_WAIT);
+				MGET(m, M_TRYWAIT, MT_DATA);
+				MCLGET(m, M_TRYWAIT);
 				m->m_len = 0;
 				m2->m_next = m;
 				m2 = m;

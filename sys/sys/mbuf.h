@@ -227,7 +227,8 @@ struct mbstat {
 
 /* flags to m_get/MGET */
 #define	M_DONTWAIT	1
-#define	M_WAIT		0
+#define	M_TRYWAIT	0
+#define	M_WAIT		M_TRYWAIT	/* XXX: Deprecated. */
 
 /*
  * Normal mbuf clusters are normally treated as character arrays
@@ -362,7 +363,7 @@ struct mcntfree_lst {
 		mmbfree.m_head = (m_mget)->m_next;			\
 		mbtypes[MT_FREE]--;					\
 	} else {							\
-		if ((m_get_how) == M_WAIT)				\
+		if ((m_get_how) == M_TRYWAIT)				\
 			(m_mget) = m_mballoc_wait();			\
 	}								\
 } while (0)
@@ -429,7 +430,7 @@ struct mcntfree_lst {
 		mbstat.m_clfree--;					\
 		mclfree.m_head = ((union mcluster *)_mp)->mcl_next;	\
 	} else {							\
-		if (_mhow == M_WAIT)					\
+		if (_mhow == M_TRYWAIT)					\
 			_mp = m_clalloc_wait();				\
 	}								\
 	(p) = _mp;							\
@@ -460,7 +461,7 @@ struct mcntfree_lst {
 #define MEXTADD(m, buf, size, free, args, flags, type) do {		\
 	struct mbuf *_mm = (m);						\
 									\
-	MEXT_INIT_REF(_mm, M_WAIT);					\
+	MEXT_INIT_REF(_mm, M_TRYWAIT);					\
 	if (_mm->m_ext.ref_cnt != NULL) {				\
 		_mm->m_flags |= (M_EXT | (flags));			\
 		_mm->m_ext.ext_buf = (caddr_t)(buf);			\
@@ -588,8 +589,8 @@ struct mcntfree_lst {
 /*
  * Arrange to prepend space of size plen to mbuf m.
  * If a new mbuf must be allocated, how specifies whether to wait.
- * If how is M_DONTWAIT and allocation fails, the original mbuf chain
- * is freed and m is set to NULL.
+ * If the allocation fails, the original mbuf chain is freed and m is
+ * set to NULL.
  */
 #define	M_PREPEND(m, plen, how) do {					\
 	struct mbuf **_mmp = &(m);					\

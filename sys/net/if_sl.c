@@ -253,9 +253,9 @@ slcreate()
 
 	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_WAITOK | M_ZERO);
 
-	m = m_gethdr(M_WAIT, MT_DATA);
+	m = m_gethdr(M_TRYWAIT, MT_DATA);
 	if (m != NULL) {
-		MCLGET(m, M_WAIT);
+		MCLGET(m, M_TRYWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			m = NULL;

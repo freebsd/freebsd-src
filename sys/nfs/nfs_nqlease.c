@@ -554,7 +554,7 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 			 * Record Mark.
 			 */
 			if (sotype == SOCK_STREAM) {
-				M_PREPEND(m, NFSX_UNSIGNED, M_WAIT);
+				M_PREPEND(m, NFSX_UNSIGNED, M_TRYWAIT);
 				*mtod(m, u_int32_t *) = htonl(0x80000000 |
 					(m->m_pkthdr.len - NFSX_UNSIGNED));
 			}
@@ -932,7 +932,7 @@ nqnfs_vacated(vp, cred)
 		RPCAUTH_UNIX, 5 * NFSX_UNSIGNED, (char *)0,
 		0, (char *)NULL, mreq, i, &mheadend, &xid);
 	if (nmp->nm_sotype == SOCK_STREAM) {
-		M_PREPEND(m, NFSX_UNSIGNED, M_WAIT);
+		M_PREPEND(m, NFSX_UNSIGNED, M_TRYWAIT);
 		*mtod(m, u_int32_t *) = htonl(0x80000000 | (m->m_pkthdr.len -
 			NFSX_UNSIGNED));
 	}

@@ -480,7 +480,7 @@ nfssvc_nfsd(nsd, argp, p)
 					slp->ns_flag &= ~SLP_NEEDQ;
 					(void) nfs_slplock(slp, 1);
 					nfsrv_rcv(slp->ns_so, (caddr_t)slp,
-						M_WAIT);
+						M_TRYWAIT);
 					nfs_slpunlock(slp);
 				}
 				error = nfsrv_dorec(slp, nfsd, &nd);
@@ -632,7 +632,7 @@ nfssvc_nfsd(nsd, argp, p)
 			 * Record Mark.
 			 */
 			if (sotype == SOCK_STREAM) {
-				M_PREPEND(m, NFSX_UNSIGNED, M_WAIT);
+				M_PREPEND(m, NFSX_UNSIGNED, M_TRYWAIT);
 				*mtod(m, u_int32_t *) = htonl(0x80000000 | siz);
 			}
 			if (slp->ns_so->so_proto->pr_flags & PR_CONNREQUIRED)
