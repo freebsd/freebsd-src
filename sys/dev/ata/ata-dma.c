@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-dma.c,v 1.5 1999/04/16 21:21:53 peter Exp $
+ *	$Id: ata-dma.c,v 1.6 1999/04/18 20:48:15 sos Exp $
  */
 
 #include "ata.h"
@@ -39,8 +39,10 @@
 #include <sys/bus.h>
 #include <vm/vm.h>           
 #include <vm/pmap.h>
+#if NPCI > 0
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+#endif
 #include <dev/ata/ata-all.h>
 
 #ifdef __alpha__
@@ -86,7 +88,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	if (udmamode >= 2) {
     	    int32_t mask48, new48;
 
-	    printf("ata%d: %s: settting up UDMA2 mode on PIIX4 chip ",
+	    printf("ata%d: %s: setting up UDMA2 mode on PIIX4 chip ",
 		   scp->lun, (device) ? "slave" : "master");
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_FEA_SETXFER, ATA_WAIT_INTR);
@@ -125,7 +127,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
                 pci_write_config(scp->dev, 0x40, new40, 4);
                 pci_write_config(scp->dev, 0x44, new44, 4);
 	    }
-	    printf("ata%d: %s: settting up WDMA2 mode on PIIX3/4 chip ",
+	    printf("ata%d: %s: setting up WDMA2 mode on PIIX3/4 chip ",
 		   scp->lun, (device) ? "slave" : "master");
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_FEA_SETXFER, ATA_WAIT_INTR);
@@ -168,7 +170,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
     case 0x4d33105a:	/* Promise Ultra/33 / FastTrack controllers */
 	devno = (scp->unit << 1) + (device ? 1 : 0);
 	if (udmamode >=2) {
-	    printf("ata%d: %s: settting up UDMA2 mode on Promise chip ",
+	    printf("ata%d: %s: setting up UDMA2 mode on Promise chip ",
 		   scp->lun, (device) ? "slave" : "master");
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_FEA_SETXFER, ATA_WAIT_INTR);
@@ -181,7 +183,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    return 0;
 	}
 	else if (wdmamode >= 2 && apiomode >= 4) {
-	    printf("ata%d: %s: settting up WDMA2 mode on Promise chip ",
+	    printf("ata%d: %s: setting up WDMA2 mode on Promise chip ",
 		   scp->lun, (device) ? "slave" : "master");
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_FEA_SETXFER, ATA_WAIT_INTR);
@@ -194,7 +196,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    return 0;
         }
 	else {
-	    printf("ata%d: %s: settting up PIO mode on Promise chip OK\n",
+	    printf("ata%d: %s: setting up PIO mode on Promise chip OK\n",
 		   scp->lun, (device) ? "slave" : "master");
 	    pci_write_config(scp->dev, 0x60 + (devno << 2), 0x004fe924, 4);
 	}
@@ -204,7 +206,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	if (udmamode >=2) {
 	    int32_t word54 = pci_read_config(scp->dev, 0x54, 4);
 	
-	    printf("ata%d: %s: settting up UDMA2 mode on Aladdin chip ",
+	    printf("ata%d: %s: setting up UDMA2 mode on Aladdin chip ",
 		   scp->lun, (device) ? "slave" : "master");
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_FEA_SETXFER, ATA_WAIT_INTR);
@@ -220,7 +222,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		
 	}
 	else if (wdmamode >= 2 && apiomode >= 4) {
-	    printf("ata%d: %s: settting up WDMA2 mode on Aladdin chip ",
+	    printf("ata%d: %s: setting up WDMA2 mode on Aladdin chip ",
 		   scp->lun, (device) ? "slave" : "master");
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_FEA_SETXFER, ATA_WAIT_INTR);
@@ -235,7 +237,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 
     default:		/* well, we have no support for this, but try anyways */
 	if ((wdmamode >= 2 && apiomode >= 4) || udmamode >= 2) {
-	    printf("ata%d: %s: settting up generic WDMA2 mode ",
+	    printf("ata%d: %s: setting up generic WDMA2 mode ",
 		   scp->lun, (device) ? "slave" : "master");
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_FEA_SETXFER, ATA_WAIT_INTR);

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-fd.c,v 1.5 1999/04/10 18:53:35 sos Exp $
+ *	$Id: atapi-fd.c,v 1.6 1999/05/07 07:03:14 phk Exp $
  */
 
 #include "ata.h"
@@ -306,7 +306,7 @@ afd_start(struct afd_softc *fdp)
     
     if (!bp)
         return;
-    bzero(ccb, sizeof(ccb));
+
     bufq_remove(&fdp->buf_queue, bp);
 
     /* Should reject all queued entries if media have changed. */
@@ -320,8 +320,11 @@ afd_start(struct afd_softc *fdp)
     lba = bp->b_blkno / (fdp->cap.sector_size / DEV_BSIZE);
     count = (bp->b_bcount + (fdp->cap.sector_size - 1)) / fdp->cap.sector_size;
 
-    if (count > 64) /* only needed for ZIP drives SOS */
+    /* Should only be needed for ZIP drives, but better safe than sorry */
+    if (count > 64)
 	count = 64;
+
+    bzero(ccb, sizeof(ccb));
 
     if (bp->b_flags & B_READ)
 	ccb[0] = ATAPI_READ_BIG;
@@ -338,7 +341,7 @@ afd_start(struct afd_softc *fdp)
 
     devstat_start_transaction(&fdp->stats);
 
-    atapi_queue_cmd(fdp->atp, ccb, bp->b_data, count*fdp->cap.sector_size, 
+    atapi_queue_cmd(fdp->atp, ccb, bp->b_data, count * fdp->cap.sector_size, 
 		    (bp->b_flags & B_READ) ? A_READ : 0, afd_done, fdp, bp);
 }
 
@@ -348,18 +351,17 @@ afd_done(struct atapi_request *request)
     struct buf *bp = request->bp;
     struct afd_softc *fdp = request->driver;
 
-    devstat_end_transaction(&fdp->stats, bp->b_bcount-request->bytecount,
+    devstat_end_transaction(&fdp->stats, request->donecount,
                             DEVSTAT_TAG_NONE,
                             (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);
  
     if (request->result) {
-	printf("afd_done: ");
         atapi_error(request->device, request->result);
         bp->b_error = EIO;
         bp->b_flags |= B_ERROR;
     }
     else
-	bp->b_resid = request->bytecount;
+	bp->b_resid = bp->b_bcount - request->donecount;
     biodone(bp);
     afd_start(fdp);
 }
