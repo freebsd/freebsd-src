@@ -81,7 +81,7 @@ static dev_t random_dev;
 static dev_t urandom_dev; /* XXX Temporary */
 
 /* To stash the sysctl's until they are removed */
-static struct sysctl_oid *random_sysctl[10]; /* magic # is sysctl count */
+static struct sysctl_oid *random_sysctl[12]; /* magic # is sysctl count */
 static int sysctlcount = 0;
 
 static int
@@ -190,6 +190,18 @@ random_modevent(module_t mod, int type, void *data)
 			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node1),
 				OID_AUTO, "seeded", CTLFLAG_RW,
 				&random_state.seeded, 0, "Seeded State");
+		random_sysctl[sysctlcount++] =
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node1),
+				OID_AUTO, "harvest_ethernet", CTLFLAG_RW,
+				&harvest.ethernet, 0, "Harvest NIC entropy");
+		random_sysctl[sysctlcount++] =
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node1),
+				OID_AUTO, "harvest_point_to_point", CTLFLAG_RW,
+				&harvest.point_to_point, 0, "Harvest serial net entropy");
+		random_sysctl[sysctlcount++] =
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node1),
+				OID_AUTO, "harvest_interrupt", CTLFLAG_RW,
+				&harvest.interrupt, 0, "Harvest IRQ entropy");
 		random_sysctl[sysctlcount++] = node2 =
 			SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(node_base),
 				OID_AUTO, "yarrow", CTLFLAG_RW, 0,
