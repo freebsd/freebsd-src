@@ -1609,7 +1609,6 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 */
 		if ((type == SYS_RES_IRQ) && (cfg->intline == 255) &&
 		    (cfg->intpin != 0) && (start == 0) && (end == ~0UL)) {
-			device_printf(device_get_parent(dev), "intreq\n");
 			cfg->intline = pci_cfgintr(pci_get_bus(child),
 			    pci_get_slot(child), cfg->intpin);
 			if (cfg->intline != 255) {
