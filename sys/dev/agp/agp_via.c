@@ -65,18 +65,18 @@ agp_via_match(device_t dev)
 		return NULL;
 
 	switch (pci_get_devid(dev)) {
+	case 0x03051106:
+		return ("VIA 82C8363 (Apollo KT133A) host to PCI bridge");
 	case 0x05011106:
 		return ("VIA 8501 (Apollo MVP4) host to PCI bridge");
 	case 0x05971106:
 		return ("VIA 82C597 (Apollo VP3) host to PCI bridge");
 	case 0x05981106:
 		return ("VIA 82C598 (Apollo MVP3) host to PCI bridge");
-	case 0x06911106:
-		return ("VIA 82C691 (Apollo Pro) host to PCI bridge");
 	case 0x06051106:
 		return ("VIA 82C694X (Apollo Pro 133A) host to PCI bridge");
-	case 0x03051106:
-	    return ("VIA 82C8363 (Apollo KT133A) host to PCI bridge");
+	case 0x06911106:
+		return ("VIA 82C691 (Apollo Pro) host to PCI bridge");
 	};
 
 	if (pci_get_vendor(dev) == 0x1106)
