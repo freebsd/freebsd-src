@@ -48,6 +48,7 @@ SUBDIR=	3dfx \
 	joy \
 	kue \
 	lge \
+	libiconv \
 	libmchain \
 	lnc \
 	lomac \
