@@ -83,12 +83,21 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 {
 	struct		thread *td;
 	pmap_t		pm;
+	faultbuf	env;
 	const char	*kp;
 	char		*up, *p;
 	size_t		l;
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
+
+	printf("copyout: called with %p, %p, %d (td=%p)\n", kaddr, udaddr, len,
+	    td);
+
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (EFAULT);
+	}
 
 	kp = kaddr;
 	up = udaddr;
@@ -109,6 +118,7 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 		len -= l;
 	}
 
+	td->td_pcb->pcb_onfault = NULL;
 	return (0);
 }
 
@@ -117,12 +127,21 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 {
 	struct		thread *td;
 	pmap_t		pm;
+	faultbuf	env;
 	const char	*up;
 	char		*kp, *p;
 	size_t		l;
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
+
+	printf("copyin: called with %p, %p, %d (td=%p)\n", udaddr, kaddr, len,
+	    td);
+
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (EFAULT);
+	}
 
 	kp = kaddr;
 	up = udaddr;
@@ -143,6 +162,7 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 		len -= l;
 	}
 
+	td->td_pcb->pcb_onfault = NULL;
 	return (0);
 }
 
@@ -151,6 +171,7 @@ copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 {
 	struct		thread *td;
 	pmap_t		pm;
+	faultbuf	env;
 	const char	*up;
 	char		*kp;
 	size_t		l;
@@ -158,6 +179,11 @@ copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
+
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (EFAULT);
+	}
 
 	kp = kaddr;
 	up = udaddr;
@@ -181,24 +207,32 @@ copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 		*done = l;
 	}
 
+	td->td_pcb->pcb_onfault = NULL;
 	return (rv);
 }
 
 int
 subyte(void *addr, int byte)
 {
-	struct	thread *td;
-	pmap_t	pm;
-	char	*p;
+	struct		thread *td;
+	pmap_t		pm;
+	faultbuf	env;
+	char		*p;
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (char *)((u_int)USER_ADDR + ((u_int)addr & ~SEGMENT_MASK));
 
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (EFAULT);
+	}
+
 	set_user_sr(pm->pm_sr[(u_int)addr >> ADDR_SR_SHFT]);
 
 	*p = (char)byte;
 
+	td->td_pcb->pcb_onfault = NULL;
 	return (0);
 }
 
@@ -212,49 +246,75 @@ suibyte(void *addr, int byte)
 int
 suword(void *addr, long word)
 {
-	struct	thread *td;
-	pmap_t	pm;
-	long	*p;
+	struct		thread *td;
+	pmap_t		pm;
+	faultbuf	env;
+	long		*p;
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (long *)((u_int)USER_ADDR + ((u_int)addr & ~SEGMENT_MASK));
 
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (EFAULT);
+	}
+
 	set_user_sr(pm->pm_sr[(u_int)addr >> ADDR_SR_SHFT]);
 
 	*p = word;
 
+	td->td_pcb->pcb_onfault = NULL;
 	return (0);
 }
 
 int
 fubyte(const void *addr)
 {
-	struct	thread *td;
-	pmap_t	pm;
-	char	*p;
+	struct		thread *td;
+	pmap_t		pm;
+	faultbuf	env;
+	char		*p;
+	int		val;
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (char *)((u_int)USER_ADDR + ((u_int)addr & ~SEGMENT_MASK));
 
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (EFAULT);
+	}
+
 	set_user_sr(pm->pm_sr[(u_int)addr >> ADDR_SR_SHFT]);
 
-	return ((int)*p);
+	val = (int)*p;
+
+	td->td_pcb->pcb_onfault = NULL;
+	return (val);
 }
 
 long
 fuword(const void *addr)
 {
-	struct	thread *td;
-	pmap_t	pm;
-	long	*p;
+	struct		thread *td;
+	pmap_t		pm;
+	faultbuf	env;
+	long		*p, val;
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (long *)((u_int)USER_ADDR + ((u_int)addr & ~SEGMENT_MASK));
 
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (EFAULT);
+	}
+
 	set_user_sr(pm->pm_sr[(u_int)addr >> ADDR_SR_SHFT]);
 
-	return (*p);
+	val = *p;
+
+	td->td_pcb->pcb_onfault = NULL;
+	return (val);
 }
