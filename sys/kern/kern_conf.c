@@ -579,14 +579,14 @@ idestroy_dev(struct cdev *dev)
 	}
 
 	csw = dev->si_devsw;
-	dev->si_devsw = NULL;
-	while (csw->d_purge != NULL && dev->si_threadcount) {
+	dev->si_devsw = NULL;	/* already NULL for SI_ALIAS */
+	while (csw != NULL && csw->d_purge != NULL && dev->si_threadcount) {
 		printf("Purging %lu threads from %s\n",
 		    dev->si_threadcount, devtoname(dev));
 		csw->d_purge(dev);
 		msleep(csw, &devmtx, PRIBIO, "devprg", hz/10);
 	}
-	if (csw->d_purge != NULL)
+	if (csw != NULL && csw->d_purge != NULL)
 		printf("All threads purged from %s\n", devtoname(dev));
 
 	dev->si_drv1 = 0;
