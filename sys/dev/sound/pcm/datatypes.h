@@ -137,6 +137,7 @@ typedef void (pcm_swap_t)(void *data, int dir);
 /* descriptor of audio device */
 struct _snddev_info {
 	pcm_channel *play, *rec, **aplay, **arec, fakechan;
+	int *ref;
 	unsigned playcount, reccount, chancount;
 	snd_mixer mixer;
 	u_long magic;
