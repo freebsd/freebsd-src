@@ -226,7 +226,7 @@ static void
 list_cmd() {
 	char	n[MAX_FNAME];
 	FILE	*f;
-	int	ch;
+	int	ch, x;
 
 	log_it(RealUser, Pid, "LIST", User);
 	(void) sprintf(n, CRON_TAB(User));
@@ -240,6 +240,24 @@ list_cmd() {
 	/* file is open. copy to stdout, close.
 	 */
 	Set_LineNum(1)
+
+	/* ignore the top few comments since we probably put them there.
+	 */
+	for (x = 0;  x < NHEADER_LINES;  x++) {
+		ch = get_char(f);
+		if (EOF == ch)
+			break;
+		if ('#' != ch) {
+			putc(ch, NewCrontab);
+			break;
+		}
+		while (EOF != (ch = get_char(f)))
+			if (ch == '\n')
+				break;
+		if (EOF == ch)
+			break;
+	}
+
 	while (EOF != (ch = get_char(f)))
 		putchar(ch);
 	fclose(f);
@@ -249,6 +267,16 @@ list_cmd() {
 static void
 delete_cmd() {
 	char	n[MAX_FNAME];
+	int ch, first;
+
+	if (isatty(STDIN_FILENO)) {
+		(void)fprintf(stderr, "remove crontab for %s? ", User);
+		first = ch = getchar();
+		while (ch != '\n' && ch != EOF)
+			ch = getchar();
+		if (first != 'y' && first != 'Y')
+			return;
+	}
 
 	log_it(RealUser, Pid, "DELETE", User);
 	(void) sprintf(n, CRON_TAB(User));
