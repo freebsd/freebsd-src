@@ -24,6 +24,14 @@
 \
 \ $FreeBSD$
 
+s" arch-alpha" environment? [if]
+s" loader_version" environment? 3 < abort" Loader version 0.3+ required"
+[then]
+
+s" arch-i386" environment? [if]
+s" loader_version" environment? 8 < abort" Loader version 0.8+ required"
+[then]
+
 include /boot/support.4th
 
 only forth definitions also support-functions
