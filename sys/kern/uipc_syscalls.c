@@ -268,14 +268,13 @@ accept1(td, uap, compat)
 		error = EINVAL;
 		goto done;
 	}
-	if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->so_comp)) {
-		splx(s);
-		error = EWOULDBLOCK;
-		goto done;
-	}
 	while (TAILQ_EMPTY(&head->so_comp) && head->so_error == 0) {
 		if (head->so_state & SS_CANTRCVMORE) {
 			head->so_error = ECONNABORTED;
+			break;
+		}
+		if ((head->so_state & SS_NBIO) != 0) {
+			head->so_error = EWOULDBLOCK;
 			break;
 		}
 		error = tsleep(&head->so_timeo, PSOCK | PCATCH,
