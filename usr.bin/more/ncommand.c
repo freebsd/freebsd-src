@@ -1301,7 +1301,7 @@ csearch(cident, args)
 	enum { FORW=0, BACK=1 } direction;
 	static enum { NOINVERT=0, INVERT=1 } sense;
 	long N;
-	int abrt;
+	int abrt = 0;
 
 	ARGTOG(direction, 6, "forw", "back", "forward", "backward",
 	    "forwards", "backwards");
