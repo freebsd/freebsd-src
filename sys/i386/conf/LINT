@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.1 1995/07/22 04:24:51 davidg Exp $
+#	$Id: LINT,v 1.184.4.3 1995/09/10 01:55:38 davidg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -37,7 +37,8 @@ maxusers	10
 # Under some circumstances it is necessary to make the default max
 # number of processes per user and open files per user more than the
 # defaults on bootup.  (an example is a large news server in which
-# the uid, news, can sometimes need > 100 simultaneous processes running)
+# the uid, news, can sometimes need > 100 simultaneous processes running,
+# or perhaps a user using lots of windows under X).
 options		"CHILD_MAX=128"
 options		"OPEN_MAX=128"
 
@@ -396,10 +397,10 @@ options		BOUNCE_BUFFERS
 #options	"BROKEN_KEYBOARD_RESET"
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
-#device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
-#options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.0.5
-#options		XSERVER			# include code for XFree86
-#options		FAT_CURSOR		# start with block cursor
+device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
+options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.0.5
+options		XSERVER			# include code for XFree86
+options		FAT_CURSOR		# start with block cursor
 
 # The syscons console driver (sco color console compatible) - default.
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
@@ -493,6 +494,16 @@ disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
 #
+# Options for `wdc':
+#
+# ATAPI enables the support for ATAPI-compatible IDE devices
+#
+options         ATAPI   #Enable ATAPI support for IDE bus
+
+# IDE CD-ROM driver - requires wdc controller and ATAPI option
+device          wcd0
+
+#
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
 #
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
@@ -522,13 +533,22 @@ options	FDSEEKWAIT="16"
 # Other standard PC hardware: `lpt', `mse', `psm', `sio', etc.
 #
 # lpt: printer port
+#	lpt specials:
+#		port can be specified as ?, this will cause the driver to scan
+#		the BIOS port list;
+#		the irq and vector clauses may be omitted, this
+#		will force the port into polling mode.
 # mse: Logitech and ATI InPort bus mouse ports
 # psm: PS/2 mouse port [note: conflicts with sc0/vt0, thus "conflicts" keywd]
 # sio: serial ports (see sio(4))
 
-device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
+device		lpt0	at isa? port? tty irq 7 vector lptintr
+device		lpt1	at isa? port "IO_LPT3" tty irq 5 vector lptintr
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
+# Options for psm:
+options		PSM_NO_RESET		#don't reset mouse hardware (some laptops)
+
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 
 # Options for sio:
@@ -577,8 +597,8 @@ device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 # Uncomment one (and only one) of the following two drivers for the appropriate
 # ISDN device you have.  For more information on what's considered appropriate
 # for your given set of circumstances, please read
-# /usr/src/gnu/usr.sbin/docs/INSTALL.  It's a bit sparse at present, but it's
-# the best we have right now.  The snic driver is also disabled at present,
+# /usr/src/gnu/usr.sbin/isdn/docs/INSTALL.  It's a bit sparse at present, but
+# it's the best we have right now.  The snic driver is also disabled at present,
 # waiting for someone to upgrade the driver to 2.0 (it's in /sys/gnu/scsi/).
 #
 device nic0 at isa? port "IO_COM3" iomem 0xe0000 tty irq 9 vector nicintr
@@ -593,8 +613,7 @@ device nnic0 at isa? port 0x150 iomem 0xe0000 tty irq 12 vector nnicintr
 # sbmidi: SoundBlaster 16 MIDI interface
 # pas: ProAudioSpectrum PCM and MIDI
 # gus: Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
-# gusxvi: Gravis Ultrasound 16-bit PCM
-# gusmax: Gravis Ultrasound MAX (currently broken)
+# gusxvi: Gravis Ultrasound 16-bit PCM	(do not use)
 # mss: Microsoft Sound System
 # opl: Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
 # uart: stand-alone 6850 UART for MIDI
@@ -609,17 +628,31 @@ device nnic0 at isa? port 0x150 iomem 0xe0000 tty irq 12 vector nnicintr
 # If you don't have a lpt0 device at IRQ 7, you can remove the
 # ``conflicts'' specification in the appropriate device entries below.
 #
+# If you have a GUS-MAX card and want to use the CS4231 codec on the
+# card the drqs for the gus max must be 8 bit (1, 2, or 3).
+# 
+# If you would like to use the full duplex option on the gus, then define
+# flags to be the ``read dma channel''.
+#
+# options BROKEN_BUS_CLOCK	#PAS-16 isn't working and OPTI chipset
+# options SYMPHONY_PAS		#PAS-16 isn't working and SYMPHONY chipset
+# options EXCLUDE_SBPRO		#PAS-16
+# options "SBC_IRQ=5"		#PAS-16. Must match irq on sb0 line.
+# PAS16: The order of the pas0/sb0/opl0 is important since the
+#	sb emulation is enabled in the pas-16 attach.
+#
+# The i386/isa/sound/sound.doc has more information.
+
 # Controls all sound devices
 controller	snd0
+device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
 device sb0      at isa? port 0x220 irq 7 conflicts drq 1 vector sbintr
 device sbxvi0   at isa? drq 5
 device sbmidi0  at isa? port 0x330
-device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
-device gus0 at isa? port 0x220 irq 11 drq 1 vector gusintr
-device gusxvi0 at isa? port 0x530 irq 7 conflicts drq 3 vector adintr
-device gusmax0 at isa? port 0x32c
+device gus0 at isa? port 0x220 irq 10 drq 1 vector gusintr
+#device gus0 at isa? port 0x220 irq 10 drq 1 flags 0x3 vector gusintr
 device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
-device opl0     at isa? port 0x388
+device opl0     at isa? port 0x388 conflicts
 device mpu0     at isa? port 0x330 irq 6 drq 0
 device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 
@@ -627,7 +660,7 @@ device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 device pca0 at isa? port IO_TIMER1 tty
 
 #
-# Miscellaneous hardware: `mcd', `wt', `ctx', `apm'
+# Miscellaneous hardware:
 #
 # mcd: Mitsumi CD-ROM
 # scd: Sony CD-ROM
@@ -636,12 +669,17 @@ device pca0 at isa? port IO_TIMER1 tty
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
 # spigot: The Creative Labs Video Spigot video-aquisition board
+# meteor: Matrox Meteor video capture board
 # cy: Cyclades high-speed serial driver (ALPHA QUALITY!)
+# dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
+# asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
 # joy: joystick
 # labpc: National Instrument's Lab-PC and Lab-PC+
 # rc: RISCom/8 multiport card
+# tw: TW-523 power line interface for use with X-10 home control products
+# si: Specialix SI/XIO 4-32 port terminal multiplexor (PRE ALPHA QUALITY!)
 
 #
 # Notes on the spigot:
@@ -650,6 +688,21 @@ device pca0 at isa? port IO_TIMER1 tty
 #  I/O memory is an 8kb region.  Possible values are:
 #    0a0000, 0a2000, ..., 0fffff, f00000, f02000, ..., ffffff
 #  Note that the start address must be on an even boundary.
+
+# Notes on the Digiboard driver:
+#
+# The following flag values have special meanings:
+#	0x01 - alternate layout of pins
+#	0x02 - use the windowed PC/Xe in 64K mode
+#
+# Notes on the *PRE-ALPHA* Specialix SI/XIO driver:
+#  **This is NOT a Specialix supported Driver!**
+#  The host card is memory, not IO mapped.
+#  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
+#  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
+#  The cards can use an IRQ of 11, 12 or 15.
+#  *Do* be ready for trouble if you try to use it.
+#  It currently works for me (very well) but no guarantees yet.
 
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # for the Sony CDU31/33A CDROM
@@ -664,8 +717,14 @@ device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port "IO_GAME"
 device		cy0	at isa? tty irq 10 iomem 0xd4000 vector cyintr
+device		dgb0	at isa? port 0x220 iomem 0xfc0000 iosiz ? tty
 device		labpc0	at isa? port 0x260 tty irq 5 vector labpcintr
 device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
+# the port and irq for tw0 are fictitious
+device          tw0     at isa? port 0x380 tty irq 11 vector twintr
+device		si0	at isa? iomem 0xd0000 tty irq 12 vector siintr
+device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10 vector ascintr
+
 
 #
 # PCI devices:
@@ -686,8 +745,31 @@ device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
 # The PROBE_VERBOSE option enables a long listing of chip set registers
 # for supported PCI chip sets (currently only intel Saturn and Mercury).
 # 
+# The 'meteor' device is a PCI video capture board. It can also have the
+# following options:
+#   options "METEOR_ALLOC_PAGES=xxx"	preallocate kernel pages for data entry
+#	figure (ROWS*COLUMN*BYTES_PER_PIXEL*FRAME+PAGE_SIZE-1)/PAGE_SIZE
+#   options METEOR_DEALLOC_PAGES	remove all allocated pages on close(2)
+#   options "METEOR_DEALLOC_ABOVE=xxx"	remove all allocated pages above the
+#	specified amount. If this value is below the allocated amount no action
+#	taken
+#
 controller	pci0
 device		ncr0
 device		de0
 device		fpa0
+device		meteor0
 options		PROBE_VERBOSE
+
+#
+# Laptop/Notebook options:
+#
+# See also:
+#  apm under `Miscellaneous hardare'
+#  options		PSM_NO_RESET  for the `psm' driver
+# above.
+
+# For older notebooks that signal a powerfail condition (external
+# power supply dropped, or battery state low) by issuing an NMI:
+
+options		POWERFAIL_NMI	# make it beep instead of panicing

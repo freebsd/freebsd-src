@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.98.4.2 1995/08/23 05:05:54 davidg Exp $
+#	$Id: files.i386,v 1.98.4.4 1995/09/10 01:51:13 davidg Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -73,6 +73,7 @@ i386/isa/elink.c		optional	ie	device-driver
 i386/isa/fd.c			optional	fd	device-driver
 i386/isa/ft.c			optional	ft	device-driver
 i386/isa/gpib.c			optional	gp	device-driver
+i386/isa/asc.c			optional	asc	device-driver
 i386/isa/gsc.c			optional	gsc	device-driver
 i386/isa/if_cx.c		optional	cx	device-driver
 i386/isa/if_ed.c		optional	ed	device-driver
@@ -113,6 +114,8 @@ i386/isa/rc.c			optional	rc	device-driver
 i386/isa/readMBR.c		standard	
 i386/isa/scd.c			optional	scd	device-driver
 i386/isa/seagate.c		optional	sea	device-driver
+i386/isa/si.c			optional	si	device-driver
+i386/isa/si_code.c		optional	si	device-driver
 i386/isa/sio.c			optional	sio	device-driver
 i386/isa/sound/dev_table.c	optional	snd	device-driver
 i386/isa/sound/soundcard.c	optional	snd	device-driver
@@ -133,7 +136,7 @@ i386/isa/sound/sound_timer.c	optional	gus	device-driver
 i386/isa/sound/midi_synth.c	optional	gus	device-driver
 i386/isa/sound/midibuf.c	optional	gus	device-driver
 i386/isa/sound/ad1848.c		optional	gusxvi	device-driver
-i386/isa/sound/ad1848.c		optional	gusmax	device-driver
+i386/isa/sound/ad1848.c		optional	gus	device-driver
 i386/isa/sound/ad1848.c		optional	mss	device-driver
 i386/isa/sound/midi_synth.c	optional	mss	device-driver
 i386/isa/sound/midibuf.c	optional	mss	device-driver
@@ -157,13 +160,17 @@ i386/isa/sound/sb16_midi.c	optional	sbmidi	device-driver
 i386/isa/sound/uart6850.c	optional	uart	device-driver
 i386/isa/sound/midi_synth.c	optional	uart	device-driver
 i386/isa/sound/midibuf.c	optional	uart	device-driver
-i386/isa/sound/vat_audio.c	optional	vat_audio
+i386/isa/sound/trix.c		optional	trix	device-driver
+i386/isa/sound/sscape.c		optional	sscape	device-driver
 i386/isa/spigot.c		optional	spigot	device-driver
 i386/isa/spkr.c			optional	speaker
 i386/isa/syscons.c		optional	sc	device-driver
 i386/isa/tw.c			optional	tw	device-driver
 i386/isa/ultra14f.c		optional	uha	device-driver
+i386/isa/wd.c			optional	wdc
 i386/isa/wd.c			optional	wd	device-driver
+i386/isa/atapi.c		optional	atapi
+i386/isa/wcd.c			optional	wcd	device-driver
 i386/isa/wd7000.c		optional	wds	device-driver
 i386/isa/wt.c			optional	wt	device-driver
 i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
@@ -199,5 +206,6 @@ gnu/i386/fpemul/reg_u_mul.s	optional	gpl_math_emulate
 gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
+gnu/i386/isa/dgb.c		optional	dgb	device-driver
 gnu/i386/isa/nic3008.c          optional        nic     device-driver
 gnu/i386/isa/nic3009.c          optional        nnic    device-driver
