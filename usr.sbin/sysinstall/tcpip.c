@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.80 1999/07/16 11:13:09 jkh Exp $
+ * $Id: tcpip.c,v 1.81 1999/07/18 02:20:56 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -39,6 +39,7 @@
 
 #include "sysinstall.h"
 #include <sys/param.h>
+#include <netdb.h>
 
 /* The help file for the TCP/IP setup screen */
 #define TCP_HELPFILE		"tcp"
@@ -164,23 +165,23 @@ tcpOpenDialog(Device *devp)
 	SAFE_STRCPY(ipaddr, di->ipaddr);
 	SAFE_STRCPY(netmask, di->netmask);
 	SAFE_STRCPY(extras, di->extras);
+	use_dhcp = di->use_dhcp;
     }
     else { /* See if there are any defaults */
 	char *cp;
 
 	/* First try a DHCP scan if such behavior is desired */
-	if (!variable_cmp(VAR_TRY_DHCP, "YES")) {
+	if (!variable_cmp(VAR_TRY_DHCP, "YES") || !msgYesNo("Do you want to try DHCP configuration of the interface?")) {
 	    Mkdir("/var/db");
 	    Mkdir("/var/run");
 	    Mkdir("/tmp");
 	    msgNotify("Scanning for DHCP servers...");
-	    vsystem("ifconfig %s inet 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up", devp->name);
 	    if (!vsystem("dhclient %s", devp->name)) {
 		FILE *ifp;
 		char cmd[256];
 
 		if (isDebug())
-		    msgConfirm("Successful return from dhclient");
+		    msgDebug("Successful return from dhclient");
 		snprintf(cmd, sizeof cmd, "ifconfig %s", devp->name);
 		ifp = popen(cmd, "r");
 		if (ifp) {
@@ -223,6 +224,8 @@ tcpOpenDialog(Device *devp)
 		use_dhcp = FALSE;
 	    }
 	}
+	else
+	    use_dhcp = FALSE;
 
 	/* Get old IP address from variable space, if available */
 	if (!ipaddr[0]) {
@@ -365,6 +368,7 @@ netconfig:
 	SAFE_STRCPY(di->ipaddr, ipaddr);
 	SAFE_STRCPY(di->netmask, netmask);
 	SAFE_STRCPY(di->extras, extras);
+	di->use_dhcp = use_dhcp;
 
 	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
 	if (use_dhcp)
@@ -461,7 +465,7 @@ tcpMenuSelect(dialogMenuItem *self)
     Device *tmp;
 
     tmp = tcpDeviceSelect();
-    if (tmp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
+    if (tmp && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
 	if (!tmp->init(tmp))
 	    msgConfirm("Initialization of %s device failed.", tmp->name);
     return DITEM_SUCCESS | DITEM_RESTORE;
