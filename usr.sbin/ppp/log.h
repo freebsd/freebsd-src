@@ -15,14 +15,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: log.h,v 1.2 1995/02/26 12:17:38 amurai Exp $
  *
  *	TODO:
  */
 
 #ifndef _LOG_H_
 #define	_LOG_H_
-#include "cdefs.h"
+#include <sys/cdefs.h>
 /*
  *  Definition of log level
  */
