@@ -862,6 +862,27 @@ pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic card
+pci/agp.c		optional agp
+pci/agp_intel.c		optional agp
+pci/agp_via.c		optional agp
+pci/agp_sis.c		optional agp
+pci/agp_ali.c		optional agp
+pci/agp_amd.c		optional agp
+pci/agp_i810.c		optional agp
+agp_if.o		optional agp					\
+	dependency	"agp_if.c agp_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+agp_if.c		optional agp					\
+	dependency	"$S/kern/makedevops.pl $S/pci/agp_if.m"		\
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/pci/agp_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"agp_if.c"
+agp_if.h		optional agp					\
+	dependency	"$S/kern/makedevops.pl $S/pci/agp_if.m"		\
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/pci/agp_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"agp_if.h"
 pci/amd.c		optional amd
 pci/pcic_p.c		optional pcic pci
 dev/bktr/bktr_core.c	optional bktr pci

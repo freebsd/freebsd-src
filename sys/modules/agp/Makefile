@@ -8,4 +8,5 @@ SRCS   += device_if.h bus_if.h agp_if.h pci_if.h
 SRCS   += opt_bdg.h opt_bus.h opt_pci.h opt_smp.h
 MFILES	= kern/device_if.m kern/bus_if.m pci/agp_if.m pci/pci_if.m
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+#.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>
