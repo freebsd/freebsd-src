@@ -262,10 +262,16 @@ nwfs_close(ap)
 		simple_unlock(&vp->v_interlock);
 		return 0;
 	}
+	simple_unlock(&vp->v_interlock);
 	error = nwfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 1);
-	if (--np->opened == 0) {
-		error = ncp_close_file(NWFSTOCONN(VTONWFS(vp)), &np->n_fh, ap->a_p,ap->a_cred);
+	simple_lock(&vp->v_interlock);
+	if (np->opened == 0) {
+		simple_unlock(&vp->v_interlock);
+		return 0;
 	}
+	if (--np->opened == 0)
+		error = ncp_close_file(NWFSTOCONN(VTONWFS(vp)), &np->n_fh, 
+		   ap->a_p, ap->a_cred);
 	simple_unlock(&vp->v_interlock);
 	np->n_atime = 0;
 	return (error);
