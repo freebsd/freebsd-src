@@ -2635,15 +2635,15 @@ PacketAliasCheckNewLink(void)
   file, but making variables global is evil too.
   ****************/
 
+#ifndef IPFW2
+#define IPFW2	1	/* use new ipfw code */
+#endif
+
 /* Firewall include files */
 #include <net/if.h>
 #include <netinet/ip_fw.h>
 #include <string.h>
 #include <err.h>
-
-#ifndef IPFW2
-#define IPFW2	1	/* use new ipfw code */
-#endif
 
 #if IPFW2		/* support for new firewall code */
 /*
@@ -2654,9 +2654,9 @@ PacketAliasCheckNewLink(void)
 static ipfw_insn *
 next_cmd(ipfw_insn *cmd)
 {
-	cmd += F_LEN(cmd);
-	bzero(cmd, sizeof(*cmd));
-	return cmd;
+    cmd += F_LEN(cmd);
+    bzero(cmd, sizeof(*cmd));
+    return cmd;
 }
 
 /*
@@ -2667,29 +2667,28 @@ static ipfw_insn *
 fill_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode, int size,
 	 int flags, u_int16_t arg)
 {
-	cmd->opcode = opcode;
-	cmd->len =  ((cmd->len | flags) & (F_NOT | F_OR)) |
-		(size & F_LEN_MASK);
-	cmd->arg1 = arg;
-	return next_cmd(cmd);
+    cmd->opcode = opcode;
+    cmd->len =  ((cmd->len | flags) & (F_NOT | F_OR)) | (size & F_LEN_MASK);
+    cmd->arg1 = arg;
+    return next_cmd(cmd);
 }
 
 static ipfw_insn *
 fill_ip(ipfw_insn *cmd1, enum ipfw_opcodes opcode, u_int32_t addr)
 {
-	ipfw_insn_ip *cmd = (ipfw_insn_ip *)cmd1;
+    ipfw_insn_ip *cmd = (ipfw_insn_ip *)cmd1;
 
-	cmd->addr.s_addr = addr;
-	return fill_cmd(cmd1, opcode, F_INSN_SIZE(ipfw_insn_u32), 0, 0);
+    cmd->addr.s_addr = addr;
+    return fill_cmd(cmd1, opcode, F_INSN_SIZE(ipfw_insn_u32), 0, 0);
 }
 
 static ipfw_insn *
 fill_one_port(ipfw_insn *cmd1, enum ipfw_opcodes opcode, u_int16_t port)
 {
-	ipfw_insn_u16 *cmd = (ipfw_insn_u16 *)cmd1;
+    ipfw_insn_u16 *cmd = (ipfw_insn_u16 *)cmd1;
 
-	cmd->ports[0] = cmd->ports[1] = port;
-	return fill_cmd(cmd1, opcode, F_INSN_SIZE(ipfw_insn_u16), 0, 0);
+    cmd->ports[0] = cmd->ports[1] = port;
+    return fill_cmd(cmd1, opcode, F_INSN_SIZE(ipfw_insn_u16), 0, 0);
 }
 
 static int
@@ -2697,24 +2696,24 @@ fill_rule(void *buf, int bufsize, int rulenum,
 	enum ipfw_opcodes action, int proto,
 	struct in_addr sa, u_int16_t sp, struct in_addr da, u_int16_t dp)
 {
-	struct ip_fw *rule = (struct ip_fw *)buf;
-	ipfw_insn *cmd = (ipfw_insn *)rule->cmd;
+    struct ip_fw *rule = (struct ip_fw *)buf;
+    ipfw_insn *cmd = (ipfw_insn *)rule->cmd;
 
-	bzero(buf, bufsize);
-	rule->rulenum = rulenum;
+    bzero(buf, bufsize);
+    rule->rulenum = rulenum;
 
-	cmd = fill_cmd(cmd, O_PROTO, F_INSN_SIZE(ipfw_insn), 0, proto);
-	cmd = fill_ip(cmd, O_IP_SRC, sa.s_addr);
-	cmd = fill_one_port(cmd, O_IP_SRCPORT, sp);
-	cmd = fill_ip(cmd, O_IP_DST, da.s_addr);
-	cmd = fill_one_port(cmd, O_IP_DSTPORT, dp);
+    cmd = fill_cmd(cmd, O_PROTO, F_INSN_SIZE(ipfw_insn), 0, proto);
+    cmd = fill_ip(cmd, O_IP_SRC, sa.s_addr);
+    cmd = fill_one_port(cmd, O_IP_SRCPORT, sp);
+    cmd = fill_ip(cmd, O_IP_DST, da.s_addr);
+    cmd = fill_one_port(cmd, O_IP_DSTPORT, dp);
 
-	rule->act_ofs = (u_int32_t *)cmd - (u_int32_t *)rule->cmd;
-	cmd = fill_cmd(cmd, action, F_INSN_SIZE(ipfw_insn), 0, 0);
+    rule->act_ofs = (u_int32_t *)cmd - (u_int32_t *)rule->cmd;
+    cmd = fill_cmd(cmd, action, F_INSN_SIZE(ipfw_insn), 0, 0);
 
-	rule->cmd_len = (u_int32_t *)cmd - (u_int32_t *)rule->cmd;
+    rule->cmd_len = (u_int32_t *)cmd - (u_int32_t *)rule->cmd;
 
-	return ((void *)cmd - buf);
+    return ((void *)cmd - buf);
 }
 #endif /* IPFW2 */
 
@@ -2894,7 +2893,6 @@ ClearFWHole(struct alias_link *link) {
             ;
 #endif /* !IPFW2 */
         fw_clrfield(fireWallField, fwhole);
-
         link->data.tcp->fwhole = -1;
     }
 }
