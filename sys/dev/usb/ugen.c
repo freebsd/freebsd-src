@@ -273,7 +273,6 @@ ugen_destroy_devnodes(struct ugen_softc *sc)
 {
 	int endptno;
 	dev_t dev;
-	struct vnode *vp;
 
 	/* destroy all devices for the other (existing) endpoints as well */
 	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
@@ -289,9 +288,6 @@ ugen_destroy_devnodes(struct ugen_softc *sc)
 			 */
 			dev = makedev(UGEN_CDEV_MAJOR,
 				UGENMINOR(USBDEVUNIT(sc->sc_dev), endptno));
-			vp = SLIST_FIRST(&dev->si_hlist);
-			if (vp)
-				VOP_REVOKE(vp, REVOKEALL);
 
 			destroy_dev(dev);
 		}
@@ -860,7 +856,6 @@ USB_DETACH(ugen)
 	int maj, mn;
 #elif defined(__FreeBSD__)
 	dev_t dev;
-	struct vnode *vp;
 #endif
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -901,9 +896,6 @@ USB_DETACH(ugen)
 #elif defined(__FreeBSD__)
 	/* destroy the device for the control endpoint */
 	dev = makedev(UGEN_CDEV_MAJOR, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0));
-	vp = SLIST_FIRST(&dev->si_hlist);
-	if (vp)
-		VOP_REVOKE(vp, REVOKEALL);
 	destroy_dev(dev);
 	ugen_destroy_devnodes(sc);
 #endif

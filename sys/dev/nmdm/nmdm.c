@@ -604,8 +604,8 @@ nmdmshutdown(void)
 		nextdev2 = makedev(CDEV_MAJOR, (i+i) + 1);
 		ptr1 = nextdev1->si_drv1;
 		if (ptr1) {
-			revoke_and_destroy_dev(nextdev1);
-			revoke_and_destroy_dev(nextdev2);
+			destroy_dev(nextdev1);
+			destroy_dev(nextdev2);
 			free(ptr1, M_NLMDM);
 		} else {
 			freedev(nextdev1);
