@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.29 1998/04/06 06:52:44 phk Exp $
+ *	$Id: tcp_output.c,v 1.30 1998/05/24 18:41:04 fenner Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -148,7 +148,7 @@ again:
 		}
 	}
 
-	len = min(so->so_snd.sb_cc, win) - off;
+	len = (long)ulmin(so->so_snd.sb_cc, win) - off;
 
 	if ((taop = tcp_gettaocache(tp->t_inpcb)) == NULL) {
 		taop = &tao_noncached;
@@ -334,7 +334,7 @@ send:
 			if ((tp->t_flags & TF_REQ_SCALE) &&
 			    ((flags & TH_ACK) == 0 ||
 			    (tp->t_flags & TF_RCVD_SCALE))) {
-				*((u_long *) (opt + optlen)) = htonl(
+				*((u_int32_t *)(opt + optlen)) = htonl(
 					TCPOPT_NOP << 24 |
 					TCPOPT_WINDOW << 16 |
 					TCPOLEN_WINDOW << 8 |
@@ -353,7 +353,7 @@ send:
  	    (flags & TH_RST) == 0 &&
 	    ((flags & TH_ACK) == 0 ||
 	     (tp->t_flags & TF_RCVD_TSTMP))) {
-		u_long *lp = (u_long *)(opt + optlen);
+		u_int32_t *lp = (u_int32_t *)(opt + optlen);
 
  		/* Form timestamp option as shown in appendix A of RFC 1323. */
  		*lp++ = htonl(TCPOPT_TSTAMP_HDR);
