@@ -74,7 +74,7 @@ network6_pass1() {
 				*)
 					laddr=`network6_getladdr $i`
 					hostid=`expr "${laddr}" : \
-						     'fe80::\(.*\)%\(.*\)`
+						     'fe80::\(.*\)%\(.*\)'`
 					address=$j\:${hostid}
 
 					eval hostid_$i=${hostid}
