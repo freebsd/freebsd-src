@@ -38,6 +38,8 @@
 .Nm munmap
 .Nd remove a mapping
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/mman.h>
 .Fn munmap "caddr_t addr" "size_t len"
 .Sh DESCRIPTION
 The
@@ -66,12 +68,12 @@ parameter was negative, or
 some part of the region being unmapped is not part of the currently
 valid address space.
 .Sh "SEE ALSO"
-.Xr getpagesize 2 ,
 .Xr msync 2 ,
 .Xr munmap 2 ,
 .Xr mprotect 2 ,
 .Xr madvise 2 ,
-.Xr mincore 2
+.Xr mincore 2 ,
+.Xr getpagesize 3
 .Sh HISTORY
 The
 .Fn munmap

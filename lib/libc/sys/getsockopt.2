@@ -189,7 +189,7 @@ is performed.
 If the socket promises reliable delivery of data and
 .Dv SO_LINGER is set,
 the system will block the process on the 
-.Xr close
+.Xr close 2
 attempt until it is able to transmit the data or until it decides it
 is unable to deliver the information (a timeout period, termed the
 linger interval, is specified in the
@@ -200,7 +200,7 @@ is requested).
 If
 .Dv SO_LINGER
 is disabled and a 
-.Xr close
+.Xr close 2
 is issued, the system will process the close in a manner that allows
 the process to continue as quickly as possible.
 .Pp
@@ -214,9 +214,9 @@ With protocols that support out-of-band data, the
 option
 requests that out-of-band data be placed in the normal data input queue
 as received; it will then be accessible with
-.Xr recv
+.Xr recv 2
 or
-.Xr read
+.Xr read 2
 calls without the
 .Dv MSG_OOB
 flag.

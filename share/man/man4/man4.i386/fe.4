@@ -20,7 +20,7 @@
 .\" Contributed by M.S. <seki@sysrap.cs.fujitsu.co.jp>
 .\" for fe driver version 0.8
 .\"
-.\"	$Id$
+.\"	$Id: fe.4,v 1.2 1996/02/11 22:37:34 mpp Exp $
 .Dd April 23, 1995
 .Dt FE 4
 .Sh NAME
@@ -373,10 +373,10 @@ option is set to 3.
 They are not documented, since they are for debugging purposes.
 See the driver source program for level 3 messages.
 .Sh SEE ALSO
+.Xr netstat 1 ,
 .Xr netintro 4 ,
 .Xr ed 4 ,
-.Xr ifconfig 8 ,
-.Xr netstat 8
+.Xr ifconfig 8
 .Sh BUGS
 Following are major known bugs.
 .Pp
@@ -386,7 +386,7 @@ driver may no be accurate:
 the
 .Fi i
 option of
-.Xr netstat 8
+.Xr netstat 1
 sometimes shows slightly less value than true number of collisions.
 .Pp
 More mbuf clusters are consumed than expected.

@@ -124,7 +124,7 @@ Notify the kernel that the region may contain semaphores and that special
 handling may be necessary.
 .It Dv MAP_INHERIT
 Permit regions to be inherited across
-.Xr exec 2
+.Xr execve 2
 system calls.
 .It Dv MAP_PRIVATE
 Modifications are private.
@@ -202,9 +202,27 @@ parameter wasn't available.
 .Dv MAP_ANON
 was specified and insufficient memory was available.
 .Sh "SEE ALSO"
-.Xr getpagesize 2 ,
 .Xr msync 2 ,
 .Xr munmap 2 ,
 .Xr mprotect 2 ,
 .Xr madvise 2 ,
 .Xr mincore 2
+.Xr mlock 2 ,
+.Xr munlock 2 ,
+.Xr getpagesize 3
+
+.Sh BUGS
+.Ar len
+is limit to 2GB.  Mmapping slightly more than 2GB doesn't work, but
+mapping a window of size (filesize % 2GB) for file sizes of slightly
+less than 2G, 4GB, 6GB and 8GB.
+
+The limit is imposed for a variety of reasons. Most of them have to do
+with FreeBSD not wanting to use 64 bit offsets in the VM system due to
+the extreme performance penalty. So FreeBSD use 32bit page indexes and
+this gives FreeBSD a maximum of 8TB filesizes. It's actually bugs in
+the filesystem code that causes the limit to be further restricted to
+1TB (loss of precision when doing blockno calculations).
+
+Another reason for the 2GB limit is that filesystem metadata can
+reside at negative offsets.
