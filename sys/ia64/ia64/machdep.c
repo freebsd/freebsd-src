@@ -81,6 +81,8 @@
 #include <machine/rse.h>
 #include <machine/unwind.h>
 
+void ia64_probe_sapics(void);
+
 #ifdef SKI
 extern void ia64_ski_init(void);
 #endif
@@ -228,6 +230,12 @@ cpu_startup(dummy)
 	 */
 	bufinit();
 	vm_pager_bufferinit();
+
+	/*
+	 * Traverse the MADT to discover IOSAPIC and Local SAPIC
+	 * information.
+	 */
+	ia64_probe_sapics();
 }
 
 static void
@@ -744,15 +752,12 @@ DELAY(int n)
 {
 	u_int64_t start, end, now;
 
-	/*
-	 * XXX This can't cope with rollovers.
-	 */
 	start = ia64_get_itc();
 	end = start + (itc_frequency * n) / 1000000;
 	/* printf("DELAY from 0x%lx to 0x%lx\n", start, end); */
 	do {
 		now = ia64_get_itc();
-	} while (now < end);
+	} while (now < end || (now > start && end < start));
 }
 
 /*
