@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.13.2.1 1995/06/05 02:24:37 jkh Exp $
+ * $Id: write_disk.c,v 1.14 1995/06/11 19:29:38 rgrimes Exp $
  *
  */
 
@@ -25,6 +25,9 @@
 
 #define DOSPTYP_EXTENDED        5
 #define BBSIZE			8192
+#define SBSIZE			8192
+#define DEF_RPM			3600
+#define DEF_INTERLEAVE	1
 
 #define WHERE(offset,disk) (disk->flags & DISK_ON_TRACK ? offset + 63 : offset)
 int
@@ -64,6 +67,12 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	}
 
 	dl->d_bbsize = BBSIZE;
+	/*
+	 * Add in defaults for superblock size, interleave, and rpms
+	 */
+	dl->d_sbsize = SBSIZE;
+	dl->d_interleave = DEF_INTERLEAVE;
+	dl->d_rpm = DEF_RPM;
 
 	strcpy(dl->d_typename,c1->name);
 
