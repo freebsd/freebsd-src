@@ -688,6 +688,7 @@ kqueue_stat(struct file *fp, struct stat *st, struct proc *p)
 	bzero((void *)st, sizeof(*st));
 	st->st_size = kq->kq_count;
 	st->st_blksize = sizeof(struct kevent);
+	st->st_mode = S_IFIFO;
 	return (0);
 }
 
