@@ -61,7 +61,6 @@ NO_F00F_HACK			opt_cpu.h
 NO_MEMORY_HOLE			opt_cpu.h
 
 # The CPU type affects the endian conversion functions all over the kernel.
-I386_CPU		opt_global.h
 I486_CPU		opt_global.h
 I586_CPU		opt_global.h
 I686_CPU		opt_global.h

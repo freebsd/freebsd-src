@@ -36,9 +36,6 @@ __FBSDID("$FreeBSD$");
 #error How did you get here?
 #endif
 
-#if defined(I386_CPU) && !defined(COMPILING_LINT)
-#error SMP not supported with I386_CPU
-#endif
 #ifndef DEV_APIC
 #error The apic device is required for SMP, add "device apic" to your config file.
 #endif

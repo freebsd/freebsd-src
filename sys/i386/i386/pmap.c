@@ -557,34 +557,6 @@ pmap_track_modified(vm_offset_t va)
 		return 0;
 }
 
-#ifdef I386_CPU
-/*
- * i386 only has "invalidate everything" and no SMP to worry about.
- */
-PMAP_INLINE void
-pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
-{
-
-	if (pmap == kernel_pmap || pmap->pm_active)
-		invltlb();
-}
-
-PMAP_INLINE void
-pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
-{
-
-	if (pmap == kernel_pmap || pmap->pm_active)
-		invltlb();
-}
-
-PMAP_INLINE void
-pmap_invalidate_all(pmap_t pmap)
-{
-
-	if (pmap == kernel_pmap || pmap->pm_active)
-		invltlb();
-}
-#else /* !I386_CPU */
 #ifdef SMP
 /*
  * For SMP, these functions have to use the IPI mechanism for coherence.
@@ -728,7 +700,6 @@ pmap_invalidate_all(pmap_t pmap)
 		invltlb();
 }
 #endif /* !SMP */
-#endif /* !I386_CPU */
 
 /*
  * Are we current address space or kernel?  N.B. We return FALSE when
@@ -788,11 +759,8 @@ pmap_pte_release(pt_entry_t *pte)
 static __inline void
 invlcaddr(void *caddr)
 {
-#ifdef I386_CPU
-	invltlb();
-#else
+
 	invlpg((u_int)caddr);
-#endif
 }
 
 /*
@@ -2189,11 +2157,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 
 	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
 	pmap_kenter(va, pa);
-#ifndef I386_CPU
 	invlpg(va);
-#else
-	invltlb();
-#endif
 	return ((void *)crashdumpmap);
 }
 
@@ -2523,12 +2487,8 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	if (*sysmaps->CMAP2)
 		panic("pmap_copy_page: CMAP2 busy");
 	sched_pin();
-#ifdef I386_CPU
-	invltlb();
-#else
 	invlpg((u_int)sysmaps->CADDR1);
 	invlpg((u_int)sysmaps->CADDR2);
-#endif
 	*sysmaps->CMAP1 = PG_V | VM_PAGE_TO_PHYS(src) | PG_A;
 	*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(dst) | PG_A | PG_M;
 	bcopy(sysmaps->CADDR1, sysmaps->CADDR2, PAGE_SIZE);

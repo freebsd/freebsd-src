@@ -97,9 +97,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 extern void trap(struct trapframe frame);
-#ifdef I386_CPU
-extern int trapwrite(unsigned addr);
-#endif
 extern void syscall(struct trapframe frame);
 
 static int trap_pfault(struct trapframe *, int, vm_offset_t);
@@ -837,53 +834,6 @@ dblfault_handler()
 #endif
 	panic("double fault");
 }
-
-#ifdef I386_CPU
-/*
- * Compensate for 386 brain damage (missing URKR).
- * This is a little simpler than the pagefault handler in trap() because
- * it the page tables have already been faulted in and high addresses
- * are thrown out early for other reasons.
- */
-int trapwrite(addr)
-	unsigned addr;
-{
-	struct thread *td;
-	struct proc *p;
-	vm_offset_t va;
-	struct vmspace *vm;
-	int rv;
-
-	va = trunc_page((vm_offset_t)addr);
-	/*
-	 * XXX - MAX is END.  Changed > to >= for temp. fix.
-	 */
-	if (va >= VM_MAXUSER_ADDRESS)
-		return (1);
-
-	td = curthread;
-	p = td->td_proc;
-	vm = p->p_vmspace;
-
-	PROC_LOCK(p);
-	++p->p_lock;
-	PROC_UNLOCK(p);
-
-	/*
-	 * fault the data page
-	 */
-	rv = vm_fault(&vm->vm_map, va, VM_PROT_WRITE, VM_FAULT_DIRTY);
-
-	PROC_LOCK(p);
-	--p->p_lock;
-	PROC_UNLOCK(p);
-
-	if (rv != KERN_SUCCESS)
-		return 1;
-
-	return (0);
-}
-#endif
 
 /*
  *	syscall -	system call request C handler
