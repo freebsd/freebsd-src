@@ -34,6 +34,7 @@
  * $FreeBSD$
  */
 
+#include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
 #include <stddef.h>
@@ -52,8 +53,17 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#ifdef INET6
+#include <netinet/ip6.h>
+#endif
 #include <netinet/in_pcb.h>
+#ifdef INET6
+#include <netinet6/in6_pcb.h>
+#endif
 #include <netinet/ip_var.h>
+#ifdef INET6
+#include <netinet6/ip6_var.h>
+#endif
 #include <netinet/tcp.h>
 #define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
@@ -92,12 +102,24 @@ tcp_output(tp)
 	register long len, win;
 	int off, flags, error;
 	register struct mbuf *m;
-	register struct tcpiphdr *ti;
+	struct ip *ip = NULL;
+	register struct ipovly *ipov = NULL;
+#ifdef INET6
+	struct ip6_hdr *ip6 = NULL;
+#endif /* INET6 */
+	register struct tcphdr *th;
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
 	int idle, sendalot;
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
+#ifdef INET6
+	int isipv6;
+#endif
+
+#ifdef INET6
+	isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
+#endif
 
 	/*
 	 * Determine length of data that should be transmitted,
@@ -115,7 +137,16 @@ tcp_output(tp)
 		 * Set the slow-start flight size depending on whether
 		 * this is a local network or not.
 		 */      
-		if (in_localaddr(tp->t_inpcb->inp_faddr)) 
+		if (
+#ifdef INET6
+		    (isipv6 && in6_localaddr(&tp->t_inpcb->in6p_faddr)) ||
+		    (!isipv6 &&
+#endif
+		     in_localaddr(tp->t_inpcb->inp_faddr)
+#ifdef INET6
+		     )
+#endif
+		    )
 			tp->snd_cwnd = tp->t_maxseg * ss_fltsz_local;
 		else     
 			tp->snd_cwnd = tp->t_maxseg * ss_fltsz;
@@ -340,6 +371,11 @@ send:
 	 *	max_linkhdr + sizeof (struct tcpiphdr) + optlen <= MHLEN
 	 */
 	optlen = 0;
+#ifdef INET6
+	if (isipv6)
+		hdrlen = sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
+	else
+#endif
 	hdrlen = sizeof (struct tcpiphdr);
 	if (flags & TH_SYN) {
 		tp->snd_nxt = tp->iss;
@@ -456,12 +492,22 @@ send:
 
  	hdrlen += optlen;
 
+#ifdef INET6
+	if (isipv6)
+		ipoptlen = ip6_optlen(tp->t_inpcb);
+	else
+#endif
+      {
 	if (tp->t_inpcb->inp_options) {
 		ipoptlen = tp->t_inpcb->inp_options->m_len -
 				offsetof(struct ipoption, ipopt_list);
 	} else {
 		ipoptlen = 0;
 	}
+      }
+#ifdef IPSEC
+	ipoptlen += ipsec_hdrsiz_tcp(tp);
+#endif
 
 	/*
 	 * Adjust data length if insertion of options will
@@ -515,6 +561,12 @@ send:
 			error = ENOBUFS;
 			goto out;
 		}
+#ifdef INET6
+		if (isipv6 && (MHLEN < hdrlen + max_linkhdr) &&
+		    MHLEN >= hdrlen) {
+			MH_ALIGN(m, hdrlen);
+		} else
+#endif
 		m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
 		if (len <= MHLEN - hdrlen - max_linkhdr) {
@@ -553,14 +605,37 @@ send:
 			error = ENOBUFS;
 			goto out;
 		}
+#ifdef INET6
+		if (isipv6 && (MHLEN < hdrlen + max_linkhdr) &&
+		    MHLEN >= hdrlen) {
+			MH_ALIGN(m, hdrlen);
+		} else
+#endif
 		m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
 	}
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
-	ti = mtod(m, struct tcpiphdr *);
 	if (tp->t_template == 0)
 		panic("tcp_output");
-	(void)memcpy(ti, tp->t_template, sizeof (struct tcpiphdr));
+#ifdef INET6
+	if (isipv6) {
+		ip6 = mtod(m, struct ip6_hdr *);
+		th = (struct tcphdr *)(ip6 + 1);
+		bcopy((caddr_t)tp->t_template->tt_ipgen, (caddr_t)ip6,
+		      sizeof(struct ip6_hdr));
+		bcopy((caddr_t)&tp->t_template->tt_t, (caddr_t)th,
+		      sizeof(struct tcphdr));
+	} else
+#endif /* INET6 */
+      {
+	ip = mtod(m, struct ip *);
+	ipov = (struct ipovly *)ip;
+	th = (struct tcphdr *)(ip + 1);
+	bcopy((caddr_t)tp->t_template->tt_ipgen, (caddr_t)ip,
+	      sizeof(struct ip));
+	bcopy((caddr_t)&tp->t_template->tt_t, (caddr_t)th,
+	      sizeof(struct tcphdr));
+      }
 
 	/*
 	 * Fill in fields, remembering maximum advertised
@@ -585,15 +660,15 @@ send:
 	 */
 	if (len || (flags & (TH_SYN|TH_FIN)) 
 	    || callout_active(tp->tt_persist))
-		ti->ti_seq = htonl(tp->snd_nxt);
+		th->th_seq = htonl(tp->snd_nxt);
 	else
-		ti->ti_seq = htonl(tp->snd_max);
-	ti->ti_ack = htonl(tp->rcv_nxt);
+		th->th_seq = htonl(tp->snd_max);
+	th->th_ack = htonl(tp->rcv_nxt);
 	if (optlen) {
-		bcopy(opt, ti + 1, optlen);
-		ti->ti_off = (sizeof (struct tcphdr) + optlen) >> 2;
+		bcopy(opt, th + 1, optlen);
+		th->th_off = (sizeof (struct tcphdr) + optlen) >> 2;
 	}
-	ti->ti_flags = flags;
+	th->th_flags = flags;
 	/*
 	 * Calculate receive window.  Don't shrink window,
 	 * but avoid silly window syndrome.
@@ -604,10 +679,10 @@ send:
 		win = (long)(tp->rcv_adv - tp->rcv_nxt);
 	if (win > (long)TCP_MAXWIN << tp->rcv_scale)
 		win = (long)TCP_MAXWIN << tp->rcv_scale;
-	ti->ti_win = htons((u_short) (win>>tp->rcv_scale));
+	th->th_win = htons((u_short) (win>>tp->rcv_scale));
 	if (SEQ_GT(tp->snd_up, tp->snd_nxt)) {
-		ti->ti_urp = htons((u_short)(tp->snd_up - tp->snd_nxt));
-		ti->ti_flags |= TH_URG;
+		th->th_urp = htons((u_short)(tp->snd_up - tp->snd_nxt));
+		th->th_flags |= TH_URG;
 	} else
 		/*
 		 * If no urgent pointer to send, then we pull
@@ -621,10 +696,28 @@ send:
 	 * Put TCP length in extended header, and then
 	 * checksum extended header and data.
 	 */
+	m->m_pkthdr.len = hdrlen + len; /* in6_cksum() need this */
+#ifdef INET6
+	if (isipv6)
+		/*
+		 * ip6_plen is not need to be filled now, and will be filled
+		 * in ip6_output.
+		 */
+		th->th_sum = in6_cksum(m, IPPROTO_TCP, sizeof(struct ip6_hdr),
+				       sizeof(struct tcphdr) + optlen + len);
+	else
+#endif /* INET6 */
+      {
 	if (len + optlen)
-		ti->ti_len = htons((u_short)(sizeof (struct tcphdr) +
+		ipov->ih_len = htons((u_short)(sizeof (struct tcphdr) +
 		    optlen + len));
-	ti->ti_sum = in_cksum(m, (int)(hdrlen + len));
+	th->th_sum = in_cksum(m, (int)(hdrlen + len));
+#ifdef INET6
+	/* Re-initialization for later version check */
+	ip->ip_v = IPVERSION;
+	
+#endif /* INET6 */
+      }
 
 	/*
 	 * In transmit state, time the transmission and arrange for
@@ -684,7 +777,7 @@ send:
 	 * Trace.
 	 */
 	if (so->so_options & SO_DEBUG)
-		tcp_trace(TA_OUTPUT, tp->t_state, tp, ti, 0);
+		tcp_trace(TA_OUTPUT, tp->t_state, tp, mtod(m, void *), th, 0);
 #endif
 
 	/*
@@ -693,12 +786,39 @@ send:
 	 * to handle ttl and tos; we could keep them in
 	 * the template, but need a way to checksum without them.
 	 */
-	m->m_pkthdr.len = hdrlen + len;
+	/*
+	 * m->m_pkthdr.len should have been set before cksum calcuration,
+	 * because in6_cksum() need it.
+	 */
+#ifdef INET6
+	if (isipv6) {
+		/* 
+		 * we separately set hoplimit for every segment, since the
+		 * user might want to change the value via setsockopt.
+		 * Also, desired default hop limit might be changed via
+		 * Neighbor Discovery. 
+		 */ 
+		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb, 
+					       tp->t_inpcb->in6p_route.ro_rt ? 
+					       tp->t_inpcb->in6p_route.ro_rt->rt_ifp 
+					       : NULL); 
+
+		/* TODO: IPv6 IP6TOS_ECT bit on */
+#ifdef IPSEC
+		m->m_pkthdr.rcvif = (struct ifnet *)so;
+#endif /*IPSEC*/
+		error = ip6_output(m,
+			    tp->t_inpcb->in6p_outputopts,
+			    &tp->t_inpcb->in6p_route,
+			    (so->so_options & SO_DONTROUTE)|IPV6_SOCKINMRCVIF,
+			    NULL, NULL);
+	} else
+#endif /* INET6 */
     {
 	struct rtentry *rt;
-	((struct ip *)ti)->ip_len = m->m_pkthdr.len;
-	((struct ip *)ti)->ip_ttl = tp->t_inpcb->inp_ip_ttl;	/* XXX */
-	((struct ip *)ti)->ip_tos = tp->t_inpcb->inp_ip_tos;	/* XXX */
+	ip->ip_len = m->m_pkthdr.len;
+	ip->ip_ttl = tp->t_inpcb->inp_ip_ttl;	/* XXX */
+	ip->ip_tos = tp->t_inpcb->inp_ip_tos;	/* XXX */
 	/*
 	 * See if we should do MTU discovery.  We do it only if the following
 	 * are true:
@@ -710,10 +830,10 @@ send:
 	    && (rt = tp->t_inpcb->inp_route.ro_rt)
 	    && rt->rt_flags & RTF_UP
 	    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
-		((struct ip *)ti)->ip_off |= IP_DF;
+		ip->ip_off |= IP_DF;
 	}
 	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
-	    so->so_options & SO_DONTROUTE, 0);
+	    (so->so_options & SO_DONTROUTE)|IP_SOCKINMRCVIF, 0);
     }
 	if (error) {
 out:

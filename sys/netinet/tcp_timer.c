@@ -35,6 +35,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -52,6 +53,9 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_pcb.h>
+#ifdef INET6
+#include <netinet6/in6_pcb.h>
+#endif
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
@@ -209,7 +213,7 @@ tcp_timer_2msl(xtp)
 
 #ifdef TCPDEBUG
 	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
-		tcp_trace(TA_USER, ostate, tp, (struct tcpiphdr *)0,
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
 	splx(s);
@@ -262,10 +266,12 @@ tcp_timer_keep(xtp)
 		 * The keepalive packet must have nonzero length
 		 * to get a 4.2 host to respond.
 		 */
-		tcp_respond(tp, tp->t_template, (struct mbuf *)NULL,
+		tcp_respond(tp, tp->t_template->tt_ipgen,
+			    &tp->t_template->tt_t, (struct mbuf *)NULL,
 			    tp->rcv_nxt - 1, tp->snd_una - 1, 0);
 #else
-		tcp_respond(tp, tp->t_template, (struct mbuf *)NULL,
+		tcp_respond(tp, tp->t_template->tt_ipgen,
+			    &tp->t_template->tt_t, (struct mbuf *)NULL,
 			    tp->rcv_nxt, tp->snd_una - 1, 0);
 #endif
 		callout_reset(tp->tt_keep, tcp_keepintvl, tcp_timer_keep, tp);
@@ -274,7 +280,7 @@ tcp_timer_keep(xtp)
 
 #ifdef TCPDEBUG
 	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
-		tcp_trace(TA_USER, ostate, tp, (struct tcpiphdr *)0,
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
 	splx(s);
@@ -286,7 +292,7 @@ dropit:
 
 #ifdef TCPDEBUG
 	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
-		tcp_trace(TA_USER, ostate, tp, (struct tcpiphdr *)0,
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
 	splx(s);
@@ -336,7 +342,7 @@ tcp_timer_persist(xtp)
 out:
 #ifdef TCPDEBUG
 	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
-		tcp_trace(TA_USER, ostate, tp, (struct tcpiphdr *)0,
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
 	splx(s);
@@ -399,6 +405,11 @@ tcp_timer_rexmt(xtp)
 	 * retransmit times until then.
 	 */
 	if (tp->t_rxtshift > TCP_MAXRXTSHIFT / 4) {
+#ifdef INET6
+		if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
+			in6_losing(tp->t_inpcb);
+		else
+#endif
 		in_losing(tp->t_inpcb);
 		tp->t_rttvar += (tp->t_srtt >> TCP_RTT_SHIFT);
 		tp->t_srtt = 0;
@@ -449,7 +460,7 @@ tcp_timer_rexmt(xtp)
 out:
 #ifdef TCPDEBUG
 	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
-		tcp_trace(TA_USER, ostate, tp, (struct tcpiphdr *)0,
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
 	splx(s);

@@ -71,6 +71,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -90,6 +91,7 @@
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet6/ip6.h>
+#include <netinet/ip_var.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/in_pcb.h>
@@ -211,7 +213,7 @@ in6_pcbbind(inp, nam, p)
 				return(EACCES);
 			if (so->so_cred->cr_uid != 0 &&
 			    !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
-				t = in6_pcblookup_local(inp->inp_pcbinfo,
+				t = in6_pcblookup_local(pcbinfo,
 				    &sin6->sin6_addr, lport,
 				    INPLOOKUP_WILDCARD);
 				if (t &&
@@ -222,11 +224,44 @@ in6_pcbbind(inp, nam, p)
 				    (so->so_cred->cr_uid !=
 				     t->inp_socket->so_cred->cr_uid))
 					return (EADDRINUSE);
+				if (ip6_mapped_addr_on != 0 &&
+				    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+					struct sockaddr_in sin;
+
+					in6_sin6_2_sin(&sin, sin6);
+					t = in_pcblookup_local(pcbinfo,
+						sin.sin_addr, lport,
+						INPLOOKUP_WILDCARD);
+					if (t &&
+					    (so->so_cred->cr_uid !=
+					     t->inp_socket->so_cred->cr_uid) &&
+					    (ntohl(t->inp_laddr.s_addr) !=
+					     INADDR_ANY ||
+					     INP_SOCKAF(so) ==
+					     INP_SOCKAF(t->inp_socket)))
+						return (EADDRINUSE);
+				}
 			}
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
 						lport, wild);
 			if (t && (reuseport & t->inp_socket->so_options) == 0)
 				return(EADDRINUSE);
+			if (ip6_mapped_addr_on != 0 &&
+			    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+				struct sockaddr_in sin;
+
+				in6_sin6_2_sin(&sin, sin6);
+				t = in_pcblookup_local(pcbinfo, sin.sin_addr,
+						       lport, wild);
+				if (t &&
+				    (reuseport & t->inp_socket->so_options)
+				    == 0 &&
+				    (ntohl(t->inp_laddr.s_addr)
+				     != INADDR_ANY ||
+				     INP_SOCKAF(so) ==
+				     INP_SOCKAF(t->inp_socket)))
+					return (EADDRINUSE);
+			}
 		}
 		inp->in6p_laddr = sin6->sin6_addr;
 	}
@@ -455,6 +490,12 @@ in6_pcbconnect(inp, nam, p)
 	 * but if this line is missing, the garbage value remains.
 	 */
 	inp->in6p_flowinfo = sin6->sin6_flowinfo;
+#ifdef INET6
+	if ((inp->in6p_flowinfo & IPV6_FLOWLABEL_MASK) == 0 &&
+	    ip6_auto_flowlable != 0)
+		inp->in6p_flowinfo |=
+			(htonl(ip6_flow_seq++) & IPV6_FLOWLABEL_MASK);
+#endif
 
 	in_pcbrehash(inp);
 	return (0);
@@ -701,6 +742,14 @@ in6_pcbdetach(inp)
 	if (inp->in6p_route.ro_rt)
 		rtfree(inp->in6p_route.ro_rt);
 	ip6_freemoptions(inp->in6p_moptions);
+
+	/* Check and free IPv4 related resources in case of mapped addr */
+	if (inp->inp_options)
+		(void)m_free(inp->inp_options);
+	if (inp->inp_route.ro_rt)
+		rtfree(inp->inp_route.ro_rt);
+	ip_freemoptions(inp->inp_moptions);
+
 	inp->inp_vflag = 0;
 	zfreei(ipi->ipi_zone, inp);
 }

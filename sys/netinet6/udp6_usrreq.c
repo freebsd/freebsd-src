@@ -705,7 +705,6 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 	inp = sotoinpcb(so);
 	if (inp == 0)
 		return EINVAL;
-
 	if (ip6_mapped_addr_on) {
 		struct sockaddr_in6 *sin6_p;
 
@@ -727,22 +726,14 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 			return error;
 		}
 	}
-
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
 		return EISCONN;
 	s = splnet();
 	error = in6_pcbconnect(inp, nam, p);
-	if (ip6_auto_flowlabel) {
-		inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
-		inp->in6p_flowinfo |=
-			(htonl(ip6_flow_seq++) & IPV6_FLOWLABEL_MASK);
-	}
 	splx(s);
 	if (error == 0) {
-		if (ip6_mapped_addr_on) { /* should be non mapped addr */
-			inp->inp_vflag &= ~INP_IPV4;
-			inp->inp_vflag |= INP_IPV6;
-		}
+		inp->inp_vflag &= ~INP_IPV4;
+		inp->inp_vflag |= INP_IPV6;
 		soisconnected(so);
 	}
 	return error;

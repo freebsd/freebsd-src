@@ -35,6 +35,7 @@
  */
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
 #ifndef INET
@@ -55,6 +56,10 @@
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#ifdef INET6
+#include <netinet6/ip6.h>
+#endif
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
@@ -74,16 +79,23 @@ static int	tcp_debx;
  * Tcp debug routines
  */
 void
-tcp_trace(act, ostate, tp, ti, req)
+tcp_trace(act, ostate, tp, ipgen, th, req)
 	short act, ostate;
 	struct tcpcb *tp;
-	struct tcpiphdr *ti;
+	void *ipgen;
+	struct tcphdr *th;
 	int req;
 {
+#ifdef INET6
+	int isipv6;
+#endif /* INET6 */
 	tcp_seq seq, ack;
 	int len, flags;
 	struct tcp_debug *td = &tcp_debug[tcp_debx++];
 
+#ifdef INET6
+	isipv6 = (ipgen != NULL && ((struct ip *)ipgen)->ip_v == 6) ? 1 : 0;
+#endif /* INET6 */
 	if (tcp_debx == TCP_NDEBUG)
 		tcp_debx = 0;
 	td->td_time = iptime();
@@ -94,10 +106,18 @@ tcp_trace(act, ostate, tp, ti, req)
 		td->td_cb = *tp;
 	else
 		bzero((caddr_t)&td->td_cb, sizeof (*tp));
-	if (ti)
-		td->td_ti = *ti;
+	if (ipgen)
+		bcopy((caddr_t)ipgen, td->td_ipgen,
+#ifdef INET6
+		      isipv6 ? sizeof(struct ip6_hdr) :
+#endif
+		      sizeof(struct ip));
 	else
-		bzero((caddr_t)&td->td_ti, sizeof (*ti));
+		bzero((caddr_t)td->td_ipgen, sizeof (td->td_ipgen));
+	if (th)
+		td->td_th = *th;
+	else
+		bzero((caddr_t)&td->td_th, sizeof (td->td_th));
 	td->td_req = req;
 #ifdef TCPDEBUG
 	if (tcpconsdebug == 0)
@@ -112,11 +132,15 @@ tcp_trace(act, ostate, tp, ti, req)
 	case TA_INPUT:
 	case TA_OUTPUT:
 	case TA_DROP:
-		if (ti == 0)
+		if (ipgen == NULL || th == NULL)
 			break;
-		seq = ti->ti_seq;
-		ack = ti->ti_ack;
-		len = ti->ti_len;
+		seq = th->th_seq;
+		ack = th->th_ack;
+		len =
+#ifdef INET6
+			isipv6 ? ((struct ip6_hdr *)ipgen)->ip6_plen :
+#endif
+			((struct ip *)ipgen)->ip_len;
 		if (act == TA_OUTPUT) {
 			seq = ntohl(seq);
 			ack = ntohl(ack);
@@ -128,12 +152,12 @@ tcp_trace(act, ostate, tp, ti, req)
 			printf("[%x..%x)", seq, seq+len);
 		else
 			printf("%x", seq);
-		printf("@%x, urp=%x", ack, ti->ti_urp);
-		flags = ti->ti_flags;
+		printf("@%x, urp=%x", ack, th->th_urp);
+		flags = th->th_flags;
 		if (flags) {
 			char *cp = "<";
 #define pf(f) {					\
-	if (ti->ti_flags & TH_##f) {		\
+	if (th->th_flags & TH_##f) {		\
 		printf("%s%s", cp, #f);		\
 		cp = ",";			\
 	}					\
