@@ -125,11 +125,10 @@
  *	Associated with page of user-allocatable memory is a
  *	page structure.
  */
+static struct mtx vm_page_buckets_mtx;
 static struct vm_page **vm_page_buckets; /* Array of buckets */
 static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
-static volatile int vm_page_bucket_generation;
-static struct mtx vm_buckets_mtx[BUCKET_HASH_SIZE];
 
 vm_page_t vm_page_array = 0;
 int vm_page_array_size = 0;
@@ -254,15 +253,13 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	    VM_PROT_READ | VM_PROT_WRITE);
 	bzero((caddr_t) mapped, end - new_end);
 
+	mtx_init(&vm_page_buckets_mtx, "vm page buckets mutex", NULL, MTX_DEF);
 	vm_page_buckets = (struct vm_page **)mapped;
 	bucket = vm_page_buckets;
 	for (i = 0; i < vm_page_bucket_count; i++) {
 		*bucket = NULL;
 		bucket++;
 	}
-	for (i = 0; i < BUCKET_HASH_SIZE; ++i)
-		mtx_init(&vm_buckets_mtx[i],  "vm buckets hash mutexes", NULL,
-		    MTX_DEF);
 
 	/*
 	 * Compute the number of pages of memory that will be available for
@@ -590,9 +587,10 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	 * Insert it into the object_object/offset hash table
 	 */
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
+	mtx_lock(&vm_page_buckets_mtx);
 	m->hnext = *bucket;
 	*bucket = m;
-	vm_page_bucket_generation++;
+	mtx_unlock(&vm_page_buckets_mtx);
 
 	/*
 	 * Now link into the object's list of backed pages.
@@ -629,6 +627,7 @@ void
 vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
+	vm_page_t *bucket;
 
 	GIANT_REQUIRED;
 
@@ -649,23 +648,17 @@ vm_page_remove(vm_page_t m)
 	/*
 	 * Remove from the object_object/offset hash table.  The object
 	 * must be on the hash queue, we will panic if it isn't
-	 *
-	 * Note: we must NULL-out m->hnext to prevent loops in detached
-	 * buffers with vm_page_lookup().
 	 */
-	{
-		struct vm_page **bucket;
-
-		bucket = &vm_page_buckets[vm_page_hash(m->object, m->pindex)];
-		while (*bucket != m) {
-			if (*bucket == NULL)
-				panic("vm_page_remove(): page not found in hash");
-			bucket = &(*bucket)->hnext;
-		}
-		*bucket = m->hnext;
-		m->hnext = NULL;
-		vm_page_bucket_generation++;
+	bucket = &vm_page_buckets[vm_page_hash(m->object, m->pindex)];
+	mtx_lock(&vm_page_buckets_mtx);
+	while (*bucket != m) {
+		if (*bucket == NULL)
+			panic("vm_page_remove(): page not found in hash");
+		bucket = &(*bucket)->hnext;
 	}
+	*bucket = m->hnext;
+	m->hnext = NULL;
+	mtx_unlock(&vm_page_buckets_mtx);
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -687,11 +680,6 @@ vm_page_remove(vm_page_t m)
  *	Returns the page associated with the object/offset
  *	pair specified; if none is found, NULL is returned.
  *
- *	NOTE: the code below does not lock.  It will operate properly if
- *	an interrupt makes a change, but the generation algorithm will not 
- *	operate properly in an SMP environment where both cpu's are able to run
- *	kernel code simultaneously.
- *
  *	The object must be locked.  No side effects.
  *	This routine may not block.
  *	This is a critical path routine
@@ -701,23 +689,19 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
 	struct vm_page **bucket;
-	int generation;
 
 	/*
 	 * Search the hash table for this object/offset pair
 	 */
-retry:
-	generation = vm_page_bucket_generation;
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
+	mtx_lock(&vm_page_buckets_mtx);
 	for (m = *bucket; m != NULL; m = m->hnext) {
 		if ((m->object == object) && (m->pindex == pindex)) {
-			if (vm_page_bucket_generation != generation)
-				goto retry;
+			mtx_unlock(&vm_page_buckets_mtx);
 			return (m);
 		}
 	}
-	if (vm_page_bucket_generation != generation)
-		goto retry;
+	mtx_unlock(&vm_page_buckets_mtx);
 	return (NULL);
 }
 
