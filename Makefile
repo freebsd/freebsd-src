@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57.4.17 1996/06/26 22:48:47 nate Exp $
+#	$Id: Makefile,v 1.57.4.18 1996/08/11 03:05:16 rgrimes Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -295,6 +295,12 @@ libraries:
 	cd ${.CURDIR}/lib/libtermcap && \
 		${MAKE} depend all install
 .endif
+.if exists(lib)
+	cd ${.CURDIR}/lib/csu/i386 && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/lib && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+.endif
 .if exists(gnu)
 	cd ${.CURDIR}/gnu/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
@@ -303,12 +309,6 @@ libraries:
 .endif
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 	cd ${.CURDIR}/secure/lib && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(lib)
-	cd ${.CURDIR}/lib/csu/i386 && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 	cd ${.CURDIR}/usr.bin/lex/lib && \
