@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pc98gdc.c,v 1.3 1999/01/18 14:55:38 kato Exp $
  */
 
 #include "gdc.h"
@@ -68,7 +68,6 @@
 
 static int		gdcprobe(struct isa_device *dev);
 static int		gdc_attach(struct isa_device *dev);
-static void		gdc_drvinit(void *unused);
 
 struct isa_driver gdcdriver = {
 	gdcprobe,
@@ -857,8 +856,9 @@ gdc_mmap(video_adapter_t *adp, vm_offset_t offset)
 static int
 gdc_diag(video_adapter_t *adp, int level)
 {
-    video_info_t info;
+#if FB_DEBUG > 1
     int i;
+#endif
 
     if (!init_done)
 	return 1;
