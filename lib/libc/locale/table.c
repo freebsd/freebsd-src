@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 _RuneLocale _DefaultRuneLocale = {
     _RUNE_MAGIC_1,
     "NONE",
-    __emulated_sgetrune,
-    __emulated_sputrune,
+    NULL,
+    NULL,
     0xFFFD,
 
     {	/*00*/	_CTYPE_C,

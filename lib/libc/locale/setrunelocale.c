@@ -40,7 +40,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <rune.h>
+#include <runetype.h>
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
@@ -159,8 +159,8 @@ __setrunelocale(const char *encoding)
 	__mbsnrtowcs = __mbsnrtowcs_std;
 	__wcrtomb = NULL;
 	__wcsnrtombs = __wcsnrtombs_std;
-	rl->__sputrune = __emulated_sputrune;
-	rl->__sgetrune = __emulated_sgetrune;
+	rl->__sputrune = NULL;
+	rl->__sgetrune = NULL;
 	if (strcmp(rl->__encoding, "NONE") == 0)
 		ret = _none_init(rl);
 	else if (strcmp(rl->__encoding, "UTF-8") == 0)

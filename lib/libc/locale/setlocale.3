@@ -73,18 +73,13 @@ and
 .Fn strxfrm .
 .It Dv LC_CTYPE
 Set a locale for the
-.Xr ctype 3 ,
-.Xr mbrune 3 ,
-.Xr multibyte 3
+.Xr ctype 3
 and
-.Xr rune 3
+.Xr multibyte 3
 functions.
 This controls recognition of upper and lower case,
 alphabetic or non-alphabetic characters,
 and so on.
-The real work is done by the
-.Fn setrunelocale
-function.
 .It Dv LC_MESSAGES
 Set a locale for message catalogs, see
 .Xr catopen 3
@@ -165,9 +160,7 @@ and the category
 .Xr catopen 3 ,
 .Xr ctype 3 ,
 .Xr localeconv 3 ,
-.Xr mbrune 3 ,
 .Xr multibyte 3 ,
-.Xr rune 3 ,
 .Xr strcoll 3 ,
 .Xr strxfrm 3 ,
 .Xr euc 5 ,
