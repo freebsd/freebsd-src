@@ -255,7 +255,6 @@ i386/isa/npx.c			optional	npx
 i386/isa/pcf.c			optional	pcf
 i386/isa/pmtimer.c		optional	pmtimer
 i386/isa/prof_machdep.c		optional	profiling-routine
-i386/isa/scd.c			count		scd
 i386/isa/spigot.c		count		spigot
 i386/isa/stallion.c		optional	stl nowerror
 i386/isa/tw.c			count		tw
