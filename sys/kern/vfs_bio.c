@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.205 1999/04/07 02:41:54 alc Exp $
+ * $Id: vfs_bio.c,v 1.206 1999/04/14 18:51:52 dt Exp $
  */
 
 /*
@@ -1126,10 +1126,10 @@ getnewbuf(struct vnode *vp, daddr_t blkno,
 {
 	struct buf *bp;
 	struct buf *nbp;
+	struct buf *dbp;
 	int outofspace;
 	int nqindex;
 	int defrag = 0;
-	int countawrites = 0;
 	
 restart:
 	/*
@@ -1140,6 +1140,7 @@ restart:
 	 * if both outofspace and defrag are on.
 	 */
 
+	dbp = NULL;
 	outofspace = 0;
 	if (bufspace >= hibufspace) {
 		if ((curproc->p_flag & P_FLSINPROG) == 0 ||
@@ -1264,16 +1265,43 @@ restart:
 		 * to recover since it really isn't our job here.
 		 */
 		if ((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) {
+			/*
+			 * This is rather complex, but necessary.  If we come
+			 * across a B_DELWRI buffer we have to flush it in
+			 * order to use it.  We only do this if we absolutely
+			 * need to.  We must also protect against too much
+			 * recursion which might run us out of stack due to
+			 * deep VFS call stacks.
+			 *
+			 * In heavy-writing situations, QUEUE_LRU can contain
+			 * a large number of DELWRI buffers at its head.  These
+			 * buffers must be moved to the tail if they cannot be
+			 * written async in order to reduce the scanning time
+			 * required to skip past these buffers in later 
+			 * getnewbuf() calls.
+			 */
 			if ((curproc->p_flag & P_FLSINPROG) || 
-			    numdirtybuffers < hidirtybuffers ||
-			    countawrites > 16
+			    numdirtybuffers < hidirtybuffers
 			) {
+				if (qindex == QUEUE_LRU) {
+					/*
+					 * dbp prevents us from looping forever
+					 * if all bps in QUEUE_LRU are dirty.
+					 */
+					if (bp == dbp) {
+						bp = NULL;
+						break;
+					}
+					if (dbp == NULL)
+						dbp = TAILQ_LAST(&bufqueues[QUEUE_LRU], bqueues);
+					TAILQ_REMOVE(&bufqueues[QUEUE_LRU], bp, b_freelist);
+					TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
+				}
 				continue;
 			}
 			curproc->p_flag |= P_FLSINPROG;
 			vfs_bio_awrite(bp);
 			curproc->p_flag &= ~P_FLSINPROG;
-			++countawrites;
 			goto restart;
 		}
 
