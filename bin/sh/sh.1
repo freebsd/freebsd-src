@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.13 1997/04/28 03:20:09 steve Exp $
+.\"	$Id: sh.1,v 1.14 1997/05/07 11:42:00 steve Exp $
 .\"
 .Dd May 5, 1995
 .Dt SH 1
@@ -45,6 +45,7 @@
 .Nm
 .Op Fl /+abCEefIimnpsuVvx
 .Op Fl /+o Ar longname
+.Op Fl c Ar string
 .Op Ar arg ...
 .Sh DESCRIPTION
 .Nm sh
@@ -220,6 +221,10 @@ as it is read.  Useful for debugging.
 Write each command to standard error (preceded
 by a '+ ') before it is executed.  Useful for
 debugging.
+.It Fl c Ar string
+Pass the string argument to the shell to be interpreted as input.
+Keep in mind that this option only accepts a single string as its
+argument, hence multi-word strings must be quoted.
 .El
 .Ss Lexical Structure
 The shell reads input in terms of lines from a file and breaks
