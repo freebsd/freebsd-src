@@ -78,6 +78,12 @@ static const char rcsid[] =
 static void sidewaysintpr __P((u_int, u_long));
 static void catchalarm __P((int));
 
+#ifdef INET6
+char *netname6 __P((struct sockaddr_in6 *, struct in6_addr *));
+static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
+static int bdg_done;
+#endif
+
 void
 bdg_stats(u_long dummy, char *name) /* print bridge statistics */
 {
@@ -94,6 +100,12 @@ bdg_stats(u_long dummy, char *name) /* print bridge statistics */
     mib[3] = PF_BDG ;
     if (sysctl(mib,4, &s,&slen,NULL,0)==-1)
 	return ; /* no bridging */
+#ifdef INET6
+    if (bdg_done != 0)
+	return;
+    else
+	bdg_done = 1;
+#endif
     printf("-- Bridging statistics (%s) --\n", name) ;
     printf(
 "Name          In      Out  Forward     Drop    Bcast    Mcast    Local  Unknown\n");
@@ -116,15 +128,19 @@ bdg_stats(u_long dummy, char *name) /* print bridge statistics */
  * Print a description of the network interfaces.
  */
 void
-intpr(interval, ifnetaddr)
+intpr(interval, ifnetaddr, pfunc)
 	int interval;
 	u_long ifnetaddr;
+	void (*pfunc)(char *);
 {
 	struct ifnet ifnet;
 	struct ifnethead ifnethead;
 	union {
 		struct ifaddr ifa;
 		struct in_ifaddr in;
+#ifdef INET6
+		struct in6_ifaddr in6;
+#endif
 		struct ipx_ifaddr ipx;
 #ifdef NS
 		struct ns_ifaddr ns;
@@ -153,22 +169,27 @@ intpr(interval, ifnetaddr)
 	if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet))
 		return;
 
-	printf("%-5.5s %-5.5s %-13.13s %-15.15s %8.8s %5.5s",
-		"Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
-	if (bflag)
-		printf(" %10.10s","Ibytes");
-	printf(" %8.8s %5.5s", "Opkts", "Oerrs");
-	if (bflag)
-		printf(" %10.10s","Obytes");
-	printf(" %5s", "Coll");
-	if (tflag)
-		printf(" %s", "Time");
-	if (dflag)
-		printf(" %s", "Drop");
-	putchar('\n');
+	if (!sflag && !pflag) {
+		printf("%-5.5s %-5.5s %-13.13s %-15.15s %8.8s %5.5s",
+		       "Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
+		if (bflag)
+			printf(" %10.10s","Ibytes");
+		printf(" %8.8s %5.5s", "Opkts", "Oerrs");
+		if (bflag)
+			printf(" %10.10s","Obytes");
+		printf(" %5s", "Coll");
+		if (tflag)
+			printf(" %s", "Time");
+		if (dflag)
+			printf(" %s", "Drop");
+		putchar('\n');
+	}
 	ifaddraddr = 0;
 	while (ifnetaddr || ifaddraddr) {
 		struct sockaddr_in *sin;
+#ifdef INET6
+		struct sockaddr_in6 *sin6;
+#endif
 		register char *cp;
 		int n, m;
 
@@ -183,6 +204,12 @@ intpr(interval, ifnetaddr)
 			if (interface != 0 && (strcmp(name, interface) != 0))
 				continue;
 			cp = index(name, '\0');
+
+			if (pfunc) {
+				(*pfunc)(name);
+				continue;
+			}
+
 			if ((ifnet.if_flags&IFF_UP) == 0)
 				*cp++ = '*';
 			*cp = '\0';
@@ -225,6 +252,18 @@ intpr(interval, ifnetaddr)
 				printf("%-15.15s ",
 				    routename(sin->sin_addr.s_addr));
 				break;
+#ifdef INET6
+			case AF_INET6:
+				sin6 = (struct sockaddr_in6 *)sa;
+				printf("%-11.11s ",
+				       netname6(&ifaddr.in6.ia_addr,
+						&ifaddr.in6.ia_prefixmask.sin6_addr));
+				printf("%-17.17s ",
+				    (char *)inet_ntop(AF_INET6,
+					&sin6->sin6_addr,
+					ntop_buf, sizeof(ntop_buf)));
+				break;
+#endif /*INET6*/
 			case AF_IPX:
 				{
 				struct sockaddr_ipx *sipx =
@@ -266,10 +305,12 @@ intpr(interval, ifnetaddr)
 				{
 				struct sockaddr_dl *sdl =
 					(struct sockaddr_dl *)sa;
-				    cp = (char *)LLADDR(sdl);
-				    n = sdl->sdl_alen;
+				char linknum[10];
+				cp = (char *)LLADDR(sdl);
+				n = sdl->sdl_alen;
+				sprintf(linknum, "<Link#%d>", sdl->sdl_index);
+				m = printf("%-11.11s ", linknum);
 				}
-				m = printf("%-11.11s ", "<Link>");
 				goto hexprint;
 			default:
 				m = printf("(%d)", sa->sa_family);
@@ -311,6 +352,9 @@ intpr(interval, ifnetaddr)
 			union {
 				struct sockaddr sa;
 				struct sockaddr_in in;
+#ifdef INET6
+				struct sockaddr_in6 in6;
+#endif /* INET6 */
 				struct sockaddr_dl dl;
 			} msa;
 			const char *fmt;
@@ -332,7 +376,15 @@ intpr(interval, ifnetaddr)
 				case AF_INET:
 					fmt = routename(msa.in.sin_addr.s_addr);
 					break;
-
+#ifdef INET6
+				case AF_INET6:
+					printf("%23s %-19.19s(refs: %d)\n", "",
+					       inet_ntop(AF_INET6,
+							 &msa.in6.sin6_addr,
+							 ntop_buf,
+							 sizeof(ntop_buf)),
+					       ifma.ifma_refcount);
+#endif /* INET6 */
 				case AF_LINK:
 					switch (ifnet.if_type) {
 					case IFT_ETHER:

@@ -458,17 +458,17 @@ nd6_timer(ignored_arg)
 	}
 	
 	/* expire */
-	dr = nd_defrouter.lh_first;
+	dr = LIST_FIRST(&nd_defrouter);
 	while (dr) {
 		if (dr->expire && dr->expire < time_second) {
 			struct nd_defrouter *t;
-			t = dr->dr_next;
+			t = LIST_NEXT(dr, dr_entry);
 			defrtrlist_del(dr);
 			dr = t;
 		} else
-			dr = dr->dr_next;
+			dr = LIST_NEXT(dr, dr_entry);
 	}
-	pr = nd_prefix.lh_first;
+	pr = LIST_FIRST(&nd_prefix);
 	while (pr) {
 		struct in6_ifaddr *ia6;
 		struct in6_addrlifetime *lt6;
@@ -503,7 +503,7 @@ nd6_timer(ignored_arg)
 		if (pr->ndpr_expire
 		 && pr->ndpr_expire + NDPR_KEEP_EXPIRED < time_second) {
 			struct nd_prefix *t;
-			t = pr->ndpr_next;
+			t = LIST_NEXT(pr, ndpr_entry);
 
 			/*
 			 * address expiration and prefix expiration are
@@ -513,7 +513,7 @@ nd6_timer(ignored_arg)
 			prelist_remove(pr);
 			pr = t;
 		} else
-			pr = pr->ndpr_next;
+			pr = LIST_NEXT(pr, ndpr_entry);
 	}
 	splx(s);
 }
@@ -627,9 +627,7 @@ nd6_is_addr_neighbor(addr, ifp)
 	 * If the address matches one of our addresses,
 	 * it should be a neighbor.
 	 */
-	for (ifa = ifp->if_addrlist.tqh_first;
-	     ifa;
-	     ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			next: continue;
@@ -967,7 +965,7 @@ nd6_ioctl(cmd, data, ifp)
 	case SIOCGDRLST_IN6:
 		bzero(drl, sizeof(*drl));
 		s = splnet();
-		dr = nd_defrouter.lh_first;
+		dr = LIST_FIRST(&nd_defrouter);
 		while (dr && i < DRLSTSIZ) {
 			drl->defrouter[i].rtaddr = dr->rtaddr;
 			if (IN6_IS_ADDR_LINKLOCAL(&drl->defrouter[i].rtaddr)) {
@@ -984,14 +982,14 @@ nd6_ioctl(cmd, data, ifp)
 			drl->defrouter[i].expire = dr->expire;
 			drl->defrouter[i].if_index = dr->ifp->if_index;
 			i++;
-			dr = dr->dr_next;
+			dr = LIST_NEXT(dr, dr_entry);
 		}
 		splx(s);
 		break;
 	case SIOCGPRLST_IN6:
 		bzero(prl, sizeof(*prl));
 		s = splnet();
-		pr = nd_prefix.lh_first;
+		pr = LIST_FIRST(&nd_prefix);
 		while (pr && i < PRLSTSIZ) {
 			struct nd_pfxrouter *pfr;
 			int j;
@@ -1004,7 +1002,7 @@ nd6_ioctl(cmd, data, ifp)
 			prl->prefix[i].if_index = pr->ndpr_ifp->if_index;
 			prl->prefix[i].expire = pr->ndpr_expire;
 
-			pfr = pr->ndpr_advrtrs.lh_first;
+			pfr = LIST_FIRST(&pr->ndpr_advrtrs);
 			j = 0;
 			while(pfr) {
 				if (j < DRLSTSIZ) {
@@ -1022,12 +1020,12 @@ nd6_ioctl(cmd, data, ifp)
 #undef RTRADDR
 				}
 				j++;
-				pfr = pfr->pfr_next;
+				pfr = LIST_NEXT(pfr, pfr_entry);
 			}
 			prl->prefix[i].advrtrs = j;
 
 			i++;
-			pr = pr->ndpr_next;
+			pr = LIST_NEXT(pr, ndpr_entry);
 		}
 		splx(s);
 	      {
@@ -1069,8 +1067,8 @@ nd6_ioctl(cmd, data, ifp)
 		struct nd_prefix *pr, *next;
 
 		s = splnet();
-		for (pr = nd_prefix.lh_first; pr; pr = next) {
-			next = pr->ndpr_next;
+		for (pr = LIST_FIRST(&nd_prefix); pr; pr = next) {
+			next = LIST_NEXT(pr, ndpr_entry);
 			if (!IN6_IS_ADDR_UNSPECIFIED(&pr->ndpr_addr))
 				in6_ifdel(pr->ndpr_ifp, &pr->ndpr_addr);
 			prelist_remove(pr);
@@ -1084,16 +1082,16 @@ nd6_ioctl(cmd, data, ifp)
 		struct nd_defrouter *dr, *next;
 
 		s = splnet();
-		if ((dr = nd_defrouter.lh_first) != NULL) {
+		if ((dr = LIST_FIRST(&nd_defrouter)) != NULL) {
 			/*
 			 * The first entry of the list may be stored in
 			 * the routing table, so we'll delete it later.
 			 */
-			for (dr = dr->dr_next; dr; dr = next) {
-				next = dr->dr_next;
+			for (dr = LIST_NEXT(dr, dr_entry); dr; dr = next) {
+				next = LIST_NEXT(dr, dr_entry);
 				defrtrlist_del(dr);
 			}
-			defrtrlist_del(nd_defrouter.lh_first);
+			defrtrlist_del(LIST_FIRST(&nd_defrouter));
 		}
 		splx(s);
 		break;

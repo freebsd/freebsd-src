@@ -34,10 +34,13 @@
  * $FreeBSD$
  */
 
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -51,12 +54,25 @@
 #include <vm/vm_zone.h>
 
 #include <net/if.h>
+#include <net/if_types.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
+#ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
+#endif /* INET6 */
+
+#include "faith.h"
+
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#include <netkey/key.h>
+#include <netkey/key_debug.h>
+#endif /* IPSEC */
 
 struct	in_addr zeroin_addr;
 
@@ -212,13 +228,34 @@ in_pcbbind(inp, nam, p)
 				     (t->inp_socket->so_options &
 					 SO_REUSEPORT) == 0) &&
 				    (so->so_cred->cr_uid !=
-					t->inp_socket->so_cred->cr_uid))
+				     t->inp_socket->so_cred->cr_uid)) {
+#if defined(INET6)
+					if (ip6_mapped_addr_on == 0 ||
+					    ntohl(sin->sin_addr.s_addr) !=
+					    INADDR_ANY ||
+					    ntohl(t->inp_laddr.s_addr) !=
+					    INADDR_ANY ||
+					    INP_SOCKAF(so) ==
+					    INP_SOCKAF(t->inp_socket))
+#endif /* defined(INET6) */
 					return (EADDRINUSE);
+				}
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, prison ? 0 : wild);
-			if (t && (reuseport & t->inp_socket->so_options) == 0)
+			if (t &&
+			    (reuseport & t->inp_socket->so_options) == 0) {
+#if defined(INET6)
+				if (ip6_mapped_addr_on == 0 ||
+				    ntohl(sin->sin_addr.s_addr) !=
+				    INADDR_ANY ||
+				    ntohl(t->inp_laddr.s_addr) !=
+				    INADDR_ANY ||
+				    INP_SOCKAF(so) ==
+				    INP_SOCKAF(t->inp_socket))
+#endif /* defined(INET6) */
 				return (EADDRINUSE);
+			}
 		}
 		inp->inp_laddr = sin->sin_addr;
 	}
@@ -452,7 +489,7 @@ in_pcbconnect(inp, nam, p)
 
 	if (in_pcblookup_hash(inp->inp_pcbinfo, sin->sin_addr, sin->sin_port,
 	    inp->inp_laddr.s_addr ? inp->inp_laddr : ifaddr->sin_addr,
-	    inp->inp_lport, 0) != NULL) {
+	    inp->inp_lport, 0, NULL) != NULL) {
 		return (EADDRINUSE);
 	}
 	if (inp->inp_laddr.s_addr == INADDR_ANY) {
@@ -488,6 +525,9 @@ in_pcbdetach(inp)
 	struct socket *so = inp->inp_socket;
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
+#ifdef IPSEC
+	ipsec4_delete_pcbpolicy(inp);
+#endif /*IPSEC*/
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
 	so->so_pcb = 0;
@@ -497,6 +537,7 @@ in_pcbdetach(inp)
 	if (inp->inp_route.ro_rt)
 		rtfree(inp->inp_route.ro_rt);
 	ip_freemoptions(inp->inp_moptions);
+	inp->inp_vflag = 0;
 	zfreei(ipi->ipi_zone, inp);
 }
 
@@ -620,6 +661,12 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
 	errno = inetctlerrmap[cmd];
 	s = splnet();
 	for (inp = head->lh_first; inp != NULL;) {
+#ifdef INET6
+		if ((inp->inp_vflag & INP_IPV4) == NULL) {
+			inp = LIST_NEXT(inp, inp_list);
+			continue;
+		}
+#endif
 		if (inp->inp_faddr.s_addr != faddr.s_addr ||
 		    inp->inp_socket == 0 ||
 		    (lport && inp->inp_lport != lport) ||
@@ -711,6 +758,10 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 		 */
 		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
 		for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
+#ifdef INET6
+			if ((inp->inp_vflag & INP_IPV4) == NULL)
+				continue;
+#endif
 			if (inp->inp_faddr.s_addr == INADDR_ANY &&
 			    inp->inp_laddr.s_addr == laddr.s_addr &&
 			    inp->inp_lport == lport) {
@@ -748,6 +799,10 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 			for (inp = phd->phd_pcblist.lh_first; inp != NULL;
 			    inp = inp->inp_portlist.le_next) {
 				wildcard = 0;
+#ifdef INET6
+				if ((inp->inp_vflag & INP_IPV4) == NULL)
+					continue;
+#endif
 				if (inp->inp_faddr.s_addr != INADDR_ANY)
 					wildcard++;
 				if (inp->inp_laddr.s_addr != INADDR_ANY) {
@@ -776,11 +831,13 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
  * Lookup PCB in hash list.
  */
 struct inpcb *
-in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
+in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard,
+		  ifp)
 	struct inpcbinfo *pcbinfo;
 	struct in_addr faddr, laddr;
 	u_int fport_arg, lport_arg;
 	int wildcard;
+	struct ifnet *ifp;
 {
 	struct inpcbhead *head;
 	register struct inpcb *inp;
@@ -791,6 +848,10 @@ in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
 	 */
 	head = &pcbinfo->hashbase[INP_PCBHASH(faddr.s_addr, lport, fport, pcbinfo->hashmask)];
 	for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
+#ifdef INET6
+		if ((inp->inp_vflag & INP_IPV4) == NULL)
+			continue;
+#endif
 		if (inp->inp_faddr.s_addr == faddr.s_addr &&
 		    inp->inp_laddr.s_addr == laddr.s_addr &&
 		    inp->inp_fport == fport &&
@@ -803,17 +864,40 @@ in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
 	}
 	if (wildcard) {
 		struct inpcb *local_wild = NULL;
+#if defined(INET6)
+		struct inpcb *local_wild_mapped = NULL;
+#endif /* defined(INET6) */
 
 		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
 		for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
+#ifdef INET6
+			if ((inp->inp_vflag & INP_IPV4) == NULL)
+				continue;
+#endif
 			if (inp->inp_faddr.s_addr == INADDR_ANY &&
 			    inp->inp_lport == lport) {
+#if defined(NFAITH) && NFAITH > 0
+				if (ifp && ifp->if_type == IFT_FAITH &&
+				    (inp->inp_flags & INP_FAITH) == 0)
+					continue;
+#endif
 				if (inp->inp_laddr.s_addr == laddr.s_addr)
 					return (inp);
-				else if (inp->inp_laddr.s_addr == INADDR_ANY)
+				else if (inp->inp_laddr.s_addr == INADDR_ANY) {
+#if defined(INET6)
+					if (INP_CHECK_SOCKAF(inp->inp_socket,
+							     AF_INET6))
+						local_wild_mapped = inp;
+					else
+#endif /* defined(INET6) */
 					local_wild = inp;
+				}
 			}
 		}
+#if defined(INET6)
+		if (local_wild == NULL)
+			return (local_wild_mapped);
+#endif /* defined(INET6) */
 		return (local_wild);
 	}
 
@@ -834,8 +918,16 @@ in_pcbinshash(inp)
 	struct inpcbporthead *pcbporthash;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbport *phd;
+	u_int32_t hashkey_faddr;
 
-	pcbhash = &pcbinfo->hashbase[INP_PCBHASH(inp->inp_faddr.s_addr,
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6)
+		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
+	else
+#endif /* INET6 */
+	hashkey_faddr = inp->inp_faddr.s_addr;
+
+	pcbhash = &pcbinfo->hashbase[INP_PCBHASH(hashkey_faddr,
 		 inp->inp_lport, inp->inp_fport, pcbinfo->hashmask)];
 
 	pcbporthash = &pcbinfo->porthashbase[INP_PCBPORTHASH(inp->inp_lport,
@@ -877,8 +969,16 @@ in_pcbrehash(inp)
 	struct inpcb *inp;
 {
 	struct inpcbhead *head;
+	u_int32_t hashkey_faddr;
 
-	head = &inp->inp_pcbinfo->hashbase[INP_PCBHASH(inp->inp_faddr.s_addr,
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6)
+		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
+	else
+#endif /* INET6 */
+	hashkey_faddr = inp->inp_faddr.s_addr;
+
+	head = &inp->inp_pcbinfo->hashbase[INP_PCBHASH(hashkey_faddr,
 		inp->inp_lport, inp->inp_fport, inp->inp_pcbinfo->hashmask)];
 
 	LIST_REMOVE(inp, inp_hash);

@@ -64,8 +64,6 @@
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
  */
 
-#include "opt_inet.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -88,10 +86,8 @@
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
-#ifdef INET
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
-#endif /*INET*/
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6.h>
@@ -113,9 +109,9 @@
 
 /* we need it for NLOOP. */
 #include "loop.h"
-/* #include "faith.h" */
 
-/* #include "gif.h" */
+#include "faith.h"
+#include "gif.h"
 
 #include <net/net_osdep.h>
 
@@ -793,7 +789,6 @@ ip6_savecontrol(in6p, mp, ip6, m)
 	if (p && !suser(p))
 		privileged++;
 
-#ifdef SO_TIMESTAMP
 	if (in6p->in6p_socket->so_options & SO_TIMESTAMP) {
 		struct timeval tv;
 
@@ -803,7 +798,6 @@ ip6_savecontrol(in6p, mp, ip6, m)
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
-#endif
 	if (in6p->in6p_flags & IN6P_RECVDSTADDR) {
 		*mp = sbcreatecontrol((caddr_t) &ip6->ip6_dst,
 			sizeof(struct in6_addr), IPV6_RECVDSTADDR,

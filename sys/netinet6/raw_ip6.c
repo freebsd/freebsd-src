@@ -64,8 +64,6 @@
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
  */
 
-#include "opt_inet.h"
-
 #include <stddef.h>
 
 #include <sys/param.h>
@@ -94,14 +92,12 @@
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
-#ifdef INET6
 #include <netinet6/ipsec6.h>
-#endif /* INET6 */
 #endif /*IPSEC*/
 
 #include <machine/stdarg.h>
 
-/* #include "faith.h" */
+#include "faith.h"
 
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
