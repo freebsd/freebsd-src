@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: alias_nbt.c,v 1.1 1998/05/24 03:03:10 amurai Exp $
+ * $Id: alias_nbt.c,v 1.3 1999/03/09 23:44:00 brian Exp $
  *
  *  TODO:
  *       oClean up. 
@@ -101,15 +101,9 @@ typedef struct {
 #define ACT_ERR		0x6
 #define CFT_ERR		0x7
 
-/*******************************************************************
- * copy an IP address from one buffer to another                   *
- *******************************************************************/
-void putip(void *dest,void *src)
-{
-  memcpy(dest,src,4);
-}
 
-void PrintRcode( u_char rcode )  {
+#ifdef DEBUG
+static void PrintRcode( u_char rcode )  {
 
 	switch (rcode) {
 		case FMT_ERR:
@@ -129,10 +123,11 @@ void PrintRcode( u_char rcode )  {
 
 	}	
 }
+#endif
 
 
 /* Handling Name field */
-u_char *AliasHandleName ( u_char *p, char *pmax ) {
+static u_char *AliasHandleName ( u_char *p, char *pmax ) {
 
 	u_char *s;
 	u_char c;
@@ -282,7 +277,7 @@ typedef struct {
 	u_short	class;	/* The class of Request */
 } NBTNsQuestion;
 
-u_char *
+static u_char *
 AliasHandleQuestion(
     u_short count,
 							NBTNsQuestion *q,
@@ -306,7 +301,9 @@ AliasHandleQuestion(
 				q= q+1;
 			break;
 			default:
+#ifdef DEBUG
 				printf("\nUnknown Type on Question %0x\n", ntohs(q->type) );
+#endif
 			break;
 		}
 		count--;
@@ -337,7 +334,7 @@ typedef struct {
 	struct	in_addr	addr;
 } NBTNsRNB;
 
-u_char *
+static u_char *
 AliasHandleResourceNB( 
     NBTNsResource *q,
     char *pmax, 
@@ -406,7 +403,7 @@ typedef struct {
 	struct	in_addr	addr;
 } NBTNsResourceA;
 
-u_char *
+static u_char *
 AliasHandleResourceA( 
     NBTNsResource *q,
     char *pmax,
@@ -463,7 +460,7 @@ typedef struct {
 	u_short opcode:4, flags:8, resv:4;
 } NBTNsResourceNULL;
 
-u_char *
+static u_char *
 AliasHandleResourceNULL( 
     NBTNsResource *q, 
     char *pmax,
@@ -496,7 +493,7 @@ AliasHandleResourceNULL(
 	return ((u_char *)n);
 }
 
-u_char *
+static u_char *
 AliasHandleResourceNS( 
     NBTNsResource *q,
     char *pmax,
@@ -527,7 +524,7 @@ typedef struct {
 	u_short	numnames;
 } NBTNsResourceNBSTAT;
 
-u_char *
+static u_char *
 AliasHandleResourceNBSTAT(
     NBTNsResource *q,
     char *pmax,
@@ -551,7 +548,7 @@ AliasHandleResourceNBSTAT(
 	return ((u_char *)n + bcount);
 }
 
-u_char *
+static u_char *
 AliasHandleResource(
     u_short count, 
 							NBTNsResource *q,
@@ -607,10 +604,12 @@ AliasHandleResource(
 				);
 				break;
 			default: 
+#ifdef DEBUG
 				printf(
 				    "\nUnknown Type of Resource %0x\n", 
 				    ntohs(q->type) 
 				);
+#endif
 				break;
 		}
 		count--;
@@ -710,4 +709,3 @@ int AliasHandleUdpNbtNS(
 #endif
     return ((p == NULL) ? -1 : 0);
 }
-

@@ -7,7 +7,7 @@
     This software is placed into the public domain with no restrictions
     on its distribution.
 
-    $Id: alias.h,v 1.7 1998/01/16 12:56:07 bde Exp $
+    $Id: alias.h,v 1.9 1999/02/27 02:16:01 brian Exp $
 */
 
 
@@ -55,6 +55,10 @@ struct alias_link;
                             struct in_addr, u_short,
                             u_char);
 
+    extern int
+    PacketAliasPptp(struct in_addr);
+
+
     extern struct alias_link *
     PacketAliasRedirectAddr(struct in_addr,
                             struct in_addr);
@@ -82,28 +86,10 @@ struct alias_link;
     extern u_short
     PacketAliasInternetChecksum(u_short *, int);
 
+/* Transparent Proxying */
+    extern int
+    PacketAliasProxyRule(char *);
 
-/*
-   In version 2.2, the function names were rationalized
-   to all be of the form PacketAlias...  These are the
-   old function names for backwards compatibility
-*/
-extern int SaveFragmentPtr(char *);
-extern char *GetNextFragmentPtr(char *);
-extern void FragmentAliasIn(char *, char *);
-extern void SetPacketAliasAddress(struct in_addr);
-extern void InitPacketAlias(void);
-extern unsigned int SetPacketAliasMode(unsigned int, unsigned int);
-extern int PacketAliasIn2(char *, struct in_addr, int maxpacketsize);
-extern int PacketAliasOut2(char *, struct in_addr, int maxpacketsize);
-extern int
-PacketAliasPermanentLink(struct in_addr, u_short, 
-                         struct in_addr, u_short,
-                         u_short, u_char);
-extern u_short InternetChecksum(u_short *, int);
-
-/* Obsolete constant */
-#define PKT_ALIAS_NEW_LINK 5
 
 /********************** Mode flags ********************/
 /* Set these flags using SetPacketAliasMode() */
@@ -138,7 +124,6 @@ extern u_short InternetChecksum(u_short *, int);
 	unregistered source addresses will be aliased (along with those
 	of the ppp host maching itself.  Private addresses are those
         in the following ranges:
-
 		10.0.0.0     ->   10.255.255.255
 		172.16.0.0   ->   172.31.255.255
 		192.168.0.0  ->   192.168.255.255  */
@@ -161,6 +146,14 @@ extern u_short InternetChecksum(u_short *, int);
    so do the hole.  */
 #define PKT_ALIAS_PUNCH_FW 0x40
 #endif
+
+/* If PKT_ALIAS_PROXY_ONLY is set, then NAT will be disabled and only
+      transparent proxying performed */
+#define PKT_ALIAS_PROXY_ONLY 0x40
+
+/* If PKT_ALIAS_REVERSE is set, the actions of PacketAliasIn()
+      and PacketAliasOut() are reversed */
+#define PKT_ALIAS_REVERSE 0x80
 
 /* Return Codes */
 #define PKT_ALIAS_ERROR -1

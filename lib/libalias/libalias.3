@@ -32,6 +32,8 @@ of the text.
     4.1 PacketAliasRedirectPort()
     4.2 PacketAliasRedirectAddr()
     4.3 PacketAliasRedirectDelete()
+    4.4 PacketAliasProxyRule()
+    4.5 PacketAliasPptp()
 5. Fragment Handling
     5.1 PacketAliasSaveFragment()
     5.2 PacketAliasGetFragment()
@@ -506,6 +508,122 @@ re-mapped in the same manner the header fragment
 was.  Fragments which arrive before the header
 are saved and then retrieved once the header fragment
 has been resolved.
+
+.Ss 4.4 PacketAliasProxyRule()
+
+.Ft int
+.Fn PacketAliasProxyRule "char *cmd"
+
+The passed
+.Ar cmd
+string consists of one or more pairs of words.  The first word in each
+pair is a token and the second is the value that should be applied for
+that token.  Tokens and their argument types are as follows:
+
+.Bl -tag -offset XXX -width XXX
+.It type encode_ip_hdr|encode_tcp_stream|no_encode
+In order to support transparent proxying, it is necessary to somehow
+pass the original address and port information into the new destination
+server.  If
+.Dq encode_ip_hdr
+is specified, the original address and port is passed as an extra IP
+option.  If
+.Dq encode_tcp_stream
+is specified, the original address and port is passed as the first
+piece of data in the tcp stream in the format
+.Dq DEST Ar IP port .
+.It port Ar portnum
+Only packets with the destination port
+.Ar portnum
+are proxied.
+.It server Ar host[:portnum]
+This specifies the
+.Ar host
+and
+.Ar portnum
+that the data is to be redirected to.
+.Ar host
+must be an IP address rather than a DNS host name.  If
+.Ar portnum
+is not specified, the destination port number is not changed.
+.Pp
+The
+.Ar server
+specification is mandatory unless the
+.Dq delete
+command is being used.
+.It rule Ar index
+Normally, each call to
+.Fn PacketAliasProxyRule
+inserts the next rule at the start of a linear list of rules.  If an
+.Ar index
+is specified, the new rule will be checked after all rules with lower
+indices.  Calls to
+.Fn PacketAliasProxyRule
+that do not specify a rule are assigned rule 0.
+.It delete Ar index
+This token and its argument must not be used with any other tokens.  When
+used, all existing rules with the given
+.Ar index
+are deleted.
+.It proto tcp|udp
+If specified, only packets of the given protocol type are matched.
+.It src Ar IP[/bits]
+If specified, only packets with a source address matching the given
+.Ar IP
+are matched.  If
+.Ar bits
+is also specified, then the first
+.Ar bits
+bits of
+.Ar IP
+are taken as a network specification, and all IP addresses from that
+network will be matched.
+.It dest Ar IP[/bits]
+If specified, only packets with a destination address matching the given
+.Ar IP
+are matched.  If
+.Ar bits
+is also specified, then the first
+.Ar bits
+bits of
+.Ar IP
+are taken as a network specification, and all IP addresses from that
+network will be matched.
+.El
+
+This function is usually used to redirect outgoing connections for
+internal machines that are not permitted certain types of internet
+access, or to restrict access to certain external machines.
+
+.Ss 4.5 PacketAliasPptp()
+
+.Ft extern int
+.Fn PacketAliasPptp "struct in_addr addr"
+
+This function causes any
+.Em G Ns No eneral
+.Em R Ns No outing
+.Em E Ns No encapsulated
+.Pq Dv IPPROTO_GRE
+packets to be aliased using
+.Ar addr
+rather than the address set via
+.Fn PacketAliasSetAddress .
+This allows the uses of the
+.Em P Ns No oint
+to
+.Em P Ns No oint
+.Em T Ns No unneling
+.Em P Ns No rotocol
+on a machine on the internal network.
+.Pp
+If the passed address is
+.Dv INADDR_NONE
+.Pq 255.255.255.255 ,
+.Dv PPTP
+aliasing is disabled.
+
 .Ss 5.1 PacketAliasSaveFragment()
 
 .Ft int
@@ -530,7 +648,8 @@ an argument.]
 This function returns PKT_ALIAS_OK if it
 was successful and PKT_ALIAS_ERROR if there
 was an error.
-.Ss 5.2 PacketAliasGetNextFragment()
+
+.Ss 5.2 PacketAliasGetFragment()
 
 .Ft char *
 .Fn PacketAliasGetFragment "char *buffer"
