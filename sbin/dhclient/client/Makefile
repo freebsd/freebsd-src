@@ -8,7 +8,12 @@ DIST_DIR= ${.CURDIR}/../../../contrib/isc-dhcp
 PROG=	dhclient
 SRCS=	clparse.c dhclient.c
 
-CFLAGS+= -DCLIENT_PATH='"PATH=/sbin:/bin:/usr/sbin:/usr/bin"' -Dwarn=dhcp_warn
+.if defined(RESCUE)
+CFLAGS+= -DCLIENT_PATH='"PATH=/rescue:/sbin:/bin:/usr/sbin:/usr/bin"'
+.else
+CFLAGS+= -DCLIENT_PATH='"PATH=/sbin:/bin:/usr/sbin:/usr/bin"'
+.endif
+CFLAGS+= -Dwarn=dhcp_warn
 
 DPADD=	${LIBDHCP} ${LIBRES} ${LIBOMAPI} ${LIBDST}
 LDADD=	${LIBDHCP} ${LIBRES} ${LIBOMAPI} ${LIBDST} 
