@@ -490,27 +490,27 @@ prmount(sfp)
 	int flags;
 	struct opt *o;
 	struct passwd *pw;
-	int f;
 
-	(void)printf("%s on %s", sfp->f_mntfromname, sfp->f_mntonname);
+	(void)printf("%s on %s (%s", sfp->f_mntfromname, sfp->f_mntonname,
+	    sfp->f_fstypename);
 
 	flags = sfp->f_flags & MNT_VISFLAGMASK;
-	for (f = 0, o = optnames; flags && o->o_opt; o++)
+	for (o = optnames; flags && o->o_opt; o++)
 		if (flags & o->o_opt) {
-			(void)printf("%s%s", !f++ ? " (" : ", ", o->o_name);
+			(void)printf(", %s", o->o_name);
 			flags &= ~o->o_opt;
 		}
 	if (sfp->f_owner) {
-		(void)printf("%smounted by ", !f++ ? " (" : ", ");
+		(void)printf(", mounted by ");
 		if ((pw = getpwuid(sfp->f_owner)) != NULL)
 			(void)printf("%s", pw->pw_name);
 		else
 			(void)printf("%d", sfp->f_owner);
 	}
 	if (sfp->f_syncwrites != 0 || sfp->f_asyncwrites != 0)
-		(void)printf("%swrites: sync %ld async %ld",
-		    !f++ ? " (" : ", ", sfp->f_syncwrites, sfp->f_asyncwrites);
-	(void)printf("%s\n", f ? ")" : "");
+		(void)printf(", writes: sync %ld async %ld",
+		    sfp->f_syncwrites, sfp->f_asyncwrites);
+	(void)printf(")\n");
 }
 
 struct statfs *
@@ -594,7 +594,8 @@ update_options(opts, fstab, curflags)
 	if (opts == NULL)
 		return strdup("");
 
-	fstab = strdup(fstab);
+	if (fstab == NULL)
+		fstab = strdup("");
 
 	/* remove meta options from list */
 	remopt(fstab, MOUNT_META_OPTION_FSTAB);
@@ -613,7 +614,8 @@ update_options(opts, fstab, curflags)
 		else
 			expopt = catopt(expopt, o);
 	}
-	free(fstab);
+	if (fstab == "")
+		free(fstab);
 	free(cur);
 	free(opts);
 
