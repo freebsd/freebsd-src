@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.37.4.6 1996/03/11 19:59:46 se Exp $
+**  $Id: ncr.c,v 1.37.4.7 1996/03/22 20:22:15 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -402,12 +402,8 @@ extern PRINT_ADDR();
 */
 
 #ifdef __NetBSD__
-	#define INT32     int
-	#define U_INT32   u_int
 	#define TIMEOUT   (void*)
 #else  /*__NetBSD__*/
-	#define INT32     int32
-	#define U_INT32   u_int32
 	#define TIMEOUT   (timeout_func_t)
 #endif /*__NetBSD__*/
 #define PRINT_ADDR(xp) sc_print_addr(xp->sc_link)
@@ -1200,7 +1196,7 @@ static	void	ncr_exception	(ncb_p np);
 static	void	ncr_free_ccb	(ncb_p np, ccb_p cp, int flags);
 static	void	ncr_getclock	(ncb_p np);
 static	ccb_p	ncr_get_ccb	(ncb_p np, u_long flags, u_long t,u_long l);
-static  U_INT32 ncr_info	(int unit);
+static  u_int32_t ncr_info	(int unit);
 static	void	ncr_init	(ncb_p np, char * msg, u_long code);
 #ifdef __NetBSD__
 static	int     ncr_intr        (void *);
@@ -1227,7 +1223,7 @@ static	void	ncr_settags     (tcb_p tp, lcb_p lp);
 static	void	ncr_setwide	(ncb_p np, ccb_p cp, u_char wide);
 static	int	ncr_show_msg	(u_char * msg);
 static	int	ncr_snooptest	(ncb_p np);
-static	INT32	ncr_start       (struct scsi_xfer *xp);
+static	int32_t	ncr_start       (struct scsi_xfer *xp);
 static	void	ncr_timeout	(ncb_p np);
 static	void	ncr_usercmd	(ncb_p np);
 static  void    ncr_wakeup      (ncb_p np, u_long code);
@@ -1253,7 +1249,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.37.4.6 1996/03/11 19:59:46 se Exp $\n";
+	"\n$Id: ncr.c,v 1.37.4.7 1996/03/22 20:22:15 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3134,7 +3130,7 @@ void ncr_min_phys (struct  buf *bp)
 **----------------------------------------------------------
 */
 
-U_INT32 ncr_info (int unit)
+u_int32_t ncr_info (int unit)
 {
 	return (1);   /* may be changed later */
 }
@@ -3544,7 +3540,7 @@ ncr_intr(np)
 **==========================================================
 */
 
-static INT32 ncr_start (struct scsi_xfer * xp)
+static int32_t ncr_start (struct scsi_xfer * xp)
 {
 #ifdef __NetBSD__
 	ncb_p np  = xp->sc_link->adapter_softc;
@@ -4255,8 +4251,13 @@ void ncr_complete (ncb_p np, ccb_p cp)
 		*/
 		xp->error = XS_BUSY;
 
-	} else if ((cp->host_status == HS_SEL_TIMEOUT)
-		|| (cp->host_status == HS_TIMEOUT)) {
+	} else if (cp->host_status == HS_SEL_TIMEOUT) {
+
+		/*
+		**   Device failed selection
+		*/
+		xp->error = XS_SELTIMEOUT;
+	} else if(cp->host_status == HS_TIMEOUT) {
 
 		/*
 		**   No response
