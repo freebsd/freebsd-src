@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ls.c,v 1.8 1995/10/23 21:09:01 ache Exp $
+ *	$Id: ls.c,v 1.9 1995/10/26 10:56:38 ache Exp $
  */
 
 #ifndef lint
@@ -94,6 +94,8 @@ int f_statustime;		/* use time of last mode change */
 int f_dirname;			/* if precede with directory name */
 int f_timesort;			/* sort by time vice name */
 int f_type;			/* add type character for non-regular files */
+
+int rval;
 
 int
 main(argc, argv)
@@ -271,7 +273,7 @@ main(argc, argv)
 		traverse(argc, argv, fts_options);
 	else
 		traverse(1, dotav, fts_options);
-	exit(0);
+	exit(rval);
 }
 
 static int output;			/* If anything output. */
@@ -313,6 +315,7 @@ traverse(argc, argv, options)
 		case FTS_DNR:
 		case FTS_ERR:
 			warnx("%s: %s", p->fts_name, strerror(p->fts_errno));
+			rval = 1;
 			break;
 		case FTS_D:
 			if (p->fts_level != FTS_ROOTLEVEL &&
@@ -383,6 +386,7 @@ display(p, list)
 			warnx("%s: %s",
 			    cur->fts_name, strerror(cur->fts_errno));
 			cur->fts_number = NO_PRINT;
+			rval = 1;
 			continue;
 		}
 
