@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.14 1997/02/22 09:40:41 peter Exp $
+ * $Id: union_vfsops.c,v 1.15 1997/04/14 10:52:25 kato Exp $
  */
 
 /*
@@ -161,6 +161,9 @@ union_mount(mp, path, data, ndp, p)
 	 * Check multi union mount to avoid `lock myself again' panic.
 	 */
 	if (upperrootvp == VTOUNION(lowerrootvp)->un_uppervp) {
+#ifdef DIAGNOSTIC
+		printf("union_mount: multi union mount?\n");
+#endif
 		error = EDEADLK;
 		goto bad;
 	}
@@ -408,7 +411,18 @@ union_root(mp, vpp)
 	     VOP_ISLOCKED(um->um_uppervp)) {
 		loselock = 1;
 	} else {
-		vn_lock(um->um_uppervp, LK_EXCLUSIVE | LK_RETRY, p);
+		if (VOP_ISLOCKED(um->um_uppervp)) {
+			/*
+			 * XXX
+			 * Should we check type of node?
+			 */
+#ifdef DIAGNOSTIC
+			printf("union_root: multi union mount?");
+#endif
+			vrele(um->um_uppervp);
+			return EDEADLK;
+		} else
+			vn_lock(um->um_uppervp, LK_EXCLUSIVE | LK_RETRY, p);
 		loselock = 0;
 	}
 	if (um->um_lowervp)
