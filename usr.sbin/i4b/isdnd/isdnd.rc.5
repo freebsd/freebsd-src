@@ -304,7 +304,8 @@ This keyword is supported for all controller types,
 and causes
 .Dv I4B_CTRL_DOWNLOAD
 ioctl to be invoked with the specified file
-as an argument. In systems equipped with both active and passive adapters,
+as an argument.
+In systems equipped with both active and passive adapters,
 and the passive cards being detected first, dummy
 .Ql controller
 entries
@@ -598,14 +599,15 @@ use this name in the full-screen display for easy identification of a link
 to a remote site and for accounting purposes.
 (mandatory)
 .It Li maxconnecttime
-Specify a maximum connection time in seconds. Use this to define an absolute 
+Specify a maximum connection time in seconds.
+Use this to define an absolute
 upper limit for a connection on the B-channel to last.
 .Em CAUTION:
 This feature is used to limit the connection time, _not_ number of attempts
 to establish a connection: when using this please take care to also enable
 the use of budgets to limit the connection establish attempts (otherwise
 the line will cycle thru an endless loop of connections and reconnections
-which will have an undesired effect on your telco bill) !
+which will have an undesired effect on your telco bill)!
 .It Li ppp-auth-paranoid
 If set to
 .Em no ,
