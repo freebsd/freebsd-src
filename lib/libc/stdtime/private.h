@@ -3,6 +3,11 @@
 #define PRIVATE_H
 
 /*
+** This file is in the public domain, so clarified as of
+** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
+*/
+
+/*
 ** This header is for use ONLY with the time conversion code.
 ** There is no guarantee that it will remain unchanged,
 ** or that it will remain at all.
@@ -16,12 +21,81 @@
 
 #ifndef lint
 #ifndef NOID
-static char	privatehid[] = "@(#)private.h	7.5";
+static char	privatehid[] = "@(#)private.h	7.43";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
 /*
-** const
+** Defaults for preprocessor symbols.
+** You can override these in your C compiler options, e.g. `-DHAVE_ADJTIME=0'.
+*/
+
+#ifndef HAVE_ADJTIME
+#define HAVE_ADJTIME		1
+#endif /* !defined HAVE_ADJTIME */
+
+#ifndef HAVE_GETTEXT
+#define HAVE_GETTEXT		0
+#endif /* !defined HAVE_GETTEXT */
+
+#ifndef HAVE_SETTIMEOFDAY
+#define HAVE_SETTIMEOFDAY	3
+#endif /* !defined HAVE_SETTIMEOFDAY */
+
+#ifndef HAVE_STRERROR
+#define HAVE_STRERROR		0
+#endif /* !defined HAVE_STRERROR */
+
+#ifndef HAVE_UNISTD_H
+#define HAVE_UNISTD_H		1
+#endif /* !defined HAVE_UNISTD_H */
+
+#ifndef HAVE_UTMPX_H
+#define HAVE_UTMPX_H		0
+#endif /* !defined HAVE_UTMPX_H */
+
+#ifndef LOCALE_HOME
+#define LOCALE_HOME		"/usr/lib/locale"
+#endif /* !defined LOCALE_HOME */
+
+/*
+** Nested includes
+*/
+
+#include "sys/types.h"	/* for time_t */
+#include "stdio.h"
+#include "errno.h"
+#include "string.h"
+#include "limits.h"	/* for CHAR_BIT */
+#include "time.h"
+#include "stdlib.h"
+
+#if HAVE_GETTEXT - 0
+#include "libintl.h"
+#endif /* HAVE_GETTEXT - 0 */
+
+#if HAVE_UNISTD_H - 0
+#include "unistd.h"	/* for F_OK and R_OK */
+#endif /* HAVE_UNISTD_H - 0 */
+
+#if !(HAVE_UNISTD_H - 0)
+#ifndef F_OK
+#define F_OK	0
+#endif /* !defined F_OK */
+#ifndef R_OK
+#define R_OK	4
+#endif /* !defined R_OK */
+#endif /* !(HAVE_UNISTD_H - 0) */
+
+/* Unlike <ctype.h>'s isdigit, this also works if c < 0 | c > UCHAR_MAX.  */
+#define is_digit(c) ((unsigned)(c) - '0' <= 9)
+
+/*
+** Workarounds for compilers/systems.
+*/
+
+/*
+** SunOS 4.1.1 cc lacks const.
 */
 
 #ifndef const
@@ -31,21 +105,7 @@ static char	privatehid[] = "@(#)private.h	7.5";
 #endif /* !defined const */
 
 /*
-** void
-*/
-
-#ifndef void
-#ifndef __STDC__
-#ifndef vax
-#ifndef sun
-#define void	char
-#endif /* !defined sun */
-#endif /* !defined vax */
-#endif /* !defined __STDC__ */
-#endif /* !defined void */
-
-/*
-** P((args))
+** SunOS 4.1.1 cc lacks prototypes.
 */
 
 #ifndef P
@@ -53,36 +113,29 @@ static char	privatehid[] = "@(#)private.h	7.5";
 #define P(x)	x
 #endif /* defined __STDC__ */
 #ifndef __STDC__
-#define ASTERISK	*
-#define P(x)	( /ASTERISK x ASTERISK/ )
+#define P(x)	()
 #endif /* !defined __STDC__ */
 #endif /* !defined P */
 
 /*
-** genericptr_t
+** SunOS 4.1.1 headers lack EXIT_SUCCESS.
 */
 
-#ifdef __STDC__
-typedef void *		genericptr_t;
-#endif /* defined __STDC__ */
-#ifndef __STDC__
-typedef char *		genericptr_t;
-#endif /* !defined __STDC__ */
+#ifndef EXIT_SUCCESS
+#define EXIT_SUCCESS	0
+#endif /* !defined EXIT_SUCCESS */
 
-#include "sys/types.h"	/* for time_t */
-#include "stdio.h"
-#include "ctype.h"
-#include "errno.h"
-#include "string.h"
-#include "limits.h"	/* for CHAR_BIT */
-#ifndef _TIME_
-#include "time.h"
-#endif /* !defined _TIME_ */
+/*
+** SunOS 4.1.1 headers lack EXIT_FAILURE.
+*/
 
-#ifndef remove
-extern int	unlink P((const char * filename));
-#define remove	unlink
-#endif /* !defined remove */
+#ifndef EXIT_FAILURE
+#define EXIT_FAILURE	1
+#endif /* !defined EXIT_FAILURE */
+
+/*
+** SunOS 4.1.1 headers lack FILENAME_MAX.
+*/
 
 #ifndef FILENAME_MAX
 
@@ -101,62 +154,27 @@ extern int	unlink P((const char * filename));
 
 #endif /* !defined FILENAME_MAX */
 
-#ifndef EXIT_SUCCESS
-#define EXIT_SUCCESS	0
-#endif /* !defined EXIT_SUCCESS */
-
-#ifndef EXIT_FAILURE
-#define EXIT_FAILURE	1
-#endif /* !defined EXIT_FAILURE */
-
-#ifdef __STDC__
-
-#define alloc_size_t	size_t
-#define qsort_size_t	size_t
-#define fwrite_size_t	size_t
-
-#endif /* defined __STDC__ */
-#ifndef __STDC__
-
-#ifndef alloc_size_t
-#define alloc_size_t	unsigned
-#endif /* !defined alloc_size_t */
-
-#ifndef qsort_size_t
-#ifdef USG
-#define qsort_size_t	unsigned
-#endif /* defined USG */
-#ifndef USG
-#define qsort_size_t	int
-#endif /* !defined USG */
-#endif /* !defined qsort_size_t */
-
-#ifndef fwrite_size_t
-#define fwrite_size_t	int
-#endif /* !defined fwrite_size_t */
-
-#ifndef USG
-extern char *		sprintf P((char * buf, const char * format, ...));
-#endif /* !defined USG */
-
-#endif /* !defined __STDC__ */
-
 /*
-** Ensure that these are declared--redundantly declaring them shouldn't hurt.
+** SunOS 4.1.1 libraries lack remove.
 */
 
-extern char *		getenv P((const char * name));
-extern genericptr_t	malloc P((alloc_size_t size));
-extern genericptr_t	calloc P((alloc_size_t nelem, alloc_size_t elsize));
-extern genericptr_t	realloc P((genericptr_t oldptr, alloc_size_t newsize));
+#ifndef remove
+extern int	unlink P((const char * filename));
+#define remove	unlink
+#endif /* !defined remove */
 
-#ifdef USG
-extern void		exit P((int s));
-extern void		qsort P((genericptr_t base, qsort_size_t nelem,
-				qsort_size_t elsize, int (*comp)()));
-extern void		perror P((const char * string));
-extern void		free P((char * buf));
-#endif /* defined USG */
+/*
+** Some ancient errno.h implementations don't declare errno.
+** But some newer errno.h implementations define it as a macro.
+** Fix the former without affecting the latter.
+*/
+#ifndef errno
+extern int errno;
+#endif /* !defined errno */
+
+/*
+** Finally, some convenience items.
+*/
 
 #ifndef TRUE
 #define TRUE	1
@@ -166,20 +184,69 @@ extern void		free P((char * buf));
 #define FALSE	0
 #endif /* !defined FALSE */
 
+#ifndef TYPE_BIT
+#define TYPE_BIT(type)	(sizeof (type) * CHAR_BIT)
+#endif /* !defined TYPE_BIT */
+
+#ifndef TYPE_SIGNED
+#define TYPE_SIGNED(type) (((type) -1) < 0)
+#endif /* !defined TYPE_SIGNED */
+
 #ifndef INT_STRLEN_MAXIMUM
 /*
 ** 302 / 1000 is log10(2.0) rounded up.
-** Subtract one for the sign bit;
+** Subtract one for the sign bit if the type is signed;
 ** add one for integer division truncation;
-** add one more for a minus sign.
+** add one more for a minus sign if the type is signed.
 */
 #define INT_STRLEN_MAXIMUM(type) \
-	((sizeof(type) * CHAR_BIT - 1) * 302 / 1000 + 2)
+    ((TYPE_BIT(type) - TYPE_SIGNED(type)) * 302 / 100 + 1 + TYPE_SIGNED(type))
 #endif /* !defined INT_STRLEN_MAXIMUM */
 
 /*
-** UNIX is a registered trademark of AT&T.
-** VAX is a trademark of Digital Equipment Corporation.
+** INITIALIZE(x)
+*/
+
+#ifndef GNUC_or_lint
+#ifdef lint
+#define GNUC_or_lint
+#endif /* defined lint */
+#ifndef lint
+#ifdef __GNUC__
+#define GNUC_or_lint
+#endif /* defined __GNUC__ */
+#endif /* !defined lint */
+#endif /* !defined GNUC_or_lint */
+
+#ifndef INITIALIZE
+#ifdef GNUC_or_lint
+#define INITIALIZE(x)	((x) = 0)
+#endif /* defined GNUC_or_lint */
+#ifndef GNUC_or_lint
+#define INITIALIZE(x)
+#endif /* !defined GNUC_or_lint */
+#endif /* !defined INITIALIZE */
+
+/*
+** For the benefit of GNU folk...
+** `_(MSGID)' uses the current locale's message library string for MSGID.
+** The default is to use gettext if available, and use MSGID otherwise.
+*/
+
+#ifndef _
+#if HAVE_GETTEXT - 0
+#define _(msgid) gettext(msgid)
+#else /* !(HAVE_GETTEXT - 0) */
+#define _(msgid) msgid
+#endif /* !(HAVE_GETTEXT - 0) */
+#endif /* !defined _ */
+
+#ifndef TZ_DOMAIN
+#define TZ_DOMAIN "tz"
+#endif /* !defined TZ_DOMAIN */
+
+/*
+** UNIX was a registered trademark of UNIX System Laboratories in 1993.
 */
 
 #endif /* !defined PRIVATE_H */
