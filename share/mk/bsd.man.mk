@@ -227,3 +227,16 @@ maninstall:: ${MAN}
 	done
 .endif
 .endif
+
+manlint:
+.if defined(MAN) && !empty(MAN)
+.for page in ${MAN}
+manlint: ${page}lint
+${page}lint: ${page}
+.if defined(MANFILTER)
+	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} -ww >/dev/null
+.else
+	${MROFF_CMD} -ww ${.ALLSRC} >/dev/null
+.endif
+.endfor
+.endif
