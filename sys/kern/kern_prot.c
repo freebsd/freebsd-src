@@ -1569,6 +1569,10 @@ p_candebug(struct proc *p1, struct proc *p2)
 			return (error);
 	}
 
+	/* can't trace a process that's currently exec'ing */
+	if ((p2->p_flag & P_INEXEC) != 0)
+		return (EAGAIN);
+	
 	return (0);
 }
 
