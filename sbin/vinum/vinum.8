@@ -34,10 +34,11 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.8,v 1.5.2.5 1999/05/10 08:28:05 grog Exp $
+.\" $Id: vinum.8,v 1.5.2.6 1999/08/14 09:14:03 grog Exp $
 .\"
 .Dd 28 March 1999
-.Dt vinum 8
+.Dt VINUM 8
+.Os
 .Sh NAME
 .Nm vinum
 .Nd Logical Volume Manager control program
@@ -2085,7 +2086,7 @@ plexes.
 - directory containing device nodes for
 .Nm
 subdisks.
-.Sh ENVIRONMENT VARIABLES
+.Sh ENVIRONMENT
 .Bl -hang
 .It VINUM_HISTORY
 The name of the log file, by default /var/log/vinum_history.
@@ -2096,16 +2097,16 @@ The name of the editor to use for editing configuration files, by default
 .Nm vi .
 .El
 .Sh SEE ALSO
+.Xr strftime 3 ,
 .Xr vinum 4 ,
 .Xr disklabel 8 ,
-.Xr newfs 8 ,
-.Xr strftime 3 ,
+.Xr newfs 8
 .Pa http://www.lemis.com/vinum.html ,
 .Pa http://www.lemis.com/vinum-debugging.html .
 .Sh AUTHOR
-Greg Lehey
-.Pa <grog@lemis.com> .
+.An Greg Lehey Aq grog@lemis.com .
 .Sh HISTORY
 The
 .Nm
-command first appeared in FreeBSD 3.0.
+command first appeared in
+.Fx 3.0 .
