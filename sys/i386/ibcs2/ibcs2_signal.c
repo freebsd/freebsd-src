@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_signal.c,v 1.5 1995/10/21 05:01:57 swallace Exp $
+ * $Id: ibcs2_signal.c,v 1.7 1996/12/08 02:24:10 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -309,17 +309,29 @@ ibcs2_sigsys(p, uap, retval)
 			if (signum != SIGALRM)
 				sa.sa_flags |= SA_RESTART;
 #endif
+			*retval = (int)IBCS2_SIG_ERR; /* init error return */
+
+			/* perform native sigaction() */
 			if ((error = copyout(&sa, nbsa, sizeof(sa))) != 0)
 				return error;
 			if ((error = sigaction(p, &sa_args, retval)) != 0) {
 				DPRINTF(("signal: sigaction failed: %d\n",
 					 error));
-				*retval = (int)IBCS2_SIG_ERR;
 				return error;
 			}
 			if ((error = copyin(obsa, &sa, sizeof(sa))) != 0)
 				return error;
 			*retval = (int)sa.sa_handler;
+
+			/* special sigset() check */
+                        if(IBCS2_SIGCALL(SCARG(uap, sig)) == IBCS2_SIGSET_MASK)
+			        /* check to make sure signal is not blocked */
+                                if(sigismember(&p->p_sigmask, signum)) {
+				        /* return SIG_HOLD and unblock signal*/
+                                        *retval = (int)IBCS2_SIG_HOLD;
+					p->p_sigmask &= ~sigmask(signum);
+				}
+				
 			return 0;
 		}
 		
