@@ -31,26 +31,26 @@ afterinstall:
 	@cd ${DESTDIR}${SHLIBDIR}; \
 	if [ ! -e ${LCRYPTSO} ]; then \
 	rm -f ${LCRYPTSO}; \
-	ln -s ${LSCRYPTSO} ${LCRYPTSO}; \
+	ln -sf ${LSCRYPTSO} ${LCRYPTSO}; \
 	fi
 .endif
 .if !defined(NOPIC) && ${OBJFORMAT} == elf
 	@cd ${DESTDIR}${SHLIBDIR}; \
 	if [ ! -e ${LCRYPTBASE}.so ]; then \
 	rm -f ${LCRYPTBASE}.so; \
-	ln -s ${LSCRYPTBASE}.so libcrypt.so; \
+	ln -sf ${LSCRYPTBASE}.so libcrypt.so; \
 	fi
 .endif
 	@cd  ${DESTDIR}${LIBDIR}; \
 	if [ ! -e ${LCRYPTBASE}.a ]; then \
 	rm -f ${LCRYPTBASE}.a; \
-	ln -s ${LSCRYPTBASE}.a libcrypt.a; \
+	ln -sf ${LSCRYPTBASE}.a libcrypt.a; \
 	fi
 .if !defined(NOPROFILE)
 	@cd  ${DESTDIR}${LIBDIR}; \
 	if [ ! -e ${LCRYPTBASE}_p.a ]; then \
 	rm -f ${LCRYPTBASE}_p.a; \
-	ln -s ${LSCRYPTBASE}_p.a libcrypt_p.a; \
+	ln -sf ${LSCRYPTBASE}_p.a libcrypt_p.a; \
 	fi
 .endif
 
