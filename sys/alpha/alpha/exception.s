@@ -135,14 +135,10 @@ XentSys1: LDGP(pv)
 	and	t1, FRAME_FLAGS_SYSCALL
 	beq	t1, exception_return
 
-	ldl	t2, GD_ASTPENDING(globalp)	/* AST pending? */
-	beq	t2, 2f				/* no: return */
-
-	/* We've got an AST.  Handle it. */
+	/* Handle any AST's. */
 	mov	sp, a0				/* only arg is frame */
 	CALL(ast)
 
-2:
 	/* set the hae register if this process has specified a value */
 	ldq	t0, GD_CURPROC(globalp)
 	beq	t0, 3f
@@ -264,12 +260,7 @@ Ler1:	LDGP(pv)
 	and	s1, ALPHA_PSL_USERMODE, t0	/* are we returning to user? */
 	beq	t0, Lrestoreregs		/* no: just return */
 
-	ldl	t2, GD_ASTPENDING(globalp)	/* AST pending? */
-	beq	t2, Lrestoreregs		/* no: return */
-
-	/* We've got an AST.  Handle it. */
-	ldiq	a0, ALPHA_PSL_IPL_0		/* drop IPL to zero */
-	call_pal PAL_OSF1_swpipl
+	/* Handle any AST's or resched's. */
 	mov	sp, a0				/* only arg is frame */
 	CALL(ast)
 
