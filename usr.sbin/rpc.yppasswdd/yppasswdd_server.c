@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_server.c,v 1.7 1996/08/04 22:13:05 wpaul Exp $
+ *	$Id: yppasswdd_server.c,v 1.6 1996/07/01 19:38:38 guido Exp $
  */
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ struct dom_binding {};
 #include "yppasswd_comm.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.7 1996/08/04 22:13:05 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.6 1996/07/01 19:38:38 guido Exp $";
 #endif /* not lint */
 
 char *tempname;
@@ -369,6 +369,37 @@ static int update_inplace(pw, domain)
 		if ((ptr = strchr(data.data, ':')) == NULL) {
 			yp_error("no colon in passwd record?!");
 			return(1);
+		}
+
+		/*
+		 * XXX Supposing we have more than one user with the same
+		 * UID? (Or more than one user with the same name?) We could
+		 * end up modifying the wrong record if were not careful.
+		 */
+		if (i % 2) {
+			if (strncmp(data.data, pw->pw_name,
+							strlen(pw->pw_name))) {
+				yp_error("warning: found entry for UID %d \
+in map %s@%s with wrong name (%.*s)", pw->pw_uid, maps[i], domain,
+					ptr - (char *)data.data, data.data);
+				yp_error("there may be more than one user \
+with the same UID - continuing");
+				continue;
+			}
+		} else {
+			/*
+			 * We're really being ultra-paranoid here.
+			 * This is generally a 'can't happen' condition.
+			 */
+			snprintf(pwbuf, sizeof(pwbuf), ":%d:%d:", pw->pw_uid,
+								  pw->pw_gid);
+			if (!strstr(data.data, pwbuf)) {
+				yp_error("warning: found entry for user %s \
+in map %s@%s with wrong UID", pw->pw_name, maps[i], domain);
+				yp_error("there may ne more than one user
+with the same name - continuing");
+				continue;
+			}
 		}
 
 		if (i < 2) {
