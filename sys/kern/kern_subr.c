@@ -485,7 +485,7 @@ copyinstrfrom(const void * __restrict src, void * __restrict dst, size_t len,
 }
 
 int
-iov_to_uio(struct iovec *iovp, u_int iovcnt, struct uio *uio)
+uiofromiov(struct iovec *iovp, u_int iovcnt, struct uio *uio)
 {
 	struct iovec *iov;
 	u_int iovlen;
