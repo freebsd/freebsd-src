@@ -62,16 +62,14 @@ static const char rcsid[] =
 #include <strings.h>
 #include "pathnames.h"
 
-void logerr __P((const char *, ...));
+void logerr(const char *, ...);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register FILE *fp;
-	register int ch;
-	register char *lp;
+	FILE *fp;
+	int ch;
+	char *lp;
 	struct sockaddr_storage ss;
 	int p[2], logging, secure, sval;
 #define	ENTRIES	50
@@ -199,27 +197,13 @@ main(argc, argv)
 	exit(0);
 }
 
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 void
-#if __STDC__
 logerr(const char *fmt, ...)
-#else
-logerr(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)vsyslog(LOG_ERR, fmt, ap);
 	va_end(ap);
 	exit(1);

@@ -72,8 +72,7 @@ static int *pids;
 static int fds;
 
 FILE *
-ftpd_popen(program, type)
-	char *program, *type;
+ftpd_popen(char *program, char *type)
 {
 	char *cp;
 	FILE *iop;
@@ -177,8 +176,7 @@ pfree:	for (argc = 1; gargv[argc] != NULL; argc++)
 }
 
 int
-ftpd_pclose(iop)
-	FILE *iop;
+ftpd_pclose(FILE *iop)
 {
 	int fdes, omask, status;
 	pid_t pid;

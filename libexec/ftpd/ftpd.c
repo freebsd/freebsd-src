@@ -182,7 +182,7 @@ static char ttyline[20];
 char	*tty = ttyline;		/* for klogin */
 
 #ifdef USE_PAM
-static int	auth_pam __P((struct passwd**, const char*));
+static int	auth_pam(struct passwd**, const char*);
 pam_handle_t *pamh = NULL;
 #endif
 
@@ -238,31 +238,31 @@ char	proctitle[LINE_MAX];	/* initial part of title */
 	}
 
 #ifdef VIRTUAL_HOSTING
-static void	 inithosts __P((void));
-static void	selecthost __P((union sockunion *));
+static void	 inithosts(void);
+static void	selecthost(union sockunion *);
 #endif
-static void	 ack __P((char *));
-static void	 sigurg __P((int));
-static void	 myoob __P((void));
-static int	 checkuser __P((char *, char *, int));
-static FILE	*dataconn __P((char *, off_t, char *));
-static void	 dolog __P((struct sockaddr *));
-static char	*curdir __P((void));
-static void	 end_login __P((void));
-static FILE	*getdatasock __P((char *));
-static char	*gunique __P((char *));
-static void	 lostconn __P((int));
-static void	 sigquit __P((int));
-static int	 receive_data __P((FILE *, FILE *));
-static int	 send_data __P((FILE *, FILE *, off_t, off_t, int));
+static void	 ack(char *);
+static void	 sigurg(int);
+static void	 myoob(void);
+static int	 checkuser(char *, char *, int);
+static FILE	*dataconn(char *, off_t, char *);
+static void	 dolog(struct sockaddr *);
+static char	*curdir(void);
+static void	 end_login(void);
+static FILE	*getdatasock(char *);
+static char	*gunique(char *);
+static void	 lostconn(int);
+static void	 sigquit(int);
+static int	 receive_data(FILE *, FILE *);
+static int	 send_data(FILE *, FILE *, off_t, off_t, int);
 static struct passwd *
-		 sgetpwnam __P((char *));
-static char	*sgetsave __P((char *));
-static void	 reapchild __P((int));
-static void      logxfer __P((char *, off_t, time_t));
+		 sgetpwnam(char *);
+static char	*sgetsave(char *);
+static void	 reapchild(int);
+static void      logxfer(char *, off_t, time_t);
 
 static char *
-curdir()
+curdir(void)
 {
 	static char path[MAXPATHLEN+1+1];	/* path + '/' + '\0' */
 
@@ -275,10 +275,7 @@ curdir()
 }
 
 int
-main(argc, argv, envp)
-	int argc;
-	char *argv[];
-	char **envp;
+main(int argc, char *argv[], char **envp)
 {
 	int addrlen, ch, on = 1, tos;
 	char *cp, line[LINE_MAX];
@@ -634,8 +631,7 @@ main(argc, argv, envp)
 }
 
 static void
-lostconn(signo)
-	int signo;
+lostconn(int signo)
 {
 
 	if (ftpdebug)
@@ -644,8 +640,7 @@ lostconn(signo)
 }
 
 static void
-sigquit(signo)
-	int signo;
+sigquit(int signo)
 {
 
 	syslog(LOG_ERR, "got signal %d", signo);
@@ -658,7 +653,7 @@ sigquit(signo)
  */
 
 static void
-inithosts()
+inithosts(void)
 {
 	FILE *fp;
 	char *cp;
@@ -819,8 +814,7 @@ inithosts()
 }
 
 static void
-selecthost(su)
-	union sockunion *su;
+selecthost(union sockunion *su)
 {
 	struct ftphost	*hrp;
 	u_int16_t port;
@@ -872,8 +866,7 @@ selecthost(su)
  * Helper function for sgetpwnam().
  */
 static char *
-sgetsave(s)
-	char *s;
+sgetsave(char *s)
 {
 	char *new = malloc((unsigned) strlen(s) + 1);
 
@@ -892,8 +885,7 @@ sgetsave(s)
  * (e.g., globbing).
  */
 static struct passwd *
-sgetpwnam(name)
-	char *name;
+sgetpwnam(char *name)
 {
 	static struct passwd save;
 	struct passwd *p;
@@ -932,8 +924,7 @@ static char curname[MAXLOGNAME];	/* current USER name */
  * _PATH_FTPUSERS to allow people such as root and uucp to be avoided.
  */
 void
-user(name)
-	char *name;
+user(char *name)
 {
 	char *cp, *shell;
 
@@ -1022,10 +1013,7 @@ user(name)
  * Check if a user is in the file "fname"
  */
 static int
-checkuser(fname, name, pwset)
-	char *fname;
-	char *name;
-	int pwset;
+checkuser(char *fname, char *name, int pwset)
 {
 	FILE *fd;
 	int found = 0;
@@ -1075,7 +1063,7 @@ checkuser(fname, name, pwset)
  * used when USER command is given or login fails.
  */
 static void
-end_login()
+end_login(void)
 {
 #ifdef USE_PAM
 	int e;
@@ -1252,8 +1240,7 @@ auth_pam(struct passwd **ppw, const char *pass)
 #endif /* USE_PAM */
 
 void
-pass(passwd)
-	char *passwd;
+pass(char *passwd)
 {
 	int rval;
 	FILE *fd;
@@ -1480,12 +1467,11 @@ bad:
 }
 
 void
-retrieve(cmd, name)
-	char *cmd, *name;
+retrieve(char *cmd, char *name)
 {
 	FILE *fin, *dout;
 	struct stat st;
-	int (*closefunc) __P((FILE *));
+	int (*closefunc)(FILE *);
 	time_t start;
 
 	if (cmd == 0) {
@@ -1551,13 +1537,11 @@ done:
 }
 
 void
-store(name, mode, unique)
-	char *name, *mode;
-	int unique;
+store(char *name, char *mode, int unique)
 {
 	FILE *fout, *din;
 	struct stat st;
-	int (*closefunc) __P((FILE *));
+	int (*closefunc)(FILE *);
 
 	if ((unique || guest) && stat(name, &st) == 0 &&
 	    (name = gunique(name)) == NULL) {
@@ -1623,8 +1607,7 @@ done:
 }
 
 static FILE *
-getdatasock(mode)
-	char *mode;
+getdatasock(char *mode)
 {
 	int on = 1, s, t, tries;
 
@@ -1686,10 +1669,7 @@ bad:
 }
 
 static FILE *
-dataconn(name, size, mode)
-	char *name;
-	off_t size;
-	char *mode;
+dataconn(char *name, off_t size, char *mode)
 {
 	char sizebuf[32];
 	FILE *file;
@@ -1797,11 +1777,7 @@ pdata_err:
  * NB: Form isn't handled.
  */
 static int
-send_data(instr, outstr, blksize, filesize, isreg)
-	FILE *instr, *outstr;
-	off_t blksize;
-	off_t filesize;
-	int isreg;
+send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 {
 	int c, filefd, netfd;
 	char *buf;
@@ -1921,8 +1897,7 @@ got_oob:
  * N.B.: Form isn't handled.
  */
 static int
-receive_data(instr, outstr)
-	FILE *instr, *outstr;
+receive_data(FILE *instr, FILE *outstr)
 {
 	int c;
 	int cnt, bare_lfs;
@@ -2012,8 +1987,7 @@ got_oob:
 }
 
 void
-statfilecmd(filename)
-	char *filename;
+statfilecmd(char *filename)
 {
 	FILE *fin;
 	int c;
@@ -2044,7 +2018,7 @@ statfilecmd(filename)
 }
 
 void
-statcmd()
+statcmd(void)
 {
 	union sockunion *su;
 	u_char *a, *p;
@@ -2170,8 +2144,7 @@ epsvonly:;
 }
 
 void
-fatalerror(s)
-	char *s;
+fatalerror(char *s)
 {
 
 	reply(451, "Error in server: %s\n", s);
@@ -2181,21 +2154,11 @@ fatalerror(s)
 }
 
 void
-#if __STDC__
 reply(int n, const char *fmt, ...)
-#else
-reply(n, fmt, va_alist)
-	int n;
-	char *fmt;
-        va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
+
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)printf("%d ", n);
 	(void)vprintf(fmt, ap);
 	(void)printf("\r\n");
@@ -2207,21 +2170,11 @@ reply(n, fmt, va_alist)
 }
 
 void
-#if __STDC__
 lreply(int n, const char *fmt, ...)
-#else
-lreply(n, fmt, va_alist)
-	int n;
-	char *fmt;
-        va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
+
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)printf("%d- ", n);
 	(void)vprintf(fmt, ap);
 	(void)printf("\r\n");
@@ -2233,16 +2186,14 @@ lreply(n, fmt, va_alist)
 }
 
 static void
-ack(s)
-	char *s;
+ack(char *s)
 {
 
 	reply(250, "%s command successful.", s);
 }
 
 void
-nack(s)
-	char *s;
+nack(char *s)
 {
 
 	reply(502, "%s command not implemented.", s);
@@ -2250,8 +2201,7 @@ nack(s)
 
 /* ARGSUSED */
 void
-yyerror(s)
-	char *s;
+yyerror(char *s)
 {
 	char *cp;
 
@@ -2261,8 +2211,7 @@ yyerror(s)
 }
 
 void
-delete(name)
-	char *name;
+delete(char *name)
 {
 	struct stat st;
 
@@ -2287,8 +2236,7 @@ done:
 }
 
 void
-cwd(path)
-	char *path;
+cwd(char *path)
 {
 
 	if (chdir(path) < 0)
@@ -2298,8 +2246,7 @@ cwd(path)
 }
 
 void
-makedir(name)
-	char *name;
+makedir(char *name)
 {
 
 	LOGCMD("mkdir", name);
@@ -2310,8 +2257,7 @@ makedir(name)
 }
 
 void
-removedir(name)
-	char *name;
+removedir(char *name)
 {
 
 	LOGCMD("rmdir", name);
@@ -2322,7 +2268,7 @@ removedir(name)
 }
 
 void
-pwd()
+pwd(void)
 {
 	char path[MAXPATHLEN + 1];
 
@@ -2333,8 +2279,7 @@ pwd()
 }
 
 char *
-renamefrom(name)
-	char *name;
+renamefrom(char *name)
 {
 	struct stat st;
 
@@ -2347,8 +2292,7 @@ renamefrom(name)
 }
 
 void
-renamecmd(from, to)
-	char *from, *to;
+renamecmd(char *from, char *to)
 {
 	struct stat st;
 
@@ -2366,8 +2310,7 @@ renamecmd(from, to)
 }
 
 static void
-dolog(who)
-	struct sockaddr *who;
+dolog(struct sockaddr *who)
 {
 	int error;
 
@@ -2410,8 +2353,7 @@ dolog(who)
  * and exit with supplied status.
  */
 void
-dologout(status)
-	int status;
+dologout(int status)
 {
 	/*
 	 * Prevent reception of SIGURG from resulting in a resumption
@@ -2428,15 +2370,14 @@ dologout(status)
 }
 
 static void
-sigurg(signo)
-	int signo;
+sigurg(int signo)
 {
 
 	recvurg = 1;
 }
 
 static void
-myoob()
+myoob(void)
 {
 	char *cp;
 
@@ -2471,7 +2412,7 @@ myoob()
  *	with Rick Adams on 25 Jan 89.
  */
 void
-passive()
+passive(void)
 {
 	int len;
 	char *p, *a;
@@ -2551,9 +2492,7 @@ pasv_error:
  */
 
 void
-long_passive(cmd, pf)
-	char *cmd;
-	int pf;
+long_passive(char *cmd, int pf)
 {
 	int len;
 	char *p, *a;
@@ -2686,8 +2625,7 @@ pasv_error:
  * Generates failure reply on error.
  */
 static char *
-gunique(local)
-	char *local;
+gunique(char *local)
 {
 	static char new[MAXPATHLEN];
 	struct stat st;
@@ -2720,9 +2658,7 @@ gunique(local)
  * Format and send reply containing system error number.
  */
 void
-perror_reply(code, string)
-	int code;
-	char *string;
+perror_reply(int code, char *string)
 {
 
 	reply(code, "%s: %s.", string, strerror(errno));
@@ -2734,8 +2670,7 @@ static char *onefile[] = {
 };
 
 void
-send_file_list(whichf)
-	char *whichf;
+send_file_list(char *whichf)
 {
 	struct stat st;
 	DIR *dirp = NULL;
@@ -2870,8 +2805,7 @@ out:
 }
 
 void
-reapchild(signo)
-	int signo;
+reapchild(int signo)
 {
 	while (wait3(NULL, WNOHANG, NULL) > 0);
 }
@@ -2883,24 +2817,14 @@ reapchild(signo)
  * have much of an environment or arglist to overwrite.
  */
 void
-#if __STDC__
 setproctitle(const char *fmt, ...)
-#else
-setproctitle(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
 {
 	int i;
 	va_list ap;
 	char *p, *bp, ch;
 	char buf[LINE_MAX];
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 
 	/* make ps print our process name */
@@ -2922,10 +2846,7 @@ setproctitle(fmt, va_alist)
 #endif /* OLD_SETPROCTITLE */
 
 static void
-logxfer(name, size, start)
-	char *name;
-	off_t size;
-	time_t start;
+logxfer(char *name, off_t size, time_t start)
 {
 	char buf[1024];
 	char path[MAXPATHLEN + 1];

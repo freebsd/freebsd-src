@@ -78,19 +78,17 @@ struct	utmp *utmp = NULL;
 time_t	lastmsgtime;
 int	nutmp, uf;
 
-void jkfprintf __P((FILE *, char[], char[], off_t));
-void mailfor __P((char *));
-void notify __P((struct utmp *, char[], off_t, int));
-void onalrm __P((int));
-void reapchildren __P((int));
+void jkfprintf(FILE *, char[], char[], off_t);
+void mailfor(char *);
+void notify(struct utmp *, char[], off_t, int);
+void onalrm(int);
+void reapchildren(int);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct sockaddr_in from;
-	register int cc;
+	int cc;
 	int fromlen;
 	char msgbuf[256];
 
@@ -134,15 +132,13 @@ main(argc, argv)
 }
 
 void
-reapchildren(signo)
-	int signo;
+reapchildren(int signo)
 {
 	while (wait3(NULL, WNOHANG, NULL) > 0);
 }
 
 void
-onalrm(signo)
-	int signo;
+onalrm(int signo)
 {
 	static u_int utmpsize;		/* last malloced size for utmp */
 	static u_int utmpmtime;		/* last modification time for utmp */
@@ -167,11 +163,10 @@ onalrm(signo)
 }
 
 void
-mailfor(name)
-	char *name;
+mailfor(char *name)
 {
-	register struct utmp *utp = &utmp[nutmp];
-	register char *cp;
+	struct utmp *utp = &utmp[nutmp];
+	char *cp;
 	char *file;
 	off_t offset;
 	int folder;
@@ -202,11 +197,7 @@ mailfor(name)
 static char *cr;
 
 void
-notify(utp, file, offset, folder)
-	register struct utmp *utp;
-	char file[];
-	off_t offset;
-	int folder;
+notify(struct utmp *utp, char file[], off_t offset, int folder)
 {
 	FILE *tp;
 	struct stat stb;
@@ -247,16 +238,12 @@ notify(utp, file, offset, folder)
 }
 
 void
-jkfprintf(tp, user, file, offset)
-	register FILE *tp;
-	char user[];
-	char file[];
-	off_t offset;
+jkfprintf(FILE *tp, char user[], char file[], off_t offset)
 {
-	register unsigned char *cp, ch;
-	register FILE *fi;
-	register int linecnt, charcnt, inheader;
-	register struct passwd *p;
+	unsigned char *cp, ch;
+	FILE *fi;
+	int linecnt, charcnt, inheader;
+	struct passwd *p;
 	unsigned char line[BUFSIZ];
 
 	/* Set effective uid to user in case mail drop is on nfs */
