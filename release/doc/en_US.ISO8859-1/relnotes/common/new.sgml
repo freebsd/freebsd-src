@@ -118,6 +118,13 @@
     <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
     all loader tunables.</para>
 
+    <para>Specifying a value of <literal>0</literal> for the
+    <varname>maxusers</varname> kernel configuration parameter will
+    now cause an appropriate value to be calculated at boot-time
+    (between 32 and 512, depending on the amount of memory present).
+    This value is now the default for all
+    <filename>GENERIC</filename> kernels.</para>
+
     <para arch="i386">The pmc driver, which supports the power
     management controller of the NEC PC-98NOTE, has been
     added.</para>
