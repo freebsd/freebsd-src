@@ -205,6 +205,33 @@ retry_sbufops:
 }
 SYSCTL_PROC(_debug_mutex_prof, OID_AUTO, stats, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, dump_mutex_prof_stats, "A", "Mutex profiling statistics");
+
+static int
+reset_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
+{
+	int error, v;
+
+	if (first_free_mprof_buf == 0)
+		return (0);
+
+	v = 0;
+	error = sysctl_handle_int(oidp, &v, 0, req);
+	if (error)
+		return (error);
+	if (req->newptr == NULL)
+		return (error);
+	if (v == 0)
+		return (0);
+
+	mtx_lock_spin(&mprof_mtx);
+	bzero(mprof_buf, sizeof(*mprof_buf) * first_free_mprof_buf);
+	bzero(mprof_hash, sizeof(struct mtx *) * MPROF_HASH_SIZE);
+	first_free_mprof_buf = 0;
+	mtx_unlock_spin(&mprof_mtx);
+	return (0);
+}
+SYSCTL_PROC(_debug_mutex_prof, OID_AUTO, reset, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, reset_mutex_prof_stats, "I", "Reset mutex profiling statistics");
 #endif
 
 /*
