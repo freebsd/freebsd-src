@@ -242,7 +242,6 @@ static u_long oltr_count = NOLTR;
 static const char *oltr_pci_probe	__P((pcici_t, pcidi_t));
 static void oltr_pci_attach		__P((pcici_t, int));
 static void oltr_pci_intr    		__P((void *));
-static void oltr_pci_shutdown		__P((int, void *));
 
 static struct pci_device oltr_device = {
     "oltr",
@@ -639,16 +638,6 @@ oltr_attach_common(sc)
 
     return(1);
 }
-
-#if NPCI > 0
-static void
-oltr_pci_shutdown(howto, sc)
-    int howto;
-    void *sc;
-{
-    printf("oltr: oltr_pci_shutdown called\n");
-}
-#endif /* NPCI */
 
 static int
 oltr_ifmedia_upd(ifp)
