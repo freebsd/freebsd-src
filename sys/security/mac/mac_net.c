@@ -153,12 +153,6 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_vm, CTLFLAG_RW,
     &mac_enforce_vm, 0, "Enforce MAC policy on vm operations");
 TUNABLE_INT("security.mac.enforce_vm", &mac_enforce_vm);
 
-static int	mac_cache_fslabel_in_vnode = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, cache_fslabel_in_vnode, CTLFLAG_RW,
-    &mac_cache_fslabel_in_vnode, 0, "Cache mount fslabel in vnode");
-TUNABLE_INT("security.mac.cache_fslabel_in_vnode",
-    &mac_cache_fslabel_in_vnode);
-
 static int	mac_mmap_revocation = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation, CTLFLAG_RW,
     &mac_mmap_revocation, 0, "Revoke mmap access to files on subject "
