@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.44 1999/01/03 23:39:33 eivind Exp $";
+	"$Id: login.c,v 1.45 1999/01/19 22:59:37 abial Exp $";
 #endif /* not lint */
 
 /*
@@ -138,10 +138,9 @@ main(argc, argv)
 	int changepass;
 	time_t warntime;
 	uid_t uid, euid;
-	char *domain, *p, *ttyn;
+	char *p, *ttyn;
 	char tbuf[MAXPATHLEN + 2];
 	char tname[sizeof(_PATH_TTY) + 10];
-	char localhost[MAXHOSTNAMELEN];
 	char *shell = NULL;
 	login_cap_t *lc = NULL;
 
@@ -167,12 +166,7 @@ main(argc, argv)
 	 *    host to login so that it may be placed in utmp and wtmp
 	 */
 	*full_hostname = '\0';
-	domain = NULL;
 	term = NULL;
-	if (gethostname(localhost, sizeof(localhost)) < 0)
-		syslog(LOG_ERR, "couldn't get local hostname: %m");
-	else
-		domain = strchr(localhost, '.');
 
 	fflag = hflag = pflag = 0;
 	uid = getuid();
@@ -187,11 +181,8 @@ main(argc, argv)
 				errx(1, "-h option: %s", strerror(EPERM));
 			hflag = 1;
 			strncpy(full_hostname, optarg, sizeof(full_hostname)-1);
-			if (domain && (p = strchr(optarg, '.')) &&
-			    strcasecmp(p, domain) == 0)
-				*p = 0;
 
-			trimdomain(optarg, UT_HOSTSIZE );
+			trimdomain(optarg, UT_HOSTSIZE);
 
 			if (strlen(optarg) > UT_HOSTSIZE) {
 				struct hostent *hp = gethostbyname(optarg);
