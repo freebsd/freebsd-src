@@ -2386,9 +2386,21 @@ options 	NBUF=512
 
 # Set the size of the mbuf KVM reservation, in clusters.  This is scaled
 # by approximately 2048 bytes.  The system will auto-size the mbuf area
-# if this options is not specified.
+# to (512 + maxusers*16) if this option is not specified.
+# maxusers is in turn computed at boot time depending on available memory
+# or set to the value specified by "options MAXUSERS=x" (x=0 means
+# autoscaling).
+# So, to take advantage of autoscaling, you have to remove both
+# NMBCLUSTERS and MAXUSERS (and NMBUFS) from your kernel config.
 #
 options 	NMBCLUSTERS=1024
+
+# Set the number of mbufs available in the system. Each mbuf
+# consumes 256 bytes. The system will autosize this (to 4 times
+# the number of NMBCLUSTERS, depending on other constraints)
+# if this option is not specified.
+#
+options		NMBUFS=4096
 
 # Tune the kernel malloc area parameters.  VM_KMEM_SIZE represents the 
 # minimum, in bytes, and is typically (12*1024*1024) (12MB). 
