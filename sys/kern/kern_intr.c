@@ -23,14 +23,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.19 1998/08/11 15:08:13 bde Exp $
+ * $Id: kern_intr.c,v 1.20 1998/09/26 14:25:31 dfr Exp $
  *
  */
 
 
-#include <sys/types.h>
-#include <sys/malloc.h>
+#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/errno.h>
 #ifdef RESOURCE_CHECK
 #include <sys/drvresource.h>

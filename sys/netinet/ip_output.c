@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.81 1998/08/23 03:07:14 wollman Exp $
+ *	$Id: ip_output.c,v 1.82 1998/09/02 15:11:14 wollman Exp $
  */
 
 #define _IP_VHL
@@ -42,6 +42,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
