@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.22 1996/05/03 21:01:53 phk Exp $
+ * $Id: vm_pager.c,v 1.23 1996/05/18 03:38:05 dyson Exp $
  */
 
 /*
@@ -298,6 +298,7 @@ getpbuf()
 	bzero(bp, sizeof *bp);
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
+	bp->b_qindex = QUEUE_NONE;
 	bp->b_data = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
 	bp->b_vnbufs.le_next = NOLIST;
 	return bp;
@@ -323,6 +324,7 @@ trypbuf()
 	bzero(bp, sizeof *bp);
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
+	bp->b_qindex = QUEUE_NONE;
 	bp->b_data = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
 	bp->b_vnbufs.le_next = NOLIST;
 	return bp;

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.78 1996/07/30 03:08:14 dyson Exp $
+ * $Id: vm_object.c,v 1.79 1996/08/21 21:56:19 dyson Exp $
  */
 
 /*
@@ -149,6 +149,7 @@ extern int vm_pageout_page_count;
 
 static long object_collapses;
 static long object_bypasses;
+static int next_index;
 
 static void
 _vm_object_allocate(type, size, object)
@@ -167,6 +168,8 @@ _vm_object_allocate(type, size, object)
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
+	object->pg_color = next_index;
+	next_index = (next_index + PQ_PRIME1) & PQ_L2_MASK;
 	object->handle = NULL;
 	object->paging_offset = (vm_ooffset_t) 0;
 	object->backing_object = NULL;
@@ -494,7 +497,8 @@ rescan:
 		pi = p->pindex;
 		if (((p->flags & PG_CLEANCHK) == 0) ||
 			(pi < tstart) || (pi >= tend) ||
-			(p->valid == 0) || (p->queue == PQ_CACHE)) {
+			(p->valid == 0) ||
+			((p->queue - p->pc) == PQ_CACHE)) {
 			p->flags &= ~PG_CLEANCHK;
 			continue;
 		}
@@ -521,7 +525,7 @@ rescan:
 				if ((tp->flags & PG_BUSY) ||
 					(tp->flags & PG_CLEANCHK) == 0)
 					break;
-				if (tp->queue == PQ_CACHE) {
+				if((tp->queue - tp->pc) == PQ_CACHE) {
 					tp->flags &= ~PG_CLEANCHK;
 					break;
 				}
@@ -545,7 +549,7 @@ rescan:
 					if ((tp->flags & PG_BUSY) ||
 						(tp->flags & PG_CLEANCHK) == 0)
 						break;
-					if (tp->queue == PQ_CACHE) {
+					if((tp->queue - tp->pc) == PQ_CACHE) {
 						tp->flags &= ~PG_CLEANCHK;
 						break;
 					}
@@ -830,7 +834,8 @@ vm_object_qcollapse(object)
 
 		next = TAILQ_NEXT(p, listq);
 		if ((p->flags & (PG_BUSY | PG_FICTITIOUS)) ||
-		    (p->queue == PQ_CACHE) || !p->valid || p->hold_count || p->wire_count || p->busy) {
+		    ((p->queue - p->pc) == PQ_CACHE) ||
+		    !p->valid || p->hold_count || p->wire_count || p->busy) {
 			p = next;
 			continue;
 		}
@@ -1484,4 +1489,93 @@ vm_object_print(iobject, full, dummy3, dummy4)
 		printf("\n");
 	indent -= 2;
 }
+
+void
+vm_object_print_pages()
+{
+	vm_object_t object;
+	int nl = 0;
+	int c;
+	for (object = TAILQ_FIRST(&vm_object_list);
+			object != NULL;
+			object = TAILQ_NEXT(object, object_list)) {
+		vm_pindex_t idx, fidx;
+		vm_pindex_t osize;
+		vm_offset_t pa = -1, padiff;
+		int rcount;
+		vm_page_t m;
+
+		db_printf("new object: 0x%x\n", object);
+		if ( nl > 18) {
+			c = cngetc();
+			if (c != ' ')
+				return;
+			nl = 0;
+		}
+		nl++;
+		rcount = 0;
+		fidx = 0;
+		osize = object->size;
+		if (osize > 128)
+			osize = 128;
+		for(idx=0;idx<osize;idx++) {
+			m = vm_page_lookup(object, idx);
+			if (m == NULL) {
+				if (rcount) {
+					db_printf(" index(%d)run(%d)pa(0x%x)\n",
+						fidx, rcount, pa);
+					if ( nl > 18) {
+						c = cngetc();
+						if (c != ' ')
+							return;
+						nl = 0;
+					}
+					nl++;
+					rcount = 0;
+				}
+				continue;
+			}
+
+				
+			if (rcount &&
+				(VM_PAGE_TO_PHYS(m) == pa + rcount * PAGE_SIZE)) {
+				++rcount;
+				continue;
+			}
+			if (rcount) {
+				padiff = pa + rcount * PAGE_SIZE - VM_PAGE_TO_PHYS(m);
+				padiff >>= PAGE_SHIFT;
+				padiff &= PQ_L2_MASK;
+				if (padiff == 0) {
+					pa = VM_PAGE_TO_PHYS(m) - rcount * PAGE_SIZE;
+					++rcount;
+					continue;
+				}
+				db_printf(" index(%d)run(%d)pa(0x%x)", fidx, rcount, pa);
+				db_printf("pd(%d)\n", padiff);
+				if ( nl > 18) {
+					c = cngetc();
+					if (c != ' ')
+						return;
+					nl = 0;
+				}
+				nl++;
+			}
+			fidx = idx;
+			pa = VM_PAGE_TO_PHYS(m);
+			rcount = 1;
+		}
+		if (rcount) {
+			db_printf(" index(%d)run(%d)pa(0x%x)\n", fidx, rcount, pa);
+			if ( nl > 18) {
+				c = cngetc();
+				if (c != ' ')
+					return;
+				nl = 0;
+			}
+			nl++;
+		}
+	}
+}
+
 #endif /* DDB */
