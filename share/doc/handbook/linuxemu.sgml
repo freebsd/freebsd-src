@@ -1,4 +1,4 @@
-<!-- $Id: $ -->
+<!-- $Id: linuxemu.sgml,v 1.1 1996/05/14 20:31:52 rich Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -161,7 +161,7 @@ options  LINUX
 </verb>
 </tscreen>
 to your kernel config file.  Then run config and install the new
-kernel as described in <ref id="kernelconfig:Building" name="Building
+kernel as described in <ref id="kernelconfig:building" name="Building
 and Installing a Custom Kernel">.
 
 <sect1><heading>Installing Linux Runtime Libraries</heading>
