@@ -17,6 +17,13 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030925:
+	Configuring a system to use IPFILTER now requires that PFIL_HOOKS
+	also be explicitly configured.  Previously this dependency was
+	magically handled through some cruft in net/pfil.h; but that has
+	been removed.  Building a kernel with IPFILTER but not PFIL_HOOKS
+	will fail with obtuse errors in ip_fil.c.
+
 20030923:
 	Fix a bug in arplookup(), whereby a hostile party on a locally
 	attached network could exhaust kernel memory, and cause a system 
