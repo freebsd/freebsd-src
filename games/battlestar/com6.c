@@ -103,11 +103,13 @@ post(ch)
 char ch;
 {
 	struct timeval tv;
-	char *date, *ctime();
+	char *date;
+	time_t tvsec;
 	int s = sigblock(sigmask(SIGINT));
 
 	gettimeofday(&tv, (struct timezone *)0);	/* can't call time */
-	date = ctime(&tv.tv_sec);
+	tvsec = (time_t) tv.tv_sec;
+	date = ctime(&tvsec);
 	date[24] = '\0';
 
 	fprintf(score_fp, "%s  %8s  %c%20s", date, uname, ch, rate());
