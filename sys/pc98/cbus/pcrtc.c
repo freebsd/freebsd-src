@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.67 1999/04/21 12:14:37 kato Exp $
+ *	$Id: clock.c,v 1.68 1999/04/28 08:06:00 kato Exp $
  */
 
 /*
@@ -138,7 +138,7 @@ static void setup_8254_mixed_mode __P((void));
 
 int	adjkerntz;		/* local offset from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
-u_int	idelayed;
+volatile u_int	idelayed;
 int	statclock_disable;
 u_int	stat_imask = SWI_CLOCK_MASK;
 #ifndef TIMER_FREQ
