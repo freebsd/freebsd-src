@@ -262,7 +262,7 @@ TEMP=`mktemp -t pf` || exit 1
 # Catch some signals. ($xs kludge needed by Sun /bin/sh)
 xs=0
 trap 'rm -f $REF $TEMP; exit $xs' 0
-trap 'echo "$COMMAND: Aborting ... saving unfinished PR into /tmp/pr.$$"; rm -f $REF ; mv $TEMP /tmp/pr.$$; xs=1; exit' 1 2 3 13 15
+trap 'SAV=`mktemp -t pr`;echo "$COMMAND: Aborting ... saving unfinished PR into $SAV"; rm -f $REF ; mv $TEMP $SAV; xs=1; exit' 1 2 3 13 15
 
 # If they told us to use a specific file, then do so.
 if [ -n "$IN_FILE" ]; then
