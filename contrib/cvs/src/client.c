@@ -1,4 +1,14 @@
-/* CVS client-related stuff.  */
+/* CVS client-related stuff.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.  */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -1303,7 +1313,28 @@ handle_mode (args, len)
     stored_mode = xstrdup (args);
     stored_mode_valid = 1;
 }
+
+/* Nonzero if time was specified in Mod-time.  */
+static int stored_modtime_valid;
+/* Time specified in Mod-time.  */
+static time_t stored_modtime;
 
+static void handle_mod_time PROTO ((char *, int));
+
+static void
+handle_mod_time (args, len)
+    char *args;
+    int len;
+{
+    if (stored_modtime_valid)
+	error (0, 0, "protocol error: duplicate Mod-time");
+    stored_modtime = get_date (args, NULL);
+    if (stored_modtime == (time_t) -1)
+	error (0, 0, "protocol error: cannot parse date %s", args);
+    else
+	stored_modtime_valid = 1;
+}
+
 /*
  * If we receive a patch, but the patch program fails to apply it, we
  * want to request the original file.  We keep a list of files whose
@@ -1787,7 +1818,7 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 		       the file out, so that we don't have to read it
 		       back in again.  */
 		    MD5Init (&context);
-		    MD5Update (&context, patchedbuf, patchedlen);
+		    MD5Update (&context, (unsigned char *) patchedbuf, patchedlen);
 		    MD5Final (checksum, &context);
 		    if (memcmp (checksum, stored_checksum, 16) != 0)
 		    {
@@ -1898,6 +1929,19 @@ update_entries (data_arg, ent_list, short_pathname, filename)
     if (stored_mode_valid)
 	change_mode (filename, stored_mode);
     stored_mode_valid = 0;
+
+    if (stored_modtime_valid)
+    {
+	struct utimbuf t;
+
+	memset (&t, 0, sizeof (t));
+	/* There is probably little point in trying to preserved the
+	   actime (or is there? What about Checked-in?).  */
+	t.modtime = t.actime = stored_modtime;
+	if (utime (filename, &t) < 0)
+	    error (0, errno, "cannot set time on %s", filename);
+	stored_modtime_valid = 0;
+    }
 
     /*
      * Process the entries line.  Do this after we've written the file,
@@ -2869,6 +2913,7 @@ struct response responses[] =
     RSP_LINE("Patched", handle_patched, response_type_normal, rs_optional),
     RSP_LINE("Rcs-diff", handle_rcs_diff, response_type_normal, rs_optional),
     RSP_LINE("Mode", handle_mode, response_type_normal, rs_optional),
+    RSP_LINE("Mod-time", handle_mod_time, response_type_normal, rs_optional),
     RSP_LINE("Removed", handle_removed, response_type_normal, rs_essential),
     RSP_LINE("Remove-entry", handle_remove_entry, response_type_normal,
        rs_optional),
@@ -3564,7 +3609,12 @@ start_server ()
 #endif
 
 	case ext_method:
+#if defined (NO_EXT_METHOD)
+	    error (0, 0, ":ext: method not supported by this port of CVS");
+	    error (1, 0, "try :server: instead");
+#else
 	    start_rsh_server (&tofd, &fromfd);
+#endif
 	    break;
 
 	case server_method:
@@ -3873,6 +3923,8 @@ the :server: access method is not supported by this port of CVS");
 	walklist (variable_list, send_variable_proc, NULL);
 }
 
+#ifndef NO_EXT_METHOD
+
 /* Contact the server by starting it with rsh.  */
 
 /* Right now, we have two different definitions for this function,
@@ -4038,6 +4090,8 @@ start_rsh_server (tofdp, fromfdp)
 }
 
 #endif /* START_RSH_WITH_POPEN_RW */
+
+#endif /* NO_EXT_METHOD */
 
 
 

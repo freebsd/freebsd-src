@@ -1,3 +1,126 @@
+Tue Jun 17 22:48:00 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* main.c (main): Add --allow-root=ROOT argument; call
+	root_allow_add for each time it is specified.  Call
+	root_allow_free before exiting.
+	* root.c, cvs.h (root_allow_add, root_allow_free, root_allow_ok):
+	New function.
+	* server.c (pserver_authenticate_connection): If root_allow_ok
+	doesn't like the CVSROOT directory, don't allow access.
+
+Tue Jun 17 14:30:14 1997  Jim Kingdon  (unknown@beezley)
+
+	* client.c: Add "copyright" notice.  If NO_EXT_METHOD, omit
+	start_rsh_method.
+	* client.c (update_entries): Cast argument to MD5Update from
+	char * to unsigned char *.
+
+Mon Jun 16 16:46:28 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* run.c (piped_child, filter_stream_through_program):
+	If USE_SETMODE_BINARY, then put the pipes into binary mode.
+	* find_names.c, ignore.c, lock.c, wrapper.c: Change fnmatch to
+	CVS_FNMATCH.
+	* client.c (start_server): If NO_EXT_METHOD, then give a fatal
+	error on any use of :ext:.
+
+Sun Jun 15 22:30:27 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (toplevel): Match U CVSROOT/* lines with DOTSTAR in
+	test toplevel-9.
+
+Thu Jun 12 10:27:51 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (toplevel): Remove Emptydir before starting.
+
+	* sanity.sh: Change "rm -rf" to "rm -r" when deleting working
+	directories (except a few watches cases).  Helps detect cases
+	where the testsuite has cd'd to somewhere other than where we
+	think it has.
+	(basic2): Remove "rm -r first-dir" between tests 49 and 50.  The
+	directory was already deleted in test 45.5.
+	(rcs): Add "cd .." at end of tests.
+	(stamps): No longer cd to TESTDIR; shouldn't be necessary with
+	fix to "rcs" test.
+
+Wed Jun 11 22:28:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (basicb): Also remove CVSROOT/Emptydir at end of
+	test.  Otherwise it affects the toplevel-9 test for remote.
+
+Tue Jun 10 14:03:32 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (toplevel): Change "update" and "checkout" to "[a-z]*"
+	as these read "server" instead for "make remotecheck".  Change
+	expect strings for toplevel-9 to accept the behavior of remote CVS
+	(see comments for more discussion).
+
+	* sanity.sh: New tests stamps-9 through stamps-11 test timestamp
+	behavior on cvs update.
+
+Mon Jun  9 22:42:50 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh: Remove "#! /bin/zsh" line at end.  I assume it was
+	added accidentally.
+
+Tue Jun 10 03:08:46 1997  Norbert Kiesel  <nk@psycho.de>
+
+	* sanity.sh: new tests "toplevel" for the new toplevel CVS
+	directory creation (including one test which shows an error in
+	this area).
+
+Sun Jun  8 20:52:00 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* rcs.c (getrcsrev): Before printing error, check whether it was
+	feof or ferror.
+
+	* rcs.h, import.c (add_rcs_file): No longer static.  New arguments
+	add_vbranch, add_vhead, and add_logfp replace access to static
+	variables vbranch, vhead, and logfp.
+	* mkmodules.c: Call it instead of RCS_CI.
+	* import.c (process_import_file): Adjust call to add_rcs_file.
+
+Tue Jun  3 10:18:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (basicb): Match "." with "\." not ".".
+
+Tue Jun  3 13:02:37 1997  Norbert Kiesel  <nk@cosa.de>
+
+	* checkout.c (checkout): Removed restriction of not sending -k in
+ 	remote export (I think this was introduced while the -k handling
+ 	was still broken in remote mode).  Give better error texts
+ 	regarding -c and -s options.  Use error() instead of usage() for
+ 	reporting errors in all places.  Reindented some lines.  Free
+ 	xmalloc'd space of options.
+
+Thu May 29 16:32:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* rcscmds.c (RCS_checkin), mkmodules.c (init): Pass -w option to
+	"ci", specifying getcaller ().
+	* server.h, server.c (CVS_Username): Now extern.
+	* subr.c (getcaller): Return CVS_Username if it is set.
+
+Wed May 28 22:31:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* update.c (update_fileproc): If wrap_merge_is_copy and we would
+	like to do a merge, give a fatal error.  See comment for why.
+	* sanity.sh (mwrap): New tests, tests for above fix.
+
+Tue May 27 21:59:32 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (stamps): cd to ${TESTDIR} before starting.
+
+Mon May 26 15:31:30 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* client.c (handle_mod_time): New function.
+	(responses): Add "Mod-time".
+	(stored_modtime_valid, stored_modtime): New variables.
+	(update_entries): If it is set, change the file's modtime.
+	* server.c, server.h (server_modtime): New function.
+	* vers_ts.c (Version_TS): Call it.
+	* patch.c (patch_fileproc): Add comment about why we don't.
+	* sanity.sh (stamps): Added, tests for above fix.
+
 Fri May 16 13:14:30 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* subr.c (free_names): Update documentation to reflect fact that
