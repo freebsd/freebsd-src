@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.27 1998/07/15 04:17:53 bde Exp $
+ * $Id: mbuf.h,v 1.28 1998/08/23 03:07:17 wollman Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -78,6 +78,9 @@ struct m_hdr {
 struct	pkthdr {
 	struct	ifnet *rcvif;		/* rcv interface */
 	int	len;			/* total packet length */
+
+	/* variables for ip and tcp reassembly */
+	void	*header;		/* pointer to packet header */
 };
 
 /* description of external storage mapped into mbuf, valid if M_EXT set */
@@ -124,6 +127,7 @@ struct mbuf {
 /* mbuf pkthdr flags, also in m_flags */
 #define	M_BCAST		0x0100	/* send/received as link-level broadcast */
 #define	M_MCAST		0x0200	/* send/received as link-level multicast */
+#define M_FRAG		0x0400	/* packet is a fragment of a larger packet */
 
 /* flags copied when copying m_pkthdr */
 #define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_BCAST|M_MCAST)

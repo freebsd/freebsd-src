@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.46 1998/07/13 11:09:52 bde Exp $
+ * 	$Id: tcp_var.h,v 1.47 1998/08/23 03:07:15 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -45,8 +45,7 @@
  * Organized for 16 byte cacheline efficiency.
  */
 struct tcpcb {
-	struct	tcpiphdr *seg_next;	/* sequencing queue */
-	struct	tcpiphdr *seg_prev;
+	struct	mbuf *t_segq;
 	int	t_dupacks;		/* consecutive dup acks recd */
 	struct	tcpiphdr *t_template;	/* skeletal packet for transmit */
 
@@ -205,16 +204,6 @@ struct rmxp_tao {
 #define	TCP_REXMTVAL(tp) \
 	max((tp)->t_rttmin, (((tp)->t_srtt >> (TCP_RTT_SHIFT - TCP_DELTA_SHIFT))  \
 	  + (tp)->t_rttvar) >> TCP_DELTA_SHIFT)
-
-/* XXX
- * We want to avoid doing m_pullup on incoming packets but that
- * means avoiding dtom on the tcp reassembly code.  That in turn means
- * keeping an mbuf pointer in the reassembly queue (since we might
- * have a cluster).  As a quick hack, the source & destination
- * port numbers (which are no longer needed once we've located the
- * tcpcb) are overlayed with an mbuf pointer.
- */
-#define REASS_MBUF(ti) (*(struct mbuf **)&((ti)->ti_t))
 
 /*
  * TCP statistics.
