@@ -28,7 +28,11 @@
  * Mountain View, California  94043
  */
 #if !defined(lint) && defined(SCCSIDS)
+#if 0
 static char sccsid[] = "@(#)generic.c 1.2 91/03/11 Copyr 1986 Sun Micro";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 /*
@@ -36,6 +40,7 @@ static char sccsid[] = "@(#)generic.c 1.2 91/03/11 Copyr 1986 Sun Micro";
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <rpc/rpc.h>
 #include <sys/file.h>
 #include <mp.h>
