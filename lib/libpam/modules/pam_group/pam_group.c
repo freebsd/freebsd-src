@@ -62,8 +62,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	struct group *grp;
 
 	/* get target account */
-	if (pam_get_item(pamh, PAM_USER, (const void **)&user) != PAM_SUCCESS
-	    || user == NULL || (pwd = getpwnam(user)) == NULL)
+	if (pam_get_user(pamh, &user, NULL) != PAM_SUCCESS ||
+	    user == NULL || (pwd = getpwnam(user)) == NULL)
 		return (PAM_AUTH_ERR);
 	if (pwd->pw_uid != 0 && openpam_get_option(pamh, "root_only"))
 		return (PAM_IGNORE);
