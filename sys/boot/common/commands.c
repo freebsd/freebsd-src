@@ -176,8 +176,10 @@ command_help(int argc, char *argv[])
 		((subtopic != NULL) && (s != NULL) && !strcmp(subtopic, s))) {
 		/* exact match, print text */
 		while((fgetstr(buf, 80, hfd) >= 0) && (buf[0] != '#')) {
-		    pager_output(buf);
-		    pager_output("\n");
+		    if (pager_output(buf))
+			break;
+		    if (pager_output("\n"))
+			break;
 		}
 	    } else if ((subtopic == NULL) && (s != NULL)) {
 		/* topic match, list subtopics */
