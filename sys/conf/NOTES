@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.340 1997/05/25 07:18:22 peter Exp $
+#	$Id: LINT,v 1.341 1997/06/04 04:55:26 pst Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -827,6 +827,7 @@ device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4 vector siointr
 # Options for serial drivers that support consoles (only for sio now):
 options		BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to 
 					#DDB, if available.
+options		CONSPEED=9600		#default speed for serial console (default 9600)
 
 # Options for sio:
 options		COM_ESP			#code for Hayes ESP
