@@ -418,12 +418,12 @@ ng_decodeidname(const char *name)
 
 	/* Check for proper length, brackets, no leading junk */
 	if (len < 3 || name[0] != '[' || name[len - 1] != ']'
-	    || !isxdigit(name[1]) || name[1] == '0')	/* "[0]" is not valid */
+	    || !isxdigit(name[1]))
 		return (0);
 
 	/* Decode number */
 	val = strtoul(name + 1, &eptr, 16);
-	if (eptr - name != len - 1 || val == ULONG_MAX)
+	if (eptr - name != len - 1 || val == ULONG_MAX || val == 0)
 		return (0);
 	return (ng_ID_t)val;
 }
