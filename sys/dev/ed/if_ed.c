@@ -2713,12 +2713,12 @@ ed_get_packet(sc, buf, len)
 	 * Don't read in the entire packet if we know we're going to drop it
 	 * and no bpf is active.
 	 */
-	if (!sc->arpcom.ac_if.if_bpf &&
-			do_bridge && BDG_USED( (&sc->arpcom.ac_if) ) ) {
+	if (!sc->arpcom.ac_if.if_bpf && do_bridge && bdg_forward_ptr != NULL &&
+			BDG_USED( (&sc->arpcom.ac_if) ) ) {
 		struct ifnet *bif;
 
 		ed_ring_copy(sc, buf, (char *)eh, ETHER_HDR_LEN);
-		bif = bridge_in(&sc->arpcom.ac_if, eh) ;
+		bif = bridge_in_ptr(&sc->arpcom.ac_if, eh) ;
 		if (bif == BDG_DROP) {
 			m_freem(m);
 			return;
