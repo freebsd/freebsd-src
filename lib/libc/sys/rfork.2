@@ -84,17 +84,31 @@ but isn't for backwards compatibility.
 .Sh ERRORS
 .Fn Rfork
 will fail and no child process will be created if:
-.Bl -tag -width Er
+.Bl -tag -width [EAGAIN]
 .It Bq Er EAGAIN
 The system-imposed limit on the total
 number of processes under execution would be exceeded.
-This limit is configuration-dependent.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROC .
+(The limit is actually one less than this
+except for the super user).
 .It Bq Er EAGAIN
-The system-imposed limit
-.Dv MAXUPRC
-.Pq Aq Pa sys/param.h
+The user is not the super user, and
+the system-imposed limit
 on the total number of
 processes under execution by a single user would be exceeded.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROCPERUID .
+.It Bq Er EAGAIN
+The user is not the super user, and
+the soft resource limit corresponding to the resource parameter
+.Dv RLIMIT_NOFILE
+would be exceeded (see
+.Xr getrlimit 2 ) .
 .It Bq Er EINVAL
 The RFPROC flag was not specified.
 .It Bq Er EINVAL
