@@ -18,16 +18,13 @@
 
 <!ENTITY arch "sparc64">
 <!ENTITY arch.print "UltraSPARC">
-<!ENTITY sect.sparc64.install SYSTEM "./install.sgml">
 ]>
 
 <article>
 &artheader;
-<abstract>
-  <para>This article gives some brief instructions on installing
-    &os;/&arch; &release.current;.  Please keep in mind that this port
-    is a work in progress, and as such, the installation procedure is
-    much more involved than for &os;/i386 or &os;/alpha.</para>
-</abstract>
-&sect.sparc64.install;
+&abstract;
+&sect.install;
+&sect.layout;
+&sect.upgrade;
+&sect.trouble;
 </article>
