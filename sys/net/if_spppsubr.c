@@ -68,6 +68,7 @@
 #define PPP_IP          0x0021          /* Internet Protocol */
 #define PPP_ISO         0x0023          /* ISO OSI Protocol */
 #define PPP_XNS         0x0025          /* Xerox NS Protocol */
+#define PPP_IPX         0x002b          /* Novell IPX Protocol */
 #define PPP_LCP         0xc021          /* Link Control Protocol */
 #define PPP_IPCP        0x8021          /* Internet Protocol Control Protocol */
 
@@ -263,6 +264,15 @@ invalid:        if (ifp->if_flags & IFF_DEBUG)
 			}
 			break;
 #endif
+#ifdef IPX
+		case PPP_IPX:
+			/* IPX IPXCP not implemented yet */
+			if (sp->lcp.state == LCP_STATE_OPENED) {
+				schednetisr (NETISR_IPX);
+				inq = &ipxintrq;
+			}
+			break;
+#endif
 #ifdef NS
 		case PPP_XNS:
 			/* XNS IDPCP not implemented yet */
@@ -305,6 +315,12 @@ invalid:        if (ifp->if_flags & IFF_DEBUG)
 		case ETHERTYPE_IP:
 			schednetisr (NETISR_IP);
 			inq = &ipintrq;
+			break;
+#endif
+#ifdef IPX
+		case ETHERTYPE_IPX:
+			schednetisr (NETISR_IPX);
+			inq = &ipxintrq;
 			break;
 #endif
 #ifdef NS
@@ -412,9 +428,9 @@ int sppp_output (struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct
 		break;
 #endif
 #ifdef IPX
-	case AF_IPX:     /* Xerox NS Protocol */
+	case AF_IPX:     /* Novell IPX Protocol */
 		h->protocol = htons ((sp->pp_flags & PP_CISCO) ?
-			ETHERTYPE_IPX : PPP_XNS);
+			ETHERTYPE_IPX : PPP_IPX);
 		break;
 #endif
 #ifdef ISO
