@@ -50,6 +50,7 @@
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <sys/domain.h>
 #include <sys/jail.h>
 #include <machine/stdarg.h>
@@ -92,6 +93,7 @@ static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
 static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
+static void	if_start_deferred(void *context, int pending);
 #ifdef INET6
 /*
  * XXX: declare here to avoid to include many inet6 related files..
@@ -365,6 +367,7 @@ if_attach(struct ifnet *ifp)
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
 
+	TASK_INIT(&ifp->if_starttask, 0, if_start_deferred, ifp);
 	IF_AFDATA_LOCK_INIT(ifp);
 	ifp->if_afdata_initialized = 0;
 	IFNET_WLOCK();
@@ -983,6 +986,10 @@ if_qflush(struct ifaltq *ifq)
  * Handle interface watchdog timer routines.  Called
  * from softclock, we decrement timers (if set) and
  * call the appropriate interface routine on expiration.
+ *
+ * XXXRW: Note that because timeouts run with Giant, if_watchdog() is called
+ * holding Giant.  If we switch to an MPSAFE callout, we likely need to grab
+ * Giant before entering if_watchdog() on an IFF_NEEDSGIANT interface.
  */
 static void
 if_slowtimo(void *arg)
@@ -1837,6 +1844,48 @@ if_printf(struct ifnet *ifp, const char * fmt, ...)
 	retval += vprintf(fmt, ap);
 	va_end(ap);
 	return (retval);
+}
+
+/*
+ * When an interface is marked IFF_NEEDSGIANT, its if_start() routine cannot
+ * be called without Giant.  However, we often can't acquire the Giant lock
+ * at those points; instead, we run it via a task queue that holds Giant via
+ * if_start_deferred.
+ *
+ * XXXRW: We need to make sure that the ifnet isn't fully detached until any
+ * outstanding if_start_deferred() tasks that will run after the free.  This
+ * probably means waiting in if_detach().
+ */
+void
+if_start(struct ifnet *ifp)
+{
+
+	NET_ASSERT_GIANT();
+                
+        if ((ifp->if_flags & IFF_NEEDSGIANT) != 0 && debug_mpsafenet != 0) {
+                if (mtx_owned(&Giant))
+                        (*(ifp)->if_start)(ifp);
+                else
+			taskqueue_enqueue(taskqueue_swi_giant,
+			    &ifp->if_starttask);
+        } else
+                (*(ifp)->if_start)(ifp);
+}
+
+static void
+if_start_deferred(void *context, int pending)
+{
+	struct ifnet *ifp;
+
+	/*
+	 * This code must be entered with Giant, and should never run if
+	 * we're not running with debug.mpsafenet.
+	 */
+	KASSERT(debug_mpsafenet != 0, ("if_start_deferred: debug.mpsafenet"));
+	GIANT_REQUIRED;
+
+	ifp = (struct ifnet *)context;
+	(ifp->if_start)(ifp);
 }
 
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
