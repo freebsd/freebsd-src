@@ -1461,7 +1461,7 @@ pmap_growkernel(vm_offset_t addr)
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
 		pdir_pde(PTD, kernel_vm_end) = newpdir;
 
-		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		LIST_FOREACH(p, &allproc, p_list) {
 			if (p->p_vmspace) {
 				pmap = vmspace_pmap(p->p_vmspace);
 				*pmap_pde(pmap, kernel_vm_end) = newpdir;
@@ -3410,7 +3410,7 @@ pmap_pid_dump(int pid) {
 	struct proc *p;
 	int npte = 0;
 	int index;
-	for (p = allproc.lh_first; p != NULL; p = p->p_list.le_next) {
+	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_pid != pid)
 			continue;
 
