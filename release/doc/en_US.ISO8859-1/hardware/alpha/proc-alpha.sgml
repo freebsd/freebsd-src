@@ -210,8 +210,11 @@
     chips on them. In some cases you might encounter problems with
     PCI cards not handling PCI parity correctly. This can lead to
     panics. PCI parity checking can be disabled using the following
-    SRM command: &gt;&gt;&gt; <userinput>SET PCI_PARITY OFF</userinput>. 
-    This is not a &os; problem, all operating systems running on 
+    SRM command:</para>
+
+    <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_PARITY OFF</userinput></screen>
+
+    <para>This is not a &os; problem, all operating systems running on 
     Alpha hardware will need this workaround.</para>
 
     <para>If your system (also) contains EISA expansion slots you will
@@ -370,13 +373,13 @@
       the boot device.</para>
 
       <para>The NoName is somewhat stubborn when it comes to serial
-      consoles. It needs 
+      consoles. It needs</para>
       <screen>&gt;&gt;&gt; <userinput>SET CONSOLE SERIAL</userinput></screen>
-      before it goes for a serial console. Pulling the keyboard from 
+      <para>before it goes for a serial console. Pulling the keyboard from 
       the machine is not sufficient, like it is on most other Alpha models. 
-      Going back to a graphical console needs
+      Going back to a graphical console needs</para>
       <screen>&gt;&gt;&gt; <userinput>SET CONSOLE GRAPHICS</userinput></screen>
-      at the serial console.</para>
+      <para>at the serial console.</para>
 
       <para>Make sure you use true 36 bit SIMMs, and only FPM (Fast
       Page Mode) DRAM. EDO DRAM or SIMMs with fake parity <emphasis>will not
@@ -518,13 +521,11 @@ cpu	EV4</programlisting>
       used.</para>
 
       <para>Although the Multia SRM supports booting from floppy this
-      can be problematic. Typically the errors look like:
+      can be problematic. Typically the errors look like:</para>
 
-      <screen>
-	*** Soft Error - Error #10 - FDC: Data overrun or underrun
-      </screen>
+      <screen>*** Soft Error - Error #10 - FDC: Data overrun or underrun</screen>
 
-      This is not a &os; problem, it is a SRM problem. The best available
+      <para>This is not a &os; problem, it is a SRM problem. The best available
       workaround to install &os; is to boot from a SCSI CDROM.</para>
 
       <para>Sound works fine using &man.pcm.4; driver and a line in the
@@ -581,10 +582,10 @@ cpu	EV4</programlisting>
       the connector. Something to check before buying one.</para>
 
       <para>The kernel configuration file for a Multia kernel must
-      contain:
+      contain:</para>
 
       <programlisting>options	DEC_AXPPCI_33
-cpu	EV4</programlisting></para>
+cpu	EV4</programlisting>
 
       <para>Recommended reading on Multia can be found at 
       <ulink url="http://www.netbsd.org/Ports/alpha/multiafaq.html">
@@ -726,32 +727,34 @@ cpu	EV4</programlisting></para>
       pci_device_override</userinput> at the SRM prompt. Just don't
       complain if your data mysteriously gets mangled.</para>
 
-      <para>The complete command is:
+      <para>The complete command is:</para>
 
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE <replaceable>&lt;vendor_id&gt;</replaceable><replaceable>&lt;device_id&gt;</replaceable></userinput></screen></para>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE <replaceable>&lt;vendor_id&gt;</replaceable><replaceable>&lt;device_id&gt;</replaceable></userinput></screen>
 
-      <para>For example:
+      <para>For example:</para>
 
-<screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE 88c15333</userinput></screen></para>
+<screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE 88c15333</userinput></screen>
 
-      <para>The most radical approach is to use:
+      <para>The most radical approach is to use:</para>
 
-<screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE -1</userinput></screen></para>
+<screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE -1</userinput></screen>
 
       <para>This disables PCI ID checking altogether, so that you
       can install any PCI card without its ID getting
       checked. For this to work you need a reasonable current SRM version.
       <important><para>Do this on your own risk..</para></important></para>
 
-      <para>The &os; kernel reports it when it sees a buggy Pyxis chip:
+      <para>The &os; kernel reports it when it sees a buggy Pyxis chip:</para>
+
 <screen>Sep 16 18:39:43 miata /kernel: cia0: Pyxis, pass 1
 Sep 16 18:39:43 miata /kernel: cia0: extended capabilities: 1&lt;BWEN&gt;
-Sep 16 18:39:43 miata /kernel: cia0: WARNING: Pyxis pass 1 DMA bug; no bets...</screen></para>
+Sep 16 18:39:43 miata /kernel: cia0: WARNING: Pyxis pass 1 DMA bug; no bets...</screen>
 
-      <para>A MiataGL probes as:
+      <para>A MiataGL probes as:</para>
+
 <screen>Jan  3 12:22:32 miata /kernel: cia0: Pyxis, pass 1
 Jan  3 12:22:32 miata /kernel: cia0: extended capabilities: 1&lt;BWEN&gt;
-Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0</screen></para>
+Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0</screen>
 
       <para>MiataGL does not have the DMA problems of the MX5. PCI
       cards that make the MX5 SRM choke when installed in the 64bit
@@ -785,10 +788,10 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
 
       <para>Both MX5 and MiataGL have an on-board sound chip, an
       ESS1888. It emulates a SoundBlaster and can be enabled by
-      putting
+      putting</para>
 <programlisting>device	pcm0
 device	sbc0</programlisting>
-      in your kernel configuration file.</para>
+      <para>in your kernel configuration file:</para>
 
       <para>in case your Miata has the optional cache board
       installed make sure it is firmly seated. A slightly loose
@@ -804,11 +807,11 @@ device	sbc0</programlisting>
       to keep in mind when doing really high speed things with 64
       bit PCI adapters.</para>
 
-      <para>If you experience SRM errors like 
+      <para>If you experience SRM errors like</para>
 
       <screen>ERROR: scancode 0xa3 not supported on PCXAL</screen> 
 
-      after halting &os; you should update your SRM firmware to V7.2-1 or
+      <para>after halting &os; you should update your SRM firmware to V7.2-1 or
       later. This SRM version is first available on the Firmware
       Update CD V5.7, or on <ulink
       url="http://www.compaq.com/">http://www.compaq.com/</ulink> This SRM
@@ -821,10 +824,10 @@ device	sbc0</programlisting>
       <emphasis>even</emphasis> when the machine is switched off.</para>
 
       <para>The kernel configuration file for a Miata kernel must
-      contain:
+      contain:</para>
 
       <programlisting>options	DEC_ST550               
-cpu	EV5</programlisting></para>
+cpu	EV5</programlisting>
     </sect3>
 
     <sect3>
@@ -990,9 +993,8 @@ cpu	EV5</programlisting></para>
 
       <para>Floppy devices found in the DEC3000s are attached to the
       SCSI bus (via a bridge card). This makes it possible to boot from them
-      using the same device names as ordinary SCSI hard-disks, for example:
+      using the same device names as ordinary SCSI hard-disks, for example:</para>
       <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>BOOT DKA300</userinput></screen>
-      </para>
 
       <para>The 3000/300 series has a half-speed TurboChannel compared
       to the other 3000 machines. Some TC expansion cards have
@@ -1125,16 +1127,14 @@ cpu	EV5</programlisting></para>
       better.</para>
 
       <para>For the DEC3000/[4-9]00 series machines the kernel config
-      file must contain:
+      file must contain:</para>
       <programlisting>options	DEC_3000_500           
 cpu	EV4</programlisting>
-      </para>
 
       <para>For the DEC3000/300 (<quote>Pelican</quote>) machines the
-      kernel config file must contain:
+      kernel config file must contain:</para>
       <programlisting>options	DEC_3000_300            
 cpu	EV4</programlisting>
-      </para>
     </sect3>
 
     <sect3>
@@ -1224,9 +1224,9 @@ cpu	EV4</programlisting>
       All of this might mean that you need to use a non-Qlogic adapter to 
       boot from.</para>
 
-      <para>For the EB64+ class machines the kernel config file must contain:
+      <para>For the EB64+ class machines the kernel config file must contain:</para>
       <programlisting>options	DEC_EB64PLUS            
-cpu	EV4</programlisting></para>
+cpu	EV4</programlisting>
 
    </sect3>
 
@@ -1324,12 +1324,18 @@ cpu	EV4</programlisting></para>
       <para>On PC164 the SRM sometimes seems to loose its variable settings. 
       <quote>For PC164, current superstition says that, to avoid losing settings,
       you want to first downgrade to SRM 4.x and then upgrade to 5.x.</quote>
-      One sample error that was observed was: 
+      One sample error that was observed was:</para>
       <screen>ERROR: ISA table corrupt!</screen>
-      A sequence of a downgrade to SRM4.9, an <screen><prompt>&gt;&gt;&gt;
-</prompt> <userinput>ISACFG -INIT</userinput></screen> 
-      followed by <screen><prompt>&gt;&gt;&gt; </prompt><userinput>INIT</userinput></screen> 
-      made the problem go away. Some PC164 owners report they have never seen 
+
+      <para>A sequence of a downgrade to SRM4.9, an</para>
+
+ <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>ISACFG -INIT</userinput></screen>
+
+      <para>followed by</para>
+
+      <screen><prompt>&gt;&gt;&gt; </prompt><userinput>INIT</userinput></screen>
+
+      <para>made the problem go away. Some PC164 owners report they have never seen 
       the problem. </para>
 
       <para>On PC164SX the AlphaBIOS allows you a selection to select SRM to
@@ -1349,9 +1355,9 @@ cpu	EV4</programlisting></para>
       standard ATX power supply.</para>
 
       <para>For the EB164 class machines the kernel config file must 
-      contain:
+      contain:</para>
 	<programlisting>options         DEC_EB164
-cpu             EV5</programlisting></para>
+cpu             EV5</programlisting>
     </sect3>
 
     <sect3>
@@ -1441,8 +1447,8 @@ cpu             EV5</programlisting></para>
       64 Mbyte SIMMs are supported.</para>
 
       <para>The AS200 & AS250 sound hardware is reported to work OK assuming 
-      you have the following line in your kernel config file:
-      <programlisting>device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011</programlisting></para>
+      you have the following line in your kernel config file:</para>
+      <programlisting>device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011</programlisting>
 
       <para>AlphaStation 200 & 250 series have an automatic SCSI terminator. 
       This means that as soon as you plug a cable onto the external SCSI 
@@ -1452,16 +1458,16 @@ cpu             EV5</programlisting></para>
 
       <para>AlphaStation 400 series have an SRM variable that controls 
       termination. In case you have external SCSI devices connected you 
-      must set this SRM variable using 
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET CONTROL_SCSI_TERM EXTERNAL</userinput>.</screen> </para>
+      must set this SRM variable using</para>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET CONTROL_SCSI_TERM EXTERNAL</userinput>.</screen>
 
-      <para>If only internal SCSI devices are present use: 
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET CONTROL_SCSI_TERM INTERNAL</userinput></screen></para>
+      <para>If only internal SCSI devices are present use:</para>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET CONTROL_SCSI_TERM INTERNAL</userinput></screen>
 
       <para>For the AlphaStation-[24][05]00 machines the kernel config file 
-      must contain:
+      must contain:</para>
       <programlisting>options	DEC_2100_A50
-cpu	EV4</programlisting></para>
+cpu	EV4</programlisting>
     </sect3>
 
     <sect3>
@@ -1627,17 +1633,17 @@ cpu	EV4</programlisting></para>
       PCI expansion card containing the SCSI adapters) does not allow I/O port 
       mapping, therefore all devices behind it must use memory mapping. If you 
       have problems getting the Qlogic SCSI adapters to work, add the following 
-      option to <filename>/boot/loader.rc</filename>: 
+      option to <filename>/boot/loader.rc</filename>:</para>
   
-      <screen><userinput>set isp_mem_map=0xff</userinput></screen>
+      <programlisting>set isp_mem_map=0xff</programlisting>
           
-      This may need to be typed at the boot loader prompt before booting the
+      <para>This may need to be typed at the boot loader prompt before booting the
       installation kernel.</para>
   
       <para>For the AlphaStation-[56]00 machines the kernel config file 
-      must contain:
-    <programlisting>options	DEC_KN20AA 
-cpu	EV5</programlisting></para>
+      must contain:</para>
+      <programlisting>options	DEC_KN20AA 
+cpu	EV5</programlisting>
 
     </sect3>
 
@@ -1730,14 +1736,14 @@ cpu	EV5</programlisting></para>
       that these are EDO DIMMs.</para>
 
       <para>The AS1000/800 are somewhat stubborn when it comes to serial
-      consoles. They need 
+      consoles. They need</para>
       <screen>&gt;&gt;&gt; <userinput>SET CONSOLE SERIAL</userinput></screen>
-      before they go for
+      <para>before they go for
       a serial console. Pulling the keyboard from the machine is not sufficient,
       like it is on most other Alpha models. Going back to a graphical console
-      needs 
+      needs</para>
       <screen>&gt;&gt;&gt; <userinput>SET CONSOLE GRAPHICS</userinput></screen>
-      at the serial console.</para>
+      <para>at the serial console.</para>
 
       <para>For AS800 you want to check if your Ultra-Wide SCSI is indeed 
       in Ultra mode. This can be done using the 
@@ -1745,12 +1751,11 @@ cpu	EV5</programlisting></para>
       on the Console Firmware Upgrade CDROM.</para>
  
       <para>For the AlphaServer1000/1000A/800 machines the kernel config 
-      file must contain:
+      file must contain:</para>
 
       <programlisting>options	DEC_1000A
 cpu	EV4		# depends on the CPU model installed
 cpu	EV5		# depends on the CPU model installed</programlisting>
-      </para>
 
     </sect3>
 
@@ -1869,9 +1874,9 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
 
       <para>The USB interfaces are supported in &os; 4.1 and later.</para>
 
-      <para>The kernel config file must contain:
+      <para>The kernel config file must contain:</para>
       <programlisting>options	DEC_ST6600    
-cpu	EV5</programlisting></para>
+cpu	EV5</programlisting>
 
       <note><para>Contrary to expectation there is no <literal>cpu EV6</literal>
       defined for inclusion in the kernel config file. 
@@ -1991,8 +1996,8 @@ cpu	EV5</programlisting></para>
       problems trying to use the USB interface please check if
       the SRM variable <varname>usb_enable</varname> is set to
       <literal>on</literal>. You can change this by
-      performing: 
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET USB_ENABLE ON</userinput></screen></para>
+      performing:</para>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET USB_ENABLE ON</userinput></screen>
 
       <important><para>Don&quot;t try to use Symbios-chip based SCSI 
       adapters in the PCI slots connected to hose 1. There is a 
@@ -2007,9 +2012,9 @@ cpu	EV5</programlisting></para>
 
       <para>The sound chip is not currently supported with &os;. </para>
   
-      <para>The kernel config file must contain:
+      <para>The kernel config file must contain:</para>
       <programlisting>options	DEC_ST6600    
-cpu	EV5</programlisting></para>
+cpu	EV5</programlisting>
 
       <note><para>Contrary to expectation there is no 
       <literal>cpu EV6</literal> defined for inclusion in the kernel 
@@ -2080,13 +2085,13 @@ cpu	EV5</programlisting></para>
 	</itemizedlist>
       </para>
 
-      <para>DS20 needs 
-      <screen>&gt;&gt;&gt; <userinput>SET CONSOLE SERIAL</userinput></screen>
-      before it goes for a serial console.  Pulling the keyboard from
+      <para>DS20 needs</para>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET CONSOLE SERIAL</userinput></screen>
+      <para>before it goes for a serial console.  Pulling the keyboard from
       the machine is not sufficient. Going back to a graphical console
-      needs &gt;&gt;&gt; 
-      <screen><userinput>SET CONSOLE GRAPHICS</userinput></screen>
-      at the serial console.  
+      needs</para>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET CONSOLE GRAPHICS</userinput></screen>
+      <para>at the serial console.  
       Confusing is the fact that you will get SRM console
       output on the graphics console with the console set to serial,
       but when &os; boots it honors the <literal>CONSOLE</literal>
@@ -2118,10 +2123,9 @@ cpu	EV5</programlisting></para>
       with a Symbios on hose 1 so you have to move this card before
       you can install/boot &os; on it.</para>
 
-      <para>The kernel config file must contain:
+      <para>The kernel config file must contain:</para>
       <programlisting>options	DEC_ST6600    
 cpu	EV5</programlisting>
-      </para>
 
       <note><para>Contrary to expectation there is no <literal>cpu EV6</literal>
       defined for inclusion in the kernel config file. 
@@ -2191,10 +2195,9 @@ cpu	EV5</programlisting>
       <para>Busmaster DMA is supported on the first IDE interface
       only.</para>
 
-      <para>The kernel config file must contain:
+      <para>The kernel config file must contain:</para>
       <programlisting>options	DEC_ST6600    
 cpu	EV5</programlisting>
-      </para>
 
       <note><para>Contrary to expectation there is no <literal>cpu
       EV6</literal> defined for inclusion in the kernel config
@@ -2249,8 +2252,11 @@ cpu	EV5</programlisting>
 
       <para>If any of the processors are ever marked as failed, they will
       remain marked as failed even after they have been replaced (or reseated) 
-      until you issue the command <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>CLEAR_ERROR ALL</userinput></screen>
-      on the SRM console and power-cycle the machine.  This may be true 
+      until you issue the command</para>
+
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>CLEAR_ERROR ALL</userinput></screen>
+
+      <para>on the SRM console and power-cycle the machine.  This may be true 
       for other modules (IO and memory) as well, but it has not been verified.
       </para>
 
@@ -2275,36 +2281,36 @@ cpu	EV5</programlisting>
       physically (before buying them..)</para>
 
       <para>Both Lynx and Sable are somewhat stubborn when it comes to serial
-      consoles. They need 
+      consoles. They need</para>
       <screen><prompt>&gt;&gt;&gt;</prompt> <userinput> SET CONSOLE SERIAL</userinput></screen>
-      before they go for a serial console. 
+      <para>before they go for a serial console. 
       Pulling the keyboard from the machine is not sufficient, like it is 
-      on many other Alpha models. Going back to a graphical console needs 
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET CONSOLE GRAPHICS
-      </userinput></screen> at the serial console. On Lynx keep the VGA card in 
+      on many other Alpha models. Going back to a graphical console needs</para>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET CONSOLE GRAPHICS</userinput></screen>
+      <para>at the serial console. On Lynx keep the VGA card in 
       one of the primary PCI slots. EISA VGA cards are not slot sensitive.
       </para>
 
       <para>The machines are equipped with a small OCP 
       (Operator Control Panel) LCD screen. On this screen the self-test 
       messages are displayed during system initialization. You can put 
-      your own little text there by using the SRM: 
+      your own little text there by using the SRM:</para>
       <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET OCP_TEXT "FreeBSD"
-      </userinput></screen> is the recommended setting.
+      </userinput></screen>
 
-      <para>The SRM 
+      <para>The SRM</para>
       <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SHOW FRU</userinput></screen>
-      command produces an overview of your configuration
+      <para>command produces an overview of your configuration
       with module serial numbers, hardware revisions and error log counts.
       </para>
 
       <para>Both Sable, DemiSable and Lynx have Symbios 810 based 
       Fast SCSI on-board. Check if it is set to Fast SCSI speed 
-      by 
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SHOW PKA0_FAST</userinput></screen>. 
-      When set to 1 it is negotiating for Fast speeds. 
+      by</para>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SHOW PKA0_FAST</userinput></screen>
+      <para>When set to 1 it is negotiating for Fast speeds.</para>
       <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PKA0_FAST 1</userinput></screen>
-      enables Fast SCSI speeds.</para>
+      <para>enables Fast SCSI speeds.</para>
 
       <para>AS2100[A] come equipped with a StorageWorks 7 slot SCSI 
       cage. A second cage can be added inside the cabinet. AS2000 
@@ -2336,7 +2342,7 @@ cpu	EV5</programlisting>
       <para>Make sure you run the EISA Configuration Utility (from floppy) 
       when adding/change expansion cards in EISA slots or after 
       upgrading your console firmware. This is done by inserting the 
-      ECU floppy and typing 
+      ECU floppy and typing</para>
       <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>RUNECU</userinput></screen>
 
       <note><para>EISA slots are currently unsupported, but the Compaq Qvision
@@ -2354,12 +2360,11 @@ cpu	EV5</programlisting>
       CPUs and more than 1 memory board dual power supplies 
       are mandatory.</para>
 
-      <para>The kernel config file must contain:
+      <para>The kernel config file must contain:</para>
 
-<programlisting>options	DEC_2100_A500
+      <programlisting>options	DEC_2100_A500
 cpu	EV4	#dependent on CPU model installed
 cpu	EV5	#dependent on CPU model installed</programlisting>
-      </para>
 
     </sect3>
 
@@ -2442,9 +2447,9 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
      you want to be sure all power is removed from the system remove the 
      mains cables from the system.</para>
 
-     <para>The kernel config file must contain:
+     <para>The kernel config file must contain:</para>
 <programlisting>options	DEC_KN300
-cpu	EV5</programlisting></para>
+cpu	EV5</programlisting>
 
     </sect3>
 
@@ -2516,10 +2521,9 @@ cpu	EV5</programlisting></para>
       the mains cables from the system. Tincup uses dual power supplies 
       in load-sharing mode and not as a redundancy pair.</para>
 
-      <para>The kernel config file must contain:
+      <para>The kernel config file must contain:</para>
 <programlisting>options	DEC_KN300
 cpu	EV5</programlisting>
-      </para>
     </sect3>
 
     <sect3>
@@ -2610,23 +2614,22 @@ cpu	EV5</programlisting>
       but &os; has only been tested on a serial console.</para>
 
       <para>For serial console usage either change 
-      <filename>/etc/ttys</filename> to have:
+      <filename>/etc/ttys</filename> to have:</para>
 
 	<programlisting>console "/usr/libexec/getty std.9600"   unknown   on secure</programlisting>
 
-as the console entry, or add
+      <para>as the console entry, or add</para>
 
         <programlisting>zs0     "/usr/libexec/getty std.9600"   unknown   on secure</programlisting>
 
-and make the zs node:
+      <para>and make the zs node:</para>
 
-	<screen><userinput>cd /dev ; sh MAKEDEV zs0</userinput></screen>
-      </para>
+      <screen><prompt>#</prompt> <userinput>cd /dev ; sh MAKEDEV zs0</userinput></screen>
 
       <para>For the AlphaServer 8x00 machines the kernel config file 
-      must contain:
-	<programlisting>options	DEC_KN8AE	# Alpha 8200/8400 (Turbolaser)
-cpu	EV5</programlisting></para>
+      must contain:</para>
+        <programlisting>options	DEC_KN8AE	# Alpha 8200/8400 (Turbolaser)
+cpu	EV5</programlisting>
 
       <para>Contrary to expectation there is no <literal>cpu
       EV6</literal> defined for inclusion in the kernel config
@@ -2738,10 +2741,9 @@ cpu	EV5</programlisting></para>
       <para>The USB interfaces are disabled by the SRM console and 
       have not (yet) been tested with &os;.</para>
 
-      <para>For the UP1000 the kernel config file must contain:
-	<programlisting>options	API_UP1000	# UP1000, UP1100 (Nautilus)
+      <para>For the UP1000 the kernel config file must contain:</para>
+      <programlisting>options	API_UP1000	# UP1000, UP1100 (Nautilus)
 cpu	EV5</programlisting>
-      </para>
 
     </sect3>
 
@@ -2828,10 +2830,9 @@ cpu	EV5</programlisting>
       <para>The UP1100 has 3 USB ports, 2 going external and one connected 
       to the AGP port.</para>
 
-      <para>For the UP1100 the kernel config file must contain:
-        <programlisting>options	API_UP1000	# UP1000, UP1100 (Nautilus)
+      <para>For the UP1100 the kernel config file must contain:</para>
+      <programlisting>options	API_UP1000	# UP1000, UP1100 (Nautilus)
 cpu	EV5</programlisting>
-      </para>
 
       <para>Contrary to expectation there is no <literal>cpu
       EV6</literal> defined for inclusion in the kernel config
@@ -2914,9 +2915,9 @@ cpu	EV5</programlisting>
       <para>Note that there is no floppy disk drive (or a connector to 
       add one).</para>
 
-      <para>The kernel config file must contain:
+      <para>The kernel config file must contain:</para>
       <programlisting>options	DEC_ST6600
-cpu	EV5</programlisting></para>
+cpu	EV5</programlisting>
 
       <para>Contrary to expectation there is no <literal>cpu
       EV6</literal> defined for inclusion in the kernel config
