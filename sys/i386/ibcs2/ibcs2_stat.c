@@ -234,9 +234,8 @@ ibcs2_utssys(td, uap)
 			IBCS2_UNAME_RELEASE, sizeof(sut.release) - 1);
 		strncpy(sut.version,
 			IBCS2_UNAME_VERSION, sizeof(sut.version) - 1);
-		strncpy(machine_name, getcredhostname(td->td_ucred),
+		getcredhostname(td->td_ucred, machine_name,
 		    sizeof(machine_name) - 1);
-		machine_name[sizeof(machine_name) - 1] = 0;
 		p = index(machine_name, '.');
 		if ( p )
 			*p = '\0';

@@ -161,7 +161,7 @@ xenix_utsname(struct thread *td, struct xenix_utsname_args *uap)
 	bzero(&ibcs2_sco_uname, sizeof(struct ibcs2_sco_utsname));
 	strncpy(ibcs2_sco_uname.sysname, ostype,
 		sizeof(ibcs2_sco_uname.sysname) - 1);
-	strncpy(ibcs2_sco_uname.nodename, getcredhostname(td->td_ucred),
+	getcredhostname(td->td_ucred, ibcs2_sco_uname.nodename,
 	    sizeof(ibcs2_sco_uname.nodename) - 1);
 	strncpy(ibcs2_sco_uname.release, osrelease,
 		sizeof(ibcs2_sco_uname.release) - 1);
