@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.19.4.2 1995/09/06 10:31:40 davidg Exp $
+ * $Id: ip_output.c,v 1.19.4.3 1996/02/23 15:26:11 phk Exp $
  */
 
 #include <sys/param.h>
@@ -317,7 +317,7 @@ sendit:
 	 * Check with the firewall...
 	 */
 	if (!(*ip_fw_chk_ptr)(m,ip,ifp,1)) {
-		error = 0;
+		error = EACCES;
 		goto done;
 	}
 

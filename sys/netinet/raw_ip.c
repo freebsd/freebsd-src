@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.19.4.4 1996/02/23 15:26:13 phk Exp $
+ *	$Id: raw_ip.c,v 1.27 1996/02/24 13:38:28 phk Exp $
  */
 
 #include <sys/param.h>
@@ -57,8 +57,8 @@
 
 #include <netinet/ip_fw.h>
 
-struct inpcbhead ripcb;
-struct inpcbinfo ripcbinfo;
+static struct inpcbhead ripcb;
+static struct inpcbinfo ripcbinfo;
 
 /*
  * Nominal space allocated to a raw ip socket.
@@ -86,7 +86,7 @@ rip_init()
 	ripcbinfo.hashbase = phashinit(1, M_PCB, &ripcbinfo.hashsize);
 }
 
-struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
+static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
 /*
  * Setup generic address and protocol structures
  * for raw_input routine, then pass them along with
@@ -218,23 +218,22 @@ rip_ctloutput(op, so, level, optname, m)
 		}
 		return (error);
 
+	case IP_FW_GET:
+		if (ip_fw_ctl_ptr==NULL || op == PRCO_SETOPT) {
+			if (*m) (void)m_free(*m);
+			return(EINVAL);
+		}
+		return (*ip_fw_ctl_ptr)(optname, m); 
 	case IP_FW_ADD:
 	case IP_FW_DEL:
 	case IP_FW_FLUSH:
-	case IP_FW_ZERO: 
-		if (ip_fw_ctl_ptr==NULL) {
-			if (*m)
-				(void)m_free(*m);
+	case IP_FW_ZERO:
+		if (ip_fw_ctl_ptr==NULL || op != PRCO_SETOPT) {
+			if (*m) (void)m_free(*m);
 			return(EINVAL);
 		}
 
-		if (op == PRCO_SETOPT) {
-			error=(*ip_fw_ctl_ptr)(optname, *m); 
-			if (*m)
-				(void)m_free(*m);
-		}
-		else
-			error=EINVAL;
+		return (*ip_fw_ctl_ptr)(optname, m); 
 		return(error);
 
 	case IP_RSVP_ON:
@@ -272,8 +271,8 @@ rip_ctloutput(op, so, level, optname, m)
 	return (ip_ctloutput(op, so, level, optname, m));
 }
 
-u_long	rip_sendspace = RIPSNDQ;
-u_long	rip_recvspace = RIPRCVQ;
+static u_long	rip_sendspace = RIPSNDQ; /* XXX sysctl ? */
+static u_long	rip_recvspace = RIPRCVQ; /* XXX sysctl ? */
 
 /*ARGSUSED*/
 int
