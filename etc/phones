@@ -2,6 +2,10 @@
 #
 # phones -- remote host phone number data base
 # see tip(1), phones(5)
-
+# [tip cannot currently accept comments in this file,
+#  so this and the above lines must be removed.]
 system1		9=3156427750
 system2		  9148841241
+netcom		1(408)241-9760
+netcom		1(415)328-9940
+omen		1(503)621-3746
