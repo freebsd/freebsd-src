@@ -701,9 +701,6 @@ arl_init(xsc)
 
 	D(("init\n"));
 
-	if (TAILQ_EMPTY(&ifp->if_addrhead))
-		return;
-
 	s = splimp();
 
 	if (ARL_CHECKREG(sc))

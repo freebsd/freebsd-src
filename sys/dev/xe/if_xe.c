@@ -317,8 +317,6 @@ xe_init(void *xscp) {
   unsigned i;
   int s;
 
-  if (TAILQ_EMPTY(&scp->ifp->if_addrhead)) return;
-
   if (scp->autoneg_status != XE_AUTONEG_NONE) return;
 
   DEVPRINTF(2, (scp->dev, "init\n"));

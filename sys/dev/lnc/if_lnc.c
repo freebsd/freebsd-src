@@ -911,13 +911,6 @@ lnc_init(xsc)
 	int s, i;
 	char *lnc_mem;
 
-	/* Check that interface has valid address */
-
-	if (TAILQ_EMPTY(&sc->arpcom.ac_if.if_addrhead)) { /* XXX unlikely */
-printf("XXX no address?\n");
-		return;
-	}
-
 	/* Shut down interface */
 
 	s = splimp();
