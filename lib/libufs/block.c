@@ -59,16 +59,21 @@ bread(struct uufsd *disk, ufs2_daddr_t blockno, void *data, size_t size)
 	buf = data;
 
 	cnt = pread(disk->d_fd, data, size, (off_t)(blockno * disk->d_bsize));
-	/*
-	 * In case of failure, zero data, which must be fs_bsize.
-	 */
-	if (cnt != size) {
-		ERROR(disk, "short read from block device");
-		for (cnt = 0; cnt < MIN(size, disk->d_fs.fs_bsize); cnt++)
-			buf[cnt] = 0;
-		return -1;
+	if (cnt == -1) {
+		ERROR(disk, "read error from block device");
+		goto fail;
+	}
+	if (cnt == 0) {
+		ERROR(disk, "end of file from block device");
+		goto fail;
+	}
+	if ((size_t)cnt != size) {
+		ERROR(disk, "short read or read error from block device");
+		goto fail;
 	}
 	return cnt;
+fail:	memset(buf, 0, size);
+	return -1;
 }
 
 ssize_t
@@ -86,7 +91,11 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 	}
 
 	cnt = pwrite(disk->d_fd, data, size, (off_t)(blockno * disk->d_bsize));
-	if (cnt != size) {
+	if (cnt == -1) {
+		ERROR(disk, "read write to block device");
+		return -1;
+	}
+	if ((size_t)cnt != size) {
 		ERROR(disk, "short write to block device");
 		return -1;
 	}

@@ -64,11 +64,11 @@ sbread(struct uufsd *disk)
 		}
 		if (fs->fs_magic == FS_UFS1_MAGIC)
 			disk->d_ufs = 1;
-		if ((fs->fs_magic == FS_UFS2_MAGIC) &&
-		    (fs->fs_sblockloc == superblock))
+		if (fs->fs_magic == FS_UFS2_MAGIC &&
+		    fs->fs_sblockloc == superblock)
 			disk->d_ufs = 2;
-		if ((fs->fs_bsize <= MAXBSIZE) &&
-		    (fs->fs_bsize >= sizeof(*fs))) {
+		if (fs->fs_bsize <= MAXBSIZE &&
+		    (size_t)fs->fs_bsize >= sizeof(*fs)) {
 			if (disk->d_ufs)
 				break;
 		}
