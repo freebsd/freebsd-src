@@ -40,11 +40,13 @@ typedef	__uint32_t	__fflags_t;		/* file flags */
 typedef	__uint64_t	__fsblkcnt_t;
 typedef	__uint64_t	__fsfilcnt_t;
 typedef	__uint32_t	__gid_t;
+typedef	__int64_t	__id_t;			/* can hold a uid_t or pid_t */
 typedef	long		__key_t;		/* IPC key (for Sys V IPC) */
 typedef	__uint16_t	__mode_t;		/* permissions */
 typedef	int		__nl_item;
 typedef	__int64_t	__off_t;		/* file offset */
 typedef	__int32_t	__pid_t;		/* process [group] */
+typedef	__int64_t	__rlim_t;	/* resource limit (XXX not unsigned) */
 typedef	__uint8_t	__sa_family_t;
 typedef	__uint32_t	__socklen_t;
 typedef	__int32_t	__timer_t;		/* timer_gettime()... */

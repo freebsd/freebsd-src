@@ -127,6 +127,11 @@ typedef	__gid_t		gid_t;		/* group id */
 #define	_GID_T_DECLARED
 #endif
 
+#ifndef _ID_T_DECLARED
+typedef	__id_t		id_t;		/* can hold a uid_t or pid_t */
+#define	_ID_T_DECLARED
+#endif
+
 typedef	__uint32_t	ino_t;		/* inode number */
 
 #ifndef _KEY_T_DECLARED
@@ -152,7 +157,12 @@ typedef	__pid_t		pid_t;		/* process id */
 #endif
 
 typedef	__register_t	register_t;
-typedef	__int64_t	rlim_t;		/* resource limit (XXX not unsigned) */
+
+#ifndef _RLIM_T_DECLARED
+typedef	__rlim_t	rlim_t;		/* resource limit */
+#define	_RLIM_T_DECLARED
+#endif
+
 typedef	__segsz_t	segsz_t;	/* segment size (in pages) */
 typedef	__u_register_t	u_register_t;
 
