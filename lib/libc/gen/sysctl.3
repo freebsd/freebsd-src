@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)sysctl.3	8.1 (Berkeley) 6/4/93
+.\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\"
-.Dd "June 4, 1993"
+.Dd "May 9, 1995"
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -119,7 +119,7 @@ listed here, and described in separate sections below.
 .Bl -column CTLXMACHDEPXXX "Next level namesXXXXXX" -offset indent
 .It Sy Pa Name	Next level names	Description
 .It CTL\_DEBUG	sys/sysctl.h	Debugging
-.It CTL\_VFS	sys/sysctl.h	File system
+.It CTL\_VFS	sys/mount.h	Filesystem
 .It CTL\_HW	sys/sysctl.h	Generic CPU, I/O
 .It CTL\_KERN	sys/sysctl.h	High kernel limits
 .It CTL\_MACHDEP	sys/sysctl.h	Machine dependent
@@ -181,7 +181,22 @@ int dospecialcheck = 1;
 struct ctldebug debug5 = { "dospecialcheck", &dospecialcheck };
 .Ed
 .Sh CTL_VFS
-There are currently no second level names for the file system.
+A distinguished second level name, VFS_GENERIC,
+is used to get general information about all filesystems.
+One of its third level identifiers is VFS_MAXTYPENUM
+that gives the highest valid filesystem type number.
+Its other third level identifier is VFS_CONF that
+returns configuration information about the filesystem
+type given as a fourth level identifier (see
+.Xr getvfsbyname 3
+as an example of its use).
+The remaining second level identifiers are the
+filesystem type number returned by a
+.Xr statfs 2
+call or from VFS_CONF.
+The third level identifiers available for each filesystem
+are given in the header file that defines the mount
+argument structure for that filesystem.
 .Sh CTL_HW
 The string and integer information available for the CTL_HW level
 is detailed below.
@@ -208,6 +223,7 @@ The machine class.
 The machine model
 .It Li HW_NCPU
 The number of cpus.
+.ne 1i
 .It Li HW_BYTEORDER
 The byteorder (4,321, or 1,234).
 .It Li HW_PHYSMEM
@@ -260,6 +276,7 @@ information.
 .It KERN\_VERSION	string	no
 .It KERN\_VNODE	struct vnode	no
 .El
+.ne 1i
 .Pp
 .Bl -tag -width "123456"
 .It Li KERN_ARGMAX
@@ -376,6 +393,7 @@ describing destination of calls and their counts.
 .It Li GPROF_GMONPARAM
 Structure giving the sizes of the above arrays.
 .El
+.ne 1i
 .It Li KERN_SAVED_IDS
 Returns 1 if saved set-group and saved set-user ID is available.
 .It Li KERN_SECURELVL
@@ -446,6 +464,7 @@ Get or set various global information about the internet protocols.
 The third level name is the protocol.
 The fourth level name is the variable name.
 The currently defined protocols and names are:
+.ne 1i
 .Bl -column "Protocol nameXXXXXX" "Variable nameXXX" "integerXXX" -offset indent
 .It Pa Protocol name	Variable name	Type	Changeable
 .It ip	forwarding	integer	yes
@@ -563,6 +582,7 @@ The version of POSIX 1003.2 with which the system attempts to comply.
 .It Li USER_RE_DUP_MAX
 The maximum number of repeated occurrences of a regular expression
 permitted when using interval notation.
+.ne 1i
 .It Li USER_STREAM_MAX
 The minimum maximum number of streams that a process may have open
 at any one time.
@@ -594,7 +614,7 @@ The returned data consists of a
 .Sh RETURN VALUES
 If the call to
 .Fn sysctl
-is successful, 0 is returned.
+is successful, the number of bytes copied out is returned.
 Otherwise \-1 is returned and
 .Va errno
 is set appropriately.
