@@ -108,9 +108,7 @@ random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 		if (flag & IO_NDELAY)
 			error = EWOULDBLOCK;
 		else {
-			/* No complaints please. This is temporary! */
-			printf("Entropy device is blocking. "
-			    "Dance fandango on keyboard to unblock.\n");
+			printf("Entropy device is blocking.\n");
 			error = tsleep(&random_systat,
 			    PUSER | PCATCH, "block", 0);
 		}
