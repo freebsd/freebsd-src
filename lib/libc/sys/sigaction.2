@@ -42,9 +42,17 @@
 .Fd #include <signal.h>
 .Bd -literal
 struct sigaction {
-	void     (*sa_handler)();  /* signal handler */
-	sigset_t sa_mask;          /* signal mask to apply */
-	int	 sa_flags;         /* see signal options below */
+	/*
+	 * Signal handler function if flag SA_SIGINFO is not used and for 
+	 * SIG_DFL and SIG_IGN.
+	 */
+	void     (*sa_handler)(int);
+
+	/* Signal handler function if flag SA_SIGINFO is used */
+	void     (*sa_sigaction)(int, siginfo_t *, void *);
+
+	sigset_t sa_mask;            /* signal mask to apply */
+	int	 sa_flags;           /* see signal options below */
 };
 .Ed
 .Ft int
@@ -200,8 +208,15 @@ not masked during the execution of the handler.
 If this bit is set, the handler is reset back to
 .Dv SIG_DFL
 at the moment the signal is delivered.
-.\" Still missing:
-.\" .It Dv SA_SIGINFO
+.It Dv SA_SIGINFO
+If this bit is set, the handler function is assumed to be pointed to
+by the sa_sigaction member of struct sigaction and should match the
+prototype shown above or as below in
+.Sx EXAMPLES .                      
+This bit should not be set when assigning 
+.Dv SIG_DFL                              
+or                                       
+.Dv SIG_IGN .                            
 .El
 .Pp
 If a signal is caught during the system calls listed below,
@@ -410,28 +425,78 @@ A 0 value indicated that the call succeeded.  A \-1 return value
 indicates an error occurred and
 .Va errno
 is set to indicated the reason.
-.Sh EXAMPLE
-The handler routine can be declared:
-.Bd -literal -offset indent
-void handler(sig, code, scp)
-int sig, code;
-struct sigcontext *scp;
-.Ed
+.Sh EXAMPLES
+There are three possible prototypes the handler may match:
+.Bl -tag -offset indent -width short
+.It ANSI C:
+.Fd
+void handler(int);
+.It Traditional BSD style:
+.Fd
+void handler(int, int code, struct sigcontext *scp);
+.It POSIX SA_SIGINFO:
+.Fd
+void handler(int, siginfo_t *info, void *context);
+.El
 .Pp
-Here
+The handler function should match the SA_SIGINFO prototype if the
+SA_SIGINFO bit is set in flags.
+It then should be pointed to by the
+.Dv sa_siginfo
+member of
+.Dv struct sigaction .
+Note that you should not assign SIG_DFL or SIG_IGN this way.
+.Pp
+If the SA_SIGINFO flag is not set, the handler function should match
+either the ANSI C or traditional BSD prototype and be pointed to by
+the
+.Dv sa_handler
+member of
+.Dv struct sigaction .
+In pratice,
+.Fx
+always sends the three arguments of the latter and since the ANSI C
+prototype is a subset, both will work.
+The
+.Dv sa_handler
+member declaration in
+.Fx
+include files is that of ANSI C (as required by POSIX), 
+so a function pointer of a BSD-style function needs to be casted to
+compile without warning.
+The traditional BSD style is not portable and since its capabilities
+are a full subset of a SA_SIGINFO handler,
+its use is deprecated.
+.Pp
+The 
 .Fa sig
-is the signal number, into which the hardware faults and traps are
-mapped.
-.Fa Code
-is a parameter that is either a constant
-or the code provided by
-the hardware.
-.Fa Scp
-is a pointer to the
-.Fa sigcontext
-structure (defined in
-.Aq Pa signal.h ) ,
-used to restore the context from before the signal.
+argument is the signal number, one of the
+.Dv SIG...
+values from <signal.h>.
+.Pp
+The
+.Fa code
+argument of the BSD-style handler and the
+.Dv si_code
+member of the
+.Dv info
+argument to a SA_SIGINFO handler contain a numeric code explaning the
+cause of the signal, usually one of the
+.Dv SI_...
+values from
+<sys/signal.h> or codes specific to a signal, i.e. one of the
+.Dv FPE_...
+values for SIGFPE.
+.Pp
+The
+.Fa scp
+argument to a BSD-style handler points to an instance of struct
+sigcontext.
+.Pp
+The
+.Fa context
+argument to a POSIX SA_SIGINFO handler points to an instance of
+mcontext_t.
 .Sh ERRORS
 .Fn Sigaction
 will fail and no new signal handler will be installed if one
