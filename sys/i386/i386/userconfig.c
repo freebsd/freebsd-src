@@ -2616,7 +2616,7 @@ static int lineno;
 
 #if NEISA > 0
 
-#include <i386/eisa/eisaconf.h>
+#include <dev/eisa/eisaconf.h>
 
 static int set_num_eisa_slots(CmdParm *);
 
