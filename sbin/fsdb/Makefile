@@ -5,7 +5,7 @@
 PROG=	fsdb
 MAN=	fsdb.8
 SRCS=	fsdb.c fsdbutil.c \
-	dir.c fsutil.c inode.c pass1.c pass1b.c pass2.c pass3.c pass4.c \
+	dir.c ea.c fsutil.c inode.c pass1.c pass1b.c pass2.c pass3.c pass4.c \
 	pass5.c setup.c utilities.c ffs_subr.c ffs_tables.c
 CFLAGS+= -I${.CURDIR}/../fsck_ffs
 WARNS=	0
