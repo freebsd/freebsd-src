@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #define	vm_page_unlock_queues()
 #endif
 
+extern u_int32_t acpi_no_reset_video;
 extern void initializecpu(void);
 
 static struct region_descriptor	r_idt, r_gdt, *p_gdt;
@@ -231,6 +232,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(previous_cr2, u_int32_t, r_cr2);
 		WAKECODE_FIXUP(previous_cr3, u_int32_t, r_cr3);
 		WAKECODE_FIXUP(previous_cr4, u_int32_t, r_cr4);
+
+		WAKECODE_FIXUP(no_reset_video, u_int32_t, acpi_no_reset_video);
 
 		WAKECODE_FIXUP(previous_tr,  u_int16_t, r_tr);
 		WAKECODE_BCOPY(previous_gdt, struct region_descriptor, r_gdt);

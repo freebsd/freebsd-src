@@ -48,12 +48,15 @@ wakeup_16:
 	 * Re-initialize video BIOS.  Restore DS and SS from CS in
 	 * case the BIOS modified them.
 	 */
+	cmp	$1, no_reset_video
+	je	wakeup_16_gdt
 	lcall	$0xc000, $3
 	movw	%cs, %ax
 	movw	%ax, %ds
 	movw	%ax, %ss
 #endif
 
+wakeup_16_gdt:
 	/* Load GDT for real mode */
 	lgdt	physical_gdt
 
@@ -211,6 +214,7 @@ physical_esp:		.long 0
 previous_cr2:		.long 0
 previous_cr3:		.long 0
 previous_cr4:		.long 0
+no_reset_video:		.long 0
 
 /* transfer from real mode to protected mode */
 previous_cr0:		.long 0
