@@ -2836,6 +2836,7 @@ static struct isa_pnp_id psmcpnp_ids[] = {
 	{ 0x130fd041, "PS/2 mouse port" },		/* PNP0F13 */
 	{ 0x1303d041, "PS/2 port" },			/* PNP0313, XXX */
 	{ 0x80374d24, "IBM PS/2 mouse port" },		/* IBM3780, ThinkPad */
+	{ 0x81374d24, "IBM PS/2 mouse port" },		/* IBM3781, ThinkPad */
 	{ 0 }
 };
 
