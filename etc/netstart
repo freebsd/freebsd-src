@@ -16,9 +16,7 @@ rwhod=NO
 hostname=`cat /etc/myname`
 hostname $hostname
 
-# ifconfig we0 inet $hostname netmask 447-ether
-# ifconfig ne0 inet $hostname netmask my-netmask
-# ifconfig ec0 inet $hostname netmask my-netmask
+# ifconfig ie0 inet $hostname netmask my-netmask
 # ifconfig is0 inet $hostname netmask my-netmask
 # ifconfig ed0 inet $hostname netmask my-netmask
 
