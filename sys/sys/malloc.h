@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.32 1997/12/04 07:29:17 davidg Exp $
+ * $Id: malloc.h,v 1.33 1997/12/05 05:36:49 dyson Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -198,6 +198,13 @@ extern struct kmemusage *kmemusage;
 extern char *kmembase;
 extern struct kmembuckets bucket[];
 #endif /* do not collect statistics */
+
+/*
+ * XXX this should be declared in <sys/uio.h>, but that tends to fail
+ * because <sys/uio.h> is included in a header before the source file
+ * has a chance to include <sys/malloc.h> to get MALLOC_DECLARE() defined.
+ */
+MALLOC_DECLARE(M_IOV);
 
 void	*contigmalloc __P((unsigned long size, struct malloc_type *type,
 			   int flags,
