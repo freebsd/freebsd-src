@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.8 1996/03/31 03:21:45 gibbs Exp $
+ * $Id: queue.h,v 1.9 1996/04/08 07:51:57 phk Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -268,7 +268,9 @@ struct {								\
 
 #define	TAILQ_LAST(head) ((head)->tqh_last)
 
-#define	TAILQ_NEXT(elm, field) ((elm)->field.teq_next)
+#define	TAILQ_NEXT(elm, field) ((elm)->field.tqe_next)
+
+#define TAILQ_PREV(elm, field) ((elm)->field.tqe_prev)
 
 #define	TAILQ_INIT(head) {						\
 	(head)->tqh_first = NULL;					\

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.64 1996/05/02 14:21:14 phk Exp $
+ * $Id: swap_pager.c,v 1.65 1996/05/03 21:01:47 phk Exp $
  */
 
 /*
@@ -530,7 +530,7 @@ swap_pager_reclaim()
 	/* for each pager queue */
 	for (k = 0; swp_qs[k]; k++) {
 
-		object = swp_qs[k]->tqh_first;
+		object = TAILQ_FIRST(swp_qs[k]);
 		while (object && (reclaimcount < MAXRECLAIM)) {
 
 			/*
@@ -555,7 +555,7 @@ swap_pager_reclaim()
 					}
 				}
 			}
-			object = object->pager_object_list.tqe_next;
+			object = TAILQ_NEXT(object, pager_object_list);
 		}
 	}
 
@@ -956,8 +956,8 @@ swap_pager_getpages(object, m, count, reqpage)
 
 	spc = NULL;	/* we might not use an spc data structure */
 
-	if ((count == 1) && (swap_pager_free.tqh_first != NULL)) {
-		spc = swap_pager_free.tqh_first;
+	if ((count == 1) && (TAILQ_FIRST(&swap_pager_free) != NULL)) {
+		spc = TAILQ_FIRST(&swap_pager_free);
 		TAILQ_REMOVE(&swap_pager_free, spc, spc_list);
 		kva = spc->spc_kva;
 		bp = spc->spc_bp;
@@ -1263,9 +1263,9 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	/*
 	 * get a swap pager clean data structure, block until we get it
 	 */
-	if (swap_pager_free.tqh_first == NULL ||
-		swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
-		swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
+	if (TAILQ_FIRST(&swap_pager_free) == NULL ||
+		TAILQ_NEXT(TAILQ_FIRST(&swap_pager_free),spc_list) == NULL ||
+		TAILQ_NEXT(TAILQ_NEXT(TAILQ_FIRST(&swap_pager_free),spc_list),spc_list) == NULL) {
 		s = splbio();
 		if (curproc == pageproc) {
 retryfree:
@@ -1285,9 +1285,9 @@ retryfree:
 			 */
 			if (tsleep(&swap_pager_free, PVM, "swpfre", hz/5)) {
 				swap_pager_sync();
-				if (swap_pager_free.tqh_first == NULL ||
-					swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
-					swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
+				if (TAILQ_FIRST(&swap_pager_free) == NULL ||
+					TAILQ_NEXT(TAILQ_FIRST(&swap_pager_free),spc_list) == NULL ||
+					TAILQ_NEXT(TAILQ_NEXT(TAILQ_FIRST(&swap_pager_free),spc_list),spc_list) == NULL) {
 					splx(s);
 					return VM_PAGER_AGAIN;
 				}
@@ -1297,17 +1297,17 @@ retryfree:
 			 * the free swap control blocks.
 			 */
 				swap_pager_sync();
-				if (swap_pager_free.tqh_first == NULL ||
-					swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
-					swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
+				if (TAILQ_FIRST(&swap_pager_free) == NULL ||
+					TAILQ_NEXT(TAILQ_FIRST(&swap_pager_free),spc_list) == NULL ||
+					TAILQ_NEXT(TAILQ_NEXT(TAILQ_FIRST(&swap_pager_free),spc_list),spc_list) == NULL) {
 					goto retryfree;
 				}
 			}
 		} else {
 			pagedaemon_wakeup();
-			while (swap_pager_free.tqh_first == NULL ||
-				swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
-				swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
+			while (TAILQ_FIRST(&swap_pager_free) == NULL ||
+				TAILQ_NEXT(TAILQ_FIRST(&swap_pager_free),spc_list) == NULL ||
+				TAILQ_NEXT(TAILQ_NEXT(TAILQ_FIRST(&swap_pager_free),spc_list),spc_list) == NULL) {
 				swap_pager_needflags |= SWAP_FREE_NEEDED;
 				tsleep(&swap_pager_free, PVM, "swpfre", 0);
 				pagedaemon_wakeup();
@@ -1315,7 +1315,7 @@ retryfree:
 		}
 		splx(s);
 	}
-	spc = swap_pager_free.tqh_first;
+	spc = TAILQ_FIRST(&swap_pager_free);
 	TAILQ_REMOVE(&swap_pager_free, spc, spc_list);
 
 	kva = spc->spc_kva;
@@ -1482,7 +1482,7 @@ swap_pager_sync()
 	register int s;
 
 	tspc = NULL;
-	if (swap_pager_done.tqh_first == NULL)
+	if (TAILQ_FIRST(&swap_pager_done) == NULL)
 		return;
 	for (;;) {
 		s = splbio();
@@ -1490,7 +1490,7 @@ swap_pager_sync()
 		 * Look up and removal from done list must be done at splbio()
 		 * to avoid conflicts with swap_pager_iodone.
 		 */
-		while ((spc = swap_pager_done.tqh_first) != 0) {
+		while ((spc = TAILQ_FIRST(&swap_pager_done)) != 0) {
 			pmap_qremove(spc->spc_kva, spc->spc_count);
 			swap_pager_finish(spc);
 			TAILQ_REMOVE(&swap_pager_done, spc, spc_list);
@@ -1609,7 +1609,7 @@ swap_pager_iodone(bp)
 		wakeup(spc->spc_object);
 	}
 	if ((swap_pager_needflags & SWAP_FREE_NEEDED) ||
-	    swap_pager_inuse.tqh_first == 0) {
+	    TAILQ_FIRST(&swap_pager_inuse) == 0) {
 		swap_pager_needflags &= ~SWAP_FREE_NEEDED;
 		wakeup(&swap_pager_free);
 	}
@@ -1623,7 +1623,7 @@ swap_pager_iodone(bp)
 		wakeup(&vm_pageout_pages_needed);
 		vm_pageout_pages_needed = 0;
 	}
-	if ((swap_pager_inuse.tqh_first == NULL) ||
+	if ((TAILQ_FIRST(&swap_pager_inuse) == NULL) ||
 	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min &&
 	    nswiodone + cnt.v_free_count + cnt.v_cache_count >= cnt.v_free_min)) {
 		pagedaemon_wakeup();

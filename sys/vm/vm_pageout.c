@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.69 1996/03/28 04:53:28 dyson Exp $
+ * $Id: vm_pageout.c,v 1.70 1996/04/11 21:05:25 bde Exp $
  */
 
 /*
@@ -137,8 +137,6 @@ static int vm_daemon_needed;
 extern int nswiodone;
 extern int vm_swap_size;
 extern int vfs_update_wakeup;
-
-#define MAXSCAN 1024		/* maximum number of pages to scan in queues */
 
 #define MAXLAUNDER (cnt.v_page_count > 1800 ? 32 : 16)
 
@@ -415,9 +413,9 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 	 * scan the objects entire memory queue
 	 */
 	rcount = object->resident_page_count;
-	p = object->memq.tqh_first;
+	p = TAILQ_FIRST(&object->memq);
 	while (p && (rcount-- > 0)) {
-		next = p->listq.tqe_next;
+		next = TAILQ_NEXT(p, listq);
 		cnt.v_pdpages++;
 		if (p->wire_count != 0 ||
 		    p->hold_count != 0 ||
@@ -434,26 +432,9 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 		if (p->queue == PQ_ACTIVE) {
 			if (!pmap_is_referenced(VM_PAGE_TO_PHYS(p)) &&
 			    (p->flags & PG_REFERENCED) == 0) {
-				p->act_count -= min(p->act_count, ACT_DECLINE);
-				/*
-				 * if the page act_count is zero -- then we
-				 * deactivate
-				 */
-				if (!p->act_count) {
-					if (!map_remove_only)
-						vm_page_deactivate(p);
-					vm_page_protect(p, VM_PROT_NONE);
-					/*
-					 * else if on the next go-around we
-					 * will deactivate the page we need to
-					 * place the page on the end of the
-					 * queue to age the other pages in
-					 * memory.
-					 */
-				} else {
-					TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
-					TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
-				}
+				vm_page_protect(p, VM_PROT_NONE);
+				if (!map_remove_only)
+					vm_page_deactivate(p);
 				/*
 				 * see if we are done yet
 				 */
@@ -471,8 +452,6 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 				 */
 				pmap_clear_reference(VM_PAGE_TO_PHYS(p));
 				p->flags &= ~PG_REFERENCED;
-				if (p->act_count < ACT_MAX)
-					p->act_count += ACT_ADVANCE;
 
 				TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
 				TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
@@ -544,8 +523,11 @@ vm_pageout_scan()
 	vm_object_t object;
 	int force_wakeup = 0;
 	int vnodes_skipped = 0;
+	int usagefloor;
+	int i;
 
 	pages_freed = 0;
+
 
 	/*
 	 * Start scanning the inactive queue for pages we can free. We keep
@@ -559,13 +541,14 @@ vm_pageout_scan()
 
 rescan1:
 	maxscan = cnt.v_inactive_count;
-	m = vm_page_queue_inactive.tqh_first;
+	m = TAILQ_FIRST(&vm_page_queue_inactive);
 	while ((m != NULL) && (maxscan-- > 0) &&
-	    ((cnt.v_cache_count + cnt.v_free_count) < (cnt.v_cache_min + cnt.v_free_target))) {
+	    ((cnt.v_cache_count + cnt.v_free_count) <
+		(cnt.v_cache_min + cnt.v_free_target))) {
 		vm_page_t next;
 
 		cnt.v_pdpages++;
-		next = m->pageq.tqe_next;
+		next = TAILQ_NEXT(m, pageq);
 
 #if defined(VM_DIAGNOSE)
 		if (m->queue != PQ_INACTIVE) {
@@ -575,7 +558,8 @@ rescan1:
 #endif
 
 		/*
-		 * dont mess with busy pages
+		 * Dont mess with busy pages, keep in the front of the
+		 * queue, most likely are being paged out.
 		 */
 		if (m->busy || (m->flags & PG_BUSY)) {
 			m = next;
@@ -600,8 +584,6 @@ rescan1:
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 			vm_page_activate(m);
-			if (m->act_count < ACT_MAX)
-				m->act_count += ACT_ADVANCE;
 			m = next;
 			continue;
 		}
@@ -681,14 +663,11 @@ rescan1:
 			page_shortage = 1;
 		}
 	}
-	maxscan = MAXSCAN;
-	pcount = cnt.v_active_count;
-	m = vm_page_queue_active.tqh_first;
-	while ((m != NULL) && (maxscan > 0) &&
-		(pcount-- > 0) && (page_shortage > 0)) {
 
-		cnt.v_pdpages++;
-		next = m->pageq.tqe_next;
+	pcount = cnt.v_active_count;
+	m = TAILQ_FIRST(&vm_page_queue_active);
+	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
+		next = TAILQ_NEXT(m, pageq);
 
 		/*
 		 * Don't deactivate pages that are busy.
@@ -701,54 +680,47 @@ rescan1:
 			m = next;
 			continue;
 		}
-		if (m->object->ref_count &&
-			((m->flags & PG_REFERENCED) ||
-			pmap_is_referenced(VM_PAGE_TO_PHYS(m))) ) {
-			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-			m->flags &= ~PG_REFERENCED;
-			if (m->act_count < ACT_MAX) {
-				m->act_count += ACT_ADVANCE;
+
+		/*
+		 * The count for pagedaemon pages is done after checking the
+		 * page for eligbility...
+		 */
+		cnt.v_pdpages++;
+		if ((m->flags & PG_REFERENCED) == 0) {
+			if (pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
+				pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+				m->flags |= PG_REFERENCED;
 			}
+		} else {
+			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+		}
+		if ( (m->object->ref_count != 0) &&
+			 (m->flags & PG_REFERENCED) ) {
+			m->flags &= ~PG_REFERENCED;
 			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
 			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 		} else {
 			m->flags &= ~PG_REFERENCED;
-			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-			m->act_count -= min(m->act_count, ACT_DECLINE);
-
-			/*
-			 * if the page act_count is zero -- then we deactivate
-			 */
-			if (!m->act_count && (page_shortage > 0)) {
-				if (m->object->ref_count == 0) {
-					--page_shortage;
-					vm_page_test_dirty(m);
-					if (m->dirty == 0) {
-						m->act_count = 0;
-						vm_page_cache(m);
-					} else {
-						vm_page_deactivate(m);
-					}
+			if (page_shortage > 0) {
+				--page_shortage;
+				vm_page_test_dirty(m);
+				if (m->dirty == 0) {
+					vm_page_cache(m);
 				} else {
 					vm_page_protect(m, VM_PROT_NONE);
 					vm_page_deactivate(m);
-					--page_shortage;
 				}
-			} else if (m->act_count) {
-				TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 			}
 		}
-		maxscan--;
 		m = next;
 	}
-
+		
 	/*
 	 * We try to maintain some *really* free pages, this allows interrupt
 	 * code to be guaranteed space.
 	 */
 	while (cnt.v_free_count < cnt.v_free_reserved) {
-		m = vm_page_queue_cache.tqh_first;
+		m = TAILQ_FIRST(&vm_page_queue_cache);
 		if (!m)
 			break;
 		vm_page_free(m);
@@ -770,23 +742,13 @@ rescan1:
 			}
 		}
 #ifndef NO_SWAPPING
-		/*
-		 * now swap processes out if we are in low memory conditions
-		 */
-		if (!swap_pager_full && vm_swap_size &&
-			vm_pageout_req_swapout == 0) {
-			vm_pageout_req_swapout = 1;
+		if (cnt.v_free_count + cnt.v_cache_count < cnt.v_free_target) {
 			vm_req_vmdaemon();
+			vm_pageout_req_swapout = 1;
 		}
 #endif
 	}
 
-#ifndef NO_SWAPPING
-	if ((cnt.v_inactive_count + cnt.v_free_count + cnt.v_cache_count) <
-	    (cnt.v_inactive_target + cnt.v_free_min)) {
-		vm_req_vmdaemon();
-	}
-#endif
 
 	/*
 	 * make sure that we have swap space -- if we are low on memory and
@@ -883,22 +845,23 @@ vm_pageout()
 	 * The pageout daemon is never done, so loop forever.
 	 */
 	while (TRUE) {
-		int s = splhigh();
-
+		int s = splvm();
 		if (!vm_pages_needed ||
 			((cnt.v_free_count >= cnt.v_free_reserved) &&
 			 (cnt.v_free_count + cnt.v_cache_count >= cnt.v_free_min))) {
 			vm_pages_needed = 0;
 			tsleep(&vm_pages_needed, PVM, "psleep", 0);
+		} else if (!vm_pages_needed) {
+			tsleep(&vm_pages_needed, PVM, "psleep", hz/3);
 		}
+		if (vm_pages_needed)
+			cnt.v_pdwakeups++;
 		vm_pages_needed = 0;
 		splx(s);
-		cnt.v_pdwakeups++;
 		vm_pager_sync();
 		vm_pageout_scan();
 		vm_pager_sync();
 		wakeup(&cnt.v_free_count);
-		wakeup(kmem_map);
 	}
 }
 
@@ -908,7 +871,7 @@ vm_req_vmdaemon()
 {
 	static int lastrun = 0;
 
-	if ((ticks > (lastrun + hz / 10)) || (ticks < lastrun)) {
+	if ((ticks > (lastrun + hz)) || (ticks < lastrun)) {
 		wakeup(&vm_daemon_needed);
 		lastrun = ticks;
 	}
@@ -978,7 +941,7 @@ vm_daemon()
 		 * we remove cached objects that have no RSS...
 		 */
 restart:
-		object = vm_object_cached_list.tqh_first;
+		object = TAILQ_FIRST(&vm_object_cached_list);
 		while (object) {
 			/*
 			 * if there are no resident pages -- get rid of the object
@@ -988,7 +951,7 @@ restart:
 				pager_cache(object, FALSE);
 				goto restart;
 			}
-			object = object->cached_list.tqe_next;
+			object = TAILQ_NEXT(object, cached_list);
 		}
 	}
 }
