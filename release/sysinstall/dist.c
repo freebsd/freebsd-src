@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.3 1995/09/30 06:42:35 jkh Exp $
+ * $Id: dist.c,v 1.36.2.4 1995/10/03 23:36:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -331,7 +331,7 @@ distExtract(char *parent, Distribution *me)
 
 	/* If we couldn't get it as one file then we need to get multiple pieces; get info file telling us how many */
 	snprintf(buf, sizeof buf, "/stand/info/%s/%s.inf", path, dist);
-	if (!access(buf, R_OK)) {
+	if (file_readable(buf)) {
 	    if (isDebug())
 		msgDebug("Parsing attributes file for %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);

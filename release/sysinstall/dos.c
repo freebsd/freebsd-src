@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.6 1995/06/11 19:29:53 rgrimes Exp $
+ * $Id: dos.c,v 1.6.2.1 1995/07/21 10:53:52 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,9 +88,12 @@ mediaGetDOS(Device *dev, char *file, Attribs *dist_attrs)
     char		buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/dos/freebsd/%s", file);
-    if (!access(buf, R_OK))
+    if (file_readable(buf))
 	return open(buf, O_RDONLY);
     snprintf(buf, PATH_MAX, "/dos/freebsd/dists/%s", file);
+    if (file_readable(buf))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/dos/%s", file);
     return open(buf, O_RDONLY);
 }
 

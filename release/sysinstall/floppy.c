@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.17 1995/06/10 09:14:51 jkh Exp $
+ * $Id: floppy.c,v 1.7 1995/06/11 19:29:54 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -164,11 +164,11 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 
     snprintf(buf, PATH_MAX, "/mnt/%s", file);
 
-    if (access(buf, R_OK)) {
+    if (file_readable(buf)) {
 	if (dev->flags & OPT_EXPLORATORY_GET)
 	    return -1;
 	else {
-	    while (access(buf, R_OK) != 0) {
+	    while (!file_readable(buf)) {
 		if (!--nretries) {
 		    msgConfirm("GetFloppy: Failed to get %s after retries;\ngiving up.", file);
 		    return -1;

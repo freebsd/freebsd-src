@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.5.2.1 1995/10/03 23:36:53 jkh Exp $
+ * $Id: nfs.c,v 1.5.2.2 1995/10/04 07:54:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -80,13 +80,13 @@ mediaGetNFS(Device *dev, char *file, Attribs *dist_attrs)
     char	buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/nfs/%s", file);
-    if (!access(buf, R_OK))
+    if (file_readable(buf))
 	return open(buf, O_RDONLY);
     snprintf(buf, PATH_MAX, "/nfs/dists/%s", file);
-    if (!access(buf, R_OK))
+    if (file_readable(buf))
 	return open(buf, O_RDONLY);
     snprintf(buf, PATH_MAX, "/nfs/%s/%s", getenv(RELNAME), file);
-    if (!access(buf, R_OK))
+    if (file_readable(buf))
 	return open(buf, O_RDONLY);
     snprintf(buf, PATH_MAX, "/nfs/%s/dists/%s", getenv(RELNAME), file);
     return open(buf, O_RDONLY);
