@@ -774,7 +774,7 @@ out:
 		(void)printf("%-*s", v->width, string);
 		free(string);
 	} else
-		(void)printf("%-*s", v->width, "");
+		(void)printf("%-*s", v->width, "  -");
 	return;
 }
 
