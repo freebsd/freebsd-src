@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.114 1996/07/13 05:13:25 jkh Exp $
+ * $Id: install.c,v 1.115 1996/07/16 17:11:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,19 +55,19 @@ static void	create_termcap(void);
 
 static void	installConfigure(void);
 
-static Boolean
-checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
+Boolean
+checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev)
 {
     Device **devs;
     Boolean status;
     Disk *disk;
-    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
+    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev;
     int i;
 
     status = TRUE;
-    *rdev = *sdev = *udev = rootdev = swapdev = usrdev = NULL;
+    *rdev = *sdev = *udev = *vdev = rootdev = swapdev = usrdev = vardev = NULL;
 
-    /* We don't need to worry about root/usr/swap if we already have it */
+    /* We don't need to worry about root/usr/swap if we're already multiuser */
     if (!RunningAsInit)
 	return status;
 
@@ -108,6 +108,18 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 				    msgDebug("Found usrdev at %s!\n", usrdev->name);
 			    }
 			}
+			else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/var")) {
+			    if (vardev) {
+				msgConfirm("WARNING:  You have more than one /var filesystem.\n"
+					   "Using the first one found.");
+				continue;
+			    }
+			    else {
+				vardev = c2;
+				if (isDebug())
+				    msgDebug("Found vardev at %s!\n", vardev->name);
+			    }
+			}
 		    }
 		}
 	    }
@@ -140,6 +152,7 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
     *rdev = rootdev;
     *sdev = swapdev;
     *udev = usrdev;
+    *vdev = vardev;
 
     if (!rootdev) {
 	msgConfirm("No root device found - you must label a partition as /\n"
@@ -156,6 +169,13 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 		   "an error if your root filesystem is big enough (or you later\n"
 		   "intend to mount your /usr filesystem over NFS), but it may otherwise\n"
 		   "cause you trouble if you're not exactly sure what you are doing!");
+    }
+    if (!vardev) {
+	msgConfirm("WARNING:  No /var filesystem found.  This is not technically\n"
+		   "an error if your root filesystem is big enough (or you later\n"
+		   "intend to link /var to someplace else), but it may otherwise\n"
+		   "cause your root filesystem to fill up if you receive lots of mail\n"
+		   "or edit large temporary files.");
     }
     return status;
 }
@@ -647,7 +667,7 @@ installFilesystems(dialogMenuItem *self)
 {
     int i;
     Disk *disk;
-    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
+    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev;
     Device **devs;
     PartInfo *root;
     char dname[80], *str;
@@ -656,7 +676,7 @@ installFilesystems(dialogMenuItem *self)
 
     str = variable_get(SYSTEM_STATE);
 
-    if (!checkLabels(&rootdev, &swapdev, &usrdev))
+    if (!checkLabels(&rootdev, &swapdev, &usrdev, &vardev))
 	return DITEM_FAILURE;
 
     if (rootdev)

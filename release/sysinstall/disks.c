@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.54 1996/07/05 08:35:52 jkh Exp $
+ * $Id: disks.c,v 1.55 1996/07/09 03:07:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,24 +70,27 @@ print_chunks(Disk *d)
     int row;
     int i;
 
-    if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64)) {
+    if (!d->bios_cyl && !d->bios_hd && !d->bios_sect) {
+	All_FreeBSD(d, TRUE);
+	d->bios_hd = d->bios_sect = d->bios_cyl = 1;
+    }
+    else if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
 	int sz;
 
 	dialog_clear();
-	msgConfirm("WARNING:  The current geometry for %s is incorrect.  Using\n"
+	msgConfirm("WARNING:  A geometry of %d/%d/%d for %s is incorrect.  Using\n"
 		   "a default geometry of 64 heads and 32 sectors.  If this geometry\n"
 		   "is incorrect or you are unsure as to whether or not it's correct,\n"
 		   "please consult the Hardware Guide in the Documentation submenu\n"
-		   "or use the (G)eometry command to change it now.", d->name);
+		   "or use the (G)eometry command to change it now.", d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
 	d->bios_hd = 64;
 	d->bios_sect = 32;
-	sz = 0;
-	for (i = 0; chunk_info[i]; i++)
+	for (i = sz = 0; chunk_info[i]; i++)
 	    sz += chunk_info[i]->size;
 	if (sz)
 	    d->bios_cyl = sz / ONE_MEG;
 	else
-	    msgConfirm("Couldn't set geometry!  You'll have to do it by hand.");
+	    msgConfirm("Couldn't calculate disk size!  You'll have to set the geometry by hand.");
     }
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
