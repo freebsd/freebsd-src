@@ -116,7 +116,7 @@ main(argc, argv)
 
 	memset(fldtab, 0, (ND+2)*sizeof(struct field));
 	memset(d_mask, 0, NBINS);
-	d_mask[REC_D = '\n'] = REC_D_F;
+	d_mask[REC_D] = REC_D_F;
 	SINGL_FLD = SEP_FLAG = 0;
 	d_mask['\t'] = d_mask[' '] = BLANK | FLD_D;
 	ftpos = fldtab;
@@ -176,7 +176,7 @@ main(argc, argv)
 		case 'R':
 			if (REC_D != '\n')
 				usage("multiple record delimiters");
-			if ('\n' == (REC_D = *optarg))
+			if ('\n' == (REC_D = (u_char)*optarg))
 				break;
 			d_mask['\n'] = d_mask[' '];
 			d_mask[REC_D] = REC_D_F;
