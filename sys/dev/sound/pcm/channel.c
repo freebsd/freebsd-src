@@ -66,7 +66,7 @@ chn_polltrigger(struct pcm_channel *c)
 	if (c->flags & CHN_F_MAPPED) {
 		if (sndbuf_getprevblocks(bs) == 0)
 			return 1;
-	else
+		else
 			return (sndbuf_getblocks(bs) > sndbuf_getprevblocks(bs))? 1 : 0;
 	} else {
 		amt = (c->direction == PCMDIR_PLAY)? sndbuf_getfree(bs) : sndbuf_getready(bs);
@@ -201,11 +201,11 @@ chn_wrintr(struct pcm_channel *c)
 	CHN_LOCKASSERT(c);
 	irqc++;
 	/* update pointers in primary buffer */
-		chn_dmaupdate(c);
+	chn_dmaupdate(c);
 	/* ...and feed from secondary to primary */
 	ret = chn_wrfeed(c);
 	/* tell the driver we've updated the primary buffer */
- 		chn_trigger(c, PCMTRIG_EMLDMAWR);
+	chn_trigger(c, PCMTRIG_EMLDMAWR);
 	DEB(if (ret)
 		printf("chn_wrintr: chn_wrfeed returned %d\n", ret);)
 }
@@ -241,7 +241,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 	}
 
 	ret = 0;
-		count = hz;
+	count = hz;
 	while (!ret && (buf->uio_resid > 0) && (count > 0)) {
 		sz = sndbuf_getfree(bs);
 		if (sz == 0) {
@@ -256,8 +256,8 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 					count -= timeout;
 					ret = 0;
 				} else if (ret == 0)
-				count = hz;
- 		}
+					count = hz;
+			}
 		} else {
 			sz = MIN(sz, buf->uio_resid);
 			KASSERT(sz > 0, ("confusion in chn_write"));
@@ -270,9 +270,9 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 	/* printf("ret: %d left: %d\n", ret, buf->uio_resid); */
 
 	if (count <= 0) {
-			c->flags |= CHN_F_DEAD;
-			device_printf(c->parent->dev, "play interrupt timeout, channel dead\n");
-		}
+		c->flags |= CHN_F_DEAD;
+		device_printf(c->parent->dev, "play interrupt timeout, channel dead\n");
+	}
 
 	return ret;
 }
@@ -340,9 +340,9 @@ chn_rdintr(struct pcm_channel *c)
 
 	CHN_LOCKASSERT(c);
 	/* tell the driver to update the primary bufhard if non-dma */
- 		chn_trigger(c, PCMTRIG_EMLDMARD);
+	chn_trigger(c, PCMTRIG_EMLDMARD);
 	/* update pointers in primary bufhard */
-	    		chn_dmaupdate(c);
+	chn_dmaupdate(c);
 	/* ...and feed from primary to secondary */
 	ret = chn_rdfeed(c);
 	if (ret)
@@ -367,7 +367,7 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 		chn_start(c, 0);
 
 	ret = 0;
-				count = hz;
+	count = hz;
 	while (!ret && (buf->uio_resid > 0) && (count > 0)) {
 		sz = MIN(buf->uio_resid, sndbuf_getblksz(bs));
 
@@ -392,9 +392,9 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 	}
 
 	if (count <= 0) {
-			c->flags |= CHN_F_DEAD;
-			device_printf(c->parent->dev, "record interrupt timeout, channel dead\n");
-		}
+		c->flags |= CHN_F_DEAD;
+		device_printf(c->parent->dev, "record interrupt timeout, channel dead\n");
+	}
 
 	return ret;
 }
@@ -483,7 +483,7 @@ chn_poll(struct pcm_channel *c, int ev, struct proc *p)
 
 	CHN_LOCK(c);
     	if (!(c->flags & CHN_F_MAPPED) && !(c->flags & CHN_F_TRIGGERED))
-			chn_start(c, 1);
+		chn_start(c, 1);
 	ret = 0;
 	if (chn_polltrigger(c) && chn_pollreset(c))
 		ret = ev;
@@ -525,7 +525,7 @@ chn_abort(struct pcm_channel *c)
     	missing = sndbuf_getready(bs) + sndbuf_getready(b);
 
 	c->flags &= ~CHN_F_ABORTING;
-    	return missing;
+	return missing;
 }
 
 /*
@@ -549,13 +549,13 @@ chn_flush(struct pcm_channel *c)
 	if (!(c->flags & CHN_F_TRIGGERED))
 		return 0;
 
-    	c->flags |= CHN_F_CLOSING;
+	c->flags |= CHN_F_CLOSING;
 	resid = sndbuf_getready(bs) + sndbuf_getready(b);
-		resid_p = resid;
-		count = 10;
+	resid_p = resid;
+	count = 10;
 	ret = 0;
 	while ((count > 0) && (resid > sndbuf_getsize(b)) && (ret == 0)) {
-			/* still pending output data. */
+		/* still pending output data. */
 		ret = chn_sleep(c, "pcmflu", hz / 10);
 		if (ret == EWOULDBLOCK)
 			ret = 0;
@@ -564,8 +564,8 @@ chn_flush(struct pcm_channel *c)
 			if (resid >= resid_p)
 				count--;
 			resid_p = resid;
-   		}
-	}
+		}
+   	}
 	if (count == 0)
 		DEB(printf("chn_flush: timeout\n"));
 
@@ -610,8 +610,8 @@ chn_reset(struct pcm_channel *c, u_int32_t fmt)
 	}
 	r = chn_setblocksize(c, 0, 0);
 	if (r == 0) {
-	chn_resetbuf(c);
-	CHANNEL_RESETDONE(c->methods, c->devinfo);
+		chn_resetbuf(c);
+		CHANNEL_RESETDONE(c->methods, c->devinfo);
 	}
 	return r;
 }
@@ -703,8 +703,8 @@ chn_setvolume(struct pcm_channel *c, int left, int right)
 {
 	CHN_LOCKASSERT(c);
 	/* could add a feeder for volume changing if channel returns -1 */
-		c->volume = (left << 8) | right;
-		return 0;
+	c->volume = (left << 8) | right;
+	return 0;
 }
 
 static int
@@ -765,7 +765,7 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 		r = FEEDER_SET(f, FEEDRATE_DST, sndbuf_getspd(b));
 		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", sndbuf_getspd(b), r));
 out:
-			return r;
+		return r;
 	} else
 		return EINVAL;
 }
@@ -801,13 +801,13 @@ chn_tryformat(struct pcm_channel *c, u_int32_t fmt)
 			c->feederflags |= 1 << FEEDER_FMT;
 		r = chn_buildfeeder(c);
 		if (r == 0) {
-		hwfmt = c->feeder->desc->out;
-		sndbuf_setfmt(b, hwfmt);
+			hwfmt = c->feeder->desc->out;
+			sndbuf_setfmt(b, hwfmt);
 			sndbuf_setfmt(bs, fmt);
-		chn_resetbuf(c);
-		CHANNEL_SETFORMAT(c->methods, c->devinfo, hwfmt);
+			chn_resetbuf(c);
+			CHANNEL_SETFORMAT(c->methods, c->devinfo, hwfmt);
 			r = chn_tryspeed(c, c->speed);
-	}
+		}
 		return r;
 	} else
 		return EINVAL;
