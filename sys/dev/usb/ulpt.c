@@ -1,7 +1,7 @@
-/*	$NetBSD: ulpt.c,v 1.55 2002/10/23 09:14:01 jdolecek Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.60 2003/10/04 21:19:50 augustss Exp $	*/
 
 /*
- * Copyright (c) 1998 The NetBSD Foundation, Inc.
+ * Copyright (c) 1998, 2003 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/fcntl.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #include <sys/ioctl.h>
@@ -71,7 +72,10 @@ __FBSDID("$FreeBSD$");
 #define	STEP		hz/4
 
 #define	LPTPRI		(PZERO+8)
-#define	ULPT_BSIZE	16384
+#define	ULPT_BSIZE	PAGE_SIZE
+
+#define ULPT_READS_PER_SEC 5
+#define ULPT_READ_TIMO 10
 
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (ulptdebug) logprintf x
@@ -103,12 +107,16 @@ struct ulpt_softc {
 
 	int sc_out;
 	usbd_pipe_handle sc_out_pipe;	/* bulk out pipe */
+	usbd_xfer_handle sc_out_xfer;
+	void *sc_out_buf;
 
 	int sc_in;
 	usbd_pipe_handle sc_in_pipe;	/* bulk in pipe */
-	usbd_xfer_handle sc_in_xfer1;
-	usbd_xfer_handle sc_in_xfer2;
-	u_char sc_junk[64];	/* somewhere to dump input */
+	usbd_xfer_handle sc_in_xfer;
+	void *sc_in_buf;
+
+	usb_callout_t sc_read_callout;
+	int sc_has_callout;
 
 	u_char sc_state;
 #define	ULPT_OPEN	0x01	/* device is open */
@@ -131,10 +139,11 @@ struct ulpt_softc {
 dev_type_open(ulptopen);
 dev_type_close(ulptclose);
 dev_type_write(ulptwrite);
+dev_type_read(ulptread);
 dev_type_ioctl(ulptioctl);
 
 const struct cdevsw ulpt_cdevsw = {
-	ulptopen, ulptclose, noread, ulptwrite, ulptioctl,
+	ulptopen, ulptclose, ulptread, ulptwrite, ulptioctl,
 	nostop, notty, nopoll, nommap, nokqfilter,
 };
 #elif defined(__OpenBSD__)
@@ -143,6 +152,7 @@ cdev_decl(ulpt);
 Static d_open_t ulptopen;
 Static d_close_t ulptclose;
 Static d_write_t ulptwrite;
+Static d_read_t ulptread;
 Static d_ioctl_t ulptioctl;
 
 
@@ -152,6 +162,7 @@ Static struct cdevsw ulpt_cdevsw = {
 	.d_open =	ulptopen,
 	.d_close =	ulptclose,
 	.d_write =	ulptwrite,
+	.d_read =	ulptread,
 	.d_ioctl =	ulptioctl,
 	.d_name =	"ulpt",
 #if __FreeBSD_version < 500014
@@ -163,9 +174,13 @@ Static struct cdevsw ulpt_cdevsw = {
 void ulpt_disco(void *);
 
 int ulpt_do_write(struct ulpt_softc *, struct uio *uio, int);
+int ulpt_do_read(struct ulpt_softc *, struct uio *uio, int);
 int ulpt_status(struct ulpt_softc *);
 void ulpt_reset(struct ulpt_softc *);
 int ulpt_statusmsg(u_char, struct ulpt_softc *);
+void ulpt_read_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
+		  usbd_status status);
+void ulpt_tick(void *xsc);
 
 #if 0
 void ieee1284_print_id(char *);
@@ -464,7 +479,7 @@ ulpt_reset(struct ulpt_softc *sc)
 		(void)usbd_do_request(sc->sc_udev, &req, 0); /* 1.1 */
 	}
 }
-
+#if 0
 static void
 ulpt_input(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
@@ -483,6 +498,7 @@ ulpt_input(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	else
 		usbd_transfer(sc->sc_in_xfer1);
 }
+#endif
 
 int ulptusein = 1;
 
@@ -553,49 +569,64 @@ ulptopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 
 	err = usbd_open_pipe(sc->sc_iface, sc->sc_out, 0, &sc->sc_out_pipe);
 	if (err) {
-		sc->sc_state = 0;
 		error = EIO;
-		goto done;
+		goto err0;
 	}
+	sc->sc_out_xfer = usbd_alloc_xfer(sc->sc_udev);
+	if (sc->sc_out_xfer == NULL) {
+		error = ENOMEM;
+		goto err1;
+	}
+	sc->sc_out_buf = usbd_alloc_buffer(sc->sc_out_xfer, ULPT_BSIZE);
+	if (sc->sc_out_buf == NULL) {
+		error = ENOMEM;
+		goto err2;
+	}
+
 	if (ulptusein && sc->sc_in != -1) {
 		DPRINTF(("ulpt_open: open input pipe\n"));
 		err = usbd_open_pipe(sc->sc_iface, sc->sc_in,0,&sc->sc_in_pipe);
 		if (err) {
 			error = EIO;
-			usbd_close_pipe(sc->sc_out_pipe);
-			sc->sc_out_pipe = NULL;
-			sc->sc_state = 0;
-			goto done;
+			goto err2;
 		}
-		sc->sc_in_xfer1 = usbd_alloc_xfer(sc->sc_udev);
-		sc->sc_in_xfer2 = usbd_alloc_xfer(sc->sc_udev);
-		if (sc->sc_in_xfer1 == NULL || sc->sc_in_xfer2 == NULL) {
+		sc->sc_in_xfer = usbd_alloc_xfer(sc->sc_udev);
+		if (sc->sc_in_xfer == NULL) {
 			error = ENOMEM;
-			if (sc->sc_in_xfer1 != NULL) {
-				usbd_free_xfer(sc->sc_in_xfer1);
-				sc->sc_in_xfer1 = NULL;
-			}
-			if (sc->sc_in_xfer2 != NULL) {
-				usbd_free_xfer(sc->sc_in_xfer2);
-				sc->sc_in_xfer2 = NULL;
-			}
-			usbd_close_pipe(sc->sc_out_pipe);
-			sc->sc_out_pipe = NULL;
-			usbd_close_pipe(sc->sc_in_pipe);
-			sc->sc_in_pipe = NULL;
-			sc->sc_state = 0;
-			goto done;
+			goto err3;
 		}
-		usbd_setup_xfer(sc->sc_in_xfer1, sc->sc_in_pipe, sc,
-		    sc->sc_junk, sizeof sc->sc_junk, USBD_SHORT_XFER_OK,
-		    USBD_NO_TIMEOUT, ulpt_input);
-		usbd_setup_xfer(sc->sc_in_xfer2, sc->sc_in_pipe, sc,
-		    sc->sc_junk, sizeof sc->sc_junk, USBD_SHORT_XFER_OK,
-		    USBD_NO_TIMEOUT, ulpt_input);
-		usbd_transfer(sc->sc_in_xfer1); /* ignore failed start */
+		sc->sc_in_buf = usbd_alloc_buffer(sc->sc_in_xfer, ULPT_BSIZE);
+		if (sc->sc_in_buf == NULL) {
+			error = ENOMEM;
+			goto err4;
+		}
+
+		/* If it's not opened for read the set up a reader. */
+		if (!(flags & FREAD)) {
+			DPRINTF(("ulpt_open: start read callout\n"));
+			usb_callout_init(sc->sc_read_callout);
+			usb_callout(sc->sc_read_callout, hz/5, ulpt_tick, sc);
+			sc->sc_has_callout = 1;
+		}
 	}
 
 	sc->sc_state = ULPT_OPEN;
+	goto done;
+
+ err4:
+	usbd_free_xfer(sc->sc_in_xfer);
+	sc->sc_in_xfer = NULL;
+ err3:
+	usbd_close_pipe(sc->sc_in_pipe);
+	sc->sc_in_pipe = NULL;
+ err2:
+	usbd_free_xfer(sc->sc_out_xfer);
+	sc->sc_out_xfer = NULL;
+ err1:
+	usbd_close_pipe(sc->sc_out_pipe);
+	sc->sc_out_pipe = NULL;
+ err0:
+	sc->sc_state = 0;
 
  done:
 	if (--sc->sc_refcnt < 0)
@@ -635,22 +666,29 @@ ulptclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 		/* We are being forced to close before the open completed. */
 		return (0);
 
+	if (sc->sc_has_callout) {
+		usb_uncallout(sc->sc_read_callout, ulpt_tick, sc);
+		sc->sc_has_callout = 0;
+	}
+
 	if (sc->sc_out_pipe != NULL) {
+		usbd_abort_pipe(sc->sc_out_pipe);
 		usbd_close_pipe(sc->sc_out_pipe);
 		sc->sc_out_pipe = NULL;
 	}
+	if (sc->sc_out_xfer != NULL) {
+		usbd_free_xfer(sc->sc_out_xfer);
+		sc->sc_out_xfer = NULL;
+	}
+
 	if (sc->sc_in_pipe != NULL) {
 		usbd_abort_pipe(sc->sc_in_pipe);
 		usbd_close_pipe(sc->sc_in_pipe);
 		sc->sc_in_pipe = NULL;
-		if (sc->sc_in_xfer1 != NULL) {
-			usbd_free_xfer(sc->sc_in_xfer1);
-			sc->sc_in_xfer1 = NULL;
-		}
-		if (sc->sc_in_xfer2 != NULL) {
-			usbd_free_xfer(sc->sc_in_xfer2);
-			sc->sc_in_xfer2 = NULL;
-		}
+	}
+	if (sc->sc_in_xfer != NULL) {
+		usbd_free_xfer(sc->sc_in_xfer);
+		sc->sc_in_xfer = NULL;
 	}
 
 	sc->sc_state = 0;
@@ -669,14 +707,8 @@ ulpt_do_write(struct ulpt_softc *sc, struct uio *uio, int flags)
 	usbd_status err;
 
 	DPRINTF(("ulptwrite\n"));
-	xfer = usbd_alloc_xfer(sc->sc_udev);
-	if (xfer == NULL)
-		return (ENOMEM);
-	bufp = usbd_alloc_buffer(xfer, ULPT_BSIZE);
-	if (bufp == NULL) {
-		usbd_free_xfer(xfer);
-		return (ENOMEM);
-	}
+	xfer = sc->sc_out_xfer;
+	bufp = sc->sc_out_buf;
 	while ((n = min(ULPT_BSIZE, uio->uio_resid)) != 0) {
 		ulpt_statusmsg(ulpt_status(sc), sc);
 		error = uiomove(bufp, n, uio);
@@ -691,7 +723,6 @@ ulpt_do_write(struct ulpt_softc *sc, struct uio *uio, int flags)
 			break;
 		}
 	}
-	usbd_free_xfer(xfer);
 
 	return (error);
 }
@@ -712,6 +743,102 @@ ulptwrite(struct cdev *dev, struct uio *uio, int flags)
 	if (--sc->sc_refcnt < 0)
 		usb_detach_wakeup(USBDEV(sc->sc_dev));
 	return (error);
+}
+
+int
+ulpt_do_read(struct ulpt_softc *sc, struct uio *uio, int flags)
+{
+	u_int32_t n, on;
+	int error = 0;
+	void *bufp;
+	usbd_xfer_handle xfer;
+	usbd_status err;
+
+	DPRINTF(("ulptread\n"));
+
+	if (sc->sc_in_pipe == NULL)
+		return 0;
+
+	xfer = sc->sc_in_xfer;
+	bufp = sc->sc_in_buf;
+	while ((n = min(ULPT_BSIZE, uio->uio_resid)) != 0) {
+		DPRINTFN(1, ("ulptread: transfer %d bytes\n", n));
+		on = n;
+		err = usbd_bulk_transfer(xfer, sc->sc_in_pipe,
+			  USBD_NO_COPY | USBD_SHORT_XFER_OK,
+			  USBD_NO_TIMEOUT, bufp, &n, "ulptrd");
+		if (err) {
+			DPRINTF(("ulptread: error=%d\n", err));
+			error = EIO;
+			break;
+		}
+		error = uiomove(bufp, n, uio);
+		if (error)
+			break;
+		if (on != n)
+			break;
+	}
+
+	return (error);
+}
+
+int
+ulptread(struct cdev *dev, struct uio *uio, int flags)
+{
+	struct ulpt_softc *sc;
+	int error;
+
+	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
+
+	if (sc->sc_dying)
+		return (EIO);
+
+	sc->sc_refcnt++;
+	error = ulpt_do_read(sc, uio, flags);
+	if (--sc->sc_refcnt < 0)
+		usb_detach_wakeup(USBDEV(sc->sc_dev));
+	return (error);
+}
+
+void
+ulpt_read_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
+	     usbd_status status)
+{
+	usbd_status err;
+	u_int32_t n;
+	usbd_private_handle xsc;
+	struct ulpt_softc *sc;
+
+	usbd_get_xfer_status(xfer, &xsc, NULL, &n, &err);
+	sc = xsc;
+
+	DPRINTFN(1,("ulpt_read_cb: start sc=%p, err=%d n=%d\n", sc, err, n));
+
+#ifdef ULPT_DEBUG
+	if (!err && n > 0)
+		DPRINTF(("ulpt_tick: discarding %d bytes\n", n));
+#endif
+	if (!err || err == USBD_TIMEOUT)
+		usb_callout(sc->sc_read_callout, hz / ULPT_READS_PER_SEC,
+			    ulpt_tick, sc);
+}
+
+void
+ulpt_tick(void *xsc)
+{
+	struct ulpt_softc *sc = xsc;
+	usbd_status err;
+
+	if (sc == NULL || sc->sc_dying)
+		return;
+
+	DPRINTFN(1,("ulpt_tick: start sc=%p\n", sc));
+
+	usbd_setup_xfer(sc->sc_in_xfer, sc->sc_in_pipe, sc, sc->sc_in_buf,
+			ULPT_BSIZE, USBD_NO_COPY | USBD_SHORT_XFER_OK,
+			ULPT_READ_TIMO, ulpt_read_cb);
+	err = usbd_transfer(sc->sc_in_xfer);
+	DPRINTFN(1,("ulpt_tick: err=%d\n", err));
 }
 
 int
