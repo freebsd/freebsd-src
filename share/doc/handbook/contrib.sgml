@@ -1,0 +1,266 @@
+<!-- $Id:$ -->
+<!-- The FreeBSD Documentation Project -->
+
+<chapt>FreeBSD contributor list<label id="contrib">
+
+  <sect>Derived software contributors
+
+    <p>This software was originally derived from William
+      F. Jolitz's 386BSD release 0.1, though almost none of the
+      original 386BSD specific code remains.  This software has
+      been essentially reimplemented from the 4.4 BSD Lite
+      release provided by the Computer Science Research Group
+      (CSRG) at the University of California, Berkeley and
+      associated academic contributors.
+
+      There are also portions of NetBSD that have been integrated
+      into FreeBSD as well, and we would therefore like to thank
+      all the contributors to NetBSD for their work.  Despite
+      some occasionally rocky moments in relations between the
+      two groups, we both want essentially the same thing: More
+      BSD based operating systems on people's computers!  We wish
+      the NetBSD group every success in their endevors.
+
+  <sect>Hardware contributors
+
+    <p>A special thank-you to Walnut Creek CDROM for providing
+      the Pentium P5-90 and 486/DX2-66 EISA/VL systems that are
+      being used for our development work, to say nothing of the
+      network access and other donations of hardware resources.
+      It would have been impossible to do this release without
+      their support.
+
+      TRW Financial Systems, Inc. provided 130 PCs, three 68 GB
+      fileservers, twelve ethernets, two routers and an ATM
+      switch for debugging the diskless code.  They also keep a
+      couple of FreeBSD hackers alive and busy.  Thanks!
+
+      Thanks also to Dermot McDonnell for his donation of a
+      Toshiba XM3401B CDROM drive.  It's been most useful!
+
+      Thanks to Chuck Robey &lt;chuckr@eng.umd.edu&gt; who's been
+      contributing his floppy tape streamer for experimental
+      work.
+
+  <sect>The FreeBSD core team<label id="contrib:core">
+
+    <p>(in alphabetical order by first name):
+
+      <itemize>
+	<item>Andrey A. Chernov &lt;ache@FreeBSD.org&gt;
+	<item>Bruce Evans &lt;bde@FreeBSD.org&gt;
+	<item>David Greenman &lt;davidg@FreeBSD.org&gt;
+	<item>Garrett A. Wollman &lt;wollman@FreeBSD.org&gt;
+	<item>Gary Palmer &lt;gpalmer@FreeBSD.org&gt;
+	<item>J&ouml;rg Wunsch &lt;joerg@FreeBSD.org&gt;
+	<item>John Dyson &lt;dyson@FreeBSD.org&gt;
+	<item>Jordan K. Hubbard &lt;jkh@FreeBSD.org&gt;
+	<item>Justin Gibbs &lt;gibbs@FreeBSD.org&gt;
+	<item>Paul Richards &lt;paul@FreeBSD.org&gt;
+	<item>Poul-Henning Kamp &lt;phk@FreeBSD.org&gt;
+	<item>Rich Murphey &lt;rich@FreeBSD.org&gt;
+	<item>Rodney W. Grimes &lt;rgrimes@FreeBSD.org&gt;
+	<item>Satoshi Asami &lt;asami@FreeBSD.org&gt;
+	<item>S&oslash;ren Schmidt &lt;sos@FreeBSD.org&gt;
+      </itemize>
+
+  <sect>Who is responsible for what
+
+    <p><descrip>
+	<tag/President/ Jordan K. Hubbard &lt;jkh@FreeBSD.org&gt;
+	<tag/Principle Architect/ David Greenman &lt;davidg@FreeBSD.org&gt;
+	<tag/Documentation/ John Fieber &lt;jfieber@FreeBSD.org&gt;
+	<tag/Internationalization/ Andrey A. Chernov &lt;ache@FreeBSD.org&gt;
+	<tag/Networking/ Garrett A. Wollman &lt;wollman@FreeBSD.org&gt;
+	<tag/Postmaster/ Jonathan M. Bresler &lt;jmb@FreeBSD.org&gt;
+	<tag/Public Relations/ Jordan Hubbard &lt;jkh@FreeBSD.org&gt;
+	<tag/Release Coordinator/ Jordan Hubbard &lt;jkh@FreeBSD.org&gt;
+	<tag/System Administration/ Gary Palmer &lt;gpalmer@FreeBSD.org&gt;
+	<tag/Webmasters/ John Fieber &lt;jfieber@FreeBSD.org&gt; and
+	  James L. Robinson &lt;jlrobin@FreeBSD.org&gt;
+	<tag/XFree86 Project, Inc. Liason/ Rich Murphey 
+	  &lt;rich@FreeBSD.org&gt;
+      </descrip>
+
+    <sect>Additional FreeBSD contributors
+
+      <p>(in alphabetical order by first name):
+
+	<itemize>
+	  <item>Adam David &lt;adam@veda.is&gt;
+	  <item>Adam Glass &lt;glass@postgres.berkeley.edu&gt;
+	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
+	  <item>Andreas Klemm &lt;andreas@knobel.GUN.de&gt;
+	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
+	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
+	  <item>Atsushi Murai &lt;amurai@spec.co.jp&gt;
+	  <item>Bill Paul &lt;wpaul@FreeBSD.org&gt;
+	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
+	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
+	  <item>Chris G. Demetriou &lt;cgd@postgres.berkeley.edu&gt;
+	  <item>Christian Gusenbauer &lt;cg@fimp01.fim.uni-linz.ac.at&gt;
+	  <item>Chris Torek &lt;torek@ee.lbl.gov&gt;
+	  <item>Christoph Robitschko &lt;chmr@edvz.tu-graz.ac.at&gt;
+	  <item>Curt Mayer &lt;curt@toad.com&gt;
+	  <item>Dave Burgess &lt;burgess@hrd769.brooks.af.mil&gt;
+	  <item>Dave Rivers &lt;rivers@ponds.uucp&gt;
+	  <item>David Dawes &lt;dawes@physics.su.OZ.AU&gt;
+	  <item>Dean Huxley &lt;dean@fsa.ca&gt;
+	  <item>Frank Durda IV  &lt;bsdmail@nemesis.lonestar.org&gt;
+	  <item>Frank Maclachlan &lt;fpm@crash.cts.com&gt;
+	  <item>Gary A. Browning &lt;gab10@griffcd.amdahl.com&gt;
+	  <item>Gary Clark II &lt;gclarkii@radon.gbdata.com&gt;
+	  <item>Gary Jennejohn &lt;gj%pcs.dec.com@inet-gw-1.pa.dec.com&gt;
+	  <item>Gene Stark &lt;stark@cs.sunysb.edu&gt;
+	  <item>Guido van Rooij &lt;guido@gvr.win.tue.nl&gt;
+	  <item>Havard Eidnes &lt;Havard.Eidnes@runit.sintef.no&gt;
+	  <item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
+	  <item>Ishii Masahiro, R. Kym Horsell
+	  <item>J.T. Conklin &lt;jtc@winsey.com&gt;
+	  <item>James Clark &lt;jjc@jclark.com&gt;
+	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
+	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
+	  <item>J&ouml;rg Wunsch &lt;joerg_wunsch@uriah.heep.sax.de&gt;
+	  <item>Julian Elischer &lt;julian@dialix.oz.au&gt;
+	  <item>Julian Stacey &lt;stacey@guug.de&gt; 
+	    (fallback: &lt;julian@meepmeep.pcs.com&gt)
+	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
+	  <item>Keith Moore &lt;?&gt;
+	  <item>L Jonas Olsson &lt;ljo@po.cwru.edu&gt;
+	  <item>Lars Fredriksen &lt;fredriks@mcs.com&gt;
+	  <item>Marc Frajola &lt;marc@escargot.rain.com&gt;
+	  <item>Mark Murray &lt;mark@grondar.za&gt;
+	  <item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt; 
+	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
+	  <item>Martin Birgmeier
+	  <item>Martin Renters &lt;martin@innovus.com&gt;
+	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
+	  <item>Nate Williams &lt;nate@FreeBSD.org&gt;
+	  <item>Nobuhiro Yasutomi &lt;nobu@@psrc.isac.co.jp&gt;
+	  <item>Ollivier Robert &lt;roberto@FreeBSD.org&gt;
+	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
+	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
+	  <item>Paul Traina &lt;pst@cisco.com&gt;
+	  <item>Peter Dufault &lt;dufault@hda.com&gt;
+	  <item>Chris Provenzano &lt;proven@athena.mit.edu&gt;
+	  <item>Rob Shady &lt;rls@id.net&gt;
+	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
+	  <item>Scott Mace &lt;smace@FreeBSD.org&gt;
+	  <item>Sean Eric Fagan &lt;sef@kithrup.com&gt;
+	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
+	  <item>Stefan Esser &lt;se@MI.Uni-Koeln.DE&gt;
+	  <item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
+	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
+	  <item>Steven Wallace &lt;swallace@ece.uci.edu&gt;
+	  <item>Tatsumi Hosokawa &lt;hosokawa@mt.cs.keio.ac.jp&gt;
+	  <item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
+	  <item>Theo Deraadt &lt;deraadt@fsa.ca&gt;
+	  <item>Torsten Blum &lt;torstenb@FreeBSD.ORG&gt;
+	  <item>Ugen J.S.Antsilevich &lt;ugen@NetVision.net.il&gt;
+	  <item>Wolfgang Stanglmeier &lt;wolf@kintaro.cologne.de&gt;
+	  <item>Wolfram Schneider &lt;wosch@cs.tu-berlin.de&gt;
+	  <item>Yuval Yarom &lt;yval@cs.huji.ac.il&gt;
+	  <item>Yves Fonk &lt;yves@cpcoup5.tn.tudelft.nl&gt;
+	</itemize>
+
+  <sect>386BSD Patch kit patch contributors
+
+    <p>(in alphabetical order by first name):
+
+      <itemize>
+	<item>Adam Glass &lt;glass@postgres.berkeley.edu&gt;
+	<item>Adrian Hall &lt;adrian@ibmpcug.co.uk&gt;
+	<item>Andrey A. Chernov &lt;ache@astral.msk.su&gt;
+	<item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
+	<item>Andrew Moore &lt;alm@netcom.com&gt;
+	<item>Andy Valencia &lt;ajv@csd.mot.com&gt; &lt;jtk@netcom.com&gt;
+	<item>Arne Henrik Juul &lt;arnej@Lise.Unit.NO&gt;
+	<item>Bakul Shah &lt;bvs@bitblocks.com&gt;
+	<item>Barry Lustig &lt;barry@ictv.com&gt;
+	<item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
+	<item>Branko Lankester
+	<item>Brett Lymn &lt;blymn@mulga.awadi.com.AU&gt;
+	<item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
+	<item>Chris G. Demetriou &lt;cgd@postgres.berkeley.edu&gt;
+	<item>Chris Torek &lt;torek@ee.lbl.gov&gt;
+	<item>Christoph Robitschko &lt;chmr@edvz.tu-graz.ac.at&gt;
+	<item>Daniel Poirot &lt;poirot@aio.jsc.nasa.gov&gt;
+	<item>Dave Burgess &lt;burgess@hrd769.brooks.af.mil&gt;
+	<item>Dave Rivers &lt;rivers@ponds.uucp&gt;
+	<item>David Dawes &lt;dawes@physics.su.OZ.AU&gt;
+	<item>David Greenman &lt;davidg@Root.COM&gt;
+	<item>Eric J. Haug &lt;ejh@slustl.slu.edu&gt;
+	<item>Felix Gaehtgens &lt;felix@escape.vsse.in-berlin.de&gt;
+	<item>Frank Maclachlan &lt;fpm@crash.cts.com&gt;
+	<item>Gary A. Browning &lt;gab10@griffcd.amdahl.com&gt;
+	<item>Geoff Rehmet &lt;csgr@alpha.ru.ac.za&gt;
+	<item>Goran Hammarback &lt;goran@astro.uu.se&gt;
+	<item>Guido van Rooij &lt;guido@gvr.win.tue.nl&gt;
+	<item>Guy Harris &lt;guy@auspex.com&gt;
+	<item>Havard Eidnes &lt;Havard.Eidnes@runit.sintef.no&gt;
+	<item>Herb Peyerl &lt;hpeyerl@novatel.cuc.ab.ca
+	<item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
+	<item>Ishii Masahiro, R. Kym Horsell
+	<item>J.T. Conklin &lt;jtc@winsey.com&gt;
+	<item>Jagane D Sundar &lt; jagane@netcom.com &gt;
+	<item>James Clark &lt;jjc@jclark.com&gt;
+	<item>James Jegers &lt;jimj@miller.cs.uwm.edu&gt;
+	<item>James W. Dolter
+	<item>James da Silva &lt;jds@cs.umd.edu&gt; et al
+	<item>Jay Fenlason &lt;hack@datacube.com&gt;
+	<item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
+	<item>Joerg Lohse &lt;lohse@tech7.informatik.uni-hamburg.de&gt;
+	<item>J&ouml;rg Wunsch &lt;joerg_wunsch@uriah.heep.sax.de&gt;
+	<item>John Dyson - &lt;formerly dyson@ref.tfs.com&gt;
+	<item>John Woods &lt;jfw@eddie.mit.edu&gt;
+	<item>Jordan K. Hubbard &lt;jkh@whisker.hubbard.ie&gt;
+	<item>Julian Elischer &lt;julian@dialix.oz.au&gt;
+	<item>Julian Stacey &lt;stacey@guug.de&gt; 
+	  (fallback: &lt;julian@meepmeep.pcs.com&gt;)
+	<item>Karl Lehenbauer &lt;karl@NeoSoft.com&gt; 
+	  &lt;karl@one.neosoft.com&gt;
+	<item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
+	<item>Ken Hughes
+	<item>Kent Talarico &lt;kent@shipwreck.tsoft.net&gt;
+	<item>Kevin Lahey &lt;kml%rokkaku.UUCP@mathcs.emory.edu&gt;
+	  &lt;kml@mosquito.cis.ufl.edu&gt;
+	<item>Marc Frajola &lt;marc@escargot.rain.com&gt;
+	<item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
+	  &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
+	<item>Martin Renters &lt;martin@innovus.com&gt;
+	<item>Michael Galassi &lt;nerd@percival.rain.com&gt;
+	<item>Mike Durkin &lt;mdurkin@tsoft.sf-bay.org&gt;
+	<item>Nate Williams &lt;nate@bsd.coe.montana.edu&gt;
+	<item>Nick Handel &lt;nhandel@NeoSoft.com&gt; 
+	  &lt;nick@madhouse.neosoft.com&gt;
+	<item>Pace Willisson &lt;pace@blitz.com&gt;
+	<item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
+	<item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
+	<item>Paul Popelka &lt;paulp@uts.amdahl.com&gt;
+	<item>Peter da Silva &lt;peter@NeoSoft.com&gt;
+	<item>Phil Sutherland &lt;philsuth@mycroft.dialix.oz.au&gt;
+	<item>Ralf Friedl &lt;friedl@informatik.uni-kl.de&gt;
+	<item>Rick Macklem &lt;root@snowhite.cis.uoguelph.ca&gt;
+	<item>Robert D. Thrush &lt;rd@phoenix.aii.com&gt;
+	<item>Rodney W. Grimes &lt;rgrimes@cdrom.com&gt;
+	<item>Rog Egge &lt;?&gt;
+	<item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
+	<item>Scott Burris &lt;scott@pita.cns.ucla.edu&gt;
+	<item>Scott Reynolds &lt;scott@clmqt.marquette.mi.us&gt;
+	<item>Sean Eric Fagan &lt;sef@kithrup.com&gt;
+	<item>Simon J Gerraty &lt;sjg@melb.bull.oz.au&gt;
+	  &lt;sjg@zen.void.oz.au&gt;
+	<item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
+	<item>Terry Lambert &lt;terry@icarus.weber.edu&gt;
+	<item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
+	<item>Warren Toomey &lt;wkt@csadfa.cs.adfa.oz.au&gt;
+	<item>Wiljo Heinen &lt;wiljo@freeside.ki.open.de&gt;
+	<item>William Jolitz &lt;withheld&gt;
+	<item>Wolfgang Solfrank &lt;ws@tools.de&gt;
+	<item>Wolfgang Stanglmeier &lt;wolf@dentaro.GUN.de&gt;
+	<item>Yuval Yarom &lt;yval@cs.huji.ac.il&gt;
+	</itemize>
+
+      Last, but not least, the release engineer would like to
+      thank: His Wife, for chocolate chip cookies, and some other
+      things.  The DGB project @ TFS, for patience and tolerance.
