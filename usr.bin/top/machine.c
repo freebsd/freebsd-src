@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.17 1998/11/26 12:59:21 bde Exp $
+ * $Id: machine.c,v 1.18 1999/01/09 20:25:02 obrien Exp $
  */
 
 
@@ -96,24 +96,13 @@ static struct nlist nlst[] = {
 #define X_AVENRUN	2
     { "_averunnable" },
 
-/* Swap */
-#define VM_SWAPLIST	3
-	{ "_swaplist" },/* list of free swap areas */
-#define VM_SWDEVT	4
-	{ "_swdevt" },	/* list of swap devices and sizes */
-#define VM_NSWAP	5
-	{ "_nswap" },	/* size of largest swap device */
-#define VM_NSWDEV	6
-	{ "_nswdev" },	/* number of swap devices */
-#define VM_DMMAX	7
-	{ "_dmmax" },	/* maximum size of a swap block */
-#define X_BUFSPACE	8
+#define X_BUFSPACE	3
 	{ "_bufspace" },	/* K in buffer cache */
-#define X_CNT           9
+#define X_CNT           4
     { "_cnt" },		        /* struct vmmeter cnt */
 
 /* Last pid */
-#define X_LASTPID	10
+#define X_LASTPID	5
     { "_nextpid" },		
     { 0 }
 };
@@ -981,138 +970,24 @@ swapmode(retavail, retfree)
 	int *retavail;
 	int *retfree;
 {
-	char *header;
-	int hlen, nswap, nswdev, dmmax;
-	int i, div, avail, nfree, npfree, used;
-	struct swdevt *sw;
-	long blocksize, *perdev;
-	u_long ptr;
-	struct rlist head;
-#if __FreeBSD_version >= 220000
-	struct rlisthdr swaplist;
-#else 
-	struct rlist *swaplist;
-#endif
-	struct rlist *swapptr;
+	int n;
+	int pagesize = getpagesize();
+	struct kvm_swap swapary[1];
 
-	/*
-	 * Counter for error messages. If we reach the limit,
-	 * stop reading information from swap devices and
-	 * return zero. This prevent endless 'bad address'
-	 * messages.
-	 */
-	static warning = 10;
+	*retavail = 0;
+	*retfree = 0;
 
-	if (warning <= 0) {
-	    /* a single warning */
-	    if (!warning) {
-		warning--;
-		fprintf(stderr, 
-			"Too much errors, stop reading swap devices ...\n");
-		(void)sleep(3);
-	    }
-	    return(0);
-	}
-	warning--; /* decrease counter, see end of function */
+#define CONVERT(v)	((quad_t)(v) * pagesize / 1024)
 
-	KGET(VM_NSWAP, nswap);
-	if (!nswap) {
-		fprintf(stderr, "No swap space available\n");
+	n = kvm_getswapinfo(kd, swapary, 1, 0);
+	if (n < 0)
 		return(0);
-	}
 
-	KGET(VM_NSWDEV, nswdev);
-	KGET(VM_DMMAX, dmmax);
-	KGET1(VM_SWAPLIST, &swaplist, sizeof(swaplist), "swaplist");
-	if ((sw = (struct swdevt *)malloc(nswdev * sizeof(*sw))) == NULL ||
-	    (perdev = (long *)malloc(nswdev * sizeof(*perdev))) == NULL)
-		err(1, "malloc");
-	KGET1(VM_SWDEVT, &ptr, sizeof ptr, "swdevt");
-	KGET2(ptr, sw, nswdev * sizeof(*sw), "*swdevt");
+	*retavail = CONVERT(swapary[0].ksw_total);
+	*retfree = CONVERT(swapary[0].ksw_total - swapary[0].ksw_used);
 
-	/* Count up swap space. */
-	nfree = 0;
-	memset(perdev, 0, nswdev * sizeof(*perdev));
-#if  __FreeBSD_version >= 220000
-	swapptr = swaplist.rlh_list;
-	while (swapptr) {
-#else
-	while (swaplist) {
-#endif
-		int	top, bottom, next_block;
-#if  __FreeBSD_version >= 220000
-		KGET2(swapptr, &head, sizeof(struct rlist), "swapptr");
-#else
-		KGET2(swaplist, &head, sizeof(struct rlist), "swaplist");
-#endif
-
-		top = head.rl_end;
-		bottom = head.rl_start;
-
-		nfree += top - bottom + 1;
-
-		/*
-		 * Swap space is split up among the configured disks.
-		 *
-		 * For interleaved swap devices, the first dmmax blocks
-		 * of swap space some from the first disk, the next dmmax
-		 * blocks from the next, and so on up to nswap blocks.
-		 *
-		 * The list of free space joins adjacent free blocks,
-		 * ignoring device boundries.  If we want to keep track
-		 * of this information per device, we'll just have to
-		 * extract it ourselves.
-		 */
-		while (top / dmmax != bottom / dmmax) {
-			next_block = ((bottom + dmmax) / dmmax);
-			perdev[(bottom / dmmax) % nswdev] +=
-				next_block * dmmax - bottom;
-			bottom = next_block * dmmax;
-		}
-		perdev[(bottom / dmmax) % nswdev] +=
-			top - bottom + 1;
-
-#if  __FreeBSD_version >= 220000
-		swapptr = head.rl_next;
-#else
-		swaplist = head.rl_next;
-#endif
-	}
-
-	header = getbsize(&hlen, &blocksize);
-	div = blocksize / 512;
-	avail = npfree = 0;
-	for (i = 0; i < nswdev; i++) {
-		int xsize, xfree;
-
-		/*
-		 * Don't report statistics for partitions which have not
-		 * yet been activated via swapon(8).
-		 */
-		if (!(sw[i].sw_flags & SW_FREED))
-			continue;
-
-		/* The first dmmax is never allocated to avoid trashing of
-		 * disklabels
-		 */
-		xsize = sw[i].sw_nblks - dmmax;
-		xfree = perdev[i];
-		used = xsize - xfree;
-		npfree++;
-		avail += xsize;
-	}
-
-	/* 
-	 * If only one partition has been set up via swapon(8), we don't
-	 * need to bother with totals.
-	 */
-	*retavail = avail / 2;
-	*retfree = nfree / 2;
-	used = avail - nfree;
-	free(sw); free(perdev);
-
-	/* increase counter, no errors occurs */
-	warning++; 
-
-	return  (int)(((double)used / (double)avail * 100.0) + 0.5);
+	n = (int)((double)swapary[0].ksw_used * 100.0 /
+	    (double)swapary[0].ksw_total);
+	return(n);
 }
+
