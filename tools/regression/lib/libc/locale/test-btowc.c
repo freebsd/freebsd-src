@@ -26,7 +26,7 @@
 
 /*
  * Test program for btowc() and wctob() as specified by IEEE Std. 1003.1-2001
- * and * ISO/IEC 9899:1999.
+ * and ISO/IEC 9899:1999.
  *
  * The function is tested in only the "C" locale.
  */
