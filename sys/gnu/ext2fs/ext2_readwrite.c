@@ -89,10 +89,8 @@ READ(ap)
 		panic("%s: type %d", READ_S, vp->v_type);
 #endif
 	fs = ip->I_FS;
-#if 0
-	if ((u_quad_t)uio->uio_offset > fs->fs_maxfilesize)
+	if ((uoff_t)uio->uio_offset > fs->fs_maxfilesize)
 		return (EFBIG);
-#endif
 
 	orig_resid = uio->uio_resid;
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
@@ -207,11 +205,9 @@ WRITE(ap)
 	}
 
 	fs = ip->I_FS;
-#if 0
 	if (uio->uio_offset < 0 ||
-	    (u_quad_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize)
+	    (uoff_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize)
 		return (EFBIG);
-#endif
 	/*
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, I don't think it matters.
