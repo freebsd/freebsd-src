@@ -41,6 +41,10 @@
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
+#ifdef PC98
+#include <pc98/pc98/pc98_machdep.h>
+#endif
+
 #define NUM_STARS	50
 
 static int blanked;

@@ -43,6 +43,10 @@
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
+#ifdef PC98
+#include <pc98/pc98/pc98_machdep.h>
+#endif
+
 #define DAEMON_MAX_WIDTH	32
 #define DAEMON_MAX_HEIGHT	19
 
@@ -200,9 +204,15 @@ draw_string(sc_softc_t *sc, int xpos, int ypos, int xoff, char *s, int len)
 	int x;
 
 	for (x = xoff; x < len; x++) {
+#ifdef PC98
+		sc_vtb_putc(&sc->cur_scp->scr,
+			    ypos*sc->cur_scp->xsize + xpos + x,
+			    sc->scr_map[s[x]], (FG_GREEN | BG_BLACK) << 8);
+#else
 		sc_vtb_putc(&sc->cur_scp->scr,
 			    ypos*sc->cur_scp->xsize + xpos + x,
 			    sc->scr_map[s[x]], (FG_LIGHTGREEN | BG_BLACK) << 8);
+#endif
 	}
 }
 
