@@ -2,7 +2,7 @@
 #	$FreeBSD$
 
 #MISSING: dump.5 plot.5
-MAN=	a.out.5 acct.5 core.5 devfs.5 device.hints.5 \
+MAN=	a.out.5 acct.5 core.5 config.5 devfs.5 device.hints.5 \
 	dir.5 disktab.5 drivers.conf.5 \
 	elf.5 ethers.5 fbtab.5 fdescfs.5 forward.5 fs.5 fstab.5 group.5 \
 	hesiod.conf.5 \
