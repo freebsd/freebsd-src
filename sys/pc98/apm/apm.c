@@ -592,7 +592,7 @@ apm_suspend(int state)
 	apm_lastreq_notify();
 }
 
-void
+static void
 apm_resume(void)
 {
 	struct apm_softc *sc = &apm_softc;
