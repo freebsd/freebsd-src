@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: rijndael-api-fst.c,v 1.10 2001/05/27 09:34:18 itojun Exp $	*/
 
 /*
@@ -15,6 +14,9 @@
  *
  * This code is placed in the public domain.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>

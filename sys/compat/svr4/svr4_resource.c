@@ -1,10 +1,4 @@
-/*	Derived from:
- *      $NetBSD: svr4_resource.c,v 1.3 1998/12/13 18:00:52 christos Exp $
- */
-
 /*-
- * Original copyright:
- *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -38,10 +32,7 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
- * $FreeBSD$
  */
-
 /*
  * Portions of this software have been derived from software contributed
  * to the FreeBSD Project by Mark Newton.
@@ -70,7 +61,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Derived from: $NetBSD: svr4_resource.c,v 1.3 1998/12/13 18:00:52 christos Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
