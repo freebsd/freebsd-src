@@ -1,20 +1,42 @@
 #
-# $FreeBSD$
+# $Id$
 #
-
-SRCS=	strerror.c strsignal.c
-SRCS+=	filedoalloc.c floatconv.c genops.c fileops.c iovfprintf.c iovfscanf.c ioignore.c iopadn.c iofgetpos.c iofread.c iofscanf.c iofsetpos.c iogetdelim.c iogetline.c ioprintf.c ioseekoff.c ioseekpos.c outfloat.c strops.c iofclose.c iopopen.c ioungetc.c builtinbuf.cc filebuf.cc fstream.cc indstream.cc ioassign.cc ioextend.cc iomanip.cc iostream.cc isgetline.cc isgetsb.cc isscan.cc osform.cc procbuf.cc sbform.cc sbgetline.cc sbscan.cc stdiostream.cc stdstrbufs.cc stdstreams.cc stream.cc streambuf.cc strstream.cc PlotFile.cc SFile.cc parsestream.cc pfstream.cc editbuf.cc ioprims.c iostrerror.c cleanup.c
-SRCS+=	AllocRing.cc Obstack.cc builtin.cc Regex.cc String.cc Intdouble.cc Integer.cc Rational.cc Complex.cc Random.cc BitSet.cc BitString.cc LogNorm.cc SmplHist.cc SmplStat.cc Normal.cc NegExp.cc Weibull.cc Erlang.cc DiscUnif.cc Uniform.cc Poisson.cc HypGeom.cc Geom.cc Binomial.cc RNG.cc ACG.cc MLCG.cc RndInt.cc Fix.cc Fix16.cc Fix24.cc CursesW.cc GetOpt.cc except.c new.cc chr.cc error.cc gcd.cc hash.cc lg.cc fmtq.cc ioob.cc pow.cc sqrt.cc str.cc timer.c math.cc compare.cc bitand.c bitany.c bitblt.c bitclear.c bitcopy.c bitcount.c bitinvert.c bitlcomp.c bitset1.c bitxor.c SLList.cc DLList.cc
-SRCS+=	rx.c 
+SRCS=	bitand.c bitany.c bitblt.c bitclear.c bitcopy.c bitcount.c \
+	bitinvert.c bitlcomp.c bitset1.c bitxor.c cleanup.c except.c \
+	filedoalloc.c fileops.c floatconv.c genops.c iofclose.c iofgetpos.c \
+	iofread.c iofscanf.c iofsetpos.c iogetdelim.c iogetline.c ioignore.c \
+	iopadn.c iopopen.c ioprims.c ioprintf.c ioseekoff.c ioseekpos.c \
+	iostrerror.c ioungetc.c iovfprintf.c iovfscanf.c outfloat.c \
+	rx.c strerror.c strops.c strsignal.c timer.c
+SRCS+=	ACG.cc AllocRing.cc Binomial.cc BitSet.cc BitString.cc Complex.cc \
+	CursesW.cc DLList.cc DiscUnif.cc Erlang.cc Fix.cc Fix16.cc Fix24.cc \
+	Geom.cc GetOpt.cc HypGeom.cc Intdouble.cc Integer.cc LogNorm.cc \
+	MLCG.cc NegExp.cc Normal.cc Obstack.cc PlotFile.cc Poisson.cc RNG.cc \
+	Random.cc Rational.cc Regex.cc RndInt.cc SFile.cc SLList.cc \
+	SmplHist.cc SmplStat.cc String.cc Uniform.cc Weibull.cc builtin.cc \
+	builtinbuf.cc chr.cc compare.cc editbuf.cc error.cc filebuf.cc \
+	fmtq.cc fstream.cc gcd.cc hash.cc indstream.cc ioassign.cc \
+	ioextend.cc iomanip.cc ioob.cc iostream.cc isgetline.cc isgetsb.cc \
+	isscan.cc lg.cc math.cc new.cc osform.cc parsestream.cc pfstream.cc \
+	pow.cc procbuf.cc sbform.cc sbgetline.cc sbscan.cc sqrt.cc \
+	stdiostream.cc stdstrbufs.cc stdstreams.cc str.cc stream.cc \
+	streambuf.cc strstream.cc
 LIB=	g++
 NOMAN=	noman
 CFLAGS+=	-nostdinc -I${.CURDIR}/include -I/usr/include
-CXXFLAGS+=	-I${.CURDIR}/include -I/usr/include/g++ -I/usr/include -nostdinc++
+CXXFLAGS+=	-I${.CURDIR}/include -I/usr/include/g++ -I/usr/include \
+		-nostdinc++
 LDADD+= -lcurses -lcompat
+DPADD+=	${LIBCURSES} ${LIBCOMPAT}
 .PATH:	${.CURDIR}/libiberty ${.CURDIR}/libio ${.CURDIR}/libg++ ${.CURDIR}/librx
 
 beforeinstall:
-	@-if [ ! -d ${DESTDIR}/usr/include/g++ ]; then  mkdir ${DESTDIR}/usr/include/g++;  chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/g++;  chmod 755 ${DESTDIR}/usr/include/g++;  fi
-	@(cd ${.CURDIR}/include ; for j in *.h; do  cmp -s $$j ${DESTDIR}/usr/include/g++/$$j ||  install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$j  ${DESTDIR}/usr/include/g++/$$j;  done)
+	cd ${.CURDIR}/include; \
+	for i in *.h; do \
+		cmp -s $$i ${DESTDIR}/usr/include/g++/$$i || \
+			install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
+			${DESTDIR}/usr/include/g++/$$i; \
+	done
 
 .include <bsd.lib.mk>
+.include <bsd.prog.mk>
