@@ -464,7 +464,15 @@ WRITE(ap)
 
 	resid = uio->uio_resid;
 	osize = ip->i_size;
-	flags = ioflag & B_SEQMASK;	/* sequential heuristic high 16 bits */
+
+	/*
+	 * NOTE! These B_ flags are actually balloc-only flags, not buffer
+	 * flags.  They are similar to the BA_ flags in -current.
+	 */
+	if (seqcount > B_SEQMAX)
+		flags = B_SEQMAX << B_SEQSHIFT;
+	else
+		flags = seqcount << B_SEQSHIFT;
 	if ((ioflag & IO_SYNC) && !DOINGASYNC(vp))
 		flags |= B_SYNC;
 
