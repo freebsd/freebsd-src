@@ -23,7 +23,7 @@ key to quit
 .Nm .
 .Nm Piano
 uses
-.Em /dev/speaker .
+.Pa /dev/speaker .
 .Pp
 Available option:
 .Bl -tag -width flag
@@ -44,15 +44,17 @@ usage.
 The
 .Fl i
 option initializes
-.Em /dev/speaker
+.Pa /dev/speaker
 by
 .Ar string .
-The default value is 't160 o1 l16 ml'.
+The default value is
+.Ql "t160 o1 l16 ml" .
 .El
 .Sh FILES
 .Bl -tag -width /dev/speakerxx
 .It Pa /dev/speaker
 speaker device file
+.El
 .Sh SEE ALSO
 .Xr spkr 4
 .Sh AUTHORS
