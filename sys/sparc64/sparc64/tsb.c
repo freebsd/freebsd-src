@@ -95,13 +95,25 @@ int
 tsb_miss(pmap_t pm, u_int type, struct mmuframe *mf)
 {
 	struct stte *stp;
+	struct tte tte;
 	vm_offset_t va;
 
-	va = mf->mf_tar;
+	va = TLB_TAR_VA(mf->mf_tar);
 	if ((stp = tsb_stte_lookup(pm, va)) == NULL)
 		return (EFAULT);
 	switch (type) {
-	case T_DMMU_MISS:
+	case T_DMMU_MISS | T_KERNEL:
+		stp->st_tte.tte_data |= TD_REF;
+		tte = stp->st_tte;
+		if ((tte.tte_data & TD_MOD) == 0)
+			tte.tte_data &= ~TD_W;
+		tlb_store(TLB_DTLB, va, tte);
+		break;
+	case T_DMMU_PROT | T_KERNEL:
+		if ((stp->st_tte.tte_data & TD_W) == 0)
+			return (EFAULT);
+		tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
+		stp->st_tte.tte_data |= TD_MOD;
 		tlb_store(TLB_DTLB, va, stp->st_tte);
 		break;
 	default:
@@ -114,10 +126,16 @@ struct tte
 tsb_page_alloc(pmap_t pm, vm_offset_t va)
 {
 	struct tte tte;
+	vm_offset_t pa;
+	vm_page_t m;
 
-	/* XXX */
-	tte.tte_tag = 0;
-	tte.tte_data = 0;
+	m = vm_page_alloc(pm->pm_object, pm->pm_pages++, VM_ALLOC_SYSTEM);
+	if (m == NULL)
+		panic("tsb_page_alloc: vm_page_alloc\n");
+	pa = VM_PAGE_TO_PHYS(m);
+	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
+	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) | TD_L |
+	    TD_MOD | TD_REF | TD_CP | TD_P | TD_W;
 	return (tte);
 }
 
@@ -159,6 +177,9 @@ tsb_stte_lookup(pmap_t pm, vm_offset_t va)
 	struct stte *bucket;
 	u_int level;
 	u_int i;
+
+	if (pm == kernel_pmap)
+		return tsb_kvtostte(va);
 
 	va = trunc_page(va);
 	for (level = 0; level < TSB_DEPTH; level++) {
