@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.19 1997/07/02 13:53:31 ache Exp $
+ *		$Id: init.c,v 1.20 1997/07/03 11:37:43 ache Exp $
  */
 
 #ifndef lint
@@ -1393,7 +1393,10 @@ death()
 	register session_t *sp;
 	register int i;
 	pid_t pid;
-	static const int death_sigs[3] = { SIGHUP, SIGTERM, SIGKILL };
+	char *devname;
+	int tlen_cur, tlen_max;
+	struct ttyent *typ;
+	static const int death_sigs[2] = { SIGTERM, SIGKILL };
 
 	for (sp = sessions; sp; sp = sp->se_next)
 		sp->se_flags |= SE_SHUTDOWN;
@@ -1401,7 +1404,28 @@ death()
 	/* NB: should send a message to the session logger to avoid blocking. */
 	logwtmp("~", "shutdown", "");
 
-	for (i = 0; i < 3; ++i) {
+	tlen_max = 0;
+	devname = NULL;
+	while (typ = getttyent()) {
+		if (typ->ty_name != 0) {
+			tlen_cur = strlen(typ->ty_name);
+			if (tlen_cur > 0) {
+				if (tlen_cur > tlen_max) {
+					tlen_max = tlen_cur;
+					devname = realloc(devname, sizeof(_PATH_DEV) + tlen_max);
+				}
+				if (devname != NULL) {
+					(void) sprintf(devname, "%s%s", _PATH_DEV, typ->ty_name);
+					(void) revoke(devname);
+				}
+			}
+		}
+	}
+	endttyent();
+	if (devname != NULL)
+		free(devname);
+
+	for (i = 0; i < 2; ++i) {
 		if (kill(-1, death_sigs[i]) == -1 && errno == ESRCH)
 			return (state_func_t) single_user;
 
