@@ -89,7 +89,8 @@ devname(dev, type)
 	mode_t type;
 {
 	static char buf[30];	 /* XXX: pick up from <sys/conf.h> */
-	int i, j;
+	int i;
+	size_t j;
 	char *r;
 
 	/* First check the DB file. */
