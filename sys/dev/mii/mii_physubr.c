@@ -222,13 +222,13 @@ mii_phy_update(sc, cmd)
 {
 	struct mii_data *mii = sc->mii_pdata;
 
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
+	if (sc->mii_media_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
 		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
+		sc->mii_media_active = mii->mii_media_active;
 	}
-	if (sc->mii_status != mii->mii_media_status) {
+	if (sc->mii_media_status != mii->mii_media_status) {
 		MIIBUS_LINKCHG(sc->mii_dev);
-		sc->mii_status = mii->mii_media_status;
+		sc->mii_media_status = mii->mii_media_status;
 	}
 }
 
