@@ -1412,7 +1412,7 @@ xl_attach(dev)
 	caddr_t			roundptr;
 	struct xl_type		*p;
 	u_int16_t		phy_vid, phy_did, phy_sts;
-	int			unit, error, rid;
+	int			unit, error = 0, rid;
 
 	s = splimp();
 
@@ -1812,7 +1812,7 @@ xl_attach(dev)
 
 fail:
 	splx(s);
-	return(0);
+	return(error);
 }
 
 static int xl_detach(dev)
