@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.12 1997/04/13 06:44:20 jkh Exp $
+#	$Id: bsd.dep.mk,v 1.13 1997/06/18 03:39:34 asami Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -83,9 +83,9 @@ tags: ${SRCS} _SUBDIR
 .endif
 .endif
 
-.if defined(SRCS)
 .if !target(cleandepend)
 cleandepend: _SUBDIR
+.if defined(SRCS)
 	rm -f ${DEPENDFILE}
 	rm -f ${.CURDIR}/GRTAGS ${.CURDIR}/GTAGS
 .if defined(HTML)
