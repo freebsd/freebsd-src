@@ -44,7 +44,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h> 
@@ -78,7 +77,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <sys/kernel.h>
 #include <net/iso88025.h>
 
 void

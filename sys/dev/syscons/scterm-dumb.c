@@ -30,7 +30,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/consio.h>
 
 #include <machine/pc/display.h>
