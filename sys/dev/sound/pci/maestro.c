@@ -655,18 +655,9 @@ aggch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c,
 	ch->num = ess->playchns;
 	ch->dir = dir;
 
-	p = dma_malloc(ess, ess->bufsz, &physaddr);
-	if (p == NULL)
-		return NULL;
+	physaddr = ess->baseaddr + ch->offset;
+	p = ess->stat + ch->offset;
 	sndbuf_setup(b, p, ess->bufsz);
-
-	ch->offset = physaddr - ess->baseaddr;
-	if (physaddr < ess->baseaddr || ch->offset > WPWA_MAXADDR) {
-		device_printf(ess->dev,
-		    "offset %#llx exceeds limit. ", (long long)ch->offset);
-		dma_free(ess, sndbuf_getbuf(b));
-		return NULL;
-	}
 
 	ch->wcreg_tpl = (physaddr - 16) & WAVCACHE_CHCTL_ADDRTAG_MASK;
 
@@ -683,12 +674,6 @@ aggch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c,
 static int
 aggch_free(kobj_t obj, void *data)
 {
-	struct agg_chinfo *ch = data;
-	struct agg_info *ess = ch->parent;
-
-	/* free up buffer - called after channel stopped */
-	dma_free(ess, sndbuf_getbuf(ch->buffer));
-
 	/* return 0 if ok */
 	return 0;
 }
@@ -957,6 +942,8 @@ agg_attach(device_t dev)
 	struct resource	*irq = NULL;
 	void	*ih = NULL;
 	char	status[SND_STATUSLEN];
+	bus_addr_t offset;
+	int	i;
 
 	if ((ess = malloc(sizeof *ess, M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
@@ -971,21 +958,28 @@ agg_attach(device_t dev)
 	    /*boundary*/WPWA_MAXADDR + 1,
 	    /*lowaddr*/MAESTRO_MAXADDR, /*highaddr*/BUS_SPACE_MAXADDR,
 	    /*filter*/NULL, /*filterarg*/NULL,
-	    /*maxsize*/ess->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
-	    /*flags*/0, /*lockfunc*/busdma_lock_mutex,
+	    /*maxsize*/ess->bufsz * (1 + AGG_MAXPLAYCH + 1), /*nsegments*/1,
+	    /*maxsegz*/0x3ffff, /*flags*/0, /*lockfunc*/busdma_lock_mutex,
 	    /*lockarg*/&Giant, &ess->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}
 
-	ess->stat = dma_malloc(ess, ess->bufsz, &ess->baseaddr);
+	ess->stat = dma_malloc(ess, ess->bufsz * (1 + AGG_MAXPLAYCH + 1),
+	    &ess->baseaddr);
 	if (ess->stat == NULL) {
-		device_printf(dev, "cannot allocate status buffer\n");
+		device_printf(dev, "cannot allocate DMA memory\n");
 		goto bad;
 	}
 	if (bootverbose)
 		device_printf(dev, "Maestro DMA base: %#llx\n",
 		    (long long)ess->baseaddr);
+	offset = ess->bufsz;
+	for (i = 0; i < AGG_MAXPLAYCH; i++) {
+		ess->pch[i].offset = offset;
+		offset += ess->bufsz;
+	}
+	ess->rch.offset = offset;
 
 	agg_power(ess, PPMI_D0);
 	DELAY(100000);
