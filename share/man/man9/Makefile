@@ -252,6 +252,7 @@ MAN=	accept_filter.9 \
 	vm_map_clean.9 \
 	vm_map_create.9 \
 	vm_map_delete.9 \
+	vm_map_entry_resize_free.9 \
 	vm_map_find.9 \
 	vm_map_findspace.9 \
 	vm_map_inherit.9 \
