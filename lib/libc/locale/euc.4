@@ -93,10 +93,10 @@ byte0 << ((\fIlen\fPN-1) * 8) | byte1 << ((\fIlen\fPN-2) * 8) | ... | byte\fIlen
 The result is then ANDed with
 .Ar ~mask
 and ORed with
-.Ar mask\fPN.
+.Ar maskN .
 Codesets 2 and 3 are special in that the leading byte (0x8e or 0x8f) is
 first removed and the
-.Ar len\fPN
+.Ar lenN
 argument is reduced by 1.
 .sp
 For example, the Japanese locale has the following
