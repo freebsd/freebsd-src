@@ -532,6 +532,7 @@ cpp_create_reader (lang)
   CPP_OPTION (pfile, operator_names) = 1;
   CPP_OPTION (pfile, warn_endif_labels) = 1;
   CPP_OPTION (pfile, warn_long_long) = !CPP_OPTION (pfile, c99);
+  CPP_OPTION (pfile, warn_system_headers) = 1;
 
   CPP_OPTION (pfile, pending) =
     (struct cpp_pending *) xcalloc (1, sizeof (struct cpp_pending));

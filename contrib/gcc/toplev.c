@@ -1410,7 +1410,7 @@ int inhibit_warnings = 0;
 
 /* Don't suppress warnings from system headers.  -Wsystem-headers.  */
 
-int warn_system_headers = 0;
+int warn_system_headers = 1;
 
 /* Print various extra warnings.  -W.  */
 
