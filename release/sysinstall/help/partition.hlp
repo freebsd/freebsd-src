@@ -72,16 +72,16 @@ looking at disk storage works:
 
 
 In FreeBSD's new system, a device name can be broken up into up to 3
-parts.  Take a typical name like ``/dev/sd0s1a'':
+parts.  Take a typical name like ``/dev/da0s1a'':
 
       The first three characters represent the drive name.  If we had
-      a system with two SCSI drives on it then we'd see /dev/sd0 and
-      /dev/sd1 as the device entries representing the entire drives.
+      a system with two SCSI drives on it then we'd see /dev/da0 and
+      /dev/da1 as the device entries representing the entire drives.
 
       Next you have the "slice" (or "FDISK Partition") number,
-      as seen in the Partition Editor.  Assuming that our sd0
+      as seen in the Partition Editor.  Assuming that our da0
       contained two slices, a FreeBSD slice and a DOS slice, that
-      would give us /dev/sd0s1 and /dev/sd0s2 as device entries pointing
+      would give us /dev/da0s1 and /dev/da0s2 as device entries pointing
       to the entire slices.
 
       Next, if a slice is a FreeBSD slice, you can have a number of
@@ -89,13 +89,13 @@ parts.  Take a typical name like ``/dev/sd0s1a'':
 
       These partitions are where various filesystems or swap areas live,
       and using our hypothetical two-SCSI-disk machine again, we might
-      have something like the following layout on sd0:
+      have something like the following layout on da0:
 
               Name            Mountpoint
               ----            ----------
-              sd0s1a          /
-              sd0s1b          <swap space>
-              sd0s1e          /usr
+              da0s1a          /
+              da0s1b          <swap space>
+              da0s1e          /usr
 
       Because of historical convention, there is also a short-cut,
       or "compatibility slice", that is maintained for easy access
@@ -108,13 +108,13 @@ parts.  Take a typical name like ``/dev/sd0s1a'':
 
               Name            Mountpoint
               ----            ----------
-              sd0a            /
-              sd0b            <swap space>
-              sd0e            /usr
+              da0a            /
+              da0b            <swap space>
+              da0e            /usr
 
       Again, let it be noted: FreeBSD automatically maps the
       compatibility slice to the first FreeBSD slice it finds
-      (in this case, sd0s1).  You may have multiple FreeBSD slices on a
+      (in this case, da0s1).  You may have multiple FreeBSD slices on a
       drive, but only the first one will be mapped to the compatibility
       slice!
 
