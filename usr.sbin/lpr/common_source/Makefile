@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1997/12/02 20:45:17 wollman Exp $
+#	$Id: Makefile,v 1.2 1998/05/13 06:49:19 jb Exp $
 
 #
 # Library of internal routines for the print spooler suite.
@@ -13,9 +13,6 @@ NOPROFILE=	noprofile
 NOPIC=		nopic
 CFLAGS+=	-Wall -Wnested-externs -Wmissing-prototypes \
 		-Wstrict-prototypes -Wredundant-decls
-.if ${MACHINE_ARCH} == "i386"
-CFLAGS+=	-Werror
-.endif
 
 install:
 
