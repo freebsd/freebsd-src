@@ -554,7 +554,7 @@
 
       <para arch="i386">The sbni driver, for supporting the Granch
       SBNI12 series of ISA and PCI point-to-point communications
-      interfaces, has been added.</para>
+      interfaces, has been added. &merged;</para>
 
       <para>Added support for PCI Ethernet adapters based on the
       National Semiconductor DP83815 chipset, including the NetGear
@@ -954,7 +954,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para arch="i386">smbfs (CIFS) support in kernel has been added.
       The userland programs &man.smbutil.1; and &man.mount.smbfs.8;
-      can be used to work with SMB shares. &merged;</para>
+      can be used to work with SMB shares.  Note that
+      &man.mount.smbfs.8; will automatically load the smbfs
+      module into the kernel, even if <literal>LIBMCHAIN</literal> and
+      <literal>LIBICONV</literal> were not compiled into the kernel.
+      &merged;</para>
 
       <para>For consistency, the fdesc, fifo, null, msdos, portal,
       umap, and union filesystems have been renamed to fdescfs,
@@ -1640,7 +1644,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>The &man.groups.1; and &man.whoami.1; shell scripts are now
     unnecessary; their functionality has been completely folded into
-    &man.id.1;.</para>
+    &man.id.1;. &merged;</para>
 
     <para>The &man.ibcs2.8;, &man.linux.8;, &man.osf1.8;, and &man.svr4.8;
     scripts, whose sole purpose was to load emulation
@@ -2108,7 +2112,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.sysctl.8; now supports a <option>-e</option> option to
     separate variable names and values by <literal>=</literal> rather
     than <literal>:</literal>.  This feature is useful for producing
-    output that can be fed back to &man.sysctl.8;.</para>
+    output that can be fed back to &man.sysctl.8;. &merged;</para>
 
     <para>&man.sysinstall.8; now properly preserves
     <filename>/etc/mail</filename> during a binary upgrade. &merged;</para>
