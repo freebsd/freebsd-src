@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.1.2.93
+    Original revision: 1.1.2.94
 -->
 
 <!-- 
@@ -156,6 +156,12 @@
       ファイル記述子の漏洩問題が修正されました。
       詳細はセキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink> をご覧ください。</para>
+
+    <para><application>CVS</application> には、CVS サーバ上で任意のコマンドが実行できるという、
+      リモートから悪用可能なセキュリティ上の弱点が存在します。
+      問題の詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>
+      をご覧ください。</para>
 
 ]]>
   </sect1>
