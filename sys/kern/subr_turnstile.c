@@ -87,7 +87,6 @@ static void	propagate_priority(struct thread *);
 static void
 propagate_priority(struct thread *td)
 {
-	struct ksegrp *kg = td->td_ksegrp;
 	int pri = td->td_priority;
 	struct mtx *m = td->td_blocked;
 
@@ -106,7 +105,6 @@ propagate_priority(struct thread *td)
 			MPASS(m->mtx_lock == MTX_CONTESTED);
 			return;
 		}
-		kg = td->td_ksegrp;
 
 		MPASS(td->td_proc->p_magic == P_MAGIC);
 		KASSERT(td->td_proc->p_stat != SSLEEP, ("sleeping thread owns a mutex"));
@@ -287,7 +285,6 @@ void
 _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
 	struct thread *td = curthread;
-	struct ksegrp *kg = td->td_ksegrp;
 
 	if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)td) {
 		m->mtx_recurse++;
@@ -464,10 +461,8 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	struct thread *td, *td1;
 	struct mtx *m1;
 	int pri;
-	struct ksegrp *kg;
 
 	td = curthread;
-	kg = td->td_ksegrp;
 
 	if (mtx_recursed(m)) {
 		if (--(m->mtx_recurse) == 0)
