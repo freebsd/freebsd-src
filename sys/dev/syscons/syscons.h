@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.48 1999/06/22 14:13:32 yokota Exp $
+ *	$Id: syscons.h,v 1.49 1999/06/24 13:04:33 yokota Exp $
  */
 
 #ifndef _DEV_SYSCONS_SYSCONS_H_
@@ -430,7 +430,9 @@ void		sc_paste(scr_stat *scp, u_char *p, int count);
 
 /* schistory.c */
 #ifndef SC_NO_HISTORY
-int		sc_alloc_history_buffer(scr_stat *scp, int lines, int wait);
+int		sc_alloc_history_buffer(scr_stat *scp, int lines,
+					int prev_ysize, int wait);
+void		sc_free_history_buffer(scr_stat *scp, int prev_ysize);
 void		sc_hist_save(scr_stat *scp);
 #define		sc_hist_save_one_line(scp, from)	\
 		sc_vtb_append(&(scp)->vtb, (from), (scp)->history, (scp)->xsize)
