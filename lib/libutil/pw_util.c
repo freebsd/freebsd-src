@@ -266,10 +266,11 @@ pw_mkdb(const char *user)
 		/* child */
 		if (user == NULL)
 			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p",
-			    "-d", passwd_dir, tempname, NULL);
+			    "-d", passwd_dir, tempname, (char *)NULL);
 		else
 			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p",
-			    "-d", passwd_dir, "-u", user, tempname, NULL);
+			    "-d", passwd_dir, "-u", user, tempname,
+			    (char *)NULL);
 		_exit(1);
 		/* NOTREACHED */
 	default:
@@ -321,7 +322,7 @@ pw_edit(int notsetuid)
 			(void)setuid(getuid());
 		}
 		errno = 0;
-		execlp(editor, basename(editor), tempname, NULL);
+		execlp(editor, basename(editor), tempname, (char *)NULL);
 		_exit(errno);
 	default:
 		/* parent */
