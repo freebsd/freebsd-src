@@ -4,9 +4,8 @@
 
 KMOD=	if_ppp
 SRCS=	if_ppp.c ppp_tty.c slcompress.c \
-	opt_inet.h opt_ipx.h opt_mac.h opt_ppp.h ppp.h vnode_if.h
+	opt_inet.h opt_ipx.h opt_mac.h opt_ppp.h vnode_if.h
 
-NPPP?=		2
 PPP_BSDCOMP?=	1	# 0/1
 PPP_DEFLATE?=	1	# 0/1
 PPP_FILTER?=	1	# 0/1 - requires bpf to be configured in kernel
@@ -43,8 +42,5 @@ opt_ppp.h:
 .if ${PPP_FILTER} > 0
 	echo "#define PPP_FILTER ${PPP_FILTER}" >> ${.TARGET}
 .endif
-
-ppp.h:
-	echo "#define NPPP ${NPPP}" > ${.TARGET}
 
 .include <bsd.kmod.mk>
