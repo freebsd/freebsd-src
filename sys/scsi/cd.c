@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.24 1994/09/16 23:43:28 se Exp $
+ *      $Id: cd.c,v 1.25 1994/10/08 22:26:35 phk Exp $
  */
 
 #define SPLCD splbio
@@ -39,6 +39,8 @@
 #include <scsi/scsi_cd.h>
 #include <scsi/scsi_disk.h>	/* rw_big and start_stop come from there */
 #include <scsi/scsiconf.h>
+#include <sys/devconf.h>
+#include <sys/dkstat.h>
 
 /* static function prototypes */
 static errval cd_get_parms(int, int);
@@ -102,6 +104,7 @@ struct cd_data {
 	u_int32 openparts;	/* one bit for each open partition */
 	u_int32 xfer_block_wait;
 	struct buf buf_queue;
+	int dkunit;
 };
 
 #define CD_STOP		0
@@ -114,6 +117,48 @@ struct cd_driver {
 } cd_driver;
 
 static u_int32 next_cd_unit = 0;
+
+static int
+cd_goaway(struct kern_devconf *kdc, int force) /* XXX should do a lot more */
+{
+	dev_detach(kdc);
+	FREE(kdc, M_TEMP);
+	return 0;
+}
+
+static int
+cd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
+	       size_t len)
+{
+	return scsi_externalize(cd_driver.cd_data[kdc->kdc_unit]->sc_link,
+				userp, &len);
+}
+
+static struct kern_devconf kdc_cd_template = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"cd", 0, { "scsi", MDDT_SCSI, 0 },
+	cd_externalize, 0, cd_goaway, SCSI_EXTERNALLEN
+};
+
+static inline void
+cd_registerdev(int unit)
+{
+	struct kern_devconf *kdc;
+
+	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
+	if(!kdc) return;
+	*kdc = kdc_cd_template;
+	kdc->kdc_unit = unit;
+	dev_attach(kdc);
+	if(dk_ndrive < DK_NDRIVE) {
+		sprintf(dk_names[dk_ndrive], "cd%d", unit);
+		dk_wpms[dk_ndrive] = (150*1024/2);
+		cd_driver.cd_data[unit]->dkunit = dk_ndrive++;
+	} else {
+		cd_driver.cd_data[unit]->dkunit = -1;
+	}
+}
+
 
 /*
  * The routine called by the low level scsi routine when it discovers
@@ -214,6 +259,7 @@ cdattach(sc_link)
 		printf("cd%ld: drive empty\n", unit);
 	}
 	cd->flags |= CDINIT;
+	cd_registerdev(unit);
 	return (1);
 }
 
@@ -569,6 +615,11 @@ cdstart(unit)
 		return;
 	}
 	cdqueues++;
+	if(cd->dkunit) {
+		dk_xfer[cd->dkunit]++;
+		dk_seek[cd->dkunit]++; /* don't know */
+		dk_wds[cd->dkunit] += bp->b_bcount >> 1;
+	}
 }
 
 /*
