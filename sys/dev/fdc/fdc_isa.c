@@ -33,32 +33,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
 
 #include <machine/bus.h>
 
 #include <dev/fdc/fdcvar.h>
-#include <dev/fdc/fdcreg.h>
 
 #include <isa/isavar.h>
 #include <isa/isareg.h>
 
 static int fdc_isa_probe(device_t);
-static void fdctl_wr_isa(fdc_p, u_int8_t);
 
 static struct isa_pnp_id fdc_ids[] = {
 	{0x0007d041, "PC standard floppy disk controller"}, /* PNP0700 */
 	{0x0107d041, "Standard floppy controller supporting MS Device Bay Spec"}, /* PNP0701 */
 	{0}
 };
-
-static void
-fdctl_wr_isa(fdc_p fdc, u_int8_t v)
-{
-	bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
-}
 
 int
 fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
@@ -165,6 +159,7 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 	}
 	fdc->ctlt = rman_get_bustag(fdc->res_ctl);
 	fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
+	fdc->ctl_off = 0;
 
 	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &fdc->rid_irq,
 					      RF_ACTIVE | RF_SHAREABLE);
@@ -189,12 +184,11 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 static int
 fdc_isa_probe(device_t dev)
 {
-	int	error, ic_type;
+	int	error;
 	struct	fdc_data *fdc;
 
 	fdc = device_get_softc(dev);
 	fdc->fdc_dev = dev;
-	fdc->fdctl_wr = fdctl_wr_isa;
 
 	/* Check pnp ids */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
@@ -203,32 +197,9 @@ fdc_isa_probe(device_t dev)
 
 	/* Attempt to allocate our resources for the duration of the probe */
 	error = fdc_isa_alloc_resources(dev, fdc);
-	if (error)
-		goto out;
+	if (error == 0)
+		error = fdc_initial_reset(dev, fdc);
 
-	/* Check that the controller is working. */
-	error = fdc_initial_reset(fdc);
-	if (error)
-		goto out;
-
-	/* Try to determine a more specific device type. */
-	if (fd_cmd(fdc, 1, NE7CMD_VERSION, 1, &ic_type) == 0) {
-		switch (ic_type & 0xff) {
-		case 0x80:
-			device_set_desc(dev, "NEC 765 or clone");
-			break;
-		case 0x81:	/* not mentioned in any hardware doc */
-		case 0x90:
-			device_set_desc(dev,
-		"Enhanced floppy controller (i82077, NE72065 or clone)");
-			break;
-		default:
-			device_set_desc(dev, "Generic floppy controller");
-			break;
-		}
-	}
-
-out:
 	fdc_release_resources(fdc);
 	return (error);
 }
@@ -236,40 +207,20 @@ out:
 static int
 fdc_isa_attach(device_t dev)
 {
-	int	ic_type;
 	struct	fdc_data *fdc;
 	int error;
 
 	fdc = device_get_softc(dev);
-	fdc->fdctl_wr = fdctl_wr_isa;
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
 	if (error == 0)
 		fdc->flags |= FDC_ISPNP;
-	if (fd_cmd(fdc, 1, NE7CMD_VERSION, 1, &ic_type) == 0) {
-		switch (ic_type & 0xff) {
-		case 0x80:
-			fdc->fdct = FDC_NE765;
-			break;
-		case 0x81:	/* not mentioned in any hardware doc */
-		case 0x90:
-			fdc->fdct = FDC_ENHANCED;
-			break;
-		default:
-			fdc->fdct = FDC_UNKNOWN;
-			break;
-		}
-	}
 
-	error = fdc_isa_alloc_resources(dev, fdc);
-	if (error)
-		goto out;
-	error = fdc_attach(dev);
-	if (error)
-		goto out;
-	error = fdc_hints_probe(dev);
-	if (error)
-		goto out;
-out:
+	if (error == 0)
+		error = fdc_isa_alloc_resources(dev, fdc);
+	if (error == 0)
+		error = fdc_attach(dev);
+	if (error == 0)
+		error = fdc_hints_probe(dev);
 	if (error)
 		fdc_release_resources(fdc);
 	return (error);
