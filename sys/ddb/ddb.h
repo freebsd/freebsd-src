@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.18 1998/06/07 17:09:38 dfr Exp $
+ *	$Id: ddb.h,v 1.19 1998/07/08 09:11:40 bde Exp $
  */
 
 /*
@@ -85,12 +85,12 @@ db_addr_t	db_disasm __P((db_addr_t loc, boolean_t altfmt));
 void		db_error __P((char *s));
 int		db_expression __P((db_expr_t *valuep));
 int		db_get_variable __P((db_expr_t *valuep));
-void		db_iprintf __P((const char *,...));
+void		db_iprintf __P((const char *,...)) __printflike(1, 2);
 struct vm_map	*db_map_addr __P((vm_offset_t));
 boolean_t	db_map_current __P((struct vm_map *));
 boolean_t	db_map_equal __P((struct vm_map *, struct vm_map *));
 void		db_print_loc_and_inst __P((db_addr_t loc));
-void		db_printf __P((const char *fmt, ...));
+void		db_printf __P((const char *fmt, ...)) __printflike(1, 2);
 void		db_read_bytes __P((vm_offset_t addr, size_t size, char *data));
 				/* machine-dependent */
 int		db_readline __P((char *lstart, int lsize));
@@ -104,7 +104,6 @@ int		db_value_of_name __P((char *name, db_expr_t *valuep));
 void		db_write_bytes __P((vm_offset_t addr, size_t size, char *data));
 				/* machine-dependent */
 void		kdb_init __P((void));
-void		kdbprintf __P((const char *fmt, ...));
 
 db_cmdfcn_t	db_breakpoint_cmd;
 db_cmdfcn_t	db_continue_cmd;
