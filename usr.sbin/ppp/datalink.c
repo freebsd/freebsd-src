@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.5 1998/05/25 02:22:32 brian Exp $
+ *	$Id: datalink.c,v 1.6 1998/05/28 23:15:33 brian Exp $
  */
 
 #include <sys/types.h>
@@ -119,7 +119,7 @@ datalink_HangupDone(struct datalink *dl)
   if (dl->bundle->CleaningUp ||
       (dl->physical->type == PHYS_DIRECT) ||
       ((!dl->dial_tries || (dl->dial_tries < 0 && !dl->reconnect_tries)) &&
-       !(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)))) {
+       !(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)))) {
     datalink_NewState(dl, DATALINK_CLOSED);
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
@@ -206,12 +206,13 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
   result = 0;
   switch (dl->state) {
     case DATALINK_CLOSED:
-      if ((dl->physical->type & (PHYS_DIRECT|PHYS_DEDICATED|PHYS_1OFF)) &&
+      if ((dl->physical->type &
+           (PHYS_DIRECT|PHYS_DEDICATED|PHYS_BACKGROUND|PHYS_DDIAL)) &&
           !bundle_IsDead(dl->bundle))
         /*
-         * Our first time in - DEDICATED never comes down, and STDIN & 1OFF
-         * get deleted when they enter DATALINK_CLOSED.  Go to
-         * DATALINK_OPENING via datalink_Up() and fall through.
+         * Our first time in - DEDICATED & DDIAL never come down, and
+         * DIRECT & BACKGROUND get deleted when they enter DATALINK_CLOSED.
+         * Go to DATALINK_OPENING via datalink_Up() and fall through.
          */
         datalink_Up(dl, 1, 1);
       else
@@ -227,7 +228,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             datalink_NewState(dl, DATALINK_DIAL);
             chat_Init(&dl->chat, dl->physical, dl->cfg.script.dial, 1,
                       datalink_ChoosePhoneNumber(dl));
-            if (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
+            if (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
                 dl->cfg.dial.max)
               log_Printf(LogCHAT, "%s: Dial attempt %u of %d\n",
                         dl->name, dl->cfg.dial.max - dl->dial_tries,
@@ -236,7 +237,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           } else
             datalink_LoginDone(dl);
         } else {
-          if (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
+          if (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
               dl->cfg.dial.max)
             log_Printf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
                       dl->cfg.dial.max - dl->dial_tries, dl->cfg.dial.max);
@@ -244,7 +245,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             log_Printf(LogCHAT, "Failed to open modem\n");
 
           if (dl->bundle->CleaningUp ||
-              (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
+              (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
                dl->cfg.dial.max && dl->dial_tries == 0)) {
             datalink_NewState(dl, DATALINK_CLOSED);
             dl->reconnect_tries = 0;
@@ -642,7 +643,7 @@ datalink_Clone(struct datalink *odl, const char *name)
   auth_Init(&dl->chap.auth);
   dl->chap.auth.cfg.fsmretry = odl->chap.auth.cfg.fsmretry;
 
-  if ((dl->physical = modem_Create(dl, PHYS_MANUAL)) == NULL) {
+  if ((dl->physical = modem_Create(dl, PHYS_INTERACTIVE)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
@@ -1094,7 +1095,7 @@ datalink_SetMode(struct datalink *dl, int mode)
     dl->script.run = 0;
   if (dl->physical->type == PHYS_DIRECT)
     dl->reconnect_tries = 0;
-  if (mode & (PHYS_PERM|PHYS_1OFF) && dl->state <= DATALINK_READY)
+  if (mode & (PHYS_DDIAL|PHYS_BACKGROUND) && dl->state <= DATALINK_READY)
     datalink_Up(dl, 1, 1);
   return 1;
 }
