@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.58 1999/01/19 00:21:51 peter Exp $
+ *	$Id: if_ed.c,v 1.59 1999/01/27 11:05:12 kato Exp $
  */
 
 /*
@@ -4010,7 +4010,7 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
 					len &= 1;
 				}
 				/* save last byte if needed */
-				if (wantbyte = (len == 1)) 
+				if ((wantbyte = (len == 1)) != 0)
 					savebyte[0] = *data;
 			}
 			m = m->m_next;	/* to next mbuf */
@@ -4046,7 +4046,7 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
 					data += (len & ~1);
 					len &= 1;
 				}
-				if (wantbyte = (len == 1)) 
+				if ((wantbyte = (len == 1)) != 0)
 					savebyte[0] = *data;
 
 			} /* if len != 0 */
