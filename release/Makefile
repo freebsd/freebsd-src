@@ -240,6 +240,13 @@ CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
 _MK?=			${CHROOTDIR}/mk
 
+# Some architectures may not have space for the ports tree on disc2.
+# For these architectures there is no sense building the README.html
+# files no matter what.
+.if ${TARGET_ARCH} == "ia64"
+NOPORTREADMES=		yes
+.endif
+
 # Where the bootstrap ports (see DOCPORTS) get installed.
 LOCALDIR=		/usr/local/bin
 
@@ -495,7 +502,7 @@ release rerelease:
 	echo "	cd /usr/ports"			>> ${_MK}
 	echo "	rm -f INDEX*"			>> ${_MK}
 	echo "	make index -DINDEX_PRISTINE"	>> ${_MK}
-	echo "	rm -f INDEX.tmp"		>> ${_MK}
+	echo "	rm -f INDEX*.tmp"		>> ${_MK}
 	echo "	touch /tmp/.skip_ports_index"	>> ${_MK}
 	echo "	echo \">>> make index finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${_MK}
 	echo "fi"				>> ${_MK}
@@ -906,7 +913,7 @@ cdrom.1:
 	@cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
-.if !defined(NOPORTS)
+.if !defined(NOPORTS) && !defined(NOPORTREADMES)
 	@tar --exclude CVS --exclude 'ports/distfiles/*' -czf - \
 	  -C /usr ports | (cd ${CD_DISC2}/usr; tar -xpBf -)
 .endif
