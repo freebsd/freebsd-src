@@ -204,8 +204,8 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	 * We want to allocate the largest resource first, so that our
 	 * allocated memory is packed.
 	 */
-	qsort(barlist, count, sizeof(struct resource_list_entry*),
-	  cardbus_barsort);
+	qsort(barlist, count, sizeof(struct resource_list_entry *),
+	    cardbus_barsort);
 
 	/* Allocate prefetchable memory */
 	flags = 0;
