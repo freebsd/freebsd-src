@@ -1468,17 +1468,17 @@ END_DEBUG
 	inq = (struct scsi_inquiry_data *) ccb->csio.data_ptr;
 	switch (SID_TYPE(inq)) {
 	case T_DIRECT:
+#if 0
 		/* 
 		 * XXX Convert Direct Access device to RBC.
 		 * I've never seen FireWire DA devices which support READ_6.
 		 */
-#if 1
 		if (SID_TYPE(inq) == T_DIRECT)
 			inq->device |= T_RBC; /*  T_DIRECT == 0 */
 #endif
 		/* fall through */
 	case T_RBC:
-		/* enable tag queuing */
+		/* enable tagged queuing */
 #if 1
 		inq->flags |= SID_CmdQue;
 #endif
