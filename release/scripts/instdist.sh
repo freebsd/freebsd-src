@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.10 1995/02/02 05:44:14 jkh Exp $
+# $Id: instdist.sh,v 1.11 1995/02/02 23:09:30 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -328,8 +328,8 @@ getting it illegally, thanks!  When finished, select <OK>." \
   "dict" "Spelling checker dictionary files (${DICTSIZE})" OFF \
   "src" "Sources for all but DES (${SRCSIZE})" OFF \
   "secure" "DES code (and sources) (${SECRSIZE})" OFF \
-  "compat1xdist" "FreeBSD 1.x binary compatability (${COMPATSIZE})" OFF \
-  "XFree86-3.1" "The XFree86 3.1 distribution (${X11SIZE})" OFF \
+  "compat1x" "FreeBSD 1.x binary compatability (${COMPATSIZE})" OFF \
+  "XFree86-3.1.1" "The XFree86 3.1.1 distribution (${X11SIZE})" OFF \
      2> ${TMP}/menu.tmp.$$
 	RETVAL=$?
 	MEDIA_DISTRIBUTIONS=`cat ${TMP}/menu.tmp.$$`
