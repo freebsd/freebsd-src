@@ -195,7 +195,6 @@ wwinit()
 #else
 	if ((wwbaud = cfgetospeed(&wwoldtty.ww_termios)) == B0)
 		goto bad;
-	_set_ospeed(wwbaud);
 #endif
 	wwospeed = ospeed;
 
