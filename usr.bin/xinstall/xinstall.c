@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 
 #include <ctype.h>
