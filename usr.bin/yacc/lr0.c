@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)lr0.c	5.3 (Berkeley) 1/20/91";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <limits.h>
 #include <stdlib.h>
 #include "defs.h"
 
@@ -358,7 +359,7 @@ int symbol;
     fprintf(stderr, "Entering new_state(%d)\n", symbol);
 #endif
 
-    if (nstates >= MAXSHORT)
+    if (nstates >= SHRT_MAX)
 	fatal("too many states");
 
     isp1 = kernel_base[symbol];

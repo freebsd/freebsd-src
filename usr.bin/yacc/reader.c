@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)reader.c	5.7 (Berkeley) 1/20/91";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include "defs.h"
@@ -720,7 +721,7 @@ get_literal()
 			++cptr;
 		    }
 		}
-		if (n > MAXCHAR) illegal_character(c_cptr);
+		if (n > UCHAR_MAX) illegal_character(c_cptr);
 		c = n;
 	    	break;
 
@@ -736,7 +737,7 @@ get_literal()
 		    if (i < 0 || i >= 16) break;
 		    ++cptr;
 		    n = (n << 4) + i;
-		    if (n > MAXCHAR) illegal_character(c_cptr);
+		    if (n > UCHAR_MAX) illegal_character(c_cptr);
 		}
 		c = n;
 		break;
