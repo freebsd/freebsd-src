@@ -296,16 +296,15 @@ arc_frag_next(ifp)
 		/* we CAN'T have short packets here */
 		ac->curr_frag = m_split(m, 504, M_DONTWAIT);
 		if (ac->curr_frag == 0) {
-			m_free(m);
+			m_freem(m);
 			return 0;
 		}
 
 		M_PREPEND(m, ARC_HDRNEWLEN, M_DONTWAIT);
 		if (m == 0) {
-			m_free(ac->curr_frag);
+			m_freem(ac->curr_frag);
 			ac->curr_frag = 0;
 
-			m_free(m);
 			return 0;
 		}
 
