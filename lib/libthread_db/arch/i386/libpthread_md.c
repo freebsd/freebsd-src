@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <thread_db.h>
 #include <machine/npx.h>
 
-#include "pthread_db.h"
+#include "libpthread_db.h"
 
 static int has_xmm_regs;
 
