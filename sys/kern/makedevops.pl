@@ -35,7 +35,7 @@
 # From @(#)makedevops.sh 1.1 1998/06/14 13:53:12 dfr Exp $
 # From @(#)makedevops.sh ?.? 1998/10/05
 #
-# $Id: makedevops.pl,v 1.6 1999/05/02 08:55:27 markm Exp $
+# $Id: makedevops.pl,v 1.7 1999/05/10 17:06:13 dfr Exp $
 
 #
 # Script to produce device front-end sugar.
@@ -235,14 +235,12 @@ foreach $src ( @filenames ) {
          # the line. What is left is the possibly first function argument
          # if it is on the same line.
          #
-         # FIXME For compatibilities sake METHOD and METHODE is accepted.
-         #
          if ( !$intname ) {
             warn "$src:$lineno: No interface name defined";
             $error = 1;
             last LINE;
          }
-         $line =~ s/^(STATIC|)METHODE?\s+([^{]+?)\s*{\s*//i;
+         $line =~ s/^(STATIC|)METHOD\s+([^{]+?)\s*{\s*//i;
 	 $static = $1;						    
          @ret = split m/\s+/, $2;
          $name = pop @ret;          # last element is name of method
