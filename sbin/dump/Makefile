@@ -26,7 +26,6 @@ MLINKS+=dump.8 rdump.8
 .PATH:	${.CURDIR}/../../usr.bin/rlogin
 SRCS+=	krcmd.c kcmd.c
 LDADD+=	-lkrb -ldes
-CFLAGS+=-DKERBEROS
 .endif
 
 .include <bsd.prog.mk>
