@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.13 1999/05/30 11:10:10 dfr Exp $
+ *	$Id: bt_isa.c,v 1.14 1999/06/03 20:56:09 peter Exp $
  */
 
 #include <sys/param.h>
@@ -41,7 +41,6 @@
 #include <sys/rman.h>
 
 #include <isa/isavar.h>
-#include <i386/isa/isa_dma.h>
 #include <dev/buslogic/btreg.h>
 
 #include <cam/scsi/scsi_all.h>
