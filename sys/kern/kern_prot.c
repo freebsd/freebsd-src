@@ -434,11 +434,6 @@ setuid(p, uap)
 			setsugid(p);
 		}
 		/*
-		 * Set real uid
-		 */
-		if (uid != pc->p_ruid) {
-		}
-		/*
 		 * Set saved uid
 		 *
 		 * XXX always set saved uid even if not _POSIX_SAVED_IDS, as
