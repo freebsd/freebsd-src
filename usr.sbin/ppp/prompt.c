@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.2 1998/02/13 05:10:23 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.3 1998/02/16 00:00:58 brian Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,8 @@
 #include "mbuf.h"
 #include "link.h"
 #include "physical.h"
+#include "chat.h"
+#include "datalink.h"
 
 static int prompt_nonewline = 1;
 
@@ -111,10 +113,28 @@ static void
 prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct prompt *p = descriptor2prompt(d);
+  struct physical *physical;
+  struct datalink *dl;
   int n;
   char ch;
   static int ttystate;
   char linebuff[LINE_LEN];
+
+  if (p->TermMode) {
+    physical = bundle2physical(bundle, NULL);
+    dl = bundle2datalink(bundle, NULL);
+
+    if (!link_IsActive(&physical->link)) {
+      if (dl->state == DATALINK_CLOSED) {
+        prompt_Printf(p, "Exiting terminal mode.\n");
+	prompt_TtyCommandMode(&prompt);
+        prompt_nonewline = 0;
+        prompt_Display(&prompt, bundle);
+      }
+      /* Otherwise, we're not yet active (still OPENING) */
+      return;
+    }
+  }
 
   LogPrintf(LogDEBUG, "descriptor2prompt; %p -> %p\n", d, p);
   LogPrintf(LogDEBUG, "termode = %d, p->fd_in = %d, mode = %d\n",

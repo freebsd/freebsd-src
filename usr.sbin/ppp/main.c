@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.22 1998/02/16 00:00:31 brian Exp $
+ * $Id: main.c,v 1.121.2.23 1998/02/16 19:09:55 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -523,10 +523,7 @@ DoLoop(struct bundle *bundle)
   struct tun_data tun;
 #define rbuff tun.data
 
-  if (mode & (MODE_DIRECT|MODE_DEDICATED))
-    bundle_Open(bundle, NULL);
-
-  if (mode & MODE_BACKGROUND)
+  if (mode & (MODE_DIRECT|MODE_DEDICATED|MODE_BACKGROUND))
     bundle_Open(bundle, NULL);
 
   while (!CleaningUp || bundle_Phase(SignalBundle) != PHASE_DEAD) {

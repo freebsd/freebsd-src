@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.19 1998/02/16 19:10:30 brian Exp $
+ * $Id: command.c,v 1.131.2.20 1998/02/16 19:10:57 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -779,17 +779,18 @@ ShowCommand(struct cmdargs const *arg)
 static int
 TerminalCommand(struct cmdargs const *arg)
 {
+  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
+
   if (LcpInfo.fsm.state > ST_CLOSED) {
     prompt_Printf(&prompt, "LCP state is [%s]\n",
                   StateNames[LcpInfo.fsm.state]);
     return 1;
   }
+
   if (!IsInteractive(1))
     return (1);
-  if (modem_Open(bundle2physical(arg->bundle, NULL), arg->bundle) < 0) {
-    prompt_Printf(&prompt, "Failed to open modem.\n");
-    return (1);
-  }
+
+  datalink_Up(dl, 0, 0);
   prompt_Printf(&prompt, "Entering terminal mode.\n");
   prompt_Printf(&prompt, "Type `~?' for help.\n");
   prompt_TtyTermMode(&prompt);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.3 1998/02/16 19:10:36 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.4 1998/02/16 19:11:01 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -43,6 +43,8 @@ struct datalink {
     char dial[SCRIPT_LEN];	/* dial */
     char login[SCRIPT_LEN];	/* login */
     char hangup[SCRIPT_LEN];	/* hangup */
+    unsigned run : 1;		/* run scripts ? */
+    unsigned packetmode : 1;	/* Go into packet mode after login ? */
   } script;
 
   struct pppTimer dial_timer;	/* For timing between opens & scripts */
@@ -64,7 +66,6 @@ struct datalink {
 #endif
 
   struct bundle *bundle;	/* for the moment */
-
   struct datalink *next;	/* Next in the list */
 };
 
@@ -74,7 +75,7 @@ struct datalink {
 
 extern struct datalink *datalink_Create(const char *name, struct bundle *);
 extern struct datalink *datalink_Destroy(struct datalink *);
-extern void datalink_Up(struct datalink *);
+extern void datalink_Up(struct datalink *, int, int);
 extern void datalink_Close(struct datalink *, int);
 extern void datalink_Down(struct datalink *, int);
 extern void datalink_StayDown(struct datalink *);

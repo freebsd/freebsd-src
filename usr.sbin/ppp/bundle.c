@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.9 1998/02/15 23:59:39 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.10 1998/02/16 19:09:37 brian Exp $
  */
 
 #include <sys/param.h>
@@ -554,10 +554,15 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
 
   if (!(mode & MODE_AUTO))
     bundle_DownInterface(bundle);
+
   if (mode & MODE_DDIAL)
-    datalink_Up(dl);
+    datalink_Up(dl, 1, 1);
   else
     bundle_NewPhase(bundle, NULL, PHASE_DEAD);
+
+  if (mode & MODE_INTER)
+    prompt_Display(&prompt, bundle);
+    
 }
 
 void
@@ -616,10 +621,12 @@ bundle_Open(struct bundle *bundle, const char *name)
    * Please open the given datalink, or all if name == NULL
    */
   struct datalink *dl;
+  int runscripts;
 
+  runscripts = (mode & (MODE_DIRECT|MODE_DEDICATED)) ? 0 : 1;
   for (dl = bundle->links; dl; dl = dl->next)
     if (name == NULL || !strcasecmp(dl->name, name)) {
-      datalink_Up(dl);
+      datalink_Up(dl, runscripts, 1);
       if (name != NULL)
         break;
     }
