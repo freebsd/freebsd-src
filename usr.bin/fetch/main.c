@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.21 1996/09/10 19:49:41 jkh Exp $ */
+/* $Id: main.c,v 1.22 1996/09/19 17:31:34 peter Exp $ */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -55,7 +55,7 @@
 #include <ftpio.h>
 
 #define BUFFER_SIZE 1024
-#define HTTP_TIMEOUT 60 /* seconds */
+#define HTTP_TIMEOUT 300 /* seconds */
 #define FTP_TIMEOUT 300 /* seconds */
 
 char buffer[BUFFER_SIZE];
@@ -284,6 +284,7 @@ ftpget()
     off_t size, size0, seekloc;
     char ftp_pw[200];
     time_t t;
+    time_t tout;
     struct itimerval timer;
     
     if ((cp = getenv("FTP_PASSWORD")) != NULL)
@@ -351,16 +352,23 @@ ftpget()
     
     signal (SIGALRM, timeout);
     if (timeout_ival)
-	timer.it_interval.tv_sec = timer.it_value.tv_sec = timeout_ival;
+	tout = timeout_ival;
     else if ((cp = getenv("FTP_TIMEOUT")) != NULL)
-	timer.it_interval.tv_sec = timer.it_value.tv_sec = atoi(cp);
+	tout = atoi(cp);
     else
-	timer.it_interval.tv_sec = timer.it_value.tv_sec = FTP_TIMEOUT;
-    timer.it_interval.tv_usec = timer.it_value.tv_usec = 0;
-    setitimer(ITIMER_REAL, &timer, 0);
+	tout = FTP_TIMEOUT;
+
     
+    timer.it_interval.tv_sec = 0;		/* Reload value */
+    timer.it_interval.tv_usec = 0;
+
+    timer.it_value.tv_sec = tout;		/* One-Shot value */
+    timer.it_value.tv_usec = 0;
+
     display (size, size0);
     while (1) {
+	setitimer(ITIMER_REAL, &timer, 0);	/* reset timeout */
+
 	n = status = fread (buffer, 1, BUFFER_SIZE, fp);
 	if (status <= 0) 
 	    break;
@@ -368,10 +376,11 @@ ftpget()
 	status = fwrite (buffer, 1, n, file);
 	if (status != n)
 	    break;
-	timer.it_interval.tv_sec = timer.it_value.tv_sec = FTP_TIMEOUT;
-	timer.it_interval.tv_usec = timer.it_value.tv_usec = 0;
-	setitimer(ITIMER_REAL, &timer, 0);
     }
+    timer.it_value.tv_sec = 0;
+    timer.it_value.tv_usec = 0;
+    setitimer(ITIMER_REAL, &timer, 0);		/* disable timeout */
+
     if (status < 0) 
 	die(0);
     fclose(fp);
@@ -555,7 +564,8 @@ void
 httpget ()
 {
     char *cp, str[1000];
-    struct timeval tout;
+    struct timeval tv;
+    time_t tout;
     fd_set fdset;
     int i, s;
     
@@ -570,11 +580,12 @@ httpget ()
     
     FD_ZERO (&fdset);
     FD_SET (s, &fdset);
-    if ((cp = getenv("HTTP_TIMEOUT")) != NULL)
-	tout.tv_sec = atoi(cp);
+    if (timeout_ival)
+	tout = timeout_ival;
+    else if ((cp = getenv("HTTP_TIMEOUT")) != NULL)
+	tout = atoi(cp);
     else
-	tout.tv_sec = HTTP_TIMEOUT;
-    tout.tv_usec = 0;
+	tout = HTTP_TIMEOUT;
     
     if (strcmp (outputfile, "-")) {
 	file = fopen (outputfile, "w");
@@ -586,7 +597,9 @@ httpget ()
     }
     
     while (1) {
-	i = select (s+1, &fdset, 0, 0, &tout); 
+	tv.tv_sec = tout;
+	tv.tv_usec = 0;
+	i = select (s+1, &fdset, 0, 0, &tv); 
 	switch (i) {
 	case 0:
 	    warnx ("Timeout");

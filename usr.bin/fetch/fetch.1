@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.6 1996/08/23 00:55:57 mpp Exp $
+.\" $Id: fetch.1,v 1.7 1996/08/31 22:03:00 jkh Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os
@@ -81,9 +81,11 @@ to copy it.
 .It Fl T Ar seconds
 Set timeout value to
 .Ar seconds.
-Overrides
+Overrides the environment variables
 .Ev FTP_TIMEOUT
-environment variable, if set.
+for ftp transfers or
+.Ev HTTP_TIMEOUT 
+for http transfers if set.
 .It Fl q
 Quiet mode. Do not report transfer progress on the terminal.
 .It Fl v
@@ -105,7 +107,7 @@ A transfer using the
 .Em http
 protocol will be aborted after the delay specified by the
 .Ev HTTP_TIMEOUT
-variable. The default is 60 (seconds)
+variable. The default is 300 (seconds)
 
 .Ev FTP_LOGIN
 is the login name for the remote host. Default is
