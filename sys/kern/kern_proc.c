@@ -709,10 +709,11 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	PROC_LOCK(p);
-	if (p->p_args && --p->p_args->ar_ref == 0) 
-		FREE(p->p_args, M_PARGS);
+	pa = p->p_args;
 	p->p_args = NULL;
 	PROC_UNLOCK(p);
+	if (pa != NULL && --pa->ar_ref == 0) 
+		FREE(pa, M_PARGS);
 
 	if (req->newlen + sizeof(struct pargs) > ps_arg_cache_limit)
 		return (error);
