@@ -121,12 +121,8 @@ propagate_priority(struct proc *p)
 		 * If on run queue move to new run queue, and
 		 * quit.
 		 */
-#if 1
 		if (p->p_stat == SRUN) {
-#else
-		if ((m = p->p_blocked) == NULL) {
-#endif
-			MPASS(p->p_stat == SRUN);
+			MPASS(p->p_blocked == NULL);
 			remrunqueue(p);
 			SET_PRIO(p, pri);
 			setrunqueue(p);
@@ -316,17 +312,13 @@ mtx_enter_hard(mtx_t *m, int type, int flags)
 				if (i++ < 6000000)
 					DELAY (1);
 #ifdef DDB
-				else if (!db_active) {
+				else if (!db_active)
 #else
-				else {
+				else
 #endif
-#if 0
-					Debugger ("spinning");
-					panic("spin lock %s held by 0x%x for > 5 seconds",
-					      m->mtx_description,
-					      m->mtx_lock);
-#endif
-				}
+					panic(
+				"spin lock %s held by 0x%x for > 5 seconds",
+					    m->mtx_description, m->mtx_lock);
 			}
 		}
 			
