@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.7 1994/12/15 22:47:11 davidg Exp $
+ * $Id: vm_map.c,v 1.8 1994/12/18 10:28:40 davidg Exp $
  */
 
 /*
@@ -141,7 +141,7 @@ vm_map_entry_t	kentry_free;
 vm_map_t	kmap_free;
 
 int		kentry_count;
-static vm_offset_t mapvm=0, mapvmmax;
+static vm_offset_t mapvm_start=0, mapvm=0, mapvmmax;
 static int	mapvmpgcnt=0;
 
 static void	_vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
@@ -170,7 +170,7 @@ void vm_map_startup()
 	 * with the rest.
 	 */
 	kentry_free = mep = (vm_map_entry_t) mp;
-	i = (kentry_data_size - MAX_KMAP * sizeof *mp) / sizeof *mep;
+	kentry_count = i = (kentry_data_size - MAX_KMAP * sizeof *mp) / sizeof *mep;
 	while (--i > 0) {
 		mep->next = mep + 1;
 		mep++;
@@ -193,8 +193,8 @@ vmspace_alloc(min, max, pageable)
 		int s;
 		mapvmpgcnt = (cnt.v_page_count * sizeof(struct vm_map_entry) + PAGE_SIZE - 1) / PAGE_SIZE;
 		s = splhigh();
-		mapvm = kmem_alloc_pageable(kmem_map, mapvmpgcnt * PAGE_SIZE);
-		mapvmmax = mapvm + mapvmpgcnt * PAGE_SIZE;
+		mapvm_start = mapvm = kmem_alloc_pageable(kmem_map, mapvmpgcnt * PAGE_SIZE);
+		mapvmmax = mapvm_start + mapvmpgcnt * PAGE_SIZE;
 		splx(s);
 		if (!mapvm)
 			mapvmpgcnt = 0;
@@ -299,7 +299,7 @@ vm_map_entry_create(map)
 	vm_map_entry_t	entry;
 	int i;
 #define KENTRY_LOW_WATER 64
-#define MAPENTRY_LOW_WATER 64
+#define MAPENTRY_LOW_WATER 128
 
 	/*
 	 * This is a *very* nasty (and sort of incomplete) hack!!!!
@@ -373,8 +373,8 @@ vm_map_entry_dispose(map, entry)
 	vm_map_entry_t	entry;
 {
 	if ( (kentry_count < KENTRY_LOW_WATER) ||
-	    (((vm_offset_t) entry) >= kentry_data && ((vm_offset_t) entry) < (kentry_data + kentry_data_size)) ||
-	    (((vm_offset_t) entry) >= mapvm && ((vm_offset_t) entry) < mapvmmax)) {
+	    ((vm_offset_t)entry >= kentry_data && (vm_offset_t)entry < (kentry_data + kentry_data_size)) ||
+	    ((vm_offset_t)entry >= mapvm_start && (vm_offset_t)entry < mapvmmax)) {
 		entry->next = kentry_free;
 		kentry_free = entry;
 		++kentry_count;
