@@ -1,10 +1,9 @@
-                                 3ELEASE NOTES
-                           FreeBSD Release 3.4-RELEASE
+                  RELEASE NOTES - FREEBSD 3.4-RELEASE
 
-Welcome to 3.4-RELEASE, a full follow-on to 3.3-RELEASE released
-October 1999.  In the months since 3.3 was released, many bug fixes and
-general enhancements have been made to the system.  Please see relevant
-details below.
+Welcome to 3.4-RELEASE, a full follow-on to 3.3-RELEASE which was
+shipped in October 1999.  In the months since 3.3 was released, many
+bug fixes and general enhancements have been made to the system.  Please
+see relevant details below.
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a WEB based interface can also see
