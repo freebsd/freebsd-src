@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.35 1998/05/31 18:00:46 peter Exp $
+ * $Id: nfs_socket.c,v 1.36 1998/05/31 18:02:56 peter Exp $
  */
 
 /*
@@ -1901,6 +1901,7 @@ nfsmout:
 	return (error);
 }
 
+#endif
 
 static int
 nfs_msg(p, server, msg)
@@ -1917,6 +1918,8 @@ nfs_msg(p, server, msg)
 	tprintf_close(tpr);
 	return (0);
 }
+
+#ifndef NFS_NOSERVER
 /*
  * Socket upcall routine for the nfsd sockets.
  * The caddr_t arg is a pointer to the "struct nfssvc_sock".
