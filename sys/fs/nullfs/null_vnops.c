@@ -329,6 +329,19 @@ null_bypass(struct vop_generic_args *ap)
 	return (error);
 }
 
+static int
+null_close(struct vop_close_args *ap)
+{
+	int retval;
+	struct vnode *vp;
+
+	vp = ap->a_vp;
+	retval = null_bypass(&ap->a_gen);
+	if (retval == 0)
+		vp->v_object = NULL;
+	return (retval);
+}
+
 /*
  * We have to carry on the locking protocol on the null layer vnodes
  * as we progress through the tree. We also have to enforce read-only
@@ -380,6 +393,20 @@ null_lookup(struct vop_lookup_args *ap)
 		}
 	}
 	return (error);
+}
+
+static int
+null_open(struct vop_open_args *ap)
+{
+	int retval;
+	struct vnode *vp, *ldvp;
+
+	vp = ap->a_vp;
+	ldvp = NULLVPTOLOWERVP(vp);
+	retval = null_bypass(&ap->a_gen);
+	if (retval == 0)
+		vp->v_object = ldvp->v_object;
+	return (retval);
 }
 
 /*
@@ -773,6 +800,7 @@ struct vop_vector null_vnodeops = {
 
 	.vop_access =		null_access,
 	.vop_bmap =		VOP_EOPNOTSUPP,
+	.vop_close =		null_close,
 	.vop_createvobject =	null_createvobject,
 	.vop_destroyvobject =	null_destroyvobject,
 	.vop_getattr =		null_getattr,
@@ -782,6 +810,7 @@ struct vop_vector null_vnodeops = {
 	.vop_islocked =		null_islocked,
 	.vop_lock =		null_lock,
 	.vop_lookup =		null_lookup,
+	.vop_open =		null_open,
 	.vop_print =		null_print,
 	.vop_reclaim =		null_reclaim,
 	.vop_rename =		null_rename,
