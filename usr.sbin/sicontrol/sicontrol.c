@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id$
+ *	$Id: sicontrol.c,v 1.1 1995/08/13 15:24:23 peter Exp $
  */
 
 #include <stdio.h>
@@ -200,15 +200,16 @@ prusage(strn, eflag)
 	char **cp;
 
 	if (strn == U_ALL) {
-		fprintf(stderr, "Usage: siconfig - %s", usage[1]);
-		fprintf(stderr, "       siconfig devname %s", usage[2]);
-		for (cp = &usage[3]; *cp; cp++)
-			fprintf(stderr, "                        %s", *cp);
+		fprintf(stderr, "Usage: sicontrol - %s", usage[1]);
+		fprintf(stderr, "       sicontrol - %s", usage[2]);
+		fprintf(stderr, "       sicontrol devname %s", usage[3]);
+		for (cp = &usage[4]; *cp; cp++)
+			fprintf(stderr, "                         %s", *cp);
 	}
 	else if (strn >= 0 && strn <= U_MAX)
-		fprintf(stderr, "Usage: siconfig devname %s", usage[strn]);
+		fprintf(stderr, "Usage: sicontrol devname %s", usage[strn]);
 	else
-		fprintf(stderr, "siconfig: usage ???\n");
+		fprintf(stderr, "sicontrol: usage ???\n");
 	exit(eflag);
 }
 
@@ -514,7 +515,7 @@ lvls2bits(str)
 		if (strcmp(token, "all") == 0)
 			return(0xffffffff);
 		if ((i = islevel(token)) == 0) {
-			fprintf(stderr, "siconfig: unknown token '%s'\n", token);
+			fprintf(stderr, "sicontrol: unknown token '%s'\n", token);
 			errflag++;
 		} else
 			bits |= i;
