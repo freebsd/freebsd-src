@@ -67,9 +67,12 @@ SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_formats, CTLFLAG_RW,
 static int chn_buildfeeder(struct pcm_channel *c);
 
 static void
-chn_lockinit(struct pcm_channel *c)
+chn_lockinit(struct pcm_channel *c, int dir)
 {
-	c->lock = snd_mtxcreate(c->name, "pcm channel");
+	if (dir == PCMDIR_PLAY)
+		c->lock = snd_mtxcreate(c->name, "pcm play channel");
+	else
+		c->lock = snd_mtxcreate(c->name, "pcm record channel");
 }
 
 static void
@@ -736,7 +739,7 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 	struct snd_dbuf *b, *bs;
 	int ret;
 
-	chn_lockinit(c);
+	chn_lockinit(c, dir);
 
 	b = NULL;
 	bs = NULL;
