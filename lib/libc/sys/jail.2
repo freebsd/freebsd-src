@@ -6,7 +6,7 @@
 .\"this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\"----------------------------------------------------------------------------
 .\"
-.\"$Id: jail.2,v 1.2 1999/05/16 10:51:42 phk Exp $
+.\"$Id: jail.2,v 1.3 1999/06/17 23:43:35 green Exp $
 .\"
 .\"
 .Dd April 28, 1999
@@ -53,11 +53,16 @@ the prison.  It is not possible to add a process to a preexisting prison.
 .Pp
 Inside the prison, the concept of "superuser" is very diluted.  In general,
 it can be assumed that nothing can be mangled from inside a prison which
-doesn't exist inside that prison (ie: the directory tree below
-.Dq Li path .
+doesn't exist entirely inside that prison.  For instance the directory 
+tree below
+.Dq Li path 
+can be manipulated all the ways a root can normally do it, including
+.Dq Li "rm -rf /*"
+but new device special notes cannot be created because the reference
+shared resources (the device drivers in the kernel).
 .Pp
 All IP activity will be forced to happen to/from the IP number specified,
-which should be an alias on one of the systems interfaces.
+which should be an alias on one of the network interfaces.
 .Pp
 It is possible to identify a process as jailed by examining
 .Dq Li /proc/<pid>/status :
