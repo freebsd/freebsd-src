@@ -93,9 +93,9 @@ Static struct cue_type cue_devs[] = {
 
 Static struct usb_qdat cue_qdat;
 
-Static int cue_match(device_t);
-Static int cue_attach(device_t);
-Static int cue_detach(device_t);
+Static int cue_match(device_ptr_t);
+Static int cue_attach(device_ptr_t);
+Static int cue_detach(device_ptr_t);
 
 Static int cue_tx_list_init(struct cue_softc *);
 Static int cue_rx_list_init(struct cue_softc *);
@@ -110,7 +110,7 @@ Static int cue_ioctl(struct ifnet *, u_long, caddr_t);
 Static void cue_init(void *);
 Static void cue_stop(struct cue_softc *);
 Static void cue_watchdog(struct ifnet *);
-Static void cue_shutdown(device_t);
+Static void cue_shutdown(device_ptr_t);
 
 Static void cue_setmulti(struct cue_softc *);
 Static u_int32_t cue_crc(caddr_t);
@@ -541,7 +541,7 @@ USB_ATTACH(cue)
 }
 
 Static int
-cue_detach(device_t dev)
+cue_detach(device_ptr_t dev)
 {
 	struct cue_softc	*sc;
 	struct ifnet		*ifp;
@@ -1194,7 +1194,7 @@ cue_stop(struct cue_softc *sc)
  * get confused by errant DMAs when rebooting.
  */
 Static void
-cue_shutdown(device_t dev)
+cue_shutdown(device_ptr_t dev)
 {
 	struct cue_softc	*sc;
 
