@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.4 1994/08/07 13:10:40 davidg Exp $
+ * $Id: vm_object.c,v 1.5 1994/08/18 22:36:06 wollman Exp $
  */
 
 /*
@@ -1605,7 +1605,7 @@ vm_object_page_lookup(object, offset)
 }
 
 #define DEBUG
-#if defined(DEBUG) || (NDDB > 0)
+#if defined(DEBUG) || defined(DDB)
 /*
  *	vm_object_print:	[ debug ]
  */
@@ -1652,4 +1652,4 @@ void vm_object_print(object, full)
 		printf("\n");
 	indent -= 2;
 }
-#endif /* defined(DEBUG) || (NDDB > 0) */
+#endif /* defined(DEBUG) || defined(DDB) */

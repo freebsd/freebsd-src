@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.6 1993/12/19 00:49:45 wollman Exp $
+ *	$Id: db_output.c,v 1.7 1994/08/13 03:49:21 wollman Exp $
  */
 
 /*
@@ -107,6 +107,13 @@ db_putchar(c)
 	    db_last_non_space = db_output_position;
 	}
 	else if (c == '\n') {
+	    /* Newline */
+	    cnputc(c);
+	    db_output_position = 0;
+	    db_last_non_space = 0;
+	    db_check_interrupt();
+	}
+	else if (c == '\r') {
 	    /* Return */
 	    cnputc(c);
 	    db_output_position = 0;

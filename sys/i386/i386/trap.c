@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.29 1994/08/18 22:34:43 wollman Exp $
+ *	$Id: trap.c,v 1.30 1994/08/24 11:52:21 sos Exp $
  */
 
 /*
@@ -67,7 +67,6 @@
 
 #include "isa.h"
 #include "npx.h"
-#include "ddb.h"
 
 int	trap_pfault	__P((struct trapframe *, int));
 void	trap_fatal	__P((struct trapframe *));
@@ -225,7 +224,7 @@ trap(frame)
 
 #if NISA > 0
 		case T_NMI:
-#if NDDB > 0
+#ifdef DDB
 			/* NMI can be hooked up to a pushbutton for debugging */
 			printf ("NMI ... going to debugger\n");
 			if (kdb_trap (type, 0, &frame))
@@ -286,7 +285,7 @@ trap(frame)
 			}
 			break;
 
-#if NDDB > 0
+#ifdef DDB
 		case T_BPTFLT:
 		case T_TRCTRAP:
 			if (kdb_trap (type, 0, &frame))
@@ -301,7 +300,7 @@ trap(frame)
 	
 #if NISA > 0
 		case T_NMI:
-#if NDDB > 0
+#ifdef DDB
 			/* NMI can be hooked up to a pushbutton for debugging */
 			printf ("NMI ... going to debugger\n");
 			if (kdb_trap (type, 0, &frame))
@@ -505,7 +504,7 @@ trap_fatal(frame)
 	if (kdb_trap(&psl))
 		return;
 #endif
-#if NDDB > 0
+#ifdef DDB
 	if (kdb_trap (type, 0, frame))
 		return;
 #endif

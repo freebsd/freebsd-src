@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.18 1994/08/20 03:48:38 davidg Exp $
+ *      $Id: aha1742.c,v 1.19 1994/08/23 07:52:04 paul Exp $
  */
 
 #include <sys/types.h>
@@ -38,15 +38,11 @@
 /* */
 
 #ifdef	KERNEL
-# ifdef NetBSD
-#  ifdef DDB
+# ifdef DDB
 int     Debugger();
-#  else	/* DDB */
+# else	/* DDB */
 #define Debugger() panic("should call debugger here (adaptec.c)")
-#  endif /* DDB */
-# else
-#include "ddb.h"
-#endif /* netbsd */
+# endif /* DDB */
 #else /* KERNEL */
 #define NAHB 1
 #endif /* kernel */
@@ -512,11 +508,7 @@ int
 ahb_attach(dev)
 	struct isa_device *dev;
 {
-#ifdef NetBSD
-	int     unit = dev->id_masunit;
-#else
 	int     unit = dev->id_unit;
-#endif
 	struct ahb_data *ahb = ahbdata[unit];
 
 	/*
