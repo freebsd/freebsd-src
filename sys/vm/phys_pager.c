@@ -64,41 +64,45 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	size = round_page(size);
 
-	/*
-	 * Lock to prevent object creation race condition.
-	 */
-	while (phys_pager_alloc_lock) {
-		phys_pager_alloc_lock_want++;
-		tsleep(&phys_pager_alloc_lock, PVM, "ppall", 0);
-		phys_pager_alloc_lock_want--;
-	}
-	phys_pager_alloc_lock = 1;
-
-	/*
-	 * Look up pager, creating as necessary.
-	 */
-	object = vm_pager_object_lookup(&phys_pager_object_list, handle);
-	if (object == NULL) {
+	if (handle != NULL) {
 		/*
-		 * Allocate object and associate it with the pager.
+		 * Lock to prevent object creation race condition.
 		 */
-		object = vm_object_allocate(OBJT_PHYS,
-			OFF_TO_IDX(foff + PAGE_MASK + size));
-		object->handle = handle;
-		TAILQ_INSERT_TAIL(&phys_pager_object_list, object,
-		    pager_object_list);
+		while (phys_pager_alloc_lock) {
+			phys_pager_alloc_lock_want++;
+			tsleep(&phys_pager_alloc_lock, PVM, "ppall", 0);
+			phys_pager_alloc_lock_want--;
+		}
+		phys_pager_alloc_lock = 1;
+	
+		/*
+		 * Look up pager, creating as necessary.
+		 */
+		object = vm_pager_object_lookup(&phys_pager_object_list, handle);
+		if (object == NULL) {
+			/*
+			 * Allocate object and associate it with the pager.
+			 */
+			object = vm_object_allocate(OBJT_PHYS,
+				OFF_TO_IDX(foff + size));
+			object->handle = handle;
+			TAILQ_INSERT_TAIL(&phys_pager_object_list, object,
+			    pager_object_list);
+		} else {
+			/*
+			 * Gain a reference to the object.
+			 */
+			vm_object_reference(object);
+			if (OFF_TO_IDX(foff + size) > object->size)
+				object->size = OFF_TO_IDX(foff + size);
+		}
+		phys_pager_alloc_lock = 0;
+		if (phys_pager_alloc_lock_want)
+			wakeup(&phys_pager_alloc_lock);
 	} else {
-		/*
-		 * Gain a reference to the object.
-		 */
-		vm_object_reference(object);
-		if (OFF_TO_IDX(foff + size) > object->size)
-			object->size = OFF_TO_IDX(foff + size);
+		object = vm_object_allocate(OBJT_PHYS,
+			OFF_TO_IDX(foff + size));
 	}
-
-	phys_pager_alloc_lock = 0;
-	if (phys_pager_alloc_lock_want)
-		wakeup(&phys_pager_alloc_lock);
 
 	return (object);
 }
@@ -107,7 +111,8 @@ static void
 phys_pager_dealloc(vm_object_t object)
 {
 
-	TAILQ_REMOVE(&phys_pager_object_list, object, pager_object_list);
+	if (object->handle != NULL)
+		TAILQ_REMOVE(&phys_pager_object_list, object, pager_object_list);
 }
 
 static int
