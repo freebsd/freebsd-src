@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id$
+ * $Id: nfs_nqlease.c,v 1.24 1997/02/22 09:42:37 peter Exp $
  */
 
 
@@ -492,9 +492,10 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 	struct mbuf *mreq, *mb, *mb2, *nam2, *mheadend;
 	struct socket *so;
 	struct sockaddr_in *saddr;
+	nfsfh_t nfh;
 	fhandle_t *fhp;
 	caddr_t bpos, cp;
-	u_long xid;
+	u_long xid, *tl;
 	int len = 1, ok = 1, i = 0;
 	int sotype, *solockp;
 
@@ -525,12 +526,12 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 			else
 				solockp = (int *)0;
 			nfsm_reqhead((struct vnode *)0, NQNFSPROC_EVICTED,
-				NFSX_V3FH);
-			nfsm_build(cp, caddr_t, NFSX_V3FH);
-			bzero(cp, NFSX_V3FH);
-			fhp = (fhandle_t *)cp;
+				NFSX_V3FH + NFSX_UNSIGNED);
+			fhp = &nfh.fh_generic;
+			bzero((caddr_t)fhp, sizeof(nfh));
 			fhp->fh_fsid = vp->v_mount->mnt_stat.f_fsid;
 			VFS_VPTOFH(vp, &fhp->fh_fid);
+			nfsm_srvfhtom(fhp, 1);
 			m = mreq;
 			siz = 0;
 			while (m) {
@@ -918,7 +919,7 @@ nqnfs_vacated(vp, cred)
 
 	nmp = VFSTONFS(vp->v_mount);
 	nfsstats.rpccnt[NQNFSPROC_VACATED]++;
-	nfsm_reqhead(vp, NQNFSPROC_VACATED, NFSX_V3FH);
+	nfsm_reqhead(vp, NQNFSPROC_VACATED, NFSX_FH(1));
 	nfsm_fhtom(vp, 1);
 	m = mreq;
 	i = 0;
@@ -1092,14 +1093,16 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 			     if (vpid == vp->v_id) {
 				CIRCLEQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
 				np->n_timer.cqe_next = 0;
-				if ((np->n_flag & (NMODIFIED | NQNFSEVICTED))
-				    && vp->v_type == VREG) {
+				if (np->n_flag & (NMODIFIED | NQNFSEVICTED)) {
 					if (np->n_flag & NQNFSEVICTED) {
+						if (vp->v_type == VDIR)
+							nfs_invaldir(vp);
+						cache_purge(vp);
 						(void) nfs_vinvalbuf(vp,
 						       V_SAVE, cred, p, 0);
 						np->n_flag &= ~NQNFSEVICTED;
 						(void) nqnfs_vacated(vp, cred);
-					} else {
+					} else if (vp->v_type == VREG) {
 						(void) VOP_FSYNC(vp, cred,
 						    MNT_WAIT, p);
 						np->n_flag &= ~NMODIFIED;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.41 1997/05/11 18:05:38 tegge Exp $
+ * $Id: nfs_vfsops.c,v 1.42 1997/05/12 19:02:56 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -705,6 +705,13 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	bcopy(hst, mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy(pth, mp->mnt_stat.f_mntonname, MNAMELEN);
 	nmp->nm_nam = nam;
+
+	/*
+	 * Silently clear NFSMNT_NOCONN if it's a TCP mount, it makes
+	 * no sense in that context.
+	 */
+	if (argp->sotype == SOCK_STREAM)
+		argp->flags &= ~NFSMNT_NOCONN;
 
 	if ((argp->flags & NFSMNT_TIMEO) && argp->timeo > 0) {
 		nmp->nm_timeo = (argp->timeo * NFS_HZ + 5) / 10;
