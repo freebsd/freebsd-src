@@ -39,7 +39,7 @@
 
 #include <machine/db_machdep.h>		/* type definitions */
 
-#define	DB_LINES_PER_PAGE	20
+#define	DB_LINES_PER_PAGE	db_lines_per_page
 
 typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	    char *modif);
@@ -78,6 +78,7 @@ extern int db_store_count;
 extern db_expr_t db_radix;
 extern db_expr_t db_max_width;
 extern db_expr_t db_tab_stop_width;
+extern db_expr_t db_lines_per_page;
 
 struct thread;
 struct vm_map;

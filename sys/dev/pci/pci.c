@@ -1483,7 +1483,7 @@ DB_SHOW_COMMAND(pciregs, db_pci_dump)
 	/*
 	 * Go through the list of devices and print out devices
 	 */
-	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	for (error = 0, i = 0, quit = 0,
 	     dinfo = STAILQ_FIRST(devlist_head);
 	     (dinfo != NULL) && (error == 0) && (i < pci_numdevs) && !quit;
@@ -1575,7 +1575,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	resource_list_add(rl, type, *rid, start, end, count);
 	rle = resource_list_find(rl, type, *rid);
 	if (rle == NULL)
-		panic("pci_alloc_map: unexpedly can't find resource.");
+		panic("pci_alloc_map: unexpectedly can't find resource.");
 	rle->res = res;
 	if (bootverbose)
 		device_printf(child,

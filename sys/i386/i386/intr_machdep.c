@@ -313,7 +313,7 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 	else
 		verbose = 0;
 	isrc = interrupt_sources;
-	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	for (i = 0; i < NUM_IO_INTS && !quit; i++, isrc++)
 		if (*isrc != NULL)
 			db_dump_ithread((*isrc)->is_ithread, verbose);

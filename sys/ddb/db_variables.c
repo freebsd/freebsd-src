@@ -45,6 +45,7 @@ static struct db_variable db_vars[] = {
 	{ "maxoff",	&db_maxoff, FCN_NULL },
 	{ "maxwidth",	&db_max_width, FCN_NULL },
 	{ "tabstops",	&db_tab_stop_width, FCN_NULL },
+	{ "lines",	&db_lines_per_page, FCN_NULL },
 };
 static struct db_variable *db_evars =
 	db_vars + sizeof(db_vars)/sizeof(db_vars[0]);

@@ -88,7 +88,7 @@ db_show_threads(db_expr_t addr, boolean_t hasaddr, db_expr_t cnt, char *mod)
 	struct thread *thr;
 	int pager_quit;
 
-	db_setup_paging(db_simple_pager, &pager_quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &pager_quit, db_lines_per_page);
 
 	pager_quit = 0;
 	thr = kdb_thr_first();

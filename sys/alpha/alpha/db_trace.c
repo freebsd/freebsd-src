@@ -213,14 +213,16 @@ db_backtrace(struct thread *td, db_addr_t frame, db_addr_t pc, int count)
 	db_expr_t diff;
 	db_addr_t symval;
 	u_long last_ipl, tfps;
-	int i;
+	int i, quit;
 
 	if (count == -1)
 		count = 1024;
 
 	last_ipl = ~0L;
 	tf = NULL;
-	while (count--) {
+	quit = 0;
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
+	while (count-- && !quit) {
 		sym = db_search_symbol(pc, DB_STGY_ANY, &diff);
 		if (sym == DB_SYM_NULL)
 			return (ENOENT);

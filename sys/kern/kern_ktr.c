@@ -266,8 +266,6 @@ static	struct tstate tstate;
 static	int db_ktr_verbose;
 static	int db_mach_vtrace(void);
 
-#define	NUM_LINES_PER_PAGE	18
-
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
 	int quit;
@@ -284,7 +282,7 @@ DB_SHOW_COMMAND(ktr, db_ktr_all)
 			if (db_mach_vtrace() == 0)
 				break;
 	} else {
-		db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+		db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 		while (!quit)
 			if (db_mach_vtrace() == 0)
 				break;

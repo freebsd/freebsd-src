@@ -65,7 +65,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 	else
 		p = &proc0;
 
-	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	db_printf("  pid   proc     uarea   uid  ppid  pgrp  flag   stat  wmesg    wchan  cmd\n");
 	while (--np >= 0 && !quit) {
 		if (p == NULL) {
