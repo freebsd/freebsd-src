@@ -901,6 +901,7 @@ caddr_t data;
 	nat->nat_aps = NULL;
 	in = nat->nat_ptr;
 	nat->nat_ptr = NULL;
+	nat->nat_hm = NULL;
 	nat->nat_data = NULL;
 
 	/*
