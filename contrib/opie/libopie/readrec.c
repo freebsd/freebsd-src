@@ -1,13 +1,15 @@
 /* readrec.c: The __opiereadrec() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
-The Inner Net License Version 2 applies to this software.
+This software is Copyright 1996-2001 by Craig Metz, All Rights Reserved.
+The Inner Net License Version 3 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Check that seed, sequence number, and
+		response values are valid.
 	Modified by cmetz for OPIE 2.31. Removed active attack protection
 		support. Fixed a debug message typo. Keep going after bogus
                 records. Set read flag.
@@ -57,7 +59,7 @@ static int parserec FUNCTION((opie), struct opie *opie)
 
   opie->opie_n = strtoul(c, &c3, 10);
 
-  if (*c3)
+  if (*c3 || (opie->opie_n <= 0) || (opie->opie_n > 9999))
     return -1;
   };
 
@@ -66,12 +68,23 @@ static int parserec FUNCTION((opie), struct opie *opie)
 
   *(c2++) = 0;
 
+  for (c = opie->opie_seed; *c; c++)
+    if (!isalnum(*c))
+      return -1;
+
   while(*c2 == ' ') c2++;
 
   if (!(c2 = strchr(opie->opie_val = c2, ' ')))
     return -1;
 
   *(c2++) = 0;
+
+  {
+  struct opie_otpkey otpkey;
+
+  if (!opieatob8(&otpkey, opie->opie_val))
+    return -1;
+  }
 
   return 0;
 }
