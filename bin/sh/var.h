@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)var.h	8.2 (Berkeley) 5/4/95
- *	$Id$
+ *	$Id: var.h,v 1.6 1997/02/22 13:58:48 peter Exp $
  */
 
 /*
@@ -94,6 +94,7 @@ extern struct var vhistsize;
  */
 
 #define ifsval()	(vifs.text + 4)
+#define ifsset()	((vifs.flags & VUNSET) == 0)
 #define mailval()	(vmail.text + 5)
 #define mpathval()	(vmpath.text + 9)
 #define pathval()	(vpath.text + 5)
