@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.25 1997/09/14 08:21:44 peter Exp $";
+	"$Id: xinstall.c,v 1.26 1997/10/27 22:53:33 ache Exp $";
 #endif /* not lint */
 
 /*-
@@ -669,18 +669,19 @@ install_dir(path)
 			ch = *p;
 			*p = '\0';
 			if (stat(path, &sb)) {
-				if (errno != ENOENT || mkdir(path, 0777) < 0) {
+				if (errno != ENOENT || mkdir(path, 0755) < 0) {
 					err(EX_OSERR, "mkdir %s", path);
 					/* NOTREACHED */
 				}
-			}
+			} else if (!S_ISDIR(sb.st_mode))
+				errx(EX_OSERR, "%s exists but is not a directory", path);
 			if (!(*p = ch))
 				break;
  		}
 
 	if ((gid != (gid_t)-1 || uid != (uid_t)-1) && chown(path, uid, gid))
 		warn("chown %u:%u %s", uid, gid, path);
-	else if (chmod(path, mode))
+	if (chmod(path, mode))
 		warn("chmod %o %s", mode, path);
 }
 
