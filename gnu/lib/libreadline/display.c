@@ -690,7 +690,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	putc (' ', rl_outstream);
       _rl_last_c_pos = 1;		/* XXX */
       _rl_last_v_pos++;
-      if (old[0])
+      if (old[0] && new[0])
         old[0] = new[0];
     }
       
