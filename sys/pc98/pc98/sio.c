@@ -139,22 +139,23 @@
 #endif /* PC98 */
 
 #include <sys/param.h>
-#include <sys/bus.h>
 #include <sys/systm.h>
-#include <sys/reboot.h>
-#include <sys/malloc.h>
-#include <sys/tty.h>
-#include <sys/proc.h>
-#include <sys/module.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
 #include <sys/ipl.h>
 #include <sys/kernel.h>
-#include <sys/syslog.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/sysctl.h>
-#include <sys/bus.h>
+#include <sys/syslog.h>
+#include <sys/tty.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/timetc.h>
