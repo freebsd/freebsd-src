@@ -183,15 +183,17 @@ int securelevel = -1;
 static int
 sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 {
+	struct prison *pr;
 	int error, level;
+
+	pr = req->p->p_ucred->cr_prison;
 
 	/*
 	 * If the process is in jail, return the maximum of the global and
 	 * local levels; otherwise, return the global level.
 	 */
-	if (req->p->p_ucred->cr_prison != NULL)
-		level = imax(securelevel,
-		    req->p->p_ucred->cr_prison->pr_securelevel);
+	if (pr != NULL)
+		level = imax(securelevel, pr->pr_securelevel);
 	else
 		level = securelevel;
 	error = sysctl_handle_int(oidp, &level, 0, req);
@@ -201,14 +203,13 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 	 * Permit update only if the new securelevel exceeds the
 	 * global level, and local level if any.
 	 */
-	if (req->p->p_ucred->cr_prison != NULL) {
+	if (pr != NULL) {
 #ifdef REGRESSION
 		if (!regression_securelevel_nonmonotonic)
 #endif /* !REGRESSION */
-		if (level < imax(securelevel,
-		    req->p->p_ucred->cr_prison->pr_securelevel))
+		if (level < imax(securelevel, pr->pr_securelevel))
 			return (EPERM);
-		req->p->p_ucred->cr_prison->pr_securelevel = level;
+		pr->pr_securelevel = level;
 	} else {
 #ifdef REGRESSION
 		if (!regression_securelevel_nonmonotonic)
