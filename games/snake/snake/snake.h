@@ -78,8 +78,8 @@ struct ltchars olttyc, nlttyc;
 #endif
 struct point *point();
 #if __STDC__
-void	apr(struct point *, const char *, ...);
-void	pr(const char *, ...);
+void	apr(struct point *, const char *, ...) __printflike(2, 3);
+void	pr(const char *, ...) __printflike(1, 2);
 #else
 void	apr();
 void	pr();
