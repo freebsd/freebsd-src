@@ -77,16 +77,18 @@ char	action_tab[][MAXSTR]={
 #define A_ADDA		6
 "dela",
 #define A_DELA		7
+"clr",
+#define A_CLRA		8
 "f",
-#define A_FLUSH		8
+#define A_FLUSH		9
 "z",
-#define A_ZERO		9
+#define A_ZERO		10
 "l",
-#define A_LIST		10
+#define A_LIST		11
 "p",
-#define A_POLICY	11
+#define A_POLICY	12
 "",
-#define A_NONE		12
+#define A_NONE		13
 };
 
 
@@ -179,66 +181,66 @@ int i,mb;
 
 
 if (do_short && do_acct) {
-	printf("%8d:%8d ",chain->b_cnt,chain->p_cnt);
+	printf("%8d:%8d ",chain->fw_bcnt,chain->fw_pcnt);
 }
 	
 
 if (do_short)
 	if (c_t==FW) {
-		if (chain->flags & IP_FW_F_ACCEPT) 
-			if (chain->flags & IP_FW_F_PRN)
+		if (chain->fw_flg & IP_FW_F_ACCEPT) 
+			if (chain->fw_flg & IP_FW_F_PRN)
 				printf("l");
 			else
 				printf("a");
 		else 
-			if (chain->flags & IP_FW_F_PRN)
-				if (chain->flags & IP_FW_F_ICMPRPL)
+			if (chain->fw_flg & IP_FW_F_PRN)
+				if (chain->fw_flg & IP_FW_F_ICMPRPL)
 					printf("R");
 				else
 					printf("D");
 			else
-				if (chain->flags & IP_FW_F_ICMPRPL)
+				if (chain->fw_flg & IP_FW_F_ICMPRPL)
 					printf("r");
 				else
 					printf("d");
 	} else {
-		if (chain->flags & IP_FW_F_BIDIR) 
+		if (chain->fw_flg & IP_FW_F_BIDIR) 
 			printf("b");
 		else 
 			printf("s");
 	}
 else
 	if (c_t==FW) {
-		if (chain->flags & IP_FW_F_ACCEPT) 
-			if (chain->flags & IP_FW_F_PRN)
+		if (chain->fw_flg & IP_FW_F_ACCEPT) 
+			if (chain->fw_flg & IP_FW_F_PRN)
 				printf("log ");
 			else
 				printf("accept ");
 		else 
-			if (chain->flags & IP_FW_F_PRN)
-				if (chain->flags & IP_FW_F_ICMPRPL)
+			if (chain->fw_flg & IP_FW_F_PRN)
+				if (chain->fw_flg & IP_FW_F_ICMPRPL)
 					printf("lreject ");
 				else
 					printf("ldeny ");
 			else
-				if (chain->flags & IP_FW_F_ICMPRPL)
+				if (chain->fw_flg & IP_FW_F_ICMPRPL)
 					printf("reject ");
 				else
 					printf("deny ");
 	} else {
-		if (chain->flags & IP_FW_F_BIDIR) 
+		if (chain->fw_flg & IP_FW_F_BIDIR) 
 			printf("bidir  ");
 		else 
 			printf("single ");
 	}
 
 if (do_short)
-	switch (chain->flags & IP_FW_F_KIND) {
+	switch (chain->fw_flg & IP_FW_F_KIND) {
 		case IP_FW_F_ICMP:
 			printf("I ");
 			break;
 		case IP_FW_F_TCP:
-			if (chain->flags&IP_FW_F_TCPSYN)
+			if (chain->fw_flg&IP_FW_F_TCPSYN)
 				printf("S ");
 			else
 				printf("T ");
@@ -253,12 +255,12 @@ if (do_short)
 			break;
 	}
 else
-	switch (chain->flags & IP_FW_F_KIND) {
+	switch (chain->fw_flg & IP_FW_F_KIND) {
 		case IP_FW_F_ICMP:
 			printf("icmp ");
 			break;
 		case IP_FW_F_TCP:
-			if (chain->flags&IP_FW_F_TCPSYN)
+			if (chain->fw_flg&IP_FW_F_TCPSYN)
 				printf("syn  ");
 			else
 				printf("tcp  ");
@@ -278,31 +280,31 @@ if (do_short)
 else
 	printf("from ");
 
-	adrt=ntohl(chain->src_mask.s_addr);
+	adrt=ntohl(chain->fw_smsk.s_addr);
 	if (adrt==ULONG_MAX && do_resolv) {
-		adrt=(chain->src.s_addr);
+		adrt=(chain->fw_src.s_addr);
 		he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
 		if (he==NULL) {
-			printf(inet_ntoa(chain->src));
+			printf(inet_ntoa(chain->fw_src));
 			printf(":");
-			printf(inet_ntoa(chain->src_mask));
+			printf(inet_ntoa(chain->fw_smsk));
 		} else
 			printf("%s",he->h_name);
 	} else {
-		printf(inet_ntoa(chain->src));
+		printf(inet_ntoa(chain->fw_src));
 		if (adrt!=ULONG_MAX)
-			if ((mb=mask_bits(chain->src_mask))>=0)
+			if ((mb=mask_bits(chain->fw_smsk))>=0)
 				printf("/%d",mb);
 			else {
 				printf(":");
-				printf(inet_ntoa(chain->src_mask));
+				printf(inet_ntoa(chain->fw_smsk));
 			}
 	}
 
 	comma = " ";
-	for (i=0;i<chain->n_src_p; i++ ) {
-		printf("%s%d",comma,chain->ports[i]);
-		if (i==0 && (chain->flags & IP_FW_F_SRNG)) 
+	for (i=0;i<chain->fw_nsp; i++ ) {
+		printf("%s%d",comma,chain->fw_pts[i]);
+		if (i==0 && (chain->fw_flg & IP_FW_F_SRNG)) 
 			comma = ":";
 		else 
 			comma = ",";
@@ -313,42 +315,42 @@ if (do_short)
 else
 	printf(" to ");
 
-	adrt=ntohl(chain->dst_mask.s_addr);
+	adrt=ntohl(chain->fw_dmsk.s_addr);
 	if (adrt==ULONG_MAX && do_resolv) {
-		adrt=(chain->dst.s_addr);
+		adrt=(chain->fw_dst.s_addr);
 		he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
 		if (he==NULL) {
-			printf(inet_ntoa(chain->dst));
+			printf(inet_ntoa(chain->fw_dst));
 			printf(":");
-			printf(inet_ntoa(chain->dst_mask));
+			printf(inet_ntoa(chain->fw_dmsk));
 		} else
 			printf("%s",he->h_name);
 	} else {
-		printf(inet_ntoa(chain->dst));
+		printf(inet_ntoa(chain->fw_dst));
 		if (adrt!=ULONG_MAX) 
-			if ((mb=mask_bits(chain->dst_mask))>=0)
+			if ((mb=mask_bits(chain->fw_dmsk))>=0)
 				printf("/%d",mb);
 			else {
 				printf(":");
-				printf(inet_ntoa(chain->dst_mask));
+				printf(inet_ntoa(chain->fw_dmsk));
 			}
 	}
 
 	comma = " ";
-	for (i=0;i<chain->n_dst_p;i++) {
-		printf("%s%d",comma,chain->ports[chain->n_src_p+i]);
-		if (i==chain->n_src_p && (chain->flags & IP_FW_F_DRNG))
+	for (i=0;i<chain->fw_ndp;i++) {
+		printf("%s%d",comma,chain->fw_pts[chain->fw_nsp+i]);
+		if (i==chain->fw_nsp && (chain->fw_flg & IP_FW_F_DRNG))
 			comma = ":";
 		else 
 		    comma = ",";
 	    }
 
-if (chain->via.s_addr) {
+if (chain->fw_via.s_addr) {
 	if (do_short)
 		printf("][");
 	else
 		printf(" via ");
-	printf(inet_ntoa(chain->via));
+	printf(inet_ntoa(chain->fw_via));
 }
 if (do_short)
 	printf("]\n");
@@ -382,8 +384,8 @@ if (*av==NULL || !strncmp(*av,CH_BLK,strlen(CH_BLK))
 if (*av==NULL || !strncmp(*av,CH_BLK,strlen(CH_BLK))) {
 	kvm_read(kd,(u_long)nlf[N_BCHAIN].n_value,&b,sizeof(struct ip_fw));
 	printf("Blocking chain entries:\n");
-	while(b.next!=NULL) {
-		btmp=b.next;
+	while(b.fw_next!=NULL) {
+		btmp=b.fw_next;
 		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
 		show_ipfw(&b,FW);
 	}
@@ -392,8 +394,8 @@ if (*av==NULL || !strncmp(*av,CH_BLK,strlen(CH_BLK))) {
 if (*av==NULL || !strncmp(*av,CH_FWD,strlen(CH_FWD))) {
 	kvm_read(kd,(u_long)nlf[N_FCHAIN].n_value,&b,sizeof(struct ip_fw));
 	printf("Forwarding chain entries:\n");
-	while(b.next!=NULL) {
-		btmp=b.next;
+	while(b.fw_next!=NULL) {
+		btmp=b.fw_next;
 		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
 		show_ipfw(&b,FW);
 	}
@@ -411,8 +413,8 @@ if (*av==NULL ||  !strncmp(*av,CH_AC,strlen(CH_AC))) {
 if (*av==NULL || !strncmp(*av,CH_AC,strlen(CH_AC))) {
 	kvm_read(kd,(u_long)nla[N_ACHAIN].n_value,&b,sizeof(struct ip_fw));
 	printf("Accounting chain entries:\n");
-	while(b.next!=NULL) {
-		btmp=b.next;
+	while(b.fw_next!=NULL) {
+		btmp=b.fw_next;
 		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
 		show_ipfw(&b,AC);
 	}
@@ -621,9 +623,9 @@ struct ip_fw * frwl;
 {
 int p_num=0,ir=0;
 
-	frwl->n_src_p=0;
-	frwl->n_dst_p=0;
-	frwl->via.s_addr=0L;
+	frwl->fw_nsp=0;
+	frwl->fw_ndp=0;
+	frwl->fw_via.s_addr=0L;
 
 	if (strncmp(*av,S_SEP1,strlen(S_SEP1))) {
 		show_usage();
@@ -635,7 +637,7 @@ int p_num=0,ir=0;
 			exit(1);
 	}
 
-	set_entry_ip(*av,&(frwl->src),&(frwl->src_mask));
+	set_entry_ip(*av,&(frwl->fw_src),&(frwl->fw_smsk));
 
 	if (*(++av)==NULL) {
 			show_usage();
@@ -646,8 +648,8 @@ int p_num=0,ir=0;
 		goto no_src_ports;
 
 	if (ports_ok) {
-		frwl->n_src_p=
-			set_entry_ports(*av,frwl->ports,IP_FW_MAX_PORTS,&ir);
+		frwl->fw_nsp=
+			set_entry_ports(*av,frwl->fw_pts,IP_FW_MAX_PORTS,&ir);
 		if (ir)
 			flags|=IP_FW_F_SRNG;
 
@@ -669,7 +671,7 @@ no_src_ports:
 			exit(1);
 	}
 	
-	set_entry_ip(*av,&(frwl->dst),&(frwl->dst_mask));
+	set_entry_ip(*av,&(frwl->fw_dst),&(frwl->fw_dmsk));
 
 	if (*(++av)==NULL) 
 		goto no_tail;
@@ -678,9 +680,9 @@ no_src_ports:
 		goto no_dst_ports;
 
 	if (ports_ok) {
-		frwl->n_dst_p=
-			set_entry_ports(*av,&(frwl->ports[frwl->n_src_p]),
-					(IP_FW_MAX_PORTS-frwl->n_src_p),&ir);
+		frwl->fw_ndp=
+			set_entry_ports(*av,&(frwl->fw_pts[frwl->fw_nsp]),
+					(IP_FW_MAX_PORTS-frwl->fw_nsp),&ir);
 		if (ir)
 			flags|=IP_FW_F_DRNG;
 	}
@@ -695,7 +697,7 @@ no_dst_ports:
 			exit(1);
 	}
 
-	set_entry_ip(*av,&(frwl->via),NULL);
+	set_entry_ip(*av,&(frwl->fw_via),NULL);
 no_tail:
 
 }
@@ -859,13 +861,9 @@ struct ip_fw	frwl;
 				int_t=FW;
 				break;
 			case A_CHKB:
-/*
-				ctl=IP_FW_CHK_BLK;
 				int_t=FW;
 				is_check=1;
 				break;
-*/
-return;
 			case A_ADDF:
 				ctl=IP_FW_ADD_FWD;
 				int_t=FW;
@@ -875,19 +873,19 @@ return;
 				int_t=FW;
 				break;
 			case A_CHKF:
-/*
-				ctl=IP_FW_CHK_FWD;
 				int_t=FW;
 				is_check=1;
 				break;
-*/
-return;
 			case A_ADDA:
 				ctl=IP_ACCT_ADD;
 				int_t=AC;
 				break;
 			case A_DELA:
 				ctl=IP_ACCT_DEL;
+				int_t=AC;
+				break;
+			case A_CLRA:
+				ctl=IP_ACCT_CLR;
 				int_t=AC;
 				break;
 			case A_FLUSH:
@@ -1000,9 +998,13 @@ proto_switch:
 	}
 
 	set_entry(av,&frwl); 
-	frwl.flags=flags;
+	frwl.fw_flg=flags;
 
 	if (is_check) {
+#ifndef disabled
+		fprintf(stderr,"%s: checking disabled.\n",progname);
+#else
+		
 		struct ip 		*pkt;
 		struct tcphdr 		*th;
 		int p_len=sizeof(struct ip)+sizeof(struct tcphdr);
@@ -1025,27 +1027,28 @@ proto_switch:
 							only.\n",progname);
 				exit(1);
 		}
-		if (frwl.n_src_p!=1 || frwl.n_dst_p!=1) {
+		if (frwl.fw_nsp!=1 || frwl.fw_ndp!=1) {
 			fprintf(stderr,"%s: check needs one src/dst port.\n",
 							progname);
 			exit(1);
 		}
-		if (ntohl(frwl.src_mask.s_addr)!=ULONG_MAX ||
-		    ntohl(frwl.dst_mask.s_addr)!=ULONG_MAX) {
+		if (ntohl(frwl.fw_smsk.s_addr)!=ULONG_MAX ||
+		    ntohl(frwl.fw_dmsk.s_addr)!=ULONG_MAX) {
 			fprintf(stderr,"%s: can't check masked IP.\n",progname);
 			exit(1);
 		}
-		pkt->ip_src.s_addr=frwl.src.s_addr;
-		pkt->ip_dst.s_addr=frwl.dst.s_addr;
+		pkt->ip_src.s_addr=frwl.fw_src.s_addr;
+		pkt->ip_dst.s_addr=frwl.fw_dst.s_addr;
 	
-		th->th_sport=htons(frwl.ports[0]);
-		th->th_dport=htons(frwl.ports[frwl.n_src_p]);
+		th->th_sport=htons(frwl.fw_pts[0]);
+		th->th_dport=htons(frwl.fw_pts[frwl.fw_nsp]);
 		
 		if (setsockopt(s,IPPROTO_IP,ctl,pkt,p_len))
 			printf("Packet DENYED.\n");
 		else
 			printf("Packet ACCEPTED.\n");
 		exit(0);
+#endif
 	} else {
 		if (setsockopt(s,IPPROTO_IP,ctl,&frwl,sizeof(frwl))<0) {
 			fprintf(stderr,"%s: setsockopt failed.\n",progname);
@@ -1053,11 +1056,6 @@ proto_switch:
 		}
 	}
 
-			
-    /*
-     * Here the entry have to be added but not yet...
-     */
-	
     close(s);
 }
 
