@@ -416,6 +416,26 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 }
 
 /*
+ * Reparent an existing oid.
+ */
+int
+sysctl_move_oid(struct sysctl_oid *oid, struct sysctl_oid_list *parent)
+{
+	struct sysctl_oid *oidp;
+
+	if (oid->oid_parent == parent)
+		return (0);
+	oidp = sysctl_find_oidname(oid->oid_name, parent);
+	if (oidp != NULL)
+		return (EEXIST);
+	sysctl_unregister_oid(oid);
+	oid->oid_parent = parent;
+	oid->oid_number = OID_AUTO;
+	sysctl_register_oid(oid);
+	return (0);
+}
+
+/*
  * Register the kernel's oids on startup.
  */
 SET_DECLARE(sysctl_set, struct sysctl_oid);
