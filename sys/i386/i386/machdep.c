@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.15 1993/11/07 21:47:00 wollman Exp $
+ *	$Id: machdep.c,v 1.16 1993/11/13 02:25:02 davidg Exp $
  */
 
 #include "npx.h"
@@ -1237,6 +1237,173 @@ _remque(element)
 	((struct prochd *)(element->ph_link))->ph_rlink = element->ph_rlink;
 	((struct prochd *)(element->ph_rlink))->ph_link = element->ph_link;
 	element->ph_rlink = (struct proc *)0;
+}
+
+/*
+ * The registers are in the frame; the frame is in the user area of
+ * the process in question; when the process is active, the registers
+ * are in "the kernel stack"; when it's not, they're still there, but
+ * things get flipped around.  So, since p->p_regs is the whole address
+ * of the register set, take its offset from the kernel stack, and
+ * index into the user block.  Don't you just *love* virtual memory?
+ * (I'm starting to think seymour is right...)
+ */
+
+int
+ptrace_set_pc (struct proc *p, unsigned int addr) {
+	struct pcb *pcb;
+	void *regs = (char*)p->p_addr +
+		((char*) p->p_regs - (char*) kstack);
+
+	pcb = &p->p_addr->u_pcb;
+	if (pcb->pcb_flags & FM_TRAP)
+		((struct trapframe *)regs)->tf_eip = addr;
+	else
+		((struct syscframe *)regs)->sf_eip = addr;
+	return 0;
+}
+
+int
+ptrace_single_step (struct proc *p) {
+	struct pcb *pcb;
+	void *regs = (char*)p->p_addr +
+		((char*) p->p_regs - (char*) kstack);
+
+	pcb = &p->p_addr->u_pcb;
+	if (pcb->pcb_flags & FM_TRAP)
+		((struct trapframe *)regs)->tf_eflags |= PSL_T;
+	else
+		((struct syscframe *)regs)->sf_eflags |= PSL_T;
+	return 0;
+}
+
+/*
+ * Copy the registers to user-space.  This is tedious because
+ * we essentially duplicate code for trapframe and syscframe. *sigh*
+ */
+
+int
+ptrace_getregs (struct proc *p, unsigned int *addr) {
+	int error;
+	struct regs regs = {0};
+
+	if (error = fill_regs (p, &regs))
+		return error;
+	  
+	return copyout (&regs, addr, sizeof (regs));
+}
+
+int
+ptrace_setregs (struct proc *p, unsigned int *addr) {
+	int error;
+	struct regs regs = {0};
+
+	if (error = copyin (addr, &regs, sizeof(regs)))
+		return error;
+
+	return set_regs (p, &regs);
+}
+
+int
+fill_regs(struct proc *p, struct regs *regs) {
+	int error;
+	struct trapframe *tp;
+	struct syscframe *sp;
+	struct pcb *pcb;
+	void *ptr = (char*)p->p_addr +
+		((char*) p->p_regs - (char*) kstack);
+
+	pcb = &p->p_addr->u_pcb;
+	if (pcb->pcb_flags & FM_TRAP) {
+		tp = ptr;
+		regs->r_es = tp->tf_es;
+		regs->r_ds = tp->tf_ds;
+		regs->r_edi = tp->tf_edi;
+		regs->r_esi = tp->tf_esi;
+		regs->r_ebp = tp->tf_ebp;
+		regs->r_ebx = tp->tf_ebx;
+		regs->r_edx = tp->tf_edx;
+		regs->r_ecx = tp->tf_ecx;
+		regs->r_eax = tp->tf_eax;
+		regs->r_eip = tp->tf_eip;
+		regs->r_cs = tp->tf_cs;
+		regs->r_eflags = tp->tf_eflags;
+		regs->r_esp = tp->tf_esp;
+		regs->r_ss = tp->tf_ss;
+	} else {
+		sp = ptr;
+		/*
+		 * No sf_es or sf_ds... dunno why.
+		 */
+		/*
+		 * regs.r_es = sp->sf_es;
+		 * regs.r_ds = sp->sf_ds;
+		 */
+		regs->r_edi = sp->sf_edi;
+		regs->r_esi = sp->sf_esi;
+		regs->r_ebp = sp->sf_ebp;
+		regs->r_ebx = sp->sf_ebx;
+		regs->r_edx = sp->sf_edx;
+		regs->r_ecx = sp->sf_ecx;
+		regs->r_eax = sp->sf_eax;
+		regs->r_eip = sp->sf_eip;
+		regs->r_cs = sp->sf_cs;
+		regs->r_eflags = sp->sf_eflags;
+		regs->r_esp = sp->sf_esp;
+		regs->r_ss = sp->sf_ss;
+	}
+	return 0;
+}
+
+int
+set_regs (struct proc *p, struct regs *regs) {
+	int error;
+	struct trapframe *tp;
+	struct syscframe *sp;
+	struct pcb *pcb;
+	void *ptr = (char*)p->p_addr +
+		((char*) p->p_regs - (char*) kstack);
+
+	pcb = &p->p_addr->u_pcb;
+	if (pcb->pcb_flags & FM_TRAP) {
+		tp = ptr;
+		tp->tf_es = regs->r_es;
+		tp->tf_ds = regs->r_ds;
+		tp->tf_edi = regs->r_edi;
+		tp->tf_esi = regs->r_esi;
+		tp->tf_ebp = regs->r_ebp;
+		tp->tf_ebx = regs->r_ebx;
+		tp->tf_edx = regs->r_edx;
+		tp->tf_ecx = regs->r_ecx;
+		tp->tf_eax = regs->r_eax;
+		tp->tf_eip = regs->r_eip;
+		tp->tf_cs = regs->r_cs;
+		tp->tf_eflags = regs->r_eflags;
+		tp->tf_esp = regs->r_esp;
+		tp->tf_ss = regs->r_ss;
+	} else {
+		sp = ptr;
+		/*
+		 * No sf_es or sf_ds members, dunno why...
+		 */
+		/*
+		 * sp->sf_es = regs.r_es;
+		 * sp->sf_ds = regs.r_ds;
+		 */
+		sp->sf_edi = regs->r_edi;
+		sp->sf_esi = regs->r_esi;
+		sp->sf_ebp = regs->r_ebp;
+		sp->sf_ebx = regs->r_ebx;
+		sp->sf_edx = regs->r_edx;
+		sp->sf_ecx = regs->r_ecx;
+		sp->sf_eax = regs->r_eax;
+		sp->sf_eip = regs->r_eip;
+		sp->sf_cs = regs->r_cs;
+		sp->sf_eflags = regs->r_eflags;
+		sp->sf_esp = regs->r_esp;
+		sp->sf_ss = regs->r_ss;
+	}
+	return 0;
 }
 
 #ifdef SLOW_OLD_COPYSTRS
