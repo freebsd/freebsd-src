@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.120 1994/12/17 08:37:22 jkh Exp $
+#	$Id: LINT,v 1.121 1994/12/22 21:00:02 wollman Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -500,12 +500,18 @@ device pca0 at isa? tty
 # Miscellaneous hardware: `mcd', `wt', `ctx', `apm'
 #
 # mcd: Mitsumi CD-ROM
+# scd: Sony CD-ROM
+# pcd: Panasonic CD-ROM
 # wt: Wangtek and Archive QIC-02/QIC-36 tape drives
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
 #
 
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
+# for the soundblaster 16 multicd
+device		scd0	at isa? port 0x230 bio
+# for the soundblaster 16 multicd
+device		pcd0	at isa? port 0x220 bio
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		ctx0	at isa? port 0x230 iomem 0xd0000
 
