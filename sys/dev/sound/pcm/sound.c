@@ -675,18 +675,18 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			if (c->pid != -1)
 				sbuf_printf(s, ", pid %d", c->pid);
 			sbuf_printf(s, "\n\t");
-			if (c->pid != -1 && c->bufhard != NULL && c->bufsoft != NULL) {
+			if (c->bufhard != NULL && c->bufsoft != NULL) {
 				sbuf_printf(s, "interrupts %d, ", c->interrupts);
 				if (c->direction == PCMDIR_REC)
 					sbuf_printf(s, "overruns %d, hfree %d, sfree %d",
 						c->xruns, sndbuf_getfree(c->bufhard), sndbuf_getfree(c->bufsoft));
 				else
-					sbuf_printf(s, "underruns %d, hready %d, sready %d",
-						c->xruns, sndbuf_getready(c->bufhard), sndbuf_getready(c->bufsoft));
+					sbuf_printf(s, "underruns %d, ready %d",
+						c->xruns, sndbuf_getready(c->bufsoft));
 				sbuf_printf(s, "\n\t");
 			}
 			fsep = (c->direction == PCMDIR_REC)? " -> " : " <- ";
-			sbuf_printf(s, "[hardware]%s", fsep);
+			sbuf_printf(s, "{hardware}%s", fsep);
 			f = c->feeder;
 			while (f) {
 				sbuf_printf(s, "%s", f->class->name);
@@ -699,7 +699,7 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 				sbuf_printf(s, "%s", fsep);
 				f = f->source;
 			}
-			sbuf_printf(s, "[userland]");
+			sbuf_printf(s, "{userland}");
 		}
 skipverbose:
 	} else
