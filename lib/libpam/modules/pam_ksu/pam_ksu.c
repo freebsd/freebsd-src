@@ -58,7 +58,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	char		*su_principal_name;
 	long		 rv;
 	int		 pamret;
-	
+
 	pamret = pam_get_user(pamh, &user, NULL);
 	if (pamret != PAM_SUCCESS)
 		return (pamret);
@@ -238,7 +238,7 @@ get_su_principal(krb5_context context, const char *target_user, const char *curr
 		*su_principal_name = NULL;
 		(void)asprintf(su_principal_name, "%s/%s@%s", principal_name, superuser, p);
 		free(principal_name);
-	} else 
+	} else
 		*su_principal_name = principal_name;
 
 	if (*su_principal_name == NULL)
