@@ -5,7 +5,7 @@ CLEANFILES=	makedevs.c rtermcap
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
 SRCS=	attr.c cdrom.c command.c config.c decode.c devices.c disks.c dist.c \
-	dmenu.c dos.c floppy.c ftp.c ftp_strat.c globals.c install.c label.c \
+	dmenu.c dos.c floppy.c ftp.c ftp_strat.c globals.c index.c install.c label.c \
 	main.c makedevs.c media.c menus.c misc.c msg.c network.c nfs.c options.c \
 	system.c tape.c tcpip.c termcap.c ufs.c variable.c wizard.c
 

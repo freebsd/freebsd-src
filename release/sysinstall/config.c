@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.6 1995/10/04 07:54:41 jkh Exp $
+ * $Id: config.c,v 1.16.2.7 1995/10/04 12:08:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -132,7 +132,7 @@ seq_num(Chunk *c1)
     return 0;
 }
 
-void
+int
 configFstab(void)
 {
     Device **devs;
@@ -143,14 +143,14 @@ configFstab(void)
 
     if (!RunningAsInit) {
 	if (file_readable("/etc/fstab"))
-	    return;
+	    return RET_SUCCESS;
 	else
 	    msgConfirm("Attempting to rebuild your /etc/fstab file.\nWarning: If you had any CD devices in use before running\nsysinstall then they may NOT be found in this run!");
     }
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("No disks found!");
-	return;
+	return RET_FAIL;
     }
 
     /* Record all the chunks */
@@ -178,7 +178,7 @@ configFstab(void)
     fstab = fopen("/etc/fstab", "w");
     if (!fstab) {
 	msgConfirm("Unable to create a new /etc/fstab file!\nManual intervention will be required.");
-	return;
+	return RET_FAIL;
     }
 
     /* Go for the burn */
@@ -210,6 +210,7 @@ configFstab(void)
     fclose(fstab);
     if (isDebug())
 	msgDebug("Wrote out /etc/fstab file\n");
+    return RET_SUCCESS;
 }
 
 /*
@@ -300,7 +301,7 @@ configSaverTimeout(char *str)
     val = msgGetInput("60", "Enter time-out period in seconds for screen saver");
     if (val)
 	variable_set2("blanktime", val);
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -311,7 +312,7 @@ configNTP(char *str)
     val = msgGetInput(NULL, "Enter the name of an NTP server");
     if (val)
 	variable_set2("ntpdate", val);
-    return 0;
+    return RET_SUCCESS;
 }
 
 void
@@ -363,28 +364,67 @@ configRoutedFlags(char *str)
 		      "a good choice for gateway machines.");
     if (val)
 	variable_set2("routedflags", val);
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
 configPackages(char *str)
 {
-    Boolean onCD;
+    PkgNode top, plist;
+    FILE *fp;
+    int fd;
 
-    /* If we're running as init, we know that a CD in the drive is probably ours */
-    onCD = file_readable("/cdrom/packages");
-    if (!onCD && RunningAsInit) {
-	if (mediaSetCDROM(NULL)) {
-	    if ((*mediaDevice->init)(mediaDevice))
-		onCD = TRUE;
+    if (!mediaVerify())
+	return RET_FAIL;
+
+    if (!mediaDevice->init(mediaDevice))
+	return RET_FAIL;
+    
+    msgNotify("Attempting to fetch packages/INDEX file from selected media.");
+    fd = mediaDevice->get(mediaDevice, "packages/INDEX", NULL);
+    if (fd < 0) {
+	msgNotify("Can't find packages/INDEX file - looking for ports/INDEX.");
+	fd = mediaDevice->get(mediaDevice, "ports/INDEX", NULL);
+	if (fd < 0) {
+	    msgConfirm("Unable to get ports/INDEX file from selected media.\n"
+		       "Please verify media (or path to media) and try again.");
+	    return RET_FAIL;
 	}
     }
-    
-    return 0;
+    fp = fdopen(fd, "r");
+    index_init(&top, &plist);
+    if (index_fread(fp, &top)) {
+	msgConfirm("I/O or format error on packages/INDEX file.\n"
+		   "Please verify media (or path to media) and try again.");
+	mediaDevice->close(mediaDevice, fd);
+	return RET_FAIL;
+    }
+    mediaDevice->close(mediaDevice, fd);
+    index_sort(&top);
+    while (1) {
+	int ret, pos, scroll;
+
+	/* Bring up the packages menu */
+	pos = scroll = 0;
+	index_menu(&top, &plist, &pos, &scroll);
+
+	/* Now show the packling list menu */
+	pos = scroll = 0;
+	ret = index_menu(&plist, NULL, &pos, &scroll);
+	if (ret == RET_DONE)
+	    break;
+	else if (ret == RET_FAIL)
+	    continue;
+	index_extract(mediaDevice, &plist);
+	break;
+    }
+    index_node_free(&top, &plist);
+    mediaDevice->shutdown(mediaDevice);
+    return RET_SUCCESS;
 }
 
 int
 configPorts(char *str)
 {
-    return 0;
+    return RET_SUCCESS;
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.7 1995/10/04 10:34:05 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.8 1995/10/04 12:08:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,6 +53,7 @@
 #include <sys/wait.h>
 #include "libdisk.h"
 #include "dist.h"
+#include "index.h"
 #include "version.h"
 
 /*** Defines ***/
@@ -73,6 +74,10 @@
 #define DEV_MAX			200	/* The maximum number of devices we'll deal with */
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
 #define MAX_FTP_RETRIES		3	/* How many times to beat our heads against the wall */
+
+#define RET_FAIL		-1
+#define RET_SUCCESS		0
+#define RET_DONE		1
 
 /*
  * I make some pretty gross assumptions about having a max of 50 chunks
@@ -231,6 +236,30 @@ typedef struct _opt {
     char * (*check)();
 } Option;
 
+/* Weird index nodey things we use for keeping track of information */
+typedef enum { PACKAGE, PLACE } node_type;	/* Types of nodes */
+
+typedef struct _pkgnode {	/* A node in the reconstructed hierarchy */
+    struct _pkgnode *next;	/* My next sibling			*/
+    node_type type;		/* What am I?				*/
+    char *name;			/* My name				*/
+    char *desc;			/* My description (Hook)		*/
+    struct _pkgnode *kids;	/* My little children			*/
+    void *data;			/* A place to hang my data		*/
+} PkgNode;
+typedef PkgNode *PkgNodePtr;
+
+/* A single package */
+typedef struct _indexEntry {	/* A single entry in an INDEX file */
+    char *name;			/* name				*/
+    char *path;			/* full path to port		*/
+    char *prefix;		/* port prefix			*/
+    char *comment;		/* one line description		*/
+    char *descrfile;		/* path to description file	*/
+    char *maintainer;		/* maintainer			*/
+} IndexEntry;
+typedef IndexEntry *IndexEntryPtr;
+
 typedef int (*commandFunc)(char *key, void *data);
 
 #define HOSTNAME_FIELD_LEN	256
@@ -321,7 +350,7 @@ extern void	command_shell_add(char *key, char *fmt, ...);
 extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* config.c */
-extern void	configFstab(void);
+extern int	configFstab(void);
 extern void	configSysconfig(void);
 extern void	configResolv(void);
 extern int	configPorts(char *str);
@@ -397,6 +426,16 @@ extern void	mediaShutdownFTP(Device *dev);
 
 /* globals.c */
 extern void	globalsInit(void);
+
+/* index.c */
+int	index_read(char *fname, PkgNodePtr papa);
+int	index_fread(FILE *fp, PkgNodePtr papa);
+int	index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll);
+void	index_init(PkgNodePtr top, PkgNodePtr plist);
+void	index_node_free(PkgNodePtr top, PkgNodePtr plist);
+void	index_sort(PkgNodePtr top);
+void	index_print(PkgNodePtr top, int level);
+void	index_extract(Device *dev, PkgNodePtr plist);
 
 /* install.c */
 extern int	installCommit(char *str);
