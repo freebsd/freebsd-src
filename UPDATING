@@ -14,7 +14,11 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
-20040630:	p9	FreeBSD-SA-04.13.linux
+20040919:	p10	FreeBSD-SA-04:14.cvs
+	Correct several vulnerabilities in CVS (CAN-2004-0414,
+	CAN-2004-0416, CAN-2004-0417, CAN-2004-0418, CAN-2004-0778).
+
+20040630:	p9	FreeBSD-SA-04:13.linux
 	Correct an input validation error in the linux binary
 	compatibility code.
 
