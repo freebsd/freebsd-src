@@ -80,6 +80,12 @@ procfs_doprocmap(PFS_FILL_ARGS)
 
 	GIANT_REQUIRED;
 
+	PROC_LOCK(p);
+	error = p_candebug(td, p);
+	PROC_UNLOCK(p);
+	if (error)
+		return (error);
+
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
