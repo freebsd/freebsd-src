@@ -84,8 +84,10 @@ struct timecounter {
 	struct timeval		tc_microtime;
 	struct timespec		tc_nanotime;
 	struct timecounter	*tc_avail;
-	struct timecounter	*tc_other;
 	struct timecounter	*tc_tweak;
+	/* Fields not to be copied in tc_windup start with tc_generation */
+	volatile unsigned	tc_generation;
+	struct timecounter	*tc_next;
 };
 
 #ifdef _KERNEL
