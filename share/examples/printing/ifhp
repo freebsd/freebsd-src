@@ -26,7 +26,7 @@ else
     #  Plain text or HP/PCL, so just print it directly; print a form
     #  at the end to eject the last page.
     #
-    echo $first_line && cat && printf "\f" && exit 2
+    echo "$first_line" && cat && printf "\f" && exit 2
 fi
 
 exit 2
