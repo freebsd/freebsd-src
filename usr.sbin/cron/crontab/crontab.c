@@ -221,12 +221,39 @@ parse_args(argc, argv)
 		      User, Filename, Options[(int)Option]))
 }
 
+static void
+copy_file(FILE *in, FILE *out) {
+	int	x, ch;
+
+	Set_LineNum(1)
+	/* ignore the top few comments since we probably put them there.
+	 */
+	for (x = 0;  x < NHEADER_LINES;  x++) {
+		ch = get_char(in);
+		if (EOF == ch)
+			break;
+		if ('#' != ch) {
+			putc(ch, out);
+			break;
+		}
+		while (EOF != (ch = get_char(in)))
+			if (ch == '\n')
+				break;
+		if (EOF == ch)
+			break;
+	}
+
+	/* copy the rest of the crontab (if any) to the output file.
+	 */
+	if (EOF != ch)
+		while (EOF != (ch = get_char(in)))
+			putc(ch, out);
+}
 
 static void
 list_cmd() {
 	char	n[MAX_FNAME];
 	FILE	*f;
-	int	ch, x;
 
 	log_it(RealUser, Pid, "LIST", User);
 	(void) sprintf(n, CRON_TAB(User));
@@ -239,27 +266,7 @@ list_cmd() {
 
 	/* file is open. copy to stdout, close.
 	 */
-	Set_LineNum(1)
-
-	/* ignore the top few comments since we probably put them there.
-	 */
-	for (x = 0;  x < NHEADER_LINES;  x++) {
-		ch = get_char(f);
-		if (EOF == ch)
-			break;
-		if ('#' != ch) {
-			putchar(ch);
-			break;
-		}
-		while (EOF != (ch = get_char(f)))
-			if (ch == '\n')
-				break;
-		if (EOF == ch)
-			break;
-	}
-
-	while (EOF != (ch = get_char(f)))
-		putchar(ch);
+	copy_file(f, stdout);
 	fclose(f);
 }
 
@@ -303,7 +310,7 @@ static void
 edit_cmd() {
 	char		n[MAX_FNAME], q[MAX_TEMPSTR], *editor;
 	FILE		*f;
-	int		ch, t, x;
+	int		t;
 	struct stat	statbuf, fsbuf;
 	time_t		mtime;
 	WAIT_T		waiter;
@@ -342,30 +349,7 @@ edit_cmd() {
 		goto fatal;
 	}
 
-	Set_LineNum(1)
-
-	/* ignore the top few comments since we probably put them there.
-	 */
-	for (x = 0;  x < NHEADER_LINES;  x++) {
-		ch = get_char(f);
-		if (EOF == ch)
-			break;
-		if ('#' != ch) {
-			putc(ch, NewCrontab);
-			break;
-		}
-		while (EOF != (ch = get_char(f)))
-			if (ch == '\n')
-				break;
-		if (EOF == ch)
-			break;
-	}
-
-	/* copy the rest of the crontab (if any) to the temp file.
-	 */
-	if (EOF != ch)
-		while (EOF != (ch = get_char(f)))
-			putc(ch, NewCrontab);
+	copy_file(f, NewCrontab);
 	fclose(f);
 	if (fflush(NewCrontab))
 		err(ERROR_EXIT, "%s", Filename);
