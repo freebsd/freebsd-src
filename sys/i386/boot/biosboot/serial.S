@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.9 1997/07/13 15:24:15 bde Exp $
+ *	$Id: serial.S,v 1.10 1998/01/01 13:01:31 bde Exp $
  */
 
 /*
@@ -151,10 +151,10 @@ ENTRY(init_serial)
 	outb	%al, %dx	# enable DLAB
 
 	subl	$3, %edx	# divisor latch, low byte
-	mov	$COMBRD(CONSPEED), %ax
+	movb	$COMBRD(CONSPEED) & 0xff, %al
 	outb	%al, %dx
 	incl	%edx		# divisor latch, high byte
-	movb	%ah, %al
+	movb	$COMBRD(CONSPEED) >> 8, %al
 	outb	%al, %dx
 
 	incl	%edx		# fifo control register (if any)
@@ -162,11 +162,10 @@ ENTRY(init_serial)
 	outb	%al, %dx	# disable fifo to reduce worst-case busy-wait
 
 	incl	%edx		# line control reg
-	movb	$0x13, %al
+	movb	$0x03, %al
 	outb	%al, %dx	# 8N1
 
 	incl	%edx		# modem control reg
-	movb	$3, %al
 	outb	%al, %dx	# enable DTR/RTS
 
 	/* Flush the input buffer. */
