@@ -52,7 +52,7 @@ PAM_EXTERN int
 pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
-	const char *dir, *end, *user;
+	const char *dir, *end, *cwd, *user;
 	struct passwd *pwd;
 	char buf[PATH_MAX];
 
@@ -71,7 +71,11 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 			return (PAM_SESSION_ERR);
 		}
 		dir = buf;
-	} else if ((dir = openpam_get_option(pamh, "dir")) == NULL) {
+		cwd = end + 2;
+	} else if ((dir = openpam_get_option(pamh, "dir")) != NULL) {
+		if ((cwd = openpam_get_option(pamh, "cwd")) == NULL)
+			cwd = "/";
+	} else {
 		if (openpam_get_option(pamh, "always")) {
 			openpam_log(PAM_LOG_ERROR,
 			    "%s has no chroot directory", user);
@@ -86,7 +90,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 		openpam_log(PAM_LOG_ERROR, "chroot(): %m");
 		return (PAM_SESSION_ERR);
 	}
-	chdir("/");
+	if (chdir(cwd) == -1) {
+		openpam_log(PAM_LOG_ERROR, "chdir(): %m");
+		return (PAM_SESSION_ERR);
+	}
 	return (PAM_SUCCESS);
 }
 
