@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id$
+ * $Id: vfs_cluster.c,v 1.42 1997/02/22 09:39:31 peter Exp $
  */
 
 #include <sys/param.h>
@@ -507,7 +507,7 @@ cluster_write(bp, filesize)
 	int async;
 
 	vp = bp->b_vp;
-	async = (vp->v_mount && (vp->v_mount->mnt_flag & MNT_ASYNC));
+	async = vp->v_mount->mnt_flag & MNT_ASYNC;
 	lblocksize = vp->v_mount->mnt_stat.f_iosize;
 	lbn = bp->b_lblkno;
 
