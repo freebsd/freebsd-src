@@ -149,7 +149,6 @@ static usb_config_descriptor_t *ugen_get_cdesc __P((struct ugen_softc *sc,
 static usbd_status ugen_set_interface __P((struct ugen_softc *, int, int));
 static int ugen_get_alt_index __P((struct ugen_softc *sc, int ifaceidx));
 
-#define UGENENDPMAX	16	/* maximum number of endpoints, see usb spec */
 #define UGENUNIT(n) ((minor(n) >> 4) & 0xf)
 #define UGENENDPOINT(n) (minor(n) & 0xf)
 #define UGENDEV(u, e) (makedev(UGEN_CDEV_MAJOR, ((u) << 4) | (e)))
@@ -186,16 +185,6 @@ USB_ATTACH(ugen)
 		sc->sc_dying = 1;
 		USB_ATTACH_ERROR_RETURN;
 	}
-
-#ifdef __FreeBSD__
-	{
-		static int global_init_done = 0;
-		if (!global_init_done) {
-			cdevsw_add(&ugen_cdevsw);
-			global_init_done = 1;
-		}
-	}
-#endif
 
 	USB_ATTACH_SUCCESS_RETURN;
 }
@@ -237,18 +226,42 @@ ugen_set_config(sc, configno)
 			return (err);
 		for (endptno = 0; endptno < nendpt; endptno++) {
 			ed = usbd_interface2endpoint_descriptor(iface,endptno);
-			endpt = ed->bEndpointAddress;
-			dir = UE_GET_DIR(endpt) == UE_DIR_IN ? IN : OUT;
-			sce = &sc->sc_endpoints[UE_GET_ADDR(endpt)][dir];
+			endpt = UE_GET_ADDR(ed->bEndpointAddress);
+			dir = UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN?
+					IN : OUT;
+
+			sce = &sc->sc_endpoints[endpt][dir];
 			DPRINTFN(1,("ugen_set_config: endptno %d, endpt=0x%02x"
 				    "(%d,%d), sce=%p\n", 
-				    endptno, endpt, UE_GET_ADDR(endpt),
-				    UE_GET_DIR(endpt), sce));
+				    endptno, endpt, endpt, dir, sce));
+
 			sce->sc = sc;
 			sce->edesc = ed;
 			sce->iface = iface;
 		}
 	}
+
+
+#if defined(__FreeBSD__)
+	for (endptno = 0; endptno < USB_MAX_ENDPOINTS; endptno++) {
+		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
+		    sc->sc_endpoints[endptno][OUT].sc != NULL ) {
+			/* endpt can be 0x81 and 0x01, representing
+			 * endpoint address 0x01 and IN/OUT directions.
+			 * We map both endpts to the same device,
+			 * IN is reading from it, OUT is writing to it.
+			 *
+			 * In the if clause above we check whether one
+			 * of the structs is populated.
+			 */
+			make_dev(&ugen_cdevsw, endptno,
+				UID_ROOT, GID_OPERATOR, 0644,
+				"ugen%d.%d",
+				USBDEVUNIT(sc->sc_dev), endptno);
+		}
+	}
+#endif
+
 	return (USBD_NORMAL_COMPLETION);
 }
 
@@ -409,9 +422,7 @@ ugen_do_read(sc, endpt, uio, flag)
 	int error = 0;
 	u_char buffer[UGEN_CHUNK];
 
-#ifdef __NetBSD__
-	DPRINTFN(5, ("ugenread: %d:%d\n", sc->sc_dev.dv_unit, endpt));
-#endif
+	DPRINTFN(5, ("%s: ugenread: %d\n", USBDEVNAME(sc->sc_dev), endpt));
 
 	if (sc->sc_dying)
 		return (EIO);
@@ -469,7 +480,7 @@ ugen_do_read(sc, endpt, uio, flag)
 		}
 		break;
 	case UE_BULK:
-		xfer = usbd_alloc_request(sc->sc_udev);
+		xfer = usbd_alloc_xfer(sc->sc_udev);
 		if (xfer == 0)
 			return (ENOMEM);
 		while ((n = min(UGEN_BBSIZE, uio->uio_resid)) != 0) {
@@ -494,7 +505,7 @@ ugen_do_read(sc, endpt, uio, flag)
 			if (error || tn < n)
 				break;
 		}
-		usbd_free_request(xfer);
+		usbd_free_xfer(xfer);
 		break;
 	default:
 		return (ENXIO);
@@ -556,7 +567,7 @@ ugen_do_write(sc, endpt, uio, flag)
 
 	switch (sce->edesc->bmAttributes & UE_XFERTYPE) {
 	case UE_BULK:
-		xfer = usbd_alloc_request(sc->sc_udev);
+		xfer = usbd_alloc_xfer(sc->sc_udev);
 		if (xfer == 0)
 			return (EIO);
 		while ((n = min(UGEN_BBSIZE, uio->uio_resid)) != 0) {
@@ -574,7 +585,7 @@ ugen_do_write(sc, endpt, uio, flag)
 				break;
 			}
 		}
-		usbd_free_request(xfer);
+		usbd_free_xfer(xfer);
 		break;
 	default:
 		return (ENXIO);
@@ -631,9 +642,9 @@ USB_DETACH(ugen)
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	int maj, mn;
 #elif defined(__FreeBSD__)
-	struct vnode *vp;
+	int endptno;
 	dev_t dev;
-	int endpt;
+	struct vnode *vp;
 #endif
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -672,11 +683,24 @@ USB_DETACH(ugen)
 	mn = self->dv_unit * USB_MAX_ENDPOINTS;
 	vdevgone(maj, mn, mn + USB_MAX_ENDPOINTS - 1, VCHR);
 #elif defined(__FreeBSD__)
-	for (endpt = 0; endpt < UGENENDPMAX; endpt++) {
-		dev = UGENDEV(device_get_unit(self), endpt);
-		vp = SLIST_FIRST(&dev->si_hlist);
-		if (vp)
-			VOP_REVOKE(vp, REVOKEALL);
+	for (endptno = 0; endptno < USB_MAX_ENDPOINTS; endptno++) {
+		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
+		    sc->sc_endpoints[endptno][OUT].sc != NULL ) {
+			/* endpt can be 0x81 and 0x01, representing
+			 * endpoint address 0x01 and IN/OUT directions.
+			 * We map both endpoint addresses to the same device,
+			 * IN is reading from it, OUT is writing to it.
+			 *
+			 * In the if clause above we check whether one
+			 * of the structs is populated.
+			 */
+			dev = UGENDEV(USBDEVUNIT(sc->sc_dev), endptno);
+			vp = SLIST_FIRST(&dev->si_hlist);
+			if (vp)
+				VOP_REVOKE(vp, REVOKEALL);
+
+			destroy_dev(dev);
+		}
 	}
 #endif
 
@@ -703,7 +727,7 @@ ugenintr(xfer, addr, status)
 		return;
 	}
 
-	usbd_get_request_status(xfer, 0, 0, &count, 0);
+	usbd_get_xfer_status(xfer, 0, 0, &count, 0);
 	ibuf = sce->ibuf;
 
 	DPRINTFN(5, ("ugenintr: xfer=%p status=%d count=%d\n", 

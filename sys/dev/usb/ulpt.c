@@ -1,4 +1,4 @@
-/*	$NetBSD: ulpt.c,v 1.27 1999/10/13 08:10:57 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.29 1999/11/17 23:00:50 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -502,12 +502,12 @@ ulpt_do_write(sc, uio, flags)
 	usbd_status err;
 
 	DPRINTF(("ulptwrite\n"));
-	xfer = usbd_alloc_request(sc->sc_udev);
+	xfer = usbd_alloc_xfer(sc->sc_udev);
 	if (xfer == NULL)
 		return (ENOMEM);
 	bufp = usbd_alloc_buffer(xfer, ULPT_BSIZE);
 	if (bufp == NULL) {
-		usbd_free_request(xfer);
+		usbd_free_xfer(xfer);
 		return (ENOMEM);
 	}
 	while ((n = min(ULPT_BSIZE, uio->uio_resid)) != 0) {
@@ -524,7 +524,7 @@ ulpt_do_write(sc, uio, flags)
 			break;
 		}
 	}
-	usbd_free_request(xfer);
+	usbd_free_xfer(xfer);
 
 	return (error);
 }

@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi_util.c,v 1.22 1999/10/13 08:10:59 augustss Exp $	*/
+/*	$NetBSD: usbdi_util.c,v 1.24 1999/11/17 23:00:50 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -504,8 +504,8 @@ usbd_bulk_transfer(xfer, pipe, flags, timeout, buf, size, lbl)
 	usbd_status err;
 	int s, error;
 
-	usbd_setup_request(xfer, pipe, 0, buf, *size,
-			   flags, timeout, usbd_bulk_transfer_cb);
+	usbd_setup_xfer(xfer, pipe, 0, buf, *size,
+			flags, timeout, usbd_bulk_transfer_cb);
 	DPRINTFN(1, ("usbd_bulk_transfer: start transfer %d bytes\n", *size));
 	s = splusb();		/* don't want callback until tsleep() */
 	err = usbd_transfer(xfer);
@@ -520,7 +520,7 @@ usbd_bulk_transfer(xfer, pipe, flags, timeout, buf, size, lbl)
 		usbd_abort_pipe(pipe);
 		return (USBD_INTERRUPTED);
 	}
-	usbd_get_request_status(xfer, 0, 0, size, &err);
+	usbd_get_xfer_status(xfer, 0, 0, size, &err);
 	DPRINTFN(1,("usbd_bulk_transfer: transferred %d\n", *size));
 	if (err) {
 		DPRINTF(("usbd_bulk_transfer: error=%d\n", err));
