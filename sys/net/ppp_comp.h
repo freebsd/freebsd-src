@@ -31,19 +31,6 @@
 #define _NET_PPP_COMP_H
 
 /*
- * The following symbols control whether we include code for
- * various compression methods.
- */
-#ifndef DO_BSD_COMPRESS
-#define DO_BSD_COMPRESS	1	/* by default, include BSD-Compress */
-#endif
-#ifndef DO_DEFLATE
-#define DO_DEFLATE	1	/* by default, include Deflate */
-#endif
-#define DO_PREDICTOR_1	0
-#define DO_PREDICTOR_2	0
-
-/*
  * Structure giving methods for compression/decompression.
  */
 #ifdef PACKETPTR
