@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.30 1995/12/08 23:23:00 phk Exp $
+ * $Id: vm_swap.c,v 1.31 1995/12/10 19:53:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -239,8 +239,8 @@ swaponvp(p, vp, dev, nblks)
 	if (error)
 		return (error);
 
-	if (nblks == 0 && (bdevsw[major(dev)].d_psize == 0 ||
-	    (nblks = (*bdevsw[major(dev)].d_psize) (dev)) == -1)) {
+	if (nblks == 0 && (bdevsw[major(dev)]->d_psize == 0 ||
+	    (nblks = (*bdevsw[major(dev)]->d_psize) (dev)) == -1)) {
 		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
 		return (ENXIO);
 	}

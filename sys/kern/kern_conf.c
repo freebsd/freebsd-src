@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.5 1995/11/30 05:59:09 julian Exp $
+ * $Id: kern_conf.c,v 1.6 1995/12/08 11:16:55 julian Exp $
  */
 
 #include <sys/param.h>
@@ -45,7 +45,7 @@
 #define ADDENTRY(TTYPE,NXXXDEV) \
 int TTYPE##_add(dev_t *descrip,						\
 		struct TTYPE *newentry,					\
-		struct TTYPE *oldentry)					\
+		struct TTYPE **oldentry)				\
 {									\
 	int i ;								\
 	if ( (int)*descrip == -1) {	/* auto (0 is valid) */		\
@@ -53,7 +53,7 @@ int TTYPE##_add(dev_t *descrip,						\
 		 * Search the table looking for a slot...		\
 		 */							\
 		for (i = 0; i < NXXXDEV; i++)				\
-			if (TTYPE[i].d_open == NULL)			\
+			if (TTYPE[i] == NULL)				\
 				break;		/* found one! */	\
 		/* out of allocable slots? */				\
 		if (i == NXXXDEV) {					\
@@ -68,13 +68,13 @@ int TTYPE##_add(dev_t *descrip,						\
 									\
 	/* maybe save old */						\
         if (oldentry) {							\
-		bcopy(&TTYPE[i], oldentry, sizeof(struct TTYPE));	\
+		*oldentry = TTYPE[i];					\
 	}								\
 	newentry->d_maj = i;						\
 	/* replace with new */						\
-	bcopy(newentry, &TTYPE[i], sizeof(struct TTYPE));		\
+	TTYPE[i] = newentry;						\
 									\
-	/* done! */							\
+	/* done!  let them know where we put it */			\
 	*descrip = makedev(i,0);					\
 	return 0;							\
 } \

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
- * $Id: kernfs_vfsops.c,v 1.10 1995/11/16 11:16:13 bde Exp $
+ * $Id: kernfs_vfsops.c,v 1.11 1995/12/11 09:24:32 phk Exp $
  */
 
 /*
@@ -120,7 +120,7 @@ kernfs_init()
 #endif
 
 	for (cmaj = 0; cmaj < nchrdev; cmaj++) {
-		if (cdevsw[cmaj].d_open == bdevsw[bmaj].d_open) {
+		if (cdevsw[cmaj]->d_open == bdevsw[bmaj]->d_open) {
 			dev_t cdev = makedev(cmaj, minor(rootdev));
 			error = cdevvp(cdev, &rrootvp);
 			if (error == 0)

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lkm.h,v 1.9 1995/11/14 07:35:57 bde Exp $
+ * $Id: lkm.h,v 1.10 1995/11/21 12:55:11 bde Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -108,8 +108,8 @@ struct lkm_dev {
 		struct cdevsw	*cdev;
 	} lkm_dev;
 	union {
-		struct bdevsw	bdev;
-		struct cdevsw	cdev;
+		struct bdevsw	*bdev;
+		struct cdevsw	*cdev;
 	} lkm_olddev;
 };
 

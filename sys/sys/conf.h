@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.26 1995/12/10 13:45:30 phk Exp $
+ * $Id: conf.h,v 1.27 1995/12/10 15:55:34 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -91,7 +91,7 @@ struct bdevsw {
 };
 
 #ifdef KERNEL
-extern struct bdevsw bdevsw[];
+extern struct bdevsw *bdevsw[];
 #endif
 
 struct cdevsw {
@@ -112,7 +112,7 @@ struct cdevsw {
 };
 
 #ifdef KERNEL
-extern struct cdevsw cdevsw[];
+extern struct cdevsw *cdevsw[];
 #endif
 
 struct linesw {
@@ -199,8 +199,8 @@ d_write_t	rawwrite;
 l_read_t	l_noread;
 l_write_t	l_nowrite;
 
-int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw *old));
-int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw *old));
+int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw **old));
+int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw **old));
 dev_t	chrtoblk __P((dev_t dev));
 int	getmajorbyname __P((const char *name));
 int	isdisk __P((dev_t dev, int type));

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.24 1995/12/08 11:17:03 julian Exp $
+ * $Id: kern_lkm.c,v 1.25 1995/12/08 23:21:32 phk Exp $
  */
 
 #include <sys/param.h>
@@ -736,12 +736,12 @@ _lkm_dev(lkmtp, cmd)
 		case LM_DT_BLOCK:
 			/* replace current slot contents with old contents */
 			descrip = makedev(i,0);
-			bdevsw_add(&descrip, &(args->lkm_olddev.bdev),NULL);
+			bdevsw_add(&descrip, args->lkm_olddev.bdev,NULL);
 			break;
 
 		case LM_DT_CHAR:
 			/* replace current slot contents with old contents */
-			cdevsw_add(&descrip, &(args->lkm_olddev.cdev),NULL);
+			cdevsw_add(&descrip, args->lkm_olddev.cdev,NULL);
 			break;
 
 		default:
