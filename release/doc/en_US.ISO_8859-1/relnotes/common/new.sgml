@@ -473,6 +473,10 @@
 
       <para>The CAM error recovery code has been updated.</para>
 
+      <para>Some problems in &man.sa.4; error handling have been
+      fixed, including the <quote>tape drive spinning indefinitely
+      upon mt stat</quote> problem.</para>
+
     </sect3>
 
     <sect3>
@@ -538,6 +542,12 @@
 
       <para arch="i386">smbfs (CIFS) support in kernel has been
       added. &merged;</para>
+
+      <para>For consistency, the fdesc, fifo, null, portal, umap, and
+      union filesystems have been renamed to fdescfs, fifofs, nullfs,
+      portalfs, umapfs, and unionfs.  Where applicable, modules and
+      mount_* programs have been renamed.</para>
+
     </sect3>
 
     <sect3>
@@ -1085,6 +1095,10 @@
     <para>&man.cdcontrol.1; now uses the <literal>CDROM</literal>
     environment variable to pick a default device. &merged;</para>
 
+    <para>&man.cdcontrol.1; now supports <literal>next</literal> and
+    <literal>prev</literal> commands to skip forwards or backwards a
+    specified number of tracks while playing an audio CD.</para>
+
     <para>&man.sysctl.8; now supports a <option>-N</option> option to
     print out variable names only.</para>
 
@@ -1326,12 +1340,18 @@
     <para>&man.chown.8; now correctly follows symbolic links named as
     command line arguments if run without <option>-R</option>.</para>
 
+    <para>&man.chmod.1; now supports a <option>-h</option> for
+    changing the mode of a symbolic link.</para>
+
     <para>&man.install.1; has a number of new features, including the
     <option>-b</option> and <option>-B</option> options for backing up
     existing target files and the <option>-S</option> option for
     <quote>safe</quote> (atomic copy) operation.  The
     <option>-c</option> (copy) flag is now the default, and the
     <option>-D</option> (debugging) flag has been withdrawn.</para>
+
+    <para>&man.whois.1; now directs queries for IP addresses to
+    ARIN.</para>
 
     <sect3>
       <title>Contributed Software</title>
