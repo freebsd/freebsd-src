@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.47 1996/03/28 20:39:45 wollman Exp $
+ *	$Id: cpufunc.h,v 1.48 1996/03/31 04:05:21 bde Exp $
  */
 
 /*
@@ -47,18 +47,11 @@
 
 #ifdef	__GNUC__
 
-#ifdef BDE_DEBUGGER
-extern int	bdb_exists;
-
-static __inline int
-bdb(void)
+static __inline void
+breakpoint(void)
 {
-	if (!bdb_exists)
-		return (0);
 	__asm __volatile("int $3");
-	return (1);
 }
-#endif /* BDE_DEBUGGER */
 
 static __inline void
 disable_intr(void)
@@ -195,7 +188,7 @@ inw(u_int port)
 	return (data);
 }
 
-static __inline unsigned
+static __inline u_int
 loadandclear(u_int *addr)
 {
 	u_int	result;
@@ -290,45 +283,48 @@ read_eflags(void)
 	return (ef);
 }
 
+static __inline quad_t
+rdmsr(u_int msr)
+{
+	quad_t rv;
+
+	__asm __volatile(".byte 0x0f, 0x32" : "=A" (rv) : "c" (msr));
+	return (rv);
+}
+
+static __inline quad_t
+rdpmc(u_int pmc)
+{
+	quad_t rv;
+
+	__asm __volatile(".byte 0x0f, 0x33" : "=A" (rv) : "c" (pmc));
+	return (rv);
+}
+
+static __inline quad_t
+rdtsc(void)
+{
+	quad_t rv;
+
+	__asm __volatile(".byte 0x0f, 0x31" : "=A" (rv));
+	return (rv);
+}
+
 static __inline void
 write_eflags(u_long ef)
 {
 	__asm __volatile("pushl %0; popfl" : : "r" (ef));
 }
 
-static __inline long long
-rdmsr(unsigned msr)
-{
-	long long rv;
-	__asm __volatile(".byte 0x0f, 0x32" : "=A" (rv) : "c" (msr));
-	return rv;
-}
-
-static __inline long long
-rdtsc(void)
-{
-	long long rv;
-	__asm __volatile(".byte 0x0f, 0x31" : "=A" (rv));
-	return rv;
-}
-
-static __inline long long
-rdpmc(unsigned pmc)
-{
-	long long rv;
-	__asm __volatile(".byte 0x0f, 0x33" : "=A" (rv) : "c" (pmc));
-	return rv;
-}
-
 static __inline void
-wrmsr(unsigned msr, long long newval)
+wrmsr(u_int msr, quad_t newval)
 {
 	__asm __volatile(".byte 0x0f, 0x30" : : "A" (newval), "c" (msr));
 }
 
 #else /* !__GNUC__ */
 
-int	bdb		__P((void));
+int	breakpoint	__P((void));
 void	disable_intr	__P((void));
 void	enable_intr	__P((void));
 u_char	inb		__P((u_int port));
@@ -345,13 +341,13 @@ void	outsl		__P((u_int port, void *addr, size_t cnt));
 void	outsw		__P((u_int port, void *addr, size_t cnt));
 void	outw		__P((u_int port, u_short data));
 void	pmap_update	__P((void));
-u_long	read_eflags	__P((void));
 u_long	rcr2		__P((void));
-void	write_eflags	__P((u_long ef));
-quad_t	rdmsr		__P((unsigned msr));
+quad_t	rdmsr		__P((u_int msr));
+quad_t	rdpmc		__P((u_int pmc));
 quad_t	rdtsc		__P((void));
-quad_t	rdpmc		__P((unsigned pmc));
-void	wrmsr		__P((unsigned msr, quad_t newval));
+u_long	read_eflags	__P((void));
+void	write_eflags	__P((u_long ef));
+void	wrmsr		__P((u_int msr, quad_t newval));
 
 #endif	/* __GNUC__ */
 
