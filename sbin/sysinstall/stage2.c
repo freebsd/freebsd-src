@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.12 1994/11/04 21:38:36 phk Exp $
+ * $Id: stage2.c,v 1.13 1994/11/06 01:16:29 jkh Exp $
  *
  */
 
@@ -36,6 +36,8 @@ stage2()
     FILE *f1;
     int i, j;
 
+    if (dialog_yesno("Last Chance!", "Are you sure you want to proceed with the installation?\nLast chance before wiping your hard disk!", 8, 72))
+	exit(0);
     /* Sort in mountpoint order */
     memset(Fsize, 0, sizeof Fsize);
 
