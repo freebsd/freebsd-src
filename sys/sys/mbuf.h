@@ -257,13 +257,34 @@ union mcluster {
 	  } \
 	}
 
+#define	MCLFREE1(p) \
+	  do { \
+	  	if (--mclrefcnt[mtocl(p)] == 0) { \
+			((union mcluster *)(p))->mcl_next = mclfree; \
+			mclfree = (union mcluster *)(p); \
+			mbstat.m_clfree++; \
+	  	} \
+	  } while (0)
+
 #define	MCLFREE(p) \
-	MBUFLOCK ( \
-	  if (--mclrefcnt[mtocl(p)] == 0) { \
-		((union mcluster *)(p))->mcl_next = mclfree; \
-		mclfree = (union mcluster *)(p); \
-		mbstat.m_clfree++; \
-	  } \
+	MBUFLOCK( \
+		MCLFREE1(p); \
+	)
+
+#define	MEXTFREE1(m) \
+	do { \
+		if ((m)->m_ext.ext_free) \
+			(*((m)->m_ext.ext_free))((m)->m_ext.ext_buf, \
+		    	(m)->m_ext.ext_size); \
+		else { \
+			char *p = (m)->m_ext.ext_buf; \
+			MCLFREE1(p); \
+		} \
+	} while (0)
+
+#define	MEXTFREE(m) \
+	MBUFLOCK( \
+		MCLEXTFREE1(m); \
 	)
 
 /*
@@ -275,17 +296,7 @@ union mcluster {
 	MBUFLOCK(  \
 	  mbstat.m_mtypes[(m)->m_type]--; \
 	  if ((m)->m_flags & M_EXT) { \
-		if ((m)->m_ext.ext_free) \
-			(*((m)->m_ext.ext_free))((m)->m_ext.ext_buf, \
-			    (m)->m_ext.ext_size); \
-		else { \
-			char *p = (m)->m_ext.ext_buf; \
-			if (--mclrefcnt[mtocl(p)] == 0) { \
-				((union mcluster *)(p))->mcl_next = mclfree; \
-				mclfree = (union mcluster *)(p); \
-				mbstat.m_clfree++; \
-			} \
-		} \
+		MEXTFREE1(m); \
 	  } \
 	  (n) = (m)->m_next; \
 	  (m)->m_type = MT_FREE; \
