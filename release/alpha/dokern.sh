@@ -54,11 +54,7 @@ sed	\
 	-e '/	ums	/d' \
 	-e '/	usb	/d' \
 	-e '/	wb	/d' \
-	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
-
-# reset maxusers to something lower
-echo "maxusers	2"
 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
