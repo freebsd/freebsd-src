@@ -267,7 +267,7 @@ echo_dg(s, sep)			/* Echo service -- echo data back */
 	int s;
 	struct servtab *sep;
 {
-	char buffer[BUFSIZE];
+	char buffer[65536]; /* Should be sizeof(max datagram). */
 	int i;
 	socklen_t size;
 	struct sockaddr_storage ss;
