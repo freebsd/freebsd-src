@@ -760,19 +760,32 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		struct toc *toc = &t->toc;
 		struct toc buf;
 		u_long len;
+		u_char starting_track = te->starting_track;
 
 		if (! t->toc.hdr.ending_track)
 			return (EIO);
-		if (te->starting_track < toc->hdr.starting_track ||
-		    te->starting_track > toc->hdr.ending_track)
-			return (EINVAL);
 
-		len = (toc->hdr.ending_track - te->starting_track + 2) *
+		if (   te->data_len > sizeof(toc->tab)
+		    || te->data_len < sizeof(toc->tab[0])
+		    || (te->data_len % sizeof(toc->tab[0])) != 0
+		   )
+			return EINVAL;
+		if (te->address_format != CD_MSF_FORMAT &&
+		    te->address_format != CD_LBA_FORMAT)
+			return EINVAL;
+
+		if (starting_track == 0)
+			starting_track = toc->hdr.starting_track;
+		else if (starting_track == 170) /* Handle leadout request */
+			starting_track = toc->hdr.ending_track + 1;
+		else if (starting_track < toc->hdr.starting_track ||
+			 starting_track > toc->hdr.ending_track + 1)
+                        return (EINVAL);
+
+		len = ((toc->hdr.ending_track + 1 - starting_track) + 1) *
 			sizeof(toc->tab[0]);
 		if (te->data_len < len)
 			len = te->data_len;
-		if (len <= 0)
-			return (EINVAL);
 
 		/* Convert to MSF format, if needed. */
 		if (te->address_format == CD_MSF_FORMAT) {
@@ -780,16 +793,14 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 
 			buf = t->toc;
 			toc = &buf;
-			e = toc->tab + toc->hdr.ending_track -
-				te->starting_track + 2;
+			e = toc->tab + (toc->hdr.ending_track + 1 -
+					toc->hdr.starting_track) + 1;
 			while (--e >= toc->tab)
 				lba2msf (e->addr.lba, &e->addr.msf.minute,
 				    &e->addr.msf.second, &e->addr.msf.frame);
 		}
-		if (copyout (toc->tab + te->starting_track -
-		    toc->hdr.starting_track, te->data, len) != 0)
-			error = EFAULT;
-		break;
+		return copyout (toc->tab + starting_track -
+				toc->hdr.starting_track, te->data, len);
 	}
 	case CDIOCREADSUBCHANNEL: {
 		struct ioc_read_subchannel *args =
@@ -829,9 +840,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		data.what.position.track_number = t->subchan.track;
 		data.what.position.index_number = t->subchan.indx;
 
-		if (copyout (&data, args->data, len) != 0)
-			error = EFAULT;
-		break;
+		return copyout (&data, args->data, len);
 	}
 	case CDIOCPLAYMSF: {
 		struct ioc_play_msf *args = (struct ioc_play_msf*) addr;
