@@ -193,7 +193,7 @@ diskstrategy(struct buf *bp)
 		return;
 	}
 
-	if (dscheck(bp, dp->d_slice) < 0) {
+	if (dscheck(bp, dp->d_slice) <= 0) {
 		biodone(bp);
 		return;
 	}
