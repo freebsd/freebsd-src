@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
-#ifdef __sparc64__
+#if __sparc64__ || __powerpc__
 #include <machine/sc_machdep.h>
 #else
 #include <machine/pc/display.h>
