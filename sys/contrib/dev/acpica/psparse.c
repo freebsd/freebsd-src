@@ -1212,6 +1212,9 @@ AcpiPsParseAml (
     ACPI_THREAD_STATE       *Thread;
     ACPI_THREAD_STATE       *PrevWalkList = AcpiGbl_CurrentWalkList;
     ACPI_WALK_STATE         *PreviousWalkState;
+    ACPI_OPERAND_OBJECT     **CallerReturnDesc = WalkState->CallerReturnDesc;
+    ACPI_OPERAND_OBJECT     *EffectiveReturnDesc = NULL;
+
 
 
     ACPI_FUNCTION_TRACE ("PsParseAml");
@@ -1287,6 +1290,14 @@ AcpiPsParseAml (
         /* We are done with this walk, move on to the parent if any */
 
         WalkState = AcpiDsPopWalkState (Thread);
+        /* Save the last effective return value */
+
+        if (CallerReturnDesc && WalkState->ReturnDesc)
+        {
+            AcpiUtRemoveReference (EffectiveReturnDesc);
+            EffectiveReturnDesc = WalkState->ReturnDesc;
+            AcpiUtAddReference (EffectiveReturnDesc);
+        }
 
         /* Reset the current scope to the beginning of scope stack */
 
@@ -1350,6 +1361,17 @@ AcpiPsParseAml (
          */
         else if (PreviousWalkState->CallerReturnDesc)
         {
+            /*
+             * Some AML code expects return value w/o ReturnOp.
+             * Return the saved effective return value instead.
+             */
+
+            if (PreviousWalkState->ReturnDesc == NULL && EffectiveReturnDesc != NULL)
+            {
+                PreviousWalkState->ReturnDesc = EffectiveReturnDesc;
+                AcpiUtAddReference (PreviousWalkState->ReturnDesc);
+            }
+
             *(PreviousWalkState->CallerReturnDesc) = PreviousWalkState->ReturnDesc; /* NULL if no return value */
         }
         else if (PreviousWalkState->ReturnDesc)
@@ -1364,6 +1386,7 @@ AcpiPsParseAml (
 
     /* Normal exit */
 
+    AcpiUtRemoveReference (EffectiveReturnDesc);
     AcpiExReleaseAllMutexes (Thread);
     AcpiUtDeleteGenericState (ACPI_CAST_PTR (ACPI_GENERIC_STATE, Thread));
     AcpiGbl_CurrentWalkList = PrevWalkList;
