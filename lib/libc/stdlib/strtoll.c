@@ -52,13 +52,13 @@ long long
 strtoll(nptr, endptr, base)
 	const char *nptr;
 	char **endptr;
-	register int base;
+	int base;
 {
-	register const char *s;
-	register unsigned long long acc;
-	register unsigned char c;
-	register unsigned long long cutoff;
-	register int neg, any, cutlim;
+	const char *s;
+	unsigned long long acc;
+	unsigned char c;
+	unsigned long long cutoff;
+	int neg, any, cutlim;
 
 	/*
 	 * Skip white space and pick up leading +/- sign if any.
@@ -86,7 +86,7 @@ strtoll(nptr, endptr, base)
 	if (base == 0)
 		base = c == '0' ? 8 : 10;
 	acc = any = 0;
-	if (base < 2 || base > 36)
+	if (base < 2)
 		goto noconv;
 
 	/*
@@ -107,16 +107,14 @@ strtoll(nptr, endptr, base)
 	 * Set 'any' if any `digits' consumed; make it negative to indicate
 	 * overflow.
 	 */
-	cutoff = neg ? -(LLONG_MIN + LLONG_MAX) + (unsigned long long)LLONG_MAX
+	cutoff = neg ? (unsigned long long)-(LLONG_MIN + LLONG_MAX) + LLONG_MAX
 	    : LLONG_MAX;
 	cutlim = cutoff % base;
 	cutoff /= base;
 	for ( ; ; c = *s++) {
-		if (!isascii(c))
-			break;
-		if (isdigit(c))
-			c -= '0';
-		else if (isalpha(c))
+		if (isxdigit(c))
+			c = digittoint(c);
+		else if (isascii(c) && isalpha(c))
 			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
 		else
 			break;
