@@ -57,9 +57,11 @@ __FBSDID("$FreeBSD$");
 
 struct cpufreq_softc {
 	struct cf_level			curr_level;
-	int				priority;
-	int				all_count;
+	int				curr_priority;
+	struct cf_level			saved_level;
+	int				saved_priority;
 	struct cf_level_lst		all_levels;
+	int				all_count;
 	device_t			dev;
 	struct sysctl_ctx_list		sysctl_ctx;
 };
@@ -120,6 +122,7 @@ cpufreq_attach(device_t dev)
 	sysctl_ctx_init(&sc->sysctl_ctx);
 	TAILQ_INIT(&sc->all_levels);
 	sc->curr_level.total_set.freq = CPUFREQ_VAL_UNKNOWN;
+	sc->saved_level.total_set.freq = CPUFREQ_VAL_UNKNOWN;
 
 	/*
 	 * Only initialize one set of sysctls for all CPUs.  In the future,
@@ -185,6 +188,21 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	if (strcmp(timecounter->tc_name, "TSC") == 0)
 		return (EBUSY);
 
+	/*
+	 * If the caller didn't specify a level and one is saved, prepare to
+	 * restore the saved level.  If none has been saved, return an error.
+	 * If they did specify one, but the requested level has a lower
+	 * priority, don't allow the new level right now.
+	 */
+	if (level == NULL) {
+		if (sc->saved_level.total_set.freq != CPUFREQ_VAL_UNKNOWN) {
+			level = &sc->saved_level;
+			priority = sc->saved_priority;
+		} else
+			return (ENXIO);
+	} else if (priority < sc->curr_priority)
+		return (EPERM);
+
 	/* If already at this level, just return. */
 	if (CPUFREQ_CMP(sc->curr_level.total_set.freq, level->total_set.freq))
 		return (0);
@@ -226,9 +244,25 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 		}
 	}
 
-	/* Record the current level. */
+	/* If we were restoring a saved state, reset it to "unused". */
+	if (level == &sc->saved_level) {
+		sc->saved_level.total_set.freq = CPUFREQ_VAL_UNKNOWN;
+		sc->saved_priority = 0;
+	}
+
+	/*
+	 * Before recording the current level, check if we're going to a
+	 * higher priority and have not saved a level yet.  If so, save the
+	 * previous level and priority.
+	 */
+	if (sc->curr_level.total_set.freq != CPUFREQ_VAL_UNKNOWN &&
+	    sc->saved_level.total_set.freq == CPUFREQ_VAL_UNKNOWN &&
+	    priority > sc->curr_priority) {
+		sc->saved_level = sc->curr_level;
+		sc->saved_priority = sc->curr_priority;
+	}
 	sc->curr_level = *level;
-	sc->priority = priority;
+	sc->curr_priority = priority;
 	error = 0;
 
 out:
