@@ -181,7 +181,8 @@ ENTRY_NOPROFILE(os_boot_rendez,0)
 	mov	rr[r17] = r16
 	;;
 	srlz.d
-	mov	r16 = (PTE_P|PTE_MA_WB|PTE_A|PTE_D|PTE_PL_KERN|PTE_AR_RWX)
+	mov	r16 = PTE_PRESENT+PTE_MA_WB+PTE_ACCESSED+PTE_DIRTY+ \
+			PTE_PL_KERN+PTE_AR_RWX
 	mov	r18 = 28<<2
 	;;
 
