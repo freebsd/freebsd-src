@@ -1221,10 +1221,7 @@ sscop_send_ud(sop, m)
  *
  */
 void
-sscop_pdu_print(sop, m, msg)
-	struct sscop	*sop;
-	KBuffer		*m;
-	char		*msg;
+sscop_pdu_print(const struct sscop *sop, const KBuffer *m, const char *msg)
 {
 	char		buf[128];
 	struct vccb	*vcp;
@@ -1234,4 +1231,3 @@ sscop_pdu_print(sop, m, msg)
 	    "sscop %s: vcc=(%d,%d)\n", msg, vcp->vc_vpi, vcp->vc_vci);
 	atm_pdu_print(m, buf);
 }
-

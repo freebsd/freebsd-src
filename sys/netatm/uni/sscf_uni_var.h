@@ -95,8 +95,8 @@ struct univcc {
 int		sscf_uni_start __P((void));
 int		sscf_uni_stop __P((void));
 void		sscf_uni_abort __P((struct univcc *, char *));
-void		sscf_uni_pdu_print __P((struct univcc *, KBuffer *,
-			char *));
+void		sscf_uni_pdu_print __P((const struct univcc *, const KBuffer *,
+		    const char *));
 
 	/* sscf_uni_lower.c */
 void		sscf_uni_lower __P((int, void *, int, int));

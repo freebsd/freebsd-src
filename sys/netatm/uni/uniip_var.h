@@ -282,7 +282,8 @@ int		uniarp_validate_ip __P((struct uniip *, struct in_addr *,
 
 	/* uniarp_input.c */
 void		uniarp_cpcs_data __P((void *, KBuffer *));
-void		uniarp_pdu_print __P((struct ipvcc *, KBuffer *, char *));
+void		uniarp_pdu_print __P((const struct ipvcc *,
+		    const KBuffer *, const char *));
 
 	/* uniarp_output.c */
 int		uniarp_arp_req __P((struct uniip *, struct in_addr *));

@@ -836,10 +836,7 @@ drop:
  *
  */
 void
-uniarp_pdu_print(ivp, m, msg)
-	struct ipvcc	*ivp;
-	KBuffer		*m;
-	char		*msg;
+uniarp_pdu_print(const struct ipvcc *ivp, const KBuffer *m, const char *msg)
 {
 	char		buf[128];
 	struct vccb	*vcp;
@@ -849,4 +846,3 @@ uniarp_pdu_print(ivp, m, msg)
 	    "uniarp %s: vcc=(%d,%d)\n", msg, vcp->vc_vpi, vcp->vc_vci);
 	atm_pdu_print(m, buf);
 }
-
