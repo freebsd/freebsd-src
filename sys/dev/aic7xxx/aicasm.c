@@ -1,37 +1,49 @@
-/*
- * Adaptec 274x device driver for Linux.
- * Copyright (c) 1994 The University of Calgary Department of Computer Science.
- * 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+/*+M*************************************************************************
+ * Adaptec AIC7770/AIC7870 sequencer code assembler.
  *
- *  Comments are started by `#' and continue to the end of the line; lines
- *  may be of the form:
+ * Copyright (c) 1994 John Aycock
+ *   The University of Calgary Department of Computer Science.
+ *   All rights reserved.
  *
- *	<label>*
- *	<label>*  <undef-sym> = <value>
- *	<label>*  <opcode> <operand>*
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by the University of Calgary
+ *      Department of Computer Science and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- *  A <label> is an <undef-sym> ending in a colon.  Spaces, tabs, and commas
- *  are token separators.
- *	
- *	$Id: aic7xxx.c,v 1.6 1995/03/17 23:54:16 gibbs Exp $
- */
-
-/* #define _POSIX_SOURCE	1 */
-#define _POSIX_C_SOURCE	2
-
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Comments are started by `#' and continue to the end of the line; lines
+ * may be of the form:
+ *      <label>*
+ *      <label>*  <undef-sym> = <value>
+ *      <label>*  <opcode> <operand>*
+ *
+ * A <label> is an <undef-sym> ending in a colon.  Spaces, tabs, and commas
+ * are token separators.
+ *
+ *-M*************************************************************************/
+static char id[] = "$Id$";
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
@@ -45,16 +57,12 @@
 #define NOVALUE		-1
 
 /*
- *  AIC-7770 register definitions
+ * AIC-7770/AIC-7870 register definitions
  */
 #define R_SINDEX	0x65
 #define R_ALLONES	0x69
 #define R_ALLZEROS	0x6a
 #define R_NONE		0x6a
-
-static
-char sccsid[] =
-    "@(#)aic7770.c 1.10 94/07/22 jda";
 
 int debug;
 int lineno, LC;
@@ -62,13 +70,15 @@ char *filename;
 FILE *ifp, *ofp;
 unsigned char M[MEMORY][4];
 
-void error(char *s)
+void 
+error(char *s)
 {
 	fprintf(stderr, "%s: %s at line %d\n", filename, s, lineno);
 	exit(EXIT_FAILURE);
 }
 
-void *Malloc(size_t size)
+void *
+Malloc(size_t size)
 {
 	void *p = malloc(size);
 	if (!p)
@@ -76,7 +86,8 @@ void *Malloc(size_t size)
 	return(p);
 }
 
-void *Realloc(void *ptr, size_t size)
+void *
+Realloc(void *ptr, size_t size)
 {
 	void *p = realloc(ptr, size);
 	if (!p)
@@ -84,7 +95,8 @@ void *Realloc(void *ptr, size_t size)
 	return(p);
 }
 
-char *Strdup(char *s)
+char *
+Strdup(char *s)
 {
 	char *p = (char *)Malloc(strlen(s) + 1);
 	strcpy(p, s);
@@ -92,15 +104,17 @@ char *Strdup(char *s)
 }
 
 typedef struct sym_t {
-	struct sym_t *next;		/* MUST BE FIRST */
-	char *name;
-	int value;
-	int npatch, *patch;
+	struct sym_t	*next;		/* MUST BE FIRST */
+	char		*name;
+	int		value;
+	int		npatch; 
+	int		*patch;
 } sym_t;
 
 sym_t *head;
 
-void define(char *name, int value)
+void
+define(char *name, int value)
 {
 	sym_t *p, *q;
 
@@ -126,7 +140,8 @@ void define(char *name, int value)
 	}
 }
 
-sym_t *lookup(char *name)
+sym_t *
+lookup(char *name)
 {
 	sym_t *p;
 
@@ -136,7 +151,8 @@ sym_t *lookup(char *name)
 	return(NULL);
 }
 
-void patch(sym_t *p, int location)
+void 
+patch(sym_t *p, int location)
 {
 	p->npatch += 1;
 	p->patch = (int *)Realloc(p->patch, p->npatch * sizeof(int *));
@@ -183,7 +199,8 @@ void backpatch(void)
  *  Output words in byte-reversed order (least significant first)
  *  since the sequencer RAM is loaded that way.
  */
-void output(FILE *fp)
+void
+output(FILE *fp)
 {
 	int i;
 
@@ -196,7 +213,8 @@ void output(FILE *fp)
 	printf("%d out of %d instructions used.\n", LC, MEMORY);
 }
 
-char **getl(int *n)
+char **
+getl(int *n)
 {
 	int i;
 	char *p, *quote;
@@ -269,57 +287,57 @@ struct {
 	int fmt;		/* instruction format - 1, 2, or 3 */
 } instr[] = {
 /*
- *		N  OP	 DEST		SRC		IMM	ADDR FMT
+ *		  N  OP    DEST		SRC		IMM	ADDR	FMT
  */
-	"mov",	3, 1,	 1,		2,		I|0xff,	NA,  1,
-	"mov",	4, LO|2, NA,		1,		I|0,	3,   3,
-	"mvi",	3, 0,	 1,		I|R_ALLZEROS,	A|2,	NA,  1,
-	"mvi",	4, LO|2, NA,		I|R_ALLZEROS,	1,	3,   3,
-	"not",	2, 2,	 1,		1,		I|0xff,	NA,  1,
-	"not",	3, 2,	 1,		2,		I|0xff,	NA,  1,
-	"and",	3, 1,	 1,		1,		A|2,	NA,  1,
-	"and",  4, 1,	 1,		3,		A|2,	NA,  1,
-	"or",	3, 0,	 1,		1,		A|2,	NA,  1,
-	"or",	4, 0,	 1,		3,		A|2,	NA,  1,
-	"or",	5, LO|3, NA,		1,		2,	4,   3,
-	"xor",	3, 2,	 1,		1,		A|2,	NA,  1,
-	"xor",	4, 2,	 1,		3,		A|2,	NA,  1,
-	"nop",	1, 1,	 I|R_NONE,	I|R_ALLZEROS,	I|0xff,	NA,  1,
-	"inc",	2, 3,	 1,		1,		I|1,	NA,  1,
-	"inc",	3, 3,	 1,		2,		I|1,	NA,  1,
-	"dec",	2, 3,	 1,		1,		I|0xff,	NA,  1,
-	"dec",	3, 3,	 1,		2,		I|0xff,	NA,  1,
-	"jmp",	2, LO|0, NA,		I|R_SINDEX,	I|0,	1,   3,
-	"jc",	2, LO|0, NA,		I|R_SINDEX,	I|0,	1,   3,
-	"jnc",	2, LO|0, NA,		I|R_SINDEX,	I|0,	1,   3,
-	"call",	2, LO|0, NA,		I|R_SINDEX,	I|0,	1,   3,
-	"test",	5, LA|3, NA,		1,		A|2,	4,   3,
-	"cmp",	5, LX|3, NA,		1,		A|2,	4,   3,
-	"ret",	1, 1,	 I|R_NONE,	I|R_ALLZEROS,	I|0xff,	NA,  1,
-	"clc",	1, 3,	 I|R_NONE,	I|R_ALLZEROS,	I|1,	NA,  1,
-	"clc",	4, 3,	 2,		I|R_ALLZEROS,	A|3,	NA,  1,
-	"stc",	1, 3,	 I|R_NONE,	I|R_ALLONES,	I|1,	NA,  1,
-	"stc",	2, 3,	 1,		I|R_ALLONES,	I|1,	NA,  1,
-	"add",	3, 3,	 1,		1,		A|2,	NA,  1,
-	"add",	4, 3,	 1,		3,		A|2,	NA,  1,
-	"adc",	3, 4,	 1,		1,		A|2,	NA,  1,
-	"adc",	4, 4,	 1,		3,		A|2,	NA,  1,
-	"shl",	3, 5,	 1,		1,		SL|2,	NA,  2,
-	"shl",	4, 5,	 1,		2,		SL|3,	NA,  2,
-	"shr",	3, 5,	 1,		1,		SR|2,	NA,  2,
-	"shr",	4, 5,	 1,		2,		SR|3,	NA,  2,
-	"rol",	3, 5,	 1,		1,		RL|2,	NA,  2,
-	"rol",	4, 5,	 1,		2,		RL|3,	NA,  2,
-	"ror",	3, 5,	 1,		1,		RR|2,	NA,  2,
-	"ror",	4, 5,	 1,		2,		RR|3,	NA,  2,
+	{ "mov",  3, 1,	   1,		2,		I|0xff,	NA,	1 },
+	{ "mov",  4, LO|2, NA,		1,		I|0,	3,	3 },
+	{ "mvi",  3, 0,	   1,		I|R_ALLZEROS,	A|2,	NA,	1 },
+	{ "mvi",  4, LO|2, NA,		I|R_ALLZEROS,	1,	3,	3 },
+	{ "not",  2, 2,	   1,		1,		I|0xff,	NA,	1 },
+	{ "and",  3, 1,	   1,		1,		A|2,	NA,	1 },
+	{ "and",  4, 1,	   1,		3,		A|2,	NA,	1 },
+	{ "or",	  3, 0,	   1,		1,		A|2,	NA,	1 },
+	{ "or",	  4, 0,	   1,		3,		A|2,	NA,	1 },
+	{ "or",   5, LO|3, NA,		1,		2,	4,	3 },
+	{ "xor",  3, 2,	   1,		1,		A|2,	NA,	1 },
+	{ "xor",  4, 2,	   1,		3,		A|2,	NA,	1 },
+	{ "nop",  1, 1,	   I|R_NONE,	I|R_ALLZEROS,	I|0xff,	NA,	1 },
+	{ "inc",  2, 3,	   1,		1,		I|1,	NA,	1 },
+	{ "inc",  3, 3,	   1,		2,		I|1,	NA,	1 },
+	{ "dec",  2, 3,	   1,		1,		I|0xff,	NA,	1 },
+	{ "dec",  3, 3,	   1,		2,		I|0xff,	NA,	1 },
+	{ "jmp",  2, LO|0,   NA,	I|R_SINDEX,	I|0,	1,	3 },
+	{ "jc",   2, LO|0,   NA,	I|R_SINDEX,	I|0,	1,	3 },
+	{ "jnc",  2, LO|0,   NA,	I|R_SINDEX,	I|0,	1,	3 },
+	{ "call", 2, LO|0,   NA,	I|R_SINDEX,	I|0,	1,	3 },
+	{ "test", 5, LA|3,   NA,	1,		A|2,	4,	3 },
+	{ "cmp",  5, LX|3,   NA,	1,		A|2,	4,	3 },
+	{ "ret",  1, 1,	 I|R_NONE,	I|R_ALLZEROS,	I|0xff,	NA,	1 },
+	{ "ret",  1, 1,	 I|R_NONE,	I|R_ALLZEROS,	I|0xff,	NA,	1 },
+	{ "clc",  1, 3,	 I|R_NONE,	I|R_ALLZEROS,	I|1,	NA,	1 },
+	{ "clc",  4, 3,	 2,		I|R_ALLZEROS,	A|3,	NA,	1 },
+	{ "stc",  2, 3,	 1,		I|R_ALLONES,	I|1,	NA,	1 },
+	{ "add",  3, 3,	 1,		1,		A|2,	NA,	1 },
+	{ "add",  4, 3,	 1,		3,		A|2,	NA,	1 },
+	{ "adc",  3, 4,	 1,		1,		A|2,	NA,	1 },
+	{ "adc",  4, 4,	 1,		3,		A|2,	NA,	1 },
+	{ "shl",  3, 5,	 1,		1,		SL|2,	NA,	2 },
+	{ "shl",  4, 5,	 1,		2,		SL|3,	NA,	2 },
+	{ "shr",  3, 5,	 1,		1,		SR|2,	NA,	2 },
+	{ "shr",  4, 5,	 1,		2,		SR|3,	NA,	2 },
+	{ "rol",  3, 5,	 1,		1,		RL|2,	NA,	2 },
+	{ "rol",  4, 5,	 1,		2,		RL|3,	NA,	2 },
+	{ "ror",  3, 5,	 1,		1,		RR|2,	NA,	2 },
+	{ "ror",  4, 5,	 1,		2,		RR|3,	NA,	2 },
 	/*
 	 *  Extensions (note also that mvi allows A)
 	 */
- 	"clr",	2, 1,	 1,		I|R_ALLZEROS,	I|0xff,	NA,  1,
-	0
+ 	{ "clr",  2, 1,	 1,	I|R_ALLZEROS,		I|0xff,	NA,	1 },
+	{ 0,      0, 0,  0, 	0,			0,	0,	0 }
 };
 
-int eval_operand(char **a, int spec)
+int 
+eval_operand(char **a, int spec)
 {
 	int i;
 	unsigned int want = spec & (LO|LA|LX);
@@ -329,14 +347,14 @@ int eval_operand(char **a, int spec)
 		char *name;
 		int value;
 	} jmptab[] = {
-		LO,	"jmp",		8,
-		LO,	"jc",		9,
-		LO,	"jnc",		10,
-		LO,	"call",		11,
-		LA,	"jz",		15,
-		LA,	"jnz",		13,
-		LX,	"je",		14,
-		LX,	"jne",		12,
+		{ LO,	"jmp",		8  },
+		{ LO,	"jc",		9  },
+		{ LO,	"jnc",		10 },
+		{ LO,	"call",		11 },
+		{ LA,	"jz",		15 },
+		{ LA,	"jnz",		13 },
+		{ LX,	"je",		14 },
+		{ LX,	"jne",		12 },
 	};
 
 	spec &= ~(LO|LA|LX);
@@ -354,7 +372,8 @@ int eval_operand(char **a, int spec)
 	return(spec);		/* "case 0" - no flags set */
 }
 
-int eval_sdi(char **a, int spec)
+int
+eval_sdi(char **a, int spec)
 {
 	sym_t *p;
 	unsigned val;
@@ -423,7 +442,8 @@ int eval_sdi(char **a, int spec)
 	return(NA);		/* shut the compiler up */
 }
 
-int eval_addr(char **a, int spec)
+int
+eval_addr(char **a, int spec)
 {
 	sym_t *p;
 
@@ -447,7 +467,8 @@ int eval_addr(char **a, int spec)
 	return(NA);		/* will be patched in later */
 }
 
-int crack(char **a, int n)
+int
+crack(char **a, int n)
 {
 	int i;
 	int I_imm, I_addr;
@@ -501,7 +522,7 @@ int crack(char **a, int n)
 		break;
 	}
 
-	return(1);		/* no two-byte instructions yet */
+	return (1);		/* no two-byte instructions yet */
 }
 
 #undef SL
@@ -514,7 +535,8 @@ int crack(char **a, int n)
 #undef I
 #undef A
 
-void assemble(void)
+void
+assemble(void)
 {
 	int n;
 	char **a;
@@ -553,15 +575,27 @@ void assemble(void)
 		output(stderr);
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "dho:")) != EOF) {
+	while ((c = getopt(argc, argv, "dho:vD")) != EOF) {
 		switch (c) {
 		    case 'd':
 			debug = !0;
 			break;
+		    case 'D':
+		    {
+			char *p;
+			if ((p = strchr(optarg, '=')) != NULL) {
+				*p = '\0';
+				define(optarg, strtol(p + 1, NULL, 0));
+			}
+			else
+				define(optarg, 1);
+			break;
+		    }
 		    case 'o':
 		        ofp = fopen(optarg, "w");
 			if (!ofp) {
@@ -570,16 +604,17 @@ int main(int argc, char **argv)
 			}
 			break;
 		    case 'h':
-			printf("usage: %s [-d] [-ooutput] input\n", *argv);
+			printf("usage: %s [-d] [-Dname] [-ooutput] input\n", 
+				*argv);
 			exit(EXIT_SUCCESS);
-		    case NULL:
-			/*
-			 *  An impossible option to shut the compiler
-			 *  up about sccsid[].
-			 */
-			exit((int)sccsid);
+			break;
+		    case 'v':
+			printf("%s\n", id);
+			exit(EXIT_SUCCESS);
+			break;
 		    default:
 			exit(EXIT_FAILURE);
+			break;
 		}
 	}
 
