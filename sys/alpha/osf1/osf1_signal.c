@@ -33,6 +33,11 @@
  * $FreeBSD$
  */
 
+#include "opt_compat.h"
+#ifndef COMPAT_43
+#error "COMPAT_OSF1 requires COMPAT_43"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -100,7 +105,6 @@ static void osf1_to_bsd_sigaction(const struct osf1_sigaction *osa,
 #define	osf1_sigfillset(s)	memset((s), 0xffffffff, sizeof(*(s)))
 #define	osf1_sigismember(s, n)	(*(s) & sigmask(n))
 #define	osf1_sigaddset(s, n)	(*(s) |= sigmask(n))
-
 
 void
 osf1_to_bsd_sigset(oss, bss)
@@ -747,9 +751,6 @@ osf1_sigreturn(struct thread *td,
 	return (EJUSTRETURN);
 }
 
-extern int
-osigstack(struct thread *td, struct osf1_osigstack_args *uap);
-
 int
 osf1_osigstack(td, uap)
 	register struct thread *td;
@@ -761,5 +762,5 @@ osf1_osigstack(td, uap)
 
 /*	uprintf("osf1_osigstack: oss = %p, nss = %p",uap->oss, uap->nss);
 	uprintf(" stack ptr = %p\n",p->p_sigacts->ps_sigstk.ss_sp);*/
-	return(osigstack(td, uap));
+	return(osigstack(td, (struct osigstack_args *)uap));
 }

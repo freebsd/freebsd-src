@@ -56,7 +56,13 @@ extern	int	need_post_dma_flush;
 #endif
 extern	void	(*ovbcopy_vector)(const void *from, void *to, size_t len);
 extern	char	sigcode[];
-extern	int	szsigcode, szosigcode;
+extern	int	szsigcode;
+#ifdef COMPAT_FREEBSD4
+extern	int	szfreebsd4_sigcode;
+#endif
+#ifdef COMPAT_43
+extern	int	szosigcode;
+#endif
 
 typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
 struct	thread;

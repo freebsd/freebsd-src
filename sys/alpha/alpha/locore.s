@@ -53,6 +53,8 @@
  * rights to redistribute these changes.
  */
 
+#include "opt_compat.h"
+
 #include <machine/asm.h>
 #include <sys/syscall.h>
 #include <assym.s>
@@ -190,15 +192,55 @@ NESTED(sigcode,0,0,ra,0,0)
 	jsr	ra, (t12)		/* call the signal handler (t12==pv) */
 	ldq	a0, 0(sp)		/* get the sigcontext pointer */
 	lda	sp, 16(sp)
-	CALLSYS_NOERROR(sigreturn)	/* and call sigreturn() with it. */
+	ldiq	v0, SYS_sigreturn
+	call_pal PAL_OSF1_callsys	/* and call sigreturn() with it. */
 	mov	v0, a0			/* if that failed, get error code */
-	CALLSYS_NOERROR(exit)		/* and call exit() with it. */
-XNESTED(esigcode,0)
+	ldiq	v0, SYS_exit
+	call_pal PAL_OSF1_callsys	/* and call exit() with it. */
 	END(sigcode)
 
+#ifdef COMPAT_43
+NESTED(osigcode,0,0,ra,0,0)
+	lda	sp, -16(sp)		/* save the sigcontext pointer */
+	stq	a2, 0(sp)
+	jsr	ra, (t12)		/* call the signal handler (t12==pv) */
+	ldq	a0, 0(sp)		/* get the sigcontext pointer */
+	lda	sp, 16(sp)
+	ldiq	v0, 103			/* Old 3.x SYS_sigreturn */
+	call_pal PAL_OSF1_callsys	/* and call sigreturn() with it. */
+	mov	v0, a0			/* if that failed, get error code */
+	ldiq	v0, SYS_exit
+	call_pal PAL_OSF1_callsys	/* and call exit() with it. */
+	END(osigcode)
+#endif
+
+#ifdef COMPAT_FREEBSD4
+NESTED(freebsd4_sigcode,0,0,ra,0,0)
+	lda	sp, -16(sp)		/* save the sigcontext pointer */
+	stq	a2, 0(sp)
+	jsr	ra, (t12)		/* call the signal handler (t12==pv) */
+	ldq	a0, 0(sp)		/* get the sigcontext pointer */
+	lda	sp, 16(sp)
+	ldiq	v0, 344			/* Old 4.x SYS_sigreturn */
+	call_pal PAL_OSF1_callsys	/* and call sigreturn() with it. */
+	mov	v0, a0			/* if that failed, get error code */
+	ldiq	v0, SYS_exit
+	call_pal PAL_OSF1_callsys	/* and call exit() with it. */
+	END(freebsd4_sigcode)
+#endif
+EXPORT(esigcode)			/* end of all sigcode */
+	
 	.data
-	EXPORT(szsigcode)
-	.quad	esigcode-sigcode
+EXPORT(szsigcode)
+	.long	esigcode-sigcode
+#ifdef COMPAT_43
+EXPORT(szosigcode)
+	.long	esigcode-osigcode
+#endif
+#ifdef COMPAT_FREEBSD4
+EXPORT(szfreebsd4_sigcode)
+	.long	esigcode-freebsd4_sigcode
+#endif
 	.text
 	
 /**************************************************************************/

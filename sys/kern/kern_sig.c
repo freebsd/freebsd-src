@@ -73,6 +73,13 @@
 
 #include <machine/cpu.h>
 
+#if !defined(COMPAT_FREEBSD4) && !defined(NO_COMPAT_FREEBSD4)
+#error "You *really* want COMPAT_FREEBSD4 on -current for a while"
+#endif
+#if defined (__alpha__) && !defined(COMPAT_43)
+#error "You *really* need COMPAT_43 on the alpha for longjmp(3)"
+#endif
+
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
 static int	coredump(struct thread *);
@@ -229,14 +236,15 @@ sig_ffs(sigset_t *set)
 /*
  * kern_sigaction
  * sigaction
+ * freebsd4_sigaction
  * osigaction
  */
 int
-kern_sigaction(td, sig, act, oact, old)
+kern_sigaction(td, sig, act, oact, flags)
 	struct thread *td;
 	register int sig;
 	struct sigaction *act, *oact;
-	int old;
+	int flags;
 {
 	register struct sigacts *ps;
 	struct proc *p = td->td_proc;
@@ -353,9 +361,18 @@ kern_sigaction(td, sig, act, oact, old)
 			else
 				SIGADDSET(p->p_sigcatch, sig);
 		}
+#ifdef COMPAT_FREEBSD4
+		if (ps->ps_sigact[_SIG_IDX(sig)] == SIG_IGN ||
+		    ps->ps_sigact[_SIG_IDX(sig)] == SIG_DFL ||
+		    (flags & KSA_FREEBSD4) == 0)
+			SIGDELSET(ps->ps_freebsd4, sig);
+		else
+			SIGADDSET(ps->ps_freebsd4, sig);
+#endif
 #ifdef COMPAT_43
 		if (ps->ps_sigact[_SIG_IDX(sig)] == SIG_IGN ||
-		    ps->ps_sigact[_SIG_IDX(sig)] == SIG_DFL || !old)
+		    ps->ps_sigact[_SIG_IDX(sig)] == SIG_DFL ||
+		    (flags & KSA_OSIGSET) == 0)
 			SIGDELSET(ps->ps_osigset, sig);
 		else
 			SIGADDSET(ps->ps_osigset, sig);
@@ -403,6 +420,46 @@ done2:
 	return (error);
 }
 
+#ifdef COMPAT_FREEBSD4
+#ifndef _SYS_SYSPROTO_H_
+struct freebsd4_sigaction_args {
+	int	sig;
+	struct	sigaction *act;
+	struct	sigaction *oact;
+};
+#endif
+/*
+ * MPSAFE
+ */
+/* ARGSUSED */
+int
+freebsd4_sigaction(td, uap)
+	struct thread *td;
+	register struct freebsd4_sigaction_args *uap;
+{
+	struct sigaction act, oact;
+	register struct sigaction *actp, *oactp;
+	int error;
+
+	mtx_lock(&Giant);
+
+	actp = (uap->act != NULL) ? &act : NULL;
+	oactp = (uap->oact != NULL) ? &oact : NULL;
+	if (actp) {
+		error = copyin(uap->act, actp, sizeof(act));
+		if (error)
+			goto done2;
+	}
+	error = kern_sigaction(td, uap->sig, actp, oactp, KSA_FREEBSD4);
+	if (oactp && !error) {
+		error = copyout(oactp, uap->oact, sizeof(oact));
+	}
+done2:
+	mtx_unlock(&Giant);
+	return (error);
+}
+#endif	/* COMAPT_FREEBSD4 */
+
 #ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
 #ifndef _SYS_SYSPROTO_H_
 struct osigaction_args {
@@ -441,7 +498,7 @@ osigaction(td, uap)
 		nsap->sa_flags = sa.sa_flags;
 		OSIG2SIG(sa.sa_mask, nsap->sa_mask);
 	}
-	error = kern_sigaction(td, uap->signum, nsap, osap, 1);
+	error = kern_sigaction(td, uap->signum, nsap, osap, KSA_OSIGSET);
 	if (osap && !error) {
 		sa.sa_handler = osap->sa_handler;
 		sa.sa_flags = osap->sa_flags;
@@ -452,6 +509,18 @@ done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
+
+#if !defined(__i386__) && !defined(__alpha__)
+/* Avoid replicating the same stub everywhere */
+int
+osigreturn(td, uap)
+	struct thread *td;
+	struct osigreturn_args *uap;
+{
+
+	return (nosys(td, (struct nosys_args *)uap));
+}
+#endif
 #endif /* COMPAT_43 */
 
 /*

@@ -82,7 +82,6 @@ MIASM =  \
 	socket.o \
 	connect.o \
 	getpriority.o \
-	osigreturn.o \
 	bind.o \
 	setsockopt.o \
 	listen.o \
@@ -214,9 +213,7 @@ MIASM =  \
 	jail.o \
 	sigprocmask.o \
 	sigsuspend.o \
-	sigaction.o \
 	sigpending.o \
-	sigreturn.o \
 	__acl_get_file.o \
 	__acl_set_file.o \
 	__acl_get_fd.o \
@@ -271,4 +268,6 @@ MIASM =  \
 	__mac_set_link.o \
 	extattr_set_link.o \
 	extattr_get_link.o \
-	extattr_delete_link.o
+	extattr_delete_link.o \
+	sigaction.o \
+	sigreturn.o

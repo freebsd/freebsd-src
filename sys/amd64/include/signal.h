@@ -60,7 +60,7 @@ typedef int sig_atomic_t;
 /*
  * Only the kernel should need these old type definitions.
  */
-#ifdef _KERNEL
+#if defined(_KERNEL) && defined(COMPAT_43)
 /*
  * Information pushed on stack when a signal is delivered.
  * This is used by the kernel to restore state following
@@ -68,8 +68,6 @@ typedef int sig_atomic_t;
  * to the handler to allow it to restore state properly if
  * a non-standard exit is performed.
  */
-typedef unsigned int osigset_t;
-
 struct osigcontext {
 	int	sc_onstack;		/* sigstack state to restore */
 	osigset_t sc_mask;		/* signal mask to restore */

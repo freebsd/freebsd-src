@@ -73,6 +73,34 @@ typedef struct __mcontext {
 } mcontext_t;
 
 #ifdef _KERNEL
+#ifdef COMPAT_FREEBSD4
+/* For 4.x binaries */
+struct mcontext4 {
+	int	mc_onstack;		/* XXX - sigcontext compat. */
+	int	mc_gs;
+	int	mc_fs;
+	int	mc_es;
+	int	mc_ds;
+	int	mc_edi;
+	int	mc_esi;
+	int	mc_ebp;
+	int	mc_isp;
+	int	mc_ebx;
+	int	mc_edx;
+	int	mc_ecx;
+	int	mc_eax;
+	int	mc_trapno;
+	int	mc_err;
+	int	mc_eip;
+	int	mc_cs;
+	int	mc_eflags;
+	int	mc_esp;			/* machine state */
+	int	mc_ss;
+	int	mc_fpregs[28];		/* env87 + fpacc87 + u_long */
+	int	__spare__[17];
+};
+#endif
+
 struct thread;
 
 void	get_mcontext(struct thread *td, mcontext_t *mcp);

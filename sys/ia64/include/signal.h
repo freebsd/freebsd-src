@@ -70,7 +70,6 @@ struct ia64_fpreg {
 #endif
 #endif
 
-#ifdef _KERNEL
 
 /*
  * Information pushed on stack when a signal is delivered.
@@ -82,12 +81,6 @@ struct ia64_fpreg {
  * Note that sc_regs[] and sc_fpregs[]+sc_fpcr are inline
  * representations of 'struct reg' and 'struct fpreg', respectively.
  */
-typedef unsigned int osigset_t;
-struct  osigcontext {
-	int	_not_used;
-};
-
-#endif /* !_KERNEL */
 
 #if __BSD_VISIBLE
 /*

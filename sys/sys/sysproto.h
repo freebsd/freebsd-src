@@ -361,9 +361,6 @@ struct getpriority_args {
 	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
 	char who_l_[PADL_(int)]; int who; char who_r_[PADR_(int)];
 };
-struct osigreturn_args {
-	char sigcntxp_l_[PADL_(struct osigcontext *)]; struct osigcontext * sigcntxp; char sigcntxp_r_[PADR_(struct osigcontext *)];
-};
 struct bind_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
 	char name_l_[PADL_(caddr_t)]; caddr_t name; char name_r_[PADR_(caddr_t)];
@@ -923,16 +920,8 @@ struct sigprocmask_args {
 struct sigsuspend_args {
 	char sigmask_l_[PADL_(const sigset_t *)]; const sigset_t * sigmask; char sigmask_r_[PADR_(const sigset_t *)];
 };
-struct sigaction_args {
-	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
-	char act_l_[PADL_(const struct sigaction *)]; const struct sigaction * act; char act_r_[PADR_(const struct sigaction *)];
-	char oact_l_[PADL_(struct sigaction *)]; struct sigaction * oact; char oact_r_[PADR_(struct sigaction *)];
-};
 struct sigpending_args {
 	char set_l_[PADL_(sigset_t *)]; sigset_t * set; char set_r_[PADR_(sigset_t *)];
-};
-struct sigreturn_args {
-	char sigcntxp_l_[PADL_(const struct __ucontext *)]; const struct __ucontext * sigcntxp; char sigcntxp_r_[PADR_(const struct __ucontext *)];
 };
 struct __acl_get_file_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
@@ -1188,6 +1177,14 @@ struct extattr_delete_link_args {
 	char attrnamespace_l_[PADL_(int)]; int attrnamespace; char attrnamespace_r_[PADR_(int)];
 	char attrname_l_[PADL_(const char *)]; const char * attrname; char attrname_r_[PADR_(const char *)];
 };
+struct sigaction_args {
+	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
+	char act_l_[PADL_(const struct sigaction *)]; const struct sigaction * act; char act_r_[PADR_(const struct sigaction *)];
+	char oact_l_[PADL_(struct sigaction *)]; struct sigaction * oact; char oact_r_[PADR_(struct sigaction *)];
+};
+struct sigreturn_args {
+	char sigcntxp_l_[PADL_(const struct __ucontext *)]; const struct __ucontext * sigcntxp; char sigcntxp_r_[PADR_(const struct __ucontext *)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_exit(struct thread *, struct sys_exit_args *);
 int	fork(struct thread *, struct fork_args *);
@@ -1267,7 +1264,6 @@ int	setpriority(struct thread *, struct setpriority_args *);
 int	socket(struct thread *, struct socket_args *);
 int	connect(struct thread *, struct connect_args *);
 int	getpriority(struct thread *, struct getpriority_args *);
-int	osigreturn(struct thread *, struct osigreturn_args *);
 int	bind(struct thread *, struct bind_args *);
 int	setsockopt(struct thread *, struct setsockopt_args *);
 int	listen(struct thread *, struct listen_args *);
@@ -1397,9 +1393,7 @@ int	kldsym(struct thread *, struct kldsym_args *);
 int	jail(struct thread *, struct jail_args *);
 int	sigprocmask(struct thread *, struct sigprocmask_args *);
 int	sigsuspend(struct thread *, struct sigsuspend_args *);
-int	sigaction(struct thread *, struct sigaction_args *);
 int	sigpending(struct thread *, struct sigpending_args *);
-int	sigreturn(struct thread *, struct sigreturn_args *);
 int	__acl_get_file(struct thread *, struct __acl_get_file_args *);
 int	__acl_set_file(struct thread *, struct __acl_set_file_args *);
 int	__acl_get_fd(struct thread *, struct __acl_get_fd_args *);
@@ -1456,6 +1450,8 @@ int	__mac_set_link(struct thread *, struct __mac_set_link_args *);
 int	extattr_set_link(struct thread *, struct extattr_set_link_args *);
 int	extattr_get_link(struct thread *, struct extattr_get_link_args *);
 int	extattr_delete_link(struct thread *, struct extattr_delete_link_args *);
+int	sigaction(struct thread *, struct sigaction_args *);
+int	sigreturn(struct thread *, struct sigreturn_args *);
 
 #ifdef COMPAT_43
 
@@ -1522,6 +1518,9 @@ struct orecv_args {
 	char buf_l_[PADL_(caddr_t)]; caddr_t buf; char buf_r_[PADR_(caddr_t)];
 	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
+struct osigreturn_args {
+	char sigcntxp_l_[PADL_(struct osigcontext *)]; struct osigcontext * sigcntxp; char sigcntxp_r_[PADR_(struct osigcontext *)];
 };
 struct osigvec_args {
 	char signum_l_[PADL_(int)]; int signum; char signum_r_[PADR_(int)];
@@ -1602,6 +1601,7 @@ int	osethostname(struct thread *, struct sethostname_args *);
 int	oaccept(struct thread *, struct accept_args *);
 int	osend(struct thread *, struct osend_args *);
 int	orecv(struct thread *, struct orecv_args *);
+int	osigreturn(struct thread *, struct osigreturn_args *);
 int	osigvec(struct thread *, struct osigvec_args *);
 int	osigblock(struct thread *, struct osigblock_args *);
 int	osigsetmask(struct thread *, struct osigsetmask_args *);
@@ -1636,7 +1636,17 @@ struct freebsd4_sendfile_args {
 	char sbytes_l_[PADL_(off_t *)]; off_t * sbytes; char sbytes_r_[PADR_(off_t *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
+struct freebsd4_sigaction_args {
+	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
+	char act_l_[PADL_(const struct sigaction *)]; const struct sigaction * act; char act_r_[PADR_(const struct sigaction *)];
+	char oact_l_[PADL_(struct sigaction *)]; struct sigaction * oact; char oact_r_[PADR_(struct sigaction *)];
+};
+struct freebsd4_sigreturn_args {
+	char sigcntxp_l_[PADL_(const struct ucontext4 *)]; const struct ucontext4 * sigcntxp; char sigcntxp_r_[PADR_(const struct ucontext4 *)];
+};
 int	freebsd4_sendfile(struct thread *, struct freebsd4_sendfile_args *);
+int	freebsd4_sigaction(struct thread *, struct freebsd4_sigaction_args *);
+int	freebsd4_sigreturn(struct thread *, struct freebsd4_sigreturn_args *);
 
 #endif /* COMPAT_FREEBSD4 */
 
