@@ -1009,7 +1009,7 @@ ata_command(struct ata_device *atadev, u_int8_t command,
     ata_prtdev(atadev, "ata_command: addr=%04lx, cmd=%02x, "
 	       "lba=%lld, count=%d, feature=%d, flags=%02x\n",
 	       rman_get_start(atadev->channel->r_io), 
-	       command, lba, count, feature, flags);
+	       command, (long long)lba, count, feature, flags);
 #endif
 
     /* select device */
