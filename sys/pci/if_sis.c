@@ -1253,16 +1253,13 @@ static int sis_newbuf(sc, c, m)
 			return(ENOBUFS);
 	} else
 		m->m_data = m->m_ext.ext_buf;
-	m->m_len = m->m_pkthdr.len = MCLBYTES;
-
-	m_adj(m, sizeof(u_int64_t));
 
 	c->sis_mbuf = m;
 	c->sis_ctl = SIS_RXLEN;
 
 	bus_dmamap_create(sc->sis_tag, 0, &c->sis_map);
 	bus_dmamap_load(sc->sis_tag, c->sis_map,
-	    mtod(m, void *), m->m_len,
+	    mtod(m, void *), MCLBYTES,
 	    sis_dma_map_desc_ptr, c, 0);
 	bus_dmamap_sync(sc->sis_tag, c->sis_map, BUS_DMASYNC_PREWRITE);
 
@@ -1276,7 +1273,6 @@ static int sis_newbuf(sc, c, m)
 static void sis_rxeof(sc)
 	struct sis_softc	*sc;
 {
-        struct ether_header	*eh;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	struct sis_desc		*cur_rx;
@@ -1331,10 +1327,9 @@ static void sis_rxeof(sc)
 		 * if the allocation fails, then use m_devget and leave the
 		 * existing buffer in the receive ring.
 		 */
-		if (sis_newbuf(sc, cur_rx, NULL) == 0) {
-			m->m_pkthdr.rcvif = ifp;
+		if (sis_newbuf(sc, cur_rx, NULL) == 0)
 			m->m_pkthdr.len = m->m_len = total_len;
-		} else
+		else
 #endif
 		{
 			struct mbuf		*m0;
@@ -1349,11 +1344,7 @@ static void sis_rxeof(sc)
 		}
 
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		ether_input(ifp, NULL, m);
 	}
 
 	sc->sis_cdata.sis_rx_prod = i;
