@@ -109,9 +109,8 @@ main(argc, argv)
 				errx(1, "cannot work on read-write mounted file system");
 			}
 			active = 1;
-			special = rawname(fs->fs_spec, device);
-		} else
-			special = fs->fs_spec;
+		}
+		special = fs->fs_spec;
 	}
 again:
 	if (stat(special, &st) < 0) {
@@ -203,7 +202,7 @@ again:
 			case 'n':
  				name = "soft updates";
  				if (argc < 1)
- 					errx(10, "-s: missing %s", name);
+ 					errx(10, "-n: missing %s", name);
  				argc--, argv++;
  				if (strcmp(*argv, "enable") == 0) {
  					sblock.fs_flags |= FS_DOSOFTDEP;
@@ -348,26 +347,4 @@ bread(bno, buf, cnt)
 		return (1);
 	}
 	return (0);
-}
-
-char *
-rawname(special, pathbuf)
-	char *special;
-	char *pathbuf;
-{
-	char *p;
-	int n;
-
-	p = strrchr(special, '/');
-	if (p) {
-		n = ++p - special;
-		bcopy(special, pathbuf, n);
-	} else {
-		strcpy(pathbuf, _PATH_DEV);
-		n = strlen(pathbuf);
-		p = special;
-	}
-	pathbuf[n++] = 'r';
-	strcpy(pathbuf + n, p);
-	return pathbuf;
 }
