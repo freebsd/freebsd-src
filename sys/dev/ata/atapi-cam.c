@@ -167,7 +167,14 @@ atapi_cam_detach_bus(struct ata_channel *ata_ch)
 void
 atapi_cam_reinit_bus(struct ata_channel *ata_ch) {
     struct atapi_xpt_softc *scp = get_softc(ata_ch);
-    reinit_bus(scp, RESET);
+
+    /*
+     * scp might be null if the bus is being reinitialised during
+     * the boot-up sequence, before the ATAPI bus is registered.
+     */
+
+    if (scp != NULL)
+	reinit_bus(scp, RESET);
 }
 
 static void
