@@ -273,7 +273,6 @@ g_trace(int level, const char *fmt, ...)
 {
 	va_list ap;
 
-	g_sanity(NULL);
 	if (!(g_debugflags & level))
 		return;
 	va_start(ap, fmt);

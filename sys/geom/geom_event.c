@@ -59,7 +59,6 @@ static struct event_tailq_head g_events = TAILQ_HEAD_INITIALIZER(g_events);
 static u_int g_pending_events;
 static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static struct mtx g_eventlock;
-static struct sx g_eventstall;
 
 #define G_N_EVENTREFS		20
 
@@ -84,23 +83,10 @@ g_waitidle(void)
 }
 
 void
-g_stall_events(void)
-{
-
-	sx_xlock(&g_eventstall);
-}
-
-void
-g_release_events(void)
-{
-
-	sx_xunlock(&g_eventstall);
-}
-
-void
 g_orphan_provider(struct g_provider *pp, int error)
 {
 
+	/* G_VALID_PROVIDER(pp)  We likely lack topology lock */
 	g_trace(G_T_TOPOLOGY, "g_orphan_provider(%p(%s), %d)",
 	    pp, pp->name, error);
 	KASSERT(error != 0,
@@ -128,8 +114,9 @@ g_orphan_register(struct g_provider *pp)
 	struct g_consumer *cp, *cp2;
 	int wf;
 
-	g_trace(G_T_TOPOLOGY, "g_orphan_register(%s)", pp->name);
 	g_topology_assert();
+	G_VALID_PROVIDER(pp);
+	g_trace(G_T_TOPOLOGY, "g_orphan_register(%s)", pp->name);
 
 	wf = pp->flags & G_PF_WITHER;
 	pp->flags &= ~G_PF_WITHER;
@@ -166,13 +153,14 @@ one_event(void)
 	struct g_event *ep;
 	struct g_provider *pp;
 
-	sx_xlock(&g_eventstall);
 	g_topology_lock();
 	for (;;) {
 		mtx_lock(&g_eventlock);
 		pp = TAILQ_FIRST(&g_doorstep);
-		if (pp != NULL)
+		if (pp != NULL) {
+			G_VALID_PROVIDER(pp);
 			TAILQ_REMOVE(&g_doorstep, pp, orphan);
+		}
 		mtx_unlock(&g_eventlock);
 		if (pp == NULL)
 			break;
@@ -183,7 +171,6 @@ one_event(void)
 	if (ep == NULL) {
 		mtx_unlock(&g_eventlock);
 		g_topology_unlock();
-		sx_xunlock(&g_eventstall);
 		return (0);
 	}
 	TAILQ_REMOVE(&g_events, ep, events);
@@ -201,7 +188,6 @@ one_event(void)
 	if (g_pending_events == 0)
 		wakeup(&g_pending_events);
 	g_topology_unlock();
-	sx_xunlock(&g_eventstall);
 	return (1);
 }
 
@@ -337,5 +323,4 @@ g_event_init()
 {
 
 	mtx_init(&g_eventlock, "GEOM orphanage", NULL, MTX_DEF);
-	sx_init(&g_eventstall, "GEOM event stalling");
 }
