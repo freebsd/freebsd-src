@@ -113,6 +113,19 @@ static LIST_HEAD(, stack)	mstackq = LIST_HEAD_INITIALIZER(mstackq);
  */
 static void *last_stack = NULL;
 
+/*
+ * Round size up to the nearest multiple of
+ * _thr_page_size.
+ */
+static inline size_t
+round_up(size_t size)
+{
+	if (size % _thr_page_size != 0)
+		size = ((size / _thr_page_size) + 1) *
+		    _thr_page_size;
+	return size;
+}
+
 int
 _thr_stack_alloc(struct pthread_attr *attr)
 {
@@ -122,9 +135,6 @@ _thr_stack_alloc(struct pthread_attr *attr)
 	size_t stacksize;
 	size_t guardsize;
 
-	stacksize = attr->stacksize_attr;
-	guardsize = attr->guardsize_attr;
-
 	/*
 	 * Round up stack size to nearest multiple of _thr_page_size so
 	 * that mmap() * will work.  If the stack size is not an even
@@ -132,9 +142,9 @@ _thr_stack_alloc(struct pthread_attr *attr)
 	 * unused space above the beginning of the stack, so the stack
 	 * sits snugly against its guard.
 	 */
-	if ((stacksize % _thr_page_size) != 0)
-		stacksize = ((stacksize / _thr_page_size) + 1) *
-		    _thr_page_size;
+	stacksize = round_up(attr->stacksize_attr);
+	guardsize = round_up(attr->guardsize_attr);
+
 	attr->stackaddr_attr = NULL;
 	attr->flags &= ~THR_STACK_USER;
 
@@ -221,8 +231,8 @@ _thr_stack_free(struct pthread_attr *attr)
 	    && (attr->stackaddr_attr != NULL)) {
 		spare_stack = (attr->stackaddr_attr + attr->stacksize_attr
 		    - sizeof(struct stack));
-		spare_stack->stacksize = attr->stacksize_attr;
-		spare_stack->guardsize = attr->guardsize_attr;
+		spare_stack->stacksize = round_up(attr->stacksize_attr);
+		spare_stack->guardsize = round_up(attr->guardsize_attr);
 		spare_stack->stackaddr = attr->stackaddr_attr;
 
 		if (spare_stack->stacksize == THR_STACK_DEFAULT &&
