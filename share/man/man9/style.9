@@ -348,7 +348,8 @@ or
 .Sq \&)
 characters.
 .Bd -literal
-	if ((error = function(a1, a2)) != 0)
+	error = function(a1, a2);
+	if (error != 0)
 		exit(error);
 .Ed
 .Pp
