@@ -2,7 +2,7 @@
 
 PROG = amq
 MAN8 = amq.8
-SRCS = amq.c amq_clnt.c amq_xdr.c misc_rpc.c
+SRCS = amq.c amq_clnt.c amq_xdr.c misc_rpc.c nfs_prot.h
 CFLAGS+=-I${.OBJDIR}
 CFLAGS+=-I${.CURDIR}/../include
 CFLAGS+=-I${.CURDIR}/../rpcx
@@ -14,12 +14,9 @@ CFLAGS+=-DOS_HDR=\"os-bsd44.h\"
 CLEANFILES+=nfs_prot.h
 RPCCOM = rpcgen
 NFS_PROT_X= ${DESTDIR}/usr/include/rpcsvc/nfs_prot.x
-DPSRCS= nfs_prot.h
 
 nfs_prot.h: ${NFS_PROT_X}
 	${RPCCOM} -h ${NFS_PROT_X} -o ${.TARGET}
-
-${OBJS} beforedepend: nfs_prot.h
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>

@@ -1,9 +1,8 @@
-#	$Id: Makefile,v 1.5 1997/02/22 16:12:51 peter Exp $
+#	$Id: Makefile,v 1.6 1997/05/23 08:43:27 asami Exp $
 
 PROG =	rpc.statd
-SRCS =	file.c sm_inter_svc.c statd.c procs.c
+SRCS =	file.c sm_inter_svc.c sm_inter.h statd.c procs.c
 MAN8 =	rpc.statd.8
-DPSRCS+= sm_inter.h
 
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc
