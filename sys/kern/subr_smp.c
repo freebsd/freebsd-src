@@ -42,9 +42,7 @@
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 #include <sys/mutex.h>
-#ifdef BETTER_CLOCK
 #include <sys/dkstat.h>
-#endif
 #include <sys/cons.h>	/* cngetc() */
 
 #include <vm/vm.h>
@@ -52,13 +50,11 @@
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
-#ifdef BETTER_CLOCK
 #include <sys/lock.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
 #ifdef GPROF 
 #include <sys/gmon.h>
-#endif
 #endif
 
 #include <machine/smp.h>
@@ -631,11 +627,9 @@ mp_enable(u_int boot_addr)
 	setidt(XINVLTLB_OFFSET, Xinvltlb,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
-#ifdef BETTER_CLOCK
 	/* install an inter-CPU IPI for reading processor state */
 	setidt(XCPUCHECKSTATE_OFFSET, Xcpucheckstate,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#endif
 	
 	/* install an inter-CPU IPI for all-CPU rendezvous */
 	setidt(XRENDEZVOUS_OFFSET, Xrendezvous,
@@ -2338,8 +2332,6 @@ ap_init(void)
 	panic("scheduler returned us to ap_init");
 }
 
-#ifdef BETTER_CLOCK
-
 #define CHECKSTATE_USER	0
 #define CHECKSTATE_SYS	1
 #define CHECKSTATE_INTR	2
@@ -2505,7 +2497,7 @@ forward_statclock(int pscnt)
 		/* spin */
 		i++;
 		if (i == 100000) {
-#ifdef BETTER_CLOCK_DIAGNOSTIC
+#ifdef DIAGNOSTIC
 			printf("forward_statclock: checkstate %x\n",
 			       checkstate_probed_cpus);
 #endif
@@ -2534,7 +2526,7 @@ forward_statclock(int pscnt)
 			/* spin */
 			i++;
 			if (i > 100000) { 
-#ifdef BETTER_CLOCK_DIAGNOSTIC
+#ifdef DIAGNOSTIC
 				printf("forward_statclock: dropped ast 0x%x\n",
 				       checkstate_need_ast & map);
 #endif
@@ -2581,7 +2573,7 @@ forward_hardclock(int pscnt)
 		/* spin */
 		i++;
 		if (i == 100000) {
-#ifdef BETTER_CLOCK_DIAGNOSTIC
+#ifdef DIAGNOSTIC
 			printf("forward_hardclock: checkstate %x\n",
 			       checkstate_probed_cpus);
 #endif
@@ -2628,7 +2620,7 @@ forward_hardclock(int pscnt)
 			/* spin */
 			i++;
 			if (i > 100000) { 
-#ifdef BETTER_CLOCK_DIAGNOSTIC
+#ifdef DIAGNOSTIC
 				printf("forward_hardclock: dropped ast 0x%x\n",
 				       checkstate_need_ast & map);
 #endif
@@ -2637,8 +2629,6 @@ forward_hardclock(int pscnt)
 		}
 	}
 }
-
-#endif /* BETTER_CLOCK */
 
 void 
 forward_signal(struct proc *p)
