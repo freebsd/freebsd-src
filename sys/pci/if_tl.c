@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.16.2.7 1998/12/29 15:41:10 wpaul Exp $
+ *	$Id: if_tl.c,v 1.16.2.8 1999/01/26 15:22:26 wpaul Exp $
  */
 
 /*
@@ -241,7 +241,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_tl.c,v 1.16.2.7 1998/12/29 15:41:10 wpaul Exp $";
+	"$Id: if_tl.c,v 1.16.2.8 1999/01/26 15:22:26 wpaul Exp $";
 #endif
 
 #ifdef TL_DEBUG
@@ -1240,6 +1240,7 @@ static void tl_setmulti(sc)
 				if (i < 4) {
 					tl_setfilt(sc, enm->enm_addrlo, i);
                                 	i++;
+					ETHER_NEXT_MULTI(step, enm);
 					continue;
 				}
 
