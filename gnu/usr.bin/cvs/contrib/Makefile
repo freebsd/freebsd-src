@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1995/12/11 01:58:47 peter Exp $
+#	$Id: Makefile,v 1.5 1996/08/20 23:53:00 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -7,8 +7,7 @@
 
 SCRIPTS= rcs2log clmerge cln_hist commit_prep cvs_acls cvscheck \
 	 log log_accum mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs \
-
-#	 easy-import
+	 easy-import
 
 FILES=	 README cvscheck.man cvshelp.man descend.man intro.doc
 
