@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: devstat.c,v 1.1 1998/09/15 06:23:21 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -33,6 +33,7 @@
 #include <sys/errno.h>
 #include <sys/dkstat.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -159,33 +160,59 @@ checkversion(void)
 	int retval = 0;
 	int errlen = 0;
 	char *func_name = "checkversion";
+	int version;
 
-	if (getversion() != DEVSTAT_VERSION) {
+	version = getversion();
+
+	if (version != DEVSTAT_VERSION) {
+		int buflen = 0;
 		char tmpstr[256];
 
-		errlen = snprintf(devstat_errbuf, DEVSTAT_ERRBUF_SIZE,
+		/*
+		 * This is really pretty silly, but basically the idea is
+		 * that if getversion() returns an error (i.e. -1), then it
+		 * has printed an error message in the buffer.  Therefore,
+		 * we need to add a \n to the end of that message before we
+		 * print our own message in the buffer.
+		 */
+		if (version == -1) {
+			buflen = strlen(devstat_errbuf);
+			errlen = snprintf(tmpstr, sizeof(tmpstr), "\n");
+			strncat(devstat_errbuf, tmpstr,
+				DEVSTAT_ERRBUF_SIZE - buflen - 1);
+			buflen += errlen;
+		}
+
+		errlen = snprintf(tmpstr, sizeof(tmpstr),
 				  "%s: userland devstat version %d is not "
 				  "the same as the kernel\n%s: devstat "
 				  "version %d\n", func_name, DEVSTAT_VERSION,
-				  func_name, getversion());
+				  func_name, version);
 
-                if (getversion() < DEVSTAT_VERSION)
+		if (version == -1) {
+			strncat(devstat_errbuf, tmpstr,
+				DEVSTAT_ERRBUF_SIZE - buflen - 1);
+			buflen += errlen;
+		} else
+			strncpy(devstat_errbuf, tmpstr, DEVSTAT_ERRBUF_SIZE);
+
+                if (version < DEVSTAT_VERSION)
 			snprintf(tmpstr, sizeof(tmpstr),
 				 "%s: you really should know better"
 				 " than to upgrade your\n%s: "
 				 "userland binaries without "
-				 "upgrading your kernel\n",
+				 "upgrading your kernel",
 				 func_name, func_name);
                 else
 			snprintf(tmpstr, sizeof(tmpstr),
 				 "%s: you really should know better"
 				 " than to upgrade your kernel "
 				 "without\n%s: upgrading your "
-				 "userland binaries\n",
+				 "userland binaries",
 				 func_name, func_name);
 
 		strncat(devstat_errbuf, tmpstr,
-			DEVSTAT_ERRBUF_SIZE - errlen - 1);
+			DEVSTAT_ERRBUF_SIZE - buflen - 1);
 
 		retval = -1;
 	}
