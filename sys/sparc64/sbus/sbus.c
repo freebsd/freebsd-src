@@ -111,6 +111,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/pcpu.h>
 #include <sys/reboot.h>
 
 #include <ofw/openfirm.h>
@@ -318,7 +319,7 @@ sbus_probe(device_t dev)
 
 	if (OF_getprop(node, "interrupts", &intr, sizeof(intr)) == -1)
 		panic("sbus_probe: cannot get IGN");
-	sc->sc_ign = intr & INTMAP_IGN;		/* Find interrupt group no */
+	sc->sc_ign = intr & INTMAP_IGN_MASK;	/* Find interrupt group no */
 	sc->sc_cbustag = sbus_alloc_bustag(sc);
 
 	/*
@@ -429,7 +430,7 @@ sbus_probe(device_t dev)
 		panic("sbus_probe: failed to get temperature interrupt");
 	bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_FAST,
 	    sbus_overtemp, sc, &sc->sc_ot_ihand);
-	SYSIO_WRITE8(sc, SBR_THERM_INT_MAP, mr | INTMAP_V);
+	SYSIO_WRITE8(sc, SBR_THERM_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 	rid = 0;
 	mr = SYSIO_READ8(sc, SBR_POWER_INT_MAP);
 	vec = INTVEC(mr);
@@ -438,7 +439,7 @@ sbus_probe(device_t dev)
 		panic("sbus_probe: failed to get power fail interrupt");
 	bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_FAST,
 	    sbus_pwrfail, sc, &sc->sc_pf_ihand);
-	SYSIO_WRITE8(sc, SBR_POWER_INT_MAP, mr | INTMAP_V);
+	SYSIO_WRITE8(sc, SBR_POWER_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 
 	/* Initialize the counter-timer. */
 	sparc64_counter_init(sc->sc_bustag, sc->sc_bushandle, SBR_TC0);
@@ -519,7 +520,7 @@ sbus_setup_dinfo(struct sbus_softc *sc, phandle_t node, char *name)
 			 * Sbus card devices need the slot number encoded into
 			 * the vector as this is generally not done.
 			 */
-			if ((iv & INTMAP_OBIO) == 0)
+			if ((iv & INTMAP_OBIO_MASK) == 0)
 				iv |= slot << 3;
 			/* Set the ign as appropriate. */
 			iv |= sc->sc_ign;
@@ -660,7 +661,7 @@ sbus_setup_intr(device_t dev, device_t child,
 	intrptr = intrmapptr = intrclrptr = 0;
 	intrmap = 0;
 	inr = INTVEC(vec);
-	if ((inr & INTMAP_OBIO) == 0) {
+	if ((inr & INTMAP_OBIO_MASK) == 0) {
 		/*
 		 * We're in an SBUS slot, register the map and clear
 		 * intr registers.
@@ -709,11 +710,10 @@ sbus_setup_intr(device_t dev, device_t child,
 	 */
 	SYSIO_WRITE8(sc, intrclrptr, 0);
 	/*
-	 * Enable the interrupt now we have the handler installed.
-	 * Read the current value as we can't change it besides the
-	 * valid bit so so make sure only this bit is changed.
+	 * Enable the interrupt and program the target module now we have the
+	 * handler installed.
 	 */
-	SYSIO_WRITE8(sc, intrmapptr, intrmap, PCPU_GET(mid));
+	SYSIO_WRITE8(sc, intrmapptr, INTMAP_ENABLE(intrmap, PCPU_GET(mid)));
 	return (error);
 }
 

@@ -48,23 +48,24 @@
 #ifndef _MACHINE_BUS_COMMON_H_
 #define _MACHINE_BUS_COMMON_H_
 
-#define INTMAP_V	0x080000000LL	/* Interrupt valid (enabled) */
-#define INTMAP_TID	0x07c000000LL	/* UPA target ID mask */
-#define INTMAP_IGN	0x0000007c0LL	/* Interrupt group no (sbus only). */
-#define INTMAP_INO	0x00000003fLL	/* Interrupt number */
-#define INTMAP_INR	(INTMAP_IGN | INTMAP_INO)
-#define INTMAP_SBUSSLOT	0x000000018LL	/* SBUS slot # */
-#define INTMAP_PCIBUS	0x000000010LL	/* PCI bus number (A or B) */
-#define INTMAP_PCISLOT	0x00000000cLL	/* PCI slot # */
-#define INTMAP_PCIINT	0x000000003LL	/* PCI interrupt #A,#B,#C,#D */
-#define INTMAP_OBIO	0x000000020LL	/* Onboard device */
-#define INTMAP_LSHIFT	11		/* Encode level in vector */
-#define	INTLEVENCODE(x)	(((x) & 0x0f) << INTMAP_LSHIFT)
-#define INTLEV(x)	(((x) >> INTMAP_LSHIFT) & 0x0f)
-#define INTVEC(x)	((x) & INTMAP_INR)
-#define INTSLOT(x)	(((x) >> 3) & 0x7)
-#define	INTPRI(x)	((x) & 0x7)
-#define	INTINO(x)	((x) & INTMAP_INO)
+#define INTMAP_V		0x080000000LL	/* Interrupt valid (enabled) */
+#define INTMAP_TID_MASK		0x07c000000LL	/* UPA target ID */
+#define INTMAP_TID_SHIFT	26
+#define INTMAP_IGN_MASK		0x0000007c0LL	/* Interrupt group no. */
+#define INTMAP_IGN_SHIFT	6
+#define INTMAP_INO_MASK		0x00000003fLL	/* Interrupt number */
+#define INTMAP_INR_MASK		(INTMAP_IGN_MASK | INTMAP_INO_MASK)
+#define INTMAP_SBUSSLOT_MASK	0x000000018LL	/* SBUS slot # */
+#define INTMAP_PCIBUS_MASK	0x000000010LL	/* PCI bus number (A or B) */
+#define INTMAP_PCISLOT_MASK	0x00000000cLL	/* PCI slot # */
+#define INTMAP_PCIINT_MASK	0x000000003LL	/* PCI interrupt #A,#B,#C,#D */
+#define INTMAP_OBIO_MASK	0x000000020LL	/* Onboard device */
+#define INTVEC(x)		((x) & INTMAP_INR_MASK)
+#define INTSLOT(x)		(((x) >> 3) & 0x7)
+#define	INTPRI(x)		((x) & 0x7)
+#define	INTINO(x)		((x) & INTMAP_INO_MASK)
+#define	INTMAP_ENABLE(mr, mid) \
+	(((mr) & ~INTMAP_TID_MASK) | ((mid) << INTMAP_TID_SHIFT) | INTMAP_V)
 
 /* counter-timer support. */
 void sparc64_counter_init(bus_space_tag_t tag, bus_space_handle_t handle,

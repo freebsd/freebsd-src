@@ -43,6 +43,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/pcpu.h>
 
 #include <ofw/openfirm.h>
 #include <ofw/ofw_pci.h>
@@ -576,7 +577,7 @@ psycho_attach(device_t dev)
 		PSYCHO_WRITE8(sc, map, mr & ~INTMAP_V);
 		for (i = 0; i < 4; i++)
 			PCICTL_WRITE8(sc, clr + i * 8, 0);
-		PSYCHO_WRITE8(sc, map, mr | INTMAP_V);
+		PSYCHO_WRITE8(sc, map, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 	}
 	for (map = PSR_SCSI_INT_MAP, clr = PSR_SCSI_INT_CLR, n = 0;
 	     map < PSR_FFB0_INT_MAP; map += 8, clr += 8, n++) {
@@ -602,7 +603,7 @@ psycho_attach(device_t dev)
 			    psycho_intr_stray, sclr);
 		}
 #endif
-		PSYCHO_WRITE8(sc, map, mr | INTMAP_V);
+		PSYCHO_WRITE8(sc, map, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 	}
 #endif
 
@@ -657,7 +658,7 @@ psycho_set_intr(struct psycho_softc *sc, int index,
 		panic("psycho_set_intr: failed to get interrupt");
 	bus_setup_intr(dev, sc->sc_irq_res[index], INTR_TYPE_MISC | iflags,
 	    handler, sc, &sc->sc_ihand[index]);
-	PSYCHO_WRITE8(sc, map, mr | INTMAP_V);
+	PSYCHO_WRITE8(sc, map, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 }
 
 static int
@@ -1126,11 +1127,10 @@ psycho_setup_intr(device_t dev, device_t child,
 	 */
 	PSYCHO_WRITE8(sc, intrclrptr, 0);
 	/*
-	 * Enable the interrupt now we have the handler installed.
-	 * Read the current value as we can't change it besides the
-	 * valid bit so so make sure only this bit is changed.
+	 * Enable the interrupt and program the target module now we have the
+	 * handler installed.
 	 */
-	PSYCHO_WRITE8(sc, intrmapptr, mr | INTMAP_V);
+	PSYCHO_WRITE8(sc, intrmapptr, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 	return (error);
 }
 
