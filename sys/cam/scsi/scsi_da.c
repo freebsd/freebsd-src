@@ -373,6 +373,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "EXATEL", "i-BEAD10*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * Jungsoft NEXDISK USB flash key
+		 * PR: kern/54737
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "JUNGSOFT", "NEXDISK*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
