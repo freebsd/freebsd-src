@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=		libefi loader
+SUBDIR=		libefi
 
 .include <bsd.subdir.mk>
