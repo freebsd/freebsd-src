@@ -369,6 +369,17 @@ skipit:
 			return (YPERR_YPBIND);
 		}
 
+		/*
+		 * Check the port number -- should be < IPPORT_RESERVED.
+		 * If not, it's possible someone has registered a bogus
+		 * ypbind with the portmapper and is trying to trick us.
+		 */
+		if (ntohs(clnt_sin.sin_port) >= IPPORT_RESERVED) {
+			clnt_destroy(client);
+			if (new)
+				free(ysd);
+			return(YPERR_YPBIND);
+		}
 		tv.tv_sec = _yplib_timeout/2;
 		tv.tv_usec = 0;
 		r = clnt_call(client, YPBINDPROC_DOMAIN,
@@ -400,6 +411,13 @@ skipit:
 			*(u_short *)&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port;
 		ysd->dom_server_addr.sin_addr.s_addr =
 			*(u_long *)&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr;
+
+		/*
+		 * We could do a reserved port check here too, but this
+		 * could pose compatibility problems. The local ypbind is
+		 * supposed to decide whether or not to trust yp servers
+		 * on insecure ports. For now, we trust its judgement.
+		 */
 		ysd->dom_server_port =
 			*(u_short *)&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port;
 gotit:
