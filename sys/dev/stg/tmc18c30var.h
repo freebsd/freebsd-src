@@ -1,12 +1,12 @@
 /*	$FreeBSD$	*/
-/*	$NecBSD: tmc18c30var.h,v 1.12 1998/11/30 00:08:30 honda Exp $	*/
+/*	$NecBSD: tmc18c30var.h,v 1.12.18.2 2001/06/13 05:51:23 honda Exp $	*/
 /*	$NetBSD$	*/
 
 /*
  * [NetBSD for NEC PC-98 series]
- *  Copyright (c) 1996, 1997, 1998
+ *  Copyright (c) 1996, 1997, 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.
- *  Copyright (c) 1996, 1997, 1998
+ *  Copyright (c) 1996, 1997, 1998, 1999, 2000, 2001
  *	Naofumi HONDA. All rights reserved.
  *  Copyright (c) 1996, 1997, 1998
  *	Kouichi Matsuda. All rights reserved.
@@ -44,45 +44,57 @@
 struct stg_softc {
 	struct scsi_low_softc sc_sclow;	/* generic data */
 
+#ifdef	__NetBSD__
 	bus_space_tag_t sc_iot;
 	bus_space_tag_t sc_memt;
 	bus_space_handle_t sc_ioh;
 
 	void *sc_ih;
+#endif	/* __NetBSD__ */
 
-	int sc_wc;			/* weight counter */
+#ifdef	__FreeBSD__
+	bus_space_tag_t sc_iot;
+	bus_space_tag_t sc_memt;
+	bus_space_handle_t sc_ioh;
 
-	u_int sc_chip;			/* chip type */
-	u_int sc_fsz;			/* fifo size */
-	u_int sc_idbit;			/* host id bit */
-	u_int8_t sc_fcb;		/* fifo intr thread */
-
-	u_int8_t sc_fcWinit;		/* write flags */
-	u_int8_t sc_fcRinit;		/* read flags */
-
-	u_int8_t sc_fcsp;		/* special control flags */
-	u_int8_t sc_icinit;		/* interrupt masks */
-	u_int8_t sc_busc;		/* default bus control register */
-	u_int8_t sc_imsg;		/* identify msg required */
-	u_int8_t sc_busimg;		/* bus control register image */
-#if defined (__FreeBSD__) && __FreeBSD_version >= 400001
+#if __FreeBSD_version >= 400001
 	int port_rid;
 	int irq_rid;
 	int mem_rid;
 	struct resource *port_res;
 	struct resource *irq_res;
 	struct resource *mem_res;
+
 	void *stg_intrhand;
-#endif
+#endif	/* __FreeBSD_version */
+#endif	/* __FreeBSD__ */
+
+	int sc_tmaxcnt;
+	u_int sc_chip;			/* chip type */
+	u_int sc_fsz;			/* fifo size */
+	u_int sc_idbit;			/* host id bit */
+	u_int sc_wthold;		/* write thread */
+	u_int sc_rthold;		/* read thread */
+	u_int sc_maxwsize;		/* max write size */
+	int sc_dataout_timeout;		/* data out timeout counter */
+	int sc_ubf_timeout;		/* unexpected bus free timeout */
+
+	u_int8_t sc_fcWinit;		/* write flags */
+	u_int8_t sc_fcRinit;		/* read flags */
+
+	u_int8_t sc_icinit;		/* interrupt masks */
+	u_int8_t sc_busc;		/* default bus control register */
+	u_int8_t sc_imsg;		/* identify msg required */
+	u_int8_t sc_busimg;		/* bus control register image */
 };
 
 /*****************************************************************
- * Target information 
+ * Lun information 
  *****************************************************************/
 struct stg_targ_info {
-	struct targ_info sti_ti;	/* generic data */
+	struct targ_info sti_ti;		/* generic data */
 
-	u_int8_t sti_reg_synch;		/* synch register per target */
+	u_int8_t sti_reg_synch;		/* synch register per lun */
 };
 
 /*****************************************************************

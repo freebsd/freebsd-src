@@ -1,12 +1,12 @@
 /* $FreeBSD$ */
-/*	$NecBSD: ctvar.h,v 1.4 1999/04/15 01:36:13 kmatsuda Exp $	*/
+/*	$NecBSD: ctvar.h,v 1.4.14.3 2001/06/20 06:13:34 honda Exp $	*/
 /*	$NetBSD$	*/
 
 /*
  * [NetBSD for NEC PC-98 series]
- *  Copyright (c) 1995, 1996, 1997, 1998
+ *  Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.
- *  Copyright (c) 1995, 1996, 1997, 1998
+ *  Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000, 2001
  *	Naofumi HONDA. All rights reserved.
  * 
  *  Redistribution and use in source and binary forms, with or without
@@ -43,31 +43,53 @@
 /*****************************************************************
  * Host adapter structure
  *****************************************************************/
+struct ct_bus_access_handle {
+	bus_space_tag_t ch_iot;			/* core chip ctrl port tag */
+	bus_space_tag_t ch_delayt;		/* delay port tag */
+	bus_space_tag_t ch_datat;		/* data port tag (pio) */
+	bus_space_tag_t ch_memt;		/* data port tag (shm) */
+
+	bus_space_handle_t ch_ioh;
+	bus_space_handle_t ch_delaybah;
+	bus_space_handle_t ch_datah;
+	bus_space_handle_t ch_memh;
+
+	void (*ch_bus_weight) __P((struct ct_bus_access_handle *));
+
+#ifdef	CT_USE_RELOCATE_OFFSET
+	bus_addr_t ch_offset[4];
+#endif	/* CT_USE_RELOCATE_OFFSET */
+};
+
 struct ct_softc {
 	struct scsi_low_softc sc_sclow;		/* generic data */
 
+	struct ct_bus_access_handle sc_ch;	/* bus access handle */
+
+#ifdef	__NetBSD__
+	bus_dma_tag_t sc_dmat;			/* data DMA tag */
+
+	void *sc_ih;
+#endif	/* __NetBSD__ */
+
+#ifdef	__FreeBSD__
 	struct resource *port_res;
 	struct resource *mem_res;
 	struct resource *irq_res;
 	struct resource *drq_res;
 
-	bus_space_tag_t sc_iot;			/* core chip ctrl port tag */
-	bus_space_tag_t sc_datat;		/* data port tag (pio) */
-	bus_space_tag_t sc_memt;		/* data port tag (shm) */
 	bus_dma_tag_t sc_dmat;			/* data DMA tag */
 	bus_dmamap_t sc_dmamapt;		/* data DMAMAP tag */
 
-	bus_space_handle_t sc_ioh;
-	bus_space_handle_t sc_datah;
-	bus_space_handle_t sc_memh;
-
 	void *sc_ih;
-	int sc_wc;			/* weight counter */
+#endif	/* __FreeBSD__ */
 
 	int sc_chiprev;			/* chip version */	
-#define	CT_WD33C93_A			0x00000
-#define	CT_WD33C93_B			0x10000
-#define	CT_WD33C93_C			0x20000
+#define	CT_WD33C93			0x00000
+#define	CT_WD33C93_A			0x10000
+#define	CT_AM33C93_A			0x10001
+#define	CT_WD33C93_B			0x20000
+#define	CT_WD33C93_C			0x30000
 
 	int sc_xmode;
 #define	CT_XMODE_PIO			1
@@ -80,6 +102,7 @@ struct ct_softc {
 	int sc_satgo;			/* combination cmd start */
 #define	CT_SAT_GOING			1
 
+	int sc_tmaxcnt;
 	int sc_atten;			/* attention */
 	u_int8_t sc_creg;		/* control register value */
 
@@ -89,20 +112,22 @@ struct ct_softc {
 		u_int cs_syncr;
 	} *sc_sdp;			/* synchronous data table pt */
 
+	struct ct_synch_data sc_default_sdt[16];
+
 	/*
 	 * Machdep stuff.
 	 */
 	void *ct_hw;			/* point to bshw_softc etc ... */
-	void (*ct_dma_xfer_start) __P((struct ct_softc *));
-	void (*ct_pio_xfer_start) __P((struct ct_softc *));
+	int (*ct_dma_xfer_start) __P((struct ct_softc *));
+	int (*ct_pio_xfer_start) __P((struct ct_softc *));
 	void (*ct_dma_xfer_stop) __P((struct ct_softc *));
 	void (*ct_pio_xfer_stop) __P((struct ct_softc *));
 	void (*ct_bus_reset) __P((struct ct_softc *));
-	void (*ct_synch_setup) __P((struct ct_softc *, struct lun_info *));
+	void (*ct_synch_setup) __P((struct ct_softc *, struct targ_info *));
 };
 
 /*****************************************************************
- * Target information 
+ * Lun information 
  *****************************************************************/
 struct ct_targ_info {
 	struct targ_info cti_ti;
@@ -113,14 +138,7 @@ struct ct_targ_info {
 /*****************************************************************
  * PROTO
  *****************************************************************/
-#ifdef __NetBSD__
-#include <i386/Cbus/dev/ct/ct_machdep.h>
-#endif
-#ifdef __FreeBSD__
-#include <dev/ct/ct_machdep.h>
-#endif
-
-int ctprobesubr __P((bus_space_tag_t, bus_space_handle_t ioh, u_int, int, u_int));
+int ctprobesubr __P((struct ct_bus_access_handle *, u_int, int, u_int, int *));
 void ctattachsubr __P((struct ct_softc *));
 int ctprint __P((void *, const char *));
 int ctintr __P((void *));

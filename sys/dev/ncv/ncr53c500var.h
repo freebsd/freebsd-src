@@ -1,12 +1,12 @@
 /*	$FreeBSD$	*/
-/*	$NecBSD: ncr53c500var.h,v 1.11 1998/11/28 18:42:42 honda Exp $	*/
+/*	$NecBSD: ncr53c500var.h,v 1.11.18.1 2001/06/08 06:27:45 honda Exp $	*/
 /*	$NetBSD$	*/
 
 /*
  * [NetBSD for NEC PC-98 series]
- *  Copyright (c) 1995, 1996, 1997, 1998
+ *  Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.
- *  Copyright (c) 1995, 1996, 1997, 1998
+ *  Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000, 2001
  *	Naofumi HONDA. All rights reserved.
  * 
  *  Redistribution and use in source and binary forms, with or without
@@ -42,18 +42,20 @@
 struct ncv_softc {
 	struct scsi_low_softc sc_sclow;		/* generic data */
 
+#ifdef	__NetBSD__
 	bus_space_tag_t sc_iot;
 	bus_space_tag_t sc_memt;
 	bus_space_handle_t sc_ioh;
 
 	void *sc_ih;
-	int sc_wc;			/* weight counter */
-	int sc_selstop;			/* sel atn stop asserted */
-	int sc_compseq;			/* completion seq cmd asserted */
-	int sc_tdatalen;		/* temp xfer data len */
+#endif	/* __NetBSD__ */
 
-	struct ncv_hw sc_hw;		/* hardware register images */
-#if defined (__FreeBSD__) && __FreeBSD_version >= 400001
+#ifdef	__FreeBSD__
+	bus_space_tag_t sc_iot;
+	bus_space_tag_t sc_memt;
+	bus_space_handle_t sc_ioh;
+
+#if __FreeBSD_version >= 400001
 	int port_rid;
 	int port_rid_dmy;
 	int irq_rid;
@@ -62,19 +64,29 @@ struct ncv_softc {
 	struct resource *port_res_dmy;
 	struct resource *irq_res;
 	struct resource *mem_res;
+
 	void *ncv_intrhand;
-#endif
+#endif	/* __FreeBSD_version__ */
+#endif	/* __FreeBSD__ */
+
+	int sc_tmaxcnt;
+	int sc_selstop;			/* sel atn stop asserted */
+	int sc_compseq;			/* completion seq cmd asserted */
+	int sc_sdatalen;		/* start datalen */
+	int sc_tdatalen;		/* temp xfer data len */
+
+	struct ncv_hw sc_hw;		/* hardware register images */
 };
 
 /*****************************************************************
- * Target information 
+ * Lun information 
  *****************************************************************/
 struct ncv_targ_info {
 	struct targ_info nti_ti;
 	
-	u_int8_t nti_reg_cfg3;		/* cfg3 images per target */
-	u_int8_t nti_reg_offset;	/* synch offset register per target */
-	u_int8_t nti_reg_period;	/* synch period register per target */
+	u_int8_t nti_reg_cfg3;		/* cfg3 images per lun */
+	u_int8_t nti_reg_offset;	/* synch offset register per lun */
+	u_int8_t nti_reg_period;	/* synch period register per lun */
 };
 
 /*****************************************************************
