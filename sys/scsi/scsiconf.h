@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.27 1995/07/17 23:38:01 gibbs Exp $
+ *	$Id: scsiconf.h,v 1.28 1995/08/23 23:03:34 gibbs Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -170,7 +170,7 @@ struct scsi_device
  * name.
  */
 #define SCSI_DEVICE_ENTRIES(NAME) \
-errval NAME##attach(struct scsi_link *sc_link); \
+static errval NAME##attach(struct scsi_link *sc_link); \
 extern struct scsi_device NAME##_switch; \
 void NAME##init(void) { \
 	scsi_device_register(&NAME##_switch); \
@@ -184,7 +184,7 @@ int NAME##ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p) { \
 int NAME##close(dev_t dev, int flag, int fmt, struct proc *p) { \
 	return scsi_close(dev, flag, fmt, p, &NAME##_switch); \
 } \
-void NAME##minphys(struct buf *bp) { \
+static void NAME##minphys(struct buf *bp) { \
 	scsi_minphys(bp, &NAME##_switch); \
 }  \
 void NAME##strategy(struct buf *bp) { \

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.40 1995/05/03 18:09:06 dufault Exp $
+ *      $Id: cd.c,v 1.41 1995/05/30 08:13:20 rgrimes Exp $
  */
 
 #define SPLCD splbio
@@ -69,7 +69,7 @@ int32   cdstrats, cdqueues;
 #define PARTITION(z)	(minor(z) & 0x07)
 #define RAW_PART        2
 
-void	cdstart(u_int32 unit, u_int32 flags);
+static void	cdstart(u_int32 unit, u_int32 flags);
 
 struct scsi_data {
 	u_int32 flags;
@@ -90,17 +90,17 @@ struct scsi_data {
 static int cdunit(dev_t dev) { return CDUNIT(dev); }
 static dev_t cdsetunit(dev_t dev, int unit) { return CDSETUNIT(dev, unit); }
 
-errval cd_open(dev_t dev, int flags, int fmt, struct proc *p,
-struct scsi_link *sc_link);
-errval cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+static errval cd_open(dev_t dev, int flags, int fmt, struct proc *p,
+		struct scsi_link *sc_link);
+static errval cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
 		struct proc *p, struct scsi_link *sc_link);
-errval cd_close(dev_t dev, int flag, int fmt, struct proc *p,
-        struct scsi_link *sc_link);
-void cd_strategy(struct buf *bp, struct scsi_link *sc_link);
+static errval cd_close(dev_t dev, int flag, int fmt, struct proc *p,
+		struct scsi_link *sc_link);
+static void cd_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 SCSI_DEVICE_ENTRIES(cd)
 
-struct scsi_device cd_switch =
+static struct scsi_device cd_switch =
 {
     NULL,			/* use default error handler */
     cdstart,		/* we have a queue, which is started by this */
@@ -170,7 +170,7 @@ cd_registerdev(int unit)
  * The routine called by the low level scsi routine when it discovers
  * A device suitable for this driver
  */
-int
+static int
 cdattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
@@ -940,7 +940,7 @@ cd_getdisklabel(unit)
 /*
  * Find out from the device what it's capacity is
  */
-u_int32
+static u_int32
 cd_size(unit, flags)
 	int unit;
 	int flags;
@@ -1080,7 +1080,7 @@ cd_play(unit, blk, len)
 /*
  * Get scsi driver to send a "start playing" command
  */
-errval
+static errval
 cd_play_big(unit, blk, len)
 	u_int32 unit, blk, len;
 {
