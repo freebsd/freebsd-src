@@ -966,7 +966,7 @@ in6_purgeaddr(ifa, ifp)
 
 /*
  * SIOC[GAD]LIFADDR.
- *	SIOCGLIFADDR: get first address. (???)
+ *	SIOCGLIFADDR: get first address. (?)
  *	SIOCGLIFADDR with IFLR_PREFIX:
  *		get first address that matches the specified prefix.
  *	SIOCALIFADDR: add the specified address.
