@@ -59,9 +59,6 @@ increment(Bigint *b)
 {
 	ULong *x, *xe;
 	Bigint *b1;
-#ifdef USE_LOCALE
-	CONST char *s2;
-#endif
 #ifdef Pack_16
 	ULong carry = 1, y;
 #endif
@@ -399,25 +396,11 @@ strtodg
 			z = 10*z + c - '0';
 	nd0 = nd;
 #ifdef USE_LOCALE
-	s1 = localeconv()->decimal_point;
-	if (c == *s1) {
-		c = '.';
-		if (*++s1) {
-			s2 = s;
-			for(;;) {
-				if (*++s2 != *s1) {
-					c = 0;
-					break;
-					}
-				if (!*++s1) {
-					s = s2;
-					break;
-					}
-				}
-			}
-		}
+	if (c == *localeconv()->decimal_point)
+#else
+	if (c == '.')
 #endif
-	if (c == '.') {
+		{
 		c = *++s;
 		if (!nd) {
 			for(; c == '0'; c = *++s)
