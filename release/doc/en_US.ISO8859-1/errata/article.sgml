@@ -93,7 +93,11 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-    <para>No advisories.</para>
+    <para>(18 Nov 2004) A bug in the &man.fetch.1; utility which allows
+      a malicious HTTP server to cause arbitrary portions of the client's
+      memory to be overwritten, has been fixed.
+      For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:16.fetch.asc">FreeBSD-SA-04:16</ulink>.</para>
   </sect1>
 
   <sect1 id="open-issues">
