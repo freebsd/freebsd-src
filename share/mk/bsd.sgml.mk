@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.23 1998/01/23 20:09:21 jkh Exp $
+#	$Id: bsd.sgml.mk,v 1.24 1998/05/06 18:44:04 bde Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 #
@@ -77,6 +77,14 @@ SCOMPRESS_EXT=
 .else
 SCOMPRESS_EXT?=	${COMPRESS_EXT}
 .endif
+
+
+PS2PDF?=	ps2pdf
+
+.SUFFIXES: .ps .pdf
+ 
+.ps.pdf:
+	${PS2PDF} < ${.IMPSRC} > ${.TARGET}
 
 _docs=
 _strip=
