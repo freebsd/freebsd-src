@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #define ID_82801BA			0x24438086
 #define ID_82801CA			0x24838086
 #define ID_82801DC			0x24C38086
+#define ID_82801EB			0x24D38086
 
 #define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
 
@@ -131,6 +132,9 @@ ichsmb_pci_probe(device_t dev)
 		break;
 	case ID_82801DC:
 		device_set_desc(dev, "Intel 82801DC (ICH4) SMBus controller");
+		break;
+	case ID_82801EB:
+		device_set_desc(dev, "Intel 82801EB (ICH5) SMBus controller");
 		break;
 	default:
 		if (pci_get_class(dev) == PCIC_SERIALBUS
