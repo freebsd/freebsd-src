@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/wait.h>
 #define DKTYPENAMES
+#define FSTYPENAMES
 #include <sys/disklabel.h>
 #ifdef __sparc64__
 #include <sys/sun_disklabel.h>
