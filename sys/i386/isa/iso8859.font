@@ -1,8 +1,4 @@
-/*
- * ISO 8859-1 font file
- *
- *	$Id$
- */
+/* ISO 8859-1 font file */
 
 char font_8x8[256*8] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
