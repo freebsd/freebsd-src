@@ -79,6 +79,7 @@ void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
 void ktruser(int, unsigned char *);
 void usage(void);
+const char *ioctlname(u_long);
 
 int timestamp, decimal, fancy = 1, tail, maxdata;
 const char *tracefile = DEF_TRACEFILE;
@@ -285,7 +286,6 @@ ktrsyscall(struct ktr_syscall *ktr)
 {
 	int narg = ktr->ktr_narg;
 	register_t *ip;
-	const char *ioctlname(u_long);
 
 	if (ktr->ktr_code >= nsyscalls || ktr->ktr_code < 0)
 		(void)printf("[%d]", ktr->ktr_code);
