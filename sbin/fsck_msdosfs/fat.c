@@ -52,6 +52,24 @@ static int clustdiffer(cl_t, cl_t *, cl_t *, int);
 static int tryclear(struct bootblock *, struct fatEntry *, cl_t, cl_t *);
 static int _readfat(int, struct bootblock *, int, u_char **);
 
+/*-
+ * The first 2 FAT entries contain pseudo-cluster numbers with the following
+ * layout:
+ *
+ * 31...... ........ ........ .......0
+ * rrrr1111 11111111 11111111 mmmmmmmm         FAT32 entry 0
+ * rrrrsh11 11111111 11111111 11111xxx         FAT32 entry 1
+ * 
+ *                   11111111 mmmmmmmm         FAT16 entry 0
+ *                   sh111111 11111xxx         FAT16 entry 1
+ * 
+ * r = reserved
+ * m = BPB media ID byte
+ * s = clean flag (1 = dismounted; 0 = still mounted)
+ * h = hard error flag (1 = ok; 0 = I/O error)
+ * x = any value ok
+ */
+
 int
 checkdirty(int fs, struct bootblock *boot)
 {
