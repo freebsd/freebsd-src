@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.62 1997/06/16 13:24:59 brian Exp $
+ * $Id: main.c,v 1.63 1997/06/16 19:59:41 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -812,13 +812,13 @@ DoLoop()
       modem = OpenModem(mode);
       if (modem < 0) {
         tries++;
-        if (VarDialTries)
+        if (!(mode & MODE_DDIAL) && VarDialTries)
           LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
-	            tries, VarDialTries);
+             tries, VarDialTries);
         else
-	  LogPrintf(LogCHAT, "Failed to open modem (attempt %u)\n", tries);
+          LogPrintf(LogCHAT, "Failed to open modem (attempt %u)\n", tries);
 
-	if (VarDialTries && tries >= VarDialTries) {
+	if (!(mode & MODE_DDIAL) && VarDialTries && tries >= VarDialTries) {
 	  if (mode & MODE_BACKGROUND)
 	    Cleanup(EX_DIAL);  /* Can't get the modem */
 	  dial_up = FALSE;
@@ -829,11 +829,11 @@ DoLoop()
 	  StartRedialTimer(VarRedialTimeout);
       } else {
 	tries++;    /* Tries are per number, not per list of numbers. */
-        if (VarDialTries)
-	  LogPrintf(LogCHAT, "Dial attempt %u of %d\n", tries,
-		    VarDialTries);
+        if (!(mode & MODE_DDIAL) && VarDialTries)
+	  LogPrintf(LogCHAT, "Dial attempt %u of %d\n", tries, VarDialTries);
         else
-	  LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
+          LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
+
 	if (DialModem() == EX_DONE) {
 	  sleep(1);	       /* little pause to allow peer starts */
 	  ModemTimeout();
@@ -849,7 +849,8 @@ DoLoop()
 	    else
 	      /* Try all numbers in background mode */
 	      StartRedialTimer(VarRedialNextTimeout);
-	  } else if (VarDialTries && tries >= VarDialTries) {
+	  } else if (!(mode & MODE_DDIAL) && VarDialTries
+                     && tries >= VarDialTries) {
 	    /* I give up !  Can't get through :( */
 	    StartRedialTimer(VarRedialTimeout);
 	    dial_up = FALSE;
