@@ -3777,12 +3777,10 @@ bufstrategy(struct bufobj *bo, struct buf *bp)
 	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
 	    ("Wrong vnode in bufstrategy(bp=%p, vp=%p)", bp, vp));
 #endif
-	if (vp->v_type == VCHR) {
-		if (!buf_prewrite(bp->b_vp, bp))
-			i = VOP_SPECSTRATEGY(vp, bp);
-	} else {
+	if (vp->v_type == VCHR)
+		i = VOP_SPECSTRATEGY(vp, bp);
+	else
 		i = VOP_STRATEGY(vp, bp);
-	}
 	KASSERT(i == 0, ("VOP_STRATEGY failed bp=%p vp=%p", bp, bp->b_vp));
 }
 

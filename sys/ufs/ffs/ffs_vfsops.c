@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 #include "opt_quota.h"
 #include "opt_ufs.h"
+#include "opt_ffs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -96,6 +97,14 @@ static struct vfsops ufs_vfsops = {
 };
 
 VFS_SET(ufs_vfsops, ufs, 0);
+
+static b_strategy_t ffs_geom_strategy;
+
+static struct buf_ops ffs_ops = {
+	.bop_name =     "FFS",
+	.bop_write =    bufwrite,
+	.bop_strategy = ffs_geom_strategy,
+};
 
 /*
  * ffs_omount
@@ -596,6 +605,8 @@ ffs_mountfs(devvp, mp, td)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
+
+	devvp->v_bufobj.bo_ops = &ffs_ops;
 
 	bp = NULL;
 	ump = NULL;
@@ -1526,3 +1537,28 @@ ffs_ifree(struct ufsmount *ump, struct inode *ip)
 		uma_zfree(uma_ufs2, ip->i_din2);
 	uma_zfree(uma_inode, ip);
 }
+
+void
+ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
+{
+	int i = 0;
+	struct vnode *vp;
+
+	vp = bp->b_vp;
+#if 0
+	KASSERT(vp == bo->bo_vnode, ("Inconsistent vnode bufstrategy"));
+	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
+	    ("Wrong vnode in bufstrategy(bp=%p, vp=%p)", bp, vp));
+#endif
+	if (vp->v_type == VCHR) {
+#ifdef SOFTUPDATES
+		if (bp->b_iocmd == BIO_WRITE && softdep_disk_prewrite(bp->b_vp, bp))
+			return;
+#endif
+		i = VOP_SPECSTRATEGY(vp, bp);
+	} else {
+		i = VOP_STRATEGY(vp, bp);
+	}
+	KASSERT(i == 0, ("VOP_STRATEGY failed bp=%p vp=%p", bp, bp->b_vp));
+}
+
