@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.32 1999/06/19 20:01:32 wpaul Exp wpaul $
+ *	$Id: if_rl.c,v 1.17 1999/06/19 20:17:37 wpaul Exp $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.32 1999/06/19 20:01:32 wpaul Exp wpaul $";
+	"$Id: if_rl.c,v 1.17 1999/06/19 20:17:37 wpaul Exp $";
 #endif
 
 /*
@@ -1076,7 +1076,7 @@ rl_attach(config_id, unit)
 	}
 
 	if (!pci_map_port(config_id, RL_PCI_LOIO,
-				(u_int16_t *)&(sc->rl_bhandle))) {
+				(pci_port_t *)&(sc->rl_bhandle))) {
 		printf ("rl%d: couldn't map ports\n", unit);
 		goto fail;
 	}

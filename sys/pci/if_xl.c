@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.39 1999/05/30 18:11:47 wpaul Exp $
+ *	$Id: if_xl.c,v 1.40 1999/06/01 19:04:23 wpaul Exp $
  */
 
 /*
@@ -160,7 +160,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.39 1999/05/30 18:11:47 wpaul Exp $";
+	"$Id: if_xl.c,v 1.40 1999/06/01 19:04:23 wpaul Exp $";
 #endif
 
 /*
@@ -1464,7 +1464,7 @@ xl_attach(config_id, unit)
 	}
 
 	if (!pci_map_port(config_id, XL_PCI_LOIO,
-				(u_short *)&(sc->xl_bhandle))) {
+				(pci_port_t *)&(sc->xl_bhandle))) {
 		printf ("xl%d: couldn't map port\n", unit);
 		printf ("xl%d: WARNING: check your BIOS and "
 		    "set 'Plug & Play OS' to 'no'\n", unit);
