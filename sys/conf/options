@@ -61,6 +61,7 @@ DDB_NUMSYM	opt_ddb.h
 DDB_TRACE
 DDB_UNATTENDED
 DIRECTIO	opt_directio.h
+FULL_PREEMPTION
 GDB_REMOTE_CHAT	opt_ddb.h
 GDBSPEED	opt_ddb.h
 GEOM_AES	opt_geom.h

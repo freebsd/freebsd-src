@@ -269,7 +269,9 @@ boot(int howto)
 	if (!cold && (howto & RB_NOSYNC) == 0 && waittime < 0) {
 		register struct buf *bp;
 		int iter, nbusy, pbusy;
+#ifndef PREEMPTION
 		int subiter;
+#endif
 
 		waittime = 0;
 		printf("\nsyncing disks, buffers remaining... ");
@@ -300,20 +302,29 @@ boot(int howto)
 				iter = 0;
 			pbusy = nbusy;
 			sync(&thread0, NULL);
- 			if (curthread != NULL) {
-				DROP_GIANT();
-   				for (subiter = 0; subiter < 50 * iter; subiter++) {
-     					mtx_lock_spin(&sched_lock);
-					/*
-					 * Allow interrupt threads to run
-					 */
-     					mi_switch(SW_VOL, NULL);
-     					mtx_unlock_spin(&sched_lock);
-     					DELAY(1000);
-   				}
-				PICKUP_GIANT();
- 			} else
+
+#ifdef PREEMPTION
+			/*
+			 * Drop Giant and spin for a while to allow
+			 * interrupt threads to run.
+			 */
+			DROP_GIANT();
 			DELAY(50000 * iter);
+			PICKUP_GIANT();
+#else
+			/*
+			 * Drop Giant and context switch several times to
+			 * allow interrupt threads to run.
+			 */
+			DROP_GIANT();
+			for (subiter = 0; subiter < 50 * iter; subiter++) {
+				mtx_lock_spin(&sched_lock);
+				mi_switch(SW_VOL, NULL);
+				mtx_unlock_spin(&sched_lock);
+				DELAY(1000);
+			}
+			PICKUP_GIANT();
+#endif
 		}
 		printf("\n");
 		/*

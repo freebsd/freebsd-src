@@ -365,7 +365,7 @@ ok:
 }
 
 int
-ithread_schedule(struct ithd *ithread, int do_switch)
+ithread_schedule(struct ithd *ithread)
 {
 	struct int_entropy entropy;
 	struct thread *td;
@@ -399,10 +399,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	/*
 	 * Set it_need to tell the thread to keep running if it is already
 	 * running.  Then, grab sched_lock and see if we actually need to
-	 * put this thread on the runqueue.  If so and the do_switch flag is
-	 * true and it is safe to switch, then switch to the ithread
-	 * immediately.  Otherwise, set the needresched flag to guarantee
-	 * that this ithread will run before any userland processes.
+	 * put this thread on the runqueue.
 	 */
 	ithread->it_need = 1;
 	mtx_lock_spin(&sched_lock);
@@ -410,16 +407,6 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		CTR2(KTR_INTR, "%s: setrunqueue %d", __func__, p->p_pid);
 		TD_CLR_IWAIT(td);
 		setrunqueue(td);
-		if (do_switch &&
-		    (ctd->td_critnest == 1) ) {
-			KASSERT((TD_IS_RUNNING(ctd)),
-			    ("ithread_schedule: Bad state for curthread."));
-			if (ctd->td_flags & TDF_IDLETD)
-				ctd->td_state = TDS_CAN_RUN; /* XXXKSE */
-			mi_switch(SW_INVOL, NULL);
-		} else {
-			curthread->td_flags |= TDF_NEEDRESCHED;
-		}
 	} else {
 		CTR4(KTR_INTR, "%s: pid %d: it_need %d, state %d",
 		    __func__, p->p_pid, ithread->it_need, td->td_state);
@@ -480,7 +467,7 @@ swi_sched(void *cookie, int flags)
 	 */
 	atomic_store_rel_int(&ih->ih_need, 1);
 	if (!(flags & SWI_DELAY)) {
-		error = ithread_schedule(it, !cold && !dumping);
+		error = ithread_schedule(it);
 		KASSERT(error == 0, ("stray software interrupt"));
 	}
 }
