@@ -129,17 +129,9 @@ DRIVER_MODULE(ndis, uhub, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 USB_MATCH(ndisusb)
 {
 	USB_MATCH_START(ndisusb, uaa);
-	driver_object		*drv;
 
-	drv = windrv_lookup(NULL, "USB Bus");
-	if (drv == NULL)
+	if (windrv_lookup(NULL, "USB Bus") == NULL)
 		return(UMATCH_NONE);
-
-	if (0) {
-		/* Create PDO for this device instance */
-		windrv_create_pdo(drv, self);
-		return(0);
-	}
 
 	if (uaa->iface != NULL)
 		return(UMATCH_NONE);
@@ -151,10 +143,16 @@ USB_ATTACH(ndisusb)
 {
 	USB_ATTACH_START(ndisusb, dummy, uaa);
 	struct ndis_softc	*sc;
+	driver_object		*drv;
 
 	sc = (struct ndis_softc *)dummy;
 
 	sc->ndis_dev = self;
+
+	/* Create PDO for this device instance */
+
+	drv = windrv_lookup(NULL, "USB Bus");
+	windrv_create_pdo(drv, self);
 
 	if (ndis_attach(self) != 0)
 		USB_ATTACH_ERROR_RETURN;
