@@ -43,18 +43,18 @@ tcphdr_t *tcp;
 ap_session_t *aps;
 nat_t *nat;
 {
-	u_long	sum1, sum2;
+	u_32_t	sum1, sum2;
 	short sel;
 
 	if (tcp->th_sport == aps->aps_dport) {
-		sum2 = (u_long)ntohl(tcp->th_ack);
+		sum2 = (u_32_t)ntohl(tcp->th_ack);
 		sel = aps->aps_sel;
 		if ((aps->aps_after[!sel] > aps->aps_after[sel]) &&
 			(sum2 > aps->aps_after[!sel])) {
 			sel = aps->aps_sel = !sel; /* switch to other set */
 		}
 		if (aps->aps_seqoff[sel] && (sum2 > aps->aps_after[sel])) {
-			sum1 = (u_long)aps->aps_seqoff[sel];
+			sum1 = (u_32_t)aps->aps_seqoff[sel];
 			tcp->th_ack = htonl(sum2 - sum1);
 			return 2;
 		}
@@ -99,7 +99,7 @@ tcphdr_t *tcp;
 ap_session_t *aps;
 nat_t *nat;
 {
-	register u_long	sum1, sum2;
+	register u_32_t	sum1, sum2;
 	char	newbuf[IPF_MAXPORTLEN+1];
 	char	portbuf[IPF_MAXPORTLEN+1], *s;
 	int	ch = 0, off = (ip->ip_hl << 2) + (tcp->th_off << 2);
@@ -232,17 +232,17 @@ nat_t *nat;
 
 adjust_seqack:
 	if (tcp->th_dport == aps->aps_dport) {
-		sum2 = (u_long)ntohl(tcp->th_seq);
+		sum2 = (u_32_t)ntohl(tcp->th_seq);
 		off = aps->aps_sel;
 		if ((aps->aps_after[!off] > aps->aps_after[off]) &&
 			(sum2 > aps->aps_after[!off])) {
 			off = aps->aps_sel = !off; /* switch to other set */
 		}
 		if (aps->aps_seqoff[off]) {
-			sum1 = (u_long)aps->aps_after[off] -
+			sum1 = (u_32_t)aps->aps_after[off] -
 			       aps->aps_seqoff[off];
 			if (sum2 > sum1) {
-				sum1 = (u_long)aps->aps_seqoff[off];
+				sum1 = (u_32_t)aps->aps_seqoff[off];
 				sum2 += sum1;
 				tcp->th_seq = htonl(sum2);
 				ch = 1;

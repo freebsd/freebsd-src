@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.3 1998/03/27 18:03:13 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.4 1998/06/08 06:04:12 bde Exp $";
 #endif
 
 #include "opt_ipfilter.h"
@@ -167,7 +167,7 @@ struct devsw iplsw = {
 };
 #endif /* _BSDI_VERSION >= 199510  && _KERNEL */
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)  || (_BSDI_VERSION >= 199701)
 # include <sys/conf.h>
 # if defined(NETBSD_PF)
 #  include <net/pfil.h>
@@ -939,7 +939,8 @@ frdest_t *fdp;
 		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
 			dst = (struct sockaddr_in *)&ro->ro_rt->rt_gateway;
 	}
-	ro->ro_rt->rt_use++;
+	if (ro->ro_rt)
+		ro->ro_rt->rt_use++;
 
 	/*
 	 * For input packets which are being "fastrouted", they won't
