@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.16 1996/06/12 05:02:53 gpalmer Exp $
+ *	$Id: sys_machdep.c,v 1.17 1996/08/12 19:57:10 wollman Exp $
  *
  */
 
@@ -200,7 +200,7 @@ i386_set_ldt(p, args, retval)
 #endif
 
  	/* verify range of descriptors to modify */
- 	if ((uap->start < NLDT) || (uap->start >= MAX_LD) || (uap->num < 0) ||
+ 	if ((uap->start < 0) || (uap->start >= MAX_LD) || (uap->num < 0) ||
  		(uap->num > MAX_LD))
  	{
  		return(EINVAL);
