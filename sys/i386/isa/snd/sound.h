@@ -329,7 +329,7 @@ struct _snddev_info {
 /*
  * TODO: add some card classes rather than specific types.
  */
-#include <machine/soundcard.h>
+#include <sys/soundcard.h>
 /*
  * many variables should be reduced to a range. Here define a macro
  */
