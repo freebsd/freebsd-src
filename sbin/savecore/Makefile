@@ -1,8 +1,9 @@
 # $FreeBSD$
+
 PROG=	savecore
 WARNS=	4
-MAN8=	savecore.8
-DPADD+=        ${LIBZ}
-LDADD+=        -lz
+DPADD=	${LIBZ}
+LDADD=	-lz
+MAN=	savecore.8
 
 .include <bsd.prog.mk>
