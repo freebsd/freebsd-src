@@ -1,8 +1,8 @@
-#       $Id: Makefile,v 1.21 1995/08/06 12:22:57 bde Exp $
+#       $Id: Makefile,v 1.22 1996/08/30 02:13:06 peter Exp $
 
 
 CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER -DHAVE_CONFIG_H \
-	-DHAVE_STDLIB_H -DHAVE_UNISTD_H
+	-DHAVE_STDLIB_H=1 -DHAVE_UNISTD_H=1 -DHAVE_STRING_H=1
 
 LIB=    readline
 SHLIB_MAJOR= 3
