@@ -286,24 +286,24 @@ uart_tty_intr(void *arg)
 				c |= TTY_FE;
 			if (xc & UART_STAT_PARERR)
 				c |= TTY_PE;
-			(*linesw[tp->t_line].l_rint)(c, tp);
+			ttyld_rint(tp, c);
 		}
 	}
 
 	if (pend & UART_IPEND_BREAK) {
 		if (tp != NULL && !(tp->t_iflag & IGNBRK))
-			(*linesw[tp->t_line].l_rint)(0, tp);
+			ttyld_rint(tp, 0);
 	}
 
 	if (pend & UART_IPEND_SIGCHG) {
 		sig = pend & UART_IPEND_SIGMASK;
 		if (sig & UART_SIG_DDCD)
-			(*linesw[tp->t_line].l_modem)(tp, sig & UART_SIG_DCD);
+			ttyld_modem(tp, sig & UART_SIG_DCD);
 		if ((sig & UART_SIG_DCTS) && (tp->t_cflag & CCTS_OFLOW) &&
 		    !sc->sc_hwoflow) {
 			if (sig & UART_SIG_CTS) {
 				tp->t_state &= ~TS_TTSTOP;
-				(*linesw[tp->t_line].l_start)(tp);
+				ttyld_start(tp);
 			} else
 				tp->t_state |= TS_TTSTOP;
 		}
@@ -311,7 +311,7 @@ uart_tty_intr(void *arg)
 
 	if (pend & UART_IPEND_TXIDLE) {
 		tp->t_state &= ~TS_BUSY;
-		(*linesw[tp->t_line].l_start)(tp);
+		ttyld_start(tp);
 	}
 }
 
@@ -422,7 +422,7 @@ uart_tty_open(dev_t dev, int flags, int mode, struct thread *td)
 		 * Handle initial DCD.
 		 */
 		if ((sc->sc_hwsig & UART_SIG_DCD) || sc->sc_callout)
-			(*linesw[tp->t_line].l_modem)(tp, 1);
+			ttyld_modem(tp, 1);
 	}
 	/*
 	 * Wait for DCD if necessary.
@@ -440,7 +440,7 @@ uart_tty_open(dev_t dev, int flags, int mode, struct thread *td)
 	error = ttyopen(dev, tp);
 	if (error)
 		return (error);
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 	if (error)
 		return (error);
 
@@ -475,7 +475,7 @@ uart_tty_close(dev_t dev, int flags, int mode, struct thread *td)
 	/* Disable pulse capturing. */
 	sc->sc_pps.ppsparam.mode = 0;
 
-	(*linesw[tp->t_line].l_close)(tp, flags);
+	ttyld_close(tp, flags);
 	ttyclose(tp);
 	wakeup(sc);
 	wakeup(TSA_CARR_ON(tp));

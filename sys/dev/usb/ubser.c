@@ -440,7 +440,7 @@ bad:
 			tp = sc->dev[i]->si_tty;
 			if (tp != NULL) {
 				if (tp->t_state & TS_ISOPEN) {
-					(*linesw[tp->t_line].l_close)(tp, 0);
+					ttyld_close(tp, 0);
 					ttyclose(tp);
 				}
 			}
@@ -474,7 +474,7 @@ USB_DETACH(ubser)
 			tp = sc->dev[i]->si_tty;
 			if (tp != NULL) {
 				if (tp->t_state & TS_ISOPEN) {
-					(*linesw[tp->t_line].l_close)(tp, 0);
+					ttyld_close(tp, 0);
 					ttyclose(tp);
 				}
 			}
@@ -694,7 +694,7 @@ ubserwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		CLR(tp->t_state, TS_FLUSH);
 	else
 		ndflush(&tp->t_outq, cc);
-	(*linesw[tp->t_line].l_start)(tp);
+	ttyld_start(tp);
 	splx(s);
 
 	return;
@@ -900,7 +900,7 @@ ubser_open(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		/*
 		 * Handle initial DCD.
 		 */
-		(*linesw[tp->t_line].l_modem)(tp, 1);
+		ttyld_modem(tp, 1);
 	}
 
 	sc->sc_refcnt++;	/* XXX: wrong refcnt on error later on */
@@ -912,7 +912,7 @@ ubser_open(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	if (error)
 		goto bad;
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 	if (error)
 		goto bad;
 
@@ -1013,7 +1013,7 @@ ubser_read(dev_t dev, struct uio *uio, int flag)
 	if (sc->sc_dying)
 		return (EIO);
 
-	error = (*linesw[tp->t_line].l_read)(tp, uio, flag);
+	error = ttyld_read(tp, uio, flag);
 
 	DPRINTF(("ubser_read: error = %d\n", error));
 
@@ -1035,7 +1035,7 @@ ubser_write(dev_t dev, struct uio *uio, int flag)
 	if (sc->sc_dying)
 		return (EIO);
 
-	error = (*linesw[tp->t_line].l_write)(tp, uio, flag);
+	error = ttyld_write(tp, uio, flag);
 
 	DPRINTF(("ubser_write: error = %d\n", error));
 

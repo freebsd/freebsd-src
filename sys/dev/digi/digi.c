@@ -832,7 +832,7 @@ open_top:
 		/* handle fake and initial DCD for callout devices */
 
 		if (bc->mstat & port->cd || mynor & CALLOUT_MASK)
-			linesw[tp->t_line].l_modem(tp, 1);
+			ttyld_modem(tp, 1);
 	}
 
 	/* Wait for DCD if necessary */
@@ -849,7 +849,7 @@ open_top:
 		}
 		goto open_top;
 	}
-	error = linesw[tp->t_line].l_open(dev, tp);
+	error = ttyld_open(tp, dev);
 	DLOG(DIGIDB_OPEN, (sc->dev, "port %d: l_open error = %d\n",
 	    pnum, error));
 
@@ -900,7 +900,7 @@ digiclose(dev_t dev, int flag, int mode, struct thread *td)
 	DLOG(DIGIDB_CLOSE, (sc->dev, "port %d: closing\n", pnum));
 
 	s = spltty();
-	linesw[tp->t_line].l_close(tp, flag);
+	ttyld_close(tp, flag);
 	digi_disc_optim(tp, &tp->t_termios, port);
 	digihardclose(port);
 	ttyclose(tp);
@@ -970,7 +970,7 @@ digiread(dev_t dev, struct uio *uio, int flag)
 	KASSERT(sc, ("digi%d: softc not allocated in digiclose\n", unit));
 	tp = &sc->ttys[pnum];
 
-	error = linesw[tp->t_line].l_read(tp, uio, flag);
+	error = ttyld_read(tp, uio, flag);
 	DLOG(DIGIDB_READ, (sc->dev, "port %d: read() returns %d\n",
 	    pnum, error));
 
@@ -996,7 +996,7 @@ digiwrite(dev_t dev, struct uio *uio, int flag)
 	KASSERT(sc, ("digi%d: softc not allocated in digiclose\n", unit));
 	tp = &sc->ttys[pnum];
 
-	error = linesw[tp->t_line].l_write(tp, uio, flag);
+	error = ttyld_write(tp, uio, flag);
 	DLOG(DIGIDB_WRITE, (sc->dev, "port %d: write() returns %d\n",
 	    pnum, error));
 
@@ -1651,26 +1651,26 @@ end_of_data:
 				DLOG(DIGIDB_RI, (sc->dev, "port %d: RING\n",
 				    event.pnum));
 				if (port->send_ring) {
-					linesw[tp->t_line].l_rint('R', tp);
-					linesw[tp->t_line].l_rint('I', tp);
-					linesw[tp->t_line].l_rint('N', tp);
-					linesw[tp->t_line].l_rint('G', tp);
-					linesw[tp->t_line].l_rint('\r', tp);
-					linesw[tp->t_line].l_rint('\n', tp);
+					ttyld_rint(tp, 'R');
+					ttyld_rint(tp, 'I');
+					ttyld_rint(tp, 'N');
+					ttyld_rint(tp, 'G');
+					ttyld_rint(tp, '\r');
+					ttyld_rint(tp, '\n');
 				}
 			}
 		}
 		if (event.event & BREAK_IND) {
 			DLOG(DIGIDB_MODEM, (sc->dev, "port %d: BREAK_IND\n",
 			    event.pnum));
-			linesw[tp->t_line].l_rint(TTY_BI, tp);
+			ttyld_rint(tp, TTY_BI);
 		}
 		if (event.event & (LOWTX_IND | EMPTYTX_IND)) {
 			DLOG(DIGIDB_IRQ, (sc->dev, "port %d:%s%s\n",
 			    event.pnum,
 			    event.event & LOWTX_IND ? " LOWTX" : "",
 			    event.event & EMPTYTX_IND ?  " EMPTYTX" : ""));
-			(*linesw[tp->t_line].l_start)(tp);
+			ttyld_start(tp);
 		}
 	}
 	sc->gdata->eout = etail;

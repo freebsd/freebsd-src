@@ -660,7 +660,7 @@ static void rp_do_receive(struct rp_port *rp, struct tty *tp,
 			else if (CharNStat & STMRCVROVRH)
 				rp->rp_overflows++;
 
-			(*linesw[tp->t_line].l_rint)(ch, tp);
+			ttyld_rint(tp, ch);
 			ToRecv--;
 		}
 /*
@@ -702,7 +702,7 @@ static void rp_do_receive(struct rp_port *rp, struct tty *tp,
 				}
 				ch = (u_char) rp_readch1(cp,sGetTxRxDataIO(cp));
 				spl = spltty();
-				(*linesw[tp->t_line].l_rint)(ch, tp);
+				ttyld_rint(tp, ch);
 				splx(spl);
 				ToRecv--;
 			}
@@ -731,12 +731,12 @@ static void rp_handle_port(struct rp_port *rp)
 	if(IntMask & DELTA_CD) {
 		if(ChanStatus & CD_ACT) {
 			if(!(tp->t_state & TS_CARR_ON) ) {
-				(void)(*linesw[tp->t_line].l_modem)(tp, 1);
+				(void)ttyld_modem(tp, 1);
 			}
 		} else {
 			if((tp->t_state & TS_CARR_ON)) {
-				(void)(*linesw[tp->t_line].l_modem)(tp, 0);
-				if((*linesw[tp->t_line].l_modem)(tp, 0) == 0) {
+				(void)ttyld_modem(tp, 0);
+				if(ttyld_modem(tp, 0) == 0) {
 					rphardclose(rp);
 				}
 			}
@@ -784,7 +784,7 @@ static void rp_do_poll(void *not_used)
 				tp->t_state &= ~(TS_BUSY);
 			if(!(tp->t_state & TS_TTSTOP) &&
 				(count <= rp->rp_restart)) {
-				(*linesw[tp->t_line].l_start)(tp);
+				ttyld_start(tp);
 			}
 		}
 	}
@@ -1068,7 +1068,7 @@ open_top:
 		ChanStatus = sGetChanStatus(&rp->rp_channel);
 		if((IntMask & DELTA_CD) || IS_CALLOUT(dev)) {
 			if((ChanStatus & CD_ACT) || IS_CALLOUT(dev)) {
-					(void)(*linesw[tp->t_line].l_modem)(tp, 1);
+					(void)ttyld_modem(tp, 1);
 			}
 		}
 
@@ -1087,7 +1087,7 @@ open_top:
 			goto out;
 		goto open_top;
 	}
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 
 	rp_disc_optim(tp, &tp->t_termios);
 	if(tp->t_state & TS_ISOPEN && IS_CALLOUT(dev))
@@ -1130,7 +1130,7 @@ rpclose(dev, flag, mode, td)
 	tp = rp->rp_tty;
 
 	oldspl = spltty();
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 	rp_disc_optim(tp, &tp->t_termios);
 	rphardclose(rp);
 
@@ -1207,7 +1207,7 @@ rpwrite(dev, uio, flag)
 			return(error);
 	}
 
-	error = (*linesw[tp->t_line].l_write)(tp, uio, flag);
+	error = ttyld_write(tp, uio, flag);
 	return error;
 }
 

@@ -748,7 +748,7 @@ open_top:
 		 * the true carrier.
 		 */
 		if (com->prev_modem_status & MSR_DCD || mynor & CALLOUT_MASK)
-			(*linesw[tp->t_line].l_modem)(tp, 1);
+			ttyld_modem(tp, 1);
 	}
 	/*
 	 * Wait for DCD if necessary.
@@ -762,7 +762,7 @@ open_top:
 			goto out;
 		goto open_top;
 	}
-	error =	(*linesw[tp->t_line].l_open)(dev, tp);
+	error =	ttyld_open(tp, dev);
 	disc_optim(tp, &tp->t_termios, com);
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		com->active_out = TRUE;
@@ -793,7 +793,7 @@ sioclose(dev, flag, mode, td)
 	tp = com->tp;
 	s = spltty();
 	cd_etc(com, CD1400_ETC_STOPBREAK);
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 	disc_optim(tp, &tp->t_termios, com);
 	comhardclose(com);
 	ttyclose(tp);
@@ -919,7 +919,7 @@ siowrite(dev, uio, flag)
 	 * sessions are raw anyhow.
 	 */
 #else
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
+	return (ttyld_write(tp, uio, flag));
 #endif
 }
 
@@ -1018,7 +1018,7 @@ sioinput(com)
 				if (line_status & LSR_PE)
 					recv_data |= TTY_PE;
 			}
-			(*linesw[tp->t_line].l_rint)(recv_data, tp);
+			ttyld_rint(tp, recv_data);
 			critical_enter();
 			COM_LOCK();
 		} while (buf < com->iptr);
@@ -1772,7 +1772,7 @@ repeat:
 			com->state &= ~CS_ODONE;
 			COM_UNLOCK();
 			critical_exit();
-			(*linesw[tp->t_line].l_start)(tp);
+			ttyld_start(tp);
 		}
 		if (com_events == 0)
 			break;
