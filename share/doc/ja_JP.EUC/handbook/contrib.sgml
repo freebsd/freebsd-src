@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.52 1997/05/15 03:56:34 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.53 1997/05/17 03:50:40 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.243 -->
+<!-- Original revision: 1.244 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -213,6 +213,7 @@
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
 	  <item>Charles Mott &lt;cmott@srv.net&gt;
 	  <item>Chet Ramey &lt;chet@odin.INS.CWRU.Edu&gt;
+	  <item>Chris Dabrowski &lt; chris@vader.org&gt;
 	  <item>Chris G. Demetriou &lt;cgd@postgres.berkeley.edu&gt;
 	  <item>Chris Stenton &lt;jacs@gnome.co.uk&gt;
 	  <item>Chris Timmons &lt;skynyrd@opus.cts.cwu.edu&gt;
