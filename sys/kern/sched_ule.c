@@ -569,7 +569,7 @@ sched_setup(void *dummy)
 			kseq_cpu[i].ksq_cpus = cg->cg_count;
 		}
 	}
-	callout_init(&kseq_lb_callout, 1);
+	callout_init(&kseq_lb_callout, CALLOUT_MPSAFE);
 	kseq_balance(NULL);
 #else
 	kseq_setup(KSEQ_SELF());

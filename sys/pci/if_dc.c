@@ -2289,7 +2289,7 @@ dc_attach(device_t dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
-	callout_init(&sc->dc_stat_ch, IS_MPSAFE);
+	callout_init(&sc->dc_stat_ch, IS_MPSAFE ? CALLOUT_MPSAFE : 0);
 
 #ifdef SRM_MEDIA
 	sc->dc_srm_media = 0;
