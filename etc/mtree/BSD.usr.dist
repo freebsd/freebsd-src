@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.15 1994/06/01 02:39:37 ache Exp $
+#	$Id: BSD.usr.dist,v 1.16 1994/09/07 21:09:32 pst Exp $
 #
 
 /set type=file uname=bin gname=bin mode=0755
@@ -65,6 +65,8 @@ share	type=dir uname=bin gname=bin mode=0755
 	/set type=file uname=games gname=bin mode=0755
 	games	type=dir uname=bin
 		atc	type=dir uname=games gname=bin mode=0755
+		..
+		boggle	type=dir uname=games gname=bin mode=0755
 		..
 		fortune	type=dir uname=games gname=bin mode=0755
 		..
