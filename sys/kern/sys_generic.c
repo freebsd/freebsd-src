@@ -167,6 +167,11 @@ dofileread(td, fp, fd, buf, nbyte, offset, flags)
 	struct uio *ktruio = NULL;
 #endif
 
+	/* Finish zero length reads right here */
+	if (nbyte == 0) {
+		td->td_retval[0] = 0;
+		return(0);
+	}
 	aiov.iov_base = buf;
 	aiov.iov_len = nbyte;
 	auio.uio_iov = &aiov;
@@ -231,6 +236,13 @@ readv(struct thread *td, struct readv_args *uap)
 	if (error) {
 		fdrop(fp, td);
 		return (error);
+	}
+	/* Finish zero length reads right here */
+	if (auio->uio_resid == 0) {
+		td->td_retval[0] = 0;
+		free(auio, M_IOV);
+		fdrop(fp, td);
+		return(0);
 	}
 	auio->uio_rw = UIO_READ;
 	auio->uio_td = td;
