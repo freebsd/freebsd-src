@@ -355,7 +355,7 @@ _createcaches()
 						n->next = namehead;
 						namehead = n;
 					}
-					/* 
+					/*
 					 * If netgroup 'foo' doesn't exist,
 					 * try group 'foo' instead.
 					 */
@@ -419,7 +419,7 @@ _createcaches()
 						n->next = namehead;
 						namehead = n;
 					}
-					/* 
+					/*
 					 * If netgroup 'foo' doesn't exist,
 					 * try group 'foo' instead.
 					 */
@@ -599,7 +599,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 			gotmaster++;
 		}
 
-	if(yp_match(_pw_yp_domain, (char *)&mastermap, name, strlen(name), 
+	if(yp_match(_pw_yp_domain, (char *)&mastermap, name, strlen(name),
 		    &result, &resultlen))
 		return 0;
 
@@ -739,5 +739,5 @@ unpack:
 	}
 	return 1;
 }
-		
+
 #endif /* YP */

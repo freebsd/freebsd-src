@@ -69,7 +69,7 @@ overlay(win1, win2)
 	for (y = starty; y < endy; y++, y1++, y2++) {
 		end = &win1->lines[y1]->line[endx - win1->begx];
 		x = startx - win2->begx;
-		for (sp = &win1->lines[y1]->line[startx - win1->begx]; 
+		for (sp = &win1->lines[y1]->line[startx - win1->begx];
 		     sp < end; sp++) {
 			if (!isspace(sp->ch)) {
 				wmove(win2, y2, x);

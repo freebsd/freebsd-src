@@ -71,9 +71,9 @@ static char	*_PC,
 		/*	 so   SR   ta   te   ti   uc   ue   up   us  */
 			&SO, &SR, &TA, &TE, &TI, &UC, &UE, &UP, &US,
 		/*	 vb   vs   ve   al   dl   sf   sr   AL	     */
-			&VB, &VS, &VE, &al, &dl, &sf, &sr, &AL_PARM, 
+			&VB, &VS, &VE, &al, &dl, &sf, &sr, &AL_PARM,
 		/*	 DL	   UP	     DO		 LE	     */
-			&DL_PARM, &UP_PARM, &DOWN_PARM, &LEFT_PARM, 
+			&DL_PARM, &UP_PARM, &DOWN_PARM, &LEFT_PARM,
 		/*	 RI					     */
 			&RIGHT_PARM,
 		};
@@ -224,7 +224,7 @@ zap()
 		__CTRACE("2.2s = %s\n", namp, *fp[-1] ? "TRUE" : "FALSE");
 #endif
 		namp += 2;
-		
+
 	} while (*namp);
 	namp = "ALbcbtcdceclcmcrcsdcDLdmdoedeik0k1k2k3k4k5k6k7k8k9hoicimipkdkekhklkrkskullmandnlpcrcscseSFsoSRtatetiucueupusvbvsvealdlsfsrALDLUPDOLERI";
 	sp = sstrs;

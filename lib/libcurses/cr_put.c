@@ -82,8 +82,8 @@ __mvcur(ly, lx, y, x, in_refresh)
 	if (destline != outline || destcol != outcol)
 		fgoto(in_refresh);
 	return (OK);
-}	
-        
+}
+
 static void
 fgoto(in_refresh)
 	int in_refresh;
@@ -137,7 +137,7 @@ fgoto(in_refresh)
 			 * list this won't work.  We should probably have an
 			 * sc capability but sf will generally take the place
 			 * if it works.
-			 * 
+			 *
 			 * Superbee glitch: in the middle of the screen have
 			 * to use esc B (down) because linefeed screws up in
 			 * "Efficient Paging" (what a joke) mode (which is
@@ -167,7 +167,7 @@ fgoto(in_refresh)
 		 */
 		if (outcol != COLS - 1 && plod(strlen(cgp), in_refresh) > 0)
 			plod(0, in_refresh);
-		else 
+		else
 			tputs(cgp, 1, __cputchar);
 	} else
 		plod(0, in_refresh);

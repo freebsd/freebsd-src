@@ -2095,8 +2095,8 @@ char *c, *engout;
 	return(engout);
 }
 
-/* convert English to binary   
- * returns 1 OK - all good words and parity is OK   
+/* convert English to binary
+ * returns 1 OK - all good words and parity is OK
  *         0 word not in data base
  *        -1 badly formed in put ie > 4 char word
  *        -2 words OK but parity is wrong

@@ -27,12 +27,12 @@ chtype	blank = ' ';
 
     	if (n < 0) {
 		/* save overwritten lines */
-		
+
 		for (i = 0; i < -n; i++)
 			saved[i] = win->_line[regbottom-i];
 
 		/* shift n lines */
-		
+
 		for (line = regbottom; line >= regtop-n; line--)
 			win->_line[line] = win->_line[line+n];
 
@@ -46,12 +46,12 @@ chtype	blank = ' ';
 		}
 	} else {
 		/* save overwritten lines */
-		
+
 		for (i = 0; i < n; i++)
 			saved[i] = win->_line[regtop+i];
 
 		/* shift n lines */
-		
+
 		for (line = regtop; line <= regbottom-n; line++)
 			win->_line[line] = win->_line[line+n];
 
@@ -64,7 +64,7 @@ chtype	blank = ' ';
 				*ptr = blank;
 		}
 	}
-	
+
 	free(saved);
 }
 
@@ -194,7 +194,7 @@ int i;
 		}
 
 		mvcur(-1, -1, win->_begy+win->_cury, win->_begx+win->_curx);
-	} else 
+	} else
 	    	touchline(win, win->_regtop, win->_regbottom - win->_regtop + 1);
 
     	return OK;

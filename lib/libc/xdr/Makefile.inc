@@ -6,5 +6,5 @@ SRCS+=	xdr.c xdr_array.c xdr_mem.c \
 
 MAN3+=	xdr/xdr.3
 
-UNSUPPORTED+=	xdr_float.c 
+UNSUPPORTED+=	xdr_float.c
 

@@ -391,7 +391,7 @@ log(x) double x;
 			return (x+x);
 		else
 			return (infnan(ERANGE));
-	
+
 	/* Argument reduction: 1 <= g < 2; x/2^m = g;	*/
 	/* y = F*(1 + f/F) for |f| <= 2^-8		*/
 

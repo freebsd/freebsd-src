@@ -705,7 +705,7 @@ do_krb_login(dest)
 	/* returns nonzero for no access */
 	if (kuserok(kdata, lusername) != 0)
 		return (-1);
-	
+
 	return (0);
 
 }

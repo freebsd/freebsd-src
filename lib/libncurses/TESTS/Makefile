@@ -6,9 +6,9 @@ CLEANFILES += $(TESTS)
 
 LIBS += -lncurses -lmytinfo
 
-all: $(TESTS) 
+all: $(TESTS)
 
-$(TESTS): 
+$(TESTS):
 	$(CC) $(CFLAGS) $(LDFLAGS) ${.CURDIR}/$@.c -o $@ $(LIBS)
 
 test: test.c

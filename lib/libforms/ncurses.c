@@ -6,8 +6,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -147,7 +147,7 @@ ncurses_parse_attrs(OBJECT *object, char *string)
 	AttrType attr_type;
 	int len, y, x;
 	int skip = 0;
-		
+
 	if ((!string) || (*string != '\\'))
 		return (0);
 
@@ -155,7 +155,7 @@ ncurses_parse_attrs(OBJECT *object, char *string)
 		if (*(string + inc) == '\\')
 			return (skip);
 
-		while ((!isspace(*(string + inc))) 
+		while ((!isspace(*(string + inc)))
 			   && (*(string+inc) != '\\')
 			   && (*(string + inc) != '\0'))
 			inc++;
@@ -201,7 +201,7 @@ ncurses_parse_attrs(OBJECT *object, char *string)
 				break;
 		}
 
-		
+
 		skip += inc;
 		string += inc;
 		inc = 0;
@@ -245,7 +245,7 @@ ncurses_print_string(OBJECT *object, char *string)
 		}
 	}
 	return (OK);
-}	
+}
 
 void
 ncurses_display_object(OBJECT *object)
@@ -554,7 +554,7 @@ ncurses_process_input(OBJECT *object)
 					--cursor;
 				}
 			}
-		} else if ((isprint(ch)) && (len < object->object.input->limit)){ 
+		} else if ((isprint(ch)) && (len < object->object.input->limit)){
 			bcopy(object->object.input->input+abspos,
 					 object->object.input->input+abspos+1, len-abspos+1);
 			object->object.input->input[abspos++] = ch;
@@ -563,7 +563,7 @@ ncurses_process_input(OBJECT *object)
 				++disp_off;
 				--cursor;
 			}
-		} else 
+		} else
 				beep();
 		ncurses_print_string(object, object->object.input->input+disp_off);
 	}

@@ -53,8 +53,8 @@ static struct pid {
 	struct pid *next;
 	FILE *fp;
 	pid_t pid;
-} *pidlist; 
-	
+} *pidlist;
+
 FILE *
 popen(program, type)
 	const char *program;
@@ -155,6 +155,6 @@ pclose(iop)
 	else
 		last->next = cur->next;
 	free(cur);
-		
+
 	return (pid == -1 ? -1 : pstat.w_status);
 }

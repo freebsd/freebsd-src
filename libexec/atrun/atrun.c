@@ -1,4 +1,4 @@
-/* 
+/*
  *  atrun.c - run jobs queued by at; run with root privileges.
  *  Copyright (C) 1993, 1994 Thomas Koenig
  *
@@ -73,7 +73,7 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id: atrun.c,v 1.2 1995/04/12 02:52:15 ache Exp $";
+static char rcsid[] = "$Id: atrun.c,v 1.3 1995/04/12 19:21:43 ache Exp $";
 static debug = 0;
 
 /* Local functions */
@@ -142,7 +142,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     pid = fork();
     if (pid == -1)
 	perr("Cannot fork");
-    
+
     else if (pid > 0)
 	return;
 
@@ -192,10 +192,10 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     fclose(stream);
     if (chdir(ATSPOOL_DIR) < 0)
 	perr("Cannot chdir to " ATSPOOL_DIR);
-    
+
     /* Create a file to hold the output of the job we are about to run.
      * Write the mail header.
-     */    
+     */
     if((fd_out=open(filename,
 		O_WRONLY | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR)) < 0)
 	perr("Cannot create output file");
@@ -209,7 +209,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
- 
+
     pid = fork();
     if (pid < 0)
 	perr("Error in fork");
@@ -245,7 +245,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	PRIV_START
 
         nice(tolower(queue) - 'a');
-	
+
 	chdir(pentry->pw_dir);
 
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
@@ -277,7 +277,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
     unlink(filename);
     if ((buf.st_size != size) || send_mail)
-    {    
+    {
 #ifdef __FreeBSD__
 	execl(_PATH_SENDMAIL, "sendmail", "-F", "Atrun Service",
 			"-odi", "-oem",
@@ -332,7 +332,7 @@ main(int argc, char *argv[])
     {
 	switch (c)
 	{
-	case 'l': 
+	case 'l':
 	    if (sscanf(optarg, "%lf", &load_avg) != 1)
 		perr("garbled option -l");
 	    if (load_avg <= 0.)
@@ -382,7 +382,7 @@ main(int argc, char *argv[])
 
 	/* We don't want directories
 	 */
-	if (!S_ISREG(buf.st_mode)) 
+	if (!S_ISREG(buf.st_mode))
 	    continue;
 
 	if (sscanf(dirent->d_name,"%c%8lx",&queue,&ctm) != 2)
@@ -399,7 +399,7 @@ main(int argc, char *argv[])
 		batch_uid = buf.st_uid;
 		batch_gid = buf.st_gid;
 	    }
-	
+
 	/* The file is executable and old enough
 	 */
 	    if (islower(queue))

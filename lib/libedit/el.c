@@ -86,7 +86,7 @@ el_init(prog, fin, fout)
 		return NULL;
 	}
     }
-    else 
+    else
 #endif
 	el->el_errfile = stderr;
 
@@ -132,7 +132,7 @@ el_end(el)
 
     el_free((ptr_t) el->el_prog);
     el_free((ptr_t) el);
-} /* end el_end */ 
+} /* end el_end */
 
 
 /* el_reset():
@@ -170,7 +170,7 @@ el_set(va_alist)
     el = va_arg(va, EditLine *);
     op = va_arg(va, int);
 #endif
-    
+
     switch (op) {
     case EL_PROMPT:
 	rv = prompt_set(el, va_arg(va, el_pfunc_t));
@@ -237,7 +237,7 @@ el_set(va_alist)
 	    }
 	}
 	break;
-    
+
     case EL_ADDFN:
 	{
 	    char 	*name = va_arg(va, char *);
@@ -291,7 +291,7 @@ el_source(el, fname)
     if (fname == NULL) {
 	fname = &elpath[1];
 	if ((fp = fopen(fname, "r")) == NULL) {
-	    if ((ptr = getenv("HOME")) == NULL) 
+	    if ((ptr = getenv("HOME")) == NULL)
 		return -1;
 	    fname = strncpy(path, ptr, MAXPATHLEN);
 	    (void) strncat(path, elpath, MAXPATHLEN);
@@ -299,7 +299,7 @@ el_source(el, fname)
 	}
     }
 
-    if ((fp = fopen(fname, "r")) == NULL) 
+    if ((fp = fopen(fname, "r")) == NULL)
 	return -1;
 
     while ((ptr = fgetln(fp, &len)) != NULL)

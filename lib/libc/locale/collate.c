@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.2 1995/02/17 16:36:12 ache Exp $
+ * $Id: collate.c,v 1.3 1995/02/18 01:42:02 ache Exp $
  */
 
 #include <rune.h>
@@ -50,7 +50,7 @@ struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
 			return -1; \
 		} \
 	} while(0)
- 
+
 __dead void __collate_err(int ex, const char *f) __dead2;
 
 int

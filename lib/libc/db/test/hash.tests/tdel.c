@@ -99,7 +99,7 @@ char **argv;
 			fprintf(stderr, "cannot enter: key %s\n",
 				item.data);
 			exit(1);
-		}			
+		}
 	}
 
 	if ( --argc ) {
@@ -113,7 +113,7 @@ char **argv;
 		    if (stat) {
 			fprintf ( stderr, "Error retrieving %s\n", key.data );
 			exit(1);
-		    } 
+		    }
 		}
 		fclose(fp);
 	}

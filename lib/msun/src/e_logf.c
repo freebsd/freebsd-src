@@ -8,13 +8,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_logf.c,v 1.2 1994/08/18 23:05:48 jtc Exp $";
+static char rcsid[] = "$Id: e_logf.c,v 1.1.1.1 1994/08/19 09:39:57 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -56,12 +56,12 @@ static float zero   =  0.0;
 
 	k=0;
 	if (ix < 0x00800000) {			/* x < 2**-126  */
-	    if ((ix&0x7fffffff)==0) 
+	    if ((ix&0x7fffffff)==0)
 		return -two25/zero;		/* log(+-0)=-inf */
 	    if (ix<0) return (x-x)/zero;	/* log(-#) = NaN */
 	    k -= 25; x *= two25; /* subnormal number, scale up x */
 	    GET_FLOAT_WORD(ix,x);
-	} 
+	}
 	if (ix >= 0x7f800000) return x+x;
 	k += (ix>>23)-127;
 	ix &= 0x007fffff;
@@ -76,14 +76,14 @@ static float zero   =  0.0;
 	    if(k==0) return f-R; else {dk=(float)k;
 	    	     return dk*ln2_hi-((R-dk*ln2_lo)-f);}
 	}
- 	s = f/((float)2.0+f); 
+ 	s = f/((float)2.0+f);
 	dk = (float)k;
 	z = s*s;
 	i = ix-(0x6147a<<3);
 	w = z*z;
 	j = (0x6b851<<3)-ix;
-	t1= w*(Lg2+w*(Lg4+w*Lg6)); 
-	t2= z*(Lg1+w*(Lg3+w*(Lg5+w*Lg7))); 
+	t1= w*(Lg2+w*(Lg4+w*Lg6));
+	t2= z*(Lg1+w*(Lg3+w*(Lg5+w*Lg7)));
 	i |= j;
 	R = t2+t1;
 	if(i>0) {

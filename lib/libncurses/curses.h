@@ -22,7 +22,7 @@
 #define CURSES 1
 #define CURSES_H 1
 
-#include <stdio.h>   
+#include <stdio.h>
 #include <stdarg.h>
 #ifndef NOTERMIOS
 #include <termios.h>
@@ -53,7 +53,7 @@ typedef unsigned long  chtype;
 #define A_PROTECT	0x01000000
 #define A_CHARTEXT	0x000000ff
 #define A_COLOR		0x0000ff00
-#define COLOR_PAIR(n)	(n << 8) 
+#define COLOR_PAIR(n)	(n << 8)
 #define PAIR_NUMBER(a)	((a & A_COLOR) >> 8)
 
 /* colors */
@@ -321,7 +321,7 @@ extern int slk_touch(void);
 #define saveterm()		def_prog_mode()
 #define crmode()		cbreak()
 #define nocrmode()		nocbreak()
-#define gettmode()		
+#define gettmode()
 
 #define getyx(win,y,x)   	(y = (win)->_cury, x = (win)->_curx)
 #define getbegyx(win,y,x)	(y = (win)->_begy, x = (win)->_begx)
@@ -527,4 +527,4 @@ extern int slk_touch(void);
 #define KEY_UNDO	0630	/* undo key */
 #define KEY_MAX		0777	/* Maximum curses key */
 
-#endif 
+#endif

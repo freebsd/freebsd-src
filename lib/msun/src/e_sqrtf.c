@@ -8,13 +8,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_sqrtf.c,v 1.2 1994/08/18 23:06:07 jtc Exp $";
+static char rcsid[] = "$Id: e_sqrtf.c,v 1.1.1.1 1994/08/19 09:39:57 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -34,17 +34,17 @@ static	float	one	= 1.0, tiny=1.0e-30;
 #endif
 {
 	float z;
-	int32_t sign = (int)0x80000000; 
+	int32_t sign = (int)0x80000000;
 	int32_t ix,s,q,m,t,i;
 	u_int32_t r;
 
 	GET_FLOAT_WORD(ix,x);
 
     /* take care of Inf and NaN */
-	if((ix&0x7f800000)==0x7f800000) {			
+	if((ix&0x7f800000)==0x7f800000) {
 	    return x*x+x;		/* sqrt(NaN)=NaN, sqrt(+inf)=+inf
 					   sqrt(-inf)=sNaN */
-	} 
+	}
     /* take care of zero */
 	if(ix<=0) {
 	    if((ix&(~sign))==0) return x;/* sqrt(+-0) = +-0 */
@@ -69,12 +69,12 @@ static	float	one	= 1.0, tiny=1.0e-30;
 	r = 0x01000000;		/* r = moving bit from right to left */
 
 	while(r!=0) {
-	    t = s+r; 
-	    if(t<=ix) { 
-		s    = t+r; 
-		ix  -= t; 
-		q   += r; 
-	    } 
+	    t = s+r;
+	    if(t<=ix) {
+		s    = t+r;
+		ix  -= t;
+		q   += r;
+	    }
 	    ix += ix;
 	    r>>=1;
 	}

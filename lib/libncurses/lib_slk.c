@@ -68,7 +68,7 @@ slk_noutrefresh(void)
 SLK *slk = SP->_slk;
 
 	T(("slk_noutrefresh()"));
-	
+
 	if (slk == NULL)
 		return ERR;
 	if (slk->hidden)
@@ -87,7 +87,7 @@ slk_refresh(void)
 SLK *slk = SP->_slk;
 
 	T(("slk_refresh()"));
-	
+
 	if (slk == NULL)
 		return ERR;
 	if (slk->hidden)
@@ -106,7 +106,7 @@ slk_restore(void)
 SLK *slk = SP->_slk;
 
 	T(("slk_restore()"));
-	
+
 	if (slk == NULL)
 		return ERR;
 	slk->hidden = FALSE;
@@ -159,7 +159,7 @@ slk_touch(void)
 {
 SLK *slk = SP->_slk;
 	T(("slk_touch()"));
-	
+
 	if (slk == NULL)
 		return ERR;
 	slk->dirty = TRUE;
@@ -176,7 +176,7 @@ slk_clear(void)
 SLK *slk = SP->_slk;
 
 	T(("slk_clear()"));
-	
+
 	if (slk == NULL)
 		return ERR;
 	slk->hidden = TRUE;

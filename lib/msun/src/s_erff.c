@@ -8,13 +8,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_erff.c,v 1.2 1994/08/18 23:06:38 jtc Exp $";
+static char rcsid[] = "$Id: s_erff.c,v 1.1.1.1 1994/08/19 09:39:58 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -47,7 +47,7 @@ qq3  =  5.0813062117e-03, /* 0x3ba68116 */
 qq4  =  1.3249473704e-04, /* 0x390aee49 */
 qq5  = -3.9602282413e-06, /* 0xb684e21a */
 /*
- * Coefficients for approximation to  erf  in [0.84375,1.25] 
+ * Coefficients for approximation to  erf  in [0.84375,1.25]
  */
 pa0  = -2.3621185683e-03, /* 0xbb1acdc6 */
 pa1  =  4.1485610604e-01, /* 0x3ed46805 */
@@ -100,9 +100,9 @@ sb6  =  4.7452853394e+02, /* 0x43ed43a7 */
 sb7  = -2.2440952301e+01; /* 0xc1b38712 */
 
 #ifdef __STDC__
-	float erff(float x) 
+	float erff(float x)
 #else
-	float erff(x) 
+	float erff(x)
 	float x;
 #endif
 {
@@ -117,7 +117,7 @@ sb7  = -2.2440952301e+01; /* 0xc1b38712 */
 
 	if(ix < 0x3f580000) {		/* |x|<0.84375 */
 	    if(ix < 0x31800000) { 	/* |x|<2**-28 */
-	        if (ix < 0x04000000) 
+	        if (ix < 0x04000000)
 		    /*avoid underflow */
 		    return (float)0.125*((float)8.0*x+efx8*x);
 		return x + efx*x;
@@ -157,9 +157,9 @@ sb7  = -2.2440952301e+01; /* 0xc1b38712 */
 }
 
 #ifdef __STDC__
-	float erfcf(float x) 
+	float erfcf(float x)
 #else
-	float erfcf(x) 
+	float erfcf(x)
 	float x;
 #endif
 {
@@ -192,7 +192,7 @@ sb7  = -2.2440952301e+01; /* 0xc1b38712 */
 	    P = pa0+s*(pa1+s*(pa2+s*(pa3+s*(pa4+s*(pa5+s*pa6)))));
 	    Q = one+s*(qa1+s*(qa2+s*(qa3+s*(qa4+s*(qa5+s*qa6)))));
 	    if(hx>=0) {
-	        z  = one-erx; return z - P/Q; 
+	        z  = one-erx; return z - P/Q;
 	    } else {
 		z = erx+P/Q; return one+z;
 	    }

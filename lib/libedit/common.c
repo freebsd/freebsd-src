@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)common.c	8.1 (Berkeley) 6/4/93";
 #include "sys.h"
 #include "el.h"
 
-/* ed_end_of_file(): 
+/* ed_end_of_file():
  *	Indicate end of file
  *	[^D]
  */
@@ -60,7 +60,7 @@ ed_end_of_file(el, c)
 }
 
 
-/* ed_insert(): 
+/* ed_insert():
  *	Add character to the line
  *	Insert a character [bound to all insert keys]
  */
@@ -74,16 +74,16 @@ ed_insert(el, c)
     if (c == '\0')
 	return CC_ERROR;
 
-    if (el->el_line.lastchar + el->el_state.argument >= 
+    if (el->el_line.lastchar + el->el_state.argument >=
 	el->el_line.limit)
 	return CC_ERROR;	/* end of buffer space */
 
     if (el->el_state.argument == 1) {
 	if (el->el_state.inputmode != MODE_INSERT) {
-	    el->el_chared.c_undo.buf[el->el_chared.c_undo.isize++] = 
+	    el->el_chared.c_undo.buf[el->el_chared.c_undo.isize++] =
 		*el->el_line.cursor;
 	    el->el_chared.c_undo.buf[el->el_chared.c_undo.isize] = '\0';
-	    c_delafter(el, 1);   
+	    c_delafter(el, 1);
     	}
 
         c_insert(el, 1);
@@ -95,12 +95,12 @@ ed_insert(el, c)
     else {
 	if (el->el_state.inputmode != MODE_INSERT) {
 
-	    for(i = 0;i < el->el_state.argument; i++) 
-		el->el_chared.c_undo.buf[el->el_chared.c_undo.isize++] = 
+	    for(i = 0;i < el->el_state.argument; i++)
+		el->el_chared.c_undo.buf[el->el_chared.c_undo.isize++] =
 			el->el_line.cursor[i];
 
 	    el->el_chared.c_undo.buf[el->el_chared.c_undo.isize] = '\0';
-	    c_delafter(el, el->el_state.argument);   
+	    c_delafter(el, el->el_state.argument);
     	}
 
         c_insert(el, el->el_state.argument);
@@ -117,7 +117,7 @@ ed_insert(el, c)
 }
 
 
-/* ed_delete_prev_word(): 
+/* ed_delete_prev_word():
  *	Delete from beginning of current word to cursor
  *	[M-^?] [^W]
  */
@@ -132,7 +132,7 @@ ed_delete_prev_word(el, c)
     if (el->el_line.cursor == el->el_line.buffer)
 	return CC_ERROR;
 
-    cp = c__prev_word(el->el_line.cursor, el->el_line.buffer, 
+    cp = c__prev_word(el->el_line.cursor, el->el_line.buffer,
 		      el->el_state.argument, ce__isword);
 
     for (p = cp, kp = el->el_chared.c_kill.buf; p < el->el_line.cursor; p++)
@@ -147,7 +147,7 @@ ed_delete_prev_word(el, c)
 }
 
 
-/* ed_delete_next_char(): 
+/* ed_delete_next_char():
  *	Delete character under cursor
  *	[^D] [x]
  */
@@ -159,12 +159,12 @@ ed_delete_next_char(el, c)
 {
 #ifdef notdef /* XXX */
 #define EL el->el_line
-fprintf(stderr, "\nD(b: %x(%s)  c: %x(%s) last: %x(%s) limit: %x(%s)\n", 
+fprintf(stderr, "\nD(b: %x(%s)  c: %x(%s) last: %x(%s) limit: %x(%s)\n",
 	EL.buffer, EL.buffer, EL.cursor, EL.cursor, EL.lastchar, EL.lastchar, EL.limit, EL.limit);
 #endif
     if (el->el_line.cursor == el->el_line.lastchar) {/* if I'm at the end */
 	if (el->el_map.type == MAP_VI) {
-	    if (el->el_line.cursor == el->el_line.buffer) {	
+	    if (el->el_line.cursor == el->el_line.buffer) {
 		/* if I'm also at the beginning */
 #ifdef KSHVI
 		return CC_ERROR;
@@ -196,7 +196,7 @@ fprintf(stderr, "\nD(b: %x(%s)  c: %x(%s) last: %x(%s) limit: %x(%s)\n",
 }
 
 
-/* ed_kill_line(): 
+/* ed_kill_line():
  *	Cut to the end of line
  *	[^K] [^K]
  */
@@ -218,7 +218,7 @@ ed_kill_line(el, c)
 }
 
 
-/* ed_move_to_end(): 
+/* ed_move_to_end():
  *	Move cursor to the end of line
  *	[^E] [^E]
  */
@@ -242,7 +242,7 @@ ed_move_to_end(el, c)
 }
 
 
-/* ed_move_to_beg(): 
+/* ed_move_to_beg():
  *	Move cursor to the beginning of line
  *	[^A] [^A]
  */
@@ -256,7 +256,7 @@ ed_move_to_beg(el, c)
 
     if (el->el_map.type == MAP_VI) {
         /* We want FIRST non space character */
-        while (isspace(*el->el_line.cursor)) 
+        while (isspace(*el->el_line.cursor))
 	    el->el_line.cursor++;
 	if (el->el_chared.c_vcmd.action & DELETE) {
 	    cv_delfini(el);
@@ -268,7 +268,7 @@ ed_move_to_beg(el, c)
 }
 
 
-/* ed_transpose_chars(): 
+/* ed_transpose_chars():
  *	Exchange the character to the left of the cursor with the one under it
  *	[^T] [^T]
  */
@@ -280,7 +280,7 @@ ed_transpose_chars(el, c)
     if (el->el_line.cursor < el->el_line.lastchar) {
 	if (el->el_line.lastchar <= &el->el_line.buffer[1])
 	    return CC_ERROR;
-	else 
+	else
 	    el->el_line.cursor++;
     }
     if (el->el_line.cursor > &el->el_line.buffer[1]) {
@@ -290,12 +290,12 @@ ed_transpose_chars(el, c)
 	el->el_line.cursor[-1] = c;
 	return CC_REFRESH;
     }
-    else 
+    else
 	return CC_ERROR;
 }
 
 
-/* ed_next_char(): 
+/* ed_next_char():
  *	Move to the right one character
  *	[^F] [^F]
  */
@@ -322,7 +322,7 @@ ed_next_char(el, c)
 }
 
 
-/* ed_prev_word(): 
+/* ed_prev_word():
  *	Move to the beginning of the current word
  *	[M-b] [b]
  */
@@ -335,8 +335,8 @@ ed_prev_word(el, c)
     if (el->el_line.cursor == el->el_line.buffer)
 	return CC_ERROR;
 
-    el->el_line.cursor = c__prev_word(el->el_line.cursor, el->el_line.buffer, 
-				      el->el_state.argument, 
+    el->el_line.cursor = c__prev_word(el->el_line.cursor, el->el_line.buffer,
+				      el->el_state.argument,
 				      ce__isword);
 
     if (el->el_map.type == MAP_VI)
@@ -349,7 +349,7 @@ ed_prev_word(el, c)
 }
 
 
-/* ed_prev_char(): 
+/* ed_prev_char():
  *	Move to the left one character
  *	[^B] [^B]
  */
@@ -372,12 +372,12 @@ ed_prev_char(el, c)
 
 	return CC_CURSOR;
     }
-    else 
+    else
 	return CC_ERROR;
 }
 
 
-/* ed_quoted_insert(): 
+/* ed_quoted_insert():
  *	Add the next character typed verbatim
  *	[^V] [^V]
  */
@@ -400,7 +400,7 @@ ed_quoted_insert(el, c)
 }
 
 
-/* ed_digit(): 
+/* ed_digit():
  *	Adds to argument or enters a digit
  */
 protected el_action_t
@@ -411,14 +411,14 @@ ed_digit(el, c)
     if (!isdigit(c))
 	return CC_ERROR;
 
-    if (el->el_state.doingarg) {	
+    if (el->el_state.doingarg) {
 	/* if doing an arg, add this in... */
-	if (el->el_state.lastcmd == EM_UNIVERSAL_ARGUMENT)	
+	if (el->el_state.lastcmd == EM_UNIVERSAL_ARGUMENT)
 	    el->el_state.argument = c - '0';
 	else {
 	    if (el->el_state.argument > 1000000)
 		return CC_ERROR;
-	    el->el_state.argument = 
+	    el->el_state.argument =
 		(el->el_state.argument * 10) + (c - '0');
 	}
 	return CC_ARGHACK;
@@ -428,10 +428,10 @@ ed_digit(el, c)
 	    return CC_ERROR;
 
 	if (el->el_state.inputmode != MODE_INSERT) {
-	    el->el_chared.c_undo.buf[el->el_chared.c_undo.isize++] = 
+	    el->el_chared.c_undo.buf[el->el_chared.c_undo.isize++] =
 		*el->el_line.cursor;
 	    el->el_chared.c_undo.buf[el->el_chared.c_undo.isize] = '\0';
-	    c_delafter(el, 1);  
+	    c_delafter(el, 1);
     	}
 	c_insert(el, 1);
 	*el->el_line.cursor++ = c;
@@ -442,7 +442,7 @@ ed_digit(el, c)
 }
 
 
-/* ed_argument_digit(): 
+/* ed_argument_digit():
  *	Digit that starts argument
  *	For ESC-n
  */
@@ -467,7 +467,7 @@ ed_argument_digit(el, c)
 }
 
 
-/* ed_unassigned(): 
+/* ed_unassigned():
  *	Indicates unbound character
  *	Bound to keys that are not assigned
  */
@@ -487,7 +487,7 @@ ed_unassigned(el, c)
  ** TTY key handling.
  **/
 
-/* ed_tty_sigint(): 
+/* ed_tty_sigint():
  *	Tty interrupt character
  *	[^C]
  */
@@ -496,12 +496,12 @@ protected el_action_t
 ed_tty_sigint(el, c)
     EditLine *el;
     int c;
-{			
+{
     return CC_NORM;
 }
 
 
-/* ed_tty_dsusp(): 
+/* ed_tty_dsusp():
  *	Tty delayed suspend character
  *	[^Y]
  */
@@ -515,7 +515,7 @@ ed_tty_dsusp(el, c)
 }
 
 
-/* ed_tty_flush_output(): 
+/* ed_tty_flush_output():
  *	Tty flush output characters
  *	[^O]
  */
@@ -529,7 +529,7 @@ ed_tty_flush_output(el, c)
 }
 
 
-/* ed_tty_sigquit(): 
+/* ed_tty_sigquit():
  *	Tty quit character
  *	[^\]
  */
@@ -543,7 +543,7 @@ ed_tty_sigquit(el, c)
 }
 
 
-/* ed_tty_sigtstp(): 
+/* ed_tty_sigtstp():
  *	Tty suspend character
  *	[^Z]
  */
@@ -557,7 +557,7 @@ ed_tty_sigtstp(el, c)
 }
 
 
-/* ed_tty_stop_output(): 
+/* ed_tty_stop_output():
  *	Tty disallow output characters
  *	[^S]
  */
@@ -571,7 +571,7 @@ ed_tty_stop_output(el, c)
 }
 
 
-/* ed_tty_start_output(): 
+/* ed_tty_start_output():
  *	Tty allow output characters
  *	[^Q]
  */
@@ -585,7 +585,7 @@ ed_tty_start_output(el, c)
 }
 
 
-/* ed_newline(): 
+/* ed_newline():
  *	Execute command
  *	[^J]
  */
@@ -604,7 +604,7 @@ ed_newline(el, c)
 }
 
 
-/* ed_delete_prev_char(): 
+/* ed_delete_prev_char():
  *	Delete the character to the left of the cursor
  *	[^?]
  */
@@ -614,10 +614,10 @@ ed_delete_prev_char(el, c)
     EditLine *el;
     int c;
 {
-    if (el->el_line.cursor <= el->el_line.buffer) 
+    if (el->el_line.cursor <= el->el_line.buffer)
 	return CC_ERROR;
 
-    c_delbefore(el, el->el_state.argument);	
+    c_delbefore(el, el->el_state.argument);
     el->el_line.cursor -= el->el_state.argument;
     if (el->el_line.cursor < el->el_line.buffer)
 	el->el_line.cursor = el->el_line.buffer;
@@ -625,7 +625,7 @@ ed_delete_prev_char(el, c)
 }
 
 
-/* ed_clear_screen(): 
+/* ed_clear_screen():
  *	Clear screen leaving current line at the top
  *	[^L]
  */
@@ -641,7 +641,7 @@ ed_clear_screen(el, c)
 }
 
 
-/* ed_redisplay(): 
+/* ed_redisplay():
  *	Redisplay everything
  *	^R
  */
@@ -657,7 +657,7 @@ ed_redisplay(el, c)
 }
 
 
-/* ed_start_over(): 
+/* ed_start_over():
  *	Erase current line and start from scratch
  *	[^G]
  */
@@ -672,7 +672,7 @@ ed_start_over(el, c)
 }
 
 
-/* ed_sequence_lead_in(): 
+/* ed_sequence_lead_in():
  *	First character in a bound sequence
  *	Placeholder for external keys
  */
@@ -686,7 +686,7 @@ ed_sequence_lead_in(el, c)
 }
 
 
-/* ed_prev_history(): 
+/* ed_prev_history():
  *	Move to the previous history line
  *	[^P] [k]
  */
@@ -703,7 +703,7 @@ ed_prev_history(el, c)
 
     if (el->el_history.eventno == 0) {	/* save the current buffer away */
 	(void) strncpy(el->el_history.buf, el->el_line.buffer, EL_BUFSIZ);
-	el->el_history.last = el->el_history.buf + 
+	el->el_history.last = el->el_history.buf +
 		(el->el_line.lastchar - el->el_line.buffer);
     }
 
@@ -712,7 +712,7 @@ ed_prev_history(el, c)
     if (hist_get(el) == CC_ERROR) {
 	beep = 1;
 	/* el->el_history.eventno was fixed by first call */
-	(void) hist_get(el); 
+	(void) hist_get(el);
     }
 
     re_refresh(el);
@@ -723,7 +723,7 @@ ed_prev_history(el, c)
 }
 
 
-/* ed_next_history(): 
+/* ed_next_history():
  *	Move to the next history line
  *	[^N] [j]
  */
@@ -747,7 +747,7 @@ ed_next_history(el, c)
 }
 
 
-/* ed_search_prev_history(): 
+/* ed_search_prev_history():
  *	Search previous in history for a line matching the current
  *	next search history [M-P] [K]
  */
@@ -774,7 +774,7 @@ ed_search_prev_history(el, c)
 
     if (el->el_history.eventno == 0) {
 	(void) strncpy(el->el_history.buf, el->el_line.buffer, EL_BUFSIZ);
-	el->el_history.last = el->el_history.buf + 
+	el->el_history.last = el->el_history.buf +
 		(el->el_line.lastchar - el->el_line.buffer);
     }
 
@@ -795,9 +795,9 @@ ed_search_prev_history(el, c)
 #ifdef SDEBUG
 	(void) fprintf(el->el_errfile, "Comparing with \"%s\"\n", hp);
 #endif
-	if ((strncmp(hp, el->el_line.buffer, 
-		     el->el_line.lastchar - el->el_line.buffer) || 
-	    hp[el->el_line.lastchar-el->el_line.buffer]) && 
+	if ((strncmp(hp, el->el_line.buffer,
+		     el->el_line.lastchar - el->el_line.buffer) ||
+	    hp[el->el_line.lastchar-el->el_line.buffer]) &&
 	    c_hmatch(el, hp)) {
 	    found++;
 	    break;
@@ -808,7 +808,7 @@ ed_search_prev_history(el, c)
 
     if (!found) {
 #ifdef SDEBUG
-	(void) fprintf(el->el_errfile, "not found\n"); 
+	(void) fprintf(el->el_errfile, "not found\n");
 #endif
 	return CC_ERROR;
     }
@@ -819,7 +819,7 @@ ed_search_prev_history(el, c)
 }
 
 
-/* ed_search_next_history(): 
+/* ed_search_next_history():
  *	Search next in history for a line matching the current
  *	[M-N] [J]
  */
@@ -853,9 +853,9 @@ ed_search_next_history(el, c)
 #ifdef SDEBUG
 	(void) fprintf(el->el_errfile, "Comparing with \"%s\"\n", hp);
 #endif
-	if ((strncmp(hp, el->el_line.buffer, 
-		     el->el_line.lastchar - el->el_line.buffer) || 
-	     hp[el->el_line.lastchar-el->el_line.buffer]) && 
+	if ((strncmp(hp, el->el_line.buffer,
+		     el->el_line.lastchar - el->el_line.buffer) ||
+	     hp[el->el_line.lastchar-el->el_line.buffer]) &&
 	    c_hmatch(el, hp))
 	    found = h;
 	hp = HIST_NEXT(el);
@@ -864,7 +864,7 @@ ed_search_next_history(el, c)
     if (!found) {		/* is it the current history number? */
 	if (!c_hmatch(el, el->el_history.buf)) {
 #ifdef SDEBUG
-	    (void) fprintf(el->el_errfile, "not found\n"); 
+	    (void) fprintf(el->el_errfile, "not found\n");
 #endif
 	    return CC_ERROR;
 	}
@@ -888,7 +888,7 @@ ed_prev_line(el, c)
 {
     char *ptr;
     int nchars = c_hpos(el);
-    
+
     /*
      * Move to the line requested
      */
@@ -907,15 +907,15 @@ ed_prev_line(el, c)
      */
     for (ptr--; ptr >= el->el_line.buffer && *ptr != '\n'; ptr--)
 	continue;
-    
+
     /*
      * Move to the character requested
      */
-    for (ptr++; 
-	 nchars-- > 0 && ptr < el->el_line.lastchar && *ptr != '\n'; 
+    for (ptr++;
+	 nchars-- > 0 && ptr < el->el_line.lastchar && *ptr != '\n';
 	 ptr++)
 	continue;
-    
+
     el->el_line.cursor = ptr;
     return CC_CURSOR;
 }
@@ -948,16 +948,16 @@ ed_next_line(el, c)
      * Move to the character requested
      */
     for (ptr++;
-	 nchars-- > 0 && ptr < el->el_line.lastchar && *ptr != '\n'; 
+	 nchars-- > 0 && ptr < el->el_line.lastchar && *ptr != '\n';
     	 ptr++)
 	continue;
-    
+
     el->el_line.cursor = ptr;
     return CC_CURSOR;
 }
 
 
-/* ed_command(): 
+/* ed_command():
  *	Editline extended command
  *	[M-X] [:]
  */

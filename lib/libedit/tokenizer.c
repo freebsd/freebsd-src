@@ -155,7 +155,7 @@ tok_end(tok)
  *		 3: Quoted return
  *		 2: Unmatched double quote
  *		 1: Unmatched single quote
- *		 0: Ok 
+ *		 0: Ok
  */
 public int
 tok_line(tok, line, argc, argv)
@@ -225,7 +225,7 @@ tok_line(tok, line, argc, argv)
 		*tok->wptr++ = *ptr;
 		break;
 
-	    default: 
+	    default:
 		return(-1);
 	    }
 	    break;
@@ -242,7 +242,7 @@ tok_line(tok, line, argc, argv)
 		tok->quote = Q_doubleone;/* Quote next character */
 		break;
 
-	    case Q_one:	
+	    case Q_one:
 		*tok->wptr++ = *ptr;
 		tok->quote = Q_none;	/* Quote this, restore state */
 		break;
@@ -274,7 +274,7 @@ tok_line(tok, line, argc, argv)
 	    case Q_double:
 		*tok->wptr++ = *ptr;	/* Add the return		*/
 		break;
-	    
+
 	    case Q_doubleone:
 		tok->flags |= TOK_EAT;
 		tok->quote = Q_double;	/* Back to double, eat the '\n' */
@@ -377,7 +377,7 @@ tok_line(tok, line, argc, argv)
 
 	if (tok->argc >= tok->amax - 4) {
 	    tok->amax += AINCR;
-	    tok->argv = (char **) tok_realloc(tok->argv, 
+	    tok->argv = (char **) tok_realloc(tok->argv,
 					      tok->amax * sizeof(char*));
 	}
 

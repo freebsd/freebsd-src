@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1994/11/07 21:07:05 phk Exp $
+# $Id: Makefile,v 1.6 1994/11/14 06:44:45 bde Exp $
 #
 
 LCRYPTBASE= 	libcrypt
@@ -18,7 +18,7 @@ CFLAGS+=	-I${.CURDIR}/../libmd
 # This may have to be revised
 
 afterinstall:
-.if !defined(NOPIC) 
+.if !defined(NOPIC)
 	@cd ${DESTDIR}${SHLIBDIR}; \
 	if [ ! -e ${LCRYPTSO} ]; then \
 	rm -f ${LCRYPTSO}; \

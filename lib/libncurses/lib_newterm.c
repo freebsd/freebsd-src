@@ -94,7 +94,7 @@ char   *use_it = _ncurses_copyright;
 	if (enter_ca_mode)
 	    	putp(enter_ca_mode);
 
-	init_acs(); 
+	init_acs();
 
 	T(("creating newscr"));
 	if ((newscr = newwin(lines, columns, 0, 0)) == (WINDOW *)NULL)
@@ -140,7 +140,7 @@ char   *use_it = _ncurses_copyright;
 
 	def_shell_mode();
 	def_prog_mode();
-  
+
 	T(("newterm returns %x", SP));
 
 	return(SP);

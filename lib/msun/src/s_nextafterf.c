@@ -8,13 +8,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_nextafterf.c,v 1.2 1994/08/18 23:07:15 jtc Exp $";
+static char rcsid[] = "$Id: s_nextafterf.c,v 1.1.1.1 1994/08/19 09:39:58 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -34,15 +34,15 @@ static char rcsid[] = "$Id: s_nextafterf.c,v 1.2 1994/08/18 23:07:15 jtc Exp $";
 	ix = hx&0x7fffffff;		/* |x| */
 	iy = hy&0x7fffffff;		/* |y| */
 
-	if((ix>0x7f800000) ||   /* x is nan */ 
-	   (iy>0x7f800000))     /* y is nan */ 
-	   return x+y;				
+	if((ix>0x7f800000) ||   /* x is nan */
+	   (iy>0x7f800000))     /* y is nan */
+	   return x+y;
 	if(x==y) return x;		/* x=y, return x */
 	if(ix==0) {				/* x == 0 */
 	    SET_FLOAT_WORD(x,(hy&0x80000000)|1);/* return +-minsubnormal */
 	    y = x*x;
 	    if(y==x) return y; else return x;	/* raise underflow flag */
-	} 
+	}
 	if(hx>=0) {				/* x > 0 */
 	    if(hx>hy) {				/* x > y, x -= ulp */
 		hx -= 1;

@@ -48,10 +48,10 @@ static char sccsid[] = "@(#)acosh.c	8.1 (Berkeley) 6/4/93";
  *	log1p(x) 		...return log(1+x)
  *
  * Method :
- *	Based on 
+ *	Based on
  *		acosh(x) = log [ x + sqrt(x*x-1) ]
  *	we have
- *		acosh(x) := log1p(x)+ln2,	if (x > 1.0E20); else		
+ *		acosh(x) := log1p(x)+ln2,	if (x > 1.0E20); else
  *		acosh(x) := log1p( sqrt(x-1) * (sqrt(x-1) + sqrt(x+1)) ) .
  *	These formulae avoid the over/underflow complication.
  *
@@ -60,7 +60,7 @@ static char sccsid[] = "@(#)acosh.c	8.1 (Berkeley) 6/4/93";
  *	acosh(NaN) is NaN without signal.
  *
  * Accuracy:
- *	acosh(x) returns the exact inverse hyperbolic cosine of x nearly 
+ *	acosh(x) returns the exact inverse hyperbolic cosine of x nearly
  *	rounded. In a test run with 512,000 random arguments on a VAX, the
  *	maximum observed error was 3.30 ulps (units of the last place) at
  *	x=1.0070493753568216 .
@@ -87,7 +87,7 @@ ic(ln2lo, 1.9082149292705877000E-10,-33, 1.A39EF35793C76)
 
 double acosh(x)
 double x;
-{	
+{
 	double t,big=1.E20; /* big+1==big */
 
 #if !defined(vax)&&!defined(tahoe)
@@ -95,7 +95,7 @@ double x;
 #endif	/* !defined(vax)&&!defined(tahoe) */
 
     /* return log1p(x) + log(2) if x is large */
-	if(x>big) {t=log1p(x)+ln2lo; return(t+ln2hi);} 
+	if(x>big) {t=log1p(x)+ln2lo; return(t+ln2hi);}
 
 	t=sqrt(x-1.0);
 	return(log1p(t*(t+sqrt(x+1.0))));

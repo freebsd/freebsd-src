@@ -8,22 +8,22 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_acosf.c,v 1.2 1994/08/18 23:04:53 jtc Exp $";
+static char rcsid[] = "$Id: e_acosf.c,v 1.1.1.1 1994/08/19 09:39:43 jkh Exp $";
 #endif
 
 #include "math.h"
 #include "math_private.h"
 
 #ifdef __STDC__
-static const float 
+static const float
 #else
-static float 
+static float
 #endif
 one =  1.0000000000e+00, /* 0x3F800000 */
 pi =  3.1415925026e+00, /* 0x40490fda */

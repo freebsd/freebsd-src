@@ -5,31 +5,31 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
-#if defined(LIBC_SCCS) && !defined(lint) 
+#if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)xdr_rec.c 1.21 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)xdr_rec.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: xdr_rec.c,v 1.1 1994/08/07 18:39:33 wollman Exp $";
+static char *rcsid = "$Id: xdr_rec.c,v 1.2 1994/08/07 22:21:14 wollman Exp $";
 #endif
 
 /*
@@ -45,7 +45,7 @@ static char *rcsid = "$Id: xdr_rec.c,v 1.1 1994/08/07 18:39:33 wollman Exp $";
  * by n bytes of data, where n is contained in the header.  The header
  * is represented as a htonl(u_long).  Thegh order bit encodes
  * whether or not the fragment is the last fragment of the record
- * (1 => fragment is last, 0 => more fragments to follow. 
+ * (1 => fragment is last, 0 => more fragments to follow.
  * The other 31 bits encode the byte length of the fragment.
  */
 
@@ -146,8 +146,8 @@ xdrrec_create(xdrs, sendsize, recvsize, tcp_handle, readit, writeit)
 
 	if (rstrm == NULL) {
 		(void)fprintf(stderr, "xdrrec_create: out of memory\n");
-		/* 
-		 *  This is bad.  Should rework xdrrec_create to 
+		/*
+		 *  This is bad.  Should rework xdrrec_create to
 		 *  return a handle, and in this case return NULL
 		 */
 		return;
@@ -260,7 +260,7 @@ xdrrec_getbytes(xdrs, addr, len)
 		current = (len < current) ? len : current;
 		if (! get_input_bytes(rstrm, addr, current))
 			return (FALSE);
-		addr += current; 
+		addr += current;
 		rstrm->fbtbc -= current;
 		len -= current;
 	}
@@ -422,7 +422,7 @@ xdrrec_skiprecord(xdrs)
 
 /*
  * Look ahead fuction.
- * Returns TRUE iff there is no more input in the buffer 
+ * Returns TRUE iff there is no more input in the buffer
  * after consuming the rest of the current record.
  */
 bool_t
@@ -481,7 +481,7 @@ flush_out(rstrm, eor)
 	bool_t eor;
 {
 	register u_long eormask = (eor == TRUE) ? LAST_FRAG : 0;
-	register u_long len = (u_long)(rstrm->out_finger) - 
+	register u_long len = (u_long)(rstrm->out_finger) -
 		(u_long)(rstrm->frag_header) - sizeof(u_long);
 
 	*(rstrm->frag_header) = htonl(len | eormask);

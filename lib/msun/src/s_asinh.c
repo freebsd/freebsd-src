@@ -5,37 +5,37 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_asinh.c,v 1.6 1994/08/18 23:06:20 jtc Exp $";
+static char rcsid[] = "$Id: s_asinh.c,v 1.1.1.1 1994/08/19 09:39:45 jkh Exp $";
 #endif
 
 /* asinh(x)
  * Method :
- *	Based on 
+ *	Based on
  *		asinh(x) = sign(x) * log [ |x| + sqrt(x*x+1) ]
  *	we have
  *	asinh(x) := x  if  1+x*x=1,
  *		 := sign(x)*(log(x)+ln2)) for large |x|, else
  *		 := sign(x)*log(2|x|+1/(|x|+sqrt(x*x+1))) if|x|>2, else
- *		 := sign(x)*log1p(|x| + x^2/(1 + sqrt(1+x^2)))  
+ *		 := sign(x)*log1p(|x| + x^2/(1 + sqrt(1+x^2)))
  */
 
 #include "math.h"
 #include "math_private.h"
 
 #ifdef __STDC__
-static const double 
+static const double
 #else
-static double 
+static double
 #endif
 one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
 ln2 =  6.93147180559945286227e-01, /* 0x3FE62E42, 0xFEFA39EF */
-huge=  1.00000000000000000000e+300; 
+huge=  1.00000000000000000000e+300;
 
 #ifdef __STDC__
 	double asinh(double x)
@@ -43,7 +43,7 @@ huge=  1.00000000000000000000e+300;
 	double asinh(x)
 	double x;
 #endif
-{	
+{
 	double t,w;
 	int32_t hx,ix;
 	GET_HIGH_WORD(hx,x);
@@ -51,7 +51,7 @@ huge=  1.00000000000000000000e+300;
 	if(ix>=0x7ff00000) return x+x;	/* x is inf or NaN */
 	if(ix< 0x3e300000) {	/* |x|<2**-28 */
 	    if(huge+x>one) return x;	/* return x inexact except 0 */
-	} 
+	}
 	if(ix>0x41b00000) {	/* |x| > 2**28 */
 	    w = __ieee754_log(fabs(x))+ln2;
 	} else if (ix>0x40000000) {	/* 2**28 > |x| > 2.0 */

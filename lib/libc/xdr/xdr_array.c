@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)xdr_array.c 1.10 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)xdr_array.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: xdr_array.c,v 1.1 1993/10/27 05:41:09 paul Exp $";
+static char *rcsid = "$Id: xdr_array.c,v 1.1 1994/08/07 18:39:31 wollman Exp $";
 #endif
 
 /*
@@ -93,7 +93,7 @@ xdr_array(xdrs, addrp, sizep, maxsize, elsize, elproc)
 				return (TRUE);
 			*addrp = target = mem_alloc(nodesize);
 			if (target == NULL) {
-				(void) fprintf(stderr, 
+				(void) fprintf(stderr,
 					"xdr_array: out of memory\n");
 				return (FALSE);
 			}
@@ -103,7 +103,7 @@ xdr_array(xdrs, addrp, sizep, maxsize, elsize, elproc)
 		case XDR_FREE:
 			return (TRUE);
 	}
-	
+
 	/*
 	 * now we xdr each element of array
 	 */
@@ -138,7 +138,7 @@ xdr_vector(xdrs, basep, nelem, elemsize, xdr_elem)
 	register char *basep;
 	register u_int nelem;
 	register u_int elemsize;
-	register xdrproc_t xdr_elem;	
+	register xdrproc_t xdr_elem;
 {
 	register u_int i;
 	register char *elptr;
@@ -150,6 +150,6 @@ xdr_vector(xdrs, basep, nelem, elemsize, xdr_elem)
 		}
 		elptr += elemsize;
 	}
-	return(TRUE);	
+	return(TRUE);
 }
 

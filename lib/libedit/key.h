@@ -65,7 +65,7 @@ protected void 		key_end		__P((EditLine *));
 protected key_value_t *	key_map_cmd	__P((EditLine *, int));
 protected key_value_t *	key_map_str	__P((EditLine *, char *));
 protected void		key_reset	__P((EditLine *));
-protected int 		key_get		__P((EditLine *, char *, 
+protected int 		key_get		__P((EditLine *, char *,
 					     key_value_t *));
 protected void		key_add		__P((EditLine *, char *, key_value_t *,
 					     int));
@@ -73,7 +73,7 @@ protected void		key_clear	__P((EditLine *, el_action_t *,
 					     char *));
 protected int		key_delete	__P((EditLine *, char *));
 protected void		key_print	__P((EditLine *, char *));
-protected void	        key_kprint	__P((EditLine *, char *, 
+protected void	        key_kprint	__P((EditLine *, char *,
 					     key_value_t *, int));
 protected char 	       *key__decode_str	__P((char *, char *, char *));
 

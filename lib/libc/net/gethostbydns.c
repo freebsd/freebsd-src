@@ -31,14 +31,14 @@
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.2 1994/09/25 17:45:37 pst Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.3 1994/12/01 22:25:38 wollman Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -123,7 +123,7 @@ addrsort(ap, num)
 	p = ap;
 	for (i = 0; i < num; i++, p++) {
 	    for (j = 0 ; j < _res.nsort; j++)
-		if (_res.sort_list[j].addr.s_addr == 
+		if (_res.sort_list[j].addr.s_addr ==
 		    (((struct in_addr *)(*p))->s_addr & _res.sort_list[j].mask))
 			break;
 	    aval[i] = j;
@@ -410,7 +410,7 @@ _gethostbydnsname(name)
 				host.h_addr_list = h_addr_ptrs;
 				return (&host);
 			}
-			if (!isdigit(*cp) && *cp != '.') 
+			if (!isdigit(*cp) && *cp != '.')
 				break;
 		}
 
@@ -432,7 +432,7 @@ _gethostbydnsaddr(addr, len, type)
 	register struct hostent *hp;
 	char qbuf[MAXDNAME+1];
 	int o_res_options = _res.options;
-	
+
 	if (type != AF_INET)
 		return (NULL);
 	(void)sprintf(qbuf, "%u.%u.%u.%u.in-addr.arpa",

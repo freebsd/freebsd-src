@@ -49,7 +49,7 @@ static char sccsid[] = "@(#)muldi3.c	8.1 (Berkeley) 6/4/93";
  *
  *	u = 2^n u1  *  u0	(n = number of bits in `u_long', usu. 32)
  *
- * and 
+ * and
  *
  *	v = 2^n v1  *  v0
  *

@@ -31,14 +31,14 @@
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostnamadr.c,v 1.1 1994/05/27 04:57:16 rgrimes Exp $";
+static char rcsid[] = "$Id: gethostbyht.c,v 1.1 1994/09/25 02:12:11 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -129,7 +129,7 @@ again:
 	host.h_name = cp;
 	q = host.h_aliases = host_aliases;
 	cp = strpbrk(cp, " \t");
-	if (cp != NULL) 
+	if (cp != NULL)
 		*cp++ = '\0';
 	while (cp && *cp) {
 		if (*cp == ' ' || *cp == '\t') {
@@ -152,7 +152,7 @@ _gethostbyhtname(name)
 {
 	register struct hostent *p;
 	register char **cp;
-	
+
 	sethostent(0);
 	while ((p = gethostent())) {
 		if (strcasecmp(p->h_name, name) == 0)

@@ -57,7 +57,7 @@ main()
 {
 	int len;
 	char *r, key[9], salt[3];
-	
+
 	get(key, sizeof(key) - 1);
 	get(salt, sizeof(salt) - 1);
 	len = strlen(r = crypt(key, salt));

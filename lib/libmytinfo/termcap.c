@@ -31,7 +31,7 @@ char *term, *buf; {
 	int r = -1;
 	int fd;
 
-	if (term == NULL) 
+	if (term == NULL)
 		term = getenv("TERM");
 	if (term == NULL)
 		return 0;
@@ -95,7 +95,7 @@ char *term, *buf; {
 
 		if (_init_tty() == ERR)
 			return 0;
-		if ((s = getenv("LINES")) != NULL && atoi(s) > 0) 
+		if ((s = getenv("LINES")) != NULL && atoi(s) > 0)
 			lines = atoi(s);
 		if ((s = getenv("COLUMNS")) != NULL && atoi(s) > 0)
 			columns = atoi(s);
@@ -113,7 +113,7 @@ tgetnum(cap)
 char *cap; {
 	int ind;
 
-	cap2[0] = cap[0]; 
+	cap2[0] = cap[0];
 	cap2[1] = cap[1];
 	cap2[2] = '\0';
 
@@ -128,7 +128,7 @@ tgetflag(cap)
 char *cap; {
 	int ind;
 
-	cap2[0] = cap[0]; 
+	cap2[0] = cap[0];
 	cap2[1] = cap[1];
 	cap2[2] = '\0';
 
@@ -145,7 +145,7 @@ char **area; {
 	register char *sp, *dp;
 	int ind;
 
-	cap2[0] = cap[0]; 
+	cap2[0] = cap[0];
 	cap2[1] = cap[1];
 	cap2[2] = '\0';
 

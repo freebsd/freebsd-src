@@ -170,7 +170,7 @@ char *file; {
 						*dp++ = '\\';
 						*dp++ = c;
 						continue;
-					} 
+					}
 					*dp++ = c;
 				}
 				*dp = '\0';

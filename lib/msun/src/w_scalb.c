@@ -5,18 +5,18 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_scalb.c,v 1.4 1994/08/10 20:35:37 jtc Exp $";
+static char rcsid[] = "$Id: w_scalb.c,v 1.1.1.1 1994/08/19 09:39:54 jkh Exp $";
 #endif
 
 /*
  * wrapper scalb(double x, double fn) is provide for
- * passing various standard test suite. One 
+ * passing various standard test suite. One
  * should use scalbn() instead.
  */
 
@@ -51,10 +51,10 @@ static char rcsid[] = "$Id: w_scalb.c,v 1.4 1994/08/10 20:35:37 jtc Exp $";
 	}
 	if(z==0.0&&z!=x) {
 	    return __kernel_standard(x,(double)fn,33); /* scalb underflow */
-	} 
+	}
 #ifndef _SCALB_INT
 	if(!finite(fn)) errno = ERANGE;
 #endif
 	return z;
-#endif 
+#endif
 }

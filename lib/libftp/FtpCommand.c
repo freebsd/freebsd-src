@@ -2,9 +2,9 @@
 		      Library for ftpd clients.(libftp)
 			Copyright by Oleg Orel
 			 All rights reserved.
-			
-This  library is desined  for  free,  non-commercial  software  creation. 
-It is changeable and can be improved. The author would greatly appreciate 
+
+This  library is desined  for  free,  non-commercial  software  creation.
+It is changeable and can be improved. The author would greatly appreciate
 any  advises, new  components  and  patches  of  the  existing  programs.
 Commercial  usage is  also  possible  with  participation of it's author.
 
@@ -24,7 +24,7 @@ STATUS FtpCommand(va_alist)
   va_list args;
   String S1;
   int i,counter=0;
-  
+
   va_start(args);
 
   con = va_arg(args,FTP *);
@@ -41,21 +41,21 @@ STATUS FtpCommand(va_alist)
     }
 
   va_end(args);
-  
-  
+
+
   sprintf(S1,command,param);
 
   if ( FtpSendMessage(con,S1) == QUIT )
     return EXIT(con,QUIT);
-  
+
   if  ( (i=FtpGetMessage(con,S1)) == QUIT )
     return EXIT(con,QUIT);
-  
+
   if ( ! FtpGood1 ( i , Answer ))
     return EXIT(con,-i);
 
   return EXIT(con,i);
 }
-  
-  
-   
+
+
+

@@ -2,9 +2,9 @@
 		      Library for ftpd clients.(libftp)
 			Copyright by Oleg Orel
 			 All rights reserved.
-			
-This  library is desined  for  free,  non-commercial  software  creation. 
-It is changeable and can be improved. The author would greatly appreciate 
+
+This  library is desined  for  free,  non-commercial  software  creation.
+It is changeable and can be improved. The author would greatly appreciate
 any  advises, new  components  and  patches  of  the  existing  programs.
 Commercial  usage is  also  possible  with  participation of it's author.
 
@@ -26,28 +26,28 @@ INLINE static char *___gets(char *s, int maxchars, FTP *ftp)
     {
       if ((c = FtpGetc(ftp,FTPCMD(ftp))) == EOF)
 	return NULL;
-      
+
       if ( c == '\n' && *(p-1) == '\r' )
 	{
 	  p--;
 	  *p='\0';
 	  return s;
 	}
-      
+
       if ( (p-s) > maxchars ) return NULL;
-      
+
       *p++=(char)c;
     }
 }
-    
 
 
-     
+
+
 int FtpGetMessage(FTP *con , char * Message )
 {
   int n;
   char tmp[1024];
-  
+
   while(1)
     {
       if (___gets(tmp,sizeof tmp,con)==NULL)
@@ -60,7 +60,7 @@ int FtpGetMessage(FTP *con , char * Message )
 	(*con->debug)(con,0,tmp);
     }
 
-  strcpy(Message,tmp); 
+  strcpy(Message,tmp);
   FtpInitMessageList();
   FtpMessageList[n=FtpNumber(Message)] =
     ( char * ) malloc ( strlen(Message) + 1);
@@ -74,10 +74,10 @@ int FtpGetMessage(FTP *con , char * Message )
 STATUS FtpSendMessage(FTP *ftp,char * Message )
 {
   char *msg=Message;
-  
-  while (*Message) 
+
+  while (*Message)
     FtpAssert(ftp,FtpPutc(ftp,FTPCMD(ftp),*Message++));
-  
+
   FtpAssert(ftp,FtpPutc(ftp,FTPCMD(ftp),'\015'));
   FtpAssert(ftp,FtpPutc(ftp,FTPCMD(ftp),'\012'));
 
@@ -90,9 +90,9 @@ char *FtpMessage(int number)
 {
   extern int sys_nerr,errno;
 #ifndef __FreeBSD__
-  extern char *sys_errlist[]; 
+  extern char *sys_errlist[];
 #endif
-  
+
   FtpInitMessageList();
   if ( number == 0 )
     return (char *)sys_errlist[errno];
@@ -105,7 +105,7 @@ STATUS FtpInitMessageList()
 {
   int i;
   static u = 0;
-  
+
   if ( u )
     return 1;
 

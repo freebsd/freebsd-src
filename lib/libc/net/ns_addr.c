@@ -47,7 +47,7 @@ static struct ns_addr addr, zero_addr;
 
 static void Field(), cvtbase();
 
-struct ns_addr 
+struct ns_addr
 ns_addr(name)
 	const char *name;
 {
@@ -157,7 +157,7 @@ Field(buf, out, len)
 	case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
 		base16 = 1;
 		break;
-	
+
 	case 'x': case 'X':
 		*--bp = '0';
 		base16 = 1;

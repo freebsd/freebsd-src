@@ -90,7 +90,7 @@ TERMINAL *cur; {
 					case 'f': *dp++ = '\f'; break;
 					case 's': *dp++ = ' '; break;
 
-					case '^': 
+					case '^':
 					case '\\':
 					case ',':
 					case ':':
@@ -116,7 +116,7 @@ TERMINAL *cur; {
 							c = c * 8 + (*++sp-'0');
 						switch((char)c) {
 						case 0:
-							if (flag == 'K') 
+							if (flag == 'K')
 								*dp++ = '\200';
 							else {
 								*dp++ = '\\';
@@ -161,7 +161,7 @@ TERMINAL *cur; {
 							*dp++ = '0';
 						}
 						sp++;
-					} else 
+					} else
 						*dp++ = '^';
 					break;
 				default:
@@ -181,7 +181,7 @@ TERMINAL *cur; {
 				break;
 			if ((ct->strs[ind] = _addstr(entry)) == NULL)
 				return 1;
-			break;	
+			break;
 		case '#':
 #ifdef DEBUG
 			putchar('#');

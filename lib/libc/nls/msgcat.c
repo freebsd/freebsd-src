@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msgcat.c,v 1.1 1995/03/30 12:47:26 jkh Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -29,7 +29,7 @@ up-to-date.  Many thanks.
 				267 Allston St., #3
 				Cambridge, MA 02139  USA
 				nazgul@alfalfa.com
-    
+
 ******************************************************************/
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -92,7 +92,7 @@ int type;
     long	len;
     char	*base, *cptr, *pathP;
     struct stat	sbuf;
-    
+
     if (!name || !*name) return(NLERR);
 
     if (strchr(name, '/')) {
@@ -103,14 +103,14 @@ int type;
 	if ((nlspath = (char *) getenv("NLSPATH")) == NULL) {
 	    nlspath = "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L";
 	}
-	
+
 	len = strlen(nlspath);
 	base = cptr = (char *) malloc(len + 2);
 	if (!base) return(NLERR);
 	strcpy(cptr, nlspath);
 	cptr[len] = ':';
 	cptr[len+1] = '\0';
-        
+
 	for (nlspath = cptr; *cptr; ++cptr) {
 	    if (*cptr == ':') {
 		*cptr = '\0';
@@ -181,7 +181,7 @@ int setId;
 	hi = cat->numSets;
 	cur = (hi - lo) / 2;
     }
-    
+
     while (True) {
 	set = cat->sets + cur;
 	if (set->setId == setId) break;
@@ -201,16 +201,16 @@ int setId;
     return(set);
 }
 
-    
+
 static MCMsgT	*MCGetMsg( set, msgId)
 MCSetT *set;
 int msgId;
 {
     MCMsgT	*msg;
     long	lo, hi, cur, dir;
-    
+
     if (!set || set->invalid || msgId <= 0) return(NULL);
-    
+
     lo = 0;
     if (msgId - 1 < set->numMsgs) {
 	cur = msgId - 1;
@@ -219,7 +219,7 @@ int msgId;
 	hi = set->numMsgs;
 	cur = (hi - lo) / 2;
     }
-    
+
     while (True) {
 	msg = set->u.msgs + cur;
 	if (msg->msgId == msgId) break;
@@ -264,7 +264,7 @@ nl_catd catd;
     int		i, j;
 
     if (!cat) return -1;
-    
+
     if (cat->loadType != MCLoadAll) close(cat->fd);
     for (i = 0; i < cat->numSets; ++i) {
 	set = cat->sets + i;
@@ -312,13 +312,13 @@ int type;
     if (read(cat->fd, &header, sizeof(header)) != sizeof(header)) CORRUPT();
 
     if (strncmp(header.magic, MCMagic, MCMagicLen) != 0) CORRUPT();
-    
+
     if (header.majorVer != MCMajorVer) {
 	fprintf(stderr, "%s: %s is version %d, we need %d.\n", ERRNAME,
 		catpath, header.majorVer, MCMajorVer);
 	return(0);
     }
-    
+
     if (header.numSets <= 0) {
 	fprintf(stderr, "%s: %s has %d sets!\n", ERRNAME, catpath,
 		header.numSets);
@@ -338,7 +338,7 @@ int type;
 	if (read(cat->fd, set, sizeof(*set)) != sizeof(*set)) CORRUPT();
 
 	/* if it's invalid, skip over it (and backup 'i') */
-	
+
 	if (set->invalid) {
 	    --i;
 	    nextSet = set->nextSet;
@@ -376,7 +376,7 @@ MCSetT *set;
     /* Get the messages */
     if (lseek(cat->fd, set->u.firstMsg, 0) == -1) return(0);
     if ((set->u.msgs = (MCMsgT *) malloc(sizeof(MCMsgT) * set->numMsgs)) == NULL) return(-1);
-    
+
     for (i = 0; i < set->numMsgs; ++i) {
 	msg = set->u.msgs + i;
 	if (read(cat->fd, msg, sizeof(*msg)) != sizeof(*msg)) return(0);
@@ -389,8 +389,8 @@ MCSetT *set;
     set->invalid = False;
     return(1);
 }
-	    
-	    
-		
+
+
+
 
 

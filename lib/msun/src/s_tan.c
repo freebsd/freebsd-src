@@ -5,13 +5,13 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_tan.c,v 1.5 1994/08/18 23:10:19 jtc Exp $";
+static char rcsid[] = "$Id: s_tan.c,v 1.1.1.1 1994/08/19 09:39:53 jkh Exp $";
 #endif
 
 /* tan(x)
@@ -22,8 +22,8 @@ static char rcsid[] = "$Id: s_tan.c,v 1.5 1994/08/18 23:10:19 jtc Exp $";
  *	__ieee754_rem_pio2	... argument reduction routine
  *
  * Method.
- *      Let S,C and T denote the sin, cos and tan respectively on 
- *	[-PI/4, +PI/4]. Reduce the argument x to y1+y2 = x-k*pi/2 
+ *      Let S,C and T denote the sin, cos and tan respectively on
+ *	[-PI/4, +PI/4]. Reduce the argument x to y1+y2 = x-k*pi/2
  *	in [-pi/4 , +pi/4], and let n = k mod 4.
  *	We have
  *
@@ -41,7 +41,7 @@ static char rcsid[] = "$Id: s_tan.c,v 1.5 1994/08/18 23:10:19 jtc Exp $";
  *      trig(NaN)    is that NaN;
  *
  * Accuracy:
- *	TRIG(x) returns trig(x) nearly rounded 
+ *	TRIG(x) returns trig(x) nearly rounded
  */
 
 #include "math.h"

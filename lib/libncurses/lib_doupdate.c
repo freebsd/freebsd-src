@@ -10,7 +10,7 @@
  *	The routine doupdate() and its dependents
  *
  *-----------------------------------------------------------------*/
- 
+
 #include <stdlib.h>
 #include <sys/time.h>
 #ifdef SYS_SELECT
@@ -77,22 +77,22 @@ static inline void PutChar(chtype ch)
 		return;
 	}
 	PutAttrChar(ch);
-	SP->_curscol++; 
+	SP->_curscol++;
 	if (SP->_curscol >= columns) {
-		if (auto_right_margin) {	 
-			SP->_curscol = 0;	   
-			SP->_cursrow++;		
+		if (auto_right_margin) {
+			SP->_curscol = 0;
+			SP->_cursrow++;
 		} else {
 		 	SP->_curscol--;
 		}
 	}
-}	
+}
 
 static inline void GoTo(int row, int col)
 {
-	mvcur(SP->_cursrow, SP->_curscol, row, col); 
-	SP->_cursrow = row; 
-	SP->_curscol = col; 
+	mvcur(SP->_cursrow, SP->_curscol, row, col);
+	SP->_cursrow = row;
+	SP->_curscol = col;
 }
 
 int _outch(int ch)
@@ -108,7 +108,7 @@ int doupdate(void)
 {
 int	i;
 sigaction_t act, oact;
-	
+
 	T(("doupdate() called"));
 
 	act.sa_handler = SIG_IGN;
@@ -121,7 +121,7 @@ sigaction_t act, oact;
 		reset_prog_mode();
 		/* is this necessary? */
 		if (enter_alt_charset_mode)
-			init_acs();  
+			init_acs();
 		newscr->_clear = TRUE;
 		SP->_endwin = FALSE;
 	}
@@ -168,7 +168,7 @@ sigaction_t act, oact;
 	curscr->_cury = newscr->_cury;
 
 	GoTo(curscr->_cury, curscr->_curx);
-	
+
 	/* perhaps we should turn attributes off here */
 
 	if (curscr->_attrs != A_NORMAL)
@@ -201,7 +201,7 @@ static void ClrUpdate(WINDOW *scr)
 {
 int	i = 0, j = 0;
 int	lastNonBlank;
-	
+
 	T(("ClrUpdate(%x) called", scr));
 	if (back_color_erase && curscr->_attrs != A_NORMAL) {
 		T(("back_color_erase, turning attributes off"));
@@ -217,7 +217,7 @@ int	lastNonBlank;
 	T(("updating screen from scratch"));
 	for (i = 0; i < lines; i++) {
 		lastNonBlank = columns - 1;
-		
+
 		while (lastNonBlank >= 0 && scr->_line[i][lastNonBlank] == BLANK)
 			lastNonBlank--;
 
@@ -310,7 +310,7 @@ chtype	*newLine = newscr->_line[lineno];
 chtype	*oldLine = curscr->_line[lineno];
 int	k;
 int	attrchanged = 0;
-	
+
 	T(("NoIDcTransformLine(%d) called", lineno));
 
 	firstChar = 0;
@@ -318,7 +318,7 @@ int	attrchanged = 0;
 		if(ceol_standout_glitch) {
 			if((newLine[firstChar] & (chtype)A_ATTRIBUTES) != (oldLine[firstChar] & (chtype)A_ATTRIBUTES))
 			attrchanged = 1;
-		}			
+		}
 		firstChar++;
 	}
 
@@ -342,7 +342,7 @@ int	attrchanged = 0;
 		while (lastChar > firstChar  &&  newLine[lastChar] == oldLine[lastChar])
 			lastChar--;
 		GoTo(lineno, firstChar);
-	}			
+	}
 
 	/* check if we are at the lr corner */
 	if (lineno == lines-1)
@@ -385,7 +385,7 @@ chtype	*newLine = newscr->_line[lineno];
 chtype	*oldLine = curscr->_line[lineno];
 int	k, n;
 int	attrchanged = 0;
-	
+
 	T(("IDcTransformLine(%d) called", lineno));
 
 	if(ceol_standout_glitch && clr_eol) {
@@ -393,12 +393,12 @@ int	attrchanged = 0;
 		while(firstChar < columns) {
 			if((newLine[firstChar] & (chtype)A_ATTRIBUTES) != (oldLine[firstChar] & (chtype)A_ATTRIBUTES))
 				attrchanged = 1;
-			firstChar++;			
+			firstChar++;
 		}
 	}
-	
+
 	firstChar = 0;
-	
+
 	if (attrchanged) {
 		GoTo(lineno, firstChar);
 		if (back_color_erase && curscr->_attrs != A_NORMAL) {
@@ -421,14 +421,14 @@ int	attrchanged = 0;
 		while (firstChar < columns  &&
 				newLine[firstChar] == oldLine[firstChar])
 			firstChar++;
-		
+
 		if (firstChar >= columns)
 			return;
 
 		oLastChar = columns - 1;
 		while (oLastChar > firstChar  &&  oldLine[oLastChar] == BLANK)
 			oLastChar--;
-	
+
 		nLastChar = columns - 1;
 		while (nLastChar > firstChar  &&  newLine[nLastChar] == BLANK)
 			nLastChar--;
@@ -473,11 +473,11 @@ int	attrchanged = 0;
 				nLastChar--;
 				oLastChar--;
 			}
-	
+
 			n = min(oLastChar, nLastChar);
 
 			GoTo(lineno, firstChar);
-	
+
 			/* check if we are at the lr corner */
 			if (lineno == lines-1)
 				if ((auto_right_margin) && !(eat_newline_glitch) &&

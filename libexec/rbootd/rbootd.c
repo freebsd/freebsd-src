@@ -379,7 +379,7 @@ DoTimeout()
 **  FindClient -- Find client associated with a packet.
 **
 **	Parameters:
-**		rconn - the new packet. 
+**		rconn - the new packet.
 **
 **	Returns:
 **		Pointer to client info if found, NULL otherwise.

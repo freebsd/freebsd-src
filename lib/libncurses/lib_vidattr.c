@@ -84,9 +84,9 @@ chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
  			tputs(exit_alt_charset_mode, 1, outc);
  			previous_attr &= ~A_ALTCHARSET;
  		}
- 		if (previous_attr) 
+ 		if (previous_attr)
  			tputs(exit_attribute_mode, 1, outc);
- 	
+
 	} else if (set_attributes) {
 		if (turn_on || turn_off) {
 	    		tputs(tparm(set_attributes,
@@ -103,7 +103,7 @@ chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
 	} else {
 
 		T(("turning %x off", _traceattr(turn_off)));
-			
+
 		if ((turn_off & A_ALTCHARSET) && exit_alt_charset_mode) {
 			tputs(exit_alt_charset_mode, 1, outc);
 			turn_off &= ~A_ALTCHARSET;
@@ -126,7 +126,7 @@ chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
 
 		T(("turning %x on", _traceattr(turn_on)));
 
-		if ((turn_on & A_ALTCHARSET) && enter_alt_charset_mode) 
+		if ((turn_on & A_ALTCHARSET) && enter_alt_charset_mode)
 			tputs(enter_alt_charset_mode, 1, outc);
 
 		if ((turn_on & A_BLINK)  &&  enter_blink_mode)

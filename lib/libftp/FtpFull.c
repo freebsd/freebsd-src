@@ -2,9 +2,9 @@
 		      Library for ftpd clients.(libftp)
 			Copyright by Oleg Orel
 			 All rights reserved.
-			
-This  library is desined  for  free,  non-commercial  software  creation. 
-It is changeable and can be improved. The author would greatly appreciate 
+
+This  library is desined  for  free,  non-commercial  software  creation.
+It is changeable and can be improved. The author would greatly appreciate
 any  advises, new  components  and  patches  of  the  existing  programs.
 Commercial  usage is  also  possible  with  participation of it's author.
 
@@ -39,8 +39,8 @@ FILE * FtpFullOpen(char * file , char * mode )
 
   switch(mode[0])
     {
-    case 'r': 
-	if (FtpError(FtpOpenRead(ftp,RemoteFile))) 
+    case 'r':
+	if (FtpError(FtpOpenRead(ftp,RemoteFile)))
 	  return NULL;
 	ftp_table[fileno(FTPDATA(ftp))] = ftp;
 	return FTPDATA(ftp);
@@ -80,16 +80,16 @@ STATUS FtpFullSyntax ( String source ,
 {
   char *in,*out;
   String tmp;
-  
+
   host[0] = user[0] = passwd[0] = file[0] = '\0';
- 
+
   for ( in=source, out = user;
        *in !='\0' && *in != '/' && *in!='@' && *in!=':' ;
        *out++ = *in++);
   *out = '\0';
-  
+
   if ( *in == '\0' ) return 0;
-  
+
   if ( *in == ':' )
     {
       strcpy(host,user);
@@ -98,7 +98,7 @@ STATUS FtpFullSyntax ( String source ,
       sprintf(passwd,"%s@%s",
 	      getpwuid(getuid())->pw_name,gethostbyname(tmp)->h_name);
       goto file;
-    } 
+    }
 
   if ( *in == '/' )
     {
@@ -114,25 +114,25 @@ STATUS FtpFullSyntax ( String source ,
       sprintf(passwd,"%s@%s",
 	      getpwuid(getuid())->pw_name,gethostbyname(tmp)->h_name);
     }
-  
-  
+
+
   for ( in++, out = host;
        *in !='\0' && *in!=':' ;
        *out++ = *in++);
   *out = '\0';
-  
+
   if ( *in == '\0' ) return 0;
 
 file:
-  
+
   for ( in++, out = file;
        *in !='\0';
        *out++ = *in++);
   *out = '\0';
-  
+
   return 1;
 }
-  
+
 
 
 

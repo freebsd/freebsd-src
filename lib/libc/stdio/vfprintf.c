@@ -537,7 +537,7 @@ fp_begin:		if (prec == -1)
 					ch = (ch == 'g') ? 'e' : 'E';
 				else
 					ch = 'g';
-			} 
+			}
 			if (ch <= 'e') {	/* 'e' or 'E' fmt */
 				--expt;
 				expsize = exponent(expstr, expt, ch);
@@ -803,8 +803,8 @@ cvt(value, ndigits, flags, sign, decpt, ch, length)
 		mode = 3;		/* ndigits after the decimal point */
 	else {
 		/*
-		 * To obtain ndigits after the decimal point for the 'e' 
-		 * and 'E' formats, round to ndigits + 1 significant 
+		 * To obtain ndigits after the decimal point for the 'e'
+		 * and 'E' formats, round to ndigits + 1 significant
 		 * figures.
 		 */
 		if (ch == 'e' || ch == 'E')

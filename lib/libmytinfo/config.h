@@ -49,7 +49,7 @@
 #undef USE_STDARG		/* you have a <stdarg.h> */
 #undef USE_STDDEF		/* you have a <stddef.h> */
 
-#define const 
+#define const
 #define volatile
 #define noreturn		/* a function that doesn't return */
 
@@ -86,4 +86,4 @@ typedef void *anyptr;
 
 #define TERMINFODIR "/usr/lib/terminfo"
 
-#endif 
+#endif

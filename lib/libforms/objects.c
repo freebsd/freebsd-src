@@ -6,8 +6,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -116,13 +116,13 @@ __inline void
 clone_object(OBJECT *object, OBJECT *def)
 {
 	int i;
-	
+
 	/* XXX - Should really check if strdup's succeed */
 
 	object->type = def->type;
 	object->status = def->status;
 	object->parent = def->parent;
-	/* 
+	/*
 	 * Only copy sizes for fixed size objects,
 	 * otherwise inherit from parent. Always
 	 * inherit x and y.
@@ -188,7 +188,7 @@ clone_object(OBJECT *object, OBJECT *def)
 			if (!object->object.function)
 				errx(-1, "Failed to allocate memory for copy of function object");
 			object->object.function->fn = strdup(def->object.function->fn);
-			break;	
+			break;
 		case OT_INPUT:
 			object->object.input = malloc(sizeof (INPUT_OBJECT));
 			if (!object->object.input)
@@ -204,7 +204,7 @@ clone_object(OBJECT *object, OBJECT *def)
 				errx(-1, "Failed to allocate memory for copy of menu object");
 			object->object.menu->selected = def->object.menu->selected;
 			for (i=0; i < def->object.menu->no_options; i++) {
-				object->object.menu->no_options = 
+				object->object.menu->no_options =
 					add_menu_option(object->object.menu,
 						def->object.menu->options[i]);
 				if (!object->object.menu->no_options)
@@ -256,7 +256,7 @@ copy_bound_objects(char *key, void *data, void *arg)
 
 int
 use_defined_object(OBJECT *object, char *src)
-{   
+{
 	TUPLE *tuple;
 	OBJECT *def;
 
@@ -271,7 +271,7 @@ use_defined_object(OBJECT *object, char *src)
 
 	/* Now recursively clone sub-objects */
 	hash_traverse(def->bind, &copy_bound_objects, object);
-}	
+}
 
 
 /*

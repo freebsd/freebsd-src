@@ -58,7 +58,7 @@ float c;
 		addstr("\\ /");
 		cursor(xpos[j],ypos[j]+2);
 		addch('-');
-	
+
 		if (j==0) j=4; else --j;
 		cursor(xpos[j],ypos[j]-2);
 		addch(' ');

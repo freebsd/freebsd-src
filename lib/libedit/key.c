@@ -42,10 +42,10 @@ static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
  * key.c: This module contains the procedures for maintaining
  *	  the extended-key map.
  *
- *      An extended-key (key) is a sequence of keystrokes introduced 
- *	with an sequence introducer and consisting of an arbitrary 
- *	number of characters.  This module maintains a map (the el->el_key.map) 
- *	to convert these extended-key sequences into input strs 
+ *      An extended-key (key) is a sequence of keystrokes introduced
+ *	with an sequence introducer and consisting of an arbitrary
+ *	number of characters.  This module maintains a map (the el->el_key.map)
+ *	to convert these extended-key sequences into input strs
  *	(XK_STR), editor functions (XK_CMD), or unix commands (XK_EXE).
  *
  *      Warning:
@@ -65,8 +65,8 @@ static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
 
 #include "el.h"
 
-/* 
- * The Nodes of the el->el_key.map.  The el->el_key.map is a linked list 
+/*
+ * The Nodes of the el->el_key.map.  The el->el_key.map is a linked list
  * of these node elements
  */
 struct key_node_t {
@@ -78,9 +78,9 @@ struct key_node_t {
     struct key_node_t *sibling;	/* ptr to another key with same prefix 	*/
 };
 
-private	int            node_trav	__P((EditLine *, key_node_t *, char *, 
+private	int            node_trav	__P((EditLine *, key_node_t *, char *,
 					     key_value_t *));
-private	int            node__try	__P((key_node_t *, char *, 
+private	int            node__try	__P((key_node_t *, char *,
 					     key_value_t *, int));
 private	key_node_t    *node__get	__P((int));
 private	void	       node__put	__P((key_node_t *));
@@ -104,7 +104,7 @@ key_init(el)
     el->el_key.map = NULL;
     key_reset(el);
     return 0;
-} 
+}
 
 
 /* key_end():
@@ -118,7 +118,7 @@ key_end(el)
     el->el_key.buf = NULL;
     /* XXX: provide a function to clear the keys */
     el->el_key.map = NULL;
-} 
+}
 
 
 /* key_map_cmd():
@@ -167,7 +167,7 @@ key_reset(el)
  *      Looks up *ch in map and then reads characters until a
  *      complete match is found or a mismatch occurs. Returns the
  *      type of the match found (XK_STR, XK_CMD, or XK_EXE).
- *      Returns NULL in val.str and XK_STR for no match.  
+ *      Returns NULL in val.str and XK_STR for no match.
  *      The last character read is returned in *ch.
  */
 protected int
@@ -195,7 +195,7 @@ key_add(el, key, val, ntype)
     int          ntype;
 {
     if (key[0] == '\0') {
-	(void) fprintf(el->el_errfile, 
+	(void) fprintf(el->el_errfile,
 		       "key_add: Null extended-key not allowed.\n");
 	return;
     }
@@ -211,7 +211,7 @@ key_add(el, key, val, ntype)
 	el->el_key.map = node__get(key[0]);	/* it is properly initialized */
 
     /* Now recurse through el->el_key.map */
-    (void) node__try(el->el_key.map, key, val, ntype);	
+    (void) node__try(el->el_key.map, key, val, ntype);
     return;
 }
 
@@ -226,9 +226,9 @@ key_clear(el, map, in)
     char   *in;
 {
     if ((map[(unsigned char) *in] == ED_SEQUENCE_LEAD_IN) &&
-	((map == el->el_map.key && 
+	((map == el->el_map.key &&
 	  el->el_map.alt[(unsigned char) *in] != ED_SEQUENCE_LEAD_IN) ||
-	 (map == el->el_map.alt && 
+	 (map == el->el_map.alt &&
 	  el->el_map.key[(unsigned char) *in] != ED_SEQUENCE_LEAD_IN)))
 	(void) key_delete(el, in);
 }
@@ -244,7 +244,7 @@ key_delete(el, key)
     char   *key;
 {
     if (key[0] == '\0') {
-	(void) fprintf(el->el_errfile, 
+	(void) fprintf(el->el_errfile,
 		       "key_delete: Null extended-key not allowed.\n");
 	return -1;
     }
@@ -515,7 +515,7 @@ node_lookup(el, str, ptr, cnt)
 	/* If match put this char into el->el_key.buf.  Recurse */
 	if (ptr->ch == *str) {
 	    /* match found */
-	    ncnt = key__decode_char(el->el_key.buf, cnt, 
+	    ncnt = key__decode_char(el->el_key.buf, cnt,
 				    (unsigned char) ptr->ch);
 	    if (ptr->next != NULL)
 		/* not yet at leaf */
@@ -557,7 +557,7 @@ node_enum(el, ptr, cnt)
     if (cnt >= KEY_BUFSIZ - 5) {	/* buffer too small */
 	el->el_key.buf[++cnt] = '"';
 	el->el_key.buf[++cnt] = '\0';
-	(void) fprintf(el->el_errfile, 
+	(void) fprintf(el->el_errfile,
 		    "Some extended keys too long for internal print buffer");
 	(void) fprintf(el->el_errfile, " \"%s...\"\n", el->el_key.buf);
 	return 0;
@@ -607,18 +607,18 @@ key_kprint(el, key, val, ntype)
 	switch (ntype) {
 	case XK_STR:
 	case XK_EXE:
-	    (void) fprintf(el->el_errfile, fmt, key, 
-			   key__decode_str(val->str, unparsbuf, 
+	    (void) fprintf(el->el_errfile, fmt, key,
+			   key__decode_str(val->str, unparsbuf,
 					      ntype == XK_STR ? "\"\"" : "[]"));
 	    break;
 	case XK_CMD:
-	    for (fp = el->el_map.help; fp->name; fp++) 
+	    for (fp = el->el_map.help; fp->name; fp++)
 		if (val->cmd == fp->func) {
 		    (void) fprintf(el->el_errfile, fmt, key, fp->name);
 		    break;
 		}
 #ifdef DEBUG_KEY
-	    if (fp->name == NULL) 
+	    if (fp->name == NULL)
 		(void) fprintf(el->el_errfile, "BUG! Command not found.\n");
 #endif
 
@@ -708,7 +708,7 @@ key__decode_str(str, buf, sep)
 	    *b++ = '\\';
 	    *b++ = *p;
 	}
-	else if (*p == ' ' || (isprint((unsigned char) *p) && 
+	else if (*p == ' ' || (isprint((unsigned char) *p) &&
 			       !isspace((unsigned char) *p))) {
 	    *b++ = *p;
 	}

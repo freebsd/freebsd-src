@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.5 1994/09/25 02:12:18 pst Exp $";
-static char rcsid[] = "$Id: gethostnamadr.c,v 1.5 1994/09/25 02:12:18 pst Exp $";
+static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.6 1995/03/24 15:38:54 ache Exp $";
+static char rcsid[] = "$Id: gethostnamadr.c,v 1.6 1995/03/24 15:38:54 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -47,7 +47,7 @@ extern struct hostent * _gethostbynisaddr __P((const char *, int, int));
 
 #define _PATH_HOSTCONF	"/etc/host.conf"
 
-enum service_type { 
+enum service_type {
   SERVICE_NONE = 0,
   SERVICE_BIND,
   SERVICE_HOSTS,

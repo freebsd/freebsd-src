@@ -70,7 +70,7 @@ _lit_output() {
 	if (tcgetattr(cur_term->fd, &old) == -1)
 		return 0;
 #endif
-	if (!(old.c_oflag & OPOST) || !(old.c_oflag & ONLCR)) 
+	if (!(old.c_oflag & OPOST) || !(old.c_oflag & ONLCR))
 		return 0;
 	memcpy((anyptr)&tmp, (anyptr)&old, sizeof(old));
 	tmp.c_oflag &= ~OPOST;
@@ -90,7 +90,7 @@ _norm_output() {
 	tcsetattr(cur_term->fd, TCSADRAIN, &old);
 #endif
 }
-	
+
 int
 _check_tty() {
 	if ((cur_term->prog_mode.c_iflag & IXON) && cur_term->xon)
@@ -245,7 +245,7 @@ _norm_output() {
 	ioctl(cur_term->fd, TIOCSETP, &old);
 }
 
-#endif 
+#endif
 
 int
 _check_tty() {

@@ -82,7 +82,7 @@ struct term_path *path; {
 					sp++;
 				} else
 					mul = 0;
-	
+
 			}
 			while(*sp != '\0' && *sp != ':') {
 				switch(*sp) {
@@ -98,7 +98,7 @@ struct term_path *path; {
 					case 'f': *dp++ = '\f'; break;
 					case 's': *dp++ = ' '; break;
 
-					case '^': 
+					case '^':
 					case '\\':
 					case ',':
 					case ':':
@@ -177,7 +177,7 @@ struct term_path *path; {
 					} else if (*sp == '?') {
 						*dp++ = '\177';
 						sp++;
-					} else 
+					} else
 						*dp++ = '^';
 					break;
 				case '$':
@@ -195,7 +195,7 @@ struct term_path *path; {
 				else
 					sprintf(dp, "$<%d.%d", pad, fract);
 				dp += strlen(dp);
-				if (mul) 
+				if (mul)
 					*dp++ = '*';
 				*dp++ = '>';
 			}
@@ -211,7 +211,7 @@ struct term_path *path; {
 				break;
 			if ((ct->strs[ind] = _addstr(entry)) == NULL)
 				return 1;
-			break;	
+			break;
 		case '#':
 #ifdef DEBUG
 			putchar('#');

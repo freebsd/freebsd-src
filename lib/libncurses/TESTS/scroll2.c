@@ -6,7 +6,7 @@ main()
 {
   int i;
   WINDOW * w;
-  
+
 
   initscr();
   cbreak();
@@ -21,7 +21,7 @@ main()
   mvaddstr (0, 0, "With the original wscrl");
 #endif
   refresh();
-  
+
 
   for (i=0; i<ROWS-1; i++)
     {
@@ -41,7 +41,7 @@ main()
   }
   getch();
   wclear (w);
-  
+
 
   for (i=0; i<ROWS-1; i++)
     {
@@ -49,10 +49,10 @@ main()
     }
   mvwaddstr (w, ROWS-1, 0, "Moving two line at a time");
 #ifndef LELE
-  mvaddstr (0, 30, "** THIS FAILS ON MY MACHINE WITH A BUS ERROR  
+  mvaddstr (0, 30, "** THIS FAILS ON MY MACHINE WITH A BUS ERROR
 **");
 #endif
-  
+
 
   wrefresh(w);
   for (i = 0; i < 4; i++) {
@@ -84,7 +84,7 @@ main()
     wrefresh(w);
   }
   getch();
-  
+
 
   endwin();
 }

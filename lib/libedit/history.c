@@ -130,7 +130,7 @@ private void             history_def_delete __P((history_t *, hentry_t *));
 /* history_def_first():
  *	Default function to return the first event in the history.
  */
-private const HistEvent * 
+private const HistEvent *
 history_def_first(p)
     ptr_t p;
 {
@@ -145,7 +145,7 @@ history_def_first(p)
 /* history_def_last():
  *	Default function to return the last event in the history.
  */
-private const HistEvent * 
+private const HistEvent *
 history_def_last(p)
     ptr_t p;
 {
@@ -160,7 +160,7 @@ history_def_last(p)
 /* history_def_next():
  *	Default function to return the next event in the history.
  */
-private const HistEvent * 
+private const HistEvent *
 history_def_next(p)
     ptr_t p;
 {
@@ -181,7 +181,7 @@ history_def_next(p)
 /* history_def_prev():
  *	Default function to return the previous event in the history.
  */
-private const HistEvent * 
+private const HistEvent *
 history_def_prev(p)
     ptr_t p;
 {
@@ -202,7 +202,7 @@ history_def_prev(p)
 /* history_def_curr():
  *	Default function to return the current event in the history.
  */
-private const HistEvent * 
+private const HistEvent *
 history_def_curr(p)
     ptr_t p;
 {
@@ -296,7 +296,7 @@ history_def_enter(p, str)
      * Always keep at least one entry.
      * This way we don't have to check for the empty list.
      */
-    while (h->cur > h->max + 1) 
+    while (h->cur > h->max + 1)
 	history_def_delete(h, h->list.prev);
     return ev;
 }
@@ -399,9 +399,9 @@ history_set_fun(h, first, next, last, prev, curr, enter, add, ptr)
     history_efun_t enter, add;
     ptr_t ptr;
 {
-    if (first == NULL || next == NULL || 
+    if (first == NULL || next == NULL ||
         last == NULL  || prev == NULL || curr == NULL ||
-	enter == NULL || add == NULL || 
+	enter == NULL || add == NULL ||
 	ptr == NULL ) {
 	if (h->h_next != history_def_next) {
 	    history_def_init(&h->h_ref, 0);
@@ -514,7 +514,7 @@ history(va_alist)
 #if __STDC__
     va_start(va, fun);
 #else
-    History *h; 
+    History *h;
     int fun;
     va_start(va);
     h = va_arg(va, History *);
@@ -584,7 +584,7 @@ history(va_alist)
 	    history_efun_t	add   = va_arg(va, history_efun_t);
 	    ptr_t		ptr   = va_arg(va, ptr_t);
 
-	    if (history_set_fun(h, first, next, last, prev, 
+	    if (history_set_fun(h, first, next, last, prev,
 				   curr, enter, add, ptr) == 0)
 		ev = &sev;
 	}

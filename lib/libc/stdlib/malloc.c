@@ -39,9 +39,9 @@ static char sccsid[] = "@(#)malloc.c	8.1 (Berkeley) 6/4/93";
  * malloc.c (Caltech) 2/21/82
  * Chris Kingsley, kingsley@cit-20.
  *
- * This is a very fast storage allocator.  It allocates blocks of a small 
+ * This is a very fast storage allocator.  It allocates blocks of a small
  * number of different sizes, and keeps free lists of each size.  Blocks that
- * don't exactly fit are passed up to the next larger size.  In this 
+ * don't exactly fit are passed up to the next larger size.  In this
  * implementation, the available sizes are 2^n-4 (or 2^n-10) bytes long.
  * This is designed for use in a virtual memory environment.
  */
@@ -257,7 +257,7 @@ morecore(bucket)
 void
 free(cp)
 	void *cp;
-{   
+{
   	register int size;
 	register union overhead *op;
 
@@ -298,9 +298,9 @@ int __realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
 
 void *
 realloc(cp, nbytes)
-	void *cp; 
+	void *cp;
 	size_t nbytes;
-{   
+{
   	register u_int onb;
 	register int i;
 	union overhead *op;
@@ -389,7 +389,7 @@ findbucket(freep, srchlen)
 #ifdef MSTATS
 /*
  * mstats - print out statistics about malloc
- * 
+ *
  * Prints two lines of numbers, one showing the length of the free list
  * for each size category, the second showing the number of mallocs -
  * frees for each size category.

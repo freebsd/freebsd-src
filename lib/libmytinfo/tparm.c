@@ -80,7 +80,7 @@ anyptr p; {
 			return 1;
 		else if (type == STRING)
 			*(char **)p = arg_list[argnum].string;
-		else 
+		else
 			*(int *)p = arg_list[argnum].integer;
 	} else {
 		arg_list[argcnt].type = type;
@@ -212,7 +212,7 @@ static int termcap;
 (UW)	%-x	subtract parameter FROM the character x and output it as a char
 (UW)	%ax	add the character x to parameter
 (GNU)	%a[+*-/=][cp]x
-		GNU arithmetic. 
+		GNU arithmetic.
 (UW)	%sx	subtract parameter FROM the character x
 	%>xy	if parameter > character x then add character y to parameter
 	%B	convert to BCD (parameter = (parameter/10)*16 + parameter%16)
@@ -325,7 +325,7 @@ va_dcl {
 				}
 				;/* FALLTHROUGH */
 			case 'C':
-				if (*sp == 'C') { 
+				if (*sp == 'C') {
 					if (getarg(termcap - 1, INTEGER, &i))
 						return OOPS;
 					if (i >= 96) {
@@ -419,11 +419,11 @@ va_dcl {
 					return OOPS;
 				;/* FALLTHROUGH */
 			case '.':
-				if (termcap && fmt == NULL) 
+				if (termcap && fmt == NULL)
 					fmt = "%c";
 				;/* FALLTHROUGH */
 			case 'd':
-				if (termcap && fmt == NULL) 
+				if (termcap && fmt == NULL)
 					fmt = "%d";
 				;/* FALLTHROUGH */
 			case '2':
@@ -431,7 +431,7 @@ va_dcl {
 					fmt = "%02d";
 				;/* FALLTHROUGH */
 			case '3':
-				if (termcap && fmt == NULL) 
+				if (termcap && fmt == NULL)
 					fmt = "%03d";
 				;/* FALLTHROUGH */
 			case ':': case ' ': case '#': case 'u':
@@ -475,7 +475,7 @@ va_dcl {
 				sp++;
 				fmt = sbuf;
 				while(*fmt != '\0') {
-					if (*fmt == '$') 
+					if (*fmt == '$')
 						*dp++ = '\\';
 					*dp++ = *fmt++;
 				}

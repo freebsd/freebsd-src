@@ -72,7 +72,7 @@ char **argv;
 /*
 * put info in structure, and structure in the item
 */
-	for ( stat = (dbp->seq) (dbp, &res, &item, 1 ); 
+	for ( stat = (dbp->seq) (dbp, &res, &item, 1 );
 	      stat == 0;
 	      stat = (dbp->seq) (dbp, &res, &item, 0 ) ) {
 

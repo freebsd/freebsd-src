@@ -2,16 +2,16 @@
 		      Library for ftpd clients.(libftp)
 			Copyright by Oleg Orel
 			 All rights reserved.
-			
-This  library is desined  for  free,  non-commercial  software  creation. 
-It is changeable and can be improved. The author would greatly appreciate 
+
+This  library is desined  for  free,  non-commercial  software  creation.
+It is changeable and can be improved. The author would greatly appreciate
 any  advises, new  components  and  patches  of  the  existing  programs.
 Commercial  usage is  also  possible  with  participation of it's author.
 
 
 */
 
-  
+
 #ifndef __FTPLIBRARY_H
 #define __FTPLIBRARY_H
 
@@ -43,20 +43,20 @@ extern int errno;
 
 		/* Standard Macros & Definitions */
 
-		
-      
+
+
 #define EXIT(con,e) \
   ( con -> errno = e,  \
     ((e==QUIT||e==LQUIT)&&(con->IO != NULL))?(*(con->IO))(con,e,sys_errlist[errno]):0,\
    ((con->error != NULL) && (e < 0) )?(*(con->error))(con,e,FtpMessage(e)):0,\
    e)
-	
-   
+
+
 #define MAX_ANSWERS 10 /* Number of known goodest answers for reqest */
 #define NFDS 64
 #define FTPBUFSIZ BUFSIZ
 #define LQUIT (-6)
-#define QUIT (-5) /* Few time ago QUIT character been 
+#define QUIT (-5) /* Few time ago QUIT character been
 		     equivalence to zero, changed for clear
 		     conflicts with reading functions */
 #define Ctrl(x) ((x) - '@')
@@ -90,28 +90,28 @@ typedef struct/* All structure initialize from edited struct FtpInit */
   char mode;        /* Binary, Ascii, ......... */
   int errno;        /* Last error code */
   int ch;           /* Help character for ascii streams */
-  
+
   STATUS (*error)();
   STATUS (*debug)();
   STATUS (*IO)();
   STATUS (*hash)(); /* Call with reading/writing next "int" characters
-			 from stream */  
+			 from stream */
   int seek;        /*
 		     Warning! If server not supported REST-command,
 		     then seek variable automaticaly turn to zero
 		   */
-  int flags;       /* FTP_REST, 
+  int flags;       /* FTP_REST,
 		      FTP_NOEXIT */
   struct timeval timeout;
-                   /* How long must be waiting next character 
+                   /* How long must be waiting next character
 		      from server */
   int port;
   String title;    /* Using for FtpLog, FtpConnect lets hostname */
-  unsigned long counter; 
+  unsigned long counter;
                    /* Using by FtpHash */
 } FTP;
 
-typedef struct 
+typedef struct
 {
   struct tm createtime;
   unsigned long size;
@@ -136,7 +136,7 @@ extern FTP FtpInit;
   ((ftp)->timeout.tv_sec=tim,(ftp)->timeout.tv_usec=0)
 #define FtpSetPort(ftp,prt) ((ftp)->port=(prt))
 
-/* Connect & disconnect */ 
+/* Connect & disconnect */
 
 STATUS  FtpConnect(FTP **con,char *hostname);
 #define FtpUser(ftp,user)           FtpCommand(ftp,"USER %s",user,230,331,332,EOF)
@@ -207,7 +207,7 @@ int     FtpNumber ( char * Message );
 /* Debug */
 
 #define FtpSetErrorHandler(con,f) (con)->error = f
-#define FtpSetDebugHandler(con,f) (con)->debug = f 
+#define FtpSetDebugHandler(con,f) (con)->debug = f
 #define FtpSetIOHandler(con,f) (con)->IO =f
 #define FtpSetHashHandler(con,f) (con)->hash =f
 #define FtplibDebug(t) FtpDebug(&FtpInit)
@@ -239,7 +239,7 @@ int     FtpArchie(char *what, ARCHIE *, int number);
 #ifdef __cplusplus
 }
 #endif
-      
+
 
 /* Additional definitions */
 

@@ -8,26 +8,26 @@
  *
  * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_asinhf.c,v 1.2 1994/08/18 23:06:21 jtc Exp $";
+static char rcsid[] = "$Id: s_asinhf.c,v 1.1.1.1 1994/08/19 09:39:57 jkh Exp $";
 #endif
 
 #include "math.h"
 #include "math_private.h"
 
 #ifdef __STDC__
-static const float 
+static const float
 #else
-static float 
+static float
 #endif
 one =  1.0000000000e+00, /* 0x3F800000 */
 ln2 =  6.9314718246e-01, /* 0x3f317218 */
-huge=  1.0000000000e+30; 
+huge=  1.0000000000e+30;
 
 #ifdef __STDC__
 	float asinhf(float x)
@@ -35,7 +35,7 @@ huge=  1.0000000000e+30;
 	float asinhf(x)
 	float x;
 #endif
-{	
+{
 	float t,w;
 	int32_t hx,ix;
 	GET_FLOAT_WORD(hx,x);
@@ -43,7 +43,7 @@ huge=  1.0000000000e+30;
 	if(ix>=0x7f800000) return x+x;	/* x is inf or NaN */
 	if(ix< 0x31800000) {	/* |x|<2**-28 */
 	    if(huge+x>one) return x;	/* return x inexact except 0 */
-	} 
+	}
 	if(ix>0x4d800000) {	/* |x| > 2**28 */
 	    w = __ieee754_logf(fabsf(x))+ln2;
 	} else if (ix>0x40000000) {	/* 2**28 > |x| > 2.0 */
