@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.130 1997/05/22 21:26:11 jkh Exp $
+ * $Id: sysinstall.h,v 1.131 1997/06/05 09:48:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -129,6 +129,7 @@
 #define VAR_MEDIA_TIMEOUT		"MEDIA_TIMEOUT"
 #define VAR_NAMESERVER			"nameserver"
 #define VAR_NETMASK			"netmask"
+#define VAR_NETWORK_DEVICE		"netDev"
 #define VAR_NFS_PATH			"nfs"
 #define VAR_NFS_HOST			"nfsHost"
 #define VAR_NFS_SECURE			"nfsSecure"
