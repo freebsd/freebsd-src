@@ -115,7 +115,6 @@ Boolean			allPrecious;	/* .PRECIOUS given on line by itself */
 
 static Boolean		noBuiltins;	/* -r flag */
 static Lst		makefiles;	/* ordered list of makefiles to read */
-static Boolean		printVars;	/* print value of one or more vars */
 static Boolean		expandVars;	/* fully expand printed variables */
 static Lst		variables;	/* list of variables to print */
 int			maxJobs;	/* -j argument */
@@ -185,7 +184,6 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
 			break;
 		case 'V':
-			printVars = TRUE;
 			(void)Lst_AtEnd(variables, (void *)optarg);
 			Var_Append(MAKEFLAGS, "-V", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
@@ -605,7 +603,6 @@ main(argc, argv)
 	create = Lst_Init(FALSE);
 	makefiles = Lst_Init(FALSE);
 	envFirstVars = Lst_Init(FALSE);
-	printVars = FALSE;
 	expandVars = TRUE;
 	variables = Lst_Init(FALSE);
 	beSilent = FALSE;		/* Print commands as executed */
@@ -814,7 +811,7 @@ main(argc, argv)
 		Targ_PrintGraph(1);
 
 	/* print the values of any variables requested by the user */
-	if (printVars) {
+	if (!Lst_IsEmpty(variables)) {
 		LstNode ln;
 
 		for (ln = Lst_First(variables); ln != NULL;
@@ -833,40 +830,41 @@ main(argc, argv)
 			if (p1)
 				free(p1);
 		}
-	}
+	} else {
 
-	/*
-	 * Have now read the entire graph and need to make a list of targets
-	 * to create. If none was given on the command line, we consult the
-	 * parsing module to find the main target(s) to create.
-	 */
-	if (Lst_IsEmpty(create))
-		targs = Parse_MainName();
-	else
-		targs = Targ_FindList(create, TARG_CREATE);
-
-	if (!compatMake && !printVars) {
 		/*
-		 * Initialize job module before traversing the graph, now that
-		 * any .BEGIN and .END targets have been read.  This is done
-		 * only if the -q flag wasn't given (to prevent the .BEGIN from
-		 * being executed should it exist).
+		 * Have now read the entire graph and need to make a list of targets
+		 * to create. If none was given on the command line, we consult the
+		 * parsing module to find the main target(s) to create.
 		 */
-		if (!queryFlag) {
-			if (maxLocal == -1)
-				maxLocal = maxJobs;
-			Job_Init(maxJobs, maxLocal);
-			jobsRunning = TRUE;
+		if (Lst_IsEmpty(create))
+			targs = Parse_MainName();
+		else
+			targs = Targ_FindList(create, TARG_CREATE);
+
+		if (!compatMake) {
+			/*
+			 * Initialize job module before traversing the graph, now that
+			 * any .BEGIN and .END targets have been read.  This is done
+			 * only if the -q flag wasn't given (to prevent the .BEGIN from
+			 * being executed should it exist).
+			 */
+			if (!queryFlag) {
+				if (maxLocal == -1)
+					maxLocal = maxJobs;
+				Job_Init(maxJobs, maxLocal);
+				jobsRunning = TRUE;
+			}
+
+			/* Traverse the graph, checking on all the targets */
+			outOfDate = Make_Run(targs);
+		} else {
+			/*
+			 * Compat_Init will take care of creating all the targets as
+			 * well as initializing the module.
+			 */
+			Compat_Run(targs);
 		}
-
-		/* Traverse the graph, checking on all the targets */
-		outOfDate = Make_Run(targs);
-	} else if (!printVars) {
-		/*
-		 * Compat_Init will take care of creating all the targets as
-		 * well as initializing the module.
-		 */
-		Compat_Run(targs);
 	}
 
 	Lst_Destroy(targs, NOFREE);
