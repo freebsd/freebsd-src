@@ -497,3 +497,4 @@
 356	STD	BSD	{ int extattr_set_file(char *path, char *attrname, struct iovec *iovp, u_int iovcnt); }
 357	STD	BSD	{ int extattr_get_file(char *path, char *attrname, struct iovec *iovp, u_int iovcnt); }
 358	STD	BSD	{ int extattr_delete_file(char *path, char *attrname); }
+359	STD	BSD	{ int aio_waitcomplete(struct aiocb **aiocbp, struct timespec *timeout); }

@@ -22,6 +22,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/signal.h>
+#include <sys/socketvar.h>
 
 /*
  * Returned by aio_cancel:
@@ -95,12 +96,12 @@ __BEGIN_DECLS
 /*
  * Asynchronously read from a file
  */
-int aio_read(struct aiocb *);
+int	aio_read(struct aiocb *);
 
 /*
  * Asynchronously write to file
  */
-int aio_write(struct aiocb *);
+int	aio_write(struct aiocb *);
 
 /*
  * List I/O Asynchronously/synchronously read/write to/from file
@@ -108,14 +109,14 @@ int aio_write(struct aiocb *);
  *	"acb_list" is an array of "nacb_listent" I/O control blocks.
  *	when all I/Os are complete, the optional signal "sig" is sent.
  */
-int lio_listio(int, struct aiocb * const [], int, struct sigevent *);
+int	lio_listio(int, struct aiocb * const [], int, struct sigevent *);
 
 /*
  * Get completion status
  *	returns EINPROGRESS until I/O is complete.
  *	this routine does not block.
  */
-int aio_error(const struct aiocb *);
+int	aio_error(const struct aiocb *);
 
 /*
  * Finish up I/O, releasing I/O resources and returns the value
@@ -123,31 +124,57 @@ int aio_error(const struct aiocb *);
  *	This routine must be called once and only once for each
  *	I/O control block who has had I/O associated with it.
  */
-ssize_t aio_return(struct aiocb *);
+ssize_t	aio_return(struct aiocb *);
 
 /*
  * Cancel I/O -- implemented only to return AIO_NOTCANCELLED or
  *	AIO_ALLDONE.  No cancellation operation will occur.
  */
-int aio_cancel(int, struct aiocb *);
+int	aio_cancel(int, struct aiocb *);
 
 /*
  * Suspend until all specified I/O or timeout is complete.
  */
-int aio_suspend(const struct aiocb * const[], int, const struct timespec *);
+int	aio_suspend(const struct aiocb * const[], int, const struct timespec *);
 
 /*
  * Retrieve the status of the specified I/O request.
  */
-int aio_error(const struct aiocb *);
+int	aio_error(const struct aiocb *);
+
+int	aio_waitcomplete(struct aiocb **, struct timespec *);
 
 __END_DECLS
 
 #else
+/*
+ * Job queue item
+ */
+
+#define AIOCBLIST_CANCELLED     0x1
+#define AIOCBLIST_RUNDOWN       0x4
+#define AIOCBLIST_ASYNCFREE     0x8
+#define AIOCBLIST_DONE          0x10
+
+struct aiocblist {
+        TAILQ_ENTRY	(aiocblist) list;	/* List of jobs */
+        TAILQ_ENTRY	(aiocblist) plist;	/* List of jobs for proc */
+        int	jobflags;
+        int	jobstate;
+        int	inputcharge, outputcharge;
+        struct	buf *bp;		/* Buffer pointer */
+        struct	proc *userproc;		/* User process */
+        struct	file *fd_file;		/* Pointer to file structure */ 
+	struct	aioproclist *jobaioproc;/* AIO process descriptor */
+        struct	aio_liojob *lio;	/* Optional lio job */
+        struct	aiocb *uuaiocb;		/* Pointer in userspace of aiocb */
+        struct	aiocb uaiocb;		/* Kernel I/O control block */
+};
 
 void	aio_proc_rundown(struct proc *p);
 
-#endif
+void	aio_swake(struct socket *, struct sockbuf *);
 
 #endif
 
+#endif
