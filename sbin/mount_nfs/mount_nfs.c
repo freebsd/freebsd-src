@@ -771,16 +771,17 @@ nfs_tryproto(struct nfs_args *nfsargsp, struct addrinfo *ai, char *hostp,
 	}
 	/* The RPCPROG_MNT netid may be different. */
 	if (mnttcp_ok) {
+		netid_mnt = netid;
 		nconf_mnt = nconf;
 	} else {
 		netid_mnt = (ai->ai_family == AF_INET6) ? "udp6" : "udp";
-		if ((nconf_mnt = getnetconfigent(netid)) == NULL) {
-			snprintf(errbuf, sizeof errbuf, "%s: %s", netid,
+		if ((nconf_mnt = getnetconfigent(netid_mnt)) == NULL) {
+			snprintf(errbuf, sizeof errbuf, "%s: %s", netid_mnt,
 			    nc_sperror());
 			return (TRYRET_LOCALERR);
 		}
 	}
-	
+
 tryagain:
 	if (trymntmode == V2) {
 		nfsvers = 2;
@@ -846,7 +847,7 @@ tryagain:
 	try.tv_usec = 0;
 	clp = clnt_tp_create(hostp, RPCPROG_MNT, mntvers, nconf_mnt);
 	if (clp == NULL) {
-		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid,
+		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid_mnt,
 		    hostp, spec, clnt_spcreateerror("RPCMNT: clnt_create"));
 		return (returncode(rpc_createerr.cf_stat,
 		    &rpc_createerr.cf_error));
@@ -867,7 +868,7 @@ tryagain:
 			goto tryagain;
 		}
 		clnt_geterr(clp, &rpcerr);
-		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid,
+		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid_mnt,
 		    hostp, spec, clnt_sperror(clp, "RPCPROG_MNT"));
 		clnt_destroy(clp);
 		return (returncode(stat, &rpcerr));
@@ -875,7 +876,7 @@ tryagain:
 	clnt_destroy(clp);
 
 	if (nfhret.stat != 0) {
-		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid,
+		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid_mnt,
 		    hostp, spec, strerror(nfhret.stat));
 		return (TRYRET_REMOTEERR);
 	}
