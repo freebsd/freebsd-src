@@ -726,14 +726,6 @@ options 	MD_ROOT_SIZE=10
 # images of type mfs_root or md_root.
 options 	MD_ROOT
 
-# Allow this many swap-devices.
-#
-# In order to manage swap, the system must reserve bitmap space that
-# scales with the largest mounted swap device multiplied by NSWAPDEV, 
-# irrespective of whether other swap devices exist.  So it is not a
-# good idea to make this value too large.
-options 	NSWAPDEV=5
-
 # Disk quotas are supported when this option is enabled.
 options 	QUOTA			#enable disk quotas
 
