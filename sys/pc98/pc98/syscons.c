@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.71 1998/01/12 15:38:20 kato Exp $
+ *  $Id: syscons.c,v 1.72 1998/01/12 15:41:16 kato Exp $
  */
 
 #include "sc.h"
@@ -105,6 +105,23 @@
 
 #define MODE_MAP_SIZE		(M_VGA_CG320 + 1)
 #define MODE_PARAM_SIZE		64
+
+/* for backward compatibility */
+#define OLD_CONS_MOUSECTL	_IOWR('c', 10, old_mouse_info_t)
+
+typedef struct old_mouse_data {
+    int x;
+    int y;
+    int buttons;
+} old_mouse_data_t;
+
+typedef struct old_mouse_info {
+    int operation;
+    union {
+	struct old_mouse_data data;
+	struct mouse_mode mode;
+    } u;
+} old_mouse_info_t;
 
 /* XXX use sc_bcopy where video memory is concerned */
 #define sc_bcopy generic_bcopy
@@ -1222,6 +1239,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return EINVAL;
 
     case CONS_MOUSECTL:		/* control mouse arrow */
+    case OLD_CONS_MOUSECTL:
     {
 	/* MOUSE_BUTTON?DOWN -> MOUSE_MSC_BUTTON?UP */
 	static butmap[8] = {
@@ -1236,10 +1254,42 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
             0,
 	};
 	mouse_info_t *mouse = (mouse_info_t*)data;
+	mouse_info_t buf;
 
 	if (!crtc_vga)
 	    return ENODEV;
 	
+	if (cmd == OLD_CONS_MOUSECTL) {
+	    static unsigned char swapb[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+	    old_mouse_info_t *old_mouse = (old_mouse_info_t *)data;
+
+	    mouse = &buf;
+	    mouse->operation = old_mouse->operation;
+	    switch (mouse->operation) {
+	    case MOUSE_MODE:
+		mouse->u.mode = old_mouse->u.mode;
+		break;
+	    case MOUSE_SHOW:
+	    case MOUSE_HIDE:
+		break;
+	    case MOUSE_MOVEABS:
+	    case MOUSE_MOVEREL:
+	    case MOUSE_ACTION:
+		mouse->u.data.x = old_mouse->u.data.x;
+		mouse->u.data.y = old_mouse->u.data.y;
+		mouse->u.data.z = 0;
+		mouse->u.data.buttons = swapb[old_mouse->u.data.buttons & 0x7];
+		break;
+	    case MOUSE_GETINFO:
+		old_mouse->u.data.x = scp->mouse_xpos;
+		old_mouse->u.data.y = scp->mouse_ypos;
+		old_mouse->u.data.buttons = swapb[scp->mouse_buttons & 0x7];
+		break;
+	    default:
+		return EINVAL;
+	    }
+	}
+
 	switch (mouse->operation) {
 	case MOUSE_MODE:
 	    if (ISSIGVALID(mouse->u.mode.signal)) {
