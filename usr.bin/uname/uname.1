@@ -32,7 +32,7 @@
 .\"	@(#)uname.1	8.3 (Berkeley) 4/8/94
 .\" $FreeBSD$
 .\"
-.Dd April 8, 1994
+.Dd January 14, 2002
 .Dt UNAME 1
 .Os
 .Sh NAME
@@ -50,13 +50,10 @@ When options are specified, strings representing one or more system
 characteristics are written to standard output.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a
 Behave as though the options
-.Fl m ,
-.Fl n ,
-.Fl r ,
-.Fl s ,
+.Fl m , n , r , s ,
 and
 .Fl v
 were specified.
@@ -89,8 +86,7 @@ output is written on a single line, separated by spaces.
 .Sh HISTORY
 The
 .Nm
-command appeared in
-.Bx 4.4 .
+command appeared in PWB UNIX.
 .Sh STANDARDS
 The
 .Nm
