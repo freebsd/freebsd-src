@@ -581,6 +581,7 @@ static int cue_detach(dev)
 
 	sc->cue_gone = 1;
 	untimeout(cue_tick, sc, sc->cue_stat_ch);
+	bpfdetach(ifp);
 	if_detach(ifp);
 
 	if (sc->cue_ep[CUE_ENDPT_TX] != NULL)
