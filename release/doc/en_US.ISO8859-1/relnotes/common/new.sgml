@@ -87,54 +87,39 @@
     advisories for the base system that were issued after
     &release.prev; are also listed.</para>
 
+  <sect2 id="security">
+    <title>Security Advisories</title>
+
+    <para>A remotely-exploitable buffer overflow vulnerability in
+      <application>sendmail</application> has been fixed.  For more
+      details, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>.
+      In &os; &release.prev;, this vulnerability was fixed using a
+      vendor-supplied patch (but too late for inclusion in the release
+      notes).  In &os; &release.current;, it has been fixed with the
+      import of a new version of
+      <application>sendmail</application>.</para>
+
+  </sect2>
+
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para>A new in-kernel cryptographic framework (see &man.crypto.4;
-      and &man.crypto.9;) has been imported from OpenBSD.  It provides
-      a consistent interface to hardware and software implementations
-      of cryptographic algorithms for use by the kernel and access to
-      cryptographic hardware for user-mode applications.
-      Hardware device drivers are provided to support hifn-based cards
-      (&man.hifn.4;) and Broadcom-based cards (&man.ubsec.4;).</para>
-
-    <para arch="i386,pc98">Initial support has been added for
-      FireWire devices (see &man.firewire.4;).</para>
-
-    <para arch="i386,pc98">Support for the CanBe power management
-      controller has been added.</para>
-
-    <para arch="i386,pc98">The ubsa driver has been added to support
-      the Belkin F5U103 (and compatible) USB-to-serial adaptors.</para>
-
-    <para>The &man.uftdi.4; driver, to support FTDI USB-to-serial
-      devices, has been added.</para>
+    <para></para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3>
       <title>Processor/Motherboard Support</title>
 
-      <para arch="i386">&os; now has rudimentary support for
-	HyperThreading (HTT).  SMP kernels with the
-	<literal>HTT</literal> kernel option will detect and start up
-	the logical processors on HTT-capable machines.  The logical
-	processors will be treated like additional physical processors
-	for the purposes of process scheduling.</para>
- 
-      <para arch="alpha">Users of AlphaServer 8200 and 8400
-        TurboLaser machines must explicitly enable &man.getty.8; for the
-        serial console line after installation.  If this is not done,
-        the system might appear hung as it will not output a login
-        prompt.  (See the <literal>zs0</literal> line in <filename>/etc/ttys</filename>.)</para>
+      <para></para>
 
     </sect3>
 
     <sect3>
       <title>Boot Loaders</title>
 
-      <para arch="i386,pc98">The PC98 bootloader now has support for
-        booting from SCSI MO media.</para>
+      <para></para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
 
@@ -143,10 +128,7 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para>The cm driver now supports IPX.</para>
-
-      <para>The &man.nge.4; driver now supports network device
-	&man.polling.4;.</para>
+      <para></para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
@@ -155,64 +137,14 @@
     <sect3>
       <title>Network Protocols</title>
 
-      <para>A <literal>FAST_IPSEC</literal> kernel option now allows
-        the IPsec implementation to use the kernel &man.crypto.4; framework,
-        along with its support for hardware cryptographic
-        acceleration.  More information can be found in the
-        &man.fast.ipsec.4; manual page.
-
-        <note>
-          <para>The <literal>FAST_IPSEC</literal> and
-            <literal>IPSEC</literal> options are mutually
-            exclusive.</para>
-	</note>
-
-        <note>
-          <para>The <literal>FAST_IPSEC</literal> option is, at the
-            moment, not compatible with IPv6 or the
-            <literal>INET6</literal> option.</para>
-	</note>
-
-	</para>
-
-      <para>A &man.gre.4; driver, which can encapsulate IP packets
-        using GRE (RFC 1701) or minimal IP encapsulation for Mobile IP
-        (RFC 2004), has been added.</para>
-
-      <para>A bug in TCP NewReno, which caused premature exit from
-	fast recovery with NewReno enabled, has been
-	fixed.</para>
-
-      <para>The IP fragment reassembly code behaves more gracefully
-	when receiving a large number of packet fragments (it is
-	designed to be more resistant to fragment-based denial of
-	service attacks).</para>
+      <para></para>
 
     </sect3>
 
     <sect3>
       <title>Disks and Storage</title>
 
-      <para>The &man.ata.4; driver now supports accessing ATA devices
-        as SCSI devices via the CAM layer and drivers (&man.cd.4;,
-        &man.da.4;, &man.st.4;, and &man.pass.4;).  This feature requires
-        <literal>device atapicam</literal> in the kernel
-        configuration.  More information can be found in
-        &man.atapicam.4;.</para>
-
-      <para arch="i386,pc98">The &man.matcd.4; driver has been removed
-        due to concerns over its licensing terms.  These
-        issues are being addressed and this driver may reappear in a
-        future release of &os;.  (This removal actually occurred in
-        &release.prev;, but was not mentioned in the release
-        notes.)</para>
-
-      <para>The &man.targ.4; driver has been rewritten and a new
-	usermode has been added to <filename>/usr/share/examples/scsi_target</filename> that
-	emulates a direct access device.</para>
-
-      <para>The trm driver has been added to support SCSI adapters
-        using the Tekram TRM-S1040 SCSI chipset.</para>
+      <para></para>
 
     </sect3>
 
@@ -240,224 +172,30 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>IPFilter</application> has been updated to
-	3.4.31.</para>
+      <para></para>
+
     </sect3>
-  </sect2>
-
-  <sect2 id="security">
-    <title>Security Advisories</title>
-
-    <para>Buffer overflows in kadmind(8) and k5admin have been
-      corrected.  More details can be found in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">FreeBSD-SA-02:40</ulink>.</para>
-
-    <para>Multiple vulnerabilities in <application>BIND</application>
-      have been fixed, as described in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
-
-    <para>A file descriptor leak in the &man.fpathconf.2; system call,
-      which could allow a local user to crash the system or
-      cause a privilege escalation, has been fixed.  More details can
-      be found in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink>.</para>
-
-    <para>A remotely exploitable vulnerability in
-      <application>CVS</application> has been corrected with the
-      import of version 1.11.5.  More details can be found in security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.</para>
-
-    <para>A timing-based attack on <application>OpenSSL</application>,
-      which could allow a very powerful attacker access to plaintext
-      under certain circumstances, has been prevented via an upgrade
-      to <application>OpenSSL</application> 0.9.7.  See security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
-      for more details.</para>
-
-    <para>The security and performance of the
-      <quote>syncookies</quote> feature has been improved to decrease
-      the chance of an attacker being able to spoof connections.
-      More details are given in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>.</para>
-
-    <para>A remotely-exploitable buffer overflow vulnerability in
-      <application>sendmail</application> has been fixed by updating
-      <application>sendmail</application> to version 8.12.8.  For more
-      details, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>.</para>
-
-    <para>A bounds-checking bug in the XDR implementation, which could
-      allow a remote attacker to cause a denial-of-service, has been
-      fixed.  For more details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>.</para>
-
-    <para>Two recently-publicized flaws in
-      <application>OpenSSL</application> have been corrected.  For
-      more details, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.</para>
-
   </sect2>
 
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>&man.burncd.8; now accepts a value of <literal>max</literal>
-      for its <option>-s</option> option to set the drive's maximum
-      write speed.</para>
-
-    <para>&man.cdcontrol.1; now supports a
-      <literal>speed</literal> command to set the maximum speed to be
-      used by the drive (the maximum possible speed can be selected
-      setting the speed to <literal>max</literal>).</para>
-
-    <para arch="alpha,i386">The <filename>compat4x</filename>
-      distribution now includes the
-      <filename>libcrypto.so.2</filename> and
-      <filename>libssl.so.2</filename> libraries from &os;
-      4.7-RELEASE.</para>
-
-    <para>The &man.fwcontrol.8; utility has been added to help users
-      access and control the FireWire subsystem.</para>
-
-    <para>&man.ftpd.8; now supports a <option>-h</option> option to
-      disable printing any host-specific information, such as the
-      &man.ftpd.8; version or hostname, in server messages.</para>
-
-    <para>&man.ftpd.8; now supports a <option>-P</option> option to
-      specify a port on which to listen in daemon mode.  The default
-      data port number is now set to be one less than the control port
-      number, rather than being hard-coded.</para>
-
-    <para>&man.ftpd.8; now supports an extended format of the
-      <filename>/etc/ftpchroot</filename> file.  Please refer
-      to the &man.ftpchroot.5; manpage, which is now available,
-      for details.</para>
-
-    <para>&man.ftpd.8; now supports login directory pathnames
-      that specify simultaneously a directory for &man.chroot.2;
-      and that to change to in the chrooted environment.  The
-      <literal>/./</literal> separator is used for
-      this purpose, like in other FTP daemons having this feature.
-      It may be used in both &man.ftpchroot.5; and &man.passwd.5;.</para>
-
-    <para>The &man.getconf.1; utility has been added.  It prints the
-      values of POSIX or X/Open path or system configuration
-      variables.</para>
-
-    <para>&man.ipfw.8; now supports <literal>enable</literal> and
-      <literal>disable</literal> commands to control various aspects
-      of the operation of &man.ipfw.4; (including enabling and
-      disabling the firewall itself).  These provide a more convenient
-      and visible interface than the existing sysctl
-      variables.</para>
-
-    <para>&man.make.1; now supports a <option>-C</option> flag to
-      change to a given directory before building its
-      target(s).</para>
-
-    <para>&man.mount.nfs.8; now supports a <option>-c</option> to
-      avoid doing a &man.connect.2; for UDP mount points.  This option
-      must be used if the server does not reply to requests from the
-      standard NFS port number 2049 or if it replies to requests using
-      a different IP address (which can occur if the server is
-      multi-homed).  Setting the
-      <varname>vfs.nfs.nfs_ip_paranoia</varname> sysctl to
-      <literal>0</literal> will make this option the
-      default.</para>
-
-    <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
-      to force previously-started compression jobs for an entry (or
-      group of entries specified with the <literal>G</literal> flag)
-      to finish before beginning a new one.  This feature is designed
-      to prevent system overloads caused by starting several
-      compression jobs on big files simultaneously.</para>
-
-    <para>The &man.pathchk.1; utility, which checks pathnames for
-      validity or portability between POSIX systems, has been
-      added.</para>
-
-    <para>&man.pw.8; can now add a user whose name ends with a
-      <literal>$</literal> character; this change is intended to help
-      administration of <application>Samba</application>
-      services.</para>
-
-    <para>&man.rarpd.8; now accepts a <option>-t</option> flag to
-      specify an alternative directory to
-      <filename>/tftpboot</filename>.</para>
-
-    <para>The base64 capabilities of &man.uuencode.1; and
-      &man.uudecode.1; can now be automatically enabled by invoking
-      these utilities as &man.b64encode.1; and &man.b64decode.1;
-      respectively.</para>
+    <para></para>
 
 <!-- Above this line, order userland changes by manpage/variable name-->
-
-    <para>The definitions of the standard file streams
-      (<varname>stdin</varname>, <varname>stdout</varname>, and
-      <varname>stderr</varname>) have changed so that they are no
-      longer compile-time constants.  Some older binaries may require
-      updated 3.X compatability libraries (for example, by setting
-      <literal>COMPAT3X=yes</literal> for a
-      buildworld/installworld).</para>
 
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>BIND</application> has been updated to
-        version 8.3.4.</para>
-
-      <para>All of the <application>bzip2</application> suite of
-        applications is now installed in the base system (in
-        particular, <command>bzip2recover</command> is now built and
-        installed).</para>
-
-      <para><application>CVS</application> has been updated to
-	1.11.5.</para>
-
-      <para><application>FILE</application> has been updated to
-	3.41.</para>
-
-      <para><application>groff</application> and its related utilities
-	have been updated to FSF version 1.18.1.</para>
-
-      <para><application>Heimdal Kerberos</application> has been updated to
-	0.5.1.</para>
-
-      <para>The <application>ISC DHCP</application> client has been
-	updated to 3.0.1RC11.</para>
-
-      <para><application>libz</application> has been updated to
-	1.1.4.</para>
-
-      <para><application>OpenSSH</application> has been updated to
-        3.5p1.</para>
-
-      <para><application>OpenSSL</application> has been updated to
-        release 0.9.7a.  Among other features, this release includes
-        support for AES and takes advantage of &man.crypto.4;
-        devices.</para>
-
       <para><application>sendmail</application> has been updated to
-        version 8.12.8.</para>
-
-      <para><application>tcpdump</application> has been updated to
-	version 3.7.2.</para>
-
-      <para>The timezone database has been updated to the
-	<filename>tzdata2002d</filename> release.</para>
+        version 8.12.9.</para>
 
     </sect3>
 
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para>The one-line <filename>pkg-comment</filename> files have
-        been eliminated from each port skeleton; their contents have
-        been moved into each port's <filename>Makefile</filename>.
-        This change reduces the disk space and inodes used by the
-        ports tree.</para>
+      <para></para>
 
     </sect3>
   </sect2>
@@ -465,14 +203,7 @@
   <sect2>
     <title>Release Engineering and Integration</title>
 
-    <para>The supported release of <application>GNOME</application>
-      has been updated to 2.2.</para>
-
-    <para>The supported release of <application>KDE</application>
-      has been updated to 3.1.</para>
-
-    <para>The supported release of <application>XFree86</application>
-      has been updated to 4.3.0.</para>
+    <para></para>
 
   </sect2>
 </sect1>
