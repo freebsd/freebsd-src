@@ -69,8 +69,6 @@ KTRACE
 LIBICONV
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
-MFS_ROOT	opt_mfs.h
-MFS_ROOT_SIZE	opt_mfs.h
 NTIMECOUNTER	opt_ntp.h
 NSWAPDEV	opt_swap.h
 PPS_SYNC	opt_ntp.h
@@ -123,7 +121,6 @@ FDESCFS		opt_dontuse.h
 FFS		opt_dontuse.h
 IFS		opt_dontuse.h
 LINPROCFS	opt_dontuse.h
-MFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 NWFS		opt_dontuse.h
