@@ -651,6 +651,7 @@ includes:
 	cd ${.CURDIR}/lib/libcam;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libdisk;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libfetch;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libftpio;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libkvm;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd;		${MAKE} beforeinstall
