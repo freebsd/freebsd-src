@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1996/08/29 19:33:03 peter Exp $
+# $Id$
 #
 # This file is generated automatically, do not edit it here!
 #
@@ -19,7 +19,7 @@ CFLAGS+=  -I${TCLDIST}/unix
 
 TCL_LIBRARY=	/usr/libdata/tcl
 SHLIB_MAJOR=	75
-SHLIB_MINOR=	0
+SHLIB_MINOR=	1
 
 LIB=    tcl
 
@@ -79,27 +79,30 @@ MANn+=	Tcl.n after.n append.n array.n bgerror.n break.n case.n catch.n \
 	switch.n tclvars.n tell.n time.n trace.n unknown.n unset.n \
 	update.n uplevel.n upvar.n vwait.n while.n
 
-MAN3+=	Tcl_AddErrorInfo.3 Tcl_AllowExceptions.3 Tcl_AppInit.3 \
-	Tcl_GetAssocData.3 Tcl_AsyncCreate.3 Tcl_BackgroundError.3 \
-	Tcl_Backslash.3 Tcl_CallWhenDeleted.3 Tcl_CommandComplete.3 \
-	Tcl_Concat.3 Tcl_CreateChannel.3 Tcl_CreateChannelHandler.3 \
-	Tcl_CreateCloseHandler.3 Tcl_CreateCommand.3 \
-	Tcl_CreateFileHandler.3 Tcl_CreateInterp.3 Tcl_CreateMathFunc.3 \
-	Tcl_CreateModalTimeout.3 Tcl_IsSafe.3 Tcl_CreateTimerHandler.3 \
-	Tcl_CreateTrace.3 Tcl_DStringInit.3 Tcl_DetachPids.3 \
-	Tcl_DoOneEvent.3 Tcl_DoWhenIdle.3 Tcl_Eval.3 Tcl_Exit.3 \
-	Tcl_ExprLong.3 Tcl_FindExecutable.3 Tcl_GetFile.3 Tcl_GetInt.3 \
-	Tcl_GetOpenFile.3 Tcl_GetStdChannel.3 Tcl_InitHashTable.3 \
-	Tcl_Interp.3 Tcl_LinkVar.3 Tcl_CreateEventSource.3 \
-	Tcl_OpenFileChannel.3 Tcl_OpenTcpClient.3 Tcl_PkgRequire.3 \
-	Tcl_Preserve.3 Tcl_PrintDouble.3 Tcl_RecordAndEval.3 \
-	Tcl_RegExpMatch.3 Tcl_SetErrno.3 Tcl_SetRecursionLimit.3 \
-	Tcl_SetResult.3 Tcl_SetVar.3 Tcl_Sleep.3 Tcl_SplitList.3 \
-	Tcl_StaticPackage.3 Tcl_StringMatch.3 Tcl_Main.3 Tcl_TraceVar.3 \
+MAN3+=	Tcl_AddErrorInfo.3 Tcl_Alloc.3 Tcl_AllowExceptions.3 \
+	Tcl_AppInit.3 Tcl_GetAssocData.3 Tcl_AsyncCreate.3 \
+	Tcl_BackgroundError.3 Tcl_Backslash.3 Tcl_CallWhenDeleted.3 \
+	Tcl_CommandComplete.3 Tcl_Concat.3 Tcl_CreateChannel.3 \
+	Tcl_CreateChannelHandler.3 Tcl_CreateCloseHandler.3 \
+	Tcl_CreateCommand.3 Tcl_CreateFileHandler.3 Tcl_CreateInterp.3 \
+	Tcl_CreateMathFunc.3 Tcl_CreateModalTimeout.3 Tcl_IsSafe.3 \
+	Tcl_CreateTimerHandler.3 Tcl_CreateTrace.3 Tcl_DStringInit.3 \
+	Tcl_DetachPids.3 Tcl_DoOneEvent.3 Tcl_DoWhenIdle.3 Tcl_Eval.3 \
+	Tcl_Exit.3 Tcl_ExprLong.3 Tcl_FindExecutable.3 Tcl_GetFile.3 \
+	Tcl_GetInt.3 Tcl_GetOpenFile.3 Tcl_GetStdChannel.3 \
+	Tcl_InitHashTable.3 Tcl_Interp.3 Tcl_LinkVar.3 \
+	Tcl_CreateEventSource.3 Tcl_OpenFileChannel.3 Tcl_OpenTcpClient.3 \
+	Tcl_PkgRequire.3 Tcl_Preserve.3 Tcl_PrintDouble.3 \
+	Tcl_RecordAndEval.3 Tcl_RegExpMatch.3 Tcl_SetErrno.3 \
+	Tcl_SetRecursionLimit.3 Tcl_SetResult.3 Tcl_SetVar.3 Tcl_Sleep.3 \
+	Tcl_SplitList.3 Tcl_SplitPath.3 Tcl_StaticPackage.3 \
+	Tcl_StringMatch.3 Tcl_Main.3 Tcl_TraceVar.3 \
 	Tcl_TranslateFileName.3 Tcl_UpVar.3
 
 MLINKS+= Tcl_AddErrorInfo.3 Tcl_SetErrorCode.3 
 MLINKS+= Tcl_AddErrorInfo.3 Tcl_PosixError.3 
+MLINKS+= Tcl_Alloc.3 Tcl_Free.3 
+MLINKS+= Tcl_Alloc.3 Tcl_Realloc.3 
 MLINKS+= Tcl_GetAssocData.3 Tcl_SetAssocData.3 
 MLINKS+= Tcl_GetAssocData.3 Tcl_DeleteAssocData.3 
 MLINKS+= Tcl_AsyncCreate.3 Tcl_AsyncMark.3 
@@ -206,6 +209,8 @@ MLINKS+= Tcl_SetVar.3 Tcl_UnsetVar2.3
 MLINKS+= Tcl_SplitList.3 Tcl_Merge.3 
 MLINKS+= Tcl_SplitList.3 Tcl_ScanElement.3 
 MLINKS+= Tcl_SplitList.3 Tcl_ConvertElement.3 
+MLINKS+= Tcl_SplitPath.3 Tcl_JoinPath.3 
+MLINKS+= Tcl_SplitPath.3 Tcl_GetPathType.3 
 MLINKS+= Tcl_TraceVar.3 Tcl_TraceVar2.3 
 MLINKS+= Tcl_TraceVar.3 Tcl_UntraceVar.3 
 MLINKS+= Tcl_TraceVar.3 Tcl_UntraceVar2.3 
@@ -217,6 +222,9 @@ MLINKS+= Tcl_UpVar.3 Tcl_UpVar2.3
 
 
 Tcl_AddErrorInfo.3: ${TCLDIST}/doc/AddErrInfo.3
+	ln -s ${.ALLSRC} ${.TARGET}
+
+Tcl_Alloc.3: ${TCLDIST}/doc/Alloc.3
 	ln -s ${.ALLSRC} ${.TARGET}
 
 Tcl_AllowExceptions.3: ${TCLDIST}/doc/AllowExc.3
@@ -364,6 +372,9 @@ Tcl_Sleep.3: ${TCLDIST}/doc/Sleep.3
 	ln -s ${.ALLSRC} ${.TARGET}
 
 Tcl_SplitList.3: ${TCLDIST}/doc/SplitList.3
+	ln -s ${.ALLSRC} ${.TARGET}
+
+Tcl_SplitPath.3: ${TCLDIST}/doc/SplitPath.3
 	ln -s ${.ALLSRC} ${.TARGET}
 
 Tcl_StaticPackage.3: ${TCLDIST}/doc/StaticPkg.3
