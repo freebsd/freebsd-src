@@ -287,7 +287,7 @@ dev/awi/if_awi_pccard.c	optional awi pccard
 dev/bge/if_bge.c	optional bge
 dev/bktr/bktr_audio.c	optional bktr pci
 dev/bktr/bktr_card.c	optional bktr pci
-dev/bktr/bktr_core.c	count bktr pci
+dev/bktr/bktr_core.c	optional bktr pci
 dev/bktr/bktr_i2c.c	optional bktr pci smbus
 dev/bktr/bktr_os.c	optional bktr pci
 dev/bktr/bktr_tuner.c	optional bktr pci
@@ -529,7 +529,7 @@ dev/sio/sio_puc.c	optional sio puc pci
 dev/smbus/smbus_if.m	optional smbus
 dev/smbus/smb.c		optional smb
 dev/smbus/smbconf.c	optional smbus
-dev/smbus/smbus.c	count smbus
+dev/smbus/smbus.c	optional smbus
 dev/sn/if_sn.c		optional sn
 dev/sn/if_sn_isa.c	optional sn isa
 dev/sn/if_sn_pccard.c	optional sn card
