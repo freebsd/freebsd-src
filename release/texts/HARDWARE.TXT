@@ -965,6 +965,7 @@ Genius and Mustek hand scanners.
 Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
 3COM 3crwe737A AirConnect Wireless LAN PC Card
+Addtron AWA100
 Cabletron RoamAbout 802.11 DS
 Compaq WL100
 Corega KK Wireless LAN PCC-11, PCCA-11
