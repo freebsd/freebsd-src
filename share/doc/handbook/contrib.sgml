@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.14 1995/08/31 15:15:17 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.15 1995/09/08 10:13:12 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -58,7 +58,6 @@
 	<item>Justin Gibbs &lt;gibbs@FreeBSD.org&gt;
 	<item>Poul-Henning Kamp &lt;phk@FreeBSD.org&gt;
 	<item>Rich Murphey &lt;rich@FreeBSD.org&gt;
-	<item>Rodney W. Grimes &lt;rgrimes@FreeBSD.org&gt;
 	<item>Satoshi Asami &lt;asami@FreeBSD.org&gt;
 	<item>S&oslash;ren Schmidt &lt;sos@FreeBSD.org&gt;
       </itemize>
@@ -174,6 +173,7 @@
 	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
 	  <item>Rob Shady &lt;rls@id.net&gt;
 	  <item>Rob Snow &lt;rsnow@txdirect.net&gt;
+	  <item>Rodney W. Grimes &lt;rgrimes@FreeBSD.org&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Mace &lt;smace@FreeBSD.org&gt;
 	  <item>Sean Eric Fagan &lt;sef@kithrup.com&gt;
