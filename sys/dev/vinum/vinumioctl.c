@@ -389,6 +389,10 @@ vinumioctl(dev_t dev,
 	    *(off_t *)data = vol->size << DEV_BSHIFT;
 	    break;
 
+	case DIOCGDINFO:				    /* get disk label */
+	    get_volume_label(vol->name, 1, vol->size, (struct disklabel *) data);
+	    break;
+
 	case DIOCGSECTORSIZE:
 	    *(u_int *)data = DEV_BSIZE;
 	    break;
