@@ -45,7 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)mount_umap.c	8.3 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id: mount_umap.c,v 1.7 1996/09/14 02:59:13 bde Exp $";
+	"$Id: mount_umap.c,v 1.7.2.1 1997/12/04 07:36:14 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	static char not[] = "; not mounted.";
+	static char not[] = "; not mounted";
 	struct stat statbuf;
 	struct umap_args args;
         FILE *fp, *gfp;
@@ -196,7 +196,7 @@ main(argc, argv)
 #endif /* MAPSECURITY */
 
 	if ((fscanf(gfp, "%d\n", &gnentries)) != 1)
-		errx(EX_DATAERR, "nentries not found%s", gmapfile, not);
+		errx(EX_DATAERR, "%s: nentries not found%s", gmapfile, not);
 	if (gnentries > MAPFILEENTRIES)
 		errx(EX_DATAERR,
 		    "maximum number of entries is %d%s", GMAPFILEENTRIES, not);
