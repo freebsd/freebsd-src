@@ -28,7 +28,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] = "$OpenBSD: readpassphrase.c,v 1.7 2001/08/07 19:34:11 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
-include <sys/cdefs.h>
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
