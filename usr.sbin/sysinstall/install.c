@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.5 1995/05/04 03:51:16 jkh Exp $
+ * $Id: install.c,v 1.8 1995/05/05 23:47:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,6 +42,7 @@
  */
 
 #include "sysinstall.h"
+#include<sys/disklabel.h>
 
 Boolean SystemWasInstalled;
 
@@ -87,6 +88,7 @@ installHook(char *str)
 	    make_filesystems(disks);
 	    cpio_extract(disks);
 	    extract_dists(disks);
+	    install_configuration_files(disks);
 	    do_final_setup(disks);
 	    SystemWasInstalled = TRUE;
 	    break;
@@ -147,3 +149,51 @@ installMaint(char *str)
     msgConfirm("Sorry, maintainance mode is not implemented in this version.");
     return 0;
 }
+
+/* Go newfs and/or mount all the filesystems we've been asked to */
+void
+make_filesystems(struct disk **disks)
+{
+    int i;
+
+    for (i = 0; disks[i]; i++) {
+	struct chunk *c1;
+
+	if (!disks[i]->chunks)
+	    msgFatal("No chunk list found for %s!", disks[i]->name);
+	c1 = disks[i]->chunks->part;
+	while (c1) {
+	    if (c1->type == freebsd) {
+		struct chunk *c2 = c1->part;
+
+		while (c2) {
+		    if (c2->type == part && c2->subtype != FS_SWAP)
+			vsystem("newfs %s", c2->name);
+		    c2 = c2->next;
+		}
+	    }
+	    c1 = c1->next;
+	}
+    }
+}
+
+void
+cpio_extract(struct disk **disks)
+{
+}
+
+void
+extract_dists(struct disk **disks)
+{
+}
+
+void
+install_configuration_files(struct disk **disks)
+{
+}
+
+void
+do_final_setup(struct disk **disks)
+{
+}
+

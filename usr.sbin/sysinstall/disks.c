@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: disks.c,v 1.2 1995/05/05 23:47:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,6 +43,7 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
+#include <sys/disklabel.h>
 
 /*
  * I make some pretty gross assumptions about having a max of 50 chunks
@@ -55,8 +56,6 @@
 
 #define MAX_CHUNKS	50
 
-#define FS_SWAP		1
-
 /* Where to start printing the freebsd slices */
 #define CHUNK_SLICE_START_ROW		2
 #define CHUNK_PART_START_ROW		10
@@ -64,18 +63,11 @@
 /* The smallest filesystem we're willing to create */
 #define FS_MIN_SIZE			2048
 
-typedef enum { PART_NONE, PART_SLICE, PART_SWAP, PART_FILESYSTEM } part_type;
-
-struct part_info {
-    Boolean newfs;
-    char mountpoint[FILENAME_MAX];
-};
-
 static struct {
     struct disk *d;
     struct chunk *c;
-    struct part_info *p;
-    part_type type;
+    PartInfo *p;
+    PartType type;
 } fbsd_chunk_info[MAX_CHUNKS + 1];
 static int current_chunk;
 
@@ -176,7 +168,7 @@ int
 get_mountpoint(struct chunk *c)
 {
     char *val;
-    struct part_info *part;
+    PartInfo *part;
 
     val = msgGetInput(c->private,
 		      "Please specify mount point for new partition");
@@ -193,7 +185,7 @@ msgConfirm("This region cannot be used for your root partition as\nit is past th
 	    return 1;
 	}
 	safe_free(c->private);
-	part = (struct part_info *)malloc(sizeof(struct part_info));
+	part = (PartInfo *)malloc(sizeof(PartInfo));
 	strncpy(part->mountpoint, val, FILENAME_MAX);
 	part->newfs = TRUE;
 	c->private = (void *)part;
@@ -203,15 +195,15 @@ msgConfirm("This region cannot be used for your root partition as\nit is past th
     return 1;
 }
 
-static part_type
+static PartType
 get_partition_type(struct chunk *c)
 {
     char selection[20];
     static unsigned char *fs_types[] = {
-	"Swap",
-	"A swap partition.",
 	"FS",
 	"A file system",
+	"Swap",
+	"A swap partition.",
     };
 
     if (!dialog_menu("Please choose a partition type",
@@ -280,8 +272,8 @@ print_fbsd_chunks(void)
 		char *mountpoint, *newfs;
 
 		if (fbsd_chunk_info[i].c->private) {
-		    mountpoint = ((struct part_info *)fbsd_chunk_info[i].c->private)->mountpoint;
-		    newfs = ((struct part_info *)fbsd_chunk_info[i].c->private)->newfs ? "Y" : "N";
+		    mountpoint = ((PartInfo *)fbsd_chunk_info[i].c->private)->mountpoint;
+		    newfs = ((PartInfo *)fbsd_chunk_info[i].c->private)->newfs ? "Y" : "N";
 		}
 		else {
 		    mountpoint = "?";
@@ -383,7 +375,7 @@ partition_disks(struct disk **disks)
 		snprintf(tmp, 20, "%d", sz);
 		val = msgGetInput(tmp, "Please specify size for new FreeBSD partition");
 		if (val && (size = strtol(val, 0, 0)) > 0) {
-		    part_type type;
+		    PartType type;
 
 		    if (get_mountpoint(fbsd_chunk_info[current_chunk].c))
 			break;
@@ -391,7 +383,8 @@ partition_disks(struct disk **disks)
 		    if (type == PART_NONE)
 			break;
 		    Create_Chunk(fbsd_chunk_info[current_chunk].d,
-				 fbsd_chunk_info[current_chunk].c->offset,
+				 fbsd_chunk_info[current_chunk].c->offset +
+				 sz - size,
 				 size,
 				 part,
 				 type == PART_SWAP ? FS_SWAP : freebsd,
@@ -400,7 +393,16 @@ partition_disks(struct disk **disks)
 		}
 	    }
 	    break;
-		
+
+	case 'D':
+	    if (fbsd_chunk_info[current_chunk].type == PART_SLICE) {
+		msg = "Use the Master Partition Editor to delete one of these";
+		break;
+	    }
+	    Delete_Chunk(fbsd_chunk_info[current_chunk].d,
+			 fbsd_chunk_info[current_chunk].c);
+	    break;
+	    
 	case 27:	/* ESC */
 	    partitioning = FALSE;
 	    break;
@@ -416,11 +418,11 @@ write_disks(struct disk **disks)
     extern u_char mbr[], bteasy17[];
 
     dialog_clear();
-    if (!msgYesNo("Last Chance!  Are you sure you want to write your changes to disk?")) {
+    if (!msgYesNo("Last Chance!  Are you sure you want to write out\nall your changes to disk?")) {
 	for (i = 0; disks[i]; i++) {
 	    if (contains_root_partition(disks[i]))
 		Set_Boot_Blocks(disks[i], boot1, boot2);
-	    if (i == 0 && !msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, as well as boot from a driver other than the first."))
+	    if (i == 0 && !msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
 		Set_Boot_Mgr(disks[i], bteasy17);
 	    else if (i == 0 && !msgYesNo("Would you like to remove an existing boot manager?"))
 		Set_Boot_Mgr(disks[i], mbr);
@@ -432,24 +434,3 @@ write_disks(struct disk **disks)
     }
     return 1;
 }
-
-void
-make_filesystems(struct disk **disks)
-{
-}
-
-void
-cpio_extract(struct disk **disks)
-{
-}
-
-void
-extract_dists(struct disk **disks)
-{
-}
-
-void
-do_final_setup(struct disk **disks)
-{
-}
-
