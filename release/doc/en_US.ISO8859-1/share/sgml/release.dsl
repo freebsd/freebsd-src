@@ -63,7 +63,8 @@
         <!-- Specify how to generate the man page link HREF -->
         (define ($create-refentry-xref-link$ refentrytitle manvolnum)
 	  (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
-			 refentrytitle "&" "sektion=" manvolnum))
+			 refentrytitle "&" "sektion=" manvolnum
+			 "&" "manpath=FreeBSD+4.4-stable"))
       ]]>
 
       (define (toc-depth nd)
