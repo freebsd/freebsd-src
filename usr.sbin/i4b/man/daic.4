@@ -56,7 +56,8 @@ ISDN4BSD system, which can be listed using the isdnctl utility.
 The
 .Nm
 driver interfaces the isdn card to the ISDN4BSD kernel subsystem.
-All lower layer isdn control is handled by the card. This should
+All lower layer isdn control is handled by the card.
+This should
 allow you to run any national isdn protocol delivered by EICON.Diehl
 for your card, but the driver has only been tested with the DSS1
 protocol and some parts of the cards interface are isdn protocol
@@ -70,32 +71,42 @@ by Diehl in their
 from 1992.
 .Sh MICROCODE DOWNLOAD
 Every active card needs its own operating software before it can
-work. You have to download this to the card before using it with
-ISDN4BSD. Use the isdnctl utility to do this, i.e. call
+work.
+You have to download this to the card before using it with
+ISDN4BSD.
+Use the isdnctl utility to do this, i.e. call
 .Nm "isdnctl -d te_etsi.sx 1"
 to download the file
 .Nm te_etsi.sx
-to controller number 1. Use 
+to controller number 1.
+Use 
 .Nm "isdnctl -l"
-to list all available controllers (and ports). You have to select the 
+to list all available controllers (and ports).
+You have to select the 
 correct isdn protocol file for your isdn interface, see the Diehl documentation
 for details.
 .Pp
 The cards bootstrap process involves another file, which is independend
-of the card type you use and the protocol you run. It is called
+of the card type you use and the protocol you run.
+It is called
 .Nm download.bin
 in current versions of the Diehl software distribution and has to be
 copied to the kernel compile directory under
 .Nm dev/ic/microcode/daic
 and converted into a header file used when compiling the kernel by running
 .Nm make
-in that directory. Your kernel compile will fail and remind you of this
-if you forget to do this. Due to copright restrictions we cannot distribute
-the driver with this file integrated. But if you own a card, you do have
+in that directory.
+Your kernel compile will fail and remind you of this
+if you forget to do this.
+Due to copright restrictions we cannot distribute
+the driver with this file integrated.
+But if you own a card, you do have
 the file (or can get it from the Diehl web server).
 .Sh BUGS
-The driver is not yet finished. It will only compile on NetBSD and
-even there will not work. This should be fixed soon and the driver
+The driver is not yet finished.
+It will only compile on NetBSD and
+even there will not work.
+This should be fixed soon and the driver
 will be ported to FreeBSD.
 .Sh SEE ALSO
 .Xr isdnctl 1
