@@ -162,7 +162,7 @@ show_ipfw(chain)
 	else
 		printf("%u", chain->fw_prot);
 
-	printf(" from ");
+	printf(" from %s", chain->fw_flg & IP_FW_F_INVSRC ? "not " : "");
 
 	adrt=ntohl(chain->fw_smsk.s_addr);
 	if (adrt==ULONG_MAX && do_resolv) {
@@ -202,7 +202,7 @@ show_ipfw(chain)
 		}
 	}
 
-	printf(" to ");
+	printf(" to %s", chain->fw_flg & IP_FW_F_INVDST ? "not " : "");
 
 	adrt=ntohl(chain->fw_dmsk.s_addr);
 	if (adrt==ULONG_MAX && do_resolv) {
@@ -685,6 +685,12 @@ add(ac,av)
 	if (ac && !strncmp(*av,"from",strlen(*av))) { av++; ac--; }
 	else show_usage("missing ``from''\n");
 
+	if (ac && !strncmp(*av,"not",strlen(*av))) {
+		rule.fw_flag |= IP_FW_F_INVSRC;
+		av++; ac--;
+	}
+	if (!ac) show_usage("Missing arguments\n");
+
 	fill_ip(&rule.fw_src, &rule.fw_smsk, &ac, &av);
 
 	if (ac && isdigit(**av)) {
@@ -697,6 +703,10 @@ add(ac,av)
 	if (ac && !strncmp(*av,"to",strlen(*av))) { av++; ac--; }
 	else show_usage("missing ``to''\n");
 
+	if (ac && !strncmp(*av,"not",strlen(*av))) {
+		rule.fw_flag |= IP_FW_F_INVDST;
+		av++; ac--;
+	}
 	if (!ac) show_usage("Missing arguments\n");
 
 	fill_ip(&rule.fw_dst, &rule.fw_dmsk, &ac, &av);

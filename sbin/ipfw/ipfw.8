@@ -22,16 +22,13 @@ list
 add
 .Op Ar number
 .Ar action 
-.Op Ar log
+.Op log
 .Ar proto
 from
 .Ar src
 to
 .Ar dst
-.Oo
-via
-.Ar name | ipno
-.Oc
+.Op via Ar name | ipno
 .Op Ar options
 .Sh DESCRIPTION
 If used as shown in the first synopsis line, the
@@ -117,8 +114,7 @@ Divert packets that match this rule to the divert socket bound to port
 The search terminates.
 .El
 .Pp
-When a packet matches a rule with the
-.Ar log
+When a packet matches a rule with the ``log''
 keyword, a message will be printed on the console.
 If the kernel was compiled with the
 .Dv IP_FIREWALL_VERBOSE_LIMIT
@@ -150,7 +146,8 @@ and
 .Ar dst :
 .Pp
 .Bl -hang -offset flag
-.It <address/mask> [ports]
+.It Ar <address/mask>
+.Op Ar ports
 .El
 .Pp
 The
@@ -168,10 +165,14 @@ An ipnumber with a mask width of the form 1.2.3.4:255.255.240.0.
 In this case all ip numbers from 1.2.0.0 to 1.2.15.255 will match.
 .El
 .Pp
+The sense of the match can be inverted by preceding an address with the
+``not'' modifier, causing all other addresses to be matched instead. This
+does not affect the selection of port numbers.
+.Pp
 With the TCP and UDP
 .Em protocols ,
-an optional
-.Em port
+optional
+.Em ports
 may be specified as:
 .Pp
 .Bl -hang -offset flag
