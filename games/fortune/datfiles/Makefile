@@ -4,34 +4,36 @@ FILES=	fortunes fortunes2 startrek zippy
 BLDS=	fortunes.dat fortunes2.dat startrek.dat zippy.dat \
 	fortunes-o fortunes-o.dat
 
-# TO INSTALL THE POTENTIALLY OFFENSIVE FORTUNES, UNCOMMENT THE THREE
-# LINES AND COMMENT OUT THE FOURTH LINE.
+# TO AVOID INSTALLING THE POTENTIALLY OFFENSIVE FORTUNES, COMMENT OUT THE
+# THREE LINES AND UNCOMMENT THE FOURTH LINE.
 
-# THE THREE LINES
+# THE THREE LINES:
 FILES+=	fortunes2-o limerick
 BLDS+=	fortunes2-o.dat limerick.dat
 TYPE=	real
 
-# THE FOURTH LINE
+# THE FOURTH LINE:
 #TYPE=	fake
 
 CLEANFILES+=${BLDS}
 
-all: ${FILES} ${BLDS}
+all: ${BLDS}
 
-install:
+beforeinstall:
 	(cd ${.CURDIR} && ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
-		-m ${NOBINMODE} ${FILES} ${DESTDIR}${SHAREDIR}/games/fortune)
+	    -m ${NOBINMODE} ${FILES} ${DESTDIR}${SHAREDIR}/games/fortune)
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${BLDS} \
 	    ${DESTDIR}${SHAREDIR}/games/fortune
 
-fortunes.dat fortunes2.dat fortunes2-o.dat limerick.dat startrek.dat zippy.dat:
-	strfile -rs ${.CURDIR}/${.TARGET:R} ${.TARGET}
+.for f in fortunes fortunes2 fortunes2-o limerick startrek zippy
+$f.dat: $f
+	PATH=$$PATH:/usr/games strfile -rs ${.ALLSRC} ${.TARGET}
+.endfor
 
 fortunes-o.dat: fortunes-o
-	strfile -rsx fortunes-o ${.TARGET}
+	PATH=$$PATH:/usr/games strfile -rsx ${.ALLSRC} ${.TARGET}
 
 fortunes-o: fortunes-o.${TYPE}
-	caesar 13 < ${.ALLSRC} > ${.TARGET}
+	PATH=$$PATH:/usr/games caesar 13 < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
