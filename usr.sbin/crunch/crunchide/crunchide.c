@@ -56,17 +56,16 @@
  *	  that the final crunched binary BSS size is the max of all the
  *	  component programs' BSS sizes, rather than their sum.
  */
-#include <unistd.h>
+#include <a.out.h>
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <a.out.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
-
-char *pname = "crunchide";
 
 void usage(void);
 
@@ -81,8 +80,6 @@ int argc;
 char **argv;
 {
     int ch;
-
-    if(argc > 0) pname = argv[0];
 
     while ((ch = getopt(argc, argv, "k:f:")) != -1)
 	switch(ch) {
@@ -112,8 +109,7 @@ char **argv;
 void usage(void)
 {
     fprintf(stderr,
-	    "Usage: %s [-k <symbol-name>] [-f <keep-list-file>] <files> ...\n",
-	    pname);
+	"usage: crunchide [-k <symbol-name>] [-f <keep-list-file>] <files> ...\n");
     exit(1);
 }
 
@@ -138,8 +134,7 @@ void add_to_keep_list(char *symbol)
     newp = (struct keep *) malloc(sizeof(struct keep));
     if(newp) newp->sym = strdup(symbol);
     if(newp == NULL || newp->sym == NULL) {
-	fprintf(stderr, "%s: out of memory for keep list\n", pname);
-	exit(1);
+	errx(1, "out of memory for keep list");
     }
 
     newp->next = curp;
@@ -165,7 +160,7 @@ void add_file_to_keep_list(char *filename)
     int len;
 
     if((keepf = fopen(filename, "r")) == NULL) {
-	perror(filename);
+	warn("%s", filename);
 	usage();
     }
 
@@ -202,7 +197,7 @@ void check_reloc(char *filename, struct relocation_info *relp);
 
 void hide_syms(char *filename)
 {
-    int inf, outf, rc;
+    int inf, rc;
     struct stat infstat;
     struct relocation_info *relp;
     struct nlist *symp;
@@ -212,18 +207,18 @@ void hide_syms(char *filename)
      */
 
     if((inf = open(filename, O_RDWR)) == -1) {
-	perror(filename);
+	warn("%s", filename);
 	return;
     }
 
     if(fstat(inf, &infstat) == -1) {
-	perror(filename);
+	warn("%s", filename);
 	close(inf);
 	return;
     }
 
     if(infstat.st_size < sizeof(struct exec)) {
-	fprintf(stderr, "%s: short file\n", filename);
+	warnx("%s: short file", filename);
 	close(inf);
 	return;
     }
@@ -234,13 +229,13 @@ void hide_syms(char *filename)
      */
 
     if((aoutdata = (char *) malloc(infstat.st_size)) == NULL) {
-	fprintf(stderr, "%s: too big to read into memory\n", filename);
+	warnx("%s: too big to read into memory", filename);
 	close(inf);
 	return;
     }
 
     if((rc = read(inf, aoutdata, infstat.st_size)) < infstat.st_size) {
-	fprintf(stderr, "%s: read error: %s\n", filename,
+	warnx("%s: read error: %s", filename,
 		rc == -1? strerror(errno) : "short read");
 	close(inf);
 	return;
@@ -253,7 +248,7 @@ void hide_syms(char *filename)
     hdrp = (struct exec *) aoutdata;
 
     if(N_BADMAG(*hdrp)) {
-	fprintf(stderr, "%s: bad magic: not an a.out file\n", filename);
+	warnx("%s: bad magic: not an a.out file", filename);
 	close(inf);
 	return;
     }
@@ -301,7 +296,7 @@ void hide_syms(char *filename)
      */
     lseek(inf, 0, SEEK_SET);
     if((rc = write(inf, aoutdata, infstat.st_size)) < infstat.st_size) {
-	fprintf(stderr, "%s: write error: %s\n", filename,
+	warnx("%s: write error: %s", filename,
 		rc == -1? strerror(errno) : "short write");
     }
 
@@ -313,9 +308,7 @@ void check_reloc(char *filename, struct relocation_info *relp)
 {
     /* bail out if we zapped a symbol that is needed */
     if(IS_SYMBOL_RELOC(relp) && symbase[relp->r_symbolnum].n_type == 0) {
-	fprintf(stderr,
-		"%s: oops, have hanging relocation for %s: bailing out!\n",
+	errx(1, "%s: oops, have hanging relocation for %s: bailing out!",
 		filename, SYMSTR(&symbase[relp->r_symbolnum]));
-	exit(1);
     }
 }
