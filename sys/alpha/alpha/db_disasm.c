@@ -1039,7 +1039,7 @@ loadstore_address:
 		if (showregs) {
 			if (i.mem_format.opcode == op_ldah)
 				signed_immediate <<= 16;
-			db_printf(" <0x%x>", signed_immediate +
+			db_printf(" <0x%lx>", signed_immediate +
 			    db_register_value(DDB_REGS, i.mem_format.rs));
 		}
 		break;
