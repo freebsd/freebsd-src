@@ -58,6 +58,7 @@
 #define L0IFPNPUNIT(u) ( (((L1DRVR_IFPNP) << 8) & 0xff00) | ((u) & 0xff))
 #define L0ICCHPUNIT(u) ( (((L1DRVR_ICCHP) << 8) & 0xff00) | ((u) & 0xff))
 #define L0ITJCUNIT(u) ( (((L1DRVR_ITJC) << 8) & 0xff00) | ((u) & 0xff))
+#define L0IFPI2UNIT(u) ( (((L1DRVR_IFPI2) << 8) & 0xff00) | ((u) & 0xff))
 
 /* jump table for the multiplex functions */
 struct i4b_l1mux_func {
