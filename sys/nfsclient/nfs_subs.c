@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.11 1995/02/15 04:21:32 phk Exp $
+ * $Id: nfs_subs.c,v 1.12 1995/03/16 18:15:39 bde Exp $
  */
 
 /*
@@ -1122,9 +1122,11 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp)
 		*rdonlyp = 1;
 	else
 		*rdonlyp = 0;
+
+	nfsrv_vmio(*vpp);
+
 	if (!lockflag)
 		VOP_UNLOCK(*vpp);
-	nfsrv_vmio(*vpp);
 	return (0);
 }
 
