@@ -528,7 +528,9 @@ kseq_setup(struct kseq *kseq)
 static void
 sched_setup(void *dummy)
 {
+#ifdef SMP
 	int i;
+#endif
 
 	slice_min = (hz/100);	/* 10ms */
 	slice_max = (hz/7);	/* ~140ms */
