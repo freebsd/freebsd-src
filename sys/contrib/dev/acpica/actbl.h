@@ -242,6 +242,14 @@ typedef struct multiple_apic_table
     UINT8                   Type; \
     UINT8                   Length;
 
+
+typedef struct apic_header /* APIC common table header */
+{
+    APIC_HEADER_DEF
+
+} APIC_HEADER;
+
+
 /* Values for MPS INTI flags */
 
 #define POLARITY_CONFORMS       0
@@ -317,7 +325,7 @@ typedef struct madt_address_override
 {
     APIC_HEADER_DEF
     UINT16                  Reserved;               /* Reserved - must be zero */
-    UINT32                  Address;                /* APIC physical address */
+    UINT64                  Address;                /* APIC physical address */
 
 } MADT_ADDRESS_OVERRIDE;
 
