@@ -172,13 +172,11 @@ static d_mmap_t elan_mmap;
 #define ELAN_MMCR	0
 #define ELAN_ERRLED	1
 
-#define CDEV_MAJOR 100			/* Share with xrpu */
 static struct cdevsw elan_cdevsw = {
 	.d_write =	elan_write,
 	.d_ioctl =	elan_ioctl,
 	.d_mmap =	elan_mmap,
 	.d_name =	"elan",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void
@@ -196,7 +194,7 @@ elan_drvinit(void)
 	return;
 }
 
-SYSINIT(elan, SI_SUB_PSEUDO, SI_ORDER_MIDDLE+CDEV_MAJOR,elan_drvinit,NULL);
+SYSINIT(elan, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, elan_drvinit, NULL);
 
 #define LED_ON()	do {elan_mmcr[0xc34 / 2] = 0x200;} while(0)
 #define LED_OFF()	do {elan_mmcr[0xc38 / 2] = 0x200;} while(0)
