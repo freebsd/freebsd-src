@@ -167,7 +167,7 @@ struct pagerops swappagerops = {
 
 /*
  * dmmax is in page-sized chunks with the new swap system.  It was
- * dev-bsized chunks in the old.
+ * dev-bsized chunks in the old.  dmmax is always a power of 2.
  *
  * swap_*() routines are externally accessible.  swp_*() routines are
  * internal.

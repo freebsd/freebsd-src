@@ -237,6 +237,7 @@ swaponvp(p, vp, dev, nblks)
 	register long blk;
 	swblk_t dvbase;
 	int error;
+	u_long aligned_nblks;
 
 	if (!swapdev_vp) {
 		error = getnewvnode(VT_NON, NULL, swapdev_vnodeop_p,
@@ -271,6 +272,17 @@ swaponvp(p, vp, dev, nblks)
 		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
 		return (ENXIO);
 	}
+
+	/*
+	 * If we go beyond this, we get overflows in the radix
+	 * tree bitmap code.
+	 */
+	if (nblks > 0x40000000 / BLIST_META_RADIX / nswdev) {
+		printf("exceeded maximum of %d blocks per swap unit\n",
+			0x40000000 / BLIST_META_RADIX / nswdev);
+		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
+		return (ENXIO);
+	}
 	/*
 	 * nblks is in DEV_BSIZE'd chunks, convert to PAGE_SIZE'd chunks.
 	 * First chop nblks off to page-align it, then convert.
@@ -288,11 +300,13 @@ swaponvp(p, vp, dev, nblks)
 
 	/*
 	 * nblks, nswap, and dmmax are PAGE_SIZE'd parameters now, not
-	 * DEV_BSIZE'd. 
+	 * DEV_BSIZE'd.   aligned_nblks is used to calculate the
+	 * size of the swap bitmap, taking into account the stripe size.
 	 */
+	aligned_nblks = (nblks + (dmmax - 1)) & ~(u_long)(dmmax - 1);
 
-	if (nblks * nswdev > nswap)
-		nswap = (nblks+1) * nswdev;
+	if (aligned_nblks * nswdev > nswap)
+		nswap = aligned_nblks * nswdev;
 
 	if (swapblist == NULL)
 		swapblist = blist_create(nswap);
