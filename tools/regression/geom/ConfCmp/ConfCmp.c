@@ -48,6 +48,8 @@
 #include <err.h>
 #include <bsdxml.h>
 
+FILE *fsubs;
+
 struct node {
 	LIST_HEAD(, node)	children;
 	LIST_ENTRY(node)	siblings;
@@ -266,6 +268,10 @@ refcmp(char *r1, char *r2)
 	r->k1 = strdup(r1);
 	r->k2 = strdup(r2);
 	LIST_INSERT_HEAD(&refs, r, next);
+	if (fsubs != NULL) {
+		fprintf(fsubs, "s/%s/%s/g\n", r1, r2);
+		fflush(fsubs);
+	}
 	return (0);
 }
 
@@ -351,6 +357,7 @@ main(int argc, char **argv)
 	struct mytree *t1, *t2;
 	int i;
 
+	fsubs = fopen("_.subs", "w");
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);
 	if (argc != 3)
