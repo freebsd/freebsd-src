@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)library.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -47,6 +49,7 @@ static char sccsid[] = "@(#)library.c	8.1 (Berkeley) 6/4/93";
 #include <ufs/ufs/dinode.h>
 #include <ufs/lfs/lfs.h>
 
+#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,6 +64,7 @@ void	 add_inodes __P((FS_INFO *, BLOCK_INFO *, int *, SEGSUM *, caddr_t,
 	     daddr_t));
 int	 bi_compare __P((const void *, const void *));
 int	 bi_toss __P((const void *, const void *, const void *));
+u_long   cksum __P((void *,  size_t));
 void	 get_ifile __P((FS_INFO *, int));
 int	 get_superblock __P((FS_INFO *, struct lfs *));
 int	 pseg_valid __P((FS_INFO *, SEGSUM *));
@@ -109,7 +113,6 @@ get_fs_info (lstatfsp, use_mmap)
 	int use_mmap;			/* IN: mmap or read */
 {
 	FS_INFO	*fsp;
-	int	i;
 
 	fsp = (FS_INFO *)malloc(sizeof(FS_INFO));
 	if (fsp == NULL)
@@ -118,7 +121,7 @@ get_fs_info (lstatfsp, use_mmap)
 
 	fsp->fi_statfsp = lstatfsp;
 	if (get_superblock (fsp, &fsp->fi_lfs))
-		err(1, "get_fs_info: get_superblock failed");
+		errx(1, "get_fs_info: get_superblock failed");
 	fsp->fi_daddr_shift =
 	     fsp->fi_lfs.lfs_bshift - fsp->fi_lfs.lfs_fsbtodb;
 	get_ifile (fsp, use_mmap);
@@ -135,10 +138,8 @@ reread_fs_info(fsp, use_mmap)
 	FS_INFO *fsp;	/* IN: prointer fs_infos to reread */
 	int use_mmap;
 {
-	int i;
-
 	if (statfs(fsp->fi_statfsp->f_mntonname, fsp->fi_statfsp))
-		err(1, "reread_fs_info: statfs failed");
+		errx(1, "reread_fs_info: statfs failed");
 	get_ifile (fsp, use_mmap);
 }
 
@@ -157,7 +158,7 @@ get_superblock (fsp, sbp)
 	strcat(mntfromname, fsp->fi_statfsp->f_mntfromname+5);
 
 	if ((fid = open(mntfromname, O_RDONLY, (mode_t)0)) < 0) {
-		err(0, "get_superblock: bad open");
+		warn("get_superblock: bad open");
 		return (-1);
 	}
 
@@ -211,14 +212,14 @@ get_ifile (fsp, use_mmap)
 		if (fsp->fi_cip)
 			free(fsp->fi_cip);
 		if (!(ifp = malloc (file_stat.st_size)))
-			err (1, "get_ifile: malloc failed");
+			errx(1, "get_ifile: malloc failed");
 redo_read:
 		count = read (fid, ifp, (size_t) file_stat.st_size);
 
 		if (count < 0)
 			err(1, "get_ifile: bad ifile read");
 		else if (count < file_stat.st_size) {
-			err(0, "get_ifile");
+			warnx("get_ifile");
 			if (lseek(fid, 0, SEEK_SET) < 0)
 				err(1, "get_ifile: bad ifile lseek");
 			goto redo_read;
@@ -262,11 +263,14 @@ lfs_segmapv(fsp, seg, seg_buf, blocks, bcount)
 	BLOCK_INFO *bip;
 	SEGSUM *sp;
 	SEGUSE *sup;
-	FINFO *fip;
 	struct lfs *lfsp;
 	caddr_t s, segend;
 	daddr_t pseg_addr, seg_addr;
-	int i, nelem, nblocks, sumsize;
+	int nelem, nblocks;
+#ifdef DIAGNOSTIC
+	FINFO *fip;
+	int i, sumsize;
+#endif /* DIAGNOSTIC */
 	time_t timestamp;
 
 	lfsp = &fsp->fi_lfs;
@@ -277,9 +281,10 @@ lfs_segmapv(fsp, seg, seg_buf, blocks, bcount)
 	sup = SEGUSE_ENTRY(lfsp, fsp->fi_segusep, seg);
 	s = seg_buf + (sup->su_flags & SEGUSE_SUPERBLOCK ? LFS_SBPAD : 0);
 	seg_addr = sntoda(lfsp, seg);
-	pseg_addr = seg_addr + (sup->su_flags & SEGUSE_SUPERBLOCK ? btodb(LFS_SBPAD) : 0);
+	pseg_addr = seg_addr +
+		    (sup->su_flags & SEGUSE_SUPERBLOCK ? btodb(LFS_SBPAD) : 0);
 #ifdef VERBOSE
-		printf("\tsegment buffer at: 0x%x\tseg_addr 0x%x\n", s, seg_addr);
+	printf("\tsegment buffer at: 0x%x\tseg_addr 0x%x\n", s, seg_addr);
 #endif /* VERBOSE */
 
 	*bcount = 0;
@@ -310,12 +315,9 @@ lfs_segmapv(fsp, seg, seg_buf, blocks, bcount)
 			    (fip->fi_nblocks - 1) * sizeof(daddr_t);
 			fip = (FINFO *)(&fip->fi_blocks[fip->fi_nblocks]);
 		}
-		if (sumsize > LFS_SUMMARY_SIZE) {
-			fprintf(stderr,
-			    "Segment %d summary block too big: %d\n",
+		if (sumsize > LFS_SUMMARY_SIZE)
+			errx(1, "segment %d summary block too big: %d",
 			    seg, sumsize);
-			exit(1);
-		}
 #endif
 
 		if (*bcount + nblocks + sp->ss_ninos > nelem) {
@@ -424,7 +426,7 @@ add_inodes (fsp, bip, countp, sp, seg_buf, seg_addr)
 	caddr_t	seg_buf;	/* the buffer containing the segment's data */
 	daddr_t	seg_addr;	/* disk address of seg_buf */
 {
-	struct dinode *di;
+	struct dinode *di = NULL;
 	struct lfs *lfsp;
 	IFILE *ifp;
 	BLOCK_INFO *bp;
@@ -535,7 +537,7 @@ mmap_segment (fsp, segment, segbuf, use_mmap)
 	strcat(mntfromname, fsp->fi_statfsp->f_mntfromname+5);
 
 	if ((fid = open(mntfromname, O_RDONLY, (mode_t)0)) < 0) {
-		err(0, "mmap_segment: bad open");
+		warn("mmap_segment: bad open");
 		return (-1);
 	}
 
@@ -543,7 +545,7 @@ mmap_segment (fsp, segment, segbuf, use_mmap)
 		*segbuf = mmap ((caddr_t)0, seg_size(lfsp), PROT_READ,
 		    0, fid, seg_byte);
 		if (*(long *)segbuf < 0) {
-			err(0, "mmap_segment: mmap failed");
+			warn("mmap_segment: mmap failed");
 			return (NULL);
 		}
 	} else {
@@ -554,19 +556,19 @@ mmap_segment (fsp, segment, segbuf, use_mmap)
 		/* malloc the space for the buffer */
 		*segbuf = malloc(ssize);
 		if (!*segbuf) {
-			err(0, "mmap_segment: malloc failed");
+			warnx("mmap_segment: malloc failed");
 			return(NULL);
 		}
 
 		/* read the segment data into the buffer */
 		if (lseek (fid, seg_byte, SEEK_SET) != seg_byte) {
-			err (0, "mmap_segment: bad lseek");
+			warn("mmap_segment: bad lseek");
 			free(*segbuf);
 			return (-1);
 		}
 
 		if (read (fid, *segbuf, ssize) != ssize) {
-			err (0, "mmap_segment: bad read");
+			warn("mmap_segment: bad read");
 			free(*segbuf);
 			return (-1);
 		}
@@ -614,9 +616,9 @@ bi_compare(a, b)
 	ba = a;
 	bb = b;
 
-	if (diff = (int)(ba->bi_inode - bb->bi_inode))
+	if ((diff = (int)(ba->bi_inode - bb->bi_inode)))
 		return (diff);
-	if (diff = (int)(ba->bi_lbn - bb->bi_lbn)) {
+	if ((diff = (int)(ba->bi_lbn - bb->bi_lbn))) {
 		if (ba->bi_lbn == LFS_UNUSED_LBN)
 			return(-1);
 		else if (bb->bi_lbn == LFS_UNUSED_LBN)
@@ -628,7 +630,7 @@ bi_compare(a, b)
 		else
 			return (diff);
 	}
-	if (diff = (int)(ba->bi_segcreate - bb->bi_segcreate))
+	if ((diff = (int)(ba->bi_segcreate - bb->bi_segcreate)))
 		return (diff);
 	diff = (int)(ba->bi_daddr - bb->bi_daddr);
 	return (diff);
