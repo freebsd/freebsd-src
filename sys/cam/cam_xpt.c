@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.11 1998/09/22 20:41:12 ken Exp $
+ *      $Id: cam_xpt.c,v 1.12 1998/09/23 03:03:19 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -601,6 +601,7 @@ static void	 probecleanup(struct cam_periph *periph);
 static void	 xpt_find_quirk(struct cam_ed *device);
 static void	 xpt_set_transfer_settings(struct ccb_trans_settings *cts,
 					   int async_update);
+static void	 xpt_toggle_tags(struct cam_path *path);
 static void	 xpt_start_tags(struct cam_path *path);
 static __inline int xpt_schedule_dev_allocq(struct cam_eb *bus,
 					    struct cam_ed *dev);
@@ -3903,37 +3904,24 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 							  target->target_id,
 							  device->lun_id);
 			else
-				status = CAM_REQ_CMP; /* silence the compiler */
+				status = CAM_REQ_CMP_ERR;
 
-			if ((path->device->inq_flags & SID_CmdQue
-			  || path->device->flags & CAM_DEV_TAG_AFTER_COUNT)
-			 && (async_code == AC_SENT_BDR
-			  || async_code == AC_BUS_RESET)) {
-				struct ccb_trans_settings cts;
+			if (status == CAM_REQ_CMP) {
 
 				/*
-				 * Give controllers a chance to renegotiate
-				 * before starting tag operations.  We
-				 * "toggle" tagged queuing off then on
-				 * which causesthe tag enable command delay
-				 * counter to come into effect.
+				 * Allow transfer negotiation to occur in a
+				 * tag free environment.
 				 */
-				xpt_setup_ccb(&cts.ccb_h, &newpath, 1);
-				cts.flags = 0;
-				cts.valid = CCB_TRANS_TQ_VALID;
-				xpt_set_transfer_settings(&cts,
-							 /*async_update*/TRUE);
-				cts.flags = CCB_TRANS_TAG_ENB;
-				xpt_set_transfer_settings(&cts,
-							 /*async_update*/TRUE);
-			}
+				if (async_code == AC_SENT_BDR
+				  || async_code == AC_BUS_RESET)
+					xpt_toggle_tags(&newpath);
 
-			/*
-			 * If we send a BDR, freeze the device queue for
-			 * SCSI_DELAY seconds to allow it to settle down.
-			 */
-			if (async_code == AC_SENT_BDR) {
-				if (status == CAM_REQ_CMP) {
+				/*
+				 * If we send a BDR, freeze the device queue
+				 * for SCSI_DELAY ms to allow it to settle
+				 * down.
+				 */
+				if (async_code == AC_SENT_BDR) {
 					xpt_freeze_devq(&newpath, 1);
 					/*
 					 * Although this looks bad, it
@@ -3959,22 +3947,19 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 						   /*reduction*/0,
 						   /*timeout*/SCSI_DELAY,
 						   /*getcount_only*/0);
-					xpt_release_path(&newpath);
-				}
-			} else if (async_code == AC_INQ_CHANGED) {
-				/*
-				 * We've sent a start unit command, or
-				 * something similar to a device that may
-				 * have caused its inquiry data to change.
-				 * So we re-scan the device to refresh the
-				 * inquiry data for it.
-				 */
-				if (status == CAM_REQ_CMP) {
-					xpt_scan_lun(path->periph, &newpath,
+				} else if (async_code == AC_INQ_CHANGED) {
+					/*
+					 * We've sent a start unit command, or
+					 * something similar to a device that
+					 * may have caused its inquiry data to
+					 * change. So we re-scan the device to
+					 * refresh the inquiry data for it.
+					 */
+					xpt_scan_lun(newpath.periph, &newpath,
 						     CAM_EXPECT_INQ_CHANGE,
 						     NULL);
-					xpt_release_path(&newpath);
 				}
+				xpt_release_path(&newpath);
 			} else if (async_code == AC_LOST_DEVICE)
 				device->flags |= CAM_DEV_UNCONFIGURED;
 
@@ -5260,6 +5245,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, int async_update)
 	struct	cam_ed *device;
 	struct	cam_sim *sim;
 	int	qfrozen;
+	int	device_tagenb;
 
 	device = cts->ccb_h.path->device;
 	sim = cts->ccb_h.path->bus->sim;
@@ -5326,14 +5312,22 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, int async_update)
 	 * If we are transitioning from tags to no-tags or
 	 * vice-versa, we need to carefully freeze and restart
 	 * the queue so that we don't overlap tagged and non-tagged
-	 * commands.
+	 * commands.  We also temporarily stop tags if there is
+	 * a change in transfer negotiation settings to allow
+	 * "tag-less" negotiation.
 	 */
 	qfrozen = FALSE;
+	if ((device->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
+	 || (device->inq_flags & SID_CmdQue) != 0)
+		device_tagenb = TRUE;
+	else
+		device_tagenb = FALSE;
+
 	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0
 	 && (((cts->flags & CCB_TRANS_TAG_ENB) != 0
-	   && (device->inq_flags & SID_CmdQue) == 0)
+	   && device_tagenb == FALSE)
 	  || ((cts->flags & CCB_TRANS_TAG_ENB) == 0
-	   && (device->inq_flags & SID_CmdQue) != 0))) {
+	   && device_tagenb == TRUE))) {
 
 		if ((cts->flags & CCB_TRANS_TAG_ENB) != 0) {
 			/*
@@ -5343,8 +5337,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, int async_update)
 			 * negotiations without tagged messages getting
 			 * in the way.
 			 */
-			if (device->tag_delay_count == 0)
-				device->tag_delay_count = CAM_TAG_DELAY_COUNT;
+			device->tag_delay_count = CAM_TAG_DELAY_COUNT;
 			device->flags |= CAM_DEV_TAG_AFTER_COUNT;
 		} else {
 			xpt_freeze_devq(cts->ccb_h.path, /*count*/1);
@@ -5355,6 +5348,10 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, int async_update)
 			device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
 			device->tag_delay_count = 0;
 		}
+	} else if ((cts->flags & (CCB_TRANS_SYNC_RATE_VALID|
+				  CCB_TRANS_SYNC_OFFSET_VALID|
+				  CCB_TRANS_BUS_WIDTH_VALID)) != 0) {
+		xpt_toggle_tags(cts->ccb_h.path);
 	}
 
 	if (async_update == FALSE)
@@ -5376,7 +5373,31 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, int async_update)
 }
 
 static void
-xpt_start_tags(struct cam_path *path) {
+xpt_toggle_tags(struct cam_path *path)
+{
+	/*
+	 * Give controllers a chance to renegotiate
+	 * before starting tag operations.  We
+	 * "toggle" tagged queuing off then on
+	 * which causes the tag enable command delay
+	 * counter to come into effect.
+	 */
+	if ((path->device->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
+	 || (path->device->inq_flags & SID_CmdQue) != 0) {
+		struct ccb_trans_settings cts;
+
+		xpt_setup_ccb(&cts.ccb_h, path, 1);
+		cts.flags = 0;
+		cts.valid = CCB_TRANS_TQ_VALID;
+		xpt_set_transfer_settings(&cts, /*async_update*/TRUE);
+		cts.flags = CCB_TRANS_TAG_ENB;
+		xpt_set_transfer_settings(&cts, /*async_update*/TRUE);
+	}
+}
+
+static void
+xpt_start_tags(struct cam_path *path)
+{
 	struct ccb_relsim crs;
 	struct cam_ed *device;
 	struct cam_sim *sim;
@@ -5388,7 +5409,7 @@ xpt_start_tags(struct cam_path *path) {
 	xpt_freeze_devq(path, /*count*/1);
 	device->inq_flags |= SID_CmdQue;
 	newopenings = min(device->quirk->maxtags, sim->max_tagged_dev_openings);
-	xpt_dev_ccbq_resize(path, sim->max_dev_openings);
+	xpt_dev_ccbq_resize(path, newopenings);
 	xpt_setup_ccb(&crs.ccb_h, path, /*priority*/1);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
