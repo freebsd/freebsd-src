@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.64 1999/07/07 03:03:20 green Exp $
+ * $Id: conf.h,v 1.65 1999/07/07 04:06:56 msmith Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -155,10 +155,11 @@ void ldisc_deregister __P((int));
  * Swap device table
  */
 struct swdevt {
-	udev_t	sw_dev;
+	udev_t	sw_dev;			/* For quasibogus swapdev reporting */
 	int	sw_flags;
 	int	sw_nblks;
 	struct	vnode *sw_vp;
+	dev_t	sw_device;
 };
 #define	SW_FREED	0x01
 #define	SW_SEQUENTIAL	0x02
