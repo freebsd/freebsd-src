@@ -3,7 +3,6 @@
 .PATH: ${.CURDIR}/../../../kern
 
 KMOD=	sysvshm
-OPTS=	opt_sysvipc.h opt_compat.h
-SRCS=	sysv_shm.c $(OPTS)
+SRCS=	sysv_shm.c opt_mac.h opt_sysvipc.h opt_compat.h
 
 .include <bsd.kmod.mk>
