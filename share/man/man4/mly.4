@@ -40,7 +40,8 @@ The
 .Nm
 driver provides support for Mylex AcceleRAID and eXtremeRAID-family
 PCI to SCSI RAID controllers with version 6.00 and later
-firmware. Supported controllers include:
+firmware.
+Supported controllers include:
 .Bl -bullet
 .It 
 AcceleRAID 160
@@ -59,7 +60,8 @@ verified.
 .Pp
 Logical devices (array drives) attached to the controller are presented
 to the SCSI subsystem as though they were direct-access devices on a
-virtual SCSI bus.  Physical devices which are not claimed by a logical
+virtual SCSI bus.
+Physical devices which are not claimed by a logical
 device are presented on SCSI channels which match the physical channels
 on the controller.
 .Sh DIAGNOSTICS
@@ -69,8 +71,9 @@ Controller initialisation phase:
 .It "mly%d: initialisation complete"
 .El
 .Pp
-The controller firmware has started initialisation.  Normally this
-process is performed by the controller BIOS, but the driver may need
+The controller firmware has started initialisation.
+Normally this process is performed by the controller BIOS,
+but the driver may need
 to do this in cases where the BIOS has failed, or is not compatible
 (eg. on non-x86 systems).
 .Bl -diag
@@ -126,8 +129,8 @@ controller.
 .It "mly%d: BTL rescan result corrupted"
 .El
 .Pp
-The results of a scan for an attached device were corrupted.  One or
-more devices may not be correctly reported.
+The results of a scan for an attached device were corrupted.
+One or more devices may not be correctly reported.
 .Bl -diag
 .It "mly%d: flushing cache..."
 .El
@@ -242,8 +245,8 @@ attached to the device if possible.
 .It "mly%d: enclosure %d unit %d access offline"
 .El
 .Pp
-These events refer to external enclosures by number.  The driver
-does not attempt to name the enclosures.
+These events refer to external enclosures by number.
+The driver does not attempt to name the enclosures.
 .Bl -diag
 .It "mly%d: controller cache write back error"
 .It "mly%d: controller battery backup unit found"
