@@ -63,7 +63,8 @@
 
 #include <sys/errno.h>
 
-#define	DCONS_POLL_HZ	100
+#define	DCONS_POLL_HZ		100
+#define	DCONS_POLL_OFFLINE	2	/* sec */
 
 #define RETRY 3
 
@@ -75,6 +76,7 @@
 
 int verbose = 0;
 int tc_set = 0;
+int poll_hz = DCONS_POLL_HZ;
 
 #define IS_CONSOLE(p)	((p)->port == 0)
 #define IS_GDB(p)	((p)->port == 1)
@@ -765,10 +767,11 @@ dconschat_start_session(struct dcons_state *dc)
 	int counter = 0;
 
 	while (1) {
-		if ((dc->flags & F_READY) == 0 && (++counter % 200) == 0)
+		if ((dc->flags & F_READY) == 0 &&
+			(++counter % (poll_hz * DCONS_POLL_OFFLINE)) == 0)
 			dconschat_fetch_header(dc);
 		if ((dc->flags & F_READY) != 0)
-			 dconschat_proc_dcons(dc);
+			dconschat_proc_dcons(dc);
 		dconschat_proc_socket(dc);
 	}
 	return (0);
@@ -808,7 +811,7 @@ main(int argc, char **argv)
 	struct fw_eui64 eui;
 	char devname[256], *core = NULL, *system = NULL;
 	int i, ch, error;
-	int unit=0, wildcard=0, poll_hz = DCONS_POLL_HZ;
+	int unit=0, wildcard=0;
 	int port[DCONS_NPORT];
 	u_int64_t target = 0;
 
