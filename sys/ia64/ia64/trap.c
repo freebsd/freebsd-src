@@ -837,8 +837,8 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_lock(&Giant);
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, (callp->sy_narg & SYF_ARGMASK), args);
+	if (KTRPOINT(td, KTR_SYSCALL))
+		ktrsyscall(code, (callp->sy_narg & SYF_ARGMASK), args);
 #endif
 	if (error == 0) {
 		td->td_retval[0] = 0;
@@ -876,16 +876,17 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	}
 
 	userret(td, framep, sticks);
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET))
-		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
-#endif
+
 	/*
 	 * Release Giant if we had to get it.
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
 
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_SYSRET))
+		ktrsysret(code, error, td->td_retval[0]);
+#endif
 	/*
 	 * This works because errno is findable through the
 	 * register set.  If we ever support an emulation where this
@@ -980,40 +981,34 @@ ia32_syscall(struct trapframe *framep)
 	/*
 	 * copyin and the ktrsyscall()/ktrsysret() code is MP-aware
 	 */
-	if (params && (i = narg * sizeof(u_int32_t)) &&
-	    (error = copyin(params, (caddr_t)args, i))) {
-#ifdef KTRACE
-		if (KTRPOINT(p, KTR_SYSCALL))
-			ktrsyscall(p->p_tracep, code, narg, args64);
-#endif
-		goto bad;
-	}
+	if (params != NULL && narg != 0)
+		error = copyin(params, (caddr_t)args,
+		    (u_int)(narg * sizeof(int)));
+	else
+		error = 0;
+
 	for (i = 0; i < narg; i++)
 		args64[i] = args[i];
 
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_SYSCALL))
+		ktrsyscall(code, narg, args64);
+#endif
 	/*
 	 * Try to run the syscall without Giant if the syscall
 	 * is MP safe.
 	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_lock(&Giant);
+
+	if (error == 0) {
+		td->td_retval[0] = 0;
+		td->td_retval[1] = framep->tf_r[FRAME_R10]; /* edx */
+
+		STOPEVENT(p, S_SCE, narg);
+
+		error = (*callp->sy_call)(td, args64);
 	}
-
-#ifdef KTRACE
-	/*
-	 * We have to obtain Giant no matter what if 
-	 * we are ktracing
-	 */
-	if (KTRPOINT(p, KTR_SYSCALL)) {
-		ktrsyscall(p->p_tracep, code, narg, args64);
-	}
-#endif
-	td->td_retval[0] = 0;
-	td->td_retval[1] = framep->tf_r[FRAME_R10]; /* edx */
-
-	STOPEVENT(p, S_SCE, narg);
-
-	error = (*callp->sy_call)(td, args64);
 
 	switch (error) {
 	case 0:
@@ -1034,7 +1029,6 @@ ia32_syscall(struct trapframe *framep)
 		break;
 
 	default:
-bad:
  		if (p->p_sysent->sv_errsize) {
  			if (error >= p->p_sysent->sv_errsize)
   				error = -1;	/* XXX */
@@ -1059,20 +1053,16 @@ bad:
 	 */
 	userret(td, framep, sticks);
 
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET)) {
-		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
-	}
-#endif
-
 	/*
-	 * Release Giant if we previously set it.  Do not
-	 * release based on mtx_owned() - we want to catch
-	 * broken syscalls.
+	 * Release Giant if we previously set it.
 	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
-	}
+
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_SYSRET))
+		ktrsysret(code, error, td->td_retval[0]);
+#endif
 
 	/*
 	 * This works because errno is findable through the
