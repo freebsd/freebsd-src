@@ -332,43 +332,36 @@ hp0g: hard error reading fsbn 12345 of 12344-12347 (hp0 bn %d cn %d tn %d sn %d)
  * if the offset of the error in the transfer and a disk label
  * are both available.  blkdone should be -1 if the position of the error
  * is unknown; the disklabel pointer may be null from drivers that have not
- * been converted to use them.  The message is printed with printf
- * if pri is LOG_PRINTF, otherwise it uses log at the specified priority.
- * The message should be completed (with at least a newline) with printf
- * or addlog, respectively.  There is no trailing space.
+ * been converted to use them.  The message is printed with printf.
+ * The message should be completed with at least a newline. There is no
+ * trailing space.
  */
 void
-diskerr(bp, what, pri, blkdone, lp)
+diskerr(bp, what, blkdone, lp)
 	struct bio *bp;
 	char *what;
-	int pri, blkdone;
+	int blkdone;
 	register struct disklabel *lp;
 {
 	int unit = dkunit(bp->bio_dev);
 	int slice = dkslice(bp->bio_dev);
 	int part = dkpart(bp->bio_dev);
-	register int (*pr) __P((const char *, ...));
 	char partname[2];
 	char *sname;
 	daddr_t sn;
 
-	if (pri != LOG_PRINTF) {
-		log(pri, "%s", "");
-		pr = addlog;
-	} else
-		pr = printf;
 	sname = dsname(bp->bio_dev, unit, slice, part, partname);
-	(*pr)("%s%s: %s %sing fsbn ", sname, partname, what,
+	printf("%s%s: %s %sing fsbn ", sname, partname, what,
 	      bp->bio_cmd == BIO_READ ? "read" : "writ");
 	sn = bp->bio_blkno;
 	if (bp->bio_bcount <= DEV_BSIZE)
-		(*pr)("%ld", (long)sn);
+		printf("%ld", (long)sn);
 	else {
 		if (blkdone >= 0) {
 			sn += blkdone;
-			(*pr)("%ld of ", (long)sn);
+			printf("%ld of ", (long)sn);
 		}
-		(*pr)("%ld-%ld", (long)bp->bio_blkno,
+		printf("%ld-%ld", (long)bp->bio_blkno,
 		    (long)(bp->bio_blkno + (bp->bio_bcount - 1) / DEV_BSIZE));
 	}
 	if (lp && (blkdone >= 0 || bp->bio_bcount <= lp->d_secsize)) {
@@ -383,10 +376,10 @@ diskerr(bp, what, pri, blkdone, lp)
 		 * independent of slices, labels and bad sector remapping,
 		 * but some drivers don't set bp->b_pblkno.
 		 */
-		(*pr)(" (%s bn %ld; cn %ld", sname, (long)sn,
+		printf(" (%s bn %ld; cn %ld", sname, (long)sn,
 		    (long)(sn / lp->d_secpercyl));
 		sn %= (long)lp->d_secpercyl;
-		(*pr)(" tn %ld sn %ld)", (long)(sn / lp->d_nsectors),
+		printf(" tn %ld sn %ld)", (long)(sn / lp->d_nsectors),
 		    (long)(sn % lp->d_nsectors));
 	}
 }
