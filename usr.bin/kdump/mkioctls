@@ -14,6 +14,8 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
+LC_ALL=C; export LC_ALL
+
 # Build a list of headers that have ioctls in them.
 # XXX should we use an ANSI cpp?
 # XXX netipx conflicts with netns (leave out netns).
