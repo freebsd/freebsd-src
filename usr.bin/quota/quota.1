@@ -32,7 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)quota.1	8.1 (Berkeley) 6/6/93
+.\"	from: @(#)quota.1	8.1 (Berkeley) 6/6/93
+.\"	$Id: quota.1,v 1.4 1994/06/28 07:47:24 deraadt Exp $
 .\"
 .Dd June 6, 1993
 .Dt QUOTA 1
@@ -102,7 +103,17 @@ flag takes precedence over the
 flag.
 .Pp
 .Nm Quota
-reports the quotas of all the filesystems listed in
+tries to report the quotas of all mounted filesystems.
+If the filesystem is mounted via
+.Nm NFS ,
+it will attempt to contact the
+.Xr rpc.rquotad 8
+daemon on the
+.Nm NFS
+server.
+For
+.Nm UFS
+filesystems, quotas must be turned on in
 .Pa /etc/fstab .
 If
 .Nm quota
@@ -128,4 +139,5 @@ command appeared in
 .Xr edquota 8 ,
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
-.Xr repquota 8
+.Xr repquota 8 ,
+.Xr rpc.rquotad 8
