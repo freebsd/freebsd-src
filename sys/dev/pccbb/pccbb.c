@@ -307,9 +307,9 @@ pccbb_chipinit(struct pccbb_softc* sc)
 			| PCIM_CMD_BUSMASTEREN, 2);
 
 	/* disable Legacy IO */
-
 	switch (sc->sc_chipset) {
 	case CB_RF5C46X:
+	case CB_RF5C47X:
 		PCI_MASK_CONFIG(sc->sc_dev, PCCBBR_BRIDGECTRL,
 				& ~(PCCBBM_BRIDGECTRL_RL_3E0_EN|
 				    PCCBBM_BRIDGECTRL_RL_3E2_EN), 2);
