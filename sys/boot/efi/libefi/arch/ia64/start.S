@@ -70,6 +70,7 @@
 #define R_IA64_FPTR64MSB	0x46	/* word64 MSB	@fptr(S + A) */
 #define R_IA64_FPTR64LSB	0x47	/* word64 LSB	@fptr(S + A) */
 #define R_IA64_REL64MSB		0x6e	/* word64 MSB	BD + A */
+#define R_IA64_REL32LSB		0x6d	/* word32 LSB	BD + A */
 #define R_IA64_REL64LSB		0x6f	/* word64 LSB	BD + A */
 #define	R_IA64_IPLTLSB		0x81	/* function descriptor LSB speciaal */
 
@@ -99,21 +100,19 @@ ENTRY(_start, 2)
 END(_start)
 
 	// PLABEL for PE32+
-	.global _start_plabel
 	.section .plabel, "a"
 	.align	16
-_start_plabel:	
-	.quad	_start
-	.quad	__gp
+	.global _start_plabel
+_start_plabel:
+	data16	@iplt(_start)
 	.previous
 
 	// A PE32+ relocation entry for the plabel
-
 	.section .reloc, "a"
-	.long	_start_plabel
-	.long	12
-	.short	(10 << 12) + 0
-	.short	(10 << 12) + 8
+	data4	_start_plabel
+	data4	12
+	data2	(10 << 12) + 0
+	data2	(10 << 12) + 8
 	.previous
 
 // in0:	image base
@@ -218,6 +217,9 @@ STATIC_ENTRY(_reloc, 2)
 	cmp.eq	p6,p0=R_IA64_NONE,r23
 (p6)	br.cond.dpnt.few 2b
 	;;
+	cmp.eq	p6,p0=R_IA64_REL32LSB,r23
+(p6)	br.cond.dptk.few 3f
+	;;
 	cmp.eq	p6,p0=R_IA64_REL64LSB,r23
 (p6)	br.cond.dptk.few 4f
 	;;
@@ -250,6 +252,13 @@ STATIC_ENTRY(_reloc, 2)
 	st8	[r15]=r29,8		// fdesc:FP
 	;;
 	st8	[r15]=gp		// fdesc:GP
+	br.cond.sptk.few 2b
+
+	// REL32LSB
+3:
+	add	r29=in0,r17
+	;;
+	st4	[r15]=r29
 	br.cond.sptk.few 2b
 
 	// REL64LSB
