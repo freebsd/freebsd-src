@@ -798,7 +798,8 @@ mknod(td, uap)
 		return (error);
 restart:
 	bwillwrite();
-	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME, UIO_USERSPACE,
+	    SCARG(uap, path), td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -882,7 +883,8 @@ mkfifo(td, uap)
 
 restart:
 	bwillwrite();
-	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME, UIO_USERSPACE,
+	    SCARG(uap, path), td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	if (nd.ni_vp != NULL) {
@@ -950,7 +952,8 @@ link(td, uap)
 		vrele(vp);
 		return (error);
 	}
-	NDINIT(&nd, CREATE, LOCKPARENT|NOOBJ, UIO_USERSPACE, SCARG(uap, link), td);
+	NDINIT(&nd, CREATE, LOCKPARENT | NOOBJ | SAVENAME, UIO_USERSPACE,
+	    SCARG(uap, link), td);
 	if ((error = namei(&nd)) == 0) {
 		if (nd.ni_vp != NULL) {
 			vrele(nd.ni_vp);
@@ -999,7 +1002,8 @@ symlink(td, uap)
 		goto out;
 restart:
 	bwillwrite();
-	NDINIT(&nd, CREATE, LOCKPARENT|NOOBJ, UIO_USERSPACE, SCARG(uap, link), td);
+	NDINIT(&nd, CREATE, LOCKPARENT | NOOBJ | SAVENAME, UIO_USERSPACE,
+	    SCARG(uap, link), td);
 	if ((error = namei(&nd)) != 0)
 		goto out;
 	if (nd.ni_vp) {
@@ -2613,7 +2617,7 @@ vn_mkdir(path, mode, segflg, td)
 
 restart:
 	bwillwrite();
-	NDINIT(&nd, CREATE, LOCKPARENT, segflg, path, td);
+	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME, segflg, path, td);
 	nd.ni_cnd.cn_flags |= WILLBEDIR;
 	if ((error = namei(&nd)) != 0)
 		return (error);
