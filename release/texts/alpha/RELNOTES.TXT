@@ -115,12 +115,12 @@ netgraph subsystem.  The ng_ether(4) node is now dynamically loadable.
 Miscellaneous bug fixes and enhancements have also been made. [MERGED]
 
 The pcn(4) driver, which supports the AMD PCnet/FAST, PCnet/FAST+,
-PCnet/Home, and HomePNA adapters, has been added.  Although these
-cards are already supported by the lnc(4) driver, the pcn driver runs
-these chips in 32-bit mode and uses the RX alignment feature to
+PCnet/PRO, PCnet/Home, and HomePNA adapters, has been added.  Although
+these cards are already supported by the lnc(4) driver, the pcn driver
+runs these chips in 32-bit mode and uses the RX alignment feature to
 achieve zero-copy receive.  This driver is also machine-independent,
 so it will work on both the i386 and alpha platforms.  The lnc driver
-is still needed to support non-PCI cards.
+is still needed to support non-PCI cards. [MERGED]
 
 The ed(4) driver is now also supported on the Alpha.
 
@@ -380,7 +380,7 @@ chipsets, including the following:
   NEC Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
-AMD PCnet/FAST, PCnet/FAST+, PCnet/Home, and HomePNA.
+AMD PCnet/FAST, PCnet/FAST+, PCnet/PRO, PCnet/Home, and HomePNA.
 
 SMC Elite 16 WD8013 Ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
