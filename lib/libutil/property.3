@@ -33,6 +33,8 @@
 .Nm propery_find ,
 .Nm properties_free
 .Nd functions to allow creating simple property lists from ASCII file data.
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <libutil.h>
@@ -42,12 +44,6 @@
 .Fn property_find "properties list" "const char *name"
 .Ft void
 .Fn properties_free "properties list"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 .nf
 typedef struct _properties {
