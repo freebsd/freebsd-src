@@ -1,0 +1,352 @@
+<!--
+	The FreeBSD Simplified Chinese Project
+
+	Original Revision: 1.14
+	$FreeBSD$
+
+	This file contains the comments of the old TROUBLE.TXT file.
+-->
+<sect1 id="trouble">
+  <title>故障排除</title>
+
+  <sect2 id="repairing">
+    <title>修复现有的 &os; 安装</title>
+
+    <para>在安装软盘中的顶级菜单上， &os; 提供了一个
+    <quote>Fixit</quote> 选项。
+    要使用它， 您还需要一张和启动用的那张软盘同样的方法生成的
+    <filename>fixit.flp</filename> 镜像软盘，
+    或 <quote>live filesystem</quote>
+    CDROM； 第二种通常是 &os; 发行版本的一部分。</para>
+
+    <para>要启动 fixit， 只需简单地从
+    <filename>kern.flp</filename> 这张软盘启动， 选择
+    <quote>Fixit</quote> 这一项， 并根据提示插入 fixit 软盘或 CDROM。
+    接下来您将进入一个提供了很多命令的命令行界面
+    (在 <filename>/stand</filename>
+    和 <filename>/mnt2/stand</filename> 目录中) 来检查、
+    修复和检验文件系统及其内容。 使用 fixit <emphasis>是</emphasis> 
+    需要一些 UNIX 系统管理的经验的。</para>
+  </sect2>
+
+  <sect2>
+    <title>&arch.print; 架构上常见的问题</title>
+
+    <qandaset arch="i386,amd64">
+      <qandaentry>
+        <question>
+          <para>我的计算机在启动并检测硬件时停住了，
+            或者安装时行为异常， 或者软驱没有检测到。</para>
+        </question>
+        <answer>
+          <para>&os; 5.0 以及更高版本大量地使用了 i386 平台上的系统 ACPI
+            服务以帮助检测系统在启动过程中检测到的设备。
+            不幸的是， ACPI 驱动程序以及主板及其 BIOS 仍然存在一些 bug。
+            ACPI 可以通过在启动加载的第三阶段通过设置
+            <quote>hint.acpi.0.disabled</quote> 来禁用：</para>
+
+          <screen>set hint.acpi.0.disabled="1"</screen>
+
+          <para>在每次启动时这个选项都会被复位，
+            因此有必要把 <literal>hint.acpi.0.disabled="1"</literal>
+            加入到
+            <filename>/boot/loader.conf</filename>
+            中。 要了解关于启动加载器的进一步详情， 请参考
+            FreeBSD 使用手册。</para>
+        </answer>
+      </qandaentry>
+      <qandaentry arch="amd64">
+        <question>
+          <para>我的系统使用 nVidia nForce3 Pro-150 芯片组，
+	    在启动快结束时系统突然停止相应或开始丢失中断。</para>
+	</question>
+	<answer>
+	  <para>这种芯片组的 APIC 以及配套的 BIOS 在本次 release
+	    时仍然有很多问题。 尽管按照上面的方法禁止掉 ACPI 能够让系统正常工作，
+	    您可能会希望通过设置 <quote>hint.apic.0.disabled</quote>
+	    这样较为缓和的选项来达到目的。 如果在 BIOS 中存在这样的选项，
+	    请尝试关闭 APIC 支持。 不幸的是， 一些机器并没有这样的选项。
+	  </para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+          <para>先前版本的 &os; 能够识别我的旧式 ISA 设备，
+            而新版本不能了。 发生了什么问题？</para>
+        </question>
+        <answer>
+          <para>类似 matcd 这样的一些驱动程序， 会由于无人维护或者其他一些原因而被删除。
+            其他一些仍然存在， 但由于其具有侵略性的检测方法而被默认禁用。
+            下面这些 ISA 设备驱动可以在启动加载器的第三步时启用：
+            aha, ahv, aic, bt, ed, cs, sn, ie, fe, le, 以及 lnc。
+            要做到这一点， 在加载器进行 10 秒倒计时的时候将其中止，
+            并在提示符后输入：</para>
+
+          <screen>unset hint.foo.0.disabled</screen>
+
+          <para>将 <replaceable>foo</replaceable>
+            替换为驱动程序的名字就可以重新启用它们。
+            通过编辑文件
+            <filename>/boot/device.hints</filename>
+            并删去相应的
+            <quote>disabled</quote> 行可以使这一设置持久化。</para>
+        </answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+          <para>安装完 &os; 之后的首次硬盘启动， 内核已经正确加载并检测了硬件，
+          但却停机并给出了类似下面的信息：</para>
+
+          <screen>changing root device to ad1s1a panic: cannot mount root</screen>
+          <para>哪个地方出错? 应该如何解决?</para>
+
+          <para>在引导提示中给出的
+          <literal>bios_drive:interface(unit,partition)kernel_name</literal>
+          是什么意思?</para>
+        </question>
+        <answer>
+          <para>当引导盘不是系统中的第一块盘时可能会触发一个存在了很久的问题。
+          BIOS 使用和 &os; 不同的标号机制， 而改正这样的问题是非常困难的事情。</para>
+
+          <para>当引导盘不是系统中的第一块盘时， &os;
+          可能需要一些额外的帮助才能找到它。 这里有两种比较常见的情形，
+          在这两种情形中， 您都需要告诉 &os; 根文件系统的位置。
+          您可以通过指定 BIOS 磁盘编号、 类型以及
+          &os; 对那种类型的编号来完成这项工作。</para>
+
+          <para>第一种情况是您有两个 IDE 磁盘，
+          每个配置成主盘在它们各自的 IDE 总线上，并且希望它们能从
+          第二个盘引导 &os; 
+          BIOS 把它们看作磁盘 0 和磁盘 1， &os; 把它们看作
+           <devicename>ad0</devicename> 和
+          <devicename>ad2</devicename>。</para>
+
+          <para>&os; 在 BIOS 磁盘 1 上，类型为
+          <literal>ad</literal> &os; 盘号为 2，
+          因此您可以说：</para>
+
+          <screen><userinput>1:ad(2,a)kernel</userinput></screen>
+
+          <para>注意如果有一个从盘在主接口上， 则上面这些就不必要了
+          (而且， 事实上是错的)。</para>
+
+          <para>第二种解决涉及到从一个 SCSI 磁盘上引导
+          当您在系统上有一个或多个 IDE 磁盘。在这种情况下，
+           &os; 的盘号比 BIOS 的盘号要低。
+          如果您像 SCSI 磁盘一样有两个 IDE 磁盘，
+           SCSI 磁盘是 BIOS 磁盘 2, 类型 <literal>da</literal> 
+          &os; 盘号为 0，因此您可以这样说：</para>
+
+          <screen><userinput>2:da(0,a)kernel</userinput></screen>
+
+          <para>告诉 &os; 您想从 BIOS 磁盘2上引导，它就是系统上的第
+          一个 SCSI 磁盘。如果您只有一个
+          IDE 磁盘，您需要使用 '1:' 来代替。</para>
+
+          <para>您一旦知道了需要使用的数值之后，
+          就可以用您喜欢的文本编辑器把这些命令写进
+          <filename>/boot.config</filename> 文件中。
+          除非另有说明， &os; 会使用这个文件的内容， 作为对
+          <literal>boot:</literal> 提示的回应。</para>
+        </answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>第一次安装 &os; 后，我从硬盘进行引导，但是引导管理器却提示
+           <literal>F?</literal> 在每次引导时，但却不能引导进入系统。</para>
+	</question>
+	<answer>
+          <para>在安装 &os; 的编辑分区时， 硬盘尺寸设置错误。
+          返回到分区编辑器并指定您的硬盘的实际尺寸。
+          您必须重新安装 &os; 再次重新设置正确的尺寸。</para>
+
+          <para>如果在为您的机器指出正确的尺寸之后仍然失败，这里有个技巧：
+	  安装一个小的 DOS 分区在磁盘开始安装 &os; 后。安装程序将查看 DOS 
+	  分区并且尝试着去推断正确的尺寸。通常这样就能正常工作。</para>
+
+	  <para>下面的提示不再推荐，但是留在这里作为参考：</para>
+
+	  <blockquote>
+            <para>如果您正打算安装只使用 &os; 的服务器， 而不关心 (未来)
+	    和 DOS, Linux 或其他操作系统的兼容性， 您还可以选择使用整个磁盘
+	    (分区编辑器中的 ‘A’)， 选择那个不标准的选项来让
+	    &os; 占满磁盘的每一个扇区。 这样您就不再需要考虑尺寸问题，
+	    而限制则是您将无法运行 &os; 以外的其他操作系统。</para>
+	  </blockquote>
+ 	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>&man.mcd.4; 驱动总是认为它发现了一个设备， 而这导致我的
+	  Intel EtherExpress 网卡无法正常工作。</para>
+	</question>
+	<answer>
+	  <para>用 UserConfig 工具 (参见
+          <filename>HARDWARE.TXT</filename>) 并禁用对
+          <devicename>mcd0</devicename> 和
+          <devicename>mcd1</devicename> 设备的探测。 一般而言，
+          在内核配置文件中您应该只保留和启用那些将要用到的设备。</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>系统发现了我的 my &man.ed.4; 网卡，但却出现
+          设备超时错误。</para>
+	</question>
+	<answer>
+	  <para>您的卡可能与在内核配置中指定的 IRQ 号不同。
+	   ed 驱动默认并不使用软件配置 (DOS 下在 EZSETUP
+	   中输入的值)， 但但如果您在内核配置文件中将 IRQ 指定为
+	   <literal>?</literal> 则它会使用软件的配置。</para>
+
+	  <para>另外， 也可以通过跳线来改变硬件设置
+	  (如果需要， 相应地修改内核配置)，
+	  或在 UserConfig 中将 IRQ 指定为 <literal>-1</literal>，
+	  或在您的内核配置文件中使用 <literal>?</literal>
+          来告诉内核使用软件配置。</para>
+
+          <para>另一种可能是您的卡使用了 IRQ 9， 而这是和 IRQ 2 共用的，
+          这也是经常造成问题的原因
+          (尤其是当您的 VGA 显卡使用 IRQ 2 时!)。 只要可能，
+          您就不应使用 IRQ 2 或 9。</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>我从软盘引导安装我的 IBM ThinkPad (tm)膝上型电脑，
+          键盘的输入一团糟。</para>
+	</question>
+	<answer>
+          <para>以前的 IBM 膝上型电脑使用非标准的键盘控制器，
+          所以您必须告诉键盘驱动程序 (atkbd0) 进入一个特定的模式
+          使它能够在 ThinkPads 上工作。 在 UserConfig 文件中将
+          atkbd0 'Flags' 设置为 0x4， 它就应该能正常的工作了。
+          (参见 'Keyboard' 输入菜单)</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>我的系统找不到我的 Intel EtherExpress 16 卡。</para>
+        </question>
+	<answer>
+	  <para>您必须设置您的 Intel EtherExpress 16 卡的内存映射到地址
+           0xD0000， 并使用 Intel 提供的 <filename>softset.exe</filename>
+          程序进行设置， 让使映射后的内存大小为 32K </para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>在 EISA HP Netserver 上安装时，我的
+	  AIC-7xxx SCSI 控制器检测不到。</para>
+        </question>
+	<answer>
+	  <para>这是一个已知问题， 并用会在将来对其进行修复。
+	  为了使您的系统完全安装， 使用 <option>-c</option> 引导选项进入
+	  UserConfig， 但是 <emphasis>不能</emphasis> 使用好看的可视化模式，
+	  而必须使用旧式的文本 CLI 模式。 在提示符下输入：</para>
+
+          <screen><userinput>eisa 12</userinput>
+<userinput>quit</userinput></screen>
+
+          <para>。 (您也可以用 ‘visual’ 代替 ‘quit’，
+          在接下来的配置对话在可视化模式。)
+          尽管我们推荐您编译定制的内核， 但 dset 现在也能够保存这些值了。</para>
+
+          <para>参考 FAQ 主题 5.3 解释的问题和怎样继续。
+          在您的本地系统 /usr/share/doc/FAQ 目录中可以找到 FAQ，
+          如果您安装了 ‘doc’ 软件包的话。</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>我有一台 Panasonic AL-N1 或 Rios Chandler Pentium
+          机器， 我发现每当进入安装时系统都会挂机。</para>
+        </question>
+	<answer>
+	  <para>由于某些原因， 您的机器可能不喜欢新的
+          <literal>i586_copyout</literal> 和
+          <literal>i586_copyin</literal> 代码。 要禁止它，
+          用安装软盘进行引导， 当它进入第一个菜单 (选择是否进入 UserConfig)
+          时选择命令行界面
+          (<quote>专家模式, Expert Mode</quote>)，
+          并且输入下面的语句：</para>
+
+          <screen><userinput>flags npx0 1</userinput></screen>
+
+          <para>继续正常的引导过程。 这些设置将保存在您的内核中，
+          因此您只需做一次就可以了。</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>我有个 CMD640 IDE 控制器， 系统它坏了。</para>
+        </question>
+	<answer>
+	  <para>&os; 不支持这种控制器。</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>在一台 Compaq Aero 笔记本上， 当尝试从软盘安装时， 提示 <quote>No
+          floppy devices found!  Please check ...</quote>。</para>
+        </question>
+	<answer>
+	  <para>Compaq 系统总是与其它系统有点不同， 他们没有在笔记本的 CMOS RAM
+          中说明软驱的存在。 因此， 驱动程序会认为没有配置软驱。
+          进入 UserConfig 屏幕， 将 fdc0 驱动标志值设置为 0x1。
+          这样驱动程序将认为第一个软驱存在， 而不去查询 CMOS。</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>在安装一台 Dell Poweredge XE 时， 无法识别 Dell
+          自有的 RAID 控制器 DSA (Dell SCSI Array)。</para>
+        </question>
+	<answer>
+	  <para>配置 DSA 来使用 AHA-1540 仿真使用 EISA
+          配置程序。之后 &os; 检测到 DSA
+          作为一个 Adaptec AHA-1540 SCSI 控制器，irq 11 和 port
+          340。在可视化模式下系统将使用 DSA RAID disks，
+          但您不能使用 DSA-specific 里的特性，例如查看 RAID 健壮性。</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>我有一个 IBM EtherJet PCI 卡，它被
+          &man.fxp.4; 驱动程序正确的探测到， 但网卡上的灯却不亮，
+          也不能连到网络。</para>
+        </question>
+	<answer>
+	  <para>我们不理解为什么会发生这样情况， IBM 也不理解
+          (我们问过他们)。 这块网卡是标准的 Intel EtherExpress
+          Pro/100， 只是上面有 IBM 的标签， 这种卡通常工作的都很好。
+          您可以在一些 IBM 的服务器上看一些这方面的征兆。
+          唯一的解决办法是安装一个不同品牌的网卡。</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>当我在配置网络服务期间安装了一个
+          IBM Netfinity 3500， 系统停止了响应。</para>
+        </question>
+	<answer>
+	  <para>在 Netfinity 3500 板上有一个问题， 目前为止我们还没有找出其根源。
+          它可能与系统配置不正确的 SMP 特性有关。
+          目前您只能换一块不同品牌的网卡， 而在任何时候都避免使用板载的。</para>
+	</answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+	  <para>我安装到由 Mylex PCI RAID 控制器管理的磁盘时，
+          系统启动失败 (例如， 显示
+          <literal>read error</literal> 错误信息)。</para>
+        </question>
+	<answer>
+	  <para>Mylex 驱动中有一个 bug，
+          它会忽略 BIOS 中的 <quote>8GB</quote> 模式设置。
+          请改为使用 2GB 模式。</para>
+	</answer>
+      </qandaentry>
+    </qandaset>
+  </sect2>
+</sect1>
