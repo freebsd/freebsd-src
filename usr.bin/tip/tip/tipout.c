@@ -137,12 +137,14 @@ tipout()
 				intTERM();
 				/*NOTREACHED*/
 			} else if (cnt == 0 && errno == ENOENT) {
-				kill(getppid(),SIGUSR1);
+				if (getppid() != 1)
+					kill(getppid(),SIGUSR1);
 				sigblock(sigmask(SIGTERM));
 				intTERM();
 				/*NOTREACHED*/
 			} else if (cnt < 0) {
-				kill(getppid(),SIGUSR1);
+				if (getppid() != 1)
+					kill(getppid(),SIGUSR1);
 				sigblock(sigmask(SIGTERM));
 				intTERM();
 				/*NOTREACHED*/
