@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.25 1995/06/28 16:32:54 se Exp $
+**  $Id: pci.c,v 1.26 1995/07/27 21:38:45 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1471,16 +1471,29 @@ struct vt {
 
 static struct vt VendorTable[] = {
 /*	{0x0e11, "? 0x0e11"},*/
-	{0x1002, "ATI TECHNOLOGIES INC"},
-	{0x1011, "DIGITAL EQUIPMENT CORPORATION"},
+	{0x1000, "NCR/Symbios"},
+	{0x1002, "ATI Technologies Inc."},
+	{0x1004, "VLSI"},
+	{0x100B, "National Semiconductor"},
+	{0x100E, "Weitek"},
+	{0x1011, "Digital Equipment Corporation"},
+	{0x1013, "Cirrus Logic"},
 	{0x101A, "NCR"},
 	{0x1022, "AMD"},
-	{0x102B, "MATROX"},
-/*	{0x1039, "? 0x1039"},*/
+	{0x102B, "Matrox"},
+	{0x102C, "Chips & Technologies"},
+	{0x1039, "Silicon Integrated Systems"},
+	{0x1042, "SMC"},
+	{0x1044, "DPT"},
 	{0x1045, "OPTI"},
-/*	{0x1095, "? 0x1095"},*/
-	{0x5333, "S3 INC."},
-	{0x8086, "INTEL CORPORATION"},
+	{0x104B, "Bus Logic"},
+	{0x1060, "UMC"},
+	{0x1080, "Contaq"},
+	{0x1095, "CMD"},
+	{0x1106, "VIA Technologies"},
+	{0x5333, "S3 Inc."},
+	{0x8086, "Intel Corporation"},
+	{0x9004, "Adaptec"},
 	{0,0}
 };
 
