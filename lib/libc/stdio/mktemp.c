@@ -45,12 +45,16 @@ static const char rcsid[] =
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include <unistd.h>
 
 char *_mktemp __P((char *));
 
 static int _gettemp __P((char *, int *, int, int));
+
+static const unsigned char padchar[] =
+"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 int
 mkstemps(path, slen)
@@ -103,8 +107,10 @@ _gettemp(path, doopen, domkdir, slen)
 	int slen;
 {
 	register char *start, *trv, *suffp;
+	char *pad;
 	struct stat sbuf;
-	int pid, rval;
+	int rval;
+	uint32_t rand;
 
 	if (doopen && domkdir) {
 		errno = EINVAL;
@@ -120,26 +126,16 @@ _gettemp(path, doopen, domkdir, slen)
 		errno = EINVAL;
 		return (0);
 	}
-	pid = getpid();
-	while (*trv == 'X' && pid != 0) {
-		*trv-- = (pid % 10) + '0';
-		pid /= 10;
-	}
-	while (*trv == 'X') {
-		char c;
 
-		pid = (arc4random() & 0xffff) % (26+26);
-		if (pid < 26)
-			c = pid + 'A';
-		else
-			c = (pid - 26) + 'a';
-		*trv-- = c;
+	/* Fill space with random characters */
+	while (*trv == 'X') {
+		rand = arc4random() % (sizeof(padchar) - 1);
+		*trv-- = padchar[rand];
 	}
 	start = trv + 1;
 
 	/*
-	 * check the target directory; if you have six X's and it
-	 * doesn't exist this runs for a *very* long time.
+	 * check the target directory.
 	 */
 	if (doopen || domkdir) {
 		for (;; --trv) {
@@ -175,19 +171,15 @@ _gettemp(path, doopen, domkdir, slen)
 		} else if (lstat(path, &sbuf))
 			return(errno == ENOENT ? 1 : 0);
 
-		/* tricky little algorithm for backward compatibility */
+		/* If we have a collision, cycle through the space of filenames */
 		for (trv = start;;) {
 			if (*trv == '\0' || trv == suffp)
 				return(0);
-			if (*trv == 'Z')
-				*trv++ = 'a';
+			pad = strchr(padchar, *trv);
+			if (pad == NULL || !*++pad)
+				*trv++ = padchar[0];
 			else {
-				if (isdigit((unsigned char)*trv))
-					*trv = 'a';
-				else if (*trv == 'z')	/* inc from z to A */
-					*trv = 'A';
-				else
-					++*trv;
+				*trv++ = *pad;
 				break;
 			}
 		}
