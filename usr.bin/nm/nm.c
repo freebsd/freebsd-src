@@ -74,12 +74,18 @@ int (*sfunc)() = fname;
 #define	SYMBOL_TYPE(x)		((x) & (N_TYPE | N_STAB))
 
 void *emalloc();
+void usage __P(( void ));
+int process_file __P(( char * ));
+int show_archive __P(( char *, FILE * ));
+int show_objfile __P(( char *, FILE * ));
+void print_symbol __P(( char *, struct nlist * ));
 
 /*
  * main()
  *	parse command line, execute process_file() for each file
  *	specified on the command line.
  */
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -143,6 +149,7 @@ main(argc, argv)
  *	show symbols in the file given as an argument.  Accepts archive and
  *	object files as input.
  */
+int
 process_file(fname)
 	char *fname;
 {
@@ -205,6 +212,7 @@ static char *scat(char *dest, char *src)
  * show_archive()
  *	show symbols in the given archive file
  */
+int
 show_archive(fname, fp)
 	char *fname;
 	FILE *fp;
@@ -324,6 +332,7 @@ skip:		if (fseek(fp, last_ar_off + even(atol(ar_head.ar_size)),
  *	file pointer for fp is expected to be at the beginning of an a.out
  *	header.
  */
+int
 show_objfile(objname, fp)
 	char *objname;
 	FILE *fp;
@@ -457,6 +466,7 @@ show_objfile(objname, fp)
  * print_symbol()
  *	show one symbol
  */
+void
 print_symbol(objname, sym)
 	char *objname;
 	register struct nlist *sym;
@@ -589,6 +599,7 @@ typeletter(type)
 	return('?');
 }
 
+int
 fname(a0, b0)
 	void *a0, *b0;
 {
@@ -597,6 +608,7 @@ fname(a0, b0)
 	return(strcmp(a->n_un.n_name, b->n_un.n_name));
 }
 
+int
 rname(a0, b0)
 	void *a0, *b0;
 {
@@ -605,6 +617,7 @@ rname(a0, b0)
 	return(strcmp(b->n_un.n_name, a->n_un.n_name));
 }
 
+int
 value(a0, b0)
 	void *a0, *b0;
 {
@@ -635,13 +648,14 @@ emalloc(size)
 	char *p;
 
 	/* NOSTRICT */
-	if (p = malloc(size))
+	if ( (p = malloc(size)) )
 		return(p);
 	(void)fprintf(stderr, "nm: %s\n", strerror(errno));
 	exit(1);
 }
 
-usage()
+void
+usage(void)
 {
 	(void)fprintf(stderr, "usage: nm [-agnopruw] [file ...]\n");
 	exit(1);

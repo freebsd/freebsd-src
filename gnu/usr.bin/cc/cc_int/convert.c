@@ -386,6 +386,8 @@ convert_to_integer (type, expr)
 	      }
 	  }
 
+        default:
+          break;
 	}
 
       return build1 (NOP_EXPR, type, expr);

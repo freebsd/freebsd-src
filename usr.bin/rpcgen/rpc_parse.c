@@ -47,17 +47,17 @@ static char sccsid[] = "@(#)rpc_parse.c 1.8 89/02/22 (C) 1987 SMI";
 #define ARGNAME "arg"
 
 extern char *make_argname __P(( char *, char * ));
-static int isdefined __P(( definition * ));
-static int def_struct __P(( definition * ));
-static int def_program __P(( definition * ));
-static int def_enum __P(( definition * ));
-static int def_const __P(( definition * ));
-static int def_union __P(( definition * ));
-static int def_typedef __P(( definition * ));
-static int get_declaration __P(( declaration *, defkind ));
-static int get_prog_declaration __P(( declaration *, defkind, int ));
-static int get_type __P(( char **, char **, defkind ));
-static int unsigned_dec __P(( char ** ));
+static void isdefined __P(( definition * ));
+static void def_struct __P(( definition * ));
+static void def_program __P(( definition * ));
+static void def_enum __P(( definition * ));
+static void def_const __P(( definition * ));
+static void def_union __P(( definition * ));
+static void def_typedef __P(( definition * ));
+static void get_declaration __P(( declaration *, defkind ));
+static void get_prog_declaration __P(( declaration *, defkind, int ));
+static void get_type __P(( char **, char **, defkind ));
+static void unsigned_dec __P(( char ** ));
 
 #ifndef __FreeBSD__
 extern char *strdup();
@@ -103,14 +103,14 @@ get_definition()
 	return (defp);
 }
 
-static
+static void
 isdefined(defp)
 	definition *defp;
 {
 	STOREVAL(&defined, defp);
 }
 
-static
+static void
 def_struct(defp)
 	definition *defp;
 {
@@ -138,7 +138,7 @@ def_struct(defp)
 	*tailp = NULL;
 }
 
-static
+static void
 def_program(defp)
 	definition *defp;
 {
@@ -245,7 +245,7 @@ def_program(defp)
 }
 
 
-static
+static void
 def_enum(defp)
 	definition *defp;
 {
@@ -275,7 +275,7 @@ def_enum(defp)
 	*tailp = NULL;
 }
 
-static
+static void
 def_const(defp)
 	definition *defp;
 {
@@ -289,13 +289,13 @@ def_const(defp)
 	defp->def.co = tok.str;
 }
 
-static
+static void
 def_union(defp)
 	definition *defp;
 {
 	token tok;
 	declaration dec;
-	case_list *cases, *tcase;
+	case_list *cases;
 	case_list **tailp;
 	int flag;
 
@@ -388,7 +388,8 @@ static char* reserved_types[] =
  * check that the given name is not one that would eventually result in
  * xdr routines that would conflict with internal XDR routines.
  */
-static check_type_name(name, new_type)
+static void
+check_type_name(name, new_type)
 int new_type;
 char* name;
 {
@@ -417,7 +418,7 @@ char* name;
 
 
 
-static
+static void
 def_typedef(defp)
 	definition *defp;
 {
@@ -433,7 +434,7 @@ def_typedef(defp)
 	defp->def.ty.array_max = dec.array_max;
 }
 
-static
+static void
 get_declaration(dec, dkind)
 	declaration *dec;
 	defkind dkind;
@@ -486,7 +487,7 @@ get_declaration(dec, dkind)
 }
 
 
-static
+static void
 get_prog_declaration(dec, dkind, num)
 	declaration *dec;
 	defkind dkind;
@@ -559,7 +560,7 @@ get_prog_declaration(dec, dkind, num)
 
 
 
-static
+static void
 get_type(prefixp, typep, dkind)
 	char **prefixp;
 	char **typep;
@@ -617,7 +618,7 @@ get_type(prefixp, typep, dkind)
 	}
 }
 
-static
+static void
 unsigned_dec(typep)
 	char **typep;
 {

@@ -11,7 +11,7 @@ end		return END;
 [\t\n ]		;
 
 \"{PC}*\"	{ register char *p; yylval.dynstr = ds(yytext+1);
-		  if (p=rindex(yylval.dynstr, '"')) *p='\0';
+		  if ( (p=rindex(yylval.dynstr, '"')) ) *p='\0';
 		  return QUOTED_STRING;
 		}
 
@@ -22,5 +22,5 @@ end		return END;
 .		{ return (*yytext); }
 %%
 #ifndef lint
-static char rcsid_et_lex_lex_l[] = "$Header: et_lex.lex.l,v 1.3 87/10/31 06:28:05 raeburn Exp $";
+static char rcsid_et_lex_lex_l[] = "$Header: /home/ncvs/src/usr.bin/compile_et/et_lex.lex.l,v 1.2 1995/01/14 22:29:33 wollman Exp $";
 #endif

@@ -149,6 +149,10 @@ extern pid_t childpid;
 /*
  * rpc_util routines 
  */
+void reinitialize();
+void crash();
+void add_type(int len, char *type);
+
 void storeval();
 
 #define	STOREVAL(list,item)	\

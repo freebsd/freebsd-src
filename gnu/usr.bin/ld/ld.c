@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.33 1996/05/28 16:17:48 phk Exp $
+ *	$Id: ld.c,v 1.34 1996/06/08 04:52:57 wpaul Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -875,10 +875,10 @@ check_each_file(function, arg)
 			for (; subentry; subentry = subentry->chain) {
 				if (subentry->flags & E_SCRAPPED)
 					continue;
-				if (return_val = (*function)(subentry, arg))
+				if ( (return_val = (*function)(subentry, arg)) )
 					return return_val;
 			}
-		} else if (return_val = (*function)(entry, arg))
+		} else if ( (return_val = (*function)(entry, arg)) )
 			return return_val;
 	}
 	return 0;
@@ -2391,7 +2391,7 @@ digest_pass2()
 				/* Flag second-hand definitions */
 				undefined_global_sym_count++;
 			if (sp->flags & GS_TRACE)
-				printf("symbol %s assigned to location %#x\n",
+				printf("symbol %s assigned to location %#lx\n",
 					sp->name, sp->value);
 		}
 
@@ -2456,7 +2456,7 @@ digest_pass2()
 		}
 		bss_size += size;
 		if (write_map)
-			printf("Allocating %s %s: %x at %x\n",
+			printf("Allocating %s %s: %x at %lx\n",
 				sp->defined==(N_BSS|N_EXT)?"common":"data",
 				sp->name, size, sp->value);
 
@@ -3607,7 +3607,8 @@ write_file_syms(entry, syms_written_addr)
 			continue;
 
 		if (discard_locals == DISCARD_ALL ||
-		    discard_locals == DISCARD_L && lsp->flags & LS_L_SYMBOL) {
+		    (discard_locals == DISCARD_L && 
+		     (lsp->flags & LS_L_SYMBOL))) {
 			/*
 			 * The user wants to discard this symbol, but it
 			 * is referenced by a relocation.  We can still

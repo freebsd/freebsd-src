@@ -1,7 +1,7 @@
 %{
 #include <stdio.h>
+#include <stdlib.h>
 char *str_concat(), *ds(), *quote();
-void *malloc(), *realloc();
 char *current_token = (char *)NULL;
 extern char *table_name;
 %}
@@ -74,7 +74,7 @@ description	:	QUOTED_STRING
 
 #ifndef	lint
 static char const rcsid_error_table_y[] =
-    "$Header: /home/ncvs/src/usr.bin/compile_et/error_table.y,v 1.2 1995/01/14 22:29:33 wollman Exp $";
+    "$Header: /home/ncvs/src/usr.bin/compile_et/error_table.y,v 1.3 1995/03/15 19:05:28 wpaul Exp $";
 #endif
 
 void *malloc(), *realloc();
@@ -124,6 +124,7 @@ long table_number;
 int current = 0;
 char **error_codes = (char **)NULL;
 
+void
 add_ec(name, description)
 	char const *name, *description;
 {
@@ -138,6 +139,7 @@ add_ec(name, description)
 	error_codes[current] = (char *)NULL;
 }
 
+void
 add_ec_val(name, val, description)
 	char const *name, *val, *description;
 {
@@ -162,6 +164,7 @@ add_ec_val(name, val, description)
 	error_codes[current] = (char *)NULL;
 } 
 
+void
 put_ecs()
 {
 	int i;
@@ -206,6 +209,7 @@ int char_to_num(c)
 	exit (1);
 }
 
+void
 set_table_num(string)
 	char *string;
 {

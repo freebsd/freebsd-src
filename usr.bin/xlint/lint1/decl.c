@@ -479,6 +479,7 @@ tdeferr(td, t)
 		}
 		break;
 		/* LINTED (enumeration values not handled in switch) */
+	default:
 	}
 
 	/* Anything other is not accepted. */

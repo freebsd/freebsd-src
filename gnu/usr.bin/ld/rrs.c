@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.14 1995/03/04 17:46:09 nate Exp $
+ *	$Id: rrs.c,v 1.15 1996/05/27 18:06:02 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -74,7 +74,6 @@ static int	rrs_symbol_size;
 static int	current_jmpslot_offset;
 static int	current_got_offset;
 static int	got_origin;
-static int	current_reloc_offset;
 static int	current_hash_index;
 int		number_of_shobjs;
 
@@ -662,9 +661,10 @@ void
 consider_rrs_section_lengths()
 {
 	int		n;
-	struct shobj	*shp, **shpp;
+	struct shobj	*shp;
 
 #ifdef notyet
+	struct shobj    **shpp;
 /* We run into trouble with this as long as shared object symbols
    are not checked for definitions */
 	/*

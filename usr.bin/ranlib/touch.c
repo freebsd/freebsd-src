@@ -52,7 +52,12 @@ static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 extern CHDR chdr;			/* converted header */
 extern char *archive;			/* archive name */
 
-touch()
+extern void error __P(( char * ));
+void settime __P(( int ));
+int touch __P(( void ));
+
+int
+touch(void)
 {
 	int afd;
 
@@ -69,6 +74,7 @@ touch()
 	return(0);
 }
 
+void
 settime(afd)
 	int afd;
 {

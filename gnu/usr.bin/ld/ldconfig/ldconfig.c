@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.13 1996/01/09 00:04:35 pk Exp $
+ *	$Id: ldconfig.c,v 1.12 1996/02/26 02:22:33 pst Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,8 @@
 #include <sys/resource.h>
 #include <dirent.h>
 #include <errno.h>
+#include <err.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <ar.h>
 #include <ranlib.h>
@@ -114,7 +116,7 @@ char	*argv[];
 			return rval;
 		if (justread) {
 			listhints();
-			return;
+			return 0;
 		}
 	}
 
@@ -288,7 +290,7 @@ buildhints()
 	hdr.hh_ehints = hdr.hh_strtab + hdr.hh_strtab_sz;
 
 	if (verbose)
-		printf("Totals: entries %d, buckets %d, string size %d\n",
+		printf("Totals: entries %d, buckets %ld, string size %d\n",
 					nhints, hdr.hh_nbucket, strtab_sz);
 
 	/* Allocate buckets and string table */

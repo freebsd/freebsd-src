@@ -50,6 +50,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <varargs.h>
 #endif
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 
 #include "tree.h"
@@ -1867,6 +1868,8 @@ final_scan_insn (insn, file, optimize, prescan, nopeepholes)
 		  else if (result == 2)
 		    INSN_CODE (insn) = -1;
 		}
+              default:
+		break;
 	      }
 	  }
 #endif
@@ -2120,6 +2123,8 @@ walk_alter_subreg (x)
 
     case SUBREG:
       return alter_subreg (x);
+    default:
+      break;
     }
 
   return x;
@@ -2178,6 +2183,8 @@ alter_cond (cond)
 	PUT_CODE (cond, NE);
 	value = 2;
 	break;
+      default:
+	break;
       }
 
   if (cc_status.flags & CC_NOT_NEGATIVE)
@@ -2204,6 +2211,8 @@ alter_cond (cond)
 	PUT_CODE (cond, NE);
 	value = 2;
 	break;
+      default:
+	break;
       }
 
   if (cc_status.flags & CC_NO_OVERFLOW)
@@ -2226,6 +2235,8 @@ alter_cond (cond)
       case LTU:
 	/* Jump becomes no-op.  */
 	return -1;
+      default:
+	break;
       }
 
   if (cc_status.flags & (CC_Z_IN_NOT_N | CC_Z_IN_N))
@@ -2249,6 +2260,8 @@ alter_cond (cond)
       case EQ:
 	PUT_CODE (cond, cc_status.flags & CC_Z_IN_N ? LT : GE);
 	value = 2;
+	break;
+      default:
 	break;
       }
 
@@ -2275,6 +2288,8 @@ alter_cond (cond)
       case GE:
 	PUT_CODE (cond, GEU);
 	value = 2;
+	break;
+      default:
 	break;
       }
 

@@ -68,7 +68,7 @@ _BS_blt (op, pdst, dstbit, psrc, srcbit, length)
     case _BS_alu_nor:
       ca1 = ONES; cx1 = ONES; ca2 = ONES; cx2 = ONES;
       break;
-    case_BS_alu_equiv:
+    case _BS_alu_equiv:
       ca1 = 0; cx1 = ONES; ca2 = ONES; cx2 = ONES;
       break;
     case _BS_alu_invert:
@@ -91,7 +91,7 @@ _BS_blt (op, pdst, dstbit, psrc, srcbit, length)
       return;
     }
   {
-#define COMBINE(dst, src)  ((dst) & ((src) & ca1 ^ cx1) ^ ((src) & ca2 ^ cx2))
+#define COMBINE(dst, src)  ( ((dst) & ( ((src) & ca1) ^ cx1)) ^ ( ((src) & ca2) ^ cx2))
 #include "bitdo2.h"
   }
 }

@@ -613,6 +613,7 @@ inptype(cp, epp)
 		}
 		break;
 		/* LINTED (enumeration value(s) not handled in switch) */
+	default:
 	}
 
 	*epp = cp;
@@ -782,6 +783,7 @@ gettlen(cp, epp)
 		}
 		break;
 		/* LINTED (enumeration value(s) not handled in switch) */
+	default:
 	}
 
 	*epp = cp;
