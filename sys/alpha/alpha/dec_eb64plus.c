@@ -31,21 +31,20 @@
  */
 
 /*
- * Port to based on NetBSD/axp by Wilko Bulte <wilko@freebsd.org>
  * FreeBSD version based on:
  *     NetBSD: dec_eb64plus.c,v 1.15 1998/11/19 02:20:07 ross Exp
  *
- * Some info on the Aspen Alpine as this might be hard to come by:
+ * Some info on the Aspen Alpine which might be hard to come by:
  * - Hardware is close enough to the DEC EB64+ design to allow it to run
- *   the EB64+ SRM console f/w
- * - 3 PCI slots, closest to the SIMMs: Alpine calls this slot C
- *                the middle one Alpine calls this slot B
- *		  the 3rd one is Alpine calls this slot A
- *	(A, B, C is silkscreened on the PCB)
+ *   the EB64+ SRM console firmware
+ * - 3 PCI slots, closest to the SIMMs: Alpine calls this one slot C
+ *                the middle one Alpine calls slot B
+ *		  the 3rd one Alpine calls slot A
+ *	(A, B, C are silkscreened on the PCB)
  * - embedded NCR810, located at PCI slot 5
  * - 3 ISA slots, hanging off an Intel 82378IB PCI-ISA bridge at PCI slot 8
- * - embedded floppy, PC keyboard interface, PS/2 mouse interface, 2x serial
- *   ports and a parallel port. All of this hiding after the ISA bridge
+ * - embedded floppy, PC keyboard interface, PS/2 mouse interface, 2 serial
+ *   ports and a parallel port. All of this hanging off the ISA bridge
  */
 
 #include "opt_ddb.h"
