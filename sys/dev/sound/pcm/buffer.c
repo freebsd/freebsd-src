@@ -307,7 +307,7 @@ sndbuf_getbuf(struct snd_dbuf *b)
 void *
 sndbuf_getbufofs(struct snd_dbuf *b, unsigned int ofs)
 {
-	KASSERT((ofs >= 0) && (ofs <= b->bufsize), ("%s: ofs invalid %d", __func__, ofs));
+	KASSERT(ofs <= b->bufsize, ("%s: ofs invalid %d", __func__, ofs));
 
 	return b->buf + ofs;
 }
