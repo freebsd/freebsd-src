@@ -8,7 +8,7 @@
 
 ARCHS=		i386 alpha sparc64
 MULTITEXTS=	installation relnotes hardware
-UNITEXTS=	readme errata
+UNITEXTS=	readme errata early-adopter
 PC98MULTITEXTS=	relnotes hardware
 
 IMAGEDIR=	.imagedir
