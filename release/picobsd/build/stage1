@@ -275,6 +275,7 @@ do_floppy() {
     # now transfer the floppy tree
     cp -Rp floppy.tree/* ${MFS_MOUNTPOINT}
     rm -rf floppy.tree || true # cleanup
+    (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root *)
 
     df -ik ${MFS_MOUNTPOINT} | colrm 70 > .build.reply
     umount ${MFS_MOUNTPOINT}
