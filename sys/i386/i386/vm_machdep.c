@@ -46,6 +46,7 @@
 #ifdef PC98
 #include "opt_pc98.h"
 #endif
+#include "opt_reset.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
