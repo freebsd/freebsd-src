@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.19.2.2 1996/12/23 02:09:37 mpp Exp $
+# $Id: adduser.perl,v 1.19.2.3 1997/03/07 06:23:00 mpp Exp $
 
 
 # read variables
@@ -72,18 +72,6 @@ sub variables {
 
     # shell
     $shell = '';		# $shell{`basename sh`} = sh
-
-    # only for me (=Wolfram)
-    if ($test) {
-	$home = "/home/w/tmp/adduser/home";
-	$etc_shells = "./shells";
-	$etc_passwd = "./master.passwd";
-	$group = "./group";
-	$pwd_mkdb = "pwd_mkdb -p -d .";
-	$config = "adduser.conf";
-	$send_message = "./adduser.message";
-	$logfile = "./log.adduser";
-    }
 
     umask 022;			# don't give login group write access
 
@@ -958,7 +946,7 @@ sub home_create {
     # copy files from  $dotdir to $homedir
     # rename 'dot.foo' files to '.foo'
     print "Copy files from $dotdir to $homedir\n" if $verbose;
-    system("cp -r $dotdir $homedir");
+    system("cp -R $dotdir $homedir");
     system("chmod -R u+wrX,go-w $homedir");
     system("chown -R $name:$group $homedir");
 
