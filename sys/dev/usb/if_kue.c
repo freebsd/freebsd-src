@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999
+ * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ee.columbia.edu>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,10 @@
  * leave the adapter attached to the USB controller, it may remain
  * powered on and retain its firmware. In this case, we don't need
  * to load the firmware a second time.
+ *
+ * Special thanks to Rob Furr for providing an ADS Technologies
+ * adapter for development and testing. No monkeys were harmed during
+ * the development of this driver.
  */
 
 #include <sys/param.h>
