@@ -1748,12 +1748,18 @@ print_387_status (status, ep)
   
   top = (ep->status >> 11) & 7;
   
-  printf ("regno  tag  msb              lsb  value\n");
+  printf (" regno     tag  msb              lsb  value\n");
   for (fpreg = 7; fpreg >= 0; fpreg--) 
     {
+      int st_regno;
       double val;
       
-      printf ("%s %d: ", fpreg == top ? "=>" : "  ", fpreg);
+      /* The physical regno `fpreg' is only relevant as an index into the
+       * tag word.  Logical `%st' numbers are required for indexing `p->regs.
+       */
+      st_regno = (fpreg + 8 - top) & 0x7;
+
+      printf ("%%st(%d) %s ", st_regno, fpreg == top ? "=>" : "  ");
       
       switch ((ep->tag >> (fpreg * 2)) & 3) 
 	{
@@ -1763,11 +1769,12 @@ print_387_status (status, ep)
 	case 3: printf ("empty "); break;
 	}
       for (i = 9; i >= 0; i--)
-	printf ("%02x", ep->regs[fpreg][i]);
+	printf ("%02x", ep->regs[st_regno][i]);
       
-      i387_to_double (ep->regs[fpreg], (char *)&val);
+      i387_to_double (ep->regs[st_regno], (char *)&val);
       printf ("  %g\n", val);
     }
+#if 0 /* reserved fields are always 0xffff on 486's */
   if (ep->r0)
     printf ("warning: reserved0 is 0x%x\n", ep->r0);
   if (ep->r1)
@@ -1776,7 +1783,13 @@ print_387_status (status, ep)
     printf ("warning: reserved2 is 0x%x\n", ep->r2);
   if (ep->r3)
     printf ("warning: reserved3 is 0x%x\n", ep->r3);
+#endif
 }
+
+#ifdef __386BSD__
+#define	fpstate		save87
+#define	U_FPSTATE(u)	u.u_pcb.pcb_savefpu
+#endif
 
 #ifndef U_FPSTATE
 #define U_FPSTATE(u) u.u_fpstate
@@ -1786,7 +1799,6 @@ i386_float_info ()
 {
   struct user u; /* just for address computations */
   int i;
-#ifndef __386BSD__
   /* fpstate defined in <sys/user.h> */
   struct fpstate *fpstatep;
   char buf[sizeof (struct fpstate) + 2 * sizeof (int)];
@@ -1797,6 +1809,7 @@ i386_float_info ()
   extern int corechan;
   int skip;
   
+#ifndef __386BSD__	/* XXX - look at pcb flags */
   uaddr = (char *)&u.u_fpvalid - (char *)&u;
   if (have_inferior_p()) 
     {
@@ -1804,7 +1817,7 @@ i386_float_info ()
       unsigned int mask;
       
       rounded_addr = uaddr & -sizeof (int);
-      data = ptrace (3, inferior_pid, rounded_addr, 0);
+      data = ptrace (PT_READ_U, inferior_pid, (caddr_t)rounded_addr, 0);
       mask = 0xff << ((uaddr - rounded_addr) * 8);
       
       fpvalid = ((data & mask) != 0);
@@ -1823,6 +1836,7 @@ i386_float_info ()
       printf ("no floating point status saved\n");
       return;
     }
+#endif	/* not __386BSD__ */
   
   uaddr = (char *)&U_FPSTATE(u) - (char *)&u;
   if (have_inferior_p ()) 
@@ -1837,7 +1851,7 @@ i386_float_info ()
       ip = (int *)buf;
       for (i = 0; i < rounded_size; i++) 
 	{
-	  *ip++ = ptrace (3, inferior_pid, rounded_addr, 0);
+	  *ip++ = ptrace (PT_READ_U, inferior_pid, (caddr_t)rounded_addr, 0);
 	  rounded_addr += sizeof (int);
 	}
     } 
@@ -1850,6 +1864,9 @@ i386_float_info ()
       skip = 0;
     }
   
+#ifdef __386BSD__
+  print_387_status (0, (struct env387 *)buf);
+#else
   fpstatep = (struct fpstate *)(buf + skip);
   print_387_status (fpstatep->status, (struct env387 *)fpstatep->state);
 #endif
