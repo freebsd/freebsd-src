@@ -65,6 +65,7 @@ static struct qcam_softc {
 	u_char		*buffer;		/* frame buffer */
 	u_char		*buffer_end;		/* end of frame buffer */
 	u_int		flags;
+	u_int		conf_flags;		/* config file flags */
 	u_int		iobase;
 	int		unit;			/* device */
 	void		(*scanner)(struct qcam_softc *);
@@ -88,6 +89,23 @@ static struct qcam_softc {
 #endif
 } qcam_softc[NQCAM];
 
+/* flags in softc */
+#define	QC_OPEN			0x01		/* device open */
+#define	QC_ALIVE		0x02		/* probed and attached */
+#define	QC_BIDIR_HW		0x04		/* bidir parallel port */
+
+/* flags from kernel configuration - these are temporary only! */
+#define	QC_CONF_NODETECT 0x01		/* always assume camera is present */
+#define	QC_CONF_FORCEUNI 0x02		/* force unidirectional transfers */
+
+#define	QC_MAXFRAMEBUFSIZE	(QC_MAX_XSIZE*QC_MAX_YSIZE)
+
+static const u_char qcam_zoommode[3][3] = {
+	{ QC_XFER_WIDE,   QC_XFER_WIDE,   QC_XFER_WIDE },
+	{ QC_XFER_NARROW, QC_XFER_WIDE,   QC_XFER_WIDE },
+	{ QC_XFER_TIGHT,  QC_XFER_NARROW, QC_XFER_WIDE }
+};
+
 static struct kern_devconf kdc_qcam_template = {
 	0, 0, 0,			/* filled in by dev_attach() */
 	"qcam",				/* kdc_name */
@@ -106,19 +124,6 @@ static struct kern_devconf kdc_qcam_template = {
 	DC_UNCONFIGURED,		/* kdc_state */
 	"QuickCam video input", 	/* kdc_description */
 	DC_CLS_MISC			/* class */
-};
-
-/* flags in softc */
-#define	QC_OPEN			0x01		/* device open */
-#define	QC_ALIVE		0x02		/* probed and attached */
-#define	QC_BIDIR_HW		0x04		/* bidir parallel port */
-
-#define	QC_MAXFRAMEBUFSIZE	(QC_MAX_XSIZE*QC_MAX_YSIZE)
-
-static const u_char qcam_zoommode[3][3] = {
-	{ QC_XFER_WIDE,   QC_XFER_WIDE,   QC_XFER_WIDE },
-	{ QC_XFER_NARROW, QC_XFER_WIDE,   QC_XFER_WIDE },
-	{ QC_XFER_TIGHT,  QC_XFER_NARROW, QC_XFER_WIDE }
 };
 
 #define	UNIT(dev)		minor(dev)
@@ -215,7 +220,8 @@ qcam_reset (struct qcam_softc *qs)
 	write_control(iobase, 0x20);
 	write_data   (iobase, 0x75);
 
-	if (read_data(iobase) != 0x75)
+	if ((read_data(iobase) != 0x75) &&
+	    !(qs->conf_flags & QC_CONF_FORCEUNI))
 	    qs->flags |= QC_BIDIR_HW;	/* bidirectional parallel port */
 	else
 	    qs->flags &= ~QC_BIDIR_HW;
@@ -474,7 +480,7 @@ qcam_probe (struct isa_device *devp)
 	 *     check.
 	 */
 
-	if (!(devp->id_flags & 1)) {
+	if (!(devp->id_flags & QC_CONF_NODETECT)) {
 	    write_control(devp->id_iobase, 0x20);
 	    write_control(devp->id_iobase, 0x0b);
 	    write_control(devp->id_iobase, 0x0e);
@@ -533,6 +539,7 @@ qcam_attach (struct isa_device *devp)
 
 	qs->iobase	 = devp->id_iobase;
 	qs->unit	 = devp->id_unit;
+	qs->conf_flags	 = devp->id_flags;
 	qs->kdc.kdc_state = DC_IDLE;
 	qs->flags |= QC_ALIVE;
 
