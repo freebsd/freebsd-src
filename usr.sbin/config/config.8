@@ -56,7 +56,7 @@ Only the version of
 applicable to the architecture that you are running
 will be installed on your machine.
 .Pp
-.Nm Config
+.Nm
 builds a set of system configuration files from the file
 .Ar SYSTEM_NAME
 which describes
@@ -101,7 +101,7 @@ containing device specifications, configuration options
 and other system parameters for one system configuration.
 .El
 .Pp
-.Nm Config
+.Nm
 should be run from the
 .Pa conf
 subdirectory of the system source (usually
@@ -110,7 +110,7 @@ where
 .Pa ARCH
 represents one of the architectures supported by
 .Fx .
-.Nm Config
+.Nm
 creates the directory
 .Pa ../../compile/SYSTEM_NAME
 or the one given with the
@@ -142,7 +142,7 @@ it is necessary to run
 .Dq Li make depend
 in the directory where the new makefile
 was created.
-.Nm Config
+.Nm
 prints a reminder of this when it completes.
 .Pp
 If any other error messages are produced by
