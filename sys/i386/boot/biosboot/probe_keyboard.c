@@ -42,13 +42,13 @@
  *
  * This grody hack brought to you by Bill Paul (wpaul@ctr.columbia.edu)
  *
- *	$Id$
+ *	$Id: probe_keyboard.c,v 1.1 1995/01/20 07:48:25 wpaul Exp $
  */
 
 #include <machine/console.h>
 #include <machine/cpufunc.h>
 
-#ifdef BOOTWAIT
+#if BOOTWAIT
 extern int delay1ms(void);
 #else
 int delay1ms()
