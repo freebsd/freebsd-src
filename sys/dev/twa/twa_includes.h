@@ -38,6 +38,7 @@
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
