@@ -131,22 +131,8 @@ SLIST_HEAD(sigiolst, sigio);
 #ifdef _KERNEL
 
 /* Lock a file descriptor table. */
-/*#define FILEDESC_LOCK_DEBUG*/
-#ifdef FILEDESC_LOCK_DEBUG
-#define FILEDESC_LOCK(fd)					\
-	do {							\
-		printf("FD_LCK: %p %s %d\n", &(fd)->fd_mtx, __FILE__, __LINE__);	\
-		mtx_lock(&(fd)->fd_mtx);			\
-	} while (0)
-#define FILEDESC_UNLOCK(fd)					\
-	do {							\
-		printf("FD_REL: %p %s %d\n", &(fd)->fd_mtx, __FILE__, __LINE__);	\
-		mtx_unlock(&(fd)->fd_mtx);			\
-	} while (0)
-#else
 #define FILEDESC_LOCK(fd)	mtx_lock(&(fd)->fd_mtx)
 #define FILEDESC_UNLOCK(fd)	mtx_unlock(&(fd)->fd_mtx)
-#endif
 #define	FILEDESC_LOCKED(fd)	mtx_owned(&(fd)->fd_mtx)
 #define	FILEDESC_LOCK_ASSERT(fd, type)	mtx_assert(&(fd)->fd_mtx, (type))
 
