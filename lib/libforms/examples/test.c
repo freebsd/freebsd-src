@@ -35,7 +35,7 @@ main()
 	struct text_field field4   = {string4};
 	struct input_field field5  = {1,"A place filler",0};
 	struct text_field field6   = {string6};
-	struct menu_field field7   = {4, 0, options7};
+	struct menu_field field7   = {sizeof &options7, 0, options7};
 	struct action_field field8 = {"EXIT",&exit_form};
 	struct action_field field9 = {"CANCEL",&cancel_form};
 
