@@ -32,7 +32,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd April 18, 1994
+.Dd June 15, 2001
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -41,33 +41,30 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl AaLlnW
+.Op Fl f Ar address_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Nm
+.Op Fl gilnrsS
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Nm
-.Op Fl bdgilnrsS
-.Op Fl f Ar address_family
-.Op Fl M Ar core
-.Op Fl N Ar system
-.Nm
-.Op Fl bdn
-.Op Fl I Ar interface
-.Op Fl M Ar core
-.Op Fl N Ar system
+.Fl i | I Ar interface
 .Op Fl w Ar wait
-.Nm
-.Op Fl p Ar protocol
+.Op Fl abdgt
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Nm
-.Op Fl p Ar protocol
-.Op Fl i
-.Op Fl I Ar Interface
+.Fl s Op Fl s
+.Op Fl f Ar address_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
 .Nm
-.Op Fl s
-.Op Fl f Ar address_family
-.Op Fl i
-.Op Fl I Ar Interface
+.Fl i | I Ar interface Fl s
+.Op Fl f Ar address_family | Fl p Ar protocol
+.Op Fl M Ar core
+.Op Fl N Ar system
 .Nm
 .Fl m
 .Op Fl M Ar core
@@ -89,9 +86,13 @@ interval specified,
 .Nm
 will continuously display the information regarding packet
 traffic on the configured network interfaces.
-The fourth form displays statistics about the named protocol.
-The fifth and sixth forms display per interface statistics for
+The fourth form displays statistics for
+the specified protocol or address familily.
+The fifth form displays per-interface statistics for
 the specified protocol or address family.
+The sixth form displays
+.Xr mbuf 9
+statistics.
 .Pp
 The options have the following meaning:
 .Bl -tag -width flag
@@ -112,8 +113,8 @@ parent route); normally these routes are
 not shown.
 .It Fl b
 With the interface display (option
-.Fl i
-, as described below),
+.Fl i ,
+as described below),
 show the number of bytes in and out.
 .It Fl d
 With either interface display (option
@@ -165,18 +166,14 @@ used with a
 .Ar wait
 interval as described below.
 If the
-.Fl f Ar address_family
-option (with the
 .Fl s
-option) or the
-.Fl p Ar protocol
-option is present, show per-interface statistics on the
+option is present, show per-interface protocol statistics on the
 .Ar interface
 for the specified
 .Ar address_family
 or
 .Ar protocol ,
-respectively.
+or for all protocol families.
 .It Fl i
 Show the state of interfaces which have been auto-configured
 (interfaces statically configured into a system, but not
@@ -188,17 +185,13 @@ for each Ethernet interface and for each IP interface address.
 Multicast addresses are shown on separate lines following the interface
 address with which they are associated.
 If the
-.Fl f Ar address_family
-option (with the
 .Fl s
-option) or the
-.Fl p Ar protocol
 option is present, show per-interface statistics on all interfaces
 for the specified
 .Ar address_family
 or
 .Ar protocol ,
-respectively.
+or for all protocol families.
 .It Fl L
 Show the size of the various listen queues.
 The first count shows the
@@ -223,10 +216,6 @@ Show network addresses and ports as numbers (normally
 interprets addresses and ports and attempts to display them
 symbolically).
 This option may be used with any of the display formats.
-.It Fl S
-Show network addresses as numbers (as with
-.Fl n )
-but show ports symbolically).
 .It Fl p Ar protocol 
 Show statistics about
 .Ar protocol ,
@@ -241,9 +230,6 @@ report.
 The program will complain if
 .Ar protocol
 is unknown or if there is no statistics routine for it.
-.It Fl s
-Show per-protocol statistics.
-If this option is repeated, counters with a value of zero are suppressed.
 .It Fl r
 Show the routing tables.
 Use with
@@ -259,6 +245,13 @@ is also present,
 assumes more columns are there and the maximum transmission unit
 .Pq Dq mtu
 are also displayed.
+.It Fl S
+Show network addresses as numbers (as with
+.Fl n )
+but show ports symbolically).
+.It Fl s
+Show per-protocol statistics.
+If this option is repeated, counters with a value of zero are suppressed.
 .It Fl W
 In certain displays, avoid truncating addresses even if this causes
 some fields to overflow.
