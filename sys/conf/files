@@ -723,8 +723,10 @@ dev/sr/if_sr.c		optional sr
 dev/sr/if_sr_pci.c	optional sr pci
 dev/streams/streams.c	optional streams
 dev/stg/tmc18c30.c	optional stg
+dev/stg/tmc18c30_subr.c	optional stg
 dev/stg/tmc18c30_pccard.c	optional stg card
 dev/stg/tmc18c30_pccard.c	optional stg pccard
+dev/stg/tmc18c30_pci.c	optional stg pci
 dev/stg/tmc18c30_isa.c	optional stg isa
 dev/sym/sym_hipd.c	optional sym					\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
