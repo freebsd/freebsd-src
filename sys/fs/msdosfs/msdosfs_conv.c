@@ -800,10 +800,12 @@ winChkName(un, unlen, chksum, pmp)
 
 	for (np = dirbuf.d_name; unlen > 0 && len > 0;) {
 		/*
-		 * Should comparison be case insensitive?
+		 * Comparison must be case insensitive, because FAT disallows
+		 * to look up or create files in case sensitive even when
+		 * it's a long file name.
 		 */
-		c1 = unix2winchr((const u_char **)&np, (size_t *)&len, 0, pmp);
-		c2 = unix2winchr(&un, (size_t *)&unlen, 0, pmp);
+		c1 = unix2winchr((const u_char **)&np, (size_t *)&len, LCASE_BASE, pmp);
+		c2 = unix2winchr(&un, (size_t *)&unlen, LCASE_BASE, pmp);
 		if (c1 != c2)
 			return -2;
 	}

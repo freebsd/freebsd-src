@@ -275,10 +275,7 @@ set_charset(struct ntfs_args *pargs)
 	if ((pargs->cs_ntfs = malloc(ICONV_CSNMAXLEN)) == NULL)
 		return (-1);
 	strncpy(pargs->cs_ntfs, ENCODING_UNICODE, ICONV_CSNMAXLEN);
-	error = kiconv_add_xlat16_cspair(pargs->cs_local, pargs->cs_ntfs, 0);
-	if (error)
-		return (-1);
-	error = kiconv_add_xlat16_cspair(pargs->cs_ntfs, pargs->cs_local, 0);
+	error = kiconv_add_xlat16_cspairs(pargs->cs_ntfs, pargs->cs_local);
 	if (error)
 		return (-1);
 

@@ -339,17 +339,11 @@ set_charset(struct msdosfs_args *args)
 	if ((args->cs_win = malloc(ICONV_CSNMAXLEN)) == NULL)
 		return (-1);
 	strncpy(args->cs_win, ENCODING_UNICODE, ICONV_CSNMAXLEN);
-	error = kiconv_add_xlat16_cspair(args->cs_win, args->cs_local, 0);
-	if (error)
-		return (-1);
-	error = kiconv_add_xlat16_cspair(args->cs_local, args->cs_win, 0);
+	error = kiconv_add_xlat16_cspairs(args->cs_win, args->cs_local);
 	if (error)
 		return (-1);
 	if (args->cs_dos) {
-		error = kiconv_add_xlat16_cspair(args->cs_dos, args->cs_local, KICONV_FROM_UPPER);
-		if (error)
-			return (-1);
-		error = kiconv_add_xlat16_cspair(args->cs_local, args->cs_dos, KICONV_LOWER);
+		error = kiconv_add_xlat16_cspairs(args->cs_dos, args->cs_local);
 		if (error)
 			return (-1);
 	} else {
