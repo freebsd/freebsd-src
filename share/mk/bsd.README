@@ -204,7 +204,7 @@ DPADD		Additional dependencies for the program.  Usually used for
 
 		The following libraries are predefined for DPADD:
 
-			LIBC		/lib/libc.a
+			LIBC		/usr/lib/libc.a
 			LIBCOMPAT	/usr/lib/libcompat.a
 			LIBCURSES	/usr/lib/libcurses.a
 			LIBDBM		/usr/lib/libdbm.a
@@ -217,7 +217,7 @@ DPADD		Additional dependencies for the program.  Usually used for
 			LIBPC		/usr/lib/libpc.a
 			LIBPLOT		/usr/lib/libplot.a
 			LIBRPC		/usr/lib/sunrpc.a
-			LIBTERM		/usr/lib/libterm.a
+			LIBTERM		/usr/lib/libtermcap.a (sic)
 			LIBUTIL		/usr/lib/libutil.a
 
 SHAREDSTRINGS	If defined, a new .c.o rule is used that results in shared
