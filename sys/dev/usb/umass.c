@@ -612,6 +612,12 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		return(UMATCH_VENDOR_PRODUCT);
 	}
 
+	if (UGETW(dd->idVendor) == USB_VENDOR_SIGMATEL &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_SIGMATEL_I_BEAD100) {
+		/* XXX Really need SHUTTLE_INIT quirk from FreeBSD-current */
+		sc->drive = SHUTTLE_EUSB;
+	}
+
 	/*
 	 * The Pentax Optio cameras require RS_NO_CLEAR_UA
 	 * PR: kern/46369, kern/50271

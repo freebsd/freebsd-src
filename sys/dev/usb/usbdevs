@@ -1054,6 +1054,9 @@ product SHUTTLE EUSBORCA	0x0325	eUSB ORCA Quad Reader
 /* Siemens products */
 product SIEMENS SPEEDSTREAM	0x1001	SpeedStream USB
 
+/* Sigmatel products */
+product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
+
 /* SIIG products */
 product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
 
