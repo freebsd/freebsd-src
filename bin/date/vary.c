@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vary.c,v 1.4 1998/05/06 06:51:20 charnier Exp $";
+	"$Id: vary.c,v 1.5 1999/03/09 09:38:54 brian Exp $";
 #endif /* not lint */
 
 #include <time.h>
@@ -140,11 +140,12 @@ adjmon(struct tm *t, char type, int val, int istext)
 
   switch (type) {
     case '+':
-      if (istext)
+      if (istext) {
         if (val <= t->tm_mon)
           val += 11 - t->tm_mon;	/* early next year */
         else
           val -= t->tm_mon + 1;		/* later this year */
+      }
       if (!adjyear(t, '+', (t->tm_mon + val) / 12))
         return 0;
       val %= 12;
@@ -154,11 +155,12 @@ adjmon(struct tm *t, char type, int val, int istext)
       break;
 
     case '-':
-      if (istext)
+      if (istext) {
         if (val-1 > t->tm_mon)
           val = 13 - val + t->tm_mon;	/* later last year */
         else
           val = t->tm_mon - val + 1;	/* early this year */
+      }
       if (!adjyear(t, '-', val / 12))
         return 0;
       val %= 12;

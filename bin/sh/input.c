@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)input.c	8.3 (Berkeley) 6/9/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: input.c,v 1.11 1998/05/18 06:43:45 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>	/* defines BUFSIZ */
@@ -232,7 +232,6 @@ preadbuffer()
 	char *p, *q;
 	int more;
 	int something;
-	extern EditLine *el;
 	char savec;
 
 	if (parsefile->strpush) {

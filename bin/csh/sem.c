@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)sem.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: sem.c,v 1.7 1998/02/28 10:50:00 jraynard Exp $";
+	"$Id: sem.c,v 1.8 1998/05/06 06:51:00 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -203,7 +203,7 @@ execute(t, wanttty, pipein, pipeout)
 	 * We have to fork for eval too.
 	 */
 	    (bifunc && (t->t_dflg & (F_PIPEIN | F_PIPEOUT)) != 0 &&
-	     bifunc->bfunct == doeval))
+	     bifunc->bfunct == doeval)) {
 	    if (t->t_dtyp == NODE_PAREN ||
 		t->t_dflg & (F_REPEAT | F_AMPERSAND) || bifunc) {
 		forked++;
@@ -339,6 +339,7 @@ execute(t, wanttty, pipein, pipeout)
 		}
 
 	    }
+	}
 	if (pid != 0) {
 	    /*
 	     * It would be better if we could wait for the whole job when we
