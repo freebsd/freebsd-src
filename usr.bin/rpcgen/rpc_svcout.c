@@ -763,7 +763,7 @@ write_msg_out(void)
  
 	if (!Cflag) {
 		f_print(fout, "void _msgout(msg)\n");
-		f_print(fout, "\tconst char *msg;\n");
+		f_print(fout, "\tchar *msg;\n");
 	} else {
 		f_print(fout, "void _msgout(const char* msg)\n");
 	}
