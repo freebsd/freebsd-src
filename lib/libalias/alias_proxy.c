@@ -487,7 +487,7 @@ ProxyModify(struct alias_link *link,
 */
 
 int
-PacketAliasProxyRule(char *cmd)
+PacketAliasProxyRule(const char *cmd)
 {
 /*
  * This function takes command strings of the form:
