@@ -133,7 +133,7 @@ struct conf_entry {
 	int trsize;		/* Size cutoff to trigger trimming the log */
 	int hours;		/* Hours between log trimming */
 	struct ptime_data *trim_at;	/* Specific time to do trimming */
-	int permissions;	/* File permissions on the log */
+	unsigned int permissions;	/* File permissions on the log */
 	int flags;		/* CE_COMPACT, CE_BZCOMPACT, CE_BINARY */
 	int sig;		/* Signal to send */
 	int def_cfg;		/* Using the <default> rule for this file */
