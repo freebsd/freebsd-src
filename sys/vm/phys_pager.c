@@ -38,34 +38,15 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_zone.h>
 
-static void phys_pager_init __P((void));
-static vm_object_t phys_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
-		vm_ooffset_t));
-static void phys_pager_dealloc __P((vm_object_t));
-static int phys_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
-static void phys_pager_putpages __P((vm_object_t, vm_page_t *, int, 
-		boolean_t, int *));
-static boolean_t phys_pager_haspage __P((vm_object_t, vm_pindex_t, int *,
-		int *));
-
 /* list of device pager objects */
 static struct pagerlst phys_pager_object_list;
 
 static int phys_pager_alloc_lock, phys_pager_alloc_lock_want;
 
-struct pagerops physpagerops = {
-	phys_pager_init,
-	phys_pager_alloc,
-	phys_pager_dealloc,
-	phys_pager_getpages,
-	phys_pager_putpages,
-	phys_pager_haspage,
-	NULL
-};
-
 static void
-phys_pager_init()
+phys_pager_init(void)
 {
+
 	TAILQ_INIT(&phys_pager_object_list);
 }
 
@@ -104,9 +85,6 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		object = vm_object_allocate(OBJT_PHYS,
 			OFF_TO_IDX(foff + size));
 		object->handle = handle;
-#if 0
-		TAILQ_INIT(&object->un_pager.physp.physp_pglist);
-#endif
 		TAILQ_INSERT_TAIL(&phys_pager_object_list, object,
 		    pager_object_list);
 	} else {
@@ -126,21 +104,14 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 }
 
 static void
-phys_pager_dealloc(object)
-	vm_object_t object;
+phys_pager_dealloc(vm_object_t object)
 {
-	vm_page_t m;
-	int s;
 
 	TAILQ_REMOVE(&phys_pager_object_list, object, pager_object_list);
 }
 
 static int
-phys_pager_getpages(object, m, count, reqpage)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	int reqpage;
+phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 {
 	int i, s;
 
@@ -168,13 +139,10 @@ phys_pager_getpages(object, m, count, reqpage)
 }
 
 static void
-phys_pager_putpages(object, m, count, sync, rtvals)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	boolean_t sync;
-	int *rtvals;
+phys_pager_putpages(vm_object_t object, vm_page_t *m, int count, boolean_t sync,
+		    int *rtvals)
 {
+
 	panic("phys_pager_putpage called");
 }
 
@@ -189,11 +157,8 @@ phys_pager_putpages(object, m, count, sync, rtvals)
 #define PHYSCLUSTER 1024
 #endif
 static boolean_t
-phys_pager_haspage(object, pindex, before, after)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int *before;
-	int *after;
+phys_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
+		   int *after)
 {
 	vm_pindex_t base, end;
 
@@ -205,3 +170,13 @@ phys_pager_haspage(object, pindex, before, after)
 		*after = end - pindex;
 	return (TRUE);
 }
+
+struct pagerops physpagerops = {
+	phys_pager_init,
+	phys_pager_alloc,
+	phys_pager_dealloc,
+	phys_pager_getpages,
+	phys_pager_putpages,
+	phys_pager_haspage,
+	NULL
+};
