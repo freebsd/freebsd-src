@@ -103,8 +103,8 @@ mbpr()
 	register int totmem, totfree, totmbufs;
 	register int i;
 	register struct mbtypes *mp;
-	int name[3], nmbclusters;
-	size_t nmbclen, mbstatlen;
+	int name[3], nmbclusters, nmbufs;
+	size_t nmbclen, nmbuflen, mbstatlen;
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_IPC;
@@ -121,6 +121,13 @@ mbpr()
 		warn("sysctl: retrieving nmbclusters");
 		return;
 	}
+
+	nmbuflen = sizeof(int);
+	if (sysctlbyname("kern.ipc.nmbufs", &nmbufs, &nmbuflen, 0, 0) < 0) {
+		warn("sysctl: retrieving nmbufs");
+		return;
+	}
+
 #undef MSIZE
 #define MSIZE		(mbstat.m_msize)
 #undef MCLBYTES
@@ -134,7 +141,8 @@ mbpr()
 	totmbufs = 0;
 	for (mp = mbtypes; mp->mt_name; mp++)
 		totmbufs += mbstat.m_mtypes[mp->mt_type];
-	printf("%u/%lu mbufs in use:\n", totmbufs, mbstat.m_mbufs);
+	printf("%u/%lu/%u mbufs in use (current/peak/max):\n", totmbufs,
+	    mbstat.m_mbufs, nmbufs);
 	for (mp = mbtypes; mp->mt_name; mp++)
 		if (mbstat.m_mtypes[mp->mt_type]) {
 			seen[mp->mt_type] = YES;
