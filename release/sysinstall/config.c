@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.58 1998/03/07 14:33:50 jkh Exp $
+ * $Id: config.c,v 1.51.2.59 1998/03/09 08:21:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -503,7 +503,6 @@ configUsers(dialogMenuItem *self)
 int
 configXEnvironment(dialogMenuItem *self)
 {
-#ifndef USE_XIG_ENVIRONMENT
     char *config, *execfile;
     char *moused;
 
@@ -544,83 +543,6 @@ configXEnvironment(dialogMenuItem *self)
 		   "The XFree86 distribution before attempting to configure it.");
 	return DITEM_FAILURE | DITEM_RESTORE;
     }
-
-#else	/* USE_XIG_ENVIRONMENT */
-    int i;
-
-    /* Make sure we're sane first */
-    if (!file_readable("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall") ||
-	!file_readable("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup")) {
-	dialog_clear_norefresh();
-	msgConfirm("Hmmm!  It looks like you elected not to install the AccelleratedX\n"
-		   "server package (or the installation failed somehow).  If this was\n"
-		   "an omission rather than an error, please go to the Distributions\n"
-		   "menu, select the Custom distribution options and then choose your X11\n"
-		   "distribution components from the XFree86 menu.  AccelX will be selected\n"
-		   "as the default server automatically.");
-	return DITEM_FAILURE | DITEM_RESTORE;
-    }
-
-    if (mediaDevice && mediaDevice->type != DEVICE_TYPE_CDROM) {
-	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS || !mediaDevice || !mediaDevice->init(mediaDevice)) {
-	    msgConfirm("I can't mount the CDE distribution from CDROM, sorry.\n"
-		       "Please make sure you have the 1st CD of your FreeBSD Desktop/Pro\n"
-		       "distribution in the drive before trying this operation.");
-	    return DITEM_FAILURE | DITEM_RESTORE;
-	}
-    }
-
-    if (!directory_exists("/dist/CDE/")) {
-	msgConfirm("Hmmm!  I can't find the CDE distribution.  Please place the 1st CD of your\n"
-		   "FreeBSD Desktop/Pro distribution in the drive and try this operation again.");
-	return DITEM_FAILURE | DITEM_RESTORE;
-    }
-
-    /* Pre-extract base sets in kludge to work around chicken-and-egg problem with CDE and Xaccel */
-    if (directory_exists("/dist/CDE/") && !file_readable("/usr/X11R6/bin/xterm")) {
-	msgNotify("Installing bootstrap X11 tools from CDE distribution.");
-	systemExecute("tar xpf /dist/CDE/FreeBSD/packages/X11-RUN/archive -C /");
-	systemExecute("tar xpf /dist/CDE/FreeBSD/packages/X11-PRG/archive -C /");
-    }
-    systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/dt/lib /usr/local/lib /usr/lib/compat");
-
-    dialog_clear_norefresh();
-    msgNotify("Running AcceleratedX 3.1 installation procedure, please wait.");
-    if ((i = vsystem("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall"))) {
-	dialog_clear_norefresh();
-	msgConfirm("Installation procedure failed, error code %d!  Please report\n"
-		   "error to Walnut Creek CDROM tech support (either send email\n"
-		   "to support@cdrom.com or call +1 510 603 1234).  Thank you!", i);
-	return DITEM_FAILURE | DITEM_RESTORE;
-    }
-    else {
-	dialog_clear();
-	systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup");
-    }
-    if (directory_exists("/dist/CDE")) {
-	dialog_clear_norefresh();
-	msgNotify("Running CDE installation - please wait (this may take awhile!).");
-	dialog_clear();
-	clear();
-	refresh();
-	i = systemExecute("(cd /dist/CDE; sh Install)");
-	dialog_clear();
-	if (i) {
-	    msgConfirm("/dist/CDE/dtinstall script returned an error status!\n\n"
-		       "To try again, you should run this command manually after the system\n"
-		       "is up (and if your CDROM is mounted in the standard location, the path\n"
-		       "to it will actually be /cdrom/CDE/dtinstall when you run it later).\n");
-	}
-	else {
-	    if (file_readable("/dist/CDE/post-install"))
-		systemExecute("/dist/CDE/post-install");
-	    /* Repair the damage done by the CDE installation */
-	    msgNotify("Doing final adjustments to Xaccel distribution...");
-	    systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall");
-	}
-    }
-    return DITEM_SUCCESS | DITEM_RESTORE;
-#endif	/* USE_XIG_ENVIRONMENT */
 }
 
 void
