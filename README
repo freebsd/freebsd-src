@@ -30,7 +30,7 @@ your bug report, so please be sure to take note of it when reporting
 any failures in the installation!  Thanks!
 
 Menus and scrolling output windows may be traversed with the arrow
-and Page Up/Page Down keys.  To abort the installation at any point,
+and Page Up/Page Down keys.  To suspend the installation at any point,
 hit ESC twice.  Hitting TAB will move the focus to different controls.
 If you've ever dealt with a DOS installation, you'll know how to deal
 with this.
