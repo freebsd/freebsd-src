@@ -180,8 +180,8 @@ TcpMonitorOut(struct ip *pip, struct alias_link *link)
 
 /* Protocol Specific Packet Aliasing Routines 
 
-    IcmpAliasIn(), IcmpAliasIn1(), IcmpAliasIn2(), IcmpAliasIn3()
-    IcmpAliasOut(), IcmpAliasOut1(), IcmpAliasOut2(), IcmpAliasOut3()
+    IcmpAliasIn(), IcmpAliasIn1(), IcmpAliasIn2()
+    IcmpAliasOut(), IcmpAliasOut1(), IcmpAliasOut2()
     ProtoAliasIn(), ProtoAliasOut()
     UdpAliasIn(), UdpAliasOut()
     TcpAliasIn(), TcpAliasOut()
@@ -222,12 +222,10 @@ the gateway machine or other machines on a local area network.
 /* Local prototypes */
 static int IcmpAliasIn1(struct ip *);
 static int IcmpAliasIn2(struct ip *);
-static int IcmpAliasIn3(struct ip *);
 static int IcmpAliasIn (struct ip *);
 
 static int IcmpAliasOut1(struct ip *);
 static int IcmpAliasOut2(struct ip *);
-static int IcmpAliasOut3(struct ip *);
 static int IcmpAliasOut (struct ip *);
 
 static int ProtoAliasIn(struct ip *);
@@ -246,7 +244,8 @@ static int
 IcmpAliasIn1(struct ip *pip)
 {
 /*
-    De-alias incoming echo and timestamp replies
+    De-alias incoming echo and timestamp replies.
+    Alias incoming echo and timestamp requests.
 */
     struct alias_link *link;
     struct icmp *ic;
@@ -301,7 +300,7 @@ IcmpAliasIn2(struct ip *pip)
     struct alias_link *link;
 
     ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
-    ip = (struct ip *) ic->icmp_data;
+    ip = &ic->icmp_ip;
 
     ud = (struct udphdr *) ((char *) ip + (ip->ip_hl <<2));
     tc = (struct tcphdr *) ud;
@@ -396,21 +395,6 @@ fragment contained in ICMP data section */
     return(PKT_ALIAS_IGNORED);
 }
 
-static int
-IcmpAliasIn3(struct ip *pip)
-{
-    struct in_addr original_address;
-
-    original_address = FindOriginalAddress(pip->ip_dst);
-    DifferentialChecksum(&pip->ip_sum,
-                         (u_short *) &original_address,
-                         (u_short *) &pip->ip_dst,
-                         2);
-    pip->ip_dst = original_address;
-
-    return PKT_ALIAS_OK;
-}
-
 
 static int
 IcmpAliasIn(struct ip *pip)
@@ -442,7 +426,7 @@ IcmpAliasIn(struct ip *pip)
             break;
         case ICMP_ECHO:
         case ICMP_TSTAMP:
-            iresult = IcmpAliasIn3(pip);
+            iresult = IcmpAliasIn1(pip);
             break;
     }
     return(iresult);
@@ -453,7 +437,8 @@ static int
 IcmpAliasOut1(struct ip *pip)
 {
 /*
-    Alias ICMP echo and timestamp packets
+    Alias outgoing echo and timestamp requests.
+    De-alias outgoing echo and timestamp replies.
 */
     struct alias_link *link;
     struct icmp *ic;
@@ -509,7 +494,7 @@ IcmpAliasOut2(struct ip *pip)
     struct alias_link *link;
 
     ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
-    ip = (struct ip *) ic->icmp_data;
+    ip = &ic->icmp_ip;
 
     ud = (struct udphdr *) ((char *) ip + (ip->ip_hl <<2));
     tc = (struct tcphdr *) ud;
@@ -606,27 +591,6 @@ fragment contained in ICMP data section */
 
 
 static int
-IcmpAliasOut3(struct ip *pip)
-{
-/*
-  Handle outgoing echo and timestamp replies.  The
-  only thing which is done in this case is to alias
-  the source IP address of the packet.
-*/
-    struct in_addr alias_addr;
-
-    alias_addr = FindAliasAddress(pip->ip_src);
-    DifferentialChecksum(&pip->ip_sum,
-                         (u_short *) &alias_addr,
-                         (u_short *) &pip->ip_src,
-                         2);
-    pip->ip_src = alias_addr;
-
-    return PKT_ALIAS_OK;
-}
-
-
-static int
 IcmpAliasOut(struct ip *pip)
 {
     int iresult;
@@ -656,7 +620,7 @@ IcmpAliasOut(struct ip *pip)
             break;
         case ICMP_ECHOREPLY:
         case ICMP_TSTAMPREPLY:
-            iresult = IcmpAliasOut3(pip);
+            iresult = IcmpAliasOut1(pip);
     }
     return(iresult);
 }

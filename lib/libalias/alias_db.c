@@ -1401,9 +1401,22 @@ FindIcmpIn(struct in_addr dst_addr,
            struct in_addr alias_addr,
            u_short id_alias)
 {
-    return FindLinkIn(dst_addr, alias_addr,
+    struct alias_link *link;
+
+    link = FindLinkIn(dst_addr, alias_addr,
                       NO_DEST_PORT, id_alias,
                       LINK_ICMP, 0);
+    if (link == NULL && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
+    {
+        struct in_addr target_addr;
+
+        target_addr = FindOriginalAddress(alias_addr);
+        link = AddLink(target_addr, dst_addr, alias_addr,
+                       id_alias, NO_DEST_PORT, id_alias,
+                       LINK_ICMP);
+    }
+
+    return (link);
 }
 
 
