@@ -32,8 +32,6 @@ SRCS+= \
 	uthread_autoinit.c \
 	uthread_bind.c \
 	uthread_cancel.c \
-	uthread_cap_get_fd.c \
-	uthread_cap_set_fd.c \
 	uthread_clean.c \
 	uthread_close.c \
 	uthread_cond.c \
