@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: options.c,v 1.2 1994/09/24 02:56:22 davidg Exp $
  */
 
 #ifndef lint
@@ -90,34 +90,34 @@ static void cpio_usage __P((void));
 
 FSUB fsub[] = {
 /* 0: OLD BINARY CPIO */
-	"bcpio", 5120, sizeof(HD_BCPIO), 1, 0, 0, 1, bcpio_id, cpio_strd,
+	{"bcpio", 5120, sizeof(HD_BCPIO), 1, 0, 0, 1, bcpio_id, cpio_strd,
 	bcpio_rd, bcpio_endrd, cpio_stwr, bcpio_wr, cpio_endwr, cpio_trail,
-	rd_wrfile, wr_rdfile, bad_opt,
+	rd_wrfile, wr_rdfile, bad_opt},
 
 /* 1: OLD OCTAL CHARACTER CPIO */
-	"cpio", 5120, sizeof(HD_CPIO), 1, 0, 0, 1, cpio_id, cpio_strd,
+	{"cpio", 5120, sizeof(HD_CPIO), 1, 0, 0, 1, cpio_id, cpio_strd,
 	cpio_rd, cpio_endrd, cpio_stwr, cpio_wr, cpio_endwr, cpio_trail,
-	rd_wrfile, wr_rdfile, bad_opt,
+	rd_wrfile, wr_rdfile, bad_opt},
 
 /* 2: SVR4 HEX CPIO */
-	"sv4cpio", 5120, sizeof(HD_VCPIO), 1, 0, 0, 1, vcpio_id, cpio_strd,
+	{"sv4cpio", 5120, sizeof(HD_VCPIO), 1, 0, 0, 1, vcpio_id, cpio_strd,
 	vcpio_rd, vcpio_endrd, cpio_stwr, vcpio_wr, cpio_endwr, cpio_trail,
-	rd_wrfile, wr_rdfile, bad_opt,
+	rd_wrfile, wr_rdfile, bad_opt},
 
 /* 3: SVR4 HEX CPIO WITH CRC */
-	"sv4crc", 5120, sizeof(HD_VCPIO), 1, 0, 0, 1, crc_id, crc_strd,
+	{"sv4crc", 5120, sizeof(HD_VCPIO), 1, 0, 0, 1, crc_id, crc_strd,
 	vcpio_rd, vcpio_endrd, crc_stwr, vcpio_wr, cpio_endwr, cpio_trail,
-	rd_wrfile, wr_rdfile, bad_opt,
+	rd_wrfile, wr_rdfile, bad_opt},
 
 /* 4: OLD TAR */
-	"tar", 10240, BLKMULT, 0, 1, BLKMULT, 0, tar_id, no_op,
+	{"tar", 10240, BLKMULT, 0, 1, BLKMULT, 0, tar_id, no_op,
 	tar_rd, tar_endrd, no_op, tar_wr, tar_endwr, tar_trail,
-	rd_wrfile, wr_rdfile, tar_opt,
+	rd_wrfile, wr_rdfile, tar_opt},
 
 /* 5: POSIX USTAR */
-	"ustar", 10240, BLKMULT, 0, 1, BLKMULT, 0, ustar_id, ustar_strd,
+	{"ustar", 10240, BLKMULT, 0, 1, BLKMULT, 0, ustar_id, ustar_strd,
 	ustar_rd, tar_endrd, ustar_stwr, ustar_wr, tar_endwr, tar_trail,
-	rd_wrfile, wr_rdfile, bad_opt,
+	rd_wrfile, wr_rdfile, bad_opt},
 };
 #define F_TAR	4	/* format when called as tar */
 #define DEFLT	5	/* default write format from list above */
@@ -367,8 +367,8 @@ pax_options(argc, argv)
 			 * specify an archive format on write
 			 */
 			tmp.name = optarg;
-			if (frmt = (FSUB *)bsearch((void *)&tmp, (void *)fsub,
-			    sizeof(fsub)/sizeof(FSUB), sizeof(FSUB), c_frmt)) {
+			if ((frmt = (FSUB *)bsearch((void *)&tmp, (void *)fsub,
+			   sizeof(fsub)/sizeof(FSUB), sizeof(FSUB), c_frmt))) {
 				flg |= XF;
 				break;
 			}
@@ -823,7 +823,7 @@ printflg(flg)
 	int pos = 0;
 
 	(void)fprintf(stderr,"%s: Invalid combination of options:", argv0);
-	while (nxt = ffs(flg)) {
+	while ((nxt = ffs(flg))) {
 		flg = flg >> nxt;
 		pos += nxt;
 		(void)fprintf(stderr, " -%c", flgch[pos-1]);

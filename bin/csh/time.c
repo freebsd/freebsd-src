@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: time.c,v 1.2 1994/09/24 02:54:20 davidg Exp $
+ *	$Id: time.c,v 1.3 1995/02/16 09:17:27 jkh Exp $
  */
 
 #ifndef lint
@@ -246,7 +246,7 @@ pdeltat(t1, t0)
     struct timeval td;
 
     tvsub(&td, t1, t0);
-    (void) fprintf(cshout, "%d.%01d", td.tv_sec, td.tv_usec / 100000);
+    (void) fprintf(cshout, "%ld.%01ld", td.tv_sec, td.tv_usec / 100000L);
 }
 
 void

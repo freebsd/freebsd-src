@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sub.c,v 1.3 1994/09/24 02:55:31 davidg Exp $
+ *	$Id: sub.c,v 1.4 1995/01/14 11:47:16 alm Exp $
  */
 
 #ifndef lint
@@ -97,7 +97,7 @@ extract_subst_template()
 			;
 		else if (!isglobal) {
 			while ((n = get_tty_line()) == 0 ||
-			    n > 0 && ibuf[n - 1] != '\n')
+			    (n > 0 && ibuf[n - 1] != '\n'))
 				clearerr(stdin);
 			if (n < 0)
 				return NULL;
@@ -213,8 +213,9 @@ substitute_matching_text(pat, lp, gflag, kth)
 				off += i;
 			}
 			txt += rm[0].rm_eo;
-		} while (*txt && (!changed || (gflag & GSG) && rm[0].rm_eo) &&
-		    !regexec(pat, txt, SE_MAX, rm, REG_NOTBOL));
+		} while (*txt && 
+                        (!changed || ((gflag & GSG) && rm[0].rm_eo)) &&
+		        !regexec(pat, txt, SE_MAX, rm, REG_NOTBOL));
 		i = eot - txt;
 		REALLOC(rbuf, rbufsz, off + i + 2, ERR);
 		if (i > 0 && !rm[0].rm_eo && (gflag & GSG)) {

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rcp.c,v 1.2 1994/09/24 02:56:56 davidg Exp $
  */
 
 #ifndef lint
@@ -226,7 +226,7 @@ main(argc, argv)
 
 	(void)signal(SIGPIPE, lostconn);
 
-	if (targ = colon(argv[argc - 1]))	/* Dest is remote host. */
+	if ((targ = colon(argv[argc - 1])))	/* Dest is remote host. */
 		toremote(targ, argc, argv);
 	else {
 		tolocal(argc, argv);		/* Dest is local host. */
@@ -248,7 +248,7 @@ toremote(targ, argc, argv)
 	if (*targ == 0)
 		targ = ".";
 
-	if (thost = strchr(argv[argc - 1], '@')) {
+	if ((thost = strchr(argv[argc - 1], '@'))) {
 		/* user@host */
 		*thost++ = 0;
 		tuser = argv[argc - 1];
@@ -509,7 +509,7 @@ rsource(name, statp)
 		closedir(dirp);
 		return;
 	}
-	while (dp = readdir(dirp)) {
+	while ((dp = readdir(dirp))) {
 		if (dp->d_ino == 0)
 			continue;
 		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, ".."))
@@ -539,7 +539,7 @@ sink(argc, argv)
 	BUF *bp;
 	off_t i, j;
 	int amt, count, exists, first, mask, mode, ofd, omode;
-	int setimes, size, targisdir, wrerrno;
+	int setimes, size, targisdir, wrerrno = 0;
 	char ch, *cp, *np, *targ, *why, *vect[1], buf[BUFSIZ];
 
 #define	atime	tv[0]
