@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.1 1995/10/02 09:24:44 julian Exp $
+ * $Id: kern_conf.c,v 1.2 1995/10/02 10:15:40 julian Exp $
  */
 
 #include <sys/param.h>
@@ -45,7 +45,7 @@ extern d_open_t lkmenodev;
  */
 #define ADDENTRY(TTYPE,NXXXDEV) \
 int TTYPE##_add(dev_t *descrip,						\
-		struct TTYPE *cdeventry,				\
+		struct TTYPE *newentry,					\
 		struct TTYPE *oldentry)					\
 {									\
 	int i ;								\
@@ -67,17 +67,17 @@ int TTYPE##_add(dev_t *descrip,						\
 		}							\
 	}								\
 									\
-	/* save old */							\
+	/* maybe save old */						\
         if (oldentry) {							\
 		bcopy(&TTYPE[i], oldentry, sizeof(struct TTYPE));	\
 	}								\
 	/* replace with new */						\
-	bcopy(cdeventry, &TTYPE[i], sizeof(struct TTYPE));		\
+	bcopy(newentry, &TTYPE[i], sizeof(struct TTYPE));		\
 									\
 	/* done! */							\
 	*descrip = makedev(i,0);					\
 	return 0;							\
 } \
 
-ADDENTRY(cdevsw, nblkdev)
-ADDENTRY(bdevsw, nchrdev)
+ADDENTRY(bdevsw, nblkdev)
+ADDENTRY(cdevsw, nchrdev)
