@@ -306,7 +306,7 @@ nfs_inactive(struct vop_inactive_args *ap)
 	} else
 		sp = NULL;
 	if (sp) {
-		(void)nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, td, 1);
+		(void)nfs_vinvalbuf(ap->a_vp, 0, td, 1);
 		/*
 		 * Remove the silly file that was rename'd earlier
 		 */

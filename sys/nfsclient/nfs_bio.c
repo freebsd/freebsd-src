@@ -409,7 +409,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			if (vp->v_type != VDIR)
 				panic("nfs: bioread, not dir");
 			(nmp->nm_rpcops->nr_invaldir)(vp);
-			error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+			error = nfs_vinvalbuf(vp, V_SAVE, td, 1);
 			if (error)
 				return (error);
 		}
@@ -426,7 +426,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		    || (NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime))) {
 			if (vp->v_type == VDIR)
 				(nmp->nm_rpcops->nr_invaldir)(vp);
-			error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+			error = nfs_vinvalbuf(vp, V_SAVE, td, 1);
 			if (error)
 				return (error);
 			np->n_mtime = vattr.va_mtime;
@@ -587,7 +587,7 @@ again:
 		    }
 		    while (error == NFSERR_BAD_COOKIE) {
 			(nmp->nm_rpcops->nr_invaldir)(vp);
-			error = nfs_vinvalbuf(vp, 0, cred, td, 1);
+			error = nfs_vinvalbuf(vp, 0, td, 1);
 			/*
 			 * Yuck! The directory has been modified on the
 			 * server. The only way to get the block is by
@@ -881,7 +881,7 @@ nfs_write(struct vop_write_args *ap)
 	if (ioflag & (IO_APPEND | IO_SYNC)) {
 		if (np->n_flag & NMODIFIED) {
 			np->n_attrstamp = 0;
-			error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+			error = nfs_vinvalbuf(vp, V_SAVE, td, 1);
 			if (error)
 				return (error);
 		}
@@ -1221,8 +1221,7 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
  * doing the flush, just wait for completion.
  */
 int
-nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
-    struct thread *td, int intrflg)
+nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 {
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);

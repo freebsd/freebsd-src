@@ -428,7 +428,7 @@ nfs_open(struct vop_open_args *ap)
 	 * Get a valid lease. If cached data is stale, flush it.
 	 */
 	if (np->n_flag & NMODIFIED) {
-		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
+		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		if (error == EINTR || error == EIO)
 			return (error);
 		np->n_attrstamp = 0;
@@ -446,8 +446,7 @@ nfs_open(struct vop_open_args *ap)
 		if (NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
 			if (vp->v_type == VDIR)
 				np->n_direofoffset = 0;
-			error = nfs_vinvalbuf(vp, V_SAVE,
-				ap->a_cred, ap->a_td, 1);
+			error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error == EINTR || error == EIO)
 				return (error);
 			np->n_mtime = vattr.va_mtime;
@@ -458,7 +457,7 @@ nfs_open(struct vop_open_args *ap)
 	 */
 	if (nfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
 		if (np->n_directio_opens == 0) {
-			error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
+			error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error)
 				return (error);
 			np->n_flag |= NNONCACHE;
@@ -537,7 +536,7 @@ nfs_close(struct vop_close_args *ap)
 		    error = nfs_flush(vp, MNT_WAIT, ap->a_td, cm);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else {
-		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
+		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		}
 	    }
  	    /* 
@@ -674,11 +673,9 @@ nfs_setattr(struct vop_setattr_args *ap)
 
  			if (np->n_flag & NMODIFIED) {
  			    if (vap->va_size == 0)
- 				error = nfs_vinvalbuf(vp, 0,
- 					ap->a_cred, ap->a_td, 1);
+ 				error = nfs_vinvalbuf(vp, 0, ap->a_td, 1);
  			    else
- 				error = nfs_vinvalbuf(vp, V_SAVE,
- 					ap->a_cred, ap->a_td, 1);
+ 				error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
  			    if (error) {
 				vnode_pager_setsize(vp, np->n_size);
  				return (error);
@@ -695,8 +692,8 @@ nfs_setattr(struct vop_setattr_args *ap)
   	} else if ((vap->va_mtime.tv_sec != VNOVAL ||
 		vap->va_atime.tv_sec != VNOVAL) && (np->n_flag & NMODIFIED) &&
 		vp->v_type == VREG &&
-  		(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
-		 ap->a_td, 1)) != 0 && (error == EINTR || error == EIO))
+  		(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1)) != 0 &&
+		    (error == EINTR || error == EIO))
 		return (error);
 	error = nfs_setattrrpc(vp, vap, ap->a_cred, ap->a_td);
 	if (error && vap->va_size != VNOVAL) {
@@ -1472,7 +1469,7 @@ nfs_remove(struct vop_remove_args *ap)
 		 * throw away biocache buffers, mainly to avoid
 		 * unnecessary delayed writes later.
 		 */
-		error = nfs_vinvalbuf(vp, 0, cnp->cn_cred, cnp->cn_thread, 1);
+		error = nfs_vinvalbuf(vp, 0, cnp->cn_thread, 1);
 		/* Do the rpc */
 		if (error != EINTR && error != EIO)
 			error = nfs_removerpc(dvp, cnp->cn_nameptr,
