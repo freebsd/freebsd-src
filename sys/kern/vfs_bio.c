@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.121 1997/06/15 17:56:49 dyson Exp $
+ * $Id: vfs_bio.c,v 1.122 1997/08/09 10:13:12 dyson Exp $
  */
 
 /*
@@ -2196,7 +2196,7 @@ tryagain:
 		bp->b_pages[index] = p;
 		PAGE_WAKEUP(p);
 	}
-	bp->b_npages = to >> PAGE_SHIFT;
+	bp->b_npages = index;
 }
 
 void
@@ -2204,11 +2204,11 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 {
 	vm_offset_t pg;
 	vm_page_t p;
-	int index;
+	int index, newnpages;
 
 	from = round_page(from);
 	to = round_page(to);
-	index = (from - trunc_page(bp->b_data)) >> PAGE_SHIFT;
+	newnpages = index = (from - trunc_page(bp->b_data)) >> PAGE_SHIFT;
 
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 		p = bp->b_pages[index];
@@ -2225,7 +2225,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 			vm_page_free(p);
 		}
 	}
-	bp->b_npages = from >> PAGE_SHIFT;
+	bp->b_npages = newnpages;
 }
 
 
