@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: at_shutdown.9,v 1.10 1997/04/13 14:49:03 bde Exp $
+.\" $Id: at_shutdown.9,v 1.11 1998/03/12 07:31:16 charnier Exp $
 .\" "
 .Dd August 15, 1996
 .Os
@@ -61,16 +61,22 @@ and
 .Fa arg
 arguments as the corresponding call to
 .Fn at_shutdown .
-There are two shutdown queues, one run before the final sync and one after.
+There are three shutdown queues, the first is run before the final filesystems
+sync, the second is run after the sync, before the system disables all
+interrupts, and the last queue is run with interrupts disabled just before
+the system is reset or halted
+.
 The last argument to 
 .Fa at_shutdown
 should be one of 
 .Dv SHUTDOWN_PRE_SYNC
 or
 .Dv SHUTDOWN_POST_SYNC
+or
+.Dv SHUTDOWN_FINAL
 to specify which queue should be used.
 .Fn rm_at_shutdown
-will remove an entry from either queue.
+will remove entries from any queue.
 .Pp
 .Sh RETURN VALUES
 .Fn at_shutdown
