@@ -1,4 +1,4 @@
-#	$Id: dot.cshrc,v 1.9 1994/02/21 20:35:58 rgrimes Exp $
+#	$Id: dot.cshrc,v 1.10 1994/09/19 07:01:35 pst Exp $
 #
 alias mail Mail
 set history=1000
@@ -11,7 +11,7 @@ alias	cd	'set old=$cwd; chdir \!*'
 alias	h	history
 alias	j	jobs -l
 alias	ll	ls -lg
-alias	ls	ls -g
+alias	ls	ls -g -k
 alias	back	'set back=$old; set old=$cwd; cd $back; unset back; dirs'
 
 alias	z	suspend
