@@ -54,3 +54,25 @@ pam_setcred(pam_handle_t *pamh,
 
 	return (openpam_dispatch(pamh, PAM_SM_SETCRED, flags));
 }
+
+/*
+ * Error codes:
+ *
+ *	=openpam_dispatch
+ *	=pam_sm_setcred
+ *	!PAM_IGNORE
+ */
+
+/**
+ * The =pam_setcred function manages the application's credentials.
+ * The operation to perform is specified by the =flags argument:
+ *
+ *	PAM_ESTABLISH_CRED:
+ *		Establish the credentials of the target user.
+ *	PAM_DELETE_CRED:
+ *		Revoke all established credentials.
+ *	PAM_REINITIALISE_CRED:
+ *		Fully reinitialise credentials.
+ *	PAM_REFRESH_CRED:
+ *		Refresh credentials.
+ */

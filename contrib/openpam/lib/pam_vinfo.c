@@ -58,3 +58,20 @@ pam_vinfo(pam_handle_t *pamh,
 	free(rsp); /* ignore response */
 	return (r);
 }
+
+/*
+ * Error codes:
+ *
+ *     !PAM_SYMBOL_ERR
+ *	PAM_SYSTEM_ERR
+ *	PAM_BUF_ERR
+ *	PAM_CONV_ERR
+ */
+
+/**
+ * The =pam_vinfo function passes its arguments to =pam_vprompt with a
+ * =style argument of =PAM_TEXT_INFO, and discards the response.
+ *
+ * >pam_info
+ * >pam_verror
+ */

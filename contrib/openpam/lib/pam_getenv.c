@@ -65,3 +65,13 @@ pam_getenv(pam_handle_t *pamh,
 		return (NULL);
 	return (strdup(pamh->env[i]));
 }
+
+/**
+ * The =pam_getenv function returns the value of an environment variable.
+ * Its semantics are similar to those of =getenv, but it accesses the PAM
+ * context's environment list instead of the application's.
+ *
+ * >pam_getenvlist
+ * >pam_putenv
+ * >pam_setenv
+ */

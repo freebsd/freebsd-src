@@ -77,3 +77,47 @@ pam_vprompt(pam_handle_t *pamh,
 	free(rsp);
 	return (r);
 }
+
+/*
+ * Error codes:
+ *
+ *     !PAM_SYMBOL_ERR
+ *	PAM_SYSTEM_ERR
+ *	PAM_BUF_ERR
+ *	PAM_CONV_ERR
+ */
+
+/**
+ * The =pam_vprompt function constructs a string from the =fmt and =ap
+ * arguments using =vsnprintf, and passes it to the given PAM context's
+ * conversation function.
+ *
+ * The =style argument specifies the type of interaction requested, and
+ * must be one of the following:
+ *
+ *	=PAM_PROMPT_ECHO_OFF:
+ *		Display the message and obtain the user's response without
+ *		displaying it.
+ *	=PAM_PROMPT_ECHO_ON:
+ *		Display the message and obtain the user's response.
+ *	=PAM_ERROR_MSG:
+ *		Display the message as an error message, and do not wait
+ *		for a response.
+ *	=PAM_TEXT_INFO:
+ *		Display the message as an informational message, and do
+ *		not wait for a response.
+ *
+ * A pointer to the response, or =NULL if the conversation function did
+ * not return one, is stored in the location pointed to by the =resp
+ * argument.
+ *
+ * The message and response should not exceed =PAM_MAX_MSG_SIZE or
+ * =PAM_MAX_RESP_SIZE, respectively.
+ * If they do, they may be truncated.
+ *
+ * >pam_error
+ * >pam_info
+ * >pam_prompt
+ * >pam_verror
+ * >pam_vinfo
+ */
