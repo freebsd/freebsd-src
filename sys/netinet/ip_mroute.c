@@ -562,7 +562,7 @@ add_vif(vifcp)
     register struct vifctl *vifcp;
 {
     register struct vif *vifp = viftable + vifcp->vifc_vifi;
-    static struct sockaddr_in sin = {AF_INET};
+    static struct sockaddr_in sin = {sizeof sin, AF_INET};
     struct ifaddr *ifa;
     struct ifnet *ifp;
     struct ifreq ifr;
@@ -924,8 +924,8 @@ X_ip_mforward(ip, ifp, m, imo)
     register u_char *ipoptions;
     u_long tunnel_src;
     static struct sockproto	k_igmpproto 	= { AF_INET, IPPROTO_IGMP };
-    static struct sockaddr_in 	k_igmpsrc	= { AF_INET };
-    static struct sockaddr_in 	k_igmpdst 	= { AF_INET };
+    static struct sockaddr_in 	k_igmpsrc	= { sizeof k_igmpsrc, AF_INET };
+    static struct sockaddr_in 	k_igmpdst 	= { sizeof k_igmpdst, AF_INET };
     register struct mbuf *mm;
     register struct ip *k_data;
     int s;
