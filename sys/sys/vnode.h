@@ -613,6 +613,7 @@ void	cvtstat(struct stat *st, struct ostat *ost);
 void	cvtnstat(struct stat *sb, struct nstat *nsb);
 int	getnewvnode(const char *tag, struct mount *mp, vop_t **vops,
 	    struct vnode **vpp);
+u_quad_t init_va_filerev(void);
 int	lease_check(struct vop_lease_args *ap);
 int	spec_vnoperate(struct vop_generic_args *);
 int	speedup_syncer(void);
