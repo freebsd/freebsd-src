@@ -199,7 +199,8 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
-	WITNESS_SLEEP(0, &mp->mtx_object);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	    "Waiting on \"%s\"", cvp->cv_description);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	if (cold ) {
@@ -255,7 +256,8 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
-	WITNESS_SLEEP(0, &mp->mtx_object);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	    "Waiting on \"%s\"", cvp->cv_description);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	if (cold || panicstr) {
@@ -323,7 +325,8 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
-	WITNESS_SLEEP(0, &mp->mtx_object);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	    "Waiting on \"%s\"", cvp->cv_description);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	if (cold || panicstr) {
@@ -401,7 +404,8 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
-	WITNESS_SLEEP(0, &mp->mtx_object);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &mp->mtx_object,
+	    "Waiting on \"%s\"", cvp->cv_description);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	if (cold || panicstr) {
