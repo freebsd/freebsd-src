@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.134 1997/06/13 17:55:32 jkh Exp $
+ * $Id: sysinstall.h,v 1.135 1997/06/18 05:11:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -424,7 +424,7 @@ extern int	configSaver(dialogMenuItem *self);
 extern int	configSaverTimeout(dialogMenuItem *self);
 extern int	configNTP(dialogMenuItem *self);
 extern int	configUsers(dialogMenuItem *self);
-extern int	configXFree86(dialogMenuItem *self);
+extern int	configXEnvironment(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);
 extern int	configSamba(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
