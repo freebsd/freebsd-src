@@ -82,12 +82,11 @@
 #define	PROC_ACTION(action) do {					\
 	int error;							\
 									\
-	mtx_lock_spin(&sched_lock);					\
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);			\
 	if ((td->td_proc->p_sflag & PS_INMEM) == 0)			\
 		error = EIO;						\
 	else								\
 		error = (action);					\
-	mtx_unlock_spin(&sched_lock);					\
 	return (error);							\
 } while(0)
 
