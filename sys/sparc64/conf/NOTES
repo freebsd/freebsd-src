@@ -110,7 +110,7 @@ nooption	SC_PIXEL_MODE
 nooption	SC_MOUSE_CHAR
 nooption	SC_HISTORY_SIZE
 nooption	SC_DISABLE_REBOOT
-nooption	SC_DISABLE_DDBKEY
+nooption	SC_DISABLE_KDBKEY
 nooption	SC_DFLT_FONT
 nooption	SC_ALT_MOUSE_IMAGE
 nooption	MAXCONS
