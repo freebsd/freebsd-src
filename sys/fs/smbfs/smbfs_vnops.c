@@ -1050,10 +1050,6 @@ smbfs_pathcheck(struct smbmount *smp, const char *name, int nmlen, int nameiop)
 	return 0;
 }
 
-#ifndef PDIRUNLOCK
-#define	PDIRUNLOCK	0
-#endif
-
 /*
  * Things go even weird without fixed inode numbers...
  */
@@ -1080,11 +1076,10 @@ smbfs_lookup(ap)
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	int nmlen = cnp->cn_namelen;
-	int lockparent, wantparent, error, islastcn, isdot;
+	int wantparent, error, islastcn, isdot;
 	int killit;
 	
 	SMBVDEBUG("\n");
-	cnp->cn_flags &= ~PDIRUNLOCK;
 	if (dvp->v_type != VDIR)
 		return ENOTDIR;
 	if ((flags & ISDOTDOT) && (dvp->v_vflag & VV_ROOT)) {
@@ -1108,7 +1103,6 @@ smbfs_lookup(ap)
 		return EROFS;
 	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0)
 		return error;
-	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
 	smp = VFSTOSMBFS(mp);
 	dnp = VTOSMB(dvp);
@@ -1128,27 +1122,19 @@ smbfs_lookup(ap)
 
 		vhold(*vpp);
 		vp = *vpp;
-		mp_fixme("Unlocked v_id access.");
 		if (dvp == vp) {	/* lookup on current */
 			vref(vp);
 			error = 0;
 			SMBVDEBUG("cached '.'\n");
 		} else if (flags & ISDOTDOT) {
 			VOP_UNLOCK(dvp, 0, td);	/* unlock parent */
-			cnp->cn_flags |= PDIRUNLOCK;
 			error = vget(vp, LK_EXCLUSIVE, td);
-			if (!error && lockparent && islastcn) {
-				error = vn_lock(dvp, LK_EXCLUSIVE, td);
-				if (error == 0)
-					cnp->cn_flags &= ~PDIRUNLOCK;
-			}
-		} else {
+			if (error)
+				if (vn_lock(dvp, LK_EXCLUSIVE, td))
+					panic("smbfs_lookup: Can't " 
+					    "relock directory.");
+		} else
 			error = vget(vp, LK_EXCLUSIVE, td);
-			if (!lockparent || error || !islastcn) {
-				VOP_UNLOCK(dvp, 0, td);
-				cnp->cn_flags |= PDIRUNLOCK;
-			}
-		}
 		if (!error) {
 			killit = 0;
 			error = VOP_GETATTR(vp, &vattr, cnp->cn_cred, td);
@@ -1174,20 +1160,25 @@ smbfs_lookup(ap)
 			     return (0);
 			}
 			cache_purge(vp);
-			if (killit)
+			/*
+			 * XXX This is not quite right, if '.' is
+			 * inconsistent, we really need to start the lookup
+			 * all over again.  Hopefully there is some other
+			 * guarantee that prevents this case from happening.
+			 */
+			if (killit && vp != dvp)
 				vgone(vp);
-			vput(vp);
-			if (lockparent && dvp != vp && islastcn)
-				VOP_UNLOCK(dvp, 0, td);
+			if (vp != dvp)
+				vput(vp);
+			else
+				vrele(vp);
+			if (flags & ISDOTDOT)
+				if (vn_lock(dvp, LK_EXCLUSIVE, td))
+					panic("smbfs_lookup: Can't " 
+					    "relock directory.");
 		}
 		vdrop(vp);
-		error = vn_lock(dvp, LK_EXCLUSIVE, td);
 		*vpp = NULLVP;
-		if (error) {
-			cnp->cn_flags |= PDIRUNLOCK;
-			return (error);
-		}
-		cnp->cn_flags &= ~PDIRUNLOCK;
 	}
 	/* 
 	 * entry is not in the cache or has been expired
@@ -1217,10 +1208,6 @@ smbfs_lookup(ap)
 			if (error)
 				return error;
 			cnp->cn_flags |= SAVENAME;
-			if (!lockparent) {
-				VOP_UNLOCK(dvp, 0, td);
-				cnp->cn_flags |= PDIRUNLOCK;
-			}
 			return (EJUSTRETURN);
 		}
 		return ENOENT;
@@ -1244,10 +1231,6 @@ smbfs_lookup(ap)
 			return error;
 		*vpp = vp;
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent) {
-			VOP_UNLOCK(dvp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		return 0;
 	}
 	if (nameiop == RENAME && islastcn && wantparent) {
@@ -1261,10 +1244,6 @@ smbfs_lookup(ap)
 			return error;
 		*vpp = vp;
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent) {
-			VOP_UNLOCK(dvp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		return 0;
 	}
 	if (flags & ISDOTDOT) {
@@ -1273,14 +1252,6 @@ smbfs_lookup(ap)
 		if (error) {
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 			return error;
-		}
-		if (lockparent && islastcn) {
-			error = vn_lock(dvp, LK_EXCLUSIVE, td);
-			if (error) {
-				cnp->cn_flags |= PDIRUNLOCK;
-				vput(vp);
-				return error;
-			}
 		}
 		*vpp = vp;
 	} else if (isdot) {
@@ -1292,10 +1263,6 @@ smbfs_lookup(ap)
 			return error;
 		*vpp = vp;
 		SMBVDEBUG("lookup: getnewvp!\n");
-		if (!lockparent || !islastcn) {
-			VOP_UNLOCK(dvp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 	}
 	if ((cnp->cn_flags & MAKEENTRY)/* && !islastcn*/) {
 /*		VTOSMB(*vpp)->n_ctime = VTOSMB(*vpp)->n_vattr.va_ctime.tv_sec;*/
