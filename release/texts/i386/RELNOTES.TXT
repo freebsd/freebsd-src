@@ -53,6 +53,9 @@ Table of contents:
 1.3. USERLAND CHANGES
 ---------------------
 
+ip6fw(8) now has the ability to use a preprocessor and use the -q (quiet)
+flag when reading from a file.
+
 
 2. Supported Configurations
 ---------------------------
