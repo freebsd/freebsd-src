@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.52 1998/02/04 10:22:05 kato Exp $
+#	$Id: options.pc98,v 1.53 1998/02/12 08:15:51 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -10,6 +10,7 @@ IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
 
 SHOW_BUSYBUFS
+TUNE_1542
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 MAXMEM
 PERFMON			opt_perfmon.h
