@@ -74,7 +74,7 @@
     defined(__amd64__)
 #define	KINFO_PROC_SIZE	912		/* the correct size for kinfo_proc */
 #endif
-#ifdef	__i386__
+#if	__i386__ || defined __arm__
 #define	KINFO_PROC_SIZE	648		/* the correct size for kinfo_proc */
 #endif
 #ifdef  __powerpc__
