@@ -30,6 +30,19 @@
     &os;.  This is <emphasis>not</emphasis> recommended.</para>
   </important>
 
+  <warning>
+    <para>Binary upgrades to &os; &release.current; from &os; 4-STABLE
+      are not supported at this time.  There are some files present in
+      a &os; 4-STABLE whose presence can be disruptive, but are not
+      removed by a binary upgrade.  One notable example is that an old
+      <filename>/usr/include/g++</filename> directory will cause C++
+      programs to compile incorrectly (or not at all).<para>
+    
+    <para>These upgrade instructions are provided for the use of users
+      upgrading from relatively recent &os; &release.branch;
+      snapshots.</para>
+  </warning>
+
   <sect2>
     <title>Introduction</title>
 
