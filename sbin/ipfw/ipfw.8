@@ -19,10 +19,10 @@ flush
 .Fl q
 .Oc
 zero
-.Op Ar number
+.Op Ar number ...
 .Nm ipfw
 delete
-.Ar number
+.Ar number ...
 .Nm ipfw
 .Op Fl aftN
 list
@@ -122,41 +122,101 @@ Try to resolve addresses and service names in output.
 .Bl -hang -offset flag -width 1234567890123456
 .It Ar allow
 Allow packets that match rule.
-The search terminates.
-.It Ar pass
-Same as allow.
-.It Ar accept
-Same as allow.
-.It Ar count
-Update counters for all packets that match rule.
-The search continues with the next rule.
+The search terminates. Aliases are
+.Ar pass ,
+.Ar permit ,
+and
+.Ar accept .
 .It Ar deny
 Discard packets that match this rule.
 The search terminates.
+.Ar Drop
+is an alias for
+.Ar deny .
 .It Ar reject
-Discard packets that match this rule, and try to send an ICMP notice.
+(Deprecated.) Discard packets that match this rule, and try to send an ICMP
+host unreachable notice.
 The search terminates.
+.It Ar unreach code
+Discard packets that match this rule, and try to send an ICMP
+unreachable notice with code
+.Ar code ,
+where
+.Ar code
+is a number from zero to 255, or one of these aliases:
+.Ar net ,
+.Ar host ,
+.Ar protocol ,
+.Ar port ,
+.Ar needfrag ,
+.Ar srcfail ,
+.Ar net-unknown ,
+.Ar host-unknown ,
+.Ar isolated ,
+.Ar net-prohib ,
+.Ar host-prohib ,
+.Ar tosnet ,
+.Ar toshost ,
+.Ar filter-prohib ,
+.Ar host-precedence ,
+or
+.Ar precedence-cutoff .
+The search terminates.
+.It Ar reset
+TCP packets only. Discard packets that match this rule,
+and try to send a TCP reset (RST) notice.
+The search terminates.
+.It Ar count
+Update counters for all packets that match rule.
+The search continues with the next rule.
 .It Ar divert port
-Divert packets that match this rule to the divert socket bound to port
+Divert packets that match this rule to the
+.Xr divert 4
+socket bound to port
 .Ar port .
 The search terminates.
+.It Ar tee port
+Send a copy of packets matching this rule to the
+.Xr divert 4
+socket bound to port
+.Ar port .
+The search continues with the next rule.
+.It Ar skipto number
+Skip all subsequent rules numbered less than
+.Ar number .
+The search continues with the first rule numbered
+.Ar number
+or higher.
 .El
 .Pp
-When a packet matches a rule with the ``log''
-keyword, a message will be printed on the console.
+If a packet matches more than one
+.Ar divert
+and/or
+.Ar tee
+rule, all but the last are ignored.
+.Pp
+If the kernel was compiled with
+.Dv IPFIREWALL_VERBOSE ,
+then when a packet matches a rule with the ``log''
+keyword a message will be printed on the console.
 If the kernel was compiled with the
-.Dv IP_FIREWALL_VERBOSE_LIMIT
+.Dv IPFIREWALL_VERBOSE_LIMIT
 option, then logging will cease after the number of packets
 specified by the option are received for that particular
 chain entry.  Logging may then be re-enabled by clearing
 the packet counter for that entry.
 .Pp
+Console logging and the log limit are adjustable dynamically
+through the
+.Xr sysctl 8
+interface.
+.Pp
 .Ar proto :
 .Bl -hang -offset flag -width 1234567890123456
 .It Ar ip
-All packets match.
-.It Ar all
-All packets match.
+All packets match. The alias
+.Ar all
+has the same effect.
 .It Ar tcp
 Only TCP packets match.
 .It Ar udp
@@ -172,7 +232,6 @@ for a complete list).
 .Ar src 
 and
 .Ar dst :
-.Pp
 .Bl -hang -offset flag
 .It Ar <address/mask>
 .Op Ar ports
@@ -217,20 +276,72 @@ and the port list is limited to
 .Pa /usr/src/sys/netinet/ip_fw.h )
 ports.
 .Pp
-If ``via''
-.Ar name
-is specified, only packets received via or on their way out of an interface
-matching
-.Ar name
-will match this rule.
+Rules can apply to packets when they are incoming, or outgoing, or both.
+The
+.Ar in
+keyword indicates the rule should only match incoming packets.
+The
+.Ar out
+keyword indicates the rule should only match outgoing packets.
 .Pp
-If ``via''
-.Ar ipno
-is specified, only packets received via or on their way out of an interface
-having the address
-.Ar ipno
-will match this rule.
+To match packets going through a certain interface, specify
+the interface using
+.Ar via :
+.Bl -hang -offset flag -width 1234567890123456
+.It Ar via ifX
+Packet must be going through interface
+.Ar ifX.
+.It Ar via if*
+Packet must be going through interface
+.Ar ifX ,
+where X is any unit number.
+.It Ar via any
+Packet must be going through
+.Em some
+interface.
+.It Ar via ipno
+Packet must be going through the interface having IP address
+.Ar ipno .
+.El
 .Pp
+The
+.Ar via
+keyword causes the interface to always be checked.
+If
+.Ar recv
+or
+.Ar xmit
+is used instead of
+.Ar via ,
+then the only receive or transmit interface (respectively) is checked.
+By specifying both, it is possible to match packets based on both receive
+and transmit interface, e.g.:
+.Pp
+.Dl "ipfw add 100 deny ip from any to any out recv ed0 xmit ed1"
+.Pp
+The
+.Ar recv
+interface can be tested on either incoming or outgoing packets, while the
+.Ar xmit
+interface can only be tested on outgoing packets. So
+.Ar out
+is required (and
+.Ar in
+invalid) whenver
+.Ar xmit
+is used. Specifying
+.Ar via
+together with
+.Ar xmit
+or
+.Ar recv
+is invalid.
+.Pp
+A packet may not have a receive or transmit interface: packets originating
+from the local host have no receive interface. while packets destined for
+the local host have no transmit interface.
+.Pp
+Additional
 .Ar options :
 .Bl -hang -offset flag -width 1234567890123456
 .It frag
@@ -350,11 +461,11 @@ This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
 .Sh SEE ALSO
 .Xr divert 4 ,
 .Xr ip 4 ,
-.Xr ipfirewall 4 ,
 .Xr protocols 5 ,
 .Xr services 5 ,
 .Xr reboot 8 ,
-.Xr syslogd 8
+.Xr syslogd 8 ,
+.Xr sysctl 8
 .Sh BUGS
 .Pp
 .Em WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!
@@ -367,6 +478,12 @@ do anything you don't understand.
 .Pp
 When manipulating/adding chain entries, service and protocol names are
 not accepted.
+.Pp
+Incoming packet fragments diverted by
+.Ar divert
+are reassembled before delivery to the socket, whereas fragments diverted via
+.Ar tee
+are not.
 .Sh AUTHORS
 Ugen J. S. Antsilevich,
 Poul-Henning Kamp,
