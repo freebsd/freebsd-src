@@ -1671,6 +1671,20 @@ sppp_open_event(const struct cp *cp, struct sppp *sp)
 		sppp_cp_change_state(cp, sp, STATE_REQ_SENT);
 		break;
 	case STATE_STOPPED:
+		/*
+		 * Try escaping stopped state.  This seems to bite
+		 * people occasionally, in particular for IPCP,
+		 * presumably following previous IPCP negotiation
+		 * aborts.  Somehow, we must have missed a Down event
+		 * which would have caused a transition into starting
+		 * state, so as a bandaid we force the Down event now.
+		 * This effectively implements (something like the)
+		 * `restart' option mentioned in the state transition
+		 * table of RFC 1661.
+		 */
+		sppp_cp_change_state(cp, sp, STATE_STARTING);
+		(cp->tls)(sp);
+		break;
 	case STATE_STOPPING:
 	case STATE_REQ_SENT:
 	case STATE_ACK_RCVD:
