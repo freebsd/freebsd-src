@@ -376,46 +376,32 @@ nmount(td, uap)
 		int flags;
 	} */ *uap;
 {
-	struct uio auio;
-	struct iovec *iov, *needfree;
-	struct iovec aiov[UIO_SMALLIOV];
+	struct uio *auio;
+	struct iovec *iov;
 	unsigned int i;
 	int error;
-	u_int iovlen, iovcnt;
+	u_int iovcnt;
 
 	iovcnt = uap->iovcnt;
-	iovlen = iovcnt * sizeof (struct iovec);
 	/*
 	 * Check that we have an even number of iovec's
 	 * and that we have at least two options.
 	 */
-	if ((iovcnt & 1) || (iovcnt < 4) || (iovcnt > UIO_MAXIOV))
+	if ((iovcnt & 1) || (iovcnt < 4))
 		return (EINVAL);
-
-	if (iovcnt > UIO_SMALLIOV) {
-		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
-		needfree = iov;
-	} else {
-		iov = aiov;
-		needfree = NULL;
-	}
-	auio.uio_iov = iov;
-	auio.uio_iovcnt = iovcnt;
-	auio.uio_segflg = UIO_USERSPACE;
-	if ((error = copyin(uap->iovp, iov, iovlen)))
-		goto finish;
-
+	error = copyinuio(uap->iovp, iovcnt, &auio);
+	if (error)
+		return (error);
+	iov = auio->uio_iov;
 	for (i = 0; i < iovcnt; i++) {
 		if (iov->iov_len > MMAXOPTIONLEN) {
-			error = EINVAL;
-			goto finish;
+			free(auio, M_IOV);
+			return (EINVAL);
 		}
 		iov++;
 	}
-	error = vfs_nmount(td, uap->flags, &auio);
-finish:
-	if (needfree != NULL)
-		free(needfree, M_TEMP);
+	error = vfs_nmount(td, uap->flags, auio);
+	free(auio, M_IOV);
 	return (error);
 }
 

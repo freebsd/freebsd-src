@@ -413,13 +413,17 @@ ktrgenio(fd, rw, uio, error)
 	int datalen;
 	char *buf;
 
-	if (error)
+	if (error) {
+		free(uio, M_IOV);
 		return;
+	}
 	uio->uio_offset = 0;
 	uio->uio_rw = UIO_WRITE;
 	datalen = imin(uio->uio_resid, ktr_geniosize);
 	buf = malloc(datalen, M_KTRACE, M_WAITOK);
-	if (uiomove(buf, datalen, uio)) {
+	error = uiomove(buf, datalen, uio);
+	free(uio, M_IOV);
+	if (error) {
 		free(buf, M_KTRACE);
 		return;
 	}

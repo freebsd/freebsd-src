@@ -993,35 +993,22 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 {
 	struct linux_sendmsg_args linux_args;
 	struct msghdr msg;
-	struct iovec aiov[UIO_SMALLIOV], *iov;
+	struct iovec *iov;
 	int error;
 
-	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
+	error = copyin(args, &linux_args, sizeof(linux_args));
+	if (error)
 		return (error);
-
 	error = copyin(linux_args.msg, &msg, sizeof(msg));
 	if (error)
 		return (error);
-	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
-		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV)
-			return (EMSGSIZE);
-		MALLOC(iov, struct iovec *,
-			sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
-			M_WAITOK);
-	} else {
-		iov = aiov;
-	}
-	if (msg.msg_iovlen &&
-	    (error = copyin(msg.msg_iov, iov,
-	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)))))
-		goto done;
+	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
+	if (error)
+		return (error);
 	msg.msg_iov = iov;
 	msg.msg_flags = 0;
-
 	error = linux_sendit(td, linux_args.s, &msg, linux_args.flags);
-done:
-	if (iov != aiov)
-		FREE(iov, M_IOV);
+	free(iov, M_IOV);
 	return (error);
 }
 
