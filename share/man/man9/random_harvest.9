@@ -1,0 +1,102 @@
+.\"
+.\" Copyright (c) 2002 Mark R V Murray
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2002
+.Dt RANDOM_HARVEST 9
+.Os FreeBSD
+.Sh NAME
+.Nm random_harvest
+.Nd gather entropy from the kernel for the entropy device
+.Sh SYNOPSIS
+.Fd #include <sys/random.h>
+.Ft void
+.Fn random_harvest "void *entropy" "u_int size" "u_int bits" "u_int frac" "enum esource source"
+.Sh DESCRIPTION
+The
+.Nm
+function is used by device drivers
+and other kernel processes to pass data
+that is considered (at least partially) stochastic
+to the entropy device.
+.Pp
+The caller should pass a pointer (to no more than 16 bytes) of
+the ``random'' data in
+.Ar entropy.
+The argument
+.Ar size
+contains the number of bytes pointed to.
+The caller should
+.Em very conservatively
+estimate the number of random bits
+in the sample,
+and pass this in
+.Ar bits
+or
+.Ar frac .
+If the estimated number of bits per sample is an integer, then
+.Ar bits
+is used, and
+.Ar frac is 0.
+Otherwise,
+for low-entropy samples,
+``fractional'' entropy can be supplied in
+.Ar frac
+(This is considered to be
+.Ar frac /
+1024 bits of entropy).
+The
+.Ar source
+is chosen from
+.Dv RANDOM_WRITE ,
+.Dv RANDOM_KEYBOARD ,
+.Dv RANDOM_MOUSE ,
+.Dv RANDOM_NET
+and
+.Dv RANDOM_INTERRUPT
+and is used to indicate the source of the entropy.
+.Pp
+Interrupt harvesting has been simplified
+for the kernel programmer.
+If a device driver registers an interrupt handler
+with
+.Fn BUS_SETUP_INTR
+or
+.Fn bus_setup_intr ,
+then it is only necessary to
+include the INTR_ENTROPY bit in the
+.Ar flags
+argument to have that interrupt source
+be used for entropy harvesting.
+.Sh SEE ALSO
+.Xr random 4 ,
+.Xr BUS_SETUP_INTR 9
+.Sh AUTHOR
+The
+.Fx
+.Pa /dev/random
+entropy device and supporting documentation was written by
+.An Mark R V Murray .
