@@ -155,7 +155,7 @@ ieee80211_encap(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node **pni)
 	if (m->m_len < sizeof(struct ether_header)) {
 		m = m_pullup(m, sizeof(struct ether_header));
 		if (m == NULL) {
-			/* XXX statistic */
+			ic->ic_stats.is_tx_nombuf++;
 			goto bad;
 		}
 	}
@@ -183,6 +183,7 @@ ieee80211_encap(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node **pni)
 				IEEE80211_DPRINTF(("%s: no node for dst %s, "
 					"discard frame\n", __func__,
 					ether_sprintf(eh.ether_dhost)));
+				ic->ic_stats.is_tx_nonode++; 
 				goto bad;
 			}
 			ni = ic->ic_bss;
@@ -200,8 +201,10 @@ ieee80211_encap(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node **pni)
 	llc->llc_snap.org_code[2] = 0;
 	llc->llc_snap.ether_type = eh.ether_type;
 	M_PREPEND(m, sizeof(struct ieee80211_frame), M_DONTWAIT);
-	if (m == NULL)
+	if (m == NULL) {
+		ic->ic_stats.is_tx_nombuf++;
 		goto bad;
+	}
 	wh = mtod(m, struct ieee80211_frame *);
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_DATA;
 	*(u_int16_t *)wh->i_dur = 0;
@@ -312,7 +315,7 @@ int
 ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 	int type, int arg)
 {
-#define	senderr(_x)	do { ret = _x; goto bad; } while (0)
+#define	senderr(_x, _v)	do { ic->ic_stats._v++; ret = _x; goto bad; } while (0)
 	struct ifnet *ifp = &ic->ic_if;
 	struct mbuf *m;
 	u_int8_t *frm;
@@ -343,7 +346,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		       + 2 + IEEE80211_RATE_SIZE
 		       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE));
 		if (m == NULL)
-			senderr(ENOMEM);
+			senderr(ENOMEM, is_tx_nombuf);
 		m->m_data += sizeof(struct ieee80211_frame);
 		frm = mtod(m, u_int8_t *);
 		frm = ieee80211_add_ssid(frm, ic->ic_des_essid, ic->ic_des_esslen);
@@ -375,7 +378,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		       + 6
 		       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE));
 		if (m == NULL)
-			senderr(ENOMEM);
+			senderr(ENOMEM, is_tx_nombuf);
 		m->m_data += sizeof(struct ieee80211_frame);
 		frm = mtod(m, u_int8_t *);
 
@@ -435,7 +438,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 	case IEEE80211_FC0_SUBTYPE_AUTH:
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL)
-			senderr(ENOMEM);
+			senderr(ENOMEM, is_tx_nombuf);
 		MH_ALIGN(m, 2 * 3);
 		m->m_pkthdr.len = m->m_len = 6;
 		frm = mtod(m, u_int8_t *);
@@ -453,7 +456,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 			    ether_sprintf(ni->ni_macaddr), arg);
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL)
-			senderr(ENOMEM);
+			senderr(ENOMEM, is_tx_nombuf);
 		MH_ALIGN(m, 2);
 		m->m_pkthdr.len = m->m_len = 2;
 		*mtod(m, u_int16_t *) = htole16(arg);	/* reason */
@@ -478,7 +481,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		       + 2 + IEEE80211_RATE_SIZE
 		       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE));
 		if (m == NULL)
-			senderr(ENOMEM);
+			senderr(ENOMEM, is_tx_nombuf);
 		m->m_data += sizeof(struct ieee80211_frame);
 		frm = mtod(m, u_int8_t *);
 
@@ -534,7 +537,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		       + 2 + IEEE80211_RATE_SIZE
 		       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE));
 		if (m == NULL)
-			senderr(ENOMEM);
+			senderr(ENOMEM, is_tx_nombuf);
 		m->m_data += sizeof(struct ieee80211_frame);
 		frm = mtod(m, u_int8_t *);
 
@@ -565,7 +568,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 			    ether_sprintf(ni->ni_macaddr), arg);
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL)
-			senderr(ENOMEM);
+			senderr(ENOMEM, is_tx_nombuf);
 		MH_ALIGN(m, 2);
 		m->m_pkthdr.len = m->m_len = 2;
 		*mtod(m, u_int16_t *) = htole16(arg);	/* reason */
@@ -574,7 +577,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 	default:
 		IEEE80211_DPRINTF(("%s: invalid mgmt frame type %u\n",
 			__func__, type));
-		senderr(EINVAL);
+		senderr(EINVAL, is_tx_unknownmgt);
 		/* NOTREACHED */
 	}
 
