@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.35.2.10 1998/05/15 23:58:29 brian Exp $
+ * $Id: systems.c,v 1.36 1998/05/21 21:48:33 brian Exp $
  *
  *  TODO:
  */
@@ -243,7 +243,7 @@ xgets(char *buf, int buflen, FILE *fp)
 
 static int
 ReadSystem(struct bundle *bundle, const char *name, const char *file,
-           int doexec, struct prompt *prompt)
+           int doexec, struct prompt *prompt, struct datalink *cx)
 {
   FILE *fp;
   char *cp, *wp;
@@ -284,7 +284,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
       switch (DecodeCtrlCommand(cp+1, arg)) {
       case CTRL_INCLUDE:
         log_Printf(LogCOMMAND, "%s: Including \"%s\"\n", filename, arg);
-        n = ReadSystem(bundle, name, arg, doexec, prompt);
+        n = ReadSystem(bundle, name, arg, doexec, prompt, cx);
         log_Printf(LogCOMMAND, "%s: Done include of \"%s\"\n", filename, arg);
         if (!n)
           return 0;	/* got it */
@@ -322,7 +322,8 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
           command_Interpret(cp, len, &argc, &argv);
           allowcmd = argc > 0 && !strcasecmp(*argv, "allow");
           if ((!doexec && allowcmd) || (doexec && !allowcmd))
-	    command_Run(bundle, argc, (char const *const *)argv, prompt, name);
+	    command_Run(bundle, argc, (char const *const *)argv, prompt,
+                        name, cx);
         }
 
 	fclose(fp);  /* everything read - get out */
@@ -347,17 +348,17 @@ system_IsValid(const char *name, struct prompt *prompt, int mode)
   userok = 0;
   modeok = 1;
   modereq = mode;
-  ReadSystem(NULL, "default", CONFFILE, 0, prompt);
+  ReadSystem(NULL, "default", CONFFILE, 0, prompt, NULL);
   if (name != NULL)
-    ReadSystem(NULL, name, CONFFILE, 0, prompt);
+    ReadSystem(NULL, name, CONFFILE, 0, prompt, NULL);
   return userok && modeok;
 }
 
 int
 system_Select(struct bundle *bundle, const char *name, const char *file,
-             struct prompt *prompt)
+             struct prompt *prompt, struct datalink *cx)
 {
   userok = modeok = 1;
   modereq = PHYS_ALL;
-  return ReadSystem(bundle, name, file, 1, prompt);
+  return ReadSystem(bundle, name, file, 1, prompt, cx);
 }
