@@ -1509,7 +1509,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         due to breakage and licensing issues. &merged;</para>
 
       <para>メモリディスクデバイス &man.md.4; に
-        &man.md.4; の機能が統合されました。
+        &man.vn.4; の機能が統合されました。
         &man.md.4; デバイスは &man.mdconfig.8; で設定できるようになり、
         &man.vn.4; は削除されています。
         また、メモリファイルシステム (MFS) も削除されました。</para>
@@ -3911,7 +3911,7 @@ hw.pcic.irq="0"</programlisting>
       より直観的なものになりました。
       &merged;</para>
 
-    <para>&man.sysinstall.8; のデフォルトのルートパーティションが、
+    <para>&man.sysinstall.8; のデフォルトのルートパーティションのサイズが、
       i386 版と pc98 版が 100MB、Alpha 版が 120MB にそれぞれ変更されました。</para>
 
     <para>インストール手順を単純化するため、
@@ -4031,7 +4031,7 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.tip.1; が <application>OpenBSD</application>
-      からのものに更新されました。
+      由来のものに更新されました。
       &man.cu.1; の代用品として動作することができます。</para>
 
     <para>&man.top.1; が、
