@@ -32,17 +32,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)pr_comment.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
-
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include "indent_globs.h"
-
+#include "indent.h"
 /*
  * NAME:
  *	pr_comment
@@ -74,8 +74,8 @@ static const char rcsid[] =
  * beginning of the input line are removed
  */
 
-
-pr_comment()
+void
+pr_comment(void)
 {
     int         now_col;	/* column we are in now */
     int         adj_max_col;	/* Adjusted max_col for when we decide to
@@ -85,12 +85,12 @@ pr_comment()
     char       *t_ptr;		/* used for moving string */
     int         unix_comment;	/* tri-state variable used to decide if it is
 				 * a unix-style comment. 0 means only blanks
-				 * since /*, 1 means regular style comment, 2
+				 * since /+*, 1 means regular style comment, 2
 				 * means unix style comment */
     int         break_delim = comment_delimiter_on_blankline;
     int         l_just_saw_decl = ps.just_saw_decl;
     /*
-     * int         ps.last_nl = 0;	/* true iff the last significant thing
+     * int         ps.last_nl = 0;	 true iff the last significant thing
      * weve seen is a newline
      */
     int         one_liner = 1;	/* true iff this comment is a one-liner */
@@ -116,9 +116,9 @@ pr_comment()
 	if (*buf_ptr == '-' || *buf_ptr == '*' ||
 	    (*buf_ptr == '\n' && !format_block_comments)) {
 	    ps.box_com = true;	/* A comment with a '-' or '*' immediately
-				 * after the /* is assumed to be a boxed
+				 * after the /+* is assumed to be a boxed
 				 * comment. A comment with a newline
-				 * immediately after the /* is assumed to
+				 * immediately after the /+* is assumed to
 				 * be a block comment and is treated as a
 				 * box comment unless format_block_comments
 				 * is nonzero (the default). */
@@ -136,7 +136,7 @@ pr_comment()
 		ps.com_col = 1 + !format_col1_comments;
 	}
 	else {
-	    register    target_col;
+	    register int target_col;
 	    break_delim = 0;
 	    if (s_code != e_code)
 		target_col = count_spaces(compute_code_target(), s_code);
@@ -163,7 +163,7 @@ pr_comment()
 	    buf_ptr++;
     }
     ps.comment_delta = 0;
-    *e_com++ = '/';		/* put '/*' into buffer */
+    *e_com++ = '/';		/* put '/' followed by '*' into buffer */
     *e_com++ = '*';
     if (*buf_ptr != ' ' && !ps.box_com)
 	*e_com++ = ' ';
