@@ -75,13 +75,17 @@ main(argc, argv)
 	int ret = 0, erg;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "pynf")) != -1) {
+	while ((ch = getopt(argc, argv, "fFnpy")) != -1) {
 		switch (ch) {
 		case 'f':
 			/*
 			 * We are always forced, since we don't
 			 * have a clean flag
 			 */
+			break;
+		case 'F':
+			/* We can never run in background */
+			exit(8);
 			break;
 		case 'n':
 			alwaysno = 1;
