@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_ep.c,v 1.5 1994/01/26 09:13:56 nate Exp $
+ *	$Id: if_ep.c,v 1.6 1994/01/26 20:18:56 nate Exp $
  */
 /*
  * TODO:
@@ -36,50 +36,48 @@
 
 #include "bpfilter.h"
 
-#include <sys/param.h>
+#include "sys/param.h"
 #if defined(__FreeBSD__)
-#include <sys/systm.h>
-#include <sys/kernel.h>
+#include "sys/systm.h"
+#include "sys/kernel.h"
 #endif
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
+#include "sys/mbuf.h"
+#include "sys/socket.h"
+#include "sys/ioctl.h"
+#include "sys/errno.h"
+#include "sys/syslog.h"
 #if defined(__NetBSD__)
-#include <sys/select.h>
+#include "sys/select.h"
 #endif
 
-#include <net/if.h>
-#include <net/netisr.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
-#include <net/netisr.h>
+#include "net/if.h"
+#include "net/if_dl.h"
+#include "net/if_types.h"
 
 #ifdef INET
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
+#include "netinet/in.h"
+#include "netinet/in_systm.h"
+#include "netinet/in_var.h"
+#include "netinet/ip.h"
+#include "netinet/if_ether.h"
 #endif
 
 #ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
+#include "netns/ns.h"
+#include "netns/ns_if.h"
 #endif
 
 #if NBPFILTER > 0
-#include <net/bpf.h>
-#include <net/bpfdesc.h>
+#include "net/bpf.h"
+#include "net/bpfdesc.h"
 #endif
 
-#include <machine/pio.h>
+#include "machine/pio.h"
 
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/if_epreg.h>
+#include "i386/isa/isa.h"
+#include "i386/isa/isa_device.h"
+#include "i386/isa/icu.h"
+#include "i386/isa/if_epreg.h"
 
 #define ETHER_MIN_LEN	64
 #define ETHER_MAX_LEN	1518
@@ -473,7 +471,7 @@ startagain:
 
 			/* copy trailer_header into a data structure */
 			m_copydata(top, off, sizeof(struct trailer_header),
-			    &trailer_header.ether_type);
+			    (caddr_t)&trailer_header.ether_type);
 
 			/* copy residual data */
 			resid = trailer_header.ether_residual -
@@ -714,9 +712,9 @@ epread(sc)
 		 * there are no BPF listeners.  And if we are in promiscuous
 		 * mode, we have to check if this packet is really ours.
 		 */
-		if ((sc->ep_ac.ac_if.if_flags & IFF_PROMISC) &&
+		if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
 		    (eh->ether_dhost[0] & 1) == 0 &&
-		    bcmp(eh->ether_dhost, sc->ep_ac.ac_enaddr,
+		    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
 			 sizeof(eh->ether_dhost)) != 0 &&
 		    bcmp(eh->ether_dhost, etherbroadcastaddr,
 			 sizeof(eh->ether_dhost)) != 0) {
