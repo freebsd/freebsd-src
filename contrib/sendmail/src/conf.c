@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.939 2002/01/09 17:26:28 gshapiro Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.961 2002/04/04 21:32:14 gshapiro Exp $")
 
 /* $FreeBSD$ */
 
@@ -526,9 +526,15 @@ setupmaps()
 
 #if NAMED_BIND
 # if DNSMAP
+#  if _FFR_DNSMAP_ALIASABLE
+	MAPDEF("dns", NULL, MCF_ALIASOK,
+	       dns_map_parseargs, dns_map_open, null_map_close,
+	       dns_map_lookup, null_map_store);
+#  else /* _FFR_DNSMAP_ALIASABLE */
 	MAPDEF("dns", NULL, 0,
 	       dns_map_parseargs, dns_map_open, null_map_close,
 	       dns_map_lookup, null_map_store);
+#  endif /* _FFR_DNSMAP_ALIASABLE */
 # endif /* DNSMAP */
 #endif /* NAMED_BIND */
 
@@ -3014,6 +3020,7 @@ static char	*DefaultUserShells[] =
 	"/bin/pam",
 	"/usr/bin/keysh",	/* key shell (extended Korn shell) */
 	"/bin/posix/sh",
+	"/sbin/sh"
 #  endif /* V4FS */
 # endif /* __hpux */
 # if defined(_AIX3) || defined(_AIX4)
@@ -3484,13 +3491,12 @@ lockfile(fd, filename, ext, type)
 	if (!bitset(LOCK_NB, type) ||
 	    (save_errno != EACCES && save_errno != EAGAIN))
 	{
-		int omode = -1;
-#  ifdef F_GETFL
-		(void) fcntl(fd, F_GETFL, &omode);
+		int omode = fcntl(fd, F_GETFL, 0);
+		uid_t euid = geteuid();
+
 		errno = save_errno;
-#  endif /* F_GETFL */
 		syserr("cannot lockf(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
-			filename, ext, fd, type, omode, geteuid());
+		       filename, ext, fd, type, omode, euid);
 		dumpfd(fd, true, true);
 	}
 # else /* !HASFLOCK */
@@ -3515,13 +3521,12 @@ lockfile(fd, filename, ext, type)
 
 	if (!bitset(LOCK_NB, type) || save_errno != EWOULDBLOCK)
 	{
-		int omode = -1;
-#  ifdef F_GETFL
-		(void) fcntl(fd, F_GETFL, &omode);
+		int omode = fcntl(fd, F_GETFL, 0);
+		uid_t euid = geteuid();
+
 		errno = save_errno;
-#  endif /* F_GETFL */
 		syserr("cannot flock(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
-			filename, ext, fd, type, omode, geteuid());
+			filename, ext, fd, type, omode, euid);
 		dumpfd(fd, true, true);
 	}
 # endif /* !HASFLOCK */
@@ -5418,7 +5423,7 @@ link(source, target)
 			left -= writelen;
 			p += writelen;
 		}
-		if (writeln < 0)
+		if (writelen < 0)
 			break;
 	}
 
@@ -5577,6 +5582,9 @@ char	*CompileOptions[] =
 #if USERDB
 	"USERDB",
 #endif /* USERDB */
+#if USE_LDAP_INIT
+	"USE_LDAP_INIT",
+#endif /* USE_LDAP_INIT */
 #if XDEBUG
 	"XDEBUG",
 #endif /* XDEBUG */
@@ -5806,6 +5814,9 @@ char	*FFRCompileOptions[] =
 #if _FFR_ALLOW_SASLINFO
 	"_FFR_ALLOW_SASLINFO",
 #endif /* _FFR_ALLOW_SASLINFO */
+#if _FFR_ALLOW_S0_ERROR_4XX
+	"_FFR_ALLOW_S0_ERROR_4XX",
+#endif /* _FFR_ALLOW_S0_ERROR_4XX */
 #if _FFR_BESTMX_BETTER_TRUNCATION
 	"_FFR_BESTMX_BETTER_TRUNCATION",
 #endif /* _FFR_BESTMX_BETTER_TRUNCATION */
@@ -5816,6 +5827,9 @@ char	*FFRCompileOptions[] =
 #if _FFR_CATCH_BROKEN_MTAS
 	"_FFR_CATCH_BROKEN_MTAS",
 #endif /* _FFR_CATCH_BROKEN_MTAS */
+#if _FFR_CATCH_LONG_STRINGS
+	"_FFR_CATCH_LONG_STRINGS",
+#endif /* _FFR_CATCH_LONG_STRINGS */
 #if _FFR_CHECK_EOM
 	"_FFR_CHECK_EOM",
 #endif /* _FFR_CHECK_EOM */
@@ -5828,6 +5842,14 @@ char	*FFRCompileOptions[] =
 #if _FFR_DEPRECATE_MAILER_FLAG_I
 	"_FFR_DEPRECATE_MAILER_FLAG_I",
 #endif /* _FFR_DEPRECATE_MAILER_FLAG_I */
+#if _FFR_DIGUNIX_SAFECHOWN
+/* Problem noted by Anne Bennett of Concordia University */
+	"_FFR_DIGUNIX_SAFECHOWN",
+#endif /* _FFR_DIGUNIX_SAFECHOWN */
+#if _FFR_DNSMAP_ALIASABLE
+/* Don Lewis of TDK */
+	"_FFR_DNSMAP_ALIASABLE",
+#endif /* _FFR_DNSMAP_ALIASABLE */
 #if _FFR_DNSMAP_BASE
 	"_FFR_DNSMAP_BASE",
 #endif /* _FFR_DNSMAP_BASE */
@@ -5840,6 +5862,10 @@ char	*FFRCompileOptions[] =
 #if _FFR_DONTLOCKFILESFORREAD_OPTION
 	"_FFR_DONTLOCKFILESFORREAD_OPTION",
 #endif /* _FFR_DONTLOCKFILESFORREAD_OPTION */
+# if _FFR_DONT_STOP_LOOKING
+/* Noted by Neil Rickert of Northern Illinois University */
+	"_FFR_DONT_STOP_LOOKING",
+# endif /* _FFR_DONT_STOP_LOOKING */
 #if _FFR_DOTTED_USERNAMES
 	"_FFR_DOTTED_USERNAMES",
 #endif /* _FFR_DOTTED_USERNAMES */
@@ -5858,6 +5884,10 @@ char	*FFRCompileOptions[] =
 #if _FFR_GROUPREADABLEAUTHINFOFILE
 	"_FFR_GROUPREADABLEAUTHINFOFILE",
 #endif /* _FFR_GROUPREADABLEAUTHINFOFILE */
+#if _FFR_HANDLE_ISO8859_GECOS
+/* Peter Eriksson of Linkopings universitet */
+	"_FFR_HANDLE_ISO8859_GECOS",
+#endif /* _FFR_HANDLE_ISO8859_GECOS */
 #if _FFR_HDR_TYPE
 	"_FFR_HDR_TYPE",
 #endif /* _FFR_HDR_TYPE */
@@ -5868,8 +5898,15 @@ char	*FFRCompileOptions[] =
 	"_FFR_IGNORE_EXT_ON_HELO",
 #endif /* _FFR_IGNORE_EXT_ON_HELO */
 #if _FFR_LDAP_RECURSION
+/* Andrew Baucom */
 	"_FFR_LDAP_RECURSION",
 #endif /* _FFR_LDAP_RECURSION */
+#if _FFR_LDAP_SETVERSION
+	"_FFR_LDAP_SETVERSION",
+#endif /* _FFR_LDAP_SETVERSION */
+#if _FFR_LDAP_URI
+	"_FFR_LDAP_URI",
+#endif /* _FFR_LDAP_URI */
 #if _FFR_MAX_FORWARD_ENTRIES
 /* Randall S. Winchester of the University of Maryland */
 	"_FFR_MAX_FORWARD_ENTRIES",
@@ -5892,9 +5929,16 @@ char	*FFRCompileOptions[] =
 #if _FFR_QUEUEDELAY
 	"_FFR_QUEUEDELAY",
 #endif /* _FFR_QUEUEDELAY */
+#if _FFR_QUEUE_GROUP_SORTORDER
+/* XXX: Still need to actually use qgrp->qg_sortorder */
+	"_FFR_QUEUE_GROUP_SORTORDER",
+#endif /* _FFR_QUEUE_GROUP_SORTORDER */
 #if _FFR_QUEUE_MACRO
 	"_FFR_QUEUE_MACRO",
 #endif /* _FFR_QUEUE_MACRO */
+#if _FFR_QUEUE_RUN_PARANOIA
+	"_FFR_QUEUE_RUN_PARANOIA",
+#endif /* _FFR_QUEUE_RUN_PARANOIA */
 #if _FFR_QUEUE_SCHED_DBG
 	"_FFR_QUEUE_SCHED_DBG",
 #endif /* _FFR_QUEUE_SCHED_DBG */
@@ -5907,6 +5951,9 @@ char	*FFRCompileOptions[] =
 #if _FFR_RHS
 	"_FFR_RHS",
 #endif /* _FFR_RHS */
+#if _FFR_SELECT_SHM
+	"_FFR_SELECT_SHM",
+#endif /* _FFR_SELECT_SHM */
 #if _FFR_SHM_STATUS
 	"_FFR_SHM_STATUS",
 #endif /* _FFR_SHM_STATUS */
@@ -5925,6 +5972,10 @@ char	*FFRCompileOptions[] =
 #if _FFR_TRUSTED_QF
 	"_FFR_TRUSTED_QF",
 #endif /* _FFR_TRUSTED_QF */
+#if _FFR_USE_SETLOGIN
+/* Peter Philipp */
+	"_FFR_USE_SETLOGIN",
+#endif /* _FFR_USE_SETLOGIN */
 	NULL
 };
 
