@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 
+static int	soreceive_rcvoob(struct socket *so, struct uio *uio,
+		    int flags);
+
 #ifdef INET
 static int	 do_setopt_accept_filter(struct socket *so, struct sockopt *sopt);
 #endif
@@ -831,6 +834,64 @@ out:
 }
 
 /*
+ * The part of soreceive() that implements reading non-inline out-of-band
+ * data from a socket.  For more complete comments, see soreceive(), from
+ * which this code originated.
+ *
+ * XXXRW: Note that soreceive_rcvoob(), unlike the remainder of soreceve(),
+ * is unable to return an mbuf chain to the caller.
+ */
+static int
+soreceive_rcvoob(so, uio, flags)
+	struct socket *so;
+	struct uio *uio;
+	int flags;
+{
+	struct protosw *pr = so->so_proto;
+	struct mbuf *m;
+	int error;
+
+	KASSERT(flags & MSG_OOB, ("soreceive_rcvoob: (flags & MSG_OOB) == 0"));
+
+	m = m_get(M_TRYWAIT, MT_DATA);
+	if (m == NULL)
+		return (ENOBUFS);
+	error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
+	if (error)
+		goto bad;
+	do {
+#ifdef ZERO_COPY_SOCKETS
+		if (so_zero_copy_receive) {
+			vm_page_t pg;
+			int disposable;
+
+			if ((m->m_flags & M_EXT)
+			 && (m->m_ext.ext_type == EXT_DISPOSABLE))
+				disposable = 1;
+			else
+				disposable = 0;
+
+			pg = PHYS_TO_VM_PAGE(vtophys(mtod(m, caddr_t)));
+			if (uio->uio_offset == -1)
+				uio->uio_offset =IDX_TO_OFF(pg->pindex);
+
+			error = uiomoveco(mtod(m, void *),
+					  min(uio->uio_resid, m->m_len),
+					  uio, pg->object,
+					  disposable);
+		} else
+#endif /* ZERO_COPY_SOCKETS */
+		error = uiomove(mtod(m, void *),
+		    (int) min(uio->uio_resid, m->m_len), uio);
+		m = m_free(m);
+	} while (uio->uio_resid && error == 0 && m);
+bad:
+	if (m != NULL)
+		m_freem(m);
+	return (error);
+}
+
+/*
  * Implement receive operations on a socket.
  * We depend on the way that records are added to the sockbuf
  * by sbappend*.  In particular, each record (mbufs linked through m_next)
@@ -871,44 +932,8 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 		flags = *flagsp &~ MSG_EOR;
 	else
 		flags = 0;
-	if (flags & MSG_OOB) {
-		m = m_get(M_TRYWAIT, MT_DATA);
-		if (m == NULL)
-			return (ENOBUFS);
-		error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
-		if (error)
-			goto bad;
-		do {
-#ifdef ZERO_COPY_SOCKETS
-			if (so_zero_copy_receive) {
-				vm_page_t pg;
-				int disposable;
-
-				if ((m->m_flags & M_EXT)
-				 && (m->m_ext.ext_type == EXT_DISPOSABLE))
-					disposable = 1;
-				else
-					disposable = 0;
-
-				pg = PHYS_TO_VM_PAGE(vtophys(mtod(m, caddr_t)));
-				if (uio->uio_offset == -1)
-					uio->uio_offset =IDX_TO_OFF(pg->pindex);
-
-				error = uiomoveco(mtod(m, void *),
-						  min(uio->uio_resid, m->m_len),
-						  uio, pg->object,
-						  disposable);
-			} else
-#endif /* ZERO_COPY_SOCKETS */
-			error = uiomove(mtod(m, void *),
-			    (int) min(uio->uio_resid, m->m_len), uio);
-			m = m_free(m);
-		} while (uio->uio_resid && error == 0 && m);
-bad:
-		if (m != NULL)
-			m_freem(m);
-		return (error);
-	}
+	if (flags & MSG_OOB)
+		return (soreceive_rcvoob(so, uio, flags));
 	if (mp != NULL)
 		*mp = NULL;
 	if (so->so_state & SS_ISCONFIRMING && uio->uio_resid)
