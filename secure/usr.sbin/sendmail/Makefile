@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.8 (Berkeley) 3/28/97
+#	$Id$
 
 SMDIR=	${.CURDIR}/../../contrib/sendmail/src
 .PATH:	${SMDIR}
@@ -14,11 +15,7 @@ NIS=	-DNIS
 # Map extensions
 MAPS=	-DMAP_REGEX
 
-# If you want tcp wrapper support, uncomment the following two lines
-#TCPWRAPPERSBASEDIR=	/usr/local
-#TCPWRAPPERS=		-DTCPWRAPPERS -I${TCPWRAPPERSBASEDIR}/include
-
-CFLAGS+=-I${SMDIR} ${DBMDEF} ${NIS} ${TCPWRAPPERS} ${MAPS}
+CFLAGS+=-I${SMDIR} ${DBMDEF} ${NIS} -DTCPWRAPPERS ${MAPS}
 CFLAGS+=-D_FFR_MAX_MIME_HEADER_LENGTH
 CFLAGS+=-D_FFR_MAX_HEADERS_LENGTH
 
@@ -27,11 +24,8 @@ SRCS=	alias.c arpadate.c clock.c collect.c conf.c control.c convtime.c \
 	main.c map.c mci.c mime.c parseaddr.c queue.c readcf.c recipient.c \
 	safefile.c savemail.c snprintf.c srvrsmtp.c stab.c stats.c \
 	sysexits.c trace.c udb.c usersmtp.c util.c version.c
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
-.if defined(TCPWRAPPERS)
-LDADD+=	-L${TCPWRAPPERSBASEDIR}/lib -lwrap
-.endif
+DPADD=	${LIBUTIL} ${LIBWRAP}
+LDADD=	-lutil -lwrap
 MAN1=	mailq.1 newaliases.1
 MAN5=	aliases.5
 MAN8=	sendmail.8 
