@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 wint_t
 __fputwc(wchar_t wc, FILE *fp)
 {
-	static const mbstate_t initial;
-	mbstate_t mbs;
 	char buf[MB_LEN_MAX];
 	size_t i, len;
 
@@ -57,8 +55,8 @@ __fputwc(wchar_t wc, FILE *fp)
 		*buf = (unsigned char)wc;
 		len = 1;
 	} else {
-		mbs = initial;
-		if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1) {
+		if ((len = wcrtomb(buf, wc, &fp->_extra->mbstate)) ==
+		    (size_t)-1) {
 			fp->_flags |= __SERR;
 			return (WEOF);
 		}
