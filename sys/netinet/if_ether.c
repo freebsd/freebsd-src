@@ -597,13 +597,18 @@ in_arpinput(m)
 	 * as a dummy address for the rest of the function.
 	 */
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
-			break;
-	if (ifa == NULL) {
+		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+			ia = ifatoia(ifa);
+			goto match;
+		}
+	/*
+	 * If bridging, fall back to using any inet address.
+	 */
+	if (!BRIDGE_TEST ||
+	    (ia = TAILQ_FIRST(&in_ifaddrhead)) == NULL) {
 		m_freem(m);
 		return;
 	}
-	ia = ifatoia(ifa);
 match:
 	myaddr = ia->ia_addr.sin_addr;
 	if (!bcmp(ar_sha(ah), IF_LLADDR(ifp), ifp->if_addrlen)) {
