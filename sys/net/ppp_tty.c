@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.5 1996/01/24 21:09:25 phk Exp $ */
+/* $Id: ppp_tty.c,v 1.6 1996/06/10 23:07:36 gpalmer Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -248,7 +248,7 @@ pppopen(dev, tp)
     sc->sc_outm = NULL;
     pppgetm(sc);
     sc->sc_if.if_flags |= IFF_RUNNING;
-    sc->sc_if.if_lastchange = time;
+    microtime(&sc->sc_if.if_lastchange);
     sc->sc_if.if_baudrate = tp->t_ospeed;
 
     tp->t_sc = (caddr_t) sc;

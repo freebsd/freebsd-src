@@ -194,7 +194,7 @@ tunclose(dev_t dev, int foo, int bar, struct proc *p)
 	if (ifp->if_flags & IFF_UP) {
 		s = splimp();
 		if_down(ifp);
-		ifp->if_lastchange = time;
+		microtime(&ifp->if_lastchange);
 		if (ifp->if_flags & IFF_RUNNING) {
 		    /* find internet addresses and delete routes */
 		    register struct ifaddr *ifa;
@@ -225,7 +225,7 @@ tuninit(unit)
 	TUNDEBUG("%s%d: tuninit\n", ifp->if_name, ifp->if_unit);
 
 	ifp->if_flags |= IFF_UP | IFF_RUNNING;
-	ifp->if_lastchange = time;
+	microtime(&ifp->if_lastchange);
 
 	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
 		if (ifa->ifa_addr->sa_family == AF_INET) {

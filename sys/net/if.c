@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.30 1996/06/05 17:12:41 wollman Exp $
+ * $Id: if.c,v 1.31 1996/06/10 23:07:26 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -115,7 +115,7 @@ if_attach(ifp)
 		p = &((*p)->if_next);
 	*p = ifp;
 	ifp->if_index = ++if_index;
-	ifp->if_lastchange = time;
+	microtime(&ifp->if_lastchange);
 	if (ifnet_addrs == 0 || if_index >= if_indexlim) {
 		unsigned n = (if_indexlim <<= 1) * sizeof(ifa);
 		struct ifaddr **q = (struct ifaddr **)
@@ -357,7 +357,7 @@ if_down(ifp)
 	register struct ifaddr *ifa;
 
 	ifp->if_flags &= ~IFF_UP;
-	ifp->if_lastchange = time;
+	microtime(&ifp->if_lastchange);
 	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
 		pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
 	if_qflush(&ifp->if_snd);
@@ -375,7 +375,7 @@ if_up(ifp)
 {
 
 	ifp->if_flags |= IFF_UP;
-	ifp->if_lastchange = time;
+	microtime(&ifp->if_lastchange);
 #ifdef notyet
 	register struct ifaddr *ifa;
 	/* this has no effect on IP, and will kill all iso connections XXX */
@@ -528,7 +528,7 @@ ifioctl(so, cmd, data, p)
 			(ifr->ifr_flags &~ IFF_CANTCHANGE);
 		if (ifp->if_ioctl)
 			(void) (*ifp->if_ioctl)(ifp, cmd, data);
-		ifp->if_lastchange = time;
+		microtime(&ifp->if_lastchange);
 		break;
 
 	case SIOCSIFMETRIC:
@@ -536,7 +536,7 @@ ifioctl(so, cmd, data, p)
 		if (error)
 			return (error);
 		ifp->if_metric = ifr->ifr_metric;
-		ifp->if_lastchange = time;
+		microtime(&ifp->if_lastchange);
 		break;
 
 	case SIOCSIFPHYS:
@@ -547,7 +547,7 @@ ifioctl(so, cmd, data, p)
 		        return EOPNOTSUPP;
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0)
-			ifp->if_lastchange = time;
+			microtime(&ifp->if_lastchange);
 		return(error);
 
 	case SIOCSIFMTU:
@@ -564,7 +564,7 @@ ifioctl(so, cmd, data, p)
 			return (EINVAL);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0)
-			ifp->if_lastchange = time;
+			microtime(&ifp->if_lastchange);
 		return(error);
 
 	case SIOCADDMULTI:
@@ -576,7 +576,7 @@ ifioctl(so, cmd, data, p)
 			return (EOPNOTSUPP);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0 )
-		    	ifp->if_lastchange = time;
+		    	microtime(&ifp->if_lastchange);
 		return(error);
 
 	default:
