@@ -317,14 +317,22 @@ everything:
 
 
 WMAKE_TGTS=
-.if !defined(SUBDIR_OVERRIDE)
+.if !defined(SUBDIR_OVERRIDE) && !defined(X_QUICK)
 WMAKE_TGTS+=	_worldtmp _bootstrap-tools
 .endif
+.if !defined(X_QUICK)
 WMAKE_TGTS+=	_cleanobj _obj _build-tools
-.if !defined(SUBDIR_OVERRIDE)
+.endif
+.if !defined(SUBDIR_OVERRIDE) && !defined(X_QUICK)
 WMAKE_TGTS+=	_cross-tools
 .endif
 WMAKE_TGTS+=	_includes _libraries _depend everything
+
+.for __target in ${WMAKE_TGTS}
+.if defined(NO${__target})
+WMAKE_TGTS:=	${WMAKE_TGTS:N${__target}}
+.endif
+.endfor
 
 buildworld: ${WMAKE_TGTS}
 .ORDER: ${WMAKE_TGTS}
@@ -572,8 +580,8 @@ installmost:
 .if exists(${.CURDIR}/games) && !defined(NOGAMES)
 _strfile=	games/fortune/strfile
 .endif
-.if ${CXX} != "c++"
-_cxx_consumers=	gnu/usr.bin/gperf gnu/usr.bin/groff
+.if ${CXX:T} != "c++"
+_cxx_consumers=	gnu/usr.bin/groff
 .endif
 
 bootstrap-tools:
