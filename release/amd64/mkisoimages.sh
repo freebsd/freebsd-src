@@ -53,4 +53,4 @@ fi
 LABEL=$1; shift
 NAME=$1; shift
 
-mkisofs $bootable -r -J -h -V $LABEL -o $NAME $*
+mkisofs $bootable -r -J -V $LABEL -o $NAME $*
