@@ -250,6 +250,58 @@
       </itemizedlist>
     </para>
 
+    <para arch="pc98">NEC PC-9801-55, 92 and their compatible C-Bus SCSI interfaces (ct driver)
+      <itemizedlist>
+        <listitem>
+          <para>NEC PC-9801-55, 92 and their compatibles</para>
+          <para>ICM IF-2660</para>
+          <para>Midori-Denshi MDC-554NA</para>
+          <para>Logitec LHA-N151</para>
+          <note>
+            <para><literal>flags 0x00000</literal> is necessary in
+            kernel configuration for DMA transfer mode.</para>
+          </note>
+        </listitem>
+        <listitem>
+          <para>I-O DATA SC-98II</para>
+          <note>
+            <para><literal>flags 0x10000</literal> is necessary in
+            kernel configuration for DMA transfer mode.</para>
+          </note>
+        </listitem>
+        <listitem>
+          <para>TEXA HA-55BS2 and later</para>
+          <para>Midori-Denshi MDC-926Rs</para>
+          <note>
+            <para><literal>flags 0x20000</literal> is necessary in
+            kernel configuration for Bus-master transfer mode.</para>
+          </note>
+        </listitem>
+        <listitem>
+          <para>ELECOM Bus-master SCSI interfaces</para>
+          <note>
+            <para><literal>flags 0x30000</literal> is necessary in
+            kernel configuration for Bus-master transfer mode.</para>
+          </note>
+        </listitem>
+        <listitem>
+          <para>All SMIT transfer type SCSI interfaces</para>
+          <note>
+            <para><literal>flags 0x40000</literal> is necessary in
+            kernel configuration for SMIT transfer mode.</para>
+          </note>
+        </listitem>
+        <listitem>
+          <para>Logitec LHA-20x series</para>
+          <para>ICM IF-2766, IF-2766ET, IF-2767 and IF-2769</para>
+          <note>
+            <para><literal>flags 0x50000</literal> is necessary in
+            kernel configuration for Bus-master transfer mode.</para>
+          </note>
+        </listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="pc98">NEC PC-9801-55, 92 and their compatible C-Bus SCSI interfaces (bs driver)
       <itemizedlist>
         <listitem>
