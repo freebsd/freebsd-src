@@ -40,10 +40,6 @@ Better support for the Matrox Meteor frame grabber card.
 
 Support for the Connectix Quickcam.
 
-Worm driver - it is now possible to burn CDROMs using the Plasmon or
-HP 4080i CDR drives (see `wormcontrol(1)').
-
-
 Kernel features:
 ----------------
 Various VM system enhancements and more than a few bugs fixed.
@@ -528,5 +524,5 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.25 1996/07/16 17:34:39 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.26 1996/10/15 17:04:54 jkh Exp $
  LocalWords:  Adaptec
