@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jun  2 14:37:10 2000]
+ *      last edit-date: [Thu Oct 26 08:42:44 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -70,6 +70,7 @@
 #define FLAG_TELES_S0_163C	25
 #define FLAG_ACER_P10		26
 #define FLAG_TELEINT_NO_1	27
+#define FLAG_CCD_HFCS_PCI	28
 
 #define SEC_DELAY		1000000	/* one second DELAY for DELAY*/
 
@@ -83,11 +84,13 @@
 #define L0UNIT(du) ((du) & 0xff)
 
 #define L0DRVRUNIT(d, u) ( (((d) << 8) & 0xff00) | ((u) & 0xff))
+
 #define L0ISICUNIT(u) ( (((L1DRVR_ISIC) << 8) & 0xff00) | ((u) & 0xff))
 #define L0IWICUNIT(u) ( (((L1DRVR_IWIC) << 8) & 0xff00) | ((u) & 0xff))
 #define L0IFPIUNIT(u) ( (((L1DRVR_IFPI) << 8) & 0xff00) | ((u) & 0xff))
 #define L0IHFCUNIT(u) ( (((L1DRVR_IHFC) << 8) & 0xff00) | ((u) & 0xff))
 #define L0IFPNPUNIT(u) ( (((L1DRVR_IFPNP) << 8) & 0xff00) | ((u) & 0xff))
+#define L0ICCHPUNIT(u) ( (((L1DRVR_ICCHP) << 8) & 0xff00) | ((u) & 0xff))
 
 /* jump table for the multiplex functions */
 struct i4b_l1mux_func {
