@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.3 1998/05/23 13:38:09 brian Exp $
+ *	$Id: mp.c,v 1.4 1998/05/23 17:05:28 brian Exp $
  */
 
 #include <sys/types.h>
@@ -850,28 +850,30 @@ mpserver_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
                    int *n)
 {
   struct mpserver *s = descriptor2mpserver(d);
+  int result;
 
+  result = 0;
   if (s->send.dl != NULL) {
     /* We've connect()ed */
     if (!link_QueueLen(&s->send.dl->physical->link) &&
         !s->send.dl->physical->out) {
       /* Only send if we've transmitted all our data (i.e. the ConfigAck) */
-      datalink_RemoveFromSet(s->send.dl, r, w, e);
+      result -= datalink_RemoveFromSet(s->send.dl, r, w, e);
       bundle_SendDatalink(s->send.dl, s->fd, &s->socket);
       s->send.dl = NULL;
       close(s->fd);
       s->fd = -1;
     } else
       /* Never read from a datalink that's on death row ! */
-      datalink_RemoveFromSet(s->send.dl, r, NULL, NULL);
+      result -= datalink_RemoveFromSet(s->send.dl, r, NULL, NULL);
   } else if (r && s->fd >= 0) {
     if (*n < s->fd + 1)
       *n = s->fd + 1;
     FD_SET(s->fd, r);
     log_Printf(LogTIMER, "mp: fdset(r) %d\n", s->fd);
-    return 1;
+    result++;
   }
-  return 0;
+  return result;
 }
 
 static int
@@ -912,7 +914,6 @@ void
 mpserver_Init(struct mpserver *s)
 {
   s->desc.type = MPSERVER_DESCRIPTOR;
-  s->desc.next = NULL;
   s->desc.UpdateSet = mpserver_UpdateSet;
   s->desc.IsSet = mpserver_IsSet;
   s->desc.Read = mpserver_Read;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.h,v 1.1.2.9 1998/05/01 19:25:44 brian Exp $
+ *	$Id: prompt.h,v 1.2 1998/05/21 21:48:02 brian Exp $
  */
 
 #define LOCAL_AUTH	0x01
@@ -54,7 +54,7 @@ struct prompt {
     char from[40];		/* Source of connection */
   } src;
 
-  struct prompt *lognext;	/* Maintained in log.c */
+  struct prompt *next;		/* Maintained in log.c */
   u_long logmask;		/* Maintained in log.c */
 
   struct termios oldtio;	/* Original tty mode */

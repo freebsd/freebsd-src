@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.2 1998/05/21 21:44:08 brian Exp $
+ *	$Id: bundle.c,v 1.3 1998/05/23 17:05:26 brian Exp $
  */
 
 #include <sys/types.h>
@@ -112,6 +112,7 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
 
   switch (new) {
   case PHASE_DEAD:
+    log_DisplayPrompts();
     bundle->phase = new;
     break;
 
@@ -121,7 +122,7 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
 
   case PHASE_AUTHENTICATE:
     bundle->phase = new;
-    bundle_DisplayPrompt(bundle);
+    log_DisplayPrompts();
     break;
 
   case PHASE_NETWORK:
@@ -129,13 +130,13 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
     fsm_Up(&bundle->ncp.ipcp.fsm);
     fsm_Open(&bundle->ncp.ipcp.fsm);
     bundle->phase = new;
-    bundle_DisplayPrompt(bundle);
+    log_DisplayPrompts();
     break;
 
   case PHASE_TERMINATE:
     bundle->phase = new;
     mp_Down(&bundle->ncp.mp);
-    bundle_DisplayPrompt(bundle);
+    log_DisplayPrompts();
     break;
   }
 }
@@ -476,15 +477,11 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct bundle *bundle = descriptor2bundle(d);
   struct datalink *dl;
-  struct descriptor *desc;
   int result, want, queued, nlinks;
 
   result = 0;
   for (dl = bundle->links; dl; dl = dl->next)
     result += descriptor_UpdateSet(&dl->desc, r, w, e, n);
-
-  for (desc = bundle->desc.next; desc; desc = desc->next)
-    result += descriptor_UpdateSet(desc, r, w, e, n);
 
   /* If there are aren't many packets queued, look for some more. */
   for (nlinks = 0, dl = bundle->links; dl; dl = dl->next)
@@ -504,7 +501,8 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
         bundle_StartAutoLoadTimer(bundle, 1);
     }
 
-    if (r) {
+    if (r &&
+        (bundle->phase == PHASE_NETWORK || bundle->phys_type & PHYS_DEMAND)) {
       /* enough surplus so that we can tell if we're getting swamped */
       want = bundle->cfg.autoload.max.packets + nlinks * 2;
       /* but at least 20 packets ! */
@@ -526,7 +524,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
    * might be ``holding'' one of the datalinks (death-row) and
    * wants to be able to de-select() it from the descriptor set.
    */
-  descriptor_UpdateSet(&bundle->ncp.mp.server.desc, r, w, e, n);
+  result += descriptor_UpdateSet(&bundle->ncp.mp.server.desc, r, w, e, n);
 
   return result;
 }
@@ -536,14 +534,9 @@ bundle_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct bundle *bundle = descriptor2bundle(d);
   struct datalink *dl;
-  struct descriptor *desc;
 
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
-      return 1;
-
-  for (desc = bundle->desc.next; desc; desc = desc->next)
-    if (descriptor_IsSet(desc, fdset))
       return 1;
 
   if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
@@ -557,7 +550,6 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
                       const fd_set *fdset)
 {
   struct datalink *dl;
-  struct descriptor *desc;
 
   if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
     descriptor_Read(&bundle->ncp.mp.server.desc, bundle, fdset);
@@ -565,10 +557,6 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
       descriptor_Read(&dl->desc, bundle, fdset);
-
-  for (desc = bundle->desc.next; desc; desc = desc->next)
-    if (descriptor_IsSet(desc, fdset))
-      descriptor_Read(desc, bundle, fdset);
 
   if (FD_ISSET(bundle->dev.fd, fdset)) {
     struct tun_data tun;
@@ -653,7 +641,6 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
                        const fd_set *fdset)
 {
   struct datalink *dl;
-  struct descriptor *desc;
 
   /* This is not actually necessary as struct mpserver doesn't Write() */
   if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
@@ -662,15 +649,11 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
       descriptor_Write(&dl->desc, bundle, fdset);
-
-  for (desc = bundle->desc.next; desc; desc = desc->next)
-    if (descriptor_IsSet(desc, fdset))
-      descriptor_Write(desc, bundle, fdset);
 }
 
 
 struct bundle *
-bundle_Create(const char *prefix, struct prompt *prompt, int type)
+bundle_Create(const char *prefix, int type)
 {
   int s, enoentcount, err;
   struct ifreq ifrq;
@@ -752,7 +735,6 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
     bundle.ifp.Name = NULL;
     return NULL;
   }
-  prompt_Printf(prompt, "Using interface: %s\n", bundle.ifp.Name);
   log_Printf(LogPHASE, "Using interface: %s\n", bundle.ifp.Name);
 
   bundle.ifp.Speed = 0;
@@ -789,7 +771,6 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   }
 
   bundle.desc.type = BUNDLE_DESCRIPTOR;
-  bundle.desc.next = NULL;
   bundle.desc.UpdateSet = bundle_UpdateSet;
   bundle.desc.IsSet = bundle_IsSet;
   bundle.desc.Read = bundle_DescriptorRead;
@@ -866,7 +847,6 @@ void
 bundle_Destroy(struct bundle *bundle)
 {
   struct datalink *dl;
-  struct descriptor *desc, *ndesc;
 
   /*
    * Clean up the interface.  We don't need to timer_Stop()s, mp_Down(),
@@ -887,18 +867,6 @@ bundle_Destroy(struct bundle *bundle)
   /* In case we never made PHASE_NETWORK */
   bundle_Notify(bundle, EX_ERRDEAD);
 
-  /* Finally, destroy our prompts */
-  desc = bundle->desc.next;
-  while (desc) {
-    ndesc = desc->next;
-    if (desc->type == PROMPT_DESCRIPTOR)
-      prompt_Destroy((struct prompt *)desc, 1);
-    else
-      log_Printf(LogERROR, "bundle_Destroy: Don't know how to delete descriptor"
-                " type %d\n", desc->type);
-    desc = ndesc;
-  }
-  bundle->desc.next = NULL;
   bundle->ifp.Name = NULL;
 }
 
@@ -1052,7 +1020,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
       fsm_Close(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
     }
     bundle_NewPhase(bundle, PHASE_DEAD);
-    bundle_DisplayPrompt(bundle);
+    bundle_StopIdleTimer(bundle);
     bundle_StopAutoLoadTimer(bundle);
     bundle->autoload.running = 0;
   } else
@@ -1263,84 +1231,6 @@ bundle_IsDead(struct bundle *bundle)
   return !bundle->links || (bundle->phase == PHASE_DEAD && bundle->CleaningUp);
 }
 
-void
-bundle_RegisterDescriptor(struct bundle *bundle, struct descriptor *d)
-{
-  d->next = bundle->desc.next;
-  bundle->desc.next = d;
-}
-
-void
-bundle_UnRegisterDescriptor(struct bundle *bundle, struct descriptor *d)
-{
-  struct descriptor **desc;
-
-  for (desc = &bundle->desc.next; *desc; desc = &(*desc)->next)
-    if (*desc == d) {
-      *desc = d->next;
-      break;
-    }
-}
-
-void
-bundle_DelPromptDescriptors(struct bundle *bundle, struct server *s)
-{
-  struct descriptor **desc;
-  struct prompt *p;
-
-  desc = &bundle->desc.next;
-  while (*desc) {
-    if ((*desc)->type == PROMPT_DESCRIPTOR) {
-      p = (struct prompt *)*desc;
-      if (p->owner == s) {
-        prompt_Destroy(p, 1);
-        desc = &bundle->desc.next;
-        continue;
-      }
-    }
-    desc = &(*desc)->next;
-  }
-}
-
-void
-bundle_DisplayPrompt(struct bundle *bundle)
-{
-  struct descriptor **desc;
-
-  for (desc = &bundle->desc.next; *desc; desc = &(*desc)->next)
-    if ((*desc)->type == PROMPT_DESCRIPTOR)
-      prompt_Required((struct prompt *)*desc);
-}
-
-void
-bundle_WriteTermPrompt(struct bundle *bundle, struct datalink *dl,
-                       const char *data, int len)
-{
-  struct descriptor *desc;
-  struct prompt *p;
-
-  for (desc = bundle->desc.next; desc; desc = desc->next)
-    if (desc->type == PROMPT_DESCRIPTOR) {
-      p = (struct prompt *)desc;
-      if (prompt_IsTermMode(p, dl))
-        prompt_Printf(p, "%.*s", len, data);
-    }
-}
-
-void
-bundle_SetTtyCommandMode(struct bundle *bundle, struct datalink *dl)
-{
-  struct descriptor *desc;
-  struct prompt *p;
-
-  for (desc = bundle->desc.next; desc; desc = desc->next)
-    if (desc->type == PROMPT_DESCRIPTOR) {
-      p = (struct prompt *)desc;
-      if (prompt_IsTermMode(p, dl))
-        prompt_TtyCommandMode(p);
-    }
-}
-
 static void
 bundle_LinkAdded(struct bundle *bundle, struct datalink *dl)
 {
@@ -1369,14 +1259,13 @@ bundle_DatalinkLinkout(struct bundle *bundle, struct datalink *dl)
 {
   struct datalink **dlp;
 
-  if (dl->state == DATALINK_CLOSED)
-    for (dlp = &bundle->links; *dlp; dlp = &(*dlp)->next)
-      if (*dlp == dl) {
-        *dlp = dl->next;
-        dl->next = NULL;
-        bundle_LinksRemoved(bundle);
-        return dl;
-      }
+  for (dlp = &bundle->links; *dlp; dlp = &(*dlp)->next)
+    if (*dlp == dl) {
+      *dlp = dl->next;
+      dl->next = NULL;
+      bundle_LinksRemoved(bundle);
+      return dl;
+    }
 
   return NULL;
 }
@@ -1534,8 +1423,8 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
 
   log_Printf(LogPHASE, "Transmitting datalink %s\n", dl->name);
 
-  bundle_DatalinkLinkout(dl->bundle, dl);
   bundle_LinkClosed(dl->bundle, dl);
+  bundle_DatalinkLinkout(dl->bundle, dl);
 
   /* Build our scatter/gather array */
   iov[0].iov_len = strlen(Version) + 1;

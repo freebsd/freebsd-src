@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25.2.14 1998/05/01 22:39:35 brian Exp $
+ *	$Id: log.c,v 1.27 1998/05/21 21:46:25 brian Exp $
  */
 
 #include <sys/types.h>
@@ -66,16 +66,28 @@ static const char *LogNames[] = {
 static u_long LogMask = MSK(LogPHASE);
 static u_long LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
 static int LogTunno = -1;
-static struct prompt *logprompt;	/* Where to log local stuff */
+static struct prompt *promptlist;	/* Where to log local stuff */
+
+struct prompt *
+log_PromptList()
+{
+  return promptlist;
+}
 
 void
 log_RegisterPrompt(struct prompt *prompt)
 {
-  if (prompt) {
-    prompt->lognext = logprompt;
-    logprompt = prompt;
-    LogMaskLocal |= prompt->logmask;
-  }
+  prompt->next = promptlist;
+  promptlist = prompt;
+  prompt->active = 1;
+  log_DiscardAllLocal(&prompt->logmask);
+}
+
+void
+log_ActivatePrompt(struct prompt *prompt)
+{
+  prompt->active = 1;
+  LogMaskLocal |= prompt->logmask;
 }
 
 static void
@@ -84,8 +96,17 @@ LogSetMaskLocal(void)
   struct prompt *p;
 
   LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
-  for (p = logprompt; p; p = p->lognext)
+  for (p = promptlist; p; p = p->next)
     LogMaskLocal |= p->logmask;
+}
+
+void
+log_DeactivatePrompt(struct prompt *prompt)
+{
+  if (prompt->active) {
+    prompt->active = 0;
+    LogSetMaskLocal();
+  }
 }
 
 void
@@ -94,14 +115,59 @@ log_UnRegisterPrompt(struct prompt *prompt)
   if (prompt) {
     struct prompt **p;
 
-    for (p = &logprompt; *p; p = &(*p)->lognext)
+    for (p = &promptlist; *p; p = &(*p)->next)
       if (*p == prompt) {
-        *p = prompt->lognext;
-        prompt->lognext = NULL;
+        *p = prompt->next;
+        prompt->next = NULL;
         break;
       }
     LogSetMaskLocal();
   }
+}
+
+void
+log_DestroyPrompts(struct server *s)
+{
+  struct prompt *p, *pn;
+
+  p = promptlist;
+  while (p) {
+    pn = p->next;
+    if (s && p->owner != s) {
+      p->next = NULL;
+      prompt_Destroy(p, 1);
+    }
+    p = pn;
+  }
+}
+
+void
+log_DisplayPrompts()
+{
+  struct prompt *p;
+
+  for (p = promptlist; p; p = p->next)
+    prompt_Required(p);
+}
+
+void
+log_WritePrompts(struct datalink *dl, const char *data, int len)
+{
+  struct prompt *p;
+
+  for (p = promptlist; p; p = p->next)
+    if (prompt_IsTermMode(p, dl))
+      prompt_Printf(p, "%.*s", len, data);
+}
+
+void
+log_SetTtyCommandMode(struct datalink *dl)
+{
+  struct prompt *p;
+
+  for (p = promptlist; p; p = p->next)
+    if (prompt_IsTermMode(p, dl))
+      prompt_TtyCommandMode(p);
 }
 
 static int
@@ -225,19 +291,20 @@ log_Printf(int lev, const char *fmt,...)
   if (log_IsKept(lev)) {
     static char nfmt[200];
 
-    if ((log_IsKept(lev) & LOG_KEPT_LOCAL) && logprompt) {
+    if ((log_IsKept(lev) & LOG_KEPT_LOCAL) && promptlist) {
       if ((log_IsKept(LogTUN) & LOG_KEPT_LOCAL) && LogTunno != -1)
         snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
 	         LogTunno, log_Name(lev), fmt);
       else
         snprintf(nfmt, sizeof nfmt, "%s: %s", log_Name(lev), fmt);
   
-      for (prompt = logprompt; prompt; prompt = prompt->lognext)
+      for (prompt = promptlist; prompt; prompt = prompt->next)
         if (lev > LogMAXCONF || (prompt->logmask & MSK(lev)))
           prompt_vPrintf(prompt, nfmt, ap);
     }
 
-    if ((log_IsKept(lev) & LOG_KEPT_SYSLOG) && (lev != LogWARN || !logprompt)) {
+    if ((log_IsKept(lev) & LOG_KEPT_SYSLOG) &&
+        (lev != LogWARN || !promptlist)) {
       if ((log_IsKept(LogTUN) & LOG_KEPT_SYSLOG) && LogTunno != -1)
         snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
 	         LogTunno, log_Name(lev), fmt);
@@ -380,7 +447,7 @@ log_ShowWho(struct cmdargs const *arg)
 {
   struct prompt *p;
 
-  for (p = logprompt; p; p = p->lognext) {
+  for (p = promptlist; p; p = p->next) {
     prompt_Printf(arg->prompt, "%s (%s)", p->src.type, p->src.from);
     if (p == arg->prompt)
       prompt_Printf(arg->prompt, " *");
