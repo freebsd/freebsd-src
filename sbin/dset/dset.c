@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: dset.c,v 1.12 1998/06/08 06:44:05 charnier Exp $";
+	"$Id: dset.c,v 1.13 1998/06/28 19:06:17 bde Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -46,7 +46,9 @@ struct nlist    nl[] = {
 	{"_isa_devtab_bio"},
 #define N_TABNET	2
 	{"_isa_devtab_net"},
-#define N_TABNULL	3
+#define N_TABCAM	3
+	{"_isa_devtab_cam"},
+#define N_TABNULL	4
 	{"_isa_devtab_null"},
 	{""},
 };
