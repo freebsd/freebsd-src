@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id$
+ *	$Id: if_var.h,v 1.5 1997/02/22 09:41:10 peter Exp $
  */
 
 #ifndef	_NET_IF_VAR_H_
@@ -254,6 +254,9 @@ struct ifaddr {
 #ifdef notdef
 	struct	rtentry *ifa_rt;	/* XXXX for ROUTETOIF ????? */
 #endif
+	int (*ifa_claim_addr)		/* check if an addr goes to this if */
+		__P((struct ifaddr *, struct sockaddr *));
+
 };
 #define	IFA_ROUTE	RTF_UP		/* route installed */
 
