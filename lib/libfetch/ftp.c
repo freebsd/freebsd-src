@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.5 1998/08/17 09:30:19 des Exp $
+ *	$Id: ftp.c,v 1.6 1998/11/05 19:48:17 des Exp $
  */
 
 /*
@@ -71,7 +71,7 @@
 
 #include "fetch.h"
 #include "common.h"
-#include "ftperr.c"
+#include "ftperr.inc"
 
 #define FTP_DEFAULT_TO_ANONYMOUS
 #define FTP_ANONYMOUS_USER	"ftp"
@@ -88,7 +88,7 @@
 
 #define ENDL "\r\n"
 
-static url_t cached_host;
+static struct url cached_host;
 static FILE *cached_socket;
 
 static char *_ftp_last_reply;
@@ -101,6 +101,7 @@ _ftp_chkerr(FILE *s, int *e)
 {
     char *line;
     size_t len;
+    int err;
 
     if (e)
 	*e = 0;
@@ -122,14 +123,15 @@ _ftp_chkerr(FILE *s, int *e)
     
     if (!isdigit(line[1]) || !isdigit(line[1])
 	|| !isdigit(line[2]) || (line[3] != ' ')) {
-	_ftp_seterr(-1);
+	_ftp_seterr(0);
 	return -1;
     }
 
-    _ftp_seterr((line[0] - '0') * 100 + (line[1] - '0') * 10 + (line[2] - '0'));
+    err = (line[0] - '0') * 100 + (line[1] - '0') * 10 + (line[2] - '0');
+    _ftp_seterr(err);
 
     if (e)
-	*e = fetchLastErrCode;
+	*e = err;
 
     return (line[0] == '2') - 1;
 }
@@ -365,7 +367,7 @@ _ftp_disconnect(FILE *f)
  * Check if we're already connected
  */
 static int
-_ftp_isconnected(url_t *url)
+_ftp_isconnected(struct url *url)
 {
     return (cached_socket
 	    && (strcmp(url->host, cached_host.host) == 0)
@@ -378,7 +380,7 @@ _ftp_isconnected(url_t *url)
  * FTP session
  */
 static FILE *
-fetchXxxFTP(url_t *url, char *oper, char *mode, char *flags)
+fetchXxxFTP(struct url *url, char *oper, char *mode, char *flags)
 {
     FILE *cf = NULL;
     int e;
@@ -402,7 +404,7 @@ fetchXxxFTP(url_t *url, char *oper, char *mode, char *flags)
 	if (cached_socket)
 	    _ftp_disconnect(cached_socket);
 	cached_socket = cf;
-	memcpy(&cached_host, url, sizeof(url_t));
+	memcpy(&cached_host, url, sizeof(struct url));
     }
 
     /* initiate the transfer */
@@ -413,15 +415,24 @@ fetchXxxFTP(url_t *url, char *oper, char *mode, char *flags)
  * Itsy bitsy teeny weenie
  */
 FILE *
-fetchGetFTP(url_t *url, char *flags)
+fetchGetFTP(struct url *url, char *flags)
 {
     return fetchXxxFTP(url, "RETR", "r", flags);
 }
 
 FILE *
-fetchPutFTP(url_t *url, char *flags)
+fetchPutFTP(struct url *url, char *flags)
 {
     if (flags && strchr(flags, 'a'))
 	return fetchXxxFTP(url, "APPE", "w", flags);
     else return fetchXxxFTP(url, "STOR", "w", flags);
 }
+
+extern void warnx(char *fmt, ...);
+int
+fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
+{
+    warnx("fetchStatFTP(): not implemented");
+    return -1;
+}
+

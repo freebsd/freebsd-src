@@ -25,20 +25,32 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: common.h,v 1.1 1998/11/05 19:48:16 des Exp $
  */
 
 #ifndef _COMMON_H_INCLUDED
 #define _COMMON_H_INCLUDED
 
 /* Structure used for error message lists */
+#define ERRCAT_
 struct fetcherr {  
-    const int num;  
-    const char *string;  
+    const int num, cat;
+    const char *string;
 };
 
-const char	*_fetch_errstring(struct fetcherr *, int);
 void		 _fetch_seterr(struct fetcherr *, int);
 void		 _fetch_syserr(void);
+int		 fetchConnect(char *, int);
     
+#define _ftp_seterr(n)	 _fetch_seterr(_ftp_errlist, n)
+#define _http_seterr(n)	 _fetch_seterr(_http_errlist, n)
+#define _netdb_seterr(n) _fetch_seterr(_netdb_errlist, n)
+#define _url_seterr(n)	 _fetch_seterr(_url_errlist, n)
+
+#ifndef NDEBUG
+#define DEBUG(x) do x; while (0)
+#else
+#define DEBUG(x) do { } while (0)
+#endif
+
 #endif
