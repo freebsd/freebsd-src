@@ -2058,6 +2058,11 @@ ip_rsvp_vif_done(so, sopt)
 		printf("ip_rsvp_vif_done: v_rsvpd = %p so = %p\n",
 		       viftable[i].v_rsvpd, so);
 
+	/*
+	 * XXX as an additional consistency check, one could make sure
+	 * that viftable[i].v_rsvpd == so, otherwise passing so as
+	 * first parameter is pretty useless.
+	 */
 	viftable[i].v_rsvpd = NULL;
 	/*
 	 * This may seem silly, but we need to be sure we don't over-decrement
