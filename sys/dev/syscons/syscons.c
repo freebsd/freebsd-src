@@ -373,17 +373,17 @@ sc_attach_unit(int unit, int flags)
     for (vc = 0; vc < MAXCONS; vc++) {
         dev = make_dev(&sc_cdevsw, vc,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc + unit * MAXCONS);
-	dev->si_tty_tty = &sc->tty[vc];
+	dev->si_tty = &sc->tty[vc];
     }
     if (scp == sc_console) {
 #ifndef SC_NO_SYSMOUSE
 	dev = make_dev(&sc_cdevsw, SC_MOUSE,
 	    UID_ROOT, GID_WHEEL, 0600, "sysmouse");
-	dev->si_tty_tty = MOUSE_TTY;
+	dev->si_tty = MOUSE_TTY;
 #endif /* SC_NO_SYSMOUSE */
 	dev = make_dev(&sc_cdevsw, SC_CONSOLECTL,
 	    UID_ROOT, GID_WHEEL, 0600, "consolectl");
-	dev->si_tty_tty = CONSOLE_TTY;
+	dev->si_tty = CONSOLE_TTY;
     }
 
     return 0;
@@ -438,7 +438,7 @@ struct tty
 *scdevtotty(dev_t dev)
 {
 
-    return (dev->si_tty_tty);
+    return (dev->si_tty);
 }
 
 static int
@@ -459,7 +459,7 @@ scdevtounit(dev_t dev)
 int
 scopen(dev_t dev, int flag, int mode, struct proc *p)
 {
-    struct tty *tp = dev->si_tty_tty;
+    struct tty *tp = dev->si_tty;
     int unit = scdevtounit(dev);
     sc_softc_t *sc;
     keyarg_t key;
@@ -526,7 +526,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 int
 scclose(dev_t dev, int flag, int mode, struct proc *p)
 {
-    struct tty *tp = dev->si_tty_tty;
+    struct tty *tp = dev->si_tty;
     struct scr_stat *scp;
     int s;
 
@@ -584,7 +584,7 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 int
 scread(dev_t dev, struct uio *uio, int flag)
 {
-    struct tty *tp = dev->si_tty_tty;
+    struct tty *tp = dev->si_tty;
 
     if (!tp)
 	return(ENXIO);
@@ -595,7 +595,7 @@ scread(dev_t dev, struct uio *uio, int flag)
 int
 scwrite(dev_t dev, struct uio *uio, int flag)
 {
-    struct tty *tp = dev->si_tty_tty;
+    struct tty *tp = dev->si_tty;
 
     if (!tp)
 	return(ENXIO);
@@ -691,7 +691,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     scr_stat *scp;
     int s;
 
-    tp = dev->si_tty_tty;
+    tp = dev->si_tty;
     if (!tp)
 	return ENXIO;
 
@@ -3841,7 +3841,7 @@ scmmap(dev_t dev, vm_offset_t offset, int nprot)
     struct tty *tp;
     struct scr_stat *scp;
 
-    tp = dev->si_tty_tty;
+    tp = dev->si_tty;
     if (!tp)
 	return ENXIO;
     scp = sc_get_scr_stat(tp->t_dev);
