@@ -113,14 +113,11 @@ static int	mdrootready;
 static int	mdunits;
 static dev_t	status_dev = 0;
 
-#define CDEV_MAJOR	95
-
 static d_ioctl_t mdctlioctl;
 
 static struct cdevsw mdctl_cdevsw = {
 	.d_ioctl =	mdctlioctl,
 	.d_name =	MD_NAME,
-	.d_maj =	CDEV_MAJOR
 };
 
 
@@ -1171,11 +1168,11 @@ md_drvinit(struct g_class *mp __unused)
 	u_char *ptr, *name, *type;
 	unsigned len;
 
+	mod = NULL;
+	g_topology_unlock();
 #ifdef MD_ROOT_SIZE
 	md_preloaded(mfs_root, MD_ROOT_SIZE*1024);
 #endif
-	mod = NULL;
-	g_topology_unlock();
 	while ((mod = preload_search_next_name(mod)) != NULL) {
 		name = (char *)preload_search_info(mod, MODINFO_NAME);
 		type = (char *)preload_search_info(mod, MODINFO_TYPE);
@@ -1228,7 +1225,7 @@ static moduledata_t md_mod = {
 	md_modevent,
 	NULL
 };
-DECLARE_MODULE(md, md_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR);
+DECLARE_MODULE(md, md_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 MODULE_VERSION(md, MD_MODVER);
 
 
