@@ -52,10 +52,6 @@ main(int argc, char **argv)
 
 	status = EXIT_SUCCESS;
 
-	/* If called without args, die silently to conform */
-	if (argc < 2)
-		exit(EXIT_FAILURE);
-
 	while ((opt = getopt(argc, argv, "as")) != -1) {
 		switch (opt) {
 		case 'a':
@@ -73,15 +69,15 @@ main(int argc, char **argv)
 	argv += optind;
 	argc -= optind;
 
+	if (argc == 0)
+		usage();
+
 	if ((p = getenv("PATH")) == NULL)
 		exit(EXIT_FAILURE);
 	pathlen = strlen(p) + 1;
 	path = malloc(pathlen);
 	if (path == NULL)
 		err(EXIT_FAILURE, NULL);
-
-	if (argc == 0)
-		status = EXIT_FAILURE;
 
 	while (argc > 0) {
 		memcpy(path, p, pathlen);
@@ -101,7 +97,8 @@ static void
 usage(void)
 {
 
-	errx(EXIT_FAILURE, "usage: which [-as] program ...");
+	(void)fprintf(stderr, "usage: which [-as] program ...\n");
+	exit(EXIT_FAILURE);
 }
 
 static int
