@@ -38,7 +38,6 @@
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_prot.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_watch.h>

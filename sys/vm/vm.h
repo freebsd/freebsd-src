@@ -31,14 +31,57 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm.h	8.2 (Berkeley) 12/13/93
+ *	@(#)vm_prot.h	8.1 (Berkeley) 6/11/93
+ *	@(#)vm_inherit.h	8.1 (Berkeley) 6/11/93
+ *
+ * Copyright (c) 1987, 1990 Carnegie-Mellon University.
+ * All rights reserved.
+ *
+ * Authors: Avadis Tevanian, Jr., Michael Wayne Young
+ *
+ * Permission to use, copy, modify and distribute this software and
+ * its documentation is hereby granted, provided that both the copyright
+ * notice and this permission notice appear in all copies of the
+ * software, derivative works or modified versions, and any portions
+ * thereof, and that both notices appear in supporting documentation.
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
+ * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+ *
+ * Carnegie Mellon requests users of this software to return to
+ *
+ *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
+ *  School of Computer Science
+ *  Carnegie Mellon University
+ *  Pittsburgh PA 15213-3890
+ *
+ * any improvements or extensions that they make and grant Carnegie the
+ * rights to redistribute these changes.
+ *
  * $FreeBSD$
  */
 
 #ifndef VM_H
 #define VM_H
 
-typedef char vm_inherit_t;	/* XXX: inheritance codes */
+typedef char vm_inherit_t;	/* inheritance codes */
+
+#define	VM_INHERIT_SHARE	((vm_inherit_t) 0)
+#define	VM_INHERIT_COPY		((vm_inherit_t) 1)
+#define	VM_INHERIT_NONE		((vm_inherit_t) 2)
+#define	VM_INHERIT_DEFAULT	VM_INHERIT_COPY
+
 typedef u_char vm_prot_t;	/* protection codes */
+
+#define	VM_PROT_NONE		((vm_prot_t) 0x00)
+#define	VM_PROT_READ		((vm_prot_t) 0x01)
+#define	VM_PROT_WRITE		((vm_prot_t) 0x02)
+#define	VM_PROT_EXECUTE		((vm_prot_t) 0x04)
+#define	VM_PROT_OVERRIDE_WRITE	((vm_prot_t) 0x08)	/* copy-on-write */
+
+#define	VM_PROT_ALL		(VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE)
+#define	VM_PROT_DEFAULT		VM_PROT_ALL
 
 union vm_map_object;
 typedef union vm_map_object vm_map_object_t;

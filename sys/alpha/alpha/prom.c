@@ -23,6 +23,8 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
 #include "opt_simos.h"
@@ -38,7 +40,6 @@
 #include <sys/lock.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_prot.h>
 #include <vm/vm_map.h>
 #include <sys/proc.h>
 #include <sys/user.h>
