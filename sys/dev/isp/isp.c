@@ -484,12 +484,12 @@ again:
 	 * whether we have f/w at all and whether a config flag
 	 * has disabled our download.
 	 */
-	if ((isp->isp_mdvec->dv_ispfw != NULL) ||
+	if ((isp->isp_mdvec->dv_ispfw == NULL) ||
 	    (isp->isp_confopts & ISP_CFG_NORELOAD)) {
 		dodnld = 0;
 	}
 
-	if (dodnld && isp->isp_mdvec->dv_ispfw) {
+	if (dodnld) {
 		u_int16_t fwlen  = isp->isp_mdvec->dv_fwlen;
 		if (fwlen == 0)
 			fwlen = isp->isp_mdvec->dv_ispfw[3]; /* usually here */
