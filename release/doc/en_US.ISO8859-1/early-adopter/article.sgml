@@ -22,6 +22,8 @@
 
 <!ENTITY release.4x "4.<replaceable>X</replaceable>">
 <!ENTITY release.5x "5.<replaceable>X</replaceable>">
+<!ENTITY release.4last "4.9-RELEASE">
+<!ENTITY release.5branchpoint "5.3-RELEASE">
 
 ]>
 
@@ -84,11 +86,11 @@
       with) possible regressions in the newer releases.
       Specifically, for more conservative users, we recommend
       running &release.4x; releases (such as
-      4.8-RELEASE) for the near-term
+      &release.4last;) for the near-term
       future.  We feel that such users are probably best served by
       upgrading to &release.5x; only after a
       5-STABLE development branch has been created; this may be around
-      the time of 5.2-RELEASE.</para>
+      the time of &release.5branchpoint;.</para>
 
     <para>(&os; &release.5x; suffers from what has been described as a
       <quote>chicken and egg</quote> problem.  The entire project has
@@ -132,9 +134,10 @@
       it.  This branch has the tag <literal>RELENG_4</literal> in the
       CVS repository.</para>
 
-    <para>&os; 5.0 and 5.1 are based on the CURRENT branch.  These
-      are the first releases from this branch in over two years (the
-      last was &os; 4.0, in March 2000).</para>
+    <para>&os; 5.0, 5.1, and 5.2 are based on the CURRENT branch.  The
+      first of these releases was made after over two years of development
+      (prior to these, the
+      last release from HEAD was &os; 4.0, in March 2000).</para>
 
     <para>At some point after the release of &os; 5.0, a
       <quote>5-STABLE</quote> branch will be created in the &os;
@@ -154,8 +157,8 @@
       there will be 
       multiple releases in the &release.5x; series
       before this happens; we estimate
-      that the 5-STABLE branch will be created sometime after
-      5.2-RELEASE.</para>
+      that the 5-STABLE branch will be created around the time of
+      &release.5branchpoint;.</para>
 
     <para>More information on &os; release engineering processes can be found
       on the <ulink
@@ -183,28 +186,33 @@
     <itemizedlist>
       <listitem>
         <para>SMPng: The <quote>next generation</quote> support for
- 	  SMP machines (work in progress).  There is now partial
- 	  support for multiple processors to be running in the kernel
- 	  at the same time.  This work is ongoing.</para>
+ 	  SMP machines (work in progress).
+ 	  Ongoing work aims to perform fine-grained locking of various
+ 	  kernel subsystems to increase the number of threads of
+ 	  execution that can be running in the kernel.  More
+ 	  information can be found on the 
+	  <ulink url="http://www.FreeBSD.org/smp/">FreeBSD SMP
+ 	  Project</ulink> page.</para>
       </listitem>
 
       <listitem>
 	<para>KSE:  Kernel Scheduled Entities allow a single process
 	  to have multiple kernel-level threads, similar to Scheduler
-	  Activations.  The (experimental) <filename>libkse</filename>
-	  and <filename>libthr</filename> libraries make this
-	  feature available to multi-threaded userland programs.</para>
+	  Activations.  The <filename>libkse</filename>
+	  and <filename>libthr</filename> threading libraries make this
+	  feature available to multi-threaded userland programs,
+	  using the &man.pthread.3; API.</para>
       </listitem>
 
       <listitem>
-	<para>New architectures:  Support for the &sparc64; and ia64
-	  architectures, in addition to the &i386;, pc98, and
+	<para>New architectures:  Support for the sparc64, ia64, and amd64
+	  architectures, in addition to the i386, pc98, and
 	  alpha.</para>
       </listitem>
 
       <listitem>
 	<para>GCC:  The compiler toolchain is now based on GCC
-	  3.2.2, rather than GCC
+	  3.3.<replaceable>X</replaceable>, rather than GCC
 	  2.95.<replaceable>X</replaceable>.</para>
       </listitem>
 
@@ -215,7 +223,7 @@
 
       <listitem>
         <para>GEOM:  A flexible framework for transformations of disk
-	  I/O requests.  An experimental disk encryption facility has
+	  I/O requests.  The GBDE experimental disk encryption facility has
 	  been developed based on GEOM.</para>
       </listitem>
 
@@ -237,10 +245,14 @@
         <para>Cardbus:  Support for Cardbus devices.</para>
       </listitem>
 
+      <listitem>
+	<para>Bluetooth:  Support for Bluetooth devices.</para>
+      </listitem>
+
     </itemizedlist>
 
     <para>A more comprehensive list of new features can be found in
-      the release notes for &os; &release.prev; and &os; &release.current;.</para>
+      the release notes for the various &os; &release.5x; releases.</para>
 
   </sect1>
 
@@ -267,7 +279,10 @@
           ABIs/APIs, third-party binary device drivers will require
           modifications to work correctly under &os; 5.0.  There is
           a possibility of more minor ABI/API changes before the
-          5-STABLE branch is created.</para>
+          5-STABLE branch is created, particularly on newer machine
+          architectures.  In some (hopefully rare) cases,
+          user-visible structures may change, requiring recompiling of
+          applications or reinstallation of ports/packages.</para>
       </listitem>
 
       <listitem>
@@ -289,32 +304,35 @@
 
       <listitem>
         <para>A number of ports and packages do not build or do not
-          run correctly under &os; 5.0, whereas they did under &os;
+          run correctly under &os; &release.5x;, whereas they did under &os;
           4-STABLE.  Generally these problems are caused by compiler
-          toolchain changes or cleanups of header files.</para>
+          toolchain changes or cleanups of header files.  In some
+          cases they are caused by changes in kernel or device
+          support.</para>
       </listitem>
 
       <listitem>
         <para>Many &os; &release.5x; features are
           seeing wide exposure for the first time.  Many of these
           features (such as SMPng) have broad impacts on the
-          kernel.</para>
+          kernel, and it may be difficult to gauge their effects on
+          stability and performance.</para>
       </listitem>
 
       <listitem>
         <para>A certain amount of debugging and diagnostic code is
-          still in place to help track down problems in &os; 5.0's new
-          features.  This may cause &os; 5.0 to perform more slowly
+          still in place to help track down problems in &os; &release.5x;'s new
+          features.  This may cause &os; &release.5x; to perform more slowly
           than 4-STABLE.</para>
       </listitem>
 
       <listitem>
         <para>Features are only added to the 4-STABLE development
           branch after a <quote>settling time</quote> in -CURRENT.
-          &os; 5.0 does not have the stabilizing influence of a
+          &os; &release.5x; does not have the stabilizing influence of a
           -STABLE branch.  (It is likely that the 5-STABLE development
           branch will be created sometime after 
-          5.2-RELEASE.)</para>
+          &release.5branchpoint;.)</para>
       </listitem>
 
       <listitem>
@@ -330,20 +348,25 @@
     <para>Because a number of these drawbacks affect system stability, the
       release engineering team recommends that more conservative sites
       and users stick to releases based on the 4-STABLE branch until
-      the &release.5x; series is more polished.</para>
+      the &release.5x; series is more polished.  While we believe that
+      many initial problems with stability have been fixed, some
+      issues with performance are still being addressed by
+      works-in-progress.  We also note that best common practices in
+      system administration call for trying operating system upgrades
+      in a test environment before upgrading one's production, or
+      <quote>mission-critical</quote> systems.</para>
 
   </sect1>
 
   <sect1 id="plans-stable">
     <title>Plans for the 4-STABLE Branch</title>
 
-    <para>The release of &os; 5.0 does not mean the end of the
-      4-STABLE branch.  Indeed, &os; 4.8 was released two months after
-      5.0, in April 2003.  There will most likely be at least one more release on
-      this branch, namely 4.9-RELEASE, currently scheduled for summer
-      2003.
-      A 4.10-RELEASE is a likely possibility as well.
-      Future releases from this branch will
+    <para>It is important to note that even though releases are being
+      made in the &release.5x; series, support for &release.4x;
+      releases will continue for some time.
+      Indeed, &os; 4.8 was released two months after
+      5.0, in April 2003, followed by 4.9, in October 2003.
+      Future releases from the 4-STABLE branch (if any) will
       depend on several factors.  The most important of these
       is the existence and stability of the 5-STABLE branch.  If
       CURRENT is not sufficiently stable to allow the creation of a
@@ -358,7 +381,12 @@
       account user demand for future 4-STABLE releases.  This demand,
       however, will need to be balanced with release engineering
       resources (particularly developers' time, computing resources, and mirror
-      archive space).</para>
+      archive space).  We note that in general, the &os; community 
+      (both users and developers) has shown a preference for
+      moving forward with new features in 
+      the &release.5x; branch and beyond, due to the difficulty
+      involved in backporting (and maintaining) new functionality in
+      &release.4x;.</para>
 
     <para>The &a.security-officer; will continue to support releases
       made from the 4-STABLE branch in accordance with their published
@@ -368,6 +396,20 @@
       recent releases from any branch will be supported with respect
       to security advisories and security fixes.  At its discretion,
       the team may support other releases for specific issues.</para>
+
+    <para>At this point, the release engineering team has no specific
+      plans for future releases from the 4-STABLE development branch.
+      It seems likely that any future releases (if
+      any) from this branch will be lightweight,
+      <quote>point</quote> releases.  These will probably carry
+      4.9.<replaceable>X</replaceable> version numbers, to indicate
+      that they are not intended to provide large amount of new
+      functionality compared to &release.4last;.  In general, these
+      releases will emphasize security fixes, bug fixes, and device
+      driver updates (particularly to accommodate new hardware easily
+      supported by existing drivers).  Major new features (especially those
+      requiring infrastructure support added in &release.5x;) will
+      probably not be added in these releases.</para>
 
   </sect1>
 
@@ -399,12 +441,15 @@
         recommended.  In particular, a binary upgrade will leave
         behind a number of files that are present in &os;
         &release.4x; but not in &release.5x;.  These obsolete
-        files may create some problems.</para>
+        files may create some problems.  Examples of these files
+        include old C++ headers, programs moved to the Ports
+        Collection, or shared libraries that have moved to support
+        dynamically-linked root filesystem executables.</para>
 
       <para>On the &i386; and pc98 platforms, a UserConfig utility
         exists on 4-STABLE to allow boot-time configuration of ISA
         devices when booting from installation media.  Under &os;
-        5.0, this functionality has been replaced in part by the
+        &release.5x;, this functionality has been replaced in part by the
         &man.device.hints.5; mechanism (it allows specifying the same
         parameters, but with a very different interface).</para>
 
@@ -455,8 +500,14 @@
         &release.4x; executables under
         &release.5x;, but this requires the
         <filename>compat4x</filename> distribution to be installed.
-        Thus, using old ports <emphasis>may</emphasis> be
-        possible.</para>
+        Using old ports may be possible in some cases, although there
+        are a number of known cases of backward incompatibility.  As an
+        example, the
+	<filename role="package">devel/gnomevfs2</filename>,
+	<filename role="package">mail/postfix</filename>, and
+	<filename role="package">security/cfs</filename> ports need to
+        be recompiled due to changes in the <literal>statfs</literal>
+        structure.</para>
 
       <para>When installing or upgrading over the top of an existing
         4-STABLE-based system, it is extremely important to clear out
