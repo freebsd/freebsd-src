@@ -36,7 +36,7 @@
  *
  *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
  *
- *	$Id: procfs.h,v 1.8 1995/11/16 11:39:09 bde Exp $
+ *	$Id: procfs.h,v 1.9 1996/01/24 18:40:37 peter Exp $
  */
 
 /*
@@ -52,7 +52,8 @@ typedef enum {
 	Pctl,		/* process control */
 	Pstatus,	/* process status */
 	Pnote,		/* process notifier */
-	Pnotepg		/* process group notifier */
+	Pnotepg,	/* process group notifier */
+	Pmap		/* memory map */
 } pfstype;
 
 /*
