@@ -271,10 +271,11 @@ pcic_memory(struct slot *slt, int win)
 		pcic_putw(sp, reg+4, 0);
 	}
 	if (bootverbose)
-		printf("pcic: mem addr %p: reg %d: %x %x %x %x %x %x\n",
+		printf("pcic: mem addr %p: reg %d: %x %x %x %x %x %x %x\n",
 		    mp->start, reg, sp->getb(sp, reg), sp->getb(sp, reg+1),
 		    sp->getb(sp, reg+2), sp->getb(sp, reg+3),
-		    sp->getb(sp, reg+3), sp->getb(sp, reg+5));
+		    sp->getb(sp, reg+3), sp->getb(sp, reg+5),
+		    sp->getb(sp, PCIC_ADDRWINE));
 	return (0);
 }
 
