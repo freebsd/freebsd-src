@@ -199,6 +199,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		goto bad;
 	}
 	sc->sc_ah = ah;
+	sc->sc_invalid = 0;	/* ready to go, enable interrupt handling */
 
 	/*
 	 * Collect the channel list using the default country
@@ -372,8 +373,8 @@ ath_intr(void *arg)
 
 	if (sc->sc_invalid) {
 		/*
-		 * The hardware is gone, don't touch anything.
-		 * XXX can this happen?
+		 * The hardware is not ready/present, don't touch anything.
+		 * Note this can happen early on if the IRQ is shared.
 		 */
 		DPRINTF(("ath_intr: invalid; ignored\n"));
 		return;
