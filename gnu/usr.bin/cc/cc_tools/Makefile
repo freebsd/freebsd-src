@@ -166,6 +166,9 @@ tconfig.h:
 .endif
 .endif
 	echo '#include "${GCC_CPU}/freebsd.h"'		>> ${.TARGET}
+.if ${TARGET_ARCH} == "x86-64"
+	echo '#include "${GCC_CPU}/freebsd64.h"'	>> ${.TARGET}
+.endif
 	echo '#include "defaults.h"'			>> ${.TARGET}
 	echo '#ifndef POSIX'				>> ${.TARGET}
 	echo '# define POSIX'				>> ${.TARGET}
