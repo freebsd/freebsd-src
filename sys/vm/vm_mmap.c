@@ -615,21 +615,6 @@ munmap(td, uap)
 	return (0);
 }
 
-#if 0
-void
-munmapfd(td, fd)
-	struct thread *td;
-	int fd;
-{
-	/*
-	 * XXX should unmap any regions mapped to this file
-	 */
-	FILEDESC_LOCK(p->p_fd);
-	td->td_proc->p_fd->fd_ofileflags[fd] &= ~UF_MAPPED;
-	FILEDESC_UNLOCK(p->p_fd);
-}
-#endif
-
 #ifndef _SYS_SYSPROTO_H_
 struct mprotect_args {
 	const void *addr;
