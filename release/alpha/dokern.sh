@@ -23,7 +23,6 @@ sed	\
 	-e '/DDB/d' \
 	-e '/INVARIANTS/d' \
 	-e '/INVARIANT_SUPPORT/d' \
-	-e '/WITNESS/d' \
 	-e '/SMP/d' \
 	-e '/	atapifd	/d' \
 	-e '/	atapist	/d' \
@@ -52,7 +51,6 @@ sed	\
 	-e '/	umass	/d' \
 	-e '/	ums	/d' \
 	-e '/	aue	/d' \
-	-e '/	axe	/d' \
 	-e '/	cue	/d' \
 	-e '/	kue	/d' \
 	-e '/	firewire	/d' \
