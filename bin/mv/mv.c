@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,6 +71,7 @@ int fflg, iflg, vflg;
 int	copy __P((char *, char *));
 int	do_move __P((char *, char *));
 int	fastcopy __P((char *, char *, struct stat *));
+int	main __P((int, char *[]));
 void	usage __P((void));
 
 int
@@ -81,7 +83,7 @@ main(argc, argv)
 	register char *p, *endp;
 	struct stat sb;
 	int ch;
-	char path[MAXPATHLEN];
+	char path[PATH_MAX];
 
 	while ((ch = getopt(argc, argv, "fiv")) != -1)
 		switch (ch) {
@@ -136,11 +138,11 @@ main(argc, argv)
 		while (p != *argv && p[-1] != '/')
 			--p;
 
-		if ((baselen + (len = strlen(p))) >= MAXPATHLEN) {
+		if ((baselen + (len = strlen(p))) >= PATH_MAX) {
 			warnx("%s: destination pathname too long", *argv);
 			rval = 1;
 		} else {
-			memmove(endp, p, len + 1);
+			memmove(endp, p, (size_t)len + 1);
 			if (do_move(*argv, path))
 				rval = 1;
 		}
@@ -178,8 +180,8 @@ do_move(from, to)
 			strmode(sb.st_mode, modep);
 			(void)fprintf(stderr, "override %s%s%s/%s for %s? %s",
 			    modep + 1, modep[9] == ' ' ? "" : " ",
-			    user_from_uid(sb.st_uid, 0),
-			    group_from_gid(sb.st_gid, 0), to, YESNO);
+			    user_from_uid((unsigned long)sb.st_uid, 0),
+			    group_from_gid((unsigned long)sb.st_gid, 0), to, YESNO);
 			ask = 1;
 		}
 		if (ask) {
@@ -200,7 +202,7 @@ do_move(from, to)
 
 	if (errno == EXDEV) {
 		struct statfs sfs;
-		char path[MAXPATHLEN];
+		char path[PATH_MAX];
 
 		/* Can't mv(1) a mount point. */
 		if (realpath(from, path) == NULL) {
@@ -247,7 +249,7 @@ fastcopy(from, to, sbp)
 	if (blen < sbp->st_blksize) {
 		if (bp != NULL)
 			free(bp);
-		if ((bp = malloc(sbp->st_blksize)) == NULL) {
+		if ((bp = malloc((size_t)sbp->st_blksize)) == NULL) {
 			blen = 0;
 			warnx("malloc failed");
 			return (1);
@@ -262,8 +264,8 @@ fastcopy(from, to, sbp)
 		(void)close(from_fd);
 		return (1);
 	}
-	while ((nread = read(from_fd, bp, blen)) > 0)
-		if (write(to_fd, bp, nread) != nread) {
+	while ((nread = read(from_fd, bp, (size_t)blen)) > 0)
+		if (write(to_fd, bp, (size_t)nread) != nread) {
 			warn("%s", to);
 			goto err;
 		}
@@ -298,7 +300,7 @@ err:		if (unlink(to))
 	 * on a file that we copied, i.e., that we didn't create.)
 	 */
 	errno = 0;
-	if (fchflags(to_fd, sbp->st_flags))
+	if (fchflags(to_fd, (u_long)sbp->st_flags))
 		if (errno != EOPNOTSUPP || sbp->st_flags != 0)
 			warn("%s: set flags (was: 0%07o)", to, sbp->st_flags);
 
@@ -329,7 +331,8 @@ copy(from, to)
 	int pid, status;
 
 	if ((pid = fork()) == 0) {
-		execl(_PATH_CP, "mv", vflg ? "-PRpv" : "-PRp", from, to, NULL);
+		execl(_PATH_CP, "mv", vflg ? "-PRpv" : "-PRp", from, to,
+		    (char *)NULL);
 		warn("%s", _PATH_CP);
 		_exit(1);
 	}
@@ -347,7 +350,7 @@ copy(from, to)
 		return (1);
 	}
 	if (!(pid = vfork())) {
-		execl(_PATH_RM, "mv", "-rf", from, NULL);
+		execl(_PATH_RM, "mv", "-rf", from, (char *)NULL);
 		warn("%s", _PATH_RM);
 		_exit(1);
 	}
