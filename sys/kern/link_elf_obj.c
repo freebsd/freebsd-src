@@ -665,7 +665,7 @@ relocate_file(elf_file_t ef)
 				symidx = ELF_R_SYM(rel->r_info);
 				if (symidx < ef->ddbsymcnt) {
 					sym = ef->ddbsymtab + symidx;
-					if (ELF64_ST_BIND(sym->st_info) != STB_LOCAL) {
+					if (ELF_ST_BIND(sym->st_info) != STB_LOCAL) {
 						if (elf_reloc(&ef->lf, base, rel, ELF_RELOC_REL, elf_obj_lookup)) {
 							symname = symbol_name(ef, rel->r_info);
 							printf("link_elf: symbol %s undefined\n", symname);
@@ -688,7 +688,7 @@ relocate_file(elf_file_t ef)
 				symidx = ELF_R_SYM(rela->r_info);
 				if (symidx < ef->ddbsymcnt) {
 					sym = ef->ddbsymtab + symidx;
-					if (ELF64_ST_BIND(sym->st_info) != STB_LOCAL) {
+					if (ELF_ST_BIND(sym->st_info) != STB_LOCAL) {
 						if (elf_reloc(&ef->lf, base, rela, ELF_RELOC_RELA, elf_obj_lookup)) {
 							symname = symbol_name(ef, rela->r_info);
 							printf("link_elf: symbol %s undefined\n", symname);
@@ -854,7 +854,7 @@ elf_obj_lookup(linker_file_t lf, Elf_Word symidx, int deps)
 	sym = ef->ddbsymtab + symidx;
 
 	/* Theoretically we can avoid a lookup for some locals */
-	switch (ELF64_ST_BIND(sym->st_info)) {
+	switch (ELF_ST_BIND(sym->st_info)) {
 	case STB_LOCAL:
 		/* Local, but undefined? huh? */
 		if (sym->st_shndx == SHN_UNDEF)
@@ -922,7 +922,7 @@ link_elf_reloc_local(linker_file_t lf)
 				symidx = ELF_R_SYM(rel->r_info);
 				if (symidx < ef->ddbsymcnt) {
 					sym = ef->ddbsymtab + symidx;
-					if (ELF64_ST_BIND(sym->st_info) == STB_LOCAL)
+					if (ELF_ST_BIND(sym->st_info) == STB_LOCAL)
 						elf_reloc_local(lf, base, rel, ELF_RELOC_REL, elf_obj_lookup);
 				}
 				rel++;
@@ -940,7 +940,7 @@ link_elf_reloc_local(linker_file_t lf)
 				symidx = ELF_R_SYM(rela->r_info);
 				if (symidx < ef->ddbsymcnt) {
 					sym = ef->ddbsymtab + symidx;
-					if (ELF64_ST_BIND(sym->st_info) == STB_LOCAL)
+					if (ELF_ST_BIND(sym->st_info) == STB_LOCAL)
 						elf_reloc_local(lf, base, rela, ELF_RELOC_RELA, elf_obj_lookup);
 				}
 				rela++;
