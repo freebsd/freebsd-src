@@ -213,6 +213,17 @@ FDC_ACCESSOR(fdunit,	FDUNIT,	int)
 #define FDC_DMAOV_MAX	25
 
 /*
+ * Timeout value for the PIO loops to wait until the FDC main status
+ * register matches our expectations (request for master, direction
+ * bit).  This is supposed to be a number of microseconds, although
+ * timing might actually not be very accurate.
+ *
+ * Timeouts of 100 msec are believed to be required for some broken
+ * (old) hardware.
+ */
+#define	FDSTS_TIMEOUT	100000
+
+/*
  * Number of subdevices that can be used for different density types.
  * By now, the lower 6 bit of the minor number are reserved for this,
  * allowing for up to 64 subdevices, but we only use 16 out of this.
@@ -1480,7 +1491,15 @@ fd_in(struct fdc_data *fdc, int *ptr)
 		!= (NE7_DIO|NE7_RQM) && j-- > 0) {
 		if (i == NE7_RQM)
 			return fdc_err(fdc, "ready for output in input\n");
-		DELAY(1);
+		/*
+		 * After (maybe) 1 msec of waiting, back off to larger
+		 * stepping to get the timing more accurate.
+		 */
+		if (FDSTS_TIMEOUT - j > 1000) {
+			DELAY(1000);
+			j -= 999;
+		} else
+			DELAY(1);
 	}
 	if (j <= 0)
 		return fdc_err(fdc, bootverbose? "input ready timeout\n": 0);
@@ -1505,13 +1524,29 @@ out_fdc(struct fdc_data *fdc, int x)
 	/* Check that the direction bit is set */
 	i = FDSTS_TIMEOUT;
 	while ((fdsts_rd(fdc) & NE7_DIO) && i-- > 0)
-		DELAY(1);
+		/*
+		 * After (maybe) 1 msec of waiting, back off to larger
+		 * stepping to get the timing more accurate.
+		 */
+		if (FDSTS_TIMEOUT - i > 1000) {
+			DELAY(1000);
+			i -= 999;
+		} else
+			DELAY(1);
 	if (i <= 0) return fdc_err(fdc, "direction bit not set\n");
 
 	/* Check that the floppy controller is ready for a command */
 	i = FDSTS_TIMEOUT;
 	while ((fdsts_rd(fdc) & NE7_RQM) == 0 && i-- > 0)
-		DELAY(1);
+		/*
+		 * After (maybe) 1 msec of waiting, back off to larger
+		 * stepping to get the timing more accurate.
+		 */
+		if (FDSTS_TIMEOUT - i > 1000) {
+			DELAY(1000);
+			i -= 999;
+		} else
+			DELAY(1);
 	if (i <= 0)
 		return fdc_err(fdc, bootverbose? "output ready timeout\n": 0);
 
