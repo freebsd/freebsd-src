@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.dol.c,v 3.50 2002/06/25 19:02:11 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.dol.c,v 3.52 2003/03/12 19:14:51 christos Exp $ */
 /*
  * sh.dol.c: Variable substitutions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.dol.c,v 3.50 2002/06/25 19:02:11 christos Exp $")
+RCSID("$Id: sh.dol.c,v 3.52 2003/03/12 19:14:51 christos Exp $")
 
 /*
  * C shell
@@ -1037,7 +1037,7 @@ again:
 #ifndef O_EXCL
 # define O_EXCL 0
 #endif
-    if (open(tmp, O_RDWR|O_CREAT|O_EXCL|O_TEMPORARY, 0600) == -1) {
+    if (open(tmp, O_RDWR|O_CREAT|O_EXCL|O_TEMPORARY|O_LARGEFILE, 0600) == -1) {
 	int oerrno = errno;
 #ifndef WINNT_NATIVE
 	if (errno == EEXIST) {
@@ -1066,6 +1066,12 @@ again:
 #ifdef WINNT_NATIVE
     __dup_stdin = 1;
 #endif /* WINNT_NATIVE */
+#ifdef O_TEXT
+    setmode(1, O_TEXT);
+#endif
+#ifdef O_BINARY
+    setmode(0, O_BINARY);
+#endif
     for (;;) {
 	/*
 	 * Read up a line

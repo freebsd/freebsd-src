@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.prompt.c,v 3.46 2002/07/12 13:16:19 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.prompt.c,v 3.47 2002/07/25 17:14:59 christos Exp $ */
 /*
  * tc.prompt.c: Prompt printing stuff
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.prompt.c,v 3.46 2002/07/12 13:16:19 christos Exp $")
+RCSID("$Id: tc.prompt.c,v 3.47 2002/07/25 17:14:59 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -554,7 +554,8 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 	    default:
 #ifndef HAVENOUTMP
 		if (*cp == 'a' && what == FMT_WHO) {
-		    cz = who_info(info, 'a', (char *) cbuff, sizeof(cbuff));
+		    cz = (unsigned char *) who_info(info, 'a', (char *) cbuff,
+			sizeof(cbuff));
 		    for (; cz && *cz; *p++ = attributes | *cz++)
 			if (p >= ep) break;
 		}

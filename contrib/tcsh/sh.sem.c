@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.sem.c,v 3.56 2002/03/08 17:36:46 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.sem.c,v 3.60 2004/02/23 15:04:36 christos Exp $ */
 /*
  * sh.sem.c: I/O redirections and job forking. A touchy issue!
  *	     Most stuff with builtins is incorrect
@@ -33,7 +33,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.sem.c,v 3.56 2002/03/08 17:36:46 christos Exp $")
+RCSID("$Id: sh.sem.c,v 3.60 2004/02/23 15:04:36 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -859,12 +859,12 @@ doio(t, pipein, pipeout)
 	    (void) strncpy(tmp, short2str(cp), MAXPATHLEN);
 	    tmp[MAXPATHLEN] = '\0';
 	    xfree((ptr_t) cp);
-	    if ((fd = open(tmp, O_RDONLY)) < 0)
+	    if ((fd = open(tmp, O_RDONLY|O_LARGEFILE)) < 0)
 		stderror(ERR_SYSTEM, tmp, strerror(errno));
-#ifdef O_LARGEFILE
 	    /* allow input files larger than 2Gb  */
+#ifndef WINNT_NATIVE
 	    (void) fcntl(fd, O_LARGEFILE, 0);
-#endif /* O_LARGEFILE */
+#endif /*!WINNT_NATIVE*/
 	    (void) dmove(fd, 0);
 	}
 	else if (flags & F_PIPEIN) {
@@ -875,7 +875,7 @@ doio(t, pipein, pipeout)
 	}
 	else if ((flags & F_NOINTERRUPT) && tpgrp == -1) {
 	    (void) close(0);
-	    (void) open(_PATH_DEVNULL, O_RDONLY);
+	    (void) open(_PATH_DEVNULL, O_RDONLY|O_LARGEFILE);
 	}
 	else {
 	    (void) close(0);
@@ -905,9 +905,9 @@ doio(t, pipein, pipeout)
 	(void) dcopy(SHDIAG, 2);
 	if ((flags & F_APPEND) != 0) {
 #ifdef O_APPEND
-	    fd = open(tmp, O_WRONLY | O_APPEND);
+	    fd = open(tmp, O_WRONLY|O_APPEND|O_LARGEFILE);
 #else /* !O_APPEND */
-	    fd = open(tmp, O_WRONLY);
+	    fd = open(tmp, O_WRONLY|O_LARGEFILE);
 	    (void) lseek(fd, (off_t) 0, L_XTND);
 #endif /* O_APPEND */
 	}
@@ -921,10 +921,10 @@ doio(t, pipein, pipeout)
 	    }
 	    if ((fd = creat(tmp, 0666)) < 0)
 		stderror(ERR_SYSTEM, tmp, strerror(errno));
-#ifdef O_LARGEFILE
 	    /* allow input files larger than 2Gb  */
+#ifndef WINNT_NATIVE
 	    (void) fcntl(fd, O_LARGEFILE, 0);
-#endif /* O_LARGEFILE */
+#endif /*!WINNT_NATIVE*/
 	}
 	(void) dmove(fd, 1);
 	is1atty = isatty(1);

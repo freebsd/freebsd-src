@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.dir.c,v 3.60 2002/07/08 21:03:04 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.dir.c,v 3.63 2004/05/10 19:12:37 christos Exp $ */
 /*
  * sh.dir.c: Directory manipulation functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.dir.c,v 3.60 2002/07/08 21:03:04 christos Exp $")
+RCSID("$Id: sh.dir.c,v 3.63 2004/05/10 19:12:37 christos Exp $")
 
 /*
  * C Shell - directory management
@@ -264,7 +264,7 @@ printdirs(dflag)
 	}
 	if (user) 
 	    xprintf("~%S", user);
-	xprintf("%S%c", s, (dflag & DIR_VERT) ? '\n' : ' ');
+	xprintf("\045S%c", s, (dflag & DIR_VERT) ? '\n' : ' ');
     } while ((dp = dp->di_prev) != dcwd);
     if (!(dflag & DIR_VERT))
 	xputchar('\n');
@@ -276,7 +276,7 @@ dtildepr(dir)
 {
     Char* user;
     if ((user = getusername(&dir)) != NULL)
-	xprintf("~%S%S", user, dir);
+	xprintf("~\045S%S", user, dir);
     else
 	xprintf("%S", dir);
 }
@@ -529,8 +529,13 @@ dgoto(cp)
     else
 	dp = cp;
 
-#ifdef WINNT_NATIVE
+#if defined(WINNT_NATIVE)
     cp = SAVE(getcwd(NULL, 0));
+#elif defined(__CYGWIN__)
+    if (ABSOLUTEP(cp) && cp[1] == ':') /* Only DOS paths are treated that way */
+    	cp = SAVE(getcwd(NULL, 0));
+    else
+    	cp = dcanon(cp, dp);
 #else /* !WINNT_NATIVE */
     cp = dcanon(cp, dp);
 #endif /* WINNT_NATIVE */
@@ -928,7 +933,7 @@ dcanon(cp, p)
 #ifdef S_IFLNK			/* if we have symlinks */
 	    if (sp != cp && /* symlinks != SYM_IGNORE && */
 		(cc = readlink(short2str(cp), tlink,
-			       sizeof tlink)) >= 0) {
+			       sizeof(tlink) - 1)) >= 0) {
 		tlink[cc] = '\0';
 		(void) Strncpy(link, str2short(tlink),
 		    sizeof(link) / sizeof(Char));
@@ -1019,7 +1024,7 @@ dcanon(cp, p)
 #ifdef S_IFLNK			/* if we have symlinks */
 	    if (sp != cp && symlinks == SYM_CHASE &&
 		(cc = readlink(short2str(cp), tlink,
-			       sizeof tlink)) >= 0) {
+			       sizeof(tlink) - 1)) >= 0) {
 		tlink[cc] = '\0';
 		(void) Strncpy(link, str2short(tlink),
 		    sizeof(link) / sizeof(Char));

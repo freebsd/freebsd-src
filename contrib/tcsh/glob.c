@@ -146,8 +146,8 @@ static	void	 qprintf	__P((Char *));
 #endif
 
 int
-globcharcoll(c1, c2)
-    int c1, c2;
+globcharcoll(c1, c2, cs)
+    int c1, c2, cs;
 {
 #if defined(NLS) && defined(LC_COLLATE) && !defined(NOSTRCOLL)
     char s1[2], s2[2];
@@ -158,8 +158,13 @@ globcharcoll(c1, c2)
      * From kevin lyda <kevin@suberic.net>:
      * strcoll does not guarantee case sorting, so we pre-process now:
      */
-    if (islower(c1) && isupper(c2))
-	return (1);
+    if (cs) {
+	c1 = islower(c1) ? c1 : tolower(c1);
+	c2 = islower(c2) ? c2 : tolower(c2);
+    } else {
+	if (islower(c1) && isupper(c2))
+	    return (1);
+    }
     s1[0] = c1;
     s2[0] = c2;
     s1[1] = s2[1] = '\0';
@@ -701,8 +706,8 @@ match(name, pat, patend, m_not)
 		++pat;
 	    while (((c = *pat++) & M_MASK) != M_END) {
 		if ((*pat & M_MASK) == M_RNG) {
-		    if (globcharcoll(CHAR(c), CHAR(k)) <= 0 &&
-			globcharcoll(CHAR(k), CHAR(pat[1])) <= 0)
+		    if (globcharcoll(CHAR(c), CHAR(k), 0) <= 0 &&
+			globcharcoll(CHAR(k), CHAR(pat[1]), 0) <= 0)
 			ok = 1;
 		    pat += 2;
 		}
