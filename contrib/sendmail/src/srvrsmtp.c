@@ -16,7 +16,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.31 2003/07/01 17:30:01 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.34 2004/01/14 19:13:46 ca Exp $")
 
 #if SASL || STARTTLS
 # include <sys/time.h>
@@ -1288,6 +1288,7 @@ smtp(nullserver, d_flags, e)
 			  case CMDEHLO:
 			  case CMDNOOP:
 			  case CMDRSET:
+			  case CMDERROR:
 				/* process normally */
 				break;
 
@@ -2338,6 +2339,29 @@ tlsfail:
 
 		  case CMDRCPT:		/* rcpt -- designate recipient */
 			DELAY_CONN("RCPT");
+			if (BadRcptThrottle > 0 &&
+			    n_badrcpts >= BadRcptThrottle)
+			{
+				if (LogLevel > 5 &&
+				    n_badrcpts == BadRcptThrottle)
+				{
+					sm_syslog(LOG_INFO, e->e_id,
+						  "%s: Possible SMTP RCPT flood, throttling.",
+						  CurSmtpClient);
+
+					/* To avoid duplicated message */
+					n_badrcpts++;
+				}
+
+				/*
+				**  Don't use exponential backoff for now.
+				**  Some servers will open more connections
+				**  and actually overload the receiver even
+				**  more.
+				*/
+
+				(void) sleep(1);
+			}
 			if (!smtp.sm_gotmail)
 			{
 				usrerr("503 5.0.0 Need MAIL before RCPT");
@@ -2384,29 +2408,6 @@ tlsfail:
 				      e, true);
 			macdefine(&e->e_macro, A_PERM,
 				macid("{addr_type}"), NULL);
-			if (BadRcptThrottle > 0 &&
-			    n_badrcpts >= BadRcptThrottle)
-			{
-				if (LogLevel > 5 &&
-				    n_badrcpts == BadRcptThrottle)
-				{
-					sm_syslog(LOG_INFO, e->e_id,
-						  "%s: Possible SMTP RCPT flood, throttling.",
-						  CurSmtpClient);
-
-					/* To avoid duplicated message */
-					n_badrcpts++;
-				}
-
-				/*
-				**  Don't use exponential backoff for now.
-				**  Some servers will open more connections
-				**  and actually overload the receiver even
-				**  more.
-				*/
-
-				(void) sleep(1);
-			}
 			if (Errors > 0)
 				goto rcpt_done;
 			if (a == NULL)
@@ -3146,7 +3147,7 @@ smtp_data(smtp, e)
 		doublequeue = false;
 
 	aborting = Errors > 0;
-	if (!aborting &&
+	if (!(aborting || bitset(EF_DISCARD, e->e_flags)) &&
 #if _FFR_QUARANTINE
 	    (QueueMode == QM_QUARANTINE || e->e_quarmsg == NULL) &&
 #endif /* _FFR_QUARANTINE */

@@ -1,12 +1,74 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1340.2.165 2003/09/16 20:50:42 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1340.2.189 2004/01/18 17:50:57 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
 
-8.12.10/8.12.10	2003/09/24
+8.12.11/8.12.11	2004/01/18
+	Use QueueFileMode when opening qf files.  This error was a
+		regression in 8.12.10.  Problem detected and diagnosed
+		Lech Szychowski of the Polish Power Grid Company.
+	Properly count the number of queue runners in a work group and
+		make sure the total limit of MaxQueueChildren is not
+		exceeded.  Based on patch from Takayuki Yoshizawa of
+		Techfirm, Inc.
+	Take care of systems that can generate time values where the
+		seconds can exceed the usual range of 0 to 59.
+		Problem noted by Randy Diffenderfer of EDS.
+	Avoid regeneration of identical queue identifiers by processes
+		whose process id is the same as that of the initial
+		sendmail process that was used to start the daemon.
+		Problem noted by Randy Diffenderfer of EDS.
+	When a milter invokes smfi_delrcpt() compare the supplied
+		recipient address also against the printable addresses
+		of the current list to deal with rewritten addresses.
+		Based on patch from Sean Hanson of The Asylum.
+	BadRcptThrottle now also works for addresses which return the
+		error mailer, e.g., virtusertable entries with the
+		right hand side error:.  Patch from Per Hedeland.
+	Fix printing of 8 bit characters as octals in log messages.
+		Based on patch by Andrey J. Melnikoff.
+	Undo change of algorithm for MIME 7-bit base64 encoding to 8-bit
+		text that has been introduced in 8.12.3.  There are some
+		examples where the new code fails, but the old code works.
+		To get the 8.12.3-8.12.10 version, compile sendmail with
+		-DMIME7TO8_OLD=0.  If you have an example of improper
+		7 to 8 bit conversion please send it to us.
+	Return normal error code for unknown SMTP commands instead of
+		the one specified by check_relay or a milter for a
+		connection.  Problem noted by Andrzej Filip.
+	Some ident responses contain data after the terminating CRLF which
+		causes sendmail to log "POSSIBLE ATTACK...newline in string".
+		To avoid this everything after LF is ignored.
+	If the operating system supports O_EXLOCK and HASFLOCK is set
+		then a possible race condition for creating qf files
+		can be avoided.  Note: the race condition does not
+		exist within sendmail, but between sendmail and an
+		external application that accesses qf files.
+	Log the proper options name for TLS related mising files for
+		the CACertPath, CACertFile, and DHParameters options.
+	Do not split an envelope if it will be discarded, otherwise df
+		files could be left behind.  Problem found by Wolfgang
+		Breyha.
+	The use of the environment variables HOME and HOSTALIASES has been
+		deprecated and will be removed in version 8.13.  This only
+		effects configuration which preserve those variable via the
+		'E' command in the cf file as sendmail clears out its entire
+		environment.
+	Portability:
+		Add support for Darwin 7.0/Mac OS X 10.3 (a.k.a. Panther).
+		Solaris 10 has unsetenv(), patch from Craig Mohrman of
+			Sun Microsystems.
+	LIBMILTER: Add extra checks in case a broken MTA sends bogus data
+		to libmilter.  Based on code review by Rob Grzywinski.
+	SMRSH: Properly assemble commands that contain '&&' or '||'.
+		Problem noted by Eric Lee of Talking Heads.
+	New Files:
+		devtools/OS/Darwin.7.0
+
+8.12.10/8.12.10	2003/09/24 (Released: 2003/09/17)
 	SECURITY: Fix a buffer overflow in address parsing.  Problem
 		detected by Michal Zalewski, patch from Todd C. Miller
 		of Courtesan Consulting.

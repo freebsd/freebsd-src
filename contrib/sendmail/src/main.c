@@ -25,7 +25,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.887.2.27 2003/08/04 17:23:37 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.887.2.29 2003/11/07 00:09:31 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -2234,8 +2234,32 @@ main(argc, argv, envp)
 				int status;
 				pid_t ret;
 
+				errno = 0;
 				while ((ret = sm_wait(&status)) <= 0)
+				{
+					if (errno == ECHILD)
+					{
+						/*
+						**  Oops... something got messed
+						**  up really bad. Waiting for
+						**  non-existent children
+						**  shouldn't happen. Let's get
+						**  out of here.
+						*/
+
+						CurChildren = 0;
+						break;
+					}
 					continue;
+				}
+
+				/* something is really really wrong */
+				if (errno == ECHILD)
+				{
+					sm_syslog(LOG_ERR, NOQID,
+						  "queue control process: lost all children: wait returned ECHILD");
+					break;
+				}
 
 				/* Only drop when a child gives status */
 				if (WIFSTOPPED(status))
@@ -2371,8 +2395,31 @@ main(argc, argv, envp)
 					int group;
 
 					CHECK_RESTART;
+					errno = 0;
 					while ((ret = sm_wait(&status)) <= 0)
+					{
+						/*
+						**  Waiting for non-existent
+						**  children shouldn't happen.
+						**  Let's get out of here if
+						**  it occurs.
+						*/
+
+						if (errno == ECHILD)
+						{
+							CurChildren = 0;
+							break;
+						}
 						continue;
+					}
+
+					/* something is really really wrong */
+					if (errno == ECHILD)
+					{
+						sm_syslog(LOG_ERR, NOQID,
+							  "persistent queue runner control process: lost all children: wait returned ECHILD");
+						break;
+					}
 
 					if (WIFSTOPPED(status))
 						continue;

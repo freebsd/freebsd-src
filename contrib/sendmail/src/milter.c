@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.197.2.9 2003/09/07 00:18:29 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.197.2.10 2003/12/01 23:57:44 msk Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
@@ -34,6 +34,9 @@ static char *MilterConnectMacros[MAXFILTERMACROS + 1];
 static char *MilterHeloMacros[MAXFILTERMACROS + 1];
 static char *MilterEnvFromMacros[MAXFILTERMACROS + 1];
 static char *MilterEnvRcptMacros[MAXFILTERMACROS + 1];
+#if _FFR_MILTER_MACROS_EOM
+static char *MilterEOMMacros[MAXFILTERMACROS + 1];
+#endif /* _FFR_MILTER_MACROS_EOM */
 
 # define MILTER_CHECK_DONE_MSG() \
 	if (*state == SMFIR_REPLYCODE || \
@@ -1415,6 +1418,10 @@ static struct milteropt
 	{ "macros.envrcpt",		MO_MACROS_ENVRCPT		},
 # define MO_LOGLEVEL			0x05
 	{ "loglevel",			MO_LOGLEVEL			},
+#if _FFR_MILTER_MACROS_EOM
+# define MO_MACROS_EOM			0x06
+	{ "macros.eom",			MO_MACROS_EOM			},
+#endif /* _FFR_MILTER_MACROS_EOM */
 	{ NULL,				0				},
 };
 
@@ -1488,6 +1495,13 @@ milter_set_option(name, val, sticky)
 	  case MO_MACROS_ENVRCPT:
 		if (macros == NULL)
 			macros = MilterEnvRcptMacros;
+#if _FFR_MILTER_MACROS_EOM
+		/* FALLTHROUGH */
+
+	  case MO_MACROS_EOM:
+		if (macros == NULL)
+			macros = MilterEOMMacros;
+#endif /* _FFR_MILTER_MACROS_EOM */
 
 		p = newstr(val);
 		while (*p != '\0')
@@ -3593,6 +3607,11 @@ milter_data(e, state)
 			response = milter_body(m, e, state);
 			MILTER_CHECK_RESULTS();
 		}
+
+#if _FFR_MILTER_MACROS_EOM
+		if (MilterEOMMacros[0] != NULL)
+			milter_send_macros(m, MilterEOMMacros, SMFIC_BODYEOB, e);
+#endif /* _FFR_MILTER_MACROS_EOM */
 
 		/* send the final body chunk */
 		(void) milter_write(m, SMFIC_BODYEOB, NULL, 0,

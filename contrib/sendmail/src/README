@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.355.2.15 2003/06/02 01:43:04 ca Exp $
+#	$Id: README,v 8.355.2.16 2004/01/08 21:54:55 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -561,6 +561,11 @@ MATCHGECOS	Permit fuzzy matching of user names against the full
 MIME8TO7	If non-zero, include 8 to 7 bit MIME conversions.  This
 		also controls advertisement of 8BITMIME in the ESMTP
 		startup dialogue.
+MIME7TO8_OLD	If 0 then use an algorithm for MIME 7-bit quoted-printable
+		or base64 encoding to 8-bit text that has been introduced
+		in 8.12.3.  There are some examples where that code fails,
+		but the old code works.  If you have an example of improper
+		7 to 8 bit conversion please send it to sendmail-bugs.
 MIME7TO8	If non-zero, include 7 to 8 bit MIME conversions.
 HES_GETMAILHOST	Define this to 1 if you are using Hesiod with the
 		hes_getmailhost() routine.  This is included with the MIT
@@ -1797,4 +1802,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.355.2.15 $, last update $Date: 2003/06/02 01:43:04 $ )
+(Version $Revision: 8.355.2.16 $, last update $Date: 2004/01/08 21:54:55 $ )

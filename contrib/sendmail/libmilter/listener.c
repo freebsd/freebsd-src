@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: listener.c,v 8.85.2.12 2003/08/04 18:47:29 ca Exp $")
+SM_RCSID("@(#)$Id: listener.c,v 8.85.2.17 2003/10/21 17:22:57 ca Exp $")
 
 /*
 **  listener.c -- threaded network listener
@@ -17,6 +17,9 @@ SM_RCSID("@(#)$Id: listener.c,v 8.85.2.12 2003/08/04 18:47:29 ca Exp $")
 
 #include "libmilter.h"
 #include <sm/errstring.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
 
 
 # if NETINET || NETINET6
@@ -28,26 +31,29 @@ static int L_family;
 static SOCKADDR_LEN_T L_socksize;
 static socket_t listenfd = INVALID_SOCKET;
 
-static socket_t mi_milteropen __P((char *, int, char *));
+static socket_t mi_milteropen __P((char *, int, bool, char *));
 
 /*
 **  MI_OPENSOCKET -- create the socket where this filter and the MTA will meet
 **
-**  	Parameters:
+**	Parameters:
 **		conn -- connection description
 **		backlog -- listen backlog
-**  		dbg -- debug level
+**		dbg -- debug level
+**		rmsocket -- if true, try to unlink() the socket first
+**		            (UNIX domain sockets only)
 **		smfi -- filter structure to use
 **
-**  	Return value:
-**  		MI_SUCCESS/MI_FAILURE
+**	Return value:
+**		MI_SUCCESS/MI_FAILURE
 */
 
 int
-mi_opensocket(conn, backlog, dbg, smfi)
+mi_opensocket(conn, backlog, dbg, rmsocket, smfi)
 	char *conn;
 	int backlog;
 	int dbg;
+	bool rmsocket;
 	smfiDesc_ptr smfi;
 {
 	if (smfi == NULL || conn == NULL)
@@ -64,7 +70,7 @@ mi_opensocket(conn, backlog, dbg, smfi)
 	}
 	(void) smutex_init(&L_Mutex);
 	(void) smutex_lock(&L_Mutex);
-	listenfd = mi_milteropen(conn, backlog, smfi->xxfi_name);
+	listenfd = mi_milteropen(conn, backlog, rmsocket, smfi->xxfi_name);
 	if (!ValidSocket(listenfd))
 	{
 		smi_log(SMI_LOG_FATAL,
@@ -91,6 +97,8 @@ mi_opensocket(conn, backlog, dbg, smfi)
 **	Parameters:
 **		conn -- connection description
 **		backlog -- listen backlog
+**		rmsocket -- if true, try to unlink() the socket first
+**			(UNIX domain sockets only)
 **		name -- name for logging
 **
 **	Returns:
@@ -105,9 +113,10 @@ static char	*sockpath = NULL;
 #endif /* NETUNIX */
 
 static socket_t
-mi_milteropen(conn, backlog, name)
+mi_milteropen(conn, backlog, rmsocket, name)
 	char *conn;
 	int backlog;
+	bool rmsocket;
 	char *name;
 {
 	socket_t sock;
@@ -457,6 +466,41 @@ mi_milteropen(conn, backlog, name)
 		return INVALID_SOCKET;
 	}
 
+#if NETUNIX
+	if (addr.sa.sa_family == AF_UNIX && rmsocket)
+	{
+		struct stat s;
+
+		if (stat(colon, &s) != 0)
+		{
+			if (errno != ENOENT)
+			{
+				smi_log(SMI_LOG_ERR,
+					"%s: Unable to stat() %s: %s",
+					name, colon, sm_errstring(errno));
+				(void) closesocket(sock);
+				return INVALID_SOCKET;
+			}
+		}
+		else if (!S_ISSOCK(s.st_mode))
+		{
+			smi_log(SMI_LOG_ERR,
+				"%s: %s is not a UNIX domain socket",
+				name, colon);
+			(void) closesocket(sock);
+			return INVALID_SOCKET;
+		}
+		else if (unlink(colon) != 0)
+		{
+			smi_log(SMI_LOG_ERR,
+				"%s: Unable to remove %s: %s",
+				name, colon, sm_errstring(errno));
+			(void) closesocket(sock);
+			return INVALID_SOCKET;
+		}
+	}
+#endif /* NETUNIX */
+
 	if (bind(sock, &addr.sa, L_socksize) < 0)
 	{
 		smi_log(SMI_LOG_ERR,
@@ -591,9 +635,11 @@ mi_closener()
 **	Parameters:
 **		conn -- connection description
 **		dbg -- debug level
+**		rmsocket -- if true, try to unlink() the socket first
+**			(UNIX domain sockets only)
 **		smfi -- filter structure to use
 **		timeout -- timeout for reads/writes
-**  		backlog -- listen queue backlog size
+**		backlog -- listen queue backlog size
 **
 **	Returns:
 **		MI_SUCCESS -- Exited normally
@@ -673,7 +719,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 	FD_RD_VAR(rds, excs);
 	struct timeval chktime;
 
-	if (mi_opensocket(conn, backlog, dbg, smfi) == MI_FAILURE)
+	if (mi_opensocket(conn, backlog, dbg, false, smfi) == MI_FAILURE)
 		return MI_FAILURE;
 
 	clilen = L_socksize;
