@@ -744,8 +744,8 @@ scrolln(starts, startw, curs, bot, top)
 	}
 
 	if (n > 0) {
-		/* Scroll up the block. */
-		if (SF != NULL && top == 0) {
+		/* Scroll up the screen. */
+		if ((!DB && SF != NULL || n == 1) && bot == curscr->maxy - 1 && top == 0) {
 			__mvcur(oy, ox, curscr->maxy - 1, 0, 1);
 			if (n == 1)
 				goto f_nl1;
@@ -799,8 +799,8 @@ scrolln(starts, startw, curs, bot, top)
 		 * !!!
 		 * n < 0
 		 */
-		/* Preserve the bottom lines. */
-		if (SR != NULL && bot == curscr->maxy - 1) {
+		/* Scroll down the screen. */
+		if (!DA && SR != NULL && bot == curscr->maxy - 1 && top == 0) {
 			__mvcur(oy, ox, 0, 0, 1);
 			if (sr != NULL && -n == 1)
 				goto b_sr1;

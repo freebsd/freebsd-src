@@ -50,8 +50,8 @@ extern short ospeed;
 static void zap __P((void));
 
 static char	*sflags[] = {
-		/*       am   bs   da   eo   hc   in   mi   ms  */
-			&AM, &BS, &DA, &EO, &HC, &IN, &MI, &MS,
+		/*       am   bs   da   db   eo   hc   in   mi   ms  */
+			&AM, &BS, &DA, &DB, &EO, &HC, &IN, &MI, &MS,
 		/*	 nc   ns   os   ul   xb   xn   xt   xs   xx  */
 			&NC, &NS, &OS, &UL, &XB, &XN, &XT, &XS, &XX
 		};
