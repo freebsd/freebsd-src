@@ -358,16 +358,8 @@ vector()
 	fprintf(fp, " */\n\n");
 	fprintf(fp, "#define\tDEVICE_NAMES \"\\\n");
 	fprintf(fp, "clk0 irqnn\\0\\\n");
-#ifdef STATCLOCK
-	/*
-	 * XXX _all_ devices should be configured so that there is no need
-	 * for kludges like this.
-	 */
 	fprintf(fp, "rtc0 irqnn\\0\\\n");
 	dev_id = 2;
-#else
-	dev_id = 1;
-#endif
 	vector_devtab(fp, "bio", &dev_id);
 	vector_devtab(fp, "tty", &dev_id);
 	vector_devtab(fp, "net", &dev_id);
@@ -394,4 +386,3 @@ vector_devtab(fp, table, dev_idp)
 		(*dev_idp)++;
 	}
 }
-
