@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.128 1997/03/21 05:18:20 jkh Exp $
+ * $Id: menus.c,v 1.129 1997/03/25 03:07:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -301,7 +301,7 @@ DMenu MenuInitial = {
       { "5 Novice",	"Begin a novice installation (for beginners)",	NULL, installNovice },
       { "6 Express",	"Begin a quick installation (for the impatient)", NULL, installExpress },
       { "7 Custom",	"Begin a custom installation (for experts)",	NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
-      { "8 Fixit",	"Go into repair mode with CDROM or floppy, or start a shell.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
+      { "8 Fixit",	"Enter repair mode with CDROM/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "9 Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
       { "c Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
       { "l Load Config","Load default install configuration",		NULL, variableLoad },
