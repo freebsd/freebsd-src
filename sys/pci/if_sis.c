@@ -1053,30 +1053,6 @@ sis_attach(dev)
 		sc->sis_type = SIS_TYPE_83815;
 
 	sc->sis_rev = pci_read_config(dev, PCIR_REVID, 1);
-#ifndef BURN_BRIDGES
-	/*
-	 * Handle power management nonsense.
-	 */
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		u_int32_t		iobase, membase, irq;
-
-		/* Save important PCI config data. */
-		iobase = pci_read_config(dev, SIS_PCI_LOIO, 4);
-		membase = pci_read_config(dev, SIS_PCI_LOMEM, 4);
-		irq = pci_read_config(dev, SIS_PCI_INTLINE, 4);
-
-		/* Reset the power state. */
-		printf("sis%d: chip is in D%d power mode "
-		    "-- setting to D0\n", unit,
-		    pci_get_powerstate(dev));
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-
-		/* Restore PCI config data. */
-		pci_write_config(dev, SIS_PCI_LOIO, iobase, 4);
-		pci_write_config(dev, SIS_PCI_LOMEM, membase, 4);
-		pci_write_config(dev, SIS_PCI_INTLINE, irq, 4);
-	}
-#endif
 	/*
 	 * Map control/status registers.
 	 */

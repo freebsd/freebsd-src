@@ -226,9 +226,6 @@ static int dc_attach		(device_t);
 static int dc_detach		(device_t);
 static int dc_suspend		(device_t);
 static int dc_resume		(device_t);
-#ifndef BURN_BRIDGES
-static void dc_acpi		(device_t);
-#endif
 static struct dc_type *dc_devtype	(device_t);
 static int dc_newbuf		(struct dc_softc *, int, int);
 static int dc_encap		(struct dc_softc *, struct mbuf **);
@@ -1630,35 +1627,6 @@ dc_probe(device_t dev)
 	return (ENXIO);
 }
 
-#ifndef BURN_BRIDGES
-static void
-dc_acpi(device_t dev)
-{
-	int unit;
-	u_int32_t iobase, membase, irq;
-
-	unit = device_get_unit(dev);
-
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		/* Save important PCI config data. */
-		iobase = pci_read_config(dev, DC_PCI_CFBIO, 4);
-		membase = pci_read_config(dev, DC_PCI_CFBMA, 4);
-		irq = pci_read_config(dev, DC_PCI_CFIT, 4);
-
-		/* Reset the power state. */
-		printf("dc%d: chip is in D%d power mode "
-		    "-- setting to D0\n", unit,
-		    pci_get_powerstate(dev));
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-
-		/* Restore PCI config data. */
-		pci_write_config(dev, DC_PCI_CFBIO, iobase, 4);
-		pci_write_config(dev, DC_PCI_CFBMA, membase, 4);
-		pci_write_config(dev, DC_PCI_CFIT, irq, 4);
-	}
-}
-#endif
-
 static void
 dc_apply_fixup(struct dc_softc *sc, int media)
 {
@@ -1876,12 +1844,7 @@ dc_attach(device_t dev)
 
 	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-#ifndef BURN_BRIDGES
-	/*
-	 * Handle power management nonsense.
-	 */
-	dc_acpi(dev);
-#endif
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -3798,21 +3761,12 @@ static int
 dc_suspend(device_t dev)
 {
 	struct dc_softc *sc;
-	int i, s;
+	int s;
 
 	s = splimp();
 
 	sc = device_get_softc(dev);
-
 	dc_stop(sc);
-
-	for (i = 0; i < 5; i++)
-		sc->saved_maps[i] = pci_read_config(dev, PCIR_BAR(i), 4);
-	sc->saved_biosaddr = pci_read_config(dev, PCIR_BIOS, 4);
-	sc->saved_intline = pci_read_config(dev, PCIR_INTLINE, 1);
-	sc->saved_cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
-	sc->saved_lattimer = pci_read_config(dev, PCIR_LATTIMER, 1);
-
 	sc->suspended = 1;
 
 	splx(s);
@@ -3829,26 +3783,12 @@ dc_resume(device_t dev)
 {
 	struct dc_softc *sc;
 	struct ifnet *ifp;
-	int i, s;
+	int s;
 
 	s = splimp();
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
-#ifndef BURN_BRIDGES
-	dc_acpi(dev);
-#endif
-	/* better way to do this? */
-	for (i = 0; i < 5; i++)
-		pci_write_config(dev, PCIR_BAR(i), sc->saved_maps[i], 4);
-	pci_write_config(dev, PCIR_BIOS, sc->saved_biosaddr, 4);
-	pci_write_config(dev, PCIR_INTLINE, sc->saved_intline, 1);
-	pci_write_config(dev, PCIR_CACHELNSZ, sc->saved_cachelnsz, 1);
-	pci_write_config(dev, PCIR_LATTIMER, sc->saved_lattimer, 1);
-
-	/* reenable busmastering */
-	pci_enable_busmaster(dev);
-	pci_enable_io(dev, DC_RES);
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)
