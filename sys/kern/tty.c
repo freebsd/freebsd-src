@@ -963,6 +963,16 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		splx(s);
 		break;
 #endif
+	case TIOCMGDTRWAIT:
+		*(int *)data = tp->t_dtr_wait * 100 / hz;
+		break;
+	case TIOCMSDTRWAIT:
+		/* must be root since the wait applies to following logins */
+		error = suser(td);
+		if (error)
+			return (error);
+		tp->t_dtr_wait = *(int *)data * hz / 100;
+		break;
 	case TIOCNXCL:			/* reset exclusive use of tty */
 		s = spltty();
 		CLR(tp->t_state, TS_XCLUDE);
@@ -2773,6 +2783,7 @@ ttymalloc(struct tty *tp)
 	}
 	tp = malloc(sizeof *tp, M_TTYS, M_WAITOK | M_ZERO);
 	tp->t_timeout = -1;
+	tp->t_dtr_wait = 3 * hz;
 	mtx_init(&tp->t_mtx, "tty", NULL, MTX_DEF);
 	tp->t_refcnt = 1;
 	mtx_lock(&tty_list_mutex);
@@ -2894,6 +2905,7 @@ ttyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 	error = ttyld_ioctl(tp, cmd, data, flag, td);
 	if (error == ENOIOCTL)
 		error = ttioctl(tp, cmd, data, flag);
+	ttyldoptim(tp);
 	if (error != ENOIOCTL)
 		return (error);
 	return (ENOTTY);
@@ -2916,6 +2928,58 @@ ttyldoptim(struct tty *tp)
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 }
 
+static void
+ttydtrwaitwakeup(void *arg)
+{
+	struct tty *tp;
+
+	tp = arg;
+	tp->t_state &= ~TS_DTR_WAIT;
+	wakeup(&tp->t_dtr_wait);
+}
+
+
+void	
+ttydtrwaitstart(struct tty *tp)
+{
+
+	if (tp->t_dtr_wait == 0)
+		return;
+	if (tp->t_state & TS_DTR_WAIT)
+		return;
+	timeout(ttydtrwaitwakeup, tp, tp->t_dtr_wait);
+	tp->t_state |= TS_DTR_WAIT;
+}
+
+int
+ttydtrwaitsleep(struct tty *tp)
+{
+	int error;
+
+	error = 0;
+	while (error == 0) {
+		if (tp->t_state & TS_GONE)
+			error = ENXIO;
+		else if (!(tp->t_state & TS_DTR_WAIT))
+			break;
+		else
+			error = tsleep(&tp->t_dtr_wait, TTIPRI | PCATCH,
+			    "dtrwait", 0);
+	}
+	return (error);
+}
+
+/*
+ * This function is called when the hardware disappears.  We set a flag
+ * and wake up stuff so all sleeping threads will notice.
+ */
+void	
+ttygone(struct tty *tp)
+{
+
+	tp->t_state |= TS_GONE;
+	wakeup(&tp->t_dtr_wait);
+}
 
 /*
  * Record the relationship between the serial ports notion of modem control
