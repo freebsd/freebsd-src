@@ -215,7 +215,7 @@ this pointer can be obtained with the
 .Fn SYSCTL_STATIC_CHILDREN
 macro, where the
 .Fa OID_NAME
-argumwent is name of the parent oid of type
+argument is name of the parent oid of type
 .Dv CTLTYPE_NODE
 (i.e. the name displayed by
 .Xr sysctl 8 ,
@@ -232,7 +232,7 @@ argument points to the parent oid of type
 The
 .Fn sysctl_add_oid
 function creates raw oids of any type.
-If the oid is successfuly created,
+If the oid is successfully created,
 the function returns a pointer to it;
 otherwise it returns
 .Dv NULL .
@@ -278,7 +278,7 @@ Oids created dynamically always have the
 flag set.
 Access flags specify whether this oid is read-only or read-write,
 and whether it may be modified by all users
-or by the supseruser only.
+or by the superuser only.
 .It Fa arg1
 A pointer to any data that the oid should reference, or
 .Dv NULL .

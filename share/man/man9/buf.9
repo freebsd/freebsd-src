@@ -80,11 +80,11 @@ they are no longer needed but often keeps the 'struct buf' structure
 instantiated and even bp->b_pages array instantiated despite having unmapped
 them from KVM.  If a page making up a VM buffer is about to undergo I/O, the
 system typically unmaps it from KVM and replaces the page in the b_pages[]
-array with a placemarker called bogus_page.  The placemarker forces any kernel
+array with a place-marker called bogus_page.  The place-marker forces any kernel
 subsystems referencing the associated struct buf to re-lookup the associated
-page.  I believe the placemarker hack is used to allow sophisticated devices
+page.  I believe the place-marker hack is used to allow sophisticated devices
 such as filesystem devices to remap underlying pages in order to deal with,
-for example, remapping a file fragment into a file block.
+for example, re-mapping a file fragment into a file block.
 .Pp
 VM buffers are used to track I/O operations within the kernel.  Unfortunately,
 the I/O implementation is also somewhat of a hack because the kernel wants
@@ -94,7 +94,7 @@ can create confusion within filesystem devices that use delayed-writes because
 you wind up with pages marked clean that are actually still dirty.  If not
 treated carefully, these pages could be thrown away!  Indeed, a number of
 serious bugs related to this hack were not fixed until the 2.2.8/3.0 release.
-The kernel uses an instantiated VM buffer (i.e. struct buf) to placemark pages
+The kernel uses an instantiated VM buffer (i.e. struct buf) to place-mark pages
 in this special state.  The buffer is typically flagged B_DELWRI.  When a
 device no longer needs a buffer it typically flags it as B_RELBUF.  Due to
 the underlying pages being marked clean, the B_DELWRI|B_RELBUF combination must
