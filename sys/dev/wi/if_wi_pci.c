@@ -98,6 +98,7 @@ static struct {
 	/* Sorted by description */
 	{0x10b7, 0x7770, WI_BUS_PCI_PLX, "3Com Airconnect"},
 	{0x16ab, 0x1101, WI_BUS_PCI_PLX, "GLPRISM2 WaveLAN"},
+	{0x1260, 0x3872, WI_BUS_PCI_NATIVE, "Intersil Prism3"},
 	{0x1260, 0x3873, WI_BUS_PCI_NATIVE, "Intersil Prism2.5"},
 	{0x16ab, 0x1102, WI_BUS_PCI_PLX, "Linksys WDT11"},
 	{0x1385, 0x4100, WI_BUS_PCI_PLX, "Netgear MA301"},
