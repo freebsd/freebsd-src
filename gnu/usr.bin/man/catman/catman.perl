@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 #
 # Copyright (c) March 1995 Wolfram Schneider. All rights reserved.
+# Alle Rechte vorbehalten. Es gilt das kontinentaleuropäische Urheberrecht.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -32,11 +33,10 @@
 #
 # /etc/weekly: catman `manpath -q`
 #
-# Bugs: sure
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: catman.perl,v 1.4 1995/03/31 04:00:20 joerg Exp $
-#
+# $Id: catman.perl,v 1.12 1995/05/19 21:07:26 w Exp w $
+
 
 sub usage {
 
@@ -136,18 +136,23 @@ sub parse_dir {
     local($subdir, $catdir);
     local($dev,$ino) = (stat($dir))[01];
 
+    # already visit
     if ($dir_visit{$dev,$ino}) {
 	warn "$dir already parsed: $dir_visit{$dev,$ino}\n";
 	return 1;
     }
     $dir_visit{$dev,$ino} = $dir;
-   # $| = 1 if $verbose;
     
+    # Manpath, /usr/local/man
     if ($dir =~ /man$/) {
 	warn "open manpath directory ``$dir''\n" if $verbose;
 	if (!opendir(DIR, $dir)) {
 	    warn "opendir ``$dir'':$!\n"; $exit = 1; return 0;
 	}
+
+	warn "chdir to: $dir\n" if $verbose;
+	chdir($dir) || do { warn "$dir: $!\n"; $exit = 1; return 0 };
+
 	foreach $subdir (sort(readdir(DIR))) {
 	    if ($subdir =~ /^man\w+$/) {
 		$subdir = "$dir/$subdir";
@@ -156,7 +161,14 @@ sub parse_dir {
 	}
 	closedir DIR
 
+    # subdir, /usr/local/man/man1
     } elsif ($dir =~ /man\w+$/) {
+	local($parentdir) = $dir;
+	$parentdir =~ s|/[^/]+$||;
+	warn "chdir to: $parentdir\n" if $verbose;
+	chdir($parentdir) || do { 
+	    warn "$parentdir: $!\n"; $exit = 1; return 0 };
+
 	&catdir_create($dir) && &parse_subdir($dir);
     } else {
 	warn "Assume ``$dir'' is not a man directory.\n";
@@ -194,7 +206,7 @@ sub catdir_create {
 }
 
 # I: /usr/share/man/man9
-# O: usr/share/man/cat9
+# O: /usr/share/man/cat9
 sub man2cat {
     local($man) = @_;
 
@@ -204,24 +216,21 @@ sub man2cat {
 
 sub parse_subdir {
     local($subdir) = @_;
-    local($file, $f, $catdir, $catdir_short);
+    local($file, $f, $catdir, $catdir_short, $mandir, $mandir_short);
     local($mtime_man, $mtime_cat);
     local(%read);
 
-    if (!opendir(D, $subdir)) {
-	warn "opendir ``$subdir'': $!\n"; $exit = 1; return 0;
-    }
     
-    $catdir = &man2cat($subdir);
+    $mandir = $subdir;
+    $catdir = &man2cat($mandir);
 
-    # optimize NAMI lookup, use short filenames
-    warn "chdir to: $subdir\n" if $verbose;
-    chdir($subdir); 
+    ($mandir_short = $mandir) =~ s|.*/(.*)|$1|;
+    ($catdir_short = $catdir) =~ s|.*/(.*)|$1|;
 
-    $catdir_short = $catdir;
-    $catdir_short =~ s|.*/(.*)|../$1|;
-
-    warn "open man directory: ``$subdir''\n" if $verbose;
+    warn "open man directory: ``$mandir''\n" if $verbose;
+    if (!opendir(D, $mandir)) {
+	warn "opendir ``$mandir'': $!\n"; $exit = 1; return 0;
+    }
 
     foreach $file (readdir(D)) {
 	# skip current and parent directory
@@ -229,30 +238,33 @@ sub parse_subdir {
 
 	# fo_09-o.bar0
 	if ($file !~ /^[\w\-\[\.]+\.\w+$/) {
-	    &garbage("$subdir/$file", "Assume garbage")
-		unless -d $file;
+	    &garbage("$mandir/$file", "Assume garbage")
+		unless -d "$mandir/$file";
 	    next;
 	}
 
 	if ($file !~ /\.gz$/) {
-	    if (-e "$file.gz") {
-		&garbage("$subdir/$file", 
+	    if (-e "$mandir/$file.gz") {
+		&garbage("$mandir/$file", 
 			 "Manpage unused, see compressed version");
 		next;
 	    }
-	    warn "$subdir/$file is uncompressed\n" if $verbose;
+	    warn "$mandir/$file is uncompressed\n" if $verbose;
 	    $cfile = "$file.gz";
 	} else {
 	    $cfile = "$file";
 	}
 
-	if (!(($mtime_man = ((stat("$file"))[9])) && -r _ && -f _)) {
+	if (!(($mtime_man = ((stat("$mandir_short/$file"))[9])) && -r _ && -f _)) {
 	    if (! -d _) {
-		warn "Cannot read file: ``$subdir/$file''\n";
+		warn "Cannot read file: ``$mandir/$file''\n";
 		$exit = 1;
+		if ($remove && -l "$mandir/$file") {
+		    &garbage("$mandir/$file", "Assume wrong symlink");
+		}
 		next;
 	    }
-	    warn "Ignore subsubdirectory: ``$subdir/$file''\n"
+	    warn "Ignore subsubdirectory: ``$mandir/$file''\n"
 		if $verbose;
 	    next;
 	}
@@ -263,13 +275,13 @@ sub parse_subdir {
 	if (($mtime_cat = ((stat("$catdir_short/$cfile"))[9])) 
 	    && -r _ && -f _) {
 	    if ($mtime_man > $mtime_cat || $force) {
-		&nroff("$subdir/$file", "$catdir/$cfile");
+		&nroff("$mandir/$file", "$catdir/$cfile");
 	    } else {
-		warn "up to date: $subdir/$file\n" if $verbose;
+		warn "up to date: $mandir/$file\n" if $verbose;
 		#print STDERR "." if $verbose;
 	    }
 	} else {
-	    &nroff("$subdir/$file", "$catdir/$cfile");
+	    &nroff("$mandir/$file", "$catdir/$cfile");
 	}
     }
     closedir D;
