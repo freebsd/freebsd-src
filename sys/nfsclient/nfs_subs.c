@@ -795,6 +795,10 @@ loop:
 			goto loop;
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		VI_LOCK(vp);
+		if (vp->v_iflag & VI_XLOCK) {
+			VI_UNLOCK(vp);
+			continue;
+		}
 		mtx_unlock(&mntvnode_mtx);
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
