@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.20 2002/07/05 11:07:24 benno Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.22 2003/01/12 21:03:37 obrien Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -106,6 +106,8 @@
 /* Altima Communications PHYs */
 #define	MII_MODEL_xxALTIMA_AC101	0x0021
 #define	MII_STR_xxALTIMA_AC101	"AC101 10/100 media interface"
+#define	MII_MODEL_xxALTIMA_AC101L	0x0012
+#define	MII_STR_xxALTIMA_AC101L	"AC101L 10/100 media interface"
 
 /* Advanced Micro Devices PHYs */
 #define	MII_MODEL_xxAMD_79C873	0x0000
