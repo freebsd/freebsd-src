@@ -678,16 +678,20 @@ InitTerminal()
 	if ((myKE = tgetstr("ke", &lotsofspace)) != 0) {
 	    myKE = strsave(myKE);
 	}
+#if 0
 	if (tgetstr("md", &lotsofspace) && tgetstr("me", &lotsofspace)) {
 	   SO = strsave(tgetstr("md", &lotsofspace));
 	   SE = strsave(tgetstr("me", &lotsofspace));
 	}
 #endif
+#endif
 	DoARefresh();
 	setconnmode();
+#if 0
 	if (VB && *VB) {
 	    bellSequence = VB;		/* use visual bell */
 	}
+#endif
 	screenInitd = 1;
 	screenStopped = 0;		/* Not stopped */
     }
