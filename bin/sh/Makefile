@@ -9,6 +9,7 @@ SHSRCS=	alias.c arith.y arith_lex.l cd.c echo.c error.c eval.c exec.c expand.c \
 GENSRCS= builtins.c init.c nodes.c syntax.c
 GENHDRS= builtins.h nodes.h syntax.h token.h y.tab.h
 SRCS= ${SHSRCS} ${GENSRCS} ${GENHDRS} y.tab.h
+NOSHARED?= yes
 
 # MLINKS for Shell built in commands for which there are no userland
 # utilities of the same name are handled with the associated manpage,
