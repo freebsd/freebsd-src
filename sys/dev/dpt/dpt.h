@@ -1270,8 +1270,9 @@ extern TAILQ_HEAD(dpt_softc_list, dpt_softc) dpt_softcs;
 
 extern int		dpt_controllers_present;
 
-struct dpt_softc*	dpt_alloc(u_int unit, bus_space_tag_t tag,
-				  bus_space_handle_t bsh);
+#ifdef _KERNEL
+dpt_softc_t *		dpt_alloc(device_t, bus_space_tag_t, bus_space_handle_t);
+#endif
 void			dpt_free(struct dpt_softc *dpt);
 int			dpt_init(struct dpt_softc *dpt);
 int			dpt_attach(dpt_softc_t * dpt);
