@@ -30,6 +30,7 @@
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/jail.h>
 
 static MALLOC_DEFINE(M_MSG, "msg", "SVID compatible message queues");
 
@@ -210,6 +211,9 @@ msgsys(p, uap)
 	} */ *uap;
 {
 
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
+
 	if (uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
 		return (EINVAL);
 	return ((*msgcalls[uap->which])(p, &uap->a2));
@@ -262,6 +266,9 @@ msgctl(p, uap)
 #ifdef MSG_DEBUG_OK
 	printf("call to msgctl(%d, %d, 0x%x)\n", msqid, cmd, user_msqptr);
 #endif
+
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
 
 	msqid = IPCID_TO_IX(msqid);
 
@@ -399,6 +406,9 @@ msgget(p, uap)
 	printf("msgget(0x%x, 0%o)\n", key, msgflg);
 #endif
 
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
+
 	if (key != IPC_PRIVATE) {
 		for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
 			msqptr = &msqids[msqid];
@@ -510,6 +520,9 @@ msgsnd(p, uap)
 	printf("call to msgsnd(%d, 0x%x, %d, %d)\n", msqid, user_msgp, msgsz,
 	    msgflg);
 #endif
+
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
 
 	msqid = IPCID_TO_IX(msqid);
 
@@ -834,6 +847,9 @@ msgrcv(p, uap)
 	printf("call to msgrcv(%d, 0x%x, %d, %ld, %d)\n", msqid, user_msgp,
 	    msgsz, msgtyp, msgflg);
 #endif
+
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
 
 	msqid = IPCID_TO_IX(msqid);
 
