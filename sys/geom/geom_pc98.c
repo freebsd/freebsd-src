@@ -158,7 +158,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			printf("Index: %d\n", i);
 			g_hexdump(buf+512 + i * 32, 32);
 			start = v * fwsect * fwhead * sectorsize;
-			length = (u - v) * fwsect * fwhead * sectorsize;
+			length = (1 + u - v) * fwsect * fwhead * sectorsize;
 			printf("c%d - c%d (%jx - %jx) = %s\n",
 			     v, u, (uintmax_t)start, (uintmax_t)length, buf + 512 + 16 + i * 32);
 			npart++;
