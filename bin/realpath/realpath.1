@@ -33,52 +33,36 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)pwd.1	8.2 (Berkeley) 4/28/95
+.\" From: src/bin/pwd/pwd.1,v 1.11 2000/11/20 11:39:39 ru Exp
 .\" $FreeBSD$
 .\"
-.Dd April 28, 1995
-.Dt PWD 1
-.Os BSD 4
+.Dd November 24, 2000
+.Dt REALPATH 1
+.Os FreeBSD 5.0
 .Sh NAME
-.Nm pwd
-.Nd return working directory name
+.Nm realpath
+.Nd return resolved physical path
 .Sh SYNOPSIS
 .Nm
+.Ar path
 .Sh DESCRIPTION
-.Nm Pwd
-writes the absolute pathname of the current working directory to
-the standard output.
+.Nm realpath
+uses the
+.Xr realpath 3
+function to resolve all symbolic links, extra 
+.Qo
+/
+.Qc
+characters and references to 
+.Pa /./ 
+and 
+.Pa /../
+in
+.Ar path .
 .Pp
-Some shells may provide a builtin
-.Nm
-command which is similar or identical to this utility.
-Consult the
-.Xr builtin 1
-manual page.
 .Sh DIAGNOSTICS
 The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
-.Sh STANDARDS
-The
-.Nm
-utility is expected to be
-.St -p1003.2
-compatible.
-The
-.Fl L
-flag is not supported.
 .Sh SEE ALSO
-.Xr builtin 1 ,
-.Xr cd 1 ,
-.Xr csh 1 ,
-.Xr getcwd 3 ,
-.Xr sh 1
-.Sh BUGS
-In
-.Xr csh  1
-the command
-.Ic dirs
-is always faster because it is built into that shell.
-However, it can give a different answer in the rare case
-that the current directory or a containing directory was moved after
-the shell descended into it.
+.Xr realpath 3 
