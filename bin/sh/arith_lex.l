@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith_lex.l,v 1.5 1996/09/01 10:19:41 peter Exp $
+ *	$Id: arith_lex.l,v 1.6 1996/12/14 06:19:08 steve Exp $
  */
 
 #ifndef lint
@@ -80,7 +80,6 @@ extern char *arith_buf, *arith_startbuf;
 "!"	{ return(ARITH_NOT); }
 .	{ error("arith: syntax error: \"%s\"\n", arith_startbuf); }
 %%
-#undef yyunput
 
 void
 arith_lex_reset() {
