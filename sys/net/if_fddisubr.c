@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.19 1997/05/10 10:01:32 jhay Exp $
+ * $Id: if_fddisubr.c,v 1.20 1997/08/02 14:32:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -226,9 +226,7 @@ fddi_output(ifp, m0, dst, rt0)
 	    /*
 	     * ifaddr is the first thing in at_ifaddr
 	     */
-	    if ((aa = (struct at_ifaddr *)at_ifawithnet(
-			(struct sockaddr_at *)dst, &ifp->if_addrhead))
-		== 0)
+	    if ((aa = at_ifawithnet( (struct sockaddr_at *)dst)) == 0)
 		goto bad;
 	    
 	    /*
