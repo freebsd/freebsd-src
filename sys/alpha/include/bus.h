@@ -90,6 +90,26 @@ typedef u_int32_t		bus_space_handle_t;
 
 #define BUS_SPACE_UNRESTRICTED	(~0UL)
 
+/*
+ * Get a new handle for a subregion of an already-mapped area of bus space.
+ */
+
+static __inline int bus_space_subregion(bus_space_tag_t t,
+					bus_space_handle_t bsh,
+					bus_size_t offset, bus_size_t size,
+					bus_space_handle_t *nbshp);
+
+static __inline int
+bus_space_subregion(bus_space_tag_t t __unused, bus_space_handle_t bsh,
+		    bus_size_t offset, bus_size_t size __unused,
+		    bus_space_handle_t *nbshp)
+{
+
+	*nbshp = bsh + offset;
+	return (0);
+}
+
+
 struct alpha_busspace;
 
 struct alpha_busspace_ops {
