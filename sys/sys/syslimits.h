@@ -53,6 +53,7 @@
 #define	PIPE_BUF		  512	/* max bytes for atomic pipe writes */
 #define	IOV_MAX			 1024	/* max elements in i/o vector */
 
+/* XXX - these don't belong here */
 #define	BC_BASE_MAX		   99	/* max ibase/obase values in bc(1) */
 #define	BC_DIM_MAX		 2048	/* max array elements in bc(1) */
 #define	BC_SCALE_MAX		   99	/* max scale value in bc(1) */
@@ -62,4 +63,10 @@
 #define	LINE_MAX		 2048	/* max bytes in an input line */
 #define	RE_DUP_MAX		  255	/* max RE's in interval notation */
 
+/*
+ * We leave the following values undefined to force applications to either
+ * assume conservative values or call sysconf() to get the current value.
+ *
+ * HOST_NAME_MAX
+ */
 #endif
