@@ -1,4 +1,5 @@
-/* $FreeBSD$ */
+/* $Id: $ */
+/* isp.c 1.27 */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
@@ -63,7 +64,7 @@
 /*
  * Local static data
  */
-#if	defined(ISP2100_TARGET_MODE) || defined(ISP_TARGET_MODE)
+#ifdef	ISP_TARGET_MODE
 static const char tgtiqd[36] = {
 	0x03, 0x00, 0x02, 0x02, 0x00, 0x00, 0x00, 0x00,
 	0x51, 0x4C, 0x4F, 0x47, 0x49, 0x43, 0x20, 0x20,
@@ -88,11 +89,16 @@ static const char tgtiqd[36] = {
 /*
  * Local function prototypes.
  */
-static int isp_parse_async __P((struct ispsoftc *, u_int16_t));
+static int isp_parse_async __P((struct ispsoftc *, int));
 static int isp_handle_other_response
 __P((struct ispsoftc *, ispstatusreq_t *, u_int8_t *));
-#if	defined(ISP2100_TARGET_MODE) || defined(ISP_TARGET_MODE)
+#ifdef	ISP_TARGET_MODE
 static int isp_modify_lun __P((struct ispsoftc *, int, int, int));
+static void isp_notify_ack __P((struct ispsoftc *, void *));
+static void isp_handle_atio __P((struct ispsoftc *, void *));
+static void isp_handle_atio2 __P((struct ispsoftc *, void *));
+static void isp_handle_ctio __P((struct ispsoftc *, void *));
+static void isp_handle_ctio2 __P((struct ispsoftc *, void *));
 #endif
 static void isp_parse_status
 __P((struct ispsoftc *, ispstatusreq_t *, ISP_SCSI_XFER_T *));
@@ -101,7 +107,7 @@ static void isp_fw_state __P((struct ispsoftc *));
 static void isp_dumpregs __P((struct ispsoftc *, const char *));
 static void isp_dumpxflist __P((struct ispsoftc *));
 static void isp_prtstst __P((ispstatusreq_t *));
-static char *isp2100_fw_statename __P((u_int8_t));
+static char *isp2100_fw_statename __P((int));
 static void isp_mboxcmd __P((struct ispsoftc *, mbreg_t *));
 
 static void isp_update  __P((struct ispsoftc *));
@@ -706,7 +712,7 @@ isp_fibre_init(isp)
 	fcparam *fcp;
 	isp_icb_t *icbp;
 	mbreg_t mbs;
-	int count;
+	int count, loopid;
 	u_int8_t lwfs;
 
 	fcp = isp->isp_param;
@@ -715,16 +721,41 @@ isp_fibre_init(isp)
 		PRINTF("%s: can't setup DMA for mailboxes\n", isp->isp_name);
 		return;
 	}
+	/*
+	 * For systems that don't have BIOS methods for which
+	 * we can easily change the NVRAM based loopid, we'll
+	 * override that here. Note that when we initialize
+	 * the firmware we may get back a different loopid than
+	 * we asked for anyway. XXX This is probably not the
+	 * best way to figure this out XXX
+	 */
+#ifndef	__i386__
+	loopid = DEFAULT_LOOPID;
+#else
+	loopid = fcp->isp_loopid;
+#endif
+
 
 	icbp = (isp_icb_t *) fcp->isp_scratch;
 	bzero(icbp, sizeof (*icbp));
 
 	icbp->icb_version = ICB_VERSION1;
-
+#ifdef	ISP_TARGET_MODE
+	fcp->isp_fwoptions = ICBOPT_TGT_ENABLE|ICBOPT_INI_TGTTYPE;
+#else
 	fcp->isp_fwoptions = 0;
-#ifdef	ISP2100_TARGET_MODE
-	fcp->isp_fwoptions |= ICBOPT_TGT_ENABLE	| ICBOPT_INI_TGTTYPE;
-	icbp->icb_iqdevtype = 0x23;	/* DPQ_SUPPORTED/PROCESSOR */
+#endif
+	fcp->isp_fwoptions |= ICBOPT_INI_ADISC|ICBOPT_FAIRNESS;
+	fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
+	fcp->isp_fwoptions |= ICBOPT_HARD_ADDRESS;
+#ifdef	CHECKME
+	fcp->isp_fwoptions |= ICBOPT_USE_PORTNAME;
+#endif
+#ifdef	THIS_WORKED
+	/*
+	 * This has unhappiness in target mode
+	 */
+	fcp->isp_fwoptions |= ICBOPT_FULL_LOGIN;
 #endif
 	icbp->icb_fwoptions = fcp->isp_fwoptions;
 	icbp->icb_maxfrmlen = fcp->isp_maxfrmlen;
@@ -737,9 +768,13 @@ isp_fibre_init(isp)
 	icbp->icb_execthrottle = fcp->isp_execthrottle;
 	icbp->icb_retry_delay = fcp->isp_retry_delay;
 	icbp->icb_retry_count = fcp->isp_retry_count;
+	icbp->icb_hardaddr = fcp->isp_loopid;
 
 	MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, fcp->isp_wwn);
-
+	if (icbp->icb_fwoptions & ICBOPT_USE_PORTNAME) {
+		u_int64_t portname = fcp->isp_wwn | (2LL << 56);
+		MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, portname);
+	}
 	icbp->icb_rqstqlen = RQUEST_QUEUE_LEN;
 	icbp->icb_rsltqlen = RESULT_QUEUE_LEN;
 	icbp->icb_rqstaddr[RQRSP_ADDR0015] =
@@ -788,24 +823,15 @@ isp_fibre_init(isp)
 	isp->isp_residx = 0;
 
 	/*
-	 * Wait up to 12 seconds for FW to go to READY state.
-	 * This used to be 3 seconds, but that lost.
-	 *
-	 * This is all very much not right. The problem here
-	 * is that the cable may not be plugged in, or there
-	 * may be many many members of the loop that haven't
-	 * been logged into.
-	 *
-	 * This model of doing things doesn't support dynamic
-	 * attachment, so we just plain lose (for now).
+	 * Wait up to 5 seconds for FW to go to READY state.
 	 */
 	lwfs = FW_CONFIG_WAIT;
 	for (count = 0; count < 12000; count++) {
 		isp_fw_state(isp);
 		if (lwfs != fcp->isp_fwstate) {
 			PRINTF("%s: Firmware State %s -> %s\n",
-			    isp->isp_name, isp2100_fw_statename(lwfs),
-			    isp2100_fw_statename(fcp->isp_fwstate));
+			    isp->isp_name, isp2100_fw_statename((int)lwfs),
+			    isp2100_fw_statename((int)fcp->isp_fwstate));
 			lwfs = fcp->isp_fwstate;
 		}
 		if (fcp->isp_fwstate == FW_READY) {
@@ -828,16 +854,14 @@ isp_fibre_init(isp)
 		}
 		fcp->isp_loopid = mbs.param[1];
 		fcp->isp_alpa = mbs.param[2];
-		PRINTF("%s: Loop ID 0x%x, ALPA 0x%x\n", isp->isp_name,
+		PRINTF("%s: Loop ID %d, ALPA 0x%x\n", isp->isp_name,
 		    fcp->isp_loopid, fcp->isp_alpa);
 		isp->isp_state = ISP_INITSTATE;
-#if	defined(ISP2100_TARGET_MODE) || defined(ISP_TARGET_MODE)
+#ifdef	ISP_TARGET_MODE
 		DISABLE_INTS(isp);
-		if (isp->isp_fwrev >= ISP_FW_REV(1, 13)) {
-			if (isp_modify_lun(isp, 0, 1, 1)) {
-				PRINTF("%s: failed to establish target mode\n",
-				    isp->isp_name);
-			}
+		if (isp_modify_lun(isp, 0, 1, 1)) {
+			PRINTF("%s: failed to enable target mode\n",
+			    isp->isp_name);
 		}
 		ENABLE_INTS(isp);
 #endif
@@ -1017,10 +1041,17 @@ ispscsicmd(xs)
 			reqp->req_flags = 0;
 		}
 	}
-	reqp->req_lun_trn = XS_LUN(xs);
 	reqp->req_target = XS_TGT(xs);
 	if (isp->isp_type & ISP_HA_SCSI) {
+		reqp->req_lun_trn = XS_LUN(xs);
 		reqp->req_cdblen = XS_CDBLEN(xs);
+	} else {
+#ifdef	SCCLUN
+		reqp->req_scclun = XS_LUN(xs);
+#else
+		reqp->req_lun_trn = XS_LUN(xs);
+#endif
+
 	}
 	bcopy((void *)XS_CDBP(xs), reqp->req_cdb, XS_CDBLEN(xs));
 
@@ -1122,7 +1153,18 @@ isp_control(isp, ctl, arg)
 			break;
 		}
 		mbs.param[0] = MBOX_ABORT;
-		mbs.param[1] = XS_TGT(xs) | XS_LUN(xs);
+#ifdef	SCCLUN
+		if (isp->isp_type & ISP_HA_FC) {
+			mbs.param[1] = XS_TGT(xs) << 8;
+			mbs.param[4] = 0;
+			mbs.param[5] = 0;
+			mbs.param[6] = XS_LUN(xs);
+		} else {
+			mbs.param[1] = XS_TGT(xs) << 8 | XS_LUN(xs);
+		}
+#else
+		mbs.param[1] = XS_TGT(xs) << 8 | XS_LUN(xs);
+#endif
 		mbs.param[2] = (i+1) >> 16;
 		mbs.param[3] = (i+1) & 0xffff;
 		isp_mboxcmd(isp, &mbs);
@@ -1180,7 +1222,7 @@ isp_intr(arg)
 
 	if (ISP_READ(isp, BIU_SEMA) & 1) {
 		u_int16_t mbox = ISP_READ(isp, OUTMAILBOX0);
-		if (isp_parse_async(isp, mbox))
+		if (isp_parse_async(isp, (int) mbox))
 			return (1);
 		ISP_WRITE(isp, BIU_SEMA, 0);
 	}
@@ -1320,7 +1362,8 @@ isp_intr(arg)
 		 */
 		if (XS_STS(xs) == SCSI_CHECK && !(XS_IS_SNS_VALID(xs))) {
 			if (XS_NOERR(xs)) {
-				PRINTF("%s: ARQ Failure\n", isp->isp_name);
+				PRINTF("%s: ARQ failure for target %d lun %d\n",
+				    isp->isp_name, XS_TGT(xs), XS_LUN(xs));
 				XS_SETERR(xs, HBA_ARQFAIL);
 			}
 		}
@@ -1340,9 +1383,8 @@ isp_intr(arg)
 		}
 
 		ISP_WRITE(isp, INMAILBOX5, optr);
-		isp->isp_nactive--;
-		if (isp->isp_nactive < 0)
-			isp->isp_nactive = 0;
+		if (isp->isp_nactive > 0)
+		    isp->isp_nactive--;
 		complist[ndone++] = xs;	/* defer completion call until later */
 	}
 	/*
@@ -1369,12 +1411,15 @@ isp_intr(arg)
 static int
 isp_parse_async(isp, mbox)
 	struct ispsoftc *isp;
-	u_int16_t mbox;
+	int mbox;
 {
 	switch (mbox) {
 	case ASYNC_BUS_RESET:
 		PRINTF("%s: SCSI bus reset detected\n", isp->isp_name);
 		isp->isp_sendmarker = 1;
+#ifdef	ISP_TARGET_MODE
+		isp_notify_ack(isp, NULL);
+#endif
 		break;
 
 	case ASYNC_SYSTEM_ERROR:
@@ -1401,10 +1446,16 @@ isp_parse_async(isp, mbox)
 	case ASYNC_TIMEOUT_RESET:
 		PRINTF("%s: timeout initiated SCSI bus reset\n", isp->isp_name);
 		isp->isp_sendmarker = 1;
+#ifdef	ISP_TARGET_MODE
+		isp_notify_ack(isp, NULL);
+#endif
 		break;
 
-	case ASYNC_UNSPEC_TMODE:
-		PRINTF("%s: mystery async target completion\n", isp->isp_name);
+	case ASYNC_DEVICE_RESET:
+		PRINTF("%s: device reset\n", isp->isp_name);
+#ifdef	ISP_TARGET_MODE
+		isp_notify_ack(isp, NULL);
+#endif
 		break;
 
 	case ASYNC_EXTMSG_UNDERRUN:
@@ -1440,6 +1491,7 @@ isp_parse_async(isp, mbox)
 		break;
 
 	case ASYNC_CTIO_DONE:
+		/* Should only occur when Fast Posting Set for 2100s */
 		PRINTF("%s: CTIO done\n", isp->isp_name);
 		break;
 
@@ -1457,6 +1509,9 @@ isp_parse_async(isp, mbox)
 
 	case ASYNC_LOOP_RESET:
 		PRINTF("%s: Loop RESET\n", isp->isp_name);
+#ifdef	ISP_TARGET_MODE
+		isp_notify_ack(isp, NULL);
+#endif
 		break;
 
 	case ASYNC_PDB_CHANGED:
@@ -1483,62 +1538,122 @@ isp_handle_other_response(isp, sp, optrp)
 	u_int8_t iptr, optr;
 	int reqsize = 0;
 	void *ireqp = NULL;
+#ifdef	ISP_TARGET_MODE
+	union {
+		at_entry_t	*atio;
+		at2_entry_t	*at2io;
+		ct_entry_t	*ctio;
+		ct2_entry_t	*ct2io;
+		lun_entry_t	*lunen;
+		in_entry_t	*inot;
+		in_fcentry_t	*inot_fc;
+		na_entry_t	*nack;
+		na_fcentry_t	*nack_fc;
+		void            *voidp;
+#define	atio	un.atio
+#define	at2io	un.at2io
+#define	ctio	un.ctio
+#define	ct2io	un.ct2io
+#define	lunen	un.lunen
+#define	inot	un.inot
+#define	inot_fc	un.inot_fc
+#define	nack	un.nack
+#define	nack_fc	un.nack_fc
+	} un;
+
+	un.voidp = sp;
+#endif
+
 
 	switch (sp->req_header.rqs_entry_type) {
 	case RQSTYPE_REQUEST:
 		return (-1);
-#if	defined(ISP2100_TARGET_MODE) || defined(ISP_TARGET_MODE)
+#ifdef	ISP_TARGET_MODE
 	case RQSTYPE_NOTIFY_ACK:
 	{
-		ispnotify_t *spx = (ispnotify_t *) sp;
-		PRINTF("%s: Immediate Notify Ack %d.%d Status 0x%x Sequence "
-		    "0x%x\n", isp->isp_name, spx->req_initiator, spx->req_lun,
-		    spx->req_status, spx->req_sequence);
+		static const char *f =
+			"%s: Notify Ack Status 0x%x Sequence Id 0x%x\n"
+		/*
+		 * The ISP is acknowleding our ack of an Immediate Notify.
+		 */
+		if (isp->isp_type & ISP_HA_FC) {
+			PRINTF(f, isp->isp_name,
+			    nack_fc->na-status, nack_fc->na_seqid);
+		} else {
+			PRINTF(f, isp->isp_name,
+			    nack->na_status, nack->na_seqid);
+		}
 		break;
 	}
 	case RQSTYPE_NOTIFY:
 	{
-		ispnotify_t *spx = (ispnotify_t *) sp;
+		u_int16_t seqid, status;
 
-		PRINTF("%s: Notify loopid %d to lun %d req_status 0x%x "
-		    "req_task_flags 0x%x seq 0x%x\n", isp->isp_name, 				    spx->req_initiator, spx->req_lun, spx->req_status, 
-		    spx->req_task_flags, spx->req_sequence);
-		reqsize = sizeof (*spx);
-		spx->req_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
-		spx->req_header.rqs_entry_count = 1;
-		spx->req_header.rqs_flags = 0;
-		spx->req_header.rqs_seqno = isp->isp_seqno++;
-		spx->req_handle = (spx->req_initiator<<16) | RQSTYPE_NOTIFY_ACK;
-		if (spx->req_status == IN_RSRC_UNAVAIL)
-			spx->req_flags = LUN_INCR_CMD;
-		else if (spx->req_status == IN_NOCAP)
-			spx->req_flags = LUN_INCR_IMMED;
-		else {
-			reqsize = 0;
+		/*
+		 * Either the ISP received a SCSI message it cannot handle
+		 * or some other out of band condition (e.g., Port Logout)
+		 * or it is returning an Immediate Notify entry we sent.
+		 */
+		if (isp->isp_type & ISP_HA_FC) {
+			status = inot_fc->status;
+			seqid = inot_fc->in_seqid;
+		} else {
+			status = inot->status;
+			seqid = inot->seqid & 0xff;
 		}
-		ireqp = spx;
+		PRINTF("%s: Immediate Notify Status 0x%x Sequence Id 0x%x\n",
+		    isp->isp_name, status, seqid);
+
+		switch (status) {
+		case IN_MSG_RECEIVED:
+		case IN_IDE_RECEIVED:
+			ptisp_got_msg(ptp, &inot);
+			break;
+		case IN_RSRC_UNAVAIL:
+                        PRINTF("%s: Firmware out of ATIOs\n", isp->isp_name);
+                        break;
+                case IN_ABORT_TASK:
+			PRINTF("%s: Abort Task iid %d rx_id 0x%x\n",
+			    inot_fc->in_iid, seqid);
+                        break;
+                case IN_PORT_LOGOUT:
+			PRINTF("%s: Port Logout for Initiator %d\n",
+			    isp->isp_name, inot_fc->in_iid);
+                        break;
+                default:
+			PRINTF("%s: bad status (0x%x) in Immediate Notify\n",
+                            isp->isp_name, status);
+                        break;
+
+		}
+		isp_notify_ack(isp, un.voidp);
+		reqsize = 0;
 		break;
 	}
 	case RQSTYPE_ENABLE_LUN:
-	{
-		isplun_t *ip = (isplun_t *) sp;
-		if (ip->req_status != 1) {
-		    PRINTF("%s: ENABLE LUN returned status 0x%x\n",
-			isp->isp_name, ip->req_status);
+	case RQSTYPE_MODIFY_LUN:
+		if (lunen->req_status != 1) {
+		    PRINTF("%s: ENABLE/MODIFY LUN returned status 0x%x\n",
+			isp->isp_name, lunen->req_status);
 		}
 		break;
-	}
 	case RQSTYPE_ATIO2:
 	{
 		fcparam *fcp = isp->isp_param;
 		ispctiot2_t local, *ct2 = NULL;
 		ispatiot2_t *at2 = (ispatiot2_t *) sp;
-		int s;
+		int s, lun;
 
-		PRINTF("%s: atio2 loopid %d for lun %d rxid 0x%x flags 0x%x "
-		    "task flags 0x%x exec codes 0x%x\n", isp->isp_name,
-		    at2->req_initiator, at2->req_lun, at2->req_rxid,
-		    at2->req_flags, at2->req_taskflags, at2->req_execodes);
+#ifdef	SCCLUN
+		lun = at2->req_scclun;
+#else
+		lun = at2->req_lun;
+#endif
+		PRINTF("%s: atio2 loopid %d for lun %d rxid 0x%x flags0x%x "
+		    "tflags0x%x ecodes0x%x rqstatus0x%x\n", isp->isp_name,
+		    at2->req_initiator, lun, at2->req_rxid,
+		    at2->req_flags, at2->req_taskflags, at2->req_execodes,
+		    at2->req_status);
 
 		switch (at2->req_status & ~ATIO_SENSEVALID) {
 		case ATIO_PATH_INVALID:
@@ -1576,8 +1691,10 @@ isp_handle_other_response(isp, sp, optrp)
 		ct2->req_header.rqs_entry_count = 1;
 		ct2->req_header.rqs_flags = 0;
 		ct2->req_header.rqs_seqno = isp->isp_seqno++;
-		ct2->req_handle = (at2->req_initiator << 16) | at2->req_lun;
-		ct2->req_lun = at2->req_lun;
+		ct2->req_handle = (at2->req_initiator << 16) | lun;
+#ifndef	SCCLUN
+		ct2->req_lun = lun;
+#endif
 		ct2->req_initiator = at2->req_initiator;
 		ct2->req_rxid = at2->req_rxid;
 
@@ -1604,7 +1721,7 @@ isp_handle_other_response(isp, sp, optrp)
 			    fcp->isp_scdma;
 			ct2->req_m.mode0.req_dataseg[0].ds_count = s;
 			ct2->req_m.mode0.req_datalen = s;
-#if	0
+#if	1
 			if (at2->req_datalen < s) {
 				ct2->req_m.mode1.req_scsi_status |=
 				    CTIO2_RESP_VALID|CTIO2_RSPOVERUN;
@@ -1618,7 +1735,7 @@ isp_handle_other_response(isp, sp, optrp)
 		default:		/* ALL OTHERS */
 			ct2->req_flags |= CTIO_NODATA | CTIO2_SMODE1;
 			ct2->req_m.mode1.req_scsi_status = 0;
-#if	0
+#if	1
 			if (at2->req_datalen) {
 				ct2->req_m.mode1.req_scsi_status |=
 				    CTIO2_RSPUNDERUN;
@@ -1679,6 +1796,15 @@ isp_handle_other_response(isp, sp, optrp)
 		ireqp = at2;
 		break;
 	}
+#undef	atio
+#undef	at2io
+#undef	ctio
+#undef	ct2io
+#undef	lunen
+#undef	inot
+#undef	inot_fc
+#undef	nack
+#undef	nack_fc
 #endif
 	default:
 		PRINTF("%s: other response type %x\n", isp->isp_name,
@@ -1703,7 +1829,37 @@ isp_handle_other_response(isp, sp, optrp)
 	return (0);
 }
 
-#if	defined(ISP2100_TARGET_MODE) || defined(ISP_TARGET_MODE)
+#ifdef	ISP_TARGET_MODE
+
+static void isp_tmd_newcmd_dflt __P((void *, tmd_cmd_t *));
+static void isp_tmd_event_dflt __P((void *, int));
+static void isp_tmd_notify_dflt __P((void *, tmd_notify_t *));
+
+static void isp_tgt_data_xfer __P ((tmd_cmd_t *));
+static void isp_tgt_endcmd __P ((tmd_cmd_t *, u_int8_t));
+static void isp_tgt_done __P ((tmd_cmd_t *));
+
+static void
+isp_tmd_newcmd_dflt(arg0, cmdp)
+	void *arg0;
+	tmd_cmd_t *cmdp;
+{
+}
+
+static void
+isp_tmd_event_dflt(arg0, event)
+	void *arg0;
+	int event;
+{
+}
+
+static void
+isp_tmd_notify_dflt(arg0, npt)
+	void *arg0;
+	tmd_notify_t *npt;
+{
+}
+
 /*
  * Locks held, and ints disabled (if FC).
  *
@@ -1732,16 +1888,275 @@ isp_modify_lun(isp, lun, icnt, ccnt)
 	bzero((void *) ip, sizeof (*ip));
 	ip->req_header.rqs_entry_type = RQSTYPE_ENABLE_LUN;
 	ip->req_header.rqs_entry_count = 1;
-	ip->req_header.rqs_flags = 0;
 	ip->req_header.rqs_seqno = isp->isp_seqno++;
 	ip->req_handle = RQSTYPE_ENABLE_LUN;
-	ip->req_lun = lun;
+	if (isp->isp_type & ISP_HA_SCSI) {
+		ip->req_lun = lun;
+	}
 	ip->req_cmdcount = ccnt;
 	ip->req_imcount = icnt;
 	ip->req_timeout = 0;	/* default 30 seconds */
 	ISP_WRITE(isp, INMAILBOX4, iptr);
 	isp->isp_reqidx = iptr;
 	return (0);
+}
+
+static void
+isp_notify_ack(isp, ptrp)
+	struct ispsoftc *isp;
+	void *ptrp;
+{
+	void *reqp;
+	u_int8_t iptr, optr;
+	union {
+		na_fcentry_t _naf;
+		na_entry_t _nas;
+	} un;
+
+	bzero((caddr_t)&un, sizeof (un));
+	un._nas.na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
+	un._nas.na_header.rqs_entry_count = 1;
+
+	if (isp->isp_type & ISP_HA_FC) {
+		na_fcentry_t *na = &un._nas;
+		if (ptrp) {
+			in_fcentry_t *inp = ptrp;
+			na->na_iid = inp->in_iid;
+			na->na_lun = inp->in_lun;
+			na->na_task_flags = inp->in_task_flags;
+			na->na_seqid = inp->in_seqid;
+			na->na_status = inp->in_status;
+		} else {
+			na->na_flags = NAFC_RST_CLRD;
+		}
+	} else {
+		na_entry_t *na = &un._nas;
+		if (ptrp) {
+			in_entry_t *inp = ptrp;
+			na->na_iid = inp->in_iid;
+			na->na_lun = inp->in_lun;
+			na->na_tgt = inp->in_tgt;
+			na->na_seqid = inp->in_seqid;
+		} else {
+			na->na_flags = NA_RST_CLRD;
+		}
+	}
+	optr = isp->isp_reqodx = ISP_READ(isp, OUTMAILBOX4);
+	iptr = isp->isp_reqidx;
+	reqp = (void *) ISP_QUEUE_ENTRY(isp->isp_rquest, iptr);
+	iptr = ISP_NXT_QENTRY(iptr, RQUEST_QUEUE_LEN);
+	if (iptr == optr) {
+		PRINTF("%s: Request Queue Overflow For isp_notify_ack\n",
+		    isp->isp_name);
+	} else {
+		bcopy(ireqp, reqp, sizeof (un));
+		ISP_WRITE(isp, INMAILBOX4, iptr);
+		isp->isp_reqidx = iptr;
+	}
+}
+
+/*
+ * These are dummy stubs for now until the outside framework is plugged in.
+ */
+
+static void
+isp_handle_atio (isp, aep)
+	struct ispsoftc *isp;
+	at_entry_t *aep;
+{
+	int status, connected;
+	tmd_cmd_t local, *cdp = &local;
+
+	/*
+	 * Get the ATIO status and see if we're still connected.
+	 */
+	status = aep->at_status;
+	connected = ((aep->at_flags & AT_NODISC) != 0);
+
+	PRINTF("%s: ATIO status=0x%x, connected=%d\n", isp->isp_name,
+	    status, connected);
+
+	/*
+	 * The firmware status (except for the SenseValid bit) indicates
+	 * why this ATIO was sent to us.
+	 * If SenseValid is set, the firware has recommended Sense Data.
+	 * If the Disconnects Disabled bit is set in the flags field,
+	 * we're still connected on the SCSI bus - i.e. the initiator
+	 * did not set DiscPriv in the identify message. We don't care
+	 * about this so it's ignored.
+	 */
+	switch(status & ~TGTSVALID) {
+	case AT_PATH_INVALID:
+		/*
+		 * ATIO rejected by the firmware due to disabled lun.
+		 */
+		PRINTF("%s: Firmware rejected ATIO for disabled lun %d\n",
+		    isp->isp_name, aep->at_lun);
+		break;
+
+	case AT_PHASE_ERROR:
+		/*
+		 * Bus Pase Sequence error.
+		 *
+		 * The firmware should have filled in the correct
+		 * sense data.
+		 */
+
+
+		if (status & TGTSVALID) {
+			bcopy((caddr_t) aep->at_sense,
+			    (caddr_t) &cdp->cd_sensedata,
+			    sizeof (cdp->cd_sensedata));
+			PRINTF("%s: Bus Phase Sequence error key 0x%x\n",
+			    isp->isp_name, cdp->cd_sensedata[2] & 0xf);
+		} else {
+			PRINTF("%s: Bus Phase Sequence With No Sense\n",
+			    isp->isp_name);
+		}
+		(*isp->isp_tmd_newcmd)(isp, cdp);
+		break;
+
+	case AT_NOCAP:
+		/*
+		 * Requested Capability not available
+		 * We sent an ATIO that overflowed the firmware's
+		 * command resource count.
+		 */
+		PRINTF("%s: Firmware rejected ATIO, command count overflow\n",
+		    isp->isp_name);
+		break;
+
+	case AT_BDR_MSG:
+		/*
+		 * If we send an ATIO to the firmware to increment
+		 * its command resource count, and the firmware is
+		 * recovering from a Bus Device Reset, it returns
+		 * the ATIO with this status.
+		 */
+		PRINTF("%s: ATIO returned with BDR received\n", isp->isp_name);
+		break;
+
+	case AT_CDB:
+		/*
+		 * New CDB
+		 */
+		cdp->cd_hba = isp;
+		cdp->cd_iid = aep->at_iid;
+		cdp->cd_tgt = aep->at_tgt;
+		cdp->cd_lun = aep->at_lun;
+		cdp->cd_tagtype = aep->at_tag_type;
+		cdp->cd_tagval = aep->at_tag_val;
+		bcopy(aep->at_cdb, cdp->cd_cdb, 16);
+		PRINTF("%s: CDB 0x%x itl %d/%d/%d\n", isp->isp_name,
+		    cdp->cd_cdb[0], cdp->cd_iid, cdp->cd_tgt, cdp->cd_lun);
+		(*isp->isp_tmd_newcmd)(isp, cdp);
+		break;
+
+	default:
+		PRINTF("%s: Unknown status (0x%x) in ATIO\n",
+		    isp->isp_name, status);
+		cdp->cd_hba = isp;
+		cdp->cd_iid = aep->at_iid;
+		cdp->cd_tgt = aep->at_tgt;
+		cdp->cd_lun = aep->at_lun;
+		cdp->cd_tagtype = aep->at_tag_type;
+		cdp->cd_tagval = aep->at_tag_val;
+		isp_tgtcmd_done(cdp);
+		break;
+	}
+}
+
+static void
+isp_handle_atio2(isp, aep)
+	struct ispsoftc *isp;
+	at2_entry_t *aep;
+{
+	int status;
+	tmd_cmd_t local, *cdp = &local;
+
+	/*
+	 * Get the ATIO2 status.
+	 */
+	status = aep->at_status;
+	PRINTD("%s: ATIO2 status=0x%x\n", status);
+
+	/*
+	 * The firmware status (except for the SenseValid bit) indicates
+	 * why this ATIO was sent to us.
+	 * If SenseValid is set, the firware has recommended Sense Data.
+	 */
+	switch(status & ~TGTSVALID) {
+	case AT_PATH_INVALID:
+		/*
+		 * ATIO rejected by the firmware due to disabled lun.
+		 */
+		PRINTF("%s: Firmware rejected ATIO2 for disabled lun %d\n",
+		    isp->isp_name, aep->at_lun);
+		break;
+
+	case AT_NOCAP:
+		/*
+		 * Requested Capability not available
+		 * We sent an ATIO that overflowed the firmware's
+		 * command resource count.
+		 */
+		PRINTF("%s: Firmware rejected ATIO2, command count overflow\n",
+		    isp->isp_name);
+		break;
+
+	case AT_BDR_MSG:
+		/*
+		 * If we send an ATIO to the firmware to increment
+		 * its command resource count, and the firmware is
+		 * recovering from a Bus Device Reset, it returns
+		 * the ATIO with this status.
+		 */
+		PRINTF("%s: ATIO2 returned with BDR rcvd\n", isp->isp_name);
+		break;
+
+	case AT_CDB:
+		/*
+		 * New CDB
+		 */
+		cdp->cd_hba = isp;
+		cdp->cd_iid = aep->at_iid;
+		cdp->cd_tgt = 0;
+		cdp->cd_lun = aep->at_lun;
+		bcopy(aep->at_cdb, cdp->cd_cdb, 16);
+		cdp->cd_rxid = aep->at_rxid;
+		cdp->cp_origdlen = aep->at_datalen;
+		cdp->cp_totbytes = 0;
+		PRINTF("%s: CDB 0x%x rx_id 0x%x itl %d/%d/%d dlen %d\n",
+		    isp->isp_name, cdp->cd_cdb[0], cdp->cd_tagval, cdp->cd_iid,
+		    cdp->cd_tgt, cdp->cd_lun, aep->at_datalen);
+		(*isp->isp_tmd_newcmd)(isp, cdp);
+		break;
+
+	default:
+		PRINTF("%s: Unknown status (0x%x) in ATIO2\n",
+		    isp->isp_name, status);
+		cdp->cd_hba = isp;
+		cdp->cd_iid = aep->at_iid;
+		cdp->cd_tgt = aep->at_tgt;
+		cdp->cd_lun = aep->at_lun;
+		cdp->cp_rxid = aep->at_rxid;
+		isp_tgtcmd_done(cdp);
+		break;
+	}
+}
+
+static void
+isp_handle_ctio(isp, cep)
+	struct ispsoftc *isp;
+	ct_entry_t *aep;
+{
+}
+
+static void
+isp_handle_ctio2(isp, cep)
+	struct ispsoftc *isp;
+	at2_entry_t *aep;
+{
 }
 #endif
 
@@ -1869,7 +2284,7 @@ isp_parse_status(isp, sp, xs)
 		break;
 
 	case RQCS_UNEXP_BUS_FREE:
-		PRINTF("%s: target %d lun %d had unexeptected bus free\n",
+		PRINTF("%s: target %d lun %d had an unexpected bus free\n",
 		    isp->isp_name, XS_TGT(xs), XS_LUN(xs));
 		break;
 
@@ -2128,6 +2543,29 @@ isp_mboxcmd(isp, mbp)
 	}
 
 
+	/*
+	 * Check for variants
+	 */
+#ifdef	SCCLUN
+	if (isp->isp_type & ISP_HA_FC) {
+		switch (mbp->param[0]) {
+		case MBOX_ABORT:
+			inparam = 7;
+			break;
+		case MBOX_ABORT_DEVICE:
+		case MBOX_START_QUEUE:
+		case MBOX_STOP_QUEUE:
+		case MBOX_SINGLE_STEP_QUEUE:
+		case MBOX_ABORT_QUEUE:
+		case MBOX_GET_DEV_QUEUE_STATUS:
+			inparam = 3;
+			break;
+		default:
+			break;
+		}
+	}
+#endif
+
 command_known:
 
 	/*
@@ -2146,7 +2584,7 @@ command_known:
 			    isp->isp_name, ISP_READ(isp, BIU_ISR));
 			if (ISP_READ(isp, BIU_SEMA) & 1) {
 				u_int16_t mbox = ISP_READ(isp, OUTMAILBOX0);
-				if (isp_parse_async(isp, mbox))
+				if (isp_parse_async(isp, (int) mbox))
 					return;
 				ISP_WRITE(isp, BIU_SEMA, 0);
 			}
@@ -2275,8 +2713,13 @@ command_known:
 		    isp->isp_name, opcode);
 		break;
 
+	/*
+	 * Be silent about these...
+	 */
+
 	case ASYNC_LOOP_UP:
 	case ASYNC_LIP_OCCURRED:
+	case ASYNC_PDB_CHANGED:
 		break;
 
 	default:
@@ -2394,6 +2837,7 @@ again:
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			if (mbs.param[0] == ASYNC_LIP_OCCURRED ||
+			    mbs.param[0] == ASYNC_PDB_CHANGED ||
 			    mbs.param[0] == ASYNC_LOOP_UP) {
 				if (once++ < 2) {
 					goto again;
@@ -2649,10 +3093,8 @@ isp_restart(isp)
 		if (XS_NULL(xs)) {
 			continue;
 		}
-		isp->isp_nactive--;
-		if (isp->isp_nactive < 0) {
-			isp->isp_nactive = 0;
-		}
+		if (isp->isp_nactive > 0)
+		    isp->isp_nactive--;
 		XS_RESID(xs) = XS_XFRLEN(xs);
 		XS_SETERR(xs, HBA_BUSRESET);
 		XS_CMD_DONE(xs);
@@ -2747,7 +3189,7 @@ isp_prtstst(sp)
 
 static char *
 isp2100_fw_statename(state)
-	u_int8_t state;
+	int state;
 {
 	switch(state) {
 	case FW_CONFIG_WAIT:	return "Config Wait";
@@ -2948,8 +3390,9 @@ isp_read_nvram(isp)
 		fcp->isp_wwn = wwnstore.full64;
 		wwnstore.full64 = ISP2100_NVRAM_BOOT_NODE_NAME(nvram_data);
 		if (wwnstore.full64 != 0) {
-			PRINTF("%s: BOOT DEVICE WWN 0x%08x%08x\n", isp->isp_name,
-			    wwnstore.wds.hi32, wwnstore.wds.lo32);
+			PRINTF("%s: BOOT DEVICE WWN 0x%08x%08x\n",
+			    isp->isp_name, wwnstore.wds.hi32,
+			    wwnstore.wds.lo32);
 		}
 		fcp->isp_maxalloc =
 			ISP2100_NVRAM_MAXIOCBALLOCATION(nvram_data);
