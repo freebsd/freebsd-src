@@ -264,7 +264,7 @@ static int
 devfs_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
-		int  a_command;
+		u_long  a_command;
 		caddr_t  a_data;
 		int  a_fflag;
 		struct ucred *a_cred;
