@@ -1,4 +1,4 @@
-; $Id: TODO,v 1.7 1995/02/22 20:28:07 rgrimes Exp $
+; $Id: TODO,v 1.8 1995/02/26 02:10:04 phk Exp $
 
 ** To skip this preamble, search forward for the pattern `**'.
 
@@ -150,3 +150,12 @@ CATS:	user
 GRADE:	INTERMEDIATE
 STATUS:	OPEN
 
+TASKID: 950316001
+TASK:	Make ps use infinite texwidth for redirected output
+DETAIL:	{ When you do a ps | grep foo, if foo is long and the screen width is
+shorter then grep never sees foo because ps truncates its output. It makes
+more sense for ps to do no truncation at all if its output is redirected. }
+EMAIL:	<paul>
+CATS:	user
+GRADE:	INTERMEDIATE
+STATUS:	OPEN
