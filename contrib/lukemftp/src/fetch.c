@@ -1,7 +1,7 @@
-/*	$NetBSD: fetch.c,v 1.125 2000/09/28 12:29:23 lukem Exp $	*/
+/*	$NetBSD: fetch.c,v 1.136 2002/06/05 10:20:48 lukem Exp $	*/
 
 /*-
- * Copyright (c) 1997-2000 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -58,7 +58,7 @@ typedef enum {
 
 void		aborthttp(int);
 static int	auth_url(const char *, char **, const char *, const char *);
-static void	base64_encode(const char *, size_t, char *);
+static void	base64_encode(const u_char *, size_t, u_char *);
 static int	go_fetch(const char *);
 static int	fetch_ftp(const char *);
 static int	fetch_url(const char *, const char *, char *, char *);
@@ -171,11 +171,11 @@ auth_url(const char *challenge, char **response, const char *guser,
  * which should be at least ((len + 2) * 4 / 3 + 1) in size.
  */
 static void
-base64_encode(const char *clear, size_t len, char *encoded)
+base64_encode(const u_char *clear, size_t len, u_char *encoded)
 {
-	static const char enc[] =
+	static const u_char enc[] =
 	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-	char	*cp;
+	u_char	*cp;
 	int	 i;
 
 	cp = encoded;
@@ -373,7 +373,7 @@ parse_url(const char *url, const char *desc, url_t *type,
 	if (tport != NULL)
 		*port = xstrdup(tport);
 	if (*path == NULL)
-		*path = xstrdup("");
+		*path = xstrdup("/");
 
 	if (debug)
 		fprintf(ttyout,
@@ -393,7 +393,7 @@ sigjmp_buf	httpabort;
  * If proxyenv is set, use that for the proxy, otherwise try ftp_proxy or
  * http_proxy as appropriate.
  * Supports HTTP redirects.
- * Returns -1 on failure, 0 on completed xfer, 1 if ftp connection
+ * Returns 1 on failure, 0 on completed xfer, -1 if ftp connection
  * is still open (e.g, ftp xfer with trailing /)
  */
 static int
@@ -574,6 +574,10 @@ fetch_url(const char *url, const char *proxyenv, char *proxyauth, char *wwwauth)
 					}
 				}
 				FREEPTR(np_copy);
+				if (isproxy == 0 && urltype == FTP_URL_T) {
+					rval = fetch_ftp(url);
+					goto cleanup_fetch_url;
+				}
 			}
 
 			if (isproxy) {
@@ -700,10 +704,13 @@ fetch_url(const char *url, const char *proxyenv, char *proxyauth, char *wwwauth)
 				    (p = strchr(h, '%')) != NULL) {
 					*p = '\0';
 				}
-				fprintf(fin, "Host: [%s]:%d\r\n", h, portnum);
+				fprintf(fin, "Host: [%s]", h);
 				free(h);
 			} else
-				fprintf(fin, "Host: %s:%d\r\n", host, portnum);
+				fprintf(fin, "Host: %s", host);
+			if (portnum != HTTP_PORT)
+				fprintf(fin, ":%u", portnum);
+			fprintf(fin, "\r\n");
 			fprintf(fin, "Accept: */*\r\n");
 			fprintf(fin, "Connection: close\r\n");
 			if (restart_point) {
@@ -801,26 +808,42 @@ fetch_url(const char *url, const char *proxyenv, char *proxyauth, char *wwwauth)
 			} else if (strncasecmp(cp, CONTENTRANGE,
 					sizeof(CONTENTRANGE) - 1) == 0) {
 				cp += sizeof(CONTENTRANGE) - 1;
-				rangestart = STRTOLL(cp, &ep, 10);
-				if (rangestart < 0 || *ep != '-')
+				if (*cp == '*') {
+					ep = cp + 1;
+				}
+				else {
+					rangestart = STRTOLL(cp, &ep, 10);
+					if (rangestart < 0 || *ep != '-')
+						goto improper;
+					cp = ep + 1;
+					rangeend = STRTOLL(cp, &ep, 10);
+					if (rangeend < 0 || rangeend < rangestart)
+						goto improper;
+				}
+				if (*ep != '/')
 					goto improper;
 				cp = ep + 1;
-				rangeend = STRTOLL(cp, &ep, 10);
-				if (rangeend < 0 || *ep != '/' ||
-				    rangeend < rangestart)
-					goto improper;
-				cp = ep + 1;
-				entitylen = STRTOLL(cp, &ep, 10);
-				if (entitylen < 0 || *ep != '\0')
+				if (*cp == '*') {
+					ep = cp + 1;
+				}
+				else {
+					entitylen = STRTOLL(cp, &ep, 10);
+					if (entitylen < 0)
+						goto improper;
+				}
+				if (*ep != '\0')
 					goto improper;
 
-				if (debug)
-					fprintf(ttyout,
-					    "parsed range as: "
-					    LLF "-" LLF "/" LLF "\n",
-					    (LLT)rangestart,
-					    (LLT)rangeend,
-					    (LLT)entitylen);
+				if (debug) {
+					fprintf(ttyout, "parsed range as: ");
+					if (rangestart == -1)
+						fprintf(ttyout, "*");
+					else
+						fprintf(ttyout, LLF "-" LLF,
+						    (LLT)rangestart,
+						    (LLT)rangeend);
+					fprintf(ttyout, "/" LLF "\n", (LLT)entitylen);
+				}
 				if (! restart_point) {
 					warnx(
 				    "Received unexpected Content-Range header");
@@ -1014,10 +1037,18 @@ fetch_url(const char *url, const char *proxyenv, char *proxyauth, char *wwwauth)
 		}
 		closefunc = pclose;
 	} else {
-		if (restart_point){
+		if ((rangeend != -1 && rangeend <= restart_point) ||
+		    (rangestart == -1 && filesize != -1 && filesize <= restart_point)) {
+			/* already done */
+			if (verbose)
+				fprintf(ttyout, "already done\n");
+			rval = 0;
+			goto cleanup_fetch_url;
+		}
+		if (restart_point && rangestart != -1) {
 			if (entitylen != -1)
 				filesize = entitylen;
-			if (rangestart != -1 && rangestart != restart_point) {
+			if (rangestart != restart_point) {
 				warnx(
 				    "Size of `%s' differs from save file `%s'",
 				    url, savefile);
@@ -1149,7 +1180,6 @@ fetch_url(const char *url, const char *proxyenv, char *proxyauth, char *wwwauth)
 		goto cleanup_fetch_url;
 	}
 	progressmeter(1);
-	bytes = 0;
 	(void)fflush(fout);
 	if (closefunc == fclose && mtime != -1) {
 		struct timeval tval[2];
@@ -1168,6 +1198,7 @@ fetch_url(const char *url, const char *proxyenv, char *proxyauth, char *wwwauth)
 	}
 	if (bytes > 0)
 		ptransfer(0);
+	bytes = 0;
 
 	rval = 0;
 	goto cleanup_fetch_url;
@@ -1351,7 +1382,7 @@ fetch_ftp(const char *url)
 			/* Set up the connection */
 	if (connected)
 		disconnect(0, NULL);
-	xargv[0] = __progname;
+	xargv[0] = (char *)getprogname();	/* XXX discards const */
 	xargv[1] = host;
 	xargv[2] = NULL;
 	xargc = 2;

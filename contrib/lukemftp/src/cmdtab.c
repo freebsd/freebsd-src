@@ -1,4 +1,4 @@
-/*	$NetBSD: cmdtab.c,v 1.38 2000/09/14 13:48:33 lukem Exp $	*/
+/*	$NetBSD: cmdtab.c,v 1.39 2000/11/15 00:10:59 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1996-2000 The NetBSD Foundation, Inc.
@@ -108,6 +108,7 @@ char	lshelp[] =	"list contents of remote path";
 char	macdefhelp[] =  "define a macro";
 char	mdeletehelp[] =	"delete multiple files";
 char	mgethelp[] =	"get multiple files";
+char	mregethelp[] =	"get multiple files restarting at end of local file";
 char	fgethelp[] =	"get files using a localfile as a source of names";
 char	mkdirhelp[] =	"make directory on the remote machine";
 char	mlshelp[] =	"list contents of multiple remote directories";
@@ -224,6 +225,7 @@ struct cmd cmdtab[] = {
 	{ "modtime",	modtimehelp,	0, 1, 1, CMPL(r)	modtime },
 	{ "more",	pagehelp,	1, 1, 1, CMPL(r)	page },
 	{ "mput",	mputhelp,	1, 1, 1, CMPL(L)	mput },
+	{ "mreget",	mregethelp,	1, 1, 1, CMPL(R)	mget },
 	{ "msend",	mputhelp,	1, 1, 1, CMPL(L)	mput },
 	{ "newer",	newerhelp,	1, 1, 1, CMPL(r)	newer },
 	{ "nlist",	lshelp,		1, 1, 1, CMPL(rl)	ls },

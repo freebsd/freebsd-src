@@ -1,7 +1,7 @@
-/*	$NetBSD: ftp_var.h,v 1.58 2000/08/01 22:47:28 lukem Exp $	*/
+/*	$NetBSD: ftp_var.h,v 1.62 2001/12/26 09:40:16 lukem Exp $	*/
 
 /*-
- * Copyright (c) 1996-2000 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -308,7 +308,9 @@ GLOBAL	int	macnum;		/* number of defined macros */
 GLOBAL	struct macel macros[16];
 GLOBAL	char	macbuf[4096];
 
-GLOBAL	char	 home[MAXPATHLEN];	/* home directory (for lcd) */
+GLOBAL	char	*localhome;		/* local home directory */
+GLOBAL	char	*localname;		/* local user name */
+GLOBAL	char	 netrc[MAXPATHLEN];	/* path to .netrc file */
 GLOBAL	char	 reply_string[BUFSIZ];	/* first line of previous reply */
 GLOBAL	void	(*reply_callback)(const char *);
 					/*
@@ -324,8 +326,6 @@ GLOBAL	int	 data;
 
 extern	struct cmd	cmdtab[];
 extern	struct option	optiontab[];
-
-extern	char	*__progname;		/* from crt0.o */
 
 
 #define	EMPTYSTRING(x)	((x) == NULL || (*(x) == '\0'))
@@ -344,6 +344,15 @@ extern	char	*__progname;		/* from crt0.o */
 # define ULLT		unsigned long
 # define STRTOLL(x,y,z)	strtol(x,y,z)
 #else
+#if HAVE_PRINTF_QD
+# define LLF		"%qd"
+# define LLFP(x)	"%" x "qd"
+# define LLT		long long
+# define ULLF		"%qu"
+# define ULLFP(x)	"%" x "qu"
+# define ULLT		unsigned long long
+# define STRTOLL(x,y,z)	strtoll(x,y,z)
+#else
 # define LLF		"%lld"
 # define LLFP(x)	"%" x "lld"
 # define LLT		long long
@@ -351,4 +360,5 @@ extern	char	*__progname;		/* from crt0.o */
 # define ULLFP(x)	"%" x "llu"
 # define ULLT		unsigned long long
 # define STRTOLL(x,y,z)	strtoll(x,y,z)
+#endif
 #endif
