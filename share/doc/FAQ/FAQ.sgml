@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: FAQ.sgml,v 1.3 1996/10/01 16:47:11 jfieber Exp $
+<date> $Id: FAQ.sgml,v 1.4 1996/10/06 12:10:39 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -172,10 +172,10 @@ Any entries with a &lt;XXX&gt; are under construction.
 </verb>
          <p>
            The -current branch is slowly progressing towards 2.2 and beyond, 
-           whereas the -stable branch will effectively end with 2.1.5.
+           whereas the -stable branch will effectively end with 2.1.6.
 
       <sect1> 
-        <heading>Why is the -stable branch ending with 2.1.5? </heading>
+        <heading>Why is the -stable branch ending with 2.1.6? </heading>
         <p>
           While we'd certainly like to be able to continue both branches of
           development, we've found that the version control tools available to 
@@ -187,7 +187,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           Perhaps in the future we'll figure out another model which gives 
           everyone what they want, and we are working on such a model, but in 
           the meantime it's probably best to think of -stable coming to an end 
-          with 2.1.5-RELEASE.
+          with 2.1.6-RELEASE.
 
       <sect1>
         <heading> When are FreeBSD releases made?</heading>
@@ -376,10 +376,10 @@ Any entries with a &lt;XXX&gt; are under construction.
         <heading>Books on FreeBSD</heading>
         <p> 
           Greg Lehey's book ``Installing and Running FreeBSD'' is available
-          from Walnut Creek and will be shipped with the 2.1.5 CDROM.  He
-          also has another book due out soon, entitled ``The Complete
-          FreeBSD'', which will include the 2.1.5 CDROM set and should be
-          available from good bookshops in October.
+          from Walnut Creek and ships with the 2.1.5 CDROM.  There is also
+          a larger book entitled ``The Complete FreeBSD'', which comes with
+          additional printed manpages amd includes the 2.1.5 CDROM set.  It
+          should be available in most good bookshops now.
  
           There is a FreeBSD Documentation Project which you may contact (or
           even better, join) on the <tt>doc</tt> mailing list:
