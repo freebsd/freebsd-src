@@ -10,6 +10,6 @@ PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Language Neutral Stylesheet//
        "release.dsl"
 
 PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
-       "../../en_US.ISO_8859-1/share/sgml/release.dsl"
+       "../../en_US.ISO8859-1/share/sgml/release.dsl"
 
 
