@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.6 (Berkeley) 3/30/95
- * $Id$
+ * $Id: ufsmount.h,v 1.7 1997/02/22 09:47:54 peter Exp $
  */
 
 #ifndef _UFS_UFS_UFSMOUNT_H_
@@ -45,7 +45,6 @@ struct ufs_args {
 	struct	export_args export;	/* network export information */
 };
 
-#ifdef MFS
 /*
  * Arguments to mount MFS
  */
@@ -55,7 +54,6 @@ struct mfs_args {
 	caddr_t	base;			/* base of file system in memory */
 	u_long	size;			/* size of file system */
 };
-#endif /* MFS */
 
 #ifdef KERNEL
 struct buf;
