@@ -1,5 +1,5 @@
-/* $Id: brooktree848.c,v 1.79 1999/05/22 04:34:59 bde Exp $ */
-/* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
+/* $Id: brooktree848.c,v 1.81 1999/05/25 12:43:40 roger Exp $ */
+/* BT848 Driver for Brooktree's Bt848, Bt848A, Bt849A, Bt878, Bt879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -396,6 +396,35 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 1.66    19 May 1999 Ivan Brawley <brawley@internode.com.au> added better
                     Australian channel frequencies.
                     
+1.67    23 May 1999 Roger Hardiman <roger@freebsd.org>
+                    Added rgb_vbi_prog() to capture VBI data and video at the
+                    same time. To capture VBI data, /dev/vbi must be opened
+                    before starting video capture.
+
+1.68    25 May 1999 Roger Hardiman <roger@freebsd.org>
+                    Due to differences in PCI bus implementations from various
+                    motherboard chipset manufactuers, the Bt878/Bt879 has 3
+                    PCI bus compatibility modes. These are
+                      NORMAL PCI 2.1  for proper PCI 2.1 compatible chipsets.
+                      INTEL 430 FX    for the Intel 430 FX chipset.
+                      SIS VIA CHIPSET for certain SiS and VIA chipsets.
+                    OPTI chipset motherboards also benefit from SIS/VIA mode
+                    as confirmed by Ben Laurie <ben@algroup.co.uk>
+                    Older Intel and non-Intel chipsets may also benefit from
+                    SIS/VIA mode.
+                    
+                    NORMAL PCI mode is enabled by default.
+                    For INTEL 430 FX mode, add this to your kenel config:
+                           options "BKTR_430_FX_MODE"
+                    For SIS VIA (and OPTI) mode, add this to your kernel config:
+                           options "BKTR_SIS_VIA_MODE"
+                    
+                    Using quotes in these options is not needed in FreeBSD 4.x.
+
+                    Note. Newer VIA chipsets should be fully PCI 2.1 compatible
+                    and should work fine in the Default mode.
+
+                    Also rename 849 to 849A, the correct name for the chip.
 */
 
 #define DDB(x) x
@@ -1297,6 +1326,8 @@ static void	yuv12_prog( bktr_ptr_t bktr, char i_flag, int cols,
 			     int rows, int interlace );
 static void	rgb_prog( bktr_ptr_t bktr, char i_flag, int cols,
 			  int rows, int interlace );
+static void	rgb_vbi_prog( bktr_ptr_t bktr, char i_flag, int cols,
+			  int rows, int interlace );
 static void	build_dma_prog( bktr_ptr_t bktr, char i_flag );
 
 static bool_t   getline(bktr_reg_t *, int);
@@ -1406,10 +1437,10 @@ bktr_probe( pcici_t tag, pcidi_t type )
 	 
 	switch (type) {
 	case BROOKTREE_848_PCI_ID:
-		if (rev == 0x12) return("BrookTree 848a");
+		if (rev == 0x12) return("BrookTree 848A");
 		else             return("BrookTree 848"); 
         case BROOKTREE_849_PCI_ID:
-                return("BrookTree 849");
+                return("BrookTree 849A");
         case BROOKTREE_878_PCI_ID:
                 return("BrookTree 878");
         case BROOKTREE_879_PCI_ID:
@@ -1450,8 +1481,23 @@ bktr_attach( ATTACH_ARGS )
 	bktr->tag = tag;
 	pci_map_mem( tag, PCI_MAP_REG_START, (vm_offset_t *) &bktr->base,
 		     &bktr->phys_base );
+
+	/* Update the Device Control Register on Bt878 and Bt879 cards */
 	fun = pci_conf_read(tag, 0x40);
-	pci_conf_write(tag, 0x40, fun | 1);
+        fun = fun | 1;	/* Enable writes to the sub-system vendor ID */
+
+#if defined( BKTR_430_FX_MODE )
+	if (bootverbose) printf("Using 430 FX chipset compatibilty mode\n");
+        fun = fun | 2;	/* Enable Intel 430 FX compatibility mode */
+#endif
+
+#if defined( BKTR_SIS_VIA_MODE )
+	if (bootverbose) printf("Using SiS/VIA chipset compatibilty mode\n");
+        fun = fun | 4;	/* Enable SiS/VIA compatibility mode (usefull for
+                           OPTi chipset motherboards too */
+#endif
+	pci_conf_write(tag, 0x40, fun);
+
 
 	/* XXX call bt848_i2c dependent attach() routine */
 #if (NSMBUS > 0)
@@ -1565,7 +1611,7 @@ bktr_attach( ATTACH_ARGS )
 		else             bktr->id = BROOKTREE_848;
 		break;
         case BROOKTREE_849_PCI_ID:
-		bktr->id = BROOKTREE_849;
+		bktr->id = BROOKTREE_849A;
 		break;
         case BROOKTREE_878_PCI_ID:
 		bktr->id = BROOKTREE_878;
@@ -3375,7 +3421,7 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 	switch (cmd) {
 
 	case METEORSINPUT:	/* set input device */
-		/* Bt848 has 3 MUX Inputs. Bt848a/849/878/879 has 4 MUX Inputs*/
+		/*Bt848 has 3 MUX Inputs. Bt848A/849A/878/879 has 4 MUX Inputs*/
 		/* On the original bt848 boards, */
 		/*   Tuner is MUX0, RCA is MUX1, S-Video is MUX2 */
 		/* On the Hauppauge bt878 boards, */
@@ -3441,7 +3487,7 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 
 		case METEOR_INPUT_DEV3:
 		  if ((bktr->id == BROOKTREE_848A) ||
-		      (bktr->id == BROOKTREE_849) ||
+		      (bktr->id == BROOKTREE_849A) ||
 		      (bktr->id == BROOKTREE_878) ||
 		      (bktr->id == BROOKTREE_879) ) {
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
@@ -3610,6 +3656,26 @@ dump_bt848( bt848_ptr_t bt848 )
 
 #define BKTR_RESYNC   (1 << 15)
 #define BKTR_GEN_IRQ  (1 << 24)
+
+/*
+ * The RISC status bits can be set/cleared in the RISC programs
+ * and tested in the Interrupt Handler
+ */
+#define BKTR_SET_RISC_STATUS_BIT0 (1 << 16)
+#define BKTR_SET_RISC_STATUS_BIT1 (1 << 17)
+#define BKTR_SET_RISC_STATUS_BIT2 (1 << 18)
+#define BKTR_SET_RISC_STATUS_BIT3 (1 << 19)
+
+#define BKTR_CLEAR_RISC_STATUS_BIT0 (1 << 20)
+#define BKTR_CLEAR_RISC_STATUS_BIT1 (1 << 21)
+#define BKTR_CLEAR_RISC_STATUS_BIT2 (1 << 22)
+#define BKTR_CLEAR_RISC_STATUS_BIT3 (1 << 23)
+
+#define BKTR_TEST_RISC_STATUS_BIT0 (1 << 28)
+#define BKTR_TEST_RISC_STATUS_BIT1 (1 << 29)
+#define BKTR_TEST_RISC_STATUS_BIT2 (1 << 30)
+#define BKTR_TEST_RISC_STATUS_BIT3 (1 << 31)
+
 bool_t notclipped (bktr_reg_t * bktr, int x, int width) {
     int i;
     bktr_clip_t * clip_node;
@@ -3761,6 +3827,214 @@ static bool_t split(bktr_reg_t * bktr, volatile u_long **dma_prog, int width ,
 
     }
  return TRUE;
+}
+
+
+/*
+ * Generate the RISC instructions to capture both VBI and video images
+ */
+static void
+rgb_vbi_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
+{
+	int			i;
+	bt848_ptr_t		bt848;
+	volatile u_long		target_buffer, buffer, target,width;
+	volatile u_long		pitch;
+	volatile  u_long	*dma_prog;
+        struct meteor_pixfmt_internal *pf_int = &pixfmt_table[ bktr->pixfmt ];
+	u_int                   Bpp = pf_int->public.Bpp;
+	unsigned int            vbisamples;     /* VBI samples per line */
+	unsigned int            vbilines;       /* VBI lines per field */
+	unsigned int            num_dwords;     /* DWORDS per line */
+
+	vbisamples = format_params[bktr->format_params].vbi_num_samples;
+	vbilines   = format_params[bktr->format_params].vbi_num_lines;
+	num_dwords = vbisamples/4;
+
+	bt848 = bktr->base;
+
+	bt848->color_fmt         = pf_int->color_fmt;
+	bt848->adc               = SYNC_LEVEL;
+	bt848->vbi_pack_size     = ((num_dwords))     & 0xff;
+	bt848->vbi_pack_del      = ((num_dwords)>> 8) & 0x01; /* no hdelay    */
+							      /* no ext frame */
+
+	bt848->oform = 0x00;
+
+ 	bt848->e_vscale_hi |= 0x40; /* set chroma comb */
+ 	bt848->o_vscale_hi |= 0x40;
+	bt848->e_vscale_hi &= ~0x80; /* clear Ycomb */
+	bt848->o_vscale_hi &= ~0x80;
+
+ 	/* disable gamma correction removal */
+ 	bt848->color_ctl_gamma = 1;
+
+
+	if (cols > 385 ) {
+	    bt848->e_vtc = 0;
+	    bt848->o_vtc = 0;
+	} else {
+	    bt848->e_vtc = 1;
+	    bt848->o_vtc = 1;
+	}
+	bktr->capcontrol = 3 << 2 |  3;
+
+	dma_prog = (u_long *) bktr->dma_prog;
+
+	/* Construct Write */
+
+	if (bktr->video.addr) {
+		target_buffer = (u_long) bktr->video.addr;
+		pitch = bktr->video.width;
+	}
+	else {
+		target_buffer = (u_long) vtophys(bktr->bigbuf);
+		pitch = cols*Bpp;
+	}
+
+	buffer = target_buffer;
+
+
+	/* store the VBI data */
+	/* look for sync with packed data */
+	*dma_prog++ = OP_SYNC | BKTR_RESYNC | BKTR_FM1;
+	*dma_prog++ = 0;
+	for(i = 0; i < vbilines; i++) {
+		*dma_prog++ = OP_WRITE | OP_SOL | OP_EOL | vbisamples;
+		*dma_prog++ = (u_long) vtophys(bktr->vbidata +
+					(i * VBI_LINE_SIZE));
+	}
+
+	/* store the video image */
+	/* look for sync with packed data */
+	*dma_prog++ = OP_SYNC  | BKTR_RESYNC | BKTR_FM1;
+	*dma_prog++ = 0;  /* NULL WORD */
+	width = cols;
+	for (i = 0; i < (rows/interlace); i++) {
+	    target = target_buffer;
+	    if ( notclipped(bktr, i, width)) {
+		split(bktr, (volatile u_long **) &dma_prog,
+		      bktr->y2 - bktr->y, OP_WRITE,
+		      Bpp, (volatile u_char **) &target,  cols);
+
+	    } else {
+		while(getline(bktr, i)) {
+		    if (bktr->y != bktr->y2 ) {
+			split(bktr, (volatile u_long **) &dma_prog,
+			      bktr->y2 - bktr->y, OP_WRITE,
+			      Bpp, (volatile u_char **) &target, cols);
+		    }
+		    if (bktr->yclip != bktr->yclip2 ) {
+			split(bktr,(volatile u_long **) &dma_prog,
+			      bktr->yclip2 - bktr->yclip,
+			      OP_SKIP,
+			      Bpp, (volatile u_char **) &target,  cols);
+		    }
+		}
+
+	    }
+
+	    target_buffer += interlace * pitch;
+
+	}
+
+	switch (i_flag) {
+	case 1:
+		/* EVEN field grabs. Look for end of 'Even Field' Marker
+		 * We cannot look for VRO, because we have not enabled ODD
+		 * field capture
+		 */
+		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRE;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+		return;
+
+	case 2:
+		/* ODD field grabs. Look for end of 'Odd Field' Marker
+		 * We cannot look for VRE, because we have not enabled EVEN
+		 * field capture
+		 */
+		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRO;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+		return;
+
+	case 3:
+		/* INTERLACED grabs (ODD then EVEN). We have read the old field
+		 * so look for the end of 'Odd Field' Marker.
+		 * Then jump to the 'odd_dma_prog' which actually captures
+		 * the EVEN field!
+		 */
+		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRO;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
+		break;
+	}
+
+	if (interlace == 2) {
+
+	        target_buffer = buffer + pitch; 
+
+		dma_prog = (u_long *) bktr->odd_dma_prog;
+
+		/* store the VBI data */
+		/* look for sync with packed data */
+		*dma_prog++ = OP_SYNC | BKTR_RESYNC | BKTR_FM1;
+		*dma_prog++ = 0;
+		for(i = 0; i < vbilines; i++) {
+			*dma_prog++ = OP_WRITE | OP_SOL | OP_EOL | vbisamples;
+			*dma_prog++ = (u_long) vtophys(bktr->vbidata +
+					((i+MAX_VBI_LINES) * VBI_LINE_SIZE));
+		}
+
+		/* store the video image */
+		/* look for sync with packed data */
+		*dma_prog++ = OP_SYNC | BKTR_RESYNC | BKTR_FM1;
+		*dma_prog++ = 0;  /* NULL WORD */
+		width = cols;
+		for (i = 0; i < (rows/interlace); i++) {
+		    target = target_buffer;
+		    if ( notclipped(bktr, i, width)) {
+			split(bktr, (volatile u_long **) &dma_prog,
+			      bktr->y2 - bktr->y, OP_WRITE,
+			      Bpp, (volatile u_char **) &target,  cols);
+		    } else {
+			while(getline(bktr, i)) {
+			    if (bktr->y != bktr->y2 ) {
+				split(bktr, (volatile u_long **) &dma_prog,
+				      bktr->y2 - bktr->y, OP_WRITE,
+				      Bpp, (volatile u_char **) &target,
+				      cols);
+			    }	
+			    if (bktr->yclip != bktr->yclip2 ) {
+				split(bktr, (volatile u_long **) &dma_prog,
+				      bktr->yclip2 - bktr->yclip, OP_SKIP,
+				      Bpp, (volatile u_char **)  &target,  cols);
+			    }	
+
+			}	
+
+		    }
+
+		    target_buffer += interlace * pitch;
+
+		}
+	}
+
+	/* Look for end of 'Even Field' */
+	*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRE;
+	*dma_prog++ = 0;  /* NULL WORD */
+
+	*dma_prog++ = OP_JUMP ;
+	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog) ;
+	*dma_prog++ = 0;  /* NULL WORD */
+
 }
 
 
@@ -4441,6 +4715,18 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 
 	bktr->vbiflags &= ~VBI_CAPTURE;	/* default - no vbi capture */
 
+	/* If /dev/vbi is already open, then use the rgb_vbi RISC program */
+	if ( (pf_int->public.type == METEOR_PIXTYPE_RGB)
+           &&(bktr->vbiflags & VBI_OPEN) ) {
+		if (i_flag==1) bktr->bktr_cap_ctl |= BT848_CAP_CTL_VBI_EVEN;
+		if (i_flag==2) bktr->bktr_cap_ctl |= BT848_CAP_CTL_VBI_ODD;
+		if (i_flag==3) bktr->bktr_cap_ctl |=
+		                BT848_CAP_CTL_VBI_EVEN | BT848_CAP_CTL_VBI_ODD;
+		bktr->vbiflags |= VBI_CAPTURE;
+		rgb_vbi_prog(bktr, i_flag, cols, rows, interlace);
+		return;
+	}
+
 	if ( pf_int->public.type == METEOR_PIXTYPE_RGB ) {
 		rgb_prog(bktr, i_flag, cols, rows, interlace);
 		return;
@@ -4709,7 +4995,7 @@ i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 
 	if (bktr->id == BROOKTREE_848  ||
 	    bktr->id == BROOKTREE_848A ||
-	    bktr->id == BROOKTREE_849)
+	    bktr->id == BROOKTREE_849A)
 		cmd = I2C_COMMAND;
 	else
 		cmd = I2C_COMMAND_878;
@@ -4736,7 +5022,7 @@ i2cRead( bktr_ptr_t bktr, int addr )
 
 	if (bktr->id == BROOKTREE_848  ||
 	    bktr->id == BROOKTREE_848A ||
-	    bktr->id == BROOKTREE_849)
+	    bktr->id == BROOKTREE_849A)
 		cmd = I2C_COMMAND;
 	else
 		cmd = I2C_COMMAND_878;
@@ -4863,7 +5149,7 @@ i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 	/* build the command datum */
 	if (bktr->id == BROOKTREE_848  ||
 	    bktr->id == BROOKTREE_848A ||
-	    bktr->id == BROOKTREE_849) {
+	    bktr->id == BROOKTREE_849A) {
 	  data = ((addr & 0xff) << 24) | ((byte1 & 0xff) << 16) | I2C_COMMAND;
 	} else {
 	  data = ((addr & 0xff) << 24) | ((byte1 & 0xff) << 16) | I2C_COMMAND_878;
@@ -4910,7 +5196,7 @@ i2cRead( bktr_ptr_t bktr, int addr )
 	   
 	if (bktr->id == BROOKTREE_848  ||
 	    bktr->id == BROOKTREE_848A ||
-	    bktr->id == BROOKTREE_849) {
+	    bktr->id == BROOKTREE_849A) {
 	  bt848->i2c_data_ctl = ((addr & 0xff) << 24) | I2C_COMMAND;
 	} else {
 	  bt848->i2c_data_ctl = ((addr & 0xff) << 24) | I2C_COMMAND_878;
@@ -5329,7 +5615,7 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
  * The current probe code works as follows
  * 1) Check if it is a BT878. If so, read the sub-system vendor id.
  *    Select the required tuner and other onboard features.
- * 2) If it is a BT848, 848A or 849, continue on:
+ * 2) If it is a BT848, 848A or 849A, continue on:
  *   3) Some cards have no I2C devices. Check if the i2c bus is empty
  *      and if so, our detection job is nearly over.
  *   4) Check I2C address 0xa0. If present this will be a Hauppauge card
@@ -5465,7 +5751,7 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	    }
 	} /* end of bt878/bt879 card detection code */
 
-	/* If we get to this point, we must have a Bt848/848a/849 card */
+	/* If we get to this point, we must have a Bt848/848A/849A card */
 	/* or a Bt878 with an unknown subsystem vendor id */
         /* Try and determine the make of card by clever i2c probing */
 
@@ -5479,10 +5765,10 @@ probeCard( bktr_ptr_t bktr, int verbose )
         /* Look for Hauppauge, STB and Osprey cards by the presence */
 	/* of an EEPROM */
         /* Note: Bt878 based cards also use EEPROMs so we can only do this */
-        /* test on BT848/848a and 849 based cards. */
+        /* test on BT848/848A and 849A based cards. */
 	if ((bktr->id==BROOKTREE_848)  ||
 	    (bktr->id==BROOKTREE_848A) ||
-	    (bktr->id==BROOKTREE_849)) {
+	    (bktr->id==BROOKTREE_849A)) {
 
             /* At i2c address 0xa0, look for Hauppauge and Osprey cards */
             if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
