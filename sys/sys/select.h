@@ -39,23 +39,27 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
+#include <sys/_sigset.h>
 #include <sys/timespec.h>
 
 /*
  * Other things required for this header which we do not presently implement:
  *
  * struct timeval (with suseconds_t)
- * sigset_t
- * fd_set (but we assume that it is defined)
+ * fd_set
  * FD_* macros
+ *
+ * Temporarily get all of these things from <sys/types.h>, which has too
+ * much pollution to be used here but will do for now.  (Eventually, the
+ * latter two will move to this file and be included *from* <sys/types.h>
+ * in the BSD namespace.)
  */
-#include <signal.h>	/* XXX allowed but unnecessary pollution */
 #include <sys/types.h>	/* XXX dependency reversed */
 
 #ifndef _KERNEL
 __BEGIN_DECLS
 int pselect(int, fd_set *__restrict, fd_set *__restrict, fd_set *__restrict,
-	const struct timespec *__restrict, const struct __sigset *__restrict);
+	const struct timespec *__restrict, const sigset_t *__restrict);
 __END_DECLS
 #endif /* !_KERNEL */
 
