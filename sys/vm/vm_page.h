@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.57 1999/03/14 20:40:15 julian Exp $
+ * $Id: vm_page.h,v 1.58 1999/03/15 05:09:48 julian Exp $
  */
 
 /*
@@ -415,6 +415,7 @@ int vm_page_queue_index __P((vm_offset_t, int));
 int vm_page_sleep(vm_page_t m, char *msg, char *busy);
 int vm_page_asleep(vm_page_t m, char *msg, char *busy);
 #endif
+void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 void vm_page_free_toq(vm_page_t m);
 
 /*

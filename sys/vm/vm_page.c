@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.127 1999/02/24 21:26:26 dillon Exp $
+ *	$Id: vm_page.c,v 1.128 1999/03/19 05:21:03 alc Exp $
  */
 
 /*
@@ -145,15 +145,6 @@ static long last_page;
 static vm_size_t page_mask;
 static int page_shift;
 int vm_page_zero_count = 0;
-
-/*
- * map of contiguous valid DEV_BSIZE chunks in a page
- * (this list is valid for page sizes upto 16*DEV_BSIZE)
- */
-static u_short vm_page_dev_bsize_chunks[] = {
-	0x0, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff,
-	0x1ff, 0x3ff, 0x7ff, 0xfff, 0x1fff, 0x3fff, 0x7fff, 0xffff
-};
 
 static __inline int vm_page_hash __P((vm_object_t object, vm_pindex_t pindex));
 static void vm_page_free_wakeup __P((void));
@@ -1442,30 +1433,41 @@ retrylookup:
 }
 
 /*
- * mapping function for valid bits or for dirty bits in
+ * Mapping function for valid bits or for dirty bits in
  * a page.  May not block.
+ *
+ * Inputs are required to range within a page.
  */
+
 __inline int
 vm_page_bits(int base, int size)
 {
-	u_short chunk;
+	int first_bit;
+	int last_bit;
 
-	if ((base == 0) && (size >= PAGE_SIZE))
-		return VM_PAGE_BITS_ALL;
+	KASSERT(
+	    base + size <= PAGE_SIZE,
+	    ("vm_page_bits: illegal base/size %d/%d", base, size)
+	);
 
-	size = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
-	base &= PAGE_MASK;
-	if (size > PAGE_SIZE - base) {
-		size = PAGE_SIZE - base;
-	}
+	if (size == 0)		/* handle degenerate case */
+		return(0);
 
-	base = base / DEV_BSIZE;
-	chunk = vm_page_dev_bsize_chunks[size / DEV_BSIZE];
-	return (chunk << base) & VM_PAGE_BITS_ALL;
+	first_bit = base >> DEV_BSHIFT;
+	last_bit = (base + size - 1) >> DEV_BSHIFT;
+
+	return ((2 << last_bit) - (1 << first_bit));
 }
 
 /*
  * set a page valid and clean.  May not block.
+ *
+ * In order to maintain consistancy due to the DEV_BSIZE granularity
+ * of the valid bits, we have to zero non-DEV_BSIZE aligned portions of 
+ * the page at the beginning and end of the valid range when the 
+ * associated valid bits are not already set.
+ *
+ * (base + size) must be less then or equal to PAGE_SIZE.
  */
 void
 vm_page_set_validclean(m, base, size)
@@ -1473,10 +1475,57 @@ vm_page_set_validclean(m, base, size)
 	int base;
 	int size;
 {
-	int pagebits = vm_page_bits(base, size);
+	int pagebits;
+	int frag;
+	int endoff;
+
+	if (size == 0)	/* handle degenerate case */
+		return;
+
+	/*
+	 * If the base is not DEV_BSIZE aligned and the valid
+	 * bit is clear, we have to zero out a portion of the
+	 * first block.
+	 */
+
+	if ((frag = base & ~(DEV_BSIZE - 1)) != base &&
+	    (m->valid & (1 << (base >> DEV_BSHIFT))) == 0
+	) {
+		pmap_zero_page_area(
+		    VM_PAGE_TO_PHYS(m),
+		    frag,
+		    base - frag
+		);
+	}
+
+	/*
+	 * If the ending offset is not DEV_BSIZE aligned and the 
+	 * valid bit is clear, we have to zero out a portion of
+	 * the last block.
+	 */
+
+	endoff = base + size;
+
+	if ((frag = endoff & ~(DEV_BSIZE - 1)) != endoff &&
+	    (m->valid & (1 << (endoff >> DEV_BSHIFT))) == 0
+	) {
+		pmap_zero_page_area(
+		    VM_PAGE_TO_PHYS(m),
+		    endoff,
+		    DEV_BSIZE - (endoff & (DEV_BSIZE - 1))
+		);
+	}
+
+	/*
+	 * Set valid, clear dirty bits.  If validating the entire
+	 * page we can safely clear the pmap modify bit.
+	 */
+
+	pagebits = vm_page_bits(base, size);
 	m->valid |= pagebits;
 	m->dirty &= ~pagebits;
-	if( base == 0 && size == PAGE_SIZE)
+
+	if (base == 0 && size == PAGE_SIZE)
 		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 }
 
@@ -1498,8 +1547,65 @@ vm_page_set_invalid(m, base, size)
 }
 
 /*
- * is (partial) page valid?  May not block.
+ * vm_page_zero_invalid()
+ *
+ *	The kernel assumes that the invalid portions of a page contain 
+ *	garbage, but such pages can be mapped into memory by user code.
+ *	When this occurs, we must zero out the non-valid portions of the
+ *	page so user code sees what it expects.
+ *
+ *	Pages are most often semi-valid when the end of a file is mapped 
+ *	into memory and the file's size is not page aligned.
  */
+
+void
+vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
+{
+	int b;
+	int i;
+
+	/*
+	 * Scan the valid bits looking for invalid sections that
+	 * must be zerod.  Invalid sub-DEV_BSIZE'd areas ( where the
+	 * valid bit may be set ) have already been zerod by
+	 * vm_page_set_validclean().
+	 */
+
+	for (b = i = 0; i <= PAGE_SIZE / DEV_BSIZE; ++i) {
+		if (i == (PAGE_SIZE / DEV_BSIZE) || 
+		    (m->valid & (1 << i))
+		) {
+			if (i > b) {
+				pmap_zero_page_area(
+				    VM_PAGE_TO_PHYS(m), 
+				    b << DEV_BSHIFT,
+				    (i - b) << DEV_BSHIFT
+				);
+			}
+			b = i + 1;
+		}
+	}
+
+	/*
+	 * setvalid is TRUE when we can safely set the zero'd areas
+	 * as being valid.  We can do this if there are no cache consistancy
+	 * issues.  e.g. it is ok to do with UFS, but not ok to do with NFS.
+	 */
+
+	if (setvalid)
+		m->valid = VM_PAGE_BITS_ALL;
+}
+
+/*
+ *	vm_page_is_valid:
+ *
+ *	Is (partial) page valid?  Note that the case where size == 0
+ *	will return FALSE in the degenerate case where the page is
+ *	entirely invalid, and TRUE otherwise.
+ *
+ *	May not block.
+ */
+
 int
 vm_page_is_valid(m, base, size)
 	vm_page_t m;
