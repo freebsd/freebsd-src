@@ -803,5 +803,11 @@ extern void	slice_wizard(Disk *d);
 #define DEVICE_GET(d, b, f)	((d) != NULL ? (d)->get((d), (b), (f)) : NULL)
 #define DEVICE_SHUTDOWN(d)	((d) != NULL ? (d)->shutdown((d)) : (void)0)
 
+#ifdef USE_GZIP
+#define UNZIPPER "gunzip"
+#else
+#define UNZIPPER "bunzip2"
+#endif
+
 #endif
 /* _SYSINSTALL_H_INCLUDE */
