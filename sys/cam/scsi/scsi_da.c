@@ -87,7 +87,8 @@ typedef enum {
 	DA_FLAG_NEED_OTAG	= 0x020,
 	DA_FLAG_WENT_IDLE	= 0x040,
 	DA_FLAG_RETRY_UA	= 0x080,
-	DA_FLAG_OPEN		= 0x100
+	DA_FLAG_OPEN		= 0x100,
+	DA_FLAG_SCTX_INIT	= 0x200
 } da_flags;
 
 typedef enum {
@@ -1053,7 +1054,8 @@ dacleanup(struct cam_periph *periph)
 	/*
 	 * If we can't free the sysctl tree, oh well...
 	 */
-	if (sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
+	if ((softc->flags & DA_FLAG_SCTX_INIT) != 0
+	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
 		xpt_print_path(periph->path);
 		printf("can't remove sysctl context\n");
 	}
@@ -1140,6 +1142,7 @@ dasysctlinit(void *context, int pending)
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
+	softc->flags |= DA_FLAG_SCTX_INIT;
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_da), OID_AUTO, tmpstr2,
 		CTLFLAG_RD, 0, tmpstr);
