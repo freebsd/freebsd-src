@@ -772,9 +772,23 @@ MLINKS+=sleep.9 msleep.9 \
 	sleep.9 tsleep.9 \
 	sleep.9 wakeup.9 \
 	sleep.9 wakeup_one.9
-MLINKS+=sleepqueue.9 endtsleep.9 \
-	sleepqueue.9 sleepinit.9 \
-	sleepqueue.9 unsleep.9
+MLINKS+=sleepqueue.9 init_sleepqueues.9 \
+	sleepqueue.9 sleepq_abort.9 \
+	sleepqueue.9 sleepq_add.9 \
+	sleepqueue.9 sleepq_alloc.9 \
+	sleepqueue.9 sleepq_broadcast.9 \
+	sleepqueue.9 sleepq_calc_signal_retval.9 \
+	sleepqueue.9 sleepq_catch_signals.9 \
+	sleepqueue.9 sleepq_free.9 \
+	sleepqueue.9 sleepq_lookup.9 \
+	sleepqueue.9 sleepq_release.9 \
+	sleepqueue.9 sleepq_remove.9 \
+	sleepqueue.9 sleepq_signal.9 \
+	sleepqueue.9 sleepq_set_timeout.9 \
+	sleepqueue.9 sleepq_timedwait.9 \
+	sleepqueue.9 sleepq_timedwait_sig.9 \
+	sleepqueue.9 sleepq_wait.9 \
+	sleepqueue.9 sleepq_wait_sig.9
 MLINKS+=spl.9 spl0.9 \
 	spl.9 splbio.9 \
 	spl.9 splclock.9 \
