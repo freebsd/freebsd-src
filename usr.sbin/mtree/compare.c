@@ -54,6 +54,7 @@ static const char rcsid[] =
 #ifdef RMD160
 #include <ripemd.h>
 #endif
+#include <stdint.h>
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
@@ -175,8 +176,8 @@ typeerr:		LABEL;
 	if (s->flags & F_SIZE && s->st_size != p->fts_statp->st_size &&
 		!S_ISDIR(p->fts_statp->st_mode)) {
 		LABEL;
-		(void)printf("%ssize expected %qd found %qd\n",
-		    tab, s->st_size, p->fts_statp->st_size);
+		(void)printf("%ssize expected %jd found %jd\n", tab,
+		    (intmax_t)s->st_size, (intmax_t)p->fts_statp->st_size);
 		tab = "\t";
 	}
 	/*
