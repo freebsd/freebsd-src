@@ -94,11 +94,16 @@ struct kse_mailbox {
 #define	KMF_BOUND		0x08
 #define	KMF_WAITSIGEVENT	0x10
 
+#define	KSE_INTR_INTERRUPT	0x01
+#define	KSE_INTR_RESTART	0x02
+#define	KSE_INTR_SENDSIG	0x03
+#define	KSE_INTR_SIGEXIT	0x04
+
 #ifndef _KERNEL
 int	kse_create(struct kse_mailbox *, int);
 int	kse_exit(void);
 int	kse_release(struct timespec *);
-int	kse_thr_interrupt(struct kse_thr_mailbox *, int);
+int	kse_thr_interrupt(struct kse_thr_mailbox *, int, long);
 int	kse_wakeup(struct kse_mailbox *);
 #endif	/* !_KERNEL */
 
