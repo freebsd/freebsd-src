@@ -1204,7 +1204,7 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 
 	case FIOGETOWN:
 		PIPE_UNLOCK(mpipe);
-		*(int *)data = fgetown(mpipe->pipe_sigio);
+		*(int *)data = fgetown(&mpipe->pipe_sigio);
 		return (0);
 
 	/* This is deprecated, FIOSETOWN should be used instead. */
@@ -1215,7 +1215,7 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 	/* This is deprecated, FIOGETOWN should be used instead. */
 	case TIOCGPGRP:
 		PIPE_UNLOCK(mpipe);
-		*(int *)data = -fgetown(mpipe->pipe_sigio);
+		*(int *)data = -fgetown(&mpipe->pipe_sigio);
 		return (0);
 
 	}

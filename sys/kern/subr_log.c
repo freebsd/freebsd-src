@@ -239,7 +239,7 @@ logioctl(dev_t dev, u_long com, caddr_t data, int flag, struct thread *td)
 		return (fsetown(*(int *)data, &logsoftc.sc_sigio));
 
 	case FIOGETOWN:
-		*(int *)data = fgetown(logsoftc.sc_sigio);
+		*(int *)data = fgetown(&logsoftc.sc_sigio);
 		break;
 
 	/* This is deprecated, FIOSETOWN should be used instead. */
@@ -248,7 +248,7 @@ logioctl(dev_t dev, u_long com, caddr_t data, int flag, struct thread *td)
 
 	/* This is deprecated, FIOGETOWN should be used instead */
 	case TIOCGPGRP:
-		*(int *)data = -fgetown(logsoftc.sc_sigio);
+		*(int *)data = -fgetown(&logsoftc.sc_sigio);
 		break;
 
 	default:

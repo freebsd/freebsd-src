@@ -827,7 +827,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 	case FIOGETOWN:
 		if (tp->t_session != NULL && !isctty(p, tp))
 			return (ENOTTY);
-		*(int *)data = fgetown(tp->t_sigio);
+		*(int *)data = fgetown(&tp->t_sigio);
 		break;
 
 	case TIOCEXCL:			/* set exclusive use of tty */

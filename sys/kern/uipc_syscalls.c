@@ -247,6 +247,7 @@ accept1(td, uap, compat)
 	struct socket *head, *so;
 	int fd;
 	u_int fflag;
+	pid_t pgid;
 
 	mtx_lock(&Giant);
 	fdp = td->td_proc->p_fd;
@@ -324,8 +325,9 @@ accept1(td, uap, compat)
 
 	so->so_state &= ~SS_COMP;
 	so->so_head = NULL;
-	if (head->so_sigio != NULL)
-		fsetown(fgetown(head->so_sigio), &so->so_sigio);
+	pgid = fgetown(&head->so_sigio);
+	if (pgid != 0)
+		fsetown(pgid, &so->so_sigio);
 
 	FILE_LOCK(nfp);
 	soref(so);			/* file descriptor reference */
