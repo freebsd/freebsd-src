@@ -140,11 +140,11 @@ getargs(ac, av)
 			break;
 		case 's':
 			if ((*av)[2])
-				strcpy(sepstring, *av + 2);
+				sepstring = *av + 2;
 			else if (!--ac)
 				error("Need string after -s", "");
 			else
-				strcpy(sepstring, *++av);
+				sepstring = *++av;
 			break;
 		case 'p':
 			if ((*av)[2])
