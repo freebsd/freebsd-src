@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.45 1994/10/04 14:46:34 jkh Exp $
+# $Id: bsd.port.mk,v 1.46 1994/10/04 15:44:03 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -146,6 +146,7 @@ PKGFILE?=		${DISTNAME}${PKG_SUFX}
 
 .if defined(GNU_CONFIGURE)
 CONFIGURE_ARGS?=	--prefix=${PREFIX}
+HAS_CONFIGURE=		yes
 .endif
 
 .MAIN: all
