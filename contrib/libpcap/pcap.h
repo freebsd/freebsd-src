@@ -38,16 +38,10 @@
 #ifndef lib_pcap_h
 #define lib_pcap_h
 
-#ifdef WIN32
-#include <pcap-stdinc.h>
-#else /* WIN32 */
 #include <sys/types.h>
 #include <sys/time.h>
-#endif /* WIN32 */
 
-#ifndef PCAP_DONT_INCLUDE_PCAP_BPF_H
-#include <pcap-bpf.h>
-#endif
+#include <net/bpf.h>
 
 #include <stdio.h>
 
