@@ -57,6 +57,8 @@ and
 to see if some of their descriptors
 are ready for reading, are ready for writing, or have an exceptional
 condition pending, respectively.
+The only exceptional condition detectable is out-of-band
+data received on a socket.
 The first
 .Fa nfds
 descriptors are checked in each set;
