@@ -20,8 +20,9 @@ ldconfig_start()
 {
 	case ${OSTYPE} in
 	FreeBSD)
+		_ins=
 		ldconfig=${ldconfig_command}
-		checkyesno ldconfig_insecure && ldconfig="${ldconfig} -i"
+		checkyesno ldconfig_insecure && _ins="-i"
 		if [ -x "${ldconfig_command}" ]; then
 			_LDC=/usr/lib
 			for i in ${ldconfig_paths}; do
@@ -30,7 +31,7 @@ ldconfig_start()
 				fi
 			done
 			echo 'ELF ldconfig path:' ${_LDC}
-			${ldconfig} -elf ${_LDC}
+			${ldconfig} -elf ${_ins} ${_LDC}
 
 			# Legacy aout support for i386 only
 			case `sysctl -n hw.machine_arch` in
@@ -44,7 +45,7 @@ ldconfig_start()
 					fi
 				done
 				echo 'a.out ldconfig path:' ${_LDC}
-				${ldconfig} -aout ${_LDC}
+				${ldconfig} -aout ${_ins} ${_LDC}
 				;;
 			esac
 		fi
