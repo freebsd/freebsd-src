@@ -694,11 +694,17 @@ aclmode(char *buf, const FTSENT *p, int *haveacls)
 	*haveacls = 1;
 	if ((facl = acl_get_file(name, ACL_TYPE_ACCESS)) != NULL) {
 		if (acl_get_entry(facl, ACL_FIRST_ENTRY, &ae) == 1) {
-			entries = 0;
-			do
-				entries++;
-			while (acl_get_entry(facl, ACL_NEXT_ENTRY, &ae) == 1);
-			if (entries != 3)
+			entries = 1;
+			while (acl_get_entry(facl, ACL_NEXT_ENTRY, &ae) == 1)
+				if (++entries > 3)
+					break;
+			/*
+			 * POSIX.1e requires that ACLs of type ACL_TYPE_ACCESS
+			 * must have at least three entries (owner, group,
+			 * and other). So anything with more than 3 ACLs looks
+			 * interesting to us.
+			 */
+			if (entries > 3)
 				buf[10] = '+';
 		}
 		acl_free(facl);
