@@ -5,6 +5,15 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000728:
+	The "installkernel" target has changed slightly. Now even if
+	you override KERNEL e.g. 'make installkernel KERNEL=MYKERNEL'
+	it will install the MYKERNEL file (built with the buildkernel
+	target) as /kernel rather than /MYKERNEL. Those who have
+	updated their /boot/loader.conf files to point to /MYKERNEL
+	should remove that entry or perform manual rename of /kernel
+	to /MYKERNEL.
+
 20000711:
 	If you use CVSUP or CTM to get CVS trees, AND you used to get 
 	the old crypto files from internat.freebsd.org AND you check
@@ -30,6 +39,8 @@ ITEMS:'
 	not have the /dev/random driver, OpenSSL (and consequently
 	lots of crypto tools (like SSH)) will fail with strange
 	errors. (see below, 20000624).
+
+	FreESBD-current is safe again to run Crypto.
 
 20000709:
 	phk made the malloc default options AJ.  This may slow things
@@ -215,7 +226,7 @@ COMMON ITEMS:
 	---------------------
 	make world
 
-	To upgrade from 4.0-stable to current
+	To upgrade from 4.x-stable to current
 	-------------------------------------
 	make buildworld
 	make buildkernel KERNEL=YOUR_KERNEL_HERE
@@ -227,6 +238,12 @@ COMMON ITEMS:
 	the tweaks to various things you need.  At this point in the
 	life cycloe of current, things change often and you are on
 	your own to cope.
+
+	Also, if you are tracking -current, you must be subscribed to
+	freebsd-current@freebsd.org.  Make sure that before you update
+	your sources that you have read and understood all the recent
+	messages there.  If in doubt, please track -stable which has
+	much fewer pitfalls.
 
 FORMAT:
 
