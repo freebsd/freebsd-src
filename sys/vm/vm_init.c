@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_init.c,v 1.6 1995/03/16 18:17:11 bde Exp $
+ * $Id: vm_init.c,v 1.7 1995/07/13 08:48:24 davidg Exp $
  */
 
 /*
@@ -69,6 +69,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>
@@ -77,14 +78,23 @@
 #include <vm/vm_pager.h>
 
 /*
+ * System initialization
+ */
+
+static void vm_mem_init __P((caddr_t));
+SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL)
+
+/*
  *	vm_init initializes the virtual memory system.
  *	This is done only by the first cpu up.
  *
  *	The start and end address of physical memory is passed in.
  */
 
-void
-vm_mem_init()
+/* ARGSUSED*/
+static void
+vm_mem_init( udata)
+caddr_t		udata;		/* not used*/
 {
 	/*
 	 * Initializes resident memory structures. From here on, all physical

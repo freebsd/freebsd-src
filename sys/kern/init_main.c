@@ -1,4 +1,7 @@
 /*
+ * Copyright (c) 1995 Terrence R. Lambert
+ * All rights reserved.
+ *
  * Copyright (c) 1982, 1986, 1989, 1991, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -72,13 +75,6 @@
 #include <vm/vm.h>
 #include <vm/vm_pageout.h>
 
-#ifdef HPFPLIB
-char	copyright[] =
-"Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.\nCopyright (c) 1992 Hewlett-Packard Company\nCopyright (c) 1992 Motorola Inc.\nAll rights reserved.\n\n";
-#else
-char	copyright[] =
-"Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.  All rights reserved.\n\n";
-#endif
 
 /* Components of the first process -- never freed. */
 struct	session session0;
@@ -89,7 +85,7 @@ struct	filedesc0 filedesc0;
 struct	plimit limit0;
 struct	vmspace vmspace0;
 struct	proc *curproc = &proc0;
-struct	proc *initproc, *pageproc, *updateproc, *vmproc;
+struct	proc *initproc;
 
 int	cmask = CMASK;
 extern	struct user *proc0paddr;
@@ -99,51 +95,212 @@ int	boothowto;
 struct	timeval boottime;
 struct	timeval runtime;
 
-static void start_init __P((struct proc *p, void *framep));
+/*
+ * Promiscuous argument pass for start_init()
+ *
+ * This is a kludge because we use a return from main() rather than a call
+ * to a new reoutine in locore.s to kick the kernel alive from locore.s.
+ */
+static void	*init_framep;
+
 
 #if __GNUC__ >= 2
 void __main() {}
 #endif
 
+
 /*
- * This table is filled in by the linker with functions that need to be
- * called to initialize various pseudo-devices and whatnot.
+ * This ensures that there is at least one entry so that the sysinit_set
+ * symbol is not undefined.  A sybsystem ID of SI_SUB_DUMMY is never
+ * executed.
  */
+SYSINIT(placeholder, SI_SUB_DUMMY,SI_ORDER_ANY, NULL, NULL)
 
-static void dummyinit() {}
-TEXT_SET(pseudo_set, dummyinit);
-
-typedef void (*pseudo_func_t)(void);
-extern const struct linker_set pseudo_set;
-static const pseudo_func_t *pseudos =
-	(const pseudo_func_t *)&pseudo_set.ls_items[0];
 
 /*
  * System startup; initialize the world, create process 0, mount root
  * filesystem, and fork to create init and pagedaemon.  Most of the
  * hard work is done in the lower-level initialization routines including
  * startup(), which does memory initialization and autoconfiguration.
+ *
+ * This allows simple addition of new kernel subsystems that require
+ * boot time initialization.  It also allows substitution of subsystem
+ * (for instance, a scheduler, kernel profiler, or VM system) by object
+ * module.  Finally, it allows for optional "kernel threads", like an LFS
+ * cleaner.
  */
 void
 main(framep)
 	void *framep;
 {
-	register struct proc *p;
-	register struct filedesc0 *fdp;
+
+	register struct sysinit **sipp;		/* system initialization*/
+	register struct sysinit **xipp;		/* interior loop of sort*/
+	register struct sysinit *save;		/* bubble*/
+	int			rval[2];	/* SI_TYPE_KTHREAD support*/
+
+	extern struct linker_set	sysinit_set;
+
+	/*
+	 * Save the locore.s frame pointer for start_init().
+	 */
+	init_framep = framep;
+
+	/*
+	 * Perform a bubble sort of the system initialization objects by
+	 * their subsystem (primary key) and order (secondary key).
+	 *
+	 * Since some things care about execution order, this is the
+	 * operation which ensures continued function.
+	 */
+	for( sipp = (struct sysinit **)sysinit_set.ls_items; *sipp; sipp++) {
+		for( xipp = sipp + 1; *xipp; xipp++) {
+			if( (*sipp)->subsystem < (*xipp)->subsystem ||
+			    ( (*sipp)->subsystem == (*xipp)->subsystem &&
+			      (*sipp)->order < (*xipp)->order))
+				continue;	/* skip*/
+			save = *sipp;
+			*sipp = *xipp;
+			*xipp = save;
+		}
+	}
+
+	/*
+	 * Traverse the (now) ordered list of system initialization tasks.
+	 * Perform each task, and continue on to the next task.
+	 *
+	 * The last item on the list is expected to be the scheduler,
+	 * which will not return.
+	 */
+	for( sipp = (struct sysinit **)sysinit_set.ls_items; *sipp; sipp++) {
+		if( (*sipp)->subsystem == SI_SUB_DUMMY)
+			continue;	/* skip dummy task(s)*/
+
+		switch( (*sipp)->type) {
+		case SI_TYPE_DEFAULT:
+			/* no special processing*/
+			(*((*sipp)->func))( (*sipp)->udata);
+			break;
+
+		case SI_TYPE_KTHREAD:
+			/* kernel thread*/
+			if (fork(&proc0, NULL, rval))
+				panic("fork kernel process");
+			if (rval[1]) {
+				(*((*sipp)->func))( (*sipp)->udata);
+				/*
+				 * The call to start "init" returns
+				 * here after the scheduler has been
+				 * started, and returns to the caller
+				 * in i386/i386/locore.s.  This is a
+				 * necessary part of initialization
+				 * and is rather non-obvious.
+				 *
+				 * No other "kernel threads" should
+				 * return here.  Call panic() instead.
+				 */
+				return;
+			}
+			break;
+
+		default:
+			panic( "init_main: unrecognized init type");
+		}
+	}
+
+	/* NOTREACHED*/
+}
+
+
+/*
+ * Start a kernel process.  This is called after a fork() call in
+ * main() in the file kern/init_main.c.
+ *
+ * This function is used to start "internal" daemons.
+ */
+/* ARGSUSED*/
+void
+kproc_start( udata)
+caddr_t		udata;	/* not used*/
+{
+	struct kproc_desc	*kp = (struct kproc_desc *)udata;
+	struct proc		*p = curproc;
+
+	/* save a global descriptor, if desired*/
+	if( kp->global_procpp != NULL)
+		*kp->global_procpp	= p;
+
+	/* this is a non-swapped system process*/
+	p->p_flag |= P_INMEM | P_SYSTEM;
+
+	/* set up arg0 for 'ps', et al*/
+	strcpy( p->p_comm, kp->arg0);
+
+	/* call the processes' main()...*/
+	(*kp->func)();
+
+	/* NOTREACHED */
+	panic( "kproc_start: %s", kp->arg0);
+}
+
+
+/*
+ ***************************************************************************
+ ****
+ **** The following SYSINIT's belong elsewhere, but have not yet
+ **** been moved.
+ ****
+ ***************************************************************************
+ */
+#ifdef OMIT
+/*
+ * Handled by vfs_mountroot (bad idea) at this time... should be
+ * done the same as 4.4Lite2.
+ */
+SYSINIT(swapinit, SI_SUB_SWAP, SI_ORDER_FIRST, swapinit, NULL)
+#endif	/* OMIT*/
+
+/*
+ * Should get its own file...
+ */
+#ifdef HPFPLIB
+char	copyright[] =
+"Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.\nCopyright (c) 1992 Hewlett-Packard Company\nCopyright (c) 1992 Motorola Inc.\nAll rights reserved.\n\n";
+#else
+char	copyright[] =
+"Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.  All rights reserved.\n\n";
+#endif
+SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, printf, (caddr_t)copyright)
+
+
+/*
+ ***************************************************************************
+ ****
+ **** The two following SYSINT's are proc0 specific glue code.  I am not
+ **** convinced that they can not be safely combined, but their order of
+ **** operation has been maintained as the same as the original init_main.c
+ **** for right now.
+ ****
+ **** These probably belong in init_proc.c or kern_proc.c, since they
+ **** deal with proc0 (the fork template process).
+ ****
+ ***************************************************************************
+ */
+/* ARGSUSED*/
+void
+proc0_init( udata)
+caddr_t		udata;		/* not used*/
+{
+	register struct proc		*p;
+	register struct filedesc0	*fdp;
 	register int i;
-	int s, rval[2];
 
 	/*
 	 * Initialize the current process pointer (curproc) before
 	 * any possible traps/probes to simplify trap processing.
 	 */
 	p = &proc0;
-	curproc = p;
-	printf(copyright);
-
-	vm_mem_init();
-	kmeminit();
-	cpu_startup();
+	curproc = p;			/* XXX redundant*/
 
 	/*
 	 * Create process 0 (the swapper).
@@ -204,13 +361,16 @@ main(framep)
 	vmspace0.vm_map.pmap = &vmspace0.vm_pmap;
 	p->p_addr = proc0paddr;				/* XXX */
 
+#define INCOMPAT_LITES2
+#ifdef INCOMPAT_LITES2
 	/*
 	 * proc0 needs to have a coherent frame base, too.
 	 * This probably makes the identical call for the init proc
 	 * that happens later unnecessary since it should inherit
 	 * it during the fork.
 	 */
-	cpu_set_init_frame(p, framep);			/* XXX! */
+	cpu_set_init_frame(p, init_framep);			/* XXX! */
+#endif	/* INCOMPAT_LITES2*/
 
 	/*
 	 * We continue to place resource usage info and signal
@@ -225,67 +385,66 @@ main(framep)
 	 */
 	usrinfoinit();
 	(void)chgproccnt(0, 1);
+}
+SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
 
-	rqinit();
-
-	/* Configure virtual memory system, set vm rlimits. */
-	vm_init_limits(p);
-
-	/* Initialize the file systems. */
-	vfsinit();
-
-	/* Start real time and statistics clocks. */
-	initclocks();
-
-	/* Initialize mbuf's. */
-	mbinit();
-
-	/* Initialize clists. */
-	clist_init();
-
-#ifdef SYSVSHM
-	/* Initialize System V style shared memory. */
-	shminit();
-#endif
-
-#ifdef SYSVSEM
-	/* Initialize System V style semaphores. */
-	seminit();
-#endif
-
-#ifdef SYSVMSG
-	/* Initialize System V style message queues. */
-	msginit();
-#endif
-
+/* ARGSUSED*/
+void
+proc0_post( udata)
+caddr_t		udata;		/* not used*/
+{
 	/*
-	 * Attach pseudo-devices.
+	 * Now can look at time, having had a chance to verify the time
+	 * from the file system.  Reset p->p_rtime as it may have been
+	 * munched in mi_switch() after the time got set.
 	 */
-	while(*pseudos) {
-		(**pseudos++)();
-	}
+	proc0.p_stats->p_start = runtime = mono_time = boottime = time;
+	proc0.p_rtime.tv_sec = proc0.p_rtime.tv_usec = 0;
 
-	/*
-	 * Initialize protocols.  Block reception of incoming packets
-	 * until everything is ready.
-	 */
-	s = splimp();
-	ifinit();
-	domaininit();
-	splx(s);
+	/* Initialize signal state for process 0. */
+	siginit(&proc0);
+}
+SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
 
-#ifdef GPROF
-	/* Initialize kernel profiling. */
-	kmstartup();
-#endif
 
+
+
+/*
+ ***************************************************************************
+ ****
+ **** The following SYSINIT's and glue code should be moved to the
+ **** respective files on a per subsystem basis.
+ ****
+ ***************************************************************************
+ */
+/* ARGSUSED*/
+void
+sched_setup( udata)
+caddr_t		udata;		/* not used*/
+{
 	/* Kick off timeout driven events by calling first time. */
 	roundrobin(NULL);
 	schedcpu(NULL);
+}
+SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
+/* ARGSUSED*/
+void
+xxx_vfs_mountroot( udata)
+caddr_t		udata;		/* not used*/
+{
 	/* Mount the root file system. */
-	if ((*mountroot)())
+	if ((*mountroot)( (caddr_t)mountrootvfsops))
 		panic("cannot mount root");
+}
+SYSINIT(mountroot, SI_SUB_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot, NULL)
+
+/* ARGSUSED*/
+void
+xxx_vfs_root_fdtab( udata)
+caddr_t		udata;		/* not used*/
+{
+	register struct filedesc0	*fdp = &filedesc0;
 
 	/* Get the vnode for '/'.  Set fdp->fd_fd.fd_cdir to reference it. */
 	if (VFS_ROOT(mountlist.cqh_first, &rootvnode))
@@ -294,73 +453,45 @@ main(framep)
 	VREF(fdp->fd_fd.fd_cdir);
 	VOP_UNLOCK(rootvnode);
 	fdp->fd_fd.fd_rdir = NULL;
+}
+SYSINIT(retrofit, SI_SUB_ROOT_FDTAB, SI_ORDER_FIRST, xxx_vfs_root_fdtab, NULL)
 
-	/*
-	 * Now can look at time, having had a chance to verify the time
-	 * from the file system.  Reset p->p_rtime as it may have been
-	 * munched in mi_switch() after the time got set.
-	 */
-	p->p_stats->p_start = runtime = mono_time = boottime = time;
-	p->p_rtime.tv_sec = p->p_rtime.tv_usec = 0;
 
-	/* Initialize signal state for process 0. */
-	siginit(p);
+/*
+ ***************************************************************************
+ ****
+ **** The following code probably belongs in another file, like
+ **** kern/init_init.c.  It is here for two reasons only:
+ ****
+ ****	1)	This code returns to startup the system; this is
+ ****		abnormal for a kernel thread.
+ ****	2)	This code promiscuously uses init_frame
+ ****
+ ***************************************************************************
+ */
+
+static void kthread_init __P(( caddr_t udata));
+SYSINIT_KT(init,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kthread_init, NULL)
+
+
+static void start_init __P((struct proc *p, void *framep));
+
+/* ARGSUSED*/
+static void
+kthread_init( udata)
+caddr_t		udata;		/* not used*/
+{
 
 	/* Create process 1 (init(8)). */
-	if (fork(p, NULL, rval))
-		panic("fork init");
-	if (rval[1]) {
-		start_init(curproc, framep);
-		return;
-	}
-
-	/* Create process 2 (the pageout daemon). */
-	if (fork(p, NULL, rval))
-		panic("fork pager");
-	if (rval[1]) {
-		/*
-		 * Now in process 2.
-		 */
-		p = curproc;
-		pageproc = p;
-		p->p_flag |= P_INMEM | P_SYSTEM;	/* XXX */
-		bcopy("pagedaemon", curproc->p_comm, sizeof ("pagedaemon"));
-		vm_pageout();
-		/* NOTREACHED */
-	}
+	start_init(curproc, init_framep);
 
 	/*
-	 * Start high level vm daemon (process 3).
+	 * This is the only kernel thread allowed to return yo the
+	 * caller!!!
 	 */
-	if (fork(p, (void *) NULL, rval))
-		panic("failed fork vm daemon");
-	if (rval[1]) {
-		p = curproc;
-		vmproc = p;
-		p->p_flag |= P_INMEM | P_SYSTEM;
-		bcopy("vmdaemon", p->p_comm, sizeof("vmdaemon"));
-		vm_daemon();
-		/*NOTREACHED*/
-	}
-
-	/*
-	 * Start update daemon (process 4).
-	 */
-	if (fork(p, (void *) NULL, rval))
-		panic("failed fork update daemon");
-	if (rval[1]) {
-		p = curproc;
-		updateproc = p;
-		p->p_flag |= P_INMEM | P_SYSTEM;
-		bcopy("update", p->p_comm, sizeof("update"));
-		vfs_update();
-		/*NOTREACHED*/
-	}
-
-	/* The scheduler is an infinite loop. */
-	scheduler();
-	/* NOTREACHED */
+	return;	
 }
+
 
 /*
  * List of paths to try when searching for "init".
@@ -459,6 +590,9 @@ start_init(p, framep)
 		/*
 		 * Now try to exec the program.  If can't for any reason
 		 * other than it doesn't exist, complain.
+		 *
+		 * Otherwise return to main() which returns to btext
+		 * which completes the system startup.
 		 */
 		if ((error = execve(p, &args, &retval[0])) == 0)
 			return;

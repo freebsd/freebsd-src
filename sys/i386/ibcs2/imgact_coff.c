@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.4 1995/05/30 08:00:17 rgrimes Exp $
+ *	$Id: imgact_coff.c,v 1.5 1995/08/24 10:30:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -163,12 +163,8 @@ coff_load_file(struct proc *p, char *name)
   	unsigned long bss_size = 0;
   	int i;
 
-  	nd.ni_cnd.cn_nameiop = LOOKUP;
-	nd.ni_cnd.cn_flags = LOCKLEAF | FOLLOW | SAVENAME;
-	nd.ni_cnd.cn_proc = curproc;
-	nd.ni_cnd.cn_cred = curproc->p_cred->pc_ucred;
-  	nd.ni_segflg = UIO_SYSSPACE;
-  	nd.ni_dirp = name;
+	/* XXX use of 'curproc' should be 'p'?*/
+	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME, UIO_SYSSPACE, name, curproc);
 
   	error = namei(&nd);
   	if (error)

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_stats.c,v 1.3 1995/06/08 13:50:52 sos Exp $
+ *  $Id: linux_stats.c,v 1.1 1995/06/25 17:32:42 sos Exp $
  */
 
 #include <sys/param.h>
@@ -206,12 +206,7 @@ linux_statfs(struct proc *p, struct linux_statfs_args *args, int *retval)
 	printf("Linux-emul(%d): statfs(%s, *)\n", p->p_pid, args->path);
 #endif
 	ndp = &nd;
-  	ndp->ni_cnd.cn_nameiop = LOOKUP;
-	ndp->ni_cnd.cn_flags = FOLLOW;
-	ndp->ni_cnd.cn_proc = curproc;
-	ndp->ni_cnd.cn_cred = curproc->p_cred->pc_ucred;
-	ndp->ni_segflg = UIO_USERSPACE;
-	ndp->ni_dirp = args->path;
+	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args->path, curproc);
 	if (error = namei(ndp))
 		return error;
 	mp = ndp->ni_vp->v_mount;

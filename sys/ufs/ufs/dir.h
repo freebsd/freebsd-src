@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/21/94
- * $Id: dir.h,v 1.2 1994/08/02 07:54:48 davidg Exp $
+ * $Id: dir.h,v 1.3 1994/08/21 07:16:14 paul Exp $
  */
 
 #ifndef _UFS_UFS_DIR_H_
@@ -101,15 +101,18 @@ struct	direct {
  * the directory entry.  This requires the amount of space in struct direct
  * without the d_name field, plus enough space for the name with a terminating
  * null byte (dp->d_namlen+1), rounded up to a 4 byte boundary.
+ *
+ * 
  */
+#define	DIRECTSIZ(namlen)						\
+	(((int)&((struct direct *)0)->d_name +				\
+	  ((namlen)+1)*sizeof(((struct direct *)0)->d_name[0]) + 3) & ~3)
 #if (BYTE_ORDER == LITTLE_ENDIAN)
 #define DIRSIZ(oldfmt, dp) \
-    ((oldfmt) ? \
-    ((sizeof (struct direct) - (MAXNAMLEN+1)) + (((dp)->d_type+1 + 3) &~ 3)) : \
-    ((sizeof (struct direct) - (MAXNAMLEN+1)) + (((dp)->d_namlen+1 + 3) &~ 3)))
+    ((oldfmt) ? DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
 #else
 #define DIRSIZ(oldfmt, dp) \
-    ((sizeof (struct direct) - (MAXNAMLEN+1)) + (((dp)->d_namlen+1 + 3) &~ 3))
+    DIRECTSIZ((dp)->d_namlen)
 #endif
 #define OLDDIRFMT	1
 #define NEWDIRFMT	0
