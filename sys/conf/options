@@ -432,4 +432,3 @@ INIT_PATH		opt_init_path.h
 ROOTDEVNAME		opt_rootdevname.h
 
 FDC_DEBUG		opt_fdc.h
-FDC_YE			opt_fdc.h
