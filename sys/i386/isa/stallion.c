@@ -45,16 +45,31 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
 
 #include <machine/cpu.h>
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ic/scd1400.h>
+
+/*****************************************************************************/
+
+/*
+ *	Define the version level of the kernel - so we can compile in the
+ *	appropriate bits of code. By default this will compile for a 2.1
+ *	level kernel.
+ */
+#define	VFREEBSD	210
+
+#if VFREEBSD >= 220
+#define	STATIC		static
+#else
+#define	STATIC
+#endif
 
 /*****************************************************************************/
 
@@ -120,7 +135,7 @@ static unsigned int	stl_irqshared = 0;
  */
 static char	*stl_drvname = "stl";
 static char	*stl_longdrvname = "Stallion Multiport Serial Driver";
-static char	*stl_drvversion = "0.0.1";
+static char	*stl_drvversion = "0.0.2";
 static int	stl_brdprobed[STL_MAXBRDS];
 
 static int	stl_nrbrds = 0;
@@ -396,20 +411,28 @@ static int	stl_cd1400clkdivs[] = {
 
 /*
  *	Declare all those functions in this driver!  First up is the set of
- *	externally visible functions. Followed by the internal functions.
+ *	externally visible functions.
  */
-int		stlprobe(struct isa_device *idp);
-int		stlattach(struct isa_device *idp);
-void		stlintr(int unit);
-int		stlopen(dev_t dev, int flag, int mode, struct proc *p);
-int		stlclose(dev_t dev, int flag, int mode, struct proc *p);
-int 		stlwrite(dev_t dev, struct uio *uiop, int flag);
-int 		stlread(dev_t dev, struct uio *uiop, int flag);
-int 		stlioctl(dev_t dev, int cmd, caddr_t data, int flag,
-			struct proc *p);
-int		stlstop(struct tty *tp, int rw);
-struct tty	*stldevtotty(dev_t dev);
 
+int	stlprobe(struct isa_device *idp);
+int	stlattach(struct isa_device *idp);
+
+STATIC	d_open_t	stlopen;
+STATIC	d_close_t	stlclose;
+STATIC	d_read_t	stlread;
+STATIC	d_write_t	stlwrite;
+STATIC	d_ioctl_t	stlioctl;
+STATIC	d_stop_t	stlstop;
+
+#if VFREEBSD >= 220
+STATIC	d_devtotty_t	stldevtotty;
+#else
+struct tty	*stldevtotty(dev_t dev);
+#endif
+
+/*
+ *	Internal function prototypes.
+ */
 static stlport_t *stl_dev2port(dev_t dev);
 static int	stl_rawopen(stlport_t *portp);
 static int	stl_rawclose(stlport_t *portp);
@@ -447,6 +470,38 @@ static void	stl_flush(stlport_t *portp, int flag);
 struct isa_driver	stldriver = {
 	stlprobe, stlattach, "stl"
 };
+
+/*****************************************************************************/
+
+#if VFREEBSD >= 220
+
+/*
+ *	FreeBSD-2.2+ kernel linkage.
+ */
+
+#define	CDEV_MAJOR	70
+
+static struct cdevsw stl_cdevsw = 
+	{ stlopen,	stlclose,	stlread,	stlwrite,
+	  stlioctl,	stlstop,	noreset,	stldevtotty,
+	  ttselect,	nommap,		NULL,	"stl",	NULL,	-1 };
+
+static stl_devsw_installed = 0;
+
+static void stl_drvinit(void *unused)
+{
+	dev_t	dev;
+
+	if (! stl_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev, &stl_cdevsw, NULL);
+		stl_devsw_installed = 1;
+    	}
+}
+
+SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,stl_drvinit,NULL)
+
+#endif
 
 /*****************************************************************************/
 
@@ -528,7 +583,7 @@ int stlattach(struct isa_device *idp)
 
 /*****************************************************************************/
 
-int stlopen(dev_t dev, int flag, int mode, struct proc *p)
+STATIC int stlopen(dev_t dev, int flag, int mode, struct proc *p)
 {
 	struct tty	*tp;
 	stlport_t	*portp;
@@ -585,7 +640,7 @@ stlopen_restart:
 				goto stlopen_end;
 			}
 		} else {
-			if (callout) {
+			if (portp->callout != 0) {
 				if (flag & O_NONBLOCK) {
 					error = EBUSY;
 					goto stlopen_end;
@@ -611,7 +666,7 @@ stlopen_restart:
 			((tp->t_cflag & CLOCAL) == 0) &&
 			((flag & O_NONBLOCK) == 0)) {
 		portp->waitopens++;
-		error = tsleep(&tp->t_rawq, (TTIPRI | PCATCH), "stldcd", 0);
+		error = tsleep(TSA_CARR_ON(tp), (TTIPRI | PCATCH), "stldcd",0);
 		portp->waitopens--;
 		if (error)
 			goto stlopen_end;
@@ -632,7 +687,7 @@ stlopen_restart:
  */
 stlopen_end:
 	splx(x);
-	if ((tp->t_state & TS_ISOPEN) == 0)
+	if (((tp->t_state & TS_ISOPEN) == 0) && (portp->waitopens == 0))
 		stl_rawclose(portp);
 
 	return(error);
@@ -640,7 +695,7 @@ stlopen_end:
 
 /*****************************************************************************/
 
-int stlclose(dev_t dev, int flag, int mode, struct proc *p)
+STATIC int stlclose(dev_t dev, int flag, int mode, struct proc *p)
 {
 	struct tty	*tp;
 	stlport_t	*portp;
@@ -665,7 +720,7 @@ int stlclose(dev_t dev, int flag, int mode, struct proc *p)
 
 /*****************************************************************************/
 
-int stlread(dev_t dev, struct uio *uiop, int flag)
+STATIC int stlread(dev_t dev, struct uio *uiop, int flag)
 {
 	stlport_t	*portp;
 
@@ -681,19 +736,28 @@ int stlread(dev_t dev, struct uio *uiop, int flag)
 
 /*****************************************************************************/
 
-int stlstop(struct tty *tp, int rw)
+#if VFREEBSD >= 220
+STATIC void stlstop(struct tty *tp, int rw)
+#else
+STATIC int stlstop(struct tty *tp, int rw)
+#endif
 {
 #if DEBUG
 	printf("stlstop(tp=%x,rw=%x)\n", (int) tp, rw);
 #endif
 
 	stl_flush((stlport_t *) tp, rw);
+
+#if VFREEBSD >= 220
+	return;
+#else
 	return(0);
+#endif
 }
 
 /*****************************************************************************/
 
-struct tty *stldevtotty(dev_t dev)
+STATIC struct tty *stldevtotty(dev_t dev)
 {
 #if DEBUG
 	printf("stldevtotty(dev=%x)\n", dev);
@@ -703,7 +767,7 @@ struct tty *stldevtotty(dev_t dev)
 
 /*****************************************************************************/
 
-int stlwrite(dev_t dev, struct uio *uiop, int flag)
+STATIC int stlwrite(dev_t dev, struct uio *uiop, int flag)
 {
 	stlport_t	*portp;
 
@@ -719,7 +783,7 @@ int stlwrite(dev_t dev, struct uio *uiop, int flag)
 
 /*****************************************************************************/
 
-int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+STATIC int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct termios	*newtios, *localtios;
 	struct tty	*tp;
@@ -789,15 +853,14 @@ int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	}
 #endif
 
-#if 0
 /*
  *	Carry out some pre-cmd processing work first...
  *	Hmmm, not so sure we want this, disable for now...
  */
 	if ((cmd == TIOCSETA) || (cmd == TIOCSETAW) || (cmd == TIOCSETAF)) {
 		newtios = (struct termios *) data;
-		localtios = (dev & STL_CALLOUTDEV) ? &portp->initouttios :
-			 &portp->initintios;
+		localtios = (dev & STL_CALLOUTDEV) ? &portp->lockouttios :
+			 &portp->lockintios;
 
 		newtios->c_iflag = (tp->t_iflag & localtios->c_iflag) |
 			(newtios->c_iflag & ~localtios->c_iflag);
@@ -816,7 +879,6 @@ int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		if (localtios->c_ospeed != 0)
 			newtios->c_ospeed = tp->t_ospeed;
 	}
-#endif
 
 /*
  *	Call the line discipline and the common command processing to
@@ -899,7 +961,7 @@ int stlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
  *	pointer. Return NULL if the device number is not a valid port.
  */
 
-static stlport_t *stl_dev2port(dev_t dev)
+STATIC stlport_t *stl_dev2port(dev_t dev)
 {
 	stlbrd_t	*brdp;
 	int		brdnr, portnr;
@@ -970,7 +1032,7 @@ static int stl_rawclose(stlport_t *portp)
 	portp->brklen = 0;
 	portp->state &= ~(ASY_ACTIVE | ASY_RTSFLOW);
 	wakeup(&portp->callout);
-	wakeup(&tp->t_rawq);
+	wakeup(TSA_CARR_ON(tp));
 	return(0);
 }
 
@@ -1028,6 +1090,7 @@ static void stl_start(struct tty *tp)
 			stl_flowcontrol(portp, 1, -1);
 	}
 
+#if VFREEBSD == 205
 /*
  *	Check if the output cooked clist buffers are near empty, wake up
  *	the line discipline to fill it up.
@@ -1039,6 +1102,15 @@ static void stl_start(struct tty *tp)
 		}
 		selwakeup(&tp->t_wsel);
 	}
+#endif
+
+/*
+ *	Do not transmit if we are timing out or stopped.
+ */
+	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
+		splx(x);
+		return;
+	}
 
 /*
  *	Copy data from the clists into the interrupt ring queue. This will
@@ -1049,33 +1121,47 @@ static void stl_start(struct tty *tp)
  *	spl protect our-selves, since we only ever update the head pointer,
  *	and the interrupt routine only ever updates the tail pointer.
  */
-	head = portp->tx.head;
-	tail = portp->tx.tail;
-	if (head >= tail) {
-		len = STL_TXBUFSIZE - (head - tail) - 1;
-		stlen = portp->tx.endbuf - head;
-	} else {
-		len = tail - head - 1;
-		stlen = len;
+	if (tp->t_outq.c_cc != 0) {
+		head = portp->tx.head;
+		tail = portp->tx.tail;
+		if (head >= tail) {
+			len = STL_TXBUFSIZE - (head - tail) - 1;
+			stlen = portp->tx.endbuf - head;
+		} else {
+			len = tail - head - 1;
+			stlen = len;
+		}
+
+		if (len > 0) {
+			stlen = MIN(len, stlen);
+			count = q_to_b(&tp->t_outq, head, stlen);
+			len -= count;
+			head += count;
+			if (head >= portp->tx.endbuf) {
+				head = portp->tx.buf;
+				if (len > 0) {
+					stlen = q_to_b(&tp->t_outq, head, len);
+					head += stlen;
+					count += stlen;
+				}
+			}
+			portp->tx.head = head;
+			if (count > 0)
+				stl_startrxtx(portp, -1, 1);
+		}
+
+/*
+ *		If we sent something, make sure we are called again.
+ */
+		tp->t_state |= TS_BUSY;
 	}
 
-	if (len > 0) {
-		stlen = MIN(len, stlen);
-		count = q_to_b(&tp->t_outq, head, stlen);
-		len -= count;
-		head += count;
-		if (head >= portp->tx.endbuf) {
-			head = portp->tx.buf;
-			if (len > 0) {
-				stlen = q_to_b(&tp->t_outq, head, len);
-				head += stlen;
-				count += stlen;
-			}
-		}
-		portp->tx.head = head;
-		if (count > 0)
-			stl_startrxtx(portp, -1, 1);
-	}
+#if VFREEBSD != 205
+/*
+ *	Do any writer wakeups.
+ */
+	ttwwakeup(tp);
+#endif
 
 	splx(x);
 }
