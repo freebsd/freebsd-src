@@ -370,7 +370,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		dcache_page_inval(pa);
 	}
 	va = (void *)TLB_PHYS_TO_DIRECT(pa);
-	if ((m->flags & PG_ZERO) == 0)
+	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);
 	return (va);
 }

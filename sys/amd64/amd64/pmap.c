@@ -557,7 +557,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	}
 
 	va = (void *)PHYS_TO_DMAP(m->phys_addr);
-	if ((m->flags & PG_ZERO) == 0)
+	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		pagezero(va);
 	return (va);
 }
