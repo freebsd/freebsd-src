@@ -260,6 +260,7 @@
 .	el .ie "\\$2"4"         %comment%
 .	el .ie "\\$2"4.0"       %comment%
 .	el .ie "\\$2"4.1"       %comment%
+.	el .ie "\\$2"4.2"       %comment%
 .	el .ie "\\$2"5"         %comment%
 .	el .ie "\\$2"5.0"       %comment%
 .	el .tm Unknown FreeBSD version ``\\$2'' at line \\n(c.
@@ -327,7 +328,7 @@
 ..
 .de Pp
 .sp \\n(Ppu
-.ne 2
+.if !\\n(cR .ne 2
 .ns
 ..
 .de Lp
@@ -347,7 +348,7 @@
 ..
 .de Ss
 .sp
-.ne 2
+.if !\\n(cR .ne 2
 .ti -.25i
 \&\\*(sH\\$1 \|\\$2 \|\\$3 \|\\$4 \|\\$5 \|\\$6 \|\\$7 \|\\$8 \|\\$9
 \&\fP\s0
@@ -513,7 +514,7 @@
 .if "\\$1"libipx" \&IPX Address Conversion Support Library (libipx, -lipx)
 .if "\\$1"libkvm" \&Kernel Data Access Library (libkvm, -lkvm)
 .if "\\$1"libm" \&Math Library (libm, -lm)
-.if "\\$1"libmd" \&Message Diggest (MD4, MD5, etc.) Support Library (libmd, -lmd)
+.if "\\$1"libmd" \&Message Digest (MD4, MD5, etc.) Support Library (libmd, -lmd)
 .if "\\$1"libnetgraph" \&Netgraph User Library (libnetgraph, -lnetgraph)
 .if "\\$1"libposix1e" \&POSIX.1e Security API Library (libposix1e, -lposix1e)
 .if "\\$1"libskey" \&S/Key Password Control Table Access Library (libskey, -lskey)

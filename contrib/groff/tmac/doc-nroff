@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-nroff	5.6 (Berkeley) 8/5/91
+.\"	$FreeBSD$
 .\"
 .\" tmac.mdoc-nroff
 .\"     %beginstrip%
@@ -118,7 +119,6 @@
 .ds If infinity
 .ds Na \fINaN\fP
 .ds Ba \fR\&|\fP
-
 .\"
 .de hK
 .nr % 1
@@ -130,7 +130,7 @@
 .if "\\*(cH"Null" .if !"\\*(gP"Null" .as hT \&\|(\|\\*(gP\|)
 .ie \\n(cR \{\
 .	hM
-.	wh -1v fM
+.\"	wh -1v fM
 .\}
 .el \{\
 .	wh 0 hM
