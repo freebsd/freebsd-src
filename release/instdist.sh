@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.45 1994/12/23 02:55:07 jkh Exp $
+# $Id: instdist.sh,v 1.46 1994/12/23 03:30:02 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -168,6 +168,11 @@ the files yourself."; then return 1; fi
 
 media_extract_dist()
 {
+	if [ ! -f do_cksum.sh ]; then
+		if [ -f ${MEDIA_DISTRIBUTION}/do_cksum.sh ]; then
+			cd ${MEDIA_DISTRIBUTION}
+		fi
+	fi
 	if [ -f do_cksum.sh ]; then
 		message "Verifying checksums for distribution.  Please wait!"
 		if sh ./do_cksum.sh; then
