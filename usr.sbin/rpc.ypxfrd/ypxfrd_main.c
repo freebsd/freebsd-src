@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfrd_main.c,v 1.4 1996/06/04 04:27:47 wpaul Exp $
+ *	$Id: ypxfrd_main.c,v 1.1.1.1 1996/06/05 04:36:54 wpaul Exp $
  */
 
 #include "ypxfrd.h"
@@ -60,7 +60,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfrd_main.c,v 1.4 1996/06/04 04:27:47 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfrd_main.c,v 1.1.1.1 1996/06/05 04:36:54 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -191,7 +191,7 @@ main(argc, argv)
 	int asize = sizeof (saddr);
 	int ch;
 
-	while ((ch = getopt(argc, argv, "p:h")) != EOF) {
+	while ((ch = getopt(argc, argv, "p:h")) !=  -1) {
 		switch(ch) {
 		case 'p':
 			yp_dir = optarg;

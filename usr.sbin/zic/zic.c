@@ -476,7 +476,7 @@ char *	argv[];
 	(void) textdomain(TZ_DOMAIN);
 #endif /* HAVE_GETTEXT - 0 */
 	progname = argv[0];
-	while ((c = getopt(argc, argv, "d:l:p:L:vsy:")) != EOF)
+	while ((c = getopt(argc, argv, "d:l:p:L:vsy:")) !=  -1)
 		switch (c) {
 			default:
 				usage();

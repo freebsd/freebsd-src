@@ -78,7 +78,7 @@ main(argc, argv)
 	u_char buf[MAXNAMLEN + 1];
 	char dbtmp[MAXPATHLEN + 1], dbname[MAXPATHLEN + 1];
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) !=  -1)
 		switch((char)ch) {
 		case '?':
 		default:

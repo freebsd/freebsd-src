@@ -113,7 +113,7 @@ main(argc, argv)
 	off_t lseek();
 
 	jflag = npcbs = 0;
-	while ((ch = getopt(argc, argv, "afjp:st")) != EOF)
+	while ((ch = getopt(argc, argv, "afjp:st")) !=  -1)
 		switch (ch) {
 		case 'a':
 			++aflag;

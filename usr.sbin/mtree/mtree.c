@@ -72,7 +72,7 @@ main(argc, argv)
 
 	dir = NULL;
 	keys = KEYDEFAULT;
-	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:Uux")) != EOF)
+	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:Uux")) !=  -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;

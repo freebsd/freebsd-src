@@ -68,7 +68,7 @@ char *argv[];
 	int dflag = -1;
 	char *device;
 
-	while( (c = getopt(argc, argv, "d:n:s:e:")) != EOF)
+	while( (c = getopt(argc, argv, "d:n:s:e:")) !=  -1)
 	{
 		switch(c)
 		{

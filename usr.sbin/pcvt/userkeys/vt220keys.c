@@ -88,7 +88,7 @@ main(argc,argv)
         if(argc == 1) usage();  /* program requires options              */
 
         /* get options */
-        while ((option = getopt(argc, argv, "cli")) != EOF)
+        while ((option = getopt(argc, argv, "cli")) !=  -1)
         switch(option)
         {
                 case 'c' :

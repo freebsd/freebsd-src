@@ -59,7 +59,7 @@ char *argv[];
 	int fflag = -1;
 	char *filename;
 
-	while( (c = getopt(argc, argv, "d:f:")) != EOF)
+	while( (c = getopt(argc, argv, "d:f:")) !=  -1)
 	{
 		switch(c)
 		{

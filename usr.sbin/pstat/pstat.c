@@ -225,7 +225,7 @@ main(argc, argv)
 		usage = "usage: pstat [-Tfknstv] [-M core] [-N system]\n";
 	}
 
-	while ((ch = getopt(argc, argv, opts)) != EOF)
+	while ((ch = getopt(argc, argv, opts)) !=  -1)
 		switch (ch) {
 		case 'f':
 			fileflag = 1;

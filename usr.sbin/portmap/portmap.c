@@ -113,7 +113,7 @@ main(argc, argv)
 	int len = sizeof(struct sockaddr_in);
 	register struct pmaplist *pml;
 
-	while ((c = getopt(argc, argv, "dv")) != EOF) {
+	while ((c = getopt(argc, argv, "dv")) !=  -1) {
 		switch (c) {
 
 		case 'd':
