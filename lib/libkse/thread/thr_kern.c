@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.6 1998/02/13 01:27:33 julian Exp $
+ * $Id: uthread_kern.c,v 1.7 1998/03/09 04:46:26 jb Exp $
  *
  */
 #include <errno.h>
@@ -844,6 +844,7 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_DEAD:
 	case PS_FDLR_WAIT:
 	case PS_FDLW_WAIT:
+	case PS_FILE_WAIT:
 	case PS_JOIN:
 	case PS_MUTEX_WAIT:
 	case PS_RUNNING:
@@ -1142,6 +1143,7 @@ _thread_kern_select(int wait_reqd)
 		case PS_DEAD:
 		case PS_FDLR_WAIT:
 		case PS_FDLW_WAIT:
+		case PS_FILE_WAIT:
 		case PS_JOIN:
 		case PS_MUTEX_WAIT:
 		case PS_RUNNING:
@@ -1491,6 +1493,7 @@ _thread_kern_select(int wait_reqd)
 			case PS_DEAD:
 			case PS_FDLR_WAIT:
 			case PS_FDLW_WAIT:
+			case PS_FILE_WAIT:
 			case PS_JOIN:
 			case PS_MUTEX_WAIT:
 			case PS_SIGWAIT:
