@@ -569,8 +569,6 @@ USB_MATCH(aue)
 	if (!uaa->iface)
 		return(UMATCH_NONE);
 
-	printf("vendor: %x device %x\n", uaa->vendor, uaa->product);
-
 	t = aue_devs;
 	while(t->aue_name != NULL) {
 		if (uaa->vendor == t->aue_vid &&
