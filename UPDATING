@@ -5,6 +5,15 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010423:
+	old fsck and new kernel interactions appear to have been fixed.
+
+20010411:
+	fsck and the kernel were changed to handle some optimizations
+	to directory layout.  This breaks backward compatibility.
+	Update only if you understand that you must not use the old
+	fsck with the new kernel ever.
+
 20010330:
 	fsck has changed the meaning of the pass column in /etc/fstab.
 	Please see the cvs commit to fsck.8 or the fsck.8 man page fora
