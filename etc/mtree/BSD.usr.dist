@@ -660,7 +660,7 @@
             ..
             catn
             ..
-            en.ISO_8859-1   uname=root
+            en.ISO8859-1        uname=root
                 cat1
                 ..
                 cat1aout
