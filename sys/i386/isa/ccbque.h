@@ -26,6 +26,8 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 /*
  * Common command control queue funcs.
@@ -71,7 +73,7 @@ struct CCBTYPE *							\
 DEV##_get_ccb()								\
 {									\
 	register struct CCBTYPE *cb;					\
-	int s = splbio();						\
+	int s = splcam();						\
 									\
 again:									\
 	if (CCBTYPE##que.count < CCBTYPE##que.maxccb)			\
@@ -106,7 +108,7 @@ void									\
 DEV##_free_ccb(cb)							\
 	register struct CCBTYPE *cb;					\
 {									\
-	int s = splbio();						\
+	int s = splcam();						\
 									\
 	TAILQ_INSERT_TAIL(&CCBTYPE##que.CCBTYPE##tab, cb, CHAIN);	\
 	CCBTYPE##que.count --;						\
