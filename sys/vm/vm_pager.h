@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.16 1998/03/07 21:37:27 dyson Exp $
+ * $Id: vm_pager.h,v 1.17 1998/10/13 08:24:44 dg Exp $
  */
 
 /*
@@ -57,7 +57,7 @@ struct pagerops {
 	int (*pgo_getpages) __P((vm_object_t, vm_page_t *, int, int));	/* Get (read) page. */
 	int (*pgo_putpages) __P((vm_object_t, vm_page_t *, int, int, int *)); /* Put (write) page. */
 	boolean_t (*pgo_haspage) __P((vm_object_t, vm_pindex_t, int *, int *)); /* Does pager have page? */
-	void (*pgo_sync) __P((void));
+	void (*pgo_pageunswapped) __P((vm_page_t));
 };
 
 /*
@@ -87,20 +87,69 @@ MALLOC_DECLARE(M_VMPGDATA);
 
 extern vm_map_t pager_map;
 extern int pager_map_size;
+extern struct pagerops *pagertab[];
 
 vm_object_t vm_pager_allocate __P((objtype_t, void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t));
 void vm_pager_bufferinit __P((void));
 void vm_pager_deallocate __P((vm_object_t));
-int vm_pager_get_pages __P((vm_object_t, vm_page_t *, int, int));
-boolean_t vm_pager_has_page __P((vm_object_t, vm_pindex_t, int *, int *));
+static __inline int vm_pager_get_pages __P((vm_object_t, vm_page_t *, int, int));
+static __inline boolean_t vm_pager_has_page __P((vm_object_t, vm_pindex_t, int *, int *));
 void vm_pager_init __P((void));
 vm_object_t vm_pager_object_lookup __P((struct pagerlst *, void *));
 vm_offset_t vm_pager_map_pages __P((vm_page_t *, int, boolean_t));
 vm_offset_t vm_pager_map_page __P((vm_page_t));
-int vm_pager_put_pages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
+static __inline int vm_pager_put_pages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
 void vm_pager_sync __P((void));
 void vm_pager_unmap_pages __P((vm_offset_t, int));
 void vm_pager_unmap_page __P((vm_offset_t));
+
+static __inline int
+vm_pager_get_pages(
+	vm_object_t object,
+	vm_page_t *m,
+	int count,
+	int reqpage
+) {
+	return ((*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage));
+}
+
+static __inline int
+vm_pager_put_pages(
+	vm_object_t object,
+	vm_page_t *m,
+	int count,
+	int flags,
+	int *rtvals
+) {
+	return ((*pagertab[object->type]->pgo_putpages)(object, m, count, flags, rtvals));
+}
+
+static __inline boolean_t
+vm_pager_has_page(
+	vm_object_t object,
+	vm_pindex_t offset, 
+	int *before,
+	int *after
+) {
+        return ((*pagertab[object->type]->pgo_haspage) (object, offset, before, after));
+} 
+
+/* 
+ *      vm_pager_page_unswapped
+ * 
+ *      called at splvm() to destroy swap associated with the page.
+ * 
+ *      This function may not block.
+ */
+ 
+static __inline void
+vm_pager_page_unswapped(vm_page_t m)
+{
+	if (pagertab[m->object->type]->pgo_pageunswapped)
+		(*pagertab[m->object->type]->pgo_pageunswapped)(m);
+}
+
+
 #endif
 
 #endif				/* _VM_PAGER_ */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.52 1998/12/07 21:58:49 archie Exp $
+ * $Id: mfs_vfsops.c,v 1.53 1999/01/01 04:14:11 dillon Exp $
  */
 
 
@@ -64,8 +64,10 @@ MALLOC_DEFINE(M_MFSNODE, "MFS node", "MFS vnode private part");
 
 u_char *	mfs_getimage __P((void));
 
+#ifdef MFS_ROOT
 static caddr_t	mfs_rootbase;	/* address of mini-root in kernel virtual memory */
 static u_long	mfs_rootsize;	/* size of mini-root in bytes */
+#endif
 
 static	int mfs_minor;	/* used for building internal dev_t */
 
@@ -178,7 +180,9 @@ mfs_mount(mp, path, data, ndp, p)
 	struct mfs_args args;
 	struct ufsmount *ump;
 	struct fs *fs;
+#ifdef MFS_ROOT
 	u_char *base;
+#endif
 	struct mfsnode *mfsp;
 	u_int size;
 	int flags, err;
@@ -344,7 +348,9 @@ mfs_mount(mp, path, data, ndp, p)
 		goto error_2;
 	}
 
+#ifdef MFS_ROOT
 dostatfs:
+#endif
 	/*
 	 * Initialize FS stat information in mount struct; uses both
 	 * mp->mnt_stat.f_mntonname and mp->mnt_stat.f_mntfromname
@@ -387,10 +393,7 @@ mfs_start(mp, flags, p)
 	register struct vnode *vp = VFSTOUFS(mp)->um_devvp;
 	register struct mfsnode *mfsp = VTOMFS(vp);
 	register struct buf *bp;
-	register caddr_t base;
 	register int gotsig = 0;
-
-	base = mfsp->mfs_baseoff;
 
 	/*
 	 * Must set P_SYSTEM to prevent system from trying to kill
@@ -402,11 +405,20 @@ mfs_start(mp, flags, p)
 	curproc->p_flag |= P_SYSTEM;
 
 	while (mfsp->mfs_active) {
+		int s;
+
+		s = splbio();
+
 		while (bp = bufq_first(&mfsp->buf_queue)) {
 			bufq_remove(&mfsp->buf_queue, bp);
-			mfs_doio(bp, base);
+			splx(s);
+			mfs_doio(bp, mfsp);
 			wakeup((caddr_t)bp);
+			s = splbio();
 		}
+
+		splx(s);
+
 		/*
 		 * If a non-ignored signal is received, try to unmount.
 		 * If that fails, clear the signal (it has been "processed"),

@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.11 1998/10/21 11:38:06 dg Exp $
+ *	$Id: pmap.c,v 1.12 1998/10/28 13:36:49 dg Exp $
  */
 
 /*
@@ -950,7 +950,7 @@ pmap_page_lookup(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 retry:
 	m = vm_page_lookup(object, pindex);
-	if (m && vm_page_sleep(m, "pplookp", NULL))
+	if (m && vm_page_sleep_busy(m, FALSE, "pplookp"))
 		goto retry;
 	return m;
 }
@@ -1039,7 +1039,7 @@ pmap_dispose_proc(p)
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_dispose_proc: upage already missing???");
 
-		vm_page_flag_set(m, PG_BUSY);
+		vm_page_busy(m);
 
 		oldpte = *(ptek + i);
 		*(ptek + i) = 0;
@@ -1128,7 +1128,8 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	int s;
 
-	while (vm_page_sleep(m, "pmuwpt", NULL));
+	while (vm_page_sleep_busy(m, FALSE, "pmuwpt"))
+		;
 
 	if (m->hold_count == 0) {
 		vm_offset_t pteva;
@@ -1181,7 +1182,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 				wakeup(m);
 			}
 
-			vm_page_flag_set(m, PG_BUSY);
+			vm_page_busy(m);
 			vm_page_free_zero(m);
 			--cnt.v_wire_count;
 		}
@@ -1316,10 +1317,10 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	 * page-table pages.  Those pages are zero now, and
 	 * might as well be placed directly into the zero queue.
 	 */
-	if (vm_page_sleep(p, "pmaprl", NULL))
+	if (vm_page_sleep_busy(p, FALSE, "pmaprl"))
 		return 0;
 
-	vm_page_flag_set(p, PG_BUSY);
+	vm_page_busy(p);
 
 	/*
 	 * Remove the page table page from the processes address space.
@@ -2336,7 +2337,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
-				vm_page_flag_set(p, PG_BUSY);
+				vm_page_busy(p);
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx),
 					VM_PAGE_TO_PHYS(p), mpte);
@@ -2356,7 +2357,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
-				vm_page_flag_set(p, PG_BUSY);
+				vm_page_busy(p);
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx),
 					VM_PAGE_TO_PHYS(p), mpte);
@@ -2453,7 +2454,7 @@ pmap_prefault(pmap, addra, entry)
 			if ((m->queue - m->pc) == PQ_CACHE) {
 				vm_page_deactivate(m);
 			}
-			vm_page_flag_set(m, PG_BUSY);
+			vm_page_busy(m);
 			mpte = pmap_enter_quick(pmap, addr,
 				VM_PAGE_TO_PHYS(m), mpte);
 			vm_page_flag_set(m, PG_MAPPED);

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.22 1998/01/12 01:44:46 dyson Exp $
+ * $Id: vm_pageout.h,v 1.23 1998/01/22 17:30:43 dyson Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -100,7 +100,9 @@ extern int vm_pageout_deficit;
 
 extern void pagedaemon_wakeup __P((void));
 #define VM_WAIT vm_wait()
+#define VM_AWAIT vm_await()
 extern void vm_wait __P((void));
+extern void vm_await __P((void));
 
 #ifdef KERNEL
 void vm_pageout_page __P((vm_page_t, vm_object_t));

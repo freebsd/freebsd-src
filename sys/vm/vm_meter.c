@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.26 1998/08/24 08:39:37 dfr Exp $
+ * $Id: vm_meter.c,v 1.27 1998/10/31 17:21:31 peter Exp $
  */
 
 #include <sys/param.h>
@@ -195,6 +195,11 @@ vmtotal SYSCTL_HANDLER_ARGS
 	for (object = TAILQ_FIRST(&vm_object_list);
 	    object != NULL;
 	    object = TAILQ_NEXT(object, object_list)) {
+		/*
+		 * devices, like /dev/mem, will badly skew our totals
+		 */
+		if (object->type == OBJT_DEVICE)
+			continue;
 		totalp->t_vm += object->size;
 		totalp->t_rm += object->resident_page_count;
 		if (object->flags & OBJ_ACTIVE) {

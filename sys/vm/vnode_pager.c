@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.100 1998/10/13 08:24:44 dg Exp $
+ *	$Id: vnode_pager.c,v 1.101 1998/12/04 18:39:44 rvb Exp $
  */
 
 /*
@@ -88,6 +88,8 @@ struct pagerops vnodepagerops = {
 	NULL
 };
 
+int vnode_pbuf_freecnt = -1;	/* start out unlimited */
+
 
 /*
  * Allocate (or lookup) pager for a vnode.
@@ -105,6 +107,13 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 */
 	if (handle == NULL)
 		return (NULL);
+
+	/*
+	 * XXX hack - This initialization should be put somewhere else.
+	 */
+	if (vnode_pbuf_freecnt < 0) {
+	    vnode_pbuf_freecnt = nswbuf / 2 + 1;
+	}
 
 	vp = (struct vnode *) handle;
 
@@ -395,7 +404,7 @@ vnode_pager_input_smlfs(object, m)
 		fileaddr = vnode_pager_addr(vp,
 			IDX_TO_OFF(m->pindex) + i * bsize, (int *)0);
 		if (fileaddr != -1) {
-			bp = getpbuf();
+			bp = getpbuf(&vnode_pbuf_freecnt);
 
 			/* build a minimal buffer header */
 			bp->b_flags = B_BUSY | B_READ | B_CALL;
@@ -428,7 +437,7 @@ vnode_pager_input_smlfs(object, m)
 			/*
 			 * free the buffer header back to the swap buffer pool
 			 */
-			relpbuf(bp);
+			relpbuf(bp, &vnode_pbuf_freecnt);
 			if (error)
 				break;
 
@@ -707,7 +716,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	if (dp->v_type == VBLK || dp->v_type == VCHR)
 		size = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 
-	bp = getpbuf();
+	bp = getpbuf(&vnode_pbuf_freecnt);
 	kva = (vm_offset_t) bp->b_data;
 
 	/*
@@ -755,7 +764,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * free the buffer header back to the swap buffer pool
 	 */
-	relpbuf(bp);
+	relpbuf(bp, &vnode_pbuf_freecnt);
 
 	for (i = 0, tfoff = foff; i < count; i++, tfoff = nextoff) {
 		vm_page_t mt;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_extern.h	8.4 (Berkeley) 3/30/95
- * $Id: mfs_extern.h,v 1.10 1997/10/16 10:50:00 phk Exp $
+ * $Id: mfs_extern.h,v 1.11 1998/02/03 21:52:02 bde Exp $
  */
 
 #ifndef _UFS_MFS_MFS_EXTERN_H_
@@ -41,8 +41,9 @@ struct buf;
 struct mount;
 struct proc;
 struct vnode;
+struct mfsnode;
 
-void	mfs_doio __P((struct buf *bp, caddr_t base));
+void	mfs_doio __P((struct buf *bp, struct mfsnode *mfsnode));
 int	mfs_mountfs __P((struct vnode *, struct mount *, struct proc *));
 int	mfs_mountroot __P((void));
 

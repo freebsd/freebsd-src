@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.92 1999/01/08 17:31:24 eivind Exp $
+ * $Id: vm_fault.c,v 1.93 1999/01/10 01:58:28 eivind Exp $
  */
 
 /*
@@ -114,7 +114,7 @@ struct faultstate {
 	struct vnode *vp;
 };
 
-static void
+static __inline void
 release_page(struct faultstate *fs)
 {
 	vm_page_wakeup(fs->m);
@@ -122,7 +122,7 @@ release_page(struct faultstate *fs)
 	fs->m = NULL;
 }
 
-static void
+static __inline void
 unlock_map(struct faultstate *fs)
 {
 	if (fs->lookup_still_valid) {
@@ -263,36 +263,43 @@ RetryFault:;
 	fs.object = fs.first_object;
 	fs.pindex = fs.first_pindex;
 
-	/*
-	 * See whether this page is resident
-	 */
 	while (TRUE) {
+		/*
+		 * If the object is dead, we stop here
+		 */
 
 		if (fs.object->flags & OBJ_DEAD) {
 			unlock_and_deallocate(&fs);
 			return (KERN_PROTECTION_FAILURE);
 		}
+
+		/*
+		 * See if page is resident
+		 */
 			
 		fs.m = vm_page_lookup(fs.object, fs.pindex);
 		if (fs.m != NULL) {
 			int queue, s;
 			/*
-			 * If the page is being brought in, wait for it and
-			 * then retry.
+			 * Wait/Retry if the page is busy.  We have to do this
+			 * if the page is busy via either PG_BUSY or 
+			 * vm_page_t->busy because the vm_pager may be using
+			 * vm_page_t->busy for pageouts ( and even pageins if
+			 * it is the vnode pager ), and we could end up trying
+			 * to pagein and pageout the same page simultaniously.
+			 *
+			 * We can theoretically allow the busy case on a read
+			 * fault if the page is marked valid, but since such
+			 * pages are typically already pmap'd, putting that
+			 * special case in might be more effort then it is 
+			 * worth.  We cannot under any circumstances mess
+			 * around with a vm_page_t->busy page except, perhaps,
+			 * to pmap it.
 			 */
-			if ((fs.m->flags & PG_BUSY) ||
-				(fs.m->busy &&
-				 (fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
+			if ((fs.m->flags & PG_BUSY) || fs.m->busy) {
 				unlock_things(&fs);
-				s = splvm();
-				if ((fs.m->flags & PG_BUSY) ||
-					(fs.m->busy &&
-					 (fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
-					vm_page_flag_set(fs.m, PG_WANTED | PG_REFERENCED);
-					cnt.v_intrans++;
-					tsleep(fs.m, PSWP, "vmpfw", 0);
-				}
-				splx(s);
+				(void)vm_page_sleep_busy(fs.m, TRUE, "vmpfw");
+				cnt.v_intrans++;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
@@ -302,8 +309,12 @@ RetryFault:;
 			vm_page_unqueue_nowakeup(fs.m);
 			splx(s);
 
+#if 0
 			/*
-			 * Mark page busy for other processes, and the pagedaemon.
+			 * Code removed.  In a low-memory situation (say, a
+			 * memory-bound program is running), the last thing you
+			 * do is starve reactivations for other processes.
+			 * XXX we need to find a better way.
 			 */
 			if (((queue - fs.m->pc) == PQ_CACHE) &&
 			    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
@@ -312,6 +323,13 @@ RetryFault:;
 				VM_WAIT;
 				goto RetryFault;
 			}
+#endif
+			/*
+			 * Mark page busy for other processes, and the 
+			 * pagedaemon.  If it still isn't completely valid
+			 * (readable), jump to readrest, else break-out ( we
+			 * found the page ).
+			 */
 
 			vm_page_busy(fs.m);
 			if (((fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
@@ -321,6 +339,12 @@ RetryFault:;
 
 			break;
 		}
+
+		/*
+		 * Page is not resident, If this is the search termination,
+		 * allocate a new page.
+		 */
+
 		if (((fs.object->type != OBJT_DEFAULT) &&
 				(((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired))
 		    || (fs.object == fs.first_object)) {
@@ -344,6 +368,13 @@ RetryFault:;
 		}
 
 readrest:
+		/*
+		 * Have page, but it may not be entirely valid ( or valid at
+		 * all ).   If this object is not the default, try to fault-in
+		 * the page as well as activate additional pages when
+		 * appropriate, and page-in additional pages when appropriate.
+		 */
+
 		if (fs.object->type != OBJT_DEFAULT &&
 			(((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired)) {
 			int rv;
@@ -410,13 +441,16 @@ readrest:
 			 * vm_page_t passed to the routine.  The reqpage
 			 * return value is the index into the marray for the
 			 * vm_page_t passed to the routine.
+			 *
+			 * fs.m plus the additional pages are PG_BUSY'd.
 			 */
 			faultcount = vm_fault_additional_pages(
 			    fs.m, behind, ahead, marray, &reqpage);
 
 			/*
 			 * Call the pager to retrieve the data, if any, after
-			 * releasing the lock on the map.
+			 * releasing the lock on the map.  We hold a ref on
+			 * fs.object and the pages are PG_BUSY'd.
 			 */
 			unlock_map(&fs);
 
@@ -442,7 +476,7 @@ readrest:
 				}
 
 				hardfault++;
-				break;
+				break; /* break to PAGE HAS BEEN FOUND */
 			}
 			/*
 			 * Remove the bogus page (which does not exist at this
@@ -486,8 +520,8 @@ readrest:
 			}
 		}
 		/*
-		 * We get here if the object has default pager (or unwiring) or the
-		 * pager doesn't have the page.
+		 * We get here if the object has default pager (or unwiring) 
+		 * or the pager doesn't have the page.
 		 */
 		if (fs.object == fs.first_object)
 			fs.first_m = fs.m;
@@ -518,15 +552,17 @@ readrest:
 				cnt.v_ozfod++;
 			}
 			cnt.v_zfod++;
-			break;
+			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
 			if (fs.object != fs.first_object) {
 				vm_object_pip_wakeup(fs.object);
 			}
+			KASSERT(fs.object != next_object, ("object loop %p", next_object));
 			fs.object = next_object;
 			vm_object_pip_add(fs.object, 1);
 		}
 	}
+
 	KASSERT((fs.m->flags & PG_BUSY) != 0,
 	    ("vm_fault: not busy after main loop"));
 
@@ -549,14 +585,15 @@ readrest:
 		 */
 
 		if (fault_type & VM_PROT_WRITE) {
-
 			/*
-			 * This allows pages to be virtually copied from a backing_object
-			 * into the first_object, where the backing object has no other
-			 * refs to it, and cannot gain any more refs.  Instead of a
-			 * bcopy, we just move the page from the backing object to the
-			 * first object.  Note that we must mark the page dirty in the
-			 * first object so that it will go out to swap when needed.
+			 * This allows pages to be virtually copied from a 
+			 * backing_object into the first_object, where the 
+			 * backing object has no other refs to it, and cannot
+			 * gain any more refs.  Instead of a bcopy, we just 
+			 * move the page from the backing object to the 
+			 * first object.  Note that we must mark the page 
+			 * dirty in the first object so that it will go out 
+			 * to swap when needed.
 			 */
 			if (map_generation == fs.map->timestamp &&
 				/*
@@ -598,11 +635,12 @@ readrest:
 				fs.first_m = NULL;
 
 				/*
-				 * grab the page and put it into the process'es object
+				 * grab the page and put it into the 
+				 * process'es object.  The page is 
+				 * automatically made dirty.
 				 */
 				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
 				fs.first_m = fs.m;
-				fs.first_m->dirty = VM_PAGE_BITS_ALL;
 				vm_page_busy(fs.first_m);
 				fs.m = NULL;
 				cnt.v_cow_optim++;
@@ -620,7 +658,13 @@ readrest:
 				release_page(&fs);
 			}
 
+			/*
+			 * fs.object != fs.first_object due to above 
+			 * conditional
+			 */
+
 			vm_object_pip_wakeup(fs.object);
+
 			/*
 			 * Only use the new page below...
 			 */
@@ -708,9 +752,13 @@ readrest:
 		 * If the fault is a write, we know that this page is being
 		 * written NOW. This will save on the pmap_is_modified() calls
 		 * later.
+		 *
+		 * Also tell the backing pager, if any, that it should remove
+		 * any swap backing since the page is now dirty.
 		 */
 		if (fault_flags & VM_FAULT_DIRTY) {
 			fs.m->dirty = VM_PAGE_BITS_ALL;
+			vm_pager_page_unswapped(fs.m);
 		}
 	}
 
@@ -1021,8 +1069,7 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	 * if the requested page is not available, then give up now
 	 */
 
-	if (!vm_pager_has_page(object,
-		OFF_TO_IDX(object->paging_offset) + pindex, &cbehind, &cahead)) {
+	if (!vm_pager_has_page(object, pindex, &cbehind, &cahead)) {
 		return 0;
 	}
 

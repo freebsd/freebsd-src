@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.37 1998/03/08 09:58:26 julian Exp $
+ * $Id: malloc.h,v 1.38 1998/11/10 08:46:24 peter Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -42,11 +42,13 @@
 #define KMEMSTATS
 
 /*
- * flags to malloc
+ * flags to malloc.
  */
+
 #define	M_WAITOK	0x0000
-#define	M_NOWAIT	0x0001
-#define M_KERNEL	0x0002
+#define	M_NOWAIT	0x0001		/* do not block			*/
+#define M_USE_RESERVE	0x0002		/* can alloc out of reserve memory  */
+#define M_ASLEEP	0x0004		/* async sleep on failure	*/
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.37 1998/07/11 07:46:05 bde Exp $
+ * $Id: mfs_vnops.c,v 1.38 1998/09/07 06:52:01 phk Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,8 @@
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/sysproto.h>
+#include <sys/mman.h>
 
 #include <miscfs/specfs/specdev.h>
 
@@ -51,6 +53,7 @@ static int	mfs_badop __P((struct vop_generic_args *));
 static int	mfs_bmap __P((struct vop_bmap_args *));
 static int	mfs_close __P((struct vop_close_args *));
 static int	mfs_fsync __P((struct vop_fsync_args *));
+static int	mfs_freeblks __P((struct vop_freeblks_args *));
 static int	mfs_inactive __P((struct vop_inactive_args *)); /* XXX */
 static int	mfs_open __P((struct vop_open_args *));
 static int	mfs_reclaim __P((struct vop_reclaim_args *)); /* XXX */
@@ -66,7 +69,7 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_bmap_desc,		(vop_t *) mfs_bmap },
 	{ &vop_bwrite_desc,		(vop_t *) vop_defaultop },
 	{ &vop_close_desc,		(vop_t *) mfs_close },
-	{ &vop_freeblks_desc,		(vop_t *) vop_defaultop },
+	{ &vop_freeblks_desc,		(vop_t *) mfs_freeblks },
 	{ &vop_fsync_desc,		(vop_t *) mfs_fsync },
 	{ &vop_getpages_desc,		(vop_t *) mfs_getpages },
 	{ &vop_inactive_desc,		(vop_t *) mfs_inactive },
@@ -119,6 +122,38 @@ mfs_fsync(ap)
 }
 
 /*
+ * mfs_freeblks() - hook to allow us to free physical memory.
+ *
+ *	We implement the B_FREEBUF strategy.  We can't just madvise()
+ *	here because we have to do it in the correct order vs other bio
+ *	requests, so we queue it.
+ */
+
+static int
+mfs_freeblks(ap)
+        struct vop_freeblks_args /* {   
+                struct vnode *a_vp;     
+                daddr_t a_addr;         
+                daddr_t a_length;       
+        } */ *ap;
+{       
+	struct buf *bp;
+	struct vnode *vp;
+
+	if (!vfinddev(ap->a_vp->v_rdev, VBLK, &vp) || vp->v_usecount == 0)
+		panic("mfs_strategy: bad dev");
+
+	bp = geteblk(ap->a_length);
+	bp->b_flags |= B_FREEBUF | B_BUSY;
+	bp->b_dev = ap->a_vp->v_rdev;
+	bp->b_blkno = ap->a_addr;
+	bp->b_offset = dbtob(ap->a_addr);
+	bp->b_bcount = ap->a_length;
+	VOP_STRATEGY(vp, bp);
+	return(0);
+}
+
+/*
  * Pass I/O requests to the memory filesystem process.
  */
 static int
@@ -132,26 +167,50 @@ mfs_strategy(ap)
 	register struct mfsnode *mfsp;
 	struct vnode *vp;
 	struct proc *p = curproc;		/* XXX */
+	int s;
 
 	if (!vfinddev(bp->b_dev, VBLK, &vp) || vp->v_usecount == 0)
 		panic("mfs_strategy: bad dev");
 	mfsp = VTOMFS(vp);
-	/* check for mini-root access */
+
+	/*
+	 * splbio required for queueing/dequeueing, in case of forwarded
+	 * BPs from bio interrupts (??).  It may not be necessary.
+	 */
+
+	s = splbio();
+
 	if (mfsp->mfs_pid == 0) {
+		/*
+		 * mini-root.  Note: B_FREEBUF not supported at the moment,
+		 * I'm not sure what kind of dataspace b_data is in.
+		 */
 		caddr_t base;
 
 		base = mfsp->mfs_baseoff + (bp->b_blkno << DEV_BSHIFT);
+		if (bp->b_flags & B_FREEBUF)
+			;
 		if (bp->b_flags & B_READ)
 			bcopy(base, bp->b_data, bp->b_bcount);
 		else
 			bcopy(bp->b_data, base, bp->b_bcount);
 		biodone(bp);
 	} else if (mfsp->mfs_pid == p->p_pid) {
-		mfs_doio(bp, mfsp->mfs_baseoff);
+		/*
+		 * VOP to self
+		 */
+		splx(s);
+		mfs_doio(bp, mfsp);
+		s = splbio();
 	} else {
+		/*
+		 * VOP from some other process, queue to MFS process and
+		 * wake it up.
+		 */
 		bufq_insert_tail(&mfsp->buf_queue, bp);
 		wakeup((caddr_t)vp);
 	}
+	splx(s);
 	return (0);
 }
 
@@ -159,18 +218,59 @@ mfs_strategy(ap)
  * Memory file system I/O.
  *
  * Trivial on the HP since buffer has already been mapping into KVA space.
+ *
+ * Read and Write are handled with a simple copyin and copyout.    
+ *
+ * We also partially support VOP_FREEBLKS() via B_FREEBUF.  We can't implement
+ * completely -- for example, on fragments or inode metadata, but we can
+ * implement it for page-aligned requests.
  */
 void
-mfs_doio(bp, base)
+mfs_doio(bp, mfsp)
 	register struct buf *bp;
-	caddr_t base;
+	struct mfsnode *mfsp;
 {
+	caddr_t base = mfsp->mfs_baseoff + (bp->b_blkno << DEV_BSHIFT);
 
-	base += (bp->b_blkno << DEV_BSHIFT);
-	if (bp->b_flags & B_READ)
+	if (bp->b_flags & B_FREEBUF) {
+		/*
+		 * Implement B_FREEBUF, which allows the filesystem to tell
+		 * a block device when blocks are no longer needed (like when
+		 * a file is deleted).  We use the hook to MADV_FREE the VM.
+		 * This makes an MFS filesystem work as well or better then
+		 * a sun-style swap-mounted filesystem.
+		 */
+		int bytes = bp->b_bcount;
+
+		if ((vm_offset_t)base & PAGE_MASK) {
+			int n = PAGE_SIZE - ((vm_offset_t)base & PAGE_MASK);
+			bytes -= n;
+			base += n;
+		}
+                if (bytes > 0) {
+                        struct madvise_args uap;
+
+			bytes &= ~PAGE_MASK;
+			if (bytes != 0) {
+				bzero(&uap, sizeof(uap));
+				uap.addr  = base;
+				uap.len   = bytes;
+				uap.behav = MADV_FREE;
+				madvise(curproc, &uap);
+			}
+                }
+		bp->b_error = 0;
+	} else if (bp->b_flags & B_READ) {
+		/*
+		 * Read data from our 'memory' disk
+		 */
 		bp->b_error = copyin(base, bp->b_data, bp->b_bcount);
-	else
+	} else {
+		/*
+		 * Write data to our 'memory' disk
+		 */
 		bp->b_error = copyout(bp->b_data, base, bp->b_bcount);
+	}
 	if (bp->b_error)
 		bp->b_flags |= B_ERROR;
 	biodone(bp);
@@ -222,7 +322,7 @@ mfs_close(ap)
 	 */
 	while (bp = bufq_first(&mfsp->buf_queue)) {
 		bufq_remove(&mfsp->buf_queue, bp);
-		mfs_doio(bp, mfsp->mfs_baseoff);
+		mfs_doio(bp, mfsp);
 		wakeup((caddr_t)bp);
 	}
 	/*
