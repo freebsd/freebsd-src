@@ -178,7 +178,7 @@ main(int argc, char **argv)
 		}
 		if ((!strcasecmp(argv[arg], "erase") ||
 		     !strcasecmp(argv[arg], "blank")) && !test_write) {
-		    	int error, blank, percent, last = 0;
+		    	int blank, pct, last = 0;
 
 			if (!strcasecmp(argv[arg], "erase"))
 				blank = CDR_B_ALL;
@@ -192,16 +192,16 @@ main(int argc, char **argv)
         			err(EX_IOERR, "ioctl(CDRIOCBLANK)");
 			while (1) {
 				sleep(1);
-				error = ioctl(fd, CDRIOCGETPROGRESS, &percent);
-				if (percent > 0 && !quiet)
+				if (ioctl(fd, CDRIOCGETPROGRESS, &pct) == -1)
+					err(EX_IOERR,"ioctl(CDRIOGETPROGRESS)");
+				if (pct > 0 && !quiet)
 					fprintf(stderr, 
 						"%sing CD - %d %% done     \r",
 						blank == CDR_B_ALL ? 
-						"eras" : "blank", percent);
-				if (error || percent == 100 ||
-					(percent == 0 && last == 99))
+						"eras" : "blank", pct);
+				if (pct == 100 || (pct == 0 && last > 90))
 					break;
-				last = percent;
+				last = pct;
 			}
 			if (!quiet)
 				printf("\n");
@@ -503,7 +503,7 @@ do_format(int fd, int force, char *type)
 {
 	struct cdr_format_capacities capacities;
 	struct cdr_format_params format_params;
-	int count, i, percent, last = 0;
+	int count, i, pct, last = 0;
 
 	if (ioctl(fd, CDRIOCREADFORMATCAPS, &capacities) == -1)
 		err(EX_IOERR, "ioctl(CDRIOCREADFORMATCAPS)");
@@ -562,14 +562,14 @@ do_format(int fd, int force, char *type)
 
 	while (1) {
 		sleep(1);
-		if (ioctl(fd, CDRIOCGETPROGRESS, &percent) == -1)
+		if (ioctl(fd, CDRIOCGETPROGRESS, &pct) == -1)
 			err(EX_IOERR, "ioctl(CDRIOGETPROGRESS)");
-		if (percent > 0 && !quiet)
+		if (pct > 0 && !quiet)
 			fprintf(stderr, "formatting DVD - %d %% done     \r", 
-				percent);
-		if (percent == 100 || (percent == 0 && last == 99))
+				pct);
+		if (pct == 100 || (pct == 0 && last > 90))
 			break;
-		last = percent;
+		last = pct;
 	}
 	if (!quiet)
 		fprintf(stderr, "\n");
