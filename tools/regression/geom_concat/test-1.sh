@@ -13,7 +13,7 @@ gconcat create $name /dev/md${us} /dev/md`expr $us + 1` /dev/md`expr $us + 2` ||
 
 # Size of created device should be 1MB + 2MB + 3MB.
 
-size=`diskinfo /dev/${name}.concat | awk '{print $3}'`
+size=`diskinfo /dev/concat/${name} | awk '{print $3}'`
 
 if [ $size -eq 6291456 ]; then
 	echo "PASS"

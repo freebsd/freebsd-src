@@ -118,13 +118,13 @@ g_concat_remove_disk(struct g_concat_disk *disk)
 	cp = disk->d_consumer;
 
 	G_CONCAT_DEBUG(0, "Disk %s removed from %s.", cp->provider->name,
-	    sc->sc_geom->name);
+	    sc->sc_name);
 
 	disk->d_consumer = NULL;
 	if (sc->sc_provider != NULL) {
 		g_orphan_provider(sc->sc_provider, ENXIO);
 		sc->sc_provider = NULL;
-		G_CONCAT_DEBUG(0, "Device %s removed.", sc->sc_geom->name);
+		G_CONCAT_DEBUG(0, "Device %s removed.", sc->sc_name);
 	}
 
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
@@ -297,7 +297,8 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 	if (g_concat_nvalid(sc) != sc->sc_ndisks)
 		return;
 
-	sc->sc_provider = g_new_providerf(sc->sc_geom, "%s", sc->sc_geom->name);
+	sc->sc_provider = g_new_providerf(sc->sc_geom, "concat/%s",
+	    sc->sc_name);
 	start = 0;
 	for (no = 0; no < sc->sc_ndisks; no++) {
 		disk = &sc->sc_disks[no];
@@ -319,7 +320,7 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 	sc->sc_provider->mediasize = start;
 	g_error_provider(sc->sc_provider, 0);
 
-	G_CONCAT_DEBUG(0, "Device %s activated.", sc->sc_geom->name);
+	G_CONCAT_DEBUG(0, "Device %s activated.", sc->sc_name);
 }
 
 static int
@@ -410,7 +411,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	disk->d_start = 0;	/* not yet */
 	disk->d_end = 0;	/* not yet */
 
-	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, gp->name);
+	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_name);
 
 	g_concat_check_and_run(sc);
 
@@ -431,7 +432,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	struct g_geom *gp;
 	u_int no;
 
-	G_CONCAT_DEBUG(1, "Creating device %s.concat (id=%u).", md->md_name,
+	G_CONCAT_DEBUG(1, "Creating device %s (id=%u).", md->md_name,
 	    md->md_id);
 
 	/* Two disks is minimum. */
@@ -447,7 +448,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 			return (NULL);
 		}
 	}
-	gp = g_new_geomf(mp, "%s.concat", md->md_name);
+	gp = g_new_geomf(mp, "%s", md->md_name);
 	gp->softc = NULL;	/* for a moment */
 
 	sc = malloc(sizeof(*sc), M_CONCAT, M_WAITOK | M_ZERO);
@@ -457,7 +458,6 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	gp->access = g_concat_access;
 	gp->dumpconf = g_concat_dumpconf;
 
-	strlcpy(sc->sc_name, md->md_name, sizeof(sc->sc_name));
 	sc->sc_id = md->md_id;
 	sc->sc_ndisks = md->md_all;
 	sc->sc_disks = malloc(sizeof(struct g_concat_disk) * sc->sc_ndisks,
@@ -470,7 +470,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	sc->sc_geom = gp;
 	sc->sc_provider = NULL;
 
-	G_CONCAT_DEBUG(0, "Device %s created (id=%u).", gp->name, sc->sc_id);
+	G_CONCAT_DEBUG(0, "Device %s created (id=%u).", sc->sc_name, sc->sc_id);
 
 	return (gp);
 }
@@ -594,7 +594,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	} else {
 		gp = g_concat_create(mp, &md, G_CONCAT_TYPE_AUTOMATIC);
 		if (gp == NULL) {
-			G_CONCAT_DEBUG(0, "Cannot create device %s.concat.",
+			G_CONCAT_DEBUG(0, "Cannot create device %s.",
 			    md.md_name);
 			return (NULL);
 		}
@@ -669,7 +669,7 @@ g_concat_ctl_create(struct gctl_req *req, struct g_class *mp)
 
 	gp = g_concat_create(mp, &md, G_CONCAT_TYPE_MANUAL);
 	if (gp == NULL) {
-		gctl_error(req, "Can't configure %s.concat.", md.md_name);
+		gctl_error(req, "Can't configure %s.", md.md_name);
 		return;
 	}
 
@@ -709,10 +709,8 @@ g_concat_find_device(struct g_class *mp, const char *name)
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
-		if (strcmp(gp->name, name) == 0 ||
-		    strcmp(sc->sc_name, name) == 0) {
+		if (strcmp(sc->sc_name, name) == 0)
 			return (sc);
-		}
 	}
 	return (NULL);
 }
@@ -758,7 +756,7 @@ g_concat_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		error = g_concat_destroy(sc, *force);
 		if (error != 0) {
 			gctl_error(req, "Cannot destroy device %s (error=%d).",
-			    sc->sc_geom->name, error);
+			    sc->sc_name, error);
 			return;
 		}
 	}

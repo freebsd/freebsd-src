@@ -16,8 +16,8 @@ mdconfig -a -t malloc -s 3M -u `expr $us + 2` || exit 1
 
 gconcat create $name /dev/md${us} /dev/md`expr $us + 1` /dev/md`expr $us + 2` || exit 1
 
-dd if=${src} of=/dev/${name}.concat bs=1m count=$tsize >/dev/null 2>&1
-dd if=/dev/${name}.concat of=${dst} bs=1m count=$tsize >/dev/null 2>&1
+dd if=${src} of=/dev/concat/${name} bs=1m count=$tsize >/dev/null 2>&1
+dd if=/dev/concat/${name} of=${dst} bs=1m count=$tsize >/dev/null 2>&1
 
 if [ `md5 -q ${src}` != `md5 -q ${dst}` ]; then
 	echo "FAIL"
