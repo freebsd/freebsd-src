@@ -1,6 +1,0 @@
-PROG=grotty
-MAN1=grotty.n
-XLIBS=$(LIBDRIVER) $(LIBGROFF)
-MLIB=$(LIBM)
-OBJS=tty.o
-CCSRCS=tty.cc

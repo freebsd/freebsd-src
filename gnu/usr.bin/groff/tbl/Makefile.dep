@@ -1,6 +1,0 @@
-main.o : main.cc table.h ../include/cset.h ../include/cmap.h \
-  ../include/stringclass.h ../include/errarg.h ../include/error.h \
-  ../include/lib.h
-table.o : table.cc table.h ../include/cset.h ../include/cmap.h \
-  ../include/stringclass.h ../include/errarg.h ../include/error.h \
-  ../include/lib.h
