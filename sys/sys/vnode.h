@@ -99,7 +99,7 @@ struct vnode {
 	struct	mount *v_mount;			/* ptr to vfs we are in */
 	vop_t	**v_op;				/* vnode operations vector */
 	TAILQ_ENTRY(vnode) v_freelist;		/* vnode freelist */
-	LIST_ENTRY(vnode) v_mntvnodes;		/* vnodes for mount point */
+	TAILQ_ENTRY(vnode) v_nmntvnodes;	/* vnodes for mount point */
 	struct	buflists v_cleanblkhd;		/* clean blocklist head */
 	struct	buflists v_dirtyblkhd;		/* dirty blocklist head */
 	LIST_ENTRY(vnode) v_synclist;		/* vnodes with dirty buffers */

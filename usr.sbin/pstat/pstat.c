@@ -693,10 +693,10 @@ kinfo_vnodes(avnodes)
 	for (num = 0, mp = TAILQ_FIRST(&mountlist); ; mp = mp_next) {
 		KGET2(mp, &mount, sizeof(mount), "mount entry");
 		mp_next = TAILQ_NEXT(&mount, mnt_list);
-		for (vp = LIST_FIRST(&mount.mnt_vnodelist);
+		for (vp = TAILQ_FIRST(&mount.mnt_nvnodelist);
 		    vp != NULL; vp = vp_next) {
 			KGET2(vp, &vnode, sizeof(vnode), "vnode");
-			vp_next = LIST_NEXT(&vnode, v_mntvnodes);
+			vp_next = TAILQ_NEXT(&vnode, v_nmntvnodes);
 			if ((bp + VPTRSZ + VNODESZ) > evbuf)
 				/* XXX - should realloc */
 				errx(1, "no more room for vnodes");

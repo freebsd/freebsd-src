@@ -479,7 +479,7 @@ nwfs_sync(mp, waitfor, cred, td)
 	 */
 	mtx_lock(&mntvnode_mtx);
 loop:
-	for (vp = LIST_FIRST(&mp->mnt_vnodelist);
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
 	     vp != NULL;
 	     vp = nvp) {
 		/*
@@ -488,7 +488,7 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		nvp = LIST_NEXT(vp, v_mntvnodes);
+		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&vp->v_interlock);
 		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
