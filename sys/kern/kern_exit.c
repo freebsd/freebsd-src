@@ -231,7 +231,7 @@ exit1(td, rv)
 		vm->vm_freer = p;
 	}
 
-	PGRPSESS_XLOCK();
+	sx_xlock(&proctree_lock);
 	if (SESS_LEADER(p)) {
 		register struct session *sp;
 
@@ -251,9 +251,9 @@ exit1(td, rv)
 					PGRP_UNLOCK(sp->s_ttyp->t_pgrp);
 				}
 				/* XXX tp should be locked. */
-				PGRPSESS_XUNLOCK();
+				sx_xunlock(&proctree_lock);
 				(void) ttywait(tp);
-				PGRPSESS_XLOCK();
+				sx_xlock(&proctree_lock);
 				/*
 				 * The tty could have been revoked
 				 * if we blocked.
@@ -263,10 +263,10 @@ exit1(td, rv)
 					SESS_LOCK(p->p_session);
 					sp->s_ttyvp = NULL;
 					SESS_UNLOCK(p->p_session);
-					PGRPSESS_XUNLOCK();
+					sx_xunlock(&proctree_lock);
 					VOP_REVOKE(ttyvp, REVOKEALL);
-					PGRPSESS_XLOCK();
 					vrele(ttyvp);
+					sx_xlock(&proctree_lock);
 				}
 			}
 			if (sp->s_ttyvp) {
@@ -287,7 +287,7 @@ exit1(td, rv)
 		SESS_UNLOCK(p->p_session);
 	}
 	fixjobc(p, p->p_pgrp, 0);
-	PGRPSESS_XUNLOCK();
+	sx_xunlock(&proctree_lock);
 	(void)acct_process(td);
 #ifdef KTRACE
 	/*
@@ -619,13 +619,13 @@ loop:
 			 * Finally finished with old proc entry.
 			 * Unlink it from its process group and free it.
 			 */
+			sx_xlock(&proctree_lock);
 			leavepgrp(p);
 
 			sx_xlock(&allproc_lock);
 			LIST_REMOVE(p, p_list);	/* off zombproc */
 			sx_xunlock(&allproc_lock);
 
-			sx_xlock(&proctree_lock);
 			LIST_REMOVE(p, p_sibling);
 			sx_xunlock(&proctree_lock);
 
