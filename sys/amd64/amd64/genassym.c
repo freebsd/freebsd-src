@@ -80,11 +80,9 @@ ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(P_SFLAG, offsetof(struct proc, p_sflag));
-ASSYM(P_STATE, offsetof(struct proc, p_state));
 ASSYM(P_UAREA, offsetof(struct proc, p_uarea));
 
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
-ASSYM(TD_WCHAN, offsetof(struct thread, td_wchan));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_INTR_NESTING_LEVEL, offsetof(struct thread, td_intr_nesting_level));
