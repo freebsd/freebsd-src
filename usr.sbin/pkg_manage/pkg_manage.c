@@ -95,7 +95,7 @@ exec_catch_errors(char *prog, char *arg, char *fout)
  *	 if you don't want output.
  */
 {
-    char	*execstr, *tmp;
+    char	*execstr, *tmp, msg[MAXPATHLEN];
     int		ret, yesno, unlink_fout;
 
     execstr = (char *) malloc( strlen(prog) + strlen(arg) + 30 );
@@ -126,7 +126,8 @@ exec_catch_errors(char *prog, char *arg, char *fout)
 	    /* disable helpline */
 	    tmp = get_helpline();
 	    use_helpline("use arrowkeys, PgUp, PgDn to move, press enter when done");
-	    dialog_textbox("Error output from pkg_add", fout, LINES-2, COLS-4);
+	    sprintf(msg, "Error output from %s", prog);
+	    dialog_textbox(msg, fout, LINES-2, COLS-4);
 	    restore_helpline(tmp);
 	}
     }

@@ -16,6 +16,4 @@
   <Install marked> button with 'TAB' or 'SHIFT-TAB' and press 
   'ENTER' to actually install them. Before installation a check 
   will be made if a selected package is already installed. If so, 
-  you will be given the choice to delete that package, or skip 
-  the selected package. 
-
+  you will be informed of this and the package will be skipped.
