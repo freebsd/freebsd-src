@@ -52,6 +52,7 @@ struct kt {
 	{ "and",	AND },
 	{ "args",	ARGS },
 	{ "at",		AT },
+	{ "auto",	AUTO },
 #if MACHINE_I386
 	{ "bio",	BIO },
 	{ "bus",	BUS },
@@ -86,6 +87,7 @@ struct kt {
 	{ "net",	NET },
 #endif MACHINE_I386
 	{ "nexus",	NEXUS },
+	{ "none",	NONE },
 	{ "on",		ON },
 	{ "options",	OPTIONS },
 #if MACHINE_I386
@@ -125,6 +127,12 @@ WORD	[A-Za-z_][-A-Za-z_]*
 			}
 			tprintf("(%s) ", yytext);
 			return i;
+		}
+\\\"[^"]+\\\"	{
+			yytext[strlen(yytext)-2] = '"';
+			yytext[strlen(yytext)-1] = '\0';
+			yylval.str = strdup(yytext + 1);
+			return ID;
 		}
 \"[^"]+\"	{
 			yytext[strlen(yytext)-1] = '\0';
