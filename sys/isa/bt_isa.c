@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.5 1998/11/10 06:44:54 gibbs Exp $
+ *	$Id: bt_isa.c,v 1.6 1999/03/08 21:32:59 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -118,7 +118,7 @@ bt_isa_probe(dev)
 		bt_mark_probed_bio(port_index);
 
 		if (bt_port_probe(bt, &info) != 0) {
-			printf("bt_isa_probe: Probe failled for card at 0x%x\n",
+			printf("bt_isa_probe: Probe failed for card at 0x%x\n",
 			       ioport);
 			bt_free(bt);
 			continue;
