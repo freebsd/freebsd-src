@@ -10,7 +10,11 @@ TCSHDIR= ${.CURDIR}/../../contrib/tcsh
 .PATH: ${TCSHDIR}
 
 PROG=	csh
+.if defined(RESCUE)
+DFLAGS= -D_PATH_TCSHELL='"/rescue/${PROG}"'
+.else
 DFLAGS= -D_PATH_TCSHELL='"/bin/${PROG}"'
+.endif
 CFLAGS+= -I. -I${.CURDIR} -I${TCSHDIR} ${DFLAGS}
 WARNS=	2
 SRCS=	sh.c sh.dir.c sh.dol.c sh.err.c sh.exec.c sh.char.c \

@@ -52,8 +52,9 @@ OBJS+=	dhcpctl/dhcpctl.o dhcpctl/callback.o dhcpctl/remote.o
 # though, so we must run ``make all'' instead when we are asked to
 # generate an individual object file.
 
+# Note: Must have some commands here to override the default build action
 ${OBJS}: all
-
+	@true
 .endif
 
 .include <bsd.subdir.mk>
