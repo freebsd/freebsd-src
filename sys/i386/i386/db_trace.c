@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.10 1995/03/16 18:11:26 bde Exp $
+ *	$Id: db_trace.c,v 1.11 1995/05/30 07:59:23 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -71,7 +71,7 @@ struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 /*
  * Stack trace.
  */
-#define	INKERNEL(va)	(((vm_offset_t)(va)) >= VM_MIN_KERNEL_ADDRESS)
+#define	INKERNEL(va)	(((vm_offset_t)(va)) >= USRSTACK)
 
 struct i386_frame {
 	struct i386_frame	*f_frame;
@@ -79,32 +79,19 @@ struct i386_frame {
 	int			f_arg0;
 };
 
+#define NORMAL		0
 #define	TRAP		1
 #define	INTERRUPT	2
 #define	SYSCALL		3
 
-db_addr_t	db_trap_symbol_value = 0;
-db_addr_t	db_syscall_symbol_value = 0;
-db_addr_t	db_kdintr_symbol_value = 0;
-boolean_t	db_trace_symbols_found = FALSE;
-
-void
-db_find_trace_symbols()
-{
-	db_expr_t	value;
-	if (db_value_of_name("_trap", &value))
-	    db_trap_symbol_value = (db_addr_t) value;
-	if (db_value_of_name("_kdintr", &value))
-	    db_kdintr_symbol_value = (db_addr_t) value;
-	if (db_value_of_name("_syscall", &value))
-	    db_syscall_symbol_value = (db_addr_t) value;
-	db_trace_symbols_found = TRUE;
-}
+static void db_nextframe __P((struct i386_frame **, db_addr_t *));
+static int db_numargs __P((struct i386_frame *));
+static void db_print_stack_entry __P((char *, int, char **, int *, db_addr_t));
 
 /*
  * Figure out how many arguments were passed into the frame at "fp".
  */
-int
+static int
 db_numargs(fp)
 	struct i386_frame *fp;
 {
@@ -113,229 +100,205 @@ db_numargs(fp)
 	int	args;
 
 	argp = (int *)db_get_value((int)&fp->f_retaddr, 4, FALSE);
-	if (argp < (int *)VM_MIN_KERNEL_ADDRESS || argp > (int *)etext)
-	    args = 5;
-	else {
-	    inst = db_get_value((int)argp, 4, FALSE);
-	    if ((inst & 0xff) == 0x59)	/* popl %ecx */
-		args = 1;
-	    else if ((inst & 0xffff) == 0xc483)	/* addl %n, %esp */
-		args = ((inst >> 16) & 0xff) / 4;
-	    else
+	if (argp < (int *)VM_MIN_KERNEL_ADDRESS ||
+	    argp > (int *)etext) {
 		args = 5;
+	} else {
+		inst = db_get_value((int)argp, 4, FALSE);
+		if ((inst & 0xff) == 0x59)	/* popl %ecx */
+			args = 1;
+		else if ((inst & 0xffff) == 0xc483)	/* addl %n, %esp */
+			args = ((inst >> 16) & 0xff) / 4;
+		else
+			args = 5;
 	}
 	return (args);
 }
 
-/*
- * Figure out the next frame up in the call stack.
- * For trap(), we print the address of the faulting instruction and
- *   proceed with the calling frame.  We return the ip that faulted.
- *   If the trap was caused by jumping through a bogus pointer, then
- *   the next line in the backtrace will list some random function as
- *   being called.  It should get the argument list correct, though.
- *   It might be possible to dig out from the next frame up the name
- *   of the function that faulted, but that could get hairy.
- */
-void
-db_nextframe(fp, ip, argp, is_trap)
-	struct i386_frame **fp;		/* in/out */
-	db_addr_t	*ip;		/* out */
-	int *argp;			/* in */
-	int is_trap;			/* in */
+static void
+db_print_stack_entry(name, narg, argnp, argp, callpc)
+	char *name;
+	int narg;
+	char **argnp;
+	int *argp;
+	db_addr_t callpc;
 {
-	struct i386_saved_state *saved_regs;
-
-	switch (is_trap) {
-	case 0:
-	    *ip = (db_addr_t)
-			db_get_value((int) &(*fp)->f_retaddr, 4, FALSE);
-	    *fp = (struct i386_frame *)
-			db_get_value((int) &(*fp)->f_frame, 4, FALSE);
-	    break;
-	case TRAP:
-	default:
-	    /*
-	     * We know that trap() has 1 argument and we know that
-	     * it is an (int *).
-	     */
-#if 0
-	    saved_regs = (struct i386_saved_state *)
-			db_get_value((int)argp, 4, FALSE);
-#endif
-	    saved_regs = (struct i386_saved_state *)argp;
-	    db_printf("--- trap (number %d) ---\n",
-		      saved_regs->tf_trapno & 0xffff);
-	    db_printsym(saved_regs->tf_eip, DB_STGY_XTRN);
-	    db_printf(":\n");
-	    *fp = (struct i386_frame *)saved_regs->tf_ebp;
-	    *ip = (db_addr_t)saved_regs->tf_eip;
-	    break;
-
-	case SYSCALL: {
-	    struct trapframe	*saved_regs = (struct trapframe *)argp;
-
-	    db_printf("--- syscall (number %d) ---\n", saved_regs->tf_eax);
-	    db_printsym(saved_regs->tf_eip, DB_STGY_XTRN);
-	    db_printf(":\n");
-	    *fp = (struct i386_frame *)saved_regs->tf_ebp;
-	    *ip = (db_addr_t)saved_regs->tf_eip;
-	    }
-	    break;
-	}
-}
-
-void
-db_stack_trace_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char		*modif;
-{
-	struct i386_frame *frame, *lastframe;
-	int		*argp;
-	db_addr_t	callpc;
-	int		is_trap;
-	boolean_t	kernel_only = TRUE;
-	boolean_t	trace_thread = FALSE;
-
-#if 0
-	if (!db_trace_symbols_found)
-	    db_find_trace_symbols();
-#endif
-
-	{
-	    register char *cp = modif;
-	    register char c;
-
-	    while ((c = *cp++) != 0) {
-		if (c == 't')
-		    trace_thread = TRUE;
-		if (c == 'u')
-		    kernel_only = FALSE;
-	    }
-	}
-
-	if (count == -1)
-	    count = 65535;
-
-	if (!have_addr) {
-	    frame = (struct i386_frame *)ddb_regs.tf_ebp;
-	    callpc = (db_addr_t)ddb_regs.tf_eip;
-	}
-	else if (trace_thread) {
-		printf ("db_trace.c: can't trace thread\n");
-	}
-	else {
-	    frame = (struct i386_frame *)addr;
-	    callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
-	}
-
-	lastframe = 0;
-	while (count-- && frame != 0) {
-	    int		narg;
-	    char *	name;
-	    db_expr_t	offset;
-	    db_sym_t	sym;
-#define MAXNARG	16
-	    char	*argnames[MAXNARG], **argnp = NULL;
-
-	    sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
-	    db_symbol_values(sym, &name, NULL);
-
-	    if (lastframe == 0 && sym == NULL) {
-		/* Symbol not found, peek at code */
-		int	instr = db_get_value(callpc, 4, FALSE);
-
-		offset = 1;
-		if ((instr & 0x00ffffff) == 0x00e58955 ||
-				/* enter: pushl %ebp, movl %esp, %ebp */
-			(instr & 0x0000ffff) == 0x0000e589
-				/* enter+1: movl %esp, %ebp */	) {
-			offset = 0;
-		}
-	    }
-#define STRCMP(s1,s2) ((s1) && (s2) && strcmp((s1), (s2)) == 0)
-	    if (INKERNEL((int)frame) && STRCMP(name, "_trap")) {
-		narg = 1;
-		is_trap = TRAP;
-	    }
-	    else
-	    if (INKERNEL((int)frame) && STRCMP(name, "_kdintr")) {
-		is_trap = INTERRUPT;
-		narg = 0;
-	    }
-	    else
-	    if (INKERNEL((int)frame) && STRCMP(name, "_syscall")) {
-		is_trap = SYSCALL;
-		narg = 0;
-	    }
-#undef STRCMP
-	    else {
-		is_trap = 0;
-		narg = MAXNARG;
-		if (db_sym_numargs(sym, &narg, argnames)) {
-			argnp = argnames;
-		} else {
-			narg = db_numargs(frame);
-		}
-	    }
-
-	    db_printf("%s(", name);
-
-	    if (lastframe == 0 && offset == 0 && !have_addr) {
-		/*
-		 * We have a breakpoint before the frame is set up
-		 * Use %esp instead
-		 */
-		argp = &((struct i386_frame *)(ddb_regs.tf_esp-4))->f_arg0;
-	    } else
-		argp = &frame->f_arg0;
-
-	    while (narg) {
+	db_printf("%s(", name);
+	while (narg) {
 		if (argnp)
 			db_printf("%s=", *argnp++);
 		db_printf("%x", db_get_value((int)argp, 4, FALSE));
 		argp++;
 		if (--narg != 0)
-		    db_printf(",");
-	    }
-	    db_printf(") at ");
-	    db_printsym(callpc, DB_STGY_PROC);
-	    db_printf("\n");
+			db_printf(",");
+  	}
+	db_printf(") at ");
+	db_printsym(callpc, DB_STGY_PROC);
+	db_printf("\n");
+}
 
-	    if (lastframe == 0 && offset == 0 && !have_addr) {
-		/* Frame really belongs to next callpc */
-		lastframe = (struct i386_frame *)(ddb_regs.tf_esp-4);
-		callpc = (db_addr_t)db_get_value((int)&lastframe->f_retaddr, 4, FALSE);
-		continue;
-	    }
+/*
+ * Figure out the next frame up in the call stack.
+ */
+static void
+db_nextframe(fp, ip)
+	struct i386_frame **fp;		/* in/out */
+	db_addr_t	*ip;		/* out */
+{
+	struct trapframe *tf;
+	int frame_type;
+	int eip, ebp;
+	db_expr_t offset;
+	char *sym, *name;
 
-	    lastframe = frame;
-	    db_nextframe(&frame, &callpc, &frame->f_arg0, is_trap);
+	eip = db_get_value((int) &(*fp)->f_retaddr, 4, FALSE);
+	ebp = db_get_value((int) &(*fp)->f_frame, 4, FALSE);
 
-	    if (frame == 0) {
-		/* end of chain */
+	/*
+	 * Figure out frame type.
+	 */
+
+	frame_type = NORMAL;
+
+	sym = db_search_symbol(eip, DB_STGY_ANY, &offset);
+	db_symbol_values(sym, &name, NULL);
+	if (name != NULL) {
+		if (!strcmp(name, "calltrap")) {
+			frame_type = TRAP;
+		} else if (!strncmp(name, "Xresume", 7)) {
+			frame_type = INTERRUPT;
+		} else if (!strcmp(name, "_Xsyscall")) {
+			frame_type = SYSCALL;
+		}
+	}
+
+	/*
+	 * Normal frames need no special processing.
+	 */
+	if (frame_type == NORMAL) {
+		*ip = (db_addr_t) eip;
+		*fp = (struct i386_frame *) ebp;
+		return;
+	}
+
+	db_print_stack_entry(name, 0, 0, 0, eip);
+
+	/*
+	 * Point to base of trapframe which is just above the
+	 * current frame.
+	 */
+	tf = (struct trapframe *) ((int)*fp + 8);
+
+	switch (frame_type) {
+	case TRAP:
+		if (INKERNEL((int) tf)) {
+			eip = tf->tf_eip;
+			ebp = tf->tf_ebp;
+			db_printf("--- trap %d, eip = 0x%x, ebp = 0x%x ---\n",
+			    tf->tf_trapno, eip, ebp);
+		}
 		break;
-	    }
-	    if (INKERNEL((int)frame)) {
-		/* staying in kernel */
-		if (frame <= lastframe) {
-		    db_printf("Bad frame pointer: 0x%x\n", frame);
-		    break;
+	case SYSCALL:
+		if (INKERNEL((int) tf)) {
+			eip = tf->tf_eip;
+			ebp = tf->tf_ebp;
+			db_printf("--- syscall %d, eip = 0x%x, ebp = 0x%x ---\n",
+			    tf->tf_eax, eip, ebp);
 		}
-	    }
-	    else if (INKERNEL((int)lastframe)) {
-		/* switch from user to kernel */
-		if (kernel_only)
-		    break;	/* kernel stack only */
-	    }
-	    else {
-		/* in user */
-		if (frame <= lastframe) {
-		    db_printf("Bad user frame pointer: 0x%x\n", frame);
-		    break;
+		break;
+	case INTERRUPT:
+		tf = (struct trapframe *)((int)*fp + 16);
+		if (INKERNEL((int) tf)) {
+			eip = tf->tf_eip;
+			ebp = tf->tf_ebp;
+			db_printf("--- interrupt, eip = 0x%x, ebp = 0x%x ---\n", eip, ebp);
 		}
-	    }
+		break;
+	default:
+		break;
+	}
+
+	*ip = (db_addr_t) eip;
+	*fp = (struct i386_frame *) ebp;
+}
+
+void
+db_stack_trace_cmd(addr, have_addr, count, modif)
+	db_expr_t addr;
+	boolean_t have_addr;
+	db_expr_t count;
+	char *modif;
+{
+	struct i386_frame *frame, *lastframe = NULL;
+	int *argp;
+	db_addr_t callpc;
+
+	if (count == -1)
+		count = 65535;
+
+	if (!have_addr) {
+		frame = (struct i386_frame *)ddb_regs.tf_ebp;
+		callpc = (db_addr_t)ddb_regs.tf_eip;
+	} else {
+		frame = (struct i386_frame *)addr;
+		callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
+	}
+
+	while (count--) {
+		int		narg;
+		char *	name;
+		db_expr_t	offset;
+		db_sym_t	sym;
+#define MAXNARG	16
+		char	*argnames[MAXNARG], **argnp = NULL;
+
+		sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
+		db_symbol_values(sym, &name, NULL);
+
+		if (lastframe == NULL && sym == NULL) {
+			/* Symbol not found, peek at code */
+			int instr = db_get_value(callpc, 4, FALSE);
+
+			offset = 1;
+			   /* enter: pushl %ebp, movl %esp, %ebp */
+			if ((instr & 0x00ffffff) == 0x00e58955 ||
+			    /* enter+1: movl %esp, %ebp */
+			    (instr & 0x0000ffff) == 0x0000e589) {
+				offset = 0;
+			}
+	    	}
+		if (lastframe == NULL && offset == 0 && !have_addr)
+			argp = &((struct i386_frame *)(ddb_regs.tf_esp-4))->f_arg0;
+		else
+			argp = &frame->f_arg0;
+
+		narg = MAXNARG;
+		if (sym != NULL && db_sym_numargs(sym, &narg, argnames)) {
+			argnp = argnames;
+		} else {
+			narg = db_numargs(frame);
+		}
+
+		db_print_stack_entry(name, narg, argnp, argp, callpc);
+
+		if (lastframe == NULL && offset == 0 && !have_addr) {
+			/* Frame really belongs to next callpc */
+			lastframe = (struct i386_frame *)(ddb_regs.tf_esp-4);
+			callpc = (db_addr_t)db_get_value((int)&lastframe->f_retaddr, 4, FALSE);
+			continue;
+		}
+		lastframe = frame;
+
+		db_nextframe(&frame, &callpc);
+
+		if (INKERNEL((int) callpc) && !INKERNEL((int) frame)) {
+			sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
+			db_symbol_values(sym, &name, NULL);
+			db_print_stack_entry(name, 0, 0, 0, callpc);
+			break;
+		}
+		if (!INKERNEL((int) frame)) {
+			break;
+		}
 	}
 }
