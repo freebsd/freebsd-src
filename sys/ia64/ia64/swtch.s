@@ -195,6 +195,7 @@ ENTRY(cpu_switch, 0)
 	mov	ar.rsc=3		// turn RSE back on
 
 #ifdef SMP
+	;;
 	add	r17 = PC_CPUID, r13
 	movl	r16 = smp_active
 	;;
@@ -223,15 +224,15 @@ ENTRY(cpu_switch, 0)
 3:	
 	alloc	r15=ar.pfs,0,0,2,0	// create temporary output frame
 	mov	r4=ret0			// save from call
+
 #ifdef SMP
-	;;
 	add	r14=PC_CURTHREAD,r13
 	;;
 	ld8	out0=[r14]
 	mov	out1=1
 	br.call.sptk.few rp=ia64_fpstate_save // clear fpcurthread
 #endif
-	;; 
+
 	add	r14=PC_CURTHREAD,r13 ;;
 
 	st8	[r14]=r4		// set r13->pc_curthread
