@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.13 1997/05/08 01:45:48 brian Exp $
+# $Id: ppp.conf.sample,v 1.14 1997/05/12 14:07:14 brian Exp $
 #
 #################################################################
 
@@ -123,14 +123,14 @@ direct-client:
  set line /dev/cuaa0
  set sp 115200
  set timeout 900
- set debug Phase Chat LQM
+ set log Phase Chat LQM
  set login "TIMEOUT 5 -\\r-login:-\\r-login: ppp word: ppp HELLO"
  set ifaddr 10.0.4.2 10.0.4.1
  add 10.0.4.2 255.255.255.255 127.0.0.1
  
 direct-server:
  set timeout 900 10 3
- set debug Phase LQM
+ set log Phase LQM
  set ifaddr 10.0.4.1 10.0.4.2
  add 10.0.4.1 255.255.255.255 127.0.0.1
 
@@ -158,7 +158,7 @@ users:
 callback:
  set phone 0312345678
  set login "ABORT NO\\sCARRIER TIMEOUT 5 login:-\\r-login: MyName word: MySecret TIMEOUT 20 DUMMY"
- set debug phase chat
+ set log phase chat
  dial
  quit
 
