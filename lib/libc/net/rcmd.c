@@ -377,7 +377,8 @@ __ivaliduser(hostf, raddr, luser, ruser)
 	if ((hp = gethostbyaddr((char *)&raddr, sizeof(u_long),
 							AF_INET)) == NULL)
 		return (-1);
-	strcpy(hname, hp->h_name);
+	strncpy(hname, hp->h_name, sizeof(hname));
+	hname[sizeof(hname) - 1] = '\0';
 
 	while (fgets(buf, sizeof(buf), hostf)) {
 		p = buf;
