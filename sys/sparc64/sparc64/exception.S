@@ -2178,7 +2178,7 @@ ENTRY(tl0_trap)
 
 	wr	%g0, FPRS_FEF, %fprs
 	stx	%fsr, [%sp + SPOFF + CCFSZ + TF_FSR]
-	rd	%asr19, %l6
+	rd	%gsr, %l6
 	stx	%l6, [%sp + SPOFF + CCFSZ + TF_GSR]
 	wr	%g0, 0, %fprs
 
@@ -2245,7 +2245,7 @@ ENTRY(tl0_intr)
 #endif
 
 	wrpr	%o0, 0, %pil
-	wr	%o1, 0, %asr21
+	wr	%o1, 0, %clear_softint
 
 	and	%l5, WSTATE_NORMAL_MASK, %l5
 	sllx	%l5, WSTATE_OTHER_SHIFT, %l5
@@ -2265,7 +2265,7 @@ ENTRY(tl0_intr)
 
 	wr	%g0, FPRS_FEF, %fprs
 	stx	%fsr, [%sp + SPOFF + CCFSZ + TF_FSR]
-	rd	%asr19, %l6
+	rd	%gsr, %l6
 	stx	%l6, [%sp + SPOFF + CCFSZ + TF_GSR]
 	wr	%g0, 0, %fprs
 
@@ -2442,11 +2442,10 @@ ENTRY(tl0_ret)
 	/*
 	 * Restore %fsr and %gsr.  These need floating point enabled in %fprs,
 	 * so we set it temporarily and then clear it.
-	 * XXX %asr19 should be %gsr but gas is invoked incorrectly.
 	 */
 	wr	%g0, FPRS_FEF, %fprs
 	ldx	[%sp + SPOFF + CCFSZ + TF_FSR], %fsr
-	wr	%l1, 0, %asr19
+	wr	%l1, 0, %gsr
 	wr	%g0, 0, %fprs
 
 	/*
@@ -2769,7 +2768,7 @@ ENTRY(tl1_intr)
 #endif
 
 	wrpr	%o0, 0, %pil
-	wr	%o1, 0, %asr21
+	wr	%o1, 0, %clear_softint
 
 	wrpr	%g0, 1, %tl
 
