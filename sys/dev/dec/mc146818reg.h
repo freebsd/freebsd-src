@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: mc146818reg.h,v 1.2 1997/03/12 06:53:42 cgd Exp $	*/
 
 /*
