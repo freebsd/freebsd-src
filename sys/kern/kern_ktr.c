@@ -267,7 +267,7 @@ static	int db_mach_vtrace(void);
 
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
-	int c, quit;
+	int lines, quit;
 	
 	quit = 0;
 	lines = NUM_LINES_PER_PAGE;
