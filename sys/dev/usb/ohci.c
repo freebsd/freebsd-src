@@ -1749,7 +1749,8 @@ ohci_close_pipe(pipe, head)
 	s = splusb();
 #ifdef DIAGNOSTIC
 	sed->ed.ed_flags |= LE(OHCI_ED_SKIP);
-	if (sed->ed.ed_tailp != (sed->ed.ed_headp & LE(OHCI_HEADMASK))) {
+	if ((sed->ed.ed_tailp & LE(OHCI_TAILMASK))
+	    != (sed->ed.ed_headp & LE(OHCI_HEADMASK))) {
 		ohci_physaddr_t td = sed->ed.ed_headp;
 		ohci_soft_td_t *std;
 		for (std = LIST_FIRST(&sc->sc_hash_tds[HASH(td)]); 
@@ -1762,7 +1763,8 @@ ohci_close_pipe(pipe, head)
 		       (int)LE(sed->ed.ed_headp), (int)LE(sed->ed.ed_tailp),
 		       pipe, std);
 		usb_delay_ms(&sc->sc_bus, 2);
-		if (sed->ed.ed_tailp != (sed->ed.ed_headp & LE(OHCI_HEADMASK)))
+		if ((sed->ed.ed_tailp & LE(OHCI_TAILMASK))
+		    != (sed->ed.ed_headp & LE(OHCI_HEADMASK)))
 			printf("ohci_close_pipe: pipe still not empty\n");
 	}
 #endif
@@ -2657,10 +2659,12 @@ ohci_device_intr_close(pipe)
 		    pipe, nslots, pos));
 	s = splusb();
 	sed->ed.ed_flags |= LE(OHCI_ED_SKIP);
-	if (sed->ed.ed_tailp != (sed->ed.ed_headp & LE(OHCI_HEADMASK)))
+	if ((sed->ed.ed_tailp & LE(OHCI_TAILMASK))
+	    != (sed->ed.ed_headp & LE(OHCI_HEADMASK)))
 		usb_delay_ms(&sc->sc_bus, 2);
 #ifdef DIAGNOSTIC
-	if (sed->ed.ed_tailp != (sed->ed.ed_headp & LE(OHCI_HEADMASK)))
+	if ((sed->ed.ed_tailp & LE(OHCI_TAILMASK))
+	    != (sed->ed.ed_headp & LE(OHCI_HEADMASK)))
 		panic("%s: Intr pipe %p still has TDs queued\n",
 			USBDEVNAME(sc->sc_bus.bdev), pipe);
 #endif
