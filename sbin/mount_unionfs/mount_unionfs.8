@@ -36,10 +36,10 @@
 .\" $FreeBSD$
 .\"
 .Dd March 27, 1994
-.Dt MOUNT_UNION 8
-.Os BSD 4.4
+.Dt MOUNT_UNIONFS 8
+.Os
 .Sh NAME
-.Nm mount_union
+.Nm mount_unionfs
 .Nd mount union filesystems
 .Sh SYNOPSIS
 .Nm
@@ -86,7 +86,7 @@ See the
 man page for possible options and their meanings.
 .It Fl r
 Hide the lower layer completely in the same way as mounting with
-.Xr mount_null 8 .
+.Xr mount_nullfs 8 .
 .El
 .Pp
 To enforce filesystem security, the user mounting the filesystem
@@ -147,7 +147,7 @@ and then only for lookups.
 The commands
 .Bd -literal -offset indent
 mount -t cd9660 -o ro /dev/cd0a /usr/src
-mount -t union /var/obj /usr/src
+mount -t unionfs /var/obj /usr/src
 .Ed
 .Pp
 mount the CD-ROM drive
@@ -163,7 +163,7 @@ even though it is stored on a CD-ROM.
 .Pp
 The command
 .Bd -literal -offset indent
-mount -t union -o -b /sys $HOME/sys
+mount -t unionfs -o -b /sys $HOME/sys
 .Ed
 .Pp
 attaches the system source tree below the

@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.3 (Berkeley) 3/27/94
 # $FreeBSD$
 
-PROG=	mount_umap
-SRCS=	mount_umap.c getmntopts.c
-MAN=	mount_umap.8
+PROG=	mount_umapfs
+SRCS=	mount_umapfs.c getmntopts.c
+MAN=	mount_umapfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+=-I${MOUNT}

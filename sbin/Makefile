@@ -46,11 +46,11 @@ SUBDIR=	adjkerntz \
 	mount_msdos \
 	mount_nfs \
 	mount_ntfs \
-	mount_null \
-	mount_portal \
+	mount_nullfs \
+	mount_portalfs \
 	mount_std \
-	mount_umap \
-	mount_union \
+	mount_umapfs \
+	mount_unionfs \
 	mountd \
 	natd \
 	newfs \

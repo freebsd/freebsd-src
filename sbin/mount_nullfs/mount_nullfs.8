@@ -38,10 +38,10 @@
 .\" $FreeBSD$
 .\"
 .Dd May 1, 1995
-.Dt MOUNT_NULL 8
-.Os BSD 4.4
+.Dt MOUNT_NULLFS 8
+.Os
 .Sh NAME
-.Nm mount_null
+.Nm mount_nullfs
 .Nd "mount a loopback filesystem sub-tree; demonstrate the use of a null file system layer"
 .Sh SYNOPSIS
 .Nm
@@ -102,8 +102,8 @@ for constructing new layers.
 .\"
 .Sh INSTANTIATING NEW NULL LAYERS
 New null layers are created with 
-.Xr mount_null 8 .
-.Xr Mount_null 8
+.Nm .
+.Nm Mount_nullfs
 takes two arguments, the pathname
 of the lower vfs (target-pn) and the pathname where the null
 layer will appear in the namespace (mount-point-pn).  After
@@ -162,7 +162,7 @@ vnode before returning it to the caller.
 .Pp
 For example, imagine mounting a null layer with
 .Bd -literal -offset indent
-mount_null /usr/include /dev/layer/null
+mount_nullfs /usr/include /dev/layer/null
 .Ed
 Changing directory to 
 .Pa /dev/layer/null

@@ -39,13 +39,13 @@
 .\" $FreeBSD$
 .\"
 .Dd December 14, 1996
-.Dt FDESC 5
-.Os BSD 4.4
+.Dt FDESCFS 5
+.Os
 .Sh NAME
-.Nm fdesc
+.Nm fdescfs
 .Nd file-descriptor file system
 .Sh SYNOPSIS
-fdesc	/dev/fd	fdesc rw 0 0
+fdescfs	/dev/fd	fdescfs rw 0 0
 .Sh DESCRIPTION
 The file-descriptor file system, or
 .Nm ,
@@ -91,7 +91,7 @@ are ignored.
 .El
 .Sh SEE ALSO
 .Xr mount_devfs 8 ,
-.Xr mount_fdesc 8
+.Xr mount_fdescfs 8
 .Sh HISTORY
 The
 .Nm 
@@ -108,6 +108,6 @@ The
 manual page was written by
 .An Mike Pritchard Aq mpp@FreeBSD.org ,
 and was based on the 
-.Xr mount_fdesc 8
+.Xr mount_fdescfs 8
 manual page written by
 .An Jan-Simon Pendry .
