@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.9 1995/03/25 20:46:51 joerg Exp $
+ * $Id: ctm_pass3.c,v 1.10 1995/05/30 03:47:27 rgrimes Exp $
  *
  */
 
@@ -27,6 +27,7 @@ Pass3(FILE *fd)
     struct CTM_Syntax *sp;
     FILE *ed=0;
     struct stat st;
+    char md5_1[33];
 
     if(Verbose>3)
 	printf("Pass3 -- Applying the CTM-patch\n");
@@ -99,7 +100,7 @@ Pass3(FILE *fd)
 		WRONG
 	    }
 	    close(i);
-	    if(strcmp(md5,MD5File(name))) {
+	    if(strcmp(md5,MD5File(name,md5_1))) {
 		fprintf(stderr,"  %s %s MD5 didn't come out right\n",
 		   sp->Key,name);
 		WRONG
@@ -122,7 +123,7 @@ Pass3(FILE *fd)
 		perror("ed");
 		WRONG
 	    }
-	    if(strcmp(md5,MD5File(name))) {
+	    if(strcmp(md5,MD5File(name,md5_1))) {
 		fprintf(stderr,"  %s %s MD5 didn't come out right\n",
 		   sp->Key,name);
 		WRONG
@@ -139,7 +140,7 @@ Pass3(FILE *fd)
 	        WRONG
 	    }
 	    rename(buf,name);
-	    if(strcmp(md5,MD5File(name))) {
+	    if(strcmp(md5,MD5File(name,md5_1))) {
 		fprintf(stderr," %s %s Edit failed MD5 check.\n",
 		    sp->Key,name);
 	        WRONG
@@ -176,7 +177,7 @@ Pass3(FILE *fd)
 	}
 	WRONG
     }
-    q = MD5End (&ctx);
+    q = MD5End (&ctx,md5_1);
     GETFIELD(p,'\n');
     if(strcmp(q,p)) WRONG
     if (-1 != getc(fd)) WRONG
