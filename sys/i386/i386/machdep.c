@@ -1031,6 +1031,28 @@ setregs(p, entry, stack, ps_strings)
 	else
 		pcb->pcb_gs = _udatasel;
 
+        /*
+         * Reset the hardware debug registers if they were in use.
+         * They won't have any meaning for the newly exec'd process.  
+         */
+        if (pcb->pcb_flags & PCB_DBREGS) {
+                pcb->pcb_dr0 = 0;
+                pcb->pcb_dr1 = 0;
+                pcb->pcb_dr2 = 0;
+                pcb->pcb_dr3 = 0;
+                pcb->pcb_dr6 = 0;
+                pcb->pcb_dr7 = 0;
+                if (pcb == curpcb) {
+		        /*
+			 * Clear the debug registers on the running
+			 * CPU, otherwise they will end up affecting
+			 * the next process we switch to.
+			 */
+		        reset_dbregs();
+                }
+                pcb->pcb_flags &= ~PCB_DBREGS;
+        }
+
 	/*
 	 * Initialize the math emulator (if any) for the current process.
 	 * Actually, just clear the bit that says that the emulator has
