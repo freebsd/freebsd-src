@@ -153,6 +153,7 @@ static const char *const print_stats_he[] = {
 	"oec:",
 	"dcc:",
 	"cec:",
+	"no_rcv_mbuf:",
 	NULL
 };
 static const char *const print_stats_eni[] = {
