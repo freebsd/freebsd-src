@@ -58,7 +58,7 @@ extern	char	*sys_errlist[];
 #endif
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: printnat.c,v 1.1.2.8 2002/04/25 16:44:13 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: printnat.c,v 1.1.2.9 2002/05/03 11:48:49 darrenr Exp $";
 #endif
 
 
@@ -442,6 +442,12 @@ int opts;
 				printf("\n\tip modulous %d", np->in_pmax);
 		} else if (np->in_pmin || np->in_pmax) {
 			printf(" portmap");
+			if ((np->in_flags & IPN_TCPUDP) == IPN_TCPUDP)
+				printf(" tcp/udp");
+			else if (np->in_flags & IPN_TCP)
+				printf(" tcp");
+			else if (np->in_flags & IPN_UDP)
+				printf(" udp");
 			if (np->in_flags & IPN_AUTOPORTMAP) {
 				printf(" auto");
 				if (opts & OPT_DEBUG)
@@ -450,12 +456,6 @@ int opts;
 					       ntohs(np->in_pmax),
 					       np->in_ippip, np->in_ppip);
 			} else {
-				if ((np->in_flags & IPN_TCPUDP) == IPN_TCPUDP)
-					printf(" tcp/udp");
-				else if (np->in_flags & IPN_TCP)
-					printf(" tcp");
-				else if (np->in_flags & IPN_UDP)
-					printf(" udp");
 				printf(" %d:%d", ntohs(np->in_pmin),
 				       ntohs(np->in_pmax));
 			}
