@@ -9,9 +9,10 @@
 #define CHNLSET_CABLEIRC	2
 #define CHNLSET_CABLEHRC	3
 #define CHNLSET_WEUROPE		4
-#define CHNLSET_JPNBCST		5
-#define CHNLSET_MIN		CHNLSET_NABCST
-#define CHNLSET_MAX		CHNLSET_JPNBCST
+#define CHNLSET_JPNBCST         5
+#define CHNLSET_JPNCABLE        6
+#define CHNLSET_MIN	        CHNLSET_NABCST
+#define CHNLSET_MAX	        CHNLSET_JPNCABLE
 
 
 /*
@@ -184,3 +185,21 @@ struct _bktr_clip {
 /* set clip list */
 #define BT848SCLIP     _IOW('x', 66, struct _bktr_clip )
 #define BT848GCLIP     _IOR('x', 66, struct _bktr_clip )
+
+
+/* set input format */
+#define BT848SFMT		_IOW('x', 67, unsigned long )
+#define BT848GFMT		_IOR('x', 67, unsigned long )
+
+/*  XXX - Copied from /sys/pci/brktree_reg.h  */
+#define BT848_IFORM_FORMAT              (0x7<<0)
+# define BT848_IFORM_F_RSVD             (0x7)
+# define BT848_IFORM_F_SECAM            (0x6)
+# define BT848_IFORM_F_PALN             (0x5)
+# define BT848_IFORM_F_PALM             (0x4)
+# define BT848_IFORM_F_PALBDGHI         (0x3)
+# define BT848_IFORM_F_NTSCJ            (0x2)
+# define BT848_IFORM_F_NTSCM            (0x1)
+# define BT848_IFORM_F_AUTO             (0x0)
+
+
