@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.36 1996/02/25 20:12:36 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.37 1996/03/02 03:45:12 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -584,7 +584,13 @@ ffs_mountfs(devvp, mp, p)
 	}
 	if (ronly == 0)
 		ffs_sbupdate(ump, MNT_WAIT);
-	vn_vmio_open(devvp, p, p->p_ucred);
+	/*
+	 * Only VMIO the backing device if the backing device is a real
+	 * block device.  This excludes the original MFS implementation.
+	 */
+	if ((devvp->v_type == VBLK) && (major(devvp->v_rdev) < nblkdev)) {
+		vn_vmio_open(devvp, p, p->p_ucred);
+	}
 	return (0);
 out:
 	if (bp)
