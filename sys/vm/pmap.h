@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.27 1998/02/01 20:08:39 bde Exp $
+ * $Id: pmap.h,v 1.28 1998/07/26 18:15:20 dfr Exp $
  */
 
 /*
@@ -129,6 +129,7 @@ void		 pmap_release __P((pmap_t));
 void		 pmap_remove __P((pmap_t, vm_offset_t, vm_offset_t));
 void		 pmap_remove_pages __P((pmap_t, vm_offset_t, vm_offset_t));
 void		 pmap_zero_page __P((vm_offset_t));
+void		 pmap_zero_page_area __P((vm_offset_t, int off, int size));
 void		 pmap_prefault __P((pmap_t, vm_offset_t, vm_map_entry_t));
 int		 pmap_mincore __P((pmap_t pmap, vm_offset_t addr));
 void		 pmap_new_proc __P((struct proc *p));
