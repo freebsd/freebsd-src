@@ -23,19 +23,10 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: iicbus_if.m,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
+#	$Id$
 #
 
-INTERFACE iicbus
-
-#
-# Interpret interrupt
-#
-METHOD int intr {
-	device_t dev;
-	int event;
-	char *buf;
-};
+INTERFACE iicbb
 
 #
 # iicbus callback
@@ -47,55 +38,24 @@ METHOD int callback {
 };
 
 #
-# Send REPEATED_START condition
+# Set I2C bus lines
 #
-METHOD int repeated_start {
+METHOD void setlines {
 	device_t dev;
-	u_char slave;
-	int timeout;
+	int ctrl;
+	int data;
 };
 
 #
-# Send START condition
+# Get I2C bus lines
 #
-METHOD int start {
-	device_t dev;
-	u_char slave;
-	int timeout;
-};
-
 #
-# Send STOP condition
-#
-METHOD int stop {
+METHOD int getdataline {
 	device_t dev;
 };
 
 #
-# Read from I2C bus
-#
-METHOD int read {
-	device_t dev;
-	char *buf;
-	int len;
-	int *bytes;
-	int last;
-	int delay;
-};
-
-#
-# Write to the I2C bus
-#
-METHOD int write {
-	device_t dev;
-	char *buf;
-	int len;
-	int *bytes;
-	int timeout;
-};
-
-#
-# Reset I2C bus
+# Reset interface
 #
 METHOD int reset {
 	device_t dev;
