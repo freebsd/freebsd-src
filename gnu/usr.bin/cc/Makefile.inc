@@ -7,14 +7,13 @@
 GCCDIR=		${.CURDIR}/../../../../contrib/gcc.295
 
 TARGET_ARCH?=	${MACHINE_ARCH}
-GCC_ARCH=	${TARGET_ARCH}
 
 # Machine description.
-MD_FILE=	${GCCDIR}/config/${GCC_ARCH}/${GCC_ARCH}.md
+MD_FILE=	${GCCDIR}/config/${TARGET_ARCH}/${TARGET_ARCH}.md
 target=		${TARGET_ARCH}-unknown-freebsd
 
 # These architectures are Cygnus's default for enabling Haifa.
-.if ${GCC_ARCH} == "alpha" || ${GCC_ARCH} == "sparc" || ${GCC_ARCH} == "sparc64"
+.if ${TARGET_ARCH} == "alpha"
 USE_EGCS_HAIFA=	1
 .endif
 
