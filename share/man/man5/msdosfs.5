@@ -10,7 +10,7 @@
 .Nd msdos file system
 .Sh SYNOPSIS
 .Bd -literal
-/dev/ad0sN		/dos	msdos	rw	0	0
+/dev/ad0sN		/dos	msdosfs		rw	0	0
 .Ed
 .Pp
 To link into the kernel:
@@ -46,7 +46,7 @@ It is possible to define an entry in
 .Pa /etc/fstab
 that looks similar to:
 .Bd -literal
-/dev/ad0sN		/dos	msdos	rw	0	0
+/dev/ad0sN		/dos	msdosfs		rw	0	0
 .Ed
 .Pp
 This will mount an
