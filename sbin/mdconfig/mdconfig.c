@@ -211,8 +211,9 @@ list(const int fd)
 
 	if (sysctlbyname("kern.disks", NULL, &dll, NULL, 0) == -1)
 		err(1, "sysctlbyname: kern.disks");
-	if ( (disklist = malloc(dll)) == NULL)
+	if ( (disklist = malloc(dll + 1)) == NULL)
 		err(1, "malloc");
+	bzero(disklist, dll + 1);
 	if (sysctlbyname("kern.disks", disklist, &dll, NULL, 0) == -1)
 		err(1, "sysctlbyname: kern.disks");
 
