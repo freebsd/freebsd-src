@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: mbr.c,v 1.4 1998/05/06 22:14:32 julian Exp $
+ *	$Id: mbr.c,v 1.5 1998/05/06 23:32:48 julian Exp $
  */
 
 #include <sys/param.h>
@@ -807,7 +807,7 @@ RR;
 #endif /* 0 */
 
 static int
-mbr_ioctl(void *private, int cmd, caddr_t addr, int flag, struct proc * p)
+mbr_ioctl(void *private, u_long cmd, caddr_t addr, int flag, struct proc * p)
 {
 	register struct private_data *pd;
 	struct subdev *sdp;
