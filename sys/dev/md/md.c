@@ -805,8 +805,7 @@ mdcreate_malloc(struct md_ioctl *mdio)
 		sc->fwsectors = mdio->md_fwsectors;
 	if (mdio->md_fwheads != 0)
 		sc->fwheads = mdio->md_fwheads;
-	sc->nsect = mdio->md_size;
-	sc->nsect /= (sc->secsize / DEV_BSIZE);
+	sc->nsect = (mdio->md_size * DEV_BSIZE) / sc->secsize;
 	sc->flags = mdio->md_options & (MD_COMPRESS | MD_FORCE);
 	sc->indir = dimension(sc->nsect);
 	sc->uma = uma_zcreate(sc->name, sc->secsize,
