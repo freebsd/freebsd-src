@@ -70,3 +70,4 @@ _SYSENTRY(brk)
 1:	SET(HIDENAME(curbrk), %o2, %o3)
 	retl
 	 stx	%o4, [%o3]
+_SYSEND(brk)

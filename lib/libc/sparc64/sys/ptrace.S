@@ -60,3 +60,4 @@ _SYSENTRY(ptrace)
 	stw	%g0, [%o0]
 	restore
 	_SYSCALL(ptrace)
+_SYSEND(ptrace)

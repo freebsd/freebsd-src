@@ -55,6 +55,8 @@
 	.data
 	.globl	HIDENAME(curbrk)
 	.globl	HIDENAME(minbrk)
+	.type	HIDENAME(curbrk),@object
+	.type	HIDENAME(minbrk),@object
 HIDENAME(curbrk):
 	.xword	CNAME(_end)
 HIDENAME(minbrk):
@@ -73,3 +75,4 @@ _SYSENTRY(sbrk)
 	ERROR()
 1:	retl
 	 stx	%o5, [%o3]
+_SYSEND(sbrk)

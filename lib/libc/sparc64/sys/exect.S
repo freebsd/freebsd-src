@@ -52,7 +52,8 @@
 
 #include "SYS.h"
 
-ENTRY(exect)
+_SYSENTRY(exect)
 	mov	SYS_execve, %g1
 	ta	%xcc, ST_SYSCALL
 	ERROR()
+_SYSEND(exect)
