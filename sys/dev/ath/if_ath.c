@@ -1710,12 +1710,6 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 		sc->sc_stats.ast_be_nombuf++;	/* XXX */
 		return ENOMEM;			/* XXX */
 	}
-	if (bf->bf_m != NULL) {
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-		m_freem(bf->bf_m);
-		bf->bf_m = NULL;
-		bf->bf_node = NULL;
-	}
 	/*
 	 * NB: the beacon data buffer must be 32-bit aligned;
 	 * we assume the mbuf routines will return us something
@@ -1733,7 +1727,7 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 				     BUS_DMA_NOWAIT);
 	if (error == 0) {
 		bf->bf_m = m;
-		bf->bf_node = ni;		/* NB: no held reference */
+		bf->bf_node = ieee80211_ref_node(ni);
 	} else {
 		m_freem(m);
 	}
@@ -1963,13 +1957,17 @@ ath_beacon_free(struct ath_softc *sc)
 {
 	struct ath_buf *bf;
 
-	STAILQ_FOREACH(bf, &sc->sc_bbuf, bf_list)
+	STAILQ_FOREACH(bf, &sc->sc_bbuf, bf_list) {
 		if (bf->bf_m != NULL) {
 			bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 			m_freem(bf->bf_m);
 			bf->bf_m = NULL;
+		}
+		if (bf->bf_node != NULL) {
+			ieee80211_free_node(bf->bf_node);
 			bf->bf_node = NULL;
 		}
+	}
 }
 
 /*
@@ -2452,11 +2450,13 @@ ath_recv_mgmt(struct ieee80211com *ic, struct mbuf *m,
 			 * frame before attempting the merge.  The 802.11 spec
 			 * says the station should change it's bssid to match
 			 * the oldest station with the same ssid, where oldest
-			 * is determined by the tsf.
+			 * is determined by the tsf.  Note that hardware
+			 * reconfiguration happens through callback to
+			 * ath_newstate as the state machine will be go
+			 * from RUN -> RUN when this happens.
 			 */
-			if (le64toh(ni->ni_tstamp.tsf) >= tsf &&
-			    ieee80211_ibss_merge(ic, ni))
-				ath_hal_setassocid(ah, ic->ic_bss->ni_bssid, 0);
+			if (le64toh(ni->ni_tstamp.tsf) >= tsf)
+				(void) ieee80211_ibss_merge(ic, ni);
 		}
 		break;
 	}
@@ -3929,6 +3929,15 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		 */
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
 		    ic->ic_opmode == IEEE80211_M_IBSS) {
+			/*
+			 * Stop any previous beacon DMA.  This may be
+			 * necessary, for example, when an ibss merge
+			 * causes reconfiguration; there will be a state
+			 * transition from RUN->RUN that means we may
+			 * be called with beacon transmission active.
+			 */
+			ath_hal_stoptxdma(ah, sc->sc_bhalq);
+			ath_beacon_free(sc);
 			error = ath_beacon_alloc(sc, ni);
 			if (error != 0)
 				goto bad;
