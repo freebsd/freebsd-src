@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../compat/ndis
+.PATH: ${.CURDIR}/../../dev/if_ndis
 
 KMOD=	if_ndis
 SRCS=	if_ndis.c
