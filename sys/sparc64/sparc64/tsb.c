@@ -63,6 +63,7 @@
 #include <machine/tte.h>
 
 CTASSERT((1 << TTE_SHIFT) == sizeof(struct tte));
+CTASSERT(TSB_BUCKET_MASK < (1 << 12));
 
 #ifdef PMAP_STATS
 static long tsb_nrepl;
@@ -101,6 +102,7 @@ tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 {
 	struct tte *bucket;
 	struct tte *tp;
+	u_long sz;
 	u_int i;
 
 	if (pm == kernel_pmap) {
@@ -110,19 +112,20 @@ tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 			return (tp);
 	} else {
 		TSB_STATS_INC(tsb_nlookup_u);
-		va = trunc_page(va);
-		bucket = tsb_vtobucket(pm, va);
-		for (i = 0; i < TSB_BUCKET_SIZE; i++) {
-			tp = &bucket[i];
-			if (tte_match(tp, va))
-				return (tp);
+		for (sz = TS_MIN; sz <= TS_MAX; sz++) {
+			bucket = tsb_vtobucket(pm, sz, va);
+			for (i = 0; i < TSB_BUCKET_SIZE; i++) {
+				tp = &bucket[i];
+				if (tte_match(tp, va))
+					return (tp);
+			}
 		}
 	}
 	return (NULL);
 }
 
 struct tte *
-tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
+tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 {
 	struct tte *bucket;
 	struct tte *rtp;
@@ -140,7 +143,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
 	}
 
 	TSB_STATS_INC(tsb_nenter_u);
-	bucket = tsb_vtobucket(pm, va);
+	bucket = tsb_vtobucket(pm, sz, va);
 
 	tp = NULL;
 	rtp = NULL;
@@ -176,7 +179,7 @@ enter:
 	if (pmap_cache_enter(m, va) != 0)
 		data |= TD_CV;
 
-	tp->tte_vpn = TV_VPN(va);
+	tp->tte_vpn = TV_VPN(va, sz);
 	tp->tte_data = data;
 	STAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
 	tp->tte_pmap = pm;
