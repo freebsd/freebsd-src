@@ -142,10 +142,10 @@ ip_output(m0, opt, ro, flags, imo)
 	args.eh = NULL;
 	args.rule = NULL;
 	args.next_hop = NULL;
-	args.divert_rule = 0;                   /* divert cookie */
-    
+	args.divert_rule = 0;			/* divert cookie */
+
 	/* Grab info from MT_TAG mbufs prepended to the chain. */
-        for (; m0 && m0->m_type == MT_TAG; m0 = m0->m_next) {   
+	for (; m0 && m0->m_type == MT_TAG; m0 = m0->m_next) {
 		switch(m0->m_tag_id) {
 		default:
 			printf("ip_output: unrecognised MT_TAG tag %d\n",
@@ -175,7 +175,7 @@ ip_output(m0, opt, ro, flags, imo)
 			args.next_hop = (struct sockaddr_in *)m0->m_data;
 			break;
 		}
-        }
+	}
 	m = m0;
 
 	KASSERT(!m || (m->m_flags & M_PKTHDR) != 0, ("ip_output: no HDR"));
@@ -187,7 +187,7 @@ ip_output(m0, opt, ro, flags, imo)
 	so = ipsec_getsocket(m);
 	(void)ipsec_setsocket(m, NULL);
 #endif
-	if (args.rule != NULL)	{ /* dummynet already saw us */
+	if (args.rule != NULL) {	/* dummynet already saw us */
 		ip = mtod(m, struct ip *);
 		hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
 		ia = ifatoia(ro->ro_rt->rt_ifa);
@@ -613,20 +613,20 @@ skip_ipsec:
 		dst = args.next_hop;
 
                 /*
-                 * On return we must do the following:
-                 * m == NULL         -> drop the pkt (old interface, deprecated)
-                 * (off & IP_FW_PORT_DENY_FLAG)	-> drop the pkt (new interface)
-                 * 1<=off<= 0xffff		-> DIVERT
-                 * (off & IP_FW_PORT_DYNT_FLAG)	-> send to a DUMMYNET pipe
-                 * (off & IP_FW_PORT_TEE_FLAG)	-> TEE the packet
-                 * dst != old			-> IPFIREWALL_FORWARD
-                 * off==0, dst==old		-> accept
-                 * If some of the above modules are not compiled in, then
-                 * we should't have to check the corresponding condition
-                 * (because the ipfw control socket should not accept
-                 * unsupported rules), but better play safe and drop
-                 * packets in case of doubt.
-                 */
+		 * On return we must do the following:
+		 * m == NULL	-> drop the pkt (old interface, deprecated)
+		 * (off & IP_FW_PORT_DENY_FLAG)	-> drop the pkt (new interface)
+		 * 1<=off<= 0xffff		-> DIVERT
+		 * (off & IP_FW_PORT_DYNT_FLAG)	-> send to a DUMMYNET pipe
+		 * (off & IP_FW_PORT_TEE_FLAG)	-> TEE the packet
+		 * dst != old			-> IPFIREWALL_FORWARD
+		 * off==0, dst==old		-> accept
+		 * If some of the above modules are not compiled in, then
+		 * we should't have to check the corresponding condition
+		 * (because the ipfw control socket should not accept
+		 * unsupported rules), but better play safe and drop
+		 * packets in case of doubt.
+		 */
 		if ( (off & IP_FW_PORT_DENY_FLAG) || m == NULL) {
 			if (m)
 				m_freem(m);

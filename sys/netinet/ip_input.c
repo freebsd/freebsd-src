@@ -287,8 +287,8 @@ ip_input(struct mbuf *m)
 	args.divert_rule = 0;			/* divert cookie */
 	args.next_hop = NULL;
 
-        /* Grab info from MT_TAG mbufs prepended to the chain. */
-        for (; m && m->m_type == MT_TAG; m = m->m_next) {
+	/* Grab info from MT_TAG mbufs prepended to the chain.	*/
+	for (; m && m->m_type == MT_TAG; m = m->m_next) {
 		switch(m->m_tag_id) {
 		default:
 			printf("ip_input: unrecognised MT_TAG tag %d\n",
@@ -307,7 +307,7 @@ ip_input(struct mbuf *m)
 			args.next_hop = (struct sockaddr_in *)m->m_hdr.mh_data;
 			break;
 		}
-        }
+	}
 
 	KASSERT(m != NULL && (m->m_flags & M_PKTHDR) != 0,
 	    ("ip_input: no HDR"));
@@ -463,9 +463,8 @@ iphack:
 		if (i == 0 && args.next_hop == NULL)	/* common case */
 			goto pass;
                 if (DUMMYNET_LOADED && (i & IP_FW_PORT_DYNT_FLAG) != 0) {
-                        /* Send packet to the appropriate pipe */
-
-                        ip_dn_io_ptr(m, i&0xffff, DN_TO_IP_IN, &args);
+			/* Send packet to the appropriate pipe */
+			ip_dn_io_ptr(m, i&0xffff, DN_TO_IP_IN, &args);
 			return;
 		}
 #ifdef IPDIVERT
@@ -817,7 +816,7 @@ found:
 	 * Switch out to protocol's input routine.
 	 */
 	ipstat.ips_delivered++;
-    	if (args.next_hop && ip->ip_p == IPPROTO_TCP) {
+	if (args.next_hop && ip->ip_p == IPPROTO_TCP) {
 		/* TCP needs IPFORWARD info if available */
 		struct m_hdr tag;
 
