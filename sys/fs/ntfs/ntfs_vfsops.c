@@ -311,6 +311,14 @@ ntfs_mountfs(devvp, mp, argsp, td)
 		goto out;
 	ntmp = malloc( sizeof *ntmp, M_NTFSMNT, M_WAITOK | M_ZERO);
 	bcopy( bp->b_data, &ntmp->ntm_bootfile, sizeof(struct bootfile) );
+	/*
+	 * We must not cache the boot block if its size is not exactly
+	 * one cluster in order to avoid confusing the buffer cache when
+	 * the boot file is read later by ntfs_readntvattr_plain(), which
+	 * reads a cluster at a time.
+	 */
+	if (ntfs_cntob(1) != BBSIZE)
+		bp->b_flags |= B_NOCACHE;
 	brelse( bp );
 	bp = NULL;
 
