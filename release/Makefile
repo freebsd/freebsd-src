@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.205 1996/01/24 21:42:37 joerg Exp $
+#	$Id: Makefile,v 1.206 1996/02/13 09:22:42 joerg Exp $
 #
 # How to roll a release:
 #
@@ -202,6 +202,13 @@ release.4:
 release.5:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
+
+	# Handle some grief caused by the ammunition braindeadness.
+	for i in sbin/init bin/ed ; do \
+		( cd ${.CURDIR}/../$$i; \
+		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
+	done
+
 	# Move all the manpages out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
 		rm -rf ${RD}/trees/manpages/usr/share/man &&\
@@ -256,12 +263,6 @@ release.5:
 		c=`echo $$i | sed -e 's/libscrypt/libcrypt/'` ; \
 		rm -f $$c ; \
 		ln -s `basename $$i` $$c ; \
-	done
-
-	# Handle some other grief caused by the ammunition braindeadness.
-	for i in sbin/init bin/ed ; do
-		( cd ${.CURDIR}/../$$i; \
-		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
 	done
 
 	# Remove some files we can faster regen after installing.
