@@ -84,8 +84,8 @@ do {									\
 #define EVENTHANDLER_FAST_REGISTER(name, func, arg, priority) \
     eventhandler_register(Xeventhandler_list_ ## name, #name, func, arg, priority)
 
-#define EVENTHANDLER_FAST_DEREGISTER(name, tag, func) \
-    eventhandler_deregister(Xeventhandler_list ## name, tag, func)
+#define EVENTHANDLER_FAST_DEREGISTER(name, tag) \
+    eventhandler_deregister(Xeventhandler_list ## name, tag)
 
 
 /*
@@ -119,12 +119,12 @@ do {									\
 #define EVENTHANDLER_REGISTER(name, func, arg, priority) \
     eventhandler_register(NULL, #name, func, arg, priority)
 
-#define EVENTHANDLER_DEREGISTER(name, tag, func) 	\
+#define EVENTHANDLER_DEREGISTER(name, tag) 		\
 do {							\
     struct eventhandler_list *_el;			\
 							\
     if ((_el = eventhandler_find_list(#name)) != NULL)	\
-	eventhandler_deregister(_el, tag, func);	\
+	eventhandler_deregister(_el, tag);		\
 } while(0);
 	
 
