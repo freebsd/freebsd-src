@@ -573,7 +573,7 @@ installmost:
 _strfile=	games/fortune/strfile
 .endif
 .if ${CXX:T} != "c++"
-_cxx_consumers=	gnu/usr.bin/groff
+_cxx_consumers=	gnu/usr.bin/gperf gnu/usr.bin/groff
 .endif
 
 bootstrap-tools:
