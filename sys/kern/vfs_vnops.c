@@ -843,6 +843,7 @@ debug_vn_lock(vp, flags, td, filename, line)
 			vp->v_iflag |= VI_XWANT;
 			msleep(vp, VI_MTX(vp), PINOD | PDROP,
 			    "vn_lock", 0);
+			mp_fixme("interlock not released.");
 			error = ENOENT;
 		} else {
 #if 0
