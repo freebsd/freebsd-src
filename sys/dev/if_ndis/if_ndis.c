@@ -202,7 +202,7 @@ ndis_setmulti(sc)
 	len = sizeof(mclistsz);
 	ndis_get_info(sc, OID_802_3_MAXIMUM_LIST_SIZE, &mclistsz, &len);
 
-	mclist = malloc(ETHER_ADDR_LEN * mclistsz, M_TEMP, M_NOWAIT);
+	mclist = malloc(ETHER_ADDR_LEN * mclistsz, M_TEMP, M_NOWAIT|M_ZERO);
 
 	if (mclist == NULL) {
 		sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
@@ -636,9 +636,7 @@ ndis_attach(dev)
 		ndis_get_info(sc, OID_GEN_MAXIMUM_SEND_PACKETS,
 		    &sc->ndis_maxpkts, &len);
 		sc->ndis_txarray = malloc(sizeof(ndis_packet *) *
-		    sc->ndis_maxpkts, M_DEVBUF, M_NOWAIT);
-		bzero((char *)sc->ndis_txarray, sizeof(ndis_packet *) *
-		    sc->ndis_maxpkts);
+		    sc->ndis_maxpkts, M_DEVBUF, M_NOWAIT|M_ZERO);
 	}
 
 	sc->ndis_txpending = sc->ndis_maxpkts;
@@ -706,7 +704,7 @@ ndis_attach(dev)
 		    NULL, &len);
 		if (r != ENOSPC)
 			goto nonettypes;
-		ntl = malloc(len, M_DEVBUF, M_WAITOK);
+		ntl = malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
 		r = ndis_get_info(sc, OID_802_11_NETWORK_TYPES_SUPPORTED,
 		    ntl, &len);
 		if (r != 0) {
@@ -1790,7 +1788,7 @@ ndis_get_assoc(sc, assoc)
 		return (error);
 	}
 
-	bl = malloc(len, M_TEMP, M_NOWAIT);
+	bl = malloc(len, M_TEMP, M_NOWAIT|M_ZERO);
 	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
 	if (error) {
 		free(bl, M_TEMP);
@@ -2068,7 +2066,7 @@ ndis_wi_ioctl_get(ifp, command, data)
 		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
 		if (error != ENOSPC)
 			break;
-		bl = malloc(len, M_DEVBUF, M_WAITOK);
+		bl = malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
 		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
 		if (error) {
 			free(bl, M_DEVBUF);
@@ -2207,7 +2205,7 @@ ndis_shutdown(dev)
 	device_t		dev;
 {
 	struct ndis_softc		*sc;
-
+printf("dev shutting down...\n");
 	sc = device_get_softc(dev);
 	ndis_shutdown_nic(sc);
 
