@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.437 2002/05/24 18:53:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.437.2.5 2002/08/16 16:48:11 ca Exp $")
 
 #include <sysexits.h>
 
@@ -918,14 +918,14 @@ getauth(mci, e, sai)
 
 			/* '=base64' (decode) */
 # if SASL >= 20000
-  			r = sasl_decode64(pvp[i + 1] + 3,
+			ret = sasl_decode64(pvp[i + 1] + 3,
 					  (unsigned int) l, (*sai)[r],
 					  (unsigned int) l + 1, &len);
 # else /* SASL >= 20000 */
-			r = sasl_decode64(pvp[i + 1] + 3,
+			ret = sasl_decode64(pvp[i + 1] + 3,
 					  (unsigned int) l, (*sai)[r], &len);
 # endif /* SASL >= 20000 */
-			if (r != SASL_OK)
+			if (ret != SASL_OK)
 				goto fail;
 			got |= 1 << r;
 		}
@@ -938,6 +938,7 @@ getauth(mci, e, sai)
 	}
 
 	/* did we get the expected data? */
+	/* XXX: EXTERNAL mechanism only requires (and only uses) SASL_USER */
 	if (!(bitset(SASL_USER_BIT|SASL_AUTHID_BIT, got) &&
 	      bitset(SASL_PASSWORD_BIT, got)))
 		goto fail;
@@ -1571,8 +1572,8 @@ attemptauth(m, mci, e, sai)
 
 	/* make a new client sasl connection */
 # if SASL >= 20000
-  	saslresult = sasl_client_new(bitnset(M_LMTP, m->m_flags) ? "lmtp"
-  								 : "smtp",
+	saslresult = sasl_client_new(bitnset(M_LMTP, m->m_flags) ? "lmtp"
+								 : "smtp",
 				     CurHostName, NULL, NULL, NULL, 0,
 				     &mci->mci_conn);
 # else /* SASL >= 20000 */
@@ -1733,7 +1734,14 @@ attemptauth(m, mci, e, sai)
 	(*sai)[SASL_MECH] = mechusing;
 
 	/* send the info across the wire */
-	if (out == NULL)
+	if (out == NULL
+#if _FFR_SASL_INITIAL_WORKAROUND
+		/* login and digest-md5 up to 1.5.28 set out="" */
+	    || (outlen == 0 &&
+		(sm_strcasecmp(mechusing, "LOGIN") == 0 ||
+		 sm_strcasecmp(mechusing, "DIGEST-MD5") == 0))
+#endif /* _FFR_SASL_INITIAL_WORKAROUND */
+	   )
 	{
 		/* no initial response */
 		smtpmessage("AUTH %s", m, mci, mechusing);

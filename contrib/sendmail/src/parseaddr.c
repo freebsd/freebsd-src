@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.359.2.1 2002/06/19 18:24:26 gshapiro Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.359.2.2 2002/08/16 14:56:01 ca Exp $")
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -2871,8 +2871,7 @@ dequote_map(map, name, av, statp)
 **		p1 -- the first string to check.
 **		p2 -- the second string to check -- may be null.
 **		e -- the current envelope.
-**		rmcomm -- remove comments?
-**		cnt -- count rejections (statistics)?
+**		flags -- control some behavior, see RSF_ in sendmail.h
 **		logl -- logging level.
 **		host -- NULL or relay host.
 **		logid -- id for sm_syslog.
@@ -2883,12 +2882,12 @@ dequote_map(map, name, av, statp)
 */
 
 int
-rscheck(rwset, p1, p2, e, rmcomm, cnt, logl, host, logid)
+rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 	char *rwset;
 	char *p1;
 	char *p2;
 	ENVELOPE *e;
-	bool rmcomm, cnt;
+	int flags;
 	int logl;
 	char *host;
 	char *logid;
@@ -2948,7 +2947,7 @@ rscheck(rwset, p1, p2, e, rmcomm, cnt, logl, host, logid)
 		SuprErrs = true;
 		QuickAbort = false;
 		pvp = prescan(buf, '\0', pvpbuf, sizeof pvpbuf, NULL,
-			      rmcomm ? NULL : TokTypeNoC);
+			      bitset(RSF_RMCOMM, flags) ? NULL : TokTypeNoC);
 		SuprErrs = saveSuprErrs;
 		if (pvp == NULL)
 		{
@@ -2961,7 +2960,11 @@ rscheck(rwset, p1, p2, e, rmcomm, cnt, logl, host, logid)
 	*/
 			goto finis;
 		}
+		if (bitset(RSF_UNSTRUCTURED, flags))
+			SuprErrs = true;
 		(void) REWRITE(pvp, rsno, e);
+		if (bitset(RSF_UNSTRUCTURED, flags))
+			SuprErrs = saveSuprErrs;
 		if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET ||
 		    pvp[1] == NULL || (strcmp(pvp[1], "error") != 0 &&
 				       strcmp(pvp[1], "discard") != 0))
@@ -3012,7 +3015,7 @@ rscheck(rwset, p1, p2, e, rmcomm, cnt, logl, host, logid)
 			ExitStat = saveexitstat;
 			if (!logged)
 			{
-				if (cnt)
+				if (bitset(RSF_COUNT, flags))
 					markstats(e, &a1, STATS_REJECT);
 				logged = true;
 			}

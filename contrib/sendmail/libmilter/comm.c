@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: comm.c,v 8.54 2002/03/06 16:03:26 ca Exp $")
+SM_RCSID("@(#)$Id: comm.c,v 8.54.2.2 2002/08/16 17:09:13 ca Exp $")
 
 #include "libmilter.h"
 #include <sm/errstring.h>
@@ -63,10 +63,19 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 		return NULL;
 	}
 
-	FD_Z;
 	i = 0;
-	while ((ret = select(sd + 1, &readset, NULL, &excset, timeout)) >= 1)
+	for (;;)
 	{
+		FD_Z;
+		ret = select(sd + 1, &readset, NULL, &excset, timeout);
+		if (ret == 0)
+			break;
+		else if (ret < 0)
+		{
+			if (errno == EINTR)
+				continue;
+			break;
+		}
 		if (FD_ISSET(sd, &excset))
 		{
 			*cmd = SMFIC_SELECT;
@@ -90,7 +99,6 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 		if (len >= (ssize_t) sizeof data - i)
 			break;
 		i += len;
-		FD_Z;
 	}
 	if (ret == 0)
 	{
@@ -129,9 +137,18 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 	}
 
 	i = 0;
-	FD_Z;
-	while ((ret = select(sd + 1, &readset, NULL, &excset, timeout)) == 1)
+	for (;;)
 	{
+		FD_Z;
+		ret = select(sd + 1, &readset, NULL, &excset, timeout);
+		if (ret == 0)
+			break;
+		else if (ret < 0)
+		{
+			if (errno == EINTR)
+				continue;
+			break;
+		}
 		if (FD_ISSET(sd, &excset))
 		{
 			*cmd = SMFIC_SELECT;
@@ -169,7 +186,6 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 			return buf;
 		}
 		i += len;
-		FD_Z;
 	}
 
 	save_errno = errno;
