@@ -1,7 +1,11 @@
 # $FreeBSD$
 
 RELN_ROOT?= ${.CURDIR}/../..
+.ifdef NO_LANGCODE_IN_DESTDIR
+DESTDIR?= ${DOCDIR}/errata
+.else
 DESTDIR?= ${DOCDIR}/en_US.ISO8859-1/errata
+.endif
 
 DOC?= article
 FORMATS?= html
