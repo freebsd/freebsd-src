@@ -1,0 +1,61 @@
+
+#------------------------------------------------------------------------------
+# JPEG images
+# SunOS 5.5.1 had
+#
+#	0	string		\377\330\377\340	JPEG file
+#	0	string		\377\330\377\356	JPG file
+#
+# both of which turn into "JPEG image data" here.
+#
+0	beshort		0xffd8		JPEG image data
+>6	string		JFIF		\b, JFIF standard
+
+# The following added by Erik Rossen <rossen@freesurf.ch> 1999-09-06
+# in a vain attempt to add image size reporting for JFIF.  Note that these
+# tests are not fool-proof since some perfectly valid JPEGs are currently
+# impossible to specify in magic(4) format.
+# First, a little JFIF version info:
+>11	byte		x		\b %d.
+>12	byte		x		\b%02d
+# Next, the resolution or aspect ratio of the image:
+>13	byte		0		\b, aspect ratio
+>13	byte		1		\b, resolution (DPI)
+>13	byte		2		\b, resolution (DPCM)
+>14	beshort		x		\b X%d:
+>16	beshort		x		\bY%d
+#>4	beshort		x		\b, segment length %d
+# Next, show thumbnail info, if it exists:
+>18	byte		!0		\b, thumbnail %dx
+>>19	byte		x		\b%d
+# Here things get sticky.  We can do ONE MORE marker segment with
+# indirect addressing, and that's all.  It would be great if we could
+# do pointer arithemetic like in an assembler language.  Christos?
+# And if there was some sort of looping construct to do searches, plus a few
+# named accumulators, it would be even more effective...
+# At least we can show a comment if no other segments got inserted before:
+>(4.S+5)	byte		0xFE
+>>(4.S+8)	string		>\0		\b, "%s"
+#>(4.S+5)	byte		0xFE		\b, comment
+#>>(4.S+6)	beshort		x		\b length=%d
+#>>(4.S+8)	string		>\0		\b, "%s"
+# Or, we can show the encoding type (I've included only the three most common)
+# and image dimensions if we are lucky and the SOFn (image segment) is here:
+>(4.S+5)	byte		0xC0		\b, baseline
+>>(4.S+6)	byte		x		\b, precision %d
+>>(4.S+7)	beshort		x		\b, %dx
+>>(4.S+9)	beshort		x		\b%d
+>(4.S+5)	byte		0xC1		\b, extended sequential
+>>(4.S+6)	byte		x		\b, precision %d
+>>(4.S+7)	beshort		x		\b, %dx
+>>(4.S+9)	beshort		x		\b%d
+>(4.S+5)	byte		0xC2		\b, progressive
+>>(4.S+6)	byte		x		\b, precision %d
+>>(4.S+7)	beshort		x		\b, %dx
+>>(4.S+9)	beshort		x		\b%d
+# I've commented-out quantisation table reporting.  I doubt anyone cares yet.
+#>(4.S+5)	byte		0xDB		\b, quantisation table
+#>>(4.S+6)	beshort		x		\b length=%d
+
+# HSI is Handmade Software's proprietary JPEG encoding scheme
+0	string		hsi1		JPEG image data, HSI proprietary
