@@ -119,12 +119,8 @@ __stdcall static uint32_t
 __stdcall static void ntoskrnl_freemdl(ndis_buffer *);
 __stdcall static void *ntoskrnl_mmaplockedpages(ndis_buffer *, uint8_t);
 __stdcall static void ntoskrnl_init_lock(kspin_lock *);
-__stdcall static size_t ntoskrnl_memcmp(const void *, const void *, size_t);
-__stdcall static void ntoskrnl_init_ansi_string(ndis_ansi_string *, char *);
-__stdcall static void ntoskrnl_init_unicode_string(ndis_unicode_string *,
-	uint16_t *);
-__stdcall static void ntoskrnl_free_unicode_string(ndis_unicode_string *);
 __stdcall static void dummy(void);
+__stdcall static size_t ntoskrnl_memcmp(const void *, const void *, size_t);
 
 static struct mtx *ntoskrnl_interlock;
 extern struct mtx_pool *ndis_mtxpool;
@@ -189,12 +185,8 @@ ntoskrnl_unicode_to_ansi(dest, src, allocate)
 {
 	char			*astr = NULL;
 
-	if (dest == NULL || src == NULL)
-		return(NDIS_STATUS_FAILURE);
-
 	if (allocate) {
-		if (ndis_unicode_to_ascii(src->nus_buf, src->nus_len, &astr))
-			return(NDIS_STATUS_FAILURE);
+		ndis_unicode_to_ascii(src->nus_buf, src->nus_len, &astr);
 		dest->nas_buf = astr;
 		dest->nas_len = dest->nas_maxlen = strlen(astr);
 	} else {
@@ -655,60 +647,6 @@ ntoskrnl_memcmp(s1, s2, len)
 }
 
 __stdcall static void
-ntoskrnl_init_ansi_string(dst, src)
-	ndis_ansi_string	*dst;
-	char			*src;
-{
-	ndis_ansi_string	*a;
-
-	a = dst;
-	if (a == NULL)
-		return;
-	if (src == NULL) {
-		a->nas_len = a->nas_maxlen = 0;
-		a->nas_buf = NULL;
-	} else {
-		a->nas_buf = src;
-		a->nas_len = a->nas_maxlen = strlen(src);
-	}
-
-	return;
-}
-
-__stdcall static void
-ntoskrnl_init_unicode_string(dst, src)
-	ndis_unicode_string	*dst;
-	uint16_t		*src;
-{
-	ndis_unicode_string	*u;
-	int			i;
-
-	u = dst;
-	if (u == NULL)
-		return;
-	if (src == NULL) {
-		u->nus_len = u->nus_maxlen = 0;
-		u->nus_buf = NULL;
-	} else {
-		i = 0;
-		while(src[i] != 0)
-			i++;
-		u->nus_buf = src;
-		u->nus_len = u->nus_maxlen = i * 2;
-	}
-
-	return;
-}
-
-__stdcall static void
-ntoskrnl_free_unicode_string(ustr)
-	ndis_unicode_string	*ustr;
-{
-	free(ustr->nus_buf, M_DEVBUF);
-	return;
-}
-
-__stdcall static void
 dummy()
 {
 	printf ("ntoskrnl dummy called...\n");
@@ -721,10 +659,6 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "RtlEqualUnicodeString",	(FUNC)ntoskrnl_unicode_equal },
 	{ "RtlCopyUnicodeString",	(FUNC)ntoskrnl_unicode_copy },
 	{ "RtlUnicodeStringToAnsiString", (FUNC)ntoskrnl_unicode_to_ansi },
-	{ "RtlAnsiStringToUnicodeString", (FUNC)ntoskrnl_ansi_to_unicode },
-	{ "RtlInitAnsiString",		(FUNC)ntoskrnl_init_ansi_string },
-	{ "RtlInitUnicodeString",	(FUNC)ntoskrnl_init_unicode_string },
-	{ "RtlFreeUnicodeString",	(FUNC)ndoskrnl_free_unicode_string },
 	{ "sprintf",			(FUNC)sprintf },
 	{ "DbgPrint",			(FUNC)printf },
 	{ "strncmp",			(FUNC)strncmp },

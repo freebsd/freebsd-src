@@ -240,6 +240,11 @@ ndis_attach(dev)
 	sc->ndis_dev = dev;
 
 	sc->ndis_mtx = mtx_pool_alloc(ndis_mtxpool);
+	sc->ndis_intrmtx = mtx_pool_alloc(ndis_mtxpool);
+	TASK_INIT(&sc->ndis_intrtask, 0, ndis_intrtask, sc);
+	TASK_INIT(&sc->ndis_ticktask, 0, ndis_ticktask, sc);
+	TASK_INIT(&sc->ndis_starttask, 0, ndis_starttask, sc);
+
 
 	/*
 	 * Map control/status registers.
@@ -331,11 +336,6 @@ ndis_attach(dev)
 		device_printf(dev, "couldn't set up irq\n");
 		goto fail;
 	}
-
-	sc->ndis_intrmtx = mtx_pool_alloc(ndis_mtxpool);
-	TASK_INIT(&sc->ndis_intrtask, 0, ndis_intrtask, sc);
-	TASK_INIT(&sc->ndis_ticktask, 0, ndis_ticktask, sc);
-	TASK_INIT(&sc->ndis_starttask, 0, ndis_starttask, sc);
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
@@ -928,7 +928,8 @@ ndis_intr(arg)
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_UP))
+	if (!(ifp->if_flags & IFF_UP) &&
+	    sc->ndis_block.nmb_miniportadapterctx == NULL)
 		return;
 
 	mtx_lock(sc->ndis_intrmtx);
@@ -940,7 +941,7 @@ ndis_intr(arg)
 	}
 	mtx_unlock(sc->ndis_intrmtx);
 
-	if (is_our_intr || call_isr)
+	if ((is_our_intr || call_isr) && (ifp->if_flags & IFF_UP))
 		taskqueue_enqueue(taskqueue_swi, &sc->ndis_intrtask);
 
 	return;
