@@ -419,25 +419,25 @@ streams_drvinit(void *unused)
 		 * devfs, right?
 		 */
     		scp->devfs_ptm = devfs_add_devswf(&streams_cdevsw, dev_ptm, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0640, "ptmx", unit);
+	    		UID_ROOT, GID_KMEM, 0640, "ptmx%d", unit);
     		scp->devfs_arp = devfs_add_devswf(&streams_cdevsw, dev_arp, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "arp", unit);
+	    		UID_ROOT, GID_KMEM, 0666, "arp%d", unit);
     		scp->devfs_icmp = devfs_add_devswf(&streams_cdevsw, dev_icmp, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0600, "icmp", unit);
+	    		UID_ROOT, GID_KMEM, 0600, "icmp%d", unit);
     		scp->devfs_ip = devfs_add_devswf(&streams_cdevsw, dev_ip, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0600, "ip", unit);
+	    		UID_ROOT, GID_KMEM, 0600, "ip%d", unit);
     		scp->devfs_tcp = devfs_add_devswf(&streams_cdevsw, dev_tcp, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "tcp", unit);
+	    		UID_ROOT, GID_KMEM, 0666, "tcp%d", unit);
     		scp->devfs_udp = devfs_add_devswf(&streams_cdevsw, dev_udp, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "udp", unit);
+	    		UID_ROOT, GID_KMEM, 0666, "udp%d", unit);
     		scp->devfs_rawip = devfs_add_devswf(&streams_cdevsw, dev_rawip, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0600, "rawip", unit);
+	    		UID_ROOT, GID_KMEM, 0600, "rawip%d", unit);
     		scp->devfs_unix_dgram = devfs_add_devswf(&streams_cdevsw, dev_unix_dgram, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "ticlts", unit);
+	    		UID_ROOT, GID_KMEM, 0666, "ticlts%d", unit);
     		scp->devfs_unix_stream = devfs_add_devswf(&streams_cdevsw, dev_unix_stream, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "ticots", unit);
+	    		UID_ROOT, GID_KMEM, 0666, "ticots%d", unit);
     		scp->devfs_unix_ord_stream = devfs_add_devswf(&streams_cdevsw, dev_unix_ord_stream, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0666, "ticotsord", unit);
+	    		UID_ROOT, GID_KMEM, 0666, "ticotsord%d", unit);
 #endif
 	}
 }
