@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.119 1995/03/17 04:54:13 phk Exp $
+#	$Id: Makefile,v 1.120 1995/03/21 20:24:00 jkh Exp $
 #
 # How to roll a release:
 #
@@ -113,6 +113,8 @@ release.1:
 		    -p ${RD}/trees/$$i > /dev/null ; \
 		mtree -deU -f ${MTREEFILES}/BSD.usr.dist \
 		    -p ${RD}/trees/$$i/usr > /dev/null ; \
+		mtree -deU -f ${MTREEFILES}/BSD.include.dist \
+		    -p ${RD}/trees/$$i/usr/include > /dev/null ; \
 		mtree -deU -f ${MTREEFILES}/BSD.var.dist \
 		    -p ${RD}/trees/$$i/var > /dev/null ; \
 	done
