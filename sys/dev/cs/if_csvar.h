@@ -57,6 +57,8 @@ struct cs_softc {
         struct resource* irq_res;	/* resource for irq */
         void*   irq_handle;		/* handle for irq handler */
 
+	int	flags;
+#define	CS_NO_IRQ	0x1
         int 	nic_addr; 		/* Base IO address of card */
 	int	send_cmd;
         int	line_ctl;		/* */
