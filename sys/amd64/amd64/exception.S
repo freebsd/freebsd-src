@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.8.2.1 1995/06/05 00:22:02 davidg Exp $
+ *	$Id: exception.s,v 1.9 1995/06/11 19:31:13 rgrimes Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -175,7 +175,19 @@ calltrap:
 	FAKE_MCOUNT(_btrap)			/* init "from" _btrap -> calltrap */
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,_cpl
+
+	/*
+	 * Fake a call frame: point %ebp at a 2 element array consisting
+	 * of { trappee's %ebp, trappee's %eip }.  The stack frame is in
+	 * the wrong order for this, but the trappee's %ebp is fortunately
+	 * followed by junk which we can overwrite with the trappee's %eip.
+	 */
+	movl	TF_EIP(%esp),%eax
+	movl	%eax,TF_ISP(%esp)
+	lea	TF_EBP(%esp),%ebp
+
 	call	_trap
+
 	/*
 	 * There was no place to save the cpl so we have to recover it
 	 * indirectly.  For traps from user mode it was 0, and for traps
