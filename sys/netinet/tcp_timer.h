@@ -38,17 +38,6 @@
 #define _NETINET_TCP_TIMER_H_
 
 /*
- * Definitions of the TCP timers.  These timers are counted
- * down PR_SLOWHZ times a second.
- */
-#define	TCPT_NTIMERS	4
-
-#define	TCPT_REXMT	0		/* retransmit */
-#define	TCPT_PERSIST	1		/* retransmit persistence */
-#define	TCPT_KEEP	2		/* keep alive */
-#define	TCPT_2MSL	3		/* 2*msl quiet time timer */
-
-/*
  * The TCPT_REXMT timer is used to force retransmissions.
  * The TCP has the TCPT_REXMT timer set whenever segments
  * have been sent for which ACKs are expected but not yet
@@ -87,28 +76,30 @@
 /*
  * Time constants.
  */
-#define	TCPTV_MSL	( 30*PR_SLOWHZ)		/* max seg lifetime (hah!) */
+#define	TCPTV_MSL	( 30*hz)		/* max seg lifetime (hah!) */
 #define	TCPTV_SRTTBASE	0			/* base roundtrip time;
 						   if 0, no idea yet */
-#define	TCPTV_RTOBASE	(  3*PR_SLOWHZ)		/* assumed RTO if no info */
-#define	TCPTV_SRTTDFLT	(  3*PR_SLOWHZ)		/* assumed RTT if no info */
+#define	TCPTV_RTOBASE	(  3*hz)		/* assumed RTO if no info */
+#define	TCPTV_SRTTDFLT	(  3*hz)		/* assumed RTT if no info */
 
-#define	TCPTV_PERSMIN	(  5*PR_SLOWHZ)		/* retransmit persistence */
-#define	TCPTV_PERSMAX	( 60*PR_SLOWHZ)		/* maximum persist interval */
+#define	TCPTV_PERSMIN	(  5*hz)		/* retransmit persistence */
+#define	TCPTV_PERSMAX	( 60*hz)		/* maximum persist interval */
 
-#define	TCPTV_KEEP_INIT	( 75*PR_SLOWHZ)		/* initial connect keep alive */
-#define	TCPTV_KEEP_IDLE	(120*60*PR_SLOWHZ)	/* dflt time before probing */
-#define	TCPTV_KEEPINTVL	( 75*PR_SLOWHZ)		/* default probe interval */
+#define	TCPTV_KEEP_INIT	( 75*hz)		/* initial connect keepalive */
+#define	TCPTV_KEEP_IDLE	(120*60*hz)		/* dflt time before probing */
+#define	TCPTV_KEEPINTVL	( 75*hz)		/* default probe interval */
 #define	TCPTV_KEEPCNT	8			/* max probes before drop */
 
-#define	TCPTV_MIN	(  1*PR_SLOWHZ)		/* minimum allowable value */
-#define	TCPTV_REXMTMAX	( 64*PR_SLOWHZ)		/* max allowable REXMT value */
+#define	TCPTV_MIN	(  1*hz)		/* minimum allowable value */
+#define	TCPTV_REXMTMAX	( 64*hz)		/* max allowable REXMT value */
 
 #define TCPTV_TWTRUNC	8			/* RTO factor to truncate TW */
 
 #define	TCP_LINGERTIME	120			/* linger at most 2 minutes */
 
 #define	TCP_MAXRXTSHIFT	12			/* maximum retransmits */
+
+#define	TCPTV_DELACK	(hz / PR_FASTHZ)	/* 200mS timeout */
 
 #ifdef	TCPTIMERS
 static char *tcptimers[] =
@@ -118,20 +109,39 @@ static char *tcptimers[] =
 /*
  * Force a time value to be in a certain range.
  */
-#define	TCPT_RANGESET(tv, value, tvmin, tvmax) { \
+#define	TCPT_RANGESET(tv, value, tvmin, tvmax) do { \
 	(tv) = (value); \
 	if ((u_long)(tv) < (u_long)(tvmin)) \
 		(tv) = (tvmin); \
 	else if ((u_long)(tv) > (u_long)(tvmax)) \
 		(tv) = (tvmax); \
-}
+} while(0)
+
+/*
+ * Convert slow-timeout ticks to timer ticks.  We don't really want to do
+ * this as it is rather expensive, so this is only a transitional stage
+ * until we are able to update all the code which counts timer ticks.
+ */
+#define	TCPT_TICKS(stt)		((stt) * hz / PR_SLOWHZ)
+#define	TCPT_SLOWHZ(tt)		(((tt) * PR_SLOWHZ) / hz)
 
 #ifdef KERNEL
 extern int tcp_keepinit;		/* time to establish connection */
 extern int tcp_keepidle;		/* time before keepalive probes begin */
+extern int tcp_keepintvl;		/* time between keepalive probes */
 extern int tcp_maxidle;			/* time to drop after starting probes */
+extern int tcp_delacktime;		/* time before sending a delayed ACK */
+extern int tcp_maxpersistidle;
+extern int tcp_msl;
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
-#endif
 
-#endif
+void	tcp_timer_2msl __P((void *xtp));
+void	tcp_timer_keep __P((void *xtp));
+void	tcp_timer_persist __P((void *xtp));
+void	tcp_timer_rexmt __P((void *xtp));
+void	tcp_timer_delack __P((void *xtp));
+
+#endif /* KERNEL */
+
+#endif /* !_NETINET_TCP_TIMER_H_ */

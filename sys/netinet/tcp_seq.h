@@ -75,7 +75,7 @@
 	(tp)->snd_una = (tp)->snd_nxt = (tp)->snd_max = (tp)->snd_up = \
 	    (tp)->iss
 
-#define TCP_PAWS_IDLE	(24 * 24 * 60 * 60 * PR_SLOWHZ)
+#define TCP_PAWS_IDLE	(24 * 24 * 60 * 60 * hz)
 					/* timestamp wrap-around time */
 
 #ifdef KERNEL
