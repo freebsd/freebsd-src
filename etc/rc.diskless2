@@ -29,6 +29,13 @@
 # rc.diskless2
 #
 
+mount_md() {
+	/sbin/mdconfig -a -t malloc -s $1 -u $3
+	/sbin/disklabel -r -w md$3 auto
+	/sbin/newfs /dev/md$3c
+	/sbin/mount /dev/md$3c $2
+}
+
 # If there is a global system configuration file, suck it in.
 #
 if [ -r /etc/defaults/rc.conf ]; then
@@ -39,7 +46,7 @@ elif [ -r /etc/rc.conf ]; then
 fi
 
 echo "+++ mfs_mount of /var"
-mount_mfs -s ${varsize:=65536} -T qp120at dummy /var
+mount_md ${varsize:=65536} /var 2
 
 echo "+++ populate /var using /etc/mtree/BSD.var.dist"
 /usr/sbin/mtree -deU -f /etc/mtree/BSD.var.dist -p /var
@@ -65,5 +72,5 @@ mount -a       # chown and chgrp are in /usr
 # extract a list of device entries, then copy them to a writable partition
 (cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
 echo "+++ mount_mfs of /dev"
-mount_mfs -s 4096 -i 512 -T qp120at dummy /dev
+mount_md 4096 /dev 3
 (cd /; cpio -i -H newc -d < /tmp/dev.tmp)
