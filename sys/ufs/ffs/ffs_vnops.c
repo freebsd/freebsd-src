@@ -823,6 +823,7 @@ ffs_getpages(ap)
 	if (mreq->valid) {
 		if (mreq->valid != VM_PAGE_BITS_ALL)
 			vm_page_zero_invalid(mreq, TRUE);
+		VM_OBJECT_LOCK(mreq->object);
 		vm_page_lock_queues();
 		for (i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage) {
@@ -830,6 +831,7 @@ ffs_getpages(ap)
 			}
 		}
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(mreq->object);
 		return VM_PAGER_OK;
 	}
 
@@ -855,12 +857,14 @@ ffs_getpages(ap)
 	dp = VTOI(vp)->i_devvp;
 	if (ufs_bmaparray(vp, reqlblkno, &reqblkno, 0, &bforwards, &bbackwards)
 	    || (reqblkno == -1)) {
+		VM_OBJECT_LOCK(obj);
 		vm_page_lock_queues();
 		for(i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage)
 				vm_page_free(ap->a_m[i]);
 		}
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(obj);
 		if (reqblkno == -1) {
 			if ((mreq->flags & PG_ZERO) == 0)
 				pmap_zero_page(mreq);
@@ -884,10 +888,12 @@ ffs_getpages(ap)
 		pbackwards = poff + bbackwards * pagesperblock;
 		if (ap->a_reqpage > pbackwards) {
 			firstpage = ap->a_reqpage - pbackwards;
+			VM_OBJECT_LOCK(obj);
 			vm_page_lock_queues();
 			for(i=0;i<firstpage;i++)
 				vm_page_free(ap->a_m[i]);
 			vm_page_unlock_queues();
+			VM_OBJECT_UNLOCK(obj);
 		}
 
 	/*
@@ -897,10 +903,12 @@ ffs_getpages(ap)
 		pforwards = (pagesperblock - (poff + 1)) +
 			bforwards * pagesperblock;
 		if (pforwards < (pcount - (ap->a_reqpage + 1))) {
+			VM_OBJECT_LOCK(obj);
 			vm_page_lock_queues();
 			for( i = ap->a_reqpage + pforwards + 1; i < pcount; i++)
 				vm_page_free(ap->a_m[i]);
 			vm_page_unlock_queues();
+			VM_OBJECT_UNLOCK(obj);
 			pcount = ap->a_reqpage + pforwards + 1;
 		}
 
