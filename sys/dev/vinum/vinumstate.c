@@ -87,8 +87,12 @@ set_drive_state(int driveno, enum drivestate newstate, enum setstateflags flags)
  * what we wanted, -1 if it changed to something else, and 0
  * if no change.
  *
- * This routine is called both from the user (up, down states
- * only) and internally.
+ * This routine is called both from the user (up, down states only)
+ * and internally.
+ *
+ * The setstate_force bit in the flags enables the state change even
+ * if it could be dangerous to data consistency.  It shouldn't allow
+ * nonsense.
  */
 int 
 set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
@@ -127,6 +131,8 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 	case sd_up:
 	    if (DRIVE[sd->driveno].state != drive_up)	    /* can't bring the sd up if the drive isn't, */
 		return 0;				    /* not even by force */
+	    if (flags & setstate_force)			    /* forcing it, */
+		break;					    /* just do it, and damn the consequences */
 	    switch (sd->state) {
 	    case sd_crashed:
 	    case sd_reborn:
@@ -166,12 +172,11 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 
 	    case sd_empty:
 		/*
-		 * If we're associated with a plex which
-		 * is down, or which is the only one in the
-		 * volume, and we're not a RAID-5 plex, we
-		 * can come up without being inconsistent.
-		 * Internally, we use the force flag to bring
-		 * up a RAID-5 plex after initialization.
+		 * If we're associated with a plex which is down, or which is
+		 * the only one in the volume, and we're not a RAID-5 plex, we
+		 * can come up without being inconsistent.  Internally, we use
+		 * the force flag to bring up a RAID-5 plex after
+		 * initialization.
 		 */
 		if ((sd->plexno >= 0)
 		    && ((PLEX[sd->plexno].organization != plex_raid5)
@@ -259,7 +264,10 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
     }
     if (status == 1) {					    /* we can do it, */
 	sd->state = newstate;
-	log(LOG_INFO, "vinum: %s is %s\n", sd->name, sd_state(sd->state));
+	if (flags & setstate_force)
+	    log(LOG_INFO, "vinum: %s is %s by force\n", sd->name, sd_state(sd->state));
+	else
+	    log(LOG_INFO, "vinum: %s is %s\n", sd->name, sd_state(sd->state));
     } else						    /* we don't get here with status 0 */
 	log(LOG_INFO,
 	    "vinum: %s is %s, not %s\n",
@@ -784,7 +792,7 @@ start_object(struct vinum_ioctl_msg *data)
     case drive_object:
 	status = set_drive_state(objindex, drive_up, flags);
 	if (DRIVE[objindex].state != drive_up)		    /* set status on whether we really did it */
-	    ioctl_reply->error = EINVAL;
+	    ioctl_reply->error = EBUSY;
 	else
 	    ioctl_reply->error = 0;
 	break;
@@ -801,7 +809,7 @@ start_object(struct vinum_ioctl_msg *data)
 	    ioctl_reply->error = EAGAIN;
 	} else {
 	    if (SD[objindex].state != sd_up)		    /* set status on whether we really did it */
-		ioctl_reply->error = EINVAL;
+		ioctl_reply->error = EBUSY;
 	    else
 		ioctl_reply->error = 0;
 	}
@@ -810,7 +818,7 @@ start_object(struct vinum_ioctl_msg *data)
     case plex_object:
 	status = set_plex_state(objindex, plex_up, flags);
 	if (PLEX[objindex].state != plex_up)		    /* set status on whether we really did it */
-	    ioctl_reply->error = EINVAL;
+	    ioctl_reply->error = EBUSY;
 	else
 	    ioctl_reply->error = 0;
 	break;
@@ -818,7 +826,7 @@ start_object(struct vinum_ioctl_msg *data)
     case volume_object:
 	status = set_volume_state(objindex, volume_up, flags);
 	if (VOL[objindex].state != volume_up)		    /* set status on whether we really did it */
-	    ioctl_reply->error = EINVAL;
+	    ioctl_reply->error = EBUSY;
 	else
 	    ioctl_reply->error = 0;
 	break;
@@ -871,7 +879,7 @@ stop_object(struct vinum_ioctl_msg *data)
     }
     ioctl_reply->msg[0] = '\0';
     if (status == 0)					    /* couldn't do it */
-	ioctl_reply->error = EINVAL;
+	ioctl_reply->error = EBUSY;
     else
 	ioctl_reply->error = 0;
 }
@@ -906,7 +914,7 @@ setstate(struct vinum_ioctl_msg *msg)
 	    set_sd_state(msg->index, sd_initializing, msg->force);
 	    if (sd->state != sd_initializing) {
 		strcpy(ioctl_reply->msg, "Can't set state");
-		ioctl_reply->error = EINVAL;
+		ioctl_reply->error = EBUSY;
 	    } else
 		ioctl_reply->error = 0;
 	    break;
@@ -922,7 +930,7 @@ setstate(struct vinum_ioctl_msg *msg)
 	    set_plex_state(msg->index, plex_initializing, msg->force);
 	    if (plex->state != plex_initializing) {
 		strcpy(ioctl_reply->msg, "Can't set state");
-		ioctl_reply->error = EINVAL;
+		ioctl_reply->error = EBUSY;
 	    } else {
 		ioctl_reply->error = 0;
 		for (sdno = 0; sdno < plex->subdisks; sdno++) {
@@ -930,7 +938,7 @@ setstate(struct vinum_ioctl_msg *msg)
 		    set_sd_state(plex->sdnos[sdno], sd_initializing, msg->force);
 		    if (sd->state != sd_initializing) {
 			strcpy(ioctl_reply->msg, "Can't set state");
-			ioctl_reply->error = EINVAL;
+			ioctl_reply->error = EBUSY;
 			break;
 		    }
 		}
