@@ -1225,11 +1225,8 @@ union_remove(ap)
 		if (union_dowhiteout(un, cnp->cn_cred, td))
 			cnp->cn_flags |= DOWHITEOUT;
 		error = VOP_REMOVE(upperdvp, uppervp, cnp);
-#if 0
-		/* XXX */
 		if (!error)
 			union_removed_upper(un);
-#endif
 		union_unlock_upper(uppervp, td);
 	} else {
 		error = union_mkwhiteout(
@@ -1542,6 +1539,8 @@ union_rmdir(ap)
 		if (union_dowhiteout(un, cnp->cn_cred, td))
 			cnp->cn_flags |= DOWHITEOUT;
 		error = VOP_RMDIR(upperdvp, uppervp, ap->a_cnp);
+		if (!error)
+			union_removed_upper(un);
 		union_unlock_upper(uppervp, td);
 	} else {
 		error = union_mkwhiteout(
