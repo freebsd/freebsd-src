@@ -37,7 +37,6 @@
 #ifndef	_MACHINE_ANSI_H_
 #define	_MACHINE_ANSI_H_
 
-
 /*
  * Types which are fundamental to the implementation and may appear in
  * more than one standard header are defined here.  Standard headers
@@ -47,16 +46,16 @@
  *	#undef	_BSD_SIZE_T_
  *	#endif
  */
-#define	_BSD_CLOCK_T_	int			/* clock() */
-#define	_BSD_CLOCKID_T_	int			/* clockid_t */
+#define	_BSD_CLOCK_T_	unsigned long		/* clock()... */
+#define	_BSD_CLOCKID_T_	int			/* clock_gettime()... */
 #define	_BSD_MBSTATE_T_	__mbstate_t		/* mbstate_t */
 #define	_BSD_PTRDIFF_T_	int			/* ptr1 - ptr2 */
 #define	_BSD_RUNE_T_	_BSD_CT_RUNE_T_		/* rune_t (see below) */
 #define	_BSD_SIZE_T_	unsigned int		/* sizeof() */
 #define	_BSD_SOCKLEN_T_	__uint32_t		/* socklen_t (duh) */
-#define	_BSD_SSIZE_T_	long			/* byte count or error */
-#define	_BSD_TIME_T_	int			/* time() */
-#define	_BSD_TIMER_T_	int			/* timer_t */
+#define	_BSD_SSIZE_T_	int			/* byte count or error */
+#define	_BSD_TIME_T_	int			/* time()... */
+#define	_BSD_TIMER_T_	int			/* timer_gettime()... */
 #define	_BSD_WCHAR_T_	_BSD_CT_RUNE_T_		/* wchar_t (see below) */
 #define	_BSD_WINT_T_	_BSD_CT_RUNE_T_		/* wint_t (see below) */
 
@@ -116,6 +115,23 @@ typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
 #define __offsetof(type, field) ((size_t)(&((type *)0)->field))
 
 /*
+ * XXX this paragraph is very out of date.
+ * Typedefs for especially magic types.  #define's wouldn't work in the
+ * __GNUC__ case, since __attribute__(()) only works in certain contexts.
+ * This is not in <machine/types.h>, since that has too much namespace
+ * pollution for inclusion in ANSI headers, yet we need __int64_t in at
+ * least <stdio.h>.
+ */
+#ifdef __GNUC__
+typedef	int __attribute__((__mode__(__DI__)))		__int64_t;
+typedef	unsigned int __attribute__((__mode__(__DI__)))	__uint64_t;
+#else
+/* LONGLONG */
+typedef	long long					__int64_t;
+/* LONGLONG */
+typedef	unsigned long long				__uint64_t;
+#endif
+/*
  * Internal names for basic integral types.  Omit the typedef if
  * not possible for a machine/compiler combination.
  */
@@ -125,11 +141,43 @@ typedef	short			__int16_t;
 typedef	unsigned short		__uint16_t;
 typedef	int			__int32_t;
 typedef	unsigned int		__uint32_t;
-typedef	long long		__int64_t;
-typedef	unsigned long long	__uint64_t;
 
 typedef	int			__intptr_t;
 typedef	unsigned int		__uintptr_t;
+
+typedef	__signed char		__int_least8_t;
+typedef	unsigned char		__uint_least8_t;
+typedef	short			__int_least16_t;
+typedef	unsigned short		__uint_least16_t;
+typedef	int			__int_least32_t;
+typedef	unsigned int		__uint_least32_t;
+typedef	__int64_t		__int_least64_t;
+typedef	__uint64_t		__uint_least64_t;
+
+typedef	int			__int_fast8_t;
+typedef	unsigned int		__uint_fast8_t;
+typedef	int			__int_fast16_t;
+typedef	unsigned int		__uint_fast16_t;
+typedef	int			__int_fast32_t;
+typedef	unsigned int		__uint_fast32_t;
+typedef	__int64_t		__int_fast64_t;
+typedef	__uint64_t		__uint_fast64_t;
+
+typedef	__int64_t		__intmax_t;
+typedef	__uint64_t		__uintmax_t;
+
+#define	__INT8_C(c)		(c)
+#define	__INT16_C(c)		(c)
+#define	__INT32_C(c)		(c)
+#define	__INT64_C(c)		(c ## LL)
+
+#define	__UINT8_C(c)		(c)
+#define	__UINT16_C(c)		(c)
+#define	__UINT32_C(c)		(c ## U)
+#define	__UINT64_C(c)		(c ## ULL)
+
+#define	__INTMAX_C(c)		(c ## LL)
+#define	__UINTMAX_C(c)		(c ## ULL)
 
 /*
  * mbstate_t is an opaque object to keep conversion state, during multibyte
@@ -138,6 +186,6 @@ typedef	unsigned int		__uintptr_t;
 typedef union {
 	char		__mbstate8[128];
 	__int64_t	_mbstateL;		/* for alignment */
- } __mbstate_t;
+} __mbstate_t;
 
 #endif	/* _MACHINE_ANSI_H_ */
