@@ -295,8 +295,14 @@ archive_read_format_tar_bid(struct archive *a)
 	}
 
 	/* If it's an end-of-archive mark, we can handle it. */
-	if ((*(const char *)h) == 0 && archive_block_is_null(h))
-		return (bid + 1);
+	if ((*(const char *)h) == 0 && archive_block_is_null(h)) {
+		/* If it's a known tar file, end-of-archive is definite. */
+		if ((a->archive_format & ARCHIVE_FORMAT_BASE_MASK) ==
+		    ARCHIVE_FORMAT_TAR)
+			return (512);
+		/* Empty archive? */
+		return (1);
+	}
 
 	/* If it's not an end-of-archive mark, it must have a valid checksum.*/
 	if (!checksum(a, h))
@@ -321,6 +327,7 @@ archive_read_format_tar_bid(struct archive *a)
 	    !( header->typeflag[0] >= 'A' && header->typeflag[0] <= 'Z') &&
 	    !( header->typeflag[0] >= 'a' && header->typeflag[0] <= 'z') )
 		return (0);
+	bid += 2;  /* 6 bits of variation in an 8-bit field leaves 2 bits. */
 
 	/* Sanity check: Look at first byte of mode field. */
 	switch (255 & (unsigned)header->mode[0]) {
