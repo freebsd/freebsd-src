@@ -1118,13 +1118,18 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 	if (mc->mc_flags & _MC_FLAGS_ASYNC_CONTEXT) {
 		/*
 		 * We can get an async context passed to us while we
-		 * entered the kernel through a syscall: sigreturn(2).
+		 * entered the kernel through a syscall: sigreturn(2)
+		 * and kse_switchin(2) both take contexts that could
+		 * previously be the result of a trap or interrupt.
 		 * Hence, we cannot assert that the trapframe is not
-		 * a syscall frame, but we can assert that if it is
-		 * the syscall is sigreturn(2).
+		 * a syscall frame, but we can assert that it's at
+		 * least an expected syscall.
 		 */
-		if (tf->tf_flags & FRAME_SYSCALL)
-			KASSERT(tf->tf_scratch.gr15 == SYS_sigreturn, ("foo"));
+		if (tf->tf_flags & FRAME_SYSCALL) {
+			KASSERT(tf->tf_scratch.gr15 == SYS_sigreturn ||
+			    tf->tf_scratch.gr15 == SYS_kse_switchin, ("foo"));
+			tf->tf_flags &= ~FRAME_SYSCALL;
+		}
 		tf->tf_scratch = mc->mc_scratch;
 		tf->tf_scratch_fp = mc->mc_scratch_fp;
 		if (mc->mc_flags & _MC_FLAGS_HIGHFP_VALID)
