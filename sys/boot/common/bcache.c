@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
  * Simple LRU block cache
  */
 
+#include <sys/stdint.h>
+
 #include <stand.h>
 #include <string.h>
 #include <bitstring.h>
@@ -337,7 +339,7 @@ command_bcache(int argc, char *argv[])
     u_int	i;
     
     for (i = 0; i < bcache_nblks; i++) {
-	printf("%08x %04x %04x|", bcache_ctl[i].bc_blkno, (unsigned int)bcache_ctl[i].bc_stamp & 0xffff, bcache_ctl[i].bc_count & 0xffff);
+	printf("%08jx %04x %04x|", (uintmax_t)bcache_ctl[i].bc_blkno, (unsigned int)bcache_ctl[i].bc_stamp & 0xffff, bcache_ctl[i].bc_count & 0xffff);
 	if (((i + 1) % 4) == 0)
 	    printf("\n");
     }
