@@ -415,6 +415,8 @@ dev_stdclone(char *name, char **namep, char *stem, int *unit)
 	if (name[i] == '0' && name[i + 1] != '\0' && isdigit(name[i + 1]))
 		return (0);
 	u = 0;
+	if (name[i] == '0' && isdigit(name[i+1]))
+		return (0);
 	while (isdigit(name[i])) {
 		u *= 10;
 		u += name[i++] - '0';
