@@ -1175,6 +1175,62 @@ linux_sched_getscheduler(p, uap)
 	return error;
 }
 
+int
+linux_sched_get_priority_max(p, uap)
+	struct proc *p;
+	struct linux_sched_get_priority_max_args *uap;
+{
+	struct sched_get_priority_max_args bsd;
+
+#ifdef DEBUG
+	if (ldebug(sched_get_priority_max))
+		printf(ARGS(sched_get_priority_max, "%d"), uap->policy);
+#endif
+
+	switch (uap->policy) {
+	case LINUX_SCHED_OTHER:
+		bsd.policy = SCHED_OTHER;
+		break;
+	case LINUX_SCHED_FIFO:
+		bsd.policy = SCHED_FIFO;
+		break;
+	case LINUX_SCHED_RR:
+		bsd.policy = SCHED_RR;
+		break;
+	default:
+		return EINVAL;
+	}
+	return sched_get_priority_max(p, &bsd);
+}
+
+int
+linux_sched_get_priority_min(p, uap)
+	struct proc *p;
+	struct linux_sched_get_priority_min_args *uap;
+{
+	struct sched_get_priority_min_args bsd;
+
+#ifdef DEBUG
+	if (ldebug(sched_get_priority_min))
+		printf(ARGS(sched_get_priority_min, "%d"), uap->policy);
+#endif
+
+	switch (uap->policy) {
+	case LINUX_SCHED_OTHER:
+		bsd.policy = SCHED_OTHER;
+		break;
+	case LINUX_SCHED_FIFO:
+		bsd.policy = SCHED_FIFO;
+		break;
+	case LINUX_SCHED_RR:
+		bsd.policy = SCHED_RR;
+		break;
+	default:
+		return EINVAL;
+	}
+	return sched_get_priority_min(p, &bsd);
+}
+
 #define REBOOT_CAD_ON	0x89abcdef
 #define REBOOT_CAD_OFF	0
 #define REBOOT_HALT	0xcdef0123
