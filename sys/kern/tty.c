@@ -36,7 +36,35 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.48 1995/06/24 16:28:20 ache Exp $
+ * $Id: tty.c,v 1.49 1995/07/21 13:56:29 bde Exp $
+ */
+
+/*-
+ * TODO:
+ *	o Fix races for sending the start char in ttyflush().
+ *	o Handle inter-byte timeout for "MIN > 0, TIME > 0" in ttyselect().
+ *	  With luck, there will be MIN chars before select() returns().
+ *	o Handle CLOCAL consistently for ptys.  Perhaps disallow setting it.
+ *	o Don't allow input in TS_ZOMBIE case.  It would be visible through
+ *	  FIONREAD.
+ *	o Do the new sio locking stuff here and use it to avoid special
+ *	  case for EXTPROC?
+ *	o Lock PENDIN too?
+ *	o Move EXTPROC and/or PENDIN to t_state?
+ *	o Wrap most of ttioctl in spltty/splx.
+ *	o Implement TIOCNOTTY or remove it from <sys/ioctl.h>.
+ *	o Send STOP if IXOFF is toggled off while TS_TBLOCK is set.
+ *	o Don't allow certain termios flags to affect disciplines other
+ *	  than TTYDISC.  Cancel their effects before switch disciplines
+ *	  and ignore them if they are set while we are in another
+ *	  discipline.
+ *	o Handle c_ispeed = 0 to c_ispeed = c_ospeed conversion here instead
+ *	  of in drivers and fix drivers that write to tp->t_termios.
+ *	o Check for TS_CARR_ON being set while everything is closed and not
+ *	  waiting for carrier.  TS_CARR_ON isn't cleared if nothing is open,
+ *	  so it would live until the next open even if carrier drops.
+ *	o Restore TS_WOPEN since it is useful in pstat.  It must be cleared
+ *	  only when _all_ openers leave open().
  */
 
 #include "snp.h"
@@ -229,23 +257,6 @@ ttyclose(tp)
 #define	TTBREAKC(c)							\
 	((c) == '\n' || (((c) == cc[VEOF] ||				\
 	(c) == cc[VEOL] || (c) == cc[VEOL2]) && (c) != _POSIX_VDISABLE))
-
-/*-
- * TODO:
- *	o Fix races for sending the start char in ttyflush().
- *	o Handle inter-byte timeout for "MIN > 0, TIME > 0" in ttyselect().
- *	  With luck, there will be MIN chars before select() returns().
- *	o Handle CLOCAL consistently for ptys.  Perhaps disallow setting it.
- *	o Don't allow input in TS_ZOMBIE case.  It would be visible through
- *	  FIONREAD.
- *	o Do the new sio locking stuff here and use it to avoid special
- *	  case for EXTPROC?
- *	o Lock PENDIN too?
- *	o Move EXTPROC and/or PENDIN to t_state?
- *	o Wrap most of ttioctl in spltty/splx.
- *	o Implement TIOCNOTTY or remove it from <sys/ioctl.h>.
- */
-
 
 /*
  * Process input of a single character received on a tty.
