@@ -34,7 +34,7 @@ BINDIR?=	/boot
 
 all: ${BASE}
 
-vers.o: ${.CURDIR}/../../newvers.sh ${.CURDIR}/version
+vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
