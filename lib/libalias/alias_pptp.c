@@ -45,8 +45,8 @@
    "de-aliasing" of incoming packets, this is different than any other
    TCP applications that are currently (ie. FTP, IRC and RTSP) aliased.
 
-   For Call IDs encountered for the first time, a GRE alias link is created.
-   The GRE alias link uses the Call ID in place of the original port number.
+   For Call IDs encountered for the first time, a PPTP alias link is created.
+   The PPTP alias link uses the Call ID in place of the original port number.
    An alias Call ID is created.
 
    For this routine to work, the PPTP control messages must fit entirely
@@ -114,7 +114,7 @@ enum {
   PPTP_StopCtrlConnRequest = 3,
   PPTP_StopCtrlConnReply = 4,
   PPTP_EchoRequest = 5,
-  PPTP_statoReply = 6,
+  PPTP_EchoReply = 6,
   PPTP_OutCallRequest = 7,
   PPTP_OutCallReply = 8,
   PPTP_InCallRequest = 9,
@@ -172,7 +172,7 @@ void
 AliasHandlePptpOut(struct ip *pip,	    /* IP packet to examine/patch */
                    struct alias_link *link) /* The PPTP control link */
 {
-    struct alias_link   *gre_link;
+    struct alias_link   *pptp_link;
     PptpCallId    	cptr;
     u_int16_t           ctl_type;           /* control message type */
     struct tcphdr 	*tc;
@@ -182,22 +182,32 @@ AliasHandlePptpOut(struct ip *pip,	    /* IP packet to examine/patch */
       return;
 
     /* Modify certain PPTP messages */
-    if ((ctl_type >= PPTP_OutCallRequest) &&
-       (ctl_type <= PPTP_CallDiscNotify)) {
+    switch (ctl_type) {
+    case PPTP_OutCallRequest:
+    case PPTP_OutCallReply:
+    case PPTP_InCallRequest:
+    case PPTP_InCallReply:
+    case PPTP_CallClearRequest:
+    case PPTP_CallDiscNotify:
 
-      /* Establish GRE link for address and Call ID found in PPTP Control Msg */
-      gre_link = FindPptpOut(GetOriginalAddress(link), GetDestAddress(link),
-                             cptr->cid1);
+      /* Establish PPTP link for address and Call ID found in PPTP Control Msg */
+      pptp_link = FindPptpOut(GetOriginalAddress(link), GetDestAddress(link),
+                              cptr->cid1);
 
-      if (gre_link != NULL) {
+      if (pptp_link != NULL) {
+	int accumulate = cptr->cid1;
+
 	/* alias the Call Id */
-	cptr->cid1 = GetAliasPort(gre_link);
+	cptr->cid1 = GetAliasPort(pptp_link);
 
 	/* Compute TCP checksum for revised packet */
 	tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
-	tc->th_sum = 0;
-	tc->th_sum = TcpChecksum(pip);
+	accumulate -= cptr->cid1;
+	ADJUST_CHECKSUM(accumulate, tc->th_sum);
       }
+      break;
+    default:
+      return;
     }
 }
 
@@ -205,7 +215,7 @@ void
 AliasHandlePptpIn(struct ip *pip,	   /* IP packet to examine/patch */
                   struct alias_link *link) /* The PPTP control link */
 {
-    struct alias_link   *gre_link;
+    struct alias_link   *pptp_link;
     PptpCallId    	cptr;
     u_int16_t     	*pcall_id;
     u_int16_t           ctl_type;           /* control message type */
@@ -229,21 +239,22 @@ AliasHandlePptpIn(struct ip *pip,	   /* IP packet to examine/patch */
       break;
     default:
       return;
-      break;
     }
 
-    /* Find GRE link for address and Call ID found in PPTP Control Msg */
-    gre_link = FindPptpIn(GetDestAddress(link), GetAliasAddress(link),
-	                  *pcall_id);
+    /* Find PPTP link for address and Call ID found in PPTP Control Msg */
+    pptp_link = FindPptpIn(GetDestAddress(link), GetAliasAddress(link),
+                           *pcall_id);
 
-    if (gre_link != NULL) {
+    if (pptp_link != NULL) {
+      int accumulate = *pcall_id;
+
       /* alias the Call Id */
-      *pcall_id = GetOriginalPort(gre_link);
+      *pcall_id = GetOriginalPort(pptp_link);
 
       /* Compute TCP checksum for modified packet */
       tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
-      tc->th_sum = 0;
-      tc->th_sum = TcpChecksum(pip);
+      accumulate -= *pcall_id;
+      ADJUST_CHECKSUM(accumulate, tc->th_sum);
     }
 }
 
