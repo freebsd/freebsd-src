@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.14 1995/12/11 04:56:02 dyson Exp $
+ *	$Id: subr_rlist.c,v 1.15 1995/12/14 08:31:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -85,7 +85,7 @@ rlist_malloc()
 	int i;
 	while( rlist_count < RLIST_MIN) {
 		int s = splhigh();
-		rl = (struct rlist *)kmem_malloc(kmem_map, PAGE_SIZE, M_WAITOK);
+		rl = (struct rlist *)kmem_alloc(kernel_map, PAGE_SIZE);
 		splx(s);
 		if( !rl)
 			break;
@@ -231,7 +231,8 @@ done:
  * return a value of 1 and set resource start location with
  * "*loc". (Note: loc can be zero if we don't wish the value)
  */
-int rlist_alloc (rlp, size, loc)
+int
+rlist_alloc (rlp, size, loc)
 	struct rlist **rlp;
 	unsigned size, *loc;
 {
