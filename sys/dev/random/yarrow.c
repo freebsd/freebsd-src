@@ -36,7 +36,7 @@
 #include <sys/kthread.h>
 #include <sys/libkern.h>
 #include <sys/mutex.h>
-#include <sys/select.h>
+#include <sys/selinfo.h>
 #include <sys/random.h>
 #include <sys/types.h>
 #include <sys/unistd.h>

@@ -77,7 +77,11 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/file.h>
+#if __FreeBSD_version >= 500014
+#include <sys/selinfo.h>
+#else
 #include <sys/select.h>
+#endif
 #include <sys/poll.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>

@@ -71,7 +71,11 @@
 #include <sys/signalvar.h>
 #include <sys/mman.h>
 #include <sys/poll.h>
+#if __FreeBSD_version >= 500014
+#include <sys/selinfo.h>
+#else
 #include <sys/select.h>
+#endif
 #include <sys/vnode.h>
 
 #include <vm/vm.h>

@@ -39,7 +39,7 @@
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
-#include <sys/select.h>
+#include <sys/selinfo.h>
 #include <machine/apm_bios.h>
 #include <machine/pc/bios.h>
 #include <i386/apm/apm.h>
