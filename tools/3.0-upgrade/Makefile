@@ -1,8 +1,6 @@
-all: cvt-wtmp
+# $FreeBSD$
 
-CLEANFILES += cvt-wtmp
-
-cvt-wtmp: cvt-wtmp.c /usr/include/utmp.h
-
+PROG=	cvt-wtmp
+NOMAN=	YES
 
 .include <bsd.prog.mk>
