@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 1998-2002 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved
  *
@@ -47,7 +47,7 @@
  *
  * Most important Changes:
  *
- * 011031: KLDable
+ * 011004: KLDable
  * 010124: Fixed WF2Q behaviour
  * 010122: Fixed spl protection.
  * 000601: WF2Q support
@@ -61,9 +61,9 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/queue.h>			/* XXX */
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/time.h>
@@ -160,18 +160,10 @@ static void rt_unref(struct rtentry *);
 static void dummynet(void *);
 static void dummynet_flush(void);
 void dummynet_drain(void);
-static int dummynet_io(int pipe, int dir, struct mbuf *m, struct ifnet *ifp,
-		struct route *ro, struct sockaddr_in * dst,
-		struct ip_fw *rule, int flags);
+static ip_dn_io_t dummynet_io;
 static void dn_rule_delete(void *);
 
 int if_tx_rdy(struct ifnet *ifp);
-
-/*
- * ip_fw_chain_head is used when deleting a pipe, because ipfw rules can
- * hold references to the pipe.
- */
-extern LIST_HEAD (ip_fw_head, ip_fw) ip_fw_chain_head;
 
 static void
 rt_unref(struct rtentry *rt)
@@ -422,9 +414,8 @@ transmit_event(struct dn_pipe *pipe)
 	/*
 	 * The actual mbuf is preceded by a struct dn_pkt, resembling an mbuf
 	 * (NOT A REAL one, just a small block of malloc'ed memory) with
-	 *     m_type = MT_DUMMYNET
-	 *     m_next = actual mbuf to be processed by ip_input/output
-	 *     m_data = the matching rule
+	 *     m_type = MT_TAG, m_flags = PACKET_TAG_DUMMYNET
+	 *     dn_m (m_next) = actual mbuf to be processed by ip_input/output
 	 * and some other fields.
 	 * The block IS FREED HERE because it contains parameters passed
 	 * to the called routine.
@@ -444,7 +435,10 @@ transmit_event(struct dn_pipe *pipe)
 		/* somebody unloaded the bridge module. Drop pkt */
 		printf("-- dropping bridged packet trapped in pipe--\n");
 		m_freem(pkt->dn_m);
-	    } else {
+		break;
+	    } /* fallthrough */
+	case DN_TO_ETH_DEMUX:
+	    {
 		struct mbuf *m = (struct mbuf *)pkt ;
 		struct ether_header *eh;
 
@@ -464,11 +458,18 @@ transmit_event(struct dn_pipe *pipe)
 		 * (originally pkt->dn_m, but could be something else now) if
 		 * it has not consumed it.
 		 */
-		m = bdg_forward_ptr(m, eh, pkt->ifp);
-		if (m)
-		    m_freem(m);
+		if (pkt->dn_dir == DN_TO_BDG_FWD) {
+		    m = bdg_forward_ptr(m, eh, pkt->ifp);
+		    if (m)
+			m_freem(m);
+		} else
+		    ether_demux(NULL, eh, m); /* which consumes the mbuf */
 	    }
 	    break ;
+	case DN_TO_ETH_OUT:
+	    ether_output_frame(pkt->ifp, (struct mbuf *)pkt);
+	    break;
+
 	default:
 	    printf("dummynet: bad switch %d!\n", pkt->dn_dir);
 	    m_freem(pkt->dn_m);
@@ -851,7 +852,7 @@ create_queue(struct dn_flow_set *fs, int i)
  * so that further searches take less time.
  */
 static struct dn_flow_queue *
-find_queue(struct dn_flow_set *fs)
+find_queue(struct dn_flow_set *fs, struct ipfw_flow_id *id)
 {
     int i = 0 ; /* we need i and q for new allocations */
     struct dn_flow_queue *q, *prev;
@@ -860,25 +861,25 @@ find_queue(struct dn_flow_set *fs)
 	q = fs->rq[0] ;
     else {
 	/* first, do the masking */
-	last_pkt.dst_ip &= fs->flow_mask.dst_ip ;
-	last_pkt.src_ip &= fs->flow_mask.src_ip ;
-	last_pkt.dst_port &= fs->flow_mask.dst_port ;
-	last_pkt.src_port &= fs->flow_mask.src_port ;
-	last_pkt.proto &= fs->flow_mask.proto ;
-	last_pkt.flags = 0 ; /* we don't care about this one */
+	id->dst_ip &= fs->flow_mask.dst_ip ;
+	id->src_ip &= fs->flow_mask.src_ip ;
+	id->dst_port &= fs->flow_mask.dst_port ;
+	id->src_port &= fs->flow_mask.src_port ;
+	id->proto &= fs->flow_mask.proto ;
+	id->flags = 0 ; /* we don't care about this one */
 	/* then, hash function */
-	i = ( (last_pkt.dst_ip) & 0xffff ) ^
-	    ( (last_pkt.dst_ip >> 15) & 0xffff ) ^
-	    ( (last_pkt.src_ip << 1) & 0xffff ) ^
-	    ( (last_pkt.src_ip >> 16 ) & 0xffff ) ^
-	    (last_pkt.dst_port << 1) ^ (last_pkt.src_port) ^
-	    (last_pkt.proto );
+	i = ( (id->dst_ip) & 0xffff ) ^
+	    ( (id->dst_ip >> 15) & 0xffff ) ^
+	    ( (id->src_ip << 1) & 0xffff ) ^
+	    ( (id->src_ip >> 16 ) & 0xffff ) ^
+	    (id->dst_port << 1) ^ (id->src_port) ^
+	    (id->proto );
 	i = i % fs->rq_size ;
 	/* finally, scan the current list for a match */
 	searches++ ;
 	for (prev=NULL, q = fs->rq[i] ; q ; ) {
 	    search_steps++;
-	    if (bcmp(&last_pkt, &(q->id), sizeof(q->id) ) == 0)
+	    if (bcmp(id, &(q->id), sizeof(q->id) ) == 0)
 		break ; /* found */
 	    else if (pipe_expire && q->head == NULL && q->S == q->F+1 ) {
 		/* entry is idle and not in any heap, expire it */
@@ -904,7 +905,7 @@ find_queue(struct dn_flow_set *fs)
     if (q == NULL) { /* no match, need to allocate a new entry */
 	q = create_queue(fs, i);
 	if (q != NULL)
-	q->id = last_pkt ;
+	q->id = *id ;
     }
     return q ;
 }
@@ -1015,9 +1016,19 @@ static __inline
 struct dn_flow_set *
 locate_flowset(int pipe_nr, struct ip_fw *rule)
 {
+#if IPFW2
+    ipfw_insn_pipe *cmd = (ipfw_insn_pipe *)(rule->cmd + rule->act_ofs);
+    struct dn_flow_set *fs = (struct dn_flow_set *)(cmd->pipe_ptr);
+
+    if (fs != NULL)
+	return fs;
+
+    if ( cmd->o.opcode == O_QUEUE )
+#else /* !IPFW2 */
     struct dn_flow_set *fs = NULL ;
 
     if ( (rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_QUEUE )
+#endif /* !IPFW2 */
 	for (fs=all_flow_sets; fs && fs->fs_nr != pipe_nr; fs=fs->next)
 	    ;
     else {
@@ -1027,37 +1038,54 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
 	if (p1 != NULL)
 	    fs = &(p1->fs) ;
     }
+#if IPFW2
+    (struct dn_flow_set *)(cmd->pipe_ptr) = fs; /* record for the future */
+#else
     if (fs != NULL)
 	rule->pipe_ptr = fs ; /* record for the future */
+#endif
     return fs ;
 }
 
 /*
  * dummynet hook for packets. Below 'pipe' is a pipe or a queue
  * depending on whether WF2Q or fixed bw is used.
+ *
+ * pipe_nr	pipe or queue the packet is destined for.
+ * dir		where shall we send the packet after dummynet.
+ * m		the mbuf with the packet
+ * ifp		the 'ifp' parameter from the caller.
+ *		NULL in ip_input, destination interface in ip_output,
+ *		real_dst in bdg_forward
+ * ro		route parameter (only used in ip_output, NULL otherwise)
+ * dst		destination address, only used by ip_output
+ * rule		matching rule, in case of multiple passes
+ * flags	flags from the caller, only used in ip_output
+ * 
  */
-int
-dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
-	struct mbuf *m, struct ifnet *ifp, struct route *ro,
-	struct sockaddr_in *dst,
-	struct ip_fw *rule, int flags)
+static int
+dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
 {
     struct dn_pkt *pkt;
     struct dn_flow_set *fs;
     struct dn_pipe *pipe ;
     u_int64_t len = m->m_pkthdr.len ;
     struct dn_flow_queue *q = NULL ;
-    int s ;
-
-    s = splimp();
+    int s = splimp();
+#if IPFW2
+    int is_pipe = (fwa->rule->cmd[fwa->rule->act_ofs].opcode == O_PIPE);
+#else
+    int is_pipe = (fwa->rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_PIPE;
+#endif
 
     pipe_nr &= 0xffff ;
 
-    if ( (fs = rule->pipe_ptr) == NULL ) {
-	fs = locate_flowset(pipe_nr, rule);
-	if (fs == NULL)
-	    goto dropit ;	/* this queue/pipe does not exist! */
-    }
+    /*
+     * this is a dummynet rule, so we expect a O_PIPE or O_QUEUE rule
+     */
+    fs = locate_flowset(pipe_nr, fwa->rule);
+    if (fs == NULL)
+	goto dropit ;	/* this queue/pipe does not exist! */
     pipe = fs->pipe ;
     if (pipe == NULL) { /* must be a queue, try find a matching pipe */
 	for (pipe = all_pipes; pipe && pipe->pipe_nr != fs->parent_nr;
@@ -1071,7 +1099,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	    goto dropit ;
 	}
     }
-    q = find_queue(fs);
+    q = find_queue(fs, &(fwa->f_id));
     if ( q == NULL )
 	goto dropit ;		/* cannot allocate queue		*/
     /*
@@ -1097,27 +1125,28 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	goto dropit ;		/* cannot allocate packet header	*/
     /* ok, i can handle the pkt now... */
     /* build and enqueue packet + parameters */
-    pkt->hdr.mh_type = MT_DUMMYNET ;
-    (struct ip_fw *)pkt->hdr.mh_data = rule ;
+    pkt->hdr.mh_type = MT_TAG;
+    pkt->hdr.mh_flags = PACKET_TAG_DUMMYNET;
+    pkt->rule = fwa->rule ;
     DN_NEXT(pkt) = NULL;
     pkt->dn_m = m;
     pkt->dn_dir = dir ;
 
-    pkt->ifp = ifp;
+    pkt->ifp = fwa->oif;
     if (dir == DN_TO_IP_OUT) {
 	/*
 	 * We need to copy *ro because for ICMP pkts (and maybe others)
 	 * the caller passed a pointer into the stack; dst might also be
 	 * a pointer into *ro so it needs to be updated.
 	 */
-	pkt->ro = *ro;
-	if (ro->ro_rt)
-	    ro->ro_rt->rt_refcnt++ ;
-	if (dst == (struct sockaddr_in *)&ro->ro_dst) /* dst points into ro */
-	    dst = (struct sockaddr_in *)&(pkt->ro.ro_dst) ;
+	pkt->ro = *(fwa->ro);
+	if (fwa->ro->ro_rt)
+	    fwa->ro->ro_rt->rt_refcnt++ ;
+	if (fwa->dst == (struct sockaddr_in *)&fwa->ro->ro_dst) /* dst points into ro */
+	    fwa->dst = (struct sockaddr_in *)&(pkt->ro.ro_dst) ;
 
-	pkt->dn_dst = dst;
-	pkt->flags = flags ;
+	pkt->dn_dst = fwa->dst;
+	pkt->flags = fwa->flags;
     }
     if (q->head == NULL)
 	q->head = pkt;
@@ -1134,7 +1163,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
      * to schedule it. This involves different actions for fixed-rate or
      * WF2Q queues.
      */
-    if ( (rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_PIPE ) {
+    if (is_pipe) {
 	/*
 	 * Fixed-rate queue: just insert into the ready_heap.
 	 */
@@ -1284,15 +1313,13 @@ static void
 dummynet_flush()
 {
     struct dn_pipe *curr_p, *p ;
-    struct ip_fw *rule ;
     struct dn_flow_set *fs, *curr_fs;
     int s ;
 
     s = splimp() ;
 
     /* remove all references to pipes ...*/
-    LIST_FOREACH(rule, &ip_fw_chain_head, next)
-	rule->pipe_ptr = NULL ;
+    flush_pipe_ptrs(NULL);
     /* prevent future matches... */
     p = all_pipes ;
     all_pipes = NULL ; 
@@ -1332,8 +1359,8 @@ dn_rule_delete_fs(struct dn_flow_set *fs, void *r)
     for (i = 0 ; i <= fs->rq_size ; i++) /* last one is ovflow */
 	for (q = fs->rq[i] ; q ; q = q->next )
 	    for (pkt = q->head ; pkt ; pkt = DN_NEXT(pkt) )
-		if (pkt->hdr.mh_data == r)
-		    pkt->hdr.mh_data = (void *)ip_fw_default_rule ;
+		if (pkt->rule == r)
+		    pkt->rule = ip_fw_default_rule ;
 }
 /*
  * when a firewall rule is deleted, scan all queues and remove the flow-id
@@ -1357,8 +1384,8 @@ dn_rule_delete(void *r)
 	fs = &(p->fs) ;
 	dn_rule_delete_fs(fs, r);
 	for (pkt = p->head ; pkt ; pkt = DN_NEXT(pkt) )
-	    if (pkt->hdr.mh_data == r)
-		pkt->hdr.mh_data = (void *)ip_fw_default_rule ;
+	    if (pkt->rule == r)
+		pkt->rule = ip_fw_default_rule ;
     }
 }
 
@@ -1645,7 +1672,6 @@ static int
 delete_pipe(struct dn_pipe *p)
 {
     int s ;
-    struct ip_fw *rule ;
 
     if (p->pipe_nr == 0 && p->fs.fs_nr == 0)
 	return EINVAL ;
@@ -1669,9 +1695,7 @@ delete_pipe(struct dn_pipe *p)
 	else
 	    a->next = b->next ;
 	/* remove references to this pipe from the ip_fw rules. */
-	LIST_FOREACH(rule, &ip_fw_chain_head, next)
-	    if (rule->pipe_ptr == &(b->fs))
-		rule->pipe_ptr = NULL ;
+	flush_pipe_ptrs(&(b->fs));
 
 	/* remove all references to this pipe from flow_sets */
 	for (fs = all_flow_sets; fs; fs= fs->next )
@@ -1703,9 +1727,7 @@ delete_pipe(struct dn_pipe *p)
 	else
 	    a->next = b->next ;
 	/* remove references to this flow_set from the ip_fw rules. */
-	LIST_FOREACH(rule, &ip_fw_chain_head, next)
-	    if (rule->pipe_ptr == b)
-		rule->pipe_ptr = NULL ;
+	flush_pipe_ptrs(b);
 
 	if (b->pipe != NULL) {
 	    /* Update total weight on parent pipe and cleanup parent heaps */
@@ -1828,8 +1850,16 @@ ip_dn_ctl(struct sockopt *sopt)
     struct dn_pipe *p, tmp_pipe;
 
     /* Disallow sets in really-really secure mode. */
-    if (sopt->sopt_dir == SOPT_SET && securelevel >= 3)
-	return (EPERM);
+    if (sopt->sopt_dir == SOPT_SET) {
+#if __FreeBSD_version >= 500034
+	error =  securelevel_ge(sopt->sopt_td->td_ucred, 3);
+	if (error)
+	    return (error);
+#else
+	if (securelevel >= 3)
+	    return (EPERM);
+#endif
+    }
 
     switch (sopt->sopt_name) {
     default :

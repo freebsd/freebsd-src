@@ -80,27 +80,26 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
 
-#ifdef IPFIREWALL_FORWARD_DEBUG
-#define print_ip(a)	 printf("%ld.%ld.%ld.%ld",(ntohl(a.s_addr)>>24)&0xFF,\
-				 		  (ntohl(a.s_addr)>>16)&0xFF,\
-						  (ntohl(a.s_addr)>>8)&0xFF,\
-						  (ntohl(a.s_addr))&0xFF);
-#endif
+#define print_ip(x, a, y)	 printf("%s %d.%d.%d.%d%s",\
+				x, (ntohl(a.s_addr)>>24)&0xFF,\
+				  (ntohl(a.s_addr)>>16)&0xFF,\
+				  (ntohl(a.s_addr)>>8)&0xFF,\
+				  (ntohl(a.s_addr))&0xFF, y);
 
 u_short ip_id;
 
-static struct mbuf *ip_insertoptions __P((struct mbuf *, struct mbuf *, int *));
-static struct ifnet *ip_multicast_if __P((struct in_addr *, int *));
+static struct mbuf *ip_insertoptions(struct mbuf *, struct mbuf *, int *);
+static struct ifnet *ip_multicast_if(struct in_addr *, int *);
 static void	ip_mloopback
-	__P((struct ifnet *, struct mbuf *, struct sockaddr_in *, int));
+	(struct ifnet *, struct mbuf *, struct sockaddr_in *, int);
 static int	ip_getmoptions
-	__P((struct sockopt *, struct ip_moptions *));
-static int	ip_pcbopts __P((int, struct mbuf **, struct mbuf *));
+	(struct sockopt *, struct ip_moptions *);
+static int	ip_pcbopts(int, struct mbuf **, struct mbuf *);
 static int	ip_setmoptions
-	__P((struct sockopt *, struct ip_moptions **));
+	(struct sockopt *, struct ip_moptions **);
 
-int	ip_optcopy __P((struct ip *, struct ip *));
-extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
+int	ip_optcopy(struct ip *, struct ip *);
+extern int (*fr_checkp) (struct ip *, int, struct ifnet *, int, struct mbuf **);
 
 
 extern	struct protosw inetsw[];
@@ -120,12 +119,12 @@ ip_output(m0, opt, ro, flags, imo)
 	struct ip_moptions *imo;
 {
 	struct ip *ip, *mhip;
-	struct ifnet *ifp;
-	struct mbuf *m = m0;
+	struct ifnet *ifp = NULL;	/* keep compiler happy */
+	struct mbuf *m;
 	int hlen = sizeof (struct ip);
 	int len, off, error = 0;
-	struct sockaddr_in *dst;
-	struct in_ifaddr *ia = NULL;
+	struct sockaddr_in *dst = NULL;	/* keep compiler happy */
+	struct in_ifaddr *ia;
 	int isbroadcast, sw_csum;
 	struct in_addr pkt_dst;
 #ifdef IPSEC
@@ -133,70 +132,70 @@ ip_output(m0, opt, ro, flags, imo)
 	struct socket *so = NULL;
 	struct secpolicy *sp = NULL;
 #endif
-	u_int16_t divert_cookie;		/* firewall cookie */
-#ifdef IPFIREWALL_FORWARD
-	int fwd_rewrite_src = 0;
-#endif
-	struct ip_fw *rule = NULL;
-  
-#ifdef IPDIVERT
-	/* Get and reset firewall cookie */
-	divert_cookie = ip_divert_cookie;
-	ip_divert_cookie = 0;
-#else
-	divert_cookie = 0;
-#endif
+	struct ip_fw_args args;
+	int src_was_INADDR_ANY = 0;	/* as the name says... */
 
-        /*  
-         * dummynet packet are prepended a vestigial mbuf with
-         * m_type = MT_DUMMYNET and m_data pointing to the matching
-         * rule.
-         */ 
-        if (m->m_type == MT_DUMMYNET) {
-            /*
-             * the packet was already tagged, so part of the
-             * processing was already done, and we need to go down.
-             * Get parameters from the header.
-             */
-            rule = (struct ip_fw *)(m->m_data) ;
-	    opt = NULL ;
-	    ro = & ( ((struct dn_pkt *)m)->ro ) ;
-	    imo = NULL ;
-	    dst = ((struct dn_pkt *)m)->dn_dst ;
-	    ifp = ((struct dn_pkt *)m)->ifp ;
-	    flags = ((struct dn_pkt *)m)->flags ;
+	args.eh = NULL;
+	args.rule = NULL;
+	args.next_hop = NULL;
+	args.divert_rule = 0;			/* divert cookie */
 
-            m0 = m = m->m_next ;
-#ifdef IPSEC
-	    so = ipsec_getsocket(m);
-	    (void)ipsec_setsocket(m, NULL);
-#endif
-            ip = mtod(m, struct ip *);
-            hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
-            if (ro->ro_rt != NULL)
-                ia = ifatoia(ro->ro_rt->rt_ifa);
-            goto sendit;
-        } else
-            rule = NULL ;
+	/* Grab info from MT_TAG mbufs prepended to the chain. */
+	for (; m0 && m0->m_type == MT_TAG; m0 = m0->m_next) {
+		switch(m0->m_tag_id) {
+		default:
+			printf("ip_output: unrecognised MT_TAG tag %d\n",
+			    m0->m_tag_id);
+			break;
+
+		case PACKET_TAG_DUMMYNET:
+			/*
+			 * the packet was already tagged, so part of the
+			 * processing was already done, and we need to go down.
+			 * Get parameters from the header.
+			 */
+			args.rule = ((struct dn_pkt *)m0)->rule;
+			opt = NULL ;
+			ro = & ( ((struct dn_pkt *)m0)->ro ) ;
+			imo = NULL ;
+			dst = ((struct dn_pkt *)m0)->dn_dst ;
+			ifp = ((struct dn_pkt *)m0)->ifp ;
+			flags = ((struct dn_pkt *)m0)->flags ;
+			break;
+
+		case PACKET_TAG_DIVERT:
+			args.divert_rule = (int)m0->m_data & 0xffff;
+			break;
+
+		case PACKET_TAG_IPFORWARD:
+			args.next_hop = (struct sockaddr_in *)m0->m_data;
+			break;
+		}
+	}
+	m = m0;
+
+	KASSERT(!m || (m->m_flags & M_PKTHDR) != 0, ("ip_output: no HDR"));
+
+	KASSERT(ro != NULL, ("ip_output: no route, proto %d",
+	    mtod(m, struct ip *)->ip_p));
+
 #ifdef IPSEC
 	so = ipsec_getsocket(m);
 	(void)ipsec_setsocket(m, NULL);
 #endif
+	if (args.rule != NULL) {	/* dummynet already saw us */
+		ip = mtod(m, struct ip *);
+		hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
+		ia = ifatoia(ro->ro_rt->rt_ifa);
+		goto sendit;
+	}
 
-#ifdef	DIAGNOSTIC
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("ip_output no HDR");
-	if (!ro)
-		panic("ip_output no route, proto = %d",
-		      mtod(m, struct ip *)->ip_p);
-#endif
 	if (opt) {
 		m = ip_insertoptions(m, opt, &len);
 		hlen = len;
 	}
 	ip = mtod(m, struct ip *);
-	pkt_dst = (ip_fw_fwd_addr == NULL) ?
-	    ip->ip_dst : ip_fw_fwd_addr->sin_addr;
+	pkt_dst = args.next_hop ? args.next_hop->sin_addr : ip->ip_dst;
 
 	/*
 	 * Fill in IP header.
@@ -380,21 +379,16 @@ ip_output(m0, opt, ro, flags, imo)
 	}
 #ifndef notdef
 	/*
-	 * If source address not specified yet, use address
-	 * of outgoing interface.
+	 * If the source address is not specified yet, use the address
+	 * of the outoing interface. In case, keep note we did that, so
+	 * if the the firewall changes the next-hop causing the output
+	 * interface to change, we can fix that.
 	 */
 	if (ip->ip_src.s_addr == INADDR_ANY) {
 		/* Interface may have no addresses. */
 		if (ia != NULL) {
 			ip->ip_src = IA_SIN(ia)->sin_addr;
-#ifdef IPFIREWALL_FORWARD
-			/* Keep note that we did this - if the firewall changes
-		 	* the next-hop, our interface may change, changing the
-		 	* default source IP. It's a shame so much effort happens
-		 	* twice. Oh well. 
-		 	*/
-			fwd_rewrite_src++;
-#endif /* IPFIREWALL_FORWARD */
+			src_was_INADDR_ANY = 1;
 		}
 	}
 #endif /* notdef */
@@ -496,8 +490,8 @@ sendit:
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 
-	HTONS(ip->ip_len);
-	HTONS(ip->ip_off);
+	ip->ip_len = htons(ip->ip_len);
+	ip->ip_off = htons(ip->ip_off);
 
 	error = ipsec4_output(&state, sp, flags);
 
@@ -556,8 +550,8 @@ sendit:
 	}
 
 	/* make it flipped, again. */
-	NTOHS(ip->ip_len);
-	NTOHS(ip->ip_off);
+	ip->ip_len = ntohs(ip->ip_len);
+	ip->ip_off = ntohs(ip->ip_off);
 skip_ipsec:
 #endif /*IPSEC*/
 
@@ -580,47 +574,57 @@ skip_ipsec:
 	 * Check with the firewall...
 	 * but not if we are already being fwd'd from a firewall.
 	 */
-	if (fw_enable && IPFW_LOADED && (ip_fw_fwd_addr == NULL)) {
+	if (fw_enable && IPFW_LOADED && !args.next_hop) {
 		struct sockaddr_in *old = dst;
 
-		off = ip_fw_chk_ptr(&ip,
-		    hlen, ifp, &divert_cookie, &m, &rule, &dst);
+		args.m = m;
+		args.next_hop = dst;
+		args.oif = ifp;
+		off = ip_fw_chk_ptr(&args);
+		m = args.m;
+		dst = args.next_hop;
+
                 /*
-                 * On return we must do the following:
-                 * IP_FW_PORT_DENY_FLAG		-> drop the pkt (XXX new)
-                 * 1<=off<= 0xffff   -> DIVERT
-                 * (off & IP_FW_PORT_DYNT_FLAG)	-> send to a DUMMYNET pipe
-                 * (off & IP_FW_PORT_TEE_FLAG)	-> TEE the packet
-                 * dst != old        -> IPFIREWALL_FORWARD
-                 * off==0, dst==old  -> accept
-                 * If some of the above modules is not compiled in, then
-                 * we should't have to check the corresponding condition
-                 * (because the ipfw control socket should not accept
-                 * unsupported rules), but better play safe and drop
-                 * packets in case of doubt.
-                 */
+		 * On return we must do the following:
+		 * m == NULL	-> drop the pkt (old interface, deprecated)
+		 * (off & IP_FW_PORT_DENY_FLAG)	-> drop the pkt (new interface)
+		 * 1<=off<= 0xffff		-> DIVERT
+		 * (off & IP_FW_PORT_DYNT_FLAG)	-> send to a DUMMYNET pipe
+		 * (off & IP_FW_PORT_TEE_FLAG)	-> TEE the packet
+		 * dst != old			-> IPFIREWALL_FORWARD
+		 * off==0, dst==old		-> accept
+		 * If some of the above modules are not compiled in, then
+		 * we should't have to check the corresponding condition
+		 * (because the ipfw control socket should not accept
+		 * unsupported rules), but better play safe and drop
+		 * packets in case of doubt.
+		 */
 		if ( (off & IP_FW_PORT_DENY_FLAG) || m == NULL) {
 			if (m)
 				m_freem(m);
-			error = EACCES ;
-			goto done ;
+			error = EACCES;
+			goto done;
 		}
 		ip = mtod(m, struct ip *);
-		if (off == 0 && dst == old) /* common case */
-			goto pass ;
+		if (off == 0 && dst == old)		/* common case */
+			goto pass;
                 if (DUMMYNET_LOADED && (off & IP_FW_PORT_DYNT_FLAG) != 0) {
-                    /*
-                     * pass the pkt to dummynet. Need to include
-                     * pipe number, m, ifp, ro, dst because these are
-                     * not recomputed in the next pass.
-                     * All other parameters have been already used and
-                     * so they are not needed anymore. 
-                     * XXX note: if the ifp or ro entry are deleted
-                     * while a pkt is in dummynet, we are in trouble!
-                     */ 
-		    error = ip_dn_io_ptr(off & 0xffff, DN_TO_IP_OUT, m,
-				ifp,ro,dst,rule, flags);
-		    goto done;
+			/*
+			 * pass the pkt to dummynet. Need to include
+			 * pipe number, m, ifp, ro, dst because these are
+			 * not recomputed in the next pass.
+			 * All other parameters have been already used and
+			 * so they are not needed anymore. 
+			 * XXX note: if the ifp or ro entry are deleted
+			 * while a pkt is in dummynet, we are in trouble!
+			 */ 
+			args.ro = ro;
+			args.dst = dst;
+			args.flags = flags;
+
+			error = ip_dn_io_ptr(m, off & 0xffff, DN_TO_IP_OUT,
+				&args);
+			goto done;
 		}
 #ifdef IPDIVERT
 		if (off != 0 && (off & IP_FW_PORT_DYNT_FLAG) == 0) {
@@ -641,12 +645,11 @@ skip_ipsec:
 			}
 
 			/* Restore packet header fields to original values */
-			HTONS(ip->ip_len);
-			HTONS(ip->ip_off);
+			ip->ip_len = htons(ip->ip_len);
+			ip->ip_off = htons(ip->ip_off);
 
 			/* Deliver packet to divert input routine */
-			ip_divert_cookie = divert_cookie;
-			divert_packet(m, 0, off & 0xffff);
+			divert_packet(m, 0, off & 0xffff, args.divert_rule);
 
 			/* If 'tee', continue with original packet */
 			if (clone != NULL) {
@@ -658,8 +661,9 @@ skip_ipsec:
 		}
 #endif
 
-#ifdef IPFIREWALL_FORWARD
-		/* Here we check dst to make sure it's directly reachable on the
+		/* IPFIREWALL_FORWARD */
+		/*
+		 * Check dst to make sure it is directly reachable on the
 		 * interface we previously thought it was.
 		 * If it isn't (which may be likely in some situations) we have
 		 * to re-route it (ie, find a route for the next-hop and the
@@ -668,20 +672,39 @@ skip_ipsec:
 		 * such control is nigh impossible. So we do it here.
 		 * And I'm babbling.
 		 */
-		if (off == 0 && old != dst) {
+		if (off == 0 && old != dst) { /* FORWARD, dst has changed */
+#if 0
+			/*
+			 * XXX To improve readability, this block should be
+			 * changed into a function call as below:
+			 */
+			error = ip_ipforward(&m, &dst, &ifp);
+			if (error)
+				goto bad;
+			if (m == NULL) /* ip_input consumed the mbuf */
+				goto done;
+#else
 			struct in_ifaddr *ia;
 
-			/* It's changed... */
+			/*
+			 * XXX sro_fwd below is static, and a pointer
+			 * to it gets passed to routines downstream.
+			 * This could have surprisingly bad results in
+			 * practice, because its content is overwritten
+			 * by subsequent packets.
+			 */
 			/* There must be a better way to do this next line... */
-			static struct route sro_fwd, *ro_fwd = &sro_fwd;
-#ifdef IPFIREWALL_FORWARD_DEBUG
-			printf("IPFIREWALL_FORWARD: New dst ip: ");
-			print_ip(dst->sin_addr);
-			printf("\n");
+			static struct route sro_fwd;
+			struct route *ro_fwd = &sro_fwd;
+
+#if 0
+			print_ip("IPFIREWALL_FORWARD: New dst ip: ",
+			    dst->sin_addr, "\n");
 #endif
+
 			/*
 			 * We need to figure out if we have been forwarded
-			 * to a local socket. If so then we should somehow 
+			 * to a local socket. If so, then we should somehow 
 			 * "loop back" to ip_input, and get directed to the
 			 * PCB as if we had received this packet. This is
 			 * because it may be dificult to identify the packets
@@ -703,9 +726,14 @@ skip_ipsec:
 						 dst->sin_addr.s_addr)
 					break;
 			}
-			if (ia) {
-				/* tell ip_input "dont filter" */
-				ip_fw_fwd_addr = dst;
+			if (ia) {	/* tell ip_input "dont filter" */
+				struct m_hdr tag;
+
+				tag.mh_type = MT_TAG;
+				tag.mh_flags = PACKET_TAG_IPFORWARD;
+				tag.mh_data = (caddr_t)args.next_hop;
+				tag.mh_next = m;
+
 				if (m->m_pkthdr.rcvif == NULL)
 					m->m_pkthdr.rcvif = ifunit("lo0");
 				if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
@@ -715,9 +743,9 @@ skip_ipsec:
 				}
 				m->m_pkthdr.csum_flags |=
 				    CSUM_IP_CHECKED | CSUM_IP_VALID;
-				HTONS(ip->ip_len);
-				HTONS(ip->ip_off);
-				ip_input(m);
+				ip->ip_len = htons(ip->ip_len);
+				ip->ip_off = htons(ip->ip_off);
+				ip_input((struct mbuf *)&tag);
 				goto done;
 			}
 			/* Some of the logic for this was
@@ -741,7 +769,8 @@ skip_ipsec:
 			ifp = ro_fwd->ro_rt->rt_ifp;
 			ro_fwd->ro_rt->rt_use++;
 			if (ro_fwd->ro_rt->rt_flags & RTF_GATEWAY)
-				dst = (struct sockaddr_in *)ro_fwd->ro_rt->rt_gateway;
+				dst = (struct sockaddr_in *)
+					ro_fwd->ro_rt->rt_gateway;
 			if (ro_fwd->ro_rt->rt_flags & RTF_HOST)
 				isbroadcast =
 				    (ro_fwd->ro_rt->rt_flags & RTF_BROADCAST);
@@ -752,16 +781,17 @@ skip_ipsec:
 			ro->ro_rt = ro_fwd->ro_rt;
 			dst = (struct sockaddr_in *)&ro_fwd->ro_dst;
 
+#endif	/* ... block to be put into a function */
 			/*
 			 * If we added a default src ip earlier,
 			 * which would have been gotten from the-then
 			 * interface, do it again, from the new one.
 			 */
-			if (fwd_rewrite_src)
+			if (src_was_INADDR_ANY)
 				ip->ip_src = IA_SIN(ia)->sin_addr;
 			goto pass ;
 		}
-#endif /* IPFIREWALL_FORWARD */
+
                 /*
                  * if we get here, none of the above matches, and 
                  * we have to drop the pkt
@@ -771,7 +801,6 @@ skip_ipsec:
                 goto done;
 	}
 
-	ip_fw_fwd_addr = NULL;
 pass:
 	/* 127/8 must not appear on wire - RFC1122. */
 	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
@@ -797,8 +826,8 @@ pass:
 	 */
 	if ((u_short)ip->ip_len <= ifp->if_mtu ||
 	    ifp->if_hwassist & CSUM_FRAGMENT) {
-		HTONS(ip->ip_len);
-		HTONS(ip->ip_off);
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
 		if (sw_csum & CSUM_DELAY_IP) {
 			if (ip->ip_vhl == IP_VHL_BORING) {
@@ -809,7 +838,7 @@ pass:
 		}
 
 		/* Record statistics for this interface address. */
-		if (!(flags & IP_FORWARDING) && ia != NULL) {
+		if (!(flags & IP_FORWARDING) && ia) {
 			ia->ia_ifa.if_opackets++;
 			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
 		}
@@ -887,9 +916,7 @@ pass:
 			mhip->ip_vhl = IP_MAKE_VHL(IPVERSION, mhlen >> 2);
 		}
 		m->m_len = mhlen;
-		mhip->ip_off = ((off - hlen) >> 3) + (ip->ip_off & ~IP_MF);
-		if (ip->ip_off & IP_MF)
-			mhip->ip_off |= IP_MF;
+		mhip->ip_off = ((off - hlen) >> 3) + ip->ip_off;
 		if (off + len >= (u_short)ip->ip_len)
 			len = (u_short)ip->ip_len - off;
 		else
@@ -905,7 +932,7 @@ pass:
 		m->m_pkthdr.len = mhlen + len;
 		m->m_pkthdr.rcvif = (struct ifnet *)0;
 		m->m_pkthdr.csum_flags = m0->m_pkthdr.csum_flags;
-		HTONS(mhip->ip_off);
+		mhip->ip_off = htons(mhip->ip_off);
 		mhip->ip_sum = 0;
 		if (sw_csum & CSUM_DELAY_IP) {
 			if (mhip->ip_vhl == IP_VHL_BORING) {
@@ -934,7 +961,7 @@ pass:
 	m->m_pkthdr.len = hlen + firstlen;
 	ip->ip_len = htons((u_short)m->m_pkthdr.len);
 	ip->ip_off |= IP_MF;
-	HTONS(ip->ip_off);
+	ip->ip_off = htons(ip->ip_off);
 	ip->ip_sum = 0;
 	if (sw_csum & CSUM_DELAY_IP) {
 		if (ip->ip_vhl == IP_VHL_BORING) {
@@ -1086,15 +1113,13 @@ ip_optcopy(ip, jp)
 			optlen = 1;
 			continue;
 		}
-#ifdef DIAGNOSTIC
-		if (cnt < IPOPT_OLEN + sizeof(*cp))
-			panic("malformed IPv4 option passed to ip_optcopy");
-#endif
+
+		KASSERT(cnt >= IPOPT_OLEN + sizeof(*cp),
+		    ("ip_optcopy: malformed ipv4 option"));
 		optlen = cp[IPOPT_OLEN];
-#ifdef DIAGNOSTIC
-		if (optlen < IPOPT_OLEN + sizeof(*cp) || optlen > cnt)
-			panic("malformed IPv4 option passed to ip_optcopy");
-#endif
+		KASSERT(optlen >= IPOPT_OLEN + sizeof(*cp) && optlen <= cnt,
+		    ("ip_optcopy: malformed ipv4 option"));
+
 		/* bogus lengths should have been caught by ip_dooptions */
 		if (optlen > cnt)
 			optlen = cnt;
@@ -1397,10 +1422,8 @@ ip_pcbopts(optname, pcbopt, m)
 		return (0);
 	}
 
-#ifndef	vax
 	if (m->m_len % sizeof(int32_t))
 		goto bad;
-#endif
 	/*
 	 * IP first-hop destination address will be stored before
 	 * actual options; move other options back
@@ -1914,8 +1937,8 @@ ip_mloopback(ifp, m, dst, hlen)
 		 * than the interface's MTU.  Can this possibly matter?
 		 */
 		ip = mtod(copym, struct ip *);
-		HTONS(ip->ip_len);
-		HTONS(ip->ip_off);
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
 		if (ip->ip_vhl == IP_VHL_BORING) {
 			ip->ip_sum = in_cksum_hdr(ip);
