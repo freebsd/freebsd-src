@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.28 1995/05/18 22:00:01 phk Exp $
+ * $Id: install.c,v 1.29 1995/05/19 01:49:57 gpalmer Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,6 +50,7 @@
 Boolean SystemWasInstalled;
 
 static void	make_filesystems(void);
+static void	copy_self(void);
 static void	cpio_extract(void);
 static void	install_configuration_files(void);
 static void	do_final_setup(void);
@@ -126,6 +127,7 @@ installCommit(char *str)
 	}
     }
     make_filesystems();
+    copy_self();
     cpio_extract();
     distExtractAll();
     install_configuration_files();
@@ -188,6 +190,8 @@ make_filesystems(void)
 				|| chdir("/mnt/dev")
 				|| makedevs())
 				msgConfirm("Failed to make some of the devices in /mnt!");
+			    if (Mkdir("/mnt/stand", NULL))
+				msgConfirm("Unable to make /mnt/stand directory!");
 			    chdir("/");
 			    break;
 			}
@@ -228,6 +232,19 @@ make_filesystems(void)
     command_execute();
 }
 
+/* Copy the boot floppy contents into /stand */
+static void
+copy_self(void)
+{
+    int i;
+
+    msgNotify("Copying the boot floppy to /stand on root filesystem");
+    chdir("/");
+    i = vsystem("find -x . | cpio -pdmv /mnt/stand");
+    if (i)
+	msgConfirm("Copy returned error status of %d!", i);
+}
+
 static void
 cpio_extract(void)
 {
@@ -254,7 +271,14 @@ cpio_extract(void)
 	close(0); dup(pfd[0]); close(pfd[0]);
 	close(CpioFD);
 	close(pfd[1]);
-	close(1); open("/dev/null", O_WRONLY);
+        if (DebugFD != -1) {
+	    dup2(DebugFD, 1);
+	    dup2(DebugFD, 2);
+	}
+	else {
+		close(1); open("/dev/null", O_WRONLY);
+		dup2(1, 2);
+	}
 	chdir("/mnt");
 	i = execl("/stand/cpio", "/stand/cpio", "-iduvm", 0);
 	msgDebug("/stand/cpio command returns %d status\n", i);
