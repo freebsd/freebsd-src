@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.48 2003/04/18 14:52:14 sanpei Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.49 2003/04/26 22:13:51 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -767,6 +767,7 @@
 #define	PCMCIA_VENDOR_NAKAGAWAMETAL	0xffffffff	/* NAKAGAWA METAL */
 #define	PCMCIA_VENDOR_NDC	0xffffffff	/* NDC */
 #define	PCMCIA_VENDOR_NEC	0xffffffff	/* NEC */
+#define	PCMCIA_VENDOR_OEM2	0xffffffff	/* Generic OEM */
 #define	PCMCIA_VENDOR_PLANET	0xffffffff	/* Planet */
 #define	PCMCIA_VENDOR_PLANEX	0xffffffff	/* Planex Communications Inc */
 #define	PCMCIA_VENDOR_PREMAX	0xffffffff	/* Premax */
@@ -959,6 +960,9 @@
 #define	PCMCIA_CIS_NTT_ME_WLAN	{ "NTT-ME", "11Mbps Wireless LAN PC Card", NULL, NULL }
 #define	PCMCIA_PRODUCT_NTT_ME_WLAN	0xffffffff
 #define	PCMCIA_STR_NTT_ME_WLAN	"NTT-ME 11Mbps Wireless LAN PC Card"
+#define	PCMCIA_CIS_OEM2_CDROM1	{ "PCMCIA", "CD-ROM", NULL, NULL }
+#define	PCMCIA_PRODUCT_OEM2_CDROM1	0xffffffff
+#define	PCMCIA_STR_OEM2_CDROM1	"Generic PCMCIA CD-ROM"
 #define	PCMCIA_CIS_PLANET_SMARTCOM2000	{ "PCMCIA", "UE2212", NULL, NULL }
 #define	PCMCIA_PRODUCT_PLANET_SMARTCOM2000	0xffffffff
 #define	PCMCIA_STR_PLANET_SMARTCOM2000	"Planet SmartCOM 2000"
