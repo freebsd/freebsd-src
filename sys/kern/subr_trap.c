@@ -162,6 +162,8 @@ ast(struct trapframe *framep)
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	td->td_frame = framep;
 
+	if ((p->p_flag & P_SA) && (td->td_mailbox == NULL))
+		thread_user_enter(p, td);
 	/*
 	 * This updates the p_sflag's for the checks below in one
 	 * "atomic" operation with turning off the astpending flag.
