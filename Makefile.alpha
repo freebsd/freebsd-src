@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.2 1998/02/19 07:25:03 jb Exp $
+# $Id: Makefile.alpha,v 1.3 1998/03/09 00:25:30 jb Exp $
 #
 # NOTE:
 #
@@ -12,13 +12,19 @@
 #
 # make -m /usr/src/share/mk buildworld
 #
-# and you're away. Don't expect the build to complete. It will fail
-# where the porting effort is up to. This will be somewhere in the
-# build of the bootstrap libraries that are needed for the second
-# set of bootstrap tools. The build will deliberately skip the
-# build of libc because that involves considerable porting effort.
-# The build will also create symbolic links to several of the GNU
-# tools that are currently being ported/imported to FreeBSD.
+# and you're away. The bootstrap is pretty much complete now, with 
+# all tools (except the lorder script) being built from FreeBSD
+# source. If you have lots of disk space (like 1G) for the obj
+# tree, then define IHAVELOTSOFDISKSPACE in your environment before
+# running this script. Without this, the bootstrap will complete
+# with all the tools, libraries and headers in the /usr/obj/usr/src/tmp
+# tree. Then you can build the rest bit by bit by setting the DIRS
+# environment variable to the list of directories you want to build,
+# then running 'make dirs". So, to make /usr/src/usr.bin,
+# export DIRS=usr.bin; cd /usr/src; make dirs
+# The programs will build and install in the /usr/obj/usr/src/tmp
+# tree. You should run them from there to see if they work. And just
+# because they compile, don't assume they work. 8-)
 #
 # Warning: This build is not supposed to clobber anything on the
 # =======  system you are building on, but you should consider what
@@ -275,9 +281,7 @@ includes:
 .else
 	cd ${.CURDIR}/lib/libtelnet &&		${MAKE} beforeinstall
 .endif
-.if exists(${.CURDIR}/lib/csu/${MACHINE})
-	cd ${.CURDIR}/lib/csu/${MACHINE} &&	${MAKE} beforeinstall
-.endif
+	cd ${.CURDIR}/lib/csu/${MACHINE_ARCH} &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libalias &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
@@ -336,6 +340,7 @@ lib-tools:
 		gnu/usr.bin/binutils	\
 		usr.bin/tsort		\
 		gnu/usr.bin/cc		\
+		lib/csu/${MACHINE_ARCH}	\
 		usr.bin/compile_et	\
 		usr.bin/lex/lib		\
 		usr.bin/mk_cmds		\
@@ -350,13 +355,11 @@ lib-tools:
 # libraries - build and install the libraries
 #
 libraries:
-.if exists(lib/csu/${MACHINE})
 	@echo "-----------------------"
-	@echo "Making ${.CURDIR}/lib/csu/${MACHINE}"
-	@cd ${.CURDIR}/lib/csu/${MACHINE} && ${MAKE} depend && \
+	@echo "Making ${.CURDIR}/lib/csu/${MACHINE_ARCH}"
+	@cd ${.CURDIR}/lib/csu/${MACHINE_ARCH} && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/lib/libc"
 	@cd ${.CURDIR}/lib/libc && ${MAKE} depend && \
@@ -520,9 +523,9 @@ build-tools:
 .for __target in clean cleandir obj depend
 .for entry in ${SUBDIR}
 ${entry}.${__target}__D: .PHONY
-	if test -d ${.CURDIR}/${entry}.${MACHINE}; then \
-		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE}"; \
-		edir=${entry}.${MACHINE}; \
+	if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
+		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE_ARCH}"; \
+		edir=${entry}.${MACHINE_ARCH}; \
 		cd ${.CURDIR}/$${edir}; \
 	else \
 		${ECHODIR} "===> ${DIRPRFX}${entry}"; \
