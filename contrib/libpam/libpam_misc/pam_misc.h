@@ -12,6 +12,8 @@
  *
  * Revision 1.1  1996/07/06 19:16:30  morgan
  * Initial revision
+ *
+ * $FreeBSD$
  */
 
 #ifndef __PAMMISC_H
@@ -35,7 +37,7 @@ extern time_t pam_misc_conv_die_time;         /* cut-off time for input */
 extern const char *pam_misc_conv_warn_line;           /* warning notice */
 extern const char *pam_misc_conv_die_line;            /* cut-off remark */
 extern int pam_misc_conv_died;      /* 1 = cut-off time reached (0 not) */
-extern int (*pam_binary_handler_fn)(const void *send, void **receive);
+extern int (*pam_binary_handler_fn)(const void *_send, void **_receive);
 
 /*
  * Environment helper functions
@@ -43,7 +45,7 @@ extern int (*pam_binary_handler_fn)(const void *send, void **receive);
 
 /* transcribe given environment (to pam) */
 extern int pam_misc_paste_env(pam_handle_t *pamh
-			      , const char * const * user_env);
+			      , const char * const *_user_env);
 
 /* char **pam_misc_copy_env(pam_handle_t *pamh);
 
@@ -56,13 +58,13 @@ extern int pam_misc_paste_env(pam_handle_t *pamh
    disappear by the release of libpam 1.0 . */
 
 /* delete environment as obtained from (pam_getenvlist) */
-extern char **pam_misc_drop_env(char **env);
+extern char **pam_misc_drop_env(char **_env);
 
 /* provide something like the POSIX setenv function for the (Linux-)PAM
  * environment. */
 
-extern int pam_misc_setenv(pam_handle_t *pamh, const char *name
-			   , const char *value, int readonly);
+extern int pam_misc_setenv(pam_handle_t *_pamh, const char *_name
+			   , const char *_value, int _readonly);
 
 #endif
 
