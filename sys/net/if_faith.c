@@ -230,7 +230,7 @@ faithoutput(ifp, m, dst, rt)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 
-		bpf_mtap(ifp, &m0);
+		BPF_MTAP(ifp, &m0);
 	}
 
 	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {

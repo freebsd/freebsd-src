@@ -265,7 +265,6 @@ el_attach(device_t dev)
 	ifp->if_unit = device_get_unit(dev);;
 	ifp->if_name = "el";
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_output = ether_output;
 	ifp->if_start = el_start;
 	ifp->if_ioctl = el_ioctl;
 	ifp->if_watchdog = el_watchdog;
@@ -275,7 +274,7 @@ el_attach(device_t dev)
 
 	/* Now we can attach the interface */
 	dprintf(("Attaching interface...\n"));
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 	/* Print out some information for the user */
 	device_printf(dev, "3c501 address %6D\n",
@@ -296,7 +295,7 @@ static int el_detach(dev)
 
 	el_stop(sc);
 	EL_LOCK(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	bus_teardown_intr(dev, sc->el_irq, sc->el_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->el_irq);
 	bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->el_res);
@@ -444,8 +443,7 @@ el_start(struct ifnet *ifp)
 		len = max(len,ETHER_MIN_LEN);
 
 		/* Give the packet to the bpf, if any */
-		if(sc->arpcom.ac_if.if_bpf)
-			bpf_tap(&sc->arpcom.ac_if, sc->el_pktbuf, len);
+		BPF_TAP(&sc->arpcom.ac_if, sc->el_pktbuf, len);
 
 		/* Transfer datagram to board */
 		dprintf(("el: xfr pkt length=%d...\n",len));
@@ -528,19 +526,17 @@ el_xmit(struct el_softc *sc,int len)
 static __inline void
 elread(struct el_softc *sc,caddr_t buf,int len)
 {
-	register struct ether_header *eh;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct mbuf *m;
-
-	eh = (struct ether_header *)buf;
 
 	/*
 	 * Put packet into an mbuf chain
 	 */
-	m = elget(buf,len,&sc->arpcom.ac_if);
+	m = elget(buf,len,ifp);
 	if(m == 0)
 		return;
 
-	ether_input(&sc->arpcom.ac_if,eh,m);
+	(*ifp->if_input)(ifp,m);
 }
 
 /* controller interrupt */
@@ -638,7 +634,6 @@ elintr(void *xsc)
 		dprintf(("%6D\n",sc->el_pktbuf,":"));
 
 		/* Pass data up to upper levels */
-		len -= sizeof(struct ether_header);
 		elread(sc,(caddr_t)(sc->el_pktbuf),len);
 
 		/* Is there another packet? */
@@ -739,12 +734,6 @@ el_ioctl(ifp, command, data)
 	EL_LOCK(sc);
 
 	switch (command) {
-        case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
-
 	case SIOCSIFFLAGS:
 		/*
 		 * If interface is marked down and it is running, then stop it
@@ -763,7 +752,8 @@ el_ioctl(ifp, command, data)
 		}
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
+		break;
 	}
 	EL_UNLOCK(sc);
 	return (error);

@@ -220,7 +220,7 @@ bail:
 			/* XXX makedev check? nah.. not right now :) */
 
 			s = splimp();
-			ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+			ether_ifdetach(ifp);
 			splx(s);
 
 			free(tp, M_TAP);
@@ -363,7 +363,6 @@ tapcreate(dev)
 	ifp->if_unit = unit;
 	ifp->if_name = name;
 	ifp->if_init = tapifinit;
-	ifp->if_output = ether_output;
 	ifp->if_start = tapifstart;
 	ifp->if_ioctl = tapifioctl;
 	ifp->if_mtu = ETHERMTU;
@@ -373,7 +372,7 @@ tapcreate(dev)
 	dev->si_drv1 = tp;
 
 	s = splimp();
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, tp->arpcom.ac_enaddr);
 	splx(s);
 
 	tp->tap_flags |= TAP_INITED;
@@ -546,14 +545,6 @@ tapifioctl(ifp, cmd, data)
 	int			 s, dummy;
 
 	switch (cmd) {
-		case SIOCSIFADDR:
-		case SIOCGIFADDR:
-		case SIOCSIFMTU:
-			s = splimp();
-			dummy = ether_ioctl(ifp, cmd, data);
-			splx(s);
-			return (dummy);
-
 		case SIOCSIFFLAGS: /* XXX -- just like vmnet does */
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
@@ -571,7 +562,10 @@ tapifioctl(ifp, cmd, data)
 			break;
 
 		default:
-			return (EINVAL);
+			s = splimp();
+			dummy = ether_ioctl(ifp, cmd, data);
+			splx(s);
+			return (dummy);
 	}
 
 	return (0);
@@ -801,8 +795,7 @@ tapread(dev, uio, flag)
 	} while (m == NULL);
 
 	/* feed packet to bpf */
-	if (ifp->if_bpf != NULL)
-		bpf_mtap(ifp, m);
+	BPF_MTAP(ifp, m);
 
 	/* xfer packet to user space */
 	while ((m != NULL) && (uio->uio_resid > 0) && (error == 0)) {
@@ -838,7 +831,6 @@ tapwrite(dev, uio, flag)
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = &tp->tap_if;
 	struct mbuf		*top = NULL, **mp = NULL, *m = NULL;
-	struct ether_header	*eh = NULL;
 	int		 	 error = 0, tlen, mlen;
 
 	TAPDEBUG("%s%d writting, minor = %#x\n", 
@@ -887,16 +879,9 @@ tapwrite(dev, uio, flag)
 	top->m_pkthdr.len = tlen;
 	top->m_pkthdr.rcvif = ifp;
 	
-	/*
-	 * Ethernet bridge and bpf are handled in ether_input
-	 *
-	 * adjust mbuf and give packet to the ether_input
-	 */
-
-	eh = mtod(top, struct ether_header *);
-	m_adj(top, sizeof(struct ether_header));
-	ether_input(ifp, eh, top);
-	ifp->if_ipackets ++; /* ibytes are counted in ether_input */
+	/* Pass packet up to parent. */
+	(*ifp->if_input)(ifp, top);
+	ifp->if_ipackets ++; /* ibytes are counted in parent */
 
 	return (0);
 } /* tapwrite */

@@ -685,7 +685,7 @@ slstart(tp)
 			 */
 			sc->bpfbuf[SLX_DIR] = SLIPDIR_OUT;
 			bcopy(mtod(m, caddr_t), &sc->bpfbuf[SLX_CHDR], CHDR_LEN);
-			bpf_tap(&sc->sc_if, sc->bpfbuf, len + SLIP_HDRLEN);
+			BPF_TAP(&sc->sc_if, sc->bpfbuf, len + SLIP_HDRLEN);
 		}
 
 		/*
@@ -957,7 +957,7 @@ slinput(c, tp)
 
 			hp[SLX_DIR] = SLIPDIR_IN;
 			bcopy(chdr, &hp[SLX_CHDR], CHDR_LEN);
-			bpf_tap(&sc->sc_if, hp, len + SLIP_HDRLEN);
+			BPF_TAP(&sc->sc_if, hp, len + SLIP_HDRLEN);
 		}
 		m = sl_btom(sc, len);
 		if (m == NULL)
