@@ -42,15 +42,12 @@ floppy tape streamer for experimental work.
 The FreeBSD Core Team
 (in alphabetical order):
 
-	Andreas Schulz <ats@FreeBSD.org>
 	Andrey A. Chernov <ache@FreeBSD.org>
 	Bruce Evans <bde@FreeBSD.org>
 	David Greenman <davidg@FreeBSD.org>
 	Garrett A. Wollman <wollman@FreeBSD.org>
 	Gary Palmer <gpalmer@FreeBSD.org>
-	Geoff Rehmet <csgr@FreeBSD.org>
-	Jack Vogel <jackv@FreeBSD.org>
-	Joerg Wunsch <joerg@FreeBSD.org>
+	Jörg Wunsch <joerg@FreeBSD.org>
 	John Dyson <dyson@FreeBSD.org>
 	Jordan K. Hubbard <jkh@FreeBSD.org>
 	Justin Gibbs <gibbs@FreeBSD.org>
@@ -247,4 +244,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.14 1995/06/14 22:17:57 joerg Exp $
+$Id: CONTRIB.FreeBSD,v 1.15 1995/07/05 04:14:20 jkh Exp $
