@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.139 1998/06/10 00:16:06 brian Exp $
+ * $Id: command.c,v 1.140 1998/06/12 17:45:08 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/10 00:16:06 $";
+const char VersionDate[] = "$Date: 1998/06/12 17:45:08 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -138,6 +138,7 @@ static int LinkCommand(struct cmdargs const *);
 static int AddCommand(struct cmdargs const *);
 static int DeleteCommand(struct cmdargs const *);
 static int NegotiateCommand(struct cmdargs const *);
+static int ClearCommand(struct cmdargs const *);
 #ifndef NOALIAS
 static int AliasCommand(struct cmdargs const *);
 static int AliasEnable(struct cmdargs const *);
@@ -444,6 +445,8 @@ static struct cmdtab const Commands[] = {
   "Allow ppp access", "allow users|modes ...."},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
   "Run a background command", "[!]bg command"},
+  {"clear", NULL, ClearCommand, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Clear throughput statistics", "clear ipcp|modem [current|overall|peak]..."},
   {"clone", NULL, CloneCommand, LOCAL_AUTH | LOCAL_CX,
   "Clone a link", "clone newname..."},
   {"close", NULL, CloseCommand, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -2029,4 +2032,46 @@ command_ShowNegval(unsigned val)
     case 3: return "enabled & accepted";
   }
   return "disabled & denied";
+}
+
+static int
+ClearCommand(struct cmdargs const *arg)
+{
+  struct pppThroughput *t;
+  struct datalink *cx;
+  int i, clear_type;
+
+  if (arg->argc < arg->argn + 1)
+    return -1;
+
+  if (strcasecmp(arg->argv[arg->argn], "modem") == 0) {
+    cx = arg->cx;
+    if (!cx)
+      cx = bundle2datalink(arg->bundle, NULL);
+    if (!cx) {
+      log_Printf(LogWARN, "A link must be specified for ``clear modem''\n");
+      return 1;
+    }
+    t = &cx->physical->link.throughput;
+  } else if (strcasecmp(arg->argv[arg->argn], "ipcp") == 0)
+    t = &arg->bundle->ncp.ipcp.throughput;
+  else
+    return -1;
+
+  if (arg->argc > arg->argn + 1) {
+    clear_type = 0;
+    for (i = arg->argn + 1; i < arg->argc; i++)
+      if (strcasecmp(arg->argv[i], "overall") == 0)
+        clear_type |= THROUGHPUT_OVERALL;
+      else if (strcasecmp(arg->argv[i], "current") == 0)
+        clear_type |= THROUGHPUT_CURRENT;
+      else if (strcasecmp(arg->argv[i], "peak") == 0)
+        clear_type |= THROUGHPUT_PEAK;
+      else
+        return -1;
+  } else 
+    clear_type = THROUGHPUT_ALL;
+
+  throughput_clear(t, clear_type, arg->prompt);
+  return 0;
 }
