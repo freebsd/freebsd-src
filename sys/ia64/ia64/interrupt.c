@@ -48,6 +48,7 @@
 #include <sys/ktr.h>
 #include <sys/mutex.h>
 
+#include <machine/clock.h>
 #include <machine/reg.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
