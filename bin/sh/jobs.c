@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: jobs.c,v 1.22 1998/08/25 09:33:34 cracauer Exp $";
+	"$Id: jobs.c,v 1.23 1998/09/08 13:16:52 cracauer Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -213,7 +213,7 @@ fgcmd(argc, argv)
 #endif
 	restartjob(jp);
 	INTOFF;
-	status = waitforjob(jp);
+	status = waitforjob(jp, (int *)NULL);
 	INTON;
 	return status;
 }
@@ -702,9 +702,10 @@ forkshell(jp, n, mode)
  */
 
 int
-waitforjob(jp)
+waitforjob(jp, origstatus)
 	struct job *jp;
-	{
+	int *origstatus;
+{
 #if JOBS
 	int mypgrp = getpgrp();
 #endif
@@ -730,6 +731,8 @@ waitforjob(jp)
 		curjob = jp - jobtab + 1;
 #endif
 	status = jp->ps[jp->nprocs - 1].status;
+	if (origstatus != NULL)
+		*origstatus = status;
 	/* convert to 8 bits */
 	if (WIFEXITED(status))
 		st = WEXITSTATUS(status);
