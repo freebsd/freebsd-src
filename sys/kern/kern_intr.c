@@ -57,7 +57,6 @@ struct	int_entropy {
 	int	vector;
 };
 
-void	*net_ih;
 void	*vm_ih;
 void	*softclock_ih;
 struct	ithd *clk_ithd;
@@ -68,7 +67,6 @@ static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
 static void	ithread_update(struct ithd *);
 static void	ithread_loop(void *);
 static void	start_softintr(void *);
-static void	swi_net(void *);
 
 u_char
 ithread_priority(enum intr_type flags)
@@ -571,8 +569,7 @@ static void
 start_softintr(void *dummy)
 {
 
-	if (swi_add(NULL, "net", swi_net, NULL, SWI_NET, 0, &net_ih) ||
-	    swi_add(&clk_ithd, "clock", softclock, NULL, SWI_CLOCK,
+	if (swi_add(&clk_ithd, "clock", softclock, NULL, SWI_CLOCK,
 		INTR_MPSAFE, &softclock_ih) ||
 	    swi_add(NULL, "vm", swi_vm, NULL, SWI_VM, 0, &vm_ih))
 		panic("died while creating standard software ithreads");
@@ -582,81 +579,6 @@ start_softintr(void *dummy)
 	PROC_UNLOCK(clk_ithd->it_td->td_proc);
 }
 SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
-
-void
-legacy_setsoftnet(void)
-{
-	swi_sched(net_ih, 0);
-}
-
-/*
- * XXX: This should really be in the network code somewhere and installed
- * via a SI_SUB_SOFINTR, SI_ORDER_MIDDLE sysinit.
- */
-void	(*netisrs[32])(void);
-volatile unsigned int	netisr;	/* scheduling bits for network */
-
-int
-register_netisr(num, handler)
-	int num;
-	netisr_t *handler;
-{
-	
-	if (num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs)) ) {
-		printf("register_netisr: bad isr number: %d\n", num);
-		return (EINVAL);
-	}
-	netisrs[num] = handler;
-	return (0);
-}
-
-int
-unregister_netisr(num)
-	int num;
-{
-	
-	if (num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs)) ) {
-		printf("unregister_netisr: bad isr number: %d\n", num);
-		return (EINVAL);
-	}
-	netisrs[num] = NULL;
-	return (0);
-}
-
-#ifdef DEVICE_POLLING
-	void netisr_pollmore(void);
-#endif
-
-static void
-swi_net(void *dummy)
-{
-	u_int bits;
-	int i;
-
-#ifdef DEVICE_POLLING
-    for (;;) {
-	int pollmore;
-#endif
-	bits = atomic_readandclear_int(&netisr);
-#ifdef DEVICE_POLLING
-	if (bits == 0)
-		return;
-	pollmore = bits & (1 << NETISR_POLL);
-#endif
-	while ((i = ffs(bits)) != 0) {
-		i--;
-		if (netisrs[i] != NULL)
-			netisrs[i]();
-		else
-			printf("swi_net: unregistered isr number: %d.\n", i);
-		bits &= ~(1 << i);
-	}
-#ifdef DEVICE_POLLING
-	if (pollmore)
-		netisr_pollmore();
-    }
-#endif
-}
 
 /* 
  * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
