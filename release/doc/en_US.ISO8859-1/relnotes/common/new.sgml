@@ -158,6 +158,9 @@
 
       <para>The &man.dc.4; driver now has support for VLANs.</para>
 
+      <para arch="alpha">The &man.fpa.4; driver now works on Alpha
+        machines.</para>
+
       <para>The my driver, which supports the Myson Fast Ethernet and
 	Gigabit Ethernet adapters, has been added.</para>
 
