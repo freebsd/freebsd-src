@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.11 1998/10/23 22:29:08 msmith Exp $
+# $Id: Makefile,v 1.12 1998/12/22 11:51:25 abial Exp $
 #
 LIB=			i386
 NOPIC=
@@ -12,6 +12,12 @@ SRCS=	aout_freebsd.c biosdisk.c biosmem.c biospnp.c biospci.c \
 
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
 		-I${.CURDIR}/../../.. -I.
+
+BOOT_COMCONSOLE_PORT?= 0x3f8
+CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}
+
+BOOT_COMCONSOLE_SPEED?= 9600
+CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 
 # Make the disk code more talkative
 #CFLAGS+= -DDISK_DEBUG
