@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.90 1997/04/30 20:27:34 bde Exp $
+#	$Id: BSD.usr.dist,v 1.91 1997/06/04 10:51:09 asami Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -55,14 +55,6 @@
         dict
         ..
         doc
-            FAQ
-            ..
-            handbook
-            ..
-	    ja_JP.EUC
-		handbook
-		..
-	    ..
             papers
             ..
             psd
@@ -448,16 +440,6 @@
         ..
         perl
             sys
-            ..
-        ..
-        sgml
-            FreeBSD
-            ..
-            ISO
-            ..
-            docbook
-            ..
-            transpec
             ..
         ..
         skel
