@@ -1648,9 +1648,6 @@ gotit:
  */
 static int
 ffs_isfreeblock(struct fs *fs, unsigned char *cp, ufs1_daddr_t h)
-	struct fs *fs;
-	unsigned char *cp;
-	ufs1_daddr_t h;
 {
 
 	switch ((int)fs->fs_frag) {
