@@ -506,7 +506,7 @@ int	fstatfs(int, struct statfs *);
 int	getfh(const char *, fhandle_t *);
 int	getfsstat(struct statfs *, long, int);
 int	getmntinfo(struct statfs **, int);
-int	nmount(const char *, const char *, int, struct iovec *, int);
+int	nmount(struct iovec *, unsigned int, int);
 int	mount(const char *, const char *, int, void *);
 int	statfs(const char *, struct statfs *);
 int	unmount(const char *, int);
