@@ -181,6 +181,10 @@ ldconfig(8) now checks directory ownerships and permissions for
 greater security; these checks can be disabled with the -i
 flag.
 
+sendmail(8) and associated utilities upgraded from version 8.11.1 to
+version 8.11.2.  See /usr/src/contrib/sendmail/RELEASE_NOTES for more
+information.
+
 
 2. Supported Configurations
 ---------------------------
