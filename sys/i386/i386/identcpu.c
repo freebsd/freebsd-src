@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.68 1999/07/06 05:25:41 green Exp $
+ *	$Id: identcpu.c,v 1.69 1999/07/06 06:25:38 green Exp $
  */
 
 #include "opt_cpu.h"
@@ -473,7 +473,7 @@ printcpuinfo(void)
 		}
 	} else if (strcmp(cpu_vendor, "CentaurHauls") == 0) {
 		strcpy(cpu_model, "IDT ");
-		switch (cpu_id & 0ff0) {
+		switch (cpu_id & 0xff0) {
 		case 0x540:
 			strcat(cpu_model, "WinChip C6");
 			break;
