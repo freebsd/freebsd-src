@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 1997, 1998
+ * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
+ *
+ *  Written by Greg Lehey
  *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
@@ -33,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.20 1999/07/02 07:56:47 grog Exp $
+ * $Id: vinumvar.h,v 1.20 1999/07/02 05:24:52 grog Exp grog $
  */
 
 #include <sys/time.h>
@@ -105,6 +109,16 @@ enum constants {
 /* Create block and character device minor numbers */
 #define VINUMBDEV(v,p,s,t)  makedev (BDEV_MAJOR, VINUMMINOR (v, p, s, t))
 #define VINUMCDEV(v,p,s,t)  makedev (CDEV_MAJOR, VINUMMINOR (v, p, s, t))
+
+#define VINUM_BLOCK_SD(s)	makedev (BDEV_MAJOR,				\
+					 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
+					 | (s & 0xff)				\
+					 | ((s & ~0xff) << 8) )
+
+#define VINUM_CHAR_SD(s)	makedev (CDEV_MAJOR,				\
+					 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
+					 | (s & 0xff)				\
+					 | ((s & ~0xff) << 8) )
 
 /* Create a bit mask for x bits */
 #define MASK(x)  ((1 << (x)) - 1)
@@ -242,6 +256,7 @@ enum objflags {
     VF_STOPPING = 0x40000,				    /* for vinum_conf: stop on last close */
     VF_DAEMONOPEN = 0x80000,				    /* the daemon has us open (only superdev) */
     VF_CREATED = 0x100000,				    /* for volumes: freshly created, more then new */
+    VF_HOTSPARE = 0x200000,				    /* for drives: use as hot spare */
 };
 
 /* Global configuration information for the vinum subsystem */
@@ -351,7 +366,7 @@ enum drive_label_info {
 /*
  * A drive corresponds to a disk slice.  We use a different term to show
  * the difference in usage: it doesn't have to be a slice, and could
- * theroretically be a complete, unpartitioned disk 
+ * theoretically be a complete, unpartitioned disk 
  */
 
 struct drive {
@@ -451,6 +466,9 @@ struct plex {
     u_int64_t writes;					    /* number of writes on this plex */
     u_int64_t bytes_read;				    /* number of bytes read */
     u_int64_t bytes_written;				    /* number of bytes written */
+    u_int64_t recovered_reads;				    /* number of recovered read operations */
+    u_int64_t degraded_writes;				    /* number of degraded writes */
+    u_int64_t parityless_writes;			    /* number of parityless writes */
     u_int64_t multiblock;				    /* requests that needed more than one block */
     u_int64_t multistripe;				    /* requests that needed more than one stripe */
     int sddowncount;					    /* number of subdisks down */
@@ -459,6 +477,11 @@ struct plex {
 
 /*** Volume definitions ***/
 
+/* Address range definitions, for locking volumes */
+struct rangelock {
+    u_int64_t first;
+    u_int64_t last;
+};
 
 struct volume {
     enum volumestate state;				    /* current state */
