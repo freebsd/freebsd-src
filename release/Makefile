@@ -175,8 +175,6 @@ BIGBOOTLABEL=		minimum2
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 
-VNDEVICE?=		vn0
-
 # Things which may get you into trouble if you change them
 MTREEFILES=		${.CURDIR}/../etc/mtree
 _R=			/R
@@ -323,7 +321,6 @@ rerelease release:
 	echo "export NO_X=YES"			>> ${CHROOTDIR}/mk
 	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
-	echo "export VNDEVICE=${VNDEVICE}"	>> ${CHROOTDIR}/mk
 	echo "export OBJFORMAT=${OBJFORMAT}"	>> ${CHROOTDIR}/mk
 .if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
