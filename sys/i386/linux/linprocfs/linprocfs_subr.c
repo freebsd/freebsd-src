@@ -184,6 +184,7 @@ loop:
 	case Pstat:
 	case Puptime:
 	case Pversion:
+	case Ploadavg:
 		pfs->pfs_mode = (VREAD) |
 				(VREAD >> 3) |
 				(VREAD >> 6);
@@ -275,6 +276,9 @@ linprocfs_rw(ap)
 		break;
 	case Pversion:
 		rtval = linprocfs_doversion(curp, p, pfs, uio);
+		break;
+	case Ploadavg:
+		rtval = linprocfs_doloadavg(curp, p, pfs, uio);
 		break;
 	default:
 		rtval = EOPNOTSUPP;
