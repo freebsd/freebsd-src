@@ -81,7 +81,7 @@
 #include <compat/linux/linux_mib.h>
 #include <fs/pseudofs/pseudofs.h>
 
-extern struct 	cdevsw *cdevsw[];
+extern struct	cdevsw *cdevsw[];
 
 /*
  * Various conversion macros
@@ -144,7 +144,7 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	cached = cnt.v_cache_count * PAGE_SIZE;
 
 	sbuf_printf(sb,
-	    "        total:    used:    free:  shared: buffers:  cached:\n"
+	    "	     total:    used:	free:  shared: buffers:	 cached:\n"
 	    "Mem:  %lu %lu %lu %lu %lu %lu\n"
 	    "Swap: %llu %llu %llu\n"
 	    "MemTotal: %9lu kB\n"
@@ -169,16 +169,16 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	int class, i, fqmhz, fqkhz;
 
 	/*
-         * We default the flags to include all non-conflicting flags,
-         * and the Intel versions of conflicting flags.
+	 * We default the flags to include all non-conflicting flags,
+	 * and the Intel versions of conflicting flags.
 	 */
-        static char *flags[] = {
-		"fpu",      "vme",     "de",       "pse",      "tsc",
-		"msr",      "pae",     "mce",      "cx8",      "apic",
-		"sep",      "sep",     "mtrr",     "pge",      "mca",
-		"cmov",     "pat",     "pse36",    "pn",       "b19",
-		"b20",      "b21",     "mmxext",   "mmx",      "fxsr",
-		"xmm",      "b26",     "b27",      "b28",      "b29",
+	static char *flags[] = {
+		"fpu",	    "vme",     "de",	   "pse",      "tsc",
+		"msr",	    "pae",     "mce",	   "cx8",      "apic",
+		"sep",	    "sep",     "mtrr",	   "pge",      "mca",
+		"cmov",	    "pat",     "pse36",	   "pn",       "b19",
+		"b20",	    "b21",     "mmxext",   "mmx",      "fxsr",
+		"xmm",	    "b26",     "b27",	   "b28",      "b29",
 		"3dnowext", "3dnow"
 	};
 
@@ -199,39 +199,39 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		class = 6;
 		break;
 	default:
-                class = 0;
+		class = 0;
 		break;
 	}
 
 	sbuf_printf(sb,
-            "processor\t: %d\n"
+	    "processor\t: %d\n"
 	    "vendor_id\t: %.20s\n"
 	    "cpu family\t: %d\n"
 	    "model\t\t: %d\n"
 	    "stepping\t: %d\n",
 	    0, cpu_vendor, class, cpu, cpu_id & 0xf);
 
-        sbuf_cat(sb,
-            "flags\t\t:");
+	sbuf_cat(sb,
+	    "flags\t\t:");
 
-        if (!strcmp(cpu_vendor, "AuthenticAMD") && (class < 6)) {
+	if (!strcmp(cpu_vendor, "AuthenticAMD") && (class < 6)) {
 		flags[16] = "fcmov";
-        } else if (!strcmp(cpu_vendor, "CyrixInstead")) {
+	} else if (!strcmp(cpu_vendor, "CyrixInstead")) {
 		flags[24] = "cxmmx";
-        }
-        
-        for (i = 0; i < 32; i++)
+	}
+	
+	for (i = 0; i < 32; i++)
 		if (cpu_feature & (1 << i))
 			sbuf_printf(sb, " %s", flags[i]);
 	sbuf_cat(sb, "\n");
-        if (class >= 5) {
+	if (class >= 5) {
 		fqmhz = (tsc_freq + 4999) / 1000000;
 		fqkhz = ((tsc_freq + 4999) / 10000) % 100;
 		sbuf_printf(sb,
 		    "cpu MHz\t\t: %d.%02d\n"
 		    "bogomips\t: %d.%02d\n",
 		    fqmhz, fqkhz, fqmhz, fqkhz);
-        }
+	}
 
 	return (0);
 }
@@ -396,7 +396,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 
 	fill_kinfo_proc(p, &kp);
 	sbuf_printf(sb, "Name:\t%s\n",		p->p_comm); /* XXX escape */
-	sbuf_printf(sb, "State:\t%s\n",	state);
+	sbuf_printf(sb, "State:\t%s\n",		state);
 
 	/*
 	 * Credentials
@@ -405,19 +405,19 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	PROC_LOCK(p);
 	sbuf_printf(sb, "PPid:\t%d\n",		p->p_pptr ?
 						p->p_pptr->p_pid : 0);
-	sbuf_printf(sb, "Uid:\t%d %d %d %d\n", p->p_ucred->cr_ruid,
-			                        p->p_ucred->cr_uid,
-			                        p->p_ucred->cr_svuid,
-			                        /* FreeBSD doesn't have fsuid */
-				                p->p_ucred->cr_uid);
-	sbuf_printf(sb, "Gid:\t%d %d %d %d\n", p->p_ucred->cr_rgid,
-			                        p->p_ucred->cr_gid,
-			                        p->p_ucred->cr_svgid,
-			                        /* FreeBSD doesn't have fsgid */
-				                p->p_ucred->cr_gid);
+	sbuf_printf(sb, "Uid:\t%d %d %d %d\n",	p->p_ucred->cr_ruid,
+						p->p_ucred->cr_uid,
+						p->p_ucred->cr_svuid,
+						/* FreeBSD doesn't have fsuid */
+						p->p_ucred->cr_uid);
+	sbuf_printf(sb, "Gid:\t%d %d %d %d\n",	p->p_ucred->cr_rgid,
+						p->p_ucred->cr_gid,
+						p->p_ucred->cr_svgid,
+						/* FreeBSD doesn't have fsgid */
+						p->p_ucred->cr_gid);
 	sbuf_cat(sb, "Groups:\t");
 	for (i = 0; i < p->p_ucred->cr_ngroups; i++)
-		sbuf_printf(sb, "%d ", p->p_ucred->cr_groups[i]);
+		sbuf_printf(sb, "%d ",		p->p_ucred->cr_groups[i]);
 	PROC_UNLOCK(p);
 	sbuf_putc(sb, '\n');
 	
@@ -503,10 +503,10 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	int eth_index = 0;
 
 	sbuf_printf(sb,
-	    "Inter-|   Receive                                       "
-	    "         |  Transmit\n"
+	    "Inter-|   Receive					     "
+	    "	      |	 Transmit\n"
 	    " face |bytes    packets errs drop fifo frame compressed "
-	    "multicast|bytes    packets errs drop fifo colls carrier "
+	    "multicast|bytes	packets errs drop fifo colls carrier "
 	    "compressed\n");
 
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
@@ -557,38 +557,38 @@ linprocfs_docmdline(PFS_FILL_ARGS)
 static struct pfs_node linprocfs_proc_nodes[] = {
 	PFS_THIS,
 	PFS_PARENT,
-	/*	    name	flags	uid  gid  mode	data */
-     /* PFS_FILE(   "cmdline",  0,	0,   0,   0444, procfs_doproccmdline), */
-	PFS_SYMLINK("exe",	0,	0,   0,	  0444, linprocfs_doexelink),
-     /* PFS_FILE(   "mem",      0,	0,   0,   0444, procfs_domem), */
-	PFS_FILE(   "stat",     0,	0,   0,   0444, linprocfs_doprocstat),
-	PFS_FILE(   "status",   0,	0,   0,   0444, linprocfs_doprocstatus),
+	/*	    name	flags uid  gid	mode  data */
+     /* PFS_FILE(   "cmdline",	0,    0,   0,	0444, procfs_doproccmdline), */
+	PFS_SYMLINK("exe",	0,    0,   0,	0444, linprocfs_doexelink),
+     /* PFS_FILE(   "mem",	0,    0,   0,	0444, procfs_domem), */
+	PFS_FILE(   "stat",	0,    0,   0,	0444, linprocfs_doprocstat),
+	PFS_FILE(   "status",	0,    0,   0,	0444, linprocfs_doprocstatus),
 	PFS_LASTNODE
 };
 
 static struct pfs_node linprocfs_net_nodes[] = {
 	PFS_THIS,
 	PFS_PARENT,
-	/*	    name	flags	uid  gid  mode	data */
-	PFS_FILE(   "dev",	0,	0,   0,   0444,	linprocfs_donetdev),
+	/*	    name	flags uid  gid	mode  data */
+	PFS_FILE(   "dev",	0,    0,   0,	0444, linprocfs_donetdev),
 	PFS_LASTNODE
 };
 
 static struct pfs_node linprocfs_root_nodes[] = {
 	PFS_THIS,
 	PFS_PARENT,
-	/*	    name	flags	uid  gid  mode	data */
-	PFS_FILE(   "cmdline",  0,      0,   0,   0444, linprocfs_docmdline),
-	PFS_FILE(   "cpuinfo",  0,      0,   0,   0444, linprocfs_docpuinfo),
-	PFS_FILE(   "devices",  0,      0,   0,   0444, linprocfs_dodevices),
-	PFS_FILE(   "loadavg",  0,      0,   0,   0444, linprocfs_doloadavg),
-	PFS_FILE(   "meminfo",  0,      0,   0,   0444, linprocfs_domeminfo),
-	PFS_FILE(   "stat",     0,      0,   0,   0444, linprocfs_dostat),
-	PFS_FILE(   "uptime",   0,      0,   0,   0444, linprocfs_douptime),
-	PFS_FILE(   "version",  0,      0,   0,   0444, linprocfs_doversion),
-	PFS_DIR(    "net",	0,	0,   0,   0555, linprocfs_net_nodes),
-	PFS_PROCDIR(            0,	0,   0,   0555, linprocfs_proc_nodes),
-	PFS_SYMLINK("self",	0,	0,   0,	  0555, linprocfs_doselflink),
+	/*	    name	flags uid  gid	mode  data */
+	PFS_FILE(   "cmdline",	0,    0,   0,	0444, linprocfs_docmdline),
+	PFS_FILE(   "cpuinfo",	0,    0,   0,	0444, linprocfs_docpuinfo),
+	PFS_FILE(   "devices",	0,    0,   0,	0444, linprocfs_dodevices),
+	PFS_FILE(   "loadavg",	0,    0,   0,	0444, linprocfs_doloadavg),
+	PFS_FILE(   "meminfo",	0,    0,   0,	0444, linprocfs_domeminfo),
+	PFS_FILE(   "stat",	0,    0,   0,	0444, linprocfs_dostat),
+	PFS_FILE(   "uptime",	0,    0,   0,	0444, linprocfs_douptime),
+	PFS_FILE(   "version",	0,    0,   0,	0444, linprocfs_doversion),
+	PFS_DIR(    "net",	0,    0,   0,	0555, linprocfs_net_nodes),
+	PFS_PROCDIR(		0,    0,   0,	0555, linprocfs_proc_nodes),
+	PFS_SYMLINK("self",	0,    0,   0,	0555, linprocfs_doselflink),
 	PFS_LASTNODE
 };
 
