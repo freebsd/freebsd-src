@@ -656,6 +656,7 @@ getasciilabel(FILE *f, struct disklabel *lp)
 	int lineno = 0, errors = 0;
 	int i;
 
+	makelabel("auto", lp);
 	bzero(&part_set, sizeof(part_set));
 	bzero(&part_size_type, sizeof(part_size_type));
 	bzero(&part_offset_type, sizeof(part_offset_type));
