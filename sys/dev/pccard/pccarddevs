@@ -80,6 +80,7 @@ vendor ERICSSON			0x016b	Ericsson
 vendor PSION			0x016c	Psion
 vendor COMPAQ2			0x0183	Compaq
 vendor KINGSTON			0x0186	Kingston
+vendor MELCO			0x018a	Melco Corporation
 vendor DAYNA			0x0194	Dayna Corporation
 vendor RAYTHEON			0x01a6	Raytheon
 vendor IODATA			0x01bf	I-O DATA
@@ -109,7 +110,6 @@ vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
 vendor EDIMAX			0x890f	Edimax Technology Inc.
 vendor COMPEX			0x8a01	Compex Corporation
-vendor MELCO			0x8a01	Melco Corporation
 vendor ZONET			0x8a01	Zonet Technology Inc.
 vendor CONTEC			0xc001	Contec
 vendor MACNICA			0xc00b	MACNICA
@@ -297,6 +297,7 @@ product MEGAHERTZ2 XJACK	0x0103 Megahertz X-JACK Ethernet
 
 /* Melco Products */
 product MELCO LPC3_TX	 	0xc1ab Melco LPC3-TX
+product	MELCO LPC3_CLX		0x0301 Melco LPC3-CLX Ethernet Adapter
 
 /* Motorola Products */
 product MOTOROLA POWER144	0x0105 Motorola Power 14.4 Modem
@@ -461,6 +462,7 @@ vendor ICOM			-1	ICOM Inc
 vendor INTERSIL			-1	Intersil
 vendor IODATA3			-1	I-O DATA
 vendor LANTECH			-1	Lantech Computer Company
+vendor MELCO2			-1	Melco Corporation
 vendor NAKAGAWAMETAL		-1	NAKAGAWA METAL
 vendor NDC			-1	NDC
 vendor NEC			-1	NEC
@@ -534,7 +536,7 @@ product LINKSYS ECARD_2		{ "LINKSYS", "E-CARD", NULL, NULL } Linksys E-Card
 product LINKSYS PCM100		{ "Linksys", "EtherFast&sp10/100&spIntegrated&spPC&spCard&sp(PCM100)", "Ver&sp1.0", NULL }
 product MACNICA MPS100		{ "MACNICA", "MIRACLE&spSCSI", "mPS100", "D.0" } Macnica Miracle SCSI mPS100
 product MEGAHERTZ XJ2288 	{ "MEGAHERTZ", "MODEM&spXJ2288", NULL, NULL } Megahertz XJ2288 Modem
-product MELCO LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
+product MELCO2 LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
 product NAKAGAWAMETAL LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } NAKAGAWA METAL LNT-10TN NE2000 Compatible Card 
 product NANOSPEED PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version&sp01.02", NULL } NANOSPEED ROOT-RZ2000 WLAN Card
 product NDC ND5100_E		{ "NDC", "Ethernet", "A", NULL } Sohoware ND5100E NE2000 Compatible Card
