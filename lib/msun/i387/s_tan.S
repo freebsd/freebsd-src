@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asmacros.h>
+#include <machine/asm.h>
 
-RCSID("$Id$")
+RCSID("$Id: s_tan.S,v 1.4 1997/02/22 15:09:06 peter Exp $")
 
 ENTRY(tan)
 	fldl	4(%esp)

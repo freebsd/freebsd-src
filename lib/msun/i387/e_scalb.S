@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asmacros.h>
+#include <machine/asm.h>
 
-RCSID("$Id$")
+RCSID("$Id: e_scalb.S,v 1.5 1997/02/22 15:08:51 peter Exp $")
 
 ENTRY(__ieee754_scalb)
 	fldl	12(%esp)
