@@ -181,6 +181,13 @@
       be killed when swap space has been exhausted.  The process must
       be owned by the superuser.</para>
 
+    <para arch="i386,pc98">The tw driver for TW-523 power line
+      interfaces (used by X-10 home control products) has been
+      removed.  It is currently non-functional, and would require a
+      considerable amount of work to make it work under
+      &release.branch;.  The xten and xtend userland control programs
+      have also been removed.</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <para>A second process scheduler, designed to be a general purpose
