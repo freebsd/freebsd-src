@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.11 1997/09/18 22:43:48 danny Exp $
+#	$Id: rc.network,v 1.12 1997/11/07 20:45:34 sef Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -141,14 +141,12 @@ network_pass2() {
 	    echo -n ' named';		named ${named_flags}
     fi
 
-    if [ "X${ntpdate_enable}" = X"YES" -o "X${xntpd_enable}" = X"YES" ]; then
-	    if [ "X${ntpdate_enable}" = X"YES" ]; then
-		    echo -n ' ntpdate';	ntpdate ${ntpdate_flags} >/dev/null 2>&1
-	    fi
+    if [ "X${ntpdate_enable}" = X"YES" ]; then
+	    echo -n ' ntpdate';	ntpdate ${ntpdate_flags} >/dev/null 2>&1
+    fi
 
-	    if [ "X${xntpd_enable}" = X"YES" ]; then
-		    echo -n ' xntpd';	xntpd ${xntpd_flags}
-	    fi
+    if [ "X${xntpd_enable}" = X"YES" ]; then
+	    echo -n ' xntpd';	xntpd ${xntpd_flags}
     fi
 
     if [ "X${timed_enable}" = X"YES" ]; then
