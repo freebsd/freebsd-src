@@ -6,7 +6,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2000
+.Dd July 14, 2004
 .Dt ASR 4
 .Os
 .Sh NAME
@@ -22,9 +22,30 @@ and disk arrays controlled by I2O based host bus adapters and
 SmartRAID SCSI RAID adapters through the standard SCSI disk
 .Xr da 4
 interface.
-The adapters currently supported include the following RAID adapters:
 .Pp
-.Bl -item -compact
+The supported adapters provide 64 bit PCI,
+Compact PCI, Zero Channel PCI,
+and up to four channels of Ultra2, Ultra 160, or Ultra320 SCSI,
+or two channels of 1GB Fibre.
+All support RAID-0, RAID-1, RAID-10, RAID-5 and RAID-50 arrays.
+All SCSI target types are supported.
+For the ATA based controllers, one IDE drive per channel is supported.
+Hot-swapping of IDE drives is not supported at this time.
+.Pp
+All host bus adapters must be configured
+before they can be used with any operating system.
+Please contact Adaptec directly to obtain the latest information
+on configuration utilities for the adapters.
+Currently there are both a Motif based GUI configuration utility
+and a CLI based configuration utility available from the Adaptec Web site.
+The cards and arrays can also be configured via the BIOS based configuration
+tool (SMOR).
+.Sh HARDWARE
+The adapters currently supported by the
+.Nm
+driver include the following:
+.Pp
+.Bl -bullet -compact
 .It
 Adaptec Zero-Channel SCSI RAID 2000S, 2005S, 2010S, 2015S
 .It
@@ -59,24 +80,6 @@ DEC KZPCC-CE (LVD 3-ch, 64MB cache),
 DEC KZPCC-XC (LVD 1-ch, 16MB cache),
 DEC KZPCC-XE (LVD 3-ch, 64MB cache) -- rebadged SmartRAID V Millennium
 .El
-.Pp
-These adapters provide 64 bit PCI,
-Compact PCI, Zero Channel PCI,
-and up to four channels of Ultra2, Ultra 160, or Ultra320 SCSI,
-or two channels of 1GB Fibre.
-All support RAID-0, RAID-1, RAID-10, RAID-5 and RAID-50 arrays.
-All SCSI target types are supported.
-For the ATA based controllers, one IDE drive per channel is supported.
-Hot-swapping of IDE drives is not supported at this time.
-.Pp
-All host bus adapters must be configured
-before they can be used with any operating system.
-Please contact Adaptec directly to obtain the latest information
-on configuration utilities for the adapters.
-Currently there are both a Motif based GUI configuration utility
-and a CLI based configuration utility available from the Adaptec Web site.
-The cards and arrays can also be configured via the BIOS based configuration
-tool (SMOR).
 .Sh FILES
 .Bl -tag -width "/dev/asr*" -compact
 .It Pa /dev/asr*
