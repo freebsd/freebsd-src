@@ -17,17 +17,28 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.38 1997/10/05 15:00:10 brian Exp $
+ * $Id: lcp.c,v 1.39 1997/10/15 01:01:17 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
  *	o Limit data field length by MRU
  */
-#include <sys/time.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <termios.h>
+#include <unistd.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "lcp.h"
 #include "ipcp.h"
@@ -38,31 +49,26 @@
 #include "lqr.h"
 #include "phase.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "auth.h"
-#include "timeout.h"
-
-extern void IpcpUp();
-extern void IpcpOpen();
-extern void SetLinkParams(struct lcpstate *);
-extern void Prompt();
-extern void Cleanup();
-extern struct pppTimer IpcpReportTimer;
-extern int randinit;
+#include "pap.h"
+#include "chap.h"
+#include "async.h"
+#include "main.h"
+#include "modem.h"
 
 struct lcpstate LcpInfo;
 
 static void LcpSendConfigReq(struct fsm *);
-static void LcpSendTerminateReq(struct fsm * fp);
-static void LcpSendTerminateAck(struct fsm * fp);
-static void LcpDecodeConfig(u_char * cp, int flen, int mode);
+static void LcpSendTerminateReq(struct fsm *);
+static void LcpSendTerminateAck(struct fsm *);
+static void LcpDecodeConfig(u_char *, int, int);
 static void LcpInitRestartCounter(struct fsm *);
 static void LcpLayerUp(struct fsm *);
 static void LcpLayerDown(struct fsm *);
 static void LcpLayerStart(struct fsm *);
 static void LcpLayerFinish(struct fsm *);
-
-extern int ModemSpeed();
 
 #define	REJECTED(p, x)	(p->his_reject & (1<<x))
 
@@ -96,45 +102,6 @@ struct fsm LcpFsm = {
 
 static struct pppTimer LcpReportTimer;
 static int LcpFailedMagic;
-
-char *PhaseNames[] = {
-  "Dead", "Establish", "Authenticate", "Network", "Terminate"
-};
-
-void
-NewPhase(int new)
-{
-  struct lcpstate *lcp = &LcpInfo;
-
-  phase = new;
-  LogPrintf(LogPHASE, "NewPhase: %s\n", PhaseNames[phase]);
-  switch (phase) {
-  case PHASE_AUTHENTICATE:
-    lcp->auth_ineed = lcp->want_auth;
-    lcp->auth_iwait = lcp->his_auth;
-    if (lcp->his_auth || lcp->want_auth) {
-      LogPrintf(LogPHASE, " his = %x, mine = %x\n", lcp->his_auth, lcp->want_auth);
-      if (lcp->his_auth == PROTO_PAP)
-	StartAuthChallenge(&AuthPapInfo);
-      if (lcp->want_auth == PROTO_CHAP)
-	StartAuthChallenge(&AuthChapInfo);
-    } else
-      NewPhase(PHASE_NETWORK);
-    break;
-  case PHASE_NETWORK:
-    IpcpUp();
-    IpcpOpen();
-    CcpUp();
-    CcpOpen();
-    break;
-  case PHASE_TERMINATE:
-    if (mode & MODE_DIRECT)
-      Cleanup(EX_DEAD);
-    if (mode & MODE_BACKGROUND && reconnectState != RECON_TRUE)
-      Cleanup(EX_DEAD);
-    break;
-  }
-}
 
 static void
 LcpReportTime()
@@ -179,13 +146,10 @@ ReportLcpStatus()
 /*
  * Generate random number which will be used as magic number.
  */
-u_long
+static u_long
 GenerateMagic()
 {
-  if (!randinit) {
-    randinit = 1;
-    srandomdev();
-  }
+  randinit();
   return (random());
 }
 
@@ -197,7 +161,7 @@ LcpInit()
   FsmInit(&LcpFsm);
   HdlcInit();
 
-  bzero(lcp, sizeof(struct lcpstate));
+  memset(lcp, '\0', sizeof(struct lcpstate));
   lcp->want_mru = VarMRU;
   lcp->his_mru = DEF_MRU;
   lcp->his_accmap = 0xffffffff;
@@ -459,15 +423,15 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
           mtu = MAX_MTU;
 	if (mru > mtu) {
 	  *sp = htons(mtu);
-	  bcopy(cp, nakp, 4);
+	  memcpy(nakp, cp, 4);
 	  nakp += 4;
 	} else if (mru < MIN_MRU) {
 	  *sp = htons(MIN_MRU);
-	  bcopy(cp, nakp, 4);
+	  memcpy(nakp, cp, 4);
 	  nakp += 4;
 	} else {
 	  LcpInfo.his_mru = mru;
-	  bcopy(cp, ackp, 4);
+	  memcpy(ackp, cp, 4);
 	  ackp += 4;
 	}
 	break;
@@ -488,7 +452,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       switch (mode) {
       case MODE_REQ:
 	LcpInfo.his_accmap = accmap;
-	bcopy(cp, ackp, 6);
+	memcpy(ackp, cp, 6);
 	ackp += 6;
 	break;
       case MODE_NAK:
@@ -514,7 +478,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
 	  }
 	  if (Acceptable(ConfPap)) {
 	    LcpInfo.his_auth = proto;
-	    bcopy(cp, ackp, length);
+	    memcpy(ackp, cp, length);
 	    ackp += length;
 	  } else if (Acceptable(ConfChap)) {
 	    *nakp++ = *cp;
@@ -537,7 +501,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
 #endif
 	  {
 	    LcpInfo.his_auth = proto;
-	    bcopy(cp, ackp, length);
+	    memcpy(ackp, cp, length);
 	    ackp += length;
 #ifdef HAVE_DES
             VarMSChap = cp[4] = 0x80;
@@ -552,7 +516,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
 	  break;
 	default:
 	  LogPrintf(LogLCP, " %s not implemented, NAK.\n", request);
-	  bcopy(cp, nakp, length);
+	  memcpy(nakp, cp, length);
 	  nakp += length;
 	  break;
 	}
@@ -577,7 +541,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
 	  if (LcpInfo.his_lqrperiod < 500)
 	    LcpInfo.his_lqrperiod = 500;
 	  req->period = htonl(LcpInfo.his_lqrperiod);
-	  bcopy(cp, ackp, length);
+	  memcpy(ackp, cp, length);
 	  ackp += length;
 	}
 	break;
@@ -601,13 +565,13 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
 	    LogPrintf(LogLCP, "Magic is same (%08x) - %d times\n",
                       magic, ++LcpFailedMagic);
 	    LcpInfo.want_magic = GenerateMagic();
-	    bcopy(cp, nakp, 6);
+	    memcpy(nakp, cp, 6);
 	    nakp += 6;
             ualarm(TICKUNIT * (4 + 4 * LcpFailedMagic), 0);
             sigpause(0);
 	  } else {
 	    LcpInfo.his_magic = magic;
-	    bcopy(cp, ackp, length);
+	    memcpy(ackp, cp, length);
 	    ackp += length;
             LcpFailedMagic = 0;
 	  }
@@ -634,18 +598,17 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       case MODE_REQ:
 	if (Acceptable(ConfProtocomp)) {
 	  LcpInfo.his_protocomp = 1;
-	  bcopy(cp, ackp, 2);
+	  memcpy(ackp, cp, 2);
 	  ackp += 2;
 	} else {
 #ifdef OLDMST
-
 	  /*
 	   * MorningStar before v1.3 needs NAK
 	   */
-	  bcopy(cp, nakp, 2);
+	  memcpy(nakp, cp, 2);
 	  nakp += 2;
 #else
-	  bcopy(cp, rejp, 2);
+	  memcpy(rejp, cp, 2);
 	  rejp += 2;
 	  LcpInfo.my_reject |= (1 << type);
 #endif
@@ -664,18 +627,17 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       case MODE_REQ:
 	if (Acceptable(ConfAcfcomp)) {
 	  LcpInfo.his_acfcomp = 1;
-	  bcopy(cp, ackp, 2);
+	  memcpy(ackp, cp, 2);
 	  ackp += 2;
 	} else {
 #ifdef OLDMST
-
 	  /*
 	   * MorningStar before v1.3 needs NAK
 	   */
-	  bcopy(cp, nakp, 2);
+	  memcpy(nakp, cp, 2);
 	  nakp += 2;
 #else
-	  bcopy(cp, rejp, 2);
+	  memcpy(rejp, cp, 2);
 	  rejp += 2;
 	  LcpInfo.my_reject |= (1 << type);
 #endif
@@ -701,7 +663,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       LogPrintf(LogLCP, " ???[%02x]\n", type);
       if (mode == MODE_REQ) {
     reqreject:
-	bcopy(cp, rejp, length);
+	memcpy(rejp, cp, length);
 	rejp += length;
 	LcpInfo.my_reject |= (1 << type);
       }

@@ -17,34 +17,48 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.58 1997/09/23 22:07:51 brian Exp $
+ * $Id: modem.c,v 1.59 1997/10/24 22:36:31 brian Exp $
  *
  *  TODO:
  */
-#include "fsm.h"
-#include <fcntl.h>
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <sys/tty.h>
+#include <sys/param.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+
 #include <errno.h>
-#include <time.h>
+#include <fcntl.h>
 #include <paths.h>
-#include <utmp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/tty.h>
+#include <termios.h>
+#include <time.h>
+#include <unistd.h>
 #ifdef __OpenBSD__
 #include <util.h>
 #else
 #include <libutil.h>
 #endif
+#include <utmp.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
+#include "fsm.h"
 #include "hdlc.h"
 #include "lcp.h"
 #include "ip.h"
 #include "modem.h"
 #include "loadalias.h"
-#include "vars.h"
 #include "command.h"
+#include "vars.h"
+#include "main.h"
+#include "chat.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -52,14 +66,9 @@
 #endif
 #endif
 
-extern int DoChat();
-
 static int mbits;		/* Current DCD status */
 static int connect_count;
 static struct pppTimer ModemTimer;
-
-extern void PacketMode(), TtyTermMode(), TtyCommandMode();
-extern int TermMode;
 
 #define	Online	(mbits & TIOCM_CD)
 
@@ -230,7 +239,7 @@ static struct speeds {
   }
 };
 
-int
+static int
 SpeedToInt(speed_t speed)
 {
   struct speeds *sp;
@@ -326,7 +335,7 @@ ModemTimeout()
   }
 }
 
-void
+static void
 StartModemTimer()
 {
   StopTimer(&ModemTimer);
@@ -355,7 +364,7 @@ struct parity {
   },
 };
 
-int
+static int
 GetParityValue(char *str)
 {
   struct parity *pp;
@@ -388,7 +397,7 @@ ChangeParity(char *str)
   return -1;
 }
 
-int
+static int
 OpenConnection(char *host, char *port)
 {
   struct sockaddr_in dest;
@@ -401,7 +410,7 @@ OpenConnection(char *host, char *port)
   if (dest.sin_addr.s_addr == INADDR_NONE) {
     hp = gethostbyname(host);
     if (hp) {
-      bcopy(hp->h_addr_list[0], &dest.sin_addr.s_addr, 4);
+      memcpy(&dest.sin_addr.s_addr, hp->h_addr_list[0], 4);
     } else {
       LogPrintf(LogWARN, "OpenConnection: unknown host: %s\n", host);
       return (-1);
@@ -431,10 +440,9 @@ OpenConnection(char *host, char *port)
   return (sock);
 }
 
-extern int tunno;
 static char fn[MAXPATHLEN];
 
-int
+static int
 LockModem()
 {
   int res;
@@ -464,7 +472,7 @@ LockModem()
   return 0;
 }
 
-void
+static void
 UnlockModem()
 {
   if (*VarDevice != '/')
@@ -518,8 +526,8 @@ OpenModem(int mode)
       }
       LogPrintf(LogDEBUG, "OpenModem: Modem is %s\n", VarDevice);
     } else {
-      /* XXX: PPP over TCP */
-      cp = index(VarDevice, ':');
+      /* PPP over TCP */
+      cp = strchr(VarDevice, ':');
       if (cp) {
 	*cp = 0;
 	host = VarDevice;
@@ -648,7 +656,7 @@ RawModem(int modem)
   return (0);
 }
 
-void
+static void
 UnrawModem(int modem)
 {
   int oldflag;
@@ -676,15 +684,11 @@ HangupModem(int flag)
 
   if (modem >= 0 && Online) {
     mbits &= ~TIOCM_DTR;
-#ifdef __bsdi__			/* not a POSIX way */
-    ioctl(modem, TIOCMSET, &mbits);
-#else
     tcgetattr(modem, &tio);
     if (cfsetspeed(&tio, B0) == -1) {
       LogPrintf(LogWARN, "Unable to set modem to speed 0\n");
     }
     tcsetattr(modem, TCSANOW, &tio);
-#endif
     nointr_sleep(1);
   }
 
@@ -756,7 +760,7 @@ WriteModem(int pri, char *ptr, int count)
   struct mbuf *bp;
 
   bp = mballoc(count, MB_MODEM);
-  bcopy(ptr, MBUF_CTOP(bp), count);
+  memcpy(MBUF_CTOP(bp), ptr, count);
 
   /*
    * Should be NORMAL and LINK only. All IP frames get here marked NORMAL.

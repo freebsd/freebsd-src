@@ -17,47 +17,50 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.26 1997/09/03 00:40:50 brian Exp $
+ * $Id: os.c,v 1.27 1997/09/03 02:08:20 brian Exp $
  *
  */
-#include "fsm.h"
 #include <sys/param.h>
-#include <sys/socket.h>
-#if BSD >= 199206 || _BSDI_VERSION >= 199312
-#include <sys/select.h>
-#endif
-#include <sys/ioctl.h>
 #include <sys/time.h>
-
-#include <fcntl.h>
-#include <errno.h>
-
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_tun.h>
 #include <net/route.h>
 #include <arpa/inet.h>
 
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <unistd.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
+#include "fsm.h"
 #include "ipcp.h"
 #include "os.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "arp.h"
 #include "systems.h"
 #include "route.h"
+#include "ccp.h"
+#include "modem.h"
+
+char *IfDevName;
 
 static struct ifaliasreq ifra;
 static struct ifreq ifrq;
 static struct in_addr oldmine, oldhis;
 static int linkup;
-
-#ifdef bsdi
-extern char *inet_ntoa();
-
-#endif
-extern void HangupModem();
-
-char *IfDevName;
 
 static int
 SetIpDevice(struct in_addr myaddr,
@@ -82,9 +85,9 @@ SetIpDevice(struct in_addr myaddr,
       close(s);
       return (0);
     }
-    bzero(&ifra.ifra_addr, sizeof(ifra.ifra_addr));
-    bzero(&ifra.ifra_broadaddr, sizeof(ifra.ifra_addr));
-    bzero(&ifra.ifra_mask, sizeof(ifra.ifra_addr));
+    memset(&ifra.ifra_addr, '\0', sizeof(ifra.ifra_addr));
+    memset(&ifra.ifra_broadaddr, '\0', sizeof(ifra.ifra_addr));
+    memset(&ifra.ifra_mask, '\0', sizeof(ifra.ifra_addr));
     if (ioctl(s, SIOCDIFADDR, &ifra) < 0) {
       LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCDIFADDR): %s\n",
 		strerror(errno));
@@ -151,16 +154,16 @@ SetIpDevice(struct in_addr myaddr,
       /*
        * Interface already exists. Just change the address.
        */
-      bcopy(&ifra.ifra_addr, &ifrq.ifr_addr, sizeof(struct sockaddr));
+      memcpy(&ifrq.ifr_addr, &ifra.ifra_addr, sizeof(struct sockaddr));
       if (ioctl(s, SIOCSIFADDR, &ifra) < 0)
 	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFADDR): %s\n",
 		  strerror(errno));
-      bcopy(&ifra.ifra_broadaddr, &ifrq.ifr_dstaddr, sizeof(struct sockaddr));
+      memcpy(&ifrq.ifr_dstaddr, &ifra.ifra_broadaddr, sizeof(struct sockaddr));
       if (ioctl(s, SIOCSIFDSTADDR, &ifrq) < 0)
 	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFDSTADDR): %s\n",
 		  strerror(errno));
 #ifdef notdef
-      bcopy(&ifra.ifra_mask, &ifrq.ifr_broadaddr, sizeof(struct sockaddr));
+      memcpy(&ifrq.ifr_broadaddr, &ifra.ifra_mask, sizeof(struct sockaddr));
       if (ioctl(s, SIOCSIFBRDADDR, &ifrq) < 0)
 	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFBRDADDR): %s\n",
 		  strerror(errno));
@@ -349,8 +352,8 @@ OpenTunnel(int *ptun)
    */
   strncpy(ifname, devname + 5, IFNAMSIZ - 1);
 
-  bzero((char *) &ifra, sizeof(ifra));
-  bzero((char *) &ifrq, sizeof(ifrq));
+  memset(&ifra, '\0', sizeof(ifra));
+  memset(&ifrq, '\0', sizeof(ifrq));
 
   strncpy(ifrq.ifr_name, ifname, IFNAMSIZ - 1);
   strncpy(ifra.ifra_name, ifname, IFNAMSIZ - 1);

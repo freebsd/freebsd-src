@@ -15,17 +15,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.9 1997/08/20 23:47:43 brian Exp $
+ * $Id: fsm.h,v 1.10 1997/08/25 00:29:12 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _FSM_H_
-#define	_FSM_H_
-
-#include "defs.h"
-#include <netinet/in.h>
-#include "timeout.h"
 
 /*
  *  State of machine
@@ -120,29 +113,20 @@ struct fsmconfig {
   u_char length;
 };
 
-u_char AckBuff[200];
-u_char NakBuff[200];
-u_char RejBuff[100];
-u_char ReqBuff[200];
-
-u_char *ackp, *nakp, *rejp;
+extern u_char AckBuff[200];
+extern u_char NakBuff[200];
+extern u_char RejBuff[100];
+extern u_char ReqBuff[200];
+extern u_char *ackp;
+extern u_char *nakp;
+extern u_char *rejp;
 
 extern char const *StateNames[];
+
 extern void FsmInit(struct fsm *);
-extern void NewState(struct fsm *, int);
 extern void FsmOutput(struct fsm *, u_int, u_int, u_char *, int);
 extern void FsmOpen(struct fsm *);
 extern void FsmUp(struct fsm *);
 extern void FsmDown(struct fsm *);
 extern void FsmInput(struct fsm *, struct mbuf *);
-
-extern void FsmRecvConfigReq(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmRecvConfigAck(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmRecvConfigNak(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmRecvTermReq(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmRecvTermAck(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmClose(struct fsm * fp);
-
-extern struct fsm LcpFsm, IpcpFsm, CcpFsm;
-
-#endif				/* _FSM_H_ */
+extern void FsmClose(struct fsm *);

@@ -17,20 +17,28 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.20 1997/10/23 21:32:48 ache Exp $
+ * $Id: timer.c,v 1.21 1997/10/24 22:36:31 brian Exp $
  *
  *  TODO:
  */
-#include "defs.h"
-#include <sys/time.h>
+
 #include <signal.h>
-#include "timeout.h"
 #ifdef SIGALRM
 #include <errno.h>
 #endif
-#include "sig.h"
+#include <sys/time.h>
+#include <unistd.h>
 
-void StopTimerNoBlock(struct pppTimer *);
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "sig.h"
+#include "timer.h"
+
+struct pppTimer *TimerList = NULL;
+
+static void StopTimerNoBlock(struct pppTimer *);
+static void InitTimerService(void);
 
 void
 StopTimer(struct pppTimer * tp)
@@ -96,7 +104,7 @@ StartTimer(struct pppTimer * tp)
 #endif
 }
 
-void
+static void
 StopTimerNoBlock(struct pppTimer * tp)
 {
   struct pppTimer *t, *pt;
@@ -259,8 +267,8 @@ nointr_usleep(u_int usec)
   }
 }
 
-void 
-InitTimerService(void)
+static void 
+InitTimerService()
 {
   struct itimerval itimer;
 

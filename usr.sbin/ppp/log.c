@@ -1,13 +1,19 @@
-#include <sys/types.h>
-#include <sys/socket.h>
+/*
+ * $Id: $
+ */
+
 #include <sys/param.h>
 #include <netinet/in.h>
-#include <syslog.h>
+#include <sys/socket.h>
+
 #include <stdarg.h>
 #include <stdio.h>
+#include <syslog.h>
+
 #include "mbuf.h"
 #include "log.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 
 static char *LogNames[] = {

@@ -18,37 +18,45 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.16 1997/09/27 19:11:41 brian Exp $
+ * $Id: pap.c,v 1.17 1997/10/16 23:55:19 brian Exp $
  *
  *	TODO:
  */
-#include <time.h>
-#include <utmp.h>
+#include <sys/param.h>
+#include <netinet/in.h>
+
 #include <pwd.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#ifdef __OpenBSD__
+#include <util.h>
+#else
+#include <libutil.h>
+#endif
+#include <utmp.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "lcp.h"
 #include "pap.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "hdlc.h"
 #include "lcpproto.h"
 #include "phase.h"
 #include "auth.h"
-#ifdef __OpenBSD__
-#include "util.h"
-#else
-#include "libutil.h"
-#endif
 
 static char *papcodes[] = {
   "???", "REQUEST", "ACK", "NAK"
 };
 
-struct authinfo AuthPapInfo = {
-  SendPapChallenge,
-};
-
-void
+static void
 SendPapChallenge(int papid)
 {
   struct fsmheader lh;
@@ -69,16 +77,20 @@ SendPapChallenge(int papid)
   lh.id = papid;
   lh.length = htons(plen + sizeof(struct fsmheader));
   bp = mballoc(plen + sizeof(struct fsmheader), MB_FSM);
-  bcopy(&lh, MBUF_CTOP(bp), sizeof(struct fsmheader));
+  memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = namelen;
-  bcopy(VarAuthName, cp, namelen);
+  memcpy(cp, VarAuthName, namelen);
   cp += namelen;
   *cp++ = keylen;
-  bcopy(VarAuthKey, cp, keylen);
+  memcpy(cp, VarAuthKey, keylen);
 
   HdlcOutput(PRI_LINK, PROTO_PAP, bp);
 }
+
+struct authinfo AuthPapInfo = {
+  SendPapChallenge,
+};
 
 static void
 SendPapCode(int id, int code, char *message)
@@ -94,10 +106,10 @@ SendPapCode(int id, int code, char *message)
   plen = mlen + 1;
   lh.length = htons(plen + sizeof(struct fsmheader));
   bp = mballoc(plen + sizeof(struct fsmheader), MB_FSM);
-  bcopy(&lh, MBUF_CTOP(bp), sizeof(struct fsmheader));
+  memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = mlen;
-  bcopy(message, cp, mlen);
+  memcpy(cp, message, mlen);
   LogPrintf(LogPHASE, "PapOutput: %s\n", papcodes[code]);
   HdlcOutput(PRI_LINK, PROTO_PAP, bp);
 }

@@ -17,12 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.h,v 1.4 1997/06/09 03:27:36 brian Exp $
+ * $Id: route.h,v 1.5 1997/08/25 00:29:27 brian Exp $
  *
  */
 
-#ifndef _ROUTE_H_
-#define	_ROUTE_H_
-int GetIfIndex(char *);
-
-#endif
+extern int GetIfIndex(char *);
+extern int ShowRoute(void);
+extern void OsSetRoute(int, struct in_addr, struct in_addr, struct in_addr);
+extern void DeleteIfRoutes(int);

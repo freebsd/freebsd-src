@@ -1,34 +1,34 @@
-#include <limits.h>
-#include <netdb.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+/*
+ * $Id: $
+ */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "mbuf.h"
+#include "log.h"
 #include "defs.h"
 #include "command.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "alias_cmd.h"
 
-static int
-    StrToAddr(char *, struct in_addr * addr);
 
-static int
-    StrToPort(char *, u_short * port, char *proto);
-
-static int
-    StrToAddrAndPort(char *, struct in_addr * addr, u_short * port, char *proto);
+static int StrToAddr(char *, struct in_addr *);
+static int StrToPort(char *, u_short *, char *);
+static int StrToAddrAndPort(char *, struct in_addr *, u_short *, char *);
 
 
 int
-AliasRedirectPort(struct cmdtab * list,
-		  int argc,
-		  char **argv,
-		  void *param)
+AliasRedirectPort(struct cmdtab *list, int argc, char **argv, void *param)
 {
   if (!(mode & MODE_ALIAS)) {
     if (VarTerm)
@@ -91,10 +91,7 @@ AliasRedirectPort(struct cmdtab * list,
 
 
 int
-AliasRedirectAddr(struct cmdtab * list,
-		  int argc,
-		  char **argv,
-		  void *param)
+AliasRedirectAddr(struct cmdtab *list, int argc, char **argv, void *param)
 {
   if (!(mode & MODE_ALIAS)) {
     if (VarTerm)
@@ -132,8 +129,7 @@ AliasRedirectAddr(struct cmdtab * list,
 
 
 static int
-StrToAddr(char *str,
-	  struct in_addr * addr)
+StrToAddr(char *str, struct in_addr *addr)
 {
   struct hostent *hp;
 
@@ -151,9 +147,7 @@ StrToAddr(char *str,
 
 
 static int
-StrToPort(char *str,
-	  u_short * port,
-	  char *proto)
+StrToPort(char *str, u_short *port, char *proto)
 {
   int iport;
   struct servent *sp;
@@ -176,10 +170,7 @@ StrToPort(char *str,
 
 
 int
-StrToAddrAndPort(char *str,
-		 struct in_addr * addr,
-		 u_short * port,
-		 char *proto)
+StrToAddrAndPort(char *str, struct in_addr *addr, u_short *port, char *proto)
 {
   char *ptr;
 

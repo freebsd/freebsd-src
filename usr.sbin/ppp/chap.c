@@ -17,15 +17,34 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.22 1997/09/22 23:59:13 brian Exp $
+ * $Id: chap.c,v 1.23 1997/09/25 00:52:32 brian Exp $
  *
  *	TODO:
  */
-#include <sys/types.h>
-#include <time.h>
-#include <utmp.h>
-#include <ctype.h>
+#include <sys/param.h>
+#include <netinet/in.h>
 
+#include <ctype.h>
+#ifdef HAVE_DES
+#include <md4.h>
+#endif
+#include <md5.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#ifdef __OpenBSD__
+#include <util.h>
+#else
+#include <libutil.h>
+#endif
+#include <utmp.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "chap.h"
 #include "chap_ms.h"
@@ -34,26 +53,15 @@
 #include "hdlc.h"
 #include "phase.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "auth.h"
-#ifdef __OpenBSD__
-#include "util.h"
-#else
-#include "libutil.h"
-#endif
 
 static char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
 };
 
-struct authinfo AuthChapInfo = {
-  SendChapChallenge,
-};
-
-extern char *AuthGetSecret();
-extern int randinit;
-
-void
+static void
 ChapOutput(u_int code, u_int id, u_char * ptr, int count)
 {
   int plen;
@@ -65,9 +73,9 @@ ChapOutput(u_int code, u_int id, u_char * ptr, int count)
   lh.id = id;
   lh.length = htons(plen);
   bp = mballoc(plen, MB_FSM);
-  bcopy(&lh, MBUF_CTOP(bp), sizeof(struct fsmheader));
+  memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   if (count)
-    bcopy(ptr, MBUF_CTOP(bp) + sizeof(struct fsmheader), count);
+    memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
   LogDumpBp(LogDEBUG, "ChapOutput", bp);
   LogPrintf(LogLCP, "ChapOutput: %s\n", chapcodes[code]);
   HdlcOutput(PRI_LINK, PROTO_CHAP, bp);
@@ -77,28 +85,29 @@ ChapOutput(u_int code, u_int id, u_char * ptr, int count)
 static char challenge_data[80];
 static int challenge_len;
 
-void
+static void
 SendChapChallenge(int chapid)
 {
   int len, i;
   char *cp;
 
-  if (!randinit) {
-    randinit = 1;
-    srandomdev();
-  }
+  randinit();
   cp = challenge_data;
   *cp++ = challenge_len = random() % 32 + 16;
   for (i = 0; i < challenge_len; i++)
     *cp++ = random() & 0xff;
   len = strlen(VarAuthName);
-  bcopy(VarAuthName, cp, len);
+  memcpy(cp, VarAuthName, len);
   cp += len;
   ChapOutput(CHAP_CHALLENGE, chapid, challenge_data, cp - challenge_data);
 }
 
-void
-RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
+struct authinfo AuthChapInfo = {
+  SendChapChallenge,
+};
+
+static void
+RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
 {
   int valsize, len;
   int arglen, keylen, namelen;
@@ -153,12 +162,13 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
     if (VarMSChap) {
       digest = argp;     /* this is the response */
       *digest++ = MS_CHAP_RESPONSE_LEN;   /* 49 */
-      bzero(digest, 24); digest += 24;
+      memset(digest, '\0', 24);
+      digest += 24;
 
       ap = answer;       /* this is the challenge */
-      bcopy(keyp, ap, keylen);
+      memcpy(ap, keyp, keylen);
       ap += 2 * keylen;
-      bcopy(cp, ap, valsize);
+      memcpy(ap, cp, valsize);
       LogDumpBuff(LogDEBUG, "recv", ap, valsize);
       ap += valsize;
       for (ix = keylen; ix > 0 ; ix--) {
@@ -168,7 +178,7 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
       MD4Init(&MD4context);
       MD4Update(&MD4context, answer, 2 * keylen);
       MD4Final(digest, &MD4context);
-      bcopy(name, digest + 25, namelen);
+      memcpy(digest + 25, name, namelen);
       ap += 2 * keylen;
       ChapMS(digest, answer + 2 * keylen, valsize);
       LogDumpBuff(LogDEBUG, "answer", digest, 24);
@@ -179,16 +189,16 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
       *digest++ = 16;		/* value size */
       ap = answer;
       *ap++ = chp->id;
-      bcopy(keyp, ap, keylen);
+      memcpy(ap, keyp, keylen);
       ap += keylen;
-      bcopy(cp, ap, valsize);
+      memcpy(ap, cp, valsize);
       LogDumpBuff(LogDEBUG, "recv", ap, valsize);
       ap += valsize;
       MD5Init(&MD5context);
       MD5Update(&MD5context, answer, ap - answer);
       MD5Final(digest, &MD5context);
       LogDumpBuff(LogDEBUG, "answer", digest, 16);
-      bcopy(name, digest + 16, namelen);
+      memcpy(digest + 16, name, namelen);
       ap += namelen;
       /* Send answer to the peer */
       ChapOutput(CHAP_RESPONSE, chp->id, argp, namelen + 17);
@@ -206,7 +216,7 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
       keylen = strlen(keyp);
       ap = answer;
       *ap++ = chp->id;
-      bcopy(keyp, ap, keylen);
+      memcpy(ap, keyp, keylen);
       ap += keylen;
       MD5Init(&MD5context);
       MD5Update(&MD5context, answer, ap - answer);
@@ -218,7 +228,7 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
       /*
        * Compare with the response
        */
-      if (bcmp(cp, cdigest, 16) == 0) {
+      if (memcmp(cp, cdigest, 16) == 0) {
 	ChapOutput(CHAP_SUCCESS, chp->id, "Welcome!!", 10);
         if ((mode & MODE_DIRECT) && isatty(modem) && Enabled(ConfUtmp))
 	  if (Utmp)
@@ -250,8 +260,8 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
   }
 }
 
-void
-RecvChapResult(struct fsmheader * chp, struct mbuf * bp)
+static void
+RecvChapResult(struct fsmheader *chp, struct mbuf *bp)
 {
   int len;
   struct lcpstate *lcp = &LcpInfo;
@@ -274,7 +284,7 @@ RecvChapResult(struct fsmheader * chp, struct mbuf * bp)
 }
 
 void
-ChapInput(struct mbuf * bp)
+ChapInput(struct mbuf *bp)
 {
   int len = plength(bp);
   struct fsmheader *chp;

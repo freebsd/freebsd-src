@@ -17,9 +17,19 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.29 1997/09/21 13:08:00 brian Exp $
+ * $Id: vars.c,v 1.30 1997/09/22 23:59:16 brian Exp $
  *
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <string.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "command.h"
 #include "hdlc.h"
@@ -30,7 +40,15 @@
 #include "defs.h"
 
 char VarVersion[] = "PPP Version 1.2";
-char VarLocalVersion[] = "$Date: 1997/09/21 13:08:00 $";
+char VarLocalVersion[] = "$Date: 1997/09/22 23:59:16 $";
+int Utmp = 0;
+int ipInOctets = 0;
+int ipOutOctets = 0;
+int ipKeepAlive = 0;
+int ipConnectSecs = 0;
+int ipIdleSecs = 0;
+int reconnectState = RECON_UNKNOWN;
+int reconnectCount = 0;
 
 /*
  * Order of conf option is important. See vars.h.

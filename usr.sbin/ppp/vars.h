@@ -15,15 +15,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.29 1997/09/25 00:52:37 brian Exp $
+ * $Id: vars.h,v 1.30 1997/09/26 00:23:36 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _VARS_H_
-#define	_VARS_H_
-
-#include <sys/param.h>
 
 struct confdesc {
   char *name;
@@ -97,39 +92,39 @@ struct pppvars {
   struct aliasHandlers handler;	/* Alias function pointers */
 };
 
-#define VarAccmap	pppVars.var_accmap
-#define VarMRU		pppVars.var_mru
-#define VarPrefMTU	pppVars.pref_mtu
-#define	VarDevice	pppVars.modem_dev
-#define	VarBaseDevice	pppVars.base_modem_dev
-#define	VarSpeed	pppVars.modem_speed
-#define	VarParity	pppVars.modem_parity
-#define	VarCtsRts	pppVars.modem_ctsrts
-#define	VarOpenMode	pppVars.open_mode
-#define	VarLocalAuth	pppVars.lauth
-#define	VarDialScript	pppVars.dial_script
-#define VarHangupScript pppVars.hangup_script
-#define	VarLoginScript	pppVars.login_script
-#define VarIdleTimeout  pppVars.idle_timeout
-#define	VarLqrTimeout	pppVars.lqr_timeout
-#define	VarRetryTimeout	pppVars.retry_timeout
-#define	VarAuthKey	pppVars.auth_key
-#define	VarAuthName	pppVars.auth_name
+#define VarAccmap		pppVars.var_accmap
+#define VarMRU			pppVars.var_mru
+#define VarPrefMTU		pppVars.pref_mtu
+#define	VarDevice		pppVars.modem_dev
+#define	VarBaseDevice		pppVars.base_modem_dev
+#define	VarSpeed		pppVars.modem_speed
+#define	VarParity		pppVars.modem_parity
+#define	VarCtsRts		pppVars.modem_ctsrts
+#define	VarOpenMode		pppVars.open_mode
+#define	VarLocalAuth		pppVars.lauth
+#define	VarDialScript		pppVars.dial_script
+#define VarHangupScript 	pppVars.hangup_script
+#define	VarLoginScript		pppVars.login_script
+#define VarIdleTimeout  	pppVars.idle_timeout
+#define	VarLqrTimeout		pppVars.lqr_timeout
+#define	VarRetryTimeout		pppVars.retry_timeout
+#define	VarAuthKey		pppVars.auth_key
+#define	VarAuthName		pppVars.auth_name
 #ifdef HAVE_DES
-#define	VarMSChap	pppVars.use_MSChap
+#define	VarMSChap		pppVars.use_MSChap
 #endif
-#define VarPhoneList    pppVars.phone_numbers
-#define VarPhoneCopy    pppVars.phone_copy
-#define VarNextPhone    pppVars.next_phone
-#define VarAltPhone     pppVars.alt_phone
-#define	VarShortHost	pppVars.shostname
-#define VarReconnectTimer pppVars.reconnect_timer
-#define VarReconnectTries pppVars.reconnect_tries
-#define VarRedialTimeout pppVars.redial_timeout
-#define VarRedialNextTimeout pppVars.redial_next_timeout
-#define VarDialTries	pppVars.dial_tries
-#define VarLoopback	pppVars.loopback
-#define VarTerm		pppVars.termfp
+#define VarPhoneList    	pppVars.phone_numbers
+#define VarPhoneCopy    	pppVars.phone_copy
+#define VarNextPhone    	pppVars.next_phone
+#define VarAltPhone     	pppVars.alt_phone
+#define	VarShortHost		pppVars.shostname
+#define VarReconnectTimer	pppVars.reconnect_timer
+#define VarReconnectTries	pppVars.reconnect_tries
+#define VarRedialTimeout	pppVars.redial_timeout
+#define VarRedialNextTimeout	pppVars.redial_next_timeout
+#define VarDialTries		pppVars.dial_tries
+#define VarLoopback		pppVars.loopback
+#define VarTerm			pppVars.termfp
 
 #define VarAliasHandlers	   pppVars.handler
 #define VarPacketAliasGetFragment  (*pppVars.handler.PacketAliasGetFragment)
@@ -144,13 +139,20 @@ struct pppvars {
 #define VarPacketAliasSetMode	   (*pppVars.handler.PacketAliasSetMode)
 #define VarPacketAliasFragmentIn   (*pppVars.handler.PacketAliasFragmentIn)
 
-#define	DEV_IS_SYNC	(VarSpeed == 0)
+#define	DEV_IS_SYNC (VarSpeed == 0)
 
 extern struct pppvars pppVars;
+extern char VarVersion[];
+extern char VarLocalVersion[];
 
-int Utmp;		/* Are we in /etc/utmp ? */
-int ipInOctets, ipOutOctets, ipKeepAlive;
-int ipConnectSecs, ipIdleSecs;
+extern int Utmp;		/* Are we in /etc/utmp ? */
+extern int ipInOctets;
+extern int ipOutOctets;
+extern int ipKeepAlive;
+extern int ipConnectSecs;
+extern int ipIdleSecs;
+extern int reconnectState;
+extern int reconnectCount;
 
 #define RECON_TRUE (1)
 #define RECON_FALSE (2)
@@ -165,7 +167,6 @@ int ipConnectSecs, ipIdleSecs;
     }                                         \
   while(0)
 
-int reconnectState, reconnectCount;
 
 /*
  * This is the logic behind the reconnect variables:
@@ -190,4 +191,9 @@ int reconnectState, reconnectCount;
  *
  */
 
-#endif
+extern int EnableCommand(struct cmdtab *, int, char **);
+extern int DisableCommand(struct cmdtab *, int, char **);
+extern int AcceptCommand(struct cmdtab *, int, char **);
+extern int DenyCommand(struct cmdtab *, int, char **);
+extern int LocalAuthCommand(struct cmdtab *, int, char **);
+extern int DisplayCommand(void);

@@ -1,12 +1,18 @@
-#include <sys/types.h>
-#include <sys/socket.h>
+/*
+ * $Id: $
+ */
+
 #include <sys/param.h>
 #include <netinet/in.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <dlfcn.h>
+
 #include <alias.h>
+#include <dlfcn.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include "command.h"
 #include "systems.h"
 #include "mbuf.h"
 #include "log.h"

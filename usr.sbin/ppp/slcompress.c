@@ -17,34 +17,41 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.11 1997/10/07 00:56:57 brian Exp $
+ * $Id: slcompress.c,v 1.12 1997/10/12 21:43:55 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
-#ifndef lint
-static char const rcsid[] = "$Id: slcompress.c,v 1.11 1997/10/07 00:56:57 brian Exp $";
 
-#endif
-
-#include "defs.h"
+#include <sys/param.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
+
+#include <stdio.h>
+#include <string.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
 #include "slcompress.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 
-struct slstat slstat;
+static struct slstat {
+  int sls_packets;		/* outbound packets */
+  int sls_compressed;		/* outbound compressed packets */
+  int sls_searches;		/* searches for connection state */
+  int sls_misses;		/* times couldn't find conn. state */
+  int sls_uncompressedin;	/* inbound uncompressed packets */
+  int sls_compressedin;		/* inbound compressed packets */
+  int sls_errorin;		/* inbound unknown type packets */
+  int sls_tossed;		/* inbound packets tossed because of error */
+} slstat;
 
 #define INCR(counter)	slstat.counter++;
-
-#define BCMP(p1, p2, n) bcmp((char *)(p1), (char *)(p2), (int)(n))
-#define BCOPY(p1, p2, n) bcopy((char *)(p1), (char *)(p2), (int)(n))
-#ifndef KERNEL
-#define ovbcopy bcopy
-#endif
 
 void
 sl_compress_init(struct slcompress * comp, int max_state)
@@ -52,7 +59,7 @@ sl_compress_init(struct slcompress * comp, int max_state)
   register u_int i;
   register struct cstate *tstate = comp->tstate;
 
-  bzero((char *) comp, sizeof(*comp));
+  memset(comp, '\0', sizeof(*comp));
   for (i = max_state; i > 0; --i) {
     tstate[i].cs_id = i;
     tstate[i].cs_next = &tstate[i - 1];
@@ -239,9 +246,9 @@ found:
       ((u_short *) ip)[4] != ((u_short *) & cs->cs_ip)[4] ||
       THOFFSET(th) != THOFFSET(oth) ||
       (deltaS > 5 &&
-       BCMP(ip + 1, &cs->cs_ip + 1, (deltaS - 5) << 2)) ||
+       memcmp(ip + 1, &cs->cs_ip + 1, (deltaS - 5) << 2)) ||
       (THOFFSET(th) > 5 &&
-       BCMP(th + 1, oth + 1, (THOFFSET(th) - 5) << 2))) {
+       memcmp(th + 1, oth + 1, (THOFFSET(th) - 5) << 2))) {
     goto uncompressed;
   }
 
@@ -341,7 +348,7 @@ found:
    * this packet's header.
    */
   deltaA = ntohs(th->th_sum);
-  BCOPY(ip, &cs->cs_ip, hlen);
+  memcpy(&cs->cs_ip, ip, hlen);
 
   /*
    * We want to use the original packet as our compressed packet. (cp -
@@ -374,7 +381,7 @@ found:
   m->offset += hlen;
   *cp++ = deltaA >> 8;
   *cp++ = deltaA;
-  BCOPY(new_seq, cp, deltaS);
+  memcpy(cp, new_seq, deltaS);
   INCR(sls_compressed)
     return (TYPE_COMPRESSED_TCP);
 
@@ -384,7 +391,7 @@ found:
    * use on future compressed packets in the protocol field).
    */
 uncompressed:
-  BCOPY(ip, &cs->cs_ip, hlen);
+  memcpy(&cs->cs_ip, ip, hlen);
   ip->ip_p = cs->cs_id;
   comp->last_xmit = cs->cs_id;
   return (TYPE_UNCOMPRESSED_TCP);
@@ -424,7 +431,7 @@ sl_uncompress_tcp(u_char ** bufp,
     hlen += THOFFSET(th) << 2;
     if (hlen > MAX_HDR)
       goto bad;
-    BCOPY(ip, &cs->cs_ip, hlen);
+    memcpy(&cs->cs_ip, ip, hlen);
     cs->cs_ip.ip_sum = 0;
     cs->cs_hlen = hlen;
     INCR(sls_uncompressedin)
@@ -534,7 +541,7 @@ sl_uncompress_tcp(u_char ** bufp,
 #ifdef notdef
   if ((int) cp & 3) {
     if (len > 0)
-      (void) ovbcopy(cp, (caddr_t) ((int) cp & ~3), len);
+      (void) bcopy(cp, (caddr_t) ((int) cp & ~3), len);
     cp = (u_char *) ((int) cp & ~3);
   }
 #endif
@@ -542,7 +549,7 @@ sl_uncompress_tcp(u_char ** bufp,
   cp -= cs->cs_hlen;
   len += cs->cs_hlen;
   cs->cs_ip.ip_len = htons(len);
-  BCOPY(&cs->cs_ip, cp, cs->cs_hlen);
+  memcpy(cp, &cs->cs_ip, cs->cs_hlen);
   *bufp = cp;
 
   /* recompute the ip header checksum */

@@ -17,19 +17,28 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.29 1997/10/07 00:56:56 brian Exp $
+ * $Id: ipcp.c,v 1.30 1997/10/17 00:20:30 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
  */
-#include <sys/types.h>
-#include <netdb.h>
+#include <sys/param.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <netdb.h>
+
 #include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "lcpproto.h"
 #include "lcp.h"
@@ -38,22 +47,21 @@
 #include "os.h"
 #include "phase.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
-
-extern void VjInit(int);
-extern void PutConfValue();
-extern void Prompt();
-extern struct in_addr ifnetmask;
-
-struct ipcpstate IpcpInfo;
-struct in_range DefMyAddress, DefHisAddress;
-struct in_addr TriggerAddress;
-int HaveTriggerAddress;
+#include "vjcomp.h"
 
 #ifndef NOMSEXT
-struct in_addr ns_entries[2], nbns_entries[2];
-
+struct in_addr ns_entries[2];
+struct in_addr nbns_entries[2];
 #endif
+
+struct ipcpstate IpcpInfo;
+struct in_range  DefMyAddress;
+struct in_range  DefHisAddress;
+struct in_addr   TriggerAddress;
+int HaveTriggerAddress;
+struct pppTimer IpcpReportTimer;
 
 static void IpcpSendConfigReq(struct fsm *);
 static void IpcpSendTerminateAck(struct fsm *);
@@ -64,8 +72,8 @@ static void IpcpLayerFinish(struct fsm *);
 static void IpcpLayerUp(struct fsm *);
 static void IpcpLayerDown(struct fsm *);
 static void IpcpInitRestartCounter(struct fsm *);
-
-struct pppTimer IpcpReportTimer;
+static int  IpcpOctetsIn(void);
+static int  IpcpOctetsOut(void);
 
 static int lastInOctets, lastOutOctets;
 static int StartingIpIn, StartingIpOut;
@@ -165,14 +173,14 @@ IpcpDefAddress()
   struct hostent *hp;
   char name[200];
 
-  bzero(&DefMyAddress, sizeof(DefMyAddress));
-  bzero(&DefHisAddress, sizeof(DefHisAddress));
+  memset(&DefMyAddress, '\0', sizeof(DefMyAddress));
+  memset(&DefHisAddress, '\0', sizeof(DefHisAddress));
   TriggerAddress.s_addr = 0;
   HaveTriggerAddress = 0;
   if (gethostname(name, sizeof(name)) == 0) {
     hp = gethostbyname(name);
     if (hp && hp->h_addrtype == AF_INET) {
-      bcopy(hp->h_addr, (char *) &DefMyAddress.ipaddr.s_addr, hp->h_length);
+      memcpy(&DefMyAddress.ipaddr.s_addr, hp->h_addr, hp->h_length);
     }
   }
 }
@@ -183,7 +191,7 @@ IpcpInit()
   struct ipcpstate *icp = &IpcpInfo;
 
   FsmInit(&IpcpFsm);
-  bzero(icp, sizeof(struct ipcpstate));
+  memset(icp, '\0', sizeof(struct ipcpstate));
   if ((mode & MODE_DEDICATED) && !dstsystem) {
     icp->want_ipaddr.s_addr = icp->his_ipaddr.s_addr = 0;
   } else {
@@ -264,7 +272,7 @@ IpcpLayerFinish(struct fsm * fp)
   NewPhase(PHASE_TERMINATE);
 }
 
-int
+static int
 IpcpOctetsIn()
 {
   return ipInOctets < StartingIpIn ?
@@ -272,7 +280,7 @@ IpcpOctetsIn()
     ipInOctets - StartingIpIn;
 }
 
-int
+static int
 IpcpOctetsOut()
 {
   return ipOutOctets < StartingIpOut ?
@@ -381,13 +389,13 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	   * If destination address is not acceptable, insist to use what we
 	   * want to use.
 	   */
-	  bcopy(cp, nakp, 2);
-	  bcopy(&IpcpInfo.his_ipaddr.s_addr, nakp + 2, length);
+	  memcpy(nakp, cp, 2);
+	  memcpy(nakp+2, &IpcpInfo.his_ipaddr.s_addr, length);
 	  nakp += length;
 	  break;
 	}
 	IpcpInfo.his_ipaddr = ipaddr;
-	bcopy(cp, ackp, length);
+	memcpy(ackp, cp, length);
 	ackp += length;
 	break;
       case MODE_NAK:
@@ -415,7 +423,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
       switch (mode) {
       case MODE_REQ:
 	if (!Acceptable(ConfVjcomp)) {
-	  bcopy(cp, rejp, length);
+	  memcpy(rejp, cp, length);
 	  rejp += length;
 	} else {
 	  pcomp = (struct compreq *) (cp + 2);
@@ -425,12 +433,12 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	      LogPrintf(LogWARN, "Peer is speaking RFC1172 compression protocol !\n");
 	      IpcpInfo.heis1172 = 1;
 	      IpcpInfo.his_compproto = compproto;
-	      bcopy(cp, ackp, length);
+	      memcpy(ackp, cp, length);
 	      ackp += length;
 	    } else {
-	      bcopy(cp, nakp, 2);
+	      memcpy(nakp, cp, 2);
 	      pcomp->proto = htons(PROTO_VJCOMP);
-	      bcopy(&pcomp, nakp + 2, 2);
+	      memcpy(nakp+2, &pcomp, 2);
 	      nakp += length;
 	    }
 	    break;
@@ -439,19 +447,19 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 		&& pcomp->slots < MAX_STATES && pcomp->slots > 2) {
 	      IpcpInfo.his_compproto = compproto;
 	      IpcpInfo.heis1172 = 0;
-	      bcopy(cp, ackp, length);
+	      memcpy(ackp, cp, length);
 	      ackp += length;
 	    } else {
-	      bcopy(cp, nakp, 2);
+	      memcpy(nakp, cp, 2);
 	      pcomp->proto = htons(PROTO_VJCOMP);
 	      pcomp->slots = MAX_STATES - 1;
 	      pcomp->compcid = 0;
-	      bcopy(&pcomp, nakp + 2, sizeof(pcomp));
+	      memcpy(nakp+2, &pcomp, sizeof(pcomp));
 	      nakp += length;
 	    }
 	    break;
 	  default:
-	    bcopy(cp, rejp, length);
+	    memcpy(rejp, cp, length);
 	    rejp += length;
 	    break;
 	  }
@@ -479,7 +487,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
       case MODE_REQ:
 	IpcpInfo.his_ipaddr = ipaddr;
 	IpcpInfo.want_ipaddr = dstipaddr;
-	bcopy(cp, ackp, length);
+	memcpy(ackp, cp, length);
 	ackp += length;
 	break;
       case MODE_NAK:
@@ -505,7 +513,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
       if (!Enabled(ConfMSExt)) {
 	LogPrintf(LogIPCP, "MS NS req - rejected - msext disabled\n");
 	IpcpInfo.my_reject |= (1 << type);
-	bcopy(cp, rejp, length);
+	memcpy(rejp, cp, length);
 	rejp += length;
 	break;
       }
@@ -520,12 +528,12 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	   * So the client has got the DNS stuff wrong (first request) so
 	   * we'll tell 'em how it is
 	   */
-	  bcopy(cp, nakp, 2);	/* copy first two (type/length) */
+	  memcpy(nakp, cp, 2);	/* copy first two (type/length) */
 	  LogPrintf(LogIPCP, "MS NS req %d:%s->%s - nak\n",
 		    type,
 		    inet_ntoa(dnsstuff),
 		    inet_ntoa(ms_info_req));
-	  bcopy(&ms_info_req, nakp + 2, length);
+	  memcpy(nakp+2, &ms_info_req, length);
 	  nakp += length;
 	  break;
 	}
@@ -537,7 +545,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	LogPrintf(LogIPCP, "MS NS req %d:%s ok - ack\n",
 		  type,
 		  inet_ntoa(ms_info_req));
-	bcopy(cp, ackp, length);
+	memcpy(ackp, cp, length);
 	ackp += length;
 	break;
       case MODE_NAK:		/* what does this mean?? */
@@ -554,7 +562,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
       if (!Enabled(ConfMSExt)) {
 	LogPrintf(LogIPCP, "MS NBNS req - rejected - msext disabled\n");
 	IpcpInfo.my_reject |= (1 << type);
-	bcopy(cp, rejp, length);
+	memcpy(rejp, cp, length);
 	rejp += length;
 	break;
       }
@@ -564,8 +572,8 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	dnsstuff.s_addr = *lp;
 	ms_info_req.s_addr = nbns_entries[((type - TY_PRIMARY_NBNS) ? 1 : 0)].s_addr;
 	if (dnsstuff.s_addr != ms_info_req.s_addr) {
-	  bcopy(cp, nakp, 2);
-	  bcopy(&ms_info_req.s_addr, nakp + 2, length);
+	  memcpy(nakp, cp, 2);
+	  memcpy(nakp+2, &ms_info_req.s_addr, length);
 	  LogPrintf(LogIPCP, "MS NBNS req %d:%s->%s - nak\n",
 		    type,
 		    inet_ntoa(dnsstuff),
@@ -576,7 +584,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	LogPrintf(LogIPCP, "MS NBNS req %d:%s ok - ack\n",
 		  type,
 		  inet_ntoa(ms_info_req));
-	bcopy(cp, ackp, length);
+	memcpy(ackp, cp, length);
 	ackp += length;
 	break;
       case MODE_NAK:
@@ -592,7 +600,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 
     default:
       IpcpInfo.my_reject |= (1 << type);
-      bcopy(cp, rejp, length);
+      memcpy(rejp, cp, length);
       rejp += length;
       break;
     }
