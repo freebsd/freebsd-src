@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -16,7 +17,7 @@ divert(-1)
 #
 # Notes:
 # - SGI's /etc/sendmail.cf defines also 'u' for local mailer flags -- you
-#   perhaps don't want it.
+#   perhaps don't want it.  They have begun removing this flag in IRIX 6.5.
 # - Perhaps is should also add define(`LOCAL_MAILER_CHARSET', iso-8859-1)
 #   put some Asian sites may prefer otherwise -- or perhaps not.
 # - SGI's /etc/sendmail.cf seems use: A=mail -s -d $u
@@ -28,13 +29,11 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)irix6.m4	8.8 (Berkeley) 10/6/1998')
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', Ehmu9)')dnl
+VERSIONID(`$Id: irix6.m4,v 8.14 1999/08/05 20:35:55 gshapiro Exp $')
+_DEFIFNOT(`LOCAL_MAILER_FLAGS', `Ehmu9')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `mail -s -d $u')')dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /var/spool/mqueue)')dnl
-define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/etc/aliases'))dnl
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/var/sendmail.st'))')dnl
-ifdef(`HELP_FILE',, `define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/etc/sendmail.hf'))')dnl
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', `/var/sendmail.st')')dnl
 define(`confDEF_USER_ID', `998:998')dnl
 define(`confTIME_ZONE', USE_TZ)dnl
 define(`confEBINDIR', `/usr/lib')dnl

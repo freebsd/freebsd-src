@@ -9,14 +9,16 @@
  * Change directory to "netinfo" and get the file internet.listing
  * The file is updated monthly.
  *
- * Feed the output of this program to "makemap hash /etc/bitdomain.db"
+ * Feed the output of this program to "makemap hash /etc/mail/bitdomain.db"
  * to create the table used by the "FEATURE(bitdomain)" config file macro.
  * If your sendmail does not have the db library compiled in, you can instead
- * use "makemap dbm /etc/bitdomain" and
- * "FEATURE(bitdomain,`dbm -o /etc/bitdomain')"
+ * use "makemap dbm /etc/mail/bitdomain" and
+ * "FEATURE(bitdomain,`dbm -o /etc/mail/bitdomain')"
  *
  * The bitdomain table should be rebuilt monthly.
  */
+
+/* $FreeBSD$ */
 
 #include <stdio.h>
 #include <errno.h>
@@ -187,7 +189,7 @@ char *domainlen;
 	    case NO_DATA:
 		err = "registered in DNS, but not mailable";
 		break;
-		
+
 	    default:
 		err = "unknown nameserver error";
 		break;
@@ -210,7 +212,7 @@ valhost(host, hbsize)
 	int hbsize;
 {
 	register u_char *eom, *ap;
-	register int n; 
+	register int n;
 	HEADER *hp;
 	querybuf answer;
 	int ancount, qdcount;
@@ -406,4 +408,4 @@ finish()
 	}
     }
 }
-	    
+

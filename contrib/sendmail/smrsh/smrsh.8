@@ -1,4 +1,5 @@
-.\" Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+.\" Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+.\"	 All rights reserved.
 .\" Copyright (c) 1993 Eric P. Allman.  All rights reserved.
 .\" Copyright (c) 1993
 .\"     The Regents of the University of California.  All rights reserved.
@@ -8,7 +9,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     @(#)smrsh.8	8.7 (Berkeley) 5/19/1998
+.\"     $Id: smrsh.8,v 8.11 1999/06/09 16:51:07 ca Exp $
+.\"
+.\" $FreeBSD$
 .\"
 .TH SMRSH 8 11/02/93
 .SH NAME
@@ -38,11 +41,14 @@ Briefly,
 .I smrsh
 limits programs to be in the directory
 /usr/libexec/sm.bin,
-allowing the system administrator to choose the set of acceptable commands.
+allowing the system administrator to choose the set of acceptable commands,
+and to the shell builtin commands ``exec'', ``exit'', and ``echo''.
 It also rejects any commands with the characters
-`\`', `<', `>', `|', `;', `&', `$', `(', `)', `\er' (carriage return),
+`\`', `<', `>', `;', `$', `(', `)', `\er' (carriage return),
 or `\en' (newline)
 on the command line to prevent ``end run'' attacks.
+It allows ``||'' and ``&&'' to enable commands like:
+``"|exec /usr/local/bin/procmail -f- /etc/procmailrcs/user || exit 75"''
 .PP
 Initial pathnames on programs are stripped,
 so forwarding to ``/usr/bin/vacation'',

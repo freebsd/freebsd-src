@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,11 +12,15 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.168 (Berkeley) 1/21/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: util.c,v 8.225.2.1.2.8 2000/07/03 18:28:56 geir Exp $";
+#endif /* ! lint */
 
-# include "sendmail.h"
-# include <sysexits.h>
+#include <sendmail.h>
+#include <sysexits.h>
+
+
+static void	readtimeout __P((time_t));
+
 /*
 **  STRIPQUOTES -- Strip quotes & quote bits from a string.
 **
@@ -30,9 +35,6 @@ static char sccsid[] = "@(#)util.c	8.168 (Berkeley) 1/21/1999";
 **
 **	Side Effects:
 **		none.
-**
-**	Called By:
-**		deliver
 */
 
 void
@@ -91,7 +93,7 @@ addquotes(s)
 		if (c == '\\' || c == '"')
 			len++;
 	}
-	
+
 	q = r = xalloc(len + 3);
 	p = s;
 
@@ -176,7 +178,7 @@ rfc822_string(s)
 /*
 **  SHORTEN_RFC822_STRING -- Truncate and rebalance an RFC822 string
 **
-**	Arbitratily shorten (in place) an RFC822 string and rebalance
+**	Arbitrarily shorten (in place) an RFC822 string and rebalance
 **	comments and quotes.
 **
 **	Parameters:
@@ -202,7 +204,7 @@ shorten_rfc822_string(string, length)
 	size_t slen;
 	int parencount = 0;
 	char *ptr = string;
-	
+
 	/*
 	**  If have to rebalance an already short enough string,
 	**  need to do it within allocated space.
@@ -231,14 +233,14 @@ shorten_rfc822_string(string, length)
 			if (--parencount < 0)
 				parencount = 0;
 		}
-		
+
 		/* Inside a comment, quotes don't matter */
 		if (parencount <= 0 && *ptr == '"')
 			quoted = !quoted;
 
 increment:
 		/* Check for sufficient space for next character */
-		if (length - (ptr - string) <= ((backslash ? 1 : 0) +
+		if (length - (ptr - string) <= (size_t) ((backslash ? 1 : 0) +
 						parencount +
 						(quoted ? 1 : 0)))
 		{
@@ -299,12 +301,12 @@ increment:
 char *
 find_character(string, character)
 	char *string;
-	char character;
+	int character;
 {
 	bool backslash = FALSE;
 	bool quoted = FALSE;
 	int parencount = 0;
-		
+
 	while (string != NULL && *string != '\0')
 	{
 		if (backslash)
@@ -320,25 +322,25 @@ find_character(string, character)
 		  case '\\':
 			backslash = TRUE;
 			break;
-			
+
 		  case '(':
 			if (!quoted)
 				parencount++;
 			break;
-			
+
 		  case ')':
 			if (--parencount < 0)
 				parencount = 0;
 			break;
 		}
-		
+
 		/* Inside a comment, nothing matters */
 		if (parencount > 0)
 		{
 			string++;
 			continue;
 		}
-		
+
 		if (*string == '"')
 			quoted = !quoted;
 		else if (*string == character && !quoted)
@@ -381,7 +383,7 @@ xalloc(sz)
 		syserr("!Out of memory!!");
 		/* exit(EX_UNAVAILABLE); */
 	}
-	return (p);
+	return p;
 }
 /*
 **  COPYPLIST -- copy list of pointers.
@@ -416,7 +418,7 @@ copyplist(list, copycont)
 	vp++;
 
 	newvp = (char **) xalloc((int) (vp - list) * sizeof *vp);
-	bcopy((char *) list, (char *) newvp, (int) (vp - list) * sizeof *vp);
+	memmove((char *) newvp, (char *) list, (int) (vp - list) * sizeof *vp);
 
 	if (copycont)
 	{
@@ -424,13 +426,13 @@ copyplist(list, copycont)
 			*vp = newstr(*vp);
 	}
 
-	return (newvp);
+	return newvp;
 }
 /*
 **  COPYQUEUE -- copy address queue.
 **
 **	This routine is the equivalent of newstr for address queues
-**	addresses marked with QDONTSEND aren't copied
+**	addresses marked as QS_IS_DEAD() aren't copied
 **
 **	Parameters:
 **		addr -- list of address structures to copy.
@@ -452,9 +454,9 @@ copyqueue(addr)
 
 	while (addr != NULL)
 	{
-		if (!bitset(QDONTSEND, addr->q_flags))
+		if (!QS_IS_DEAD(addr->q_state))
 		{
-			newaddr = (ADDRESS *) xalloc(sizeof(ADDRESS));
+			newaddr = (ADDRESS *) xalloc(sizeof *newaddr);
 			STRUCTCOPY(*addr, *newaddr);
 			*tail = newaddr;
 			tail = &newaddr->q_next;
@@ -462,8 +464,79 @@ copyqueue(addr)
 		addr = addr->q_next;
 	}
 	*tail = NULL;
-	
+
 	return ret;
+}
+/*
+**  LOG_SENDMAIL_PID -- record sendmail pid and command line.
+**
+**	Parameters:
+**		e -- the current envelope.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		writes pidfile.
+*/
+
+void
+log_sendmail_pid(e)
+	ENVELOPE *e;
+{
+	long sff;
+	FILE *pidf;
+	char pidpath[MAXPATHLEN + 1];
+
+	/* write the pid to the log file for posterity */
+	sff = SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT;
+	if (TrustedUid != 0 && RealUid == TrustedUid)
+		sff |= SFF_OPENASROOT;
+	expand(PidFile, pidpath, sizeof pidpath, e);
+	pidf = safefopen(pidpath, O_WRONLY|O_TRUNC, 0644, sff);
+	if (pidf == NULL)
+	{
+		sm_syslog(LOG_ERR, NOQID, "unable to write %s", pidpath);
+	}
+	else
+	{
+		extern char *CommandLineArgs;
+
+		/* write the process id on line 1 */
+		fprintf(pidf, "%ld\n", (long) getpid());
+
+		/* line 2 contains all command line flags */
+		fprintf(pidf, "%s\n", CommandLineArgs);
+
+		/* flush and close */
+		(void) fclose(pidf);
+	}
+}
+/*
+**  SET_DELIVERY_MODE -- set and record the delivery mode
+**
+**	Parameters:
+**		mode -- delivery mode
+**		e -- the current envelope.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		sets $&{deliveryMode} macro
+*/
+
+void
+set_delivery_mode(mode, e)
+	int mode;
+	ENVELOPE *e;
+{
+	char buf[2];
+
+	e->e_sendmode = (char)mode;
+	buf[0] = (char)mode;
+	buf[1] = '\0';
+	define(macid("{deliveryMode}", NULL), newstr(buf), e);
 }
 /*
 **  PRINTAV -- print argument vector.
@@ -485,7 +558,7 @@ printav(av)
 	while (*av != NULL)
 	{
 		if (tTd(0, 44))
-			printf("\n\t%08lx=", (u_long) *av);
+			dprintf("\n\t%08lx=", (u_long) *av);
 		else
 			(void) putchar(' ');
 		xputs(*av++);
@@ -507,9 +580,9 @@ printav(av)
 
 char
 lower(c)
-	register char c;
+	register int c;
 {
-	return((isascii(c) && isupper(c)) ? tolower(c) : c);
+	return ((isascii(c) && isupper(c)) ? tolower(c) : c);
 }
 /*
 **  XPUTS -- put string doing control escapes.
@@ -560,12 +633,12 @@ xputs(s)
 			{
 				printf("%s$", TermEscape.te_rv_on);
 				if (c == MACRODEXPAND)
-					putchar('&');
+					(void) putchar('&');
 				shiftout = TRUE;
 				if (*s == '\0')
 					continue;
 				if (strchr("=~&?", *s) != NULL)
-					putchar(*s++);
+					(void) putchar(*s++);
 				if (bitset(0200, *s))
 					printf("{%s}", macname(*s++ & 0377));
 				else
@@ -601,7 +674,7 @@ xputs(s)
   printchar:
 		if (isprint(c))
 		{
-			putchar(c);
+			(void) putchar(c);
 			continue;
 		}
 
@@ -652,9 +725,6 @@ xputs(s)
 **
 **	Side Effects:
 **		String pointed to by p is translated to lower case.
-**
-**	Called By:
-**		parse
 */
 
 void
@@ -677,7 +747,7 @@ makelower(p)
 **
 **	Parameters:
 **		p -- name to build.
-**		login -- the login name of this user (for &).
+**		user -- the login name of this user (for &).
 **		buf -- place to put the result.
 **		buflen -- length of buf.
 **
@@ -689,9 +759,9 @@ makelower(p)
 */
 
 void
-buildfname(gecos, login, buf, buflen)
+buildfname(gecos, user, buf, buflen)
 	register char *gecos;
-	char *login;
+	char *user;
 	char *buf;
 	int buflen;
 {
@@ -707,13 +777,13 @@ buildfname(gecos, login, buf, buflen)
 		if (bp >= &buf[buflen - 1])
 		{
 			/* buffer overflow -- just use login name */
-			snprintf(buf, buflen, "%s", login);
+			snprintf(buf, buflen, "%s", user);
 			return;
 		}
 		if (*p == '&')
 		{
 			/* interpolate full name */
-			snprintf(bp, buflen - (bp - buf), "%s", login);
+			snprintf(bp, buflen - (bp - buf), "%s", user);
 			*bp = toupper(*bp);
 			bp += strlen(bp);
 		}
@@ -810,9 +880,9 @@ putxline(l, len, mci, pxflags)
 	register MCI *mci;
 	int pxflags;
 {
+	bool dead = FALSE;
 	register char *p, *end;
 	int slop = 0;
-	size_t eol_len = strlen(mci->mci_mailer->m_eol);
 
 	/* strip out 0200 bits -- these can look like TELNET protocol */
 	if (bitset(MCIF_7BIT, mci->mci_flags) ||
@@ -846,9 +916,8 @@ putxline(l, len, mci, pxflags)
 			if (l[0] == '.' && slop == 0 &&
 			    bitnset(M_XDOT, mci->mci_mailer->m_flags))
 			{
-				(void) putc('.', mci->mci_out);
-				if (!bitset(MCIF_INHEADER, mci->mci_flags))
-					mci->mci_contentlen++;
+				if (putc('.', mci->mci_out) == EOF)
+					dead = TRUE;
 				if (TrafficLogFile != NULL)
 					(void) putc('.', TrafficLogFile);
 			}
@@ -857,44 +926,61 @@ putxline(l, len, mci, pxflags)
 				 strncmp(l, "From ", 5) == 0 &&
 				 bitnset(M_ESCFROM, mci->mci_mailer->m_flags))
 			{
-				(void) putc('>', mci->mci_out);
-				if (!bitset(MCIF_INHEADER, mci->mci_flags))
-					mci->mci_contentlen++;
+				if (putc('>', mci->mci_out) == EOF)
+					dead = TRUE;
 				if (TrafficLogFile != NULL)
 					(void) putc('>', TrafficLogFile);
 			}
+			if (dead)
+				break;
+
 			while (l < q)
 			{
-				(void) putc(*l++, mci->mci_out);
-				if (!bitset(MCIF_INHEADER, mci->mci_flags))
-					mci->mci_contentlen++;
+				if (putc((unsigned char) *l++, mci->mci_out) ==
+				    EOF)
+				{
+					dead = TRUE;
+					break;
+				}
+
+				/* record progress for DATA timeout */
+				DataProgress = TRUE;
 			}
-			(void) putc('!', mci->mci_out);
-			if (!bitset(MCIF_INHEADER, mci->mci_flags))
-				mci->mci_contentlen++;
-			fputs(mci->mci_mailer->m_eol, mci->mci_out);
-			if (!bitset(MCIF_INHEADER, mci->mci_flags))
-				mci->mci_contentlen += eol_len;
-			(void) putc(' ', mci->mci_out);
-			if (!bitset(MCIF_INHEADER, mci->mci_flags))
-				mci->mci_contentlen++;
+			if (dead)
+				break;
+
+			if (putc('!', mci->mci_out) == EOF ||
+			    fputs(mci->mci_mailer->m_eol,
+				  mci->mci_out) == EOF ||
+			    putc(' ', mci->mci_out) == EOF)
+			{
+				dead = TRUE;
+				break;
+			}
+
+			/* record progress for DATA timeout */
+			DataProgress = TRUE;
+
 			if (TrafficLogFile != NULL)
 			{
 				for (l = l_base; l < q; l++)
-					(void) putc(*l, TrafficLogFile);
+					(void) putc((unsigned char)*l,
+						    TrafficLogFile);
 				fprintf(TrafficLogFile, "!\n%05d >>>  ",
 					(int) getpid());
 			}
 			slop = 1;
 		}
 
+		if (dead)
+			break;
+
 		/* output last part */
 		if (l[0] == '.' && slop == 0 &&
 		    bitnset(M_XDOT, mci->mci_mailer->m_flags))
 		{
-			(void) putc('.', mci->mci_out);
-			if (!bitset(MCIF_INHEADER, mci->mci_flags))
-				mci->mci_contentlen++;
+			if (putc('.', mci->mci_out) == EOF)
+				break;
 			if (TrafficLogFile != NULL)
 				(void) putc('.', TrafficLogFile);
 		}
@@ -903,37 +989,45 @@ putxline(l, len, mci, pxflags)
 			 strncmp(l, "From ", 5) == 0 &&
 			 bitnset(M_ESCFROM, mci->mci_mailer->m_flags))
 		{
-			(void) putc('>', mci->mci_out);
-			if (!bitset(MCIF_INHEADER, mci->mci_flags))
-				mci->mci_contentlen++;
+			if (putc('>', mci->mci_out) == EOF)
+				break;
 			if (TrafficLogFile != NULL)
 				(void) putc('>', TrafficLogFile);
 		}
 		for ( ; l < p; ++l)
 		{
 			if (TrafficLogFile != NULL)
-				(void) putc(*l, TrafficLogFile);
-			(void) putc(*l, mci->mci_out);
-			if (!bitset(MCIF_INHEADER, mci->mci_flags))
-				mci->mci_contentlen++;
+				(void) putc((unsigned char)*l, TrafficLogFile);
+			if (putc((unsigned char) *l, mci->mci_out) == EOF)
+			{
+				dead = TRUE;
+				break;
+			}
+
+			/* record progress for DATA timeout */
+			DataProgress = TRUE;
 		}
+		if (dead)
+			break;
+
 		if (TrafficLogFile != NULL)
 			(void) putc('\n', TrafficLogFile);
-		fputs(mci->mci_mailer->m_eol, mci->mci_out);
-		if (!bitset(MCIF_INHEADER, mci->mci_flags))
-			mci->mci_contentlen += eol_len;
+		if (fputs(mci->mci_mailer->m_eol, mci->mci_out) == EOF)
+			break;
 		if (l < end && *l == '\n')
 		{
 			if (*++l != ' ' && *l != '\t' && *l != '\0' &&
 			    bitset(PXLF_HEADER, pxflags))
 			{
-				(void) putc(' ', mci->mci_out);
-				if (!bitset(MCIF_INHEADER, mci->mci_flags))
-					mci->mci_contentlen++;
+				if (putc(' ', mci->mci_out) == EOF)
+					break;
 				if (TrafficLogFile != NULL)
 					(void) putc(' ', TrafficLogFile);
 			}
 		}
+
+		/* record progress for DATA timeout */
+		DataProgress = TRUE;
 	} while (l < end);
 }
 /*
@@ -957,42 +1051,14 @@ xunlink(f)
 
 	if (LogLevel > 98)
 		sm_syslog(LOG_DEBUG, CurEnv->e_id,
-			"unlink %s",
-			f);
+			  "unlink %s",
+			  f);
 
 	i = unlink(f);
 	if (i < 0 && LogLevel > 97)
 		sm_syslog(LOG_DEBUG, CurEnv->e_id,
-			"%s: unlink-fail %d",
-			f, errno);
-}
-/*
-**  XFCLOSE -- close a file, doing logging as appropriate.
-**
-**	Parameters:
-**		fp -- file pointer for the file to close
-**		a, b -- miscellaneous crud to print for debugging
-**
-**	Returns:
-**		none.
-**
-**	Side Effects:
-**		fp is closed.
-*/
-
-void
-xfclose(fp, a, b)
-	FILE *fp;
-	char *a, *b;
-{
-	if (tTd(53, 99))
-		printf("xfclose(%lx) %s %s\n", (u_long) fp, a, b);
-#if XDEBUG
-	if (fileno(fp) == 1)
-		syserr("xfclose(%s %s): fd = 1", a, b);
-#endif
-	if (fclose(fp) < 0 && tTd(53, 99))
-		printf("xfclose FAILURE: %s\n", errstring(errno));
+			  "%s: unlink-fail %d",
+			  f, errno);
 }
 /*
 **  SFGETS -- "safe" fgets -- times out and ignores random interrupts.
@@ -1013,8 +1079,8 @@ xfclose(fp, a, b)
 **		none.
 */
 
+
 static jmp_buf	CtxReadTimeout;
-static void	readtimeout __P((time_t));
 
 char *
 sfgets(buf, siz, fp, timeout, during)
@@ -1041,18 +1107,18 @@ sfgets(buf, siz, fp, timeout, during)
 		{
 			if (LogLevel > 1)
 				sm_syslog(LOG_NOTICE, CurEnv->e_id,
-				       "timeout waiting for input from %.100s during %s",
-				       CurHostName ? CurHostName : "local",
-				       during);
+					  "timeout waiting for input from %.100s during %s",
+					  CurHostName ? CurHostName : "local",
+					  during);
 			buf[0] = '\0';
 #if XDEBUG
 			checkfd012(during);
-#endif
+#endif /* XDEBUG */
 			if (TrafficLogFile != NULL)
 				fprintf(TrafficLogFile, "%05d <<< [TIMEOUT]\n",
 					(int) getpid());
 			errno = 0;
-			return (NULL);
+			return NULL;
 		}
 		ev = setevent(timeout, readtimeout, 0);
 	}
@@ -1081,7 +1147,7 @@ sfgets(buf, siz, fp, timeout, during)
 		if (TrafficLogFile != NULL)
 			fprintf(TrafficLogFile, "%05d <<< [EOF]\n", (int) getpid());
 		errno = save_errno;
-		return (NULL);
+		return NULL;
 	}
 	if (TrafficLogFile != NULL)
 		fprintf(TrafficLogFile, "%05d <<< %s", (int) getpid(), buf);
@@ -1101,7 +1167,7 @@ sfgets(buf, siz, fp, timeout, during)
 			}
 		}
 	}
-	return (buf);
+	return buf;
 }
 
 /* ARGSUSED */
@@ -1165,7 +1231,7 @@ fgetfolded(buf, n, f)
 			else
 				nn += MEMCHUNKSIZE;
 			nbp = xalloc(nn);
-			bcopy(bp, nbp, p - bp);
+			memmove(nbp, bp, p - bp);
 			p = &nbp[p - bp];
 			if (bp != buf)
 				free(bp);
@@ -1184,11 +1250,11 @@ fgetfolded(buf, n, f)
 		}
 	}
 	if (p == bp)
-		return (NULL);
+		return NULL;
 	if (p[-1] == '\n')
 		p--;
 	*p = '\0';
-	return (bp);
+	return bp;
 }
 /*
 **  CURTIME -- return current time.
@@ -1209,7 +1275,7 @@ curtime()
 	auto time_t t;
 
 	(void) time(&t);
-	return (t);
+	return t;
 }
 /*
 **  ATOBOOL -- convert a string representation to boolean.
@@ -1232,8 +1298,8 @@ atobool(s)
 	register char *s;
 {
 	if (s == NULL || *s == '\0' || strchr("tTyY", *s) != NULL)
-		return (TRUE);
-	return (FALSE);
+		return TRUE;
+	return FALSE;
 }
 /*
 **  ATOOCT -- convert a string representation to octal.
@@ -1257,7 +1323,7 @@ atooct(s)
 
 	while (*s >= '0' && *s <= '7')
 		i = (i << 3) | (*s++ - '0');
-	return (i);
+	return i;
 }
 /*
 **  BITINTERSECT -- tell if two bitmaps intersect
@@ -1275,15 +1341,15 @@ atooct(s)
 
 bool
 bitintersect(a, b)
-	BITMAP a;
-	BITMAP b;
+	BITMAP256 a;
+	BITMAP256 b;
 {
 	int i;
 
 	for (i = BITMAPBYTES / sizeof (int); --i >= 0; )
 		if ((a[i] & b[i]) != 0)
-			return (TRUE);
-	return (FALSE);
+			return TRUE;
+	return FALSE;
 }
 /*
 **  BITZEROP -- tell if a bitmap is all zero
@@ -1301,14 +1367,14 @@ bitintersect(a, b)
 
 bool
 bitzerop(map)
-	BITMAP map;
+	BITMAP256 map;
 {
 	int i;
 
 	for (i = BITMAPBYTES / sizeof (int); --i >= 0; )
 		if (map[i] != 0)
-			return (FALSE);
-	return (TRUE);
+			return FALSE;
+	return TRUE;
 }
 /*
 **  STRCONTAINEDIN -- tell if one string is contained in another
@@ -1393,7 +1459,7 @@ checkfdopen(fd, where)
 		syserr("checkfdopen(%d): %s not open as expected!", fd, where);
 		printopenfds(TRUE);
 	}
-#endif
+#endif /* XDEBUG */
 }
 /*
 **  CHECKFDS -- check for new or missing file descriptors
@@ -1416,7 +1482,7 @@ checkfds(where)
 	register int fd;
 	bool printhdr = TRUE;
 	int save_errno = errno;
-	static BITMAP baseline;
+	static BITMAP256 baseline;
 	extern int DtableSize;
 
 	if (DtableSize > 256)
@@ -1447,8 +1513,8 @@ checkfds(where)
 		if (printhdr)
 		{
 			sm_syslog(LOG_DEBUG, CurEnv->e_id,
-				"%s: changed fds:",
-				where);
+				  "%s: changed fds:",
+				  where);
 			printhdr = FALSE;
 		}
 		dumpfd(fd, TRUE, TRUE);
@@ -1466,7 +1532,9 @@ checkfds(where)
 **		none.
 */
 
-#include <arpa/inet.h>
+#if NETINET || NETINET6
+# include <arpa/inet.h>
+#endif /* NETINET || NETINET6 */
 
 void
 printopenfds(logit)
@@ -1498,14 +1566,14 @@ dumpfd(fd, printclosed, logit)
 	char *hp;
 #ifdef S_IFSOCK
 	SOCKADDR sa;
-#endif
+#endif /* S_IFSOCK */
 	auto SOCKADDR_LEN_T slen;
 	int i;
 #if STAT64 > 0
 	struct stat64 st;
-#else
+#else /* STAT64 > 0 */
 	struct stat st;
-#endif
+#endif /* STAT64 > 0 */
 	char buf[200];
 
 	p = buf;
@@ -1515,9 +1583,9 @@ dumpfd(fd, printclosed, logit)
 	if (
 #if STAT64 > 0
 	    fstat64(fd, &st)
-#else
+#else /* STAT64 > 0 */
 	    fstat(fd, &st)
-#endif
+#endif /* STAT64 > 0 */
 	    < 0)
 	{
 		if (errno != EBADF)
@@ -1541,7 +1609,7 @@ dumpfd(fd, printclosed, logit)
 		p += strlen(p);
 	}
 
-	snprintf(p, SPACELEFT(buf, p), "mode=%o: ", st.st_mode);
+	snprintf(p, SPACELEFT(buf, p), "mode=%o: ", (int) st.st_mode);
 	p += strlen(p);
 	switch (st.st_mode & S_IFMT)
 	{
@@ -1549,15 +1617,29 @@ dumpfd(fd, printclosed, logit)
 	  case S_IFSOCK:
 		snprintf(p, SPACELEFT(buf, p), "SOCK ");
 		p += strlen(p);
+		memset(&sa, '\0', sizeof sa);
 		slen = sizeof sa;
 		if (getsockname(fd, &sa.sa, &slen) < 0)
-			snprintf(p, SPACELEFT(buf, p), "(%s)", errstring(errno));
+			snprintf(p, SPACELEFT(buf, p), "(%s)",
+				 errstring(errno));
 		else
 		{
 			hp = hostnamebyanyaddr(&sa);
-			if (sa.sa.sa_family == AF_INET)
+			if (hp == NULL)
+			{
+				/* EMPTY */
+				/* do nothing */
+			}
+# if NETINET
+			else if (sa.sa.sa_family == AF_INET)
 				snprintf(p, SPACELEFT(buf, p), "%s/%d",
-					hp, ntohs(sa.sin.sin_port));
+					 hp, ntohs(sa.sin.sin_port));
+# endif /* NETINET */
+# if NETINET6
+			else if (sa.sa.sa_family == AF_INET6)
+				snprintf(p, SPACELEFT(buf, p), "%s/%d",
+					 hp, ntohs(sa.sin6.sin6_port));
+# endif /* NETINET6 */
 			else
 				snprintf(p, SPACELEFT(buf, p), "%s", hp);
 		}
@@ -1570,14 +1652,26 @@ dumpfd(fd, printclosed, logit)
 		else
 		{
 			hp = hostnamebyanyaddr(&sa);
-			if (sa.sa.sa_family == AF_INET)
+			if (hp == NULL)
+			{
+				/* EMPTY */
+				/* do nothing */
+			}
+# if NETINET
+			else if (sa.sa.sa_family == AF_INET)
 				snprintf(p, SPACELEFT(buf, p), "%s/%d",
-					hp, ntohs(sa.sin.sin_port));
+					 hp, ntohs(sa.sin.sin_port));
+# endif /* NETINET */
+# if NETINET6
+			else if (sa.sa.sa_family == AF_INET6)
+				snprintf(p, SPACELEFT(buf, p), "%s/%d",
+					 hp, ntohs(sa.sin6.sin6_port));
+# endif /* NETINET6 */
 			else
 				snprintf(p, SPACELEFT(buf, p), "%s", hp);
 		}
 		break;
-#endif
+#endif /* S_IFSOCK */
 
 	  case S_IFCHR:
 		snprintf(p, SPACELEFT(buf, p), "CHR: ");
@@ -1594,36 +1688,40 @@ dumpfd(fd, printclosed, logit)
 		snprintf(p, SPACELEFT(buf, p), "FIFO: ");
 		p += strlen(p);
 		goto defprint;
-#endif
+#endif /* defined(S_IFIFO) && (!defined(S_IFSOCK) || S_IFIFO != S_IFSOCK) */
 
 #ifdef S_IFDIR
 	  case S_IFDIR:
 		snprintf(p, SPACELEFT(buf, p), "DIR: ");
 		p += strlen(p);
 		goto defprint;
-#endif
+#endif /* S_IFDIR */
 
 #ifdef S_IFLNK
 	  case S_IFLNK:
 		snprintf(p, SPACELEFT(buf, p), "LNK: ");
 		p += strlen(p);
 		goto defprint;
-#endif
+#endif /* S_IFLNK */
 
 	  default:
 defprint:
+		/*CONSTCOND*/
 		if (sizeof st.st_ino > sizeof (long))
 			snprintf(p, SPACELEFT(buf, p),
 				 "dev=%d/%d, ino=%s, nlink=%d, u/gid=%d/%d, ",
 				 major(st.st_dev), minor(st.st_dev),
 				 quad_to_string(st.st_ino),
-				 st.st_nlink, st.st_uid, st.st_gid);
+				 (int) st.st_nlink, (int) st.st_uid,
+				 (int) st.st_gid);
 		else
 			snprintf(p, SPACELEFT(buf, p),
-				"dev=%d/%d, ino=%lu, nlink=%d, u/gid=%d/%d, ",
-				major(st.st_dev), minor(st.st_dev),
-				(unsigned long) st.st_ino,
-				st.st_nlink, st.st_uid, st.st_gid);
+				 "dev=%d/%d, ino=%lu, nlink=%d, u/gid=%d/%d, ",
+				 major(st.st_dev), minor(st.st_dev),
+				 (unsigned long) st.st_ino,
+				 (int) st.st_nlink, (int) st.st_uid,
+				 (int) st.st_gid);
+		/*CONSTCOND*/
 		if (sizeof st.st_size > sizeof (long))
 			snprintf(p, SPACELEFT(buf, p), "size=%s",
 				 quad_to_string(st.st_size));
@@ -1636,7 +1734,7 @@ defprint:
 printit:
 	if (logit)
 		sm_syslog(LOG_DEBUG, CurEnv ? CurEnv->e_id : NULL,
-			"%.800s", buf);
+			  "%.800s", buf);
 	else
 		printf("%s\n", buf);
 }
@@ -1701,7 +1799,7 @@ prog_open(argv, pfd, e)
 {
 	int pid;
 	int i;
-	int saveerrno;
+	int save_errno;
 	int fdv[2];
 	char *p, *q;
 	char buf[MAXLINE + 1];
@@ -1716,34 +1814,37 @@ prog_open(argv, pfd, e)
 	if (pid < 0)
 	{
 		syserr("%s: cannot fork", argv[0]);
-		close(fdv[0]);
-		close(fdv[1]);
+		(void) close(fdv[0]);
+		(void) close(fdv[1]);
 		return -1;
 	}
 	if (pid > 0)
 	{
 		/* parent */
-		close(fdv[1]);
+		(void) close(fdv[1]);
 		*pfd = fdv[0];
 		return pid;
 	}
 
 	/* child -- close stdin */
-	close(0);
+	(void) close(0);
 
 	/* stdout goes back to parent */
-	close(fdv[0]);
+	(void) close(fdv[0]);
 	if (dup2(fdv[1], 1) < 0)
 	{
 		syserr("%s: cannot dup2 for stdout", argv[0]);
 		_exit(EX_OSERR);
 	}
-	close(fdv[1]);
+	(void) close(fdv[1]);
 
 	/* stderr goes to transcript if available */
 	if (e->e_xfp != NULL)
 	{
-		if (dup2(fileno(e->e_xfp), 2) < 0)
+		int xfd;
+
+		xfd = fileno(e->e_xfp);
+		if (xfd >= 0 && dup2(xfd, 2) < 0)
 		{
 			syserr("%s: cannot dup2 for stderr", argv[0]);
 			_exit(EX_OSERR);
@@ -1752,14 +1853,36 @@ prog_open(argv, pfd, e)
 
 	/* this process has no right to the queue file */
 	if (e->e_lockfp != NULL)
-		close(fileno(e->e_lockfp));
+		(void) close(fileno(e->e_lockfp));
+
+	/* chroot to the program mailer directory, if defined */
+	if (ProgMailer != NULL && ProgMailer->m_rootdir != NULL)
+	{
+		expand(ProgMailer->m_rootdir, buf, sizeof buf, e);
+		if (chroot(buf) < 0)
+		{
+			syserr("prog_open: cannot chroot(%s)", buf);
+			exit(EX_TEMPFAIL);
+		}
+		if (chdir("/") < 0)
+		{
+			syserr("prog_open: cannot chdir(/)");
+			exit(EX_TEMPFAIL);
+		}
+	}
 
 	/* run as default user */
 	endpwent();
 	if (setgid(DefGid) < 0 && geteuid() == 0)
+	{
 		syserr("prog_open: setgid(%ld) failed", (long) DefGid);
+		exit(EX_TEMPFAIL);
+	}
 	if (setuid(DefUid) < 0 && geteuid() == 0)
+	{
 		syserr("prog_open: setuid(%ld) failed", (long) DefUid);
+		exit(EX_TEMPFAIL);
+	}
 
 	/* run in some directory */
 	if (ProgMailer != NULL)
@@ -1790,22 +1913,22 @@ prog_open(argv, pfd, e)
 		register int j;
 
 		if ((j = fcntl(i, F_GETFD, 0)) != -1)
-			(void) fcntl(i, F_SETFD, j | 1);
+			(void) fcntl(i, F_SETFD, j | FD_CLOEXEC);
 	}
 
 	/* now exec the process */
-	execve(argv[0], (ARGV_T) argv, (ARGV_T) UserEnviron);
+	(void) execve(argv[0], (ARGV_T) argv, (ARGV_T) UserEnviron);
 
 	/* woops!  failed */
-	saveerrno = errno;
+	save_errno = errno;
 	syserr("%s: cannot exec", argv[0]);
-	if (transienterror(saveerrno))
+	if (transienterror(save_errno))
 		_exit(EX_OSERR);
 	_exit(EX_CONFIG);
 	return -1;	/* avoid compiler warning on IRIX */
 }
 /*
-**  GET_COLUMN  -- look up a Column in a line buffer
+**  GET_COLUMN -- look up a Column in a line buffer
 **
 **	Parameters:
 **		line -- the raw text line to search.
@@ -1824,7 +1947,7 @@ char *
 get_column(line, col, delim, buf, buflen)
 	char line[];
 	int col;
-	char delim;
+	int delim;
 	char buf[];
 	int buflen;
 {
@@ -1832,24 +1955,24 @@ get_column(line, col, delim, buf, buflen)
 	char *begin, *end;
 	int i;
 	char delimbuf[4];
-	
-	if (delim == '\0')
-		strcpy(delimbuf, "\n\t ");
+
+	if ((char)delim == '\0')
+		(void) strlcpy(delimbuf, "\n\t ", sizeof delimbuf);
 	else
 	{
-		delimbuf[0] = delim;
+		delimbuf[0] = (char)delim;
 		delimbuf[1] = '\0';
 	}
 
 	p = line;
 	if (*p == '\0')
 		return NULL;			/* line empty */
-	if (*p == delim && col == 0)
+	if (*p == (char)delim && col == 0)
 		return NULL;			/* first column empty */
 
 	begin = line;
 
-	if (col == 0 && delim == '\0')
+	if (col == 0 && (char)delim == '\0')
 	{
 		while (*begin != '\0' && isascii(*begin) && isspace(*begin))
 			begin++;
@@ -1860,13 +1983,13 @@ get_column(line, col, delim, buf, buflen)
 		if ((begin = strpbrk(begin, delimbuf)) == NULL)
 			return NULL;		/* no such column */
 		begin++;
-		if (delim == '\0')
+		if ((char)delim == '\0')
 		{
 			while (*begin != '\0' && isascii(*begin) && isspace(*begin))
 				begin++;
 		}
 	}
-	
+
 	end = strpbrk(begin, delimbuf);
 	if (end == NULL)
 		i = strlen(begin);
@@ -1874,8 +1997,7 @@ get_column(line, col, delim, buf, buflen)
 		i = end - begin;
 	if (i >= buflen)
 		i = buflen - 1;
-	strncpy(buf, begin, i);
-	buf[i] = '\0';
+	(void) strlcpy(buf, begin, i + 1);
 	return buf;
 }
 /*
@@ -1899,6 +2021,9 @@ cleanstrcpy(t, f, l)
 	/* check for newlines and log if necessary */
 	(void) denlstring(f, TRUE, TRUE);
 
+	if (l <= 0)
+		syserr("!cleanstrcpy: length == 0");
+
 	l--;
 	while (l > 0 && *f != '\0')
 	{
@@ -1912,6 +2037,7 @@ cleanstrcpy(t, f, l)
 	}
 	*t = '\0';
 }
+
 /*
 **  DENLSTRING -- convert newlines in a string to spaces
 **
@@ -1952,16 +2078,16 @@ denlstring(s, strict, logattacks)
 		bp = xalloc(l);
 		bl = l;
 	}
-	strcpy(bp, s);
+	(void) strlcpy(bp, s, l);
 	for (p = bp; (p = strchr(p, '\n')) != NULL; )
 		*p++ = ' ';
 
 	if (logattacks)
 	{
 		sm_syslog(LOG_NOTICE, CurEnv->e_id,
-			"POSSIBLE ATTACK from %.100s: newline in string \"%s\"",
-			RealHostName == NULL ? "[UNKNOWN]" : RealHostName,
-			shortenstring(bp, MAXSHORTSTR));
+			  "POSSIBLE ATTACK from %.100s: newline in string \"%s\"",
+			  RealHostName == NULL ? "[UNKNOWN]" : RealHostName,
+			  shortenstring(bp, MAXSHORTSTR));
 	}
 
 	return bp;
@@ -1991,9 +2117,9 @@ path_is_dir(pathname, createflag)
 
 #if HASLSTAT
 	if (lstat(pathname, &statbuf) < 0)
-#else
+#else /* HASLSTAT */
 	if (stat(pathname, &statbuf) < 0)
-#endif
+#endif /* HASLSTAT */
 	{
 		if (errno != ENOENT || !createflag)
 			return FALSE;
@@ -2021,29 +2147,21 @@ path_is_dir(pathname, createflag)
 **
 **	Parameters:
 **		pid -- pid to add to list.
+**		task -- task of pid.
+**		type -- type of process.
 **
 **	Returns:
 **		none
 */
 
-struct procs
-{
-	pid_t	proc_pid;
-	char 	*proc_task;
-};
-
-static struct procs	*ProcListVec	= NULL;
-static int	ProcListSize	= 0;
-
-#define NO_PID		((pid_t) 0)
-#ifndef PROC_LIST_SEG
-# define PROC_LIST_SEG	32		/* number of pids to alloc at a time */
-#endif
+static struct procs	*ProcListVec = NULL;
+static int		ProcListSize = 0;
 
 void
-proc_list_add(pid, task)
+proc_list_add(pid, task, type)
 	pid_t pid;
 	char *task;
+	int type;
 {
 	int i;
 
@@ -2069,24 +2187,29 @@ proc_list_add(pid, task)
 		/* grow process list */
 		struct procs *npv;
 
-		npv = (struct procs *) xalloc(sizeof (struct procs) * (ProcListSize + PROC_LIST_SEG));
+		npv = (struct procs *) xalloc((sizeof *npv) *
+					      (ProcListSize + PROC_LIST_SEG));
 		if (ProcListSize > 0)
 		{
-			bcopy(ProcListVec, npv, ProcListSize *
-						sizeof (struct procs));
+			memmove(npv, ProcListVec,
+				ProcListSize * sizeof (struct procs));
 			free(ProcListVec);
 		}
 		for (i = ProcListSize; i < ProcListSize + PROC_LIST_SEG; i++)
 		{
 			npv[i].proc_pid = NO_PID;
 			npv[i].proc_task = NULL;
+			npv[i].proc_type = PROC_NONE;
 		}
 		i = ProcListSize;
 		ProcListSize += PROC_LIST_SEG;
 		ProcListVec = npv;
 	}
 	ProcListVec[i].proc_pid = pid;
+	if (ProcListVec[i].proc_task != NULL)
+		free(ProcListVec[i].proc_task);
 	ProcListVec[i].proc_task = newstr(task);
+	ProcListVec[i].proc_type = type;
 
 	/* if process adding itself, it's not a child */
 	if (pid != getpid())
@@ -2128,30 +2251,30 @@ proc_list_set(pid, task)
 **		pid -- pid to drop
 **
 **	Returns:
-**		none.
+**		type of process
 */
 
-void
+int
 proc_list_drop(pid)
 	pid_t pid;
 {
 	int i;
+	int type = PROC_NONE;
 
 	for (i = 0; i < ProcListSize; i++)
 	{
 		if (ProcListVec[i].proc_pid == pid)
 		{
 			ProcListVec[i].proc_pid = NO_PID;
-			if (ProcListVec[i].proc_task != NULL)
-			{
-				free(ProcListVec[i].proc_task);
-				ProcListVec[i].proc_task = NULL;
-			}
+			type = ProcListVec[i].proc_type;
 			break;
 		}
 	}
 	if (CurChildren > 0)
 		CurChildren--;
+
+
+	return type;
 }
 /*
 **  PROC_LIST_CLEAR -- clear the process list
@@ -2172,11 +2295,6 @@ proc_list_clear()
 	for (i = 1; i < ProcListSize; i++)
 	{
 		ProcListVec[i].proc_pid = NO_PID;
-		if (ProcListVec[i].proc_task != NULL)
-		{
-			free(ProcListVec[i].proc_task);
-			ProcListVec[i].proc_task = NULL;
-		}
 	}
 	CurChildren = 0;
 }
@@ -2204,14 +2322,9 @@ proc_list_probe()
 		{
 			if (LogLevel > 3)
 				sm_syslog(LOG_DEBUG, CurEnv->e_id,
-					"proc_list_probe: lost pid %d",
-					(int) ProcListVec[i].proc_pid);
+					  "proc_list_probe: lost pid %d",
+					  (int) ProcListVec[i].proc_pid);
 			ProcListVec[i].proc_pid = NO_PID;
-			if (ProcListVec[i].proc_task != NULL)
-			{
-				free(ProcListVec[i].proc_task);
-				ProcListVec[i].proc_task = NULL;
-			}
 			CurChildren--;
 		}
 	}
@@ -2288,7 +2401,7 @@ proc_list_display(out)
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strcasecmp.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
+#endif /* defined(LIBC_SCCS) && !defined(lint) */
 
 /*
  * This array is designed for mapping upper and lower case letter
@@ -2340,7 +2453,7 @@ sm_strcasecmp(s1, s2)
 
 	while (cm[*us1] == cm[*us2++])
 		if (*us1++ == '\0')
-			return (0);
+			return 0;
 	return (cm[*us1] - cm[*--us2]);
 }
 
@@ -2361,5 +2474,5 @@ sm_strncasecmp(s1, s2, n)
 				break;
 		} while (--n != 0);
 	}
-	return (0);
+	return 0;
 }

@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -12,8 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)osf1.m4	8.11 (Berkeley) 10/6/1998')
-define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/usr/adm/sendmail/aliases'))dnl
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/usr/adm/sendmail/sendmail.st'))')dnl
-ifdef(`HELP_FILE',, `define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/usr/share/lib/sendmail.hf'))')dnl
+VERSIONID(`$Id: osf1.m4,v 8.16 1999/10/11 18:45:43 gshapiro Exp $')
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', `/usr/adm/sendmail/sendmail.st')')dnl
 define(`confDEF_USER_ID', `daemon')
+define(`confEBINDIR', `/usr/lbin')dnl

@@ -12,11 +12,27 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#ifdef __hpux
-#define setreuid(r, e)	setresuid(r, e, -1)
-#endif
+#ifndef lint
+static char id[] = "@(#)$Id: t_setreuid.c,v 8.4 1999/08/28 00:25:28 gshapiro Exp $";
+#endif /* ! lint */
 
-main()
+#ifdef __hpux
+# define setreuid(r, e)	setresuid(r, e, -1)
+#endif /* __hpux */
+
+static void
+printuids(str, r, e)
+	char *str;
+	int r, e;
+{
+	printf("%s (should be %d/%d): r/euid=%d/%d\n", str, r, e,
+		getuid(), geteuid());
+}
+
+int
+main(argc, argv)
+	int argc;
+	char **argv;
 {
 	int fail = 0;
 	uid_t realuid = getuid();
@@ -122,12 +138,4 @@ main()
 
 	printf("\nIt is safe to define HASSETREUID on this system\n");
 	exit(0);
-}
-
-printuids(str, r, e)
-	char *str;
-	int r, e;
-{
-	printf("%s (should be %d/%d): r/euid=%d/%d\n", str, r, e,
-		getuid(), geteuid());
 }

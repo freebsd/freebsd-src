@@ -3,7 +3,7 @@
 
 SUBDIR=	sendmail
 
-BIN1=   aliases amd.map apmd.conf auth.conf \
+BIN1=   amd.map apmd.conf auth.conf \
 	crontab csh.cshrc csh.login csh.logout \
 	dhclient.conf dm.conf fbtab ftpusers gettytab group \
 	hosts hosts.allow host.conf hosts.equiv hosts.lpd \
@@ -38,8 +38,8 @@ MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 NAMEDB= PROTO.localhost.rev named.conf named.root make-localhost
 PPPCNF= ppp.deny ppp.shells.sample
 PPPCF2= ppp.conf
-NOSPAM=	Makefile README mailer.conf access.sample virtusertable.sample \
-	mailertable.sample
+ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
+	mailertable.sample aliases
 
 
 # Special top level files for FreeBSD
@@ -110,7 +110,12 @@ distribution:
 	cd ${.CURDIR}/ppp; ${INSTALL} -c -o root -g ${BINGRP} -m 600 \
 	    ${PPPCF2} ${DESTDIR}/etc/ppp
 	cd ${.CURDIR}/mail; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${NOSPAM} ${DESTDIR}/etc/mail
+	    ${ETCMAIL} ${DESTDIR}/etc/mail
+	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
+	      ! -f ${DESTDIR}/etc/aliases ]; then \
+		set -x; \
+		ln -s mail/aliases ${DESTDIR}/etc/aliases; \
+	fi
 	${INSTALL} -c -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
 	${INSTALL} -c -o nobody -g ${BINGRP} -m 644 /dev/null \

@@ -53,14 +53,17 @@ FEATURE(blacklist_recipients)dnl
 FEATURE(virtusertable, `hash -o /etc/mail/virtusertable')dnl
 dnl Uncomment to activate Realtime Blackhole List (recommended!)
 dnl information available at http://maps.vix.com/rbl/
-dnl FEATURE(rbl)dnl
+dnl FEATURE(dnsbl)dnl
 dnl Many sites reject email connections from dialup ip addresses
 dnl by using the MAPS Dial-up User List (DUL).  http://maps.vix.com/dul/
 dnl Dialup users should uncomment and define this appropriately
 dnl define(`SMART_HOST', `your.isp.mail.server')dnl
 FEATURE(local_lmtp)dnl
 define(`LOCAL_MAILER_FLAGS', LOCAL_MAILER_FLAGS`'P)dnl
-define(`confCW_FILE', `-o /etc/mail/sendmail.cw')dnl
+dnl Uncomment the first line to change the location of the default
+dnl /etc/mail/local-host-names and comment out the second line.
+dnl define(`confCW_FILE', `-o /etc/mail/sendmail.cw')dnl
+define(`confCW_FILE', `-o /etc/mail/local-host-names')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
 define(`confMAX_MIME_HEADER_LENGTH', `256/128')dnl
 MAILER(local)dnl

@@ -21,7 +21,7 @@ sub get_controlname
 	my $cn = undef;
 	my $qd = undef;
  
-	open(CF, "</etc/sendmail.cf") or return $cn;
+	open(CF, "</etc/mail/sendmail.cf") or return $cn;
 	while (<CF>)
 	{
 		chomp;
@@ -162,7 +162,7 @@ sub munge_status
 	my $cooked = "";
 	my $daemonStatus = "";
 
-	if ($raw =~ /^(\d+)\/(\d+)$/mg)
+	if ($raw =~ /^(\d+)\/(\d+)\/(\d+)\/(\d+)/mg)
 	{
 		$cooked .= "Current number of children: $1";
 		if ($2 > 0)
@@ -170,6 +170,8 @@ sub munge_status
 			$cooked .= " (maximum $2)";
 		}
 		$cooked .= "\n";
+		$cooked .= "QueueDir free disk space (in blocks): $3\n";
+		$cooked .= "Load average: $4\n";
 	}
 	while ($raw =~ /^(\d+) (.*)$/mg)
 	{

@@ -1,4 +1,5 @@
-.\" Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+.\" Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+.\"	 All rights reserved.
 .\" Copyright (c) 1983, 1997 Eric P. Allman.  All rights reserved.
 .\" Copyright (c) 1985, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -8,78 +9,114 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     @(#)aliases.5	8.8 (Berkeley) 5/19/1998
+.\"     $Id: aliases.5,v 8.15.4.1 2000/07/18 07:23:02 gshapiro Exp $
 .\"
-.Dd May 19, 1998
-.Dt ALIASES 5
-.Os BSD 4
-.Sh NAME
-.Nm aliases
-.Nd aliases file for sendmail
-.Sh SYNOPSIS
-.Nm aliases
-.Sh DESCRIPTION
-This file describes user
-.Tn ID
-aliases used by
-.Pa /usr/sbin/sendmail .
-The file resides in
-.Pa /etc
-and
+.\" $FreeBSD$
+.\"
+.TH ALIASES 5 "$Date: 2000/07/18 07:23:02 $"
+.SH NAME
+.B aliases
+\- aliases file for sendmail
+.SH SYNOPSIS
+.B aliases
+.SH DESCRIPTION
+This file describes user 
+ID 
+aliases used by 
+sendmail.
+The file resides in 
+/etc/mail 
+and 
 is formatted as a series of lines of the form
-.Bd -filled -offset indent
-name: name_1, name_2, name_3, . . .
-.Ed
-.Pp
+.IP
+name: addr_1, addr_2, addr_3, . . .
+.PP
 The
-.Em name
+.I name
 is the name to alias, and the
-.Em name_n
-are the aliases for that name.
-Lines beginning with white space are continuation lines.
-Lines beginning with
-.Ql #
+.I addr_n
+are the aliases for that name.  
+.I addr_n
+can be another alias, a local username, a local filename,
+a command,
+an include file,
+or an external address.
+.TP
+.B Local Username
+username
+.IP
+The username must be available via getpwnam(3).
+.TP
+.B Local Filename
+/path/name
+.IP
+Messages are appended to the file specified by the full pathname
+(starting with a slash (/))
+.TP
+.B Command
+|command
+.IP
+A command starts with a pipe symbol (|),
+it receives messages via standard input.
+.TP
+.B Include File
+:include: /path/name
+.IP
+The aliases in pathname are added to the aliases for
+.I name.
+.TP
+.B E-Mail Address
+user@domain
+.IP
+An e-mail address in RFC 822 format.
+.PP
+Lines beginning with white space are continuation lines.  
+Another way to continue lines is by placing a backslash 
+directly before a newline.  
+Lines beginning with 
+# 
 are comments.
-.Pp
-Aliasing occurs only on local names.
+.PP
+Aliasing occurs only on local names.  
 Loops can not occur, since no message will be sent to any person more than once.
-.Pp
-After aliasing has been done, local and valid recipients who have a
-.Dq Pa .forward
-file in their home directory have messages forwarded to the
+.PP
+After aliasing has been done, local and valid recipients who have a 
+``.forward'' 
+file in their home directory have messages forwarded to the 
 list of users defined in that file.
-.Pp
+.PP
 This is only the raw data file; the actual aliasing information is
-placed into a binary format in the file
-.Pa /etc/aliases.db
-using the program
-.Xr newaliases 1 .
-A
-.Xr newaliases
-command should be executed each time the aliases file is changed for the
+placed into a binary format in the file 
+/etc/mail/aliases.db
+using the program 
+newaliases(1).  
+A 
+newaliases
+command should be executed each time the aliases file is changed for the 
 change to take effect.
-.Sh SEE  ALSO
-.Xr newaliases 1 ,
-.Xr dbm 3 ,
-.Xr dbopen 3 ,
-.Xr sendmail 8
-.Rs
-.%T "SENDMAIL Installation and Operation Guide"
-.Re
-.Rs
-.%T "SENDMAIL An Internetwork Mail Router"
-.Re
-.Sh BUGS
-If you have compiled
-.Xr sendmail
+.SH SEE  ALSO
+newaliases(1), 
+dbm(3), 
+dbopen(3), 
+db_open(3), 
+sendmail(8)
+.PP
+.I
+SENDMAIL Installation and Operation Guide.
+.PP
+.I 
+SENDMAIL An Internetwork Mail Router.
+.SH BUGS
+If you have compiled 
+sendmail 
 with DBM support instead of NEWDB,
-you may have encountered problems in
-.Xr dbm 3
-restricting a single alias to about 1000 bytes of information.
-You can get longer aliases by ``chaining''; that is, make the last name in
+you may have encountered problems in 
+dbm(3) 
+restricting a single alias to about 1000 bytes of information.  
+You can get longer aliases by ``chaining''; that is, make the last name in 
 the alias be a dummy name which is a continuation alias.
-.Sh HISTORY
+.SH HISTORY
 The
-.Nm
-file format appeared in
-.Bx 4.0 .
+.B aliases
+file format appeared in 
+4.0BSD.
