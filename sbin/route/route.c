@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.29 1998/07/28 06:25:35 charnier Exp $";
+	"$Id: route.c,v 1.30 1999/06/01 13:14:07 ru Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -794,7 +794,8 @@ getaddr(which, s, hpp)
 				(ifconf.ifc_buf + ifconf.ifc_len);
 			    ifr < ifr_end;
 			    ifr = (struct ifreq *) ((char *) &ifr->ifr_addr
-						    + ifr->ifr_addr.sa_len)) {
+				    + MAX(ifr->ifr_addr.sa_len,
+					sizeof(ifr->ifr_addr)))) {
 				dl = (struct sockaddr_dl *)&ifr->ifr_addr;
 				if (ifr->ifr_addr.sa_family == AF_LINK
 				    && (ifr->ifr_flags & IFF_POINTOPOINT)
