@@ -184,9 +184,9 @@ ndis_attach_pci(dev)
 			switch (rle->type) {
 			case SYS_RES_IOPORT:
 				sc->ndis_io_rid = rle->rid;
-				sc->ndis_res_io = bus_alloc_resource_any(dev,
+				sc->ndis_res_io = bus_alloc_resource(dev,
 				    SYS_RES_IOPORT, &sc->ndis_io_rid,
-				    RF_ACTIVE);
+				    0, ~0, 1, RF_ACTIVE);
 				if (sc->ndis_res_io == NULL) {
 					device_printf(dev,
 					    "couldn't map iospace\n");
@@ -205,10 +205,10 @@ ndis_attach_pci(dev)
 				if (rle->rid == PCIR_BAR(2)) {
 					sc->ndis_altmem_rid = rle->rid;
 					sc->ndis_res_altmem =
-					    bus_alloc_resource_any(dev,
+					    bus_alloc_resource(dev,
 					        SYS_RES_MEMORY,
 						&sc->ndis_altmem_rid,
-						RF_ACTIVE);
+						0, ~0, 1, RF_ACTIVE);
 					if (sc->ndis_res_altmem == NULL) {
 						device_printf(dev,
 						    "couldn't map alt "
@@ -219,10 +219,10 @@ ndis_attach_pci(dev)
 				} else {
 					sc->ndis_mem_rid = rle->rid;
 					sc->ndis_res_mem =
-					    bus_alloc_resource_any(dev,
+					    bus_alloc_resource(dev,
 					        SYS_RES_MEMORY,
 						&sc->ndis_mem_rid,
-						RF_ACTIVE);
+						0, ~0, 1, RF_ACTIVE);
 					if (sc->ndis_res_mem == NULL) {
 						device_printf(dev,
 						    "couldn't map memory\n");
@@ -233,8 +233,8 @@ ndis_attach_pci(dev)
 				break;
 			case SYS_RES_IRQ:
 				rid = rle->rid;
-				sc->ndis_irq = bus_alloc_resource_any(dev,
-				    SYS_RES_IRQ, &rid,
+				sc->ndis_irq = bus_alloc_resource(dev,
+				    SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    			    RF_SHAREABLE | RF_ACTIVE);
 				if (sc->ndis_irq == NULL) {
 					device_printf(dev,

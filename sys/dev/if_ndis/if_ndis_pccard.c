@@ -194,9 +194,9 @@ ndis_attach_pccard(dev)
 	sc->ndis_dev = dev;
 
 	sc->ndis_io_rid = 0;
-	sc->ndis_res_io = bus_alloc_resource_any(dev,
+	sc->ndis_res_io = bus_alloc_resource(dev,
 	    SYS_RES_IOPORT, &sc->ndis_io_rid,
-	    RF_ACTIVE);
+	    0, ~0, 1, RF_ACTIVE);
 	if (sc->ndis_res_io == NULL) {
 		device_printf(dev,
 		    "couldn't map iospace\n");
@@ -206,8 +206,8 @@ ndis_attach_pccard(dev)
 	sc->ndis_rescnt++;
 
 	rid = 0;
-	sc->ndis_irq = bus_alloc_resource_any(dev,
-	    SYS_RES_IRQ, &rid,
+	sc->ndis_irq = bus_alloc_resource(dev,
+	    SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->ndis_irq == NULL) {
 		device_printf(dev,
