@@ -68,11 +68,11 @@ HIDEGAME=hidegame
 
 beforeinstall:
 .if !exists(${DESTDIR}/var/games/larn/lscore12.0)
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 660 /dev/null \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 660 /dev/null \
 	    ${DESTDIR}/var/games/larn/lscore12.0
 .endif
 .if !exists(${DESTDIR}/var/games/larn/llog12.0)
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 660 /dev/null \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 660 /dev/null \
 	    ${DESTDIR}/var/games/larn/llog12.0
 .endif
 

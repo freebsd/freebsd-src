@@ -17,6 +17,6 @@ beforeinstall:
 	@exit 3;
 .endif
 .if !exists(${DESTDIR}${INFODIR}/dir)
-	${INSTALL} -c -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
+	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
 		 dir-tmpl ${DESTDIR}${INFODIR}/dir
 .endif
