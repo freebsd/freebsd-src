@@ -1,0 +1,125 @@
+.\"
+.\" Copyright (c) 1996 John Hay.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"        This product includes software developed by John Hay.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY John Hay ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL John Hay BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd July 4, 1996
+.Dt SR 4 i386
+.Os
+.Sh NAME
+.Nm sr
+.Nd
+synchronous RISCom/N2 device driver.
+.Sh SYNOPSYS
+.Cd "device sr0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector arintr"
+.Cd "device sr1 at isa? port 0x310 net irq 11 flags 0x1 iomem 0xd0000 vector arintr"
+.Pp
+.Cd "pseudo-device sppp"
+.Sh DESCRIPTION
+The
+.Nm sr
+driver supports the RISCom/N2 ISA cards that is based on the
+HD64570 chip.
+.Pp
+Line speeds of up to 2Mbps is possible. At this speed about 95% of the
+bandwidth is usable with 486DX processors.
+.Pp
+The standard FreeBSD sppp code is used for the link level layer. The
+default protocol used is PPP. The Cisco HDLC protocol can be used by
+adding
+.Nm link2
+to
+.Nm ifconfig.
+.Pp
+The
+.Nm flags
+field is optional. If it isn't specified, the driver will
+assume the following:
+.Pp
+.Bl -hang -offset indent
+.It "The card has 2 ports."
+.It "The clock for the serial ports is external and the transmitter uses"
+the same clock as the receiver.
+.El
+.Pp
+The
+.Nm flags
+are a bit field and can be used to force a different
+behaviour than the default.
+.Pp
+.Bl -hang -offset indent
+.It Em 0x01
+The card has only one port.
+.It Em 0x10
+Use sepperate external clocks for transmit and receive on port 0.
+.It Em 0x40
+Use sepperate external clocks for transmit and receive on port 1.
+.El
+.Pp
+.Sh NUMBERING
+Only one line for each card is needed in the kernel configuration file.
+The first card's ports will be installed from sr0. The numbering of the
+next card will continue where the first stopped, eg. if the first card
+is a two port card it will use sr0 and sr1. The next card will then
+start at sr2.
+.Pp
+The card only supports IRQ 3, 4, 5, 7, 10, 11, 12 and 15.
+.Pp
+The iomem area is a 16Kb block and must start at a 16Kb boundary.
+.Pp
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "sr%d: Warning illegal interrupt %d."
+The card cannot use the specified interrupt. Choose a different one.
+.El
+.Sh FILES
+.Bl -tag -width /sys/i386/isa/ic/hd64570.h -compact
+.It Pa /sys/i386/isa/ic/hd64570.h
+.It Pa /sys/i386/isa/if_srregs.h
+.It Pa /sys/i386/isa/if_sr.c
+.El
+.Sh BUGS
+At the moment only the X.21 interface is tested. The others
+may need tweaks to the clock selection code.
+.Pp
+The code can probably stand some optimizing.
+.Pp
+There must be lots because this code is still very green. Please report
+them to jhay@mikom.csir.co.za
+.Sh SEE ALSO
+.Xr ifconfig 8 ,
+.Xr lsdev 8 ,
+.Xr netintro 4 ,
+.Xr ar 4 ,
+.Xr cx 4
+.Sh AUTHOR
+The
+.Nm sr
+device driver was written by John Hay, jhay@mikom.csir.co.za.
