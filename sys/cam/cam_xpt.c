@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.43 1999/01/27 20:09:16 dillon Exp $
+ *      $Id: cam_xpt.c,v 1.44 1999/02/18 18:08:39 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -237,6 +237,7 @@ static const char quantum[] = "QUANTUM";
 static const char sony[] = "SONY";
 static const char west_digital[] = "WDIGTL";
 static const char samsung[] = "SAMSUNG";
+static const char seagate[] = "SEAGATE";
 
 static struct xpt_quirk_entry xpt_quirk_table[] = 
 {
@@ -303,12 +304,23 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		 * Reported by: Bret Ford <bford@uop.cs.uop.edu>
 		 *         and: Martin Renters <martin@tdc.on.ca>
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "SEAGATE", "ST410800*", "71*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, seagate, "ST410800*", "71*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
-        {
+	{
+		/*
+		 * Broken tagged queueing drive.  (Write performance is
+		 * very bad with anything more than 2 tags.
+		 *
+		 * Reported by:  Paul van der Zwan <paulz@trantor.xs4all.nl>
+		 * Drive:  <SEAGATE ST36530N 1444>
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, seagate, "ST36530*", "*"},
+		/*quirks*/0, /*mintags*/2, /*maxtags*/2
+	},
+	{
 		/* Broken tagged queuing drive */
-                { T_DIRECT, SIP_MEDIA_REMOVABLE, "iomega", "jaz*", "*" },
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "iomega", "jaz*", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
 	{
