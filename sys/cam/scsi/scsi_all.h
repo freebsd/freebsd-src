@@ -74,6 +74,9 @@
 #error "CAM_MAX_CDBLEN cannot be less than SCSI_MAX_CDBLEN"
 #endif
 
+/* 6byte CDBs special case 0 length to be 256 */
+#define SCSI_CDB6_LEN(len)	((len) == 0 ? 256 : len)
+
 /*
  * This type defines actions to be taken when a particular sense code is
  * received.  Right now, these flags are only defined to take up 16 bits,
