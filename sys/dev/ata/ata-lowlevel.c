@@ -270,22 +270,14 @@ ata_interrupt(void *data)
 {
     struct ata_channel *ch = (struct ata_channel *)data;
     struct ata_request *request = ch->running;
+    u_int8_t status;
     int length;
 
-    /* if we dont have a running request shout and ignore this interrupt */
-    if (request == NULL) {
-	if (bootverbose) {
-	    printf("ata%d: spurious interrupt - ", device_get_unit(ch->dev));
-	    if (request)
-		printf("request OK - ");
-	    printf("status=0x%02x error=0x%02x reason=0x%02x\n",
-		   ATA_IDX_INB(ch, ATA_ALTSTAT), ATA_IDX_INB(ch, ATA_ERROR),
-		   ATA_IDX_INB(ch, ATA_IREASON));
-	}
+    /* if the channel is idle this interrupt is not for us (shared) */
+    if (ch->state == ATA_IDLE)
 	return;
-    }
 
-    /* if device is busy it didn't interrupt */
+    /* if device is busy it didn't interrupt, ignore interrupt (shared) */
     if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
 	DELAY(100);
 	if (!(ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_DRQ))
@@ -293,7 +285,22 @@ ata_interrupt(void *data)
     }
 
     /* clear interrupt and get status */
-    request->status = ATA_IDX_INB(ch, ATA_STATUS);
+    status = ATA_IDX_INB(ch, ATA_STATUS);
+
+    /* if we dont have a running request shout and ignore this interrupt */
+    if (request == NULL) {
+	if (1 || bootverbose) {
+	    printf("ata%d: spurious interrupt - ", device_get_unit(ch->dev));
+	    if (request)
+		printf("request OK - ");
+	    printf("status=0x%02x error=0x%02x reason=0x%02x\n",
+		   status, ATA_IDX_INB(ch, ATA_ERROR),
+		   ATA_IDX_INB(ch, ATA_IREASON));
+	}
+	return;
+    }
+
+    request->status = status;
 
     switch (request->flags & (ATA_R_ATAPI | ATA_R_DMA)) {
 
