@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Joerg Wunsch
+ * Copyright (c) 1997, 2001 Joerg Wunsch
  *
  * All rights reserved.
  *
@@ -65,6 +65,8 @@ main(int argc, char **argv)
 	int s, c;
 	int errs = 0, verbose = 0;
 	size_t off;
+	long to;
+	char *endp;
 	const char *ifname, *cp;
 	struct ifreq ifr;
 	struct spppreq spr;
@@ -165,7 +167,20 @@ main(int argc, char **argv)
 			spr.defs.hisauth.flags |= AUTHFLAG_NORECHALLENGE;
 		else if (strcmp(argv[0], "rechallenge") == 0)
 			spr.defs.hisauth.flags &= ~AUTHFLAG_NORECHALLENGE;
-		else if (strcmp(argv[0], "enable-vj") == 0)
+		else if (startswith("lcp-timeout=")) {
+			cp = argv[0] + off;
+			to = strtol(cp, &endp, 10);
+			if (*cp == '\0' || *endp != '\0' ||
+			    /*
+			     * NB: 10 ms is the minimal possible value for
+			     * hz=100.  We assume no kernel has less clock
+			     * frequency than that...
+			     */
+			    to < 10 || to > 20000)
+				errx(EX_DATAERR, "bad lcp timeout value: %s",
+				     cp);
+			spr.defs.lcp.timeout = to;
+		} else if (strcmp(argv[0], "enable-vj") == 0)
 			spr.defs.enable_vj = 1;
 		else if (strcmp(argv[0], "disable-vj") == 0)
 			spr.defs.enable_vj = 0;
@@ -211,6 +226,7 @@ print_vals(const char *ifname, struct spppreq *sp)
 		       AUTHNAMELEN, sp->defs.hisauth.name,
 		       authflags(sp->defs.hisauth.flags));
 	}
+	printf("\tlcp-timeout=%d ms\n", sp->defs.lcp.timeout);
 	printf("\t%sable-vj\n", sp->defs.enable_vj? "en": "dis");
 }
 
