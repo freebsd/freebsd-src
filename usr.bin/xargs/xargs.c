@@ -543,8 +543,8 @@ waitchildren(const char *name, int waitall)
 	pid_t pid;
 	int status;
 
-	while ((pid = wait3(&status, !waitall && curprocs < maxprocs ?
-	    WNOHANG : 0, NULL)) > 0) {
+	while ((pid = waitpid(-1, &status, !waitall && curprocs < maxprocs ?
+	    WNOHANG : 0)) > 0) {
 		curprocs--;
 		/* If we couldn't invoke the utility, exit. */
 		if (childerr != 0) {
