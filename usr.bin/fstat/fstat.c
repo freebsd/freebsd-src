@@ -474,7 +474,7 @@ vtrans(vp, i, flag)
 {
 	struct vnode vn;
 	struct filestat fst;
-	char rw[3], mode[15];
+	char rw[3], mode[15], tagstr[12], *tagptr;
 	const char *badtype, *filename;
 
 	filename = badtype = NULL;
@@ -483,42 +483,37 @@ vtrans(vp, i, flag)
 		    (void *)vp, Pid);
 		return;
 	}
-	if (vn.v_type == VNON || vn.v_tag == VT_NON)
+	if (!KVM_READ(&vp->v_tag, &tagptr, sizeof tagptr) ||
+	    !KVM_READ(tagptr, tagstr, sizeof tagstr)) {
+		dprintf(stderr, "can't read v_tag at %p for pid %d\n",
+		    (void *)vp, Pid);
+		return;
+	}
+	tagstr[sizeof(tagstr) - 1] = '\0';
+	if (vn.v_type == VNON)
 		badtype = "none";
 	else if (vn.v_type == VBAD)
 		badtype = "bad";
-	else
-		switch (vn.v_tag) {
-		case VT_UFS:
+	else {
+		if (!strcmp("ufs", tagstr)) {
 			if (!ufs_filestat(&vn, &fst))
 				badtype = "error";
-			break;
-
-		case VT_DEVFS:
+		} else if (!strcmp("devfs", tagstr)) {
 			if (!devfs_filestat(&vn, &fst))
 				badtype = "error";
-			break;
-
-		case VT_NFS:
+		} else if (!strcmp("nfs", tagstr)) {
 			if (!nfs_filestat(&vn, &fst))
 				badtype = "error";
-			break;
-
-		case VT_MSDOSFS:
+		} else if (!strcmp("msdosfs", tagstr)) {
 			if (!msdosfs_filestat(&vn, &fst))
 				badtype = "error";
-			break;
-
-		case VT_ISOFS:
+		} else if (!strcmp("isofs", tagstr)) {
 			if (!isofs_filestat(&vn, &fst))
 				badtype = "error";
-			break;
-			
-		default: {
-			static char unknown[10];
-			sprintf(unknown, "?(%x)", vn.v_tag);
+		} else {
+			static char unknown[32];
+			snprintf(unknown, sizeof unknown, "?(%s)", tagstr);
 			badtype = unknown;
-			break;;
 		}
 	}
 	if (checkfile) {
