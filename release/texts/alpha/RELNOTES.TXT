@@ -45,6 +45,21 @@ Table of contents:
 1.1. KERNEL CHANGES
 -------------------
 
+Support for Adaptec 152x/151x/AIC-6360 SCSI controlers is back.
+
+netgraph(4) has been added.  Netgraph provides a uniform and modular system
+for the implementation of kernel objects which perform various networking
+functions.  To enable it, ``options NETGRAPH'' must be added to the kernel.
+
+i4b(4) has been upgraded to version 00.83.00, providing increased robustness
+and stability, and supporting many new cards (Asuscom ISDNlink 128K,
+AVM Fritz!Card PCI, AVM Fritz!Card PnP, ELSA PCC-16, ITK ix1 micro V.3,
+Siemens I-Surf 2.0).
+
+
+1.2. SECURITY CHANGES
+---------------------
+
 Support has been added for blocking incoming ICMP redirects, outgoing RST
 frames and incoming SYN|FIN frames in order to lessen or nullify the
 impact of certain kinds of DoS attacks.
@@ -58,14 +73,6 @@ SYN+FIN (NOTE: this breaks rfc1644 extensions (T/TCP)), restrict emission of
 RST, ignore incoming ICMP REDIRECT messages, and also set to log incoming
 ICMP REDIRECT messages.  See rc.conf(5) for details on how to utilize these
 new features.
-
-netgraph(4) has been added.  Netgraph provides a uniform and modular system
-for the implementation of kernel objects which perform various networking
-functions.  To enable it, ``options NETGRAPH'' must be added to the kernel.
-
-
-1.2. SECURITY FIXES
--------------------
 
 
 1.3. USERLAND CHANGES
