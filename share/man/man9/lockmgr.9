@@ -52,10 +52,10 @@ A pointer to lock to manipulate.
 Flags indicating what action is to be taken.
 .Bl -tag -width ".Dv LK_EXCLUPGRADE"
 .It Dv LK_SHARED
-Aquire a shared lock.
+Acquire a shared lock.
 If we currently hold an exclusive lock it will be downgraded.
 .It Dv LK_EXCLUSIVE
-Aquire an exclusive lock.
+Acquire an exclusive lock.
 If we already hold an exclusive lock and
 .Dv LK_CANRECURSE
 is not set we will panic.
