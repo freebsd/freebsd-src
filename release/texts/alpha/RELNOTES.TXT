@@ -56,7 +56,7 @@ specifically marked as [MERGED] features.
 An emulator for Tru64 (aka DEC OSF/1) binaries has been added.
 
 Support for the following platforms has been added:
-        AlphaServer 1000 (1000A untested)
+        AlphaServer 1000, 1000A
         Compaq Professional Workstation XP900, XP1000, AlphaServer DS10
         AlphaServer DS20 (single CPU only)
 
