@@ -61,20 +61,18 @@ static const char rcsid[] =
 
 
 #ifdef COMPAT_43
-static void	compatflags __P((long));
+static void	compatflags(long);
 #endif
 
 /*
  * Get a table entry.
  */
 void
-gettable(name, buf)
-	const char *name;
-	char *buf;
+gettable(const char *name, char *buf)
 {
-	register struct gettystrs *sp;
-	register struct gettynums *np;
-	register struct gettyflags *fp;
+	struct gettystrs *sp;
+	struct gettynums *np;
+	struct gettyflags *fp;
 	long n;
 	int l;
 	char *p;
@@ -184,11 +182,11 @@ gettable(name, buf)
 }
 
 void
-gendefaults()
+gendefaults(void)
 {
-	register struct gettystrs *sp;
-	register struct gettynums *np;
-	register struct gettyflags *fp;
+	struct gettystrs *sp;
+	struct gettynums *np;
+	struct gettyflags *fp;
 
 	for (sp = gettystrs; sp->field; sp++)
 		if (sp->value)
@@ -204,11 +202,11 @@ gendefaults()
 }
 
 void
-setdefaults()
+setdefaults(void)
 {
-	register struct gettystrs *sp;
-	register struct gettynums *np;
-	register struct gettyflags *fp;
+	struct gettystrs *sp;
+	struct gettynums *np;
+	struct gettyflags *fp;
 
 	for (sp = gettystrs; sp->field; sp++)
 		if (!sp->value)
@@ -238,10 +236,10 @@ charvars[] = {
 };
 
 void
-setchars()
+setchars(void)
 {
-	register int i;
-	register const char *p;
+	int i;
+	const char *p;
 
 	for (i = 0; charnames[i]; i++) {
 		p = *charnames[i];
@@ -258,10 +256,9 @@ setchars()
 #define	ISSET(t, f)	((t) & (f))
 
 void
-set_flags(n)
-	int n;
+set_flags(int n)
 {
-	register tcflag_t iflag, oflag, cflag, lflag;
+	tcflag_t iflag, oflag, cflag, lflag;
 
 #ifdef COMPAT_43
 	switch (n) {
@@ -445,10 +442,9 @@ out:
  * Old TTY => termios, snatched from <sys/kern/tty_compat.c>
  */
 void
-compatflags(flags)
-register long flags;
+compatflags(long flags)
 {
-	register tcflag_t iflag, oflag, cflag, lflag;
+	tcflag_t iflag, oflag, cflag, lflag;
 
 	iflag = BRKINT|ICRNL|IMAXBEL|IXON|IXANY;
 	oflag = OPOST|ONLCR|OXTABS;
@@ -613,9 +609,9 @@ struct delayval	tbdelay[] = {
 };
 
 int
-delaybits()
+delaybits(void)
 {
-	register int f;
+	int f;
 
 	f  = adelay(CD, crdelay);
 	f |= adelay(ND, nldelay);
@@ -626,9 +622,7 @@ delaybits()
 }
 
 int
-adelay(ms, dp)
-	register ms;
-	register struct delayval *dp;
+adelay(int ms, struct delayval *dp)
 {
 	if (ms == 0)
 		return (0);
@@ -641,11 +635,10 @@ adelay(ms, dp)
 char	editedhost[MAXHOSTNAMELEN];
 
 void
-edithost(pat)
-	register const char *pat;
+edithost(const char *pat)
 {
-	register const char *host = HN;
-	register char *res = editedhost;
+	const char *host = HN;
+	char *res = editedhost;
 
 	if (!pat)
 		pat = "";
@@ -709,10 +702,9 @@ static struct speedtab {
 };
 
 int
-speed(val)
-	int val;
+speed(int val)
 {
-	register struct speedtab *sp;
+	struct speedtab *sp;
 
 	if (val <= B230400)
 		return (val);
@@ -725,12 +717,11 @@ speed(val)
 }
 
 void
-makeenv(env)
-	char *env[];
+makeenv(char *env[])
 {
 	static char termbuf[128] = "TERM=";
-	register char *p, *q;
-	register char **ep;
+	char *p, *q;
+	char **ep;
 
 	ep = env;
 	if (TT && *TT) {
@@ -774,11 +765,11 @@ struct	portselect {
 };
 
 const char *
-portselector()
+portselector(void)
 {
 	char c, baud[20];
 	const char *type = "default";
-	register struct portselect *ps;
+	struct portselect *ps;
 	int len;
 
 	alarm(5*60);
@@ -808,7 +799,7 @@ portselector()
  * is garbled at the different speeds.
  */
 const char *
-autobaud()
+autobaud(void)
 {
 	int rfds;
 	struct timeval timeout;
