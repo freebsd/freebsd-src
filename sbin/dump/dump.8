@@ -45,6 +45,7 @@
 .Op Fl 0123456789acknu
 .Op Fl B Ar records
 .Op Fl b Ar blocksize
+.Op Fl D Ar dumpdates
 .Op Fl d Ar density
 .Op Fl f Ar file
 .Op Fl h Ar level
@@ -129,6 +130,10 @@ only for dumps at or above the given
 The default honor level is 1,
 so that incremental backups omit such files
 but full backups retain them.
+.It Fl D Ar dumpdates
+Specify an alternate path to the dumpdates file.
+The default is
+.Pa /etc/dumpdates .
 .It Fl d Ar density
 Set tape density to
 .Ar density .
@@ -190,7 +195,7 @@ The default tape length is 2300 feet.
 .It Fl T Ar date
 Use the specified date as the starting time for the dump
 instead of the time determined from looking in
-.Pa /etc/dumpdates .
+the dumpdates file.
 The format of date is the same as that of
 .Xr ctime 3 .
 This option is useful for automated dump scripts that wish to
@@ -201,11 +206,10 @@ option is mutually exclusive from the
 .Fl u
 option.
 .It Fl u
-Update the file
-.Pa /etc/dumpdates
+Update the dumpdates file
 after a successful dump.
 The format of
-.Pa /etc/dumpdates
+the dumpdates file
 is readable by people, consisting of one
 free format record per line:
 filesystem name,
@@ -215,14 +219,19 @@ and
 format dump date. 
 There may be only one entry per filesystem at each level.
 The file
-.Pa /etc/dumpdates
+dumpdates file
 may be edited to change any of the fields,
 if necessary.
+The default path for the dumpdates file is
+.Pa /etc/dumpdates ,
+but the
+.Fl D
+option may be used to change it.
 .It Fl W
 .Nm Dump
 tells the operator what file systems need to be dumped.
 This information is gleaned from the files
-.Pa /etc/dumpdates
+dumpdates file
 and
 .Pa /etc/fstab .
 The
@@ -230,7 +239,7 @@ The
 option causes
 .Nm
 to print out, for each file system in
-.Pa /etc/dumpdates
+the dumpdates file
 the most recent dump date and level,
 and highlights those file systems that should be dumped.
 If the
@@ -353,6 +362,10 @@ program.
 default tape unit to dump to
 .It Pa /etc/dumpdates
 dump date records
+(this can be changed;
+see the
+.Fl D
+option)
 .It Pa /etc/fstab
 dump table: file systems and frequency
 .It Pa /etc/group
@@ -390,7 +403,7 @@ or
 .Fl w
 options does not report filesystems that have never been recorded
 in
-.Pa /etc/dumpdates ,
+the dumpdates file,
 even if listed in
 .Pa /etc/fstab .
 .Pp

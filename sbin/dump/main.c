@@ -123,9 +123,9 @@ main(argc, argv)
 
 	obsolete(&argc, &argv);
 #ifdef KERBEROS
-#define optstring "0123456789aB:b:cd:f:h:kns:T:uWw"
+#define optstring "0123456789aB:b:cd:f:h:kns:T:uWwD:"
 #else
-#define optstring "0123456789aB:b:cd:f:h:ns:T:uWw"
+#define optstring "0123456789aB:b:cd:f:h:ns:T:uWwD:"
 #endif
 	while ((ch = getopt(argc, argv, optstring)) != -1)
 #undef optstring
@@ -162,6 +162,10 @@ main(argc, argv)
 
 		case 'f':		/* output file */
 			tape = optarg;
+			break;
+
+		case 'D':
+			dumpdates = optarg;
 			break;
 
 		case 'h':
@@ -489,8 +493,9 @@ usage()
 #ifdef KERBEROS
 		"k"
 #endif
-		"nu] [-B records] [-b blocksize] [-d density] [-f file]\n"
-		"            [-h level] [-s feet] [-T date] filesystem\n"
+		"nu] [-B records] [-b blocksize] [-D dumpdates]\n"
+		"            [-d density] [-f file ] [-h level] [-s feet] "
+		"[-T date] filesystem\n"
 		"       dump [-W | -w]\n");
 	exit(X_STARTUP);
 }
@@ -608,6 +613,7 @@ obsolete(argcp, argvp)
 		case 'b':
 		case 'd':
 		case 'f':
+		case 'D':
 		case 'h':
 		case 's':
 		case 'T':
