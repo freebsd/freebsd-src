@@ -131,15 +131,19 @@ int
 archive_read_support_format_tar(struct archive *a)
 {
 	struct tar *tar;
+	int r;
 
 	tar = malloc(sizeof(*tar));
 	memset(tar, 0, sizeof(*tar));
 
-	return (__archive_read_register_format(a,
-	    tar,
+	r = __archive_read_register_format(a, tar,
 	    archive_read_format_tar_bid,
 	    archive_read_format_tar_read_header,
-	    archive_read_format_tar_cleanup));
+	    archive_read_format_tar_cleanup);
+
+	if (r != ARCHIVE_OK)
+		free(tar);
+	return (ARCHIVE_OK);
 }
 
 static int
@@ -148,19 +152,15 @@ archive_read_format_tar_cleanup(struct archive *a)
 	struct tar *tar;
 
 	tar = *(a->pformat_data);
-	if (tar->entry_name.s != NULL)
-		free(tar->entry_name.s);
-	if (tar->entry_linkname.s != NULL)
-		free(tar->entry_linkname.s);
-	if (tar->entry_uname.s != NULL)
-		free(tar->entry_uname.s);
-	if (tar->entry_gname.s != NULL)
-		free(tar->entry_gname.s);
-	if (tar->pax_header.s != NULL)
-		free(tar->pax_header.s);
-	if (tar->pax_global.s != NULL)
-		free(tar->pax_global.s);
-
+	archive_string_free(&tar->acl_text);
+	archive_string_free(&tar->entry_name);
+	archive_string_free(&tar->entry_linkname);
+	archive_string_free(&tar->entry_uname);
+	archive_string_free(&tar->entry_gname);
+	archive_string_free(&tar->pax_global);
+	archive_string_free(&tar->pax_header);
+	if (tar->pax_entry != NULL)
+		free(tar->pax_entry);
 	free(tar);
 	*(a->pformat_data) = NULL;
 	return (ARCHIVE_OK);
@@ -822,7 +822,7 @@ pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
 		/* Ensure pax_entry buffer is big enough. */
 		if (tar->pax_entry_length <= line_length) {
 			if (tar->pax_entry_length <= 0)
-				tar->pax_entry_length = 256;
+				tar->pax_entry_length = 1024;
 			while (tar->pax_entry_length <= line_length + 1)
 				tar->pax_entry_length *= 2;
 

@@ -97,6 +97,7 @@ void	archive_entry_set_gid(struct archive_entry *, gid_t);
 void	archive_entry_set_gname(struct archive_entry *, const char *);
 void	archive_entry_copy_gname_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_hardlink(struct archive_entry *, const char *);
+void	archive_entry_copy_hardlink(struct archive_entry *, const char *);
 void	archive_entry_copy_hardlink_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_link(struct archive_entry *, const char *);
 void	archive_entry_set_mode(struct archive_entry *, mode_t);

@@ -68,7 +68,7 @@ archive_read_open_file(struct archive *a, const char *filename,
 		strcpy(mine->filename, filename);
 	}
 	mine->block_size = block_size;
-	mine->buffer = malloc(mine->block_size);
+	mine->buffer = NULL;
 	mine->fd = -1;
 	return (archive_read_open(a, mine, file_open, file_read, file_close));
 }
@@ -78,6 +78,7 @@ file_open(struct archive *a, void *client_data)
 {
 	struct read_file_data *mine = client_data;
 
+	mine->buffer = malloc(mine->block_size);
 	if (*mine->filename != 0)
 		mine->fd = open(mine->filename, O_RDONLY);
 	else
@@ -108,6 +109,8 @@ file_close(struct archive *a, void *client_data)
 	(void)a; /* UNUSED */
 	if (mine->fd >= 0)
 		close(mine->fd);
+	if (mine->buffer != NULL)
+		free(mine->buffer);
 	free(mine);
 	return (ARCHIVE_OK);
 }

@@ -373,19 +373,20 @@ static int
 archive_write_ustar_finish(struct archive *a)
 {
 	struct ustar *ustar;
+	int r;
 
+	r = ARCHIVE_OK;
 	ustar = a->format_data;
 	/*
 	 * Suppress end-of-archive if nothing else was ever written.
-	 * This fixes a problem where setting one format, then another ends up
-	 * attempting to write a gratuitous end-of-archive marker.
+	 * This fixes a problem where setting one format, then another
+	 * ends up writing a gratuitous end-of-archive marker.
 	 */
 	if (ustar->written && a->compression_write != NULL)
-		if (write_nulls(a, 512*2) < 512*2)
-			return (ARCHIVE_FATAL);
-	free(a->format_data);
+		r = write_nulls(a, 512*2);
+	free(ustar);
 	a->format_data = NULL;
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
@@ -409,10 +410,11 @@ write_nulls(struct archive *a, size_t padding)
 	while (padding > 0) {
 		to_write = padding < a->null_length ? padding : a->null_length;
 		ret = (a->compression_write)(a, a->nulls, to_write);
-		if (ret < to_write) return (-1);
+		if (ret < to_write)
+			return (ARCHIVE_FATAL);
 		padding -= to_write;
 	}
-	return (0);
+	return (ARCHIVE_OK);
 }
 
 static int

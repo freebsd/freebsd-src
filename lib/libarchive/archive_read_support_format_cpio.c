@@ -83,16 +83,21 @@ int
 archive_read_support_format_cpio(struct archive *a)
 {
 	struct cpio *cpio;
+	int r;
 
 	cpio = malloc(sizeof(*cpio));
 	memset(cpio, 0, sizeof(*cpio));
 	cpio->magic = CPIO_MAGIC;
 
-	return (__archive_read_register_format(a,
+	r = __archive_read_register_format(a,
 	    cpio,
 	    archive_read_format_cpio_bid,
 	    archive_read_format_cpio_read_header,
-	    archive_read_format_cpio_cleanup));
+	    archive_read_format_cpio_cleanup);
+
+	if (r != ARCHIVE_OK)
+		free(cpio);
+	return (ARCHIVE_OK);
 }
 
 
