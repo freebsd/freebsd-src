@@ -241,17 +241,19 @@ legacy_add_child(device_t bus, int order, const char *name, int unit)
 
 	atdev = malloc(sizeof(struct legacy_device), M_LEGACYDEV,
 	    M_NOWAIT | M_ZERO);
-	if (!atdev)
-		return(0);
+	if (atdev == NULL)
+		return(NULL);
 	resource_list_init(&atdev->lg_resources);
 	atdev->lg_pcibus = -1;
 
-	child = device_add_child_ordered(bus, order, name, unit); 
+	child = device_add_child_ordered(bus, order, name, unit);
+	if (child == NULL)
+		free(atdev, M_LEGACYDEV);
+	else
+		/* should we free this in legacy_child_detached? */
+		device_set_ivars(child, atdev);
 
-	/* should we free this in legacy_child_detached? */
-	device_set_ivars(child, atdev);
-
-	return(child);
+	return (child);
 }
 
 static int
