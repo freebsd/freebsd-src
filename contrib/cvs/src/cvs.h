@@ -385,6 +385,8 @@ extern int trace;		/* Show all commands */
 extern int noexec;		/* Don't modify disk anywhere */
 extern int logoff;		/* Don't write history entry */
 
+extern int top_level_admin;
+
 #ifdef AUTH_SERVER_SUPPORT
 extern char *Pserver_Repos;     /* used to check that same repos is
                                    transmitted in pserver auth and in
@@ -429,6 +431,8 @@ void Subdir_Register PROTO((List *, const char *, const char *));
 void Subdir_Deregister PROTO((List *, const char *, const char *));
 
 char *Make_Date PROTO((char *rawdate));
+char *date_from_time_t PROTO ((time_t));
+
 char *Name_Repository PROTO((char *dir, char *update_dir));
 char *Short_Repository PROTO((char *repository));
 void Sanitize_Repository_Name PROTO((char *repository));
@@ -476,7 +480,6 @@ int numdots PROTO((const char *s));
 char *increment_revnum PROTO ((const char *));
 int compare_revnums PROTO ((const char *, const char *));
 int unlink_file PROTO((const char *f));
-int link_file PROTO ((const char *from, const char *to));
 int unlink_file_dir PROTO((const char *f));
 int update PROTO((int argc, char *argv[]));
 int xcmp PROTO((const char *file1, const char *file2));
@@ -834,7 +837,7 @@ extern int patch PROTO((int argc, char **argv));
 extern int release PROTO((int argc, char **argv));
 extern int cvsremove PROTO((int argc, char **argv));
 extern int rtag PROTO((int argc, char **argv));
-extern int status PROTO((int argc, char **argv));
+extern int cvsstatus PROTO((int argc, char **argv));
 extern int cvstag PROTO((int argc, char **argv));
 
 extern unsigned long int lookup_command_attribute PROTO((char *));

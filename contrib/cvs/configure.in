@@ -91,24 +91,13 @@ AC_FUNC_VFORK
 AC_FUNC_CLOSEDIR_VOID
 
 dnl
-dnl Look for shadow password files before we go ahead and set getspnam.
-dnl On some systems (Linux), the C library has getspnam but shadow
-dnl passwords might not be in use.
+dnl Check for shadow password support.
 dnl
-dnl We used to check for the existence of the /etc/security directory
-dnl here, but that's incorrect, since it's possible to have PAM installed
-dnl without using shadow passwords.
-dnl
-AC_MSG_CHECKING([for evidence of shadow passwords])
-if test -f /etc/shadow \
-   || test -f /etc/security/passwd.adjunct ; then
-  found="yes"
-  AC_CHECK_LIB(sec, getspnam)
-  AC_CHECK_FUNCS(getspnam)
-else
-  found="no"
-fi
-AC_MSG_RESULT([$found])
+dnl We used to try to determine whether shadow passwords were actually in
+dnl use or not, but the code has been changed to work right reguardless,
+dnl so we can go back to a simple check.
+AC_CHECK_LIB(sec, getspnam)
+AC_CHECK_FUNCS(getspnam)
 
 dnl We always use CVS's regular expression matcher.
 dnl This is because:
@@ -271,17 +260,32 @@ echo "default place for GSSAPI is $GSSAPI"
 AC_SUBST(GSSAPI)])dnl
 WITH_GSSAPI
 
-AC_MSG_CHECKING([for gssapi.h])
 hold_cppflags=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS -I$GSSAPI/include "
-AC_CHECK_HEADER(gssapi/gssapi.h,
-  [AC_DEFINE(HAVE_GSSAPI)
-   LIBS="$LIBS -L$GSSAPI/lib -lgssapi_krb5 -lkrb5 -lcrypto -lcom_err"
-   includeopt="${includeopt} -I$GSSAPI/include"
-   # This is necessary on Irix 5.3, in order to link against libkrb5 --
-   # there, an_to_ln.o refers to things defined only in -lgen.
-   AC_CHECK_LIB(gen, compile)])
+AC_CHECK_HEADERS(gssapi.h gssapi/gssapi.h gssapi/gssapi_generic.h)
 CPPFLAGS=$hold_cppflags
+
+if test "$ac_cv_header_gssapi_h" = "yes" || test "$ac_cv_header_gssapi_gssapi_h" = "yes"; then
+  AC_DEFINE(HAVE_GSSAPI)
+  includeopt="${includeopt} -I$GSSAPI/include"
+  # FIXME: This is ugly, but these things don't seem to be standardized.
+  if test "$ac_cv_header_gssapi_h" = "yes"; then
+    LIBS="$LIBS -L$GSSAPI/lib -lgssapi -lkrb5 -lasn1 -ldes -lroken"
+  else
+    LIBS="$LIBS -L$GSSAPI/lib -lgssapi_krb5 -lkrb5 -lcrypto -lcom_err"
+  fi
+  save_CPPFLAGS=$CPPFLAGS
+  CPPFLAGS="-I$GSSAPI/include $CPPFLAGS"
+  if test "$ac_cv_header_gssapi_h" = "yes"; then
+    AC_EGREP_HEADER(GSS_C_NT_HOSTBASED_SERVICE, gssapi.h, AC_DEFINE(HAVE_GSS_C_NT_HOSTBASED_SERVICE))
+  else
+    AC_EGREP_HEADER(GSS_C_NT_HOSTBASED_SERVICE, gssapi/gssapi.h, AC_DEFINE(HAVE_GSS_C_NT_HOSTBASED_SERVICE))
+  fi
+  CPPFLAGS=$save_CPPFLAGS
+  # This is necessary on Irix 5.3, in order to link against libkrb5 --
+  # there, an_to_ln.o refers to things defined only in -lgen.
+  AC_CHECK_LIB(gen, compile)
+fi
 
 dnl
 dnl Use --with-encryption to turn on encryption support

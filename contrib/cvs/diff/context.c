@@ -1,5 +1,5 @@
 /* Context-format output routines for GNU DIFF.
-   Copyright (C) 1988,1989,1991,1992,1993,1994 Free Software Foundation, Inc.
+   Copyright (C) 1988,1989,1991,1992,1993,1994,1998 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -43,14 +43,14 @@ print_context_label (mark, inf, label)
      char const *label;
 {
   if (label)
-    fprintf (outfile, "%s %s\n", mark, label);
+    printf_output ("%s %s\n", mark, label);
   else
     {
       char const *ct = ctime (&inf->stat.st_mtime);
       if (!ct)
 	ct = "?\n";
       /* See Posix.2 section 4.17.6.1.4 for this format.  */
-      fprintf (outfile, "%s %s\t%s", mark, inf->name, ct);
+      printf_output ("%s %s\t%s", mark, inf->name, ct);
     }
 }
 
@@ -116,9 +116,9 @@ print_context_number_range (file, a, b)
      In this case, we should print the line number before the range,
      which is B.  */
   if (trans_b > trans_a)
-    fprintf (outfile, "%d,%d", trans_a, trans_b);
+    printf_output ("%d,%d", trans_a, trans_b);
   else
-    fprintf (outfile, "%d", trans_b);
+    printf_output ("%d", trans_b);
 }
 
 /* Print a portion of an edit script in context format.
@@ -137,7 +137,6 @@ pr_context_hunk (hunk)
   char const *prefix;
   char const *function;
   size_t function_length;
-  FILE *out;
 
   /* Determine range of line numbers involved in each file.  */
 
@@ -160,21 +159,20 @@ pr_context_hunk (hunk)
     find_function (&files[0], first0, &function, &function_length);
 
   begin_output ();
-  out = outfile;
 
   /* If we looked for and found a function this is part of,
      include its name in the header of the diff section.  */
-  fprintf (out, "***************");
+  printf_output ("***************");
 
   if (function)
     {
-      fprintf (out, " ");
-      fwrite (function, 1, min (function_length - 1, 40), out);
+      printf_output (" ");
+      write_output (function, min (function_length - 1, 40));
     }
 
-  fprintf (out, "\n*** ");
+  printf_output ("\n*** ");
   print_context_number_range (&files[0], first0, last0);
-  fprintf (out, " ****\n");
+  printf_output (" ****\n");
 
   if (show_from)
     {
@@ -201,9 +199,9 @@ pr_context_hunk (hunk)
 	}
     }
 
-  fprintf (out, "--- ");
+  printf_output ("--- ");
   print_context_number_range (&files[1], first1, last1);
-  fprintf (out, " ----\n");
+  printf_output (" ----\n");
 
   if (show_to)
     {
@@ -250,9 +248,9 @@ print_unidiff_number_range (file, a, b)
      In this case, we should print the line number before the range,
      which is B.  */
   if (trans_b <= trans_a)
-    fprintf (outfile, trans_b == trans_a ? "%d" : "%d,0", trans_b);
+    printf_output (trans_b == trans_a ? "%d" : "%d,0", trans_b);
   else
-    fprintf (outfile, "%d,%d", trans_a, trans_b - trans_a + 1);
+    printf_output ("%d,%d", trans_a, trans_b - trans_a + 1);
 }
 
 /* Print a portion of an edit script in unidiff format.
@@ -270,7 +268,6 @@ pr_unidiff_hunk (hunk)
   struct change *next;
   char const *function;
   size_t function_length;
-  FILE *out;
 
   /* Determine range of line numbers involved in each file.  */
 
@@ -293,23 +290,22 @@ pr_unidiff_hunk (hunk)
     find_function (&files[0], first0, &function, &function_length);
 
   begin_output ();
-  out = outfile;
 
-  fprintf (out, "@@ -");
+  printf_output ("@@ -");
   print_unidiff_number_range (&files[0], first0, last0);
-  fprintf (out, " +");
+  printf_output (" +");
   print_unidiff_number_range (&files[1], first1, last1);
-  fprintf (out, " @@");
+  printf_output (" @@");
 
   /* If we looked for and found a function this is part of,
      include its name in the header of the diff section.  */
 
   if (function)
     {
-      putc (' ', out);
-      fwrite (function, 1, min (function_length - 1, 40), out);
+      write_output (" ", 1);
+      write_output (function, min (function_length - 1, 40));
     }
-  putc ('\n', out);
+  write_output ("\n", 1);
 
   next = hunk;
   i = first0;
@@ -322,7 +318,7 @@ pr_unidiff_hunk (hunk)
 
       if (!next || i < next->line0)
 	{
-	  putc (tab_align_flag ? '\t' : ' ', out);
+	  write_output (tab_align_flag ? "\t" : " ", 1);
 	  print_1_line (0, &files[0].linbuf[i++]);
 	  j++;
 	}
@@ -333,9 +329,9 @@ pr_unidiff_hunk (hunk)
 	  k = next->deleted;
 	  while (k--)
 	    {
-	      putc ('-', out);
+	      write_output ("-", 1);
 	      if (tab_align_flag)
-		putc ('\t', out);
+		write_output ("\t", 1);
 	      print_1_line (0, &files[0].linbuf[i++]);
 	    }
 
@@ -344,9 +340,9 @@ pr_unidiff_hunk (hunk)
 	  k = next->inserted;
 	  while (k--)
 	    {
-	      putc ('+', out);
+	      write_output ("+", 1);
 	      if (tab_align_flag)
-		putc ('\t', out);
+		write_output ("\t", 1);
 	      print_1_line (0, &files[1].linbuf[j++]);
 	    }
 

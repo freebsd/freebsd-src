@@ -15,13 +15,12 @@
  * or the configure script directly.  Sorry.
  */
 
-/*
- * For portability and heterogeneity reasons, CVS is shipped by
- * default using my own text-file version of the ndbm database library
- * in the src/myndbm.c file.  If you want better performance and are
- * not concerned about heterogeneous hosts accessing your modules
- * file, turn this option off.
- */
+/* By default, CVS stores its modules and other such items in flat
+   text files (MY_NDBM enables this).  Turning off MY_NDBM causes CVS
+   to look for a system-supplied ndbm database library and use it
+   instead.  That may speed things up, but the default setting
+   generally works fine too.  */
+
 #ifndef MY_NDBM
 #define	MY_NDBM
 #endif

@@ -415,29 +415,6 @@ rename_file (from, to)
 }
 
 /*
- * link a file, if possible.  Warning: the Windows NT version of this
- * function just copies the file, so only use this function in ways
- * that can deal with either a link or a copy.
- */
-int
-link_file (from, to)
-    const char *from;
-    const char *to;
-{
-    if (trace)
-#ifdef SERVER_SUPPORT
-	(void) fprintf (stderr, "%c-> link(%s,%s)\n",
-			(server_active) ? 'S' : ' ', from, to);
-#else
-	(void) fprintf (stderr, "-> link(%s,%s)\n", from, to);
-#endif
-    if (noexec)
-	return (0);
-
-    return (link (from, to));
-}
-
-/*
  * unlink a file, if possible.
  */
 int
@@ -770,7 +747,9 @@ xreadlink (link)
     const char *link;
 {
     char *file = NULL;
-    int buflen = BUFSIZ;
+    char *tfile;
+    int buflen = 128;
+    int link_name_len;
 
     if (!islink (link))
 	return NULL;
@@ -781,18 +760,21 @@ xreadlink (link)
     do
     {
 	file = xrealloc (file, buflen);
-	errno = 0;
-	readlink (link, file, buflen);
+	link_name_len = readlink (link, file, buflen - 1);
 	buflen *= 2;
     }
-    while (errno == ENAMETOOLONG);
+    while (link_name_len < 0 && errno == ENAMETOOLONG);
 
-    if (errno)
+    if (link_name_len < 0)
 	error (1, errno, "cannot readlink %s", link);
 
-    return file;
-}
+    file[link_name_len] = '\0';
 
+    tfile = xstrdup (file);
+    free (file);
+
+    return tfile;
+}
 
 
 /* Return a pointer into PATH's last component.  */

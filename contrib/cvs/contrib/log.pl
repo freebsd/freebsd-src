@@ -145,7 +145,16 @@ if ($dostatus != 0) {
 			}
 			last;
 		}
-		open(RCS, "-|") || exec 'cvs', '-nQq', 'status', '-v', $file;
+		$pid = open(RCS, "-|");
+		if ( !defined $pid )
+		{
+			die "fork failed: $!";
+		}
+		if ($pid == 0)
+		{
+			exec 'cvs', '-nQq', 'status', '-v', $file;
+			die "cvs exec failed: $!";
+		}
 		while (<RCS>) {
 			print OUT;
 			if (MAIL) {

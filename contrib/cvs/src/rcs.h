@@ -154,6 +154,10 @@ struct rcsversnode
     List *other;
     /* Newphrase fields from delta nodes.  */
     List *other_delta;
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+    /* Hard link information for each revision. */
+    List *hardlinks;
+#endif
 };
 typedef struct rcsversnode RCSVers;
 
@@ -185,6 +189,9 @@ char *RCS_check_kflag PROTO((const char *arg));
 char *RCS_getdate PROTO((RCSNode * rcs, char *date, int force_tag_match));
 char *RCS_gettag PROTO((RCSNode * rcs, char *symtag, int force_tag_match,
 			int *simple_tag));
+int RCS_exist_rev PROTO((RCSNode *rcs, char *rev));
+int RCS_exist_tag PROTO((RCSNode *rcs, char *tag));
+char *RCS_tag2rev PROTO((RCSNode *rcs, char *tag));
 char *RCS_getversion PROTO((RCSNode * rcs, char *tag, char *date,
 		      int force_tag_match, int *simple_tag));
 char *RCS_magicrev PROTO((RCSNode *rcs, char *rev));
@@ -196,9 +203,11 @@ int RCS_datecmp PROTO((char *date1, char *date2));
 time_t RCS_getrevtime PROTO((RCSNode * rcs, char *rev, char *date, int fudge));
 List *RCS_symbols PROTO((RCSNode *rcs));
 void RCS_check_tag PROTO((const char *tag));
+int RCS_valid_rev PROTO ((char *rev));
 List *RCS_getlocks PROTO((RCSNode *rcs));
 void freercsnode PROTO((RCSNode ** rnodep));
 char *RCS_getbranch PROTO((RCSNode * rcs, char *tag, int force_tag_match));
+char *RCS_branch_head PROTO ((RCSNode *rcs, char *rev));
 
 int RCS_isdead PROTO((RCSNode *, const char *));
 char *RCS_getexpand PROTO ((RCSNode *));
