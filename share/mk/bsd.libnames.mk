@@ -1,9 +1,8 @@
 # $FreeBSD$
-#
+
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
 # file where necessary.
-
 
 LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
 
@@ -34,7 +33,6 @@ LIBFORM?=	${DESTDIR}${LIBDIR}/libform.a
 LIBFTPIO?=	${DESTDIR}${LIBDIR}/libftpio.a
 LIBG2C?=	${DESTDIR}${LIBDIR}/libg2c.a
 LIBGCC?=	${DESTDIR}${LIBDIR}/libgcc.a
-LIBGMP?=	${DESTDIR}${LIBDIR}/libgmp.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
@@ -75,7 +73,7 @@ MINUSLPAM+=	-lkrb5 -lasn1 -lroken
 LIBPAM+=	${LIBCOM_ERR}
 MINUSLPAM+=	-lcom_err
 .endif
-LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBSKEY} ${LIBCRYPT} ${LIBMD} \
+LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBCRYPT} ${LIBMD} \
 		${LIBUTIL} ${LIBOPIE}
 MINUSLPAM+=	-lradius -ltacplus -lcrypt -lmd -lutil -lopie
 .endif
@@ -91,7 +89,6 @@ LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a	# XXX doesn't exist
 LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a	# XXX in secure dist, not base
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
-LIBSKEY?=	${DESTDIR}${LIBDIR}/libskey.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a	# XXX in secure dist, not base
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
