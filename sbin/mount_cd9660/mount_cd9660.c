@@ -49,7 +49,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_cd9660.c	8.7 (Berkeley) 5/1/95";
 */
 static const char rcsid[] =
-	"$Id: mount_cd9660.c,v 1.11 1997/03/29 03:32:35 imp Exp $";
+	"$Id: mount_cd9660.c,v 1.12 1997/04/29 15:56:40 joerg Exp $";
 #endif /* not lint */
 
 #include <sys/cdio.h>
@@ -73,6 +73,7 @@ struct mntopt mopts[] = {
 	{ "extatt", 0, ISOFSMNT_EXTATT, 1 },
 	{ "gens", 0, ISOFSMNT_GENS, 1 },
 	{ "rrip", 1, ISOFSMNT_NORRIP, 1 },
+	{ "joliet", 1, ISOFSMNT_NOJOLIET, 1 },
 	{ NULL }
 };
 
@@ -91,13 +92,16 @@ main(int argc, char **argv)
 	mntflags = opts = verbose = 0;
 	memset(&args, 0, sizeof args);
 	args.ssector = -1;
-	while ((ch = getopt(argc, argv, "ego:rs:v")) != -1)
+	while ((ch = getopt(argc, argv, "egjo:rs:v")) != -1)
 		switch (ch) {
 		case 'e':
 			opts |= ISOFSMNT_EXTATT;
 			break;
 		case 'g':
 			opts |= ISOFSMNT_GENS;
+			break;
+		case 'j':
+			opts |= ISOFSMNT_NOJOLIET;
 			break;
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, &opts);
