@@ -125,68 +125,43 @@ flush()
 #if MSDOS_COMPILER==WIN32C
 	if (is_tty && any_display)
 	{
-		char *p;
 		char *op;
 		DWORD nwritten = 0;
 		CONSOLE_SCREEN_BUFFER_INFO scr;
-		DWORD nchars;
-		COORD cpos;
-		WORD nm_attr;
+		int row;
+		int col;
 		int olen;
 		extern HANDLE con_out;
-		extern int nm_fg_color;
-		extern int nm_bg_color;
-#define	MAKEATTR(fg,bg)		((WORD)((fg)|((bg)<<4)))
 
-		*ob = '\0';
 		olen = ob - obuf;
 		/*
-		 * To avoid color problems, if we're scrolling the screen,
-		 * we write only up to the char that causes the scroll,
-		 * (a newline or a char in the last column), then fill 
-		 * the bottom line with the "normal" attribute, then 
-		 * write the rest.
-		 * When Windows scrolls, it takes the attributes for the 
-		 * new line from the first char of the (previously) 
-		 * bottom line.
-		 *
-		 * {{ This still doesn't work correctly in all cases! }}
+		 * There is a bug in Win32 WriteConsole() if we're
+		 * writing in the last cell with a different color.
+		 * To avoid color problems in the bottom line,
+		 * we scroll the screen manually, before writing.
 		 */
-		nm_attr = MAKEATTR(nm_fg_color, nm_bg_color);
-		for (op = obuf;  *op != '\0';  )
+		GetConsoleScreenBufferInfo(con_out, &scr);
+		col = scr.dwCursorPosition.X;
+		row = scr.dwCursorPosition.Y;
+		for (op = obuf;  op < obuf + olen;  op++)
 		{
-			GetConsoleScreenBufferInfo(con_out, &scr);
-			/* Find the next newline. */
-			p = strchr(op, '\n');
-			if (p == NULL &&
-			    scr.dwCursorPosition.X + olen >= sc_width)
+			if (*op == '\n')
 			{
-				/*
-				 * No newline, but writing in the 
-				 * last column causes scrolling.
-				 */
-				p = op + sc_width - scr.dwCursorPosition.X - 1;
-			}
-			if (scr.dwCursorPosition.Y != scr.srWindow.Bottom ||
-			    p == NULL)
-			{
-				/* Write the entire buffer. */
-				WriteConsole(con_out, op, olen,
-						&nwritten, NULL);
-				op += olen;
+				col = 0;
+				row++;
 			} else
 			{
-				/* Write only up to the scrolling char. */
-				WriteConsole(con_out, op, p - op + 1, 
-						&nwritten, NULL);
-				cpos.X = 0;
-				cpos.Y = scr.dwCursorPosition.Y;
-				FillConsoleOutputAttribute(con_out, nm_attr,
-						sc_width, cpos, &nchars);
-				olen -= p - op + 1;
-				op = p + 1;
+				col++;
+				if (col >= sc_width)
+				{
+					col = 0;
+					row++;
+				}
 			}
 		}
+		if (row > scr.srWindow.Bottom)
+			win32_scroll_up(row - scr.srWindow.Bottom);
+		WriteConsole(con_out, obuf, olen, &nwritten, NULL);
 		ob = obuf;
 		return;
 	}
@@ -274,7 +249,7 @@ iprintnum(num, radix)
 	register char *s;
 	int r;
 	int neg;
-	char buf[10];
+	char buf[INT_STRLEN_BOUND(num)];
 
 	neg = (num < 0);
 	if (neg)

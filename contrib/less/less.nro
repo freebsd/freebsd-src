@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 358: 08 Jul 2000"
+.TH LESS 1 "Version 371: 26 Dec 2001"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -10,13 +10,13 @@ less \- opposite of more
 .br
 .B "less --version"
 .br
-.B "less [-[+]aBcCdeEfgGiImMnNqQrsSuUVwX]"
+.B "less [-[+]aBcCdeEfFgGiIJmMnNqQrRsSuUVwWX]"
 .br
 .B "     [-b \fIbufs\fP] [-h \fIlines\fP] [-j \fIline\fP] [-k \fIkeyfile\fP]"
 .br
 .B "     [-{oO} \fIlogfile\fP] [-p \fIpattern\fP] [-P \fIprompt\fP] [-t \fItag\fP]"
 .br
-.B "     [-T \fItagsfile\fP] [-x \fItab\fP] [-y \fIlines\fP] [-[z] \fIlines\fP]"
+.B "     [-T \fItagsfile\fP] [-x \fItab\fP,...] [-y \fIlines\fP] [-[z] \fIlines\fP]"
 .br
 .B "     [+[+]\fIcmd\fP] [--] [\fIfilename\fP]..."
 .br
@@ -88,14 +88,15 @@ subsequent d and u commands.
 .IP "ESC-) or RIGHTARROW"
 Scroll horizontally right N characters, default half the screen width
 (see the -# option).
+If a number N is specified, it becomes the default for future RIGHTARROW
+and LEFTARROW commands.
 While the text is scrolled, it acts as though the -S option
 (chop lines) were in effect.
-Note that if you wish to enter a number N, you must use ESC-), not RIGHTARROW,
-because the arrow is taken to be a line editing command
-(see the LINE EDITING section).
 .IP "ESC-( or LEFTARROW"
 Scroll horizontally left N characters, default half the screen width
 (see the -# option).
+If a number N is specified, it becomes the default for future RIGHTARROW
+and LEFTARROW commands.
 .IP "r or ^R or ^L"
 Repaint the screen.
 .IP R
@@ -287,6 +288,11 @@ Examine the first file in the command line list.
 If a number N is specified, the N-th file in the list is examined.
 .IP ":d"
 Remove the current file from the list of files.
+.IP "t"
+Go to the next tag, if there were more than one matches for the current tag.
+See the \-t option for more details about tags.
+.IP "T"
+Go to the previous tag, if there were more than one matches for the current tag.
 .IP "= or ^G or :f"
 Prints some information about the file being viewed,
 including its name
@@ -554,7 +560,8 @@ fourth line on the screen, so searches begin at the fifth line
 on the screen.
 .IP "-J or --status-column"
 Displays a status column at the left edge of the screen.
-The status column is used only if the -w or -W option is in effect.
+The status column shows the lines that matched the current search.
+The status column is also used if the -w or -W option is in effect.
 .IP "-k\fIfilename\fP or --lesskey-file=\fIfilename\fP"
 Causes
 .I less
@@ -634,6 +641,7 @@ to that string.
 -PM changes the long (-M) prompt.
 -Ph changes the prompt for the help screen.
 -P= changes the message printed by the = command.
+-Pw changes the message printed while waiting for data (in the F command).
 All prompt strings consist of a sequence of 
 letters and special escape sequences.
 See the section on PROMPTS for more details.
@@ -690,11 +698,17 @@ on the next line.
 .IP "-t\fItag\fP or --tag=\fItag\fP"
 The -t option, followed immediately by a TAG,
 will edit the file containing that tag.
-For this to work, there must be a file called "tags" in the
-current directory, which was previously built by the 
+For this to work, tag information must be available;
+for example, there may be a file in the current directory called "tags",
+which was previously built by 
 .I ctags
-(1) command.
-This option may also be specified from within 
+(1) or an equivalent command.
+If the environment variable LESSGLOBALTAGS is set, it is taken to be
+the name of a command compatible with 
+.I global
+(1), and that command is executed to find the tag.
+(See http://www.gnu.org/software/global/global.html).
+The -t option may also be specified from within 
 .I less 
 (using the \- command) as a way of examining a new file.
 The command ":t" is equivalent to specifying -t from within
@@ -738,14 +752,24 @@ in which case only the status column is highlighted.
 .IP "-W or --HILITE-UNREAD"
 Like -w, but temporarily highlights the first new line after any 
 forward movement command larger than one line.
-.IP "-x\fIn\fP or --tabs=\fIn\fP"
-Sets tab stops every \fIn\fP positions.
+.IP "-x\fIn\fP,... or --tabs=\fIn\fP,..."
+Sets tab stops.
+If only one \fIn\fP is specified, tab stops are set at multiples of \fIn\fP.
+If multiple values separated by commas are specified, tab stops
+are set at those positions, and then continue with the same spacing as the
+last two.
+For example, \fI-x9,17\fP will set tabs at positions 9, 17, 25, 33, etc.
 The default for \fIn\fP is 8.
 .IP "-X or --no-init"
 Disables sending the termcap initialization and deinitialization strings
 to the terminal.
 This is sometimes desirable if the deinitialization string does
 something unnecessary, like clearing the screen.
+.IP "--no-keypad"
+Disables sending the keypad initialization and deinitialization strings
+to the terminal.
+This is sometimes useful if the keypad strings make the numeric
+keypad behave in an undesirable manner.
 .IP "-y\fIn\fP or --max-forw-scroll=\fIn\fP"
 Specifies a maximum number of lines to scroll forward.
 If it is necessary to scroll forward more than \fIn\fP lines,
@@ -864,7 +888,7 @@ Like, TAB, but cycles in the reverse direction thru the matching filenames.
 Complete the partial filename to the left of the cursor.
 If it matches more than one filename, all matches are entered into
 the command line (if they fit).
-.IP "^U (Unix) or ESC (MS-DOS)"
+.IP "^U (Unix and OS/2) or ESC (MS-DOS)"
 Delete the entire command line,
 or cancel the command if the command line is empty.
 If you have changed your line-kill character in Unix to something
@@ -918,11 +942,11 @@ uses that as the name of the system-wide lesskey file.
 Otherwise,
 .I less 
 looks in a standard place for the system-wide lesskey file:
-On Unix systems, the system-wide lesskey file is /usr/local/bin/.sysless.
+On Unix systems, the system-wide lesskey file is /usr/local/etc/sysless.
 (However, if 
 .I less 
-was built with a different binary directory than /usr/local/bin,
-that directory is where the .sysless file is found.)
+was built with a different sysconf directory than /usr/local/etc,
+that directory is where the sysless file is found.)
 On MS-DOS and Windows systems, the system-wide lesskey file is c:\\_sysless.
 On OS/2 systems, the system-wide lesskey file is c:\\sysless.ini.
 
@@ -1078,21 +1102,23 @@ This is the same as ASCII, except characters between 160 and 255 are
 treated as normal characters.
 .IP latin1
 Same as iso8859.
+.IP latin9
+Same as iso8859.
 .IP dos
 Selects a character set appropriate for MS-DOS.
 .IP ebcdic
 Selects an EBCDIC character set.
+.IP IBM-1047
+Selects an EBCDIC character set used by OS/390 Unix Services.
+This is the EBCDIC analogue of latin1.  You get similar results
+by setting either LESSCHARSET=IBM-1047 or LC_CTYPE=en_US
+in your environment.
 .IP koi8-r
 Selects a Russian character set.
 .IP next
 Selects a character set appropriate for NeXT computers.
 .IP utf-8
 Selects the UTF-8 encoding of the ISO 10646 character set.
-.PP
-If the LESSCHARSET environment variable is not set,
-the default character set is latin1.
-However, if the string "UTF-8" is found in the LC_ALL, LC_CTYPE or LANG
-environment variables, then the default character set is utf-8 instead.
 .PP
 In special cases, it may be desired to tailor
 .I less
@@ -1122,6 +1148,9 @@ to each of the possible values for LESSCHARSET:
 .br
 	\ \ \ \ \ \ 	9.8b8.17b3.3b9.7b9.8b8.6b10.b.b.b.
 .br
+	IBM-1047	4cbcbc3b9cbccbccbb4c6bcc5b3cbbc4bc4bccbc
+	\ \ \ \ \ \ 	191.b
+.br
 	iso8859	8bcccbcc18b95.33b.
 .br
 	koi8-r	8bcccbcc18b95.b128.
@@ -1130,13 +1159,21 @@ to each of the possible values for LESSCHARSET:
 .br
 	next\ \ 	8bcccbcc18b95.bb125.bb
 .PP
-If neither LESSCHARSET nor LESSCHARDEF is set, 
-but your system supports the 
+If neither LESSCHARSET nor LESSCHARDEF is set,
+but the string "UTF-8" is found in the LC_ALL, LC_TYPE or LANG
+environment variables, then the default character set is utf-8.
+.PP
+If that string is not found, but your system supports the
 .I setlocale
 interface,
 .I less
 will use setlocale to determine the character set.
-setlocale is controlled by setting the LANG or LC_CTYPE environment variables.
+setlocale is controlled by setting the LANG or LC_CTYPE environment
+variables.
+.PP
+Finally, if the
+.I setlocale
+interface is also not available, the default character set is latin1.
 .PP
 Control and binary characters are displayed in standout (reverse video).
 Each such character is displayed in caret notation if possible
@@ -1380,7 +1417,8 @@ LINES and COLUMNS environment variables.)
 .IP EDITOR
 The name of the editor (used for the v command).
 .IP HOME
-Name of the user's home directory (used to find a lesskey file on Unix systems).
+Name of the user's home directory
+(used to find a lesskey file on Unix and OS/2 systems).
 .IP "HOMEDRIVE, HOMEPATH"
 Concatenation of the HOMEDRIVE and HOMEPATH environment variables is
 the name of the user's home directory if the HOME variable is not set
@@ -1413,6 +1451,11 @@ in filenames on Unix systems.
 .IP LESSEDIT
 Editor prototype string (used for the v command).
 See discussion under PROMPTS.
+.IP LESSGLOBALTAGS
+Name of the command used by the -t option to find global tags.
+Normally should be set to "global" if your system has the
+.I global
+(1) command.  If not set, global tags are not used.
 .IP LESSKEY
 Name of the default lesskey(1) file.
 .IP LESSKEY_SYSTEM
@@ -1472,6 +1515,11 @@ more text than the matching string may be highlighted.
 (This problem does not occur when less is compiled to use the POSIX
 regular expression package.)
 .PP
+When viewing text containing ANSI color escape sequences using the -R option,
+searching will not find text containing an embedded escape sequence.
+Also, search highlighting may change the color of some of the text
+which follows the highlighted text.
+.PP
 On some systems,
 .I setlocale
 claims that ASCII characters 0 thru 31 are control characters 
@@ -1482,11 +1530,11 @@ to treat some binary files as ordinary, non-binary files.
 To workaround this problem, set the environment variable
 LESSCHARSET to "ascii" (or whatever character set is appropriate).
 .PP
-See http://www.flash.net/~marknu/less for the latest list of known bugs in this
+See http://www.greenwoodsoftware.com/less for the latest list of known bugs in this
 version of less.
 
 .SH COPYRIGHT
-Copyright (C) 2000  Mark Nudelman
+Copyright (C) 2001  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
@@ -1509,7 +1557,8 @@ See the GNU General Public License for more details.
 
 .SH AUTHOR
 .PP
-Mark Nudelman <marknu@flash.net>
+Mark Nudelman <markn@greenwoodsoftware.com>
 .br
 Send bug reports or comments to the above address or to bug-less@gnu.org.
-
+.br
+For more information, see the less homepage at http://www.greenwoodsoftware.com/less.

@@ -12,6 +12,7 @@
 	public void home ();
 	public void add_line ();
 	public void remove_top ();
+	public void win32_scroll_up ();
 	public void lower_left ();
 	public void check_winch ();
 	public void goto_line ();
@@ -142,6 +143,7 @@
 	public void init_line ();
 	public void prewind ();
 	public void plinenum ();
+	public int is_ansi_end ();
 	public int pappend ();
 	public void pdone ();
 	public int gline ();
@@ -175,6 +177,7 @@
 	public void opt_i ();
 	public void opt__V ();
 	public void opt_D ();
+	public void opt_x ();
 	public void opt_quote ();
 	public void opt_query ();
 	public int get_swindow ();
@@ -195,7 +198,6 @@
 	public int percentage ();
 	public POSITION percent_pos ();
 	public int  os9_signal ();
-	public int  isatty ();
 	public void put_line ();
 	public void flush ();
 	public int putchr ();
@@ -218,6 +220,7 @@
 	public char * pr_expand ();
 	public char * eq_message ();
 	public char * pr_string ();
+	public char * wait_message ();
 	public void repaint_hilite ();
 	public void clear_attn ();
 	public void undo_search ();
@@ -231,9 +234,15 @@
 	public RETSIGTYPE winch ();
 	public void init_signals ();
 	public void psignals ();
+	public void cleantags ();
+	public int gettagtype ();
 	public void findtag ();
-	public int edit_tagfile ();
 	public POSITION tagsearch ();
+	public char * nexttag ();
+	public char * prevtag ();
+	public int ntags ();
+	public int curr_tag ();
+	public int edit_tagfile ();
 	public void open_getchr ();
 	public void close_getchr ();
 	public int getchr ();
