@@ -160,14 +160,16 @@ static	int ubsec_ksigbits(struct crparam *);
 static	void ubsec_kshift_r(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 static	void ubsec_kshift_l(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 
+SYSCTL_NODE(_hw, OID_AUTO, ubsec, CTLFLAG_RD, 0, "Broadcom driver parameters");
+
 #ifdef UBSEC_DEBUG
 static	void ubsec_dump_pb(volatile struct ubsec_pktbuf *);
 static	void ubsec_dump_mcr(struct ubsec_mcr *);
 static	void ubsec_dump_ctx2(struct ubsec_ctx_keyop *);
 
 static	int ubsec_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, ubsec, CTLFLAG_RW, &ubsec_debug,
-	    0, "UBSEC driver debugging printfs");
+SYSCTL_INT(_hw_ubsec, OID_AUTO, debug, CTLFLAG_RW, &ubsec_debug,
+	    0, "control debugging msgs");
 #endif
 
 #define	READ_REG(sc,r) \
@@ -179,10 +181,9 @@ SYSCTL_INT(_debug, OID_AUTO, ubsec, CTLFLAG_RW, &ubsec_debug,
 #define	SWAP32(x) (x) = htole32(ntohl((x)))
 #define	HTOLE32(x) (x) = htole32(x)
 
-
 struct ubsec_stats ubsecstats;
-SYSCTL_STRUCT(_kern, OID_AUTO, ubsec_stats, CTLFLAG_RD, &ubsecstats,
-	    ubsec_stats, "Broadcom driver statistics");
+SYSCTL_STRUCT(_hw_ubsec, OID_AUTO, stats, CTLFLAG_RD, &ubsecstats,
+	    ubsec_stats, "driver statistics");
 /*
  * ubsec_maxbatch controls the number of crypto ops to voluntarily 
  * collect into one submission to the hardware.  This batching happens
@@ -191,8 +192,8 @@ SYSCTL_STRUCT(_kern, OID_AUTO, ubsec_stats, CTLFLAG_RD, &ubsecstats,
  * with a ``no delay'' flag.
  */
 static	int ubsec_maxbatch = 1;
-SYSCTL_INT(_kern, OID_AUTO, ubsec_maxbatch, CTLFLAG_RW, &ubsec_maxbatch,
-	    0, "Broadcom driver: max ops to batch w/o interrupt");
+SYSCTL_INT(_hw_ubsec, OID_AUTO, maxbatch, CTLFLAG_RW, &ubsec_maxbatch,
+	    0, "max ops to batch w/o interrupt");
 /*
  * ubsec_maxaggr controls the number of crypto ops to submit to the
  * hardware as a unit.  This aggregation reduces the number of interrupts
@@ -201,8 +202,8 @@ SYSCTL_INT(_kern, OID_AUTO, ubsec_maxbatch, CTLFLAG_RW, &ubsec_maxbatch,
  * performance but at the expense of more interrupt processing.
  */
 static	int ubsec_maxaggr = 1;
-SYSCTL_INT(_kern, OID_AUTO, ubsec_maxaggr, CTLFLAG_RW, &ubsec_maxaggr,
-	    0, "Broadcom driver: max ops to aggregate under one interrupt");
+SYSCTL_INT(_hw_ubsec, OID_AUTO, maxaggr, CTLFLAG_RW, &ubsec_maxaggr,
+	    0, "max ops to aggregate under one interrupt");
 
 static int
 ubsec_probe(device_t dev)
