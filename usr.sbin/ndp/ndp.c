@@ -146,6 +146,7 @@ void	ifinfo __P((char *));
 void	list __P((void));
 void	plist __P((void));
 void	pfx_flush __P((void));
+void	rtrlist __P((void));
 void	rtr_flush __P((void));
 void	harmonize_rtr __P((void));
 static char	*sec2str __P((time_t t));
