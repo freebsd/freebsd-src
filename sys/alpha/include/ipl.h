@@ -38,6 +38,7 @@
 #define SWI_TTY		0
 #define SWI_NET		1
 #define SWI_CAMNET	2
+#define	SWI_CRYPTO	SWI_CAMNET
 #define SWI_CAMBIO	3
 #define SWI_VM		4
 #define SWI_CLOCK	5
@@ -80,6 +81,7 @@ SPLUP(splsofttq, SOFT)
 SPLUP(splnet, IO)
 SPLUP(splbio, IO)
 SPLUP(splcam, IO)
+SPLUP(splcrypto, IO)
 SPLUP(splimp, IO)
 SPLUP(spltty, IO)
 SPLUP(splvm, IO)
@@ -113,6 +115,7 @@ extern void setsoftcambio(void);
 extern void setsoftvm(void);
 extern void setsofttq(void);
 extern void setsoftclock(void);
+extern void setsoftcrypto(void);
 
 extern void schedsofttty(void);
 extern void schedsoftnet(void);
