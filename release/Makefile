@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.415 1998/10/13 21:09:42 jkh Exp $
+#	$Id: Makefile,v 1.416 1998/10/13 21:36:13 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -748,7 +748,6 @@ doMFSKERN:
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
-.if ${MACHINE_ARCH} == "i386"
 	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/boot.${FSIMAGE}
 .else
 	@cp ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
