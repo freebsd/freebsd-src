@@ -39,7 +39,7 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993, 1994\n\
         The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -59,6 +59,7 @@ static const char rcsid[] =
 #include <sys/../isofs/cd9660/cd9660_mount.h>
 #include <sys/module.h>
 #include <sys/iconv.h>
+#include <sys/linker.h>
 
 #include <arpa/inet.h>
 
