@@ -213,9 +213,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Calculate object memory usage statistics.
 	 */
-	for (object = TAILQ_FIRST(&vm_object_list);
-	    object != NULL;
-	    object = TAILQ_NEXT(object, object_list)) {
+	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		/*
 		 * devices, like /dev/mem, will badly skew our totals
 		 */
