@@ -7,7 +7,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)rquota.x 1.2 87/09/20 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)rquota.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id$";
+%static char rcsid[] = "$Id: rquota.x,v 1.1 1994/08/04 19:01:50 wollman Exp $";
 %#endif /* not lint */
 #endif
 

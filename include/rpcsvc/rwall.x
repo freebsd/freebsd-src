@@ -1,46 +1,57 @@
-/*
- * Copyright (c) 1993 Christopher G. Demetriou
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
+%/*
+% * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
+% * unrestricted use provided that this legend is included on all tape
+% * media and as a part of the software program in whole or part.  Users
+% * may copy or modify Sun RPC without charge, but are not authorized
+% * to license or distribute it to anyone else except as part of a product or
+% * program developed by the user or with the express written consent of
+% * Sun Microsystems, Inc.
+% *
+% * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
+% * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
+% * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
+% *
+% * Sun RPC is provided with no support and without any obligation on the
+% * part of Sun Microsystems, Inc. to assist in its use, correction,
+% * modification or enhancement.
+% *
+% * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
+% * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
+% * OR ANY PART THEREOF.
+% *
+% * In no event will Sun Microsystems, Inc. be liable for any lost revenue
+% * or profits or other special, indirect and consequential damages, even if
+% * Sun has been advised of the possibility of such damages.
+% *
+% * Sun Microsystems, Inc.
+% * 2550 Garcia Avenue
+% * Mountain View, California  94043
+% */
 
-/*
- * rpc protocol definition for (remote) wall protocol
- *
- * this has to be compatible with sun's definition
- */
+%/*
+% * Copyright (c) 1984, 1990 by Sun Microsystems, Inc.
+% */
+%
+%/* from @(#)rwall.x	1.6 91/03/11 TIRPC 1.0 */
 
-#ifndef RPC_HDR
-%#ifndef lint
-%static char rcsid[] = "$Id$";
-%#endif /* not lint */
+#ifdef RPC_HDR
+%
+%#ifndef _rpcsvc_rwall_h
+%#define _rpcsvc_rwall_h
+%
+%typedef char *wrapstring;
+%
 #endif
 
 program WALLPROG {
 	version WALLVERS {
-		void WALLPROC_WALL(string) = 2;
+		void	
+		WALLPROC_WALL(wrapstring) = 2;
+
 	} = 1;
 } = 100008;
+
+#ifdef RPC_HDR
+%
+%#endif /* ! _rpcsvc_rwall_h */
+#endif
