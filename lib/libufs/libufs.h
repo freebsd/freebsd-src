@@ -79,10 +79,17 @@ struct uufsd {
 		char d_sb[MAXBSIZE];
 				/* superblock as buffer */
 	} d_sbunion;
+	union {
+		struct cg d_cg;	/* cylinder group */
+		char d_buf[MAXBSIZE];
+				/* cylinder group storage */
+	} d_cgunion;
+	int d_ccg;		/* current cylinder group */
 	const char *d_error;	/* human readable disk error */
 	int d_mine;		/* internal flags */
 #define	d_fs	d_sbunion.d_fs
 #define	d_sb	d_sbunion.d_sb
+#define	d_cg	d_cgunion.d_cg
 };
 
 __BEGIN_DECLS
@@ -96,6 +103,12 @@ __BEGIN_DECLS
  */
 ssize_t bread(struct uufsd *, ufs2_daddr_t, void *, size_t);
 ssize_t bwrite(struct uufsd *, ufs2_daddr_t, const void *, size_t);
+
+/*
+ * cgroup.c
+ */
+int cgread(struct uufsd *);
+int cgread1(struct uufsd *, int);
 
 /*
  * inode.c
