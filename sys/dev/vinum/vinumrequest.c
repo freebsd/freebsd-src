@@ -107,7 +107,6 @@ vinumstrategy(struct buf *bp)
     int volno;
     struct volume *vol = NULL;
     struct devcode *device = (struct devcode *) &bp->b_dev; /* decode device number */
-    int s;						    /* spl */
 
     switch (device->type) {
     case VINUM_SD_TYPE:
@@ -148,9 +147,7 @@ vinumstrategy(struct buf *bp)
     case VINUM_PLEX_TYPE:
     case VINUM_RAWPLEX_TYPE:
 	bp->b_resid = bp->b_bcount;			    /* transfer everything */
-	s = splbio();
 	vinumstart(bp, 0);
-	splx(s);
 	return;
     }
 }
@@ -364,6 +361,7 @@ launch_requests(struct request *rq, int reviveok)
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_user_bpl, (union rqinfou) rq->bp, rq->bp);
 #endif
+    s = splbio();
     for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
 	rqg->active = rqg->count;			    /* they're all active */
 	rq->active++;					    /* one more active request group */
@@ -394,13 +392,12 @@ launch_requests(struct request *rq, int reviveok)
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
 		/* fire off the request */
-		s = splbio();
 		(*bdevsw[major(rqe->b.b_dev)]->d_strategy) (&rqe->b);
-		splx(s);
 	    }
 	    /* XXX Do we need caching?  Think about this more */
 	}
     }
+    splx(s);
     return 0;
 }
 
