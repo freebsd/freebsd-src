@@ -2272,9 +2272,7 @@ END_DEBUG
 		ocb->ccb->ccb_h.timeout_ch = timeout(sbp_timeout, (caddr_t)ocb,
 					(ocb->ccb->ccb_h.timeout * hz) / 1000);
 
-	if (prev != NULL
-		&& ((prev->flags & OCB_ACT_MASK) == OCB_ACT_CMD)
-		&& ((ocb->flags & OCB_ACT_MASK) == OCB_ACT_CMD)) {
+	if (prev != NULL ) {
 SBP_DEBUG(1)
 #if __FreeBSD_version >= 500000
 	printf("linking chain 0x%tx -> 0x%tx\n", vtophys(&prev->orb[0]),
@@ -2286,8 +2284,6 @@ END_DEBUG
 		prev->flags |= OCB_RESERVED;
 		prev->orb[1] = htonl(vtophys(&ocb->orb[0]));
 		prev->orb[0] = 0;
-	} else {
-		prev = NULL;
 	}
 	splx(s);
 
