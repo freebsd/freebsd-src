@@ -90,7 +90,7 @@ k6_mrmake(struct mem_range_desc *desc, u_int32_t *mtrr) {
 		return EOPNOTSUPP;
 
 	for (bit = ffs(desc->mr_len >> 17) - 1; bit < 15; bit++)
-		len |= 1 << (14 - bit); 
+		len |= 1 << bit; 
 	wc = (desc->mr_flags & MDF_WRITECOMBINE) ? 1 : 0;
 	uc = (desc->mr_flags & MDF_UNCACHEABLE) ? 1 : 0;
 
