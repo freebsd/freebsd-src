@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.seq#19 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#20 $
  *
  * $FreeBSD$
  */
@@ -67,21 +67,17 @@ poll_for_work:
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 		clr	SCSIBUSL;
 	}
-poll_for_work_loop:
-	test	SSTAT0, SELDO|SELDI	jnz selection;
-	test	SCSISEQ, ENSELO	jnz poll_for_work_loop;
+	test	SCSISEQ, ENSELO	jnz poll_for_selection;
 	if ((ahc->features & AHC_TWIN) != 0) {
-		/*
-		 * Twin channel devices cannot handle things like SELTO
-		 * interrupts on the "background" channel.  So, if we
-		 * are selecting, keep polling the current channel util
-		 * either a selection or reselection occurs.
-		 */
 		xor	SBLKCTL,SELBUSB;	/* Toggle to the other bus */
-		test	SSTAT0, SELDO|SELDI	jnz selection;
-		xor	SBLKCTL,SELBUSB;	/* Toggle back */
+		test	SCSISEQ, ENSELO		jnz poll_for_selection;
 	}
 	cmp	WAITING_SCBH,SCB_LIST_NULL jne start_waiting;
+poll_for_work_loop:
+	if ((ahc->features & AHC_TWIN) != 0) {
+		xor	SBLKCTL,SELBUSB;	/* Toggle to the other bus */
+	}
+	test	SSTAT0, SELDO|SELDI	jnz selection;
 test_queue:
 	/* Has the driver posted any work for us? */
 BEGIN_CRITICAL
@@ -139,67 +135,15 @@ start_waiting:
 	 */
 	mov	SCBPTR, WAITING_SCBH;
 	call	start_selection;
-	jmp	poll_for_work_loop;
 
-abort_qinscb:
-	call	add_scb_to_free_list;
-	jmp	poll_for_work_loop;
-
-start_selection:
+poll_for_selection:
 	/*
-	 * If bus reset interrupts have been disabled (from a previous
-	 * reset), re-enable them now.  Resets are only of interest
-	 * when we have outstanding transactions, so we can safely
-	 * defer re-enabling the interrupt until, as an initiator,
-	 * we start sending out transactions again.
+	 * Twin channel devices cannot handle things like SELTO
+	 * interrupts on the "background" channel.  So, while
+	 * selecting, keep polling the current channel until
+	 * either a selection or reselection occurs.
 	 */
-	test	SIMODE1, ENSCSIRST	jnz . + 3;
-	mvi	CLRSINT1, CLRSCSIRSTI;
-	or	SIMODE1, ENSCSIRST;
-	if ((ahc->features & AHC_TWIN) != 0) {
-		and	SINDEX,~SELBUSB,SBLKCTL;/* Clear channel select bit */
-		test	SCB_SCSIID, TWIN_CHNLB jz . + 2;
-		or	SINDEX, SELBUSB;
-		mov	SBLKCTL,SINDEX;		/* select channel */
-	}
-initialize_scsiid:
-	if ((ahc->features & AHC_ULTRA2) != 0) {
-		mov	SCSIID_ULTRA2, SCB_SCSIID;
-	} else if ((ahc->features & AHC_TWIN) != 0) {
-		and	SCSIID, TWIN_TID|OID, SCB_SCSIID;
-	} else {
-		mov	SCSIID, SCB_SCSIID;
-	}
-	if ((ahc->flags & AHC_TARGETROLE) != 0) {
-		mov	SINDEX, SCSISEQ_TEMPLATE;
-		test	SCB_CONTROL, TARGET_SCB jz . + 2;
-		or	SINDEX, TEMODE;
-		mov	SCSISEQ, SINDEX ret;
-	} else {
-		mov	SCSISEQ, SCSISEQ_TEMPLATE ret;
-	}
-
-/*
- * Initialize transfer settings and clear the SCSI channel.
- * SINDEX should contain any additional bit's the client wants
- * set in SXFRCTL0.  We also assume that the current SCB is
- * a valid SCB for the target we wish to talk to.
- */
-initialize_channel:
-	or	SXFRCTL0, SPIOEN|CLRSTCNT|CLRCHN;
-set_transfer_settings:
-	if ((ahc->features & AHC_ULTRA) != 0) {
-		test	SCB_CONTROL, ULTRAENB jz . + 2;
-		or	SXFRCTL0, FAST20;
-	} 
-	/*
-	 * Initialize SCSIRATE with the appropriate value for this target.
-	 */
-	if ((ahc->features & AHC_ULTRA2) != 0) {
-		bmov	SCSIRATE, SCB_SCSIRATE, 2 ret;
-	} else {
-		mov	SCSIRATE, SCB_SCSIRATE ret;
-	}
+	test	SSTAT0, SELDO|SELDI	jz poll_for_selection;
 
 selection:
 	/*
@@ -385,23 +329,6 @@ tqinfifo_has_space:
 		or	SEQ_FLAGS, TARG_CMD_PENDING|IDENTIFY_SEEN;
 		test	SCSISIGI, ATNI	jnz target_mesgout_pending;
 		jmp	target_ITloop;
-		
-/*
- * We carefully toggle SPIOEN to allow us to return the 
- * message byte we receive so it can be checked prior to
- * driving REQ on the bus for the next byte.
- */
-target_inb:
-		/*
-		 * Drive REQ on the bus by enabling SCSI PIO.
-		 */
-		or	SXFRCTL0, SPIOEN;
-		/* Wait for the byte */
-		test	SSTAT0, SPIORDY jz .;
-		/* Prevent our read from triggering another REQ */
-		and	SXFRCTL0, ~SPIOEN;
-		/* Save latched contents */
-		mov	DINDEX, SCSIDATL ret;
 	}
 
 if ((ahc->flags & AHC_INITIATORROLE) != 0) {
@@ -425,6 +352,85 @@ initiator_reselect:
 	}
 	mvi	CLRSINT0, CLRSELDI;
 	jmp	ITloop;
+}
+
+abort_qinscb:
+	call	add_scb_to_free_list;
+	jmp	poll_for_work_loop;
+
+start_selection:
+	/*
+	 * If bus reset interrupts have been disabled (from a previous
+	 * reset), re-enable them now.  Resets are only of interest
+	 * when we have outstanding transactions, so we can safely
+	 * defer re-enabling the interrupt until, as an initiator,
+	 * we start sending out transactions again.
+	 */
+	test	SIMODE1, ENSCSIRST	jnz . + 3;
+	mvi	CLRSINT1, CLRSCSIRSTI;
+	or	SIMODE1, ENSCSIRST;
+	if ((ahc->features & AHC_TWIN) != 0) {
+		and	SINDEX,~SELBUSB,SBLKCTL;/* Clear channel select bit */
+		test	SCB_SCSIID, TWIN_CHNLB jz . + 2;
+		or	SINDEX, SELBUSB;
+		mov	SBLKCTL,SINDEX;		/* select channel */
+	}
+initialize_scsiid:
+	if ((ahc->features & AHC_ULTRA2) != 0) {
+		mov	SCSIID_ULTRA2, SCB_SCSIID;
+	} else if ((ahc->features & AHC_TWIN) != 0) {
+		and	SCSIID, TWIN_TID|OID, SCB_SCSIID;
+	} else {
+		mov	SCSIID, SCB_SCSIID;
+	}
+	if ((ahc->flags & AHC_TARGETROLE) != 0) {
+		mov	SINDEX, SCSISEQ_TEMPLATE;
+		test	SCB_CONTROL, TARGET_SCB jz . + 2;
+		or	SINDEX, TEMODE;
+		mov	SCSISEQ, SINDEX ret;
+	} else {
+		mov	SCSISEQ, SCSISEQ_TEMPLATE ret;
+	}
+
+/*
+ * Initialize transfer settings and clear the SCSI channel.
+ * SINDEX should contain any additional bit's the client wants
+ * set in SXFRCTL0.  We also assume that the current SCB is
+ * a valid SCB for the target we wish to talk to.
+ */
+initialize_channel:
+	or	SXFRCTL0, SPIOEN|CLRSTCNT|CLRCHN;
+set_transfer_settings:
+	if ((ahc->features & AHC_ULTRA) != 0) {
+		test	SCB_CONTROL, ULTRAENB jz . + 2;
+		or	SXFRCTL0, FAST20;
+	} 
+	/*
+	 * Initialize SCSIRATE with the appropriate value for this target.
+	 */
+	if ((ahc->features & AHC_ULTRA2) != 0) {
+		bmov	SCSIRATE, SCB_SCSIRATE, 2 ret;
+	} else {
+		mov	SCSIRATE, SCB_SCSIRATE ret;
+	}
+
+if ((ahc->flags & AHC_TARGETROLE) != 0) {
+/*
+ * We carefully toggle SPIOEN to allow us to return the 
+ * message byte we receive so it can be checked prior to
+ * driving REQ on the bus for the next byte.
+ */
+target_inb:
+	/*
+	 * Drive REQ on the bus by enabling SCSI PIO.
+	 */
+	or	SXFRCTL0, SPIOEN;
+	/* Wait for the byte */
+	test	SSTAT0, SPIORDY jz .;
+	/* Prevent our read from triggering another REQ */
+	and	SXFRCTL0, ~SPIOEN;
+	/* Save latched contents */
+	mov	DINDEX, SCSIDATL ret;
 }
 
 /*

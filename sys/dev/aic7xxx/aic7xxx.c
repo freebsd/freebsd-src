@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.c#28 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.c#30 $
  *
  * $FreeBSD$
  */
@@ -887,8 +887,8 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		if ((ahc->features & AHC_TWIN) != 0) {
 			/* Try the other channel */
 		 	ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) ^ SELBUSB);
-			status = ahc_inb(ahc, SSTAT1);
-		 	ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) ^ SELBUSB);
+			status = ahc_inb(ahc, SSTAT1)
+			       & (SELTO|SCSIRSTI|BUSFREE|SCSIPERR);
 			intr_channel = (cur_channel == 'A') ? 'B' : 'A';
 		}
 		if (status == 0) {
@@ -928,6 +928,8 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 	} else if ((status & SCSIRSTI) != 0) {
 		printf("%s: Someone reset channel %c\n",
 			ahc_name(ahc), intr_channel);
+		if (intr_channel != cur_channel)
+		 	ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) ^ SELBUSB);
 		ahc_reset_channel(ahc, intr_channel, /*Initiate Reset*/FALSE);
 	} else if ((status & SCSIPERR) != 0) {
 		/*
@@ -1704,6 +1706,19 @@ ahc_set_syncrate(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 
 	tinfo = ahc_fetch_transinfo(ahc, devinfo->channel, devinfo->our_scsiid,
 				    devinfo->target, &tstate);
+
+	if ((type & AHC_TRANS_USER) != 0) {
+		tinfo->user.period = period;
+		tinfo->user.offset = offset;
+		tinfo->user.ppr_options = ppr_options;
+	}
+
+	if ((type & AHC_TRANS_GOAL) != 0) {
+		tinfo->goal.period = period;
+		tinfo->goal.offset = offset;
+		tinfo->goal.ppr_options = ppr_options;
+	}
+
 	old_period = tinfo->current.period;
 	old_offset = tinfo->current.offset;
 	old_ppr	   = tinfo->current.ppr_options;
@@ -1782,18 +1797,6 @@ ahc_set_syncrate(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		}
 	}
 
-	if ((type & AHC_TRANS_GOAL) != 0) {
-		tinfo->goal.period = period;
-		tinfo->goal.offset = offset;
-		tinfo->goal.ppr_options = ppr_options;
-	}
-
-	if ((type & AHC_TRANS_USER) != 0) {
-		tinfo->user.period = period;
-		tinfo->user.offset = offset;
-		tinfo->user.ppr_options = ppr_options;
-	}
-
 	ahc_update_target_msg_request(ahc, devinfo, tinfo,
 				      /*force*/FALSE,
 				      paused);
@@ -1818,8 +1821,14 @@ ahc_set_width(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 
 	tinfo = ahc_fetch_transinfo(ahc, devinfo->channel, devinfo->our_scsiid,
 				    devinfo->target, &tstate);
-	oldwidth = tinfo->current.width;
 
+	if ((type & AHC_TRANS_USER) != 0)
+		tinfo->user.width = width;
+
+	if ((type & AHC_TRANS_GOAL) != 0)
+		tinfo->goal.width = width;
+
+	oldwidth = tinfo->current.width;
 	if ((type & AHC_TRANS_CUR) != 0 && oldwidth != width) {
 		u_int	scsirate;
 
@@ -1843,10 +1852,6 @@ ahc_set_width(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 			       8 * (0x01 << width));
 		}
 	}
-	if ((type & AHC_TRANS_GOAL) != 0)
-		tinfo->goal.width = width;
-	if ((type & AHC_TRANS_USER) != 0)
-		tinfo->user.width = width;
 
 	ahc_update_target_msg_request(ahc, devinfo, tinfo,
 				      /*force*/FALSE, paused);
@@ -3063,7 +3068,8 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		if ((ahc->flags & AHC_SCB_BTT) == 0) {
 			struct scb_tailq *untagged_q;
 
-			untagged_q = &(ahc->untagged_queues[devinfo->target]);
+			untagged_q =
+			    &(ahc->untagged_queues[devinfo->target_offset]);
 			TAILQ_INSERT_HEAD(untagged_q, scb, links.tqe);
 			scb->flags |= SCB_UNTAGGEDQ;
 		}
@@ -5994,6 +6000,9 @@ ahc_dump_card_state(struct ahc_softc *ahc)
 	       ahc_name(ahc),
 	       ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
 
+	printf("SCSISEQ = 0x%x, SBLKCTL = 0x%x, SSTAT0 0x%x\n",
+	       ahc_inb(ahc, SCSISEQ), ahc_inb(ahc, SBLKCTL),
+	       ahc_inb(ahc, SSTAT0));
 	printf("SCB count = %d\n", ahc->scb_data->numscbs);
 	printf("Kernel NEXTQSCB = %d\n", ahc->next_queued_scb->hscb->tag);
 	printf("Card NEXTQSCB = %d\n", ahc_inb(ahc, NEXT_QUEUED_SCB));
