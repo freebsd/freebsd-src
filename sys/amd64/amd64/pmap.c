@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.72 1995/12/22 18:21:26 bde Exp $
+ *	$Id: pmap.c,v 1.73 1996/01/19 03:57:40 dyson Exp $
  */
 
 /*
@@ -181,6 +181,9 @@ static vm_page_t
 		pmap_pte_vm_page __P((pmap_t pmap, vm_offset_t pt));
 static boolean_t
 		pmap_testbit __P((vm_offset_t pa, int bit));
+static void *	pmap_getpdir __P((void));
+static void	pmap_prefault __P((pmap_t pmap, vm_offset_t addra,
+				   vm_map_entry_t entry, vm_object_t object));
 
 /*
  * The below are finer grained pmap_update routines.  These eliminate
@@ -189,7 +192,7 @@ static boolean_t
 static __inline void
 pmap_update_1pg( vm_offset_t va) {
 #if defined(I386_CPU)
-	if (cpuclass == CPUCLASS_I386)
+	if (cpu_class == CPUCLASS_386)
 		pmap_update();
 	else
 #endif
@@ -199,7 +202,7 @@ pmap_update_1pg( vm_offset_t va) {
 static __inline void
 pmap_update_2pg( vm_offset_t va1, vm_offset_t va2) {
 #if defined(I386_CPU)
-	if (cpuclass == CPUCLASS_I386) {
+	if (cpu_class == CPUCLASS_386) {
 		pmap_update();
 	} else
 #endif
@@ -1583,7 +1586,7 @@ static int pmap_prefault_pageorder[] = {
 	-NBPG, NBPG, -2 * NBPG, 2 * NBPG
 };
 
-void
+static void
 pmap_prefault(pmap, addra, entry, object)
 	pmap_t pmap;
 	vm_offset_t addra;
