@@ -1,0 +1,44 @@
+<!-- $Id:$ -->
+<!-- The FreeBSD Documentation Project -->
+
+<sect><heading>A brief history of FreeBSD</heading>
+
+<p><em>Contributed by &a.jkh;</em>.
+
+The FreeBSD project was started somewhere in the early part of 1992 as
+an outgrowth of the "Unofficial 386BSD Patchkit" by the patchkit's
+last 3 coordinators: Nate Williams, Jordan Hubbard and Rod Grimes.
+David Greenman and Julian Elischer were also lurking in the background
+around this time, though they didn't come fully into the project until
+a month or two after it was more or less officially launched.  The
+original working title of the project was also "386BSD 0.5" or "386BSD
+Interim", a reference to the fact that the original goal was to
+produce an intermediate snapshot of 386BSD.  
+
+386BSD was Bill Jolitz's operating system, which had been up to
+that point suffering rather severely from neglect, a consequence
+of which was to cause the patchkit to swell ever more
+uncomfortably with each passing day.  The 3 ex-patchkit
+coordinators were all in agreement that the patchkit had to die.
+It was rapidly outliving its usefulness, and it would be a far
+easier thing to simply do another 386BSD release with all patches
+applied and a number of its aging utilities updated.
+
+These plans came to a rude halt when Bill Jolitz suddenly decided
+to withdraw his sanction from the project.  It didn't take the
+team members long to decide that the goal remained worthwhile
+even without Bill's support, and so they adopted the name
+"FreeBSD", which was coined by David Greenman.  
+
+Once it also became clear that the project was on the road to
+perhaps even becoming a reality, Jordan Hubbard contacted Walnut
+Creek CDROM with an eye towards improving FreeBSD's distribution
+channels to those many unfortunates without easy access to the
+Internet.  Walnut Creek CDROM not only supported the idea of
+distributing FreeBSD on CD, but went so far as to provide the
+project with a machine to work on and a fast Internet connection.
+Without Walnut Creek CDROM's almost unprecidented degree of faith
+in what was, at the time, a completely unknown project, it is
+very unlikely that FreeBSD would have gotten as far, as fast, as
+it has today.
+
