@@ -34,7 +34,7 @@
  * error logging/reporting facilities
  * stolen from /usr/libexec/mail.local via ypserv
  *
- * $Id: yp_error.c,v 1.2 1995/12/06 16:02:56 wpaul Exp $
+ * $Id: yp_error.c,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -52,7 +52,7 @@ extern char *progname;
 #include <varargs.h>
 #endif
 
-void verr(fmt, ap)
+static void __verr(fmt, ap)
 	const char *fmt;
 	_BSD_VA_LIST_ ap;
 
@@ -81,6 +81,6 @@ yp_error(fmt, va_list)
 #else
 	va_start(ap);
 #endif
-	verr(fmt,ap);
+	__verr(fmt,ap);
 	va_end(ap);
 }
