@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: util.c,v 1.10 1997/10/06 11:36:08 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -63,7 +63,7 @@ log_setup(void)
 }
 
 void
-log_1s(const char *fmt, ...)
+logmsg(const char *fmt, ...)
 {
 	va_list ap;
 	char s[256];
