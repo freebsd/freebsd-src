@@ -456,9 +456,6 @@ Set to not build CVS.
 Set to not build
 .Xr g++ 1
 and related libraries.
-.It Va NO_BIND
-.Pq Vt bool
-Set to not build BIND.
 .It Va NO_FORTRAN
 .Pq Vt bool
 Set to not build
@@ -602,6 +599,13 @@ Set to avoid compiling profiled libraries.
 Set to not build in the
 .Pa share
 subdir.
+.It Va NO_BIND
+.Pq Vt bool
+Setting this variable will prevent any part of BIND from being built,
+regardless of the presence of any of the other *_BIND_* variables below.
+.It Va WANT_BIND_LIBS
+.Pq Vt bool
+Set to install BIND libraries and include files.
 .It Va PPP_NOSUID
 .Pq Vt bool
 Set to disable the installation of
