@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: cardd.h,v 1.4 1996/04/18 04:25:12 nate Exp $
  *
  *	Common include file for PCMCIA daemon
  */
@@ -71,21 +71,9 @@ struct driver {
 	 */
 	struct card *card;		/* Current card, if any */
 	struct card_config *config;	/* Config back ptr */
-#if 0
-	struct device *device;		/* System device info */
-#endif
 	unsigned int mem;		/* Allocated host address (if any) */
 	int     inuse;
 };
-
-#if 0
-struct device {
-	struct device *next;		/* List of devices */
-	int     inuse;			/* Driver being used */
-	struct cmd *insert;		/* Insert commands */
-	struct cmd *remove;		/* Remove commands */
-};
-#endif
 
 /*
  *	Defines one allocation block i.e a starting address
@@ -126,9 +114,6 @@ struct allocblk *pool_mem;		/* Memory in the pool */
 int     pool_irq[16];			/* IRQ allocations */
 struct driver *drivers;			/* List of drivers */
 struct card *cards;
-#if 0
-struct device *devlist;
-#endif
 bitstr_t *mem_avail;
 bitstr_t *io_avail;
 
@@ -141,9 +126,9 @@ void    log_1s(char *, char *);
 void    logerr(char *);
 void    reset_slot(struct slot *);
 void    execute(struct cmd *);
-unsigned long alloc_memory(int size);
-int     bit_fns(bitstr_t * nm, int nbits, int count);
-void    readfile(char *name);
+void    readfile(char *);
+int     bit_fns(bitstr_t *, int, int);
+unsigned long alloc_memory(int);
 
 #define	IOPORTS	0x400
 #define	MEMUNIT	0x1000
