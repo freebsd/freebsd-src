@@ -48,6 +48,7 @@
 #include <sys/ktrace.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+#include <sys/sysent.h>
 
 #include <vm/vm_zone.h>
 
