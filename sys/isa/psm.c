@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.1 1998/11/08 18:43:03 dfr Exp $
+ * $Id$
  */
 
 /*
@@ -90,7 +90,7 @@
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
-#include <isa/kbdio.h>
+#include <dev/kbd/atkbdcreg.h>
 
 /*
  * Driver specific options: the following options may be set by
@@ -740,6 +740,8 @@ psmprobe(device_t dev)
 {
     int unit = device_get_unit(dev);
     struct psm_softc *sc = device_get_softc(dev);
+    u_long port;
+    u_long flags;
     int stat[3];
     int command_byte;
     int mask;
@@ -748,12 +750,17 @@ psmprobe(device_t dev)
 #if 0
     kbdc_debug(TRUE);
 #endif
-    sc->addr = isa_get_port(dev);
+    BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_PORT, &port);
+    BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_FLAGS, &flags);
+
+    sc->addr = port;
     sc->kbdc = kbdc_open(sc->addr);
-    sc->config = isa_get_flags(dev) & PSM_CONFIG_FLAGS;
+    sc->config = flags & PSM_CONFIG_FLAGS;
     sc->flags = 0;
     if (bootverbose)
         ++verbose;
+
+    device_set_desc(dev, "PS/2 Mouse");
 
     if (!kbdc_lock(sc->kbdc, TRUE)) {
         printf("psm%d: unable to lock the controller.\n", unit);
@@ -984,6 +991,7 @@ psmattach(device_t dev)
     struct psm_softc *sc = device_get_softc(dev);
     void *ih;
     struct resource *res;
+    u_long irq;
     int zero = 0;
 
     if (sc == NULL)    /* shouldn't happen */
@@ -1027,7 +1035,8 @@ psmattach(device_t dev)
     if (bootverbose)
         --verbose;
 
-    res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
+    BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
+    res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, irq, irq, 1,
 			     RF_SHAREABLE | RF_ACTIVE);
     BUS_SETUP_INTR(device_get_parent(dev), dev, res, psmintr, sc,
 		   &ih);
@@ -2216,7 +2225,7 @@ psmresume(void *dummy)
 }
 #endif /* PSM_HOOKAPM */
 
-CDEV_DRIVER_MODULE(psm, isa, psm_driver, psm_devclass,
+CDEV_DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass,
 		   CDEV_MAJOR, psm_cdevsw, 0, 0);
 
 #endif /* NPSM > 0 */

@@ -28,9 +28,6 @@ parse_proc(db_expr_t addr, struct alpha_proc* frame)
 	db_sym_t sym;
 	db_expr_t func;
 	db_expr_t junk, pc, limit;
-	int frame_size;
-	int reg_mask;
-	int got_frame;
 
 	frame->pcreg = -1;
 	frame->reg_mask = 0;
@@ -50,7 +47,13 @@ parse_proc(db_expr_t addr, struct alpha_proc* frame)
 		ins.bits = *(u_int32_t*) pc;
 		if (ins.memory_format.opcode == op_lda
 		    && ins.memory_format.ra == 30) {
+			/* gcc 2.7 */
 			frame->frame_size += -ins.memory_format.offset;
+		} else if (ins.operate_lit_format.opcode == op_arit
+		    && ins.operate_lit_format.function == op_subq
+		    && ins.operate_lit_format.rs == 30) {
+		    	/* egcs */
+			frame->frame_size += ins.operate_lit_format.literal;
 		} else if (ins.memory_format.opcode == op_stq
 			   && ins.memory_format.rb == 30
 			   && ins.memory_format.ra != 31) {
@@ -66,7 +69,6 @@ parse_proc(db_expr_t addr, struct alpha_proc* frame)
 void
 db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *modif)
 {
-	struct alpha_proc proc;
 	db_addr_t callpc;
 	db_addr_t frame;
 
@@ -82,8 +84,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 	}
 
 	while (count--) {
-		u_int64_t *actframe;
-		char *	name;
+		const char *	name;
 		db_expr_t	offset;
 		db_sym_t	sym;
 		struct alpha_proc proc;

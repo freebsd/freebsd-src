@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.13 1998/12/02 09:33:27 dfr Exp $
+ *	$Id: cia.c,v 1.14 1998/12/04 22:54:42 archie Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -643,16 +643,6 @@ cia_write_hae(u_int64_t hae)
 
 static int cia_probe(device_t dev);
 static int cia_attach(device_t dev);
-static struct resource *cia_alloc_resource(device_t bus, device_t child,
-					   int type, int *rid,
-					   u_long start, u_long end,
-					   u_long count, u_int flags);
-static int cia_activate_resource(device_t bus, device_t child,
-				 int type, int rid, struct resource *r);
-static int cia_deactivate_resource(device_t bus, device_t child,
-				   int type, int rid, struct resource *r);
-static int cia_release_resource(device_t bus, device_t child,
-				int type, int rid, struct resource *r);
 static int cia_setup_intr(device_t dev, device_t child, struct resource *irq,
 			  driver_intr_t *intr, void *arg, void **cookiep);
 static int cia_teardown_intr(device_t dev, device_t child,

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga_isa.c,v 1.4 1999/04/16 21:22:35 peter Exp $
+ * $Id$
  */
 
 #include "vga.h"
@@ -52,7 +52,7 @@
 #include <dev/fb/fbreg.h>
 #include <dev/fb/vgareg.h>
 
-#if 1
+#ifndef __i386__
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 #else
@@ -71,7 +71,7 @@ typedef struct isavga_softc {
 	video_adapter_t	*adp;
 } isavga_softc_t;
 
-#if 1
+#ifndef __i386__
 
 #define ISAVGA_SOFTC(unit)		\
 	((isavga_softc_t *)devclass_get_softc(isavga_devclass, unit))
@@ -135,7 +135,7 @@ static struct  cdevsw vga_cdevsw = {
 
 #endif /* FB_INSTALL_CDEV */
 
-#if 1
+#ifndef __i386__
 
 static int
 isavga_probe(device_t dev)
@@ -465,10 +465,8 @@ static video_info_t bios_vmode[] = {
 };
 
 static int		init_done = FALSE;
-#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
 static u_char		*video_mode_ptr = NULL;		/* EGA/VGA */
 static u_char		*video_mode_ptr2 = NULL;	/* CGA/MDA */
-#endif
 static u_char		*mode_map[V_MODE_MAP_SIZE];
 static adp_state_t	adpstate;
 static adp_state_t	adpstate2;
@@ -501,11 +499,9 @@ static int comp_adpregs(u_char *buf1, u_char *buf2);
 #endif
 static int probe_adapters(void);
 
-#ifndef VGA_NO_FONT_LOADING
 #define PARAM_BUFSIZE	6
 static void set_font_mode(video_adapter_t *adp, u_char *buf);
 static void set_normal_mode(video_adapter_t *adp, u_char *buf);
-#endif
 
 static void dump_buffer(u_char *buf, size_t len);
 
@@ -780,9 +776,6 @@ verify_adapter(video_adapter_t *adp)
 {
     vm_offset_t buf;
     u_int16_t v;
-#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
-    u_int32_t p;
-#endif
 
     buf = BIOS_PADDRTOVADDR(adp->va_window);
     v = readw(buf);
@@ -1084,7 +1077,6 @@ probe_adapters(void)
 		rows_offset = 1;
 	    } else {
 		/* discard the table if we are not familiar with it... */
-		u_char *mp;
 		map_mode_table(mode_map, video_mode_ptr, M_VGA_CG320 + 1);
 		mp = get_mode_param(adp->va_initial_mode);
 		if (mp != NULL)
@@ -1146,7 +1138,6 @@ probe_adapters(void)
 	    if (video_mode_ptr == NULL) {
 		rows_offset = 1;
 	    } else {
-		u_char *mp;
 		map_mode_table(mode_map, video_mode_ptr, M_ENH_C80x25 + 1);
 		/* XXX how can one validate the EGA table... */
 		mp = get_mode_param(adp->va_initial_mode);
@@ -1979,7 +1970,6 @@ vga_load_state(video_adapter_t *adp, void *p)
     inb(crtc_addr + 6);				/* reset flip-flop */
     outb(ATC, 0x20);				/* enable palette */
 
-#if notyet /* a temporary workaround for kernel panic, XXX */
 #ifndef VGA_NO_BIOS
     if (adp->va_unit == V_ADP_PRIMARY) {
 	writeb(BIOS_PADDRTOVADDR(0x44a), buf[0]);	/* COLS */
@@ -1991,7 +1981,6 @@ vga_load_state(video_adapter_t *adp, void *p)
 #endif
     }
 #endif /* VGA_NO_BIOS */
-#endif /* notyet */
 
     splx(s);
     return 0;
@@ -2193,10 +2182,8 @@ vga_diag(video_adapter_t *adp, int level)
 	   readb(BIOS_PADDRTOVADDR(0x484)) + 1,
 	   readb(BIOS_PADDRTOVADDR(0x485)));
 #endif /* VGA_NO_BIOS */
-#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
     printf("vga: param table EGA/VGA:%p", video_mode_ptr);
     printf(", CGA/MDA:%p\n", video_mode_ptr2);
-#endif
     printf("vga: rows_offset:%d\n", rows_offset);
 #endif /* FB_DEBUG > 1 */
 

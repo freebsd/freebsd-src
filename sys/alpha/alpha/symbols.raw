@@ -1,6 +1,6 @@
 #	@(#)symbols.raw	7.6 (Berkeley) 5/8/91
 #
-#	$Id: symbols.raw,v 1.12 1998/03/30 09:48:20 phk Exp $
+#	$Id: symbols.raw,v 1.1 1998/06/10 10:53:25 dfr Exp $
 #
 
 
@@ -34,7 +34,8 @@
 #pstat
 #	_cons
 	_nswap
-	_swaplist
+	_swapblist
+#	_swaplist
 #vmstat
 	_cp_time
 #	_rate
