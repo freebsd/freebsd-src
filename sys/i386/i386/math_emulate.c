@@ -625,7 +625,7 @@ char * ea(struct trapframe * info, unsigned short code)
 		I387.fos = 0x17;
 		return (char *) offset;
 	}
-	tmp = & (long)REG(rm);
+	tmp = (long *) &REG(rm);
 	switch (mod) {
 		case 0: offset = 0; break;
 		case 1:
