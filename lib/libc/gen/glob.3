@@ -34,7 +34,7 @@
 .\"     @(#)glob.3	8.3 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd April 16, 1994
+.Dd July 18, 2004
 .Dt GLOB 3
 .Os
 .Sh NAME
@@ -423,12 +423,15 @@ execvp("ls", g.gl_pathv);
 .Xr fnmatch 3 ,
 .Xr regexp 3
 .Sh STANDARDS
-The
+The current implementation of the
 .Fn glob
-function is expected to be
-.St -p1003.2
-compatible with the exception
-that the flags
+function
+.Em does not
+conform to
+.St -p1003.2 .
+Collating symbol expressions, equivalence class expressions and
+character class expressions are not supported.
+The flags
 .Dv GLOB_ALTDIRFUNC ,
 .Dv GLOB_BRACE ,
 .Dv GLOB_LIMIT ,
@@ -440,8 +443,10 @@ and the fields
 .Fa gl_matchc
 and
 .Fa gl_flags
-should not be used by applications striving for strict
+are extensions to the
 .Tn POSIX
+standard and
+should not be used by applications striving for strict
 conformance.
 .Sh HISTORY
 The
