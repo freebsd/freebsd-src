@@ -50,7 +50,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/buf.h>
 #include <sys/kernel.h>
 
 #include <machine/bus_pio.h>

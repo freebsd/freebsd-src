@@ -52,7 +52,6 @@
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
-#include <sys/buf.h>
 #include <sys/kernel.h>
 
 #include <stddef.h>	/* For offsetof */

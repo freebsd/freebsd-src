@@ -34,7 +34,6 @@
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <sys/conf.h>
-#include <sys/buf.h>
 #include <sys/errno.h>
 #include <sys/devicestat.h>
 #include <machine/stdarg.h>
