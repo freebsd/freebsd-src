@@ -348,7 +348,6 @@ static d_read_t		devread;
 static d_ioctl_t	devioctl;
 static d_poll_t		devpoll;
 
-#define CDEV_MAJOR 173
 static struct cdevsw dev_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
@@ -358,7 +357,6 @@ static struct cdevsw dev_cdevsw = {
 	.d_ioctl =	devioctl,
 	.d_poll =	devpoll,
 	.d_name =	"devctl",
-	.d_maj =	CDEV_MAJOR,
 };
 
 struct dev_event_info
