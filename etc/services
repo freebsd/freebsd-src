@@ -7,7 +7,7 @@
 # Updated from RFC 1340, ``Assigned Numbers'' (July 1992).  Not all ports
 # are included, only the more common ones.
 #
-#	$Id: services,v 1.4 1993/12/05 16:39:47 ats Exp $
+#	$Id: services,v 1.5 1994/02/04 02:23:06 wollman Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 tcpmux		1/tcp		# TCP port service multiplexer
@@ -50,8 +50,8 @@ finger		79/tcp
 www		80/tcp		http	# WorldWideWeb HTTP
 www		80/udp			# HyperText Transfer Protocol
 link		87/tcp		ttylink
-kerberos	88/tcp		krb5	# Kerberos v5
-kerberos	88/udp
+#kerberos	88/tcp		krb5	# Kerberos v5
+#kerberos	88/udp
 supdup		95/tcp
 # 100 - reserved
 hostnames	101/tcp		hostname	# usually from sri-nic
@@ -168,8 +168,8 @@ rfe		5002/udp		# Actually uses UDP only
 # Note that these are for Kerberos v4, and are unofficial.  Sites running
 # v4 should uncomment these and comment out the v5 entries above.
 #
-#kerberos	750/udp		kdc	# Kerberos (server) udp
-#kerberos	750/tcp		kdc	# Kerberos (server) tcp
+kerberos	750/udp		kdc	# Kerberos (server) udp
+kerberos	750/tcp		kdc	# Kerberos (server) tcp
 krbupdate	760/tcp		kreg	# Kerberos registration
 kpasswd		761/tcp		kpwd	# Kerberos "passwd"
 #klogin		543/tcp			# Kerberos rlogin
