@@ -133,6 +133,9 @@ main(int argc, char *argv[])
 	testfmt("314159", "%g", 3.14159e5);
 	testfmt("314159.", "%#g", 3.14159e5);
 
+	testfmt(" 0.0", "%4.1f", 0.0);
+	testfmt(" 100", "%4.0f", 100.0);
+
 	printf("PASS printfloat\n");
 
 	return (0);
