@@ -221,7 +221,9 @@ g_io_check(struct bio *bp)
 		/* Reject I/O not integral sector long */
 		if (bp->bio_length % pp->sectorsize)
 			return (EINVAL);
-		/* Reject requests past the end of media. */
+		/* Reject requests before or past the end of media. */
+		if (bp->bio_offset < 0)
+			return (EIO);
 		if (bp->bio_offset > pp->mediasize)
 			return (EIO);
 		break;

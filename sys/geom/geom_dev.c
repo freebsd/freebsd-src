@@ -386,9 +386,6 @@ g_dev_strategy(struct bio *bp)
 		tsleep(&bp, PRIBIO, "gdstrat", hz / 10);
 	}
 	KASSERT(bp2 != NULL, ("XXX: ENOMEM in a bad place"));
-	KASSERT(bp2->bio_offset >= 0,
-	    ("Negative bio_offset (%jd) on bio %p",
-	    (intmax_t)bp2->bio_offset, bp));
 	bp2->bio_length = (off_t)bp->bio_bcount;
 	bp2->bio_done = g_dev_done;
 	g_trace(G_T_BIO,
