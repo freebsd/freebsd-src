@@ -38,45 +38,64 @@
 .Nd configure WaveLAN/IEEE devices
 .Sh SYNOPSIS
 .Nm
-.Fl i Ar iface Op Fl o
+.Op Fl i
+.Ar iface Op Fl oa
 .Nm
-.Fl i Ar iface Fl t Ar tx rate
+.Op Fl i
+.Ar iface Fl t Ar tx rate
 .Nm
-.Fl i Ar iface Fl n Ar network name
+.Op Fl i
+.Ar iface Fl n Ar network name
 .Nm
-.Fl i Ar iface Fl s Ar station name
+.Op Fl i
+.Ar iface Fl s Ar station name
 .Nm
-.Fl i Ar iface Fl c Ar 0|1
+.Op Fl i
+.Ar iface Fl c Ar 0|1
 .Nm
-.Fl i Ar iface Fl q Ar SSID
+.Op Fl i
+.Ar iface Fl q Ar SSID
 .Nm
-.Fl i Ar iface Fl p Ar port type
+.Op Fl i
+.Ar iface Fl p Ar port type
 .Nm
-.Fl i Ar iface Fl a Ar access point density
+.Op Fl i
+.Ar iface Fl a Ar access point density
 .Nm
-.Fl i Ar iface Fl m Ar mac address
+.Op Fl i
+.Ar iface Fl m Ar mac address
 .Nm
-.Fl i Ar iface Fl d Ar max data length
+.Op Fl i
+.Ar iface Fl d Ar max data length
 .Nm
-.Fl i Ar iface Fl e Ar 0|1
+.Op Fl i
+.Ar iface Fl e Ar 0|1
 .Nm
-.Fl i Ar iface Fl k Ar key
+.Op Fl i
+.Ar iface Fl k Ar key
 .Op Fl v Ar 1|2|3|4
 .Nm
-.Fl i Ar iface Fl T Ar 1|2|3|4
+.Op Fl i
+.Ar iface Fl T Ar 1|2|3|4
 .Nm
-.Fl i Ar iface Fl r Ar RTS threshold
+.Op Fl i
+.Ar iface Fl r Ar RTS threshold
 .Nm
-.Fl i Ar iface Fl f Ar frequency
+.Op Fl i
+.Ar iface Fl f Ar frequency
 .Nm
-.Fl i Ar iface Fl P Ar 0|1
+.Op Fl i
+.Ar iface Fl P Ar 0|1
 .Nm
-.Fl i Ar iface Fl S Ar max_sleep_duration
+.Op Fl i
+.Ar iface Fl S Ar max_sleep_duration
 .Nm
-.Fl i Ar iface Fl Z
+.Op Fl i
+.Ar iface Fl Z
 (zero signal cache)
 .Nm
-.Fl i Ar iface Fl C
+.Op Fl i
+.Ar iface Fl C
 (display signal cache)
 .Sh DESCRIPTION
 The
@@ -221,7 +240,11 @@ Permitted values are
 .Ar 0
 (encryption disabled) or
 .Ar 1
-(encryption enabled). Encryption is off by default.
+(encryption enabled).
+Encryption is off by default.
+.Pp
+Both 128-bit and 64-bit WEP have been broken.
+See the BUGS section for details.
 .It Fl i Ar iface Fl k Ar key "[-v 1|2|3|4]"
 Set WEP encryption keys.
 There are four default encryption keys
@@ -242,9 +265,15 @@ For WaveLAN Turbo Gold cards, the key can also be 104 bits,
 which means the key can be specified as either a 13 character text
 string or 26 hex digits in addition to the formats supported by the
 Silver cards.
+.Pp
+Both 128-bit and 64-bit WEP have been broken.
+See the BUGS section for details.
 .It Fl i Ar iface Fl T Ar 1|2|3|4
 Specify which of the four WEP encryption keys will be used to
 encrypt transmitted packets.
+.Pp
+Both 128-bit and 64-bit WEP have been broken.
+See the BUGS section for details.
 .It Fl i Ar iface Fl r Ar RTS threshold
 Set the RTS/CTS threshold for a given interface.
 This controls the
@@ -332,8 +361,28 @@ from the signal strength (i.e. less noise and better signal yields
 better signal quality).
 .El
 .Sh SEE ALSO
+.Xr ipsec 4 ,
 .Xr wi 4 ,
 .Xr ifconfig 8
+.Sh BUGS
+WEP has been broken.
+Do not use it.
+Use IPSEC instead.
+Do not trust access points.
+.Pp
+The attack on WEP is a passive attack, requiring only the ability to
+sniff packets on the network.
+The passive attack can be launched at a distance larger, up to many
+miles, than one might otherwise expect given a specialized antenna
+used in point to point applications.
+The attacker can recover the keys from a 128-bit WEP network after
+at most 5,000,000 or 6,000,000 packets.
+While this may sound like a large number of packets, emperical
+evidence suggests that this amount of traffic is generated in a few
+hours on a partially loaded network.
+.Pp
+See http://www.cs.rice.edu/~astubble/wep/wep_attack.html for details
+of the attack.
 .Sh HISTORY
 The
 .Nm
