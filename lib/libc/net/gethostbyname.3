@@ -67,6 +67,19 @@
 .Ft const char *
 .Fn hstrerror "int err"
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Xr getaddrinfo 3
+and
+.Xr getnameinfo 3
+functions are preferred over the
+.Fn gethostbyname ,
+.Fn gethostbyname2 ,
+and
+.Fn gethostbyaddr
+functions.
+.Ef
+.Pp
 The
 .Fn gethostbyname ,
 .Fn gethostbyname2
@@ -287,6 +300,7 @@ for example, a mail-forwarder may be registered for this domain.
 .El
 .Sh SEE ALSO
 .Xr getaddrinfo 3 ,
+.Xr getnameinfo 3 ,
 .Xr inet_aton 3 ,
 .Xr resolver 3 ,
 .Xr hosts 5 ,
