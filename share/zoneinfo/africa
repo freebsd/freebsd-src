@@ -1,16 +1,16 @@
-# @(#)africa	7.25
+# @(#)africa	7.36
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
 # tz@elsie.nci.nih.gov for general use in the future).
 
-# From Paul Eggert <eggert@twinsun.com> (1997-10-05):
+# From Paul Eggert <eggert@twinsun.com> (1999-03-22):
 #
 # A good source for time zone historical data outside the U.S. is
-# Thomas G. Shanks, The International Atlas (4th edition),
-# San Diego: ACS Publications, Inc. (1995).
+# Thomas G. Shanks, The International Atlas (5th edition),
+# San Diego: ACS Publications, Inc. (1999).
 #
-# Gwillim Law <LAW@encmail.encompass.com> writes that a good source
+# Gwillim Law writes that a good source
 # for recent time zone data is the International Air Transport
 # Association's Standard Schedules Information Manual (IATA SSIM),
 # published semiannually.  Law sent in several helpful summaries
@@ -24,12 +24,11 @@
 # I found in the UCLA library.
 #
 # A reliable and entertaining source about time zones is
-# Derek Howse, Greenwich time and the discovery of the longitude,
-# Oxford University Press (1980).
+# Derek Howse, Greenwich time and longitude, Philip Wilson Publishers (1997).
 #
 # Previous editions of this database used WAT, CAT, SAT, and EAT
 # for +0:00 through +3:00, respectively,
-# but Mark R V Murray <markm@iafrica.com> reports that
+# but Mark R V Murray <markm@grondar.za> reports that
 # `SAST' is the official abbreviation for +2:00 in the country of South Africa,
 # `CAT' is commonly used for +2:00 in countries north of South Africa, and
 # `WAT' is probably the best name for +1:00, as the common phrase for
@@ -56,7 +55,7 @@
 # I invented the following abbreviations; corrections are welcome!
 #	 2:00	WAST	West Africa Summer Time
 #	 2:30	BEAT	British East Africa Time (no longer used)
-#	 2:45	BEAUT	British East Africa Unified Time (no longer used)
+#	 2:44:45 BEAUT	British East Africa Unified Time (no longer used)
 #	 3:00	CAST	Central Africa Summer Time (no longer used)
 #	 3:00	SAST	South Africa Summer Time (no longer used)
 #	 3:00	EAT	East Africa Time
@@ -102,7 +101,7 @@ Zone	Africa/Algiers	0:12:12 -	LMT	1891 Mar 15 0:01
 # Angola
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Luanda	0:52:56	-	LMT	1892
-			0:52:04	-	LMT	1911 May 26 # Luanda Mean Time?
+			0:52:04	-	AOT	1911 May 26 # Angola Time
 			1:00	-	WAT
 
 # Benin
@@ -207,9 +206,9 @@ Rule	Egypt	1984	1988	-	May	 1	1:00	1:00	S
 Rule	Egypt	1989	only	-	May	 6	1:00	1:00	S
 Rule	Egypt	1990	1994	-	May	 1	1:00	1:00	S
 # IATA (after 1990) says transitions are at 0:00.
-# Go with IATA starting in 1995.
-Rule	Egypt	1995	max	-	Apr	Fri>=22	 0:00s	1:00	S
-Rule	Egypt	1995	max	-	Sep	lastFri	23:00s	0	-
+# Go with IATA starting in 1995, except correct 1995 entry from 09-30 to 09-29.
+Rule	Egypt	1995	max	-	Apr	lastFri	 0:00s	1:00	S
+Rule	Egypt	1995	max	-	Sep	lastThu	23:00s	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Cairo	2:05:00 -	LMT	1900 Oct
@@ -277,7 +276,7 @@ Zone	Africa/Bissau	-1:02:20 -	LMT	1911 May 26
 Zone	Africa/Nairobi	2:27:16	-	LMT	1928 Jul
 			3:00	-	EAT	1930
 			2:30	-	BEAT	1940
-			2:45	-	BEAUT	1960
+			2:44:45	-	BEAUT	1960
 			3:00	-	EAT
 
 # Lesotho
@@ -288,15 +287,13 @@ Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
 			2:00	-	SAST
 
 # Liberia
-# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
+# From Paul Eggert <eggert@twinsun.com> (2001-07-17):
 # In 1972 Liberia was the last country to switch
-# from a UTC offset that was not a multiple of 15 minutes.
+# from a UTC offset that was not a multiple of 15 or 20 minutes.
 # Howse reports that it was in honor of their president's birthday.
 # Shanks reports the date as May 1, whereas Howse reports Jan; go with Shanks.
 # For Liberia before 1972, Shanks reports -0:44, whereas Howse and Whitman
 # each report -0:44:30; go with the more precise figure.
-#
-# From Shanks, as corrected by Whitman:
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Monrovia	-0:43:08 -	LMT	1882
 			-0:43:08 -	MMT	1919 Mar # Monrovia Mean Time
@@ -321,18 +318,16 @@ Rule	Libya	1986	only	-	Apr	 4	0:00	1:00	S
 Rule	Libya	1986	only	-	Oct	 3	0:00	0	-
 Rule	Libya	1987	1989	-	Apr	 1	0:00	1:00	S
 Rule	Libya	1987	1990	-	Oct	 1	0:00	0	-
-Rule	Libya	1990	only	-	May	 4	0:00	1:00	S
-Rule	Libya	1996	only	-	Mar	30	2:00s	1:00	S
-Rule	Libya	1996	only	-	Sep	30	2:00s	0	-
-Rule	Libya	1997	only	-	Apr	 4	0:00	1:00	S
-Rule	Libya	1997	only	-	Oct	 4	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Tripoli	0:52:44 -	LMT	1920
 			1:00	Libya	CE%sT	1959
 			2:00	-	EET	1982
-			1:00	Libya	CE%sT	1991
-			2:00	-	EET	1996 Mar 30 3:00
-			1:00	Libya	CE%sT	1997 Oct  4 0:00
+			1:00	Libya	CE%sT	1990 May  4
+# The following entries are all from Shanks;
+# the IATA SSIM data contain some obvious errors.
+			2:00	-	EET	1996 Sep 30
+			1:00	-	CET	1997 Apr  4
+			1:00	1:00	CEST	1997 Oct  4
 			2:00	-	EET
 
 # Madagascar
@@ -410,8 +405,8 @@ Zone	Africa/Maputo	2:10:20 -	LMT	1903 Mar
 			2:00	-	CAT
 
 # Namibia
-# Shanks says DST transitions are at 0:00; go with IATA.
 # The 1994-04-03 transition is from Shanks.
+# Shanks reports no DST after 1998-04; go with IATA.
 # RULE	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Namibia	1994	max	-	Sep	Sun>=1	2:00	1:00	S
 Rule	Namibia	1995	max	-	Apr	Sun>=1	2:00	0	-
@@ -443,10 +438,9 @@ Zone	Indian/Reunion	3:41:52 -	LMT	1911 Jun	# Saint-Denis
 #
 # Scattered Islands (Iles Eparses) administered from Reunion are as follows.
 # The following information about them is taken from
-# <a href="http://www.outre-mer.gouv.fr/domtom/ile.htm">
-# Iles Eparses
-# </a>
-# (1997-07-22, in French).  We have no info about their time zone histories.
+# Iles Eparses (www.outre-mer.gouv.fr/domtom/ile.htm, 1997-07-22, in French;
+# no longer available as of 1999-08-17).
+# We have no info about their time zone histories.
 #
 # Bassas da India - uninhabited
 # Europa Island - inhabited from 1905 to 1910 by two families
@@ -460,9 +454,6 @@ Zone	Africa/Kigali	2:00:16 -	LMT	1935 Jun
 			2:00	-	CAT
 
 # St Helena
-# From Paul Eggert (1997-10-05):
-# Shanks says St Helena was 1W26 (-0:05:44) from 1890 to 1951,
-# but this is most likely a typo for 5W42, the longitude of Jamestown.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/St_Helena	-0:22:48 -	LMT	1890		# Jamestown
 			-0:22:48 -	JMT	1951	# Jamestown Mean Time
@@ -470,7 +461,8 @@ Zone Atlantic/St_Helena	-0:22:48 -	LMT	1890		# Jamestown
 # The other parts of the St Helena territory are similar:
 #	Tristan da Cunha: on GMT, say Whitman and the CIA
 #	Ascension: on GMT, says usno1995 and the CIA
-#	Gough (scientific station since 1955): on GMT, says the CIA
+#	Gough (scientific station since 1955; sealers wintered previously):
+#		on GMT, says the CIA
 #	Inaccessible, Nightingale: no information, but probably GMT
 
 # Sao Tome and Principe
@@ -489,6 +481,12 @@ Zone	Africa/Dakar	-1:09:44 -	LMT	1912
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Mahe	3:41:48 -	LMT	1906 Jun	# Victoria
 			4:00	-	SCT	# Seychelles Time
+# From Paul Eggert (2001-05-30):
+# Aldabra, Farquhar, and Desroches, originally dependencies of the
+# Seychelles, were transferred to the British Indian Ocean Territory
+# in 1965 and returned to Seychelles control in 1976.  We don't know
+# whether this affected their time zone, so omit this for now.
+# Possibly the islands were uninhabited.
 
 # Sierra Leone
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -518,18 +516,19 @@ Rule	SA	1943	1944	-	Mar	Sun>=15	2:00	0	-
 Zone Africa/Johannesburg 1:52:00 -	LMT	1892 Feb 8
 			1:30	-	SAST	1903 Mar
 			2:00	SA	SAST
-# Shanks erroneously claims that most of South Africa switched to 1:00
-# on 1994-04-03 at 00:00.
-#
 # Marion and Prince Edward Is
-# weather station since 1947
+# scientific station since 1947
 # no information
 
 # Sudan
-# From Michael Ross <mross@antigone.com> (1995-11-15):
-# Sudan no longer observes any form of daylight time change.
-# I verified this today by telephone with the Sudan Mission to the
-# United Nations: 212-573-6033
+#
+# From <a href="http://www.sunanews.net/sn13jane.html">
+# Sudan News Agency (2000-01-13)
+# </a>, also reported by Michael De Beukelaer-Dossche via Steffen Thorsen:
+# Clocks will be moved ahead for 60 minutes all over the Sudan as of noon
+# Saturday....  This was announced Thursday by Caretaker State Minister for
+# Manpower Abdul-Rahman Nur-Eddin.
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Sudan	1970	only	-	May	 1	0:00	1:00	S
 Rule	Sudan	1970	1985	-	Oct	15	0:00	0	-
@@ -537,7 +536,8 @@ Rule	Sudan	1971	only	-	Apr	30	0:00	1:00	S
 Rule	Sudan	1972	1985	-	Apr	lastSun	0:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Khartoum	2:10:08 -	LMT	1931
-			2:00	Sudan	CA%sT
+			2:00	Sudan	CA%sT	2000 Jan 15 12:00
+			3:00	-	EAT
 
 # Swaziland
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -548,7 +548,7 @@ Zone	Africa/Mbabane	2:04:24 -	LMT	1903 Mar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Dar_es_Salaam 2:37:08 -	LMT	1931
 			3:00	-	EAT	1948
-			2:45	-	BEAUT	1961
+			2:44:45	-	BEAUT	1961
 			3:00	-	EAT
 
 # Togo
@@ -591,7 +591,7 @@ Zone	Africa/Tunis	0:40:44 -	LMT	1881 May 12
 Zone	Africa/Kampala	2:09:40 -	LMT	1928 Jul
 			3:00	-	EAT	1930
 			2:30	-	BEAT	1948
-			2:45	-	BEAUT	1957
+			2:44:45	-	BEAUT	1957
 			3:00	-	EAT
 
 # Zambia

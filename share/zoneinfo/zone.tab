@@ -1,3 +1,5 @@
+# @(#)zone.tab	1.30
+#
 # TZ zone descriptions
 #
 # From Paul Eggert <eggert@twinsun.com> (1996-08-05):
@@ -10,7 +12,7 @@
 #     first latitude (+ is north), then longitude (+ is east).
 # 3.  Zone name used in value of TZ environment variable.
 # 4.  Comments; present if and only if the country has multiple rows.
-#     
+#
 # Columns are separated by a single tab.
 # The table is sorted first by country, then an order within the country that
 # (1) makes some geographical sense, and
@@ -31,34 +33,43 @@ AN	+1211-06900	America/Curacao
 AO	-0848+01314	Africa/Luanda
 AQ	-7750+16636	Antarctica/McMurdo	McMurdo Station, Ross Island
 AQ	-9000+00000	Antarctica/South_Pole	Amundsen-Scott Station, South Pole
+AQ	-6734-06808	Antarctica/Rothera	Rothera Station, Adelaide Island
 AQ	-6448-06406	Antarctica/Palmer	Palmer Station, Anvers Island
 AQ	-6736+06253	Antarctica/Mawson	Mawson Station, Holme Bay
 AQ	-6835+07758	Antarctica/Davis	Davis Station, Vestfold Hills
 AQ	-6617+11031	Antarctica/Casey	Casey Station, Bailey Peninsula
+AQ	-7824+10654	Antarctica/Vostok	Vostok Station, S Magnetic Pole
 AQ	-6640+14001	Antarctica/DumontDUrville	Dumont-d'Urville Base, Terre Adelie
-AR	-3436-05827	America/Buenos_Aires	E Argentina (BA, DF, SC, TF)
-AR	-3257-06040	America/Rosario	NE Argentina (SF, ER, CN, MN, CC, FM, LP, CH)
-AR	-3124-06411	America/Cordoba	W Argentina (CB, SA, TM, LR, SJ, SL, NQ, RN)
-AR	-2411-06518	America/Jujuy	Jujuy (JY)
-AR	-2828-06547	America/Catamarca	Catamarca (CT)
-AR	-3253-06849	America/Mendoza	Mendoza (MZ)
+AQ	-690022+0393524	Antarctica/Syowa	Syowa Station, E Ongul I
+AR	-3436-05827	America/Argentina/Buenos_Aires	Buenos Aires (BA, CF)
+AR	-3124-06411	America/Argentina/Cordoba	most locations (CB, CC, CN, ER, FM, LP, MN, NQ, RN, SA, SE, SF, SL)
+AR	-2411-06518	America/Argentina/Jujuy	Jujuy (JY)
+AR	-3124-06411	America/Argentina/Tucuman	Tucuman (TM)
+AR	-2828-06547	America/Argentina/Catamarca	Catamarca (CT)
+AR	-2926-06651	America/Argentina/La_Rioja	La Rioja (LR)
+AR	-3132-06831	America/Argentina/San_Juan	San Juan (SJ)
+AR	-3253-06849	America/Argentina/Mendoza	Mendoza (MZ)
+AR	-4552-06730	America/Argentina/ComodRivadavia	Chubut (CH)
+AR	-5138-06913	America/Argentina/Rio_Gallegos	Santa Cruz (SC)
+AR	-5448-06818	America/Argentina/Ushuaia	Tierra del Fuego (TF)
 AS	-1416-17042	Pacific/Pago_Pago
 AT	+4813+01620	Europe/Vienna
 AU	-3133+15905	Australia/Lord_Howe	Lord Howe Island
 AU	-4253+14719	Australia/Hobart	Tasmania
 AU	-3749+14458	Australia/Melbourne	Victoria
 AU	-3352+15113	Australia/Sydney	New South Wales - most locations
-AU	-3157+14127	Australia/Broken_Hill	New South Wales - Broken Hill
+AU	-3157+14127	Australia/Broken_Hill	New South Wales - Yancowinna
 AU	-2728+15302	Australia/Brisbane	Queensland - most locations
 AU	-2016+14900	Australia/Lindeman	Queensland - Holiday Islands
 AU	-3455+13835	Australia/Adelaide	South Australia
 AU	-1228+13050	Australia/Darwin	Northern Territory
 AU	-3157+11551	Australia/Perth	Western Australia
 AW	+1230-06858	America/Aruba
+AX	+6006+01957	Europe/Mariehamn
 AZ	+4023+04951	Asia/Baku
 BA	+4352+01825	Europe/Sarajevo
 BB	+1306-05937	America/Barbados
-BD	+2343+09025	Asia/Dacca
+BD	+2343+09025	Asia/Dhaka
 BE	+5050+00420	Europe/Brussels
 BF	+1222-00131	Africa/Ouagadougou
 BG	+4241+02319	Europe/Sofia
@@ -68,15 +79,23 @@ BJ	+0629+00237	Africa/Porto-Novo
 BM	+3217-06446	Atlantic/Bermuda
 BN	+0456+11455	Asia/Brunei
 BO	-1630-06809	America/La_Paz
-BR	-0351-03225	America/Noronha	Fernando de Noronha
-BR	-0343-03830	America/Fortaleza	NE Brazil (AP, east PA, MA, PI, CE, RN, PR, PE)
-BR	-0940-03543	America/Maceio	ENE Brazil (AL, SE, TO)
-BR	-2332-04637	America/Sao_Paulo	S & SE Brazil (BA, GO, DF, MG, ES, RJ, SP, PR, SC, RS)
-BR	-1535-05605	America/Cuiaba	SW Brazil (MT, MS)
-BR	-0308-06001	America/Manaus	NW Brazil (RR, west PA, AM, RO)
-BR	-0934-06731	America/Porto_Acre	Acre
+BR	-0351-03225	America/Noronha	Atlantic islands
+BR	-0127-04829	America/Belem	Amapa, E Para
+BR	-0343-03830	America/Fortaleza	NE Brazil (MA, PI, CE, RN, PB)
+BR	-0803-03454	America/Recife	Pernambuco
+BR	-0712-04812	America/Araguaina	Tocantins
+BR	-0940-03543	America/Maceio	Alagoas, Sergipe
+BR	-1259-03831	America/Bahia	Bahia
+BR	-2332-04637	America/Sao_Paulo	S & SE Brazil (GO, DF, MG, ES, RJ, SP, PR, SC, RS)
+BR	-2027-05437	America/Campo_Grande	Mato Grosso do Sul
+BR	-1535-05605	America/Cuiaba	Mato Grosso
+BR	-0846-06354	America/Porto_Velho	W Para, Rondonia
+BR	+0249-06040	America/Boa_Vista	Roraima
+BR	-0308-06001	America/Manaus	E Amazonas
+BR	-0640-06952	America/Eirunepe	W Amazonas
+BR	-0958-06748	America/Rio_Branco	Acre
 BS	+2505-07721	America/Nassau
-BT	+2728+08939	Asia/Thimbu
+BT	+2728+08939	Asia/Thimphu
 BW	-2545+02555	Africa/Gaborone
 BY	+5354+02734	Europe/Minsk
 BZ	+1730-08812	America/Belize
@@ -84,14 +103,16 @@ CA	+4734-05243	America/St_Johns	Newfoundland Island
 CA	+4439-06336	America/Halifax	Atlantic Time - Nova Scotia (most places), NB, W Labrador, E Quebec & PEI
 CA	+4612-05957	America/Glace_Bay	Atlantic Time - Nova Scotia - places that did not observe DST 1966-1971
 CA	+5320-06025	America/Goose_Bay	Atlantic Time - E Labrador
-CA	+6608-06544	America/Pangnirtung	Atlantic Time - Northwest Territories
-CA	+4531-07334	America/Montreal	Eastern Time - Ontario & Quebec - most locations
+CA	+4531-07334	America/Montreal	Eastern Time - Quebec - most locations
+CA	+4339-07923	America/Toronto	Eastern Time - Ontario - most locations
 CA	+4901-08816	America/Nipigon	Eastern Time - Ontario & Quebec - places that did not observe DST 1967-1973
 CA	+4823-08915	America/Thunder_Bay	Eastern Time - Thunder Bay, Ontario
-CA	+6344-06828	America/Iqaluit	Eastern Time - Northwest Territories
+CA	+6608-06544	America/Pangnirtung	Eastern Standard Time - Pangnirtung, Nunavut
+CA	+6344-06828	America/Iqaluit	Eastern Standard Time - east Nunavut
+CA	+6245-09210	America/Rankin_Inlet	Eastern Standard Time - central Nunavut
 CA	+4953-09709	America/Winnipeg	Central Time - Manitoba & west Ontario
 CA	+4843-09429	America/Rainy_River	Central Time - Rainy River & Fort Frances, Ontario
-CA	+6245-09210	America/Rankin_Inlet	Central Time - Northwest Territories
+CA	+6903-10505	America/Cambridge_Bay	Central Time - west Nunavut
 CA	+5024-10439	America/Regina	Central Standard Time - Saskatchewan - most locations
 CA	+5017-10750	America/Swift_Current	Central Standard Time - Saskatchewan - midwest
 CA	+5333-11328	America/Edmonton	Mountain Time - Alberta, east British Columbia & west Saskatchewan
@@ -109,17 +130,17 @@ CG	-0416+01517	Africa/Brazzaville
 CH	+4723+00832	Europe/Zurich
 CI	+0519-00402	Africa/Abidjan
 CK	-2114-15946	Pacific/Rarotonga
-CL	-3327-07040	America/Santiago	mainland
-CL	-2710-10927	Pacific/Easter	Easter Island
+CL	-3327-07040	America/Santiago	most locations
+CL	-2710-10927	Pacific/Easter	Easter Island & Sala y Gomez
 CM	+0403+00942	Africa/Douala
-CN	+4545+12641	Asia/Harbin	north Manchuria
-CN	+3114+12128	Asia/Shanghai	China coast
-CN	+2217+11409	Asia/Hong_Kong	Hong Kong
-CN	+2934+10635	Asia/Chungking	China mountains
-CN	+4348+08735	Asia/Urumqi	Tibet & Xinjiang
-CN	+3929+07559	Asia/Kashgar	Eastern Turkestan
+CN	+3114+12128	Asia/Shanghai	east China - Beijing, Guangdong, Shanghai, etc.
+CN	+4545+12641	Asia/Harbin	Heilongjiang
+CN	+2934+10635	Asia/Chongqing	central China - Gansu, Guizhou, Sichuan, Yunnan, etc.
+CN	+4348+08735	Asia/Urumqi	Tibet & most of Xinjiang Uyghur
+CN	+3929+07559	Asia/Kashgar	southwest Xinjiang Uyghur
 CO	+0436-07405	America/Bogota
 CR	+0956-08405	America/Costa_Rica
+CS	+4450+02030	Europe/Belgrade
 CU	+2308-08222	America/Havana
 CV	+1455-02331	Atlantic/Cape_Verde
 CX	-1025+10543	Indian/Christmas
@@ -158,9 +179,10 @@ GE	+4143+04449	Asia/Tbilisi
 GF	+0456-05220	America/Cayenne
 GH	+0533-00013	Africa/Accra
 GI	+3608-00521	Europe/Gibraltar
-GL	+7030-02215	America/Scoresbysund	east Greenland
-GL	+6411-05144	America/Godthab	southwest Greenland
-GL	+7634-06847	America/Thule	northwest Greenland
+GL	+6411-05144	America/Godthab	most locations
+GL	+7646-01840	America/Danmarkshavn	east coast, north of Scoresbysund
+GL	+7030-02215	America/Scoresbysund	Scoresbysund / Ittoqqortoormiit
+GL	+7634-06847	America/Thule	Thule / Pituffik
 GM	+1328-01639	Africa/Banjul
 GN	+0931-01343	Africa/Conakry
 GP	+1614-06132	America/Guadeloupe
@@ -171,12 +193,14 @@ GT	+1438-09031	America/Guatemala
 GU	+1328+14445	Pacific/Guam
 GW	+1151-01535	Africa/Bissau
 GY	+0648-05810	America/Guyana
+HK	+2217+11409	Asia/Hong_Kong
 HN	+1406-08713	America/Tegucigalpa
 HR	+4548+01558	Europe/Zagreb
 HT	+1832-07220	America/Port-au-Prince
 HU	+4730+01905	Europe/Budapest
 ID	-0610+10648	Asia/Jakarta	Java & Sumatra
-ID	-0507+11924	Asia/Ujung_Pandang	Borneo & Celebes
+ID	-0002+10920	Asia/Pontianak	west & central Borneo
+ID	-0507+11924	Asia/Makassar	east & south Borneo, Celebes, Bali, Nusa Tengarra, west Timor
 ID	-0232+14042	Asia/Jayapura	Irian Jaya & the Moluccas
 IE	+5320-00615	Europe/Dublin
 IL	+3146+03514	Asia/Jerusalem
@@ -188,8 +212,7 @@ IS	+6409-02151	Atlantic/Reykjavik
 IT	+4154+01229	Europe/Rome
 JM	+1800-07648	America/Jamaica
 JO	+3157+03556	Asia/Amman
-JP	+3542+13946	Asia/Tokyo	most locations
-JP	+2420+12409	Asia/Ishigaki	south Ryukyu Islands
+JP	+353916+1394441	Asia/Tokyo
 KE	-0117+03649	Africa/Nairobi
 KG	+4254+07436	Asia/Bishkek
 KH	+1133+10455	Asia/Phnom_Penh
@@ -202,9 +225,11 @@ KP	+3901+12545	Asia/Pyongyang
 KR	+3733+12658	Asia/Seoul
 KW	+2920+04759	Asia/Kuwait
 KY	+1918-08123	America/Cayman
-KZ	+4315+07657	Asia/Almaty	east Kazakhstan
-KZ	+5017+05710	Asia/Aqtobe	central Kazakhstan
-KZ	+4431+05016	Asia/Aqtau	west Kazakhstan
+KZ	+4315+07657	Asia/Almaty	most locations
+KZ	+4448+06528	Asia/Qyzylorda	Qyzylorda (Kyzylorda, Kzyl-Orda)
+KZ	+5017+05710	Asia/Aqtobe	Aqtobe (Aktobe)
+KZ	+4431+05016	Asia/Aqtau	Atyrau (Atirau, Gur'yev), Mangghystau (Mankistau)
+KZ	+5113+05121	Asia/Oral	West Kazakhstan
 LA	+1758+10236	Asia/Vientiane
 LB	+3353+03530	Asia/Beirut
 LC	+1401-06100	America/St_Lucia
@@ -226,8 +251,10 @@ MK	+4159+02126	Europe/Skopje
 ML	+1239-00800	Africa/Bamako	southwest Mali
 ML	+1446-00301	Africa/Timbuktu	northeast Mali
 MM	+1647+09610	Asia/Rangoon
-MN	+4755+10653	Asia/Ulan_Bator
-MO	+2214+11335	Asia/Macao
+MN	+4755+10653	Asia/Ulaanbaatar	most locations
+MN	+4801+09139	Asia/Hovd	Bayan-Olgiy, Govi-Altai, Hovd, Uvs, Zavkhan
+MN	+4804+11430	Asia/Choibalsan	Dornod, Sukhbaatar
+MO	+2214+11335	Asia/Macau
 MP	+1512+14545	Pacific/Saipan
 MQ	+1436-06105	America/Martinique
 MR	+1806-01557	Africa/Nouakchott
@@ -236,12 +263,14 @@ MT	+3554+01431	Europe/Malta
 MU	-2010+05730	Indian/Mauritius
 MV	+0410+07330	Indian/Maldives
 MW	-1547+03500	Africa/Blantyre
-MX	+2105-08646	America/Cancun	Eastern Time
-MX	+1924-09909	America/Mexico_City	Central Time
-MX	+2313-10625	America/Mazatlan	Mountain Time - most locations
+MX	+1924-09909	America/Mexico_City	Central Time - most locations
+MX	+2105-08646	America/Cancun	Central Time - Quintana Roo
+MX	+2058-08937	America/Merida	Central Time - Campeche, Yucatan
+MX	+2540-10019	America/Monterrey	Central Time - Coahuila, Durango, Nuevo Leon, Tamaulipas
+MX	+2313-10625	America/Mazatlan	Mountain Time - S Baja, Nayarit, Sinaloa
 MX	+2838-10605	America/Chihuahua	Mountain Time - Chihuahua
-MX	+3152-11637	America/Ensenada	Pacific Time - most locations
-MX	+3232-11701	America/Tijuana	Pacific Time - north Baja California
+MX	+2904-11058	America/Hermosillo	Mountain Standard Time - Sonora
+MX	+3232-11701	America/Tijuana	Pacific Time
 MY	+0310+10142	Asia/Kuala_Lumpur	peninsular Malaysia
 MY	+0133+11020	Asia/Kuching	Sabah & Sarawak
 MZ	-2558+03235	Africa/Maputo
@@ -257,7 +286,7 @@ NP	+2743+08519	Asia/Katmandu
 NR	-0031+16655	Pacific/Nauru
 NU	-1901+16955	Pacific/Niue
 NZ	-3652+17446	Pacific/Auckland	most locations
-NZ	-4355-17630	Pacific/Chatham	Chatham Islands
+NZ	-4357-17633	Pacific/Chatham	Chatham Islands
 OM	+2336+05835	Asia/Muscat
 PA	+0858-07932	America/Panama
 PE	-1203-07703	America/Lima
@@ -290,7 +319,8 @@ RU	+5601+09250	Asia/Krasnoyarsk	Moscow+04 - Yenisei River
 RU	+5216+10420	Asia/Irkutsk	Moscow+05 - Lake Baikal
 RU	+6200+12940	Asia/Yakutsk	Moscow+06 - Lena River
 RU	+4310+13156	Asia/Vladivostok	Moscow+07 - Amur River
-RU	+5934+15048	Asia/Magadan	Moscow+08 - Magadan & Sakhalin
+RU	+4658+14242	Asia/Sakhalin	Moscow+07 - Sakhalin Island
+RU	+5934+15048	Asia/Magadan	Moscow+08 - Magadan
 RU	+5301+15839	Asia/Kamchatka	Moscow+09 - Kamchatka
 RU	+6445+17729	Asia/Anadyr	Moscow+10 - Bering Sea
 RW	-0157+03004	Africa/Kigali
@@ -321,7 +351,8 @@ TG	+0608+00113	Africa/Lome
 TH	+1345+10031	Asia/Bangkok
 TJ	+3835+06848	Asia/Dushanbe
 TK	-0922-17114	Pacific/Fakaofo
-TM	+3757+05823	Asia/Ashkhabad
+TL	-0833+12535	Asia/Dili
+TM	+3757+05823	Asia/Ashgabat
 TN	+3648+01011	Africa/Tunis
 TO	-2110+17510	Pacific/Tongatapu
 TR	+4101+02858	Europe/Istanbul
@@ -330,20 +361,24 @@ TV	-0831+17913	Pacific/Funafuti
 TW	+2503+12130	Asia/Taipei
 TZ	-0648+03917	Africa/Dar_es_Salaam
 UA	+5026+03031	Europe/Kiev	most locations
-UA	+4457+03406	Europe/Simferopol	Crimea
+UA	+4837+02218	Europe/Uzhgorod	Ruthenia
+UA	+4750+03510	Europe/Zaporozhye	Zaporozh'ye, E Lugansk
+UA	+4457+03406	Europe/Simferopol	central Crimea
 UG	+0019+03225	Africa/Kampala
 UM	+1700-16830	Pacific/Johnston	Johnston Atoll
 UM	+2813-17722	Pacific/Midway	Midway Islands
 UM	+1917+16637	Pacific/Wake	Wake Island
 US	+404251-0740023	America/New_York	Eastern Time
 US	+421953-0830245	America/Detroit	Eastern Time - Michigan - most locations
-US	+381515-0854534	America/Louisville	Eastern Time - Louisville, Kentucky
+US	+381515-0854534	America/Louisville	Eastern Time - Kentucky - Louisville area
+US	+364947-0845057	America/Kentucky/Monticello	Eastern Time - Kentucky - Wayne County
 US	+394606-0860929	America/Indianapolis	Eastern Standard Time - Indiana - most locations
 US	+382232-0862041	America/Indiana/Marengo	Eastern Standard Time - Indiana - Crawford County
 US	+411745-0863730	America/Indiana/Knox	Eastern Standard Time - Indiana - Starke County
 US	+384452-0850402	America/Indiana/Vevay	Eastern Standard Time - Indiana - Switzerland County
 US	+415100-0873900	America/Chicago	Central Time
 US	+450628-0873651	America/Menominee	Central Time - Michigan - Wisconsin border
+US	+470659-1011757	America/North_Dakota/Center	Central Time - North Dakota - Oliver County
 US	+394421-1045903	America/Denver	Mountain Time
 US	+433649-1161209	America/Boise	Mountain Time - south Idaho & east Oregon
 US	+364708-1084111	America/Shiprock	Mountain Time - Navajo
@@ -369,7 +404,6 @@ WF	-1318-17610	Pacific/Wallis
 WS	-1350-17144	Pacific/Apia
 YE	+1245+04512	Asia/Aden
 YT	-1247+04514	Indian/Mayotte
-YU	+4450+02030	Europe/Belgrade
 ZA	-2615+02800	Africa/Johannesburg
 ZM	-1525+02817	Africa/Lusaka
 ZW	-1750+03103	Africa/Harare
