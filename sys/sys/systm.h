@@ -118,6 +118,12 @@ int	ureadc __P((int, struct uio *));
 void	*hashinit __P((int count, struct malloc_type *type, u_long *hashmask));
 void	*phashinit __P((int count, struct malloc_type *type, u_long *nentries));
 
+#ifdef RESTARTABLE_PANICS
+void	panic __P((const char *, ...)) __printflike(1, 2);
+#else
+void	panic __P((const char *, ...)) __dead2 __printflike(1, 2);
+#endif
+
 void	cpu_boot __P((int));
 void	cpu_rootconf __P((void));
 void	critical_enter __P((void));
