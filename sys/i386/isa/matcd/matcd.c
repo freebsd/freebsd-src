@@ -490,6 +490,14 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 	DC_IDLE,			/*<12>Status*/
 	"Matsushita CD-ROM Controller"	/*<12>This is the description*/
 } };					/*<12>*/
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 46
+#define BDEV_MAJOR 17
+static void 	matcd_devsw_install();
+#endif /*JREMOD */
+
 #endif /*FREE2*/
 
 
@@ -1464,6 +1472,10 @@ int matcd_attach(struct isa_device *dev)
 	}
 	nextcontroller++;		/*Bump ctlr assign to next number*/
 	printf("\n");			/*End line of drive reports*/
+#ifdef JREMOD
+        matcd_devsw_install();
+#endif /*JREMOD*/
+
 	return(1);
 }
 
@@ -2737,5 +2749,31 @@ static int matcd_igot(struct ioc_capability * sqp)
 						      audio are here*/
 #endif	/*FULLDRIVER*/
 
+#ifdef JREMOD
+struct bdevsw matcd_bdevsw = 
+	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
+	  nxdump,	matcdsize,	0 };
+
+struct cdevsw matcd_cdevsw = 
+	{ matcdopen,	matcdclose,	rawread,	nowrite,	/*46*/
+	  matcdioctl,	nostop,		nullreset,	nodevtotty,/* SB cd */
+	  seltrue,	nommap,		matcdstrategy };
+
+static matcd_devsw_installed = 0;
+
+static void 	matcd_devsw_install()
+{
+	dev_t descript;
+	if( ! matcd_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&matcd_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&matcd_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		matcd_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 /*End of matcd.c*/
 

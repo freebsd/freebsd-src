@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.29 1995/09/08 19:57:13 bde Exp $
+ * $Id: soundcard.c,v 1.30 1995/11/04 13:24:48 bde Exp $
  */
 
 #include "sound_config.h"
@@ -35,6 +35,13 @@
 
 #include "dev_table.h"
 #include <i386/isa/isa_device.h>
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 30
+static void 	snd_devsw_install();
+#endif /*JREMOD*/
+
 
 u_int	snd1_imask;
 u_int	snd2_imask;
@@ -342,6 +349,10 @@ sndattach (struct isa_device *dev)
     }
 #endif
 
+#ifdef JREMOD
+        snd_devsw_install();
+#endif /*JREMOD*/
+
   return TRUE;
 }
 
@@ -470,4 +481,26 @@ snd_release_irq(int vect)
 {
 }
 
+#ifdef JREMOD
+struct cdevsw snd_cdevsw = 
+	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
+  	  sndioctl,	nostop,		nullreset,	nodevtotty,/* sound */
+  	  sndselect,	nommap,		NULL };
+
+static snd_devsw_installed = 0;
+
+static void 	snd_devsw_install()
+{
+	dev_t descript;
+	if( ! snd_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&snd_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&snd_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		snd_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif
