@@ -210,7 +210,8 @@ static int ncv_pccard_match(device_t dev)
 	if ((pp = (const struct ncv_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ncv_products,
 	    sizeof(ncv_products[0]), NULL)) != NULL) {
-		device_set_desc(dev, pp->prod.pp_name);
+		if (pp->prod.pp_name != NULL)
+			device_set_desc(dev, pp->prod.pp_name);
 		device_set_flags(dev, pp->flags);
 		return(0);
 	}
