@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.4 1995/09/09 13:23:53 joerg Exp $
+ * $Id: fsm.c,v 1.5 1996/01/11 17:48:44 phk Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -87,7 +87,7 @@ int count;
 #ifdef DEBUG
   DumpBp(bp);
 #endif
-  HdlcOutput(PRI_NORMAL, fp->proto, bp);
+  HdlcOutput(PRI_LINK, fp->proto, bp);
 }
 
 void
