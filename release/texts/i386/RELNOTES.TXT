@@ -62,11 +62,28 @@ Support has been added for direct access to NTFS filesystems.
 
 Driver support has been added for PCI gigabit ethernet adapters
 based on the Alteon Networks Tigon 1 and Tigon 2 chipsets, including
-the Alteon AceNIC, 3Com 3c985 and Netgear GA620.
+the Alteon AceNIC, 3Com 3c985 and Netgear GA620. [MERGED]
 
 Driver support has been added for IEEE 802.11 PCMCIA wireless network
 adapters based on the Lucent Hermes chipset, including the Lucent
-WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.
+WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.  Both 2Mbps and
+6Mbps Turbo adapters are supported. [MERGED]
+
+Driver support has been added for PCI fast ethernet cards based
+on the ADMtek Inc. AL981 Comet chipset. [MERGED]
+
+Support has been added for the Rise mP6 processor. [MERGED]
+
+Driver support has been added for SysKonnect SK-984x PCI gigabit
+ethernet adapters.
+
+Driver support has been added for Adaptec Duralink PCI ethernet adapters
+based on the Adaptec AIC-6915 fast ethernet controller.
+
+Driver support has been added for PCI fast ethernet adapters based on
+the Sundance Technologies ST201 controller, including the D-Link DFE-550TX.
+
+Driver support has been added for the 3Com 3c905C-TX. [MERGED]
 
 1.2. SECURITY FIXES
 -------------------
@@ -211,6 +228,15 @@ Unmaintained drivers, they might or might not work for your hardware:
 
 2.2. Ethernet cards
 -------------------
+
+Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
+AIC-6915 fast ethernet controller chip, including the following:
+  ANA-62011 64-bit single port 10/100baseTX adapter
+  ANA-62022 64-bit dual port 10/100baseTX adapter
+  ANA-62044 64-bit quad port 10/100baseTX adapter
+  ANA-69011 32-bit single port 10/100baseTX adapter
+  ANA-62020 64-bit single port 100baseFX adapter
+
 Allied-Telesis AT1700 and RE2000 cards
 
 Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
@@ -244,6 +270,7 @@ Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
   LinkSys EtherFast LNE100TX
   NetGear FA310-TX Rev. D1
   Matrox FastNIC 10/100
+  Kingston KNE110TX
 
 Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
   NDC Communications SFA100A (98713A)
@@ -251,13 +278,26 @@ Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
   CNet Pro120B (98715)
   SVEC PN102TX (98713)
 
+Macronix/Lite-On PNIC II LC82C115 fast ethernet NICs including the following:
+  LinkSys EtherFast LNE100TX Version 2
+
 Winbond W89C840F fast ethernet NICs including the following:
   Trendware TE100-PCIE
 
 VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
 NICs including the following:
   Hawking Technologies PN102TX
-  D-Link DFE530TX
+  D-Link DFE-530TX
+
+Sundance Technologies ST201 PCI fast ethernet NICs including
+the following:
+  D-Link DFE-550TX
+
+SysKonnect SK-984x PCI gigabit ethernet cards including the following:
+  SK-9841 1000baseLX single mode fiber, single port
+  SK-9842 1000baseSX multimode fiber, single port
+  SK-9843 1000baseLX single mode fiber, dual port
+  SK-9844 1000baseSX multimode fiber, dual port
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
@@ -266,6 +306,8 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
   Racore 8165 10/100baseTX
   Racore 8148 10baseT/100baseTX/100baseFX multi-personality
+
+ADMtek Inc. AL981-based PCI fast ethernet NICs
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204
@@ -300,10 +342,12 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B PCI and EISA
-(Fast) Etherlink III / (Fast) Etherlink XL
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B/905C PCI
+and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
-3Com 3c980 Fast Etherlink XL server adapter
+3Com 3c980/3c980B Fast Etherlink XL server adapter
+
+3Com 3cSOHO100-TX OfficeConnect adapter
 
 Toshiba ethernet cards
 
@@ -401,6 +445,13 @@ Xilinx XC6200 based reconfigurable hardware cards compatible with
 the HOT1 from Virtual Computers (www.vcc.com)
 
 Support for Dave Mills experimental Loran-C receiver.
+
+Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
+(2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
+(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
+ISA versions of these adapters are actually PCMCIA cards combined with
+an ISA to PCMCIA bridge card, so both kinds of devices work with
+the same driver.
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
 
