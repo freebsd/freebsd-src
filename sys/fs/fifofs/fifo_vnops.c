@@ -64,18 +64,18 @@ struct fifoinfo {
 	long		fi_writers;
 };
 
-static int	fifo_badop __P((void));
-static int	fifo_print __P((struct vop_print_args *));
-static int	fifo_lookup __P((struct vop_lookup_args *));
-static int	fifo_open __P((struct vop_open_args *));
-static int	fifo_close __P((struct vop_close_args *));
-static int	fifo_read __P((struct vop_read_args *));
-static int	fifo_write __P((struct vop_write_args *));
-static int	fifo_ioctl __P((struct vop_ioctl_args *));
-static int	fifo_poll __P((struct vop_poll_args *));
-static int	fifo_kqfilter __P((struct vop_kqfilter_args *));
-static int	fifo_pathconf __P((struct vop_pathconf_args *));
-static int	fifo_advlock __P((struct vop_advlock_args *));
+static int	fifo_badop(void);
+static int	fifo_print(struct vop_print_args *);
+static int	fifo_lookup(struct vop_lookup_args *);
+static int	fifo_open(struct vop_open_args *);
+static int	fifo_close(struct vop_close_args *);
+static int	fifo_read(struct vop_read_args *);
+static int	fifo_write(struct vop_write_args *);
+static int	fifo_ioctl(struct vop_ioctl_args *);
+static int	fifo_poll(struct vop_poll_args *);
+static int	fifo_kqfilter(struct vop_kqfilter_args *);
+static int	fifo_pathconf(struct vop_pathconf_args *);
+static int	fifo_advlock(struct vop_advlock_args *);
 
 static void	filt_fifordetach(struct knote *kn);
 static int	filt_fiforead(struct knote *kn, long hint);

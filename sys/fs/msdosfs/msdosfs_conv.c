@@ -88,7 +88,7 @@ static u_long  lastday;
 static u_short lastddate;
 static u_short lastdtime;
 
-static __inline u_int8_t find_lcode __P((u_int16_t code, u_int16_t *u2w));
+static __inline u_int8_t find_lcode(u_int16_t code, u_int16_t *u2w);
 
 /*
  * Convert the unix version of time to dos's idea of time to be used in

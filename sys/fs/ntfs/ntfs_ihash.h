@@ -29,9 +29,9 @@
  */
 
 extern struct lock ntfs_hashlock;
-void ntfs_nthashinit __P((void));
-void ntfs_nthashdestroy __P((void));
-struct ntnode   *ntfs_nthashlookup __P((dev_t, ino_t));
-struct ntnode   *ntfs_nthashget __P((dev_t, ino_t));
-void ntfs_nthashins __P((struct ntnode *));
-void ntfs_nthashrem __P((register struct ntnode *));
+void ntfs_nthashinit(void);
+void ntfs_nthashdestroy(void);
+struct ntnode   *ntfs_nthashlookup(dev_t, ino_t);
+struct ntnode   *ntfs_nthashget(dev_t, ino_t);
+void ntfs_nthashins(struct ntnode *);
+void ntfs_nthashrem(register struct ntnode *);

@@ -50,13 +50,13 @@
 
 MALLOC_DEFINE(M_DEVFS, "DEVFS", "DEVFS data");
 
-static int	devfs_mount __P((struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct thread *td));
-static int	devfs_unmount __P((struct mount *mp, int mntflags,
-				  struct thread *td));
-static int	devfs_root __P((struct mount *mp, struct vnode **vpp));
-static int	devfs_statfs __P((struct mount *mp, struct statfs *sbp,
-				   struct thread *td));
+static int	devfs_mount(struct mount *mp, char *path, caddr_t data,
+				  struct nameidata *ndp, struct thread *td);
+static int	devfs_unmount(struct mount *mp, int mntflags,
+				  struct thread *td);
+static int	devfs_root(struct mount *mp, struct vnode **vpp);
+static int	devfs_statfs(struct mount *mp, struct statfs *sbp,
+				   struct thread *td);
 
 /*
  * Mount the filesystem

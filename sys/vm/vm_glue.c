@@ -99,7 +99,7 @@ extern int maxslp;
  *
  * Note: proc0 from proc.h
  */
-static void vm_init_limits __P((void *));
+static void vm_init_limits(void *);
 SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, &proc0)
 
 /*
@@ -107,11 +107,11 @@ SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, &proc0)
  *
  * Note: run scheduling should be divorced from the vm system.
  */
-static void scheduler __P((void *));
+static void scheduler(void *);
 SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, scheduler, NULL)
 
 #ifndef NO_SWAPPING
-static void swapout __P((struct proc *));
+static void swapout(struct proc *);
 #endif
 
 int

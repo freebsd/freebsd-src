@@ -55,21 +55,19 @@ MALLOC_DEFINE(M_HPFSNO, "HPFS node", "HPFS node structure");
 
 struct sockaddr;
 
-static int	hpfs_root __P((struct mount *, struct vnode **));
-static int	hpfs_statfs __P((struct mount *, struct statfs *,
-				 struct thread *));
-static int	hpfs_unmount __P((struct mount *, int, struct thread *));
-static int	hpfs_vget __P((struct mount *mp, ino_t ino, int flags,
-			       struct vnode **vpp));
-static int	hpfs_mountfs __P((register struct vnode *, struct mount *, 
-				  struct hpfs_args *, struct thread *));
-static int	hpfs_vptofh __P((struct vnode *, struct fid *));
-static int	hpfs_fhtovp __P((struct mount *, struct fid *,
-				 struct vnode **));
-static int	hpfs_mount __P((struct mount *, char *, caddr_t,
-				struct nameidata *, struct thread *));
-static int	hpfs_init __P((struct vfsconf *));
-static int	hpfs_uninit __P((struct vfsconf *));
+static int	hpfs_root(struct mount *, struct vnode **);
+static int	hpfs_statfs(struct mount *, struct statfs *, struct thread *);
+static int	hpfs_unmount(struct mount *, int, struct thread *);
+static int	hpfs_vget(struct mount *mp, ino_t ino, int flags,
+			       struct vnode **vpp);
+static int	hpfs_mountfs(register struct vnode *, struct mount *, 
+				  struct hpfs_args *, struct thread *);
+static int	hpfs_vptofh(struct vnode *, struct fid *);
+static int	hpfs_fhtovp(struct mount *, struct fid *, struct vnode **);
+static int	hpfs_mount(struct mount *, char *, caddr_t,
+				struct nameidata *, struct thread *);
+static int	hpfs_init(struct vfsconf *);
+static int	hpfs_uninit(struct vfsconf *);
 
 static int
 hpfs_init (

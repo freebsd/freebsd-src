@@ -54,15 +54,15 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_zone.h>
 
-static void dev_pager_init __P((void));
-static vm_object_t dev_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
-		vm_ooffset_t));
-static void dev_pager_dealloc __P((vm_object_t));
-static int dev_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
-static void dev_pager_putpages __P((vm_object_t, vm_page_t *, int, 
-		boolean_t, int *));
-static boolean_t dev_pager_haspage __P((vm_object_t, vm_pindex_t, int *,
-		int *));
+static void dev_pager_init(void);
+static vm_object_t dev_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
+		vm_ooffset_t);
+static void dev_pager_dealloc(vm_object_t);
+static int dev_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static void dev_pager_putpages(vm_object_t, vm_page_t *, int, 
+		boolean_t, int *);
+static boolean_t dev_pager_haspage(vm_object_t, vm_pindex_t, int *,
+		int *);
 
 /* list of device pager objects */
 static struct pagerlst dev_pager_object_list;
@@ -77,8 +77,8 @@ static vm_zone_t fakepg_zone;
 static struct vm_zone fakepg_zone_store;
 #endif
 
-static vm_page_t dev_pager_getfake __P((vm_offset_t));
-static void dev_pager_putfake __P((vm_page_t));
+static vm_page_t dev_pager_getfake(vm_offset_t);
+static void dev_pager_putfake(vm_page_t);
 
 struct pagerops devicepagerops = {
 	dev_pager_init,

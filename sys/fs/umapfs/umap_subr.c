@@ -64,11 +64,11 @@
 static LIST_HEAD(umap_node_hashhead, umap_node) *umap_node_hashtbl;
 static u_long umap_node_hash;
 
-static u_long	umap_findid __P((u_long id, u_long map[][2], int nentries));
-static int	umap_node_alloc __P((struct mount *mp, struct vnode *lowervp,
-				     struct vnode **vpp));
+static u_long	umap_findid(u_long id, u_long map[][2], int nentries);
+static int	umap_node_alloc(struct mount *mp, struct vnode *lowervp,
+				     struct vnode **vpp);
 static struct vnode *
-		umap_node_find __P((struct mount *mp, struct vnode *targetvp));
+		umap_node_find(struct mount *mp, struct vnode *targetvp);
 
 /*
  * Initialise cache headers
