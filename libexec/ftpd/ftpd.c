@@ -681,8 +681,7 @@ inithosts(void)
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_CANONNAME;
 	hints.ai_family = AF_UNSPEC;
-	getaddrinfo(hrp->hostname, NULL, &hints, &res);
-	if (res)
+	if (getaddrinfo(hrp->hostname, NULL, &hints, &res) == 0)
 		hrp->hostinfo = res;
 	hrp->statfile = _PATH_FTPDSTATFILE;
 	hrp->welcome  = _PATH_FTPWELCOME;
@@ -754,8 +753,7 @@ inithosts(void)
 			hints.ai_flags = 0;
 			hints.ai_family = AF_UNSPEC;
 			hints.ai_flags = AI_PASSIVE;
-			error = getaddrinfo(vhost, NULL, &hints, &res);
-			if (error != NULL)
+			if (getaddrinfo(vhost, NULL, &hints, &res) != 0)
 				goto nextline;
 			for (ai = res; ai != NULL && ai->ai_addr != NULL;
 			     ai = ai->ai_next) {
@@ -779,9 +777,13 @@ inithosts(void)
 			if (hrp == NULL) {
 				if ((hrp = malloc(sizeof(struct ftphost))) == NULL)
 					goto nextline;
+				hrp->hostname = NULL;
+				hrp->hostinfo = NULL;
 				insert = 1;
 			} else
 				insert = 0; /* host already in the chain */
+			if (hrp->hostinfo)
+				freeaddrinfo(hrp->hostinfo);
 			hrp->hostinfo = res;
 
 			/*
@@ -823,7 +825,13 @@ inithosts(void)
 					}
 				}
 			}
-			if ((hrp->hostname = strdup(vhost)) == NULL)
+			if (hrp->hostname &&
+			    strcmp(hrp->hostname, vhost) != 0) {
+				free(hrp->hostname);
+				hrp->hostname = NULL;
+			}
+			if (hrp->hostname == NULL &&
+			    (hrp->hostname = strdup(vhost)) == NULL)
 				goto nextline;
 			hrp->anonuser = anonuser;
 			hrp->statfile = statfile;
