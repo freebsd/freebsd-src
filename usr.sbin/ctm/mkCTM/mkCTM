@@ -123,6 +123,10 @@ cd $CTMSW
 set CTMapply 1
 set CTMdont {^///}
 set CTMmail {}
+set CTMqueue {}
+set CTMqueuemail {}
+set CTMmaxctm 10000000
+set CTMmaxmsg 100000
 set CTMsuff {}
 set CTMdate     [exec date -u +%Y%m%d%H%M%SZ]
 set CTMtmp  {}
@@ -327,7 +331,12 @@ while 1 {
     if {$CTMmail != ""} {
 	puts "Mailing delta"
 	flush stdout
-	exec $CTMSW/ctm_smail -m 100000 -c 3000000 $CTMdest/${nm}.gz $CTMmail >&@ stdout
+	exec $CTMSW/ctm_smail -m $CTMmaxmsg -c $CTMmaxctm $CTMdest/${nm}.gz $CTMmail >&@ stdout
+	if {$CTMqueue != "" && $CTMqueuemail != ""} {
+	    puts "Queueing delta"
+	    flush stdout
+	    exec $CTMSW/ctm_smail -m $CTMmaxmsg -c $CTMmaxctm -q $CTMqueue $CTMdest/${nm}.gz $CTMqueuemail >&@ stdout
+	}
     }
     exec echo mailed > $CTMlock
 
@@ -342,6 +351,8 @@ while 1 {
     set CTMsuff A
     set CTMcopy ""
     set CTMmail ""
+    set CTMqueue ""
+    set CTMqueuemail ""
     set CTMapply 0
     set CTMspecial 1
     exec rm -f $CTMlock
