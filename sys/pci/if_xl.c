@@ -238,7 +238,7 @@ static int xl_mii_writereg	(struct xl_softc *, struct xl_mii_frame *);
 
 static void xl_setcfg		(struct xl_softc *);
 static void xl_setmode		(struct xl_softc *, int);
-static u_int32_t xl_mchash	(caddr_t);
+static uint32_t xl_mchash	(const uint8_t *);
 static void xl_setmulti		(struct xl_softc *);
 static void xl_setmulti_hash	(struct xl_softc *);
 static void xl_reset		(struct xl_softc *);
@@ -812,11 +812,11 @@ xl_read_eeprom(sc, dest, off, cnt, swap)
  */
 static u_int32_t
 xl_mchash(addr)
-	caddr_t		addr;
+	const uint8_t *addr;
 {
-	u_int32_t	crc, carry;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc, carry;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

@@ -104,7 +104,7 @@ static u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, int);
 
 static void	ed_setrcr	(struct ed_softc *);
 
-static u_int32_t ds_mchash	(caddr_t addr);
+static uint32_t ds_mchash	(const uint8_t *);
 
 /*
  * Interrupt conversion table for WD/SMC ASIC/83C584
@@ -3531,14 +3531,14 @@ ed_setrcr(sc)
 /*
  * Compute crc for ethernet address
  */
-static u_int32_t
+static uint32_t
 ds_mchash(addr)
-	caddr_t addr;
+	const uint8_t *addr;
 {
 #define ED_POLYNOMIAL 0x04c11db6
-	register u_int32_t crc = 0xffffffff;
+	register uint32_t crc = 0xffffffff;
 	register int carry, idx, bit;
-	register u_char data;
+	register uint8_t data;
 
 	for (idx = 6; --idx >= 0;) {
 		for (data = *addr++, bit = 8; --bit >= 0; data >>=1 ) {

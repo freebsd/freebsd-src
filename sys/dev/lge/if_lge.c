@@ -149,7 +149,7 @@ static int lge_miibus_writereg(device_t, int, int, int);
 static void lge_miibus_statchg(device_t);
 
 static void lge_setmulti(struct lge_softc *);
-static u_int32_t lge_mchash(caddr_t);
+static uint32_t lge_mchash(const uint8_t *);
 static void lge_reset(struct lge_softc *);
 static int lge_list_rx_init(struct lge_softc *);
 static int lge_list_tx_init(struct lge_softc *);
@@ -367,13 +367,13 @@ lge_miibus_statchg(dev)
 	return;
 }
 
-static u_int32_t
+static uint32_t
 lge_mchash(addr)
-	caddr_t		addr;
+	const uint8_t *addr;
 {
-	u_int32_t	crc, carry;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc, carry;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

@@ -157,7 +157,7 @@ Static int rue_miibus_readreg(device_ptr_t, int, int);
 Static int rue_miibus_writereg(device_ptr_t, int, int, int);
 Static void rue_miibus_statchg(device_ptr_t);
 
-Static u_int32_t rue_mchash(caddr_t);
+Static uint32_t rue_mchash(const uint8_t *);
 Static void rue_setmulti(struct rue_softc *);
 Static void rue_reset(struct rue_softc *);
 
@@ -464,12 +464,12 @@ rue_miibus_statchg(device_ptr_t dev)
  * Calculate CRC of a multicast group address, return the upper 6 bits.
  */
 
-Static u_int32_t
-rue_mchash(caddr_t addr)
+Static uint32_t
+rue_mchash(const uint8_t *addr)
 {
-	u_int32_t	crc, carry;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc, carry;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF;	/* initial value */

@@ -133,7 +133,7 @@ static void snwatchdog(struct ifnet *);
 
 static void sn_setmcast(struct sn_softc *);
 static int sn_getmcf(struct arpcom *ac, u_char *mcf);
-static uint32_t sn_mchash(const uint8_t *addr);
+static uint32_t sn_mchash(const uint8_t *);
 
 /* I (GB) have been unlucky getting the hardware padding
  * to work properly.

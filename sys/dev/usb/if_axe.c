@@ -140,7 +140,7 @@ Static int axe_ifmedia_upd(struct ifnet *);
 Static void axe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 Static void axe_setmulti(struct axe_softc *);
-Static u_int32_t axe_mchash(caddr_t);
+Static uint32_t axe_mchash(const uint8_t *);
 
 Static device_method_t axe_methods[] = {
 	/* Device interface */
@@ -313,12 +313,12 @@ axe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
         return;
 }
 
-Static u_int32_t
-axe_mchash(caddr_t addr)
+Static uint32_t
+axe_mchash(const uint8_t *addr)
 {
-	u_int32_t	crc, carry;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc, carry;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
