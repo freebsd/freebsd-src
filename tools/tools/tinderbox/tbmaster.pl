@@ -52,6 +52,7 @@ my %CONFIG = (
     'LOGDIR'	=> '%%SANDBOX%%/logs',
     'TARGETS'	=> [ 'update', 'world' ],
     'OPTIONS'	=> [],
+    'PATCH'	=> '',
     'ENV'	=> [],
     'SENDER'	=> '',
     'RECIPIENT'	=> '',
