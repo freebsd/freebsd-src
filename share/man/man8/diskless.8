@@ -148,16 +148,28 @@ and
 .Aq ROOT
 have the obvious meanings.
 .It
-On the root partition, create configuration files for
-the diskless clients.
-These reside in
+On the root partition, create the directory
+.Pa /conf/default/etc ,
+and populate it with a copy of the contents of
+.Pa /etc .
+The files and subdirectories within
+.Pa /conf/default/etc
+are used to bootstrap the diskless environment's
+.Pa /etc
+memory filesystem.
+Be sure and copy the entirety of
+.Pa /etc ,
+and not just overrides.
+.It
+Additionally, one may supply per-network or per-host overrides for
+files in
+.Pa /etc
+by creating and populating the directories
 .Pa /conf/${i}/etc ,
 where
 .Va i
-can be either
-.Qq Li default ,
-the subnet broadcast
-address for the client, or the IP address of the client.
+can be either the subnet broadcast address for the client, or the IP
+address of the client.
 .Pp
 Files are copied from the above directories into
 .Pa /etc
