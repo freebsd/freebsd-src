@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70 1996/10/09 09:53:27 jkh Exp $
+ * $Id: disks.c,v 1.71 1996/11/05 19:53:20 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -264,11 +264,6 @@ diskPartition(Device *dev, Disk *d)
 	    All_FreeBSD(d, rv);
 	    if (rv)
 		d->bios_hd = d->bios_sect = d->bios_cyl = 1;
-	    else {
-		d->bios_hd = 64;
-		d->bios_sect = 32;
-		d->bios_cyl = Total / ONE_MEG;
-	    }
 	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
 	    clear();

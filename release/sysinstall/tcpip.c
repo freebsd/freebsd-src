@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48 1996/10/05 16:33:04 jkh Exp $
+ * $Id: tcpip.c,v 1.49 1996/11/07 08:03:29 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -489,6 +489,7 @@ tcpOpenDialog(Device *devp)
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr);
 	restorescr(save);
+	configResolv();	/* XXX this will do it on the MFS copy XXX */
 	return DITEM_SUCCESS;
     }
     restorescr(save);
@@ -546,6 +547,5 @@ int
 tcpMenuSelect(dialogMenuItem *self)
 {
     (void)tcpDeviceSelect();
-    configResolv();
     return DITEM_SUCCESS | DITEM_RECREATE | DITEM_RESTORE;
 }
