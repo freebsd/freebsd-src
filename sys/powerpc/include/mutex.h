@@ -29,16 +29,27 @@
  * $FreeBSD$
  */
 
-
 #ifndef _MACHINE_MUTEX_H_
 #define _MACHINE_MUTEX_H_
 
 #ifndef LOCORE
 
+#include <sys/ktr.h>
 #include <sys/queue.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/globaldata.h>
+#include <machine/globals.h>
+
+/*
+ * If kern_mutex.c is being built, compile non-inlined versions of various
+ * functions so that kernel modules can use them.
+ */
+#ifndef _KERN_MUTEX_C_
+#define _MTX_INLINE	static __inline
+#else
+#define _MTX_INLINE
+#endif
 
 /*
  * Mutex flags
@@ -83,7 +94,7 @@ struct mtx {
 	/* If you add anything here, adjust the mtxf_t definition below */
 	struct witness	*mtx_witness;
 	LIST_ENTRY(mtx) mtx_held;
-	char		*mtx_file;
+	const char	*mtx_file;
 	int		 mtx_line;
 #endif /* SMP_DEBUG */
 };
@@ -113,6 +124,25 @@ void mtx_init(mtx_t *m, char *description, int flag);
 void mtx_enter_hard(mtx_t *, int type, int ipl);
 void mtx_exit_hard(mtx_t *, int type);
 void mtx_destroy(mtx_t *m);
+
+/*
+ * Wrap the following functions with cpp macros so that filenames and line
+ * numbers are embedded in the code correctly.
+ */
+#if (defined(KLD_MODULE) || defined(_KERN_MUTEX_C_))
+void	_mtx_enter(mtx_t *mtxp, int type, const char *file, int line);
+int	_mtx_try_enter(mtx_t *mtxp, int type, const char *file, int line);
+void	_mtx_exit(mtx_t *mtxp, int type, const char *file, int line);
+#endif
+
+#define	mtx_enter(mtxp, type)						\
+	_mtx_enter((mtxp), (type), __FILE__, __LINE__)
+
+#define	mtx_try_enter(mtxp, type)					\
+	_mtx_try_enter((mtxp), (type), __FILE__, __LINE__)
+
+#define	mtx_exit(mtxp, type)						\
+	_mtx_exit((mtxp), (type), __FILE__, __LINE__)
 
 /* Global locks */
 extern mtx_t sched_lock;
@@ -162,7 +192,7 @@ do {								\
  */
 #ifndef SMP_DEBUG
 #define mtx_assert(m, what)
-#else /* SMP_DEBUG */
+#else	/* SMP_DEBUG */
 
 #define MA_OWNED	1
 #define MA_NOTOWNED	2
@@ -189,17 +219,17 @@ do {								\
 #ifdef MTX_STRS
 char STR_IEN[] = "fl & 0x200";
 char STR_IDIS[] = "!(fl & 0x200)";
-#else /* MTX_STRS */
+#else	/* MTX_STRS */
 extern char STR_IEN[];
 extern char STR_IDIS[];
-#endif /* MTX_STRS */
+#endif	/* MTX_STRS */
 #define	ASS_IEN		MPASS2((alpha_pal_rdps & ALPHA_PSL_IPL_MASK)
 			       == ALPHA_PSL_IPL_HIGH, STR_IEN)
 #define	ASS_IDIS	MPASS2((alpha_pal_rdps & ALPHA_PSL_IPL_MASK)
 			       != ALPHA_PSL_IPL_HIGH, STR_IDIS)
-#endif /* INVARIANTS */
+#endif	/* INVARIANTS */
 
-#endif /* SMP_DEBUG */
+#endif	/* SMP_DEBUG */
 
 #if !defined(SMP_DEBUG) || !defined(INVARIANTS)
 #define ASS(ex)
@@ -207,7 +237,7 @@ extern char STR_IDIS[];
 #define	MPASS2(ex, where)
 #define	ASS_IEN
 #define ASS_IDIS
-#endif /* !defined(SMP_DEBUG) || !defined(INVARIANTS) */
+#endif	/* !defined(SMP_DEBUG) || !defined(INVARIANTS) */
 
 #ifdef	WITNESS
 #ifndef	SMP_DEBUG
@@ -222,7 +252,7 @@ extern char STR_IDIS[];
 
 #define	WITNESS_SLEEP(check, m) witness_sleep(check, (m), __FILE__, __LINE__)
 #define	WITNESS_SAVE_DECL(n)						\
-	char * __CONCAT(n, __wf);					\
+	const char * __CONCAT(n, __wf);					\
 	int __CONCAT(n, __wl)
 
 #define	WITNESS_SAVE(m, n) 						\
@@ -245,9 +275,9 @@ void witness_exit(mtx_t *, int, char *, int);
 void witness_display(void(*)(const char *fmt, ...));
 void witness_list(struct proc *);
 int witness_sleep(int, mtx_t *, char *, int);
-void witness_save(mtx_t *, char **, int *);
-void witness_restore(mtx_t *, char *, int);
-#else /* WITNESS */
+void witness_save(mtx_t *, const char **, int *);
+void witness_restore(mtx_t *, const char *, int);
+#else	/* WITNESS */
 #define WITNESS_ENTER(m, flag)
 #define WITNESS_EXIT(m, flag)
 #define	WITNESS_SLEEP(check, m)
@@ -264,7 +294,7 @@ void witness_restore(mtx_t *, char *, int);
 #define witness_enter(m, flag,  f, l)
 #define witness_try_enter(m, flag, f, l )
 #define witness_exit(m, flag, f, l)
-#endif /* WITNESS */
+#endif	/* WITNESS */
 
 /*
  * Assembly macros (for internal use only)
@@ -372,165 +402,149 @@ void witness_restore(mtx_t *, char *, int);
 char STR_mtx_enter_fmt[] = "GOT %s [%p] at %s:%d r=%d";
 char STR_mtx_bad_type[] = "((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0";
 char STR_mtx_exit_fmt[] = "REL %s [%p] at %s:%d r=%d";
-char STR_mtx_owned[] = "mtx_owned(_mpp)";
-char STR_mtx_recurse[] = "_mpp->mtx_recurse == 0";
+char STR_mtx_owned[] = "mtx_owned(mpp)";
+char STR_mtx_recurse[] = "mpp->mtx_recurse == 0";
 char STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%p] at %s:%d result=%d";
-#else /* MTX_STRS */
+#else	/* MTX_STRS */
 extern char STR_mtx_enter_fmt[];
 extern char STR_mtx_bad_type[];
 extern char STR_mtx_exit_fmt[];
 extern char STR_mtx_owned[];
 extern char STR_mtx_recurse[];
 extern char STR_mtx_try_enter_fmt[];
-#endif /* MTX_STRS */
+#endif	/* MTX_STRS */
 
+#ifndef KLD_MODULE
 /*
  * Get lock 'm', the macro handles the easy (and most common cases) and
  * leaves the slow stuff to the mtx_enter_hard() function.
  *
  * Note: since type is usually a constant much of this code is optimized out
  */
-#define	mtx_enter(mtxp, type) do {					\
-	mtx_t * _mpp = mtxp;						\
-									\
-	/* bits only valid on mtx_exit() */				\
-	MPASS2(((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0, STR_mtx_bad_type); \
-									\
-	do {								\
-		if ((type) & MTX_SPIN) {				\
-			/*						\
-			 * Easy cases of spin locks:			\
-			 *						\
-			 * 1) We already own the lock and will simply 	\
-			 *    recurse on it (if RLIKELY)		\
-			 *						\
-			 * 2) The lock is free, we just get it		\
-			 */						\
-			if ((type) & MTX_RLIKELY) {			\
-				/*					\
-				 * Check for recursion, if we already 	\
-				 * have this lock we just bump the 	\
-				 * recursion count.			\
-				 */					\
-				if (_mpp->mtx_lock == CURTHD) {		\
-					_mpp->mtx_recurse++;		\
-					break;	/* Done */		\
-				}					\
-			}						\
-									\
-			if (((type) & MTX_TOPHALF) == 0)		\
-				/*					\
-				 * If an interrupt thread uses this	\
-				 * we must block interrupts here.	\
-				 */					\
-				_getlock_spin_block(_mpp, CURTHD,	\
-				    (type) & MTX_HARDOPTS);		\
-			else 						\
-				_getlock_norecurse(_mpp, CURTHD,	\
-				    (type) & MTX_HARDOPTS);		\
-		} else {						\
-			/* Sleep locks */				\
-			if ((type) & MTX_RLIKELY)			\
-				_getlock_sleep(_mpp, CURTHD,		\
-				    (type) & MTX_HARDOPTS);		\
-			else						\
-				_getlock_norecurse(_mpp, CURTHD,	\
-				    (type) & MTX_HARDOPTS);		\
-		}							\
-	} while (0);							\
-	WITNESS_ENTER(_mpp, type);					\
-	CTR5(KTR_LOCK, STR_mtx_enter_fmt,				\
-	    (_mpp)->mtx_description, (_mpp), __FILE__, __LINE__,	\
-	    (_mpp)->mtx_recurse);					\
-} while (0)
+_MTX_INLINE void
+_mtx_enter(mtx_t *mtxp, int type, const char *file, int line)
+{
+	mtx_t	*mpp = mtxp;
+
+	/* bits only valid on mtx_exit() */
+	MPASS2(((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0,
+	    STR_mtx_bad_type);
+
+	do {
+		if ((type) & MTX_SPIN) {
+			/*
+			 * Easy cases of spin locks:
+			 *
+			 * 1) We already own the lock and will simply
+			 *    recurse on it (if RLIKELY)
+			 *
+			 * 2) The lock is free, we just get it
+			 */
+			if ((type) & MTX_RLIKELY) {
+				/*
+				 * Check for recursion, if we already
+				 * have this lock we just bump the
+				 * recursion count.
+				 */
+				if (mpp->mtx_lock == CURTHD) {
+					mpp->mtx_recurse++;
+					break;	/* Done */
+				}
+			}
+
+			if (((type) & MTX_TOPHALF) == 0)
+				/*
+				 * If an interrupt thread uses this
+				 * we must block interrupts here.
+				 */
+				_getlock_spin_block(mpp, CURTHD,
+				    (type) & MTX_HARDOPTS);
+			else {
+				_getlock_norecurse(mpp, CURTHD,
+				    (type) & MTX_HARDOPTS);
+			}
+		} else {
+			/* Sleep locks */
+			if ((type) & MTX_RLIKELY) {
+				_getlock_sleep(mpp, CURTHD,
+				    (type) & MTX_HARDOPTS);
+			} else {
+				_getlock_norecurse(mpp, CURTHD,
+				    (type) & MTX_HARDOPTS);
+			}
+		}
+	} while (0);
+	WITNESS_ENTER(mpp, type);
+	CTR5(KTR_LOCK, STR_mtx_enter_fmt,
+	    mpp->mtx_description, mpp, file, line,
+	    mpp->mtx_recurse);
+}
 
 /*
  * Attempt to get MTX_DEF lock, return non-zero if lock acquired
  *
  * XXX DOES NOT HANDLE RECURSION
  */
+_MTX_INLINE int
+_mtx_try_enter(mtx_t *mtxp, int type, const char *file, int line)
+{
+	mtx_t	*const mpp = mtxp;
+	int	rval;
+
+	rval = atomic_cmpset_64(&mpp->mtx_lock, MTX_UNOWNED, CURTHD);
 #ifdef SMP_DEBUG
-#define	mtx_try_enter(mtxp, type) ({					\
-	mtx_t *const _mpp = mtxp;					\
-	int _rval;							\
-									\
-	_rval = atomic_cmpset_int(&_mpp->mtx_lock, MTX_UNOWNED, CURTHD);\
-	if (_rval && (_mpp)->mtx_witness != NULL) {			\
-		ASS((_mpp)->mtx_recurse == 0);				\
-		witness_try_enter(_mpp, type,  __FILE__, __LINE__);	\
-	}								\
-	CTR5(KTR_LOCK, STR_mtx_try_enter_fmt,				\
-	    (_mpp)->mtx_description, (_mpp), __FILE__, __LINE__,	\
-	    _rval);							\
-	_rval;								\
-})
-
-#else /* SMP_DEBUG */
-
-#define	mtx_try_enter(mtxp, type) ({					\
-	mtx_t *const _mpp = mtxp;					\
-	int _rval;							\
-									\
-	_rval = atomic_cmpset_int(&_mpp->mtx_lock, MTX_UNOWNED, CURTHD);\
-	CTR5(KTR_LOCK, STR_mtx_try_enter_fmt,				\
-	    (_mpp)->mtx_description, (_mpp), __FILE__, __LINE__,	\
-	    _rval);							\
-	_rval;								\
-})
-
-#endif /* SMP_DEBUG */
-
-#if 0
-#define mtx_legal2block() ({						\
-	register int _l2b;						\
-	__asm __volatile (						\
-"	pushfl;"							\
-"	popl %%eax;"							\
-"	andl $0x200, %%eax;"						\
-	: "=a" (_l2b)							\
-	:								\
-	: "cc");							\
-	_l2b;								\
-})
+	if (rval && mpp->mtx_witness != NULL) {
+		ASS(mpp->mtx_recurse == 0);
+		witness_try_enter(mpp, type,  file, line);
+	}
 #endif
+	CTR5(KTR_LOCK, STR_mtx_try_enter_fmt,
+	    mpp->mtx_description, mpp, file, line, rval);
+
+	return rval;
+}
 
 #define	mtx_legal2block()	(read_eflags() & 0x200)
 
 /*
  * Release lock m
  */
-#define mtx_exit(mtxp, type) do {					\
-	mtx_t *const _mpp = mtxp;					\
-									\
-	MPASS2(mtx_owned(_mpp), STR_mtx_owned);				\
-	WITNESS_EXIT(_mpp, type);					\
-	CTR5(KTR_LOCK, STR_mtx_exit_fmt,				\
-	    (_mpp)->mtx_description, (_mpp), __FILE__, __LINE__,	\
-	    (_mpp)->mtx_recurse);					\
-	if ((type) & MTX_SPIN) {					\
-		if ((type) & MTX_NORECURSE) {				\
-			MPASS2(_mpp->mtx_recurse == 0, STR_mtx_recurse); \
-			atomic_cmpset_64(&_mpp->mtx_lock, _mpp->mtx_lock, \
-			    MTX_UNOWNED);				\
-			if (((type) & MTX_TOPHALF) == 0) {		\
-				splx(_mpp->mtx_saveipl);		\
-			}						\
-		} else							\
-			if ((type) & MTX_TOPHALF)			\
-				_exitlock_norecurse(_mpp, CURTHD,	\
-				    (type) & MTX_HARDOPTS);		\
-			else						\
-				_exitlock_spin(_mpp);			\
-	} else {							\
-		/* Handle sleep locks */				\
-		if ((type) & MTX_RLIKELY)				\
-			_exitlock(_mpp, CURTHD, (type) & MTX_HARDOPTS);	\
-		else							\
-			_exitlock_norecurse(_mpp, CURTHD,		\
-			    (type) & MTX_HARDOPTS);			\
-	}								\
-} while (0)
-#endif /* _KERNEL */
+_MTX_INLINE void
+_mtx_exit(mtx_t *mtxp, int type, const char *file, int line)
+{
+	mtx_t	*const mpp = mtxp;
+
+	MPASS2(mtx_owned(mpp), STR_mtx_owned);
+	WITNESS_EXIT(mpp, type);
+	CTR5(KTR_LOCK, STR_mtx_exit_fmt,
+	    mpp->mtx_description, mpp, file, line,
+	    mpp->mtx_recurse);
+	if ((type) & MTX_SPIN) {
+		if ((type) & MTX_NORECURSE) {
+			MPASS2(mpp->mtx_recurse == 0, STR_mtx_recurse);
+			atomic_cmpset_64(&mpp->mtx_lock, mpp->mtx_lock,
+			    MTX_UNOWNED);
+			if (((type) & MTX_TOPHALF) == 0)
+				alpha_pal_swpipl(mpp->mtx_saveipl);
+		} else
+			if ((type) & MTX_TOPHALF) {
+				_exitlock_norecurse(mpp, CURTHD,
+				    (type) & MTX_HARDOPTS);
+			} else
+				_exitlock_spin(mpp);
+	} else {
+		/* Handle sleep locks */
+		if ((type) & MTX_RLIKELY)
+			_exitlock(mpp, CURTHD, (type) & MTX_HARDOPTS);
+		else {
+			_exitlock_norecurse(mpp, CURTHD,
+			    (type) & MTX_HARDOPTS);
+		}
+	}
+}
+
+#endif	/* KLD_MODULE */
+#endif	/* _KERNEL */
 
 #else	/* !LOCORE */
 
@@ -558,6 +572,6 @@ extern char STR_mtx_try_enter_fmt[];
 	ldl	a0, lck+MTX_SAVEIPL;		\
 	call_pal PAL_OSF1_swpipl
 
-#endif /* !LOCORE */
+#endif	/* !LOCORE */
 
-#endif /* __MACHINE_MUTEX_H */
+#endif	/* __MACHINE_MUTEX_H */
