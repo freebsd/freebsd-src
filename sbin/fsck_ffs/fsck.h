@@ -223,6 +223,8 @@ int	lfmode;			/* lost & found directory creation mode */
 ufs_daddr_t n_blks;		/* number of blocks in use */
 ufs_daddr_t n_files;		/* number of files in use */
 
+int	got_siginfo;		/* received a SIGINFO */
+
 #define	clearinode(dp)	(*(dp) = zino)
 struct	dinode zino;
 
@@ -280,6 +282,7 @@ struct inoinfo *getinoinfo __P((ino_t inumber));
 struct dinode  *getnextinode __P((ino_t inumber));
 void		getpathname __P((char *namebuf, ino_t curdir, ino_t ino));
 struct dinode  *ginode __P((ino_t inumber));
+void		infohandler __P((int sig));
 void		inocleanup __P((void));
 void		inodirty __P((void));
 struct inostat *inoinfo __P((ino_t inum));

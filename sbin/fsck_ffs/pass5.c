@@ -169,6 +169,12 @@ pass5()
 	for (i = fs->fs_size; i < j; i++)
 		setbmap(i);
 	for (c = 0; c < fs->fs_ncg; c++) {
+		if (got_siginfo) {
+			printf("%s: phase 5: cyl group %d of %d (%d%%)\n",
+			    cdevname, c, sblock.fs_ncg,
+			    c * 100 / sblock.fs_ncg);
+			got_siginfo = 0;
+		}
 		getblk(&cgblk, cgtod(fs, c), fs->fs_cgsize);
 		if (!cg_chkmagic(cg))
 			pfatal("CG %d: BAD MAGIC NUMBER\n", c);
