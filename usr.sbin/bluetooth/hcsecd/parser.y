@@ -39,6 +39,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <syslog.h>
+#include <unistd.h>
 #include "hcsecd.h"
 
 	int	yyparse  (void);
