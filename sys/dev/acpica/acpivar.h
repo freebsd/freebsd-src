@@ -70,7 +70,6 @@ struct acpi_softc {
     int			acpi_sleep_delay;
     int			acpi_s4bios;
     int			acpi_disable_on_poweroff;
-
     int			acpi_verbose;
 
     bus_dma_tag_t	acpi_waketag;
@@ -88,7 +87,7 @@ struct acpi_device {
     int				ad_magic;
     void			*ad_private;
 
-    /* resources */
+    /* Resources */
     struct resource_list	ad_rl;
 
 };
