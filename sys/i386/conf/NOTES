@@ -1904,9 +1904,9 @@ device		meteor
 
 # Brooktree driver has been ported to the new I2C framework. Thus,
 # you'll need to have the following 3 lines in the kernel config.
-#     device smbus0
-#     device iicbus0
-#     device iicbb0
+#     device smbus
+#     device iicbus
+#     device iicbb
 # The iic and smb devices are only needed if you want to control other
 # I2C slaves connected to the external connector of some cards.
 #
