@@ -24,11 +24,11 @@
    it out so we can test the grokker.  */
 
 #include <bfd.h>
-#include <getopt.h>
 #include <libiberty.h>
 
 #include "coffgrok.h"
 #include "bucomm.h"
+#include "getopt.h"
 
 static int atnl;
 

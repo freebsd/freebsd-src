@@ -1799,7 +1799,7 @@ all-send-pr: all-prms
 all-shellutils:
 all-sid: all-tcl all-tk
 all-sim: all-libiberty all-bfd all-opcodes all-readline all-cgen
-all-snavigator: all-tcl all-tk all-itcl all-db all-grep all-libgui
+all-snavigator: all-tcl all-tk all-itcl all-tix all-db all-grep all-libgui
 all-tar: all-libiberty
 all-tcl:
 all-tcl8.1:

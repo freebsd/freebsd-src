@@ -1,4 +1,8 @@
 -*- text -*-
+Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
+
+Support for the OpenRISC 32-bit embedded processor by OpenCores.
+
 The ARM assembler now accepts -march=..., -mcpu=... and -mfpu=... for
 specifying the target instruction set.  The old method of specifying the
 target processor has been deprecated, but is still accepted for
