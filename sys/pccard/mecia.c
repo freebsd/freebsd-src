@@ -82,7 +82,22 @@ struct mecia_slot {
 	u_char		last_reg1;	/* Last value of change reg */
 };
 
-static struct slot_ctrl mecia_cinfo;
+static struct slot_ctrl mecia_cinfo = {
+	mecia_mapirq,
+	mecia_memory,
+	mecia_io,
+	mecia_reset,
+	mecia_disable,
+	mecia_power,
+	mecia_ioctl,
+	mecia_resume,
+	1,
+#if 0
+	1
+#else
+	2		/* Fake for UE2212 LAN card */
+#endif
+};
 
 static int validunits = 0;
 
@@ -100,23 +115,6 @@ mecia_probe(device_t dev)
 	if (isa_get_logicalid(dev))		/* skip PnP probes */
 		return (ENXIO);
 
-	/*
-	 *	Initialise controller information structure.
-	 */
-	mecia_cinfo.ioctl	= mecia_ioctl;
-	mecia_cinfo.mapmem	= mecia_memory;
-	mecia_cinfo.mapio	= mecia_io;
-	mecia_cinfo.power	= mecia_power;
-	mecia_cinfo.mapirq	= mecia_mapirq;
-	mecia_cinfo.reset	= mecia_reset;
-	mecia_cinfo.disable	= mecia_disable;
-	mecia_cinfo.resume	= mecia_resume;
-	mecia_cinfo.maxmem	= 1;
-#if 0   
-	mecia_cinfo.maxio	= 1;
-#else   
-	mecia_cinfo.maxio	= 2;	/* fake for UE2212 LAN card */
-#endif
 	if (inb(MECIA_REG0) != 0xff) {
 		validslots++;
 		/* XXX need to allocated the port resources */

@@ -66,7 +66,18 @@ static int		pcic_io(struct slot *, int);
 
 devclass_t	pcic_devclass;
 
-static struct slot_ctrl cinfo;
+static struct slot_ctrl pcic_cinfo = {
+	pcic_mapirq,
+	pcic_memory,
+	pcic_io,
+	pcic_reset,
+	pcic_disable,
+	pcic_power,
+	pcic_ioctl,
+	pcic_resume,
+	PCIC_MEM_WIN,
+	PCIC_IO_WIN
+};
 
 /*
  * Clear bit(s) of a register.
@@ -240,20 +251,6 @@ pcic_attach(device_t dev)
 	struct pcic_slot *sp;
 	int		stat;
 	
-	/*
-	 *	Initialise controller information structure.
-	 */
-	cinfo.mapirq = pcic_mapirq;
-	cinfo.mapmem = pcic_memory;
-	cinfo.mapio = pcic_io;
-	cinfo.ioctl = pcic_ioctl;
-	cinfo.power = pcic_power;
-	cinfo.reset = pcic_reset;
-	cinfo.disable = pcic_disable;
-	cinfo.resume = pcic_resume;
-	cinfo.maxmem = PCIC_MEM_WIN;
-	cinfo.maxio = PCIC_IO_WIN;
-
 	sc = (struct pcic_softc *) device_get_softc(dev);
 	sp = &sc->slots[0];
 	for (i = 0; i < PCIC_CARD_SLOTS; i++, sp++) {
@@ -266,7 +263,7 @@ pcic_attach(device_t dev)
 			return (ENXIO);
 		}
 		device_probe_and_attach(kid);
-		slt = pccard_init_slot(kid, &cinfo);
+		slt = pccard_init_slot(kid, &pcic_cinfo);
 		if (slt == 0) {
 			device_printf(dev, "Can't get pccard info slot %d", i);
 			return (ENXIO);
