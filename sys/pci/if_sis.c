@@ -64,6 +64,7 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -192,6 +193,12 @@ static driver_t sis_driver = {
 };
 
 static devclass_t sis_devclass;
+
+#ifdef __i386__
+static int sis_quick=1;
+SYSCTL_INT(_hw, OID_AUTO, sis_quick, CTLFLAG_RW,
+	&sis_quick,0,"do not mdevget in sis driver");
+#endif
 
 DRIVER_MODULE(if_sis, pci, sis_driver, sis_devclass, 0, 0);
 DRIVER_MODULE(miibus, sis, miibus_driver, miibus_devclass, 0, 0);
@@ -986,23 +993,17 @@ static int sis_list_tx_init(sc)
 {
 	struct sis_list_data	*ld;
 	struct sis_ring_data	*cd;
-	int			i;
+	int			i, nexti;
 
 	cd = &sc->sis_cdata;
 	ld = sc->sis_ldata;
 
 	for (i = 0; i < SIS_TX_LIST_CNT; i++) {
-		if (i == (SIS_TX_LIST_CNT - 1)) {
-			ld->sis_tx_list[i].sis_nextdesc =
-			    &ld->sis_tx_list[0];
-			ld->sis_tx_list[i].sis_next =
-			    vtophys(&ld->sis_tx_list[0]);
-		} else {
-			ld->sis_tx_list[i].sis_nextdesc =
-			    &ld->sis_tx_list[i + 1];
-			ld->sis_tx_list[i].sis_next =
-			    vtophys(&ld->sis_tx_list[i + 1]);
-		}
+		nexti = (i == (SIS_TX_LIST_CNT - 1)) ? 0 : i+1;
+		ld->sis_tx_list[i].sis_nextdesc =
+			    &ld->sis_tx_list[nexti];
+		ld->sis_tx_list[i].sis_next =
+			    vtophys(&ld->sis_tx_list[nexti]);
 		ld->sis_tx_list[i].sis_mbuf = NULL;
 		ld->sis_tx_list[i].sis_ptr = 0;
 		ld->sis_tx_list[i].sis_ctl = 0;
@@ -1024,7 +1025,7 @@ static int sis_list_rx_init(sc)
 {
 	struct sis_list_data	*ld;
 	struct sis_ring_data	*cd;
-	int			i;
+	int			i, nexti;
 
 	ld = sc->sis_ldata;
 	cd = &sc->sis_cdata;
@@ -1032,17 +1033,11 @@ static int sis_list_rx_init(sc)
 	for (i = 0; i < SIS_RX_LIST_CNT; i++) {
 		if (sis_newbuf(sc, &ld->sis_rx_list[i], NULL) == ENOBUFS)
 			return(ENOBUFS);
-		if (i == (SIS_RX_LIST_CNT - 1)) {
-			ld->sis_rx_list[i].sis_nextdesc =
-			    &ld->sis_rx_list[0];
-			ld->sis_rx_list[i].sis_next =
-			    vtophys(&ld->sis_rx_list[0]);
-		} else {
-			ld->sis_rx_list[i].sis_nextdesc =
-			    &ld->sis_rx_list[i + 1];
-			ld->sis_rx_list[i].sis_next =
-			    vtophys(&ld->sis_rx_list[i + 1]);
-		}
+		nexti = (i == (SIS_RX_LIST_CNT - 1)) ? 0 : i+1;
+		ld->sis_rx_list[i].sis_nextdesc =
+			    &ld->sis_rx_list[nexti];
+		ld->sis_rx_list[i].sis_next =
+			    vtophys(&ld->sis_rx_list[nexti]);
 	}
 
 	cd->sis_rx_prod = 0;
@@ -1062,16 +1057,11 @@ static int sis_newbuf(sc, c, m)
 
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("sis%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->sis_unit);
+		if (m_new == NULL)
 			return(ENOBUFS);
-		}
 
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
-			printf("sis%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->sis_unit);
 			m_freem(m_new);
 			return(ENOBUFS);
 		}
@@ -1109,7 +1099,6 @@ static void sis_rxeof(sc)
 	i = sc->sis_cdata.sis_rx_prod;
 
 	while(SIS_OWNDESC(&sc->sis_ldata->sis_rx_list[i])) {
-		struct mbuf		*m0 = NULL;
 
 		cur_rx = &sc->sis_ldata->sis_rx_list[i];
 		rxstat = cur_rx->sis_rxstat;
@@ -1133,15 +1122,33 @@ static void sis_rxeof(sc)
 		}
 
 		/* No errors; receive the packet. */
-		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
-		    total_len + ETHER_ALIGN, 0, ifp, NULL);
-		sis_newbuf(sc, cur_rx, m);
-		if (m0 == NULL) {
-			ifp->if_ierrors++;
-			continue;
+#ifdef __i386__
+		/*
+		 * On the x86 we do not have alignment problems, so try to
+		 * allocate a new buffer for the receive ring, and pass up
+		 * the one where the packet is already, saving the expensive
+		 * copy done in m_devget().
+		 * If we are on an architecture with alignment problems, or
+		 * if the allocation fails, then use m_devget and leave the
+		 * existing buffer in the receive ring.
+		 */
+		if (sis_quick && sis_newbuf(sc, cur_rx, NULL) == 0) {
+			m->m_pkthdr.rcvif = ifp;
+			m->m_pkthdr.len = m->m_len = total_len;
+		} else
+#endif
+		{
+			struct mbuf *m0;
+			m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
+				total_len + ETHER_ALIGN, 0, ifp, NULL);
+			sis_newbuf(sc, cur_rx, m);
+			if (m0 == NULL) {
+				ifp->if_ierrors++;
+				continue;
+			}
+			m_adj(m0, ETHER_ALIGN);
+			m = m0;
 		}
-		m_adj(m0, ETHER_ALIGN);
-		m = m0;
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
