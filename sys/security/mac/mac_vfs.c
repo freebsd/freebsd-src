@@ -185,7 +185,7 @@ mac_externalize_vnode_label(struct label *label, char *elements,
 {
 	int error;
 
-	MAC_EXTERNALIZE(vnode_label, label, elements, outbuf, outbuflen);
+	MAC_EXTERNALIZE(vnode, label, elements, outbuf, outbuflen);
 
 	return (error);
 }
@@ -195,7 +195,7 @@ mac_internalize_vnode_label(struct label *label, char *string)
 {
 	int error;
 
-	MAC_INTERNALIZE(vnode_label, label, string);
+	MAC_INTERNALIZE(vnode, label, string);
 
 	return (error);
 }

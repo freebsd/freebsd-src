@@ -152,7 +152,7 @@ mac_externalize_cred_label(struct label *label, char *elements,
 {
 	int error;
 
-	MAC_EXTERNALIZE(cred_label, label, elements, outbuf, outbuflen);
+	MAC_EXTERNALIZE(cred, label, elements, outbuf, outbuflen);
 
 	return (error);
 }
@@ -162,7 +162,7 @@ mac_internalize_cred_label(struct label *label, char *string)
 {
 	int error;
 
-	MAC_INTERNALIZE(cred_label, label, string);
+	MAC_INTERNALIZE(cred, label, string);
 
 	return (error);
 }
