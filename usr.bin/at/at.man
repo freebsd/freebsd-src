@@ -1,7 +1,7 @@
-.\" $Id: at.man,v 1.7 1998/03/23 07:40:30 charnier Exp $
+.\" $Id: at.man,v 1.8 1998/06/04 21:05:53 steve Exp $
 .Dd April 12, 1995
 .Dt "AT" 1
-.Os "FreeBSD 2.1"
+.Os FreeBSD 2.1
 .Sh NAME
 .Nm at, batch, atq, atrm
 .Nd queue, examine or delete jobs for later execution
