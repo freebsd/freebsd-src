@@ -1,10 +1,10 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.157 1997/08/13 12:56:12 danny Exp $
+#	$Id: Makefile,v 1.158 1997/08/14 06:58:44 jkh Exp $
 
 # -rw-r--r--
 BINOWN= root
 BINGRP= wheel
-BIN1=   aliases amd.map csh.cshrc csh.login csh.logout dm.conf \
+BIN1=   aliases amd.map crontab csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
 	inetd.conf login.conf login.access motd modems networks \
 	newsyslog.conf phones pccard.conf.sample printcap profile protocols \
@@ -51,7 +51,6 @@ distribution:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN3} ${DESTDIR}/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 crontab ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/cron/log; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
