@@ -24,9 +24,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ahb.4,v 1.7 1997/03/07 02:49:43 jmg Exp $
+.\"	$Id: ahb.4,v 1.8 1998/03/12 07:30:29 charnier Exp $
 .\"
-.Dd January 19, 1996
+.Dd October 15, 1998
 .Dt AHB 4 i386
 .Os FreeBSD
 .Sh NAME
@@ -39,60 +39,25 @@
 This driver provides access to the
 .Tn SCSI
 bus connected to an Adaptec 
-174x hostadapter in either 
-.Dq Em standard
-or
+174x hostadapter in
 .Dq Em enhanced
-mode. If the controller
-is set to standard mode (using the
-.Tn EISA
-configuration utility),
-the driver will automatically 
-switch the card to enhanced mode during the device probe.
-.Pp
-.Sy N.B. :
-When configuring a system
-with both
-.Xr aha 4
-and
-.Nm
-drivers, the
-.Nm
-driver should be listed first in the kernel configuration file.  This
-ensures that the
-.Nm
-driver will find the Adaptec 174x boards before the 
-.Xr aha 4
-driver probes for Adaptec 154x boards.
-.Pp
-Note that no I/O addresses are configured in the kernel config file. The
-174x uses
-.Tn EISA
-slot-specific I/O which is configured automatically.
-.\"
-.\" .Sh DIAGNOSTICS
-.\"
+mode.
+Tagged queueing and synchronous SCSI transfers are supported.
+.Sh CAVEATS
+The Adaptec 174X is very sensitive to SCSI bus termination and cable
+length.  It may also have difficulties operating with some modern devices
+that, due to their speed, expose timing problems in the controller.  There
+are no known mechanisms for working around device incompatibilities of
+this nature.
 .Sh SEE ALSO
 .Xr aha 4 ,
 .Xr ahc 4 ,
 .Xr cd 4 ,
 .Xr scsi 4 ,
-.Xr sd 4 ,
-.Xr st 4
+.Xr da 4 ,
+.Xr sa 4
 .Sh AUTHORS
 The
 .Nm
 driver was written by
-.An Julian Elischer
-for
-.Tn Mach
-2.5.  It was converted to automatic
-.Tn EISA
-configuration by
-.An Justin Gibbs .
-.Sh HISTORY
-The
-.Nm
-driver first appeared in the
-.Tn 386BSD
-patchkit.
+.An Justin T. Gibbs .
