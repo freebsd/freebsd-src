@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.2 1997/08/04 03:29:05 msmith Exp $
+ *      $Id: bios.c,v 1.3 1997/08/05 01:38:19 msmith Exp $
  */
 
 /*
@@ -118,8 +118,9 @@ bios32_init(void *junk)
 	    if (bootverbose) {
 		printf("SMIBIOS header at %p\n", sbt);
 		printf("Version %d.%d\n", sbt->major, sbt->minor);
-		printf("Table at 0x%x, %hd entries, %hd bytes, largest entry %hd bytes\n",
-		       dmit->st_base, dmit->st_entries, dmit->st_size, sbt->st_maxsize);
+		printf("Table at 0x%x, %d entries, %d bytes, largest entry %d bytes\n",
+		       dmit->st_base, (int)dmit->st_entries, (int)dmit->st_size,
+		       (int)sbt->st_maxsize);
 	    }
 	} else {
 	    printf("Bad SMBIOS table checksum!\n");
@@ -141,8 +142,9 @@ bios32_init(void *junk)
 		printf("DMI header at %p\n", dmit);
 		printf("Version %d.%d\n", (dmit->bcd_revision >> 4),
 		       (dmit->bcd_revision & 0x0f));
-		printf("Table at 0x%x, %hd entries, %hd bytes\n",
-		       dmit->st_base, dmit->st_entries, dmit->st_size);
+		printf("Table at 0x%x, %d entries, %d bytes\n",
+		       dmit->st_base, (int)dmit->st_entries,
+		       (int)dmit->st_size);
 	    }
 	} else {
 	    printf("Bad DMI table checksum!\n");
