@@ -45,4 +45,4 @@
 .cp \n(_C
 .\" If you want the character definitions in tmac.tty-char to be loaded
 .\" automatically, remove the `\"' from the next line.
-.\"do mso tmac.tty-char
+.do mso tmac.tty-char
