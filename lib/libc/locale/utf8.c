@@ -79,6 +79,11 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 
 	us = (_UTF8State *)ps;
 
+	if (us->count < 0 || us->count > sizeof(us->bytes)) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
+
 	if (s == NULL) {
 		s = "";
 		n = 1;
@@ -176,11 +181,18 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 }
 
 size_t
-_UTF8_wcrtomb(char * __restrict s, wchar_t wc,
-    mbstate_t * __restrict ps __unused)
+_UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
+	_UTF8State *us;
 	unsigned char lead;
 	int i, len;
+
+	us = (_UTF8State *)ps;
+
+	if (us->count < 0 || us->count > sizeof(us->bytes)) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
 
 	if (s == NULL)
 		/* Reset to initial shift state (no-op) */
