@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <arpa/inet.h>
 #include <errno.h>
-#include <rune.h>
+#include <runetype.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)table.c	8.1 (Berkeley) 6/27/93";
 __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
-#include <rune.h>
+#include <runetype.h>
 #include <wchar.h>
 #include "mblocal.h"
 
