@@ -183,7 +183,7 @@ map	:	LBRK RUNE RUNE RBRK
 %%
 
 int debug = 0;
-FILE *fp = stdout;
+FILE *fp;
 
 main(ac, av)
 	int ac;
@@ -193,6 +193,7 @@ main(ac, av)
 
     extern char *optarg;
     extern int optind;
+    fp = stdout;
 
     while ((x = getopt(ac, av, "do:")) != EOF) {
 	switch(x) {
