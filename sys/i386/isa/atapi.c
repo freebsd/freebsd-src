@@ -112,11 +112,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
 
 #include <machine/clock.h>
-#include <machine/cpufunc.h>
 
 #ifdef ATAPI_MODULE
 #   define ATAPI_STATIC
@@ -965,7 +963,6 @@ struct atapires (*atapi_request_immediate_ptr) (struct atapi *ata, int unit,
  * ATAPI loadable driver stubs.
  */
 #include <sys/exec.h>
-#include <sys/conf.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
 

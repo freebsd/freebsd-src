@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.30 1997/05/04 15:24:20 joerg Exp $ */
+/* $Id: scd.c,v 1.31 1997/05/10 12:13:13 joerg Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -49,17 +49,11 @@
 
 #include "scd.h"
 #if NSCD > 0
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/file.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/stat.h>
-#include <sys/uio.h>
 #include <sys/cdio.h>
-#include <sys/errno.h>
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/kernel.h>

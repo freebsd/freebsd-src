@@ -50,22 +50,15 @@
 #include "wds.h"
 #if NWDS > 0
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/dkbad.h>
-#include <sys/disklabel.h>
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
 #include <machine/clock.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>

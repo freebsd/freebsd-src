@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.93 1997/06/25 21:00:00 fsmp Exp $
+ *	$Id: isa.c,v 1.94 1997/07/09 17:58:16 ache Exp $
  */
 
 /*
@@ -50,11 +50,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>
-#include <machine/segments.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
 #include <machine/apic.h>
@@ -65,9 +63,7 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/intr_machdep.h>
 #include <i386/isa/isa.h>
-#include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
-#include "vector.h"
 
 #include <sys/interrupt.h>
 

@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.42 1997/05/21 18:26:09 gibbs Exp $
+ *	$Id: if_ie.c,v 1.43 1997/06/27 19:36:27 gibbs Exp $
  */
 
 /*
@@ -114,24 +114,18 @@ iomem and and with 0xffff.
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/mbuf.h>
-#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/errno.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
-#include <net/route.h>
 
 #include "bpfilter.h"
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #endif
 
@@ -156,11 +150,8 @@ iomem and and with 0xffff.
 #include <i386/isa/if_iee16.h>
 #include <i386/isa/elink.h>
 
-#include <vm/vm.h>
-
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #ifdef DEBUG

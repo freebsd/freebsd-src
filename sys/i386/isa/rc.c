@@ -30,7 +30,6 @@
  *
  */
 
-#include "opt_comconsole.h"
 #include "rc.h"
 
 #if NRC > 0
@@ -44,9 +43,7 @@
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
-#include <sys/syslog.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -54,7 +51,6 @@
 #include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
-#include <i386/isa/sioreg.h>
 
 #include <i386/isa/ic/cd180.h>
 #include <i386/isa/rcreg.h>

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.6 1997/02/22 09:36:35 peter Exp $
+ * $Id: if_sr.c,v 1.7 1997/05/19 22:02:49 joerg Exp $
  */
 
 /*
@@ -53,7 +53,6 @@
 #else
 #define NFR	0
 #endif
-#include "pci.h"
 #include "bpfilter.h"
 
 #include <sys/param.h>

@@ -34,26 +34,20 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.2 1997/06/02 15:28:10 kato Exp $
+ *	$Id: intr_machdep.c,v 1.3 1997/06/22 16:04:04 peter Exp $
  */
 
 #include "opt_auto_eoi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>
 #include <sys/syslog.h>
-#include <sys/malloc.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
 #if defined(APIC_IO)
 #include <machine/smp.h>
-#include <machine/apic.h>
 #endif /* APIC_IO */
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 #include <i386/isa/isa_device.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
@@ -63,7 +57,6 @@
 #include <i386/isa/isa.h>
 #endif
 #include <i386/isa/icu.h>
-#include <i386/isa/ic/i8237.h>
 #include "vector.h"
 
 #include <i386/isa/intr_machdep.h>
