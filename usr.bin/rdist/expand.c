@@ -618,13 +618,16 @@ addpath(c)
  * part corresponding to `file'.
  */
 char *
-exptilde(buf, file)
+exptilde(buf, file, maxlen)
 	char buf[];
 	register char *file;
+	int maxlen;
 {
 	register char *s1, *s2, *s3;
 	extern char homedir[];
 
+	if (strlen(file) >= maxlen)
+	   return(NULL);
 	if (*file != '~') {
 		strcpy(buf, file);
 		return(buf);
@@ -655,13 +658,15 @@ exptilde(buf, file)
 			*s3 = '/';
 		s2 = pw->pw_dir;
 	}
-	for (s1 = buf; (*s1++ = *s2++); )
+	for (s1 = buf; (*s1++ = *s2++) && s1 < buf+maxlen; )
 		;
 	s2 = --s1;
-	if (s3 != NULL) {
+	if (s3 != NULL && s1 < buf+maxlen) {
 		s2++;
-		while ((*s1++ = *s3++))
+		while ((*s1++ = *s3++) && s1 < buf+maxlen)
 			;
 	}
+	if (s1 == buf+maxlen)
+		return(NULL);
 	return(s2);
 }

@@ -479,7 +479,7 @@ cmptime(name)
 	 * first time cmptime() is called?
 	 */
 	if (tp == NULL) {
-		if (exptilde(target, name) == NULL)
+		if (exptilde(target, name, sizeof(target)) == NULL)
 			return;
 		tp = name = target;
 		while (*tp)

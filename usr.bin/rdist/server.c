@@ -115,7 +115,7 @@ server()
 		case 't':  /* init target file/directory name */
 			catname = 0;
 		dotarget:
-			if (exptilde(target, cp) == NULL)
+			if (exptilde(target, cp, sizeof(target)) == NULL)
 				continue;
 			tp = target;
 			while (*tp)
@@ -176,7 +176,7 @@ server()
 				continue;
 			}
 			if (*cp == '~') {
-				if (exptilde(buf, cp) == NULL)
+				if (exptilde(buf, cp, sizeof(buf)) == NULL)
 					continue;
 				cp = buf;
 			}
@@ -248,7 +248,7 @@ install(src, dest, destdir, opts)
 			return;
 	}
 
-	rname = exptilde(target, src);
+	rname = exptilde(target, src, sizeof(target));
 	if (rname == NULL)
 		return;
 	tp = target;
