@@ -8,7 +8,7 @@ CRYPTOBJDIR=	${.CURDIR}/../../lib/libcrypt/obj
 CRYPTOBJDIR=	${.CURDIR}/../../lib/libcrypt
 .endif
 
-.if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
+.if !defined(MAKE_IDEA)
 CFLAGS+= -DNO_IDEA
 .endif
 
