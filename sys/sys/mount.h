@@ -123,7 +123,6 @@ struct mount {
 	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
 	struct vnode	*mnt_syncer;		/* syncer vnode */
 	struct vnodelst	mnt_nvnodelist;		/* list of vnodes this mount */
-	struct vnodelst	mnt_reservedvnlist;	/* (future) dirty vnode list */
 	struct lock	mnt_lock;		/* mount structure lock */
 	int		mnt_flag;		/* flags shared with user */
 	int		mnt_kern_flag;		/* kernel only flags */
@@ -132,6 +131,7 @@ struct mount {
 	qaddr_t		mnt_data;		/* private data */
 	time_t		mnt_time;		/* last time written*/
 	u_int		mnt_iosize_max;		/* max IO request size */
+	struct vnodelst	mnt_reservedvnlist;	/* (future) dirty vnode list */
 };
 #endif /* _KERNEL */
 
