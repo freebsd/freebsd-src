@@ -132,17 +132,6 @@ for the line printer spooling system.
 .QP
 The last word in installing and operating the \fIsendmail\fP program.
 
-.ne 3
-.IP
-.tl 'Name Server Operations Guide for BIND''SMM:10'
-.if \n(.U \{\
-.br
-.>> <a href="10.named/paper.html">10.named/paper.html</a>
-.\}
-.QP
-Setting up and operating the name to Internet addressing software.
-If you have a network this will be of interest.
-
 .IP
 .tl 'Timed Installation and Operation Guide''SMM:11'
 .if \n(.U \{\
