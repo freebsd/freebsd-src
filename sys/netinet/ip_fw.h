@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.20 1996/06/09 23:46:21 alex Exp $
+ *	$Id: ip_fw.h,v 1.21 1996/07/10 19:44:24 julian Exp $
  */
 
 /*
@@ -53,6 +53,7 @@ struct ip_fw {
     unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
     long timestamp;         		/* timestamp (tv_sec) of last match */
     u_short fw_divert_port;		/* Divert port (options IPDIVERT) */
+    u_char fw_prot;			/* IP protocol */
 };
 
 struct ip_fw_chain {
@@ -63,13 +64,6 @@ struct ip_fw_chain {
 /*
  * Values for "flags" field .
  */
-
-#define IP_FW_F_ALL	0x0000	/* This is a universal packet rule    */
-#define IP_FW_F_TCP	0x0001	/* This is a TCP packet rule          */
-#define IP_FW_F_UDP	0x0002	/* This is a UDP packet rule          */
-#define IP_FW_F_ICMP	0x0003	/* This is a ICMP packet rule         */
-#define IP_FW_F_KIND	0x0003	/* Mask to isolate rule kind          */
-
 #define IP_FW_F_IN	0x0004	/* Inbound 			      */
 #define IP_FW_F_OUT	0x0008	/* Outbound			      */
 
