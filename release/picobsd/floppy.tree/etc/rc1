@@ -16,8 +16,9 @@ set_all_interfaces		# Set ${ifconfig_${if}} for other interfaces.
 
 ### Now use some variables to override files in /etc ###
 ( IFS=''
-[ -n ${host_conf} ] && echo ${host_conf} > /etc/host.conf
-[ -n ${resolv_conf} ] && echo ${resolv_conf} > /etc/resolv.conf
+[ -n "${host_conf}" ] && echo ${host_conf} > /etc/host.conf
+[ -n "${resolv_conf}" ] && echo ${resolv_conf} > /etc/resolv.conf
+[ -n "${rc_local}" ] && echo ${rc_local} > /etc/rc.local
 unset IFS
 )
 
@@ -44,6 +45,9 @@ chmod 666 /dev/tty[pqrsPQRS]*
 [ -n "$network_pass1_done" ] && network_pass2
 [ -n "$network_pass2_done" ] && network_pass3
 
+[ -f /etc/syslog.conf -a -f /stand/syslogd ] && \
+	{ echo "Starting syslogd."; syslogd ${syslogd_flags} ; }
+
 [ "${inetd_enable}" = "YES" -a -f /stand/inetd ] && \
 	{ echo "Starting inetd."; inetd ${inetd_flags} ; }
 
@@ -52,6 +56,8 @@ chmod 666 /dev/tty[pqrsPQRS]*
 
 pwd_mkdb -p ./master.passwd
 dev_mkdb
+
+[ -f /etc/rc.local ] && . /etc/rc.local
 
 echo ''
 cat /etc/motd
