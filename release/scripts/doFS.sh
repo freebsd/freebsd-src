@@ -132,10 +132,10 @@ dofs_md () {
 }
 
 case `uname -r` in
-5.*)
-	dofs_md
+[1-4].*)
+	dofs_vn
 	;;
 *)
-	dofs_vn
+	dofs_md
 	;;
 esac
