@@ -258,24 +258,48 @@ void	sysinit_add __P((struct sysinit **set));
  * in a SYSINIT function at SI_SUB_TUNABLES with SI_ORDER_LAST.
  */
 
-#define	TUNABLE_INT(path, var)				\
-static void __Tunable_ ## var (void *ignored)		\
-{							\
-	TUNABLE_INT_FETCH((path), (var));		\
-}							\
-SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL)
+extern void tunable_int_init(void *);
+struct tunable_int {
+	const char *path;
+	int *var;
+};
+#define	TUNABLE_INT(path, var)					\
+	_TUNABLE_INT((path), (var), __LINE__)
+#define _TUNABLE_INT(path, var, line)				\
+	__TUNABLE_INT((path), (var), line)
+
+#define	__TUNABLE_INT(path, var, line)				\
+	static struct tunable_int __tunable_int_ ## line = {	\
+		path,						\
+		var,						\
+	};							\
+	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
+	     tunable_int_init, &__tunable_int_ ## line)
 
 #define	TUNABLE_INT_FETCH(path, var)			\
 do {							\
-	getenv_int((path), &(var));			\
+	getenv_int((path), (var));			\
 } while (0)
 
-#define	TUNABLE_STR(path, var, size)			\
-static void __Tunable_ ## var (void *ignored)		\
-{							\
-	TUNABLE_STR_FETCH((path), (var), (size));	\
-}							\
-SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL)
+extern void tunable_str_init(void *);
+struct tunable_str {
+	const char *path;
+	char *var;
+	int size;
+};
+#define	TUNABLE_STR(path, var, size)				\
+	_TUNABLE_STR((path), (var), (size), __LINE__)
+#define	_TUNABLE_STR(path, var, size, line)			\
+	__TUNABLE_STR((path), (var), (size), line)
+
+#define	__TUNABLE_STR(path, var, size, line)			\
+	static struct tunable_str __tunable_str_ ## line = {	\
+		path,						\
+		var,						\
+		size,						\
+	};							\
+	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
+	     tunable_str_init, &__tunable_str_ ## line)
 
 #define	TUNABLE_STR_FETCH(path, var, size)		\
 do {							\

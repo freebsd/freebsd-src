@@ -88,11 +88,11 @@ int     ktr_extend = KTR_EXTEND_DEFAULT;
 SYSCTL_INT(_debug_ktr, OID_AUTO, extend, CTLFLAG_RD, &ktr_extend, 0, "");
 
 int	ktr_cpumask = KTR_CPUMASK;
-TUNABLE_INT("debug.ktr.cpumask", ktr_cpumask);
+TUNABLE_INT("debug.ktr.cpumask", &ktr_cpumask);
 SYSCTL_INT(_debug_ktr, OID_AUTO, cpumask, CTLFLAG_RW, &ktr_cpumask, 0, "");
 
 int	ktr_mask = KTR_MASK;
-TUNABLE_INT("debug.ktr.mask", ktr_mask);
+TUNABLE_INT("debug.ktr.mask", &ktr_mask);
 SYSCTL_INT(_debug_ktr, OID_AUTO, mask, CTLFLAG_RW, &ktr_mask, 0, "");
 
 int	ktr_entries = KTR_ENTRIES;
@@ -102,7 +102,7 @@ volatile int	ktr_idx = 0;
 struct	ktr_entry ktr_buf[KTR_ENTRIES];
 
 int	ktr_verbose = KTR_VERBOSE_DEFAULT;
-TUNABLE_INT("debug.ktr.verbose", ktr_verbose);
+TUNABLE_INT("debug.ktr.verbose", &ktr_verbose);
 SYSCTL_INT(_debug_ktr, OID_AUTO, verbose, CTLFLAG_RW, &ktr_verbose, 0, "");
 
 #ifdef KTR

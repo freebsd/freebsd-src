@@ -145,7 +145,7 @@ static struct	lock_instance *find_instance(struct lock_list_entry *lock_list,
 MALLOC_DEFINE(M_WITNESS, "witness", "witness structure");
 
 static int witness_watch = 1;
-TUNABLE_INT("debug.witness_watch", witness_watch);
+TUNABLE_INT("debug.witness_watch", &witness_watch);
 SYSCTL_INT(_debug, OID_AUTO, witness_watch, CTLFLAG_RD, &witness_watch, 0, "");
 
 #ifdef DDB
@@ -160,7 +160,7 @@ int	witness_ddb = 1;
 #else
 int	witness_ddb = 0;
 #endif
-TUNABLE_INT("debug.witness_ddb", witness_ddb);
+TUNABLE_INT("debug.witness_ddb", &witness_ddb);
 SYSCTL_INT(_debug, OID_AUTO, witness_ddb, CTLFLAG_RW, &witness_ddb, 0, "");
 #endif /* DDB */
 
@@ -169,7 +169,7 @@ int	witness_skipspin = 1;
 #else
 int	witness_skipspin = 0;
 #endif
-TUNABLE_INT("debug.witness_skipspin", witness_skipspin);
+TUNABLE_INT("debug.witness_skipspin", &witness_skipspin);
 SYSCTL_INT(_debug, OID_AUTO, witness_skipspin, CTLFLAG_RD, &witness_skipspin, 0,
     "");
 
