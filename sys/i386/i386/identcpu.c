@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.7.2.8 1997/10/03 14:29:48 kato Exp $
+ *	$Id: identcpu.c,v 1.7.2.9 1997/11/05 15:15:00 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -198,15 +198,27 @@ printcpuinfo(void)
 		}
 	} else if (strcmp(cpu_vendor,"CyrixInstead") == 0) {
 		strcpy(cpu_model, "Cyrix ");
-		switch (cpu_id & 0xf00) {
-		case 0x500:
+		switch (cpu_id & 0xff0) {
+		case 0x440:
+			strcat(cpu_model, "MediaGX");
+			break;
+		case 0x520:
 			strcat(cpu_model, "6x86");
+			break;
+		case 0x540:
+			cpu_class = CPUCLASS_586;
+			strcat(cpu_model, "GXm");
 			break;
 		case 0x600:
 			strcat(cpu_model, "6x86MX");
 			break;
 		default:
-			/* cpuid instruction is not supported */
+			/*
+			 * Even though CPU supports the cpuid
+			 * instruction, it can be disabled.
+			 * Therefore, this routine supports all Cyrix
+			 * CPUs.
+			 */
 			switch (cyrix_did & 0xf0) {
 			case 0x00:
 				switch (cyrix_did & 0x0f) {
@@ -289,8 +301,11 @@ printcpuinfo(void)
 				strcat(cpu_model, "6x86");
 				break;
 			case 0x40:
-				/* XXX */
-				strcat(cpu_model, "MediaGX");
+				if ((cyrix_did & 0xf000) == 0x3000) {
+					cpu_class = CPUCLASS_586;
+					strcat(cpu_model, "GXm");
+				} else
+					strcat(cpu_model, "MediaGX");
 				break;
 			case 0x50:
 				strcat(cpu_model, "6x86MX");
@@ -564,6 +579,11 @@ finishidentcpu(void)
 		}
 		switch (cpu_id & 0xf00) {
 		case 0x600:
+			/*
+			 * Cyrix's datasheet does not describe DIRs.
+			 * Therefor, I assume it does not have them
+			 * and use the result of the cpuid instruction.
+			 */
 			identifycyrix();
 			cpu = CPU_M2;
 			break;
@@ -591,6 +611,7 @@ finishidentcpu(void)
 				cpu = CPU_M1;
 				break;
 			case 0x40:
+				/* MediaGX CPU */
 				cpu = CPU_M1SC;
 				break;
 			default:
