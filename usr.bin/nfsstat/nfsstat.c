@@ -60,6 +60,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <errno.h>
 #include <kvm.h>
+#include <limits.h>
 #include <nlist.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -96,7 +97,7 @@ main(argc, argv)
 	int serverOnly = -1;
 	int ch;
 	char *memf, *nlistf;
-	char errbuf[80];
+	char errbuf[_POSIX2_LINE_MAX];
 
 	interval = 0;
 	memf = nlistf = NULL;
