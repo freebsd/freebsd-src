@@ -80,8 +80,8 @@ cmpxchgl(int old, int new, volatile int *m)
 	int result;
 
 	__asm __volatile ("lock; cmpxchgl %2, %0"
-	    : "=m"(*m), "=a"(result)
-	    : "r"(new), "0"(*m), "1"(old)
+	    : "+m"(*m), "=a"(result)
+	    : "r"(new), "1"(old)
 	    : "cc");
 
 	return result;
@@ -93,8 +93,8 @@ xchgl(int v, volatile int *m)
 	int result;
 
 	__asm __volatile ("xchgl %0, %1"
-	    : "=r"(result), "=m"(*m)
-	    : "0"(v), "1"(*m));
+	    : "=r"(result), "+m"(*m)
+	    : "0"(v));
 
 	return result;
 }
