@@ -34,7 +34,7 @@
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
+#include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
 
 extern char scnkey[][HEIGHT];	/* in lpdchar.c */
 extern int lflag;		/* in lpd.c */
