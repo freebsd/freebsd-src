@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.5.2.4 1995/06/05 16:59:03 jkh Exp $
+ * $Id: dos.c,v 1.6 1995/06/11 19:29:53 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,7 +63,7 @@ mediaInitDOS(Device *dev)
 {
     struct msdosfs_args	args;
 
-    if (DOSMounted)
+    if (!RunningAsInit || DOSMounted)
 	return TRUE;
 
     if (Mkdir("/dos", NULL))
@@ -97,7 +97,7 @@ mediaGetDOS(Device *dev, char *file, Attribs *dist_attrs)
 void
 mediaShutdownDOS(Device *dev)
 {
-    if (!DOSMounted)
+    if (!RunningAsInit || !DOSMounted)
 	return;
     msgDebug("Unmounting /dos\n");
     if (unmount("/dos", MNT_FORCE) != 0)

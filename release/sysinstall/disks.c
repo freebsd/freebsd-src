@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.30.2.7 1995/06/08 09:48:31 jkh Exp $
+ * $Id: disks.c,v 1.31 1995/06/11 19:29:46 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -345,6 +345,78 @@ diskPartitionEditor(char *str)
 	else {
 	    dmenuOpenSimple(menu);
 	    free(menu);
+	}
+    }
+    return 0;
+}
+
+static u_char *
+getBootMgr(void)
+{
+    extern u_char mbr[], bteasy17[];
+
+    /* Figure out what kind of MBR the user wants */
+    if (dmenuOpenSimple(&MenuMBRType)) {
+	switch (BootMgr) {
+	case 0:
+	    return bteasy17;
+
+	case 1:
+	    return mbr;
+
+	case 2:
+	default:
+	    break;
+	}
+    }
+    return NULL;
+}
+
+int
+diskPartitionWrite(char *str)
+{
+    extern u_char boot1[], boot2[];
+    u_char *mbrContents;
+    Device **devs;
+    int i;
+
+    mbrContents = getBootMgr();
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    if (!devs) {
+	msgConfirm("Unable to find any disks to write to??");
+	return 0;
+    }
+
+    for (i = 0; devs[i]; i++) {
+	Chunk *c1;
+	Disk *d = (Disk *)devs[i]->private;
+
+	if (!devs[i]->enabled)
+	    continue;
+
+	/* Do it once so that it only goes on the first drive */
+	if (mbrContents) {
+	    Set_Boot_Mgr(d, mbrContents);
+	    mbrContents = NULL;
+	}
+
+	Set_Boot_Blocks(d, boot1, boot2);
+	msgNotify("Writing partition information to drive %s", d->name);
+	Write_Disk(d);
+
+	/* Now scan for bad blocks, if necessary */
+	for (c1 = d->chunks->part; c1; c1 = c1->next) {
+	    if (c1->flags & CHUNK_BAD144) {
+		int ret;
+
+		msgNotify("Running bad block scan on partition %s", c1->name);
+		ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
+		if (ret)
+		    msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
+		ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
+		if (ret)
+		    msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
+	    }
 	}
     }
     return 0;
