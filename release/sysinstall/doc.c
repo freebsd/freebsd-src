@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.17 1996/07/02 01:03:40 jkh Exp $
+ * $Id: doc.c,v 1.18 1996/07/05 08:35:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -100,7 +100,7 @@ docShowDocument(dialogMenuItem *self)
     else if (!strcmp(str, "Other"))
 	where = msgGetInput("http://www.freebsd.org", "Please enter the URL of the location you wish to visit.");
     else if (!strcmp(str, "FAQ")) {
-	strcpy(target, "/usr/share/doc/FAQ/freebsd-faq.html");
+	strcpy(target, "/usr/share/doc/FAQ/FAQ.html");
 	if (!file_readable(target))
 	    strcpy(target, "http://www.freebsd.org/FAQ");
 	where = target;
