@@ -1174,7 +1174,7 @@ acd_start(struct atapi_softc *atp)
     }
     else {
 	blocksize = cdp->block_size;
-	lastlba = cdp->info.volsize;
+	lastlba = cdp->disk_size;
     }
 
     count = (bp->bio_bcount + (blocksize - 1)) / blocksize;
@@ -1247,7 +1247,6 @@ acd_read_toc(struct acd_softc *cdp)
     int8_t ccb[16];
 
     bzero(&cdp->toc, sizeof(cdp->toc));
-    bzero(&cdp->info, sizeof(cdp->info));
     bzero(ccb, sizeof(ccb));
 
     if (atapi_test_ready(cdp->atp) != 0)
@@ -1280,18 +1279,10 @@ acd_read_toc(struct acd_softc *cdp)
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return;
     }
-
     cdp->toc.hdr.len = ntohs(cdp->toc.hdr.len);
 
-    bzero(ccb, sizeof(ccb));
-    ccb[0] = ATAPI_READ_CAPACITY;
-    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->info, sizeof(cdp->info), 
-			ATPR_F_READ, 30, NULL, NULL))
-	bzero(&cdp->info, sizeof(cdp->info));
-
-    cdp->info.volsize = ntohl(cdp->info.volsize);
-    cdp->info.blksize = ntohl(cdp->info.blksize);
     cdp->block_size = (cdp->toc.tab[0].control & 4) ? 2048 : 2352;
+    cdp->disk_size = ntohl(cdp->toc.tab[cdp->toc.hdr.ending_track].addr.lba);
 
     bzero(&cdp->disklabel, sizeof(struct disklabel));
     strncpy(cdp->disklabel.d_typename, "               ", 
@@ -1302,18 +1293,18 @@ acd_read_toc(struct acd_softc *cdp)
 		sizeof(cdp->disklabel.d_typename) - 1));
     strncpy(cdp->disklabel.d_packname, "unknown        ", 
     	    sizeof(cdp->disklabel.d_packname));
-    cdp->disklabel.d_secsize = cdp->info.blksize;
+    cdp->disklabel.d_secsize = cdp->block_size;
     cdp->disklabel.d_nsectors = 100;
     cdp->disklabel.d_ntracks = 1;
-    cdp->disklabel.d_ncylinders = (cdp->info.volsize/100)+1;
+    cdp->disklabel.d_ncylinders = (cdp->disk_size / 100) + 1;
     cdp->disklabel.d_secpercyl = 100;
-    cdp->disklabel.d_secperunit = cdp->info.volsize;
+    cdp->disklabel.d_secperunit = cdp->disk_size;
     cdp->disklabel.d_rpm = 300;
     cdp->disklabel.d_interleave = 1;
     cdp->disklabel.d_flags = D_REMOVABLE;
     cdp->disklabel.d_npartitions = 1;
     cdp->disklabel.d_partitions[0].p_offset = 0;
-    cdp->disklabel.d_partitions[0].p_size = cdp->info.volsize;
+    cdp->disklabel.d_partitions[0].p_size = cdp->disk_size;
     cdp->disklabel.d_partitions[0].p_fstype = FS_BSDFFS;
     cdp->disklabel.d_magic = DISKMAGIC;
     cdp->disklabel.d_magic2 = DISKMAGIC;
@@ -1336,16 +1327,16 @@ acd_read_toc(struct acd_softc *cdp)
     }
 
 #ifdef ACD_DEBUG
-    if (cdp->info.volsize && cdp->toc.hdr.ending_track) {
+    if (cdp->disk_size && cdp->toc.hdr.ending_track) {
 	ata_printf(cdp->atp->controller, cdp->atp->unit,
 		   "(%d sectors (%d bytes)), %d tracks ", 
-		   cdp->info.volsize, cdp->info.blksize,
+		   cdp->disk_size, cdp->block_size,
 		   cdp->toc.hdr.ending_track - cdp->toc.hdr.starting_track + 1);
 	if (cdp->toc.tab[0].control & 4)
-	    printf("%dMB\n", cdp->info.volsize / 512);
+	    printf("%dMB\n", cdp->disk_size / 512);
 	else
-	    printf("%d:%d audio\n", cdp->info.volsize / 75 / 60,
-		cdp->info.volsize / 75 % 60);
+	    printf("%d:%d audio\n",
+		   cdp->disk_size / 75 / 60, cdp->disk_size / 75 % 60);
     }
 #endif
 }
