@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)x25err.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: x25err.h,v 1.2 1994/08/02 07:47:53 davidg Exp $
  */
+
+#ifndef _NETCCITT_X25ERR_H_
+#define _NETCCITT_X25ERR_H_
 
 /* 
  *  
@@ -63,3 +66,4 @@
 #define EXCNCG		118	/* Clear: network congestion		*/
 #define EXCNOB		119	/* Clear: not obtainable		*/
 
+#endif
