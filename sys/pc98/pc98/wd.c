@@ -234,6 +234,8 @@ static void wderror(struct bio *bp, struct softc *du, char *mesg);
 static void wdflushirq(struct softc *du, int old_ipl);
 static int wdreset(struct softc *du);
 static void wdsleep(int ctrlr, char *wmesg);
+static disk_open_t wdopen;
+static disk_strategy_t wdstrategy;
 static timeout_t wdtimeout;
 static int wdunwedge(struct softc *du);
 static int wdwait(struct softc *du, u_char bits_wanted, int timeout);
@@ -245,29 +247,6 @@ struct isa_driver wdcdriver = {
 	"wdc",
 };
 COMPAT_ISA_DRIVER(wdc, wdcdriver);
-
-static	d_open_t	wdopen;
-static	d_strategy_t	wdstrategy;
-
-#define CDEV_MAJOR 3
-
-static struct cdevsw wd_cdevsw = {
-	/* open */	wdopen,
-	/* close */	nullclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	wdstrategy,
-	/* name */	"wd",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
-};
-
-static struct cdevsw wddisk_cdevsw;
 
 static int      atapictrlr;
 static int      eide_quirks;
@@ -470,7 +449,6 @@ wdattach(struct isa_device *dvp)
 	struct wdparams *wp;
 	static char buf[] = "wdcXXX";
 	const char *dname;
-	dev_t dev;
 
 	dvp->id_intr = wdintr;
 
@@ -598,9 +576,12 @@ wdattach(struct isa_device *dvp)
 			/*
 			 * Register this media as a disk
 			 */
-			dev = disk_create(lunit, &du->disk, 0, &wd_cdevsw,
-				    &wddisk_cdevsw);
-			dev->si_drv1 = du;
+			du->disk.d_open = wdopen;
+			du->disk.d_strategy = wdstrategy;
+			du->disk.d_drv1 = du;
+			du->disk.d_maxsize = 248 * 512;
+			du->disk.d_name = "wd";
+			disk_create(lunit, &du->disk, 0, NULL, NULL);
 			
 		} else {
 			free(du, M_TEMP);
@@ -644,13 +625,13 @@ next: ;
  * be a multiple of a sector in length.
  */
 void
-wdstrategy(register struct bio *bp)
+wdstrategy(struct bio *bp)
 {
 	struct softc *du;
 	int	lunit;
 	int	s;
 
-	du = bp->bio_dev->si_drv1;
+	du = bp->bio_disk->d_drv1;
 	if (du == NULL ||  bp->bio_blkno < 0 ||
 	    bp->bio_bcount % DEV_BSIZE != 0) {
 
@@ -1228,15 +1209,14 @@ done: ;
  * Initialize a drive.
  */
 int
-wdopen(dev_t dev, int flags, int fmt, struct thread *td)
+wdopen(struct disk *dp)
 {
 	register struct softc *du;
 
-	du = dev->si_drv1;
+	du = dp->d_drv1;
 	if (du == NULL)
 		return (ENXIO);
 
-	dev->si_iosize_max = 248 * 512;
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
 #endif
