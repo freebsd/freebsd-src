@@ -29,14 +29,18 @@
 .Os
 .Sh NAME
 .Nm ufm
-.Nd USB driver for some FM radio chips
+.Nd USB driver for Cypress Semiconductor FM Radio
 .Sh SYNOPSIS
 .Cd "device ufm"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the some FM radio chip which attaches to the
-USB port.
+driver provides support for the D-Link/GEMTEK FM tuner.
+The USB interface chip is the common Cypress 63001, and the tuner is a
+Philips TEA5757 radio chip that uses a serial interface to set the
+tuner parameters.
+This design is used in the D-Link DSB-R100 USB Radio.
+.Pp
 The
 .Nm
 device must be configured in the kernel, along with
