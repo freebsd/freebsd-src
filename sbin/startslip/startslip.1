@@ -40,9 +40,12 @@
 .Sh SYNOPSIS
 .Nm startslip
 .Op Fl d
+.Op Fl b Ar speed
 .Op Fl s Ar string
 .Op Fl A Ar annexname
 .Op Fl F Ar flowcontrol
+.Op Fl U Ar upscript
+.Op Fl D Ar downscript
 .Ar device user passwd
 .Sh DESCRIPTION
 .Nm Startslip
@@ -67,6 +70,9 @@ Available options:
 .It Fl d
 .Nm Startslip
 prints out debugging information about what it is trying to do.
+.It Fl b Ar speed
+Determines the baud rate used for
+.Ar device .
 .It Fl s Ar string
 The optional
 .Ar string
@@ -95,6 +101,13 @@ are
 ``none'' for no flow control (the default),
 ``hw'' for hardware RTS/CTS flow control and
 ``sw'' for software XON/XOFF flow control.
+.It Fl U Ar upscript
+Specifies a script to run when a SLIP interface becomes connected.  This may
+contain ifconfig, route, and other appropriate commands.  The arguments that
+are passed to the script are "slX up".
+.It Fl D Ar downscript
+Specifies a script to run when a SLIP connection goes away.  The arguments that
+are passed to the script are "slX down".
 .El
 .Sh SEE ALSO
 .Xr sliplogin 8
