@@ -264,14 +264,6 @@ networking terms) to you.  Additional mirror sites are always welcome!
 Contact freebsd-admin@FreeBSD.org for more details if you'd like to 
 become an official mirror site.
 
-If you do not have access to the Internet and electronic mail is your
-only recourse, then you may still fetch the files by sending mail to
-`ftpmail@ftpmail.vix.com' - putting the keyword "help" in your message
-to get more information on how to fetch files using this mechanism.
-Please do note, however, that this will end up sending many *tens of
-megabytes* through the mail and should only be employed as an absolute
-LAST resort!
-
 
 3.2. CDROM
 ----------
