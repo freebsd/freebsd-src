@@ -388,8 +388,8 @@ configRC_conf(void)
     if (!rcSite)
 	return;
     if (write_header) {
-	fprintf(rcSite, "# This file now contains just the overrides from /etc/defaults/rc.conf\n");
-	fprintf(rcSite, "# please make all changes to this file.\n\n");
+	fprintf(rcSite, "# This file now contains just the overrides from /etc/defaults/rc.conf.\n");
+	fprintf(rcSite, "# Please make all changes to this file, not to /etc/defaults/rc.conf.\n\n");
 	fprintf(rcSite, "# Enable network daemons for user convenience.\n");
 	if ((t_loc = time(NULL)) != -1 && (cp = ctime(&t_loc)))
 	    fprintf(rcSite, "# Created: %s", cp);
