@@ -28,10 +28,9 @@
 /*
  * Default thread locking implementation for the dynamic linker.  It
  * is used until the client registers a different implementation with
- * dllockinit().  The default implementation does mutual exclusion
- * by blocking the SIGVTALRM, SIGPROF, and SIGALRM signals.  This is
- * based on the observation that most userland thread packages use one
- * of these signals to support preemption.
+ * dllockinit().  The default implementation does mutual exclusion by
+ * blocking almost all signals.  This is based on the observation that
+ * most userland thread packages use signals to support preemption.
  */
 
 #include <dlfcn.h>
@@ -63,10 +62,13 @@ lockdflt_create(void *context)
 
     l = NEW(LockDflt);
     l->depth = 0;
-    sigemptyset(&l->lock_mask);
-    sigaddset(&l->lock_mask, SIGVTALRM);
-    sigaddset(&l->lock_mask, SIGPROF);
-    sigaddset(&l->lock_mask, SIGALRM);
+    sigfillset(&l->lock_mask);
+    sigdelset(&l->lock_mask, SIGTRAP);
+    sigdelset(&l->lock_mask, SIGABRT);
+    sigdelset(&l->lock_mask, SIGBUS);
+    sigdelset(&l->lock_mask, SIGSEGV);
+    sigdelset(&l->lock_mask, SIGKILL);
+    sigdelset(&l->lock_mask, SIGSTOP);
     return l;
 }
 
