@@ -81,7 +81,7 @@ SYSCTL_DECL(_net_inet_icmp);
 extern int badport_bandlim __P((int));
 #define BANDLIM_UNLIMITED -1
 #define BANDLIM_ICMP_UNREACH 0
-#define BANDLIM_ICMP_ECHO 1 
+#define BANDLIM_ICMP_ECHO 1
 #define BANDLIM_ICMP_TSTAMP 2
 #define BANDLIM_RST_CLOSEDPORT 3 /* No connection, and no listeners */
 #define BANDLIM_RST_OPENPORT 4   /* No connection, listener */

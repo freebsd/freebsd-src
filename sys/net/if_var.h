@@ -390,7 +390,7 @@ struct ifmultiaddr {
 	} while (0)
 
 struct ifindex_entry {
-	struct 	ifnet *ife_ifnet;
+	struct	ifnet *ife_ifnet;
 	struct	ifaddr *ife_ifnet_addr;
 	dev_t	ife_dev;
 };

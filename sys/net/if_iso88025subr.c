@@ -213,8 +213,8 @@ iso88025_output(ifp, m, dst, rt0)
 	struct rtentry *rt0;
 {
 	u_int16_t snap_type = 0;
-        int loop_copy = 0, error = 0, rif_len = 0;
- 	u_char edst[ISO88025_ADDR_LEN];
+	int loop_copy = 0, error = 0, rif_len = 0;
+	u_char edst[ISO88025_ADDR_LEN];
 	struct iso88025_header *th;
 	struct iso88025_header gen_th;
 	struct sockaddr_dl *sdl = NULL;

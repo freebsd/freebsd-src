@@ -454,7 +454,7 @@ tapclose(dev, foo, bar, td)
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = &tp->tap_if;
 
-	KASSERT((tp->tap_unit != NULL), 
+	KASSERT((tp->tap_unit != NULL),
 		("%s%d is not open", ifp->if_name, ifp->if_unit));
 
 	/* junk all pending output */
