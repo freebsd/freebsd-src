@@ -164,7 +164,8 @@ soo_stat(fp, ub, p)
 	struct socket *so = (struct socket *)fp->f_data;
 
 	bzero((caddr_t)ub, sizeof (*ub));
-	ub->st_mode = S_IFSOCK;
+	ub->st_mode = S_IFSOCK | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP |
+	    S_IROTH | S_IWOTH;
 	ub->st_uid = so->so_cred->cr_uid;
 	ub->st_gid = so->so_cred->cr_gid;
 	return ((*so->so_proto->pr_usrreqs->pru_sense)(so, ub));
