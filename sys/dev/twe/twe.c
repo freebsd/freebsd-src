@@ -488,7 +488,7 @@ twe_ioctl(struct twe_softc *sc, int ioctlcmd, void *addr)
     case TWEIO_COMMAND:
 	/* get a request */
 	while (twe_get_request(sc, &tr))
-	    tsleep(NULL, PPAUSE, "twioctl", hz);
+	    tsleep(sc, PPAUSE, "twioctl", hz);
 
 	/*
 	 * Save the command's request ID, copy the user-supplied command in,
@@ -955,7 +955,7 @@ twe_reset(struct twe_softc *sc)
     /*
      * Sleep for a short period to allow AENs to be signalled.
      */
-    tsleep(NULL, PRIBIO, "twereset", hz);
+    tsleep(sc, PRIBIO, "twereset", hz);
 
     /*
      * Disable interrupts from the controller, and mask any accidental entry
