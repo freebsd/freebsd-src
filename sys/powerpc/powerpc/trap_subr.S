@@ -88,7 +88,6 @@ CNAME(trapcode):
 	bc	4,17,1f			/* branch if PSL_PR is clear */
 	mfsprg	31,0
 	lwz	1,PC_CURPCB(31)
-	addi	1,1,USPACE		/* stack is top of user struct */
 1:
 	bla	s_trap
 CNAME(trapsize) = .-CNAME(trapcode)
@@ -111,7 +110,6 @@ CNAME(alitrap):
 	bc	4,17,1f			/* branch if PSL_PR is clear */
 	mfsprg	31,0
 	lwz	1,PC_CURPCB(31)
-	addi	1,1,USPACE		/* stack is top of user struct */
 1:
 	bla	s_trap
 CNAME(alisize) = .-CNAME(alitrap)
@@ -690,7 +688,6 @@ realtrap:
 	bc	4,17,s_trap		/* branch if PSL_PR is false */
 	mfsprg	31,0
 	lwz	1,PC_CURPCB(31)
-	addi	1,1,USPACE		/* stack is top of user struct */
 
 /*
  * Now the common trap catching code.
