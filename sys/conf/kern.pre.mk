@@ -56,7 +56,6 @@ PROF=	-pg
 .endif
 DEFINED_PROF=	${PROF}
 WERROR?=	-Werror
-INLINE_LIMIT?=	15000
 CFLAGS+=	-finline-limit=${INLINE_LIMIT} -fno-strict-aliasing
 
 

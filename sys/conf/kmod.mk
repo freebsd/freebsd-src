@@ -99,7 +99,6 @@ CFLAGS+=	-I${DESTDIR}/usr/include
 CFLAGS+=	-I@/../include -I${DESTDIR}/usr/include
 .endif # @
 
-INLINE_LIMIT?=	15000
 CFLAGS+=	-finline-limit=${INLINE_LIMIT}
 
 # Disallow common variables, and if we end up with commons from
