@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.13 1998/08/12 20:46:47 julian Exp $
+ *	$Id: ffs_softdep.c,v 1.14 1998/09/24 15:02:46 luoqi Exp $
  */
 
 /*
@@ -2230,6 +2230,15 @@ softdep_change_directoryentry_offset(dp, base, oldloc, newloc, entrysize)
 		    dap, da_pdlist);
 		break;
 	}
+	if (dap == NULL) { 
+		for (dap = LIST_FIRST(&pagedep->pd_pendinghd); 
+		     dap; dap = LIST_NEXT(dap, da_pdlist)) { 
+			if (dap->da_offset == oldoffset) { 
+				dap->da_offset = newoffset; 
+				break; 
+			} 
+		} 
+	} 
 done:
 	bcopy(oldloc, newloc, entrysize);
 	FREE_LOCK(&lk);
