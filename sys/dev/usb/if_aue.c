@@ -618,7 +618,7 @@ USB_MATCH(aue)
 	USB_MATCH_START(aue, uaa);
 	struct aue_type			*t;
 
-	if (uaa->iface != NULL)
+	if (uaa->iface == NULL)
 		return (UMATCH_NONE);
 
 	t = aue_devs;
