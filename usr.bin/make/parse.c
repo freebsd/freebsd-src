@@ -2057,18 +2057,24 @@ ParseSkipLine(skip)
 
         while (((c = ParseReadc()) != '\n' || lastc == '\\')
                && c != EOF) {
-            if (c == '\n') {
-                Buf_ReplaceLastByte(buf, (Byte)' ');
-                lineno++;
+            if (c == '#' && lastc != '\\') {
+                while ((c = ParseReadc()) != '\n' && c != EOF);
 
-                while ((c = ParseReadc()) == ' ' || c == '\t');
+                break;
+            } else {
+                if (c == '\n') {
+                    Buf_ReplaceLastByte(buf, (Byte)' ');
+                    lineno++;
 
-                if (c == EOF)
-                    break;
+                    while ((c = ParseReadc()) == ' ' || c == '\t');
+
+                    if (c == EOF)
+                        break;
+                }
+
+                Buf_AddByte(buf, (Byte)c);
+                lastc = c;
             }
-
-            Buf_AddByte(buf, (Byte)c);
-            lastc = c;
         }
 
         if (c == EOF) {
