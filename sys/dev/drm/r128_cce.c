@@ -469,13 +469,6 @@ static int r128_do_init_cce( drm_device_t *dev, drm_r128_init_t *init )
 		return DRM_ERR(EINVAL);
 	}
 
-	DRM_FIND_MAP( dev_priv->fb, init->fb_offset );
-	if(!dev_priv->fb) {
-		DRM_ERROR("could not find framebuffer!\n");
-		dev->dev_private = (void *)dev_priv;
-		r128_do_cleanup_cce( dev );
-		return DRM_ERR(EINVAL);
-	}
 	DRM_FIND_MAP( dev_priv->mmio, init->mmio_offset );
 	if(!dev_priv->mmio) {
 		DRM_ERROR("could not find mmio region!\n");

@@ -116,7 +116,14 @@
  [DRM_IOCTL_NR(DRM_IOCTL_RADEON_SETPARAM)]   = { radeon_cp_setparam, 1, 0 }, \
 
 #define DRIVER_PCI_IDS							\
+	{0x1002, 0x4136, 0, "ATI Radeon RS100 IGP 320M"},		\
+	{0x1002, 0x4137, 0, "ATI Radeon RS200 IGP"},			\
+	{0x1002, 0x4237, 0, "ATI Radeon RS250 IGP"},			\
 	{0x1002, 0x4242, 0, "ATI Radeon BB R200 AIW 8500DV"},		\
+	{0x1002, 0x4242, 0, "ATI Radeon BC R200"},			\
+	{0x1002, 0x4336, 0, "ATI Radeon RS100 Mobility U1"},		\
+	{0x1002, 0x4337, 0, "ATI Radeon RS200 Mobility IGP 340M"},	\
+	{0x1002, 0x4437, 0, "ATI Radeon RS250 Mobility IGP"},		\
 	{0x1002, 0x4964, 0, "ATI Radeon Id R250 9000"},			\
 	{0x1002, 0x4965, 0, "ATI Radeon Ie R250 9000"},			\
 	{0x1002, 0x4966, 0, "ATI Radeon If R250 9000"},			\
@@ -150,7 +157,23 @@
 	{0x1002, 0x516A, 0, "ATI Radeon Qj R200"},			\
 	{0x1002, 0x516B, 0, "ATI Radeon Qk R200"},			\
 	{0x1002, 0x516C, 0, "ATI Radeon Ql R200"},			\
-	{0x1002, 0x5961, 0, "ATI Radeon RV280 9200"},			\
+	{0x1002, 0x5834, 0, "ATI Radeon RS300 IGP"},			\
+	{0x1002, 0x5835, 0, "ATI Radeon RS300 Mobility IGP"},		\
+	{0x1002, 0x5836, 0, "ATI Radeon RS300 IGP"},			\
+	{0x1002, 0x5837, 0, "ATI Radeon RS300 IGP"},			\
+	{0x1002, 0x5960, 0, "ATI Radeon RV280 9200"},			\
+	{0x1002, 0x5961, 0, "ATI Radeon RV280 9200 SE"},		\
+	{0x1002, 0x5962, 0, "ATI Radeon RV280 9200"},			\
+	{0x1002, 0x5963, 0, "ATI Radeon RV280 9200"},			\
+	{0x1002, 0x5964, 0, "ATI Radeon RV280 9200 SE"},		\
+	{0x1002, 0x5968, 0, "ATI Radeon RV280 9200"},			\
+	{0x1002, 0x5969, 0, "ATI Radeon RV280 9200"},			\
+	{0x1002, 0x596A, 0, "ATI Radeon RV280 9200"},			\
+	{0x1002, 0x596B, 0, "ATI Radeon RV280 9200"},			\
+	{0x1002, 0x5c61, 0, "ATI Radeon RV280 Mobility"},		\
+	{0x1002, 0x5c62, 0, "ATI Radeon RV280"},			\
+	{0x1002, 0x5c63, 0, "ATI Radeon RV280 Mobility"},		\
+	{0x1002, 0x5c64, 0, "ATI Radeon RV280"},			\
 	{0, 0, 0, NULL}
 
 #define DRIVER_FILE_FIELDS						\
