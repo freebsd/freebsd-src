@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.26 1998/02/03 21:27:50 bde Exp $
+ *	$Id: pcb.h,v 1.27 1999/04/28 01:04:05 luoqi Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -66,11 +66,7 @@ struct pcb {
 	u_long	pcb_mpnest_dontuse;
 #endif
 	int	pcb_gs;
-#ifdef VM86
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
-#else
-	struct	pcb_ext	*pcb_ext_dontuse;
-#endif
 	u_long	__pcb_spare[2];	/* adjust to avoid core dump size changes */
 };
 

@@ -23,20 +23,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.22 1999/03/31 15:27:00 yokota Exp $
+ * $Id: vesa.c,v 1.23 1999/05/09 15:57:52 peter Exp $
  */
 
 #include "vga.h"
 #include "opt_vga.h"
 #include "opt_vesa.h"
-#include "opt_vm86.h"
 #include "opt_fb.h"
 
 #ifdef VGA_NO_MODE_CHANGE
 #undef VESA
 #endif
 
-#if (NVGA > 0 && defined(VESA) && defined(VM86)) || defined(KLD_MODULE)
+#if (NVGA > 0 && defined(VESA)) || defined(KLD_MODULE)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1153,4 +1152,4 @@ static moduledata_t vesa_mod = {
 
 DECLARE_MODULE(vesa, vesa_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
-#endif /* (NVGA > 0 && VESA && VM86) || KLD_MODULE */
+#endif /* (NVGA > 0 && VESA) || KLD_MODULE */

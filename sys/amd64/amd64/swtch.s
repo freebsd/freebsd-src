@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.80 1999/05/06 09:44:49 bde Exp $
+ *	$Id: swtch.s,v 1.81 1999/05/12 21:38:45 luoqi Exp $
  */
 
 #include "npx.h"
 #include "opt_user_ldt.h"
-#include "opt_vm86.h"
 
 #include <sys/rtprio.h>
 
@@ -277,7 +276,6 @@ _idle:
 	/* update common_tss.tss_esp0 pointer */
 	movl	%ecx, _common_tss + TSS_ESP0
 
-#ifdef VM86
 	movl	_cpuid, %esi
 	btrl	%esi, _private_tss
 	jae	1f
@@ -294,7 +292,6 @@ _idle:
 	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 1:
-#endif /* VM86 */
 
 	sti
 
@@ -397,7 +394,6 @@ idle_loop:
 	/* update common_tss.tss_esp0 pointer */
 	movl	%esp, _common_tss + TSS_ESP0
 
-#ifdef VM86
 	movl	$0, %esi
 	btrl	%esi, _private_tss
 	jae	1f
@@ -413,7 +409,6 @@ idle_loop:
 	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 1:
-#endif /* VM86 */
 
 	sti
 
@@ -630,7 +625,6 @@ swtch_com:
 	movl	%ebx,%cr3
 4:
 
-#ifdef VM86
 #ifdef SMP
 	movl	_cpuid, %esi
 #else
@@ -642,18 +636,12 @@ swtch_com:
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
 	jmp	2f
 1:
-#endif
 
 	/* update common_tss.tss_esp0 pointer */
 	movl	%edx, %ebx			/* pcb */
-#ifdef VM86
 	addl	$(UPAGES * PAGE_SIZE - 16), %ebx
-#else
-	addl	$(UPAGES * PAGE_SIZE), %ebx
-#endif /* VM86 */
 	movl	%ebx, _common_tss + TSS_ESP0
 
-#ifdef VM86
 	btrl	%esi, _private_tss
 	jae	3f
 #ifdef SMP
@@ -672,7 +660,6 @@ swtch_com:
 	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 3:
-#endif /* VM86 */
 	movl	P_VMSPACE(%ecx), %ebx
 #ifdef SMP
 	movl	_cpuid, %eax

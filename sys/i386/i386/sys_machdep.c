@@ -31,12 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.40 1999/04/27 11:14:33 phk Exp $
+ *	$Id: sys_machdep.c,v 1.41 1999/04/28 01:03:25 luoqi Exp $
  *
  */
 
 #include "opt_user_ldt.h"
-#include "opt_vm86.h"
 #include "opt_smp.h"
 
 #include <sys/param.h>
@@ -71,11 +70,9 @@ void set_user_ldt	__P((struct pcb *pcb));
 static int i386_get_ldt	__P((struct proc *, char *));
 static int i386_set_ldt	__P((struct proc *, char *));
 #endif
-#ifdef VM86
 static int i386_get_ioperm	__P((struct proc *, char *));
 static int i386_set_ioperm	__P((struct proc *, char *));
 int i386_extend_pcb	__P((struct proc *));
-#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -101,7 +98,6 @@ sysarch(p, uap)
 		error = i386_set_ldt(p, uap->parms);
 		break;
 #endif
-#ifdef VM86
 	case I386_GET_IOPERM:
 		error = i386_get_ioperm(p, uap->parms);
 		break;
@@ -111,7 +107,6 @@ sysarch(p, uap)
 	case I386_VM86:
 		error = vm86_sysarch(p, uap->parms);
 		break;
-#endif
 	default:
 		error = EINVAL;
 		break;
@@ -119,7 +114,6 @@ sysarch(p, uap)
 	return (error);
 }
 
-#ifdef VM86
 int
 i386_extend_pcb(struct proc *p)
 {
@@ -251,7 +245,6 @@ done:
 	error = copyout(&ua, args, sizeof(struct i386_ioperm_args));
 	return (error);
 }
-#endif /* VM86 */
 
 #ifdef USER_LDT
 /*

@@ -23,10 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.10 1999/04/28 01:03:19 luoqi Exp $
+ * $Id: globals.s,v 1.11 1999/05/12 21:38:41 luoqi Exp $
  */
 
-#include "opt_vm86.h"
 #include "opt_user_ldt.h"
 
 #include <machine/asmacros.h>
@@ -71,11 +70,9 @@ globaldata:
 	.set	gd_switchtime,globaldata + GD_SWITCHTIME
 	.set	gd_switchticks,globaldata + GD_SWITCHTICKS
 
-#ifdef VM86
 	.globl	gd_common_tssd, gd_tss_gdt
 	.set	gd_common_tssd,globaldata + GD_COMMON_TSSD
 	.set	gd_tss_gdt,globaldata + GD_TSS_GDT
-#endif
 
 #ifdef USER_LDT
 	.globl	gd_currentldt
@@ -92,11 +89,9 @@ globaldata:
 	.set	_switchtime,globaldata + GD_SWITCHTIME
 	.set	_switchticks,globaldata + GD_SWITCHTICKS
 
-#ifdef VM86
 	.globl	_common_tssd, _tss_gdt
 	.set	_common_tssd,globaldata + GD_COMMON_TSSD
 	.set	_tss_gdt,globaldata + GD_TSS_GDT
-#endif
 
 #ifdef USER_LDT
 	.globl	_currentldt

@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.26 1999/04/28 01:04:14 luoqi Exp $
+ *	$Id: ipl.s,v 1.27 1999/05/06 09:44:54 bde Exp $
  */
 
 
@@ -155,7 +155,6 @@ doreti_exit:
 	FAST_ICPL_UNLOCK		/* preserves %eax */
 	MPLOCKED decb _intr_nesting_level
 	MEXITCOUNT
-#ifdef VM86
 #ifdef CPL_AND_CML
 	/* XXX CPL_AND_CML needs work */
 #error not ready for vm86
@@ -181,7 +180,6 @@ doreti_stop:
 	nop
 1:
 	FAST_ICPL_UNLOCK		/* preserves %eax */
-#endif /* VM86 */
 
 #ifdef SMP
 #ifdef INTR_SIMPLELOCK
@@ -346,10 +344,8 @@ doreti_swi:
 	ALIGN_TEXT
 swi_ast:
 	addl	$8,%esp			/* discard raddr & cpl to get trap frame */
-#ifdef VM86
 	cmpl	$1,_in_vm86call
 	je	1f			/* stay in kernel mode */
-#endif
 	testb	$SEL_RPL_MASK,TF_CS(%esp)
 	je	swi_ast_phantom
 swi_ast_user:
@@ -365,7 +361,6 @@ swi_ast_user:
 
 	ALIGN_TEXT
 swi_ast_phantom:
-#ifdef VM86
 	/*
 	 * check for ast from vm86 mode.  Placed down here so the jumps do
 	 * not get taken for mainline code.
@@ -373,7 +368,6 @@ swi_ast_phantom:
 	testl	$PSL_VM,TF_EFLAGS(%esp)
 	jne	swi_ast_user
 1:
-#endif /* VM86 */
 	/*
 	 * These happen when there is an interrupt in a trap handler before
 	 * ASTs can be masked or in an lcall handler before they can be

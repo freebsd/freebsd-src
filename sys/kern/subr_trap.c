@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.136 1999/04/28 01:03:26 luoqi Exp $
+ *	$Id: trap.c,v 1.137 1999/05/06 18:12:17 peter Exp $
  */
 
 /*
@@ -47,7 +47,6 @@
 #include "opt_ktrace.h"
 #include "opt_clock.h"
 #include "opt_trap.h"
-#include "opt_vm86.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -90,9 +89,7 @@
 #include <machine/clock.h>
 #endif
 
-#ifdef VM86
 #include <machine/vm86.h>
-#endif
 
 #ifdef DDB
 	extern int in_Debugger, debugger_on_panic;
@@ -266,7 +263,6 @@ restart:
 	type = frame.tf_trapno;
 	code = frame.tf_err;
 
-#ifdef VM86
 	if (in_vm86call) {
 		if (frame.tf_eflags & PSL_VM &&
 		    (type == T_PROTFLT || type == T_STKFLT)) {
@@ -293,7 +289,6 @@ restart:
 		}
 		goto kernel_trap;	/* normal kernel trap handling */
 	}
-#endif
 
         if ((ISPL(frame.tf_cs) == SEL_UPL) || (frame.tf_eflags & PSL_VM)) {
 		/* user trap */
@@ -335,14 +330,12 @@ restart:
 			 */
 		case T_PROTFLT:		/* general protection fault */
 		case T_STKFLT:		/* stack fault */
-#ifdef VM86
 			if (frame.tf_eflags & PSL_VM) {
 				i = vm86_emulate((struct vm86frame *)&frame);
 				if (i == 0)
 					goto out;
 				break;
 			}
-#endif /* VM86 */
 			/* FALL THROUGH */
 
 		case T_SEGNPFLT:	/* segment not present fault */
@@ -426,9 +419,7 @@ restart:
 			break;
 		}
 	} else {
-#ifdef VM86
 kernel_trap:
-#endif
 		/* kernel trap */
 
 		switch (type) {
