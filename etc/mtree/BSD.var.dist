@@ -1,6 +1,4 @@
-#	  fs: /
-#	  by: rgrimes
-#	date: Fri Jul 16 22:24:17 1993
+#	$Id$
 #
 
 /set type=dir uname=bin gname=bin mode=0755
