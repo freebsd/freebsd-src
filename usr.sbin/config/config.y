@@ -11,6 +11,7 @@
 %token	BUS
 %token	CAM
 %token	COMMA
+%token	CONFIG
 %token	CONFLICTS
 %token	CONTROLLER
 %token	CPU
@@ -175,8 +176,35 @@ Config_spec:
 		|
 	IDENT ID
 	      = { ident = $2; } |
+	System_spec
+		|
 	MAXUSERS NUMBER
 	      = { maxusers = $2; };
+
+System_spec:
+	CONFIG System_id System_parameter_list
+	  = { warnx("line %d: root/dump/swap specifications obsolete", yyline);}
+	  |
+	CONFIG System_id
+	  ;
+
+System_id:
+	Save_id
+	      = {
+		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
+		memset(op, 0, sizeof(*op));
+		op->op_name = ns("KERNEL");
+		op->op_ownfile = 0;
+		op->op_next = mkopt;
+		op->op_value = $1;
+		op->op_line = yyline + 1;
+		mkopt = op;
+	      };
+
+System_parameter_list:
+	  System_parameter_list ID
+	| ID
+	;
 
 device_name:
 	  Save_id
