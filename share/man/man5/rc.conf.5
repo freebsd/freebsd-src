@@ -161,9 +161,15 @@ kernel module will be loaded.
 or the file which contains the local firewall ruleset.  Valid selections
 from 
 .Pa /etc/rc.firewall ,
-are ``open'' - unrestricted IP access; ``closed'' - all IP services disabled,
-except via lo0; ``client'' - basic protection for a workstation; ``simple'' -
-basic protection for a LAN.  If a filename is specified, the full path 
+are 
+.Dq open
+- unrestricted IP access;
+.Dq closed
+- all IP services disabled, except via lo0;
+.Dq client
+- basic protection for a workstation;
+.Dq simple
+- basic protection for a LAN.  If a filename is specified, the full path 
 must be given.
 .It Ar firewall_quiet
 (bool) Set to 
@@ -406,11 +412,11 @@ command for more information.
 .It Ar update_motd
 (bool) If set to 
 .Ar YES ,
-.Nm /etc/motd
+.Pa /etc/motd
 will be updated at boot time to reflect the kernel release
 bring run.  If set to
 .Ar NO ,
-.Nm /etc/motd
+.Pa /etc/motd
 will not be updated
 .It Ar nfs_client_enable
 (bool) If set to
@@ -646,7 +652,9 @@ then for each whitespace separated
 in the value, a 
 .No route_ Ns element
 variable is assumed to exist 
-whose contents will later be passed to a ``route add'' operation.
+whose contents will later be passed to a
+.Dq route add
+operation.
 .It Ar gateway_enable
 (bool) If set to
 .Ar YES ,
