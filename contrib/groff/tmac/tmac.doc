@@ -406,15 +406,15 @@
 .\}
 .el \{\
 .	nr jN \\n(aP
-.	ie \\n(jM==2 .as b1 \&\\*(A\\n(aP
-.	el .as b1 \&\f\\n(cF\s\\n(cZ\\*(A\\n(aP\fP\s0
+.	ie \\n(jM==2 .as b1 \&\%\\*(A\\n(aP\&
+.	el .as b1 \)\f\\n(cF\s\\n(cZ\\*(A\\n(aP\fP\s0
 .	ie \\n(aC==\\n(aP \{\
 .		as b1 \f\\n(cF\s\\n(cZ
 .		aZ
 .	\}
 .	el \{\
 .		nr aP \\n(aP+1
-.		as b1 \&\\*(S\\n(jN
+.		as b1 \)\\*(S\\n(jN
 .		nR
 .	\}
 .\}
@@ -2903,6 +2903,7 @@
 ..
 .\" NS rZ macro - reference print
 .de rZ
+.nh
 .if \\n(uK \{\&\\*(U1,
 .	nr aK 1
 .	if (\\n(uK>1 \{\
@@ -2971,6 +2972,7 @@
 .	if \\n(Kl>0 \&\\*(oK,
 .\}
 .if \\n(Kl>0 .tm unresolved reference problem
+.hy
 ..
 .\" NS aK macro - print out reference authors
 .de aK
@@ -3317,7 +3319,6 @@
 .\" NS jM local register
 .\" NS jN local register
 .de rR
-.nh
 .nr jM \\n(C\\n(aP
 .ie \\n(jM==1 \{\
 .\" .	as b1 \&\f\\n(cF\s\\n(cZ
