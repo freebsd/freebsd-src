@@ -97,7 +97,6 @@ wantsym(const Elf_Sym *sym, const char *strtab)
     bind = ELF_ST_BIND(sym->st_info);
 
     if (type != STT_FUNC ||
-      bind == STB_WEAK ||
       (aflag && bind == STB_LOCAL) ||
       (uflag && strchr(strtab + sym->st_name, '.') != NULL))
 	return 0;
