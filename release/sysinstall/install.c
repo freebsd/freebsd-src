@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.38 1995/05/20 15:47:19 jkh Exp $
+ * $Id: install.c,v 1.39 1995/05/20 16:22:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -319,12 +319,12 @@ cpio_extract(void)
 
 	i = waitpid(zpid, &j, 0);
 	if (i < 0 || j) {
-	    msgConfirm("gunzip returned status of %d, error was: %s (%d)!  Help!", j, strerror(errno), errno);
+	    msgConfirm("gunzip returned status of %d, error was: %s (%d)!", j, strerror(errno), errno);
 	    exit(1);
 	}
 	i = waitpid(cpid, &j, 0);
 	if (i < 0 || j) {
-	    msgConfirm("cpio returned status of %d, error was: %s (%d)!  Help!", j, strerror(errno), errno);
+	    msgConfirm("cpio returned status of %d, error was: %s (%d)!", j, strerror(errno), errno);
 	    exit(2);
 	}
 	exit(0);
@@ -332,7 +332,7 @@ cpio_extract(void)
     else
 	i = wait(&j);
     if (i < 0 || j || access("/mnt/OK", R_OK) == -1) {
-	msgConfirm("CPIO floppy did not extract properly!  Please verify\n\that your media is correct and try again");
+	msgConfirm("CPIO floppy did not extract properly!  Please verify\nthat your media is correct and try again");
 	close(CpioFD);
 	CpioFD = -1;
 	goto tryagain;
