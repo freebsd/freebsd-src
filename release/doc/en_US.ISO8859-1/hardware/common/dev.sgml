@@ -137,55 +137,18 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Adaptec 1510, 152X, 1535, and 154X-series ISA
+    <para arch="i386,pc98">Adaptec AIC-6260 and AIC-6360 based boards
+      (&man.aic.4; driver)</para>
+
+    <para arch="i386">Adaptec AHA-154X ISA and AHA-1640 MCA
       SCSI controllers and compatibles (&man.aha.4; driver)</para>
 
-    <para arch="i386">Adaptec 164X-series MCA SCSI controllers
-      (&man.aha.4; driver)</para>
+    <para arch="i386">Adaptec AHA_174x series EISA SCSI controller in 
+      enhanced mode (&man.ahb.4; driver)</para>
 
-    <para arch="i386,pc98,alpha,sparc64">Adaptec SCSI Controllers
-      <itemizedlist>
-	<listitem arch="i386">
-	  <para>Adaptec 174x series EISA SCSI controller in standard
-	  and enhanced mode (&man.aha.4; and &man.ahb.4; driver)</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec 274x series EISA SCSI controllers, including
-	  narrow and wide variants (&man.ahc.4;
-	  driver)</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec 284x series VLB SCSI controllers, including
-	  narrow and wide variants (&man.ahc.4;
-	  driver)</para>
-	</listitem>
-	<listitem arch="i386,alpha,sparc64">
-	  <para>Adaptec 19160/291x/2920C/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x
-	  series PCI SCSI controllers, including
-	  Narrow/Wide/Twin/Ultra/Ultra2 variants (&man.ahc.4;
-	  driver)</para>
-	</listitem>
-	<listitem arch="i386,alpha">
-	  <para>Adaptec AIC7770, AIC7850, AIC7860, AIC7870, AIC7880, 
-	  and AIC789x on-board
-	  SCSI controllers (&man.ahc.4; driver)</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec AIC-6260 and AIC-6360 based boards, which
-	  includes the AHA-152x and SoundBlaster SCSI cards
-	  (&man.aic.4; driver)</para>
-	</listitem>
-        <listitem arch="pc98">
-           <para>NEC PC-9801-100 and Adaptec AHA-1030P,
-           1030B(&man.aic.4; driver)</para>
-        </listitem>
-        <listitem arch="pc98">
-           <para>NEC PC-9821Xt13 and RvII26 internal, NEC
-           PC-9821X-B02L/B09, NEC SV-98/2-B03, Adaptec AHA-2940J,
-           AHA-2940AU and AHA-2940N (&man.ahc.4; driver)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98,alpha,sparc64">Adaptec AIC-7770, AIC-7850,
+      AIC-7860, AIC-7870, AIC-7880, and AIC789x based SCSI host
+      adapters (&man.ahc.4; driver)</para>
 
     <para arch="i386,sparc64">Ultra-320 SCSI controllers based on the Adaptec
       AIC7901, AIC7901A, and AIC7902 Ultra320 controller chips
@@ -903,29 +866,10 @@
 
     <para arch="i386,pc98,alpha">Silicon Integrated Systems SiS 900 and SiS 7016 PCI Fast
     Ethernet NICs (&man.sis.4; driver)
-      <itemizedlist>
-	<listitem arch="i386,alpha">
-	  <para>SiS 630, 635 and 735 motherboard chipsets</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>@Nifty FNECHARD IFC-USUP-TX (PCI)</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>MELCO LGY-PCI-TXC (PCI)</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha">National Semiconductor DP83815 Fast Ethernet NICs
     (&man.sis.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>NetGear FA311-TX</para>
-        </listitem>
-        <listitem>
-	  <para>NetGear FA312-TX</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98">National Semiconductor DP83820 and DP83821 Gigabit Ethernet
@@ -982,32 +926,6 @@
 
     <para arch="i386,pc98,alpha">DEC DC21040, DC21041, DC21140, DC21141, DC21142, and DC21143
     based NICs (&man.de.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Asante</para>
-        </listitem>
-        <listitem>
-	  <para>Cogent EM100FX and EM440TX</para>
-        </listitem>
-        <listitem>
-	  <para>DEC DE425, DE435, DE450, and DE500</para>
-        </listitem>
-        <listitem>
-	  <para>SMC Etherpower 8432T, 9332, and 9334</para>
-        </listitem>
-	<listitem>
-	  <para>ZYNX ZX 3xx</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>I-O DATA LA2/T-PCI (PCI)</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>ELECOM LD-PCI2T, LD-PCITS (PCI)</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>Corega FastEther PCI-TX (PCI)
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha,sparc64">DEC/Intel 21143 based Fast Ethernet NICs (&man.dc.4; driver)
@@ -1087,14 +1005,6 @@
     </para>
 
     <para arch="i386">Intel 82595-based Ethernet NICs (&man.ex.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Intel EtherExpress Pro/10 and Pro/10+ Ethernet</para>
-        </listitem>
-	<listitem>
-	  <para>Olicom OC2220</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">Intel 82586-based Ethernet NICs (&man.ie.4; driver)
@@ -1229,58 +1139,6 @@
     <para arch="i386,pc98">IDT77252-based ATM cards (&man.patm.4;
       driver)</para>
 
-    <para arch="i386,pc98">The ATM support in &os; supports the following signaling protocols:
-      <itemizedlist>
-        <listitem>
-	  <para>The ATM Forum UNI 3.1 signaling protocol</para>
-	</listitem>
-	<listitem>
-          <para>The ATM Forum UNI 3.0 signaling protocol</para>
-	</listitem>
-	<listitem>
-          <para>The ATM Forum ILMI address registration</para>
-	</listitem>
-	<listitem>
-          <para>FORE Systems' proprietary SPANS signaling protocol</para>
-	</listitem>
-	<listitem>
-          <para>Permanent Virtual Channels (PVCs)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
-    <para arch="i386,pc98">Support for the IETF <quote>Classical IP
-    and ARP over ATM</quote> model is provided, compliant with the
-    following RFCs and Internet Drafts:
-      <itemizedlist>
-        <listitem>
-          <para>RFC 1483, <quote>Multiprotocol Encapsulation over ATM
-          Adaptation Layer 5</quote></para>
-	</listitem>
-        <listitem>
-          <para>RFC 1577, <quote>Classical IP and ARP over ATM</quote></para>
-        </listitem>
-        <listitem>
-          <para>RFC 1626, <quote>Default IP MTU for use over ATM
-          AAL5</quote></para>
-        </listitem>
-        <listitem>
-          <para>RFC 1755, <quote>ATM Signaling Support for IP over ATM</quote></para>
-        </listitem>
-        <listitem>
-          <para>RFC 2225, <quote>Classical IP and ARP over ATM</quote></para>
-        </listitem>
-        <listitem>
-          <para>RFC 2334, <quote>Server Cache Synchronization Protocol
-	  (SCSP)</quote></para>
-        </listitem>
-        <listitem>
-	  <para>Internet Draft
-	  <filename>draft-ietf-ion-scsp-atmarp-00.txt</filename>, <quote>A
-	  Distributed ATMARP Service Using SCSP</quote></para>
-	</listitem>
-      </itemizedlist>
-    </para>
-    <para arch="i386,pc98">Support for an ATM sockets interface is also provided.</para>
   </sect2>
   <sect2>
     <title>Wireless Network Interfaces</title>
@@ -1914,8 +1772,6 @@
     driver)</para>
 
     <para arch="pc98">I-O DATA CD-BOX (&man.sb.4; driver)</para>
-
-    <para arch="pc98">Software PCM using beep (pca driver)</para>
 
     <para arch="pc98">MPU-401 and compatible interfaces (mpu driver)
       <itemizedlist>
