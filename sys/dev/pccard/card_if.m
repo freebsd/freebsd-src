@@ -63,7 +63,8 @@ METHOD int set_memory_offset {
 	device_t  dev;
 	device_t  child;
         int	  rid;
-        u_int32_t offset;
+        u_int32_t cardaddr;
+	u_int32_t *offsetp;
 }
 
 METHOD int get_memory_offset {
@@ -90,6 +91,7 @@ METHOD int detach_card {
 
 HEADER {
 	#define DETACH_FORCE 0x01
+	#define DETACH_NOWARN 0x02
 }
 
 #
@@ -163,3 +165,53 @@ METHOD int compat_attach {
 METHOD int compat_match {
 	device_t dev;
 }
+
+#
+# Method for devices to ask its CIS-enabled parent bus for CIS info.
+# Device driver requests all tuples if type 'id', the routine places
+# 'nret' number of tuples in 'buff'.  Returns 0 if all tuples processed,
+# or an error code if processing was aborted.
+# Users of this method will be responsible for freeing the memory allocated
+# by calling the cis_free method.
+#
+
+HEADER {
+	struct cis_tupleinfo {
+		u_int8_t id;
+		int len;
+		char* data;
+	};
+};
+
+CODE  {
+	static int
+	null_cis_read(device_t dev, device_t child, u_int8_t id,
+		      struct cis_tupleinfo **buff, int* nret)
+	{
+		*nret = 0;
+		*buff = NULL;
+		return ENXIO;
+	}
+	static void
+	null_cis_free(device_t dev, struct cis_tupleinfo *buff, int* nret)
+	{
+		return;
+	}
+};
+
+
+METHOD int cis_read {
+	device_t dev;
+	device_t child;
+	u_int8_t id;
+	struct cis_tupleinfo **buff;
+	int* nret;
+} DEFAULT null_cis_read;
+
+METHOD int cis_free {
+	device_t dev;
+	struct cis_tupleinfo *buff;
+	int nret;
+} DEFAULT null_cis_free;
+
+

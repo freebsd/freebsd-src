@@ -136,6 +136,9 @@ struct pccard_function {
 	long		pf_mfc_iobase;
 	long		pf_mfc_iomax;
 	int		pf_flags;
+	driver_intr_t	*intr_handler;
+	void		*intr_handler_arg;
+	void		*intr_handler_cookie;
 };
 
 /* pf_flags */
@@ -181,6 +184,7 @@ struct pccard_softc {
 	/* this stuff is for the card */
 	struct pccard_card card;
 	int		sc_enabled_count;	/* num functions enabled */
+	int		intr_handler_count;
 };
 
 void

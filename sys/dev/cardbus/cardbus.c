@@ -190,8 +190,9 @@ cardbus_attach_card(device_t dev)
 	static int curr_bus_number = 2; /* XXX EVILE BAD (see below) */
 	int bus, slot, func;
 
-	POWER_ENABLE_SOCKET(bdev, dev);
+	cardbus_detach_card(dev, DETACH_NOWARN); /* detach existing cards */
 
+	POWER_ENABLE_SOCKET(bdev, dev);
 	bus = pcib_get_bus(dev);
 	if (bus == 0) {
 		/*
@@ -205,7 +206,6 @@ cardbus_attach_card(device_t dev)
 		pci_write_config (bdev, PCIR_SUBBUS_2, curr_bus_number+2, 1);
 		curr_bus_number += 3;
 	}
-
 	for (slot = 0; slot <= CARDBUS_SLOTMAX; slot++) {
 		int cardbusfunchigh = 0;
 		for (func = 0; func <= cardbusfunchigh; func++) {
@@ -230,8 +230,6 @@ cardbus_attach_card(device_t dev)
 			if (device_probe_and_attach(dinfo->cfg.dev) != 0) {
 				cardbus_release_all_resources(dinfo->cfg.dev,
 						      &dinfo->resources);
-				device_delete_child(dev, dinfo->cfg.dev);
-				cardbus_freecfg(dinfo);
 			} else
 				cardattached++;
 		}
@@ -253,20 +251,30 @@ cardbus_detach_card(device_t dev, int flags)
 	device_get_children(dev, &devlist, &numdevs);
 
 	if (numdevs == 0) {
-		DEVPRINTF((dev, "Detaching card: no cards to detach!\n"));
-		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
+		if (!(flags & DETACH_NOWARN)) {
+			DEVPRINTF((dev, "Detaching card: no cards to detach!\n"));
+			POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
+		}
 		return ENOENT;
 	}
 
 	for (tmp = 0; tmp < numdevs; tmp++) {
 		struct cardbus_devinfo *dinfo = device_get_ivars(devlist[tmp]);
-		if (device_detach(dinfo->cfg.dev) == 0 || flags & DETACH_FORCE){
-			cardbus_release_all_resources(dinfo->cfg.dev,
-						      &dinfo->resources);
+		int status = device_get_state(devlist[tmp]);
+
+		if (status == DS_ATTACHED || status == DS_BUSY) {
+			if (device_detach(dinfo->cfg.dev) == 0 ||
+			    flags & DETACH_FORCE){
+				cardbus_release_all_resources(dinfo->cfg.dev,
+							      &dinfo->resources);
+				device_delete_child(dev, devlist[tmp]);
+			} else {
+				err++;
+			}
+			cardbus_freecfg(dinfo);
+		} else {
 			device_delete_child(dev, devlist[tmp]);
-		} else
-			err++;
-		cardbus_freecfg(dinfo);
+		}
 	}
 	if (err == 0)
 		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
@@ -276,19 +284,39 @@ cardbus_detach_card(device_t dev, int flags)
 static void
 cardbus_driver_added(device_t dev, driver_t *driver)
 {
-	/* 
-	 * For this to work, we should:
-	 * 1) power up the slot if it isn't powered.
-	 *    (Is this necessary?  Can we assume _probe() doesn't need power?)
-	 * 2) probe (we should probe even though we already have child?)
-	 * 3) power up if we haven't done so and probe succeeds
-	 * 4) attach if probe succeeds.
-	 * 5) power down if probe or attach failed, and the slot was powered
-	 *    down to begin with.
-	 */
-	printf("I see you added a driver that could be a child of cardbus...\n");
-	printf("If this is for a cardbus card, please remove and reinsert the card.\n");
-	printf("(there is no current support for adding a driver like this)\n");
+	int numdevs;
+	device_t *devlist;
+	device_t bdev = device_get_parent(dev);
+	int tmp, cardattached;
+
+	device_get_children(dev, &devlist, &numdevs);
+
+	cardattached = 0;
+	for (tmp = 0; tmp < numdevs; tmp++) {
+		if (device_get_state(devlist[tmp]) != DS_NOTPRESENT)
+			cardattached++;
+	}
+
+	if (cardattached == 0)
+		POWER_ENABLE_SOCKET(bdev, dev);
+	DEVICE_IDENTIFY(driver, dev);
+	for (tmp = 0; tmp < numdevs; tmp++) {
+		if (device_get_state(devlist[tmp]) == DS_NOTPRESENT){
+			struct cardbus_devinfo *dinfo;
+			dinfo = device_get_ivars(devlist[tmp]);
+			resource_list_init(&dinfo->resources);
+			cardbus_add_resources(dinfo->cfg.dev, &dinfo->cfg);
+			cardbus_do_cis(dev, dinfo->cfg.dev);
+			if (device_probe_and_attach(dinfo->cfg.dev) != 0) {
+				cardbus_release_all_resources(dinfo->cfg.dev,
+						      &dinfo->resources);
+			} else
+				cardattached++;
+		}
+	}
+
+	if (cardattached == 0)
+		POWER_DISABLE_SOCKET(bdev, dev);
 }
 
 /************************************************************************/
@@ -344,7 +372,7 @@ cardbus_read_device(device_t pcib, int b, int s, int f)
 					cfg->intline = airq;
 				}
 			} else {
-				/* 
+				/*
 				 * PCI interrupts might be redirected to the
 				 * ISA bus according to some MP tables. Use the
 				 * same methods as used by the ISA devices
@@ -655,7 +683,7 @@ cardbus_alloc_resource(device_t self, device_t child, int type,
 		rle = resource_list_find(rl, type, *rid);
 	if (rle) {
 		if (flags & RF_ACTIVE) {
-			if (bus_activate_resource(child, type, *rid,
+			if (bus_activate_resource(child, rle->type, *rid,
 						  rle->res)) {
 				return NULL;
 			}
@@ -930,6 +958,8 @@ static device_method_t cardbus_methods[] = {
 	/* Card Interface */
 	DEVMETHOD(card_attach_card,	cardbus_attach_card),
 	DEVMETHOD(card_detach_card,	cardbus_detach_card),
+	DEVMETHOD(card_cis_read,	cardbus_cis_read),
+	DEVMETHOD(card_cis_free,	cardbus_cis_free),
 
 	/* Cardbus/PCI interface */
 	DEVMETHOD(pci_read_config,	cardbus_read_config_method),
@@ -947,4 +977,6 @@ static driver_t cardbus_driver = {
 static devclass_t cardbus_devclass;
 
 DRIVER_MODULE(cardbus, pccbb, cardbus_driver, cardbus_devclass, 0, 0);
+/*
 MODULE_DEPEND(cardbus, pccbb, 1, 1, 1);
+*/
