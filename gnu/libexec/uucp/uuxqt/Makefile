@@ -1,5 +1,5 @@
 # Makefile for uuxqt
-# $Id: Makefile,v 1.2 1993/08/05 16:15:28 jtc Exp $
+# $Id: Makefile,v 1.1 1993/08/05 18:28:24 conklin Exp $
 
 BINDIR=		$(sbindir)
 BINOWN=		$(owner)
@@ -12,7 +12,7 @@ DPADD+=		$(LIBUNIX) $(LIBUUCONF) $(LIBUUCP)
 CFLAGS+=	-I$(.CURDIR)/../common_sources\
 		-DVERSION=\"$(VERSION)\"
 
-MAN8=		uuxqt.0
+MAN8=		uuxqt.8
 
 .include <bsd.prog.mk>
 .PATH: $(.CURDIR)/../common_sources
