@@ -153,7 +153,7 @@ DRIVER_MODULE(mainboard, eisa, mainboard_driver, mainboard_devclass, 0, 0);
 static int
 eisa_probe(device_t dev)
 {
-	int devices_found, i, slot;
+	int devices_found, slot;
 	struct eisa_device *e_dev;
 	device_t child;
 	eisa_id_t eisa_id;
@@ -163,7 +163,7 @@ eisa_probe(device_t dev)
 	devices_found = 0;
 	for (slot = 0; slot < num_eisa_slots; slot++) {
 		eisa_id = 0;
-		if (eisa_probe_slot(i, &eisa_id)) {
+		if (eisa_probe_slot(slot, &eisa_id)) {
 			/*
 			 * If there's no card in the first slot (the
 			 * mainboard), then the system doesn't have EISA.
