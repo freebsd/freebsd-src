@@ -57,6 +57,7 @@ struct bt848_registers {
 #define BT848_DSTATUS_FIELD		(1<<5)
 #define BT848_DSTATUS_NUML		(1<<4)
 #define BT848_DSTATUS_CSEL		(1<<3)
+#define BT848_DSTATUS_PLOCK		(1<<2)
 #define BT848_DSTATUS_LOF		(1<<1)
 #define BT848_DSTATUS_COF		(1<<0)
     BTBYTE (iform);		/* 4, 5,6,7 */
@@ -125,7 +126,14 @@ struct bt848_registers {
     int 	:32;		/* 74, 75,76,77 */
     int		:32;		/* 78, 79,7a,7b */
     BTLONG (sreset);		/* 7c, 7d,7e,7f */
-    u_char 	filler[0x8c-0x80];
+    u_char 	filler1[0x84-0x80];
+    BTBYTE (tgctrl);		/* 84, 85,86,87 */
+#define BT848_TGCTRL_TGCKI		(3<<3)
+#define BT848_TGCTRL_TGCKI_XTAL		(0<<3)
+#define BT848_TGCTRL_TGCKI_PLL		(1<<3)
+#define BT848_TGCTRL_TGCKI_GPCLK	(2<<3)
+#define BT848_TGCTRL_TGCKI_GPCLK_I	(3<<3)
+    u_char 	filler[0x8c-0x88];
     BTBYTE (o_crop);		/* 8c, 8d,8e,8f */
     BTBYTE (o_vdelay_lo);	/* 90, 91,92,93 */
     BTBYTE (o_vactive_lo);	/* 94, 95,96,97 */
@@ -149,10 +157,10 @@ struct bt848_registers {
 #define BT848_O_SCLOOP_CAGC		(1<<6)
 #define BT848_O_SCLOOP_CKILL		(1<<5)
 #define BT848_O_SCLOOP_HFILT		(0x3<<3)
-# define BT848_O_SCLOOP_HFILT_ICON	(0x3<<3)
-# define BT848_O_SCLOOP_HFILT_QCIF	(0x2<<3)
-# define BT848_O_SCLOOP_HFILT_CIF	(0x1<<3)
-# define BT848_O_SCLOOP_HFILT_AUTO	(0x0<<3)
+#define BT848_O_SCLOOP_HFILT_ICON	(0x3<<3)
+#define BT848_O_SCLOOP_HFILT_QCIF	(0x2<<3)
+#define BT848_O_SCLOOP_HFILT_CIF	(0x1<<3)
+#define BT848_O_SCLOOP_HFILT_AUTO	(0x0<<3)
 #define BT848_O_SCLOOP_RSVD0		(0x7<<0)
     int		:32;		/* c4, c5,c6,c7 */
     int		:32;		/* c8, c9,ca,cb */
@@ -179,7 +187,12 @@ struct bt848_registers {
     BTBYTE (vbi_pack_del);	/* e4, e5,e6,e7 */
     int		:32;		/* e8, e9,ea,eb */
     BTBYTE (o_vtc);		/* ec, ed,ee,ef */
-    u_char	filler2[0x100-0xf0];
+    BTBYTE (pll_f_lo);		/* f0, f1,f2,f3 */
+    BTBYTE (pll_f_hi);		/* f4, f5,f6,f7 */
+    BTBYTE (pll_f_xci);		/* f8, f9,fa,fb */
+#define BT848_PLL_F_C			(1<<6)
+#define BT848_PLL_F_X			(1<<7)
+    u_char	filler2[0x100-0xfc];
     BTLONG (int_stat);		/* 100, 101,102,103 */
     BTLONG (int_mask);		/* 104, 105,106,107 */
 #define BT848_INT_RISCS			(0xf<<28)
