@@ -74,6 +74,19 @@ databases.
 The
 .Fn pam_sm_close_session
 function does nothing.
+.Pp
+The following options may be passed to the authentication module:
+.Bl -tag -width ".Cm no_warn"
+.It Cm debug
+.Xr syslog 3
+debugging information at
+.Dv LOG_DEBUG
+level.
+.It Cm no_warn
+suppress warning messages to the user.
+.It Cm no_fail
+Ignore I/O failures.
+.El
 .Sh SEE ALSO
 .Xr last 1 ,
 .Xr lastlogin 1 ,
