@@ -131,7 +131,7 @@ main(argc, argv)
 	char *memf, *nlistf, *p, *vis_args, *x;
 	char buf[MAXHOSTNAMELEN], errbuf[256];
 
-	(void) setlocale(LC_TIME|LC_CTYPE, "");
+	(void) setlocale(LC_ALL, "");
 
 	/* Are we w(1) or uptime(1)? */
 	p = __progname;

@@ -135,7 +135,7 @@ main(argc, argv)
 	int ch, envargc, argcnt;
 	char *envargv[3];
 
-	(void) setlocale(LC_TIME|LC_CTYPE, "");
+	(void) setlocale(LC_ALL, "");
 
 				/* remove this line to get remote host */
 	oflag = 1;		/* default to old "office" behavior */
