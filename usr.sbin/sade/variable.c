@@ -8,6 +8,8 @@
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
+ * Copyright (c) 2001 
+ *      Murray Stokely.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -256,4 +258,39 @@ free_variables(void)
 	}
 	VarHead = NULL;
     }
+}
+
+/*
+ * Persistent variables.  The variables modified by these functions
+ * are not cleared between invocations of sysinstall.  This is useful
+ * to allow the user to completely restart sysinstall, without having
+ * it load all of the modules again from the installation media which
+ * are still in memory.
+ */
+
+void
+pvariable_set(char *var)
+{
+    char tmp[1024];
+
+    if (!var)
+	msgFatal("NULL variable name & value passed.");
+    else if (!*var)
+	msgDebug("Warning:  Zero length name & value passed to variable_set()\n");
+    /* Add a trivial namespace to whatever name the caller chooses. */
+    SAFE_STRCPY(tmp, "SYSINSTALL_PVAR");
+    if (index(var, '=') == NULL)
+	msgFatal("Invalid variable format: %s", var);
+    strlcat(tmp, var, 1024); 
+    putenv(tmp);
+}
+
+char *
+pvariable_get(char *var)
+{
+    char tmp[1024];
+
+    SAFE_STRCPY(tmp, "SYSINSTALL_PVAR");
+    strlcat(tmp, var, 1024);
+    return getenv(tmp);
 }
