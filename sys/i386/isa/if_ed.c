@@ -14,9 +14,25 @@
  */
 
 /*
+ * $Id: if_ed.c,v 1.29 93/09/12 04:43:31 davidg Exp Locker: davidg $
+ */
+
+/*
  * Modification history
  *
- * $Log:	if_ed.c,v $
+ * Revision 1.29  93/09/12  04:43:31  davidg
+ * cleaned-up probe routine to make it easier to add future board types
+ * 
+ * Revision 1.28  93/09/11  19:17:56  davidg
+ * rewrote interrupt code; leaner and meaner.
+ * 
+ * Revision 1.27  93/09/10  19:15:09  davidg
+ * changed probe/attach so that the type code is printed if the board
+ * type isn't unknown
+ * 
+ * Revision 1.26  93/09/09  02:12:08  davidg
+ * cleaned up header comments a little
+ * 
  * Revision 1.25  93/09/08  23:04:25  davidg
  * fixed problem where 3c503 boards lock up if the cable is 
  * disconnected at boot time. Added printing of irq number if
@@ -59,6 +75,7 @@
  
 #include "ed.h"
 #if	NED > 0
+/* bpfilter included here in case it is needed in future net includes */
 #include "bpfilter.h"
 
 #include "param.h"
@@ -114,9 +131,16 @@ struct	ed_softc {
 	u_char	vendor;		/* interface vendor */
 	u_char	type;		/* interface type code */
 
-	u_short	vector;		/* interrupt vector */
 	u_short	asic_addr;	/* ASIC I/O bus address */
 	u_short	nic_addr;	/* NIC (DS8390) I/O bus address */
+
+/*
+ * The following 'proto' variable is part of a work-around for 8013EBT asics
+ *	being write-only. It's sort of a prototype/shadow of the real thing.
+ */
+	u_char	wd_laar_proto;
+
+	u_char	isa16bit;	/* width of access to card mem 0=8 or 1=16 */
 
 	caddr_t	smem_start;	/* shared memory start address */
 	caddr_t	smem_end;	/* shared memory end address */
@@ -125,22 +149,16 @@ struct	ed_softc {
 
 	caddr_t	bpf;		/* BPF "magic cookie" */
 
-	u_char	memwidth;	/* width of access to card mem 8 or 16 */
 	u_char	xmit_busy;	/* transmitter is busy */
+	u_char	data_buffered;	/* data has been buffered in interface memory */
 	u_char	txb_cnt;	/* Number of transmit buffers */
 	u_char	txb_next;	/* Pointer to next buffer ready to xmit */
 	u_short	txb_next_len;	/* next xmit buffer length */
-	u_char	data_buffered;	/* data has been buffered in interface memory */
 	u_char	tx_page_start;	/* first page of TX buffer area */
 
 	u_char	rec_page_start;	/* first page of RX ring-buffer */
 	u_char	rec_page_stop;	/* last page of RX ring-buffer */
 	u_char	next_packet;	/* pointer to next unread RX packet */
-/*
- * The following 'proto' variable is part of a work-around for 8013EBT asics
- *	being write-only. It's sort of a prototype/shadow of the real thing.
- */
-	u_char	wd_laar_proto;
 } ed_softc[NED];
 
 int	ed_attach(), ed_init(), edintr(), ed_ioctl(), ed_probe(),
@@ -193,37 +211,13 @@ ed_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
-	int i;
-	u_char sum;
+	int nports;
 
-	/*
-	 * Setup initial i/o address for ASIC and NIC
-	 */
-	sc->asic_addr = isa_dev->id_iobase;
-	sc->vector = isa_dev->id_irq;
-	sc->smem_start = (caddr_t)isa_dev->id_maddr;
- 
-	/*
-	 * Attempt to do a checksum over the station address PROM.
-	 * This is mapped differently on the WD80x3 and 3C503, so if
-	 *	it fails, it might be a 3C503. There is a problem with
-	 *	this, though: some clone WD boards don't pass the
-	 *	checksum test. Danpex boards for one. We need to do
-	 *	additional checking for this case.
-	 */
-	for (sum = 0, i = 0; i < 8; ++i) {
-		sum += inb(sc->asic_addr + ED_WD_PROM + i);
-	}
-	
-	if (sum == ED_WD_ROM_CHECKSUM_TOTAL) {
-		return (ed_probe_WD80x3(isa_dev));
-	} else {
-		/*
-		 * XXX - Should do additional checking to make sure its a 3Com
-		 *	and not a broken WD clone
-		 */
-		return (ed_probe_3Com(isa_dev));
-	}
+	if (nports = ed_probe_WD80x3(isa_dev))
+		return (nports);
+
+	if (nports = ed_probe_3Com(isa_dev))
+		return (nports);
 }
 
 /*
@@ -236,12 +230,26 @@ ed_probe_WD80x3(isa_dev)
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	int i;
 	u_int memsize;
-	u_char iptr, memwidth, sum, tmp;
+	u_char iptr, isa16bit, sum;
 
+	sc->asic_addr = isa_dev->id_iobase;
+	sc->nic_addr = sc->asic_addr + ED_WD_NIC_OFFSET;
+
+	/*
+	 * Attempt to do a checksum over the station address PROM.
+	 *	If it fails, it's probably not a SMC/WD board. There
+	 *	is a problem with this, though: some clone WD boards
+	 *	don't pass the checksum test. Danpex boards for one.
+	 *	XXX - We need to do additional checking for this case.
+	 */
+	for (sum = 0, i = 0; i < 8; ++i)
+		sum += inb(sc->asic_addr + ED_WD_PROM + i);
+	
+	if (sum != ED_WD_ROM_CHECKSUM_TOTAL)
+		return(0);
+	
 	sc->vendor = ED_VENDOR_WD_SMC;
 	sc->type = inb(sc->asic_addr + ED_WD_CARD_ID);
-
-	sc->nic_addr = sc->asic_addr + ED_WD_NIC_OFFSET;
 
 	/* reset card to force it into a known state. */
 	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST);
@@ -257,58 +265,58 @@ ed_probe_WD80x3(isa_dev)
 	case ED_TYPE_WD8003S:
 		sc->type_str = "WD8003S";
 		memsize = 8192;
-		memwidth = 8;
+		isa16bit = 0;
 		break;
 	case ED_TYPE_WD8003E:
 		sc->type_str = "WD8003E";
 		memsize = 8192;
-		memwidth = 8;
+		isa16bit = 0;
 		break;
 	case ED_TYPE_WD8013EBT:
 		sc->type_str = "WD8013EBT";
 		memsize = 16384;
-		memwidth = 16;
+		isa16bit = 1;
 		break;
 	case ED_TYPE_WD8013EP:		/* also WD8003EP */
 		if (inb(sc->asic_addr + ED_WD_ICR)
 			& ED_WD_ICR_16BIT) {
-			memwidth = 16;
+			isa16bit = 1;
 			memsize = 16384;
 			sc->type_str = "WD8013EP";
 		} else {
-			sc->type_str = "WD8003EP";
+			isa16bit = 0;
 			memsize = 8192;
-			memwidth = 8;
+			sc->type_str = "WD8003EP";
 		}
 		break;
 	case ED_TYPE_WD8013WC:
 		sc->type_str = "WD8013WC";
 		memsize = 16384;
-		memwidth = 16;
+		isa16bit = 1;
 		break;
 	case ED_TYPE_WD8013EBP:
 		sc->type_str = "WD8013EBP";
 		memsize = 16384;
-		memwidth = 16;
+		isa16bit = 1;
 		break;
 	case ED_TYPE_WD8013EPC:
 		sc->type_str = "WD8013EPC";
 		memsize = 16384;
-		memwidth = 16;
+		isa16bit = 1;
 		break;
 	default:
-		sc->type_str = "unknown";
+		sc->type_str = "";
 		memsize = 8192;
-		memwidth = 8;
+		isa16bit = 0;
 		break;
 	}
 	/*
 	 * Make some adjustments to initial values depending on what is
 	 *	found in the ICR.
 	 */
-	if ((memwidth == 16) && (sc->type != ED_TYPE_WD8013EBT)
+	if (isa16bit && (sc->type != ED_TYPE_WD8013EBT)
 		&& ((inb(sc->asic_addr + ED_WD_ICR) & ED_WD_ICR_16BIT) == 0)) {
-		memwidth = 8;
+		isa16bit = 0;
 		memsize = 8192;
 	}
 #if 0 /* This has caused more problems than it's worth */
@@ -318,8 +326,8 @@ ed_probe_WD80x3(isa_dev)
 #endif
 
 #if ED_DEBUG
-	printf("type=%s memwidth=%d memsize=%d id_msize=%d\n",
-		sc->type_str,memwidth,memsize,isa_dev->id_msize);
+	printf("type=%s isa16bit=%d memsize=%d id_msize=%d\n",
+		sc->type_str,isa16bit,memsize,isa_dev->id_msize);
 	for (i=0; i<8; i++)
 		printf("%x -> %x\n", i, inb(sc->asic_addr + i));
 #endif
@@ -333,9 +341,9 @@ ed_probe_WD80x3(isa_dev)
 	 *	that '8bit' mode intentionally has precedence)
 	 */
 	if (isa_dev->id_flags & ED_FLAGS_FORCE_16BIT_MODE)
-		memwidth = 16;
+		isa16bit = 1;
 	if (isa_dev->id_flags & ED_FLAGS_FORCE_8BIT_MODE)
-		memwidth = 8;
+		isa16bit = 0;
 
 	/*
 	 * Check 83C584 interrupt configuration register if this board has one
@@ -364,7 +372,9 @@ ed_probe_WD80x3(isa_dev)
 			inb(isa_dev->id_iobase + ED_WD_IRR) | ED_WD_IRR_IEN);
 	}
 
-	sc->memwidth = memwidth;
+	sc->isa16bit = isa16bit;
+	sc->smem_start = (caddr_t)isa_dev->id_maddr;
+
 	/*
 	 * allocate one xmit buffer if < 16k, two buffers otherwise
 	 */
@@ -398,13 +408,13 @@ ed_probe_WD80x3(isa_dev)
 	 * Set upper address bits and 8/16 bit access to shared memory
 	 */
 	if ((sc->type & ED_WD_SOFTCONFIG) || (sc->type == ED_TYPE_WD8013EBT)) {
-		if (memwidth == 8) {
-			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
-			((kvtop(sc->smem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
-		} else {
+		if (isa16bit) {
 			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
 				ED_WD_LAAR_L16EN | ED_WD_LAAR_M16EN |
 				((kvtop(sc->smem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
+		} else {
+			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
+			((kvtop(sc->smem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
 		}
 	}
 
@@ -421,7 +431,7 @@ ed_probe_WD80x3(isa_dev)
 			/*
 			 * Disable 16 bit access to shared memory
 			 */
-			if (memwidth == 16)
+			if (isa16bit)
 				outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto &=
 					~ED_WD_LAAR_M16EN));
 
@@ -436,7 +446,7 @@ ed_probe_WD80x3(isa_dev)
 	 *	memory. and 2) so that other 8 bit devices with shared
 	 *	memory can be used in this 128k region, too.
 	 */
-	if (memwidth == 16)
+	if (isa16bit)
 		outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto &=
 			~ED_WD_LAAR_M16EN));
 
@@ -453,15 +463,10 @@ ed_probe_3Com(isa_dev)
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	int i;
 	u_int memsize;
-	u_char memwidth, sum;
+	u_char isa16bit, sum;
 
-	sc->vendor = ED_VENDOR_3COM;
 	sc->asic_addr = isa_dev->id_iobase + ED_3COM_ASIC_OFFSET;
 	sc->nic_addr = isa_dev->id_iobase + ED_3COM_NIC_OFFSET;
-
-	sc->type_str = "3c503";
-
-	memsize = 8192;
 
 	/*
 	 * Verify that the kernel configured I/O address matches the board
@@ -529,9 +534,15 @@ ed_probe_3Com(isa_dev)
 		return(0);
 	}
 
+	sc->vendor = ED_VENDOR_3COM;
+	sc->type_str = "3c503";
+
+	memsize = 8192;
+
 	/*
-	 * Reset NIC and ASIC. Enable on-board transceiver through reset sequence
-	 *	because it'll lock up if the cable isn't connected if we don't.
+	 * Reset NIC and ASIC. Enable on-board transceiver throughout reset
+	 *	sequence because it'll lock up if the cable isn't connected
+	 *	if we don't.
 	 */
 	outb(sc->asic_addr + ED_3COM_CR, ED_3COM_CR_RST | ED_3COM_CR_XSEL);
 
@@ -595,9 +606,9 @@ ed_probe_3Com(isa_dev)
 	 * The 3c503 forces the WTS bit to a one if this is a 16bit board
 	 */
 	if (inb(sc->nic_addr + ED_P2_DCR) & ED_DCR_WTS)
-		memwidth = 16;
+		isa16bit = 1;
 	else
-		memwidth = 8;
+		isa16bit = 0;
 
 	/*
 	 * select page 0 registers
@@ -610,11 +621,12 @@ ed_probe_3Com(isa_dev)
 	sc->rec_page_start = ED_TXBUF_SIZE + ED_3COM_PAGE_OFFSET;
 	sc->rec_page_stop = memsize / ED_PAGE_SIZE + ED_3COM_PAGE_OFFSET;
 
+	sc->smem_start = (caddr_t)isa_dev->id_maddr;
 	sc->smem_size = memsize;
 	sc->smem_end = sc->smem_start + memsize;
 	sc->smem_ring = sc->smem_start + (ED_PAGE_SIZE * ED_TXBUF_SIZE);
 
-	sc->memwidth = memwidth;
+	sc->isa16bit = isa16bit;
 
 	/*
 	 * Initialize GA page start/stop registers. Probably only needed
@@ -748,10 +760,18 @@ ed_attach(isa_dev)
 	/*
 	 * Print additional info when attached
 	 */
-	printf("ed%d: address %s, type %s (%dbit) %s\n", isa_dev->id_unit,
-		ether_sprintf(sc->arpcom.ac_enaddr), sc->type_str,
-		sc->memwidth, ((sc->vendor == ED_VENDOR_3COM) &&
-			(ifp->if_flags & IFF_ALTPHYS)) ? "tranceiver disabled" : "");
+	printf("ed%d: address %s, ", isa_dev->id_unit,
+		ether_sprintf(sc->arpcom.ac_enaddr));
+
+	if (sc->type_str && (*sc->type_str != 0))
+		printf("type %s ", sc->type_str);
+	else
+		printf("type unknown (0x%x) ", sc->type);
+
+	printf("%s ",sc->isa16bit ? "(16 bit)" : "(8 bit)");
+
+	printf("%s\n", ((sc->vendor == ED_VENDOR_3COM) &&
+		(ifp->if_flags & IFF_ALTPHYS)) ? "tranceiver disabled" : "");
 
 	/*
 	 * If BPF is in the kernel, call the attach for it
@@ -856,7 +876,7 @@ ed_init(unit)
 	 */
 	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STP);
 
-	if (sc->memwidth == 16) {
+	if (sc->isa16bit) {
 		/*
 		 * Set FIFO threshold to 8, No auto-init Remote DMA,
 		 *	byte order=80x86, word-wide DMA xfers,
@@ -1088,12 +1108,12 @@ outloop:
 	 *	Don't update wd_laar_proto because we want to restore the
 	 *	previous state (because an arp reply in the input code
 	 *	may cause a call-back to ed_start)
+	 * XXX - the call-back to 'start' is a bug, IMHO.
 	 */
-	if (sc->memwidth == 16)
-		if (sc->vendor == ED_VENDOR_WD_SMC) {
-			outb(sc->asic_addr + ED_WD_LAAR,
-				(sc->wd_laar_proto | ED_WD_LAAR_M16EN));
-		}
+	if (sc->isa16bit && (sc->vendor == ED_VENDOR_WD_SMC)) {
+		outb(sc->asic_addr + ED_WD_LAAR,
+			(sc->wd_laar_proto | ED_WD_LAAR_M16EN));
+	}
 
 	buffer = sc->smem_start + (sc->txb_next * ED_TXBUF_SIZE * ED_PAGE_SIZE);
 	len = 0;
@@ -1106,10 +1126,8 @@ outloop:
 	/*
 	 * Restore previous shared mem access type
 	 */
-	if (sc->memwidth == 16)
-		if (sc->vendor == ED_VENDOR_WD_SMC) {
-			outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto);
-		}
+	if (sc->isa16bit && (sc->vendor == ED_VENDOR_WD_SMC))
+		outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto);
 
 	sc->txb_next_len = MAX(len, ETHER_MIN_LEN);
 
@@ -1125,6 +1143,9 @@ outloop:
 	 * If there is BPF support in the configuration, tap off here.
 	 *   The following has support for converting trailer packets
 	 *   back to normal.
+	 * XXX - support for trailer packets in BPF should be moved into
+	 *	the bpf code proper to avoid code duplication in all of
+	 *	the drivers.
 	 */
 #if NBPFILTER > 0
 	if (sc->bpf) {
@@ -1207,7 +1228,7 @@ outloop:
 /*
  * Ethernet interface receiver interrupt.
  */
-static inline void /* only called from one place, so may as well integrate */
+static inline void
 ed_rint(unit)
 	int unit;
 {
@@ -1310,90 +1331,55 @@ edintr(unit)
 	while (isr = inb(sc->nic_addr + ED_P0_ISR)) {
 
 		/*
-		 * reset all the bits that we are 'acknowleging'
+		 * reset all the bits that we are 'acknowledging'
 		 *	by writing a '1' to each bit position that was set
 		 * (writing a '1' *clears* the bit)
 		 */
 		outb(sc->nic_addr + ED_P0_ISR, isr);
 
 		/*
-		 * Transmit error. If a TX completed with an error, we end up
-		 *	throwing the packet away. Really the only error that is
-		 *	possible is excessive collisions, and in this case it is
-		 *	best to allow the automatic mechanisms of TCP to backoff
-		 *	the flow. Of course, with UDP we're screwed, but this is
-		 *	expected when a network is heavily loaded.
+		 * Handle transmitter interrupts. Handle these first
+		 *	because the receiver will reset the board under
+		 *	some conditions.
 		 */
-		if (isr & ED_ISR_TXE) {
-			u_char tsr = inb(sc->nic_addr + ED_P0_TSR);
-			u_char ncr = inb(sc->nic_addr + ED_P0_NCR);
+		if (isr & (ED_ISR_PTX|ED_ISR_TXE)) {
+			u_char collisions = inb(sc->nic_addr + ED_P0_NCR);
 
 			/*
-			 * Excessive collisions (16)
+			 * Check for transmit error. If a TX completed with an
+			 * error, we end up throwing the packet away. Really
+			 * the only error that is possible is excessive
+			 * collisions, and in this case it is best to allow the
+			 * automatic mechanisms of TCP to backoff the flow. Of
+			 * course, with UDP we're screwed, but this is expected
+			 * when a network is heavily loaded.
 			 */
-			if ((tsr & ED_TSR_ABT) && (ncr == 0)) {
+			if (isr & ED_ISR_TXE) {
+
 				/*
-				 *    When collisions total 16, the P0_NCR will
-				 * indicate 0, and the TSR_ABT is set.
+				 * Excessive collisions (16)
 				 */
-				sc->arpcom.ac_if.if_collisions += 16;
-			} else
-				sc->arpcom.ac_if.if_collisions += ncr;
+				if ((inb(sc->nic_addr + ED_P0_TSR) & ED_TSR_ABT)
+					&& (collisions == 0)) {
+					/*
+					 *    When collisions total 16, the
+					 * P0_NCR will indicate 0, and the
+					 * TSR_ABT is set.
+					 */
+					collisions = 16;
+				}
 
-			/*
-			 * update output errors counter
-			 */
-			++sc->arpcom.ac_if.if_oerrors;
-
-			/*
-			 * reset tx busy and output active flags
-			 */
-			sc->xmit_busy = 0;
-			sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-
-			/*
-			 * clear watchdog timer
-			 */
-			sc->arpcom.ac_if.if_timer = 0;
-		}
-				
-			
-		/*
-		 * Receiver Error. One or more of: CRC error, frame alignment error
-		 *	FIFO overrun, or missed packet.
-		 */
-		if (isr & ED_ISR_RXE) {
-			++sc->arpcom.ac_if.if_ierrors;
-#ifdef ED_DEBUG
-			printf("ed%d: receive error %x\n", unit,
-				inb(sc->nic_addr + ED_P0_RSR));
-#endif
-		}
-
-		/*
-		 * Overwrite warning. In order to make sure that a lockup
-		 *	of the local DMA hasn't occurred, we reset and
-		 *	re-init the NIC. The NSC manual suggests only a
-		 *	partial reset/re-init is necessary - but some
-		 *	chips seem to want more. The DMA lockup has been
-		 *	seen only with early rev chips - Methinks this
-		 *	bug was fixed in later revs. -DG
-		 */
-		if (isr & ED_ISR_OVW) {
-			++sc->arpcom.ac_if.if_ierrors;
-			log(LOG_WARNING,
-				"ed%d: warning - receiver ring buffer overrun\n",
-				unit);
-			/*
-			 * Stop/reset/re-init NIC
-			 */
-			ed_reset(unit);
-		}
-
-		/*
-		 * Transmission completed normally.
-		 */
-		if (isr & ED_ISR_PTX) {
+				/*
+				 * update output errors counter
+				 */
+				++sc->arpcom.ac_if.if_oerrors;
+			} else {
+				/*
+				 * Update total number of successfully
+				 * 	transmitted packets.
+				 */
+				++sc->arpcom.ac_if.if_opackets;
+			}
 
 			/*
 			 * reset tx busy and output active flags
@@ -1405,61 +1391,98 @@ edintr(unit)
 			 * clear watchdog timer
 			 */
 			sc->arpcom.ac_if.if_timer = 0;
-
-			/*
-			 * Update total number of successfully transmitted
-			 *	packets.
-			 */
-			++sc->arpcom.ac_if.if_opackets;
 
 			/*
 			 * Add in total number of collisions on last
 			 *	transmission.
 			 */
-			sc->arpcom.ac_if.if_collisions += inb(sc->nic_addr +
-				ED_P0_TBCR0);
+			sc->arpcom.ac_if.if_collisions += collisions;
+
+			/*
+			 * If data is ready to transmit, start it transmitting,
+			 *	otherwise defer until after handling receiver
+			 */
+			if (sc->data_buffered)
+				ed_xmit(&sc->arpcom.ac_if);
 		}
 
 		/*
-		 * Receive Completion. Go and get the packet. 
-		 *	XXX - Doing this on an error is dubious because there
-		 *	   shouldn't be any data to get (we've configured the
-		 *	   interface to not accept packets with errors).
+		 * Handle receiver interrupts
 		 */
-		if (isr & (ED_ISR_PRX|ED_ISR_RXE)) {
-			/*
-			 * Enable access to shared memory on WD/SMC boards
-			 */
-			if (sc->memwidth == 16)
-				if (sc->vendor == ED_VENDOR_WD_SMC) {
+		if (isr & (ED_ISR_PRX|ED_ISR_RXE|ED_ISR_OVW)) {
+		    /*
+		     * Overwrite warning. In order to make sure that a lockup
+		     *	of the local DMA hasn't occurred, we reset and
+		     *	re-init the NIC. The NSC manual suggests only a
+		     *	partial reset/re-init is necessary - but some
+		     *	chips seem to want more. The DMA lockup has been
+		     *	seen only with early rev chips - Methinks this
+		     *	bug was fixed in later revs. -DG
+		     */
+			if (isr & ED_ISR_OVW) {
+				++sc->arpcom.ac_if.if_ierrors;
+				log(LOG_WARNING,
+					"ed%d: warning - receiver ring buffer overrun\n",
+					unit);
+				/*
+				 * Stop/reset/re-init NIC
+				 */
+				ed_reset(unit);
+			} else {
+
+			    /*
+			     * Receiver Error. One or more of: CRC error, frame
+			     *	alignment error FIFO overrun, or missed packet.
+			     */
+				if (isr & ED_ISR_RXE) {
+					++sc->arpcom.ac_if.if_ierrors;
+#ifdef ED_DEBUG
+					printf("ed%d: receive error %x\n", unit,
+						inb(sc->nic_addr + ED_P0_RSR));
+#endif
+				}
+
+				/*
+				 * Go get the packet(s)
+				 * XXX - Doing this on an error is dubious
+				 *    because there shouldn't be any data to
+				 *    get (we've configured the interface to
+				 *    not accept packets with errors).
+				 */
+
+				/*
+				 * Enable 16bit access to shared memory first
+				 *	on WD/SMC boards.
+				 */
+				if (sc->isa16bit &&
+					(sc->vendor == ED_VENDOR_WD_SMC)) {
+
 					outb(sc->asic_addr + ED_WD_LAAR,
 						(sc->wd_laar_proto |=
 						 ED_WD_LAAR_M16EN));
 				}
 
-			ed_rint (unit);
+				ed_rint (unit);
 
-			/*
-			 * Disable access to shared memory
-			 */
-			if (sc->memwidth == 16)
-				if (sc->vendor == ED_VENDOR_WD_SMC) {
+				/* disable 16bit access */
+				if (sc->isa16bit &&
+					(sc->vendor == ED_VENDOR_WD_SMC)) {
+
 					outb(sc->asic_addr + ED_WD_LAAR,
 						(sc->wd_laar_proto &=
 						 ~ED_WD_LAAR_M16EN));
 				}
+			}
 		}
 
 		/*
 		 * If it looks like the transmitter can take more data,
-		 *	attempt to start output on the interface. If data is
-		 *	already buffered and ready to go, send it first.
+		 * 	attempt to start output on the interface.
+		 *	This is done after handling the receiver to
+		 *	give the receiver priority.
 		 */
-		if ((sc->arpcom.ac_if.if_flags & IFF_OACTIVE) == 0) {
-			if (sc->data_buffered)
-				ed_xmit(&sc->arpcom.ac_if);
+		if ((sc->arpcom.ac_if.if_flags & IFF_OACTIVE) == 0)
 			ed_start(&sc->arpcom.ac_if);
-		}
 
 		/*
 		 * return NIC CR to standard state: page 0, remote DMA complete,
@@ -1835,4 +1858,3 @@ ed_ring_to_mbuf(sc,src,dst,total_len)
 	return (m);
 }
 #endif
-
