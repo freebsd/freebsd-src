@@ -67,8 +67,12 @@ to act as a NAT or masquerading engine for all machines on an internal
 LAN.
 ifdef({LOCALNAT},{},{Refer to
 .Xr libalias 3
-for details.
+for details on the technical side of the NAT engine.
 })dnl
+Refer to the
+.Sx NETWORK ADDRESS TRANSLATION (PACKET ALIASING)
+section of this manual page for details on how to configure NAT in
+.Nm .
 .Pp
 The
 .Fl quiet
