@@ -300,10 +300,29 @@ vnode_pager_setsize(vp, nsize)
 
 			m = vm_page_lookup(object, OFF_TO_IDX(nsize));
 			if (m) {
+				int base = (int)nsize & PAGE_MASK;
+				int size = PAGE_SIZE - base;
+
+				/*
+				 * Clear out partial-page garbage in case
+				 * the page has been mapped.
+				 */
 				kva = vm_pager_map_page(m);
-				bzero((caddr_t) kva + (nsize & PAGE_MASK),
-				    (int) (round_page(nsize) - nsize));
+				bzero((caddr_t)kva + base, size);
 				vm_pager_unmap_page(kva);
+
+				/*
+				 * Clear out partial-page dirty bits.  This
+				 * has the side effect of setting the valid
+				 * bits, but that is ok.  There are a bunch
+				 * of places in the VM system where we expected
+				 * m->dirty == VM_PAGE_BITS_ALL.  The file EOF
+				 * case is one of them.  If the page is still
+				 * partially dirty, make it fully dirty.
+				 */
+				vm_page_set_validclean(m, base, size);
+				if (m->dirty != 0)
+					m->dirty = VM_PAGE_BITS_ALL;
 			}
 		}
 	}
@@ -424,6 +443,8 @@ vnode_pager_input_smlfs(object, m)
 			pbgetvp(dp, bp);
 			bp->b_bcount = bsize;
 			bp->b_bufsize = bsize;
+			bp->b_runningbufspace = bp->b_bufsize;
+			runningbufspace += bp->b_runningbufspace;
 
 			/* do the input */
 			BUF_STRATEGY(bp);
@@ -742,6 +763,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	pbgetvp(dp, bp);
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
+	bp->b_runningbufspace = bp->b_bufsize;
+	runningbufspace += bp->b_runningbufspace;
 
 	cnt.v_vnodein++;
 	cnt.v_vnodepgsin += count;
@@ -888,6 +911,11 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 /*
  * This is now called from local media FS's to operate against their
  * own vnodes if they fail to implement VOP_PUTPAGES.
+ *
+ * This is typically called indirectly via the pageout daemon and
+ * clustering has already typically occured, so in general we ask the
+ * underlying filesystem to write the data out asynchronously rather
+ * then delayed.
  */
 int
 vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
@@ -938,8 +966,13 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 		}
 	}
 
+	/*
+	 * pageouts are already clustered, use IO_ASYNC t o force a bawrite()
+	 * rather then a bdwrite() to prevent paging I/O from saturating 
+	 * the buffer cache.
+	 */
 	ioflags = IO_VMIO;
-	ioflags |= (flags & (VM_PAGER_PUT_SYNC | VM_PAGER_PUT_INVAL)) ? IO_SYNC: 0;
+	ioflags |= (flags & (VM_PAGER_PUT_SYNC | VM_PAGER_PUT_INVAL)) ? IO_SYNC: IO_ASYNC;
 	ioflags |= (flags & VM_PAGER_PUT_INVAL) ? IO_INVAL: 0;
 
 	aiov.iov_base = (caddr_t) 0;

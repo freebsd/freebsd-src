@@ -247,8 +247,12 @@ single_block_read:
 			printf("S(%ld,%ld,%d) ",
 			    (long)bp->b_lblkno, bp->b_bcount, seqcount);
 #endif
-		if ((bp->b_flags & B_CLUSTER) == 0)
+		if ((bp->b_flags & B_CLUSTER) == 0) {
 			vfs_busy_pages(bp, 0);
+		} else {
+			bp->b_runningbufspace = bp->b_bufsize;
+			runningbufspace += bp->b_runningbufspace;
+		}
 		bp->b_flags &= ~B_INVAL;
 		bp->b_ioflags &= ~BIO_ERROR;
 		if ((bp->b_flags & B_ASYNC) || bp->b_iodone != NULL)
@@ -283,8 +287,12 @@ single_block_read:
 			}
 #endif
 
-			if ((rbp->b_flags & B_CLUSTER) == 0)
+			if ((rbp->b_flags & B_CLUSTER) == 0) {
 				vfs_busy_pages(rbp, 0);
+			} else {
+				rbp->b_runningbufspace = rbp->b_bufsize;
+				runningbufspace += rbp->b_runningbufspace;
+			}
 			rbp->b_flags &= ~B_INVAL;
 			rbp->b_ioflags &= ~BIO_ERROR;
 			if ((rbp->b_flags & B_ASYNC) || rbp->b_iodone != NULL)
