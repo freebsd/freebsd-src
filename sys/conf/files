@@ -975,6 +975,7 @@ kern/kern_alq.c		optional alq
 kern/kern_clock.c	standard
 kern/kern_condvar.c	standard
 kern/kern_conf.c	standard
+kern/kern_context.c	standard
 kern/kern_descrip.c	standard
 kern/kern_poll.c	optional device_polling
 kern/kern_environment.c	standard

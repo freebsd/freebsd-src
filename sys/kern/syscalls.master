@@ -608,6 +608,10 @@
 418	UNIMPL	BSD	__xstat
 419	UNIMPL	BSD	__xfstat
 420	UNIMPL	BSD	__xlstat
+421	MSTD	BSD	{ int getcontext(struct __ucontext *ucp); }
+422	MSTD	BSD	{ int setcontext(const struct __ucontext *ucp); }
+423	MSTD	BSD	{ int swapcontext(struct __ucontext *oucp, \
+			    const struct __ucontext *ucp); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)

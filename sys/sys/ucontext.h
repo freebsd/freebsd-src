@@ -79,6 +79,14 @@ int	swapcontext(ucontext_t *, const ucontext_t *);
 
 __END_DECLS
 
+#else /* _KERNEL */
+
+struct thread;
+
+/* Machine-dependent functions: */
+int	get_mcontext(struct thread *td, mcontext_t *mcp);
+int	set_mcontext(struct thread *td, const mcontext_t *mcp);
+
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_UCONTEXT_H_ */

@@ -504,6 +504,20 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 }
 #endif
 
+int
+get_mcontext(struct thread *td, mcontext_t *mcp)
+{
+
+	return (ENOSYS);
+}
+
+int
+set_mcontext(struct thread *td, const mcontext_t *mcp)
+{
+
+	return (ENOSYS);
+}
+
 /*
  * Exit the kernel and execute a firmware call that will not return, as
  * specified by the arguments.
