@@ -2,7 +2,7 @@
 
 PROG=	mailstats
 CFLAGS+=-I${.CURDIR}/../src
-NOMAN=	noman
+MAN8=	mailstats.8
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
