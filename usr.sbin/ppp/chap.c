@@ -17,15 +17,18 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.21 1997/09/17 23:17:48 brian Exp $
+ * $Id: chap.c,v 1.22 1997/09/22 23:59:13 brian Exp $
  *
  *	TODO:
  */
 #include <sys/types.h>
 #include <time.h>
 #include <utmp.h>
+#include <ctype.h>
+
 #include "fsm.h"
 #include "chap.h"
+#include "chap_ms.h"
 #include "lcpproto.h"
 #include "lcp.h"
 #include "hdlc.h"
@@ -101,10 +104,13 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
   int arglen, keylen, namelen;
   char *cp, *argp, *ap, *name, *digest;
   char *keyp;
-  MD4_CTX MD4context;		/* context for MD4 */
   MD5_CTX MD5context;		/* context for MD5 */
   char answer[100];
   char cdigest[16];
+#ifdef HAVE_DES
+  int ix;
+  MD4_CTX MD4context;		/* context for MD4 */
+#endif
 
   len = ntohs(chp->length);
   LogPrintf(LogDEBUG, "RecvChapTalk: length: %d\n", len);
@@ -131,34 +137,64 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
     }
     name = VarAuthName;
     namelen = strlen(VarAuthName);
-    argp = malloc(1 + valsize + namelen + 16);
+
+#ifdef HAVE_DES
+    if (VarMSChap)
+      argp = malloc(1 + namelen + MS_CHAP_RESPONSE_LEN);
+    else
+#endif
+      argp = malloc(1 + valsize + namelen + 16);
+
     if (argp == NULL) {
       ChapOutput(CHAP_FAILURE, chp->id, "Out of memory!", 14);
       return;
     }
-    digest = argp;
-    *digest++ = 16;		/* value size */
-    ap = answer;
-    *ap++ = chp->id;
-    bcopy(keyp, ap, keylen);
-    ap += keylen;
-    bcopy(cp, ap, valsize);
-    LogDumpBuff(LogDEBUG, "recv", ap, valsize);
-    ap += valsize;
-    if (VarEncMD4) {
+#ifdef HAVE_DES
+    if (VarMSChap) {
+      digest = argp;     /* this is the response */
+      *digest++ = MS_CHAP_RESPONSE_LEN;   /* 49 */
+      bzero(digest, 24); digest += 24;
+
+      ap = answer;       /* this is the challenge */
+      bcopy(keyp, ap, keylen);
+      ap += 2 * keylen;
+      bcopy(cp, ap, valsize);
+      LogDumpBuff(LogDEBUG, "recv", ap, valsize);
+      ap += valsize;
+      for (ix = keylen; ix > 0 ; ix--) {
+          answer[2*ix-2] = answer[ix-1];
+          answer[2*ix-1] = 0;
+      }
       MD4Init(&MD4context);
-      MD4Update(&MD4context, answer, ap - answer);
+      MD4Update(&MD4context, answer, 2 * keylen);
       MD4Final(digest, &MD4context);
+      bcopy(name, digest + 25, namelen);
+      ap += 2 * keylen;
+      ChapMS(digest, answer + 2 * keylen, valsize);
+      LogDumpBuff(LogDEBUG, "answer", digest, 24);
+      ChapOutput(CHAP_RESPONSE, chp->id, argp, namelen + MS_CHAP_RESPONSE_LEN + 1);
     } else {
+#endif
+      digest = argp;
+      *digest++ = 16;		/* value size */
+      ap = answer;
+      *ap++ = chp->id;
+      bcopy(keyp, ap, keylen);
+      ap += keylen;
+      bcopy(cp, ap, valsize);
+      LogDumpBuff(LogDEBUG, "recv", ap, valsize);
+      ap += valsize;
       MD5Init(&MD5context);
       MD5Update(&MD5context, answer, ap - answer);
       MD5Final(digest, &MD5context);
+      LogDumpBuff(LogDEBUG, "answer", digest, 16);
+      bcopy(name, digest + 16, namelen);
+      ap += namelen;
+      /* Send answer to the peer */
+      ChapOutput(CHAP_RESPONSE, chp->id, argp, namelen + 17);
+#ifdef HAVE_DES
     }
-    LogDumpBuff(LogDEBUG, "answer", digest, 16);
-    bcopy(name, digest + 16, namelen);
-    ap += namelen;
-    /* Send answer to the peer */
-    ChapOutput(CHAP_RESPONSE, chp->id, argp, namelen + 17);
+#endif
     free(argp);
     break;
   case CHAP_RESPONSE:
@@ -172,17 +208,10 @@ RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
       *ap++ = chp->id;
       bcopy(keyp, ap, keylen);
       ap += keylen;
-      if (VarEncMD4) {
-        MD4Init(&MD4context);
-        MD4Update(&MD4context, answer, ap - answer);
-        MD4Update(&MD4context, challenge_data + 1, challenge_len);
-        MD4Final(cdigest, &MD4context);
-      } else {
-        MD5Init(&MD5context);
-        MD5Update(&MD5context, answer, ap - answer);
-        MD5Update(&MD5context, challenge_data + 1, challenge_len);
-        MD5Final(cdigest, &MD5context);
-      }
+      MD5Init(&MD5context);
+      MD5Update(&MD5context, answer, ap - answer);
+      MD5Update(&MD5context, challenge_data + 1, challenge_len);
+      MD5Final(cdigest, &MD5context);
       LogDumpBuff(LogDEBUG, "got", cp, 16);
       LogDumpBuff(LogDEBUG, "expect", cdigest, 16);
 
