@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
+ * $Id$
  */
 
 #include <sys/param.h>

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tablet.h	8.3 (Berkeley) 1/4/94
+ * $Id$
  */
 
 #ifndef _SYS_TABLET_H_

@@ -36,8 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- * From:
- *	$Id: procfs_status.c,v 3.1 1993/12/15 09:40:17 jsp Exp $
+ *	$Id: procfs_status.c,v 1.1.1.1 1994/05/24 10:05:08 rgrimes Exp $
  */
 
 #include <sys/param.h>

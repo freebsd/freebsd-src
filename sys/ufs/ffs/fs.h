@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.7 (Berkeley) 4/19/94
+ * $Id$
  */
 
 /*

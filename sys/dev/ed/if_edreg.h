@@ -1,7 +1,16 @@
 /*
+ * Copyright (C) 1993, David Greenman. This software may be used, modified,
+ *   copied, distributed, and sold, in both source and binary form provided
+ *   that the above copyright and these terms are retained. Under no
+ *   circumstances is the author responsible for the proper functioning
+ *   of this software, nor does the author assume any responsibility
+ *   for damages incurred with its use.
+ *
+ * $Id: if_edreg.h,v 1.14 1994/04/10 20:06:28 davidg Exp $
+ */
+/*
  * National Semiconductor DS8390 NIC register definitions 
  *
- * $Id: if_edreg.h,v 1.13 1994/02/02 14:05:58 davidg Exp $
  *
  * Modification history
  *

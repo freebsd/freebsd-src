@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.3 (Berkeley) 1/21/94
  *
- * @(#)null_vfsops.c       1.5 (Berkeley) 7/10/92
+ * $Id$
  */
 
 /*

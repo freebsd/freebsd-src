@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.h	8.3 (Berkeley) 12/13/93
+ * $Id$
  */
 
 #ifndef	_DEVICE_PAGER_

@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
+ * $Id$
  */
 
 /* Global variables for the kernel. */

@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
+ * $Id$
  */
 
 #include <sys/termios.h>

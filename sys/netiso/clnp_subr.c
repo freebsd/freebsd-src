@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_subr.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -59,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /var/src/sys/netiso/RCS/clnp_subr.c,v 5.1 89/02/09 16:20:46 hagens Exp $ */
-/* $Source: /var/src/sys/netiso/RCS/clnp_subr.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_subr.c,v 1.1.1.1 1994/05/24 10:07:20 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/clnp_subr.c,v $ */
 
 #ifdef ISO
 

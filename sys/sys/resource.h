@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resource.h	8.2 (Berkeley) 1/4/94
+ * $Id$
  */
 
 #ifndef _SYS_RESOURCE_H_

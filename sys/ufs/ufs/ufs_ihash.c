@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.4 (Berkeley) 12/30/93
+ * $Id$
  */
 
 #include <sys/param.h>

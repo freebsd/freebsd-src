@@ -38,7 +38,7 @@
 #
 # First written May 16, 1992 by Van Jacobson, Lawrence Berkeley Laboratory.
 #
-# from: $Header: systags.sh,v 1.7 92/07/12 08:18:21 torek Exp $
+# $Id$
 
 rm -f tags tags.tmp tags.cfiles tags.sfiles tags.hfiles
 MACHINE=`machine`

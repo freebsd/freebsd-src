@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_cons.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -61,8 +62,8 @@ SOFTWARE.
  */
 /* 
  * ARGO TP
- * $Header: tp_cons.c,v 5.6 88/11/18 17:27:13 nhall Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_cons.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_cons.c,v 1.1.1.1 1994/05/24 10:06:58 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_cons.c,v $
  *
  * Here is where you find the iso- and cons-dependent code.  We've tried
  * keep all net-level and (primarily) address-family-dependent stuff

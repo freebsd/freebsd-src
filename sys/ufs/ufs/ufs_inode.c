@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.4 (Berkeley) 1/21/94
+ * $Id$
  */
 
 #include <sys/param.h>

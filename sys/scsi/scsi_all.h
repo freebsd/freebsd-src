@@ -1,8 +1,4 @@
 /*
- * SCSI general  interface description
- */
-
-/*
  * Largely written by Julian Elischer (julian@tfs.com)
  * for TRW Financial Systems.
  *
@@ -18,7 +14,11 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 2.0 93/10/06 21:10:28 julian Exp Locker: julian $
+ *	$Id: scsi_all.h,v 1.6 1993/11/18 05:02:49 rgrimes Exp $
+ */
+
+/*
+ * SCSI general  interface description
  */
 
 #ifndef	_SCSI_SCSI_ALL_H

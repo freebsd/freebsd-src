@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
+ * $Id$
  */
 
 #define	_PATH_LOG	"/dev/log"

@@ -26,8 +26,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
-
-*/
+ * $Id$
+ */
 
 #ifndef _DEV_TABLE_H_
 #define _DEV_TABLE_H_

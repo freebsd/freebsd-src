@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
+ * $Id$
  */
 
 #ifndef _SYS_PROC_H_

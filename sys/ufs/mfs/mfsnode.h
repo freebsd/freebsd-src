@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfsnode.h	8.2 (Berkeley) 8/11/93
+ * $Id$
  */
 
 /*

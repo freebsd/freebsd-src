@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)kern_acct.c	8.1 (Berkeley) 6/14/93
+ * $Id$
  */
 
 #include <sys/param.h>

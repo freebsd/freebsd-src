@@ -26,6 +26,8 @@
  *
  *  06/03/93 v0.1 Alpha release
  *  Initial revision.  Many more things should be moved here.
+ * 
+ * $Id$
  */
 
 /* QIC-117 command set. */

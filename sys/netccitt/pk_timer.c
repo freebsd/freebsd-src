@@ -39,6 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_timer.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 #include <sys/param.h>

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -59,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: iso.h,v 4.9 88/09/11 18:06:38 hagens Exp $ */
-/* $Source: /usr/argo/sys/netiso/RCS/iso.h,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/iso.h,v 1.1.1.1 1994/05/24 10:07:12 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/iso.h,v $ */
 
 #ifndef __ISO__
 #define __ISO__

@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.c	8.2 (Berkeley) 1/23/94
+ * $Id$
  */
 
 #include <sys/param.h>

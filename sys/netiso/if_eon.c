@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_eon.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -60,8 +61,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: if_eon.c,v 1.4 88/07/19 15:53:59 hagens Exp $ 
- * $Source: /usr/argo/sys/netiso/RCS/if_eon.c,v $ 
+ * $Header: /home/ncvs/src/sys/netiso/if_eon.c,v 1.1.1.1 1994/05/24 10:07:13 rgrimes Exp $ 
+ * $Source: /home/ncvs/src/sys/netiso/if_eon.c,v $ 
  *
  *	EON rfc 
  *  Layer between IP and CLNL
