@@ -384,38 +384,6 @@ g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length)
 	return (0);
 }
 
-struct g_provider *
-g_slice_addslice(struct g_geom *gp, int idx, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...)
-{
-	struct g_provider *pp;
-	struct g_slicer *gsp;
-	va_list ap;
-	struct sbuf *sb;
-
-	g_trace(G_T_TOPOLOGY, "g_slice_addslice()");
-	g_topology_assert();
-	gsp = gp->softc;
-	va_start(ap, fmt);
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-	sbuf_vprintf(sb, fmt, ap);
-	sbuf_finish(sb);
-	pp = g_new_providerf(gp, sbuf_data(sb));
-
-	pp->index = idx;
-	gsp->slices[idx].length = length;
-	gsp->slices[idx].offset = offset;
-	gsp->slices[idx].provider = pp;
-	gsp->slices[idx].sectorsize = sectorsize;
-	pp->mediasize = gsp->slices[idx].length;
-	pp->sectorsize = gsp->slices[idx].sectorsize;
-	sbuf_delete(sb);
-	if (bootverbose)
-		printf("GEOM: Add %s, start %jd length %jd end %jd\n",
-		    pp->name, (intmax_t)offset, (intmax_t)length,
-		    (intmax_t)(offset + length - 1));
-	return(pp);
-}
-
 struct g_geom *
 g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start)
 {
