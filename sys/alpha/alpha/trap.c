@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.3 1998/06/28 00:47:20 dfr Exp $ */
+/* $Id: trap.c,v 1.4 1998/07/05 12:24:17 dfr Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -295,6 +295,10 @@ trap(a0, a1, a2, entry, framep)
 			/* FALLTHROUTH */
 		case ALPHA_IF_CODE_BPT:
 		case ALPHA_IF_CODE_BUGCHK:
+			if (p->p_md.md_flags & (MDP_STEP1|MDP_STEP2)) {
+				ptrace_clear_single_step(p);
+				p->p_md.md_tf->tf_regs[FRAME_PC] -= 4;
+			}
 			ucode = a0;		/* trap type */
 			i = SIGTRAP;
 			break;
@@ -400,7 +404,41 @@ trap(a0, a1, a2, entry, framep)
 			}
 	
 			va = trunc_page((vm_offset_t)a0);
-			rv = vm_fault(map, va, ftype, FALSE);
+
+			if (map != kernel_map) {
+				/*
+				 * Keep swapout from messing with us
+				 * during thiscritical time.
+				 */
+				++p->p_lock;
+
+				/*
+				 * Grow the stack if necessary
+				 */
+				if ((caddr_t)va > vm->vm_maxsaddr
+				    && (caddr_t)va < (caddr_t)USRSTACK) {
+					if (!grow(p, va)) {
+						rv = KERN_FAILURE;
+						--p->p_lock;
+						goto nogo;
+					}
+				}
+
+				/* Fault in the user page: */
+				rv = vm_fault(map, va, ftype,
+					      (ftype & VM_PROT_WRITE)
+					      ? VM_FAULT_DIRTY : 0);
+
+				--p->p_lock;
+			} else {
+				/*
+				 * Don't have to worry about process
+				 * locking or stacks in the kernel.
+				 */
+				rv = vm_fault(map, va, ftype, FALSE);
+			}
+				
+		nogo:;
 			/*
 			 * If this was a stack access we keep track of the
 			 * maximum accessed stack size.  Also, if vm_fault
@@ -457,8 +495,10 @@ trap(a0, a1, a2, entry, framep)
 #endif
 	trapsignal(p, i, ucode);
 out:
-	if (user)
+	if (user) {
+		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
 		userret(p, framep->tf_regs[FRAME_PC], sticks);
+	}
 	return;
 
 dopanic:
