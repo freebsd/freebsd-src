@@ -98,6 +98,10 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 
+# RAID controllers
+device		amr		# AMI MegaRAID
+device		mlx		# Mylex DAC960 family
+
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
