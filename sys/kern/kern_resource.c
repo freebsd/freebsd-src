@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.38 1998/07/27 19:16:21 bde Exp $
+ * $Id: kern_resource.c,v 1.39 1999/01/30 06:25:00 newton Exp $
  */
 
 #include "opt_compat.h"
@@ -59,6 +59,7 @@
 #include <vm/vm_map.h>
 
 static int donice __P((struct proc *curp, struct proc *chgp, int n));
+/* dosetrlimit non-static:  Needed by SysVR4 emulator */
 int dosetrlimit __P((struct proc *p, u_int which, struct rlimit *limp));
 
 /*
