@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_vprompt.c#5 $
+ * $P4: //depot/projects/openpam/lib/pam_vprompt.c#6 $
  */
 
 #include <stdarg.h>
@@ -72,6 +72,7 @@ pam_vprompt(pam_handle_t *pamh,
 	msg.msg_style = style;
 	msg.msg = msgbuf;
 	msgp = &msg;
+	rsp = NULL;
 	r = (conv->conv)(1, &msgp, &rsp, conv->appdata_ptr);
 	*resp = rsp == NULL ? NULL : rsp->resp;
 	free(rsp);
