@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.49 1998/03/23 21:04:06 jb Exp $
+#	$Id: Makefile.inc,v 1.50 1998/03/28 11:48:48 dufault Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -26,7 +26,12 @@ SRCS+=	netbsd_getdirentries.c netbsd_msync.c netbsd_stat.c netbsd_swapon.c
 .endif
 
 # Sources common to both syscall interfaces:
-SRCS+=	__error.c ftruncate.c lseek.c mmap.c truncate.c
+SRCS+=	ftruncate.c lseek.c mmap.c truncate.c
+
+# Build __error() into libc, but not libc_r which has it's own:
+.if ${LIB} == "c"
+SRCS+=	__error.c
+.endif
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
