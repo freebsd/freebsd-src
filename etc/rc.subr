@@ -146,7 +146,7 @@ checkyesno()
 reverse_list()
 {
 	_revlist=
-	for _revfile in $*; do
+	for _revfile; do
 		_revlist="$_revfile $_revlist"
 	done
 	echo $_revlist
@@ -289,7 +289,7 @@ _find_processes()
 #
 wait_for_pids()
 {
-	_list=$*
+	_list="$@"
 	if [ -z "$_list" ]; then
 		return
 	fi
@@ -888,7 +888,7 @@ rc_usage()
 	echo -n 1>&2 "Usage: $0 [fast|force]("
 
 	_sep=
-	for _elem in $*; do
+	for _elem; do
 		echo -n 1>&2 "$_sep$_elem"
 		_sep="|"
 	done
