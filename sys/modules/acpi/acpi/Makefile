@@ -33,12 +33,17 @@ SRCS+=	utclib.c utcopy.c utdebug.c utdelete.c uteval.c
 SRCS+=	utglobal.c utinit.c utmath.c utmisc.c utobject.c
 SRCS+=	utxface.c
 
-# OSD layer
-SRCS+=	acpi.c acpi_acad.c acpi_battery.c acpi_button.c acpi_cmbat.c acpi_cpu.c
-SRCS+=	acpi_ec.c acpi_isab.c acpi_lid.c
+# OSPM layer and core hardware drivers
+SRCS+=	acpi.c acpi_button.c acpi_isab.c
 SRCS+=	acpi_package.c acpi_pci.c acpi_pcib.c acpi_pcib_acpi.c
-SRCS+=	acpi_pcib_pci.c acpi_powerres.c acpi_resource.c acpi_thermal.c
-SRCS+=	acpi_timer.c acpi_pci_link.c 
+SRCS+=	acpi_pcib_pci.c acpi_powerres.c acpi_resource.c
+SRCS+=	acpi_timer.c acpi_pci_link.c acpi_thermal.c
+
+# ACPI hardware drivers, mostly used for mobile systems.
+SRCS+=	acpi_acad.c acpi_battery.c acpi_cmbat.c acpi_cpu.c
+SRCS+=	acpi_ec.c acpi_lid.c
+
+# OSD layer
 SRCS+=	OsdDebug.c 
 SRCS+=	OsdHardware.c OsdInterrupt.c OsdMemory.c OsdSchedule.c
 SRCS+=	OsdStream.c OsdSynch.c OsdTable.c OsdEnvironment.c 
