@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.2 1998/04/30 07:48:00 dfr Exp $
+ *      $Id: rtld.c,v 1.3 1998/05/01 08:39:27 dfr Exp $
  */
 
 /*
@@ -126,6 +126,8 @@ static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
 static char *ld_library_path;	/* Environment variable for search path */
 static char *ld_tracing;	/* Called from ldd to print libs */
+static Obj_Entry **main_tail;	/* Value of obj_tail after loading main and
+				   its needed shared libraries */
 static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
 static Obj_Entry **obj_tail;	/* Link field of last object in list */
 static Obj_Entry *obj_main;	/* The main program shared object */
@@ -268,6 +270,7 @@ _rtld(Elf32_Word *sp, func_ptr_type *exit_proc)
     dbg("loading needed objects");
     if (load_needed_objects(obj_main) == -1)
 	die();
+    main_tail = obj_tail;
 
     if (ld_tracing) {		/* We're done */
 	trace_loaded_objects(obj_main);
@@ -1239,8 +1242,9 @@ dlsym(void *handle, const char *name)
     const Elf32_Sym *def;
 
     hash = elf_hash(name);
+    def = NULL;
 
-    if (handle == RTLD_NEXT) {
+    if (handle == NULL || handle == RTLD_NEXT) {
 	void *retaddr;
 
 	retaddr = __builtin_return_address(0);	/* __GNUC__ only */
@@ -1248,18 +1252,29 @@ dlsym(void *handle, const char *name)
 	    _rtld_error("Cannot determine caller's shared object");
 	    return NULL;
 	}
-	def = NULL;
-	while ((obj = obj->next) != NULL)
-	    if ((def = symlook_obj(name, hash, obj, true)) != NULL)
-		break;
+	if (handle == NULL)	/* Just the caller's shared object. */
+	    def = symlook_obj(name, hash, obj, true);
+	else {			/* All the shared objects after the caller's */
+	    while ((obj = obj->next) != NULL)
+		if ((def = symlook_obj(name, hash, obj, true)) != NULL)
+		    break;
+	}
     } else {
 	if ((obj = dlcheck(handle)) == NULL)
 	    return NULL;
-	/*
-	 * XXX - This isn't correct.  The search should include the whole
-	 * DAG rooted at the given object.
-	 */
-	def = symlook_obj(name, hash, obj, true);
+
+	if (obj->mainprog) {
+	    /* Search main program and all libraries loaded by it. */
+	    for ( ;  obj != *main_tail;  obj = obj->next)
+		if ((def = symlook_obj(name, hash, obj, true)) != NULL)
+		    break;
+	} else {
+	    /*
+	     * XXX - This isn't correct.  The search should include the whole
+	     * DAG rooted at the given object.
+	     */
+	    def = symlook_obj(name, hash, obj, true);
+	}
     }
 
     if (def != NULL)
