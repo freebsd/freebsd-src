@@ -85,6 +85,7 @@ Static usbd_status uhub_explore(usbd_device_handle hub);
 Static void uhub_intr(usbd_xfer_handle, usbd_private_handle,usbd_status);
 
 #if defined(__FreeBSD__)
+Static bus_driver_added_t uhub_driver_added;
 Static bus_child_detached_t uhub_child_detached;
 #endif
 
@@ -105,6 +106,7 @@ struct cfattach uhub_uhub_ca = {
 };
 #elif defined(__FreeBSD__)
 USB_DECLARE_DRIVER_INIT(uhub,
+			DEVMETHOD(bus_driver_added, uhub_driver_added),
 			DEVMETHOD(bus_child_detached, uhub_child_detached),
 			DEVMETHOD(device_suspend, bus_generic_suspend),
 			DEVMETHOD(device_resume, bus_generic_resume),
@@ -597,6 +599,19 @@ uhub_child_detached(device_t self, device_t child)
                        }
                }
        }
+}
+
+Static void
+uhub_driver_added(device_t _dev, driver_t *_driver)
+{
+	/* Don't do anything, as reprobing does not work currently. We should
+	 * really call through to usbd_new_device or a function along those
+	 * lines that reinitialises the device if it is not owned by any
+	 * driver. But this is complicated. Manual replugging by the user is
+	 * easier.
+	 */
+
+	 ;
 }
 #endif
 
