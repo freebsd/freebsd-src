@@ -3,20 +3,11 @@
 |                  P C V T  -  VT220 Terminal Emulation Driver                 |
 |                  -------------------------------------------                 |
 |                                                                              |
-|                         NetBSD   0.9, 1.0                                    |
-|                         FreeBSD  1.0, 1.1, 1.1.5.1, 2.0                      |
-|                                                                              |
-|                          Release 3.20    April 1995                          |
-|                                                                              |
-|                         ----------------------------                         |
-|                         ========>> BETA 24 <<=======                         |
-|                         ----------------------------                         |
-|                                                                              |
-|                       (c) Copyright 1992,1993,1994,1995 by                   |
+|                       (c) Copyright 1992, 2000 by                            |
 |                                                                              |
 |                              Hellmuth Michaelis                              |
-|                              Eggerstedtstrasse 28                            |
-|                              22765 Hamburg                                   |
+|                              Hallstr.20                                      |
+|                              Rellingen                                       |
 |                              Europe                                          |
 |                                                                              |
 |       For the contributors copyrights which apply to parts of the source     |
@@ -24,7 +15,7 @@
 |                                                                              |
 ================================================================================
 
-Written by:                 Hellmuth Michaelis                       (hm@hcs.de)
+Written by:                 Hellmuth Michaelis                  (hm@freebsd.org)
 
 The major contributors to pcvt are Brian and Joerg, pcvt would not be what it
 is without the help, the support and the code from Joerg:
@@ -148,7 +139,6 @@ What it cannot:
         - No VT52 support at all
         - No 8-bit controls
         - Only limited AT-keyboard (84 keys) support
-        - Help you to make money ....
 
 
 The entire pcvt package consists of:
@@ -171,88 +161,6 @@ The entire pcvt package consists of:
         - vga and keyboard register-level debugging utilities
         
 
-Tested Operating Systems
---------------------------------------------------------------------------------
-
-        NetBSD 0.9                      pcvt release 3.20-b2 tested
-
-        NetBSD 1.0                      pcvt release 3.20-b24 tested
-
-        NetBSD-current (post 1.0)       reported to run (end of March '95)
-
-
-        FreeBSD 1.1R                    pcvt release 3.20-b7 tested
-
-        FreeBSD 1.1.5.1R                pcvt release 3.20-b24 tested
-
-        FreeBSD 2.0                     pcvt release 3.20-b24 tested
-
-        FreeBSD-current (post 2.0)      reported to run (end of March '95)
-
-
-
-Installation / Upgrade
---------------------------------------------------------------------------------
-
-  R E A D (!!!) THE INSTRUCTIONS IN THE Doc/INSTALL.xxxBSD FILES CAREFULLY !
-  ==========================================================================
-
-        Again:  PLEASE  R E A D   T H E M  !!!!!             (Thank You! ;-)
-        ========================================
-
-  If you read them, you should have NO problems installing pcvt on your
-  system, if you don't read them, you'll probably run into problems ...
-
-  If you run into any difficulties, please read Doc/NotesAndHints !
-
-NOTE 1:
--------
-  It is highly recommended in order to configure the driver into the system,
-  that you remove (and/or backup) your previous kernel compile directory and
-  do a fresh "config" with the new pcvt configuration. This has to be done
-  because the chain "config/make depend/make" obviously does not resolve ALL
-  dependencies!
-
-NOTE 2:
--------
-  You MUST copy or link the Util/Makefile.inc.X for your flavour of xxx(x)BSD
-  to Util/Makefile.inc . This is because FreeBSD handles manual pages
-  in a differnet way than NetBSD. Also you have to edit Doc/Makefile
-  to make this changes for the pcvt(4) manpage.
-
-NOTE 3:
--------
-  The driver now (from 2.10 on) DEPENDS on the BIOS video display setting 
-  stored in the RTC CMOS Ram - verify your configuration setting!
-
-NOTE 4:
--------
-  If you are using the pcvt termcap entry from Etc/Termcap, please reinstall
-  this into /usr/share/misc/termcap if you are upgrading, the entry had bugs
-  in release 3.10 and all earlier releases.
-
-  After doing that, you may need to generate a new termcap database for newer
-  FreeBSD (2.0 and up) and NetBSD (1.0 and up) Releases: 
-             cd to /usr/share/misc and execute 'cap_mkdb termcap'.
-
-NOTE 5:
--------
-  The default keyboard layout is documented in Doc/Keyboard.HP unless you
-  compiled with PCVT_VT220KEY which is described in Doc/Keyboard.VT. Please
-  note that PCVT_VT220KEYB is not much supported, because i don't use it.
-
-NOTE 6:
--------
-  When upgrading from a previous version of the driver, you can remove now
-  the directory /usr/share/misc/vgafonts. It was moved in release 3.20 to
-  /usr/share/misc/pcvtfonts.
-
-NOTE 7:
--------
-  In case you don't like pcvt's white on red kernel messages, have a look at
-  the end of pcvt_conf.h, this is the place to change them.
-
-
 WYSIWYG - What You Share Is What You Get
 --------------------------------------------------------------------------------
 
@@ -265,8 +173,7 @@ hardware or simply don't get it up and running, get in contact with me!
 The code is far from being perfect, YOU are very welcome to enhance it !
 Please mail bug reports/fixes, suggestions, enhancements & diffs to 
 
-                        hm@hcs.de              or
-                        hm@altona.hamburg.com
+                        hm@freebsd.org
 
 I will support this driver as my time permits it, feel free to contact me!
 
@@ -274,18 +181,4 @@ Have fun!
 
 Hellmuth
 
-
-@home
------
-e-mail:  hm@altona.hamburg.com
-   tel:  +49 / 40 / 384298
-s-mail:  Eggerstedtstr. 28, 22765 Hamburg, Europe
-
-
-@work
------
-e-mail:  hm@hcs.de
-   tel:  +49 / 40 / 55903-170
-   fax:  +49 / 40 / 5591486
-s-mail:  GFKT HCS Computertechnik GmbH, Oldesloer Str. 97-99,
-         22457 Hamburg, Europe
+$FreeBSD$
