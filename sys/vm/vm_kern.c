@@ -336,11 +336,9 @@ kmem_malloc(map, size, flags)
 			}
 			return (0);
 		}
-#if 0
 		if ((flags & M_NOWAIT) == 0)
 			panic("kmem_malloc(%ld): kmem_map too small: %ld total allocated",
 				(long)size, (long)map->size);
-#endif
 		return (0);
 	}
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
