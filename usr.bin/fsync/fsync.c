@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,13 +53,13 @@ main(int argc, char *argv[])
 	for (i = 1; i < argc; ++i) {
 		if ((fd = open(argv[i], O_RDONLY)) < 0) {
 			warn("open %s", argv[i]);
-			rval = 1;
+			rval = errno;
 			continue;
 		}
 
 		if (fsync(fd) != 0) {
 			warn("fsync %s", argv[i]);
-			rval = 1;
+			rval = errno;
 		}
 		close(fd);
 	}
