@@ -666,6 +666,7 @@ dev/rp/rp.c		optional rp
 dev/rp/rp_isa.c		optional rp isa
 dev/rp/rp_pci.c		optional rp pci
 dev/sab/sab.c		optional sab ebus
+dev/safe/safe.c		optional safe
 dev/sbsh/if_sbsh.c      optional sbsh
 dev/scd/scd.c		optional scd isa
 dev/scd/scd_isa.c	optional scd isa
