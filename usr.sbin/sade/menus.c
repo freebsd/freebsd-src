@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.156 1998/03/09 14:24:21 ache Exp $
+ * $Id: menus.c,v 1.157 1998/03/09 15:01:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -438,10 +438,12 @@ DMenu MenuXF86Config = {
     "does not.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
-    { { "XF86Setup",	"Use the fully graphical XFree86 configuration tool.",
+    { { "XF86Setup",	"Fully graphical XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
-      { "xf86config",	"Use the shell-script based XFree86 configuration tool.",
+      { "xf86config",	"Shell-script based XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
+      { "XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF98Setup" },
       { NULL } },
 };
 
@@ -894,6 +896,8 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PS },
       { "set",		"XFree86 Setup Utility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
+      { "9set",		"XFree86 Setup Utility (PC98)",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
       { "sources",	"XFree86 3.3.1 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
       { "csources",	"XFree86 3.3.1 contrib sources",
@@ -974,8 +978,6 @@ DMenu MenuXF86SelectServer = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_W32 },
       { "nest",		"A nested server for testing purposes",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_NEST },
-      { "vfb",		"A virtual frame-buffer server",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_VFB },
       { "PC98",		"Select an X server for a NEC PC98 [Submenu]",
 	NULL,		dmenuSubmenu,  NULL, &MenuXF86SelectPC98Server, '>', ' ', '>', 0 },
       { "All",		"Select all of the above",
@@ -1006,12 +1008,16 @@ Mono servers are particularly well-suited to most LCD displays).",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9GAN },
       { "9LPW",		"PC98 PowerWindowLB (S3) card",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9LPW },
+      { "9MGA",		"PC98 MGA (Matrox) card",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9MGA },
       { "9NKV",		"PC98 NKV-NEC (cirrus) card",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9NKV },
       { "9NS3",		"PC98 NEC (S3) card",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9NS3 },
       { "9SPW",		"PC98 SKB-PowerWindow (S3) card",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9SPW },
+      { "9SVG",		"PC98 generic SVGA card",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9SVG },
       { "9TGU",		"PC98 Cyber9320 and TGUI9680 cards",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_9TGU },
       { "9WEP",		"PC98 WAB-EP (cirrus) card",
