@@ -259,13 +259,13 @@ SYSCTL_INT(_vm_stats_vhpt, OID_AUTO, collisions, CTLFLAG_RD,
 SYSCTL_INT(_vm_stats_vhpt, OID_AUTO, resident, CTLFLAG_RD,
 	   &pmap_vhpt_resident, 0, "");
 
-static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
-static pv_entry_t get_pv_entry __P((void));
-static void	ia64_protection_init __P((void));
+static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
+static pv_entry_t get_pv_entry(void);
+static void	ia64_protection_init(void);
 
-static void	pmap_invalidate_all  __P((pmap_t pmap));
-static void	pmap_remove_all __P((vm_page_t m));
-static void	pmap_enter_quick __P((pmap_t pmap, vm_offset_t va, vm_page_t m));
+static void	pmap_invalidate_all(pmap_t pmap);
+static void	pmap_remove_all(vm_page_t m);
+static void	pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static void	*pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);       
 
 vm_offset_t
