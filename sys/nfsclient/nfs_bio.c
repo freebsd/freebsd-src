@@ -1235,7 +1235,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	 * being called through vclean().  It is not clear that this is
 	 * unsafe.
 	 */
-	if (vp->v_iflag & VI_XLOCK)
+	if (vp->v_iflag & VI_DOOMED)
 		return (0);
 
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
