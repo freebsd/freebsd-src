@@ -92,7 +92,6 @@ static void	atm_aal5_cpcs_data(void *, KBuffer *);
 static caddr_t	atm_aal5_getname(void *);
 
 
-#if (defined(__FreeBSD__) && (BSD >= 199506))
 /*
  * New-style socket request routines
  */
@@ -118,8 +117,6 @@ struct pr_usrreqs	atm_aal5_usrreqs = {
 	soreceive,			/* pru_soreceive */
 	sopoll				/* pru_sopoll */
 };
-#endif
-
 
 /*
  * Local variables
@@ -723,11 +720,7 @@ atm_aal5_incoming(tok, cop, ap, tokp)
 	 * and it will allocate and setup most of the pcb.
 	 */
 	atm_sock_stat.as_inconn[atp0->atp_type]++;
-#if (defined(BSD) && (BSD >= 199103))
 	so = sonewconn(atp0->atp_socket, 0);
-#else
-	so = sonewconn(atp0->atp_socket);
-#endif
 
 	if (so) {
 		/*

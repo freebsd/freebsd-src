@@ -138,9 +138,6 @@ ipatm_ifoutput(ifp, m, dst)
 		}
 	} else {
 		struct in_ifaddr	*ia;
-#if (defined(BSD) && (BSD < 199306))
-		extern struct ifnet	loif;
-#endif
 
 		/*
 		 * No VCC to destination
@@ -166,11 +163,7 @@ ipatm_ifoutput(ifp, m, dst)
 		/*
 		 * Is this a broadcast packet ??
 		 */
-#if (defined(BSD) && (BSD >= 199306))
 		if (in_broadcast(((struct sockaddr_in *)dst)->sin_addr, ifp)) {
-#else
-		if (in_broadcast(((struct sockaddr_in *)dst)->sin_addr)) {
-#endif
 			struct ip_nif	*inp;
 			int	s;
 

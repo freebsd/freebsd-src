@@ -43,10 +43,7 @@
 /*
  * Global variable declarations
  */
-	/* atm_aal5.c */
-#if (defined(__FreeBSD__) && (BSD >= 199506))
 extern struct pr_usrreqs	atm_aal5_usrreqs;
-#endif
 
 	/* atm_proto.c */
 extern struct domain	atmdomain;
@@ -68,10 +65,7 @@ extern int		atm_dev_print;
 extern int		atm_print_data;
 extern struct sp_info	atm_attributes_pool;
 
-	/* atm_usrreq.c */
-#if (defined(__FreeBSD__) && (BSD >= 199506))
 extern struct pr_usrreqs	atm_dgram_usrreqs;
-#endif
 
 
 /*
@@ -124,27 +118,20 @@ int		atm_netconv_deregister(struct atm_ncm *);
 int		atm_nif_attach(struct atm_nif *);
 void		atm_nif_detach(struct atm_nif *);
 int		atm_nif_setaddr(struct atm_nif *, struct ifaddr *);
-#if (defined(BSD) && (BSD >= 199103))
 int		atm_ifoutput(struct ifnet *, KBuffer *,
 			struct sockaddr *, struct rtentry *);
-#else
-int		atm_ifoutput(struct ifnet *, KBuffer *,
-			struct sockaddr *);
-#endif
 struct atm_pif *
 		atm_pifname(char *);
 struct atm_nif *
 		atm_nifname(char *);
 
 	/* atm_proto.c */
-#if (defined(__FreeBSD__) && (BSD >= 199506))
 int		atm_proto_notsupp1(struct socket *);
 int		atm_proto_notsupp2(struct socket *, struct sockaddr *,
 			struct thread *);
 int		atm_proto_notsupp3(struct socket *, struct sockaddr **);
 int		atm_proto_notsupp4(struct socket *, int, KBuffer *, 
 			struct sockaddr *, KBuffer *, struct thread *);
-#endif
 
 	/* atm_signal.c */
 int		atm_sigmgr_register(struct sigmgr *);
@@ -187,13 +174,5 @@ int		atm_stack_enq(int, void (*)(int, void *, int, int),
 void		atm_stack_drain(void);
 void		atm_intr(void);
 void		atm_pdu_print(KBuffer *, char *);
-
-	/* atm_usrreq.c */
-#if (!(defined(__FreeBSD__) && (BSD >= 199506)))
-int		atm_dgram_usrreq(struct socket *, int, KBuffer *,
-			KBuffer *, KBuffer *);
-#endif
-
 #endif	/* _KERNEL */
-
 #endif	/* _NETATM_ATM_VAR_H */

@@ -127,18 +127,12 @@ ipatm_ipinput(inp, m)
 	struct ip_nif	*inp;
 	KBuffer		*m;
 {
-#if	BSD < 199103
-	int		space;
-#endif
 
 #ifdef DIAGNOSTIC
 	if (ipatm_print) {
 		atm_pdu_print(m, "ipatm_ipinput");
 	}
 #endif
-
-#if defined(BSD)
-#if BSD >= 199103
 
 #ifdef DIAGNOSTIC
 	if (!KB_ISPKT(m)) {
@@ -162,43 +156,6 @@ ipatm_ipinput(inp, m)
 	 */
 	m->m_pkthdr.rcvif = (struct ifnet *)inp->inf_nif;
 
-#else	/* ! BSD >= 199103 */
-	/*
-	 * Stick ifnet pointer onto front of packet - hopefully 
-	 * there'll be room in the first buffer.
-	 */
-	KB_HEADROOM(m, space);
-	if (space < sizeof(struct ifnet *)) {
-		KBuffer		*n;
-
-		/*
-		 * We have to allocate another buffer and tack it
-		 * onto the front of the packet
-		 */
-		KB_ALLOCPKT(n, sizeof(struct ifnet *),
-			KB_F_NOWAIT, KB_T_HEADER);
-		if (n == 0) {
-			KB_FREEALL(m);
-			ipatm_stat.ias_rcvnobuf++;
-			return (1);
-		}
-		KB_LEN(n) = sizeof(struct ifnet *);
-		KB_LINKHEAD(n, m);
-		m = n;
-	} else {
-		/*
-		 * Header fits, just adjust buffer controls
-		 */
-		KB_HEADADJ(m, sizeof(struct ifnet *));
-	}
-	{
-		struct ifnet	**p;
-
-		KB_DATASTART(m, p, struct ifnet **);
-		*p = (struct ifnet *)inp->inf_nif;
-	}
-#endif	/* ! BSD >= 199103 */
-
 	/*
 	 * Finally, hand packet off to IP.
 	 *
@@ -208,13 +165,7 @@ ipatm_ipinput(inp, m)
 	 */
 	if (! IF_HANDOFF(&ipintrq, m, NULL))
 		return (1);
-#if	BSD < 199506
-	ipintr();
-#else
 	schednetisr ( NETISR_IP );
-#endif	/* BSD >= 199506 */
-#endif	/* defined(BSD) */
-
 	return (0);
 }
 
