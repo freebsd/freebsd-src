@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	uuencode
-WARNS?=	2
 MAN=	uuencode.1 uuencode.format.5
 MLINKS=	uuencode.1 uudecode.1 \
 	uuencode.format.5 uuencode.5
