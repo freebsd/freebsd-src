@@ -12,30 +12,20 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_setup.s,v 1.4 1994/10/10 01:14:03 phk Exp $
+ *	$Id: apm_setup.s,v 1.5 1995/02/17 02:22:23 phk Exp $
  */
 
 #include "apm.h"
   
 #if NAPM > 0
 
-#ifdef __FreeBSD__
 #define ASSEMBLER
 #include "assym.s"                    /* system definitions */
 #include <machine/asmacros.h>         /* miscellaneous asm macros */
 #include <machine/apm_bios.h>
 #include <machine/apm_segments.h>
 #define PADDR(addr)        addr-KERNBASE
-#endif /* __FreeBSD__ */
   
-#ifdef MACH_KERNEL
-#define ASSEMBLER
-#include "assym.s"
-#include "i386at/apm_bios.h"
-#include "i386at/apm_segments.h"
-#define PADDR(addr)        addr-KERNELBASE
-#endif /* MACH_KERNEL */
-
 	.file	"apm_setup.s"
 
 	.data
@@ -43,12 +33,7 @@ _apm_init_image:
 	.globl	_apm_init_image
 
 1:
-#ifdef __FreeBSD__
 #include "i386/apm/apm_init/apm_init.inc"
-#endif /* __FreeBSD__ */
-#ifdef MACH_KERNEL
-#include "i386at/apm_init/apm_init.inc"
-#endif /* MACH_KERNEL */
 2:
 
 _apm_init_image_size:
@@ -168,6 +153,7 @@ _apm_setup:
 	APM_SETUP_GDT(APM_INIT_CS_INDEX  , CS32_ATTRIB)
 	APM_SETUP_GDT(APM_INIT_DS_INDEX  , DS32_ATTRIB)
 	APM_SETUP_GDT(APM_INIT_CS16_INDEX, CS16_ATTRIB)
+	APM_SETUP_GDT(APM_INIT_DS16_INDEX, DS16_ATTRIB)
 
 	/*
 	 * Call the initializer:
