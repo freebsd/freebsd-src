@@ -140,8 +140,6 @@ MALLOC_DECLARE(M_KQUEUE);
 #define KNOTE(list, hist, lock)		knote(list, hist, lock)
 #define KNOTE_LOCKED(list, hint)	knote(list, hint, 1)
 #define KNOTE_UNLOCKED(list, hint)	knote(list, hint, 0)
-#define KNOTE_STATUS_BEGIN(kn)		knote_status(kn, 1)
-#define KNOTE_STATUS_END(kn)		knote_status(kn, 0)
 
 /*
  * Flag indicating hint is a signal.  Used by EVFILT_SIGNAL, and also
@@ -200,7 +198,6 @@ struct proc;
 struct knlist;
 
 extern void	knote(struct knlist *list, long hint, int islocked);
-extern void	knote_status(struct knote *kn, int begin);
 extern void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);
 extern void	knlist_remove(struct knlist *knl, struct knote *kn, int islocked);
 extern void	knlist_remove_inevent(struct knlist *knl, struct knote *kn);
