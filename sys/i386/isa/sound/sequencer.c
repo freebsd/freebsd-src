@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
+ * $FreeBSD$
  */
 
 #define SEQUENCER_C
@@ -363,10 +364,7 @@ sequencer_write(int dev, struct fileinfo * file, snd_rw_buf * buf, int count)
 	    if (!seq_playing)
 		seq_startplay();
 
-	    if (!processed && 0)
-		return -(EAGAIN);
-	    else
-		return processed;
+	    return processed;
 	}
 	p += ev_size;
 	c -= ev_size;
