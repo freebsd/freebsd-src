@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.113 1999/04/20 09:08:51 kato Exp $
+ *	$Id: machdep.c,v 1.114 1999/04/28 08:03:54 kato Exp $
  */
 
 #include "apm.h"
@@ -1669,7 +1669,6 @@ init386(first)
 #ifdef VM86
 	proc0.p_addr->u_pcb.pcb_ext = 0;
 #endif
-	SET_CURPROC(&proc0);
 
 	/* Sigh, relocate physical addresses left from bootstrap */
 	if (bootinfo.bi_modulep) {
