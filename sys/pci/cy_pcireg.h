@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pcireg.h,v 1.3 1997/02/22 09:44:01 peter Exp $
+ *	$Id: cy_pcireg.h,v 1.4 1999/01/11 23:35:01 bde Exp $
  */
 
 #define CY_VENDORID_CYCLADES		0x120e
@@ -42,8 +42,8 @@
 #define CY_PLX_9060_ICS_IENABLE		0x100
 #define CY_PLX_9060_ICS_LOCAL_IENABLE	0x800
 
-/* Cyclom-Y Custom Register for PLX ID */
-#define	PLX_VER				(0x3400)
+/* Cyclom-Y Custom Register for PLX ID. */
+#define	PLX_VER				0x3400
 #define	PLX_9050			0x0b
 #define	PLX_9060			0x0c
 #define	PLX_9080			0x0d
