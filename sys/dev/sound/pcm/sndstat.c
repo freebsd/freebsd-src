@@ -22,15 +22,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/vchan.h>
-#include <sys/sbuf.h>
 
-#include "feeder_if.h"
+SND_DECLARE_FILE("$FreeBSD$");
+
+#define	SS_TYPE_MODULE		0
+#define	SS_TYPE_FIRST		1
+#define	SS_TYPE_PCM		1
+#define	SS_TYPE_MIDI		2
+#define	SS_TYPE_SEQUENCER	3
+#define	SS_TYPE_LAST		3
 
 static d_open_t sndstat_open;
 static d_close_t sndstat_close;
@@ -52,16 +56,31 @@ static struct cdevsw sndstat_cdevsw = {
 	/* flags */	0,
 };
 
+struct sndstat_entry {
+	SLIST_ENTRY(sndstat_entry) link;
+	device_t dev;
+	char *str;
+	sndstat_handler handler;
+	int type, unit;
+};
+
+#ifdef	USING_MUTEX
+static struct mtx sndstat_lock;
+#endif
 static struct sbuf sndstat_sbuf;
 static dev_t sndstat_dev = 0;
 static int sndstat_isopen = 0;
 static int sndstat_bufptr;
+static int sndstat_maxunit = -1;
+static int sndstat_files = 0;
 
-static int sndstat_verbose = 0;
+static SLIST_HEAD(, sndstat_entry) sndstat_devlist = SLIST_HEAD_INITIALIZER(none);
+
+static int sndstat_verbose = 1;
 #ifdef	USING_MUTEX
 TUNABLE_INT("hw.snd.verbose", &sndstat_verbose);
 #else
-TUNABLE_INT_DECL("hw.snd.verbose", 0, sndstat_verbose);
+TUNABLE_INT_DECL("hw.snd.verbose", 1, sndstat_verbose);
 #endif
 
 static int sndstat_prepare(struct sbuf *s);
@@ -69,15 +88,20 @@ static int sndstat_prepare(struct sbuf *s);
 static int
 sysctl_hw_sndverbose(SYSCTL_HANDLER_ARGS)
 {
+	intrmask_t s;
 	int error, verbose;
 
 	verbose = sndstat_verbose;
 	error = sysctl_handle_int(oidp, &verbose, sizeof(verbose), req);
 	if (error == 0 && req->newptr != NULL) {
-		if (verbose == 0 || verbose == 1)
-			sndstat_verbose = verbose;
-		else
+		s = spltty();
+		mtx_lock(&sndstat_lock);
+		if (verbose < 0 || verbose > 3)
 			error = EINVAL;
+		else
+			sndstat_verbose = verbose;
+		mtx_unlock(&sndstat_lock);
+		splx(s);
 	}
 	return error;
 }
@@ -91,11 +115,14 @@ sndstat_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	int err;
 
 	s = spltty();
+	mtx_lock(&sndstat_lock);
 	if (sndstat_isopen) {
+		mtx_unlock(&sndstat_lock);
 		splx(s);
 		return EBUSY;
 	}
 	if (sbuf_new(&sndstat_sbuf, NULL, 4096, 0) == NULL) {
+		mtx_unlock(&sndstat_lock);
 		splx(s);
 		return ENXIO;
 	}
@@ -104,6 +131,7 @@ sndstat_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	if (!err)
 		sndstat_isopen = 1;
 
+	mtx_unlock(&sndstat_lock);
 	splx(s);
 	return err;
 }
@@ -114,13 +142,16 @@ sndstat_close(dev_t i_dev, int flags, int mode, struct proc *p)
 	intrmask_t s;
 
 	s = spltty();
+	mtx_lock(&sndstat_lock);
 	if (!sndstat_isopen) {
+		mtx_unlock(&sndstat_lock);
 		splx(s);
 		return EBADF;
 	}
 	sbuf_delete(&sndstat_sbuf);
 	sndstat_isopen = 0;
 
+	mtx_unlock(&sndstat_lock);
 	splx(s);
 	return 0;
 }
@@ -132,7 +163,9 @@ sndstat_read(dev_t i_dev, struct uio *buf, int flag)
 	int l, err;
 
 	s = spltty();
+	mtx_lock(&sndstat_lock);
 	if (!sndstat_isopen) {
+		mtx_unlock(&sndstat_lock);
 		splx(s);
 		return EBADF;
 	}
@@ -140,85 +173,169 @@ sndstat_read(dev_t i_dev, struct uio *buf, int flag)
 	err = (l > 0)? uiomove(sbuf_data(&sndstat_sbuf) + sndstat_bufptr, l, buf) : 0;
 	sndstat_bufptr += l;
 
+	mtx_unlock(&sndstat_lock);
 	splx(s);
 	return err;
 }
 
+/************************************************************************/
+
+static struct sndstat_entry *
+sndstat_find(int type, int unit)
+{
+	struct sndstat_entry *ent;
+
+	SLIST_FOREACH(ent, &sndstat_devlist, link) {
+		if (ent->type == type && ent->unit == unit)
+			return ent;
+	}
+
+	return NULL;
+}
+
+int
+sndstat_register(device_t dev, char *str, sndstat_handler handler)
+{
+	intrmask_t s;
+	struct sndstat_entry *ent;
+	const char *devtype;
+	int type, unit;
+
+	if (dev) {
+		unit = device_get_unit(dev);
+		devtype = device_get_name(dev);
+		if (!strcmp(devtype, "pcm"))
+			type = SS_TYPE_PCM;
+		else if (!strcmp(devtype, "midi"))
+			type = SS_TYPE_MIDI;
+		else if (!strcmp(devtype, "sequencer"))
+			type = SS_TYPE_SEQUENCER;
+		else
+			return EINVAL;
+	} else {
+		type = SS_TYPE_MODULE;
+		unit = -1;
+	}
+
+	ent = malloc(sizeof *ent, M_DEVBUF, M_ZERO | M_WAITOK);
+	if (!ent)
+		return ENOSPC;
+
+	ent->dev = dev;
+	ent->str = str;
+	ent->type = type;
+	ent->unit = unit;
+	ent->handler = handler;
+
+	s = spltty();
+	mtx_lock(&sndstat_lock);
+	SLIST_INSERT_HEAD(&sndstat_devlist, ent, link);
+	if (type == SS_TYPE_MODULE)
+		sndstat_files++;
+	sndstat_maxunit = (unit > sndstat_maxunit)? unit : sndstat_maxunit;
+	mtx_unlock(&sndstat_lock);
+	splx(s);
+
+	return 0;
+}
+
+int
+sndstat_registerfile(char *str)
+{
+	return sndstat_register(NULL, str, NULL);
+}
+
+int
+sndstat_unregister(device_t dev)
+{
+	intrmask_t s;
+	struct sndstat_entry *ent;
+
+	s = spltty();
+	mtx_lock(&sndstat_lock);
+	SLIST_FOREACH(ent, &sndstat_devlist, link) {
+		if (ent->dev == dev) {
+			SLIST_REMOVE(&sndstat_devlist, ent, sndstat_entry, link);
+			free(ent, M_DEVBUF);
+			mtx_unlock(&sndstat_lock);
+			splx(s);
+
+			return 0;
+		}
+	}
+	mtx_unlock(&sndstat_lock);
+	splx(s);
+
+	return ENXIO;
+}
+
+int
+sndstat_unregisterfile(char *str)
+{
+	intrmask_t s;
+	struct sndstat_entry *ent;
+
+	s = spltty();
+	mtx_lock(&sndstat_lock);
+	SLIST_FOREACH(ent, &sndstat_devlist, link) {
+		if (ent->dev == NULL && ent->str == str) {
+			SLIST_REMOVE(&sndstat_devlist, ent, sndstat_entry, link);
+			free(ent, M_DEVBUF);
+			sndstat_files--;
+			mtx_unlock(&sndstat_lock);
+			splx(s);
+
+			return 0;
+		}
+	}
+	mtx_unlock(&sndstat_lock);
+	splx(s);
+
+	return ENXIO;
+}
+
+/************************************************************************/
+
 static int
 sndstat_prepare(struct sbuf *s)
 {
-    	int i, pc, rc, vc;
-    	device_t dev;
-    	struct snddev_info *d;
-    	struct snddev_channel *sce;
-	struct pcm_channel *c;
-	struct pcm_feeder *f;
+	struct sndstat_entry *ent;
+    	int i, j;
 
-	sbuf_printf(s, "FreeBSD Audio Driver (newpcm) %s %s\n", __DATE__, __TIME__);
-	if (!pcm_devclass || devclass_get_maxunit(pcm_devclass) == 0) {
+	sbuf_printf(s, "FreeBSD Audio Driver (newpcm)\n");
+	if (SLIST_EMPTY(&sndstat_devlist)) {
 		sbuf_printf(s, "No devices installed.\n");
 		sbuf_finish(s);
     		return sbuf_len(s);
-	} else
-		sbuf_printf(s, "Installed devices:\n");
+	}
 
-    	for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
-		d = devclass_get_softc(pcm_devclass, i);
-		if (!d)
-			continue;
-		snd_mtxlock(d->lock);
-		dev = devclass_get_device(pcm_devclass, i);
-		sbuf_printf(s, "pcm%d: <%s> %s", i, device_get_desc(dev), d->status);
-		if (!SLIST_EMPTY(&d->channels)) {
-			pc = rc = vc = 0;
-			SLIST_FOREACH(sce, &d->channels, link) {
-				c = sce->channel;
-				if (c->direction == PCMDIR_PLAY) {
-					if (c->flags & CHN_F_VIRTUAL)
-						vc++;
-					else
-						pc++;
-				} else
-					rc++;
-			}
-			sbuf_printf(s, " (%dp/%dr/%dv channels%s%s)\n", pc, rc, vc,
-					(d->flags & SD_F_SIMPLEX)? "" : " duplex",
-#ifdef USING_DEVFS
-					(i == snd_unit)? " default" : ""
-#else
-					""
-#endif
-					);
-			if (!sndstat_verbose)
-				goto skipverbose;
-			SLIST_FOREACH(sce, &d->channels, link) {
-				c = sce->channel;
-				sbuf_printf(s, "\t%s[%s]: speed %d, format %08x, flags %08x",
-					c->parentchannel? c->parentchannel->name : "",
-					c->name, c->speed, c->format, c->flags);
-				if (c->pid != -1)
-					sbuf_printf(s, ", pid %d", c->pid);
-				sbuf_printf(s, "\n\t");
-				f = c->feeder;
-				while (f) {
-					sbuf_printf(s, "%s", f->class->name);
-					if (f->desc->type == FEEDER_FMT)
-						sbuf_printf(s, "(%08x <- %08x)", f->desc->out, f->desc->in);
-					if (f->desc->type == FEEDER_RATE)
-						sbuf_printf(s, "(%d <- %d)", FEEDER_GET(f, FEEDRATE_DST), FEEDER_GET(f, FEEDRATE_SRC));
-					if (f->desc->type == FEEDER_ROOT || f->desc->type == FEEDER_MIXER)
-						sbuf_printf(s, "(%08x)", f->desc->out);
-					if (f->source)
-						sbuf_printf(s, " <- ");
-					f = f->source;
-				}
-				sbuf_printf(s, "\n");
-			}
-skipverbose:
-		} else
-			sbuf_printf(s, " (mixer only)\n");
-		snd_mtxunlock(d->lock);
+	sbuf_printf(s, "Installed devices:\n");
+
+    	for (i = 0; i <= sndstat_maxunit; i++) {
+		for (j = SS_TYPE_FIRST; j <= SS_TYPE_LAST; j++) {
+			ent = sndstat_find(j, i);
+			if (!ent)
+				continue;
+			sbuf_printf(s, "%s:", device_get_nameunit(ent->dev));
+			sbuf_printf(s, " <%s>", device_get_desc(ent->dev));
+			sbuf_printf(s, " %s", ent->str);
+			if (ent->handler)
+				ent->handler(s, ent->dev, sndstat_verbose);
+			else
+				sbuf_printf(s, " [no handler]");
+			sbuf_printf(s, "\n");
+		}
     	}
+
+	if (sndstat_verbose >= 3 && sndstat_files > 0) {
+		sbuf_printf(s, "\nFile Versions:\n");
+
+		SLIST_FOREACH(ent, &sndstat_devlist, link) {
+			if (ent->dev == NULL && ent->str != NULL)
+				sbuf_printf(s, "%s\n", ent->str);
+		}
+	}
+
 	sbuf_finish(s);
     	return sbuf_len(s);
 }
@@ -226,6 +343,7 @@ skipverbose:
 static int
 sndstat_init(void)
 {
+	mtx_init(&sndstat_lock, "sndstat", 0);
 	sndstat_dev = make_dev(&sndstat_cdevsw, SND_DEV_STATUS, UID_ROOT, GID_WHEEL, 0444, "sndstat");
 
 	return (sndstat_dev != 0)? 0 : ENXIO;
@@ -237,7 +355,9 @@ sndstat_uninit(void)
 	intrmask_t s;
 
 	s = spltty();
+	mtx_lock(&sndstat_lock);
 	if (sndstat_isopen) {
+		mtx_unlock(&sndstat_lock);
 		splx(s);
 		return EBUSY;
 	}
@@ -247,6 +367,7 @@ sndstat_uninit(void)
 	sndstat_dev = 0;
 
 	splx(s);
+	mtx_destroy(&sndstat_lock);
 	return 0;
 }
 
@@ -262,7 +383,7 @@ sndstat_sysuninit(void *p)
 	sndstat_uninit();
 }
 
-SYSINIT(sndstat_sysinit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sndstat_sysinit, NULL);
-SYSUNINIT(sndstat_sysuninit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sndstat_sysuninit, NULL);
+SYSINIT(sndstat_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysinit, NULL);
+SYSUNINIT(sndstat_sysuninit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysuninit, NULL);
 
 

@@ -23,8 +23,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- *
  * The order of pokes in the initiation sequence is based on Linux
  * driver by Thomas Sailer, gw boynton (wesb@crystal.cirrus.com), tom
  * woller (twoller@crystal.cirrus.com).  Shingo Watanabe (nabe@nabechan.org)
@@ -38,6 +36,8 @@
 #include <pci/pcivar.h>
 
 #include <dev/sound/pci/cs4281.h>
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 #define CS4281_BUFFER_SIZE 16384
 
@@ -970,7 +970,7 @@ static device_method_t cs4281_methods[] = {
 static driver_t cs4281_driver = {
     "pcm",
     cs4281_methods,
-    sizeof(struct snddev_info),
+    PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_cs4281, pci, cs4281_driver, pcm_devclass, 0, 0);

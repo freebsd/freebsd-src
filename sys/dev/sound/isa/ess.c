@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -37,6 +35,8 @@
 #include  <dev/sound/chip.h>
 
 #include "mixer_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 #define ESS_BUFFSIZE (4096)
 #define ABS(x) (((x) < 0)? -(x) : (x))
@@ -920,7 +920,7 @@ static device_method_t ess_methods[] = {
 static driver_t ess_driver = {
 	"pcm",
 	ess_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_ess, sbc, ess_driver, pcm_devclass, 0, 0);
@@ -992,7 +992,7 @@ static device_method_t esscontrol_methods[] = {
 static driver_t esscontrol_driver = {
 	"esscontrol",
 	esscontrol_methods,
-	sizeof(struct snddev_info),
+	1,
 };
 
 DRIVER_MODULE(esscontrol, isa, esscontrol_driver, esscontrol_devclass, 0, 0);
