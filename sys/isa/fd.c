@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.40 1994/11/02 09:08:40 jkh Exp $
+ *	$Id: fd.c,v 1.41 1994/11/08 05:42:10 jkh Exp $
  *
  */
 
@@ -776,7 +776,7 @@ Fdopen(dev, flags)
 		out_fdc(fdc->fdcu, fdu);
 		st3 = in_fdc(fdc->fdcu);
 		if(st3 & NE7_ST3_WP)  {
-			printf("fd%d: Floppy not writable\n", fdu);
+			printf("fd%d: write protected\n", fdu);
 			set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNOFF);
 			return(EPERM);
 		}
