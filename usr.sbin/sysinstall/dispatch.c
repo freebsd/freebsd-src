@@ -73,7 +73,6 @@ static struct _word {
     { "distSetXUser",		distSetXUser		},
     { "distSetMinimum",		distSetMinimum		},
     { "distSetEverything",	distSetEverything	},
-    { "distSetCRYPTO",		distSetCRYPTO		},
     { "distSetSrc",		distSetSrc		},
     { "distSetXF86",		distSetXF86		},
     { "distExtractAll",		distExtractAll		},

@@ -375,6 +375,7 @@ extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
 extern DMenu		MenuMediaTape;		/* Tape media menu				*/
 extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
 extern DMenu		MenuNTP;		/* NTP time server menu				*/
+extern DMenu		MenuSecurityProfile;	/* Security profile menu			*/
 extern DMenu		MenuStartup;		/* Startup services menu			*/
 extern DMenu		MenuSyscons;		/* System console configuration menu		*/
 extern DMenu		MenuSysconsFont;	/* System console font configuration menu	*/
@@ -387,7 +388,6 @@ extern DMenu		MenuInstallCustom;	/* Custom Installation menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
 extern DMenu		MenuDiskDevices;	/* Disk type devices				*/
 extern DMenu		MenuSubDistributions;	/* Custom distribution menu			*/
-extern DMenu		MenuCRYPTODistributions;/* Encryption distribution menu			*/
 extern DMenu		MenuSrcDistributions;	/* Source distribution menu			*/
 extern DMenu		MenuXF86;		/* XFree86 main menu				*/
 extern DMenu		MenuXF86Select;		/* XFree86 distribution selection menu		*/
@@ -443,6 +443,10 @@ extern int	configRouter(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
 extern int	configWriteRC_conf(dialogMenuItem *self);
+extern int	configSecurityProfile(dialogMenuItem *self);
+extern int	configSecurityFascist(dialogMenuItem *self);
+extern int	configSecurityModerate(dialogMenuItem *self);
+extern int	configSecurityLiberal(dialogMenuItem *self);
 
 /* crc.c */
 extern int	crc(int, unsigned long *, unsigned long *);
@@ -496,7 +500,6 @@ extern int	distSetUser(dialogMenuItem *self);
 extern int	distSetXUser(dialogMenuItem *self);
 extern int	distSetMinimum(dialogMenuItem *self);
 extern int	distSetEverything(dialogMenuItem *self);
-extern int	distSetCRYPTO(dialogMenuItem *self);
 extern int	distSetSrc(dialogMenuItem *self);
 extern int	distSetXF86(dialogMenuItem *self);
 extern int	distExtractAll(dialogMenuItem *self);
