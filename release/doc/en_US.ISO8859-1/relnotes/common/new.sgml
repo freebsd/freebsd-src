@@ -2184,6 +2184,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.ispppcontrol.8; has been deleted, and its functionality
       has been folded into &man.spppcontrol.8;. &merged;</para>
 
+    <para>&man.k5su.8; is no longer installed SUID
+      <username>root</username> by default.  Users requiring this
+      feature can either manually change the permissions on the
+      &man.k5su.8; executable or add
+      <literal>ENABLE_SUID_K5SU=yes</literal> to
+      <filename>/etc/make.conf</filename> before a source
+      upgrade. &merged;</para>
+
     <para>&man.kenv.1;, a command to dump the kernel environment, has
       been added. &merged;</para>
 
@@ -3037,7 +3045,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	certain common misconfigurations. &merged;</para>
 
       <para><application>BIND</application> has been updated to
-	8.3.2-T1B.</para>
+	8.3.2-T1B. &merged;</para>
 
       <para><application>Binutils</application> has been updated to
 	2.12.0.</para>
