@@ -131,9 +131,6 @@ static int ip6_insertfraghdr __P((struct mbuf *, struct mbuf *, int,
 static int ip6_insert_jumboopt __P((struct ip6_exthdrs *, u_int32_t));
 static int ip6_splithdr __P((struct mbuf *, struct ip6_exthdrs *));
 
-extern struct ip6protosw inet6sw[];
-extern u_char ip6_protox[IPPROTO_MAX];
-
 /*
  * IP6 output. The packet in mbuf chain m contains a skeletal IP6
  * header (with pri, len, nxt, hlim, src, dst).
