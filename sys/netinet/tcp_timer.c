@@ -63,25 +63,50 @@
 #include <netinet/tcp_debug.h>
 #endif
 
+static int
+sysctl_msec_to_ticks SYSCTL_HANDLER_ARGS
+{
+	int error, s, tt;
+
+	tt = *(int *)oidp->oid_arg1;
+	s = tt * 1000 / hz;
+
+	error = SYSCTL_OUT(req, &s, sizeof(int));
+	if (error || !req->newptr)
+		return (error);
+
+	error = SYSCTL_IN(req, &s, sizeof(int));
+	if (error)
+		return (error);
+
+	tt = s * hz / 1000;
+	if (tt == 0 && s > 0)
+		tt++;
+
+	*(int *)oidp->oid_arg1 = tt;
+        return (0);
+}
+
 int	tcp_keepinit;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPINIT, keepinit,
-	CTLFLAG_RW, &tcp_keepinit , 0, "");
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINIT, keepinit, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_keepinit, 0, sysctl_msec_to_ticks, "I", "");
 
 int	tcp_keepidle;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPIDLE, keepidle,
-	CTLFLAG_RW, &tcp_keepidle , 0, "");
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPIDLE, keepidle, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_keepidle, 0, sysctl_msec_to_ticks, "I", "");
 
 int	tcp_keepintvl;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPINTVL, keepintvl,
-	CTLFLAG_RW, &tcp_keepintvl , 0, "");
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINTVL, keepintvl, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_keepintvl, 0, sysctl_msec_to_ticks, "I", "");
 
 int	tcp_delacktime;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_DELACKTIME, delacktime, CTLFLAG_RW,
-	&tcp_delacktime, 0, "Time before a delayed ACK is sent");
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_DELACKTIME, delacktime,
+    CTLTYPE_INT|CTLFLAG_RW, &tcp_delacktime, 0, sysctl_msec_to_ticks, "I",
+    "Time before a delayed ACK is sent");
  
 int	tcp_msl;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, msl, CTLFLAG_RW,
-	&tcp_msl, 0, "Maximum segment lifetime");
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_msl, 0, sysctl_msec_to_ticks, "I", "Maximum segment lifetime");
 
 static int	always_keepalive = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW, 
