@@ -32,189 +32,207 @@
 .\"	@(#)mpool.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.TH MPOOL 3 "June 4, 1993"
-.UC 7
-.SH NAME
-mpool \- shared memory buffer pool
-.SH SYNOPSIS
-.nf
-.ft B
-#include <db.h>
-#include <mpool.h>
-
-MPOOL *
-mpool_open (DBT *key, int fd, pgno_t pagesize, pgno_t maxcache);
-
-void
-mpool_filter (MPOOL *mp, void (*pgin)(void *, pgno_t, void *),
-.ti +5
-void (*pgout)(void *, pgno_t, void *), void *pgcookie);
-
-void *
-mpool_new (MPOOL *mp, pgno_t *pgnoaddr);
-
-void *
-mpool_get (MPOOL *mp, pgno_t pgno, u_int flags);
-
-int
-mpool_put (MPOOL *mp, void *pgaddr, u_int flags);
-
-int
-mpool_sync (MPOOL *mp);
-
-int
-mpool_close (MPOOL *mp);
-.ft R
-.fi
-.SH DESCRIPTION
-.IR Mpool
+.Dd June 4, 1993
+.Dt MPOOL 3
+.Os
+.Sh NAME
+.Nm mpool
+.Nd "shared memory buffer pool"
+.Sh SYNOPSIS
+.Fd "#include <db.h>"
+.Fd "#include <mpool.h>"
+.Ft MPOOL *
+.Fn mpool_open "DBT *key" "int fd" "pgno_t pagesize" "pgno_t maxcache"
+.Ft void
+.Fo mpool_filter
+.Fa "MPOOL *mp"
+.Fa "void (*pgin)(void *, pgno_t, void *)"
+.Fa "void (*pgout)(void *, pgno_t, void *)"
+.Fa "void *pgcookie"
+.Fc
+.Ft void *
+.Fn mpool_new "MPOOL *mp" "pgno_t *pgnoaddr"
+.Ft void *
+.Fn mpool_get "MPOOL *mp" "pgno_t pgno" "u_int flags"
+.Ft int
+.Fn mpool_put "MPOOL *mp" "void *pgaddr" "u_int flags"
+.Ft int
+.Fn mpool_sync "MPOOL *mp"
+.Ft int
+.Fn mpool_close "MPOOL *mp"
+.Sh DESCRIPTION
+.Nm Mpool
 is the library interface intended to provide page oriented buffer management
 of files.
 The buffers may be shared between processes.
-.PP
+.Pp
 The function
-.I mpool_open
+.Fn mpool_open
 initializes a memory pool.
 The
-.I key
+.Fa key
 argument is the byte string used to negotiate between multiple
 processes wishing to share buffers.
 If the file buffers are mapped in shared memory, all processes using
 the same key will share the buffers.
 If
-.I key
-is NULL, the buffers are mapped into private memory.
+.Fa key
+is
+.Dv NULL ,
+the buffers are mapped into private memory.
 The
-.I fd
+.Fa fd
 argument is a file descriptor for the underlying file, which must be seekable.
 If
-.I key
-is non-NULL and matches a file already being mapped, the
-.I fd
+.Fa key
+is
+.No non\- Ns Dv NULL
+and matches a file already being mapped, the
+.Fa fd
 argument is ignored.
-.PP
+.Pp
 The
-.I pagesize
+.Fa pagesize
 argument is the size, in bytes, of the pages into which the file is broken up.
 The
-.I maxcache
+.Fa maxcache
 argument is the maximum number of pages from the underlying file to cache
 at any one time.
 This value is not relative to the number of processes which share a file's
 buffers, but will be the largest value specified by any of the processes
 sharing the file.
-.PP
+.Pp
 The
-.I mpool_filter
+.Fn mpool_filter
 function is intended to make transparent input and output processing of the
 pages possible.
 If the
-.I pgin
+.Fa pgin
 function is specified, it is called each time a buffer is read into the memory
 pool from the backing file.
 If the
-.I pgout
+.Fa pgout
 function is specified, it is called each time a buffer is written into the
 backing file.
 Both functions are called with the
-.I pgcookie
+.Fa pgcookie
 pointer, the page number and a pointer to the page to being read or written.
-.PP
+.Pp
 The function
-.I mpool_new
-takes an MPOOL pointer and an address as arguments.
+.Fn mpool_new
+takes an
+.Ft MPOOL
+pointer and an address as arguments.
 If a new page can be allocated, a pointer to the page is returned and
 the page number is stored into the
-.I pgnoaddr
+.Fa pgnoaddr
 address.
-Otherwise, NULL is returned and errno is set.
-.PP
+Otherwise,
+.Dv NULL
+is returned and
+.Va errno
+is set.
+.Pp
 The function
-.I mpool_get
-takes a MPOOL pointer and a page number as arguments.
+.Fn mpool_get
+takes a
+.Ft MPOOL
+pointer and a page number as arguments.
 If the page exists, a pointer to the page is returned.
-Otherwise, NULL is returned and errno is set.
-The flags parameter is not currently used.
-.PP
-The function
-.I mpool_put
-unpins the page referenced by
-.IR pgaddr .
-.I Pgaddr
-must be an address previously returned by
-.I mpool_get
-or
-.IR mpool_new .
-The flag value is specified by
-.IR or 'ing
-any of the following values:
-.TP
-MPOOL_DIRTY
-The page has been modified and needs to be written to the backing file.
-.PP
-.I Mpool_put
-returns 0 on success and -1 if an error occurs.
-.PP
-The function
-.I mpool_sync
-writes all modified pages associated with the MPOOL pointer to the
-backing file.
-.I Mpool_sync
-returns 0 on success and -1 if an error occurs.
-.PP
+Otherwise,
+.Dv NULL
+is returned and
+.Va errno
+is set.
 The
-.I mpool_close
+.Fa flags
+parameter is not currently used.
+.Pp
+The function
+.Fn mpool_put
+unpins the page referenced by
+.Fa pgaddr .
+.Fa Pgaddr
+must be an address previously returned by
+.Fn mpool_get
+or
+.Fn mpool_new .
+The
+.Fa flags
+value is specified by
+.Em or Ns 'ing
+any of the following values:
+.Bl -tag -width indent
+.It Dv MPOOL_DIRTY
+The page has been modified and needs to be written to the backing file.
+.El
+.Pp
+.Fn Mpool_put
+returns 0 on success and -1 if an error occurs.
+.Pp
+The function
+.Fn mpool_sync
+writes all modified pages associated with the
+.Ft MPOOL
+pointer to the
+backing file.
+.Fn Mpool_sync
+returns 0 on success and -1 if an error occurs.
+.Pp
+The
+.Fn mpool_close
 function free's up any allocated memory associated with the memory pool
 cookie.
 Modified pages are
-.B not
+.Em not
 written to the backing file.
-.I Mpool_close
+.Fn Mpool_close
 returns 0 on success and -1 if an error occurs.
-.SH ERRORS
+.Sh ERRORS
 The
-.I mpool_open
+.Fn mpool_open
 function may fail and set
-.I errno
+.Va errno
 for any of the errors specified for the library routine
-.IR malloc (3).
-.PP
+.Xr malloc 3 .
+.Pp
 The
-.I mpool_get
+.Fn mpool_get
 function may fail and set
-.I errno
+.Va errno
 for the following:
-.TP 15
-[EINVAL]
+.Bl -tag -width Er
+.It Bq Er EINVAL
 The requested record doesn't exist.
-.PP
+.El
+.Pp
 The
-.I mpool_new
+.Fn mpool_new
 and
-.I mpool_get
+.Fn mpool_get
 functions may fail and set
-.I errno
+.Va errno
 for any of the errors specified for the library routines
-.IR read (2) ,
-.IR write (2) ,
+.Xr read 2 ,
+.Xr write 2 ,
 and
-.IR malloc (3).
-.PP
+.Xr malloc 3 .
+.Pp
 The
-.I mpool_sync
+.Fn mpool_sync
 function may fail and set
-.I errno
+.Va errno
 for any of the errors specified for the library routine
-.IR write (2).
-.PP
+.Xr write 2 .
+.Pp
 The
-.I mpool_close
+.Fn mpool_close
 function may fail and set
-.I errno
+.Va errno
 for any of the errors specified for the library routine
-.IR free (3).
-.SH "SEE ALSO"
-.IR dbopen (3),
-.IR btree (3),
-.IR hash (3),
-.IR recno (3)
+.Xr free 3 .
+.Sh SEE ALSO
+.Xr dbopen 3 ,
+.Xr btree 3 ,
+.Xr hash 3 ,
+.Xr recno 3
