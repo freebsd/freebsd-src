@@ -264,8 +264,8 @@ static void dc_miibus_statchg	(device_t);
 static void dc_miibus_mediainit	(device_t);
 
 static void dc_setcfg		(struct dc_softc *, int);
-static u_int32_t dc_crc_le	(struct dc_softc *, caddr_t);
-static u_int32_t dc_crc_be	(caddr_t);
+static u_int32_t dc_crc_le	(struct dc_softc *, const uint8_t *);
+static u_int32_t dc_crc_be	(const uint8_t *);
 static void dc_setfilt_21143	(struct dc_softc *);
 static void dc_setfilt_asix	(struct dc_softc *);
 static void dc_setfilt_admtek	(struct dc_softc *);
@@ -1022,9 +1022,9 @@ dc_miibus_mediainit(device_t dev)
 #define DC_BITS_64	6
 
 static u_int32_t
-dc_crc_le(struct dc_softc *sc, caddr_t addr)
+dc_crc_le(struct dc_softc *sc, const uint8_t *addr)
 {
-	u_int32_t idx, bit, data, crc;
+	uint32_t idx, bit, data, crc;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
@@ -1062,11 +1062,11 @@ dc_crc_le(struct dc_softc *sc, caddr_t addr)
  * Calculate CRC of a multicast group address, return the lower 6 bits.
  */
 static u_int32_t
-dc_crc_be(caddr_t addr)
+dc_crc_be(const uint8_t *addr)
 {
-	u_int32_t crc, carry;
+	uint32_t crc, carry;
 	int i, j;
-	u_int8_t c;
+	uint8_t c;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
@@ -1140,7 +1140,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 	}
 
 	if (ifp->if_flags & IFF_BROADCAST) {
-		h = dc_crc_le(sc, (caddr_t)ifp->if_broadcastaddr);
+		h = dc_crc_le(sc, ifp->if_broadcastaddr);
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
 
@@ -1330,7 +1330,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	}
 
 	if (ifp->if_flags & IFF_BROADCAST) {
-		h = dc_crc_le(sc, (caddr_t)ifp->if_broadcastaddr);
+		h = dc_crc_le(sc, ifp->if_broadcastaddr);
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
 
