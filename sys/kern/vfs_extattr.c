@@ -2082,7 +2082,7 @@ stat(td, uap)
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | NOOBJ | MPSAFE,
 	    UIO_USERSPACE, uap->path, td);
 #else
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE | MPSAFE,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ | MPSAFE, UIO_USERSPACE,
 	    uap->path, td);
 #endif
 	if ((error = namei(&nd)) != 0)
