@@ -162,15 +162,17 @@ __FBSDID("$FreeBSD$");
 #define	VSID_TO_SR(vsid)	((vsid) & 0xf)
 #define	VSID_TO_HASH(vsid)	(((vsid) >> 4) & 0xfffff)
 
-#define	PVO_PTEGIDX_MASK	0x0007		/* which PTEG slot */
-#define	PVO_PTEGIDX_VALID	0x0008		/* slot is valid */
-#define	PVO_WIRED		0x0010		/* PVO entry is wired */
-#define	PVO_MANAGED		0x0020		/* PVO entry is managed */
-#define	PVO_EXECUTABLE		0x0040		/* PVO entry is executable */
-#define	PVO_BOOTSTRAP		0x0080		/* PVO entry allocated during
+#define	PVO_PTEGIDX_MASK	0x007		/* which PTEG slot */
+#define	PVO_PTEGIDX_VALID	0x008		/* slot is valid */
+#define	PVO_WIRED		0x010		/* PVO entry is wired */
+#define	PVO_MANAGED		0x020		/* PVO entry is managed */
+#define	PVO_EXECUTABLE		0x040		/* PVO entry is executable */
+#define	PVO_BOOTSTRAP		0x080		/* PVO entry allocated during
 						   bootstrap */
+#define PVO_FAKE		0x100		/* fictitious phys page */
 #define	PVO_VADDR(pvo)		((pvo)->pvo_vaddr & ~ADDR_POFF)
 #define	PVO_ISEXECUTABLE(pvo)	((pvo)->pvo_vaddr & PVO_EXECUTABLE)
+#define PVO_ISFAKE(pvo)		((pvo)->pvo_vaddr & PVO_FAKE)
 #define	PVO_PTEGIDX_GET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_MASK)
 #define	PVO_PTEGIDX_ISSET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_VALID)
 #define	PVO_PTEGIDX_CLR(pvo)	\
@@ -984,18 +986,21 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 
+	/* XXX change the pvo head for fake pages */
+	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS)
+		pvo_head = &pmap_pvo_kunmanaged;
+
 	/*
 	 * If this is a managed page, and it's the first reference to the page,
 	 * clear the execness of the page.  Otherwise fetch the execness.
 	 */
-	if (pg != NULL) {
+	if ((pg != NULL) && ((m->flags & PG_FICTITIOUS) == 0)) {
 		if (LIST_EMPTY(pvo_head)) {
 			pmap_attr_clear(pg, PTE_EXEC);
 		} else {
 			was_exec = pmap_attr_fetch(pg) & PTE_EXEC;
 		}
 	}
-
 
 	/*
 	 * Assume the page is cache inhibited and access is guarded unless
@@ -1016,10 +1021,14 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	else
 		pte_lo |= PTE_BR;
 
-	pvo_flags |= (prot & VM_PROT_EXECUTE);
+	if (prot & VM_PROT_EXECUTE)
+		pvo_flags |= PVO_EXECUTABLE;
 
 	if (wired)
 		pvo_flags |= PVO_WIRED;
+
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		pvo_flags |= PVO_FAKE;
 
 	error = pmap_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
 	    pte_lo, pvo_flags);
@@ -1828,7 +1837,6 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 
 	pmap_pvo_enter_calls++;
 	first = 0;
-	
 	bootstrap = 0;
 
 	/*
@@ -1890,6 +1898,9 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		pvo->pvo_vaddr |= PVO_MANAGED;
 	if (bootstrap)
 		pvo->pvo_vaddr |= PVO_BOOTSTRAP;
+	if (flags & PVO_FAKE)
+		pvo->pvo_vaddr |= PVO_FAKE;
+
 	pmap_pte_create(&pvo->pvo_pte, sr, va, pa | pte_lo);
 
 	/*
@@ -1898,8 +1909,8 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	 */
 	if (LIST_FIRST(pvo_head) == NULL)
 		first = 1;
-
 	LIST_INSERT_HEAD(pvo_head, pvo, pvo_vlink);
+
 	if (pvo->pvo_pte.pte_lo & PVO_WIRED)
 		pm->pm_stats.wired_count++;
 	pm->pm_stats.resident_count++;
@@ -1914,8 +1925,8 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		panic("pmap_pvo_enter: overflow");
 		pmap_pte_overflow++;
 	}
-
 	mtx_unlock(&pmap_table_mutex);
+
 	return (first ? ENOENT : 0);
 }
 
@@ -1934,7 +1945,7 @@ pmap_pvo_remove(struct pvo_entry *pvo, int pteidx)
 		PVO_PTEGIDX_CLR(pvo);
 	} else {
 		pmap_pte_overflow--;
-	}	
+	}
 
 	/*
 	 * Update our statistics.
@@ -1946,7 +1957,7 @@ pmap_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	/*
 	 * Save the REF/CHG bits into their cache if the page is managed.
 	 */
-	if (pvo->pvo_vaddr & PVO_MANAGED) {
+	if ((pvo->pvo_vaddr & (PVO_MANAGED|PVO_FAKE)) == PVO_MANAGED) {
 		struct	vm_page *pg;
 
 		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte_lo & PTE_RPGN);
