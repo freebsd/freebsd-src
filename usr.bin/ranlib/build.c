@@ -143,7 +143,6 @@ rexec(rfd, wfd)
 	struct nlist nl;
 	off_t r_off, w_off;
 	long strsize;
-	void *emalloc();
 
 	/* Get current offsets for original and tmp files. */
 	r_off = lseek(rfd, (off_t)0, SEEK_CUR);
@@ -169,7 +168,8 @@ rexec(rfd, wfd)
 
 	/* Read in the string table. */
 	strsize -= sizeof(strsize);
-	strtab = emalloc(strsize);
+	if ((strtab = malloc(strsize)) == NULL)
+		error(archive);
 	nr = read(rfd, strtab, strsize);
 	if (nr != strsize) {
 badread:	if (nr < 0)
@@ -205,8 +205,10 @@ badread:	if (nr < 0)
 		sym = strtab + nl.n_un.n_strx - sizeof(long);
 		symlen = strlen(sym) + 1;
 
-		rp = (RLIB *)emalloc(sizeof(RLIB));
-		rp->sym = (char *)emalloc(symlen);
+		if ((rp = malloc(sizeof(RLIB))) == NULL)
+			error(archive);
+		if ((rp->sym = malloc(symlen)) == NULL)
+			error(archive);
 		bcopy(sym, rp->sym, symlen);
 		rp->symlen = symlen;
 		rp->pos = w_off;
