@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.18 1995/04/22 07:40:54 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.19 1995/04/22 13:58:20 jkh Exp $";
 #endif
 
 /*
@@ -231,8 +231,13 @@ pkg_do(char *pkg)
 		    printf("\t`%s' loaded successfully.\n", p->name);
 	    }
 	    else {
-	    	printf("and was not found%s.\n",
+		if (Verbose)
+	    	    printf("and was not found%s.\n",
 	    	       Force ? " (proceeding anyway)" : "");
+		else
+		    printf("Package dependency on %s from %s not found%s\n",
+			   p->name, PkgName,
+			   Force ? " (proceeding anyway)" : "");
 	    	if (!Force)
 		    code++;
 	    }
