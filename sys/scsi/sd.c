@@ -1,4 +1,3 @@
-
 /*
  * Written by Julian Elischer (julian@dialix.oz.au)
  * for TRW Financial Systems for use under the MACH(2.5) operating system.
@@ -15,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.122 1998/04/15 17:47:21 bde Exp $
+ *      $Id: sd.c,v 1.123 1998/04/17 22:37:10 des Exp $
  */
 
 #include "opt_bounce.h"
@@ -35,7 +34,11 @@
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
-#endif /*DEVFS*/
+#ifdef SLICE
+#include <sys/device.h>
+#include <dev/slice/slice.h>
+#endif	/* SLICE */
+#endif	/* DEVFS */
 
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
@@ -93,8 +96,17 @@ struct scsi_data {
 	struct buf_queue_head buf_queue;
 	int dkunit;		/* disk stats unit number */
 #ifdef	DEVFS
+#ifdef SLICE
+	struct slice	*slice;
+	int	mynor;
+	struct slicelimits limit;
+	struct scsi_link *sc_link;
+	int	unit;
+	struct intr_config_hook ich;
+#else	/* SLICE */
 	void	*b_devfs_token;
 	void	*c_devfs_token;
+#endif	/* SLICE */
 	void	*ctl_devfs_token;
 #endif
 };
@@ -119,10 +131,35 @@ static	d_strategy_t	sdstrategy;
 
 #define CDEV_MAJOR 13
 #define BDEV_MAJOR 4
+#ifndef	SLICE
 static struct cdevsw sd_cdevsw;
 static struct bdevsw sd_bdevsw = 
 	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
 	  sddump,	sdsize,		D_DISK,	"sd",	&sd_cdevsw,	-1 };
+#else	/* ! SLICE */
+
+static sl_h_IO_req_t	sdsIOreq;	/* IO req downward (to device) */
+static sl_h_ioctl_t	sdsioctl;	/* ioctl req downward (to device) */
+static sl_h_open_t	sdsopen;	/* downwards travelling open */
+static sl_h_close_t	sdsclose;	/* downwards travelling close */
+static	void	sds_init (void *arg);
+
+static struct slice_handler slicetype = {
+	"scsidisk",
+	0,
+	NULL,
+	0,
+	NULL,	/* constructor */
+	&sdsIOreq,
+	&sdsioctl,
+	&sdsopen,
+	&sdsclose,
+	NULL,	/* revoke */
+	NULL,	/* claim */
+	NULL,	/* verify */
+	NULL	/* upconfig */
+};
+#endif
 
 
 
@@ -148,7 +185,11 @@ static struct scsi_device sd_switch =
 	sd_open,
 	sd_ioctl,
 	sd_close,
+#ifndef	SLICE
 	sd_strategy,
+#else	
+	NULL,
+#endif
 };
 
 static struct scsi_xfer sx;
@@ -227,6 +268,31 @@ sdattach(struct scsi_link *sc_link)
 	sd_registerdev(unit);
 
 #ifdef DEVFS
+#ifdef SLICE
+	{
+		char namebuf[64];
+		sd->unit = unit;
+		sd->sc_link = sc_link;
+		sprintf(namebuf,"sd%d",sd->unit);
+		sd->mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
+		sd->limit.blksize = sd->params.secsiz;
+		/* need to cast to avoid overflow! */
+		sd->limit.slicesize =
+		  (u_int64_t)sd->params.secsiz * sd->params.disksize;
+		sl_make_slice(&slicetype,
+				sd,
+				&sd->limit,
+	 			&sd->slice,
+				NULL,
+				namebuf);
+		/* Allow full probing */
+		sd->slice->probeinfo.typespecific = NULL;
+		sd->slice->probeinfo.type = NULL;
+	}
+	sd->ich.ich_func = sds_init;
+	sd->ich.ich_arg = sd;
+	config_intrhook_establish(&sd->ich);
+#else	/* SLICE */
 	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
 	sd->b_devfs_token = devfs_add_devswf(&sd_bdevsw, mynor, DV_BLK,
 					     UID_ROOT, GID_OPERATOR, 0640,
@@ -240,10 +306,25 @@ sdattach(struct scsi_link *sc_link)
 					       DV_CHR,
 					       UID_ROOT, GID_WHEEL, 0600,
 					       "rsd%d.ctl", unit);
+#endif	/* SLICE */
 #endif
-
 	return 0;
 }
+
+#ifdef SLICE
+/* run a LOT later */
+static void
+sds_init(void *arg)
+{
+	struct scsi_data *sd = arg;
+	sh_p	tp;
+
+	if ((tp = slice_probeall(sd->slice)) != NULL) {
+		(*tp->constructor)(sd->slice);
+	}
+	config_intrhook_disestablish(&sd->ich);
+}
+#endif	/* SLICE */
 
 /*
  * open the device. Make sure the partition info is a up-to-date as can be.
@@ -295,6 +376,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 	 */
 	sc_link->flags |= SDEV_OPEN;	/* unit attn becomes an err now */
 	if (!(sc_link->flags & SDEV_MEDIA_LOADED) && sd->dk_slices != NULL) {
+#ifndef	SLICE
 		/*
 		 * If somebody still has it open, then forbid re-entry.
 		 */
@@ -304,6 +386,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 		}
 
 		dsgone(&sd->dk_slices);
+#endif /* !SLICE */
 	}
 
 	/*
@@ -339,11 +422,13 @@ sd_open(dev, mode, fmt, p, sc_link)
 		/* XXX as long as it's not 0 - readdisklabel divides by it (?) */
 	label.d_secperunit = sd->params.disksize;
 
+#ifndef	SLICE
 	/* Initialize slice tables. */
 	errcode = dsopen("sd", dev, fmt, &sd->dk_slices, &label, sdstrategy1,
 			 (ds_setgeom_t *)NULL, &sd_bdevsw, &sd_cdevsw);
 	if (errcode != 0)
 		goto bad;
+#endif	/* !SLICE */
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
 
 	SC_DEBUG(sc_link, SDEV_DB3, ("open %ld %ld\n", sdstrats, sdqueues));
@@ -379,15 +464,18 @@ sd_close(dev, fflag, fmt, p, sc_link)
 	errcode = scsi_device_lock(sc_link);
 	if (errcode)
 		return errcode;
+#ifndef	SLICE
 	dsclose(dev, fmt, sd->dk_slices);
 	if (!dsisopen(sd->dk_slices)) {
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT | SCSI_ERR_OK);
 		sc_link->flags &= ~SDEV_OPEN;
 	}
+#endif	/* ! SLICE */
 	scsi_device_unlock(sc_link);
 	return (0);
 }
 
+#ifndef	SLICE
 /*
  * Actually translate the requested transfer into one the physical driver
  * can understand.  The transfer is described by a buf and will include
@@ -518,6 +606,7 @@ sdstrategy1(struct buf *bp)
 	sdstrategy(bp);
 }
 
+#endif	/* ! SLICE */
 /*
  * sdstart looks to see if there is a buf waiting for the device
  * and that the device is not already busy. If both are true,
@@ -650,7 +739,7 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 #if 0
 	/* Wait until we have exclusive access to the device. */
 	/* XXX this is how wd does it.  How did we work without this? */
-	wdsleep(du->dk_ctrlr, "wdioct");
+	sdsleep(du->dk_ctrlr, "wdioct");
 #endif
 
 	/*
@@ -662,10 +751,10 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	if (cmd == DIOCSBAD)
 		return (EINVAL);	/* XXX */
 	
+#ifndef	SLICE
 	error = scsi_device_lock(sc_link);
 	if (error)
 		return error;
-
 	error = dsioctl("sd", dev, cmd, addr, flag, &sd->dk_slices,
 			sdstrategy1, (ds_setgeom_t *)NULL);
 	scsi_device_unlock(sc_link);
@@ -673,6 +762,7 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 		return (error);
 	if (PARTITION(dev) != RAW_PART)
 		return (ENOTTY);
+#endif	/* ! SLICE */ /* really only take this from the ctl device XXX */
 	return (scsi_do_ioctl(dev, cmd, addr, flag, p, sc_link));
 }
 
@@ -888,6 +978,7 @@ sd_get_parms(int unit, int flags)
 	return (error);
 }
 
+#ifndef	SLICE
 static int
 sdsize(dev_t dev)
 {
@@ -899,6 +990,7 @@ sdsize(dev_t dev)
 	return (dssize(dev, &sd->dk_slices, sdopen, sdclose));
 }
 
+#endif	/* ! SLICE */
 /*
  * sense handler: Called to determine what to do when the
  * device returns a CHECK CONDITION.
@@ -952,6 +1044,7 @@ sd_sense_handler(struct scsi_xfer *xs)
 	return SCSIRET_DO_RETRY;
 }
 
+#ifndef	SLICE
 /*
  * dump all of physical memory into the partition specified, starting
  * at offset 'dumplo' into the partition.
@@ -1092,7 +1185,9 @@ sddump(dev_t dev)
 	}
 	return (0);
 }
+#endif	/* !SLICE */
 
+#ifndef SLICE
 static sd_devsw_installed = 0;
 
 static void 	sd_drvinit(void *unused)
@@ -1106,3 +1201,109 @@ static void 	sd_drvinit(void *unused)
 
 SYSINIT(sddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sd_drvinit,NULL)
 
+#endif /* !SLICE */
+#ifdef SLICE
+
+/*
+ * Read/write routine for a buffer.  Finds the proper unit, range checks
+ * arguments, and schedules the transfer.  Does not wait for the transfer
+ * to complete.  Multi-page transfers are supported.  All I/O requests must
+ * be a multiple of a sector in length.
+scsi_strategy(bp, &sd_switch);
+ */
+static void 
+sdsIOreq(void *private ,struct buf *bp)
+{
+	struct scsi_data *sd = private;
+	u_int32_t opri;
+	u_int32_t unit = sd->unit;
+	struct scsi_link *sc_link = sd->sc_link;
+
+	SC_DEBUG(sc_link, SDEV_DB2, ("sdIOreq\n"));
+	SC_DEBUG(sc_link, SDEV_DB1, ("%ld bytes @ blk%ld\n",
+		bp->b_bcount, bp->b_pblkno));
+
+	bp->b_resid = 0;
+	bp->b_error = 0;
+
+	(*sc_link->adapter->scsi_minphys)(bp);
+
+	sdstrats++;
+	/*
+	 * If the device has been made invalid, error out
+	 */
+	if (!(sc_link->flags & SDEV_MEDIA_LOADED)) {
+		bp->b_error = EIO;
+		goto bad;
+	}
+
+	/*
+	 * check it's not too big a transfer for our adapter
+	 */
+        /*scsi_minphys(bp,&sd_switch);*/
+
+	opri = SPLSD();
+	/*
+	 * Use a bounce buffer if necessary
+	 */
+#ifdef BOUNCE_BUFFERS
+	if (sc_link->flags & SDEV_BOUNCE)
+		vm_bounce_alloc(bp);
+#endif
+
+	/*
+	 * Place it in the queue of disk activities for this disk
+	 */
+#ifdef SDDISKSORT
+	bufq_disksort(&sd->buf_queue, bp);
+#else
+	bufq_insert_tail(&sd->buf_queue, bp);
+#endif
+
+	/*
+	 * Tell the device to get going on the transfer if it's
+	 * not doing anything, otherwise just wait for completion
+	 */
+	sdstart(unit, 0);
+
+	splx(opri);
+	return;
+bad:
+	bp->b_flags |= B_ERROR;
+	bp->b_resid = bp->b_bcount;
+	biodone(bp);
+	return;
+}
+
+
+static int
+sdsopen(void *private, int flags, int mode, struct proc *p)
+{
+	struct scsi_data *sd;
+
+	sd = private;
+
+	return(sdopen(makedev(0,sd->mynor), 0 , 0, p));
+}
+
+static void
+sdsclose(void *private, int flags, int mode, struct proc *p)
+{
+	struct scsi_data *sd;
+
+	sd = private;
+
+	sdclose(makedev(0,sd->mynor), 0 , 0, p);
+	return;
+}
+static int
+sdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
+{
+	struct scsi_data *sd;
+
+	sd = private;
+
+	return(sdioctl(makedev(0,sd->mynor), cmd, addr, flag, p));
+}
+
+#endif

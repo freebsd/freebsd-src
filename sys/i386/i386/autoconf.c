@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.91 1998/03/16 12:07:54 msmith Exp $
+ *	$Id: autoconf.c,v 1.92 1998/03/17 00:28:02 msmith Exp $
  */
 
 /*
@@ -107,6 +107,7 @@ SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
 static int	setdumpdev __P((dev_t dev));
+#ifndef	SLICE
 static void	setroot __P((void));
 
 #ifdef CD9660
@@ -134,6 +135,7 @@ static struct {
 };
 
 static int	find_cdrom_root __P((void));
+
 
 static int
 find_cdrom_root()
@@ -170,6 +172,7 @@ find_cdrom_root()
 	return EINVAL;
 }
 #endif /* CD9660 */
+#endif /* !SLICE */
 
 static void
 configure_start()
@@ -300,6 +303,8 @@ configure(dummy)
 	cold = 0;
 }
 
+#ifndef SLICE
+
 void
 cpu_rootconf()
 {
@@ -370,12 +375,32 @@ cpu_rootconf()
 	}
 #endif
 
+#if defined(LFS) || defined(LFS_ROOT)
+	if (!mountrootfsname) {
+		if (bootverbose)
+			printf("Considering LFS root f/s.\n");
+		mountrootfsname = "lfs";
+		/*
+		 * Ignore the -a flag if this kernel isn't compiled
+		 * with a generic root/swap configuration: if we skip
+		 * setroot() and we aren't a generic kernel, chaos
+		 * will ensue because setconf() will be a no-op.
+		 * (rootdev is always initialized to NODEV in a
+		 * generic configuration, so we test for that.)
+		 */
+		if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
+			setroot();
+	}
+#endif
+
 	if (!mountrootfsname) {
 		panic("Nobody wants to mount my root for me");
 	}
 
 	setconf();
 }
+
+#endif
 
 void
 cpu_dumpconf()
@@ -419,6 +444,8 @@ setdumpdev(dev)
 	dumplo = newdumplo;
 	return (0);
 }
+
+#ifndef SLICE
 
 u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 
@@ -483,6 +510,8 @@ setroot()
 	sname = dsname(devname[majdev], unit, slice, part, partname);
 	printf("changing root device to %s%s\n", sname, partname);
 }
+
+#endif
 
 static int
 sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
