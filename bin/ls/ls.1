@@ -31,7 +31,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2004
+.Dd January 11, 2005
 .Dt LS 1
 .Os
 .Sh NAME
@@ -195,7 +195,9 @@ will nullify earlier
 .Dq ell . )
 List in long format.
 (See below.)
-If the output is to a terminal, a total sum for all the file
+A total sum (in blocks, see the
+.Fl s
+option for the block size unit) for all the file
 sizes is output on a line before the long listing.
 .It Fl m
 Stream output format; list files across the page, separated by commas.
@@ -223,7 +225,7 @@ lexicographical order or the oldest entries first.
 .It Fl s
 Display the number of file system blocks actually used by each file, in units
 of 512 bytes, where partial units are rounded up to the next integer value.
-If the output is to a terminal, a total sum for all the file
+A total sum for all the file
 sizes is output on a line before the listing.
 The environment variable
 .Ev BLOCKSIZE
