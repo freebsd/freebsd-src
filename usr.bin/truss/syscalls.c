@@ -73,7 +73,9 @@ struct syscall syscalls[] = {
 	{ "readlink", 1, 3,
 	  { { String, 0 } , { String | OUT, 1 }, { Int, 2 }}},
 	{ "lseek", 2, 3,
-	  { { Int, 0 }, {Quad, 2 }, { Int, 4 }}},
+	  { { Int, 0 }, {Quad, 2 }, { Whence, 4 }}},
+	{ "linux_lseek", 2, 3,
+	  { { Int, 0 }, {Int, 1 }, { Whence, 2 }}},
 	{ "mmap", 2, 6,
 	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}, {Mmapflags, 3}, {Int, 4}, {Quad, 6}}},
 	{ "mprotect", 1, 3,
@@ -524,6 +526,18 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
     }
     break;
 
+  case Whence:
+    {
+	switch (args[sc->offset]) {
+#define S(a)	case a: tmp = strdup(#a); break;
+	S(SEEK_SET);
+	S(SEEK_CUR);
+	S(SEEK_END);
+#undef S
+	default: asprintf(&tmp, "0x%lx", args[sc->offset]); break;
+	}
+    }
+    break;
   case Sockaddr:
     {
       struct sockaddr_storage ss;
