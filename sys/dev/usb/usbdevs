@@ -51,6 +51,7 @@ vendor FTDI		0x0403	Future Technology Devices
 vendor NEC		0x0409	NEC
 vendor KODAK		0x040a	Eastman Kodak Corp.
 vendor MELCO		0x0411	Melco, Inc.
+vendor CREATIVE		0x041e	Creative
 vendor ADI		0x0422	ADI Systems, Inc.
 vendor CATC		0x0423	Computer Access Technology Corp.
 vendor GRAVIS		0x0428	Advanced Gravis Computer Tech. Ltd.
@@ -80,6 +81,7 @@ vendor COMPAQ		0x049f	Compaq Computers
 vendor ACERP		0x04a5	Acer Peripherals, Inc.
 vendor VISIONEER	0x04a7  Visioneer
 vendor CANON		0x04a9	Canon, Inc.
+vendor NIKON		0x04b0	Nikon
 vendor IBM		0x04b3	IBM Corporation
 vendor CYPRESS		0x04b4	Cypress Semiconductor
 vendor EPSON		0x04b8	Seiko Epson Corp.
@@ -400,6 +402,9 @@ product CONNECTIX QUICKCAM	0x0001	QuickCam
 product COREGA ETHER_USB_T	0x0001	Ether USB-T
 product COREGA FETHER_USB_TX	0x0004	FEther USB-TX
 
+/* Creative products */
+product CREATIVE		0x1002	Nomad II MP3 player
+
 /* CTX products */
 product CTX EX1300		0x9999	Ex1300 hub
 
@@ -653,6 +658,9 @@ product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
 
 /* Netgear products */
 product NETGEAR EA101		0x1001	Ethernet adapter
+
+/* Nikon products */
+product NIKON E990		0x0102	Digital Camera E990
 
 /* OmniVision Technologies, Inc. products */
 product OMNIVISION OV511	0x0511	OV511 Camera
