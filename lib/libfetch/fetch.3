@@ -416,7 +416,7 @@ and message, e.g. "File is not available (404 Not Found)"
 .Sh ENVIRONMENT
 .Bl -tag -width HTTP_PROXY_AUTH
 .It Ev FTP_PROXY
-host name of the FTP proxy to use, optionally followed by a port
+Host name of the FTP proxy to use, optionally followed by a port
 number separated from the host name by a colon.
 .Nm libfetch
 will send
@@ -426,23 +426,28 @@ as user name to the proxy, where
 is the real user name, and
 .Ql host
 is the name of the FTP server.
+.Pp
 If this variable is set to an empty string, no proxy will be used for
 FTP requests, even if the
 .Ev HTTP_PROXY
 variable is set.
 .It Ev HTTP_AUTH
-Specifies HTTP authorization parameters, used only if the server
-requires authorization and no user name or password was specified in
-the URL.
+Specifies HTTP authorization parameters as a colon-separated list of
+items.
 The first and second item are the authorization scheme and realm
 respectively; further items are scheme-dependent.
 Currently, only basic authorization is supported.
+.Pp
 Basic authorization requires two parameters: the user name and
 password, in that order.
+.Pp
+This variable is only used if the server requires authorization and
+no user name or password was specified in the URL.
 .It Ev HTTP_PROXY
 host name of the HTTP proxy to use, optionally followed by a port
 number separated from the host name by a colon.
 If no port number is specified, the default is 3128.
+.Pp
 Note that the HTTP proxy will also be used for FTP documents, unless
 the
 .Ev FTP_PROXY
@@ -452,6 +457,7 @@ Specifies authorization parameters for the HTTP proxy in the same
 format as the
 .Ev HTTP_AUTH
 variable.
+.Pp
 The value of this variable is used if and only if connected to an HTTP
 proxy.
 .El
