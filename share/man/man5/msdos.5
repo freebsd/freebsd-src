@@ -15,9 +15,6 @@
 .Pp
 To link into the kernel:
 .Cd "options MSDOSFS"
-.Pp
-To load as a kernel loadable module:
-.Dl kldload msdosfs
 .Sh DESCRIPTION
 .Pp
 The
@@ -30,7 +27,7 @@ based file systems.
 .Pp
 The most common usage follows:
 .Pp
-.Dl "# mount_msdos /dev/ad0sN
+.Dl "# mount_msdosfs /dev/ad0sN /dos
 .Pp
 where
 .Sy N
@@ -71,11 +68,11 @@ directory layout.
 .Xr mount 2 ,
 .Xr unmount 2 ,
 .Xr mount 8 ,
-.Xr mount_msdos 8 ,
+.Xr mount_msdosfs 8 ,
 .Xr umount 8 ,
 .Rs
 .%T "The FreeBSD Handbook"
-.%O "http://www.freebsd.org/doc"
+.%O "http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/"
 .Re
 .Sh AUTHORS
 This manual page was written by
