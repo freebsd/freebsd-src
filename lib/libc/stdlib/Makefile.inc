@@ -1,13 +1,13 @@
 #	from @(#)Makefile.inc	8.3 (Berkeley) 2/4/95
-#	$Id: Makefile.inc,v 1.11 1997/10/15 16:16:13 bde Exp $
+#	$Id: Makefile.inc,v 1.12 1997/10/16 14:58:18 bde Exp $
 
 # machine-independent stdlib sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/stdlib ${.CURDIR}/../libc/stdlib
 
 MISRCS+=abort.c abs.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
-	exit.c getenv.c getopt.c getsubopt.c strhash.c heapsort.c labs.c \
-	ldiv.c malloc.c merge.c putenv.c qsort.c radixsort.c rand.c random.c \
-	realpath.c setenv.c strtod.c strtol.c strtoq.c strtoul.c \
+	exit.c getenv.c getopt.c getsubopt.c heapsort.c labs.c ldiv.c \
+	malloc.c merge.c putenv.c qsort.c radixsort.c rand.c random.c \
+	realpath.c setenv.c strhash.c strtod.c strtol.c strtoq.c strtoul.c \
 	strtouq.c system.c
 
 # machine-dependent stdlib sources
@@ -19,12 +19,12 @@ MAN3+=	abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
 	ldiv.3 malloc.3 memory.3 qsort.3 radixsort.3 rand.3 random.3 \
 	realpath.3 strtod.3 strtol.3 strtoul.3 system.3
 
-MLINKS+=getenv.3 setenv.3 getenv.3 unsetenv.3 getenv.3 putenv.3
+MLINKS+=getenv.3 putenv.3 getenv.3 setenv.3 getenv.3 unsetenv.3
 MLINKS+=qsort.3 heapsort.3 qsort.3 mergesort.3
 MLINKS+=rand.3 srand.3
 MLINKS+=random.3 initstate.3 random.3 setstate.3 random.3 srandom.3 \
 	random.3 srandomdev.3
 MLINKS+=strtol.3 strtoq.3
 MLINKS+=strtoul.3 strtouq.3
-MLINKS+=malloc.3 free.3 malloc.3 realloc.3 malloc.3 calloc.3
+MLINKS+=malloc.3 calloc.3 malloc.3 free.3 malloc.3 realloc.3
 .endif
