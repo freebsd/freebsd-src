@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.95 1999/01/21 09:35:38 dillon Exp $
+ * $Id: vm_fault.c,v 1.96 1999/01/23 06:00:27 dillon Exp $
  */
 
 /*
@@ -178,7 +178,6 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 	int result;
 	boolean_t wired;
 	int map_generation;
-	vm_page_t old_m;
 	vm_object_t next_object;
 	vm_page_t marray[VM_FAULT_READ];
 	int hardfault;
@@ -577,8 +576,6 @@ readrest:
 	 * is held.]
 	 */
 
-	old_m = fs.m;	/* save page that would be copied */
-
 	/*
 	 * If the page is being written, but isn't already owned by the
 	 * top-level object, we have to copy it into a new page owned by the
@@ -768,6 +765,17 @@ readrest:
 		}
 	}
 
+	/*
+	 * Page had better still be busy
+	 */
+
+#ifdef  INVARIANTS
+	if ((fs.m->flags & PG_BUSY) == 0) {
+		printf("WARNING!  PAGE %p NOT BUSY!!!\n", fs.m);
+		vm_page_busy(fs.m);
+	}
+#endif
+
 	unlock_things(&fs);
 	fs.m->valid = VM_PAGE_BITS_ALL;
 	vm_page_flag_clear(fs.m, PG_ZERO);
@@ -785,6 +793,7 @@ readrest:
 	 * If the page is not wired down, then put it where the pageout daemon
 	 * can find it.
 	 */
+
 	if (fault_flags & VM_FAULT_WIRE_MASK) {
 		if (wired)
 			vm_page_wire(fs.m);
