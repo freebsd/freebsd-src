@@ -226,6 +226,9 @@ plist_cmd(const char *s, char **arg)
 	if (!strncmp(*arg, "ORIGIN:", 7)) {
 	    *arg += 7;
 	    return PLIST_ORIGIN;
+	} else if (!strncmp(*arg, "DEPORIGIN:", 10)) {
+	    *arg += 10;
+	    return PLIST_DEPORIGIN;
 	}
 	return PLIST_COMMENT;
     } else if (!strcmp(cmd, "ignore"))
@@ -373,6 +376,10 @@ write_plist(Package *pkg, FILE *fp)
 
 	case PLIST_ORIGIN:
 	    fprintf(fp, "%ccomment ORIGIN:%s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_DEPORIGIN:
+	    fprintf(fp, "%ccomment DEPORIGIN:%s\n", CMD_CHAR, plist->name);
 	    break;
 
 	default:
