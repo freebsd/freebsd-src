@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <stdarg.h>
 #include <string.h>
+#include <wchar.h>
+#include <wctype.h>
 #include "un-namespace.h"
 
 #include "collate.h"
@@ -136,7 +138,11 @@ __svfscanf(FILE *fp, const char *fmt0, va_list ap)
 	int nread;		/* number of characters consumed from fp */
 	int base;		/* base argument to conversion function */
 	char ccltab[256];	/* character class table for %[...] */
-	char buf[BUF];		/* buffer for numeric conversions */
+	char buf[BUF];		/* buffer for numeric and mb conversions */
+	wchar_t *wcp;		/* handy wide character pointer */
+	wchar_t *wcp0;		/* saves original value of wcp */
+	mbstate_t mbs;		/* multibyte conversion state */
+	size_t nconv;		/* length of multibyte sequence converted */
 
 	/* `basefix' is used to avoid `if' tests in the integer scanner */
 	static short basefix[17] =
@@ -371,6 +377,32 @@ literal:
 					}
 				}
 				nread += sum;
+			} else if (flags & LONG) {
+				wcp = va_arg(ap, wchar_t *);
+				n = 0;
+				while (width != 0) {
+					if (n == MB_CUR_MAX)
+						goto input_failure;
+					buf[n++] = *fp->_p;
+					fp->_p++;
+					fp->_r--;
+					memset(&mbs, 0, sizeof(mbs));
+					nconv = mbrtowc(wcp, buf, n, &mbs);
+					if (nconv == 0 || nconv == (size_t)-1)
+						goto input_failure;
+					if (nconv != (size_t)-2) {
+						nread += n;
+						width--;
+						wcp++;
+						n = 0;
+					}
+					if (fp->_r <= 0 && __srefill(fp)) {
+						if (n != 0)
+							goto input_failure;
+						break;
+					}
+				}
+				nassigned++;
 			} else {
 				size_t r = fread((void *)va_arg(ap, char *), 1,
 				    width, fp);
@@ -402,6 +434,45 @@ literal:
 				}
 				if (n == 0)
 					goto match_failure;
+			} else if (flags & LONG) {
+				wcp = wcp0 = va_arg(ap, wchar_t *);
+				n = 0;
+				while (width != 0) {
+					if (n == MB_CUR_MAX)
+						goto input_failure;
+					buf[n++] = *fp->_p;
+					fp->_p++;
+					fp->_r--;
+					memset(&mbs, 0, sizeof(mbs));
+					nconv = mbrtowc(wcp, buf, n, &mbs);
+					if (nconv == 0 || nconv == (size_t)-1)
+						goto input_failure;
+					if (nconv != (size_t)-2) {
+						if (wctob(*wcp) != EOF &&
+						    !ccltab[wctob(*wcp)]) {
+							while (--n > 0)
+								__ungetc(buf[n],
+								    fp);
+							break;
+						}
+						nread += n;
+						width--;
+						wcp++;
+						n = 0;
+					}
+					if (fp->_r <= 0 && __srefill(fp)) {
+						if (n != 0)
+							goto input_failure;
+						break;
+					}
+				}
+				if (n != 0)
+					goto input_failure;
+				n = wcp - wcp0;
+				if (n == 0)
+					goto match_failure;
+				*wcp = L'\0';
+				nassigned++;
 			} else {
 				p0 = p = va_arg(ap, char *);
 				while (ccltab[*fp->_p]) {
@@ -439,6 +510,39 @@ literal:
 						break;
 				}
 				nread += n;
+			} else if (flags & LONG) {
+				wcp = va_arg(ap, wchar_t *);
+				n = 0;
+				while (!isspace(*fp->_p) && width != 0) {
+					if (n == MB_CUR_MAX)
+						goto input_failure;
+					buf[n++] = *fp->_p;
+					fp->_p++;
+					fp->_r--;
+					memset(&mbs, 0, sizeof(mbs));
+					nconv = mbrtowc(wcp, buf, n, &mbs);
+					if (nconv == 0 || nconv == (size_t)-1)
+						goto input_failure;
+					if (nconv != (size_t)-2) {
+						if (iswspace(*wcp)) {
+							while (--n > 0)
+								__ungetc(buf[n],
+								    fp);
+							break;
+						}
+						nread += n;
+						width--;
+						wcp++;
+						n = 0;
+					}
+					if (fp->_r <= 0 && __srefill(fp)) {
+						if (n != 0)
+							goto input_failure;
+						break;
+					}
+				}
+				*wcp = L'\0';
+				nassigned++;
 			} else {
 				p0 = p = va_arg(ap, char *);
 				while (!isspace(*fp->_p)) {
