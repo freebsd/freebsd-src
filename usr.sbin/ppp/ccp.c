@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.33 1998/04/07 00:53:22 brian Exp $
+ * $Id: ccp.c,v 1.30.2.34 1998/04/16 00:25:50 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -299,11 +299,14 @@ CcpLayerFinish(struct fsm *fp)
   if (ccp->in.state != NULL) {
     (*algorithm[ccp->in.algorithm]->i.Term)(ccp->in.state);
     ccp->in.state = NULL;
+    ccp->in.algorithm = -1;
   }
   if (ccp->out.state != NULL) {
     (*algorithm[ccp->out.algorithm]->o.Term)(ccp->out.state);
     ccp->out.state = NULL;
+    ccp->out.algorithm = -1;
   }
+  ccp->his_reject = ccp->my_reject = 0;
 }
 
 static void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.63 1998/04/17 22:05:12 brian Exp $
+ * $Id: command.c,v 1.131.2.64 1998/04/18 01:01:17 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -123,6 +123,7 @@
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
 static int QuitCommand(struct cmdargs const *);
+static int OpenCommand(struct cmdargs const *);
 static int CloseCommand(struct cmdargs const *);
 static int DownCommand(struct cmdargs const *);
 static int AllowCommand(struct cmdargs const *);
@@ -256,8 +257,8 @@ DialCommand(struct cmdargs const *arg)
 
   if ((arg->cx && !(arg->cx->physical->type & (PHYS_MANUAL|PHYS_DEMAND)))
       || (!arg->cx && (arg->bundle->phys_type & ~(PHYS_MANUAL|PHYS_DEMAND)))) {
-    LogPrintf(LogWARN,
-              "Manual dial is only available in auto and interactive mode\n");
+    LogPrintf(LogWARN, "Manual dial is only available for auto and"
+              " interactive links\n");
     return 1;
   }
 
@@ -408,7 +409,7 @@ static struct cmdtab const Commands[] = {
   {"clone", NULL, CloneCommand, LOCAL_AUTH | LOCAL_CX,
   "Clone a link", "clone newname..."},
   {"close", NULL, CloseCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Close connection", "close"},
+  "Close an FSM", "close [lcp|ccp]"},
   {"delete", NULL, DeleteCommand, LOCAL_AUTH,
   "delete route", "delete dest", NULL},
   {NULL, "delete!", DeleteCommand, LOCAL_AUTH,
@@ -427,6 +428,8 @@ static struct cmdtab const Commands[] = {
   "Link specific commands", "link name command ..."},
   {"load", NULL, LoadCommand, LOCAL_AUTH,
   "Load settings", "load [remote]"},
+  {"open", NULL, OpenCommand, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Open an FSM", "open [lcp|ccp]"},
   {"passwd", NULL, PasswdCommand, LOCAL_NO_AUTH,
   "Password for manipulation", "passwd LocalPassword"},
   {"quit", "bye", QuitCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
@@ -500,7 +503,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/17 22:05:12 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/18 01:01:17 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -783,9 +786,40 @@ QuitCommand(struct cmdargs const *arg)
 }
 
 static int
+OpenCommand(struct cmdargs const *arg)
+{
+  if (arg->argc == arg->argn ||
+      (arg->argc == arg->argn+1 && !strcasecmp(arg->argv[arg->argn], "lcp")))
+    bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL);
+  else if (arg->argc == arg->argn+1 &&
+           !strcasecmp(arg->argv[arg->argn], "ccp")) {
+    struct fsm *fp = &ChooseLink(arg)->ccp.fsm;
+
+    if (fp->state != ST_OPENED) {
+      FsmUp(fp);
+      FsmOpen(fp);
+    }
+  } else
+    return -1;
+
+  return 0;
+}
+
+static int
 CloseCommand(struct cmdargs const *arg)
 {
-  bundle_Close(arg->bundle, arg->cx ? arg->cx->name : NULL, 1);
+  if (arg->argc == arg->argn ||
+      (arg->argc == arg->argn+1 && !strcasecmp(arg->argv[arg->argn], "lcp")))
+    bundle_Close(arg->bundle, arg->cx ? arg->cx->name : NULL, 1);
+  else if (arg->argc == arg->argn+1 &&
+           !strcasecmp(arg->argv[arg->argn], "ccp")) {
+    struct fsm *fp = &ChooseLink(arg)->ccp.fsm;
+
+    if (fp->state == ST_OPENED)
+      FsmClose(fp);
+  } else
+    return -1;
+
   return 0;
 }
 

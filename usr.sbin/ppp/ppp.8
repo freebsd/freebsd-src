@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.17 1998/04/16 18:30:54 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.18 1998/04/17 22:05:37 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2100,8 +2100,15 @@ command below.  It is only available in multilink mode.  Links may
 be removed using the
 .Dq remove
 command below.
-.It close
-Close the current connection (but don't quit).
+.It close Op lcp|ccp
+If no arguments are given, or if
+.Dq lcp
+is specified, the link will be closed.  If
+.Dq ccp
+is specified, only the relevent compression layer is closed.  Either way,
+this command does not disconnect the user from ppp or exit ppp.  See the
+.Dq quit
+command below.
 .It delete[!] Ar dest
 This command deletes the route with the given
 .Ar dest
@@ -2162,6 +2169,18 @@ file.  If
 is not given, the
 .Ar default
 label is used.
+.It open Op lcp|ccp
+This is the opposite of the
+.Dq close
+command.  Using
+.Dq open
+with no arguments or with the
+.Dq lcp
+argument is the same as using
+.Dq dial
+in that all configured links are brought up.  If the
+.Dq ccp
+argument is used, the relevent compression layer is opened.
 .It passwd Ar pass
 Specify the password required for access to the full
 .Nm
