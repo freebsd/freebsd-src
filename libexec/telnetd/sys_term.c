@@ -1158,9 +1158,9 @@ getptyslave()
 # endif /* defined(USE_TERMIO) && !defined(CRAY) && (BSD <= 43) */
 	tty_rspeed((def_rspeed > 0) ? def_rspeed : 9600);
 	tty_tspeed((def_tspeed > 0) ? def_tspeed : 9600);
-# ifdef	LINEMODE
 	if (erase)
 		termbuf.c_cc[VERASE] = erase;
+# ifdef	LINEMODE
 	if (waslm)
 		tty_setlinemode(1);
 # endif	/* LINEMODE */
