@@ -1,9 +1,12 @@
+# -*- mode: Fundamental; tab-width: 4; -*-
+#
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.29 1994/09/09 06:21:43 jkh Exp $
+# $Id: bsd.port.mk,v 1.30 1994/09/10 22:26:47 jkh Exp $
 #
 # Please view me with 4 column tabs!
+
 
 # Supported Variables and their behaviors:
 #
@@ -91,6 +94,11 @@ PATCHDIR?=		${.CURDIR}/patches
 SCRIPTDIR?=		${.CURDIR}/scripts
 FILESDIR?=		${.CURDIR}/files
 PKGDIR?=		${.CURDIR}/pkg
+
+.if exists(${PORTSDIR}/../Makefile.inc)
+.include "${PORTSDIR}/../Makefile.inc"
+.endif
+
 
 # Change these if you'd prefer to keep the cookies someplace else.
 EXTRACT_COOKIE?=	${.CURDIR}/.extract_done
@@ -276,11 +284,12 @@ fetch: pre-fetch
 			if [ ! -d ${DISTDIR} ]; then mkdir -p ${DISTDIR}; fi \
 			cd ${DISTDIR}; \
 			if ${NCFTP} ${NCFTPFLAGS} ${MASTER_SITE}/$$file; then \
-				${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTFILE}; \
+				echo ">> $$file Fetched!" ; \
 			else \
-				echo ">> Couldn't fetch it - please retreive $$file manually from ${HOME_LOCATION} and try again."; \
+				echo ">> Couldn't fetch it - please try to manually retreive";\
+				echo ">> ${HOME_LOCATION}/$$file and try again."; \
 				exit 1; \
-			fi; \
+			fi \
 	    fi \
 	done
 .endif
