@@ -186,7 +186,9 @@ in the kernel configuration file or remove the -DVINUMDEBUG option from
 .Pa /usr/src/sbin/vinum/Makefile
 as described above.
 .Pp
-If the VINUMDEBUG variables do not match, vinum(8) will fail with a message
+If the VINUMDEBUG variables do not match,
+.Xr vinum 8
+will fail with a message
 explaining the problem and what to do to correct it.
 .Pp
 .Nm
@@ -330,7 +332,7 @@ from which they are derived.
 .Bl -bullet 
 .It
 When
-.Nm vinum(8)
+.Xr vinum 8
 creates or deletes objects, it creates a directory
 .Pa /dev/vinum ,
 in which it makes device entries for each volume it finds.  It also creates 
@@ -917,7 +919,7 @@ specification).
 The following example shows a remote debugging session using the
 .Ar debug
 command of
-.Nm vinum(8):
+.Xr vinum 8 :
 .if t .ps -3
 .if t .vs -3
 .Bd -literal
