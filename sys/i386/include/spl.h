@@ -30,15 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.20 1997/04/29 20:00:41 peter Exp $
+ *	$Id: spl.h,v 1.21 1997/04/29 20:05:47 peter Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
 #define	_MACHINE_IPL_H_
 
-#ifdef KERNEL
-#include "opt_smp.h"
-#endif
 #include <machine/ipl.h>	/* XXX "machine" means cpu for i386 */
 
 /*
