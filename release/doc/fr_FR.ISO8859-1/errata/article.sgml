@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.1.2.87
+     Original revision: 1.1.2.90
 
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
@@ -144,7 +144,32 @@ suivantes.</para>
     <para>Aucun d'avis de s&eacute;curit&eacute;.</para>
 ]]>
 <![ %release.type.snapshot [
-    <para>Aucun d'avis de s&eacute;curit&eacute;.</para>
+
+    <para>Les dépassements de tampons dans  &man.kadmind.8; et
+    k5admin ont été corrigés. Plus de détails sont fournis dans l'avis
+    de sécurité 
+    <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">
+    FreeBSD-SA-02:40</ulink>.</para>
+
+    <para>Des erreurs dans &man.smrsh.8;, permettant aux utilisateurs
+    de passer outre les restrictions d'exécution de certains
+    programmes, ont été fixées dans &os; &release.prev;. Comme l'avis
+    de sécurité applicable (<ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:41.smrsh.asc">FreeBSD-SA-02:41</ulink>)
+      n'était pas disponible lors de la génération de la version, ceci
+      n'a pas été inclus dans les notes de version.</para>
+
+    <para>Des dépassements de tampons dans l'application DNS
+    &man.resolver.3;, résultants dans des erreurs d'applications, ont
+    été corrigés. Ce changement n'a pas été mentionné dans les notes
+    de version, car l'avis de sécurité applicable  (<ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink>)
+      n'a été mis en ligne qu'après la génération de la version.</para>
+
+    <para>Les multiples vulnérabilités dans <application>BIND</application>
+      ont été corrigées comme décrit dans <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
+
 ]]>
   </sect1>
 
