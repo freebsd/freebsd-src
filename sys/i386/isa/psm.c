@@ -55,6 +55,7 @@
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
+#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -308,7 +309,7 @@ psm_poll_status(int ioport)
 			/* XXX - Avoids some keyboard hangs during probe */
 			DELAY(6);
 			inb(ioport+PSM_DATA);
-	}
+		}
 	return;
 }
 
