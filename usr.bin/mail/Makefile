@@ -9,8 +9,8 @@ WARNS?=	0
 FILES=	mail.help mail.tildehelp
 FILESDIR=	${SHAREDIR}/misc
 EFILES=	mail.rc
-LINKS=	${BINDIR}/mail ${BINDIR}/Mail
-MLINKS=	mail.1 Mail.1
+LINKS=	${BINDIR}/mail ${BINDIR}/Mail ${BINDIR}/mail ${BINDIR}/mailx
+MLINKS=	mail.1 Mail.1 mail.1 mailx.1
 
 .PATH: ${.CURDIR}/misc
 
