@@ -25,7 +25,7 @@
 .Nd maintain system log files to manageable sizes
 .Sh SYNOPSIS
 .Nm
-.Op Fl CFnrsv
+.Op Fl CFNnrsv
 .Op Fl R Ar tagname
 .Op Fl a Ar directory
 .Op Fl d Ar directory
@@ -162,6 +162,13 @@ to trim the logs, even if the trim conditions have not been met.
 This
 option is useful for diagnosing system problems by providing you with
 fresh logs that contain only the problems.
+.It Fl N
+Do not perform any rotations.
+This option is intended to be used with the
+.Fl C
+or
+.Fl CC
+options when creating log files is the only objective.
 .It Fl R Ar tagname
 Specify that
 .Nm

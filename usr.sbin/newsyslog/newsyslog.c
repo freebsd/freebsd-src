@@ -179,6 +179,7 @@ int createlogs;			/* Create (non-GLOB) logfiles which do not */
 int verbose = 0;		/* Print out what's going on */
 int needroot = 1;		/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
+int norotate = 0;		/* Don't rotate */
 int nosignal;			/* Do not send any signals */
 int force = 0;			/* Force the trim no matter what */
 int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
@@ -557,7 +558,7 @@ do_entry(struct conf_entry * ent)
 		/*
 		 * If the file needs to be rotated, then rotate it.
 		 */
-		if (ent->rotate) {
+		if (ent->rotate && !norotate) {
 			if (temp_reason[0] != '\0')
 				ent->r_reason = strdup(temp_reason);
 			if (verbose)
@@ -698,7 +699,7 @@ parse_args(int argc, char **argv)
 		*p = '\0';
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:d:f:nrsvCD:FR:")) != -1)
+	while ((ch = getopt(argc, argv, "a:d:f:nrsvCD:FNR:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
@@ -739,6 +740,9 @@ parse_args(int argc, char **argv)
 		case 'F':
 			force++;
 			break;
+		case 'N':
+			norotate++;
+			break;
 		case 'R':
 			rotatereq++;
 			requestor = strdup(optarg);
@@ -748,6 +752,12 @@ parse_args(int argc, char **argv)
 			usage();
 			/* NOTREACHED */
 		}
+
+	if (force && norotate) {
+		warnx("Only one of -F and -N may be specified.");
+		usage();
+		/* NOTREACHED */
+	}
 
 	if (rotatereq) {
 		if (optind == argc) {
@@ -838,7 +848,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: newsyslog [-CFnrsv] [-a directory] [-d directory] [-f config-file]\n"
+	    "usage: newsyslog [-CFNnrsv] [-a directory] [-d directory] [-f config-file]\n"
 	    "                 [ [-R requestor] filename ... ]\n");
 	exit(1);
 }
