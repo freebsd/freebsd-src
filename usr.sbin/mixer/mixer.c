@@ -35,7 +35,7 @@ usage(int devmask, int recmask)
 {
 	int i, n;
 
-	printf("usage: mixer [[dev [voll[:volr]] | recsrc | {^|+|-|=}rec recdev] ... ]\n");
+	printf("usage: mixer [-s] [[dev [voll[:volr]] | recsrc | {^|+|-|=}rec recdev] ... ]\n");
 	printf(" devices: ");
 	for (i = 0, n = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((1 << i) & devmask)  {
@@ -89,7 +89,7 @@ main(int argc, char *argv[])
 {
 	int foo, bar, baz, dev;
 	int devmask = 0, recmask = 0, recsrc = 0, orecsrc;
-	int dusage = 0, drecsrc = 0;
+	int dusage = 0, drecsrc = 0, shortflag = 0;
 	int l, r;
 
 	char *name;
@@ -101,6 +101,10 @@ main(int argc, char *argv[])
 	else if (!strcmp(argv[0], "mixer3"))
 		name = strdup("/dev/mixer2");
 
+	if (argc > 1 && strcmp(argv[1], "-s") == 0) {
+		shortflag = 1;
+		argc -= 1; argv += 1;
+	}
 	if (argc > 2 && strcmp(argv[1], "-f") == 0) {
 		name = strdup(argv[2]);
 		argc -= 2; argv += 2;
@@ -125,7 +129,10 @@ main(int argc, char *argv[])
 			   	warn("MIXER_READ");
 				continue;
 			}
-			printf("Mixer %-8s is currently set to %3d:%d\n", names[foo], bar & 0x7f, (bar >> 8) & 0x7f);
+			if (shortflag)
+				printf("%s %d:%d ", names[foo], bar & 0x7f, (bar >> 8) & 0x7f);
+			else
+				printf("Mixer %-8s is currently set to %3d:%d\n", names[foo], bar & 0x7f, (bar >> 8) & 0x7f);
 		}
 		return(0);
 	}
@@ -181,8 +188,11 @@ main(int argc, char *argv[])
 				argc--; argv++;
 				continue;
 			}
-			printf("Mixer %-8s is currently set to %3d:%d\n",
-			    names[dev], bar & 0x7f, (bar >> 8) & 0x7f);
+			if (shortflag)
+				printf("%s %d:%d ", names[dev], bar & 0x7f, (bar >> 8) & 0x7f);
+			else
+				printf("Mixer %-8s is currently set to %3d:%d\n",
+				  names[dev], bar & 0x7f, (bar >> 8) & 0x7f);
 
 			argc--; argv++;
 			break;
