@@ -7,8 +7,4 @@ SUBDIR= adventure arithmetic atc backgammon battlestar bcd boggle bs caesar \
 	rain random robots rogue sail snake tetris trek wargames worm worms \
 	wump
 
-.if exists(${X11BASE}/lib/libX11.a)
-SUBDIR+= x11
-.endif
-
 .include <bsd.subdir.mk>
