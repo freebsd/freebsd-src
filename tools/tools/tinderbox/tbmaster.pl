@@ -31,93 +31,93 @@
 
 use 5.006_001;
 use strict;
-use POSIX qw(tzset);
-use Sys::Hostname;
+use Fcntl qw(:DEFAULT :flock);
+use POSIX;
+use Getopt::Long;
 
-my %SETUPS	= (
-    # Global settings
-    'global' => {
-	'SANDBOX'	=> '/home/des/tinderbox',
-	'LOGDIR'	=> '/home/des/public_html',
-	'OPTIONS'	=> [ '--verbose' ],
-	'SENDER'	=> 'Tinderbox <des+tinderbox@freebsd.org>',
-	'RECIPIENT'	=> 'des+%%arch%%-%%branch%%@freebsd.org',
-	'SUBJECT'	=> '[%%COMMENT%%] failure on %%arch%%/%%machine%%',
-	'ENV'		=> { },
-    },
+my $VERSION	= "2.1";
+my $COPYRIGHT	= "Copyright (c) 2003 Dag-Erling Smørgrav. " .
+		  "All rights reserved.";
 
-    'cueball' => {
-	'COMMENT'	=> "-CURRENT tinderbox",
-	'BRANCHES'	=> [ 'CURRENT' ],
-	'TARGETS'	=> [ 'update', 'world', 'generic', 'lint' ],
-	'ARCHES'	=> {
-	    'alpha'	=> [ 'alpha' ],
-	    'amd64'	=> [ 'amd64' ],
-	    'i386'	=> [ 'i386', 'pc98' ],
-	    'ia64'	=> [ 'ia64' ],
-	    'sparc64'	=> [ 'sparc64' ],
-	},
-	'RECIPIENT'	=> 'current@freebsd.org,%%arch%%@freebsd.org',
-    },
-
-    'triangle' => {
-	'COMMENT'	=> "-STABLE tinderbox",
-	'BRANCHES'	=> [ 'RELENG_4' ],
-	'TARGETS'	=> [ 'update', 'world', 'generic', 'lint' ],
-	'ARCHES'	=> {
-	    'alpha'	=> [ 'alpha' ],
-	    'i386'	=> [ 'i386', 'pc98' ],
-	},
-	'ENV'		=> {
-	    'MAKE_KERBEROS5'	=> 'YES',
-	},
-	'RECIPIENT'	=> 'stable@freebsd.org,%%arch%%@freebsd.org',
-    },
-
-    '9ball' => {
-	'COMMENT'	=> "Experimental platforms",
-	'BRANCHES'	=> [ 'CURRENT' ],
-	'TARGETS'	=> [ 'update', 'world', 'generic', 'lint' ],
-	'ARCHES'	=> {
-	    'powerpc'	=> [ 'powerpc' ],
-	},
-	'ENV'		=> {
-	    'NOLIBC_R'	=> 'YES',
-	    'NOFORTH'	=> 'YES',
-	},
-    },
-
-    'ada' => {
-	'COMMENT'	=> "Tinderbox development",
-	'BRANCHES'	=> [ 'RELENG_4' ],
-	'TARGETS'	=> [ 'update', 'world', 'lint', 'release' ],
-	'ARCHES'	=> {
-	    'i386'	=> [ 'i386' ],
-	},
-    },
-
-    'dsa' => {
-	'COMMENT'	=> "Tinderbox development",
-	'BRANCHES'	=> [ 'CURRENT' ],
-	'TARGETS'	=> [ 'update', 'world', 'lint', 'release' ],
-	'ARCHES'	=> {
-	    'alpha'	=> [ 'alpha' ],
-	},
-    },
-
-    'dwp' => {
-	'COMMENT'	=> "Tinderbox development",
-	'BRANCHES'	=> [ 'CURRENT' ],
-	'TARGETS'	=> [ 'update', 'world', 'lint', 'release' ],
-	'ARCHES'	=> {
-	    'i386'	=> [ 'i386' ],
-	},
-    },
-);
 my $config;			# Name of current config
-my %CONFIG = ();		# Current config
-my $TINDERBOX;			# Tinderbox script
+my $etcdir;			# Configuration directory
 
+my %CONFIG = (
+    'COMMENT'	=> undef,
+    'BRANCHES'	=> [ 'CURRENT' ],
+    'PLATFORMS'	=> [ 'i386' ],
+    'DATE'	=> undef,
+    'SANDBOX'	=> '/tmp/tinderbox',
+    'LOGDIR'	=> '%%SANDBOX%%/logs',
+    'TARGETS'	=> [ 'update', 'world' ],
+    'OPTIONS'	=> [],
+    'ENV'	=> [],
+    'SENDER'	=> undef,
+    'RECIPIENT'	=> undef,
+    'SUBJECT'	=> 'Tinderbox failure on %%arch%%/%%machine%%',
+    'TINDERBOX'	=> '%%HOME%%/tinderbox',
+);
+
+###
+### Perform variable expansion
+###
+sub expand($);
+sub expand($) {
+    my $key = shift;
+
+    return "??$key??"
+	unless exists($CONFIG{uc($key)});
+    return $CONFIG{uc($key)}
+	if (ref($CONFIG{uc($key)}));
+    my $str = $CONFIG{uc($key)};
+    while ($str =~ s/\%\%(\w+)\%\%/expand($1)/eg) {
+	# nothing
+    }
+    return ($key =~ m/[A-Z]/) ? $str : lc($str);
+}
+
+###
+### Read in a configuration file
+###
+sub readconf($) {
+    my $fn = shift;
+
+    local *CONF;
+    sysopen(CONF, $fn, O_RDONLY)
+	or return undef;
+    my $line = "";
+    my $n = 0;
+    while (<CONF>) {
+	++$n;
+	chomp();
+	s/\s*(\#.*)?$//;
+	$line .= $_;
+	if (length($line) && $line !~ s/\\$/ /) {
+	    die("$fn: syntax error on line $n\n")
+		unless ($line =~ m/^(\w+)\s*=\s*(.*)$/);
+	    my ($key, $val) = (uc($1), $2);
+	    die("$fn: unknown keyword on line $n\n")
+		unless (exists($CONFIG{$key}));
+	    if (ref($CONFIG{$key})) {
+		my @a = split(/\s*,\s*/, $val);
+		foreach (@a) {
+		    s/^\'([^\']*)\'$/$1/;
+		}
+		$CONFIG{$key} = \@a;
+	    } else {
+		$val =~ s/^\'([^\']*)\'$/$1/;
+		$CONFIG{$key} = $val;
+	    }
+	    $line = "";
+	}
+    }
+    close(CONF);
+    return 1;
+}
+
+###
+### Report a tinderbox failure
+###
 sub report($$$$) {
     my $sender = shift;
     my $recipient = shift;
@@ -140,18 +140,9 @@ sub report($$$$) {
     }
 }
 
-sub expand($) {
-    my $str = shift;
-
-    while (my ($key, $val) = each(%CONFIG)) {
-	next if ref($val);
-	$str =~ s/\%\%$key\%\%/$val/g;
-	($key, $val) = (lc($key), lc($val));
-	$str =~ s/\%\%$key\%\%/$val/g;
-    }
-    return $str;
-}
-
+###
+### Run the tinderbox
+###
 sub tinderbox($$$) {
     my $branch = shift;
     my $arch = shift;
@@ -162,7 +153,7 @@ sub tinderbox($$$) {
     $CONFIG{'MACHINE'} = $machine;
 
     # Open log files: one for the full log and one for the summary
-    my $logfile = "$CONFIG{'LOGDIR'}/tinderbox-$branch-$arch-$machine";
+    my $logfile = expand('LOGDIR') . "/tinderbox-$branch-$arch-$machine";
     local (*FULL, *BRIEF);
     if (!open(FULL, ">", "$logfile.full.$$")) {
 	warn("$logfile.full.$$: $!\n");
@@ -192,18 +183,16 @@ sub tinderbox($$$) {
 
     # Fork and start the tinderbox
     my @args = @{$CONFIG{'OPTIONS'}};
-    push(@args, "--sandbox=$CONFIG{'SANDBOX'}");
+    push(@args, "--sandbox=" . expand('SANDBOX'));
     push(@args, "--branch=$branch");
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
-    push(@args, "--date=$CONFIG{'DATE'}")
+    push(@args, "--date=" . expand('DATE'))
 	if (defined($CONFIG{'DATE'}));
-    push(@args, "--patch=$CONFIG{'PATCH'}")
+    push(@args, "--patch=" . expand('PATCH'))
 	if (defined($CONFIG{'PATCH'}));
     push(@args, @{$CONFIG{'TARGETS'}});
-    while (my ($key, $val) = each(%{$CONFIG{'ENV'}})) {
-	push(@args, "$key=$val");
-    }
+    push(@args, @{$CONFIG{'ENV'}});
     my $pid = fork();
     if (!defined($pid)) {
 	warn("fork(): $!\n");
@@ -217,7 +206,7 @@ sub tinderbox($$$) {
 	open(STDOUT, ">&WPIPE");
 	open(STDERR, ">&WPIPE");
 	$| = 1;
-	exec($TINDERBOX, @args);
+	exec(expand('TINDERBOX'), @args);
 	die("child: exec(): $!\n");
     }
 
@@ -273,10 +262,10 @@ sub tinderbox($$$) {
     close(FULL);
 
     # Mail out error reports
-    if ($error) {
-	my $sender = expand($CONFIG{'SENDER'});
-	my $recipient = expand($CONFIG{'RECIPIENT'});
-	my $subject = expand($CONFIG{'SUBJECT'});
+    if ($error && $CONFIG{'RECIPIENT'}) {
+	my $sender = expand('SENDER');
+	my $recipient = expand('RECIPIENT');
+	my $subject = expand('SUBJECT');
 	report($sender, $recipient, $subject, $summary);
     }
 
@@ -284,59 +273,70 @@ sub tinderbox($$$) {
     rename("$logfile.brief.$$", "$logfile.brief");
 }
 
+###
+### Print a usage message and exit
+###
 sub usage() {
 
-    my @configs = ();
-    foreach my $config (sort(keys(%SETUPS))) {
-	push(@configs, $config)
-	    unless ($config eq 'global');
-    }
-    print(STDERR "usage: tbmaster [", join('|', @configs), "]\n");
+    print(STDERR "This is the FreeBSD tinderbox manager, version $VERSION.
+$COPYRIGHT
+
+Usage:
+  $0 [options] [parameters]
+
+Parameters:
+  -c, --config=FILE             Configuration name
+  -e, --etcdir=DIR              Configuration directory
+
+Report bugs to <des\@freebsd.org>.
+");
+    print(STDERR "usage: tbmaster\n");
     exit(1);
 }
 
+###
+### Main
+###
 MAIN:{
-    if (@ARGV) {
-	$config = lc(shift(@ARGV));
-    } else {
-	$config = hostname();
-	$config =~ s/\..*//;
-    }
-    usage()
-	unless (exists($SETUPS{$config}) && $config ne 'global');
-    %CONFIG = %{$SETUPS{$config}};
-    foreach my $key (keys(%{$SETUPS{'global'}})) {
-	$CONFIG{$key} = $SETUPS{'global'}->{$key}
-	    unless (exists($CONFIG{$key}));
+    # Set defaults
+    $ENV{'PATH'} = "/usr/bin:/usr/sbin:/bin:/sbin";
+    $config = `uname -n`;
+    chomp($config);
+    $config =~ s/^(\w+)(\..*)?/$1/;
+    if ($ENV{'HOME'} =~ m|^((?:/[\w\.-]+)+)/*$|) {
+	$CONFIG{'HOME'} = $1;
+	$etcdir = "$1/etc";
+	$ENV{'PATH'} = "$1/bin:$ENV{'PATH'}"
+	    if (-d "$1/bin");
     }
 
-    $ENV{'TZ'} = "GMT";
-    tzset();
-    $ENV{'PATH'} = "";
-    $TINDERBOX = $0;
-    if ($TINDERBOX =~ m|(.*/)tbmaster(.*)$|) {
-	$TINDERBOX = "${1}tinderbox${2}";
+    # Get options
+    {Getopt::Long::Configure("auto_abbrev", "bundling");}
+    GetOptions(
+	"c|config=s"	        => \$config,
+	"e|etcdir=s"		=> \$etcdir,
+	) or usage();
+
+    if (defined($etcdir)) {
+	chdir($etcdir)
+	    or die("$etcdir: $!\n");
     }
-    if ($TINDERBOX eq $0 || ! -x $TINDERBOX) {
-	die("where is the tinderbox script?\n");
+    readconf('default.rc');
+    readconf("$config.rc")
+	or die("$config.rc: $!\n");
+    $CONFIG{'CONFIG'} = $config;
+    $CONFIG{'ETCDIR'} = $etcdir;
+
+    if (!length(expand('TINDERBOX')) || !-x expand('TINDERBOX')) {
+	die("Where is the tinderbox script?\n");
     }
 
-    foreach my $branch (sort(@{$CONFIG{'BRANCHES'}})) {
-	if (@ARGV) {
-	    foreach my $target (@ARGV) {
-		$target =~ m|^(\w+)(?:/(\w+))?$|
-		    or die("invalid target specification: $target\n");
-		my ($arch, $machine) = ($1, $2);
-		$machine = $arch
-		    unless defined($machine);
-		tinderbox($branch, $arch, $machine);
-	    }
-	} else {
-	    foreach my $arch (sort(keys(%{$CONFIG{'ARCHES'}}))) {
-		foreach my $machine (sort(@{$CONFIG{'ARCHES'}->{$arch}})) {
-		    tinderbox($branch, $arch, $machine);
-		}
-	    }
+    foreach my $branch (@{$CONFIG{'BRANCHES'}}) {
+	foreach my $platform (@{$CONFIG{'PLATFORMS'}}) {
+	    my ($arch, $machine) = split('/', $platform, 2);
+	    $machine = $arch
+		unless defined($machine);
+	    tinderbox($branch, $arch, $machine);
 	}
     }
 }
