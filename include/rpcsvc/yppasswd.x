@@ -36,7 +36,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)yppasswd.x 1.1 87/04/13 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)yppasswd.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id$";
+%static char rcsid[] = "$Id: yppasswd.x,v 1.1 1994/08/04 19:01:57 wollman Exp $";
 %#endif /* not lint */
 #endif
 
@@ -67,3 +67,8 @@ struct yppasswd {
 };
 
 
+#ifdef RPC_HDR
+%#include <sys/cdefs.h>
+%extern int _yppasswd __P(( char * , struct x_passwd * ));
+%#define yppasswd(x,y) _yppasswd(x,y)
+#endif
