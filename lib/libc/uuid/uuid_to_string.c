@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Marcel Moolenaar
+ * Copyright (c) 2002,2005 Marcel Moolenaar
  * Copyright (c) 2002 Hiten Mahesh Pandya
  * All rights reserved.
  *
@@ -41,7 +41,7 @@
  *	 taken from the Hewlett-Packard implementation.
  */
 void
-uuid_to_string(uuid_t *u, char **s, uint32_t *status)
+uuid_to_string(const uuid_t *u, char **s, uint32_t *status)
 {
 	uuid_t nil;
 
@@ -54,7 +54,7 @@ uuid_to_string(uuid_t *u, char **s, uint32_t *status)
 
 	if (u == NULL) {
 		u = &nil;
-		uuid_create_nil(u, NULL);
+		uuid_create_nil(&nil, NULL);
 	}
 
 	asprintf(s, "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",

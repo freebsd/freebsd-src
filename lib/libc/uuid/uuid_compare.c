@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Marcel Moolenaar
+ * Copyright (c) 2002,2005 Marcel Moolenaar
  * Copyright (c) 2002 Hiten Mahesh Pandya
  * All rights reserved.
  *
@@ -39,7 +39,7 @@
  *	 than any non-nil UUID.
  */
 int32_t
-uuid_compare(uuid_t *a, uuid_t *b, uint32_t *status)
+uuid_compare(const uuid_t *a, const uuid_t *b, uint32_t *status)
 {
 	int res;
 
