@@ -14,8 +14,8 @@ MFS_NAME=fs.PICOBSD
 MFS_MOUNTPOINT=`mktemp -d "/tmp/picobsd.XXXXXXXXXX"`
 export MFS_MOUNTPOINT
 
-PICO_OBJ=${OBJ}/picobsd/${TYPE}
-export PICO_OBJ
+MAKEOBJDIRPREFIX=${OBJ}/picobsd/${TYPE}
+export MAKEOBJDIRPREFIX
 
 # fail errno errcode
 # This function is used to trap errors and print msgs
@@ -112,7 +112,7 @@ populate_mfs() {
 		> /dev/null || fail $? makedevs
     fi
 
-    MFS_RC=floppy.tree/etc/mfs.rc
+    MFS_RC=mfs_tree/etc/rc
     if [ ! -f ${MFS_RC} ] ; then # no private version. use generic mfs.rc
 	MFS_RC=${BUILDDIR}/../${MFS_RC}
     fi
@@ -120,12 +120,11 @@ populate_mfs() {
 	cat ${MFS_RC} | sed -e "s/@VER@/${VER}/g" > ${MFS_MOUNTPOINT}/etc/oinit.rc
     else
 	cat ${MFS_RC} | sed -e "s/@VER@/${VER}/g" > ${MFS_MOUNTPOINT}/etc/rc
-	if [ -f floppy.tree/etc/mfs.login.conf ] ; then
-	    cp floppy.tree/etc/mfs.login.conf ${MFS_MOUNTPOINT}/etc/login.conf
-	else
-	    cp ${BUILDDIR}/../floppy.tree/etc/mfs.login.conf \
-			${MFS_MOUNTPOINT}/etc/login.conf
+	fname=mfs_tree/etc/login.conf
+	if [ ! -f ${fname} ] ; then
+	    fname=${BUILDDIR}/../${fname}
 	fi
+	cp ${fname} ${MFS_MOUNTPOINT}/etc/login.conf
     fi
 
     if [ "${TYPE}" = "dial" ] ; then
@@ -155,6 +154,7 @@ populate_mfs() {
 	echo "creating host key for sshd"
 	ssh-keygen1 -f ${MFS_MOUNTPOINT}/etc/ssh_host_key -N "" -C "root@picobsd"
     fi
+    cp -Rp ../mfs_tree/stand/update ${MFS_MOUNTPOINT}/stand/update
 
     (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root *)
     df -ik ${MFS_MOUNTPOINT}
@@ -168,7 +168,7 @@ populate_mfs() {
 do_kernel() {
     echo "-> Preparing kernel..."
     (cd ../${TYPE}; make -v -f ${BUILDDIR}/Makefile.conf )
-    cp -p ${OBJ}/${SRC}/sys/PICOBSD${suffix}/kernel kernel || \
+    cp -p ${SRC}/sys/compile/PICOBSD${suffix}/kernel kernel || \
 	fail $? missing_kernel
     strip kernel
     strip --remove-section=.note --remove-section=.comment kernel
@@ -213,25 +213,27 @@ do_floppy() {
     else
 	excl=""
     fi
-    (cd ${BUILDDIR}/../floppy.tree ; tar -cf - ${excl} . ) | \
+    (cd ${BUILDDIR}/../floppy.tree ; tar -cf - --exclude CVS ${excl} . ) | \
 		(cd floppy.tree ; tar xvf - )
 
-    if [ -d ${BUILDDIR}/../${TYPE}/floppy.tree ] ; then
+    srcdir=${BUILDDIR}/../${TYPE}/floppy.tree
+    if [ -d ${srcdir} ] ; then
 	echo "-> update with private files:"
-	(cd ${BUILDDIR}/../${TYPE}/floppy.tree ; tar cf - . ) | \
+	(cd ${srcdir} ; tar cf - --exclude CVS . ) | \
 	    (cd floppy.tree ; tar xvf - )
     fi
-    if [ -d ${BUILDDIR}/../${TYPE}/floppy.tree.${SITE} ] ; then
+    if [ -d ${srcdir}.${SITE} ] ; then
 	echo "-> update with site-specific (${SITE}) files:"
-	(cd ${BUILDDIR}/../${TYPE}/floppy.tree.${SITE} ; tar cf - . ) | \
+	(cd ${srcdir}.${SITE} ; tar cf - --exclude CVS . ) | \
 	    (cd floppy.tree ; tar xvf - )
     fi
-    rm -f floppy.tree/etc/mfs\.*  # mfs.rc, mfs.login.conf
     files="motd"
     echo "-> Copying language dependent files: ${files} -> ${MFS_MOUNTPOINT}/etc ..."
     for i in ${files} ; do
-	cat ${BUILDDIR}/../${TYPE}/lang/${i}.${LANGUAGE} | \
+	if [ -f ${BUILDDIR}/../${TYPE}/lang/${i}.${LANGUAGE} ] ; then
+	    cat ${BUILDDIR}/../${TYPE}/lang/${i}.${LANGUAGE} | \
 		sed -e "s/@VER@/${VER}/g" > floppy.tree/etc/${i}
+	fi
     done
 
     # XXX check this! i am unsure how it is necessary.
@@ -255,11 +257,10 @@ do_floppy() {
     fi
     #
     # make small loader
-    #(cd /usr/src/sys/boot/i386/loader ; make clean ;
-    # cd /usr/src/sys/boot/i386 ; make -DNOFORTH )
-    if [ -f /usr/src/sys/boot/i386/loader/loader ]; then
-	theloader=/usr/src/sys/boot/i386/loader/loader
-    else
+    (cd /usr/src/lib/libstand ; make obj ; make )
+    (cd /usr/src/sys/boot/i386 ; make obj ; make -DNOFORTH )
+    theloader=${MAKEOBJDIRPREFIX}/usr/src/sys/boot/i386/loader/loader
+    if [ ! -f ${theloader} ]; then
 	theloader=/boot/loader
     fi
     kgzip -o loader $theloader
