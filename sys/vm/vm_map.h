@@ -73,13 +73,6 @@
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
 
-#ifdef MAP_LOCK_DIAGNOSTIC
-#include <sys/systm.h>
-#define vm_map_printf(str, arg) printf(str,arg)
-#else
-#define vm_map_printf(str, arg)
-#endif
-
 /*
  *	Types defined:
  *
@@ -227,16 +220,6 @@ void vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior);
  *		by the macros themselves.  The macros can safely be used
  *		as unbraced elements in a higher level statement.
  */
-
-#if 0
-/* XXX This macro is not called anywhere, and (map)->ref_lock doesn't exist. */
-#define	vm_map_lock_drain_interlock(map) \
-	do { \
-		lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
-			&(map)->ref_lock, curthread); \
-		(map)->timestamp++; \
-	} while (0)
-#endif
 
 void _vm_map_lock(vm_map_t map, const char *file, int line);
 void _vm_map_unlock(vm_map_t map, const char *file, int line);
