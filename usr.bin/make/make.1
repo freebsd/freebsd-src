@@ -471,7 +471,7 @@ In addition,
 .Nm
 sets or knows about the following internal variables or environment
 variables:
-.Bl -tag -width ".Va MAKEFILE_LIST"
+.Bl -tag -width ".Va .MAKEFILE_LIST"
 .It Va \&$
 A single dollar sign
 .Ql \&$ ,
@@ -582,7 +582,7 @@ for all programs which
 .Nm
 executes.
 .It Va MFLAGS
-is provided for backward compatibility and
+This variable is provided for backward compatibility and
 contains all the options from the
 .Ev MAKEFLAGS
 environment variable plus any options specified on
