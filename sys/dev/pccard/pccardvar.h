@@ -180,6 +180,7 @@ struct pccard_card {
 #define	PCMCIA_VENDOR_INVALID	-1
 	int32_t		product;
 #define	PCMCIA_PRODUCT_INVALID		-1
+	int16_t		prodext;
 	u_int16_t	error;
 #define	PCMCIA_CIS_INVALID		{ NULL, NULL, NULL, NULL }
 	STAILQ_HEAD(, pccard_function) pf_head;
@@ -322,6 +323,7 @@ enum {
 	PCCARD_IVAR_ETHADDR,	/* read ethernet address from CIS tupple */
 	PCCARD_IVAR_VENDOR,
 	PCCARD_IVAR_PRODUCT,
+	PCCARD_IVAR_PRODEXT,
 	PCCARD_IVAR_FUNCTION_NUMBER,
 	PCCARD_IVAR_VENDOR_STR,	/* CIS string for "Manufacturer" */
 	PCCARD_IVAR_PRODUCT_STR,/* CIS strnig for "Product" */
@@ -341,6 +343,7 @@ pccard_get_ ## A(device_t dev, T *t)					\
 PCCARD_ACCESSOR(ether,		ETHADDR,		u_int8_t)
 PCCARD_ACCESSOR(vendor,		VENDOR,			u_int32_t)
 PCCARD_ACCESSOR(product,	PRODUCT,		u_int32_t)
+PCCARD_ACCESSOR(prodext,	PRODEXT,		u_int16_t)
 PCCARD_ACCESSOR(function_number,FUNCTION_NUMBER,	u_int32_t)
 PCCARD_ACCESSOR(function,	FUNCTION,		u_int32_t)
 PCCARD_ACCESSOR(vendor_str,	VENDOR_STR,		char *)

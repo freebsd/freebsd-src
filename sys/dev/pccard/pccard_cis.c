@@ -712,6 +712,15 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 		}
 		state->card->manufacturer = pccard_tuple_read_2(tuple, 0);
 		state->card->product = pccard_tuple_read_2(tuple, 2);
+		/*
+		 * This is for xe driver. But not better.
+		 * In PC Card Standard,
+		 * Manufacturer ID: 2byte.
+		 * Product ID: 2byte usually, but no limited.
+		 */
+		if (tuple->length == 5 ) {
+			state->card->prodext = pccard_tuple_read_1(tuple, 4);
+		}
 		DPRINTF(("CISTPL_MANFID\n"));
 		break;
 	case PCCARD_CISTPL_FUNCID:
