@@ -70,11 +70,6 @@ __FBSDID("$FreeBSD$");
 #include "rpc_com.h"
 #include "un-namespace.h"
 
-struct cmessage {
-        struct cmsghdr cmsg;
-        struct cmsgcred cmcred;
-};
-
 extern rwlock_t svc_fd_lock;
 
 static SVCXPRT *makefd_xprt(int, u_int, u_int);
@@ -94,7 +89,6 @@ static void svc_vc_ops(SVCXPRT *);
 static bool_t svc_vc_control(SVCXPRT *xprt, const u_int rq, void *in);
 static bool_t svc_vc_rendezvous_control (SVCXPRT *xprt, const u_int rq,
 				   	     void *in);
-static int __msgread_withcred(int, void *, size_t, struct cmessage *);
 static int __msgwrite(int, void *, size_t);
 
 struct cf_rendezvous { /* kept in xprt->xp_p1 for rendezvouser */
@@ -476,8 +470,6 @@ read_vc(xprtp, buf, len)
 	int sock;
 	int milliseconds = 35 * 1000;
 	struct pollfd pollfd;
-	struct sockaddr *sa;
-	struct cmessage *cm;
 	struct cf_conn *cfp;
 
 	xprt = (SVCXPRT *)xprtp;
@@ -487,15 +479,8 @@ read_vc(xprtp, buf, len)
 
 	cfp = (struct cf_conn *)xprt->xp_p1;
 
-	cm = NULL;
-	sa = (struct sockaddr *)xprt->xp_rtaddr.buf;
 	if (cfp->nonblock) {
-		if (sa->sa_family == AF_LOCAL) {
-			cm = (struct cmessage *)xprt->xp_verf.oa_base;
-			if ((len = __msgread_withcred(sock, buf, len, cm)) > 0)
-				xprt->xp_p2 = &cm->cmcred;
-		} else
-			len = _read(sock, buf, (size_t)len);
+		len = _read(sock, buf, (size_t)len);
 		if (len < 0) {
 			if (errno == EAGAIN)
 				len = 0;
@@ -524,18 +509,9 @@ read_vc(xprtp, buf, len)
 		}
 	} while ((pollfd.revents & POLLIN) == 0);
 
-	if (sa->sa_family == AF_LOCAL) {
-		cm = (struct cmessage *)xprt->xp_verf.oa_base;
-		if ((len = __msgread_withcred(sock, buf, len, cm)) > 0) {
-			xprt->xp_p2 = &cm->cmcred;
-			return (len);
-		} else
-			goto fatal_err;
-	} else {
-		if ((len = _read(sock, buf, (size_t)len)) > 0) {
-			gettimeofday(&cfp->last_recv_time, NULL);
-			return (len);
-		}
+	if ((len = _read(sock, buf, (size_t)len)) > 0) {
+		gettimeofday(&cfp->last_recv_time, NULL);
+		return (len);
 	}
 
 fatal_err:
@@ -555,7 +531,6 @@ write_vc(xprtp, buf, len)
 {
 	SVCXPRT *xprt;
 	int i, cnt;
-	struct sockaddr *sa;
 	struct cf_conn *cd;
 	struct timeval tv0, tv1;
 
@@ -567,12 +542,8 @@ write_vc(xprtp, buf, len)
 	if (cd->nonblock)
 		gettimeofday(&tv0, NULL);
 	
-	sa = (struct sockaddr *)xprt->xp_rtaddr.buf;
 	for (cnt = len; cnt > 0; cnt -= i, buf += i) {
-		if (sa->sa_family == AF_LOCAL)
-			i = __msgwrite(xprt->xp_fd, buf, (size_t)cnt);
-		else
-			i = _write(xprt->xp_fd, buf, (size_t)cnt);
+		i = _write(xprt->xp_fd, buf, (size_t)cnt);
 		if (i  < 0) {
 			if (errno != EAGAIN || !cd->nonblock) {
 				cd->strm_stat = XPRT_DIED;
@@ -747,98 +718,26 @@ svc_vc_rendezvous_ops(xprt)
 	mutex_unlock(&ops_lock);
 }
 
-int
-__msgread_withcred(sock, buf, cnt, cmp)
-	int sock;
-	void *buf;
-	size_t cnt;
-	struct cmessage *cmp;
-{
-	struct iovec iov[1];
-	struct msghdr msg;
-	union {
-		struct cmsghdr cmsg;
-		char control[CMSG_SPACE(sizeof(struct cmsgcred))];
-	} cm;
-	int ret;
-
- 
-	bzero(&cm, sizeof(cm));
-	iov[0].iov_base = buf;
-	iov[0].iov_len = cnt;
- 
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_control = &cm;
-	msg.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
-	msg.msg_flags = 0;
- 
-	ret = _recvmsg(sock, &msg, 0);
-	bcopy(&cm.cmsg, &cmp->cmsg, sizeof(cmp->cmsg));
-	bcopy(CMSG_DATA(&cm), &cmp->cmcred, sizeof(cmp->cmcred));
-
-	if ((msg.msg_flags & MSG_CTRUNC) != 0)
-		return (-1);
-
-	return (ret);
-}
-
-static int
-__msgwrite(sock, buf, cnt)
-	int sock;
-	void *buf;
-	size_t cnt;
-{
-	struct iovec iov[1];
-	struct msghdr msg;
-	struct cmessage cm;
- 
-	bzero((char *)&cm, sizeof(cm));
-	iov[0].iov_base = buf;
-	iov[0].iov_len = cnt;
- 
-	cm.cmsg.cmsg_type = SCM_CREDS;
-	cm.cmsg.cmsg_level = SOL_SOCKET;
-	cm.cmsg.cmsg_len = sizeof(struct cmessage);
- 
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_control = &cm;
-	msg.msg_controllen = sizeof(struct cmessage);
-	msg.msg_flags = 0;
-
-	return(_sendmsg(sock, &msg, 0));
-}
-
 /*
- * Get the effective UID of the sending process. Used by rpcbind and keyserv
- * (AF_LOCAL).
+ * Get the effective UID of the sending process. Used by rpcbind, keyserv
+ * and rpc.yppasswdd on AF_LOCAL.
  */
 int
-__rpc_get_local_uid(SVCXPRT *transp, uid_t *uid)
-{
-	struct cmsgcred *cmcred;
-	struct cmessage *cm;
-	struct cmsghdr *cmp;
-  
-	cm = (struct cmessage *)transp->xp_verf.oa_base;
-	
-	if (cm == NULL)
+__rpc_get_local_uid(SVCXPRT *transp, uid_t *uid) {
+	int sock, ret;
+	gid_t egid;
+	uid_t euid;
+	struct sockaddr *sa;
+
+	sock = transp->xp_fd;
+	sa = (struct sockaddr *)transp->xp_rtaddr.buf;
+	if (sa->sa_family == AF_LOCAL) {
+		ret = getpeereid(sock, &euid, &egid);
+		if (ret == 0)
+			*uid = euid;
+		return (ret);
+	} else
 		return (-1);
-	cmp = &cm->cmsg;
-	if (cmp == NULL || cmp->cmsg_level != SOL_SOCKET ||
-	   cmp->cmsg_type != SCM_CREDS)
-		return (-1);
- 
-	cmcred = __svc_getcallercreds(transp);
-	if (cmcred == NULL)
-		return (-1); 
-	*uid = cmcred->cmcred_euid;
-	return (0);
 }
 
 /*
