@@ -1,4 +1,4 @@
-/*	$Id: main.c,v 1.16 1997/12/13 20:38:19 pst Exp $	*/
+/*	$Id: main.c,v 1.16.2.1 1999/07/01 11:33:35 ru Exp $	*/
 /*	$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $	*/
 
 /*
@@ -44,7 +44,7 @@ __COPYRIGHT("@(#) Copyright (c) 1985, 1989, 1993, 1994\n\
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$Id: main.c,v 1.16 1997/12/13 20:38:19 pst Exp $");
+__RCSID("$Id: main.c,v 1.16.2.1 1999/07/01 11:33:35 ru Exp $");
 __RCSID_SOURCE("$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $");
 #endif
 #endif /* not lint */
@@ -135,7 +135,7 @@ main(argc, argv)
 	cp = strrchr(argv[0], '/');
 	cp = (cp == NULL) ? argv[0] : cp + 1;
 	if ((s = getenv("FTP_PASSIVE_MODE")) != NULL
-	    && strcasecmp(s, "yes") == 0)
+	    && strcasecmp(s, "no") != 0)
 		passivemode = 1;
 	if (strcmp(cp, "pftp") == 0)
 		passivemode = 1;
