@@ -1645,14 +1645,14 @@ pmap_zero_page(vm_page_t m)
 	} else if (m->md.color == DCACHE_COLOR(pa)) {
 		PMAP_STATS_INC(pmap_nzero_page_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
-		bzero((void *)va, PAGE_SIZE);
+		cpu_block_zero((void *)va, PAGE_SIZE);
 	} else {
 		PMAP_STATS_INC(pmap_nzero_page_oc);
 		va = pmap_temp_map_1 + (m->md.color * PAGE_SIZE);
 		tp = tsb_kvtotte(va);
 		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP | TD_CV | TD_W;
 		tp->tte_vpn = TV_VPN(va, TS_8K);
-		bzero((void *)va, PAGE_SIZE);
+		cpu_block_zero((void *)va, PAGE_SIZE);
 		tlb_page_demap(kernel_pmap, va);
 	}
 }
@@ -1704,14 +1704,14 @@ pmap_zero_page_idle(vm_page_t m)
 	} else if (m->md.color == DCACHE_COLOR(pa)) {
 		PMAP_STATS_INC(pmap_nzero_page_idle_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
-		bzero((void *)va, PAGE_SIZE);
+		cpu_block_zero((void *)va, PAGE_SIZE);
 	} else {
 		PMAP_STATS_INC(pmap_nzero_page_idle_oc);
 		va = pmap_idle_map + (m->md.color * PAGE_SIZE);
 		tp = tsb_kvtotte(va);
 		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP | TD_CV | TD_W;
 		tp->tte_vpn = TV_VPN(va, TS_8K);
-		bzero((void *)va, PAGE_SIZE);
+		cpu_block_zero((void *)va, PAGE_SIZE);
 		tlb_page_demap(kernel_pmap, va);
 	}
 }
@@ -1740,7 +1740,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 		PMAP_STATS_INC(pmap_ncopy_page_c);
 		vdst = TLB_PHYS_TO_DIRECT(pdst);
 		vsrc = TLB_PHYS_TO_DIRECT(psrc);
-		bcopy((void *)vsrc, (void *)vdst, PAGE_SIZE);
+		cpu_block_copy((void *)vsrc, (void *)vdst, PAGE_SIZE);
 	} else if (msrc->md.color == -1) {
 		if (mdst->md.color == DCACHE_COLOR(pdst)) {
 			PMAP_STATS_INC(pmap_ncopy_page_dc);
@@ -1787,7 +1787,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 		tp->tte_data =
 		    TD_V | TD_8K | TD_PA(psrc) | TD_CP | TD_CV | TD_W;
 		tp->tte_vpn = TV_VPN(vsrc, TS_8K);
-		bcopy((void *)vsrc, (void *)vdst, PAGE_SIZE);
+		cpu_block_copy((void *)vsrc, (void *)vdst, PAGE_SIZE);
 		tlb_page_demap(kernel_pmap, vdst);
 		tlb_page_demap(kernel_pmap, vsrc);
 	}

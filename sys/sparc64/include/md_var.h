@@ -33,6 +33,9 @@
 #ifndef	_MACHINE_MD_VAR_H_
 #define	_MACHINE_MD_VAR_H_
 
+typedef void cpu_block_copy_t(const void *src, void *dst, size_t len);
+typedef void cpu_block_zero_t(void *dst, size_t len);
+
 extern	char	tl0_base[];
 extern	char	_end[];
 
@@ -41,10 +44,6 @@ extern	long	Maxmem;
 extern	vm_offset_t kstack0;
 extern	vm_offset_t kstack0_phys;
 
-struct	dbreg;
-struct	fpreg;
-struct	thread;
-struct	reg;
 struct	pcpu;
 
 void	cpu_halt(void);
@@ -53,5 +52,11 @@ void	cpu_reset(void);
 void	cpu_setregs(struct pcpu *pc);
 int	is_physical_memory(vm_offset_t addr);
 void	swi_vm(void *v);
+
+cpu_block_copy_t spitfire_block_copy;
+cpu_block_zero_t spitfire_block_zero;
+
+extern	cpu_block_copy_t *cpu_block_copy;
+extern	cpu_block_zero_t *cpu_block_zero;
 
 #endif /* !_MACHINE_MD_VAR_H_ */
