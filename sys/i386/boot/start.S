@@ -1,6 +1,4 @@
 /*
- * Ported to boot 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
- *
  * Mach Operating System
  * Copyright (c) 1992, 1991 Carnegie Mellon University
  * All Rights Reserved.
@@ -24,97 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
+ *
+ *	from: Mach, Revision 2.2  92/04/04  11:36:29  rpd
+ *	$Id$
  */
-
-/*
- * HISTORY
- * $Log: start.S,v $
-Revision 1.2  1993/07/11  12:02:24  andrew
-Fixes from bde, including support for loading @ any MB boundary (e.g. a
-kernel linked for 0xfe100000 will load at the 1MB mark) and read-ahead
-buffering to speed booting from floppies.  Also works with aha174x
-controllers in enhanced mode.
-
- *
- * 93/07/06  bde
- *	Restored BOOTSEG to 0x9000 for distribution.  It should be decided
- *	at boot time to locate the bootstrap immediately underneath the
- *	debugger or whatever is in high memory.  This isn't safe yet,
- *	because it might make the read-ahead buffer might lie across a 64K
- *	DMA boundary.
- *
- * 93/07/03  bde
- *	Some floppy BIOS's can only handle reads of one track, so a LOADSZ
- *	of 16 doesn't work.  15 will do for now.
- *
- * 93/06/29  bde
- *	LOADSZ is 16, not 14.  The BIOS can handle a minimum of one floppy
- *	cylinder so it can always handle 16 sectors starting at head 0,
- *	sector 1.
- *
- * 93/06/28  bde
- *	Changed addr16's to addr32's.  One before a useless "xor %ecx, %ecx"
- *	did nothing (removed both prefix and xor).
- *
- * 	Initialize head = %dh = 0 for floppy case.
- *
- *	Fixed #ifdef DEBUG ... #endif that split data32; jmp load.  If
- *	DEBUG is defined then the jmp doesn't get prefixed.  This is fatal
- *	iff the jmp is long.  Usually the jmp will be short and the prefix
- *	unnecessary.  But it is more likely to be necessary if DEBUG is
- *	defined.
- *
- * 93/06/27  bde
- *	Removed bogus Int 21.  There is no Int 21 BIOS call.  The drive
- *	number is passed to here in %dl and the Int 21 is at best a nop.
- *	Some BIOS's treat Int 21 as a stray hardware interrupt and shut
- *	down all in-service interrupts.  This should not be a problem
- *	because this are not an interrupt handler so there are no
- *	in-service interrupts, but ...
- *
- *	Fixed fd/hd decision.  "%dl ge 0x80" (signed comparison) was always
- *	true, so fd's were treated as hd's.  This was not a problem because
- *	the boot block has a partition table.
- *
- *	Reduced BOOTSEG and added breakpoint so that debugger can look at
- *	this.  Having a fixed boot address is bad because some machines don't
- *	have 640K and others have debuggers and/or BIOS stuff in high memory.
- *
- * 93/04/30  bde
- *	Commented out "<leading white space> # %".  It's not C, and gcc-2's
- *	cpp doesn't allow it.  "# identifier" isn't C either but works for now.
- *
- *	Use $ EXT instead of $EXT to avoid broken DOLLARS_IN_IDENTIFIERS stuff
- *	in gcc-2.3.3.  (Bug is still in gcc-2.4.5 but is avoided by using .S
- *	files.)
- *
-Revision 1.1  1993/03/21  18:08:42  cgd
-after 0.2.2 "stable" patches applied
-
- * Revision 2.2  92/04/04  11:36:29  rpd
- * 	Fix Intel Copyright as per B. Davies authorization.
- * 	[92/04/03            rvb]
- * 	Need to zero dh on hd path; at least for an adaptec card.
- * 	[92/01/14            rvb]
- * 
- * 	From 2.5 boot:
- * 	Flush digit printing.
- * 	Fuse floppy and hd boot by using Int 21 to tell
- * 	boot type (slightly dubious since Int 21 is DOS
- * 	not BIOS)
- * 	[92/03/30            mg32]
- * 
- * Revision 2.2  91/04/02  14:42:04  mbj
- * 	Fix the BIG boot bug.  We had missed a necessary data
- * 	before a xor that was clearing a register used later
- * 	as an index register.
- * 	[91/03/01            rvb]
- * 	Remember floppy type for swapgeneric
- * 	Add Intel copyright
- * 	[90/02/09            rvb]
- * 
- */
- 
 
 /*
   Copyright 1988, 1989, 1990, 1991, 1992 
