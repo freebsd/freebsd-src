@@ -1740,6 +1740,7 @@ bootpc_init(void)
 #endif
 	}
 
+	rootdevnames[0] = "nfs:";
 	mountopts(&nd->root_args, NULL);
 
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
@@ -1894,3 +1895,5 @@ out:
 	m_freem(m);
 	return error;
 }
+
+SYSINIT(bootp_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, bootpc_init, NULL);
