@@ -250,7 +250,7 @@ iicbus_print_child(device_t bus, device_t dev)
 		break;
 
 	default:
-		panic("%s: unknown class!\n", __FUNCTION__);
+		panic("%s: unknown class!", __FUNCTION__);
 	}
 
 	return (retval);
