@@ -268,4 +268,6 @@ void	atm_input(struct ifnet *, struct atm_pseudohdr *,
 	    struct mbuf *, void *);
 int	atm_output(struct ifnet *, struct mbuf *, struct sockaddr *, 
 	    struct rtentry *);
+struct atmio_vcctable *atm_getvccs(struct atmio_vcc **, u_int, u_int,
+	    struct mtx *, int);
 #endif
