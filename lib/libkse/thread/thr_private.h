@@ -580,6 +580,7 @@ struct pthread_sigframe {
 	int			psf_valid;
 	int			psf_flags;
 	int			psf_interrupted;
+	int			psf_timeout;
 	int			psf_signo;
 	enum pthread_state	psf_state;
 	union pthread_wait_data psf_wait_data;
