@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.29 1995/03/23 09:00:20 rgrimes Exp $
+ *      $Id: ultra14f.c,v 1.30 1995/04/12 20:48:09 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -638,19 +638,19 @@ uha_done(unit, mscp)
 	 * Otherwise, put the results of the operation
 	 * into the xfer and call whoever started it
 	 */
-	if ((mscp->ha_status == UHA_NO_ERR) || (xs->flags & SCSI_ERR_OK)) {	/* All went correctly  OR errors expected */
-		xs->resid = 0;
-		xs->error = 0;
-	} else {
+	if (((mscp->ha_status != UHA_NO_ERR) || (mscp->targ_status != SCSI_OK))
+	 && ((xs->flags & SCSI_ERR_OK) == 0)) {
 
 		s1 = &(mscp->mscp_sense);
 		s2 = &(xs->sense);
 
 		if (mscp->ha_status != UHA_NO_ERR) {
 			switch (mscp->ha_status) {
-			case UHA_SBUS_TIMEOUT:		/* No response */
+			case UHA_SBUS_ABORT_ERR:
+			case UHA_SBUS_TIMEOUT:		/* No sel response */
 				SC_DEBUG(xs->sc_link, SDEV_DB3,
-				    ("timeout reported back\n"));
+				    ("abort or timeout; ha_status 0x%x\n",
+					mscp->ha_status));
 				xs->error = XS_TIMEOUT;
 				break;
 			case UHA_SBUS_OVER_UNDER:
@@ -658,34 +658,38 @@ uha_done(unit, mscp)
 				    ("scsi bus xfer over/underrun\n"));
 				xs->error = XS_DRIVER_STUFFUP;
 				break;
-			case UHA_BAD_SG_LIST:
-				SC_DEBUG(xs->sc_link, SDEV_DB3,
-				    ("bad sg list reported back\n"));
-				xs->error = XS_DRIVER_STUFFUP;
-				break;
 			default:	/* Other scsi protocol messes */
 				xs->error = XS_DRIVER_STUFFUP;
-				SC_DEBUG(xs->sc_link, SDEV_DB3,
-				    ("unexpected ha_status: %x\n",
-					mscp->ha_status));
+				printf("uha%d: unexpected ha_status 0x%x (target status 0x%x)\n",
+					unit, mscp->ha_status,
+					mscp->targ_status);
+				break;
 			}
 		} else {
-
-			if (mscp->targ_status != 0)
-/*
- * I have no information for any possible value of target status field
- * other than 0 means no error!! So I guess any error is unexpected in that
- * event!!
- */
-
-			{
-				SC_DEBUG(xs->sc_link, SDEV_DB3,
-				    ("unexpected targ_status: %x\n",
-					mscp->targ_status));
+			/* Target status problem */
+			SC_DEBUG(xs->sc_link, SDEV_DB3, ("target err 0x%x\n",
+				mscp->targ_status));
+			switch (mscp->targ_status) {
+			case 0x02:
+				*s2 = *s1;
+				xs->error = XS_SENSE;
+				break;
+			case 0x08:
+				xs->error = XS_BUSY;
+				break;
+			default:
+				printf("uha%d: unexpected targ_status 0x%x\n",
+					unit, mscp->targ_status);
 				xs->error = XS_DRIVER_STUFFUP;
+				break;
 			}
 		}
-      }
+	}
+	else {
+		/* All went correctly  OR  errors expected */
+		xs->resid = 0;
+		xs->error = 0;
+	}
     done:
 	xs->flags |= ITSDONE;
 	uha_free_mscp(unit, mscp, xs->flags);
