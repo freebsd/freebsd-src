@@ -141,7 +141,9 @@ static struct ti_type ti_devs[] = {
 	{ TC_VENDORID,	TC_DEVICEID_3C985,
 		"3Com 3c985-SX Gigabit Ethernet" },
 	{ NG_VENDORID, NG_DEVICEID_GA620,
-		"Netgear GA620 Gigabit Ethernet" },
+		"Netgear GA620 1000baseSX Gigabit Ethernet" },
+	{ NG_VENDORID, NG_DEVICEID_GA620T,
+		"Netgear GA620 1000baseT Gigabit Ethernet" },
 	{ SGI_VENDORID, SGI_DEVICEID_TIGON,
 		"Silicon Graphics Gigabit Ethernet" },
 	{ DEC_VENDORID, DEC_DEVICEID_FARALLON_PN9000SX,
@@ -1699,6 +1701,10 @@ static int ti_attach(dev)
 	 */
 	if (pci_get_vendor(dev) == ALT_VENDORID &&
 	    pci_get_device(dev) == ALT_DEVICEID_ACENIC_COPPER)
+		sc->ti_copper = 1;
+	/* Ok, it's not the only copper card available. */
+	if (pci_get_vendor(dev) == NG_VENDORID &&
+	    pci_get_device(dev) == NG_DEVICEID_GA620T)
 		sc->ti_copper = 1;
 
 	/* Set default tuneable values. */
