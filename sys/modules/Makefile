@@ -154,6 +154,7 @@ SUBDIR=	${_3dfx} \
 	nfsclient \
 	nfsserver \
 	nge \
+	${_nve} \
 	nmdm \
 	${_nsp} \
 	ntfs \
@@ -331,6 +332,7 @@ _ncp=		ncp
 _ncv=		ncv
 _ndis=		ndis
 _nsp=		nsp
+_nve=		nve
 _nwfs=		nwfs
 _oltr=		oltr
 _pccard=	pccard
@@ -416,6 +418,7 @@ _ips=		ips
 #_lnc=		lnc
 _mly=		mly
 _ndis=		ndis
+_nve=		nve
 _safe=		safe
 _scsi_low=	scsi_low
 _smbfs=		smbfs
