@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.36 1998/04/03 19:25:23 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.37 1998/04/03 19:26:16 brian Exp $
  */
 
 #include <sys/param.h>
@@ -340,8 +340,6 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
         bundle->ncp.ipcp.fsm.state == ST_STARTING)
       FsmClose(&bundle->ncp.ipcp.fsm);
     else {
-      /* This shouldn't happen ! */
-      LogPrintf(LogWARN, "Tidying up hung FSMs\n");
       if (bundle->ncp.ipcp.fsm.state > ST_INITIAL) {
         FsmClose(&bundle->ncp.ipcp.fsm);
         FsmDown(&bundle->ncp.ipcp.fsm);
@@ -978,7 +976,7 @@ bundle_WriteTermPrompt(struct bundle *bundle, struct datalink *dl,
     if (desc->type == PROMPT_DESCRIPTOR) {
       p = (struct prompt *)desc;
       if (prompt_IsTermMode(p, dl))
-        prompt_Printf(p, ".*s", len, data);
+        prompt_Printf(p, "%.*s", len, data);
     }
 }
 
