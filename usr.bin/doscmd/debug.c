@@ -41,7 +41,7 @@
 #include "tty.h"
 
 /* debug output goes here */
-FILE *debugf = stderr;
+FILE *debugf;
 
 /* see doscmd.h for flag names */
 int debug_flags = D_ALWAYS;
