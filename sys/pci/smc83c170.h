@@ -23,25 +23,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: smc83c170.h,v 1.7 1998/04/15 17:47:08 bde Exp $
+ *      $Id: smc83c170.h,v 1.14 1998/07/03 23:59:09 galv Exp $
  *
  */
 
 /*
  * Configuration
  */
-#define EPIC_MAX_DEVICES	4
-
-#define TX_RING_SIZE	16
-#define RX_RING_SIZE	16
+#define TX_RING_SIZE		8
+#define RX_RING_SIZE		8
 #define EPIC_FULL_DUPLEX	1
 #define EPIC_HALF_DUPLEX	0
-
 #define ETHER_MAX_FRAME_LEN	(ETHER_MAX_LEN + ETHER_CRC_LEN)
-
-/* Shall be moved to ../net/if_mib.h */
-#define	dot3VendorSMC		8
-#define	dot3ChipSetSMC83c170	1
+#define	EPIC_LINK_DOWN		0x00000001
 
 /* PCI identification */
 #define SMC_VENDORID		0x10B8
@@ -180,11 +174,21 @@
 #define TXCON_LOOPBACK_DISABLE		0x00000000
 #define TXCON_LOOPBACK_MODE_INT		0x00000002
 #define TXCON_LOOPBACK_MODE_PHY		0x00000004
-#define TXCON_LOOPBACK_MODE_FULL_DUPLEX	0x00000006
+#define TXCON_LOOPBACK_MODE		0x00000006
+#define TXCON_FULL_DUPLEX		0x00000006
 #define TXCON_SLOT_TIME			0x00000078
 
-#define TXCON_DEFAULT	(TXCON_SLOT_TIME|TXCON_EARLY_TRANSMIT_ENABLE)
-
+#if defined(EARLY_TX)
+ #define TXCON_DEFAULT		(TXCON_SLOT_TIME | TXCON_EARLY_TRANSMIT_ENABLE)
+ #define TRANSMIT_THRESHOLD	0x40
+#else
+ #define TXCON_DEFAULT		(TXCON_SLOT_TIME)
+#endif
+#if defined(EARLY_RX)
+ #define RXCON_DEFAULT		(RXCON_EARLY_RECEIVE_ENABLE | RXCON_SAVE_ERRORED_PACKETS)
+#else
+ #define RXCON_DEFAULT		(0)
+#endif
 /*
  * National Semiconductor's DP83840A Registers and bits
  */
@@ -228,8 +232,14 @@
  * Quality Semiconductor's QS6612 registers and bits
  */
 #define	QS6612_OUI		0x006051
+#define	QS6612_MCTL		17
 #define	QS6612_INTSTAT		29
 #define	QS6612_INTMASK		30
+
+#define	MCTL_T4_PRESENT		0x1000	/* External T4 Enabled, ignored */
+					/* if AutoNeg is enabled */
+#define	MCTL_BTEXT		0x0800	/* Reduces 10baset squelch level */
+					/* for extended cable length */
 
 #define	INTSTAT_AN_COMPLETE	0x40	/* Autonegotiation complete */
 #define	INTSTAT_RF_DETECTED	0x20	/* Remote Fault detected */
@@ -278,19 +288,11 @@ struct epic_frag_list {
 
 /* This is driver's structure to define EPIC descriptors */
 struct epic_rx_buffer {
-#if defined(RX_TO_MBUF)
 	struct mbuf *		mbuf;		/* mbuf receiving packet */
-#else
-	caddr_t			data;		/* or static address */
-#endif
 };
 
 struct epic_tx_buffer {
-#if defined(TX_FRAG_LIST)
 	struct mbuf *		mbuf;		/* mbuf contained packet */
-#else
-	caddr_t			data;		/* Tx buffer address */
-#endif
 };
 
 /*
@@ -308,13 +310,12 @@ typedef struct {
 	/* and bounded on PAGE_SIZE 			   */
 	struct epic_rx_desc	*rx_desc;
 	struct epic_tx_desc	*tx_desc;
-#if defined(TX_FRAG_LIST)
 	struct epic_frag_list	*tx_flist;
-#endif
 #if defined(_NET_IF_MEDIA_H_)
 	struct ifmedia 		ifmedia;
 #endif
 	struct arpcom		epic_ac;
+	u_int32_t		flags;
 	u_int32_t		phyid;
 	u_int32_t		cur_tx;
 	u_int32_t		cur_rx;
@@ -325,7 +326,6 @@ typedef struct {
 #else
 	caddr_t			csr;
 #endif
-	struct ifmib_iso_8802_3	dot3stats;
 } epic_softc_t;
 
 #define epic_if epic_ac.ac_if
@@ -345,6 +345,8 @@ typedef struct {
  #define CSR_READ_2(sc,reg) (*(u_int16_t*)((sc)->csr + (u_int32_t)(reg)))
  #define CSR_READ_4(sc,reg) (*(u_int32_t*)((sc)->csr + (u_int32_t)(reg)))
 #endif
+#define	PHY_READ_2(sc,reg)	epic_read_phy_register(sc,reg)
+#define PHY_WRITE_2(sc,reg,val)	epic_write_phy_register(sc,reg,val)
 
 static char* epic_pci_probe __P((pcici_t, pcidi_t));
 
@@ -367,10 +369,13 @@ static void epic_shutdown __P((int, void *));
 
 static int epic_init_rings __P((epic_softc_t *));
 static void epic_free_rings __P((epic_softc_t *));
+static void epic_stop_activity __P((epic_softc_t *));
+static void epic_start_activity __P((epic_softc_t *));
 static void epic_set_rx_mode __P((epic_softc_t *));
 static void epic_set_mc_table __P((epic_softc_t *));
 static void epic_set_media_speed __P((epic_softc_t *));
 static void epic_init_phy __P((epic_softc_t *));
+static void epic_dump_state __P((epic_softc_t *));
 static int epic_autoneg __P((epic_softc_t *));
 
 static int epic_read_eeprom __P((epic_softc_t *,u_int16_t));
@@ -380,5 +385,5 @@ static u_int8_t epic_eeprom_clock __P((epic_softc_t *,u_int8_t));
 static void epic_write_eepromreg __P((epic_softc_t *,u_int8_t));
 static u_int8_t epic_read_eepromreg __P((epic_softc_t *));
 
-static int epic_read_phy_register __P((epic_softc_t *, u_int16_t));
-static void epic_write_phy_register __P((epic_softc_t *, u_int16_t,u_int16_t));
+static u_int16_t epic_read_phy_register __P((epic_softc_t *, u_int16_t));
+static void epic_write_phy_register __P((epic_softc_t *, u_int16_t, u_int16_t));
