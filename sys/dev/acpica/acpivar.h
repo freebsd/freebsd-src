@@ -190,6 +190,7 @@ extern ACPI_STATUS	acpi_AppendBufferResource(ACPI_BUFFER *buf,
 extern ACPI_STATUS	acpi_OverrideInterruptLevel(UINT32 InterruptNumber);
 extern ACPI_STATUS	acpi_SetIntrModel(int model);
 extern ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
+extern ACPI_STATUS	acpi_Startup(void);
 extern ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
 extern ACPI_STATUS	acpi_Disable(struct acpi_softc *sc);
 extern void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
