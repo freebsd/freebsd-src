@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.25 1997/09/02 10:30:59 yokota Exp $
+ *  $Id: syscons.c,v 1.182.2.26 1997/10/02 02:05:29 jkh Exp $
  */
 
 #include "sc.h"
@@ -74,6 +74,19 @@
 
 #if !defined(MAXCONS)
 #define MAXCONS 16
+#endif
+
+#if !defined(SC_MAX_HISTORY_SIZE)
+#define SC_MAX_HISTORY_SIZE	(1000 * MAXCONS)
+#endif
+
+#if !defined(SC_HISTORY_SIZE)
+#define SC_HISTORY_SIZE		(ROW * 4)
+#endif
+
+#if (SC_HISTORY_SIZE * MAXCONS) > SC_MAX_HISTORY_SIZE
+#undef SC_MAX_HISTORY_SIZE
+#define SC_MAX_HISTORY_SIZE	(SC_HISTORY_SIZE * MAXCONS)
 #endif
 
 #define COLD 0
@@ -143,6 +156,9 @@ static  u_short 	mouse_or_mask[16] = {
 				0x0c00, 0x0c00, 0x0600, 0x0600,
 				0x0000, 0x0000, 0x0000, 0x0000
 			};
+
+static int		extra_history_size = 
+			    SC_MAX_HISTORY_SIZE - SC_HISTORY_SIZE * MAXCONS;
 
 static void    		none_saver(int blank) { }
 static void    		(*current_saver)(int blank) = none_saver;
@@ -633,10 +649,12 @@ scattach(struct isa_device *dev)
 	    		scp->mouse_xpos/8);
 
     /* initialize history buffer & pointers */
-    scp->history_head = scp->history_pos = scp->history =
+    scp->history_head = scp->history_pos = 
 	(u_short *)malloc(scp->history_size*sizeof(u_short),
 			  M_DEVBUF, M_NOWAIT);
-    bzero(scp->history_head, scp->history_size*sizeof(u_short));
+    if (scp->history_head != NULL)
+        bzero(scp->history_head, scp->history_size*sizeof(u_short));
+    scp->history = scp->history_head;
 
     /* initialize cursor stuff */
     if (!(scp->status & UNKNOWN_MODE))
@@ -777,8 +795,13 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	}
 	else {
 	    free(scp->scr_buf, M_DEVBUF);
-	    if (scp->history != NULL)
+	    if (scp->history != NULL) {
 		free(scp->history, M_DEVBUF);
+		if (scp->history_size / scp->xsize
+			> imax(SC_HISTORY_SIZE, scp->ysize))
+		    extra_history_size += scp->history_size / scp->xsize 
+			- imax(SC_HISTORY_SIZE, scp->ysize);
+	    }
 	    free(scp, M_DEVBUF);
 	    console[minor(dev)] = NULL;
 	}
@@ -882,6 +905,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     struct tty *tp;
     struct trapframe *fp;
     scr_stat *scp;
+    u_short *usp;
 
     tp = scdevtotty(dev);
     if (!tp)
@@ -954,21 +978,44 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_HISTORY:  	/* set history size */
-	if (*data) {
+	if (*(int *)data > 0) {
+	    int lines;	/* buffer size to allocate */
+	    int lines0;	/* current buffer size */
+
+	    lines = imax(*(int *)data, scp->ysize);
+	    lines0 = (scp->history != NULL) ? 
+		      scp->history_size / scp->xsize : scp->ysize;
+	    /*
+	     * syscons unconditionally allocates buffers upto SC_HISTORY_SIZE
+	     * lines or scp->ysize lines, whichever is larger. A value 
+	     * greater than that is allowed, subject to extra_history_size.
+	     */
+	    if (lines > imax(lines0, SC_HISTORY_SIZE) + extra_history_size)
+                return EINVAL;
             if (cur_console->status & BUFFER_SAVED)
                 return EBUSY;
-	    if (scp->history != NULL)
-		free(scp->history, M_DEVBUF);
-	    scp->history_size = *(int*)data;
-	    if (scp->history_size < scp->ysize)
-		scp->history = NULL;
-	    else {
-		scp->history_size *= scp->xsize;
-		scp->history_head = scp->history_pos = scp->history =
-		    (u_short *)malloc(scp->history_size*sizeof(u_short),
-				      M_DEVBUF, M_WAITOK);
-		bzero(scp->history_head, scp->history_size*sizeof(u_short));
-	    }
+	    usp = scp->history;
+	    scp->history = NULL;
+	    if (usp != NULL)
+		free(usp, M_DEVBUF);
+	    scp->history_size = lines * scp->xsize;
+	    /*
+	     * extra_history_size += 
+	     *    (lines0 > imax(SC_HISTORY_SIZE, scp->ysize)) ? 
+	     *     lines0 - imax(SC_HISTORY_SIZE, scp->ysize)) : 0;
+	     * extra_history_size -= 
+	     *    (lines > imax(SC_HISTORY_SIZE, scp->ysize)) ? 
+	     *	   lines - imax(SC_HISTORY_SIZE, scp->ysize)) : 0;
+	     * lines0 >= ysize && lines >= ysize... Hey, the above can be 
+	     * reduced to the following...
+	     */
+	    extra_history_size += 
+		imax(lines0, SC_HISTORY_SIZE) - imax(lines, SC_HISTORY_SIZE);
+	    usp = (u_short *)malloc(scp->history_size * sizeof(u_short),
+				    M_DEVBUF, M_WAITOK);
+	    bzero(usp, scp->history_size * sizeof(u_short));
+	    scp->history_head = scp->history_pos = usp;
+	    scp->history = usp;
 	    return 0;
 	}
 	else
@@ -1131,6 +1178,9 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	if (!crtc_vga || video_mode_ptr == NULL)
 	    return ENXIO;
+	if (scp->history != NULL)
+	    i = imax(scp->history_size / scp->xsize 
+		     - imax(SC_HISTORY_SIZE, scp->ysize), 0);
 	switch (cmd & 0xff) {
 	case M_VGA_C80x60: case M_VGA_M80x60:
 	    if (!(fonts_loaded & FONT_8))
@@ -1180,6 +1230,19 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	free(cut_buffer, M_DEVBUF);
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
 	cut_buffer[0] = 0x00;
+	usp = scp->history;
+	scp->history = NULL;
+	if (usp != NULL) {
+	    free(usp, M_DEVBUF);
+	    extra_history_size += i;
+	}
+	scp->history_size = imax(SC_HISTORY_SIZE, scp->ysize) * scp->xsize;
+	usp = (u_short *)malloc(scp->history_size * sizeof(u_short), 
+				M_DEVBUF, M_NOWAIT);
+	if (usp != NULL)
+	    bzero(usp, scp->history_size * sizeof(u_short));
+	scp->history_head = scp->history_pos = usp;
+	scp->history = usp;
 	if (scp == cur_console)
 	    set_mode(scp);
 	scp->status &= ~UNKNOWN_MODE;
@@ -1999,6 +2062,7 @@ exchange_scr(void)
     if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE ||
         old_scp->status & KBD_CODE_MODE || new_scp->status & KBD_CODE_MODE)
 	shfts = ctls = alts = agrs = metas = 0;
+    set_border(new_scp->border);
     update_leds(new_scp->status);
     delayed_next_scr = FALSE;
     mark_all(new_scp);
@@ -2758,10 +2822,11 @@ static scr_stat
     scp->mouse_pos = scp->mouse_oldpos = 
 	scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
 			scp->mouse_xpos/8);
-    scp->history_head = scp->history_pos = scp->history =
+    scp->history_head = scp->history_pos =
 	(u_short *)malloc(scp->history_size*sizeof(u_short),
 			  M_DEVBUF, M_WAITOK);
     bzero(scp->history_head, scp->history_size*sizeof(u_short));
+    scp->history = scp->history_head;
 /* SOS
     if (crtc_vga && video_mode_ptr)
 	set_mode(scp);
@@ -2815,7 +2880,7 @@ init_scp(scr_stat *scp)
     scp->proc = NULL;
     scp->smode.mode = VT_AUTO;
     scp->history_head = scp->history_pos = scp->history = NULL;
-    scp->history_size = HISTORY_SIZE;
+    scp->history_size = imax(SC_HISTORY_SIZE, scp->ysize) * scp->xsize;
 }
 
 static u_char
@@ -3577,9 +3642,7 @@ set_border(u_char color)
     case KD_EGA:
     case KD_VGA:
         inb(crtc_addr + 6);		/* reset flip-flop */
-        outb(ATC, 0x11); outb(ATC, color);
-        inb(crtc_addr + 6);		/* reset flip-flop */
-        outb(ATC, 0x20);		/* enable Palette */
+        outb(ATC, 0x31); outb(ATC, color);
 	break;
     case KD_CGA:
 	outb(crtc_addr + 5, color & 0x0f); /* color select register */
