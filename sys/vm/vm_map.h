@@ -112,7 +112,7 @@ struct vm_map_entry {
 	vm_pindex_t lastr;		/* last read */
 };
 
-#define MAP_ENTRY_UNUSED_01		0x1
+#define MAP_ENTRY_NOSYNC		0x1
 #define MAP_ENTRY_IS_SUB_MAP		0x2
 #define MAP_ENTRY_COW			0x4
 #define MAP_ENTRY_NEEDS_COPY		0x8
@@ -329,6 +329,7 @@ vmspace_resident_count(struct vmspace *vmspace)
 #define MAP_NOFAULT		0x4
 #define MAP_PREFAULT		0x8
 #define MAP_PREFAULT_PARTIAL	0x10
+#define MAP_DISABLE_SYNCER	0x20
 
 /*
  * vm_fault option flags

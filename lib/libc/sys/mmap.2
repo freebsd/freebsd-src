@@ -150,6 +150,35 @@ stack top is the starting address returned by the call, plus
 .Fa len 
 bytes.  The bottom of the stack at maximum growth is the starting
 address returned by the call.
+.It Dv MAP_NOSYNC
+Causes data dirtied via this VM map to be flushed to physical media
+only when necessary (usually by the pager) rather then gratuitously.
+Typically this prevents the update daemons from flushing pages dirtied 
+through such maps and thus allows efficient sharing of memory across
+unassociated processes using a file-backed shared memory map.  Without
+this option any VM pages you dirty may be flushed to disk every so often
+(every 30-60 seconds usually) which can create performance problems if you
+do not need that to occur (such as when you are using shared file-backed
+mmap regions for IPC purposes).  Note that VM/filesystem coherency is
+maintained whether you use MAP_NOSYNC or not.  This option is not portable
+across UNIX platforms (yet), though some may implement the same behavior
+by default.
+.Pp
+The
+.Xr fsync 2
+function will flush all dirty data and metadata associated with a file,
+including dirty NOSYNC VM data, to physical media.  The
+.Xr sync 1
+command and
+.Xr sync 2
+system call generally do not flush dirty NOSYNC VM data.
+The
+.Xr msync 2
+system call is obsolete since
+.Os BSD
+implements a coherent filesystem buffer cache.  However, it may be 
+used to associate dirty VM pages with filesystem buffers and thus cause
+them to be flushed to physical media sooner rather then later.
 .El
 .Pp
 The 

@@ -460,6 +460,9 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		KASSERT(object == NULL,
 			("vm_map_insert: paradoxical MAP_NOFAULT request"));
 	}
+	if (cow & MAP_DISABLE_SYNCER)
+		protoeflags |= MAP_ENTRY_NOSYNC;
+
 	if (object) {
 		/*
 		 * When object is non-NULL, it could be shared with another
@@ -539,13 +542,15 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	 * Update the free space hint
 	 */
 	if ((map->first_free == prev_entry) &&
-	    (prev_entry->end >= new_entry->start))
+	    (prev_entry->end >= new_entry->start)) {
 		map->first_free = new_entry;
+	}
 
-	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL))
+	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
 		pmap_object_init_pt(map->pmap, start,
 				    object, OFF_TO_IDX(offset), end - start,
 				    cow & MAP_PREFAULT_PARTIAL);
+	}
 
 	return (KERN_SUCCESS);
 }
@@ -1026,6 +1031,8 @@ vm_map_madvise(map, start, end, behav)
 	case MADV_NORMAL:
 	case MADV_SEQUENTIAL:
 	case MADV_RANDOM:
+	case MADV_NOSYNC:
+	case MADV_AUTOSYNC:
 		modify_map = 1;
 		vm_map_lock(map);
 		break;
@@ -1076,6 +1083,12 @@ vm_map_madvise(map, start, end, behav)
 				break;
 			case MADV_RANDOM:
 				vm_map_entry_set_behavior(current, MAP_ENTRY_BEHAV_RANDOM);
+				break;
+			case MADV_NOSYNC:
+				current->eflags |= MAP_ENTRY_NOSYNC;
+				break;
+			case MADV_AUTOSYNC:
+				current->eflags &= ~MAP_ENTRY_NOSYNC;
 				break;
 			default:
 				break;
