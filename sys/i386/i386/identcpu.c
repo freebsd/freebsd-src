@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.64 1999/06/24 03:47:54 green Exp $
+ *	$Id: identcpu.c,v 1.65 1999/06/24 20:08:56 jlemon Exp $
  */
 
 #include "opt_cpu.h"
@@ -294,6 +294,9 @@ printcpuinfo(void)
 			break;
 		case 0x580:
 			strcat(cpu_model, "K6-2");
+			break;
+		case 0x590:
+			strcat(cpu_model, "K6-III");
 			break;
 		default:
 			strcat(cpu_model, "Unknown");
@@ -866,11 +869,51 @@ print_AMD_assoc(int i)
 static void
 print_AMD_info(void)
 {
-	u_int regs[4];
+	u_int regs[4], amd_maxregs;
 	quad_t amd_whcr;
 
 	do_cpuid(0x80000000, regs);
-	if (regs[0] >= 0x80000005) {
+	amd_maxregs = regs[0];
+
+	if (amd_maxregs >= 0x80000001) {
+		do_cpuid(0x80000001, regs);
+		printf(" AMD Features=0x%b\n", regs[3],
+			"\020"		/* in hex */
+			"\001FPU"
+			"\002VME"
+			"\003DE"
+			"\004PSE"
+			"\005TSC"
+			"\006MSR"
+			"\007<b6>"
+			"\010MCE"
+			"\011CX8"
+			"\012<b9>"
+			"\013<b10>"
+			"\014SYSCALL"
+			"\015<b12>"
+			"\016PGE"
+			"\017<b14>"
+			"\020ICMOV"
+			"\021FCMOV"
+			"\022<b17>"
+			"\023<b18>"
+			"\024<b19>"
+			"\025<b20>"
+			"\026<b21>"
+			"\027<b22>"
+			"\030MMX"
+			"\031<b24>"
+			"\032<b25>"
+			"\033<b26>"
+			"\034<b27>"
+			"\035<b28>"
+			"\036<b29>"
+			"\037<b30>"
+			"\0403DNow!"
+			);
+	}
+	if (amd_maxregs >= 0x80000005) {
 		do_cpuid(0x80000005, regs);
 		printf("Data TLB: %d entries", (regs[1] >> 16) & 0xff);
 		print_AMD_assoc(regs[1] >> 24);
@@ -884,12 +927,19 @@ print_AMD_info(void)
 		printf(", %d bytes/line", regs[3] & 0xff);
 		printf(", %d lines/tag", (regs[3] >> 8) & 0xff);
 		print_AMD_assoc((regs[3] >> 16) & 0xff);
+		if (amd_maxregs >= 0x80000006) {	/* K6-III only */
+			do_cpuid(0x80000006, regs);
+			printf("L2 internal cache: %d kbytes", regs[2] >> 16);
+			printf(", %d bytes/line", regs[2] & 0xff);
+			printf(", %d lines/tag", (regs[2] >> 8) & 0x0f);
+			print_AMD_assoc((regs[2] >> 12) & 0x0f);	
+		}
 	}
 	if (((cpu_id & 0xf00) == 0x500)
 	    && (((cpu_id & 0x0f0) > 0x80)
 		|| (((cpu_id & 0x0f0) == 0x80)
 		    && (cpu_id & 0x00f) > 0x07))) {
-		/* K6-2(new core [Stepping 8-F]), K6-3 or later */
+		/* K6-2(new core [Stepping 8-F]), K6-III or later */
 		amd_whcr = rdmsr(0xc0000082);
 		if (!(amd_whcr & (0x3ff << 22))) {
 			printf("Write Allocate Disable\n");
