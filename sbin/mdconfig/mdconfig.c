@@ -48,7 +48,8 @@ usage()
 "       mdconfig -l [-n] [-u unit]\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
 	fprintf(stderr, "\t\toption = {cluster, compress, reserve}\n");
-	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%dk (kB), %%dm (MB) or %%dg (GB)\n");
+	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%dk (kB),\n");
+	fprintf(stderr, "\t\t       %%dm (MB), %%dg (GB) or %%dt (TB) \n");
 	exit(1);
 }
 
