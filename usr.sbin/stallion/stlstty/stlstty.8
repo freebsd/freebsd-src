@@ -1,0 +1,162 @@
+.\" Copyright (c) 1996-1998 Greg Ungerer (gerg@stallion.oz.au).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Greg Ungerer.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 14, 1998
+.Os FreeBSD
+.Dt STLSTTY 8 i386
+.Sh NAME
+.Nm stlstty
+.Nd "Stallion Technologies multiport serial port enhanced switches"
+.Sh SYNOPSIS
+.Nm
+.Op Fl hV
+.Op Ar SWITCHES
+.Sh DESCRIPTION
+.Nm
+is used to view and set the advanced driver switches available on
+Stallion Technologies multiport serial ports.
+.Pp
+The advanced switches configurable through
+.Nm
+are only available on the intelligent boards of the Stallion
+Technologies multiport serial board range.
+This includes the EasyConnection 8/64 (ISA and EISA),
+ONboard and Brumby boards.
+The switches are not available on the EasyIO, EasyConnection 8/32
+and EasyConnection 8/64-PCI boards.
+.Pp
+If no switch settings are listed on the
+.Nm
+command line then it will display the current setting of all switches
+for the port that is
+.Pa standard input.
+If one or more switches is listed on the
+.Nm
+command line then those switches will be set accordingly.
+.Pp
+The options are:
+.Bl -tag -width xxxxx
+.It Fl h
+Output usage information.
+.It Fl V
+Output version information.
+.El
+.Sh SWITCHES
+All switches are enabled by using the switch name as a parameter
+to
+.Nm stlstty .
+To disable a setting use a
+.Pa "-"
+character in front of the switch name.
+.Pp
+All switches configurable by
+.Nm
+are persistent through opens and closes of the port.
+Once a switch is set it will remain set until changed using
+.Nm
+or by a reboot of the board or system.
+.Pp
+The following switches are configurable through
+.Nm stlstty :
+.Bl -tag -width xxxxx
+.It Ar maprts (\-maprts)
+Maps the functionality normally associated with the DTR pin to
+action on the RTS pin instead.
+So in other words the RTS pin will now act as if it where the DTR pin.
+This is useful for boards that have ports that do not have full
+modem signaling on their connector (eg ONboard 16).
+.It Ar mapcts (\-mapcts)
+Maps the functionality normally associated with the DCD pin to
+be actioned on the CTS pin.
+So in other words the CTS pin will now act as if it was the DCD pin.
+This is useful for boards that have ports that do not have full
+modem signaling on their connector (eg ONboard 16).
+.It Ar rtslock (\-rtslock)
+Locks RTS based flow control on this port on.
+No matter what the port flow control is configured to be via
+the usual
+.Pa stty
+program, RTS based (hardware) flow control will be active on
+this port.
+.It Ar ctslock (\-ctslock)
+Locks CTS based flow control on this port on.
+No matter what the port flow control is configured to be via
+the usual
+.Pa stty
+program, CTS based (hardware) flow control will be active on
+this port.
+.It Ar loopback (\-loopback)
+Enables the internal loopback mode of the port UART.
+All data transmitted on this port will be received,
+and none will physically be transmitted by the port.
+.It Ar fakedcd (\-fakedcd)
+The DCD pin will always be reported as being asserted,
+regardless of the physical state of the hardware pin.
+.It Ar dtrfollow (\-dtrfollow)
+The DTR signal will only be asserted when data is being
+transmitted from the port.
+This is useful in conjunction with the EasyConnection
+Dual Interface module when fitted with RS-485 line drivers.
+.It Ar rximin (\-rximin)
+Disables (or enables) the slave processor's received character
+"bunching" algorithms.
+By default the slave processor will bunch up received data,
+so that it can be sent to the host in large chunks.
+This increases the time it takes for any individual character
+to be seen by an application.
+This may be undesirable for latency sensitive applications or
+protocols.
+To reduce received character latency the
+.Pa rximin
+switch should be turned on.
+.It Ar rxitime (\-rxitime)
+Disables (or enables) the slave processor's received character
+wait timer.
+This timer is used as part of the slave processor's data "bunching"
+algorithm.
+By turning this switch on the timer is reduced to a minimum,
+so that received data will immediately be sent to the host system.
+.It Ar rxthold (\-rxthold)
+Disables the UART received FIFO for this port.
+By default the UART received FIFO is programmed to a reasonably
+high level, to minimize CPU overhead.
+Some third party serial devices do not respond quickly to flow
+control signals (hardware of software) and this may cause the
+UART's received FIFO to over-run - thus losing data.
+Turning this switch on disables use of the received FIFO.
+.El
+.Sh SEE ALSO
+.Xr stl 4 ,
+.Xr stli 4 ,
+.Xr stlstats 8
+.Sh HISTORY
+This program was originally developed by Greg Ungerer (gerg@stallion.com).
