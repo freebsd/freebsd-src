@@ -235,7 +235,7 @@ ip_output(m0, opt, ro, flags, imo, inp)
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = hlen >> 2;
-		ip->ip_off &= IP_DF|IP_EVIL;
+		ip->ip_off &= IP_DF|IP_EF;
 #ifdef RANDOM_IP_ID
 		ip->ip_id = ip_randomid();
 #else
@@ -250,9 +250,9 @@ ip_output(m0, opt, ro, flags, imo, inp)
 	if ((inp != NULL) &&				/* Originated	*/
 	    ip_do_rfc3514 &&				/* Supported	*/
 	    ((inp->inp_flags & INP_EVIL) == INP_EVIL))	/* Optioned	*/
-		ip->ip_off |= IP_EVIL;
+		ip->ip_off |= IP_EF;
 
-	if (speak_no_evil && (ip->ip_off & IP_EVIL)) {
+	if (speak_no_evil && (ip->ip_off & IP_EF)) {
 		error = EACCES;
 		goto bad;
 	}
@@ -1581,6 +1581,7 @@ ip_ctloutput(so, sopt)
 		case IP_RECVIF:
 		case IP_PORTRANGE:
 		case IP_FAITH:
+		case IP_EF:
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1621,7 +1622,7 @@ ip_ctloutput(so, sopt)
 			case IP_FAITH:
 				optval = OPTBIT(INP_FAITH);
 				break;
-			case IP_EVIL:
+			case IP_EF:
 				optval = OPTBIT(INP_EVIL);
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
