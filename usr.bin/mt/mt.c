@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.13 1997/08/21 05:49:29 joerg Exp $";
+	"$Id: mt.c,v 1.15 1998/09/15 10:28:20 gibbs Exp $";
 #endif /* not lint */
 
 /*
@@ -245,7 +245,7 @@ main(argc, argv)
 #include <tahoe/vba/cyreg.h>
 #endif
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) && defined(__i386__)
 #include <machine/wtio.h>
 #endif
 
@@ -279,8 +279,10 @@ struct tape_desc {
 	 * magtape driver.
 	 */
 	{ MT_ISAR,	"SCSI tape drive", 0,		0 },
+#if defined (__i386__)
 	{ MT_ISVIPER1,	"Archive Viper", WTDS_BITS, WTER_BITS },
 	{ MT_ISMFOUR,	"Wangtek",	 WTDS_BITS, WTER_BITS },
+#endif
 #endif /* defined (__FreeBSD__) */
 	{ 0 }
 };
