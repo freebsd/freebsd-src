@@ -54,7 +54,7 @@ two main components.
 The smaller one is a set of commands
 designed for direct use by the casual user, called "builtin
 commands" for historical reasons.
-The main drive behind these commands is user-friendlyness.
+The main drive behind these commands is user-friendliness.
 The bigger component is an
 .Tn ANS
 Forth compatible Forth interpreter based on ficl, by
@@ -96,7 +96,7 @@ is processed if available, and, failing that,
 will be read for historical reasons.
 These files are processed through the
 .Ic include
-command, which read all of them into memory before processing them,
+command, which reads all of them into memory before processing them,
 making disk changes possible.
 .Pp
 At this point, if an
@@ -323,7 +323,7 @@ no
 .Ic autoboot
 will be automatically attempted after processing
 .Pa /boot/loader.rc ,
-though explict
+though explicit
 .Ic autoboot Ns 's
 will be processed normally, defaulting to 10 seconds delay.
 .It Va boot_askname
@@ -365,13 +365,13 @@ if the Forth's current state is interpreting.
 Define the number of lines on the screen, to be used by the pager.
 .It Va module_path
 Sets the list of directories which will be searched in for modules
-named in a load command or implicitly required by a dependancy.
+named in a load command or implicitly required by a dependency.
 The default value for this variable is
 .Dq Li /;/boot;/modules .
 .It Va num_ide_disks
 Sets the number of IDE disks as a work around for some problems in
 finding the root disk at boot.
-This has been deprecated in favour of
+This has been deprecated in favor of
 .Va root_disk_unit .
 .It Va prompt
 Value of
@@ -517,7 +517,7 @@ receiving special semantics on the step 2 described below.
 .It
 \e\e will be replaced with a single \e .
 .It
-In any other occurance, backslash will just be removed.
+In any other occurrence, backslash will just be removed.
 .El
 .It
 Every string between non-escaped quotes or double-quotes will be treated
@@ -527,7 +527,7 @@ Replace any
 .Li $VARIABLE
 or
 .Li ${VARIABLE}
-with the value of the environemnt variable
+with the value of the environment variable
 .Va VARIABLE .
 .It
 Passes multiple space-delimited arguments to the builtin command called.
@@ -575,7 +575,7 @@ is processed
 .Ef
 \&! This is particular annoying for programs that want or need to
 treat exceptions.
-In this case, it is recommended the use of a proxy.
+In this case, it is recommended to use a proxy.
 For example:
 .Dl : (boot) boot ;
 .Sh FICL
