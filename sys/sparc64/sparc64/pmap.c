@@ -600,8 +600,8 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 			c++;
 	}
 	if (c == 1) {
-		m->md.color = color;
 		dcache_page_inval(VM_PAGE_TO_PHYS(m));
+		m->md.color = color;
 		CTR0(KTR_PMAP, "pmap_cache_enter: cacheable");
 		return (1);
 	}
@@ -640,7 +640,7 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 		if (m->md.colors[i] != 0)
 			c++;
 	}
-	if (c > 1)
+	if (c == 0)
 		return;
 	STAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		tp->tte_data |= TD_CV;
