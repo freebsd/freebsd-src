@@ -623,7 +623,9 @@ dev/vx/if_vx_pci.c		optional vx pci
 #dev/wlp/if_wlp.c		optional wlp card
 dev/wds/wd7000.c		optional wds isa
 dev/wi/if_wi.c			optional wi
-dev/wi/if_wi.c			optional wi pccard
+dev/wi/if_wi_pccard.c		optional wi pccard
+dev/wi/if_wi_pccard.c		optional wi card
+dev/wi/if_wi_pci.c		optional wi pci
 dev/wl/if_wl.c			optional wl isa
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe card
