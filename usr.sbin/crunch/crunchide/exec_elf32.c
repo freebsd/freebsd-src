@@ -33,15 +33,15 @@
 #if 0
 __RCSID("$NetBSD: exec_elf32.c,v 1.4 1997/08/12 06:07:24 mikel Exp $");
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
+__FBSDID("$FreeBSD$");
  
 #ifndef ELFSIZE
 #define ELFSIZE         32
 #endif
 
 #include <sys/types.h>
+#include <sys/endian.h>
 #include <sys/stat.h>
 
 #include <errno.h>
@@ -50,7 +50,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include "endian.h"
 #include "extern.h"
 
 #if (defined(NLIST_ELF32) && (ELFSIZE == 32)) || \
