@@ -953,8 +953,8 @@ output_debug()
     ++outline;
     fprintf(code_file, "#define YYFINAL %d\n", final_state);
     outline += 3;
-    fprintf(code_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n", tflag);
-    fprintf(code_file, "#elif YYDEBUG\n#include <stdio.h>\n#endif\n");
+    fprintf(code_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n#endif\n",
+	    tflag);
     if (rflag)
 	fprintf(output_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n#endif\n",
 		tflag);
