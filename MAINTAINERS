@@ -78,6 +78,10 @@ libc		nectar	Opportuntity for pre-commit review appreciated for
 unifdef(1)	fanf	Pre-commit review requested.
 ntp         roberto	Pre-commit review requested.
 inetd		dwmalone	Recommends pre-commit review.
+nwfs		bp	In case of functional changes pre-commit review
+			requested.
+contrib/smbfs	bp	Open for in-tree committs. In case of functional
+			changes pre-commit review requested.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
