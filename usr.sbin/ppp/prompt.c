@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.3 1998/02/16 00:00:58 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.4 1998/02/17 01:05:47 brian Exp $
  */
 
 #include <sys/param.h>
@@ -113,27 +113,24 @@ static void
 prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct prompt *p = descriptor2prompt(d);
-  struct physical *physical;
-  struct datalink *dl;
+  struct datalink *dl = NULL;
   int n;
   char ch;
   static int ttystate;
   char linebuff[LINE_LEN];
 
   if (p->TermMode) {
-    physical = bundle2physical(bundle, NULL);
     dl = bundle2datalink(bundle, NULL);
 
-    if (!link_IsActive(&physical->link)) {
-      if (dl->state == DATALINK_CLOSED) {
-        prompt_Printf(p, "Exiting terminal mode.\n");
-	prompt_TtyCommandMode(&prompt);
-        prompt_nonewline = 0;
-        prompt_Display(&prompt, bundle);
-      }
-      /* Otherwise, we're not yet active (still OPENING) */
-      return;
+    if (dl->state == DATALINK_CLOSED) {
+      prompt_Printf(p, "Exiting terminal mode.\n");
+      prompt_TtyCommandMode(&prompt);
+      prompt_nonewline = 0;
+      prompt_Display(&prompt, bundle);
     }
+
+    if (dl->state != DATALINK_OPEN)
+      return;
   }
 
   LogPrintf(LogDEBUG, "descriptor2prompt; %p -> %p\n", d, p);

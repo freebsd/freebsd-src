@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.10 1998/02/16 19:09:37 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.11 1998/02/17 01:05:33 brian Exp $
  */
 
 #include <sys/param.h>
@@ -92,6 +92,9 @@ bundle_PhaseName(struct bundle *bundle)
 void
 bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
 {
+  if (new == bundle->phase)
+    return;
+
   if (new <= PHASE_NETWORK)
     LogPrintf(LogPHASE, "bundle_NewPhase: %s\n", PhaseNames[new]);
 
@@ -606,8 +609,7 @@ bundle_LayerFinish(struct bundle *bundle, struct fsm *fp)
   } else if (fp == &IpcpInfo.fsm) {
     struct datalink *dl;
 
-    if (fp->bundle->phase != PHASE_TERMINATE)
-      bundle_NewPhase(bundle, NULL, PHASE_TERMINATE);
+    bundle_NewPhase(bundle, NULL, PHASE_TERMINATE);
 
     for (dl = bundle->links; dl; dl = dl->next)
       datalink_Close(dl, 1);
@@ -630,6 +632,7 @@ bundle_Open(struct bundle *bundle, const char *name)
       if (name != NULL)
         break;
     }
+  bundle_NewPhase(bundle, NULL, PHASE_ESTABLISH);
 }
 
 struct datalink *
@@ -691,4 +694,16 @@ bundle_FillQueues(struct bundle *bundle)
   }
 
   return total;
+}
+
+int
+bundle_ShowLinks(struct cmdargs const *arg)
+{
+  struct datalink *dl;
+
+  prompt_Printf(&prompt, "The following links are defined:\n");
+  for (dl = arg->bundle->links; dl; dl = dl->next)
+    prompt_Printf(&prompt, "\t%s\n", dl->name);
+
+  return 0;
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.5 1998/02/16 19:10:59 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.6 1998/02/17 01:05:38 brian Exp $
  */
 
 #include <sys/param.h>
@@ -101,7 +101,7 @@ datalink_HangupDone(struct datalink *dl)
     bundle_LinkClosed(dl->bundle, dl);
     datalink_StartDialTimer(dl, dl->dial_timeout);
   } else {
-    LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
+    LogPrintf(LogPHASE, "%s: Re-entering OPENING state\n", dl->name);
     dl->state = DATALINK_OPENING;
     if (dl->dial_tries < 0) {
       datalink_StartDialTimer(dl, dl->reconnect_timeout);

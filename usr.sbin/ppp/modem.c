@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.17 1998/02/16 19:09:58 brian Exp $
+ * $Id: modem.c,v 1.77.2.18 1998/02/17 01:05:18 brian Exp $
  *
  *  TODO:
  */
@@ -465,6 +465,20 @@ modem_Found(struct physical *modem)
   LogPrintf(LogPHASE, "Connected!\n");
 }
 
+void
+modem_SetDeviceName(struct physical *modem, const char *name)
+{
+  if (name == NULL)
+    name = "";
+
+  if (link_IsActive(&modem->link))
+    LogPrintf(LogWARN,
+              "Cannot change device to \"%s\" when \"%s\" is open\n",
+              name, Physical_GetDevice(modem));
+  else
+    Physical_SetDevice(modem, name);
+}
+
 int
 modem_Open(struct physical *modem, struct bundle *bundle)
 {
@@ -485,16 +499,9 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 	   mode & MODE_DIRECT
 #endif
 	   ) {
-    struct cmdargs arg;
-    arg.cmd = NULL;
-    arg.data = (const void *)VAR_DEVICE;
-    arg.bundle = bundle;
     if (isatty(STDIN_FILENO)) {
       LogPrintf(LogDEBUG, "modem_Open(direct): Modem is a tty\n");
-      cp = ttyname(STDIN_FILENO);
-      arg.argc = 1;
-      arg.argv = (char const *const *)&cp;
-      SetVariable(&arg);
+      modem_SetDeviceName(modem, ttyname(STDIN_FILENO));
       if (modem_lock(modem, bundle->unit) == -1) {
         close(STDIN_FILENO);
         return -1;
@@ -503,9 +510,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
       modem_Found(modem);
     } else {
       LogPrintf(LogDEBUG, "modem_Open(direct): Modem is not a tty\n");
-      arg.argc = 0;
-      arg.argv = NULL;
-      SetVariable(&arg);
+      modem_SetDeviceName(modem, NULL);
       /* We don't call modem_Timeout() with this type of connection */
       modem_Found(modem);
       return modem->fd = STDIN_FILENO;
@@ -671,8 +676,11 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
   struct termios rstio;
   int oldflag;
 
+  LogPrintf(LogDEBUG, "Entering modem_Raw\n");
+
   if (!isatty(modem->fd) || Physical_IsSync(modem))
-    return (0);
+    return 0;
+
   if (
 #ifdef notyet
       !modem->is_direct &&
@@ -888,8 +896,6 @@ int
 modem_ShowStatus(struct cmdargs const *arg)
 {
   const char *dev;
-  struct physical *modem = bundle2physical(arg->bundle, NULL);
-  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
 #ifdef TIOCOUTQ
   int nb;
 #endif
@@ -897,12 +903,12 @@ modem_ShowStatus(struct cmdargs const *arg)
   dev = *VarDevice ? VarDevice : "network";
 
   prompt_Printf(&prompt, "device: %s  speed: ", dev);
-  if (Physical_IsSync(modem))
+  if (Physical_IsSync(arg->cx->physical))
     prompt_Printf(&prompt, "sync\n");
   else
-    prompt_Printf(&prompt, "%d\n", modem->speed);
+    prompt_Printf(&prompt, "%d\n", arg->cx->physical->speed);
 
-  switch (modem->parity & CSIZE) {
+  switch (arg->cx->physical->parity & CSIZE) {
   case CS7:
     prompt_Printf(&prompt, "cs7, ");
     break;
@@ -910,33 +916,37 @@ modem_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(&prompt, "cs8, ");
     break;
   }
-  if (modem->parity & PARENB) {
-    if (modem->parity & PARODD)
+  if (arg->cx->physical->parity & PARENB) {
+    if (arg->cx->physical->parity & PARODD)
       prompt_Printf(&prompt, "odd parity, ");
     else
       prompt_Printf(&prompt, "even parity, ");
   } else
     prompt_Printf(&prompt, "no parity, ");
 
-  prompt_Printf(&prompt, "CTS/RTS %s.\n", (modem->rts_cts ? "on" : "off"));
+  prompt_Printf(&prompt, "CTS/RTS %s.\n",
+                (arg->cx->physical->rts_cts ? "on" : "off"));
 
   if (LogIsKept(LogDEBUG))
-    prompt_Printf(&prompt, "fd = %d, modem control = %o\n", modem->fd, modem->mbits);
-  prompt_Printf(&prompt, "connect count: %d\n", modem->connect_count);
+    prompt_Printf(&prompt, "fd = %d, modem control = %o\n",
+                  arg->cx->physical->fd, arg->cx->physical->mbits);
+  prompt_Printf(&prompt, "connect count: %d\n",
+                arg->cx->physical->connect_count);
 #ifdef TIOCOUTQ
-  if (modem->fd >= 0)
-    if (ioctl(modem->fd, TIOCOUTQ, &nb) >= 0)
+  if (arg->cx->physical->fd >= 0)
+    if (ioctl(arg->cx->physical->fd, TIOCOUTQ, &nb) >= 0)
       prompt_Printf(&prompt, "outq: %d\n", nb);
     else
       prompt_Printf(&prompt, "outq: ioctl probe failed: %s\n", strerror(errno));
 #endif
-  prompt_Printf(&prompt, "outqlen: %d\n", link_QueueLen(&modem->link));
-  prompt_Printf(&prompt, "DialScript  = %s\n", dl->script.dial);
-  prompt_Printf(&prompt, "LoginScript = %s\n", dl->script.login);
-  prompt_Printf(&prompt, "PhoneNumber(s) = %s\n", dl->script.hangup);
+  prompt_Printf(&prompt, "outqlen: %d\n",
+                link_QueueLen(&arg->cx->physical->link));
+  prompt_Printf(&prompt, "DialScript  = %s\n", arg->cx->script.dial);
+  prompt_Printf(&prompt, "LoginScript = %s\n", arg->cx->script.login);
+  prompt_Printf(&prompt, "PhoneNumber(s) = %s\n", arg->cx->script.hangup);
 
   prompt_Printf(&prompt, "\n");
-  throughput_disp(&modem->link.throughput);
+  throughput_disp(&arg->cx->physical->link.throughput);
 
   return 0;
 }

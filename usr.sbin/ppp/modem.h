@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.h,v 1.16.2.6 1998/02/13 05:10:21 brian Exp $
+ * $Id: modem.h,v 1.16.2.7 1998/02/16 00:00:51 brian Exp $
  *
  *	TODO:
  */
@@ -31,3 +31,4 @@ extern int modem_SetParity(struct physical *, const char *);
 extern int modem_ShowStatus(struct cmdargs const *);
 extern void modem_Close(struct physical *);
 extern void modem_Offline(struct physical *);
+extern void modem_SetDeviceName(struct physical *, const char *);

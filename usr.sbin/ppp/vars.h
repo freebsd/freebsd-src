@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.7 1998/02/16 19:11:10 brian Exp $
+ * $Id: vars.h,v 1.42.2.8 1998/02/17 01:05:22 brian Exp $
  *
  *	TODO:
  */
@@ -69,6 +69,8 @@ struct pppvars {
 #define LOCAL_AUTH	0x01
 #define LOCAL_NO_AUTH	0x02
 #define LOCAL_DENY	0x03
+#define LOCAL_CX	0x04	/* OR'd value - require a context */
+#define LOCAL_CX_OPT	0x08	/* OR'd value - optional context */
   u_char lauth;			/* Local Authorized status */
 
   /* The rest are just default initialized in vars.c */

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.20 1998/02/16 19:10:57 brian Exp $
+ * $Id: command.c,v 1.131.2.21 1998/02/17 01:05:36 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -83,22 +83,23 @@
 struct in_addr ifnetmask;
 static const char *HIDDEN = "********";
 
-static int ShowCommand(struct cmdargs const *arg);
-static int TerminalCommand(struct cmdargs const *arg);
-static int QuitCommand(struct cmdargs const *arg);
-static int CloseCommand(struct cmdargs const *arg);
-static int DialCommand(struct cmdargs const *arg);
-static int DownCommand(struct cmdargs const *arg);
-static int AllowCommand(struct cmdargs const *arg);
-static int SetCommand(struct cmdargs const *arg);
-static int AddCommand(struct cmdargs const *arg);
-static int DeleteCommand(struct cmdargs const *arg);
-static int BgShellCommand(struct cmdargs const *arg);
-static int FgShellCommand(struct cmdargs const *arg);
+static int ShowCommand(struct cmdargs const *);
+static int TerminalCommand(struct cmdargs const *);
+static int QuitCommand(struct cmdargs const *);
+static int CloseCommand(struct cmdargs const *);
+static int DialCommand(struct cmdargs const *);
+static int DownCommand(struct cmdargs const *);
+static int AllowCommand(struct cmdargs const *);
+static int SetCommand(struct cmdargs const *);
+static int LinkCommand(struct cmdargs const *);
+static int AddCommand(struct cmdargs const *);
+static int DeleteCommand(struct cmdargs const *);
+static int BgShellCommand(struct cmdargs const *);
+static int FgShellCommand(struct cmdargs const *);
 #ifndef NOALIAS
-static int AliasCommand(struct cmdargs const *arg);
-static int AliasEnable(struct cmdargs const *arg);
-static int AliasOption(struct cmdargs const *arg);
+static int AliasCommand(struct cmdargs const *);
+static int AliasEnable(struct cmdargs const *);
+static int AliasOption(struct cmdargs const *);
 #endif
 
 static int
@@ -108,7 +109,7 @@ HelpCommand(struct cmdargs const *arg)
   int n, cmax, dmax, cols;
 
   if (arg->argc > 0) {
-    for (cmd = arg->cmd; cmd->name; cmd++)
+    for (cmd = arg->cmdtab; cmd->name; cmd++)
       if (strcasecmp(cmd->name, *arg->argv) == 0 &&
           (cmd->lauth & VarLocalAuth)) {
 	prompt_Printf(&prompt, "%s\n", cmd->syntax);
@@ -117,7 +118,7 @@ HelpCommand(struct cmdargs const *arg)
     return -1;
   }
   cmax = dmax = 0;
-  for (cmd = arg->cmd; cmd->func; cmd++)
+  for (cmd = arg->cmdtab; cmd->func; cmd++)
     if (cmd->name && (cmd->lauth & VarLocalAuth)) {
       if ((n = strlen(cmd->name)) > cmax)
         cmax = n;
@@ -127,7 +128,7 @@ HelpCommand(struct cmdargs const *arg)
 
   cols = 80 / (dmax + cmax + 3);
   n = 0;
-  for (cmd = arg->cmd; cmd->func; cmd++)
+  for (cmd = arg->cmdtab; cmd->func; cmd++)
     if (cmd->name && (cmd->lauth & VarLocalAuth)) {
       prompt_Printf(&prompt, " %-*.*s: %-*.*s",
               cmax, cmax, cmd->name, dmax, dmax, cmd->helpmes);
@@ -363,17 +364,19 @@ static struct cmdtab const Commands[] = {
   "Enable option", "enable option .."},
   {"passwd", NULL, LocalAuthCommand, LOCAL_NO_AUTH,
   "Password for manipulation", "passwd LocalPassword"},
+  {"link", NULL, LinkCommand, LOCAL_AUTH,
+  "Link specific commands", "link name command ..."},
   {"load", NULL, LoadCommand, LOCAL_AUTH,
   "Load settings", "load [remote]"},
   {"save", NULL, SaveCommand, LOCAL_AUTH,
   "Save settings", "save"},
-  {"set", "setup", SetCommand, LOCAL_AUTH,
+  {"set", "setup", SetCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set parameters", "set[up] var value"},
   {"shell", "!", FgShellCommand, LOCAL_AUTH,
   "Run a subshell", "shell|! [sh command]"},
   {"show", NULL, ShowCommand, LOCAL_AUTH,
   "Show status and stats", "show var"},
-  {"term", NULL, TerminalCommand, LOCAL_AUTH,
+  {"term", NULL, TerminalCommand, LOCAL_AUTH | LOCAL_CX,
   "Enter terminal mode", "term"},
 #ifndef NOALIAS
   {"alias", NULL, AliasCommand, LOCAL_AUTH,
@@ -513,34 +516,31 @@ ShowPreferredMTU(struct cmdargs const *arg)
 static int
 ShowReconnect(struct cmdargs const *arg)
 {
-  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
-
   prompt_Printf(&prompt, "%s: Reconnect Timer:  %d,  %d tries\n",
-                dl->name, dl->reconnect_timeout, dl->max_reconnect);
+                arg->cx->name, arg->cx->reconnect_timeout,
+                arg->cx->max_reconnect);
   return 0;
 }
 
 static int
 ShowRedial(struct cmdargs const *arg)
 {
-  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
-
   prompt_Printf(&prompt, " Redial Timer: ");
 
-  if (dl->dial_timeout >= 0)
-    prompt_Printf(&prompt, " %d seconds, ", dl->dial_timeout);
+  if (arg->cx->dial_timeout >= 0)
+    prompt_Printf(&prompt, " %d seconds, ", arg->cx->dial_timeout);
   else
     prompt_Printf(&prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
 
   prompt_Printf(&prompt, " Redial Next Timer: ");
 
-  if (dl->dial_next_timeout >= 0)
-    prompt_Printf(&prompt, " %d seconds, ", dl->dial_next_timeout);
+  if (arg->cx->dial_next_timeout >= 0)
+    prompt_Printf(&prompt, " %d seconds, ", arg->cx->dial_next_timeout);
   else
     prompt_Printf(&prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
 
-  if (dl->max_dial)
-    prompt_Printf(&prompt, "%d dial tries", dl->max_dial);
+  if (arg->cx->max_dial)
+    prompt_Printf(&prompt, "%d dial tries", arg->cx->max_dial);
 
   prompt_Printf(&prompt, "\n");
 
@@ -587,13 +587,15 @@ static struct cmdtab const ShowCommands[] = {
   "Show IPCP status", "show ipcp"},
   {"lcp", NULL, ReportLcpStatus, LOCAL_AUTH,
   "Show LCP status", "show lcp"},
+  {"links", "link", bundle_ShowLinks, LOCAL_AUTH,
+  "Show available link names", "show links"},
   {"loopback", NULL, ShowLoopback, LOCAL_AUTH,
   "Show loopback setting", "show loopback"},
   {"log", NULL, ShowLogLevel, LOCAL_AUTH,
   "Show log levels", "show log"},
   {"mem", NULL, ShowMemMap, LOCAL_AUTH,
   "Show memory map", "show mem"},
-  {"modem", NULL, modem_ShowStatus, LOCAL_AUTH,
+  {"modem", NULL, modem_ShowStatus, LOCAL_AUTH | LOCAL_CX,
   "Show modem setups", "show modem"},
   {"mru", NULL, ShowInitialMRU, LOCAL_AUTH,
   "Show Initial MRU", "show mru"},
@@ -607,9 +609,9 @@ static struct cmdtab const ShowCommands[] = {
   "Show Output filters", "show ofilter option .."},
   {"proto", NULL, Physical_ReportProtocolStatus, LOCAL_AUTH,
   "Show protocol summary", "show proto"},
-  {"reconnect", NULL, ShowReconnect, LOCAL_AUTH,
+  {"reconnect", NULL, ShowReconnect, LOCAL_AUTH | LOCAL_CX,
   "Show reconnect timer", "show reconnect"},
-  {"redial", NULL, ShowRedial, LOCAL_AUTH,
+  {"redial", NULL, ShowRedial, LOCAL_AUTH | LOCAL_CX,
   "Show Redial timeout", "show redial"},
   {"route", NULL, ShowRoute, LOCAL_AUTH,
   "Show routing table", "show route"},
@@ -658,7 +660,7 @@ FindCommand(struct cmdtab const *cmds, const char *str, int *pmatch)
 
 static int
 FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc,
-         char const *const *argv, const char *prefix)
+         char const *const *argv, const char *prefix, struct datalink *cx)
 {
   struct cmdtab const *cmd;
   int val = 1;
@@ -669,12 +671,27 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc,
   if (nmatch > 1)
     LogPrintf(LogWARN, "%s%s: Ambiguous command\n", prefix, *argv);
   else if (cmd && (cmd->lauth & VarLocalAuth)) {
-    arg.cmd = cmds;
-    arg.argc = argc-1;
-    arg.argv = argv+1;
-    arg.data = cmd->args;
-    arg.bundle = bundle;
-    val = (cmd->func) (&arg);
+    if ((cmd->lauth & LOCAL_CX) && !cx)
+      /* We've got no context, but we require it */
+      cx = bundle2datalink(bundle, NULL);
+
+    if ((cmd->lauth & LOCAL_CX) && !cx)
+      LogPrintf(LogWARN, "%s%s: No context (use the `link' command)\n",
+                prefix, *argv);
+    else {
+      if (cx && !(cmd->lauth & (LOCAL_CX|LOCAL_CX_OPT))) {
+        LogPrintf(LogWARN, "%s%s: Redundant context (%s) ignored\n",
+                  prefix, *argv, cx->name);
+        cx = NULL;
+      }
+      arg.cmdtab = cmds;
+      arg.cmd = cmd;
+      arg.argc = argc-1;
+      arg.argv = argv+1;
+      arg.bundle = bundle;
+      arg.cx = cx;
+      val = (cmd->func) (&arg);
+    }
   } else
     LogPrintf(LogWARN, "%s%s: Invalid command\n", prefix, *argv);
 
@@ -747,7 +764,7 @@ RunCommand(struct bundle *bundle, int argc, char const *const *argv,
       }
       LogPrintf(LogCOMMAND, "%s\n", buf);
     }
-    FindExec(bundle, Commands, argc, argv, "");
+    FindExec(bundle, Commands, argc, argv, "", NULL);
   }
 }
 
@@ -767,7 +784,7 @@ ShowCommand(struct cmdargs const *arg)
   if (!prompt_Active(&prompt))
     LogPrintf(LogWARN, "show: Cannot show without a prompt\n");
   else if (arg->argc > 0)
-    FindExec(arg->bundle, ShowCommands, arg->argc, arg->argv, "show ");
+    FindExec(arg->bundle, ShowCommands, arg->argc, arg->argv, "show ", arg->cx);
   else if (prompt_Active(&prompt))
     prompt_Printf(&prompt, "Use ``show ?'' to get a list.\n");
   else
@@ -779,8 +796,6 @@ ShowCommand(struct cmdargs const *arg)
 static int
 TerminalCommand(struct cmdargs const *arg)
 {
-  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
-
   if (LcpInfo.fsm.state > ST_CLOSED) {
     prompt_Printf(&prompt, "LCP state is [%s]\n",
                   StateNames[LcpInfo.fsm.state]);
@@ -790,7 +805,7 @@ TerminalCommand(struct cmdargs const *arg)
   if (!IsInteractive(1))
     return (1);
 
-  datalink_Up(dl, 0, 0);
+  datalink_Up(arg->cx, 0, 0);
   prompt_Printf(&prompt, "Entering terminal mode.\n");
   prompt_Printf(&prompt, "Type `~?' for help.\n");
   prompt_TtyTermMode(&prompt);
@@ -859,10 +874,8 @@ static int
 SetReconnect(struct cmdargs const *arg)
 {
   if (arg->argc == 2) {
-    struct datalink *dl = bundle2datalink(arg->bundle, NULL);
-
-    dl->reconnect_timeout = atoi(arg->argv[0]);
-    dl->max_reconnect = (mode & MODE_DIRECT) ? 0 : atoi(arg->argv[1]);
+    arg->cx->reconnect_timeout = atoi(arg->argv[0]);
+    arg->cx->max_reconnect = (mode & MODE_DIRECT) ? 0 : atoi(arg->argv[1]);
     return 0;
   }
   return -1;
@@ -871,7 +884,6 @@ SetReconnect(struct cmdargs const *arg)
 static int
 SetRedialTimeout(struct cmdargs const *arg)
 {
-  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
   int timeout;
   int tries;
   char *dot;
@@ -879,13 +891,13 @@ SetRedialTimeout(struct cmdargs const *arg)
   if (arg->argc == 1 || arg->argc == 2) {
     if (strncasecmp(arg->argv[0], "random", 6) == 0 &&
 	(arg->argv[0][6] == '\0' || arg->argv[0][6] == '.')) {
-      dl->dial_timeout = -1;
+      arg->cx->dial_timeout = -1;
       randinit();
     } else {
       timeout = atoi(arg->argv[0]);
 
       if (timeout >= 0)
-	dl->dial_timeout = timeout;
+	arg->cx->dial_timeout = timeout;
       else {
 	LogPrintf(LogWARN, "Invalid redial timeout\n");
 	return -1;
@@ -895,25 +907,26 @@ SetRedialTimeout(struct cmdargs const *arg)
     dot = strchr(arg->argv[0], '.');
     if (dot) {
       if (strcasecmp(++dot, "random") == 0) {
-	dl->dial_next_timeout = -1;
+	arg->cx->dial_next_timeout = -1;
 	randinit();
       } else {
 	timeout = atoi(dot);
 	if (timeout >= 0)
-	  dl->dial_next_timeout = timeout;
+	  arg->cx->dial_next_timeout = timeout;
 	else {
 	  LogPrintf(LogWARN, "Invalid next redial timeout\n");
 	  return -1;
 	}
       }
     } else
-      dl->dial_next_timeout = DIAL_NEXT_TIMEOUT;  /* Default next timeout */
+      /* Default next timeout */
+      arg->cx->dial_next_timeout = DIAL_NEXT_TIMEOUT;
 
     if (arg->argc == 2) {
       tries = atoi(arg->argv[1]);
 
       if (tries >= 0) {
-	dl->max_dial = tries;
+	arg->cx->max_dial = tries;
       } else {
 	LogPrintf(LogWARN, "Invalid retry value\n");
 	return 1;
@@ -1279,18 +1292,28 @@ SetNBNS(struct cmdargs const *arg)
 
 #endif				/* MS_EXT */
 
-int
+static int
 SetVariable(struct cmdargs const *arg)
 {
-  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
   u_long map;
   const char *argp;
-  int param = (int)arg->data;
+  int param = (int)arg->cmd->args;
+  struct datalink *cx = arg->cx;
 
   if (arg->argc > 0)
     argp = *arg->argv;
   else
     argp = "";
+
+  if ((arg->cmd->lauth & LOCAL_CX) && !cx) {
+    LogPrintf(LogWARN, "set %s: No context (use the `link' command)\n",
+              arg->cmd->name);
+    return 1;
+  } else if (cx && !(arg->cmd->lauth & (LOCAL_CX|LOCAL_CX_OPT))) {
+    LogPrintf(LogWARN, "set %s: Redundant context (%s) ignored\n",
+              arg->cmd->name, cx->name);
+    cx = NULL;
+  }
 
   switch (param) {
   case VAR_AUTHKEY:
@@ -1303,24 +1326,18 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_DIAL:
     if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
-      strncpy(dl->script.dial, argp, sizeof dl->script.dial - 1);
-      dl->script.dial[sizeof dl->script.dial - 1] = '\0';
+      strncpy(cx->script.dial, argp, sizeof cx->script.dial - 1);
+      cx->script.dial[sizeof cx->script.dial - 1] = '\0';
     }
     break;
   case VAR_LOGIN:
     if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
-      strncpy(dl->script.login, argp, sizeof dl->script.login - 1);
-      dl->script.login[sizeof dl->script.login - 1] = '\0';
+      strncpy(cx->script.login, argp, sizeof cx->script.login - 1);
+      cx->script.login[sizeof cx->script.login - 1] = '\0';
     }
     break;
   case VAR_DEVICE:
-    if (link_IsActive(&arg->bundle->links->physical->link))
-      LogPrintf(LogWARN,
-		"Cannot change device to \"%s\" when \"%s\" is open\n",
-                argp, Physical_GetDevice(bundle2physical(arg->bundle, NULL)));
-    else {
-      Physical_SetDevice(bundle2physical(arg->bundle, NULL), argp);
-    }
+    modem_SetDeviceName(cx->physical, argp);
     break;
   case VAR_ACCMAP:
     sscanf(argp, "%lx", &map);
@@ -1336,8 +1353,8 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_HANGUP:
     if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
-      strncpy(dl->script.hangup, argp, sizeof dl->script.hangup - 1);
-      dl->script.hangup[sizeof dl->script.hangup - 1] = '\0';
+      strncpy(cx->script.hangup, argp, sizeof cx->script.hangup - 1);
+      cx->script.hangup[sizeof cx->script.hangup - 1] = '\0';
     }
     break;
 #ifdef HAVE_DES
@@ -1386,7 +1403,7 @@ SetOpenMode(struct cmdargs const *arg)
 }
 
 static struct cmdtab const SetCommands[] = {
-  {"accmap", NULL, SetVariable, LOCAL_AUTH,
+  {"accmap", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set accmap value", "set accmap hex-value", (const void *) VAR_ACCMAP},
   {"afilter", NULL, SetAfilter, LOCAL_AUTH,
   "Set keep Alive filter", "set afilter ..."},
@@ -1394,21 +1411,22 @@ static struct cmdtab const SetCommands[] = {
   "Set authentication key", "set authkey|key key", (const void *) VAR_AUTHKEY},
   {"authname", NULL, SetVariable, LOCAL_AUTH,
   "Set authentication name", "set authname name", (const void *) VAR_AUTHNAME},
-  {"ctsrts", NULL, SetCtsRts, LOCAL_AUTH,
+  {"ctsrts", NULL, SetCtsRts, LOCAL_AUTH | LOCAL_CX,
   "Use CTS/RTS modem signalling", "set ctsrts [on|off]"},
-  {"device", "line", SetVariable, LOCAL_AUTH, "Set modem device name",
-  "set device|line device-name[,device-name]", (const void *) VAR_DEVICE},
+  {"device", "line", SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "Set modem device name", "set device|line device-name[,device-name]",
+  (const void *) VAR_DEVICE},
   {"dfilter", NULL, SetDfilter, LOCAL_AUTH,
   "Set demand filter", "set dfilter ..."},
-  {"dial", NULL, SetVariable, LOCAL_AUTH,
+  {"dial", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set dialing script", "set dial chat-script", (const void *) VAR_DIAL},
 #ifdef HAVE_DES
   {"encrypt", NULL, SetVariable, LOCAL_AUTH, "Set CHAP encryption algorithm",
   "set encrypt MSChap|MD5", (const void *) VAR_ENC},
 #endif
-  {"escape", NULL, SetEscape, LOCAL_AUTH,
+  {"escape", NULL, SetEscape, LOCAL_AUTH | LOCAL_CX,
   "Set escape characters", "set escape hex-digit ..."},
-  {"hangup", NULL, SetVariable, LOCAL_AUTH,
+  {"hangup", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
   {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "Set destination address",
   "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
@@ -1418,7 +1436,7 @@ static struct cmdtab const SetCommands[] = {
   "Set loopback facility", "set loopback on|off"},
   {"log", NULL, SetLogLevel, LOCAL_AUTH,
   "Set log level", "set log [local] [+|-]value..."},
-  {"login", NULL, SetVariable, LOCAL_AUTH,
+  {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set login script", "set login chat-script", (const void *) VAR_LOGIN},
   {"mru", NULL, SetInitialMRU, LOCAL_AUTH,
   "Set Initial MRU value", "set mru value"},
@@ -1432,21 +1450,21 @@ static struct cmdtab const SetCommands[] = {
 #endif
   {"ofilter", NULL, SetOfilter, LOCAL_AUTH,
   "Set output filter", "set ofilter ..."},
-  {"openmode", NULL, SetOpenMode, LOCAL_AUTH,
+  {"openmode", NULL, SetOpenMode, LOCAL_AUTH | LOCAL_CX,
   "Set open mode", "set openmode [active|passive]"},
-  {"parity", NULL, SetModemParity, LOCAL_AUTH,
+  {"parity", NULL, SetModemParity, LOCAL_AUTH | LOCAL_CX,
   "Set modem parity", "set parity [odd|even|none]"},
   {"phone", NULL, SetVariable, LOCAL_AUTH, "Set telephone number(s)",
   "set phone phone1[:phone2[...]]", (const void *) VAR_PHONE},
-  {"reconnect", NULL, SetReconnect, LOCAL_AUTH,
+  {"reconnect", NULL, SetReconnect, LOCAL_AUTH | LOCAL_CX,
   "Set Reconnect timeout", "set reconnect value ntries"},
-  {"redial", NULL, SetRedialTimeout, LOCAL_AUTH, "Set Redial timeout",
-  "set redial value|random[.value|random] [dial_attempts]"},
+  {"redial", NULL, SetRedialTimeout, LOCAL_AUTH | LOCAL_CX,
+  "Set Redial timeout", "set redial value|random[.value|random] [attempts]"},
   {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH, "Set STOPPED timeouts",
   "set stopped [LCPseconds [IPCPseconds [CCPseconds]]]"},
   {"server", "socket", SetServer, LOCAL_AUTH,
   "Set server port", "set server|socket TcpPort|LocalName|none [mask]"},
-  {"speed", NULL, SetModemSpeed, LOCAL_AUTH,
+  {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,
   "Set modem speed", "set speed value"},
   {"timeout", NULL, SetIdleTimeout, LOCAL_AUTH,
   "Set Idle timeout", "set timeout value"},
@@ -1461,7 +1479,7 @@ static int
 SetCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(arg->bundle, SetCommands, arg->argc, arg->argv, "set ");
+    FindExec(arg->bundle, SetCommands, arg->argc, arg->argv, "set ", arg->cx);
   else if (prompt_Active(&prompt))
     prompt_Printf(&prompt, "Use `set ?' to get a list or `set ? <var>' for"
 	    " syntax help.\n");
@@ -1505,7 +1523,7 @@ AddCommand(struct cmdargs const *arg)
   else
     gateway = GetIpAddr(arg->argv[gw]);
   bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
-                  arg->data ? 1 : 0);
+                  arg->cmd->args ? 1 : 0);
   return 0;
 }
 
@@ -1526,7 +1544,7 @@ DeleteCommand(struct cmdargs const *arg)
         dest = GetIpAddr(arg->argv[0]);
       none.s_addr = INADDR_ANY;
       bundle_SetRoute(arg->bundle, RTM_DELETE, dest, none, none,
-                      arg->data ? 1 : 0);
+                      arg->cmd->args ? 1 : 0);
     }
   else
     return -1;
@@ -1569,7 +1587,7 @@ static int
 AliasCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(arg->bundle, AliasCommands, arg->argc, arg->argv, "alias ");
+    FindExec(arg->bundle, AliasCommands, arg->argc, arg->argv, "alias ", arg->cx);
   else if (prompt_Active(&prompt))
     prompt_Printf(&prompt, "Use `alias help' to get a list or `alias help"
             " <option>' for syntax help.\n");
@@ -1607,7 +1625,7 @@ AliasEnable(struct cmdargs const *arg)
 static int
 AliasOption(struct cmdargs const *arg)
 {
-  unsigned param = (unsigned)arg->data;
+  unsigned param = (unsigned)arg->cmd->args;
   if (arg->argc == 1)
     if (strcasecmp(arg->argv[0], "yes") == 0) {
       if (mode & MODE_ALIAS) {
@@ -1641,12 +1659,31 @@ AllowCommand(struct cmdargs const *arg)
 {
   /* arg->bundle may be NULL (see ValidSystem()) ! */
   if (arg->argc > 0)
-    FindExec(arg->bundle, AllowCommands, arg->argc, arg->argv, "allow ");
+    FindExec(arg->bundle, AllowCommands, arg->argc, arg->argv, "allow ", arg->cx);
   else if (prompt_Active(&prompt))
     prompt_Printf(&prompt, "Use `allow ?' to get a list or `allow ? <cmd>' for"
 	    " syntax help.\n");
   else
     LogPrintf(LogWARN, "allow command must have arguments\n");
+
+  return 0;
+}
+
+static int
+LinkCommand(struct cmdargs const *arg)
+{
+  if (arg->argc > 1) {
+    struct datalink *cx = bundle2datalink(arg->bundle, arg->argv[0]);
+    if (cx)
+      FindExec(arg->bundle, Commands, arg->argc - 1, arg->argv + 1, "", cx);
+    else {
+      LogPrintf(LogWARN, "link: %s: Invalid link name\n", arg->argv[0]);
+      return 1;
+    }
+  } else {
+    LogPrintf(LogWARN, "Usage: %s\n", arg->cmd->syntax);
+    return 2;
+  }
 
   return 0;
 }
