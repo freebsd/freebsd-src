@@ -35,20 +35,21 @@
  */
 
 #include <limits.h>
-#define	NCHARS	(UCHAR_MAX + 1)		/* Number of possible characters. */
-#define	OOBCH	(UCHAR_MAX + 1)		/* Out of band character value. */
+
+#define	NCHARS_SB	(UCHAR_MAX + 1)	/* Number of single-byte characters. */
+#define	OOBCH		-1		/* Out of band character value. */
 
 typedef struct {
 	enum { STRING1, STRING2 } which;
 	enum { EOS, INFINITE, NORMAL, RANGE, SEQUENCE,
-	       SET, SET_UPPER, SET_LOWER } state;
-	int	 cnt;			/* character count */
-	int	 lastch;		/* last character */
-	int	equiv[NCHARS];		/* equivalence set */
-	int	*set;			/* set of characters */
-	char	*str;			/* user's string */
+	       CCLASS, CCLASS_UPPER, CCLASS_LOWER, SET } state;
+	int		cnt;		/* character count */
+	wint_t		lastch;		/* last character */
+	wctype_t	cclass;		/* character class from wctype() */
+	wint_t		equiv[NCHARS_SB];	/* equivalence set */
+	wint_t		*set;		/* set of characters */
+	char		*str;		/* user's string */
 } STR;
 
-int	 next(STR *);
+wint_t	 next(STR *);
 int charcoll(const void *, const void *);
-
