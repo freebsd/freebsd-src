@@ -55,9 +55,63 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+/* ====================================================================
+ * Copyright (c) 1998-2000 The OpenSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    openssl-core@openssl.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 #include <openssl/lhash.h>
 #include <openssl/crypto.h>
 #include "cryptlib.h"
@@ -91,7 +145,7 @@ static ERR_STRING_DATA ERR_str_libraries[]=
 {ERR_PACK(ERR_LIB_PEM,0,0)		,"PEM routines"},
 {ERR_PACK(ERR_LIB_ASN1,0,0)		,"asn1 encoding routines"},
 {ERR_PACK(ERR_LIB_X509,0,0)		,"x509 certificate routines"},
-{ERR_PACK(ERR_LIB_CONF,0,0)		,"configuation file routines"},
+{ERR_PACK(ERR_LIB_CONF,0,0)		,"configuration file routines"},
 {ERR_PACK(ERR_LIB_METH,0,0)		,"X509 lookup 'method' routines"},
 {ERR_PACK(ERR_LIB_SSL,0,0)		,"SSL routines"},
 {ERR_PACK(ERR_LIB_RSAREF,0,0)		,"RSAref routines"},
@@ -100,6 +154,7 @@ static ERR_STRING_DATA ERR_str_libraries[]=
 {ERR_PACK(ERR_LIB_PKCS7,0,0)		,"PKCS7 routines"},
 {ERR_PACK(ERR_LIB_X509V3,0,0)		,"X509 V3 routines"},
 {ERR_PACK(ERR_LIB_PKCS12,0,0)		,"PKCS12 routines"},
+{ERR_PACK(ERR_LIB_RAND,0,0)		,"random number generator"},
 {0,NULL},
 	};
 
@@ -153,6 +208,54 @@ static ERR_STRING_DATA ERR_str_reasons[]=
 
 {0,NULL},
 	};
+
+
+#define NUM_SYS_STR_REASONS 127
+#define LEN_SYS_STR_REASON 32
+
+static ERR_STRING_DATA SYS_str_reasons[NUM_SYS_STR_REASONS + 1];
+/* SYS_str_reasons is filled with copies of strerror() results at
+ * initialization.
+ * 'errno' values up to 127 should cover all usual errors,
+ * others will be displayed numerically by ERR_error_string.
+ * It is crucial that we have something for each reason code
+ * that occurs in ERR_str_reasons, or bogus reason strings
+ * will be returned for SYSerr(), which always gets an errno
+ * value and never one of those 'standard' reason codes. */
+
+static void build_SYS_str_reasons()
+	{
+	/* Malloc cannot be used here, use static storage instead */
+	static char strerror_tab[NUM_SYS_STR_REASONS][LEN_SYS_STR_REASON];
+	int i;
+
+	CRYPTO_w_lock(CRYPTO_LOCK_ERR_HASH);
+
+	for (i = 1; i <= NUM_SYS_STR_REASONS; i++)
+		{
+		ERR_STRING_DATA *str = &SYS_str_reasons[i - 1];
+
+		str->error = (unsigned long)i;
+		if (str->string == NULL)
+			{
+			char (*dest)[LEN_SYS_STR_REASON] = &(strerror_tab[i - 1]);
+			char *src = strerror(i);
+			if (src != NULL)
+				{
+				strncpy(*dest, src, sizeof *dest);
+				(*dest)[sizeof *dest - 1] = '\0';
+				str->string = *dest;
+				}
+			}
+		if (str->string == NULL)
+			str->string = "unknown";
+		}
+
+	/* Now we still have SYS_str_reasons[NUM_SYS_STR_REASONS] = {0, NULL},
+	 * as required by ERR_load_strings. */
+
+	CRYPTO_w_unlock(CRYPTO_LOCK_ERR_HASH);
+	}
 #endif
 
 #define err_clear_data(p,i) \
@@ -190,14 +293,16 @@ void ERR_load_ERR_strings(void)
 			CRYPTO_w_unlock(CRYPTO_LOCK_ERR);
 			return;
 			}
-		init=0;
 		CRYPTO_w_unlock(CRYPTO_LOCK_ERR);
 
 #ifndef NO_ERR
 		ERR_load_strings(0,ERR_str_libraries);
 		ERR_load_strings(0,ERR_str_reasons);
 		ERR_load_strings(ERR_LIB_SYS,ERR_str_functs);
+		build_SYS_str_reasons();
+		ERR_load_strings(ERR_LIB_SYS,SYS_str_reasons);
 #endif
+		init=0;
 		}
 	}
 
@@ -221,7 +326,7 @@ void ERR_load_strings(int lib, ERR_STRING_DATA *str)
 	while (str->error)
 		{
 		str->error|=ERR_PACK(lib,0,0);
-		lh_insert(error_hash,(char *)str);
+		lh_insert(error_hash,str);
 		str++;
 		}
 	CRYPTO_w_unlock(CRYPTO_LOCK_ERR_HASH);
@@ -427,7 +532,7 @@ const char *ERR_lib_error_string(unsigned long e)
 	if (error_hash != NULL)
 		{
 		d.error=ERR_PACK(l,0,0);
-		p=(ERR_STRING_DATA *)lh_retrieve(error_hash,(char *)&d);
+		p=(ERR_STRING_DATA *)lh_retrieve(error_hash,&d);
 		}
 
 	CRYPTO_r_unlock(CRYPTO_LOCK_ERR_HASH);
@@ -448,7 +553,7 @@ const char *ERR_func_error_string(unsigned long e)
 	if (error_hash != NULL)
 		{
 		d.error=ERR_PACK(l,f,0);
-		p=(ERR_STRING_DATA *)lh_retrieve(error_hash,(char *)&d);
+		p=(ERR_STRING_DATA *)lh_retrieve(error_hash,&d);
 		}
 
 	CRYPTO_r_unlock(CRYPTO_LOCK_ERR_HASH);
@@ -469,12 +574,11 @@ const char *ERR_reason_error_string(unsigned long e)
 	if (error_hash != NULL)
 		{
 		d.error=ERR_PACK(l,0,r);
-		p=(ERR_STRING_DATA *)lh_retrieve(error_hash,(char *)&d);
+		p=(ERR_STRING_DATA *)lh_retrieve(error_hash,&d);
 		if (p == NULL)
 			{
 			d.error=ERR_PACK(0,0,r);
-			p=(ERR_STRING_DATA *)lh_retrieve(error_hash,
-				(char *)&d);
+			p=(ERR_STRING_DATA *)lh_retrieve(error_hash,&d);
 			}
 		}
 
@@ -517,7 +621,7 @@ void ERR_remove_state(unsigned long pid)
 		pid=(unsigned long)CRYPTO_thread_id();
 	tmp.pid=pid;
 	CRYPTO_w_lock(CRYPTO_LOCK_ERR);
-	p=(ERR_STATE *)lh_delete(thread_hash,(char *)&tmp);
+	p=(ERR_STATE *)lh_delete(thread_hash,&tmp);
 	CRYPTO_w_unlock(CRYPTO_LOCK_ERR);
 
 	if (p != NULL) ERR_STATE_free(p);
@@ -551,7 +655,7 @@ ERR_STATE *ERR_get_state(void)
 	else
 		{
 		tmp.pid=pid;
-		ret=(ERR_STATE *)lh_retrieve(thread_hash,(char *)&tmp);
+		ret=(ERR_STATE *)lh_retrieve(thread_hash,&tmp);
 		CRYPTO_r_unlock(CRYPTO_LOCK_ERR);
 		}
 
@@ -569,7 +673,7 @@ ERR_STATE *ERR_get_state(void)
 			ret->err_data_flags[i]=0;
 			}
 		CRYPTO_w_lock(CRYPTO_LOCK_ERR);
-		tmpp=(ERR_STATE *)lh_insert(thread_hash,(char *)ret);
+		tmpp=(ERR_STATE *)lh_insert(thread_hash,ret);
 		CRYPTO_w_unlock(CRYPTO_LOCK_ERR);
 		if (tmpp != NULL) /* old entry - should not happen */
 			{

@@ -56,6 +56,7 @@
  * [including the GNU Public Licence.]
  */
 #include <stdio.h>
+#include <string.h>
 #include <openssl/bio.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
@@ -75,10 +76,18 @@ char *argv[];
 	int i;
 	int nodetach=0;
 
+#ifndef NO_MD2
 	EVP_add_digest(EVP_md2());
+#endif
+#ifndef NO_MD5
 	EVP_add_digest(EVP_md5());
+#endif
+#ifndef NO_SHA1
 	EVP_add_digest(EVP_sha1());
+#endif
+#ifndef NO_MDC2
 	EVP_add_digest(EVP_mdc2());
+#endif
 
 	data=BIO_new(BIO_s_file());
 again:
@@ -97,9 +106,9 @@ again:
 		BIO_set_fp(data,stdin,BIO_NOCLOSE);
 
 	if ((in=BIO_new_file("server.pem","r")) == NULL) goto err;
-	if ((x509=PEM_read_bio_X509(in,NULL,NULL)) == NULL) goto err;
+	if ((x509=PEM_read_bio_X509(in,NULL,NULL,NULL)) == NULL) goto err;
 	BIO_reset(in);
-	if ((pkey=PEM_read_bio_PrivateKey(in,NULL,NULL)) == NULL) goto err;
+	if ((pkey=PEM_read_bio_PrivateKey(in,NULL,NULL,NULL)) == NULL) goto err;
 	BIO_free(in);
 
 	p7=PKCS7_new();

@@ -149,7 +149,7 @@ extern "C" {
 
 /* Type needs to be a bit field
  * Sub-type needs to be for variations on the method, as in, can it do
- * arbitary encryption.... */
+ * arbitrary encryption.... */
 typedef struct evp_pkey_st
 	{
 	int type;
@@ -343,7 +343,7 @@ typedef struct evp_cipher_ctx_st
 	unsigned char buf[EVP_MAX_IV_LENGTH];	/* saved partial block */
 	int num;				/* used by cfb/ofb mode */
 
-	char *app_data;		/* aplication stuff */
+	char *app_data;		/* application stuff */
 	union	{
 #ifndef NO_RC4
 		struct
@@ -421,9 +421,10 @@ typedef int (EVP_PBE_KEYGEN)(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
 #define EVP_MD_size(e)			((e)->md_size)
 #define EVP_MD_block_size(e)		((e)->block_size)
 
+#define EVP_MD_CTX_md(e)		((e)->digest)
 #define EVP_MD_CTX_size(e)		EVP_MD_size((e)->digest)
 #define EVP_MD_CTX_block_size(e)	EVP_MD_block_size((e)->digest)
-#define EVP_MD_CTX_type(e)		((e)->digest)
+#define EVP_MD_CTX_type(e)		EVP_MD_type((e)->digest)
 
 #define EVP_CIPHER_nid(e)		((e)->nid)
 #define EVP_CIPHER_block_size(e)	((e)->block_size)
@@ -521,15 +522,14 @@ void	EVP_EncodeInit(EVP_ENCODE_CTX *ctx);
 void	EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx,unsigned char *out,
 		int *outl,unsigned char *in,int inl);
 void	EVP_EncodeFinal(EVP_ENCODE_CTX *ctx,unsigned char *out,int *outl);
-int	EVP_EncodeBlock(unsigned char *t, unsigned char *f, int n);
+int	EVP_EncodeBlock(unsigned char *t, const unsigned char *f, int n);
 
 void	EVP_DecodeInit(EVP_ENCODE_CTX *ctx);
 int	EVP_DecodeUpdate(EVP_ENCODE_CTX *ctx,unsigned char *out,int *outl,
 		unsigned char *in, int inl);
 int	EVP_DecodeFinal(EVP_ENCODE_CTX *ctx, unsigned
 		char *out, int *outl);
-int	EVP_DecodeBlock(unsigned char *t, unsigned
-		char *f, int n);
+int	EVP_DecodeBlock(unsigned char *t, const unsigned char *f, int n);
 
 void	ERR_load_EVP_strings(void );
 
@@ -594,9 +594,12 @@ EVP_CIPHER *EVP_rc5_32_12_16_ecb(void);
 EVP_CIPHER *EVP_rc5_32_12_16_cfb(void);
 EVP_CIPHER *EVP_rc5_32_12_16_ofb(void);
 
-void SSLeay_add_all_algorithms(void);
-void SSLeay_add_all_ciphers(void);
-void SSLeay_add_all_digests(void);
+void OpenSSL_add_all_algorithms(void);
+void OpenSSL_add_all_ciphers(void);
+void OpenSSL_add_all_digests(void);
+#define SSLeay_add_all_algorithms() OpenSSL_add_all_algorithms()
+#define SSLeay_add_all_ciphers() OpenSSL_add_all_ciphers()
+#define SSLeay_add_all_digests() OpenSSL_add_all_digests()
 
 int EVP_add_cipher(EVP_CIPHER *cipher);
 int EVP_add_digest(EVP_MD *digest);
@@ -613,6 +616,18 @@ int		EVP_PKEY_type(int type);
 int		EVP_PKEY_bits(EVP_PKEY *pkey);
 int		EVP_PKEY_size(EVP_PKEY *pkey);
 int 		EVP_PKEY_assign(EVP_PKEY *pkey,int type,char *key);
+#ifndef NO_RSA
+int 		EVP_PKEY_set1_RSA(EVP_PKEY *pkey,RSA *key);
+RSA *		EVP_PKEY_get1_RSA(EVP_PKEY *pkey);
+#endif
+#ifndef NO_DSA
+int 		EVP_PKEY_set1_DSA(EVP_PKEY *pkey,DSA *key);
+DSA *		EVP_PKEY_get1_DSA(EVP_PKEY *pkey);
+#endif
+#ifndef NO_DH
+int 		EVP_PKEY_set1_DH(EVP_PKEY *pkey,DH *key);
+DH *		EVP_PKEY_get1_DH(EVP_PKEY *pkey);
+#endif
 EVP_PKEY *	EVP_PKEY_new(void);
 void		EVP_PKEY_free(EVP_PKEY *pkey);
 EVP_PKEY *	d2i_PublicKey(int type,EVP_PKEY **a, unsigned char **pp,
@@ -620,6 +635,8 @@ EVP_PKEY *	d2i_PublicKey(int type,EVP_PKEY **a, unsigned char **pp,
 int		i2d_PublicKey(EVP_PKEY *a, unsigned char **pp);
 
 EVP_PKEY *	d2i_PrivateKey(int type,EVP_PKEY **a, unsigned char **pp,
+			long length);
+EVP_PKEY *	d2i_AutoPrivateKey(EVP_PKEY **a, unsigned char **pp,
 			long length);
 int		i2d_PrivateKey(EVP_PKEY *a, unsigned char **pp);
 
@@ -677,6 +694,9 @@ void EVP_PBE_cleanup(void);
 #define EVP_F_EVP_PKEY_COPY_PARAMETERS			 103
 #define EVP_F_EVP_PKEY_DECRYPT				 104
 #define EVP_F_EVP_PKEY_ENCRYPT				 105
+#define EVP_F_EVP_PKEY_GET1_DH				 119
+#define EVP_F_EVP_PKEY_GET1_DSA				 120
+#define EVP_F_EVP_PKEY_GET1_RSA				 121
 #define EVP_F_EVP_PKEY_NEW				 106
 #define EVP_F_EVP_SIGNFINAL				 107
 #define EVP_F_EVP_VERIFYFINAL				 108
@@ -693,10 +713,13 @@ void EVP_PBE_cleanup(void);
 #define EVP_R_DIFFERENT_KEY_TYPES			 101
 #define EVP_R_ENCODE_ERROR				 115
 #define EVP_R_EVP_PBE_CIPHERINIT_ERROR			 119
+#define EVP_R_EXPECTING_AN_RSA_KEY			 127
+#define EVP_R_EXPECTING_A_DH_KEY			 128
+#define EVP_R_EXPECTING_A_DSA_KEY			 129
 #define EVP_R_INPUT_NOT_INITIALIZED			 111
 #define EVP_R_IV_TOO_LARGE				 102
 #define EVP_R_KEYGEN_FAILURE				 120
-#define EVP_R_MISSING_PARMATERS				 103
+#define EVP_R_MISSING_PARAMETERS			 103
 #define EVP_R_NO_DSA_PARAMETERS				 116
 #define EVP_R_NO_SIGN_FUNCTION_CONFIGURED		 104
 #define EVP_R_NO_VERIFY_FUNCTION_CONFIGURED		 105

@@ -60,13 +60,9 @@
 #include <openssl/objects.h>
 #include "ssl_locl.h"
 
-char *tls1_version_str="TLSv1" OPENSSL_VERSION_PTEXT;
+const char *tls1_version_str="TLSv1" OPENSSL_VERSION_PTEXT;
 
-#ifndef NO_PROTO
 static long tls1_default_timeout(void);
-#else
-static long tls1_default_timeout();
-#endif
 
 static SSL3_ENC_METHOD TLSv1_enc_data={
 	tls1_enc,
@@ -105,6 +101,9 @@ static SSL_METHOD TLSv1_data= {
 	ssl_bad_method,
 	tls1_default_timeout,
 	&TLSv1_enc_data,
+	ssl_undefined_function,
+	ssl3_callback_ctrl,
+	ssl3_ctx_callback_ctrl,
 	};
 
 static long tls1_default_timeout(void)
@@ -139,6 +138,11 @@ void tls1_clear(SSL *s)
 
 #if 0
 long tls1_ctrl(SSL *s, int cmd, long larg, char *parg)
+	{
+	return(0);
+	}
+
+long tls1_callback_ctrl(SSL *s, int cmd, void *(*fp)())
 	{
 	return(0);
 	}

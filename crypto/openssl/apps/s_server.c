@@ -56,9 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
-#ifdef APPS_CRLF
-# include <assert.h>
-#endif
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,13 +85,13 @@ typedef unsigned int u_int;
 #include <openssl/ssl.h>
 #include "s_apps.h"
 
+#ifdef WINDOWS
+#include <conio.h>
+#endif
+
 #if (defined(VMS) && __VMS_VER < 70000000)
 /* FIONBIO used as a switch to enable ioctl, and that isn't in VMS < 7.0 */
 #undef FIONBIO
-#endif
-
-#if defined(NO_RSA) && !defined(NO_SSL2)
-#define NO_SSL2
 #endif
 
 #ifndef NO_RSA
@@ -106,10 +104,12 @@ static void sv_usage(void);
 static int init_ssl_connection(SSL *s);
 static void print_stats(BIO *bp,SSL_CTX *ctx);
 #ifndef NO_DH
-static DH *load_dh_param(void );
+static DH *load_dh_param(char *dhfile);
 static DH *get_dh512(void);
 #endif
-/* static void s_server_init(void);*/
+#ifdef MONOLITH
+static void s_server_init(void);
+#endif
 
 #ifndef S_ISDIR
 # if defined(_S_IFMT) && defined(_S_IFDIR)
@@ -149,14 +149,12 @@ static DH *get_dh512(void)
 
 #undef BUFSIZZ
 #define BUFSIZZ	16*1024
-static int bufsize=32;
+static int bufsize=BUFSIZZ;
 static int accept_socket= -1;
 
 #define TEST_CERT	"server.pem"
 #undef PROG
 #define PROG		s_server_main
-
-#define DH_PARAM	"server.pem"
 
 extern int verify_depth;
 
@@ -169,9 +167,7 @@ static char *s_dcert_file=NULL,*s_dkey_file=NULL;
 static int s_nbio=0;
 #endif
 static int s_nbio_test=0;
-#ifdef APPS_CRLF /* won't be #ifdef'd in next release */
 int s_crlf=0;
-#endif
 static SSL_CTX *ctx=NULL;
 static int www=0;
 
@@ -179,9 +175,12 @@ static BIO *bio_s_out=NULL;
 static int s_debug=0;
 static int s_quiet=0;
 
-#if 0
+static int hack=0;
+
+#ifdef MONOLITH
 static void s_server_init(void)
 	{
+	accept_socket=-1;
 	cipher=NULL;
 	s_server_verify=SSL_VERIFY_NONE;
 	s_dcert_file=NULL;
@@ -198,6 +197,7 @@ static void s_server_init(void)
 	bio_s_out=NULL;
 	s_debug=0;
 	s_quiet=0;
+	hack=0;
 	}
 #endif
 
@@ -211,17 +211,17 @@ static void sv_usage(void)
 	BIO_printf(bio_err," -Verify arg   - turn on peer certificate verification, must have a cert.\n");
 	BIO_printf(bio_err," -cert arg     - certificate file to use, PEM format assumed\n");
 	BIO_printf(bio_err,"                 (default is %s)\n",TEST_CERT);
-	BIO_printf(bio_err," -key arg      - RSA file to use, PEM format assumed, in cert file if\n");
+	BIO_printf(bio_err," -key arg      - Private Key file to use, PEM format assumed, in cert file if\n");
 	BIO_printf(bio_err,"                 not specified (default is %s)\n",TEST_CERT);
 	BIO_printf(bio_err," -dcert arg    - second certificate file to use (usually for DSA)\n");
 	BIO_printf(bio_err," -dkey arg     - second private key file to use (usually for DSA)\n");
+	BIO_printf(bio_err," -dhparam arg  - DH parameter file to use, in cert file if not specified\n");
+	BIO_printf(bio_err,"                 or a default set of parameters is used\n");
 #ifdef FIONBIO
 	BIO_printf(bio_err," -nbio         - Run with non-blocking IO\n");
 #endif
 	BIO_printf(bio_err," -nbio_test    - test with the non-blocking test bio\n");
-#ifdef APPS_CRLF
 	BIO_printf(bio_err," -crlf         - convert LF from terminal into CRLF\n");
-#endif
 	BIO_printf(bio_err," -debug        - Print more output\n");
 	BIO_printf(bio_err," -state        - Print the SSL states\n");
 	BIO_printf(bio_err," -CApath arg   - PEM format directory of CA's\n");
@@ -239,14 +239,13 @@ static void sv_usage(void)
 #ifndef NO_DH
 	BIO_printf(bio_err," -no_dhe       - Disable ephemeral DH\n");
 #endif
-	BIO_printf(bio_err," -bugs         - Turn on SSL bug compatability\n");
+	BIO_printf(bio_err," -bugs         - Turn on SSL bug compatibility\n");
 	BIO_printf(bio_err," -www          - Respond to a 'GET /' with a status page\n");
 	BIO_printf(bio_err," -WWW          - Respond to a 'GET /<path> HTTP/1.0' with file ./<path>\n");
 	}
 
 static int local_argc=0;
 static char **local_argv;
-static int hack=0;
 
 #ifdef CHARSET_EBCDIC
 static int ebcdic_new(BIO *bi);
@@ -337,7 +336,7 @@ static int ebcdic_write(BIO *b, char *in, int inl)
 		num = num + num;  /* double the size */
 		if (num < inl)
 			num = inl;
-		Free((char*)wbuf);
+		Free(wbuf);
 		wbuf=(EBCDIC_OUTBUFF *)Malloc(sizeof(EBCDIC_OUTBUFF) + num);
 
 		wbuf->alloced = num;
@@ -398,11 +397,14 @@ static int ebcdic_puts(BIO *bp, char *str)
 }
 #endif
 
+int MAIN(int, char **);
+
 int MAIN(int argc, char *argv[])
 	{
 	short port=PORT;
 	char *CApath=NULL,*CAfile=NULL;
 	char *context = NULL;
+	char *dhfile = NULL;
 	int badop=0,bugs=0;
 	int ret=1;
 	int off=0;
@@ -425,8 +427,9 @@ int MAIN(int argc, char *argv[])
 	local_argv=argv;
 
 	apps_startup();
-	s_quiet=0;
-	s_debug=0;
+#ifdef MONOLITH
+	s_server_init();
+#endif
 
 	if (bio_err == NULL)
 		bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
@@ -479,6 +482,11 @@ int MAIN(int argc, char *argv[])
 			if (--argc < 1) goto bad;
 			s_key_file= *(++argv);
 			}
+		else if	(strcmp(*argv,"-dhparam") == 0)
+			{
+			if (--argc < 1) goto bad;
+			dhfile = *(++argv);
+			}
 		else if	(strcmp(*argv,"-dcert") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -525,10 +533,8 @@ int MAIN(int argc, char *argv[])
 			{ hack=1; }
 		else if	(strcmp(*argv,"-state") == 0)
 			{ state=1; }
-#ifdef APPS_CRLF
 		else if	(strcmp(*argv,"-crlf") == 0)
 			{ s_crlf=1; }
-#endif
 		else if	(strcmp(*argv,"-quiet") == 0)
 			{ s_quiet=1; }
 		else if	(strcmp(*argv,"-bugs") == 0)
@@ -575,6 +581,8 @@ bad:
 		goto end;
 		}
 
+	app_RAND_load_file(NULL, bio_err, 0);
+
 	if (bio_s_out == NULL)
 		{
 		if (s_quiet && !s_debug)
@@ -599,7 +607,7 @@ bad:
 		}
 
 	SSL_load_error_strings();
-	SSLeay_add_ssl_algorithms();
+	OpenSSL_add_ssl_algorithms();
 
 	ctx=SSL_CTX_new(meth);
 	if (ctx == NULL)
@@ -641,8 +649,7 @@ bad:
 #ifndef NO_DH
 	if (!no_dhe)
 		{
-		/* EAY EAY EAY evil hack */
-		dh=load_dh_param();
+		dh=load_dh_param(dhfile ? dhfile : s_cert_file);
 		if (dh != NULL)
 			{
 			BIO_printf(bio_s_out,"Setting temp DH parameters\n");
@@ -692,12 +699,17 @@ bad:
 #endif
 
 	if (cipher != NULL)
-		SSL_CTX_set_cipher_list(ctx,cipher);
+		if(!SSL_CTX_set_cipher_list(ctx,cipher)) {
+		BIO_printf(bio_err,"error setting cipher list\n");
+		ERR_print_errors(bio_err);
+		goto end;
+	}
 	SSL_CTX_set_verify(ctx,s_server_verify,verify_callback);
 	SSL_CTX_set_session_id_context(ctx,(void*)&s_server_session_id_context,
 		sizeof s_server_session_id_context);
 
-	SSL_CTX_set_client_CA_list(ctx,SSL_load_client_CA_file(CAfile));
+	if (CAfile != NULL)
+	    SSL_CTX_set_client_CA_list(ctx,SSL_load_client_CA_file(CAfile));
 
 	BIO_printf(bio_s_out,"ACCEPT\n");
 	if (www)
@@ -750,6 +762,9 @@ static int sv_body(char *hostname, int s, unsigned char *context)
 	unsigned long l;
 	SSL *con=NULL;
 	BIO *sbio;
+#ifdef WINDOWS
+	struct timeval tv;
+#endif
 
 	if ((buf=Malloc(bufsize)) == NULL)
 		{
@@ -769,7 +784,7 @@ static int sv_body(char *hostname, int s, unsigned char *context)
 #endif
 
 	if (con == NULL) {
-		con=(SSL *)SSL_new(ctx);
+		con=SSL_new(ctx);
 		if(context)
 		      SSL_set_session_id_context(con, context,
 						 strlen((char *)context));
@@ -798,22 +813,48 @@ static int sv_body(char *hostname, int s, unsigned char *context)
 	width=s+1;
 	for (;;)
 		{
-		FD_ZERO(&readfds);
-#ifndef WINDOWS
-		FD_SET(fileno(stdin),&readfds);
-#endif
-		FD_SET(s,&readfds);
-		/* Note: under VMS with SOCKETSHR the second parameter is
-		 * currently of type (int *) whereas under other systems
-		 * it is (void *) if you don't have a cast it will choke
-		 * the compiler: if you do have a cast then you can either
-		 * go for (int *) or (void *).
-		 */
-		i=select(width,(void *)&readfds,NULL,NULL,NULL);
-		if (i <= 0) continue;
-		if (FD_ISSET(fileno(stdin),&readfds))
+		int read_from_terminal;
+		int read_from_sslcon;
+
+		read_from_terminal = 0;
+		read_from_sslcon = SSL_pending(con);
+
+		if (!read_from_sslcon)
 			{
-#ifdef APPS_CRLF
+			FD_ZERO(&readfds);
+#ifndef WINDOWS
+			FD_SET(fileno(stdin),&readfds);
+#endif
+			FD_SET(s,&readfds);
+			/* Note: under VMS with SOCKETSHR the second parameter is
+			 * currently of type (int *) whereas under other systems
+			 * it is (void *) if you don't have a cast it will choke
+			 * the compiler: if you do have a cast then you can either
+			 * go for (int *) or (void *).
+			 */
+#ifdef WINDOWS
+			/* Under Windows we can't select on stdin: only
+			 * on sockets. As a workaround we timeout the select every
+			 * second and check for any keypress. In a proper Windows
+			 * application we wouldn't do this because it is inefficient.
+			 */
+			tv.tv_sec = 1;
+			tv.tv_usec = 0;
+			i=select(width,(void *)&readfds,NULL,NULL,&tv);
+			if((i < 0) || (!i && !_kbhit() ) )continue;
+			if(_kbhit())
+				read_from_terminal = 1;
+#else
+			i=select(width,(void *)&readfds,NULL,NULL,NULL);
+			if (i <= 0) continue;
+			if (FD_ISSET(fileno(stdin),&readfds))
+				read_from_terminal = 1;
+#endif
+			if (FD_ISSET(s,&readfds))
+				read_from_sslcon = 1;
+			}
+		if (read_from_terminal)
+			{
 			if (s_crlf)
 				{
 				int j, lf_num;
@@ -837,7 +878,6 @@ static int sv_body(char *hostname, int s, unsigned char *context)
 				assert(lf_num == 0);
 				}
 			else
-#endif
 				i=read(fileno(stdin),buf,bufsize);
 			if (!s_quiet)
 				{
@@ -926,7 +966,7 @@ static int sv_body(char *hostname, int s, unsigned char *context)
 				if (i <= 0) break;
 				}
 			}
-		if (FD_ISSET(s,&readfds))
+		if (read_from_sslcon)
 			{
 			if (!SSL_is_init_finished(con))
 				{
@@ -1059,12 +1099,12 @@ static int init_ssl_connection(SSL *con)
 	}
 
 #ifndef NO_DH
-static DH *load_dh_param(void)
+static DH *load_dh_param(char *dhfile)
 	{
 	DH *ret=NULL;
 	BIO *bio;
 
-	if ((bio=BIO_new_file(DH_PARAM,"r")) == NULL)
+	if ((bio=BIO_new_file(dhfile,"r")) == NULL)
 		goto err;
 	ret=PEM_read_bio_DHparams(bio,NULL,NULL,NULL);
 err:
@@ -1126,7 +1166,7 @@ static int www_body(char *hostname, int s, unsigned char *context)
 	/* lets make the output buffer a reasonable size */
 	if (!BIO_set_write_buffer_size(io,bufsize)) goto err;
 
-	if ((con=(SSL *)SSL_new(ctx)) == NULL) goto err;
+	if ((con=SSL_new(ctx)) == NULL) goto err;
 	if(context) SSL_set_session_id_context(con, context,
 					       strlen((char *)context));
 
@@ -1424,7 +1464,7 @@ end:
 	/* make sure we re-use sessions */
 	SSL_set_shutdown(con,SSL_SENT_SHUTDOWN|SSL_RECEIVED_SHUTDOWN);
 #else
-	/* This kills performace */
+	/* This kills performance */
 /*	SSL_shutdown(con); A shutdown gets sent in the
  *	BIO_free_all(io) procession */
 #endif

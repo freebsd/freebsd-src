@@ -101,7 +101,8 @@ PKCS7_ENC_CONTENT *PKCS7_ENC_CONTENT_new(void)
 
 	M_ASN1_New_Malloc(ret,PKCS7_ENC_CONTENT);
 	/* M_ASN1_New(ret->content_type,ASN1_OBJECT_new); */
-	ret->content_type=OBJ_nid2obj(NID_pkcs7_encrypted);
+	/* We will almost always want this: so make it the default */
+	ret->content_type=OBJ_nid2obj(NID_pkcs7_data);
 	M_ASN1_New(ret->algorithm,X509_ALGOR_new);
 	ret->enc_data=NULL;
 	return(ret);
@@ -113,7 +114,7 @@ void PKCS7_ENC_CONTENT_free(PKCS7_ENC_CONTENT *a)
 	if (a == NULL) return;
 	ASN1_OBJECT_free(a->content_type);
 	X509_ALGOR_free(a->algorithm);
-	ASN1_OCTET_STRING_free(a->enc_data);
-	Free((char *)a);
+	M_ASN1_OCTET_STRING_free(a->enc_data);
+	Free(a);
 	}
 

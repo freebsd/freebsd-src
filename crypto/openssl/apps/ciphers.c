@@ -66,10 +66,6 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#if defined(NO_RSA) && !defined(NO_SSL2)
-#define NO_SSL2
-#endif
-
 #undef PROG
 #define PROG	ciphers_main
 
@@ -80,6 +76,8 @@ static char *ciphers_usage[]={
 " -ssl3       - SSL3 mode\n",
 NULL
 };
+
+int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
@@ -145,12 +143,16 @@ int MAIN(int argc, char **argv)
 		goto end;
 		}
 
-	SSLeay_add_ssl_algorithms();
+	OpenSSL_add_ssl_algorithms();
 
 	ctx=SSL_CTX_new(meth);
 	if (ctx == NULL) goto err;
-	if (ciphers != NULL)
-		SSL_CTX_set_cipher_list(ctx,ciphers);
+	if (ciphers != NULL) {
+		if(!SSL_CTX_set_cipher_list(ctx,ciphers)) {
+			BIO_printf(bio_err, "Error in cipher list\n");
+			goto err;
+		}
+	}
 	ssl=SSL_new(ctx);
 	if (ssl == NULL) goto err;
 
