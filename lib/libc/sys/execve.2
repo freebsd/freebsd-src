@@ -84,9 +84,9 @@ file becomes the second argument;
 otherwise, the name of the originally
 .Sy execve Ap d
 file becomes the first argument.  The original arguments are shifted over to
-become the subsequent arguments.  The zeroth argument, normally the name of the
-.Sy execve Ap d
-file, is left unchanged.
+become the subsequent arguments.
+The zeroth argument is set to the specified
+.Em interpreter .
 .Pp
 The argument
 .Fa argv
