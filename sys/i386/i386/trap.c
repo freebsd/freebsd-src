@@ -671,7 +671,7 @@ out:
 	return;
 }
 
-int
+static int
 trap_pfault(frame, usermode, eva)
 	struct trapframe *frame;
 	int usermode;

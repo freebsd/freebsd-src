@@ -149,7 +149,7 @@ pread(td, uap)
 /*
  * Code common for read and pread
  */
-int
+static int
 dofileread(td, fp, fd, buf, nbyte, offset, flags)
 	struct thread *td;
 	struct file *fp;

@@ -240,7 +240,7 @@ dead_bmap(ap)
  * We have to wait during times when the vnode is
  * in a state of change.
  */
-int
+static int
 chkvnlock(vp)
 	register struct vnode *vp;
 {

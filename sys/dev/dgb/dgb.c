@@ -2124,7 +2124,7 @@ dgbstart(tp)
 #endif
 }
 
-void
+static void
 dgbstop(tp, rw)
 	struct tty	*tp;
 	int		rw;

@@ -330,7 +330,7 @@ zone_timeout(uma_zone_t zone)
  * Returns:
  *	1 on sucess and 0 on failure.
  */
-int
+static int
 hash_alloc(struct uma_hash *hash)
 {
 	int oldsize;

@@ -700,7 +700,7 @@ an_txeof(sc, status)
  * the NIC has synchronized to the current cell (either as the master
  * in an ad-hoc group, or as a station connected to an access point).
  */
-void
+static void
 an_stats_update(xsc)
 	void			*xsc;
 {

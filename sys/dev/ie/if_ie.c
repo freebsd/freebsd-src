@@ -320,7 +320,7 @@ static struct ie_softc {
 #define PORT ie_softc[unit].port
 #define MEM  ie_softc[unit].iomem
 
-int
+static int
 ieprobe(struct isa_device *dvp)
 {
 	int	ret;
@@ -523,7 +523,7 @@ ee16_shutdown(void *sc, int howto)
 
 /* Taken almost exactly from Rod's if_ix.c. */
 
-int
+static int
 ee16_probe(struct isa_device *dvp)
 {
 	struct ie_softc *sc = &ie_softc[dvp->id_unit];
@@ -733,7 +733,7 @@ ee16_probe(struct isa_device *dvp)
 /*
  * Taken almost exactly from Bill's if_is.c, then modified beyond recognition.
  */
-int
+static int
 ieattach(struct isa_device *dvp)
 {
 	int	factor;
@@ -1557,7 +1557,7 @@ find_ie_mem_size(int unit)
 	return;
 }
 
-void
+static void
 el_reset_586(int unit)
 {
 	outb(PORT + IE507_CTRL, EL_CTRL_RESET);
@@ -1566,13 +1566,13 @@ el_reset_586(int unit)
 	DELAY(100);
 }
 
-void
+static void
 sl_reset_586(int unit)
 {
 	outb(PORT + IEATT_RESET, 0);
 }
 
-void
+static void
 ee16_reset_586(int unit)
 {
 	outb(PORT + IEE16_ECTRL, IEE16_RESET_586);
@@ -1581,25 +1581,25 @@ ee16_reset_586(int unit)
 	DELAY(100);
 }
 
-void
+static void
 el_chan_attn(int unit)
 {
 	outb(PORT + IE507_ATTN, 1);
 }
 
-void
+static void
 sl_chan_attn(int unit)
 {
 	outb(PORT + IEATT_ATTN, 0);
 }
 
-void
+static void
 ee16_chan_attn(int unit)
 {
 	outb(PORT + IEE16_ATTN, 0);
 }
 
-u_short
+static u_short
 ee16_read_eeprom(struct ie_softc *sc, int location)
 {
 	int	ectrl, edata;
@@ -1620,7 +1620,7 @@ ee16_read_eeprom(struct ie_softc *sc, int location)
 	return edata;
 }
 
-void
+static void
 ee16_eeprom_outbits(struct ie_softc *sc, int edata, int count)
 {
 	int	ectrl, i;
@@ -1642,7 +1642,7 @@ ee16_eeprom_outbits(struct ie_softc *sc, int edata, int count)
 	DELAY(1);		/* eeprom data must be held for 0.4 uSec */
 }
 
-int
+static int
 ee16_eeprom_inbits(struct ie_softc *sc)
 {
 	int	ectrl, edata, i;
@@ -1661,7 +1661,7 @@ ee16_eeprom_inbits(struct ie_softc *sc)
 	return (edata);
 }
 
-void
+static void
 ee16_eeprom_clock(struct ie_softc *sc, int state)
 {
 	int	ectrl;
@@ -1683,7 +1683,7 @@ ee16_interrupt_enable(struct ie_softc *sc)
 	DELAY(100);
 }
 
-void
+static void
 sl_read_ether(int unit, unsigned char addr[6])
 {
 	int	i;

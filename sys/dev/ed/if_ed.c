@@ -1431,7 +1431,7 @@ ed_probe_HP_pclanp(dev, port_rid, flags)
  * HP PC Lan+ : Set the physical link to use AUI or TP/TL.
  */
 
-void
+static void
 ed_hpp_set_physical_link(struct ed_softc *sc)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
@@ -3076,7 +3076,7 @@ ed_hpp_readmem(sc, src, dst, amount)
  *	Only used in the probe routine to test the memory. 'len' must
  *	be even.
  */
-void
+static void
 ed_hpp_writemem(sc, src, dst, len)
 	struct ed_softc *sc;
 	unsigned char *src;
