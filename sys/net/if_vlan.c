@@ -600,7 +600,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET:
-			arp_ifinit(&ifv->ifv_ac, ifa);
+			arp_ifinit(&ifv->ifv_if, ifa);
 			break;
 #endif
 		default:

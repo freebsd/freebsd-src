@@ -95,6 +95,7 @@ iso88025_ifattach(struct ifnet *ifp)
         ifp->if_baudrate = TR_16MBPS; /* 16Mbit should be a safe default */
     if (ifp->if_mtu == 0)
         ifp->if_mtu = ISO88025_DEFAULT_MTU;
+    ifp->if_broadcastaddr = etherbroadcastaddr;
 
         ifa = ifnet_addrs[ifp->if_index - 1];
         if (ifa == 0) {
@@ -122,7 +123,7 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
 #ifdef INET
                 case AF_INET:
                         ifp->if_init(ifp->if_softc);    /* before arpwhohas */
-                        arp_ifinit((struct arpcom *)ifp, ifa);
+                        arp_ifinit(ifp, ifa);
                         break;
 #endif
                 default:
@@ -221,7 +222,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct 
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		if (!arpresolve(ac, rt, m, dst, edst, rt0))
+		if (!arpresolve(ifp, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
 		/* Add LLC and SNAP headers */
 		M_PREPEND(m, 8, M_DONTWAIT);
