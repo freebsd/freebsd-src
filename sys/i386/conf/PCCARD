@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id$
+#	$Id: PCCARD,v 1.1 1997/11/01 18:54:10 nate Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -89,6 +89,8 @@ device		sio3	at isa? disable port "IO_COM4" tty irq 9 vector siointr
 device		lpt0	at isa? port? tty irq 7 vector lptintr
 
 device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
+options		PSM_HOOKAPM		#hook the APM resume event
+options		PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
 device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000 vector edintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
