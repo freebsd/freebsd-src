@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 #include "opt_debug_npx.h"
 #include "opt_isa.h"
-#include "opt_math_emulate.h"
 #include "opt_npx.h"
 
 #include <sys/param.h>
@@ -106,7 +105,6 @@ __FBSDID("$FreeBSD$");
 #define	NPX_DISABLE_I586_OPTIMIZED_BCOPY	(1 << 0)
 #define	NPX_DISABLE_I586_OPTIMIZED_BZERO	(1 << 1)
 #define	NPX_DISABLE_I586_OPTIMIZED_COPYIO	(1 << 2)
-#define	NPX_PREFER_EMULATOR			(1 << 3)
 
 #if defined(__GNUC__) && !defined(lint)
 
@@ -470,30 +468,10 @@ npx_attach(dev)
 	if (npx_irq13) {
 		device_printf(dev, "using IRQ 13 interface\n");
 	} else {
-#if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE)
-		if (npx_ex16) {
-			if (!(flags & NPX_PREFER_EMULATOR))
-				device_printf(dev, "INT 16 interface\n");
-			else {
-				device_printf(dev, "FPU exists, but flags request "
-				    "emulator\n");
-				hw_float = npx_exists = 0;
-			}
-		} else if (npx_exists) {
-			device_printf(dev, "error reporting broken; using 387 emulator\n");
-			hw_float = npx_exists = 0;
-		} else
-			device_printf(dev, "387 emulator\n");
-#else
-		if (npx_ex16) {
+		if (npx_ex16)
 			device_printf(dev, "INT 16 interface\n");
-			if (flags & NPX_PREFER_EMULATOR) {
-				device_printf(dev, "emulator requested, but none compiled "
-				    "into kernel, using FPU\n");
-			}
-		} else
-			device_printf(dev, "no 387 emulator in kernel and no FPU!\n");
-#endif
+		else
+			device_printf(dev, "WARNING: no FPU!\n");
 	}
 	npxinit(__INITIAL_NPXCW__);
 

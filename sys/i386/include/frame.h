@@ -154,7 +154,6 @@ struct clockframe {
 };
 
 int	kdb_trap(int, int, struct trapframe *);
-extern  int (*pmath_emulate)(struct trapframe *);
 
 #define	INTR_TO_TRAPFRAME(frame) ((struct trapframe *)&(frame)->if_fs)
 
