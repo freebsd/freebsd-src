@@ -160,6 +160,7 @@ Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
 controllers.
 Adaptec AIC-6260 and AIC-6360 based boards, which includes
+Adaptec AIC7850 on-board SCSI controllers.
 the AHA-152x and SoundBlaster SCSI cards.
 
 ** Note: You cannot boot from the SoundBlaster cards as they have no
@@ -496,4 +497,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.6 1996/05/01 09:42:17 jkh Exp $
+$Id: relnotes.hlp,v 1.7 1996/05/16 20:06:14 jkh Exp $
