@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stab.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "extern.h"
@@ -72,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #ifdef STANDALONE
 static
 #endif
-void dump_file(const char *);
 
 static void dump_rels(const char *, const struct relocation_info *,
     unsigned long, const char *(*)(unsigned long), unsigned char *);
@@ -182,7 +182,7 @@ dump_file(const char *fname)
 
     file_base = (const char *) objbase;	/* Makes address arithmetic easier */
 
-    if (IS_ELF(*(Elf32_Ehdr*) file_base)) {
+    if (IS_ELF(*(const Elf32_Ehdr*) file_base)) {
 	warnx("%s: this is an ELF program; use objdump to examine", fname);
 	++error_count;
 	munmap(objbase, sb.st_size);
@@ -286,13 +286,13 @@ dump_file(const char *fname)
 	    (const struct relocation_info *) (text_addr + sdt->sdt_rel);
 	rtrel_count = (sdt->sdt_hash - sdt->sdt_rel) / sizeof rtrel_base[0];
 	assert(rtrel_count * sizeof rtrel_base[0] ==
-	    sdt->sdt_hash - sdt->sdt_rel);
+	    (size_t)(sdt->sdt_hash - sdt->sdt_rel));
 
 	rtsym_base = (const struct nzlist *) (text_addr + sdt->sdt_nzlist);
 	rtsym_count = (sdt->sdt_strings - sdt->sdt_nzlist) /
 	    sizeof rtsym_base[0];
 	assert(rtsym_count * sizeof rtsym_base[0] ==
-	    sdt->sdt_strings - sdt->sdt_nzlist);
+	    (size_t)(sdt->sdt_strings - sdt->sdt_nzlist));
 
 	if (rtsym_count != 0) {
 	    rtsym_used = (unsigned char *) calloc(rtsym_count,
@@ -338,8 +338,8 @@ dump_rels(const char *label, const struct relocation_info *base,
 
 	size = 1u << r->r_length;
 
-	if (origin <= r->r_address
-	  && r->r_address < origin + ex->a_text + ex->a_data
+	if (origin <= (unsigned long)r->r_address
+	  && (unsigned long)r->r_address < origin + ex->a_text + ex->a_data
 	  && 1 <= size && size <= 4) {
 	    /*
 	     * XXX - This can cause unaligned accesses.  OK for the
