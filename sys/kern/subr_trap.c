@@ -140,7 +140,6 @@ ast(struct trapframe *framep)
 {
 	struct thread *td;
 	struct proc *p;
-	struct kse *ke;
 	struct ksegrp *kg;
 	struct rlimit rlim;
 	u_int prticks, sticks;
@@ -171,7 +170,6 @@ ast(struct trapframe *framep)
 	 * ast() will be called again.
 	 */
 	mtx_lock_spin(&sched_lock);
-	ke = td->td_kse;
 	sticks = td->td_sticks;
 	flags = td->td_flags;
 	sflag = p->p_sflag;
