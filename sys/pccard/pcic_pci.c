@@ -139,7 +139,7 @@ ti1xxx_pci_init(device_t dev)
 	case 1 :
 		strcpy(buf, "TI113X PCI Config Reg: ");
 		/* 
-		 * Defalut card control register setting is
+		 * Default card control register setting is
 		 * PCI interrupt.  The method of this code
 		 * switches PCI INT and ISA IRQ by bit 7 of
 		 * Bridge Control Register(Offset:0x3e,0x13e).
