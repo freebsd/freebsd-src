@@ -951,7 +951,7 @@ cardbus_read_ivar(device_t cbdev, device_t child, int which, u_long *result)
 		 * The generic accessor doesn't deal with failure, so
 		 * we set the return value, then return an error.
 		 */
-		if (dinfo->fepresent & (1<<TPL_FUNCE_LAN_NID) == 0) {
+		if ((dinfo->fepresent & (1 << TPL_FUNCE_LAN_NID)) == 0) {
 			*((u_int8_t **) result) = NULL;
 			return (EINVAL);
 		}
