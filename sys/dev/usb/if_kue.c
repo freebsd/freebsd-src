@@ -125,10 +125,10 @@ Static struct kue_type kue_devs[] = {
 
 Static struct usb_qdat kue_qdat;
 
-Static int kue_match(device_t);
-Static int kue_attach(device_t);
-Static int kue_detach(device_t);
-Static void kue_shutdown(device_t);
+Static int kue_match(device_ptr_t);
+Static int kue_attach(device_ptr_t);
+Static int kue_detach(device_ptr_t);
+Static void kue_shutdown(device_ptr_t);
 Static int kue_tx_list_init(struct kue_softc *);
 Static int kue_rx_list_init(struct kue_softc *);
 Static int kue_newbuf(struct kue_softc *, struct kue_chain *, struct mbuf *);
@@ -501,7 +501,7 @@ USB_ATTACH(kue)
 }
 
 Static int
-kue_detach(device_t dev)
+kue_detach(device_ptr_t dev)
 {
 	struct kue_softc	*sc;
 	struct ifnet		*ifp;
@@ -1117,7 +1117,7 @@ kue_stop(struct kue_softc *sc)
  * get confused by errant DMAs when rebooting.
  */
 Static void
-kue_shutdown(device_t dev)
+kue_shutdown(device_ptr_t dev)
 {
 	struct kue_softc	*sc;
 
