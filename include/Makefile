@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.25 1995/03/30 12:47:55 jkh Exp $
+#	$Id: Makefile,v 1.26 1995/07/13 09:57:34 rgrimes Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -8,6 +8,7 @@
 #
 all depend lint tags:
 
+CLEANFILES=version vers.c
 SUBDIR= rpcsvc
 # XXX MISSING:	mp.h
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
@@ -30,8 +31,6 @@ LDIRS=	net netccitt netinet netiso netns nfs sys vm
 LUDIR=	ufs
 UDIRS=	ufs/ffs ufs/lfs ufs/mfs ufs/ufs
 
-NOOBJ=	noobj
-
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies''); (latter useful
 # in environments where it's not possible to keep /sys publicly readable)
@@ -50,7 +49,6 @@ beforeinstall: ${SHARED}
 .if exists (${.CURDIR}/../sys/conf/newvers.sh)
 	@${ECHO} creating osreldate.h from newvers.sh
 	@echo \#'undef __FreeBSD_version' > ${OSREL}.new
-	JUST_TELL_ME=please ;						\
 	. ${.CURDIR}/../sys/conf/newvers.sh ;				\
 	echo \#'define __FreeBSD_version' $$RELDATE >> ${OSREL}.new
 .else
