@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2004 Mark R V Murray
+ * Copyright (c) 2004 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,37 +23,46 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
-/* This contains Yarrow-specific declarations.
- * See http://www.counterpane.com/yarrow.html
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define TIMEBIN		16	/* max value for Pt/t */
+#include <sys/types.h>
+#include <sys/malloc.h>
+#include <sys/random.h>
+#include <sys/selinfo.h>
+#include <sys/stdint.h>
+#include <sys/sysctl.h>
 
-#define FAST		0
-#define SLOW		1
+#if defined(__i386__)
+#include <machine/cpufunc.h>
+#endif
 
-/* This is the beastie that needs protecting. It contains all of the
- * state that we are excited about.
- * Exactly one will be instantiated.
- */
-struct random_state {
-	u_int64_t counter[4];	/* C - 256 bits */
-	struct yarrowkey key;	/* K */
-	u_int gengateinterval;	/* Pg */
-	u_int bins;		/* Pt/t */
-	u_int outputblocks;	/* count output blocks for gates */
-	u_int slowoverthresh;	/* slow pool overthreshhold reseed count */
-	struct pool {
-		struct source {
-			u_int bits;	/* estimated bits of entropy */
-			u_int frac;	/* fractional bits of entropy
-					   (given as 1024/n) */
-		} source[ENTROPYSOURCE];
-		u_int thresh;	/* pool reseed threshhold */
-		struct yarrowhash hash;	/* accumulated entropy */
-	} pool[2];		/* pool[0] is fast, pool[1] is slow */
-	u_int which;		/* toggle - sets the current insertion pool */
-};
+#include <dev/random/randomdev.h>
+#include <dev/random/randomdev_soft.h>
+#include <dev/random/nehemiah.h>
+
+void
+random_ident_hardware(struct random_systat *systat)
+{
+#if defined(__i386__)
+	u_int regs[4];
+#endif
+
+	/* Set default to software */
+	*systat = random_yarrow;
+
+	/* Then go looking for hardware */
+#if defined(__i386__)
+	do_cpuid(1, regs);
+	if ((regs[0] & 0xf) >= 3) {
+		do_cpuid(0xc0000000, regs);
+		if (regs[0] == 0xc0000001) {
+			do_cpuid(0xc0000001, regs);
+			if ((regs[3] & 0x0c) == 0x0c)
+				*systat = random_nehemiah;
+		}
+	}
+#endif
+}

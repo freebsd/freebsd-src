@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Mark R V Murray
+ * Copyright (c) 2000-2004 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,57 +30,25 @@
  * and non algorithm-specific for the entropy processor
  */
 
-/* #define ENTROPYSOURCE nn	   entropy sources (actually classes)
- *					This is properly defined in
- *					an enum in sys/random.h
- */
+typedef void random_init_func_t(void);
+typedef void random_deinit_func_t(void);
+typedef int random_read_func_t(void *, int);
+typedef void random_write_func_t(void *, int);
+typedef void random_reseed_func_t(void);
 
-/* Cryptographic block size in bits */
-#define	BLOCKSIZE	256
-
-/* The ring size _MUST_ be a power of 2 */
-#define HARVEST_RING_SIZE	1024	/* harvest ring buffer size */
-#define HARVEST_RING_MASK	(HARVEST_RING_SIZE - 1)
-
-#define HARVESTSIZE	16	/* max size of each harvested entropy unit */
-
-SYSCTL_DECL(_kern_random);
-
-MALLOC_DECLARE(M_ENTROPY);
-
-/* These are used to queue harvested packets of entropy. The entropy
- * buffer size is pretty arbitrary.
- */
-struct harvest {
-	uintmax_t somecounter;		/* fast counter for clock jitter */
-	u_char entropy[HARVESTSIZE];	/* the harvested entropy */
-	u_int size, bits, frac;		/* stats about the entropy */
-	enum esource source;		/* stats about the entropy */
-	STAILQ_ENTRY(harvest) next;	/* next item on the list */
+struct random_systat {
+	struct selinfo		rsel;
+	const char		*ident;
+	int			seeded;
+	random_init_func_t	*init;
+	random_deinit_func_t	*deinit;
+	random_read_func_t	*read;
+	random_write_func_t	*write;
+	random_reseed_func_t	*reseed;
+	struct mtx		lock;
 };
 
-void random_init(void);
-void random_deinit(void);
-void random_init_harvester(void (*)(u_int64_t, void *, u_int, u_int, u_int, enum esource), int (*)(void *, int));
-void random_deinit_harvester(void);
-void random_set_wakeup_exit(void *);
-void random_process_event(struct harvest *event);
-void random_reseed(void);
-void random_unblock(void);
+extern struct random_systat random_systat;
 
-int read_random_real(void *, int);
-
-/* If this was c++, this would be a template */
-#define RANDOM_CHECK_UINT(name, min, max)				\
-static int								\
-random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
-{									\
-	if (oidp->oid_arg1 != NULL) {					\
-		 if (*(u_int *)(oidp->oid_arg1) <= (min))		\
-			*(u_int *)(oidp->oid_arg1) = (min);		\
-		 else if (*(u_int *)(oidp->oid_arg1) > (max))		\
-			*(u_int *)(oidp->oid_arg1) = (max);		\
-	}								\
-        return sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,	\
-		req);							\
-}
+extern void random_ident_hardware(struct random_systat *);
+extern void random_null_func(void);
