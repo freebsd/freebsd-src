@@ -2865,7 +2865,6 @@ sync_fsync(ap)
 	}
 	if (vn_start_write(NULL, &mp, V_NOWAIT) != 0) {
 		vfs_unbusy(mp, p);
-		mtx_exit(&mountlist_mtx, MTX_DEF);
 		return (0);
 	}
 	asyncflag = mp->mnt_flag & MNT_ASYNC;
