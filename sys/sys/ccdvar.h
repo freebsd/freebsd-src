@@ -173,7 +173,7 @@ struct ccd_s {
 	int		 sc_pick;		/* side of mirror picked */
 	daddr_t		 sc_blk[2];		/* mirror localization */
 	struct disk	 *sc_disk;
-	struct cdev	 *sc_dev;
+	struct cdev	 *__remove00;		/* XXX: remove when convenient */
 };
 
 /* sc_flags */
