@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ptrace.h	8.2 (Berkeley) 1/4/94
- * $Id: ptrace.h,v 1.3 1994/08/08 13:00:27 davidg Exp $
+ * $Id: ptrace.h,v 1.4 1995/03/16 18:16:23 bde Exp $
  */
 
 #ifndef	_SYS_PTRACE_H_
@@ -48,10 +48,8 @@
 #define	PT_KILL		8	/* kill the child process */
 #define	PT_STEP		9	/* single step the child */
 
-#ifdef notdef
 #define	PT_ATTACH	10	/* trace some running process */
 #define	PT_DETACH	11	/* stop tracing a process */
-#endif
 
 #define	PT_FIRSTMACH	32	/* for machine-specific requests */
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
