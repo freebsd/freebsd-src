@@ -1388,7 +1388,13 @@ dontblock:
 		}
 		SBLASTRECORDCHK(&so->so_rcv);
 		SBLASTMBUFCHK(&so->so_rcv);
-		if (pr->pr_flags & PR_WANTRCVD && so->so_pcb) {
+		/*
+		 * If soreceive() is being done from the socket callback, then 
+		 * don't need to generate ACK to peer to update window, since 
+		 * ACK will be generated on return to TCP.
+		 */
+		if (!(flags & MSG_SOCALLBCK) && 
+		    (pr->pr_flags & PR_WANTRCVD) && so->so_pcb) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			(*pr->pr_usrreqs->pru_rcvd)(so, flags);
 			SOCKBUF_LOCK(&so->so_rcv);
