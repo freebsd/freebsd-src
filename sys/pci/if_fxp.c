@@ -598,14 +598,12 @@ fxp_attach(device_t dev)
 	/*
 	 * Attach the interface.
 	 */
-	if_attach(ifp);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	/*
 	 * Let the system queue as many packets as we have available
 	 * TX descriptors.
 	 */
 	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
-	ether_ifattach(ifp);
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	splx(s);
 	return 0;
@@ -629,7 +627,7 @@ fxp_detach(device_t dev)
 	/*
 	 * Close down routes etc.
 	 */
-	if_detach(&sc->arpcom.ac_if);
+	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
 
 	/*
 	 * Stop DMA and drop transmit queue.

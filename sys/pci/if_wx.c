@@ -629,10 +629,8 @@ wx_attach(device_t dev)
 	ifp->if_ioctl = wx_ioctl;
 	ifp->if_start = wx_start;
 	ifp->if_watchdog = wx_txwatchdog;
-	if_attach(ifp);
 	ifp->if_snd.ifq_maxlen = WX_MAX_TDESC - 1;
-	ether_ifattach(ifp);
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	tmp = wxlist;
 	if (tmp) {
 		while (tmp->wx_next)
@@ -651,7 +649,7 @@ wx_detach(device_t dev)
 {
 	wx_softc_t *sc = device_get_softc(dev);
 	int s = splimp();
-	if_detach(&sc->w.arpcom.ac_if);
+	ether_ifdetach(&sc->w.arpcom.ac_if, ETHER_BPF_SUPPORTED);
 	wx_stop(sc);
 	bus_teardown_intr(dev, sc->w.irq, sc->w.ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->w.irq);

@@ -308,13 +308,10 @@ awi_attach(sc)
 	    sc->sc_dev.dv_xname,
 	    sc->sc_mib_phy.IEEE_PHY_Type == AWI_PHY_TYPE_FH ? "FH" : "DS",
 	    sc->sc_tx_rate / 10, ether_sprintf(sc->sc_mib_addr.aMAC_Address));
-	if_attach(ifp);
 #ifdef __FreeBSD__
-	ether_ifattach(ifp);
-#if NBPFILTER > 0
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 #else
+	if_attach(ifp);
 	ether_ifattach(ifp, sc->sc_mib_addr.aMAC_Address);
 #if NBPFILTER > 0
 	bpfattach(&ifp->if_bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
