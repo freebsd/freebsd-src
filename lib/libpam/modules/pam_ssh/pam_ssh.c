@@ -78,8 +78,8 @@ static const char *pam_ssh_keyfiles[] = {
 };
 
 static const char *pam_ssh_agent = "/usr/bin/ssh-agent";
-static const char *pam_ssh_agent_argv[] = { "ssh_agent", "-s", NULL };
-static const char *pam_ssh_agent_envp[] = { NULL };
+static char *const pam_ssh_agent_argv[] = { "ssh_agent", "-s", NULL };
+static char *const pam_ssh_agent_envp[] = { NULL };
 
 /*
  * Attempts to load a private key from the specified file in the specified
@@ -322,7 +322,7 @@ pam_ssh_add_keys_to_agent(pam_handle_t *pamh)
 
 	/* look for keys to add to it */
 	for (kfn = pam_ssh_keyfiles; *kfn != NULL; ++kfn) {
-		pam_err = pam_get_data(pamh, *kfn, (const void **)&psk);
+		pam_err = pam_get_data(pamh, *kfn, (void **)&psk);
 		if (pam_err == PAM_SUCCESS && psk != NULL) {
 			if (ssh_add_identity(ac, psk->key, psk->comment))
 				openpam_log(PAM_LOG_DEBUG,
@@ -355,7 +355,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 {
 	struct passwd *pwd;
 	const char *user;
-	const void *data;
+	void *data;
 	int pam_err;
 
 	/* no keys, no work */
