@@ -183,10 +183,10 @@ setdef0.c setdef1.c setdefs.h: Makefile ${OBJS}
 ./assym.s: assym.s
 
 assym.s: $S/kern/genassym.sh genassym.o
-	sh $S/kern/genassym.sh genassym.o > ${.TARGET}
+	OBJFORMAT=elf sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 genassym.o: $S/$M/$M/genassym.c
-	${CC} -c ${CFLAGS} $S/$M/$M/genassym.c
+	${CC} -c ${CFLAGS} -elf $S/$M/$M/genassym.c
 
 SYSTEM_OBJS+=	__divqu.o __divq.o __divlu.o __divl.o
 SYSTEM_OBJS+=	__remqu.o __remq.o __remlu.o __reml.o
