@@ -56,12 +56,14 @@ error "Can only have 1 spigot configured."
 
 #include	<sys/param.h>
 #include	<sys/systm.h>
-#include	<sys/kernel.h>
+#include	<sys/bus.h>
 #include	<sys/conf.h>
+#include	<sys/kernel.h>
+#include	<sys/lock.h>
+#include	<sys/mman.h>
+#include	<sys/mutex.h>
 #include	<sys/proc.h>
 #include	<sys/signalvar.h>
-#include	<sys/mman.h>
-#include	<sys/bus.h>
 
 #include	<machine/frame.h>
 #include	<machine/md_var.h>

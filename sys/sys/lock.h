@@ -39,6 +39,7 @@
 #include <sys/lockmgr.h>
 
 #include <sys/queue.h>
+#include <sys/_lock.h>
 
 /*
  * Lock classes.  Each lock has a class which describes characteristics
@@ -59,18 +60,6 @@ struct	lock_class {
 #define	LC_SPINLOCK	0x00000002	/* Spin lock. */
 #define	LC_SLEEPABLE	0x00000004	/* Sleeping allowed with this lock. */
 #define	LC_RECURSABLE	0x00000008	/* Locks of this type may recurse. */
-
-struct	witness;
-
-struct	lock_object {
-	struct	lock_class *lo_class;
-	const	char *lo_name;
-	const	char *lo_file;		/* File and line of last acquire. */
-	int	lo_line;
-	u_int	lo_flags;
-	STAILQ_ENTRY(lock_object) lo_list; /* List of all locks in system. */
-	struct	witness *lo_witness;
-};
 
 #define	LO_CLASSFLAGS	0x0000ffff	/* Class specific flags. */
 #define	LO_INITIALIZED	0x00010000	/* Lock has been initialized. */

@@ -31,12 +31,11 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/exec.h>
-#include <sys/lock.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
 #include <sys/filedesc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
 
@@ -48,6 +47,9 @@
 #include <machine/sysarch.h>
 #include <machine/vm86.h>
 #include <machine/vmparam.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <compat/svr4/svr4.h>
 #include <compat/svr4/svr4_types.h>

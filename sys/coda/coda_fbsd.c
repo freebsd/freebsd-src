@@ -35,12 +35,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/ucred.h>
 #include <sys/vnode.h>
-#include <sys/conf.h>
 
 #include <vm/vm.h>
 #include <vm/vnode_pager.h>

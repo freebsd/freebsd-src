@@ -8,9 +8,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/resourcevar.h>
@@ -19,7 +21,6 @@
 #include <sys/unistd.h>
 #include <sys/ipl.h>
 #include <sys/kthread.h>
-#include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/eventhandler.h>
 #include <vm/vm.h>

@@ -34,21 +34,23 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/proc.h>
-#include <sys/mount.h>
-#include <sys/vnode.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/sysctl.h>
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-/*#include <vm/vm_page.h>
-#include <vm/vm_object.h>*/
+#include <sys/mount.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
+#include <sys/time.h>
+#include <sys/vnode.h>
 
 #include <netsmb/smb.h>
 #include <netsmb/smb_conn.h>
 #include <netsmb/smb_subr.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+/*#include <vm/vm_page.h>
+#include <vm/vm_object.h>*/
 
 #include <fs/smbfs/smbfs.h>
 #include <fs/smbfs/smbfs_node.h>

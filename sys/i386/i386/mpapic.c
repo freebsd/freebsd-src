@@ -26,10 +26,11 @@
  */
 
 #include <sys/param.h>
-#include <sys/bus.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
+#include <sys/bus.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 
 #include <machine/smptests.h>	/** TEST_TEST1 */
 #include <machine/smp.h>

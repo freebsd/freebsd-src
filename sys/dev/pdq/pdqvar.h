@@ -62,10 +62,13 @@ enum _pdq_type_t {
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #ifndef M_MCAST
 #include <sys/mbuf.h>
 #endif /* M_CAST */
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 

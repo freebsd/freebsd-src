@@ -29,8 +29,15 @@
 #ifndef SYS_EVENTHANDLER_H
 #define SYS_EVENTHANDLER_H
 
+/*
+ * XXX - compatability until lockmgr() goes away or all the #includes are
+ * updated.
+ */
+#include <sys/lockmgr.h>
+
 #include <sys/queue.h>
-#include <sys/lock.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 struct eventhandler_entry 
 {

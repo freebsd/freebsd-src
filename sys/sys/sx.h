@@ -31,11 +31,8 @@
 #define	_SYS_SX_H_
 
 #ifndef	LOCORE
-#include <sys/lock.h>		/* XXX */
-#include <sys/mutex.h>		/* XXX */
+#include <sys/_mutex.h>
 #include <sys/condvar.h>	/* XXX */
-
-struct lock_object;
 
 struct sx {
 	struct lock_object sx_object;	/* Common lock properties. */

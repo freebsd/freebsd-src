@@ -74,8 +74,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/file.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 

@@ -58,15 +58,16 @@ extern int coda_nc_initialized;    /* Set if cache has been initialized */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
-#include <sys/malloc.h>
-#include <net/radix.h>
-#include <sys/socket.h>
-#include <sys/mount.h>
-#include <sys/file.h>
 #include <sys/ioccom.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/file.h>		/* must come after sys/malloc.h */
+#include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
+#include <sys/socket.h>
 
 #include <coda/coda.h>
 #include <coda/cnode.h>

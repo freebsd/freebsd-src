@@ -34,19 +34,20 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/ioccom.h>
-#include <sys/malloc.h>
-#include <sys/uio.h>
 #include <sys/conf.h>
-#include <sys/mbuf.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
-#include <sys/file.h>
-#include <sys/socket.h>
-#include <sys/select.h>
+#include <sys/ioccom.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/file.h>		/* Must come after sys/malloc.h */
+#include <sys/mbuf.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
+#include <sys/select.h>
+#include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/uio.h>
 #include <sys/vnode.h>
 
 #include <net/if.h>

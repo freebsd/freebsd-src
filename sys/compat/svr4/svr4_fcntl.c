@@ -32,15 +32,17 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/proc.h>
 #include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/filedesc.h>
 /*#include <sys/ioctl.h>*/
+#include <sys/lock.h>
 #include <sys/mount.h>
-#include <sys/vnode.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/stat.h>
 #include <sys/unistd.h>
+#include <sys/vnode.h>
 
 #include <sys/sysproto.h>
 

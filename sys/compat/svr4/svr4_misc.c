@@ -37,33 +37,33 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
 #include <sys/dirent.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/file.h>		/* Must come after sys/malloc.h */
 #include <sys/mman.h>
 #include <sys/mount.h>
+#include <sys/msg.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/sem.h>
+#include <sys/stat.h>
 #include <sys/sx.h>
-#include <sys/vnode.h>
+#include <sys/sysproto.h>
+#include <sys/time.h>
+#include <sys/times.h>
 #include <sys/uio.h>
 #include <sys/user.h>
+#include <sys/vnode.h>
 #include <sys/wait.h>
-#include <sys/times.h>
-#include <sys/fcntl.h>
-#include <sys/sem.h>
-#include <sys/msg.h>
-#include <sys/ptrace.h>
-
-#include <sys/sysproto.h>
 
 #include <compat/svr4/svr4.h>
 #include <compat/svr4/svr4_types.h>

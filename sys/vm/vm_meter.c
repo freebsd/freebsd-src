@@ -35,9 +35,11 @@
  */
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/sx.h>
 #include <sys/vmmeter.h>
@@ -46,7 +48,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>

@@ -47,20 +47,22 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
+#include <sys/user.h>
 #include <sys/vnode.h>
+
 #include <miscfs/procfs/procfs.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <sys/user.h>
-#include <sys/ptrace.h>
 
 static int	procfs_rwmem __P((struct proc *curp,
 				  struct proc *p, struct uio *uio));

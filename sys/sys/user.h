@@ -45,8 +45,8 @@
 #include <sys/resource.h>
 #include <sys/ucred.h>
 #include <sys/uio.h>
-#include <sys/lock.h>		/* XXX */
-#include <sys/mutex.h>		/* XXX */
+#include <sys/_mutex.h>
+#include <sys/_lock.h>
 #include <sys/proc.h>
 #include <vm/vm.h>		/* XXX */
 #include <vm/vm_param.h>	/* XXX */

@@ -43,6 +43,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>

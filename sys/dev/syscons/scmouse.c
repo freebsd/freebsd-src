@@ -32,14 +32,16 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/signalvar.h>
-#include <sys/proc.h>
-#include <sys/random.h>
-#include <sys/tty.h>
-#include <sys/malloc.h>
 #include <sys/consio.h>
 #include <sys/fbio.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mouse.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/random.h>
+#include <sys/signalvar.h>
+#include <sys/tty.h>
 
 #include <dev/syscons/syscons.h>
 

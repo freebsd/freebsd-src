@@ -38,11 +38,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/fcntl.h>
-#include <sys/lock.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/ktrace.h>

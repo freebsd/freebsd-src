@@ -40,11 +40,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
 #include <sys/ptrace.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
+#include <sys/vnode.h>
+
 #include <miscfs/procfs/procfs.h>
 
 #include <vm/vm.h>

@@ -77,13 +77,11 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/errno.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/ucred.h>
-
-#ifndef insque
-#include <sys/systm.h>
-#endif /* insque */
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>

@@ -74,6 +74,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/filio.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 #include <sys/ioctl_compat.h>
 #endif
@@ -97,7 +99,6 @@
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 

@@ -70,12 +70,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>		/* for curproc, pageproc */
-#include <sys/vnode.h>
-#include <sys/vmmeter.h>
+#include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>		/* for curproc, pageproc */
+#include <sys/socket.h>
+#include <sys/vnode.h>
+#include <sys/vmmeter.h>
 #include <sys/sx.h>
 
 #include <vm/vm.h>
