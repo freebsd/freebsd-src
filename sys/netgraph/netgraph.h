@@ -948,6 +948,7 @@ _ngi_hook(item_p item, char *file, int line)
 				SAVE_LINE(item);			\
 				(error) = ng_snd_item((item), 1);	\
 			} else {					\
+				NG_FREE_ITEM(item);			\
 				(error) = EINVAL;			\
 			}						\
 		} else {						\
