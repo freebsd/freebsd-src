@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.8 1994/12/16 06:16:30 phk Exp $
+ *	$Id: apm.c,v 1.9 1994/12/16 07:09:22 phk Exp $
  */
 
 #include "apm.h"
@@ -93,14 +93,12 @@ apm_int(u_long *eax,u_long *ebx,u_long *ecx)
 	__asm ("pushl	%%ebp
 		pushl	%%edx
 		pushl	%%esi
-		pushl	%%edi
 		xorl	%3,%3
 		movl	%3,%%esi
 		lcall	_apm_addr
 		jnc	1f
 		incl	%3
 	1:	
-		popl	%%edi
 		popl	%%esi
 		popl	%%edx
 		popl	%%ebp"
