@@ -1,7 +1,7 @@
 /*
  * procfs ioctl definitions.
  *
- * $Id$
+ * $Id: pioctl.h,v 1.1 1997/12/06 04:11:14 sef Exp $
  */
 
 #ifndef _SYS_PIOCTL_H
@@ -32,5 +32,13 @@ struct procfs_status {
 # define	S_SCX	0x00000008	/* stop on syscall exit */
 # define	S_CORE	0x00000010	/* stop on coredump */
 # define	S_EXIT	0x00000020	/* stop on exit */
+
+/*
+ * If PF_LINGER is set in procp->p_pfsflags, then the last close
+ * of a /proc/<pid>/mem file will nto clear out the stops and continue
+ * the process.
+ */
+
+# define PF_LINGER	0x01	/* Keep stops around after last close */
 
 #endif 
