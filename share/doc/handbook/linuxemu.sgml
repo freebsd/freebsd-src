@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.4 1996/05/16 23:18:05 mpp Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.5 1996/05/17 11:16:51 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -24,9 +24,11 @@ virtual 8086 mode.
 <p>To tell whether your kernel is configured for Linux
 compatibility simply run any Linux binary.  If it
 prints the error message
+<tscreen>
 <verb>
 linux-executable: Exec format error. Wrong Architecture.
 </verb>
+</tscreen>
 then you do not have linux compatibility support and
 you need to configure and install a new kernel.
 
@@ -80,27 +82,27 @@ module can cause the kernel to crash, so the safest thing to do is to
 reinstall the LKM when you install the kernel.
 <tscreen>
 <verb>
-cd /usr/src/lkm/linux
-make all install
+% cd /usr/src/lkm/linux
+% make all install
 </verb>
 </tscreen>
 Once you have installed the kernel and the LKM, you can invoke
+`linux' as root to load the LKM.
 <tscreen>
 <verb>
-linux
+% linux
+Linux emulator installed
+Module loaded as ID 0
+%
 </verb>
 </tscreen>
-as root to load the LKM.  To see whether the LKM is loaded, run
+To see whether the LKM is loaded, run `modstat'.
 <tscreen>
 <verb>
-modstat
-</verb>
-</tscreen>
-which should produce output something like this.
-<tscreen>
-<verb>
+% modstat
 Type     Id Off Loadaddr Size Info     Rev Module Name
 EXEC      0   3 f0baf000 0018 f0bb4000   1 linux_emulator
+%
 </verb>
 </tscreen>
 You can cause the LKM to be loaded when the system boots in either of
@@ -128,11 +130,14 @@ or options "COMPAT_LINUX".  Linux emulation is done with an LKM
 having to reboot.  You will need the following things in your startup files, 
 however:
 <enum>
-<item> In <tt>/etc/sysconfig</tt>, you need the following line:
+<item> In /etc/sysconfig, you need the following line:
+<tscreen>
 <verb>
 linux=YES
 </verb>
-<item> This, in turn, triggers the following action in <tt>/etc/rc.i386</tt>:
+</tscreen>
+<item> This, in turn, triggers the following action in /etc/rc.i386:
+<tscreen>
 <verb>
 # Start the Linux binary emulation if requested.
 if [ "X${linux}" = X"YES" ]; then
@@ -140,9 +145,10 @@ if [ "X${linux}" = X"YES" ]; then
         # XXX BOGUS - Linux script shouldn't make any output on success
 fi
 </verb>
+</tscreen>
 </enum>
 
-<p>If you want to verify it is running, <tt>modstat</tt> will do that:
+<p>If you want to verify it is running, modstat will do that:
 <tscreen>
 <verb>
 % modstat
@@ -170,7 +176,7 @@ configuration"> section.
 <p>Most linux applications use shared libraries, so you are still not
 done untill you install the shared libraries.  It is possible to do
 this by hand, however, it is vastly simpler to just grab the
-<tt>linux_lib</tt> port:
+linux_lib port:
 <tscreen>
 <verb>
 % cd /usr/ports-current/emulators/linux_lib
@@ -227,17 +233,20 @@ just ftp'ed the Linux binary of Doom. Put it on the Linux
 system you have access to, and check which shared libraries it
 needs by running `ldd linuxxdoom':
 
+<tscreen>
 <verb>
 % ldd linuxxdoom
 libXt.so.3 (DLL Jump 3.1) => /usr/X11/lib/libXt.so.3.1.0
 libX11.so.3 (DLL Jump 3.1) => /usr/X11/lib/libX11.so.3.1.0
 libc.so.4 (DLL Jump 4.5pl26) => /lib/libc.so.4.6.29
 </verb>
+</tscreen>
 
 <p>You would need go get all the files from the last column, and
 put them under /compat/linux, with the names in the first column
 as symbolic links pointing to them. This means you eventually have
 these files on your FreeBSD system:
+<tscreen>
 <verb>
 /compat/linux/usr/X11/lib/libXt.so.3.1.0
 /compat/linux/usr/X11/lib/libXt.so.3 -> libXt.so.3.1.0
@@ -246,6 +255,7 @@ these files on your FreeBSD system:
 /compat/linux/lib/libc.so.4.6.29
 /compat/linux/lib/libc.so.4 -> libc.so.4.6.29
 </verb>
+</tscreen>
 
 <p>Note that if you already have a Linux shared library with a
 matching major revision number to the first column of the 'ldd'
@@ -254,26 +264,32 @@ your system, the one you already have should work. It is advisable to
 copy the shared library anyway if it is a newer version, though. You
 can remove the old one, as long as you make the symbolic link point to
 the new one. So, if you have these libraries on your system:
+<tscreen>
 <verb>
 /compat/linux/lib/libc.so.4.6.27
 /compat/linux/lib/libc.so.4 -> libc.so.4.6.27
 </verb>
+</tscreen>
 
 and you find a new binary that claims to require a later version
 according to the output of ldd:
+<tscreen>
 <verb>
 libc.so.4 (DLL Jump 4.5pl26) -> libc.so.4.6.29
 </verb>
+</tscreen>
 
 If it is only one or two versions out of date in the in the trailing
 digit then do not worry about copying /lib/libc.so.4.6.29 too, because
 the program should work fine with the slightly older version.
 However, if you like you can decide to replace the libc.so anyway, and
 that should leave you with:
+<tscreen>
 <verb>
 /compat/linux/lib/libc.so.4.6.29
 /compat/linux/lib/libc.so.4 -> libc.so.4.6.29
 </verb>
+</tscreen>
 
 <p>Please note that the symbolic link mechanism is <em>only</em>
 needed for Linux binaries, the FreeBSD runtime linker takes care of
@@ -290,12 +306,14 @@ FreeBSD-stable should skip this section.
 have the Linux runtime linker and its config files on your system. You
 should copy these files from the Linux system to their appropriate
 place on your FreeBSD system (to the /compat/linux tree):
+<tscreen>
 <verb>
 /compat/linux/lib/ld.so
 /compat/linux/etc/ld.so.config
 </verb>
+</tscreen>
 
-<p>If you do nott have access to a Linux system, you should get the
+<p>If you do not have access to a Linux system, you should get the
 extra files you need from various ftp sites.  Information on where to
 look for the various files is appended below. For now, let us assume
 you know where to get the files.
@@ -304,12 +322,14 @@ you know where to get the files.
 Retrieve the following files (all from the same ftp site to avoid any
 version mismatches), and install them under /compat/linux
 (i.e. /foo/bar is installed as /compat/linux/foo/bar):
+<tscreen>
 <verb>
 /sbin/ldconfig
 /usr/bin/ldd
 /lib/libc.so.x.y.z
 /lib/ld.so
 </verb>
+</tscreen>
 
 <p>ldconfig and ldd do not necessarily need to be under /compat/linux,
 you can install them elsewhere in the system too. Just make sure they
@@ -321,10 +341,12 @@ directories in which the Linux runtime linker should look
 for shared libs. It is a plain text file, containing a directory
 name on each line. /lib and /usr/lib are standard, you could
 add the following:
+<tscreen>
 <verb>
 /usr/X11/lib
 /usr/local/lib
 </verb>
+</tscreen>
 
 <p>When a linux binary opens a library such as /lib/libc.so the
 emulator maps the name to /compat/linux/lib/libc.so internally.  All
@@ -333,10 +355,12 @@ linux libraries should be installed under /compat/linux (e.g.
 in order for the emulator to find them.
 
 <p>Those running FreeBSD-current should run the Linux ldconfig program.
+<tscreen>
 <verb>
 % cd /compat/linux/lib
 % /compat/linux/sbin/ldconfig 
 </verb>
+</tscreen>
 
 <p>Ldconfig is statically linked, so it does not need any shared
 libraries to run.  It creates the file /compat/linux/etc/ld.so.cache
@@ -352,10 +376,12 @@ differently and ldconfig is not needed or used.
 shared libc. You can test this by running the Linux ldd on
 itself. Suppose that you have it installed as ldd-linux, it should
 produce something like:
+<tscreen>
 <verb>
 % ldd-linux `which ldd-linux`
 libc.so.4 (DLL Jump 4.5pl26) => /lib/libc.so.4.6.29
 </verb>
+</tscreen>
 
 <p>This being done, you are ready to install new Linux binaries.
 Whenever you install a new Linux program, you should check if it needs
@@ -403,14 +429,18 @@ complain about the incompatible FreeBSD syntax.  You should remove
 RESOLV_HOST_CONF environment variable so that applications will know
 how to search the host tables.  If you run FreeBSD-current you can
 skip this.  For the /bin/csh shell use:
+<tscreen>
 <verb>
 setenv RESOLV_HOST_CONF /compat/linux/etc/host.conf
 </verb>
+</tscreen>
 
 For /bin/sh use:
+<tscreen>
 <verb>
 RESOLV_HOST_CONF=/compat/linux/etc/host.conf; export RESOLV_HOST_CONF
 </verb>
+</tscreen>
 
 <sect1><heading>Finding the necessary files</heading>
 
@@ -491,7 +521,7 @@ slakware/x9/xf_lib.tgz
 </tscreen>
 
 <p>Extract the files from these gzipped tarfiles in your
-<tt>/compat/linux</tt> directory (possibly omitting or afterwards
+/compat/linux directory (possibly omitting or afterwards
 removing files you don't need), and you are done.
 
 <p><bf>See also:</bf>
@@ -519,18 +549,19 @@ $45.00.  It can be ordered directly from Wolfram at
 (217) 398-6500 and paid for by credit card.
 
 <sect1><heading>Unpacking the Mathematica distribution</heading>
-<p>The binaries are currently distributed by Wolfram on
-CDROM.  The CDROM has about a dozen tar files, each of
-which is a binary distribution for one of the supported
-architectures.  The one for Linux is named LINUX.TAR.
-You can, for example, unpack this into
-/usr/local/Mathematica:
+<p>The binaries are currently distributed by Wolfram on CDROM.
+The CDROM has about a dozen tar files, each of which is a binary
+distribution for one of the supported architectures.  The one
+for Linux is named LINUX.TAR.  You can, for example, unpack this
+into /usr/local/Mathematica:
+<tscreen>
 <verb>
-cd /usr/local
-mkdir Mathematica
-cd Mathematica
-tar -xvf /cdrom/LINUX.TAR
+% cd /usr/local
+% mkdir Mathematica
+% cd Mathematica
+% tar -xvf /cdrom/LINUX.TAR
 </verb>
+</tscreen>
 
 <sect1><heading>Obtaining your Mathematica Password</heading>
 <p>Before you can run Mathematica you will have to obtain
@@ -540,7 +571,8 @@ a password from Wolfram that corresponds to your
 <p>Once you have installed the linux compatibility runtime
 libraries and unpacked the mathematica you can obtain
 the `machine ID' by running the program `mathinfo' in
-the Install directory:
+the Install directory.
+<tscreen>
 <verb>
 % cd /usr/local/Mathematica/Install
 % mathinfo
@@ -548,7 +580,8 @@ LINUX: 'ioctl' fd=5, typ=0x89(), num=0x27 not implemented
 richc.isdn.bcm.tmc.edu   9845-03452-90255
 %
 </verb>
-So, for example, the `machine ID' of `richc' is '9845-03452-90255'.
+</tscreen>
+So, for example, the `machine ID' of `richc' is `9845-03452-90255'.
 You can ignore the message about the ioctl that is not
 implemented.  It won't prevent Mathematica from running
 in any way and you can safely ignore it, though you
@@ -562,10 +595,12 @@ with the machine name and license number in your
 mathpass file.
 
 You can do this by invoking:
+<tscreen>
 <verb>
-cd /usr/local/Mathematica/Install
-math.install
+% cd /usr/local/Mathematica/Install
+% math.install
 </verb>
+</tscreen>
 It will ask you to enter your license number and the
 Wolfram supplied password.  If you get them mixed up or
 for some reason the math.install fails, That's OK,
@@ -585,11 +620,13 @@ program.  Or, if it fails, you
 can create the directories and then restart the
 math.install program.  The directories we chose to
 create beforehand and specify to  math.install were:
+<tscreen>
 <verb>
 /usr/local/Mathematica/bin       for binaries
 /usr/local/Mathematica/man/man1  for man pages
 /usr/local/Mathematica/lib/X11   for the XKeysymb file
 </verb>
+</tscreen>
 You can also tell it to use /tmp/math.record for the
 system record file, where it puts logs of sessions.
 After this math.install will continue on to
@@ -610,27 +647,28 @@ When it finished, there should be a new shell script in
 <p>Lastly, you need to modify each of the shell scripts that
 Mathematica has installed.  At the beginning of every shell script in
 /usr/local/Mathematica/bin add the following line:
+<tscreen>
 <verb>
 XKEYSYMDB=/usr/local/Mathematica/lib/X11/XKeysymDB; export XKEYSYMDB
 </verb>
+</tscreen>
 This tells Mathematica were to find it's own version of the key
 mapping file XKeysymDB.  Without this you will get pages of error
 messages about missing key mappings.
 
 On FreeBSD-stable you need to add the following as well:
+<tscreen>
 <verb>
 RESOLV_HOST_CONF=/compat/linux/etc/host.conf; export RESOLV_HOST_CONF
 </verb>
+</tscreen>
 This tells Mathematica to use the linux version of host.conf.  This
 file has a different syntax from FreeBSD's host.conf, so you'll get an
 error message about /etc/host.conf if you leave this out.
 
-<p>You might want to also modify your /etc/manpath.config
-file to read the new man directory, and you may need
-to edit your .cshrc file to add
-<verb>
-/usr/local/Mathematica/bin
-</verb>
+<p>You might want to also modify your /etc/manpath.config file
+to read the new man directory, and you may need to edit your
+~/.cshrc file to add /usr/local/Mathematica/bin
 to your path.
 
 <p>That's about all it takes, With this you should be able
@@ -644,9 +682,12 @@ yourself!
 
 <p>The Notebook front end is known to hang sometimes when reading
 notebook files with an error messages similar to:
+<tscreen>
 <verb>
 File .../Untitled-1.mb appears to be broken for OMPR.257.0
 </verb>
+</tscreen>
+
 We haven't found the cause for this, but it only affects the
 Notebook's X window front end, not the mathematica engine itself.  So
 the command line interface invoked by 'math' is unaffected by this
