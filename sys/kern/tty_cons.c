@@ -208,11 +208,6 @@ cnadd(struct consdev *cn)
 	if (cnd->cnd_cn != NULL)
 		return (ENOMEM);
 	cnd->cnd_cn = cn;
-	if (cn->cn_name[0] == '\0' && cn->cn_dev != NULL) {
-		strcpy(cn->cn_name, devtoname(cn->cn_dev));
-		/* XXX: it is unclear if/where this print might output */
-		printf("NOTE: console \"%s\" didn't set name\n", cn->cn_name);
-	}
 	if (cn->cn_name[0] == '\0') {
 		/* XXX: it is unclear if/where this print might output */
 		printf("WARNING: console at %p has no name\n", cn);

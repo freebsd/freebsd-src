@@ -92,15 +92,16 @@ cn_drvinit(void *unused)
 {
 	phandle_t options;
 	char output[32];
+	dev_t dev;
 
-	if (ofw_consdev.cn_dev != NULL) {
+	if (ofw_consdev.cn_pri != CN_DEAD) {
 		if ((options = OF_finddevice("/options")) == -1 ||
 		    OF_getprop(options, "output-device", output,
 		    sizeof(output)) == -1)
 			return;
-		make_dev(&ofw_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "%s",
+		dev = make_dev(&ofw_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "%s",
 		    output);
-		make_dev_alias(ofw_consdev.cn_dev, "ofwcons");
+		make_dev_alias(dev, "ofwcons");
 	}
 }
 
@@ -275,7 +276,6 @@ ofw_cons_probe(struct consdev *cp)
 		return;
 	}
 
-	cp->cn_dev = NULL;
 	cp->cn_pri = CN_INTERNAL;
 }
 
