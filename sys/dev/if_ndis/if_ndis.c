@@ -1438,6 +1438,15 @@ ndis_init(xsc)
 	int			i, error;
 
 	/*
+	 * Avoid reintializing the link unnecessarily.
+	 * This should be dealt with in a better way by
+	 * fixing the upper layer modules so they don't
+	 * call ifp->if_init() quite as often.
+	 */
+	if (sc->ndis_link && sc->ndis_skip)
+		return;
+
+	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	ndis_reset_nic(sc);
@@ -1589,13 +1598,6 @@ ndis_setstate_80211(sc)
 	if (!(ifp->if_flags & IFF_UP))
 		return;
 
-	arg = NDIS_80211_AUTHMODE_AUTO;
-	len = sizeof(arg);
-	rval = ndis_set_info(sc, OID_802_11_AUTHENTICATION_MODE, &arg, &len);
-
-	if (rval)
-		device_printf (sc->ndis_dev, "set auth failed: %d\n", rval);
-
 	/* Set network infrastructure mode. */
 
 	len = sizeof(arg);
@@ -1667,11 +1669,19 @@ ndis_setstate_80211(sc)
 				ic->ic_wep_mode = IEEE80211_WEP_8021X;
 		}
 #endif
+		arg = NDIS_80211_AUTHMODE_SHARED;
 	} else {
 		arg = NDIS_80211_WEPSTAT_DISABLED;
 		len = sizeof(arg);
 		ndis_set_info(sc, OID_802_11_WEP_STATUS, &arg, &len);
+		arg = NDIS_80211_AUTHMODE_OPEN;
 	}
+
+	len = sizeof(arg);
+	rval = ndis_set_info(sc, OID_802_11_AUTHENTICATION_MODE, &arg, &len);
+
+	if (rval)
+		device_printf (sc->ndis_dev, "set auth failed: %d\n", rval);
 
 	/* Set SSID. */
 
@@ -1992,8 +2002,8 @@ ndis_ioctl(ifp, command, data)
 		if (sc->ndis_80211) {
 			error = ieee80211_ioctl(ifp, command, data);
 			if (error == ENETRESET) {
-				/*ndis_setstate_80211(sc);*/
-				ndis_init(sc);
+				ndis_setstate_80211(sc);
+				/*ndis_init(sc);*/
 				error = 0;
 			}
 		} else
@@ -2019,6 +2029,7 @@ ndis_ioctl(ifp, command, data)
 		if (error != ENOTTY)
 			break;
 	default:
+		sc->ndis_skip = 1;
 		if (sc->ndis_80211) {
 			error = ieee80211_ioctl(ifp, command, data);
 			if (error == ENETRESET) {
@@ -2027,6 +2038,7 @@ ndis_ioctl(ifp, command, data)
 			}
 		} else
 			error = ether_ioctl(ifp, command, data);
+		sc->ndis_skip = 0;
 		break;
 	}
 
@@ -2205,7 +2217,7 @@ ndis_shutdown(dev)
 	device_t		dev;
 {
 	struct ndis_softc		*sc;
-printf("dev shutting down...\n");
+
 	sc = device_get_softc(dev);
 	ndis_shutdown_nic(sc);
 
