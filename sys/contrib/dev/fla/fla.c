@@ -122,7 +122,6 @@ static struct fla_s {
 	int unit;
 	unsigned nsect;
 	struct doc2k_stat ds;
-	struct diskslices *dk_slices;
 	struct buf_queue_head buf_queue;
 	struct devstat stats;
 	struct disk disk;
