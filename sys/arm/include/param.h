@@ -55,10 +55,10 @@
 #endif
 
 #ifndef	_MACHINE
-#define	_MACHIN		"arm32"
+#define	_MACHINE	"arm"
 #endif
 #ifndef _MACHINE_ARCH
-#define	_MACHINE_ARCH	"arm32"
+#define	_MACHINE_ARCH	"arm"
 #endif
 
 #ifndef _NO_NAMESPACE_POLLUTION
@@ -67,14 +67,12 @@
 #define	_MACHINE_PARAM_H_
 
 #ifndef MACHINE
-#define	MACHINE		"arm32"
+#define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"arm32"
+#define	MACHINE_ARCH	"arm"
 #endif
-#define	MID_MACHINE	MID_ARM32
-
-#include <machine/cpu.h>
+#define	MID_MACHINE	MID_ARM6 
 
 #ifdef SMP
 #define	MAXCPU		2
@@ -90,12 +88,34 @@
 #define	PAGE_MASK	(PAGE_SIZE - 1)
 #define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
-#define	KERNBASE	0x100000	/* start of kernel virtual */
-#define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
+#define PDR_SHIFT	20 /* log2(NBPDR) */
+#define NBPDR		(1 << PDR_SHIFT)
+#define NPDEPG          (1 << (32 - PDR_SHIFT))
 
-#define	UPAGES		2		/* pages of u-area */
-#define	USPACE		(UPAGES * PAGE_SIZE)	/* total size of u-area */
+#ifndef KSTACK_PAGES
+#define KSTACK_PAGES    4
+#endif /* !KSTACK_PAGES */
 
+#ifndef UAREA_PAGES
+#define UAREA_PAGES	2
+#endif /* !UAREA_PAGES */
+
+#ifndef USPACE
+#define	USPACE		(UAREA_PAGES * PAGE_SIZE) /* total size of u-area */
+#endif
+
+#ifndef FPCONTEXTSIZE
+#define FPCONTEXTSIZE	(0x100)
+#endif
+
+#ifndef KSTACK_GUARD_PAGES
+#define KSTACK_GUARD_PAGES	1
+#endif /* !KSTACK_GUARD_PAGES */
+
+#define USPACE_SVC_STACK_TOP		(USPACE)
+#define USPACE_SVC_STACK_BOTTOM		(USPACE_SVC_STACK_TOP - 0x1000)
+#define USPACE_UNDEF_STACK_TOP		(USPACE_SVC_STACK_BOTTOM - 0x10)
+#define USPACE_UNDEF_STACK_BOTTOM	(FPCONTEXTSIZE + 10)
 /*
  * Mach derived conversion macros
  */
