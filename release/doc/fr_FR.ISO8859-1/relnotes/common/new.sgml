@@ -45,20 +45,20 @@
 
 <sect1>
   <title>Introduction</title>
-        <para>Ce document contient les notes de version pour &os;
-        &release.current; sur plate-forme &arch.print;. Il d&eacute;crit 
+	<para>Ce document contient les notes de version pour &os;
+	&release.current; sur plate-forme &arch.print;. Il d&eacute;crit 
 	les nouvelles fonctions de &os; qui ont &eacute;t&eacute; 
 	ajout&eacute;es, modifi&eacute;es ou retir&eacute;es dans &os;. 
 	Il contient &eacute;galement quelques notes sur la mise &agrgave; 
-	jour depuis la version 	pr&eacute;c&eacute;dente de &os;.</para>
+	jour depuis la version	pr&eacute;c&eacute;dente de &os;.</para>
 <![ %release.type.snapshot [
 
-        <para>La distribution snapshot &agrgave; laquelle s'applique ces notes
-        de version repr&eacute;sente une &eacute;tape sur la branche de
-        d&eacute;veloppement &release.branch; entre &release.prev; et la future
-        &release.next;. Quelques distributions binaires pr&eacute;-compil&eacute;es
-        de la version snapshot pour cette branche sont pr&eacute;sentes
-        sur <ulink url="&release.url;"></ulink>.</para>
+	<para>La distribution snapshot &agrgave; laquelle s'applique ces notes
+	de version repr&eacute;sente une &eacute;tape sur la branche de
+	d&eacute;veloppement &release.branch; entre &release.prev; et la future
+	&release.next;. Quelques distributions binaires pr&eacute;-compil&eacute;es
+	de la version snapshot pour cette branche sont pr&eacute;sentes
+	sur <ulink url="&release.url;"></ulink>.</para>
 
 ]]>
 
@@ -105,14 +105,14 @@
   <title>Les nouveaut&eacute;s</title>
 
 	<para>Cette section d&eacute;crit les fonctions nouvelles ou les
-        modifications les plus visibles pour l'utilisateur sous
-        &os; depuis la version &release.prev;. Il s'agit
-        typiquement de nouveaux gestionnaires de p&eacute;riph&eacute;riques ou
-        du support de mat&eacute;riels, de nouvelles commandes ou options,
-        de corrections de bugs majeurs, ou de mise &agrgave; jour de
-        logiciels. Les avis de s&eacute;curit&eacute; pour le syst&egrave;me de base
-        d&eacute;couverts apr&egrave;s la &release.prev; sont &eacute;galements
-        mentionn&eacute;s.</para>
+	modifications les plus visibles pour l'utilisateur sous
+	&os; depuis la version &release.prev;. Il s'agit
+	typiquement de nouveaux gestionnaires de p&eacute;riph&eacute;riques ou
+	du support de mat&eacute;riels, de nouvelles commandes ou options,
+	de corrections de bugs majeurs, ou de mise &agrgave; jour de
+	logiciels. Les avis de s&eacute;curit&eacute; pour le syst&egrave;me de base
+	d&eacute;couverts apr&egrave;s la &release.prev; sont &eacute;galements
+	mentionn&eacute;s.</para>
 
 	<para>De nombreux changements suppl&eacute;mentaires apport&eacute;s &agrgave; 
 	&os; ne sont pas mentionn&eacute;s ici par faute de place. Par exemple, la 
@@ -199,7 +199,7 @@
 
     <para>Les variables sysctl pour&man.jail.2; ont &eacute;t&eacute; 
 	d&eacute;plac&eacute;es de la hi&eacute;rarchie <varname>jail.*</varname> a 
-	<varname>security.*</varname>.  Les autres variable sysctl ayant un rapport 
+	<varname>security.*</varname>.	Les autres variable sysctl ayant un rapport 
 	avec la s&eacute;curit&eacute; ont &eacute;t&eacute; d&eacute;plac&eacute;es 
 	de la hi&eacute;rarchie <varname>kern.security.*</varname> a 
 	<varname>security.*</varname>.</para>
@@ -236,12 +236,12 @@
 
     <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.labpc.4; a 
 	&eacute;t&eacute; retirer du a <quote>bitrot</quote>.</para>
-
+		
     <para>Le chargeur et le linker du noyau v&eacute;rifient via la pr&eacute;sence
     du fichier <filename>linker.hints</filename> dans chaque r&eacute;pertoire 
     des modules chargeables par le noyau du nom du module et de la version 
-    du fichier KLD. L'utilitaire &man.kldxref.8; permet de g&eacute;n&eacute;rer ces
-     fichiers.</para>
+    du fichier KLD. L'utilitaire &man.kldxref.8; permet de g&eacute;n&eacute;rer 
+	ces fichiers.</para>
 
 
     <para role="historic">L'&eacute;mulation Linux supporte maintenant les 
@@ -250,8 +250,8 @@
 	(&eacute;mulation RedHat 7.X). &merged;</para>
 
     <para role="historic">L'&eacute;mulation linux n&eacute;cessite maintenant 
-	l'option <literal>options SYSVSEM</literal> dans le fichier de configuration 
-	du noyau. &merged;</para>
+	l'option <literal>options SYSVSEM</literal> dans le fichier de 
+	configuration du noyau. &merged;</para>
 
     <para>**&man.lomac.4;, a Low-Watermark Mandatory Access Control
     security facility, has been added as a kernel module.  It provides
@@ -393,37 +393,78 @@
     maintenant le copier-coller via le clavier, par d&eacute;faut via les 
     touches <keycap>Shift</keycap>-<keycap>Insert</keycap>.</para>
 
-    <para>Le support des p&eacute;riph&eacute;riques USB a &eacute;t&eacute; ajout&eacute; au 
-    noyau <filename>GENERIC</filename> et au programme d'installation pour
-    permettre de supporte les p&eacute;riph&eacute;riques USB par d&eacute;faut. Notez 
-    que SRM ne supporte pas tous les p&eacute;riph&eacute;riques USB actuellement, 
-    et donc vous devez utilisez un clavier AT si vous n'utilisez pas 
-    une console s&eacute;rie. &merged;</para>
+ 	<para>Le timer de retransmission du protocole &man.tcp.4; 
+	peut maintenant etre manipul&eacute; via les variables sysctl :
+	<varname>net.inet.tcp.rexmit_min</varname> et
+	<varname>net.inet.tcp.rexmit_slop</varname>.</para>
 
-    <para arch="i386">Un gestionnaire de p&eacute;riph&eacute;riques umodem pour
-    les modems USB a &eacute;t&eacute; ajout&eacute;. Il supporte les modems 3Com 5605 et
-     Metricom Ricochet GS wireless USB modems. &merged;</para>
+    <para>Le procotole  &man.tcp.4; dispose de la possibilit&eacute; de 
+    limiter dynamiquement la fen&ecirc;tre d'envoi pour maximiser
+    la bande passante et r&eacute;duire les temps de transit. Cette
+    fonctionnalit&eacute; est activable via la variable sysctl 
+    <varname>net.inet.tcp.inflight_enable</varname></para>
 
-    <para arch="i386">Un gestionnaire de p&eacute;riph&eacute;riques &man.uscanner.4;
+    <para role="historic">Le support des p&eacute;riph&eacute;riques USB a 
+	&eacute;t&eacute; ajout&eacute; au noyau <filename>GENERIC</filename> et au 
+	programme d'installation pour permettre de supporte les 
+	p&eacute;riph&eacute;riques USB par d&eacute;faut. Notez que SRM ne supporte 
+	pas tous les p&eacute;riph&eacute;riques USB actuellement, et donc vous devez 
+	utilisez un clavier AT si vous n'utilisez pas une console s&eacute;rie. 
+	&merged;</para>
+
+    <para>Le gestionnaire de p&eacute;riph&eacute;rique uaudio, permettant de 
+	supporter les p&eacute;riph&eacute;riques audio USB a &eacute;t&eacute; 
+	ajout&eacute;. &merged;</para>
+ 
+    <para arch="i386,pc98" role="historic">Un gestionnaire de 
+	p&eacute;riph&eacute;riques &man.umodem.4; pour les modems USB a 
+	&eacute;t&eacute; ajout&eacute;. Il supporte les modems 3Com 5605 et Metricom 
+	Ricochet GS wireless USB modems. &merged;</para>
+
+    <para arch="i386,pc98" role="historic">Un gestionnaire de 
+	p&eacute;riph&eacute;riques &man.uscanner.4;
      permettant le support basique de scanner USB utilisant SANE a &eacute;t&eacute; 
      ajout&eacute;. R&eacute;f&eacute;rez vous a
     <ulink
     url="http://www.mostang.com/sane/">la page SANE</ulink> pour la liste
     des scanners support&eacute;s Les scanners HP ScanJet 4100C, 5200C et 6300C 
     sont support&eacute;s. &merged;</para>
+    
+    <para>Pour augmenter la s&eacute;curit&eacute;, l'option de configuration du 
+    noyau <literal>UCONSOLE</literal>  a &eacute;t&eacute; retir&eacute;.</para>
+
+    <para arch="i386,pc98">La fonctionnalit&eacute; UserConfig lors du 
+	d&eacute;marrage du noyau, utilis&eacute; pour activer, d&eacute;sactiver, 
+	ou configurer les p&eacute;riph&eacute;riques ISA, a &eacute;t&eacute; 
+	retir&eacute;. Cette fonctionnalit&eacute; a &eacute;t&eacute; remplac&eacute;e 
+	par le fichier hints du noyau dans <filename>/boot/device.hints</filename>.</para>
 
     <para>L'option du noyau <literal>USER_LDT</literal> est maintenant 
     activ&eacute;e par d&eacute;faut.</para>
 
+    <para>Le gestionnaire de p&eacute;riph&eacute;riques &man.uvisor.4; permettant de 
+	connecter les Handspring Visors via USB a &eacute;t&eacute; ajout&eacute;. &merged;</para>
+
     <para>Un gestionnaire de p&eacute;riph&eacute;riques VESA S3 linear framebuffer 
     a &eacute;t&eacute; ajout&eacute;.</para>
 
+    <para arch="i386" role="historic">Le gestionnaire de p&eacute;riph&eacute;rique 
+	&man.viapm.4; permettant de g&eacute;rer l'&eacute;nergie sur les controleurs 
+	 VIA SMBus a &eacute;t&eacute; ajout&eacute;. &merged;</para>
+
+
+
     <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
-    <para>**Write combining for crashdumps has been implemented.  This
+    <para role="historic">**Write combining for crashdumps has been implemented.  This
     feature is useful when write caching is disabled on both SCSI and
     IDE disks, where large memory dumps could take up to an hour to
     complete. &merged;</para>
+
+    <para>L'infrastructure de gestion des crash noyau a &eacute;t&eacute; revue, pour 
+	supporter les nouvelles plateformes. L'implication principale est que le format du 
+	fichier des crash sur disque a &eacute;t&eacute; modifi&eacute;, et est maintenant 
+	ind&eacute;pendant de l'ordre des octets.</para>
 
     <para>Les tr&egrave;s grands swap (&gt;67 GB) ne panique plus le 
     syst&egrave;me.</para>
@@ -431,19 +472,16 @@
     <para arch="alpha">Le support pour les threads en &eacute;mulation Linux a 
     &eacute;t&eacute; ajout&eacute;.</para>
 
-    <para>La cible <maketarget>buildkernel</maketarget> prend en compte
-    la variable <varname>KERNCONF</varname> et non plus 
-    <varname>KERNEL</varname> pour savoir quel fichier du noyau cr&eacute;er. 
-    Il n'est plus n&eacute;cessaire, dans certains cas, de faire pr&eacute;c&eacute;der
-     un <maketarget>buildkernel</maketarget> par un 
-     <maketarget>buildworld</maketarget>. 
-     (Un <maketarget>buildworld</maketarget> est n&eacute;cessaire pour la 
-     mise &agrgave; jour lors des version majeures, ou de la mise a jour
-    de <application>binutil</application> et lors de changements dans 
-    &man.config.8;.) &merged;</para>
+    <para role="historic">La cible <maketarget>buildkernel</maketarget> prend en 
+    compte la variable <varname>KERNCONF</varname> et non plus <varname>KERNEL</varname> 
+	pour savoir quel fichier du noyau cr&eacute;er. Il n'est plus n&eacute;cessaire, dans 
+	certains cas, de faire pr&eacute;c&eacute;der un <maketarget>buildkernel</maketarget> 
+	par un <maketarget>buildworld</maketarget>. (Un <maketarget>buildworld</maketarget> est 
+	n&eacute;cessaire pour la mise &agrgave; jour lors des version majeures, ou de la mise a 
+	jour de <application>binutil</application> et lors de changements dans &man.config.8;.) &merged;</para>
 
 
-    <para>Le code de terminaison des processus lorsqu'il n'y a plus
+    <para role="historic">Le code de terminaison des processus lorsqu'il n'y a plus
     de swap commence maintenant a terminer plus tot les processus, pour 
     empecher les deadlocks; il prend en compte la quantit&eacute; d'espace
     de swap utilis&eacute; par les processus lors du calcul de la taille des 
@@ -453,33 +491,46 @@
     &man.gensetdefs.8; n'est donc plus n&eacute;cessaire et a donc &eacute;t&eacute; 
     retir&eacute;.</para>
 
-    <para>Un vertain nombre de changements SMP a &eacute;t&eacute; effectu&eacute; au 
-    niveau de l'allocation des mbuf du noyau.</para>
-
-    <para>Le clonage de p&eacute;riph&eacute;rique r&eacute;seau a &eacute;t&eacute; 
-    impl&eacute;ment&eacute;, et le p&eacute;riph&eacute;rique &man.gif.4; a &eacute;t&eacute; 
-    modifi&eacute; pour en tirer parti. Donc maintenant au lieu de sp&eacute;cifi&eacute; 
-    le nombre d'interfaces &man.gif.4; disponibles dans le fichier de 
-    configuration du noyau, L'option <option>create</option> de 
-    &man.ifconfig.8; doit etre utilis&eacute;e lorsqu'une autre instance de 
-    p&eacute;riph&eacute;rique est d&eacute;sir&eacute;e. &merged;</para>
+    <para role="historic">Le clonage de p&eacute;riph&eacute;rique r&eacute;seau a 
+    &eacute;t&eacute; impl&eacute;ment&eacute;, et le p&eacute;riph&eacute;rique 
+    &man.gif.4; a &eacute;t&eacute; modifi&eacute; pour en tirer parti. Donc 
+    maintenant au lieu de sp&eacute;cifi&eacute; le nombre d'interfaces &man.gif.4; 
+    disponibles dans le fichier de configuration du noyau, L'option 
+    <option>create</option> de &man.ifconfig.8; doit etre utilis&eacute;e lorsqu'une 
+    autre instance de p&eacute;riph&eacute;rique est d&eacute;sir&eacute;e. 
+    &merged;</para>
 
     <para>Il est maintenant possible de rajouter des variables d'environnement
     directement dans le noyau au moment de la compilation en utilisant la 
     directive<literal>ENV</literal> de &man.config.8; .</para>
 
    <para>**Idle zeroing of pages can be enabled with the
-    <varname>vm.zeroidle_enable</varname> sysctl variable.</para>
+    <varname>vm.idlezero_enable</varname> sysctl variable.</para>
 
-    <para arch="i386">Les adresses de chargement du noyau sont maintenant 
-    export&eacute;es dans une table de symboles et diff&eacute;rentes constantes 
-    anciennement cod&eacute;es en dur ont &eacute;t&eacute; retir&eacute;es, ce qui permet 
-    a certains programmes, comme &man.ps.1;, de fonctionner avec des noyaux 
-    compil&eacute;s a diff&eacute;rentes adresses. &merged;</para>
-
-    <para>Le vidage de m&eacute;moire des gros processus (ou d'un nombre important
-    de processus) ne bloque plus la machine pour un long moment. 
+    <para arch="i386,pc98" role="historic">Les adresses de chargement du noyau sont 
+    maintenant export&eacute;es dans une table de symboles et diff&eacute;rentes 
+    constantes anciennement cod&eacute;es en dur ont &eacute;t&eacute; 
+    retir&eacute;es, ce qui permet a certains programmes, comme &man.ps.1;, de 
+    fonctionner avec des noyaux compil&eacute;s a diff&eacute;rentes adresses. 
     &merged;</para>
+
+    <para role="historic">Le vidage de m&eacute;moire des gros processus (ou d'un 
+    nombre importantde processus) ne bloque plus la machine pour un long moment. 
+    &merged;</para>
+
+    <para>The &os; kernel scheduler now supports Kernel-Scheduled
+      Entities (KSEs), which provides support for multiple threads of
+      execution per process similar to Schedular Activations.  At this
+      point, the kernel has most of the changes needed to support
+      threading.  The kernel scheduler can schedule multiple threads per
+      process, but only on a single CPU at a time.  Support for
+      userland programs to create and utilize multiple threads is not
+      yet completed.
+
+      <note>
+	  <para>KSE is a work in progress.</para>
+	</note>
+      </para>
 
     <para>Le noyau prend en compte maintenant le concept que il y a
     des unit&eacute;s plus petites que un processus a g&eacute;rer (mais il ne peut
