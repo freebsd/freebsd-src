@@ -1,5 +1,5 @@
 /* BFD backend for SunOS binaries.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Copyright 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1998, 2000
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -84,11 +84,16 @@ static boolean sunos_finish_dynamic_link
   (((mtype) == M_SPARC && bfd_lookup_arch (bfd_arch_sparc, 0) != NULL) \
    || ((mtype) == M_SPARCLET \
        && bfd_lookup_arch (bfd_arch_sparc, bfd_mach_sparc_sparclet) != NULL) \
+   || ((mtype) == M_SPARCLITE_LE \
+       && bfd_lookup_arch (bfd_arch_sparc, bfd_mach_sparc_sparclet) != NULL) \
    || (((mtype) == M_UNKNOWN || (mtype) == M_68010 || (mtype) == M_68020) \
        && bfd_lookup_arch (bfd_arch_m68k, 0) != NULL))
 
 /* Include the usual a.out support.  */
 #include "aoutf1.h"
+
+/* The SunOS 4.1.4 /usr/include/locale.h defines valid as a macro.  */
+#undef valid
 
 /* SunOS shared library support.  We store a pointer to this structure
    in obj_aout_dynamic_info (abfd).  */
@@ -503,7 +508,7 @@ sunos_canonicalize_dynamic_reloc (abfd, storage, syms)
 					    * sizeof (arelent))));
       if (info->canonical_dynrel == NULL && info->dynrel_count != 0)
 	return -1;
-      
+
       to = info->canonical_dynrel;
 
       if (obj_reloc_entry_size (abfd) == RELOC_EXT_SIZE)
@@ -1252,7 +1257,7 @@ sunos_add_one_symbol (info, abfd, name, flags, section, value, string,
 /*ARGSUSED*/
 struct bfd_link_needed_list *
 bfd_sunos_get_needed_list (abfd, info)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      struct bfd_link_info *info;
 {
   if (info->hash->creator != &MY(vec))
@@ -1416,7 +1421,7 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
       s->contents = (bfd_byte *) bfd_alloc (output_bfd, s->_raw_size);
       if (s->contents == NULL && s->_raw_size != 0)
 	return false;
-      
+
       /* The number of buckets is just the number of symbols divided
 	 by four.  To compute the final size of the hash table, we
 	 must actually compute the hash table.  Normally we need
@@ -1602,7 +1607,7 @@ static boolean
 sunos_scan_std_relocs (info, abfd, sec, relocs, rel_size)
      struct bfd_link_info *info;
      bfd *abfd;
-     asection *sec;
+     asection *sec ATTRIBUTE_UNUSED;
      const struct reloc_std_external *relocs;
      bfd_size_type rel_size;
 {
@@ -1762,7 +1767,7 @@ static boolean
 sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
      struct bfd_link_info *info;
      bfd *abfd;
-     asection *sec;
+     asection *sec ATTRIBUTE_UNUSED;
      const struct reloc_ext_external *relocs;
      bfd_size_type rel_size;
 {
@@ -2168,8 +2173,8 @@ sunos_scan_dynamic_symbol (h, data)
 /*ARGSUSED*/
 static boolean
 sunos_link_dynamic_object (info, abfd)
-     struct bfd_link_info *info;
-     bfd *abfd;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
+     bfd *abfd ATTRIBUTE_UNUSED;
 {
   return true;
 }
@@ -2269,16 +2274,16 @@ sunos_write_dynamic_symbol (output_bfd, info, harg)
 	      PUT_WORD (output_bfd, r_address, srel->r_address);
 	      if (bfd_header_big_endian (output_bfd))
 		{
-		  srel->r_index[0] = (bfd_byte)(h->dynindx >> 16);
-		  srel->r_index[1] = (bfd_byte)(h->dynindx >> 8);
-		  srel->r_index[2] = (bfd_byte)(h->dynindx);
+		  srel->r_index[0] = (bfd_byte) (h->dynindx >> 16);
+		  srel->r_index[1] = (bfd_byte) (h->dynindx >> 8);
+		  srel->r_index[2] = (bfd_byte) (h->dynindx);
 		  srel->r_type[0] = (RELOC_STD_BITS_EXTERN_BIG
 				     | RELOC_STD_BITS_JMPTABLE_BIG);
 		}
 	      else
 		{
-		  srel->r_index[2] = (bfd_byte)(h->dynindx >> 16);
-		  srel->r_index[1] = (bfd_byte)(h->dynindx >> 8);
+		  srel->r_index[2] = (bfd_byte) (h->dynindx >> 16);
+		  srel->r_index[1] = (bfd_byte) (h->dynindx >> 8);
 		  srel->r_index[0] = (bfd_byte)h->dynindx;
 		  srel->r_type[0] = (RELOC_STD_BITS_EXTERN_LITTLE
 				     | RELOC_STD_BITS_JMPTABLE_LITTLE);
@@ -2292,8 +2297,8 @@ sunos_write_dynamic_symbol (output_bfd, info, harg)
 	      PUT_WORD (output_bfd, r_address, erel->r_address);
 	      if (bfd_header_big_endian (output_bfd))
 		{
-		  erel->r_index[0] = (bfd_byte)(h->dynindx >> 16);
-		  erel->r_index[1] = (bfd_byte)(h->dynindx >> 8);
+		  erel->r_index[0] = (bfd_byte) (h->dynindx >> 16);
+		  erel->r_index[1] = (bfd_byte) (h->dynindx >> 8);
 		  erel->r_index[2] = (bfd_byte)h->dynindx;
 		  erel->r_type[0] =
 		    (RELOC_EXT_BITS_EXTERN_BIG
@@ -2301,8 +2306,8 @@ sunos_write_dynamic_symbol (output_bfd, info, harg)
 		}
 	      else
 		{
-		  erel->r_index[2] = (bfd_byte)(h->dynindx >> 16);
-		  erel->r_index[1] = (bfd_byte)(h->dynindx >> 8);
+		  erel->r_index[2] = (bfd_byte) (h->dynindx >> 16);
+		  erel->r_index[1] = (bfd_byte) (h->dynindx >> 8);
 		  erel->r_index[0] = (bfd_byte)h->dynindx;
 		  erel->r_type[0] =
 		    (RELOC_EXT_BITS_EXTERN_LITTLE
@@ -2422,7 +2427,7 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
      asection *input_section;
      struct aout_link_hash_entry *harg;
      PTR reloc;
-     bfd_byte *contents;
+     bfd_byte *contents ATTRIBUTE_UNUSED;
      boolean *skip;
      bfd_vma *relocationp;
 {
@@ -2430,6 +2435,7 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
   bfd *dynobj;
   boolean baserel;
   boolean jmptbl;
+  boolean pcrel;
   asection *s;
   bfd_byte *p;
   long indx;
@@ -2438,7 +2444,10 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 
   dynobj = sunos_hash_table (info)->dynobj;
 
-  if (h != NULL && h->plt_offset != 0)
+  if (h != NULL
+      && h->plt_offset != 0
+      && (info->shared
+	  || (h->flags & SUNOS_DEF_REGULAR) == 0))
     {
       asection *splt;
 
@@ -2458,11 +2467,13 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 	{
 	  baserel = (0 != (srel->r_type[0] & RELOC_STD_BITS_BASEREL_BIG));
 	  jmptbl = (0 != (srel->r_type[0] & RELOC_STD_BITS_JMPTABLE_BIG));
+	  pcrel = (0 != (srel->r_type[0] & RELOC_STD_BITS_PCREL_BIG));
 	}
       else
 	{
 	  baserel = (0 != (srel->r_type[0] & RELOC_STD_BITS_BASEREL_LITTLE));
 	  jmptbl = (0 != (srel->r_type[0] & RELOC_STD_BITS_JMPTABLE_LITTLE));
+	  pcrel = (0 != (srel->r_type[0] & RELOC_STD_BITS_PCREL_LITTLE));
 	}
     }
   else
@@ -2481,6 +2492,13 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 		 || r_type == RELOC_BASE13
 		 || r_type == RELOC_BASE22);
       jmptbl = r_type == RELOC_JMP_TBL;
+      pcrel = (r_type == RELOC_DISP8
+	       || r_type == RELOC_DISP16
+	       || r_type == RELOC_DISP32
+	       || r_type == RELOC_WDISP30
+	       || r_type == RELOC_WDISP22);
+      /* We don't consider the PC10 and PC22 types to be PC relative,
+         because they are pcrel_offset.  */
     }
 
   if (baserel)
@@ -2576,8 +2594,8 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 			    srel->r_address);
 		  if (bfd_header_big_endian (dynobj))
 		    {
-		      srel->r_index[0] = (bfd_byte)(indx >> 16);
-		      srel->r_index[1] = (bfd_byte)(indx >> 8);
+		      srel->r_index[0] = (bfd_byte) (indx >> 16);
+		      srel->r_index[1] = (bfd_byte) (indx >> 8);
 		      srel->r_index[2] = (bfd_byte)indx;
 		      if (h == NULL)
 			srel->r_type[0] = 2 << RELOC_STD_BITS_LENGTH_SH_BIG;
@@ -2590,8 +2608,8 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 		    }
 		  else
 		    {
-		      srel->r_index[2] = (bfd_byte)(indx >> 16);
-		      srel->r_index[1] = (bfd_byte)(indx >> 8);
+		      srel->r_index[2] = (bfd_byte) (indx >> 16);
+		      srel->r_index[1] = (bfd_byte) (indx >> 8);
 		      srel->r_index[0] = (bfd_byte)indx;
 		      if (h == NULL)
 			srel->r_type[0] = 2 << RELOC_STD_BITS_LENGTH_SH_LITTLE;
@@ -2615,8 +2633,8 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 			    erel->r_address);
 		  if (bfd_header_big_endian (dynobj))
 		    {
-		      erel->r_index[0] = (bfd_byte)(indx >> 16);
-		      erel->r_index[1] = (bfd_byte)(indx >> 8);
+		      erel->r_index[0] = (bfd_byte) (indx >> 16);
+		      erel->r_index[1] = (bfd_byte) (indx >> 8);
 		      erel->r_index[2] = (bfd_byte)indx;
 		      if (h == NULL)
 			erel->r_type[0] =
@@ -2628,8 +2646,8 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 		    }
 		  else
 		    {
-		      erel->r_index[2] = (bfd_byte)(indx >> 16);
-		      erel->r_index[1] = (bfd_byte)(indx >> 8);
+		      erel->r_index[2] = (bfd_byte) (indx >> 16);
+		      erel->r_index[1] = (bfd_byte) (indx >> 8);
 		      erel->r_index[0] = (bfd_byte)indx;
 		      if (h == NULL)
 			erel->r_type[0] =
@@ -2708,16 +2726,18 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 		srel->r_address);
       if (bfd_header_big_endian (dynobj))
 	{
-	  srel->r_index[0] = (bfd_byte)(indx >> 16);
-	  srel->r_index[1] = (bfd_byte)(indx >> 8);
+	  srel->r_index[0] = (bfd_byte) (indx >> 16);
+	  srel->r_index[1] = (bfd_byte) (indx >> 8);
 	  srel->r_index[2] = (bfd_byte)indx;
 	}
       else
 	{
-	  srel->r_index[2] = (bfd_byte)(indx >> 16);
-	  srel->r_index[1] = (bfd_byte)(indx >> 8);
+	  srel->r_index[2] = (bfd_byte) (indx >> 16);
+	  srel->r_index[1] = (bfd_byte) (indx >> 8);
 	  srel->r_index[0] = (bfd_byte)indx;
 	}
+      /* FIXME: We may have to change the addend for a PC relative
+         reloc.  */
     }
   else
     {
@@ -2731,15 +2751,25 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 		erel->r_address);
       if (bfd_header_big_endian (dynobj))
 	{
-	  erel->r_index[0] = (bfd_byte)(indx >> 16);
-	  erel->r_index[1] = (bfd_byte)(indx >> 8);
+	  erel->r_index[0] = (bfd_byte) (indx >> 16);
+	  erel->r_index[1] = (bfd_byte) (indx >> 8);
 	  erel->r_index[2] = (bfd_byte)indx;
 	}
       else
 	{
-	  erel->r_index[2] = (bfd_byte)(indx >> 16);
-	  erel->r_index[1] = (bfd_byte)(indx >> 8);
+	  erel->r_index[2] = (bfd_byte) (indx >> 16);
+	  erel->r_index[1] = (bfd_byte) (indx >> 8);
 	  erel->r_index[0] = (bfd_byte)indx;
+	}
+      if (pcrel && h != NULL)
+	{
+	  /* Adjust the addend for the change in address.  */
+	  PUT_WORD (dynobj,
+		    (GET_WORD (dynobj, erel->r_addend)
+		     - (input_section->output_section->vma
+			+ input_section->output_offset
+			- input_section->vma)),
+		    erel->r_addend);
 	}
     }
 
@@ -2903,7 +2933,7 @@ sunos_finish_dynamic_link (abfd, info)
       PUT_WORD (dynobj,
 		BFD_ALIGN (obj_textsec (abfd)->_raw_size, 0x2000),
 		esdl.ld_text);
-  
+
       if (! bfd_set_section_contents (abfd, sdyn->output_section, &esdl,
 				      (sdyn->output_offset
 				       + sizeof esd
