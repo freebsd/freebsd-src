@@ -487,9 +487,9 @@ pt_dbsuspend(const td_thrhandle_t *th, int suspend)
 	if (ret != 0)
 		return (P2T(ret));
 	if (suspend)
-		dflags |= TMDF_DONOTRUNUSER;
+		dflags |= TMDF_SUSPEND;
 	else
-		dflags &= ~TMDF_DONOTRUNUSER;
+		dflags &= ~TMDF_SUSPEND;
 	ret = ps_pwrite(ta->ph,
 	       tmbx_addr + offsetof(struct kse_thr_mailbox, tm_dflags),
 	       &dflags, sizeof(dflags));
@@ -594,7 +594,7 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 		break;
 	}
 
-	info->ti_db_suspended = ((dflags & TMDF_DONOTRUNUSER) != 0);
+	info->ti_db_suspended = ((dflags & TMDF_SUSPEND) != 0);
 	info->ti_type = TD_THR_USER;
 	info->ti_pri = pt.active_priority;
 	info->ti_sigmask = pt.sigmask;

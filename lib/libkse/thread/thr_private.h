@@ -972,7 +972,7 @@ do {									\
 	(((thrd)->flags & THR_FLAGS_SUSPENDED) != 0))
 #define	THR_IS_EXITING(thrd)	(((thrd)->flags & THR_FLAGS_EXITING) != 0)
 #define DBG_CAN_RUN(thrd) (((thrd)->tcb->tcb_tmbx.tm_dflags & \
-	TMDF_DONOTRUNUSER) == 0)
+	TMDF_SUSPEND) == 0)
 
 extern int __isthreaded;
 
