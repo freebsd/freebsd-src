@@ -174,9 +174,7 @@ diskLabelEditor(dialogMenuItem *self)
 	}
     }
     if (DITEM_STATUS(i) != DITEM_FAILURE) {
-	char *cp;
-
-	if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+	if (variable_cmp(DISK_LABELLED, "written"))
 	    variable_set2(DISK_LABELLED, "yes", 0);
     }
     return i;
@@ -420,7 +418,7 @@ getNewfsCmd(PartInfo *p)
 #define PART_MOUNT_COL	10
 #define PART_SIZE_COL	(PART_MOUNT_COL + MAX_MOUNT_NAME + 3)
 #define PART_NEWFS_COL	(PART_SIZE_COL + 8)
-#define PART_OFF	38
+#define PART_OFF	39
 
 #define TOTAL_AVAIL_LINES       (10)
 #define PSLICE_SHOWABLE          (4)
@@ -882,7 +880,7 @@ diskLabel(Device *dev)
 		}
 
 		/* At this point, we're reasonably "labelled" */
-		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 	    }
 	    break;
@@ -982,7 +980,7 @@ diskLabel(Device *dev)
 		else
 		    tmp->private_data = p;
 		tmp->private_free = safe_free;
-		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 		record_label_chunks(devs, dev);
 		clear_wins();
@@ -1013,7 +1011,7 @@ diskLabel(Device *dev)
 		break;
 	    }
 	    Delete_Chunk(label_chunk_info[here].c->disk, label_chunk_info[here].c);
-	    if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+	    if (variable_cmp(DISK_LABELLED, "written"))
 		variable_set2(DISK_LABELLED, "yes", 0);
 	    record_label_chunks(devs, dev);
 	    break;
@@ -1042,7 +1040,7 @@ diskLabel(Device *dev)
 			strcpy(p->mountpoint, "/bogus");
 		    }
 		}
-		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 		record_label_chunks(devs, dev);
 		clear_wins();
@@ -1071,6 +1069,8 @@ diskLabel(Device *dev)
 		else
 		    msg = MSG_NOT_APPLICABLE;
 	    }
+	    else
+		msg = MSG_NOT_APPLICABLE;
 	    break;
 
 	case 'T':	/* Toggle newfs state */
@@ -1078,9 +1078,11 @@ diskLabel(Device *dev)
 		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
 		label_chunk_info[here].c->private_data =
 		    new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
+		if (pi && pi->soft)
+		    ((PartInfo *)label_chunk_info[here].c->private_data)->soft = 1;
 		safe_free(pi);
 		label_chunk_info[here].c->private_free = safe_free;
-		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 	    }
 	    else
@@ -1089,7 +1091,7 @@ diskLabel(Device *dev)
 
 	case 'U':
 	    clear();
-	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+	    if (!variable_cmp(DISK_LABELLED, "written")) {
 		msgConfirm("You've already written out your changes -\n"
 			   "it's too late to undo!");
 	    }
@@ -1113,10 +1115,10 @@ diskLabel(Device *dev)
 	    break;
 
 	case 'W':
-	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+	    if (!variable_cmp(DISK_LABELLED, "written")) {
 		msgConfirm("You've already written out your changes - if you\n"
-			   "wish to overwrite them, you'll have to start this\n"
-			   "procedure again from the beginning.");
+			   "wish to overwrite them, you'll have to restart\n"
+			   "sysinstall first.");
 	    }
 	    else if (!msgNoYes("WARNING:  This should only be used when modifying an EXISTING\n"
 			  "installation.  If you are installing FreeBSD for the first time\n"
@@ -1149,7 +1151,7 @@ diskLabel(Device *dev)
 		    if (devs[i]->enabled)
 		    	slice_wizard(((Disk *)devs[i]->private));
 		}
-		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 		DialogActive = TRUE;
 		record_label_chunks(devs, dev);
@@ -1214,7 +1216,7 @@ diskLabelNonInteractive(Device *dev)
 
 	if (label_chunk_info[i].type == PART_SLICE) {
 	    char name[512];
-	    int entries = 1;
+	    int soft, entries = 1;
 
 	    while (entries) {
 		snprintf(name, sizeof name, "%s-%d", c1->name, entries);
@@ -1222,7 +1224,7 @@ diskLabelNonInteractive(Device *dev)
 		    int sz;
 		    char typ[10], mpoint[50];
 
-		    if (sscanf(cp, "%s %d %s", typ, &sz, mpoint) != 3) {
+		    if (sscanf(cp, "%s %d %s %d", typ, &sz, mpoint, &soft) < 3) {
 			msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
 			status = DITEM_FAILURE;
 			continue;
@@ -1257,6 +1259,8 @@ diskLabelNonInteractive(Device *dev)
 			else {
 			    tmp->private_data = new_part(mpoint, TRUE, sz);
 			    tmp->private_free = safe_free;
+			    if (!soft)
+				((PartInfo *)tmp->private_data)->soft = 1;
 			    status = DITEM_SUCCESS;
 			}
 		    }

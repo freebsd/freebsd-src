@@ -320,9 +320,10 @@ A 20MB root file system (all sizes are in 512 byte blocks).
 A 64MB swap partition.
 .It Li "da0s2-3=ufs 204800 /var"
 A 100MB /var file system.
-.It Li "da0s2-4=ufs 0 /usr"
+.It Li "da0s2-4=ufs 0 /usr 1"
 With the balance of free space (around 316MB) going to the /usr
-file system.
+file system and with soft-updates enabled (the argument following
+the mount point, if non-zero, means to set the soft updates flag).
 .El
 .Pp
 One can also use the
