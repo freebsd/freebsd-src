@@ -1,5 +1,5 @@
 /* Data structures associated with breakpoints in GDB.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -39,15 +39,36 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 enum bptype {
   bp_breakpoint,		/* Normal breakpoint */
+  bp_hardware_breakpoint,	/* Hardware assisted breakpoint */
   bp_until,			/* used by until command */
   bp_finish,			/* used by finish command */
   bp_watchpoint,		/* Watchpoint */
+  bp_hardware_watchpoint,	/* Hardware assisted watchpoint */
+  bp_read_watchpoint,		/* read watchpoint, (hardware assisted) */
+  bp_access_watchpoint,		/* access watchpoint, (hardware assisted) */
   bp_longjmp,			/* secret breakpoint to find longjmp() */
   bp_longjmp_resume,		/* secret breakpoint to escape longjmp() */
 
   /* Used by wait_for_inferior for stepping over subroutine calls, for
      stepping over signal handlers, and for skipping prologues.  */
   bp_step_resume,
+
+  /* Used by wait_for_inferior for stepping over signal handlers.  */
+  bp_through_sigtramp,
+
+  /* Used to detect when a watchpoint expression has gone out of
+     scope.  These breakpoints are usually not visible to the user.
+
+     This breakpoint has some interesting properties:
+
+       1) There's always a 1:1 mapping between watchpoints
+       on local variables and watchpoint_scope breakpoints.
+
+       2) It automatically deletes itself and the watchpoint it's
+       associated with when hit.
+
+       3) It can never be disabled.  */
+  bp_watchpoint_scope,
 
   /* The breakpoint at the end of a call dummy.  */
   /* FIXME: What if the function we are calling longjmp()s out of the
@@ -144,9 +165,31 @@ struct breakpoint
      valid anywhere (e.g. consists just of global symbols).  */
   struct block *exp_valid_block;
   /* Value of the watchpoint the last time we checked it.  */
-  value val;
+  value_ptr val;
+
+  /* Holds the value chain for a hardware watchpoint expression.  */
+  value_ptr val_chain;
+
+  /* Holds the address of the related watchpoint_scope breakpoint
+     when using watchpoints on local variables (might the concept
+     of a related breakpoint be useful elsewhere, if not just call
+     it the watchpoint_scope breakpoint or something like that. FIXME).  */
+  struct breakpoint *related_breakpoint; 
+
+  /* Holds the frame address which identifies the frame this watchpoint
+     should be evaluated in, or NULL if the watchpoint should be evaluated
+     on the outermost frame.  */
+  FRAME_ADDR watchpoint_frame;
+
   /* Thread number for thread-specific breakpoint, or -1 if don't care */
   int thread;
+
+  /* Count of the number of times this breakpoint was taken, dumped
+     with the info, but not used for anything else.  Useful for
+     seeing how many times you hit a break prior to the program
+     aborting, so you can back up to just before the abort.  */
+  int hit_count;
+
 };
 
 /* The following stuff is an abstract data type "bpstat" ("breakpoint status").
@@ -207,17 +250,19 @@ enum bpstat_what_main_action {
   /* Clear longjmp_resume breakpoint, then handle as BPSTAT_WHAT_SINGLE.  */
   BPSTAT_WHAT_CLEAR_LONGJMP_RESUME_SINGLE,
 
+  /* Clear step resume breakpoint, and keep checking.  */
+  BPSTAT_WHAT_STEP_RESUME,
+
+  /* Clear through_sigtramp breakpoint, muck with trap_expected, and keep
+     checking.  */
+  BPSTAT_WHAT_THROUGH_SIGTRAMP,
+
   /* This is just used to keep track of how many enums there are.  */
   BPSTAT_WHAT_LAST
 };
 
 struct bpstat_what {
   enum bpstat_what_main_action main_action;
-
-  /* Did we hit the step resume breakpoint?  This is separate from the
-     main_action to allow for it to be combined with any of the main
-     actions.  */
-  int step_resume;
 
   /* Did we hit a call dummy breakpoint?  This only goes with a main_action
      of BPSTAT_WHAT_STOP_SILENT or BPSTAT_WHAT_STOP_NOISY (the concept of
@@ -274,7 +319,7 @@ struct bpstat
   /* Commands left to be done.  */
   struct command_line *commands;
   /* Old value associated with a watchpoint.  */
-  value old_val;
+  value_ptr old_val;
 
   /* Nonzero if this breakpoint tells us to print the frame.  */
   char print;
@@ -294,11 +339,11 @@ struct bpstat
 struct frame_info;
 #endif
 
-extern int
-breakpoint_here_p PARAMS ((CORE_ADDR));
+extern int breakpoint_here_p PARAMS ((CORE_ADDR));
 
-extern int
-breakpoint_thread_match PARAMS ((CORE_ADDR, int));
+extern int frame_in_dummy PARAMS ((struct frame_info *));
+
+extern int breakpoint_thread_match PARAMS ((CORE_ADDR, int));
 
 extern void
 until_break_command PARAMS ((char *, int));
@@ -354,6 +399,8 @@ disable_longjmp_breakpoint PARAMS ((void));
 extern void
 set_longjmp_resume_breakpoint PARAMS ((CORE_ADDR, FRAME));
  
+extern void clear_breakpoint_hit_counts PARAMS ((void));
+
 /* The following are for displays, which aren't really breakpoints, but
    here is as good a place as any for them.  */
 

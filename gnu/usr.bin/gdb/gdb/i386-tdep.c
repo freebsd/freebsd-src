@@ -1,5 +1,5 @@
 /* Intel 386 target-dependent stuff.
-   Copyright (C) 1988, 1989, 1991 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1991, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -22,6 +22,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "inferior.h"
 #include "gdbcore.h"
 #include "target.h"
+#include "floatformat.h"
+#include "symtab.h"
 
 static long
 i386_get_frame_setup PARAMS ((int));
@@ -430,7 +432,12 @@ i386_frame_find_saved_regs (fip, fsrp)
 	  op = codestream_get ();
 	  if (op < 0x50 || op > 0x57)
 	    break;
+#ifdef I386_REGNO_TO_SYMMETRY
+	  /* Dynix uses different internal numbering.  Ick.  */
+	  fsrp->regs[I386_REGNO_TO_SYMMETRY(op - 0x50)] = adr;
+#else
 	  fsrp->regs[op - 0x50] = adr;
+#endif
 	  adr -= 4;
 	}
     }
@@ -447,6 +454,10 @@ i386_skip_prologue (pc)
 {
   unsigned char op;
   int i;
+  static unsigned char pic_pat[6] = { 0xe8, 0, 0, 0, 0, /* call   0x0 */
+				      0x5b,             /* popl   %ebx */
+				    };
+  CORE_ADDR pos;
   
   if (i386_get_frame_setup (pc) < 0)
     return (pc);
@@ -464,6 +475,54 @@ i386_skip_prologue (pc)
 	break;
       codestream_get ();
     }
+
+  /* The native cc on SVR4 in -K PIC mode inserts the following code to get
+     the address of the global offset table (GOT) into register %ebx.
+      call	0x0
+      popl	%ebx
+      movl	%ebx,x(%ebp)	(optional)
+      addl	y,%ebx
+     This code is with the rest of the prologue (at the end of the
+     function), so we have to skip it to get to the first real
+     instruction at the start of the function.  */
+     
+  pos = codestream_tell ();
+  for (i = 0; i < 6; i++)
+    {
+      op = codestream_get ();
+      if (pic_pat [i] != op)
+	break;
+    }
+  if (i == 6)
+    {
+      unsigned char buf[4];
+      long delta = 6;
+
+      op = codestream_get ();
+      if (op == 0x89)			/* movl %ebx, x(%ebp) */
+	{
+	  op = codestream_get ();
+	  if (op == 0x5d)		/* one byte offset from %ebp */
+	    {
+	      delta += 3;
+	      codestream_read (buf, 1);
+	    }
+	  else if (op == 0x9d)		/* four byte offset from %ebp */
+	    {
+	      delta += 6;
+	      codestream_read (buf, 4);
+	    }
+	  else				/* unexpected instruction */
+	      delta = -1;
+          op = codestream_get ();
+	}
+					/* addl y,%ebx */
+      if (delta > 0 && op == 0x81 && codestream_get () == 0xc3) 
+	{
+	    pos += delta + 6;
+	}
+    }
+  codestream_seek (pos);
   
   i386_follow_jump ();
   
@@ -565,27 +624,12 @@ i386_extract_return_value(type, regbuf, valbuf)
 {
   if (TYPE_CODE_FLT == TYPE_CODE(type))
     {
-      extern struct ext_format ext_format_i387;
       double d;
       /* 387 %st(0), gcc uses this */
-      ieee_extended_to_double (&ext_format_i387,
-			       &regbuf[REGISTER_BYTE(FP0_REGNUM)],
-			       &d);
-      switch (TYPE_LENGTH(type))
-	{
-	case 4:			/* float */
-	  {
-	    float f = (float) d;
-	    memcpy (valbuf, &f, 4); 
-	    break;
-	  }
-	case 8:			/* double */
-	  memcpy (valbuf, &d, 8);
-	  break;
-	default:
-	  error("Unknown floating point size");
-	  break;
-	}
+      floatformat_to_double (&floatformat_i387_ext,
+			     &regbuf[REGISTER_BYTE(FP0_REGNUM)],
+			     &d);
+      store_floating (valbuf, TYPE_LENGTH (type), d);
     }
   else
     { 
@@ -593,3 +637,32 @@ i386_extract_return_value(type, regbuf, valbuf)
     }
 }
 #endif /* I386_AIX_TARGET */
+
+#ifdef I386V4_SIGTRAMP_SAVED_PC
+/* Get saved user PC for sigtramp from the pushed ucontext on the stack
+   for all three variants of SVR4 sigtramps.  */
+
+CORE_ADDR
+i386v4_sigtramp_saved_pc (frame)
+     FRAME frame;
+{
+  CORE_ADDR saved_pc_offset = 4;
+  char *name = NULL;
+
+  find_pc_partial_function (frame->pc, &name,
+			    (CORE_ADDR *)NULL,(CORE_ADDR *)NULL);
+  if (name)
+    {
+      if (STREQ (name, "_sigreturn"))
+	saved_pc_offset = 132 + 14 * 4;
+      else if (STREQ (name, "_sigacthandler"))
+	saved_pc_offset = 80 + 14 * 4;
+      else if (STREQ (name, "sigvechandler"))
+	saved_pc_offset = 120 + 14 * 4;
+    }
+
+  if (frame->next)
+    return read_memory_integer (frame->next->frame + saved_pc_offset, 4);
+  return read_memory_integer (read_register (SP_REGNUM) + saved_pc_offset, 4);
+}
+#endif /* I386V4_SIGTRAMP_SAVED_PC */

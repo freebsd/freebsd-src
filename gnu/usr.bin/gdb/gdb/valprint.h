@@ -1,5 +1,6 @@
 /* Declarations for value printing routines for GDB, the GNU debugger.
-   Copyright 1986, 1988, 1989, 1991 Free Software Foundation, Inc.
+   Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994
+             Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -29,12 +30,15 @@ extern int objectprint;		/* Controls looking up an object's derived type
 				   using what we find in its vtables.  */
 
 extern unsigned int print_max;	/* Max # of chars for strings/vectors */
+
 extern int output_format;
 
+extern int stop_print_at_null;  /* Stop printing at null char? */
+
 extern void
-val_print_array_elements PARAMS ((struct type *, char *, CORE_ADDR, FILE *,
+val_print_array_elements PARAMS ((struct type *, char *, CORE_ADDR, GDB_FILE *,
 				  int, int, int, enum val_prettyprint, int));
 
 extern void
-val_print_type_code_int PARAMS ((struct type *, char *, FILE *));
+val_print_type_code_int PARAMS ((struct type *, char *, GDB_FILE *));
 

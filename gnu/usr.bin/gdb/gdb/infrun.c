@@ -1,5 +1,5 @@
 /* Target-struct-independent code to start (run) and stop an inferior process.
-   Copyright 1986, 1987, 1988, 1989, 1991, 1992, 1993
+   Copyright 1986, 1987, 1988, 1989, 1991, 1992, 1993, 1994
    Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -29,6 +29,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "gdbcore.h"
 #include "gdbcmd.h"
 #include "target.h"
+#include "thread.h"
+#include "annotate.h"
 
 #include <signal.h>
 
@@ -47,8 +49,7 @@ signals_info PARAMS ((char *, int));
 static void
 handle_command PARAMS ((char *, int));
 
-static void
-sig_print_info PARAMS ((int));
+static void sig_print_info PARAMS ((enum target_signal));
 
 static void
 sig_print_header PARAMS ((void));
@@ -75,7 +76,7 @@ hook_stop_stub PARAMS ((char *));
 #endif
 
 /* For SVR4 shared libraries, each call goes through a small piece of
-   trampoline code in the ".init" section.  IN_SOLIB_TRAMPOLINE evaluates
+   trampoline code in the ".plt" section.  IN_SOLIB_TRAMPOLINE evaluates
    to nonzero if we are current stopped in one of these. */
 #ifndef IN_SOLIB_TRAMPOLINE
 #define IN_SOLIB_TRAMPOLINE(pc,name)	0
@@ -194,7 +195,7 @@ resume_cleanups (arg)
 void
 resume (step, sig)
      int step;
-     int sig;
+     enum target_signal sig;
 {
   struct cleanup *old_cleanups = make_cleanup (resume_cleanups, 0);
   QUIT;
@@ -262,7 +263,7 @@ clear_proceed_status ()
 void
 proceed (addr, siggnal, step)
      CORE_ADDR addr;
-     int siggnal;
+     enum target_signal siggnal;
      int step;
 {
   int oneproc = 0;
@@ -280,9 +281,36 @@ proceed (addr, siggnal, step)
 
       if (breakpoint_here_p (read_pc ()))
 	oneproc = 1;
+
+#ifdef STEP_SKIPS_DELAY
+      /* Check breakpoint_here_p first, because breakpoint_here_p is fast
+	 (it just checks internal GDB data structures) and STEP_SKIPS_DELAY
+	 is slow (it needs to read memory from the target).  */
+      if (breakpoint_here_p (read_pc () + 4)
+	  && STEP_SKIPS_DELAY (read_pc ()))
+	oneproc = 1;
+#endif /* STEP_SKIPS_DELAY */
     }
   else
     write_pc (addr);
+
+#ifdef PREPARE_TO_PROCEED
+  /* In a multi-threaded task we may select another thread and then continue.
+     
+     In this case the thread that stopped at a breakpoint will immediately
+     cause another stop, if it is not stepped over first. On the other hand,
+     if (ADDR != -1) we only want to single step over the breakpoint if we did
+     switch to another thread.
+
+     If we are single stepping, don't do any of the above.
+     (Note that in the current implementation single stepping another
+     thread after a breakpoint and then continuing will cause the original
+     breakpoint to be hit again, but you can always continue, so it's not
+     a big deal.)  */
+
+  if (! step && PREPARE_TO_PROCEED (1) && breakpoint_here_p (read_pc ()))
+    oneproc = 1;
+#endif /* PREPARE_TO_PROCEED */
 
   if (trap_expected_after_continue)
     {
@@ -310,12 +338,14 @@ The same program may be running in another process.");
       breakpoints_inserted = 1;
     }
 
-  if (siggnal >= 0)
+  if (siggnal != TARGET_SIGNAL_DEFAULT)
     stop_signal = siggnal;
   /* If this signal should not be seen by program,
      give it zero.  Used for debugging signals.  */
-  else if (stop_signal < NSIG && !signal_program[stop_signal])
-    stop_signal= 0;
+  else if (!signal_program[stop_signal])
+    stop_signal = TARGET_SIGNAL_0;
+
+  annotate_starting ();
 
   /* Resume inferior.  */
   resume (oneproc || step || bpstat_should_step (), stop_signal);
@@ -335,6 +365,7 @@ static CORE_ADDR prev_pc;
 static CORE_ADDR prev_sp;
 static CORE_ADDR prev_func_start;
 static char *prev_func_name;
+static CORE_ADDR prev_frame_address;
 
 
 /* Start remote-debugging of a machine over a serial link.  */
@@ -360,11 +391,14 @@ init_wait_for_inferior ()
   prev_sp = 0;
   prev_func_start = 0;
   prev_func_name = NULL;
+  prev_frame_address = 0;
 
   trap_expected_after_continue = 0;
   breakpoints_inserted = 0;
   breakpoint_init_inferior ();
-  stop_signal = 0;		/* Don't confuse first call to proceed(). */
+
+  /* Don't confuse first call to proceed(). */
+  stop_signal = TARGET_SIGNAL_0;
 }
 
 static void
@@ -386,211 +420,243 @@ void
 wait_for_inferior ()
 {
   struct cleanup *old_cleanups;
-  WAITTYPE w;
+  struct target_waitstatus w;
   int another_trap;
   int random_signal;
   CORE_ADDR stop_sp = 0;
   CORE_ADDR stop_func_start;
+  CORE_ADDR stop_func_end;
   char *stop_func_name;
   CORE_ADDR prologue_pc = 0, tmp;
   struct symtab_and_line sal;
   int remove_breakpoints_on_following_step = 0;
   int current_line;
+  struct symtab *current_symtab;
   int handling_longjmp = 0;	/* FIXME */
   struct breakpoint *step_resume_breakpoint = NULL;
+  struct breakpoint *through_sigtramp_breakpoint = NULL;
   int pid;
 
   old_cleanups = make_cleanup (delete_breakpoint_current_contents,
 			       &step_resume_breakpoint);
+  make_cleanup (delete_breakpoint_current_contents,
+		&through_sigtramp_breakpoint);
   sal = find_pc_line(prev_pc, 0);
   current_line = sal.line;
+  current_symtab = sal.symtab;
 
   /* Are we stepping?  */
-#define CURRENTLY_STEPPING() ((step_resume_breakpoint == NULL \
-			       && !handling_longjmp \
-			       && (step_range_end \
-				   || trap_expected)) \
-			      || bpstat_should_step ())
+#define CURRENTLY_STEPPING() \
+  ((through_sigtramp_breakpoint == NULL \
+    && !handling_longjmp \
+    && ((step_range_end && step_resume_breakpoint == NULL) \
+	|| trap_expected)) \
+   || bpstat_should_step ())
 
   while (1)
     {
-      /* Clean up saved state that will become invalid.  */
-      flush_cached_frames ();
+      /* We have to invalidate the registers BEFORE calling target_wait because
+	 they can be loaded from the target while in target_wait.  This makes
+	 remote debugging a bit more efficient for those targets that provide
+	 critical registers as part of their normal status mechanism. */
+
       registers_changed ();
 
       pid = target_wait (-1, &w);
 
-#ifdef SIGTRAP_STOP_AFTER_LOAD
+      flush_cached_frames ();
 
-      /* Somebody called load(2), and it gave us a "trap signal after load".
-         Ignore it gracefully. */
+      /* If it's a new process, add it to the thread database */
 
-      SIGTRAP_STOP_AFTER_LOAD (w);
-#endif
-
-      /* See if the process still exists; clean up if it doesn't.  */
-      if (WIFEXITED (w))
+      if (pid != inferior_pid
+	  && !in_thread_list (pid))
 	{
+	  fprintf_unfiltered (gdb_stderr, "[New %s]\n", target_pid_to_str (pid));
+	  add_thread (pid);
+
+	  /* We may want to consider not doing a resume here in order to give
+	     the user a chance to play with the new thread.  It might be good
+	     to make that a user-settable option.  */
+
+	  /* At this point, all threads are stopped (happens automatically in
+	     either the OS or the native code).  Therefore we need to continue
+	     all threads in order to make progress.  */
+
+	  target_resume (-1, 0, TARGET_SIGNAL_0);
+	  continue;
+	}
+
+      switch (w.kind)
+	{
+	case TARGET_WAITKIND_LOADED:
+	  /* Ignore it gracefully.  */
+	  if (breakpoints_inserted)
+	    {
+	      mark_breakpoints_out ();
+	      insert_breakpoints ();
+	    }
+	  resume (0, TARGET_SIGNAL_0);
+	  continue;
+
+	case TARGET_WAITKIND_SPURIOUS:
+	  resume (0, TARGET_SIGNAL_0);
+	  continue;
+
+	case TARGET_WAITKIND_EXITED:
 	  target_terminal_ours ();	/* Must do this before mourn anyway */
-	  if (WEXITSTATUS (w))
+	  annotate_exited (w.value.integer);
+	  if (w.value.integer)
 	    printf_filtered ("\nProgram exited with code 0%o.\n", 
-		     (unsigned int)WEXITSTATUS (w));
+			     (unsigned int)w.value.integer);
 	  else
-	    if (!batch_mode())
-	      printf_filtered ("\nProgram exited normally.\n");
-	  fflush (stdout);
+	    printf_filtered ("\nProgram exited normally.\n");
+	  gdb_flush (gdb_stdout);
 	  target_mourn_inferior ();
 #ifdef NO_SINGLE_STEP
 	  one_stepped = 0;
 #endif
 	  stop_print_frame = 0;
-	  break;
-	}
-      else if (!WIFSTOPPED (w))
-	{
-	  char *signame;
-	  
+	  goto stop_stepping;
+
+	case TARGET_WAITKIND_SIGNALLED:
 	  stop_print_frame = 0;
-	  stop_signal = WTERMSIG (w);
+	  stop_signal = w.value.sig;
 	  target_terminal_ours ();	/* Must do this before mourn anyway */
+	  annotate_signalled ();
 	  target_kill ();		/* kill mourns as well */
-#ifdef PRINT_RANDOM_SIGNAL
-	  printf_filtered ("\nProgram terminated: ");
-	  PRINT_RANDOM_SIGNAL (stop_signal);
-#else
 	  printf_filtered ("\nProgram terminated with signal ");
-	  signame = strsigno (stop_signal);
-	  if (signame == NULL)
-	    printf_filtered ("%d", stop_signal);
-	  else
-	    /* Do we need to print the number in addition to the name?  */
-	    printf_filtered ("%s (%d)", signame, stop_signal);
-	  printf_filtered (", %s\n", safe_strsignal (stop_signal));
-#endif
+	  annotate_signal_name ();
+	  printf_filtered ("%s", target_signal_to_name (stop_signal));
+	  annotate_signal_name_end ();
+	  printf_filtered (", ");
+	  annotate_signal_string ();
+	  printf_filtered ("%s", target_signal_to_string (stop_signal));
+	  annotate_signal_string_end ();
+	  printf_filtered (".\n");
+
 	  printf_filtered ("The program no longer exists.\n");
-	  fflush (stdout);
+	  gdb_flush (gdb_stdout);
 #ifdef NO_SINGLE_STEP
 	  one_stepped = 0;
 #endif
+	  goto stop_stepping;
+
+	case TARGET_WAITKIND_STOPPED:
+	  /* This is the only case in which we keep going; the above cases
+	     end in a continue or goto.  */
 	  break;
 	}
 
-      stop_signal = WSTOPSIG (w);
+      stop_signal = w.value.sig;
 
-      if (pid != inferior_pid)
+      stop_pc = read_pc_pid (pid);
+
+      /* See if a thread hit a thread-specific breakpoint that was meant for
+	 another thread.  If so, then step that thread past the breakpoint,
+	 and continue it.  */
+
+      if (stop_signal == TARGET_SIGNAL_TRAP
+	  && breakpoints_inserted
+	  && breakpoint_here_p (stop_pc - DECR_PC_AFTER_BREAK))
 	{
-	  int save_pid = inferior_pid;
+	  random_signal = 0;
+	  if (!breakpoint_thread_match (stop_pc - DECR_PC_AFTER_BREAK, pid))
+	    {
+	      /* Saw a breakpoint, but it was hit by the wrong thread.  Just continue. */
+	      write_pc (stop_pc - DECR_PC_AFTER_BREAK);
 
-	  inferior_pid = pid;	/* Setup for target memory/regs */
-	  registers_changed ();
-	  stop_pc = read_pc ();
-	  inferior_pid = save_pid;
-	  registers_changed ();
+	      remove_breakpoints ();
+	      target_resume (pid, 1, TARGET_SIGNAL_0); /* Single step */
+	      /* FIXME: What if a signal arrives instead of the single-step
+		 happening?  */
+	      target_wait (pid, &w);
+	      insert_breakpoints ();
+	      target_resume (pid, 0, TARGET_SIGNAL_0);
+	      continue;
+	    }
 	}
       else
-	stop_pc = read_pc ();
+	random_signal = 1;
 
-      if (stop_signal == SIGTRAP
-	  && breakpoint_here_p (stop_pc - DECR_PC_AFTER_BREAK))
-	if (!breakpoint_thread_match (stop_pc - DECR_PC_AFTER_BREAK, pid))
-	  {
-	    /* Saw a breakpoint, but it was hit by the wrong thread.  Just continue. */
-	    if (breakpoints_inserted)
-	      {
-		remove_breakpoints ();
-		target_resume (pid, 1, 0); /* Single step */
-		/* FIXME: What if a signal arrives instead of the single-step
-		   happening?  */
-		target_wait (pid, NULL);
-		insert_breakpoints ();
-	      }
-	    target_resume (-1, 0, 0);
-	    continue;
-	  }
-	else
-	  if (pid != inferior_pid)
-	    goto switch_thread;
+      /* See if something interesting happened to the non-current thread.  If
+         so, then switch to that thread, and eventually give control back to
+	 the user.  */
 
       if (pid != inferior_pid)
 	{
 	  int printed = 0;
 
-	  if (!in_thread_list (pid))
-	    {
-	      fprintf (stderr, "[New %s]\n", target_pid_to_str (pid));
-	      add_thread (pid);
+	  /* If it's a random signal for a non-current thread, notify user
+	     if he's expressed an interest.  */
 
-	      target_resume (-1, 0, 0);
+	  if (random_signal
+	      && signal_print[stop_signal])
+	    {
+	      printed = 1;
+	      target_terminal_ours_for_output ();
+	      printf_filtered ("\nProgram received signal %s, %s.\n",
+			       target_signal_to_name (stop_signal),
+			       target_signal_to_string (stop_signal));
+	      gdb_flush (gdb_stdout);
+	    }
+
+	  /* If it's not SIGTRAP and not a signal we want to stop for, then
+	     continue the thread. */
+
+	  if (stop_signal != TARGET_SIGNAL_TRAP
+	      && !signal_stop[stop_signal])
+	    {
+	      if (printed)
+		target_terminal_inferior ();
+
+	      /* Clear the signal if it should not be passed.  */
+	      if (signal_program[stop_signal] == 0)
+		stop_signal = TARGET_SIGNAL_0;
+
+	      target_resume (pid, 0, stop_signal);
 	      continue;
 	    }
-	  else
+
+	  /* It's a SIGTRAP or a signal we're interested in.  Switch threads,
+	     and fall into the rest of wait_for_inferior().  */
+
+	  inferior_pid = pid;
+	  printf_filtered ("[Switching to %s]\n", target_pid_to_str (pid));
+
+	  flush_cached_frames ();
+	  trap_expected = 0;
+	  if (step_resume_breakpoint)
 	    {
-	      if (stop_signal >= NSIG || signal_print[stop_signal])
-		{
-		  char *signame;
-
-		  printed = 1;
-		  target_terminal_ours_for_output ();
-		  printf_filtered ("\nProgram received signal ");
-		  signame = strsigno (stop_signal);
-		  if (signame == NULL)
-		    printf_filtered ("%d", stop_signal);
-		  else
-		    printf_filtered ("%s (%d)", signame, stop_signal);
-		  printf_filtered (", %s\n", safe_strsignal (stop_signal));
-
-		  fflush (stdout);
-		}
-
-	      if (stop_signal == SIGTRAP
-		  || stop_signal >= NSIG
-		  || signal_stop[stop_signal])
-		{
-switch_thread:
-		  inferior_pid = pid;
-		  printf_filtered ("[Switching to %s]\n", target_pid_to_str (pid));
-
-		  flush_cached_frames ();
-		  registers_changed ();
-		  trap_expected = 0;
-		  if (step_resume_breakpoint)
-		    {
-		      delete_breakpoint (step_resume_breakpoint);
-		      step_resume_breakpoint = NULL;
-		    }
-		  prev_pc = 0;
-		  prev_sp = 0;
-		  prev_func_name = NULL;
-		  step_range_start = 0;
-		  step_range_end = 0;
-		  step_frame_address = 0;
-		  handling_longjmp = 0;
-		  another_trap = 0;
-		}
-	      else
-		{
-		  if (printed)
-		    target_terminal_inferior ();
-
-		  /* Clear the signal if it should not be passed.  */
-		  if (signal_program[stop_signal] == 0)
-		    stop_signal = 0;
-
-		  target_resume (-1, 0, stop_signal);
-		  continue;
-		}
+	      delete_breakpoint (step_resume_breakpoint);
+	      step_resume_breakpoint = NULL;
 	    }
-	}
 
-same_pid:
+	  /* Not sure whether we need to blow this away too,
+	     but probably it is like the step-resume
+	     breakpoint.  */
+	  if (through_sigtramp_breakpoint)
+	    {
+	      delete_breakpoint (through_sigtramp_breakpoint);
+	      through_sigtramp_breakpoint = NULL;
+	    }
+	  prev_pc = 0;
+	  prev_sp = 0;
+	  prev_func_name = NULL;
+	  step_range_start = 0;
+	  step_range_end = 0;
+	  step_frame_address = 0;
+	  handling_longjmp = 0;
+	  another_trap = 0;
+	}
 
 #ifdef NO_SINGLE_STEP
       if (one_stepped)
 	single_step (0);	/* This actually cleans up the ss */
 #endif /* NO_SINGLE_STEP */
       
-/* If PC is pointing at a nullified instruction, then step beyond it so that
-   the user won't be confused when GDB appears to be ready to execute it. */
+      /* If PC is pointing at a nullified instruction, then step beyond
+	 it so that the user won't be confused when GDB appears to be ready
+	 to execute it. */
 
       if (INSTRUCTION_NULLIFIED)
 	{
@@ -598,7 +664,47 @@ same_pid:
 	  continue;
 	}
 
-      set_current_frame ( create_new_frame (read_fp (), stop_pc));
+      set_current_frame (create_new_frame (read_fp (), stop_pc));
+      select_frame (get_current_frame (), 0);
+
+#ifdef HAVE_STEPPABLE_WATCHPOINT
+      /* It may not be necessary to disable the watchpoint to stop over
+	 it.  For example, the PA can (with some kernel cooperation) 
+	 single step over a watchpoint without disabling the watchpoint.  */
+      if (STOPPED_BY_WATCHPOINT (w))
+	{
+	  resume (1, 0);
+	  continue;
+	}
+#endif
+
+#ifdef HAVE_NONSTEPPABLE_WATCHPOINT
+      /* It is far more common to need to disable a watchpoint
+	 to step the inferior over it.  FIXME.  What else might
+	 a debug register or page protection watchpoint scheme need
+	 here?  */
+      if (STOPPED_BY_WATCHPOINT (w))
+	{
+	  remove_breakpoints ();
+	  resume (1, 0);
+
+	  /* FIXME: This is bogus.  You can't interact with the
+	     inferior except when it is stopped.  It apparently
+	     happens to work on Irix4, but it depends on /proc
+	     allowing us to muck with the memory of a running process,
+	     and the kernel deciding to run one instruction of the
+	     inferior before it executes our insert_breakpoints code,
+	     which seems like an awfully dubious assumption.  */
+	  insert_breakpoints ();
+
+	  continue;
+	}
+#endif
+
+#ifdef HAVE_CONTINUABLE_WATCHPOINT
+      /* It may be possible to simply continue after a watchpoint.  */
+      STOPPED_BY_WATCHPOINT (w);
+#endif
 
       stop_frame_address = FRAME_FP (get_current_frame ());
       stop_sp = read_sp ();
@@ -607,7 +713,7 @@ same_pid:
       /* Don't care about return value; stop_func_start and stop_func_name
 	 will both be 0 if it doesn't work.  */
       find_pc_partial_function (stop_pc, &stop_func_name, &stop_func_start,
-				NULL);
+				&stop_func_end);
       stop_func_start += FUNCTION_START_OFFSET;
       another_trap = 0;
       bpstat_clear (&stop_bpstat);
@@ -633,16 +739,14 @@ same_pid:
 	 Here we detect when a SIGILL or SIGEMT is really a breakpoint
 	 and change it to SIGTRAP.  */
       
-      if (stop_signal == SIGTRAP
+      if (stop_signal == TARGET_SIGNAL_TRAP
 	  || (breakpoints_inserted &&
-	      (stop_signal == SIGILL
-#ifdef SIGEMT
-	       || stop_signal == SIGEMT
-#endif
+	      (stop_signal == TARGET_SIGNAL_ILL
+	       || stop_signal == TARGET_SIGNAL_EMT
             ))
 	  || stop_soon_quietly)
 	{
-	  if (stop_signal == SIGTRAP && stop_after_trap)
+	  if (stop_signal == TARGET_SIGNAL_TRAP && stop_after_trap)
 	    {
 	      stop_print_frame = 0;
 	      break;
@@ -654,11 +758,11 @@ same_pid:
 	     if just proceeded over a breakpoint.
 
 	     However, if we are trying to proceed over a breakpoint
-	     and end up in sigtramp, then step_resume_breakpoint
+	     and end up in sigtramp, then through_sigtramp_breakpoint
 	     will be set and we should check whether we've hit the
 	     step breakpoint.  */
-	  if (stop_signal == SIGTRAP && trap_expected
-	      && step_resume_breakpoint == NULL)
+	  if (stop_signal == TARGET_SIGNAL_TRAP && trap_expected
+	      && through_sigtramp_breakpoint == NULL)
 	    bpstat_clear (&stop_bpstat);
 	  else
 	    {
@@ -683,7 +787,7 @@ same_pid:
 	      stop_print_frame = 1;
 	    }
 
-	  if (stop_signal == SIGTRAP)
+	  if (stop_signal == TARGET_SIGNAL_TRAP)
 	    random_signal
 	      = !(bpstat_explains_signal (stop_bpstat)
 		  || trap_expected
@@ -703,7 +807,7 @@ same_pid:
 #endif /* No CALL_DUMMY_BREAKPOINT_OFFSET.  */
 		    );
 	      if (!random_signal)
-		stop_signal = SIGTRAP;
+		stop_signal = TARGET_SIGNAL_TRAP;
 	    }
 	}
       else
@@ -719,28 +823,23 @@ same_pid:
 	  
 	  stopped_by_random_signal = 1;
 	  
-	  if (stop_signal >= NSIG
-	      || signal_print[stop_signal])
+	  if (signal_print[stop_signal])
 	    {
-	      char *signame;
 	      printed = 1;
 	      target_terminal_ours_for_output ();
-#ifdef PRINT_RANDOM_SIGNAL
-	      PRINT_RANDOM_SIGNAL (stop_signal);
-#else
+	      annotate_signal ();
 	      printf_filtered ("\nProgram received signal ");
-	      signame = strsigno (stop_signal);
-	      if (signame == NULL)
-		printf_filtered ("%d", stop_signal);
-	      else
-		/* Do we need to print the number as well as the name?  */
-		printf_filtered ("%s (%d)", signame, stop_signal);
-	      printf_filtered (", %s\n", safe_strsignal (stop_signal));
-#endif /* PRINT_RANDOM_SIGNAL */
-	      fflush (stdout);
+	      annotate_signal_name ();
+	      printf_filtered ("%s", target_signal_to_name (stop_signal));
+	      annotate_signal_name_end ();
+	      printf_filtered (", ");
+	      annotate_signal_string ();
+	      printf_filtered ("%s", target_signal_to_string (stop_signal));
+	      annotate_signal_string_end ();
+	      printf_filtered (".\n");
+	      gdb_flush (gdb_stdout);
 	    }
-	  if (stop_signal >= NSIG
-	      || signal_stop[stop_signal])
+	  if (signal_stop[stop_signal])
 	    break;
 	  /* If not going to stop, give terminal back
 	     if we took it away.  */
@@ -749,7 +848,7 @@ same_pid:
 
 	  /* Clear the signal if it should not be passed.  */
 	  if (signal_program[stop_signal] == 0)
-	    stop_signal = 0;
+	    stop_signal = TARGET_SIGNAL_0;
 
 	  /* I'm not sure whether this needs to be check_sigtramp2 or
 	     whether it could/should be keep_going.  */
@@ -788,7 +887,13 @@ same_pid:
 	      {
 		delete_breakpoint (step_resume_breakpoint);
 		step_resume_breakpoint = NULL;
-		what.step_resume = 0;
+	      }
+	    /* Not sure whether we need to blow this away too, but probably
+	       it is like the step-resume breakpoint.  */
+	    if (through_sigtramp_breakpoint != NULL)
+	      {
+		delete_breakpoint (through_sigtramp_breakpoint);
+		through_sigtramp_breakpoint = NULL;
 	      }
 
 #if 0
@@ -833,29 +938,42 @@ same_pid:
 
 	  case BPSTAT_WHAT_STOP_NOISY:
 	    stop_print_frame = 1;
-	    /* We are about to nuke the step_resume_breakpoint via the
-	       cleanup chain, so no need to worry about it here.  */
+
+	    /* We are about to nuke the step_resume_breakpoint and
+	       through_sigtramp_breakpoint via the cleanup chain, so
+	       no need to worry about it here.  */
+
 	    goto stop_stepping;
 
 	  case BPSTAT_WHAT_STOP_SILENT:
 	    stop_print_frame = 0;
-	    /* We are about to nuke the step_resume_breakpoint via the
-	       cleanup chain, so no need to worry about it here.  */
+
+	    /* We are about to nuke the step_resume_breakpoint and
+	       through_sigtramp_breakpoint via the cleanup chain, so
+	       no need to worry about it here.  */
+
 	    goto stop_stepping;
 
-	  case BPSTAT_WHAT_KEEP_CHECKING:
-	    break;
-	  }
-
-	if (what.step_resume)
-	  {
+	  case BPSTAT_WHAT_STEP_RESUME:
 	    delete_breakpoint (step_resume_breakpoint);
 	    step_resume_breakpoint = NULL;
+	    break;
+
+	  case BPSTAT_WHAT_THROUGH_SIGTRAMP:
+	    delete_breakpoint (through_sigtramp_breakpoint);
+	    through_sigtramp_breakpoint = NULL;
 
 	    /* If were waiting for a trap, hitting the step_resume_break
 	       doesn't count as getting it.  */
 	    if (trap_expected)
 	      another_trap = 1;
+	    break;
+
+	  case BPSTAT_WHAT_LAST:
+	    /* Not a real code, but listed here to shut up gcc -Wall.  */
+
+	  case BPSTAT_WHAT_KEEP_CHECKING:
+	    break;
 	  }
       }
 
@@ -891,10 +1009,8 @@ same_pid:
 	/* Having a step-resume breakpoint overrides anything
 	   else having to do with stepping commands until
 	   that breakpoint is reached.  */
-	/* I suspect this could/should be keep_going, because if the
-	   check_sigtramp2 check succeeds, then it will put in another
-	   step_resume_breakpoint, and we aren't (yet) prepared to nest
-	   them.  */
+	/* I'm not sure whether this needs to be check_sigtramp2 or
+	   whether it could/should be keep_going.  */
 	goto check_sigtramp2;
 
       if (step_range_end == 0)
@@ -927,20 +1043,29 @@ same_pid:
       if (IN_SIGTRAMP (stop_pc, stop_func_name)
 	  && !IN_SIGTRAMP (prev_pc, prev_func_name))
 	{
+	  /* We've just taken a signal; go until we are back to
+	     the point where we took it and one more.  */
+
 	  /* This code is needed at least in the following case:
 	     The user types "next" and then a signal arrives (before
 	     the "next" is done).  */
-	  /* We've just taken a signal; go until we are back to
-	     the point where we took it and one more.  */
+
+	  /* Note that if we are stopped at a breakpoint, then we need
+	     the step_resume breakpoint to override any breakpoints at
+	     the same location, so that we will still step over the
+	     breakpoint even though the signal happened.  */
+
 	  {
 	    struct symtab_and_line sr_sal;
 
 	    sr_sal.pc = prev_pc;
 	    sr_sal.symtab = NULL;
 	    sr_sal.line = 0;
+	    /* We could probably be setting the frame to
+	       prev_frame_address; the reason we don't is that it didn't used
+	       to exist.  */
 	    step_resume_breakpoint =
-	      set_momentary_breakpoint (sr_sal, get_current_frame (),
-					bp_step_resume);
+	      set_momentary_breakpoint (sr_sal, NULL, bp_step_resume);
 	    if (breakpoints_inserted)
 	      insert_breakpoints ();
 	  }
@@ -957,12 +1082,19 @@ same_pid:
 	  goto keep_going;
 	}
 
+#if 1
       if (stop_func_start)
 	{
+	  struct symtab *s;
+
 	  /* Do this after the IN_SIGTRAMP check; it might give
 	     an error.  */
 	  prologue_pc = stop_func_start;
-	  SKIP_PROLOGUE (prologue_pc);
+
+	  /* Don't skip the prologue if this is assembly source */
+	  s = find_pc_symtab (stop_pc);
+	  if (s && s->language != language_asm)
+	    SKIP_PROLOGUE (prologue_pc);
 	}
 
       if ((/* Might be a non-recursive call.  If the symbols are missing
@@ -977,21 +1109,28 @@ same_pid:
 	   || stop_sp != prev_sp)
 	  && (/* PC is completely out of bounds of any known objfiles.  Treat
 		 like a subroutine call. */
-	      !stop_func_start
+	      ! stop_func_start
 
-	      /* If we do a call, we will be at the start of a function.  */
+	      /* If we do a call, we will be at the start of a function...  */
 	      || stop_pc == stop_func_start
 
-#if 0
-	      /* Not conservative enough for 4.11.  FIXME: enable this
-		 after 4.11.  */
-	      /* Except on the Alpha with -O (and perhaps other machines
-		 with similar calling conventions), in which we might
-		 call the address after the load of gp.  Since prologues
-		 don't contain calls, we can't return to within one, and
-		 we don't jump back into them, so this check is OK.  */
+	      /* ...except on the Alpha with -O (and also Irix 5 and
+		 perhaps others), in which we might call the address
+		 after the load of gp.  Since prologues don't contain
+		 calls, we can't return to within one, and we don't
+		 jump back into them, so this check is OK.  */
+
 	      || stop_pc < prologue_pc
-#endif
+
+	      /* ...and if it is a leaf function, the prologue might
+ 		 consist of gp loading only, so the call transfers to
+ 		 the first instruction after the prologue.  */
+ 	      || (stop_pc == prologue_pc
+
+		  /* Distinguish this from the case where we jump back
+		     to the first instruction after the prologue,
+		     within a function.  */
+		   && stop_func_start != prev_func_start)
 
 	      /* If we end up in certain places, it means we did a subroutine
 		 call.  I'm not completely sure this is necessary now that we
@@ -1004,6 +1143,14 @@ same_pid:
 		 which can no longer happen here as long as the
 		 handling_longjmp stuff is working.  */
 	      ))
+#else
+/* This is experimental code which greatly simplifies the subroutine call
+   test.  I've actually tested on the Alpha, and it works great. -Stu */
+
+	if (in_prologue (stop_pc, NULL)
+	    || (prev_func_start != 0
+		&& stop_func_start == 0))
+#endif
 	{
 	  /* It's a subroutine call.  */
 
@@ -1056,6 +1203,7 @@ step_over_function:
 	    step_resume_breakpoint =
 	      set_momentary_breakpoint (sr_sal, get_current_frame (),
 					bp_step_resume);
+	    step_resume_breakpoint->frame = prev_frame_address;
 	    if (breakpoints_inserted)
 	      insert_breakpoints ();
 	  }
@@ -1064,19 +1212,25 @@ step_over_function:
 step_into_function:
 	  /* Subroutine call with source code we should not step over.
 	     Do step to the first line of code in it.  */
-	  SKIP_PROLOGUE (stop_func_start);
+	  {
+	    struct symtab *s;
+
+	    s = find_pc_symtab (stop_pc);
+	    if (s && s->language != language_asm)
+	      SKIP_PROLOGUE (stop_func_start);
+	  }
 	  sal = find_pc_line (stop_func_start, 0);
 	  /* Use the step_resume_break to step until
 	     the end of the prologue, even if that involves jumps
 	     (as it seems to on the vax under 4.2).  */
 	  /* If the prologue ends in the middle of a source line,
-	     continue to the end of that source line.
-	     Otherwise, just go to end of prologue.  */
+	     continue to the end of that source line (if it is still
+	     within the function).  Otherwise, just go to end of prologue.  */
 #ifdef PROLOGUE_FIRSTLINE_OVERLAP
 	  /* no, don't either.  It skips any code that's
 	     legitimately on the first line.  */
 #else
-	  if (sal.end && sal.pc != stop_func_start)
+	  if (sal.end && sal.pc != stop_func_start && sal.end < stop_func_end)
 	    stop_func_start = sal.end;
 #endif
 
@@ -1108,9 +1262,7 @@ step_into_function:
 	  goto keep_going;
 	}
 
-      /* We've wandered out of the step range (but haven't done a
-	 subroutine call or return).  (Is that true?  I think we get
-	 here if we did a return and maybe a longjmp).  */
+      /* We've wandered out of the step range.  */
 
       sal = find_pc_line(stop_pc, 0);
 
@@ -1132,7 +1284,8 @@ step_into_function:
 	  break;
 	}
 
-      if (stop_pc == sal.pc && current_line != sal.line)
+      if (stop_pc == sal.pc
+	  && (current_line != sal.line || current_symtab != sal.symtab))
 	{
 	  /* We are at the start of a different line.  So stop.  Note that
 	     we don't stop if we step into the middle of a different line.
@@ -1148,6 +1301,17 @@ step_into_function:
 	 (We might not be in the original line, but if we entered a
 	 new line in mid-statement, we continue stepping.  This makes 
 	 things like for(;;) statements work better.)  */
+
+      if (stop_func_end && sal.end >= stop_func_end)
+	{
+	  /* If this is the last line of the function, don't keep stepping
+	     (it would probably step us out of the function).
+	     This is particularly necessary for a one-line function,
+	     in which after skipping the prologue we better stop even though
+	     we will be in mid-line.  */
+	  stop_step = 1;
+	  break;
+	}
       step_range_start = sal.pc;
       step_range_end = sal.end;
       goto keep_going;
@@ -1172,9 +1336,11 @@ step_into_function:
 	  sr_sal.pc = prev_pc;
 	  sr_sal.symtab = NULL;
 	  sr_sal.line = 0;
-	  step_resume_breakpoint =
-	    set_momentary_breakpoint (sr_sal, get_current_frame (),
-				      bp_step_resume);
+	  /* We perhaps could set the frame if we kept track of what
+	     the frame corresponding to prev_pc was.  But we don't,
+	     so don't.  */
+	  through_sigtramp_breakpoint =
+	    set_momentary_breakpoint (sr_sal, NULL, bp_through_sigtramp);
 	  if (breakpoints_inserted)
 	    insert_breakpoints ();
 
@@ -1194,14 +1360,14 @@ step_into_function:
 					  original pc would not have
 					  been at the start of a
 					  function. */
-
       prev_func_name = stop_func_name;
       prev_sp = stop_sp;
+      prev_frame_address = stop_frame_address;
 
       /* If we did not do break;, it means we should keep
 	 running the inferior and not return to debugger.  */
 
-      if (trap_expected && stop_signal != SIGTRAP)
+      if (trap_expected && stop_signal != TARGET_SIGNAL_TRAP)
 	{
 	  /* We took a signal (which we are supposed to pass through to
 	     the inferior, else we'd have done a break above) and we
@@ -1223,15 +1389,16 @@ step_into_function:
 	     to one-proceed past a breakpoint.  */
 	  /* If we've just finished a special step resume and we don't
 	     want to hit a breakpoint, pull em out.  */
-	  if (step_resume_breakpoint == NULL &&
-	      remove_breakpoints_on_following_step)
+	  if (step_resume_breakpoint == NULL
+	      && through_sigtramp_breakpoint == NULL
+	      && remove_breakpoints_on_following_step)
 	    {
 	      remove_breakpoints_on_following_step = 0;
 	      remove_breakpoints ();
 	      breakpoints_inserted = 0;
 	    }
 	  else if (!breakpoints_inserted &&
-		   (step_resume_breakpoint != NULL || !another_trap))
+		   (through_sigtramp_breakpoint != NULL || !another_trap))
 	    {
 	      breakpoints_failed = insert_breakpoints ();
 	      if (breakpoints_failed)
@@ -1241,8 +1408,8 @@ step_into_function:
 
 	  trap_expected = another_trap;
 
-	  if (stop_signal == SIGTRAP)
-	    stop_signal = 0;
+	  if (stop_signal == TARGET_SIGNAL_TRAP)
+	    stop_signal = TARGET_SIGNAL_0;
 
 #ifdef SHIFT_INST_REGS
 	  /* I'm not sure when this following segment applies.  I do know, now,
@@ -1252,7 +1419,7 @@ step_into_function:
 	     (this is only used on the 88k).  */
 
           if (!bpstat_explains_signal (stop_bpstat)
-	      && (stop_signal != SIGCLD) 
+	      && (stop_signal != TARGET_SIGNAL_CHLD) 
               && !stopped_by_random_signal)
             SHIFT_INST_REGS();
 #endif /* SHIFT_INST_REGS */
@@ -1271,6 +1438,7 @@ step_into_function:
       prev_func_start = stop_func_start;
       prev_func_name = stop_func_name;
       prev_sp = stop_sp;
+      prev_frame_address = stop_frame_address;
     }
   do_cleanups (old_cleanups);
 }
@@ -1323,7 +1491,7 @@ Further execution is probably impossible.\n");
     disable_current_display ();
 
   if (step_multi && stop_step)
-    return;
+    goto done;
 
   target_terminal_ours ();
 
@@ -1336,7 +1504,7 @@ Further execution is probably impossible.\n");
     }
 
   if (!target_has_stack)
-    return;
+    goto done;
 
   /* Select innermost stack frame except on return from a stack dummy routine,
      or if the program has exited.  Print it without a level number if
@@ -1344,8 +1512,6 @@ Further execution is probably impossible.\n");
      if we have one.  */
   if (!stop_stack_dummy)
     {
-      select_frame (get_current_frame (), 0);
-
       if (stop_print_frame)
 	{
 	  int source_only;
@@ -1374,8 +1540,14 @@ Further execution is probably impossible.\n");
          POP_FRAME ends with a setting of the current frame, so we
 	 can use that next. */
       POP_FRAME;
+      /* Set stop_pc to what it was before we called the function.  Can't rely
+	 on restore_inferior_status because that only gets called if we don't
+	 stop in the called function.  */
+      stop_pc = read_pc();
       select_frame (get_current_frame (), 0);
     }
+ done:
+  annotate_stopped ();
 }
 
 static int
@@ -1389,41 +1561,40 @@ hook_stop_stub (cmd)
 int signal_stop_state (signo)
      int signo;
 {
-  return ((signo >= 0 && signo < NSIG) ? signal_stop[signo] : 0);
+  return signal_stop[signo];
 }
 
 int signal_print_state (signo)
      int signo;
 {
-  return ((signo >= 0 && signo < NSIG) ? signal_print[signo] : 0);
+  return signal_print[signo];
 }
 
 int signal_pass_state (signo)
      int signo;
 {
-  return ((signo >= 0 && signo < NSIG) ? signal_program[signo] : 0);
+  return signal_program[signo];
 }
 
 static void
 sig_print_header ()
 {
-  printf_filtered ("Signal\t\tStop\tPrint\tPass to program\tDescription\n");
+  printf_filtered ("\
+Signal        Stop\tPrint\tPass to program\tDescription\n");
 }
 
 static void
-sig_print_info (number)
-     int number;
+sig_print_info (oursig)
+     enum target_signal oursig;
 {
-  char *name;
-
-  if ((name = strsigno (number)) == NULL)
-    printf_filtered ("%d\t\t", number);
-  else
-    printf_filtered ("%s (%d)\t", name, number);
-  printf_filtered ("%s\t", signal_stop[number] ? "Yes" : "No");
-  printf_filtered ("%s\t", signal_print[number] ? "Yes" : "No");
-  printf_filtered ("%s\t\t", signal_program[number] ? "Yes" : "No");
-  printf_filtered ("%s\n", safe_strsignal (number));
+  char *name = target_signal_to_name (oursig);
+  printf_filtered ("%s", name);
+  printf_filtered ("%*.*s ", 13 - strlen (name), 13 - strlen (name),
+		   "                 ");
+  printf_filtered ("%s\t", signal_stop[oursig] ? "Yes" : "No");
+  printf_filtered ("%s\t", signal_print[oursig] ? "Yes" : "No");
+  printf_filtered ("%s\t\t", signal_program[oursig] ? "Yes" : "No");
+  printf_filtered ("%s\n", target_signal_to_string (oursig));
 }
 
 /* Specify how various signals in the inferior should be handled.  */
@@ -1436,6 +1607,7 @@ handle_command (args, from_tty)
   char **argv;
   int digits, wordlen;
   int sigfirst, signum, siglast;
+  enum target_signal oursig;
   int allsigs;
   int nsigs;
   unsigned char *sigs;
@@ -1448,7 +1620,7 @@ handle_command (args, from_tty)
 
   /* Allocate and zero an array of flags for which signals to handle. */
 
-  nsigs = signo_max () + 1;
+  nsigs = (int)TARGET_SIGNAL_LAST;
   sigs = (unsigned char *) alloca (nsigs);
   memset (sigs, 0, nsigs);
 
@@ -1461,7 +1633,7 @@ handle_command (args, from_tty)
     }
   old_chain = make_cleanup (freeargv, (char *) argv);
 
-  /* Walk through the args, looking for signal numbers, signal names, and
+  /* Walk through the args, looking for signal oursigs, signal names, and
      actions.  Signal numbers and signal names may be interspersed with
      actions, with the actions being performed for all signals cumulatively
      specified.  Signal ranges can be specified as <LOW>-<HIGH>. */
@@ -1517,6 +1689,12 @@ handle_command (args, from_tty)
 	}
       else if (digits > 0)
 	{
+	  /* It is numeric.  The numeric signal refers to our own internal
+	     signal numbering from target.h, not to host/target signal number.
+	     This is a feature; users really should be using symbolic names
+	     anyway, and the common ones like SIGHUP, SIGINT, SIGALRM, etc.
+	     will work right anyway.  */
+
 	  sigfirst = siglast = atoi (*argv);
 	  if ((*argv)[digits] == '-')
 	    {
@@ -1538,14 +1716,18 @@ handle_command (args, from_tty)
 	      error ("Signal %d not in range 0-%d", siglast, nsigs - 1);
 	    }
 	}
-      else if ((signum = strtosigno (*argv)) != 0)
-	{
-	  sigfirst = siglast = signum;
-	}
       else
 	{
-	  /* Not a number and not a recognized flag word => complain.  */
-	  error ("Unrecognized or ambiguous flag word: \"%s\".", *argv);
+	  oursig = target_signal_from_name (*argv);
+	  if (oursig != TARGET_SIGNAL_UNKNOWN)
+	    {
+	      sigfirst = siglast = (int)oursig;
+	    }
+	  else
+	    {
+	      /* Not a number and not a recognized flag word => complain.  */
+	      error ("Unrecognized or ambiguous flag word: \"%s\".", *argv);
+	    }
 	}
 
       /* If any signal numbers or symbol names were found, set flags for
@@ -1553,20 +1735,23 @@ handle_command (args, from_tty)
 
       for (signum = sigfirst; signum >= 0 && signum <= siglast; signum++)
 	{
-	  switch (signum)
+	  switch ((enum target_signal)signum)
 	    {
-	      case SIGTRAP:
-	      case SIGINT:
+	      case TARGET_SIGNAL_TRAP:
+	      case TARGET_SIGNAL_INT:
 	        if (!allsigs && !sigs[signum])
 		  {
-		    if (query ("%s is used by the debugger.\nAre you sure you want to change it? ", strsigno (signum)))
+		    if (query ("%s is used by the debugger.\n\
+Are you sure you want to change it? ",
+			       target_signal_to_name
+			       ((enum target_signal)signum)))
 		      {
 			sigs[signum] = 1;
 		      }
 		    else
 		      {
-			printf ("Not confirmed, unchanged.\n");
-			fflush (stdout);
+			printf_unfiltered ("Not confirmed, unchanged.\n");
+			gdb_flush (gdb_stdout);
 		      }
 		  }
 		break;
@@ -1597,38 +1782,56 @@ handle_command (args, from_tty)
   do_cleanups (old_chain);
 }
 
-/* Print current contents of the tables set by the handle command.  */
+/* Print current contents of the tables set by the handle command.
+   It is possible we should just be printing signals actually used
+   by the current target (but for things to work right when switching
+   targets, all signals should be in the signal tables).  */
 
 static void
 signals_info (signum_exp, from_tty)
      char *signum_exp;
      int from_tty;
 {
-  register int i;
+  enum target_signal oursig;
   sig_print_header ();
 
   if (signum_exp)
     {
       /* First see if this is a symbol name.  */
-      i = strtosigno (signum_exp);
-      if (i == 0)
+      oursig = target_signal_from_name (signum_exp);
+      if (oursig == TARGET_SIGNAL_UNKNOWN)
 	{
 	  /* Nope, maybe it's an address which evaluates to a signal
 	     number.  */
-	  i = parse_and_eval_address (signum_exp);
-	  if (i >= NSIG || i < 0)
+	  /* The numeric signal refers to our own internal
+	     signal numbering from target.h, not to host/target signal number.
+	     This is a feature; users really should be using symbolic names
+	     anyway, and the common ones like SIGHUP, SIGINT, SIGALRM, etc.
+	     will work right anyway.  */
+	  int i = parse_and_eval_address (signum_exp);
+	  if (i >= (int)TARGET_SIGNAL_LAST
+	      || i < 0
+	      || i == (int)TARGET_SIGNAL_UNKNOWN
+	      || i == (int)TARGET_SIGNAL_DEFAULT)
 	    error ("Signal number out of bounds.");
+	  oursig = (enum target_signal)i;
 	}
-      sig_print_info (i);
+      sig_print_info (oursig);
       return;
     }
 
   printf_filtered ("\n");
-  for (i = 0; i < NSIG; i++)
+  /* These ugly casts brought to you by the native VAX compiler.  */
+  for (oursig = TARGET_SIGNAL_FIRST;
+       (int)oursig < (int)TARGET_SIGNAL_LAST;
+       oursig = (enum target_signal)((int)oursig + 1))
     {
       QUIT;
 
-      sig_print_info (i);
+      if (oursig != TARGET_SIGNAL_UNKNOWN
+	  && oursig != TARGET_SIGNAL_DEFAULT
+	  && oursig != TARGET_SIGNAL_0)
+	sig_print_info (oursig);
     }
 
   printf_filtered ("\nUse the \"handle\" command to change these tables.\n");
@@ -1797,13 +2000,13 @@ Pass and Stop may be combined.");
 This allows you to set a list of commands to be run each time execution\n\
 of the program stops.", &cmdlist);
 
-  numsigs = signo_max () + 1;
-  signal_stop    = (unsigned char *)    
-		   xmalloc (sizeof (signal_stop[0]) * numsigs);
-  signal_print   = (unsigned char *)
-		   xmalloc (sizeof (signal_print[0]) * numsigs);
+  numsigs = (int)TARGET_SIGNAL_LAST;
+  signal_stop = (unsigned char *)    
+    xmalloc (sizeof (signal_stop[0]) * numsigs);
+  signal_print = (unsigned char *)
+    xmalloc (sizeof (signal_print[0]) * numsigs);
   signal_program = (unsigned char *)
-		   xmalloc (sizeof (signal_program[0]) * numsigs);
+    xmalloc (sizeof (signal_program[0]) * numsigs);
   for (i = 0; i < numsigs; i++)
     {
       signal_stop[i] = 1;
@@ -1813,36 +2016,22 @@ of the program stops.", &cmdlist);
 
   /* Signals caused by debugger's own actions
      should not be given to the program afterwards.  */
-  signal_program[SIGTRAP] = 0;
-  signal_program[SIGINT] = 0;
+  signal_program[TARGET_SIGNAL_TRAP] = 0;
+  signal_program[TARGET_SIGNAL_INT] = 0;
 
   /* Signals that are not errors should not normally enter the debugger.  */
-#ifdef SIGALRM
-  signal_stop[SIGALRM] = 0;
-  signal_print[SIGALRM] = 0;
-#endif /* SIGALRM */
-#ifdef SIGVTALRM
-  signal_stop[SIGVTALRM] = 0;
-  signal_print[SIGVTALRM] = 0;
-#endif /* SIGVTALRM */
-#ifdef SIGPROF
-  signal_stop[SIGPROF] = 0;
-  signal_print[SIGPROF] = 0;
-#endif /* SIGPROF */
-#ifdef SIGCHLD
-  signal_stop[SIGCHLD] = 0;
-  signal_print[SIGCHLD] = 0;
-#endif /* SIGCHLD */
-#ifdef SIGCLD
-  signal_stop[SIGCLD] = 0;
-  signal_print[SIGCLD] = 0;
-#endif /* SIGCLD */
-#ifdef SIGIO
-  signal_stop[SIGIO] = 0;
-  signal_print[SIGIO] = 0;
-#endif /* SIGIO */
-#ifdef SIGURG
-  signal_stop[SIGURG] = 0;
-  signal_print[SIGURG] = 0;
-#endif /* SIGURG */
+  signal_stop[TARGET_SIGNAL_ALRM] = 0;
+  signal_print[TARGET_SIGNAL_ALRM] = 0;
+  signal_stop[TARGET_SIGNAL_VTALRM] = 0;
+  signal_print[TARGET_SIGNAL_VTALRM] = 0;
+  signal_stop[TARGET_SIGNAL_PROF] = 0;
+  signal_print[TARGET_SIGNAL_PROF] = 0;
+  signal_stop[TARGET_SIGNAL_CHLD] = 0;
+  signal_print[TARGET_SIGNAL_CHLD] = 0;
+  signal_stop[TARGET_SIGNAL_IO] = 0;
+  signal_print[TARGET_SIGNAL_IO] = 0;
+  signal_stop[TARGET_SIGNAL_POLL] = 0;
+  signal_print[TARGET_SIGNAL_POLL] = 0;
+  signal_stop[TARGET_SIGNAL_URG] = 0;
+  signal_print[TARGET_SIGNAL_URG] = 0;
 }

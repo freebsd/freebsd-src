@@ -78,9 +78,9 @@ struct internal_aouthdr
   unsigned long fprmask;	/* Floating pointer registers used.  */
 
   /* Apollo stuff */
-  long o_inlib;
-  long o_sri;
-  long vid[2];
+  long o_inlib;			/* inlib data */
+  long o_sri;			/* Static Resource Information */
+  long vid[2];			/* Version id */
 };
 
 /********************** STORAGE CLASSES **********************/
@@ -365,7 +365,11 @@ union internal_auxent
    ******************************************/
   struct
   {
-    long x_scnlen;		/* csect length */
+    union
+      {				/* csect length or enclosing csect */
+	long l;
+	struct coff_ptr_struct *p;
+      } x_scnlen;
     long x_parmhash;		/* parm type hash index */
     unsigned short x_snhash;	/* sect num with parm hash */
     unsigned char x_smtyp;	/* symbol align and type */
@@ -440,7 +444,7 @@ struct internal_reloc
   unsigned short r_type;	/* Relocation type		*/
   unsigned char r_size;		/* Used by RS/6000 and ECOFF	*/
   unsigned char r_extern;	/* Used by ECOFF		*/
-  unsigned long r_offset;	/* Used by RS/6000 and ECOFF	*/
+  unsigned long r_offset;	/* Used by Alpha ECOFF, SPARC, others */
 };
 
 #define R_RELBYTE	017
@@ -499,7 +503,7 @@ struct internal_reloc
 #define R_CALLR	  0x05		/* callr 12 bit disp */
 #define R_SEG     0x10		/* set if in segmented mode */
 #define R_IMM4H   0x24		/* high nibble */
-
+#define R_DISP7   0x25          /* djnz displacement */
 
 /* H8500 modes */
 
@@ -533,6 +537,6 @@ struct internal_reloc
 #define R_SH_IMM4BY4    21
 #define R_SH_PCRELIMM8BY2   22
 #define R_SH_PCRELIMM8BY4   23
-
+#define R_SH_IMM16      24    		/* 16 bit immediate */
 
 

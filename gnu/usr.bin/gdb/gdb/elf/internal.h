@@ -1,5 +1,5 @@
 /* ELF support for BFD.
-   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -28,24 +28,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    the elf-common.h file which contains the portions that are common to
    both the internal and external representations. */
    
-/* Types used by various structures, functions, etc. */
-
-typedef unsigned long	Elf32_Addr;	/* Unsigned program address */
-typedef unsigned long	Elf32_Off;	/* Unsigned file offset */
-typedef 	 long	Elf32_Sword;	/* Signed large integer */
-typedef unsigned long	Elf32_Word;	/* Unsigned large integer */
-typedef unsigned short	Elf32_Half;	/* Unsigned medium integer */
-typedef unsigned char	Elf32_Char;	/* Unsigned tiny integer */
-
-#ifdef HOST_64_BIT
-typedef unsigned HOST_64_BIT	Elf64_Addr;
-typedef unsigned HOST_64_BIT	Elf64_Off;
-typedef          HOST_64_BIT	Elf64_Sxword;
-typedef unsigned HOST_64_BIT	Elf64_Xword;
-#endif
-typedef          long		Elf64_Sword;
-typedef unsigned long		Elf64_Word;
-typedef unsigned short		Elf64_Half;
 
 /* NOTE that these structures are not kept in the same order as they appear
    in the object file.  In some cases they've been reordered for more optimal
@@ -111,8 +93,8 @@ typedef struct elf_internal_shdr {
   unsigned int	sh_addralign;		/* Section alignment */
 
   /* The internal rep also has some cached info associated with it. */
-  void		*rawdata;		/* null if unused... */
-  void		*contents;		/* null if unused... */
+  PTR		rawdata;		/* null if unused... */
+  PTR		contents;		/* null if unused... */
   bfd_vma	size;			/* size of contents (0 if unused) */
 } Elf_Internal_Shdr;
 
@@ -176,20 +158,17 @@ typedef struct elf_internal_rela {
 
 /* dynamic section structure */
 
-typedef struct {
-  Elf32_Sword d_tag;		/* entry tag value */
+typedef struct elf_internal_dyn {
+  /* This needs to support 64-bit values in elf64.  */
+  bfd_vma d_tag;		/* entry tag value */
   union {
-    Elf32_Word	d_val;
-    Elf32_Addr	d_ptr;
+    /* This needs to support 64-bit values in elf64.  */
+    bfd_vma	d_val;
+    bfd_vma	d_ptr;
   } d_un;
-} Elf32_Internal_Dyn;
+} Elf_Internal_Dyn;
 
-#ifdef HOST_64_BIT
-typedef struct {
-  Elf64_Xword d_tag;		/* entry tag value */
-  union {
-    Elf64_Xword	d_val;
-    Elf64_Addr	d_ptr;
-  } d_un;
-} Elf64_Internal_Dyn;
-#endif
+#define elf32_internal_dyn elf_internal_dyn
+#define elf64_internal_dyn elf_internal_dyn
+#define Elf32_Internal_Dyn Elf_Internal_Dyn
+#define Elf64_Internal_Dyn Elf_Internal_Dyn

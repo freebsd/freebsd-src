@@ -39,11 +39,11 @@ void
 m2_print_type (type, varstring, stream, show, level)
      struct type *type;
      char *varstring;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int level;
 {
-  extern void c_print_type PARAMS ((struct type *, char *, FILE *, int, int));
+  extern void c_print_type PARAMS ((struct type *, char *, GDB_FILE *, int, int));
 
   c_print_type (type, varstring, stream, show, level);	/* FIXME */
 }

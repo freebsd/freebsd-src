@@ -1,5 +1,5 @@
 /* Symbol table definitions for GDB.
-   Copyright (C) 1986, 1989, 1991, 1992 Free Software Foundation, Inc.
+   Copyright 1986, 1989, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -26,10 +26,24 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
+/* Don't do this; it means that if some .o's are compiled with GNU C
+   and some are not (easy to do accidentally the way we configure
+   things; also it is a pain to have to "make clean" every time you
+   want to switch compilers), then GDB dies a horrible death.  */
+/* GNU C supports enums that are bitfields.  Some compilers don't. */
+#if 0 && defined(__GNUC__) && !defined(BYTE_BITFIELD)
+#define	BYTE_BITFIELD	:8;
+#else
+#define	BYTE_BITFIELD	/*nothing*/
+#endif
+
 /* Define a structure for the information that is common to all symbol types,
    including minimal symbols, partial symbols, and full symbols.  In a
    multilanguage environment, some language specific information may need to
-   be recorded along with each symbol. */
+   be recorded along with each symbol.
+
+   These fields are ordered to encourage good packing, since we frequently
+   have tens or hundreds of thousands of these.  */
 
 struct general_symbol_info
 {
@@ -47,7 +61,10 @@ struct general_symbol_info
 
   union
     {
-      long value;
+      /* The fact that this is a long not a LONGEST mainly limits the
+	 range of a LOC_CONST.  Since LOC_CONST_BYTES exists, I'm not
+	 sure that is a big deal.  */
+      long ivalue;
 
       struct block *block;
 
@@ -60,12 +77,6 @@ struct general_symbol_info
       struct symbol *chain;
     }
   value;
-
-  /* Record the source code language that applies to this symbol.
-     This is used to select one of the fields from the language specific
-     union below. */
-
-  enum language language;
 
   /* Since one and only one language can apply, wrap the language specific
      information inside a union. */
@@ -82,6 +93,12 @@ struct general_symbol_info
 	} chill_specific;
     } language_specific;
 
+  /* Record the source code language that applies to this symbol.
+     This is used to select one of the fields from the language specific
+     union above. */
+
+  enum language language BYTE_BITFIELD;
+
   /* Which section is this symbol in?  This is an index into
      section_offsets for this objfile.  Negative means that the symbol
      does not get relocated relative to a section.
@@ -89,11 +106,11 @@ struct general_symbol_info
      expect all symbol-reading code to set it correctly (the ELF code
      also tries to set it correctly).  */
 
-  int section;
+  short section;
 };
 
 #define SYMBOL_NAME(symbol)		(symbol)->ginfo.name
-#define SYMBOL_VALUE(symbol)		(symbol)->ginfo.value.value
+#define SYMBOL_VALUE(symbol)		(symbol)->ginfo.value.ivalue
 #define SYMBOL_VALUE_ADDRESS(symbol)	(symbol)->ginfo.value.address
 #define SYMBOL_VALUE_BYTES(symbol)	(symbol)->ginfo.value.bytes
 #define SYMBOL_BLOCK_VALUE(symbol)	(symbol)->ginfo.value.block
@@ -103,9 +120,6 @@ struct general_symbol_info
 
 #define SYMBOL_CPLUS_DEMANGLED_NAME(symbol)	\
   (symbol)->ginfo.language_specific.cplus_specific.demangled_name
-
-
-extern int demangle;	/* We reference it, so go ahead and declare it. */
 
 /* Macro that initializes the language dependent portion of a symbol
    depending upon the language for the symbol. */
@@ -215,10 +229,6 @@ extern int demangle;	/* We reference it, so go ahead and declare it. */
    ? SYMBOL_DEMANGLED_NAME (symbol)					\
    : SYMBOL_NAME (symbol))
 
-/* From utils.c.  */
-extern int demangle;
-extern int asm_demangle;
-
 /* Macro that tests a symbol for a match against a specified name string.
    First test the unencoded name, then looks for and test a C++ encoded
    name if it exists.  Note that whitespace is ignored while attempting to
@@ -289,12 +299,21 @@ struct minimal_symbol
       mst_data,			/* Generally initialized data */
       mst_bss,			/* Generally uninitialized data */
       mst_abs,			/* Generally absolute (nonrelocatable) */
+      /* GDB uses mst_solib_trampoline for the start address of a shared
+	 library trampoline entry.  Breakpoints for shared library functions
+	 are put there if the shared library is not yet loaded.
+	 After the shared library is loaded, lookup_minimal_symbol will
+	 prefer the minimal symbol from the shared library (usually
+	 a mst_text symbol) over the mst_solib_trampoline symbol, and the
+	 breakpoints will be moved to their true address in the shared
+	 library via breakpoint_re_set.  */
+      mst_solib_trampoline,	/* Shared library trampoline code */
       /* For the mst_file* types, the names are only guaranteed to be unique
 	 within a given .o file.  */
       mst_file_text,		/* Static version of mst_text */
       mst_file_data,		/* Static version of mst_data */
       mst_file_bss		/* Static version of mst_bss */
-    } type;
+    } type BYTE_BITFIELD;
 
 };
 
@@ -548,17 +567,17 @@ struct symbol
 
   struct general_symbol_info ginfo;
 
-  /* Name space code.  */
-
-  enum namespace namespace;
-
-  /* Address class */
-
-  enum address_class class;
-
   /* Data type of value */
 
   struct type *type;
+
+  /* Name space code.  */
+
+  enum namespace namespace BYTE_BITFIELD;
+
+  /* Address class */
+
+  enum address_class class BYTE_BITFIELD;
 
   /* Line number of definition.  FIXME:  Should we really make the assumption
      that nobody will try to debug files longer than 64K lines?  What about
@@ -575,7 +594,6 @@ struct symbol
       short basereg;
     }
   aux_value;
-
 };
 
 #define SYMBOL_NAMESPACE(symbol)	(symbol)->namespace
@@ -600,11 +618,11 @@ struct partial_symbol
 
   /* Name space code.  */
 
-  enum namespace namespace;
+  enum namespace namespace BYTE_BITFIELD;
 
   /* Address class (for info_symbols) */
 
-  enum address_class class;
+  enum address_class class BYTE_BITFIELD;
 
 };
 
@@ -899,10 +917,14 @@ struct partial_symtab
   ((NAME)[0] == 'o' && (NAME)[1] == 'p' && (NAME)[2] == CPLUS_MARKER)
 
 /* Macro that yields non-zero value iff NAME is the prefix for C++ vtbl
-   names.  Note that this macro is g++ specific (FIXME).  */
+   names.  Note that this macro is g++ specific (FIXME).
+   '_vt$' is the old cfront-style vtables; '_VT$' is the new
+   style, using thunks (where '$' is really CPLUS_MARKER). */
 
 #define VTBL_PREFIX_P(NAME) \
-  ((NAME)[3] == CPLUS_MARKER && !strncmp ((NAME), "_vt", 3))
+  ((NAME)[3] == CPLUS_MARKER && (NAME)[0] == '_' \
+   && (((NAME)[1] == 'V' && (NAME)[2] == 'T') \
+       || ((NAME)[1] == 'v' && (NAME)[2] == 't')))
 
 /* Macro that yields non-zero value iff NAME is the prefix for C++ destructor
    names.  Note that this macro is g++ specific (FIXME).  */
@@ -924,6 +946,10 @@ extern int current_source_line;
 /* See the comment in symfile.c about how current_objfile is used. */
 
 extern struct objfile *current_objfile;
+
+/* From utils.c.  */
+extern int demangle;
+extern int asm_demangle;
 
 extern struct symtab *
 lookup_symtab PARAMS ((char *));
@@ -978,23 +1004,40 @@ contained_in PARAMS ((struct block *, struct block *));
 extern void
 reread_symbols PARAMS ((void));
 
+/* Macro for name of symbol to indicate a file compiled with gcc. */
+#ifndef GCC_COMPILED_FLAG_SYMBOL
+#define GCC_COMPILED_FLAG_SYMBOL "gcc_compiled."
+#endif
+
+/* Macro for name of symbol to indicate a file compiled with gcc2. */
+#ifndef GCC2_COMPILED_FLAG_SYMBOL
+#define GCC2_COMPILED_FLAG_SYMBOL "gcc2_compiled."
+#endif
+
 /* Functions for dealing with the minimal symbol table, really a misc
    address<->symbol mapping for things we don't have debug symbols for.  */
 
-extern void
-prim_record_minimal_symbol PARAMS ((const char *, CORE_ADDR,
-				    enum minimal_symbol_type));
+extern void prim_record_minimal_symbol PARAMS ((const char *, CORE_ADDR,
+						enum minimal_symbol_type,
+						struct objfile *));
 
-extern void
-prim_record_minimal_symbol_and_info PARAMS ((const char *, CORE_ADDR,
-					     enum minimal_symbol_type,
-					     char *info, int section));
+extern void prim_record_minimal_symbol_and_info
+  PARAMS ((const char *, CORE_ADDR,
+	   enum minimal_symbol_type,
+	   char *info, int section,
+	   struct objfile *));
 
 extern struct minimal_symbol *
 lookup_minimal_symbol PARAMS ((const char *, struct objfile *));
 
 extern struct minimal_symbol *
 lookup_minimal_symbol_by_pc PARAMS ((CORE_ADDR));
+
+extern struct minimal_symbol *
+lookup_solib_trampoline_symbol_by_pc PARAMS ((CORE_ADDR));
+
+extern CORE_ADDR
+find_solib_trampoline_target PARAMS ((CORE_ADDR));
 
 extern void
 init_minimal_symbol_collection PARAMS ((void));
@@ -1030,13 +1073,21 @@ struct symtabs_and_lines
 extern struct symtab_and_line
 find_pc_line PARAMS ((CORE_ADDR, int));
 
+/* Given an address, return the nearest symbol at or below it in memory.
+   Optionally return the symtab it's from through 2nd arg, and the
+   address in inferior memory of the symbol through 3rd arg.  */
+
+extern struct symbol *
+find_addr_symbol PARAMS ((CORE_ADDR, struct symtab **, CORE_ADDR *));
+
 /* Given a symtab and line number, return the pc there.  */
 
 extern CORE_ADDR
 find_line_pc PARAMS ((struct symtab *, int));
 
 extern int 
-find_line_pc_range PARAMS ((struct symtab *, int, CORE_ADDR *, CORE_ADDR *));
+find_line_pc_range PARAMS ((struct symtab_and_line,
+			    CORE_ADDR *, CORE_ADDR *));
 
 extern void
 resolve_sal_pc PARAMS ((struct symtab_and_line *));
@@ -1069,6 +1120,9 @@ maintenance_print_msymbols PARAMS ((char *, int));
 void
 maintenance_print_objfiles PARAMS ((char *, int));
 
+void
+maintenance_check_symtabs PARAMS ((char *, int));
+
 #endif
 
 extern void
@@ -1086,8 +1140,6 @@ extern struct objfile *
 symbol_file_add PARAMS ((char *, int, CORE_ADDR, int, int, int));
 
 /* source.c */
-
-extern int frame_file_full_name; /* in stack.c */
 
 extern int
 identify_source_line PARAMS ((struct symtab *, int, int, CORE_ADDR));

@@ -39,6 +39,10 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "buildsym.h"		/* Our own declarations */
 #undef	EXTERN
 
+/* For cleanup_undefined_types and finish_global_stabs (somewhat
+   questionable--see comment where we call them).  */
+#include "stabsread.h"
+
 static int
 compare_line_numbers PARAMS ((const void *, const void *));
 
@@ -347,6 +351,15 @@ make_blockvector (objfile)
 	  if (BLOCK_START(BLOCKVECTOR_BLOCK (blockvector, i-1))
 	      > BLOCK_START(BLOCKVECTOR_BLOCK (blockvector, i)))
 	    {
+
+	      /* FIXME-32x64: loses if CORE_ADDR doesn't fit in a
+		 long.  Possible solutions include a version of
+		 complain which takes a callback, a
+		 sprintf_address_numeric to match
+		 print_address_numeric, or a way to set up a GDB_FILE
+		 * which causes sprintf rather than fprintf to be
+		 called.  */
+
 	      complain (&blockvector_complaint, 
 			(unsigned long) BLOCK_START(BLOCKVECTOR_BLOCK (blockvector, i)));
 	    }
@@ -392,8 +405,9 @@ start_subfile (name, dirname)
   current_subfile = subfile;
 
   /* Save its name and compilation directory name */
-  subfile->name = (name == NULL)? NULL : strdup (name);
-  subfile->dirname = (dirname == NULL) ? NULL : strdup (dirname);
+  subfile->name = (name == NULL) ? NULL : savestring (name, strlen (name));
+  subfile->dirname =
+    (dirname == NULL) ? NULL : savestring (dirname, strlen (dirname));
   
   /* Initialize line-number recording for this subfile.  */
   subfile->line_vector = NULL;
@@ -466,7 +480,7 @@ patch_subfile_names (subfile, name)
       && subfile->name[strlen(subfile->name)-1] == '/')
     {
       subfile->dirname = subfile->name;
-      subfile->name = strdup (name);
+      subfile->name = savestring (name, strlen (name));
 
       /* Default the source language to whatever can be deduced from
 	 the filename.  If nothing can be deduced (such as for a C/C++

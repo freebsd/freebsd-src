@@ -26,6 +26,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "command.h"
 #include "gdbcmd.h"
 #include "demangle.h"
+#include "annotate.h"
 
 int vtblprint;			/* Controls printing of vtbl's */
 int objectprint;		/* Controls looking up an object's derived type
@@ -33,39 +34,30 @@ int objectprint;		/* Controls looking up an object's derived type
 struct obstack dont_print_obstack;
 
 static void
-cplus_print_value PARAMS ((struct type *, char *, FILE *, int, int,
+cplus_print_value PARAMS ((struct type *, char *, GDB_FILE *, int, int,
 			   enum val_prettyprint, struct type **));
 
 /* BEGIN-FIXME:  Hooks into typeprint.c, find a better home for prototypes. */
 
 extern void
-c_type_print_base PARAMS ((struct type *, FILE *, int, int));
+c_type_print_base PARAMS ((struct type *, GDB_FILE *, int, int));
 
 extern void
-c_type_print_varspec_prefix PARAMS ((struct type *, FILE *, int, int));
+c_type_print_varspec_prefix PARAMS ((struct type *, GDB_FILE *, int, int));
 
 extern void
 cp_type_print_method_args PARAMS ((struct type **, char *, char *, int,
-				   FILE *));
+				   GDB_FILE *));
 
 extern struct obstack dont_print_obstack;
 
 /* END-FIXME */
 
-
-/* BEGIN-FIXME:  Hooks into c-valprint.c */
-
-extern int
-c_val_print PARAMS ((struct type *, char *, CORE_ADDR, FILE *, int, int, int,
-		     enum val_prettyprint));
-/* END-FIXME */
-
-
 void
 cp_print_class_method (valaddr, type, stream)
      char *valaddr;
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   struct type *domain;
   struct fn_field *f = NULL;
@@ -136,7 +128,7 @@ cp_print_class_method (valaddr, type, stream)
     {
       fprintf_filtered (stream, "&");
       c_type_print_varspec_prefix (TYPE_FN_FIELD_TYPE (f, j), stream, 0, 0);
-      fprintf (stream, kind);
+      fprintf_unfiltered (stream, kind);
       if (TYPE_FN_FIELD_PHYSNAME (f, j)[0] == '_'
 	  && TYPE_FN_FIELD_PHYSNAME (f, j)[1] == CPLUS_MARKER)
 	{
@@ -159,6 +151,13 @@ cp_print_class_method (valaddr, type, stream)
     }
 }
 
+/* This was what it was for gcc 2.4.5 and earlier.  */
+static const char vtbl_ptr_name_old[] =
+  { CPLUS_MARKER,'v','t','b','l','_','p','t','r','_','t','y','p','e', 0 };
+/* It was changed to this after 2.4.5.  */
+const char vtbl_ptr_name[] =
+  { '_','_','v','t','b','l','_','p','t','r','_','t','y','p','e', 0 };
+
 /* Return truth value for assertion that TYPE is of the type
    "pointer to virtual function".  */
 
@@ -167,12 +166,6 @@ cp_is_vtbl_ptr_type(type)
      struct type *type;
 {
   char *typename = type_name_no_tag (type);
-  /* This was what it was for gcc 2.4.5 and earlier.  */
-  static const char vtbl_ptr_name_old[] =
-    { CPLUS_MARKER,'v','t','b','l','_','p','t','r','_','t','y','p','e', 0 };
-  /* It was changed to this after 2.4.5.  */
-  static const char vtbl_ptr_name[] =
-    { '_','_','v','t','b','l','_','p','t','r','_','t','y','p','e', 0 };
 
   return (typename != NULL
 	  && (STREQ (typename, vtbl_ptr_name)
@@ -187,14 +180,20 @@ cp_is_vtbl_member(type)
      struct type *type;
 {
   if (TYPE_CODE (type) == TYPE_CODE_PTR)
-    type = TYPE_TARGET_TYPE (type);
-  else
-    return 0;
-
-  if (TYPE_CODE (type) == TYPE_CODE_ARRAY
-      && TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_STRUCT)
-    /* Virtual functions tables are full of pointers to virtual functions.  */
-    return cp_is_vtbl_ptr_type (TYPE_TARGET_TYPE (type));
+    {
+      type = TYPE_TARGET_TYPE (type);
+      if (TYPE_CODE (type) == TYPE_CODE_ARRAY)
+	{
+	  type = TYPE_TARGET_TYPE (type);
+	  if (TYPE_CODE (type) == TYPE_CODE_STRUCT /* if not using thunks */
+	      || TYPE_CODE (type) == TYPE_CODE_PTR) /* if using thunks */
+	    {
+	      /* Virtual functions tables are full of pointers
+		 to virtual functions. */
+	      return cp_is_vtbl_ptr_type (type);
+	    }
+	}
+    }
   return 0;
 }
 
@@ -212,7 +211,7 @@ cp_print_value_fields (type, valaddr, stream, format, recurse, pretty,
 		       dont_print)
      struct type *type;
      char *valaddr;
-     FILE *stream;
+     GDB_FILE *stream;
      int format;
      int recurse;
      enum val_prettyprint pretty;
@@ -285,30 +284,51 @@ cp_print_value_fields (type, valaddr, stream, format, recurse, pretty,
 	    }
 	  else
 	    {
+	      annotate_field_begin (TYPE_FIELD_TYPE (type, i));
+
 	      fprintf_symbol_filtered (stream, TYPE_FIELD_NAME (type, i),
 				       language_cplus,
 				       DMGL_PARAMS | DMGL_ANSI);
+	      annotate_field_name_end ();
 	      fputs_filtered (" = ", stream);
+	      annotate_field_value ();
 	    }
+
 	  if (TYPE_FIELD_PACKED (type, i))
 	    {
-	      value v;
+	      value_ptr v;
 
 	      /* Bitfields require special handling, especially due to byte
 		 order problems.  */
-	      v = value_from_longest (TYPE_FIELD_TYPE (type, i),
+	      if (TYPE_FIELD_IGNORE (type, i))
+		{
+		   fputs_filtered ("<optimized out or zero length>", stream);
+		}
+	      else
+		{
+	           v = value_from_longest (TYPE_FIELD_TYPE (type, i),
 				   unpack_field_as_long (type, valaddr, i));
 
-	      c_val_print (TYPE_FIELD_TYPE (type, i), VALUE_CONTENTS (v), 0,
-			   stream, format, 0, recurse + 1, pretty);
+                   val_print (TYPE_FIELD_TYPE(type, i), VALUE_CONTENTS (v), 0,
+			      stream, format, 0, recurse + 1, pretty);
+		}
 	    }
 	  else
 	    {
-	      c_val_print (TYPE_FIELD_TYPE (type, i), 
-			   valaddr + TYPE_FIELD_BITPOS (type, i) / 8,
-			   0, stream, format, 0, recurse + 1, pretty);
+	      if (TYPE_FIELD_IGNORE (type, i))
+		{
+		   fputs_filtered ("<optimized out or zero length>", stream);
+		}
+	      else
+		{
+	           val_print (TYPE_FIELD_TYPE (type, i), 
+			      valaddr + TYPE_FIELD_BITPOS (type, i) / 8,
+			      0, stream, format, 0, recurse + 1, pretty);
+		}
 	    }
+	  annotate_field_end ();
 	}
+
       if (pretty)
 	{
 	  fprintf_filtered (stream, "\n");
@@ -325,7 +345,7 @@ static void
 cplus_print_value (type, valaddr, stream, format, recurse, pretty, dont_print)
      struct type *type;
      char *valaddr;
-     FILE *stream;
+     GDB_FILE *stream;
      int format;
      int recurse;
      enum val_prettyprint pretty;
@@ -348,9 +368,14 @@ cplus_print_value (type, valaddr, stream, format, recurse, pretty, dont_print)
 
   for (i = 0; i < n_baseclasses; i++)
     {
+      /* FIXME-32x64--assumes that a target pointer can fit in a char *.
+	 Fix it by nuking baseclass_addr.  */
       char *baddr;
       int err;
-      char *basename = TYPE_NAME (TYPE_BASECLASS (type, i));
+      char *basename;
+
+      check_stub_type (TYPE_BASECLASS (type, i));
+      basename = TYPE_NAME (TYPE_BASECLASS (type, i));
 
       if (BASETYPE_VIA_VIRTUAL (type, i))
 	{
@@ -384,8 +409,11 @@ cplus_print_value (type, valaddr, stream, format, recurse, pretty, dont_print)
       fputs_filtered (basename ? basename : "", stream);
       fputs_filtered ("> = ", stream);
       if (err != 0)
-	fprintf_filtered (stream,
-			  "<invalid address 0x%lx>", (unsigned long) baddr);
+	{
+	  fprintf_filtered (stream, "<invalid address ");
+	  print_address_numeric ((CORE_ADDR) baddr, 1, stream);
+	  fprintf_filtered (stream, ">");
+	}
       else
 	cp_print_value_fields (TYPE_BASECLASS (type, i), baddr, stream, format,
 			       recurse, pretty,
@@ -411,7 +439,7 @@ void
 cp_print_class_member (valaddr, domain, stream, prefix)
      char *valaddr;
      struct type *domain;
-     FILE *stream;
+     GDB_FILE *stream;
      char *prefix;
 {
   

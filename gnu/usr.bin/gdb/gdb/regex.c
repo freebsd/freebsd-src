@@ -32,14 +32,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #else  /* not emacs */
 
-/* Make alloca work the best possible way.  */
-#ifdef __GNUC__
-#define alloca __builtin_alloca
-#else
-#ifdef sparc
-#include <alloca.h>
-#endif
-#endif
+#include "defs.h"
+#include <string.h>
 
 /*
  * Define the syntax stuff, so we can do the \<...\> things.
@@ -99,8 +93,16 @@ init_syntax_once ()
 
 #define BYTEWIDTH 8
 
-#ifndef SIGN_EXTEND_CHAR
-#define SIGN_EXTEND_CHAR(x) (x)
+/* We remove any previous definition of `SIGN_EXTEND_CHAR',
+   since ours (we hope) works properly with all combinations of
+   machines, compilers, `char' and `unsigned char' argument types.
+   (Per Bothner suggested the basic approach.)  */
+#undef SIGN_EXTEND_CHAR
+#if __STDC__
+#define SIGN_EXTEND_CHAR(c) ((signed char) (c))
+#else  /* not __STDC__ */
+/* As in Harbison and Steele.  */
+#define SIGN_EXTEND_CHAR(c) ((((unsigned char) (c)) ^ 128) - 128)
 #endif
 
 static int obscure_syntax = 0;
@@ -152,23 +154,40 @@ re_set_syntax (syntax)
 
 #define PATUNFETCH p--
 
-#define EXTEND_BUFFER \
-  { char *old_buffer = bufp->buffer; \
-    if (bufp->allocated == (1<<16)) goto too_big; \
-    bufp->allocated *= 2; \
-    if (bufp->allocated > (1<<16)) bufp->allocated = (1<<16); \
-    if (!(bufp->buffer = (char *) realloc (bufp->buffer, bufp->allocated))) \
-      goto memory_exhausted; \
-    c = bufp->buffer - old_buffer; \
-    b += c; \
-    if (fixup_jump) \
-      fixup_jump += c; \
-    if (laststart) \
-      laststart += c; \
-    begalt += c; \
-    if (pending_exact) \
-      pending_exact += c; \
-  }
+/* This is not an arbitrary limit: the arguments which represent offsets
+   into the pattern are two bytes long.  So if 2^16 bytes turns out to
+   be too small, many things would have to change.  */
+#define MAX_BUF_SIZE (1 << 16)
+
+
+/* Extend the buffer by twice its current size via realloc and
+   reset the pointers that pointed into the old block to point to the
+   correct places in the new one.  If extending the buffer results in it
+   being larger than MAX_BUF_SIZE, then flag memory exhausted.  */
+#define EXTEND_BUFFER                                                 \
+  do {                                                                  \
+    char *old_buffer = bufp->buffer;                           \
+    if (bufp->allocated == MAX_BUF_SIZE)                                \
+      goto too_big;                                                 \
+    bufp->allocated <<= 1;                                              \
+    if (bufp->allocated > MAX_BUF_SIZE)                                 \
+      bufp->allocated = MAX_BUF_SIZE;                                   \
+    bufp->buffer = (char *) realloc (bufp->buffer, bufp->allocated);\
+    if (bufp->buffer == NULL)                                           \
+      goto memory_exhausted;                                                \
+    /* If the buffer moved, move all the pointers into it.  */          \
+    if (old_buffer != bufp->buffer)                                     \
+      {                                                                 \
+        b = (b - old_buffer) + bufp->buffer;                            \
+        begalt = (begalt - old_buffer) + bufp->buffer;                  \
+        if (fixup_jump)                                             \
+          fixup_jump = (fixup_jump - old_buffer) + bufp->buffer;\
+        if (laststart)                                                  \
+          laststart = (laststart - old_buffer) + bufp->buffer;          \
+        if (pending_exact)                                              \
+          pending_exact = (pending_exact - old_buffer) + bufp->buffer;  \
+      }                                                                 \
+  } while (0)
 
 static void store_jump (), insert_jump ();
 
@@ -1556,7 +1575,7 @@ static struct re_pattern_buffer re_comp_buf;
 
 char *
 re_comp (s)
-     char *s;
+     const char *s;
 {
   if (!s)
     {
@@ -1657,21 +1676,21 @@ main (argc, argv)
 	  for (i = 0; i < buf.used; i++)
 	    printchar (buf.buffer[i]);
 
-	  putchar ('\n');
+	  putchar_unfiltered ('\n');
 
-	  printf ("%d allocated, %d used.\n", buf.allocated, buf.used);
+	  printf_unfiltered ("%d allocated, %d used.\n", buf.allocated, buf.used);
 
 	  re_compile_fastmap (&buf);
-	  printf ("Allowed by fastmap: ");
+	  printf_unfiltered ("Allowed by fastmap: ");
 	  for (i = 0; i < (1 << BYTEWIDTH); i++)
 	    if (fastmap[i]) printchar (i);
-	  putchar ('\n');
+	  putchar_unfiltered ('\n');
 	}
 
       gets (pat);	/* Now read the string to match against */
 
       i = re_match (&buf, pat, strlen (pat), 0, 0);
-      printf ("Match value %d.\n", i);
+      printf_unfiltered ("Match value %d.\n", i);
     }
 }
 
@@ -1681,23 +1700,23 @@ print_buf (bufp)
 {
   int i;
 
-  printf ("buf is :\n----------------\n");
+  printf_unfiltered ("buf is :\n----------------\n");
   for (i = 0; i < bufp->used; i++)
     printchar (bufp->buffer[i]);
   
-  printf ("\n%d allocated, %d used.\n", bufp->allocated, bufp->used);
+  printf_unfiltered ("\n%d allocated, %d used.\n", bufp->allocated, bufp->used);
   
-  printf ("Allowed by fastmap: ");
+  printf_unfiltered ("Allowed by fastmap: ");
   for (i = 0; i < (1 << BYTEWIDTH); i++)
     if (bufp->fastmap[i])
       printchar (i);
-  printf ("\nAllowed by translate: ");
+  printf_unfiltered ("\nAllowed by translate: ");
   if (bufp->translate)
     for (i = 0; i < (1 << BYTEWIDTH); i++)
       if (bufp->translate[i])
 	printchar (i);
-  printf ("\nfastmap is%s accurate\n", bufp->fastmap_accurate ? "" : "n't");
-  printf ("can %s be null\n----------", bufp->can_be_null ? "" : "not");
+  printf_unfiltered ("\nfastmap is%s accurate\n", bufp->fastmap_accurate ? "" : "n't");
+  printf_unfiltered ("can %s be null\n----------", bufp->can_be_null ? "" : "not");
 }
 #endif
 
@@ -1706,19 +1725,19 @@ printchar (c)
 {
   if (c < 041 || c >= 0177)
     {
-      putchar ('\\');
-      putchar (((c >> 6) & 3) + '0');
-      putchar (((c >> 3) & 7) + '0');
-      putchar ((c & 7) + '0');
+      putchar_unfiltered ('\\');
+      putchar_unfiltered (((c >> 6) & 3) + '0');
+      putchar_unfiltered (((c >> 3) & 7) + '0');
+      putchar_unfiltered ((c & 7) + '0');
     }
   else
-    putchar (c);
+    putchar_unfiltered (c);
 }
 
 error (string)
      char *string;
 {
-  puts (string);
+  puts_unfiltered (string);
   exit (1);
 }
 

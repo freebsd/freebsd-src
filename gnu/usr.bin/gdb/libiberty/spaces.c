@@ -37,8 +37,10 @@ BUGS
 
 */
 
+#include "ansidecl.h"
+#include "libiberty.h"
 
-char *
+const char *
 spaces (count)
   int count;
 {
@@ -55,6 +57,8 @@ spaces (count)
 	  free (buf);
 	}
       buf = malloc (count + 1);
+      if (buf == (char *) 0)
+	return 0;
       for (t = buf + count ; t != buf ; )
 	{
 	  *--t = ' ';
@@ -62,6 +66,6 @@ spaces (count)
       maxsize = count;
       buf[count] = '\0';
     }
-  return (buf + maxsize - count);
+  return (const char *) (buf + maxsize - count);
 }
 

@@ -36,22 +36,20 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <string.h>
 #include <errno.h>
 
-extern int demangle;	/* whether to print C++ syms raw or source-form */
+static void
+c_type_print_args PARAMS ((struct type *, GDB_FILE *));
 
 static void
-c_type_print_args PARAMS ((struct type *, FILE *));
+c_type_print_varspec_suffix PARAMS ((struct type *, GDB_FILE *, int, int, int));
 
 static void
-c_type_print_varspec_suffix PARAMS ((struct type *, FILE *, int, int, int));
-
-static void
-cp_type_print_derivation_info PARAMS ((FILE *, struct type *));
+cp_type_print_derivation_info PARAMS ((GDB_FILE *, struct type *));
 
 void
-c_type_print_varspec_prefix PARAMS ((struct type *, FILE *, int, int));
+c_type_print_varspec_prefix PARAMS ((struct type *, GDB_FILE *, int, int));
 
 void
-c_type_print_base PARAMS ((struct type *, FILE *, int, int));
+c_type_print_base PARAMS ((struct type *, GDB_FILE *, int, int));
 
 
 /* Print a description of a type in the format of a 
@@ -62,7 +60,7 @@ void
 c_typedef_print (type, new, stream)
    struct type *type;
    struct symbol *new;
-   FILE *stream;
+   GDB_FILE *stream;
 {
    switch (current_language->la_language)
    {
@@ -104,7 +102,7 @@ void
 c_print_type (type, varstring, stream, show, level)
      struct type *type;
      char *varstring;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int level;
 {
@@ -145,7 +143,7 @@ cp_type_print_method_args (args, prefix, varstring, staticp, stream)
      char *prefix;
      char *varstring;
      int staticp;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   int i;
 
@@ -199,7 +197,7 @@ cp_type_print_method_args (args, prefix, varstring, staticp, stream)
 
 static void
 cp_type_print_derivation_info (stream, type)
-     FILE *stream;
+     GDB_FILE *stream;
      struct type *type;
 {
   char *name;
@@ -231,7 +229,7 @@ cp_type_print_derivation_info (stream, type)
 void
 c_type_print_varspec_prefix (type, stream, show, passed_a_ptr)
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int passed_a_ptr;
 {
@@ -266,7 +264,7 @@ c_type_print_varspec_prefix (type, stream, show, passed_a_ptr)
 
     case TYPE_CODE_METHOD:
       if (passed_a_ptr)
-	fprintf (stream, "(");
+	fprintf_unfiltered (stream, "(");
       c_type_print_varspec_prefix (TYPE_TARGET_TYPE (type), stream, 0, 0);
       if (passed_a_ptr)
 	{
@@ -316,7 +314,7 @@ c_type_print_varspec_prefix (type, stream, show, passed_a_ptr)
 static void
 c_type_print_args (type, stream)
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   int i;
   struct type **args;
@@ -358,7 +356,7 @@ c_type_print_args (type, stream)
 static void
 c_type_print_varspec_suffix (type, stream, show, passed_a_ptr, demangled_args)
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int passed_a_ptr;
      int demangled_args;
@@ -409,12 +407,12 @@ c_type_print_varspec_suffix (type, stream, show, passed_a_ptr, demangled_args)
       break;
 
     case TYPE_CODE_FUNC:
-      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0,
-				 passed_a_ptr, 0);
       if (passed_a_ptr)
 	fprintf_filtered (stream, ")");
       if (!demangled_args)
 	fprintf_filtered (stream, "()");
+      c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0,
+				   passed_a_ptr, 0);
       break;
 
     case TYPE_CODE_UNDEF:
@@ -443,12 +441,12 @@ c_type_print_varspec_suffix (type, stream, show, passed_a_ptr, demangled_args)
 
    SHOW positive means print details about the type (e.g. enum values),
    and print structure elements passing SHOW - 1 for show.
-   SHOW zero means just print the type name or struct tag if there is one.
+   SHOW negative means just print the type name or struct tag if there is one.
    If there is no name, print something sensible but concise like
    "struct {...}".
-   SHOW negative means the same things as SHOW zero.  The difference is that
-   zero is used for printing structure elements and -1 is used for the
-   "whatis" command.  But I don't see any need to distinguish.
+   SHOW zero means just print the type name or struct tag if there is one.
+   If there is no name, print something sensible but not as concise like
+   "struct {int x; int y;}".
 
    LEVEL is the number of spaces to indent by.
    We increase it for some recursive calls.  */
@@ -456,7 +454,7 @@ c_type_print_varspec_suffix (type, stream, show, passed_a_ptr, demangled_args)
 void
 c_type_print_base (type, stream, show, level)
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int level;
 {
@@ -488,6 +486,8 @@ c_type_print_base (type, stream, show, level)
       return;
     }
 
+  check_stub_type (type);
+	  
   switch (TYPE_CODE (type))
     {
     case TYPE_CODE_ARRAY:
@@ -521,16 +521,14 @@ c_type_print_base (type, stream, show, level)
 	    fputs_filtered (" ", stream);
 	}
       wrap_here ("    ");
-      if (show <= 0)
+      if (show < 0)
 	{
 	  /* If we just printed a tag name, no need to print anything else.  */
 	  if (TYPE_TAG_NAME (type) == NULL)
 	    fprintf_filtered (stream, "{...}");
 	}
-      else if (show > 0)
+      else if (show > 0 || TYPE_TAG_NAME (type) == NULL)
 	{
-	  check_stub_type (type);
-	  
 	  cp_type_print_derivation_info (stream, type);
 	  
 	  fprintf_filtered (stream, "{\n");
@@ -665,7 +663,7 @@ c_type_print_base (type, stream, show, level)
 		  if (TYPE_TARGET_TYPE (TYPE_FN_FIELD_TYPE (f, j)) == 0)
 		    {
 		      /* Keep GDB from crashing here.  */
-		      fprintf (stream, "<undefined type> %s;\n",
+		      fprintf_unfiltered (stream, "<undefined type> %s;\n",
 			       TYPE_FN_FIELD_PHYSNAME (f, j));
 		      break;
 		    }
@@ -730,13 +728,13 @@ c_type_print_base (type, stream, show, level)
 	}
 
       wrap_here ("    ");
-      if (show <= 0)
+      if (show < 0)
 	{
 	  /* If we just printed a tag name, no need to print anything else.  */
 	  if (TYPE_TAG_NAME (type) == NULL)
 	    fprintf_filtered (stream, "{...}");
 	}
-      else if (show > 0)
+      else if (show > 0 || TYPE_TAG_NAME (type) == NULL)
 	{
 	  fprintf_filtered (stream, "{");
 	  len = TYPE_NFIELDS (type);

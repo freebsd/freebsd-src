@@ -219,11 +219,11 @@ __define_stab (N_LENG, 0xfe, "LENG")
 	| 00 UNDEF  | 02 ABS	| 04 TEXT   | 06 DATA	|
 	| 01  |EXT  | 03  |EXT	| 05  |EXT  | 07  |EXT	|
 
-	| 08 BSS    | 0A INDR	| 0C FN_SEQ | 0E   	|
-	| 09  |EXT  | 0B 	| 0D	    | 0F	|
+	| 08 BSS    | 0A INDR	| 0C FN_SEQ | 0E WEAKA	|
+	| 09  |EXT  | 0B 	| 0D WEAKU  | 0F WEAKT	|
 
-	| 10 	    | 12 COMM	| 14 SETA   | 16 SETT	|
-	| 11	    | 13	| 15 	    | 17	|
+	| 10 WEAKD  | 12 COMM	| 14 SETA   | 16 SETT	|
+	| 11 WEAKB  | 13	| 15 	    | 17	|
 
 	| 18 SETD   | 1A SETB	| 1C SETV   | 1E WARNING|
 	| 19	    | 1B	| 1D 	    | 1F FN	|

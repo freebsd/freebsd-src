@@ -1,6 +1,6 @@
 /* Generic support for remote debugging interfaces.
 
-   Copyright 1993 Free Software Foundation, Inc.
+   Copyright 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -37,13 +37,12 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    * a pass through mode a la kermit or telnet.
    * autobaud.
    * ask remote to change his baud rate.
-   * put generic load here.
-
    */
 
 #include <ctype.h>
 
 #include "defs.h"
+#include <string.h>
 #include "gdbcmd.h"
 #include "target.h"
 #include "serial.h"
@@ -76,12 +75,10 @@ usage(proto, junk)
      char *junk;
 {
   if (junk != NULL)
-    fprintf(stderr, "Unrecognized arguments: `%s'.\n", junk);
+    fprintf_unfiltered(gdb_stderr, "Unrecognized arguments: `%s'.\n", junk);
 
-  /* FIXME-now: service@host? */
-
-  error("Usage: target %s <device <speed <debug>>>\n\
-or target %s <host> <port>\n", proto, proto);
+  error ("Usage: target %s [DEVICE [SPEED [DEBUG]]]\n\
+where DEVICE is the name of a device or HOST:PORT", proto, proto);
 
   return;
 }
@@ -126,7 +123,7 @@ sr_scan_args(proto, args)
 
   /* check for missing or empty baud rate.  */
   CHECKDONE(p, q);
-  sr_set_baud_rate(n);
+  baud_rate = n;
 
   /* look for debug value.  */
   n = strtol(p, &q, 10);
@@ -169,14 +166,24 @@ gr_open(args, from_tty, gr)
   if (sr_get_desc() != NULL)
     gr_close (0);
 
+  /* If no args are specified, then we use the device specified by a
+     previous command or "set remotedevice".  But if there is no
+     device, better stop now, not dump core.  */
+
+  if (sr_get_device () == NULL)
+    usage (gr->ops->to_shortname, NULL);
+
   sr_set_desc(SERIAL_OPEN (sr_get_device()));
   if (!sr_get_desc())
     perror_with_name((char *) sr_get_device());
 
-  if (SERIAL_SETBAUDRATE(sr_get_desc(), sr_get_baud_rate()) != 0)
+  if (baud_rate != -1)
     {
-      SERIAL_CLOSE(sr_get_desc());
-      perror_with_name(sr_get_device());
+      if (SERIAL_SETBAUDRATE(sr_get_desc(), baud_rate) != 0)
+	{
+	  SERIAL_CLOSE(sr_get_desc());
+	  perror_with_name(sr_get_device());
+	}
     }
 
   SERIAL_RAW (sr_get_desc());
@@ -194,8 +201,13 @@ gr_open(args, from_tty, gr)
     gr_settings->clear_all_breakpoints = remove_breakpoints;
 
   if (from_tty)
-      printf_filtered ("Remote debugging using `%s' at baud rate of %d\n",
-		       sr_get_device(), sr_get_baud_rate());
+    {
+      printf_filtered ("Remote debugging using `%s'", sr_get_device ());
+      if (baud_rate != -1)
+	printf_filtered (" at baud rate of %d",
+			 baud_rate);
+      printf_filtered ("\n");
+    }
 
   push_target(gr->ops);
   gr_checkin();
@@ -217,7 +229,7 @@ sr_readchar ()
     error ("Timeout reading from remote system.");
 
   if (sr_get_debug() > 0)
-    printf ("%c", buf);
+    printf_unfiltered ("%c", buf);
 
   return buf & 0x7f;
 }
@@ -232,9 +244,9 @@ sr_pollchar()
     buf = 0;
   if (sr_get_debug() > 0)
     if (buf)
-      printf ("%c", buf);
+      printf_unfiltered ("%c", buf);
     else
-      printf ("<empty character poll>");
+      printf_unfiltered ("<empty character poll>");
 
   return buf & 0x7f;
 }
@@ -276,7 +288,7 @@ sr_write (a, l)
 
   if (sr_get_debug() > 0)
     for (i = 0; i < l; i++)
-      printf ("%c", a[i]);
+      printf_unfiltered ("%c", a[i]);
 
   return;
 }
@@ -432,22 +444,20 @@ void
 gr_files_info (ops)
      struct target_ops *ops;
 {
-  char *file = "nothing";
-
-  if (exec_bfd)
-    file = bfd_get_filename (exec_bfd);
+#ifdef __GO32__
+  printf_filtered ("\tAttached to DOS asynctsr\n");
+#else
+  printf_filtered ("\tAttached to %s", sr_get_device());
+  if (baud_rate != -1)
+    printf_filtered ("at %d baud", baud_rate);
+  printf_filtered ("\n");
+#endif
 
   if (exec_bfd)
     {
-#ifdef __GO32__
-      printf_filtered ("\tAttached to DOS asynctsr\n");
-#else
-      printf_filtered ("\tAttached to %s at %d baud\n",
-		       sr_get_device(), sr_get_baud_rate());
-#endif
+      printf_filtered ("\tand running program %s\n",
+		       bfd_get_filename (exec_bfd));
     }
-
-  printf_filtered ("\tand running program %s\n", file);
   printf_filtered ("\tusing the %s protocol.\n", ops->to_shortname);
 }
 
@@ -573,9 +583,9 @@ gr_multi_scan (list, passthrough)
 	  if (passthrough)
 	    {
 	      for (p = swallowed; p < swallowed_p; ++p)
-		putc (*p, stdout);
+		fputc_unfiltered (*p, gdb_stdout);
 
-	      putc (ch, stdout);
+	      fputc_unfiltered (ch, gdb_stdout);
 	    }
 
 	  swallowed_p = swallowed;
@@ -620,17 +630,66 @@ gr_store_word (addr, word)
   dcache_poke (gr_get_dcache(), addr, word);
 }
 
+/* general purpose load a file specified on the command line
+   into target memory. */
+
+void
+gr_load_image (args, fromtty)
+     char *args;
+     int fromtty;
+{
+  bfd *abfd;
+
+  asection *s;
+  struct cleanup *old_cleanups;
+  int delta = 4096;
+  char *buffer = xmalloc (delta);
+
+  abfd = bfd_openr (args, (char *) 0);
+
+  if (!abfd)
+    perror_with_name (args);
+
+  old_cleanups = make_cleanup (bfd_close, abfd);
+
+  QUIT;
+
+  if (!bfd_check_format (abfd, bfd_object))
+    error ("It doesn't seem to be an object file.\n");
+
+  for (s = abfd->sections; s && !quit_flag; s = s->next)
+    {
+      if (bfd_get_section_flags (abfd, s) & SEC_LOAD)
+	{
+	  int i;
+	  printf_filtered ("%s\t: 0x%4x .. 0x%4x  ",
+			   s->name, s->vma, s->vma + s->_raw_size);
+	  fflush (stdout);
+	  for (i = 0; i < s->_raw_size && !quit_flag; i += delta)
+	    {
+	      int sub_delta = delta;
+	      if (sub_delta > s->_raw_size - i)
+		sub_delta = s->_raw_size - i;
+	      QUIT;
+	      bfd_get_section_contents (abfd, s, buffer, i, sub_delta);
+	      target_write_memory (s->vma + i, buffer, sub_delta);
+	      printf_filtered ("*");
+	      fflush (stdout);
+	    }
+	  printf_filtered ("\n");
+	}
+    }
+
+  free (buffer);
+  write_pc (bfd_get_start_address (abfd));
+  bfd_close (abfd);
+  discard_cleanups (old_cleanups);
+}
+
+
 void
 _initialize_sr_support ()
 {
-/* FIXME-now: if target is open when baud changes... */
-  add_show_from_set (add_set_cmd ("remotebaud", no_class,
-				  var_zinteger, (char *)&baud_rate,
-				  "Set baud rate for remote serial I/O.\n\
-This value is used to set the speed of the serial port when debugging\n\
-using remote targets.", &setlist),
-		     &showlist);
-
 /* FIXME-now: if target is open... */
   add_show_from_set (add_set_cmd ("remotedevice", no_class,
 				  var_filename, (char *)&sr_settings.device,

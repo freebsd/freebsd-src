@@ -1,5 +1,5 @@
 /* Definitions for values of C expressions, for GDB.
-   Copyright 1986, 1987, 1989, 1992 Free Software Foundation, Inc.
+   Copyright 1986, 1987, 1989, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -47,6 +47,8 @@ struct value
     /* Type of value; either not an lval, or one of the various
        different possible kinds of lval.  */
     enum lval_type lval;
+    /* Is it modifiable?  Only relevant if lval != not_lval.  */
+    int modifiable;
     /* Location of value (if lval).  */
     union
       {
@@ -102,14 +104,12 @@ struct value
     union {
       long contents[1];
       double force_double_align;
-#ifdef CC_HAS_LONG_LONG
-      long long force_longlong_align;
-#endif
+      LONGEST force_longlong_align;
     } aligner;
 
   };
 
-typedef struct value *value;
+typedef struct value *value_ptr;
 
 #define VALUE_TYPE(val) (val)->type
 #define VALUE_LAZY(val) (val)->lazy
@@ -123,8 +123,7 @@ typedef struct value *value;
 #define VALUE_CONTENTS_RAW(val) ((char *) (val)->aligner.contents)
 #define VALUE_CONTENTS(val) ((void)(VALUE_LAZY(val) && value_fetch_lazy(val)),\
 			     VALUE_CONTENTS_RAW(val))
-extern int
-value_fetch_lazy PARAMS ((value val));
+extern int value_fetch_lazy PARAMS ((value_ptr val));
 
 #define VALUE_LVAL(val) (val)->lval
 #define VALUE_ADDRESS(val) (val)->location.address
@@ -180,7 +179,7 @@ struct internalvar
 {
   struct internalvar *next;
   char *name;
-  value value;
+  value_ptr value;
 };
 
 /* Pointer to member function.  Depends on compiler implementation. */
@@ -200,220 +199,200 @@ struct fn_field;
 #endif
 
 extern void
-print_address_demangle PARAMS ((CORE_ADDR, FILE *, int));
+print_address_demangle PARAMS ((CORE_ADDR, GDB_FILE *, int));
 
-extern LONGEST
-value_as_long PARAMS ((value val));
+extern LONGEST value_as_long PARAMS ((value_ptr val));
 
-extern double
-value_as_double PARAMS ((value val));
+extern double value_as_double PARAMS ((value_ptr val));
 
-extern CORE_ADDR
-value_as_pointer PARAMS ((value val));
+extern CORE_ADDR value_as_pointer PARAMS ((value_ptr val));
 
-extern LONGEST
-unpack_long PARAMS ((struct type *type, char *valaddr));
+extern LONGEST unpack_long PARAMS ((struct type *type, char *valaddr));
 
-extern double
-unpack_double PARAMS ((struct type *type, char *valaddr, int *invp));
+extern double unpack_double PARAMS ((struct type *type, char *valaddr,
+				     int *invp));
 
 extern CORE_ADDR unpack_pointer PARAMS ((struct type *type, char *valaddr));
 
 extern LONGEST unpack_field_as_long PARAMS ((struct type *type, char *valaddr,
 					     int fieldno));
 
-extern value value_from_longest PARAMS ((struct type *type, LONGEST num));
+extern value_ptr value_from_longest PARAMS ((struct type *type, LONGEST num));
 
-extern value value_from_double PARAMS ((struct type *type, double num));
+extern value_ptr value_from_double PARAMS ((struct type *type, double num));
 
-extern value value_at PARAMS ((struct type *type, CORE_ADDR addr));
+extern value_ptr value_at PARAMS ((struct type *type, CORE_ADDR addr));
 
-extern value value_at_lazy PARAMS ((struct type *type, CORE_ADDR addr));
+extern value_ptr value_at_lazy PARAMS ((struct type *type, CORE_ADDR addr));
 
 /* FIXME:  Assumes equivalence of "struct frame_info *" and "FRAME" */
-extern value value_from_register PARAMS ((struct type *type, int regnum,
+extern value_ptr value_from_register PARAMS ((struct type *type, int regnum,
 					  struct frame_info * frame));
 
-extern value value_of_variable PARAMS ((struct symbol *var, struct block *b));
+extern value_ptr value_of_variable PARAMS ((struct symbol *var,
+					    struct block *b));
 
-extern value value_of_register PARAMS ((int regnum));
+extern value_ptr value_of_register PARAMS ((int regnum));
 
 extern int symbol_read_needs_frame PARAMS ((struct symbol *));
 
 /* FIXME:  Assumes equivalence of "struct frame_info *" and "FRAME" */
-extern value read_var_value PARAMS ((struct symbol *var,
-				     struct frame_info *frame));
+extern value_ptr read_var_value PARAMS ((struct symbol *var,
+					 struct frame_info *frame));
 
 /* FIXME:  Assumes equivalence of "struct frame_info *" and "FRAME" */
-extern value locate_var_value PARAMS ((struct symbol *var,
+extern value_ptr locate_var_value PARAMS ((struct symbol *var,
 				       struct frame_info *frame));
 
-extern value allocate_value PARAMS ((struct type *type));
+extern value_ptr allocate_value PARAMS ((struct type *type));
 
-extern value allocate_repeat_value PARAMS ((struct type *type, int count));
+extern value_ptr allocate_repeat_value PARAMS ((struct type *type, int count));
 
-extern value value_mark PARAMS ((void));
+extern value_ptr value_mark PARAMS ((void));
 
-extern void value_free_to_mark PARAMS ((value mark));
+extern void value_free_to_mark PARAMS ((value_ptr mark));
 
-extern value value_string PARAMS ((char *ptr, int len));
+extern value_ptr value_string PARAMS ((char *ptr, int len));
 
-extern value value_array PARAMS ((int lowbound, int highbound,
-				  value *elemvec));
+extern value_ptr value_array PARAMS ((int lowbound, int highbound,
+				      value_ptr *elemvec));
 
-extern value value_concat PARAMS ((value arg1, value arg2));
+extern value_ptr value_concat PARAMS ((value_ptr arg1, value_ptr arg2));
 
-extern value value_binop PARAMS ((value arg1, value arg2, enum exp_opcode op));
+extern value_ptr value_binop PARAMS ((value_ptr arg1, value_ptr arg2,
+				      enum exp_opcode op));
 
-extern value value_add PARAMS ((value arg1, value arg2));
+extern value_ptr value_add PARAMS ((value_ptr arg1, value_ptr arg2));
 
-extern value value_sub PARAMS ((value arg1, value arg2));
+extern value_ptr value_sub PARAMS ((value_ptr arg1, value_ptr arg2));
 
-extern value value_coerce_array PARAMS ((value arg1));
+extern value_ptr value_coerce_array PARAMS ((value_ptr arg1));
 
-extern value value_coerce_function PARAMS ((value arg1));
+extern value_ptr value_coerce_function PARAMS ((value_ptr arg1));
 
-extern value value_ind PARAMS ((value arg1));
+extern value_ptr value_ind PARAMS ((value_ptr arg1));
 
-extern value value_addr PARAMS ((value arg1));
+extern value_ptr value_addr PARAMS ((value_ptr arg1));
 
-extern value value_assign PARAMS ((value toval, value fromval));
+extern value_ptr value_assign PARAMS ((value_ptr toval, value_ptr fromval));
 
-extern value value_neg PARAMS ((value arg1));
+extern value_ptr value_neg PARAMS ((value_ptr arg1));
 
-extern value value_complement PARAMS ((value arg1));
+extern value_ptr value_complement PARAMS ((value_ptr arg1));
 
-extern value value_struct_elt PARAMS ((value *argp, value *args, char *name,
-				       int *static_memfuncp, char *err));
+extern value_ptr value_struct_elt PARAMS ((value_ptr *argp, value_ptr *args,
+					   char *name,
+					   int *static_memfuncp, char *err));
 
-extern value value_struct_elt_for_reference PARAMS ((struct type *domain,
-						     int offset,
-						     struct type *curtype,
-						     char *name,
-						     struct type *intype));
+extern value_ptr value_struct_elt_for_reference PARAMS ((struct type *domain,
+							 int offset,
+							 struct type *curtype,
+							 char *name,
+							 struct type *intype));
 
-extern value value_field PARAMS ((value arg1, int fieldno));
+extern value_ptr value_field PARAMS ((value_ptr arg1, int fieldno));
 
-extern value value_primitive_field PARAMS ((value arg1, int offset,
-					    int fieldno,
-					    struct type *arg_type));
+extern value_ptr value_primitive_field PARAMS ((value_ptr arg1, int offset,
+						int fieldno,
+						struct type *arg_type));
 
-extern value value_cast PARAMS ((struct type *type, value arg2));
+extern value_ptr value_cast PARAMS ((struct type *type, value_ptr arg2));
 
-extern value value_zero PARAMS ((struct type *type, enum lval_type lv));
+extern value_ptr value_zero PARAMS ((struct type *type, enum lval_type lv));
 
-extern value value_repeat PARAMS ((value arg1, int count));
+extern value_ptr value_repeat PARAMS ((value_ptr arg1, int count));
 
-extern value value_subscript PARAMS ((value array, value idx));
+extern value_ptr value_subscript PARAMS ((value_ptr array, value_ptr idx));
 
-extern value value_from_vtable_info PARAMS ((value arg, struct type *type));
+extern value_ptr value_from_vtable_info PARAMS ((value_ptr arg,
+						 struct type *type));
 
-extern value value_being_returned PARAMS ((struct type *valtype, 
-					   char retbuf[REGISTER_BYTES],
-					   int struct_return));
+extern value_ptr value_being_returned PARAMS ((struct type *valtype, 
+					       char retbuf[REGISTER_BYTES],
+					       int struct_return));
 
-extern int
-using_struct_return PARAMS ((value function, CORE_ADDR funcaddr,
-			     struct type *value_type, int gcc_p));
+extern value_ptr value_in PARAMS ((value_ptr element, value_ptr set));
 
-extern void
-set_return_value PARAMS ((value val));
+extern int value_bit_index PARAMS ((struct type *type, char *addr, int index));
 
-extern value
-evaluate_expression PARAMS ((struct expression *exp));
+extern int using_struct_return PARAMS ((value_ptr function, CORE_ADDR funcaddr,
+					struct type *value_type, int gcc_p));
 
-extern value
-evaluate_type PARAMS ((struct expression *exp));
+extern void set_return_value PARAMS ((value_ptr val));
 
-extern value
-parse_and_eval PARAMS ((char *exp));
+extern value_ptr evaluate_expression PARAMS ((struct expression *exp));
 
-extern value
-parse_to_comma_and_eval PARAMS ((char **expp));
+extern value_ptr evaluate_type PARAMS ((struct expression *exp));
 
-extern struct type *
-parse_and_eval_type PARAMS ((char *p, int length));
+extern value_ptr parse_and_eval PARAMS ((char *exp));
 
-extern CORE_ADDR
-parse_and_eval_address PARAMS ((char *exp));
+extern value_ptr parse_to_comma_and_eval PARAMS ((char **expp));
 
-extern CORE_ADDR
-parse_and_eval_address_1 PARAMS ((char **expptr));
+extern struct type *parse_and_eval_type PARAMS ((char *p, int length));
 
-extern value
-access_value_history PARAMS ((int num));
+extern CORE_ADDR parse_and_eval_address PARAMS ((char *exp));
 
-extern value
-value_of_internalvar PARAMS ((struct internalvar *var));
+extern CORE_ADDR parse_and_eval_address_1 PARAMS ((char **expptr));
 
-extern void
-set_internalvar PARAMS ((struct internalvar *var, value val));
+extern value_ptr access_value_history PARAMS ((int num));
 
-extern void
-set_internalvar_component PARAMS ((struct internalvar *var, int offset,
-				   int bitpos, int bitsize,
-				   value newvalue));
+extern value_ptr value_of_internalvar PARAMS ((struct internalvar *var));
 
-extern struct internalvar *
-lookup_internalvar PARAMS ((char *name));
+extern void set_internalvar PARAMS ((struct internalvar *var, value_ptr val));
 
-extern int
-value_equal PARAMS ((value arg1, value arg2));
+extern void set_internalvar_component PARAMS ((struct internalvar *var,
+					       int offset,
+					       int bitpos, int bitsize,
+					       value_ptr newvalue));
 
-extern int
-value_less PARAMS ((value arg1, value arg2));
+extern struct internalvar *lookup_internalvar PARAMS ((char *name));
 
-extern int
-value_logical_not PARAMS ((value arg1));
+extern int value_equal PARAMS ((value_ptr arg1, value_ptr arg2));
+
+extern int value_less PARAMS ((value_ptr arg1, value_ptr arg2));
+
+extern int value_logical_not PARAMS ((value_ptr arg1));
 
 /* C++ */
 
-extern value
-value_of_this PARAMS ((int complain));
+extern value_ptr value_of_this PARAMS ((int complain));
 
-extern value
-value_x_binop PARAMS ((value arg1, value arg2, enum exp_opcode op,
-		       enum exp_opcode otherop));
+extern value_ptr value_x_binop PARAMS ((value_ptr arg1, value_ptr arg2,
+					enum exp_opcode op,
+					enum exp_opcode otherop));
 
-extern value
-value_x_unop PARAMS ((value arg1, enum exp_opcode op));
+extern value_ptr value_x_unop PARAMS ((value_ptr arg1, enum exp_opcode op));
 
-extern value
-value_fn_field PARAMS ((value *arg1p, struct fn_field *f, int j,
-			struct type* type, int offset));
+extern value_ptr value_fn_field PARAMS ((value_ptr *arg1p, struct fn_field *f,
+					 int j,
+					 struct type* type, int offset));
 
-extern value
-value_virtual_fn_field PARAMS ((value *arg1p, struct fn_field *f, int j,
-				struct type *type, int offset));
+extern value_ptr value_virtual_fn_field PARAMS ((value_ptr *arg1p,
+						 struct fn_field *f, int j,
+						 struct type *type,
+						 int offset));
 
-extern int
-binop_user_defined_p PARAMS ((enum exp_opcode op, value arg1, value arg2));
+extern int binop_user_defined_p PARAMS ((enum exp_opcode op,
+					 value_ptr arg1, value_ptr arg2));
 
-extern int
-unop_user_defined_p PARAMS ((enum exp_opcode op, value arg1));
+extern int unop_user_defined_p PARAMS ((enum exp_opcode op, value_ptr arg1));
 
-extern int
-destructor_name_p PARAMS ((const char *name, const struct type *type));
+extern int destructor_name_p PARAMS ((const char *name,
+				      const struct type *type));
 
 #define value_free(val) free ((PTR)val)
 
-extern void
-free_all_values PARAMS ((void));
+extern void free_all_values PARAMS ((void));
 
-extern void
-release_value PARAMS ((value val));
+extern void release_value PARAMS ((value_ptr val));
 
-extern int
-record_latest_value PARAMS ((value val));
+extern int record_latest_value PARAMS ((value_ptr val));
 
-extern void
-registers_changed PARAMS ((void));
+extern void registers_changed PARAMS ((void));
 
-extern void
-read_register_bytes PARAMS ((int regbyte, char *myaddr, int len));
+extern void read_register_bytes PARAMS ((int regbyte, char *myaddr, int len));
 
-extern void
-write_register_bytes PARAMS ((int regbyte, char *myaddr, int len));
+extern void write_register_bytes PARAMS ((int regbyte, char *myaddr, int len));
 
 extern void
 read_register_gen PARAMS ((int regno, char *myaddr));
@@ -437,45 +416,49 @@ extern void
 modify_field PARAMS ((char *addr, LONGEST fieldval, int bitpos, int bitsize));
 
 extern void
-type_print PARAMS ((struct type *type, char *varstring, FILE *stream,
+type_print PARAMS ((struct type *type, char *varstring, GDB_FILE *stream,
 		    int show));
 
-extern char *
-baseclass_addr PARAMS ((struct type *type, int index, char *valaddr,
-			value *valuep, int *errp));
+extern char *baseclass_addr PARAMS ((struct type *type, int index,
+				     char *valaddr,
+				     value_ptr *valuep, int *errp));
 
 extern void
-print_longest PARAMS ((FILE *stream, int format, int use_local,
-		       LONGEST value));
+print_longest PARAMS ((GDB_FILE *stream, int format, int use_local,
+		       LONGEST val));
 
 extern void
-print_floating PARAMS ((char *valaddr, struct type *type, FILE *stream));
+print_floating PARAMS ((char *valaddr, struct type *type, GDB_FILE *stream));
 
-extern int
-value_print PARAMS ((value val, FILE *stream, int format,
-		     enum val_prettyprint pretty));
+extern int value_print PARAMS ((value_ptr val, GDB_FILE *stream, int format,
+				enum val_prettyprint pretty));
+
+extern void
+value_print_array_elements PARAMS ((value_ptr val, GDB_FILE* stream,
+				    int format, enum val_prettyprint pretty));
+
+extern value_ptr
+value_release_to_mark PARAMS ((value_ptr mark));
 
 extern int
 val_print PARAMS ((struct type *type, char *valaddr, CORE_ADDR address,
-		   FILE *stream, int format, int deref_ref,
+		   GDB_FILE *stream, int format, int deref_ref,
 		   int recurse, enum val_prettyprint pretty));
 
 extern int
-val_print_string PARAMS ((CORE_ADDR addr, unsigned int len, FILE *stream));
+val_print_string PARAMS ((CORE_ADDR addr, unsigned int len, GDB_FILE *stream));
 
 /* FIXME:  Assumes equivalence of "struct frame_info *" and "FRAME" */
 extern void
 print_variable_value PARAMS ((struct symbol *var, struct frame_info *frame,
-			      FILE *stream));
+			      GDB_FILE *stream));
 
-extern value
-value_arg_coerce PARAMS ((value));
+extern value_ptr value_arg_coerce PARAMS ((value_ptr));
 
-extern int
-check_field PARAMS ((value, const char *));
+extern int check_field PARAMS ((value_ptr, const char *));
 
 extern void
-c_typedef_print PARAMS ((struct type *type, struct symbol *new, FILE *stream));
+c_typedef_print PARAMS ((struct type *type, struct symbol *new, GDB_FILE *stream));
 
 extern char *
 internalvar_name PARAMS ((struct internalvar *var));
@@ -488,15 +471,12 @@ clear_internalvars PARAMS ((void));
 
 /* From values.c */
 
-extern value
-value_copy PARAMS ((value));
+extern value_ptr value_copy PARAMS ((value_ptr));
 
-extern int
-baseclass_offset PARAMS ((struct type *, int, value, int));
+extern int baseclass_offset PARAMS ((struct type *, int, value_ptr, int));
 
 /* From valops.c */
 
-extern value
-call_function_by_hand PARAMS ((value, int, value *));
+extern value_ptr call_function_by_hand PARAMS ((value_ptr, int, value_ptr *));
 
 #endif	/* !defined (VALUE_H) */

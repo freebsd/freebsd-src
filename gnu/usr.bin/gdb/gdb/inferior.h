@@ -27,6 +27,9 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* For FRAME_ADDR.  */
 #include "frame.h"
 
+/* For enum target_signal.  */
+#include "target.h"
+
 /*
  * Structure in which to save the status of the inferior.  Save
  * through "save_inferior_status", restore through
@@ -36,7 +39,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * control variables.
  */
 struct inferior_status {
-  int stop_signal;
+  enum target_signal stop_signal;
   CORE_ADDR stop_pc;
   FRAME_ADDR stop_frame_address;
   bpstat stop_bpstat;
@@ -65,11 +68,25 @@ struct inferior_status {
   int proceed_to_finish;
 };
 
+/* This macro gives the number of registers actually in use by the
+   inferior.  This may be less than the total number of registers,
+   perhaps depending on the actual CPU in use or program being run.  */
+
+#ifndef ARCH_NUM_REGS
+#define ARCH_NUM_REGS NUM_REGS
+#endif
+
 extern void
 save_inferior_status PARAMS ((struct inferior_status *, int));
 
 extern void
 restore_inferior_status PARAMS ((struct inferior_status *));
+
+extern void set_sigint_trap PARAMS ((void));
+extern void clear_sigint_trap PARAMS ((void));
+
+extern void set_sigio_trap PARAMS ((void));
+extern void clear_sigio_trap PARAMS ((void));
 
 /* File name for default use for standard in/out in the inferior.  */
 
@@ -92,7 +109,7 @@ extern void
 clear_proceed_status PARAMS ((void));
 
 extern void
-proceed PARAMS ((CORE_ADDR, int, int));
+proceed PARAMS ((CORE_ADDR, enum target_signal, int));
 
 extern void
 kill_inferior PARAMS ((void));
@@ -107,6 +124,9 @@ extern int run_stack_dummy PARAMS ((CORE_ADDR, char [REGISTER_BYTES]));
 
 extern CORE_ADDR
 read_pc PARAMS ((void));
+
+extern CORE_ADDR
+read_pc_pid PARAMS ((int));
 
 extern void
 write_pc PARAMS ((CORE_ADDR));
@@ -138,7 +158,7 @@ reopen_exec_file PARAMS ((void));
 /* The `resume' routine should only be called in special circumstances.
    Normally, use `proceed', which handles a lot of bookkeeping.  */
 extern void
-resume PARAMS ((int, int));
+resume PARAMS ((int, enum target_signal));
 
 /* From misc files */
 
@@ -175,7 +195,7 @@ void
 detach PARAMS ((int));
 
 extern void
-child_resume PARAMS ((int, int, int));
+child_resume PARAMS ((int, int, enum target_signal));
 
 #ifndef PTRACE_ARG3_TYPE
 #define PTRACE_ARG3_TYPE int	/* Correct definition for most systems. */
@@ -191,10 +211,11 @@ proc_iterate_over_mappings PARAMS ((int (*) (int, CORE_ADDR)));
 
 /* From fork-child.c */
 
-extern void
-fork_inferior PARAMS ((char *, char *, char **,
-		       void (*) (void),
-		       void (*) (int)));
+extern void fork_inferior PARAMS ((char *, char *, char **,
+				   void (*) (void),
+				   void (*) (int), char *));
+
+extern void startup_inferior PARAMS ((int));
 
 /* From inflow.c */
 
@@ -230,7 +251,7 @@ attach_command PARAMS ((char *, int));
 
 /* Last signal that the inferior received (why it stopped).  */
 
-extern int stop_signal;
+extern enum target_signal stop_signal;
 
 /* Address at which inferior stopped.  */
 
@@ -390,11 +411,9 @@ extern CORE_ADDR text_end;
 #endif /* On stack.  */
 
 #if CALL_DUMMY_LOCATION == AT_ENTRY_POINT
-extern CORE_ADDR
-entry_point_address PARAMS ((void));
 #define PC_IN_CALL_DUMMY(pc, sp, frame_address)			\
-  ((pc) >= entry_point_address ()				\
-   && (pc) <= (entry_point_address () + DECR_PC_AFTER_BREAK))
+  ((pc) >= CALL_DUMMY_ADDRESS ()				\
+   && (pc) <= (CALL_DUMMY_ADDRESS () + DECR_PC_AFTER_BREAK))
 #endif /* At entry point.  */
 #endif /* No PC_IN_CALL_DUMMY.  */
 
