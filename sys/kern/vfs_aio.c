@@ -151,6 +151,29 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_timeout,
 SYSCTL_INT(_vfs_aio, OID_AUTO, unloadable, CTLFLAG_RW, &unloadable, 0,
     "Allow unload of aio (not recommended)");
 
+struct aiocblist {
+        TAILQ_ENTRY(aiocblist) list;	/* List of jobs */
+        TAILQ_ENTRY(aiocblist) plist;	/* List of jobs for proc */
+        int	jobflags;
+        int	jobstate;
+	int	inputcharge;
+	int	outputcharge;
+	struct	callout_handle timeouthandle;
+        struct	buf *bp;		/* Buffer pointer */
+        struct	proc *userproc;		/* User process */ /* Not td! */
+        struct	file *fd_file;		/* Pointer to file structure */ 
+	struct	aiothreadlist *jobaiothread;  /* AIO process descriptor */
+        struct	aio_liojob *lio;	/* Optional lio job */
+        struct	aiocb *uuaiocb;		/* Pointer in userspace of aiocb */
+	struct	klist klist;		/* list of knotes */
+        struct	aiocb uaiocb;		/* Kernel I/O control block */
+};
+
+/* jobflags */
+#define AIOCBLIST_RUNDOWN       0x4
+#define AIOCBLIST_ASYNCFREE     0x8
+#define AIOCBLIST_DONE          0x10
+
 /*
  * AIO process info
  */
@@ -220,6 +243,7 @@ static void	aio_proc_rundown(struct proc *p);
 static int	aio_fphysio(struct proc *p, struct aiocblist *aiocbe);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *uproc);
+static void	aio_swake_cb(struct socket *, struct sockbuf *);
 static int	aio_unload(void);
 static void	process_signal(void *aioj);
 static int	filt_aioattach(struct knote *kn);
@@ -436,8 +460,10 @@ aio_free_entry(struct aiocblist *aiocbe)
 		aiop = aiocbe->jobaiothread;
 		TAILQ_REMOVE(&aiop->jobtorun, aiocbe, list);
 	} else if (aiocbe->jobstate == JOBST_JOBQGLOBAL) {
+		s = splnet();
 		TAILQ_REMOVE(&aio_jobs, aiocbe, list);
 		TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
+		splx(s);
 	} else if (aiocbe->jobstate == JOBST_JOBFINISHED)
 		TAILQ_REMOVE(&ki->kaio_jobdone, aiocbe, plist);
 	else if (aiocbe->jobstate == JOBST_JOBBFINISHED) {
@@ -1223,7 +1249,7 @@ aio_fphysio(struct proc *p, struct aiocblist *iocb)
 /*
  * Wake up aio requests that may be serviceable now.
  */
-void
+static void
 aio_swake_cb(struct socket *so, struct sockbuf *sb)
 {
 	struct aiocblist *cb,*cbn;
