@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.6 1997/02/22 09:30:11 peter Exp $
+ *	$Id: serial.S,v 1.7 1997/05/16 10:40:00 bde Exp $
  */
 
 /*
@@ -94,8 +94,12 @@ ENTRY(serial_putc)
 	push	%ebp
 	mov	%esp, %ebp
 
+	movl	$10000, %ecx	# timeout
 	mov	$COMCONSOLE + 5, %edx	# line status reg
-1:	inb	%dx, %al
+1:
+	decl	%ecx
+	je	2f
+	inb	%dx, %al
 	test	$0x20, %al
 	jz	1b		# TX buffer not empty
 
@@ -104,6 +108,7 @@ ENTRY(serial_putc)
 	sub	$5, %edx	# TX output reg
 	outb	%al, %dx	# send this one
 
+2:
 	pop	%ebp
 	ret
 
@@ -169,7 +174,11 @@ ENTRY(init_serial)
 	movb	%ah, %al
 	outb	%al, %dx
 
-	add	$2, %edx	# line control reg
+	incl	%edx		# fifo control register (if any)
+	xorl	%eax,%eax
+	outb	%al, %dx	# disable fifo to reduce worst-case busy-wait
+
+	incl	%edx		# line control reg
 	movb	$0x13, %al
 	outb	%al, %dx	# 8 bit, no parity, 1 stop bit
 
