@@ -171,6 +171,13 @@ A signal interrupted the write before it could be completed.
 .It Bq Er EAGAIN
 The file was marked for non-blocking I/O,
 and no data could be written immediately.
+.It Bq Er EROFS
+An attempt was made to write over a disk label area at the beginning
+of a slice.
+Use
+.Xr disklabel 8
+.Fl W
+to enable writing on the disk label area.
 .El
 .Pp
 In addition,
