@@ -1038,29 +1038,30 @@ backup_file()
 	fi
 }
 
-# devfs_link dir src link
-#	Make a symbolic link 'link' to src in chroot/dev.
-#	Returns 0 on sucess.
+# make_symlink src link
+#	Make a symbolic link 'link' to src from basedir. If the
+#	directory in which link is to be created does not exist
+#	a warning will be displayed and an error will be returned.
+#	Returns 0 on sucess, 1 otherwise.
 #
-devfs_link()
+make_symlink()
 {
-	local dir src link _me
-	dir="$1"
-	src="$2"
-	link="$3"
-	_me="devfs_link"
+	local src link linkdir _me
+	src="$1"
+	link="$2"
+	linkdir="`dirname $link`"
+	_me="make_symlink()"
 
-	if [ -z "$dir" -o -z "$src" -o -z "$link" ]; then
-		warn "devfs_link(): requires three arguments."
+	if [ -z "$src" -o -z "$link" ]; then
+		warn "$_me: requires two arguments."
 		return 1
 	fi
-	if [ -z "$dir" ]; then
-		warn "$_me: the directory ($dir) does not exist"
+	if [ ! -d "$linkdir" ]; then
+		warn "$_me: the directory $linkdir does not exist"
 		return 1
 	fi
-	cd ${chroot}/dev
 	if ! ln -sf $src $link ; then
-		warn "$_me: unable to link $link --> $src in $dir"
+		warn "$_me: unable to make a symbolic link from $link to $src"
 		return 1
 	fi
 	return 0
