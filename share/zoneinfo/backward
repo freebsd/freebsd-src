@@ -1,7 +1,5 @@
 # @(#)backward	7.21
 
-# $FreeBSD$
-
 # This file provides links between current names for time zones
 # and their old names.  Many names changed in late 1993.
 
