@@ -2404,15 +2404,15 @@ loop:
 		splx(s);
 		bp->b_flags &= ~B_DONE;
 	} else {
-		VI_UNLOCK(vp);
+		int bsize, maxsize, vmio;
+		off_t offset;
+
 		/*
 		 * Buffer is not in-core, create new buffer.  The buffer
 		 * returned by getnewbuf() is locked.  Note that the returned
 		 * buffer is also considered valid (not marked B_INVAL).
 		 */
-		int bsize, maxsize, vmio;
-		off_t offset;
-
+		VI_UNLOCK(vp);
 		if (vn_isdisk(vp, NULL))
 			bsize = DEV_BSIZE;
 		else if (vp->v_mountedhere)
