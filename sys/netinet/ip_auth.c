@@ -6,8 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-/*static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.1.2.1 1999/09/28 11:44:04 darrenr Exp $";*/
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.1.2.2 2000/01/16 10:12:14 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -20,8 +19,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <stdlib.h>
 # include <string.h>
 #endif
-#if ((defined(KERNEL) && (__FreeBSD_version >= 220000)) || \
-     (defined(_KERNEL) && (__FreeBSD_version >= 40013)))
+#if defined(_KERNEL) && (__FreeBSD_version >= 220000)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -32,7 +30,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <sys/protosw.h>
 #endif
 #include <sys/socket.h>
-#if defined(_KERNEL) && !defined(linux)
+#if (defined(_KERNEL) || defined(KERNEL)) && !defined(linux)
 # include <sys/systm.h>
 #endif
 #if !defined(__SVR4) && !defined(__svr4__)
@@ -398,7 +396,7 @@ fr_authioctlloop:
 #  if SOLARIS
 			error = fr_qout(fr_auth[i].fra_q, m);
 #  else /* SOLARIS */
-#   if _BSDI_VERSION >= 199802
+#   if (_BSDI_VERSION >= 199802) || defined(__OpenBSD__)
 			error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL,
 					  NULL);
 #   else

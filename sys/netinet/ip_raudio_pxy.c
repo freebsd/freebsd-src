@@ -1,6 +1,3 @@
-/*
- * $FreeBSD$
- */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
 #endif

@@ -6,7 +6,6 @@
  * to the original author and the contributors.
  *
  * $Id: ip_log.c,v 2.1.2.2 1999/09/21 11:55:44 darrenr Exp $
- * $FreeBSD$
  */
 #include <sys/param.h>
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -16,7 +15,7 @@
 # include "opt_ipfilter_log.h"
 #endif
 #ifdef  __FreeBSD__
-# if defined(_KERNEL) && !defined(IPFILTER_LKM) 
+# if defined(_KERNEL) && !defined(IPFILTER_LKM)
 #  if !defined(__FreeBSD_version)
 #   include <sys/osreldate.h>
 #  endif
