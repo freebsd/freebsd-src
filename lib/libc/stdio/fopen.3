@@ -129,6 +129,10 @@ function associates a stream with the existing file descriptor,
 The
 .Fa mode
 of the stream must be compatible with the mode of the file descriptor.
+When the stream is closed via
+.Xr fclose 3 ,
+.Fa fildes
+is closed also.
 .Pp
 The
 .Fn freopen
