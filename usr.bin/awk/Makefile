@@ -27,6 +27,6 @@ maketab: ytab.h ${AWKSRC}/maketab.c
 
 CLEANFILES+=	nawk.1
 nawk.1: awk.1
-	ln -sf ${.ALLSRC} ${.TARGET}
+	cat ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
