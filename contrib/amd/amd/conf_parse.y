@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Erez Zadok
+ * Copyright (c) 1997-2004 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	%W% (Berkeley) %G%
  *
- * $Id: conf_parse.y,v 1.4.2.3 2002/12/27 22:44:34 ezk Exp $
+ * $Id: conf_parse.y,v 1.4.2.5 2004/05/12 15:54:31 ezk Exp $
  *
  */
 
@@ -49,24 +48,8 @@
 #include <am_defs.h>
 #include <amd.h>
 
-/* AIX requires this to be the first thing in the file. */
-#ifndef __GNUC__
-# if HAVE_ALLOCA_H
-#  include <alloca.h>
-# else /* not HAVE_ALLOCA_H */
-#  ifdef _AIX
-#pragma alloca
-#  else /* not _AIX */
-#   ifndef alloca
-  /* predefined by HP cc +Olibcalls */
-voidp alloca();
-#   endif /* not alloca */
-#  endif /* not _AIX */
-# endif /* not HAVE_ALLOCA_H */
-#endif /* not __GNUC__ */
-
 extern char *yytext;
-extern int yylineno;
+extern int ayylineno;
 extern int yylex(void);
 
 static int yyerror(const char *s);
@@ -78,12 +61,12 @@ static char *header_section = NULL; /* start with no header section */
 #define PARSE_DEBUG 0
 
 #if PARSE_DEBUG
-# define dprintf(f,s) fprintf(stderr, (f), yylineno, (s))
+# define dprintf(f,s) fprintf(stderr, (f), ayylineno, (s))
 # define amu_return(v)
-#else
+#else /* not PARSE_DEBUG */
 # define dprintf(f,s)
 # define amu_return(v) return((v))
-#endif /* PARSE_DEBUG */
+#endif /* not PARSE_DEBUG */
 
 %}
 
@@ -168,7 +151,7 @@ static int
 yyerror(const char *s)
 {
   fprintf(stderr, "AMDCONF: %s on line %d (section %s)\n",
-	  s, yylineno,
+	  s, ayylineno,
 	  (header_section ? header_section : "null"));
   exit(1);
   return 1;	/* to full compilers that insist on a return statement */

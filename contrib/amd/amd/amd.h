@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Erez Zadok
+ * Copyright (c) 1997-2004 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.h,v 1.8.2.6 2002/12/27 22:44:29 ezk Exp $
+ * $Id: amd.h,v 1.8.2.8 2004/01/21 04:04:58 ib42 Exp $
  *
  */
 
@@ -62,6 +62,7 @@
 #define CFM_FULLY_QUALIFIED_HOSTS	0x0100
 #define CFM_BROWSABLE_DIRS_FULL		0x0200 /* allow '/' in readdir() */
 #define CFM_UNMOUNT_ON_EXIT		0x0400 /* when amd finishing */
+#define CFM_NFS_INSECURE_PORT		0x0800
 
 /* some systems (SunOS 4.x) neglect to define the mount null message */
 #ifndef MOUNTPROC_NULL

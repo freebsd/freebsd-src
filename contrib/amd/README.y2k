@@ -1,4 +1,3 @@
-# -*- text -*-
 		       AM-UTILS YEAR-2000 COMPLIANCE
 
 Most likely am-utils is y2k compliant.
@@ -18,12 +17,11 @@ code scanner and manually "eyeballed" the code and could not find any more
 problems.  Paul's patch is included in am-utils-6.0.1s7 and newer versions.
 Paul also said that other 2-digit years used in am-utils are "harmless."
 
-
 NOTE: NONE OF THE PERSONS MENTIONED HERE, AUTHOR INCLUDED, ARE WILLING TO
 CERTIFY AM-UTILS AS Y2K COMPLIANT.  USE AT YOUR OWN RISK.
 
 ---
 Erez Zadok.
-Maintainer, am-utils package and AMD-DEV list.
-Email: amd-dev-owner@majordomo.cs.columbia.edu
+Maintainer, am-utils package and am-utils list.
+Email: am-utils@am-utils.org
 WWW:   http://www.am-utils.org

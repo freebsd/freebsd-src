@@ -1,5 +1,3 @@
-# -*- text -*-
-
 This is the official version of am-utils.
 
 See the file NEWS for news on this and previous releases.
@@ -96,7 +94,7 @@ before.  Let me know if you are having any problems with them.  I fully
 expect, at least initially, to have to be the sole developers of the M4
 macros and let others concentrate on C sources.
 
-[E] Report all bugs to amd-dev@cs.columbia.edu.  Avoid reporting to my
+[E] Report all bugs to am-utils@am-utils.org.  Avoid reporting to my
 personal email address.  It is important to involve the whole list in bug
 fixes etc.
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Erez Zadok
+ * Copyright (c) 1997-2004 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_svc.c,v 1.5.2.4 2002/12/27 22:44:39 ezk Exp $
+ * $Id: nfs_prot_svc.c,v 1.5.2.6 2004/01/21 04:04:58 ib42 Exp $
  *
  */
 
@@ -104,7 +104,8 @@ nfs_program_2(struct svc_req *rqstp, SVCXPRT *transp)
   sinp = amu_svc_getcaller(rqstp->rq_xprt);
 #ifdef MNT2_NFS_OPT_RESVPORT
   /* Verify that the request comes from a reserved port */
-  if (ntohs(sinp->sin_port) >= IPPORT_RESERVED) {
+  if (ntohs(sinp->sin_port) >= IPPORT_RESERVED) &&
+      !(gopt.flags & CFM_NFS_INSECURE_PORT)) {
     plog(XLOG_WARNING, "ignoring request from %s:%u, port not reserved",
 	 inet_dquad(dq, sinp->sin_addr.s_addr),
 	 ntohs(sinp->sin_port));

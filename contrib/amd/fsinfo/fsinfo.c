@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Erez Zadok
+ * Copyright (c) 1997-2004 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: fsinfo.c,v 1.5.2.5 2003/07/18 04:50:20 ezk Exp $
+ * $Id: fsinfo.c,v 1.5.2.7 2004/05/12 15:54:31 ezk Exp $
  *
  */
 
@@ -168,7 +167,9 @@ fsi_get_args(int c, char *v[])
 
   if (c != optind) {
     g_argv = v + optind - 1;
+#ifdef yywrap
     if (yywrap())
+#endif /* yywrap */
       fatal("Cannot read any input files");
   } else {
     usage++;

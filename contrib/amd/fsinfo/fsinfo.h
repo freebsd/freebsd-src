@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Erez Zadok
+ * Copyright (c) 1997-2004 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: fsinfo.h,v 1.4.2.5 2003/07/18 04:50:20 ezk Exp $
+ * $Id: fsinfo.h,v 1.4.2.7 2004/05/12 15:54:31 ezk Exp $
  *
  */
 
@@ -115,7 +114,6 @@ extern void domain_strip(char *otherdom, char *localdom);
  */
 #ifndef yywrap
 extern int yywrap(void);
-# define yywrap() 1
 #endif /* not yywrap */
 extern int yyparse(void);
 extern int write_atab(qelem *q);

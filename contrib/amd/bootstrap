@@ -67,7 +67,7 @@ if test -s ${LOG}; then
     exit 2
 fi
 # now prepare the real configure script
-mv -f configure configure.old
+test -f configure && mv -f configure configure.old
 mv -f configure.new configure
 chmod a+rx configure
 rm -f configure.old

@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2003 Erez Zadok
+.\" Copyright (c) 1997-2004 Erez Zadok
 .\" Copyright (c) 1990 Jan-Simon Pendry
 .\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.conf.5,v 1.7.2.8 2003/03/16 01:47:00 ezk Exp $
+.\" $Id: amd.conf.5,v 1.7.2.10 2004/01/21 04:04:58 ib42 Exp $
 .\"
 .TH AMD.CONF 5 "7 August 1997"
 .SH NAME
@@ -369,6 +369,18 @@ and the
 .B nfs_retry_interval
 parameters change the overall retry interval.  Too long an interval gives
 poor interactive response; too short an interval causes excessive retries.
+
+.TP
+.BR nfs_allow_insecure_port " (string, default=no).
+Normally amd will refuse requests coming from unprivileged ports (i.e.
+ports >= 1024 on Unix systems), so that only privileged users and the kernel
+can send NFS requests to it. However, some kernels (certain versions of
+Darwin, MacOS X, and Linux) have bugs that cause them to use unprivileged
+ports in certain situations, which causes amd to stop dead in its
+tracks. This parameter allows amd to operate normally even on such systems,
+at the expense of a slight decrease in the security of its operations. If
+you see messages like "ignoring request from foo:1234, port not reserved"
+in your amd log, try enabling this parameter and give it another go.
 
 .TP
 .BR nfs_proto " (string, default to trying version tcp then udp)"

@@ -76,6 +76,8 @@ fully_qualified_hosts =		yes | no
 # force NFS version or NFS protocol
 nfs_vers =			2 | 3
 nfs_proto =			udp | tcp
+# allow NFS requests from insecure (>=1024) ports
+nfs_allow_insecure_port =	yes | no
 
 ##############################################################################
 # DEFINE AN AMD MOUNT POINT
