@@ -106,6 +106,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
+#ifndef NSFBUFS
+#define NSFBUFS		(512 + maxusers * 16)
+#endif
+
 static void     sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
 
@@ -201,6 +205,9 @@ sf_buf_init(void *arg)
 	vm_offset_t sf_base;
 	int i;
 				        
+	nsfbufs = NSFBUFS;
+	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
+		
 	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
 	TAILQ_INIT(&sf_buf_freelist);
 	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
