@@ -157,12 +157,12 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 	td = curthread;
-	td->td_inktrace = 1;
+	td->td_pflags |= TDP_INKTRACE;
 	mtx_lock(&ktrace_mtx);
 	oldsize = ktr_requestpool;
 	newsize = ktrace_resize_pool(wantsize);
 	mtx_unlock(&ktrace_mtx);
-	td->td_inktrace = 0;
+	td->td_pflags &= ~TDP_INKTRACE;
 	error = SYSCTL_OUT(req, &oldsize, sizeof(uint));
 	if (error)
 		return (error);
@@ -215,11 +215,11 @@ ktr_getrequest(int type)
 	struct proc *p = td->td_proc;
 	int pm;
 
-	td->td_inktrace = 1;
+	td->td_pflags |= TDP_INKTRACE;
 	mtx_lock(&ktrace_mtx);
 	if (!KTRCHECK(td, type)) {
 		mtx_unlock(&ktrace_mtx);
-		td->td_inktrace = 0;
+		td->td_pflags &= ~TDP_INKTRACE;
 		return (NULL);
 	}
 	req = STAILQ_FIRST(&ktr_free);
@@ -248,7 +248,7 @@ ktr_getrequest(int type)
 		mtx_unlock(&ktrace_mtx);
 		if (pm)
 			printf("Out of ktrace request objects.\n");
-		td->td_inktrace = 0;
+		td->td_pflags &= ~TDP_INKTRACE;
 	}
 	return (req);
 }
@@ -261,7 +261,7 @@ ktr_submitrequest(struct ktr_request *req)
 	STAILQ_INSERT_TAIL(&ktr_todo, req, ktr_list);
 	sema_post(&ktrace_sema);
 	mtx_unlock(&ktrace_mtx);
-	curthread->td_inktrace = 0;
+	curthread->td_pflags &= ~TDP_INKTRACE;
 }
 
 static void
@@ -514,7 +514,7 @@ ktrace(td, uap)
 	if (ops != KTROP_CLEARFILE && facs == 0)
 		return (EINVAL);
 
-	td->td_inktrace = 1;
+	td->td_pflags |= TDP_INKTRACE;
 	if (ops != KTROP_CLEAR) {
 		/*
 		 * an operation which requires a file argument.
@@ -525,7 +525,7 @@ ktrace(td, uap)
 		error = vn_open(&nd, &flags, 0);
 		if (error) {
 			mtx_unlock(&Giant);
-			td->td_inktrace = 0;
+			td->td_pflags &= ~TDP_INKTRACE;
 			return (error);
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -534,7 +534,7 @@ ktrace(td, uap)
 		if (vp->v_type != VREG) {
 			(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 			mtx_unlock(&Giant);
-			td->td_inktrace = 0;
+			td->td_pflags &= ~TDP_INKTRACE;
 			return (EACCES);
 		}
 		mtx_unlock(&Giant);
@@ -623,7 +623,7 @@ done:
 		(void) vn_close(vp, FWRITE, td->td_ucred, td);
 		mtx_unlock(&Giant);
 	}
-	td->td_inktrace = 0;
+	td->td_pflags &= ~TDP_INKTRACE;
 	return (error);
 #else /* !KTRACE */
 	return (ENOSYS);
