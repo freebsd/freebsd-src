@@ -450,8 +450,7 @@ unsigned int ich_calibrate(struct sc_info *sc)
 	 * generated. */
 	struct sc_chinfo *ch = &sc->ch[1];
 	u_int16_t target_picb, actual_picb;
-	u_int32_t wait_us;
-	int32_t actual_48k_rate;
+	u_int32_t wait_us, actual_48k_rate;
        
 	KASSERT(ch->regbase == ICH_REG_PI_BASE, ("wrong direction"));
        
@@ -473,17 +472,17 @@ unsigned int ich_calibrate(struct sc_info *sc)
 	actual_48k_rate = 48000 * (2 * target_picb - actual_picb) / 
 		(target_picb);
 
-	if (bootverbose)
-		device_printf(sc->dev, 
-			      "Tgt PICB %d,  Act PICB %d, 48k rate %d\n", 
-			      target_picb, actual_picb, actual_48k_rate);
-
-	if ((actual_48k_rate - 48000) > 500 || 
-	    (actual_48k_rate - 48000) < -500) {
+	if (actual_48k_rate > 48500 || actual_48k_rate < 47500) {
 		sc->ac97rate = actual_48k_rate;
 	} else {
 		sc->ac97rate = 48000;
 	}
+
+	if (bootverbose)
+		device_printf(sc->dev, 
+			      "Estimated AC97 link rate %d, using %d\n", 
+			      actual_48k_rate, sc->ac97rate);
+
 	return sc->ac97rate;
 }
 
