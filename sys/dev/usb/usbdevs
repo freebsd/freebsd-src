@@ -635,6 +635,7 @@ product HP S20b			0x0202	PhotoSmart S20
 product HP 815C			0x0204	DeskJet 815C
 product HP 3300C		0x0205	ScanJet 3300C
 product HP CDW8200		0x0207	CD-Writer Plus 8200e
+product HP 1200C		0x0212	DeskJet 1220C
 product HP 810C			0x0304	DeskJet 810C/812C
 product HP 4300C		0x0305	Scanjet 4300C
 product HP G85XI		0x0311	OfficeJet G85xi
@@ -646,7 +647,9 @@ product HP 840C			0x0604	DeskJet 840c
 product HP 5300C		0x0701	Scanjet 5300C
 product HP 5400C		0x1105	Scanjet 5400C
 product HP 970CSE		0x1004	Deskjet 970Cse
+product HP 5400C		0x1005	Scanjet 5400C
 product HP 930C			0x1204	DeskJet 930c
+product HP P2000U		0x1801	Inkjet P-2000U
 product HP 640C			0x2004	DeskJet 640c
 product HP P1100		0x3102	Photosmart P1100
 
