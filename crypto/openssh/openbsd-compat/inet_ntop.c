@@ -1,4 +1,4 @@
-/*	$OpenBSD: inet_ntop.c,v 1.1 1997/03/13 19:07:32 downsj Exp $	*/
+/*	$OpenBSD: inet_ntop.c,v 1.5 2002/08/23 16:27:31 itojun Exp $	*/
 
 /* Copyright (c) 1996 by Internet Software Consortium.
  *
@@ -16,7 +16,7 @@
  * SOFTWARE.
  */
 
-#include "config.h"
+#include "includes.h"
 
 #ifndef HAVE_INET_NTOP
 
@@ -24,7 +24,7 @@
 #if 0
 static char rcsid[] = "$From: inet_ntop.c,v 8.7 1996/08/05 08:41:18 vixie Exp $";
 #else
-static char rcsid[] = "$OpenBSD: inet_ntop.c,v 1.1 1997/03/13 19:07:32 downsj Exp $";
+static char rcsid[] = "$OpenBSD: inet_ntop.c,v 1.5 2002/08/23 16:27:31 itojun Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -54,8 +54,8 @@ static char rcsid[] = "$OpenBSD: inet_ntop.c,v 1.1 1997/03/13 19:07:32 downsj Ex
  * sizeof(int) < 4.  sizeof(int) > 4 is fine; all the world's not a VAX.
  */
 
-static const char *inet_ntop4 __P((const u_char *src, char *dst, size_t size));
-static const char *inet_ntop6 __P((const u_char *src, char *dst, size_t size));
+static const char *inet_ntop4(const u_char *src, char *dst, size_t size);
+static const char *inet_ntop6(const u_char *src, char *dst, size_t size);
 
 /* char *
  * inet_ntop(af, src, dst, size)
@@ -103,13 +103,14 @@ inet_ntop4(src, dst, size)
 {
 	static const char fmt[] = "%u.%u.%u.%u";
 	char tmp[sizeof "255.255.255.255"];
+	int l;
 
-	if (snprintf(tmp, sizeof(tmp), fmt, src[0], src[1], src[2],
-	    src[3]) > size) {
+	l = snprintf(tmp, size, fmt, src[0], src[1], src[2], src[3]);
+	if (l <= 0 || l >= size) {
 		errno = ENOSPC;
 		return (NULL);
 	}
-	strcpy(dst, tmp);
+	strlcpy(dst, tmp, size);
 	return (dst);
 }
 
@@ -132,10 +133,12 @@ inet_ntop6(src, dst, size)
 	 * Keep this in mind if you think this function should have been coded
 	 * to use pointer overlays.  All the world's not a VAX.
 	 */
-	char tmp[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"], *tp;
+	char tmp[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"];
+	char *tp, *ep;
 	struct { int base, len; } best, cur;
 	u_int words[IN6ADDRSZ / INT16SZ];
 	int i;
+	int advance;
 
 	/*
 	 * Preprocess:
@@ -172,31 +175,45 @@ inet_ntop6(src, dst, size)
 	 * Format the result.
 	 */
 	tp = tmp;
-	for (i = 0; i < (IN6ADDRSZ / INT16SZ); i++) {
+	ep = tmp + sizeof(tmp);
+	for (i = 0; i < (IN6ADDRSZ / INT16SZ) && tp < ep; i++) {
 		/* Are we inside the best run of 0x00's? */
 		if (best.base != -1 && i >= best.base &&
 		    i < (best.base + best.len)) {
-			if (i == best.base)
+			if (i == best.base) {
+				if (tp + 1 >= ep)
+					return (NULL);
 				*tp++ = ':';
+			}
 			continue;
 		}
 		/* Are we following an initial run of 0x00s or any real hex? */
-		if (i != 0)
+		if (i != 0) {
+			if (tp + 1 >= ep)
+				return (NULL);
 			*tp++ = ':';
+		}
 		/* Is this address an encapsulated IPv4? */
 		if (i == 6 && best.base == 0 &&
 		    (best.len == 6 || (best.len == 5 && words[5] == 0xffff))) {
-			if (!inet_ntop4(src+12, tp, sizeof tmp - (tp - tmp)))
+			if (!inet_ntop4(src+12, tp, (size_t)(ep - tp)))
 				return (NULL);
 			tp += strlen(tp);
 			break;
 		}
-		snprintf(tp, sizeof(tmp - (tp - tmp)), "%x", words[i]);
-		tp += strlen(tp);
+		advance = snprintf(tp, ep - tp, "%x", words[i]);
+		if (advance <= 0 || advance >= ep - tp)
+			return (NULL);
+		tp += advance;
 	}
 	/* Was it a trailing run of 0x00's? */
-	if (best.base != -1 && (best.base + best.len) == (IN6ADDRSZ / INT16SZ))
+	if (best.base != -1 && (best.base + best.len) == (IN6ADDRSZ / INT16SZ)) {
+		if (tp + 1 >= ep)
+			return (NULL);
 		*tp++ = ':';
+	}
+	if (tp + 1 >= ep)
+		return (NULL);
 	*tp++ = '\0';
 
 	/*
@@ -206,7 +223,7 @@ inet_ntop6(src, dst, size)
 		errno = ENOSPC;
 		return (NULL);
 	}
-	strcpy(dst, tmp);
+	strlcpy(dst, tmp, size);
 	return (dst);
 }
 
