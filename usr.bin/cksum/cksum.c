@@ -32,18 +32,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: cksum.c,v 1.3 1997/06/25 07:02:03 charnier Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)cksum.c	8.2 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -76,12 +78,12 @@ main(argc, argv)
 		p = argv[0];
 	else
 		++p;
-	if (*p == 'c') {
-		cfncn = crc;
-		pfncn = pcrc;
-	} else {
+	if (!strcmp(p, "sum")) {
 		cfncn = csum1;
 		pfncn = psum1;
+	} else {
+		cfncn = crc;
+		pfncn = pcrc;
 	}
 
 	while ((ch = getopt(argc, argv, "o:")) != -1)
@@ -131,5 +133,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "usage: cksum [-o 1 | 2] [file ...]\n");
+	(void)fprintf(stderr, "       sum [file ...]\n");
 	exit(1);
 }
