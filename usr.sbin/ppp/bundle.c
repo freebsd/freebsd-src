@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.54 1998/04/19 15:24:36 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.55 1998/04/19 23:08:11 brian Exp $
  */
 
 #include <sys/types.h>
@@ -856,7 +856,7 @@ bundle_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, " Interface: %s\n", arg->bundle->dev);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
-  prompt_Printf(arg->prompt, " Auth name: %s\n", arg->bundle->cfg.auth.name);
+  prompt_Printf(arg->prompt, " Auth name:  %s\n", arg->bundle->cfg.auth.name);
   prompt_Printf(arg->prompt, " Idle Timer: ");
   if (arg->bundle->cfg.idle_timeout) {
     prompt_Printf(arg->prompt, "%ds", arg->bundle->cfg.idle_timeout);
