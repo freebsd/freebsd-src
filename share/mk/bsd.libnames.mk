@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-# The include file <bsd.libnames.mk> define library names. 
-# Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
+# The include file <bsd.libnames.mk> define library names.
+# Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this
 # file where necessary.
 
 .if !target(__<bsd.init.mk>__)

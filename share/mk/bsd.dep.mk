@@ -18,7 +18,7 @@
 # MKDEP		Options for ${MKDEPCMD} [not set]
 #
 # MKDEPCMD	Makefile dependency list program [mkdep]
-# 
+#
 # SRCS          List of source files (c, c++, assembler)
 #
 # DPSRCS	List of source files which are needed for generating
