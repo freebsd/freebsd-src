@@ -34,7 +34,7 @@
 
 #include <config.h>
 
-RCSID("$Id: krb4encpwd.c,v 1.17 1998/07/09 23:16:29 assar Exp $");
+RCSID("$Id: krb4encpwd.c,v 1.18 1999/09/16 20:41:34 assar Exp $");
 
 #ifdef	KRB4_ENCPWD
 /*
@@ -309,7 +309,7 @@ krb4encpwd_reply(ap, data, cnt)
 		des_read_pw_string(user_passwd, sizeof(user_passwd)-1, "Password: ", 0);
 		UserPassword = user_passwd;
 		Challenge = challenge;
-		strcpy_truncate(instance, RemoteHostName, sizeof(instance));
+		strlcpy(instance, RemoteHostName, sizeof(instance));
 		if ((cp = strchr(instance, '.')) != 0)  *cp = '\0';
 
 		if (r = krb_mk_encpwd_req(&krb_token, KRB_SERVICE_NAME, instance, realm, Challenge, UserNameRequested, user_passwd)) {
@@ -339,7 +339,7 @@ krb4encpwd_status(ap, name, name_sz, level)
 		return(level);
 
 	if (UserNameRequested && passwdok(UserNameRequested, UserPassword)) {
-		strcpy_truncate(name, UserNameRequested, name_sz);
+		strlcpy(name, UserNameRequested, name_sz);
 		return(AUTH_VALID);
 	} else {
 		return(AUTH_USER);
@@ -361,11 +361,11 @@ krb4encpwd_printsub(data, cnt, buf, buflen)
 
 	switch(data[3]) {
 	case KRB4_ENCPWD_REJECT:	/* Rejected (reason might follow) */
-		strcpy_truncate((char *)buf, " REJECT ", buflen);
+		strlcpy((char *)buf, " REJECT ", buflen);
 		goto common;
 
 	case KRB4_ENCPWD_ACCEPT:	/* Accepted (name might follow) */
-		strcpy_truncate((char *)buf, " ACCEPT ", buflen);
+		strlcpy((char *)buf, " ACCEPT ", buflen);
 	common:
 		BUMP(buf, buflen);
 		if (cnt <= 4)
@@ -378,15 +378,15 @@ krb4encpwd_printsub(data, cnt, buf, buflen)
 		break;
 
 	case KRB4_ENCPWD_AUTH:		/* Authentication data follows */
-		strcpy_truncate((char *)buf, " AUTH", buflen);
+		strlcpy((char *)buf, " AUTH", buflen);
 		goto common2;
 
 	case KRB4_ENCPWD_CHALLENGE:
-		strcpy_truncate((char *)buf, " CHALLENGE", buflen);
+		strlcpy((char *)buf, " CHALLENGE", buflen);
 		goto common2;
 
 	case KRB4_ENCPWD_ACK:
-		strcpy_truncate((char *)buf, " ACK", buflen);
+		strlcpy((char *)buf, " ACK", buflen);
 		goto common2;
 
 	default:
