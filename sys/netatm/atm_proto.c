@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <net/if.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
@@ -114,6 +115,8 @@ struct domain atmdomain = {
 
 DOMAIN_SET(atm);
 
+SYSCTL_NODE(_net, PF_ATM, harp, CTLFLAG_RW, 0, "HARP/ATM family");
+SYSCTL_NODE(_net_harp, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM layer");
 
 /*
  * Protocol request not supported
