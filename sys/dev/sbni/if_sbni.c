@@ -240,7 +240,8 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	ifp->if_baudrate =
 		(csr0 & 0x01 ? 500000 : 2000000) / (1 << flags.rate);
 
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSGIANT;
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
