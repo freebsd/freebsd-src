@@ -2558,7 +2558,7 @@ sppp_lcp_tlu(struct sppp *sp)
 
 	/* Send Up events to all started protos. */
 	for (i = 0, mask = 1; i < IDX_COUNT; i++, mask <<= 1)
-		if (sp->lcp.protos & mask && ((cps[i])->flags & CP_LCP) == 0)
+		if ((sp->lcp.protos & mask) && ((cps[i])->flags & CP_LCP) == 0)
 			(cps[i])->Up(sp);
 
 	/* notify low-level driver of state change */
@@ -2590,7 +2590,7 @@ sppp_lcp_tld(struct sppp *sp)
 	 * describes it.
 	 */
 	for (i = 0, mask = 1; i < IDX_COUNT; i++, mask <<= 1)
-		if (sp->lcp.protos & mask && ((cps[i])->flags & CP_LCP) == 0) {
+		if ((sp->lcp.protos & mask) && ((cps[i])->flags & CP_LCP) == 0) {
 			(cps[i])->Down(sp);
 			(cps[i])->Close(sp);
 		}
@@ -2684,7 +2684,7 @@ sppp_ncp_check(struct sppp *sp)
 	int i, mask;
 
 	for (i = 0, mask = 1; i < IDX_COUNT; i++, mask <<= 1)
-		if (sp->lcp.protos & mask && (cps[i])->flags & CP_NCP)
+		if ((sp->lcp.protos & mask) && (cps[i])->flags & CP_NCP)
 			return 1;
 	return 0;
 }
@@ -4475,7 +4475,7 @@ sppp_phase_network(struct sppp *sp)
 
 	/* Send Up events to all NCPs. */
 	for (i = 0, mask = 1; i < IDX_COUNT; i++, mask <<= 1)
-		if (sp->lcp.protos & mask && ((cps[i])->flags & CP_NCP))
+		if ((sp->lcp.protos & mask) && ((cps[i])->flags & CP_NCP))
 			(cps[i])->Up(sp);
 
 	/* if no NCP is starting, all this was in vain, close down */
