@@ -3,12 +3,14 @@
 Introduction:
 	The FreeBSD Project filters spam, unsolicited commerical
 e-mail, from its mailing lists.  The filter has two parts: databases
-and rulesets.  We have added three rulesets to /etc/sendmail.cf,
-check_relay and check_mail and xlat. (xlat is for testing only, as
-explained in /etc/mail/sendmail.cf.additions.) These rulesets use
-two databases.  The denyip, a list of IP addresses, and spamsites,
-a list of domains.  We do not accept mail from any machine that
-matches a entry in either database.
+and rulesets.  We have rulesets to /etc/sendmail.cf, check_rcpt,
+check_relay, check_rbl, check_mail and xlat. (xlat is for testing
+only, as explained in /etc/mail/sendmail.cf.additions.) These
+rulesets use three databases.  The denyip, a list of IP addresses,
+spamsites, a list of domains, and fakenames, a list of bogus
+usernames (such as investor and success).  We do not accept mail
+from any machine that matches a entry in either database, or usersr
+in the fakenames database.
 
 Filtering at your site:
 	To filter spam at your site you need to:
@@ -55,11 +57,24 @@ for every message filtered.  The lines will be similar to one of
 these two log entries:
 
 Check_mail rejects:
-"Oct 15 02:43:26 hub sendmail[6565]: CAA06565: ruleset=check_mail,
+Oct 15 02:43:26 hub sendmail[6565]: CAA06565: ruleset=check_mail,
 arg1=<announce@martianconsulate.com>, relay=xxx.isp.net [###.###.###.###],
-reject=521 <announce@martianconsulate.com>"
+reject=521 <announce@martianconsulate.com>
+
+Nov 30 15:56:37 hub sendmail[15058]: PAA15058: ruleset=check_mail,
+arg1=<ultramax@s2.eddelwissl.NET>, relay=relay.somewhere.com
+[###.###.###.###], reject=451 <ultramax@s2.eddelwissl.NET>... Domain
+does not resolve
+
 
 Check_relay rejects:
 Oct 19 04:45:24 hub sendmail[3503]: NOQUEUE: ruleset=check_relay,
 arg1=imsp015.netvigator.com, arg2=205.252.144.206, relay=root@localhost,
 reject=521 blocked.contact postmaster@FreeBSD.ORG
+
+check_rcpt reject:
+Nov 30 15:04:08 hub sendmail[12390]: PAA12390: ruleset=check_rcpt,
+arg1=investor@100percent.per.year.com, relay=newfed.frb.gov
+[198.3.221.5], reject=553 investor@100percent.per.year.com...
+521<investor@100percent.per.year.com>#blocked.contact postmaster
+Sun Nov 16 11:40:53 PST 1997
