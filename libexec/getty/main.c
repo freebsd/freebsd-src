@@ -205,10 +205,8 @@ main(int argc, char *argv[])
 	gettable("default", defent);
 	gendefaults();
 	tname = "default";
-	if (argc > 1) {
+	if (argc > 1)
 		tname = argv[1];
-		dogettytab(tname);
-	}
 
 	/*
 	 * The following is a work around for vhangup interactions
@@ -217,9 +215,10 @@ main(int argc, char *argv[])
 	 * that the file descriptors are already set up for us.
 	 * J. Gettys - MIT Project Athena.
 	 */
-	if (argc <= 2 || strcmp(argv[2], "-") == 0)
+	if (argc <= 2 || strcmp(argv[2], "-") == 0) {
 	    strcpy(ttyn, ttyname(STDIN_FILENO));
-	else {
+	    dogettytab(tname);
+	} else {
 	    strcpy(ttyn, dev);
 	    strncat(ttyn, argv[2], sizeof(ttyn)-sizeof(dev));
 	    if (strcmp(argv[0], "+") != 0) {
@@ -232,6 +231,7 @@ main(int argc, char *argv[])
 		if (IC) {
 			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
 				exit(1);
+			dogettytab(tname);
 			setdefttymode();
 			if (getty_chat(IC, CT, DC) > 0) {
 				syslog(LOG_ERR, "modem init problem on %s", ttyn);
@@ -246,6 +246,7 @@ main(int argc, char *argv[])
 
 			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
 				exit(1);
+			dogettytab(tname);
         		setdefttymode();
         		rfds = 1 << 0;	/* FD_SET */
         		to.tv_sec = RT;
@@ -268,6 +269,7 @@ main(int argc, char *argv[])
 		} else { /* maybe blocking open */
 			if (!opentty(ttyn, O_RDWR | (NC ? O_NONBLOCK : 0 )))
 				exit(1);
+			dogettytab(tname);
 		}
 	    }
 	}
@@ -801,6 +803,7 @@ putf(const char *cp)
 static void
 dogettytab(const char *tname)
 {
+	struct termios backupmode;
 	
 	/* Read the database entry */
 	gettable(tname, tabent);
@@ -813,6 +816,17 @@ dogettytab(const char *tname)
 	if (OPset || EPset || APset || NPset)
 		OPset = EPset = APset = NPset = 1;
 
-	/* Fill in default values for unset capabilities */
+	/*
+	 * Fill in default values for unset capabilities.  Since the
+	 * defaults are derived from the actual tty mode, save any
+	 * changes to the tmode and fetch it temporarily for
+	 * setdefaults() to use.
+	 */
+	backupmode = tmode;
+	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
+		syslog(LOG_ERR, "tcgetattr %s: %m", ttyn);
+		exit(1);
+	}
 	setdefaults();
+	tmode = backupmode;
 }
