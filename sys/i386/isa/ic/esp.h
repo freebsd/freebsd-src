@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: esp.h,v 1.3 1997/02/22 09:38:00 peter Exp $
  */
 
 #ifndef _IC_ESP_H_
@@ -39,8 +39,13 @@
 /*
  * CMD1 and CMD2 are the command ports, offsets from <esp_iobase>.
  */
+#ifdef PC98
+#define	ESP_CMD1	0x400
+#define	ESP_CMD2	0x500
+#else
 #define	ESP_CMD1	4
 #define	ESP_CMD2	5
+#endif
 
 /*
  * STAT1 and STAT2 are to get return values and status bytes;
@@ -59,6 +64,9 @@
 #define	ESP_SETFLOWTYPE	0x08	/* set type of flow-control (2 bytes) */
 #define	ESP_SETRXFLOW	0x0a	/* set Rx FIFO flow control levels (4 bytes) */
 #define	ESP_SETMODE	0x10	/* set board mode (1 byte) */
+#ifdef PC98
+#define ESP_SETCLOCK	0x23	/* set UART clock prescaler */
+#endif
 
 /* Mode bits (ESP_SETMODE). */
 #define	ESP_MODE_FIFO	0x02	/* act like a 16550 (compatibility mode) */
