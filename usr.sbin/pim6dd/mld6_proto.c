@@ -62,7 +62,7 @@
  *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
- *  $Id: mld6_proto.c,v 1.4 2000/05/05 12:38:30 jinmei Exp $
+ *  $Id: mld6_proto.c,v 1.5 2000/10/05 22:20:38 itojun Exp $
  */
 /*
  * Part of this program has been derived from PIM sparse-mode pimd.
@@ -227,7 +227,7 @@ accept_listener_query(src, dst, group, tmo)
 				IF_DEBUG(DEBUG_MLD)
 					log(LOG_DEBUG, 0,
 					    "timer for grp %s on mif %d "
-					    "set to %d",
+					    "set to %ld",
 					    inet6_fmt(group),
 					    mifi, g->al_timer);
 				break;
@@ -268,7 +268,7 @@ accept_listener_report(src, dst, group)
 	IF_DEBUG(DEBUG_MLD)
 		log(LOG_INFO, 0,
 		    "accepting multicast listener report: "
-		    "src %s, dst% s, grp %s",
+		    "src %s, dst %s, grp %s",
 		    inet6_fmt(&src->sin6_addr), inet6_fmt(dst),
 		    inet6_fmt(group));
 
@@ -340,7 +340,7 @@ accept_listener_done(src, dst, group)
 
 	IF_DEBUG(DEBUG_MLD)
 		log(LOG_INFO, 0,
-		    "accepting listener done message: src %s, dst% s, grp %s",
+		    "accepting listener done message: src %s, dst %s, grp %s",
 		    inet6_fmt(&src->sin6_addr),
 		    inet6_fmt(dst), inet6_fmt(group));
 
@@ -359,7 +359,7 @@ accept_listener_done(src, dst, group)
 		if (inet6_equal(&group_sa, &g->al_addr)) {
 			IF_DEBUG(DEBUG_MLD)
 				log(LOG_DEBUG, 0,
-				    "[accept_done_message] %d %d \n",
+				    "[accept_done_message] %d %ld\n",
 				    g->al_old, g->al_query);
 
 			/*

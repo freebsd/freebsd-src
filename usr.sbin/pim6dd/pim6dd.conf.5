@@ -1,3 +1,5 @@
+.\"	$KAME: pim6dd.conf.5,v 1.6 2000/07/10 08:52:59 itojun Exp $
+.\"
 .\" Copyright (C) 1998 WIDE Project.
 .\" All rights reserved.
 .\" 
@@ -25,7 +27,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	KAME Id: pim6dd.conf.5,v 1.4 2000/07/09 17:26:52 itojun Exp
 .\"	$FreeBSD$
 .\"
 .Dd Nov 17, 1998
@@ -46,7 +47,8 @@ Lines beginning with
 .Ql #
 are comments.
 .Pp
-There are four types of configuration commands:
+The following configuration directives are availble:
+.Pp
 .Bl -tag -width Ds -compact
 .It Xo
 .Ic default_source_preference Ar preference
@@ -55,14 +57,17 @@ Specifies a default preference value when sending a PIM assert message.
 Preferences are used by assert elections to determine upstream routers.
 Currently
 .Xr pim6dd 8
-cannot reliably obtain preferences and metrics from the
-unicast routing protocols, so a default value may be configured.
+does not have an effective method to obtain preferences and metrics from the
+unicast routing protocols, so you may want to set a default value by hand.
 .\"
 .It Ic default_source_metric Ar metric
 Specifies a default metric value when sending a PIM assert message.
-It is recommended that preferences be set such that metrics are never
-consulted. However, default metrics may also be set and will default to
-1024.
+Since
+.Xr pim6dd 8
+cannot get an effective metric of unicast routing,
+it is recommended that preferences is set such that metrics are never
+consulted. However, default metrics may also be set, and
+its default value is 1024.
 .\"
 .It Xo
 .Ic phyint Ar interface
@@ -87,7 +92,8 @@ assert message on the interface.
 .It Xo
 .Ic filter Ar groupaddrs Ar interfaces...
 .Xc
-Specifies an output filter. If an incoming multicast packet's destination
+Specifies an output filter by defining an administrative scope.
+If an incoming multicast packet's destination
 matches the specified
 .Ar groupaddrs ,
 the packet is not sent on the
