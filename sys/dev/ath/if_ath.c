@@ -1632,10 +1632,8 @@ ath_mbuf_load_cb(void *arg, bus_dma_segment_t *seg, int nseg, bus_size_t mapsize
 {
 	struct ath_buf *bf = arg;
 
-	KASSERT(nseg <= ATH_MAX_SCATTER,
-		("%s: too many DMA segments %u", __func__, nseg));
-	KASSERT(error == 0,
-		("%s: error %u on bus_dma callback", __func__, error));
+	KASSERT(nseg <= ATH_MAX_SCATTER, ("too many DMA segments %u", nseg));
+	KASSERT(error == 0, ("error %u on bus_dma callback", error));
 	bf->bf_mapsize = mapsize;
 	bf->bf_nseg = nseg;
 	bcopy(seg, bf->bf_segs, nseg * sizeof (seg[0]));
@@ -2094,8 +2092,7 @@ static void
 ath_load_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
 	bus_addr_t *paddr = (bus_addr_t*) arg;
-	KASSERT(error == 0,
-		("%s: error %u on bus_dma callback", __func__, error));
+	KASSERT(error == 0, ("error %u on bus_dma callback", error));
 	*paddr = segs->ds_addr;
 }
 
@@ -2390,7 +2387,6 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 			sc->sc_stats.ast_rx_nombuf++;
 			return ENOMEM;
 		}
-		KASSERT(m->m_next == NULL, ("m_next %p (1)", m->m_next));
 		bf->bf_m = m;
 		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 
@@ -2405,8 +2401,8 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 			sc->sc_stats.ast_rx_busdma++;
 			return error;
 		}
-		KASSERT(bf->bf_nseg == 1, ("%s: multi-segment packet; nseg %u",
-			__func__, bf->bf_nseg));
+		KASSERT(bf->bf_nseg == 1,
+			("multi-segment packet; nseg %u", bf->bf_nseg));
 	}
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREREAD);
 
@@ -2624,7 +2620,6 @@ ath_rx_proc(void *arg, int npending)
 				goto rx_next;
 		}
 rx_accept:
-		KASSERT(m->m_next == NULL, ("m_next %p (3)", m->m_next));
 		/*
 		 * Sync and unmap the frame.  At this point we're
 		 * committed to passing the mbuf somewhere so clear
@@ -3016,8 +3011,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			return error;
 		}
 		KASSERT(bf->bf_nseg == 1,
-			("ath_tx_start: packet not one segment; nseg %u",
-			bf->bf_nseg));
+			("packet not one segment; nseg %u", bf->bf_nseg));
 	} else if (bf->bf_nseg == 0) {		/* null packet, discard */
 		sc->sc_stats.ast_tx_nodata++;
 		m_freem(m0);
