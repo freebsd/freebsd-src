@@ -947,7 +947,7 @@ typedef void (*ndis_proc)(struct ndis_work_item *, void *);
 
 struct ndis_work_item {
 	void			*nwi_ctx;
-	ndis_proc		nwi_func;
+	void			*nwi_func;
 	uint8_t			nwi_wraprsvd[sizeof(void *) * 8];
 };
 
