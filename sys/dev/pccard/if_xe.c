@@ -133,7 +133,7 @@
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/if_xereg.h>
+#include <dev/pccard/if_xereg.h>
 #include <machine/clock.h>
 #if NAPM > 0
 #include <machine/apm_bios.h>
