@@ -428,6 +428,7 @@ product ACTIONTEC UAT1	0x7605	UAT1 Wireless Ethernet adapter
 /* ADMtek products */
 product ADMTEK PEGASUS		0x0986	AN986 USB Ethernet adapter
 product ADMTEK PEGASUSII	0x8511	AN8511 USB Ethernet adapter
+product ADMTEK PEGASUSII_2	0x8513	AN8513 USB Ethernet adapter
 
 /* ADS products */
 product ADS UBS10BT		0x0008	UBS-10BT Ethernet adapter
