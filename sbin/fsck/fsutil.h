@@ -37,13 +37,10 @@ void pwarn(const char *, ...)
     __attribute__((__format__(__printf__,1,2)));  
 void panic(const char *, ...)
     __attribute__((__noreturn__,__format__(__printf__,1,2)));  
-const char *rawname(const char *);
-const char *unrawname(const char *);
 const char *devcheck(const char *);
 const char *cdevname(void);
 void setcdevname(const char *, int);
 struct statfs *getmntpt(const char *);
-int  hotroot(void);
 void *emalloc(size_t);
 void *erealloc(void *, size_t);
 char *estrdup(const char *);
