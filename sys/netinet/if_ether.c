@@ -341,21 +341,42 @@ arprequest(ifp, sip, tip, enaddr)
  * that desten has been filled in and the packet should be sent
  * normally; a 0 return indicates that the packet has been
  * taken over here, either now or for later transmission.
+ *
+ * NEW COMMENT
+ * Resolve an IP address into an ethernet address.
+ * On input:
+ *    ifp is the interface we use
+ *    dst is the next hop,
+ *    rt0 is the route to the final destination (possibly useless)
+ *    m is the mbuf
+ *    desten is where we want the address.
+ *
+ * On success, desten is filled in and the function returns 0;
+ * If the packet must be held pending resolution, we return EWOULDBLOCK
+ * On other errors, we return the corresponding error code.
  */
 int
-arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
+arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	struct sockaddr *dst, u_char *desten)
 {
 	struct llinfo_arp *la = 0;
 	struct sockaddr_dl *sdl;
+	int error;
+	struct rtentry *rt;
+
+	error = rt_check(&rt, &rt0, dst);
+	if (error) {
+		m_freem(m);
+		return error;
+	}
 
 	if (m->m_flags & M_BCAST) {	/* broadcast */
 		(void)memcpy(desten, ifp->if_broadcastaddr, ifp->if_addrlen);
-		return (1);
+		return (0);
 	}
 	if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {/* multicast */
 		ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
-		return(1);
+		return (0);
 	}
 	if (rt)
 		la = (struct llinfo_arp *)rt->rt_llinfo;
@@ -369,7 +390,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
 			inet_ntoa(SIN(dst)->sin_addr), la ? "la" : "",
 				rt ? "rt" : "");
 		m_freem(m);
-		return (0);
+		return (EINVAL); /* XXX */
 	}
 	sdl = SDL(rt->rt_gateway);
 	/*
@@ -393,7 +414,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
 		} 
 
 		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
-		return 1;
+		return (0);
 	}
 	/*
 	 * If ARP is disabled or static on this interface, stop.
@@ -403,7 +424,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
 	 */
 	if (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) {
 		m_freem(m);
-		return (0);
+		return (EINVAL);
 	}
 	/*
 	 * There is an arptab entry, but no ethernet address
@@ -433,7 +454,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
 		}
 		RT_UNLOCK(rt);
 	}
-	return (0);
+	return (EWOULDBLOCK);
 }
 
 /*

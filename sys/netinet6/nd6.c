@@ -2032,15 +2032,16 @@ nd6_need_cache(ifp)
 }
 
 int
-nd6_storelladdr(ifp, rt, m, dst, desten)
+nd6_storelladdr(ifp, rt0, m, dst, desten)
 	struct ifnet *ifp;
-	struct rtentry *rt;
+	struct rtentry *rt0;
 	struct mbuf *m;
 	struct sockaddr *dst;
 	u_char *desten;
 {
 	int i;
 	struct sockaddr_dl *sdl;
+	struct rtentry *rt;
 
 	if (m->m_flags & M_MCAST) {
 		switch (ifp->if_type) {
@@ -2073,26 +2074,32 @@ nd6_storelladdr(ifp, rt, m, dst, desten)
 		}
 	}
 
+	i = rt_check(&rt, &rt0, dst);
+	if (i) {
+		m_freem(m);
+		return i;
+	}
+
 	if (rt == NULL) {
 		/* this could happen, if we could not allocate memory */
 		m_freem(m);
-		return (0);
+		return (ENOMEM);
 	}
 	if (rt->rt_gateway->sa_family != AF_LINK) {
 		printf("nd6_storelladdr: something odd happens\n");
 		m_freem(m);
-		return (0);
+		return (EINVAL);
 	}
 	sdl = SDL(rt->rt_gateway);
 	if (sdl->sdl_alen == 0) {
 		/* this should be impossible, but we bark here for debugging */
 		printf("nd6_storelladdr: sdl_alen == 0\n");
 		m_freem(m);
-		return (0);
+		return (EINVAL);
 	}
 
 	bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
-	return (1);
+	return (0);
 }
 
 static int nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS);

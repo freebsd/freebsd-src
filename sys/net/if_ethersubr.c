@@ -132,9 +132,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct rtentry *rt0)
 {
 	short type;
-	int error = 0, hdrcmplt = 0;
+	int error, hdrcmplt = 0;
 	u_char esrc[ETHER_ADDR_LEN], edst[ETHER_ADDR_LEN];
-	struct rtentry *rt;
 	struct ether_header *eh;
 	int loop_copy = 0;
 	int hlen;	/* link layer header length */
@@ -150,16 +149,13 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
 
-	error = rt_check(&rt, &rt0, dst);
-	if (error)
-		goto bad;
-
 	hlen = ETHER_HDR_LEN;
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		if (!arpresolve(ifp, rt, m, dst, edst))
-			return (0);	/* if not yet resolved */
+		error = arpresolve(ifp, rt0, m, dst, edst);
+		if (error)
+			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);
 		break;
 	case AF_ARP:
@@ -192,10 +188,9 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		if (!nd6_storelladdr(ifp, rt, m, dst, (u_char *)edst)) {
-			/* Something bad happened */
-			return(0);
-		}
+		error = nd6_storelladdr(ifp, rt0, m, dst, (u_char *)edst);
+		if (error)
+			return error;
 		type = htons(ETHERTYPE_IPV6);
 		break;
 #endif
@@ -216,15 +211,12 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	  {
 	    struct at_ifaddr *aa;
 
-	    if ((aa = at_ifawithnet((struct sockaddr_at *)dst)) == NULL) {
-		    goto bad;
-	    }
-	    if (!aarpresolve(IFP2AC(ifp), m, (struct sockaddr_at *)dst, edst))
+	    if ((aa = at_ifawithnet((struct sockaddr_at *)dst)) == NULL)
+		    senderr(EHOSTUNREACH); /* XXX */
+	    if (!aarpresolve(ifp, m, (struct sockaddr_at *)dst, edst))
 		    return (0);
 	    /*
 	     * In the phase 2 case, need to prepend an mbuf for the llc header.
-	     * Since we must preserve the value of m, which is passed to us by
-	     * value, we m_copy() the first mbuf, and use it for our llc header.
 	     */
 	    if ( aa->aa_flags & AFA_PHASE2 ) {
 		struct llc llc;
