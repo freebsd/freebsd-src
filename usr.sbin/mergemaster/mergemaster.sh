@@ -238,7 +238,7 @@ case "${RERUN}" in
 
   { cd ${SOURCEDIR} &&
     make DESTDIR=${TEMPROOT} distrib-dirs &&
-    make DESTDIR=${TEMPROOT} distribution;} ||
+    make DESTDIR=${TEMPROOT} -DNO_MAKEDEV distribution;} ||
   { echo '';
     echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to the";
     echo "      temproot environment";
