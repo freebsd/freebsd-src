@@ -2131,7 +2131,7 @@ dc_attach(device_t dev)
 		goto fail;
 	}
 	error = bus_dmamem_alloc(sc->dc_ltag, (void **)&sc->dc_ldata,
-	    BUS_DMA_NOWAIT, &sc->dc_lmap);
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->dc_lmap);
 	if (error) {
 		printf("dc%d: failed to allocate DMA safe memory\n", unit);
 		error = ENXIO;
@@ -2145,7 +2145,6 @@ dc_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
-	bzero(sc->dc_ldata, sizeof(struct dc_list_data));
 
 	/*
 	 * Allocate a busdma tag and DMA safe memory for the multicast

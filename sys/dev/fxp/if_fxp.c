@@ -642,7 +642,7 @@ fxp_attach(device_t dev)
 	}
 
 	error = bus_dmamem_alloc(sc->fxp_stag, (void **)&sc->fxp_stats,
-	    BUS_DMA_NOWAIT, &sc->fxp_smap);
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->fxp_smap);
 	if (error)
 		goto fail;
 	error = bus_dmamap_load(sc->fxp_stag, sc->fxp_smap, sc->fxp_stats,
@@ -651,7 +651,6 @@ fxp_attach(device_t dev)
 		device_printf(dev, "could not map the stats buffer\n");
 		goto fail;
 	}
-	bzero(sc->fxp_stats, sizeof(struct fxp_stats));
 
 	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, FXP_TXCB_SZ, 1,
@@ -662,10 +661,9 @@ fxp_attach(device_t dev)
 	}
 
 	error = bus_dmamem_alloc(sc->cbl_tag, (void **)&sc->fxp_desc.cbl_list,
-	    BUS_DMA_NOWAIT, &sc->cbl_map);
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->cbl_map);
 	if (error)
 		goto fail;
-	bzero(sc->fxp_desc.cbl_list, FXP_TXCB_SZ);
 
 	error = bus_dmamap_load(sc->cbl_tag, sc->cbl_map,
 	    sc->fxp_desc.cbl_list, FXP_TXCB_SZ, fxp_dma_map_addr,
