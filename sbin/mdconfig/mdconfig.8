@@ -183,6 +183,15 @@ newfs -U /dev/md10
 mount /dev/md10 /tmp
 chmod 1777 /tmp
 .Ed
+.Pp
+To create a 5MB file-backed disk:
+.Bd -literal -offset indent
+dd if=/dev/zero of=somebackingfile bs=1k count=5k
+mdconfig -a -t vnode -f somebackingfile -u 0
+bsdlabel -w md0 auto
+newfs md0c
+mount /dev/md0c /mnt
+.Ed
 .Sh SEE ALSO
 .Xr md 4 ,
 .Xr bsdlabel 8 ,
