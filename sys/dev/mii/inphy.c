@@ -79,10 +79,8 @@ static int
 inphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
-	device_t parent;
 
 	ma = device_get_ivars(dev);
-	parent = device_get_parent(device_get_parent(dev));
 
 	/* Intel 82553 A/B steppings */
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxINTEL &&
