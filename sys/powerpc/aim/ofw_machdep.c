@@ -129,6 +129,12 @@ openfirmware(void *args)
 			srsave[i] = mfsrin(i << ADDR_SR_SHFT);
 			mtsrin(i << ADDR_SR_SHFT, ofw_pmap.pm_sr[i]);
 		}
+
+		/*
+		 * Clear battable[] translations
+		 */
+		__asm __volatile("mtdbatu 2, %0\n"
+				 "mtdbatu 3, %0" : : "r" (0));
 		isync();
 	}
 	
