@@ -83,12 +83,10 @@ u_int	cpu_id = 0;		/* Stepping ID */
 u_int	cpu_feature = 0;	/* Feature flags */
 u_int	cpu_high = 0;		/* Highest arg to CPUID */
 u_int	cpuid_cpuinfo = 0;	/* HyperThreading Info / Brand Index / CLFUSH */
-u_int	cpu_exthigh = 0;	/* Highest arg to extended CPUID */
 #ifdef CPU_ENABLE_SSE
 u_int	cpu_fxsr = 0;		/* SSE enabled */
 #endif
 char	cpu_vendor[20] = "";	/* CPU Origin code */
-char	cpu_brand[48] = "";	/* Brand name */
 
 #ifdef I486_CPU
 /*

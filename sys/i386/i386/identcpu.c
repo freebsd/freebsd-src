@@ -84,8 +84,9 @@ static void print_AMD_assoc(int i);
 static void print_transmeta_info(void);
 static void setup_tmx86_longrun(void);
 
+int	cpu_class;
+u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
-int cpu_class = CPUCLASS_386;	/* least common denominator */
 char machine[] = "i386";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, 
     machine, 0, "Machine class");
@@ -93,6 +94,8 @@ SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
 static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, 
     cpu_model, 0, "Machine model");
+
+static char cpu_brand[48];
 
 #define	MAX_BRAND_INDEX	8
 
@@ -135,13 +138,36 @@ int has_f00f_bug = 0;		/* Initialized so that it can be patched. */
 void
 printcpuinfo(void)
 {
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
+	u_int regs[4], i;
+#endif
 	char *brand;
 
 	cpu_class = i386_cpus[cpu].cpu_class;
 	printf("CPU: ");
-	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
+	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof (cpu_model));
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
+	/* Check for extended CPUID information and a processor name. */
+	if (cpu_high > 0 &&
+	    (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
+	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
+	    strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
+	    strcmp(cpu_vendor, "TransmetaCPU") == 0)) {
+		do_cpuid(0x80000000, regs);
+		if (regs[0] >= 0x80000000) {
+			cpu_exthigh = regs[0];
+			if (cpu_exthigh >= 0x80000004) {
+				brand = cpu_brand;
+				for (i = 0x80000002; i < 0x80000005; i++) {
+					do_cpuid(i, regs);
+					memcpy(brand, regs, sizeof(regs));
+					brand += sizeof(regs);
+				}
+			}
+		}
+	}
+
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
 		if ((cpu_id & 0xf00) > 0x300) {
 			u_int brand_index;
