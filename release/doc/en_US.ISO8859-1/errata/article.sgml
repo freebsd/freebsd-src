@@ -257,9 +257,14 @@ hw.ata.atapi_dma="1"</programlisting>
       empty (most notably
       <filename>/usr/share/examples/cvsup</filename>).  A partial
       workaround is to install the <filename>sshare</filename>
-      distribution via &man.sysinstall.8;.
+      distribution via &man.sysinstall.8; (from the main menu, choose
+      <guimenuitem>Configure</guimenuitem>,
+      <guimenuitem>Distributions</guimenuitem>,
+      <guimenuitem>src</guimenuitem>, then
+      <guimenuitem>share</guimenuitem>).
       <filename>/usr/src/share/examples</filename> will then contain 
-      the missing files.</para>
+      the missing files.  This problem has been corrected in recent
+      &os; &release.current; snapshots.</para>
 
 ]]>
   </sect1>
