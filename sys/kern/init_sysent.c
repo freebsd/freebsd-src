@@ -9,6 +9,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 
+#include "opt_compat.h"
 #ifdef COMPAT_43
 #define compat(n, name) n, (sy_call_t *)__CONCAT(o,name)
 #else

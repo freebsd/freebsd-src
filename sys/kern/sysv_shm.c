@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.31 1997/10/12 20:24:03 phk Exp $ */
+/*	$Id: sysv_shm.c,v 1.32 1997/11/06 19:29:25 phk Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -31,6 +31,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_compat.h"
 #include "opt_rlimit.h"
 
 #include <sys/param.h>

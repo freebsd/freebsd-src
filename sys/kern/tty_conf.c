@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
- * $Id: tty_conf.c,v 1.10 1997/02/22 09:39:25 peter Exp $
+ * $Id: tty_conf.c,v 1.11 1997/12/06 13:24:04 bde Exp $
  */
+
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

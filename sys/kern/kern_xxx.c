@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.25 1997/02/22 09:39:13 peter Exp $
+ * $Id: kern_xxx.c,v 1.26 1997/11/06 19:29:18 phk Exp $
  */
+
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

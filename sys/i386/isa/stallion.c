@@ -33,12 +33,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.13 1997/09/14 03:19:25 peter Exp $
+ * $Id: stallion.c,v 1.14 1997/12/06 13:23:15 bde Exp $
  */
 
 /*****************************************************************************/
 
 #define	TTYDEFCHARS	1
+
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

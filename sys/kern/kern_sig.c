@@ -36,9 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.35 1997/11/06 19:29:14 phk Exp $
+ * $Id: kern_sig.c,v 1.36 1997/12/06 04:11:10 sef Exp $
  */
 
+#include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #define	SIGPROP		/* include signal properties table */
