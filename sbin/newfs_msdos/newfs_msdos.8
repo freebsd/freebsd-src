@@ -155,14 +155,14 @@ struct bsxbpb {
 .Ed
 .Sh EXAMPLES
 
-	newfs_msdos /dev/rwd0s1
+	newfs_msdos /dev/ad0s1
 
-Create a file system, using default parameters, on /dev/rwd0s1.
+Create a file system, using default parameters, on /dev/ad0s1.
 
 	newfs_msdos -f 1440 -L foo fd0
 
 Create a standard 1.44M file system, with volume label "foo", on
-/dev/rfd0.
+/dev/fd0.
 .Sh SEE ALSO
 .Xr disktab 5 ,
 .Xr disklabel 8 ,

@@ -1,5 +1,7 @@
 #!/bin/sh
 #
+# $FreeBSD$
+#
 # usage: burncd input-file
 #
 # Note: This is set up to work ONLY on the HP 4020i CDR drive!
@@ -31,9 +33,9 @@ else
 	echo -n "Place CD in the worm drive now and press return: "
 	read junk
 	fname=$1; shift
-	scsi -f /dev/rworm0.ctl -c "0 0 0 0 0 0" >/dev/null 2>&1
+	scsi -f /dev/worm0.ctl -c "0 0 0 0 0 0" >/dev/null 2>&1
 	wormcontrol prepdisk double $*
 	wormcontrol track data
-	rtprio 5 team -v 1m 5 < $fname | rtprio 5 dd of=/dev/rworm0 obs=20k
+	rtprio 5 team -v 1m 5 < $fname | rtprio 5 dd of=/dev/worm0 obs=20k
 	wormcontrol fixate 1
 fi
