@@ -98,6 +98,9 @@ is a
 which can be used in conjunction with the
 .Fn untimeout
 function to request that a scheduled timeout be canceled.
+The
+.Fn timeout
+call is the old style and new code should use the callout_* functions.
 .Pp
 The function
 .Fn callout_handle_init
@@ -136,6 +139,9 @@ before being passed to
 .Fn untimeout .
 The behavior of calling untimeout without a previously initialized handle
 is undefined.
+The
+.Fn untimeout
+call is the old style and new code should use the callout_* functions.
 .Pp
 As handles are recycled by the system, it is possible (although unlikely)
 that a handle from one invocation of
@@ -203,21 +209,16 @@ that can be passed to
 .Fn untimeout .
 The
 .Fn callout_stop
-function returns non-zero if the callout is still pending or zero otherwise.
+function returns non-zero if the callout was still pending when it was
+called or zero otherwise.
 .Sh BUGS
-This API has no way to cancel a callback and ensure that if it was
-cancelled too late that the callback has actually finished.
+This API has no way to cancel a callout and ensure that if it was
+canceled too late that the callout has actually finished.
 .Fn callout_stop 
-only guarantees that the callback has started when it returns 0.
-It does not guarnatee that the callback has finished.
+only guarantees that the callout has started when it returns 0.
+It does not guarantee that the callout has finished.
 This can create a race when one wishes to ensure that no threads are
 executing before returning from a driver detach routine.
-The locking scheme currently used ensures that a
-.Fn callout_stop 
-will not return until after the callout has been dequeued or has
-finished running.
-This locking is an accident of the implementation and is not
-guarnateed by the interface.
 .Sh HISTORY
 The current timeout and untimeout routines are based on the work of
 .An Adam M. Costello
