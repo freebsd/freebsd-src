@@ -503,11 +503,13 @@ setuid(struct thread *td, struct setuid_args *uap)
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t uid;
+	struct uidinfo *uip;
 	int error;
 
 	mtx_lock(&Giant);
 	uid = uap->uid;
 	newcred = crget();
+	uip = uifind(uid);
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
@@ -537,11 +539,15 @@ setuid(struct thread *td, struct setuid_args *uap)
 #endif
 	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
 		PROC_UNLOCK(p);
+		uifree(uip);
 		crfree(newcred);
 		mtx_unlock(&Giant);
 		return (error);
 	}
 
+	/*
+	 * Copy credentials so other references do not see our changes.
+	 */
 	crcopy(newcred, oldcred);
 #ifdef _POSIX_SAVED_IDS
 	/*
@@ -559,7 +565,7 @@ setuid(struct thread *td, struct setuid_args *uap)
 		 * Set the real uid and transfer proc count to new user.
 		 */
 		if (uid != oldcred->cr_ruid) {
-			change_ruid(newcred, uid);
+			change_ruid(newcred, uip);
 			setsugid(p);
 		}
 		/*
@@ -577,14 +583,14 @@ setuid(struct thread *td, struct setuid_args *uap)
 
 	/*
 	 * In all permitted cases, we are changing the euid.
-	 * Copy credentials so other references do not see our changes.
 	 */
 	if (uid != oldcred->cr_uid) {
-		change_euid(newcred, uid);
+		change_euid(newcred, uip);
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
+	uifree(uip);
 	crfree(oldcred);
 	mtx_unlock(&Giant);
 	return (0);
@@ -605,17 +611,20 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t euid;
+	struct uidinfo *euip;
 	int error;
 
 	euid = uap->euid;
 	mtx_lock(&Giant);
 	newcred = crget();
+	euip = uifind(euid);
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 	if (euid != oldcred->cr_ruid &&		/* allow seteuid(getuid()) */
 	    euid != oldcred->cr_svuid &&	/* allow seteuid(saved uid) */
 	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
 		PROC_UNLOCK(p);
+		uifree(euip);
 		crfree(newcred);
 		mtx_unlock(&Giant);
 		return (error);
@@ -626,11 +635,12 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	 */
 	crcopy(newcred, oldcred);
 	if (oldcred->cr_uid != euid) {
-		change_euid(newcred, euid);
+		change_euid(newcred, euip);
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
+	uifree(euip);
 	crfree(oldcred);
 	mtx_unlock(&Giant);
 	return (0);
@@ -858,12 +868,15 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t euid, ruid;
+	struct uidinfo *euip, *ruip;
 	int error;
 
 	euid = uap->euid;
 	ruid = uap->ruid;
 	mtx_lock(&Giant);
 	newcred = crget();
+	euip = uifind(euid);
+	ruip = uifind(ruid);
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 	if (((ruid != (uid_t)-1 && ruid != oldcred->cr_ruid &&
@@ -872,17 +885,19 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	      euid != oldcred->cr_ruid && euid != oldcred->cr_svuid)) &&
 	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
 		PROC_UNLOCK(p);
+		uifree(ruip);
+		uifree(euip);
 		crfree(newcred);
 		mtx_unlock(&Giant);
 		return (error);
 	}
 	crcopy(newcred, oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
-		change_euid(newcred, euid);
+		change_euid(newcred, euip);
 		setsugid(p);
 	}
 	if (ruid != (uid_t)-1 && oldcred->cr_ruid != ruid) {
-		change_ruid(newcred, ruid);
+		change_ruid(newcred, ruip);
 		setsugid(p);
 	}
 	if ((ruid != (uid_t)-1 || newcred->cr_uid != newcred->cr_ruid) &&
@@ -892,6 +907,8 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	}
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
+	uifree(ruip);
+	uifree(euip);
 	crfree(oldcred);
 	mtx_unlock(&Giant);
 	return (0);
@@ -975,6 +992,7 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t euid, ruid, suid;
+	struct uidinfo *euip, *ruip;
 	int error;
 
 	euid = uap->euid;
@@ -982,6 +1000,8 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	suid = uap->suid;
 	mtx_lock(&Giant);
 	newcred = crget();
+	euip = uifind(euid);
+	ruip = uifind(ruid);
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 	if (((ruid != (uid_t)-1 && ruid != oldcred->cr_ruid &&
@@ -995,6 +1015,8 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	      suid != oldcred->cr_uid)) &&
 	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
 		PROC_UNLOCK(p);
+		uifree(ruip);
+		uifree(euip);
 		crfree(newcred);
 		mtx_unlock(&Giant);
 		return (error);
@@ -1002,11 +1024,11 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 
 	crcopy(newcred, oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
-		change_euid(newcred, euid);
+		change_euid(newcred, euip);
 		setsugid(p);
 	}
 	if (ruid != (uid_t)-1 && oldcred->cr_ruid != ruid) {
-		change_ruid(newcred, ruid);
+		change_ruid(newcred, ruip);
 		setsugid(p);
 	}
 	if (suid != (uid_t)-1 && oldcred->cr_svuid != suid) {
@@ -1015,6 +1037,8 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	}
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
+	uifree(ruip);
+	uifree(euip);
 	crfree(oldcred);
 	mtx_unlock(&Giant);
 	return (0);
@@ -1876,12 +1900,13 @@ setsugid(struct proc *p)
  *             duration of the call.
  */
 void
-change_euid(struct ucred *newcred, uid_t euid)
+change_euid(struct ucred *newcred, struct uidinfo *euip)
 {
 
-	newcred->cr_uid = euid;
+	newcred->cr_uid = euip->ui_uid;
+	uihold(euip);
 	uifree(newcred->cr_uidinfo);
-	newcred->cr_uidinfo = uifind(euid);
+	newcred->cr_uidinfo = euip;
 }
 
 /*-
@@ -1906,13 +1931,14 @@ change_egid(struct ucred *newcred, gid_t egid)
  *             duration of the call.
  */
 void
-change_ruid(struct ucred *newcred, uid_t ruid)
+change_ruid(struct ucred *newcred, struct uidinfo *ruip)
 {
 
 	(void)chgproccnt(newcred->cr_ruidinfo, -1, 0);
-	newcred->cr_ruid = ruid;
+	newcred->cr_ruid = ruip->ui_uid;
+	uihold(ruip);
 	uifree(newcred->cr_ruidinfo);
-	newcred->cr_ruidinfo = uifind(ruid);
+	newcred->cr_ruidinfo = ruip;
 	(void)chgproccnt(newcred->cr_ruidinfo, 1, 0);
 }
 

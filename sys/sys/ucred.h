@@ -85,9 +85,9 @@ void		cred_free_thread(struct thread *td);
 #endif
 void		cred_update_thread(struct thread *td);
 void		change_egid(struct ucred *newcred, gid_t egid);
-void		change_euid(struct ucred *newcred, uid_t euid);
+void		change_euid(struct ucred *newcred, struct uidinfo *euip);
 void		change_rgid(struct ucred *newcred, gid_t rgid);
-void		change_ruid(struct ucred *newcred, uid_t ruid);
+void		change_ruid(struct ucred *newcred, struct uidinfo *ruip);
 void		change_svgid(struct ucred *newcred, gid_t svgid);
 void		change_svuid(struct ucred *newcred, uid_t svuid);
 void		crcopy(struct ucred *dest, struct ucred *src);
