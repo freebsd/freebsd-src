@@ -194,7 +194,7 @@ free_vinum(int cleardrive)
     }
     while ((vinum_conf.flags & (VF_STOPPING | VF_DAEMONOPEN))
 	== (VF_STOPPING | VF_DAEMONOPEN)) {		    /* at least one daemon open, we're stopping */
-	queue_daemon_request(daemonrq_return, NULL);	    /* stop the daemon */
+	queue_daemon_request(daemonrq_return, (union daemoninfo) NULL);	/* stop the daemon */
 	tsleep(&vinumclose, PUSER, "vstop", 0);		    /* and wait for it */
     }
     if (SD != NULL)
@@ -243,19 +243,13 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 moduledata_t vinum_mod =
 {
     "vinum",
-    vinum_modevent,
+    (modeventhand_t) vinum_modevent,
     0
 };
 DECLARE_MODULE(vinum, vinum_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
 /* ARGSUSED */
-/*
- * Open a vinum object
- * At the moment, we only open volumes and the
- * super device.  It's a nice concept to be
- * able to open drives, subdisks and plexes, but
- * I can't think what good it could be 
- */
+/* Open a vinum object */
 int 
 vinumopen(dev_t dev,
     int flags,

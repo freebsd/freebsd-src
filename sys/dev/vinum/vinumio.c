@@ -596,8 +596,7 @@ format_config(char *config, int len)
 
     bzero(config, len);
 
-
-    /* Then the volume configuration */
+    /* First, the volume configuration */
     for (i = 0; i < vinum_conf.volumes_used; i++) {
 	struct volume *vol;
 
@@ -693,7 +692,7 @@ format_config(char *config, int len)
 void 
 save_config(void)
 {
-    queue_daemon_request(daemonrq_saveconfig, NULL);
+    queue_daemon_request(daemonrq_saveconfig, (union daemoninfo) NULL);
 }
 
 /*
