@@ -42,7 +42,6 @@ static void
 make_variable(char *var, char *value)
 {
     Variable *vp;
-    char *cp;
 
     /* Trim leading and trailing whitespace */
     var = string_skipwhite(string_prune(var));
