@@ -35,15 +35,15 @@ options		UCONSOLE		#Allow users to grab the console
 
 config		kernel	root on da0
 
-controller	pci0
-controller	tlsb0
-controller	gbus0
-controller	kft0
-controller	dwlpx0
+device		pci0
+device		tlsb0
+device		gbus0
+device		kft0
+device		dwlpx0
 
-controller	simos0
+device		simos0
 
-controller	scbus0
+device		scbus0
 
 device		da0
 
