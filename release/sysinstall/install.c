@@ -315,10 +315,11 @@ installFixitCDROM(dialogMenuItem *self)
 
     while (1) {
 	msgConfirm("Please insert a FreeBSD live filesystem CD/DVD and press return");
-	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS || !mediaDevice || !mediaDevice->init(mediaDevice)) {
+	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS
+	    || !DEVICE_INIT(mediaDevice)) {
 	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
 	    mediaClose();
-	    if (msgYesNo("Unable to mount the CDROM - do you want to try again?") != 0)
+	    if (msgYesNo("Unable to mount the disc - do you want to try again?") != 0)
 		return DITEM_FAILURE;
 	}
 	else
@@ -490,7 +491,7 @@ fixit_common(void)
 	/* use the .profile from the fixit medium */
 	setenv("HOME", "/mnt2", 1);
 	chdir("/mnt2");
-	execlp("sh", "-sh", 0);
+	execlp("sh", "-sh", (char *)0);
 	msgDebug("fixit shell: Failed to execute shell!\n");
 	_exit(1);;
     }
@@ -617,7 +618,7 @@ nodisks:
 	variable_set2("gateway_enable", "YES", 1);
 
     dialog_clear_norefresh();
-    if (!msgNoYes("Do you want to configure inetd and simple internet services?"))
+    if (!msgNoYes("Do you want to configure inetd and the network services that it provides?"))
         configInetd(self);
 
     dialog_clear_norefresh();
@@ -1105,7 +1106,7 @@ static char *
 getRelname(void)
 {
     static char buf[64];
-    int sz = (sizeof buf) - 1;
+    size_t sz = (sizeof buf) - 1;
 
     if (sysctlbyname("kern.osrelease", buf, &sz, NULL, 0) != -1) {
 	buf[sz] = '\0';
