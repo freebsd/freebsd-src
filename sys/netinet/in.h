@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.40 1999/04/28 11:37:43 phk Exp $
+ * $Id: in.h,v 1.41 1999/05/04 16:20:29 luigi Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -427,6 +427,7 @@ struct ip_mreq {
 
 #ifdef KERNEL
 struct ifnet; struct mbuf;	/* forward declarations for Standard C */
+struct proc;
 
 int	 in_broadcast __P((struct in_addr, struct ifnet *));
 int	 in_canforward __P((struct in_addr));
