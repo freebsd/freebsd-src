@@ -59,17 +59,16 @@ void generic_bzero(void *d, size_t c);
 #define	bcopy_toio(s, d, c)	\
 	bus_space_write_region_1(IA64_BUS_SPACE_MEM, d, 0, (void*)(s), c)
 #define	bzero_io(d, c)		\
-	bus_space_set_region_1(IA64_BUS_SPACE_MEM, d, 0, 0, c)
+	bus_space_set_region_1(IA64_BUS_SPACE_MEM, (intptr_t)(d), 0, 0, c)
 #define	fill_io(p, d, c)	\
-	bus_space_set_region_1(IA64_BUS_SPACE_MEM, d, 0, p, c)
+	bus_space_set_region_1(IA64_BUS_SPACE_MEM, (intptr_t)(d), 0, p, c)
 #define	fillw_io(p, d, c)	\
-	bus_space_set_region_2(IA64_BUS_SPACE_MEM, d, 0, p, c)
-#define	readw(a)		\
-	bus_space_read_2(IA64_BUS_SPACE_MEM, a, 0)
-#define	writew(a, v)		\
-	bus_space_write_2(IA64_BUS_SPACE_MEM, a, 0, v)
-#define	writel(a, v)		\
-	bus_space_write_4(IA64_BUS_SPACE_MEM, a, 0, v)
+	bus_space_set_region_2(IA64_BUS_SPACE_MEM, (intptr_t)(d), 0, p, c)
+#define	readb(a)		bus_space_read_1(IA64_BUS_SPACE_MEM, a, 0)
+#define	readw(a)		bus_space_read_2(IA64_BUS_SPACE_MEM, a, 0)
+#define	writeb(a, v)		bus_space_write_1(IA64_BUS_SPACE_MEM, a, 0, v)
+#define	writew(a, v)		bus_space_write_2(IA64_BUS_SPACE_MEM, a, 0, v)
+#define	writel(a, v)		bus_space_write_4(IA64_BUS_SPACE_MEM, a, 0, v)
 static __inline void
 fillw(int val, uint16_t *buf, size_t size)
 {
