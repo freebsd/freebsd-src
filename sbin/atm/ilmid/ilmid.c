@@ -57,7 +57,6 @@
 #include <netatm/atm_sap.h>
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
-#include <dev/hea/eni_stats.h>
 #include <dev/hfa/fore_aali.h>
 #include <dev/hfa/fore_slave.h>
 #include <dev/hfa/fore_stats.h>
