@@ -27,6 +27,71 @@
 # All partition sizes reserve space for bad sector tables.
 # (5 cylinders needed for maintenance + replacement sectors)
 #
+
+#
+# Floppy formats:
+#
+# To make a filesystem on a floppy:
+#    fdformat [-f <size>] fd<drive>[.<size>]
+#    disklabel -r -w fd<drive>[.<size>] fd<size>
+#    newfs fd<drive>[.<size>]
+#
+
+fd360:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#9:nc#40:\
+	:pa#720:oa#0:ba#4096:fa#512:\
+	:pb#720:ob#0:bb#4096:fb#512:\
+	:pc#720:oc#0:bc#4096:fc#512:
+
+fd720:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#9:nc#80:\
+	:pa#1440:oa#0:ba#4096:fa#512:\
+	:pb#1440:ob#0:bb#4096:fb#512:\
+	:pc#1440:oc#0:bc#4096:fc#512:
+
+fd1200:floppy5|5in|5.25in High Density Floppy:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#15:nc#80:\
+	:pa#2400:oa#0:ba#4096:fa#512:\
+	:pb#2400:ob#0:bb#4096:fb#512:\
+	:pc#2400:oc#0:bc#4096:fc#512:
+
+fd1440:floppy|floppy3|3in|3.5in High Density Floppy:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#18:nc#80:\
+	:pa#2880:oa#0:ba#4096:fa#512:\
+	:pb#2880:ob#0:bb#4096:fb#512:\
+	:pc#2880:oc#0:bc#4096:fc#512:
+
+#
+# Stressed floppy-formats.  No guarantees given.
+#
+
+fd800:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#10:nc#80:\
+	:pa#1600:oa#0:ba#4096:fa#512:\
+	:pb#1600:ob#0:bb#4096:fb#512:\
+	:pc#1600:oc#0:bc#4096:fc#512:
+
+fd820:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#10:nc#82:\
+	:pa#1640:oa#0:ba#4096:fa#512:\
+	:pb#1640:ob#0:bb#4096:fb#512:\
+	:pc#1640:oc#0:bc#4096:fc#512:
+
+fd1480:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#18:nc#82:\
+	:pa#2952:oa#0:ba#4096:fa#512:\
+	:pb#2952:ob#0:bb#4096:fb#512:\
+	:pc#2952:oc#0:bc#4096:fc#512:
+
+fd1720:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#21:nc#82:\
+	:pa#3444:oa#0:ba#4096:fa#512:\
+	:pb#3444:ob#0:bb#4096:fb#512:\
+	:pc#3444:oc#0:bc#4096:fc#512:
+
+#
+# Harddisk formats
+#
 qp120at|Quantum Peripherals 120MB IDE:\
 	:dt=ESDI:ty=winchester:se#512:nt#9:ns#32:nc#813:sf: \
 	:pa#13824:oa#0:ta=4.2BSD:ba#4096:fa#512: \
@@ -71,18 +136,6 @@ cp3100new|Connor Peripherals 100MB IDE, with a different configuration:\
 	:pe#15840:oe#40128:te=4.2BSD:be#4096:fe#512: \
 	:pg#15840:og#55968:tg=4.2BSD:bg#4096:fg#512: \
 	:ph#130416:oh#71808:th=4.2BSD:bh#4096:fh#512:
-
-floppy|floppy3|3in|3.5in High Density Floppy:\
-	:ty=floppy:se#512:nt#2:rm#300:ns#18:nc#80:\
-	:pa#2880:oa#0:ba#4096:fa#512:\
-	:pb#2880:ob#0:\
-	:pc#2880:oc#0:
-
-floppy5|5in|5.25in High Density Floppy:\
-	:ty=floppy:se#512:nt#2:rm#300:ns#15:nc#80:\
-	:pa#2400:oa#0:ba#4096:fa#512:
-	:pb#2400:ob#0:bb#4096:fb#512:
-	:pc#2400:oc#0:bc#4096:fc#512:
 
 maxtor4380|Maxtor XT4380E ESDI :\
 	:dt=ESDI:ty=winchester:se#512:nt#15:ns#36:nc#1222:sf: \
