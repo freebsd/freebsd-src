@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclProc.c 1.113 97/06/23 15:51:52
+ * SCCS: @(#) tclProc.c 1.115 97/08/12 13:36:11
  */
 
 #include "tclInt.h"
@@ -56,6 +56,7 @@ Tcl_ProcObjCmd(dummy, interp, objc, objv)
     char **argArray = NULL;
     Namespace *nsPtr, *altNsPtr, *cxtNsPtr;
     Tcl_Obj *defPtr, *bodyPtr;
+    Tcl_Command cmd;
     Tcl_DString ds;
     int numArgs, length, result, i;
     register CompiledLocal *localPtr;
@@ -120,8 +121,11 @@ Tcl_ProcObjCmd(dummy, interp, objc, objv)
     }
 
     /*
-     * We increment the ref count of the procedure's body object since
-     * there will be a reference to it in the Proc structure.
+     * Create and initialize a Proc structure for the procedure. Note that
+     * we initialize its cmdPtr field below after we've created the command
+     * for the procedure. We increment the ref count of the procedure's
+     * body object since there will be a reference to it in the Proc
+     * structure.
      */
     
     Tcl_IncrRefCount(bodyPtr);
@@ -129,7 +133,6 @@ Tcl_ProcObjCmd(dummy, interp, objc, objv)
     procPtr = (Proc *) ckalloc(sizeof(Proc));
     procPtr->iPtr = iPtr;
     procPtr->refCount = 1;
-    procPtr->nsPtr = nsPtr;
     procPtr->bodyPtr = bodyPtr;
     procPtr->numArgs  = 0;	/* actual argument count is set below. */
     procPtr->numCompiledLocals = 0;
@@ -243,10 +246,10 @@ Tcl_ProcObjCmd(dummy, interp, objc, objv)
     }
 
     /*
-     * Now create a command for the procedure. This will be in the current
-     * namespace unless the procedure's name included namespace qualifiers.
-     * To create the new command in the right namespace, we generate a
-     * fully qualified name for it.
+     * Now create a command for the procedure. This will initially be in
+     * the current namespace unless the procedure's name included namespace
+     * qualifiers. To create the new command in the right namespace, we
+     * generate a fully qualified name for it.
      */
 
     Tcl_DStringInit(&ds);
@@ -258,8 +261,18 @@ Tcl_ProcObjCmd(dummy, interp, objc, objv)
     
     Tcl_CreateCommand(interp, Tcl_DStringValue(&ds), InterpProc,
 	    (ClientData) procPtr, ProcDeleteProc);
-    Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), TclObjInterpProc,
-	    (ClientData) procPtr, ProcDeleteProc);
+    cmd = Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds),
+	    TclObjInterpProc, (ClientData) procPtr, ProcDeleteProc);
+
+    /*
+     * Now initialize the new procedure's cmdPtr field. This will be used
+     * later when the procedure is called to determine what namespace the
+     * procedure will run in. This will be different than the current
+     * namespace if the proc was renamed into a different namespace.
+     */
+    
+    procPtr->cmdPtr = (Command *) cmd;
+	
     ckfree((char *) argArray);
     return TCL_OK;
 
@@ -744,11 +757,14 @@ TclObjInterpProc(clientData, interp, objc, objv)
     /*
      * Set up and push a new call frame for the new procedure invocation.
      * This call frame will execute in the proc's namespace, which might
-     * be different than the current namespace.
+     * be different than the current namespace. The proc's namespace is
+     * that of its command, which can change if the command is renamed
+     * from one namespace to another.
      */
 
     result = Tcl_PushCallFrame(interp, (Tcl_CallFrame *) framePtr,
-            (Tcl_Namespace *) procPtr->nsPtr, /*isProcCallFrame*/ 1);
+            (Tcl_Namespace *) procPtr->cmdPtr->nsPtr,
+	     /*isProcCallFrame*/ 1);
     if (result != TCL_OK) {
         return result;
     }
@@ -768,7 +784,7 @@ TclObjInterpProc(clientData, interp, objc, objv)
 	    localPtr = localPtr->nextPtr) {
 	varPtr->value.objPtr = NULL;
 	varPtr->name = localPtr->name; /* will be just '\0' if temp var */
-	varPtr->nsPtr = procPtr->nsPtr;
+	varPtr->nsPtr = procPtr->cmdPtr->nsPtr;
 	varPtr->hPtr = NULL;
 	varPtr->refCount = 0;
 	varPtr->tracePtr = NULL;
@@ -826,6 +842,7 @@ TclObjInterpProc(clientData, interp, objc, objv)
 	    Tcl_IncrRefCount(objPtr);  /* since the local variable now has
 					* another reference to object. */
 	} else {
+	    Tcl_ResetResult(interp);
 	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
 		    "no value given for parameter \"", localPtr->name,
 		    "\" to \"", Tcl_GetStringFromObj(objv[0], (int *) NULL),

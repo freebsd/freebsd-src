@@ -1,22 +1,21 @@
 Tcl
 
-SCCS: @(#) README 1.45 97/06/25 11:02:14
+SCCS: @(#) README 1.49 97/08/14 08:47:31
 
 1. Introduction
 ---------------
 
 This directory and its descendants contain the sources and documentation
 for Tcl, an embeddable scripting language.  The information here
-corresponds to release 8.0b2, the second (and probably final) beta
-release for Tcl 8.0. Tcl 8.0 is a major new release that replaces the
-core of the interpreter with an on-the-fly bytecode compiler to improve
-execution speed.  It also includes several other new features such as
-namespaces and binary I/O, plus many bug fixes.  The compiler introduces
-a few incompatibilities that may affect existing Tcl scripts; the
-incompatibilities are relatively obscure but may require modifications
-to some old scripts before they can run with this version. The compiler
-introduces many new C-level APIs, but the old APIs are still supported.
-See below for more details.
+corresponds to release 8.0. Tcl 8.0 is a major new release that replaces
+the core of the interpreter with an on-the-fly bytecode compiler to
+improve execution speed.  It also includes several other new features
+such as namespaces and binary I/O, plus many bug fixes.  The compiler
+introduces a few incompatibilities that may affect existing Tcl scripts;
+the incompatibilities are relatively obscure but may require
+modifications to some old scripts before they can run with this version.
+The compiler introduces many new C-level APIs, but the old APIs are
+still supported. See below for more details.
 
 2. Documentation
 ----------------
@@ -166,8 +165,9 @@ changes, there are several smaller changes and bug fixes.  See the file
     mechanism, implemented with the Tcl commands "interp hide", "interp
     expose", "interp invokehidden", and "interp hidden" and the C APIs
     Tcl_HideCommand and Tcl_ExposeCommand.  There is now support for
-    loadable security policies, including new library procedures such as
-    tcl_safeCreateInterp.
+    safe packages and extension loading, including new library
+    procedures such as safe::interpCreate (see the manual entry safe.n
+    for details).
 
     6. There is a new package "registry" available under Windows for
     accessing the Windows registry.
@@ -224,9 +224,12 @@ scripts that worked under Tcl 7.6 and earlier releases:
     are no longer supported; all of these features are now available on
     all platforms via the "file" command.
 
-    5. Support for the variable tcl_precision is mostly removed; when
-    real values are converted back to strings, the full 17 digits of
-    precision are always used.
+    5. The variable tcl_precision is now shared between interpreters
+    and defaults to 12 digits instead of 6; safe interpreters cannot
+    modify tcl_precision.  The new object system in Tcl 8.0 causes
+    floating-to-string conversions (and the associated rounding) to
+    occur much less often than in Tcl 7.6, which can sometimes cause
+    behavioral changes.
 
     6. The C APIs associated with the notifier have changed substantially.
 
@@ -270,7 +273,39 @@ in the directory "/pub/tcl".  The archive also contains several FAQ
 ("frequently asked questions") documents that provide solutions to problems
 that are commonly encountered by TCL newcomers.
 
-7. Support and bug fixes
+7. Mailing lists
+----------------
+
+A couple of  Mailing List have been set up to discuss Macintosh or
+Windows related Tcl issues.  In order to use these Mailing Lists you
+must have access to the internet.  If you have access to the WWW the
+home pages for these mailing lists are located at the following URLs:
+
+	http://www.sunlabs.com/research/tcl/lists/mactcl-list.html
+
+		-and-
+
+	http://www.sunlabs.com/research/tcl/lists/wintcl-list.html
+
+The home pages contain information about the lists and an HTML archive
+of all the past messages on the list.  To subscribe send a message to:
+	
+	listserv@sunlabs.sun.com
+	
+In the body of the message (the subject will be ignored) put:
+	
+	subscribe mactcl Joe Blow
+	
+Replacing Joe Blow with your real name, of course.  (Use wintcl
+instead of mactcl if your interested in the Windows list.)  If you
+would just like to receive more information about the list without
+subscribing put the line:
+
+	information mactcl
+	
+in the body instead (or wintcl).
+
+8. Support and bug fixes
 ------------------------
 
 We're very interested in receiving bug reports and suggestions for
@@ -304,7 +339,7 @@ In addition, Tcl support and training are available commercially from
 NeoSoft (info@neosoft.com), Computerized Processes Unlimited
 (gwl@cpu.com), and Data Kinetics (education@dkl.com).
 
-8. Tcl version numbers
+9. Tcl version numbers
 ----------------------
 
 Each Tcl release is identified by two numbers separated by a dot, e.g.

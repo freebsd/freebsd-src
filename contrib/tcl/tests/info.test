@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) info.test 1.38 97/05/20 16:35:54
+# SCCS: @(#) info.test 1.39 97/08/01 11:10:24
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -487,25 +487,30 @@ test info-15.3 {info procs option} {
     list [catch {info procs 2 3} msg] $msg
 } {1 {wrong # args: should be "info procs ?pattern?"}}
 
+set self info.test
+if {$tcl_platform(os) == "Win32s"} {
+    set self info~1.tes
+}
+
 test info-16.1 {info script option} {
     list [catch {info script x} msg] $msg
 } {1 {wrong # args: should be "info script"}}
 test info-16.2 {info script option} {
     file tail [info sc]
-} info.test
+} $self
 removeFile gorp.info
 makeFile "info script\n" gorp.info
 test info-16.3 {info script option} {
     list [source gorp.info] [file tail [info script]]
-} {gorp.info info.test}
+} [list gorp.info $self]
 test info-16.4 {resetting "info script" after errors} {
     catch {source ~_nobody_/foo}
     file tail [info script]
-} {info.test}
+} $self
 test info-16.5 {resetting "info script" after errors} {
     catch {source _nonexistent_}
     file tail [info script]
-} {info.test}
+} $self
 removeFile gorp.info
 
 test info-17.1 {info sharedlibextension option} {

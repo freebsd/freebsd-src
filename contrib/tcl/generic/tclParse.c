@@ -6,12 +6,12 @@
  *	strings or nested sub-commands).
  *
  * Copyright (c) 1987-1993 The Regents of the University of California.
- * Copyright (c) 1994-1996 Sun Microsystems, Inc.
+ * Copyright (c) 1994-1997 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclParse.c 1.55 97/05/14 13:23:19
+ * SCCS: @(#) tclParse.c 1.56 97/07/29 18:40:03
  */
 
 #include "tclInt.h"
@@ -900,5 +900,39 @@ Tcl_CommandComplete(cmd)
 	return 1;
     }
     p = ScriptEnd(cmd, cmd+strlen(cmd), 0);
+    return (*p != 0);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclObjCommandComplete --
+ *
+ *	Given a partial or complete Tcl command in a Tcl object, this
+ *	procedure determines whether the command is complete in the sense of
+ *	having matched braces and quotes and brackets.
+ *
+ * Results:
+ *	1 is returned if the command is complete, 0 otherwise.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+TclObjCommandComplete(cmdPtr)
+    Tcl_Obj *cmdPtr;			/* Points to object holding command
+					 * to check. */
+{
+    char *cmd, *p;
+    int length;
+
+    cmd = Tcl_GetStringFromObj(cmdPtr, &length);
+    if (length == 0) {
+	return 1;
+    }
+    p = ScriptEnd(cmd, cmd+length, /*nested*/ 0);
     return (*p != 0);
 }

@@ -7,7 +7,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) cmdIL.test 1.15 97/05/22 16:38:11
+# SCCS: @(#) cmdIL.test 1.17 97/07/11 15:33:16
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -46,7 +46,7 @@ test cmdIL-1.10 {Tcl_LsortObjCmd procedure, -index option} {
 } {1 {"-index" option must be followed by list index}}
 test cmdIL-1.11 {Tcl_LsortObjCmd procedure, -index option} {
     list [catch {lsort -index foo {1 3 2 5}} msg] $msg
-} {1 {expected integer but got "foo"}}
+} {1 {bad index "foo": must be integer or "end"}}
 test cmdIL-1.12 {Tcl_LsortObjCmd procedure, -index option} {
     lsort -index end -integer {{2 25} {10 20 50 100} {3 16 42} 1}
 } {1 {2 25} {3 16 42} {10 20 50 100}}
@@ -154,7 +154,7 @@ test cmdIL-3.15 {SortCompare procedure, -command option} {
 } {1 {comparison error} {comparison error
     while executing
 "error "comparison error""
-    (procedure "cmp" line 1)
+    (procedure "cmp" line 2)
     invoked from within
 "cmp 48 6"
     (-compare command)

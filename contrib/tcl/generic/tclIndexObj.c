@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclIndexObj.c 1.4 97/02/11 13:30:01
+ * SCCS: @(#) tclIndexObj.c 1.8 97/07/29 10:16:54
  */
 
 #include "tclInt.h"
@@ -236,4 +236,73 @@ UpdateStringOfIndex(objPtr)
     register Tcl_Obj *objPtr;	/* Int object whose string rep to update. */
 {
     panic("UpdateStringOfIndex should never be invoked");
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_WrongNumArgs --
+ *
+ *	This procedure generates a "wrong # args" error message in an
+ *	interpreter.  It is used as a utility function by many command
+ *	procedures.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	An error message is generated in interp's result object to
+ *	indicate that a command was invoked with the wrong number of
+ *	arguments.  The message has the form
+ *		wrong # args: should be "foo bar additional stuff"
+ *	where "foo" and "bar" are the initial objects in objv (objc
+ *	determines how many of these are printed) and "additional stuff"
+ *	is the contents of the message argument.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Tcl_WrongNumArgs(interp, objc, objv, message)
+    Tcl_Interp *interp;			/* Current interpreter. */
+    int objc;				/* Number of arguments to print
+					 * from objv. */
+    Tcl_Obj *CONST objv[];		/* Initial argument objects, which
+					 * should be included in the error
+					 * message. */
+    char *message;			/* Error message to print after the
+					 * leading objects in objv. The
+					 * message may be NULL. */
+{
+    Tcl_Obj *objPtr;
+    char **tablePtr;
+    int i;
+
+    objPtr = Tcl_GetObjResult(interp);
+    Tcl_AppendToObj(objPtr, "wrong # args: should be \"", -1);
+    for (i = 0; i < objc; i++) {
+	/*
+	 * If the object is an index type use the index table which allows
+	 * for the correct error message even if the subcommand was
+	 * abbreviated.  Otherwise, just use the string rep.
+	 */
+	
+	if (objv[i]->typePtr == &tclIndexType) {
+	    tablePtr = ((char **) objv[i]->internalRep.twoPtrValue.ptr1);
+	    Tcl_AppendStringsToObj(objPtr,
+		    tablePtr[(int) objv[i]->internalRep.twoPtrValue.ptr2],
+		    (char *) NULL);
+	} else {
+	    Tcl_AppendStringsToObj(objPtr,
+		    Tcl_GetStringFromObj(objv[i], (int *) NULL),
+		    (char *) NULL);
+	}
+	if (i < (objc - 1)) {
+	    Tcl_AppendStringsToObj(objPtr, " ", (char *) NULL);
+	}
+    }
+    if (message) {
+      Tcl_AppendStringsToObj(objPtr, " ", message, (char *) NULL);
+    }
+    Tcl_AppendStringsToObj(objPtr, "\"", (char *) NULL);
 }

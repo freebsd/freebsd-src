@@ -1,11 +1,11 @@
 '\"
 '\" Copyright (c) 1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) uplevel.n 1.7 96/03/25 20:26:46
+'\" SCCS: @(#) uplevel.n 1.8 97/08/13 13:41:36
 '\" 
 .so man.macros
 .TH uplevel n "" Tcl "Tcl Built-In Commands"
@@ -61,6 +61,20 @@ be used to obtain the level of the current procedure.
 \fBUplevel\fR makes it possible to implement new control
 constructs as Tcl procedures (for example, \fBuplevel\fR could
 be used to implement the \fBwhile\fR construct as a Tcl procedure).
+.PP
+\fBnamespace eval\fR is another way (besides procedure calls)
+that the Tcl naming context can change.
+It adds a call frame to the stack to represent the namespace context.
+This means each \fBnamespace eval\fR command
+counts as another call level for \fBuplevel\fR and \fBupvar\fR commands.
+For example, \fBinfo level 1\fR will return a list
+describing a command that is either
+the outermost procedure call or the outermost \fBnamespace eval\fR command.
+Also, \fBuplevel #0\fR evaluates a script
+at top-level in the outermost namespace (the global namespace).
+
+.SH "SEE ALSO"
+namespace(n)
 
 .SH KEYWORDS
-context, stack frame, variables
+context, level, namespace, stack frame, variables
