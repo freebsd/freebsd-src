@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.c,v 1.4 1999/04/19 18:03:51 peter Exp $
+ *	$Id: isa_compat.c,v 1.6 1999/04/24 07:04:51 peter Exp $
  */
 
 #include <sys/param.h>
@@ -179,8 +179,13 @@ isa_compat_probe(device_t dev)
 				isa_set_irq(dev, ffs(dvp->id_irq) - 1);
 			if (dvp->id_drq != isa_get_drq(dev))
 				isa_set_drq(dev, dvp->id_drq);
-			if (dvp->id_maddr != maddr)
-				isa_set_maddr(dev, (int)kvtop(dvp->id_maddr));
+			if (dvp->id_maddr != maddr) {
+				maddr = dvp->id_maddr;
+				if (maddr != NULL)
+					isa_set_maddr(dev, kvtop(maddr));
+				else
+					isa_set_maddr(dev, (int)maddr);
+			}
 			if (dvp->id_msize != isa_get_msize(dev))
 				isa_set_msize(dev, dvp->id_msize);
 			return 0;
