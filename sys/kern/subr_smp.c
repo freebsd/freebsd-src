@@ -50,8 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 
 #ifdef SMP
-volatile u_int stopped_cpus;
-volatile u_int started_cpus;
+volatile cpumask_t stopped_cpus;
+volatile cpumask_t started_cpus;
 
 void (*cpustop_restartfunc)(void);
 #endif
@@ -62,7 +62,7 @@ int mp_maxcpus = MAXCPU;
 
 struct cpu_top *smp_topology;
 volatile int smp_started;
-u_int all_cpus;
+cpumask_t all_cpus;
 u_int mp_maxid;
 
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
@@ -214,7 +214,7 @@ forward_roundrobin(void)
 {
 	struct pcpu *pc;
 	struct thread *td;
-	u_int id, map;
+	cpumask_t id, map;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
@@ -255,7 +255,7 @@ forward_roundrobin(void)
  *            from executing at same time.
  */
 int
-stop_cpus(u_int map)
+stop_cpus(cpumask_t map)
 {
 	int i;
 
@@ -266,7 +266,7 @@ stop_cpus(u_int map)
 
 	/* send the stop IPI to all CPUs in map */
 	ipi_selected(map, IPI_STOP);
-	
+
 	i = 0;
 	while ((atomic_load_acq_int(&stopped_cpus) & map) != map) {
 		/* spin */
@@ -297,7 +297,7 @@ stop_cpus(u_int map)
  *   1: ok
  */
 int
-restart_cpus(u_int map)
+restart_cpus(cpumask_t map)
 {
 
 	if (!smp_started)
