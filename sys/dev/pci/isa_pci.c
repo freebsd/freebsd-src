@@ -43,8 +43,8 @@
 #include <sys/rman.h>
 
 #include <isa/isavar.h>
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #define	ELCR_IOADDR	0x4d0	/* Interrupt Edge/Level Control Registers */
 #define	ELCR_IOLEN	2

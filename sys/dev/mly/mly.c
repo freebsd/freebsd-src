@@ -50,8 +50,8 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <dev/mly/mlyreg.h>
 #include <dev/mly/mlyio.h>
