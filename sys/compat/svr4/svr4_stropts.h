@@ -170,6 +170,6 @@ struct svr4_netaddr_un {
 #define SVR4_ADDROF(sc) (void *) (((char *) (sc)) + (sc)->offs)
 #define SVR4_C_ADDROF(sc) (const void *) (((const char *) (sc)) + (sc)->offs)
 
-struct svr4_strm *svr4_stream_get __P((struct file *fp));
+struct svr4_strm *svr4_stream_get(struct file *fp);
 
 #endif /* !_SVR4_STROPTS */

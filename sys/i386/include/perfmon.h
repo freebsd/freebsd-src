@@ -102,15 +102,15 @@ struct pmc_tstamp {
 /*
  * Intra-kernel interface to performance monitoring counters
  */
-void	perfmon_init  __P((void));
-int	perfmon_avail __P((void));
-int	perfmon_setup __P((int, unsigned int));
-int	perfmon_get   __P((int, unsigned int *));
-int	perfmon_fini  __P((int));
-int	perfmon_start __P((int));
-int	perfmon_stop  __P((int));
-int	perfmon_read  __P((int, quad_t *));
-int	perfmon_reset __P((int));
+void	perfmon_init(void);
+int	perfmon_avail(void);
+int	perfmon_setup(int, unsigned int);
+int	perfmon_get(int, unsigned int *);
+int	perfmon_fini(int);
+int	perfmon_start(int);
+int	perfmon_stop(int);
+int	perfmon_read(int, quad_t *);
+int	perfmon_reset(int);
 
 #endif /* _KERNEL */
 

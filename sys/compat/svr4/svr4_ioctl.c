@@ -50,7 +50,7 @@
 #include <compat/svr4/svr4_sockio.h>
 
 #ifdef DEBUG_SVR4
-static void svr4_decode_cmd __P((u_long, char *, char *, int *, int *));
+static void svr4_decode_cmd(u_long, char *, char *, int *, int *);
 /*
  * Decode an ioctl command symbolically
  */
@@ -85,8 +85,8 @@ svr4_sys_ioctl(td, uap)
 	int             *retval;
 	struct file	*fp;
 	u_long		 cmd;
-	int (*fun) __P((struct file *, struct thread *, register_t *,
-			int, u_long, caddr_t));
+	int (*fun)(struct file *, struct thread *, register_t *,
+			int, u_long, caddr_t);
 	int error;
 #ifdef DEBUG_SVR4
 	char		 dir[4];

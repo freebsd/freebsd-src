@@ -43,7 +43,7 @@
 #include <compat/svr4/svr4_ioctl.h>
 #include <compat/svr4/svr4_sockio.h>
 
-static int bsd_to_svr4_flags __P((int));
+static int bsd_to_svr4_flags(int);
 
 #define bsd_to_svr4_flag(a) \
 	if (bf & __CONCAT(I,a))	sf |= __CONCAT(SVR4_I,a)

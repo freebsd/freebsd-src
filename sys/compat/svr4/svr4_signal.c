@@ -53,11 +53,9 @@
 #define	svr4_sigismember(s, n)	((s)->bits[svr4_sigword(n)] & svr4_sigmask(n))
 #define	svr4_sigaddset(s, n)	((s)->bits[svr4_sigword(n)] |= svr4_sigmask(n))
 
-void svr4_to_bsd_sigaction __P((const struct svr4_sigaction *,
-				struct sigaction *));
-void bsd_to_svr4_sigaction __P((const struct sigaction *,
-				struct svr4_sigaction *));
-void svr4_sigfillset __P((svr4_sigset_t *));
+void svr4_to_bsd_sigaction(const struct svr4_sigaction *, struct sigaction *);
+void bsd_to_svr4_sigaction(const struct sigaction *, struct svr4_sigaction *);
+void svr4_sigfillset(svr4_sigset_t *);
 
 int bsd_to_svr4_sig[SVR4_SIGTBLSZ] = {
 	SVR4_SIGHUP,

@@ -54,10 +54,10 @@ MODULE_DEPEND(coff, ibcs2, 1, 1, 1);
 
 extern struct sysentvec ibcs2_svr3_sysvec;
 
-static int coff_load_file __P((struct thread *td, char *name));
-static int exec_coff_imgact __P((struct image_params *imgp));
+static int coff_load_file(struct thread *td, char *name);
+static int exec_coff_imgact(struct image_params *imgp);
 
-static int load_coff_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
+static int load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot);
 
 static int
 load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,

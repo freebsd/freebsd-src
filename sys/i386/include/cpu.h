@@ -90,7 +90,7 @@ extern char	btext[];
 extern char	etext[];
 extern u_int	tsc_present;
 
-void	fork_trampoline __P((void));
+void	fork_trampoline(void);
 
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"

@@ -53,15 +53,15 @@
 #include <compat/svr4/svr4_util.h>
 #include <compat/svr4/svr4_fcntl.h>
 
-static int svr4_to_bsd_flags __P((int));
-static u_long svr4_to_bsd_cmd __P((u_long));
-static int fd_revoke __P((struct thread *, int));
-static int fd_truncate __P((struct thread *, int, struct flock *));
-static int bsd_to_svr4_flags __P((int));
-static void bsd_to_svr4_flock __P((struct flock *, struct svr4_flock *));
-static void svr4_to_bsd_flock __P((struct svr4_flock *, struct flock *));
-static void bsd_to_svr4_flock64 __P((struct flock *, struct svr4_flock64 *));
-static void svr4_to_bsd_flock64 __P((struct svr4_flock64 *, struct flock *));
+static int svr4_to_bsd_flags(int);
+static u_long svr4_to_bsd_cmd(u_long);
+static int fd_revoke(struct thread *, int);
+static int fd_truncate(struct thread *, int, struct flock *);
+static int bsd_to_svr4_flags(int);
+static void bsd_to_svr4_flock(struct flock *, struct svr4_flock *);
+static void svr4_to_bsd_flock(struct svr4_flock *, struct flock *);
+static void bsd_to_svr4_flock64(struct flock *, struct svr4_flock64 *);
+static void svr4_to_bsd_flock64(struct svr4_flock64 *, struct flock *);
 
 static u_long
 svr4_to_bsd_cmd(cmd)

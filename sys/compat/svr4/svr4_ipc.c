@@ -90,44 +90,44 @@
 #include <compat/svr4/svr4_ipc.h>
 
 #if defined(SYSVMSG) || defined(SYSVSHM) || defined(SYSVSEM)
-static void svr4_to_bsd_ipc_perm __P((const struct svr4_ipc_perm *,
-				      struct ipc_perm *));
-static void bsd_to_svr4_ipc_perm __P((const struct ipc_perm *,
-				      struct svr4_ipc_perm *));
+static void svr4_to_bsd_ipc_perm(const struct svr4_ipc_perm *,
+				      struct ipc_perm *);
+static void bsd_to_svr4_ipc_perm(const struct ipc_perm *,
+				      struct svr4_ipc_perm *);
 #endif
 
 #ifdef SYSVSEM
-static void bsd_to_svr4_semid_ds __P((const struct semid_ds *,
-				      struct svr4_semid_ds *));
-static void svr4_to_bsd_semid_ds __P((const struct svr4_semid_ds *,
-				      struct semid_ds *));
-static int svr4_setsemun __P((caddr_t *sgp, union semun **argp,
-			      union semun *usp));
-static int svr4_semop __P((struct proc *, void *, register_t *));
-static int svr4_semget __P((struct proc *, void *, register_t *));
-static int svr4_semctl __P((struct proc *, void *, register_t *));
+static void bsd_to_svr4_semid_ds(const struct semid_ds *,
+				      struct svr4_semid_ds *);
+static void svr4_to_bsd_semid_ds(const struct svr4_semid_ds *,
+				      struct semid_ds *);
+static int svr4_setsemun(caddr_t *sgp, union semun **argp,
+			      union semun *usp);
+static int svr4_semop(struct proc *, void *, register_t *);
+static int svr4_semget(struct proc *, void *, register_t *);
+static int svr4_semctl(struct proc *, void *, register_t *);
 #endif
 
 #ifdef SYSVMSG
-static void bsd_to_svr4_msqid_ds __P((const struct msqid_ds *,
-				      struct svr4_msqid_ds *));
-static void svr4_to_bsd_msqid_ds __P((const struct svr4_msqid_ds *,
-				      struct msqid_ds *));
-static int svr4_msgsnd __P((struct proc *, void *, register_t *));
-static int svr4_msgrcv __P((struct proc *, void *, register_t *));
-static int svr4_msgget __P((struct proc *, void *, register_t *));
-static int svr4_msgctl __P((struct proc *, void *, register_t *));
+static void bsd_to_svr4_msqid_ds(const struct msqid_ds *,
+				      struct svr4_msqid_ds *);
+static void svr4_to_bsd_msqid_ds(const struct svr4_msqid_ds *,
+				      struct msqid_ds *);
+static int svr4_msgsnd(struct proc *, void *, register_t *);
+static int svr4_msgrcv(struct proc *, void *, register_t *);
+static int svr4_msgget(struct proc *, void *, register_t *);
+static int svr4_msgctl(struct proc *, void *, register_t *);
 #endif
 
 #ifdef SYSVSHM
-static void bsd_to_svr4_shmid_ds __P((const struct shmid_ds *,
-				      struct svr4_shmid_ds *));
-static void svr4_to_bsd_shmid_ds __P((const struct svr4_shmid_ds *,
-				      struct shmid_ds *));
-static int svr4_shmat __P((struct proc *, void *, register_t *));
-static int svr4_shmdt __P((struct proc *, void *, register_t *));
-static int svr4_shmget __P((struct proc *, void *, register_t *));
-static int svr4_shmctl __P((struct proc *, void *, register_t *));
+static void bsd_to_svr4_shmid_ds(const struct shmid_ds *,
+				      struct svr4_shmid_ds *);
+static void svr4_to_bsd_shmid_ds(const struct svr4_shmid_ds *,
+				      struct shmid_ds *);
+static int svr4_shmat(struct proc *, void *, register_t *);
+static int svr4_shmdt(struct proc *, void *, register_t *);
+static int svr4_shmget(struct proc *, void *, register_t *);
+static int svr4_shmctl(struct proc *, void *, register_t *);
 #endif
 
 #if defined(SYSVMSG) || defined(SYSVSHM) || defined(SYSVSEM)
