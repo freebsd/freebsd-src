@@ -193,7 +193,7 @@ done:	argv += optind;
 		}
 		if (chmod(p->fts_accpath, oct ? omode :
 		    getmode(set, p->fts_statp->st_mode)) && !fflag) {
-			warn(p->fts_path);
+			warn("%s", p->fts_path);
 			rval = 1;
 		} else {
 		    	if (vflag)
