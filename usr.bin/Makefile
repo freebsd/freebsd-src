@@ -122,6 +122,7 @@ SUBDIR=	apply \
 	passwd \
 	paste \
 	pathchk \
+	perl \
 	pr \
 	printenv \
 	printf \
