@@ -1,5 +1,5 @@
 %{ /* rcparse.y -- parser for Windows rc files
-   Copyright 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -26,8 +26,7 @@
 #include "bucomm.h"
 #include "libiberty.h"
 #include "windres.h"
-
-#include <ctype.h>
+#include "safe-ctype.h"
 
 /* The current language.  */
 
@@ -245,7 +244,7 @@ acc_event:
 		$$.flags = ACC_CONTROL | ACC_VIRTKEY;
 		++s;
 		ch = *s;
-		ch = toupper ((unsigned char) ch);
+		ch = TOUPPER (ch);
 	      }
 	    $$.key = ch;
 	    if (s[1] != '\0')
@@ -455,7 +454,7 @@ styles:
 	  }
 	| styles LANGUAGE numexpr cnumexpr
 	  {
-	    sub_res_info.language = $3 | ($4 << 8);
+	    sub_res_info.language = $3 | ($4 << SUBLANG_SHIFT);
 	  }
 	| styles VERSIONK numexpr
 	  {
@@ -874,7 +873,7 @@ icon:
 language:
 	  LANGUAGE numexpr cnumexpr
 	  {
-	    language = $2 | ($3 << 8);
+	    language = $2 | ($3 << SUBLANG_SHIFT);
 	  }
 	;
 
@@ -1259,8 +1258,7 @@ id:
 	    /* It seems that resource ID's are forced to upper case.  */
 	    copy = xstrdup ($1);
 	    for (s = copy; *s != '\0'; s++)
-	      if (islower ((unsigned char) *s))
-		*s = toupper ((unsigned char) *s);
+	      *s = TOUPPER (*s);
 	    res_string_to_id (&$$, copy);
 	    free (copy);
 	  }
@@ -1297,8 +1295,7 @@ resref:
 	    /* It seems that resource ID's are forced to upper case.  */
 	    copy = xstrdup ($1);
 	    for (s = copy; *s != '\0'; s++)
-	      if (islower ((unsigned char) *s))
-	        *s = toupper ((unsigned char) *s);
+	      *s = TOUPPER (*s);
 	    res_string_to_id (&$$, copy);
 	    free (copy);
 	  }
@@ -1329,7 +1326,7 @@ suboptions:
 	| suboptions LANGUAGE numexpr cnumexpr
 	  {
 	    $$ = $1;
-	    $$.language = $3 | ($4 << 8);
+	    $$.language = $3 | ($4 << SUBLANG_SHIFT);
 	  }
 	| suboptions VERSIONK numexpr
 	  {

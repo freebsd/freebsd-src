@@ -50,14 +50,15 @@
 #define emul_fake_label_name		0
 #endif
 
-struct emulation emul_struct_name = {
-  0,
-  emul_name,
-  emul_init,
-  emul_bfd_name,
-  emul_local_labels_fb, emul_local_labels_dollar,
-  emul_leading_underscore, emul_strip_underscore,
-  emul_default_endian,
-  emul_fake_label_name,
-  emul_format,
-};
+struct emulation emul_struct_name =
+  {
+    0,
+    emul_name,
+    emul_init,
+    emul_bfd_name,
+    emul_local_labels_fb, emul_local_labels_dollar,
+    emul_leading_underscore, emul_strip_underscore,
+    emul_default_endian,
+    emul_fake_label_name,
+    emul_format,
+  };

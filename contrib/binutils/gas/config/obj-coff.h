@@ -121,10 +121,17 @@
 #ifdef TE_PE
 #define TARGET_FORMAT "pe-shl"
 #else
+
+#if 0 /* FIXME: The "shl" varaible does not appear to exist.  What happened to it ?  */
 #define TARGET_FORMAT					\
   (shl							\
    ? (sh_small ? "coff-shl-small" : "coff-shl")		\
    : (sh_small ? "coff-sh-small" : "coff-sh"))
+#else
+#define TARGET_FORMAT					\
+   (sh_small ? "coff-shl-small" : "coff-shl") 
+#endif
+
 #endif
 #endif
 

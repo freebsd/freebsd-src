@@ -21,9 +21,32 @@
    allocating any.  It is a good idea to use alloca(0) in
    your main control loop, etc. to force garbage collection.  */
 
+/*
+
+@deftypefn Replacement void* alloca (size_t @var{size})
+
+This function allocates memory which will be automatically reclaimed
+after the procedure exits.  The @libib{} implementation does not free
+the memory immediately but will do so eventually during subsequent
+calls to this function.  Memory is allocated using @code{xmalloc} under
+normal circumstances.
+
+The header file @file{alloca-conf.h} can be used in conjunction with the
+GNU Autoconf test @code{AC_FUNC_ALLOCA} to test for and properly make
+available this function.  The @code{AC_FUNC_ALLOCA} test requires that
+client code use a block of preprocessor code to be safe (see the Autoconf
+manual for more); this header incorporates that logic and more, including
+the possibility of a GCC built-in function.
+
+@end deftypefn
+
+*/
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+
+#include <libiberty.h>
 
 #ifdef HAVE_STRING_H
 #include <string.h>
@@ -32,66 +55,25 @@
 #include <stdlib.h>
 #endif
 
-#ifdef emacs
-#include "blockinput.h"
-#endif
-
-/* If compiling with GCC 2, this file's not needed.  Except of course if
-   the C alloca is explicitly requested.  */
-#if defined (USE_C_ALLOCA) || !defined (__GNUC__) || __GNUC__ < 2
-
-/* If someone has defined alloca as a macro,
-   there must be some other way alloca is supposed to work.  */
-#ifndef alloca
-
-#ifdef emacs
-#ifdef static
-/* actually, only want this if static is defined as ""
-   -- this is for usg, in which emacs must undefine static
-   in order to make unexec workable
-   */
-#ifndef STACK_DIRECTION
-you
-lose
--- must know STACK_DIRECTION at compile-time
-#endif /* STACK_DIRECTION undefined */
-#endif /* static */
-#endif /* emacs */
+/* These variables are used by the ASTRDUP implementation that relies
+   on C_alloca.  */
+const char *libiberty_optr;
+char *libiberty_nptr;
+unsigned long libiberty_len;
 
 /* If your stack is a linked list of frames, you have to
    provide an "address metric" ADDRESS_FUNCTION macro.  */
 
 #if defined (CRAY) && defined (CRAY_STACKSEG_END)
-long i00afunc ();
+static long i00afunc ();
 #define ADDRESS_FUNCTION(arg) (char *) i00afunc (&(arg))
 #else
 #define ADDRESS_FUNCTION(arg) &(arg)
 #endif
 
-#if __STDC__
-typedef void *pointer;
-#else
-typedef char *pointer;
-#endif
-
 #ifndef NULL
 #define	NULL	0
 #endif
-
-/* Different portions of Emacs need to call different versions of
-   malloc.  The Emacs executable needs alloca to call xmalloc, because
-   ordinary malloc isn't protected from input signals.  On the other
-   hand, the utilities in lib-src need alloca to call malloc; some of
-   them are very simple, and don't have an xmalloc routine.
-
-   Non-Emacs programs expect this to call use xmalloc.
-
-   Callers below should use malloc.  */
-
-#ifndef emacs
-#define malloc xmalloc
-#endif
-extern pointer malloc ();
 
 /* Define STACK_DIRECTION if you know the direction of stack
    growth for your system; otherwise it will be automatically
@@ -168,9 +150,11 @@ static header *last_alloca_header = NULL;	/* -> last alloca header.  */
    caller, but that method cannot be made to work for some
    implementations of C, for example under Gould's UTX/32.  */
 
-pointer
-alloca (size)
-     unsigned size;
+/* @undocumented C_alloca */
+
+PTR
+C_alloca (size)
+     size_t size;
 {
   auto char probe;		/* Probes stack depth: */
   register char *depth = ADDRESS_FUNCTION (probe);
@@ -186,17 +170,13 @@ alloca (size)
   {
     register header *hp;	/* Traverses linked list.  */
 
-#ifdef emacs
-    BLOCK_INPUT;
-#endif
-
     for (hp = last_alloca_header; hp != NULL;)
       if ((STACK_DIR > 0 && hp->h.deep > depth)
 	  || (STACK_DIR < 0 && hp->h.deep < depth))
 	{
 	  register header *np = hp->h.next;
 
-	  free ((pointer) hp);	/* Collect garbage.  */
+	  free ((PTR) hp);	/* Collect garbage.  */
 
 	  hp = np;		/* -> next header.  */
 	}
@@ -204,10 +184,6 @@ alloca (size)
 	break;			/* Rest are not deeper.  */
 
     last_alloca_header = hp;	/* -> last valid storage.  */
-
-#ifdef emacs
-    UNBLOCK_INPUT;
-#endif
   }
 
   if (size == 0)
@@ -216,7 +192,7 @@ alloca (size)
   /* Allocate combined header + user data storage.  */
 
   {
-    register pointer new = malloc (sizeof (header) + size);
+    register PTR new = xmalloc (sizeof (header) + size);
     /* Address of header.  */
 
     if (new == 0)
@@ -229,7 +205,7 @@ alloca (size)
 
     /* User storage begins just after header.  */
 
-    return (pointer) ((char *) new + sizeof (header));
+    return (PTR) ((char *) new + sizeof (header));
   }
 }
 
@@ -500,6 +476,3 @@ i00afunc (long address)
 
 #endif /* not CRAY2 */
 #endif /* CRAY */
-
-#endif /* no alloca */
-#endif /* not GCC version 2 */

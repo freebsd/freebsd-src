@@ -37,7 +37,7 @@
 #include "coff/symconst.h"
 #include "aout/stab_gnu.h"
 
-#include <ctype.h>
+#include "safe-ctype.h"
 
 /* Why isn't this in coff/sym.h?  */
 #define ST_RFDESCAPE 0xfff
@@ -1553,7 +1553,7 @@ add_string (vp, hash_tbl, str, ret_hash)
   register shash_t *hash_ptr;
 
   if (len >= PAGE_USIZE)
-    as_fatal (_("String too big (%lu bytes)"), len);
+    as_fatal (_("string too big (%lu bytes)"), len);
 
   hash_ptr = (shash_t *) hash_find (hash_tbl, str);
   if (hash_ptr == (shash_t *) NULL)
@@ -1579,7 +1579,7 @@ add_string (vp, hash_tbl, str, ret_hash)
 
       err = hash_insert (hash_tbl, str, (char *) hash_ptr);
       if (err)
-	as_fatal (_("Inserting \"%s\" into string hash table: %s"),
+	as_fatal (_("inserting \"%s\" into string hash table: %s"),
 		  str, err);
     }
 
@@ -2042,7 +2042,7 @@ get_tag (tag, sym, basic_type)
       hash_ptr = allocate_shash ();
       err = hash_insert (tag_hash, perm, (char *) hash_ptr);
       if (err)
-	as_fatal (_("Inserting \"%s\" into tag hash table: %s"),
+	as_fatal (_("inserting \"%s\" into tag hash table: %s"),
 		  tag, err);
       hash_ptr->string = perm;
     }
@@ -2298,7 +2298,7 @@ add_file (file_name, indx, fake)
 		  (shash_t **)0);
 
       if (strlen (file_name) > PAGE_USIZE - 2)
-	as_fatal (_("Filename goes over one page boundary."));
+	as_fatal (_("filename goes over one page boundary"));
 
       /* Push the start of the filename. We assume that the filename
          will be stored at string offset 1.  */
@@ -2538,7 +2538,7 @@ ecoff_directive_def (ignore)
   if (coff_sym_name != (char *) NULL)
     as_warn (_(".def pseudo-op used inside of .def/.endef; ignored"));
   else if (*name == '\0')
-    as_warn (_("Empty symbol name in .def; ignored"));
+    as_warn (_("empty symbol name in .def; ignored"));
   else
     {
       if (coff_sym_name != (char *) NULL)
@@ -2591,7 +2591,7 @@ ecoff_directive_dim (ignore)
 	{
 	  if (*input_line_pointer != '\n'
 	      && *input_line_pointer != ';')
-	    as_warn (_("Badly formed .dim directive"));
+	    as_warn (_("badly formed .dim directive"));
 	  break;
 	}
     }
@@ -2604,7 +2604,7 @@ ecoff_directive_dim (ignore)
     {
       if (coff_type.num_dims >= N_TQ)
 	{
-	  as_warn (_("Too many .dim entries"));
+	  as_warn (_("too many .dim entries"));
 	  break;
 	}
       coff_type.dimensions[coff_type.num_dims] = dimens[i];
@@ -2666,7 +2666,7 @@ ecoff_directive_size (ignore)
 	{
 	  if (*input_line_pointer != '\n'
 	      && *input_line_pointer != ';')
-	    as_warn (_("Badly formed .size directive"));
+	    as_warn (_("badly formed .size directive"));
 	  break;
 	}
     }
@@ -2679,7 +2679,7 @@ ecoff_directive_size (ignore)
     {
       if (coff_type.num_sizes >= N_TQ)
 	{
-	  as_warn (_("Too many .size entries"));
+	  as_warn (_("too many .size entries"));
 	  break;
 	}
       coff_type.sizes[coff_type.num_sizes] = sizes[i];
@@ -2720,7 +2720,7 @@ ecoff_directive_type (ignore)
 	  /* FIXME: We could handle this by setting the continued bit.
 	     There would still be a limit: the .type argument can not
 	     be infinite.  */
-	  as_warn (_("The type of %s is too complex; it will be simplified"),
+	  as_warn (_("the type of %s is too complex; it will be simplified"),
 		   coff_sym_name);
 	  break;
 	}
@@ -2862,7 +2862,7 @@ ecoff_directive_endef (ignore)
 
       if (coff_type.num_sizes != 1 || diff < 0)
 	{
-	  as_warn (_("Bad COFF debugging info"));
+	  as_warn (_("bad COFF debugging information"));
 	  return;
 	}
 
@@ -2911,7 +2911,7 @@ ecoff_directive_endef (ignore)
 	{
 	  if (coff_tag == (char *) NULL)
 	    {
-	      as_warn (_("No tag specified for %s"), name);
+	      as_warn (_("no tag specified for %s"), name);
 	      return;
 	    }
 
@@ -2943,7 +2943,7 @@ ecoff_directive_endef (ignore)
       if (coff_type.num_sizes - coff_type.num_dims - coff_type.extra_sizes
 	  != 1)
 	{
-	  as_warn (_("Bad COFF debugging information"));
+	  as_warn (_("bad COFF debugging information"));
 	  return;
 	}
       else
@@ -3010,7 +3010,6 @@ ecoff_directive_end (ignore)
 {
   char *name;
   char name_end;
-  register int ch;
   symbolS *ent;
 
   if (cur_file_ptr == (efdr_t *) NULL)
@@ -3030,8 +3029,7 @@ ecoff_directive_end (ignore)
   name = input_line_pointer;
   name_end = get_symbol_end ();
 
-  ch = *name;
-  if (! is_name_beginner (ch))
+  if (name == input_line_pointer)
     {
       as_warn (_(".end directive has no name"));
       *input_line_pointer = name_end;
@@ -3067,7 +3065,6 @@ ecoff_directive_ent (ignore)
 {
   char *name;
   char name_end;
-  register int ch;
 
   if (cur_file_ptr == (efdr_t *) NULL)
     add_file ((const char *) NULL, 0, 1);
@@ -3082,8 +3079,7 @@ ecoff_directive_ent (ignore)
   name = input_line_pointer;
   name_end = get_symbol_end ();
 
-  ch = *name;
-  if (! is_name_beginner (ch))
+  if (name == input_line_pointer)
     {
       as_warn (_(".ent directive has no name"));
       *input_line_pointer = name_end;
@@ -3105,7 +3101,7 @@ ecoff_directive_ent (ignore)
       ++input_line_pointer;
       SKIP_WHITESPACE ();
     }
-  if (isdigit ((unsigned char) *input_line_pointer)
+  if (ISDIGIT (*input_line_pointer)
       || *input_line_pointer == '-')
     (void) get_absolute_expression ();
 
@@ -3149,7 +3145,7 @@ ecoff_directive_file (ignore)
 
   if (cur_proc_ptr != (proc_t *) NULL)
     {
-      as_warn (_("No way to handle .file within .ent/.end section"));
+      as_warn (_("no way to handle .file within .ent/.end section"));
       demand_empty_rest_of_line ();
       return;
     }
@@ -3181,7 +3177,7 @@ ecoff_directive_fmask (ignore)
 
   if (get_absolute_expression_and_terminator (&val) != ',')
     {
-      as_warn (_("Bad .fmask directive"));
+      as_warn (_("bad .fmask directive"));
       --input_line_pointer;
       demand_empty_rest_of_line ();
       return;
@@ -3214,7 +3210,7 @@ ecoff_directive_frame (ignore)
   if (*input_line_pointer++ != ','
       || get_absolute_expression_and_terminator (&val) != ',')
     {
-      as_warn (_("Bad .frame directive"));
+      as_warn (_("bad .frame directive"));
       --input_line_pointer;
       demand_empty_rest_of_line ();
       return;
@@ -3251,7 +3247,7 @@ ecoff_directive_mask (ignore)
 
   if (get_absolute_expression_and_terminator (&val) != ',')
     {
-      as_warn (_("Bad .mask directive"));
+      as_warn (_("bad .mask directive"));
       --input_line_pointer;
       demand_empty_rest_of_line ();
       return;
@@ -3400,7 +3396,7 @@ ecoff_directive_weakext (ignore)
     {
       if (S_IS_DEFINED (symbolP))
 	{
-	  as_bad (_("Ignoring attempt to redefine symbol `%s'."),
+	  as_bad (_("symbol `%s' is already defined"),
 		  S_GET_NAME (symbolP));
 	  ignore_rest_of_line ();
 	  return;
@@ -3526,7 +3522,7 @@ ecoff_stab (sec, what, string, type, other, desc)
       dummy_symr.index = desc;
       if (dummy_symr.index != desc)
 	{
-	  as_warn (_("Line number (%d) for .stab%c directive cannot fit in index field (20 bits)"),
+	  as_warn (_("line number (%d) for .stab%c directive cannot fit in index field (20 bits)"),
 		   desc, what);
 	  return;
 	}
@@ -3550,7 +3546,7 @@ ecoff_stab (sec, what, string, type, other, desc)
 	listing_source_file (string);
 #endif
 
-      if (isdigit ((unsigned char) *input_line_pointer)
+      if (ISDIGIT (*input_line_pointer)
 	  || *input_line_pointer == '-'
 	  || *input_line_pointer == '+')
 	{
@@ -3562,7 +3558,7 @@ ecoff_stab (sec, what, string, type, other, desc)
 	}
       else if (! is_name_beginner ((unsigned char) *input_line_pointer))
 	{
-	  as_warn (_("Illegal .stab%c directive, bad character"), what);
+	  as_warn (_("illegal .stab%c directive, bad character"), what);
 	  return;
 	}
       else
@@ -3620,7 +3616,7 @@ ecoff_frob_symbol (sym)
 {
   if (S_IS_COMMON (sym)
       && S_GET_VALUE (sym) > 0
-      && S_GET_VALUE (sym) <= (unsigned) bfd_get_gp_size (stdoutput))
+      && S_GET_VALUE (sym) <= bfd_get_gp_size (stdoutput))
     {
       static asection scom_section;
       static asymbol scom_symbol;
@@ -3645,7 +3641,7 @@ ecoff_frob_symbol (sym)
   if (S_IS_WEAK (sym))
     {
       if (S_IS_COMMON (sym))
-	as_bad (_("Symbol `%s' can not be both weak and common"),
+	as_bad (_("symbol `%s' can not be both weak and common"),
 		S_GET_NAME (sym));
     }
 }
@@ -4085,7 +4081,7 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 
 			      s = symbol_get_obj (as_sym)->ecoff_extern_size;
 			      if (s == 0
-				  || s > (unsigned) bfd_get_gp_size (stdoutput))
+				  || s > bfd_get_gp_size (stdoutput))
 				sc = sc_Undefined;
 			      else
 				{
@@ -4100,7 +4096,7 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 			    {
 			      if (S_GET_VALUE (as_sym) > 0
 				  && (S_GET_VALUE (as_sym)
-				      <= (unsigned) bfd_get_gp_size (stdoutput)))
+				      <= bfd_get_gp_size (stdoutput)))
 				sc = sc_SCommon;
 			      else
 				sc = sc_Common;
@@ -4740,7 +4736,7 @@ ecoff_build_debug (hdr, bufp, backend)
 	  cur_file_ptr->cur_scope = cur_file_ptr->cur_scope->prev;
 	  if (! end_warning && ! cur_file_ptr->fake)
 	    {
-	      as_warn (_("Missing .end or .bend at end of file"));
+	      as_warn (_("missing .end or .bend at end of file"));
 	      end_warning = 1;
 	    }
 	}

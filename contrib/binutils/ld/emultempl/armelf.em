@@ -97,12 +97,15 @@ arm_elf_before_allocation ()
 }
 
 
-static void gld${EMULATION_NAME}_finish PARAMS ((void));
+static void arm_elf_finish PARAMS ((void));
 
 static void
-gld${EMULATION_NAME}_finish PARAMS((void))
+arm_elf_finish ()
 {
   struct bfd_link_hash_entry * h;
+
+  /* Call the elf32.em routine.  */
+  gld${EMULATION_NAME}_finish ();
 
   if (thumb_entry_symbol == NULL)
     return;
@@ -184,4 +187,4 @@ LDEMUL_BEFORE_ALLOCATION=arm_elf_before_allocation
 LDEMUL_BEFORE_PARSE=gld"${EMULATION_NAME}"_before_parse
 
 # Call the extra arm-elf function
-LDEMUL_FINISH=gld${EMULATION_NAME}_finish
+LDEMUL_FINISH=arm_elf_finish

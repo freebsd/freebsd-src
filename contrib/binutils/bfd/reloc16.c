@@ -1,5 +1,5 @@
 /* 8 and 16 bit COFF relocation functions, for BFD.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -137,17 +137,16 @@ bfd_perform_slip (abfd, slip, input_section, value)
 }
 
 boolean
-bfd_coff_reloc16_relax_section (abfd, i, link_info, again)
+bfd_coff_reloc16_relax_section (abfd, input_section, link_info, again)
      bfd *abfd;
-     asection *i;
+     asection *input_section;
      struct bfd_link_info *link_info;
      boolean *again;
 {
   /* Get enough memory to hold the stuff.  */
-  bfd *input_bfd = i->owner;
-  asection *input_section = i;
-  int *shrinks;
-  int shrink = 0;
+  bfd *input_bfd = input_section->owner;
+  unsigned *shrinks;
+  unsigned shrink = 0;
   long reloc_size = bfd_get_reloc_upper_bound (input_bfd, input_section);
   arelent **reloc_vector = NULL;
   long reloc_count;
@@ -159,7 +158,7 @@ bfd_coff_reloc16_relax_section (abfd, i, link_info, again)
   if (reloc_size < 0)
     return false;
 
-  reloc_vector = (arelent **) bfd_malloc (reloc_size);
+  reloc_vector = (arelent **) bfd_malloc ((bfd_size_type) reloc_size);
   if (!reloc_vector && reloc_size > 0)
     return false;
 
@@ -191,11 +190,14 @@ bfd_coff_reloc16_relax_section (abfd, i, link_info, again)
   if (reloc_count > 0)
     {
       int another_pass = 0;
+      bfd_size_type amt;
 
       /* Allocate and initialize the shrinks array for this section.
          The last element is used as an accumlator of shrinks.  */
-      shrinks = (int *) bfd_malloc ((reloc_count + 1) * sizeof (int));
-      memset (shrinks, 0, (reloc_count + 1) * sizeof (int));
+      amt = reloc_count + 1;
+      amt *= sizeof (unsigned);
+      shrinks = (unsigned *) bfd_malloc (amt);
+      memset (shrinks, 0, (size_t) amt);
 
       /* Loop until nothing changes in this section.  */
       do {
@@ -268,11 +270,11 @@ bfd_coff_reloc16_get_relocated_section_contents(in_abfd,
   if (!bfd_get_section_contents(input_bfd,
 				input_section,
 				data,
-				0,
+				(bfd_vma) 0,
 				input_section->_raw_size))
     return NULL;
 
-  reloc_vector = (arelent **) bfd_malloc ((size_t) reloc_size);
+  reloc_vector = (arelent **) bfd_malloc ((bfd_size_type) reloc_size);
   if (!reloc_vector && reloc_size != 0)
     return NULL;
 

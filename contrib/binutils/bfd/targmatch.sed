@@ -1,5 +1,6 @@
 1,/START OF targmatch.h/	d
 /END OF targmatch.h/,$		d
+/^[ 	]*case/,/^[ 	]*esac/ d
 s/^#if/KEEP #if/
 s/^#endif/KEEP #endif/
 s/^[ 	]*#.*$//

@@ -1,5 +1,6 @@
 /* IEEE-695 object file formats:  definitions internal to BFD.
-   Copyright 1990, 1991, 1992, 1994, 1996 Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1992, 1994, 1996, 2001
+   Free Software Foundation, Inc.
    Written by Cygnus Support.  Mostly Steve Chamberlain's fault.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -28,7 +29,7 @@ typedef struct ct {
   struct ct *next;
 } bfd_chain_type;
 
-typedef struct ieee_symbol 
+typedef struct ieee_symbol
 {
   asymbol symbol;
   struct ieee_symbol *next;
@@ -60,10 +61,11 @@ typedef struct ieee_per_section
 } ieee_per_section_type;
 
 #define ieee_per_section(x) ((ieee_per_section_type *)((x)->used_by_bfd))
-  
+
 typedef struct {
-  unsigned  char *input_p;
+  unsigned char *input_p;
   unsigned char *first_byte;
+  unsigned char *last_byte;
   bfd *abfd;
 } common_header_type ;
 
@@ -71,7 +73,7 @@ typedef struct ieee_data_struct
 {
   common_header_type h;
   boolean read_symbols;
-  boolean read_data;	
+  boolean read_data;
   file_ptr output_cursor;
   /* Map of section indexes to section ptrs */
   asection **section_table;
@@ -79,31 +81,31 @@ typedef struct ieee_data_struct
   ieee_address_descriptor_type ad;
   ieee_module_begin_type mb;
   ieee_w_variable_type w;
-  
+
   unsigned int section_count;
-  
+
   unsigned int map_idx;
   /* List of GLOBAL EXPORT symbols */
   ieee_symbol_type *external_symbols;
   /* List of UNDEFINED symbols */
   ieee_symbol_type *external_reference;
-  
+
   /* When the symbols have been canonicalized, they are in a
     * special order, we remember various bases here.. */
   unsigned int external_symbol_max_index;
   unsigned int external_symbol_min_index;
   unsigned int external_symbol_count;
   int external_symbol_base_offset;
-  
+
   unsigned int external_reference_max_index;
   unsigned int external_reference_min_index;
   unsigned int external_reference_count;
   int external_reference_base_offset;
-  
+
 
   boolean symbol_table_full;
 
-  
+
 boolean done_debug;
 
 
@@ -117,11 +119,11 @@ typedef struct {
   bfd *abfd;
 } ieee_ar_obstack_type;
 
-typedef struct ieee_ar_data_struct 
+typedef struct ieee_ar_data_struct
 {
   common_header_type h;
   ieee_ar_obstack_type *elements;
-  
+
   unsigned  int element_index ;
   unsigned int element_count;
 

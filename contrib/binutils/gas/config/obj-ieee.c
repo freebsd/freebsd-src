@@ -292,7 +292,7 @@ do_symbols (abfd)
 	{
 	  ptr->sy_symbol.sy.section =
 	    (asection *) (segment_info[ptr->sy_symbol.seg].user_stuff);
-	  S_SET_VALUE (ptr, S_GET_VALUE (ptr) + ptr->sy_frag->fr_address);
+	  S_SET_VALUE (ptr, S_GET_VALUE (ptr));
 	  if (ptr->sy_symbol.sy.flags == 0)
 	    ptr->sy_symbol.sy.flags = BSF_LOCAL;
 	}
@@ -557,6 +557,9 @@ write_object_file ()
 
   for (i = SEG_E0; i < SEG_UNKNOWN; i++)
     relax_segment (segment_info[i].frag_root, i);
+
+  /* Relaxation has completed.  Freeze all syms.  */
+  finalize_syms = 1;
 
   /* Now the addresses of the frags are correct within the segment.  */
 
