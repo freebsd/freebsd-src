@@ -113,6 +113,14 @@ The
 argument
 determines the size of
 .Fa eventlist .
+When
+.Fa nevents
+is zero,
+.Fn kevent
+will return immediately even if there is a
+.Fa timeout
+specified unlike
+.Xr select  2 .
 If
 .Fa timeout
 is a non-NULL pointer, it specifies a maximum interval to wait
