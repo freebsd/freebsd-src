@@ -346,7 +346,7 @@ innetgr(group, host, user, dom)
 
 		if(yp_get_default_domain(&_netgr_yp_domain))
 			return(0);
-		while(_buildkey(&_key, user ? user : host, dom, &rot)) {
+		while(_buildkey(_key, user ? user : host, dom, &rot)) {
 			if (!yp_match(_netgr_yp_domain, user? "netgroup.byuser":
 			    "netgroup.byhost", _key, strlen(_key), &result,
 			    	&resultlen)) {
