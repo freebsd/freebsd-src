@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.25 1997/06/23 09:35:38 kato Exp $
+ *	$Id: trap.c,v 1.26 1997/07/21 13:04:54 kato Exp $
  */
 
 /*
@@ -85,6 +85,7 @@
 
 extern struct i386tss common_tss;
 
+int (*vm86_emulate) __P((struct vm86frame *));
 int (*pmath_emulate) __P((struct trapframe *));
 
 extern void trap __P((struct trapframe frame));
@@ -212,7 +213,7 @@ trap(frame)
 		asm("sti");
 #endif	/* CPU_BUGGY_CYRIX */
 
-	if (ISPL(frame.tf_cs) == SEL_UPL) {
+        if ((ISPL(frame.tf_cs) == SEL_UPL) || (frame.tf_eflags & PSL_VM)) {
 		/* user trap */
 
 		sticks = p->p_sticks;
@@ -245,9 +246,22 @@ trap(frame)
 			}
 			goto out;
 
+			/*
+			 * The following two traps can happen in
+			 * vm86 mode, and, if so, we want to handle
+			 * them specially.
+			 */
 		case T_PROTFLT:		/* general protection fault */
-		case T_SEGNPFLT:	/* segment not present fault */
 		case T_STKFLT:		/* stack fault */
+			if (vm86_emulate && (frame.tf_eflags & PSL_VM)) {
+				i = (*vm86_emulate)((struct vm86frame *)&frame);
+				if (i == 0)
+					goto out;
+				break;
+			}
+			/* FALL THROUGH */
+
+		case T_SEGNPFLT:	/* segment not present fault */
 		case T_TSSFLT:		/* invalid TSS fault */
 		case T_DOUBLEFLT:	/* double fault */
 		default:
@@ -744,6 +758,7 @@ trap_fatal(frame)
 	if (type <= MAX_TRAP_MSG)
 		printf("\n\nFatal trap %d: %s while in %s mode\n",
 			type, trap_msg[type],
+        		frame->tf_eflags & PSL_VM ? "vm86" :
 			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 #ifdef SMP
 	printf("cpuid = %d\n", cpuid);
@@ -757,7 +772,7 @@ trap_fatal(frame)
 	}
 	printf("instruction pointer	= 0x%x:0x%x\n",
 	       frame->tf_cs & 0xffff, frame->tf_eip);
-	if (ISPL(frame->tf_cs) == SEL_UPL) {
+        if ((ISPL(frame->tf_cs) == SEL_UPL) || (frame->tf_eflags & PSL_VM)) {
 		ss = frame->tf_ss & 0xffff;
 		esp = frame->tf_esp;
 	} else {
@@ -996,7 +1011,7 @@ bad:
 		break;
 	}
 
-	if (frame.tf_eflags & PSL_T) {
+	if ((frame.tf_eflags & PSL_T) && !(frame.tf_eflags & PSL_VM)) {
 		/* Traced syscall. */
 		frame.tf_eflags &= ~PSL_T;
 		trapsignal(p, SIGTRAP, 0);
