@@ -56,6 +56,10 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <langinfo.h>
+#include <locale.h>
+#include <paths.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -65,6 +69,7 @@ __FBSDID("$FreeBSD$");
 
 static void	parse_input(int, char **);
 static void	prerun(int, char **);
+static int	prompt(void);
 static void	run(char **);
 static void	usage(void);
 void		strnsubst(char **, const char *, const char *, size_t);
@@ -89,6 +94,8 @@ main(int argc, char **argv)
 	ep = environ;
 	eofstr = "";
 	Jflag = nflag = 0;
+
+	(void)setlocale(LC_MESSAGES, "");
 
 	/*
 	 * POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that
@@ -454,26 +461,40 @@ run(char **argv)
 {
 	volatile int childerr;
 	char **avec;
-	FILE *ttyfp;
 	pid_t pid;
-	int ch, status;
+	int status;
 
+	/*
+	 * If the user wants to be notified of each command before it is
+	 * executed, notify them.  If they want the notification to be
+	 * followed by a prompt, then prompt them.
+	 */
 	if (tflag || pflag) {
 		(void)fprintf(stderr, "%s", *argv);
 		for (avec = argv + 1; *avec != NULL; ++avec)
 			(void)fprintf(stderr, " %s", *avec);
-		if (pflag && (ttyfp = fopen("/dev/tty", "r")) != NULL) {
-			(void)fprintf(stderr, "?");
-			(void)fflush(stderr);
-			ch = getc(ttyfp);
-			fclose(ttyfp);
-			if (ch != 'y')
+		/*
+		 * If the user has asked to be prompted, do so.
+		 */
+		if (pflag)
+			/*
+			 * If they asked not to exec, return without execution
+			 * but if they asked to, go to the execution.  If we
+			 * could not open their tty, break the switch and drop
+			 * back to -t behaviour.
+			 */
+			switch (prompt()) {
+			case 0:
 				return;
-		} else {
-			(void)fprintf(stderr, "\n");
-			(void)fflush(stderr);
-		}
+			case 1:
+				goto exec;
+			case 2:
+				break;
+			}
+		(void)fprintf(stderr, "\n");
+		(void)fflush(stderr);
 	}
+exec:
 	childerr = 0;
 	switch(pid = vfork()) {
 	case -1:
@@ -494,6 +515,33 @@ run(char **argv)
 		exit(1);
 	if (WEXITSTATUS(status))
 		rval = 1;
+}
+
+/*
+ * Prompt the user about running a command.
+ */
+static int
+prompt(void)
+{
+	regex_t cre;
+	size_t rsize;
+	int match;
+	char *response;
+	FILE *ttyfp;
+
+	if ((ttyfp = fopen(_PATH_TTY, "r")) == NULL)
+		return (2);	/* Indicate that the TTY failed to open. */
+	(void)fprintf(stderr, "?...");
+	(void)fflush(stderr);
+	if ((response = fgetln(ttyfp, &rsize)) == NULL ||
+	    regcomp(&cre, nl_langinfo(YESEXPR), REG_BASIC) != 0) {
+		(void)fclose(ttyfp);
+		return (0);
+	}
+	match = regexec(&cre, response, 0, NULL, 0);
+	(void)fclose(ttyfp);
+	regfree(&cre);
+	return (match == 0);
 }
 
 static void
