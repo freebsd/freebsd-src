@@ -38,7 +38,7 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_IOCTL "struct vnode *vp" "u_long command" "caddr_t data" "int fflag" "struct ucred *cred" "struct proc *p"
+.Fn VOP_IOCTL "struct vnode *vp" "u_long command" "caddr_t data" "int fflag" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
 Manipulate a file in device dependent ways.
 .Pp
@@ -54,8 +54,8 @@ extra data for the specified operation
 some flags ???
 .It Ar cred
 the caller's credentials
-.It Ar p
-the calling process
+.It Ar td
+the calling thread 
 .El
 .Pp
 Most filesystems do not implement this entry point.
@@ -67,7 +67,7 @@ If successful, zero is returned, otherwise an appropriate error code.
 .Bd -literal
 int
 vop_ioctl(struct vnode *vp, int command, caddr_t data, int fflag,
-	  struct ucred *cred, struct proc *p)
+	  struct ucred *cred, struct thread *td)
 {
     return EOPNOTSUPP;
 }

@@ -38,7 +38,7 @@
 .In sys/param.h
 .In sys/mount.h
 .Ft int
-.Fn VOP_LEASE "struct vnode *vp" "struct proc *p" "struct ucred *cred" "int type"
+.Fn VOP_LEASE "struct vnode *vp" "struct thread *td" "struct ucred *cred" "int type"
 .Sh DESCRIPTION
 This entry point is currently not implemented.  I believe the idea is to
 validate a vnode for a particular set of user credentials and operation type.

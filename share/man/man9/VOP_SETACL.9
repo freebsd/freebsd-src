@@ -36,7 +36,7 @@
 .In sys/vnode.h
 .In sys/acl.h
 .Ft int
-.Fn VOP_SETACL "struct vnode *vp" "acl_type_t type" "struct acl *aclp" "struct ucred *cred" "struct proc *p"
+.Fn VOP_SETACL "struct vnode *vp" "acl_type_t type" "struct acl *aclp" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
 This vnode call may be used to set the access control list (ACL) for a file
 or directory.
@@ -51,8 +51,8 @@ the type of ACL to set
 a pointer to an ACL structure from which to retrieve the ACL data
 .It Fa cred
 the user credentials to use in authorizing the request
-.It Fa p
-the process setting the ACL
+.It Fa td
+the thread setting the ACL
 .El
 .Pp
 The
