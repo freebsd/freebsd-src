@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.18 1999/01/09 20:25:02 obrien Exp $
+ * $Id: machine.c,v 1.19 1999/01/22 11:09:41 dillon Exp $
  */
 
 
@@ -980,7 +980,7 @@ swapmode(retavail, retfree)
 #define CONVERT(v)	((quad_t)(v) * pagesize / 1024)
 
 	n = kvm_getswapinfo(kd, swapary, 1, 0);
-	if (n < 0)
+	if (n < 0 || swapary[0].ksw_total == 0)
 		return(0);
 
 	*retavail = CONVERT(swapary[0].ksw_total);
