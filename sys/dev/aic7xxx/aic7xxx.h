@@ -3,7 +3,7 @@
  * SCSI controllers.  This is used to implement product specific
  * probe and attach routines.
  *
- * Copyright (c) 1994, 1995, 1996, 1997, 1998, 1999 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996, 1997, 1998, 1999, 2000 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,13 +96,17 @@ typedef enum {
 	AHC_AIC7870	= 0x0006,
 	AHC_AIC7880	= 0x0007,
 	AHC_AIC7890	= 0x0008,
-	AHC_AIC7895	= 0x0009,
-	AHC_AIC7896	= 0x000a,
+	AHC_AIC7892	= 0x0009,
+	AHC_AIC7895	= 0x000a,
+	AHC_AIC7896	= 0x000b,
+	AHC_AIC7899	= 0x000c,
 	AHC_VL		= 0x0100,	/* Bus type VL */
 	AHC_EISA	= 0x0200,	/* Bus type EISA */
 	AHC_PCI		= 0x0400,	/* Bus type PCI */
 	AHC_BUS_MASK	= 0x0F00
 } ahc_chip;
+
+extern char *ahc_chip_names[];
 
 typedef enum {
 	AHC_FENONE	= 0x0000,
@@ -117,19 +121,25 @@ typedef enum {
 	AHC_SPIOCAP	= 0x0100,	/* Has a Serial Port I/O Cap Register */
 	AHC_MULTI_TID	= 0x0200,	/* Has bitmask of TIDs for select-in */
 	AHC_HS_MAILBOX	= 0x0400,	/* Has HS_MAILBOX register */
-	AHC_AIC7770_FE	= AHC_FENONE,	
-	AHC_AIC7850_FE	= AHC_FENONE|AHC_SPIOCAP,
-	AHC_AIC7855_FE	= AHC_FENONE|AHC_SPIOCAP,
-	AHC_AIC7859_FE	= AHC_ULTRA|AHC_SPIOCAP,
-	AHC_AIC7860_FE	= AHC_ULTRA|AHC_SPIOCAP,
+	AHC_DT		= 0x0800,	/* Double Transition transfers */
+	AHC_NEW_TERMCTL	= 0x1000,
+	AHC_MULTI_FUNC	= 0x2000,	/* Multi-Function Twin Channel Device */
+	AHC_AIC7770_FE	= AHC_FENONE,
+	AHC_AIC7850_FE	= AHC_SPIOCAP,
+	AHC_AIC7855_FE	= AHC_AIC7850_FE,
+	AHC_AIC7859_FE	= AHC_AIC7850_FE|AHC_ULTRA,
+	AHC_AIC7860_FE	= AHC_AIC7859_FE,
 	AHC_AIC7870_FE	= AHC_FENONE,
 	AHC_AIC7880_FE	= AHC_ULTRA,
 	AHC_AIC7890_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2|AHC_QUEUE_REGS
-			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX,
-	AHC_AIC7895_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA,
-	AHC_AIC7895C_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA|AHC_MULTI_TID,
-	AHC_AIC7896_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2|AHC_QUEUE_REGS
 			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX
+			  |AHC_NEW_TERMCTL,
+	AHC_AIC7892_FE	= AHC_AIC7890_FE|AHC_DT,
+	AHC_AIC7895_FE	= AHC_AIC7880_FE|AHC_MORE_SRAM
+			  |AHC_CMD_CHAN|AHC_MULTI_FUNC,
+	AHC_AIC7895C_FE	= AHC_AIC7895_FE|AHC_MULTI_TID,
+	AHC_AIC7896_FE	= AHC_AIC7890_FE|AHC_MULTI_FUNC,
+	AHC_AIC7899_FE	= AHC_AIC7892_FE|AHC_MULTI_FUNC
 } ahc_feature;
 
 typedef enum {
@@ -165,6 +175,10 @@ typedef enum {
 	AHC_NEWEEPROM_FMT	= 0x4000,
 	AHC_RESOURCE_SHORTAGE	= 0x8000,
 	AHC_TQINFIFO_BLOCKED	= 0x10000,/* Blocked waiting for ATIOs */
+	AHC_INT50_SPEEDFLEX	= 0x20000,/*
+					   * Internal 50pin connector
+					   * sits behind an aic3860
+					   */
 } ahc_flag;
 
 typedef enum {
@@ -295,6 +309,7 @@ struct ahc_transinfo {
 	u_int8_t width;
 	u_int8_t period;
 	u_int8_t offset;
+	u_int8_t ppr_flags;
 };
 
 struct ahc_initiator_tinfo {
@@ -323,7 +338,7 @@ struct tmode_tstate {
 };
 
 /*
- * Define the format of the aic7XX0 SEEPROM registers (16 bits).
+ * Define the format of the aic7XXX SEEPROM registers (16 bits).
  */
 
 struct seeprom_config {
@@ -336,24 +351,25 @@ struct seeprom_config {
 #define		CFDISC		0x0010	/* enable disconnection */
 #define		CFWIDEB		0x0020	/* wide bus device */
 #define		CFSYNCHISULTRA	0x0040	/* CFSYNCH is an ultra offset (2940AU)*/
-/*		UNUSED		0x0080	*/
+#define		CFSYNCSINGLE	0x0080	/* Single-Transition signalling */
 #define		CFSTART		0x0100	/* send start unit SCSI command */
 #define		CFINCBIOS	0x0200	/* include in BIOS scan */
 #define		CFRNFOUND	0x0400	/* report even if not found */
 #define		CFMULTILUN	0x0800	/* Probe multiple luns in BIOS scan */
-/*		UNUSED		0xf000	*/
+#define		CFWBCACHEENB	0x4000	/* Enable W-Behind Cache on disks */
+#define		CFWBCACHENOP	0xc000	/* Don't touch W-Behind Cache */
 
 /*
  * BIOS Control Bits
  */
 	u_int16_t bios_control;		/* word 16 */
 #define		CFSUPREM	0x0001	/* support all removeable drives */
-#define		CFSUPREMB	0x0002	/* support removeable drives for boot only */
+#define		CFSUPREMB	0x0002	/* support removeable boot drives */
 #define		CFBIOSEN	0x0004	/* BIOS enabled */
 /*		UNUSED		0x0008	*/
 #define		CFSM2DRV	0x0010	/* support more than two drives */
 #define		CF284XEXTEND	0x0020	/* extended translation (284x cards) */	
-/*		UNUSED		0x0060	*/
+/*		UNUSED		0x0040	*/
 #define		CFEXTEND	0x0080	/* extended translation enabled */
 /*		UNUSED		0xff00	*/
 
@@ -373,7 +389,7 @@ struct seeprom_config {
 #define		CFCHNLBPRIMARY	0x0100	/* aic7895 probe B channel first */
 #define		CFSEAUTOTERM	0x0400	/* aic7890 Perform SE Auto Termination*/
 #define		CFLVDSTERM	0x0800	/* aic7890 LVD Termination */
-/*		UNUSED		0xf080	*/
+/*		UNUSED		0xf280	*/
 
 /*
  * Bus Release, Host Adapter ID
@@ -394,10 +410,11 @@ struct seeprom_config {
 };
 
 struct ahc_syncrate {
-	int sxfr_ultra2;
+	int sxfr_u2;
 	int sxfr;
 	/* Rates in Ultra mode have bit 8 of sxfr set */
 #define		ULTRA_SXFR 0x100
+#define		ST_SXFR	   0x010
 	u_int8_t period; /* Period to send to SCSI target */
 	char *rate;
 };

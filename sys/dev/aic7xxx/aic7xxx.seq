@@ -1,7 +1,7 @@
 /*
  * Adaptec 274x/284x/294x device driver firmware for Linux and FreeBSD.
  *
- * Copyright (c) 1994-1999 Justin Gibbs.
+ * Copyright (c) 1994-2000 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -777,9 +777,6 @@ data_phase_wideodd:
 data_phase_dma_loop:
 		test	SSTAT0,	SDONE jnz data_phase_dma_done;
 		test	SSTAT1,PHASEMIS	jz data_phase_dma_loop;	/* ie. underrun */
-data_phase_dma_phasemis:
-		test	SSTAT0,SDONE	jnz . + 2;
-		mov	SINDEX,ALLZEROS;	/* Remeber the phasemiss */
 	} else {
 		mov	DMAPARAMS  call dma;
 	}
@@ -788,8 +785,10 @@ data_phase_dma_done:
 /* Go tell the host about any overruns */
 	test	SXFRCTL1,BITBUCKET jnz data_phase_overrun;
 
-/* Exit if we had an underrun.  dma clears SINDEX in this case. */
-	test	SINDEX,0xff	jz data_phase_finish;
+/* See if we completed this segment */
+	test	STCNT[0], 0xff	jnz data_phase_finish;
+	test	STCNT[1], 0xff	jnz data_phase_finish;
+	test	STCNT[2], 0xff	jnz data_phase_finish;
 
 /*
  * Advance the scatter-gather pointers if needed 
@@ -877,7 +876,8 @@ prefetched_segs_avail:
 
 	/* Ensure the last seg is visable at the shaddow layer */
 	if ((ahc->features & AHC_ULTRA2) != 0) {
-		or	DFCNTRL, PRELOADEN;
+		mov	DFCNTRL, DMAPARAMS;
+		test	SSTAT0, SDONE jnz .;/* Wait for preload to complete */
 	}
 
 data_phase_finish:
@@ -929,7 +929,7 @@ data_phase_overrun:
 
 ultra2_dmafinish:
 	if ((ahc->features & AHC_ULTRA2) != 0) {
-		test	DFCNTRL, DIRECTION jnz ultra2_dmahalt;
+		test	DFCNTRL, DIRECTION jnz ultra2_dmafifoempty;
 		and	DFCNTRL, ~SCSIEN;
 		test	DFCNTRL, SCSIEN jnz .;
 ultra2_dmafifoflush:
@@ -1004,7 +1004,12 @@ dma_cmd_data:
 cmd_loop:
 	test	SSTAT0, SDONE jnz . + 2;
 	test    SSTAT1, PHASEMIS jz cmd_loop;
-	and	DFCNTRL, ~(SCSIEN|HDMAEN|SDMAEN);
+	/*
+	 * Wait for our ACK to go-away on it's own
+	 * instead of being killed by SCSIEN getting cleared.
+	 */
+	test	SCSISIGI, ACKI jnz .;
+	and	DFCNTRL, ~(SCSIEN|SDMAEN|HDMAEN);
 	test	DFCNTRL, (SCSIEN|SDMAEN|HDMAEN) jnz .;
 	jmp	ITloop;
 
@@ -1282,7 +1287,6 @@ mesgin_rdptrs:
  * clearing the "disconnected" bit so we don't "find" it by accident later.
  */
 mesgin_identify:
-	
 	if ((ahc->features & AHC_WIDE) != 0) {
 		and	A,0x0f;		/* lun in lower four bits */
 	} else {
@@ -1332,7 +1336,7 @@ setup_SCB:
 	cmp	SCB_TCL, A	jne not_found_cleanup_scb;
 	test	SCB_CONTROL,DISCONNECTED jz not_found_cleanup_scb;
 	and	SCB_CONTROL,~DISCONNECTED;
-	or	SEQ_FLAGS,IDENTIFY_SEEN;	  /* make note of IDENTIFY */
+	or	SEQ_FLAGS,IDENTIFY_SEEN;	/* make note of IDENTIFY */
 	call	set_transfer_settings;
 	/* See if the host wants to send a message upon reconnection */
 	test	SCB_CONTROL, MK_MESSAGE jz mesgin_done;
@@ -1455,8 +1459,6 @@ dma_loop:
 	test	SSTAT0,DMADONE	jnz dma_dmadone;
 	test	SSTAT1,PHASEMIS	jz dma_loop;	/* ie. underrun */
 dma_phasemis:
-	test	SSTAT0,SDONE	jnz dma_checkfifo;
-	mov	SINDEX,ALLZEROS;		/* Notify caller of phasemiss */
 
 /*
  * We will be "done" DMAing when the transfer count goes to zero, or
