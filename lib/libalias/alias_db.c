@@ -863,7 +863,7 @@ AddLink(struct in_addr  src_addr,
         link->src_addr          = src_addr;
         link->dst_addr          = dst_addr;
         link->alias_addr        = alias_addr;
-        link->proxy_addr.s_addr = 0;
+        link->proxy_addr.s_addr = INADDR_ANY;
         link->src_port          = src_port;
         link->dst_port          = dst_port;
         link->proxy_port        = 0;
@@ -893,7 +893,7 @@ AddLink(struct in_addr  src_addr,
         }
 
     /* Determine alias flags */
-        if (dst_addr.s_addr == 0)
+        if (dst_addr.s_addr == INADDR_ANY)
             link->flags |= LINK_UNKNOWN_DEST_ADDR;
         if (dst_port == 0)
             link->flags |= LINK_UNKNOWN_DEST_PORT;
@@ -1101,7 +1101,7 @@ FindLinkOut(struct in_addr src_addr,
 }
 
 
-struct alias_link *
+static struct alias_link *
 _FindLinkIn(struct in_addr dst_addr,
            struct in_addr  alias_addr,
            u_short         dst_port,
@@ -1127,7 +1127,7 @@ _FindLinkIn(struct in_addr dst_addr,
    loop will have to know about this. */
 
     flags_in = 0;
-    if (dst_addr.s_addr == 0)
+    if (dst_addr.s_addr == INADDR_ANY)
         flags_in |= LINK_UNKNOWN_DEST_ADDR;
     if (dst_port == 0)
         flags_in |= LINK_UNKNOWN_DEST_PORT;
@@ -1455,14 +1455,16 @@ FindOriginalAddress(struct in_addr alias_addr)
     if (link == NULL)
     {
         newDefaultLink = 1;
-        if (targetAddress.s_addr != 0)
-            return targetAddress;
-        else
+        if (targetAddress.s_addr == INADDR_ANY)
             return alias_addr;
+        else if (targetAddress.s_addr == INADDR_NONE)
+            return aliasAddress;
+        else
+            return targetAddress;
     }
     else
     {
-        if (link->src_addr.s_addr == 0)
+        if (link->src_addr.s_addr == INADDR_ANY)
             return aliasAddress;
         else
             return link->src_addr;
@@ -1483,7 +1485,7 @@ FindAliasAddress(struct in_addr original_addr)
     }
     else
     {
-        if (link->alias_addr.s_addr == 0)
+        if (link->alias_addr.s_addr == INADDR_ANY)
             return aliasAddress;
         else
             return link->alias_addr;
@@ -1601,7 +1603,7 @@ GetStateOut(struct alias_link *link)
 struct in_addr
 GetOriginalAddress(struct alias_link *link)
 {
-    if (link->src_addr.s_addr == 0)
+    if (link->src_addr.s_addr == INADDR_ANY)
         return aliasAddress;
     else
         return(link->src_addr);
@@ -1618,7 +1620,7 @@ GetDestAddress(struct alias_link *link)
 struct in_addr
 GetAliasAddress(struct alias_link *link)
 {
-    if (link->alias_addr.s_addr == 0)
+    if (link->alias_addr.s_addr == INADDR_ANY)
         return aliasAddress;
     else
         return link->alias_addr;
@@ -1652,11 +1654,13 @@ GetAliasPort(struct alias_link *link)
     return(link->alias_port);
 }
 
-u_short
+#ifndef NO_FW_PUNCH
+static u_short
 GetDestPort(struct alias_link *link)
 {
     return(link->dst_port);
 }
+#endif
 
 void
 SetAckModified(struct alias_link *link)
@@ -2137,8 +2141,8 @@ PacketAliasInit(void)
         deleteAllLinks = 0;
     }
 
-    aliasAddress.s_addr = 0;
-    targetAddress.s_addr = 0;
+    aliasAddress.s_addr = INADDR_ANY;
+    targetAddress.s_addr = INADDR_NONE;
 
     icmpLinkCount = 0;
     udpLinkCount = 0;
