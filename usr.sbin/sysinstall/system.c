@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.45 1995/09/18 16:52:36 peter Exp $
+ * $Id: system.c,v 1.46 1995/12/07 10:34:16 peter Exp $
  *
  * Jordan Hubbard
  *
@@ -266,7 +266,6 @@ systemCreateHoloshell(void)
 	    }
 	    else
 		msgDebug("Doctor: I'm unable to get the terminal attributes!\n");
-	    printf("Warning: This shell is chroot()'d to /mnt\n");
 	    execlp("sh", "-sh", 0);
 	    msgDebug("Was unable to execute sh for Holographic shell!\n");
 	    exit(1);

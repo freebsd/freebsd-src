@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.38 1995/12/11 16:32:29 jkh Exp $
+ * $Id: devices.c,v 1.39 1996/02/10 09:33:52 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -126,7 +126,7 @@ dummyInit(Device *dev)
 }
 
 int
-dummyGet(Device *dev, char *dist, Boolean tentative)
+dummyGet(Device *dev, char *dist, Boolean probe)
 {
     msgDebug("Dummy get called for %s\n", dev->name);
     return -1;

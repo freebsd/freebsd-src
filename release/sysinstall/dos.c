@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.7 1995/09/18 16:52:26 peter Exp $
+ * $Id: dos.c,v 1.8 1995/12/07 10:33:45 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -86,7 +86,7 @@ mediaInitDOS(Device *dev)
 }
 
 int
-mediaGetDOS(Device *dev, char *file, Boolean tentative)
+mediaGetDOS(Device *dev, char *file, Boolean probe)
 {
     char		buf[PATH_MAX];
 

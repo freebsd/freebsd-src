@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ufs.c,v 1.5.2.4 1995/10/22 01:33:02 jkh Exp $
+ * $Id: ufs.c,v 1.6 1995/12/07 10:34:21 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,7 +50,7 @@
 /* No init or shutdown routines necessary - all done in mediaSetUFS() */
 
 int
-mediaGetUFS(Device *dev, char *file, Boolean tentative)
+mediaGetUFS(Device *dev, char *file, Boolean probe)
 {
     char		buf[PATH_MAX];
 
