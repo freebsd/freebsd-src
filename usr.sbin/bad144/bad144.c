@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)bad144.c	8.2 (Berkeley) 4/27/95";
 #endif
 static const char rcsid[] =
-	"$Id: bad144.c,v 1.15 1997/12/11 07:27:06 bde Exp $";
+	"$Id: bad144.c,v 1.16 1997/12/12 17:58:31 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -332,8 +332,9 @@ main(argc, argv)
 		sn = atoi(*argv++);
 		argc--;
 		if (sn < 0 || sn >= bend) {
-			printf("%d: out of range [0,%d) for disk %s\n",
-			    sn, bend, dp->d_typename);
+			printf("%d: out of range [0,%d) for disk %.*s\n",
+			    sn, bend, (int)sizeof(dp->d_typename),
+			    dp->d_typename);
 			errs++;
 			continue;
 		}
@@ -703,10 +704,12 @@ format(fd, blk)
 	int n;
 
 	for (fp = formats; fp->f_name; fp++)
-		if (strcmp(dp->d_typename, fp->f_name) == 0)
+		if (strncmp(dp->d_typename, fp->f_name, sizeof(dp->d_typename))
+		    == 0 && strlen(fp->f_name) <= sizeof(dp->d_typename))
 			break;
 	if (fp->f_name == 0)
-		errx(2, "don't know how to format %s disks", dp->d_typename);
+		errx(2, "don't know how to format %.*s disks",
+		    (int)sizeof(dp->d_typename), dp->d_typename);
 	if (buf && bufsize < fp->f_bufsize) {
 		free(buf);
 		buf = NULL;
