@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.63.2.21 1998/01/08 12:30:29 jkh Exp $
+ **      $Id: userconfig.c,v 1.63.2.22 1998/01/21 19:28:11 jkh Exp $
  **/
 
 /**
@@ -112,6 +112,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/reboot.h>
 
 #include <machine/cons.h>
 #include <machine/md_var.h>
@@ -126,6 +127,7 @@ static struct isa_device *isa_devlist;	/* list read by dset to extract changes *
 
 #ifdef USERCONFIG_BOOT
 char userconfig_from_boot[512] = "";
+static int userconfig_boot_parsing;	/* set if we are reading from the boot instructions */
 
 static int
 getchar(void)
@@ -141,8 +143,10 @@ getchar(void)
 	}
     } 
     if (*next) {
+	userconfig_boot_parsing = 1;
 	return (*next++);
     } else {
+	userconfig_boot_parsing = 0;
 	return cngetc();
     }
 }
@@ -2361,7 +2365,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.63.2.21 1998/01/08 12:30:29 jkh Exp $
+ *      $Id: userconfig.c,v 1.63.2.22 1998/01/21 19:28:11 jkh Exp $
  */
 
 #include "scbus.h"
@@ -2826,6 +2830,15 @@ set_num_eisa_slots(CmdParm *parms)
 static int
 quitfunc(CmdParm *parms)
 {
+#ifdef USERCONFIG_BOOT
+    /*
+     * If kernel config supplied, and we are parsing it, and -c also supplied,
+     * ignore a quit command,  This provides a safety mechanism to allow
+     * recovery from a damaged/buggy kernel config.
+     */
+    if ((boothowto & RB_CONFIG) && userconfig_boot_parsing)
+	return 0;
+#endif
     return 1;
 }
 
