@@ -198,6 +198,7 @@ seminit(void)
 	for (i = 0; i < seminfo.semmni; i++) {
 		sema[i].sem_base = 0;
 		sema[i].sem_perm.mode = 0;
+		sema[i].sem_perm.seq = 0;
 	}
 	for (i = 0; i < seminfo.semmni; i++)
 		mtx_init(&sema_mtx[i], "semid", NULL, MTX_DEF);
