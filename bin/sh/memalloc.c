@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: memalloc.c,v 1.12 1998/09/13 19:24:57 tegge Exp $";
+	"$Id: memalloc.c,v 1.13 1999/04/12 14:23:36 cracauer Exp $";
 #endif /* not lint */
 
 #include "shell.h"
@@ -187,10 +187,6 @@ popstackmark(mark)
 
 	INTOFF;
 	while (stackp != mark->stackp) {
-		if (stackp == NULL) {
-			write(2, "Oops, stackp deleted\n", 21);
-			abort();
-		}
 		sp = stackp;
 		stackp = sp->prev;
 		ckfree(sp);
