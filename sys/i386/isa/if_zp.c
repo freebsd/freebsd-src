@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.6 1995/05/30 08:02:31 rgrimes Exp $
+ *	$Id: if_zp.c,v 1.6.4.1 1995/08/19 23:27:14 davidg Exp $
  */
 /*-
  * TODO:
@@ -534,8 +534,10 @@ re_init:
 #else
     pcic_map_memory(slot, 0, kvtop(isa_dev->id_maddr), 0x10000, 8L,
 		    ATTRIBUTE, 1);
+#if OLD_3C589B_CARDS
     POKE(isa_dev->id_maddr, 0x80);	/* reset the card (how long?) */
     DELAY(40000);
+#endif
 #endif
     /*
      * Set the configuration index.  According to [1], the adapter won't
