@@ -69,17 +69,9 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
-#if __STDC__
 void	fatal(const char *fmt, ...) __printflike(1, 2);
-#else
-void	fatal();
-#endif
 
 #define	COMPAT			/* allow non-labeled disks */
 
@@ -198,19 +190,16 @@ static void rewritelabel (char *s, int fd, register struct disklabel *lp);
 static void usage (void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	int ch;
 	struct partition *pp;
 	struct disklabel *lp;
 	struct disklabel *getdisklabel();
 	struct partition oldpartition;
 	struct stat st;
 	struct statfs *mp;
-	int fsi, fso, len, n, vflag;
 	char *cp, *s1, *s2, *special, *opstring;
+	int ch, fsi, fso, len, n, vflag;
 
 	vflag = 0;
 	if ((progname = strrchr(*argv, '/')))
@@ -536,9 +525,7 @@ const char lmsg[] = "%s: can't read disk label";
 #endif
 
 struct disklabel *
-getdisklabel(s, fd)
-	char *s;
-	int fd;
+getdisklabel(char *s, int fd)
 {
 	static struct disklabel lab;
 
@@ -561,10 +548,7 @@ getdisklabel(s, fd)
 }
 
 void
-rewritelabel(s, fd, lp)
-	char *s;
-	int fd;
-	struct disklabel *lp;
+rewritelabel(char *s, int fd, struct disklabel *lp)
 {
 #ifdef COMPAT
 	if (unlabeled)
@@ -580,21 +564,11 @@ rewritelabel(s, fd, lp)
 
 /*VARARGS*/
 void
-#if __STDC__
 fatal(const char *fmt, ...)
-#else
-fatal(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	if (fcntl(STDERR_FILENO, F_GETFL) < 0) {
 		openlog(progname, LOG_CONS, LOG_DAEMON);
 		vsyslog(LOG_ERR, fmt, ap);
