@@ -279,7 +279,7 @@ semantics.
 .PP
 One particular change which has been proposed is to drop the present
 requirement that a struct buf be mapped contiguously into kernel
-address space.  The argument goes that since many modern drivers us 
+address space.  The argument goes that since many modern drivers use 
 physical address DMA to transfer the data maintaining such a mapping
 is needless overhead.
 .PP
@@ -288,7 +288,7 @@ buffer in kernel address space and some kind of compatibility
 must be provided there.
 .PP
 The question is, if such a change is made impossible by the
-separation of the I/O aspect into its own data structure ?
+separation of the I/O aspect into its own data structure?
 .PP
 The answer to this is ``no''.  
 Anything that could be added to or done with
@@ -355,7 +355,7 @@ struct bio {
         u_int   bio_flags;              /* BIO_ flags. */
         struct buf      *_bio_buf;      /* Parent buffer. */
         int     bio_error;              /* Errno for BIO_ERROR. */
-        long    bio_resid;              /* Remaining I/0 in bytes. */
+        long    bio_resid;              /* Remaining I/O in bytes. */
         void    (*bio_done) __P((struct buf *));
         void    *bio_driver1;           /* Private use by the callee. */
         void    *bio_driver2;           /* Private use by the callee. */
