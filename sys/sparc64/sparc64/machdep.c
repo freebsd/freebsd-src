@@ -424,8 +424,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	sf.sf_si.si_signo = sig;
 	sf.sf_si.si_code = code;
 	sf.sf_si.si_addr = (void *)tf->tf_sfar;
-	sf.sf_si.si_pid = p->p_pid;
-	sf.sf_si.si_uid = td->td_ucred->cr_uid;
 
 	/* Copy the sigframe out to the user's stack. */
 	if (rwindow_save(td) != 0 || copyout(&sf, sfp, sizeof(*sfp)) != 0 ||
