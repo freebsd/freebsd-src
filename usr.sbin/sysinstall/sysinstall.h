@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.23 1995/05/20 10:33:11 jkh Exp $
+ * $Id: sysinstall.h,v 1.24 1995/05/20 11:10:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -193,6 +193,7 @@ extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
 extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
 
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
+extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
 extern DMenu		MenuDocumentation;	/* Documentation menu				*/
 extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
