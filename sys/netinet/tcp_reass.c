@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.85 1999/05/03 23:57:30 billf Exp $
+ *	$Id: tcp_input.c,v 1.86 1999/05/06 18:13:01 peter Exp $
  */
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/
@@ -1037,9 +1037,9 @@ trimthenstep6:
 	 *	If active open, inform user that connection was refused.
 	 *    ESTABLISHED, FIN_WAIT_1, FIN_WAIT2, CLOSE_WAIT STATES:
 	 *	Inform user that connection was reset, and close tcb.
-	 *    CLOSING, LAST_ACK, TIME_WAIT STATES
+	 *    CLOSING, LAST_ACK STATES:
 	 *	Close the tcb.
-	 *    TIME_WAIT state:
+	 *    TIME_WAIT STATE:
 	 *	Drop the segment - see Stevens, vol. 2, p. 964 and
 	 *      RFC 1337.
 	 */
