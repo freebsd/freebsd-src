@@ -493,7 +493,7 @@ ata_amd_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    /* set prefetch, postwrite */
+    /* disable/set prefetch, postwrite */
     if (ctlr->chip->cfg2 & AMDBUG)
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) & 0x0f, 1);
     else
@@ -828,11 +828,11 @@ ata_intel_ident(device_t dev)
      { ATA_I82801DB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH4" },
      { ATA_I82801DB_1, 0, 0, 0x00, ATA_UDMA5, "Intel ICH4" },
      { ATA_I82801EB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH5" },
-     { ATA_I82801EB_1, 0, 0, 0x00, ATA_SA150, "Intel ICH5" },
-     { ATA_I82801EB_2, 0, 0, 0x00, ATA_SA150, "Intel ICH5" },
+     { ATA_I82801EB_S1,0, 0, 0x00, ATA_SA150, "Intel ICH5" },
+     { ATA_I82801EB_R1,0, 0, 0x00, ATA_SA150, "Intel ICH5" },
      { ATA_I6300ESB,   0, 0, 0x00, ATA_UDMA5, "Intel 6300ESB" },
-     { ATA_I6300ESB_1, 0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
-     { ATA_I6300ESB_2, 0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
+     { ATA_I6300ESB_S1,0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
+     { ATA_I6300ESB_R1,0, 0, 0x00, ATA_SA150, "Intel 6300ESB" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -1105,9 +1105,13 @@ ata_nvidia_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_NFORCE1, 0, AMDNVIDIA, NVIDIA|AMDBUG, ATA_UDMA5, "nVidia nForce" },
-     { ATA_NFORCE2, 0, AMDNVIDIA, NVIDIA|AMDBUG, ATA_UDMA6, "nVidia nForce2" },
-     { ATA_NFORCE3, 0, AMDNVIDIA, NVIDIA,	 ATA_UDMA6, "nVidia nForce3" },
+    {{ ATA_NFORCE1,     0, AMDNVIDIA, NVIDIA, ATA_UDMA5, "nVidia nForce" },
+     { ATA_NFORCE2,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce2" },
+     { ATA_NFORCE2_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia MCP" },
+     { ATA_NFORCE3,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3" },
+     { ATA_NFORCE3_PRO, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3 Pro" },
+     { ATA_NFORCE3_MCP, 0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce3 MCP" },
+     { ATA_NFORCE4,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nVidia nForce4" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -1129,11 +1133,8 @@ ata_nvidia_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    /* set prefetch, postwrite */
-    if (ctlr->chip->cfg2 & AMDBUG) 
-	pci_write_config(dev, 0x51, pci_read_config(dev, 0x51, 1) & 0x0f, 1);
-    else
-	pci_write_config(dev, 0x51, pci_read_config(dev, 0x51, 1) | 0xf0, 1);
+    /* disable prefetch, postwrite */
+    pci_write_config(dev, 0x51, pci_read_config(dev, 0x51, 1) & 0x0f, 1);
 
     ctlr->setmode = ata_via_family_setmode;
     return 0;
@@ -2373,7 +2374,7 @@ ata_sis_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SIS964_1,0x00, SISSATA,   0, ATA_SA150, "SiS 964" }, /* south */
+    {{ ATA_SIS964_S,0x00, SISSATA,   0, ATA_SA150, "SiS 964" }, /* south */
      { ATA_SIS964,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 964" }, /* south */
      { ATA_SIS963,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 963" }, /* south */
      { ATA_SIS962,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 962" }, /* south */
