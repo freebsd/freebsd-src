@@ -944,7 +944,7 @@ parse8601(char *s, char *errline)
 			return -1;
 	}
 	if ((tsecs = mktime(&tm)) == -1)
-		errx(1, "nonexistent time:\n%s", errline); 
+		errx(1, "nonexistent time:\n%s", errline);
 	return tsecs;
 }
 
@@ -1115,6 +1115,6 @@ parseDWM(char *s, char *errline)
 			s = t;
 	}
 	if ((tsecs = mktime(&tm)) == -1)
-		errx(1, "nonexistent time:\n%s", errline); 
+		errx(1, "nonexistent time:\n%s", errline);
 	return tsecs;
 }
