@@ -361,8 +361,10 @@ The version of ISO/IEC 9945 (POSIX 1003.1) with which the system
 attempts to comply.
 .It Li KERN_PROC
 Return the entire process table, or a subset of it.
-An array of
-.Va struct kinfo_proc
+An array of pairs of
+.Va struct proc
+followed by corresponding
+.Va struct eproc
 structures is returned,
 whose size depends on the current number of such objects in the system.
 The third and fourth level names are as follows:
@@ -374,6 +376,15 @@ The third and fourth level names are as follows:
 .It KERN\_PROC\_TTY	A tty device
 .It KERN\_PROC\_UID	A user ID
 .It KERN\_PROC\_RUID	A real user ID
+.El
+
+If the third level name is KERN_PROC_ARGS then the command line argument
+array is returned in a flattened form, i.e. zero-terminated arguments
+follow each other. The total size of array is returned. It's also possible
+for a process to set it's own process title this way.
+.Bl -column "Third level nameXXXXXX" "Fourth level is:XXXXXX" -offset indent
+.It Pa Third level name	Fourth level is:
+.It KERN\_PROC\_ARGS	A process ID
 .El
 .It Li KERN_PROF
 Return profiling information about the kernel.
