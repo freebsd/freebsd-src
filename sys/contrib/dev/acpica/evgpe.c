@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evgpe - General Purpose Event handling and dispatch
- *              $Revision: 40 $
+ *              $Revision: 42 $
  *
  *****************************************************************************/
 
@@ -206,28 +206,28 @@ AcpiEvUpdateGpeEnableMasks (
 
     if (Type == ACPI_GPE_DISABLE)
     {
-        GpeRegisterInfo->EnableForWake &= ~RegisterBit;
-        GpeRegisterInfo->EnableForRun  &= ~RegisterBit;
+        ACPI_CLEAR_BIT (GpeRegisterInfo->EnableForWake, RegisterBit);
+        ACPI_CLEAR_BIT (GpeRegisterInfo->EnableForRun, RegisterBit);
         return_ACPI_STATUS (AE_OK);
     }
 
-    /* 2) Enable case.  Set the appropriate enable bits */
+    /* 2) Enable case.  Set/Clear the appropriate enable bits */
 
     switch (GpeEventInfo->Flags & ACPI_GPE_TYPE_MASK)
     {
     case ACPI_GPE_TYPE_WAKE:
-        GpeRegisterInfo->EnableForWake |= RegisterBit;
-        GpeRegisterInfo->EnableForRun  &= ~RegisterBit;
+        ACPI_SET_BIT   (GpeRegisterInfo->EnableForWake, RegisterBit);
+        ACPI_CLEAR_BIT (GpeRegisterInfo->EnableForRun, RegisterBit);
         break;
 
     case ACPI_GPE_TYPE_RUNTIME:
-        GpeRegisterInfo->EnableForWake &= ~RegisterBit;
-        GpeRegisterInfo->EnableForRun  |= RegisterBit;
+        ACPI_CLEAR_BIT (GpeRegisterInfo->EnableForWake, RegisterBit);
+        ACPI_SET_BIT   (GpeRegisterInfo->EnableForRun, RegisterBit);
         break;
 
     case ACPI_GPE_TYPE_WAKE_RUN:
-        GpeRegisterInfo->EnableForWake |= RegisterBit;
-        GpeRegisterInfo->EnableForRun  |= RegisterBit;
+        ACPI_SET_BIT   (GpeRegisterInfo->EnableForWake, RegisterBit);
+        ACPI_SET_BIT   (GpeRegisterInfo->EnableForRun, RegisterBit);
         break;
 
     default:
@@ -274,17 +274,19 @@ AcpiEvEnableGpe (
     switch (GpeEventInfo->Flags & ACPI_GPE_TYPE_MASK)
     {
     case ACPI_GPE_TYPE_WAKE:
-        GpeEventInfo->Flags |= ACPI_GPE_WAKE_ENABLED;
+
+        ACPI_SET_BIT (GpeEventInfo->Flags, ACPI_GPE_WAKE_ENABLED);
         break;
 
     case ACPI_GPE_TYPE_WAKE_RUN:
-        GpeEventInfo->Flags |= ACPI_GPE_WAKE_ENABLED;
+
+        ACPI_SET_BIT (GpeEventInfo->Flags, ACPI_GPE_WAKE_ENABLED);
 
         /*lint -fallthrough */
 
     case ACPI_GPE_TYPE_RUNTIME:
 
-        GpeEventInfo->Flags |= ACPI_GPE_RUN_ENABLED;
+        ACPI_SET_BIT (GpeEventInfo->Flags, ACPI_GPE_RUN_ENABLED);
 
         if (WriteToHardware)
         {
@@ -350,11 +352,11 @@ AcpiEvDisableGpe (
     switch (GpeEventInfo->Flags & ACPI_GPE_TYPE_MASK)
     {
     case ACPI_GPE_TYPE_WAKE:
-        GpeEventInfo->Flags &= ~ACPI_GPE_WAKE_ENABLED;
+        ACPI_CLEAR_BIT (GpeEventInfo->Flags, ACPI_GPE_WAKE_ENABLED);
         break;
 
     case ACPI_GPE_TYPE_WAKE_RUN:
-        GpeEventInfo->Flags &= ~ACPI_GPE_WAKE_ENABLED;
+        ACPI_CLEAR_BIT (GpeEventInfo->Flags, ACPI_GPE_WAKE_ENABLED);
 
         /*lint -fallthrough */
 
@@ -362,7 +364,7 @@ AcpiEvDisableGpe (
 
         /* Disable the requested runtime GPE */
 
-        GpeEventInfo->Flags &= ~ACPI_GPE_RUN_ENABLED;
+        ACPI_CLEAR_BIT (GpeEventInfo->Flags, ACPI_GPE_RUN_ENABLED);
         Status = AcpiHwWriteGpeEnableReg (GpeEventInfo);
         break;
 
@@ -721,11 +723,11 @@ AcpiEvGpeDispatch (
 
     if (AcpiGbl_SystemAwakeAndRunning)
     {
-        GpeEventInfo->Flags |= ACPI_GPE_SYSTEM_RUNNING;
+        ACPI_SET_BIT (GpeEventInfo->Flags, ACPI_GPE_SYSTEM_RUNNING);
     }
     else
     {
-        GpeEventInfo->Flags &= ~ACPI_GPE_SYSTEM_RUNNING;
+        ACPI_CLEAR_BIT (GpeEventInfo->Flags, ACPI_GPE_SYSTEM_RUNNING);
     }
 
     /*
@@ -739,9 +741,11 @@ AcpiEvGpeDispatch (
     {
     case ACPI_GPE_DISPATCH_HANDLER:
 
-        /* Invoke the installed handler (at interrupt level) */
-
-        GpeEventInfo->Dispatch.Handler->Address ((void *)
+        /*
+         * Invoke the installed handler (at interrupt level)
+         * Ignore return status for now.  TBD: leave GPE disabled on error?
+         */
+        (void) GpeEventInfo->Dispatch.Handler->Address (
                         GpeEventInfo->Dispatch.Handler->Context);
 
         /* It is now safe to clear level-triggered events. */

@@ -2,7 +2,7 @@
  *
  * Module Name: dsopcode - Dispatcher Op Region support and handling of
  *                         "control" opcodes
- *              $Revision: 94 $
+ *              $Revision: 95 $
  *
  *****************************************************************************/
 
@@ -153,7 +153,6 @@ AcpiDsExecuteArguments (
     ACPI_STATUS             Status;
     ACPI_PARSE_OBJECT       *Op;
     ACPI_WALK_STATE         *WalkState;
-    ACPI_PARSE_OBJECT       *Arg;
 
 
     ACPI_FUNCTION_TRACE ("DsExecuteArguments");
@@ -204,9 +203,7 @@ AcpiDsExecuteArguments (
 
     /* Get and init the Op created above */
 
-    Arg = Op->Common.Value.Arg;
     Op->Common.Node = Node;
-    Arg->Common.Node = Node;
     AcpiPsDeleteParseTree (Op);
 
     /* Evaluate the deferred arguments */
