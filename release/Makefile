@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.99 1995/02/01 22:53:32 jkh Exp $
+#	$Id: Makefile,v 1.100 1995/02/02 04:07:51 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -44,6 +44,11 @@ MTREE_DIR=	${.CURDIR}/../etc/mtree
 
 ZIPNSPLIT=	gzip --no-name -9 -c | split -b 240640 -
 
+LATIN1LINKS = \
+	da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_US es_ES fi_FI \
+	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
+	pt_PT sv_SE
+
 hierarchy:
 	mtree -deU -f ${MTREE_DIR}/BSD.root.dist  -p ${DESTDIR}/
 	mtree -deU -f ${MTREE_DIR}/BSD.var.dist   -p ${DESTDIR}/var
@@ -51,6 +56,13 @@ hierarchy:
 .if defined(MAKE_LOCAL)
 	mtree -deU -f ${MTREE_DIR}/BSD.local.dist -p ${DESTDIR}/usr/local
 .endif
+	cd ${DESTDIR}/usr/share/locale; \
+	for l in ${LATIN1LINKS} ; do \
+		rm -f $$l.ISO8859-1; \
+		ln -s lt_LN.ISO8859-1 $$l.ISO8859-1; \
+		chown ${BINOWN}.${BINGRP} $$l.ISO8859-1; \
+		chmod 755 $$l.ISO8859-1; \
+	done
 	rm -f ${DESTDIR}/sys
 	ln -s usr/src/sys ${DESTDIR}/sys
 
