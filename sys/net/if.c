@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.36.2.1 1997/06/30 10:59:15 peter Exp $
+ * $Id: if.c,v 1.36.2.2 1997/10/05 21:41:04 julian Exp $
  */
 
 #include <sys/param.h>
@@ -443,37 +443,47 @@ struct ifnet *
 ifunit(name)
 	register char *name;
 {
-	register char *cp;
+	char namebuf[IFNAMSIZ + 1];
+	register char *cp, *cp2;
+	char *end;
 	register struct ifnet *ifp;
 	int unit;
 	unsigned len;
-	char *ep, c;
+	register char c = '\0';
 
-	for (cp = name; cp < name + IFNAMSIZ && *cp; cp++)
-		if (*cp >= '0' && *cp <= '9')
-			break;
-	if (*cp == '\0' || cp == name + IFNAMSIZ)
-		return ((struct ifnet *)0);
 	/*
-	 * Save first char of unit, and pointer to it,
-	 * so we can put a null there to avoid matching
-	 * initial substrings of interface names.
+	 * Look for a non numeric part
+	 */
+	end = name + IFNAMSIZ; 
+	cp2 = namebuf;
+	cp = name; 
+	while ((cp < end) && (c = *cp)) {
+		if (c >= '0' && c <= '9')
+			break;
+		*cp2++ = c;
+		cp++;
+	}
+	if ((cp == end) || (c == '\0') || (cp == name))
+		return ((struct ifnet *)0);
+	*cp2 = '\0';
+	/*
+	 * check we have a legal number (limit to 7 digits?)
 	 */
 	len = cp - name + 1;
-	c = *cp;
-	ep = cp;
-	for (unit = 0; *cp >= '0' && *cp <= '9'; )
-		unit = unit * 10 + *cp++ - '0';
+	for (unit = 0;
+	    ((c = *cp) >= '0') && (c <= '9') && (unit < 1000000); cp++ ) 
+		unit = (unit * 10) + (c - '0');
 	if (*cp != '\0')
 		return 0;	/* no trailing garbage allowed */
-	*ep = 0;
+	/*
+	 * Now search all the interfaces for this name/number
+	 */
 	for (ifp = ifnet; ifp; ifp = ifp->if_next) {
-		if (bcmp(ifp->if_name, name, len))
+		if (bcmp(ifp->if_name, namebuf, len))
 			continue;
 		if (unit == ifp->if_unit)
 			break;
 	}
-	*ep = c;
 	return (ifp);
 }
 
