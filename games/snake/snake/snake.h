@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)snake.h	8.1 (Berkeley) 5/31/93
+ *
+ * $FreeBSD$
  */
 
 # include <stdio.h>
@@ -50,7 +52,8 @@ char	*CL, *UP, *DO, *ND, *BS,
 	*HO, *CM,
 	*TA, *LL,
 	*KL, *KR, *KU, *KD,
-	*TI, *TE, *KS, *KE;
+	*TI, *TE, *KS, *KE,
+	*VI, *VE;
 int	LINES, COLUMNS;	/* physical screen size. */
 int	lcnt, ccnt;	/* user's idea of screen size */
 char	xBC, PC;
