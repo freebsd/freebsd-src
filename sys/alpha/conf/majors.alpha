@@ -1,4 +1,4 @@
-$Id: majors.alpha,v 1.4 1999/01/06 06:43:51 yokota Exp $
+$Id: majors.alpha,v 1.5 1999/01/13 08:05:13 msmith Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -125,7 +125,7 @@ chrdev	name		comments
 81	rp		RocketPort/Steve Gericke <steveg@comtrol.com>
 82	ppi		Generic Parallel I/O <Nicolas.Souchu@prism.uvsq.fr>
 83	can		CAN16-2 CAN-PC Interface
-84	dftp		Datum Time and Frequency processor (louie@UU.NET)
+84	dtfp		Datum Time and Frequency processor (louie@UU.NET)
 85	vesa		VESA support device (j_mini@efn.org)
 86      alog            Industrial Computer Source AIO8-P driver
 87	wfd		ATAPI floppy client of "ata"
