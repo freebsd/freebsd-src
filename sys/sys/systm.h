@@ -103,6 +103,7 @@ struct malloc_type;
 struct mtx;
 struct proc;
 struct kse;
+struct socket;
 struct thread;
 struct tty;
 struct ucred;
@@ -199,6 +200,7 @@ int	suser_td(struct thread *);
 int	suser_xxx(struct ucred *cred, struct proc *proc, int flag);
 int	suser_xxx_td(struct ucred *cred, struct thread *thread, int flag);
 int	cr_cansee(struct ucred *u1, struct ucred *u2);
+int	cr_canseesocket(struct ucred *cred, struct socket *so);
 
 char	*getenv(const char *name);
 int	getenv_int(const char *name, int *data);

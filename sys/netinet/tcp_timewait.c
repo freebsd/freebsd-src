@@ -849,8 +849,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	for (inp = LIST_FIRST(tcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		if (inp->inp_gencnt <= gencnt) {
-			if (cr_cansee(req->td->td_ucred,
-			    inp->inp_socket->so_cred))
+			if (cr_canseesocket(req->td->td_ucred,
+			    inp->inp_socket))
 				continue;
 			inp_list[i++] = inp;
 		}
@@ -920,7 +920,7 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto out;
 	}
-	error = cr_cansee(req->td->td_ucred, inp->inp_socket->so_cred);
+	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
 	if (error)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
@@ -972,7 +972,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto out;
 	}
-	error = cr_cansee(req->td->td_ucred, inp->inp_socket->so_cred);
+	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
 	if (error)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
