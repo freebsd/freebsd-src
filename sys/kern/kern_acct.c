@@ -127,18 +127,18 @@ acct(a1, uap)
 
 	/*
 	 * If accounting is to be started to a file, open that file for
-	 * writing and make sure it's a 'normal'.
+	 * appending and make sure it's a 'normal'.
 	 */
 	if (SCARG(uap, path) != NULL) {
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path),
 		       p);
-		error = vn_open(&nd, FWRITE, 0);
+		error = vn_open(&nd, FWRITE | O_APPEND, 0);
 		if (error)
 			return (error);
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		VOP_UNLOCK(nd.ni_vp, 0, p);
 		if (nd.ni_vp->v_type != VREG) {
-			vn_close(nd.ni_vp, FWRITE, p->p_ucred, p);
+			vn_close(nd.ni_vp, FWRITE | O_APPEND, p->p_ucred, p);
 			return (EACCES);
 		}
 	}
@@ -149,8 +149,8 @@ acct(a1, uap)
 	 */
 	if (acctp != NULLVP || savacctp != NULLVP) {
 		untimeout(acctwatch, NULL, acctwatch_handle);
-		error = vn_close((acctp != NULLVP ? acctp : savacctp), FWRITE,
-		    p->p_ucred, p);
+		error = vn_close((acctp != NULLVP ? acctp : savacctp),
+		    FWRITE | O_APPEND, p->p_ucred, p);
 		acctp = savacctp = NULLVP;
 	}
 	if (SCARG(uap, path) == NULL)
@@ -304,7 +304,8 @@ acctwatch(a)
 
 	if (savacctp != NULLVP) {
 		if (savacctp->v_type == VBAD) {
-			(void) vn_close(savacctp, FWRITE, NOCRED, NULL);
+			(void) vn_close(savacctp, FWRITE | O_APPEND, NOCRED,
+			    NULL);
 			savacctp = NULLVP;
 			return;
 		}
@@ -318,7 +319,7 @@ acctwatch(a)
 		if (acctp == NULLVP)
 			return;
 		if (acctp->v_type == VBAD) {
-			(void) vn_close(acctp, FWRITE, NOCRED, NULL);
+			(void) vn_close(acctp, FWRITE | O_APPEND, NOCRED, NULL);
 			acctp = NULLVP;
 			return;
 		}
