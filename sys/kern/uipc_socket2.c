@@ -405,8 +405,7 @@ sbreserve(sb, cc)
 	struct sockbuf *sb;
 	u_long cc;
 {
-
-	if (cc > sb_max * MCLBYTES / (MSIZE + MCLBYTES))
+	if ((u_quad_t)cc > (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES))
 		return (0);
 	sb->sb_hiwat = cc;
 	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
