@@ -120,7 +120,7 @@ main(int argc, char *argv[])
 {
 #if __FreeBSD__ >= 3
     if (modfind(WRONGMOD) >= 0) {			    /* wrong module loaded, */
-	fprintf(stderr, "Wrong module loaded: %s.  Please start %s.\n", WRONGMOD, WRONGMOD);
+	fprintf(stderr, "Wrong module loaded: %s.  Please start %s.\n", VINUMMOD, WRONGMOD);
 	exit(1);
     }
     if (modfind(VINUMMOD) < 0) {
