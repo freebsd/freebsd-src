@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: vga_isa.c,v 1.1 1999/01/09 02:44:41 yokota Exp $
  */
 
 #include "vga.h"
@@ -462,8 +462,10 @@ static video_info_t bios_vmode[] = {
 };
 
 static int		init_done = FALSE;
+#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
 static u_char		*video_mode_ptr = NULL;		/* EGA/VGA */
 static u_char		*video_mode_ptr2 = NULL;	/* CGA/MDA */
+#endif
 static u_char		*mode_map[V_MODE_MAP_SIZE];
 static adp_state_t	adpstate;
 static adp_state_t	adpstate2;
@@ -495,9 +497,11 @@ static int comp_adpregs(u_char *buf1, u_char *buf2);
 #endif
 static int probe_adapters(void);
 
+#ifndef VGA_NO_FONT_LOADING
 #define PARAM_BUFSIZE	6
 static void set_font_mode(video_adapter_t *adp, u_char *buf);
 static void set_normal_mode(video_adapter_t *adp, u_char *buf);
+#endif
 
 static void dump_buffer(u_char *buf, size_t len);
 
@@ -2186,8 +2190,10 @@ vga_diag(video_adapter_t *adp, int level)
 	   readb(BIOS_PADDRTOVADDR(0x484)) + 1,
 	   readb(BIOS_PADDRTOVADDR(0x485)));
 #endif /* VGA_NO_BIOS */
+#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
     printf("vga: param table EGA/VGA:%p", video_mode_ptr);
     printf(", CGA/MDA:%p\n", video_mode_ptr2);
+#endif
     printf("vga: rows_offset:%d\n", rows_offset);
 #endif /* FB_DEBUG > 1 */
 
