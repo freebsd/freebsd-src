@@ -316,63 +316,63 @@ struct thread {
 	vm_offset_t	td_kstack;	/* Kernel VA of kstack. */
 };
 /* flags kept in td_flags */ 
-#define TDF_UNBOUND	0x000001 /* May give away the kse, uses the kg runq. */
-#define TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump. */
-#define TDF_SINTR	0x000008 /* Sleep is interruptible. */
-#define TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
-#define TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
-#define TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
-#define TDF_UPCALLING	0x000100 /* This thread is doing an upcall. */
-#define TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
-#define TDF_INMSLEEP	0x000400 /* Don't recurse in msleep(). */
-#define TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
-#define TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
+#define	TDF_UNBOUND	0x000001 /* May give away the kse, uses the kg runq. */
+#define	TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump. */
+#define	TDF_SINTR	0x000008 /* Sleep is interruptible. */
+#define	TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
+#define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
+#define	TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
+#define	TDF_UPCALLING	0x000100 /* This thread is doing an upcall. */
+#define	TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
+#define	TDF_INMSLEEP	0x000400 /* Don't recurse in msleep(). */
+#define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
+#define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
-#define TDI_SUSPENDED	0x01	/* On suspension queue. */
-#define TDI_SLEEPING	0x02	/* Actually asleep! (tricky). */
-#define TDI_SWAPPED	0x04	/* Stack not in mem.. bad juju if run. */
-#define TDI_MUTEX	0x08	/* Stopped on a mutex. */
-#define TDI_IWAIT	0x10	/* Awaiting interrupt. */
+#define	TDI_SUSPENDED	0x01	/* On suspension queue. */
+#define	TDI_SLEEPING	0x02	/* Actually asleep! (tricky). */
+#define	TDI_SWAPPED	0x04	/* Stack not in mem.. bad juju if run. */
+#define	TDI_MUTEX	0x08	/* Stopped on a mutex. */
+#define	TDI_IWAIT	0x10	/* Awaiting interrupt. */
 
-#define TD_IS_SLEEPING(td)	((td)->td_inhibitors & TDI_SLEEPING)
-#define TD_ON_SLEEPQ(td)	((td)->td_wchan != NULL)
-#define TD_IS_SUSPENDED(td)	((td)->td_inhibitors & TDI_SUSPENDED)
-#define TD_IS_SWAPPED(td)	((td)->td_inhibitors & TDI_SWAPPED)
-#define TD_ON_MUTEX(td)		((td)->td_inhibitors & TDI_MUTEX)
-#define TD_AWAITING_INTR(td)	((td)->td_inhibitors & TDI_IWAIT)
-#define TD_IS_RUNNING(td)	((td)->td_state == TDS_RUNNING)
-#define TD_ON_RUNQ(td)		((td)->td_state == TDS_RUNQ)
-#define TD_CAN_RUN(td)		((td)->td_state == TDS_CAN_RUN)
-#define TD_IS_INHIBITED(td)	((td)->td_state == TDS_INHIBITED)
+#define	TD_IS_SLEEPING(td)	((td)->td_inhibitors & TDI_SLEEPING)
+#define	TD_ON_SLEEPQ(td)	((td)->td_wchan != NULL)
+#define	TD_IS_SUSPENDED(td)	((td)->td_inhibitors & TDI_SUSPENDED)
+#define	TD_IS_SWAPPED(td)	((td)->td_inhibitors & TDI_SWAPPED)
+#define	TD_ON_MUTEX(td)		((td)->td_inhibitors & TDI_MUTEX)
+#define	TD_AWAITING_INTR(td)	((td)->td_inhibitors & TDI_IWAIT)
+#define	TD_IS_RUNNING(td)	((td)->td_state == TDS_RUNNING)
+#define	TD_ON_RUNQ(td)		((td)->td_state == TDS_RUNQ)
+#define	TD_CAN_RUN(td)		((td)->td_state == TDS_CAN_RUN)
+#define	TD_IS_INHIBITED(td)	((td)->td_state == TDS_INHIBITED)
 
-#define TD_SET_INHIB(td, inhib) do {			\
+#define	TD_SET_INHIB(td, inhib) do {			\
 	(td)->td_state = TDS_INHIBITED;			\
 	(td)->td_inhibitors |= inhib;			\
 } while (0)
 
-#define TD_CLR_INHIB(td, inhib) do {			\
+#define	TD_CLR_INHIB(td, inhib) do {			\
 	if (((td)->td_inhibitors & inhib) &&		\
 	    (((td)->td_inhibitors &= ~inhib) == 0))	\
 		(td)->td_state = TDS_CAN_RUN;		\
 } while (0)
 
-#define TD_SET_SLEEPING(td)	TD_SET_INHIB((td), TDI_SLEEPING)
-#define TD_SET_SWAPPED(td)	TD_SET_INHIB((td), TDI_SWAPPED)
-#define TD_SET_MUTEX(td)	TD_SET_INHIB((td), TDI_MUTEX)
-#define TD_SET_SUSPENDED(td)	TD_SET_INHIB((td), TDI_SUSPENDED)
-#define TD_SET_IWAIT(td)	TD_SET_INHIB((td), TDI_IWAIT)
+#define	TD_SET_SLEEPING(td)	TD_SET_INHIB((td), TDI_SLEEPING)
+#define	TD_SET_SWAPPED(td)	TD_SET_INHIB((td), TDI_SWAPPED)
+#define	TD_SET_MUTEX(td)	TD_SET_INHIB((td), TDI_MUTEX)
+#define	TD_SET_SUSPENDED(td)	TD_SET_INHIB((td), TDI_SUSPENDED)
+#define	TD_SET_IWAIT(td)	TD_SET_INHIB((td), TDI_IWAIT)
 
-#define TD_CLR_SLEEPING(td)	TD_CLR_INHIB((td), TDI_SLEEPING)
-#define TD_CLR_SWAPPED(td)	TD_CLR_INHIB((td), TDI_SWAPPED)
-#define TD_CLR_MUTEX(td)	TD_CLR_INHIB((td), TDI_MUTEX)
-#define TD_CLR_SUSPENDED(td)	TD_CLR_INHIB((td), TDI_SUSPENDED)
-#define TD_CLR_IWAIT(td)	TD_CLR_INHIB((td), TDI_IWAIT)
+#define	TD_CLR_SLEEPING(td)	TD_CLR_INHIB((td), TDI_SLEEPING)
+#define	TD_CLR_SWAPPED(td)	TD_CLR_INHIB((td), TDI_SWAPPED)
+#define	TD_CLR_MUTEX(td)	TD_CLR_INHIB((td), TDI_MUTEX)
+#define	TD_CLR_SUSPENDED(td)	TD_CLR_INHIB((td), TDI_SUSPENDED)
+#define	TD_CLR_IWAIT(td)	TD_CLR_INHIB((td), TDI_IWAIT)
 
-#define TD_SET_RUNNING(td)	do {(td)->td_state = TDS_RUNNING; } while (0)
-#define TD_SET_RUNQ(td)		do {(td)->td_state = TDS_RUNQ; } while (0)
-#define TD_SET_CAN_RUN(td)	do {(td)->td_state = TDS_CAN_RUN; } while (0)
-#define TD_SET_ON_SLEEPQ(td)	do {(td)->td_flags |= TDF_ONSLEEPQ; } while (0)
-#define TD_CLR_ON_SLEEPQ(td)	do {			\
+#define	TD_SET_RUNNING(td)	do {(td)->td_state = TDS_RUNNING; } while (0)
+#define	TD_SET_RUNQ(td)		do {(td)->td_state = TDS_RUNQ; } while (0)
+#define	TD_SET_CAN_RUN(td)	do {(td)->td_state = TDS_CAN_RUN; } while (0)
+#define	TD_SET_ON_SLEEPQ(td)	do {(td)->td_flags |= TDF_ONSLEEPQ; } while (0)
+#define	TD_CLR_ON_SLEEPQ(td)	do {			\
 		(td)->td_flags &= ~TDF_ONSLEEPQ;	\
 		(td)->td_wchan = NULL;			\
 } while (0)
@@ -641,13 +641,13 @@ struct proc {
 #define	PS_SWAPPINGIN	0x04000	/* Swapin in progress. */
 
 /* used only in legacy conversion code */
-#define SIDL	1		/* Process being created by fork. */
-#define SRUN	2		/* Currently runnable. */
-#define SSLEEP	3		/* Sleeping on an address. */
-#define SSTOP	4		/* Process debugging or suspension. */
-#define SZOMB	5		/* Awaiting collection by parent. */
-#define SWAIT	6		/* Waiting for interrupt. */
-#define SMTX	7		/* Blocked on a mutex. */
+#define	SIDL	1		/* Process being created by fork. */
+#define	SRUN	2		/* Currently runnable. */
+#define	SSLEEP	3		/* Sleeping on an address. */
+#define	SSTOP	4		/* Process debugging or suspension. */
+#define	SZOMB	5		/* Awaiting collection by parent. */
+#define	SWAIT	6		/* Waiting for interrupt. */
+#define	SMTX	7		/* Blocked on a mutex. */
 
 #define	P_MAGIC		0xbeefface
 
@@ -673,10 +673,10 @@ MALLOC_DECLARE(M_ZOMBIE);
 	TAILQ_FOREACH((td), &(p)->p_threads, td_plist)
 
 /* XXXKSE the lines below should probably only be used in 1:1 code */
-#define FIRST_THREAD_IN_PROC(p) TAILQ_FIRST(&p->p_threads)
-#define FIRST_KSEGRP_IN_PROC(p) TAILQ_FIRST(&p->p_ksegrps)
-#define FIRST_KSE_IN_KSEGRP(kg) TAILQ_FIRST(&kg->kg_kseq)
-#define FIRST_KSE_IN_PROC(p) FIRST_KSE_IN_KSEGRP(FIRST_KSEGRP_IN_PROC(p))
+#define	FIRST_THREAD_IN_PROC(p) TAILQ_FIRST(&p->p_threads)
+#define	FIRST_KSEGRP_IN_PROC(p) TAILQ_FIRST(&p->p_ksegrps)
+#define	FIRST_KSE_IN_KSEGRP(kg) TAILQ_FIRST(&kg->kg_kseq)
+#define	FIRST_KSE_IN_PROC(p) FIRST_KSE_IN_KSEGRP(FIRST_KSEGRP_IN_PROC(p))
 
 static __inline int
 sigonstack(size_t sp)
@@ -732,8 +732,8 @@ sigonstack(size_t sp)
 #define	PROC_LOCK_ASSERT(p, type)	mtx_assert(&(p)->p_mtx, (type))
 
 /* Lock and unlock a process group. */
-#define PGRP_LOCK(pg)	mtx_lock(&(pg)->pg_mtx)
-#define PGRP_UNLOCK(pg)	mtx_unlock(&(pg)->pg_mtx)
+#define	PGRP_LOCK(pg)	mtx_lock(&(pg)->pg_mtx)
+#define	PGRP_UNLOCK(pg)	mtx_unlock(&(pg)->pg_mtx)
 #define	PGRP_LOCKED(pg)	mtx_owned(&(pg)->pg_mtx)
 #define	PGRP_LOCK_ASSERT(pg, type)	mtx_assert(&(pg)->pg_mtx, (type))
 
@@ -750,8 +750,8 @@ sigonstack(size_t sp)
 	} while (0);
 
 /* Lock and unlock a session. */
-#define SESS_LOCK(s)	mtx_lock(&(s)->s_mtx)
-#define SESS_UNLOCK(s)	mtx_unlock(&(s)->s_mtx)
+#define	SESS_LOCK(s)	mtx_lock(&(s)->s_mtx)
+#define	SESS_UNLOCK(s)	mtx_unlock(&(s)->s_mtx)
 #define	SESS_LOCKED(s)	mtx_owned(&(s)->s_mtx)
 #define	SESS_LOCK_ASSERT(s, type)	mtx_assert(&(s)->s_mtx, (type))
 
