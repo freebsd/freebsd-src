@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.38 1995/12/03 18:46:49 bde Exp $
+ **      $Id: userconfig.c,v 1.39 1995/12/10 13:36:33 phk Exp $
  **/
 
 /**
@@ -248,6 +248,7 @@ static DEV_INFO device_info[] = {
 {"ctx",         "Coretex-I frame grabber",		0,		CLS_MMEDIA},
 {"spigot",      "Creative Labs Video Spigot video capture",	0,	CLS_MMEDIA},
 {"gsc",         "Genius GS-4500 hand scanner",		0,		CLS_MMEDIA},
+{"qcam",	"QuickCam parallel port camera",	0,		CLS_MMEDIA},
 
 {"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
 {"labpc",       "National Instruments Lab-PC/Lab-PC+",	0,		CLS_MISC},
@@ -2143,7 +2144,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.38 1995/12/03 18:46:49 bde Exp $
+ *      $Id: userconfig.c,v 1.39 1995/12/10 13:36:33 phk Exp $
  */
 
 
