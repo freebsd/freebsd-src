@@ -1,5 +1,5 @@
 # Make `routed` for FreeBSD
-# $Revision: 1.6 $
+# $FreeBSD$
 # $FreeBSD$
 
 PROG=   routed

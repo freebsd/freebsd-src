@@ -42,7 +42,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 1.5 $"
+#ident "$FreeBSD$"
 
 
 struct parm *parms;
