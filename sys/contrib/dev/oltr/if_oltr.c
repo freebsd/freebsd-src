@@ -38,8 +38,6 @@
 #include "oltr.h"
 #include "opt_inet.h"
 
-#if (NOLTR + NPCI) > 0
-
 /*#define TRlldInlineIO*/
 
 #define ISA_ADAPTERS  (OC_3115 | OC_3117 | OC_3118)
@@ -1487,5 +1485,3 @@ DriverRepInDword(IOAddress, DataPointer, DWordCount)
     insl(IOAddress, (void *)DataPointer, DWordCount);
 }
 #endif /* TRlldInlineIO */
-
-#endif /* NOLTR */
