@@ -12,8 +12,7 @@ makeoptions	NO_MODULES=not_yet
 
 #
 # This directive is mandatory; it defines the architecture to be
-# configured for; in this case, the 386 family based IBM-PC and
-# compatibles.
+# configured for; in this case, the AMD64 family based machines.
 #
 machine		amd64
 
@@ -43,7 +42,7 @@ machine		amd64
 
 # Optional:
 device		atpic			# Legacy pic
-device		mptable
+device		mptable			# Optional MPSPEC mptable support
 options 	NO_MIXED_MODE		# Disable use of mixed mode
 
 
