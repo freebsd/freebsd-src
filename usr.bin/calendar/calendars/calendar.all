@@ -1,7 +1,7 @@
 /*
  * International and national calendar files
  *
- * $Id: calendar.all,v 1.1 1996/01/29 00:32:54 wosch Exp $
+ * $Id: calendar.all,v 1.2 1996/02/09 14:34:48 wosch Exp $
  */
 
 #ifndef _calendar_all_
@@ -11,5 +11,6 @@
 #include <calendar.german>
 #include <calendar.usholiday>
 #include <calendar.croatian>
+#include <calendar.russian>
 
 #endif /* !_calendar_all_ */
