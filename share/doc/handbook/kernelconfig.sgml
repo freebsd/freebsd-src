@@ -441,7 +441,7 @@
 
 	      <quote><em/Note:/ <!-- MFS is currently a bit
 		limited (for example, I noticed that two programs
-		ca not access the <tt>/tmp</tt> device
+		can not access the <tt>/tmp</tt> device
 		simultaneously).  As such, you may want to avoid
 		it for now. --> Also, the <tt>MFS</tt> filesystem
 		can <em>not</em> be dynamically loaded, so you
@@ -454,10 +454,9 @@
 	      have a public access system, and do not want users
 	      to be able to overflow the <tt>/home</tt>
 	      partition, you can establish disk quotas for each
-	      user.  This code is a little buggy, so do not
-	      enable it unless you have to.  View the manual page
-	      for <tt>quota(1)</tt> to learn more about disk
-	      quotas.
+	      user.  Refer to the
+	      <ref id="quotas" name="Disk Quotas">
+	      section for more information.
 
 	  </descrip>
 
