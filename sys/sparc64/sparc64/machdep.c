@@ -47,6 +47,7 @@
 #include <sys/systm.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
