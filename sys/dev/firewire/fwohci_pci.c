@@ -63,58 +63,62 @@ static int
 fwohci_pci_probe( device_t dev )
 {
 #if 1
-	if ((pci_get_vendor(dev) == FW_VENDORID_NEC) &&
-	    (pci_get_device(dev) == FW_DEVICE_UPD861)) {
+	u_int32_t id;
+
+	id = (pci_get_vendor(dev) << 16) | pci_get_device(dev);
+	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD861)) {
 		device_set_desc(dev, "NEC uPD72861");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_TI) &&
-	    (pci_get_device(dev) == FW_DEVICE_TITSB22)) {
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB22)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV22");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_TI) &&
-	    (pci_get_device(dev) == FW_DEVICE_TITSB23)) {
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB23)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV23");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_TI) &&
-	    (pci_get_device(dev) == FW_DEVICE_TITSB26)) {
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB26)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV26");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_TI) &&
-	    (pci_get_device(dev) == FW_DEVICE_TITSB43)) {
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43)) {
 		device_set_desc(dev, "Texas Instruments TSB43AA22");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_SONY) &&
-	    (pci_get_device(dev) == FW_DEVICE_CX3022)) {
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43A)) {
+		device_set_desc(dev, "Texas Instruments TSB43AB22/A");
+		return 0;
+	}
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TIPCI4450)) {
+		device_set_desc(dev, "Texas Instruments PCI4450");
+		return 0;
+	}
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TIPCI4410A)) {
+		device_set_desc(dev, "Texas Instruments PCI4410A");
+		return 0;
+	}
+	if (id == (FW_VENDORID_SONY | FW_DEVICE_CX3022)) {
 		device_set_desc(dev, "SONY CX3022");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_VIA) &&
-	    (pci_get_device(dev) == FW_DEVICE_VT6306)) {
+	if (id == (FW_VENDORID_VIA | FW_DEVICE_VT6306)) {
 		device_set_desc(dev, "VIA VT6306");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_RICOH) &&
-	    (pci_get_device(dev) == FW_DEVICE_R5C552)) {
+	if (id == (FW_VENDORID_RICOH | FW_DEVICE_R5C552)) {
 		device_set_desc(dev, "Ricoh R5C552");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_APPLE) &&
-	    (pci_get_device(dev) == FW_DEVICE_PANGEA)) {
+	if (id == (FW_VENDORID_APPLE | FW_DEVICE_PANGEA)) {
 		device_set_desc(dev, "Apple Pangea");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_APPLE) &&
-	    (pci_get_device(dev) == FW_DEVICE_UNINORTH)) {
+	if (id == (FW_VENDORID_APPLE | FW_DEVICE_UNINORTH)) {
 		device_set_desc(dev, "Apple UniNorth");
 		return 0;
 	}
-	if ((pci_get_vendor(dev) == FW_VENDORID_LUCENT) &&
-	    (pci_get_device(dev) == FW_DEVICE_FW322)) {
+	if (id == (FW_VENDORID_LUCENT | FW_DEVICE_FW322)) {
 		device_set_desc(dev, "Lucent FW322/323");
 		return 0;
 	}
@@ -122,7 +126,7 @@ fwohci_pci_probe( device_t dev )
 	if (pci_get_class(dev) == PCIC_SERIALBUS
 			&& pci_get_subclass(dev) == PCIS_SERIALBUS_FW
 			&& pci_get_progif(dev) == PCI_INTERFACE_OHCI) {
-		printf("XXXfw: vendid=%x, dev=%x\n", pci_get_vendor(dev),
+		device_printf(dev, "vendor=%x, dev=%x\n", pci_get_vendor(dev),
 			pci_get_device(dev));
 		device_set_desc(dev, "1394 Open Host Controller Interface");
 		return 0;
