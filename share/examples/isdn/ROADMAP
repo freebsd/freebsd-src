@@ -4,7 +4,7 @@
 
  $FreeBSD$
 
-	last edit-date: [Sat Jun  2 13:46:20 2001]
+	last edit-date: [Tue May 21 13:51:57 2002]
 
 
 1.	Documentation
@@ -18,7 +18,7 @@
 
 	The command "apropos isdn" will list all manpages available for 
 	isdn4bsd. Two more manual pages of interest to syncronous PPP 
-	over ISDN users are the pages for sppp and ispppcontrol.
+	over ISDN users are the pages for sppp and spppcontrol.
 
 	Under directory /usr/share/examples/isdn, you will find:
 
@@ -52,7 +52,7 @@
 	  used for "sync PPP over ISDN". To configure the ipr-
 	  interfaces, read the output of "man i4bipr", to configure
 	  the isp-interfaces, read the output of "man i4bisppp",
-	  "man sppp" and "man ispppcontrol" carefully.
+	  "man sppp" and "man spppcontrol" carefully.
 
 	- writing a configuration file /etc/isdn/isdnd.rc for the
 	  isdn daemon isdnd(8) which is responsible for the ISDN
