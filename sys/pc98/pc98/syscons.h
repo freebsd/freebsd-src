@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.21 1998/01/12 15:34:18 kato Exp $
+ *	$Id: syscons.h,v 1.22 1998/02/13 09:31:35 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -98,15 +98,7 @@
 #ifdef PC98
 #define	UJIS	0
 #define SJIS	1
-#ifndef AUTO_CLOCK
-#ifndef PC98_8M
-#define BELL_PITCH	1678
-#else
-#define BELL_PITCH	1339
-#endif
-#else /* AUTO_CLOCK */
 static unsigned int BELL_PITCH = 1678;
-#endif /* AUTO_CLOCK */
 #else /* IBM-PC */
 #define BELL_PITCH	800
 #endif
