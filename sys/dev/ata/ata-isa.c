@@ -37,6 +37,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/taskqueue.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -63,7 +64,7 @@ ata_isa_lock(struct ata_channel *ch, int type)
 static void
 ata_isa_setmode(struct ata_device *atadev, int mode)
 {
-    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
+    atadev->mode = min(mode, ATA_PIO_MAX);
 }
 
 static int
@@ -94,10 +95,10 @@ ata_isa_probe(device_t dev)
     /* allocate the altport range */
     rid = ATA_ALTADDR_RID; 
     altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-                               ATA_ALTIOSIZE, RF_ACTIVE);
+			       ATA_ALTIOSIZE, RF_ACTIVE);
     if (!altio) {
-        bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
-        return ENXIO;
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
+	return ENXIO;
     }
 
     /* setup the resource vectors */
