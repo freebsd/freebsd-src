@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.241 1997/05/11 12:39:43 bde Exp $
+ *	$Id: machdep.c,v 1.242 1997/05/21 23:21:27 jdp Exp $
  */
 
 #include "npx.h"
@@ -1254,11 +1254,6 @@ init386(first)
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap (first, 0);
 
-#ifdef SMP
-	/* fire up the APs and APICs */
-	mp_start();
-#endif
-
 	/*
 	 * Size up each available chunk of physical memory.
 	 */
@@ -1386,6 +1381,9 @@ init386(first)
 	msgbufmapped = 1;
 
 #ifdef SMP
+	/* fire up the APs and APICs */
+	mp_start();
+
 	for(x = 0; x < NCPU; x++) {
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 		SMPcommon_tss[x].tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE;
