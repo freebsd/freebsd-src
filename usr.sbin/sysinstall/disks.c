@@ -37,6 +37,7 @@
 #include "sysinstall.h"
 #include <ctype.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 
@@ -83,7 +84,7 @@ record_chunks(Disk *d)
 {
     struct chunk *c1 = NULL;
     int i = 0;
-    int last_free = 0;
+    daddr_t last_free = 0;
 
     if (!d->chunks)
 	msgFatal("No chunk list found for %s!", d->name);
@@ -100,20 +101,21 @@ record_chunks(Disk *d)
 	current_chunk = i - 1;
 }
 
-static int Total;
+static daddr_t Total;
 
 static void
 print_chunks(Disk *d, int u)
 {
     int row;
     int i;
-    int sz;
+    daddr_t sz;
     char *szstr;
 
     szstr = (u == UNIT_GIG ? "GB" : (u == UNIT_MEG ? "MB" :
 	(u == UNIT_KILO ? "KB" : "ST")));
 
-    for (i = Total = 0; chunk_info[i]; i++)
+    Total = 0;
+    for (i = 0; chunk_info[i]; i++)
 	Total += chunk_info[i]->size;
 #ifdef PC98
     if (d->bios_cyl >= 65536 || d->bios_hd > 16 || d->bios_sect >= 256) {
@@ -139,10 +141,10 @@ print_chunks(Disk *d, int u)
     attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
     attrset(A_REVERSE); mvaddstr(0, 55, "FDISK Partition Editor"); attrset(A_NORMAL);
     mvprintw(1, 0,
-	     "DISK Geometry:\t%lu cyls/%lu heads/%lu sectors = %lu sectors (%luMB)",
+	     "DISK Geometry:\t%lu cyls/%lu heads/%lu sectors = %jd sectors (%jdMB)",
 	     d->bios_cyl, d->bios_hd, d->bios_sect,
-	     d->bios_cyl * d->bios_hd * d->bios_sect,
-	     d->bios_cyl * d->bios_hd * d->bios_sect / (1024/512) / 1024);
+	     (intmax_t)d->bios_cyl * d->bios_hd * d->bios_sect,
+	     (intmax_t)d->bios_cyl * d->bios_hd * d->bios_sect / (1024/512) / 1024);
     mvprintw(3, 0, "%6s %10s(%s) %10s %8s %6s %10s %8s %8s",
 	     "Offset", "Size", szstr, "End", "Name", "PType", "Desc",
 	     "Subtype", "Flags");
@@ -164,9 +166,9 @@ print_chunks(Disk *d, int u)
 	}
 	if (i == current_chunk)
 	    attrset(ATTR_SELECTED);
-	mvprintw(row, 0, "%10ld %10lu %10lu %8s %6d %10s %8d\t%-6s",
-		 chunk_info[i]->offset, sz,
-		 chunk_info[i]->end, chunk_info[i]->name,
+	mvprintw(row, 0, "%10jd %10jd %10jd %8s %6d %10s %8d\t%-6s",
+		 (intmax_t)chunk_info[i]->offset, (intmax_t)sz,
+		 (intmax_t)chunk_info[i]->end, chunk_info[i]->name,
 		 chunk_info[i]->type, 
 		 slice_type_name(chunk_info[i]->type, chunk_info[i]->subtype),
 		 chunk_info[i]->subtype, ShowChunkFlags(chunk_info[i]));
@@ -423,7 +425,8 @@ diskPartition(Device *dev)
 		msg = "Slice in use, delete it first or move to an unused one.";
 	    else {
 		char *val, tmp[20], name[16], *cp;
-		int size, subtype;
+		daddr_t size;
+		int subtype;
 		chunk_e partitiontype;
 #ifdef PC98
 		snprintf(name, sizeof (name), "%s", "FreeBSD");
@@ -434,10 +437,10 @@ diskPartition(Device *dev)
 #else
 		name[0] = '\0';
 #endif
-		snprintf(tmp, 20, "%lu", chunk_info[current_chunk]->size);
+		snprintf(tmp, 20, "%jd", (intmax_t)chunk_info[current_chunk]->size);
 		val = msgGetInput(tmp, "Please specify the size for new FreeBSD slice in blocks\n"
 				  "or append a trailing `M' for megabytes (e.g. 20M).");
-		if (val && (size = strtol(val, &cp, 0)) > 0) {
+		if (val && (size = strtoimax(val, &cp, 0)) > 0) {
 		    if (*cp && toupper(*cp) == 'M')
 			size *= ONE_MEG;
 		    else if (*cp && toupper(*cp) == 'G')
@@ -886,7 +889,8 @@ static void
 diskPartitionNonInteractive(Device *dev)
 {
     char *cp;
-    int i, sz, all_disk = 0;
+    int i, all_disk = 0;
+    daddr_t sz;
 #ifdef PC98
     u_char *bootipl;
     size_t bootipl_size;
@@ -939,7 +943,7 @@ diskPartitionNonInteractive(Device *dev)
 
 	    All_FreeBSD(d, all_disk = TRUE);
 	}
-	else if ((sz = strtol(cp, &cp, 0))) {
+	else if ((sz = strtoimax(cp, &cp, 0))) {
 	    /* Look for sz bytes free */
 	    if (*cp && toupper(*cp) == 'M')
 		sz *= ONE_MEG;
@@ -956,7 +960,8 @@ diskPartitionNonInteractive(Device *dev)
 		}
 	    }
 	    if (!chunk_info[i]) {
-		msgConfirm("Unable to find %d free blocks on this disk!", sz);
+		    msgConfirm("Unable to find %jd free blocks on this disk!",
+			(intmax_t)sz);
 		return;
 	    }
 	}

@@ -10,21 +10,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <sys/types.h>
+#include <sys/stdint.h>
 #include <sys/disklabel.h>
 #ifdef PC98
 #include <sys/diskpc98.h>
 #else
 #include <sys/diskmbr.h>
 #endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #include "libdisk.h"
 
 int
-Track_Aligned(const struct disk *d, u_long offset)
+Track_Aligned(const struct disk *d, daddr_t offset)
 {
 #ifndef __ia64__
 	if (!d->bios_sect)
@@ -35,8 +36,8 @@ Track_Aligned(const struct disk *d, u_long offset)
 	return 1;
 }
 
-u_long
-Prev_Track_Aligned(const struct disk *d, u_long offset)
+daddr_t
+Prev_Track_Aligned(const struct disk *d, daddr_t offset)
 {
 #ifndef __ia64__
 	if (!d->bios_sect)
@@ -47,8 +48,8 @@ Prev_Track_Aligned(const struct disk *d, u_long offset)
 #endif
 }
 
-u_long
-Next_Track_Aligned(const struct disk *d, u_long offset)
+daddr_t
+Next_Track_Aligned(const struct disk *d, daddr_t offset)
 {
 #ifndef __ia64__
 	if (!d->bios_sect)
@@ -60,7 +61,7 @@ Next_Track_Aligned(const struct disk *d, u_long offset)
 }
 
 static int
-Cyl_Aligned(const struct disk *d, u_long offset)
+Cyl_Aligned(const struct disk *d, daddr_t offset)
 {
 #ifndef __ia64__
 	if (!d->bios_sect || !d->bios_hd)
@@ -71,8 +72,8 @@ Cyl_Aligned(const struct disk *d, u_long offset)
 	return 1;
 }
 
-u_long
-Prev_Cyl_Aligned(const struct disk *d, u_long offset)
+daddr_t
+Prev_Cyl_Aligned(const struct disk *d, daddr_t offset)
 {
 #ifndef __ia64__
 	if (!d->bios_sect || !d->bios_hd)
@@ -84,8 +85,8 @@ Prev_Cyl_Aligned(const struct disk *d, u_long offset)
 #endif
 }
 
-u_long
-Next_Cyl_Aligned(const struct disk *d, u_long offset)
+daddr_t
+Next_Cyl_Aligned(const struct disk *d, daddr_t offset)
 {
 #ifndef __ia64__
 	if (!d->bios_sect || !d->bios_hd)
@@ -156,21 +157,21 @@ Rule_001(const struct disk *d, const struct chunk *c, char *msg)
 #endif
 			sprintf(msg + strlen(msg),
 #ifdef PC98
-				"chunk '%s' [%ld..%ld] does not start"
+				"chunk '%s' [%jd..%jd] does not start"
 				" on a cylinder boundary\n",
 #else
-				"chunk '%s' [%ld..%ld] does not start"
+				"chunk '%s' [%jd..%jd] does not start"
 				" on a track boundary\n",
 #endif
-				c1->name, c1->offset, c1->end);
+			    c1->name, (intmax_t)c1->offset, (intmax_t)c1->end);
 		if ((c->type == whole || c->end == c1->end)
 		    || Cyl_Aligned(d, c1->end + 1))
 			;
 		else
 			sprintf(msg + strlen(msg),
-				"chunk '%s' [%ld..%ld] does not end"
+				"chunk '%s' [%jd..%jd] does not end"
 				" on a cylinder boundary\n",
-				c1->name, c1->offset, c1->end);
+			    c1->name, (intmax_t)c1->offset, (intmax_t)c1->end);
 	}
 }
 

@@ -36,6 +36,7 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
+#include <inttypes.h>
 #include <sys/disklabel.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -244,11 +245,11 @@ check_conflict(char *name)
 }
 
 /* How much space is in this FreeBSD slice? */
-static int
+static daddr_t
 space_free(struct chunk *c)
 {
     struct chunk *c1;
-    int sz = c->size;
+    daddr_t sz = c->size;
 
     for (c1 = c->part; c1; c1 = c1->next) {
 	if (c1->type != unused)
@@ -551,8 +552,8 @@ getNewfsOptionalArguments(PartInfo *p)
 static void
 print_label_chunks(void)
 {
-    int  i, j, spaces, srow, prow, pcol;
-    int  sz;
+    int  i, j, srow, prow, pcol;
+    daddr_t sz;
     char clrmsg[80];
     int ChunkPartStartRow;
     WINDOW *ChunkWin;
@@ -650,25 +651,27 @@ print_label_chunks(void)
 	    if (label_chunk_info[i].c->type == whole) {
 		if (sz >= 100 * ONE_GIG)
 		    mvprintw(srow++, 0,
-			"Disk: %s\t\tFree: %d blocks (%dGB)",
-			label_chunk_info[i].c->disk->name, sz, (sz / ONE_GIG));
+			"Disk: %s\t\tFree: %jd blocks (%jdGB)",
+			label_chunk_info[i].c->disk->name, (intmax_t)sz,
+			(intmax_t)(sz / ONE_GIG));
 		else
 		    mvprintw(srow++, 0,
-			"Disk: %s\t\tFree: %d blocks (%dMB)",
-			label_chunk_info[i].c->disk->name, sz, (sz / ONE_MEG));
+			"Disk: %s\t\tFree: %jd blocks (%jdMB)",
+			label_chunk_info[i].c->disk->name, (intmax_t)sz,
+			(intmax_t)(sz / ONE_MEG));
 	    } else {
 		if (sz >= 100 * ONE_GIG)
 		    mvprintw(srow++, 0, 
-			"Disk: %s\tPartition name: %s\tFree: %d blocks (%dGB)",
+			"Disk: %s\tPartition name: %s\tFree: %jd blocks (%jdGB)",
 			label_chunk_info[i].c->disk->name,
 			label_chunk_info[i].c->name, 
-			sz, (sz / ONE_GIG));
+			(intmax_t)sz, (intmax_t)(sz / ONE_GIG));
 		else
 		    mvprintw(srow++, 0, 
-			"Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
+			"Disk: %s\tPartition name: %s\tFree: %jd blocks (%jdMB)",
 			label_chunk_info[i].c->disk->name,
 			label_chunk_info[i].c->name, 
-			sz, (sz / ONE_MEG));
+			(intmax_t)sz, (intmax_t)(sz / ONE_MEG));
 	    }
 	    attrset(A_NORMAL);
 	    clrtoeol();
@@ -760,13 +763,13 @@ print_label_chunks(void)
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
 		onestr[PART_MOUNT_COL + j] = mountpoint[j];
 	    if (label_chunk_info[i].c->size == 0)
-	        snprintf(num, 10, "%5ldMB", 0);
+	        snprintf(num, 10, "%5dMB", 0);
 	    else if (label_chunk_info[i].c->size < (100 * ONE_GIG))
-		snprintf(num, 10, "%5ldMB",
-		    label_chunk_info[i].c->size / ONE_MEG);
+		snprintf(num, 10, "%5jdMB",
+		    (intmax_t)label_chunk_info[i].c->size / ONE_MEG);
 	    else
-		snprintf(num, 10, "%5ldGB",
-		    label_chunk_info[i].c->size / ONE_GIG);
+		snprintf(num, 10, "%5jdGB",
+		    (intmax_t)label_chunk_info[i].c->size / ONE_GIG);
 	    memcpy(onestr + PART_SIZE_COL, num, strlen(num));
 	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
 	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
@@ -834,7 +837,8 @@ clear_wins(void)
 static int
 diskLabel(Device *dev)
 {
-    int sz, key = 0;
+    daddr_t sz;
+    int  key = 0;
     Boolean labeling;
     char *msg = NULL;
     PartInfo *p, *oldp;
@@ -991,12 +995,12 @@ diskLabel(Device *dev)
 	    }
 	    else {
 		char *val;
-		int size;
+		daddr_t size;
 		struct chunk *tmp;
 		char osize[80];
 		u_long flags = 0;
 
-		sprintf(osize, "%d", sz);
+		sprintf(osize, "%jd", (intmax_t)sz);
 		val = msgGetInput(osize,
 				  "Please specify the partition size in blocks or append a trailing G for\n"
 #ifdef __ia64__
@@ -1004,9 +1008,9 @@ diskLabel(Device *dev)
 #else
 				  "gigabytes, M for megabytes, or C for cylinders.\n"
 #endif
-				  "%d blocks (%dMB) are free.",
-				  sz, sz / ONE_MEG);
-		if (!val || (size = strtol(val, &cp, 0)) <= 0) {
+				  "%jd blocks (%jdMB) are free.",
+				  (intmax_t)sz, (intmax_t)sz / ONE_MEG);
+		if (!val || (size = strtoimax(val, &cp, 0)) <= 0) {
 		    clear_wins();
 		    break;
 		}
@@ -1353,14 +1357,14 @@ diskLabel(Device *dev)
     return DITEM_SUCCESS;
 }
 
-static __inline int
-requested_part_size(char *varName, int nom, int def, int perc)
+static __inline daddr_t
+requested_part_size(char *varName, daddr_t nom, int def, int perc)
 {
     char *cp;
-    int sz;
+    daddr_t sz;
 
     if ((cp = variable_get(varName)) != NULL)
-	sz = atoi(cp);
+	sz = strtoimax(cp, NULL, 0);
     else
 	sz = nom + (def - nom) * perc / 100;
     return(sz * ONE_MEG);
@@ -1381,7 +1385,7 @@ requested_part_size(char *varName, int nom, int def, int perc)
 static char *
 try_auto_label(Device **devs, Device *dev, int perc, int *req)
 {
-    int sz;
+    daddr_t sz;
     struct chunk *root_chunk = NULL;
     struct chunk *swap_chunk = NULL;
     struct chunk *usr_chunk = NULL;
@@ -1420,8 +1424,8 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
     if (!swapdev) {
 	sz = requested_part_size(VAR_SWAP_SIZE, 0, 0, perc);
 	if (sz == 0) {
-	    int nom;
-	    int def;
+	    daddr_t nom;
+	    daddr_t def;
 
 	    mib[0] = CTL_HW;
 	    mib[1] = HW_PHYSMEM;
@@ -1595,11 +1599,12 @@ diskLabelNonInteractive(Device *dev)
 	    int entries;
 
 	    for (entries = 1;; entries++) {
-		int sz, soft = 0;
+		intmax_t sz;
+		int soft = 0;
 		snprintf(name, sizeof name, "%s-%d", c1->name, entries);
 		if ((cp = variable_get(name)) == NULL)
 		    break;
-		if (sscanf(cp, "%s %d %s %d", typ, &sz, mpoint, &soft) < 3) {
+		if (sscanf(cp, "%s %jd %s %d", typ, &sz, mpoint, &soft) < 3) {
 		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
 		    status = DITEM_FAILURE;
 		    break;
