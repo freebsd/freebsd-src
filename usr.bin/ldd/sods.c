@@ -194,7 +194,7 @@ dump_file(const char *fname)
     printf("%s: a_midmag = 0x%lx\n", fname, ex->a_midmag);
     printf("  magic = 0x%lx = 0%lo, netmagic = 0x%lx = 0%lo\n",
 	N_GETMAGIC(*ex), N_GETMAGIC(*ex),
-	N_GETMAGIC_NET(*ex), N_GETMAGIC_NET(*ex));
+	(long)N_GETMAGIC_NET(*ex), (long)N_GETMAGIC_NET(*ex));
 
     if (N_BADMAG(*ex)) {
 	warnx("%s: bad magic number", fname);
