@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.185 (Berkeley) 11/18/95";
+static char sccsid[] = "@(#)deliver.c	8.185.1.2 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -322,8 +322,10 @@ sendall(e, mode)
 				char df1buf[20], df2buf[20];
 
 				ee->e_dfp = NULL;
-				strcpy(df1buf, queuename(e, 'd'));
-				strcpy(df2buf, queuename(ee, 'd'));
+				snprintf(df1buf, sizeof df1buf, "%s",
+					queuename(e, 'd'));
+				snprintf(df2buf, sizeof df2buf, "%s",
+					queuename(ee, 'd'));
 				if (link(df1buf, df2buf) < 0)
 				{
 					int saverrno = errno;
@@ -569,7 +571,8 @@ sendenvelope(e, mode)
 #if XDEBUG
 		char wbuf[MAXNAME + 20];
 
-		(void) sprintf(wbuf, "sendall(%.*s)", MAXNAME, q->q_paddr);
+		(void) snprintf(wbuf, sizeof wbuf, "sendall(%.*s)",
+			MAXNAME, q->q_paddr);
 		checkfd012(wbuf);
 #endif
 		if (mode == SM_VERIFY)
@@ -776,9 +779,13 @@ deliver(e, firstto)
 		p = e->e_sender;
 	else
 		p = e->e_from.q_paddr;
-	(void) strcpy(rpathbuf, remotename(p, m,
-					   RF_SENDERADDR|RF_CANONICAL,
-					   &rcode, e));
+	p = remotename(p, m, RF_SENDERADDR|RF_CANONICAL, &rcode, e);
+	if (strlen(p) >= (SIZE_T) sizeof rpathbuf)
+	{
+		p = shortenstring(p, 203);
+		syserr("remotename: huge return %s", p);
+	}
+	snprintf(rpathbuf, sizeof rpathbuf, "%s", p);
 	define('g', rpathbuf, e);		/* translated return path */
 	define('h', host, e);			/* to host */
 	Errors = 0;
@@ -1087,7 +1094,7 @@ deliver(e, firstto)
 		char wbuf[MAXLINE];
 
 		/* make absolutely certain 0, 1, and 2 are in use */
-		sprintf(wbuf, "%s... openmailer(%s)",
+		snprintf(wbuf, sizeof wbuf, "%s... openmailer(%s)",
 			shortenstring(e->e_to, 203), m->m_name);
 		checkfd012(wbuf);
 	}
@@ -1735,7 +1742,7 @@ tryhost:
 		char wbuf[MAXLINE];
 
 		/* make absolutely certain 0, 1, and 2 are in use */
-		sprintf(wbuf, "%s... end of deliver(%s)",
+		snprintf(wbuf, sizeof wbuf, "%s... end of deliver(%s)",
 			e->e_to == NULL ? "NO-TO-LIST"
 					: shortenstring(e->e_to, 203),
 			m->m_name);
@@ -1851,7 +1858,7 @@ markfailure(e, q, mci, rcode)
 	{
 		char buf[30];
 
-		(void) sprintf(buf, "%d", rcode);
+		(void) snprintf(buf, sizeof buf, "%d", rcode);
 		q->q_rstatus = newstr(buf);
 	}
 }
@@ -1977,20 +1984,24 @@ giveresponse(stat, m, mci, ctladdr, xstart, e)
 		statmsg = "250 Sent";
 		if (e->e_statmsg != NULL)
 		{
-			(void) sprintf(buf, "%s (%s)",
+			(void) snprintf(buf, sizeof buf, "%s (%s)",
 				statmsg, shortenstring(e->e_statmsg, 403));
 			statmsg = buf;
 		}
 	}
 	else if (i < 0 || i > N_SysEx)
 	{
-		(void) sprintf(buf, "554 unknown mailer error %d", stat);
+		(void) snprintf(buf, sizeof buf, "554 unknown mailer error %d",
+			stat);
 		stat = EX_UNAVAILABLE;
 		statmsg = buf;
 	}
 	else if (stat == EX_TEMPFAIL)
 	{
-		(void) strcpy(buf, SysExMsg[i] + 1);
+		char *bp = buf;
+
+		snprintf(bp, SPACELEFT(buf, bp), "%s", SysExMsg[i] + 1);
+		bp += strlen(bp);
 #if NAMED_BIND
 		if (h_errno == TRY_AGAIN)
 			statmsg = errstring(h_errno+E_DNSBASE);
@@ -2009,17 +2020,15 @@ giveresponse(stat, m, mci, ctladdr, xstart, e)
 			}
 		}
 		if (statmsg != NULL && statmsg[0] != '\0')
-		{
-			(void) strcat(buf, ": ");
-			(void) strcat(buf, statmsg);
-		}
+			snprintf(bp, SPACELEFT(buf, bp), ": %s", statmsg);
 		statmsg = buf;
 	}
 #if NAMED_BIND
 	else if (stat == EX_NOHOST && h_errno != 0)
 	{
 		statmsg = errstring(h_errno + E_DNSBASE);
-		(void) sprintf(buf, "%s (%s)", SysExMsg[i] + 1, statmsg);
+		(void) snprintf(buf, sizeof buf, "%s (%s)",
+			SysExMsg[i] + 1, statmsg);
 		statmsg = buf;
 	}
 #endif
@@ -2028,7 +2037,8 @@ giveresponse(stat, m, mci, ctladdr, xstart, e)
 		statmsg = SysExMsg[i];
 		if (*statmsg++ == ':')
 		{
-			(void) sprintf(buf, "%s: %s", statmsg, errstring(errno));
+			(void) snprintf(buf, sizeof buf, "%s: %s",
+				statmsg, errstring(errno));
 			statmsg = buf;
 		}
 	}
@@ -2050,7 +2060,7 @@ giveresponse(stat, m, mci, ctladdr, xstart, e)
 		char mbuf[8];
 
 		Errors++;
-		sprintf(mbuf, "%.3s %%s", statmsg);
+		snprintf(mbuf, sizeof mbuf, "%.3s %%s", statmsg);
 		usrerr(mbuf, &statmsg[4]);
 	}
 
@@ -2105,8 +2115,6 @@ giveresponse(stat, m, mci, ctladdr, xstart, e)
 **		none
 */
 
-#define SPACELEFT(bp)	(sizeof buf - ((bp) - buf))
-
 void
 logdelivery(m, mci, stat, ctladdr, xstart, e)
 	MAILER *m;
@@ -2127,25 +2135,25 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 	bp = buf;
 	if (ctladdr != NULL)
 	{
-		strcpy(bp, ", ctladdr=");
-		strcat(bp, shortenstring(ctladdr->q_paddr, 83));
+		snprintf(bp, SPACELEFT(buf, bp), ", ctladdr=%s",
+			shortenstring(ctladdr->q_paddr, 83));
 		bp += strlen(bp);
 		if (bitset(QGOODUID, ctladdr->q_flags))
 		{
-			(void) snprintf(bp, SPACELEFT(bp), " (%d/%d)",
+			(void) snprintf(bp, SPACELEFT(buf, bp), " (%d/%d)",
 					ctladdr->q_uid, ctladdr->q_gid);
 			bp += strlen(bp);
 		}
 	}
 
 	/* delay & xdelay: max 41 bytes */
-	snprintf(bp, SPACELEFT(bp), ", delay=%s",
+	snprintf(bp, SPACELEFT(buf, bp), ", delay=%s",
 		pintvl(curtime() - e->e_ctime, TRUE));
 	bp += strlen(bp);
 
 	if (xstart != (time_t) 0)
 	{
-		snprintf(bp, SPACELEFT(bp), ", xdelay=%s",
+		snprintf(bp, SPACELEFT(buf, bp), ", xdelay=%s",
 			pintvl(curtime() - xstart, TRUE));
 		bp += strlen(bp);
 	}
@@ -2153,7 +2161,7 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 	/* mailer: assume about 19 bytes (max 10 byte mailer name) */
 	if (m != NULL)
 	{
-		snprintf(bp, SPACELEFT(bp), ", mailer=%s", m->m_name);
+		snprintf(bp, SPACELEFT(buf, bp), ", mailer=%s", m->m_name);
 		bp += strlen(bp);
 	}
 
@@ -2164,14 +2172,14 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 		extern SOCKADDR CurHostAddr;
 # endif
 
-		snprintf(bp, SPACELEFT(bp), ", relay=%s",
+		snprintf(bp, SPACELEFT(buf, bp), ", relay=%s",
 			shortenstring(mci->mci_host, 40));
 		bp += strlen(bp);
 
 # ifdef DAEMON
 		if (CurHostAddr.sa.sa_family != 0)
 		{
-			snprintf(bp, SPACELEFT(bp), " [%s]",
+			snprintf(bp, SPACELEFT(buf, bp), " [%s]",
 				anynet_ntoa(&CurHostAddr));
 		}
 # endif
@@ -2182,7 +2190,7 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 
 		if (p != NULL && p[0] != '\0')
 		{
-			snprintf(bp, SPACELEFT(bp), ", relay=%s",
+			snprintf(bp, SPACELEFT(buf, bp), ", relay=%s",
 				shortenstring(p, 40));
 		}
 	}
@@ -2246,46 +2254,50 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 	if (ctladdr != NULL)
 	{
 		bp = buf;
-		strcpy(buf, "ctladdr=");
-		bp += strlen(buf);
-		strcpy(bp, shortenstring(ctladdr->q_paddr, 83));
-		bp += strlen(buf);
+		snprintf(bp, SPACELEFT(buf, bp), "ctladdr=%s",
+			shortenstring(ctladdr->q_paddr, 83));
+		bp += strlen(bp);
 		if (bitset(QGOODUID, ctladdr->q_flags))
 		{
-			(void) sprintf(bp, " (%d/%d)",
+			(void) snprintf(bp, SPACELEFT(buf, bp), " (%d/%d)",
 					ctladdr->q_uid, ctladdr->q_gid);
 			bp += strlen(bp);
 		}
 		syslog(LOG_INFO, "%s: %s", e->e_id, buf);
 	}
 	bp = buf;
-	sprintf(bp, "delay=%s", pintvl(curtime() - e->e_ctime, TRUE));
+	snprintf(bp, SPACELEFT(buf, bp), "delay=%s",
+		pintvl(curtime() - e->e_ctime, TRUE));
 	bp += strlen(bp);
 	if (xstart != (time_t) 0)
 	{
-		sprintf(bp, ", xdelay=%s", pintvl(curtime() - xstart, TRUE));
+		snprintf(bp, SPACELEFT(buf, bp), ", xdelay=%s",
+			pintvl(curtime() - xstart, TRUE));
 		bp += strlen(bp);
 	}
 
 	if (m != NULL)
 	{
-		sprintf(bp, ", mailer=%s", m->m_name);
+		snprintf(bp, SPACELEFT(buf, bp), ", mailer=%s", m->m_name);
 		bp += strlen(bp);
 	}
 	syslog(LOG_INFO, "%s: %.1000s", e->e_id, buf);
 
 	buf[0] = '\0';
+	bp = buf;
 	if (mci != NULL && mci->mci_host != NULL)
 	{
 # ifdef DAEMON
 		extern SOCKADDR CurHostAddr;
 # endif
 
-		sprintf(buf, "relay=%.100s", mci->mci_host);
+		snprintf(bp, SPACELEFT(buf, bp), "relay=%.100s", mci->mci_host);
+		bp += strlen(bp);
 
 # ifdef DAEMON
 		if (CurHostAddr.sa.sa_family != 0)
-			sprintf(bp, " [%.100s]", anynet_ntoa(&CurHostAddr));
+			snprintf(bp, SPACELEFT(buf, bp), " [%.100s]",
+				anynet_ntoa(&CurHostAddr));
 # endif
 	}
 	else if (strcmp(stat, "queued") != 0)
@@ -2293,7 +2305,7 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 		char *p = macvalue('h', e);
 
 		if (p != NULL && p[0] != '\0')
-			sprintf(buf, "relay=%.100s", p);
+			snprintf(buf, sizeof buf, "relay=%.100s", p);
 	}
 	if (buf[0] != '\0')
 		syslog(LOG_INFO, "%s: %.1000s", e->e_id, buf);
@@ -2302,8 +2314,6 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 #  endif /* short log buffer */
 # endif /* LOG */
 }
-
-#undef SPACELEFT
 /*
 **  PUTFROMLINE -- output a UNIX-style from line (or whatever)
 **
@@ -2351,7 +2361,8 @@ putfromline(mci, e)
 		else
 		{
 			*bang++ = '\0';
-			(void) sprintf(xbuf, "From %.800s  \201d remote from %.100s\n",
+			(void) snprintf(xbuf, sizeof xbuf,
+				"From %.800s  \201d remote from %.100s\n",
 				bang, buf);
 			template = xbuf;
 		}
@@ -2440,7 +2451,8 @@ putbody(mci, e, separator)
 
 		if (hvalue("Content-Type", e->e_header) == NULL)
 		{
-			sprintf(buf, "Content-Type: text/plain; charset=%s",
+			snprintf(buf, sizeof buf,
+				"Content-Type: text/plain; charset=%s",
 				defcharset(e));
 			putline(buf, mci);
 		}
