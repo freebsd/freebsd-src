@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.16 1996/06/08 11:30:37 joerg Exp $
+#	$Id: LINT,v 1.184.4.17 1996/06/16 20:10:13 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -317,7 +317,8 @@ device		od0
 # so we have to specify that they are on a SCSI bus with the "at scbus?"
 # clause.
 
-device worm0 at scbus?	# SCSI worm
+device worm0 at scbus?	# SCSI worm (CD-R) -- untested, but known to work
+			# in the 2.2 development systems
 device pt0 at scbus?	# SCSI processor type
 device sctarg0 at scbus? # SCSI target
 

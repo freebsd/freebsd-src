@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.26.4.4 1996/03/31 18:10:25 joerg Exp $
+ *	$Id: scsiconf.h,v 1.26.4.5 1996/04/01 00:26:12 gibbs Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -577,9 +577,10 @@ void scsi_configure_finish __P((void));
  * m: Old style minor device number.
  */
 
+#define SCSI_FIXED_MASK    0x40000000
 #define SCSI_FIXED(DEV)    (((DEV) & SCSI_FIXED_MASK))
-#define SCSI_FIXED_MASK              0x40000000
-#define SCSI_CONTROL(DEV)  (((DEV) & 0x20000000))
+#define SCSI_CONTROL_MASK  0x20000000
+#define SCSI_CONTROL(DEV)  (((DEV) & SCSI_CONTROL_MASK))
 
 #define SCSI_BUS(DEV)      (((DEV) & 0x07000000) >> 24)
 #define SCSI_ID(DEV)       (((DEV) & 0x00F00000) >> 20)
