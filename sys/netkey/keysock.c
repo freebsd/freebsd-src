@@ -286,15 +286,11 @@ key_sendup_mbuf(so, m, target)
 	pfkeystat.in_total++;
 	pfkeystat.in_bytes += m->m_pkthdr.len;
 	if (m->m_len < sizeof(struct sadb_msg)) {
-#if 1
 		m = m_pullup(m, sizeof(struct sadb_msg));
 		if (m == NULL) {
 			pfkeystat.in_nomem++;
 			return ENOBUFS;
 		}
-#else
-		/* don't bother pulling it up just for stats */
-#endif
 	}
 	if (m->m_len >= sizeof(struct sadb_msg)) {
 		struct sadb_msg *msg;
@@ -302,12 +298,11 @@ key_sendup_mbuf(so, m, target)
 		pfkeystat.in_msgtype[msg->sadb_msg_type]++;
 	}
 
-	LIST_FOREACH(rp, &rawcb_list, list)
-	{
+	LIST_FOREACH(rp, &rawcb_list, list) {
 		if (rp->rcb_proto.sp_family != PF_KEY)
 			continue;
-		if (rp->rcb_proto.sp_protocol
-		 && rp->rcb_proto.sp_protocol != PF_KEY_V2) {
+		if (rp->rcb_proto.sp_protocol &&
+		    rp->rcb_proto.sp_protocol != PF_KEY_V2) {
 			continue;
 		}
 
