@@ -48,7 +48,7 @@ struct trapframe {
 	u_int64_t		tf_cr_ifs;
 	u_int64_t		tf_ar_bspstore;
 	u_int64_t		tf_ar_rnat;
-	u_int64_t		tf_ar_bsp;
+	u_int64_t		tf_ndirty;
 	u_int64_t		tf_ar_unat;
 	u_int64_t		tf_ar_ccv;
 	u_int64_t		tf_ar_fpsr;

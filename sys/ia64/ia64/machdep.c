@@ -710,9 +710,10 @@ ia64_init()
 	}
 
 	/*
-	 * Force verbose mode for a while.
+	 * Force verbose mode and single-user for a while.
 	 */
 	bootverbose = 1;
+	boothowto |= RB_SINGLE;
 
 	/*
 	 * Initialize debuggers, and break into them if appropriate.
@@ -800,7 +801,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	sf.sf_uc.uc_mcontext.mc_cfm     = 0; /* XXX */
 	sf.sf_uc.uc_mcontext.mc_um      = frame->tf_cr_ipsr & 0x1fff;
 	sf.sf_uc.uc_mcontext.mc_ar_rsc  = frame->tf_ar_rsc;
-	sf.sf_uc.uc_mcontext.mc_ar_bsp  = frame->tf_ar_bsp;
+	sf.sf_uc.uc_mcontext.mc_ar_bsp  = (frame->tf_ar_bspstore
+					   + frame->tf_ndirty);
 	sf.sf_uc.uc_mcontext.mc_ar_rnat = frame->tf_ar_rnat;
 	sf.sf_uc.uc_mcontext.mc_ar_ccv  = frame->tf_ar_ccv;
 	sf.sf_uc.uc_mcontext.mc_ar_unat = frame->tf_ar_unat;
@@ -1048,7 +1050,7 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	 * starts executing with an empty register stack frame.
 	 */
 	frame->tf_ar_bspstore = p->p_md.md_bspstore;
-	frame->tf_ar_bsp = p->p_md.md_bspstore;
+	frame->tf_ndirty = 0;
 	frame->tf_cr_ifs = (1L<<63); /* ifm=0, v=1 */
 	frame->tf_ar_rsc = 0xf;	/* user mode rsc */
 	frame->tf_ar_fpsr = IA64_FPSR_DEFAULT;
