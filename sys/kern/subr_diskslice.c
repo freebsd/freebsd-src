@@ -323,15 +323,7 @@ dsclose(dev, mode, ssp)
 
 	sp = &ssp->dss_slices[dkslice(dev)];
 	mask = 1 << dkpart(dev);
-	switch (mode) {
-	case S_IFBLK:
-		sp->ds_bopenmask &= ~mask;
-		break;
-	case S_IFCHR:
-		sp->ds_copenmask &= ~mask;
-		break;
-	}
-	sp->ds_openmask = sp->ds_bopenmask | sp->ds_copenmask;
+	sp->ds_openmask &= ~mask;
 }
 
 void
@@ -345,10 +337,8 @@ dsgone(sspp)
 	for (slice = 0, ssp = *sspp; slice < ssp->dss_nslices; slice++) {
 		sp = &ssp->dss_slices[slice];
 #ifdef DEVFS
-		if (sp->ds_bdev != NULL)
-			devfs_remove_dev(sp->ds_bdev);
-		if (sp->ds_cdev != NULL)
-			devfs_remove_dev(sp->ds_cdev);
+		if (sp->ds_dev != NULL)
+			devfs_remove_dev(sp->ds_dev);
 #endif
 		free_ds_label(ssp, slice);
 	}
@@ -473,10 +463,7 @@ dsioctl(dev, cmd, data, flags, sspp)
 		*sspp = NULL;
 		lp = malloc(sizeof *lp, M_DEVBUF, M_WAITOK);
 		*lp = *ssp->dss_slices[WHOLE_DISK_SLICE].ds_label;
-		error = dsopen(dev,
-			       ssp->dss_slices[WHOLE_DISK_SLICE].ds_copenmask
-			       & (1 << RAW_PART) ? S_IFCHR : S_IFBLK,
-			       ssp->dss_oflags, sspp, lp);
+		error = dsopen(dev, S_IFCHR, ssp->dss_oflags, sspp, lp);
 		if (error != 0) {
 			free(lp, M_DEVBUF);
 			*sspp = ssp;
@@ -489,23 +476,7 @@ dsioctl(dev, cmd, data, flags, sspp)
 		 * if anything fails.
 		 */
 		for (slice = 0; slice < ssp->dss_nslices; slice++) {
-			for (openmask = ssp->dss_slices[slice].ds_bopenmask,
-			     part = 0; openmask; openmask >>= 1, part++) {
-				if (!(openmask & 1))
-					continue;
-				error = dsopen(dkmodslice(dkmodpart(dev, part),
-							  slice),
-					       S_IFBLK, ssp->dss_oflags, sspp,
-					       lp);
-				if (error != 0) {
-					/* XXX should free devfs toks. */
-					free(lp, M_DEVBUF);
-					/* XXX should restore devfs toks. */
-					*sspp = ssp;
-					return (EBUSY);
-				}
-			}
-			for (openmask = ssp->dss_slices[slice].ds_copenmask,
+			for (openmask = ssp->dss_slices[slice].ds_openmask,
 			     part = 0; openmask; openmask >>= 1, part++) {
 				if (!(openmask & 1))
 					continue;
@@ -762,14 +733,10 @@ dsopen(dev, mode, flags, sspp, lp)
 		dev1 = dkmodslice(dkmodpart(dev, RAW_PART), slice);
 		sname = dsname(dev, unit, slice, RAW_PART, partname);
 #ifdef DEVFS
-		if (slice != COMPATIBILITY_SLICE && sp->ds_bdev == NULL
+		if (slice != COMPATIBILITY_SLICE && sp->ds_dev == NULL
 		    && sp->ds_size != 0) {
 			mynor = minor(dev1);
-			sp->ds_bdev =
-				devfs_add_devswf(devsw(dev1), mynor, DV_BLK,
-						 UID_ROOT, GID_OPERATOR, 0640,
-						 "%s", sname);
-			sp->ds_cdev =
+			sp->ds_dev =
 				devfs_add_devswf(devsw(dev1), mynor, DV_CHR,
 						 UID_ROOT, GID_OPERATOR, 0640,
 						 "r%s", sname);
@@ -816,15 +783,7 @@ dsopen(dev, mode, flags, sspp, lp)
 	    && (sp->ds_label == NULL || part >= sp->ds_label->d_npartitions))
 		return (EINVAL);	/* XXX needs translation */
 	mask = 1 << part;
-	switch (mode) {
-	case S_IFBLK:
-		sp->ds_bopenmask |= mask;
-		break;
-	case S_IFCHR:
-		sp->ds_copenmask |= mask;
-		break;
-	}
-	sp->ds_openmask = sp->ds_bopenmask | sp->ds_copenmask;
+	sp->ds_openmask |= mask;
 	return (0);
 }
 
@@ -842,11 +801,11 @@ dssize(dev, sspp)
 	part = dkpart(dev);
 	ssp = *sspp;
 	if (ssp == NULL || slice >= ssp->dss_nslices
-	    || !(ssp->dss_slices[slice].ds_bopenmask & (1 << part))) {
-		if (devsw(dev)->d_open(dev, FREAD, S_IFBLK,
+	    || !(ssp->dss_slices[slice].ds_openmask & (1 << part))) {
+		if (devsw(dev)->d_open(dev, FREAD, S_IFCHR,
 		    (struct proc *)NULL) != 0)
 			return (-1);
-		devsw(dev)->d_close(dev, FREAD, S_IFBLK, (struct proc *)NULL);
+		devsw(dev)->d_close(dev, FREAD, S_IFCHR, (struct proc *)NULL);
 		ssp = *sspp;
 	}
 	lp = ssp->dss_slices[slice].ds_label;
@@ -893,13 +852,9 @@ free_ds_labeldevs(ssp, slice)
 	if (lp == NULL)
 		return;
 	for (part = 0; part < lp->d_npartitions; part++) {
-		if (sp->ds_bdevs[part] != NULL) {
-			devfs_remove_dev(sp->ds_bdevs[part]);
-			sp->ds_bdevs[part] = NULL;
-		}
-		if (sp->ds_cdevs[part] != NULL) {
-			devfs_remove_dev(sp->ds_cdevs[part]);
-			sp->ds_cdevs[part] = NULL;
+		if (sp->ds_devs[part] != NULL) {
+			devfs_remove_dev(sp->ds_devs[part]);
+			sp->ds_devs[part] = NULL;
 		}
 	}
 }
@@ -1070,20 +1025,13 @@ set_ds_labeldevs_unaliased(dev, ssp)
 		if (pp->p_size == 0)
 			continue;
 		sname = dsname(dev, dkunit(dev), slice, part, partname);
-		if (part == RAW_PART && sp->ds_bdev != NULL) {
-			sp->ds_bdevs[part] =
-				devfs_makelink(sp->ds_bdev,
-					   "%s%s", sname, partname);
-			sp->ds_cdevs[part] =
-				devfs_makelink(sp->ds_cdev,
+		if (part == RAW_PART && sp->ds_dev != NULL) {
+			sp->ds_devs[part] =
+				devfs_makelink(sp->ds_dev,
 					   "r%s%s", sname, partname);
 		} else {
 			mynor = minor(dkmodpart(dev, part));
-			sp->ds_bdevs[part] =
-				devfs_add_devswf(devsw(dev), mynor, DV_BLK,
-						 UID_ROOT, GID_OPERATOR, 0640,
-						 "%s%s", sname, partname);
-			sp->ds_cdevs[part] =
+			sp->ds_devs[part] =
 				devfs_add_devswf(devsw(dev), mynor, DV_CHR,
 						 UID_ROOT, GID_OPERATOR, 0640,
 						 "r%s%s", sname, partname);
