@@ -1,7 +1,7 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.29 1994/03/08 05:56:47 rgrimes Exp $
+#	$Id: GENERICBT,v 1.30 1994/04/12 16:05:13 csgr Exp $
 #
 
 machine		"i386"
@@ -22,6 +22,7 @@ options		XSERVER			#Xserver
 options		UCONSOLE		#X Console support
 options		"FAT_CURSOR"		#block cursor in syscons or pccons
 #options	GATEWAY			#Host is a Gateway (forwards packets)
+options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
 
 config		"386bsd"	root on wd0 swap on wd0 and sd0 dumps on wd0
 
