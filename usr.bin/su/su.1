@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)su.1	8.2 (Berkeley) 4/18/94
-.\"	$Id: su.1,v 1.9 1997/08/12 06:45:43 charnier Exp $
+.\"	$Id: su.1,v 1.10 1997/08/30 12:22:48 jmg Exp $
 .\"
 .\" this is for hilit19's braindeadness: "
 .Dd April 18, 1994
@@ -157,10 +157,19 @@ to
 .Dq root ,
 unless this group is empty.
 .Pp
-By default (unless the prompt is reset by a startup file) the super-user
-prompt is set to
-.Dq Sy \&#
-to remind one of its awesome power.
+When using
+.Nm
+to become super-user, note that the invoked shell dictates the new
+command prompt and not
+.Nm su .
+Even when
+.Nm
+is invoked with the
+.Fl l
+option, the command prompt is still determined by the shell's startup
+files, specifically their manipulation of the
+.Ev PS1
+variable.
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr kerberos 1 ,
