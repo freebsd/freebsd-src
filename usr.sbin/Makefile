@@ -1,6 +1,6 @@
 #	@(#)Makefile	5.20 (Berkeley) 6/12/93
 
-# XXX MISSING:		cron mkproto
+# XXX MISSING:		mkproto
 # XXX MISSING SOURCES:	quot
 # XXX TEMP. BROKEN:	iostat
 SUBDIR=	ac accton amd arp bootpd bootpef bootpgw bootptest chown chroot \
