@@ -41,3 +41,15 @@ dyn_hack.so:
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
 .include <bsd.prog.mk>
+
+# Keep the previous version of the dynamic linker for recovery
+# purposes.  This must come after the include of <bsd.prog.mk> so that
+# BINDIR is set for the exists(...) constructs.
+beforeinstall:
+.if exists(${DESTDIR}${BINDIR}/${PROG})
+	-chflags noschg ${DESTDIR}${BINDIR}/${PROG}
+.if exists(${DESTDIR}${BINDIR}/${PROG}.old)
+	-chflags noschg ${DESTDIR}${BINDIR}/${PROG}.old
+.endif
+	cp -p ${DESTDIR}${BINDIR}/${PROG} ${DESTDIR}${BINDIR}/${PROG}.old
+.endif
