@@ -163,6 +163,33 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 }
 
 int
+do_getopt_accept_filter(struct socket *so, struct sockopt *sopt)
+{
+	struct accept_filter_arg *afap;
+	int error;
+
+	error = 0;
+	MALLOC(afap, struct accept_filter_arg *, sizeof(*afap), M_TEMP,
+	    M_WAITOK | M_ZERO);
+	SOCK_LOCK(so);
+	if ((so->so_options & SO_ACCEPTCONN) == 0) {
+		error = EINVAL;
+		goto out;
+	}
+	if ((so->so_options & SO_ACCEPTFILTER) == 0)
+		goto out;
+	strcpy(afap->af_name, so->so_accf->so_accept_filter->accf_name);
+	if (so->so_accf->so_accept_filter_str != NULL)
+		strcpy(afap->af_arg, so->so_accf->so_accept_filter_str);
+out:
+	SOCK_UNLOCK(so);
+	if (error == 0)
+		error = sooptcopyout(sopt, afap, sizeof(*afap));
+	FREE(afap, M_TEMP);
+	return (error);
+}
+
+int
 do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 {
 	struct accept_filter_arg *afap;
