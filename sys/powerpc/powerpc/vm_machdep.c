@@ -73,6 +73,8 @@
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
@@ -89,7 +91,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
