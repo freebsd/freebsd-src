@@ -1,12 +1,9 @@
 #include "f2c.h"
 
-#ifdef KR_headers
-shortint h_sign(a,b) shortint *a, *b;
-#else
-shortint h_sign(shortint *a, shortint *b)
-#endif
+shortint
+h_sign (shortint * a, shortint * b)
 {
-shortint x;
-x = (*a >= 0 ? *a : - *a);
-return( *b >= 0 ? x : -x);
+  shortint x;
+  x = (*a >= 0 ? *a : -*a);
+  return (*b >= 0 ? x : -x);
 }

@@ -1,10 +1,7 @@
 #include "f2c.h"
 
-#ifdef KR_headers
-shortint h_len(s, n) char *s; ftnlen n;
-#else
-shortint h_len(char *s, ftnlen n)
-#endif
+shortint
+h_len (char *s __attribute__ ((__unused__)), ftnlen n)
 {
-return(n);
+  return (n);
 }
