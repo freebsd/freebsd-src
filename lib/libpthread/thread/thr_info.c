@@ -57,6 +57,7 @@ static const struct s_thread_info thread_info[] = {
 	{PS_SELECT_WAIT	, "Waiting on select"},
 	{PS_SLEEP_WAIT	, "Sleeping"},
 	{PS_WAIT_WAIT	, "Waiting process"},
+	{PS_SIGSUSPEND	, "Suspended, waiting for a signal"},
 	{PS_SIGWAIT	, "Waiting for a signal"},
 	{PS_JOIN	, "Waiting to join"},
 	{PS_SUSPENDED	, "Suspended"},
@@ -67,14 +68,15 @@ static const struct s_thread_info thread_info[] = {
 void
 _thread_dump_info(void)
 {
-	char            s[128];
+	char            s[512];
 	int             fd;
 	int             i;
 	int             j;
 	pthread_t       pthread;
 
 	/* Open the dump file for append and create it if necessary: */
-	if ((fd = _thread_sys_open("/tmp/uthread.dump", O_RDWR | O_CREAT | O_APPEND, 0666)) < 0) {
+	if ((fd = _thread_sys_open("/tmp/uthread.dump",
+	    O_RDWR | O_CREAT | O_APPEND, 0666)) < 0) {
 		/* Can't open the dump file. */
 	} else {
 		/* Output a header for active threads: */
@@ -82,14 +84,20 @@ _thread_dump_info(void)
 		_thread_sys_write(fd, s, strlen(s));
 
 		/* Enter a loop to report each thread in the global list: */
-		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
+		for (pthread = _thread_link_list; pthread != NULL;
+		    pthread = pthread->nxt) {
 			/* Find the state: */
-			for (j = 0; j < (sizeof(thread_info) / sizeof(struct s_thread_info)) - 1; j++)
+			for (j = 0; j < (sizeof(thread_info) /
+			    sizeof(struct s_thread_info)) - 1; j++)
 				if (thread_info[j].state == pthread->state)
 					break;
 			/* Output a record for the current thread: */
-			sprintf(s, "--------------------\nThread %p (%s) prio %3d state %s [%s:%d]\n",
-				pthread, (pthread->name == NULL) ? "":pthread->name, pthread->pthread_priority, thread_info[j].name,pthread->fname,pthread->lineno);
+			snprintf(s, sizeof(s),
+			    "--------------------\nThread %p (%s) prio %3d state %s [%s:%d]\n",
+			    pthread, (pthread->name == NULL) ?
+			    "":pthread->name, pthread->pthread_priority,
+			    thread_info[j].name,
+			    pthread->fname,pthread->lineno);
 			_thread_sys_write(fd, s, strlen(s));
 
 			/* Check if this is the running thread: */
@@ -112,13 +120,19 @@ _thread_dump_info(void)
 			case PS_FDR_WAIT:
 			case PS_FDW_WAIT:
 				/* Write the lock details: */
-				sprintf(s, "fd %d[%s:%d]", pthread->data.fd.fd, pthread->data.fd.fname, pthread->data.fd.branch);
+				snprintf(s, sizeof(s), "fd %d[%s:%d]",
+				    pthread->data.fd.fd,
+				    pthread->data.fd.fname,
+				    pthread->data.fd.branch);
 				_thread_sys_write(fd, s, strlen(s));
-				sprintf(s, "owner %pr/%pw\n", _thread_fd_table[pthread->data.fd.fd]->r_owner, _thread_fd_table[pthread->data.fd.fd]->w_owner);
+				snprintf(s, sizeof(s), "owner %pr/%pw\n",
+				    _thread_fd_table[pthread->data.fd.fd]->r_owner,
+				    _thread_fd_table[pthread->data.fd.fd]->w_owner);
 				_thread_sys_write(fd, s, strlen(s));
 				break;
 			case PS_SIGWAIT:
-				sprintf(s, "sigmask 0x%08lx\n", (unsigned long)pthread->sigmask);
+				snprintf(s, sizeof(s), "sigmask 0x%08lx\n",
+				    (unsigned long)pthread->sigmask);
 				_thread_sys_write(fd, s, strlen(s));
 				break;
 
@@ -146,9 +160,13 @@ _thread_dump_info(void)
 			 * Enter a loop to report each thread in the global
 			 * dead thread list: 
 			 */
-			for (pthread = _thread_dead; pthread != NULL; pthread = pthread->nxt) {
+			for (pthread = _thread_dead; pthread != NULL;
+			    pthread = pthread->nxt_dead) {
 				/* Output a record for the current thread: */
-				sprintf(s, "Thread %p prio %3d [%s:%d]\n", pthread, pthread->pthread_priority,pthread->fname,pthread->lineno);
+				snprintf(s, sizeof(s),
+				    "Thread %p prio %3d [%s:%d]\n",
+				    pthread, pthread->pthread_priority,
+				    pthread->fname,pthread->lineno);
 				_thread_sys_write(fd, s, strlen(s));
 			}
 		}
@@ -165,7 +183,8 @@ _thread_dump_info(void)
 			 */
 			if (_thread_fd_table[i] != NULL) {
 				/* Report the file descriptor lock status: */
-				sprintf(s, "fd[%3d] read owner %p count %d [%s:%d]\n        write owner %p count %d [%s:%d]\n",
+				snprintf(s, sizeof(s),
+				    "fd[%3d] read owner %p count %d [%s:%d]\n        write owner %p count %d [%s:%d]\n",
 					i,
 					_thread_fd_table[i]->r_owner,
 					_thread_fd_table[i]->r_lockcount,
