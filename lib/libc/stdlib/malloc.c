@@ -20,7 +20,6 @@
 #ifndef MALLOC_EXTRA_SANITY
 #undef MALLOC_EXTRA_SANITY
 #endif
-#define MALLOC_EXTRA_SANITY
 
 /*
  * What to use for Junk.  This is the byte value we use to fill with
