@@ -195,7 +195,7 @@ For simplicity, error checking has been omitted.
      dlinfo(RTLD_SELF, RTLD_DI_LINKMAP, &map);
 
      while (map != NULL) {
-         printf("%p: %s\n", map->l_addr, map->l_name);
+         printf("%p: %s\\n", map->l_addr, map->l_name);
          map = map->l_next;
      }
 .Ed
@@ -227,7 +227,7 @@ For simplicity, error checking has been omitted.
       path = &info->dls_serpath[0];
 
       for (cnt = 1; cnt <= info->dls_cnt; cnt++, path++) {
-          (void) printf("%2d: %s\n", cnt, path->dls_name);
+          (void) printf("%2d: %s\\n", cnt, path->dls_name);
       }
 .Ed
 .Sh RETURN VALUES
