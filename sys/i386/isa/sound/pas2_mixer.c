@@ -35,6 +35,10 @@
 
 #include "pas.h"
 
+extern void mix_write __P((unsigned char data, int ioaddr));
+extern int pas_mixer_ioctl __P((int dev, unsigned int cmd, unsigned int arg));
+extern void set_mode __P((int new_mode));
+
 #define TRACE(what)		/* (what) */
 
 extern int      translat_code;

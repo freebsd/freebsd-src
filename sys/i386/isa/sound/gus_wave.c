@@ -31,6 +31,11 @@
 #include <machine/ultrasound.h>
 #include "gus_hw.h"
 
+extern unsigned char gus_look8 __P((int reg));
+extern unsigned short gus_read16 __P((int reg));
+extern void gus_write_addr __P((int reg, unsigned long address, int is16bit));
+extern void gus_write16 __P((int reg, unsigned int data));
+
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
 
 #define MAX_SAMPLE	150

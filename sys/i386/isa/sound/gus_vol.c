@@ -7,6 +7,9 @@
 #ifndef EXCLUDE_GUS
 #include "gus_linearvol.h"
 
+extern unsigned short gus_adagio_vol (int vel, int mainv, int xpn, int voicev);
+extern unsigned short gus_linear_vol (int vol, int mainvol);
+
 #define GUS_VOLUME	gus_wave_volume
 
 

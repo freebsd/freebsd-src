@@ -35,6 +35,10 @@
 #define DEFINE_TRANSLATIONS
 #include "pas.h"
 
+extern int config_pas_hw __P((struct address_info *hw_config));
+extern int detect_pas_hw __P((struct address_info *hw_config));
+extern void pas2_msg __P((char *foo));
+
 /*
  * The Address Translation code is used to convert I/O register addresses to
  * be relative to the given base -register
