@@ -40,9 +40,7 @@ static char sccsid[] = "@(#)error.c	5.3 (Berkeley) 6/1/90";
 #endif
 #endif
 #include <sys/cdefs.h>
-#ifdef __FBSDID
 __FBSDID("$FreeBSD$");
-#endif
 
 /* routines for printing error messages  */
 
