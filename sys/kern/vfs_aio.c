@@ -57,6 +57,10 @@
 
 #include "opt_vfs_aio.h"
 
+/*
+ * Counter for allocating reference ids to new jobs.  Wrapped to 1 on
+ * overflow.
+ */
 static	long jobrefid;
 
 #define JOBST_NULL		0x0
@@ -98,58 +102,67 @@ static	long jobrefid;
 #define AIOD_LIFETIME_DEFAULT	(30 * hz)
 #endif
 
+SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0, "Async IO management");
+
 static int max_aio_procs = MAX_AIO_PROCS;
-static int num_aio_procs = 0;
-static int target_aio_procs = TARGET_AIO_PROCS;
-static int max_queue_count = MAX_AIO_QUEUE;
-static int num_queue_count = 0;
-static int num_buf_aio = 0;
-static int num_aio_resv_start = 0;
-static int aiod_timeout;
-static int aiod_lifetime;
-static int unloadable = 0;
-
-static int max_aio_per_proc = MAX_AIO_PER_PROC;
-static int max_aio_queue_per_proc = MAX_AIO_QUEUE_PER_PROC;
-static int max_buf_aio = MAX_BUF_AIO;
-
-SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0, "AIO mgmt");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_per_proc,
-	CTLFLAG_RW, &max_aio_per_proc, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue_per_proc,
-	CTLFLAG_RW, &max_aio_queue_per_proc, 0, "");
-
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_procs,
-	CTLFLAG_RW, &max_aio_procs, 0, "");
+	CTLFLAG_RW, &max_aio_procs, 0,
+	"Maximum number of kernel threads to use for handling async IO ");
 
+static int num_aio_procs = 0;
 SYSCTL_INT(_vfs_aio, OID_AUTO, num_aio_procs,
-	CTLFLAG_RD, &num_aio_procs, 0, "");
+	CTLFLAG_RD, &num_aio_procs, 0,
+	"Number of presently active kernel threads for async IO");
 
-SYSCTL_INT(_vfs_aio, OID_AUTO, num_queue_count,
-	CTLFLAG_RD, &num_queue_count, 0, "");
+/*
+ * The code will adjust the actual number of AIO processes towards this
+ * number when it gets a chance.
+ */
+static int target_aio_procs = TARGET_AIO_PROCS;
+SYSCTL_INT(_vfs_aio, OID_AUTO, target_aio_procs, CTLFLAG_RW, &target_aio_procs,
+	0, "Preferred number of ready kernel threads for async IO");
 
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue,
-	CTLFLAG_RW, &max_queue_count, 0, "");
+static int max_queue_count = MAX_AIO_QUEUE;
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue, CTLFLAG_RW, &max_queue_count, 0,
+    "Maximum number of aio requests to queue, globally");
 
-SYSCTL_INT(_vfs_aio, OID_AUTO, target_aio_procs,
-	CTLFLAG_RW, &target_aio_procs, 0, "");
+static int num_queue_count = 0;
+SYSCTL_INT(_vfs_aio, OID_AUTO, num_queue_count, CTLFLAG_RD, &num_queue_count, 0,
+    "Number of queued aio requests");
 
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_buf_aio,
-	CTLFLAG_RW, &max_buf_aio, 0, "");
+static int num_buf_aio = 0;
+SYSCTL_INT(_vfs_aio, OID_AUTO, num_buf_aio, CTLFLAG_RD, &num_buf_aio, 0,
+    "Number of aio requests presently handled by the buf subsystem");
 
-SYSCTL_INT(_vfs_aio, OID_AUTO, num_buf_aio,
-	CTLFLAG_RD, &num_buf_aio, 0, "");
+/* Number of async I/O thread in the process of being started */
+/* XXX This should be local to _aio_aqueue() */
+static int num_aio_resv_start = 0;
 
-SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_lifetime,
-	CTLFLAG_RW, &aiod_lifetime, 0, "");
+static int aiod_timeout;
+SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_timeout, CTLFLAG_RW, &aiod_timeout, 0,
+    "Timeout value for synchronous aio operations");
 
-SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_timeout,
-	CTLFLAG_RW, &aiod_timeout, 0, "");
+static int aiod_lifetime;
+SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_lifetime, CTLFLAG_RW, &aiod_lifetime, 0,
+    "Maximum lifetime for idle aiod");
 
+static int unloadable = 0;
 SYSCTL_INT(_vfs_aio, OID_AUTO, unloadable, CTLFLAG_RW, &unloadable, 0,
     "Allow unload of aio (not recommended)");
+
+
+static int max_aio_per_proc = MAX_AIO_PER_PROC;
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_per_proc, CTLFLAG_RW, &max_aio_per_proc,
+    0, "Maximum active aio requests per process (stored in the process)");
+
+static int max_aio_queue_per_proc = MAX_AIO_QUEUE_PER_PROC;
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue_per_proc, CTLFLAG_RW,
+    &max_aio_queue_per_proc, 0,
+    "Maximum queued aio requests per process (stored in the process)");
+
+static int max_buf_aio = MAX_BUF_AIO;
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_buf_aio, CTLFLAG_RW, &max_buf_aio, 0,
+    "Maximum buf aio requests per process (stored in the process)");
 
 struct aiocblist {
         TAILQ_ENTRY(aiocblist) list;	/* List of jobs */
@@ -227,7 +240,8 @@ struct kaioinfo {
 #define KAIO_RUNDOWN	0x1	/* process is being run down */
 #define KAIO_WAKEUP	0x2	/* wakeup process when there is a significant event */
 
-static TAILQ_HEAD(,aiothreadlist) aio_freeproc, aio_activeproc;
+static TAILQ_HEAD(,aiothreadlist) aio_activeproc;	/* Active daemons */
+static TAILQ_HEAD(,aiothreadlist) aio_freeproc;		/* Idle daemons */
 static TAILQ_HEAD(,aiocblist) aio_jobs;			/* Async job list */
 static TAILQ_HEAD(,aiocblist) aio_bufjobs;		/* Phys I/O job list */
 
@@ -249,12 +263,23 @@ static int	filt_aioattach(struct knote *kn);
 static void	filt_aiodetach(struct knote *kn);
 static int	filt_aio(struct knote *kn, long hint);
 
-static vm_zone_t kaio_zone, aiop_zone, aiocb_zone, aiol_zone;
-static vm_zone_t aiolio_zone;
+/*
+ * Zones for:
+ * 	kaio	Per process async io info
+ *	aiop	async io thread data
+ *	aiocb	async io jobs
+ *	aiol	list io job pointer - internal to aio_suspend XXX
+ *	aiolio	list io jobs
+ */
+static vm_zone_t kaio_zone, aiop_zone, aiocb_zone, aiol_zone, aiolio_zone;
 
+/* kqueue filters for aio */
 static struct filterops aio_filtops =
 	{ 0, filt_aioattach, filt_aiodetach, filt_aio };
 
+/*
+ * Main operations function for use as a kernel module.
+ */
 static int
 aio_modload(struct module *module, int cmd, void *arg)
 {
@@ -321,6 +346,9 @@ aio_onceonly(void)
 	jobrefid = 1;
 }
 
+/*
+ * Callback for unload of AIO when used as a module.
+ */
 static int
 aio_unload(void)
 {
@@ -784,8 +812,10 @@ aio_daemon(void *uproc)
 	mycp->p_fd = NULL;
 
 	/* The daemon resides in its own pgrp. */
-	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
-	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
+	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
+		M_WAITOK | M_ZERO);
+	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION,
+		M_WAITOK | M_ZERO);
 
 	PGRPSESS_XLOCK();
 	enterpgrp(mycp, mycp->p_pid, newpgrp, newsess);
@@ -1931,6 +1961,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	return EINVAL;
 }
 
+/* syscall - asynchronous read from a file (REALTIME) */
 int
 aio_read(struct thread *td, struct aio_read_args *uap)
 {
@@ -1938,6 +1969,7 @@ aio_read(struct thread *td, struct aio_read_args *uap)
 	return aio_aqueue(td, uap->aiocbp, LIO_READ);
 }
 
+/* syscall - asynchronous write to a file (REALTIME) */
 int
 aio_write(struct thread *td, struct aio_write_args *uap)
 {
@@ -1945,6 +1977,7 @@ aio_write(struct thread *td, struct aio_write_args *uap)
 	return aio_aqueue(td, uap->aiocbp, LIO_WRITE);
 }
 
+/* syscall - XXX undocumented */
 int
 lio_listio(struct thread *td, struct lio_listio_args *uap)
 {
@@ -2210,6 +2243,7 @@ aio_physwakeup(struct buf *bp)
 	}
 }
 
+/* syscall - wait for the next completion of an aio request */
 int
 aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 {
@@ -2285,6 +2319,7 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 	}
 }
 
+/* kqueue attach function */
 static int
 filt_aioattach(struct knote *kn)
 {
@@ -2304,6 +2339,7 @@ filt_aioattach(struct knote *kn)
 	return (0);
 }
 
+/* kqueue detach function */
 static void
 filt_aiodetach(struct knote *kn)
 {
@@ -2312,6 +2348,7 @@ filt_aiodetach(struct knote *kn)
 	SLIST_REMOVE(&aiocbe->klist, kn, knote, kn_selnext);
 }
 
+/* kqueue filter function */
 /*ARGSUSED*/
 static int
 filt_aio(struct knote *kn, long hint)

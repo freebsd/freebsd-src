@@ -57,7 +57,8 @@
 #if defined(CLUSTERDEBUG)
 #include <sys/sysctl.h>
 static int	rcluster= 0;
-SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0,
+    "Debug VFS clustering code");
 #endif
 
 static MALLOC_DEFINE(M_SEGMENT, "cluster_save buffer", "cluster_save buffer");
@@ -69,10 +70,16 @@ static struct buf *
 			    daddr_t blkno, long size, int run, struct buf *fbp));
 
 static int write_behind = 1;
-SYSCTL_INT(_vfs, OID_AUTO, write_behind, CTLFLAG_RW, &write_behind, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, write_behind, CTLFLAG_RW, &write_behind, 0,
+    "Cluster write-behind; 0: disable, 1: enable, 2: backed off");
 
+/* Page expended to mark partially backed buffers */
 extern vm_page_t	bogus_page;
 
+/*
+ * Number of physical bufs (pbufs) this subsystem is allowed.
+ * Manipulated by vm_pager.c
+ */
 extern int cluster_pbuf_freecnt;
 
 /*
@@ -81,7 +88,8 @@ extern int cluster_pbuf_freecnt;
 #define MAXRA 32
 
 /*
- * This replaces bread.
+ * Read data to a buf, including read-ahead if we find this to be beneficial.
+ * cluster_read replaces bread.
  */
 int
 cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
