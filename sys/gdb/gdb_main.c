@@ -111,7 +111,7 @@ gdb_trap(int type, int code)
 
 	thr_iter = NULL;
 	while (gdb_rx_begin() == 0) {
-		printf("GDB: got '%s'\n", gdb_rxp);
+		/* printf("GDB: got '%s'\n", gdb_rxp); */
 		switch (gdb_rx_char()) {
 		case '?':	/* Last signal. */
 			gdb_tx_begin('S');
