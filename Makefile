@@ -1,5 +1,5 @@
 #
-#	$FreeBSD$
+#	$Id$
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
