@@ -143,8 +143,6 @@ void		nuke_suffix(char *);
 void		str_lowercase(char *);
 char		*strconcat(const char *, const char *);
 char		*get_string(char *, int, FILE *);
-int		s_strlcpy(char *, const char *, size_t);
-int		s_strlcat(char *, const char *, size_t);
 
 /* File */
 Boolean		fexists(const char *);

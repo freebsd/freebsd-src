@@ -29,7 +29,7 @@ strconcat(const char *s1, const char *s2)
     static char tmp[FILENAME_MAX];
 
     tmp[0] = '\0';
-    strncpy(tmp, s1 ? s1 : s2, FILENAME_MAX);
+    strncpy(tmp, s1 ? s1 : s2, FILENAME_MAX);  /* XXX: what if both are NULL? */
     if (s1 && s2)
 	strncat(tmp, s2, FILENAME_MAX - strlen(tmp));
     return tmp;
@@ -48,33 +48,11 @@ get_dash_string(char **str)
     return *str;
 }
 
-/* Do a strlcpy and test for overflow */
-int
-s_strlcpy(char *dst, const char *src, size_t size)
-{
-	return (strlcpy(dst, src, size) >= size);
-}
-
-/* Do a strlcat and test for overflow */
-int
-s_strlcat(char *dst, const char *src, size_t size)
-{
-	return (strlcat(dst, src, size) >= size);
-}
-
 /* Rather Obvious */
 char *
 copy_string(const char *str)
 {
-    char *ret;
-
-    if (!str)
-	ret = NULL;
-    else {
-	ret = (char *)malloc(strlen(str) + 1);
-	strcpy(ret, str);
-    }
-    return ret;
+    return (str ? strdup(str) : NULL);
 }
 
 /* Return TRUE if 'str' ends in suffix 'suff' */
