@@ -379,7 +379,7 @@ printname( selfp )
 	    if ( debug & PROPDEBUG ) {
 		printf( "%5.2f%% " , selfp -> propfraction );
 	    }
-#	endif DEBUG
+#	endif /* DEBUG */
     }
     if ( selfp -> cycleno != 0 ) {
 	printf( " <cycle %d>" , selfp -> cycleno );
@@ -617,7 +617,7 @@ arccmp( thisp , thatp )
 		    thatp -> arc_count , thatchildp -> ncall );
 	    printf( "\n" );
 	}
-#   endif DEBUG
+#   endif /* DEBUG */
     if ( thisparentp == thischildp ) {
 	    /* this is a self call */
 	return LESSTHAN;
