@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <string.h>
 #include <time.h>
 
 #include "pathnames.h"
@@ -140,7 +139,7 @@ void
 settime(now)
     	time_t now;
 {
-	char *oldl;
+	char *oldl, *lbufp;
 
 	tp = localtime(&now);
 	if ( isleap(tp->tm_year + 1900) ) {
@@ -154,10 +153,15 @@ settime(now)
 	offset = tp->tm_wday == 5 ? 3 : 1;
 	header[5].iov_base = dayname;
 
-	oldl = setlocale(LC_TIME, NULL);
+	oldl = NULL;
+	lbufp = setlocale(LC_TIME, NULL);
+	if (lbufp != NULL && (oldl = strdup(lbufp)) == NULL)
+		errx(1, "cannot allocate memory");
 	(void) setlocale(LC_TIME, "C");
 	header[5].iov_len = strftime(dayname, sizeof(dayname), "%A", tp);
-	(void) setlocale(LC_TIME, oldl);
+	(void) setlocale(LC_TIME, (oldl != NULL ? oldl : ""));
+	if (oldl != NULL)
+		free(oldl);
 
 	setnnames();
 }
