@@ -26,7 +26,7 @@
 #
 # killall - kill processes by name
 #
-# $Id: killall.pl,v 1.9 1998/01/01 17:24:43 wosch Exp $
+# $Id: killall.pl,v 1.10 1998/08/30 16:54:58 wosch Exp $
 
 
 $ENV{'PATH'} = '/bin:/usr/bin'; # security
@@ -112,8 +112,8 @@ closedir PROCFS;
 # nothing found
 foreach $program (@ARGV) {
     if (!$thiskill{"$program"}) {
-	print STDERR "No matching processes ``$program''"; 
-	print STDERR " belonging to you" if $notkillable{"$program"};
+	print STDERR "No processes matching ``$program''"; 
+	print STDERR " belong to you" if $notkillable{"$program"};
 	print STDERR "\n";
     }
 }
