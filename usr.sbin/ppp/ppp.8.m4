@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.172 1999/06/08 11:57:59 brian Exp $
+.\" $Id: ppp.8,v 1.173 1999/06/09 16:54:04 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -2824,23 +2824,27 @@ This option causes various aliasing statistics and information to
 be logged to the file
 .Pa /var/log/alias.log .
 .It alias port Ar proto Ar targetIP Ns Xo
-.No : Ns Ar port Ns
+.No : Ns Ar targetPort Ns
 .Oo
-.No - Ns Ar port
-.Oc Ar aliasport Ns
+.No - Ns Ar targetPort
+.Oc Ar aliasPort Ns
 .Oo
-.No - Ns Ar aliasport Ns
-.Oc
+.No - Ns Ar aliasPort
+.Oc Oo Ar remoteIP : Ns
+.Ar remotePort Ns
+.Oo
+.No - Ns Ar remotePort
+.Oc Oc
 .Xc
 This command causes incoming
 .Ar proto
-connections to port
-.Ar aliasport
-to be redirected to port
-.Ar port
+connections to
+.Ar aliasPort
+to be redirected to
+.Ar targetPort
 on
 .Ar targetIP .
-.Ar Proto
+.Ar proto
 is either
 .Dq tcp
 or
@@ -2849,9 +2853,18 @@ or
 A range of port numbers may be specified as shown above.  The ranges
 must be of the same size.
 .Pp
+If
+.Ar remoteIP
+is specified, only data comming from that IP number is redirected.
+.Ar remotePort
+must either be
+.Dq 0
+.Pq indicating any source port
+or a range of ports the same size as the other ranges.
+.Pp
 This option is useful if you wish to run things like Internet phone on
 machines behind your gateway, but is limited in that connections to only
-one interior machine per port are possible.
+one interior machine per souce machine and target port are possible.
 .It alias pptp Op Ar addr
 This tells
 .Nm
