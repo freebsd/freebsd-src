@@ -53,6 +53,7 @@ static const char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 #include <fcntl.h>
 #endif	/* CRAY */
 
+#include <string.h>
 #include <signal.h>
 #include <netdb.h>
 #include <ctype.h>
@@ -63,6 +64,7 @@ static const char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 #include <stdlib.h>
 
 #include <arpa/telnet.h>
+#include <arpa/inet.h>
 
 #include "general.h"
 
@@ -88,10 +90,9 @@ static const char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 
-
-#ifndef	MAXHOSTNAMELEN
-#define	MAXHOSTNAMELEN 256
-#endif	MAXHOSTNAMELEN
+#ifndef       MAXHOSTNAMELEN
+#define       MAXHOSTNAMELEN 256
+#endif        MAXHOSTNAMELEN
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 int tos = -1;
@@ -110,7 +111,6 @@ static int help(int argc, char *argv[]);
 static int call();
 static void cmdrc(char *m1, char *m2);
 static int switch_af(struct addrinfo **aip);
-
 int quit(void);
 
 typedef struct {
@@ -125,11 +125,11 @@ static char saveline[256];
 static int margc;
 static char *margv[20];
 
-#if	defined(SKEY)
+#if	defined(OPIE)
 #include <sys/wait.h>
-#define PATH_SKEY	"/usr/bin/key"
+#define PATH_OPIEKEY	"/usr/bin/opiekey"
     int
-skey_calc(argc, argv)
+opie_calc(argc, argv)
 	int argc;
 	char **argv;
 {
@@ -142,7 +142,7 @@ skey_calc(argc, argv)
 
 	switch(fork()) {
 	case 0:
-		execv(PATH_SKEY, argv);
+		execv(PATH_OPIEKEY, argv);
 		exit (1);
 	case -1:
 		perror("fork");
@@ -1452,7 +1452,6 @@ shell(argc, argv)
 	     * Fire up the shell in the child.
 	     */
 	    register char *shellp, *shellname;
-	    extern char *strrchr();
 
 	    shellp = getenv("SHELL");
 	    if (shellp == NULL)
@@ -1462,9 +1461,9 @@ shell(argc, argv)
 	    else
 		shellname++;
 	    if (argc > 1)
-		execl(shellp, shellname, "-c", &saveline[1], 0);
+		execl(shellp, shellname, "-c", &saveline[1], (char *)0);
 	    else
-		execl(shellp, shellname, 0);
+		execl(shellp, shellname, (char *)0);
 	    perror("Execl");
 	    _exit(1);
 	}
@@ -1741,7 +1740,6 @@ env_init()
 	extern char **environ;
 	register char **epp, *cp;
 	register struct env_lst *ep;
-	extern char *strchr();
 
 	for (epp = environ; *epp; epp++) {
 		if ((cp = strchr(*epp, '='))) {
@@ -2362,7 +2360,7 @@ tn(argc, argv)
     int argc;
     char *argv[];
 {
-    char *srp = 0, *strrchr();
+    char *srp = 0;
     int proto, opt;
     int sourceroute(), srlen;
     int srcroute = 0, result;
@@ -2582,7 +2580,7 @@ tn(argc, argv)
 		tos = tp->t_tos;
 # endif
 	    if (tos < 0)
-		tos = 020;	/* Low Delay bit */
+		tos = IPTOS_LOWDELAY;
 	    if (tos
 		&& (setsockopt(net, IPPROTO_IP, IP_TOS,
 		    (char *)&tos, sizeof(int)) < 0)
@@ -2711,8 +2709,8 @@ static char
 #if	defined(unix)
 	zhelp[] =	"suspend telnet",
 #endif	/* defined(unix) */
-#if	defined(SKEY)
-	skeyhelp[] =    "compute response to s/key challenge",
+#if	defined(OPIE)
+	opiehelp[] =    "compute response to OPIE challenge",
 #endif
 	shellhelp[] =	"invoke a subshell",
 	envhelp[] =	"change environment variables ('environ ?' for more)",
@@ -2723,6 +2721,7 @@ static Command cmdtab[] = {
 	{ "logout",	logouthelp,	logout,		1 },
 	{ "display",	displayhelp,	display,	0 },
 	{ "mode",	modestring,	modecmd,	0 },
+	{ "telnet",	openhelp,	tn,		0 },
 	{ "open",	openhelp,	tn,		0 },
 	{ "quit",	quithelp,	quit,		0 },
 	{ "send",	sendhelp,	sendcmd,	0 },
@@ -2750,8 +2749,8 @@ static Command cmdtab[] = {
 #endif
 	{ "environ",	envhelp,	env_cmd,	0 },
 	{ "?",		helphelp,	help,		0 },
-#if	defined(SKEY)
-	{ "skey",       skeyhelp,       skey_calc,      0 },
+#if	defined(OPIE)
+	{ "opie",       opiehelp,       opie_calc,      0 },
 #endif		
 	{ 0, 0, 0, 0 }
 };
@@ -2901,6 +2900,7 @@ help(argc, argv)
 				printf("%-*s\t%s\n", HELPINDENT, c->name,
 								    c->help);
 			}
+		return 0;
 	}
 	else while (--argc > 0) {
 		register char *arg;
@@ -2913,7 +2913,7 @@ help(argc, argv)
 		else
 			printf("%s\n", c->help);
 	}
-	return(0);
+	return 0;
 }
 
 static char *rcname = 0;
@@ -3186,7 +3186,7 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 			cp2 = 0;
 
 		hints.ai_flags = AI_NUMERICHOST;
- 		error = getaddrinfo(cp, NULL, &hints, &res);
+		error = getaddrinfo(cp, NULL, &hints, &res);
 		if (error == EAI_NODATA) {
 			hints.ai_flags = 0;
 			error = getaddrinfo(cp, NULL, &hints, &res);
@@ -3260,6 +3260,3 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 	freeaddrinfo(res);
 	return 1;
 }
-
-
-

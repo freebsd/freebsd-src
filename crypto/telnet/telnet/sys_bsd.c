@@ -334,7 +334,7 @@ TerminalDefaultChars()
     nttyb.sg_kill = ottyb.sg_kill;
     nttyb.sg_erase = ottyb.sg_erase;
 #else	/* USE_TERMIO */
-    memmove(new_tc.c_cc, old_tc.c_cc, sizeof(old_tc.c_cc));
+    memcpy(new_tc.c_cc, old_tc.c_cc, sizeof(old_tc.c_cc));
 # ifndef	VDISCARD
     termFlushChar = CONTROL('O');
 # endif
@@ -633,7 +633,7 @@ TerminalNewMode(f)
 	(void) signal(SIGINT, intr);
 #endif
 #ifdef  SIGQUIT
-        (void) signal(SIGQUIT, intr2);
+	(void) signal(SIGQUIT, intr2);
 #endif
 #ifdef	SIGTSTP
 	(void) signal(SIGTSTP, susp);
@@ -1160,7 +1160,7 @@ process_rings(netin, netout, netex, ttyin, ttyout, poll)
 		    int i;
 		    i = recv(net, netiring.supply + c, canread - c, MSG_OOB);
 		    if (i == c &&
-			 memcmp(netiring.supply, netiring.supply + c, i) == 0) {
+			memcmp(netiring.supply, netiring.supply + c, i) == 0) {
 			bogus_oob = 1;
 			first = 0;
 		    } else if (i < 0) {

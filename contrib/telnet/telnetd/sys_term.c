@@ -481,14 +481,10 @@ getnpty()
  *
  * Returns the file descriptor of the opened pty.
  */
-#ifndef	__GNUC__
-char *line = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-#else
-static char Xline[] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-char *line = Xline;
-#endif
 #ifdef	CRAY
-char *myline = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+char myline[16];
+#else
+char line[16];
 #endif	/* CRAY */
 
 	int
@@ -517,7 +513,8 @@ int *ptynum;
 #endif
 
 #ifndef	__hpux
-	(void) strcpy(line, "/dev/ptyXX");
+	(void) strcpy(line, _PATH_DEV);
+	(void) strcat(line, "ptyXX");
 	p1 = &line[8];
 	p2 = &line[9];
 #else
@@ -568,11 +565,11 @@ int *ptynum;
 	struct stat sb;
 
 	for (*ptynum = lowpty; *ptynum <= highpty; (*ptynum)++) {
-		(void) sprintf(myline, "/dev/pty/%03d", *ptynum);
+		(void) sprintf(myline, "%spty/%03d", _PATH_DEV, *ptynum);
 		p = open(myline, 2);
 		if (p < 0)
 			continue;
-		(void) sprintf(line, "/dev/ttyp%03d", *ptynum);
+		(void) sprintf(line, "%sp%03d", _PATH_TTY, *ptynum);
 		/*
 		 * Here are some shenanigans to make sure that there
 		 * are no listeners lurking on the line.
@@ -1300,6 +1297,7 @@ cleanopen(line)
 		(void) signal(SIGHUP, SIG_IGN);
 		(void) ioctl(t, TCVHUP, (char *)0);
 		(void) signal(SIGHUP, SIG_DFL);
+		setpgrp();
 
 #ifdef	UNICOS7x
 		if (secflag) {
@@ -1359,7 +1357,7 @@ login_tty(t)
 	 * the indirect /dev/tty interface.
 	 */
 	close(t);
-	if ((t = open("/dev/tty", O_RDWR)) < 0)
+	if ((t = open(_PATH_TTY, O_RDWR)) < 0)
 		fatalperror(net, "open(/dev/tty)");
 #  endif
 # else
@@ -1452,7 +1450,7 @@ startslave(host, autologin, autoname)
 		wtmp.ut_pid = pid;
 		SCPYN(wtmp.ut_user, "LOGIN");
 		SCPYN(wtmp.ut_host, host);
-		SCPYN(wtmp.ut_line, line + sizeof("/dev/") - 1);
+		SCPYN(wtmp.ut_line, line + sizeof(_PATH_DEV) - 1);
 #ifndef	__hpux
 		SCPYN(wtmp.ut_id, wtmp.ut_line+3);
 #else
@@ -1584,7 +1582,7 @@ start_login(host, autologin, name)
 
 	memset(&utmpx, 0, sizeof(utmpx));
 	SCPYN(utmpx.ut_user, ".telnet");
-	SCPYN(utmpx.ut_line, line + sizeof("/dev/") - 1);
+	SCPYN(utmpx.ut_line, line + sizeof(_PATH_DEV) - 1);
 	utmpx.ut_pid = pid;
 	utmpx.ut_id[0] = 't';
 	utmpx.ut_id[1] = 'n';
@@ -1898,7 +1896,7 @@ cleanup(sig)
 # if (BSD > 43) || defined(convex)
 	char *p;
 
-	p = line + sizeof("/dev/") - 1;
+	p = line + sizeof(_PATH_DEV) - 1;
 	if (logout(p))
 		logwtmp(p, "", "");
 	(void)chmod(line, 0666);
@@ -2209,7 +2207,7 @@ cleantmpdir(jid, tpath, user)
 							tpath);
 		break;
 	case 0:
-		execl(CLEANTMPCMD, CLEANTMPCMD, user, tpath, 0);
+		execl(CLEANTMPCMD, CLEANTMPCMD, user, tpath, (char *)0);
 		syslog(LOG_ERR, "TMPDIR cleanup(%s): execl(%s) failed: %m",
 							tpath, CLEANTMPCMD);
 		exit(1);
@@ -2247,7 +2245,7 @@ rmut()
 	 * This updates the utmpx and utmp entries and make a wtmp/x entry
 	 */
 
-	SCPYN(utmpx.ut_line, line + sizeof("/dev/") - 1);
+	SCPYN(utmpx.ut_line, line + sizeof(_PATH_DEV) - 1);
 	utxp = getutxline(&utmpx);
 	if (utxp) {
 		utxp->ut_type = DEAD_PROCESS;
@@ -2308,7 +2306,7 @@ rmut()
 	}
 	(void) chmod(line, 0666);
 	(void) chown(line, 0, 0);
-	line[strlen("/dev/")] = 'p';
+	line[strlen(_PATH_DEV)] = 'p';
 	(void) chmod(line, 0666);
 	(void) chown(line, 0, 0);
 }  /* end of rmut */

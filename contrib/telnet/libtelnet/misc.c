@@ -43,8 +43,12 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include "misc.h"
+#if	defined(AUTHENTICATION)
 #include "auth.h"
+#endif
+#ifdef	ENCRYPTION
 #include "encrypt.h"
+#endif	/* ENCRYPTION */
 
 char *RemoteHostName;
 char *LocalHostName;

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)auth.h	8.1 (Berkeley) 6/4/93
+ * $FreeBSD$
  */
 
 /*
@@ -83,5 +84,5 @@ typedef struct XauthP {
 
 #include "auth-proto.h"
 
-extern auth_debug_mode;
+extern int auth_debug_mode;
 #endif
