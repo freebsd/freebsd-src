@@ -984,10 +984,9 @@ g_mirror_sync_request(struct bio *bp)
 			return;
 		}
 		G_MIRROR_LOGREQ(3, bp, "Synchronization request finished.");
-		g_destroy_bio(bp);
 		disk->d_sync.ds_offset_done = bp->bio_offset + bp->bio_length;
-		if (bp->bio_offset + bp->bio_length ==
-		    sc->sc_provider->mediasize) {
+		g_destroy_bio(bp);
+		if (disk->d_sync.ds_offset_done == sc->sc_provider->mediasize) {
 			/*
 			 * Disk up-to-date, activate it.
 			 */
