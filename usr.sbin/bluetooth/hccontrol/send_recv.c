@@ -54,13 +54,13 @@ hci_request(int s, int opcode, char const *cp, int cp_size, char *rp, int *rp_si
 	assert(*rp_size > 0);
 
 	c->type = NG_HCI_CMD_PKT;
-	c->opcode = (u_int16_t) opcode;
+	c->opcode = (uint16_t) opcode;
 	c->opcode = htole16(c->opcode);
 
 	if (cp != NULL) {
 		assert(0 < cp_size && cp_size <= NG_HCI_CMD_PKT_SIZE);
 
-		c->length = (u_int8_t) cp_size;
+		c->length = (uint8_t) cp_size;
 		memcpy(buffer + sizeof(*c), cp, cp_size);
 	} else
 		c->length = 0;

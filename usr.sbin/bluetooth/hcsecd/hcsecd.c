@@ -51,7 +51,7 @@ static int process_link_key_request_event
 static int send_pin_code_reply
 	(int sock, struct sockaddr_hci *addr, bdaddr_p bdaddr, char const *pin);
 static int send_link_key_reply
-	(int sock, struct sockaddr_hci *addr, bdaddr_p bdaddr, u_int8_t *key);
+	(int sock, struct sockaddr_hci *addr, bdaddr_p bdaddr, uint8_t *key);
 static int process_link_key_notification_event
 	(int sock, struct sockaddr_hci *addr, ng_hci_link_key_notification_ep *ep);
 static void sighup
@@ -264,7 +264,7 @@ static int
 send_pin_code_reply(int sock, struct sockaddr_hci *addr, 
 		bdaddr_p bdaddr, char const *pin)
 {
-	u_int8_t		 buffer[HCSECD_BUFFER_SIZE];
+	uint8_t			 buffer[HCSECD_BUFFER_SIZE];
 	ng_hci_cmd_pkt_t	*cmd = NULL;
 
 	memset(buffer, 0, sizeof(buffer));
@@ -321,9 +321,9 @@ again:
 /* Send Link_Key_[Negative]_Reply */
 static int
 send_link_key_reply(int sock, struct sockaddr_hci *addr, 
-		bdaddr_p bdaddr, u_int8_t *key)
+		bdaddr_p bdaddr, uint8_t *key)
 {
-	u_int8_t		 buffer[HCSECD_BUFFER_SIZE];
+	uint8_t			 buffer[HCSECD_BUFFER_SIZE];
 	ng_hci_cmd_pkt_t	*cmd = NULL;
 
 	memset(buffer, 0, sizeof(buffer));
@@ -400,7 +400,7 @@ process_link_key_notification_event(int sock, struct sockaddr_hci *addr,
 			(key->key != NULL)? "exists" : "doesn't exist");
 
 	if (key->key == NULL) {
-		key->key = (u_int8_t *) malloc(NG_HCI_KEY_SIZE);
+		key->key = (uint8_t *) malloc(NG_HCI_KEY_SIZE);
 		if (key->key == NULL) {
 			syslog(LOG_ERR, "Could not allocate link key");
 			exit(1);
