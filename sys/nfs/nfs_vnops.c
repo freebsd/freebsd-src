@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.85 1998/05/13 05:47:09 peter Exp $
+ * $Id: nfs_vnops.c,v 1.86 1998/05/16 15:21:29 bde Exp $
  */
 
 
@@ -880,7 +880,7 @@ nfs_lookup(ap)
 		VOP_UNLOCK(dvp, 0, p);
 		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
 		if (error) {
-			vn_lock(dvp, LK_EXCLUSIVE + LK_RETRY, p);
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, p);
 			return (error);
 		}
 		newvp = NFSTOV(np);
