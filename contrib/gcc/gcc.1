@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .\" Copyright (c) 1991, 1992, 1993, 1994 Free Software Foundation    -*-Text-*-
 .\" See section COPYING for conditions for redistribution
 .\"
@@ -20,10 +21,10 @@
 .if n .sp
 .if t .sp 0.4
 ..
-.Id $Id: gcc.1,v 1.4 1993/10/13 23:19:12 pesch Exp $
+.Id $Id: gcc.1,v 1.8 1998/08/29 10:37:47 law Exp $
 .TH GCC 1 "\*(Dt" "GNU Tools" "GNU Tools"
 .SH NAME
-gcc, g++ \- GNU project C and C++ Compiler (v2.7)
+gcc, g++ \- GNU project C and C++ Compiler (egcs-1.1.2)
 .SH SYNOPSIS
 .B gcc
 .RI "[ " option " | " filename " ].\|.\|."
@@ -157,6 +158,10 @@ in the following sections.
 \-fexternal\-templates
 \-fno\-asm
 \-fno\-builtin
+\-fhosted
+\-fno\-hosted
+\-ffreestanding
+\-fno\-freestanding
 \-fno\-strict\-prototype
 \-fsigned\-bitfields
 \-fsigned\-char
@@ -186,7 +191,11 @@ in the following sections.
 \-Wformat
 .RI \-Wid\-clash\- len
 \-Wimplicit
+\-Wimplicit\-int
+\-Wimplicit\-function\-declaration
 \-Winline
+\-Wlong\-long
+\-Wmain
 \-Wmissing\-prototypes
 \-Wmissing\-declarations
 \-Wnested\-externs
@@ -255,6 +264,7 @@ in the following sections.
 \-funroll\-loops
 \-O
 \-O2
+\-O3
 .TP
 .B Preprocessor Options
 .RI \-A assertion
@@ -812,6 +822,20 @@ The `\|\c
 .B _exit\c
 \& from
 being builtin functions.
+.TP
+.B \-fhosted
+Compile for a hosted environment; this implies the `\|\c
+.B \-fbuiltin\c
+\&\|' option, and implies that suspicious declarations of
+.B main\c
+\& should be warned about.
+.TP
+.B \-ffreestanding
+Compile for a freestanding environment; this implies the `\|\c
+.B \-fno-builtin\c
+\&\|' option, and implies that
+.B main\c
+\& has no special requirements.
 .TP
 .B \-fno\-strict\-prototype
 Treat a function declaration with no arguments, such as `\|\c
@@ -1724,8 +1748,24 @@ An unsigned value is compared against zero with `\|\c
 \&\|'.
 .PP
 .TP
+.B \-Wimplicit-int
+Warn whenever a declaration does not specify a type.
+.TP
+.B \-Wimplicit-function-declaration
+Warn whenever a function is used before being declared.
+.TP
 .B \-Wimplicit
-Warn whenever a function or parameter is implicitly declared.
+Same as -Wimplicit-int and -Wimplicit-function-declaration.
+.TP
+.B \-Wmain
+Warn if the
+.B main
+function is declared or defined with a suspicious type.
+Typically, it is a function with external linkage, returning
+.B int\c
+\&, and
+taking zero or two arguments.
+
 .TP
 .B \-Wreturn\-type
 Warn whenever a function is defined with a return-type that defaults
@@ -1992,6 +2032,20 @@ Warn if an \c
 .B \-Wenum\-clash
 Warn about conversion between different enumeration types (C++ only).
 .TP
+.B \-Wlong-long
+Warn if
+.B long long \c
+type is used.  This is default.  To inhibit
+the warning messages, use flag `\|\c
+.B \-Wno\-long\-long\c
+\&\|'.  Flags `\|\c
+.B \-W\-long\-long\c
+\&\|' and `\|\c
+.B \-Wno\-long\-long\c
+\&\|' are taken into account only when flag `\|\c
+.B \-pedantic\c
+\&\|' is used.
+.TP
 .B \-Woverloaded\-virtual
 (C++ only.)
 In a derived class, the definitions of virtual functions must match
@@ -2150,6 +2204,25 @@ however, that the format of the data is not what \c
 Eventually GNU \c
 .B gprof\c
 \& should be extended to process this data.
+.TP
+.B \-ax
+Generate extra code to read basic block profiling parameters from 
+file `bb.in' and write profiling results to file `bb.out'.
+`bb.in' contains a list of functions. Whenever a function on the list
+is entered, profiling is turned on. When the outmost function is left,
+profiling is turned off. If a function name is prefixed with `-'
+the function is excluded from profiling. If a function name is not
+unique it can be disambiguated by writing
+`/path/filename.d:functionname'. `bb.out' will list some available
+filenames.
+Four function names have a special meaning:
+`__bb_jumps__' will cause jump frequencies to be written to `bb.out'.
+`__bb_trace__' will cause the sequence of basic blocks to be piped 
+into `gzip' and written to file `bbtrace.gz'.
+`__bb_hidecall__' will cause call instructions to be excluded from
+the trace.
+`__bb_showret__' will cause return instructions to be included in
+the trace.
 .TP
 .BI "\-d" "letters"
 Says to make debugging dumps during compilation at times specified by
@@ -3974,7 +4047,7 @@ three-way choice.
 .BI "\-fcall\-used\-" "reg"
 Treat the register named \c
 .I reg\c
-\& as an allocatable register that is
+\& as an allocable register that is
 clobbered by function calls.  It may be allocated for temporaries or
 variables that do not live across a call.  Functions compiled this way
 will not save and restore the register \c
@@ -3991,7 +4064,7 @@ three-way choice.
 .BI "\-fcall\-saved\-" "reg"
 Treat the register named \c
 .I reg\c
-\& as an allocatable register saved by
+\& as an allocable register saved by
 functions.  It may be allocated even for temporaries or variables that
 live across a call.  Functions compiled this way will save and restore
 the register \c
@@ -4101,7 +4174,7 @@ if available, else
 .B /tmp\c
 \&).
 .SH "SEE ALSO"
-cpp(1), as(1), ld(1), gdb(1).
+as(1), cpp(1), gdb(1), ld(1)
 .br
 .RB "`\|" gcc "\|', `\|" cpp \|',
 .RB "`\|" as "\|', `\|" ld \|',
