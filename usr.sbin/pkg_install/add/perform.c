@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.37 1996/10/14 19:41:42 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.26.2.12 1996/10/15 18:36:14 jkh Exp $";
 #endif
 
 /*
@@ -114,8 +114,10 @@ pkg_do(char *pkg)
 		sprintf(extract_contents, "--fast-read %s", CONTENTS_FNAME);
 		extract = extract_contents;
 	    }
-	    else
+	    else {
 		extract = NULL;
+		sb.st_size = 100000;	/* Make up a plausible average size */
+	    }
 	    Home = make_playpen(playpen, sb.st_size * 4);
 	    if (!Home)
 		whinge("Unable to make playpen for %d bytes.\n", sb.st_size * 4);
