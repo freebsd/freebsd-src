@@ -46,7 +46,7 @@ proc do_file {file} {
 	close $f
 }
 
-set fi [open "|find [glob /usr/src/sys/*fs /usr/src/sys/gnu/*fs] /usr/src/sys/kern -type f -name *.c -print | xargs grep VNODEOP_SET" ]
+set fi [open "|find /usr/src/sys -type f -name *.c -print | xargs grep VNODEOP_SET" ]
 while {[gets $fi a] >= 0} {
 	puts stderr $a
 	if {[regexp {#define} $a]} continue
