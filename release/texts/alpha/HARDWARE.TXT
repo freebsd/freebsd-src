@@ -1378,6 +1378,10 @@ RUNECU at the SRM >>> prompt.
 	      EISA VGA adapter is treated as an ISA device. It therefore
 	      works OK as a console.
 
+A special Extended I/O module for use on the C-bus was planned-for. 
+Whether they ever saw daylight is unknown. In any case FreeBSD has never
+been verified with an ExtIO module.
+
 Power:
 The machines can be equipped with redundant power supplies. Note that
 the enclosure is equipped with interlock switches that switch off power
