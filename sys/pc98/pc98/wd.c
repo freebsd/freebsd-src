@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9.2.1 1996/11/09 21:14:40 phk Exp $
+ *	$Id: wd.c,v 1.9.2.2 1996/12/04 16:01:45 phk Exp $
  */
 
 /* TODO:
@@ -897,11 +897,11 @@ wdstart(int ctrlr)
 #ifdef WDDEBUG
 		printf("cylin %ld head %ld sector %ld addr %x sts ",
 		       cylin, head, sector,
-		       (int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE)
+		       (int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE);
 		if (old_epson_note)
-			printf("%x\n, epson_inb(du->dk_port + wd_altsts));
+			printf("%x\n", epson_inb(du->dk_port + wd_altsts));
 		else
-			printf("%x\n, inb(du->dk_port + wd_altsts));
+			printf("%x\n", inb(du->dk_port + wd_altsts));
 #endif
 	}
 
