@@ -52,10 +52,11 @@ struct sockaddr_un {
 #ifdef _KERNEL
 struct mbuf;
 struct socket;
+struct sockopt;
 
+int	uipc_ctloutput __P((struct socket *so, struct sockopt *sopt));
 int	uipc_usrreq __P((struct socket *so, int req, struct mbuf *m,
 		struct mbuf *nam, struct mbuf *control));
-int	uipc_ctloutput __P((struct socket *so, struct sockopt *sopt));
 int	unp_connect2 __P((struct socket *so, struct socket *so2));
 void	unp_dispose __P((struct mbuf *m));
 int	unp_externalize __P((struct mbuf *rights));
