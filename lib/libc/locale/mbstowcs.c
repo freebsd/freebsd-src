@@ -67,6 +67,7 @@ mbstowcs(wchar_t * __restrict pwcs, const char * __restrict s, size_t n)
 			errno = EILSEQ;
 			return (-1);
 		}
+		return (cnt);
 	}
 
 	/* Convert, store and count characters. */
