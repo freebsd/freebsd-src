@@ -99,6 +99,7 @@ BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
 
 .ORDER: buildworld installworld
 .ORDER: buildworld distributeworld
+.ORDER: buildworld buildkernel
 .ORDER: buildkernel installkernel
 .ORDER: buildkernel reinstallkernel
 
