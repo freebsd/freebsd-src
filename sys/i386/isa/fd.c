@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.38 1994/10/27 20:44:46 jkh Exp $
+ *	$Id: fd.c,v 1.40 1994/11/02 09:08:40 jkh Exp $
  *
  */
 
@@ -700,6 +700,7 @@ Fdopen(dev, flags)
  	fdu_t fdu = FDUNIT(minor(dev));
 	int type = FDTYPE(minor(dev));
 	fdc_p	fdc;
+	int     st3;
 
 #if NFT > 0
 	/* check for a tape open */
@@ -764,6 +765,25 @@ Fdopen(dev, flags)
 			}
 		}
 	}
+
+		/* select it */
+	set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNON);
+
+	if (flags & FWRITE) {
+			/* Check to make sure the diskette */
+			/* is writable */
+		out_fdc(fdc->fdcu, NE7CMD_SENSED);
+		out_fdc(fdc->fdcu, fdu);
+		st3 = in_fdc(fdc->fdcu);
+		if(st3 & NE7_ST3_WP)  {
+			printf("fd%d: Floppy not writable\n", fdu);
+			set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNOFF);
+			return(EPERM);
+		}
+	}
+
+	set_motor(fdc->fdcu, fd_data[fdu].fdsu, TURNOFF);
+
 	fd_data[fdu].ft = fd_types + type - 1;
 	fd_data[fdu].flags |= FD_OPEN;
 
