@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: gsc.4,v 1.1.2.2 1997/02/28 03:26:52 mpp Exp $
+.\"	$Id: gsc.4,v 1.1.2.3 1997/05/19 22:14:52 eivind Exp $
 .\"
 .Dd January 9, 1995
 .Os FreeBSD
@@ -102,7 +102,7 @@ supplied in
 .Em pnm
 mode since the driver must know at what time the
 'end-of-file' shall be reached. With this feature you are able to
-directly copy the scanner output into a pbm file whith
+directly copy the scanner output into a pbm file with
 .Xr cat .
 Of course you can obtain a similar effect by using
 .Xr dd 1
@@ -184,7 +184,7 @@ mode. This is actually
 a limit on the amount of lines scannable after the first read
 operation. When the limit is reached read will return 0. However, the
 device is turned off only when a close is performed (either
-explicitely or implicitely on exit of the calling process).
+explicitly or implicitly on exit of the calling process).
 .It GSC_GHEIGHT int
 Get the current height of the bitmap.
 .It GSC_SBLEN int
@@ -220,7 +220,7 @@ request that follows open. You must close the device and open it again
 for the new selections to take effect. Consequently, the selections
 are not reset when you close or open the device.
 .Pp
-Similarily, requests that read a value do not report the value that is
+Similarly, requests that read a value do not report the value that is
 used for the ongoing scan process. The values needed during the scan
 process are saved when it starts and thus are not accessed by ioctl
 requests.
@@ -249,7 +249,7 @@ output, has minor number 0.
 .It Pa /dev/gsc0d
 device node for 
 .Em raw
-output emiting 
+output emitting 
 .Em debug
 messages if the
 GSCDEBUG option was given at compile time, has minor number 32.

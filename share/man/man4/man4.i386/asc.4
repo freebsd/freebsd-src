@@ -29,7 +29,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: asc.4,v 1.4 1996/09/23 22:23:45 wosch Exp $
 .Dd January 19, 1995
 .Dt ASC 4 i386
 .Os FreeBSD
@@ -133,7 +133,7 @@ Consequently, the selections are
 .Em not
 reset when the device is opened or closed.
 .Pp
-Similarily, requests that read a value do not report the value that is
+Similarly, requests that read a value do not report the value that is
 used for the ongoing scan process.  The values needed during the scan
 process are saved when it starts and thus are not accessed by 
 .Fn ioctl

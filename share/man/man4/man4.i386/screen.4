@@ -1,5 +1,5 @@
 .\"
-.\"	$Id: screen.4,v 1.8 1997/03/07 02:49:57 jmg Exp $
+.\"	$Id: screen.4,v 1.5.6.3 1997/03/07 03:08:26 mpp Exp $
 .\"
 .Dd January 8, 1995
 .Dt SCREEN 4 i386
@@ -13,7 +13,7 @@ Access to the
 .Ar virtual consoles 
 are obtained through the device files
 ttyv0 - ttyvb in /dev.
-Each of these files correspond to a seperate
+Each of these files correspond to a separate
 virtual console.
 All virtual console devices can be open at once, but only one is 
 active at a time. The active virtual console "owns" the keyboard and
@@ -40,7 +40,7 @@ To use this facility press and hold down ALT,
 then enter a decimal number from 0-255 via the numerical keypad, then
 release ALT. The entered value is then used as the ASCII value for one
 character. This way it is possible to enter any ASCII value.
-The console driver also includes a history function. It is activatet by
+The console driver also includes a history function. It is activated by
 pressing the scroll-lock key. This holds the display, and enables the cursor
 arrows for scrolling up and down through the last scrolled out lines.
 

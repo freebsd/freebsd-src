@@ -1,4 +1,4 @@
-.\" $Id: si.4,v 1.4.2.3 1998/03/06 14:32:26 jkh Exp $
+.\" $Id: si.4,v 1.4.2.4 1998/03/23 20:55:25 peter Exp $
 .\" The following requests are required for all man pages.
 .Dd September 16, 1995
 .Os FreeBSD
@@ -55,7 +55,7 @@ The si device driver also responds to the
 .Xr comcontrol 8
 utility for configuring drain-on-close timeouts.
 .Pp
-The driver also devines 3 sysctl variables that can be manipulated:
+The driver also defines 3 sysctl variables that can be manipulated:
 machdep.si_debug sets the debug level for the whole driver. It depends
 on the driver being compiled with SI_DEBUG. machdep.si_pollrate
 sets how often per second the driver polls for lost interrupts.
