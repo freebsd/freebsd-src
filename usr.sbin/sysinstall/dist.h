@@ -1,4 +1,4 @@
-/*  $Id:$  */
+/*  $Id: dist.h,v 1.33 1999/04/21 07:42:02 obrien Exp $  */
 
 #ifndef _DIST_H_INCLUDE
 #define _DIST_H_INCLUDE
@@ -25,10 +25,10 @@
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \
-	(DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_PROFLIBS | DIST_INFO | DIST_SRC | DIST_COMPAT22)
+	(DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_PROFLIBS | DIST_INFO | DIST_SRC )
 
 #define _DIST_USER \
-	(DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_COMPAT22)
+	(DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT )
 
 /* Subtypes for DES distribution */
 #define DIST_DES_DES		0x0001

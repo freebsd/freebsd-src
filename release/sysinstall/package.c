@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.66 1999/02/05 22:15:51 jkh Exp $
+ * $Id: package.c,v 1.67 1999/04/27 14:33:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -78,6 +78,10 @@ package_exists(char *name)
 {
     char fname[FILENAME_MAX];
     int status /* = vsystem("pkg_info -e %s", name) */;
+
+    /* If in "Latest" syntax, ignore; can't tell with these */
+    if (name[0] == '@')
+	return FALSE;
 
     /* XXX KLUDGE ALERT!  This makes evil assumptions about how XXX
      * packages register themselves and should *really be done with
@@ -192,6 +196,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    refresh();
 	    i = waitpid(pid, &tot, 0);
 	    if (sigpipe_caught || i < 0 || WEXITSTATUS(tot)) {
+		ret = DITEM_FAILURE | DITEM_RESTORE;
 		if (variable_get(VAR_NO_CONFIRM))
 		    msgNotify("Add of package %s aborted, error code %d -\n"
 			      "Please check the debug screen for more info.", name, WEXITSTATUS(tot));
