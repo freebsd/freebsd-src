@@ -1,4 +1,4 @@
-.\"	$Id$
+.\"	$Id: psm.4,v 1.7 1997/02/22 13:25:39 peter Exp $
 .\"
 .Dd January 13, 1997
 .Dt PSM 4 i386
@@ -198,7 +198,7 @@ driver uses the same internal queue. Therefore, interleaving the
 command and 
 .Fn read
 operation is not recommended.
-.It Dv MOUSE_GETINFO
+.It Dv MOUSE_GETHWINFO
 Returns the hardware information in the following structure.
 .Bd -literal
 typedef struct mousehw {

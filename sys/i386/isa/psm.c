@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.41 1997/07/20 14:10:08 bde Exp $
+ * $Id: psm.c,v 1.42 1997/09/14 03:19:13 peter Exp $
  */
 
 /*
@@ -1306,7 +1306,7 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
     /* Perform IOCTL command */
     switch (cmd) {
 
-    case MOUSE_GETINFO:
+    case MOUSE_GETHWINFO:
         *(mousehw_t *) addr = sc->hw;
         break;
 
