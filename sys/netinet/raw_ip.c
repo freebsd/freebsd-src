@@ -257,6 +257,8 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			return(EMSGSIZE);
 		}
 		M_PREPEND(m, sizeof(struct ip), M_WAIT);
+		if (m == NULL)
+			return(ENOBUFS);
 		ip = mtod(m, struct ip *);
 		ip->ip_tos = inp->inp_ip_tos;
 		ip->ip_off = 0;
