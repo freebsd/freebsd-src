@@ -2196,11 +2196,6 @@ expand_builtin_memset (exp, target, mode)
 
       len_rtx = expand_expr (len, NULL_RTX, VOIDmode, 0);
 
-      /* Give up for non-constant lengths.  They are broken on at least
-	 i386's.  */
-      if (GET_CODE (len_rtx) != CONST_INT)
-	return 0;
-
       dest_mem = get_memory_rtx (dest);
       set_mem_align (dest_mem, dest_align);
       dest_addr = clear_storage (dest_mem, len_rtx);
