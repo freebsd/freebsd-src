@@ -290,7 +290,7 @@ fwohci_set_bus_manager(struct firewire_comm *fc, u_int node)
 	OWRITE(sc, OHCI_CSR_COMP, 0x3f);
 	OWRITE(sc, OHCI_CSR_CONT, OHCI_BUS_MANAGER_ID);
  	for (i = 0; !(OREAD(sc, OHCI_CSR_CONT) & (1<<31)) && (i < 1000); i++)
-		DELAY(100);
+		DELAY(10);
 	bm = OREAD(sc, OHCI_CSR_DATA);
 	if((bm & 0x3f) == 0x3f)
 		bm = node;
@@ -317,25 +317,24 @@ again:
 		fun = OREAD(sc, OHCI_PHYACCESS);
 		if ((fun & PHYDEV_RDCMD) == 0 && (fun & PHYDEV_RDDONE) != 0)
 			break;
-		DELAY(1000);
+		DELAY(100);
 	}
 	if(i >= MAX_RETRY) {
-		device_printf(sc->fc.dev, "cannot read phy\n");
-#if 0
-		return 0; /* XXX */
-#else
+		if (bootverbose)
+			device_printf(sc->fc.dev, "phy read failed(1).\n");
 		if (++retry < MAX_RETRY) {
-			DELAY(1000);
+			DELAY(100);
 			goto again;
 		}
-#endif
 	}
 	/* Make sure that SCLK is started */
 	stat = OREAD(sc, FWOHCI_INTSTAT);
 	if ((stat & OHCI_INT_REG_FAIL) != 0 ||
 			((fun >> PHYDEV_REGADDR) & 0xf) != addr) {
+		if (bootverbose)
+			device_printf(sc->fc.dev, "phy read failed(2).\n");
 		if (++retry < MAX_RETRY) {
-			DELAY(1000);
+			DELAY(100);
 			goto again;
 		}
 	}
@@ -1321,6 +1320,9 @@ fwohci_tx_enable(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 				db_tr->db[0].db.desc.depend &= ~0xf;
 				db_tr->db[db_tr->dbcnt - 1].db.desc.depend &=
 						~0xf;
+				/* OHCI 1.1 and above */
+				db_tr->db[0].db.desc.cmd
+					|= OHCI_INTERRUPT_ALWAYS;
 			}
 		}
 		db_tr = STAILQ_NEXT(db_tr, link);
@@ -1444,6 +1446,9 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 			((struct fwohcidb_tr *)(dbch->xferq.stdma2->end))->db[0].db.desc.depend &= ~0xf;
 		}
 	}else if(!(OREAD(sc, OHCI_ITCTL(dmach)) & OHCI_CNTL_DMA_ACTIVE)){
+		if (firewire_debug)
+			printf("fwohci_itxbuf_enable: kick 0x%08x\n",
+				OREAD(sc, OHCI_ITCTL(dmach)));
 		fw_tbuf_update(&sc->fc, dmach, 0);
 		if(dbch->xferq.stdma == NULL){
 			return err;
@@ -1704,7 +1709,7 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_DMA_IR);
 #endif
 		irstat = OREAD(sc, OHCI_IR_STAT);
-		OWRITE(sc, OHCI_IR_STATCLR, ~0);
+		OWRITE(sc, OHCI_IR_STATCLR, irstat);
 		for(i = 0; i < fc->nisodma ; i++){
 			if((irstat & (1 << i)) != 0){
 				if(sc->ir[i].xferq.flag & FWXFERQ_PACKET){
@@ -1720,7 +1725,7 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_DMA_IT);
 #endif
 		itstat = OREAD(sc, OHCI_IT_STAT);
-		OWRITE(sc, OHCI_IT_STATCLR, ~0);
+		OWRITE(sc, OHCI_IT_STATCLR, itstat);
 		for(i = 0; i < fc->nisodma ; i++){
 			if((itstat & (1 << i)) != 0){
 				fwohci_tbuf_update(sc, i);
@@ -1933,7 +1938,7 @@ fwohci_tbuf_update(struct fwohci_softc *sc, int dmach)
 			diff += 16;
 		if (diff > 8)
 			diff -= 16;
-		if (firewire_debug)
+		if (firewire_debug || diff != 0)
 			printf("dbc: %3d timer: 0x%04x packet: 0x%04x"
 				" cyc: 0x%x diff: %+1d\n",
 				ciph->dbc, last_timer, timestamp, cycl, diff);
@@ -2189,16 +2194,13 @@ fwohci_ibr(struct firewire_comm *fc)
 	 * Set root hold-off bit so that non cyclemaster capable node
 	 * shouldn't became the root node.
 	 */
-	fun = fwphy_rddata(sc, FW_PHY_RHB_REG);
-	fun |= FW_PHY_RHB;
-	fun = fwphy_wrdata(sc, FW_PHY_RHB_REG, fun);
 #if 1
 	fun = fwphy_rddata(sc, FW_PHY_IBR_REG);
-	fun |= FW_PHY_IBR;
+	fun |= FW_PHY_IBR | FW_PHY_RHB;
 	fun = fwphy_wrdata(sc, FW_PHY_IBR_REG, fun);
-#else
+#else	/* Short bus reset */
 	fun = fwphy_rddata(sc, FW_PHY_ISBR_REG);
-	fun |= FW_PHY_ISBR;
+	fun |= FW_PHY_ISBR | FW_PHY_RHB;
 	fun = fwphy_wrdata(sc, FW_PHY_ISBR_REG, fun);
 #endif
 }
@@ -2246,28 +2248,25 @@ device_printf(sc->fc.dev, "DB %08x %08x %08x\n", bulkxfer, vtophys(db_tr->db), v
 			| ((ntohs(fp->mode.stream.len) ) & 0xffff);
 		db_tr->db[2].db.desc.status = 0;
 		db_tr->db[2].db.desc.count = 0;
-		if(dbch->xferq.flag & FWXFERQ_DV){
-			db_tr->db[0].db.desc.depend
-				= vtophys(STAILQ_NEXT(db_tr, link)->db) | dbch->ndesc;
-			db_tr->db[dbch->ndesc - 1].db.desc.depend
-				= vtophys(STAILQ_NEXT(db_tr, link)->db) | dbch->ndesc;
-		}else{
-			db_tr->db[0].db.desc.depend
-				= vtophys(STAILQ_NEXT(db_tr, link)->db) | dbch->ndesc;
-			db_tr->db[dbch->ndesc - 1].db.desc.depend
-				= vtophys(STAILQ_NEXT(db_tr, link)->db) | dbch->ndesc;
-		}
+		db_tr->db[0].db.desc.depend
+			= vtophys(STAILQ_NEXT(db_tr, link)->db) | dbch->ndesc;
+		db_tr->db[dbch->ndesc - 1].db.desc.depend
+			= vtophys(STAILQ_NEXT(db_tr, link)->db) | dbch->ndesc;
 		bulkxfer->end = (caddr_t)db_tr;
 		db_tr = STAILQ_NEXT(db_tr, link);
 	}
 	db_tr = (struct fwohcidb_tr *)bulkxfer->end;
 	db_tr->db[0].db.desc.depend &= ~0xf;
 	db_tr->db[dbch->ndesc - 1].db.desc.depend &= ~0xf;
+#if 0
 /**/
 	db_tr->db[dbch->ndesc - 1].db.desc.cmd &= ~OHCI_BRANCH_ALWAYS;
 	db_tr->db[dbch->ndesc - 1].db.desc.cmd |= OHCI_BRANCH_NEVER;
 /**/
+#endif
 	db_tr->db[dbch->ndesc - 1].db.desc.cmd |= OHCI_INTERRUPT_ALWAYS;
+	/* OHCI 1.1 and above */
+	db_tr->db[0].db.desc.cmd |= OHCI_INTERRUPT_ALWAYS;
 
 	db_tr = (struct fwohcidb_tr *)bulkxfer->start;
 	fdb_tr = (struct fwohcidb_tr *)bulkxfer->end;
