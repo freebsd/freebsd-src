@@ -661,7 +661,7 @@ int witness_watch = 1;
 
 struct witness {
 	struct witness	*w_next;
-	char		*w_description;
+	const char	*w_description;
 	const char	*w_file;
 	int		 w_line;
 	struct witness	*w_morechildren;
@@ -707,7 +707,7 @@ static int		 witness_dead;	/* fatal error, probably no memory */
 
 static struct witness	 w_data[WITNESS_COUNT];
 
-static struct witness	 *enroll __P((char *description, int flag));
+static struct witness	 *enroll __P((const char *description, int flag));
 static int itismychild __P((struct witness *parent, struct witness *child));
 static void removechild __P((struct witness *parent, struct witness *child));
 static int isitmychild __P((struct witness *parent, struct witness *child));
@@ -1067,7 +1067,7 @@ witness_sleep(int check_only, struct mtx *mtx, const char *file, int line)
 }
 
 static struct witness *
-enroll(char *description, int flag)
+enroll(const char *description, int flag)
 {
 	int i;
 	struct witness *w, *w1;
