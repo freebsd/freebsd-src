@@ -145,9 +145,11 @@ case ${ipv6_firewall_type} in
 	${fw6cmd} add pass udp from any 123 to ${ip}
 	${fw6cmd} add pass udp from ${ip} to any 123
 
-	# Allow ICMPv6 destination unreach and packet too big
-	${fw6cmd} add pass ipv6-icmp from any to ${ip} icmptypes 1,2
-	${fw6cmd} add pass ipv6-icmp from ${ip} to any icmptypes 1,2
+	# Allow ICMPv6 destination unreach
+	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 1
+
+	# Allow NS/NA/toobig (don't filter it out)
+	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 2,135,136
 
 	# Everything else is denied by default, unless the
 	# IPV6FIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
@@ -253,22 +255,11 @@ case ${ipv6_firewall_type} in
 	#${fw6cmd} add pass udp from fe80::/10 521 to ff02::9 521
 	#${fw6cmd} add pass udp from fe80::/10 521 to fe80::/10 521
 
-	# Allow ICMPv6 destination unreach and packet too big
-	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 1,2
+	# Allow ICMPv6 destination unreach
+	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 2
 
-	# Allow NS/NA
-	${fw6cmd} add pass ipv6-icmp from ${inet}/${iprefixlen} to ff02::/16 \
-		icmptypes 135
-	${fw6cmd} add pass ipv6-icmp from ${iip} to ${inet}/${iprefixlen} \
-		icmptypes 135,136
-	${fw6cmd} add pass ipv6-icmp from ${inet}/${iprefixlen} to ${iip} \
-		icmptypes 135,136
-	${fw6cmd} add pass ipv6-icmp from ${onet}/${oprefixlen} to ff02::/16 \
-		icmptypes 135
-	${fw6cmd} add pass ipv6-icmp from ${oip} to ${onet}/${oprefixlen} \
-		icmptypes 135,136
-	${fw6cmd} add pass ipv6-icmp from ${onet}/${oprefixlen} to ${oip} \
-		icmptypes 135,136
+	# Allow NS/NA/toobig (don't filter it out)
+	${fw6cmd} add pass ipv6-icmp from any to any icmptypes 2,135,136
 
 	# Everything else is denied by default, unless the
 	# IPV6FIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
