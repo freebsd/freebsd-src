@@ -1795,11 +1795,10 @@ ahc_platform_set_tags(struct ahc_softc *ahc,
 int
 ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg)
 {
-	ahc->platform_data =
-	    malloc(sizeof(struct ahc_platform_data), M_DEVBUF, M_NOWAIT);
+	ahc->platform_data = malloc(sizeof(struct ahc_platform_data), M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
 	if (ahc->platform_data == NULL)
 		return (ENOMEM);
-	memset(ahc->platform_data, 0, sizeof(struct ahc_platform_data));
 	return (0);
 }
 

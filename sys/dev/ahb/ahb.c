@@ -393,12 +393,11 @@ ahballoc(u_long unit, struct resource *res)
 	/*
 	 * Allocate a storage area for us
 	 */
-	ahb = malloc(sizeof(struct ahb_softc), M_DEVBUF, M_NOWAIT);
+	ahb = malloc(sizeof(struct ahb_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!ahb) {
 		printf("ahb%ld: cannot malloc!\n", unit);
 		return (NULL);
 	}
-	bzero(ahb, sizeof(struct ahb_softc));
 	SLIST_INIT(&ahb->free_ecbs);
 	LIST_INIT(&ahb->pending_ccbs);
 	ahb->unit = unit;
