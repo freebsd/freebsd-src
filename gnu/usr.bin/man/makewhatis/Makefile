@@ -1,4 +1,4 @@
-NOMAN=	noman
+MAN1=	makewhatis.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
