@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: in6.c,v 1.187 2001/05/24 07:43:59 itojun Exp $	*/
+/*	$KAME: in6.c,v 1.259 2002/01/21 11:37:50 keiichi Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -94,9 +94,9 @@
 #include <netinet/in_pcb.h>
 #endif
 
-#include <netinet6/nd6.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/nd6.h>
 #include <netinet6/mld6_var.h>
 #include <netinet6/ip6_mroute.h>
 #include <netinet6/in6_ifattach.h>
@@ -252,7 +252,7 @@ in6_ifremloop(struct ifaddr *ifa)
 	 */
 
 	/*
-	 * Delete the entry only if exact one ifa exists. More than one ifa
+	 * Delete the entry only if exact one ifa exists.  More than one ifa
 	 * can exist if we assign a same single address to multiple
 	 * (probably p2p) interfaces.
 	 * XXX: we should avoid such a configuration in IPv6...
@@ -268,9 +268,9 @@ in6_ifremloop(struct ifaddr *ifa)
 	if (ia_count == 1) {
 		/*
 		 * Before deleting, check if a corresponding loopbacked host
-		 * route surely exists. With this check, we can avoid to
+		 * route surely exists.  With this check, we can avoid to
 		 * delete an interface direct route whose destination is same
-		 * as the address being removed. This can happen when remofing
+		 * as the address being removed.  This can happen when remofing
 		 * a subnet-router anycast address on an interface attahced
 		 * to a shared medium.
 		 */
@@ -396,7 +396,7 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCSIFINFO_FLAGS:
 		if (!privileged)
 			return(EPERM);
-		/*fall through*/
+		/* fall through */
 	case OSIOCGIFINFO_IN6:
 	case SIOCGIFINFO_IN6:
 	case SIOCGDRLST_IN6:
@@ -419,7 +419,7 @@ in6_control(so, cmd, data, ifp, td)
 		return(EOPNOTSUPP);
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCSSCOPE6:
 		if (!privileged)
 			return(EPERM);
@@ -438,7 +438,7 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCDLIFADDR:
 		if (!privileged)
 			return(EPERM);
-		/*fall through*/
+		/* fall through */
 	case SIOCGLIFADDR:
 		return in6_lifaddr_ioctl(so, cmd, data, ifp, td);
 	}
@@ -643,10 +643,11 @@ in6_control(so, cmd, data, ifp, td)
 				ifra->ifra_prefixmask.sin6_addr.s6_addr32[i];
 		}
 		/*
-		 * XXX: since we don't have enough APIs, we just set inifinity
-		 * to lifetimes.  They can be overridden by later advertised
-		 * RAs (when accept_rtadv is non 0), but we'd rather intend
-		 * such a behavior.
+		 * XXX: since we don't have an API to set prefix (not address)
+		 * lifetimes, we just use the same lifetimes as addresses.
+		 * The (temporarily) installed lifetimes can be overridden by
+		 * later advertised RAs (when accept_rtadv is non 0), which is
+		 * an intended behavior.
 		 */
 		pr0.ndpr_raf_onlink = 1; /* should be configurable? */
 		pr0.ndpr_raf_auto =
@@ -815,7 +816,7 @@ in6_update_ifa(ifp, ifra, ia)
 	}
 	else {
 		/*
-		 * In this case, ia must not be NULL. We just use its prefix
+		 * In this case, ia must not be NULL.  We just use its prefix
 		 * length.
 		 */
 		plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL);
@@ -1341,7 +1342,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 		/* address must be specified on GET with IFLR_PREFIX */
 		if ((iflr->flags & IFLR_PREFIX) == 0)
 			break;
-		/*FALLTHROUGH*/
+		/* FALLTHROUGH */
 	case SIOCALIFADDR:
 	case SIOCDLIFADDR:
 		/* address must be specified on ADD and DELETE */
@@ -1357,10 +1358,10 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 		if (sa->sa_len && sa->sa_len != sizeof(struct sockaddr_in6))
 			return EINVAL;
 		break;
-	default: /*shouldn't happen*/
+	default: /* shouldn't happen */
 #if 0
 		panic("invalid cmd to in6_lifaddr_ioctl");
-		/*NOTREACHED*/
+		/* NOTREACHED */
 #else
 		return EOPNOTSUPP;
 #endif
@@ -1462,7 +1463,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 		} else {
 			if (cmd == SIOCGLIFADDR) {
 				/* on getting an address, take the 1st match */
-				cmp = 0;	/*XXX*/
+				cmp = 0;	/* XXX */
 			} else {
 				/* on deleting an address, do exact match */
 				in6_len2mask(&mask, 128);
@@ -1535,7 +1536,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 				in6_mask2len(&ia->ia_prefixmask.sin6_addr,
 					     NULL);
 
-			iflr->flags = ia->ia6_flags;	/*XXX*/
+			iflr->flags = ia->ia6_flags;	/* XXX */
 
 			return 0;
 		} else {
@@ -1565,7 +1566,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 	    }
 	}
 
-	return EOPNOTSUPP;	/*just for safety*/
+	return EOPNOTSUPP;	/* just for safety */
 }
 
 /*
@@ -1630,7 +1631,7 @@ in6_ifinit(ifp, ia, sin6, newhost)
 		ia->ia_ifa.ifa_flags |= RTF_CLONING;
 	}
 
-	/* Add ownaddr as loopback rtentry, if necessary(ex. on p2p link). */
+	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
 	if (newhost) {
 		/* set the rtrequest function to create llinfo */
 		ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
@@ -2237,7 +2238,7 @@ in6_ifawithifp(ifp, dst)
 	int dst_scope =	in6_addrscope(dst), blen = -1, tlen;
 	struct ifaddr *ifa;
 	struct in6_ifaddr *besta = 0;
-	struct in6_ifaddr *dep[2];	/*last-resort: deprecated*/
+	struct in6_ifaddr *dep[2];	/* last-resort: deprecated */
 
 	dep[0] = dep[1] = NULL;
 
@@ -2395,7 +2396,7 @@ in6_setmaxmtu()
 }
 
 /*
- * Convert sockaddr_in6 to sockaddr_in. Original sockaddr_in6 must be
+ * Convert sockaddr_in6 to sockaddr_in.  Original sockaddr_in6 must be
  * v4 mapped addr or v4 compat addr
  */
 void

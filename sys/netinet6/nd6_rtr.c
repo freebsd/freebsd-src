@@ -398,7 +398,7 @@ nd6_ra_input(m, off, icmp6len)
  skip:
 	
 	/*
-	 * Src linkaddress
+	 * Source link layer address
 	 */
     {
 	char *lladdr = NULL;

@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip6_output.c,v 1.180 2001/05/21 05:37:50 jinmei Exp $	*/
+/*	$KAME: ip6_output.c,v 1.279 2002/01/26 06:12:30 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -316,7 +316,8 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp)
 
 		/*
 		 * we treat dest2 specially.  this makes IPsec processing
-		 * much easier.
+		 * much easier.  the goal here is to make mprev point the
+		 * mbuf prior to dest2.
 		 *
 		 * result: IPv6 dest2 payload
 		 * m and mprev will point to IPv6 header.
@@ -394,7 +395,7 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp)
 				break;
 			default:
 				printf("ip6_output (ipsec): error code %d\n", error);
-				/*fall through*/
+				/* fall through */
 			case ENOENT:
 				/* don't show these error codes to the user */
 				error = 0;
@@ -524,7 +525,7 @@ skip_ipsec2:;
 				break;
 			default:
 				printf("ip6_output (ipsec): error code %d\n", error);
-				/*fall through*/
+				/* fall through */
 			case ENOENT:
 				/* don't show these error codes to the user */
 				error = 0;
@@ -535,7 +536,7 @@ skip_ipsec2:;
 
 		exthdrs.ip6e_ip6 = m;
 	}
-#endif /*IPSEC*/
+#endif /* IPSEC */
 
 	if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		/* Unicast */
@@ -788,9 +789,8 @@ skip_ipsec2:;
 		 * We eventually have sockaddr_in6 and use the sin6_scope_id
 		 * field of the structure here.
 		 * We rely on the consistency between two scope zone ids
-		 * of source add destination, which should already be assured
-		 * larger scopes than link will be supported in the near
-		 * future.
+		 * of source and destination, which should already be assured.
+		 * Larger scopes than link will be supported in the future. 
 		 */
 		origifp = NULL;
 		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src))
@@ -828,7 +828,7 @@ skip_ipsec2:;
 	 */
         if (ip6_fw_enable && ip6_fw_chk_ptr) {
 		u_short port = 0;
-		m->m_pkthdr.rcvif = NULL;	/*XXX*/
+		m->m_pkthdr.rcvif = NULL;	/* XXX */
 		/* If ipfw says divert, we have to just drop packet */
 		if ((*ip6_fw_chk_ptr)(&ip6, ifp, &port, &m)) {
 			m_freem(m);
@@ -982,7 +982,8 @@ skip_ipsec2:;
 
 		/*
 		 * Loop through length of segment after first fragment,
-		 * make new header and copy data of each part and link onto chain.
+		 * make new header and copy data of each part and link onto
+		 * chain.
 		 */
 		m0 = m;
 		for (off = hlen; off < tlen; off += len) {
@@ -2177,7 +2178,7 @@ ip6_getmoptions(optname, im6o, mp)
 {
 	u_int *hlim, *loop, *ifindex;
 
-	*mp = m_get(M_TRYWAIT, MT_HEADER);		/*XXX*/
+	*mp = m_get(M_TRYWAIT, MT_HEADER);		/* XXX */
 
 	switch (optname) {
 

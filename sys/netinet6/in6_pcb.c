@@ -342,7 +342,8 @@ in6_pcbconnect(inp, nam, td)
 	int error;
 
 	/*
-	 *   Call inner routine, to assign local interface address.
+	 * Call inner routine, to assign local interface address.
+	 * in6_pcbladdr() may automatically fill in sin6_scope_id.
 	 */
 	if ((error = in6_pcbladdr(inp, nam, &addr6)) != 0)
 		return(error);
@@ -722,6 +723,7 @@ in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam)
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
 	} else
+	/* scope issues will be handled in in6_setsockaddr(). */
 	error = in6_setsockaddr(so, nam);
 
 	return error;
@@ -740,6 +742,7 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
 	} else
+	/* scope issues will be handled in in6_setpeeraddr(). */
 	error = in6_setpeeraddr(so, nam);
 
 	return error;

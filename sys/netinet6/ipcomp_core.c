@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ipcomp_core.c,v 1.24 2000/10/23 04:24:22 itojun Exp $	*/
+/*	$KAME: ipcomp_core.c,v 1.25 2001/07/26 06:53:17 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1999 WIDE Project.
@@ -156,7 +156,7 @@ do { \
 	n->m_len = 0;						\
 	n->m_len = M_TRAILINGSPACE(n);				\
 	n->m_next = NULL;					\
-	/*							\
+	/* 							\
 	 * if this is the first reply buffer, reserve		\
 	 * region for ipcomp header.				\
 	 */							\
@@ -217,13 +217,13 @@ do { \
 			      : deflate(&zs, Z_NO_FLUSH);
 
 		if (zerror == Z_STREAM_END)
-			; /*once more.*/
+			; /* once more. */
 		else if (zerror == Z_OK) {
 			/* inflate: Z_OK can indicate the end of decode */
 			if (mode && !p && zs.avail_out != 0)
 				goto terminate;
 			else
-				; /*once more.*/
+				; /* once more. */
 		} else {
 			if (zs.msg) {
 				ipseclog((LOG_ERR, "ipcomp_%scompress: "
@@ -258,7 +258,7 @@ do { \
 		if (zerror == Z_STREAM_END)
 			break;
 		else if (zerror == Z_OK)
-			; /*once more.*/
+			; /* once more. */
 		else {
 			if (zs.msg) {
 				ipseclog((LOG_ERR, "ipcomp_%scompress: "

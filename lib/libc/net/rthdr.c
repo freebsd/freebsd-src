@@ -1,3 +1,5 @@
+/*	$KAME: rthdr.c,v 1.8 2001/08/20 02:32:40 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -226,9 +228,9 @@ inet6_rthdr_segments(cmsg)
 }
 
 struct in6_addr *
-inet6_rthdr_getaddr(cmsg, index)
+inet6_rthdr_getaddr(cmsg, idx)
     struct cmsghdr *cmsg;
-    int index;
+    int idx;
 {
     struct ip6_rthdr *rthdr;
 
@@ -248,13 +250,13 @@ inet6_rthdr_getaddr(cmsg, index)
 	    return NULL;
 	}
 	naddr = (rt0->ip6r0_len * 8) / sizeof(struct in6_addr);
-	if (index <= 0 || naddr < index) {
+	if (idx <= 0 || naddr < idx) {
 #ifdef DEBUG
-	    fprintf(stderr, "inet6_rthdr_getaddr: invalid index(%d)\n", index);
+	    fprintf(stderr, "inet6_rthdr_getaddr: invalid idx(%d)\n", idx);
 #endif 
 	    return NULL;
 	}
-	return &rt0->ip6r0_addr[index - 1];
+	return &rt0->ip6r0_addr[idx - 1];
       }
 
     default:
@@ -267,9 +269,9 @@ inet6_rthdr_getaddr(cmsg, index)
 }
 
 int
-inet6_rthdr_getflags(cmsg, index)
+inet6_rthdr_getflags(cmsg, idx)
     const struct cmsghdr *cmsg;
-    int index;
+    int idx;
 {
     struct ip6_rthdr *rthdr;
 
@@ -289,13 +291,13 @@ inet6_rthdr_getflags(cmsg, index)
 	    return -1;
 	}
 	naddr = (rt0->ip6r0_len * 8) / sizeof(struct in6_addr);
-	if (index < 0 || naddr < index) {
+	if (idx < 0 || naddr < idx) {
 #ifdef DEBUG
-	    fprintf(stderr, "inet6_rthdr_getflags: invalid index(%d)\n", index);
+	    fprintf(stderr, "inet6_rthdr_getflags: invalid idx(%d)\n", idx);
 #endif 
 	    return -1;
 	}
-	if (rt0->ip6r0_slmap[index / 8] & (0x80 >> (index % 8)))
+	if (rt0->ip6r0_slmap[idx / 8] & (0x80 >> (idx % 8)))
 	    return IPV6_RTHDR_STRICT;
 	else
 	    return IPV6_RTHDR_LOOSE;

@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: key.h,v 1.20 2001/03/22 08:09:32 itojun Exp $	*/
+/*	$KAME: key.h,v 1.21 2001/07/27 03:51:30 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
