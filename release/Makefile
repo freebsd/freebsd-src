@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.348 1998/04/15 18:28:27 msmith Exp $
+#	$Id: Makefile,v 1.349 1998/05/08 13:49:16 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -62,7 +62,7 @@ MNT=			/mnt
 FDSIZE=			1440
 FDLABEL=		fd1440
 
-ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1468006 -
+ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
