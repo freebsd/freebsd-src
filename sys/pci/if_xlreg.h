@@ -36,6 +36,7 @@
 #define XL_EE_WRITE	0x0040	/* write, 5 bit address */
 #define XL_EE_ERASE	0x00c0	/* erase, 5 bit address */
 #define XL_EE_EWEN	0x0030	/* erase, no data needed */
+#define XL_EE_8BIT_READ	0x0200	/* read, 8 bit address */
 #define XL_EE_BUSY	0x8000
 
 #define XL_EE_EADDR0	0x00	/* station address, first word */
@@ -247,6 +248,9 @@
 #define XL_RESETOPT_TESTPDTPDR	0x0800
 #define XL_RESETOPT_TEST100TX	0x1000
 #define XL_RESETOPT_TEST100RX	0x2000
+
+#define XL_RESETOPT_INVERT_LED	0x0010
+#define XL_RESETOPT_INVERT_MII	0x4000
 
 /*
  * Window 3 (fifo management)
@@ -553,6 +557,8 @@ struct xl_mii_frame {
 #define XL_FLAG_EEPROM_OFFSET_30	0x0004
 #define XL_FLAG_WEIRDRESET		0x0008
 #define XL_FLAG_8BITROM			0x0010
+#define XL_FLAG_INVERT_LED_PWR		0x0020
+#define XL_FLAG_INVERT_MII_PWR		0x0040
 
 struct xl_softc {
 	struct arpcom		arpcom;		/* interface info */
@@ -657,6 +663,8 @@ struct xl_stats {
 #define TC_DEVICEID_TORNADO_HOMECONNECT		0x4500
 #define TC_DEVICEID_HURRICANE_556		0x6055
 #define TC_DEVICEID_HURRICANE_556B		0x6056
+#define TC_DEVICEID_HURRICANE_575B		0x5157
+#define TC_DEVICEID_HURRICANE_575C		0x5257
 
 /*
  * PCI low memory base and low I/O base register, and
