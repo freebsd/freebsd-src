@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.42 1998/11/18 00:40:38 jdp Exp $
+#	$Id: Makefile.inc1,v 1.43 1998/11/18 01:59:39 jdp Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -647,13 +647,17 @@ lib-tools:
 # csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libss.
 # libcrypt must be built before libskey and libkrb.
+# libdes must be built before libpam.
+# libkrb must be built before libpam.
 # libm must be built before libf2c, libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey,
 # and libtacplus.
 # libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
+# libradius must be built before libpam.
+# libskey must be built before libpam.
+# libtacplus must be built before libpam.
 # libtermcap must be built before libcurses, libedit and libreadline.
-# libdes, libkrb, libradius and libtacplus must be built before libpam.
 #
 # Some libraries are built conditionally and/or are in inconsistently
 # named directories:
@@ -668,8 +672,13 @@ _csu=lib/csu/${MACHINE_ARCH}
 
 .if !defined(NOSECURE) && !defined(NOCRYPT)
 _libcrypt=	secure/lib/libcrypt lib/libcrypt
+_secure_lib=	secure/lib
 .else
 _libcrypt=	lib/libcrypt
+.endif
+
+.if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+_kerberosIV_lib=kerberosIV/lib
 .endif
 
 .if defined(WANT_CSRG_LIBM)
@@ -718,20 +727,13 @@ bootstrap-libraries:
 # the prerequisites first, then build almost everything else in
 # alphabetical order.
 #
-_libs=		${_csu} lib/libcom_err ${_libcrypt} ${_libm} lib/libmd \
-		lib/libmytinfo lib/libncurses lib/libtermcap \
-		lib/libradius lib/libtacplus
-.if !defined(NOCRYPT) && !defined(NOSECURE)
-_libs+=		secure/lib
-.endif
-.if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
-_libs+=		kerberosIV/lib
-.endif
-_libs+=		gnu/lib gnu/usr.bin/cc/libgcc ${_libperl} lib usr.bin/lex/lib \
-		usr.sbin/pcvt/keycap
-
 libraries:
-.for _lib in ${_libs}
+.for _lib in ${_csu} lib/libcom_err ${_libcrypt} ${_libm} lib/libmd \
+    lib/libmytinfo lib/libncurses lib/libtermcap \
+    lib/libradius lib/libskey lib/libtacplus \
+    ${_secure_lib} ${_kerberosIV_lib} \
+    gnu/lib gnu/usr.bin/cc/libgcc ${_libperl} lib usr.bin/lex/lib \
+    usr.sbin/pcvt/keycap
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; ${MAKE} all; ${MAKE} -B install
 .endif
