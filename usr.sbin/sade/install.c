@@ -276,10 +276,10 @@ installFixitCDROM(dialogMenuItem *self)
 	    break;
     }
 
-    /* Since the fixit code expects everything to be in /mnt2, and the CDROM mounting stuff /cdrom, do
+    /* Since the fixit code expects everything to be in /mnt2, and the CDROM mounting stuff /dist, do
      * a little kludge dance here..
      */
-    if (symlink("/cdrom", "/mnt2")) {
+    if (symlink("/dist", "/mnt2")) {
 	msgConfirm("Unable to symlink /mnt2 to the CDROM mount point.  Please report this\n"
 		   "unexpected failure to bugs@freebsd.org.");
 	return DITEM_FAILURE;

@@ -99,7 +99,7 @@ mediaInitCDROM(Device *dev)
 
     if (readInfo &&
 	(DITEM_STATUS(attr_parse_file(cd_attr, string_concat(mountpoint, "/cdrom.inf"))) == DITEM_FAILURE ||
-		      !(cp = attr_match(cd_attr, "CD_VERSION")) || strcmp(cp, variable_get(VAR_RELNAME)))) {
+		      !(cp = attr_match(cd_attr, "CD_VERSION")) || (strcmp(cp, variable_get(VAR_RELNAME)) && strcmp("none", variable_get(VAR_RELNAME))))) {
 	if (!cp)
 	    msgConfirm("Unable to find a %s/cdrom.inf file.\n"
 		       "Either this is not a FreeBSD CDROM, there is a problem with\n"
