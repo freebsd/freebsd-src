@@ -27,9 +27,16 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_fbsd.c,v 1.3 1998/09/11 18:50:16 rvb Exp $
+ *  $Id: coda_fbsd.c,v 1.4 1998/09/13 13:57:59 rvb Exp $
  * 
  */
+
+#ifdef	ACTUALLY_LKM_NOT_KERNEL
+#define NVCODA 4
+#else
+#include "vcoda.h"
+#include "opt_devfs.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -47,9 +54,12 @@
 #include <coda/coda.h>
 #include <coda/cnode.h>
 #include <coda/coda_vnops.h>
+#include <coda/coda_psdev.h>
 
 #ifdef DEVFS
 #include <sys/devfsext.h>
+
+static	void	*devfs_token[NVCODA];
 #endif
 
 /* 
@@ -66,15 +76,7 @@
 
 #define VC_DEV_NO      93
 
-/* Type of device methods. */
-extern d_open_t  vc_nb_open;
-extern d_close_t vc_nb_close;
-extern d_read_t  vc_nb_read;
-extern d_write_t vc_nb_write;
-extern d_ioctl_t vc_nb_ioctl;
-extern d_poll_t	 vc_nb_poll;
-
-static struct cdevsw vccdevsw =
+static struct cdevsw codadevsw =
 { 
   vc_nb_open,      vc_nb_close,    vc_nb_read,        vc_nb_write,	/*93*/
   vc_nb_ioctl,     nostop,         nullreset,         nodevtotty,
@@ -82,7 +84,7 @@ static struct cdevsw vccdevsw =
 };
 
 void vcattach __P((void));
-static dev_t vccdev;
+static dev_t codadev;
 
 int     vcdebug = 1;
 #define VCDEBUG if (vcdebug) printf
@@ -93,13 +95,13 @@ vcattach(void)
   /*
    * In case we are an LKM, set up device switch.
    */
-  if (0 == (vccdev = makedev(VC_DEV_NO, 0)))
+  if (0 == (codadev = makedev(VC_DEV_NO, 0)))
     VCDEBUG("makedev returned null\n");
   else 
     VCDEBUG("makedev OK.\n");
     
-  cdevsw_add(&vccdev, &vccdevsw, NULL);
-  VCDEBUG("coda: vccdevsw entry installed at %d.\n", major(vccdev));
+  cdevsw_add(&codadev, &codadevsw, NULL);
+  VCDEBUG("coda: codadevsw entry installed at %d.\n", major(codadev));
 }
 
 static vc_devsw_installed = 0;
@@ -109,12 +111,28 @@ static void
 vc_drvinit(void *unused)
 {
 	dev_t dev;
+#ifdef DEVFS
+	int i;
+#endif
 
 	if( ! vc_devsw_installed ) {
 		dev = makedev(VC_DEV_NO, 0);
-		cdevsw_add(&dev,&vccdevsw, NULL);
+		cdevsw_add(&dev,&codadevsw, NULL);
 		vc_devsw_installed = 1;
     	}
+#ifdef DEVFS
+	for (i = 0; i < NVCODA; i++) {
+		devfs_token[i] =
+			devfs_add_devswf(&codadevsw, i
+				DV_CHR, 0, 0, 0666,
+				"cfs%d", i);
+		devfs_token[i] =
+			devfs_add_devswf(&codadevsw, i
+				DV_CHR, 0, 0, 0666,
+				"coda%d", i);
+	}
+#endif
+
 }
 
 int
@@ -202,4 +220,55 @@ coda_fbsd_putpages(v)
 }
 
 
-SYSINIT(vccdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+VC_DEV_NO,vc_drvinit,NULL)
+SYSINIT(codadev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+VC_DEV_NO,vc_drvinit,NULL)
+
+#ifdef	ACTUALLY_LKM_NOT_KERNEL
+
+#include <sys/mount.h>
+#include <sys/lkm.h>
+
+extern struct vfsops coda_vfsops;
+
+static struct vfsconf _fs_vfsconf = { &coda_vfsops, "coda", -1, 0, 0 };
+
+extern struct linker_set coda_modvnops ;
+
+static struct lkm_vfs coda_mod_vfs  = {
+	LM_VFS,	LKM_VERSION, "coda", 0, &coda_modvnops, &_fs_vfsconf };
+
+static struct lkm_dev coda_mod_dev = {
+	LM_DEV, LKM_VERSION, "codadev", VC_DEV_NO, LM_DT_CHAR, (void *) &codadevsw};
+
+int coda_mod(struct lkm_table *, int, int);
+int
+coda_mod(struct lkm_table *lkmtp, int cmd, int ver)
+{
+	int error = 0;
+
+	if (ver != LKM_VERSION)
+		return EINVAL;
+
+	switch (cmd) {
+	case LKM_E_LOAD:
+		lkmtp->private.lkm_any = (struct lkm_any *) &coda_mod_dev;
+		error = lkmdispatch(lkmtp, cmd);
+		if (error)
+			break;
+		lkmtp->private.lkm_any = (struct lkm_any *) &coda_mod_vfs ;
+		error = lkmdispatch(lkmtp, cmd);
+		break;
+	case LKM_E_UNLOAD:
+		lkmtp->private.lkm_any = (struct lkm_any *) &coda_mod_vfs ;
+		error = lkmdispatch(lkmtp, cmd);
+		if (error)
+			break;
+		lkmtp->private.lkm_any = (struct lkm_any *) &coda_mod_dev;
+		error = lkmdispatch(lkmtp, cmd);
+		break;
+	case LKM_E_STAT:
+		error = lkmdispatch(lkmtp, cmd);
+		break;
+	}
+	return error;
+}
+#endif

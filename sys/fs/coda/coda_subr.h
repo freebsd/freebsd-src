@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_subr.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: coda_subr.h,v 1.4 1998/09/11 18:50:17 rvb Exp $
+ *  $Id: coda_subr.h,v 1.5 1998/09/13 13:57:59 rvb Exp $
  * 
  */
 
@@ -36,8 +36,8 @@ void  coda_free(struct cnode *cp);
 struct cnode *coda_find(ViceFid *fid);
 void coda_flush(enum dc_status dcstat);
 void coda_testflush(void);
-int  coda_checkunmounting(struct mount *mp);
-int  coda_cacheprint(struct mount *whoIam);
+void coda_checkunmounting(struct mount *mp);
+void coda_cacheprint(struct mount *whoIam);
 void coda_debugon(void);
 void coda_debugoff(void);
 int  coda_kill(struct mount *whoIam, enum dc_status dcstat);
