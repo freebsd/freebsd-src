@@ -329,7 +329,7 @@ vinumioctl(dev_t dev,
 	sd = &SD[objno];
 
 	switch (cmd) {
-	case DIOCGDINFO:				    /* get disk label */
+      case DIOCGDINFO:				    /* get disk label */
 	    get_volume_label(sd->name, 1, sd->sectors, (struct disklabel *) data);
 	    break;
 
@@ -387,10 +387,6 @@ vinumioctl(dev_t dev,
 
 	case DIOCGMEDIASIZE:
 	    *(off_t *)data = vol->size << DEV_BSHIFT;
-	    break;
-
-	case DIOCGDINFO:				    /* get disk label */
-	    get_volume_label(vol->name, 1, vol->size, (struct disklabel *) data);
 	    break;
 
 	case DIOCGSECTORSIZE:
