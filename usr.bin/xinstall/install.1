@@ -157,6 +157,9 @@ to strip binaries so that
 .Nm
 can be portable over a large
 number of systems and binary types.
+See below for how
+.Nm
+can be instructed to use another program to strip binaries.
 .It Fl v
 Cause
 .Nm
@@ -179,6 +182,15 @@ Installing
 creates an empty file.
 .Sh DIAGNOSTICS
 .Ex -std
+.Sh ENVIRONMENT
+The
+.Nm
+utility checks for the presence of the
+.Ev STRIPBIN
+environment variable and if present,
+uses the assigned value as the program to run if and when the
+.Fl s
+option has been specified.
 .Sh FILES
 .Bl -tag -width INS@XXXX -compact
 .It Pa INS@XXXX
