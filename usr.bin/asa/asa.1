@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 23, 1993
+.Dd May 9, 2002
 .Dt ASA 1
 .Os
 .Sh NAME
@@ -63,10 +63,8 @@ before printing the rest of the line.
 .Pp
 Lines beginning with characters other than the above are treated as if they
 begin with \*[Lt]space\*[Gt].
-.Sh EXIT STATUS
-The
-.Nm
-utility exit 0 on success, and \*[Gt]0 if an error occurs.
+.Sh DIAGNOSTICS
+.Ex -std
 .Sh EXAMPLES
 To view a file containing the output of a
 .Tn FORTRAN
@@ -83,8 +81,6 @@ program and redirect it to a line-printer:
 The
 .Nm
 utility conforms to
-.St -p1003.2-92
-and to
-.St -xcu5 .
+.St -p1003.1-2001 .
 .Sh AUTHORS
 J.T. Conklin, Winning Strategies, Inc.
