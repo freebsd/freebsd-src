@@ -402,7 +402,7 @@ buildhints()
 	int			strtab_sz = 0;	/* Total length of strings */
 	int			nhints = 0;	/* Total number of hints */
 	int			fd;
-	char			*_tmpfile;
+	char			*tmpfilename;
 
 	for (shp = shlib_head; shp; shp = shp->next) {
 		strtab_sz += 1 + strlen(shp->name);
@@ -482,10 +482,10 @@ buildhints()
 		errx(1, "str_index(%d) != strtab_sz(%d)", str_index, strtab_sz);
 	}
 
-	_tmpfile = concat(hints_file, ".XXXXXXXXXX", "");
+	tmpfilename = concat(hints_file, ".XXXXXXXXXX", "");
 	umask(0);	/* Create with exact permissions */
-	if ((fd = mkstemp(_tmpfile)) == -1) {
-		warn("%s", _tmpfile);
+	if ((fd = mkstemp(tmpfilename)) == -1) {
+		warn("%s", tmpfilename);
 		return -1;
 	}
 	fchmod(fd, 0444);
@@ -515,7 +515,7 @@ buildhints()
 		return -1;
 	}
 
-	if (rename(_tmpfile, hints_file) != 0) {
+	if (rename(tmpfilename, hints_file) != 0) {
 		warn("%s", hints_file);
 		return -1;
 	}
