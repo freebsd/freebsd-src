@@ -58,11 +58,11 @@ This is <chain-entry pattern> structure:
                   "dst" to "src").
                                            
 The <proto/addr pattern> is:
-  all|icmp        from  <src addr/mask>         to <dst addr/mask>
-  tcp|tcpsyn|udp  from  <src addr/mask> [ports] to <dst addr/mask> [ports]
-all matches any IP packet.
-icmp,tcp and udp - packets for corresponding protocols.
-tcpsyn - tcp SYN packets (which used when initiating connection).
+ all|icmp     from <src addr/mask>        to <dst addr/mask>       [via <addr>]
+ tcp[syn]|udp from <src addr/mask>[ports] to <dst addr/mask>[ports][via <addr>]
+ all matches any IP packet.
+ icmp,tcp and udp - packets for corresponding protocols.
+ tcpsyn - tcp SYN packets (which used when initiating connection).
     
 The <src addr/mask>:
  <INET IP addr | domain name> [/mask bits | :mask pattern]
@@ -70,6 +70,10 @@ The <src addr/mask>:
   Mask pattern has form of IP address and AND'ed logically with address given.
  [ports]: [ port,port....|port:port] 
   Name of service can be used instead of port numeric value.
+  
+The via <addr> is optional and may specify IP address/name of one of local
+ IP interfaces to match only packets coming through it.The IP given is NOT
+ checked,and wrong value of IP causes entry to not match anything.
    
 To l[ist] command may be passed:
  f[irewall] | a[ccounting] to list specific chain or none to list
