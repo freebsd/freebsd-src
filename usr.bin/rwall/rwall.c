@@ -32,10 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1988 Regents of the University of California.\n\
@@ -45,6 +41,9 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "from: @(#)wall.c	5.14 (Berkeley) 3/2/91";
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * This program is not related to David Wall, whose Stanford Ph.D. thesis
@@ -136,9 +135,7 @@ makemsg(const char *fname)
 	const char *whom;
 
 	snprintf(tmpname, sizeof(tmpname), "%s/wall.XXXXXX", _PATH_TMP);
-	fd = mkstemp(tmpname);
-	fp = fdopen(fd, "r+");
-	if (fd == -1 || !fp)
+	if ((fd = mkstemp(tmpname)) == -1 || (fp = fdopen(fd, "r+")) == NULL)
 		err(1, "can't open temporary file");
 	unlink(tmpname);
 
