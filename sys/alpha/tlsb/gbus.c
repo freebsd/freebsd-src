@@ -92,8 +92,8 @@ static device_method_t gbus_methods[] = {
 	DEVMETHOD(bus_print_child,	gbus_print_child),
 	DEVMETHOD(bus_read_ivar,	gbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_create_intr,	bus_generic_create_intr),
-	DEVMETHOD(bus_connect_intr,	bus_generic_connect_intr),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	{ 0, 0 }
 };
@@ -134,7 +134,7 @@ gbus_print_child(device_t bus, device_t dev)
 {
 	struct gbus_device* gdev = DEVTOGBUS(dev);
 
-	printf(" at %s%d offset 0x%lx",
+	printf(" at %s%d offset 0x%x",
 	       device_get_name(bus), device_get_unit(bus),
 	       gdev->gd_offset);
 }

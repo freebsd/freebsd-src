@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.275 1998/10/31 10:35:23 dfr Exp $
+ *  $Id: syscons.c,v 1.276 1998/11/08 12:39:04 dfr Exp $
  *  from: i386/isa syscons.c,v 1.278
  */
 
@@ -54,10 +54,12 @@
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/rman.h>
 #ifdef	DEVFS
 #include <sys/devfsext.h>
 #endif
 
+#include <machine/resource.h>
 #include <machine/clock.h>
 #include <machine/cons.h>
 #include <machine/console.h>
@@ -694,6 +696,8 @@ scattach(device_t dev)
     int vc;
 #endif
     void *ih;
+    struct resource *res;
+    int zero = 0;
 
     scinit();
     flags = isa_get_flags(dev);
@@ -771,13 +775,10 @@ scattach(device_t dev)
 				UID_ROOT, GID_WHEEL, 0600, "consolectl");
 #endif
 
-    ih = BUS_CREATE_INTR(device_get_parent(dev), dev,
-			 isa_get_irq(dev),
-			 scintr, 0);
-    if (!ih)
-	return ENXIO;
-
-    BUS_CONNECT_INTR(device_get_parent(dev), ih);
+    res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
+			     RF_SHAREABLE | RF_ACTIVE);
+    BUS_SETUP_INTR(device_get_parent(dev), dev, res, scintr, 0,
+		   &ih);
 
     return 0;
 }
