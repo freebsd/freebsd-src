@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.9 1997/05/01 12:24:20 jhay Exp $
+ * $Id: ipx_proto.c,v 1.10 1997/05/10 09:58:54 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -41,12 +41,9 @@
 #include <sys/protosw.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
-#include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
 #include <net/radix.h>
-#include <net/route.h>
 
 #include <netipx/ipx.h>
 #include <netipx/ipx_var.h>
@@ -59,7 +56,7 @@ static	struct pr_usrreqs nousrreqs;
  * IPX protocol family: IPX, ERR, PXP, SPX, ROUTE.
  */
 
-struct protosw ipxsw[] = {
+static struct protosw ipxsw[] = {
 { 0,		&ipxdomain,	0,		0,
   0,		0,		0,		0,
   0,
@@ -90,14 +87,6 @@ struct protosw ipxsw[] = {
   0,		0,		0,		0,
   &ripx_usrreqs
 },
-#ifdef IPXERRORMSGS
-{ SOCK_RAW,	&ipxdomain,	IPXPROTO_ERROR,	PR_ATOMIC|PR_ADDR,
-  0,		0,		0,		ipx_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &ripx_usrreqs
-},
-#endif
 #ifdef IPTUNNEL
 #if 0
 { SOCK_RAW,	&ipxdomain,	IPPROTO_IPX,	PR_ATOMIC|PR_ADDR,
@@ -121,7 +110,3 @@ SYSCTL_NODE(_net,	PF_IPX,		ipx,	CTLFLAG_RW, 0,
 
 SYSCTL_NODE(_net_ipx,	IPXPROTO_RAW,	ipx,	CTLFLAG_RW, 0, "IPX");
 SYSCTL_NODE(_net_ipx,	IPXPROTO_SPX,	spx,	CTLFLAG_RW, 0, "SPX");
-#ifdef IPXERRORMSGS
-SYSCTL_NODE(_net_ipx,	IPXPROTO_ERROR,	error,	CTLFLAG_RW, 0,
-	    "Error Protocol");
-#endif

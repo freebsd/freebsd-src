@@ -33,21 +33,17 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.13 1997/05/01 06:21:30 jhay Exp $
+ * $Id: ipx_usrreq.c,v 1.14 1997/05/10 09:58:55 jhay Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/errno.h>
-#include <sys/stat.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -59,7 +55,6 @@
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_var.h>
-#include <netipx/ipx_error.h>
 #include <netipx/ipx_ip.h>
 
 /*

@@ -33,19 +33,15 @@
  * 
  *	@(#)ipx.c
  *
- * $Id: ipx.c,v 1.9 1997/05/01 06:21:27 jhay Exp $
+ * $Id: ipx.c,v 1.10 1997/05/10 09:58:48 jhay Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
+#include <sys/malloc.h>
 #include <sys/sockio.h>
 #include <sys/proc.h>
-#include <sys/protosw.h>
-#include <sys/errno.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -332,4 +328,65 @@ ipx_iaonnetof(dst)
 		}
 	}
 	return (ia_maybe);
+}
+
+
+void
+ipx_printhost(addr)
+register struct ipx_addr *addr;
+{
+	u_short port;
+	struct ipx_addr work = *addr;
+	register char *p; register u_char *q;
+	register char *net = "", *host = "";
+	char cport[10], chost[15], cnet[15];
+
+	port = ntohs(work.x_port);
+
+	if (ipx_nullnet(work) && ipx_nullhost(work)) {
+
+		if (port)
+			printf("*.%x", port);
+		else
+			printf("*.*");
+
+		return;
+	}
+
+	if (ipx_wildnet(work))
+		net = "any";
+	else if (ipx_nullnet(work))
+		net = "*";
+	else {
+		q = work.x_net.c_net;
+		sprintf(cnet, "%x%x%x%x",
+			q[0], q[1], q[2], q[3]);
+		for (p = cnet; *p == '0' && p < cnet + 8; p++)
+			continue;
+		net = p;
+	}
+
+	if (ipx_wildhost(work))
+		host = "any";
+	else if (ipx_nullhost(work))
+		host = "*";
+	else {
+		q = work.x_host.c_host;
+		sprintf(chost, "%x%x%x%x%x%x",
+			q[0], q[1], q[2], q[3], q[4], q[5]);
+		for (p = chost; *p == '0' && p < chost + 12; p++)
+			continue;
+		host = p;
+	}
+
+	if (port) {
+		if (strcmp(host, "*") == 0) {
+			host = "";
+			sprintf(cport, "%x", port);
+		} else
+			sprintf(cport, ".%x", port);
+	} else
+		*cport = 0;
+
+	printf("%s.%s%s", net, host, cport);
 }

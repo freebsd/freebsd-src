@@ -33,32 +33,20 @@
  *
  *	@(#)spx_debug.c
  *
- * $Id: spx_debug.c,v 1.8 1997/02/22 09:41:58 peter Exp $
+ * $Id: spx_debug.c,v 1.9 1997/05/10 09:58:56 jhay Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/protosw.h>
-#include <sys/errno.h>
 
-#include <net/route.h>
-#include <net/if.h>
 #include <netinet/in_systm.h>
 #include <netinet/tcp_fsm.h>
 
 #include <netipx/ipx.h>
-#include <netipx/ipx_error.h>
-#include <netipx/ipx_pcb.h>
-#include <netipx/ipx.h>
-#include <netipx/ipx_var.h>
 #include <netipx/spx.h>
 #define SPXTIMERS
 #include <netipx/spx_timer.h>
-#include <netipx/spx_var.h>
 #define	SANAMES
 #include <netipx/spx_debug.h>
 
