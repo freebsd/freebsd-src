@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ip6_forward.c,v 1.4.2.2 2000/07/17 07:16:50 kris Exp $	*/
 /*	$KAME: ip6_forward.c,v 1.43 2000/07/16 07:50:49 itojun Exp $	*/
 
 /*

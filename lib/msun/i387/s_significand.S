@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/s_significand.S,v 1.6.2.1 2000/07/10 09:16:28 obrien Exp $")
 
 ENTRY(significand)
 	fldl	4(%esp)

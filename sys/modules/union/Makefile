@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/union/Makefile,v 1.7 1999/12/12 20:34:11 peter Exp $
 
 .PATH:	${.CURDIR}/../../miscfs/union
 KMOD=	union

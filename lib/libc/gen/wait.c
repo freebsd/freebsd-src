@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/wait.c,v 1.3.2.1 2000/03/18 23:13:25 jasone Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

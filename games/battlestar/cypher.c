@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cypher.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/battlestar/cypher.c,v 1.7 1999/11/30 03:48:35 billf Exp $";
 #endif /* not lint */
 
 #include "externs.h"

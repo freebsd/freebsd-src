@@ -30,7 +30,7 @@
 
 /* dpt_ctls.c:  Dunp a the number of configured DPT HBAs */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/usr.sbin/dpt/dpt_ctls/dpt_ctls.c,v 1.3 1999/08/28 01:16:06 peter Exp $"
 
 #include <fcntl.h>
 #include <stdio.h>

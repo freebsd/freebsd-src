@@ -13,7 +13,7 @@
  *	$Id: conf.h,v 8.496.4.20 2000/07/15 17:35:19 gshapiro Exp $
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/src/conf.h,v 1.6.2.1 2000/08/27 17:31:26 gshapiro Exp $ */
 
 /*
 **  CONF.H -- All user-configurable parameters for sendmail

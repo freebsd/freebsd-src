@@ -1,5 +1,5 @@
 #! /bin/sh
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.network6,v 1.5.2.6 2000/09/15 16:41:54 ume Exp $
 
 # Note that almost all of the user-configurable behavior is not in this
 # file, but rather in /etc/defaults/rc.conf.  Please check that file

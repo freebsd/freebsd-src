@@ -3,7 +3,7 @@
 # PicoBSD installer script for FreeBSD
 #
 # Doug White
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/install/floppy.tree/etc/doinstall,v 1.1 1999/10/08 04:00:08 dwhite Exp $
 
 #### CONFIGURATION
 

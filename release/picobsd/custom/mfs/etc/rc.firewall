@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/custom/mfs/etc/rc.firewall,v 1.1 1999/12/10 21:52:17 grog Exp $
 
 ############
 # Define the firewall type in /etc/rc.conf.  Valid values are:

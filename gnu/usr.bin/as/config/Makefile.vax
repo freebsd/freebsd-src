@@ -1,4 +1,4 @@
 #	from: @(#)Makefile.vax	6.1 (Berkeley) 3/3/91
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/config/Makefile.vax,v 1.4 1999/08/27 23:34:27 peter Exp $
 
 SRCS+=		tc-vax.c atof-vax.c

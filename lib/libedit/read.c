@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libedit/read.c,v 1.4.6.2 2000/08/16 14:43:40 ache Exp $";
 #endif /* not lint && not SCCSID */
 /*
  * read.c: Clean this junk up! This is horrible code.

@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_fw.h,v 1.47.2.3 2000/08/22 00:33:18 archie Exp $
  */
 
 #ifndef _IP_FW_H

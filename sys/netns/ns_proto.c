@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)ns_proto.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/ns_proto.c,v 1.10 1999/08/28 00:49:51 peter Exp $
  */
 
 #include <sys/param.h>

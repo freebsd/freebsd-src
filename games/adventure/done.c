@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)done.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/adventure/done.c,v 1.7 1999/12/19 00:21:50 billf Exp $";
 #endif /* not lint */
 
 /*      Re-coding of advent in C: termination routines                  */

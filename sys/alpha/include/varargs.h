@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/varargs.h,v 1.2 1999/08/28 00:38:53 peter Exp $ */
 /* From: NetBSD: varargs.h,v 1.7 1997/04/06 08:47:46 cgd Exp */
 
 /*-

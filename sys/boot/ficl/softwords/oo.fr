@@ -2,7 +2,7 @@
 \ ** F I C L   O - O   E X T E N S I O N S
 \ ** john sadler aug 1998
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/oo.fr,v 1.1.6.1 2000/07/06 23:51:46 obrien Exp $
 
 
 .( loading ficl O-O extensions ) cr

@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* @(#) $FreeBSD$ */
+/* @(#) $FreeBSD: src/lib/libz/zutil.c,v 1.5 1999/08/28 00:06:04 peter Exp $ */
 
 #include "zutil.h"
 

@@ -18,7 +18,7 @@ Author: Martin Renters.
 
 3c509 support added by Serge Babkin (babkin@hq.icb.chel.su)
 
-$FreeBSD$
+$FreeBSD: src/sys/pc98/boot/netboot/3c509.c,v 1.3 1999/08/28 00:50:21 peter Exp $
 
 ***************************************************************************/
 

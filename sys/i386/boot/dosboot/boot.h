@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/boot.h,v 1.5 1999/08/28 00:43:20 peter Exp $
  */
 
 #include "types.h"

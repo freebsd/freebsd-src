@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/cia_pci.c,v 1.5.2.1 2000/06/07 01:45:03 jhb Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/share/examples/cvsup/refuse.README,v 1.1.2.2 2000/08/05 18:35:28 ben Exp $
 
 This describes the "refuse" file found in this directory.  The
 explanation cannot be put inside the file itself because:

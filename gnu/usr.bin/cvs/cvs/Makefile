@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cvs/cvs/Makefile,v 1.32 2000/02/24 23:15:42 markm Exp $
 
 MAINTAINER=	peter@FreeBSD.org
 

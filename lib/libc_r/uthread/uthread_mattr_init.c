@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_mattr_init.c,v 1.5 1999/08/28 00:03:39 peter Exp $
  */
 #include <string.h>
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/libpc98/Makefile,v 1.3.2.2 2000/09/23 01:42:58 nyan Exp $
 #
 LIB=			pc98
 NOPIC=

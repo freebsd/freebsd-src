@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/an/if_aironet_ieee.h,v 1.1 2000/01/14 20:40:55 wpaul Exp $
  */
 
 #ifndef _IF_AIRONET_IEEE_H

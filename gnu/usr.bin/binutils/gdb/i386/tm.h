@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdb/i386/tm.h,v 1.12.2.1 2000/07/06 21:56:42 obrien Exp $ */
 /* Target macro definitions for i386 running FreeBSD
    Copyright (C) 1997 Free Software Foundation, Inc.
 

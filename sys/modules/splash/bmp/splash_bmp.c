@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/modules/splash/bmp/splash_bmp.c,v 1.10.2.1 2000/08/13 10:59:00 nyan Exp $
  */
 
 #include <sys/param.h>

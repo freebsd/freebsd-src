@@ -29,7 +29,7 @@
  * not protected against the fact that the bits can be wrong in two
  * directions.  If we only cared about monosity two reads would be enough.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/mp_clock.c,v 1.4.2.1 2000/08/03 00:09:28 ps Exp $
  *
  */
 

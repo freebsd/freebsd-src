@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netkey/key_var.h,v 1.2.2.1 2000/07/15 07:14:42 kris Exp $	*/
 /*	$KAME: key_var.h,v 1.8 2000/05/24 17:28:23 itojun Exp $	*/
 
 /*

@@ -30,7 +30,7 @@
  *
  * $Id: //depot/src/aic7xxx/aicasm/aicasm_symbol.h#3 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aicasm/aicasm_symbol.h,v 1.11.2.1 2000/09/23 00:24:23 gibbs Exp $
  */
 
 #ifdef __linux__

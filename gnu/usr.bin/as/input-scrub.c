@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/as/input-scrub.c,v 1.7 1999/08/27 23:34:18 peter Exp $";
 #endif
 
 #include <errno.h>		/* Need this to make errno declaration right */

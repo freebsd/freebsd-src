@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/stallion/bootcode/Makefile,v 1.9 1999/08/28 01:20:05 peter Exp $
 
 .SUFFIXES: .uu
 .uu:

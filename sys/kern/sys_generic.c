@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/sys_generic.c,v 1.55.2.7 2000/08/16 19:20:31 alfred Exp $
  */
 
 #include "opt_ktrace.h"

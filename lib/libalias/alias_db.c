@@ -115,7 +115,7 @@
 
     See HISTORY file for additional revisions.
 
-    $FreeBSD$
+    $FreeBSD: src/lib/libalias/alias_db.c,v 1.21.2.8 2000/09/14 17:32:38 ru Exp $
 */
 
 

@@ -1,5 +1,5 @@
 /*	display.c		Larn is copyrighted 1986 by Noah Morgan. */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/larn/display.c,v 1.4 1999/11/16 02:57:21 billf Exp $ */
 #include "header.h"
 #define makecode(_a,_b,_c) (((_a)<<16) + ((_b)<<8) + (_c))
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/Makefile,v 1.6 1999/11/15 08:31:14 marcel Exp $
 
 # Build the add-in FORTH interpreter
 SUBDIR+=		ficl

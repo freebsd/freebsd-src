@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/sound/isa/es1888.c,v 1.5.2.2 2000/07/19 21:18:15 cg Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

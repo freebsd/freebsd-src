@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/usr.sbin/pppstats/pppstats.c,v 1.13 1999/08/28 01:19:11 peter Exp $";
 #endif
 
 #include <stdio.h>

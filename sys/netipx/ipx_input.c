@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx_input.c,v 1.22.2.1 2000/05/10 02:04:52 obrien Exp $
  */
 
 #include <sys/param.h>

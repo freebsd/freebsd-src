@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_variables.c,v 1.18 1999/08/28 00:41:11 peter Exp $
  */
 
 /*

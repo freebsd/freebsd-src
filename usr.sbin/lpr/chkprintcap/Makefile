@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/lpr/chkprintcap/Makefile,v 1.7 1999/08/28 01:16:46 peter Exp $
 
 PROG=	chkprintcap
 MAN8=	chkprintcap.8

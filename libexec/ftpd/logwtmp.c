@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/ftpd/logwtmp.c,v 1.9 2000/01/27 09:28:21 shin Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

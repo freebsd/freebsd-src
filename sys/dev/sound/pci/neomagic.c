@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/neomagic.c,v 1.7.2.4 2000/08/20 00:38:30 cg Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

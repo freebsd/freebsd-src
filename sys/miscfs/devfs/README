@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/miscfs/devfs/README,v 1.6.6.1 2000/08/03 01:04:28 peter Exp $
 
 this file is: /sys/miscfs/devfs/README
 

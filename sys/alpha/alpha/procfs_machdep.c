@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/procfs_machdep.c,v 1.4.2.1 2000/07/03 19:59:44 mjacob Exp $
  */
 
 /*

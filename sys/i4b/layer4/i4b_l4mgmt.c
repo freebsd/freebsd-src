@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_l4mgmt.c,v 1.26 1999/12/13 21:25:28 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer4/i4b_l4mgmt.c,v 1.6.2.1 2000/05/10 02:04:48 obrien Exp $
  *
  *      last edit-date: [Mon Dec 13 22:06:32 1999]
  *

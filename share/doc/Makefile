@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/Makefile,v 1.15 2000/03/02 10:34:09 shin Exp $
 
 SUBDIR=	psd smm usd papers IPv6
 

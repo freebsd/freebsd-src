@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libpam/modules/pam_unix/pam_unix.c,v 1.4 1999/05/08 01:59:27 jdp Exp $
  */
 
 #include <sys/types.h>

@@ -4,7 +4,7 @@
  * of the software, derivative works or modified versions, and any
  * portions thereof.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_elreg.h,v 1.7 1999/08/28 00:44:45 peter Exp $
  */
 /* 3COM Etherlink 3C501 Register Definitions */
 

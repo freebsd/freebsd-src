@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/setmode.c,v 1.5 1999/11/04 04:46:18 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>

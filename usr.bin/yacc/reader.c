@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/yacc/reader.c,v 1.8 1999/08/28 01:08:02 peter Exp $
  */
 
 #ifndef lint

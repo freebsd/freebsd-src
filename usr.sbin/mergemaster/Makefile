@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mergemaster/Makefile,v 1.3 1999/11/01 04:29:04 chris Exp $
 
 MAINTAINER=	billf@FreeBSD.org
 MAINTAINER+=	doug@gorean.org

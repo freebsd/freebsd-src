@@ -1,5 +1,5 @@
 /* regen.c 			Larn is copyrighted 1986 by Noah Morgan. */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/larn/regen.c,v 1.4 1999/11/16 02:57:24 billf Exp $ */
 #include "header.h"
 /*
 	*******

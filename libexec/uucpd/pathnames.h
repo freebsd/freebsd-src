@@ -32,7 +32,7 @@
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/4/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/uucpd/pathnames.h,v 1.6 1999/08/28 00:10:28 peter Exp $
  */
 
 #include <paths.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstConcat.c,v 1.7 1999/08/28 01:03:47 peter Exp $
  */
 
 #ifndef lint

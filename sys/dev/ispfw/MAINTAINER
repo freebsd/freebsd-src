@@ -1,2 +1,2 @@
-$FreeBSD$ 
+$FreeBSD: src/sys/dev/ispfw/MAINTAINER,v 1.1.2.1 2000/07/04 02:34:49 mjacob Exp $ 
 MAINTAINER = mjacob@freebsd.org

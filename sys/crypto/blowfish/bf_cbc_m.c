@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/blowfish/bf_cbc_m.c,v 1.1.2.1 2000/07/15 07:14:18 kris Exp $	*/
 /*	$KAME: bf_cbc_m.c,v 1.4 2000/06/14 10:41:16 itojun Exp $	*/
 
 /*

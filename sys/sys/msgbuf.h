@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)msgbuf.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/msgbuf.h,v 1.14 2000/01/29 15:29:11 peter Exp $
  */
 
 #ifndef _SYS_MSGBUF_H_

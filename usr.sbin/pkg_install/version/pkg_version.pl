@@ -28,7 +28,7 @@
 #
 # A package version-checking utility for FreeBSD.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/version/pkg_version.pl,v 1.4.2.4 2000/09/20 08:53:55 jkh Exp $
 #
 
 use Getopt::Std;

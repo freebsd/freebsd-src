@@ -1,0 +1,275 @@
+@c Copyright (C) 1991, 92, 93, 94, 95, 1997 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node MIPS-Dependent
+@chapter MIPS Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter MIPS Dependent Features
+@end ifclear
+
+@cindex MIPS processor
+@sc{gnu} @code{@value{AS}} for @sc{mips} architectures supports several
+different @sc{mips} processors, and MIPS ISA levels I through IV.  For
+information about the @sc{mips} instruction set, see @cite{MIPS RISC
+Architecture}, by Kane and Heindrich (Prentice-Hall).  For an overview
+of @sc{mips} assembly conventions, see ``Appendix D: Assembly Language
+Programming'' in the same work.
+
+@menu
+* MIPS Opts::   	Assembler options
+* MIPS Object:: 	ECOFF object code
+* MIPS Stabs::  	Directives for debugging information
+* MIPS ISA::    	Directives to override the ISA level
+* MIPS autoextend::	Directives for extending MIPS 16 bit instructions
+* MIPS insn::		Directive to mark data as an instruction
+* MIPS option stack::	Directives to save and restore options
+@end menu
+
+@node MIPS Opts
+@section Assembler options
+
+The @sc{mips} configurations of @sc{gnu} @code{@value{AS}} support these
+special options:
+
+@table @code
+@cindex @code{-G} option (MIPS)
+@item -G @var{num}
+This option sets the largest size of an object that can be referenced
+implicitly with the @code{gp} register.  It is only accepted for targets
+that use @sc{ecoff} format.  The default value is 8.
+
+@cindex @code{-EB} option (MIPS)
+@cindex @code{-EL} option (MIPS)
+@cindex MIPS big-endian output
+@cindex MIPS little-endian output
+@cindex big-endian output, MIPS
+@cindex little-endian output, MIPS
+@item -EB
+@itemx -EL
+Any @sc{mips} configuration of @code{@value{AS}} can select big-endian or
+little-endian output at run time (unlike the other @sc{gnu} development
+tools, which must be configured for one or the other).  Use @samp{-EB}
+to select big-endian output, and @samp{-EL} for little-endian.
+
+@cindex MIPS architecture options
+@item -mips1
+@itemx -mips2
+@itemx -mips3
+@itemx -mips4
+Generate code for a particular MIPS Instruction Set Architecture level.
+@samp{-mips1} corresponds to the @sc{r2000} and @sc{r3000} processors,
+@samp{-mips2} to the @sc{r6000} processor, @samp{-mips3} to the
+@sc{r4000} processor, and @samp{-mips4} to the @sc{r8000} and
+@sc{r10000} processors.  You can also switch instruction sets during the
+assembly; see @ref{MIPS ISA,, Directives to override the ISA level}.
+
+@item -mgp32
+Assume that 32-bit general purpose registers are available.  This
+affects synthetic instructions such as @code{move}, which will assemble
+to a 32-bit or a 64-bit instruction depending on this flag.  On some
+MIPS variants there is a 32-bit mode flag; when this flag is set,
+64-bit instructions generate a trap.  Also, some 32-bit OSes only save
+the 32-bit registers on a context switch, so it is essential never to
+use the 64-bit registers.
+
+@item -mgp64
+Assume that 64-bit general purpose registers are available.  This is
+provided in the interests of symmetry with -gp32.
+
+@item -mips16
+@itemx -no-mips16
+Generate code for the MIPS 16 processor.  This is equivalent to putting
+@samp{.set mips16} at the start of the assembly file.  @samp{-no-mips16}
+turns off this option.
+
+@item -mfix7000
+@itemx -no-mfix7000
+Cause nops to be inserted if the read of the destination register
+of an mfhi or mflo instruction occurs in the following two instructions.
+
+@item -m4010
+@itemx -no-m4010
+Generate code for the LSI @sc{r4010} chip.  This tells the assembler to
+accept the @sc{r4010} specific instructions (@samp{addciu}, @samp{ffc},
+etc.), and to not schedule @samp{nop} instructions around accesses to
+the @samp{HI} and @samp{LO} registers.  @samp{-no-m4010} turns off this
+option.
+
+@item -m4650
+@itemx -no-m4650
+Generate code for the MIPS @sc{r4650} chip.  This tells the assembler to accept
+the @samp{mad} and @samp{madu} instruction, and to not schedule @samp{nop}
+instructions around accesses to the @samp{HI} and @samp{LO} registers.
+@samp{-no-m4650} turns off this option.
+
+@itemx -m3900
+@itemx -no-m3900
+@itemx -m4100
+@itemx -no-m4100
+For each option @samp{-m@var{nnnn}}, generate code for the MIPS
+@sc{r@var{nnnn}} chip.  This tells the assembler to accept instructions
+specific to that chip, and to schedule for that chip's hazards.
+
+@item -mcpu=@var{cpu}
+Generate code for a particular MIPS cpu.  It is exactly equivalent to
+@samp{-m@var{cpu}}, except that there are more value of @var{cpu}
+understood.  Valid @var{cpu} value are:
+
+@quotation
+2000,
+3000,
+3900,
+4000,
+4010,
+4100,
+4111,
+4300,
+4400,
+4600,
+4650,
+5000,
+6000,
+8000,
+10000
+@end quotation
+
+
+@cindex @code{-nocpp} ignored (MIPS)
+@item -nocpp
+This option is ignored.  It is accepted for command-line compatibility with
+other assemblers, which use it to turn off C style preprocessing.  With
+@sc{gnu} @code{@value{AS}}, there is no need for @samp{-nocpp}, because the
+@sc{gnu} assembler itself never runs the C preprocessor.
+
+@item --trap
+@itemx --no-break
+@c FIXME!  (1) reflect these options (next item too) in option summaries;
+@c         (2) stop teasing, say _which_ instructions expanded _how_.
+@code{@value{AS}} automatically macro expands certain division and
+multiplication instructions to check for overflow and division by zero.  This
+option causes @code{@value{AS}} to generate code to take a trap exception
+rather than a break exception when an error is detected.  The trap instructions
+are only supported at Instruction Set Architecture level 2 and higher.
+
+@item --break
+@itemx --no-trap
+Generate code to take a break exception rather than a trap exception when an
+error is detected.  This is the default.
+@end table
+
+@node MIPS Object
+@section MIPS ECOFF object code
+
+@cindex ECOFF sections
+@cindex MIPS ECOFF sections
+Assembling for a @sc{mips} @sc{ecoff} target supports some additional sections
+besides the usual @code{.text}, @code{.data} and @code{.bss}.  The
+additional sections are @code{.rdata}, used for read-only data,
+@code{.sdata}, used for small data, and @code{.sbss}, used for small
+common objects.
+
+@cindex small objects, MIPS ECOFF
+@cindex @code{gp} register, MIPS
+When assembling for @sc{ecoff}, the assembler uses the @code{$gp} (@code{$28})
+register to form the address of a ``small object''.  Any object in the
+@code{.sdata} or @code{.sbss} sections is considered ``small'' in this sense.
+For external objects, or for objects in the @code{.bss} section, you can use
+the @code{@value{GCC}} @samp{-G} option to control the size of objects addressed via
+@code{$gp}; the default value is 8, meaning that a reference to any object
+eight bytes or smaller uses @code{$gp}.  Passing @samp{-G 0} to
+@code{@value{AS}} prevents it from using the @code{$gp} register on the basis
+of object size (but the assembler uses @code{$gp} for objects in @code{.sdata}
+or @code{sbss} in any case).  The size of an object in the @code{.bss} section
+is set by the @code{.comm} or @code{.lcomm} directive that defines it.  The
+size of an external object may be set with the @code{.extern} directive.  For
+example, @samp{.extern sym,4} declares that the object at @code{sym} is 4 bytes
+in length, whie leaving @code{sym} otherwise undefined.
+
+Using small @sc{ecoff} objects requires linker support, and assumes that the
+@code{$gp} register is correctly initialized (normally done automatically by
+the startup code).  @sc{mips} @sc{ecoff} assembly code must not modify the
+@code{$gp} register.
+
+@node MIPS Stabs
+@section Directives for debugging information
+
+@cindex MIPS debugging directives
+@sc{mips} @sc{ecoff} @code{@value{AS}} supports several directives used for
+generating debugging information which are not support by traditional @sc{mips}
+assemblers.  These are @code{.def}, @code{.endef}, @code{.dim}, @code{.file},
+@code{.scl}, @code{.size}, @code{.tag}, @code{.type}, @code{.val},
+@code{.stabd}, @code{.stabn}, and @code{.stabs}.  The debugging information
+generated by the three @code{.stab} directives can only be read by @sc{gdb},
+not by traditional @sc{mips} debuggers (this enhancement is required to fully
+support C++ debugging).  These directives are primarily used by compilers, not
+assembly language programmers!
+
+@node MIPS ISA
+@section Directives to override the ISA level
+
+@cindex MIPS ISA override
+@kindex @code{.set mips@var{n}}
+@sc{gnu} @code{@value{AS}} supports an additional directive to change
+the @sc{mips} Instruction Set Architecture level on the fly: @code{.set
+mips@var{n}}.  @var{n} should be a number from 0 to 4.  A value from 1
+to 4 makes the assembler accept instructions for the corresponding
+@sc{isa} level, from that point on in the assembly.  @code{.set
+mips@var{n}} affects not only which instructions are permitted, but also
+how certain macros are expanded.  @code{.set mips0} restores the
+@sc{isa} level to its original level: either the level you selected with
+command line options, or the default for your configuration.  You can
+use this feature to permit specific @sc{r4000} instructions while
+assembling in 32 bit mode.  Use this directive with care!
+
+The directive @samp{.set mips16} puts the assembler into MIPS 16 mode,
+in which it will assemble instructions for the MIPS 16 processor.  Use
+@samp{.set nomips16} to return to normal 32 bit mode.
+
+Traditional @sc{mips} assemblers do not support this directive.  
+
+@node MIPS autoextend
+@section Directives for extending MIPS 16 bit instructions
+
+@kindex @code{.set autoextend}
+@kindex @code{.set noautoextend}
+By default, MIPS 16 instructions are automatically extended to 32 bits
+when necessary.  The directive @samp{.set noautoextend} will turn this
+off.  When @samp{.set noautoextend} is in effect, any 32 bit instruction
+must be explicitly extended with the @samp{.e} modifier (e.g.,
+@samp{li.e $4,1000}).  The directive @samp{.set autoextend} may be used
+to once again automatically extend instructions when necessary.
+
+This directive is only meaningful when in MIPS 16 mode.  Traditional
+@sc{mips} assemblers do not support this directive.
+
+@node MIPS insn
+@section Directive to mark data as an instruction
+
+@kindex @code{.insn}
+The @code{.insn} directive tells @code{@value{AS}} that the following
+data is actually instructions.  This makes a difference in MIPS 16 mode:
+when loading the address of a label which precedes instructions,
+@code{@value{AS}} automatically adds 1 to the value, so that jumping to
+the loaded address will do the right thing.
+
+@node MIPS option stack
+@section Directives to save and restore options
+
+@cindex MIPS option stack
+@kindex @code{.set push}
+@kindex @code{.set pop}
+The directives @code{.set push} and @code{.set pop} may be used to save
+and restore the current settings for all the options which are
+controlled by @code{.set}.  The @code{.set push} directive saves the
+current settings on a stack.  The @code{.set pop} directive pops the
+stack and restores the settings.
+
+These directives can be useful inside an macro which must change an
+option such as the ISA level or instruction reordering but does not want
+to change the state of the code which invoked the macro.
+
+Traditional @sc{mips} assemblers do not support these directives.

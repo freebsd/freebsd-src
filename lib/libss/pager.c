@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libss/pager.c,v 1.3.8.1 2000/09/20 09:49:17 jkh Exp $ */
 
 /*
  * Pager: Routines to create a "more" running out of a particular file

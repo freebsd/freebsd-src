@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/libperl/config.SH-elf.i386,v 1.15 2000/03/08 15:45:11 markm Exp $
 #
 
 # Package name      : perl5
@@ -12,7 +12,7 @@
 Author=''
 Date='$Date$'
 Header=''
-Id='$FreeBSD$'
+Id='$FreeBSD: src/gnu/usr.bin/perl/libperl/config.SH-elf.i386,v 1.15 2000/03/08 15:45:11 markm Exp $'
 Locker=''
 Mcc='Mcc'
 RCSfile='$RCSfile$'

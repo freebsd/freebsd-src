@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/net.h,v 1.1.1.1.6.2 2000/09/10 02:52:19 ps Exp $
  */
 
 #define NETIF_DEBUG 1

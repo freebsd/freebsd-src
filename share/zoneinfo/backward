@@ -1,5 +1,5 @@
 # @(#)backward	7.17
-# $FreeBSD$
+# $FreeBSD: src/share/zoneinfo/backward,v 1.1.2.4.2.1 2000/04/05 18:19:30 ru Exp $
 
 # This file provides links between current names for time zones
 # and their old names.  Many names changed in late 1993.

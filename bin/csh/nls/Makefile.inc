@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/Makefile.inc,v 1.2.2.1 2000/07/04 05:29:26 obrien Exp $
 
 GENCAT=         gencat -new
 BASESRC=        ${.CURDIR}/../../../../contrib/tcsh/nls

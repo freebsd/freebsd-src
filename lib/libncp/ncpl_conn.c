@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $FreeBSD$
+ *  $FreeBSD: src/lib/libncp/ncpl_conn.c,v 1.2 1999/10/29 12:59:59 bp Exp $
  */
 
 /*

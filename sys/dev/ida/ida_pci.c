@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ida/ida_pci.c,v 1.7.2.3 2000/07/27 22:27:39 jlemon Exp $
  */
 
 #include <sys/param.h>

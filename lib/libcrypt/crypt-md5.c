@@ -6,13 +6,13 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcrypt/crypt-md5.c,v 1.5 1999/12/17 20:21:45 peter Exp $
  *
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] = \
-"$FreeBSD$";
+"$FreeBSD: src/lib/libcrypt/crypt-md5.c,v 1.5 1999/12/17 20:21:45 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <unistd.h>

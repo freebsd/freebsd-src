@@ -32,11 +32,11 @@
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/defs.h,v 1.13 1999/09/05 17:49:11 peter Exp $
  */
 
 #ifdef  sgi
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sbin/routed/defs.h,v 1.13 1999/09/05 17:49:11 peter Exp $"
 #endif
 
 /* Definitions for RIPv2 routing process.

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/db/btree/bt_open.c,v 1.7 2000/01/27 23:06:07 jasone Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

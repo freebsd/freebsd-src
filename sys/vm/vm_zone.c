@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_zone.c,v 1.30.2.2 2000/08/04 18:58:42 peter Exp $
  */
 
 #include <sys/param.h>

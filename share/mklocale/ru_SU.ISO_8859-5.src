@@ -1,7 +1,7 @@
 /*
  * LOCALE_CTYPE for Russian part of ISO8859-5 set
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/ru_SU.ISO_8859-5.src,v 1.1 1999/10/03 00:56:29 ache Exp $
  */
 
 ENCODING	"NONE"

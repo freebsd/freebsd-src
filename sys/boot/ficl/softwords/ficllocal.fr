@@ -7,7 +7,7 @@
 \ locstate: 0 = looking for -- or }}
 \           1 = found --
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/ficllocal.fr,v 1.1 1999/09/29 04:43:15 dcs Exp $
 
 hide
 0 constant zero

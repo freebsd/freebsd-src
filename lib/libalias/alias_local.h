@@ -14,7 +14,7 @@
     
      <updated several times by original author and Eivind Eklund>
 
-    $FreeBSD$
+    $FreeBSD: src/lib/libalias/alias_local.h,v 1.10.2.2 2000/08/18 20:00:01 jhb Exp $
 */
 #ifndef ALIAS_LOCAL_H
 #define ALIAS_LOCAL_H

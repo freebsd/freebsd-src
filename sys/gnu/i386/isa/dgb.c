@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $FreeBSD$
+ *  dgb.c $FreeBSD: src/sys/gnu/i386/isa/dgb.c,v 1.56 2000/01/29 18:42:44 peter Exp $
  *
  *  Digiboard driver.
  *

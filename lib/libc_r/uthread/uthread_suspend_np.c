@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_suspend_np.c,v 1.7.2.2 2000/06/27 21:20:46 jasone Exp $
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE

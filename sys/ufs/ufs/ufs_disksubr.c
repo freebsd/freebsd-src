@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/ufs_disksubr.c,v 1.44 1999/09/13 12:59:41 bde Exp $
  */
 
 #include <sys/param.h>

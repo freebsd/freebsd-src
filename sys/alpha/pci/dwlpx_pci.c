@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/pci/dwlpx_pci.c,v 1.1.2.2 2000/07/10 03:26:19 mjacob Exp $ */
 /*
  * Copyright (c) 2000 Matthew Jacob
  * All rights reserved.

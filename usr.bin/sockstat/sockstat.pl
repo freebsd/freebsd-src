@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/sockstat/sockstat.pl,v 1.6.2.1 2000/09/17 20:02:53 des Exp $
 #
 
 my (%proto, %myaddr, %hisaddr);

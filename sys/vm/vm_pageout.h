@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_pageout.h,v 1.26 1999/12/29 04:55:11 peter Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/setdef0.c,v 1.2.2.1 2000/07/04 01:44:23 mjacob Exp $
  */
 
 #ifdef __ELF__

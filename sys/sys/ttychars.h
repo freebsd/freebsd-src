@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttychars.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ttychars.h,v 1.7 1999/08/28 00:52:06 peter Exp $
  */
 
 #ifndef _SYS_TTYCHARS_H_

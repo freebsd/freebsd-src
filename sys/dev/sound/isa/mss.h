@@ -260,7 +260,7 @@ MIX_NONE(SOUND_MIXER_LINE3),
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/mss.h,v 1.7.2.2 2000/07/19 21:18:15 cg Exp $
  */
 
 /*

@@ -1,6 +1,6 @@
 /*
  * readelf.h 
- * @(#)$FreeBSD$
+ * @(#)$FreeBSD: src/usr.bin/file/readelf.h,v 1.3 1999/08/28 01:01:02 peter Exp $
  *
  * Provide elf data structures for non-elf machines, allowing file
  * non-elf hosts to determine if an elf binary is stripped.

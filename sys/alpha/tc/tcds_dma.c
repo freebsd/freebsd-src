@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/tcds_dma.c,v 1.3 1999/10/05 20:46:58 n_hibma Exp $ */
 /*	$NetBSD: tcds_dma.c,v 1.6.4.1 1996/09/10 17:28:19 cgd Exp $	*/
 
 /*

@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_tei.c,v 1.17 1999/12/13 21:25:27 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer2/i4b_tei.c,v 1.6.2.1 2000/05/10 02:04:48 obrien Exp $
  *
  *      last edit-date: [Mon Dec 13 22:04:24 1999]
  *

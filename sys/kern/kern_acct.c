@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_acct.c,v 1.23 1999/12/15 23:01:54 eivind Exp $
  */
 
 #include <sys/param.h>

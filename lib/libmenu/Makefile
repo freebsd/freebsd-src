@@ -1,5 +1,5 @@
 # Makefile for libmenu
-# $FreeBSD$
+# $FreeBSD: src/lib/libmenu/Makefile,v 1.2.2.1 2000/05/25 09:54:28 tg Exp $
 
 NCURSES=${.CURDIR}/../../contrib/ncurses
 

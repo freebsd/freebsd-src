@@ -38,7 +38,7 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/linux/linprocfs/linprocfs_subr.c,v 1.3.2.2 2000/09/22 08:01:45 des Exp $
  */
 
 #include <sys/param.h>

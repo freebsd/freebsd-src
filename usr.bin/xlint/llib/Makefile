@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.2 1995/07/03 21:25:05 cgd Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/xlint/llib/Makefile,v 1.7 2000/01/16 08:25:40 sheldonh Exp $
 
 LIBS=	llib-lposix.ln llib-lstdc.ln
 

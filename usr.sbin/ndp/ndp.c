@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/ndp/ndp.c,v 1.2.2.2 2000/07/15 07:36:27 kris Exp $	*/
 /*	$KAME: ndp.c,v 1.41 2000/07/04 12:54:11 jinmei Exp $	*/
 
 /*

@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/asc.c,v 1.42.2.1 2000/08/08 19:49:53 peter Exp $
  */
 
 #include "asc.h"

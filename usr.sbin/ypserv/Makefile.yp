@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ypserv/Makefile.yp,v 1.28.2.2 2000/07/03 06:58:43 ps Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_find_thread.c,v 1.5 1999/08/28 00:03:32 peter Exp $
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE

@@ -22,7 +22,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  *
  * Written by John Gilmore, ihnp4!hoptoad!gnu, starting 25 Aug 85.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/tar/tar.c,v 1.19.2.1 2000/07/05 10:32:59 sheldonh Exp $
  */
 
 #include <stdio.h>

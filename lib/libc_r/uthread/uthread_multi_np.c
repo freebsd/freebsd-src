@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_multi_np.c,v 1.4 2000/01/12 09:28:46 jasone Exp $
  */
 #include <string.h>
 #ifdef _THREAD_SAFE

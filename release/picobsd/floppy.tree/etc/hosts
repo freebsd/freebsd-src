@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/floppy.tree/etc/hosts,v 1.1 2000/02/08 14:20:50 luigi Exp $
 # This file contains ip <-> hostname mapping.
 # It is also used for autoconfiguration based on Ethernet address
 # and other things. The initial part is just a standard /etc/hosts

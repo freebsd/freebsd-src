@@ -36,7 +36,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/nsphyreg.h,v 1.2 1999/08/28 00:42:16 peter Exp $
  */
 
 #ifndef _DEV_MII_NSPHYREG_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/natd/Makefile,v 1.4 1999/09/13 18:16:38 ru Exp $
 
 MAINTAINER	= ru@FreeBSD.org
 MAINTAINER     += ari@suutari.iki.fi

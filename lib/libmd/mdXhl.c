@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmd/mdXhl.c,v 1.13 1999/08/28 00:05:07 peter Exp $
  *
  */
 

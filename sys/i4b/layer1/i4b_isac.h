@@ -32,7 +32,7 @@
  *
  *	$Id: i4b_isac.h,v 1.2 1999/12/13 21:25:26 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_isac.h,v 1.6 1999/12/14 20:48:20 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 22:01:25 1999]
  *

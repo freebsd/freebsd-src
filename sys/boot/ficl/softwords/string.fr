@@ -10,7 +10,7 @@
 \   s" woof woof woof " str --> cat
 \   str --> type  cr
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/string.fr,v 1.1.2.1 2000/07/06 23:51:46 obrien Exp $
 
 .( loading ficl string class ) cr
 also oop definitions

@@ -31,7 +31,7 @@
  *
  * from: BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/debug.c,v 1.3 1999/09/29 20:09:17 marcel Exp $
  */
 
 

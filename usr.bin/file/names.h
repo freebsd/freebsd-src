@@ -10,7 +10,7 @@
  *
  * See LEGAL.NOTICE
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/file/names.h,v 1.6 1999/08/28 01:01:00 peter Exp $
  */
 
 /* these types are used to index the table 'types': keep em in sync! */

@@ -15,7 +15,7 @@
 static char id[] = "@(#)$Id: mci.c,v 8.133.10.3 2000/06/23 16:17:06 ca Exp $";
 #endif /* ! lint */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/src/mci.c,v 1.3.6.1 2000/08/27 17:31:27 gshapiro Exp $ */
 
 #include <sendmail.h>
 

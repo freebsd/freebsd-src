@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/build/Makefile.crunch,v 1.1 2000/02/08 08:27:55 luigi Exp $
 #
 SRC?=/usr/src
 CRUNCHFLAGS+= -DNOPAM -DRELEASE_CRUNCH -DNOSECURE -DNOCRYPT

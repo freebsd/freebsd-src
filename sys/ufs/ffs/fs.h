@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.13 (Berkeley) 3/21/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ffs/fs.h,v 1.14.2.1 2000/03/17 10:13:44 ps Exp $
  */
 
 #ifndef _UFS_FFS_FS_H_

@@ -40,7 +40,7 @@
  * to autoconf 2.12 to do this.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libncurses/ncurses_cfg.h,v 1.1.2.1 2000/07/10 09:54:51 ps Exp $ */
 
 #ifndef NC_CONFIG_H
 #define NC_CONFIG_H

@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 /*static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.2.2.1 1999/09/19 12:18:19 darrenr Exp $";*/
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/netinet/ip_proxy.c,v 1.10.2.1 2000/07/19 23:27:55 darrenr Exp $";
 #endif
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)

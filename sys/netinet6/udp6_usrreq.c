@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/udp6_usrreq.c,v 1.6.2.3 2000/08/03 00:09:37 ps Exp $	*/
 /*	$KAME: udp6_usrreq.c,v 1.11 2000/06/18 06:23:06 jinmei Exp $	*/
 
 /*

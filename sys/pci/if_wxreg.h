@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_wxreg.h,v 1.3.2.1 2000/06/16 22:58:03 mjacob Exp $
  */
 
 #define WX_VENDOR_INTEL		0x8086

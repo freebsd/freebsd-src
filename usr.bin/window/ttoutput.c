@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/window/ttoutput.c,v 1.1.1.1.14.1 2000/07/01 12:24:23 ps Exp $
  */
 
 #ifndef lint

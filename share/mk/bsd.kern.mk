@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.kern.mk,v 1.17 1999/11/17 07:30:35 obrien Exp $
 
 #
 # Warning flags for compiling the kernel and components of the kernel.

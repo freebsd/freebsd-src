@@ -3,7 +3,7 @@ dnl
 dnl And be careful when changing it!  If you must add tests with square
 dnl brackets, be sure changequote invocations surround it.
 dnl
-dnl $FreeBSD$
+dnl $FreeBSD: src/contrib/binutils/gas/configure.in,v 1.3.6.2 2000/07/07 05:33:43 obrien Exp $
 dnl
 dnl v2.5 needed for --bindir et al
 AC_PREREQ(2.13)

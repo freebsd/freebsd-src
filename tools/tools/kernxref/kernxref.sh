@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/kernxref/kernxref.sh,v 1.13 1999/08/28 00:54:30 peter Exp $
 #
 # This shellscript will make a cross reference of the symbols of the LINT 
 # kernel.

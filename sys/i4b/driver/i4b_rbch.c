@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_rbch.c,v 1.48 1999/12/13 21:25:24 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/driver/i4b_rbch.c,v 1.10 1999/12/14 20:48:13 hm Exp $
  *
  *	last edit-date: [Mon Dec 13 21:39:15 1999]
  *

@@ -2,7 +2,7 @@
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
-@c $FreeBSD$
+@c $FreeBSD: src/contrib/gcc/extend.texi,v 1.4 1999/10/27 09:41:10 obrien Exp $
 
 @node C Extensions
 @chapter Extensions to the C Language Family

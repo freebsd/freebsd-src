@@ -1,6 +1,6 @@
 # PicoBSD Makefile
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/build/Makefile,v 1.2 1999/12/20 02:07:42 grog Exp $
 #
 
 # Building a PicoBSD kernel involves four basic operations:

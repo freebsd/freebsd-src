@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/boot/biosboot/boot.c,v 1.21 1999/12/08 09:32:55 phk Exp $
  */
 
 

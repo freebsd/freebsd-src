@@ -35,7 +35,7 @@
  *
  *	@(#)term.h	8.1 (Berkeley) 6/4/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libedit/term.h,v 1.3.8.1 2000/08/16 14:43:40 ache Exp $
  */
 
 /*

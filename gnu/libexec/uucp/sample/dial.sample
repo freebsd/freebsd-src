@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/sample/dial.sample,v 1.4 1999/08/27 23:33:44 peter Exp $
 
 # This is an example of dial, the dialer configuration file for Taylor
 # UUCP.  To use it, you must compile the package with

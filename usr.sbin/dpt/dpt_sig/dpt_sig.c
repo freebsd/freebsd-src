@@ -30,7 +30,7 @@
 
 /* dpt_sig.c:  Dunp a DPT Signature */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/usr.sbin/dpt/dpt_sig/dpt_sig.c,v 1.3 1999/08/28 01:16:09 peter Exp $"
 
 #include <fcntl.h>
 #include <stdio.h>

@@ -24,7 +24,7 @@
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/callout.c,v 1.1.2.1 2000/07/15 07:36:35 kris Exp $
  */
 
 

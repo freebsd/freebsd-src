@@ -1,7 +1,7 @@
 /*
  * LOCALE_CTYPE for Ukrainian koi8-u character set (RFC2319)
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/uk_UA.KOI8-U.src,v 1.1.2.1 2000/04/23 15:13:30 phantom Exp $
  */
 ENCODING	"NONE"
 VARIABLE        Ukrainian koi8-u character set

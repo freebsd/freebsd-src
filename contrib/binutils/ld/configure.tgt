@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/binutils/ld/configure.tgt,v 1.4.6.2 2000/07/07 05:34:11 obrien Exp $
 
 # This is the linker target specific file.  This is invoked by the
 # autoconf generated configure script.  Putting it in a separate shell

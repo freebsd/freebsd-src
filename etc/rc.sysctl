@@ -2,7 +2,7 @@
 #
 # Read in /etc/sysctl.conf and set things accordingly
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.sysctl,v 1.4.4.1 2000/08/16 23:26:01 jhb Exp $
 
 if [ -f /etc/sysctl.conf ]; then
 	while read var comments

@@ -32,7 +32,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/adjkerntz/adjkerntz.c,v 1.25 1999/08/28 00:12:14 peter Exp $";
 #endif /* not lint */
 
 /*

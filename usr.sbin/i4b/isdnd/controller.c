@@ -29,7 +29,7 @@
  *
  *	$Id: controller.c,v 1.19 1999/12/13 21:25:24 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/controller.c,v 1.6 1999/12/14 21:07:26 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:45:34 1999]
  *

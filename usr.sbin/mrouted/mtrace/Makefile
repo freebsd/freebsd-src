@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mrouted/mtrace/Makefile,v 1.10 1999/08/28 01:17:15 peter Exp $
 
 PROG=	mtrace
 

@@ -18,7 +18,7 @@
 #the Free Software Foundation, 59 Temple Place - Suite 330,
 #Boston MA 02111-1307, USA.
 
-# $FreeBSD$
+# $FreeBSD: src/contrib/gcc/Makefile.in,v 1.4 1999/10/16 08:21:54 obrien Exp $
 
 # The targets for external use include:
 # all, doc, proto, install, install-cross, install-cross-rest,

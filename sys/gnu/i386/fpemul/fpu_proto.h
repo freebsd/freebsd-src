@@ -1,6 +1,6 @@
 /*
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/fpu_proto.h,v 1.8 1999/08/28 00:42:51 peter Exp $
  *
  */
 

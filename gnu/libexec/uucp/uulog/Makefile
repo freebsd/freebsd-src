@@ -1,5 +1,5 @@
 # Makefile for uulog
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uulog/Makefile,v 1.5 1999/08/27 23:33:56 peter Exp $
 
 BINDIR=		$(bindir)
 

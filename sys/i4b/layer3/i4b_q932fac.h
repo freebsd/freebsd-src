@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_q932fac.h,v 1.7 1999/12/13 21:25:28 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer3/i4b_q932fac.h,v 1.6 1999/12/14 20:48:33 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 22:06:00 1999]
  *

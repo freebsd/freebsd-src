@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/x2p/find2pl/Makefile,v 1.3 1999/08/27 23:36:34 peter Exp $
 #
 
 PROG=	find2perl

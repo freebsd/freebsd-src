@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_ch.c,v 1.20.2.1 2000/04/22 20:57:24 ken Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.

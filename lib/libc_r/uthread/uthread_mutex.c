@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_mutex.c,v 1.20.2.3 2000/08/13 16:54:58 alfred Exp $
  */
 #include <stdlib.h>
 #include <errno.h>

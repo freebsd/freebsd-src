@@ -14,7 +14,7 @@
  * 3. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/setproctitle.c,v 1.12.2.1 2000/09/16 22:47:17 brian Exp $
  */
 
 #include <sys/types.h>

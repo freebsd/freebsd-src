@@ -15,7 +15,7 @@
 static char id[] = "@(#)$Id: conf.c,v 8.646.2.2.2.23 2000/07/15 17:35:18 gshapiro Exp $";
 #endif /* ! lint */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/src/conf.c,v 1.5.2.1 2000/08/27 17:31:25 gshapiro Exp $ */
 
 #include <sendmail.h>
 #include <sendmail/pathnames.h>

@@ -12,7 +12,7 @@
     Version 1.7:  January 9, 1997
          Added differential checksum update function.
 
-    $FreeBSD$
+    $FreeBSD: src/lib/libalias/alias_util.c,v 1.4.2.1 2000/06/27 16:29:31 ru Exp $
 */
 
 /*

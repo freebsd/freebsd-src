@@ -1,5 +1,5 @@
 /* 
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/libalpha/srmnet.c,v 1.4 1999/09/06 18:32:40 dfr Exp $
  * From: $NetBSD: if_prom.c,v 1.10 1997/09/06 14:08:33 drochner Exp $ 
  */
 

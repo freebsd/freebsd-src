@@ -18,7 +18,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/c-tree.h,v 1.4 1999/10/16 08:34:33 obrien Exp $ */
 
 #ifndef _C_TREE_H
 #define _C_TREE_H

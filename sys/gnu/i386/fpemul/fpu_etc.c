@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/fpu_etc.c,v 1.8 1999/08/28 00:42:51 peter Exp $
  *
  */
 

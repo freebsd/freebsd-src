@@ -29,7 +29,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$FreeBSD$";
+static char *rcsid = "$FreeBSD: src/lib/libc/yp/yplib.c,v 1.34 2000/01/27 23:06:55 jasone Exp $";
 #endif
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 3/27/94
-# $FreeBSD$
+# $FreeBSD: src/sbin/mount_portal/Makefile,v 1.10 1999/08/28 00:13:34 peter Exp $
 
 PROG=	mount_portal
 SRCS=	mount_portal.c activate.c conf.c getmntopts.c pt_conf.c \

@@ -21,4 +21,4 @@ The following options are not implemented on Pentium CPUs:
 There is one mandatory argument, which must be the number of the counter.
 All numbers can be specified in any format acceptable to strtol(3).
 
-$FreeBSD$
+$FreeBSD: src/share/examples/perfmon/README,v 1.4 1999/08/28 00:19:26 peter Exp $

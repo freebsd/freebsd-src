@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/blowfish/bf_skey.c,v 1.1.2.1 2000/07/15 07:14:18 kris Exp $	*/
 /*	$KAME: bf_skey.c,v 1.3 2000/03/27 04:36:27 sumikawa Exp $	*/
 
 /* crypto/bf/bf_skey.c */

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_mutexattr_destroy.c,v 1.5 2000/01/12 09:28:47 jasone Exp $
  */
 #include <stdlib.h>
 #include <errno.h>

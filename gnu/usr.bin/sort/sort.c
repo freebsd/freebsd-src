@@ -19,7 +19,7 @@
    The author may be reached (Email) at the address mike@gnu.ai.mit.edu,
    or (US mail) as Mike Haertel c/o Free Software Foundation. */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/sort/sort.c,v 1.15.2.1 2000/08/17 06:56:30 jhb Exp $ */
 
 #include <config.h>
 

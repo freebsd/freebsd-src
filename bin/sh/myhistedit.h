@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)myhistedit.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/myhistedit.h,v 1.7 1999/08/27 23:15:19 peter Exp $
  */
 
 #include <histedit.h>

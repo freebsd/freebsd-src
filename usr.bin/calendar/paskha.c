@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/paskha.c,v 1.4.10.1 2000/08/07 01:47:56 ps Exp $
  */
 
 #include <stdio.h>

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)modes.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/stty/modes.c,v 1.8 1999/08/27 23:15:41 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

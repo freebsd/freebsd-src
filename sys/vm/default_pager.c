@@ -36,7 +36,7 @@
  * physically freed after having been cleaned and even then vm_page->swapblk
  * is maintained whenever a resident page also has swap backing store.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/default_pager.c,v 1.23 1999/11/07 20:03:53 alc Exp $
  */
 
 #include <sys/param.h>

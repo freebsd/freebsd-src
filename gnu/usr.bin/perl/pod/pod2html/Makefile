@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/pod/pod2html/Makefile,v 1.2 1999/08/27 23:36:20 peter Exp $
 #
 
 PROG=	pod2html

@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile.miidevs,v 1.1 1998/08/10 23:55:17 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/mii/Makefile.miidevs,v 1.2 1999/08/28 00:42:12 peter Exp $
 
 AWK=	awk
 

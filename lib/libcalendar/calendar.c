@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcalendar/calendar.c,v 1.3 1999/08/28 00:04:03 peter Exp $
  */
 
 #include "calendar.h"

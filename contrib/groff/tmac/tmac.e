@@ -39,7 +39,7 @@
 .\"			to provide variant functions.
 .\"		---	an internal macro.
 .\"
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/contrib/groff/tmac/tmac.e,v 1.4 2000/01/12 10:26:30 asmodai Exp $
 .\"
 .if !\n(.g .ig
 .de @R			\" --- initialize number register to 0, if undefined

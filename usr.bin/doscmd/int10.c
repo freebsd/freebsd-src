@@ -29,7 +29,7 @@
  *
  *	BSDI int10.c,v 2.3 1996/04/08 19:32:40 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/int10.c,v 1.3 1999/09/29 20:09:18 marcel Exp $
  */
 
 #include "doscmd.h"

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #	PC-card startup script
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.pccard,v 1.20 1999/12/02 19:48:15 imp Exp $
 
 case ${pccard_enable} in
 [Yy][Ee][Ss])

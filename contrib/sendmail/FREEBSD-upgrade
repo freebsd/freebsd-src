@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/sendmail/FREEBSD-upgrade,v 1.1.2.1 2000/08/27 17:30:58 gshapiro Exp $
 
 sendmail 8.11.0
 	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/

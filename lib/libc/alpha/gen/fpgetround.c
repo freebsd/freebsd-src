@@ -1,5 +1,5 @@
 /*	$NetBSD: fpgetround.c,v 1.1 1995/04/29 05:09:55 cgd Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/alpha/gen/fpgetround.c,v 1.2.6.1 2000/08/17 08:08:15 jhb Exp $ */
 
 /*
  * Copyright (c) 1995 Christopher G. Demetriou

@@ -1,5 +1,5 @@
 /*	$NetBSD: frexp.c,v 1.1 1995/02/10 17:50:22 cgd Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/alpha/gen/frexp.c,v 1.1.1.1.6.1 2000/08/21 21:09:28 jhb Exp $ */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.

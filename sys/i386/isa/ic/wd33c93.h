@@ -27,7 +27,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ic/wd33c93.h,v 1.2.8.1 2000/08/03 01:01:26 peter Exp $
  */
 
 #ifndef	_WD33C93REG_H_

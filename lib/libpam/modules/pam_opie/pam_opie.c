@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libpam/modules/pam_opie/pam_opie.c,v 1.1 2000/04/17 00:14:42 kris Exp $
  */
 
 #include <syslog.h>	/* XXX */

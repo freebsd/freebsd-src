@@ -812,4 +812,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner Losh (imp@village.org) so
 that the style, formatting, etc of this file can be maintained.
 
-$FreeBSD$
+$FreeBSD: src/UPDATING,v 1.73.2.18 2000/09/13 18:50:54 imp Exp $

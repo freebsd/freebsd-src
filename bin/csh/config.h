@@ -7,7 +7,7 @@
  * Edit this to match your system type.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/bin/csh/config.h,v 1.5.2.1 2000/07/04 05:29:25 obrien Exp $ */
 
 #ifndef _h_config
 #define _h_config

@@ -78,7 +78,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/ping6/ping6.c,v 1.4.2.2 2000/08/23 08:48:36 kris Exp $";
 #endif /* not lint */
 
 /*

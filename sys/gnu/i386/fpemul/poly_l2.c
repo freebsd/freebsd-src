@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/poly_l2.c,v 1.10 1999/08/28 00:42:53 peter Exp $
  *
  */
 

@@ -73,7 +73,7 @@
 #
 #The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
 #Leland Stanford Junior University.
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pim6sd/Makefile,v 1.2.2.3 2000/07/15 07:36:35 kris Exp $
 
 PROG=	pim6sd
 SRCS=	mld6.c mld6_proto.c\

@@ -15,7 +15,7 @@
 static char id[] = "@(#)$Id: err.c,v 8.120.4.1 2000/05/25 18:56:15 gshapiro Exp $";
 #endif /* ! lint */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/src/err.c,v 1.3.6.1 2000/08/27 17:31:27 gshapiro Exp $ */
 
 #include <sendmail.h>
 #ifdef LDAPMAP

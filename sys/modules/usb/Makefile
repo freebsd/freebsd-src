@@ -1,4 +1,4 @@
-#       $FreeBSD$ 
+#       $FreeBSD: src/sys/modules/usb/Makefile,v 1.7 2000/01/28 11:26:40 bde Exp $ 
 
 MAINTAINER	 = n_hibma@freebsd.org
 S		 = ${.CURDIR}/../..

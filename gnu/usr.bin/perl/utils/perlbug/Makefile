@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/utils/perlbug/Makefile,v 1.3 1999/08/27 23:36:28 peter Exp $
 #
 
 PROG=	perlbug

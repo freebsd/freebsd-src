@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/lib/libstdc++/_G_config.h,v 1.9 2000/01/25 12:23:13 obrien Exp $ */
 
 /* XXX _G_VTABLE_LABEL_PREFIX is different between ELF and a.out */
 

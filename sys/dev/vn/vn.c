@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vn/vn.c,v 1.105.2.1 2000/05/15 16:50:33 dillon Exp $
  */
 
 /*

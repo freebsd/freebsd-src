@@ -1,5 +1,5 @@
 /*	$NetBSD: search.h,v 1.12 1999/02/22 10:34:28 christos Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/include/search.h,v 1.3.2.1 2000/08/17 07:38:34 jhb Exp $ */
 
 /*
  * Written by J.T. Conklin <jtc@netbsd.org>

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/solo.c,v 1.9.2.2 2000/08/20 00:34:12 cg Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

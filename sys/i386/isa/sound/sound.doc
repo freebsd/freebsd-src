@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/i386/isa/sound/sound.doc,v 1.12 1999/08/28 00:45:20 peter Exp $
 
 Instructions on using audio on a FreeBSD 2.1 (or 2.0-current) system.
 See also /sys/i386/conf/LINT.

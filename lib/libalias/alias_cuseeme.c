@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libalias/alias_cuseeme.c,v 1.2.2.1 2000/09/21 06:56:34 ru Exp $
  */
 
 #include <sys/types.h>

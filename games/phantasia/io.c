@@ -1,7 +1,7 @@
 /*
  * io.c - input/output routines for Phantasia
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/phantasia/io.c,v 1.6 1999/11/16 02:57:33 billf Exp $
  */
 
 #include <string.h>

@@ -2,7 +2,7 @@
 
 			KAME Project
 			http://www.kame.net/newsletter/
-			$FreeBSD$
+			$FreeBSD: src/share/examples/IPv6/USAGE,v 1.1 2000/02/26 19:44:12 shin Exp $
 
 This is a introduction of how to use the commands provided in the KAME
 kit.  For more information, please refer to each man page.

@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)random.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/rogue/random.c,v 1.6 1999/11/30 03:49:26 billf Exp $";
 #endif /* not lint */
 
 #include "rogue.h"

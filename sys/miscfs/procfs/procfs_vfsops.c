@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_vfsops.c,v 1.32 1999/12/19 06:07:50 rwatson Exp $
  */
 
 /*

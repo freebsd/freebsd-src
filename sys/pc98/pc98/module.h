@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pc98/pc98/module.h,v 1.1.1.1.10.1 2000/05/05 09:16:11 nyan Exp $ */
 
 #define	LINE30_ROW	30
 #define	_HS	1 + 1
