@@ -78,9 +78,10 @@ do
                     output=TRUE
                     processed=$(($processed + 1))
                     $file </dev/null >$tmp_output 2>&1
+                    rc=$?
                     if [ -s $tmp_output ]
                     then
-                      case $? in
+                      case $rc in
                       0)  [ $success = NO ] && output=FALSE;;
                       1)  [ $info = NO ] && output=FALSE;;
                       2)  [ $badconfig = NO ] && output=FALSE;;
