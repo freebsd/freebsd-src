@@ -168,6 +168,7 @@ main(int argc, char *argv[])
 	char *p, *ttyn;
 	char tname[sizeof(_PATH_TTY) + 10];
 	char *arg0;
+	const char *tp;
 	const char *shell = NULL;
 	login_cap_t *lc = NULL;
 	pid_t pid;
@@ -529,7 +530,13 @@ main(int argc, char *argv[])
 
 	(void)setenv("SHELL", pwd->pw_shell, 1);
 	(void)setenv("HOME", pwd->pw_dir, 1);
-	(void)setenv("TERM", stypeof(tty), 0);
+	/* Overwrite "term" from login.conf(5) for any known TERM */
+	if (term != NULL)
+		(void)setenv("TERM", term, 1);
+	else if ((tp = stypeof(tty)) != NULL)
+		(void)setenv("TERM", tp, 1);
+	else
+		(void)setenv("TERM", TERM_UNKNOWN, 0);
 	(void)setenv("LOGNAME", username, 1);
 	(void)setenv("USER", username, 1);
 	(void)setenv("PATH", rootlogin ? _PATH_STDPATH : _PATH_DEFPATH, 0);
@@ -849,7 +856,7 @@ stypeof(char *ttyid)
 		if (t != NULL && t->ty_type != NULL)
 			return (t->ty_type);
 	}
-	return (TERM_UNKNOWN);
+	return (NULL);
 }
 
 void
