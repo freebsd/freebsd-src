@@ -674,7 +674,7 @@ ar_done(struct buf *bp)
 		    else
 			buf->drive = buf->drive - rdp->width;
 		    buf->bp.b_dev = AD_SOFTC(rdp->disks[buf->drive])->dev;
-		    buf->bp.b_flags = buf->org->b_flags;
+		    buf->bp.b_flags = buf->org->b_flags | B_CALL;
 		    buf->bp.b_error = 0;
 		    AR_STRATEGY((struct buf *)buf);
 		    return;
