@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.13 1996/04/01 11:13:00 asami Exp $
+#	$Id: bsd.port.subdir.mk,v 1.14 1996/04/09 22:54:13 wosch Exp $
 
 .MAIN: all
 
@@ -7,6 +7,9 @@
 STRIP?=	-s
 .endif
 
+.if !defined(OPSYS)	# XXX !!
+OPSYS!=	uname -s
+.endif
 
 ECHO_MSG?=	echo
 
@@ -71,7 +74,11 @@ readme:
 	@make README.html
 .endif
 
+.if (${OPSYS} == "NetBSD")
+PORTSDIR ?= /usr/opt
+.else
 PORTSDIR ?= /usr/ports
+.endif
 TEMPLATES ?= ${PORTSDIR}/templates
 .if defined(PORTSTOP)
 README=	${TEMPLATES}/README.top
