@@ -72,11 +72,14 @@ sn_pccard_attach(device_t dev)
 	u_char sum;
 	u_char ether_addr[ETHER_ADDR_LEN];
 
+	sc->pccard_enaddr = 0;
 	pccard_get_ether(dev, ether_addr);
 	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
 		sum |= ether_addr[i];
-	if (sum)
+	if (sum) {
+		sc->pccard_enaddr = 1;
 		bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	}
 
 	return (sn_attach(dev));
 }
