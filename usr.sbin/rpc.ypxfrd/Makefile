@@ -1,8 +1,8 @@
-# $Id: Makefile,v 1.4 1996/06/03 04:48:32 wpaul Exp $
+# $Id: Makefile,v 1.1.1.1 1996/06/05 04:36:54 wpaul Exp $
 
 PROG=	rpc.ypxfrd
 SRCS=	ypxfrd_svc.c ypxfrd_server.c yp_error.c \
-	ypxfrd_xdr.c yp_access.c ypxfrd_main.c
+	yp_access.c ypxfrd_main.c
 
 RPCDIR=	${.CURDIR}/../../include/rpcsvc
 
