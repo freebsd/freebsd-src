@@ -33,7 +33,7 @@
  */
 
 #define WI_DELAY	5
-#define WI_TIMEOUT	(500000/WI_DELAY)	/* 500 ms */
+#define WI_TIMEOUT	(10000/WI_DELAY)	/* 10 ms */
 
 #define WI_PORT0	0
 #define WI_PORT1	1

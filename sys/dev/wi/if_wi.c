@@ -986,6 +986,7 @@ wi_cmd(sc, cmd, val0, val1, val2)
 {
 	int			i, s = 0;
 	static volatile int count  = 0;
+	int			tmo = WI_TIMEOUT;
 	
 	if (count > 1)
 		panic("Hey partner, hold on there!");
@@ -1009,7 +1010,9 @@ wi_cmd(sc, cmd, val0, val1, val2)
 	CSR_WRITE_2(sc, WI_PARAM2, val2);
 	CSR_WRITE_2(sc, WI_COMMAND, cmd);
 
-	for (i = 0; i < WI_TIMEOUT; i++) {
+	if (cmd == WI_CMD_INI)
+		tmo *= 50;
+	for (i = 0; i < tmo; i++) {
 		/*
 		 * Wait for 'command complete' bit to be
 		 * set in the event status register.
@@ -1896,7 +1899,7 @@ wi_ioctl(ifp, command, data)
 			goto out;
 		switch(ireq->i_type) {
 		case IEEE80211_IOC_SSID:
-			if (ireq->i_val != 0 ||
+			if (ireq->i_val > 0 ||
 			    ireq->i_len > IEEE80211_NWID_LEN) {
 				error = EINVAL;
 				break;
