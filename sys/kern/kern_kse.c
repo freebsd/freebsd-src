@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/smp.h>
 #include <sys/sysproto.h>
 #include <sys/sched.h>
@@ -123,7 +124,6 @@ upcall_remove(struct thread *td)
 	}
 }
 
-
 #ifndef _SYS_SYSPROTO_H_
 struct kse_switchin_args {
 	struct kse_thr_mailbox *tmbx;
@@ -149,11 +149,25 @@ kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 	if (!error)
 		error = set_mcontext(td, &tmbx.tm_context.uc_mcontext);
 	if (!error) {
+		suword32(&uap->tmbx->tm_lwp, td->td_tid);
 		if (uap->flags & KSE_SWITCHIN_SETTMBX) {
 			td->td_mailbox = uap->tmbx;
 			mtx_lock_spin(&sched_lock);
 			td->td_flags |= TDF_CAN_UNBIND;
 			mtx_unlock_spin(&sched_lock);
+		}
+		if (td->td_proc->p_flag & P_TRACED) {
+			if (tmbx.tm_dflags & TMDF_SSTEP)
+				ptrace_single_step(td);
+			else
+				ptrace_clear_single_step(td);
+			if (tmbx.tm_dflags & TMDF_DONOTRUNUSER) {
+				mtx_lock_spin(&sched_lock);
+				/* fuword can block, check again */
+				if (td->td_upcall)
+					ku->ku_flags |= KUF_DOUPCALL;
+				mtx_unlock_spin(&sched_lock);
+			}
 		}
 	}
 	return ((error == 0) ? EJUSTRETURN : error);
@@ -282,7 +296,7 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	 * If that fails then just go for a segfault.
 	 * XXX need to check it that can be deliverred without a mailbox.
 	 */
-	error = suword(&ku->ku_mailbox->km_flags, ku->ku_mflags|KMF_DONE);
+	error = suword32(&ku->ku_mailbox->km_flags, ku->ku_mflags|KMF_DONE);
 	PROC_LOCK(p);
 	if (error)
 		psignal(p, SIGSEGV);
@@ -338,7 +352,7 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	if (td->td_pflags & TDP_SA)
 		td->td_pflags |= TDP_UPCALLING;
 	else {
-		ku->ku_mflags = fuword(&ku->ku_mailbox->km_flags);
+		ku->ku_mflags = fuword32(&ku->ku_mailbox->km_flags);
 		if (ku->ku_mflags == -1) {
 			PROC_LOCK(p);
 			sigexit(td, SIGSEGV);
@@ -470,8 +484,12 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		ncpus = virtual_cpu;
 	if (!(mbx.km_flags & KMF_BOUND))
 		sa = TDP_SA;
-	else
+	else {
+		if (mbx.km_curthread == NULL)
+			return (EINVAL);
 		ncpus = 1;
+	}
+
 	PROC_LOCK(p);
 	if (!(p->p_flag & P_SA)) {
 		first = 1;
@@ -610,20 +628,26 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 			newtd = thread_schedule_upcall(td, newku);
 		}
 	}
+	mtx_unlock_spin(&sched_lock);
+	suword32(&newku->ku_mailbox->km_lwp, newtd->td_tid);
+	if (mbx.km_curthread)
+		suword32(&mbx.km_curthread->tm_lwp, newtd->td_tid);
 	if (!sa) {
 		newtd->td_mailbox = mbx.km_curthread;
 		newtd->td_pflags &= ~TDP_SA;
 		if (newtd != td) {
-			mtx_unlock_spin(&sched_lock);
 			cpu_set_upcall_kse(newtd, newku);
-			mtx_lock_spin(&sched_lock);
+			if (p->p_flag & P_TRACED)
+				ptrace_clear_single_step(newtd);
 		}
 	} else {
 		newtd->td_pflags |= TDP_SA;
 	}
-	if (newtd != td)
+	if (newtd != td) {
+		mtx_lock_spin(&sched_lock);
 		setrunqueue(newtd);
-	mtx_unlock_spin(&sched_lock);
+		mtx_unlock_spin(&sched_lock);
+	}
 	return (0);
 }
 
@@ -694,21 +718,6 @@ thread_export_context(struct thread *td, int willexit)
 	p = td->td_proc;
 	kg = td->td_ksegrp;
 
-	/* Export the user/machine context. */
-	get_mcontext(td, &mc, 0);
-	addr = (void *)(&td->td_mailbox->tm_context.uc_mcontext);
-	error = copyout(&mc, addr, sizeof(mcontext_t));
-	if (error)
-		goto bad;
-
-	/* Exports clock ticks in kernel mode */
-	addr = (caddr_t)(&td->td_mailbox->tm_sticks);
-	temp = fuword32(addr) + td->td_usticks;
-	if (suword32(addr, temp)) {
-		error = EFAULT;
-		goto bad;
-	}
-
 	/*
 	 * Post sync signal, or process SIGKILL and SIGSTOP.
 	 * For sync signal, it is only possible when the signal is not
@@ -727,6 +736,27 @@ thread_export_context(struct thread *td, int willexit)
 	if (willexit)
 		SIGFILLSET(td->td_sigmask);
 	PROC_UNLOCK(p);
+
+	/* Export the user/machine context. */
+	get_mcontext(td, &mc, 0);
+	addr = (void *)(&td->td_mailbox->tm_context.uc_mcontext);
+	error = copyout(&mc, addr, sizeof(mcontext_t));
+	if (error)
+		goto bad;
+
+	/* Exports clock ticks in kernel mode */
+	addr = (caddr_t)(&td->td_mailbox->tm_sticks);
+	temp = fuword32(addr) + td->td_usticks;
+	if (suword32(addr, temp)) {
+		error = EFAULT;
+		goto bad;
+	}
+
+	addr = (caddr_t)(&td->td_mailbox->tm_lwp);
+	if (suword32(addr, 0)) {
+		error = EFAULT;
+		goto bad;
+	}
 
 	/* Get address in latest mbox of list pointer */
 	addr = (void *)(&td->td_mailbox->tm_next);
@@ -812,18 +842,8 @@ thread_statclock(int user)
 		td->td_flags |= (TDF_USTATCLOCK|TDF_ASTPENDING);
 		mtx_unlock_spin(&sched_lock);
 		td->td_uuticks++;
-	} else {
-		if (td->td_mailbox != NULL)
-			td->td_usticks++;
-		else {
-			/* XXXKSE
-		 	 * We will call thread_user_enter() for every
-			 * kernel entry in future, so if the thread mailbox
-			 * is NULL, it must be a UTS kernel, don't account
-			 * clock ticks for it.
-			 */
-		}
-	}
+	} else if (td->td_mailbox != NULL)
+		td->td_usticks++;
 	return (0);
 }
 
@@ -955,14 +975,14 @@ thread_signal_add(struct thread *td, int sig)
 
 	cpu_thread_siginfo(sig, 0, &siginfo);
 	mtx_unlock(&ps->ps_mtx);
+	SIGADDSET(td->td_sigmask, sig);
 	PROC_UNLOCK(p);
 	error = copyout(&siginfo, &td->td_mailbox->tm_syncsig, sizeof(siginfo));
 	if (error) {
 		PROC_LOCK(p);
-		sigexit(td, SIGILL);
+		sigexit(td, SIGSEGV);
 	}
 	PROC_LOCK(p);
-	SIGADDSET(td->td_sigmask, sig);
 	mtx_lock(&ps->ps_mtx);
 }
 
@@ -1002,7 +1022,6 @@ thread_switchout(struct thread *td)
 
 /*
  * Setup done on the thread when it enters the kernel.
- * XXXKSE Presently only for syscalls but eventually all kernel entries.
  */
 void
 thread_user_enter(struct proc *p, struct thread *td)
@@ -1010,15 +1029,13 @@ thread_user_enter(struct proc *p, struct thread *td)
 	struct ksegrp *kg;
 	struct kse_upcall *ku;
 	struct kse_thr_mailbox *tmbx;
-	uint32_t tflags;
-
-	kg = td->td_ksegrp;
+	uint32_t flags;
 
 	/*
 	 * First check that we shouldn't just abort.
 	 * But check if we are the single thread first!
 	 */
-	if (p->p_flag & P_SINGLE_EXIT) {
+	if (__predict_false(p->p_flag & P_SINGLE_EXIT)) {
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		thread_stopped(p);
@@ -1026,41 +1043,53 @@ thread_user_enter(struct proc *p, struct thread *td)
 		/* NOTREACHED */
 	}
 
+	if (!(td->td_pflags & TDP_SA))
+		return;
+
 	/*
 	 * If we are doing a syscall in a KSE environment,
-	 * note where our mailbox is. There is always the
-	 * possibility that we could do this lazily (in kse_reassign()),
-	 * but for now do it every time.
+	 * note where our mailbox is.
 	 */
+
 	kg = td->td_ksegrp;
-	if (td->td_pflags & TDP_SA) {
-		ku = td->td_upcall;
-		KASSERT(ku, ("%s: no upcall owned", __func__));
-		KASSERT((ku->ku_owner == td), ("%s: wrong owner", __func__));
-		KASSERT(!TD_CAN_UNBIND(td), ("%s: can unbind", __func__));
-		ku->ku_mflags = fuword32((void *)&ku->ku_mailbox->km_flags);
-		tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
-		if ((tmbx == NULL) || (tmbx == (void *)-1L) ||
-		    (ku->ku_mflags & KMF_NOUPCALL)) {
+	ku = td->td_upcall;
+
+	KASSERT(ku != NULL, ("no upcall owned"));
+	KASSERT(ku->ku_owner == td, ("wrong owner"));
+	KASSERT(!TD_CAN_UNBIND(td), ("can unbind"));
+
+	ku->ku_mflags = fuword32((void *)&ku->ku_mailbox->km_flags);
+	tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
+	if ((tmbx == NULL) || (tmbx == (void *)-1L) ||
+	    (ku->ku_mflags & KMF_NOUPCALL)) {
+		td->td_mailbox = NULL;
+	} else {
+		if (td->td_standin == NULL)
+			thread_alloc_spare(td, NULL);
+		flags = fuword32(&tmbx->tm_flags);
+		/*
+		 * On some architectures, TP register points to thread
+		 * mailbox but not points to kse mailbox, and userland
+		 * can not atomically clear km_curthread, but can
+		 * use TP register, and set TMF_NOUPCALL in thread
+		 * flag	to indicate a critical region.
+		 */
+		if (flags & TMF_NOUPCALL) {
 			td->td_mailbox = NULL;
 		} else {
-			if (td->td_standin == NULL)
-				thread_alloc_spare(td, NULL);
-			tflags = fuword32(&tmbx->tm_flags);
-			/*
-			 * On some architectures, TP register points to thread
-			 * mailbox but not points to kse mailbox, and userland
-			 * can not atomically clear km_curthread, but can
-			 * use TP register, and set TMF_NOUPCALL in thread
-			 * flag	to indicate a critical region.
-			 */
-			if (tflags & TMF_NOUPCALL) {
-				td->td_mailbox = NULL;
-			} else {
-				td->td_mailbox = tmbx;
-				mtx_lock_spin(&sched_lock);
-				td->td_flags |= TDF_CAN_UNBIND;
-				mtx_unlock_spin(&sched_lock);
+			td->td_mailbox = tmbx;
+			mtx_lock_spin(&sched_lock);
+			td->td_flags |= TDF_CAN_UNBIND;
+			mtx_unlock_spin(&sched_lock);
+			if (__predict_false(p->p_flag & P_TRACED)) {
+				flags = fuword32(&tmbx->tm_dflags);
+				if (flags & TMDF_DONOTRUNUSER) {
+					mtx_lock_spin(&sched_lock);
+					/* fuword can block, check again */
+					if (td->td_upcall)
+						ku->ku_flags |= KUF_DOUPCALL;
+					mtx_unlock_spin(&sched_lock);
+				}
 			}
 		}
 	}
@@ -1081,11 +1110,11 @@ thread_user_enter(struct proc *p, struct thread *td)
 int
 thread_userret(struct thread *td, struct trapframe *frame)
 {
-	int error = 0, upcalls, uts_crit;
 	struct kse_upcall *ku;
 	struct ksegrp *kg, *kg2;
 	struct proc *p;
 	struct timespec ts;
+	int error = 0, upcalls, uts_crit;
 
 	p = td->td_proc;
 	kg = td->td_ksegrp;
@@ -1105,10 +1134,17 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		mtx_lock_spin(&sched_lock);
 		td->td_flags &= ~TDF_USTATCLOCK;
 		mtx_unlock_spin(&sched_lock);
-		if (kg->kg_completed ||
-		    (td->td_upcall->ku_flags & KUF_DOUPCALL))
-			thread_user_enter(p, td);
 	}
+
+	/*
+	 * Check if we should unbind and schedule upcall
+	 * after returned from interrupt or etcs, this
+	 * is usually true when process is being debugged.
+	 */
+	if (td->td_mailbox == NULL && ku != NULL &&
+	    !(td->td_pflags & TDP_UPCALLING) &&
+	    (kg->kg_completed || ku->ku_flags & KUF_DOUPCALL))
+		thread_user_enter(p, td);
 
 	uts_crit = (td->td_mailbox == NULL);
 	/*
@@ -1214,6 +1250,12 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 */
 		if (!(ku->ku_mflags & KMF_NOUPCALL)) {
 			cpu_set_upcall_kse(td, ku);
+			if (p->p_flag & P_TRACED)
+				ptrace_clear_single_step(td);
+			error = suword32(&ku->ku_mailbox->km_lwp,
+			                 td->td_tid);
+			if (error)
+				goto out;
 			error = suword(&ku->ku_mailbox->km_curthread, 0);
 			if (error)
 				goto out;
@@ -1277,3 +1319,39 @@ thread_upcall_check(struct thread *td)
 		return (0);
 }
 
+/*
+ * called after ptrace resumed a process, force all
+ * virtual CPUs to schedule upcall for SA process,
+ * because debugger may have changed something in userland,
+ * we should notice UTS as soon as possible.
+ */
+void
+thread_continued(struct proc *p)
+{
+	struct ksegrp *kg;
+	struct kse_upcall *ku;
+	struct thread *td;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	if (!(p->p_flag & P_SA))
+		return;
+
+	if (p->p_flag & P_TRACED) {
+		FOREACH_KSEGRP_IN_PROC(p, kg) {
+			td = TAILQ_FIRST(&kg->kg_threads);
+			if (td == NULL)
+				continue;
+			/* not a SA group, nothing to do */
+			if (!(td->td_pflags & TDP_SA))
+				continue;
+			FOREACH_UPCALL_IN_GROUP(kg, ku) {
+				ku->ku_flags |= KUF_DOUPCALL;
+				if (TD_IS_SUSPENDED(ku->ku_owner)) {
+					thread_unsuspend_one(ku->ku_owner);
+				}	
+			}
+		}
+	}
+}
