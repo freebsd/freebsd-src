@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 113 $
+ *              $Revision: 114 $
  *
  *****************************************************************************/
 
@@ -165,6 +165,17 @@ AcpiExDecodeFieldAccess (
     case AML_FIELD_ACCESS_ANY:
 
         ByteAlignment = 1;
+        BitLength = 8;
+
+#if 0
+        /*
+         * TBD: optimize
+         *
+         * Any attempt to optimize the access size to the size of the field
+         * must take into consideration the length of the region and take
+         * care that an access to the field will not attempt to access
+         * beyond the end of the region.
+         */
 
         /* Use the length to set the access type */
 
@@ -190,6 +201,7 @@ AcpiExDecodeFieldAccess (
 
             BitLength = 8;
         }
+#endif
         break;
 
     case AML_FIELD_ACCESS_BYTE:

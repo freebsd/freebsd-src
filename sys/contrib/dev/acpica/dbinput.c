@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 80 $
+ *              $Revision: 81 $
  *
  ******************************************************************************/
 
@@ -839,7 +839,7 @@ AcpiDbCommandDispatch (
  *
  ******************************************************************************/
 
-void
+void ACPI_SYSTEM_XFACE
 AcpiDbExecuteThread (
     void                    *Context)
 {

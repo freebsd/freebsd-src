@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acevents.h - Event subcomponent prototypes and defines
- *       $Revision: 74 $
+ *       $Revision: 75 $
  *
  *****************************************************************************/
 
@@ -173,7 +173,7 @@ AcpiEvQueueNotifyRequest (
     ACPI_NAMESPACE_NODE     *Node,
     UINT32                  NotifyValue);
 
-void
+void ACPI_SYSTEM_XFACE
 AcpiEvNotifyDispatch (
     void                    *Context);
 

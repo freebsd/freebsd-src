@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default OpRegion (address space) handlers
- *              $Revision: 71 $
+ *              $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -161,6 +161,8 @@ AcpiExSystemMemorySpaceHandler (
     void                    *LogicalAddrPtr = NULL;
     ACPI_MEM_SPACE_CONTEXT  *MemInfo = RegionContext;
     UINT32                  Length;
+    UINT32                  WindowSize;
+    UINT32                  Remaining;
 
 
     ACPI_FUNCTION_TRACE ("ExSystemMemorySpaceHandler");
@@ -192,7 +194,6 @@ AcpiExSystemMemorySpaceHandler (
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
     }
 
-
     /*
      * Does the request fit into the cached memory mapping?
      * Is 1) Address below the current mapping? OR
@@ -214,23 +215,35 @@ AcpiExSystemMemorySpaceHandler (
                                 MemInfo->MappedLength);
         }
 
-        MemInfo->MappedLength = 0;  /* In case of failure below */
-
+        /* 
+         * Don't attempt to map memory beyond the end of the region, and
+         * constrain the maximum mapping size to something reasonable.
+         */
+        Remaining = (UINT32) ((MemInfo->Address + (ACPI_PHYSICAL_ADDRESS) MemInfo->Length) - Address);
+        if (Remaining > SYSMEM_REGION_WINDOW_SIZE)
+        {
+            WindowSize = SYSMEM_REGION_WINDOW_SIZE;
+        }
+        else
+        {
+            WindowSize = Remaining;
+        }
+     
         /* Create a new mapping starting at the address given */
 
-        Status = AcpiOsMapMemory (Address, SYSMEM_REGION_WINDOW_SIZE,
+        Status = AcpiOsMapMemory (Address, WindowSize,
                                     (void **) &MemInfo->MappedLogicalAddress);
         if (ACPI_FAILURE (Status))
         {
+            MemInfo->MappedLength = 0;
             return_ACPI_STATUS (Status);
         }
 
         /* Save the physical address and mapping size */
 
         MemInfo->MappedPhysicalAddress = Address;
-        MemInfo->MappedLength = SYSMEM_REGION_WINDOW_SIZE;
+        MemInfo->MappedLength = WindowSize;
     }
-
 
     /*
      * Generate a logical pointer corresponding to the address we want to

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 223 $
+ *       $Revision: 224 $
  *
  *****************************************************************************/
 
@@ -868,6 +868,8 @@ typedef struct
 
 typedef struct
 {
+    UINT32                      Length;
+    ACPI_PHYSICAL_ADDRESS       Address;
     ACPI_PHYSICAL_ADDRESS       MappedPhysicalAddress;
     UINT8                       *MappedLogicalAddress;
     UINT32                      MappedLength;

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 60 $
+ *              $Revision: 61 $
  *
  *****************************************************************************/
 
@@ -560,8 +560,8 @@ AcpiDsLoad2EndOp (
     ACPI_FUNCTION_NAME ("DsLoad2EndOp");
 
     Op = WalkState->Op;
-    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Opcode [%4.4X] Op %p State %p\n",
-            Op->Opcode, Op, WalkState));
+    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Opcode [%s] Op %p State %p\n",
+            WalkState->OpInfo->Name, Op, WalkState));
 
     /* Only interested in opcodes that have namespace objects */
 
