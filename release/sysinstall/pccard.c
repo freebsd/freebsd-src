@@ -223,7 +223,7 @@ pccardInitialize(void)
 	    restorescr(w);
 	    return;
 	}
-	beep_newstat = 1;
+	beep_newstat = 2;
 	if (ioctl(fd, PIOCSBEEP, &beep_newstat) < 0) {
 	    msgNotify("Warning: unable to set pccard insertion beep type for %s",
 		card_device);
