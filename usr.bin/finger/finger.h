@@ -45,6 +45,8 @@ typedef struct person {
 	char *officephone;		/* pointer to office phone no. */
 	char *realname;			/* pointer to full name */
 	char *shell;			/* user's shell */
+	time_t mailread;		/* last time mail was read */
+	time_t mailrecv;		/* last time mail was received */
 	struct where *whead, *wtail;	/* list of where user is or has been */
 } PERSON;
 

@@ -34,6 +34,16 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * Luke Mewburn <lm@rmit.edu.au> added the following on 940622:
+ *    - mail status ("No Mail", "Mail read:...", or "New Mail ...,
+ *	Unread since ...".)
+ *    - 4 digit phone extensions (3210 is printed as x3210.)
+ *    - host/office toggling in short format with -h & -o.
+ *    - short day names (`Tue' printed instead of `Jun 21' if the
+ *	login time is < 6 days.
+ */
+
 #ifndef lint
 static char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
@@ -52,9 +62,10 @@ static char sccsid[] = "@(#)finger.c	8.2 (Berkeley) 9/30/93";
  *
  * There are currently two output formats; the short format is one line
  * per user and displays login name, tty, login time, real name, idle time,
- * and office location/phone number.  The long format gives the same
- * information (in a more legible format) as well as home directory, shell,
- * mail info, and .plan/.project files.
+ * and either remote host information (default) or office location/phone
+ * number, depending on if -h or -o is used respectively.
+ * The long format gives the same information (in a more legible format) as
+ * well as home directory, shell, mail info, and .plan/.project files.
  */
 
 #include <sys/param.h>
@@ -71,7 +82,7 @@ static char sccsid[] = "@(#)finger.c	8.2 (Berkeley) 9/30/93";
 
 DB *db;
 time_t now;
-int entries, lflag, mflag, pplan, sflag;
+int entries, lflag, mflag, pplan, sflag, oflag;
 char tbuf[1024];
 
 static void loginlist __P((void));
@@ -83,7 +94,10 @@ main(argc, argv)
 {
 	int ch;
 
-	while ((ch = getopt(argc, argv, "lmps")) != EOF)
+					/* delete this for sun behavior */
+	oflag = 1;			/* default to old behavior for now */
+
+	while ((ch = getopt(argc, argv, "lmpsho")) != EOF)
 		switch(ch) {
 		case 'l':
 			lflag = 1;		/* long format */
@@ -97,10 +111,16 @@ main(argc, argv)
 		case 's':
 			sflag = 1;		/* short format */
 			break;
+		case 'h':
+			oflag = 0;		/* remote host info */
+			break;
+		case 'o':
+			oflag = 1;		/* office info */
+			break;
 		case '?':
 		default:
 			(void)fprintf(stderr,
-			    "usage: finger [-lmps] [login ...]\n");
+			    "usage: finger [-lmpsho] [login ...]\n");
 			exit(1);
 		}
 	argc -= optind;
