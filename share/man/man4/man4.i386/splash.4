@@ -1,0 +1,233 @@
+.\"
+.\" Copyright (c) 1999
+.\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id: $
+.\"
+.Dd February 6, 1999
+.Dt SPLASH 4 i386
+.Os FreeBSD
+.Sh NAME
+.Nm splash
+.Nd
+splash screen / screen saver interface
+.Sh SYNOPSIS
+.Cd "pseudo-device splash"
+.Sh DESCRIPTION
+The
+.Nm
+pseudo device driver adds support for the splash screen and screen 
+savers to the kernel.
+This driver is required if the splash bitmap image is to be loaded or
+any screen saver is to be used.
+.Sh SPLASH SCREEN
+You can load and display an arbitrary bitmap image file as welcome banner
+on the screen when the system is about to start.
+It stays on the screen while the system is being initialized,
+and goes away when you hit any key (this may not work
+immediately if the kernel is still probing devices), 
+when a screen saver is loaded and initialized,
+or when the "Login" prompt first appears on the screen.
+.Pp
+If you specify 
+.Fl c
+or
+.Fl v
+boot option when loading kernel, the splash image won't appear
+(though is still loaded and can be used as a screen saver later; see below).
+.Pp
+In order to display the bitmap, the bitmap file itself and
+matching splash image decoder must be loaded by the boot loader.
+Currently the following decoder module is available:
+.Pp
+.Bl -tag -width splash -compact
+.It splash_bmp.ko
+W*ndows BMP file decoder.
+While the BMP file format allows various depth of colors, this decoder
+can only handle 256 color bitmaps.
+Other color depth won't work.
+.El
+.Pp
+The
+.Sx EXAMPLES
+section illustrates how to set up the splash screen.
+.Pp
+The size of the bitmap must be 320x200 or less,
+if the standard VGA video mode is used. 
+If you enable the VESA mode support in the kernel,
+either by statically linking the VESA module or by loading the VESA module
+.Pq see Xr vga 4 ,
+you can load as large bitmap as 1024x768, depending on the VESA BIOS
+and the amount of video memory on the video card.
+.Sh SCREEN SAVER
+The screen saver will pop up 
+when the system is considered "idle", that is, the user has not typed 
+a key or moved the mouse, for the specified duration.
+As the screen saver is an optional module, it must be explicitly loaded
+to the memory.
+Currently the following screen saver modules are available:
+.Pp
+.Bl -tag -width splash -compact
+.It blank_saver.ko
+This screen saver simply blanks the screen.
+.It daemon_saver.ko
+Animated BSD Daemon screen saver.
+.It fade_saver.ko
+The screen will gradually fade away.
+.It green_saver.ko
+If the monitor supports power saving mode, it will be turned off.
+.It logo_saver.ko
+Animated graphical BSD Daemon.
+.It rain_saver.ko
+Draws shower on the screen.
+.It snake_saver.ko
+Draws a snake of string.
+.It star_saver.ko
+Twinkling stars.
+.It warp_saver.ko
+Streaking stars.
+.El
+.Pp
+Load a screen saver module via
+.Xr kldload 1 .
+.Pp
+.Dl kldload logo_saver
+.Pp
+Then specify timeout value, in seconds, as follows:
+.Pp
+.Dl vidcontrol -t timeout
+.Pp
+Alternatively, you can set the
+.Ar saver
+variable in the
+.Pa /etc/rc.conf
+to the screen saver of your choice and
+the timeout value to the
+.Ar blanktime
+variable so that the screen saver is automatically loaded 
+and the timeout value is set when the system starts.
+.Pp
+The screen saver may be instantly activated by hitting the
+.Ar saver
+key (Shift-Pause on the AT enhanced keyboard, Shift-Ctrl-NumLock/Pause
+on the AT 84 keyboard by default).
+You can change the
+.Ar saver
+key by modifying the keymap.
+See
+.Xr kbdcontrol 1
+and 
+.Xr keymap 5 ,
+and assign the
+.Ar saver
+function to a key of your preference.
+.Pp
+The screen saver won't run if the current screen is not in the
+text mode.
+.Sh SPLASH SCREEN AS A SCREEN SAVER
+If you load a splash image but don't load a screen saver, 
+you can continue using the splash module as a screen saver.
+Specify the screen blanking interval as explained in the
+.Sx SCREEN SAVER
+section above, and
+the splash screen image will come back after the specified time.
+.\".Sh DRIVER CONFIGURATION
+.Sh FILES
+.Bl -tag -width /modules/splash_xxxx.ko -compact
+.It /boot/loader.rc
+boot loader script
+.It /etc/rc.conf
+system configuration information
+.It /modules/splash_*.ko
+splash image decoder modules
+.It /modules/*_saver.ko
+screen saver modules
+.It /modules/vesa.ko
+the VESA support module
+.El
+.Sh EXAMPLE
+The following examples show how to load the splash screen image from
+the boot loader prompt.
+They may be typed by hand at the loader prompt or may be written in
+the boot loader script 
+.Pa /boot/loader.rc 
+.Pq see Xr loader.rc 5 .
+.Bd -literal -offset indent
+load kernel
+load -t splash_image_data chuck.bmp
+load splash_bmp
+.Ed
+.Pp
+The second line loads a bitmap image file to be used in the splash screen.
+In the above example, the file 
+.Pa chuck.bmp
+is loaded.
+It is extremely important to include the option 
+.Fl t Ar splash_image_data
+in this line, as the splash image decoder module will search for
+this tag name when looking up the preloaded bitmap data.
+The third line loads the splash image decoder module 
+.Pa splash_bmp .
+.Pp
+In the following example, the VESA module
+is loaded so that a bitmap file which cannot be displayed in standard
+VGA modes may be shown using one of VESA video modes.
+.Bd -literal -offset indent
+load kernel
+load vesa
+load -t splash_image_data chuck.bmp
+load splash_bmp
+.Ed
+.Pp
+If the VESA support is statically linked to the kernel, it is not
+necessary to load the VESA module.
+Just load the bitmap file and the splash decoder module as in the
+first example above.
+.\".Sh DIAGNOSTICS
+.Sh CAVEATS
+Both the splash screen and the screen saver work with
+.Xr syscons 4
+only.  They are not available for the alternative console driver
+.Xr pcvt 4 .
+.Sh BUGS
+If you load a screen saver while another screen saver has already
+been loaded, the first screen saver won't be automatically unloaded
+and remain in memory, wasting kernel memory space.
+.Sh SEE ALSO
+.Xr vidcontrol 1 ,
+.Xr vga 4 ,
+.Xr rc.conf 5 ,
+.Xr kldload 8 ,
+.Xr kldunload 8 .
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 3.1 .
+.Sh AUTHORS
+The
+.Nm
+driver and this manual page were written by
+.An Kazutaka Yokota Aq yokota@FreeBSD.org .

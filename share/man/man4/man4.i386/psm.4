@@ -24,9 +24,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: psm.4,v 1.13 1998/10/22 14:36:55 bde Exp $
+.\" $Id: psm.4,v 1.14 1999/01/26 10:01:01 yokota Exp $
 .\"
-.Dd December 3, 1997
+.Dd January 30, 1999
 .Dt PSM 4 i386
 .Os FreeBSD
 .Sh NAME
@@ -40,7 +40,7 @@ PS/2 mouse style pointing device driver
 .Cd "options" \&"KBD_MAXWAIT=N\&"
 .Cd "options" \&"PSM_DEBUG=N\&"
 .Cd "options" \&"KBDIO_DEBUG=N\&"
-.Cd "device psm0 at isa? port IO_KBD conflicts tty irq 12"
+.Cd "device psm0 at isa? tty irq 12"
 .Sh DESCRIPTION
 The
 .Nm
@@ -48,15 +48,12 @@ driver provides support for the PS/2 mouse style pointing device.
 Currently there can be only one 
 .Nm
 device node in the system.
-.Em port IO_KBD
-and
-.Em conflicts
-are required, 
-as the PS/2 mouse port is located
-at the auxiliary port of the keyboard controller; the 
-.Nm
-driver has to share the same I/O ports with the keyboard driver.
-Note also that there is currently no provision of changing the 
+As the PS/2 mouse port is located
+at the auxiliary port of the keyboard controller,
+the keyboard controller driver, 
+.Nm atkbdc ,
+must also be configured in the kernel.
+Note that there is currently no provision of changing the 
 .Em irq
 number.
 .Pp
@@ -597,24 +594,21 @@ movement counts as described in
 .Sh FILES
 .Bl -tag -width /dev/npsm0 -compact
 .It Pa /dev/psm0
-`non-blocking' device node in the system without
-.Em devfs ,
-`blocking' under
-.Em devfs .
-.It Pa /dev/npsm0
-`non-blocking' device node under
+`non-blocking' device node
+.It Pa /dev/bpsm0
+`blocking' device node under
 .Em devfs .
 .El
 .Sh EXAMPLE
 .Dl "options" \&"PSM_HOOKAPM\&"
-.Dl "device psm0 at isa? port IO_KBD conflicts tty irq 12"
+.Dl "device psm0 at isa? tty irq 12"
 .Pp
 Add the
 .Nm
 driver to the kernel with the optional code to stimulate the pointing device
 after the `resume' event.
 .Pp
-.Dl "device psm0 at isa? port IO_KBD conflicts tty flags 0x024 irq 12"
+.Dl "device psm0 at isa? tty flags 0x024 irq 12"
 .Pp
 Set the device resolution high (4) and the acceleration factor to 2.
 .Sh DIAGNOSTICS
@@ -644,7 +638,7 @@ kbdio: RESET_AUX status:00aa
 kbdio: RESET_AUX ID:0000
 [...]
 psm: status 00 02 64
-psm0 at 0x60-0x64 irq 12 on motherboard
+psm0 irq 12 on isa
 psm0: model AAAA, device ID X, N buttons
 psm0: config:00000www, flags:0000uuuu, packet size:M
 psm0: syncmask:xx, syncbits:yy
@@ -743,6 +737,7 @@ has been removed. It was never functional anyway.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr syslog 3 ,
+.Xr atkbdc 4 ,
 .Xr mouse 4 ,
 .Xr mse 4 ,
 .Xr sysmouse 4 ,
