@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
