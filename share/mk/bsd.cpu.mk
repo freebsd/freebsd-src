@@ -5,33 +5,33 @@
 # may tune support for more advanced processors.
 
 .if !defined(CPUTYPE)
-.if ${MACHINE_ARCH} == "i386"
+. if ${MACHINE_ARCH} == "i386"
 _CPUCFLAGS = -mcpu=pentiumpro
 CPUTYPE = i386
-.elif ${MACHINE_ARCH} == "alpha"
+. elif ${MACHINE_ARCH} == "alpha"
 _CPUCFLAGS = -mcpu=ev4 -mtune=ev5
 CPUTYPE = ev4
-.elif ${MACHINE_ARCH} == "ia64"
+. elif ${MACHINE_ARCH} == "ia64"
 _CPUCFLAGS =
 CPUTYPE = itanium
-.elif ${MACHINE_ARCH} == "sparc64"
+. elif ${MACHINE_ARCH} == "sparc64"
 _CPUCFLAGS =
 CPUTYPE = ultrasparc
-.endif
+. endif
 .else
 
 # Handle aliases (not documented in make.conf to avoid user confusion
 # between e.g. i586 and pentium)
 
-.if ${MACHINE_ARCH} == "i386"
-. if ${CPUTYPE} == "pentiumpro"
+. if ${MACHINE_ARCH} == "i386"
+.  if ${CPUTYPE} == "pentiumpro"
 CPUTYPE = i686
-. elif ${CPUTYPE} == "pentium"
+.  elif ${CPUTYPE} == "pentium"
 CPUTYPE = i586
-. elif ${CPUTYPE} == "athlon"
+.  elif ${CPUTYPE} == "athlon"
 CPUTYPE = k7
+.  endif
 . endif
-.endif
 
 # Logic to set up correct gcc optimization flag.  This must be included
 # after /etc/make.conf so it can react to the local value of CPUTYPE
@@ -41,7 +41,6 @@ CPUTYPE = k7
 #	http://gcc.gnu.org/onlinedocs/gcc/SPARC-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/RS-6000-and-PowerPC-Options.html
 
-.if !defined(NO_CPU_CFLAGS) || !defined(NO_CPU_COPTFLAGS)
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "k7"
 .   if defined(BOOTSTRAPPING)
@@ -85,7 +84,6 @@ _CPUCFLAGS = -mcpu=ev4		# No -mcpu=ev45 for gcc
 _CPUCFLAGS = -mcpu=ev4
 .  endif
 . endif
-.endif
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/Makefile.<arch>
