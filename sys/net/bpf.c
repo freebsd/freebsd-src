@@ -575,8 +575,10 @@ bpfwrite(dev, uio, ioflag)
 	if (error)
 		return (error);
 
-	if (datlen > ifp->if_mtu)
+	if (datlen > ifp->if_mtu) {
+		m_freem(m);
 		return (EMSGSIZE);
+	}
 
 	if (d->bd_hdrcmplt)
 		dst.sa_family = pseudo_AF_HDRCMPLT;
