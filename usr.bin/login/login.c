@@ -657,7 +657,7 @@ main(argc, argv)
 	 * TODO: Make dialup tty determination a library call
 	 * for consistency (finger etc.)
 	 */
-	if (hostname==NULL && strchr("vpqstPQST", tty[sizeof("tty")-1]) == NULL)
+	if (hostname==NULL && isdialuptty(tty))
 		syslog(LOG_INFO, "DIALUP %s, %s", tty, pwd->pw_name);
 
 #ifdef KERBEROS
