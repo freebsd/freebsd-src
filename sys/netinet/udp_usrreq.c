@@ -830,7 +830,9 @@ udp_output(inp, m, addr, control, td)
 	 * Set up checksum and output datagram.
 	 */
 	if (udpcksum) {
-        	ui->ui_sum = in_pseudo(ui->ui_src.s_addr, ui->ui_dst.s_addr,
+		if (inp->inp_flags & INP_ONESBCAST)
+			faddr.s_addr = INADDR_BROADCAST;
+		ui->ui_sum = in_pseudo(ui->ui_src.s_addr, faddr.s_addr,
 		    htons((u_short)len + sizeof(struct udphdr) + IPPROTO_UDP));
 		m->m_pkthdr.csum_flags = CSUM_UDP;
 		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
