@@ -110,7 +110,7 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			country = optarg;
-			break; 
+			break;
 		case 'd':
 			host = DNICHOST;
 			break;
@@ -170,7 +170,7 @@ main(int argc, char *argv[])
 		if (country != NULL) {
 			s_asprintf(&qnichost, "%s%s", country, QNICHOST_TAIL);
 			res = gethostinfo(qnichost, 1);
-		} else if (use_qnichost) 
+		} else if (use_qnichost)
 			if ((qnichost = choose_server(*argv)) != NULL)
 				res = gethostinfo(qnichost, 1);
 		if (qnichost == NULL)
@@ -210,7 +210,7 @@ choose_server(char *domain)
 	return (retval);
 }
 
-static struct addrinfo * 
+static struct addrinfo *
 gethostinfo(char const *host, int exit_on_error)
 {
 	struct addrinfo hints, *res;
@@ -228,7 +228,7 @@ gethostinfo(char const *host, int exit_on_error)
 		return (NULL);
 	}
 	return (res);
-} 
+}
 
 /*
  * Wrapper for asprintf(3) that exits on error.
@@ -317,7 +317,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-adgimpQrR6] [-c country-code | -h hostname] "
+	    "usage: whois [-aAdgimQrR6] [-c country-code | -h hostname] "
 	    "[-p port] name ...\n");
 	exit(EX_USAGE);
 }
