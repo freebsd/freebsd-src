@@ -917,7 +917,9 @@ ncprange_aton(struct ncprange *range, struct ncp *ncp, const char *data)
     return 1;
 #ifndef NOINET6
   } else if (ncp && strncasecmp(data, "HISADDR6", len) == 0) {
-    ncprange_sethost(range, &ncp->ipv6cp.hisaddr);
+    range->ncprange_family = AF_INET6;
+    range->ncprange_ip6addr = ncp->ipv6cp.hisaddr.ncpaddr_ip6addr;
+    range->ncprange_ip6width = 128;
     return 1;
 #endif
   } else if (ncp && strncasecmp(data, "MYADDR", len) == 0) {
@@ -928,7 +930,9 @@ ncprange_aton(struct ncprange *range, struct ncp *ncp, const char *data)
     return 1;
 #ifndef NOINET6
   } else if (ncp && strncasecmp(data, "MYADDR6", len) == 0) {
-    ncprange_sethost(range, &ncp->ipv6cp.myaddr);
+    range->ncprange_family = AF_INET6;
+    range->ncprange_ip6addr = ncp->ipv6cp.myaddr.ncpaddr_ip6addr;
+    range->ncprange_ip6width = 128;
     return 1;
 #endif
   } else if (ncp && strncasecmp(data, "DNS0", len) == 0) {
