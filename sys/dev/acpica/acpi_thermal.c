@@ -727,6 +727,8 @@ acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 	break;
     }
 
+    acpi_UserNotify("Thermal", h, notify);
+
     return_VOID;
 }
 
