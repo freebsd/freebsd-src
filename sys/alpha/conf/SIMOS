@@ -57,7 +57,7 @@ device		cd
 
 pseudo-device	loop
 pseudo-device	ether
-pseudo-device	sl	1
+pseudo-device	sl
 pseudo-device	ppp	1
 pseudo-device	tun
 pseudo-device	pty
