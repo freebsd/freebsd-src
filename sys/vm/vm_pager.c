@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.41 1999/01/21 08:29:12 dillon Exp $
+ * $Id: vm_pager.c,v 1.42 1999/01/21 10:15:24 dillon Exp $
  */
 
 /*
@@ -96,11 +96,11 @@ int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 static int dead_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 static vm_object_t dead_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
 	vm_ooffset_t));
-static int dead_pager_putpages __P((vm_object_t, vm_page_t *, int, int, int *));
+static void dead_pager_putpages __P((vm_object_t, vm_page_t *, int, int, int *));
 static boolean_t dead_pager_haspage __P((vm_object_t, vm_pindex_t, int *, int *));
 static void dead_pager_dealloc __P((vm_object_t));
 
-int
+static int
 dead_pager_getpages(obj, ma, count, req)
 	vm_object_t obj;
 	vm_page_t *ma;
@@ -110,7 +110,7 @@ dead_pager_getpages(obj, ma, count, req)
 	return VM_PAGER_FAIL;
 }
 
-vm_object_t
+static vm_object_t
 dead_pager_alloc(handle, size, prot, off)
 	void *handle;
 	vm_ooffset_t size;
@@ -120,7 +120,7 @@ dead_pager_alloc(handle, size, prot, off)
 	return NULL;
 }
 
-int
+static void
 dead_pager_putpages(object, m, count, flags, rtvals)
 	vm_object_t object;
 	vm_page_t *m;
@@ -129,13 +129,13 @@ dead_pager_putpages(object, m, count, flags, rtvals)
 	int *rtvals;
 {
 	int i;
+
 	for (i = 0; i < count; i++) {
 		rtvals[i] = VM_PAGER_AGAIN;
 	}
-	return VM_PAGER_AGAIN;
 }
 
-int
+static int
 dead_pager_haspage(object, pindex, prev, next)
 	vm_object_t object;
 	vm_pindex_t pindex;
@@ -149,7 +149,7 @@ dead_pager_haspage(object, pindex, prev, next)
 	return FALSE;
 }
 
-void
+static void
 dead_pager_dealloc(object)
 	vm_object_t object;
 {
