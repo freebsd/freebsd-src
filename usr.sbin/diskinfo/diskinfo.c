@@ -111,8 +111,7 @@ main(int argc, char **argv)
 				printf("\t%u", fwsectors);
 			} 
 		} else {
-			humanize_number(buf, 6 - (mediasize < 0 ? 0 : 1),
-			    (int64_t)mediasize, "",
+			humanize_number(buf, 5, (int64_t)mediasize, "",
 			    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 			printf("%s\n", argv[i]);
 			printf("\t%-12u\t# sectorsize\n", sectorsize);
