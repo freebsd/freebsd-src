@@ -51,13 +51,13 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pwd.h>
 
-int donice(int, int, int);
-static void usage(void);
+static int	donice(int, int, int);
+static void	usage(void);
 
 /*
  * Change the priority (nice) of processes
@@ -65,13 +65,14 @@ static void usage(void);
  * running.
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
-	int which = PRIO_PROCESS;
-	int who = 0, prio, errs = 0;
+	struct passwd *pwd;
+	int errs, prio, which, who;
 
+	errs = 0;
+	which = PRIO_PROCESS;
+	who = 0;
 	argc--, argv++;
 	if (argc < 2)
 		usage();
@@ -95,8 +96,7 @@ main(argc, argv)
 			continue;
 		}
 		if (which == PRIO_USER) {
-			register struct passwd *pwd = getpwnam(*argv);
-
+			pwd = getpwnam(*argv);
 			if (pwd == NULL) {
 				warnx("%s: unknown user", *argv);
 				continue;
@@ -114,21 +114,13 @@ main(argc, argv)
 	exit(errs != 0);
 }
 
-static void
-usage()
-{
-	fprintf(stderr,
-"usage: renice priority [ [ -p ] pids ] [ [ -g ] pgrps ] [ [ -u ] users ]\n");
-	exit(1);
-}
-
-int
-donice(which, who, prio)
-	int which, who, prio;
+static int
+donice(int which, int who, int prio)
 {
 	int oldprio;
 
-	errno = 0, oldprio = getpriority(which, who);
+	errno = 0;
+	oldprio = getpriority(which, who);
 	if (oldprio == -1 && errno) {
 		warn("%d: getpriority", who);
 		return (1);
@@ -139,4 +131,12 @@ donice(which, who, prio)
 	}
 	printf("%d: old priority %d, new priority %d\n", who, oldprio, prio);
 	return (0);
+}
+
+static void
+usage()
+{
+	fprintf(stderr,
+"usage: renice priority [ [ -p ] pids ] [ [ -g ] pgrps ] [ [ -u ] users ]\n");
+	exit(1);
 }
