@@ -83,6 +83,8 @@ static void ata_intel_intr(void *);
 static void ata_intel_reset(struct ata_channel *);
 static void ata_intel_old_setmode(struct ata_device *, int);
 static void ata_intel_new_setmode(struct ata_device *, int);
+static int ata_ite_chipinit(device_t);
+static void ata_ite_setmode(struct ata_device *, int);
 static int ata_national_chipinit(device_t);
 static void ata_national_setmode(struct ata_device *, int);
 static int ata_nvidia_chipinit(device_t);
@@ -1014,6 +1016,100 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
     atadev->mode = mode;
 }
 
+/*
+ * Integrated Technology Express Inc. (ITE) chipset support functions
+ */
+int
+ata_ite_ident(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    if (pci_get_devid(dev) == ATA_IT8212F) {
+	device_set_desc(dev, "ITE IT8212F ATA133 controller");
+	ctlr->chipinit = ata_ite_chipinit;
+	return 0;
+    }
+    return ENXIO;
+}
+
+static int
+ata_ite_chipinit(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    if (ata_setup_interrupt(dev))
+	return ENXIO;
+
+    ctlr->setmode = ata_ite_setmode;
+
+    /* set PCI mode and 66Mhz reference clock */
+    pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 1) & ~0x83, 1);
+
+    /* set default active & recover timings */
+    pci_write_config(dev, 0x54, 0x31, 1);
+    pci_write_config(dev, 0x56, 0x31, 1);
+    return 0;
+}
+ 
+static void
+ata_ite_setmode(struct ata_device *atadev, int mode)
+{
+    device_t parent = device_get_parent(atadev->channel->dev);
+    struct ata_channel *ch = atadev->channel;
+    int devno = (ch->unit << 1) + ATA_DEV(atadev->unit);
+    int error;
+
+    /* correct the mode for what the HW supports */
+    mode = ata_limit_mode(atadev, mode, ATA_UDMA6);
+
+    /* check the CBLID bits for 80 conductor cable detection */
+    if (mode > ATA_UDMA2 && (pci_read_config(parent, 0x40, 2) &
+			     (ch->unit ? (1<<3) : (1<<2)))) {
+	ata_prtdev(atadev,"DMA limited to UDMA33, non-ATA66 cable or device\n");
+	mode = ATA_UDMA2;
+    }
+
+    /* set the wanted mode on the device */
+    error = ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
+
+    if (bootverbose)
+	ata_prtdev(atadev, "%s setting %s on ITE8212F chip\n",
+		   (error) ? "failed" : "success", ata_mode2str(mode));
+
+    /* if the device accepted the mode change, setup the HW accordingly */
+    if (!error) {
+	if (mode >= ATA_UDMA0) {
+	    u_int8_t udmatiming[] =
+		{ 0x44, 0x42, 0x31, 0x21, 0x11, 0xa2, 0x91 };
+
+	    /* enable UDMA mode */
+	    pci_write_config(parent, 0x50,
+			     pci_read_config(parent, 0x50, 1) &
+			     ~(1 << (devno + 3)), 1);
+
+	    /* set UDMA timing */
+	    pci_write_config(parent,
+			     0x56 + (ch->unit << 2) + ATA_DEV(atadev->unit),
+			     udmatiming[mode & ATA_MODE_MASK], 1);
+	}
+	else {
+	    u_int8_t chtiming[] =
+		{ 0xaa, 0xa3, 0xa1, 0x33, 0x31, 0x88, 0x32, 0x31 };
+
+	    /* disable UDMA mode */
+	    pci_write_config(parent, 0x50,
+			     pci_read_config(parent, 0x50, 1) |
+			     (1 << (devno + 3)), 1);
+
+	    /* set active and recover timing (shared between master & slave) */
+	    if (pci_read_config(parent, 0x54 + (ch->unit << 2), 1) <
+		chtiming[ata_mode2idx(mode)])
+	        pci_write_config(parent, 0x54 + (ch->unit << 2),
+			         chtiming[ata_mode2idx(mode)], 1);
+	}
+	atadev->mode = mode;
+    }
+}
 /*
  * National chipset support functions
  */

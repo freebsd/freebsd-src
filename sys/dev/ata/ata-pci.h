@@ -83,6 +83,9 @@ struct ata_pci_controller {
 #define ATA_ACER_LABS_ID	0x10b9
 #define ATA_ALI_5229		0x522910b9
 
+#define ATA_CENATEK_ID		0x16ca
+#define ATA_CENATEK_ROCKET	0x000116ca
+
 #define ATA_CYRIX_ID		0x1078
 #define ATA_CYRIX_5530		0x01021078
 
@@ -124,6 +127,13 @@ struct ata_pci_controller {
 #define ATA_I82801FB		0x266f8086
 #define ATA_I82801FB_S1		0x26518086
 #define ATA_I82801FB_R1		0x26528086
+
+#define ATA_ITE_ID		0x1283
+#define ATA_IT8212F		0x82121283
+ 
+#define ATA_MICRON_ID		0x1042
+#define ATA_MICRON_RZ1000	0x10001042
+#define ATA_MICRON_RZ1001	0x10011042
 
 #define ATA_NATIONAL_ID		0x100b
 #define ATA_SC1100		0x0502100b
@@ -320,6 +330,7 @@ int ata_cyrix_ident(device_t);
 int ata_cypress_ident(device_t);
 int ata_highpoint_ident(device_t);
 int ata_intel_ident(device_t);
+int ata_ite_ident(device_t);
 int ata_national_ident(device_t);
 int ata_nvidia_ident(device_t);
 int ata_promise_ident(device_t);
