@@ -159,6 +159,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(PLANET, SMARTCOM2000, 0), 0 },
 	{ PCMCIA_CARD(PREMAX, PE200, 0), 0},
 	{ PCMCIA_CARD(RACORE, ETHERNET, 0), 0},
+	{ PCMCIA_CARD(RACORE, FASTENET, 0), NE2000DVF_AX88X90},
 	{ PCMCIA_CARD(RPTI, EP400, 0), 0},
 	{ PCMCIA_CARD(RPTI, EP401, 0), 0},
 	{ PCMCIA_CARD(SMC, EZCARD, 0), 0},
@@ -521,7 +522,6 @@ ed_pccard_ax88x90(device_t dev)
 	ax88x90_geteprom(sc);
 	ed_release_resources(dev);
 	error = ed_probe_Novell(dev, 0, flags);
-	printf("Error is %d\n", error);
 	if (error == 0) {
 		sc->vendor = ED_VENDOR_NOVELL;
 		sc->type = ED_TYPE_NE2000;
