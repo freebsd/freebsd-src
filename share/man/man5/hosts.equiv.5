@@ -58,18 +58,27 @@ or the more verbose
 [+-][hostname|@netgroup] [[+-][username|@netgroup]]
 .Ed
 .Pp
-A ``@'' indicates a host by netgroup or user by netgroup. A single
-``+'' matches all hosts or users.  A host name with a leading ``-'' will reject
-all matching hosts and all their users. A user name with leading ``-''
+A
+.Dq @
+indicates a host by netgroup or user by netgroup. A single
+.Dq +
+matches all hosts or users.  A host name with a leading
+.Dq -
+will reject
+all matching hosts and all their users. A user name with leading
+.Dq -
 will reject all matching users from matching hosts.
 .Pp
 Items are separated by any number of blanks and/or
-tab characters.  A ``#'' indicates the beginning of
+tab characters.  A
+.Dq #
+indicates the beginning of
 a comment; characters up to the end of the line are
 not interpreted by routines which search the file.
 .Pp
 Host names are specified in the conventional
-``.'' (dot) notation using the
+.Dq \&.
+(dot) notation using the
 .Xr inet_addr 3
 routine
 from the Internet address manipulation library,
@@ -87,16 +96,23 @@ if it is writable by anyone other than the user.
 .Pp
 .Dl bar.com foo
 .Pp
-Trust user ``foo'' from host ``bar.com''.
+Trust user
+.Dq foo
+from host
+.Dq bar.com .
 .Pp
 .Dl +@allclient 
 .Pp
-Trust all hosts from netgroup ``allclient''.
+Trust all hosts from netgroup
+.Dq allclient .
 .Pp
 .Dl +@allclient -@dau
 .Pp
-Trust all hosts from netgroup ``allclient'' and their users 
-except users from netgroup ``dau''.
+Trust all hosts from netgroup
+.Dq allclient
+and their users 
+except users from netgroup
+.Dq dau .
 .Sh FILES
 .Bl -tag -width /etc/hosts.equivxxx -compact
 .It Pa /etc/hosts.equiv
@@ -122,4 +138,6 @@ file resides in
 .Xr named 8
 .Sh BUGS
 This man page is incomplete. For more information read
-the source in lib/libc/net/rcmd.c or the sunos man page.
+the source in
+.Pa src/lib/libc/net/rcmd.c
+or the SunOS man page.
