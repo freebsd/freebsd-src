@@ -44,12 +44,13 @@
 .Nm FREE
 .Nd kernel memory management routines
 .Sh SYNOPSIS
+.Fd #include <sys/malloc.h>
 .Ft void *
-.Fn malloc "unsigned long size" "int type" "int flags"
-.Fn MALLOC "space" "cast" "unsigned long size" "int type" "int flags"
+.Fn malloc "unsigned long size" "struct malloc_type *type" "int flags"
+.Fn MALLOC "space" "cast" "unsigned long size" "struct malloc_type  *type" "int flags"
 .Ft void
-.Fn free "void *addr" "int type"
-.Fn FREE "void *addr" "int type"
+.Fn free "void *addr" "struct malloc_type *type"
+.Fn FREE "void *addr" "struct malloc_type *type"
 .Sh DESCRIPTION
 The
 .Fn malloc
@@ -108,110 +109,34 @@ Currently, only one flag is defined.
 .Pp
 The
 .Fa type
-argument broadly identifies the kernel subsystem for which the allocated
-memory was needed, and is commonly used to maintain statistics about
-kernel memory usage. The following types are currently defined in
-the header file
-.Aq Pa sys/malloc.h :
-.Pp
-.Bd -literal
-#define	M_FREE		0	/* should be on free list */
-#define	M_MBUF		1	/* mbuf */
-#define	M_DEVBUF	2	/* device driver memory */
-#define	M_SOCKET	3	/* socket structure */
-#define	M_PCB		4	/* protocol control block */
-#define	M_RTABLE	5	/* routing tables */
-#define	M_HTABLE	6	/* IMP host tables */
-#define	M_FTABLE	7	/* fragment reassembly header */
-#define	M_ZOMBIE	8	/* zombie proc status */
-#define	M_IFADDR	9	/* interface address */
-#define	M_SOOPTS	10	/* socket options */
-#define	M_SONAME	11	/* socket name */
-#define	M_NAMEI		12	/* namei path name buffer */
-#define	M_GPROF		13	/* kernel profiling buffer */
-#define	M_IOCTLOPS	14	/* ioctl data buffer */
-#define	M_MAPMEM	15	/* mapped memory descriptors */
-#define	M_CRED		16	/* credentials */
-#define	M_PGRP		17	/* process group header */
-#define	M_SESSION	18	/* session header */
-#define	M_IOV		19	/* large iov's */
-#define	M_MOUNT		20	/* vfs mount struct */
-#define	M_FHANDLE	21	/* network file handle */
-#define	M_NFSREQ	22	/* NFS request header */
-#define	M_NFSMNT	23	/* NFS mount structure */
-#define	M_NFSNODE	24	/* NFS vnode private part */
-#define	M_VNODE		25	/* Dynamically allocated vnodes */
-#define	M_CACHE		26	/* Dynamically allocated cache entries */
-#define	M_DQUOT		27	/* UFS quota entries */
-#define	M_UFSMNT	28	/* UFS mount structure */
-#define	M_SHM		29	/* SVID compatible shared memory segments */
-#define	M_VMMAP		30	/* VM map structures */
-#define	M_VMMAPENT	31	/* VM map entry structures */
-#define	M_VMOBJ		32	/* VM object structure */
-#define	M_VMOBJHASH	33	/* VM object hash structure */
-#define	M_VMPMAP	34	/* VM pmap */
-#define	M_VMPVENT	35	/* VM phys-virt mapping entry */
-#define	M_VMPAGER	36	/* XXX: VM pager struct */
-#define	M_VMPGDATA	37	/* XXX: VM pager private data */
-#define	M_FILE		38	/* Open file structure */
-#define	M_FILEDESC	39	/* Open file descriptor table */
-#define	M_LOCKF		40	/* Byte-range locking structures */
-#define	M_PROC		41	/* Proc structures */
-#define	M_SUBPROC	42	/* Proc sub-structures */
-#define	M_SEGMENT	43	/* Segment for LFS */
-#define	M_LFSNODE	44	/* LFS vnode private part */
-#define	M_FFSNODE	45	/* FFS vnode private part */
-#define	M_MFSNODE	46	/* MFS vnode private part */
-#define	M_NQLEASE	47	/* Nqnfs lease */
-#define	M_NQMHOST	48	/* Nqnfs host address table */
-#define	M_NETADDR	49	/* Export host address structure */
-#define	M_NFSSVC	50	/* Nfs server structure */
-#define	M_NFSUID	51	/* Nfs uid mapping structure */
-#define	M_NFSD		52	/* Nfs server daemon structure */
-#define	M_IPMOPTS	53	/* internet multicast options */
-#define	M_IPMADDR	54	/* internet multicast address */
-#define	M_IFMADDR	55	/* link-level multicast address */
-#define	M_MRTABLE	56	/* multicast routing tables */
-#define M_ISOFSMNT	57	/* ISOFS mount structure */
-#define M_ISOFSNODE	58	/* ISOFS vnode private part */
-#define M_NFSRVDESC	59	/* NFS server socket descriptor */
-#define M_NFSDIROFF	60	/* NFS directory offset data */
-#define M_NFSBIGFH	61	/* NFS version 3 file handle */
-#define M_MSDOSFSMNT	67	/* MSDOSFS mount structure */
-#define M_MSDOSFSNODE	68	/* MSDOSFS vnode private part */
-#define M_MSDOSFSFAT	69	/* MSDOSFS file allocation table */
-#define M_DEVFSMNT	70	/* DEVFS mount structure */
-#define M_DEVFSBACK	71	/* DEVFS Back node */
-#define M_DEVFSFRONT	72	/* DEVFS Front node */
-#define M_DEVFSNODE	73	/* DEVFS node */
-#define	M_TEMP		74	/* misc temporary data buffers */
-#define M_TTYS		75	/* tty data structures */
-#define M_GZIP		76	/* Gzip trees */
-#define M_IPFW		77	/* IpFw/IpAcct chain's */
-#define M_DEVL		78	/* isa_device lists in userconfig() */
-#define M_PKTCLASS	79	/* structures used in packet classifier */
-#define	M_SYSCTL	80	/* sysctl internal magic */
-#define	M_SECA		81	/* security associations, key management */
-#define	M_BIOBUF	82	/* BIO buffer */
-#define	M_KTRACE	83	/* KTRACE */
-#define	M_SELECT	84	/* select() buffer */
-#define	M_GEOM_DEV	85	/* geometry device */
-#define	M_GEOM_MOD	86	/* geometry module */
-#define	M_GEOM_REQ	87	/* geometry request */
-#define	M_GEOM_MISC	88	/* geometry misc */
-#define M_VFSCONF	89	/* vfsconf structure */
-.Ed
-.Pp
-Statistics based on the
-.Fa type
-argument are maintained only if the kernel option
-.Dv KMEMSTATS
-is used when compiling the kernel
-(the default in
-.Tn FreeBSD
-kernels)
-and can be examined by using
+argument is used to perform statistics on memory usage, and for
+basic sanity checks.
+The statistics can be examined by
 .Sq vmstat -m .
+.Pp
+A
+.Fa type
+is defined using the
+.Va malloc_type_t
+typedef like this:
+.Bd -literal -offset indent
+/* sys/something/foo_extern.h */
+
+extern malloc_type_t M_FOOBUF;
+
+/* sys/something/foo_main.c */
+
+malloc_type_t M_FOOBUF = {
+	"Foo Buffers",
+	"Buffers for foo data in transit to the InfImpDrive"
+};
+
+/* sys/something/foo_subr.c */
+
+...
+MALLOC(buf, sizeof *buf, struct foo_buf *, M_FOOBUF, M_NOWAIT);
+
+.Be
 .Sh RETURN VALUES
 .Fn malloc
 returns a kernel virtual address that is suitably aligned for storage of
