@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999,2000 Jonathan Lemon <jlemon@FreeBSD.org>
+ * Copyright (c) 1999,2000,2001 Jonathan Lemon <jlemon@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,15 @@
 #define EVFILT_SIGNAL		(-6)	/* attached to struct proc */
 
 #define EVFILT_SYSCOUNT		6
+
+#define EV_SET(kevp, a, b, c, d, e, f) do {	\
+	(kevp)->ident = (a);			\
+	(kevp)->filter = (b);			\
+	(kevp)->flags = (c);			\
+	(kevp)->fflags = (d);			\
+	(kevp)->data = (e);			\
+	(kevp)->udata = (f);			\
+} while(0)
 
 struct kevent {
 	uintptr_t	ident;		/* identifier for this event */
