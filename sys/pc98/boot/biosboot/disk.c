@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.4 1996/10/09 21:45:26 asami Exp $
+ *	$Id: disk.c,v 1.5 1996/10/23 07:24:31 asami Exp $
  */
 
 /*
@@ -133,7 +133,7 @@ devopen(void)
 #endif /* PC98 */
 #endif	EMBEDDED_DISKLABEL
 		if (dl->d_magic != DISKMAGIC) {
-			printf("bad disklabel");
+			printf("bad disklabel\n");
 			return 1;
 		}
 		if( (maj == 4) || (maj == 0) || (maj == 1))
@@ -152,8 +152,12 @@ devopen(void)
 			dl->d_partitions[2].p_offset + sector;
 
 #ifndef PC98
-		/* This is a good idea for all disks */
 		bsize = dl->d_partitions[part].p_size;
+		if (bsize == 0) {
+			printf("empty partition\n");
+			return 1;
+		}
+
 #endif
 
 #ifdef DO_BAD144
