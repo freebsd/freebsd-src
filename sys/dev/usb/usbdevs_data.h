@@ -1210,6 +1210,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "USB10TA Ethernet",
 	},
 	{
+	    USB_VENDOR_LINKSYS, USB_PRODUCT_LINKSYS_USB10TX2,
+	    0,
+	    "Linksys, Inc.",
+	    "USB10TX",
+	},
+	{
 	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_M2452,
 	    0,
 	    "Logitech, Inc.",
