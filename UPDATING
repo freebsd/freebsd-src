@@ -13,10 +13,11 @@ ITEMS:'
 	don't have one, and you have host.conf.
 
 20000905:
-	This just in.  The boot loader has been updated.  The new
-	default kernel is /kernel.ko.  The new default module location
-	is /boot/modules.  You *MUST* upgrade your boot loader and
-	kernel at the same time.  Film at 11.
+	The boot loader has been updated.  The new default kernel is
+	now /boot/kernel/kernel.ko.  The new default module location
+	is /boot/kernel.
+
+	You *MUST* upgrade your boot loader and kernel at the same time.
 
 20000904:
 	A new issue with the sendmail upgrade has come to light.
