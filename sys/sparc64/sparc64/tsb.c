@@ -65,32 +65,12 @@
 CTASSERT((1 << TTE_SHIFT) == sizeof(struct tte));
 CTASSERT(TSB_BUCKET_MASK < (1 << 12));
 
-#ifdef PMAP_STATS
-static long tsb_nrepl;
-static long tsb_nlookup_k;
-static long tsb_nlookup_u;
-static long tsb_nenter_k;
-static long tsb_nenter_u;
-static long tsb_nforeach;
-
-SYSCTL_DECL(_debug_pmap_stats);
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nrepl, CTLFLAG_RD, &tsb_nrepl, 0,
-    "Number of TSB replacements");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nlookup_k, CTLFLAG_RD,
-    &tsb_nlookup_k, 0, "Number of calls to tsb_tte_lookup(), kernel pmap");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nlookup_u, CTLFLAG_RD,
-    &tsb_nlookup_u, 0, "Number of calls to tsb_tte_lookup(), user pmap");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nenter_k, CTLFLAG_RD,
-    &tsb_nenter_k, 0, "Number of calls to tsb_tte_enter()");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nenter_u, CTLFLAG_RD,
-    &tsb_nenter_u, 0, "Number of calls to tsb_tte_enter()");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, tsb_nforeach, CTLFLAG_RD,
-    &tsb_nforeach, 0, "Number of calls to tsb_foreach()");
-
-#define	TSB_STATS_INC(var)	atomic_add_long(&var, 1)
-#else
-#define	TSB_STATS_INC(var)
-#endif
+PMAP_STATS_VAR(tsb_nrepl);
+PMAP_STATS_VAR(tsb_nlookup_k);
+PMAP_STATS_VAR(tsb_nlookup_u);
+PMAP_STATS_VAR(tsb_nenter_k);
+PMAP_STATS_VAR(tsb_nenter_u);
+PMAP_STATS_VAR(tsb_nforeach);
 
 struct tte *tsb_kernel;
 vm_size_t tsb_kernel_mask;
@@ -106,12 +86,12 @@ tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 	u_int i;
 
 	if (pm == kernel_pmap) {
-		TSB_STATS_INC(tsb_nlookup_k);
+		PMAP_STATS_INC(tsb_nlookup_k);
 		tp = tsb_kvtotte(va);
 		if (tte_match(tp, va))
 			return (tp);
 	} else {
-		TSB_STATS_INC(tsb_nlookup_u);
+		PMAP_STATS_INC(tsb_nlookup_u);
 		for (sz = TS_MIN; sz <= TS_MAX; sz++) {
 			bucket = tsb_vtobucket(pm, sz, va);
 			for (i = 0; i < TSB_BUCKET_SIZE; i++) {
@@ -135,14 +115,14 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 	int i;
 
 	if (pm == kernel_pmap) {
-		TSB_STATS_INC(tsb_nenter_k);
+		PMAP_STATS_INC(tsb_nenter_k);
 		tp = tsb_kvtotte(va);
 		KASSERT((tp->tte_data & TD_V) == 0,
 		    ("tsb_tte_enter: replacing valid kernel mapping"));
 		goto enter;
 	}
+	PMAP_STATS_INC(tsb_nenter_u);
 
-	TSB_STATS_INC(tsb_nenter_u);
 	bucket = tsb_vtobucket(pm, sz, va);
 
 	tp = NULL;
@@ -165,7 +145,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 	if (tp == NULL)
 		tp = rtp;
 	if ((tp->tte_data & TD_V) != 0) {
-		TSB_STATS_INC(tsb_nrepl);
+		PMAP_STATS_INC(tsb_nrepl);
 		ova = TTE_GET_VA(tp);
 		vm_page_lock_queues();
 		pmap_remove_tte(pm, NULL, tp, ova);
@@ -204,7 +184,7 @@ tsb_foreach(pmap_t pm1, pmap_t pm2, vm_offset_t start, vm_offset_t end,
 	struct tte *tp;
 	int i;
 
-	TSB_STATS_INC(tsb_nforeach);
+	PMAP_STATS_INC(tsb_nforeach);
 	for (i = 0; i < TSB_SIZE; i++) {
 		tp = &pm1->pm_tsb[i];
 		if ((tp->tte_data & TD_V) != 0) {
