@@ -532,6 +532,8 @@ res_setoptions(options, source)
 			_res.options |= RES_USE_INET6;
 		} else if (!strncmp(cp, "no_tld_query", sizeof("no_tld_query") - 1)) {
 			_res.options |= RES_NOTLDQUERY;
+		} else if (!strncmp(cp, "edns0", sizeof("edns0") - 1)) {
+		       _res.options |= RES_USE_EDNS0;
 		} else {
 			/* XXX - print a warning here? */
 		}
