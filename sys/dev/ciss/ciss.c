@@ -3380,6 +3380,10 @@ ciss_name_ldrive_org(int org)
 	return("RAID 4");
     case CISS_LDRIVE_RAID5:
 	return("RAID 5");
+    case CISS_LDRIVE_RAID51:
+	return("RAID 5+1");
+    case CISS_LDRIVE_RAIDADG:
+	return("RAID ADG");
     }
     return("unkown");
 }
