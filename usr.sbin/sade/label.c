@@ -311,6 +311,7 @@ new_part(char *mpoint, Boolean newfs, u_long size)
     strcpy(ret->newfs_cmd, "newfs ");
     strcat(ret->newfs_cmd, variable_get(VAR_NEWFS_ARGS));
     ret->newfs = newfs;
+    ret->soft = 0;
     if (!size)
 	return ret;
     return ret;
@@ -537,7 +538,7 @@ print_label_chunks(void)
 	}
 	/* Otherwise it's a DOS, swap or filesystem entry in the Chunk window */
 	else {
-	    char onestr[PART_OFF], num[10], *mountpoint, *newfs;
+	    char onestr[PART_OFF], num[10], *mountpoint, newfs[10];
 
 	    /*
 	     * We copy this into a blank-padded string so that it looks like
@@ -576,13 +577,17 @@ print_label_chunks(void)
 
 	    /* Now display the newfs field */
 	    if (label_chunk_info[i].type == PART_FAT)
-	        newfs = "DOS";
-	    else if (label_chunk_info[i].c->private_data && label_chunk_info[i].type == PART_FILESYSTEM)
-		newfs = ((PartInfo *)label_chunk_info[i].c->private_data)->newfs ? "UFS Y" : "UFS N";
+	        strcpy(newfs, "DOS");
+	    else if (label_chunk_info[i].c->private_data && label_chunk_info[i].type == PART_FILESYSTEM) {
+		strcpy(newfs, "UFS");
+		if (((PartInfo *)label_chunk_info[i].c->private_data)->soft)
+		    strcat(newfs, "+S");
+		strcat(newfs, ((PartInfo *)label_chunk_info[i].c->private_data)->newfs ? " Y" : " N");
+	    }
 	    else if (label_chunk_info[i].type == PART_SWAP)
-		newfs = "SWAP";
+		strcpy(newfs, "SWAP");
 	    else
-		newfs = "*";
+		strcpy(newfs, "*");
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
 		onestr[PART_MOUNT_COL + j] = mountpoint[j];
 	    snprintf(num, 10, "%5ldMB", label_chunk_info[i].c->size ? label_chunk_info[i].c->size / ONE_MEG : 0);
@@ -596,8 +601,8 @@ print_label_chunks(void)
 	    if (i == here)
 		wattrset(ChunkWin, ATTR_SELECTED);
 
-            /*** lazy man's way of padding this string ***/
-            while (strlen( onestr ) < 37)
+            /*** lazy man's way of expensively padding this string ***/
+            while (strlen(onestr) < 37)
                 strcat(onestr, " ");
 
 	    mvwaddstr(ChunkWin, prow, pcol, onestr);
@@ -633,11 +638,11 @@ static void
 print_command_summary(void)
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
-    mvprintw(18, 0, "C = Create      D = Delete         M = Mount pt.");
+    mvprintw(18, 0, "C = Create        D = Delete   M = Mount pt.");
     if (!RunningAsInit)
-	mvprintw(18, 49, "W = Write");
-    mvprintw(19, 0, "N = Newfs Opts  T = Newfs Toggle   U = Undo      Q = Finish");
-    mvprintw(20, 0, "A = Auto Defaults for all!");
+	mvprintw(18, 47, "W = Write");
+    mvprintw(19, 0, "N = Newfs Opts    Q = Finish   S = Toggle SoftUpdates");
+    mvprintw(20, 0, "T = Toggle Newfs  U = Undo     A = Auto Defaults");
     mvprintw(22, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
@@ -1056,6 +1061,16 @@ diskLabel(Device *dev)
 	    else
 		msg = MSG_NOT_APPLICABLE;
 	    clear_wins();
+	    break;
+
+	case 'S':	/* Toggle soft updates flag */
+	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
+		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
+		if (pi)
+		    pi->soft = !pi->soft;
+		else
+		    msg = MSG_NOT_APPLICABLE;
+	    }
 	    break;
 
 	case 'T':	/* Toggle newfs state */

@@ -283,6 +283,7 @@ typedef struct _part_info {
     Boolean newfs;
     char mountpoint[FILENAME_MAX];
     char newfs_cmd[NEWFS_CMD_MAX];
+    int soft;
 } PartInfo;
 
 /* An option */
