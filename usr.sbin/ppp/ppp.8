@@ -1,5 +1,6 @@
-.\" $Id: ppp.8,v 1.138 1999/01/06 00:08:15 brian Exp $
+.\" $Id: ppp.8,v 1.139 1999/01/10 17:23:10 sada Exp $
 .Dd 20 September 1995
+.nr XX \w'\fC00'
 .Os FreeBSD
 .Dt PPP 8
 .Sh NAME
@@ -608,7 +609,7 @@ portion of the prompt will change to
 .Sq PPP :
 .Bd -literal -offset indent
 # ppp MyISP
-...
+\&...
 ppp ON awfulhak> dial
 Ppp ON awfulhak>
 PPp ON awfulhak>
@@ -1708,31 +1709,57 @@ ISPs.
 is able to generate the following log info either via
 .Xr syslog 3
 or directly to the screen:
-.Bl -column SMMMMMM -offset indent
-.It Li Async	Dump async level packet in hex
-.It Li CBCP 	Generate CBCP (CallBack Control Protocol) logs
-.It Li CCP	Generate a CCP packet trace
-.It Li Chat	Generate Chat script trace log
-.It Li Command	Log commands executed
-.It Li Connect	Log Chat lines containing "CONNECT"
-.It Li Debug	Log debug information
-.It Li HDLC	Dump HDLC packet in hex
-.It Li ID0	Log all function calls specifically made 
-as user id 0.
-.It Li IPCP	Generate an IPCP packet trace
-.It Li LCP	Generate an LCP packet trace
-.It Li LQM	Generate LQR report
-.It Li Phase	Phase transition log output
-.It Li TCP/IP	Dump all TCP/IP packets
-.It Li Timer	Log timer manipulation
-.It Li TUN	Include the tun device on each log line
-.It Li Warning	Output to the terminal device.  
-If there is currently no
-terminal, output is sent to the log file using LOG_WARNING.
-.It Li Error	Output to both the terminal device 
-and the log file using
-LOG_ERROR.
-.It Li Alert	Output to the log file using LOG_ALERT
+.Pp
+.Bl -tag -width XXXXXXXXX -offset XXX -compact
+.It Li Async
+Dump async level packet in hex.
+.It Li CBCP
+Generate CBCP (CallBack Control Protocol) logs.
+.It Li CCP
+Generate a CCP packet trace.
+.It Li Chat
+Generate
+.Sq dial ,
+.Sq login
+and
+.Sq hangup
+chat script trace logs.
+.It Li Command
+Log commands executed either from the command line or any of the configuration
+files.
+.It Li Connect
+Log Chat lines containing the string "CONNECT".
+.It Li Debug
+Log debug information.
+.It Li HDLC
+Dump HDLC packet in hex.
+.It Li ID0
+Log all function calls specifically made as user id 0.
+.It Li IPCP
+Generate an IPCP packet trace.
+.It Li LCP
+Generate an LCP packet trace.
+.It Li LQM
+Generate LQR reports.
+.It Li Phase
+Phase transition log output.
+.It Li TCP/IP
+Dump all TCP/IP packets.
+.It Li Timer
+Log timer manipulation.
+.It Li TUN
+Include the tun device on each log line.
+.It Li Warning
+Output to the terminal device.  If there is currently no terminal,
+output is sent to the log file using syslogs
+.Dv LOG_WARNING .
+.It Li Error
+Output to both the terminal device
+and the log file using syslogs
+.Dv LOG_ERROR .
+.It Li Alert
+Output to the log file using
+.Dv LOG_ALERT .
 .El
 .Pp
 The
