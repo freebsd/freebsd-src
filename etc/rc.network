@@ -720,9 +720,9 @@ network_pass3() {
 
 	case ${sshd_enable} in
 	[Yy][Ee][Ss])
-		if [ ! -f /etc/ssh/ssh_host_key ]; then
+		if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
 			echo ' creating ssh RSA host key';
-			/usr/bin/ssh-keygen -N "" -f /etc/ssh/ssh_host_key
+			/usr/bin/ssh-keygen -N "" -f /etc/ssh/ssh_host_rsa_key
 		fi
 		if [ ! -f /etc/ssh/ssh_host_dsa_key ]; then
 			echo ' creating ssh DSA host key';
