@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 /* Internally, track the 'name' value, it's ours. */
 #define	MINE_NAME	0x01
+/* Track if its fd points to a writable device. */
+#define	MINE_WRITE	0x02
 
 struct uufsd *
 ufs_disk_ctor(const char *name)
@@ -172,6 +174,30 @@ again:	if (stat(name, &st) < 0) {
 		disk->d_mine |= MINE_NAME;
 	}
 	disk->d_name = name;
+
+	return 0;
+}
+
+int
+ufs_disk_write(struct uufsd *disk)
+{
+	int rofd;
+
+	ERROR(disk, NULL);
+
+	if (disk->d_mine & MINE_WRITE)
+		return 0;
+
+	rofd = disk->d_fd;
+
+	disk->d_fd = open(disk->d_name, O_RDWR);
+	if (disk->d_fd < 0) {
+		ERROR(disk, "failed to open disk for writing");
+		disk->d_fd = rofd;
+		return -1;
+	}
+
+	disk->d_mine |= MINE_WRITE;
 
 	return 0;
 }
