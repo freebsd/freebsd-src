@@ -302,7 +302,7 @@ the %s domain -- aborting", yppasswd_domain);
 	}
 	if (!svc_reg(transp, MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS,
 	    master_yppasswdprog_1, nconf)) {
-		yp_error("unable to register (MASTER_YPPASSWDPROG,
+		yp_error("unable to register (MASTER_YPPASSWDPROG, \
 		    MASTER_YPPASSWDVERS, unix).");
 		exit(1);
 	}
