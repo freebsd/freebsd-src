@@ -349,7 +349,7 @@ _ftp_readfn(void *v, char *buf, int len)
 	return r;
     if (r == 0) {
 	io->eof = 1;
-	return _ftp_closefn(v);
+	return 0;
     }
     if (errno != EINTR)
 	io->err = errno;
