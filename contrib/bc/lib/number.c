@@ -1,7 +1,6 @@
 /* number.c: Implements arbitrary precision numbers. */
-
-/*  This file is part of GNU bc.
-    Copyright (C) 1991, 1992, 1993, 1994, 1997, 1998 Free Software Foundation, Inc.
+/*
+    Copyright (C) 1991, 1992, 1993, 1994, 1997, 2000 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,70 +13,98 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; see the file COPYING.  If not, write to
-    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+    along with this program; see the file COPYING.  If not, write to:
+
+      The Free Software Foundation, Inc.
+      59 Temple Place, Suite 330
+      Boston, MA 02111-1307 USA.
+
 
     You may contact the author by:
-       e-mail:  phil@cs.wwu.edu
+       e-mail:  philnelson@acm.org
       us-mail:  Philip A. Nelson
                 Computer Science Department, 9062
                 Western Washington University
                 Bellingham, WA 98226-9062
-
+       
 *************************************************************************/
 
-#include "bcdefs.h"
-#include "proto.h"
-#include "global.h"
+#include <stdio.h>
+#include <config.h>
+#include <number.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <ctype.h>/* Prototypes needed for external utility routines. */
+
+#define bc_rt_warn rt_warn
+#define bc_rt_error rt_error
+#define bc_out_of_memory out_of_memory
+
+_PROTOTYPE(void rt_warn, (char *mesg ,...));
+_PROTOTYPE(void rt_error, (char *mesg ,...));
+_PROTOTYPE(void out_of_memory, (void));
 
 /* Storage used for special numbers. */
 bc_num _zero_;
 bc_num _one_;
 bc_num _two_;
 
+static bc_num _bc_Free_list = NULL;
+
+/* new_num allocates a number and sets fields to known values. */
+
+bc_num
+bc_new_num (length, scale)
+     int length, scale;
+{
+  bc_num temp;
+
+  if (_bc_Free_list != NULL) {
+    temp = _bc_Free_list;
+    _bc_Free_list = temp->n_next;
+  } else {
+    temp = (bc_num) malloc (sizeof(bc_struct));
+    if (temp == NULL) bc_out_of_memory ();
+  }
+  temp->n_sign = PLUS;
+  temp->n_len = length;
+  temp->n_scale = scale;
+  temp->n_refs = 1;
+  temp->n_ptr = (char *) malloc (length+scale);
+  if (temp->n_ptr == NULL) bc_out_of_memory();
+  temp->n_value = temp->n_ptr;
+  memset (temp->n_ptr, 0, length+scale);
+  return temp;
+}
 
 /* "Frees" a bc_num NUM.  Actually decreases reference count and only
    frees the storage if reference count is zero. */
 
 void
-free_num (num)
+bc_free_num (num)
     bc_num *num;
 {
   if (*num == NULL) return;
   (*num)->n_refs--;
-  if ((*num)->n_refs == 0) free(*num);
+  if ((*num)->n_refs == 0) {
+    if ((*num)->n_ptr)
+      free ((*num)->n_ptr);
+    (*num)->n_next = _bc_Free_list;
+    _bc_Free_list = *num;
+  }
   *num = NULL;
-}
-
-
-/* new_num allocates a number and sets fields to known values. */
-
-bc_num
-new_num (length, scale)
-     int length, scale;
-{
-  bc_num temp;
-
-  temp = (bc_num) malloc (sizeof(bc_struct)+length+scale);
-  if (temp == NULL) out_of_memory ();
-  temp->n_sign = PLUS;
-  temp->n_len = length;
-  temp->n_scale = scale;
-  temp->n_refs = 1;
-  temp->n_value[0] = 0;
-  return temp;
 }
 
 
 /* Intitialize the number package! */
 
 void
-init_numbers ()
+bc_init_numbers ()
 {
-  _zero_ = new_num (1,0);
-  _one_  = new_num (1,0);
+  _zero_ = bc_new_num (1,0);
+  _one_  = bc_new_num (1,0);
   _one_->n_value[0] = 1;
-  _two_  = new_num (1,0);
+  _two_  = bc_new_num (1,0);
   _two_->n_value[0] = 2;
 }
 
@@ -85,7 +112,7 @@ init_numbers ()
 /* Make a copy of a number!  Just increments the reference count! */
 
 bc_num
-copy_num (num)
+bc_copy_num (num)
      bc_num num;
 {
   num->n_refs++;
@@ -96,97 +123,26 @@ copy_num (num)
 /* Initialize a number NUM by making it a copy of zero. */
 
 void
-init_num (num)
+bc_init_num (num)
      bc_num *num;
 {
-  *num = copy_num (_zero_);
+  *num = bc_copy_num (_zero_);
 }
 
+/* For many things, we may have leading zeros in a number NUM.
+   _bc_rm_leading_zeros just moves the data "value" pointer to the
+   correct place and adjusts the length. */
 
-/* Convert an integer VAL to a bc number NUM. */
-
-void
-int2num (num, val)
-     bc_num *num;
-     int val;
-{
-  char buffer[30];
-  char *bptr, *vptr;
-  int  ix = 1;
-  char neg = 0;
-
-  /* Sign. */
-  if (val < 0)
-    {
-      neg = 1;
-      val = -val;
-    }
-
-  /* Get things going. */
-  bptr = buffer;
-  *bptr++ = val % BASE;
-  val = val / BASE;
-
-  /* Extract remaining digits. */
-  while (val != 0)
-    {
-      *bptr++ = val % BASE;
-      val = val / BASE;
-      ix++; 		/* Count the digits. */
-    }
-
-  /* Make the number. */
-  free_num (num);
-  *num = new_num (ix, 0);
-  if (neg) (*num)->n_sign = MINUS;
-
-  /* Assign the digits. */
-  vptr = (*num)->n_value;
-  while (ix-- > 0)
-    *vptr++ = *--bptr;
-}
-
-
-/* Convert a number NUM to a long.  The function returns only the integer
-   part of the number.  For numbers that are too large to represent as
-   a long, this function returns a zero.  This can be detected by checking
-   the NUM for zero after having a zero returned. */
-
-long
-num2long (num)
+static void
+_bc_rm_leading_zeros (num)
      bc_num num;
 {
-  long val;
-  char *nptr;
-  int  index;
-
-  /* Extract the int value, ignore the fraction. */
-  val = 0;
-  nptr = num->n_value;
-  for (index=num->n_len; (index>0) && (val<=(LONG_MAX/BASE)); index--)
-    val = val*BASE + *nptr++;
-
-  /* Check for overflow.  If overflow, return zero. */
-  if (index>0) val = 0;
-  if (val < 0) val = 0;
-
-  /* Return the value. */
-  if (num->n_sign == PLUS)
-    return (val);
-  else
-    return (-val);
+  /* We can move n_value to point to the first non zero digit! */
+  while (*num->n_value == 0 && num->n_len > 1) {
+    num->n_value++;
+    num->n_len--;
+  }
 }
-
-
-/* The following are some math routines for numbers. */
-_PROTOTYPE(static int _do_compare, (bc_num n1, bc_num n2, int use_sign,
-				    int ignore_last));
-_PROTOTYPE(static void _rm_leading_zeros, (bc_num num));
-_PROTOTYPE(static bc_num _do_add, (bc_num n1, bc_num n2, int scale_min));
-_PROTOTYPE(static bc_num _do_sub, (bc_num n1, bc_num n2, int scale_min));
-_PROTOTYPE(static void _one_mult, (unsigned char *num, int size, int digit,
-				   unsigned char *result));
-
 
 
 /* Compare two bc numbers.  Return value is 0 if equal, -1 if N1 is less
@@ -194,7 +150,7 @@ _PROTOTYPE(static void _one_mult, (unsigned char *num, int size, int digit,
    compare the magnitudes. */
 
 static int
-_do_compare (n1, n2, use_sign, ignore_last)
+_bc_do_compare (n1, n2, use_sign, ignore_last)
      bc_num n1, n2;
      int use_sign;
      int ignore_last;
@@ -268,30 +224,32 @@ _do_compare (n1, n2, use_sign, ignore_last)
 
   /* They are equal up to the last part of the equal part of the fraction. */
   if (n1->n_scale != n2->n_scale)
-    if (n1->n_scale > n2->n_scale)
-      {
-	for (count = n1->n_scale-n2->n_scale; count>0; count--)
-	  if (*n1ptr++ != 0)
-	    {
-	      /* Magnitude of n1 > n2. */
-	      if (!use_sign || n1->n_sign == PLUS)
-		return (1);
-	      else
-		return (-1);
-	    }
-      }
-    else
-      {
-	for (count = n2->n_scale-n1->n_scale; count>0; count--)
-	  if (*n2ptr++ != 0)
-	    {
-	      /* Magnitude of n1 < n2. */
-	      if (!use_sign || n1->n_sign == PLUS)
-		return (-1);
-	      else
-		return (1);
-	    }
-      }
+    {
+      if (n1->n_scale > n2->n_scale)
+	{
+	  for (count = n1->n_scale-n2->n_scale; count>0; count--)
+	    if (*n1ptr++ != 0)
+	      {
+		/* Magnitude of n1 > n2. */
+		if (!use_sign || n1->n_sign == PLUS)
+		  return (1);
+		else
+		  return (-1);
+	      }
+	}
+      else
+	{
+	  for (count = n2->n_scale-n1->n_scale; count>0; count--)
+	    if (*n2ptr++ != 0)
+	      {
+		/* Magnitude of n1 < n2. */
+		if (!use_sign || n1->n_sign == PLUS)
+		  return (-1);
+		else
+		  return (1);
+	      }
+	}
+    }
 
   /* They must be equal! */
   return (0);
@@ -304,14 +262,22 @@ int
 bc_compare (n1, n2)
      bc_num n1, n2;
 {
-  return _do_compare (n1, n2, TRUE, FALSE);
+  return _bc_do_compare (n1, n2, TRUE, FALSE);
 }
 
+/* In some places we need to check if the number is negative. */
+
+char
+bc_is_neg (num)
+     bc_num num;
+{
+  return num->n_sign == MINUS;
+}
 
 /* In some places we need to check if the number NUM is zero. */
 
 char
-is_zero (num)
+bc_is_zero (num)
      bc_num num;
 {
   int  count;
@@ -333,41 +299,33 @@ is_zero (num)
     return TRUE;
 }
 
-
-/* In some places we need to check if the number is negative. */
+/* In some places we need to check if the number NUM is almost zero.
+   Specifically, all but the last digit is 0 and the last digit is 1.
+   Last digit is defined by scale. */
 
 char
-is_neg (num)
+bc_is_near_zero (num, scale)
      bc_num num;
+     int scale;
 {
-  return num->n_sign == MINUS;
-}
+  int  count;
+  char *nptr;
 
+  /* Error checking */
+  if (scale > num->n_scale)
+    scale = num->n_scale;
 
-/* For many things, we may have leading zeros in a number NUM.
-   _rm_leading_zeros just moves the data to the correct
-   place and adjusts the length. */
+  /* Initialize */
+  count = num->n_len + scale;
+  nptr = num->n_value;
 
-static void
-_rm_leading_zeros (num)
-     bc_num num;
-{
-  int bytes;
-  char *dst, *src;
+  /* The check */
+  while ((count > 0) && (*nptr++ == 0)) count--;
 
-  /* Do a quick check to see if we need to do it. */
-  if (*num->n_value != 0) return;
-
-  /* The first "digit" is 0, find the first non-zero digit in the second
-     or greater "digit" to the left of the decimal place. */
-  bytes = num->n_len;
-  src = num->n_value;
-  while (bytes > 1 && *src == 0) src++, bytes--;
-  num->n_len = bytes;
-  bytes += num->n_scale;
-  dst = num->n_value;
-  while (bytes-- > 0) *dst++ = *src++;
-
+  if (count != 0 && (count != 1 || *--nptr != 1))
+    return FALSE;
+  else
+    return TRUE;
 }
 
 
@@ -376,7 +334,7 @@ _rm_leading_zeros (num)
    SCALE_MIN is to set the minimum scale of the result. */
 
 static bc_num
-_do_add (n1, n2, scale_min)
+_bc_do_add (n1, n2, scale_min)
      bc_num n1, n2;
      int scale_min;
 {
@@ -389,7 +347,7 @@ _do_add (n1, n2, scale_min)
   /* Prepare sum. */
   sum_scale = MAX (n1->n_scale, n2->n_scale);
   sum_digits = MAX (n1->n_len, n2->n_len) + 1;
-  sum = new_num (sum_digits, MAX(sum_scale, scale_min));
+  sum = bc_new_num (sum_digits, MAX(sum_scale, scale_min));
 
   /* Zero extra digits made by scale_min. */
   if (scale_min > sum_scale)
@@ -457,7 +415,7 @@ _do_add (n1, n2, scale_min)
     *sumptr += 1;
 
   /* Adjust sum and return. */
-  _rm_leading_zeros (sum);
+  _bc_rm_leading_zeros (sum);
   return sum;
 }
 
@@ -468,7 +426,7 @@ _do_add (n1, n2, scale_min)
    of the result. */
 
 static bc_num
-_do_sub (n1, n2, scale_min)
+_bc_do_sub (n1, n2, scale_min)
      bc_num n1, n2;
      int scale_min;
 {
@@ -483,7 +441,7 @@ _do_sub (n1, n2, scale_min)
   diff_scale = MAX (n1->n_scale, n2->n_scale);
   min_len = MIN  (n1->n_len, n2->n_len);
   min_scale = MIN (n1->n_scale, n2->n_scale);
-  diff = new_num (diff_len, MAX(diff_scale, scale_min));
+  diff = bc_new_num (diff_len, MAX(diff_scale, scale_min));
 
   /* Zero extra digits made by scale_min. */
   if (scale_min > diff_scale)
@@ -558,56 +516,8 @@ _do_sub (n1, n2, scale_min)
     }
 
   /* Clean up and return. */
-  _rm_leading_zeros (diff);
+  _bc_rm_leading_zeros (diff);
   return diff;
-}
-
-
-/* Here is the full add routine that takes care of negative numbers.
-   N1 is added to N2 and the result placed into RESULT.  SCALE_MIN
-   is the minimum scale for the result. */
-
-void
-bc_add (n1, n2, result, scale_min)
-     bc_num n1, n2, *result;
-     int scale_min;
-{
-  bc_num sum;
-  int cmp_res;
-  int res_scale;
-
-  if (n1->n_sign == n2->n_sign)
-    {
-      sum = _do_add (n1, n2, scale_min);
-      sum->n_sign = n1->n_sign;
-    }
-  else
-    {
-      /* subtraction must be done. */
-      cmp_res = _do_compare (n1, n2, FALSE, FALSE);  /* Compare magnitudes. */
-      switch (cmp_res)
-	{
-	case -1:
-	  /* n1 is less than n2, subtract n1 from n2. */
-	  sum = _do_sub (n2, n1, scale_min);
-	  sum->n_sign = n2->n_sign;
-	  break;
-	case  0:
-	  /* They are equal! return zero with the correct scale! */
-	  res_scale = MAX (scale_min, MAX(n1->n_scale, n2->n_scale));
-	  sum = new_num (1, res_scale);
-	  memset (sum->n_value, 0, res_scale+1);
-	  break;
-	case  1:
-	  /* n2 is less than n1, subtract n2 from n1. */
-	  sum = _do_sub (n1, n2, scale_min);
-	  sum->n_sign = n1->n_sign;
-	}
-    }
-
-  /* Clean up and return. */
-  free_num (result);
-  *result = sum;
 }
 
 
@@ -620,47 +530,326 @@ bc_sub (n1, n2, result, scale_min)
      bc_num n1, n2, *result;
      int scale_min;
 {
-  bc_num diff;
+  bc_num diff = NULL;
   int cmp_res;
   int res_scale;
 
   if (n1->n_sign != n2->n_sign)
     {
-      diff = _do_add (n1, n2, scale_min);
+      diff = _bc_do_add (n1, n2, scale_min);
       diff->n_sign = n1->n_sign;
     }
   else
     {
       /* subtraction must be done. */
-      cmp_res = _do_compare (n1, n2, FALSE, FALSE);  /* Compare magnitudes. */
+      /* Compare magnitudes. */
+      cmp_res = _bc_do_compare (n1, n2, FALSE, FALSE);
       switch (cmp_res)
 	{
 	case -1:
 	  /* n1 is less than n2, subtract n1 from n2. */
-	  diff = _do_sub (n2, n1, scale_min);
+	  diff = _bc_do_sub (n2, n1, scale_min);
 	  diff->n_sign = (n2->n_sign == PLUS ? MINUS : PLUS);
 	  break;
 	case  0:
 	  /* They are equal! return zero! */
 	  res_scale = MAX (scale_min, MAX(n1->n_scale, n2->n_scale));
-	  diff = new_num (1, res_scale);
+	  diff = bc_new_num (1, res_scale);
 	  memset (diff->n_value, 0, res_scale+1);
 	  break;
 	case  1:
 	  /* n2 is less than n1, subtract n2 from n1. */
-	  diff = _do_sub (n1, n2, scale_min);
+	  diff = _bc_do_sub (n1, n2, scale_min);
 	  diff->n_sign = n1->n_sign;
 	  break;
 	}
     }
 
   /* Clean up and return. */
-  free_num (result);
+  bc_free_num (result);
   *result = diff;
 }
 
 
-/* The multiply routine.  N2 time N1 is put int PROD with the scale of
+/* Here is the full add routine that takes care of negative numbers.
+   N1 is added to N2 and the result placed into RESULT.  SCALE_MIN
+   is the minimum scale for the result. */
+
+void
+bc_add (n1, n2, result, scale_min)
+     bc_num n1, n2, *result;
+     int scale_min;
+{
+  bc_num sum = NULL;
+  int cmp_res;
+  int res_scale;
+
+  if (n1->n_sign == n2->n_sign)
+    {
+      sum = _bc_do_add (n1, n2, scale_min);
+      sum->n_sign = n1->n_sign;
+    }
+  else
+    {
+      /* subtraction must be done. */
+      cmp_res = _bc_do_compare (n1, n2, FALSE, FALSE);  /* Compare magnitudes. */
+      switch (cmp_res)
+	{
+	case -1:
+	  /* n1 is less than n2, subtract n1 from n2. */
+	  sum = _bc_do_sub (n2, n1, scale_min);
+	  sum->n_sign = n2->n_sign;
+	  break;
+	case  0:
+	  /* They are equal! return zero with the correct scale! */
+	  res_scale = MAX (scale_min, MAX(n1->n_scale, n2->n_scale));
+	  sum = bc_new_num (1, res_scale);
+	  memset (sum->n_value, 0, res_scale+1);
+	  break;
+	case  1:
+	  /* n2 is less than n1, subtract n2 from n1. */
+	  sum = _bc_do_sub (n1, n2, scale_min);
+	  sum->n_sign = n1->n_sign;
+	}
+    }
+
+  /* Clean up and return. */
+  bc_free_num (result);
+  *result = sum;
+}
+
+/* Recursive vs non-recursive multiply crossover ranges. */
+#if defined(MULDIGITS)
+#include "muldigits.h"
+#else
+#define MUL_BASE_DIGITS 80
+#endif
+
+int mul_base_digits = MUL_BASE_DIGITS;
+#define MUL_SMALL_DIGITS mul_base_digits/4
+
+/* Multiply utility routines */
+
+static bc_num
+new_sub_num (length, scale, value)
+     int length, scale;
+     char *value;
+{
+  bc_num temp;
+
+  if (_bc_Free_list != NULL) {
+    temp = _bc_Free_list;
+    _bc_Free_list = temp->n_next;
+  } else {
+    temp = (bc_num) malloc (sizeof(bc_struct));
+    if (temp == NULL) bc_out_of_memory ();
+  }
+  temp->n_sign = PLUS;
+  temp->n_len = length;
+  temp->n_scale = scale;
+  temp->n_refs = 1;
+  temp->n_ptr = NULL;
+  temp->n_value = value;
+  return temp;
+}
+
+static void
+_bc_simp_mul (bc_num n1, int n1len, bc_num n2, int n2len, bc_num *prod,
+	      int full_scale)
+{
+  char *n1ptr, *n2ptr, *pvptr;
+  char *n1end, *n2end;		/* To the end of n1 and n2. */
+  int indx, sum, prodlen;
+
+  prodlen = n1len+n2len+1;
+
+  *prod = bc_new_num (prodlen, 0);
+
+  n1end = (char *) (n1->n_value + n1len - 1);
+  n2end = (char *) (n2->n_value + n2len - 1);
+  pvptr = (char *) ((*prod)->n_value + prodlen - 1);
+  sum = 0;
+
+  /* Here is the loop... */
+  for (indx = 0; indx < prodlen-1; indx++)
+    {
+      n1ptr = (char *) (n1end - MAX(0, indx-n2len+1));
+      n2ptr = (char *) (n2end - MIN(indx, n2len-1));
+      while ((n1ptr >= n1->n_value) && (n2ptr <= n2end))
+	sum += *n1ptr-- * *n2ptr++;
+      *pvptr-- = sum % BASE;
+      sum = sum / BASE;
+    }
+  *pvptr = sum;
+}
+
+
+/* A special adder/subtractor for the recursive divide and conquer
+   multiply algorithm.  Note: if sub is called, accum must
+   be larger that what is being subtracted.  Also, accum and val
+   must have n_scale = 0.  (e.g. they must look like integers. *) */
+static void
+_bc_shift_addsub (bc_num accum, bc_num val, int shift, int sub)
+{
+  signed char *accp, *valp;
+  int  count, carry;
+
+  count = val->n_len;
+  if (val->n_value[0] == 0)
+    count--;
+  assert (accum->n_len+accum->n_scale >= shift+count);
+  
+  /* Set up pointers and others */
+  accp = (signed char *)(accum->n_value +
+			 accum->n_len + accum->n_scale - shift - 1);
+  valp = (signed char *)(val->n_value + val->n_len - 1);
+  carry = 0;
+
+  if (sub) {
+    /* Subtraction, carry is really borrow. */
+    while (count--) {
+      *accp -= *valp-- + carry;
+      if (*accp < 0) {
+	carry = 1;
+        *accp-- += BASE;
+      } else {
+	carry = 0;
+	accp--;
+      }
+    }
+    while (carry) {
+      *accp -= carry;
+      if (*accp < 0)
+	*accp-- += BASE;
+      else
+	carry = 0;
+    }
+  } else {
+    /* Addition */
+    while (count--) {
+      *accp += *valp-- + carry;
+      if (*accp > (BASE-1)) {
+	carry = 1;
+        *accp-- -= BASE;
+      } else {
+	carry = 0;
+	accp--;
+      }
+    }
+    while (carry) {
+      *accp += carry;
+      if (*accp > (BASE-1))
+	*accp-- -= BASE;
+      else
+	carry = 0;
+    }
+  }
+}
+
+/* Recursive divide and conquer multiply algorithm.  
+   Based on 
+   Let u = u0 + u1*(b^n)
+   Let v = v0 + v1*(b^n)
+   Then uv = (B^2n+B^n)*u1*v1 + B^n*(u1-u0)*(v0-v1) + (B^n+1)*u0*v0
+
+   B is the base of storage, number of digits in u1,u0 close to equal.
+*/
+static void
+_bc_rec_mul (bc_num u, int ulen, bc_num v, int vlen, bc_num *prod,
+	     int full_scale)
+{ 
+  bc_num u0, u1, v0, v1;
+  int u0len, v0len;
+  bc_num m1, m2, m3, d1, d2;
+  int n, prodlen, m1zero;
+  int d1len, d2len;
+
+  /* Base case? */
+  if ((ulen+vlen) < mul_base_digits
+      || ulen < MUL_SMALL_DIGITS
+      || vlen < MUL_SMALL_DIGITS ) {
+    _bc_simp_mul (u, ulen, v, vlen, prod, full_scale);
+    return;
+  }
+
+  /* Calculate n -- the u and v split point in digits. */
+  n = (MAX(ulen, vlen)+1) / 2;
+
+  /* Split u and v. */
+  if (ulen < n) {
+    u1 = bc_copy_num (_zero_);
+    u0 = new_sub_num (ulen,0, u->n_value);
+  } else {
+    u1 = new_sub_num (ulen-n, 0, u->n_value);
+    u0 = new_sub_num (n, 0, u->n_value+ulen-n);
+  }
+  if (vlen < n) {
+    v1 = bc_copy_num (_zero_);
+    v0 = new_sub_num (vlen,0, v->n_value);
+  } else {
+    v1 = new_sub_num (vlen-n, 0, v->n_value);
+    v0 = new_sub_num (n, 0, v->n_value+vlen-n);
+    }
+  _bc_rm_leading_zeros (u1);
+  _bc_rm_leading_zeros (u0);
+  u0len = u0->n_len;
+  _bc_rm_leading_zeros (v1);
+  _bc_rm_leading_zeros (v0);
+  v0len = v0->n_len;
+
+  m1zero = bc_is_zero(u1) || bc_is_zero(v1);
+
+  /* Calculate sub results ... */
+
+  bc_init_num(&d1);
+  bc_init_num(&d2);
+  bc_sub (u1, u0, &d1, 0);
+  d1len = d1->n_len;
+  bc_sub (v0, v1, &d2, 0);
+  d2len = d2->n_len;
+
+
+  /* Do recursive multiplies and shifted adds. */
+  if (m1zero)
+    m1 = bc_copy_num (_zero_);
+  else
+    _bc_rec_mul (u1, u1->n_len, v1, v1->n_len, &m1, 0);
+
+  if (bc_is_zero(d1) || bc_is_zero(d2))
+    m2 = bc_copy_num (_zero_);
+  else
+    _bc_rec_mul (d1, d1len, d2, d2len, &m2, 0);
+
+  if (bc_is_zero(u0) || bc_is_zero(v0))
+    m3 = bc_copy_num (_zero_);
+  else
+    _bc_rec_mul (u0, u0->n_len, v0, v0->n_len, &m3, 0);
+
+  /* Initialize product */
+  prodlen = ulen+vlen+1;
+  *prod = bc_new_num(prodlen, 0);
+
+  if (!m1zero) {
+    _bc_shift_addsub (*prod, m1, 2*n, 0);
+    _bc_shift_addsub (*prod, m1, n, 0);
+  }
+  _bc_shift_addsub (*prod, m3, n, 0);
+  _bc_shift_addsub (*prod, m3, 0, 0);
+  _bc_shift_addsub (*prod, m2, n, d1->n_sign != d2->n_sign);
+
+  /* Now clean up! */
+  bc_free_num (&u1);
+  bc_free_num (&u0);
+  bc_free_num (&v1);
+  bc_free_num (&m1);
+  bc_free_num (&v0);
+  bc_free_num (&m2);
+  bc_free_num (&m3);
+  bc_free_num (&d1);
+  bc_free_num (&d2);
+}
+
+/* The multiply routine.  N2 times N1 is put int PROD with the scale of
    the result being MIN(N2 scale+N1 scale, MAX (SCALE, N2 scale, N1 scale)).
    */
 
@@ -669,58 +858,30 @@ bc_multiply (n1, n2, prod, scale)
      bc_num n1, n2, *prod;
      int scale;
 {
-  bc_num pval;			/* For the working storage. */
-  char *n1ptr, *n2ptr, *pvptr;	/* Work pointers. */
-  char *n1end, *n2end;		/* To the end of n1 and n2. */
-
-  int indx;
-  int len1, len2, total_digits;
-  long sum;
+  bc_num pval; 
+  int len1, len2;
   int full_scale, prod_scale;
-  int toss;
 
   /* Initialize things. */
   len1 = n1->n_len + n1->n_scale;
   len2 = n2->n_len + n2->n_scale;
-  total_digits = len1 + len2;
   full_scale = n1->n_scale + n2->n_scale;
   prod_scale = MIN(full_scale,MAX(scale,MAX(n1->n_scale,n2->n_scale)));
-  toss = full_scale - prod_scale;
-  pval =  new_num (total_digits-full_scale, prod_scale);
-  pval->n_sign = ( n1->n_sign == n2->n_sign ? PLUS : MINUS );
-  n1end = (char *) (n1->n_value + len1 - 1);
-  n2end = (char *) (n2->n_value + len2 - 1);
-  pvptr = (char *) (pval->n_value + total_digits - toss - 1);
-  sum = 0;
 
-  /* Here are the loops... */
-  for (indx = 0; indx < toss; indx++)
-    {
-      n1ptr = (char *) (n1end - MAX(0, indx-len2+1));
-      n2ptr = (char *) (n2end - MIN(indx, len2-1));
-      while ((n1ptr >= n1->n_value) && (n2ptr <= n2end))
-	sum += *n1ptr-- * *n2ptr++;
-      sum = sum / BASE;
-    }
-  for ( ; indx < total_digits-1; indx++)
-    {
-      n1ptr = (char *) (n1end - MAX(0, indx-len2+1));
-      n2ptr = (char *) (n2end - MIN(indx, len2-1));
-      while ((n1ptr >= n1->n_value) && (n2ptr <= n2end))
-	sum += *n1ptr-- * *n2ptr++;
-      *pvptr-- = sum % BASE;
-      sum = sum / BASE;
-    }
-  *pvptr-- = sum;
+  /* Do the multiply */
+  _bc_rec_mul (n1, len1, n2, len2, &pval, full_scale);
 
   /* Assign to prod and clean up the number. */
-  free_num (prod);
+  pval->n_sign = ( n1->n_sign == n2->n_sign ? PLUS : MINUS );
+  pval->n_value = pval->n_ptr;
+  pval->n_len = len2 + len1 + 1 - full_scale;
+  pval->n_scale = prod_scale;
+  _bc_rm_leading_zeros (pval);
+  if (bc_is_zero (pval))
+    pval->n_sign = PLUS;
+  bc_free_num (prod);
   *prod = pval;
-  _rm_leading_zeros (*prod);
-  if (is_zero (*prod))
-    (*prod)->n_sign = PLUS;
 }
-
 
 /* Some utility routines for the divide:  First a one digit multiply.
    NUM (with SIZE digits) is multiplied by DIGIT and the result is
@@ -783,19 +944,19 @@ bc_divide (n1, n2, quot, scale)
   unsigned int  norm;
 
   /* Test for divide by zero. */
-  if (is_zero (n2)) return -1;
+  if (bc_is_zero (n2)) return -1;
 
   /* Test for divide by 1.  If it is we must truncate. */
   if (n2->n_scale == 0)
     {
       if (n2->n_len == 1 && *n2->n_value == 1)
 	{
-	  qval = new_num (n1->n_len, scale);
+	  qval = bc_new_num (n1->n_len, scale);
 	  qval->n_sign = (n1->n_sign == n2->n_sign ? PLUS : MINUS);
 	  memset (&qval->n_value[n1->n_len],0,scale);
 	  memcpy (qval->n_value, n1->n_value,
 		  n1->n_len + MIN(n1->n_scale,scale));
-	  free_num (quot);
+	  bc_free_num (quot);
 	  *quot = qval;
 	}
     }
@@ -813,13 +974,13 @@ bc_divide (n1, n2, quot, scale)
   else
     extra = 0;
   num1 = (unsigned char *) malloc (n1->n_len+n1->n_scale+extra+2);
-  if (num1 == NULL) out_of_memory();
+  if (num1 == NULL) bc_out_of_memory();
   memset (num1, 0, n1->n_len+n1->n_scale+extra+2);
   memcpy (num1+1, n1->n_value, n1->n_len+n1->n_scale);
 
   len2 = n2->n_len + scale2;
   num2 = (unsigned char *) malloc (len2+1);
-  if (num2 == NULL) out_of_memory();
+  if (num2 == NULL) bc_out_of_memory();
   memcpy (num2, n2->n_value, len2);
   *(num2+len2) = 0;
   n2ptr = num2;
@@ -845,12 +1006,12 @@ bc_divide (n1, n2, quot, scale)
     }
 
   /* Allocate and zero the storage for the quotient. */
-  qval = new_num (qdigits-scale,scale);
+  qval = bc_new_num (qdigits-scale,scale);
   memset (qval->n_value, 0, qdigits);
 
   /* Allocate storage for the temporary storage mval. */
   mval = (unsigned char *) malloc (len2+1);
-  if (mval == NULL) out_of_memory ();
+  if (mval == NULL) bc_out_of_memory ();
 
   /* Now for the full divide algorithm. */
   if (!zero)
@@ -944,9 +1105,9 @@ bc_divide (n1, n2, quot, scale)
 
   /* Clean up and return the number. */
   qval->n_sign = ( n1->n_sign == n2->n_sign ? PLUS : MINUS );
-  if (is_zero (qval)) qval->n_sign = PLUS;
-  _rm_leading_zeros (qval);
-  free_num (quot);
+  if (bc_is_zero (qval)) qval->n_sign = PLUS;
+  _bc_rm_leading_zeros (qval);
+  bc_free_num (quot);
   *quot = qval;
 
   /* Clean up temporary storage. */
@@ -968,28 +1129,28 @@ bc_divmod (num1, num2, quot, rem, scale)
      bc_num num1, num2, *quot, *rem;
      int scale;
 {
-  bc_num quotient;
+  bc_num quotient = NULL;
   bc_num temp;
   int rscale;
 
   /* Check for correct numbers. */
-  if (is_zero (num2)) return -1;
+  if (bc_is_zero (num2)) return -1;
 
   /* Calculate final scale. */
   rscale = MAX (num1->n_scale, num2->n_scale+scale);
-  init_num (&temp);
+  bc_init_num(&temp);
 
   /* Calculate it. */
   bc_divide (num1, num2, &temp, scale);
   if (quot)
-    quotient = copy_num(temp);
+    quotient = bc_copy_num (temp);
   bc_multiply (temp, num2, &temp, rscale);
   bc_sub (num1, temp, rem, rscale);
-  free_num (&temp);
+  bc_free_num (&temp);
 
   if (quot)
     {
-      free_num (quot);
+      bc_free_num (quot);
       *quot = quotient;
     }
 
@@ -1008,7 +1169,6 @@ bc_modulo (num1, num2, result, scale)
   return bc_divmod (num1, num2, NULL, result, scale);
 }
 
-
 /* Raise BASE to the EXPO power, reduced modulo MOD.  The result is
    placed in RESULT.  If a EXPO is not an integer,
    only the integer part is used.  */
@@ -1022,36 +1182,36 @@ bc_raisemod (base, expo, mod, result, scale)
   int rscale;
 
   /* Check for correct numbers. */
-  if (is_zero(mod)) return -1;
-  if (is_neg(expo)) return -1;
+  if (bc_is_zero(mod)) return -1;
+  if (bc_is_neg(expo)) return -1;
 
   /* Set initial values.  */
-  power = copy_num (base);
-  exponent = copy_num (expo);
-  temp = copy_num (_one_);
-  init_num (&parity);
+  power = bc_copy_num (base);
+  exponent = bc_copy_num (expo);
+  temp = bc_copy_num (_one_);
+  bc_init_num(&parity);
 
   /* Check the base for scale digits. */
   if (base->n_scale != 0)
-      rt_warn ("non-zero scale in base");
+      bc_rt_warn ("non-zero scale in base");
 
   /* Check the exponent for scale digits. */
   if (exponent->n_scale != 0)
     {
-      rt_warn ("non-zero scale in exponent");
+      bc_rt_warn ("non-zero scale in exponent");
       bc_divide (exponent, _one_, &exponent, 0); /*truncate */
     }
 
   /* Check the modulus for scale digits. */
   if (mod->n_scale != 0)
-      rt_warn ("non-zero scale in modulus");
+      bc_rt_warn ("non-zero scale in modulus");
 
   /* Do the calculation. */
   rscale = MAX(scale, base->n_scale);
-  while ( !is_zero(exponent) )
+  while ( !bc_is_zero(exponent) )
     {
       (void) bc_divmod (exponent, _two_, &exponent, &parity, 0);
-      if ( !is_zero(parity) )
+      if ( !bc_is_zero(parity) )
 	{
 	  bc_multiply (temp, power, &temp, rscale);
 	  (void) bc_modulo (temp, mod, &temp, scale);
@@ -1062,13 +1222,12 @@ bc_raisemod (base, expo, mod, result, scale)
     }
 
   /* Assign the value. */
-  free_num (&power);
-  free_num (&exponent);
-  free_num (result);
+  bc_free_num (&power);
+  bc_free_num (&exponent);
+  bc_free_num (result);
   *result = temp;
   return 0;	/* Everything is OK. */
 }
-
 
 /* Raise NUM1 to the NUM2 power.  The result is placed in RESULT.
    Maximum exponent is LONG_MAX.  If a NUM2 is not an integer,
@@ -1082,20 +1241,22 @@ bc_raise (num1, num2, result, scale)
    bc_num temp, power;
    long exponent;
    int rscale;
+   int pwrscale;
+   int calcscale;
    char neg;
 
    /* Check the exponent for scale digits and convert to a long. */
    if (num2->n_scale != 0)
-     rt_warn ("non-zero scale in exponent");
-   exponent = num2long (num2);
+     bc_rt_warn ("non-zero scale in exponent");
+   exponent = bc_num2long (num2);
    if (exponent == 0 && (num2->n_len > 1 || num2->n_value[0] != 0))
-       rt_error ("exponent too large in raise");
+       bc_rt_error ("exponent too large in raise");
 
    /* Special case if exponent is a zero. */
    if (exponent == 0)
      {
-       free_num (result);
-       *result = copy_num (_one_);
+       bc_free_num (result);
+       *result = bc_copy_num (_one_);
        return;
      }
 
@@ -1113,22 +1274,27 @@ bc_raise (num1, num2, result, scale)
      }
 
    /* Set initial value of temp.  */
-   power = copy_num (num1);
+   power = bc_copy_num (num1);
+   pwrscale = num1->n_scale;
    while ((exponent & 1) == 0)
      {
-       bc_multiply (power, power, &power, rscale);
+       pwrscale = 2*pwrscale;
+       bc_multiply (power, power, &power, pwrscale);
        exponent = exponent >> 1;
      }
-   temp = copy_num (power);
+   temp = bc_copy_num (power);
+   calcscale = pwrscale;
    exponent = exponent >> 1;
-
 
    /* Do the calculation. */
    while (exponent > 0)
      {
-       bc_multiply (power, power, &power, rscale);
-       if ((exponent & 1) == 1)
-	 bc_multiply (temp, power, &temp, rscale);
+       pwrscale = 2*pwrscale;
+       bc_multiply (power, power, &power, pwrscale);
+       if ((exponent & 1) == 1) {
+	 calcscale = pwrscale + calcscale;
+	 bc_multiply (temp, power, &temp, calcscale);
+       }
        exponent = exponent >> 1;
      }
 
@@ -1136,37 +1302,16 @@ bc_raise (num1, num2, result, scale)
    if (neg)
      {
        bc_divide (_one_, temp, result, rscale);
-       free_num (&temp);
+       bc_free_num (&temp);
      }
    else
      {
-       free_num (result);
+       bc_free_num (result);
        *result = temp;
+       if ((*result)->n_scale > rscale)
+	 (*result)->n_scale = rscale;
      }
-   free_num (&power);
-}
-
-/* In some places we need to check if the number NUM is zero. */
-
-char
-is_near_zero (num, scale)
-     bc_num num;
-     int scale;
-{
-  int  count;
-  char *nptr;
-
-  /* Initialize */
-  count = num->n_len + scale;
-  nptr = num->n_value;
-
-  /* The check */
-  while ((count > 0) && (*nptr++ == 0)) count--;
-
-  if (count != 0 && (count != 1 || *--nptr != 1))
-    return FALSE;
-  else
-    return TRUE;
+   bc_free_num (&power);
 }
 
 /* Take the square root NUM and return it in NUM with SCALE digits
@@ -1189,25 +1334,25 @@ bc_sqrt (num, scale)
     {
       if (cmp_res == 0)
 	{
-	  free_num (num);
-	  *num = copy_num (_zero_);
+	  bc_free_num (num);
+	  *num = bc_copy_num (_zero_);
 	  return 1;
 	}
     }
   cmp_res = bc_compare (*num, _one_);
   if (cmp_res == 0)
     {
-      free_num (num);
-      *num = copy_num (_one_);
+      bc_free_num (num);
+      *num = bc_copy_num (_one_);
       return 1;
     }
 
   /* Initialize the variables. */
   rscale = MAX (scale, (*num)->n_scale);
-  init_num (&guess);
-  init_num (&guess1);
-  init_num (&diff);
-  point5 = new_num (1,1);
+  bc_init_num(&guess);
+  bc_init_num(&guess1);
+  bc_init_num(&diff);
+  point5 = bc_new_num (1,1);
   point5->n_value[1] = 5;
 
 
@@ -1215,19 +1360,19 @@ bc_sqrt (num, scale)
   if (cmp_res < 0)
     {
       /* The number is between 0 and 1.  Guess should start at 1. */
-      guess = copy_num (_one_);
+      guess = bc_copy_num (_one_);
       cscale = (*num)->n_scale;
     }
   else
     {
       /* The number is greater than 1.  Guess should start at 10^(exp/2). */
-      int2num (&guess,10);
+      bc_int2num (&guess,10);
 
-      int2num (&guess1,(*num)->n_len);
+      bc_int2num (&guess1,(*num)->n_len);
       bc_multiply (guess1, point5, &guess1, 0);
       guess1->n_scale = 0;
       bc_raise (guess, guess1, &guess, 0);
-      free_num (&guess1);
+      bc_free_num (&guess1);
       cscale = 3;
     }
 
@@ -1235,26 +1380,28 @@ bc_sqrt (num, scale)
   done = FALSE;
   while (!done)
     {
-      free_num (&guess1);
-      guess1 = copy_num (guess);
+      bc_free_num (&guess1);
+      guess1 = bc_copy_num (guess);
       bc_divide (*num, guess, &guess, cscale);
       bc_add (guess, guess1, &guess, 0);
       bc_multiply (guess, point5, &guess, cscale);
       bc_sub (guess, guess1, &diff, cscale+1);
-      if (is_near_zero (diff, cscale))
-	if (cscale < rscale+1)
-	  cscale = MIN (cscale*3, rscale+1);
-	else
-	  done = TRUE;
+      if (bc_is_near_zero (diff, cscale))
+	{
+	  if (cscale < rscale+1)
+	    cscale = MIN (cscale*3, rscale+1);
+	  else
+	    done = TRUE;
+	}
     }
 
   /* Assign the number and clean up. */
-  free_num (num);
+  bc_free_num (num);
   bc_divide (guess,_one_,num,rscale);
-  free_num (&guess);
-  free_num (&guess1);
-  free_num (&point5);
-  free_num (&diff);
+  bc_free_num (&guess);
+  bc_free_num (&guess1);
+  bc_free_num (&point5);
+  bc_free_num (&diff);
   return 1;
 }
 
@@ -1269,7 +1416,7 @@ typedef struct stk_rec {
 } stk_rec;
 
 /* The reference string for digits. */
-char ref_str[] = "0123456789ABCDEF";
+static char ref_str[] = "0123456789ABCDEF";
 
 
 /* A special output routine for "multi-character digits."  Exactly
@@ -1278,7 +1425,7 @@ char ref_str[] = "0123456789ABCDEF";
    is the actual routine for writing the characters. */
 
 void
-out_long (val, size, space, out_char)
+bc_out_long (val, size, space, out_char)
      long val;
      int size, space;
 #ifdef __STDC__
@@ -1306,7 +1453,7 @@ out_long (val, size, space, out_char)
    as the routine to do the actual output of the characters. */
 
 void
-out_num (num, o_base, out_char)
+bc_out_num (num, o_base, out_char, leading_zero)
      bc_num num;
      int o_base;
 #ifdef __STDC__
@@ -1314,6 +1461,7 @@ out_num (num, o_base, out_char)
 #else
      void (*out_char)();
 #endif
+     int leading_zero;
 {
   char *nptr;
   int  index, fdigit, pre_space;
@@ -1324,7 +1472,7 @@ out_num (num, o_base, out_char)
   if (num->n_sign == MINUS) (*out_char) ('-');
 
   /* Output the number. */
-  if (is_zero (num))
+  if (bc_is_zero (num))
     (*out_char) ('0');
   else
     if (o_base == 10)
@@ -1337,7 +1485,7 @@ out_num (num, o_base, out_char)
 	else
 	  nptr++;
 
-	if (std_only && is_zero (num))
+	if (leading_zero && bc_is_zero (num))
 	  (*out_char) ('0');
 
 	/* Now the fraction. */
@@ -1351,32 +1499,32 @@ out_num (num, o_base, out_char)
     else
       {
 	/* special case ... */
-	if (std_only && is_zero (num))
+	if (leading_zero && bc_is_zero (num))
 	  (*out_char) ('0');
 
 	/* The number is some other base. */
 	digits = NULL;
-	init_num (&int_part);
+	bc_init_num (&int_part);
 	bc_divide (num, _one_, &int_part, 0);
-	init_num (&frac_part);
-	init_num (&cur_dig);
-	init_num (&base);
+	bc_init_num (&frac_part);
+	bc_init_num (&cur_dig);
+	bc_init_num (&base);
 	bc_sub (num, int_part, &frac_part, 0);
 	/* Make the INT_PART and FRAC_PART positive. */
 	int_part->n_sign = PLUS;
 	frac_part->n_sign = PLUS;
-	int2num (&base, o_base);
-	init_num (&max_o_digit);
-	int2num (&max_o_digit, o_base-1);
+	bc_int2num (&base, o_base);
+	bc_init_num (&max_o_digit);
+	bc_int2num (&max_o_digit, o_base-1);
 
 
 	/* Get the digits of the integer part and push them on a stack. */
-	while (!is_zero (int_part))
+	while (!bc_is_zero (int_part))
 	  {
 	    bc_modulo (int_part, base, &cur_dig, 0);
 	    temp = (stk_rec *) malloc (sizeof(stk_rec));
-	    if (temp == NULL) out_of_memory();
-	    temp->digit = num2long (cur_dig);
+	    if (temp == NULL) bc_out_of_memory();
+	    temp->digit = bc_num2long (cur_dig);
 	    temp->next = digits;
 	    digits = temp;
 	    bc_divide (int_part, base, &int_part, 0);
@@ -1393,7 +1541,7 @@ out_num (num, o_base, out_char)
 		if (o_base <= 16)
 		  (*out_char) (ref_str[ (int) temp->digit]);
 		else
-		  out_long (temp->digit, max_o_digit->n_len, 1, out_char);
+		  bc_out_long (temp->digit, max_o_digit->n_len, 1, out_char);
 		free (temp);
 	      }
 	  }
@@ -1403,65 +1551,148 @@ out_num (num, o_base, out_char)
 	  {
 	    (*out_char) ('.');
 	    pre_space = 0;
-	    t_num = copy_num (_one_);
+	    t_num = bc_copy_num (_one_);
 	    while (t_num->n_len <= num->n_scale) {
 	      bc_multiply (frac_part, base, &frac_part, num->n_scale);
-	      fdigit = num2long (frac_part);
-	      int2num (&int_part, fdigit);
+	      fdigit = bc_num2long (frac_part);
+	      bc_int2num (&int_part, fdigit);
 	      bc_sub (frac_part, int_part, &frac_part, 0);
 	      if (o_base <= 16)
 		(*out_char) (ref_str[fdigit]);
 	      else {
-		out_long (fdigit, max_o_digit->n_len, pre_space, out_char);
+		bc_out_long (fdigit, max_o_digit->n_len, pre_space, out_char);
 		pre_space = 1;
 	      }
 	      bc_multiply (t_num, base, &t_num, 0);
 	    }
-	    free_num (&t_num);
+	    bc_free_num (&t_num);
 	  }
 
 	/* Clean up. */
-	free_num (&int_part);
-	free_num (&frac_part);
-	free_num (&base);
-	free_num (&cur_dig);
-	free_num (&max_o_digit);
+	bc_free_num (&int_part);
+	bc_free_num (&frac_part);
+	bc_free_num (&base);
+	bc_free_num (&cur_dig);
+	bc_free_num (&max_o_digit);
       }
 }
+/* Convert a number NUM to a long.  The function returns only the integer
+   part of the number.  For numbers that are too large to represent as
+   a long, this function returns a zero.  This can be detected by checking
+   the NUM for zero after having a zero returned. */
 
-#if DEBUG > 0
-
-/* Debugging procedures.  Some are just so one can call them from the
-   debugger.  */
-
-/* p_n prints the number NUM in base 10. */
-
-void
-p_n (num)
+long
+bc_num2long (num)
      bc_num num;
 {
-  out_num (num, 10, out_char);
+  long val;
+  char *nptr;
+  int  index;
+
+  /* Extract the int value, ignore the fraction. */
+  val = 0;
+  nptr = num->n_value;
+  for (index=num->n_len; (index>0) && (val<=(LONG_MAX/BASE)); index--)
+    val = val*BASE + *nptr++;
+
+  /* Check for overflow.  If overflow, return zero. */
+  if (index>0) val = 0;
+  if (val < 0) val = 0;
+
+  /* Return the value. */
+  if (num->n_sign == PLUS)
+    return (val);
+  else
+    return (-val);
 }
 
 
-/* p_b prints a character array as if it was a string of bcd digits. */
+/* Convert an integer VAL to a bc number NUM. */
+
 void
-p_v (name, num, len)
-     char *name;
-     unsigned char *num;
-     int len;
+bc_int2num (num, val)
+     bc_num *num;
+     int val;
 {
-  int i;
-  printf ("%s=", name);
-  for (i=0; i<len; i++) printf ("%c",BCD_CHAR(num[i]));
-  printf ("\n");
+  char buffer[30];
+  char *bptr, *vptr;
+  int  ix = 1;
+  char neg = 0;
+
+  /* Sign. */
+  if (val < 0)
+    {
+      neg = 1;
+      val = -val;
+    }
+
+  /* Get things going. */
+  bptr = buffer;
+  *bptr++ = val % BASE;
+  val = val / BASE;
+
+  /* Extract remaining digits. */
+  while (val != 0)
+    {
+      *bptr++ = val % BASE;
+      val = val / BASE;
+      ix++; 		/* Count the digits. */
+    }
+
+  /* Make the number. */
+  bc_free_num (num);
+  *num = bc_new_num (ix, 0);
+  if (neg) (*num)->n_sign = MINUS;
+
+  /* Assign the digits. */
+  vptr = (*num)->n_value;
+  while (ix-- > 0)
+    *vptr++ = *--bptr;
 }
 
+/* Convert a numbers to a string.  Base 10 only.*/
 
+char
+*num2str (num)
+      bc_num num;
+{
+  char *str, *sptr;
+  char *nptr;
+  int  index, signch;
+
+  /* Allocate the string memory. */
+  signch = ( num->n_sign == PLUS ? 0 : 1 );  /* Number of sign chars. */
+  if (num->n_scale > 0)
+    str = (char *) malloc (num->n_len + num->n_scale + 2 + signch);
+  else
+    str = (char *) malloc (num->n_len + 1 + signch);
+  if (str == NULL) bc_out_of_memory();
+
+  /* The negative sign if needed. */
+  sptr = str;
+  if (signch) *sptr++ = '-';
+
+  /* Load the whole number. */
+  nptr = num->n_value;
+  for (index=num->n_len; index>0; index--)
+    *sptr++ = BCD_CHAR(*nptr++);
+
+  /* Now the fraction. */
+  if (num->n_scale > 0)
+    {
+      *sptr++ = '.';
+      for (index=0; index<num->n_scale; index++)
+	*sptr++ = BCD_CHAR(*nptr++);
+    }
+
+  /* Terminate the string and return it! */
+  *sptr = '\0';
+  return (str);
+}
 /* Convert strings to bc numbers.  Base 10 only.*/
 
 void
-str2num (num, str, scale)
+bc_str2num (num, str, scale)
      bc_num *num;
      char *str;
      int scale;
@@ -1471,7 +1702,7 @@ str2num (num, str, scale)
   char zero_int;
 
   /* Prepare num. */
-  free_num (num);
+  bc_free_num (num);
 
   /* Check for valid number and count digits. */
   ptr = str;
@@ -1480,12 +1711,12 @@ str2num (num, str, scale)
   zero_int = FALSE;
   if ( (*ptr == '+') || (*ptr == '-'))  ptr++;  /* Sign */
   while (*ptr == '0') ptr++;			/* Skip leading zeros. */
-  while (isdigit(*ptr)) ptr++, digits++;	/* digits */
+  while (isdigit((int)*ptr)) ptr++, digits++;	/* digits */
   if (*ptr == '.') ptr++;			/* decimal point */
-  while (isdigit(*ptr)) ptr++, strscale++;	/* digits */
+  while (isdigit((int)*ptr)) ptr++, strscale++;	/* digits */
   if ((*ptr != '\0') || (digits+strscale == 0))
     {
-      *num = copy_num (_zero_);
+      *num = bc_copy_num (_zero_);
       return;
     }
 
@@ -1496,7 +1727,7 @@ str2num (num, str, scale)
       zero_int = TRUE;
       digits = 1;
     }
-  *num = new_num (digits, strscale);
+  *num = bc_new_num (digits, strscale);
 
   /* Build the whole number. */
   ptr = str;
@@ -1530,43 +1761,33 @@ str2num (num, str, scale)
     }
 }
 
-/* Convert a numbers to a string.  Base 10 only.*/
+/* pn prints the number NUM in base 10. */
 
-char
-*num2str (num)
-      bc_num num;
+static void
+out_char (int c)
 {
-  char *str, *sptr;
-  char *nptr;
-  int  index, signch;
-
-  /* Allocate the string memory. */
-  signch = ( num->n_sign == PLUS ? 0 : 1 );  /* Number of sign chars. */
-  if (num->n_scale > 0)
-    str = (char *) malloc (num->n_len + num->n_scale + 2 + signch);
-  else
-    str = (char *) malloc (num->n_len + 1 + signch);
-  if (str == NULL) out_of_memory();
-
-  /* The negative sign if needed. */
-  sptr = str;
-  if (signch) *sptr++ = '-';
-
-  /* Load the whole number. */
-  nptr = num->n_value;
-  for (index=num->n_len; index>0; index--)
-    *sptr++ = BCD_CHAR(*nptr++);
-
-  /* Now the fraction. */
-  if (num->n_scale > 0)
-    {
-      *sptr++ = '.';
-      for (index=0; index<num->n_scale; index++)
-	*sptr++ = BCD_CHAR(*nptr++);
-    }
-
-  /* Terminate the string and return it! */
-  *sptr = '\0';
-  return (str);
+  putchar(c);
 }
-#endif
+
+
+void
+pn (num)
+     bc_num num;
+{
+  bc_out_num (num, 10, out_char, 0);
+  out_char ('\n');
+}
+
+
+/* pv prints a character array as if it was a string of bcd digits. */
+void
+pv (name, num, len)
+     char *name;
+     unsigned char *num;
+     int len;
+{
+  int i;
+  printf ("%s=", name);
+  for (i=0; i<len; i++) printf ("%c",BCD_CHAR(num[i]));
+  printf ("\n");
+}

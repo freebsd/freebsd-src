@@ -1,7 +1,7 @@
 /* load.c:  This code "loads" code into the code segments. */
 
 /*  This file is part of GNU bc.
-    Copyright (C) 1991, 1992, 1993, 1994, 1997 Free Software Foundation, Inc.
+    Copyright (C) 1991-1994, 1997, 2000 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; see the file COPYING.  If not, write to
-    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+      The Free Software Foundation, Inc.
+      59 Temple Place, Suite 330
+      Boston, MA 02111 USA
 
     You may contact the author by:
-       e-mail:  phil@cs.wwu.edu
+       e-mail:  philnelson@acm.org
       us-mail:  Philip A. Nelson
                 Computer Science Department, 9062
                 Western Washington University
@@ -52,28 +54,29 @@ void
 addbyte (byte)
      char byte;
 {
-  int seg, offset, func;
+  int pc;
+  bc_function *f;
+  char *new_body;
 
   /* If there was an error, don't continue. */
   if (had_error) return;
 
   /* Calculate the segment and offset. */
-  seg = load_adr.pc_addr >> BC_SEG_LOG;
-  offset = load_adr.pc_addr++ % BC_SEG_SIZE;
-  func = load_adr.pc_func;
+  pc = load_adr.pc_addr++;
+  f = &functions[load_adr.pc_func];
 
-  if (seg >= BC_MAX_SEGS)
+  if (pc >= f->f_body_size)
     {
-      yyerror ("Function too big.");
-      return;
+      f->f_body_size *= 2;
+      new_body = (char *) bc_malloc (f->f_body_size);
+      memcpy(new_body, f->f_body, f->f_body_size/2);
+      free (f->f_body);
+      f->f_body = new_body;
     }
 
-  if (functions[func].f_body[seg] == NULL)
-    functions[func].f_body[seg] = (char *) bc_malloc (BC_SEG_SIZE);
-
   /* Store the byte. */
-  functions[func].f_body[seg][offset] = byte;
-  functions[func].f_code_size++;
+  f->f_body[pc] = byte;
+  f->f_code_size++;
 }
 
 
@@ -132,7 +135,7 @@ long_val (str)
       neg = TRUE;
       (*str)++;
     }
-  while (isdigit(**str)) 
+  while (isdigit((int)(**str))) 
     val = val*10 + *(*str)++ - '0';
 
   if (neg)
@@ -216,8 +219,8 @@ load_code (code)
 		    fprintf (stderr,"Program too big.\n");
 		    exit(1);
 		  }
-		addbyte ( (char) label_no & 0xFF);
-		addbyte ( (char) label_no >> 8);
+		addbyte ( (char) (label_no & 0xFF));
+		addbyte ( (char) (label_no >> 8));
 		break;
 
 	      case 'F':  /* A function, get the name and initialize it. */
@@ -286,7 +289,7 @@ load_code (code)
 		  addbyte ( (char) func);
 		else
 		  {
-		    addbyte ((func >> 8) & 0xff | 0x80);
+		    addbyte (((func >> 8) & 0xff) | 0x80);
 		    addbyte (func & 0xff);
 		  }
 		if (*str == ',') str++;
@@ -319,7 +322,7 @@ load_code (code)
 		  addbyte (vaf_name);
 		else
 		  {
-		    addbyte ((vaf_name >> 8) & 0xff | 0x80);
+		    addbyte (((vaf_name >> 8) & 0xff) | 0x80);
 		    addbyte (vaf_name & 0xff);
 		  }
 		break;

@@ -1,7 +1,7 @@
 /* 
  * misc. functions for the "dc" Desk Calculator language.
  *
- * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998, 2000 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +15,10 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can either send email to this
- * program's author (see below) or write to: The Free Software Foundation,
- * Inc.; 675 Mass Ave. Cambridge, MA 02139, USA.
+ * program's author (see below) or write to:
+ *   The Free Software Foundation, Inc.
+ *   59 Temple Place, Suite 330
+ *   Boston, MA 02111 USA
  */
 
 /* This module contains miscelaneous functions that have no
@@ -47,8 +49,6 @@
 #include <getopt.h>
 #include "dc.h"
 #include "dc-proto.h"
-
-#include "version.h"
 
 #ifndef EXIT_FAILURE	/* C89 <stdlib.h> */
 # define EXIT_FAILURE	1
