@@ -1,7 +1,7 @@
 /* 
- * $Id: rk_lib.c,v 1.1 1993/12/10 19:32:01 dglo Exp gibbs $
- * $Source: /usr/src/eBones/librkinit/RCS/rk_lib.c,v $
- * $Author: dglo $
+ * $Id: rk_lib.c,v 1.1.1.1 1995/09/15 06:09:30 gibbs Exp $
+ * $Source: /home/ncvs/src/eBones/lib/librkinit/rk_lib.c,v $
+ * $Author: gibbs $
  *
  * This file contains the non-rpc top-level rkinit library routines.
  * The routines in the rkinit library that should be called from clients
@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id: rk_lib.c,v 1.1 1993/12/10 19:32:01 dglo Exp gibbs $";
+static char *rcsid = "$Id: rk_lib.c,v 1.1.1.1 1995/09/15 06:09:30 gibbs Exp $";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>
@@ -81,7 +81,7 @@ int rkinit(host, r_krealm, info, timeout)
     if ((status = setjmp(timeout_env)) == 0) {
 
 	strcpy(origtktfilename, tkt_string());
-	sprintf(tktfilename, "/tmp/tkt_rkinit.%ld", getpid());
+	sprintf(tktfilename, "/tmp/tkt_rkinit.%d", getpid());
 	krb_set_tkt_string(tktfilename);
 
 	if ((status = rki_choose_version(&version)) == RKINIT_SUCCESS)

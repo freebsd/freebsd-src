@@ -1,17 +1,11 @@
 /* 
- * $Id: rkinit_private.h,v 1.4 1993/12/23 16:47:39 dglo Exp $
- * $Source: /usr/sww/share/src/kerberosIV.BSD/include/RCS/rkinit_private.h,v $
- * $Author: dglo $
+ * $Id: rkinit_private.h,v 1.1 1995/09/15 06:19:14 gibbs Exp $
  *
  * Header file for rkinit library and server internal use
  */
 
 #ifndef __RKINIT_PRIVATE_H__
 #define __RKINIT_PRIVATE_H__
-
-#if !defined(lint) && !defined(SABER)
-static const char *rcsid_rkinit_private_h = "$Id: rkinit_private.h,v 1.4 1993/12/23 16:47:39 dglo Exp $";
-#endif /* lint || SABER */
 
 #include <sys/types.h>
 #include <netinet/in.h>
