@@ -40,83 +40,84 @@ __FBSDID("$FreeBSD$");
 
 /* CU-SeeMe Data Header */
 struct cu_header {
-    u_int16_t dest_family;
-    u_int16_t dest_port;
-    u_int32_t  dest_addr;
-    int16_t family;
-    u_int16_t port;
-    u_int32_t addr;
-    u_int32_t seq;
-    u_int16_t msg;
-    u_int16_t data_type;
-    u_int16_t packet_len;
+	u_int16_t	dest_family;
+	u_int16_t	dest_port;
+	u_int32_t	dest_addr;
+	int16_t		family;
+	u_int16_t	port;
+	u_int32_t	addr;
+	u_int32_t	seq;
+	u_int16_t	msg;
+	u_int16_t	data_type;
+	u_int16_t	packet_len;
 };
 
 /* Open Continue Header */
 struct oc_header {
-    u_int16_t client_count;    /* Number of client info structs */
-    u_int32_t seq_no;
-    char user_name[20];
-    char reserved[4];        /* flags, version stuff, etc */
+	u_int16_t	client_count;	/* Number of client info structs */
+	u_int32_t	seq_no;
+	char		user_name [20];
+	char		reserved  [4];	/* flags, version stuff, etc */
 };
 
 /* client info structures */
 struct client_info {
-    u_int32_t address;          /* Client address */
-    char reserved[8];        /* Flags, pruning bitfield, packet counts etc */
+	u_int32_t	address;/* Client address */
+	char		reserved  [8];	/* Flags, pruning bitfield, packet
+					 * counts etc */
 };
 
 void
 AliasHandleCUSeeMeOut(struct libalias *la, struct ip *pip, struct alias_link *link)
 {
-  struct udphdr *ud;
+	struct udphdr *ud;
 
-  ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
-  if (ntohs(ud->uh_ulen) - sizeof(struct udphdr) >= sizeof(struct cu_header)) {
-    struct cu_header *cu;
-    struct alias_link *cu_link;
+	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
+	if (ntohs(ud->uh_ulen) - sizeof(struct udphdr) >= sizeof(struct cu_header)) {
+		struct cu_header *cu;
+		struct alias_link *cu_link;
 
-    cu = (struct cu_header *)(ud + 1);
-    if (cu->addr)
-      cu->addr = (u_int32_t)GetAliasAddress(link).s_addr;
+		cu = (struct cu_header *)(ud + 1);
+		if (cu->addr)
+			cu->addr = (u_int32_t) GetAliasAddress(link).s_addr;
 
-    cu_link = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(link),
-                            ud->uh_dport, 0, IPPROTO_UDP, 1);
+		cu_link = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(link),
+		    ud->uh_dport, 0, IPPROTO_UDP, 1);
 
 #ifndef NO_FW_PUNCH
-    if (cu_link)
-        PunchFWHole(cu_link);
+		if (cu_link)
+			PunchFWHole(cu_link);
 #endif
-  }
+	}
 }
 
 void
 AliasHandleCUSeeMeIn(struct libalias *la, struct ip *pip, struct in_addr original_addr)
 {
-  struct in_addr alias_addr;
-  struct udphdr *ud;
-  struct cu_header *cu;
-  struct oc_header *oc;
-  struct client_info *ci;
-  char *end;
-  int i;
+	struct in_addr alias_addr;
+	struct udphdr *ud;
+	struct cu_header *cu;
+	struct oc_header *oc;
+	struct client_info *ci;
+	char *end;
+	int i;
 
-  alias_addr.s_addr = pip->ip_dst.s_addr;
-  ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
-  cu = (struct cu_header *)(ud + 1);
-  oc = (struct oc_header *)(cu + 1);
-  ci = (struct client_info *)(oc + 1);
-  end = (char *)ud + ntohs(ud->uh_ulen);
+	alias_addr.s_addr = pip->ip_dst.s_addr;
+	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
+	cu = (struct cu_header *)(ud + 1);
+	oc = (struct oc_header *)(cu + 1);
+	ci = (struct client_info *)(oc + 1);
+	end = (char *)ud + ntohs(ud->uh_ulen);
 
-  if ((char *)oc <= end) {
-    if(cu->dest_addr)
-      cu->dest_addr = (u_int32_t)original_addr.s_addr;
-    if(ntohs(cu->data_type) == 101)
-      /* Find and change our address */
-      for(i = 0; (char *)(ci + 1) <= end && i < oc->client_count; i++, ci++)
-        if(ci->address == (u_int32_t)alias_addr.s_addr) {
-          ci->address = (u_int32_t)original_addr.s_addr;
-          break;
-        }
-  }
+	if ((char *)oc <= end) {
+		if (cu->dest_addr)
+			cu->dest_addr = (u_int32_t) original_addr.s_addr;
+		if (ntohs(cu->data_type) == 101)
+			/* Find and change our address */
+			for (i = 0; (char *)(ci + 1) <= end && i < oc->client_count; i++, ci++)
+				if (ci->address == (u_int32_t) alias_addr.s_addr) {
+					ci->address = (u_int32_t) original_addr.s_addr;
+					break;
+				}
+	}
 }

@@ -60,10 +60,10 @@
  * has answered.  The phone then sends back an Open Receive Channel
  * Acknowledgement.  In this packet, the phone sends its IP address again,
  * and the UDP port over which the voice traffic should flow.  These values
- * need translation.  Right after the Open Receive Channel Acknowledgement, 
+ * need translation.  Right after the Open Receive Channel Acknowledgement,
  * the Call Manager sends a Start Media Transmission message indicating the
- * call is connected.  This message contains the IP address and UDP port 
- * number of the remote (called) party.  Once this message is translated, the 
+ * call is connected.  This message contains the IP address and UDP port
+ * number of the remote (called) party.  Once this message is translated, the
  * call can commence.  The called part sends the first UDP packet to the
  * calling phone at the pre-arranged UDP port in the Open Receive Channel
  * Acknowledgement.
@@ -81,258 +81,258 @@
 #define START_MEDIATX   0x0000008a
 
 struct skinny_header {
-    u_int32_t       len;
-    u_int32_t       reserved;
-    u_int32_t       msgId;
+	u_int32_t	len;
+	u_int32_t	reserved;
+	u_int32_t	msgId;
 };
 
 struct RegisterMessage {
-    u_int32_t       msgId;
-    char            devName[16];
-    u_int32_t       uid;
-    u_int32_t       instance;
-    u_int32_t       ipAddr;
-    u_char          devType;
-    u_int32_t       maxStreams;
+	u_int32_t	msgId;
+	char		devName   [16];
+	u_int32_t	uid;
+	u_int32_t	instance;
+	u_int32_t	ipAddr;
+	u_char		devType;
+	u_int32_t	maxStreams;
 };
 
 struct IpPortMessage {
-    u_int32_t       msgId;
-    u_int32_t       stationIpPort;  /* Note: Skinny uses 32-bit port
-                                     * numbers */
+	u_int32_t	msgId;
+	u_int32_t	stationIpPort;	/* Note: Skinny uses 32-bit port
+					 * numbers */
 };
 
 struct OpenReceiveChannelAck {
-    u_int32_t       msgId;
-    u_int32_t       status;
-    u_int32_t       ipAddr;
-    u_int32_t       port;
-    u_int32_t       passThruPartyID;
+	u_int32_t	msgId;
+	u_int32_t	status;
+	u_int32_t	ipAddr;
+	u_int32_t	port;
+	u_int32_t	passThruPartyID;
 };
 
 struct StartMediaTransmission {
-    u_int32_t       msgId;
-    u_int32_t       conferenceID;
-    u_int32_t       passThruPartyID;
-    u_int32_t       remoteIpAddr;
-    u_int32_t       remotePort;
-    u_int32_t       MSPacket;
-    u_int32_t       payloadCap;
-    u_int32_t       precedence;
-    u_int32_t       silenceSuppression;
-    u_short         maxFramesPerPacket;
-    u_int32_t       G723BitRate;
+	u_int32_t	msgId;
+	u_int32_t	conferenceID;
+	u_int32_t	passThruPartyID;
+	u_int32_t	remoteIpAddr;
+	u_int32_t	remotePort;
+	u_int32_t	MSPacket;
+	u_int32_t	payloadCap;
+	u_int32_t	precedence;
+	u_int32_t	silenceSuppression;
+	u_short		maxFramesPerPacket;
+	u_int32_t	G723BitRate;
 };
 
 typedef enum {
-    ClientToServer = 0,
-    ServerToClient = 1
+	ClientToServer = 0,
+	ServerToClient = 1
 } ConvDirection;
 
 
 static int
 alias_skinny_reg_msg(struct RegisterMessage *reg_msg, struct ip *pip,
-                     struct tcphdr *tc, struct alias_link *link,
-                     ConvDirection direction)
+    struct tcphdr *tc, struct alias_link *link,
+    ConvDirection direction)
 {
-  reg_msg->ipAddr = (u_int32_t) GetAliasAddress(link).s_addr;
+	reg_msg->ipAddr = (u_int32_t) GetAliasAddress(link).s_addr;
 
-  tc->th_sum = 0;
-  tc->th_sum = TcpChecksum(pip);
+	tc->th_sum = 0;
+	tc->th_sum = TcpChecksum(pip);
 
-  return 0;
+	return 0;
 }
 
 static int
 alias_skinny_startmedia(struct StartMediaTransmission *start_media,
-                        struct ip *pip, struct tcphdr *tc,
-                        struct alias_link *link, u_int32_t localIpAddr,
-                        ConvDirection direction)
+    struct ip *pip, struct tcphdr *tc,
+    struct alias_link *link, u_int32_t localIpAddr,
+    ConvDirection direction)
 {
-  struct in_addr  dst, src;
+	struct in_addr dst, src;
 
-  dst.s_addr = start_media->remoteIpAddr;
-  src.s_addr = localIpAddr;
+	dst.s_addr = start_media->remoteIpAddr;
+	src.s_addr = localIpAddr;
 
-  /* XXX I should probably handle in bound global translations as well. */
+	/*
+	 * XXX I should probably handle in bound global translations as
+	 * well.
+	 */
 
-  return 0;
+	return 0;
 }
 
 static int
 alias_skinny_port_msg(struct IpPortMessage *port_msg, struct ip *pip,
-                      struct tcphdr *tc, struct alias_link *link,
-                      ConvDirection direction)
+    struct tcphdr *tc, struct alias_link *link,
+    ConvDirection direction)
 {
-  port_msg->stationIpPort = (u_int32_t) ntohs(GetAliasPort(link));
+	port_msg->stationIpPort = (u_int32_t) ntohs(GetAliasPort(link));
 
-  tc->th_sum = 0;
-  tc->th_sum = TcpChecksum(pip);
+	tc->th_sum = 0;
+	tc->th_sum = TcpChecksum(pip);
 
-  return 0;
+	return 0;
 }
 
 static int
 alias_skinny_opnrcvch_ack(struct libalias *la, struct OpenReceiveChannelAck *opnrcvch_ack,
-                          struct ip * pip, struct tcphdr *tc,
-                          struct alias_link *link, u_int32_t *localIpAddr,
-                          ConvDirection direction)
+    struct ip *pip, struct tcphdr *tc,
+    struct alias_link *link, u_int32_t * localIpAddr,
+    ConvDirection direction)
 {
-  struct in_addr  null_addr;
-  struct alias_link *opnrcv_link;
-  u_int32_t localPort;
+	struct in_addr null_addr;
+	struct alias_link *opnrcv_link;
+	u_int32_t localPort;
 
-  *localIpAddr = (u_int32_t) opnrcvch_ack->ipAddr;
-  localPort = opnrcvch_ack->port;
+	*localIpAddr = (u_int32_t) opnrcvch_ack->ipAddr;
+	localPort = opnrcvch_ack->port;
 
-  null_addr.s_addr = INADDR_ANY;
-  opnrcv_link = FindUdpTcpOut(la, pip->ip_src, null_addr,
-                              htons((u_short) opnrcvch_ack->port), 0,
-                              IPPROTO_UDP, 1);
-  opnrcvch_ack->ipAddr = (u_int32_t) GetAliasAddress(opnrcv_link).s_addr;
-  opnrcvch_ack->port = (u_int32_t) ntohs(GetAliasPort(opnrcv_link));
+	null_addr.s_addr = INADDR_ANY;
+	opnrcv_link = FindUdpTcpOut(la, pip->ip_src, null_addr,
+	    htons((u_short) opnrcvch_ack->port), 0,
+	    IPPROTO_UDP, 1);
+	opnrcvch_ack->ipAddr = (u_int32_t) GetAliasAddress(opnrcv_link).s_addr;
+	opnrcvch_ack->port = (u_int32_t) ntohs(GetAliasPort(opnrcv_link));
 
-  tc->th_sum = 0;
-  tc->th_sum = TcpChecksum(pip);
+	tc->th_sum = 0;
+	tc->th_sum = TcpChecksum(pip);
 
-  return 0;
+	return 0;
 }
 
 void
 AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *link)
 {
-  int             hlen, tlen, dlen;
-  struct tcphdr  *tc;
-  u_int32_t       msgId, len, t, lip;
-  struct skinny_header *sd;
-  int             orig_len, skinny_hdr_len = sizeof(struct skinny_header);
-  ConvDirection   direction;
+	int hlen, tlen, dlen;
+	struct tcphdr *tc;
+	u_int32_t msgId, len, t, lip;
+	struct skinny_header *sd;
+	int orig_len, skinny_hdr_len = sizeof(struct skinny_header);
+	ConvDirection direction;
 
-  tc = (struct tcphdr *) ((char *)pip + (pip->ip_hl << 2));
-  hlen = (pip->ip_hl + tc->th_off) << 2;
-  tlen = ntohs(pip->ip_len);
-  dlen = tlen - hlen;
+	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	hlen = (pip->ip_hl + tc->th_off) << 2;
+	tlen = ntohs(pip->ip_len);
+	dlen = tlen - hlen;
 
-  sd = (struct skinny_header *) ((char *)pip + hlen);
+	sd = (struct skinny_header *)((char *)pip + hlen);
 
-  /*
-   * XXX This direction is reserved for future use.  I still need to
-   * handle the scenario where the call manager is on the inside, and
-   * the calling phone is on the global outside.
-   */
-  if (ntohs(tc->th_dport) == la->skinnyPort) {
-    direction = ClientToServer;
-  } else if (ntohs(tc->th_sport) == la->skinnyPort) {
-    direction = ServerToClient;
-  } else {
+	/*
+	 * XXX This direction is reserved for future use.  I still need to
+	 * handle the scenario where the call manager is on the inside, and
+	 * the calling phone is on the global outside.
+	 */
+	if (ntohs(tc->th_dport) == la->skinnyPort) {
+		direction = ClientToServer;
+	} else if (ntohs(tc->th_sport) == la->skinnyPort) {
+		direction = ServerToClient;
+	} else {
 #ifdef DEBUG
-    fprintf(stderr,
-            "PacketAlias/Skinny: Invalid port number, not a Skinny packet\n");
+		fprintf(stderr,
+		    "PacketAlias/Skinny: Invalid port number, not a Skinny packet\n");
 #endif
-    return;
-  }
+		return;
+	}
 
-  orig_len = dlen;
-  /*
-   * Skinny packets can contain many messages.  We need to loop through
-   * the packet using len to determine message boundaries.  This comes
-   * into play big time with port messages being in the same packet as
-   * register messages.  Also, open receive channel acks are
-   * usually buried in a pakcet some 400 bytes long.
-   */
-  while (dlen >= skinny_hdr_len) {
-    len = (sd->len);
-    msgId = (sd->msgId);
-    t = len;
+	orig_len = dlen;
+	/*
+	 * Skinny packets can contain many messages.  We need to loop
+	 * through the packet using len to determine message boundaries.
+	 * This comes into play big time with port messages being in the
+	 * same packet as register messages.  Also, open receive channel
+	 * acks are usually buried in a pakcet some 400 bytes long.
+	 */
+	while (dlen >= skinny_hdr_len) {
+		len = (sd->len);
+		msgId = (sd->msgId);
+		t = len;
 
-    if (t < 0 || t > orig_len || t > dlen) {
+		if (t < 0 || t > orig_len || t > dlen) {
 #ifdef DEBUG
-      fprintf(stderr,
-              "PacketAlias/Skinny: Not a skinny packet, invalid length \n");
+			fprintf(stderr,
+			    "PacketAlias/Skinny: Not a skinny packet, invalid length \n");
 #endif
-      return;
-    }
-    switch (msgId) {
-      case REG_MSG:
-        {
-          struct RegisterMessage *reg_mesg;
+			return;
+		}
+		switch (msgId) {
+		case REG_MSG: {
+			struct RegisterMessage *reg_mesg;
 
-          if (len < sizeof(struct RegisterMessage)) {
+			if (len < sizeof(struct RegisterMessage)) {
 #ifdef DEBUG
-            fprintf(stderr,
-                    "PacketAlias/Skinny: Not a skinny packet, bad registration message\n");
+				fprintf(stderr,
+				    "PacketAlias/Skinny: Not a skinny packet, bad registration message\n");
 #endif
-            return;
-          }
-          reg_mesg = (struct RegisterMessage *) & sd->msgId;
+				return;
+			}
+			reg_mesg = (struct RegisterMessage *)&sd->msgId;
 #ifdef DEBUG
-          fprintf(stderr,
-                  "PacketAlias/Skinny: Received a register message");
+			fprintf(stderr,
+			    "PacketAlias/Skinny: Received a register message");
 #endif
-	  alias_skinny_reg_msg(reg_mesg, pip, tc, link, direction);
-        }
-        break;
-      case IP_PORT_MSG:
-        {
-          struct IpPortMessage *port_mesg;
-          if (len < sizeof(struct IpPortMessage)) {
-#ifdef DEBUG
-            fprintf(stderr,
-                    "PacketAlias/Skinny: Not a skinny packet, port message\n");
-#endif
-            return;
-          }
-#ifdef DEBUG
-          fprintf(stderr
-                  "PacketAlias/Skinny: Received ipport message\n");
-#endif
-          port_mesg = (struct IpPortMessage *) & sd->msgId;
-          alias_skinny_port_msg(port_mesg, pip, tc, link, direction);
-        }
-        break;
-      case OPNRCVCH_ACK:
-        {
-          struct OpenReceiveChannelAck *opnrcvchn_ack;
+			alias_skinny_reg_msg(reg_mesg, pip, tc, link, direction);
+			break;
+		}
+		case IP_PORT_MSG: {
+			struct IpPortMessage *port_mesg;
 
-          if (len < sizeof(struct OpenReceiveChannelAck)) {
+			if (len < sizeof(struct IpPortMessage)) {
 #ifdef DEBUG
-            fprintf(stderr,
-                    "PacketAlias/Skinny: Not a skinny packet, packet,OpnRcvChnAckMsg\n");
+				fprintf(stderr,
+				    "PacketAlias/Skinny: Not a skinny packet, port message\n");
 #endif
-            return;
-          }
+				return;
+			}
 #ifdef DEBUG
-          fprintf(stderr,
-                  "PacketAlias/Skinny: Received open rcv channel msg\n");
+			fprintf(stderr
+			    "PacketAlias/Skinny: Received ipport message\n");
 #endif
-          opnrcvchn_ack = (struct OpenReceiveChannelAck *) & sd->msgId;
-          alias_skinny_opnrcvch_ack(la, opnrcvchn_ack, pip, tc, link, &lip, direction);
-        }
-        break;
-      case START_MEDIATX:
-        {
-          struct StartMediaTransmission *startmedia_tx;
+			port_mesg = (struct IpPortMessage *)&sd->msgId;
+			alias_skinny_port_msg(port_mesg, pip, tc, link, direction);
+			break;
+		}
+		case OPNRCVCH_ACK: {
+			struct OpenReceiveChannelAck *opnrcvchn_ack;
 
-          if (len < sizeof(struct StartMediaTransmission)) {
+			if (len < sizeof(struct OpenReceiveChannelAck)) {
 #ifdef DEBUG
-            fprintf(stderr,
-                    "PacketAlias/Skinny: Not a skinny packet,StartMediaTx Message\n");
+				fprintf(stderr,
+				    "PacketAlias/Skinny: Not a skinny packet, packet,OpnRcvChnAckMsg\n");
 #endif
-            return;
-          }
+				return;
+			}
 #ifdef DEBUG
-          fprintf(stderr,
-                  "PacketAlias/Skinny: Received start media trans msg\n");
+			fprintf(stderr,
+			    "PacketAlias/Skinny: Received open rcv channel msg\n");
 #endif
-           startmedia_tx = (struct StartMediaTransmission *) & sd->msgId;
-           alias_skinny_startmedia(startmedia_tx, pip, tc, link, lip, direction);
-         }
-         break;
-       default:
-         break;
-     }
-     /* Place the pointer at the next message in the packet. */
-     dlen -= len + (skinny_hdr_len - sizeof(msgId));
-     sd = (struct skinny_header *) (((char *)&sd->msgId) + len);
-   }
+			opnrcvchn_ack = (struct OpenReceiveChannelAck *)&sd->msgId;
+			alias_skinny_opnrcvch_ack(la, opnrcvchn_ack, pip, tc, link, &lip, direction);
+			break;
+		}
+		case START_MEDIATX: {
+			struct StartMediaTransmission *startmedia_tx;
+
+			if (len < sizeof(struct StartMediaTransmission)) {
+#ifdef DEBUG
+				fprintf(stderr,
+				    "PacketAlias/Skinny: Not a skinny packet,StartMediaTx Message\n");
+#endif
+				return;
+			}
+#ifdef DEBUG
+			fprintf(stderr,
+			    "PacketAlias/Skinny: Received start media trans msg\n");
+#endif
+			startmedia_tx = (struct StartMediaTransmission *)&sd->msgId;
+			alias_skinny_startmedia(startmedia_tx, pip, tc, link, lip, direction);
+			break;
+		}
+		default:
+			break;
+		}
+		/* Place the pointer at the next message in the packet. */
+		dlen -= len + (skinny_hdr_len - sizeof(msgId));
+		sd = (struct skinny_header *)(((char *)&sd->msgId) + len);
+	}
 }

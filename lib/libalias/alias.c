@@ -1,5 +1,3 @@
-/* -*- mode: c; tab-width: 8; c-basic-indent: 4; -*- */
-
 /*-
  * Copyright (c) 2001 Charles Mott <cm@linktel.net>
  * All rights reserved.
@@ -153,53 +151,51 @@ a timeout period.
 */
 
 /* Local prototypes */
-static void TcpMonitorIn(struct ip *, struct alias_link *);
+static void	TcpMonitorIn(struct ip *, struct alias_link *);
 
-static void TcpMonitorOut(struct ip *, struct alias_link *);
+static void	TcpMonitorOut(struct ip *, struct alias_link *);
 
 
 static void
 TcpMonitorIn(struct ip *pip, struct alias_link *link)
 {
-    struct tcphdr *tc;
+	struct tcphdr *tc;
 
-    tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
 
-    switch (GetStateIn(link))
-    {
-        case ALIAS_TCP_STATE_NOT_CONNECTED:
-            if (tc->th_flags & TH_RST)
-                SetStateIn(link, ALIAS_TCP_STATE_DISCONNECTED);
-            else if (tc->th_flags & TH_SYN)
-                SetStateIn(link, ALIAS_TCP_STATE_CONNECTED);
-            break;
-        case ALIAS_TCP_STATE_CONNECTED:
-            if (tc->th_flags & (TH_FIN | TH_RST))
-                SetStateIn(link, ALIAS_TCP_STATE_DISCONNECTED);
-            break;
-    }
+	switch (GetStateIn(link)) {
+	case ALIAS_TCP_STATE_NOT_CONNECTED:
+		if (tc->th_flags & TH_RST)
+			SetStateIn(link, ALIAS_TCP_STATE_DISCONNECTED);
+		else if (tc->th_flags & TH_SYN)
+			SetStateIn(link, ALIAS_TCP_STATE_CONNECTED);
+		break;
+	case ALIAS_TCP_STATE_CONNECTED:
+		if (tc->th_flags & (TH_FIN | TH_RST))
+			SetStateIn(link, ALIAS_TCP_STATE_DISCONNECTED);
+		break;
+	}
 }
 
 static void
 TcpMonitorOut(struct ip *pip, struct alias_link *link)
 {
-    struct tcphdr *tc;
+	struct tcphdr *tc;
 
-    tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
 
-    switch (GetStateOut(link))
-    {
-        case ALIAS_TCP_STATE_NOT_CONNECTED:
-            if (tc->th_flags & TH_RST)
-                SetStateOut(link, ALIAS_TCP_STATE_DISCONNECTED);
-            else if (tc->th_flags & TH_SYN)
-                SetStateOut(link, ALIAS_TCP_STATE_CONNECTED);
-            break;
-        case ALIAS_TCP_STATE_CONNECTED:
-            if (tc->th_flags & (TH_FIN | TH_RST))
-                SetStateOut(link, ALIAS_TCP_STATE_DISCONNECTED);
-            break;
-    }
+	switch (GetStateOut(link)) {
+	case ALIAS_TCP_STATE_NOT_CONNECTED:
+		if (tc->th_flags & TH_RST)
+			SetStateOut(link, ALIAS_TCP_STATE_DISCONNECTED);
+		else if (tc->th_flags & TH_SYN)
+			SetStateOut(link, ALIAS_TCP_STATE_CONNECTED);
+		break;
+	case ALIAS_TCP_STATE_CONNECTED:
+		if (tc->th_flags & (TH_FIN | TH_RST))
+			SetStateOut(link, ALIAS_TCP_STATE_DISCONNECTED);
+		break;
+	}
 }
 
 
@@ -247,22 +243,22 @@ the gateway machine or other machines on a local area network.
 
 
 /* Local prototypes */
-static int IcmpAliasIn1(struct libalias *, struct ip *);
-static int IcmpAliasIn2(struct libalias *, struct ip *);
-static int IcmpAliasIn (struct libalias *, struct ip *);
+static int	IcmpAliasIn1(struct libalias *, struct ip *);
+static int	IcmpAliasIn2(struct libalias *, struct ip *);
+static int	IcmpAliasIn(struct libalias *, struct ip *);
 
-static int IcmpAliasOut1(struct libalias *, struct ip *);
-static int IcmpAliasOut2(struct libalias *, struct ip *);
-static int IcmpAliasOut (struct libalias *, struct ip *);
+static int	IcmpAliasOut1(struct libalias *, struct ip *);
+static int	IcmpAliasOut2(struct libalias *, struct ip *);
+static int	IcmpAliasOut(struct libalias *, struct ip *);
 
-static int ProtoAliasIn(struct libalias *, struct ip *);
-static int ProtoAliasOut(struct libalias *, struct ip *);
+static int	ProtoAliasIn(struct libalias *, struct ip *);
+static int	ProtoAliasOut(struct libalias *, struct ip *);
 
-static int UdpAliasOut(struct libalias *, struct ip *);
-static int UdpAliasIn (struct libalias *, struct ip *);
+static int	UdpAliasOut(struct libalias *, struct ip *);
+static int	UdpAliasIn(struct libalias *, struct ip *);
 
-static int TcpAliasOut(struct libalias *, struct ip *, int);
-static int TcpAliasIn (struct libalias *, struct ip *);
+static int	TcpAliasOut(struct libalias *, struct ip *, int);
+static int	TcpAliasIn(struct libalias *, struct ip *);
 
 
 static int
@@ -272,43 +268,42 @@ IcmpAliasIn1(struct libalias *la, struct ip *pip)
     De-alias incoming echo and timestamp replies.
     Alias incoming echo and timestamp requests.
 */
-    struct alias_link *link;
-    struct icmp *ic;
+	struct alias_link *link;
+	struct icmp *ic;
 
-    ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
+	ic = (struct icmp *)((char *)pip + (pip->ip_hl << 2));
 
 /* Get source address from ICMP data field and restore original data */
-    link = FindIcmpIn(la, pip->ip_src, pip->ip_dst, ic->icmp_id, 1);
-    if (link != NULL)
-    {
-        u_short original_id;
-        int accumulate;
+	link = FindIcmpIn(la, pip->ip_src, pip->ip_dst, ic->icmp_id, 1);
+	if (link != NULL) {
+		u_short original_id;
+		int accumulate;
 
-        original_id = GetOriginalPort(link);
+		original_id = GetOriginalPort(link);
 
 /* Adjust ICMP checksum */
-        accumulate  = ic->icmp_id;
-        accumulate -= original_id;
-        ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
+		accumulate = ic->icmp_id;
+		accumulate -= original_id;
+		ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 /* Put original sequence number back in */
-        ic->icmp_id = original_id;
+		ic->icmp_id = original_id;
 
 /* Put original address back into IP header */
-        {
-            struct in_addr original_address;
+		{
+			struct in_addr original_address;
 
-            original_address = GetOriginalAddress(link);
-            DifferentialChecksum(&pip->ip_sum,
-                                 (u_short *) &original_address,
-                                 (u_short *) &pip->ip_dst,
-                                 2);
-            pip->ip_dst = original_address;
-        }
+			original_address = GetOriginalAddress(link);
+			DifferentialChecksum(&pip->ip_sum,
+			    (u_short *) & original_address,
+			    (u_short *) & pip->ip_dst,
+			    2);
+			pip->ip_dst = original_address;
+		}
 
-        return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_IGNORED);
+		return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_IGNORED);
 }
 
 static int
@@ -318,151 +313,145 @@ IcmpAliasIn2(struct libalias *la, struct ip *pip)
     Alias incoming ICMP error messages containing
     IP header and first 64 bits of datagram.
 */
-    struct ip *ip;
-    struct icmp *ic, *ic2;
-    struct udphdr *ud;
-    struct tcphdr *tc;
-    struct alias_link *link;
+	struct ip *ip;
+	struct icmp *ic, *ic2;
+	struct udphdr *ud;
+	struct tcphdr *tc;
+	struct alias_link *link;
 
-    ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
-    ip = &ic->icmp_ip;
+	ic = (struct icmp *)((char *)pip + (pip->ip_hl << 2));
+	ip = &ic->icmp_ip;
 
-    ud = (struct udphdr *) ((char *) ip + (ip->ip_hl <<2));
-    tc = (struct tcphdr *) ud;
-    ic2 = (struct icmp *) ud;
+	ud = (struct udphdr *)((char *)ip + (ip->ip_hl << 2));
+	tc = (struct tcphdr *)ud;
+	ic2 = (struct icmp *)ud;
 
-    if (ip->ip_p == IPPROTO_UDP)
-        link = FindUdpTcpIn(la, ip->ip_dst, ip->ip_src,
-                            ud->uh_dport, ud->uh_sport,
-                            IPPROTO_UDP, 0);
-    else if (ip->ip_p == IPPROTO_TCP)
-        link = FindUdpTcpIn(la, ip->ip_dst, ip->ip_src,
-                            tc->th_dport, tc->th_sport,
-                            IPPROTO_TCP, 0);
-    else if (ip->ip_p == IPPROTO_ICMP) {
-        if (ic2->icmp_type == ICMP_ECHO || ic2->icmp_type == ICMP_TSTAMP)
-            link = FindIcmpIn(la, ip->ip_dst, ip->ip_src, ic2->icmp_id, 0);
-        else
-            link = NULL;
-    } else
-        link = NULL;
+	if (ip->ip_p == IPPROTO_UDP)
+		link = FindUdpTcpIn(la, ip->ip_dst, ip->ip_src,
+		    ud->uh_dport, ud->uh_sport,
+		    IPPROTO_UDP, 0);
+	else if (ip->ip_p == IPPROTO_TCP)
+		link = FindUdpTcpIn(la, ip->ip_dst, ip->ip_src,
+		    tc->th_dport, tc->th_sport,
+		    IPPROTO_TCP, 0);
+	else if (ip->ip_p == IPPROTO_ICMP) {
+		if (ic2->icmp_type == ICMP_ECHO || ic2->icmp_type == ICMP_TSTAMP)
+			link = FindIcmpIn(la, ip->ip_dst, ip->ip_src, ic2->icmp_id, 0);
+		else
+			link = NULL;
+	} else
+		link = NULL;
 
-    if (link != NULL)
-    {
-        if (ip->ip_p == IPPROTO_UDP || ip->ip_p == IPPROTO_TCP)
-        {
-            u_short *sptr;
-            int accumulate, accumulate2;
-            struct in_addr original_address;
-            u_short original_port;
+	if (link != NULL) {
+		if (ip->ip_p == IPPROTO_UDP || ip->ip_p == IPPROTO_TCP) {
+			u_short *sptr;
+			int accumulate, accumulate2;
+			struct in_addr original_address;
+			u_short original_port;
 
-            original_address = GetOriginalAddress(link);
-            original_port = GetOriginalPort(link);
+			original_address = GetOriginalAddress(link);
+			original_port = GetOriginalPort(link);
 
 /* Adjust ICMP checksum */
-            sptr = (u_short *) &(ip->ip_src);
-            accumulate  = *sptr++;
-            accumulate += *sptr;
-            sptr = (u_short *) &original_address;
-            accumulate -= *sptr++;
-            accumulate -= *sptr;
-            accumulate += ud->uh_sport;
-            accumulate -= original_port;
-            accumulate2 = accumulate;
-            accumulate2 += ip->ip_sum;
-            ADJUST_CHECKSUM(accumulate, ip->ip_sum);
-            accumulate2 -= ip->ip_sum;
-            ADJUST_CHECKSUM(accumulate2, ic->icmp_cksum);
+			sptr = (u_short *) & (ip->ip_src);
+			accumulate = *sptr++;
+			accumulate += *sptr;
+			sptr = (u_short *) & original_address;
+			accumulate -= *sptr++;
+			accumulate -= *sptr;
+			accumulate += ud->uh_sport;
+			accumulate -= original_port;
+			accumulate2 = accumulate;
+			accumulate2 += ip->ip_sum;
+			ADJUST_CHECKSUM(accumulate, ip->ip_sum);
+			accumulate2 -= ip->ip_sum;
+			ADJUST_CHECKSUM(accumulate2, ic->icmp_cksum);
 
 /* Un-alias address in IP header */
-            DifferentialChecksum(&pip->ip_sum,
-                                 (u_short *) &original_address,
-                                 (u_short *) &pip->ip_dst,
-                                 2);
-            pip->ip_dst = original_address;
+			DifferentialChecksum(&pip->ip_sum,
+			    (u_short *) & original_address,
+			    (u_short *) & pip->ip_dst,
+			    2);
+			pip->ip_dst = original_address;
 
 /* Un-alias address and port number of original IP packet
 fragment contained in ICMP data section */
-            ip->ip_src = original_address;
-            ud->uh_sport = original_port;
-        }
-        else if (ip->ip_p == IPPROTO_ICMP)
-        {
-            u_short *sptr;
-            int accumulate, accumulate2;
-            struct in_addr original_address;
-            u_short original_id;
+			ip->ip_src = original_address;
+			ud->uh_sport = original_port;
+		} else if (ip->ip_p == IPPROTO_ICMP) {
+			u_short *sptr;
+			int accumulate, accumulate2;
+			struct in_addr original_address;
+			u_short original_id;
 
-            original_address = GetOriginalAddress(link);
-            original_id = GetOriginalPort(link);
+			original_address = GetOriginalAddress(link);
+			original_id = GetOriginalPort(link);
 
 /* Adjust ICMP checksum */
-            sptr = (u_short *) &(ip->ip_src);
-            accumulate  = *sptr++;
-            accumulate += *sptr;
-            sptr = (u_short *) &original_address;
-            accumulate -= *sptr++;
-            accumulate -= *sptr;
-            accumulate += ic2->icmp_id;
-            accumulate -= original_id;
-            accumulate2 = accumulate;
-            accumulate2 += ip->ip_sum;
-            ADJUST_CHECKSUM(accumulate, ip->ip_sum);
-            accumulate2 -= ip->ip_sum;
-            ADJUST_CHECKSUM(accumulate2, ic->icmp_cksum);
+			sptr = (u_short *) & (ip->ip_src);
+			accumulate = *sptr++;
+			accumulate += *sptr;
+			sptr = (u_short *) & original_address;
+			accumulate -= *sptr++;
+			accumulate -= *sptr;
+			accumulate += ic2->icmp_id;
+			accumulate -= original_id;
+			accumulate2 = accumulate;
+			accumulate2 += ip->ip_sum;
+			ADJUST_CHECKSUM(accumulate, ip->ip_sum);
+			accumulate2 -= ip->ip_sum;
+			ADJUST_CHECKSUM(accumulate2, ic->icmp_cksum);
 
 /* Un-alias address in IP header */
-            DifferentialChecksum(&pip->ip_sum,
-                                 (u_short *) &original_address,
-                                 (u_short *) &pip->ip_dst,
-                                 2);
-            pip->ip_dst = original_address;
+			DifferentialChecksum(&pip->ip_sum,
+			    (u_short *) & original_address,
+			    (u_short *) & pip->ip_dst,
+			    2);
+			pip->ip_dst = original_address;
 
 /* Un-alias address of original IP packet and sequence number of
    embedded ICMP datagram */
-            ip->ip_src = original_address;
-            ic2->icmp_id = original_id;
-        }
-        return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_IGNORED);
+			ip->ip_src = original_address;
+			ic2->icmp_id = original_id;
+		}
+		return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_IGNORED);
 }
 
 
 static int
 IcmpAliasIn(struct libalias *la, struct ip *pip)
 {
-    int iresult;
-    struct icmp *ic;
+	int iresult;
+	struct icmp *ic;
 
 /* Return if proxy-only mode is enabled */
-    if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-        return PKT_ALIAS_OK;
+	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+		return PKT_ALIAS_OK;
 
-    ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
+	ic = (struct icmp *)((char *)pip + (pip->ip_hl << 2));
 
-    iresult = PKT_ALIAS_IGNORED;
-    switch (ic->icmp_type)
-    {
-        case ICMP_ECHOREPLY:
-        case ICMP_TSTAMPREPLY:
-            if (ic->icmp_code == 0)
-            {
-                iresult = IcmpAliasIn1(la, pip);
-            }
-            break;
-        case ICMP_UNREACH:
-        case ICMP_SOURCEQUENCH:
-        case ICMP_TIMXCEED:
-        case ICMP_PARAMPROB:
-            iresult = IcmpAliasIn2(la, pip);
-            break;
-        case ICMP_ECHO:
-        case ICMP_TSTAMP:
-            iresult = IcmpAliasIn1(la, pip);
-            break;
-    }
-    return(iresult);
+	iresult = PKT_ALIAS_IGNORED;
+	switch (ic->icmp_type) {
+	case ICMP_ECHOREPLY:
+	case ICMP_TSTAMPREPLY:
+		if (ic->icmp_code == 0) {
+			iresult = IcmpAliasIn1(la, pip);
+		}
+		break;
+	case ICMP_UNREACH:
+	case ICMP_SOURCEQUENCH:
+	case ICMP_TIMXCEED:
+	case ICMP_PARAMPROB:
+		iresult = IcmpAliasIn2(la, pip);
+		break;
+	case ICMP_ECHO:
+	case ICMP_TSTAMP:
+		iresult = IcmpAliasIn1(la, pip);
+		break;
+	}
+	return (iresult);
 }
 
 
@@ -473,43 +462,42 @@ IcmpAliasOut1(struct libalias *la, struct ip *pip)
     Alias outgoing echo and timestamp requests.
     De-alias outgoing echo and timestamp replies.
 */
-    struct alias_link *link;
-    struct icmp *ic;
+	struct alias_link *link;
+	struct icmp *ic;
 
-    ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
+	ic = (struct icmp *)((char *)pip + (pip->ip_hl << 2));
 
 /* Save overwritten data for when echo packet returns */
-    link = FindIcmpOut(la, pip->ip_src, pip->ip_dst, ic->icmp_id, 1);
-    if (link != NULL)
-    {
-        u_short alias_id;
-        int accumulate;
+	link = FindIcmpOut(la, pip->ip_src, pip->ip_dst, ic->icmp_id, 1);
+	if (link != NULL) {
+		u_short alias_id;
+		int accumulate;
 
-        alias_id = GetAliasPort(link);
+		alias_id = GetAliasPort(link);
 
 /* Since data field is being modified, adjust ICMP checksum */
-        accumulate  = ic->icmp_id;
-        accumulate -= alias_id;
-        ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
+		accumulate = ic->icmp_id;
+		accumulate -= alias_id;
+		ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 /* Alias sequence number */
-        ic->icmp_id = alias_id;
+		ic->icmp_id = alias_id;
 
 /* Change source address */
-        {
-            struct in_addr alias_address;
+		{
+			struct in_addr alias_address;
 
-            alias_address = GetAliasAddress(link);
-            DifferentialChecksum(&pip->ip_sum,
-                                 (u_short *) &alias_address,
-                                 (u_short *) &pip->ip_src,
-                                 2);
-            pip->ip_src = alias_address;
-        }
+			alias_address = GetAliasAddress(link);
+			DifferentialChecksum(&pip->ip_sum,
+			    (u_short *) & alias_address,
+			    (u_short *) & pip->ip_src,
+			    2);
+			pip->ip_src = alias_address;
+		}
 
-        return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_IGNORED);
+		return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_IGNORED);
 }
 
 
@@ -520,152 +508,144 @@ IcmpAliasOut2(struct libalias *la, struct ip *pip)
     Alias outgoing ICMP error messages containing
     IP header and first 64 bits of datagram.
 */
-    struct ip *ip;
-    struct icmp *ic, *ic2;
-    struct udphdr *ud;
-    struct tcphdr *tc;
-    struct alias_link *link;
+	struct ip *ip;
+	struct icmp *ic, *ic2;
+	struct udphdr *ud;
+	struct tcphdr *tc;
+	struct alias_link *link;
 
-    ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
-    ip = &ic->icmp_ip;
+	ic = (struct icmp *)((char *)pip + (pip->ip_hl << 2));
+	ip = &ic->icmp_ip;
 
-    ud = (struct udphdr *) ((char *) ip + (ip->ip_hl <<2));
-    tc = (struct tcphdr *) ud;
-    ic2 = (struct icmp *) ud;
+	ud = (struct udphdr *)((char *)ip + (ip->ip_hl << 2));
+	tc = (struct tcphdr *)ud;
+	ic2 = (struct icmp *)ud;
 
-    if (ip->ip_p == IPPROTO_UDP)
-        link = FindUdpTcpOut(la, ip->ip_dst, ip->ip_src,
-                            ud->uh_dport, ud->uh_sport,
-                            IPPROTO_UDP, 0);
-    else if (ip->ip_p == IPPROTO_TCP)
-        link = FindUdpTcpOut(la, ip->ip_dst, ip->ip_src,
-                            tc->th_dport, tc->th_sport,
-                            IPPROTO_TCP, 0);
-    else if (ip->ip_p == IPPROTO_ICMP) {
-        if (ic2->icmp_type == ICMP_ECHO || ic2->icmp_type == ICMP_TSTAMP)
-            link = FindIcmpOut(la, ip->ip_dst, ip->ip_src, ic2->icmp_id, 0);
-        else
-            link = NULL;
-    } else
-        link = NULL;
+	if (ip->ip_p == IPPROTO_UDP)
+		link = FindUdpTcpOut(la, ip->ip_dst, ip->ip_src,
+		    ud->uh_dport, ud->uh_sport,
+		    IPPROTO_UDP, 0);
+	else if (ip->ip_p == IPPROTO_TCP)
+		link = FindUdpTcpOut(la, ip->ip_dst, ip->ip_src,
+		    tc->th_dport, tc->th_sport,
+		    IPPROTO_TCP, 0);
+	else if (ip->ip_p == IPPROTO_ICMP) {
+		if (ic2->icmp_type == ICMP_ECHO || ic2->icmp_type == ICMP_TSTAMP)
+			link = FindIcmpOut(la, ip->ip_dst, ip->ip_src, ic2->icmp_id, 0);
+		else
+			link = NULL;
+	} else
+		link = NULL;
 
-    if (link != NULL)
-    {
-        if (ip->ip_p == IPPROTO_UDP || ip->ip_p == IPPROTO_TCP)
-        {
-            u_short *sptr;
-            int accumulate;
-            struct in_addr alias_address;
-            u_short alias_port;
+	if (link != NULL) {
+		if (ip->ip_p == IPPROTO_UDP || ip->ip_p == IPPROTO_TCP) {
+			u_short *sptr;
+			int accumulate;
+			struct in_addr alias_address;
+			u_short alias_port;
 
-            alias_address = GetAliasAddress(link);
-            alias_port = GetAliasPort(link);
+			alias_address = GetAliasAddress(link);
+			alias_port = GetAliasPort(link);
 
 /* Adjust ICMP checksum */
-            sptr = (u_short *) &(ip->ip_dst);
-            accumulate  = *sptr++;
-            accumulate += *sptr;
-            sptr = (u_short *) &alias_address;
-            accumulate -= *sptr++;
-            accumulate -= *sptr;
-            accumulate += ud->uh_dport;
-            accumulate -= alias_port;
-            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
+			sptr = (u_short *) & (ip->ip_dst);
+			accumulate = *sptr++;
+			accumulate += *sptr;
+			sptr = (u_short *) & alias_address;
+			accumulate -= *sptr++;
+			accumulate -= *sptr;
+			accumulate += ud->uh_dport;
+			accumulate -= alias_port;
+			ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 /*
  * Alias address in IP header if it comes from the host
  * the original TCP/UDP packet was destined for.
  */
-	    if (pip->ip_src.s_addr == ip->ip_dst.s_addr) {
-		DifferentialChecksum(&pip->ip_sum,
-				     (u_short *) &alias_address,
-				     (u_short *) &pip->ip_src,
-				     2);
-		pip->ip_src = alias_address;
-	    }
-
+			if (pip->ip_src.s_addr == ip->ip_dst.s_addr) {
+				DifferentialChecksum(&pip->ip_sum,
+				    (u_short *) & alias_address,
+				    (u_short *) & pip->ip_src,
+				    2);
+				pip->ip_src = alias_address;
+			}
 /* Alias address and port number of original IP packet
 fragment contained in ICMP data section */
-            ip->ip_dst = alias_address;
-            ud->uh_dport = alias_port;
-        }
-        else if (ip->ip_p == IPPROTO_ICMP)
-        {
-            u_short *sptr;
-            int accumulate;
-            struct in_addr alias_address;
-            u_short alias_id;
+			ip->ip_dst = alias_address;
+			ud->uh_dport = alias_port;
+		} else if (ip->ip_p == IPPROTO_ICMP) {
+			u_short *sptr;
+			int accumulate;
+			struct in_addr alias_address;
+			u_short alias_id;
 
-            alias_address = GetAliasAddress(link);
-            alias_id = GetAliasPort(link);
+			alias_address = GetAliasAddress(link);
+			alias_id = GetAliasPort(link);
 
 /* Adjust ICMP checksum */
-            sptr = (u_short *) &(ip->ip_dst);
-            accumulate  = *sptr++;
-            accumulate += *sptr;
-            sptr = (u_short *) &alias_address;
-            accumulate -= *sptr++;
-            accumulate -= *sptr;
-            accumulate += ic2->icmp_id;
-            accumulate -= alias_id;
-            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
+			sptr = (u_short *) & (ip->ip_dst);
+			accumulate = *sptr++;
+			accumulate += *sptr;
+			sptr = (u_short *) & alias_address;
+			accumulate -= *sptr++;
+			accumulate -= *sptr;
+			accumulate += ic2->icmp_id;
+			accumulate -= alias_id;
+			ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 /*
  * Alias address in IP header if it comes from the host
  * the original ICMP message was destined for.
  */
-	    if (pip->ip_src.s_addr == ip->ip_dst.s_addr) {
-		DifferentialChecksum(&pip->ip_sum,
-				     (u_short *) &alias_address,
-				     (u_short *) &pip->ip_src,
-				     2);
-		pip->ip_src = alias_address;
-	    }
-
+			if (pip->ip_src.s_addr == ip->ip_dst.s_addr) {
+				DifferentialChecksum(&pip->ip_sum,
+				    (u_short *) & alias_address,
+				    (u_short *) & pip->ip_src,
+				    2);
+				pip->ip_src = alias_address;
+			}
 /* Alias address of original IP packet and sequence number of
    embedded ICMP datagram */
-            ip->ip_dst = alias_address;
-            ic2->icmp_id = alias_id;
-        }
-        return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_IGNORED);
+			ip->ip_dst = alias_address;
+			ic2->icmp_id = alias_id;
+		}
+		return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_IGNORED);
 }
 
 
 static int
 IcmpAliasOut(struct libalias *la, struct ip *pip)
 {
-    int iresult;
-    struct icmp *ic;
+	int iresult;
+	struct icmp *ic;
 
 /* Return if proxy-only mode is enabled */
-    if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-        return PKT_ALIAS_OK;
+	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+		return PKT_ALIAS_OK;
 
-    ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
+	ic = (struct icmp *)((char *)pip + (pip->ip_hl << 2));
 
-    iresult = PKT_ALIAS_IGNORED;
-    switch (ic->icmp_type)
-    {
-        case ICMP_ECHO:
-        case ICMP_TSTAMP:
-            if (ic->icmp_code == 0)
-            {
-                iresult = IcmpAliasOut1(la, pip);
-            }
-            break;
-        case ICMP_UNREACH:
-        case ICMP_SOURCEQUENCH:
-        case ICMP_TIMXCEED:
-        case ICMP_PARAMPROB:
-            iresult = IcmpAliasOut2(la, pip);
-            break;
-        case ICMP_ECHOREPLY:
-        case ICMP_TSTAMPREPLY:
-            iresult = IcmpAliasOut1(la, pip);
-    }
-    return(iresult);
+	iresult = PKT_ALIAS_IGNORED;
+	switch (ic->icmp_type) {
+	case ICMP_ECHO:
+	case ICMP_TSTAMP:
+		if (ic->icmp_code == 0) {
+			iresult = IcmpAliasOut1(la, pip);
+		}
+		break;
+	case ICMP_UNREACH:
+	case ICMP_SOURCEQUENCH:
+	case ICMP_TIMXCEED:
+	case ICMP_PARAMPROB:
+		iresult = IcmpAliasOut2(la, pip);
+		break;
+	case ICMP_ECHOREPLY:
+	case ICMP_TSTAMPREPLY:
+		iresult = IcmpAliasOut1(la, pip);
+	}
+	return (iresult);
 }
 
 
@@ -679,29 +659,28 @@ ProtoAliasIn(struct libalias *la, struct ip *pip)
   the dest IP address of the packet to our inside
   machine.
 */
-    struct alias_link *link;
+	struct alias_link *link;
 
 /* Return if proxy-only mode is enabled */
-    if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-        return PKT_ALIAS_OK;
+	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+		return PKT_ALIAS_OK;
 
-    link = FindProtoIn(la, pip->ip_src, pip->ip_dst, pip->ip_p);
-    if (link != NULL)
-    {
-        struct in_addr original_address;
+	link = FindProtoIn(la, pip->ip_src, pip->ip_dst, pip->ip_p);
+	if (link != NULL) {
+		struct in_addr original_address;
 
-        original_address = GetOriginalAddress(link);
+		original_address = GetOriginalAddress(link);
 
 /* Restore original IP address */
-        DifferentialChecksum(&pip->ip_sum,
-                             (u_short *) &original_address,
-                             (u_short *) &pip->ip_dst,
-                             2);
-        pip->ip_dst = original_address;
+		DifferentialChecksum(&pip->ip_sum,
+		    (u_short *) & original_address,
+		    (u_short *) & pip->ip_dst,
+		    2);
+		pip->ip_dst = original_address;
 
-	return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_IGNORED);
+		return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_IGNORED);
 }
 
 
@@ -713,180 +692,173 @@ ProtoAliasOut(struct libalias *la, struct ip *pip)
   only thing which is done in this case is to alias
   the source IP address of the packet.
 */
-    struct alias_link *link;
+	struct alias_link *link;
 
 /* Return if proxy-only mode is enabled */
-    if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-        return PKT_ALIAS_OK;
+	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+		return PKT_ALIAS_OK;
 
-    link = FindProtoOut(la, pip->ip_src, pip->ip_dst, pip->ip_p);
-    if (link != NULL)
-    {
-        struct in_addr alias_address;
+	link = FindProtoOut(la, pip->ip_src, pip->ip_dst, pip->ip_p);
+	if (link != NULL) {
+		struct in_addr alias_address;
 
-        alias_address = GetAliasAddress(link);
+		alias_address = GetAliasAddress(link);
 
 /* Change source address */
-        DifferentialChecksum(&pip->ip_sum,
-                             (u_short *) &alias_address,
-                             (u_short *) &pip->ip_src,
-                             2);
-        pip->ip_src = alias_address;
+		DifferentialChecksum(&pip->ip_sum,
+		    (u_short *) & alias_address,
+		    (u_short *) & pip->ip_src,
+		    2);
+		pip->ip_src = alias_address;
 
-        return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_IGNORED);
+		return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_IGNORED);
 }
 
 
 static int
 UdpAliasIn(struct libalias *la, struct ip *pip)
 {
-    struct udphdr *ud;
-    struct alias_link *link;
+	struct udphdr *ud;
+	struct alias_link *link;
 
 /* Return if proxy-only mode is enabled */
-    if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-        return PKT_ALIAS_OK;
+	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+		return PKT_ALIAS_OK;
 
-    ud = (struct udphdr *) ((char *) pip + (pip->ip_hl << 2));
+	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
 
-    link = FindUdpTcpIn(la, pip->ip_src, pip->ip_dst,
-                        ud->uh_sport, ud->uh_dport,
-                        IPPROTO_UDP, 1);
-    if (link != NULL)
-    {
-        struct in_addr alias_address;
-        struct in_addr original_address;
-        u_short alias_port;
-        int accumulate;
-        u_short *sptr;
-	int r = 0;
+	link = FindUdpTcpIn(la, pip->ip_src, pip->ip_dst,
+	    ud->uh_sport, ud->uh_dport,
+	    IPPROTO_UDP, 1);
+	if (link != NULL) {
+		struct in_addr alias_address;
+		struct in_addr original_address;
+		u_short alias_port;
+		int accumulate;
+		u_short *sptr;
+		int r = 0;
 
-        alias_address = GetAliasAddress(link);
-        original_address = GetOriginalAddress(link);
-        alias_port = ud->uh_dport;
-        ud->uh_dport = GetOriginalPort(link);
+		alias_address = GetAliasAddress(link);
+		original_address = GetOriginalAddress(link);
+		alias_port = ud->uh_dport;
+		ud->uh_dport = GetOriginalPort(link);
 
 /* Special processing for IP encoding protocols */
-	if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
-	    AliasHandleCUSeeMeIn(la, pip, original_address);
+		if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
+			AliasHandleCUSeeMeIn(la, pip, original_address);
 /* If NETBIOS Datagram, It should be alias address in UDP Data, too */
-	else if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
-	      || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER)
-	    r = AliasHandleUdpNbt(la, pip, link, &original_address, ud->uh_dport);
-	else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
-	      || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER)
-	    r = AliasHandleUdpNbtNS(la, pip, link, &alias_address, &alias_port,
-				    &original_address, &ud->uh_dport);
+		else if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
+		    || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER)
+			r = AliasHandleUdpNbt(la, pip, link, &original_address, ud->uh_dport);
+		else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
+		    || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER)
+			r = AliasHandleUdpNbtNS(la, pip, link, &alias_address, &alias_port,
+			    &original_address, &ud->uh_dport);
 
 /* If UDP checksum is not zero, then adjust since destination port */
 /* is being unaliased and destination address is being altered.    */
-        if (ud->uh_sum != 0)
-        {
-            accumulate  = alias_port;
-            accumulate -= ud->uh_dport;
-            sptr = (u_short *) &alias_address;
-            accumulate += *sptr++;
-            accumulate += *sptr;
-            sptr = (u_short *) &original_address;
-            accumulate -= *sptr++;
-            accumulate -= *sptr;
-            ADJUST_CHECKSUM(accumulate, ud->uh_sum);
-        }
-
+		if (ud->uh_sum != 0) {
+			accumulate = alias_port;
+			accumulate -= ud->uh_dport;
+			sptr = (u_short *) & alias_address;
+			accumulate += *sptr++;
+			accumulate += *sptr;
+			sptr = (u_short *) & original_address;
+			accumulate -= *sptr++;
+			accumulate -= *sptr;
+			ADJUST_CHECKSUM(accumulate, ud->uh_sum);
+		}
 /* Restore original IP address */
-        DifferentialChecksum(&pip->ip_sum,
-                             (u_short *) &original_address,
-                             (u_short *) &pip->ip_dst,
-                             2);
-        pip->ip_dst = original_address;
+		DifferentialChecksum(&pip->ip_sum,
+		    (u_short *) & original_address,
+		    (u_short *) & pip->ip_dst,
+		    2);
+		pip->ip_dst = original_address;
 
-	/*
-	 * If we cannot figure out the packet, ignore it.
-	 */
-	if (r < 0)
-	    return(PKT_ALIAS_IGNORED);
-	else
-	    return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_IGNORED);
+		/*
+		 * If we cannot figure out the packet, ignore it.
+		 */
+		if (r < 0)
+			return (PKT_ALIAS_IGNORED);
+		else
+			return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_IGNORED);
 }
 
 static int
 UdpAliasOut(struct libalias *la, struct ip *pip)
 {
-    struct udphdr *ud;
-    struct alias_link *link;
+	struct udphdr *ud;
+	struct alias_link *link;
 
 /* Return if proxy-only mode is enabled */
-    if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-        return PKT_ALIAS_OK;
+	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+		return PKT_ALIAS_OK;
 
-    ud = (struct udphdr *) ((char *) pip + (pip->ip_hl << 2));
+	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
 
-    link = FindUdpTcpOut(la, pip->ip_src, pip->ip_dst,
-                         ud->uh_sport, ud->uh_dport,
-                         IPPROTO_UDP, 1);
-    if (link != NULL)
-    {
-        u_short alias_port;
-        struct in_addr alias_address;
+	link = FindUdpTcpOut(la, pip->ip_src, pip->ip_dst,
+	    ud->uh_sport, ud->uh_dport,
+	    IPPROTO_UDP, 1);
+	if (link != NULL) {
+		u_short alias_port;
+		struct in_addr alias_address;
 
-        alias_address = GetAliasAddress(link);
-        alias_port = GetAliasPort(link);
+		alias_address = GetAliasAddress(link);
+		alias_port = GetAliasPort(link);
 
 /* Special processing for IP encoding protocols */
-	if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
-	    AliasHandleCUSeeMeOut(la, pip, link);
+		if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
+			AliasHandleCUSeeMeOut(la, pip, link);
 /* If NETBIOS Datagram, It should be alias address in UDP Data, too */
-	else if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
-	      || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER)
-	    AliasHandleUdpNbt(la, pip, link, &alias_address, alias_port);
-	else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
-	      || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER)
-	    AliasHandleUdpNbtNS(la, pip, link, &pip->ip_src, &ud->uh_sport,
-				&alias_address, &alias_port);
+		else if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
+		    || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER)
+			AliasHandleUdpNbt(la, pip, link, &alias_address, alias_port);
+		else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
+		    || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER)
+			AliasHandleUdpNbtNS(la, pip, link, &pip->ip_src, &ud->uh_sport,
+			    &alias_address, &alias_port);
 /*
  * We don't know in advance what TID the TFTP server will choose,
  * so we create a wilcard link (destination port is unspecified)
  * that will match any TID from a given destination.
  */
-	else if (ntohs(ud->uh_dport) == TFTP_PORT_NUMBER)
-	    FindRtspOut(la, pip->ip_src, pip->ip_dst,
-			ud->uh_sport, alias_port, IPPROTO_UDP);
+		else if (ntohs(ud->uh_dport) == TFTP_PORT_NUMBER)
+			FindRtspOut(la, pip->ip_src, pip->ip_dst,
+			    ud->uh_sport, alias_port, IPPROTO_UDP);
 
 /* If UDP checksum is not zero, adjust since source port is */
 /* being aliased and source address is being altered        */
-        if (ud->uh_sum != 0)
-        {
-            int accumulate;
-            u_short *sptr;
+		if (ud->uh_sum != 0) {
+			int accumulate;
+			u_short *sptr;
 
-            accumulate  = ud->uh_sport;
-            accumulate -= alias_port;
-            sptr = (u_short *) &(pip->ip_src);
-            accumulate += *sptr++;
-            accumulate += *sptr;
-            sptr = (u_short *) &alias_address;
-            accumulate -= *sptr++;
-            accumulate -= *sptr;
-            ADJUST_CHECKSUM(accumulate, ud->uh_sum);
-        }
-
+			accumulate = ud->uh_sport;
+			accumulate -= alias_port;
+			sptr = (u_short *) & (pip->ip_src);
+			accumulate += *sptr++;
+			accumulate += *sptr;
+			sptr = (u_short *) & alias_address;
+			accumulate -= *sptr++;
+			accumulate -= *sptr;
+			ADJUST_CHECKSUM(accumulate, ud->uh_sum);
+		}
 /* Put alias port in UDP header */
-        ud->uh_sport = alias_port;
+		ud->uh_sport = alias_port;
 
 /* Change source address */
-        DifferentialChecksum(&pip->ip_sum,
-                             (u_short *) &alias_address,
-                             (u_short *) &pip->ip_src,
-                             2);
-        pip->ip_src = alias_address;
+		DifferentialChecksum(&pip->ip_sum,
+		    (u_short *) & alias_address,
+		    (u_short *) & pip->ip_src,
+		    2);
+		pip->ip_src = alias_address;
 
-        return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_IGNORED);
+		return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_IGNORED);
 }
 
 
@@ -894,264 +866,248 @@ UdpAliasOut(struct libalias *la, struct ip *pip)
 static int
 TcpAliasIn(struct libalias *la, struct ip *pip)
 {
-    struct tcphdr *tc;
-    struct alias_link *link;
+	struct tcphdr *tc;
+	struct alias_link *link;
 
-    tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
 
-    link = FindUdpTcpIn(la, pip->ip_src, pip->ip_dst,
-                        tc->th_sport, tc->th_dport,
-                        IPPROTO_TCP,
-                        !(la->packetAliasMode & PKT_ALIAS_PROXY_ONLY));
-    if (link != NULL)
-    {
-        struct in_addr alias_address;
-        struct in_addr original_address;
-        struct in_addr proxy_address;
-        u_short alias_port;
-        u_short proxy_port;
-        int accumulate;
-        u_short *sptr;
+	link = FindUdpTcpIn(la, pip->ip_src, pip->ip_dst,
+	    tc->th_sport, tc->th_dport,
+	    IPPROTO_TCP,
+	    !(la->packetAliasMode & PKT_ALIAS_PROXY_ONLY));
+	if (link != NULL) {
+		struct in_addr alias_address;
+		struct in_addr original_address;
+		struct in_addr proxy_address;
+		u_short alias_port;
+		u_short proxy_port;
+		int accumulate;
+		u_short *sptr;
 
 /* Special processing for IP encoding protocols */
-        if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
-         || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
-            AliasHandlePptpIn(la, pip, link);
-        else if (la->skinnyPort != 0 && (ntohs(tc->th_dport) == la->skinnyPort
-         || ntohs(tc->th_sport) == la->skinnyPort))
-            AliasHandleSkinny(la, pip, link);
+		if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
+		    || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
+			AliasHandlePptpIn(la, pip, link);
+		else if (la->skinnyPort != 0 && (ntohs(tc->th_dport) == la->skinnyPort
+		    || ntohs(tc->th_sport) == la->skinnyPort))
+			AliasHandleSkinny(la, pip, link);
 
-        alias_address = GetAliasAddress(link);
-        original_address = GetOriginalAddress(link);
-        proxy_address = GetProxyAddress(link);
-        alias_port = tc->th_dport;
-        tc->th_dport = GetOriginalPort(link);
-        proxy_port = GetProxyPort(link);
+		alias_address = GetAliasAddress(link);
+		original_address = GetOriginalAddress(link);
+		proxy_address = GetProxyAddress(link);
+		alias_port = tc->th_dport;
+		tc->th_dport = GetOriginalPort(link);
+		proxy_port = GetProxyPort(link);
 
 /* Adjust TCP checksum since destination port is being unaliased */
 /* and destination port is being altered.                        */
-        accumulate  = alias_port;
-        accumulate -= tc->th_dport;
-        sptr = (u_short *) &alias_address;
-        accumulate += *sptr++;
-        accumulate += *sptr;
-        sptr = (u_short *) &original_address;
-        accumulate -= *sptr++;
-        accumulate -= *sptr;
+		accumulate = alias_port;
+		accumulate -= tc->th_dport;
+		sptr = (u_short *) & alias_address;
+		accumulate += *sptr++;
+		accumulate += *sptr;
+		sptr = (u_short *) & original_address;
+		accumulate -= *sptr++;
+		accumulate -= *sptr;
 
 /* If this is a proxy, then modify the TCP source port and
    checksum accumulation */
-        if (proxy_port != 0)
-        {
-            accumulate += tc->th_sport;
-            tc->th_sport = proxy_port;
-            accumulate -= tc->th_sport;
+		if (proxy_port != 0) {
+			accumulate += tc->th_sport;
+			tc->th_sport = proxy_port;
+			accumulate -= tc->th_sport;
 
-            sptr = (u_short *) &pip->ip_src;
-            accumulate += *sptr++;
-            accumulate += *sptr;
-            sptr = (u_short *) &proxy_address;
-            accumulate -= *sptr++;
-            accumulate -= *sptr;
-        }
-
+			sptr = (u_short *) & pip->ip_src;
+			accumulate += *sptr++;
+			accumulate += *sptr;
+			sptr = (u_short *) & proxy_address;
+			accumulate -= *sptr++;
+			accumulate -= *sptr;
+		}
 /* See if ACK number needs to be modified */
-        if (GetAckModified(link) == 1)
-        {
-            int delta;
+		if (GetAckModified(link) == 1) {
+			int delta;
 
-            delta = GetDeltaAckIn(pip, link);
-            if (delta != 0)
-            {
-                sptr = (u_short *) &tc->th_ack;
-                accumulate += *sptr++;
-                accumulate += *sptr;
-                tc->th_ack = htonl(ntohl(tc->th_ack) - delta);
-                sptr = (u_short *) &tc->th_ack;
-                accumulate -= *sptr++;
-                accumulate -= *sptr;
-            }
-        }
-
-        ADJUST_CHECKSUM(accumulate, tc->th_sum);
+			delta = GetDeltaAckIn(pip, link);
+			if (delta != 0) {
+				sptr = (u_short *) & tc->th_ack;
+				accumulate += *sptr++;
+				accumulate += *sptr;
+				tc->th_ack = htonl(ntohl(tc->th_ack) - delta);
+				sptr = (u_short *) & tc->th_ack;
+				accumulate -= *sptr++;
+				accumulate -= *sptr;
+			}
+		}
+		ADJUST_CHECKSUM(accumulate, tc->th_sum);
 
 /* Restore original IP address */
-        sptr = (u_short *) &pip->ip_dst;
-        accumulate  = *sptr++;
-        accumulate += *sptr;
-        pip->ip_dst = original_address;
-        sptr = (u_short *) &pip->ip_dst;
-        accumulate -= *sptr++;
-        accumulate -= *sptr;
+		sptr = (u_short *) & pip->ip_dst;
+		accumulate = *sptr++;
+		accumulate += *sptr;
+		pip->ip_dst = original_address;
+		sptr = (u_short *) & pip->ip_dst;
+		accumulate -= *sptr++;
+		accumulate -= *sptr;
 
 /* If this is a transparent proxy packet, then modify the source
    address */
-        if (proxy_address.s_addr != 0)
-        {
-            sptr = (u_short *) &pip->ip_src;
-            accumulate += *sptr++;
-            accumulate += *sptr;
-            pip->ip_src = proxy_address;
-            sptr = (u_short *) &pip->ip_src;
-            accumulate -= *sptr++;
-            accumulate -= *sptr;
-        }
-
-        ADJUST_CHECKSUM(accumulate, pip->ip_sum);
+		if (proxy_address.s_addr != 0) {
+			sptr = (u_short *) & pip->ip_src;
+			accumulate += *sptr++;
+			accumulate += *sptr;
+			pip->ip_src = proxy_address;
+			sptr = (u_short *) & pip->ip_src;
+			accumulate -= *sptr++;
+			accumulate -= *sptr;
+		}
+		ADJUST_CHECKSUM(accumulate, pip->ip_sum);
 
 /* Monitor TCP connection state */
-        TcpMonitorIn(pip, link);
+		TcpMonitorIn(pip, link);
 
-        return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_IGNORED);
+		return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_IGNORED);
 }
 
 static int
 TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize)
 {
-    int proxy_type;
-    u_short dest_port;
-    u_short proxy_server_port;
-    struct in_addr dest_address;
-    struct in_addr proxy_server_address;
-    struct tcphdr *tc;
-    struct alias_link *link;
+	int proxy_type;
+	u_short dest_port;
+	u_short proxy_server_port;
+	struct in_addr dest_address;
+	struct in_addr proxy_server_address;
+	struct tcphdr *tc;
+	struct alias_link *link;
 
-    tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
 
-    proxy_type = ProxyCheck(la, pip, &proxy_server_address, &proxy_server_port);
+	proxy_type = ProxyCheck(la, pip, &proxy_server_address, &proxy_server_port);
 
-    if (proxy_type == 0 && (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY))
-        return PKT_ALIAS_OK;
+	if (proxy_type == 0 && (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY))
+		return PKT_ALIAS_OK;
 
 /* If this is a transparent proxy, save original destination,
    then alter the destination and adjust checksums */
-    dest_port = tc->th_dport;
-    dest_address = pip->ip_dst;
-    if (proxy_type != 0)
-    {
-        int accumulate;
-        u_short *sptr;
+	dest_port = tc->th_dport;
+	dest_address = pip->ip_dst;
+	if (proxy_type != 0) {
+		int accumulate;
+		u_short *sptr;
 
-        accumulate = tc->th_dport;
-        tc->th_dport = proxy_server_port;
-        accumulate -= tc->th_dport;
+		accumulate = tc->th_dport;
+		tc->th_dport = proxy_server_port;
+		accumulate -= tc->th_dport;
 
-        sptr = (u_short *) &(pip->ip_dst);
-        accumulate += *sptr++;
-        accumulate += *sptr;
-        sptr = (u_short *) &proxy_server_address;
-        accumulate -= *sptr++;
-        accumulate -= *sptr;
+		sptr = (u_short *) & (pip->ip_dst);
+		accumulate += *sptr++;
+		accumulate += *sptr;
+		sptr = (u_short *) & proxy_server_address;
+		accumulate -= *sptr++;
+		accumulate -= *sptr;
 
-        ADJUST_CHECKSUM(accumulate, tc->th_sum);
+		ADJUST_CHECKSUM(accumulate, tc->th_sum);
 
-        sptr = (u_short *) &(pip->ip_dst);
-        accumulate  = *sptr++;
-        accumulate += *sptr;
-        pip->ip_dst = proxy_server_address;
-        sptr = (u_short *) &(pip->ip_dst);
-        accumulate -= *sptr++;
-        accumulate -= *sptr;
+		sptr = (u_short *) & (pip->ip_dst);
+		accumulate = *sptr++;
+		accumulate += *sptr;
+		pip->ip_dst = proxy_server_address;
+		sptr = (u_short *) & (pip->ip_dst);
+		accumulate -= *sptr++;
+		accumulate -= *sptr;
 
-        ADJUST_CHECKSUM(accumulate, pip->ip_sum);
-    }
-
-    link = FindUdpTcpOut(la, pip->ip_src, pip->ip_dst,
-                         tc->th_sport, tc->th_dport,
-                         IPPROTO_TCP, 1);
-    if (link !=NULL)
-    {
-        u_short alias_port;
-        struct in_addr alias_address;
-        int accumulate;
-        u_short *sptr;
+		ADJUST_CHECKSUM(accumulate, pip->ip_sum);
+	}
+	link = FindUdpTcpOut(la, pip->ip_src, pip->ip_dst,
+	    tc->th_sport, tc->th_dport,
+	    IPPROTO_TCP, 1);
+	if (link != NULL) {
+		u_short alias_port;
+		struct in_addr alias_address;
+		int accumulate;
+		u_short *sptr;
 
 /* Save original destination address, if this is a proxy packet.
    Also modify packet to include destination encoding.  This may
    change the size of IP header. */
-        if (proxy_type != 0)
-        {
-            SetProxyPort(link, dest_port);
-            SetProxyAddress(link, dest_address);
-            ProxyModify(la, link, pip, maxpacketsize, proxy_type);
-            tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
-        }
-
+		if (proxy_type != 0) {
+			SetProxyPort(link, dest_port);
+			SetProxyAddress(link, dest_address);
+			ProxyModify(la, link, pip, maxpacketsize, proxy_type);
+			tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+		}
 /* Get alias address and port */
-        alias_port = GetAliasPort(link);
-        alias_address = GetAliasAddress(link);
+		alias_port = GetAliasPort(link);
+		alias_address = GetAliasAddress(link);
 
 /* Monitor TCP connection state */
-        TcpMonitorOut(pip, link);
+		TcpMonitorOut(pip, link);
 
 /* Special processing for IP encoding protocols */
-        if (ntohs(tc->th_dport) == FTP_CONTROL_PORT_NUMBER
-         || ntohs(tc->th_sport) == FTP_CONTROL_PORT_NUMBER)
-            AliasHandleFtpOut(la, pip, link, maxpacketsize);
-        else if (ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_1
-         || ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_2)
-            AliasHandleIrcOut(la, pip, link, maxpacketsize);
-        else if (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1
-         || ntohs(tc->th_sport) == RTSP_CONTROL_PORT_NUMBER_1
-         || ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2
-         || ntohs(tc->th_sport) == RTSP_CONTROL_PORT_NUMBER_2)
-            AliasHandleRtspOut(la, pip, link, maxpacketsize);
-        else if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
-         || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
-            AliasHandlePptpOut(la, pip, link);
-        else if (la->skinnyPort != 0 && (ntohs(tc->th_sport) == la->skinnyPort
-         || ntohs(tc->th_dport) == la->skinnyPort))
-            AliasHandleSkinny(la, pip, link);
+		if (ntohs(tc->th_dport) == FTP_CONTROL_PORT_NUMBER
+		    || ntohs(tc->th_sport) == FTP_CONTROL_PORT_NUMBER)
+			AliasHandleFtpOut(la, pip, link, maxpacketsize);
+		else if (ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_1
+		    || ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_2)
+			AliasHandleIrcOut(la, pip, link, maxpacketsize);
+		else if (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1
+			    || ntohs(tc->th_sport) == RTSP_CONTROL_PORT_NUMBER_1
+			    || ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2
+		    || ntohs(tc->th_sport) == RTSP_CONTROL_PORT_NUMBER_2)
+			AliasHandleRtspOut(la, pip, link, maxpacketsize);
+		else if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
+		    || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
+			AliasHandlePptpOut(la, pip, link);
+		else if (la->skinnyPort != 0 && (ntohs(tc->th_sport) == la->skinnyPort
+		    || ntohs(tc->th_dport) == la->skinnyPort))
+			AliasHandleSkinny(la, pip, link);
 
 /* Adjust TCP checksum since source port is being aliased */
 /* and source address is being altered                    */
-        accumulate  = tc->th_sport;
-        tc->th_sport = alias_port;
-        accumulate -= tc->th_sport;
+		accumulate = tc->th_sport;
+		tc->th_sport = alias_port;
+		accumulate -= tc->th_sport;
 
-        sptr = (u_short *) &(pip->ip_src);
-        accumulate += *sptr++;
-        accumulate += *sptr;
-        sptr = (u_short *) &alias_address;
-        accumulate -= *sptr++;
-        accumulate -= *sptr;
+		sptr = (u_short *) & (pip->ip_src);
+		accumulate += *sptr++;
+		accumulate += *sptr;
+		sptr = (u_short *) & alias_address;
+		accumulate -= *sptr++;
+		accumulate -= *sptr;
 
 /* Modify sequence number if necessary */
-        if (GetAckModified(link) == 1)
-        {
-            int delta;
+		if (GetAckModified(link) == 1) {
+			int delta;
 
-            delta = GetDeltaSeqOut(pip, link);
-            if (delta != 0)
-            {
-                sptr = (u_short *) &tc->th_seq;
-                accumulate += *sptr++;
-                accumulate += *sptr;
-                tc->th_seq = htonl(ntohl(tc->th_seq) + delta);
-                sptr = (u_short *) &tc->th_seq;
-                accumulate -= *sptr++;
-                accumulate -= *sptr;
-            }
-        }
-
-        ADJUST_CHECKSUM(accumulate, tc->th_sum);
+			delta = GetDeltaSeqOut(pip, link);
+			if (delta != 0) {
+				sptr = (u_short *) & tc->th_seq;
+				accumulate += *sptr++;
+				accumulate += *sptr;
+				tc->th_seq = htonl(ntohl(tc->th_seq) + delta);
+				sptr = (u_short *) & tc->th_seq;
+				accumulate -= *sptr++;
+				accumulate -= *sptr;
+			}
+		}
+		ADJUST_CHECKSUM(accumulate, tc->th_sum);
 
 /* Change source address */
-        sptr = (u_short *) &(pip->ip_src);
-        accumulate  = *sptr++;
-        accumulate += *sptr;
-        pip->ip_src = alias_address;
-        sptr = (u_short *) &(pip->ip_src);
-        accumulate -= *sptr++;
-        accumulate -= *sptr;
+		sptr = (u_short *) & (pip->ip_src);
+		accumulate = *sptr++;
+		accumulate += *sptr;
+		pip->ip_src = alias_address;
+		sptr = (u_short *) & (pip->ip_src);
+		accumulate -= *sptr++;
+		accumulate -= *sptr;
 
-        ADJUST_CHECKSUM(accumulate, pip->ip_sum);
+		ADJUST_CHECKSUM(accumulate, pip->ip_sum);
 
-        return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_IGNORED);
+		return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_IGNORED);
 }
 
 
@@ -1171,46 +1127,45 @@ saved and recalled when a header fragment is seen.
 */
 
 /* Local prototypes */
-static int FragmentIn(struct libalias *, struct ip *);
-static int FragmentOut(struct libalias *, struct ip *);
+static int	FragmentIn(struct libalias *, struct ip *);
+static int	FragmentOut(struct libalias *, struct ip *);
 
 
 static int
 FragmentIn(struct libalias *la, struct ip *pip)
 {
-    struct alias_link *link;
+	struct alias_link *link;
 
-    link = FindFragmentIn2(la, pip->ip_src, pip->ip_dst, pip->ip_id);
-    if (link != NULL)
-    {
-        struct in_addr original_address;
+	link = FindFragmentIn2(la, pip->ip_src, pip->ip_dst, pip->ip_id);
+	if (link != NULL) {
+		struct in_addr original_address;
 
-        GetFragmentAddr(link, &original_address);
-        DifferentialChecksum(&pip->ip_sum,
-                             (u_short *) &original_address,
-                             (u_short *) &pip->ip_dst,
-                             2);
-        pip->ip_dst = original_address;
+		GetFragmentAddr(link, &original_address);
+		DifferentialChecksum(&pip->ip_sum,
+		    (u_short *) & original_address,
+		    (u_short *) & pip->ip_dst,
+		    2);
+		pip->ip_dst = original_address;
 
-        return(PKT_ALIAS_OK);
-    }
-    return(PKT_ALIAS_UNRESOLVED_FRAGMENT);
+		return (PKT_ALIAS_OK);
+	}
+	return (PKT_ALIAS_UNRESOLVED_FRAGMENT);
 }
 
 
 static int
 FragmentOut(struct libalias *la, struct ip *pip)
 {
-    struct in_addr alias_address;
+	struct in_addr alias_address;
 
-    alias_address = FindAliasAddress(la, pip->ip_src);
-    DifferentialChecksum(&pip->ip_sum,
-                         (u_short *) &alias_address,
-                         (u_short *) &pip->ip_src,
-                          2);
-    pip->ip_src = alias_address;
+	alias_address = FindAliasAddress(la, pip->ip_src);
+	DifferentialChecksum(&pip->ip_sum,
+	    (u_short *) & alias_address,
+	    (u_short *) & pip->ip_src,
+	    2);
+	pip->ip_src = alias_address;
 
-    return(PKT_ALIAS_OK);
+	return (PKT_ALIAS_OK);
 }
 
 
@@ -1234,139 +1189,127 @@ FragmentOut(struct libalias *la, struct ip *pip)
 int
 LibAliasSaveFragment(struct libalias *la, char *ptr)
 {
-    int iresult;
-    struct alias_link *link;
-    struct ip *pip;
+	int iresult;
+	struct alias_link *link;
+	struct ip *pip;
 
-    pip = (struct ip *) ptr;
-    link = AddFragmentPtrLink(la, pip->ip_src, pip->ip_id);
-    iresult = PKT_ALIAS_ERROR;
-    if (link != NULL)
-    {
-        SetFragmentPtr(link, ptr);
-        iresult = PKT_ALIAS_OK;
-    }
-    return(iresult);
+	pip = (struct ip *)ptr;
+	link = AddFragmentPtrLink(la, pip->ip_src, pip->ip_id);
+	iresult = PKT_ALIAS_ERROR;
+	if (link != NULL) {
+		SetFragmentPtr(link, ptr);
+		iresult = PKT_ALIAS_OK;
+	}
+	return (iresult);
 }
 
 
-char *
+char           *
 LibAliasGetFragment(struct libalias *la, char *ptr)
 {
-    struct alias_link *link;
-    char *fptr;
-    struct ip *pip;
+	struct alias_link *link;
+	char *fptr;
+	struct ip *pip;
 
-    pip = (struct ip *) ptr;
-    link = FindFragmentPtr(la, pip->ip_src, pip->ip_id);
-    if (link != NULL)
-    {
-        GetFragmentPtr(link, &fptr);
-        SetFragmentPtr(link, NULL);
-        SetExpire(link, 0); /* Deletes link */
+	pip = (struct ip *)ptr;
+	link = FindFragmentPtr(la, pip->ip_src, pip->ip_id);
+	if (link != NULL) {
+		GetFragmentPtr(link, &fptr);
+		SetFragmentPtr(link, NULL);
+		SetExpire(link, 0);	/* Deletes link */
 
-        return(fptr);
-    }
-    else
-    {
-        return(NULL);
-    }
+		return (fptr);
+	} else {
+		return (NULL);
+	}
 }
 
 
 void
-LibAliasFragmentIn(struct libalias *la, char *ptr,          /* Points to correctly de-aliased
-                                             header fragment */
-                      char *ptr_fragment  /* Points to fragment which must
-                                             be de-aliased   */
-                     )
+LibAliasFragmentIn(struct libalias *la, char *ptr,	/* Points to correctly
+							 * de-aliased header
+							 * fragment */
+    char *ptr_fragment		/* Points to fragment which must be
+				 * de-aliased   */
+)
 {
-    struct ip *pip;
-    struct ip *fpip;
+	struct ip *pip;
+	struct ip *fpip;
 
-    pip = (struct ip *) ptr;
-    fpip = (struct ip *) ptr_fragment;
+	pip = (struct ip *)ptr;
+	fpip = (struct ip *)ptr_fragment;
 
-    DifferentialChecksum(&fpip->ip_sum,
-                         (u_short *) &pip->ip_dst,
-                         (u_short *) &fpip->ip_dst,
-                         2);
-    fpip->ip_dst = pip->ip_dst;
+	DifferentialChecksum(&fpip->ip_sum,
+	    (u_short *) & pip->ip_dst,
+	    (u_short *) & fpip->ip_dst,
+	    2);
+	fpip->ip_dst = pip->ip_dst;
 }
 
 
 int
 LibAliasIn(struct libalias *la, char *ptr, int maxpacketsize)
 {
-    struct in_addr alias_addr;
-    struct ip *pip;
-    int iresult;
+	struct in_addr alias_addr;
+	struct ip *pip;
+	int iresult;
 
-    if (la->packetAliasMode & PKT_ALIAS_REVERSE) {
-        la->packetAliasMode &= ~PKT_ALIAS_REVERSE;
-        iresult = PacketAliasOut(ptr, maxpacketsize);
-        la->packetAliasMode |= PKT_ALIAS_REVERSE;
-        return iresult;
-    }
+	if (la->packetAliasMode & PKT_ALIAS_REVERSE) {
+		la->packetAliasMode &= ~PKT_ALIAS_REVERSE;
+		iresult = PacketAliasOut(ptr, maxpacketsize);
+		la->packetAliasMode |= PKT_ALIAS_REVERSE;
+		return iresult;
+	}
+	HouseKeeping(la);
+	ClearCheckNewLink(la);
+	pip = (struct ip *)ptr;
+	alias_addr = pip->ip_dst;
 
-    HouseKeeping(la);
-    ClearCheckNewLink(la);
-    pip = (struct ip *) ptr;
-    alias_addr = pip->ip_dst;
+	/* Defense against mangled packets */
+	if (ntohs(pip->ip_len) > maxpacketsize
+	    || (pip->ip_hl << 2) > maxpacketsize)
+		return PKT_ALIAS_IGNORED;
 
-    /* Defense against mangled packets */
-    if (ntohs(pip->ip_len) > maxpacketsize
-     || (pip->ip_hl<<2) > maxpacketsize)
-        return PKT_ALIAS_IGNORED;
+	iresult = PKT_ALIAS_IGNORED;
+	if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0) {
+		switch (pip->ip_p) {
+		case IPPROTO_ICMP:
+			iresult = IcmpAliasIn(la, pip);
+			break;
+		case IPPROTO_UDP:
+			iresult = UdpAliasIn(la, pip);
+			break;
+		case IPPROTO_TCP:
+			iresult = TcpAliasIn(la, pip);
+			break;
+		case IPPROTO_GRE:
+			if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY ||
+			    AliasHandlePptpGreIn(la, pip) == 0)
+				iresult = PKT_ALIAS_OK;
+			else
+				iresult = ProtoAliasIn(la, pip);
+			break;
+		default:
+			iresult = ProtoAliasIn(la, pip);
+			break;
+		}
 
-    iresult = PKT_ALIAS_IGNORED;
-    if ( (ntohs(pip->ip_off) & IP_OFFMASK) == 0 )
-    {
-        switch (pip->ip_p)
-        {
-            case IPPROTO_ICMP:
-                iresult = IcmpAliasIn(la, pip);
-                break;
-            case IPPROTO_UDP:
-                iresult = UdpAliasIn(la, pip);
-                break;
-            case IPPROTO_TCP:
-                iresult = TcpAliasIn(la, pip);
-                break;
-            case IPPROTO_GRE:
-		if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY ||
-		    AliasHandlePptpGreIn(la, pip) == 0)
-		    iresult = PKT_ALIAS_OK;
-		else
-		    iresult = ProtoAliasIn(la, pip);
-		break;
-	    default:
-		iresult = ProtoAliasIn(la, pip);
-                break;
-        }
+		if (ntohs(pip->ip_off) & IP_MF) {
+			struct alias_link *link;
 
-        if (ntohs(pip->ip_off) & IP_MF)
-        {
-            struct alias_link *link;
+			link = FindFragmentIn1(la, pip->ip_src, alias_addr, pip->ip_id);
+			if (link != NULL) {
+				iresult = PKT_ALIAS_FOUND_HEADER_FRAGMENT;
+				SetFragmentAddr(link, pip->ip_dst);
+			} else {
+				iresult = PKT_ALIAS_ERROR;
+			}
+		}
+	} else {
+		iresult = FragmentIn(la, pip);
+	}
 
-            link = FindFragmentIn1(la, pip->ip_src, alias_addr, pip->ip_id);
-            if (link != NULL)
-            {
-                iresult = PKT_ALIAS_FOUND_HEADER_FRAGMENT;
-                SetFragmentAddr(link, pip->ip_dst);
-            }
-            else
-            {
-                iresult = PKT_ALIAS_ERROR;
-            }
-        }
-    }
-    else
-    {
-        iresult = FragmentIn(la, pip);
-    }
-
-    return(iresult);
+	return (iresult);
 }
 
 
@@ -1386,207 +1329,195 @@ LibAliasIn(struct libalias *la, char *ptr, int maxpacketsize)
 #define UNREG_ADDR_C_UPPER 0xc0a8ffff
 
 int
-LibAliasOut(struct libalias *la, char *ptr,           /* valid IP packet */
-               int  maxpacketsize   /* How much the packet data may grow
-                                       (FTP and IRC inline changes) */
-              )
+LibAliasOut(struct libalias *la, char *ptr,	/* valid IP packet */
+    int maxpacketsize		/* How much the packet data may grow (FTP
+				 * and IRC inline changes) */
+)
 {
-    int iresult;
-    struct in_addr addr_save;
-    struct ip *pip;
+	int iresult;
+	struct in_addr addr_save;
+	struct ip *pip;
 
-    if (la->packetAliasMode & PKT_ALIAS_REVERSE) {
-        la->packetAliasMode &= ~PKT_ALIAS_REVERSE;
-        iresult = PacketAliasIn(ptr, maxpacketsize);
-        la->packetAliasMode |= PKT_ALIAS_REVERSE;
-        return iresult;
-    }
+	if (la->packetAliasMode & PKT_ALIAS_REVERSE) {
+		la->packetAliasMode &= ~PKT_ALIAS_REVERSE;
+		iresult = PacketAliasIn(ptr, maxpacketsize);
+		la->packetAliasMode |= PKT_ALIAS_REVERSE;
+		return iresult;
+	}
+	HouseKeeping(la);
+	ClearCheckNewLink(la);
+	pip = (struct ip *)ptr;
 
-    HouseKeeping(la);
-    ClearCheckNewLink(la);
-    pip = (struct ip *) ptr;
+	/* Defense against mangled packets */
+	if (ntohs(pip->ip_len) > maxpacketsize
+	    || (pip->ip_hl << 2) > maxpacketsize)
+		return PKT_ALIAS_IGNORED;
 
-    /* Defense against mangled packets */
-    if (ntohs(pip->ip_len) > maxpacketsize
-     || (pip->ip_hl<<2) > maxpacketsize)
-        return PKT_ALIAS_IGNORED;
+	addr_save = GetDefaultAliasAddress(la);
+	if (la->packetAliasMode & PKT_ALIAS_UNREGISTERED_ONLY) {
+		u_long addr;
+		int iclass;
 
-    addr_save = GetDefaultAliasAddress(la);
-    if (la->packetAliasMode & PKT_ALIAS_UNREGISTERED_ONLY)
-    {
-        u_long addr;
-        int iclass;
+		iclass = 0;
+		addr = ntohl(pip->ip_src.s_addr);
+		if (addr >= UNREG_ADDR_C_LOWER && addr <= UNREG_ADDR_C_UPPER)
+			iclass = 3;
+		else if (addr >= UNREG_ADDR_B_LOWER && addr <= UNREG_ADDR_B_UPPER)
+			iclass = 2;
+		else if (addr >= UNREG_ADDR_A_LOWER && addr <= UNREG_ADDR_A_UPPER)
+			iclass = 1;
 
-        iclass = 0;
-        addr = ntohl(pip->ip_src.s_addr);
-        if      (addr >= UNREG_ADDR_C_LOWER && addr <= UNREG_ADDR_C_UPPER)
-            iclass = 3;
-        else if (addr >= UNREG_ADDR_B_LOWER && addr <= UNREG_ADDR_B_UPPER)
-            iclass = 2;
-        else if (addr >= UNREG_ADDR_A_LOWER && addr <= UNREG_ADDR_A_UPPER)
-            iclass = 1;
+		if (iclass == 0) {
+			SetDefaultAliasAddress(la, pip->ip_src);
+		}
+	} else if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY) {
+		SetDefaultAliasAddress(la, pip->ip_src);
+	}
+	iresult = PKT_ALIAS_IGNORED;
+	if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0) {
+		switch (pip->ip_p) {
+		case IPPROTO_ICMP:
+			iresult = IcmpAliasOut(la, pip);
+			break;
+		case IPPROTO_UDP:
+			iresult = UdpAliasOut(la, pip);
+			break;
+		case IPPROTO_TCP:
+			iresult = TcpAliasOut(la, pip, maxpacketsize);
+			break;
+		case IPPROTO_GRE:
+			if (AliasHandlePptpGreOut(la, pip) == 0)
+				iresult = PKT_ALIAS_OK;
+			else
+				iresult = ProtoAliasOut(la, pip);
+			break;
+		default:
+			iresult = ProtoAliasOut(la, pip);
+			break;
+		}
+	} else {
+		iresult = FragmentOut(la, pip);
+	}
 
-        if (iclass == 0)
-        {
-            SetDefaultAliasAddress(la, pip->ip_src);
-        }
-    }
-    else if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-    {
-        SetDefaultAliasAddress(la, pip->ip_src);
-    }
-
-    iresult = PKT_ALIAS_IGNORED;
-    if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0)
-    {
-        switch (pip->ip_p)
-        {
-            case IPPROTO_ICMP:
-                iresult = IcmpAliasOut(la, pip);
-                break;
-            case IPPROTO_UDP:
-                iresult = UdpAliasOut(la, pip);
-                break;
-            case IPPROTO_TCP:
-                iresult = TcpAliasOut(la, pip, maxpacketsize);
-                break;
-	    case IPPROTO_GRE:
-		if (AliasHandlePptpGreOut(la, pip) == 0)
-		    iresult = PKT_ALIAS_OK;
-		else
-		    iresult = ProtoAliasOut(la, pip);
-		break;
-	    default:
-		iresult = ProtoAliasOut(la, pip);
-                break;
-        }
-    }
-    else
-    {
-        iresult = FragmentOut(la, pip);
-    }
-
-    SetDefaultAliasAddress(la, addr_save);
-    return(iresult);
+	SetDefaultAliasAddress(la, addr_save);
+	return (iresult);
 }
 
 int
-LibAliasUnaliasOut(struct libalias *la, char *ptr,           /* valid IP packet */
-                 int  maxpacketsize   /* for error checking */
-                )
+LibAliasUnaliasOut(struct libalias *la, char *ptr,	/* valid IP packet */
+    int maxpacketsize		/* for error checking */
+)
 {
-    struct ip		*pip;
-    struct icmp 	*ic;
-    struct udphdr	*ud;
-    struct tcphdr 	*tc;
-    struct alias_link 	*link;
-    int 		iresult = PKT_ALIAS_IGNORED;
+	struct ip *pip;
+	struct icmp *ic;
+	struct udphdr *ud;
+	struct tcphdr *tc;
+	struct alias_link *link;
+	int iresult = PKT_ALIAS_IGNORED;
 
-    pip = (struct ip *) ptr;
+	pip = (struct ip *)ptr;
 
-    /* Defense against mangled packets */
-    if (ntohs(pip->ip_len) > maxpacketsize
-     || (pip->ip_hl<<2) > maxpacketsize)
-        return(iresult);
+	/* Defense against mangled packets */
+	if (ntohs(pip->ip_len) > maxpacketsize
+	    || (pip->ip_hl << 2) > maxpacketsize)
+		return (iresult);
 
-    ud = (struct udphdr *) ((char *) pip + (pip->ip_hl << 2));
-    tc = (struct tcphdr *) ud;
-    ic = (struct icmp *) ud;
+	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)ud;
+	ic = (struct icmp *)ud;
 
-    /* Find a link */
-    if (pip->ip_p == IPPROTO_UDP)
-        link = FindUdpTcpIn(la, pip->ip_dst, pip->ip_src,
-                            ud->uh_dport, ud->uh_sport,
-                            IPPROTO_UDP, 0);
-    else if (pip->ip_p == IPPROTO_TCP)
-        link = FindUdpTcpIn(la, pip->ip_dst, pip->ip_src,
-                            tc->th_dport, tc->th_sport,
-                            IPPROTO_TCP, 0);
-    else if (pip->ip_p == IPPROTO_ICMP)
-        link = FindIcmpIn(la, pip->ip_dst, pip->ip_src, ic->icmp_id, 0);
-    else
-        link = NULL;
+	/* Find a link */
+	if (pip->ip_p == IPPROTO_UDP)
+		link = FindUdpTcpIn(la, pip->ip_dst, pip->ip_src,
+		    ud->uh_dport, ud->uh_sport,
+		    IPPROTO_UDP, 0);
+	else if (pip->ip_p == IPPROTO_TCP)
+		link = FindUdpTcpIn(la, pip->ip_dst, pip->ip_src,
+		    tc->th_dport, tc->th_sport,
+		    IPPROTO_TCP, 0);
+	else if (pip->ip_p == IPPROTO_ICMP)
+		link = FindIcmpIn(la, pip->ip_dst, pip->ip_src, ic->icmp_id, 0);
+	else
+		link = NULL;
 
-    /* Change it from an aliased packet to an unaliased packet */
-    if (link != NULL)
-    {
-        if (pip->ip_p == IPPROTO_UDP || pip->ip_p == IPPROTO_TCP)
-        {
-            u_short        *sptr;
-            int 	   accumulate;
-            struct in_addr original_address;
-            u_short        original_port;
+	/* Change it from an aliased packet to an unaliased packet */
+	if (link != NULL) {
+		if (pip->ip_p == IPPROTO_UDP || pip->ip_p == IPPROTO_TCP) {
+			u_short *sptr;
+			int accumulate;
+			struct in_addr original_address;
+			u_short original_port;
 
-            original_address = GetOriginalAddress(link);
-            original_port = GetOriginalPort(link);
+			original_address = GetOriginalAddress(link);
+			original_port = GetOriginalPort(link);
 
-            /* Adjust TCP/UDP checksum */
-            sptr = (u_short *) &(pip->ip_src);
-            accumulate  = *sptr++;
-            accumulate += *sptr;
-            sptr = (u_short *) &original_address;
-            accumulate -= *sptr++;
-            accumulate -= *sptr;
+			/* Adjust TCP/UDP checksum */
+			sptr = (u_short *) & (pip->ip_src);
+			accumulate = *sptr++;
+			accumulate += *sptr;
+			sptr = (u_short *) & original_address;
+			accumulate -= *sptr++;
+			accumulate -= *sptr;
 
-            if (pip->ip_p == IPPROTO_UDP) {
-                accumulate += ud->uh_sport;
-                accumulate -= original_port;
-                ADJUST_CHECKSUM(accumulate, ud->uh_sum);
-	    } else {
-                accumulate += tc->th_sport;
-                accumulate -= original_port;
-                ADJUST_CHECKSUM(accumulate, tc->th_sum);
-	    }
+			if (pip->ip_p == IPPROTO_UDP) {
+				accumulate += ud->uh_sport;
+				accumulate -= original_port;
+				ADJUST_CHECKSUM(accumulate, ud->uh_sum);
+			} else {
+				accumulate += tc->th_sport;
+				accumulate -= original_port;
+				ADJUST_CHECKSUM(accumulate, tc->th_sum);
+			}
 
-            /* Adjust IP checksum */
-            DifferentialChecksum(&pip->ip_sum,
-                                 (u_short *) &original_address,
-                                 (u_short *) &pip->ip_src,
-                                 2);
+			/* Adjust IP checksum */
+			DifferentialChecksum(&pip->ip_sum,
+			    (u_short *) & original_address,
+			    (u_short *) & pip->ip_src,
+			    2);
 
-            /* Un-alias source address and port number */
-            pip->ip_src = original_address;
-            if (pip->ip_p == IPPROTO_UDP)
-                ud->uh_sport = original_port;
-	    else
-                tc->th_sport = original_port;
+			/* Un-alias source address and port number */
+			pip->ip_src = original_address;
+			if (pip->ip_p == IPPROTO_UDP)
+				ud->uh_sport = original_port;
+			else
+				tc->th_sport = original_port;
 
-	    iresult = PKT_ALIAS_OK;
+			iresult = PKT_ALIAS_OK;
 
-        } else if (pip->ip_p == IPPROTO_ICMP) {
+		} else if (pip->ip_p == IPPROTO_ICMP) {
 
-            u_short        *sptr;
-            int            accumulate;
-            struct in_addr original_address;
-            u_short        original_id;
+			u_short *sptr;
+			int accumulate;
+			struct in_addr original_address;
+			u_short original_id;
 
-            original_address = GetOriginalAddress(link);
-            original_id = GetOriginalPort(link);
+			original_address = GetOriginalAddress(link);
+			original_id = GetOriginalPort(link);
 
-            /* Adjust ICMP checksum */
-            sptr = (u_short *) &(pip->ip_src);
-            accumulate  = *sptr++;
-            accumulate += *sptr;
-            sptr = (u_short *) &original_address;
-            accumulate -= *sptr++;
-            accumulate -= *sptr;
-            accumulate += ic->icmp_id;
-            accumulate -= original_id;
-            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
+			/* Adjust ICMP checksum */
+			sptr = (u_short *) & (pip->ip_src);
+			accumulate = *sptr++;
+			accumulate += *sptr;
+			sptr = (u_short *) & original_address;
+			accumulate -= *sptr++;
+			accumulate -= *sptr;
+			accumulate += ic->icmp_id;
+			accumulate -= original_id;
+			ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
-            /* Adjust IP checksum */
-            DifferentialChecksum(&pip->ip_sum,
-                                 (u_short *) &original_address,
-                                 (u_short *) &pip->ip_src,
-                                 2);
+			/* Adjust IP checksum */
+			DifferentialChecksum(&pip->ip_sum,
+			    (u_short *) & original_address,
+			    (u_short *) & pip->ip_src,
+			    2);
 
-            /* Un-alias source address and port number */
-            pip->ip_src = original_address;
-            ic->icmp_id = original_id;
+			/* Un-alias source address and port number */
+			pip->ip_src = original_address;
+			ic->icmp_id = original_id;
 
-	    iresult = PKT_ALIAS_OK;
-        }
-    }
-    return(iresult);
+			iresult = PKT_ALIAS_OK;
+		}
+	}
+	return (iresult);
 
 }

@@ -113,7 +113,7 @@ PacketAliasAddServer(struct alias_link *_link,
 
 struct alias_link *
 PacketAliasRedirectAddr(struct in_addr _src_addr,
-	    struct in_addr _alias_addr)
+    struct in_addr _alias_addr)
 {
 
 	return LibAliasRedirectAddr(la, _src_addr, _alias_addr);
@@ -152,7 +152,7 @@ PacketAliasRedirectProto(struct in_addr _src_addr,
 {
 
 	return LibAliasRedirectProto(la, _src_addr, _dst_addr, _alias_addr,
-	     _proto);
+	    _proto);
 }
 
 void
@@ -162,7 +162,7 @@ PacketAliasFragmentIn(char *_ptr, char *_ptr_fragment)
 	LibAliasFragmentIn(la, _ptr, _ptr_fragment);
 }
 
-char *
+char           *
 PacketAliasGetFragment(char *_ptr)
 {
 
