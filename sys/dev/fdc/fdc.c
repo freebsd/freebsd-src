@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.49 1995/01/12 19:20:28 joerg Exp $
+ *	$Id: fd.c,v 1.51 1995/01/27 20:03:07 jkh Exp $
  *
  */
 
@@ -59,14 +59,15 @@
 #if NFDC > 0
 
 #include <sys/param.h>
-#include <sys/dkbad.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
+#include <machine/clock.h>
 #include <machine/ioctl_fd.h>
 #include <sys/disklabel.h>
+#include <sys/diskslice.h>
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
@@ -157,8 +158,7 @@ fd_goaway(struct kern_devconf *kdc, int force)
 	return 0;
 }
 
-#define RAW_PART 2
-#define b_cylin b_resid
+#define	b_cylin	b_resid		/* XXX now spelled b_cylinder elsewhere */
 
 /* misuse a flag to identify format operation */
 #define B_FORMAT B_XXX
@@ -272,8 +272,8 @@ static int fdattach(struct isa_device *);
 /* exported functions */
 int fdsize (dev_t);
 void fdintr(fdcu_t);
-int Fdopen(dev_t, int);
-int fdclose(dev_t, int);
+int Fdopen(dev_t, int, int, struct proc *);
+int fdclose(dev_t, int, int, struct proc *);
 void fdstrategy(struct buf *);
 int fdioctl(dev_t, int, caddr_t, int, struct proc *);
 
@@ -695,9 +695,12 @@ fdattach(struct isa_device *dev)
 		}
 		fd_registerdev(fdcu, fdu);
 		kdc_fd[fdu].kdc_state = DC_IDLE;
-		if(dk_ndrive < DK_NDRIVE) {
+		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
-			dk_wpms[dk_ndrive] = (500 * 1024 / 2) / 1000;
+			/*
+			 * XXX assume rate is FDC_500KBPS.
+			 */
+			dk_wpms[dk_ndrive] = 500000 / 8 / 2;
 			fd->dkunit = dk_ndrive++;
 		} else {
 			fd->dkunit = -1;
@@ -901,7 +904,7 @@ out_fdc(fdcu_t fdcu, int x)
 /*                           fdopen/fdclose                                 */
 /****************************************************************************/
 int
-Fdopen(dev_t dev, int flags)
+Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 	int type = FDTYPE(minor(dev));
@@ -979,7 +982,7 @@ Fdopen(dev_t dev, int flags)
 }
 
 int
-fdclose(dev_t dev, int flags)
+fdclose(dev_t dev, int flags, int mode, struct proc *p)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 
@@ -1718,11 +1721,7 @@ fdformat(dev, finfo, p)
 }
 
 /*
- *
- * TODO: Think about allocating buffer off stack.
- *       Don't pass uncast 0's and NULL's to read/write/setdisklabel().
- *       Watch out for NetBSD's different *disklabel() interface.
- *
+ * TODO: don't allocate buffer on stack.
  */
 
 int
