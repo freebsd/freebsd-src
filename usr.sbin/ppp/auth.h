@@ -15,16 +15,26 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.h,v 1.13 1999/02/01 13:42:24 brian Exp $
+ * $Id: auth.h,v 1.14 1999/02/02 09:35:17 brian Exp $
  *
  *	TODO:
  */
 
 struct physical;
 struct bundle;
+struct authinfo;
+typedef void (*auth_func)(struct authinfo *);
 
 struct authinfo {
-  void (*ChallengeFunc)(struct authinfo *, int, struct physical *);
+  struct {
+    auth_func req;
+    auth_func success;
+    auth_func failure;
+  } fn;
+  struct {
+    struct fsmheader hdr;
+    char name[AUTHLEN];
+  } in;
   struct pppTimer authtimer;
   int retry;
   int id;
@@ -34,16 +44,19 @@ struct authinfo {
   } cfg;
 };
 
-extern const char *Auth2Nam(u_short);
+#define auth_Failure(a) (*a->fn.failure)(a);
+#define auth_Success(a) (*a->fn.success)(a);
 
-extern void auth_Init(struct authinfo *);
+extern const char *Auth2Nam(u_short);
+extern void auth_Init(struct authinfo *, struct physical *,
+                      auth_func, auth_func, auth_func);
 extern void auth_StopTimer(struct authinfo *);
-extern void auth_StartChallenge(struct authinfo *, struct physical *,
-                                void (*)(struct authinfo *, int,
-                                         struct physical *));
+extern void auth_StartReq(struct authinfo *);
 extern int auth_Validate(struct bundle *, const char *, const char *,
                          struct physical *);
 extern char *auth_GetSecret(struct bundle *, const char *, int,
                             struct physical *);
 extern int auth_SetPhoneList(const char *, char *, int);
 extern int auth_Select(struct bundle *, const char *);
+extern struct mbuf *auth_ReadHeader(struct authinfo *, struct mbuf *);
+extern struct mbuf *auth_ReadName(struct authinfo *, struct mbuf *, int);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: radius.c,v 1.1 1999/01/28 01:56:34 brian Exp $
+ *	$Id: radius.c,v 1.2 1999/01/29 22:46:31 brian Exp $
  *
  */
 
@@ -36,10 +36,10 @@
 
 #include <errno.h>
 #include <radlib.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <termios.h>
 
 #include "defs.h"
@@ -58,143 +58,86 @@
 #include "route.h"
 #include "command.h"
 #include "filter.h"
-#include "server.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "link.h"
 #include "mp.h"
 #include "radius.h"
+#include "auth.h"
+#include "async.h"
+#include "physical.h"
+#include "chat.h"
+#include "cbcp.h"
+#include "chap.h"
+#include "datalink.h"
 #include "bundle.h"
 
-void
-radius_Init(struct radius *r)
+/*
+ * rad_continue_send_request() has given us `got' (non-zero).  Deal with it.
+ */
+static void
+radius_Process(struct radius *r, int got)
 {
-  r->valid = 0;
-  *r->cfg.file = '\0';;
-}
-
-void
-radius_Destroy(struct radius *r)
-{
-  r->valid = 0;
-  route_DeleteAll(&r->routes);
-}
-
-int
-radius_Authenticate(struct radius *r, struct bundle *bundle, const char *name,
-                    const char *key, const char *challenge)
-{
-  struct rad_handle *h;
-  sigset_t alrm, prevset;
-  const void *data;
-  int got, len, argc, addrs;
   char *argv[MAXARGS], *nuke;
+  struct bundle *bundle;
+  int len, argc, addrs;
   struct in_range dest;
   struct in_addr gw;
+  const void *data;
 
-  radius_Destroy(r);
-
-  if (!*r->cfg.file)
-    return 0;
-
-  if ((h = rad_open()) == NULL) {
-    log_Printf(LogERROR, "rad_open: %s\n", strerror(errno));
-    return 0;
-  }
-
-  if (rad_config(h, r->cfg.file) != 0) {
-    log_Printf(LogERROR, "rad_config: %s\n", rad_strerror(h));
-    rad_close(h);
-    return 0;
-  }
-
-  if (rad_create_request(h, RAD_ACCESS_REQUEST) != 0) {
-    log_Printf(LogERROR, "rad_create_request: %s\n", rad_strerror(h));
-    rad_close(h);
-    return 0;
-  }
-
-  if (rad_put_string(h, RAD_USER_NAME, name) != 0 ||
-      rad_put_int(h, RAD_SERVICE_TYPE, RAD_FRAMED) != 0 ||
-      rad_put_int(h, RAD_FRAMED_PROTOCOL, RAD_PPP) != 0) {
-    log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(h));
-    rad_close(h);
-    return 0;
-  }
-
-  if (challenge != NULL) {					/* CHAP */
-    if (rad_put_string(h, RAD_CHAP_PASSWORD, key) != 0 ||
-        rad_put_string(h, RAD_CHAP_CHALLENGE, challenge) != 0) {
-      log_Printf(LogERROR, "CHAP: rad_put_string: %s\n", rad_strerror(h));
-      rad_close(h);
-      return 0;
-    }
-  } else if (rad_put_string(h, RAD_USER_PASSWORD, key) != 0) {	/* PAP */
-    /* We're talking PAP */
-    log_Printf(LogERROR, "PAP: rad_put_string: %s\n", rad_strerror(h));
-    rad_close(h);
-    return 0;
-  }
-
-  /*
-   * Having to do this is bad news.  The right way is to grab the
-   * descriptor that rad_send_request() selects on and add it to
-   * our own selection list (making a full ``struct descriptor''),
-   * then to ``continue'' the call when the descriptor is ready.
-   * This requires altering libradius....
-   */
-  sigemptyset(&alrm);
-  sigaddset(&alrm, SIGALRM);
-  sigprocmask(SIG_BLOCK, &alrm, &prevset);
-  got = rad_send_request(h);
-  sigprocmask(SIG_SETMASK, &prevset, NULL);
+  r->cx.fd = -1;		/* Stop select()ing */
 
   switch (got) {
     case RAD_ACCESS_ACCEPT:
+      log_Printf(LogPHASE, "Radius: ACCEPT received\n");
       break;
+
+    case RAD_ACCESS_REJECT:
+      log_Printf(LogPHASE, "Radius: REJECT received\n");
+      auth_Failure(r->cx.auth);
+      rad_close(r->cx.rad);
+      return;
 
     case RAD_ACCESS_CHALLENGE:
       /* we can't deal with this (for now) ! */
-      log_Printf(LogPHASE, "Can't handle radius CHALLENGEs !\n");
-      rad_close(h);
-      return 0;
+      log_Printf(LogPHASE, "Radius: CHALLENGE received (can't handle yet)\n");
+      auth_Failure(r->cx.auth);
+      rad_close(r->cx.rad);
+      return;
 
     case -1:
-      log_Printf(LogPHASE, "radius: %s\n", rad_strerror(h));
-      rad_close(h);
-      return 0;
+      log_Printf(LogPHASE, "radius: %s\n", rad_strerror(r->cx.rad));
+      auth_Failure(r->cx.auth);
+      rad_close(r->cx.rad);
+      return;
 
     default:
       log_Printf(LogERROR, "rad_send_request: Failed %d: %s\n",
-                 got, rad_strerror(h));
-      rad_close(h);
-      return 0;
-
-    case RAD_ACCESS_REJECT:
-      log_Printf(LogPHASE, "radius: Rejected !\n");
-      rad_close(h);
-      return 0;
+                 got, rad_strerror(r->cx.rad));
+      auth_Failure(r->cx.auth);
+      rad_close(r->cx.rad);
+      return;
   }
 
   /* So we've been accepted !  Let's see what we've got in our reply :-I */
   r->ip.s_addr = r->mask.s_addr = INADDR_NONE;
   r->mtu = 0;
   r->vj = 0;
-  while ((got = rad_get_attr(h, &data, &len)) > 0) {
+  while ((got = rad_get_attr(r->cx.rad, &data, &len)) > 0) {
     switch (got) {
       case RAD_FRAMED_IP_ADDRESS:
         r->ip = rad_cvt_addr(data);
-        log_Printf(LogDEBUG, "radius: Got IP %s\n", inet_ntoa(r->ip));
+        log_Printf(LogPHASE, "        IP %s\n", inet_ntoa(r->ip));
         break;
 
       case RAD_FRAMED_IP_NETMASK:
         r->mask = rad_cvt_addr(data);
-        log_Printf(LogDEBUG, "radius: Got MASK %s\n", inet_ntoa(r->mask));
+        log_Printf(LogPHASE, "        Netmask %s\n", inet_ntoa(r->mask));
         break;
 
       case RAD_FRAMED_MTU:
         r->mtu = rad_cvt_int(data);
-        log_Printf(LogDEBUG, "radius: Got MTU %lu\n", r->mtu);
+        log_Printf(LogPHASE, "        MTU %lu\n", r->mtu);
         break;
 
       case RAD_FRAMED_ROUTING:
@@ -206,7 +149,7 @@ radius_Authenticate(struct radius *r, struct bundle *bundle, const char *name,
 
       case RAD_FRAMED_COMPRESSION:
         r->vj = rad_cvt_int(data) == 1 ? 1 : 0;
-        log_Printf(LogDEBUG, "radius: Got VJ %sabled\n", r->vj ? "en" : "dis");
+        log_Printf(LogPHASE, "        VJ %sabled\n", r->vj ? "en" : "dis");
         break;
 
       case RAD_FRAMED_ROUTE:
@@ -218,11 +161,13 @@ radius_Authenticate(struct radius *r, struct bundle *bundle, const char *name,
          */
 
         if ((nuke = rad_cvt_string(data, len)) == NULL) {
-          log_Printf(LogERROR, "rad_cvt_string: %s\n", rad_strerror(h));
-          rad_close(h);
-          return 0;
+          log_Printf(LogERROR, "rad_cvt_string: %s\n", rad_strerror(r->cx.rad));
+          rad_close(r->cx.rad);
+          return;
         }
 
+        log_Printf(LogPHASE, "        Route: %s\n", nuke);
+        bundle = r->cx.auth->physical->dl->bundle;
         dest.ipaddr.s_addr = dest.mask.s_addr = INADDR_ANY;
         dest.width = 0;
         argc = command_Interpret(nuke, strlen(nuke), argv);
@@ -260,18 +205,208 @@ radius_Authenticate(struct radius *r, struct bundle *bundle, const char *name,
   }
 
   if (got == -1) {
-    log_Printf(LogERROR, "rad_get_attr: %s\n", rad_strerror(h));
-    rad_close(h);
-    return 0;
+    log_Printf(LogERROR, "rad_get_attr: %s (failing!)\n",
+               rad_strerror(r->cx.rad));
+    auth_Failure(r->cx.auth);
+    rad_close(r->cx.rad);
+  } else {
+    r->valid = 1;
+    auth_Success(r->cx.auth);
+    rad_close(r->cx.rad);
   }
-
-  rad_close(h);
-  r->valid = 1;
-  log_Printf(LogPHASE, "radius: SUCCESS\n");
-
-  return 1;
 }
 
+/*
+ * We've either timed out or select()ed on the read descriptor
+ */
+static void
+radius_Continue(struct radius *r, int sel)
+{
+  struct timeval tv;
+  int got;
+
+  timer_Stop(&r->cx.timer);
+  if ((got = rad_continue_send_request(r->cx.rad, sel, &r->cx.fd, &tv)) == 0) {
+    log_Printf(LogPHASE, "Radius: Request re-sent\n");
+    r->cx.timer.load = tv.tv_usec / TICKUNIT + tv.tv_sec * SECTICKS;
+    timer_Start(&r->cx.timer);
+    return;
+  }
+
+  radius_Process(r, got);
+}
+
+/*
+ * Time to call rad_continue_send_request() - timed out.
+ */
+static void
+radius_Timeout(void *v)
+{
+  radius_Continue((struct radius *)v, 0);
+}
+
+/*
+ * Time to call rad_continue_send_request() - something to read.
+ */
+static void
+radius_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+{
+  radius_Continue(descriptor2radius(d), 1);
+}
+
+/*
+ * Behave as a struct descriptor (descriptor.h)
+ */
+static int
+radius_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+{
+  struct radius *rad = descriptor2radius(d);
+
+  if (r && rad->cx.fd != -1) {
+    FD_SET(rad->cx.fd, r);
+    if (*n < rad->cx.fd + 1)
+      *n = rad->cx.fd + 1;
+    log_Printf(LogTIMER, "Radius: fdset(r) %d\n", rad->cx.fd);
+    return 1;
+  }
+
+  return 0;
+}
+
+/*
+ * Behave as a struct descriptor (descriptor.h)
+ */
+static int
+radius_IsSet(struct descriptor *d, const fd_set *fdset)
+{
+  struct radius *r = descriptor2radius(d);
+
+  return r && r->cx.fd != -1 && FD_ISSET(r->cx.fd, fdset);
+}
+
+/*
+ * Behave as a struct descriptor (descriptor.h)
+ */
+static int
+radius_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+{
+  /* We never want to write here ! */
+  log_Printf(LogALERT, "radius_Write: Internal error: Bad call !\n");
+  return 0;
+}
+
+/*
+ * Initialise ourselves
+ */
+void
+radius_Init(struct radius *r)
+{
+  r->valid = 0;
+  r->cx.fd = -1;
+  *r->cfg.file = '\0';;
+  r->desc.type = RADIUS_DESCRIPTOR;
+  r->desc.UpdateSet = radius_UpdateSet;
+  r->desc.IsSet = radius_IsSet;
+  r->desc.Read = radius_Read;
+  r->desc.Write = radius_Write;
+  memset(&r->cx.timer, '\0', sizeof r->cx.timer);
+}
+
+/*
+ * Forget everything and go back to initialised state.
+ */
+void
+radius_Destroy(struct radius *r)
+{
+  r->valid = 0;
+  timer_Stop(&r->cx.timer);
+  route_DeleteAll(&r->routes);
+  if (r->cx.fd != -1) {
+    r->cx.fd = -1;
+    rad_close(r->cx.rad);
+  }
+}
+
+/*
+ * Start an authentication request to the RADIUS server.
+ */
+void
+radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
+                    const char *key, const char *challenge)
+{
+  struct timeval tv;
+  int got;
+
+  if (!*r->cfg.file)
+    return;
+
+  if (r->cx.fd != -1)
+    /*
+     * We assume that our name/key/challenge is the same as last time,
+     * and just continue to wait for the RADIUS server(s).
+     */
+    return;
+
+  radius_Destroy(r);
+
+  if ((r->cx.rad = rad_open()) == NULL) {
+    log_Printf(LogERROR, "rad_open: %s\n", strerror(errno));
+    return;
+  }
+
+  if (rad_config(r->cx.rad, r->cfg.file) != 0) {
+    log_Printf(LogERROR, "rad_config: %s\n", rad_strerror(r->cx.rad));
+    rad_close(r->cx.rad);
+    return;
+  }
+
+  if (rad_create_request(r->cx.rad, RAD_ACCESS_REQUEST) != 0) {
+    log_Printf(LogERROR, "rad_create_request: %s\n", rad_strerror(r->cx.rad));
+    rad_close(r->cx.rad);
+    return;
+  }
+
+  if (rad_put_string(r->cx.rad, RAD_USER_NAME, name) != 0 ||
+      rad_put_int(r->cx.rad, RAD_SERVICE_TYPE, RAD_FRAMED) != 0 ||
+      rad_put_int(r->cx.rad, RAD_FRAMED_PROTOCOL, RAD_PPP) != 0) {
+    log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
+    rad_close(r->cx.rad);
+    return;
+  }
+
+  if (challenge != NULL) {
+    /* We're talking CHAP */
+    if (rad_put_string(r->cx.rad, RAD_CHAP_PASSWORD, key) != 0 ||
+        rad_put_string(r->cx.rad, RAD_CHAP_CHALLENGE, challenge) != 0) {
+      log_Printf(LogERROR, "CHAP: rad_put_string: %s\n",
+                 rad_strerror(r->cx.rad));
+      rad_close(r->cx.rad);
+      return;
+    }
+  } else if (rad_put_string(r->cx.rad, RAD_USER_PASSWORD, key) != 0) {
+    /* We're talking PAP */
+    log_Printf(LogERROR, "PAP: rad_put_string: %s\n", rad_strerror(r->cx.rad));
+    rad_close(r->cx.rad);
+    return;
+  }
+
+  if ((got = rad_init_send_request(r->cx.rad, &r->cx.fd, &tv)))
+    radius_Process(r, got);
+  else {
+    log_Printf(LogPHASE, "Radius: Request sent\n");
+    log_Printf(LogDEBUG, "Using radius_Timeout [%p]\n", radius_Timeout);
+    r->cx.timer.load = tv.tv_usec / TICKUNIT + tv.tv_sec * SECTICKS;
+    r->cx.timer.func = radius_Timeout;
+    r->cx.timer.name = "radius";
+    r->cx.timer.arg = r;
+    r->cx.auth = authp;
+    timer_Start(&r->cx.timer);
+  }
+}
+
+/*
+ * How do things look at the moment ?
+ */
 void
 radius_Show(struct radius *r, struct prompt *p)
 {

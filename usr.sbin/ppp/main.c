@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.148 1999/01/28 01:56:33 brian Exp $
+ * $Id: main.c,v 1.149 1999/02/02 09:35:29 brian Exp $
  *
  *	TODO:
  */
@@ -515,6 +515,8 @@ DoLoop(struct bundle *bundle)
       }
       break;
     }
+
+    log_Printf(LogTIMER, "Select returns %d\n", i);
 
     sig_Handle();
 

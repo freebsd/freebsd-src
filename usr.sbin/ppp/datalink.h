@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.4 1998/06/15 19:05:19 brian Exp $
+ *	$Id: datalink.h,v 1.5 1998/08/07 18:42:48 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -123,7 +123,7 @@ extern struct datalink *iov2datalink(struct bundle *, struct iovec *, int *,
                                      int, int);
 extern int datalink2iov(struct datalink *, struct iovec *, int *, int, pid_t);
 extern struct datalink *datalink_Destroy(struct datalink *);
-extern void datalink_GotAuthname(struct datalink *, const char *, int);
+extern void datalink_GotAuthname(struct datalink *, const char *);
 extern void datalink_Up(struct datalink *, int, int);
 extern void datalink_Close(struct datalink *, int);
 extern void datalink_Down(struct datalink *, int);
