@@ -58,8 +58,12 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     /* avoid the need for a SYSINIT just to init the list */
     if (!eventhandler_lists_initted) {
 	TAILQ_INIT(&eventhandler_lists);
+	mtx_init(&eventhandler_mutex, "eventhandler", MTX_DEF);
 	eventhandler_lists_initted = 1;
     }
+
+    /* lock the eventhandler lists */
+    mtx_enter(&eventhandler_mutex, MTX_DEF);
 
     /* Do we need to find/create the (slow) list? */
     if (list == NULL) {
@@ -69,8 +73,10 @@ eventhandler_register(struct eventhandler_list *list, char *name,
 	/* Do we need to create the list? */
 	if (list == NULL) {
 	    if ((list = malloc(sizeof(struct eventhandler_list) + strlen(name) + 1, 
-			       M_EVENTHANDLER, M_NOWAIT)) == NULL)
+			       M_EVENTHANDLER, M_NOWAIT)) == NULL) {
+		mtx_exit(&eventhandler_mutex, MTX_DEF);
 		return(NULL);
+	    }
 	    list->el_flags = 0;
 	    list->el_name = (char *)list + sizeof(struct eventhandler_list);
 	    strcpy(list->el_name, name);
@@ -79,18 +85,22 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     }
     if (!(list->el_flags & EHE_INITTED)) {
 	TAILQ_INIT(&list->el_entries);
+	mtx_init(&list->el_mutex, name, MTX_DEF);
 	list->el_flags = EHE_INITTED;
     }
     
     /* allocate an entry for this handler, populate it */
     if ((eg = malloc(sizeof(struct eventhandler_entry_generic), 
-		     M_EVENTHANDLER, M_NOWAIT)) == NULL)
+		     M_EVENTHANDLER, M_NOWAIT)) == NULL) {
+	mtx_exit(&eventhandler_mutex, MTX_DEF);
 	return(NULL);
+    }
     eg->func = func;
     eg->ee.ee_arg = arg;
     eg->ee.ee_priority = priority;
     
     /* sort it into the list */
+    mtx_enter(&list->el_mutex, MTX_DEF);
     for (ep = TAILQ_FIRST(&list->el_entries);
 	 ep != NULL; 
 	 ep = TAILQ_NEXT(ep, ee_link)) {
@@ -101,6 +111,8 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     }
     if (ep == NULL)
 	TAILQ_INSERT_TAIL(&list->el_entries, &eg->ee, ee_link);
+    mtx_exit(&list->el_mutex, MTX_DEF);
+    mtx_exit(&eventhandler_mutex, MTX_DEF);
     return(&eg->ee);
 }
 
@@ -110,6 +122,7 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
     struct eventhandler_entry	*ep = tag;
 
     /* XXX insert diagnostic check here? */
+    mtx_enter(&list->el_mutex, MTX_DEF);
     if (ep != NULL) {
 	/* remove just this entry */
 	TAILQ_REMOVE(&list->el_entries, ep, ee_link);
@@ -122,19 +135,24 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
 	    free(ep, M_EVENTHANDLER);
 	}
     }
+    mtx_exit(&list->el_mutex, MTX_DEF);
 }
 
 struct eventhandler_list *
 eventhandler_find_list(char *name)
 {
     struct eventhandler_list	*list;
-
+    
     /* scan looking for the requested list */
+    mtx_enter(&eventhandler_mutex, MTX_DEF);
     for (list = TAILQ_FIRST(&eventhandler_lists); 
 	 list != NULL; 
 	 list = TAILQ_NEXT(list, el_link)) {
 	if (!strcmp(name, list->el_name))
 	    break;
     }
+    mtx_exit(&eventhandler_mutex, MTX_DEF);
+    
     return(list);
 }
+
