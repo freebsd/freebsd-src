@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 101 $
+ *       $Revision: 106 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -150,7 +150,7 @@
 
 
 #define ACPI_OBJECT_COMMON_HEADER           /* SIZE/ALIGNMENT: 32 bits, one ptr plus trailing 8-bit flag */\
-    UINT8                       DataType;           /* To differentiate various internal objs */\
+    UINT8                       Descriptor;         /* To differentiate various internal objs */\
     UINT8                       Type;               /* ACPI_OBJECT_TYPE */\
     UINT16                      ReferenceCount;     /* For object deletion management */\
     union acpi_operand_obj      *NextObject;        /* Objects linked to parent NS node */\
@@ -158,7 +158,7 @@
 
 /* Defines for flag byte above */
 
-#define AOPOBJ_STATIC_ALLOCATION    0x01
+#define AOPOBJ_RESERVED             0x01
 #define AOPOBJ_STATIC_POINTER       0x02
 #define AOPOBJ_DATA_VALID           0x04
 #define AOPOBJ_OBJECT_INITIALIZED   0x08
@@ -168,21 +168,19 @@
 
 /*
  * Common bitfield for the field objects
- * "Field Datum"    -- a datum from the actual field object
- * "Buffer Datum"   -- a datum from a user buffer, read from or to be written to the field
+ * "Field Datum"  -- a datum from the actual field object
+ * "Buffer Datum" -- a datum from a user buffer, read from or to be written to the field
  */
 #define ACPI_COMMON_FIELD_INFO              /* SIZE/ALIGNMENT: 24 bits + three 32-bit values */\
     UINT8                       FieldFlags;         /* Access, update, and lock bits */\
-    UINT16                      BitLength;          /* Length of field in bits */\
-    UINT32                      BaseByteOffset;     /* Byte offset within containing object */\
-    UINT8                       AccessBitWidth;     /* Read/Write size in bits (from ASL AccessType)*/\
+    UINT8                       Attribute;          /* From AccessAs keyword */\
     UINT8                       AccessByteWidth;    /* Read/Write size in bytes */\
-    UINT8                       Attribute ;         /* From AccessAs keyword */\
+    UINT32                      BitLength;          /* Length of field in bits */\
+    UINT32                      BaseByteOffset;     /* Byte offset within containing object */\
     UINT8                       StartFieldBitOffset;/* Bit offset within first field datum (0-63) */\
     UINT8                       DatumValidBits;     /* Valid bit in first "Field datum" */\
     UINT8                       EndFieldValidBits;  /* Valid bits in the last "field datum" */\
     UINT8                       EndBufferValidBits; /* Valid bits in the last "buffer datum" */\
-    UINT8                       Reserved;           /* Reserved for future use */\
     UINT32                      Value;              /* Value to store into the Bank or Index register */\
     ACPI_NAMESPACE_NODE         *Node;              /* Link back to parent node */
 
@@ -440,7 +438,7 @@ typedef struct /* NOTIFY HANDLER */
 
 /* Flags for address handler */
 
-#define ADDR_HANDLER_DEFAULT_INSTALLED  0x1
+#define ACPI_ADDR_HANDLER_DEFAULT_INSTALLED  0x1
 
 
 typedef struct /* ADDRESS HANDLER */

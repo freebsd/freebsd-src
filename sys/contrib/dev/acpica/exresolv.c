@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
- *              $Revision: 103 $
+ *              $Revision: 106 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,8 +128,7 @@
 
 
 #define _COMPONENT          ACPI_EXECUTER
-        MODULE_NAME         ("exresolv")
-
+        ACPI_MODULE_NAME    ("exresolv")
 
 
 /*******************************************************************************
@@ -155,7 +154,7 @@ AcpiExResolveToValue (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE_PTR ("ExResolveToValue", StackPtr);
+    ACPI_FUNCTION_TRACE_PTR ("ExResolveToValue", StackPtr);
 
 
     if (!StackPtr || !*StackPtr)
@@ -169,7 +168,7 @@ AcpiExResolveToValue (
      * 1) A valid ACPI_OPERAND_OBJECT, or
      * 2) A ACPI_NAMESPACE_NODE (NamedObj)
      */
-    if (VALID_DESCRIPTOR_TYPE (*StackPtr, ACPI_DESC_TYPE_INTERNAL))
+    if (ACPI_GET_DESCRIPTOR_TYPE (*StackPtr) == ACPI_DESC_TYPE_INTERNAL)
     {
         Status = AcpiExResolveObjectToValue (StackPtr, WalkState);
         if (ACPI_FAILURE (Status))
@@ -182,7 +181,7 @@ AcpiExResolveToValue (
      * Object on the stack may have changed if AcpiExResolveObjectToValue()
      * was called (i.e., we can't use an _else_ here.)
      */
-    if (VALID_DESCRIPTOR_TYPE (*StackPtr, ACPI_DESC_TYPE_NAMED))
+    if (ACPI_GET_DESCRIPTOR_TYPE (*StackPtr) == ACPI_DESC_TYPE_NAMED)
     {
         Status = AcpiExResolveNodeToValue ((ACPI_NAMESPACE_NODE **) StackPtr,
                         WalkState);
@@ -224,7 +223,7 @@ AcpiExResolveObjectToValue (
     UINT16                  Opcode;
 
 
-    FUNCTION_TRACE ("ExResolveObjectToValue");
+    ACPI_FUNCTION_TRACE ("ExResolveObjectToValue");
 
 
     StackDesc = *StackPtr;
@@ -397,7 +396,7 @@ AcpiExResolveObjectToValue (
         break; /* case INTERNAL_TYPE_REFERENCE */
 
     /*
-     * These cases may never happen here, but just in case.. 
+     * These cases may never happen here, but just in case..
      */
     case ACPI_TYPE_BUFFER_FIELD:
     case INTERNAL_TYPE_REGION_FIELD:

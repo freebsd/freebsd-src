@@ -3,7 +3,7 @@
  *
  * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 41 $
+ *              $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,7 +128,7 @@
 
 
 #define _COMPONENT          ACPI_EXECUTER
-        MODULE_NAME         ("exstoren")
+        ACPI_MODULE_NAME    ("exstoren")
 
 
 /*******************************************************************************
@@ -149,14 +149,14 @@
 ACPI_STATUS
 AcpiExResolveObject (
     ACPI_OPERAND_OBJECT     **SourceDescPtr,
-    ACPI_OBJECT_TYPE8       TargetType,
+    ACPI_OBJECT_TYPE        TargetType,
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_OPERAND_OBJECT     *SourceDesc = *SourceDescPtr;
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE ("ExResolveObject");
+    ACPI_FUNCTION_TRACE ("ExResolveObject");
 
 
     /*
@@ -177,39 +177,37 @@ AcpiExResolveObject (
     case ACPI_TYPE_STRING:
     case ACPI_TYPE_BUFFER:
 
-        /* 
+        /*
          * Stores into a Field/Region or into a Integer/Buffer/String
-         * are all essentially the same.  This case handles the 
-         * "interchangeable" types Integer, String, and Buffer. 
+         * are all essentially the same.  This case handles the
+         * "interchangeable" types Integer, String, and Buffer.
          */
+        if (SourceDesc->Common.Type == INTERNAL_TYPE_REFERENCE)
+        {
+            /* Resolve a reference object first */
 
-        /* TBD: FIX - check for source==REF, resolve, then check type */
+            Status = AcpiExResolveToValue (SourceDescPtr, WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                break;
+            }
+        }
 
         /*
-         * If SourceDesc is not a valid type, try to resolve it to one.
+         * Must have a Integer, Buffer, or String
          */
         if ((SourceDesc->Common.Type != ACPI_TYPE_INTEGER)     &&
             (SourceDesc->Common.Type != ACPI_TYPE_BUFFER)      &&
             (SourceDesc->Common.Type != ACPI_TYPE_STRING))
         {
             /*
-             * Initially not a valid type, convert
+             * Conversion successful but still not a valid type
              */
-            Status = AcpiExResolveToValue (SourceDescPtr, WalkState);
-            if (ACPI_SUCCESS (Status) &&
-                (SourceDesc->Common.Type != ACPI_TYPE_INTEGER)     &&
-                (SourceDesc->Common.Type != ACPI_TYPE_BUFFER)      &&
-                (SourceDesc->Common.Type != ACPI_TYPE_STRING))
-            {
-                /*
-                 * Conversion successful but still not a valid type
-                 */
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                    "Cannot assign type %s to %s (must be type Int/Str/Buf)\n",
-                    AcpiUtGetTypeName ((*SourceDescPtr)->Common.Type),
-                    AcpiUtGetTypeName (TargetType)));
-                Status = AE_AML_OPERAND_TYPE;
-            }
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "Cannot assign type %s to %s (must be type Int/Str/Buf)\n",
+                AcpiUtGetTypeName (SourceDesc->Common.Type),
+                AcpiUtGetTypeName (TargetType)));
+            Status = AE_AML_OPERAND_TYPE;
         }
         break;
 
@@ -240,11 +238,11 @@ AcpiExResolveObject (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExStoreObject
+ * FUNCTION:    AcpiExStoreObjectToObject
  *
  * PARAMETERS:  SourceDesc          - Object to store
- *              TargetType          - Current type of the target
- *              TargetDescPtr       - Pointer to the target
+ *              DestDesc            - Object to recieve a copy of the source
+ *              NewDesc             - New object if DestDesc is obsoleted
  *              WalkState           - Current walk state
  *
  * RETURN:      Status
@@ -254,95 +252,119 @@ AcpiExResolveObject (
  *              conversion), and a copy of the value of the source to
  *              the target.
  *
+ *              The Assignment of an object to another (not named) object
+ *              is handled here.
+ *              The Source passed in will replace the current value (if any)
+ *              with the input value.
+ *
+ *              When storing into an object the data is converted to the
+ *              target object type then stored in the object.  This means
+ *              that the target object type (for an initialized target) will
+ *              not be changed by a store operation.
+ *
+ *              This module allows destination types of Number, String,
+ *              Buffer, and Package.
+ *
+ *              Assumes parameters are already validated.  NOTE: SourceDesc
+ *              resolution (from a reference object) must be performed by
+ *              the caller if necessary.
+ *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiExStoreObject (
+AcpiExStoreObjectToObject (
     ACPI_OPERAND_OBJECT     *SourceDesc,
-    ACPI_OBJECT_TYPE8       TargetType,
-    ACPI_OPERAND_OBJECT     **TargetDescPtr,
+    ACPI_OPERAND_OBJECT     *DestDesc,
+    ACPI_OPERAND_OBJECT     **NewDesc,
     ACPI_WALK_STATE         *WalkState)
 {
-    ACPI_OPERAND_OBJECT     *TargetDesc = *TargetDescPtr;
+    ACPI_OPERAND_OBJECT     *ActualSrcDesc;
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE ("ExStoreObject");
+    ACPI_FUNCTION_TRACE_PTR ("AcpiExStoreObjectToObject", SourceDesc);
 
 
-    /*
-     * Perform the "implicit conversion" of the source to the current type
-     * of the target - As per the ACPI specification.
-     *
-     * If no conversion performed, SourceDesc is left alone, otherwise it
-     * is updated with a new object.
-     */
-    Status = AcpiExConvertToTargetType (TargetType, &SourceDesc, WalkState);
-    if (ACPI_FAILURE (Status))
+    ActualSrcDesc = SourceDesc;
+    if (!DestDesc)
     {
+        /*
+         * There is no destination object (An uninitialized node or
+         * package element), so we can simply copy the source object
+         * creating a new destination object
+         */
+        Status = AcpiUtCopyIobjectToIobject (ActualSrcDesc, NewDesc, WalkState);
         return_ACPI_STATUS (Status);
+    }
+
+    if (SourceDesc->Common.Type != DestDesc->Common.Type)
+    {
+        /*
+         * The source type does not match the type of the destination.
+         * Perform the "implicit conversion" of the source to the current type
+         * of the target as per the ACPI specification.
+         *
+         * If no conversion performed, ActualSrcDesc = SourceDesc.
+         * Otherwise, ActualSrcDesc is a temporary object to hold the
+         * converted object.
+         */
+        Status = AcpiExConvertToTargetType (DestDesc->Common.Type, SourceDesc,
+                        &ActualSrcDesc, WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
     }
 
     /*
      * We now have two objects of identical types, and we can perform a
      * copy of the *value* of the source object.
      */
-    switch (TargetType)
+    switch (DestDesc->Common.Type)
     {
-    case ACPI_TYPE_ANY:
-    case INTERNAL_TYPE_DEF_ANY:
-
-        /*
-         * The target namespace node is uninitialized (has no target object),
-         * and will take on the type of the source object
-         */
-        *TargetDescPtr = SourceDesc;
-        break;
-
-
     case ACPI_TYPE_INTEGER:
 
-        TargetDesc->Integer.Value = SourceDesc->Integer.Value;
+        DestDesc->Integer.Value = ActualSrcDesc->Integer.Value;
 
         /* Truncate value if we are executing from a 32-bit ACPI table */
 
-        AcpiExTruncateFor32bitTable (TargetDesc, WalkState);
+        AcpiExTruncateFor32bitTable (DestDesc, WalkState);
         break;
 
     case ACPI_TYPE_STRING:
 
-        Status = AcpiExCopyStringToString (SourceDesc, TargetDesc);
+        Status = AcpiExStoreStringToString (ActualSrcDesc, DestDesc);
         break;
-
 
     case ACPI_TYPE_BUFFER:
 
-        Status = AcpiExCopyBufferToBuffer (SourceDesc, TargetDesc);
+        Status = AcpiExStoreBufferToBuffer (ActualSrcDesc, DestDesc);
         break;
-
 
     case ACPI_TYPE_PACKAGE:
 
-        /*
-         * TBD: [Unhandled] Not real sure what to do here
-         */
-        Status = AE_NOT_IMPLEMENTED;
+        Status = AcpiUtCopyIobjectToIobject (ActualSrcDesc, &DestDesc, WalkState);
         break;
 
-
     default:
-
         /*
          * All other types come here.
          */
         ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "Store into type %s not implemented\n",
-            AcpiUtGetTypeName (TargetType)));
+            AcpiUtGetTypeName (DestDesc->Common.Type)));
 
         Status = AE_NOT_IMPLEMENTED;
         break;
     }
 
+    if (ActualSrcDesc != SourceDesc)
+    {
+        /* Delete the intermediate (temporary) source object */
 
+        AcpiUtRemoveReference (ActualSrcDesc);
+    }
+
+    *NewDesc = DestDesc;
     return_ACPI_STATUS (Status);
 }
 

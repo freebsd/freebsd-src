@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 57 $
+ *              $Revision: 59 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,7 +125,7 @@
 #include "acinterp.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
-        MODULE_NAME         ("dswstate")
+        ACPI_MODULE_NAME    ("dswstate")
 
 
 /*******************************************************************************
@@ -150,7 +150,7 @@ AcpiDsResultInsert (
     ACPI_GENERIC_STATE      *State;
 
 
-    PROC_NAME ("DsResultInsert");
+    ACPI_FUNCTION_NAME ("DsResultInsert");
 
 
     State = WalkState->Results;
@@ -212,7 +212,7 @@ AcpiDsResultRemove (
     ACPI_GENERIC_STATE      *State;
 
 
-    PROC_NAME ("DsResultRemove");
+    ACPI_FUNCTION_NAME ("DsResultRemove");
 
 
     State = WalkState->Results;
@@ -280,7 +280,7 @@ AcpiDsResultPop (
     ACPI_GENERIC_STATE      *State;
 
 
-    PROC_NAME ("DsResultPop");
+    ACPI_FUNCTION_NAME ("DsResultPop");
 
 
     State = WalkState->Results;
@@ -344,7 +344,7 @@ AcpiDsResultPopFromBottom (
     ACPI_GENERIC_STATE      *State;
 
 
-    PROC_NAME ("DsResultPopFromBottom");
+    ACPI_FUNCTION_NAME ("DsResultPopFromBottom");
 
 
     State = WalkState->Results;
@@ -414,7 +414,7 @@ AcpiDsResultPush (
     ACPI_GENERIC_STATE      *State;
 
 
-    PROC_NAME ("DsResultPush");
+    ACPI_FUNCTION_NAME ("DsResultPush");
 
 
     State = WalkState->Results;
@@ -470,7 +470,7 @@ AcpiDsResultStackPush (
 {
     ACPI_GENERIC_STATE      *State;
 
-    PROC_NAME ("DsResultStackPush");
+    ACPI_FUNCTION_NAME ("DsResultStackPush");
 
 
     State = AcpiUtCreateGenericState ();
@@ -507,7 +507,7 @@ AcpiDsResultStackPop (
 {
     ACPI_GENERIC_STATE      *State;
 
-    PROC_NAME ("DsResultStackPop");
+    ACPI_FUNCTION_NAME ("DsResultStackPop");
 
 
     /* Check for stack underflow */
@@ -552,7 +552,7 @@ AcpiDsObjStackDeleteAll (
     UINT32                  i;
 
 
-    FUNCTION_TRACE_PTR ("DsObjStackDeleteAll", WalkState);
+    ACPI_FUNCTION_TRACE_PTR ("DsObjStackDeleteAll", WalkState);
 
 
     /* The stack size is configurable, but fixed */
@@ -588,7 +588,7 @@ AcpiDsObjStackPush (
     void                    *Object,
     ACPI_WALK_STATE         *WalkState)
 {
-    PROC_NAME ("DsObjStackPush");
+    ACPI_FUNCTION_NAME ("DsObjStackPush");
 
 
     /* Check for stack overflow */
@@ -634,7 +634,7 @@ AcpiDsObjStackPopObject (
     ACPI_OPERAND_OBJECT     **Object,
     ACPI_WALK_STATE         *WalkState)
 {
-    PROC_NAME ("DsObjStackPopObject");
+    ACPI_FUNCTION_NAME ("DsObjStackPopObject");
 
 
     /* Check for stack underflow */
@@ -697,7 +697,7 @@ AcpiDsObjStackPop (
 {
     UINT32                  i;
 
-    PROC_NAME ("DsObjStackPop");
+    ACPI_FUNCTION_NAME ("DsObjStackPop");
 
 
     for (i = 0; i < PopCount; i++)
@@ -747,7 +747,7 @@ AcpiDsObjStackPopAndDelete (
     UINT32                  i;
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
-    PROC_NAME ("DsObjStackPopAndDelete");
+    ACPI_FUNCTION_NAME ("DsObjStackPopAndDelete");
 
 
     for (i = 0; i < PopCount; i++)
@@ -801,7 +801,7 @@ AcpiDsObjStackGetValue (
     ACPI_WALK_STATE         *WalkState)
 {
 
-    FUNCTION_TRACE_PTR ("DsObjStackGetValue", WalkState);
+    ACPI_FUNCTION_TRACE_PTR ("DsObjStackGetValue", WalkState);
 
 
     /* Can't do it if the stack is empty */
@@ -842,7 +842,7 @@ AcpiDsGetCurrentWalkState (
     ACPI_THREAD_STATE       *Thread)
 
 {
-    PROC_NAME ("DsGetCurrentWalkState");
+    ACPI_FUNCTION_NAME ("DsGetCurrentWalkState");
 
 
     if (!Thread)
@@ -876,7 +876,7 @@ AcpiDsPushWalkState (
     ACPI_WALK_STATE         *WalkState,
     ACPI_THREAD_STATE       *Thread)
 {
-    FUNCTION_TRACE ("DsPushWalkState");
+    ACPI_FUNCTION_TRACE ("DsPushWalkState");
 
 
     WalkState->Next       = Thread->WalkStateList;
@@ -907,7 +907,7 @@ AcpiDsPopWalkState (
     ACPI_WALK_STATE         *WalkState;
 
 
-    FUNCTION_TRACE ("DsPopWalkState");
+    ACPI_FUNCTION_TRACE ("DsPopWalkState");
 
 
     WalkState = Thread->WalkStateList;
@@ -938,7 +938,7 @@ AcpiDsPopWalkState (
  *
  * RETURN:      Pointer to the new walk state.
  *
- * DESCRIPTION: Allocate and initialize a new walk state.  The current walk 
+ * DESCRIPTION: Allocate and initialize a new walk state.  The current walk
  *              state is set to this new state.
  *
  ******************************************************************************/
@@ -954,7 +954,7 @@ AcpiDsCreateWalkState (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("DsCreateWalkState");
+    ACPI_FUNCTION_TRACE ("DsCreateWalkState");
 
 
     WalkState = AcpiUtAcquireFromCache (ACPI_MEM_LIST_WALK);
@@ -1022,7 +1022,7 @@ AcpiDsInitAmlWalk (
     ACPI_PARSE_STATE        *ParserState = &WalkState->ParserState;
 
 
-    FUNCTION_TRACE ("DsInitAmlWalk");
+    ACPI_FUNCTION_TRACE ("DsInitAmlWalk");
 
 
     WalkState->ParserState.Aml      =
@@ -1045,7 +1045,7 @@ AcpiDsInitAmlWalk (
     if (MethodNode)
     {
         WalkState->ParserState.StartNode    = MethodNode;
-        WalkState->WalkType                 = WALK_METHOD;
+        WalkState->WalkType                 = ACPI_WALK_METHOD;
         WalkState->MethodNode               = MethodNode;
         WalkState->MethodDesc               = AcpiNsGetAttachedObject (MethodNode);
 
@@ -1107,7 +1107,7 @@ AcpiDsDeleteWalkState (
     ACPI_GENERIC_STATE      *State;
 
 
-    FUNCTION_TRACE_PTR ("DsDeleteWalkState", WalkState);
+    ACPI_FUNCTION_TRACE_PTR ("DsDeleteWalkState", WalkState);
 
 
     if (!WalkState)
@@ -1179,7 +1179,7 @@ void
 AcpiDsDeleteWalkStateCache (
     void)
 {
-    FUNCTION_TRACE ("DsDeleteWalkStateCache");
+    ACPI_FUNCTION_TRACE ("DsDeleteWalkStateCache");
 
 
     AcpiUtDeleteGenericCache (ACPI_MEM_LIST_WALK);

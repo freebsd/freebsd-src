@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsdump - Functions to display the resource structures.
- *              $Revision: 23 $
+ *              $Revision: 29 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -121,7 +121,7 @@
 #include "acresrc.h"
 
 #define _COMPONENT          ACPI_RESOURCES
-        MODULE_NAME         ("rsdump")
+        ACPI_MODULE_NAME    ("rsdump")
 
 
 #ifdef ACPI_DEBUG
@@ -146,19 +146,19 @@ AcpiRsDumpIrq (
     UINT8                   Index = 0;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("IRQ Resource\n");
 
     AcpiOsPrintf ("    %s Triggered\n",
-                LEVEL_SENSITIVE == IrqData->EdgeLevel ? "Level" : "Edge");
+                ACPI_LEVEL_SENSITIVE == IrqData->EdgeLevel ? "Level" : "Edge");
 
     AcpiOsPrintf ("    Active %s\n",
-                ACTIVE_LOW == IrqData->ActiveHighLow ? "Low" : "High");
+                ACPI_ACTIVE_LOW == IrqData->ActiveHighLow ? "Low" : "High");
 
     AcpiOsPrintf ("    %s\n",
-                SHARED == IrqData->SharedExclusive ? "Shared" : "Exclusive");
+                ACPI_SHARED == IrqData->SharedExclusive ? "Shared" : "Exclusive");
 
     AcpiOsPrintf ("    %X Interrupts ( ", IrqData->NumberOfInterrupts);
 
@@ -192,26 +192,26 @@ AcpiRsDumpDma (
     UINT8                   Index = 0;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("DMA Resource\n");
 
     switch (DmaData->Type)
     {
-    case COMPATIBILITY:
+    case ACPI_COMPATIBILITY:
         AcpiOsPrintf ("    Compatibility mode\n");
         break;
 
-    case TYPE_A:
+    case ACPI_TYPE_A:
         AcpiOsPrintf ("    Type A\n");
         break;
 
-    case TYPE_B:
+    case ACPI_TYPE_B:
         AcpiOsPrintf ("    Type B\n");
         break;
 
-    case TYPE_F:
+    case ACPI_TYPE_F:
         AcpiOsPrintf ("    Type F\n");
         break;
 
@@ -221,20 +221,20 @@ AcpiRsDumpDma (
     }
 
     AcpiOsPrintf ("    %sBus Master\n",
-                BUS_MASTER == DmaData->BusMaster ? "" : "Not a ");
+                ACPI_BUS_MASTER == DmaData->BusMaster ? "" : "Not a ");
 
 
     switch (DmaData->Transfer)
     {
-    case TRANSFER_8:
+    case ACPI_TRANSFER_8:
         AcpiOsPrintf ("    8-bit only transfer\n");
         break;
 
-    case TRANSFER_8_16:
+    case ACPI_TRANSFER_8_16:
         AcpiOsPrintf ("    8 and 16-bit transfer\n");
         break;
 
-    case TRANSFER_16:
+    case ACPI_TRANSFER_16:
         AcpiOsPrintf ("    16 bit only transfer\n");
         break;
 
@@ -257,7 +257,7 @@ AcpiRsDumpDma (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiRsDumpStartDependentFunctions
+ * FUNCTION:    AcpiRsDumpStartDependFns
  *
  * PARAMETERS:  Data            - pointer to the resource structure to dump.
  *
@@ -268,28 +268,28 @@ AcpiRsDumpDma (
  ******************************************************************************/
 
 void
-AcpiRsDumpStartDependentFunctions (
+AcpiRsDumpStartDependFns (
     ACPI_RESOURCE_DATA          *Data)
 {
     ACPI_RESOURCE_START_DPF     *SdfData = (ACPI_RESOURCE_START_DPF *) Data;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("Start Dependent Functions Resource\n");
 
     switch (SdfData->CompatibilityPriority)
     {
-    case GOOD_CONFIGURATION:
+    case ACPI_GOOD_CONFIGURATION:
         AcpiOsPrintf ("    Good configuration\n");
         break;
 
-    case ACCEPTABLE_CONFIGURATION:
+    case ACPI_ACCEPTABLE_CONFIGURATION:
         AcpiOsPrintf ("    Acceptable configuration\n");
         break;
 
-    case SUB_OPTIMAL_CONFIGURATION:
+    case ACPI_SUB_OPTIMAL_CONFIGURATION:
         AcpiOsPrintf ("    Sub-optimal configuration\n");
         break;
 
@@ -300,15 +300,15 @@ AcpiRsDumpStartDependentFunctions (
 
     switch(SdfData->PerformanceRobustness)
     {
-    case GOOD_CONFIGURATION:
+    case ACPI_GOOD_CONFIGURATION:
         AcpiOsPrintf ("    Good configuration\n");
         break;
 
-    case ACCEPTABLE_CONFIGURATION:
+    case ACPI_ACCEPTABLE_CONFIGURATION:
         AcpiOsPrintf ("    Acceptable configuration\n");
         break;
 
-    case SUB_OPTIMAL_CONFIGURATION:
+    case ACPI_SUB_OPTIMAL_CONFIGURATION:
         AcpiOsPrintf ("    Sub-optimal configuration\n");
         break;
 
@@ -341,13 +341,13 @@ AcpiRsDumpIo (
     ACPI_RESOURCE_IO        *IoData = (ACPI_RESOURCE_IO *) Data;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("Io Resource\n");
 
     AcpiOsPrintf ("    %d bit decode\n",
-                DECODE_16 == IoData->IoDecode ? 16 : 10);
+                ACPI_DECODE_16 == IoData->IoDecode ? 16 : 10);
 
     AcpiOsPrintf ("    Range minimum base: %08X\n",
                 IoData->MinBaseAddress);
@@ -384,7 +384,7 @@ AcpiRsDumpFixedIo (
     ACPI_RESOURCE_FIXED_IO  *FixedIoData = (ACPI_RESOURCE_FIXED_IO *) Data;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("Fixed Io Resource\n");
@@ -418,7 +418,7 @@ AcpiRsDumpVendorSpecific (
     UINT16                  Index = 0;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("Vendor Specific Resource\n");
@@ -454,13 +454,13 @@ AcpiRsDumpMemory24 (
     ACPI_RESOURCE_MEM24     *Memory24Data = (ACPI_RESOURCE_MEM24 *) Data;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("24-Bit Memory Range Resource\n");
 
     AcpiOsPrintf ("    Read%s\n",
-                READ_WRITE_MEMORY ==
+                ACPI_READ_WRITE_MEMORY ==
                 Memory24Data->ReadWriteAttribute ?
                 "/Write" : " only");
 
@@ -499,13 +499,13 @@ AcpiRsDumpMemory32 (
     ACPI_RESOURCE_MEM32     *Memory32Data = (ACPI_RESOURCE_MEM32 *) Data;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("32-Bit Memory Range Resource\n");
 
     AcpiOsPrintf ("    Read%s\n",
-                READ_WRITE_MEMORY ==
+                ACPI_READ_WRITE_MEMORY ==
                 Memory32Data->ReadWriteAttribute ?
                 "/Write" : " only");
 
@@ -544,13 +544,13 @@ AcpiRsDumpFixedMemory32 (
     ACPI_RESOURCE_FIXED_MEM32   *FixedMemory32Data = (ACPI_RESOURCE_FIXED_MEM32 *) Data;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("32-Bit Fixed Location Memory Range Resource\n");
 
     AcpiOsPrintf ("    Read%s\n",
-                READ_WRITE_MEMORY ==
+                ACPI_READ_WRITE_MEMORY ==
                 FixedMemory32Data->ReadWriteAttribute ?
                 "/Write" : " Only");
 
@@ -583,7 +583,7 @@ AcpiRsDumpAddress16 (
     ACPI_RESOURCE_ADDRESS16 *Address16Data = (ACPI_RESOURCE_ADDRESS16 *) Data;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("16-Bit Address Space Resource\n");
@@ -591,28 +591,28 @@ AcpiRsDumpAddress16 (
 
     switch (Address16Data->ResourceType)
     {
-    case MEMORY_RANGE:
+    case ACPI_MEMORY_RANGE:
 
         AcpiOsPrintf ("Memory Range\n");
 
         switch (Address16Data->Attribute.Memory.CacheAttribute)
         {
-        case NON_CACHEABLE_MEMORY:
+        case ACPI_NON_CACHEABLE_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Noncacheable memory\n");
             break;
 
-        case CACHABLE_MEMORY:
+        case ACPI_CACHABLE_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Cacheable memory\n");
             break;
 
-        case WRITE_COMBINING_MEMORY:
+        case ACPI_WRITE_COMBINING_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Write-combining memory\n");
             break;
 
-        case PREFETCHABLE_MEMORY:
+        case ACPI_PREFETCHABLE_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Prefetchable memory\n");
             break;
@@ -624,28 +624,28 @@ AcpiRsDumpAddress16 (
         }
 
         AcpiOsPrintf ("    Type Specific: Read%s\n",
-            READ_WRITE_MEMORY ==
+            ACPI_READ_WRITE_MEMORY ==
             Address16Data->Attribute.Memory.ReadWriteAttribute ?
             "/Write" : " Only");
         break;
 
-    case IO_RANGE:
+    case ACPI_IO_RANGE:
 
         AcpiOsPrintf ("I/O Range\n");
 
         switch (Address16Data->Attribute.Io.RangeAttribute)
         {
-        case NON_ISA_ONLY_RANGES:
+        case ACPI_NON_ISA_ONLY_RANGES:
             AcpiOsPrintf ("    Type Specific: "
                             "Non-ISA Io Addresses\n");
             break;
 
-        case ISA_ONLY_RANGES:
+        case ACPI_ISA_ONLY_RANGES:
             AcpiOsPrintf ("    Type Specific: "
                             "ISA Io Addresses\n");
             break;
 
-        case ENTIRE_RANGE:
+        case ACPI_ENTIRE_RANGE:
             AcpiOsPrintf ("    Type Specific: "
                             "ISA and non-ISA Io Addresses\n");
             break;
@@ -657,7 +657,7 @@ AcpiRsDumpAddress16 (
         }
         break;
 
-    case BUS_NUMBER_RANGE:
+    case ACPI_BUS_NUMBER_RANGE:
 
         AcpiOsPrintf ("Bus Number Range\n");
         break;
@@ -669,19 +669,19 @@ AcpiRsDumpAddress16 (
     }
 
     AcpiOsPrintf ("    Resource %s\n",
-            CONSUMER == Address16Data->ProducerConsumer ?
+            ACPI_CONSUMER == Address16Data->ProducerConsumer ?
             "Consumer" : "Producer");
 
     AcpiOsPrintf ("    %s decode\n",
-                SUB_DECODE == Address16Data->Decode ?
+                ACPI_SUB_DECODE == Address16Data->Decode ?
                 "Subtractive" : "Positive");
 
     AcpiOsPrintf ("    Min address is %s fixed\n",
-                ADDRESS_FIXED == Address16Data->MinAddressFixed ?
+                ACPI_ADDRESS_FIXED == Address16Data->MinAddressFixed ?
                 "" : "not");
 
     AcpiOsPrintf ("    Max address is %s fixed\n",
-                ADDRESS_FIXED == Address16Data->MaxAddressFixed ?
+                ACPI_ADDRESS_FIXED == Address16Data->MaxAddressFixed ?
                 "" : "not");
 
     AcpiOsPrintf ("    Granularity: %08X\n",
@@ -730,35 +730,35 @@ AcpiRsDumpAddress32 (
     ACPI_RESOURCE_ADDRESS32 *Address32Data = (ACPI_RESOURCE_ADDRESS32 *) Data;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("32-Bit Address Space Resource\n");
 
     switch (Address32Data->ResourceType)
     {
-    case MEMORY_RANGE:
+    case ACPI_MEMORY_RANGE:
 
         AcpiOsPrintf ("    Resource Type: Memory Range\n");
 
         switch (Address32Data->Attribute.Memory.CacheAttribute)
         {
-        case NON_CACHEABLE_MEMORY:
+        case ACPI_NON_CACHEABLE_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Noncacheable memory\n");
             break;
 
-        case CACHABLE_MEMORY:
+        case ACPI_CACHABLE_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Cacheable memory\n");
             break;
 
-        case WRITE_COMBINING_MEMORY:
+        case ACPI_WRITE_COMBINING_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Write-combining memory\n");
             break;
 
-        case PREFETCHABLE_MEMORY:
+        case ACPI_PREFETCHABLE_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Prefetchable memory\n");
             break;
@@ -770,28 +770,28 @@ AcpiRsDumpAddress32 (
         }
 
         AcpiOsPrintf ("    Type Specific: Read%s\n",
-            READ_WRITE_MEMORY ==
+            ACPI_READ_WRITE_MEMORY ==
             Address32Data->Attribute.Memory.ReadWriteAttribute ?
             "/Write" : " Only");
         break;
 
-    case IO_RANGE:
+    case ACPI_IO_RANGE:
 
         AcpiOsPrintf ("    Resource Type: Io Range\n");
 
         switch (Address32Data->Attribute.Io.RangeAttribute)
             {
-            case NON_ISA_ONLY_RANGES:
+            case ACPI_NON_ISA_ONLY_RANGES:
                 AcpiOsPrintf ("    Type Specific: "
                                 "Non-ISA Io Addresses\n");
                 break;
 
-            case ISA_ONLY_RANGES:
+            case ACPI_ISA_ONLY_RANGES:
                 AcpiOsPrintf ("    Type Specific: "
                                 "ISA Io Addresses\n");
                 break;
 
-            case ENTIRE_RANGE:
+            case ACPI_ENTIRE_RANGE:
                 AcpiOsPrintf ("    Type Specific: "
                                 "ISA and non-ISA Io Addresses\n");
                 break;
@@ -803,7 +803,7 @@ AcpiRsDumpAddress32 (
             }
         break;
 
-    case BUS_NUMBER_RANGE:
+    case ACPI_BUS_NUMBER_RANGE:
 
         AcpiOsPrintf ("    Resource Type: Bus Number Range\n");
         break;
@@ -815,19 +815,19 @@ AcpiRsDumpAddress32 (
     }
 
     AcpiOsPrintf ("    Resource %s\n",
-                CONSUMER == Address32Data->ProducerConsumer ?
+                ACPI_CONSUMER == Address32Data->ProducerConsumer ?
                 "Consumer" : "Producer");
 
     AcpiOsPrintf ("    %s decode\n",
-                SUB_DECODE == Address32Data->Decode ?
+                ACPI_SUB_DECODE == Address32Data->Decode ?
                 "Subtractive" : "Positive");
 
     AcpiOsPrintf ("    Min address is %s fixed\n",
-                ADDRESS_FIXED == Address32Data->MinAddressFixed ?
+                ACPI_ADDRESS_FIXED == Address32Data->MinAddressFixed ?
                 "" : "not ");
 
     AcpiOsPrintf ("    Max address is %s fixed\n",
-                ADDRESS_FIXED == Address32Data->MaxAddressFixed ?
+                ACPI_ADDRESS_FIXED == Address32Data->MaxAddressFixed ?
                 "" : "not ");
 
     AcpiOsPrintf ("    Granularity: %08X\n",
@@ -876,35 +876,35 @@ AcpiRsDumpAddress64 (
     ACPI_RESOURCE_ADDRESS64 *Address64Data = (ACPI_RESOURCE_ADDRESS64 *) Data;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("64-Bit Address Space Resource\n");
 
     switch (Address64Data->ResourceType)
     {
-    case MEMORY_RANGE:
+    case ACPI_MEMORY_RANGE:
 
         AcpiOsPrintf ("    Resource Type: Memory Range\n");
 
         switch (Address64Data->Attribute.Memory.CacheAttribute)
         {
-        case NON_CACHEABLE_MEMORY:
+        case ACPI_NON_CACHEABLE_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Noncacheable memory\n");
             break;
 
-        case CACHABLE_MEMORY:
+        case ACPI_CACHABLE_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Cacheable memory\n");
             break;
 
-        case WRITE_COMBINING_MEMORY:
+        case ACPI_WRITE_COMBINING_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Write-combining memory\n");
             break;
 
-        case PREFETCHABLE_MEMORY:
+        case ACPI_PREFETCHABLE_MEMORY:
             AcpiOsPrintf ("    Type Specific: "
                             "Prefetchable memory\n");
             break;
@@ -916,28 +916,28 @@ AcpiRsDumpAddress64 (
         }
 
         AcpiOsPrintf ("    Type Specific: Read%s\n",
-            READ_WRITE_MEMORY ==
+            ACPI_READ_WRITE_MEMORY ==
             Address64Data->Attribute.Memory.ReadWriteAttribute ?
             "/Write" : " Only");
         break;
 
-    case IO_RANGE:
+    case ACPI_IO_RANGE:
 
         AcpiOsPrintf ("    Resource Type: Io Range\n");
 
         switch (Address64Data->Attribute.Io.RangeAttribute)
             {
-            case NON_ISA_ONLY_RANGES:
+            case ACPI_NON_ISA_ONLY_RANGES:
                 AcpiOsPrintf ("    Type Specific: "
                                 "Non-ISA Io Addresses\n");
                 break;
 
-            case ISA_ONLY_RANGES:
+            case ACPI_ISA_ONLY_RANGES:
                 AcpiOsPrintf ("    Type Specific: "
                                 "ISA Io Addresses\n");
                 break;
 
-            case ENTIRE_RANGE:
+            case ACPI_ENTIRE_RANGE:
                 AcpiOsPrintf ("    Type Specific: "
                                 "ISA and non-ISA Io Addresses\n");
                 break;
@@ -949,7 +949,7 @@ AcpiRsDumpAddress64 (
             }
         break;
 
-    case BUS_NUMBER_RANGE:
+    case ACPI_BUS_NUMBER_RANGE:
 
         AcpiOsPrintf ("    Resource Type: Bus Number Range\n");
         break;
@@ -961,19 +961,19 @@ AcpiRsDumpAddress64 (
     }
 
     AcpiOsPrintf ("    Resource %s\n",
-                CONSUMER == Address64Data->ProducerConsumer ?
+                ACPI_CONSUMER == Address64Data->ProducerConsumer ?
                 "Consumer" : "Producer");
 
     AcpiOsPrintf ("    %s decode\n",
-                SUB_DECODE == Address64Data->Decode ?
+                ACPI_SUB_DECODE == Address64Data->Decode ?
                 "Subtractive" : "Positive");
 
     AcpiOsPrintf ("    Min address is %s fixed\n",
-                ADDRESS_FIXED == Address64Data->MinAddressFixed ?
+                ACPI_ADDRESS_FIXED == Address64Data->MinAddressFixed ?
                 "" : "not ");
 
     AcpiOsPrintf ("    Max address is %s fixed\n",
-                ADDRESS_FIXED == Address64Data->MaxAddressFixed ?
+                ACPI_ADDRESS_FIXED == Address64Data->MaxAddressFixed ?
                 "" : "not ");
 
     AcpiOsPrintf ("    Granularity: %16X\n",
@@ -1023,25 +1023,25 @@ AcpiRsDumpExtendedIrq (
     UINT8                   Index = 0;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("Extended IRQ Resource\n");
 
     AcpiOsPrintf ("    Resource %s\n",
-                CONSUMER == ExtIrqData->ProducerConsumer ?
+                ACPI_CONSUMER == ExtIrqData->ProducerConsumer ?
                 "Consumer" : "Producer");
 
     AcpiOsPrintf ("    %s\n",
-                LEVEL_SENSITIVE == ExtIrqData->EdgeLevel ?
+                ACPI_LEVEL_SENSITIVE == ExtIrqData->EdgeLevel ?
                 "Level" : "Edge");
 
     AcpiOsPrintf ("    Active %s\n",
-                ACTIVE_LOW == ExtIrqData->ActiveHighLow ?
+                ACPI_ACTIVE_LOW == ExtIrqData->ActiveHighLow ?
                 "low" : "high");
 
     AcpiOsPrintf ("    %s\n",
-                SHARED == ExtIrqData->SharedExclusive ?
+                ACPI_SHARED == ExtIrqData->SharedExclusive ?
                 "Shared" : "Exclusive");
 
     AcpiOsPrintf ("    Interrupts : %X ( ",
@@ -1086,7 +1086,7 @@ AcpiRsDumpResourceList (
     BOOLEAN             Done = FALSE;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     if (AcpiDbgLevel & ACPI_LV_RESOURCES && _COMPONENT & AcpiDbgLayer)
@@ -1106,7 +1106,7 @@ AcpiRsDumpResourceList (
                 break;
 
             case ACPI_RSTYPE_START_DPF:
-                AcpiRsDumpStartDependentFunctions (&Resource->Data);
+                AcpiRsDumpStartDependFns (&Resource->Data);
                 break;
 
             case ACPI_RSTYPE_END_DPF:
@@ -1166,7 +1166,7 @@ AcpiRsDumpResourceList (
 
             }
 
-            Resource = POINTER_ADD (ACPI_RESOURCE, Resource, Resource->Length);
+            Resource = ACPI_PTR_ADD (ACPI_RESOURCE, Resource, Resource->Length);
         }
     }
 
@@ -1187,27 +1187,28 @@ AcpiRsDumpResourceList (
 
 void
 AcpiRsDumpIrqList (
-    UINT8               *RouteTable)
+    UINT8                   *RouteTable)
 {
-    UINT8               *Buffer = RouteTable;
-    UINT8               Count = 0;
-    BOOLEAN             Done = FALSE;
-    PCI_ROUTING_TABLE   *PrtElement;
+    UINT8                   *Buffer = RouteTable;
+    UINT8                   Count = 0;
+    BOOLEAN                 Done = FALSE;
+    ACPI_PCI_ROUTING_TABLE  *PrtElement;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     if (AcpiDbgLevel & ACPI_LV_RESOURCES && _COMPONENT & AcpiDbgLayer)
     {
-        PrtElement = (PCI_ROUTING_TABLE *) Buffer;
+        PrtElement = (ACPI_PCI_ROUTING_TABLE *) Buffer;
 
         while (!Done)
         {
             AcpiOsPrintf ("PCI IRQ Routing Table structure %X.\n", Count++);
 
-            AcpiOsPrintf ("    Address: %X\n",
-                        PrtElement->Address);
+            AcpiOsPrintf ("    Address: %8.8X%8.8X\n",
+                        ACPI_HIDWORD (PrtElement->Address),
+                        ACPI_LODWORD (PrtElement->Address));
 
             AcpiOsPrintf ("    Pin: %X\n", PrtElement->Pin);
 
@@ -1218,7 +1219,7 @@ AcpiRsDumpIrqList (
 
             Buffer += PrtElement->Length;
 
-            PrtElement = (PCI_ROUTING_TABLE *) Buffer;
+            PrtElement = (ACPI_PCI_ROUTING_TABLE *) Buffer;
 
             if(0 == PrtElement->Length)
             {

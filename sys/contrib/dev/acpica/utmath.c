@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmath - Integer math support routines
- *              $Revision: 8 $
+ *              $Revision: 10 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -121,7 +121,7 @@
 
 
 #define _COMPONENT          ACPI_UTILITIES
-        MODULE_NAME         ("utmath")
+        ACPI_MODULE_NAME    ("utmath")
 
 /*
  * Support for double-precision integer divide.  This code is included here
@@ -159,7 +159,7 @@ AcpiUtShortDivide (
     UINT32                  Remainder32;
 
 
-    FUNCTION_TRACE ("UtShortDivide");
+    ACPI_FUNCTION_TRACE ("UtShortDivide");
 
     Dividend.Full = *InDividend;
 
@@ -167,7 +167,7 @@ AcpiUtShortDivide (
 
     if (Divisor == 0)
     {
-        REPORT_ERROR (("AcpiUtShortDivide: Divide by zero\n"));
+        ACPI_REPORT_ERROR (("AcpiUtShortDivide: Divide by zero\n"));
         return_ACPI_STATUS (AE_AML_DIVIDE_BY_ZERO);
     }
 
@@ -228,14 +228,14 @@ AcpiUtDivide (
     UINT64_OVERLAY          Partial3;
 
 
-    FUNCTION_TRACE ("UtDivide");
+    ACPI_FUNCTION_TRACE ("UtDivide");
 
 
     /* Always check for a zero divisor */
 
     if (*InDivisor == 0)
     {
-        REPORT_ERROR (("AcpiUtDivide: Divide by zero\n"));
+        ACPI_REPORT_ERROR (("AcpiUtDivide: Divide by zero\n"));
         return_ACPI_STATUS (AE_AML_DIVIDE_BY_ZERO);
     }
 
@@ -365,14 +365,14 @@ AcpiUtShortDivide (
     UINT32                  *OutRemainder)
 {
 
-    FUNCTION_TRACE ("UtShortDivide");
+    ACPI_FUNCTION_TRACE ("UtShortDivide");
 
 
     /* Always check for a zero divisor */
 
     if (Divisor == 0)
     {
-        REPORT_ERROR (("AcpiUtShortDivide: Divide by zero\n"));
+        ACPI_REPORT_ERROR (("AcpiUtShortDivide: Divide by zero\n"));
         return_ACPI_STATUS (AE_AML_DIVIDE_BY_ZERO);
     }
 
@@ -397,14 +397,14 @@ AcpiUtDivide (
     ACPI_INTEGER            *OutQuotient,
     ACPI_INTEGER            *OutRemainder)
 {
-    FUNCTION_TRACE ("UtDivide");
+    ACPI_FUNCTION_TRACE ("UtDivide");
 
 
     /* Always check for a zero divisor */
 
     if (*InDivisor == 0)
     {
-        REPORT_ERROR (("AcpiUtDivide: Divide by zero\n"));
+        ACPI_REPORT_ERROR (("AcpiUtDivide: Divide by zero\n"));
         return_ACPI_STATUS (AE_AML_DIVIDE_BY_ZERO);
     }
 

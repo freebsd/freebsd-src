@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psxface - Parser external interfaces
- *              $Revision: 56 $
+ *              $Revision: 59 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,7 +125,7 @@
 
 
 #define _COMPONENT          ACPI_PARSER
-        MODULE_NAME         ("psxface")
+        ACPI_MODULE_NAME    ("psxface")
 
 
 /*******************************************************************************
@@ -159,7 +159,7 @@ AcpiPsxExecute (
     ACPI_WALK_STATE         *WalkState;
 
 
-    FUNCTION_TRACE ("PsxExecute");
+    ACPI_FUNCTION_TRACE ("PsxExecute");
 
 
     /* Validate the Node and get the attached object */
@@ -211,9 +211,16 @@ AcpiPsxExecute (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
+    /*
+     * Get a new OwnerId for objects created by this method.  Namespace
+     * objects (such as Operation Regions) can be created during the
+     * first pass parse.
+     */
+    ObjDesc->Method.OwningId = AcpiUtAllocateOwnerId (ACPI_OWNER_TYPE_METHOD);
+
     /* Create and initialize a new walk state */
 
-    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
+    WalkState = AcpiDsCreateWalkState (ObjDesc->Method.OwningId,
                                     NULL, NULL, NULL);
     if (!WalkState)
     {
@@ -287,15 +294,6 @@ AcpiPsxExecute (
         }
     }
 
-    /* Now check status from the method execution */
-
-    if (ACPI_FAILURE (Status))
-    {
-        REPORT_ERROR (("Method execution failed, %s\n", AcpiFormatException (Status)));
-        DUMP_PATHNAME (MethodNode, "Method pathname: ",
-            ACPI_LV_ERROR, _COMPONENT);
-    }
-
     /*
      * If the method has returned an object, signal this to the caller with
      * a control exception code
@@ -304,7 +302,7 @@ AcpiPsxExecute (
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Method returned ObjDesc=%p\n",
             *ReturnObjDesc));
-        DUMP_STACK_ENTRY (*ReturnObjDesc);
+        ACPI_DUMP_STACK_ENTRY (*ReturnObjDesc);
 
         Status = AE_CTRL_RETURN_VALUE;
     }

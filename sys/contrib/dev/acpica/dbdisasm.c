@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisasm - parser op tree display routines
- *              $Revision: 53 $
+ *              $Revision: 61 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -125,10 +125,9 @@
 #ifdef ENABLE_DEBUGGER
 
 #define _COMPONENT          ACPI_DEBUGGER
-        MODULE_NAME         ("dbdisasm")
+        ACPI_MODULE_NAME    ("dbdisasm")
 
 
-#define MAX_SHOW_ENTRY      128
 #define BLOCK_PAREN         1
 #define BLOCK_BRACE         2
 #define DB_NO_OP_INFO       "            [%2.2d]  "
@@ -159,14 +158,12 @@ AcpiDbBlockType (
     {
     case AML_METHOD_OP:
         return (BLOCK_BRACE);
-        break;
 
     default:
         break;
     }
 
     return (BLOCK_PAREN);
-
 }
 
 
@@ -193,11 +190,26 @@ AcpiPsDisplayObjectPathname (
     ACPI_PARSE_OBJECT       *Op)
 {
     ACPI_PARSE_OBJECT       *TargetOp;
+    char                    *Name;
 
+
+    if (Op->Flags & ACPI_PARSEOP_GENERIC)
+    {
+        Name = Op->Value.Name;
+        if (Name[0] == '\\')
+        {
+            AcpiOsPrintf ("  (Fully Qualified Pathname)");
+            return (AE_OK);
+        }
+    }
+    else
+    {
+        Name = (char *) &((ACPI_PARSE2_OBJECT *) Op)->Name;
+    }
 
     /* Search parent tree up to the root if necessary */
 
-    TargetOp = AcpiPsFind (Op, Op->Value.Name, 0, 0);
+    TargetOp = AcpiPsFind (Op, Name, 0, 0);
     if (!TargetOp)
     {
         /*
@@ -229,8 +241,7 @@ AcpiPsDisplayObjectPathname (
 {
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
-    NATIVE_CHAR             Buffer[MAX_SHOW_ENTRY];
-    UINT32                  BufferSize = MAX_SHOW_ENTRY;
+    ACPI_BUFFER             Buffer;
     UINT32                  DebugLevel;
 
 
@@ -247,7 +258,7 @@ AcpiPsDisplayObjectPathname (
         /* Node not defined in this scope, look it up */
 
         Status = AcpiNsLookup (WalkState->ScopeInfo, Op->Value.String, ACPI_TYPE_ANY,
-                        IMODE_EXECUTE, NS_SEARCH_PARENT, WalkState, &(Node));
+                        ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, WalkState, &(Node));
 
         if (ACPI_FAILURE (Status))
         {
@@ -267,14 +278,16 @@ AcpiPsDisplayObjectPathname (
 
     /* Convert NamedDesc/handle to a full pathname */
 
-    Status = AcpiNsHandleToPathname (Node, &BufferSize, Buffer);
+    Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
+    Status = AcpiNsHandleToPathname (Node, &Buffer);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("****Could not get pathname****)");
         goto Exit;
     }
 
-    AcpiOsPrintf ("  (Path %s)", Buffer);
+    AcpiOsPrintf ("  (Path %s)", Buffer.Pointer);
+    ACPI_MEM_FREE (Buffer.Pointer);
 
 
 Exit:
@@ -465,7 +478,6 @@ AcpiDbDisplayNamestring (
     NATIVE_CHAR             *Name)
 {
     UINT32                  SegCount;
-    BOOLEAN                 DoDot = FALSE;
 
 
     if (!Name)
@@ -474,23 +486,29 @@ AcpiDbDisplayNamestring (
         return;
     }
 
-    if (AcpiPsIsPrefixChar (GET8 (Name)))
-    {
-        /* append prefix character */
+    /* Handle all Scope Prefix operators */
 
-        AcpiOsPrintf ("%1c", GET8 (Name));
+    while (AcpiPsIsPrefixChar (ACPI_GET8 (Name)))
+    {
+        /* Append prefix character */
+
+        AcpiOsPrintf ("%1c", ACPI_GET8 (Name));
         Name++;
     }
 
-    switch (GET8 (Name))
+    switch (ACPI_GET8 (Name))
     {
+    case 0:
+        SegCount = 0;
+        break;
+
     case AML_DUAL_NAME_PREFIX:
         SegCount = 2;
         Name++;
         break;
 
     case AML_MULTI_NAME_PREFIX_OP:
-        SegCount = (UINT32) GET8 (Name + 1);
+        SegCount = (UINT32) ACPI_GET8 (Name + 1);
         Name += 2;
         break;
 
@@ -499,21 +517,20 @@ AcpiDbDisplayNamestring (
         break;
     }
 
-    while (SegCount--)
+    while (SegCount)
     {
-        /* append Name segment */
+        /* Append Name segment */
 
-        if (DoDot)
+        AcpiOsPrintf ("%4.4s", Name);
+
+        SegCount--;
+        if (SegCount)
         {
-            /* append dot */
+            /* Not last name, append dot separator */
 
             AcpiOsPrintf (".");
         }
-
-        AcpiOsPrintf ("%4.4s", Name);
-        DoDot = TRUE;
-
-        Name += 4;
+        Name += ACPI_NAME_SIZE;
     }
 }
 

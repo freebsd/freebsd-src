@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl1.h - ACPI 1.0 tables
- *       $Revision: 17 $
+ *       $Revision: 21 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,53 +119,50 @@
 
 #pragma pack(1)
 
-/*************************************/
-/* ACPI Specification Rev 1.0 for    */
-/* the Root System Description Table */
-/*************************************/
+/*
+ * ACPI 1.0 Root System Description Table (RSDT)
+ */
 typedef struct
 {
-    ACPI_TABLE_HEADER       header;                 /* Table header */
+    ACPI_TABLE_HEADER       Header;                 /* ACPI Table header */
     UINT32                  TableOffsetEntry [1];   /* Array of pointers to other */
                                                     /* ACPI tables */
 } RSDT_DESCRIPTOR_REV1;
 
 
-/***************************************/
-/* ACPI Specification Rev 1.0 for      */
-/* the Firmware ACPI Control Structure */
-/***************************************/
+/*
+ * ACPI 1.0 Firmware ACPI Control Structure (FACS)
+ */
 typedef struct
 {
-    NATIVE_CHAR             Signature[4];           /* signature "FACS" */
-    UINT32                  Length;                 /* length of structure, in bytes */
-    UINT32                  HardwareSignature;      /* hardware configuration signature */
+    NATIVE_CHAR             Signature[4];           /* ACPI Signature */
+    UINT32                  Length;                 /* Length of structure, in bytes */
+    UINT32                  HardwareSignature;      /* Hardware configuration signature */
     UINT32                  FirmwareWakingVector;   /* ACPI OS waking vector */
     UINT32                  GlobalLock;             /* Global Lock */
     UINT32_BIT              S4Bios_f        : 1;    /* Indicates if S4BIOS support is present */
-    UINT32_BIT              Reserved1       : 31;   /* must be 0 */
-    UINT8                   Resverved3 [40];        /* reserved - must be zero */
+    UINT32_BIT              Reserved1       : 31;   /* Must be 0 */
+    UINT8                   Resverved3 [40];        /* Reserved - must be zero */
 
 } FACS_DESCRIPTOR_REV1;
 
 
-/************************************/
-/* ACPI Specification Rev 1.0 for   */
-/* the Fixed ACPI Description Table */
-/************************************/
+/*
+ * ACPI 1.0 Fixed ACPI Description Table (FADT)
+ */
 typedef struct
 {
-    ACPI_TABLE_HEADER       header;                 /* table header */
+    ACPI_TABLE_HEADER       Header;                 /* ACPI Table header */
     UINT32                  FirmwareCtrl;           /* Physical address of FACS */
     UINT32                  Dsdt;                   /* Physical address of DSDT */
     UINT8                   Model;                  /* System Interrupt Model */
-    UINT8                   Reserved1;              /* reserved */
+    UINT8                   Reserved1;              /* Reserved */
     UINT16                  SciInt;                 /* System vector of SCI interrupt */
     UINT32                  SmiCmd;                 /* Port address of SMI command port */
-    UINT8                   AcpiEnable;             /* value to write to smi_cmd to enable ACPI */
-    UINT8                   AcpiDisable;            /* value to write to smi_cmd to disable ACPI */
+    UINT8                   AcpiEnable;             /* Value to write to smi_cmd to enable ACPI */
+    UINT8                   AcpiDisable;            /* Value to write to smi_cmd to disable ACPI */
     UINT8                   S4BiosReq;              /* Value to write to SMI CMD to enter S4BIOS state */
-    UINT8                   Reserved2;              /* reserved - must be zero */
+    UINT8                   Reserved2;              /* Reserved - must be zero */
     UINT32                  Pm1aEvtBlk;             /* Port address of Power Mgt 1a AcpiEvent Reg Blk */
     UINT32                  Pm1bEvtBlk;             /* Port address of Power Mgt 1b AcpiEvent Reg Blk */
     UINT32                  Pm1aCntBlk;             /* Port address of Power Mgt 1a Control Reg Blk */
@@ -180,30 +177,30 @@ typedef struct
     UINT8                   PmTmLen;                /* Byte Length of ports at pm_tm_blk */
     UINT8                   Gpe0BlkLen;             /* Byte Length of ports at gpe0_blk */
     UINT8                   Gpe1BlkLen;             /* Byte Length of ports at gpe1_blk */
-    UINT8                   Gpe1Base;               /* offset in gpe model where gpe1 events start */
-    UINT8                   Reserved3;              /* reserved */
-    UINT16                  Plvl2Lat;               /* worst case HW latency to enter/exit C2 state */
-    UINT16                  Plvl3Lat;               /* worst case HW latency to enter/exit C3 state */
+    UINT8                   Gpe1Base;               /* Offset in gpe model where gpe1 events start */
+    UINT8                   Reserved3;              /* Reserved */
+    UINT16                  Plvl2Lat;               /* Worst case HW latency to enter/exit C2 state */
+    UINT16                  Plvl3Lat;               /* Worst case HW latency to enter/exit C3 state */
     UINT16                  FlushSize;              /* Size of area read to flush caches */
     UINT16                  FlushStride;            /* Stride used in flushing caches */
-    UINT8                   DutyOffset;             /* bit location of duty cycle field in p_cnt reg */
-    UINT8                   DutyWidth;              /* bit width of duty cycle field in p_cnt reg */
-    UINT8                   DayAlrm;                /* index to day-of-month alarm in RTC CMOS RAM */
-    UINT8                   MonAlrm;                /* index to month-of-year alarm in RTC CMOS RAM */
-    UINT8                   Century;                /* index to century in RTC CMOS RAM */
-    UINT8                   Reserved4;              /* reserved */
-    UINT8                   Reserved4a;             /* reserved */
-    UINT8                   Reserved4b;             /* reserved */
-    UINT32_BIT              WbInvd          : 1;    /* wbinvd instruction works properly */
-    UINT32_BIT              WbInvdFlush     : 1;    /* wbinvd flushes but does not invalidate */
-    UINT32_BIT              ProcC1          : 1;    /* all processors support C1 state */
+    UINT8                   DutyOffset;             /* Bit location of duty cycle field in p_cnt reg */
+    UINT8                   DutyWidth;              /* Bit width of duty cycle field in p_cnt reg */
+    UINT8                   DayAlrm;                /* Index to day-of-month alarm in RTC CMOS RAM */
+    UINT8                   MonAlrm;                /* Index to month-of-year alarm in RTC CMOS RAM */
+    UINT8                   Century;                /* Index to century in RTC CMOS RAM */
+    UINT8                   Reserved4;              /* Reserved */
+    UINT8                   Reserved4a;             /* Reserved */
+    UINT8                   Reserved4b;             /* Reserved */
+    UINT32_BIT              WbInvd          : 1;    /* The wbinvd instruction works properly */
+    UINT32_BIT              WbInvdFlush     : 1;    /* The wbinvd flushes but does not invalidate */
+    UINT32_BIT              ProcC1          : 1;    /* All processors support C1 state */
     UINT32_BIT              Plvl2Up         : 1;    /* C2 state works on MP system */
     UINT32_BIT              PwrButton       : 1;    /* Power button is handled as a generic feature */
     UINT32_BIT              SleepButton     : 1;    /* Sleep button is handled as a generic feature, or not present */
     UINT32_BIT              FixedRTC        : 1;    /* RTC wakeup stat not in fixed register space */
     UINT32_BIT              Rtcs4           : 1;    /* RTC wakeup stat not possible from S4 */
-    UINT32_BIT              TmrValExt       : 1;    /* tmr_val is 32 bits */
-    UINT32_BIT              Reserved5       : 23;   /* reserved - must be zero */
+    UINT32_BIT              TmrValExt       : 1;    /* The tmr_val width is 32 bits (0 = 24 bits) */
+    UINT32_BIT              Reserved5       : 23;   /* Reserved - must be zero */
 
 }  FADT_DESCRIPTOR_REV1;
 
