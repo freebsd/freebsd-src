@@ -1205,8 +1205,8 @@ ed_probe_Novell_generic(dev, flags)
 		device_printf(dev, "RAM start at %ld, size : %d.\n", mstart, msize);
 
 		sc->mem_size = msize;
-		sc->mem_start = (caddr_t) mstart;
-		sc->mem_end = (caddr_t) (msize + mstart);
+		sc->mem_start = (caddr_t)(uintptr_t) mstart;
+		sc->mem_end = (caddr_t)(uintptr_t) (msize + mstart);
 		sc->tx_page_start = mstart / ED_PAGE_SIZE;
 	}
 
@@ -2206,7 +2206,7 @@ outloop:
 			}
 		}
 	} else {
-		len = ed_pio_write_mbufs(sc, m, (long)buffer);
+		len = ed_pio_write_mbufs(sc, m, (uintptr_t)buffer);
 		if (len == 0) {
 			m_freem(m0);
 			goto outloop;
@@ -2282,8 +2282,8 @@ ed_rint(sc)
 		if (sc->mem_shared)
 			packet_hdr = *(struct ed_ring *) packet_ptr;
 		else
-			ed_pio_readmem(sc, (long)packet_ptr, (char *) &packet_hdr,
-				       sizeof(packet_hdr));
+			ed_pio_readmem(sc, (uintptr_t)packet_ptr,
+			    (char *) &packet_hdr, sizeof(packet_hdr));
 		len = packet_hdr.count;
 		if (len > (ETHER_MAX_LEN - ETHER_CRC_LEN + sizeof(struct ed_ring)) ||
 		    len < (ETHER_MIN_LEN - ETHER_CRC_LEN + sizeof(struct ed_ring))) {
@@ -2753,7 +2753,7 @@ ed_ring_copy(sc, src, dst, amount)
 		if (sc->mem_shared)
 			bcopy(src, dst, tmp_amount);
 		else
-			ed_pio_readmem(sc, (long)src, dst, tmp_amount);
+			ed_pio_readmem(sc, (uintptr_t)src, dst, tmp_amount);
 
 		amount -= tmp_amount;
 		src = sc->mem_ring;
@@ -2762,7 +2762,7 @@ ed_ring_copy(sc, src, dst, amount)
 	if (sc->mem_shared)
 		bcopy(src, dst, amount);
 	else
-		ed_pio_readmem(sc, (long)src, dst, amount);
+		ed_pio_readmem(sc, (uintptr_t)src, dst, amount);
 
 	return (src + amount);
 }
