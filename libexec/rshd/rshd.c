@@ -113,7 +113,6 @@ int	 local_domain __P((char *));
 char	*topdomain __P((char *));
 void	 usage __P((void));
 
-
 #define	OPTIONS	"alnDL"
 
 int
@@ -377,7 +376,6 @@ doit(fromp)
 #endif
 		pwd->pw_dir = "/";
 	}
-
 
 		if (errorstr ||
 		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire) ||
