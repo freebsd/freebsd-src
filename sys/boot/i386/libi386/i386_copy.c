@@ -11,7 +11,7 @@
 #include "libi386.h"
 #include "btxv86.h"
 
-#define READIN_BUF	4096
+#define READIN_BUF	(16 * 1024)
 
 int
 i386_copyin(void *src, vm_offset_t dest, size_t len)

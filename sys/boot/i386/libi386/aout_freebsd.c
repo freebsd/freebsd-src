@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_freebsd.c,v 1.8 1998/10/02 16:32:45 msmith Exp $
+ *	$Id: aout_freebsd.c,v 1.9 1998/10/02 20:53:16 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -71,10 +71,6 @@ aout_exec(struct loaded_module *mp)
     bi = (struct bootinfo *)PTOV(bootinfop);
     bi->bi_symtab = mp->m_addr + ehdr->a_text + ehdr->a_data + ehdr->a_bss;
     bi->bi_esymtab = bi->bi_symtab + sizeof(ehdr->a_syms) + ehdr->a_syms;
-
-#ifdef DEBUG
-    printf("Start @ 0x%lx ...\n", entry);
-#endif
 
     __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop);
 
