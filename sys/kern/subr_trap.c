@@ -177,7 +177,7 @@ ast(framep)
 		 * DIAGNOSTIC is not defined we don't bother with
 		 * making it NULL, and just leave it in place.
 		 * (don't remove this comment without removing the pointers
-		 * to it in sys/proc.h, */*/trap.c, kern/kern_fork.c and here.)
+		 * to it in sys/proc.h, trap.c, kern/kern_fork.c and here.)
 		 */
 		if (td->td_ucred)
 			panic("ast:thread got a cred before reaching AST");
