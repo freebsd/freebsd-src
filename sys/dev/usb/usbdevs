@@ -433,7 +433,7 @@ vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor JRC		0x1145	Japan Radio Company
-vendor DELORME		0x1163	Delorme Publishing
+vendor DELORME		0x1163	DeLorme Publishing
 vendor ACERCM		0x1189	Acer Communications & Multimedia Inc.
 vendor BELKIN2		0x1293	Belkin Components
 vendor MOBILITY		0x1342	Mobility
