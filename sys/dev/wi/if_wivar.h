@@ -199,6 +199,7 @@ struct wi_card_ident {
 #define ifaddr_byindex(idx) ifnet_addrs[(idx) - 1];
 #define	WI_LOCK(_sc, _s)	s = splimp()
 #define	WI_UNLOCK(_sc, _s)	splx(s)
+#if 0
 #define IF_HANDOFF(q, m, ifp) \
 		if (IF_QFULL((q))) { \
 			IF_DROP((q)); \
@@ -211,6 +212,7 @@ struct wi_card_ident {
 			if (((ifp)->if_flags & IFF_OACTIVE) == 0) \
 				(*(ifp)->if_start)((ifp)); \
 		}
+#endif
 #else
 #define	WI_LOCK(_sc, _s) _s = 1
 #define	WI_UNLOCK(_sc, _s)
