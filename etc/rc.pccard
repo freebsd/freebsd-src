@@ -4,6 +4,8 @@
 
 case ${pccard_enable} in
 [Yy][Ee][Ss])
+	echo "Enable PC-card."
+
 	case ${pccard_mem} in
 	[Dd][Ee][Ff][Aa][Uu][Ll][Tt])
 		pccardc pccardmem 0xd0000
@@ -21,7 +23,6 @@ case ${pccard_enable} in
 		pccardd_flags="${pccardd_flags} -f ${pccard_conf}"
 	fi
 
-	echo -n "Enable PC-card."
 	pccardd ${pccardd_flags} 2>&1 > /var/log/pccardd.debug
 	;;
 esac
