@@ -1,5 +1,5 @@
 .\" from: klist.1,v 4.8 89/01/24 14:35:09 jtkohl Exp $
-.\" $Id: klist.1,v 1.2 1994/07/19 19:27:38 g89r4222 Exp $
+.\" $Id: klist.1,v 1.1.1.1 1994/09/30 14:50:06 csgr Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -65,16 +65,16 @@ keys contained therein are printed.  If no file is
 specified with a
 .B \-file
 option, the default is
-.IR /etc/srvtab .
+.IR /etc/kerberosIV/srvtab .
 .SH FILES
 .TP 2i
-/etc/krb.conf
+/etc/kerberosIV/krb.conf
 to get the name of the local realm
 .TP
 /tmp/tkt[uid]
 as the default ticket file ([uid] is the decimal UID of the user).
 .TP
-/etc/srvtab
+/etc/kerberosIV/srvtab
 as the default service key file
 .SH SEE ALSO
 .PP

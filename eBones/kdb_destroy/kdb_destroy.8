@@ -1,5 +1,5 @@
 .\" from: kdb_destroy.8,v 4.1 89/01/23 11:08:02 jtkohl Exp $
-.\" $Id: kdb_destroy.8,v 1.2 1994/07/19 19:27:26 g89r4222 Exp $
+.\" $Id: kdb_destroy.8,v 1.1.1.1 1994/09/30 14:50:06 csgr Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -27,7 +27,10 @@ access permission error).
 The user aborted the deletion.
 .SH FILES
 .TP 20n
-/kerberos/principal.pag, /kerberos/principal.dir
-DBM files containing database
+/etc/kerberosIV/principal.db
+DBM file containing database
+.TP
+/etc/kerberosIV/principal.ok
+Semaphore indicating that the DBM database is not being modified.
 .SH SEE ALSO
 kdb_init(8)

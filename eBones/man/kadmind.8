@@ -1,5 +1,5 @@
 .\" from: kadmind.8,v 4.1 89/07/25 17:28:33 jtkohl Exp $
-.\" $Id: kadmind.8,v 1.2 1994/07/19 19:27:25 g89r4222 Exp $
+.\" $Id: kadmind.8,v 1.1.1.1 1994/09/30 14:50:06 csgr Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -95,19 +95,19 @@ in the database.
 A principal is always granted authorization to change its own password.
 .SH FILES
 .TP 20n
-/kerberos/admin_server.syslog
+/var/log/kadmind.syslog
 Default log file.
 .TP 
-/kerberos
-Default access control list directory.
+/etc/kerberosIV/admin_acl.{add,get,mod}
+Access control list files
 .TP
-admin_acl.{add,get,mod}
-Access control list files (within the directory)
+/etc/kerberosIV/principal.db
+DBM file containing database
 .TP
-/kerberos/principal.pag, /kerberos/principal.dir
-Default DBM files containing database
+/etc/kerberosIV/principal.ok
+Semaphore indicating that the DBM database is not being modified.
 .TP
-/.k
+/etc/kerberosIV/master_key
 Master key cache file.
 .SH "SEE ALSO"
 kerberos(1), kpasswd(1), kadmin(8), acl_check(3)

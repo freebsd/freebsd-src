@@ -1,5 +1,5 @@
 .\" from: krb_realmofhost.3,v 4.1 89/01/23 11:10:47 jtkohl Exp $
-.\" $Id: krb_realmofhost.3,v 1.2 1994/07/19 19:27:46 g89r4222 Exp $
+.\" $Id: krb_realmofhost.3,v 1.1.1.1 1994/09/30 14:50:07 csgr Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -13,8 +13,8 @@ krb_get_lrealm \- additional Kerberos utility routines
 .nf
 .nj
 .ft B
-#include <krb.h>
-#include <des.h>
+#include <kerberosIV/krb.h>
+#include <kerberosIV/des.h>
 #include <netinet/in.h>
 .PP
 .ft B
@@ -48,7 +48,7 @@ int n;
 returns the Kerberos realm of the host
 .IR host ,
 as determined by the translation table
-.IR /etc/krb.realms .
+.IR /etc/kerberosIV/krb.realms .
 .I host
 should be the fully-qualified domain-style primary host name of the host
 in question.  In order to prevent certain security attacks, this routine
@@ -96,7 +96,7 @@ with the hostname of the
 host running a Kerberos key distribution center (KDC)
 for realm
 .IR realm ,
-as specified in the configuration file (\fI/etc/krb.conf\fR).
+as specified in the configuration file (\fI/etc/kerberosIV/krb.conf\fR).
 The configuration file is described by 
 .IR krb.conf (5).
 If the host is successfully filled in, the routine
@@ -119,7 +119,7 @@ with the hostname of the
 host running a Kerberos KDC database administration server
 for realm
 .IR realm ,
-as specified in the configuration file (\fI/etc/krb.conf\fR).
+as specified in the configuration file (\fI/etc/kerberosIV/krb.conf\fR).
 If the file cannot be opened or is malformed, or there are fewer than
 .I n
 hosts running a Kerberos KDC database administration server,
@@ -145,10 +145,10 @@ should be at least REALM_SZ (from
 kerberos(3), krb.conf(5), krb.realms(5)
 .SH FILES
 .TP 20n
-/etc/krb.realms
+/etc/kerberosIV/krb.realms
 translation file for host-to-realm mapping.
 .TP
-/etc/krb.conf
+/etc/kerberosIV/krb.conf
 local realm-name and realm/server configuration file.
 .SH BUGS
 The current convention for instance names is too limited; the full
