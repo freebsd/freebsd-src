@@ -37,20 +37,21 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
-static const char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+#ifndef lint
+static char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
 #include <stdio.h>
@@ -59,10 +60,10 @@ static const char rcsid[] =
 #include <unistd.h>
 
 u_quad_t tlinect, twordct, tcharct;
-int doline, doword, dochar;
+int doline, doword, dochar, domulti;
 
-int cnt __P((char *));
-void usage __P((void));
+static int	cnt(const char *);
+static void	usage(void);
 
 int
 main(argc, argv)
@@ -73,7 +74,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "lwc")) != -1)
+	while ((ch = getopt(argc, argv, "clmw")) != -1)
 		switch((char)ch) {
 		case 'l':
 			doline = 1;
@@ -83,6 +84,11 @@ main(argc, argv)
 			break;
 		case 'c':
 			dochar = 1;
+			domulti = 0;
+			break;
+		case 'm':
+			domulti = 1;
+			dochar = 0;
 			break;
 		case '?':
 		default:
@@ -92,7 +98,7 @@ main(argc, argv)
 	argc -= optind;
 
 	/* Wc's flags are on by default. */
-	if (doline + doword + dochar == 0)
+	if (doline + doword + dochar + domulti == 0)
 		doline = doword = dochar = 1;
 
 	errors = 0;
@@ -116,23 +122,25 @@ main(argc, argv)
 			(void)printf(" %7qu", tlinect);
 		if (doword)
 			(void)printf(" %7qu", twordct);
-		if (dochar)
+		if (dochar || domulti)
 			(void)printf(" %7qu", tcharct);
 		(void)printf(" total\n");
 	}
 	exit(errors == 0 ? 0 : 1);
 }
 
-int
+static int
 cnt(file)
-	char *file;
+	const char *file;
 {
 	struct stat sb;
 	u_quad_t linect, wordct, charct;
-	int fd, len;
+	ssize_t nread;
+	int clen, fd, len, warned;
 	short gotsp;
 	u_char *p;
-	u_char buf[MAXBSIZE], ch;
+	u_char buf[MAXBSIZE];
+	wchar_t wch;
 
 	linect = wordct = charct = 0;
 	if (file == NULL) {
@@ -143,7 +151,7 @@ cnt(file)
 			warn("%s: open", file);
 			return (1);
 		}
-		if (doword)
+		if (doword || (domulti && MB_CUR_MAX != 1))
 			goto word;
 		/*
 		 * Line counting is split out because it's a lot faster to get
@@ -173,15 +181,15 @@ cnt(file)
 		}
 		/*
 		 * If all we need is the number of characters and it's a
-		 * regular or linked file, just stat the puppy.
+		 * regular file, just stat the puppy.
 		 */
-		if (dochar) {
+		if (dochar || domulti) {
 			if (fstat(fd, &sb)) {
 				warn("%s: fstat", file);
 				(void)close(fd);
 				return (1);
 			}
-			if (S_ISREG(sb.st_mode) || S_ISLNK(sb.st_mode)) {
+			if (S_ISREG(sb.st_mode)) {
 				(void)printf(" %7lld", (long long)sb.st_size);
 				tcharct += sb.st_size;
 				(void)close(fd);
@@ -191,23 +199,41 @@ cnt(file)
 	}
 
 	/* Do it the hard way... */
-word:	for (gotsp = 1; (len = read(fd, buf, MAXBSIZE));) {
-		if (len == -1) {
+word:	gotsp = 1;
+	len = 0;
+	warned = 0;
+	while ((nread = read(fd, buf + len, MAXBSIZE - len)) != 0) {
+		if (nread == -1) {
 			warn("%s: read", file);
 			(void)close(fd);
 			return (1);
 		}
-		/*
-		 * This loses in the presence of multi-byte characters.
-		 * To do it right would require a function to return a
-		 * character while knowing how many bytes it consumed.
-		 */
-		charct += len;
-		for (p = buf; len--;) {
-			ch = *p++;
-			if (ch == '\n')
+		len += nread;
+		p = buf;
+		while (len > 0) {
+			if (!domulti || MB_CUR_MAX == 1) {
+				clen = 1;
+				wch = (unsigned char)*p;
+			} else if ((clen = mbtowc(&wch, p, len)) <= 0) {
+				if (len > MB_CUR_MAX) {
+					clen = 1;
+					wch = (unsigned char)*p;
+					if (!warned) {
+						errno = EILSEQ;
+						warn("%s", file);
+						warned = 1;
+					}
+				} else {
+					memmove(buf, p, len);
+					break;
+				}
+			}
+			charct++;
+			len -= clen;
+			p += clen;
+			if (wch == L'\n')
 				++linect;
-			if (isspace(ch))
+			if (isspace(wch))
 				gotsp = 1;
 			else if (gotsp) {
 				gotsp = 0;
@@ -223,7 +249,7 @@ word:	for (gotsp = 1; (len = read(fd, buf, MAXBSIZE));) {
 		twordct += wordct;
 		(void)printf(" %7qu", wordct);
 	}
-	if (dochar) {
+	if (dochar || domulti) {
 		tcharct += charct;
 		(void)printf(" %7qu", charct);
 	}
@@ -231,9 +257,9 @@ word:	for (gotsp = 1; (len = read(fd, buf, MAXBSIZE));) {
 	return (0);
 }
 
-void
+static void
 usage()
 {
-	(void)fprintf(stderr, "usage: wc [-clw] [file ...]\n");
+	(void)fprintf(stderr, "usage: wc [-clmw] [file ...]\n");
 	exit(1);
 }
