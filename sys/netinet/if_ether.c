@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.17.4.1 1995/07/23 05:26:13 davidg Exp $
+ * $Id: if_ether.c,v 1.17.4.2 1996/02/20 17:55:04 fenner Exp $
  */
 
 /*
@@ -605,7 +605,8 @@ arp_ifinit(ac, ifa)
 	struct ifaddr *ifa;
 {
 	ac->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-	arpwhohas(ac, &ac->ac_ipaddr);
+	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY)
+		arpwhohas(ac, &ac->ac_ipaddr);
 	ifa->ifa_rtrequest = arp_rtrequest;
 	ifa->ifa_flags |= RTF_CLONING;
 }
