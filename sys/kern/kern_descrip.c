@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.43 1997/11/06 19:29:07 phk Exp $
+ * $Id: kern_descrip.c,v 1.44 1997/11/23 10:43:43 bde Exp $
  */
 
 #include <sys/param.h>
@@ -175,7 +175,7 @@ dup(p, uap)
 	/*
 	 * XXX Compatibility
 	 */
-	if (old &~ 077) { uap->fd &= 077; return (dup2(p, uap, retval)); }
+	if (old &~ 077) { uap->fd &= 077; return (dup2(p, uap, p->p_retval)); }
 #endif
 
 	fdp = p->p_fd;
@@ -239,7 +239,7 @@ fcntl(p, uap)
 
 	case F_SETFL:
 		fp->f_flag &= ~FCNTLFLAGS;
-		fp->f_flag |= FFLAGS(uap->arg) & FCNTLFLAGS;
+		fp->f_flag |= FFLAGS(uap->arg & ~O_ACCMODE) & FCNTLFLAGS;
 		tmp = fp->f_flag & FNONBLOCK;
 		error = (*fp->f_ops->fo_ioctl)(fp, FIONBIO, (caddr_t)&tmp, p);
 		if (error)
