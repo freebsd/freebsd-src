@@ -33,6 +33,7 @@
  * SUCH DAMAGE.
  */
 #include <dev/isp/isp_freebsd.h>
+#include <machine/stdarg.h>
 
 static void isp_intr_enable(void *);
 static void isp_cam_async(void *, u_int32_t, struct cam_path *, void *);
@@ -2227,7 +2228,6 @@ isp_uninit(struct ispsoftc *isp)
 	DISABLE_INTS(isp);
 }
 
-#include <stdarg.h>
 void
 isp_prt(struct ispsoftc *isp, int level, const char *fmt, ...)
 {
