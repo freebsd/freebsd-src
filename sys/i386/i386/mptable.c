@@ -2487,17 +2487,17 @@ ap_init(void)
 
 	mtx_lock_spin(&ap_boot_mtx);
 
-	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
-
 	smp_cpus++;
+
+	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
+	if (bootverbose)
+		printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
 	/* Build our map of 'other' CPUs. */
 	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
 	if (bootverbose)
 		apic_dump("ap_init()");
-
-	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
