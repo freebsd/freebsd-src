@@ -123,8 +123,9 @@ static driver_t acpi_pci_driver = {
 };
 
 DRIVER_MODULE(acpi_pci, pcib, acpi_pci_driver, pci_devclass, 0, 0);
-MODULE_VERSION(acpi_pci, 1);
+MODULE_DEPEND(acpi_pci, acpi, 1, 1, 1);
 MODULE_DEPEND(acpi_pci, pci, 1, 1, 1);
+MODULE_VERSION(acpi_pci, 1);
 
 static int
 acpi_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)

@@ -75,6 +75,7 @@ static driver_t acpi_lid_driver = {
 
 static devclass_t acpi_lid_devclass;
 DRIVER_MODULE(acpi_lid, acpi, acpi_lid_driver, acpi_lid_devclass, 0, 0);
+MODULE_DEPEND(acpi_lid, acpi, 1, 1, 1);
 
 static int
 acpi_lid_probe(device_t dev)

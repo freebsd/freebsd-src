@@ -87,6 +87,7 @@ static driver_t acpi_timer_driver = {
 
 static devclass_t acpi_timer_devclass;
 DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, acpi_timer_devclass, 0, 0);
+MODULE_DEPEND(acpi_timer, acpi, 1, 1, 1);
 
 static struct timecounter acpi_timer_timecounter = {
 	acpi_timer_get_timecount_safe,
