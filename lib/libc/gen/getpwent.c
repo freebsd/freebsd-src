@@ -1125,7 +1125,7 @@ nis_passwd(void *retval, void *mdata, va_list ap)
 fin:	
 	if (rv == NS_SUCCESS) {
 		if (strstr(pwd->pw_passwd, "##") != NULL) {
-			rv = nis_adjunct(st->domain, name,
+			rv = nis_adjunct(st->domain, pwd->pw_name,
 			    &buffer[resultlen+1], bufsize-resultlen-1);
 			if (rv < 0)
 				goto erange;
