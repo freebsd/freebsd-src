@@ -86,7 +86,6 @@ Andrew Moore <alm@FreeBSD.org>
 Atsushi Murai <amurai@spec.co.jp>
 Bill Paul <wpaul@FreeBSD.org>
 Bob Wilcox <bob@obiwan.uucp>
-Bruce Evans <bde@kralizec.zeta.org.au>
 Charles Hannum <mycroft@ai.mit.edu>
 Chris G. Demetriou <cgd@postgres.berkeley.edu>
 Christian Gusenbauer <cg@fimp01.fim.uni-linz.ac.at>
@@ -131,7 +130,6 @@ Paul Kranenburg <pk@cs.few.eur.nl>
 Paul Mackerras <paulus@cs.anu.edu.au>
 Paul Traina <pst@cisco.com>
 Peter Dufault <dufault@hda.com>
-Poul-Henning Kamp <phk@login.dkuug.dk>
 Chris Provenzano <proven@athena.mit.edu>
 Rob Shady <rls@id.net>
 Sascha Wildner <swildner@channelz.GUN.de>
@@ -142,7 +140,6 @@ Stefan Esser <se@MI.Uni-Koeln.DE>
 Stephen McKay <syssgm@devetir.qld.gov.au>
 Steve Gerakines <steve2@genesis.tiac.net>
 Steven Wallace <swallace@ece.uci.edu>
-Søren Schmidt <sos@login.dkuug.dk>
 Tatsumi Hosokawa <hosokawa@mt.cs.keio.ac.jp>
 Terry Lee <terry@uivlsi.csl.uiuc.edu>
 Theo Deraadt <deraadt@fsa.ca>
@@ -168,7 +165,6 @@ Barry Lustig <barry@ictv.com>
 Bob Wilcox <bob@obiwan.uucp>
 Branko Lankester
 Brett Lymn <blymn@mulga.awadi.com.AU>
-Bruce Evans <bde@kralizec.zeta.org.au>
 Charles Hannum <mycroft@ai.mit.edu>
 Chris G. Demetriou <cgd@postgres.berkeley.edu>
 Chris Torek <torek@ee.lbl.gov>
@@ -223,9 +219,7 @@ Paul Mackerras <paulus@cs.anu.edu.au>
 Paul Popelka <paulp@uts.amdahl.com>
 Peter da Silva <peter@NeoSoft.com>
 Phil Sutherland <philsuth@mycroft.dialix.oz.au>
-Poul-Henning Kamp <phk@login.dkuug.dk>
 Ralf Friedl <friedl@informatik.uni-kl.de>
-Rich Murphey <rich@lamprey.utmb.edu>
 Rick Macklem <root@snowhite.cis.uoguelph.ca>
 Robert D. Thrush <rd@phoenix.aii.com>
 Rodney W. Grimes <rgrimes@cdrom.com>
@@ -249,4 +243,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.11 1995/05/19 13:52:01 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.12 1995/05/20 07:02:22 jkh Exp $
