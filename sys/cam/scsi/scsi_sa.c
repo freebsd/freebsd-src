@@ -2403,7 +2403,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			 * Grotesque as it seems, the few times
 			 * I've actually seen a non-zero resid,
 			 * the tape drive actually lied and had
-			 * writtent all the data!.
+			 * written all the data!.
 			 */
 			csio->resid = 0;
 		}
