@@ -905,7 +905,10 @@ ndis_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->ndis_mtx), ("ndis mutex not initialized"));
+	KASSERT(mtx_initialized(sc->ndis_mtx),
+	    ("ndis mutex not initialized"));
+	KASSERT(mtx_initialized(sc->ndis_intrmtx),
+	    ("ndis interrupt mutex not initialized"));
 	NDIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_flags &= ~IFF_UP;
