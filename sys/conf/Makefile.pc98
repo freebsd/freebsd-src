@@ -36,6 +36,8 @@ S=	../..
 PC98=	${S}/pc98
 I386=	${S}/i386
 
+SIZE?=	size
+
 COPTFLAGS?=-O
 INCLUDES= -nostdinc -I- -I. -I$S
 # This hack is to allow kernel compiles to succeed on machines w/out srcdist
@@ -44,7 +46,9 @@ INCLUDES+= -I$S/../include
 .else
 INCLUDES+= -I/usr/include
 .endif
-COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h 
+COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h
+# KAME mandatory flags
+COPTS+=	-D_KERNEL
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
@@ -57,10 +61,11 @@ GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -UKERNEL
 # doesn't get exported into the environment, and if it were exported
 # then it might break building of genassym, etc.
 .if ${KERNFORMAT} == "elf"
-CFLAGS+=	-elf
+FMT=		-elf
 .else
-CFLAGS+=	-aout
+FMT=		-aout
 .endif
+CFLAGS+=	${FMT}
 
 LOAD_ADDRESS?=	C0100000
 DEFINED_PROF=	${PROF}
@@ -88,26 +93,21 @@ GEN_CFILES= ${I386}/i386/genassym.c
 # everything just to do a make depend.
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
 SYSTEM_SFILES= ${I386}/i386/locore.s
-SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
-.if ${CFLAGS:M-g} == ""
-SYMORDER_EXCLUDE=-x symbols.exclude
-.endif
+SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 
 .if ${KERNFORMAT} == aout || ${KERNFORMAT} == aoutkld
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o
-SYSTEM_LD= @${LD} -aout -Bforcedynamic -Z -T ${LOAD_ADDRESS} -o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL= @echo rearranging symbols; \
-	symorder -m ${SYMORDER_EXCLUDE} symbols.sort ${.TARGET}; \
-	size -aout ${.TARGET} ; chmod 755 ${.TARGET}
+SYSTEM_LD= @${LD} ${FMT} -Bforcedynamic -Z -T ${LOAD_ADDRESS} -o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
+SYSTEM_LD_TAIL= @${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
 .endif
 
 .if ${KERNFORMAT} == elf
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
 	setdef1.o hack.So
-SYSTEM_LD= @${LD} -elf -Bdynamic -T $S/i386/conf/kernel.script \
+SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/i386/conf/kernel.script \
 	-export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL= @size -elf ${.TARGET} ; chmod 755 ${.TARGET}
+SYSTEM_LD_TAIL= @${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
 SYSTEM_DEP+= $S/i386/conf/kernel.script
 .endif
 
@@ -160,14 +160,6 @@ clean:
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
 
-symbols.exclude:
-	echo "gcc2_compiled." >symbols.exclude
-	echo "___gnu_compiled_c" >>symbols.exclude
-
-symbols.sort: ${I386}/i386/symbols.raw
-	grep -v '^#' ${I386}/i386/symbols.raw \
-	    | sed 's/^	//' | sort -u > symbols.sort
-
 locore.o: ${I386}/i386/locore.s assym.s
 	${NORMAL_S}
 
@@ -177,7 +169,7 @@ locore.o: ${I386}/i386/locore.s assym.s
 # in the a.out ld.  For now, this works.
 hack.So: Makefile
 	touch hack.c
-	${CC} -elf -shared -nostdlib hack.c -o hack.So
+	${CC} ${FMT} -shared -nostdlib hack.c -o hack.So
 	rm -f hack.c
 .endif
 
