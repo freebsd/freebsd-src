@@ -74,7 +74,9 @@ apic_initialize(void)
 	temp = lapic.tpr;
 	temp &= ~APIC_TPR_PRIO;		/* clear priority field */
 #ifdef GRAB_LOPRIO
-	temp |= LOPRIO_LEVEL;		/* allow INT arbitration */
+	/* Leave the BSP at TPR 0 during boot to make sure it gets interrupts */
+	if (cpuid != 0)
+		temp |= LOPRIO_LEVEL;	/* allow INT arbitration */
 #endif
 	lapic.tpr = temp;
 
