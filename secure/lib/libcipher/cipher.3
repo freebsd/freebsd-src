@@ -33,7 +33,7 @@
 .\"
 .Dd March 9, 1994
 .Dt CIPHER 3
-.Os "FreeSec 1.0"
+.Os
 .Sh NAME
 .Nm setkey ,
 .Nm encrypt ,
@@ -105,8 +105,7 @@ iterations of
 and stores the 64-bit result in the 8 characters at
 .Fa out
 (which may be the same as
-.Fa in
-).
+.Fa in ) .
 The
 .Fa salt
 introduces disorder in the
@@ -145,7 +144,9 @@ functions manipulate the same key space.
 .Xr passwd 5
 .Sh HISTORY
 This library (FreeSec 1.0) was developed outside the United States of America
-as an unencumbered replacement for the U.S.-only NetBSD libcrypt encryption
+as an unencumbered replacement for the U.S.-only
+.Nx
+libcrypt encryption
 library.
 Users should be aware that this code (and programs staticly linked with it)
 may not be exported from the U.S., although it apparently can be imported.
