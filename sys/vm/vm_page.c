@@ -1654,9 +1654,9 @@ vm_page_cowfault(vm_page_t m)
 
 	object = m->object;
 	pindex = m->pindex;
-	vm_page_busy(m);
 
  retry_alloc:
+	vm_page_busy(m);
 	vm_page_remove(m);
 	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
 	if (mnew == NULL) {
@@ -1675,7 +1675,6 @@ vm_page_cowfault(vm_page_t m)
 		 * waiting to allocate a page.  If so, put things back 
 		 * the way they were 
 		 */
-		vm_page_busy(mnew);
 		vm_page_free(mnew);
 		vm_page_insert(m, object, pindex);
 	} else { /* clear COW & copy page */
