@@ -69,6 +69,7 @@ typedef	struct _plandata *creat_f(struct _option *, char ***);
 #define	F_MTTYPE	0x00001000
 #define	F_MTUNKNOWN	0x00002000
 #define	F_IGNCASE	0x00010000	/* iname ipath iregex */
+#define	F_EXACTTIME	F_IGNCASE	/* -[acm]time units syntax */
 
 /* node definition */
 typedef struct _plandata {
