@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: route.c,v 1.25 1997/02/22 19:56:23 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -730,8 +730,6 @@ ipx_print(sa)
 static	char mybuf[50];
 	char cport[10], chost[15], cnet[15];
 
-	if(!nflag)
-		sp = getservbyport(work.x_port, "ipx");
 	port = ntohs(work.x_port);
 
 	if (ipx_nullnet(work) && ipx_nullhost(work)) {
@@ -745,9 +743,7 @@ static	char mybuf[50];
 		return (mybuf);
 	}
 
-	if (!nflag && (np = getnetbyaddr(*(u_long *)&work.x_net, AF_IPX)))
-		net = np->n_name;
-	else if (ipx_wildnet(work))
+	if (ipx_wildnet(work))
 		net = "any";
 	else if (ipx_nullnet(work))
 		net = "*";
@@ -760,9 +756,7 @@ static	char mybuf[50];
 		net = p;
 	}
 
-	if (!nflag && (hp = gethostbyaddr((char *)&work.x_host, 6, AF_IPX)))
-		host = hp->h_name;
-	else if (ipx_wildhost(work))
+	if (ipx_wildhost(work))
 		host = "any";
 	else if (ipx_nullhost(work))
 		host = "*";
@@ -799,9 +793,6 @@ static	union ipx_net ipx_zeronet;
 
 	work = *sipx;
 	in = work.sipx_addr;
-
-	hp = gethostbyaddr((char *)&in, sizeof(struct ipx_addr), AF_IPX);
-	if (hp)	return (hp->h_name);
 
 	work.sipx_addr.x_port = 0;
 	work.sipx_addr.x_net = ipx_zeronet;
