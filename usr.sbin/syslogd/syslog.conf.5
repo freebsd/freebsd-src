@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
-.\"	$Id: syslog.conf.5,v 1.10 1998/06/10 04:34:54 julian Exp $
+.\"	$Id: syslog.conf.5,v 1.11 1998/07/22 06:15:16 phk Exp $
 .\"
 .Dd June 9, 1993
 .Dt SYSLOG.CONF 5
@@ -62,7 +62,19 @@ The
 .Em selector
 field is separated from the
 .Em action
-field by one or more tab characters.
+field by one or more tab characters or spaces. 
+.Pp
+Note that if you use spaces as separators, your 
+.Em syslog.conf
+might be incompatible with other Unices or Unix-like systems.
+This functionality was added for the ease of configuration
+(e.g. it is possible to cut-and-paste into 
+.Em syslog.conf
+), 
+and to avoid possible mistakes. This change however preserves 
+backwards compatibility with the old style of the
+.Em syslog.conf
+(i.e. tab characters only).
 .Pp
 The
 .Em Selectors
