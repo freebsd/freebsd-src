@@ -3744,7 +3744,7 @@ softdep_fsync_mountdev(vp)
 	struct buf *bp, *nbp;
 	struct worklist *wk;
 
-	if (!vn_isdisk(vp))
+	if (!vn_isdisk(vp, NULL))
 		panic("softdep_fsync_mountdev: vnode not a disk");
 	ACQUIRE_LOCK(&lk);
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
@@ -3806,7 +3806,7 @@ softdep_sync_metadata(ap)
 	 * Check whether this vnode is involved in a filesystem
 	 * that is doing soft dependency processing.
 	 */
-	if (!vn_isdisk(vp)) {
+	if (!vn_isdisk(vp, NULL)) {
 		if (!DOINGSOFTDEP(vp))
 			return (0);
 	} else
@@ -4031,7 +4031,8 @@ loop:
 	 * way to accomplish this is to sync the entire filesystem (luckily
 	 * this happens rarely).
 	 */
-	if (vn_isdisk(vp) && vp->v_specmountpoint && !VOP_ISLOCKED(vp, NULL) &&
+	if (vn_isdisk(vp, NULL) && 
+	    vp->v_specmountpoint && !VOP_ISLOCKED(vp, NULL) &&
 	    (error = VFS_SYNC(vp->v_specmountpoint, MNT_WAIT, ap->a_cred,
 	     ap->a_p)) != 0)
 		return (error);
