@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $Id: doscmd.c,v 1.4 1998/02/28 16:02:23 jraynard Exp $
+ * $Id: doscmd.c,v 1.5 1998/07/01 19:56:14 imp Exp $
  */
 
 #include <sys/types.h>
@@ -384,7 +384,7 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
 	/* no PATH in DOS environment? put current directory there*/
 	if (i >= ecnt) {
 	    static char path[256];
-	    sprintf(path, "PATH=C:%s", dos_getcwd(drlton('C')));
+	    snprintf(path, sizeof(path), "PATH=C:%s", dos_getcwd(drlton('C')));
 	    put_dosenv(path);
 	    dos_path = envs[ecnt-1] + 5;
 	}
@@ -456,13 +456,13 @@ find_doscmdrc(void)
     if ((fp = fopen(".doscmdrc", "r")) == NULL) {
 	struct passwd *pwd = getpwuid(geteuid());
 	if (pwd) {
-	    sprintf(buffer, "%s/.doscmdrc", pwd->pw_dir);
+	    snprintf(buffer, sizeof(buffer), "%s/.doscmdrc", pwd->pw_dir);
 	    fp = fopen(buffer, "r");
 	}
 	if (!fp) {
 	    char *home = getenv("HOME");
             if (home) {
-	        sprintf(buffer, "%s/.doscmdrc", home);
+	        snprintf(buffer, sizeof(buffer), "%s/.doscmdrc", home);
                 fp = fopen(buffer, "r");
 	    }
         }
