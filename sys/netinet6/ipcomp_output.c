@@ -171,12 +171,12 @@ ipcomp_output(m, nexthdrp, md, isr, af)
 	 * compromise two m_copym().  we will be going through every byte of
 	 * the payload during compression process anyways.
 	 */
-	mcopy = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+	mcopy = m_copym(m, 0, M_COPYALL, M_DONTWAIT);
 	if (mcopy == NULL) {
 		error = ENOBUFS;
 		return 0;
 	}
-	md0 = m_copym(md, 0, M_COPYALL, M_NOWAIT);
+	md0 = m_copym(md, 0, M_COPYALL, M_DONTWAIT);
 	if (md0 == NULL) {
 		m_freem(mcopy);
 		error = ENOBUFS;

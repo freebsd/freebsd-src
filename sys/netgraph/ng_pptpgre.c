@@ -532,7 +532,7 @@ ng_pptpgre_xmit(node_p node, item_p item)
 		m->m_len = m->m_pkthdr.len = grelen;
 		m->m_pkthdr.rcvif = NULL;
 	} else {
-		M_PREPEND(m, grelen, M_NOWAIT);
+		M_PREPEND(m, grelen, M_DONTWAIT);
 		if (m == NULL || (m->m_len < grelen
 		    && (m = m_pullup(m, grelen)) == NULL)) {
 			priv->stats.memoryFailures++;

@@ -648,7 +648,7 @@ smb_nbst_send(struct smb_vc *vcp, struct mbuf *m0, struct thread *td)
 		error = ENOTCONN;
 		goto abort;
 	}
-	M_PREPEND(m0, 4, M_WAITOK);
+	M_PREPEND(m0, 4, M_TRYWAIT);
 	if (m0 == NULL)
 		return ENOBUFS;
 	nb_sethdr(m0, NB_SSN_MESSAGE, m_fixhdr(m0) - 4);
