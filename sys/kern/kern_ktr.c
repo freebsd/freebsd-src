@@ -41,6 +41,7 @@
 #include <sys/types.h>
 #include <sys/cons.h>
 #include <sys/time.h>
+#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
 #include <sys/linker_set.h>
@@ -66,35 +67,43 @@
 #endif
 
 #ifdef KTR_EXTEND
+#define KTR_EXTEND_DEFAULT	1
+#else
+#define KTR_EXTEND_DEFAULT	0
+#endif
+
+#ifdef KTR_VERBOSE
+#define KTR_VERBOSE_DEFAULT	1
+#else
+#define KTR_VERBOSE_DEFAULT	0
+#endif
+
+SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
+
 /*
  * This variable is used only by gdb to work out what fields are in
  * ktr_entry.
  */
-int     ktr_extend = 1;
-SYSCTL_INT(_debug, OID_AUTO, ktr_extend, CTLFLAG_RD, &ktr_extend, 1, "");
-#else
-int     ktr_extend = 0;
-SYSCTL_INT(_debug, OID_AUTO, ktr_extend, CTLFLAG_RD, &ktr_extend, 0, "");
-#endif	/* KTR_EXTEND */
+int     ktr_extend = KTR_EXTEND_DEFAULT;
+SYSCTL_INT(_debug_ktr, OID_AUTO, extend, CTLFLAG_RD, &ktr_extend, 0, "");
 
-int	ktr_cpumask = KTR_CPUMASK;
-SYSCTL_INT(_debug, OID_AUTO, ktr_cpumask, CTLFLAG_RW, &ktr_cpumask, KTR_CPUMASK, "");
+int	ktr_cpumask;
+TUNABLE_INT_DECL("debug.ktr.cpumask", KTR_CPUMASK, ktr_cpumask);
+SYSCTL_INT(_debug_ktr, OID_AUTO, cpumask, CTLFLAG_RW, &ktr_cpumask, 0, "");
 
-int	ktr_mask = KTR_MASK;
-SYSCTL_INT(_debug, OID_AUTO, ktr_mask, CTLFLAG_RW, &ktr_mask, KTR_MASK, "");
+int	ktr_mask;
+TUNABLE_INT_DECL("debug.ktr.mask", KTR_MASK, ktr_mask);
+SYSCTL_INT(_debug_ktr, OID_AUTO, mask, CTLFLAG_RW, &ktr_mask, 0, "");
 
 int	ktr_entries = KTR_ENTRIES;
-SYSCTL_INT(_debug, OID_AUTO, ktr_entries, CTLFLAG_RD, &ktr_entries, KTR_ENTRIES, "");
+SYSCTL_INT(_debug_ktr, OID_AUTO, entries, CTLFLAG_RD, &ktr_entries, 0, "");
 
 volatile int	ktr_idx = 0;
 struct	ktr_entry ktr_buf[KTR_ENTRIES];
 
-#ifdef KTR_VERBOSE
-int	ktr_verbose = 1;
-#else
-int	ktr_verbose = 0;
-#endif
-SYSCTL_INT(_debug, OID_AUTO, ktr_verbose, CTLFLAG_RW, &ktr_verbose, 0, "");
+int	ktr_verbose;
+TUNABLE_INT_DECL("debug.ktr.verbose", KTR_VERBOSE_DEFAULT, ktr_verbose);
+SYSCTL_INT(_debug_ktr, OID_AUTO, verbose, CTLFLAG_RW, &ktr_verbose, 0, "");
 
 #ifdef KTR
 #ifdef KTR_EXTEND
