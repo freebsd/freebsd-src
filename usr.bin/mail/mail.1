@@ -728,12 +728,14 @@ is somewhat of a misnomer since the actual escape character can be set
 by the option
 .Ic escape .
 .Bl -tag -width Ds
-.It Ic \&~! Ns Ar command
-Execute the indicated shell command, then return to the message.
-.It Ic \&~b Ns Ar name ...
+.It Ic \&~a
+Inserts the autograph string from the sign= option into the message.
+.It Ic \&~A
+Inserts the autograph string from the Sign= option into the message.
+.It Ic \&~b Ar name ...
 Add the given names to the list of carbon copy recipients but do not make
 the names visible in the Cc: line ("blind" carbon copy).
-.It Ic \&~c Ns Ar name ...
+.It Ic \&~c Ar name ...
 Add the given names to the list of carbon copy recipients.
 .It Ic \&~d
 Read the file
@@ -744,7 +746,7 @@ Invoke the text editor on the message collected so far.
 After the
 editing session is finished, you may continue appending text to the
 message.
-.It Ic \&~f Ns Ar messages
+.It Ic \&~f Ar messages
 Read the named messages into the message being sent.
 If no messages are specified, read in the current message.
 Message headers currently being ignored (by the
@@ -752,7 +754,7 @@ Message headers currently being ignored (by the
 or
 .Ic retain
 command) are not included.
-.It Ic \&~F Ns Ar messages
+.It Ic \&~F Ar messages
 Identical to
 .Ic \&~f ,
 except all message headers are included.
@@ -760,7 +762,9 @@ except all message headers are included.
 Edit the message header fields by typing each one in turn and allowing
 the user to append text to the end or modify the field by using the
 current terminal erase and kill characters.
-.It Ic \&~m Ns Ar messages
+.It Ic \&~i Ar string
+Inserts the value of the named option into the text of the message.
+.It Ic \&~m Ar messages
 Read the named messages into the message being sent, indented by a
 tab or by the value of
 .Ar indentprefix  .
@@ -771,7 +775,7 @@ Message headers currently being ignored (by the
 or
 .Ic retain
 command) are not included.
-.It Ic \&~M Ns Ar messages
+.It Ic \&~M Ar messages
 Identical to
 .Ic \&~m ,
 except all message headers are included.
@@ -784,15 +788,19 @@ Abort the message being sent, copying the message to
 in your home directory if
 .Ic save
 is set.
-.It Ic \&~r Ns Ar filename
+.It Ic \&~r Ar filename , Ic \&~r Ar !command
+.It Ic \&~< Ar filename , Ic \&~< Ar !command
 Read the named file into the message.
-.It Ic \&~R Ns Ar string
+If the argument begins with a !,
+the rest of the string is taken as an arbitrary system command and is
+executed, with the standard output inserted into the message.
+.It Ic \&~R Ar string
 Use
 .Ar string
 as the Reply-To field.
-.It Ic \&~s Ns Ar string
+.It Ic \&~s Ar string
 Cause the named string to become the current subject field.
-.It Ic \&~\&t Ns Ar name ...
+.It Ic \&~\&t Ar name ...
 Add the given names to the direct recipient list.
 .It Ic \&~\&v
 Invoke an alternative editor (defined by the
@@ -803,9 +811,13 @@ Usually, the alternative editor will be a
 screen editor.
 After you quit the editor, you may resume appending
 text to the end of your message.
-.It Ic \&~w Ns Ar filename
+.It Ic \&~w Ar filename
 Write the message onto the named file.
-.It Ic \&~\&| Ns Ar command
+.It Ic \&~x
+Exits as with \&~q, except the message is not saved in dead.letter.
+.It Ic \&~! Ar command
+Execute the indicated shell command, then return to the message.
+.It Ic \&~\&| Ar command , Ic \&~^ Ar command
 Pipe the message through the command as a filter.
 If the command gives
 no output or terminates abnormally, retain the original text of the
@@ -815,10 +827,10 @@ The command
 is often used as
 .Ic command
 to rejustify the message.
-.It Ic \&~: Ns Ar mail-command
+.It Ic \&~: Ar mail-command , Ic \&~_ Ar mail-command
 Execute the given mail command.
 Not all commands, however, are allowed.
-.It Ic \&~~ Ns Ar string
+.It Ic \&~~ Ar string
 Insert the string of text in the message prefaced by a single ~.
 If
 you have changed the escape character, then you should double
