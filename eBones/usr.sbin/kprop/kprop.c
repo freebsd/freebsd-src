@@ -270,26 +270,25 @@ prop_to_slaves(sl, fd, fslv)
 		}
 		bcopy(&cs->net_addr, &sin.sin_addr,
 		      sizeof cs->net_addr);
-
+		/* for krb_mk_{priv, safe} */
+		bzero (&my_sin, sizeof my_sin);
+		n = sizeof my_sin;
+		if ((kerror = krb_get_local_addr (&my_sin)) != KSUCCESS) {
+		    fprintf (stderr, "kprop: can't get local address: %s\n",
+			     krb_err_txt[kerror]);
+		    close (s);
+		    continue;	/*** NEXT SLAVE ***/
+		}
+		if (bind(s, (struct sockaddr *) &my_sin, sizeof my_sin) < 0) {
+		    fprintf(stderr, "Unable to bind local address: ");
+		    perror("bind");
+		    close(s);
+		    continue;
+		}
 		if (connect(s, (struct sockaddr *) &sin, sizeof sin) < 0) {
 		    fprintf(stderr, "%s: ", cs->name);
 		    perror("connect");
 		    close(s);
-		    continue;	/*** NEXT SLAVE ***/
-		}
-		
-		/* for krb_mk_{priv, safe} */
-		bzero (&my_sin, sizeof my_sin);
-		n = sizeof my_sin;
-		if (getsockname (s, (struct sockaddr *) &my_sin, &n) != 0) {
-		    fprintf (stderr, "kprop: can't get socketname.");
-		    perror ("getsockname");
-		    close (s);
-		    continue;	/*** NEXT SLAVE ***/
-		}
-		if (n != sizeof (my_sin)) {
-		    fprintf (stderr, "kprop: can't get socketname. len");
-		    close (s);
 		    continue;	/*** NEXT SLAVE ***/
 		}
 		

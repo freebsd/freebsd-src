@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: krb_err_txt.c,v 4.7 88/12/01 14:10:14 jtkohl Exp $
- *	$Id: krb_err_txt.c,v 1.3 1995/07/18 16:39:02 mark Exp $
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_err_txt.c,v 1.3 1995/07/18 16:39:02 mark Exp $";
+"$Id$";
 #endif	lint
 #endif
 
@@ -103,10 +103,10 @@ char *krb_err_txt[256] = {
   "Bad ticket file format (tf_util)",			/* 079 */
   "Read ticket file before tf_init (tf_util)",		/* 080 */
   "Bad Kerberos name format (kname_parse)",		/* 081 */
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
+  "Can't open socket",					/* 082 */
+  "Can't retrieve local interface list",		/* 083 */
+  "No valid local interface found",			/* 084 */
+  "Can't bind local address",				/* 085 */
   "(reserved)",
   "(reserved)",
   "(reserved)",

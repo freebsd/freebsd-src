@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.7 1995/09/14 18:16:18 gibbs Exp $
+#	$Id$
 
 PROG=	kadmin
 SRCS=	${KRBOBJDIR}/krb_err.h kadmin.c kadmin_cmds.c
 CLEANFILES+=	kadmin_cmds.c krb_err.c
-CFLAGS+=	-DPOSIX -I${.CURDIR}/../../lib/libkadm
+CFLAGS+=	-DPOSIX -I${.CURDIR}/../../lib/libkadm -I${KRBOBJDIR}
 DPADD= ${LIBKRB} ${LIBDES}
 LDADD+=	-L${KADMOBJDIR} -lkadm -L${KRBOBJDIR} -lkrb -L${DESOBJDIR} -ldes
 LDADD+=	-lss -lcom_err

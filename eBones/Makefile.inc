@@ -1,14 +1,12 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile.inc,v 1.8 1995/09/14 18:16:08 gibbs Exp $
+#	$Id$
 
 DISTRIBUTION=	krb
 
-INCLUDEDIR=	${.CURDIR}/../../include
-
-.if exists(${.CURDIR}/../../des/obj)
-DESOBJDIR=	${.CURDIR}/../../des/obj
+.if exists(${.CURDIR}/../../../secure/lib/libdes/obj)
+DESOBJDIR=	${.CURDIR}/../../../secure/lib/libdes/obj
 .else
-DESOBJDIR=	${.CURDIR}/../../des
+DESOBJDIR=	${.CURDIR}/../../../secure/lib/libdes
 .endif
 
 .if exists(${.CURDIR}/../../lib/libkrb/obj)
@@ -41,7 +39,7 @@ RKINITOBJDIR= ${.CURDIR}/../../lib/librkinit/obj
 RKINITOBJDIR= ${.CURDIR}/../../lib/librkinit
 .endif
 
-CFLAGS+= -I${INCLUDEDIR} -Wall
+CFLAGS+= -I${.CURDIR}/../../../secure/lib/libdes -I${.CURDIR}/../../include -Wall
 
 COMPILE_ET=     compile_et
 

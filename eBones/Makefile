@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
 #	$Id$
 
-SUBDIR=	des include lib libexec usr.bin usr.sbin
+SUBDIR=	include lib libexec usr.bin usr.sbin man
 
 SDIR= ${.CURDIR}/..
 
@@ -28,7 +28,7 @@ kprog:
 
 bootstrap:
 	( cd include; ${MAKE} ${MFLAGS} install )
-	( cd des; ${MAKE} ${MFLAGS} depend all install )
+	( cd lib; ${MAKE} ${MFLAGS} depend all install )
 	${MAKE} ${MFLAGS} cleandir
 	${MAKE} ${MFLAGS} obj
 	${MAKE} ${MFLAGS} depend all install kprog

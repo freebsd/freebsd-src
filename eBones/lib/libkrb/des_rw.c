@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: des_rw.c,v 1.6 1995/07/18 16:38:17 mark Exp $
+ * $Id$
  */
 
 /*
@@ -122,7 +122,7 @@ static u_char		*buff_ptr = buffer;
  */
 
 int
-des_set_key(inkey, insched)
+des_set_key_krb(inkey, insched)
 	des_cblock *inkey;
 	des_key_schedule insched;
 {
@@ -135,7 +135,8 @@ des_set_key(inkey, insched)
  * Clear the key schedule, and initial vector, which were previously
  * stored in static vars by des_set_key().
  */
-void des_clear_key()
+void
+des_clear_key_krb()
 {
 	bzero(&des_key, sizeof(des_cblock));
 	bzero(&key_schedule, sizeof(des_key_schedule));

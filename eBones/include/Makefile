@@ -1,9 +1,7 @@
 #	from: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.4 1995/09/13 17:23:44 markm Exp $
+#	$Id$
 
-FILES=	kparse.h krb.h krb_db.h des.h
-
-# mit-copyright.h kadm_err.h krb_err.h
+FILES=	kparse.h krb.h krb_db.h
 
 NOOBJ=	noobj
 NOMAN=	noman

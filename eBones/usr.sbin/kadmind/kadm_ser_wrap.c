@@ -26,8 +26,8 @@ unwraps wrapped packets and calls the appropriate server subroutine
 #include <netdb.h>
 #include <sys/socket.h>
 #include <kadm.h>
-#include <kerberosIV/kadm_err.h>
-#include <kerberosIV/krb_err.h>
+#include <kadm_err.h>
+#include <krb_err.h>
 #include "kadm_server.h"
 
 Kadm_Server server_parm;

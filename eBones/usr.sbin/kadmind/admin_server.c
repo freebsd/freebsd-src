@@ -35,7 +35,7 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <com_err.h>
 #include <kadm.h>
-#include <kerberosIV/kadm_err.h>
+#include <kadm_err.h>
 #include <krb_db.h>
 #include "kadm_server.h"
 

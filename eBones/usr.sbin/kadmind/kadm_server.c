@@ -16,7 +16,7 @@ static char rcsid_kadm_server_c[] =
 
 #include <string.h>
 #include <kadm.h>
-#include <kerberosIV/kadm_err.h>
+#include <kadm_err.h>
 #include "kadm_server.h"
 
 /*
