@@ -231,7 +231,8 @@ rue_read_mem(struct rue_softc *sc, u_int16_t addr, void *buf, u_int16_t len)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, len);
 
-	err = usbd_do_request(sc->rue_udev, &req, buf);
+	err = usbd_do_request_flags(sc->rue_udev, &req, buf,
+	    USBD_NO_TSLEEP, NULL, USBD_DEFAULT_TIMEOUT);
 
 	RUE_UNLOCK(sc);
 
@@ -261,7 +262,8 @@ rue_write_mem(struct rue_softc *sc, u_int16_t addr, void *buf, u_int16_t len)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, len);
 
-	err = usbd_do_request(sc->rue_udev, &req, buf);
+	err = usbd_do_request_flags(sc->rue_udev, &req, buf,
+	    USBD_NO_TSLEEP, NULL, USBD_DEFAULT_TIMEOUT);
 
 	RUE_UNLOCK(sc);
 
@@ -1008,6 +1010,7 @@ rue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct rue_chain	*c = priv;
 	struct rue_softc	*sc = c->rue_sc;
 	struct ifnet		*ifp;
+	struct mbuf		*m;
 	usbd_status		err;
 
 	RUE_LOCK(sc);
@@ -1028,13 +1031,16 @@ rue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	}
 
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
-	usbd_get_xfer_status(c->rue_xfer, NULL, NULL, NULL, &err);
 
-	if (c->rue_mbuf != NULL) {
-		c->rue_mbuf->m_pkthdr.rcvif = ifp;
-		usb_tx_done(c->rue_mbuf);
-		c->rue_mbuf = NULL;
+	usbd_get_xfer_status(c->rue_xfer, NULL, NULL, NULL, &err);
+	m = c->rue_mbuf;
+	c->rue_mbuf = NULL;
+
+	ifp->if_flags &= ~IFF_OACTIVE;
+
+	if (m != NULL) {
+		m->m_pkthdr.rcvif = ifp;
+		usb_tx_done(m);
 	}
 
 	if (err)
@@ -1065,11 +1071,14 @@ rue_tick(void *xsc)
 	}
 
 	mii_tick(mii);
-	if (!sc->rue_link && mii->mii_media_status & IFM_ACTIVE &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		sc->rue_link++;
-		if (ifp->if_snd.ifq_head != NULL)
-			rue_start(ifp);
+	if (!sc->rue_link) {
+		mii_pollstat(mii);
+		if (mii->mii_media_status & IFM_ACTIVE &&
+		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+			sc->rue_link++;
+			if (ifp->if_snd.ifq_head != NULL)
+				rue_start(ifp);
+		}
 	}
 
 	sc->rue_stat_ch = timeout(rue_tick, sc, hz);
@@ -1334,6 +1343,11 @@ rue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	RUE_LOCK(sc);
 
 	switch (command) {
+	case SIOCSIFADDR:
+	case SIOCGIFADDR:
+	case SIOCSIFMTU:
+		error = ether_ioctl(ifp, command, data);
+		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
@@ -1368,7 +1382,7 @@ rue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
-		error = ether_ioctl(ifp, command, data);
+		error = EINVAL;
 		break;
 	}
 

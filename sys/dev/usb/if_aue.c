@@ -271,7 +271,8 @@ aue_csr_read_1(struct aue_softc *sc, int reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	err = usbd_do_request(sc->aue_udev, &req, &val);
+	err = usbd_do_request_flags(sc->aue_udev, &req,
+	    &val, USBD_NO_TSLEEP, NULL, USBD_DEFAULT_TIMEOUT);
 
 	AUE_UNLOCK(sc);
 
@@ -300,7 +301,8 @@ aue_csr_read_2(struct aue_softc *sc, int reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 2);
 
-	err = usbd_do_request(sc->aue_udev, &req, &val);
+	err = usbd_do_request_flags(sc->aue_udev, &req,
+	    &val, USBD_NO_TSLEEP, NULL, USBD_DEFAULT_TIMEOUT);
 
 	AUE_UNLOCK(sc);
 
@@ -328,7 +330,8 @@ aue_csr_write_1(struct aue_softc *sc, int reg, int val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	err = usbd_do_request(sc->aue_udev, &req, &val);
+	err = usbd_do_request_flags(sc->aue_udev, &req,
+	    &val, USBD_NO_TSLEEP, NULL, USBD_DEFAULT_TIMEOUT);
 
 	AUE_UNLOCK(sc);
 
@@ -356,7 +359,8 @@ aue_csr_write_2(struct aue_softc *sc, int reg, int val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 2);
 
-	err = usbd_do_request(sc->aue_udev, &req, &val);
+	err = usbd_do_request_flags(sc->aue_udev, &req,
+	    &val, USBD_NO_TSLEEP, NULL, USBD_DEFAULT_TIMEOUT);
 
 	AUE_UNLOCK(sc);
 
@@ -1072,6 +1076,7 @@ aue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct aue_chain	*c = priv;
 	struct aue_softc	*sc = c->aue_sc;
 	struct ifnet		*ifp;
+	struct mbuf		*m;
 	usbd_status		err;
 
 	AUE_LOCK(sc);
@@ -1091,13 +1096,16 @@ aue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	}
 
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
-	usbd_get_xfer_status(c->aue_xfer, NULL, NULL, NULL, &err);
 
-	if (c->aue_mbuf != NULL) {
-		c->aue_mbuf->m_pkthdr.rcvif = ifp;
-		usb_tx_done(c->aue_mbuf);
-		c->aue_mbuf = NULL;
+	usbd_get_xfer_status(c->aue_xfer, NULL, NULL, NULL, &err);
+	m = c->aue_mbuf;
+	c->aue_mbuf = NULL;
+
+ 	ifp->if_flags &= ~IFF_OACTIVE;
+
+	if (m != NULL) {
+		m->m_pkthdr.rcvif = ifp;
+		usb_tx_done(m);
 	}
 
 	if (err)
@@ -1130,11 +1138,14 @@ aue_tick(void *xsc)
 	}
 
 	mii_tick(mii);
-	if (!sc->aue_link && mii->mii_media_status & IFM_ACTIVE &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		sc->aue_link++;
-		if (ifp->if_snd.ifq_head != NULL)
-			aue_start(ifp);
+	if (!sc->aue_link) {
+		mii_pollstat(mii);
+		if (mii->mii_media_status & IFM_ACTIVE &&
+		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+			sc->aue_link++;
+			if (ifp->if_snd.ifq_head != NULL)
+				aue_start(ifp);
+		}
 	}
 
 	sc->aue_stat_ch = timeout(aue_tick, sc, hz);
@@ -1392,6 +1403,11 @@ aue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	AUE_LOCK(sc);
 
 	switch(command) {
+	case SIOCSIFADDR:
+	case SIOCGIFADDR:
+	case SIOCSIFMTU:
+		error = ether_ioctl(ifp, command, data);
+		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
@@ -1422,7 +1438,7 @@ aue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
-		error = ether_ioctl(ifp, command, data);
+		error = EINVAL;
 		break;
 	}
 

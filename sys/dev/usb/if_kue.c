@@ -192,7 +192,7 @@ kue_do_request(usbd_device_handle dev, usb_device_request_t *req, void *data)
 
 	xfer = usbd_alloc_xfer(dev);
 	usbd_setup_default_xfer(xfer, dev, 0, 500000, req,
-	    data, UGETW(req->wLength), USBD_SHORT_XFER_OK, 0);
+	    data, UGETW(req->wLength), USBD_SHORT_XFER_OK|USBD_NO_TSLEEP, 0);
 	err = usbd_sync_transfer(xfer);
 	usbd_free_xfer(xfer);
 	return(err);
@@ -753,6 +753,7 @@ kue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct kue_softc	*sc;
 	struct kue_chain	*c;
 	struct ifnet		*ifp;
+	struct mbuf		*m;
 	usbd_status		err;
 
 	c = priv;
@@ -760,8 +761,6 @@ kue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	KUE_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
-	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
@@ -776,12 +775,17 @@ kue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		return;
 	}
 
-	usbd_get_xfer_status(c->kue_xfer, NULL, NULL, NULL, &err);
+	ifp->if_timer = 0;
 
-	if (c->kue_mbuf != NULL) {
-		c->kue_mbuf->m_pkthdr.rcvif = ifp;
-		usb_tx_done(c->kue_mbuf);
-		c->kue_mbuf = NULL;
+	usbd_get_xfer_status(c->kue_xfer, NULL, NULL, NULL, &err);
+	m = c->kue_mbuf;
+	c->kue_mbuf = NULL;
+
+	ifp->if_flags &= ~IFF_OACTIVE;
+
+	if (m != NULL) {
+		m->m_pkthdr.rcvif = ifp;
+		usb_tx_done(m);
 	}
 
 	if (err)
@@ -976,6 +980,11 @@ kue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	KUE_LOCK(sc);
 
 	switch(command) {
+	case SIOCSIFADDR:
+	case SIOCGIFADDR:
+	case SIOCSIFMTU:
+		error = ether_ioctl(ifp, command, data);
+		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
@@ -1005,7 +1014,7 @@ kue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = 0;
 		break;
 	default:
-		error = ether_ioctl(ifp, command, data);
+		error = EINVAL;
 		break;
 	}
 
