@@ -1,13 +1,12 @@
-#	From: @(#)Makefile	8.1 (Berkeley) 6/19/93
+# Make `routed` for FreeBSD
 # $FreeBSD$
 
-PROG=	routed
-SRCS=	if.c input.c main.c output.c parms.c radix.c rdisc.c table.c \
-	trace.c
-MAN8=	routed.8
-SUBDIR=	rtquery
-LDADD+=	-lmd
-DPADD+=	${LIBMD}
-#COPTS=	-g -DDEBUG -Wall
+PROG=   routed
+SRCS=   if.c input.c main.c output.c parms.c radix.c rdisc.c table.c trace.c
+MAN8=   routed.8
+SUBDIR= rtquery
+LDADD+= -lmd
+DPADD+= ${LIBMD}
+#COPTS= -g -DDEBUG -W -Wall -Wcast-align -Wcast-qual -Winline -Wpointer-arith -Wnested-externs -Wwrite-strings -Wunused
 
 .include <bsd.prog.mk>
