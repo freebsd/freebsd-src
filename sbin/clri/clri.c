@@ -70,7 +70,7 @@ static int sblock_try[] = SBLOCKSEARCH;
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: clri file system inode ...\n");
+	(void)fprintf(stderr, "usage: clri special_device inode_number ...\n");
 	exit(1);
 }
 
@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 			break;
 	}
 	if (sblock_try[i] == -1) {
-		fprintf(stderr, "Cannot find file system\n");
+		fprintf(stderr, "Cannot find special_device\n");
 		exit(2);
 	}
 	bsize = sbp->fs_bsize;
