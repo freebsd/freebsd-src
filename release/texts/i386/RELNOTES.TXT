@@ -139,6 +139,9 @@ firmware:
 Booting from these controllers is supported. EISA adapters are not 
 supported.
 
+3ware Escalade ATA RAID controllers.  All members of the 5000 and
+6000 series are supported.
+
 SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
 53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
         ASUS SC-200
