@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: asnames.h,v 1.1 1997/04/22 06:55:32 jdp Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -57,9 +57,18 @@
 #define _APTmap				APTmap
 #define _CONST_QNaN			CONST_QNaN
 #define _IdlePTD			IdlePTD
+#define _MP_GDT				MP_GDT
+#define _MPgetlock			MPgetlock
+#define _MPrellock			MPrellock
+#define _MPtrylock			MPtrylock
 #define _PTD				PTD
 #define _PTDpde				PTDpde
 #define _PTmap				PTmap
+#define _SMPcommon_tss_ptr		SMPcommon_tss_ptr
+#define _SMPcurpcb			SMPcurpcb
+#define _SMPcurproc			SMPcurproc
+#define _SMPnpxproc			SMPnpxproc
+#define _SMPruntime			SMPruntime
 #define _Xalign				Xalign
 #define _Xbnd				Xbnd
 #define _Xbpt				Xbpt
@@ -74,7 +83,15 @@
 #define _Xfastintr13			Xfastintr13
 #define _Xfastintr14			Xfastintr14
 #define _Xfastintr15			Xfastintr15
+#define _Xfastintr16			Xfastintr16
+#define _Xfastintr17			Xfastintr17
+#define _Xfastintr18			Xfastintr18
+#define _Xfastintr19			Xfastintr19
 #define _Xfastintr2			Xfastintr2
+#define _Xfastintr20			Xfastintr20
+#define _Xfastintr21			Xfastintr21
+#define _Xfastintr22			Xfastintr22
+#define _Xfastintr23			Xfastintr23
 #define _Xfastintr3			Xfastintr3
 #define _Xfastintr4			Xfastintr4
 #define _Xfastintr5			Xfastintr5
@@ -94,14 +111,25 @@
 #define _Xintr13			Xintr13
 #define _Xintr14			Xintr14
 #define _Xintr15			Xintr15
+#define _Xintr16			Xintr16
+#define _Xintr17			Xintr17
+#define _Xintr18			Xintr18
+#define _Xintr19			Xintr19
 #define _Xintr2				Xintr2
+#define _Xintr20			Xintr20
+#define _Xintr21			Xintr21
+#define _Xintr22			Xintr22
+#define _Xintr23			Xintr23
 #define _Xintr3				Xintr3
 #define _Xintr4				Xintr4
 #define _Xintr5				Xintr5
 #define _Xintr6				Xintr6
 #define _Xintr7				Xintr7
 #define _Xintr8				Xintr8
+#define _Xintr8254			Xintr8254
 #define _Xintr9				Xintr9
+#define _XintrRTC			XintrRTC
+#define _Xinvltlb			Xinvltlb
 #define _Xmchk				Xmchk
 #define _Xmissing			Xmissing
 #define _Xnmi				Xnmi
@@ -116,6 +144,8 @@
 #define __ucodesel			_ucodesel
 #define __udatasel			_udatasel
 #define _alltraps			alltraps
+#define _apic_base			apic_base
+#define _apic_id_to_logical		apic_id_to_logical
 #define _apm_addr			apm_addr
 #define _apm_bios_call			apm_bios_call
 #define _apm_cs16_base			apm_cs16_base
@@ -135,18 +165,25 @@
 #define _arith_underflow		arith_underflow
 #define _bcopy				bcopy
 #define _bcopy_vector			bcopy_vector
+#define _bigJump			bigJump
 #define _bio_imask			bio_imask
 #define _bluetrap			bluetrap
+#define _bootCodeSeg			bootCodeSeg
+#define _bootDataSeg			bootDataSeg
+#define _bootMP				bootMP
+#define _bootMP_size			bootMP_size
 #define _bootdev			bootdev
 #define _boothowto			boothowto
 #define _bootinfo			bootinfo
 #define _bootstrap_gdt			bootstrap_gdt
 #define _bzero				bzero
 #define _cnt				cnt
+#define _common_tss			common_tss
 #define _copyin_vector			copyin_vector
 #define _copyout_vector			copyout_vector
 #define _cpl				cpl
 #define _cpu				cpu
+#define _cpu_apic_versions		cpu_apic_versions
 #define _cpu_class			cpu_class
 #define _cpu_feature			cpu_feature
 #define _cpu_high			cpu_high
@@ -156,6 +193,7 @@
 #define _curproc			curproc
 #define _currentldt			currentldt
 #define _cypoll				cypoll
+#define _default_halt			default_halt
 #define _denormal_operand		denormal_operand
 #define _div_small			div_small
 #define _divide_by_zero			divide_by_zero
@@ -171,12 +209,15 @@
 #define _generic_bzero			generic_bzero
 #define _generic_copyin			generic_copyin
 #define _generic_copyout		generic_copyout
+#define _get_mplock			get_mplock
+#define _hwisrs				hwisrs
 #define _i586_ctr_bias			i586_ctr_bias
 #define _i586_ctr_freq			i586_ctr_freq
 #define _i586_ctr_multiplier		i586_ctr_multiplier
 #define _idqs				idqs
 #define _imen				imen
 #define _init386			init386
+#define _init_secondary			init_secondary
 #define _intr_countp			intr_countp
 #define _intr_handler			intr_handler
 #define _intr_mask			intr_mask
@@ -184,12 +225,20 @@
 #define _intr_unit			intr_unit
 #define _intrcnt			intrcnt
 #define _intrnames			intrnames
+#define _io_apic_base			io_apic_base
 #define _ipending			ipending
+#define _ivectors			ivectors
 #define _kernelname			kernelname
 #define _kstack				kstack
 #define _linux_sigcode			linux_sigcode
 #define _linux_szsigcode		linux_szsigcode
 #define _main				main
+#define _mask8254			mask8254
+#define _maskRTC			maskRTC
+#define _microtime			microtime
+#define _mp_gdtbase			mp_gdtbase
+#define _mp_lock			mp_lock
+#define _mp_ncpus			mp_ncpus
 #define _mul64				mul64
 #define _net_imask			net_imask
 #define _netisr				netisr
@@ -220,8 +269,11 @@
 #define _reg_u_div			reg_u_div
 #define _reg_u_mul			reg_u_mul
 #define _reg_u_sub			reg_u_sub
+#define _rel_mplock			rel_mplock
 #define _round_reg			round_reg
 #define _rtqs				rtqs
+#define _runtime			runtime
+#define _secondary_main			secondary_main
 #define _set_precision_flag_down	set_precision_flag_down
 #define _set_precision_flag_up		set_precision_flag_up
 #define _set_user_ldt			set_user_ldt
@@ -229,6 +281,7 @@
 #define _shrxs				shrxs
 #define _sigcode			sigcode
 #define _siopoll			siopoll
+#define _smp_active			smp_active
 #define _softclock			softclock
 #define _splz				splz
 #define _syscall			syscall
@@ -242,8 +295,13 @@
 #define _trapwrite			trapwrite
 #define _tty_imask			tty_imask
 #define _userconfig_from_boot		userconfig_from_boot
+#define _vec8254			vec8254
+#define _vecRTC				vecRTC
 #define _vm_page_zero_idle		vm_page_zero_idle
 #define _want_resched			want_resched
+#define _whichidqs			whichidqs
+#define _whichqs			whichqs
+#define _whichrtqs			whichrtqs
 #define _wm_sqrt			wm_sqrt
 
 #endif /* __ELF__ */
