@@ -36,6 +36,9 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <stdio.h>
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 #include "system.h"
 #include "long-options.h"
 
@@ -1459,6 +1462,9 @@ main (argc, argv)
   struct sigaction oldact, newact;
 #endif				/* _POSIX_VERSION */
 
+#ifdef __FreeBSD__
+  (void) setlocale(LC_CTYPE, "");
+#endif
   program_name = argv[0];
 
   parse_long_options (argc, argv, usage);
