@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.9 1998/10/21 20:07:57 msmith Exp $
+# $Id: Makefile,v 1.10 1998/10/22 20:23:15 msmith Exp $
 #
 LIB=			i386
 NOPIC=
@@ -6,9 +6,9 @@ NOPROFILE=
 INTERNALLIB=		true
 INTERNALSTATICLIB=	true
 
-SRCS=	aout_freebsd.c biosdisk.c biosmem.c bootinfo.c comconsole.c \
-	devicename.c elf_freebsd.c gatea20.c i386_copy.c i386_module.c \
-	biospnp.c time.c vidconsole.c
+SRCS=	aout_freebsd.c biosdisk.c biosmem.c biospnp.c biospci.c \
+	bootinfo.c comconsole.c devicename.c elf_freebsd.c gatea20.c \
+	i386_copy.c i386_module.c time.c vidconsole.c
 
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
 		-I${.CURDIR}/../../.. -I.

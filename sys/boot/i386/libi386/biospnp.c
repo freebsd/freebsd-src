@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: biospnp.c,v 1.1 1998/10/22 20:25:06 msmith Exp $
  */
 
 /*
- * PnP BIOS enumerator, uses ISA PnP enumerator for fallback.
+ * PnP BIOS enumerator.
  */
 
 #include <stand.h>
