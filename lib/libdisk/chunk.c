@@ -253,6 +253,26 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 			return(-1);
 		}
 		break;
+	case p_ia64:
+		switch (type) {
+		case freebsd:
+			subtype = 0xa5;
+			/* FALL THROUGH */
+		case fat:
+		case mbr:
+			c1 = Find_Mother_Chunk(d->chunks, offset, end, whole);
+			break;
+		case part:
+			c1 = Find_Mother_Chunk(d->chunks, offset, end,
+			    freebsd);
+			if (!c1)
+				c1 = Find_Mother_Chunk(d->chunks, offset, end,
+				    whole);
+			break;
+		default:
+			return (-1);
+		}
+		break;
 	case p_pc98:
 		switch (type) {
 		case freebsd:
