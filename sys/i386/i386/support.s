@@ -241,7 +241,7 @@ ENTRY(i586_bzero)
 	 * method.  CR0_TS must be preserved although it is very likely to
 	 * always end up as clear.
 	 */
-	cmpl	$0,_npxproc
+	cmpl	$0,PCPU(NPXPROC)
 	je	i586_bz1
 	cmpl	$256+184,%ecx		/* empirical; not quite 2*108 more */
 	jb	intreg_i586_bzero
@@ -293,7 +293,7 @@ fpureg_i586_bzero_loop:
 	cmpl	$8,%ecx
 	jae	fpureg_i586_bzero_loop
 
-	cmpl	$0,_npxproc
+	cmpl	$0,PCPU(NPXPROC)
 	je	i586_bz3
 	frstor	0(%esp)
 	addl	$108,%esp
@@ -501,7 +501,7 @@ ENTRY(i586_bcopy)
 
 	sarb	$1,kernel_fpu_lock
 	jc	small_i586_bcopy
-	cmpl	$0,_npxproc
+	cmpl	$0,PCPU(NPXPROC)
 	je	i586_bc1
 	smsw	%dx
 	clts
@@ -572,7 +572,7 @@ large_i586_bcopy_loop:
 	cmpl	$64,%ecx
 	jae	4b
 
-	cmpl	$0,_npxproc
+	cmpl	$0,PCPU(NPXPROC)
 	je	i586_bc2
 	frstor	0(%esp)
 	addl	$108,%esp
@@ -670,7 +670,7 @@ ENTRY(copyout)
 	jmp	*_copyout_vector
 
 ENTRY(generic_copyout)
-	movl	_curpcb,%eax
+	movl	PCPU(CURPCB),%eax
 	movl	$copyout_fault,PCB_ONFAULT(%eax)
 	pushl	%esi
 	pushl	%edi
@@ -781,7 +781,7 @@ done_copyout:
 	popl	%edi
 	popl	%esi
 	xorl	%eax,%eax
-	movl	_curpcb,%edx
+	movl	PCPU(CURPCB),%edx
 	movl	%eax,PCB_ONFAULT(%edx)
 	ret
 
@@ -790,7 +790,7 @@ copyout_fault:
 	popl	%ebx
 	popl	%edi
 	popl	%esi
-	movl	_curpcb,%edx
+	movl	PCPU(CURPCB),%edx
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
@@ -800,7 +800,7 @@ ENTRY(i586_copyout)
 	/*
 	 * Duplicated from generic_copyout.  Could be done a bit better.
 	 */
-	movl	_curpcb,%eax
+	movl	PCPU(CURPCB),%eax
 	movl	$copyout_fault,PCB_ONFAULT(%eax)
 	pushl	%esi
 	pushl	%edi
@@ -857,7 +857,7 @@ ENTRY(copyin)
 	jmp	*_copyin_vector
 
 ENTRY(generic_copyin)
-	movl	_curpcb,%eax
+	movl	PCPU(CURPCB),%eax
 	movl	$copyin_fault,PCB_ONFAULT(%eax)
 	pushl	%esi
 	pushl	%edi
@@ -895,7 +895,7 @@ done_copyin:
 	popl	%edi
 	popl	%esi
 	xorl	%eax,%eax
-	movl	_curpcb,%edx
+	movl	PCPU(CURPCB),%edx
 	movl	%eax,PCB_ONFAULT(%edx)
 	ret
 
@@ -903,7 +903,7 @@ done_copyin:
 copyin_fault:
 	popl	%edi
 	popl	%esi
-	movl	_curpcb,%edx
+	movl	PCPU(CURPCB),%edx
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
@@ -913,7 +913,7 @@ ENTRY(i586_copyin)
 	/*
 	 * Duplicated from generic_copyin.  Could be done a bit better.
 	 */
-	movl	_curpcb,%eax
+	movl	PCPU(CURPCB),%eax
 	movl	$copyin_fault,PCB_ONFAULT(%eax)
 	pushl	%esi
 	pushl	%edi
@@ -967,13 +967,13 @@ ENTRY(fastmove)
 	jnz	fastmove_tail
 
 /* if (npxproc != NULL) { */
-	cmpl	$0,_npxproc
+	cmpl	$0,PCPU(NPXPROC)
 	je	6f
 /*    fnsave(&curpcb->pcb_savefpu); */
-	movl	_curpcb,%eax
+	movl	PCPU(CURPCB),%eax
 	fnsave	PCB_SAVEFPU(%eax)
 /*   npxproc = NULL; */
-	movl	$0,_npxproc
+	movl	$0,PCPU(NPXPROC)
 /* } */
 6:
 /* now we own the FPU. */
@@ -990,7 +990,7 @@ ENTRY(fastmove)
 	movl	%esi,-8(%ebp)
 	movl	%edi,-4(%ebp)
 	movl	%esp,%edi
-	movl	_curpcb,%esi
+	movl	PCPU(CURPCB),%esi
 	addl	$PCB_SAVEFPU,%esi
 	cld
 	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
@@ -1002,9 +1002,9 @@ ENTRY(fastmove)
 /* stop_emulating(); */
 	clts
 /* npxproc = curproc; */
-	movl	_curproc,%eax
-	movl	%eax,_npxproc
-	movl	_curpcb,%eax
+	movl	PCPU(CURPROC),%eax
+	movl	%eax,PCPU(NPXPROC)
+	movl	PCPU(CURPCB),%eax
 	movl	$fastmove_fault,PCB_ONFAULT(%eax)
 4:
 	movl	%ecx,-12(%ebp)
@@ -1066,7 +1066,7 @@ fastmove_loop:
 	movl	%ecx,-12(%ebp)
 	movl	%esi,-8(%ebp)
 	movl	%edi,-4(%ebp)
-	movl	_curpcb,%edi
+	movl	PCPU(CURPCB),%edi
 	addl	$PCB_SAVEFPU,%edi
 	movl	%esp,%esi
 	cld
@@ -1082,11 +1082,11 @@ fastmove_loop:
 	orb	$CR0_TS,%al
 	lmsw	%ax
 /* npxproc = NULL; */
-	movl	$0,_npxproc
+	movl	$0,PCPU(NPXPROC)
 
 	ALIGN_TEXT
 fastmove_tail:
-	movl	_curpcb,%eax
+	movl	PCPU(CURPCB),%eax
 	movl	$fastmove_tail_fault,PCB_ONFAULT(%eax)
 
 	movb	%cl,%al
@@ -1105,7 +1105,7 @@ fastmove_tail:
 
 	ALIGN_TEXT
 fastmove_fault:
-	movl	_curpcb,%edi
+	movl	PCPU(CURPCB),%edi
 	addl	$PCB_SAVEFPU,%edi
 	movl	%esp,%esi
 	cld
@@ -1116,7 +1116,7 @@ fastmove_fault:
 	smsw	%ax
 	orb	$CR0_TS,%al
 	lmsw	%ax
-	movl	$0,_npxproc
+	movl	$0,PCPU(NPXPROC)
 
 fastmove_tail_fault:
 	movl	%ebp,%esp
@@ -1125,7 +1125,7 @@ fastmove_tail_fault:
 	popl	%ebx
 	popl	%edi
 	popl	%esi
-	movl	_curpcb,%edx
+	movl	PCPU(CURPCB),%edx
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
@@ -1137,7 +1137,7 @@ fastmove_tail_fault:
  *	Fetch a byte (sword, word) from user memory
  */
 ENTRY(fuword)
-	movl	_curpcb,%ecx
+	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx			/* from */
 
@@ -1163,7 +1163,7 @@ ENTRY(fuswintr)
  * fusword - MP SAFE
  */
 ENTRY(fusword)
-	movl	_curpcb,%ecx
+	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
@@ -1178,7 +1178,7 @@ ENTRY(fusword)
  * fubyte - MP SAFE
  */
 ENTRY(fubyte)
-	movl	_curpcb,%ecx
+	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
@@ -1191,7 +1191,7 @@ ENTRY(fubyte)
 
 	ALIGN_TEXT
 fusufault:
-	movl	_curpcb,%ecx
+	movl	PCPU(CURPCB),%ecx
 	xorl	%eax,%eax
 	movl	%eax,PCB_ONFAULT(%ecx)
 	decl	%eax
@@ -1203,7 +1203,7 @@ fusufault:
  *	Write a byte (word, longword) to user memory
  */
 ENTRY(suword)
-	movl	_curpcb,%ecx
+	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
@@ -1247,7 +1247,7 @@ ENTRY(suword)
 	movl	8(%esp),%eax
 	movl	%eax,(%edx)
 	xorl	%eax,%eax
-	movl	_curpcb,%ecx
+	movl	PCPU(CURPCB),%ecx
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
@@ -1255,7 +1255,7 @@ ENTRY(suword)
  * susword - MP SAFE (if not I386_CPU)
  */
 ENTRY(susword)
-	movl	_curpcb,%ecx
+	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
@@ -1299,7 +1299,7 @@ ENTRY(susword)
 	movw	8(%esp),%ax
 	movw	%ax,(%edx)
 	xorl	%eax,%eax
-	movl	_curpcb,%ecx			/* restore trashed register */
+	movl	PCPU(CURPCB),%ecx		/* restore trashed register */
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
@@ -1308,7 +1308,7 @@ ENTRY(susword)
  */
 ALTENTRY(suibyte)
 ENTRY(subyte)
-	movl	_curpcb,%ecx
+	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
@@ -1351,7 +1351,7 @@ ENTRY(subyte)
 	movb	8(%esp),%al
 	movb	%al,(%edx)
 	xorl	%eax,%eax
-	movl	_curpcb,%ecx			/* restore trashed register */
+	movl	PCPU(CURPCB),%ecx		/* restore trashed register */
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
@@ -1366,7 +1366,7 @@ ENTRY(subyte)
 ENTRY(copyinstr)
 	pushl	%esi
 	pushl	%edi
-	movl	_curpcb,%ecx
+	movl	PCPU(CURPCB),%ecx
 	movl	$cpystrflt,PCB_ONFAULT(%ecx)
 
 	movl	12(%esp),%esi			/* %esi = from */
@@ -1414,7 +1414,7 @@ cpystrflt:
 
 cpystrflt_x:
 	/* set *lencopied and return %eax */
-	movl	_curpcb,%ecx
+	movl	PCPU(CURPCB),%ecx
 	movl	$0,PCB_ONFAULT(%ecx)
 	movl	20(%esp),%ecx
 	subl	%edx,%ecx

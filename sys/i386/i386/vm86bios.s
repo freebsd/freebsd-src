@@ -63,8 +63,8 @@ ENTRY(vm86_bioscall)
 	pushl	%gs
 
 #if NNPX > 0
-	movl	_curproc,%ecx
-	cmpl	%ecx,_npxproc		/* do we need to save fp? */
+	movl	PCPU(CURPROC),%ecx
+	cmpl	%ecx,PCPU(NPXPROC)	/* do we need to save fp? */
 	jne	1f
 	testl	%ecx,%ecx
 	je 	1f			/* no curproc/npxproc */
@@ -86,11 +86,11 @@ ENTRY(vm86_bioscall)
 	rep
 	movsl				/* copy frame to new stack */
 
-	movl	_curpcb,%eax
+	movl	PCPU(CURPCB),%eax
 	pushl	%eax			/* save curpcb */
-	movl	%edx,_curpcb		/* set curpcb to vm86pcb */
+	movl	%edx,PCPU(CURPCB)	/* set curpcb to vm86pcb */
 
-	movl	_tss_gdt,%ebx		/* entry in GDT */
+	movl	PCPU(TSS_GDT),%ebx	/* entry in GDT */
 	movl	0(%ebx),%eax
 	movl	%eax,SCR_TSS0(%edx)	/* save first word */
 	movl	4(%ebx),%eax
@@ -129,7 +129,7 @@ ENTRY(vm86_bioscall)
 	/*
 	 * Return via _doreti
 	 */
-	incb	_intr_nesting_level
+	incb	PCPU(INTR_NESTING_LEVEL)
 	MEXITCOUNT
 	jmp	_doreti
 
@@ -156,7 +156,7 @@ ENTRY(vm86_biosret)
 
 	movl	$0,_in_vm86call		/* reset trapflag */
 
-	movl	_tss_gdt,%ebx		/* entry in GDT */
+	movl	PCPU(TSS_GDT),%ebx		/* entry in GDT */
 	movl	SCR_TSS0(%edx),%eax
 	movl	%eax,0(%ebx)		/* restore first word */
 	movl	SCR_TSS1(%edx),%eax
@@ -164,7 +164,7 @@ ENTRY(vm86_biosret)
 	movl	$GPROC0_SEL*8,%esi	/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 	
-	popl	_curpcb			/* restore curpcb/curproc */
+	popl	PCPU(CURPCB)		/* restore curpcb/curproc */
 	movl	SCR_ARGFRAME(%edx),%edx	/* original stack frame */
 	movl	TF_TRAPNO(%edx),%eax	/* return (trapno) */
 
