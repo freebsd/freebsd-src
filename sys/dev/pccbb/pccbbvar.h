@@ -53,37 +53,35 @@ struct pccbb_reslist {
 #define	PCCBB_AUTO_OPEN_SMALLHOLE 0x100
 
 struct pccbb_softc {
-	device_t	sc_dev;
+	device_t	dev;
 	struct exca_softc exca;
-	struct		resource *sc_base_res;
-	struct		resource *sc_irq_res;
-	void		*sc_intrhand;
-	bus_space_tag_t sc_bst;
-	bus_space_handle_t sc_bsh;
-	u_int8_t	sc_secbus;
-	u_int8_t	sc_subbus;
-	struct		mtx sc_mtx;
-	u_int32_t	sc_flags;
+	struct		resource *base_res;
+	struct		resource *irq_res;
+	void		*intrhand;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	u_int8_t	secbus;
+	u_int8_t	subbus;
+	struct		mtx mtx;
+	u_int32_t	flags;
 #define	PCCBB_16BIT_CARD	0x02000000
 #define	PCCBB_KTHREAD_RUNNING	0x04000000
 #define	PCCBB_KTHREAD_DONE	0x08000000
-	int		sc_chipset;		/* chipset id */
+	int		chipset;		/* chipset id */
 #define	CB_UNKNOWN	0		/* NOT Cardbus-PCI bridge */
 #define	CB_TI113X	1		/* TI PCI1130/1131 */
 #define	CB_TI12XX	2		/* TI PCI1250/1220 */
 #define	CB_RF5C47X	3		/* RICOH RF5C475/476/477 */
 #define	CB_RF5C46X	4		/* RICOH RF5C465/466/467 */
-#define	CB_TOPIC95	5		/* Toshiba ToPIC95 */
-#define	CB_TOPIC95B	6		/* Toshiba ToPIC95B */
+#define	CB_CIRRUS	5		/* Cirrus Logic CLPD683x */
+#define	CB_TOPIC95	6		/* Toshiba ToPIC95 */
 #define	CB_TOPIC97	7		/* Toshiba ToPIC97/100 */
-#define	CB_CIRRUS	8		/* Cirrus Logic CLPD683x */
 	SLIST_HEAD(, pccbb_reslist) rl;
 
-	device_t	sc_cbdev;
-	device_t	sc_pccarddev;
+	device_t	cbdev;
+	device_t	pccarddev;
 
-	/* kthread staff */
-	struct		proc *event_thread;
+	struct proc	*event_thread;
 };
 
 /* result of detect_card */
