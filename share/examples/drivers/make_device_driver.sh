@@ -234,6 +234,8 @@ static struct cdevsw ${1}_cdevsw = {
 	/* flags */	0,
 	/* bmaj */	-1
 };
+
+static devclass_t ${1}_devclass;
  
 /*****************************************\
 * ISA Attachment structures and functions
@@ -263,7 +265,6 @@ static driver_t ${1}_isa_driver = {
 	sizeof (struct ${1}_softc)
 };
 
-static devclass_t ${1}_devclass;
 
 DRIVER_MODULE(${1}, isa, ${1}_isa_driver, ${1}_devclass, 0, 0);
 
@@ -537,9 +538,8 @@ static driver_t ${1}_pci_driver = {
 	sizeof(struct ${1}_softc),
 };
 
-static devclass_t ${1}_pci_devclass;
 
-DRIVER_MODULE(${1}, pci, ${1}_pci_driver, ${1}_pci_devclass, 0, 0);
+DRIVER_MODULE(${1}, pci, ${1}_pci_driver, ${1}_devclass, 0, 0);
 
 static struct _pcsid
 {
