@@ -132,20 +132,19 @@ static void	bsd_clear(struct bsd_db *db);
 static int	bsd_check(struct bsd_db *db);
 static void	*bsd_alloc(u_char *options, int opt_len, int decomp);
 static int	bsd_init(struct bsd_db *db, u_char *options, int opt_len,
-			      int unit, int hdrlen, int mru, int debug,
-			      int decomp);
+		    int unit, int hdrlen, int mru, int debug, int decomp);
 static void	*bsd_comp_alloc(u_char *options, int opt_len);
 static void	*bsd_decomp_alloc(u_char *options, int opt_len);
 static void	bsd_free(void *state);
 static int	bsd_comp_init(void *state, u_char *options, int opt_len,
-				   int unit, int hdrlen, int debug);
+		    int unit, int hdrlen, int debug);
 static int	bsd_decomp_init(void *state, u_char *options, int opt_len,
-				     int unit, int hdrlen, int mru, int debug);
-static int	bsd_compress(void *state, struct mbuf **mret,
-				  struct mbuf *mp, int slen, int maxolen);
+		    int unit, int hdrlen, int mru, int debug);
+static int	bsd_compress(void *state, struct mbuf **mret, struct mbuf *mp,
+		    int slen, int maxolen);
 static void	bsd_incomp(void *state, struct mbuf *dmsg);
 static int	bsd_decompress(void *state, struct mbuf *cmp,
-				    struct mbuf **dmpp);
+		    struct mbuf **dmpp);
 static void	bsd_reset(void *state);
 static void	bsd_comp_stats(void *state, struct compstat *stats);
 

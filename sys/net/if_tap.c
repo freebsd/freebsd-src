@@ -81,16 +81,16 @@
 		/*	0x007f00ff	*/
 
 /* module */
-static int 		tapmodevent	(module_t, int, void *);
+static int 		tapmodevent(module_t, int, void *);
 
 /* device */
-static void		tapclone	(void *, char *, int, dev_t *);
-static void		tapcreate	(dev_t);
+static void		tapclone(void *, char *, int, dev_t *);
+static void		tapcreate(dev_t);
 
 /* network interface */
-static void		tapifstart	(struct ifnet *);
-static int		tapifioctl	(struct ifnet *, u_long, caddr_t);
-static void		tapifinit	(void *);
+static void		tapifstart(struct ifnet *);
+static int		tapifioctl(struct ifnet *, u_long, caddr_t);
+static void		tapifinit(void *);
 
 /* character device */
 static d_open_t		tapopen;
