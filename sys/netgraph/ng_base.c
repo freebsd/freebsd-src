@@ -181,7 +181,6 @@ static node_p	ng_ID2noderef(ng_ID_t ID);
 
 /* imported , these used to be externally visible, some may go back */
 int	ng_bypass(hook_p hook1, hook_p hook2);
-void	ng_cutlinks(node_p node);
 int	ng_con_nodes(node_p node, const char *name, node_p node2,
 	const char *name2);
 void	ng_destroy_hook(hook_p hook);
@@ -647,14 +646,23 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
  * no type-specific method.
  *
  * We can only be called form a shutdown message, so we know we have
- * a writer lock, and therefore exclusive access.
+ * a writer lock, and therefore exclusive access. It also means
+ * that we should not be on the work queue, but we check anyhow.
  *
  * Persistent node types must have a type-specific method which
- * Allocates a new node. This one is irretrievably going away.
+ * Allocates a new node in which case, this one is irretrievably going away,
+ * or cleans up anything it needs, and just makes the node valid again,
+ * in which case we allow the node to survive. 
+ *
+ * XXX We need to think of how to tell a persistant node that we
+ * REALLY need to go away because the hardware has gone or we
+ * are rebooting.... etc.
  */
 void
 ng_rmnode(node_p node)
 {
+	hook_p hook;
+
 	/* Check if it's already shutting down */
 	if ((node->nd_flags & NG_CLOSING) != 0)
 		return;
@@ -670,7 +678,9 @@ ng_rmnode(node_p node)
 	 */
 	node->nd_flags |= NG_INVALID|NG_CLOSING;
 
-	ng_cutlinks(node);
+	/* Notify all remaining connected nodes to disconnect */
+	while ((hook = LIST_FIRST(&node->nd_hooks)) != NULL)
+		ng_destroy_hook(hook);
 
 	/*
 	 * Drain the input queue forceably.
@@ -714,30 +724,6 @@ ng_rmnode(node_p node)
 	 * force a driver to 'linger' with a reference.
 	 */
 	NG_NODE_UNREF(node);
-}
-
-/*
- * Called by the destructor to remove any STANDARD external references
- * May one day have it's own message to call it..
- */
-void
-ng_cutlinks(node_p node)
-{
-	hook_p  hook;
-
-	/* Make sure that this is set to stop infinite loops */
-	node->nd_flags |= NG_INVALID;
-
-	/*
-	 * Drain the input queue forceably.
-	 * We also do this in ng_rmnode
-	 * to make sure we get all code paths.
-	 */
-	ng_flush_input_queue(&node->nd_input_queue);
-
-	/* Notify all remaining connected nodes to disconnect */
-	while ((hook = LIST_FIRST(&node->nd_hooks)) != NULL)
-		ng_destroy_hook(hook);
 }
 
 /*
@@ -915,7 +901,8 @@ ng_unname(node_p node)
 /************************************************************************
 			Hook routines
  Names are not optional. Hooks are always connected, except for a
- brief moment within these routines.
+ brief moment within these routines. On invalidation or during creation
+ they are connected to the 'dead' hook.
 ************************************************************************/
 
 /*
@@ -940,6 +927,7 @@ ng_unref_hook(hook_p hook)
 
 /*
  * Add an unconnected hook to a node. Only used internally.
+ * Assumes node is locked. (XXX not yet true )
  */
 static int
 ng_add_hook(node_p node, const char *name, hook_p *hookp)
@@ -963,12 +951,19 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 		TRAP_ERROR;
 		return (ENOMEM);
 	}
-	hook->hk_refs = 1;
+	hook->hk_refs = 1;		/* add a reference for us to return */
 	hook->hk_flags = HK_INVALID;
+	hook->hk_peer = &ng_deadhook;	/* start off this way */
 	hook->hk_node = node;
 	NG_NODE_REF(node);		/* each hook counts as a reference */
 
-	/* Check if the node type code has something to say about it */
+	/* Set hook name */
+	strncpy(NG_HOOK_NAME(hook), name, NG_HOOKLEN);
+
+	/*
+	 * Check if the node type code has something to say about it
+	 * If it fails, the unref of the hook will also unref the node.
+	 */
 	if (node->nd_type->newhook != NULL) {
 		if ((error = (*node->nd_type->newhook)(node, hook, name))) {
 			NG_HOOK_UNREF(hook);	/* this frees the hook */
@@ -978,20 +973,21 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 	/*
 	 * The 'type' agrees so far, so go ahead and link it in.
 	 * We'll ask again later when we actually connect the hooks.
-	 * The reference we have is for this linkage.
 	 */
 	LIST_INSERT_HEAD(&node->nd_hooks, hook, hk_hooks);
 	node->nd_numhooks++;
+	NG_HOOK_REF(hook);	/* one for the node */
 
-	/* Set hook name */
-	strncpy(NG_HOOK_NAME(hook), name, NG_HOOKLEN);
 	if (hookp)
 		*hookp = hook;
-	return (error);
+	return (0);
 }
 
 /*
  * Connect a pair of hooks. Only used internally.
+ * Assume whoever called us has the nodes locked
+ * and is holding refs on the hooks.
+ * XXX This may have to change to be SMP safe.
  */
 static int
 ng_connect(hook_p hook1, hook_p hook2)
@@ -1001,7 +997,11 @@ ng_connect(hook_p hook1, hook_p hook2)
 	hook1->hk_peer = hook2;
 	hook2->hk_peer = hook1;
 
-	/* Give each node the opportunity to veto the impending connection */
+	/* Each hook is referenced by the other */
+	NG_HOOK_REF(hook1);
+	NG_HOOK_REF(hook2);
+
+	/* Give each node the opportunity to veto the pending connection */
 	if (hook1->hk_node->nd_type->connect) {
 		if ((error = (*hook1->hk_node->nd_type->connect) (hook1))) {
 			ng_destroy_hook(hook1);	/* also zaps hook2 */
@@ -1014,6 +1014,8 @@ ng_connect(hook_p hook1, hook_p hook2)
 			return (error);
 		}
 	}
+
+	/* As a last act, allow the hooks to be used */
 	hook1->hk_flags &= ~HK_INVALID;
 	hook2->hk_flags &= ~HK_INVALID;
 	return (0);
@@ -1024,6 +1026,7 @@ ng_connect(hook_p hook1, hook_p hook2)
  *
  * Node types may supply their own optimized routines for finding
  * hooks.  If none is supplied, we just do a linear search.
+ * XXX Possibly we should add a reference to the hook?
  */
 hook_p
 ng_findhook(node_p node, const char *name)
@@ -1045,7 +1048,15 @@ ng_findhook(node_p node, const char *name)
  *
  * As hooks are always attached, this really destroys two hooks.
  * The one given, and the one attached to it. Disconnect the hooks
- * from each other first.
+ * from each other first. We reconnect the peer hook to the 'dead'
+ * hook so that it can still exist after we depart. We then
+ * send the peer its own destroy message. This ensures that we only
+ * interact with the peer's structures when it is locked processing that 
+ * message. We hold a reference to the peer hook so we are guaranteed that
+ * the peer hook and node are still going to exist until
+ * we are finished there as the hook holds a ref on the node.
+ * We run this same code again on the peer hook, but that time it is already 
+ * attached to the 'dead' hook. 
  */
 void
 ng_destroy_hook(hook_p hook)
@@ -1053,21 +1064,26 @@ ng_destroy_hook(hook_p hook)
 	hook_p peer = NG_HOOK_PEER(hook);
 
 	hook->hk_flags |= HK_INVALID;		/* as soon as possible */
-	if (peer) {
-		peer->hk_flags |= HK_INVALID;	/* as soon as possible */
-		hook->hk_peer = NULL;
-		peer->hk_peer = NULL;
-		ng_disconnect_hook(peer);
+	if (peer && (peer != &ng_deadhook)) {
+		/*
+		 * Set the peer to point to ng_deadhook
+		 * from this moment on we are effectively independent it.
+		 * send it an rmhook message of it's own.
+		 */
+		peer->hk_peer = &ng_deadhook;	/* They no longer know us */
+		hook->hk_peer = &ng_deadhook;	/* Nor us, them */
+		ng_rmhook_self(peer); 		/* Give it a surprise */
 	}
 	ng_disconnect_hook(hook);
+	NG_HOOK_UNREF(hook);			/* account for peer link */
 }
 
 /*
  * Notify the node of the hook's demise. This may result in more actions
  * (e.g. shutdown) but we don't do that ourselves and don't know what
  * happens there. If there is no appropriate handler, then just remove it
- * (and decrement the reference count of it's node which in turn might
- * make something happen).
+ * and decrement the reference count. When it's freed it will decrement
+ * the reference count of it's node which in turn might make something happen.
  */
 static void
 ng_disconnect_hook(hook_p hook)
@@ -1087,7 +1103,7 @@ ng_disconnect_hook(hook_p hook)
 		 */
 		(*node->nd_type->disconnect) (hook);
 	}
-	NG_HOOK_UNREF(hook);
+	NG_HOOK_UNREF(hook);	/* Account for linkage to node */
 }
 
 /*
@@ -1104,9 +1120,10 @@ ng_bypass(hook_p hook1, hook_p hook2)
 	hook1->hk_peer->hk_peer = hook2->hk_peer;
 	hook2->hk_peer->hk_peer = hook1->hk_peer;
 
+	hook1->hk_peer = &ng_deadhook;
+	hook2->hk_peer = &ng_deadhook;
+
 	/* XXX If we ever cache methods on hooks update them as well */
-	hook1->hk_peer = NULL;
-	hook2->hk_peer = NULL;
 	ng_destroy_hook(hook1);
 	ng_destroy_hook(hook2);
 	return (0);
@@ -1167,6 +1184,9 @@ ng_findtype(const char *typename)
 /*
  * Make a peer and connect. The order is arranged to minimise
  * the work needed to back out in case of error.
+ * We assume that the local node is locked.
+ * The new node probably doesn't need a lock until
+ * it has a hook, but we should think about it a bit more.
  */
 int
 ng_mkpeer(node_p node, const char *name, const char *name2, char *type)
@@ -1176,15 +1196,17 @@ ng_mkpeer(node_p node, const char *name, const char *name2, char *type)
 	hook_p  hook2;
 	int     error;
 
-	if ((error = ng_add_hook(node, name, &hook)))
+	if ((error = ng_add_hook(node, name, &hook))) /* gives us a ref */
 		return (error);
 	if ((error = ng_make_node(type, &node2))) {
 		ng_destroy_hook(hook);
+		NG_HOOK_UNREF(hook);
 		return (error);
 	}
 	if ((error = ng_add_hook(node2, name2, &hook2))) {
 		ng_rmnode(node2);
 		ng_destroy_hook(hook);
+		NG_HOOK_UNREF(hook);
 		return (error);
 	}
 
@@ -1192,13 +1214,19 @@ ng_mkpeer(node_p node, const char *name, const char *name2, char *type)
 	 * Actually link the two hooks together.. on failure they are
 	 * destroyed so we don't have to do that here.
 	 */
-	if ((error = ng_connect(hook, hook2)))
+	if ((error = ng_connect(hook, hook2))) 
 		ng_rmnode(node2);
+	/*
+	 * drop the references we were holding on the two hooks.
+	 */
+	NG_HOOK_UNREF(hook);
+	NG_HOOK_UNREF(hook2);
 	return (error);
 }
 
 /*
  * Connect two nodes using the specified hooks
+ * XXX need to think of a SMP safe way of doing this.
  */
 int
 ng_con_nodes(node_p node, const char *name, node_p node2, const char *name2)
@@ -1207,13 +1235,21 @@ ng_con_nodes(node_p node, const char *name, node_p node2, const char *name2)
 	hook_p  hook;
 	hook_p  hook2;
 
-	if ((error = ng_add_hook(node, name, &hook)))
+	if ((error = ng_add_hook(node, name, &hook)))  /* gives us a ref */
 		return (error);
-	if ((error = ng_add_hook(node2, name2, &hook2))) {
+	if ((error = ng_add_hook(node2, name2, &hook2))) { /* we get a ref */
 		ng_destroy_hook(hook);
+		NG_HOOK_UNREF(hook);
 		return (error);
 	}
-	return (ng_connect(hook, hook2));
+	error = ng_connect(hook, hook2);
+
+	/*
+	 * drop the references we were holding on the two hooks.
+	 */
+	NG_HOOK_UNREF(hook);
+	NG_HOOK_UNREF(hook2);
+	return (error);
 }
 /************************************************************************
 		Utility routines to send self messages
