@@ -1,6 +1,6 @@
 .\" -*- nroff -*-
 .\"
-.\" $Id: RFC.nroff,v 1.1 1999/09/26 20:53:32 deraadt Exp $
+.\" $OpenBSD: RFC.nroff,v 1.2 2000/10/16 09:38:44 djm Exp $
 .\"
 .pl 10.0i
 .po 0
