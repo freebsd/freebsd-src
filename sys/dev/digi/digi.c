@@ -77,24 +77,6 @@
 
 #define	CDEV_MAJOR	162
 
-#ifdef SMP
-#include <sys/lock.h>
-#include <machine/smptests.h>	/* USE_COMLOCK ? */
-#ifdef USE_COMLOCK
-extern struct mtx	com_mtx;
-#define	COM_LOCK()      mtx_lock_spin(&com_mtx)
-#define	COM_UNLOCK()    mtx_unlock_spin(&com_mtx)
-#else
-#define	COM_LOCK()
-#define	COM_UNLOCK()
-#endif /* USE_COMLOCK */
-#else
-#define	COM_LOCK()
-#define	COM_UNLOCK()
-#endif /* SMP */
-
-/*#define DIGI_INTERRUPT*/
-
 #define	CTRL_DEV		0x800000
 #define	CALLOUT_MASK		0x400000
 #define	CONTROL_INIT_STATE	0x100000
@@ -106,11 +88,6 @@ extern struct mtx	com_mtx;
 #define	MINOR_MAGIC_MASK	(CALLOUT_MASK | CONTROL_MASK)
 #define	MINOR_TO_UNIT(mynor)	(((mynor) & UNIT_MASK)>>16)
 #define MINOR_TO_PORT(mynor)	((mynor) & PORT_MASK)
-
-#ifdef SMP
-#define disable_intr()		COM_DISABLE_INTR()
-#define enable_intr()		COM_ENABLE_INTR()
-#endif				/* SMP */
 
 static d_open_t		digiopen;
 static d_close_t	digiclose;
@@ -696,6 +673,9 @@ digi_init(struct digi_softc *sc)
 	}
 
 	sc->hidewin(sc);
+#ifdef DIGI_LOCK_INTR
+	mtx_init(sc->intr_mutex, "digi interrupt mutex", MTX_DEF);
+#endif
 	sc->inttest = timeout(digi_int_test, sc, hz);
 	/* fepcmd_w(&sc->ports[0], 0xff, 0, 0); */
 	sc->status = DIGI_STATUS_ENABLED;
@@ -1469,13 +1449,17 @@ digi_intr(void *vp)
 		u_char lstat;
 	} event;
 
-	COM_LOCK();
 	sc = vp;
 
 	if (sc->status != DIGI_STATUS_ENABLED) {
 		DLOG(DIGIDB_IRQ, (sc->dev, "interrupt on disabled board !\n"));
 		return;
 	}
+
+#ifdef DIGI_LOCK_INTR
+	mtx_lock(sc->intr_mutex);
+#endif
+
 #ifdef DIGI_INTERRUPT
 	microtime(&sc->intr_timestamp);
 #endif
@@ -1675,7 +1659,9 @@ eoi:
 		sc->towin(sc, 0);
 	if (window != 0)
 		sc->towin(sc, window);
-	COM_UNLOCK();
+#ifdef DIGI_LOCK_INTR
+	mtx_unlock(sc->intr_mutex);
+#endif
 }
 
 static void
@@ -1881,6 +1867,9 @@ digi_free_state(struct digi_softc *sc)
 	callout_handle_init(&sc->inttest);
 
 	bus_teardown_intr(sc->dev, sc->res.irq, sc->res.irqHandler);
+#ifdef DIGI_LOCK_INTR
+	mtx_destroy(sc->intr_mutex);
+#endif
 #ifdef DIGI_INTERRUPT
 	if (sc->res.irq != NULL) {
 		bus_release_resource(dev, SYS_RES_IRQ, sc->res.irqrid,

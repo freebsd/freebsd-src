@@ -39,6 +39,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <pci/pcivar.h>
+#include <sys/mutex.h>
 
 #include <digi/digireg.h>
 #include <digi/digiio.h>
