@@ -171,9 +171,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* No thread is wanting to join to this one: */
 			new_thread->joiner = NULL;
 
-			/* Initialize the signal frame: */
-			new_thread->curframe = NULL;
-
 			/*
 			 * Initialize the machine context.
 			 * Enter a critical region to get consistent context.
@@ -235,6 +232,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->cleanup = NULL;
 			new_thread->flags = 0;
 			new_thread->tlflags = 0;
+			new_thread->sigbackout = NULL;
 			new_thread->continuation = NULL;
 			new_thread->wakeup_time.tv_sec = -1;
 			new_thread->lock_switch = 0;
