@@ -5,7 +5,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: ctm.FAQ,v 1.4 1995/03/01 05:41:14 phk Exp $
+# $Id: ctm.FAQ,v 1.5 1995/03/05 23:13:08 roberto Exp $
 #
 
 		Obtaining FreeBSD-current sources using CTM.
@@ -178,7 +178,7 @@ Thanks!
 
 Bruce Evans, for his pointed pen and invaluable comments.
 Soren Schmidt, for patience.
-Stephen McKay, wrote ctm_[rs]mail, much appreceiated.
+Stephen McKay, wrote ctm_[rs]mail, much appreciated.
 Jordan Hubbard, for being so stubborn that I had to make it better.
 All the users,  I hope you like it...
 
