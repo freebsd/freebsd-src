@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.6 1995/05/04 19:48:17 jkh Exp $
+ * $Id: sysinstall.h,v 1.5 1995/05/04 03:51:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -109,6 +109,9 @@
 /* device limits */
 #define DEV_NAME_MAX		128
 
+/* handy */
+#define ONE_MEG			1048576
+
 
 /*** Types ***/
 typedef unsigned int Boolean;
@@ -174,6 +177,8 @@ extern Boolean		OnCDROM;  /* Are we running off of a CDROM?	*/
 extern Boolean		OnSerial; /* Are we on a serial console?	*/
 extern Boolean		SystemWasInstalled; /* Did we install it?       */ 
 extern Boolean		DialogActive; /* Is the dialog() stuff up?	*/
+extern Boolean		ColorDisplay; /* Are we on a color display?     */
+extern Boolean		OnVTY;    /* On a syscons VTY?			*/
 extern Variable		*VarHead; /* The head of the variable chain	*/
 extern unsigned int	Dists;    /* Which distributions we want        */
 extern unsigned int	SrcDists; /* Which src distributions we want    */
@@ -205,13 +210,14 @@ extern int	systemExecute(char *cmd);
 extern int	systemShellEscape(void);
 extern int	systemDisplayFile(char *file);
 extern char	*systemHelpFile(char *file, char *buf);
-extern void	systemChangeFont(char *font);
+extern void	systemChangeFont(const u_char font[]);
 extern void	systemChangeLang(char *lang);
-extern void	systemChangeTerminal(char *color, char *mono);
-extern void	systemChangeScreenmap(char *newmap);
+extern void	systemChangeTerminal(char *color, const u_char c_termcap[],
+				     char *mono, const u_char m_termcap[]);
+extern void	systemChangeScreenmap(const u_char newmap[]);
 
 /* disks.c */
-extern void	partition_disk(struct disk *disks);
+extern void	partition_disks(struct disk **disks);
 extern int	write_disks(struct disk **disks);
 extern void	make_filesystems(struct disk **disks);
 extern void	cpio_extract(struct disk **disks);
@@ -274,9 +280,23 @@ extern void	lang_set_French(char *str);
 extern void	lang_set_German(char *str);
 extern void	lang_set_Italian(char *str);
 extern void	lang_set_Japanese(char *str);
+extern void	lang_set_Norwegian(char *str);
 extern void	lang_set_Russian(char *str);
 extern void	lang_set_Spanish(char *str);
 extern void	lang_set_Swedish(char *str);
+
+/* makedevs.c (auto-generated) */
+extern const char termcap_vt100[];
+extern const char termcap_cons25[];
+extern const char termcap_cons25_m[];
+extern const char termcap_cons25r[];
+extern const char termcap_cons25r_m[];
+extern const char termcap_cons25l1[];
+extern const char termcap_cons25l1_m[];
+extern const u_char font_iso_8x14[];
+extern const u_char font_cp850_8x14[];
+extern const u_char font_koi8_r_8x14[];
+extern const u_char koi8_r2cp866[];
 
 /* wizard.c */
 extern void	slice_wizard(struct disk *d);
