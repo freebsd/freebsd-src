@@ -130,9 +130,7 @@ static int	ciss_filter_physical(struct ciss_softc *sc, struct ciss_lun_report *c
 static int	ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld);
 static int	ciss_get_ldrive_status(struct ciss_softc *sc,  struct ciss_ldrive *ld);
 static int	ciss_update_config(struct ciss_softc *sc);
-static int	ciss_accept_media(struct ciss_softc *sc, struct ciss_ldrive *ld,
-				  int async);
-static void	ciss_accept_media_complete(struct ciss_request *cr);
+static int	ciss_accept_media(struct ciss_softc *sc, struct ciss_ldrive *ld);
 static void	ciss_free(struct ciss_softc *sc);
 static void	ciss_spawn_notify_thread(struct ciss_softc *sc);
 static void	ciss_kill_notify_thread(struct ciss_softc *sc);
@@ -1111,7 +1109,7 @@ ciss_init_logical(struct ciss_softc *sc)
 	     * If the drive has had media exchanged, we should bring it online.
 	     */
 	    if (ld->cl_lstatus->media_exchanged)
-		ciss_accept_media(sc, ld, 0);
+		ciss_accept_media(sc, ld);
 
 	}
     }
@@ -1533,17 +1531,17 @@ ciss_update_config(struct ciss_softc *sc)
  *     could make sure it's not open right now.
  */
 static int
-ciss_accept_media(struct ciss_softc *sc, struct ciss_ldrive *ld, int async)
+ciss_accept_media(struct ciss_softc *sc, struct ciss_ldrive *ld)
 {
     struct ciss_request		*cr;
     struct ciss_command		*cc;
     struct ciss_bmic_cdb	*cbc;
-    int				error, ldrive;
+    int				command_status;
+    int				error = 0, ldrive;
 
     ldrive = CISS_LUN_TO_TARGET(ld->cl_address.logical.lun);
 
-    debug(0, "bringing logical drive %d back online %ssynchronously",
-	  ldrive, async ? "a" : "");
+    debug(0, "bringing logical drive %d back online");
 
     /*
      * Build a CISS BMIC command to bring the drive back online.
@@ -1557,40 +1555,12 @@ ciss_accept_media(struct ciss_softc *sc, struct ciss_ldrive *ld, int async)
     cbc->log_drive = ldrive;
 
     /*
-     * Dispatch the request asynchronously if we can't sleep waiting
-     * for it to complete.
+     * Submit the request and wait for it to complete.
      */
-    if (async) {
-	cr->cr_complete = ciss_accept_media_complete;
-	if ((error = ciss_start(cr)) != 0)
-	    goto out;
-	return(0);
-    } else {
-	/*
-	 * Submit the request and wait for it to complete.
-	 */
-	if ((error = ciss_synch_request(cr, 60 * 1000)) != 0) {
-	    ciss_printf(sc, "error sending BMIC LSTATUS command (%d)\n", error);
-	    goto out;
-	}
+    if ((error = ciss_synch_request(cr, 60 * 1000)) != 0) {
+	ciss_printf(sc, "error sending BMIC ACCEPT MEDIA command (%d)\n", error);
+	goto out;
     }
-
-    /*
-     * Call the completion callback manually.
-     */
-    ciss_accept_media_complete(cr);
-    return(0);
-
-out:
-    if (cr != NULL)
-	ciss_release_request(cr);
-    return(error);
-}
-
-static void
-ciss_accept_media_complete(struct ciss_request *cr)
-{
-    int				command_status;
 
     /*
      * Check response.
@@ -1605,7 +1575,11 @@ ciss_accept_media_complete(struct ciss_request *cr)
 		    ciss_name_command_status(command_status));
 	break;
     }
-    ciss_release_request(cr);
+
+out:
+    if (cr != NULL)
+	ciss_release_request(cr);
+    return(error);
 }
 
 /************************************************************************
@@ -3500,7 +3474,11 @@ ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn)
 	    ciss_name_device(sc, bus, target);
 	    ciss_printf(sc, "logical drive %d (%s) media exchanged, ready to go online\n",
 			cn->data.logical_status.logical_drive, ld->cl_name);
-	    ciss_accept_media(sc, ld, 1);
+	    ciss_accept_media(sc, ld);
+
+	    ld->cl_update = 1;
+	    ld->cl_status = ciss_decode_ldrive_status(cn->data.logical_status.new_state);
+	    ciss_notify_rescan_logical(sc);
 	    break;
 
 	case 2:
