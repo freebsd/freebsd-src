@@ -701,9 +701,11 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	if ((sz = OF_getproplen(mmu, "translations")) == -1)
 		panic("pmap_bootstrap: can't get ofw translation count");
 	translations = NULL;
-	for (i = 0; phys_avail[i + 2] != 0; i += 2) {
-		if (phys_avail[i + 1] >= sz)
+	for (i = 0; phys_avail[i] != 0; i += 2) {
+		if (phys_avail[i + 1] >= sz) {
 			translations = (struct ofw_map *)phys_avail[i];
+			break;
+		}
 	}
 	if (translations == NULL)
 		panic("pmap_bootstrap: no space to copy translations");
