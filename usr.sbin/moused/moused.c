@@ -746,7 +746,7 @@ moused(void)
 	}
 
 	/*  mouse event  */
-	if (read(rodent.mfd, &b, 1) == -1);
+	if (read(rodent.mfd, &b, 1) == -1)
 		return;		/* file seems to be closed on us */
 
 	if (r_protocol(b, &action)) {	/* handler detected action */
