@@ -52,6 +52,10 @@ encapsulation, sequencing, acknowlegement, and an adaptive timeout
 sliding window mechanism.  This node type does not handle any of
 the TCP control protocol or call negotiation defined by PPTP.
 .Pp
+This node type expects to receive complete IP packets,
+including the IP header, on the
+.Dv lower
+hook, but it transmits outgoing frames without any IP header.
 The typical use for this node type would be to connect the
 .Dv upper
 hook to one of the link hooks of a
@@ -104,6 +108,15 @@ The remaining fields are as supplied by the PPTP virtual call setup process.
 .It Dv NGM_PPTPGRE_GET_CONFIG
 Returns the current configuration as a
 .Dv "struct ng_pptpgre_conf" .
+.It Dv NGM_PPTPGRE_GET_STATS
+This command returns a
+.Dv "struct ng_pptpgre_stats"
+containing various node statistics.
+.It Dv NGM_PPTPGRE_CLR_STATS
+This command resets the node statistics.
+.It Dv NGM_PPTPGRE_GETCLR_STATS
+This command atomically gets and resets the node statistics, returning a
+.Dv "struct ng_pptpgre_stats" .
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
@@ -132,10 +145,15 @@ control message, or when both hooks have been disconnected.
 .%T "Generic Routing Encapsulation over IPv4 networks"
 .%O RFC 1702
 .Re
+.Sh BUGS
+The node should not expect incoming GRE packets to have an IP header.
+This behavior is inherited from the (converse) behavior of raw IP sockets.
+An intermediate node that strips IP headers in one direction
+should be used instead.
 .Sh HISTORY
 The
 .Nm
 node type was implemented in
 .Fx 4.0 .
-.Sh AUTHORS
+.Sh AUTHOR
 .An Archie Cobbs Aq archie@whistle.com
