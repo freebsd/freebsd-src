@@ -286,10 +286,16 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	ebp = db_get_value((int) &(*fp)->f_frame, 4, FALSE);
 
 	/*
-	 * Figure out frame type.
+	 * Figure out frame type.  We look at the address just before
+	 * the saved instruction pointer as the saved EIP is after the
+	 * call function, and if the function being called is marked as
+	 * dead (such as panic() at the end of dblfault_handler()), then
+	 * the instruction at the saved EIP will be part of a different
+	 * function (syscall() in this example) rather than the one that
+	 * actually made the call.
 	 */
 	frame_type = NORMAL;
-	sym = db_search_symbol(eip, DB_STGY_ANY, &offset);
+	sym = db_search_symbol(eip - 1, DB_STGY_ANY, &offset);
 	db_symbol_values(sym, &name, NULL);
 	if (name != NULL) {
 		if (strcmp(name, "calltrap") == 0 ||
