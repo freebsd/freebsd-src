@@ -57,8 +57,6 @@
  * 100BaseTX PHY.
  */
 
-#include "bpf.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -73,9 +71,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include "opt_bdg.h"
 #ifdef BRIDGE
@@ -1265,9 +1261,7 @@ static int pn_attach(dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 fail:
 	splx(s);
@@ -1631,7 +1625,6 @@ static void pn_rxeof(sc)
 		}
 #endif
 
-#if NBPF > 0
 		/*
 		 * Handle BPF listeners. Let the BPF user see the packet, but
 		 * don't pass it up to the ether_input() layer unless it's
@@ -1648,7 +1641,7 @@ static void pn_rxeof(sc)
 				continue;
 			}
 		}
-#endif
+
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
 		ether_input(ifp, eh, m);
@@ -1962,14 +1955,13 @@ static void pn_start(ifp)
 		if (cur_tx != start_tx)
 			PN_TXOWN(cur_tx) = PN_TXSTAT_OWN;
 
-#if NBPF > 0
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, cur_tx->pn_mbuf);
-#endif
+
 		PN_TXOWN(cur_tx) = PN_TXSTAT_OWN;
 		CSR_WRITE_4(sc, PN_TXSTART, 0xFFFFFFFF);
 	}

@@ -67,7 +67,6 @@
 #define WI_HERMES_AUTOINC_WAR	/* Work around data write autoinc bug. */
 #define WI_HERMES_STATS_WAR	/* Work around stats counter bug. */
 
-#include "bpf.h"
 #include "card.h"
 #include "wi.h"
 
@@ -95,9 +94,7 @@
 #include <netinet/if_ether.h>
 #endif
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
@@ -364,9 +361,7 @@ static int wi_attach(isa_dev)
 		if_attach(ifp);
 		ether_ifattach(ifp);
 
-#if NBPF > 0
 		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 		EVENTHANDLER_REGISTER(shutdown_post_sync, wi_shutdown, sc,
 				      SHUTDOWN_PRI_DEFAULT);
@@ -465,7 +460,6 @@ static void wi_rxeof(sc)
 
 	ifp->if_ipackets++;
 
-#if NBPF > 0
 	/* Handle BPF listeners. */
 	if (ifp->if_bpf) {
 		bpf_mtap(ifp, m);
@@ -476,7 +470,6 @@ static void wi_rxeof(sc)
 			return;
 		}
 	}
-#endif
 
 	/* Receive packet. */
 	m_adj(m, sizeof(struct ether_header));
@@ -1241,14 +1234,12 @@ static void wi_start(ifp)
 		    m0->m_pkthdr.len + 2);
 	}
 
-#if NBPF > 0
 	/*
 	 * If there's a BPF listner, bounce a copy of
 	 * this frame to him.
 	 */
 	if (ifp->if_bpf)
 		bpf_mtap(ifp, m0);
-#endif
 
 	m_freem(m0);
 

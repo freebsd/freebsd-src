@@ -83,7 +83,6 @@
  * three of my test boards seems fine.
  */
 
-#include "bpf.h"
 #include "opt_bdg.h"
 
 #include <sys/param.h>
@@ -101,9 +100,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #ifdef BRIDGE
 #include <net/bridge.h>
@@ -977,9 +974,7 @@ static int wb_attach(dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 fail:
 	if (error)
@@ -1220,7 +1215,6 @@ static void wb_rxeof(sc)
 		}
 #endif
 
-#if NBPF > 0
 		/*
 		 * Handle BPF listeners. Let the BPF user see the packet, but
 		 * don't pass it up to the ether_input() layer unless it's
@@ -1237,7 +1231,7 @@ static void wb_rxeof(sc)
 				break;
 			}
 		}
-#endif
+
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
 		ether_input(ifp, eh, m);
@@ -1583,14 +1577,12 @@ static void wb_start(ifp)
 		if (cur_tx != start_tx)
 			WB_TXOWN(cur_tx) = WB_TXSTAT_OWN;
 
-#if NBPF > 0
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, cur_tx->wb_mbuf);
-#endif
 	}
 
 	/*
