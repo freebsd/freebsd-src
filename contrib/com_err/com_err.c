@@ -43,6 +43,7 @@ RCSID("$Id: com_err.c,v 1.13 1999/03/12 15:17:08 bg Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <roken.h>
 #include "com_err.h"
 
 struct et_list *_et_list;

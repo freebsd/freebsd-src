@@ -37,17 +37,22 @@
  */
 
 /* $Id: com_err.h,v 1.3 1998/05/02 20:13:28 assar Exp $ */
-/* $FreeBSD$ */
 
 /* MIT compatible com_err library */
 
 #ifndef __COM_ERR_H__
 #define __COM_ERR_H__
 
-#include <sys/cdefs.h>
-
 #ifdef __STDC__
 #include <stdarg.h>
+#endif
+
+#ifndef __P
+#ifdef __STDC__
+#define __P(X) X
+#else
+#define __P(X) ()
+#endif
 #endif
 
 #include <com_right.h>
@@ -63,6 +68,6 @@ void com_err __P((const char *, long, const char *, ...));
 errf set_com_err_hook __P((errf));
 errf reset_com_err_hook __P((void));
 
-const char *error_table_name __P((int num));
+const char *error_table_name(int num);
 
 #endif /* __COM_ERR_H__ */

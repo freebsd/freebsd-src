@@ -48,9 +48,7 @@
 #include "compile_et.h"
 #include "parse.h"
 
-#if 0
 RCSID("$Id: lex.l,v 1.4 1998/11/20 05:58:52 assar Exp $");
-#endif
 
 static unsigned lineno = 1;
 void error_message(char *, ...);

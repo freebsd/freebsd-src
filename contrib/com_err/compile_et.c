@@ -40,10 +40,9 @@
 #include "compile_et.h"
 #include <getarg.h>
 
-#if 0
 RCSID("$Id: compile_et.c,v 1.12 1999/04/01 09:13:52 joda Exp $");
-#endif
 
+#include <roken.h>
 #include <err.h>
 #include "parse.h"
 
@@ -181,8 +180,10 @@ generate(void)
     return generate_c() || generate_h();
 }
 
+int version_flag;
 int help_flag;
 struct getargs args[] = {
+    { "version", 0, arg_flag, &version_flag },
     { "help", 0, arg_flag, &help_flag }
 };
 int num_args = sizeof(args) / sizeof(args[0]);
@@ -200,10 +201,15 @@ main(int argc, char **argv)
     char *p;
     int optind = 0;
 
+    set_progname(argv[0]);
     if(getarg(args, num_args, argc, argv, &optind))
 	usage(1);
     if(help_flag)
 	usage(0);
+    if(version_flag) {
+	print_version(NULL);
+	exit(0);
+    }
 
     if(optind == argc) 
 	usage(1);
