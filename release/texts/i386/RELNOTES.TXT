@@ -107,6 +107,13 @@ ipfilter has been updated to 3.4.16.
 ipfw(8) has a new feature ("me") that allows for packet matching on
 interfaces with dynamically-changing IP addresses.
 
+TCP has received some bug fixes for its delayed ACK behavior.
+
+The ata(4) driver has been updated.
+
+kqueue(2) has been extended to the device layer, and has also received
+some bug fixes.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -147,6 +154,9 @@ A number of programs have had output formatting strings corrected so
 as to reduce the risk of vulnerabilities.
 
 A number of programs that use temporary files now do so more securely.
+
+A bug in ICMP that could cause an attacker to disrupt TCP and UDP
+"sessions" has been corrected.
 
 
 1.3. USERLAND CHANGES
@@ -217,6 +227,10 @@ deprecated in favor of MaxStartups.
 find(1) now takes the -empty flag, which returns true if a file or
 directory is empty.
 
+find(1) now takes the -iname and -ipath primaries for case-insensitive
+matches, and the -regexp and -iregexp primaries for regular-expression
+matches.  The -E flag now enables extended regular expressions.
+
 ldconfig(8) now checks directory ownerships and permissions for
 greater security; these checks can be disabled with the -i
 flag.
@@ -260,6 +274,20 @@ upgrade.
 When requested to delete multiple packages, pkg_delete(1) will now
 attempt to remove them in dependency order rather than the order
 specified on the command line.
+
+pkg_info(1) now supports globbing against names of installed packages.
+The -G option disables this behavior, and the -x option causes regular
+expression matching instead of shell globbing.
+
+burncd(8) now supports a -m option for multisession mode (the default
+behavior now is to close disks as single-session).  A -l option to
+take a list of image files from a filename was also added; '-' can be
+used as a filename for stdin.
+
+tar(1) now supports the TAR_SSH variable, principally to enable the
+use of ssh(1) as a transport.
+
+make(1) has received a number of bugfixes.
 
 
 2. Supported Configurations
