@@ -13,13 +13,50 @@
  *
  *	This software is in the public domain.
  *
- *	Please send all bug reports, requests for information, etc. to:
+ * -----------------
  *
- *		Al Longyear (longyear@netcom.com)
- *		(I was the last person to change this code.)
+ *	Added SAY keyword to send output to stderr.
+ *      This allows to turn ECHO OFF and to output specific, user selected,
+ *      text to give progress messages. This best works when stderr
+ *      exists (i.e.: pppd in nodetach mode).
+ *
+ * 	Added HANGUP directives to allow for us to be called
+ *      back. When HANGUP is set to NO, chat will not hangup at HUP signal.
+ *      We rely on timeouts in that case.
+ *
+ *      Added CLR_ABORT to clear previously set ABORT string. This has been
+ *      dictated by the HANGUP above as "NO CARRIER" (for example) must be
+ *      an ABORT condition until we know the other host is going to close
+ *      the connection for call back. As soon as we have completed the
+ *      first stage of the call back sequence, "NO CARRIER" is a valid, non
+ *      fatal string. As soon as we got called back (probably get "CONNECT"),
+ *      we should re-arm the ABORT "NO CARRIER". Hence the CLR_ABORT command.
+ *      Note that CLR_ABORT packs the abort_strings[] array so that we do not
+ *      have unused entries not being reclaimed.
+ *
+ *      In the same vein as above, added CLR_REPORT keyword.
+ *
+ *      Allow for comments. Line starting with '#' are comments and are
+ *      ignored. If a '#' is to be expected as the first character, the 
+ *      expect string must be quoted.
+ *
+ *
+ *		Francis Demierre <Francis@SwissMail.Com>
+ * 		Thu May 15 17:15:40 MET DST 1997
+ *
  *
  *      Added -r "report file" switch & REPORT keyword.
  *              Robert Geer <bgeer@xmission.com>
+ *
+ *
+ *	Added -e "echo" switch & ECHO keyword
+ *		Dick Streefland <dicks@tasking.nl>
+ *
+ *
+ *	Considerable updates and modifications by
+ *		Al Longyear <longyear@pobox.com>
+ *		Paul Mackerras <paulus@cs.anu.edu.au>
+ *
  *
  *	The original author is:
  *
@@ -29,17 +66,22 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
+ *
  */
 
-static char rcsid[] = "$Id: chat.c,v 1.9 1995/06/12 11:24:15 paulus Exp $";
+#ifndef lint
+static char rcsid[] = "$Id: chat.c,v 1.15 1997/07/14 03:50:22 paulus Exp $";
+#endif
 
 #include <stdio.h>
+#include <ctype.h>
 #include <time.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <syslog.h>
@@ -92,7 +134,9 @@ char *program_name;
 #define	MAX_REPORTS		50
 #define	DEFAULT_CHAT_TIMEOUT	45
 
+int echo          = 0;
 int verbose       = 0;
+int Verbose       = 0;
 int quiet         = 0;
 int report        = 0;
 int exit_code     = 0;
@@ -119,11 +163,15 @@ struct termios saved_tty_parameters;
 
 char *abort_string[MAX_ABORTS], *fail_reason = (char *)0,
 	fail_buffer[50];
-int n_aborts = 0, abort_next = 0, timeout_next = 0;
+int n_aborts = 0, abort_next = 0, timeout_next = 0, echo_next = 0;
+int clear_abort_next = 0;
 
 char *report_string[MAX_REPORTS] ;
 char  report_buffer[50] ;
 int n_reports = 0, report_next = 0, report_gathering = 0 ; 
+int clear_report_next = 0;
+
+int say_next = 0, hup_next = 0;
 
 void *dup_mem __P((void *b, size_t c));
 void *copy_of __P((char *s));
@@ -139,6 +187,7 @@ SIGTYPE sighup __P((int signo));
 void unalarm __P((void));
 void init __P((void));
 void set_tty_parameters __P((void));
+void echo_stderr __P((int));
 void break_sequence __P((void));
 void terminate __P((int status));
 void do_file __P((char *chat_file));
@@ -154,6 +203,10 @@ char *clean __P((register char *s, int sending));
 void break_sequence __P((void));
 void terminate __P((int status));
 void die __P((void));
+void pack_array __P((char **array, int end));
+char *expect_strtok __P((char *, char *));
+
+int main __P((int, char *[]));
 
 void *dup_mem(b, c)
 void *b;
@@ -191,16 +244,24 @@ char **argv;
     program_name = *argv;
     tzset();
 
-    while (option = OPTION(argc, argv))
+    while ((option = OPTION(argc, argv)) != 0)
         {
 	switch (option)
 	    {
+	    case 'e':
+		++echo;
+		break;
+
 	    case 'v':
 		++verbose;
 		break;
 
+	    case 'V':
+	        ++Verbose;
+		break;
+
 	    case 'f':
-		if (arg = OPTARG(argc, argv))
+		if ((arg = OPTARG(argc, argv)) != NULL)
 		    {
 		    chat_file = copy_of(arg);
 		    }
@@ -211,7 +272,7 @@ char **argv;
 		break;
 
 	    case 't':
-		if (arg = OPTARG(argc, argv))
+		if ((arg = OPTARG(argc, argv)) != NULL)
 		    {
 		    timeout = atoi(arg);
 		    }
@@ -287,11 +348,11 @@ char **argv;
 	}
     else
 	{
-	while (arg = ARG(argc, argv))
+	while ((arg = ARG(argc, argv)) != NULL)
 	    {
 	    chat_expect(arg);
 
-	    if (arg = ARG(argc, argv))
+	    if ((arg = ARG(argc, argv)) != NULL)
 	        {
 		chat_send(arg);
 	        }
@@ -299,6 +360,7 @@ char **argv;
 	}
 
     terminate(0);
+    return 0;
     }
 
 /*
@@ -333,6 +395,11 @@ char *chat_file;
 
 	linect++;
 	sp = buf;
+
+        /* lines starting with '#' are comments. If a real '#'
+           is to be expected, it should be quoted .... */
+        if ( *sp == '#' ) continue;
+
 	while (*sp != '\0')
 	    {
 	    if (*sp == ' ' || *sp == '\t')
@@ -397,7 +464,7 @@ char *chat_file;
 void usage()
     {
     fprintf(stderr, "\
-Usage: %s [-v] [-t timeout] [-r report-file] {-f chat-file | chat-script}\n",
+Usage: %s [-e] [-v] [-t timeout] [-r report-file] {-f chat-file | chat-script}\n",
 	    program_name);
     exit(1);
     }
@@ -407,16 +474,20 @@ char *p;
 
 void logf (str)
 const char *str;
-    {
-    p = line + strlen(line);
-    strcat (p, str);
+{
+    int l = strlen(line);
 
-    if (str[strlen(str)-1] == '\n')
-	{
+    if (l + strlen(str) >= sizeof(line)) {
+	syslog(LOG_INFO, "%s", line);
+	l = 0;
+    }
+    strcpy(line + l, str);
+
+    if (str[strlen(str)-1] == '\n') {
 	syslog (LOG_INFO, "%s", line);
 	line[0] = 0;
-	}
     }
+}
 
 void logflush()
     {
@@ -573,14 +644,34 @@ void break_sequence()
 void terminate(status)
 int status;
     {
+    echo_stderr(-1);
     if (report_file != (char *) 0 && report_fp != (FILE *) NULL)
-        {
+	{
+/*
+ * Allow the last of the report string to be gathered before we terminate.
+ */
+	if (report_gathering) {
+	    int c, rep_len;
+
+	    rep_len = strlen(report_buffer);
+	    while (rep_len + 1 <= sizeof(report_buffer)) {
+		alarm(1);
+		c = get_char();
+		alarm(0);
+		if (c < 0 || iscntrl(c))
+		    break;
+		report_buffer[rep_len] = c;
+		++rep_len;
+	    }
+	    report_buffer[rep_len] = 0;
+	    fprintf (report_fp, "chat:  %s\n", report_buffer);
+	}
 	if (verbose)
 	    {
 	    fprintf (report_fp, "Closing \"%s\".\n", report_file);
 	    }
 	fclose (report_fp);
-	report_fp = (FILE*) NULL;
+	report_fp = (FILE *) NULL;
         }
 
 #if defined(get_term_param)
@@ -676,7 +767,7 @@ int sending;
 	    break;
 
 	case 'q':
-	    quiet = ! quiet;
+	    quiet = 1;
 	    break;
 
 	case 'r':
@@ -753,14 +844,91 @@ int sending;
     }
 
 /*
+ * A modified version of 'strtok'. This version skips \ sequences.
+ */
+
+char *expect_strtok (s, term)
+char *s, *term;
+    {
+    static  char *str   = "";
+    int	    escape_flag = 0;
+    char   *result;
+/*
+ * If a string was specified then do initial processing.
+ */
+    if (s)
+	{
+	str = s;
+	}
+/*
+ * If this is the escape flag then reset it and ignore the character.
+ */
+    if (*str)
+        {
+	result = str;
+        }
+    else
+        {
+	result = (char *) 0;
+        }
+
+    while (*str)
+	{
+	if (escape_flag)
+	    {
+	    escape_flag = 0;
+	    ++str;
+	    continue;
+	    }
+
+	if (*str == '\\')
+	    {
+	    ++str;
+	    escape_flag = 1;
+	    continue;
+	    }
+/*
+ * If this is not in the termination string, continue.
+ */
+	if (strchr (term, *str) == (char *) 0)
+	    {
+	    ++str;
+	    continue;
+	    }
+/*
+ * This is the terminator. Mark the end of the string and stop.
+ */
+	*str++ = '\0';
+	break;
+	}
+    return (result);
+    }
+
+/*
  * Process the expect string
  */
-void chat_expect(s)
-register char *s;
+
+void chat_expect (s)
+char *s;
     {
+    char *expect;
+    char *reply;
+
+    if (strcmp(s, "HANGUP") == 0)
+        {
+	++hup_next;
+        return;
+        }
+ 
     if (strcmp(s, "ABORT") == 0)
 	{
 	++abort_next;
+	return;
+	}
+
+    if (strcmp(s, "CLR_ABORT") == 0)
+	{
+	++clear_abort_next;
 	return;
 	}
 
@@ -770,86 +938,78 @@ register char *s;
 	return;
 	}
 
+    if (strcmp(s, "CLR_REPORT") == 0)
+	{
+	++clear_report_next;
+	return;
+	}
+
     if (strcmp(s, "TIMEOUT") == 0)
 	{
 	++timeout_next;
 	return;
 	}
 
-    while (*s)
+    if (strcmp(s, "ECHO") == 0)
 	{
-	register char *hyphen;
-
-	for (hyphen = s; *hyphen; ++hyphen)
-	    {
-	    if (*hyphen == '-')
-	        {
-		if (hyphen == s || hyphen[-1] != '\\')
-		    {
-		    break;
-		    }
-	        }
-	    }
-	
-	if (*hyphen == '-')
-	    {
-	    *hyphen = '\0';
-
-	    if (get_string(s))
-	        {
-		return;
-	        }
-	    else
-		{
-		s = hyphen + 1;
-
-		for (hyphen = s; *hyphen; ++hyphen)
-		    {
-		    if (*hyphen == '-')
-		        {
-			if (hyphen == s || hyphen[-1] != '\\')
-			    {
-			    break;
-			    }
-		        }
-		    }
-
-		if (*hyphen == '-')
-		    {
-		    *hyphen = '\0';
-
-		    chat_send(s);
-		    s = hyphen + 1;
-		    }
-		else
-		    {
-		    chat_send(s);
-		    return;
-		    }
-		}
-	    }
-	else
-	    {
-	    if (get_string(s))
-	        {
-		return;
-	        }
-	    else
-		{
-		if (fail_reason)
-		    {
-		    syslog(LOG_INFO, "Failed (%s)", fail_reason);
-		    }
-		else
-		    {
-		    syslog(LOG_INFO, "Failed");
-		    }
-
-		terminate(exit_code);
-		}
-	    }
+	++echo_next;
+	return;
 	}
+    if (strcmp(s, "SAY") == 0)
+	{
+	++say_next;
+	return;
+	}
+/*
+ * Fetch the expect and reply string.
+ */
+    for (;;)
+	{
+	expect = expect_strtok (s, "-");
+	s      = (char *) 0;
+
+	if (expect == (char *) 0)
+	    {
+	    return;
+	    }
+
+	reply = expect_strtok (s, "-");
+/*
+ * Handle the expect string. If successful then exit.
+ */
+	if (get_string (expect))
+	    {
+	    return;
+	    }
+/*
+ * If there is a sub-reply string then send it. Otherwise any condition
+ * is terminal.
+ */
+	if (reply == (char *) 0 || exit_code != 3)
+	    {
+	    break;
+	    }
+
+	chat_send (reply);
+	}
+/*
+ * The expectation did not occur. This is terminal.
+ */
+    if (fail_reason)
+	{
+	syslog(LOG_INFO, "Failed (%s)", fail_reason);
+	}
+    else
+	{
+	syslog(LOG_INFO, "Failed");
+	}
+    terminate(exit_code);
     }
+
+/*
+ * Translate the input character to the appropriate string for printing
+ * the data.
+ */
 
 char *character(c)
 int c;
@@ -885,6 +1045,29 @@ int c;
 void chat_send (s)
 register char *s;
     {
+    if (say_next)
+	{
+	say_next = 0;
+	s = clean(s,0);
+	write(2, s, strlen(s));
+        free(s);
+	return;
+	}
+    if (hup_next)
+        {
+        hup_next = 0;
+	if (strcmp(s, "OFF") == 0)
+           signal(SIGHUP, SIG_IGN);
+        else
+           signal(SIGHUP, sighup);
+        return;
+        }
+    if (echo_next)
+	{
+	echo_next = 0;
+	echo = (strcmp(s, "ON") == 0);
+	return;
+	}
     if (abort_next)
         {
 	char *s1;
@@ -921,6 +1104,52 @@ register char *s;
 	return;
 	}
 
+    if (clear_abort_next)
+        {
+	char *s1;
+	char *s2 = s;
+	int   i;
+        int   old_max;
+	int   pack = 0;
+	
+	clear_abort_next = 0;
+	
+	s1 = clean(s, 0);
+	
+	if (strlen(s1) > strlen(s)
+	    || strlen(s1) + 1 > sizeof(fail_buffer))
+	    {
+	    syslog(LOG_WARNING, "Illegal or too-long CLR_ABORT string ('%s')", s);
+	    die();
+	    }
+
+        old_max = n_aborts;
+	for (i=0; i < n_aborts; i++)
+	    {
+		if ( strcmp(s1,abort_string[i]) == 0 )
+		    {
+                        free(abort_string[i]);
+			abort_string[i] = NULL;
+			pack++;
+                        n_aborts--;
+			if (verbose)
+	    		{
+	    		logf("clear abort on (");
+		
+	    		for (s2 = s; *s2; ++s2)
+	        		{
+				logf(character(*s2));
+	        		}
+		
+	    		logf(")\n");
+	    		}
+	    	    }
+	    }
+        free(s1);
+	if (pack) pack_array(abort_string,old_max);
+	return;
+	}
+
     if (report_next)
         {
 	char *s1;
@@ -952,6 +1181,52 @@ register char *s;
 	        }
 	    logf(")\n");
 	    }
+	return;
+        }
+
+    if (clear_report_next)
+        {
+	char *s1;
+        char *s2 = s;
+	int   i;
+	int   old_max;
+	int   pack = 0;
+	
+	clear_report_next = 0;
+	
+	s1 = clean(s, 0);
+	
+	if (strlen(s1) > strlen(s) || strlen(s1) > sizeof fail_buffer - 1)
+	    {
+	    syslog(LOG_WARNING, "Illegal or too-long REPORT string ('%s')", s);
+	    die();
+	    }
+
+	old_max = n_reports;
+	for (i=0; i < n_reports; i++)
+	    {
+		if ( strcmp(s1,report_string[i]) == 0 )
+		    {
+			free(report_string[i]);
+			report_string[i] = NULL;
+			pack++;
+			n_reports--;
+			if (verbose)
+	    		{
+	    		logf("clear report (");
+		
+	    		for (s2 = s; *s2; ++s2)
+	        		{
+				logf(character(*s2));
+	        		}
+		
+	    		logf(")\n");
+	    		}
+	    	    }
+	    }
+        free(s1);
+        if (pack) pack_array(report_string,old_max);
+	
 	return;
         }
 
@@ -1089,6 +1364,7 @@ int c;
 int put_string (s)
 register char *s;
     {
+    quiet = 0;
     s = clean(s, 1);
 
     if (verbose)
@@ -1155,6 +1431,37 @@ register char *s;
     }
 
 /*
+ *	Echo a character to stderr.
+ *	When called with -1, a '\n' character is generated when
+ *	the cursor is not at the beginning of a line.
+ */
+void echo_stderr(n)
+int n;
+    {
+	static int need_lf;
+	char *s;
+
+	switch (n)
+	    {
+	case '\r':		/* ignore '\r' */
+	    break;
+	case -1:
+	    if (need_lf == 0)
+		break;
+	    /* fall through */
+	case '\n':
+	    write(2, "\n", 1);
+	    need_lf = 0;
+	    break;
+	default:
+	    s = character(n);
+	    write(2, s, strlen(s));
+	    need_lf = 1;
+	    break;
+	    }
+    }
+
+/*
  *	'Wait for' this string to appear on this file descriptor.
  */
 int get_string(string)
@@ -1207,6 +1514,10 @@ register char *string;
 	{
 	int n, abort_len, report_len;
 
+	if (echo)
+	    {
+	    echo_stderr(c);
+	    }
 	if (verbose)
 	    {
 	    if (c == '\n')
@@ -1219,39 +1530,12 @@ register char *string;
 	        }
 	    }
 
+	if (Verbose) {
+	   if (c == '\n')      fputc( '\n', stderr );
+	   else if (c != '\r') fprintf( stderr, "%s", character(c) );
+	}
+
 	*s++ = c;
-
-	if (s - temp >= len &&
-	    c == string[len - 1] &&
-	    strncmp(s - len, string, len) == 0)
-	    {
-	    if (verbose)
-		{
-		logf(" -- got it\n");
-		}
-
-	    alarm(0);
-	    alarmed = 0;
-	    return (1);
-	    }
-
-	for (n = 0; n < n_aborts; ++n)
-	    {
-	    if (s - temp >= (abort_len = strlen(abort_string[n])) &&
-		strncmp(s - abort_len, abort_string[n], abort_len) == 0)
-	        {
-		if (verbose)
-		    {
-		    logf(" -- failed\n");
-		    }
-		
-		alarm(0);
-		alarmed = 0;
-		exit_code = n + 4;
-		strcpy(fail_reason = fail_buffer, abort_string[n]);
-		return (0);
-	        }
-	    }
 
 	if (!report_gathering)
 	    {
@@ -1285,6 +1569,38 @@ register char *string;
 	        {
 		report_gathering = 0;
 		fprintf (report_fp, "chat:  %s\n", report_buffer);
+	        }
+	    }
+
+	if (s - temp >= len &&
+	    c == string[len - 1] &&
+	    strncmp(s - len, string, len) == 0)
+	    {
+	    if (verbose)
+		{
+		logf(" -- got it\n");
+		}
+
+	    alarm(0);
+	    alarmed = 0;
+	    return (1);
+	    }
+
+	for (n = 0; n < n_aborts; ++n)
+	    {
+	    if (s - temp >= (abort_len = strlen(abort_string[n])) &&
+		strncmp(s - abort_len, abort_string[n], abort_len) == 0)
+	        {
+		if (verbose)
+		    {
+		    logf(" -- failed\n");
+		    }
+		
+		alarm(0);
+		alarmed = 0;
+		exit_code = n + 4;
+		strcpy(fail_reason = fail_buffer, abort_string[n]);
+		return (0);
 	        }
 	    }
 
@@ -1347,3 +1663,22 @@ usleep( usec )				  /* returns 0 if ok, else -1 */
     return select( 0, (long *)0, (long *)0, (long *)0, &delay );
 }
 #endif
+
+void
+pack_array (array, end)
+    char **array; /* The address of the array of string pointers */
+    int    end;   /* The index of the next free entry before CLR_ */
+{
+    int i, j;
+
+    for (i = 0; i < end; i++) {
+	if (array[i] == NULL) {
+	    for (j = i+1; j < end; ++j)
+		if (array[j] != NULL)
+		    array[i++] = array[j];
+	    for (; i < end; ++i)
+		array[i] = NULL;
+	    break;
+	}
+    }
+}
