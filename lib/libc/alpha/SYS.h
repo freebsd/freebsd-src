@@ -47,6 +47,7 @@ LLABEL(name,1):
 
 #define	SYSCALL(name)						\
 LEAF(name,0);				/* XXX # of args? */	\
+        WEAK_ALIAS(__CONCAT(_libc_,name), name);                \
 	CALLSYS_ERROR(name)
 
 #define	SYSCALL_NOERROR(name)					\
@@ -67,6 +68,7 @@ END(name)
 
 #define	PSEUDO(label,name)					\
 LEAF(label,0);				/* XXX # of args? */	\
+        WEAK_ALIAS(__CONCAT(_libc_,name), name);                \
 	CALLSYS_ERROR(name);					\
 	RET;							\
 END(label);
