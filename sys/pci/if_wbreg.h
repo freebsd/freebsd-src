@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wbreg.h,v 1.3 1999/05/06 15:32:52 wpaul Exp $
+ *	$Id: if_wbreg.h,v 1.4 1999/07/11 00:56:07 wpaul Exp $
  */
 
 /*
@@ -360,7 +360,10 @@ struct wb_softc {
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	wb_bhandle;
 	bus_space_tag_t		wb_btag;
-	struct wb_type		*wb_info;	/* 3Com adapter info */
+	struct resource		*wb_res;
+	struct resource		*wb_irq;
+	void			*wb_intrhand;
+	struct wb_type		*wb_info;	/* Winbond adapter info */
 	struct wb_type		*wb_pinfo;	/* phy info */
 	u_int8_t		wb_unit;	/* interface number */
 	u_int8_t		wb_type;
