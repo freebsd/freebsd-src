@@ -123,6 +123,8 @@ MIASM =  \
 	semsys.o \
 	msgsys.o \
 	shmsys.o \
+	pread.o \
+	pwrite.o \
 	ntp_adjtime.o \
 	setgid.o \
 	setegid.o \
