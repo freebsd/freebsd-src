@@ -1,6 +1,6 @@
-# $Id: secure-stable-supfile,v 1.1 1996/08/21 00:23:53 jkh Exp $
+# $Id: secure-stable-supfile,v 1.2 1996/09/29 11:26:28 markm Exp $
 #
-# This file contains all of the "CVSUP collections" that comprise the FreeBSD
+# This file contains all of the "CVSup collections" that comprise the FreeBSD
 # International secure distribution from the stable (bug-fix only) development
 # branch.  CVSup (CVS Update Protocol) allows you to syncronize your system
 # sources with the latest version of this branch easily and efficiently (far
@@ -14,24 +14,28 @@
 # run it as follows:
 #
 #	cvsup -g -L 2 secure-stable-supfile
+#
+# If your network link is ISDN or slower, you'll save time by using
+# compression.  Either add the "-z" option to the cvsup command line,
+# or add the "compress" keyword to each collection in this supfile.
 # 
 # You may want to change some of the settings in this file to better
 # suit your system:
 #
 # base=/usr	
-#		base specifies the root where SUP will store information
+#		base specifies the root where CVSup will store information
 #		about the collections you have transferred to your system.
 #		A setting of "/usr" will generate this information in
-#		/usr/sup.  Even if you are SUPing a large number of
+#		/usr/sup.  Even if you are CVSupping a large number of
 #		collections, you will be hard pressed to generate more than
 #		~1MB of data in this directory.
 #
-# prefix=/usr/src
+# prefix=/usr
 #		prefix specifies where to place the requested files.  A
-#		setting of "/usr/src" will place the all of the files
+#		setting of "/usr" will place the all of the files
 #		requested in /usr/src (ie /usr/src/eBones, /usr/src/secure).
 #		The directory that is the prefix must exist in order for
-#		SUP to transfer files successfully.
+#		CVSup to transfer files successfully.
 
-src-eBones release=cvs host=cvsup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old compress use-rel-suffix tag=RELENG_2_1_0
-src-secure release=cvs host=cvsup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old compress use-rel-suffix tag=RELENG_2_1_0
+src-eBones release=cvs host=cvsup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=RELENG_2_1_0
+src-secure release=cvs host=cvsup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=RELENG_2_1_0
