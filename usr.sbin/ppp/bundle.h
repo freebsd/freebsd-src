@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.24 1999/08/05 10:32:08 brian Exp $
+ *	$Id: bundle.h,v 1.25 1999/08/17 17:22:44 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -84,7 +84,7 @@ struct bundle {
   } phys_type;
 
   unsigned CleaningUp : 1;    /* Going to exit.... */
-  unsigned AliasEnabled : 1;  /* Are we using libalias ? */
+  unsigned NatEnabled : 1;    /* Are we using libalias ? */
 
   struct fsm_parent fsm;      /* Our callback functions */
   struct datalink *links;     /* Our data links */
