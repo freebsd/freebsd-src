@@ -796,6 +796,8 @@ geom/geom_pc98.c	optional geom
 geom/geom_slice.c	optional geom
 geom/geom_subr.c	optional geom
 geom/geom_sunlabel.c	optional geom
+crypto/rijndael/rijndael-alg-fst.c	optional geom
+crypto/rijndael/rijndael-api-fst.c	optional geom
 gnu/ext2fs/ext2_alloc.c		optional ext2fs \
 	warning "kernel contains GPL contaminated ext2fs filesystem"
 gnu/ext2fs/ext2_balloc.c	optional ext2fs
