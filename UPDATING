@@ -13,6 +13,9 @@ the common items quick how-tos, followed by entries for versions of
 	earlier in the 4.0-stable branch.  This change restores the
 	daemons that were enabled prior to April 15th.
 
+	When exec'ing set[ug]id executables, the kernel now ensures that the
+	stdio file descriptors (0..2) are open.  See FreeBSD-SA-02:23.stdio.
+
 20020420:
 	sendmail_enable was changed back to YES, to match the
 	defaults earlier in the 4.0-stable branch.
