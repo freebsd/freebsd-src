@@ -38,16 +38,19 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_freebsd2.h,v 1.1 1996/01/13 23:23:39 ezk Exp ezk $
+ * $Id: nfs_prot_freebsd2.h,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 
 #ifndef _AMU_NFS_PROT_H
 #define _AMU_NFS_PROT_H
 
+#ifdef COMMENT_OUT
 #ifdef HAVE_RPCSVC_NFS_PROT_H
 # include <rpcsvc/nfs_prot.h>
 #endif /* HAVE_RPCSVC_NFS_PROT_H */
+#endif	/* COMMENT_OUT */
+# include "nfs_prot.h"
 
 /*
  * MACROS:
