@@ -9,9 +9,6 @@
 // Define if GCC supports weak symbols.
 #define _GLIBCPP_SUPPORTS_WEAK __GXX_WEAK__
 
-// Define if gthr-default.h exists (meaning that threading support is enabled).
-#define HAVE_GTHR_DEFAULT 1
-
 // Include I/O support for 'long long' and 'unsigned long long'.
 #define _GLIBCPP_USE_LONG_LONG 1
 
@@ -40,6 +37,9 @@
 #else
   #define _GLIBCPP_ASM_SYMVER(cur, old, version)
 #endif
+
+// Define if gthr-default.h exists (meaning that threading support is enabled).
+#define HAVE_GTHR_DEFAULT 1
 
 // Define if mbstate_t exists in wchar.h.
 #define HAVE_MBSTATE_T 1
@@ -108,7 +108,7 @@
 #define HAVE_LC_MESSAGES 1
 
 /* Define if you have the __signbit function.  */
-/* #undef HAVE___SIGNBIT */
+#define HAVE___SIGNBIT 1
 
 /* Define if you have the __signbitf function.  */
 /* #undef HAVE___SIGNBITF */
@@ -452,6 +452,9 @@
 /* Define if you have the iconv_open function.  */
 /* #undef HAVE_ICONV_OPEN */
 
+/* Define if you have the isatty function.  */
+#define HAVE_ISATTY 1
+
 /* Define if you have the isinf function.  */
 #define HAVE_ISINF 1
 
@@ -762,7 +765,7 @@
 #define PACKAGE "libstdc++"
 
 /* Version number of package */
-#define VERSION "3.2.1"
+#define VERSION "3.2.2"
 
 /* Define if the compiler is configured for setjmp/longjmp exceptions. */
 /* #undef _GLIBCPP_SJLJ_EXCEPTIONS */
