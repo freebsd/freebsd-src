@@ -435,6 +435,8 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	if ((ih->ih_flags & IH_FAST) != 0) {
 		critical_enter();
 		ih->ih_handler(ih->ih_argument);
+		/* XXX */
+		td->td_pflags &= ~TDP_OWEPREEMPT;
 		critical_exit();
 		return;
 	}
