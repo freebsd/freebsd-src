@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /* install-info -- create Info directory entry(ies) for an Info file.
-   $Id: install-info.c,v 1.52 2002/01/19 01:12:29 karl Exp $
+   $Id: install-info.c,v 1.55 2002/03/11 19:55:23 karl Exp $
 
    Copyright (C) 1996, 97, 98, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
@@ -424,10 +424,12 @@ Options:\n\
                      If you don't specify any sections, they are determined\n\
                      from information in the Info file itself.\n\
  --version         display version information and exit.\n\
-\n\
+"), progname);
+
+  puts (_("\n\
 Email bug reports to bug-texinfo@gnu.org,\n\
 general questions and discussion to help-texinfo@gnu.org.\n\
-"), progname);
+Texinfo home page: http://www.gnu.org/software/texinfo/"));
 }
 
 
