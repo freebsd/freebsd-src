@@ -2640,6 +2640,7 @@ allocbuf(struct buf *bp, int size)
 			 * if we have to remove any pages.
 			 */
 			if (desiredpages < bp->b_npages) {
+				vm_page_lock_queues();
 				for (i = desiredpages; i < bp->b_npages; i++) {
 					/*
 					 * the page is not freed here -- it
@@ -2649,14 +2650,13 @@ allocbuf(struct buf *bp, int size)
 					m = bp->b_pages[i];
 					KASSERT(m != bogus_page,
 					    ("allocbuf: bogus page found"));
-					while (vm_page_sleep_busy(m, TRUE, "biodep"))
-						;
+					while (vm_page_sleep_if_busy(m, TRUE, "biodep"))
+						vm_page_lock_queues();
 
 					bp->b_pages[i] = NULL;
-					vm_page_lock_queues();
 					vm_page_unwire(m, 0);
-					vm_page_unlock_queues();
 				}
+				vm_page_unlock_queues();
 				pmap_qremove((vm_offset_t) trunc_page((vm_offset_t)bp->b_data) +
 				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
 				bp->b_npages = desiredpages;
@@ -2720,8 +2720,8 @@ allocbuf(struct buf *bp, int size)
 				 *  vm_fault->getpages->cluster_read->allocbuf
 				 *
 				 */
-
-				if (vm_page_sleep_busy(m, FALSE, "pgtblk"))
+				vm_page_lock_queues();
+				if (vm_page_sleep_if_busy(m, FALSE, "pgtblk"))
 					continue;
 
 				/*
@@ -2734,7 +2734,6 @@ allocbuf(struct buf *bp, int size)
 					(cnt.v_free_min + cnt.v_cache_min))) {
 					pagedaemon_wakeup();
 				}
-				vm_page_lock_queues();
 				vm_page_flag_clear(m, PG_ZERO);
 				vm_page_wire(m);
 				vm_page_unlock_queues();
