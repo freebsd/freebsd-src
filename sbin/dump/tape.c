@@ -366,9 +366,12 @@ trewind()
 void
 close_rewind()
 {
+	time_t tstart_changevol, tend_changevol;
+
 	trewind();
 	if (nexttape)
 		return;
+	(void)time((time_t *)&(tstart_changevol));
 	if (!nogripe) {
 		msg("Change Volumes: Mount volume #%d\n", tapeno+1);
 		broadcast("CHANGE DUMP VOLUMES!\7\7\n");
@@ -378,6 +381,9 @@ close_rewind()
 			dumpabort(0);
 			/*NOTREACHED*/
 		}
+	(void)time((time_t *)&(tend_changevol));
+	if ((tstart_changevol != (time_t)-1) && (tend_changevol != (time_t)-1))
+		tstart_writing += (tend_changevol - tstart_changevol);
 }
 
 void
