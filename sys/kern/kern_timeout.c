@@ -129,10 +129,15 @@ kern_timeout_callwheel_init(void)
 void
 softclock(void *dummy)
 {
-	register struct callout *c;
-	register struct callout_tailq *bucket;
-	register int curticks;
-	register int steps;	/* #steps since we last allowed interrupts */
+	struct callout *c;
+	struct callout_tailq *bucket;
+	int curticks;
+	int steps;	/* #steps since we last allowed interrupts */
+#ifdef DIAGNOSTIC
+	struct bintime bt1, bt2;
+	struct timespec ts2;
+	static uint64_t maxdt = 18446744073709551LL;	/* 1 msec */
+#endif
 
 #ifndef MAX_SOFTCLOCK_STEPS
 #define MAX_SOFTCLOCK_STEPS 100 /* Maximum allowed value of steps. */
@@ -184,7 +189,21 @@ softclock(void *dummy)
 				mtx_unlock_spin(&callout_lock);
 				if (!(c_flags & CALLOUT_MPSAFE))
 					mtx_lock(&Giant);
+#ifdef DIAGNOSTIC
+				binuptime(&bt1);
+#endif
 				c_func(c_arg);
+#ifdef DIAGNOSTIC
+				binuptime(&bt2);
+				bintime_sub(&bt2, &bt1);
+				if (bt2.frac > maxdt) {
+					bintime2timespec(&bt2, &ts2);
+					printf(
+			"Expensive timeout(9) function: %p(%p) %d.%09d\n",
+					c_func, c_arg,
+					ts2.tv_sec, ts2.tv_nsec);
+				}
+#endif
 				if (!(c_flags & CALLOUT_MPSAFE))
 					mtx_unlock(&Giant);
 				mtx_lock_spin(&callout_lock);
