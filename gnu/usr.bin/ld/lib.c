@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.5 1993/12/02 00:56:38 jkh Exp $	- library routines
+ * $Id: lib.c,v 1.6 1993/12/04 00:52:59 jkh Exp $	- library routines
  */
 
 #include <sys/param.h>
@@ -78,7 +78,8 @@ decode_library_subfile(desc, library_entry, subfile_offset, length_loc)
 {
 	int             bytes_read;
 	register int    namelen;
-	int             member_length;
+	int             member_length, content_length;
+	int		starting_offset;
 	register char  *name;
 	struct ar_hdr   hdr1;
 	register struct file_entry *subentry;
@@ -104,22 +105,49 @@ decode_library_subfile(desc, library_entry, subfile_offset, length_loc)
 	     && hdr1.ar_name[namelen] != '/';
 	     namelen++);
 
-	name = (char *) xmalloc(namelen + 1);
-	strncpy(name, hdr1.ar_name, namelen);
-	name[namelen] = 0;
+	starting_offset = subfile_offset + sizeof hdr1;
+	content_length = member_length;
+
+#ifdef AR_EFMT1
+	/*
+	 * BSD 4.4 extended AR format: #1/<namelen>, with name as the
+	 * first <namelen> bytes of the file
+	 */
+	if (		(hdr1.ar_name[0] == '#') &&
+			(hdr1.ar_name[1] == '1') &&
+			(hdr1.ar_name[2] == '/') && 
+			(isdigit(hdr1.ar_name[3]))) {
+
+		namelen = atoi(&hdr1.ar_name[3]);
+		name = (char *)xmalloc(namelen + 1);
+		if (read(desc, name, namelen) != namelen)
+			fatal_with_file(
+			"malformatted header of archive member in ",
+				library_entry);
+		name[namelen] = 0;
+		content_length -= namelen;
+		starting_offset += namelen;
+	} else 
+
+#endif
+	{
+		name = (char *)xmalloc(namelen + 1);
+		strncpy(name, hdr1.ar_name, namelen);
+		name[namelen] = 0;
+	}
 
 	subentry->filename = name;
 	subentry->local_sym_name = name;
 	subentry->symbols = 0;
 	subentry->strings = 0;
 	subentry->subfiles = 0;
-	subentry->starting_offset = subfile_offset + sizeof hdr1;
+	subentry->starting_offset = starting_offset;
 	subentry->superfile = library_entry;
 	subentry->library_flag = 0;
 	subentry->header_read_flag = 0;
 	subentry->just_syms_flag = 0;
 	subentry->chain = 0;
-	subentry->total_size = member_length;
+	subentry->total_size = content_length;
 
 	(*length_loc) = member_length;
 
@@ -474,6 +502,9 @@ subfile_wanted_p(entry)
 			int             defs = 0;
 
 			/* Check for undefined symbols in shared objects */
+			if (sp->sorefs == NULL)
+				continue;
+
 			for (lsp = sp->sorefs; lsp; lsp = lsp->next) {
 				type = lsp->nzlist.nlist.n_type;
 				if (	(type & N_EXT) &&
@@ -590,9 +621,110 @@ read_shared_object (desc, entry)
 	enter_file_symbols (entry);
 	entry->strings = 0;
 
-	/* TODO: examine needed shared objects */
+	/*
+	 * Load any subsidiary shared objects.
+	 */
 	if (dyn2.ld_need) {
+		struct link_object	lobj;
+		off_t			offset;
+		struct file_entry	*subentry, *prev = NULL;
+
+		subentry = (struct file_entry *)
+				xmalloc(sizeof(struct file_entry));
+		bzero(subentry, sizeof(struct file_entry));
+
+		subentry->superfile = entry;
+
+		offset = (off_t)dyn2.ld_need;
+		while (1) {
+			char *libname, name[MAXPATHLEN]; /*XXX*/
+
+			lseek(desc, offset, L_SET);
+			if (read(desc, &lobj, sizeof(lobj)) != sizeof(lobj)) {
+				fatal_with_file(
+				"premature eof while reading link objects ",
+						entry);
+			}
+			md_swapin_link_object(&lobj, 1);
+			(void)lseek(desc, (off_t)lobj.lo_name, L_SET);
+			(void)read(desc, name, sizeof(name)); /*XXX*/
+			if (lobj.lo_library) {
+				int lo_major = lobj.lo_major;
+				int lo_minor = lobj.lo_minor;
+
+				libname = findshlib(name,
+						&lo_major, &lo_minor, 0);
+				if (libname == NULL)
+					fatal("no shared -l%s.%d.%d available",
+					name, lobj.lo_major, lobj.lo_minor);
+				subentry->filename = libname;
+				subentry->local_sym_name = concat("-l", name, "");
+			} else {
+				subentry->filename = strdup(name);
+				subentry->local_sym_name = strdup(name);
+			}
+			read_file_symbols(subentry);
+
+			if (prev)
+				prev->chain = subentry;
+			else
+				entry->subfiles = subentry;
+			prev = subentry;
+			file_open(entry);
+			if ((offset = (off_t)lobj.lo_next) == 0)
+				break;
+		}
 	}
+#ifdef SUN_COMPAT
+	if (link_mode & SILLYARCHIVE) {
+		char			*cp, *sa_name;
+		char			armag[SARMAG];
+		int			fd;
+		struct file_entry	*subentry;
+
+		sa_name = strdup(entry->filename);
+		if (sa_name == NULL)
+			goto out;
+		cp = sa_name + strlen(sa_name) - 1;
+		while (cp > sa_name) {
+			if (!isdigit(*cp) && *cp != '.')
+				break;
+			--cp;
+		}
+		if (cp <= sa_name || *cp != 'o') {
+			/* Not in `libxxx.so.n.m' form */
+			free(sa_name);
+			goto out;
+		}
+
+		*cp = 'a';
+		if ((fd = open(sa_name, O_RDONLY, 0)) < 0)
+			goto out;
+
+		/* Read archive magic */
+		bzero(armag, SARMAG);
+		(void)read(fd, armag, SARMAG);
+		(void)close(fd);
+		if (strncmp(armag, ARMAG, SARMAG) != 0) {
+			error("%s: malformed silly archive",
+					get_file_name(entry));
+			goto out;
+		}
+
+		subentry = (struct file_entry *)
+				xmalloc(sizeof(struct file_entry));
+		bzero(subentry, sizeof(struct file_entry));
+
+		entry->silly_archive = subentry;
+		subentry->superfile = entry;
+		subentry->filename = sa_name;
+		subentry->local_sym_name = sa_name;
+		subentry->library_flag = 1;
+		search_library(file_open(subentry), subentry);
+out:
+		;
+	}
+#endif
 }
 
 #undef major
@@ -611,7 +743,7 @@ struct file_entry	*p;
 	if (p->search_dynamic_flag == 0)
 		goto dot_a;
 
-	fname = findshlib(p->filename, &major, &minor);
+	fname = findshlib(p->filename, &major, &minor, 1);
 
 	if (fname && (desc = open (fname, O_RDONLY, 0)) > 0) {
 		p->filename = fname;

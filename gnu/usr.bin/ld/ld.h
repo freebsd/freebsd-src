@@ -1,4 +1,4 @@
-/*	$Id: ld.h,v 1.6 1993/12/02 00:56:37 jkh Exp $	*/
+/*	$Id: ld.h,v 1.7 1993/12/04 00:52:58 jkh Exp $	*/
 /*-
  * This code is derived from software copyrighted by the Free Software
  * Foundation.
@@ -678,6 +678,11 @@ struct file_entry {
 	/* For library member, points to next entry for next member.  */
 	struct file_entry *chain;
 
+#ifdef SUN_COMPAT
+	/* For shared libraries which have a .sa companion */
+	struct file_entry *silly_archive;
+#endif
+
 	/* 1 if file is a library. */
 	char            library_flag;
 
@@ -722,7 +727,8 @@ int number_of_files;
 #define FORCEARCHIVE	4		/* Force inclusion of all members
 					   of archives */
 #define SHAREABLE	8		/* Build a shared object */
-int link_mode;
+#define SILLYARCHIVE	16		/* Process .sa companions, if any */
+int	link_mode;
 
 /*
  * Runtime Relocation Section (RRS).
@@ -824,13 +830,14 @@ char	**search_dirs;
 /* Length of the vector `search_dirs'.  */
 int	n_search_dirs;
 
-void	digest_symbols __P((void));
 void	load_symbols __P((void));
-void	decode_command __P((int, char **));
 void	read_header __P((int, struct file_entry *));
 void	read_entry_symbols __P((int, struct file_entry *));
 void	read_entry_strings __P((int, struct file_entry *));
 void	read_entry_relocation __P((int, struct file_entry *));
+void	enter_file_symbols __P((struct file_entry *));
+void	read_file_symbols __P((struct file_entry *));
+
 void	write_output __P((void));
 void	write_header __P((void));
 void	write_text __P((void));
@@ -856,7 +863,7 @@ void	*xrealloc __P((void *, int));
 void	fatal __P((char *, ...));
 void	error __P((char *, ...));
 void	padfile __P((int,int));
-char	*concat __P((char *, char *, char *));
+char	*concat __P((const char *, const char *, const char *));
 int	parse __P((char *, char *, char *));
 
 /* In symbol.c: */
@@ -869,7 +876,7 @@ void	read_shared_object __P((int, struct file_entry *));
 int	findlib __P((struct file_entry *));
 
 /* In shlib.c: */
-char	*findshlib __P((char *, int *, int *));
+char	*findshlib __P((char *, int *, int *, int));
 void	add_search_dir __P((char *));
 void	std_search_dirs __P((char *));
 
