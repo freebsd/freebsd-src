@@ -260,7 +260,11 @@ main(int argc, char **argv)
 	if (kd == NULL)
 		errx(STATUS_ERROR, "kvm_openfiles(): %s", buf);
 
-	plist = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nproc);
+	/*
+	 * Use KERN_PROC_PROC instead of KERN_PROC_ALL, since we
+	 * just want processes and not individual kernel threads.
+	 */
+	plist = kvm_getprocs(kd, KERN_PROC_PROC, 0, &nproc);
 	if (plist == NULL)
 		errx(STATUS_ERROR, "kvm_getprocs() failed");
 
