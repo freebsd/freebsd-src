@@ -1329,6 +1329,7 @@ char *msgtypes[] = {
 	"RTM_IFINFO: iface status change",
 	"RTM_NEWMADDR: new multicast group membership on iface",
 	"RTM_DELMADDR: multicast group membership removed from iface",
+	"RTM_IFANNOUNCE: interface arrival/departure",
 	0,
 };
 
@@ -1357,6 +1358,7 @@ print_rtmsg(rtm, msglen)
 #ifdef RTM_NEWMADDR
 	struct ifma_msghdr *ifmam;
 #endif
+	struct if_announcemsghdr *ifan;
 
 	if (verbose == 0)
 		return;
@@ -1365,7 +1367,11 @@ print_rtmsg(rtm, msglen)
 		    rtm->rtm_version);
 		return;
 	}
-	(void)printf("%s: len %d, ", msgtypes[rtm->rtm_type], rtm->rtm_msglen);
+	if (msgtypes[rtm->rtm_type] != NULL)
+		(void)printf("%s: ", msgtypes[rtm->rtm_type]);
+	else
+		(void)printf("#%d: ", rtm->rtm_type);
+	(void)printf("len %d, ", rtm->rtm_msglen);
 	switch (rtm->rtm_type) {
 	case RTM_IFINFO:
 		ifm = (struct if_msghdr *)rtm;
@@ -1387,6 +1393,23 @@ print_rtmsg(rtm, msglen)
 		pmsg_addrs((char *)(ifmam + 1), ifmam->ifmam_addrs);
 		break;
 #endif
+	case RTM_IFANNOUNCE:
+		ifan = (struct if_announcemsghdr *)rtm;
+		(void) printf("if# %d, what: ", ifan->ifan_index);
+		switch (ifan->ifan_what) {
+		case IFAN_ARRIVAL:
+			printf("arrival");
+			break;
+		case IFAN_DEPARTURE:
+			printf("departure");
+			break;
+		default:
+			printf("#%d", ifan->ifan_what);
+			break;
+		}
+		printf("\n");
+		break;
+
 	default:
 		(void) printf("pid: %ld, seq %d, errno %d, flags:",
 			(long)rtm->rtm_pid, rtm->rtm_seq, rtm->rtm_errno);

@@ -224,6 +224,9 @@ if_attach(ifp)
 			sdl->sdl_data[--namelen] = 0xff;
 		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	}
+
+	/* Announce the interface. */
+	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 }
 
 /*
@@ -301,6 +304,9 @@ if_detach(ifp)
 			continue;
 		(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
 	}
+
+	/* Announce that the interface is gone. */
+	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
 	splx(s);
