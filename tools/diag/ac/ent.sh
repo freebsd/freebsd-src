@@ -1,13 +1,13 @@
 #!/bin/sh -x
-# Copyright (c) 2002 Alexey Zelkin <phantom@FreeBSD.org>
+# Copyright (c) 2002,2003 Alexey Zelkin <phantom@FreeBSD.org>
 #
 # ent.sh -- this script checks {authors,teams}.ent files for correctness
 #
 # $FreeBSD$
 
-: ${CVSROOT=/home/ncvs}
+: ${CVSROOT=/home/dcvs}
 prefix=doc/en_US.ISO8859-1/share/sgml
-cvs='cvs -Q co -p'
+cvs='cvs -Q -R co -p'
 diff='diff -u'
 tmp=${TMPDIR-/tmp}/_entities
 
