@@ -20,7 +20,7 @@ BEGIN \
   printf "** Words from CORE set written in FICL\n";
   printf "** Author: John Sadler (john_sadler@alum.mit.edu)\n";
   printf "** Created: 27 December 1997\n";
-  printf "** Last update: %s\n", strftime();
+  printf "** Last update: %s\n", datestamp;
   printf "***************************************************************/\n";
   printf "\n/*\n";
   printf "** This file contains definitions that are compiled into the\n";
