@@ -722,7 +722,7 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
     if (num_dspdevs < MAX_DSP_DEV)
       {
 	dsp_devs[my_dev = num_dspdevs++] = &sb_dsp_operations;
-	sound_buffcounts[my_dev] = 1;
+	sound_buffcounts[my_dev] = DSP_BUFFCOUNT;
 	sound_buffsizes[my_dev] = DSP_BUFFSIZE;
 	sound_dsp_dmachan[my_dev] = hw_config->dma;
 	sound_dma_automode[my_dev] = 0;
