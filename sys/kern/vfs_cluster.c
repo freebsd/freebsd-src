@@ -318,8 +318,6 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	daddr_t bn;
 	int i, inc, j;
 
-	GIANT_REQUIRED;
-
 	KASSERT(size == vp->v_mount->mnt_stat.f_iosize,
 	    ("cluster_rbuild: size %ld != filesize %jd\n",
 	    size, (intmax_t)vp->v_mount->mnt_stat.f_iosize));
@@ -518,8 +516,6 @@ cluster_callback(bp)
 {
 	struct buf *nbp, *tbp;
 	int error = 0;
-
-	GIANT_REQUIRED;
 
 	/*
 	 * Must propogate errors to all the components.
@@ -756,8 +752,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 	int i, j, s;
 	int totalwritten = 0;
 	int dbsize = btodb(size);
-
-	GIANT_REQUIRED;
 
 	while (len > 0) {
 		s = splbio();
