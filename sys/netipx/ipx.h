@@ -162,8 +162,8 @@ struct ipx {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-struct	ipx_addr ipx_addr __P((const char *));
-char	*ipx_ntoa __P((struct ipx_addr));
+struct	ipx_addr ipx_addr(const char *);
+char	*ipx_ntoa(struct ipx_addr);
 __END_DECLS
 
 #endif /* !_NETIPX_IPX_H_ */

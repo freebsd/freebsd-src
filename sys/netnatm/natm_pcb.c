@@ -169,7 +169,7 @@ done:
 
 #ifdef DDB
 
-int npcb_dump __P((void));
+int npcb_dump(void);
 
 int npcb_dump()
 

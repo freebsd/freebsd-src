@@ -61,8 +61,8 @@ extern u_int32_t key_debug_level;
 
 struct sadb_msg;
 struct sadb_ext;
-extern void kdebug_sadb __P((struct sadb_msg *));
-extern void kdebug_sadb_x_policy __P((struct sadb_ext *));
+extern void kdebug_sadb(struct sadb_msg *);
+extern void kdebug_sadb_x_policy(struct sadb_ext *);
 
 #ifdef _KERNEL
 struct secpolicy;
@@ -71,18 +71,18 @@ struct secasindex;
 struct secasvar;
 struct secreplay;
 struct mbuf;
-extern void kdebug_secpolicy __P((struct secpolicy *));
-extern void kdebug_secpolicyindex __P((struct secpolicyindex *));
-extern void kdebug_secasindex __P((struct secasindex *));
-extern void kdebug_secasv __P((struct secasvar *));
-extern void kdebug_mbufhdr __P((struct mbuf *));
-extern void kdebug_mbuf __P((struct mbuf *));
+extern void kdebug_secpolicy(struct secpolicy *);
+extern void kdebug_secpolicyindex(struct secpolicyindex *);
+extern void kdebug_secasindex(struct secasindex *);
+extern void kdebug_secasv(struct secasvar *);
+extern void kdebug_mbufhdr(struct mbuf *);
+extern void kdebug_mbuf(struct mbuf *);
 #endif /*_KERNEL*/
 
 struct sockaddr;
-extern void kdebug_sockaddr __P((struct sockaddr *));
+extern void kdebug_sockaddr(struct sockaddr *);
 
-extern void ipsec_hexdump __P((caddr_t, int));
-extern void ipsec_bindump __P((caddr_t, int));
+extern void ipsec_hexdump(caddr_t, int);
+extern void ipsec_bindump(caddr_t, int);
 
 #endif /* _NETKEY_KEY_DEBUG_H_ */

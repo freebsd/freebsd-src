@@ -364,60 +364,60 @@ struct sadb_msghdr {
 	int extlen[SADB_EXT_MAX + 1];
 };
 
-static struct secasvar *key_allocsa_policy __P((struct secasindex *));
-static void key_freesp_so __P((struct secpolicy **));
-static struct secasvar *key_do_allocsa_policy __P((struct secashead *, u_int));
-static void key_delsp __P((struct secpolicy *));
-static struct secpolicy *key_getsp __P((struct secpolicyindex *));
-static struct secpolicy *key_getspbyid __P((u_int32_t));
-static u_int32_t key_newreqid __P((void));
-static struct mbuf *key_gather_mbuf __P((struct mbuf *,
-	const struct sadb_msghdr *, int, int, ...));
-static int key_spdadd __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static u_int32_t key_getnewspid __P((void));
-static int key_spddelete __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_spddelete2 __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_spdget __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_spdflush __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_spddump __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static struct mbuf *key_setdumpsp __P((struct secpolicy *,
-	u_int8_t, u_int32_t, u_int32_t));
-static u_int key_getspreqmsglen __P((struct secpolicy *));
-static int key_spdexpire __P((struct secpolicy *));
-static struct secashead *key_newsah __P((struct secasindex *));
-static void key_delsah __P((struct secashead *));
-static struct secasvar *key_newsav __P((struct mbuf *,
-	const struct sadb_msghdr *, struct secashead *, int *));
-static void key_delsav __P((struct secasvar *));
-static struct secashead *key_getsah __P((struct secasindex *));
-static struct secasvar *key_checkspidup __P((struct secasindex *, u_int32_t));
-static struct secasvar *key_getsavbyspi __P((struct secashead *, u_int32_t));
-static int key_setsaval __P((struct secasvar *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_mature __P((struct secasvar *));
-static struct mbuf *key_setdumpsa __P((struct secasvar *, u_int8_t,
-	u_int8_t, u_int32_t, u_int32_t));
-static struct mbuf *key_setsadbmsg __P((u_int8_t, u_int16_t, u_int8_t,
-	u_int32_t, pid_t, u_int16_t));
-static struct mbuf *key_setsadbsa __P((struct secasvar *));
-static struct mbuf *key_setsadbaddr __P((u_int16_t,
-	struct sockaddr *, u_int8_t, u_int16_t));
+static struct secasvar *key_allocsa_policy(struct secasindex *);
+static void key_freesp_so(struct secpolicy **);
+static struct secasvar *key_do_allocsa_policy(struct secashead *, u_int);
+static void key_delsp(struct secpolicy *);
+static struct secpolicy *key_getsp(struct secpolicyindex *);
+static struct secpolicy *key_getspbyid(u_int32_t);
+static u_int32_t key_newreqid(void);
+static struct mbuf *key_gather_mbuf(struct mbuf *,
+	const struct sadb_msghdr *, int, int, ...);
+static int key_spdadd(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static u_int32_t key_getnewspid(void);
+static int key_spddelete(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_spddelete2(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_spdget(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_spdflush(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_spddump(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static struct mbuf *key_setdumpsp(struct secpolicy *,
+	u_int8_t, u_int32_t, u_int32_t);
+static u_int key_getspreqmsglen(struct secpolicy *);
+static int key_spdexpire(struct secpolicy *);
+static struct secashead *key_newsah(struct secasindex *);
+static void key_delsah(struct secashead *);
+static struct secasvar *key_newsav(struct mbuf *,
+	const struct sadb_msghdr *, struct secashead *, int *);
+static void key_delsav(struct secasvar *);
+static struct secashead *key_getsah(struct secasindex *);
+static struct secasvar *key_checkspidup(struct secasindex *, u_int32_t);
+static struct secasvar *key_getsavbyspi(struct secashead *, u_int32_t);
+static int key_setsaval(struct secasvar *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_mature(struct secasvar *);
+static struct mbuf *key_setdumpsa(struct secasvar *, u_int8_t,
+	u_int8_t, u_int32_t, u_int32_t);
+static struct mbuf *key_setsadbmsg(u_int8_t, u_int16_t, u_int8_t,
+	u_int32_t, pid_t, u_int16_t);
+static struct mbuf *key_setsadbsa(struct secasvar *);
+static struct mbuf *key_setsadbaddr(u_int16_t,
+	struct sockaddr *, u_int8_t, u_int16_t);
 #if 0
-static struct mbuf *key_setsadbident __P((u_int16_t, u_int16_t, caddr_t,
-	int, u_int64_t));
+static struct mbuf *key_setsadbident(u_int16_t, u_int16_t, caddr_t,
+	int, u_int64_t);
 #endif
-static struct mbuf *key_setsadbxsa2 __P((u_int8_t, u_int32_t, u_int32_t));
-static struct mbuf *key_setsadbxpolicy __P((u_int16_t, u_int8_t,
-	u_int32_t));
-static void *key_newbuf __P((const void *, u_int));
+static struct mbuf *key_setsadbxsa2(u_int8_t, u_int32_t, u_int32_t);
+static struct mbuf *key_setsadbxpolicy(u_int16_t, u_int8_t,
+	u_int32_t);
+static void *key_newbuf(const void *, u_int);
 #ifdef INET6
-static int key_ismyaddr6 __P((struct sockaddr_in6 *));
+static int key_ismyaddr6(struct sockaddr_in6 *);
 #endif
 
 /* flags for key_cmpsaidx() */
@@ -426,74 +426,74 @@ static int key_ismyaddr6 __P((struct sockaddr_in6 *));
 #define CMP_REQID	3	/* additionally HEAD, reaid. */
 #define CMP_EXACTLY	4	/* all elements. */
 static int key_cmpsaidx
-	__P((struct secasindex *, struct secasindex *, int));
+	(struct secasindex *, struct secasindex *, int);
 
 static int key_cmpspidx_exactly
-	__P((struct secpolicyindex *, struct secpolicyindex *));
+	(struct secpolicyindex *, struct secpolicyindex *);
 static int key_cmpspidx_withmask
-	__P((struct secpolicyindex *, struct secpolicyindex *));
-static int key_sockaddrcmp __P((struct sockaddr *, struct sockaddr *, int));
-static int key_bbcmp __P((caddr_t, caddr_t, u_int));
-static void key_srandom __P((void));
-static u_int16_t key_satype2proto __P((u_int8_t));
-static u_int8_t key_proto2satype __P((u_int16_t));
+	(struct secpolicyindex *, struct secpolicyindex *);
+static int key_sockaddrcmp(struct sockaddr *, struct sockaddr *, int);
+static int key_bbcmp(caddr_t, caddr_t, u_int);
+static void key_srandom(void);
+static u_int16_t key_satype2proto(u_int8_t);
+static u_int8_t key_proto2satype(u_int16_t);
 
-static int key_getspi __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static u_int32_t key_do_getnewspi __P((struct sadb_spirange *,
-					struct secasindex *));
-static int key_update __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
+static int key_getspi(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static u_int32_t key_do_getnewspi(struct sadb_spirange *,
+					struct secasindex *);
+static int key_update(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
 #ifdef IPSEC_DOSEQCHECK
-static struct secasvar *key_getsavbyseq __P((struct secashead *, u_int32_t));
+static struct secasvar *key_getsavbyseq(struct secashead *, u_int32_t);
 #endif
-static int key_add __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_setident __P((struct secashead *, struct mbuf *,
-	const struct sadb_msghdr *));
-static struct mbuf *key_getmsgbuf_x1 __P((struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_delete __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_get __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
+static int key_add(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_setident(struct secashead *, struct mbuf *,
+	const struct sadb_msghdr *);
+static struct mbuf *key_getmsgbuf_x1(struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_delete(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_get(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
 
-static void key_getcomb_setlifetime __P((struct sadb_comb *));
+static void key_getcomb_setlifetime(struct sadb_comb *);
 #ifdef IPSEC_ESP
-static struct mbuf *key_getcomb_esp __P((void));
+static struct mbuf *key_getcomb_esp(void);
 #endif
-static struct mbuf *key_getcomb_ah __P((void));
-static struct mbuf *key_getcomb_ipcomp __P((void));
-static struct mbuf *key_getprop __P((const struct secasindex *));
+static struct mbuf *key_getcomb_ah(void);
+static struct mbuf *key_getcomb_ipcomp(void);
+static struct mbuf *key_getprop(const struct secasindex *);
 
-static int key_acquire __P((struct secasindex *, struct secpolicy *));
+static int key_acquire(struct secasindex *, struct secpolicy *);
 #ifndef IPSEC_NONBLOCK_ACQUIRE
-static struct secacq *key_newacq __P((struct secasindex *));
-static struct secacq *key_getacq __P((struct secasindex *));
-static struct secacq *key_getacqbyseq __P((u_int32_t));
+static struct secacq *key_newacq(struct secasindex *);
+static struct secacq *key_getacq(struct secasindex *);
+static struct secacq *key_getacqbyseq(u_int32_t);
 #endif
-static struct secspacq *key_newspacq __P((struct secpolicyindex *));
-static struct secspacq *key_getspacq __P((struct secpolicyindex *));
-static int key_acquire2 __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_register __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_expire __P((struct secasvar *));
-static int key_flush __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_dump __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_promisc __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *));
-static int key_senderror __P((struct socket *, struct mbuf *, int));
-static int key_validate_ext __P((const struct sadb_ext *, int));
-static int key_align __P((struct mbuf *, struct sadb_msghdr *));
+static struct secspacq *key_newspacq(struct secpolicyindex *);
+static struct secspacq *key_getspacq(struct secpolicyindex *);
+static int key_acquire2(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_register(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_expire(struct secasvar *);
+static int key_flush(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_dump(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_promisc(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *);
+static int key_senderror(struct socket *, struct mbuf *, int);
+static int key_validate_ext(const struct sadb_ext *, int);
+static int key_align(struct mbuf *, struct sadb_msghdr *);
 #if 0
-static const char *key_getfqdn __P((void));
-static const char *key_getuserfqdn __P((void));
+static const char *key_getfqdn(void);
+static const char *key_getuserfqdn(void);
 #endif
-static void key_sa_chgstate __P((struct secasvar *, u_int8_t));
-static struct mbuf *key_alloc_mbuf __P((int));
+static void key_sa_chgstate(struct secasvar *, u_int8_t);
+static struct mbuf *key_alloc_mbuf(int);
 
 /* %%% IPsec policy management */
 /*
@@ -5210,8 +5210,8 @@ key_getmsgbuf_x1(m, mhp)
 	return n;
 }
 
-static int key_delete_all __P((struct socket *, struct mbuf *,
-	const struct sadb_msghdr *, u_int16_t));
+static int key_delete_all(struct socket *, struct mbuf *,
+	const struct sadb_msghdr *, u_int16_t);
 
 /*
  * SADB_DELETE processing
@@ -6718,8 +6718,8 @@ key_promisc(so, m, mhp)
 	}
 }
 
-static int (*key_typesw[]) __P((struct socket *, struct mbuf *,
-		const struct sadb_msghdr *)) = {
+static int (*key_typesw[])(struct socket *, struct mbuf *,
+		const struct sadb_msghdr *) = {
 	NULL,		/* SADB_RESERVED */
 	key_getspi,	/* SADB_GETSPI */
 	key_update,	/* SADB_UPDATE */
