@@ -1156,9 +1156,9 @@ print_user(struct passwd * pwd, int pretty, int v7)
 			*p = (char) toupper((unsigned char)*p);
 		}
 		if (pwd->pw_expire > (time_t)0 && (tptr = localtime(&pwd->pw_expire)) != NULL)
-		  strftime(acexpire, sizeof acexpire, "%a %Ef %Y %X", tptr);
+			strftime(acexpire, sizeof acexpire, "%c", tptr);
 		if (pwd->pw_change > (time_t)0 && (tptr = localtime(&pwd->pw_change)) != NULL)
-		  strftime(pwexpire, sizeof pwexpire, "%a %Ef %Y %X", tptr);
+			strftime(pwexpire, sizeof pwexpire, "%c", tptr);
 		printf("Login Name: %-15s   #%-12ld Group: %-15s   #%ld\n"
 		       " Full Name: %s\n"
 		       "      Home: %-26.26s      Class: %s\n"
