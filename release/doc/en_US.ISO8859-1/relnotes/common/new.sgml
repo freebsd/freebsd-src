@@ -488,7 +488,7 @@
       <para arch="i386">The <literal>CPU_ATHLON_SSE_HACK</literal>
 	kernel option has been added, which attempts to enable the SSE
 	feature bit on newer Athlon CPUs if the BIOS has forgotten to
-	enable it.</para>
+	enable it. &merged;</para>
 
       <para arch="sparc64">The UltraSPARC platform is now supported by
 	&os;.  The following machines are supported to at least some
@@ -496,6 +496,12 @@
 	100.  SMP is supported, and has been tested on the
 	Ultra 2, Ultra 60, Enterprise 220R, and 
 	Enterprise 420R.</para>
+
+      <para arch="i386">On some systems, the BIOS does not activate
+	the I/O ports and memory of PC devices, thus making them
+	unusable.  The <literal>PCI_ENABLE_IO_MODES</literal> kernel
+	option forces &os; to enable these devices so that they can be
+	used. &merged;</para>
 
     </sect3>
 
@@ -984,7 +990,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The ephemeral port range used for TCP and UDP has been
 	changed to 49152&ndash;65535 (the old default was
 	1024&ndash;5000).  This increases the number of concurrent
-	outgoing connections/streams. &merged;</para>
+	outgoing connections/streams.</para>
     </sect3>
 
     <sect3>
@@ -1349,6 +1355,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para arch="i386">The ich sound driver now support the SiS
 	7012 chipset. &merged;</para>
+
+      <para arch="i386">Drivers have been added to support the Direct
+        Rendering Infrastructure, which can used to provide 3D
+        acceleration within <application>XFree86</application>.  Video
+        cards supported include the 3Dlabs Oxygen GMX 2000 (gammadrm),
+        AGP Matrox G200/G400/G450/G550 (mgadrm), 3dfx Voodoo
+        3/4/5/Banshee (tdfxdrm), AGI ATI Rage 128 (r128drm), and AGP
+        ATI Radeon (radeondrm).</para>
 
     </sect3>
 
@@ -1870,6 +1884,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>A number of buffer overflows in &man.config.8; have been
       fixed. &merged;</para>
 
+    <para>A new &man.csplit.1; utility, which splits files based on
+      context, has been added.</para>
+
     <para>&man.ctags.1; no longer creates a corrupt tags file if the
       source file used <literal>//</literal> (C++-style)
       comments. &merged;</para>
@@ -2375,6 +2392,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>/etc/rc.conf</filename> to the default options in
       <filename>/etc/defaults/rc.conf</filename>. &merged;</para>
 
+    <para>&man.mk.cmds.1; and the associated
+      <filename>libss</filename> have been removed; they have been
+      unused for quite some time. &merged;</para>
+
     <para>&man.moused.8; now takes a <option>-a</option> option to
       control mouse acceleration. &merged;</para>
 
@@ -2776,6 +2797,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.sysinstall.8; no longer mounts the &man.procfs.5;
       filesystem by default on new installs.</para>
 
+    <para>&man.sysinstall.8; now has rudimentary support for
+      retrieving packages from the correct volume of a multiple-volume
+      installation (such as a multi-CD distribution). &merged;</para>
+
     <para>&man.syslogd.8; can take a <option>-n</option> option to
       disable DNS queries for every request. &merged;</para>
 
@@ -3059,7 +3084,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<application>lukemftpd</application>, has been imported and is
 	available as &man.lukemftpd.8;.</para>
 
-      <para>&man.m4.1; has been imported from OpenBSD, as of 19 April
+      <para>&man.m4.1; has been imported from OpenBSD, as of 26 April
 	2002.</para>
 
       <para><application>ncurses</application> has been updated to
@@ -3069,7 +3094,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	been updated to 4.1.0. &merged;</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Cineraria</quote> release) has been imported,
+        (<quote>Cinnamon</quote> release) has been imported,
         replacing
         <application>Linux-PAM</application>.</para>
 
