@@ -890,10 +890,8 @@ pmap_new_proc(p)
 	if ((up = p->p_addr) == NULL) {
 		up = (struct user *) kmem_alloc_nofault(kernel_map,
 				UPAGES * PAGE_SIZE);
-#if !defined(MAX_PERF)
 		if (up == NULL)
 			panic("pmap_new_proc: u_map allocation failed");
-#endif
 		p->p_addr = up;
 	}
 
@@ -1015,10 +1013,8 @@ pmap_swapin_proc(p)
 
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(upobj, &m, 1, 0);
-#if !defined(MAX_PERF)
 			if (rv != VM_PAGER_OK)
 				panic("pmap_swapin_proc: cannot get upages for proc: %d\n", p->p_pid);
-#endif
 			m = vm_page_lookup(upobj, i);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
@@ -1222,11 +1218,9 @@ pmap_release_free_page(pmap, p)
 	pde[p->pindex] = 0;
 	pmap->pm_stats.resident_count--;
 
-#if !defined(MAX_PERF)
 	if (p->hold_count)  {
 		panic("pmap_release: freeing held page table page");
 	}
-#endif
 	/*
 	 * Page directory pages need to have the kernel
 	 * stuff cleared, so they can go into the zero queue also.
@@ -1448,10 +1442,8 @@ pmap_growkernel(vm_offset_t addr)
 		 * This index is bogus, but out of the way
 		 */
 		nkpg = vm_page_alloc(kptobj, nkpt, VM_ALLOC_SYSTEM);
-#if !defined(MAX_PERF)
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
-#endif
 
 		nkpt++;
 
@@ -1490,9 +1482,7 @@ pmap_destroy(pmap)
 	count = --pmap->pm_count;
 	if (count == 0) {
 		pmap_release(pmap);
-#if !defined(MAX_PERF)
 		panic("destroying a pmap is not yet implemented");
-#endif
 	}
 }
 
@@ -2058,7 +2048,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 
 	pte = pmap_pte(pmap, va);
 
-#if !defined(MAX_PERF)
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
@@ -2066,16 +2055,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 		panic("pmap_enter: invalid page directory, pdir=%p, va=0x%x\n",
 			(void *)pmap->pm_pdir[PTDPTDI], va);
 	}
-#endif
 
 	origpte = *(vm_offset_t *)pte;
 	pa &= PG_FRAME;
 	opa = origpte & PG_FRAME;
 
-#if !defined(MAX_PERF)
 	if (origpte & PG_PS)
 		panic("pmap_enter: attempted pmap_enter on 4MB page");
-#endif
 
 	/*
 	 * Mapping has not changed, must be protection or wiring change.
@@ -2141,10 +2127,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 	if (opa) {
 		int err;
 		err = pmap_remove_pte(pmap, pte, va);
-#if !defined(MAX_PERF)
 		if (err)
 			panic("pmap_enter: pte vanished, va: 0x%x", va);
-#endif
 	}
 
 	/*
@@ -2241,10 +2225,8 @@ retry:
 			 * the hold count, and activate it.
 			 */
 			if (ptepa) {
-#if !defined(MAX_PERF)
 				if (ptepa & PG_PS)
 					panic("pmap_enter_quick: unexpected mapping into 4MB page");
-#endif
 				if (pmap->pm_ptphint &&
 					(pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
@@ -2619,10 +2601,8 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 		vm_offset_t srcptepaddr;
 		unsigned ptepindex;
 
-#if !defined(MAX_PERF)
 		if (addr >= UPT_MIN_ADDRESS)
 			panic("pmap_copy: invalid to pmap_copy page tables\n");
-#endif
 
 		/*
 		 * Don't let optional prefaulting of pages make us go
@@ -2715,10 +2695,8 @@ pmap_zero_page(phys)
 	vm_offset_t phys;
 {
 #ifdef SMP
-#if !defined(MAX_PERF)
 	if (*(int *) prv_CMAP3)
 		panic("pmap_zero_page: prv_CMAP3 busy");
-#endif
 
 	*(int *) prv_CMAP3 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
 	cpu_invlpg(prv_CADDR3);
@@ -2732,10 +2710,8 @@ pmap_zero_page(phys)
 
 	*(int *) prv_CMAP3 = 0;
 #else
-#if !defined(MAX_PERF)
 	if (*(int *) CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
-#endif
 
 	*(int *) CMAP2 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
 	invltlb_1pg((vm_offset_t)CADDR2);
@@ -2763,10 +2739,8 @@ pmap_zero_page_area(phys, off, size)
 	int size;
 {
 #ifdef SMP
-#if !defined(MAX_PERF)
 	if (*(int *) prv_CMAP3)
 		panic("pmap_zero_page: prv_CMAP3 busy");
-#endif
 
 	*(int *) prv_CMAP3 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
 	cpu_invlpg(prv_CADDR3);
@@ -2780,10 +2754,8 @@ pmap_zero_page_area(phys, off, size)
 
 	*(int *) prv_CMAP3 = 0;
 #else
-#if !defined(MAX_PERF)
 	if (*(int *) CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
-#endif
 
 	*(int *) CMAP2 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
 	invltlb_1pg((vm_offset_t)CADDR2);
@@ -2810,12 +2782,10 @@ pmap_copy_page(src, dst)
 	vm_offset_t dst;
 {
 #ifdef SMP
-#if !defined(MAX_PERF)
 	if (*(int *) prv_CMAP1)
 		panic("pmap_copy_page: prv_CMAP1 busy");
 	if (*(int *) prv_CMAP2)
 		panic("pmap_copy_page: prv_CMAP2 busy");
-#endif
 
 	*(int *) prv_CMAP1 = PG_V | (src & PG_FRAME) | PG_A;
 	*(int *) prv_CMAP2 = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
@@ -2828,10 +2798,8 @@ pmap_copy_page(src, dst)
 	*(int *) prv_CMAP1 = 0;
 	*(int *) prv_CMAP2 = 0;
 #else
-#if !defined(MAX_PERF)
 	if (*(int *) CMAP1 || *(int *) CMAP2)
 		panic("pmap_copy_page: CMAP busy");
-#endif
 
 	*(int *) CMAP1 = PG_V | (src & PG_FRAME) | PG_A;
 	*(int *) CMAP2 = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
@@ -3286,10 +3254,8 @@ pmap_mapdev(pa, size)
 	size = roundup(offset + size, PAGE_SIZE);
 
 	va = kmem_alloc_pageable(kernel_map, size);
-#if !defined(MAX_PERF)
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
-#endif
 
 	pa = pa & PG_FRAME;
 	for (tmpva = va; size > 0;) {

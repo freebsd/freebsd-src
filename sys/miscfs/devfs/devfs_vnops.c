@@ -1933,7 +1933,6 @@ devfs_getpages(struct vop_getpages_args *ap)
 	}
 	if (!gotreqpage) {
 		m = ap->a_m[ap->a_reqpage];
-#ifndef MAX_PERF
 		printf("devfs_getpages: I/O read failure: (error code=%d)\n",
 								error);
 		printf("               size: %d, resid:"
@@ -1942,7 +1941,6 @@ devfs_getpages(struct vop_getpages_args *ap)
 		printf("               nread: %d, reqpage:"
 			" %d, pindex: %d, pcount: %d\n",
 				nread, ap->a_reqpage, m->pindex, pcount);
-#endif
 		/*
 		 * Free the buffer header back to the swap buffer pool.
 		 */

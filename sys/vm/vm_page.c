@@ -416,11 +416,9 @@ vm_page_remove(m)
 	if (m->object == NULL)
 		return;
 
-#if !defined(MAX_PERF)
 	if ((m->flags & PG_BUSY) == 0) {
 		panic("vm_page_remove: page not busy");
 	}
-#endif
 
 	/*
 	 * Basically destroy the page.
@@ -443,10 +441,8 @@ vm_page_remove(m)
 
 		bucket = &vm_page_buckets[vm_page_hash(m->object, m->pindex)];
 		while (*bucket != m) {
-#if !defined(MAX_PERF)
 			if (*bucket == NULL)
 				panic("vm_page_remove(): page not found in hash");
-#endif
 			bucket = &(*bucket)->hnext;
 		}
 		*bucket = m->hnext;
@@ -1055,7 +1051,6 @@ vm_page_free_toq(vm_page_t m)
 
 	cnt.v_tfree++;
 
-#if !defined(MAX_PERF)
 	if (m->busy || ((m->queue - m->pc) == PQ_FREE) ||
 		(m->hold_count != 0)) {
 		printf(
@@ -1067,7 +1062,6 @@ vm_page_free_toq(vm_page_t m)
 		else
 			panic("vm_page_free: freeing busy page");
 	}
-#endif
 
 	/*
 	 * unqueue, then remove page.  Note that we cannot destroy
@@ -1093,12 +1087,10 @@ vm_page_free_toq(vm_page_t m)
 	vm_page_undirty(m);
 
 	if (m->wire_count != 0) {
-#if !defined(MAX_PERF)
 		if (m->wire_count > 1) {
 			panic("vm_page_free: invalid wire count (%d), pindex: 0x%lx",
 				m->wire_count, (long)m->pindex);
 		}
-#endif
 		panic("vm_page_free: freeing wired page\n");
 	}
 
@@ -1224,9 +1216,7 @@ vm_page_unwire(m, activate)
 			}
 		}
 	} else {
-#if !defined(MAX_PERF)
 		panic("vm_page_unwire: invalid wire count: %d\n", m->wire_count);
-#endif
 	}
 	splx(s);
 }
@@ -1288,12 +1278,10 @@ vm_page_cache(m)
 {
 	int s;
 
-#if !defined(MAX_PERF)
 	if ((m->flags & PG_BUSY) || m->busy || m->wire_count) {
 		printf("vm_page_cache: attempting to cache busy page\n");
 		return;
 	}
-#endif
 	if ((m->queue - m->pc) == PQ_CACHE)
 		return;
 
@@ -1303,12 +1291,10 @@ vm_page_cache(m)
 	 */
 
 	vm_page_protect(m, VM_PROT_NONE);
-#if !defined(MAX_PERF)
 	if (m->dirty != 0) {
 		panic("vm_page_cache: caching a dirty page, pindex: %ld",
 			(long)m->pindex);
 	}
-#endif
 	s = splvm();
 	vm_page_unqueue_nowakeup(m);
 	m->queue = PQ_CACHE + m->pc;
@@ -1692,14 +1678,12 @@ contigmalloc1(size, type, flags, low, high, alignment, boundary, map)
 	vm_page_t pga = vm_page_array;
 
 	size = round_page(size);
-#if !defined(MAX_PERF)
 	if (size == 0)
 		panic("contigmalloc1: size must not be 0");
 	if ((alignment & (alignment - 1)) != 0)
 		panic("contigmalloc1: alignment must be a power of 2");
 	if ((boundary & (boundary - 1)) != 0)
 		panic("contigmalloc1: boundary must be a power of 2");
-#endif
 
 	start = 0;
 	for (pass = 0; pass <= 1; pass++) {

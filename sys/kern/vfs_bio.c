@@ -456,10 +456,8 @@ bremfree(struct buf * bp)
 		bp->b_qindex = QUEUE_NONE;
 		runningbufspace += bp->b_bufsize;
 	} else {
-#if !defined(MAX_PERF)
 		if (BUF_REFCNT(bp) <= 1)
 			panic("bremfree: removing a buffer not on a queue");
-#endif
 	}
 
 	/*
@@ -603,10 +601,8 @@ bwrite(struct buf * bp)
 
 	oldflags = bp->b_flags;
 
-#if !defined(MAX_PERF)
 	if (BUF_REFCNT(bp) == 0)
 		panic("bwrite: buffer is not busy???");
-#endif
 	s = splbio();
 	/*
 	 * If a background write is already in progress, delay
@@ -751,10 +747,8 @@ vfs_backgroundwritedone(bp)
 void
 bdwrite(struct buf * bp)
 {
-#if !defined(MAX_PERF)
 	if (BUF_REFCNT(bp) == 0)
 		panic("bdwrite: buffer is not busy");
-#endif
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
@@ -1061,11 +1055,9 @@ brelse(struct buf * bp)
 					m = bp->b_pages[j];
 					if (m == bogus_page) {
 						m = vm_page_lookup(obj, poff + j);
-#if !defined(MAX_PERF)
 						if (!m) {
 							panic("brelse: page missing\n");
 						}
-#endif
 						bp->b_pages[j] = m;
 					}
 				}
@@ -1096,10 +1088,8 @@ brelse(struct buf * bp)
 
 	}
 			
-#if !defined(MAX_PERF)
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
-#endif
 	if (BUF_REFCNT(bp) > 1) {
 		/* Temporary panic to verify exclusive locking */
 		/* This panic goes away when we allow shared refs */
@@ -1229,10 +1219,8 @@ bqrelse(struct buf * bp)
 
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)), ("bqrelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
 
-#if !defined(MAX_PERF)
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("bqrelse: free buffer onto another queue???");
-#endif
 	if (BUF_REFCNT(bp) > 1) {
 		/* do not release to free list */
 		panic("bqrelse: multiple refs");
@@ -2109,10 +2097,8 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	int s;
 	struct bufhashhdr *bh;
 
-#if !defined(MAX_PERF)
 	if (size > MAXBSIZE)
 		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
-#endif
 
 	s = splbio();
 loop:
@@ -2346,13 +2332,11 @@ allocbuf(struct buf *bp, int size)
 	int newbsize, mbsize;
 	int i;
 
-#if !defined(MAX_PERF)
 	if (BUF_REFCNT(bp) == 0)
 		panic("allocbuf: buffer not busy");
 
 	if (bp->b_kvasize < size)
 		panic("allocbuf: buffer too small");
-#endif
 
 	if ((bp->b_flags & B_VMIO) == 0) {
 		caddr_t origbuf;
@@ -2745,11 +2729,9 @@ biodone(register struct buf * bp)
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("biodone: no buffer offset"));
 
-#if !defined(MAX_PERF)
 		if (!obj) {
 			panic("biodone: no object");
 		}
-#endif
 #if defined(VFS_BIO_DEBUG)
 		if (obj->paging_in_progress < bp->b_npages) {
 			printf("biodone: paging in progress(%d) < bp->b_npages(%d)\n",
@@ -2811,15 +2793,12 @@ biodone(register struct buf * bp)
 			 * have not set the page busy flag correctly!!!
 			 */
 			if (m->busy == 0) {
-#if !defined(MAX_PERF)
 				printf("biodone: page busy < 0, "
 				    "pindex: %d, foff: 0x(%x,%x), "
 				    "resid: %d, index: %d\n",
 				    (int) m->pindex, (int)(foff >> 32),
 						(int) foff & 0xffffffff, resid, i);
-#endif
 				if (!vn_isdisk(vp, NULL))
-#if !defined(MAX_PERF)
 					printf(" iosize: %ld, lblkno: %d, flags: 0x%lx, npages: %d\n",
 					    bp->b_vp->v_mount->mnt_stat.f_iosize,
 					    (int) bp->b_lblkno,
@@ -2830,7 +2809,6 @@ biodone(register struct buf * bp)
 					    bp->b_flags, bp->b_npages);
 				printf(" valid: 0x%x, dirty: 0x%x, wired: %d\n",
 				    m->valid, m->dirty, m->wire_count);
-#endif
 				panic("biodone: page busy < 0\n");
 			}
 			vm_page_io_finish(m);
@@ -2877,11 +2855,9 @@ vfs_unbusy_pages(struct buf * bp)
 
 			if (m == bogus_page) {
 				m = vm_page_lookup(obj, OFF_TO_IDX(bp->b_offset) + i);
-#if !defined(MAX_PERF)
 				if (!m) {
 					panic("vfs_unbusy_pages: page missing\n");
 				}
-#endif
 				bp->b_pages[i] = m;
 				pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 			}
@@ -3185,12 +3161,10 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 		p = bp->b_pages[index];
 		if (p && (index < bp->b_npages)) {
-#if !defined(MAX_PERF)
 			if (p->busy) {
 				printf("vm_hold_free_pages: blkno: %d, lblkno: %d\n",
 					bp->b_blkno, bp->b_lblkno);
 			}
-#endif
 			bp->b_pages[index] = NULL;
 			pmap_kremove(pg);
 			vm_page_busy(p);
