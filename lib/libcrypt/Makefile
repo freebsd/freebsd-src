@@ -24,9 +24,6 @@ CFLAGS+=	-I${.CURDIR}/../libmd
 CFLAGS+=	-DLIBC_SCCS -Wall
 PRECIOUSLIB=	yes
 
-LDADD+=		-lmd
-DPADD+=		${LIBMD}
-
 # Include this early to pick up the definitions of SHLIB_MAJOR and
 # SHLIB_MINOR which are used in the existence tests.
 .include "${.CURDIR}/../Makefile.inc"

@@ -11,14 +11,28 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = \
+"$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <sha.h>
+#include <err.h>
 #include "crypt.h"
+
+#ifdef __PIC__
+#include <dlfcn.h>
+
+#define	SHA_Init(ctx)			dl_SHA_Init(ctx)
+#define	SHA_Update(ctx, data, len)	dl_SHA_Update(ctx, data, len)
+#define	SHA_Final(dgst, ctx)		dl_SHA_Final(dgst, ctx)
+
+static void (*dl_SHA_Init)(SHA_CTX *);
+static void (*dl_SHA_Update)(SHA_CTX *, const unsigned char *, unsigned int);
+static void (*dl_SHA_Final)(unsigned char digest[20], SHA_CTX *);
+#endif
 
 /*
  * UNIX password
@@ -41,6 +55,9 @@ crypt_sha(pw, salt)
 	int sl,pl,i;
 	SHA_CTX	ctx,ctx1;
 	unsigned long l;
+#ifdef __PIC__
+	void *libmd;
+#endif
 
 	/* Refine the Salt first */
 	sp = salt;
@@ -56,6 +73,32 @@ crypt_sha(pw, salt)
 	/* get the length of the true salt */
 	sl = ep - sp;
 
+#ifdef __PIC__
+	libmd = dlopen("libmd.so", RTLD_NOW);
+	if (libmd == NULL)
+		return NULL;
+	dl_SHA_Init = dlsym(libmd, "SHA_Init");
+	if (dl_SHA_Init == NULL) {
+		warnx("libcrypt-md5: looking for SHA_Init: %s\n", dlerror());
+		dlclose(libmd);
+		return NULL;
+	}
+	dl_SHA_Update = dlsym(libmd, "SHA_Update");
+	if (dl_SHA_Update == NULL) {
+		warnx("libcrypt-md5: looking for SHA_Update: %s\n", dlerror());
+		dlclose(libmd);
+		return NULL;
+	}
+	dl_SHA_Final = dlsym(libmd, "SHA_Final");
+	if (dl_SHA_Final == NULL) {
+		warnx("libcrypt-md5: looking for SHA_Final: %s\n", dlerror());
+		dlclose(libmd);
+		return NULL;
+	}
+#endif
+  	SHA_Init(&ctx);
+  
+  	/* The password first, since that is what is most unknown */
 	SHA_Init(&ctx);
 
 	/* The password first, since that is what is most unknown */
@@ -118,6 +161,9 @@ crypt_sha(pw, salt)
 		SHA_Final(final,&ctx1);
 	}
 
+#ifdef __PIC__
+	dlclose(libmd);
+#endif
 	p = passwd + strlen(passwd);
 
 	l = (final[ 0]<<16) | (final[ 6]<<8) | final[12];
