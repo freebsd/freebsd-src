@@ -160,8 +160,8 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 		return;
 	}
 
-#if 0
-	{
+#ifdef HATM_DEBUG
+	if (sc->debug & DBG_DUMP) {
 		struct mbuf *tmp;
 
 		for (tmp = vcc->chain; tmp != NULL; tmp = tmp->m_next) {

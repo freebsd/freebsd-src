@@ -588,16 +588,18 @@ struct hatm_softc {
     } while (0)
 
 enum {
-	DBG_RX		= 0x0001,
-	DBG_TX		= 0x0002,
-	DBG_VCC		= 0x0004,
-	DBG_IOCTL	= 0x0008,
-	DBG_ATTACH	= 0x0010,
-	DBG_INTR	= 0x0020,
-	DBG_DMA		= 0x0040,
-	DBG_DMAH	= 0x0080,
+	DBG_DUMMY	= 0x0001,	/* default value for -DHATM_DEBUG */
+	DBG_RX		= 0x0002,
+	DBG_TX		= 0x0004,
+	DBG_VCC		= 0x0008,
+	DBG_IOCTL	= 0x0010,
+	DBG_ATTACH	= 0x0020,
+	DBG_INTR	= 0x0040,
+	DBG_DMA		= 0x0080,
+	DBG_DMAH	= 0x0100,
+	DBG_DUMP	= 0x0200,
 
-	DBG_ALL		= 0x00ff
+	DBG_ALL		= 0x03ff
 };
 
 #else
