@@ -65,33 +65,6 @@ struct swdevt {
 
 #ifdef _KERNEL
 
-/*
- * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, or 16
- * pages per allocation.  We recommend you stick with the default of 8.
- * The 16-page limit is due to the radix code (kern/subr_blist.c).
- */
-#ifndef MAX_PAGEOUT_CLUSTER
-#define MAX_PAGEOUT_CLUSTER 16
-#endif
-
-#if !defined(SWB_NPAGES)
-#define SWB_NPAGES	MAX_PAGEOUT_CLUSTER
-#endif
-
-/*
- * Piecemeal swap metadata structure.  Swap is stored in a radix tree.
- *
- * If SWB_NPAGES is 8 and sizeof(char *) == sizeof(daddr_t), our radix
- * is basically 8.  Assuming PAGE_SIZE == 4096, one tree level represents
- * 32K worth of data, two levels represent 256K, three levels represent
- * 2 MBytes.   This is acceptable.
- *
- * Overall memory utilization is about the same as the old swap structure.
- */
-#define SWCORRECT(n) (sizeof(void *) * (n) / sizeof(daddr_t))
-#define SWAP_META_PAGES		(SWB_NPAGES * 2)
-#define SWAP_META_MASK		(SWAP_META_PAGES - 1)
-
 extern int swap_pager_full;
 extern int vm_swap_size;
 
