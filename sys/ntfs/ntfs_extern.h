@@ -1,3 +1,5 @@
+/*	$NetBSD: ntfs_extern.h,v 1.2 1999/05/06 15:43:18 christos Exp $	*/
+
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko
  * All rights reserved.
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_extern.h,v 1.2 1999/02/19 12:31:02 semenu Exp $
+ *	$Id: ntfs_extern.h,v 1.4 1999/05/12 09:42:57 semenu Exp $
  */
 
 struct sockaddr;

@@ -1,3 +1,5 @@
+/*	$NetBSD: ntfs_inode.h,v 1.2 1999/05/06 15:43:19 christos Exp $	*/
+
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko
  * All rights reserved.
@@ -23,11 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_inode.h,v 1.2 1999/02/19 12:31:02 semenu Exp $
+ *	$Id: ntfs_inode.h,v 1.4 1999/05/12 09:43:00 semenu Exp $
  */
 
 /* These flags are kept in i_flag. */
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD__)
 #define	IN_ACCESS	0x0001	/* Access time update request. */
 #define	IN_CHANGE	0x0002	/* Inode change time update request. */
 #define	IN_UPDATE	0x0004	/* Modification time update request. */
@@ -35,9 +37,8 @@
 #define	IN_RENAME	0x0010	/* Inode is being renamed. */
 #define	IN_SHLOCK	0x0020	/* File has shared lock. */
 #define	IN_EXLOCK	0x0040	/* File has exclusive lock. */
-#define	IN_HASHED	0x0080	/* Inode is on hash list */
-#define	IN_LAZYMOD	0x0100	/* Modified, but don't write yet. */
-#else
+#define	IN_LAZYMOD	0x0080	/* Modified, but don't write yet. */
+#else /* defined(__NetBSD__) */
 #define	IN_ACCESS	0x0001	/* Access time update request. */
 #define	IN_CHANGE	0x0002	/* Inode change time update request. */
 #define	IN_EXLOCK	0x0004	/* File has exclusive lock. */
@@ -51,21 +52,27 @@
 #define	IN_RECURSE	0x0400	/* Recursion expected */
 #endif
 
+#define	IN_HASHED	0x0800	/* Inode is on hash list */
 #define	IN_LOADED	0x8000	/* ntvattrs loaded */
 #define	IN_PRELOADED	0x4000	/* loaded from directory entry */
 
 struct ntnode {
-	LIST_ENTRY(ntnode) i_hash;
+	LIST_ENTRY(ntnode)	i_hash;
 	struct ntnode  *i_next;
 	struct ntnode **i_prev;
-	struct ntfsmount *i_mp;
+	struct ntfsmount       *i_mp;
 	ino_t           i_number;
 	dev_t           i_dev;
 	u_int32_t       i_flag;
+	int		i_lock;
 	int		i_usecount;
-
-	LIST_HEAD(,fnode) i_fnlist;
-	struct ntvattr *i_vattrp;	/* ntvattrs list */
+#if defined(__NetBSD__)
+	pid_t		i_lockholder;
+	pid_t		i_lockwaiter;
+	int		i_lockcount;
+#endif
+	LIST_HEAD(,fnode)	i_fnlist;
+	LIST_HEAD(,ntvattr)	i_valist;
 
 	long		i_nlink;	/* MFR */
 	ino_t		i_mainrec;	/* MFR */
@@ -77,7 +84,7 @@ struct ntnode {
 };
 
 #define	FN_PRELOADED	0x0001
-#define	FN_DEFAULT	0x0002
+#define	FN_VALID	0x0002
 #define	FN_AATTRNAME	0x0004	/* space allocated for f_attrname */
 struct fnode {
 	struct lock	f_lock;		/* Must be first */

@@ -1,3 +1,5 @@
+/*	$NetBSD: ntfs_ihash.c,v 1.2 1999/05/06 15:43:19 christos Exp $	*/
+
 /*
  * Copyright (c) 1982, 1986, 1989, 1991, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
@@ -31,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $Id: ntfs_ihash.c,v 1.2 1999/02/19 12:31:02 semenu Exp $
+ * $Id: ntfs_ihash.c,v 1.5 1999/05/12 09:42:58 semenu Exp $
  */
 
 #include <sys/param.h>
@@ -53,7 +55,7 @@ MALLOC_DEFINE(M_NTFSNTHASH, "NTFS nthash", "NTFS ntnode hash tables");
  */
 static LIST_HEAD(nthashhead, ntnode) *ntfs_nthashtbl;
 static u_long	ntfs_nthash;		/* size of hash table - 1 */
-#define	NTNOHASH(device, inum)	(&ntfs_nthashtbl[((device) + (inum)) & ntfs_nthash])
+#define	NTNOHASH(device, inum)	(&ntfs_nthashtbl[(minor(device) + (inum)) & ntfs_nthash])
 #ifndef NULL_SIMPLELOCKS
 static struct simplelock ntfs_nthash_slock;
 #endif
@@ -65,7 +67,8 @@ void
 ntfs_nthashinit()
 {
 
-	ntfs_nthashtbl = hashinit(desiredvnodes, M_NTFSNTHASH, &ntfs_nthash);
+	ntfs_nthashtbl = HASHINIT(desiredvnodes, M_NTFSNTHASH, M_WAITOK,
+	    &ntfs_nthash);
 	simple_lock_init(&ntfs_nthash_slock);
 }
 
