@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.231 1999/05/07 10:10:42 phk Exp $
+ *	$Id: sio.c,v 1.232 1999/05/07 17:52:01 mjacob Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -2646,9 +2646,9 @@ CONS_DRIVER(sio, siocnprobe, siocninit, siocngetc, siocncheckc, siocnputc);
 /*
  * Routines to support GDB on an sio port.
  */
-extern	dev_t	gdbdev;
-extern	cn_getc_t *gdb_getc;
-extern	cn_putc_t *gdb_putc;
+dev_t	   gdbdev;
+cn_getc_t *gdb_getc;
+cn_putc_t *gdb_putc;
 
 #endif
 
@@ -2865,8 +2865,11 @@ siocnprobe(cp)
 	 * If no gdb port has been specified, set it to be the console
 	 * as some configuration files don't specify the gdb port.
 	 */
-	if (gdbdev == -1) {
-		printf("sio%d: gdb debugging port\n", siocnunit);
+	if (gdbdev == -1 && (boothowto & RB_GDB)) {
+		printf("Warning: no GDB port specified. Defaulting to sio%d.\n",
+			siocnunit);
+		printf("Set flag 0x80 on desired GDB port in your\n");
+		printf("configuration file (currently sio only).\n");
 		siogdbiobase = siocniobase;
 		siogdbunit = siocnunit;
 		gdbdev = makedev(CDEV_MAJOR, siocnunit);
