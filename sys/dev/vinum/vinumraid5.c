@@ -20,7 +20,7 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by Cybernet Corporation 
+ *	This product includes software developed by Cybernet Corporation
  *      and Nan Yang Computer Services Limited
  * 4. Neither the name of the Companies nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
@@ -38,14 +38,8 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumraid5.c,v 1.1 1999/08/07 08:22:49 grog Exp $
+ * $Id: raid5.c,v 1.15 1999/07/07 03:46:01 grog Exp grog $
  */
-/*
- * XXX To do:
- *
- * lock ranges while calculating parity
- */
-
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 #include <sys/resourcevar.h>
@@ -54,7 +48,7 @@
  * Parameters which describe the current transfer.
  * These are only used for calculation, but they
  * need to be passed to other functions, so it's
- * tidier to put them in a struct 
+ * tidier to put them in a struct
  */
 struct metrics {
     daddr_t stripebase;					    /* base address of stripe (1st subdisk) */
@@ -70,7 +64,7 @@ struct metrics {
     int useroffset;
     /*
      * Initial offset and length values for the first
-     * data block 
+     * data block
      */
     int initoffset;					    /* start address of block to transfer */
     short initlen;					    /* length in sectors of data transfer */
@@ -96,23 +90,28 @@ enum requeststatus build_rq_buffer(struct rqelement *rqe, struct plex *plex);
 void setrqebounds(struct rqelement *rqe, struct metrics *mp);
 
 /*
- * define the low-level requests needed to perform a
- * high-level I/O operation for a specific plex 'plexno'.
+ * define the low-level requests needed to perform
+ * a high-level I/O operation for a specific plex
+ * 'plexno'.
  *
- * Return 0 if all subdisks involved in the request are up, 1 if some
- * subdisks are not up, and -1 if the request is at least partially
+ * Return 0 if all subdisks involved in the
+ * request are up, 1 if some subdisks are not up,
+ * and -1 if the request is at least partially
  * outside the bounds of the subdisks.
  *
- * Modify the pointer *diskstart to point to the end address.  On
- * read, return on the first bad subdisk, so that the caller
+ * Modify the pointer *diskstart to point to the
+ * end address.  On read, return on the first bad
+ * subdisk, so that the caller
  * (build_read_request) can try alternatives.
  *
- * On entry to this routine, the prq structures are not assigned.  The
- * assignment is performed by expandrq().  Strictly speaking, the
- * elements rqe->sdno of all entries should be set to -1, since 0
- * (from bzero) is a valid subdisk number.  We avoid this problem by
- * initializing the ones we use, and not looking at the others (index
- * >= prq->requests).
+ * On entry to this routine, the prq structures
+ * are not assigned.  The assignment is performed
+ * by expandrq().  Strictly speaking, the elements
+ * rqe->sdno of all entries should be set to -1,
+ * since 0 (from bzero) is a valid subdisk number.
+ * We avoid this problem by initializing the ones
+ * we use, and not looking at the others (index >=
+ * prq->requests).
  */
 enum requeststatus 
 bre5(struct request *rq,
@@ -130,35 +129,40 @@ bre5(struct request *rq,
     int mysdno;						    /* another sd index in loops */
     int rqno;						    /* request number */
 
+    rqg = NULL;						    /* shut up, damn compiler */
     m.diskstart = *diskaddr;				    /* start of transfer */
     bp = rq->bp;					    /* buffer pointer */
     plex = &PLEX[plexno];				    /* point to the plex */
 
 
     while (*diskaddr < diskend) {			    /* until we get it all sorted out */
-	struct rqelement *prqe = NULL;			    /* XXX */
+	if (*diskaddr >= plex->length)			    /* beyond the end of the plex */
+	    return REQUEST_EOF;				    /* can't continue */
+
 	m.badsdno = -1;					    /* no bad subdisk yet */
 
 	/* Part A: Define the request */
 	/*
 	 * First, calculate some sizes:
 	 * The offset of the start address from
-	 * the start of the stripe 
+	 * the start of the stripe.
 	 */
 	m.stripeoffset = *diskaddr % (plex->stripesize * (plex->subdisks - 1));
 
 	/*
 	 * The plex-relative address of the
-	 * start of the stripe 
+	 * start of the stripe.
 	 */
 	m.stripebase = *diskaddr - m.stripeoffset;
 
 	/* subdisk containing the parity stripe */
-	m.psdno = plex->subdisks - 1 - (*diskaddr / (plex->stripesize * (plex->subdisks - 1))) % plex->subdisks;
+	m.psdno = plex->subdisks - 1
+	    - (*diskaddr / (plex->stripesize * (plex->subdisks - 1)))
+	    % plex->subdisks;
 
 	/*
 	 * The number of the subdisk in which
-	 * the start is located 
+	 * the start is located.
 	 */
 	m.firstsdno = m.stripeoffset / plex->stripesize;
 	if (m.firstsdno >= m.psdno)			    /* at or past parity sd */
@@ -166,7 +170,7 @@ bre5(struct request *rq,
 
 	/*
 	 * The offset from the beginning of
-	 * the stripe on this subdisk 
+	 * the stripe on this subdisk.
 	 */
 	m.initoffset = m.stripeoffset % plex->stripesize;
 
@@ -177,7 +181,7 @@ bre5(struct request *rq,
 
 	/*
 	 * The number of sectors to transfer in the
-	 * current (first) subdisk 
+	 * current (first) subdisk.
 	 */
 	m.initlen = min(diskend - *diskaddr,		    /* the amount remaining to transfer */
 	    plex->stripesize - m.initoffset);		    /* and the amount left in this block */
@@ -185,7 +189,7 @@ bre5(struct request *rq,
 	/*
 	 * The number of sectors to transfer in this stripe
 	 * is the minumum of the amount remaining to transfer
-	 * and the amount left in this stripe 
+	 * and the amount left in this stripe.
 	 */
 	m.stripesectors = min(diskend - *diskaddr,
 	    plex->stripesize * (plex->subdisks - 1) - m.stripeoffset);
@@ -193,92 +197,139 @@ bre5(struct request *rq,
 	/* The number of data subdisks involved in this request */
 	m.sdcount = (m.stripesectors + m.initoffset + plex->stripesize - 1) / plex->stripesize;
 
-	/* Part B: decide what kind of transfer this will be */
-	/*
+	/* Part B: decide what kind of transfer this will be.
+
 	 * start and end addresses of the transfer in
 	 * the current block.
 	 *
-	 * There are a number of different kinds of transfer, each of which relates to a
+	 * There are a number of different kinds of
+	 * transfer, each of which relates to a
 	 * specific subdisk:
 	 *
-	 * 1. Normal read.  All participating subdisks are up, and the transfer can be
-	 *    made directly to the user buffer.  The bounds of the transfer are described
-	 *    by m.dataoffset and m.datalen.  We have already calculated m.initoffset and
-	 *    m.initlen, which define the parameters for the first data block.
+	 * 1. Normal read.  All participating subdisks
+	 *    are up, and the transfer can be made
+	 *    directly to the user buffer.  The bounds
+	 *    of the transfer are described by
+	 *    m.dataoffset and m.datalen.  We have
+	 *    already calculated m.initoffset and
+	 *    m.initlen, which define the parameters
+	 *    for the first data block.
 	 *
-	 * 2. Recovery read.  One participating subdisk is down.  To recover data, all
-	 *    the other subdisks, including the parity subdisk, must be read.  The data is
-	 *    recovered by exclusive-oring all the other blocks.  The bounds of the transfer
-	 *    are described by m.groupoffset and m.grouplen.
+	 * 2. Recovery read.  One participating
+	 *    subdisk is down.  To recover data, all
+	 *    the other subdisks, including the parity
+	 *    subdisk, must be read.  The data is
+	 *    recovered by exclusive-oring all the
+	 *    other blocks.  The bounds of the
+	 *    transfer are described by m.groupoffset
+	 *    and m.grouplen.
 	 *
-	 * 3. A read request may request reading both available data (normal read) and
-	 *    non-available data (recovery read).  This can be a problem if the address ranges
-	 *    of the two reads do not coincide: in this case, the normal read needs to be
-	 *    extended to cover the address range of the recovery read, and must thus be
+	 * 3. A read request may request reading both
+	 *    available data (normal read) and
+	 *    non-available data (recovery read).
+	 *    This can be a problem if the address
+	 *    ranges of the two reads do not coincide:
+	 *    in this case, the normal read needs to
+	 *    be extended to cover the address range
+	 *    of the recovery read, and must thus be
 	 *    performed out of malloced memory.
 	 *
-	 * 4. Normal write.  All the participating subdisks are up.  The bounds of the transfer
-	 *    are described by m.dataoffset and m.datalen.  Since these values differ for each
-	 *    block, we calculate the bounds for the parity block independently as the maximum
-	 *    of the individual blocks and store these values in m.writeoffset and m.writelen.
-	 *    This write proceeds in four phases:
+	 * 4. Normal write.  All the participating
+	 *    subdisks are up.  The bounds of the
+	 *    transfer are described by m.dataoffset
+	 *    and m.datalen.  Since these values
+	 *    differ for each block, we calculate the
+	 *    bounds for the parity block
+	 *    independently as the maximum of the
+	 *    individual blocks and store these values
+	 *    in m.writeoffset and m.writelen.  This
+	 *    write proceeds in four phases:
 	 *
-	 *    i.   Read the old contents of each block and the parity block.
+	 *    i.  Read the old contents of each block
+	 *        and the parity block.
+	 *    ii.  ``Remove'' the old contents from
+	 *         the parity block with exclusive or.
+	 *    iii. ``Insert'' the new contents of the
+	 *          block in the parity block, again
+	 *          with exclusive or.
 	 *
-	 *    ii.  ``Remove'' the old contents from the parity block with exclusive or.
+	 *    iv.  Write the new contents of the data
+	 *         blocks and the parity block.  The data
+	 *         block transfers can be made directly from
+	 *         the user buffer.
 	 *
-	 *    iii. ``Insert'' the new contents of the block in the parity block, again with
-	 *          exclusive or.
-	 *
-	 *    iv.   Write the new contents of the data blocks and the parity block.  The data block
-	 *          transfers can be made directly from the user buffer.
-	 *
-	 * 5. Degraded write where the data block is not available.  The bounds of the
-	 *    transfer are described by m.groupoffset and m.grouplen. This requires the
+	 * 5. Degraded write where the data block is
+	 *    not available.  The bounds of the
+	 *    transfer are described by m.groupoffset
+	 *    and m.grouplen. This requires the
 	 *    following steps:
 	 *
-	 *    i.   Read in all the other data blocks, excluding the parity block.
+	 *    i.  Read in all the other data blocks,
+	 *        excluding the parity block.
 	 *
-	 *    ii.  Recreate the parity block from the other data blocks and the data to be written.
+	 *    ii.  Recreate the parity block from the
+	 *         other data blocks and the data to be
+	 *         written.
 	 *
 	 *    iii. Write the parity block.
 	 *
-	 * 6. Parityless write, a write where the parity block is not available.  This
-	 *    is in fact the simplest: just write the data blocks.  This can proceed directly
-	 *    from the user buffer.  The bounds of the transfer are described
-	 *    by m.dataoffset and m.datalen.
+	 * 6. Parityless write, a write where the
+	 *    parity block is not available.  This is
+	 *    in fact the simplest: just write the
+	 *    data blocks.  This can proceed directly
+	 *    from the user buffer.  The bounds of the
+	 *    transfer are described by m.dataoffset
+	 *    and m.datalen.
 	 *
-	 * 7. Combination of degraded data block write and normal write.  In this case the
-	 *    address ranges of the reads may also need to be extended to cover all
+	 * 7. Combination of degraded data block write
+	 *    and normal write.  In this case the
+	 *    address ranges of the reads may also
+	 *    need to be extended to cover all
 	 *    participating blocks.
 	 *
-	 * All requests in a group transfer transfer the same address range relative
-	 * to their subdisk.  The individual transfers may vary, but since our group of
-	 * requests is all in a single slice, we can define a range in which they all
-	 * fall.
+	 * All requests in a group transfer transfer
+	 * the same address range relative to their
+	 * subdisk.  The individual transfers may
+	 * vary, but since our group of requests is
+	 * all in a single slice, we can define a
+	 * range in which they all fall.
 	 *
-	 * In the following code section, we determine which kind of transfer we will perform.
-	 * If there is a group transfer, we also decide its bounds relative to the subdisks.
-	 * At the end, we have the following values:
+	 * In the following code section, we determine
+	 * which kind of transfer we will perform.  If
+	 * there is a group transfer, we also decide
+	 * its bounds relative to the subdisks.  At
+	 * the end, we have the following values:
 	 *
-	 *          m.flags indicates the kinds of transfers we will perform
-	 *          m.initoffset indicates the offset of the beginning of any data
-	 *            operation relative to the beginning of the stripe base.
-	 *          m.initlen specifies the length of any data operation.
-	 *          m.dataoffset contains the same value as m.initoffset.
-	 *          m.datalen contains the same value as m.initlen.  Initially
-	 *            dataoffset and datalen describe the parameters for the first
-	 *            data block; while building the data block requests, they are
-	 *            updated for each block.
-	 *          m.groupoffset indicates the offset of any group operation relative
-	 *            to the beginning of the stripe base
-	 *          m.grouplen specifies the length of any group operation
-	 *          m.writeoffset indicates the offset of a normal write relative
-	 *            to the beginning of the stripe base.  This value differs from
-	 *            m.dataoffset in that it applies to the entire operation, and
-	 *            not just the first block.
-	 *          m.writelen specifies the total span of a normal write operation.
-	 *            writeoffset and writelen are used to define the parity block.
+	 *  m.flags indicates the kinds of transfers
+	 *    we will perform.
+	 *  m.initoffset indicates the offset of the
+	 *    beginning of any data operation relative
+	 *    to the beginning of the stripe base.
+	 *  m.initlen specifies the length of any data
+	 *    operation.
+	 *  m.dataoffset contains the same value as
+	 *    m.initoffset.
+	 *  m.datalen contains the same value as
+	 *    m.initlen.  Initially dataoffset and
+	 *    datalen describe the parameters for the
+	 *    first data block; while building the data
+	 *    block requests, they are updated for each
+	 *    block.
+	 *  m.groupoffset indicates the offset of any
+	 *    group operation relative to the beginning
+	 *    of the stripe base.
+	 *  m.grouplen specifies the length of any
+	 *    group operation.
+	 *  m.writeoffset indicates the offset of a
+	 *    normal write relative to the beginning of
+	 *    the stripe base.  This value differs from
+	 *    m.dataoffset in that it applies to the
+	 *    entire operation, and not just the first
+	 *    block.
+	 *  m.writelen specifies the total span of a
+	 *    normal write operation.  writeoffset and
+	 *    writelen are used to define the parity
+	 *    block.
 	 */
 	m.groupoffset = 0;				    /* assume no group... */
 	m.grouplen = 0;					    /* until we know we have one */
@@ -295,7 +346,7 @@ bre5(struct request *rq,
 	     * If we have two transfers that don't overlap,
 	     * (one at the end of the first block, the other
 	     * at the beginning of the second block),
-	     * it's cheaper to split them 
+	     * it's cheaper to split them.
 	     */
 	    if (rsectors < plex->stripesize) {
 		m.sdcount = 1;				    /* just one subdisk */
@@ -316,10 +367,6 @@ bre5(struct request *rq,
 
 		if (SD[plex->sdnos[mysdno]].state < sd_reborn) { /* got a bad subdisk, */
 		    if (m.badsdno >= 0)			    /* we had one already, */
-			/*
-			   * XXX be cleverer here.  We can still
-			   * read what we can read.
-			 */
 			return REQUEST_DOWN;		    /* we can't take a second */
 		    m.badsdno = mysdno;			    /* got the first */
 		    m.groupoffset = m.dataoffset;	    /* define the bounds */
@@ -356,9 +403,6 @@ bre5(struct request *rq,
 			 * subdisks stale.  Otherwise, we
 			 * should be able to recover, but it's
 			 * like pulling teeth.  Fix it later.
-			 *
-			 * XXX be cleverer here.  We should
-			 * still write what we can write.
 			 */
 			for (sdno = 0; sdno < m.sdcount; sdno++) {
 			    struct sd *sd = &SD[plex->sdnos[sdno]];
@@ -407,13 +451,9 @@ bre5(struct request *rq,
 	m.dataoffset = m.initoffset;			    /* start at the beginning of the transfer */
 	m.datalen = m.initlen;
 
-	/*
-	 * XXX see if we can satisfy a recovery_read from a
-	 * different plex.  If so, return from here with no requests WRITEME 
-	 */
-
 	/* decide how many requests we need */
-	if (m.flags & (XFR_RECOVERY_READ | XFR_DEGRADED_WRITE))	/* doing a recovery read or degraded write, */
+	if (m.flags & (XFR_RECOVERY_READ | XFR_DEGRADED_WRITE))
+	    /* doing a recovery read or degraded write, */
 	    m.rqcount = plex->subdisks;			    /* all subdisks */
 	else if (m.flags & XFR_NORMAL_WRITE)		    /* normal write, */
 	    m.rqcount = m.sdcount + 1;			    /* all data blocks and the parity block */
@@ -436,7 +476,7 @@ bre5(struct request *rq,
 	/*
 	 * Are we performing an operation which requires parity?  In that case,
 	 * work out the parameters and define the parity block.
-	 * XFR_PARITYOP is XFR_NORMAL_WRITE | XFR_RECOVERY_READ | XFR_DEGRADED_WRITE 
+	 * XFR_PARITYOP is XFR_NORMAL_WRITE | XFR_RECOVERY_READ | XFR_DEGRADED_WRITE
 	 */
 	if (m.flags & XFR_PARITYOP) {			    /* need parity */
 	    rqe = &rqg->rqe[rqno];			    /* point to element */
@@ -447,7 +487,6 @@ bre5(struct request *rq,
 	    setrqebounds(rqe, &m);			    /* set up the bounds of the transfer */
 	    rqe->sdno = sd->sdno;			    /* subdisk number */
 	    rqe->driveno = sd->driveno;
-	    prqe = rqe;					    /* debug XXX */
 	    if (build_rq_buffer(rqe, plex))		    /* build the buffer */
 		return REQUEST_ENOMEM;			    /* can't do it */
 	    rqe->b.b_flags |= B_READ;			    /* we must read first */
@@ -457,7 +496,7 @@ bre5(struct request *rq,
 	/*
 	 * 2: DATA BLOCKS
 	 * Now build up requests for the blocks required
-	 * for individual transfers 
+	 * for individual transfers
 	 */
 	for (mysdno = m.firstsdno; rqno < m.sdcount; mysdno++, rqno++) {
 	    if (mysdno == m.psdno)			    /* parity, */
@@ -479,16 +518,11 @@ bre5(struct request *rq,
 		rqe->flags |= XFR_BAD_SUBDISK;		    /* note that it's dead */
 		/*
 		 * we can't read or write from/to it,
-		 * but we don't need to malloc 
+		 * but we don't need to malloc
 		 */
 		rqe->flags &= ~(XFR_MALLOCED | XFR_NORMAL_READ | XFR_NORMAL_WRITE);
 	    }
 	    setrqebounds(rqe, &m);			    /* set up the bounds of the transfer */
-#if VINUMDEBUG
-	    if (prqe
-		&& (rqe->groupoffset + rqe->sdoffset) < prqe->sdoffset)	/* XXX */
-		Debugger("Low data block");		    /* XXX */
-#endif
 	    rqe->useroffset = m.useroffset;		    /* offset in user buffer */
 	    rqe->sdno = sd->sdno;			    /* subdisk number */
 	    rqe->driveno = sd->driveno;
@@ -511,7 +545,7 @@ bre5(struct request *rq,
 	 * Finally, if we have a recovery operation, build
 	 * up transfers for the other subdisks.  Follow the
 	 * subdisks around until we get to where we started.
-	 * These requests use only the group parameters. 
+	 * These requests use only the group parameters.
 	 */
 	if ((rqno < m.rqcount)				    /* haven't done them all already */
 	&&(m.flags & (XFR_RECOVERY_READ | XFR_DEGRADED_WRITE))) {
@@ -533,7 +567,8 @@ bre5(struct request *rq,
 		rqe->datalen = 0;
 		rqe->grouplen = m.grouplen;
 		rqe->buflen = m.grouplen;
-		rqe->flags = (m.flags | XFR_MALLOCED) & ~XFR_DATAOP; /* transfer flags without data op stuf */
+		rqe->flags = (m.flags | XFR_MALLOCED)	    /* transfer flags without data op stuf */
+		&~XFR_DATAOP;
 		rqe->sdno = sd->sdno;			    /* subdisk number */
 		rqe->driveno = sd->driveno;
 		if (build_rq_buffer(rqe, plex))		    /* build the buffer */
@@ -541,6 +576,14 @@ bre5(struct request *rq,
 		rqe->b.b_flags |= B_READ;		    /* we must read first */
 	    }
 	}
+	/*
+	 * We need to lock the address range before
+	 * doing anything.  We don't have to be
+	 * performing a recovery operation: somebody
+	 * else could be doing so, and the results could
+	 * influence us.
+	 */
+	rqg->lock = lockrange(m.stripebase, bp, plex);	    /* lock the stripe */
 	if (*diskaddr < diskend)			    /* didn't finish the request on this stripe */
 	    plex->multistripe++;			    /* count another one */
     }
@@ -548,33 +591,44 @@ bre5(struct request *rq,
 }
 
 /*
- * Helper function for rqe5: adjust the bounds of the transfers to minimize
- * the buffer allocation.
+ * Helper function for rqe5: adjust the bounds of
+ * the transfers to minimize the buffer
+ * allocation.
  *
- * Each request can handle two of three different data ranges:
+ * Each request can handle two of three different
+ * data ranges:
  *
- * 1.  The range described by the parameters dataoffset and datalen,
- *     for normal read or parityless write.
- * 2.  The range described by the parameters groupoffset and grouplen,
- *     for recovery read and degraded write.
- * 3.  For normal write, the range depends on the kind of block.  For
- *     data blocks, the range is defined by dataoffset and datalen.  For
- *     parity blocks, it is defined by writeoffset and writelen.
+ * 1.  The range described by the parameters
+ *     dataoffset and datalen, for normal read or
+ *     parityless write.
+ * 2.  The range described by the parameters
+ *     groupoffset and grouplen, for recovery read
+ *     and degraded write.
+ * 3.  For normal write, the range depends on the
+ *     kind of block.  For data blocks, the range
+ *     is defined by dataoffset and datalen.  For
+ *     parity blocks, it is defined by writeoffset
+ *     and writelen.
  *
- * In order not to allocate more memory than necessary, this function
- * adjusts the bounds parameter for each request to cover just the minimum
- * necessary for the function it performs.  This will normally vary from one
- * request to the next.
+ * In order not to allocate more memory than
+ * necessary, this function adjusts the bounds
+ * parameter for each request to cover just the
+ * minimum necessary for the function it performs.
+ * This will normally vary from one request to the
+ * next.
  *
- * Things are slightly different for the parity block.  In this case, the bounds
- * defined by mp->writeoffset and mp->writelen also play a rôle.  Select this
- * case by setting the parameter forparity != 0
+ * Things are slightly different for the parity
+ * block.  In this case, the bounds defined by
+ * mp->writeoffset and mp->writelen also play a
+ * rôle.  Select this case by setting the
+ * parameter forparity != 0
  */
 void 
 setrqebounds(struct rqelement *rqe, struct metrics *mp)
 {
     /* parity block of a normal write */
-    if ((rqe->flags & (XFR_NORMAL_WRITE | XFR_PARITY_BLOCK)) == (XFR_NORMAL_WRITE | XFR_PARITY_BLOCK)) { /* case 3 */
+    if ((rqe->flags & (XFR_NORMAL_WRITE | XFR_PARITY_BLOCK))
+	== (XFR_NORMAL_WRITE | XFR_PARITY_BLOCK)) {	    /* case 3 */
 	if (rqe->flags & XFR_DEGRADED_WRITE) {		    /* also degraded write */
 	    /*
 	     * With a combined normal and degraded write, we
@@ -585,7 +639,7 @@ setrqebounds(struct rqelement *rqe, struct metrics *mp)
 	     * and currently that's the length of the read.
 	     * As a result, we read everything, even the stuff
 	     * that we're going to nuke.
-	     * FIXME XXX 
+	     * FIXME XXX
 	     */
 	    if (mp->groupoffset < mp->writeoffset) {	    /* group operation starts lower */
 		rqe->sdoffset = mp->sdbase + mp->groupoffset; /* start of transfer */
@@ -635,3 +689,6 @@ setrqebounds(struct rqelement *rqe, struct metrics *mp)
     rqe->buflen = max(rqe->dataoffset + rqe->datalen,	    /* total buffer length */
 	rqe->groupoffset + rqe->grouplen);
 }
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
