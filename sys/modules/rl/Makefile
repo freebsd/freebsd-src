@@ -3,9 +3,9 @@
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= if_rl
-SRCS	= if_rl.c rl.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS	= if_rl.c rl.h opt_bdg.h device_if.h bus_if.h pci_if.h
 SRCS	+= miibus_if.h
-CLEANFILES	+= rl.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= rl.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CLEANFILES	+= miibus_if.h
 KMODDEPS = miibus
 
@@ -13,9 +13,6 @@ CFLAGS	+= ${DEBUG_FLAGS}
 
 rl.h:
 	echo "#define NRL 1" > rl.h
-
-bpf.h:
-	echo "#define NBPF 1" > bpf.h
 
 opt_bdg.h:
 	touch opt_bdg.h
