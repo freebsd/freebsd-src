@@ -21,8 +21,6 @@
 
 /* $FreeBSD$ */
 
-/*
-
 
 /*  SECTION
     
