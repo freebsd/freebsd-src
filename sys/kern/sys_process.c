@@ -152,7 +152,6 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	vm_object_t backing_object, object = NULL;
 	vm_offset_t pageno = 0;		/* page number */
 	vm_prot_t reqprot;
-	vm_offset_t kva;
 	int error, writing;
 
 	GIANT_REQUIRED;
@@ -176,8 +175,6 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	writing = uio->uio_rw == UIO_WRITE;
 	reqprot = writing ? (VM_PROT_WRITE | VM_PROT_OVERRIDE_WRITE) :
 	    VM_PROT_READ;
-
-	kva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
 
 	/*
 	 * Only map in one page at a time.  We don't have to, but it
@@ -262,14 +259,10 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		 */
 		vm_map_lookup_done(tmap, out_entry);
 
-		pmap_qenter(kva, &m, 1);
-
 		/*
 		 * Now do the i/o move.
 		 */
-		error = uiomove((caddr_t)(kva + page_offset), len, uio);
-
-		pmap_qremove(kva, 1);
+		error = uiomove_fromphys(&m, page_offset, len, uio);
 
 		/*
 		 * Release the page.
@@ -280,7 +273,6 @@ proc_rwmem(struct proc *p, struct uio *uio)
 
 	} while (error == 0 && uio->uio_resid > 0);
 
-	kmem_free(kernel_map, kva, PAGE_SIZE);
 	vmspace_free(vm);
 	return (error);
 }
