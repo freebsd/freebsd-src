@@ -80,7 +80,7 @@
 #define XL_CAPS_100MBPS		0x1000
 #define XL_CAPS_PWRMGMT		0x2000
 
-#define XL_PACKET_SIZE 1536
+#define XL_PACKET_SIZE 1540
 	
 /*
  * Register layouts.
@@ -252,6 +252,7 @@
  * Window 3 (fifo management)
  */
 #define XL_W3_INTERNAL_CFG	0x00
+#define XL_W3_MAXPKTSIZE	0x04    /* 3c905B only */
 #define XL_W3_RESET_OPT		0x08
 #define XL_W3_FREE_TX		0x0C
 #define XL_W3_FREE_RX		0x0A
