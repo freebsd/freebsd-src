@@ -32,7 +32,7 @@
 .\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2004
+.Dd August 13, 2004
 .Dt MOUNT 2
 .Os
 .Sh NAME
@@ -133,6 +133,11 @@ Disable update of file access times.
 .It Dv MNT_NODEV
 Do not interpret special files on the file system.
 This flag is set automatically when the caller is not the super-user.
+.It Dv MNT_SNAPSHOT
+Create a snapshot of the file system.
+This is currently only supported on UFS2 file systems, see
+.Xr mksnap_ffs 8
+for more information.
 .It Dv MNT_SUIDDIR
 Directories with the SUID bit set chown new files to their own owner.
 This flag requires the SUIDDIR option to have been compiled into the kernel
@@ -358,6 +363,7 @@ mount can also fail if the maximum number of file systems are currently
 mounted.
 .Sh SEE ALSO
 .Xr lsvfs 1 ,
+.Xr mksnap_ffs 8 ,
 .Xr mount 8 ,
 .Xr umount 8
 .Sh BUGS
