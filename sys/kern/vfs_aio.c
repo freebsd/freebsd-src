@@ -1105,7 +1105,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	 */
 	bp->b_caller1 = p;
 	bp->b_dev = vp->v_rdev;
-	error = bp->b_error = 0;
+	error = 0;
 
 	bp->b_bcount = cb->aio_nbytes;
 	bp->b_bufsize = cb->aio_nbytes;
