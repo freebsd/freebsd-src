@@ -348,13 +348,17 @@ dev/hfa/fore_globals.c	optional hfa
 dev/hfa/fore_if.c	optional hfa
 dev/hfa/fore_init.c	optional hfa
 dev/hfa/fore_intr.c	optional hfa
-dev/hfa/fore_load.c	optional hfa nowerror
+#dev/hfa/fore_load.c	optional hfa nowerror
 dev/hfa/fore_output.c	optional hfa
 dev/hfa/fore_receive.c	optional hfa
 dev/hfa/fore_stats.c	optional hfa
 dev/hfa/fore_timer.c	optional hfa
 dev/hfa/fore_transmit.c	optional hfa
 dev/hfa/fore_vcm.c	optional hfa
+dev/hfa/hfa_freebsd.c	optional hfa
+#dev/hfa/hfa_eisa.c	optional hfa eisa
+dev/hfa/hfa_pci.c	optional hfa pci
+#dev/hfa/hfa_sbus.c	optional hfa sbus
 dev/hme/if_hme.c	optional hme
 dev/hme/if_hme_pci.c	optional hme pci
 dev/hme/if_hme_sbus.c	optional hme sbus
