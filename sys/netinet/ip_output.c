@@ -1227,7 +1227,7 @@ ip_ctloutput(so, sopt)
 #ifdef IPSEC
 		case IP_IPSEC_POLICY:
 		{
-			struct mbuf *m;
+			struct mbuf *m = NULL;
 			caddr_t req = NULL;
 
 			if (m != 0)
@@ -1235,7 +1235,8 @@ ip_ctloutput(so, sopt)
 			error = ipsec4_get_policy(sotoinpcb(so), req, &m);
 			if (error == 0)
 				error = soopt_mcopyout(sopt, m); /* XXX */
-			m_freem(m);
+			if (error == 0)
+				m_freem(m);
 			break;
 		}
 #endif /*IPSEC*/
