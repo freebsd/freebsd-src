@@ -269,3 +269,16 @@ extern int errno;
     *(q)++ = '\''; \
   }
 #endif
+
+/* these come from CVS's lib/system.h, but I wasn't sure how to include that
+ * properly or even if I really should
+ */
+#ifndef CVS_OPENDIR
+#define CVS_OPENDIR opendir
+#endif
+#ifndef CVS_READDIR
+#define CVS_READDIR readdir
+#endif
+#ifndef CVS_CLOSEDIR
+#define CVS_CLOSEDIR closedir
+#endif

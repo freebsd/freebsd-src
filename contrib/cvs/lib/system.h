@@ -156,16 +156,7 @@ off_t lseek ();
 char *getcwd ();
 #endif
 
-#if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
-#else
-# if HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
-#endif
+#include "xtime.h"
 
 #ifdef HAVE_IO_H
 #include <io.h>
@@ -175,26 +166,6 @@ char *getcwd ();
 #include <direct.h>
 #endif
 
-#ifdef timezone
-#undef timezone /* needed for sgi */
-#endif
-
-#ifdef HAVE_SYS_TIMEB_H
-#include <sys/timeb.h>
-#else
-struct timeb {
-    time_t		time;		/* Seconds since the epoch	*/
-    unsigned short	millitm;	/* Field not used		*/
-    short		timezone;
-    short		dstflag;	/* Field not used		*/
-};
-#endif
-
-#if !defined(HAVE_FTIME) && !defined(HAVE_TIMEZONE)
-#if !defined(timezone)
-extern long timezone;
-#endif
-#endif
 
 
 /*
@@ -429,12 +400,24 @@ extern int errno;
 #define CVS_FOPEN fopen
 #endif
 
+#ifndef CVS_FDOPEN
+#define CVS_FDOPEN fdopen
+#endif
+
 #ifndef CVS_MKDIR
 #define CVS_MKDIR mkdir
 #endif
 
 #ifndef CVS_OPEN
 #define CVS_OPEN open
+#endif
+
+#ifndef CVS_READDIR
+#define CVS_READDIR readdir
+#endif
+
+#ifndef CVS_CLOSEDIR
+#define CVS_CLOSEDIR closedir
 #endif
 
 #ifndef CVS_OPENDIR

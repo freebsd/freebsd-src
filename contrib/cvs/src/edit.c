@@ -81,7 +81,7 @@ watch_onoff (argc, argv)
     argv += optind;
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	start_server ();
 
@@ -98,7 +98,7 @@ watch_onoff (argc, argv)
 
     setting_default = (argc <= 0);
 
-    lock_tree_for_write (argc, argv, local, 0);
+    lock_tree_for_write (argc, argv, local, W_LOCAL, 0);
 
     err = start_recursion (onoff_fileproc, onoff_filesdoneproc,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
@@ -235,7 +235,7 @@ send_notifications (argc, argv, local)
     /* OK, we've done everything which needs to happen on the client side.
        Now we can try to contact the server; if we fail, then the
        notifications stay in CVSADM_NOTIFY to be sent next time.  */
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	if (strcmp (command_name, "release") != 0)
 	{
@@ -259,7 +259,7 @@ send_notifications (argc, argv, local)
     {
 	/* Local.  */
 
-	lock_tree_for_write (argc, argv, local, 0);
+	lock_tree_for_write (argc, argv, local, W_LOCAL, 0);
 	err += start_recursion (ncheck_fileproc, (FILESDONEPROC) NULL,
 				(DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 				argc, argv, local, W_LOCAL, 0, 0, (char *)NULL,
@@ -301,6 +301,8 @@ edit_fileproc (callerdat, finfo)
     (void) time (&now);
     ascnow = asctime (gmtime (&now));
     ascnow[24] = '\0';
+    /* Fix non-standard format.  */
+    if (ascnow[8] == '0') ascnow[8] = ' ';
     fprintf (fp, "E%s\t%s GMT\t%s\t%s\t", finfo->file,
 	     ascnow, hostname, CurDir);
     if (setting_tedit)
@@ -493,6 +495,8 @@ unedit_fileproc (callerdat, finfo)
     (void) time (&now);
     ascnow = asctime (gmtime (&now));
     ascnow[24] = '\0';
+    /* Fix non-standard format.  */
+    if (ascnow[8] == '0') ascnow[8] = ' ';
     fprintf (fp, "U%s\t%s GMT\t%s\t%s\t\n", finfo->file,
 	     ascnow, hostname, CurDir);
 
@@ -869,11 +873,11 @@ notify_do (type, filename, who, val, watches, repository)
 	    size_t line_len = 0;
 
 	    args.notifyee = NULL;
-	    usersname = xmalloc (strlen (CVSroot_directory)
+	    usersname = xmalloc (strlen (current_parsed_root->directory)
 				 + sizeof CVSROOTADM
 				 + sizeof CVSROOTADM_USERS
 				 + 20);
-	    strcpy (usersname, CVSroot_directory);
+	    strcpy (usersname, current_parsed_root->directory);
 	    strcat (usersname, "/");
 	    strcat (usersname, CVSROOTADM);
 	    strcat (usersname, "/");
@@ -1114,7 +1118,7 @@ editors (argc, argv)
     argv += optind;
 
 #ifdef CLIENT_SUPPORT
-    if (client_active)
+    if (current_parsed_root->isremote)
     {
 	start_server ();
 	ign_setup ();
