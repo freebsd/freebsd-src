@@ -412,7 +412,8 @@ MLINKS+=curs_addstr.3 addnstr.3 curs_addstr.3 addstr.3 \
 	curs_addstr.3 mvaddnstr.3 curs_addstr.3 mvaddstr.3 \
 	curs_addstr.3 mvwaddnstr.3 curs_addstr.3 mvwaddstr.3 \
 	curs_addstr.3 waddnstr.3 curs_addstr.3 waddstr.3
-MLINKS+=curs_attr.3 attr_get.3 curs_attr.3 attr_off.3 curs_attr.3 attr_on.3 \
+MLINKS+=curs_attr.3 PAIR_NUMBER.3 \
+	curs_attr.3 attr_get.3 curs_attr.3 attr_off.3 curs_attr.3 attr_on.3 \
 	curs_attr.3 attr_set.3 curs_attr.3 attroff.3 curs_attr.3 attron.3 \
 	curs_attr.3 attrset.3 curs_attr.3 chgat.3 curs_attr.3 color_set.3 \
 	curs_attr.3 mvchgat.3 curs_attr.3 mvwchgat.3 curs_attr.3 standend.3 \
@@ -425,13 +426,15 @@ MLINKS+=curs_beep.3 beep.3 curs_beep.3 flash.3
 MLINKS+=curs_bkgd.3 bkgd.3 curs_bkgd.3 bkgdset.3 curs_bkgd.3 getbkgd.3 \
 	curs_bkgd.3 wbkgd.3 curs_bkgd.3 wbkgdset.3
 MLINKS+=curs_border.3 border.3 curs_border.3 box.3 curs_border.3 hline.3 \
-	curs_border.3 mvhline.3 curs_border.3 mvwhline.3 \
+	curs_border.3 mvhline.3 curs_border.3 mvvline.3 \
+	curs_border.3 mvwhline.3 \
 	curs_border.3 mvwvline.3 curs_border.3 vline.3 curs_border.3 wborder.3 \
 	curs_border.3 whline.3 curs_border.3 wvline.3
 MLINKS+=curs_clear.3 clear.3 curs_clear.3 clrtobot.3 curs_clear.3 clrtoeol.3 \
 	curs_clear.3 erase.3 curs_clear.3 wclear.3 curs_clear.3 wclrtobot.3 \
 	curs_clear.3 wclrtoeol.3 curs_clear.3 werase.3
-MLINKS+=curs_color.3 can_change_color.3 curs_color.3 color_content.3 \
+MLINKS+=curs_color.3 COLOR_PAIR.3 \
+	curs_color.3 can_change_color.3 curs_color.3 color_content.3 \
 	curs_color.3 has_colors.3 curs_color.3 init_color.3 \
 	curs_color.3 init_pair.3 curs_color.3 pair_content.3 \
 	curs_color.3 start_color.3
@@ -480,7 +483,8 @@ MLINKS+=curs_kernel.3 curs_set.3 curs_kernel.3 def_prog_mode.3 \
 	curs_kernel.3 reset_shell_mode.3 curs_kernel.3 resetty.3 \
 	curs_kernel.3 ripoffline.3 curs_kernel.3 savetty.3 \
 	curs_kernel.3 setsyx.3
-MLINKS+=curs_mouse.3 getmouse.3 curs_mouse.3 mouseinterval.3 \
+MLINKS+=curs_mouse.3 getmouse.3 curs_mouse.3 mouse_trafo.3 \
+	curs_mouse.3 mouseinterval.3 \
 	curs_mouse.3 mousemask.3 curs_mouse.3 ungetmouse.3 \
 	curs_mouse.3 wenclose.3 curs_mouse.3 wmouse_trafo.3
 MLINKS+=curs_move.3 move.3 curs_move.3 wmove.3
@@ -537,7 +541,8 @@ MLINKS+=curs_window.3 delwin.3 curs_window.3 derwin.3 curs_window.3 dupwin.3 \
 	curs_window.3 subwin.3 curs_window.3 syncok.3 \
 	curs_window.3 wcursyncup.3 curs_window.3 wsyncdown.3 \
 	curs_window.3 wsyncup.3
-MLINKS+=dft_fgbg.3 use_default_colors.3
+MLINKS+=default_colors.3 assume_default_colors.3 \
+	default_colors.3 use_default_colors.3
 
 .include <bsd.lib.mk>
 
