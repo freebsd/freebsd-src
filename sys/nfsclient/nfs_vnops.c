@@ -1805,24 +1805,54 @@ nfs_symlink(ap)
 		txdr_nfsv2time(&vap->va_atime, &sp->sa_atime);
 		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
 	}
+
+	/*
+	 * Issue the NFS request and get the rpc response.
+	 *
+	 * Only NFSv3 responses returning an error of 0 actually return
+	 * a file handle that can be converted into newvp without having
+	 * to do an extra lookup rpc.
+	 */
 	nfsm_request(dvp, NFSPROC_SYMLINK, cnp->cn_proc, cnp->cn_cred);
 	if (v3) {
-		if (!error)
+		if (error == 0)
 			nfsm_mtofh(dvp, newvp, v3, gotvp);
 		nfsm_wcc_data(dvp, wccflag);
 	}
-	nfsm_reqdone;
+
 	/*
-	 * Kludge: Map EEXIST => 0 assuming that it is a reply to a retry.
+	 * out code jumps -> here, mrep is also freed.
+	 */
+
+	nfsm_reqdone;
+
+	/*
+	 * If we get an EEXIST error, silently convert it to no-error
+	 * in case of an NFS retry.
 	 */
 	if (error == EEXIST)
 		error = 0;
 
+	/*
+	 * If we do not have (or no longer have) an error, and we could
+	 * not extract the newvp from the response due to the request being
+	 * NFSv2 or the error being EEXIST.  We have to do a lookup in order
+	 * to obtain a newvp to return.  
+	 */
+	if (error == 0 && newvp == NULL) {
+		struct nfsnode *np = NULL;
+
+		error = nfs_lookitup(dvp, cnp->cn_nameptr, cnp->cn_namelen,
+		    cnp->cn_cred, cnp->cn_proc, &np);
+		if (!error)
+			newvp = NFSTOV(np);
+	}
 	if (error) {
 		if (newvp)
 			vput(newvp);
-	} else
+	} else {
 		*ap->a_vpp = newvp;
+	}
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
