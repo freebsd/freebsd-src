@@ -40,8 +40,8 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #include <pci_if.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
