@@ -1155,12 +1155,10 @@ fix_mp_table(void)
 	 */
 
 	/* check the 1 PCI bus case for sanity */
-	if (num_pci_bus == 1) {
-
-		/* if it is number 0 all is well */
-		if (bus_data[bus_pci].bus_id == 0)
-			return;
-
+	/* if it is number 0 all is well */
+	if (num_pci_bus == 1 &&
+	    bus_data[bus_pci].bus_id != 0) {
+		
 		/* mis-numbered, swap with whichever bus uses slot 0 */
 
 		/* swap the bus entry types */
