@@ -1,3 +1,209 @@
+Mon Jun 10 08:12:35 UTC 2002	lukem
+
+	* crank FTP_VERSION from 1.6-beta1 to 1.6-beta2
+
+	* replace missing fseeko(), with a wrapper to fseek() which
+	  checks that the offset isn't > LONG_MAX
+
+	* #include <regex.h> #if HAVE_REGEX_H
+
+Mon Jun 10 01:27:46 UTC 2002	lukem
+
+	* check for and replace sa_family_t definition
+
+	* don't bother checking for issetugid(); it was only used in the
+	  internal libedit to prevent $HOME/.editrc from being used if
+	  running set-id, and the newer libedit code wouldn't even read
+	  $HOME/.editrc if issetugid() wasn't available.  as many target
+	  operating systems don't have issetugid(), and lukemftp isn't
+	  likely to be run set-id (and $HOME/.netrc is used in any case),
+	  the issetugid() check has been disabled in libedit.
+
+	* add back cpp code which #defines REGEX #if HAVE_REGEX_H
+
+Wed Jun  5 14:39:11 UTC 2002	lukem
+
+	* crank FTP_VERSION from 1.6alpha1 to 1.6-beta1
+
+	* implement replacement setprogname()
+
+	* use getprogname() instead of __progname
+
+	* convert to christos' replacement fgetln(), as it's better than mine
+
+	* merge ftp from NetBSD 20020605 to 20020606:
+		- use setprogname()
+		- only support -6 if INET6 is defined
+
+Wed Jun  5 13:08:25 UTC 2002	lukem
+
+	* don't bother checking if <glob.h> is usable (see below).
+
+	* always compile in local glob; it's the best way to ensure that
+	  various security issues are fixed
+
+	* update libukem/glob.c from NetBSD's __glob13.c rev 1.22 and rev 1.23
+
+	* merge libedit from NetBSD 20010413 to 20020606:
+		- constify; passes all gcc and lint strict checks.
+		- add config.h [Jason Evans], to create a portable version of
+		  libedit that can be easily compiled on other OS's.
+		- PR/12963:Jason Waterman: Fix signed cast problems.
+		- Fixed an __P remnant
+		- Close quoting.
+		- Generate <>& symbolically.
+		- Punctuation and whitespace nits, fix a typo.
+		- PR/14188: Anthony Mallet: Provide an opaque data
+		  pointer to client programs.
+		- a couple of minor fixes.  originally by Ruslan Ermilov
+		  <ru@FreeBSD.org>, highlighted to me by way of Mike Barcroft
+		  <mike@FreeBSD.org> (thanks!)
+		- PR/14067: Anthony Mallet: Provide a programmatic way
+		  to set the read_char function via a new el_set() operation.
+		  Thanks, nicely done :-)
+		- `existent', not `existant'
+		- Don't use HAVE_ yet.
+		- Fix a warning.
+		- Remove an unused variable.
+		- If term_init() fails, cleanup and return NULL. This
+		  avoids other lossage.  Pointed by charles.
+		- va_{start,end} audit: Make sure that each va_start has one
+		  and only one matching va_end, especially in error cases.
+		  If the va_list is used multiple times, do multiple
+		  va_starts/va_ends.  If a function gets va_list as argument,
+		  don't let it use va_end (since it's the callers
+		  responsibility).  Improved by comments from enami and
+		  christos -- thanks!
+		- history_def_enter: fix off-by-one mistake in delete
+		  condition (the behaviour to keep at least one entry on the
+		  history list is retained). This fixes lib/9704 by Phil Nelson.
+
+	* merge ftp from NetBSD 20020524 to 20020605:
+		- when showing the final progress bar, replace "00:00 ETA"
+		  with the elapsed time.  (suggested by simonb)
+		- actually display transfer stats after a URL fetch.
+		  (bug introduced a *long* time ago)
+		- update copyright & version
+
+	* merge ftp from NetBSD 20001127 to 20020524:
+		- Use "r+" instead of "r+w", since the latter is not standard.
+		  Noted by <Steve.McClellan@radisys.com> in private email.
+		- Only send port number in HTTP/1.1 Host: request if port !=
+		  80.  Fixes [bin/15415] from Takahiro Kambe
+		  <taca@sky.yamashina.kyoto.jp>
+		- Fix bad mode passed by mls() to recvrequest().  Fixes
+		  [bin/16642] from <steve.mcclellan@radisys.com>
+		- update copyrights
+		- minor knf
+		- invoke cmdtab.c_handler()s with argv[0] == c_name instead
+		  of the supplied name. that way the full (unambiguous) name
+		  is displayed in error messages and usage strings.
+		- line2 may overrun if line is too long (> 200).  be more
+		  careful on strcpy.
+		- Handle URLs without files correctly (e.g, when using '-o -').
+		  Fix from Anders Dinsen <anders@dinsen.net> in [bin/13768]
+		- portnum is unsigned, use %u instead of %d
+		- Add -4 to force IPv4 and -6 to force IPv6 address usage.
+		  From Hajimu UMEMOTO, via Mike Heffner of FreeBSD.
+		- use u_char instead of char in base64_encode().
+		  problem noticed by Jorgen Lundman in private mail.
+		- don't make broken file with -R option.
+		- handle "*" in Content-Range properly.
+		- If no_proxy condition is true && urltype == FTP_URL_T,
+		  use fetch_ftp to retrieve
+		- convert to use getprogname()
+		- Fix description for "form", "mode", and "struct" commands.
+		  Inspired by [bin/16736] from Steve McClellan
+		  <steve.mcclellan@radisys.com>
+		- Generate <>& symbolically. I'm avoiding .../dist/...
+		  directories for now.
+		- Punctuation nits.
+		- Whitespace cleanup.
+		- put "site" in alphabetical order. noted by Mike Barcroft
+		  in private email
+		- avoid buffer overrun on PASV from malicious server.
+		- Large file ASCII mode support by using fseeko()
+		  instead of fseek().  From Andrey A. Chernov of FreeBSD,
+		  via Mike Heffner.
+		- Deal with const'ification if el_parse().
+		- call setlocale() on startup
+		- display a limited progress bar (containing bytes xferred
+		  and xfer rate) when the file size is unknown
+		- disable progress bar during remglob()
+
+Thu Mar 14 05:41:49 UTC 2002	lukem
+
+	* ensure all AF_INET6 use is protected with #ifdef INET6
+
+	* remove unnecessary __attribute__ goop
+
+	* libukem/snprintf.c: fix compile errors with gcc 3.x
+
+Tue Apr 17 08:07:29 UTC 2001	lukem
+
+	* autoconf check for %q long long support in *printf()
+	  (instead of %ll), define and use HAVE_PRINTF_QD if so
+
+	* ipv6 isn't compatible with socks, so disable the former
+
+	* look for <libutil.h> (instead of <util.h>) and <arpa/nameser.h>
+
+	* don't check for fparseln() twice
+
+	* fix getaddrinfo() checks
+
+	* crank FTP_VERSION from 1.5 to 1.6alpha1
+
+	* always ensure _PATH_BSHELL and _PATH_TMP are defined
+
+	* prototype inet_pton() if its missing
+
+	* don't bother trying to use if_indextoname() in ip6_sa2str()
+	  (fixes problems on MacOS X)
+
+	* in inet_pton(), pull in <arpa/nameser.h> for IN6ADDRSZ and INT16SZ,
+	  and define if missing
+
+Fri Apr 13 15:24:44 UTC 2001	lukem
+
+	* only include <arpa/nameser.h> if we have it
+
+	* update glob(3) to netbsd-current (20010329), adding support
+	  for GLOB_LIMIT and fixing various buffer overflows.
+
+	* update editline from NetBSD 20000915 -> NetBSD 20010413
+		- Enlarge editline buffers as needed to support arbitrary
+		  length lines.  This also addresses lib/9712 by Phil Nelson.
+		- consistently check for allocation failures and return -1,
+		  if we could not get more memory.
+		- add support for home and end keys.
+		- improve debugging support
+		- el_line_t: make 'limit' const
+
+Mon Nov 27 23:23:40 EST 2000	lukem
+
+	* merge ftp from NetBSD-current (20001127):
+		- implement "mreget"; as per "mget" but uses "reget" instead
+		  of "get"
+		- add -N netrc and $NETRC, as methods to select an alternative
+		  .netrc file
+		- cache local user name and home directory for further use
+		- in mget(), use docase() instead of a local version to do
+		  the case conversion.
+		- format string cleanups
+		- be more explicit that $ftp_proxy and $http_proxy are not
+		  supported for interactive sessions
+		- cope with 2553bis getnameinfo (always attach scope id)
+		  getnameinfo error check.
+		- use NI_MAXHOST with getnameinfo.  we can assume presence of
+		  getnameinfo.
+
+Tue Nov  7 00:16:23 EST 2000	lukem
+
+	* libukem/snprintf.c had a non-functional `%s' due to a
+	  function declaration mismatch.  problem found and fixed
+	  by Hubert Feyrer <hubert@feyrer.de>
+
 Wed Oct 11 14:06:19 EST 2000	lukem
 
 	* released version 1.5

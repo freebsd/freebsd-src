@@ -1,7 +1,7 @@
-/*	$NetBSD: util.c,v 1.102 2000/09/08 11:54:53 lukem Exp $	*/
+/*	$NetBSD: util.c,v 1.107 2002/06/05 10:20:50 lukem Exp $	*/
 
 /*-
- * Copyright (c) 1997-2000 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -340,7 +340,6 @@ ftp_login(const char *host, const char *user, const char *pass)
 {
 	char tmp[80];
 	const char *acct;
-	struct passwd *pw;
 	int n, aflag, rval, freeuser, freepass, freeacct;
 
 	acct = NULL;
@@ -371,12 +370,8 @@ ftp_login(const char *host, const char *user, const char *pass)
 	}
 
 	while (user == NULL) {
-		const char *myname = getlogin();
-
-		if (myname == NULL && (pw = getpwuid(getuid())) != NULL)
-			myname = pw->pw_name;
-		if (myname)
-			fprintf(ttyout, "Name (%s:%s): ", host, myname);
+		if (localname)
+			fprintf(ttyout, "Name (%s:%s): ", host, localname);
 		else
 			fprintf(ttyout, "Name (%s): ", host);
 		*tmp = '\0';
@@ -389,7 +384,7 @@ ftp_login(const char *host, const char *user, const char *pass)
 		tmp[strlen(tmp) - 1] = '\0';
 		freeuser = 0;
 		if (*tmp == '\0')
-			user = myname;
+			user = localname;
 		else
 			user = tmp;
 	}
@@ -502,7 +497,7 @@ remglob(char *argv[], int doswitch, char **errbuf)
         static char buf[MAXPATHLEN];
         static FILE *ftemp = NULL;
         static char **args;
-        int oldverbose, oldhash, fd, len;
+        int oldverbose, oldhash, oldprogress, fd, len;
         char *cp, *mode;
 
         if (!mflag || !connected) {
@@ -536,7 +531,9 @@ remglob(char *argv[], int doswitch, char **errbuf)
                 oldverbose = verbose;
 		verbose = (errbuf != NULL) ? -1 : 0;
                 oldhash = hash;
+		oldprogress = progress;
                 hash = 0;
+		progress = 0;
                 if (doswitch)
                         pswitch(!proxy);
                 for (mode = "w"; *++argv != NULL; mode = "a")
@@ -549,6 +546,7 @@ remglob(char *argv[], int doswitch, char **errbuf)
                         pswitch(!proxy);
                 verbose = oldverbose;
 		hash = oldhash;
+		progress = oldprogress;
                 ftemp = fopen(temp, "r");
                 (void)unlink(temp);
                 if (ftemp == NULL) {
@@ -872,9 +870,9 @@ progressmeter(int flag)
 		lastsize = restart_point;
 	}
 #ifndef NO_PROGRESS
-	len = 0;
-	if (!progress || filesize <= 0)
+	if (!progress)
 		return;
+	len = 0;
 
 	/*
 	 * print progress bar only if we are foreground process.
@@ -891,20 +889,23 @@ progressmeter(int flag)
 		wait.tv_sec = 0;
 	}
 
-	ratio = (int)((double)cursize * 100.0 / (double)filesize);
-	ratio = MAX(ratio, 0);
-	ratio = MIN(ratio, 100);
-	len += snprintf(buf + len, BUFLEFT, "\r%3d%% ", ratio);
+	len += snprintf(buf + len, BUFLEFT, "\r");
+	if (filesize > 0) {
+		ratio = (int)((double)cursize * 100.0 / (double)filesize);
+		ratio = MAX(ratio, 0);
+		ratio = MIN(ratio, 100);
+		len += snprintf(buf + len, BUFLEFT, "%3d%% ", ratio);
 
 			/*
 			 * calculate the length of the `*' bar, ensuring that
 			 * the number of stars won't exceed the buffer size 
 			 */
-	barlength = MIN(sizeof(buf) - 1, ttywidth) - BAROVERHEAD;
-	if (barlength > 0) {
-		i = barlength * ratio / 100;
-		len += snprintf(buf + len, BUFLEFT,
-		    "|%.*s%*s|", i, stars, barlength - i, "");
+		barlength = MIN(sizeof(buf) - 1, ttywidth) - BAROVERHEAD;
+		if (barlength > 0) {
+			i = barlength * ratio / 100;
+			len += snprintf(buf + len, BUFLEFT,
+			    "|%.*s%*s|", i, stars, barlength - i, "");
+		}
 	}
 
 	abbrevsize = cursize;
@@ -932,24 +933,39 @@ progressmeter(int flag)
 	    (int)((bytespersec % 1024) * 100 / 1024),
 	    prefixes[i]);
 
-	if (bytes <= 0 || elapsed <= 0.0 || cursize > filesize) {
-		len += snprintf(buf + len, BUFLEFT, "   --:-- ETA");
-	} else if (wait.tv_sec >= STALLTIME) {
-		len += snprintf(buf + len, BUFLEFT, " - stalled -");
-	} else {
-		remaining = (int)
-		    ((filesize - restart_point) / (bytes / elapsed) - elapsed);
-		if (remaining >= 100 * SECSPERHOUR)
+	if (filesize > 0) {
+		if (bytes <= 0 || elapsed <= 0.0 || cursize > filesize) {
 			len += snprintf(buf + len, BUFLEFT, "   --:-- ETA");
-		else {
-			i = remaining / SECSPERHOUR;
+		} else if (flag == 1) {
+			i = elapsed / SECSPERHOUR;
 			if (i)
 				len += snprintf(buf + len, BUFLEFT, "%2d:", i);
 			else
 				len += snprintf(buf + len, BUFLEFT, "   ");
-			i = remaining % SECSPERHOUR;
+			i = (int)elapsed % SECSPERHOUR;
 			len += snprintf(buf + len, BUFLEFT,
-			    "%02d:%02d ETA", i / 60, i % 60);
+			    "%02d:%02d    ", i / 60, i % 60);
+		} else if (wait.tv_sec >= STALLTIME) {
+			len += snprintf(buf + len, BUFLEFT, " - stalled -");
+		} else {
+			remaining = (int)
+			    ((filesize - restart_point) / (bytes / elapsed) -
+			    elapsed);
+			if (remaining >= 100 * SECSPERHOUR)
+				len += snprintf(buf + len, BUFLEFT,
+				    "   --:-- ETA");
+			else {
+				i = remaining / SECSPERHOUR;
+				if (i)
+					len += snprintf(buf + len, BUFLEFT,
+					    "%2d:", i);
+				else
+					len += snprintf(buf + len, BUFLEFT,
+					    "   ");
+				i = remaining % SECSPERHOUR;
+				len += snprintf(buf + len, BUFLEFT,
+				    "%02d:%02d ETA", i / 60, i % 60);
+			}
 		}
 	}
 	if (flag == 1)
@@ -1166,7 +1182,7 @@ controlediting(void)
 		HistEvent ev;
 		int editmode;
 
-		el = el_init(__progname, stdin, ttyout, stderr);
+		el = el_init(getprogname(), stdin, ttyout, stderr);
 		/* init editline */
 		hist = history_init();		/* init the builtin history */
 		history(hist, &ev, H_SETSIZE, 100);/* remember 100 events */

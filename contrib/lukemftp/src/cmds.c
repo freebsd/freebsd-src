@@ -1,7 +1,7 @@
-/*	$NetBSD: cmds.c,v 1.90 2000/08/01 22:47:25 lukem Exp $	*/
+/*	$NetBSD: cmds.c,v 1.98 2002/06/05 10:20:46 lukem Exp $	*/
 
 /*-
- * Copyright (c) 1996-2000 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2002 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -515,26 +515,28 @@ void
 reget(int argc, char *argv[])
 {
 
-	(void)getit(argc, argv, 1, "r+w");
+	(void)getit(argc, argv, 1, "r+");
 }
 
 void
 get(int argc, char *argv[])
 {
 
-	(void)getit(argc, argv, 0, restart_point ? "r+w" : "w" );
+	(void)getit(argc, argv, 0, restart_point ? "r+" : "w" );
 }
 
 /*
  * Receive one file.
+ * If restartit is  1, restart the xfer always.
+ * If restartit is -1, restart the xfer only if the remote file is newer.
  */
 int
 getit(int argc, char *argv[], int restartit, const char *mode)
 {
-	int loc = 0;
-	int rval = 0;
-	char *remfile, *locfile, *olocfile;
+	int	 loc, rval;
+	char	*remfile, *locfile, *olocfile;
 
+	loc = rval = 0;
 	if (argc == 2) {
 		argc++;
 		argv[2] = argv[1];
@@ -639,8 +641,9 @@ void
 mget(int argc, char *argv[])
 {
 	sigfunc oldintr;
-	int ch, ointer;
-	char *cp, *tp, *tp2, tmpbuf[MAXPATHLEN];
+	int ointer;
+	char *cp, *tp;
+	int restartit;
 
 	if (argc == 0 ||
 	    (argc == 1 && !another(&argc, &argv, "remote-files"))) {
@@ -650,6 +653,16 @@ mget(int argc, char *argv[])
 	}
 	mname = argv[0];
 	mflag = 1;
+	restart_point = 0;
+	restartit = 0;
+	if (strcmp(argv[0], "mreget") == 0) {
+		if (! features[FEAT_REST_STREAM]) {
+			fprintf(ttyout,
+		    "Restart is not supported by the remote server.\n");
+			return;
+		}
+		restartit = 1;
+	}
 	oldintr = xsignal(SIGINT, mintr);
 	if (sigsetjmp(jabort, 1))
 		mabort();
@@ -658,30 +671,32 @@ mget(int argc, char *argv[])
 			mflag = 0;
 			continue;
 		}
-		if (mflag && confirm(argv[0], cp)) {
-			tp = cp;
-			if (mcase) {
-				for (tp2 = tmpbuf; (ch = *tp++) != 0; )
-					*tp2++ = isupper(ch) ? tolower(ch) : ch;
-				*tp2 = '\0';
-				tp = tmpbuf;
-			}
-			if (ntflag) {
-				tp = dotrans(tp);
-			}
-			if (mapflag) {
-				tp = domap(tp);
-			}
-			recvrequest("RETR", tp, cp, "w",
-			    tp != cp || !interactive, 1);
-			if (!mflag && fromatty) {
-				ointer = interactive;
-				interactive = 1;
-				if (confirm("Continue with", "mget")) {
-					mflag++;
-				}
-				interactive = ointer;
-			}
+		if (! mflag || !confirm(argv[0], cp))
+			continue;
+		tp = cp;
+		if (mcase)
+			tp = docase(tp);
+		if (ntflag)
+			tp = dotrans(tp);
+		if (mapflag)
+			tp = domap(tp);
+		if (restartit) {
+			struct stat stbuf;
+
+			if (stat(tp, &stbuf) == 0)
+				restart_point = stbuf.st_size;
+			else
+				warn("stat %s", tp);
+		}
+		recvrequest("RETR", tp, cp, restart_point ? "r+" : "w",
+		    tp != cp || !interactive, 1);
+		restart_point = 0;
+		if (!mflag && fromatty) {
+			ointer = interactive;
+			interactive = 1;
+			if (confirm("Continue with", "mget"))
+				mflag++;
+			interactive = ointer;
 		}
 	}
 	(void)xsignal(SIGINT, oldintr);
@@ -711,7 +726,7 @@ fget(int argc, char *argv[])
 	}
 
 	argv[0] = "get";
-	mode = restart_point ? "r+w" : "w";
+	mode = restart_point ? "r+" : "w";
 
 	for (;
 	    (buf = fparseln(fp, NULL, NULL, "\0\0\0", 0)) != NULL;
@@ -1111,7 +1126,7 @@ lcd(int argc, char *argv[])
 	code = -1;
 	if (argc == 1) {
 		argc++;
-		argv[1] = home;
+		argv[1] = localhome;
 	}
 	if (argc != 2) {
 		fprintf(ttyout, "usage: %s [local-directory]\n", argv[0]);
@@ -1306,7 +1321,7 @@ mls(int argc, char *argv[])
 	sigfunc oldintr;
 	int ointer, i;
 	int dolist;
-	char mode[1], *dest, *odest;
+	char *mode, *dest, *odest;
 
 	if (argc == 0)
 		goto usage;
@@ -1333,7 +1348,7 @@ mls(int argc, char *argv[])
 	if (sigsetjmp(jabort, 1))
 		mabort();
 	for (i = 1; mflag && i < argc-1 && connected; i++) {
-		*mode = (i == 1) ? 'w' : 'a';
+		mode = (i == 1) ? "w" : "a";
 		recvrequest(dolist ? "LIST" : "NLST", dest, argv[i], mode,
 		    0, 0);
 		if (!mflag && fromatty) {
@@ -1620,6 +1635,12 @@ do_chmod(int argc, char *argv[])
 	(void)command("SITE CHMOD %s %s", argv[1], argv[2]);
 }
 
+#define COMMAND_1ARG(argc, argv, cmd) 			\
+	if (argc == 1)					\
+		command(cmd);				\
+	else						\
+		command(cmd " %s", argv[1])
+
 void
 do_umask(int argc, char *argv[])
 {
@@ -1631,7 +1652,7 @@ do_umask(int argc, char *argv[])
 		return;
 	}
 	verbose = 1;
-	(void)command(argc == 1 ? "SITE UMASK" : "SITE UMASK %s", argv[1]);
+	COMMAND_1ARG(argc, argv, "SITE UMASK");
 	verbose = oldverbose;
 }
 
@@ -1646,7 +1667,7 @@ idlecmd(int argc, char *argv[])
 		return;
 	}
 	verbose = 1;
-	(void)command(argc == 1 ? "SITE IDLE" : "SITE IDLE %s", argv[1]);
+	COMMAND_1ARG(argc, argv, "SITE IDLE");
 	verbose = oldverbose;
 }
 
@@ -1664,7 +1685,7 @@ rmthelp(int argc, char *argv[])
 		return;
 	}
 	verbose = 1;
-	(void)command(argc == 1 ? "HELP" : "HELP %s", argv[1]);
+	COMMAND_1ARG(argc, argv, "HELP");
 	verbose = oldverbose;
 }
 
@@ -1792,6 +1813,7 @@ doproxy(int argc, char *argv[])
 	cmdpos = strcspn(line, " \t");
 	if (cmdpos > 0)		/* remove leading "proxy " from input buffer */
 		memmove(line, line + cmdpos + 1, strlen(line) - cmdpos + 1);
+	argv[1] = c->c_name;
 	(*c->c_handler)(argc-1, argv+1);
 	if (connected) {
 		proxflag = 1;
@@ -2427,7 +2449,7 @@ rmtstatus(int argc, char *argv[])
 		code = -1;
 		return;
 	}
-	(void)command(argc > 1 ? "STAT %s" : "STAT" , argv[1]);
+	COMMAND_1ARG(argc, argv, "STAT");
 }
 
 /*
@@ -2503,7 +2525,7 @@ page(int argc, char *argv[])
 	orestart_point = restart_point;
 	overbose = verbose;
 	hash = restart_point = verbose = 0;
-	recvrequest("RETR", pager, argv[1], "r+w", 1, 0);
+	recvrequest("RETR", pager, argv[1], "r+", 1, 0);
 	hash = ohash;
 	restart_point = orestart_point;
 	verbose = overbose;
@@ -2648,7 +2670,7 @@ mlst(int argc, char *argv[])
 		return;
 	}
 	verbose = 1;	/* If we aren't verbose, this doesn't do anything! */
-	(void)command(argc == 1 ? "MLST" : "MLST %s", argv[1]);
+	COMMAND_1ARG(argc, argv, "MLST");
 	verbose = oldverbose;
 }
 
@@ -2668,6 +2690,9 @@ opts(int argc, char *argv[])
 		return;
 	}
 	verbose = 1;	/* If we aren't verbose, this doesn't do anything! */
-	(void)command(argc == 2 ? "OPTS %s" : "OPTS %s %s", argv[1], argv[2]);
+	if (argc == 2)
+		command("OPTS %s", argv[1]);
+	else
+		command("OPTS %s %s", argv[1], argv[2]);
 	verbose = oldverbose;
 }

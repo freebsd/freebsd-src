@@ -1,6 +1,6 @@
-.\" 	$NetBSD: ftp.1,v 1.73 2000/09/28 12:26:19 lukem Exp $
+.\" 	$NetBSD: ftp.1,v 1.83 2002/06/05 10:20:48 lukem Exp $
 .\"
-.\" Copyright (c) 1996-2000 The NetBSD Foundation, Inc.
+.\" Copyright (c) 1996-2002 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This code is derived from software contributed to The NetBSD Foundation
@@ -68,7 +68,7 @@
 .\"
 .\"	@(#)ftp.1	8.3 (Berkeley) 10/9/94
 .\"
-.Dd September 28, 2000
+.Dd May 18, 2002
 .Dt FTP 1
 .Os
 .Sh NAME
@@ -78,6 +78,9 @@ Internet file transfer program
 .Sh SYNOPSIS
 .Nm ""
 .Op Fl 46AadefginpRtvV
+.Bk -words
+.Op Fl N Ar netrc
+.Ek
 .Bk -words
 .Op Fl o Ar output
 .Ek
@@ -202,6 +205,14 @@ If no entry exists,
 will prompt for the remote machine login name (default is the user
 identity on the local machine), and, if necessary, prompt for a password
 and an account with which to login.
+.It Fl N Ar netrc
+Use
+.Ar netrc
+instead of
+.Pa ~/.netrc .
+Refer to
+.Sx THE .netrc FILE
+for more information.
 .It Fl o Ar output
 When auto-fetching files, save the contents in
 .Ar output .
@@ -299,7 +310,7 @@ from the user.
 When
 .Nm
 is awaiting commands from the user the prompt
-.Ql ftp>
+.Ql ftp\*[Gt]
 is provided to the user.
 The following commands are recognized
 by
@@ -359,7 +370,10 @@ and exit
 An end of file will also terminate the session and exit.
 .It Ic case
 Toggle remote computer file name case mapping during
+.Ic get ,
 .Ic mget
+and
+.Ic mput
 commands.
 When
 .Ic case
@@ -413,7 +427,7 @@ When debugging is on,
 .Nm
 prints each command sent to the remote machine, preceded
 by the string
-.Ql \-\->
+.Ql \-\-\*[Gt]
 .It Ic delete Ar remote-file
 Delete the file
 .Ar remote-file
@@ -481,8 +495,9 @@ Set the file transfer
 .Ic form
 to
 .Ar format .
-The default format is
-.Dq file .
+The default (and only supported)
+format is
+.Dq non-print .
 .It Ic ftp Ar host Op Ar port
 A synonym for
 .Ic open .
@@ -525,9 +540,10 @@ are used while transferring the file.
 .It Ic glob
 Toggle filename expansion for
 .Ic mdelete  ,
-.Ic mget
+.Ic mget ,
+.Ic mput ,
 and
-.Ic mput .
+.Ic mreget .
 If globbing is turned off with
 .Ic glob  ,
 the file name arguments
@@ -537,9 +553,10 @@ Globbing for
 is done as in
 .Xr csh 1 .
 For
-.Ic mdelete
+.Ic mdelete ,
+.Ic mget ,
 and
-.Ic mget  ,
+.Ic mreget ,
 each remote file name is expanded
 separately on the remote machine and the lists are not merged.
 Expansion of a directory name is likely to be
@@ -548,9 +565,10 @@ the exact result depends on the foreign operating system and ftp server,
 and can be previewed by doing
 .Ql mls remote-files \-
 Note:
-.Ic mget
-and
+.Ic mget ,
 .Ic mput
+and
+.Ic mreget
 are not meant to transfer
 entire directory subtrees of files.
 That can be done by
@@ -697,9 +715,9 @@ Set the file transfer
 .Ic mode
 to
 .Ar mode-name .
-The default mode is
-.Dq stream
-mode.
+The default (and only supported)
+mode is
+.Dq stream .
 .It Ic modtime Ar remote-file
 Show the last modification time of the file on the remote machine.
 .It Ic more Ar file
@@ -718,6 +736,13 @@ Resulting file names will then be processed according to
 and
 .Ic nmap
 settings.
+.It Ic mreget Ar remote-files
+As per
+.Ic mget ,
+but performs a
+.Ic reget
+instead of
+.Ic get .
 .It Ic msend Ar local-files
 A synonym for
 .Ic mput .
@@ -800,7 +825,7 @@ the output filename "myfile.data" for input filenames "myfile.data" and
 "myfile.myfile" for the input filename ".myfile".
 Spaces may be included in
 .Ar outpattern  ,
-as in the example: `nmap $1 sed "s/  *$//" > $1' .
+as in the example: `nmap $1 sed "s/  *$//" \*[Gt] $1' .
 Use the `\e' character to prevent special treatment
 of the `$','[',']', and `,' characters.
 .It Ic ntrans Op Ar inchars Op Ar outchars
@@ -1121,7 +1146,7 @@ commands known to support options include:
 .Sq MLST
 (used for
 .Dv MLSD
-and 
+and
 .Dv MLST ) .
 .It Ic rename Op Ar from Op Ar to
 Rename the file
@@ -1249,6 +1274,12 @@ Defaults to
 Defaults to
 .Ev $FTPRPROMPT .
 .El
+.It Ic site Ar arg1 arg2 ...
+The arguments specified are sent, verbatim, to the remote
+.Tn FTP
+server as a
+.Dv SITE
+command.
 .It Ic size Ar remote-file
 Return size of
 .Ar remote-file
@@ -1256,12 +1287,6 @@ on remote machine.
 .It Ic sndbuf Ar size
 Set the size of the socket send buffer to
 .Ar size .
-.It Ic site Ar arg1 arg2 ...
-The arguments specified are sent, verbatim, to the remote
-.Tn FTP
-server as a
-.Dv SITE
-command.
 .It Ic status
 Show the current status of
 .Nm ftp .
@@ -1270,9 +1295,9 @@ Set the file transfer
 .Ar structure
 to
 .Ar struct-name .
-By default
-.Dq stream
-structure is used.
+The default (and only supported)
+structure is
+.Dq file .
 .It Ic sunique
 Toggle storing of files on remote machine under unique file names.
 The remote
@@ -1720,7 +1745,12 @@ The
 .Pa .netrc
 file contains login and initialization information
 used by the auto-login process.
-It resides in the user's home directory.
+It resides in the user's home directory,
+unless overridden with the
+.Fl N Ar netrc
+option, or specified in the
+.Ev NETRC
+environment variable.
 The following tokens are recognized; they may be separated by spaces,
 tabs, or new-lines:
 .Bl -tag -width password
@@ -1844,7 +1874,7 @@ By default, this is bound to the TAB key.
 By default,
 .Nm
 displays a command line prompt of
-.Dq "ftp> "
+.Dq "ftp\*[Gt] "
 to the user.
 This can be changed with the
 .Ic "set prompt"
@@ -1872,7 +1902,7 @@ begins with
 .Sq 0 ,
 the number of skipped components precede the trailing component(s) in
 the format
-.Dq /\fI<skipped>\fRtrailing
+.Dq /\fI\*[Lt]skipped\*[Gt]\fRtrailing
 (for
 .Sq %c )
 or
@@ -1920,7 +1950,7 @@ only
 .It Ev FTPPROMPT
 Command-line prompt to use.
 Defaults to
-.Dq "ftp> " .
+.Dq "ftp\*[Gt] " .
 Refer to
 .Sx COMMAND LINE PROMPT
 for more information.
@@ -1947,6 +1977,10 @@ lookup of
 For default location of a
 .Pa .netrc
 file, if one exists.
+.It Ev NETRC
+An alternate location of the
+.Pa .netrc
+file.
 .It Ev PAGER
 Used by various commands to display files.
 Defaults to
@@ -1963,6 +1997,10 @@ URL requests
 (if not defined, use the standard
 .Tn FTP
 protocol).
+.Pp
+.Em NOTE :
+this is not used for interactive sessions, only for command-line
+fetches.
 .It Ev http_proxy
 URL of
 .Tn HTTP
@@ -1979,7 +2017,11 @@ and
 .Ev http_proxy
 may be incompatible with other programs that use it
 (such as
-.Xr lynx 1 ).
+.Xr lynx 1 ) .
+.Pp
+.Em NOTE :
+this is not used for interactive sessions, only for command-line
+fetches.
 .It Ev no_proxy
 A space or comma separated list of hosts (or domains) for which
 proxying is not to be used.
@@ -2019,7 +2061,7 @@ and other enhancements over the standard
 were implemented in
 .Nx 1.3
 and later releases
-by Luke Mewburn <lukem@netbsd.org>.
+by Luke Mewburn \*[Lt]lukem@netbsd.org\*[Gt].
 .Pp
 IPv6 support was added by the WIDE/KAME project
 (but may not be present in all non-NetBSD versions of this program, depending
