@@ -1791,6 +1791,10 @@ device		pci
 options 	PCI_ENABLE_IO_MODES
 #options 	PCI_QUIET	#quiets PCI code on chipset settings
 
+# AGP GART support
+#
+device		agp
+
 
 # The `ahc' device provides support for the Adaptec 29/3940(U)(W)
 # and motherboard based AIC7870/AIC7880 adapters.
