@@ -50,7 +50,8 @@ exec_shell_imgact(imgp)
 {
 	const char *image_header = imgp->image_header;
 	const char *ihp;
-	int error, length, offset;
+	int error, offset;
+	size_t length;
 
 	/* a shell script? */
 	if (((const short *) image_header)[0] != SHELLMAGIC)
