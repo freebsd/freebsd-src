@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ipfw.c,v 1.67 1999/05/29 08:12:38 kris Exp $";
 #endif /* not lint */
       
 
@@ -579,7 +579,7 @@ show_usage(const char *fmt, ...)
 "    [pipe] list [number ...]\n"
 "    [pipe] show [number ...]\n"
 "    zero [number ...]\n"
-"    pipe number config [pipeconfig\n"
+"    pipe number config [pipeconfig]\n"
 "  rule:  action proto src dst extras...\n"
 "    action:\n"
 "      {allow|permit|accept|pass|deny|drop|reject|unreach code|\n"
@@ -597,7 +597,7 @@ show_usage(const char *fmt, ...)
 "    tcpflags [!]{syn|fin|rst|ack|psh|urg},...\n"
 "    ipoptions [!]{ssrr|lsrr|rr|ts},...\n"
 "    icmptypes {type[,type]}...\n"
-"  pipecfg:\n"
+"  pipeconfig:\n"
 "    {bw|bandwidth} <number>{bit/s|Kbit/s|Mbit/s|Bytes/s|KBytes/s|MBytes/s}\n"
 "    delay <milliseconds>\n"
 "    queue <size>{packets|Bytes|KBytes}\n"
@@ -1457,7 +1457,8 @@ ipfw_main(ac,av)
 			    err(EX_UNAVAILABLE, "setsockopt(IP_%s_FLUSH)",
 				do_pipe ? "DUMMYNET" : "FW");
 			if (!do_quiet)
-				printf("Flushed all rules.\n");
+				printf("Flushed all %s.\n",
+				    do_pipe ? "pipes" : "rules");
 		}
 	} else if (!strncmp(*av, "zero", strlen(*av))) {
 		zero(ac,av);
