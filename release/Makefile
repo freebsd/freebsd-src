@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.316 1997/07/31 09:52:10 jkh Exp $
+#	$Id: Makefile,v 1.317 1997/07/31 10:57:30 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -360,7 +360,7 @@ release.7:
 .if !defined(NOSRC)
 	@cd ${.CURDIR} && $(MAKE) doTARBALL SD=/usr/src \
 		TD=src TN=sbase ARG="[A-Z]*"
-	@for i in `cd /usr/src && echo [a-z]*` ; do \
+	@for i in `cd /usr/src && echo [a-z]* | sed -e s/contrib-crypto//` ; do \
 		if [ -d /usr/src/$$i ] ; then \
 			cd ${.CURDIR} && $(MAKE) doTARBALL \
 				TN=`echo s$$i | tr -d '.' | sed 's/usr/u/'` \
