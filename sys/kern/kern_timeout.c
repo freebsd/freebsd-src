@@ -254,7 +254,7 @@ callout_reset(c, to_ticks, ftn, arg)
 	
 }
 
-void
+int
 callout_stop(c)
 	struct	callout *c;
 {
@@ -267,7 +267,7 @@ callout_stop(c)
 	if (!(c->c_flags & CALLOUT_PENDING)) {
 		c->c_flags &= ~CALLOUT_ACTIVE;
 		splx(s);
-		return;
+		return (0);
 	}
 	c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
 
@@ -281,6 +281,7 @@ callout_stop(c)
 		SLIST_INSERT_HEAD(&callfree, c, c_links.sle);
 	}
 	splx(s);
+	return (1);
 }
 
 void
