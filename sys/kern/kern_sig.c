@@ -1469,12 +1469,12 @@ issignal(p)
 				    prop & SA_TTYSTOP))
 					break;	/* == ignore */
 				p->p_xstat = sig;
-				stop(p);
 				if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0) {
 					PROC_LOCK(p->p_pptr);
 					psignal(p->p_pptr, SIGCHLD);
 					PROC_UNLOCK(p->p_pptr);
 				}
+				stop(p);
 				mtx_lock_spin(&sched_lock);
 				PROC_UNLOCK_NOSWITCH(p);
 				DROP_GIANT_NOSWITCH();
@@ -1519,8 +1519,7 @@ issignal(p)
 /*
  * Put the argument process into the stopped state and notify the parent
  * via wakeup.  Signals are handled elsewhere.  The process must not be
- * on the run queue.  Must be called with at least a shared hold of the
- * proctree lock.
+ * on the run queue.  Must be called with the proc p locked.
  */
 void
 stop(p)
