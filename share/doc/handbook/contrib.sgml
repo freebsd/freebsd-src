@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.109 1996/07/24 23:46:48 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.110 1996/07/25 13:53:47 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -248,6 +248,7 @@
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
 	  <item>Matt White &lt;mwhite+@CMU.EDU&gt;
 	  <item>Matthew N. Dodd &lt;winter@jurai.net&gt;
+	  <item>Matthew Stein &lt;matt@bdd.net&gt;
 	  <item>Michael Elbel &lt;me@FreeBSD.ORG&gt;
 	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
 	  <item>Mike Peck &lt;mike@binghamton.edu&gt;
