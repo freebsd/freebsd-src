@@ -80,7 +80,7 @@ device		atapicd		# ATAPI CDROM drives
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
-device		gem		# Sun GEM/Sun ERI/Apple HMAC
+device		gem		# Sun GEM/Sun ERI/Apple GMAC
 
 # Pseudo devices - the number indicates how many units to allocated.
 device		random		# Entropy device
