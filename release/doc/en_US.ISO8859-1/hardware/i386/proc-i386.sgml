@@ -4,8 +4,39 @@
 <sect1>
   <title>Supported Processors and Motherboards</title>
 
-  <para>&os; for the i386 currently runs on a wide variety of ISA,
-  VLB, EISA, MCA and PCI bus based PC's, ranging from 386sx to
-  Pentium 4 class machines (though the 386sx is not
-  recommended).</para>
+  <para>&os;/i386 runs on a wide variety of
+  <quote>IBM PC compatible</quote> machines.  Due to the wide range of
+  hardware available for this architecture, it is impossible to
+  exhaustively list all combinations of equipment supported by &os;.
+  Nevertheless, some general guidelines are presented here.</para>
+
+  <para>Almost all i386-compatible processors are supported.  All
+  Intel processors beginning with the 80386 are supported, including
+  the 80386, 80486, Pentium, Pentium Pro, Pentium II, Pentium III,
+  Pentium 4, and variants thereof, such as the Xeon and Celeron
+  processors.  (While technically supported, the use of the 80386SX is
+  specifically not recommended.)  All i386-compatible AMD processors
+  are also supported, including the Am486, Am5x86, K5, K6,
+  Athlon, and Duron processors.  The Transmeta Crusoe is recognized
+  and supported, as are i386-compatible processors from Cyrix and
+  NexGen.</para>
+
+  <para>There is a wide variety of motherboards available for this
+  architecture.  Motherboards using the ISA, VLB, EISA, AGP, and PCI
+  expansion busses are well-supported.  There is some limited support
+  for the MCA (<quote>MicroChannel</quote>) expansion bus used in the
+  IBM PS/2 line of PCs.</para>
+
+  <para>Symmetric multi-processor (SMP) systems are generally
+  supported by &os;, although in some cases, BIOS or motherboard bugs
+  may generate some problems.  Perusal of the archives of the &a.smp;
+  may yield some clues.</para>
+
+  <para>&os; will generally run on i386-based laptops, albeit with
+  varying levels of support for certain hardware features such as
+  sound, graphics, power management, and PCCARD expansion slots.
+  These features tend to vary in idiosyncratic ways between machines,
+  and frequently require special-case support in &os; to work around
+  hardware bugs or other oddities.  When in doubt, a search of the
+  archives of the &a.mobile; may be useful.</para>
 </sect1>
