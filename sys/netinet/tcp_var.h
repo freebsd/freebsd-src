@@ -392,7 +392,6 @@ void	 tcp_mtudisc __P((struct inpcb *, int));
 struct tcpcb *
 	 tcp_newtcpcb __P((struct inpcb *));
 int	 tcp_output __P((struct tcpcb *));
-int	 tcp_seq_vs_sess __P((struct inpcb *, tcp_seq));
 void	 tcp_quench __P((struct inpcb *, int));
 void	 tcp_respond __P((struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int));
