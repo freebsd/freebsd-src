@@ -32,9 +32,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
-#ifndef NOINET6
-#include <netinet6/in6.h>
-#endif
 #include <netdb.h>
 
 #include <errno.h>
