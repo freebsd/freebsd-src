@@ -330,15 +330,19 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 	 * minute or so
 	 */
 	for (t.tv_sec = 4; t.tv_sec <= 14; t.tv_sec += 2) {
+		int success = 0;
 		for (i = 0; i < nets; i++) {
 			baddr.sin_addr = addrs[i];
 			if (sendto(sock, outbuf, outlen, 0,
 				(struct sockaddr *)&baddr,
-				sizeof (struct sockaddr)) != outlen) {
-				perror("Cannot send broadcast packet");
-				stat = RPC_CANTSEND;
-				goto done_broad;
+				sizeof (struct sockaddr)) == outlen) {
+				success++;
 			}
+		}
+		if (!success) {
+			perror("Cannot send broadcast packet");
+			stat = RPC_CANTSEND;
+			goto done_broad;
 		}
 		if (eachresult == NULL) {
 			stat = RPC_SUCCESS;
