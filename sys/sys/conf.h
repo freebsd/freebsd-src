@@ -42,6 +42,9 @@
 
 #ifdef _KERNEL
 #include <sys/eventhandler.h>
+#else
+#include <sys/queue.h>
+#endif
 
 struct tty;
 struct disk;
@@ -106,6 +109,8 @@ struct cdev {
 #define si_bsize_best	__si_u.__si_disk.__sid_bsize_best
 #define si_snapdata	__si_u.__si_disk.__sid_snapdata
 #define si_copyonwrite	__si_u.__si_disk.__sid_copyonwrite
+
+#ifdef _KERNEL
 
 /*
  * Definitions of device driver entry switches
