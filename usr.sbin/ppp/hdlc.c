@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.37 1998/05/21 01:26:07 brian Exp $
+ * $Id: hdlc.c,v 1.31 1998/05/21 21:45:28 brian Exp $
  *
  *	TODO:
  */
@@ -31,10 +31,10 @@
 #include <string.h>
 #include <termios.h>
 
+#include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "defs.h"
 #include "timer.h"
 #include "fsm.h"
 #include "lqr.h"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.88 1998/05/29 18:33:09 brian Exp $
+ * $Id: modem.c,v 1.89 1998/06/15 19:05:25 brian Exp $
  *
  *  TODO:
  */
@@ -47,10 +47,10 @@
 #include <libutil.h>
 #endif
 
+#include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "defs.h"
 #include "id.h"
 #include "timer.h"
 #include "fsm.h"

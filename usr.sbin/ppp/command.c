@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.142 1998/06/15 19:05:12 brian Exp $
+ * $Id: command.c,v 1.143 1998/06/15 19:05:40 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -44,10 +44,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "defs.h"
 #include "timer.h"
 #include "fsm.h"
 #include "lcp.h"
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/15 19:05:12 $";
+const char VersionDate[] = "$Date: 1998/06/15 19:05:40 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -709,20 +709,18 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc, int argn,
   return val;
 }
 
-void
-command_Interpret(char *buff, int nb, int *argc, char ***argv)
+int
+command_Interpret(char *buff, int nb, char *argv[MAXARGS])
 {
-  static char *vector[MAXARGS];
   char *cp;
 
   if (nb > 0) {
     cp = buff + strcspn(buff, "\r\n");
     if (cp)
       *cp = '\0';
-    *argc = MakeArgs(buff, vector, VECSIZE(vector));
-    *argv = vector;
-  } else
-    *argc = 0;
+    return MakeArgs(buff, argv, MAXARGS);
+  }
+  return 0;
 }
 
 static int
@@ -784,9 +782,9 @@ command_Decode(struct bundle *bundle, char *buff, int nb, struct prompt *prompt,
               const char *label)
 {
   int argc;
-  char **argv;
+  char *argv[MAXARGS];
 
-  command_Interpret(buff, nb, &argc, &argv);
+  argc = command_Interpret(buff, nb, argv);
   command_Run(bundle, argc, (char const *const *)argv, prompt, label, NULL);
 }
 

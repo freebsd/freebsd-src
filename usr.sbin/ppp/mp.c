@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.5 1998/05/23 22:24:46 brian Exp $
+ *	$Id: mp.c,v 1.6 1998/05/25 02:22:38 brian Exp $
  */
 
 #include <sys/types.h>
@@ -44,10 +44,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "defs.h"
 #include "timer.h"
 #include "fsm.h"
 #include "iplist.h"
