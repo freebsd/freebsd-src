@@ -107,6 +107,84 @@ chkdepend NFS nfs_server_enable portmap portmap_enable
 chkdepend NIS nis_server_enable portmap portmap_enable
 chkdepend NIS nis_client_enable portmap portmap_enable
 
+# Enable harvesting of entropy via devices.  The sooner this happens the
+# better so that we can take advantage of the boot process.
+#
+echo -n 'Entropy harvesting:'
+
+case ${harvest_interrupt} in
+[Nn][Oo])
+	;;
+*)
+	if [ -w /dev/random ]; then
+		/sbin/sysctl -w kern.random.sys.harvest_interrupt=1 >/dev/null
+		echo -n ' interrupts'
+	fi
+	;;
+esac
+
+# Steal some code from rc.network to help determine what to enable.
+case ${network_interfaces} in
+[Aa][Uu][Tt][Oo])
+	h_network_interfaces="`ifconfig -l`"
+	;;
+*)
+	h_network_interfaces="${network_interfaces}"
+	;;
+esac
+
+case ${harvest_ethernet} in
+[Nn][Oo])
+	;;
+*)
+	do_ether_harvest=''
+
+	for h_ifn in ${h_network_interfaces}; do
+		eval h_ifconfig_args=\$ifconfig_${h_ifn}
+		case ${h_ifconfig_args} in
+		'')
+			;;
+		*)
+			do_ether_harvest=1
+			;;
+		esac
+	done
+
+	if [ -w /dev/random -a "${do_ether_harvest}" ]; then
+		/sbin/sysctl -w kern.random.sys.harvest_ethernet=1 >/dev/null
+		echo -n ' ethernet'
+	fi
+	;;
+esac
+
+case ${harvest_p_to_p} in
+[Nn][Oo])
+	;;
+*)
+	do_p_to_p_harvest=''
+
+	# Other than user ppp, tun* will already exist
+	case "${h_network_interfaces}" in
+	*tun0*)
+		do_p_to_p_harvest=1
+		;;
+	esac
+
+	case ${ppp_enable} in
+	[Yy][Ee][Ss])
+		do_p_to_p_harvest=1
+		;;
+	esac
+
+	if [ -w /dev/random -a "${do_p_to_p_harvest}" ]; then
+	/sbin/sysctl -w kern.random.sys.harvest_point_to_point=1 >/dev/null
+		echo -n ' point_to_point'
+	fi
+	;;
+esac
+
+echo '.'
+
 # First pass at reseeding /dev/random.
 #
 # XXX temporary until we can get the entropy
