@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.12 (Berkeley) 6/16/95
- * $Id: stat.h,v 1.11 1997/02/22 09:45:58 peter Exp $
+ * $Id: stat.h,v 1.12 1997/04/09 16:32:23 bde Exp $
  */
 
 #ifndef _SYS_STAT_H_
@@ -175,6 +175,7 @@ struct stat {
 #define	UF_IMMUTABLE	0x00000002	/* file may not be changed */
 #define	UF_APPEND	0x00000004	/* writes to file may only append */
 #define UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
+#define UF_NOUNLINK	0x00000010	/* file may not be removed or renamed */
 /*
  * Super-user changeable flags.
  */
@@ -182,6 +183,7 @@ struct stat {
 #define	SF_ARCHIVED	0x00010000	/* file is archived */
 #define	SF_IMMUTABLE	0x00020000	/* file may not be changed */
 #define	SF_APPEND	0x00040000	/* writes to file may only append */
+#define	SF_NOUNLINK	0x00100000	/* file may not be removed or renamed */
 
 #ifdef KERNEL
 /*
@@ -190,6 +192,7 @@ struct stat {
 #define	OPAQUE		(UF_OPAQUE)
 #define	APPEND		(UF_APPEND | SF_APPEND)
 #define	IMMUTABLE	(UF_IMMUTABLE | SF_IMMUTABLE)
+#define	NOUNLINK	(UF_NOUNLINK | SF_NOUNLINK)
 #endif
 
 #endif /* !_POSIX_SOURCE */

@@ -65,6 +65,8 @@ Do not dump the file.
 The file may not be changed.
 .It UF_APPEND
 The file may only be appended to.
+.It UF_NOUNLINK
+The file may not be renamed or deleted.
 .It UF_OPAQUE
 The directory is opaque when viewed through a union stack.
 .\".It ARCHIVED
@@ -73,18 +75,24 @@ The directory is opaque when viewed through a union stack.
 The file may not be changed.
 .It SF_APPEND
 The file may only be appended to.
+.It SF_NOUNLINK
+The file may not be renamed or deleted.
 .El
 .Pp
 The
 .Dq UF_IMMUTABLE
-and
+,
 .Dq UF_APPEND
+and
+.Dq UF_NOUNLINK
 flags may be set or unset by either the owner of a file or the super-user.
 .Pp
 The
 .Dq SF_IMMUTABLE
-and
+,
 .Dq SF_APPEND
+and
+.Dq SF_NOUNLINK
 flags may only be set or unset by the super-user.
 Attempts by the non-super-user to set the super-user only flags
 are silently ignored.
