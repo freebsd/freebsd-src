@@ -174,24 +174,23 @@ was the announcement in Usenet or if it was available as tape.
 	and John Quarterman. The Design and Implementation of
 	the 4.4BSD Operating System.
 [APL] Apple website [http://www.apple.com/macosx/]
+[BSDI] Berkeley Software Design, Inc.
 [DOC] README, COPYRIGHT on tape.
-[QCU] Salus, Peter H. A quarter century of UNIX.
-[U25] Peter H. Salus. Unix at 25.
-[USE] Usenet announcement.
+[FBD] FreeBSD Project, The.
+[KB]  Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources,
+	Volume 11, Info 4, April, 1987.
 [KSJ] Michael J. Karels, Carl F. Smith, and William F. Jolitz.
 	Changes in the Kernel in 2.9BSD. Second Berkeley Software
 	Distribution UNIX Version 2.9, July, 1983.
-[KB]  Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources,
-	Volume 11, Info 4, April, 1987.
 [KKK] Mike Karels, Kirk McKusick, and Keith Bostic. tahoe announcement.
 	comp.bugs.4bsd.ucb-fixes, June 15, 1988.
-[SMS] Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
-[FBD] FreeBSD Project, The.
 [NBD] NetBSD Project, The.
 [OBD] OpenBSD Project, The.
-[dmr] Dennis Ritchie, via E-Mail
-[BSDI] Berkeley Software Design, Inc.
+[QCU] Salus, Peter H. A quarter century of UNIX.
+[SMS] Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
+[USE] Usenet announcement.
 [WRS] Wind River Systems, Inc.
+[dmr] Dennis Ritchie, via E-Mail
 
 Multics                 1965
 UNIX                    Summer 1969
