@@ -1,4 +1,4 @@
-#	$Id: dot.profile,v 1.7.2.1 1997/02/23 20:57:42 joerg Exp $
+#	$Id: dot.profile,v 1.7.2.2 1997/07/16 06:34:53 charnier Exp $
 #
 # .profile - Bourne Shell startup script for login shells
 #
@@ -17,6 +17,8 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:$HOME/bin; export PATH
 BLOCKSIZE=K;	export BLOCKSIZE
 EDITOR=vi;   	export EDITOR
 PAGER=more;  	export PAGER
+# make mail(1) happy:
+crt=24;		export crt
 
 # file permissions: rwxr-xr-x
 #
