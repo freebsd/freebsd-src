@@ -101,13 +101,6 @@ int mbuf_frag_size = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
 #endif
-static int ip_do_rfc3514 = 0;
-SYSCTL_INT(_net_inet_ip, OID_AUTO, rfc3514, CTLFLAG_RW,
-	&ip_do_rfc3514, 0, "IPv4 Header Security Flag Support");
-
-static int speak_no_evil = 0;
-SYSCTL_INT(_net_inet_ip, OID_AUTO, speak_no_evil, CTLFLAG_RW,
-	&speak_no_evil, 0, "Drop all EVIL packets before output.");
 
 static struct mbuf *ip_insertoptions(struct mbuf *, struct mbuf *, int *);
 static struct ifnet *ip_multicast_if(struct in_addr *, int *);
@@ -235,7 +228,7 @@ ip_output(m0, opt, ro, flags, imo, inp)
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = hlen >> 2;
-		ip->ip_off &= IP_DF|IP_EF;
+		ip->ip_off &= IP_DF;
 #ifdef RANDOM_IP_ID
 		ip->ip_id = ip_randomid();
 #else
@@ -244,17 +237,6 @@ ip_output(m0, opt, ro, flags, imo, inp)
 		ipstat.ips_localout++;
 	} else {
 		hlen = ip->ip_hl << 2;
-	}
-
-	/* RFC3514 */
-	if ((inp != NULL) &&				/* Originated	*/
-	    ip_do_rfc3514 &&				/* Supported	*/
-	    ((inp->inp_flags & INP_EVIL) == INP_EVIL))	/* Optioned	*/
-		ip->ip_off |= IP_EF;
-
-	if (speak_no_evil && (ip->ip_off & IP_EF)) {
-		error = EACCES;
-		goto bad;
 	}
 
 #ifdef FAST_IPSEC
@@ -1444,7 +1426,6 @@ ip_ctloutput(so, sopt)
 		case IP_RECVDSTADDR:
 		case IP_RECVIF:
 		case IP_FAITH:
-		case IP_EVIL_INTENT:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1482,12 +1463,6 @@ ip_ctloutput(so, sopt)
 
 			case IP_FAITH:
 				OPTSET(INP_FAITH);
-				break;
-			case IP_EVIL_INTENT:
-				if (ip_do_rfc3514) {
-					OPTSET(INP_EVIL);
-				} else
-					error = EINVAL;
 				break;
 			}
 			break;
@@ -1581,7 +1556,6 @@ ip_ctloutput(so, sopt)
 		case IP_RECVIF:
 		case IP_PORTRANGE:
 		case IP_FAITH:
-		case IP_EVIL_INTENT:
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1621,9 +1595,6 @@ ip_ctloutput(so, sopt)
 
 			case IP_FAITH:
 				optval = OPTBIT(INP_FAITH);
-				break;
-			case IP_EVIL_INTENT:
-				optval = OPTBIT(INP_EVIL);
 				break;
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
