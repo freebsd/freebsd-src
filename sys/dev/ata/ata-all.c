@@ -1107,8 +1107,7 @@ out:
 #endif
     default:
 	if (scp->flags & ATA_DMA_ACTIVE) {
-	    if (((dmastat = ata_dmastatus(scp)) &
-	        (ATA_BMSTAT_ACTIVE|ATA_BMSTAT_INTERRUPT))!=ATA_BMSTAT_INTERRUPT)
+	    if (!((dmastat = ata_dmastatus(scp)) & ATA_BMSTAT_INTERRUPT))
 		return;
 	    outb(scp->bmaddr + ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
 	}
