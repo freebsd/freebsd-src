@@ -150,7 +150,8 @@ extern u_int32_t pci_numdevs;
 
 /* externally visible functions */
 
-const char *ide_pci_match(struct device *dev);
+const char *pci_ata_match(struct device *dev);
+const char *pci_usb_match(struct device *dev);
 
 /* low level PCI config register functions provided by pcibus.c */
 
