@@ -84,17 +84,29 @@ MNT=			/mnt
 
 # Various floppy image parameters.
 #
+.if ${MACHINE} == "pc98"
+BOOTSIZE=		1200
+FIXITSIZE=		1440
+MFSSIZE=		2880
+BOOTINODE=		80000
+FIXITINODE=		4000
+MFSINODE=		8000
+BOOTLABEL=		fd1200
+FIXITLABEL=		fd1440
+MFSLABEL=		minimum2
+.else
 BOOTSIZE=		1440
 FIXITSIZE=		1440
 MFSSIZE=		2880
 BIGBOOTSIZE=		2880
 BOOTINODE=		80000
-MFSINODE=		8000
 FIXITINODE=		4000
+MFSINODE=		8000
 BOOTLABEL=		fd1440
 FIXITLABEL=		fd1440
-BIGBOOTLABEL=		minimum2
 MFSLABEL=		minimum2
+BIGBOOTLABEL=		minimum2
+.endif
 
 # overrides.
 .if ${MACHINE_ARCH} == "alpha"
@@ -138,9 +150,8 @@ BOOTSTRAPUTILS+= /usr/bin/cpio
 CRUNCH_TARGETS=	boot fixit
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
-# Make both PC-card boot.flp and plain boot.flp
-EXTRAS= floppies cdrom.1 ftp.1
+.if ${MACHINE} == "pc98"
+EXTRAS= ftp.1
 .else
 EXTRAS= cdrom.1 ftp.1
 .endif
@@ -281,7 +292,7 @@ rerelease release:
 	chroot ${CHROOTDIR} /mk
 
 clean:
-	rm -rf boot_crunch ${.OBJDIR}/boot_crunch.conf release.[0-9]
+	rm -rf boot_crunch release.[0-9]
 
 # Clean out ${_R} and make the directory structure.
 release.1:
@@ -347,7 +358,6 @@ release.3:
 # Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
 release.4:
 	@mkdir -p /stand
-	cp ${.CURDIR}/boot_crunch.conf.generic ${.OBJDIR}/boot_crunch.conf
 	cd ${.CURDIR}/sysinstall && make obj depend all install
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
@@ -356,10 +366,9 @@ release.4:
 		rm -rf $${j}_crunch && \
 		mkdir $${j}_crunch && \
 		( cd $${j}_crunch && \
-		  ( ( [ -f ${.CURDIR}/$${j}_crunch.conf ] && \
-		    crunchgen ${.CURDIR}/$${j}_crunch.conf ) || \
-		    ( [ -f ${.OBJDIR}/$${j}_crunch.conf ] && \
-		    crunchgen ${.OBJDIR}/$${j}_crunch.conf ) ) && \
+		  ( ( [ -f ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ] && \
+		    crunchgen ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ) || \
+		    ( crunchgen ${.CURDIR}/$${j}_crunch.conf ) ) && \
 		  ${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean all \
 		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
@@ -517,7 +526,9 @@ release.8: write_mfs_in_kernel
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
+.if ${MACHINE} != "pc98"
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot BIGBOOT=YES
+.endif
 	@rm mfsroot mfsroot.gz mfsroot.size
 	@echo "Regular and MFS boot floppies made."
 	touch release.8
@@ -706,8 +717,8 @@ installCRUNCH:
 		ln -f ${RD}/crunch/${CRUNCH} ${DIR}/${CRUNCH}_crunch ; \
 	fi
 	@chmod 555 ${DIR}/${CRUNCH}_crunch
-	@if [ -f ${.OBJDIR}/${CRUNCH}_crunch.conf ] ; then \
-		for i in `crunchgen -l ${.OBJDIR}/${CRUNCH}_crunch.conf` ; do \
+	@if [ -f ${.CURDIR}/${MACHINE}/${CRUNCH}_crunch.conf ] ; then \
+		for i in `crunchgen -l ${.CURDIR}/${MACHINE}/${CRUNCH}_crunch.conf` ; do \
 			ln -f ${DIR}/${CRUNCH}_crunch ${DIR}/$$i ; \
 		done \
 	else \
@@ -724,7 +735,7 @@ installCRUNCH:
 #
 doKERNEL:
 	@rm -f ${RD}/kernels/${KERNEL}
-	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && config ${KERNEL}
+	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
 			make  ${KERNEL} && \
@@ -737,14 +748,15 @@ doKERNEL:
 doMFSKERN:
 	@echo "Running doMFSKERN for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && \
+	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
 	  sh ${.CURDIR}/scripts/dokern.sh ${BIGBOOT} < ${KERNCONF} > BOOTMFS
 .if ${MACHINE_ARCH} == "i386"
-	@echo "options  INTRO_USERCONFIG" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
+	@echo "options  INTRO_USERCONFIG" >> \
+	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
 .if defined(BIGBOOT)
 	@echo "options \"MD_ROOT_SIZE=`cat mfsroot.size`\"" >> \
-	  ${.CURDIR}/../sys/${MACHINE_ARCH}/conf/BOOTMFS
+	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
 	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	@rm -rf ${RD}/image.${FSIMAGE}

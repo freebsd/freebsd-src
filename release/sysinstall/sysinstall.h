@@ -590,6 +590,7 @@ extern int	lndir(char *from, char *to);
 /* makedevs.c (auto-generated) */
 extern const char	termcap_ansi[];
 extern const char	termcap_vt100[];
+extern const char	termcap_cons25w[];
 extern const char	termcap_cons25[];
 extern const char	termcap_cons25_m[];
 extern const char	termcap_cons25r[];
