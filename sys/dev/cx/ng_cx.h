@@ -1,7 +1,7 @@
 /*
  * Defines for Cronyx-Tau adapter driver.
  *
- * Copyright (C) 1999 Cronyx Engineering.
+ * Copyright (C) 1999-2004 Cronyx Engineering.
  * Author: Kurakin Roman, <rik@cronyx.ru>
  *
  * This software is distributed with NO WARRANTIES, not even the implied
@@ -12,6 +12,7 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
+ * Cronyx Id: ng_cx.h,v 1.1.2.3 2004/01/27 14:39:11 rik Exp $
  * $FreeBSD$
  */
 
