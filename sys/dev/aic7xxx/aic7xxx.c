@@ -7091,31 +7091,38 @@ ahc_calc_residual(struct scb *scb)
 	uint32_t resid;
 
 	/*
-	 * 4 cases.
+	 * 5 cases.
 	 * 1) No residual.
 	 *    SG_RESID_VALID clear in sgptr.
 	 * 2) Transferless command
 	 * 3) Never performed any transfers.
 	 *    sgptr has SG_FULL_RESID set.
-	 * 4) We have a partial residual.
+	 * 4) No residual but target did not
+	 *    save data pointers after the
+	 *    last transfer, so sgptr was
+	 *    never updated.
+	 * 5) We have a partial residual.
 	 *    Use residual_sgptr to determine
 	 *    where we are.
 	 */
 
-	/* Cases 1, 2 & 3 are easy.  Check them first. */
 	hscb = scb->hscb;
 	if ((hscb->sgptr & SG_RESID_VALID) == 0)
+		/* Case 1 */
 		return;
 	hscb->sgptr &= ~SG_RESID_VALID;
 
 	if ((hscb->sgptr & SG_LIST_NULL) != 0)
+		/* Case 2 */
 		return;
 
 	spkt = &hscb->shared_data.status;
 	if ((hscb->sgptr & SG_FULL_RESID) != 0)
+		/* Case 3 */
 		resid = scb->ccb->csio.dxfer_len;
-	else if ((hscb->sgptr & ~SG_PTR_MASK) != 0)
-		panic("Bogus sgptr value 0x%x\n", hscb->sgptr);
+	else if ((spkt->residual_sg_ptr & SG_LIST_NULL) != 0)
+		/* Case 4 */
+		return;
 	else if ((spkt->residual_sg_ptr & ~SG_PTR_MASK) != 0)
 		panic("Bogus resid sgptr value 0x%x\n", spkt->residual_sg_ptr);
 	else {
