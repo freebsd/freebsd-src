@@ -74,7 +74,8 @@
  * to initialize it in two places: kern/kern_proc.c in the function
  * fill_kinfo_proc and in lib/libkvm/kvm_proc.c in the function kvm_proclist.
  */
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
+#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || \
+    defined(__amd64__)
 #define	KINFO_PROC_SIZE	912		/* the correct size for kinfo_proc */
 #endif
 #ifdef	__i386__
