@@ -751,98 +751,75 @@ USB ethernet controllers.
 
 
 USB Host Controllers:
-
-ALi Aladdin-V.
-
-AMD-756.
-
-CMD Tech 670 & 673.
-
-Intel 82371SB (PIIX3).
-Intel 82371AB and EB chipsets (PIIX4).
-
-NEC uPD 9210.
-
-OPTi 82C861 (FireLink).
-
-VIA 83C572 USB.
-
-and any other UHCI or OHCI compliant motherboard chipset (no exceptions
-known).
+    ALi Aladdin-V.
+    AMD-756.
+    CMD Tech 670 & 673.
+    Intel 82371SB (PIIX3).
+    Intel 82371AB and EB chipsets (PIIX4).
+    NEC uPD 9210.
+    OPTi 82C861 (FireLink).
+    SiS 5571.
+    VIA 83C572 USB.
+    and any other UHCI or OHCI compliant motherboard chipset (no exceptions
+    known).
 
 
 PCI plug-in USB host controllers:
-
-ADS Electronics PCI plug-in card (2 ports).
-
-Entrega PCI plug-in card (4 ports).
+    ADS Electronics PCI plug-in card (2 ports).
+    Entrega PCI plug-in card (4 ports).
 
 
-Specific devices reported to be working (see for USB ethernet devices supported
-above):
+Specific devices reported to be working (see above for USB ethernet devices
+supported):
 
-ActiveWire I/O Board.
+Floppy drives/Hard disks/CDROMs/Zip drives/etc:
+   Iomega USB Zip 100Mb (primitive support still).
+   Matshita CF-VFDU03 floppy drive.
+   Microtech USB-SCSI-HD 50 USB to SCSI cable.
+   Panasonic floppy drive.
+   Y-E Data floppy drive (720/1.44/2.88Mb).
 
-Agiler Mouse 29UO.
+Hubs:
+   Andromeda hub.
+   MacAlly self powered hub (4 ports).
+   NEC hub.
 
-Andromeda hub.
+Keyboards:
+   Apple iMac keyboard.
+   BTC BTC7935 keyboard with PS/2 mouse port.
+   Cherry G81-3504 keyboard.
+   Logitech M2452 keyboard.
+   MacAlly iKey keyboard.
+   Microsoft keyboard.
 
-Apple iMac mouse.
-Apple iMac keyboard.
+Mice:
+   Agiler Mouse 29UO.
+   Apple iMac Mouse.
+   Belkin Mouse.
+   Chic mouse.
+   Cypress mouse.
+   Genius Niche mouse.
+   Kensington Mouse-in-a-Box.
+   Logitech wheel mouse (3 buttons).
+   Logitech PS/2 / USB mouse (3 buttons).
+   MacAlly mouse (3 buttons).
+   Microsoft IntelliMouse (3 buttons).
+   Trust Ami Mouse (3 buttons).
 
-ATen parallel printer adapter.
-
-Belkin F5U002 parallel printer adapter.
-Belkin Mouse.
-
-BTC BTC7935 keyboard with mouse port.
-
-Cherry G81-3504 keyboard.
-
-Chic mouse.
-
-Cypress mouse.
-
-Entrega USB-to-parallel printer adapter.
-
-Genius Niche mouse.
-
-Iomega USB Zip 100Mb (primitive support still).
-
-Kensington Mouse-in-a-Box.
-
-Logitech M2452 keyboard.
-Logitech wheel mouse (3 buttons).
-Logitech PS/2 / USB mouse (3 buttons).
-
-MacAlly mouse (3 buttons).
-MacAlly self powered hub (4 ports).
-MacAlly iKey keyboard.
-
-Microsoft IntelliMouse (3 buttons).
-Microsoft keyboard.
-
-NEC hub.
-
-Trust Ami Mouse (3 buttons).
+Printer Adapters:
+   ATen parallel printer adapter.
+   Belkin F5U002 parallel printer adapter.
+   Entrega USB-to-parallel printer adapter.
 
 Scanners:
-   Acer Acerscan 320U, 620U, 640U, C310U, 1212U
-   AGFA SnapScan Touch
-   Avision 1200U
-   Epson Perfection 610, 636U/636Photo, 1200U/1200Photo, 1600
-   Hewlett Packard Photosmart S20
-   Hewlett Packard Scanjet 3300C, 4100C, 4200C, 5200C, 5300C, 6200C, 6300C
-   KYE ColorPage Vivid-Pro
-   Microtek Phantom 336CX, C6
-   Microtek ScanMaker V6UL, V6USL, X6U
-   Mustek 600 CU, 1200 CU, 1200 UB, 1200 USB
-   NatSemi BearPaw 1200
-   Primax Colorado 600u, 1200u, USB 9600, USB 19200
-   Primax G2-200, G2-300, G2-600, G2E-300, G2E-600
-   Primax ReadyScan 636i
-   UMAX Astra 1220U, 1236U, 2000U, 2100U, 2200U
-   Visioneer OneTouch 5300, 6100, 6200, 7600, 8100, 8600
+   Perfection 636U
+   HP ScanJet 4100C, 5200C, 6300C
+
+Modems:
+   3Com 5605 Modem
+
+Miscalleneous:
+   ActiveWire I/O Board.
 
 
 4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
