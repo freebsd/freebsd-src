@@ -403,8 +403,8 @@ mkfs(struct partition *pp, char *fsys)
 	    howmany(csfrags, sblock.fs_frag);
 	sblock.fs_cstotal.cs_nffree =
 	    fragnum(&sblock, sblock.fs_size) +
-	    (numfrags(&sblock, csfrags) > 0 ?
-	     sblock.fs_frag - numfrags(&sblock, csfrags) : 0);
+	    (fragnum(&sblock, csfrags) > 0 ?
+	     sblock.fs_frag - fragnum(&sblock, csfrags) : 0);
 	sblock.fs_cstotal.cs_nifree = sblock.fs_ncg * sblock.fs_ipg - ROOTINO;
 	sblock.fs_cstotal.cs_ndir = 0;
 	sblock.fs_dsize -= csfrags;
