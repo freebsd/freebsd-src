@@ -264,6 +264,7 @@ struct amrd_softc
  */
 extern int	amr_submit_bio(struct amr_softc *sc, struct bio *bio);
 extern void	amrd_intr(void *data);
+extern int	amr_dump_blocks(struct amr_softc *sc, int unit, u_int32_t lba, void *data, int blks);
 
 /********************************************************************************
  * Enqueue/dequeue functions
