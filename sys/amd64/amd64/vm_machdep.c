@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.123 1999/07/01 13:21:35 peter Exp $
+ *	$Id: vm_machdep.c,v 1.124 1999/07/22 06:04:01 alc Exp $
  */
 
 #include "npx.h"
@@ -553,7 +553,7 @@ vm_page_zero_idle()
 		zero_state = 0;
 		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
 		if (m != NULL && (m->flags & PG_ZERO) == 0) {
-			--(*vm_page_queues[m->queue].lcnt);
+			vm_page_queues[m->queue].lcnt--;
 			TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
 			m->queue = PQ_NONE;
 			splx(s);
@@ -567,7 +567,7 @@ vm_page_zero_idle()
 			(void)splvm();
 			vm_page_flag_set(m, PG_ZERO);
 			m->queue = PQ_FREE + m->pc;
-			++(*vm_page_queues[m->queue].lcnt);
+			vm_page_queues[m->queue].lcnt++;
 			TAILQ_INSERT_TAIL(vm_page_queues[m->queue].pl, m,
 			    pageq);
 			++vm_page_zero_count;
