@@ -80,15 +80,17 @@ void draw_shadow(WINDOW *win, int y, int x, int height, int width);
 #endif
 void draw_box(WINDOW *win, int y, int x, int height, int width, chtype box, chtype border);
 int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attrs, int first, unsigned char *result);
+int     strheight(const char *p);
+int     strwidth(const char *p);
 
 void dialog_create_rc(unsigned char *filename);
 int dialog_yesno(unsigned char *title, unsigned char *prompt, int height, int width);
-int dialog_prgbox(unsigned char *title, const char *line, int height, int width, int pause, int use_shell);
+int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, int width, int pause, int use_shell);
 int dialog_msgbox(unsigned char *title, unsigned char *prompt, int height, int width, int pause);
 int dialog_textbox(unsigned char *title, unsigned char *file, int height, int width);
 int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int item_no, unsigned char **items, unsigned char *result);
 int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result);
-int dialog_radiolist(char *title, char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result);
+int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result);
 int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int width, unsigned char *result);
 void dialog_clear(void);
 void dialog_update(void);

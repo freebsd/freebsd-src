@@ -28,10 +28,18 @@
  */
 int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int width, unsigned char *result)
 {
-  int i, x, y, box_y, box_x, box_width, first,
+  int i, j, x, y, box_y, box_x, box_width, first,
       key = 0, button = -1;
   unsigned char instr[MAX_LEN+1];
   WINDOW *dialog;
+
+  if (height < 0)
+	height = strheight(prompt)+2+4;
+  if (width < 0) {
+	i = strwidth(prompt);
+	j = strwidth(title);
+	width = MAX(i,j) + 4;
+  }
 
   /* center dialog box on screen */
   x = (COLS - width)/2;
