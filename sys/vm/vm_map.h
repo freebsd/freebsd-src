@@ -375,6 +375,7 @@ int vm_uiomove __P((vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *));
 void vm_freeze_copyopts __P((vm_object_t, vm_pindex_t, vm_pindex_t));
 int vm_map_stack __P((vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int));
 int vm_map_growstack __P((struct proc *p, vm_offset_t addr));
+int vmspace_swap_count __P((struct vmspace *vmspace));
 
 #endif
 #endif				/* _VM_MAP_ */
