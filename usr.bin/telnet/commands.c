@@ -2356,8 +2356,8 @@ tn(argc, argv)
 	    goto fail;
 	}
     }
-    printf("Trying %s...\n", sockaddr_ntop(res->ai_addr));
     do {
+        printf("Trying %s...\n", sockaddr_ntop(res->ai_addr));
 	net = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	setuid(getuid());
 	if (net < 0) {
@@ -2433,18 +2433,13 @@ tn(argc, argv)
  	    if (af_error != 0)
 		while (next != NULL && next->ai_family != res->ai_family)
 		    next = next->ai_next;
+	    warn("connect to address %s", sockaddr_ntop(res->ai_addr));
 	    if (next != NULL) {
-		int oerrno = errno;
-
-		fprintf(stderr, "telnet: connect to address %s: ",
-						sockaddr_ntop(res->ai_addr));
-		errno = oerrno;
-		perror((char *)0);
 		res = next;
 		(void) NetClose(net);
 		continue;
 	    }
-	    perror("telnet: Unable to connect to remote host");
+	    warnx("Unable to connect to remote host");
 	    (void) NetClose(net);
 	    goto fail;
 	}
