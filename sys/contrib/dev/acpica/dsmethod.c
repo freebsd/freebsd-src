@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 63 $
+ *              $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -169,7 +169,7 @@ AcpiDsParseMethod (
         return_ACPI_STATUS (AE_NULL_ENTRY);
     }
 
-    DEBUG_PRINTP (ACPI_INFO, ("**** Parsing [%4.4s] **** NamedObj=%p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Parsing [%4.4s] **** NamedObj=%p\n",
         &((ACPI_NAMESPACE_NODE *)ObjHandle)->Name, ObjHandle));
 
 
@@ -238,7 +238,7 @@ AcpiDsParseMethod (
     OwnerId = AcpiUtAllocateOwnerId (OWNER_TYPE_METHOD);
     ObjDesc->Method.OwningId = OwnerId;
 
-    DEBUG_PRINTP (ACPI_INFO, ("**** [%4.4s] Parsed **** NamedObj=%p Op=%p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** [%4.4s] Parsed **** NamedObj=%p Op=%p\n",
         &((ACPI_NAMESPACE_NODE *)ObjHandle)->Name, ObjHandle, Op));
 
     /* Install the parsed tree in the method object */
@@ -356,7 +356,7 @@ AcpiDsCallControlMethod (
 
     FUNCTION_TRACE_PTR ("DsCallControlMethod", ThisWalkState);
 
-    DEBUG_PRINTP (TRACE_DISPATCH, ("Execute method %p, currentstate=%p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Execute method %p, currentstate=%p\n",
         ThisWalkState->PrevOp, ThisWalkState));
 
     /*
@@ -476,7 +476,7 @@ AcpiDsCallControlMethod (
     ThisWalkState->NumOperands = 0;
 
 
-    DEBUG_PRINTP (TRACE_DISPATCH, ("Starting nested execution, newstate=%p\n", 
+    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Starting nested execution, newstate=%p\n", 
         NextWalkState));
 
     return_ACPI_STATUS (AE_OK);
@@ -543,8 +543,8 @@ AcpiDsRestartControlMethod (
 
     }
 
-    DEBUG_PRINTP (TRACE_DISPATCH,
-        ("Method=%p Return=%p ReturnUsed?=%X ResStack=%p State=%p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+        "Method=%p Return=%p ReturnUsed?=%X ResStack=%p State=%p\n",
         WalkState->MethodCallOp, ReturnDesc, WalkState->ReturnUsed,
         WalkState->Results, WalkState));
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 36 $
+ *              $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -214,8 +214,8 @@ AcpiExLoadTableOp (
                     AcpiGbl_AcpiTableData[ACPI_TABLE_SSDT].Signature,
                     AcpiGbl_AcpiTableData[ACPI_TABLE_SSDT].SigLength)))
     {
-        DEBUG_PRINTP (ACPI_ERROR,
-            ("Table has invalid signature [%4.4s], must be SSDT or PSDT\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "Table has invalid signature [%4.4s], must be SSDT or PSDT\n",
             TableHeader.Signature));
         Status = AE_BAD_SIGNATURE;
         goto Cleanup;
@@ -393,7 +393,7 @@ AcpiExReconfiguration (
         Status |= AcpiDsObjStackPopObject (&RegionDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (Load) (%s)\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad operand(s) (Load) (%s)\n",
                 AcpiFormatException (Status)));
 
             AcpiUtRemoveReference (RegionDesc);
@@ -408,7 +408,7 @@ AcpiExReconfiguration (
 
         if (ACPI_FAILURE (Status))
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (unload) (%s)\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad operand(s) (unload) (%s)\n",
                 AcpiFormatException (Status)));
 
             return_ACPI_STATUS (Status);
@@ -420,7 +420,7 @@ AcpiExReconfiguration (
 
     default:
 
-        DEBUG_PRINTP (ACPI_ERROR, ("bad opcode=%X\n", Opcode));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad opcode=%X\n", Opcode));
         Status = AE_AML_BAD_OPCODE;
         break;
     }

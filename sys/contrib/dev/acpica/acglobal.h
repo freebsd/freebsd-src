@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 102 $
+ *       $Revision: 103 $
  *
  *****************************************************************************/
 
@@ -198,16 +198,13 @@ ACPI_EXTERN ACPI_MUTEX_INFO             AcpiGbl_AcpiMutexInfo [NUM_MTX];
  ****************************************************************************/
 
 
+ACPI_EXTERN ACPI_MEMORY_LIST            AcpiGbl_MemoryLists[ACPI_NUM_MEM_LISTS];
+ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_DrvNotify;
+ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_SysNotify;
 ACPI_EXTERN UINT8                      *AcpiGbl_Gpe0EnableRegisterSave;
 ACPI_EXTERN UINT8                      *AcpiGbl_Gpe1EnableRegisterSave;
 ACPI_EXTERN ACPI_WALK_STATE            *AcpiGbl_BreakpointWalk;
-ACPI_EXTERN ACPI_GENERIC_STATE         *AcpiGbl_GenericStateCache;
-ACPI_EXTERN ACPI_PARSE_OBJECT          *AcpiGbl_ParseCache;
-ACPI_EXTERN ACPI_PARSE2_OBJECT         *AcpiGbl_ExtParseCache;
-ACPI_EXTERN ACPI_OPERAND_OBJECT        *AcpiGbl_ObjectCache;
-ACPI_EXTERN ACPI_WALK_STATE            *AcpiGbl_WalkStateCache;
 ACPI_EXTERN ACPI_HANDLE                 AcpiGbl_GlobalLockSemaphore;
-
 
 ACPI_EXTERN UINT32                      AcpiGbl_GlobalLockThreadCount;
 ACPI_EXTERN UINT32                      AcpiGbl_RestoreAcpiChipset;
@@ -215,39 +212,16 @@ ACPI_EXTERN UINT32                      AcpiGbl_OriginalMode;
 ACPI_EXTERN UINT32                      AcpiGbl_EdgeLevelSave;
 ACPI_EXTERN UINT32                      AcpiGbl_IrqEnableSave;
 ACPI_EXTERN UINT32                      AcpiGbl_RsdpOriginalLocation;
-
-ACPI_EXTERN UINT32                      AcpiGbl_StateCacheRequests;
-ACPI_EXTERN UINT32                      AcpiGbl_StateCacheHits;
-ACPI_EXTERN UINT32                      AcpiGbl_ParseCacheRequests;
-ACPI_EXTERN UINT32                      AcpiGbl_ParseCacheHits;
-ACPI_EXTERN UINT32                      AcpiGbl_ExtParseCacheRequests;
-ACPI_EXTERN UINT32                      AcpiGbl_ExtParseCacheHits;
-ACPI_EXTERN UINT32                      AcpiGbl_ObjectCacheRequests;
-ACPI_EXTERN UINT32                      AcpiGbl_ObjectCacheHits;
-ACPI_EXTERN UINT32                      AcpiGbl_WalkStateCacheRequests;
-ACPI_EXTERN UINT32                      AcpiGbl_WalkStateCacheHits;
 ACPI_EXTERN UINT32                      AcpiGbl_NsLookupCount;
 ACPI_EXTERN UINT32                      AcpiGbl_PsFindCount;
-
-
-ACPI_EXTERN UINT16                      AcpiGbl_GenericStateCacheDepth;
-ACPI_EXTERN UINT16                      AcpiGbl_ParseCacheDepth;
-ACPI_EXTERN UINT16                      AcpiGbl_ExtParseCacheDepth;
-ACPI_EXTERN UINT16                      AcpiGbl_ObjectCacheDepth;
-ACPI_EXTERN UINT16                      AcpiGbl_WalkStateCacheDepth;
 ACPI_EXTERN UINT16                      AcpiGbl_Pm1EnableRegisterSave;
 ACPI_EXTERN UINT16                      AcpiGbl_NextTableOwnerId;
 ACPI_EXTERN UINT16                      AcpiGbl_NextMethodOwnerId;
-
 ACPI_EXTERN UINT8                       AcpiGbl_DebuggerConfiguration;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_GlobalLockAcquired;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_StepToNextCall;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_AcpiHardwarePresent;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_GlobalLockPresent;
-
-ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_DrvNotify;
-ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_SysNotify;
-
 
 extern BOOLEAN                          AcpiGbl_Shutdown;
 extern UINT32                           AcpiGbl_SystemFlags;
@@ -272,14 +246,11 @@ ACPI_EXTERN ACPI_NAMESPACE_NODE        *AcpiGbl_RootNode;
 extern UINT8                            AcpiGbl_NsProperties[NUM_NS_TYPES];
 extern PREDEFINED_NAMES                 AcpiGbl_PreDefinedNames [NUM_PREDEFINED_NAMES];
 
-
-/* Used to detect memory leaks (DEBUG ONLY) */
-
 #ifdef ACPI_DEBUG
-ACPI_EXTERN ACPI_ALLOCATION_INFO        *AcpiGbl_HeadAllocPtr;
-ACPI_EXTERN ACPI_ALLOCATION_INFO        *AcpiGbl_TailAllocPtr;
+ACPI_EXTERN UINT32                      AcpiGbl_CurrentNodeCount;
+ACPI_EXTERN UINT32                      AcpiGbl_CurrentNodeSize;
+ACPI_EXTERN UINT32                      AcpiGbl_MaxConcurrentNodeCount;
 #endif
-
 
 /*****************************************************************************
  *
@@ -351,27 +322,7 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_MethodExecuting;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbTerminateThreads;
 #endif
 
-/* Memory allocation metrics - Debug Only! */
 
-#ifdef ACPI_DEBUG
-
-ACPI_EXTERN UINT32                      AcpiGbl_CurrentAllocSize;
-ACPI_EXTERN UINT32                      AcpiGbl_CurrentAllocCount;
-ACPI_EXTERN UINT32                      AcpiGbl_RunningAllocSize;
-ACPI_EXTERN UINT32                      AcpiGbl_RunningAllocCount;
-ACPI_EXTERN UINT32                      AcpiGbl_MaxConcurrentAllocSize;
-ACPI_EXTERN UINT32                      AcpiGbl_MaxConcurrentAllocCount;
-ACPI_EXTERN UINT32                      AcpiGbl_CurrentObjectCount;
-ACPI_EXTERN UINT32                      AcpiGbl_CurrentObjectSize;
-ACPI_EXTERN UINT32                      AcpiGbl_MaxConcurrentObjectCount;
-ACPI_EXTERN UINT32                      AcpiGbl_MaxConcurrentObjectSize;
-ACPI_EXTERN UINT32                      AcpiGbl_RunningObjectCount;
-ACPI_EXTERN UINT32                      AcpiGbl_RunningObjectSize;
-ACPI_EXTERN UINT32                      AcpiGbl_CurrentNodeCount;
-ACPI_EXTERN UINT32                      AcpiGbl_CurrentNodeSize;
-ACPI_EXTERN UINT32                      AcpiGbl_MaxConcurrentNodeCount;
-
-#endif
 
 
 #endif /* __ACGLOBAL_H__ */

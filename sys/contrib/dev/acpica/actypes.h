@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 184 $
+ *       $Revision: 186 $
  *
  *****************************************************************************/
 
@@ -285,6 +285,13 @@ typedef UINT32                          ACPI_NAME;      /* 4-byte ACPI name */
 typedef char*                           ACPI_STRING;    /* Null terminated ASCII string */
 typedef void*                           ACPI_HANDLE;    /* Actually a ptr to an Node */
 
+typedef struct
+{
+    UINT32                                  Lo;
+    UINT32                                  Hi;
+
+} UINT64_STRUCT;
+
 
 /*
  * Acpi integer width. In ACPI version 1, integers are
@@ -302,6 +309,7 @@ typedef UINT32                          ACPI_INTEGER;
 #define ACPI_INTEGER_BIT_SIZE           32
 #define ACPI_MAX_BCD_VALUE              99999999
 #define ACPI_MAX_BCD_DIGITS             8
+#define ACPI_MAX_DECIMAL_DIGITS         10
 
 #else
 
@@ -312,6 +320,7 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_INTEGER_BIT_SIZE           64
 #define ACPI_MAX_BCD_VALUE              9999999999999999
 #define ACPI_MAX_BCD_DIGITS             16
+#define ACPI_MAX_DECIMAL_DIGITS         19
 
 #endif
 

@@ -2,7 +2,7 @@
  *
  * Module Name: nseval - Object evaluation interfaces -- includes control
  *                       method lookup and execution.
- *              $Revision: 93 $
+ *              $Revision: 94 $
  *
  ******************************************************************************/
 
@@ -207,7 +207,7 @@ AcpiNsEvaluateRelative (
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_INFO, ("Object [%s] not found [%s]\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Object [%s] not found [%s]\n",
             Pathname, AcpiFormatException (Status)));
         goto Cleanup;
     }
@@ -217,12 +217,12 @@ AcpiNsEvaluateRelative (
      * to evaluate it.
      */
 
-    DEBUG_PRINTP (ACPI_INFO, ("%s [%p] Value %p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s [%p] Value %p\n",
         Pathname, Node, Node->Object));
 
     Status = AcpiNsEvaluateByHandle (Node, Params, ReturnObject);
 
-    DEBUG_PRINTP (ACPI_INFO, ("*** Completed eval of object %s ***\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "*** Completed eval of object %s ***\n",
         Pathname));
 
 Cleanup:
@@ -286,7 +286,7 @@ AcpiNsEvaluateByName (
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_INFO, ("Object at [%s] was not found, status=%.4X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Object at [%s] was not found, status=%.4X\n",
             Pathname, Status));
         goto Cleanup;
     }
@@ -296,12 +296,12 @@ AcpiNsEvaluateByName (
      * to evaluate it.
      */
 
-    DEBUG_PRINTP (ACPI_INFO, ("%s [%p] Value %p\n", 
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s [%p] Value %p\n", 
         Pathname, Node, Node->Object));
 
     Status = AcpiNsEvaluateByHandle (Node, Params, ReturnObject);
 
-    DEBUG_PRINTP (ACPI_INFO, ("*** Completed eval of object %s ***\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "*** Completed eval of object %s ***\n",
         Pathname));
 
 
@@ -487,20 +487,20 @@ AcpiNsExecuteControlMethod (
     ObjDesc = AcpiNsGetAttachedObject (MethodNode);
     if (!ObjDesc)
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("No attached method object\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No attached method object\n"));
 
         AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
         return_ACPI_STATUS (AE_ERROR);
     }
 
 
-    DEBUG_PRINTP (ACPI_INFO, ("Control method at Offset %x Length %lx]\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Control method at Offset %x Length %lx]\n",
         ObjDesc->Method.Pcode + 1, ObjDesc->Method.PcodeLength - 1));
 
     DUMP_PATHNAME (MethodNode, "NsExecuteControlMethod: Executing",
-        TRACE_NAMES, _COMPONENT);
+        ACPI_LV_NAMES, _COMPONENT);
 
-    DEBUG_PRINTP (TRACE_NAMES, ("At offset %8XH\n", ObjDesc->Method.Pcode + 1));
+    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "At offset %8XH\n", ObjDesc->Method.Pcode + 1));
 
 
     /*
@@ -646,7 +646,7 @@ AcpiNsGetObjectValue (
         Status = AE_CTRL_RETURN_VALUE;
 
         *ReturnObjDesc = ObjDesc;
-        DEBUG_PRINTP (ACPI_INFO, ("Returning obj %p\n", *ReturnObjDesc));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Returning obj %p\n", *ReturnObjDesc));
     }
 
     /* Namespace is unlocked */
