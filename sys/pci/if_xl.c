@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.13 1998/10/09 03:59:23 wpaul Exp $
+ *	$Id: if_xl.c,v 1.57 1998/10/22 15:35:06 wpaul Exp $
  */
 
 /*
@@ -147,7 +147,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.13 1998/10/09 03:59:23 wpaul Exp $";
+	"$Id: if_xl.c,v 1.57 1998/10/22 15:35:06 wpaul Exp $";
 #endif
 
 /*
@@ -1704,7 +1704,6 @@ static int xl_list_tx_init(sc)
 
 	cd->xl_tx_free = &cd->xl_tx_chain[0];
 	cd->xl_tx_tail = cd->xl_tx_head = NULL;
-	sc->xl_txeoc = 1;
 
 	return(0);
 }
@@ -1940,16 +1939,15 @@ static void xl_txeof(sc)
 	if (sc->xl_cdata.xl_tx_head == NULL) {
 		ifp->if_flags &= ~IFF_OACTIVE;
 		sc->xl_cdata.xl_tx_tail = NULL;
-		sc->xl_txeoc = 1;
 		if (sc->xl_want_auto)
 			xl_autoneg_mii(sc, XL_FLAG_SCHEDDELAY, 1);
 	} else {
-		sc->xl_txeoc = 0;
-		CSR_WRITE_4(sc, XL_COMMAND, XL_CMD_DOWN_STALL);
-		xl_wait(sc);
-		CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
+		if (CSR_READ_4(sc, XL_DMACTL) & XL_DMACTL_DOWN_STALLED ||
+			!CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
+			CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 				vtophys(sc->xl_cdata.xl_tx_head->xl_ptr));
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
+			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
+		}
 	}
 
 	return;
@@ -1981,6 +1979,10 @@ static void xl_txeoc(sc)
 			 * first generation 3c90X chips.
 			 */
 			CSR_WRITE_1(sc, XL_TX_FREETHRESH, XL_PACKET_SIZE >> 8);
+			if (sc->xl_type == XL_TYPE_905B) {
+				CSR_WRITE_2(sc, XL_COMMAND,
+				XL_CMD_SET_TX_RECLAIM|(XL_PACKET_SIZE >> 4));
+			}
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_ENABLE);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
 		} else {
@@ -2271,21 +2273,21 @@ static void xl_start(ifp)
 	 * Queue the packets. If the TX channel is clear, update
 	 * the downlist pointer register.
 	 */
-	if (sc->xl_cdata.xl_tx_head == NULL) {
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_STALL);
+	xl_wait(sc);
+
+	if (CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
+		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
+		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next =
+					vtophys(start_tx->xl_ptr);
+		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status &=
+					~XL_TXSTAT_DL_INTR;
+	} else {
 		sc->xl_cdata.xl_tx_head = start_tx;
 		sc->xl_cdata.xl_tx_tail = cur_tx;
-		if (sc->xl_txeoc) {
-			sc->xl_txeoc = 0;
-			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_STALL);
-			xl_wait(sc);
-			CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
-					vtophys(start_tx->xl_ptr));
-			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
-		}
-	} else {
-		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
-		sc->xl_cdata.xl_tx_tail = start_tx;
+		CSR_WRITE_4(sc, XL_DOWNLIST_PTR, vtophys(start_tx->xl_ptr));
 	}
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
 
 	XL_SEL_WIN(7);
 
@@ -2379,6 +2381,20 @@ static void xl_init(xsc)
 	 * cards in order to enable the download engine.
 	 */
 	CSR_WRITE_1(sc, XL_TX_FREETHRESH, XL_PACKET_SIZE >> 8);
+
+	/*
+	 * If this is a 3c905B, also set the tx reclaim threshold.
+	 * This helps cut down on the number of tx reclaim errors
+	 * that could happen on a busy network. The chip multiplies
+	 * the register value by 16 to obtain the actual threshold
+	 * in bytes, so we divide by 16 when setting the value here.
+	 * The existing threshold value can be examined by reading
+	 * the register at offset 9 in window 5.
+	 */
+	if (sc->xl_type == XL_TYPE_905B) {
+		CSR_WRITE_2(sc, XL_COMMAND,
+			XL_CMD_SET_TX_RECLAIM|(XL_PACKET_SIZE >> 4));
+	}
 
 	/* Set RX filter bits. */
 	XL_SEL_WIN(5);
