@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2000
+.Dd November 12, 2004
 .Dt MOUSED 8
 .Os
 .Sh NAME
@@ -73,7 +73,9 @@ interprets and then passes it via ioctls to the console driver.
 The mouse daemon
 reports translation movement, button press/release
 events and movement of the roller or the wheel if available.
-The roller/wheel movement is reported as ``Z'' axis movement.
+The roller/wheel movement is reported as
+.Dq Z
+axis movement.
 .Pp
 The console driver will display the mouse pointer on the screen
 and provide cut and paste functions if the mouse pointer is enabled
@@ -158,8 +160,11 @@ mode.
 Select the baudrate for the serial port (1200 to 9600).
 Not all serial mice support this option.
 .It Fl V
-Enable ``Virtual Scrolling'', with this option set, holding the middle mouse
-button down will cause motion to be interpreted as scrolling.  Use the
+Enable
+.Dq Virtual Scrolling .
+With this option set, holding the middle mouse
+button down will cause motion to be interpreted as scrolling.
+Use the
 .Fl U
 option to set the distance the mouse must move before the scrolling mode is
 activated.
@@ -214,8 +219,10 @@ in one line.
 .Pp
 If the
 .Nm
-utility cannot determine the requested information, it prints ``unknown''
-or ``generic''.
+utility cannot determine the requested information, it prints
+.Dq Li unknown
+or
+.Dq Li generic .
 .It Fl l Ar level
 Specifies at which level
 .Nm
@@ -235,7 +242,8 @@ More than one physical button may be assigned to a logical button at the
 same time.
 In this case the logical button will be down,
 if either of the assigned physical buttons is held down.
-Do not put space around `='.
+Do not put space around
+.Ql = .
 .It Fl p Ar port
 Use
 .Ar port
@@ -455,11 +463,13 @@ You can attach multiple USB mice to your system or to your USB hub.
 They are accessible as
 .Pa /dev/ums0 , /dev/ums1 ,
 and so on.
-.Pa
+.Pp
 You may want to create a symbolic link
 .Pa /dev/mouse
 pointing to the real port to which the mouse is connected, so that you
-can easily distinguish which is your ``mouse'' port later.
+can easily distinguish which is your
+.Dq mouse
+port later.
 .Pp
 The next step is to guess the appropriate protocol type for the mouse.
 The
@@ -530,12 +540,24 @@ the third (middle) button will not function.
 .Ar mouseman
 protocol under which the third button may function as expected.
 .It
-3-button serial mice may have a small switch to choose between ``MS''
-and ``PC'', or ``2'' and ``3''.
-``MS'' or ``2'' usually mean the
+3-button serial mice may have a small switch to choose between
+.Dq MS
+and
+.Dq PC ,
+or
+.Dq 2
+and
+.Dq 3 .
+.Dq MS
+or
+.Dq 2
+usually mean the
 .Ar microsoft
 protocol.
-``PC'' or ``3'' will choose the
+.Dq PC
+or
+.Dq 3
+will choose the
 .Ar mousesystems
 protocol.
 .It
@@ -609,7 +631,7 @@ Let the
 utility determine the protocol type of the mouse at the serial port
 .Pa /dev/cuad0 .
 If successful, the command will print the type, otherwise it will say
-``unknown''.
+.Dq Li unknown .
 .Pp
 .Dl moused -p /dev/cuad0
 .Dl vidcontrol -m on
@@ -650,11 +672,15 @@ utility does not currently work with the alternative console driver
 .Xr pcvt 4 .
 .Pp
 Many pad devices behave as if the first (left) button were pressed if
-the user `taps' the surface of the pad.
+the user
+.Dq taps
+the surface of the pad.
 In contrast, some ALPS GlidePoint and Interlink VersaPad models
 treat the tapping action
 as fourth button events.
-Use the option ``-m 1=4'' for these models
+Use the option
+.Dq Fl m Li 1=4
+for these models
 to obtain the same effect as the other pad devices.
 .Pp
 Cut and paste functions in the virtual console assume that there
@@ -671,7 +697,7 @@ To obtain the paste function, use the
 option to emulate the middle button, or use the
 .Fl m
 option to assign the physical right button to the logical middle button:
-``-m 2=3''.
+.Dq Fl m Li 2=3 .
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr vidcontrol 1 ,
