@@ -63,7 +63,8 @@
 
 #include "openfirm.h"
 
-static int (*openfirmware)(void *);
+int (*openfirmware)(void *);
+
 static ihandle_t stdin;
 static ihandle_t stdout;
 
