@@ -155,6 +155,7 @@ struct md_s {
 	LIST_ENTRY(md_s) list;
 	struct devstat stats;
 	struct bio_queue_head bio_queue;
+	struct mtx queue_mtx;
 	struct disk disk;
 	dev_t dev;
 	enum md_types type;
@@ -391,9 +392,9 @@ g_md_start(struct bio *bp)
 	bp->bio_blkno = bp->bio_offset >> DEV_BSHIFT;
 	bp->bio_pblkno = bp->bio_offset / sc->secsize;
 	bp->bio_bcount = bp->bio_length;
-	/* XXX: LOCK(sc->lock) */
+	mtx_lock(&sc->queue_mtx);
 	bioqdisksort(&sc->bio_queue, bp);
-	/* XXX: UNLOCK(sc->lock) */
+	mtx_unlock(&sc->queue_mtx);
 
 	wakeup(sc);
 }
@@ -480,9 +481,9 @@ mdstrategy(struct bio *bp)
 
 	sc = bp->bio_dev->si_drv1;
 
-	/* XXX: LOCK(sc->lock) */
+	mtx_lock(*sc->queue_mtx);
 	bioqdisksort(&sc->bio_queue, bp);
-	/* XXX: UNLOCK(sc->lock) */
+	mtx_unlock(*sc->queue_mtx);
 
 	wakeup(sc);
 }
@@ -625,10 +626,8 @@ static void
 mddone_swap(struct bio *bp)
 {
 
-	mtx_unlock(&Giant);
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
 	g_std_done(bp);
-	mtx_lock(&Giant);
 }
 #endif
 
@@ -661,27 +660,42 @@ md_kthread(void *arg)
 {
 	struct md_s *sc;
 	struct bio *bp;
-	int error;
+	int error, hasgiant;
 
 	sc = arg;
 	curthread->td_base_pri = PRIBIO;
 
-	mtx_lock(&Giant);
+	switch (sc->type) {
+	case MD_SWAP:
+	case MD_VNODE:
+		mtx_lock(&Giant);
+		hasgiant = 1;
+		break;
+	case MD_MALLOC:
+	case MD_PRELOAD:
+	default:
+		hasgiant = 0;
+		break;
+	}
+	
 	for (;;) {
-		/* XXX: LOCK(unique unit numbers) */
+		mtx_lock(&sc->queue_mtx);
 		bp = bioq_first(&sc->bio_queue);
 		if (bp)
 			bioq_remove(&sc->bio_queue, bp);
-		/* XXX: UNLOCK(unique unit numbers) */
 		if (!bp) {
 			if (sc->flags & MD_SHUTDOWN) {
+				mtx_unlock(&sc->queue_mtx);
 				sc->procp = NULL;
 				wakeup(&sc->procp);
+				if (!hasgiant)
+					mtx_lock(&Giant);
 				kthread_exit(0);
 			}
-			tsleep(sc, PRIBIO, "mdwait", 0);
+			msleep(sc, &sc->queue_mtx, PRIBIO | PDROP, "mdwait", 0);
 			continue;
 		}
+		mtx_unlock(&sc->queue_mtx);
 
 		switch (sc->type) {
 		case MD_MALLOC:
@@ -750,6 +764,8 @@ mdnew(int unit)
 		return (NULL);
 	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->unit = unit;
+	bioq_init(&sc->bio_queue);
+	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
 	sprintf(sc->name, "md%d", unit);
 	error = kthread_create(md_kthread, sc, &sc->procp, 0, 0,"%s", sc->name);
 	if (error) {
@@ -765,7 +781,6 @@ static void
 mdinit(struct md_s *sc)
 {
 
-	bioq_init(&sc->bio_queue);
 	devstat_add_entry(&sc->stats, MD_NAME, sc->unit, sc->secsize,
 		DEVSTAT_NO_ORDERED_TAGS,
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
@@ -998,6 +1013,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 
 	GIANT_REQUIRED;
 
+	mtx_destroy(&sc->queue_mtx);
 	devstat_remove_entry(&sc->stats);
 #ifdef NO_GEOM
 	if (sc->dev != NULL)
