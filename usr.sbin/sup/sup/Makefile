@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1996/06/24 04:25:57 jkh Exp $
+# $Id: Makefile,v 1.5 1996/09/05 17:15:48 bde Exp $
 
 PROG=	sup
 SRCS=	supcmain.c supcvers.c supcparse.c supcname.c supcmisc.c supcmeat.c
@@ -13,7 +13,7 @@ LIBOBJ=	${.OBJDIR}/../lib
 LIBOBJ=	${LIBSRC}
 .endif
 
-DPADD=	$(LIBCRYPT) $(LIBOBJ)/libsup.a ${LIBCRYPT}
+DPADD=	${LIBOBJ}/libsup.a ${LIBCRYPT}
 LDADD=	-L${LIBOBJ} -lsup -lcrypt
 
 .include <bsd.prog.mk>
