@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: ether_addr.c,v 1.5 1995/03/26 02:37:00 wpaul Exp $
+ *	$Id: ether_addr.c,v 1.1 1995/04/02 01:31:17 wpaul Exp $
  */
 
 
@@ -142,23 +142,16 @@ int ether_ntohost(hostname, e)
 			continue;
 #ifdef YP
 		if (buf[0] == '+') {
-			fclose(fp);  /* Can ignore /etc/ethers from here on. */
 			if (yp_get_default_domain(&yp_domain))
-				return(1);
+				continue;
 			ether_a = ether_ntoa(e);
 			if (yp_match(yp_domain, "ethers.byaddr", ether_a,
 				strlen(ether_a), &result, &resultlen)) {
 				free(result);
-				return(1);
+				continue;
 			}
-			if (!ether_line(result, &local_ether, &local_host)) {
-				strcpy(hostname, (char *)&local_host);
+			strncpy((char *)&buf, result, resultlen);
 				free(result);
-				return(0);
-			} else {
-				free(result);
-				return(1);
-			}
 		}
 #endif
 		if (!ether_line(&buf, &local_ether, &local_host)) {
@@ -200,23 +193,15 @@ int ether_hostton(hostname, e)
 			continue;
 #ifdef YP
 		if (buf[0] == '+') {
-			fclose(fp);  /* Can ignore /etc/ethers from here on. */
 			if (yp_get_default_domain(&yp_domain))
-				return(1);
+				continue;
 			if (yp_match(yp_domain, "ethers.byname", hostname,
 				strlen(hostname), &result, &resultlen)) {
 				free(result);
-				return(1);
+				continue;
 			}
-			if (!ether_line(result, &local_ether, &local_host)) {
-				bcopy((char *)&local_ether.octet[0],
-					(char *)&e->octet[0], 6);
-				free(result);
-				return(0);
-			} else {
-				free(result);
-				return(1);
-			}
+			strncpy((char *)&buf, result, resultlen);
+			free(result);
 		}
 #endif
 		if (!ether_line(&buf, &local_ether, &local_host)) {
