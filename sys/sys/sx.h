@@ -54,6 +54,8 @@ int	_sx_try_slock(struct sx *sx, const char *file, int line);
 int	_sx_try_xlock(struct sx *sx, const char *file, int line);
 void	_sx_sunlock(struct sx *sx, const char *file, int line);
 void	_sx_xunlock(struct sx *sx, const char *file, int line);
+int	_sx_try_upgrade(struct sx *sx, const char *file, int line);
+void	_sx_downgrade(struct sx *sx, const char *file, int line);
 
 #define	sx_slock(sx)		_sx_slock((sx), __FILE__, __LINE__)
 #define	sx_xlock(sx)		_sx_xlock((sx), __FILE__, __LINE__)
@@ -61,6 +63,8 @@ void	_sx_xunlock(struct sx *sx, const char *file, int line);
 #define	sx_try_xlock(sx)	_sx_try_xlock((sx), __FILE__, __LINE__)
 #define	sx_sunlock(sx)		_sx_sunlock((sx), __FILE__, __LINE__)
 #define	sx_xunlock(sx)		_sx_xunlock((sx), __FILE__, __LINE__)
+#define	sx_try_upgrade(sx)	_sx_try_upgrade((sx), __FILE__, __LINE__)
+#define	sx_downgrade(sx)	_sx_downgrade((sx), __FILE__, __LINE__)
 
 #ifdef INVARIANTS
 /*

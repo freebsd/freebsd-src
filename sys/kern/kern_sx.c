@@ -245,3 +245,49 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 
 	mtx_unlock(&sx->sx_lock);
 }
+
+int
+_sx_try_upgrade(struct sx *sx, const char *file, int line)
+{
+
+	mtx_lock(&sx->sx_lock);
+	_SX_ASSERT_SLOCKED(sx, file, line);
+
+	if (sx->sx_cnt == 1) {
+		WITNESS_UNLOCK(&sx->sx_object, 0, file, line);
+
+		sx->sx_cnt = -1;
+		sx->sx_xholder = curproc;
+
+		LOCK_LOG_TRY("XUPGRADE", &sx->sx_object, 0, 1, file, line);
+		WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE | LOP_TRYLOCK, file,
+		    line);
+
+		mtx_unlock(&sx->sx_lock);
+		return (1);
+	} else {
+		LOCK_LOG_TRY("XUPGRADE", &sx->sx_object, 0, 0, file, line);
+		mtx_unlock(&sx->sx_lock);
+		return (0);
+	}
+}
+
+void
+_sx_downgrade(struct sx *sx, const char *file, int line)
+{
+
+	mtx_lock(&sx->sx_lock);
+	_SX_ASSERT_XLOCKED(sx, file, line);
+	MPASS(sx->sx_cnt == -1);
+
+	WITNESS_UNLOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
+
+	sx->sx_cnt = 1;
+        if (sx->sx_shrd_wcnt > 0)
+                cv_broadcast(&sx->sx_shrd_cv);
+
+	LOCK_LOG_LOCK("XDOWNGRADE", &sx->sx_object, 0, 0, file, line);
+	WITNESS_LOCK(&sx->sx_object, 0, file, line);
+
+	mtx_unlock(&sx->sx_lock);
+}
