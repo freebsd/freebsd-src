@@ -18,6 +18,7 @@ my @lines = ();
 my $thresh = 10;
 my $lastwasdash = 0;
 my $width = $ENV{COLUMNS} || 80;
+my $error = 0;
 my $elided = 0;
 
 while ($line = <>) {
@@ -36,25 +37,29 @@ while ($line = <>) {
 	if ($line =~ /^=+>/) {
 		@lines = ();
 	}
-	if (length($line) >= $width) {
-		substr($line, $width - 7) = " [...]\n";
-	}
 	push(@lines, $line);
 	if ($line =~ /^\*\*\* Error/ && $line !~ /\(ignored\)/) {
-		print @lines;
+		$error = 1;
 		while ($line = <>) {
-			print $line;
+			push(@lines, $line);
 		}
-		exit;
+		last;
 	}
 }
 
-print shift(@lines);
-while (@lines > $thresh) {
-	shift(@lines);
-	++$elided;
+if (!$error) {
+	print shift(@lines);
+	while (@lines > $thresh) {
+		shift(@lines);
+		++$elided;
+	}
+	if ($elided > 0) {
+		print "[$elided lines elided]\n";
+	}
 }
-if ($elided > 0) {
-	print "[$elided lines elided]\n";
+foreach $line (@lines) {
+	if (!$error && length($line) >= $width) {
+		substr($line, $width - 7) = " [...]\n";
+	}
+	print $line;
 }
-print @lines;
