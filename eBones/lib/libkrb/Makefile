@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.3 1995/01/14 22:32:48 wollman Exp $
+#	$Id: Makefile,v 1.4 1995/01/20 01:12:19 wollman Exp $
 
 LIB=	krb
 SHLIB_MAJOR= 2
@@ -23,6 +23,7 @@ TDIR=	${.CURDIR}/..
 krb_err.c krb_err.h: krb_err.et
 	test -e krb_err.et || ln -s ${.CURDIR}/krb_err.et .
 	${COMPILE_ET} krb_err.et
+LDADD+=	-lcom_err
 
 beforeinstall:
 	-cd ${.OBJDIR}; cmp -s krb_err.h \
