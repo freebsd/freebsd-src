@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd January 27, 1999
+.Dd April 4, 2000
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -27,6 +27,8 @@
 .Nm newsyslog
 .Op Fl Fnrv
 .Op Fl f Ar config_file
+.Op Fl a Ar directory
+.Op Ar
 .Sh DESCRIPTION
 .Nm Newsyslog
 is a program that should be scheduled to run periodically by
@@ -56,6 +58,7 @@ archived.
 .It
 This is the specific configured hour for rotation of the log.
 .El
+.Pp
 The granularity of
 .Nm
 is dependent on how often it is scheduled to run by
@@ -72,7 +75,7 @@ By default, this configuration file is
 .Pa /etc/newsyslog.conf .
 Each line of the file contains information about a particular log file
 that should be handled by
-.Nm Ns .
+.Nm newsyslog .
 Each line has five mandatory fields and four optional fields, with a
 whitespace separating each field.  Blank lines or lines beginning with
 ``#'' are ignored.  The fields of the configuration file are as
@@ -124,8 +127,12 @@ by an
 .So Li \&@ Sc Ns No -sign
 and a time in a restricted
 .Tn ISO 8601
-format.  If a time is specified, the log file will only be trimmed
-if
+format or by an 
+.So Li \&$ Sc Ns No -sign
+and a time specification for logfile rotation at a fixed time once 
+per day, per week or per month.
+.Pp
+If a time is specified, the log file will only be trimmed if
 .Nm
 is run within one hour of the specified time.  If an 
 interval is specified, the log file will be trimmed if that many hours have
@@ -133,7 +140,21 @@ passed since the last rotation.  When both a time and an interval are
 specified, both conditions must be satisfied for the rotation to take
 place.
 .Pp
-The particular format of the time is
+There is no provision for specification of a timezone.  There is
+little point in specifying an explicit minutes or seconds component in
+the current implementation, since the only comparison is `within the
+hour'.
+.Pp
+.Em ISO 8601 restricted time format
+.Pp
+The lead-in character for a restricted
+.Tn ISO 8601
+time is
+an
+.So Li \&@ Sc Ns No -sign .
+The particular format of the time in restricted
+.Tn ISO 8601
+is:
 .Sm off
 .Oo
 .Oo
@@ -190,10 +211,63 @@ equivalent:
 .Sq Li \&
 .El
 .Pp
-There is no provision for specification of a timezone.  There is
-little point in specifying an explicit minutes or seconds component in
-the current implementation, since the only comparison is `within the
-hour'.
+.Em Day, week and month time format
+.Pp
+The lead-in character for day, week and month specification is a
+.So Li \&$ Sc Ns No -sign .
+The particular format of day, week and month specification is:
+.Sm off
+.Oo
+.Va D\&hh
+.Oc ,
+.Oo
+.Va W\&w
+.Oo
+.Va D\&hh
+.Oc
+.Oc 
+and
+.Oo
+.Va M\&dd
+.Oo
+.Va D\&hh
+.Oc
+.Oc
+.Sm on
+respectively.
+Optional time fields default to midnight. 
+The ranges for day and hour secifications are:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar hh
+hours, range 0 ... 23
+.It Ar w
+day of week, range 0 ... 6, 0 = Sunday
+.It Ar dd
+day of month, range 1 ... 31, or the letter
+.Em L
+or
+.Em l
+to specify the last day of the month.
+.El
+.Pp
+Some examples:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar $D0
+rotate every night at midnight
+.It Ar $D23
+rotate every day at 23:00 hr
+.It Ar $W0D23
+rotate every week on Sunday at 23:00 hr
+.It Ar $W5D16
+rotate every week on Friday at 16:00 hr
+.It Ar $MLD0
+rotate at the last day of every month at midnight
+.It Ar $M5D6
+rotate on every 5th day of month at 6:00 hr
+.El
+.Pp
 .It Ar flags
 This optional field specifies if the archive should have any
 special processing done to the archived log files.
@@ -240,6 +314,23 @@ to use
 instead of
 .Pa /etc/newsyslog.conf
 for its configuration file.
+.It Fl a Ar directory
+Specify a
+.Ar directory
+into which archived log files will be written.
+If a relative path is given,
+it is appended to the path of each log file
+and the resulting path is used as the directory
+into which the archived log for that log file will be written.
+If an absolute path is given,
+all archived logs are written into the given
+.Ar directory .
+If any component of the path
+.Ar directory
+does not exist,
+it will be created when
+.Nm
+is run.
 .It Fl v
 Place 
 .Nm
@@ -265,6 +356,11 @@ to trim the logs, even if the trim conditions have not been met.  This
 option is useful for diagnosing system problems by providing you with
 fresh logs that contain only the problems.
 .El
+.Pp
+If additional command line arguments are given,
+.Nm
+will only examine log files that match those arguments; otherwise, it
+will examine all files listed in the configuration file.
 .Sh FILES
 .Bl -tag -width /etc/newsyslog.confxxxx -compact
 .It Pa /etc/newsyslog.conf
