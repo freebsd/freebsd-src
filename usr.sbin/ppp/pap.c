@@ -143,10 +143,17 @@ SendPapCode(struct authinfo *authp, int code, const char *message)
 static void
 pap_Success(struct authinfo *authp)
 {
+  struct bundle *bundle = authp->physical->dl->bundle;
+
   datalink_GotAuthname(authp->physical->dl, authp->in.name);
-  SendPapCode(authp, PAP_ACK, "Greetings!!");
+#ifndef NORADIUS
+  if (*bundle->radius.cfg.file && bundle->radius.repstr)
+    SendPapCode(authp, PAP_ACK, bundle->radius.repstr);
+  else
+#endif
+    SendPapCode(authp, PAP_ACK, "Greetings!!");
   authp->physical->link.lcp.auth_ineed = 0;
-  if (Enabled(authp->physical->dl->bundle, OPT_UTMP))
+  if (Enabled(bundle, OPT_UTMP))
     physical_Login(authp->physical, authp->in.name);
 
   if (authp->physical->link.lcp.auth_iwait == 0)
