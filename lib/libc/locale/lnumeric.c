@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <limits.h>
 #include "lnumeric.h"
@@ -48,24 +49,25 @@ static int	_numeric_using_locale;
 static char	*_numeric_locale_buf;
 
 int
-__numeric_load_locale(const char *name) {
-
+__numeric_load_locale(const char *name)
+{
 	int ret;
 
-	__nlocale_changed = 1;
 	ret = __part_load_locale(name, &_numeric_using_locale,
 		_numeric_locale_buf, "LC_NUMERIC",
 		LCNUMERIC_SIZE, LCNUMERIC_SIZE,
 		(const char **)&_numeric_locale);
-	if (ret == 0 && _numeric_using_locale)
+	if (ret != _LDP_ERROR)
+		__nlocale_changed = 1;
+	if (ret == _LDP_LOADED)
 		_numeric_locale.grouping =
-			__fix_locale_grouping_str(_numeric_locale.grouping);
-	return ret;
+		    __fix_locale_grouping_str(_numeric_locale.grouping);
+	return (ret);
 }
 
 struct lc_numeric_T *
-__get_current_numeric_locale(void) {
-
+__get_current_numeric_locale(void)
+{
 	return (_numeric_using_locale
 		? &_numeric_locale
 		: (struct lc_numeric_T *)&_C_numeric_locale);

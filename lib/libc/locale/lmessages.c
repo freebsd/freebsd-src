@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stddef.h>
 
@@ -49,25 +50,26 @@ static int	_messages_using_locale;
 static char	*_messages_locale_buf;
 
 int
-__messages_load_locale(const char *name) {
+__messages_load_locale(const char *name)
+{
+	int ret;
 
-	/*
-	 * Propose that we can have incomplete locale file (w/o "{yes,no}str").
-	 * Initialize them before loading.  In case of complete locale, they'll
-	 * be initialized to loaded value, otherwise they'll not be touched.
-	 */
-	_messages_locale.yesstr = empty;
-	_messages_locale.nostr = empty;
-
-	return __part_load_locale(name, &_messages_using_locale,
-		_messages_locale_buf, "LC_MESSAGES",
-		LCMESSAGES_SIZE_FULL, LCMESSAGES_SIZE_MIN,
-		(const char **)&_messages_locale);
+	ret = __part_load_locale(name, &_messages_using_locale,
+		  _messages_locale_buf, "LC_MESSAGES",
+		  LCMESSAGES_SIZE_FULL, LCMESSAGES_SIZE_MIN,
+		  (const char **)&_messages_locale);
+	if (ret == _LDP_LOADED) {
+		if (_messages_locale.yesstr == NULL)
+			_messages_locale.yesstr = empty;
+		if (_messages_locale.nostr == NULL)
+			_messages_locale.nostr = empty;
+	}
+	return (ret);
 }
 
 struct lc_messages_T *
-__get_current_messages_locale(void) {
-
+__get_current_messages_locale(void)
+{
 	return (_messages_using_locale
 		? &_messages_locale
 		: (struct lc_messages_T *)&_C_messages_locale);
