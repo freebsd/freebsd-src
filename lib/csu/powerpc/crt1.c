@@ -62,24 +62,21 @@ extern int eprol;
 extern int etext;
 #endif
 
-/*
- * First 5 arguments are specified by the PowerPC SVR4 ABI.
- * The last argument, ps_strings, is a BSD extension.
- */
-void _start(int, char **, char **, const struct Struct_Obj_Entry *,
-		void (*)(void), struct ps_strings *);
-
 char **environ;
 char *__progname = "";
 struct ps_strings *__ps_strings;
 
-/* The entry function. */
+/* The entry function.
+ *
+ * First 5 arguments are specified by the PowerPC SVR4 ABI.
+ * The last argument, ps_strings, is a BSD extension.
+ */
 void
 _start(argc, argv, envp, obj, cleanup, ps_strings)
 	int argc;
 	char **argv, **envp;
 	const struct Struct_Obj_Entry *obj;	/* from shared loader */
-	void (*cleanup)(void);		/* from shared loader */
+	void (*cleanup)(void);			/* from shared loader */
 	struct ps_strings *ps_strings;		/* BSD extension */
 {
 	char *namep;
