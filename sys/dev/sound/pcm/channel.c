@@ -362,7 +362,7 @@ chn_wrintr(pcm_channel *c)
 		start = c->flags & CHN_F_TRIGGERED;
 	else {
 /*		printf("%d >= %d && !(%x & %x)\n", b->rl, DMA_ALIGN_THRESHOLD, c->flags, CHN_F_ABORTING | CHN_F_CLOSING);
-*/		start = (b->rl >= DMA_ALIGN_THRESHOLD && !(c->flags & (CHN_F_ABORTING | CHN_F_CLOSING)));
+*/		start = (b->rl >= DMA_ALIGN_THRESHOLD && !(c->flags & CHN_F_ABORTING));
 	}
     	if (start) {
 		chn_dmaupdate(c);
