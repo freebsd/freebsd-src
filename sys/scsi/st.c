@@ -433,7 +433,8 @@ struct scsi_link *sc_link)
 	if ((flags & O_ACCMODE) == FWRITE)
 		st->flags |= ST_WRITTEN;
 
-	scsi_prevent(sc_link, PR_PREVENT, 0);	/* who cares if it fails? */
+	/* PREVENT ALLOW MEDIUM REMOVAL is optional per the SCSI-2 specs */
+	scsi_prevent(sc_link, PR_PREVENT, SCSI_SILENT | SCSI_ERR_OK);
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("Open complete\n"));
 
