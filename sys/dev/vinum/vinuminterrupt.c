@@ -342,7 +342,8 @@ complete_raid5_write(struct rqelement *rqe)
 
 		if ((rqe->b.b_iocmd == BIO_READ)		    /* this was a read */
 		&&((rqe->flags & XFR_BAD_SUBDISK) == 0)) {  /* and we can write this block */
-		    rqe->b.b_flags &= ~B_DONE;		   /* we're writing now */
+		    rqe->b.b_flags &= ~B_DONE;		    /* we're not done */
+		    rqe->b.b_iocmd = BIO_WRITE;		    /* we're writing now */
 		    rqe->b.b_iodone = complete_rqe;	    /* call us here when done */
 		    rqe->flags &= ~XFR_PARITYOP;	    /* reset flags that brought us here */
 		    rqe->b.b_data = &bp->b_data[rqe->useroffset << DEV_BSHIFT];	/* point to the user data */
@@ -381,7 +382,8 @@ complete_raid5_write(struct rqelement *rqe)
     }
     /* Finally, write the parity block */
     rqe = &rqg->rqe[0];
-    rqe->b.b_flags &= ~B_DONE;				    /* we're writing now */
+    rqe->b.b_flags &= ~B_DONE;				    /* we're not done */
+    rqe->b.b_iocmd = BIO_WRITE;				    /* we're writing now */
     rqe->b.b_iodone = complete_rqe;			    /* call us here when done */
     rqg->flags &= ~XFR_PARITYOP;			    /* reset flags that brought us here */
     rqe->b.b_bcount = rqe->buflen << DEV_BSHIFT;	    /* length to write */
