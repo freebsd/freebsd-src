@@ -1,0 +1,53 @@
+'\"
+'\" Copyright (c) 1989-1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) RecordEval.3 1.16 96/03/25 20:06:06
+'\" 
+.so man.macros
+.TH Tcl_RecordAndEval 3 7.4 Tcl "Tcl Library Procedures"
+.BS
+.SH NAME
+Tcl_RecordAndEval \- save command on history list before evaluating
+.SH SYNOPSIS
+.nf
+\fB#include <tcl.h>\fR
+.sp
+int
+\fBTcl_RecordAndEval\fR(\fIinterp, cmd, eval\fR)
+.SH ARGUMENTS
+.AS Tcl_Interp *interp;
+.AP Tcl_Interp *interp in
+Tcl interpreter in which to evaluate command.
+.AP char *cmd in
+Command (or sequence of commands) to execute.
+.AP int flags in
+.VS
+An OR'ed combination of flag bits.  TCL_NO_EVAL means record the
+command but don't evaluate it.  TCL_EVAL_GLOBAL means evaluate
+the command at global level instead of the current stack level.
+.VE
+.BE
+
+.SH DESCRIPTION
+.PP
+\fBTcl_RecordAndEval\fR is invoked to record a command as an event
+on the history list and then execute it using \fBTcl_Eval\fR
+.VS
+(or \fBTcl_GlobalEval\fR if the TCL_EVAL_GLOBAL bit is set in \fIflags\fR).
+.VE
+It returns a completion code such as TCL_OK just like \fBTcl_Eval\fR
+and it leaves information in \fIinterp->result\fR.
+If you don't want the command recorded on the history list then
+you should invoke \fBTcl_Eval\fR instead of \fBTcl_RecordAndEval\fR.
+Normally \fBTcl_RecordAndEval\fR is only called with top-level
+commands typed by the user, since the purpose of history is to
+allow the user to re-issue recently-invoked commands.
+If the \fIflags\fR argument contains the TCL_NO_EVAL bit then
+the command is recorded without being evaluated.
+
+.SH KEYWORDS
+command, event, execute, history, interpreter, record

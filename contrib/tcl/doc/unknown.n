@@ -1,0 +1,75 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) unknown.n 1.7 96/03/25 20:26:05
+'\" 
+.so man.macros
+.TH unknown n "" Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+unknown \- Handle attempts to use non-existent commands
+.SH SYNOPSIS
+\fBunknown \fIcmdName \fR?\fIarg arg ...\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+This command is invoked by the Tcl interpreter whenever a script
+tries to invoke a command that doesn't exist.  The implementation
+of \fBunknown\fR isn't part of the Tcl core;  instead, it is a
+library procedure defined by default when Tcl starts up.  You
+can override the default \fBunknown\fR to change its functionality.
+.PP
+If the Tcl interpreter encounters a command name for which there
+is not a defined command, then Tcl checks for the existence of
+a command named \fBunknown\fR.
+If there is no such command, then the interpreter returns an
+error.
+If the \fBunknown\fR command exists, then it is invoked with
+arguments consisting of the fully-substituted name and arguments
+for the original non-existent command.
+The \fBunknown\fR command typically does things like searching
+through library directories for a command procedure with the name
+\fIcmdName\fR, or expanding abbreviated command names to full-length,
+or automatically executing unknown commands as sub-processes.
+In some cases (such as expanding abbreviations) \fBunknown\fR will
+change the original command slightly and then (re-)execute it.
+The result of the \fBunknown\fR command is used as the result for
+the original non-existent command.
+.PP
+The default implementation of \fBunknown\fR behaves as follows.
+It first calls the \fBauto_load\fR library procedure to load the command.
+If this succeeds, then it executes the original command with its
+original arguments.
+If the auto-load fails then \fBunknown\fR calls \fBauto_execok\fR
+to see if there is an executable file by the name \fIcmd\fR.
+If so, it invokes the Tcl \fBexec\fR command
+with \fIcmd\fR and all the \fIargs\fR as arguments.
+If \fIcmd\fR can't be auto-executed, \fBunknown\fR checks to
+see if the command was invoked at top-level and outside of any
+script.  If so, then \fBunknown\fR takes takes two additional steps.
+First, it sees if \fIcmd\fR has one of the following three forms:
+\fB!!\fR, \fB!\fIevent\fR, or \fB^\fIold\fB^\fInew\fR?\fB^\fR?.
+If so, then \fBunknown\fR carries out history substitution
+in the same way that \fBcsh\fR would for these constructs.
+Finally, \fBunknown\fR checks to see if \fIcmd\fR is
+a unique abbreviation for an existing Tcl command.
+If so, it expands the command name and executes the command with
+the original arguments.
+If none of the above efforts has been able to execute
+the command, \fBunknown\fR generates an error return.
+If the global variable \fBauto_noload\fR is defined, then the auto-load
+step is skipped.
+If the global variable \fBauto_noexec\fR is defined then the
+auto-exec step is skipped.
+Under normal circumstances the return value from \fBunknown\fR
+is the return value from the command that was eventually
+executed.
+
+.SH KEYWORDS
+error, non-existent command

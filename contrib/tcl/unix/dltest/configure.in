@@ -1,0 +1,29 @@
+dnl	This file is an input file used by the GNU "autoconf" program to
+dnl	generate the file "configure", which is run to configure the
+dnl	Makefile in this directory.
+AC_INIT(pkga.c)
+# SCCS: @(#) configure.in 1.9 96/04/15 09:50:20
+
+# Recover information that Tcl computed with its configure script.
+
+. ../tclConfig.sh
+
+CC=$TCL_CC
+AC_SUBST(CC)
+SHLIB_CFLAGS=$TCL_SHLIB_CFLAGS
+AC_SUBST(SHLIB_CFLAGS)
+SHLIB_LD=$TCL_SHLIB_LD
+AC_SUBST(SHLIB_LD)
+SHLIB_LD_LIBS=$TCL_SHLIB_LD_LIBS
+AC_SUBST(SHLIB_LD_LIBS)
+SHLIB_SUFFIX=$TCL_SHLIB_SUFFIX
+AC_SUBST(SHLIB_SUFFIX)
+SHLIB_VERSION=$TCL_SHLIB_VERSION
+AC_SUBST(SHLIB_VERSION)
+AC_SUBST(TCL_BUILD_LIB_SPEC)
+TCL_LIBS=$TCL_LIBS
+AC_SUBST(TCL_LIBS)
+TCL_VERSION=$TCL_VERSION
+AC_SUBST(TCL_VERSION)
+
+AC_OUTPUT(Makefile)

@@ -1,0 +1,125 @@
+'\"
+'\" Copyright (c) 1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\"
+'\" SCCS: @(#) socket.n 1.13 96/04/05 12:05:26
+.so man.macros
+.TH socket n 7.5 Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+socket \- Open a TCP network connection
+.SH SYNOPSIS
+.sp
+\fBsocket \fR?\fIoptions\fR? \fIhost port\fR
+.sp
+\fBsocket \fB\-server \fIcommand\fR ?\fIoptions\fR? \fIport\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+This command opens a network socket and returns a channel
+identifier that may be used in future invocations of commands like
+\fBread\fR, \fBputs\fR and \fBflush\fR.
+At present only the TCP network protocol is supported;  future
+releases may include support for additional protocols.
+The \fBsocket\fR command may be used to open either the client or
+server side of a connection, depending on whether the \fB\-server\fR
+switch is specified.
+
+.SH "CLIENT SOCKETS"
+.PP
+If the \fB\-server\fR option is not specified, then the client side of a
+connection is opened and the command returns a channel identifier
+that can be used for both reading and writing.
+\fIPort\fR and \fIhost\fR specify a port
+to connect to;  there must be a server accepting connections on
+this port.  \fIPort\fR is an integer port number and \fIhost\fR
+is either a domain-style name such as \fBwww.sunlabs.com\fR or
+a numerical IP address such as \fB127.0.0.1\fR.
+Use \fIlocalhost\fR to refer to the host on which the command is invoked.
+.PP
+The following options may also be present before \fIhost\fR
+to specify additional information about the connection:
+.TP
+\fB\-myaddr\fI addr\fR
+\fIAddr\fR gives the domain-style name or numerical IP address of
+the client-side network interface to use for the connection.
+This option may be useful if the client machine has multiple network
+interfaces.  If the option is omitted then the client-side interface
+will be chosen by the system software.
+.TP
+\fB\-myport\fI port\fR
+\fIPort\fR specifies an integer port number to use for the client's
+side of the connection.  If this option is omitted, the client's
+port number will be chosen at random by the system software.
+.TP
+\fB\-async\fR
+The \fB\-async\fR option will cause the client socket to be connected
+asynchronously. This means that the socket will be created immediately but
+may not yet be connected to the server, when the call to \fBsocket\fR
+returns. When a \fBgets\fR or \fBflush\fR is done on the socket before the
+connection attempt succeeds or fails, if the socket is in blocking mode, the
+operation will wait until the connection is completed or fails. If the
+socket is in nonblocking mode and a \fBgets\fR or \fBflush\fR is done on
+the socket before the connection attempt succeeds or fails, the operation
+returns immediately and \fBfblocked\fR on the socket returns 1.
+
+.SH "SERVER SOCKETS"
+.PP
+If the \fB\-server\fR option is specified then the new socket
+will be a server for the port given by \fIport\fR.
+Tcl will automatically accept connections to the given port.
+For each connection Tcl will create a new channel that may be used to
+communicate with the client.  Tcl then invokes \fIcommand\fR
+with three additional arguments: the name of the new channel, the
+address, in network address notation, of the client's host, and
+the client's port number.
+.PP
+The following additional option may also be specified before \fIhost\fR:
+.TP
+\fB\-myaddr\fI addr\fR
+\fIAddr\fR gives the domain-style name or numerical IP address of
+the server-side network interface to use for the connection.
+This option may be useful if the server machine has multiple network
+interfaces.  If the option is omitted then the server socket is bound
+to the special address INADDR_ANY so that it can accept connections from
+any interface.
+.PP
+Server channels cannot be used for input or output; their sole use is to
+accept new client connections. The channels created for each incoming
+client connection are opened for input and output. Closing the server
+channel shuts down the server so that no new connections will be
+accepted;  however, existing connections will be unaffected.
+.PP
+Server sockets depend on the Tcl event mechanism to find out when
+new connections are opened.  If the application doesn't enter the
+event loop, for example by invoking the \fBvwait\fR command or
+calling the C procedure \fBTcl_DoOneEvent\fR, then no connections
+will be accepted.
+
+.SH CONFIGURATION OPTIONS
+The \fBfconfigure\fR command can be used to query several readonly
+configuration options for socket channels:
+.TP
+\fB\-sockname\fR
+This option returns a list of three elements, the address, the host name
+and the port number for the socket. If the host name cannot be computed,
+the second element is identical to the address, the first element of the
+list.
+.TP
+\fB\-peername\fR
+This option is not supported by server sockets. For client and accepted
+sockets, this option returns a list of three elements; these are the
+address, the host name and the port to which the peer socket is connected
+or bound. If the host name cannot be computed, the second element of the
+list is identical to the address, its first element.
+.PP
+
+.SH "SEE ALSO"
+flush(n), open(n), read(n)
+
+.SH KEYWORDS
+bind, channel, connection, domain name, host, network address, socket, tcp

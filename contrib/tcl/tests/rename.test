@@ -1,0 +1,131 @@
+# Commands covered:  rename
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) rename.test 1.13 96/03/20 10:49:22
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+# Must eliminate the "unknown" command while the test is running,
+# especially if the test is being run in a program with its
+# own special-purpose unknown command.
+
+catch {rename unknown unknown.old}
+
+catch {rename r2 {}}
+proc r1 {} {return "procedure r1"}
+rename r1 r2
+test rename-1.1 {simple renaming} {
+    r2
+} {procedure r1}
+test rename-1.2 {simple renaming} {
+    list [catch r1 msg] $msg
+} {1 {invalid command name "r1"}}
+rename r2 {}
+test rename-1.3 {simple renaming} {
+    list [catch r2 msg] $msg
+} {1 {invalid command name "r2"}}
+
+# The test below is tricky because it renames a built-in command.
+# It's possible that the test procedure uses this command, so must
+# restore the command before calling test again.
+
+rename list l.new
+set a [catch list msg1]
+set b [l.new a b c]
+rename l.new list
+set c [catch l.new msg2]
+set d [list 111 222]
+test 2.1 {renaming built-in command} {
+    list $a $msg1 $b $c $msg2 $d
+} {1 {invalid command name "list"} {a b c} 1 {invalid command name "l.new"} {111 222}}
+
+test rename-3.1 {error conditions} {
+    list [catch {rename r1} msg] $msg $errorCode
+} {1 {wrong # args: should be "rename oldName newName"} NONE}
+test rename-3.2 {error conditions} {
+    list [catch {rename r1 r2 r3} msg] $msg $errorCode
+} {1 {wrong # args: should be "rename oldName newName"} NONE}
+test rename-3.3 {error conditions} {
+    proc r1 {} {}
+    proc r2 {} {}
+    list [catch {rename r1 r2} msg] $msg
+} {1 {can't rename to "r2": command already exists}}
+test rename-3.4 {error conditions} {
+    catch {rename r1 {}}
+    catch {rename r2 {}}
+    list [catch {rename r1 r2} msg] $msg
+} {1 {can't rename "r1": command doesn't exist}}
+test rename-3.5 {error conditions} {
+    catch {rename _non_existent_command {}}
+    list [catch {rename _non_existent_command {}} msg] $msg
+} {1 {can't delete "_non_existent_command": command doesn't exist}}
+
+catch {rename unknown {}}
+catch {rename unknown.old unknown}
+
+if {[info command testdel] == "testdel"} {
+    test rename-4.1 {reentrancy issues with command deletion and renaming} {
+	set x {}
+	testdel {} foo {lappend x deleted; rename bar {}; lappend x [info command bar]}
+	rename foo bar
+	lappend x |
+	rename bar {}
+	set x
+    } {| deleted {}}
+    test rename-4.2 {reentrancy issues with command deletion and renaming} {
+	set x {}
+	testdel {} foo {lappend x deleted; rename foo bar}
+	rename foo {}
+	set x
+    } {deleted}
+    test rename-4.3 {reentrancy issues with command deletion and renaming} {
+	set x {}
+	testdel {} foo {lappend x deleted; testdel {} foo {lappend x deleted2}}
+	rename foo {}
+	lappend x |
+	rename foo {}
+	set x
+    } {deleted | deleted2}
+    test rename-4.4 {reentrancy issues with command deletion and renaming} {
+	set x {}
+	testdel {} foo {lappend x deleted; rename foo bar}
+	rename foo {}
+	lappend x | [info command bar]
+    } {deleted | {}}
+    test rename-4.5 {reentrancy issues with command deletion and renaming} {
+	set env(value) before
+	interp create foo
+	testdel foo cmd {set env(value) deleted}
+	interp delete foo
+	set env(value)
+    } {deleted}
+    test rename-4.6 {reentrancy issues with command deletion and renaming} {
+	proc kill args {
+	    interp delete foo
+	}
+	set env(value) before
+	interp create foo
+	foo alias kill kill
+	testdel foo cmd {set env(value) deleted; kill}
+	list [catch {foo eval {rename cmd {}}} msg] $msg $env(value)
+    } {0 {} deleted}
+    test rename-4.7 {reentrancy issues with command deletion and renaming} {
+	proc kill args {
+	    interp delete foo
+	}
+	set env(value) before
+	interp create foo
+	foo alias kill kill
+	testdel foo cmd {set env(value) deleted; kill}
+	list [catch {interp delete foo} msg] $msg $env(value)
+    } {0 {} deleted}
+}

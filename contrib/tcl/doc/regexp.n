@@ -1,0 +1,147 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) regexp.n 1.11 96/03/25 20:21:48
+'\" 
+.so man.macros
+.TH regexp n "" Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+regexp \- Match a regular expression against a string
+.SH SYNOPSIS
+\fBregexp \fR?\fIswitches\fR? \fIexp string \fR?\fImatchVar\fR? ?\fIsubMatchVar subMatchVar ...\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+Determines whether the regular expression \fIexp\fR matches part or
+all of \fIstring\fR and returns 1 if it does, 0 if it doesn't.
+.LP
+If additional arguments are specified after \fIstring\fR then they
+are treated as the names of variables in which to return
+information about which part(s) of \fIstring\fR matched \fIexp\fR.
+\fIMatchVar\fR will be set to the range of \fIstring\fR that
+matched all of \fIexp\fR.  The first \fIsubMatchVar\fR will contain
+the characters in \fIstring\fR that matched the leftmost parenthesized
+subexpression within \fIexp\fR, the next \fIsubMatchVar\fR will
+contain the characters that matched the next parenthesized
+subexpression to the right in \fIexp\fR, and so on.
+.LP
+If the initial arguments to \fBregexp\fR start with \fB\-\fR then
+.VS
+they are treated as switches.  The following switches are
+currently supported:
+.TP 10
+\fB\-nocase\fR
+Causes upper-case characters in \fIstring\fR to be treated as
+lower case during the matching process.
+.TP 10
+\fB\-indices\fR
+Changes what is stored in the \fIsubMatchVar\fRs. 
+Instead of storing the matching characters from \fBstring\fR,
+each variable
+will contain a list of two decimal strings giving the indices
+in \fIstring\fR of the first and last characters in the matching
+range of characters.
+.TP 10
+\fB\-\|\-\fR
+Marks the end of switches.  The argument following this one will
+be treated as \fIexp\fR even if it starts with a \fB\-\fR.
+.VE
+.LP
+If there are more \fIsubMatchVar\fR's than parenthesized
+subexpressions within \fIexp\fR, or if a particular subexpression
+in \fIexp\fR doesn't match the string (e.g. because it was in a
+portion of the expression that wasn't matched), then the corresponding
+\fIsubMatchVar\fR will be set to ``\fB\-1 \-1\fR'' if \fB\-indices\fR
+has been specified or to an empty string otherwise.
+
+.SH "REGULAR EXPRESSIONS"
+.PP
+Regular expressions are implemented using Henry Spencer's package
+(thanks, Henry!),
+and much of the description of regular expressions below is copied verbatim
+from his manual entry.
+.PP
+A regular expression is zero or more \fIbranches\fR, separated by ``|''.
+It matches anything that matches one of the branches.
+.PP
+A branch is zero or more \fIpieces\fR, concatenated.
+It matches a match for the first, followed by a match for the second, etc.
+.PP
+A piece is an \fIatom\fR possibly followed by ``*'', ``+'', or ``?''.
+An atom followed by ``*'' matches a sequence of 0 or more matches of the atom.
+An atom followed by ``+'' matches a sequence of 1 or more matches of the atom.
+An atom followed by ``?'' matches a match of the atom, or the null string.
+.PP
+An atom is a regular expression in parentheses (matching a match for the
+regular expression), a \fIrange\fR (see below), ``.''
+(matching any single character), ``^'' (matching the null string at the
+beginning of the input string), ``$'' (matching the null string at the
+end of the input string), a ``\e'' followed by a single character (matching
+that character), or a single character with no other significance
+(matching that character).
+.PP
+A \fIrange\fR is a sequence of characters enclosed in ``[]''.
+It normally matches any single character from the sequence.
+If the sequence begins with ``^'',
+it matches any single character \fInot\fR from the rest of the sequence.
+If two characters in the sequence are separated by ``\-'', this is shorthand
+for the full list of ASCII characters between them
+(e.g. ``[0-9]'' matches any decimal digit).
+To include a literal ``]'' in the sequence, make it the first character
+(following a possible ``^'').
+To include a literal ``\-'', make it the first or last character.
+
+.SH "CHOOSING AMONG ALTERNATIVE MATCHES"
+.PP
+In general there may be more than one way to match a regular expression
+to an input string.  For example, consider the command
+.CS
+\fBregexp  (a*)b*  aabaaabb  x  y\fR
+.CE
+Considering only the rules given so far, \fBx\fR and \fBy\fR could
+end up with the values \fBaabb\fR and \fBaa\fR, \fBaaab\fR and \fBaaa\fR,
+\fBab\fR and \fBa\fR, or any of several other combinations.
+To resolve this potential ambiguity \fBregexp\fR chooses among
+alternatives using the rule ``first then longest''.
+In other words, it considers the possible matches in order working
+from left to right across the input string and the pattern, and it
+attempts to match longer pieces of the input string before shorter
+ones.  More specifically, the following rules apply in decreasing
+order of priority:
+.IP [1]
+If a regular expression could match two different parts of an input string
+then it will match the one that begins earliest.
+.IP [2]
+If a regular expression contains \fB|\fR operators then the leftmost
+matching sub-expression is chosen.
+.IP [3]
+In \fB*\fR, \fB+\fR, and \fB?\fR constructs, longer matches are chosen
+in preference to shorter ones.
+.IP [4]
+In sequences of expression components the components are considered
+from left to right.
+.LP
+In the example from above, \fB(a*)b*\fR matches \fBaab\fR:  the \fB(a*)\fR
+portion of the pattern is matched first and it consumes the leading
+\fBaa\fR; then the \fBb*\fR portion of the pattern consumes the
+next \fBb\fR.  Or, consider the following example:
+.CS
+\fBregexp  (ab|a)(b*)c  abc  x  y  z\fR
+.CE
+After this command \fBx\fR will be \fBabc\fR, \fBy\fR will be
+\fBab\fR, and \fBz\fR will be an empty string.
+Rule 4 specifies that \fB(ab|a)\fR gets first shot at the input
+string and Rule 2 specifies that the \fBab\fR sub-expression
+is checked before the \fBa\fR sub-expression.
+Thus the \fBb\fR has already been claimed before the \fB(b*)\fR
+component is checked and \fB(b*)\fR must match an empty string.
+
+.SH KEYWORDS
+match, regular expression, string

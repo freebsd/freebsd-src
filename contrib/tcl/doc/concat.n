@@ -1,0 +1,44 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) concat.n 1.7 96/03/25 20:11:56
+'\" 
+.so man.macros
+.TH concat n "" Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+concat \- Join lists together
+.SH SYNOPSIS
+.VS
+\fBconcat\fI \fR?\fIarg arg ...\fR?
+.VE
+.BE
+
+.SH DESCRIPTION
+.PP
+This command treats each argument as a list and concatenates them
+into a single list.
+It also eliminates leading and trailing spaces in the \fIarg\fR's
+and adds a single separator space between \fIarg\fR's.
+It permits any number of arguments.  For example,
+the command
+.CS
+\fBconcat a b {c d e} {f {g h}}\fR
+.CE
+will return
+.CS
+\fBa b c d e f {g h}\fR
+.CE
+as its result.
+.PP
+.VS
+If no \fIarg\fRs are supplied, the result is an empty string.
+.VE
+
+.SH KEYWORDS
+concatenate, join, lists

@@ -1,0 +1,570 @@
+# This file tests the multiple interpreter facility of Tcl
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1995-1996 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) interp.test 1.24 96/03/27 10:23:29
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+foreach i [interp slaves] {
+  interp delete $i
+}
+
+proc equiv {x} {return $x}
+
+# Part 0: Check out options for interp command
+test interp-1.1 {options for interp command} {
+    list [catch {interp} msg] $msg
+} {1 {wrong # args: should be "interp cmd ?arg ...?"}}
+test interp-1.2 {options for interp command} {
+    list [catch {interp frobox} msg] $msg
+} {1 {bad option "frobox": should be alias, aliases, create, delete, exists, eval, issafe, share, slaves, target or transfer}}
+test interp-1.3 {options for interp command} {
+    interp delete
+} ""
+test interp-1.4 {options for interp command} {
+    list [catch {interp delete foo bar} msg] $msg
+} {1 {interpreter named "foo" not found}}
+test interp-1.5 {options for interp command} {
+    list [catch {interp exists foo bar} msg] $msg
+} {1 {wrong # args: should be "interp exists ?path?"}}
+#
+# test interp-0.6 was removed
+#
+test interp-1.6 {options for interp command} {
+    list [catch {interp slaves foo bar zop} msg] $msg
+} {1 {wrong # args: should be "interp slaves ?path?"}}
+test interp-1.7 {options for interp command} {
+    list [catch {interp hello} msg] $msg
+} {1 {bad option "hello": should be alias, aliases, create, delete, exists, eval, issafe, share, slaves, target or transfer}}
+test interp-1.8 {options for interp command} {
+    list [catch {interp -froboz} msg] $msg
+} {1 {bad option "-froboz": should be alias, aliases, create, delete, exists, eval, issafe, share, slaves, target or transfer}}
+test interp-1.9 {options for interp command} {
+    list [catch {interp -froboz -safe} msg] $msg
+} {1 {bad option "-froboz": should be alias, aliases, create, delete, exists, eval, issafe, share, slaves, target or transfer}} 
+test interp-1.10 {options for interp command} {
+    list [catch {interp target} msg] $msg
+} {1 {wrong # args: should be "interp target path alias"}}
+
+# Part 1: Basic interpreter creation tests:
+test interp-2.1 {basic interpreter creation} {
+    interp create a
+} a
+test interp-2.2 {basic interpreter creation} {
+    catch {interp create}
+} 0
+test interp-2.3 {basic interpreter creation} {
+    catch {interp create -safe}
+} 0 
+test interp-2.4 {basic interpreter creation} {
+    list [catch {interp create a} msg] $msg
+} {1 {interpreter named "a" already exists, cannot create}}
+test interp-2.5 {basic interpreter creation} {
+    interp create b -safe
+} b
+test interp-2.6 {basic interpreter creation} {
+    interp create d -safe
+} d
+test interp-2.7 {basic interpreter creation} {
+    list [catch {interp create -froboz} msg] $msg
+} {1 {bad option "-froboz": should be -safe}}
+test interp-2.8 {basic interpreter creation} {
+    interp create -- -froboz
+} -froboz
+test interp-2.9 {basic interpreter creation} {
+    interp create -safe -- -froboz1
+} -froboz1
+test interp-2.10 {basic interpreter creation} {
+    interp create {a x1}
+    interp create {a x2}
+    interp create {a x3} -safe
+} {a x3}
+
+foreach i [interp slaves] {
+    interp delete $i
+}
+
+# Part 2: Testing "interp slaves" and "interp exists"
+test interp-3.1 {testing interp exists and interp slaves} {
+    interp slaves
+} ""
+test interp-3.2 {testing interp exists and interp slaves} {
+    interp create a
+    interp exists a
+} 1
+test interp-3.3 {testing interp exists and interp slaves} {
+    interp exists nonexistent
+} 0
+test interp-3.4 {testing interp exists and interp slaves} {
+    list [catch {interp slaves a b c} msg] $msg
+} {1 {wrong # args: should be "interp slaves ?path?"}}
+test interp-3.5 {testing interp exists and interp slaves} {
+    list [catch {interp exists a b c} msg] $msg
+} {1 {wrong # args: should be "interp exists ?path?"}}
+test interp-3.6 {testing interp exists and interp slaves} {
+    interp exists
+} 1
+test interp-3.7 {testing interp exists and interp slaves} {
+    interp slaves
+} a
+test interp-3.8 {testing interp exists and interp slaves} {
+    list [catch {interp slaves a b c} msg] $msg
+} {1 {wrong # args: should be "interp slaves ?path?"}}
+test interp-3.9 {testing interp exists and interp slaves} {
+    interp create {a a2} -safe
+    interp slaves a
+} {a2}
+test interp-3.10 {testing interp exists and interp slaves} {
+    interp exists {a a2}
+} 1
+
+# Part 3: Testing "interp delete"
+test interp-3.11 {testing interp delete} {
+    interp delete
+} ""
+test interp-4.1 {testing interp delete} {
+    interp delete a
+} ""
+test interp-4.2 {testing interp delete} {
+    list [catch {interp delete nonexistent} msg] $msg
+} {1 {interpreter named "nonexistent" not found}}
+test interp-4.3 {testing interp delete} {
+    list [catch {interp delete x y z} msg] $msg
+} {1 {interpreter named "x" not found}}
+test interp-4.4 {testing interp delete} {
+    interp delete
+} ""
+test interp-4.5 {testing interp delete} {
+    interp create a
+    interp create {a x1}
+    interp delete {a x1}
+    interp slaves a
+} ""
+test interp-4.6 {testing interp delete} {
+    interp create c1
+    interp create c2
+    interp create c3
+    interp delete c1 c2 c3
+} ""
+test interp-4.7 {testing interp delete} {
+    interp create c1
+    interp create c2
+    list [catch {interp delete c1 c2 c3} msg] $msg
+} {1 {interpreter named "c3" not found}}
+
+foreach i [interp slaves] {
+    interp delete $i
+}
+
+# Part 4: Consistency checking - all nondeleted interpreters should be
+# there:
+test interp-5.1 {testing consistency} {
+    interp slaves
+} ""
+test interp-5.2 {testing consistency} {
+    interp exists a
+} 0
+test interp-5.3 {testing consistency} {
+    interp exists nonexistent
+} 0
+
+# Recreate interpreter "a"
+interp create a
+
+# Part 5: Testing eval in interpreter object command and with interp command
+test interp-6.1 {testing eval} {
+    a eval expr 3 + 5
+} 8
+test interp-6.2 {testing eval} {
+    list [catch {a eval foo} msg] $msg
+} {1 {invalid command name "foo"}}
+test interp-6.3 {testing eval} {
+    a eval {proc foo {} {expr 3 + 5}}
+    a eval foo
+} 8
+test interp-6.4 {testing eval} {
+    interp eval a foo
+} 8
+
+test interp-6.5 {testing eval} {
+    interp create {a x2}
+    interp eval {a x2} {proc frob {} {expr 4 * 9}}
+    interp eval {a x2} frob
+} 36
+test interp-6.6 {testing eval} {
+    list [catch {interp eval {a x2} foo} msg] $msg
+} {1 {invalid command name "foo"}}
+
+# UTILITY PROCEDURE RUNNING IN MASTER INTERPRETER:
+proc in_master {args} {
+     return [list seen in master: $args]
+}
+
+# Part 6: Testing basic alias creation
+test interp-7.1 {testing basic alias creation} {
+    a alias foo in_master
+} foo
+test interp-7.2 {testing basic alias creation} {
+    a alias bar in_master a1 a2 a3
+} bar
+# Test 6.3 has been deleted.
+test interp-7.3 {testing basic alias creation} {
+    a alias foo
+} in_master
+test interp-7.4 {testing basic alias creation} {
+    a alias bar
+} {in_master a1 a2 a3}
+test interp-7.5 {testing basic alias creation} {
+    a aliases
+} {foo bar}
+
+# Part 7: testing basic alias invocation
+test interp-8.1 {testing basic alias invocation} {
+    a eval foo s1 s2 s3
+} {seen in master: {s1 s2 s3}}
+test interp-8.2 {testing basic alias invocation} {
+    a eval bar s1 s2 s3
+} {seen in master: {a1 a2 a3 s1 s2 s3}}
+
+# Part 8: Testing aliases for non-existent targets
+test interp-9.1 {testing aliases for non-existent targets} {
+    a alias zop nonexistent-command-in-master
+    list [catch {a eval zop} msg] $msg
+} {1 {aliased target "nonexistent-command-in-master" for "zop" not found}}
+test interp-9.2 {testing aliases for non-existent targets} {
+    proc nonexistent-command-in-master {} {return i_exist!}
+    a eval zop
+} i_exist!
+
+if {[info command nonexistent-command-in-master] != ""} {
+    rename nonexistent-command-in-master {}
+}
+
+# Recreate interpreter b..
+if {![interp exists b]} {
+    interp create b
+}
+
+# Part 9: Aliasing between interpreters
+test interp-10.1 {testing aliasing between interpreters} {
+    interp alias a a_alias b b_alias 1 2 3
+} a_alias
+test interp-10.2 {testing aliasing between interpreters} {
+    b eval {proc b_alias {args} {return [list got $args]}}
+    a eval a_alias a b c
+} {got {1 2 3 a b c}}
+test interp-10.3 {testing aliasing between interpreters} {
+    b eval {rename b_alias {}}
+    list [catch {a eval a_alias a b c} msg] $msg
+} {1 {aliased target "b_alias" for "a_alias" not found}}
+test interp-10.4 {testing aliasing between interpreters} {
+    a aliases
+} {foo zop bar a_alias}
+test interp-10.5 {testing aliasing between interpreters} {
+    interp delete b
+    a aliases
+} {foo zop bar}
+
+# Recreate interpreter b..
+if {![interp exists b]} {
+    interp create b
+}
+
+test interp-10.6 {testing aliasing between interpreters} {
+    interp alias a a_command b b_command a1 a2 a3
+    b alias b_command in_master b1 b2 b3
+    a eval a_command m1 m2 m3
+} {seen in master: {b1 b2 b3 a1 a2 a3 m1 m2 m3}}
+test interp-10.7 {testing aliases between interpreters} {
+    interp alias "" foo a zoppo
+    a eval {proc zoppo {x} {list $x $x $x}}
+    set x [foo 33]
+    a eval {rename zoppo {}}
+    interp alias "" foo a {}
+    equiv $x
+} {33 33 33}
+
+# Part 10: Testing "interp target"
+test interp-11.1 {testing interp target} {
+    list [catch {interp target} msg] $msg
+} {1 {wrong # args: should be "interp target path alias"}}
+test interp-11.2 {testing interp target} {
+    list [catch {interp target nosuchinterpreter foo} msg] $msg
+} {1 {could not find interpreter "nosuchinterpreter"}}
+test interp-11.3 {testing interp target} {
+    a alias boo no_command
+    interp target a boo
+} ""
+test interp-11.4 {testing interp target} {
+    interp create x1
+    x1 eval interp create x2
+    x1 eval x2 eval interp create x3
+    interp create y1
+    y1 eval interp create y2
+    y1 eval y2 eval interp create y3
+    interp alias {x1 x2 x3} xcommand {y1 y2 y3} ycommand
+    interp target {x1 x2 x3} xcommand
+} {y1 y2 y3}
+test interp-11.5 {testing interp target} {
+    list [catch {x1 eval {interp target {x2 x3} xcommand}} msg] $msg
+} {1 {target interpreter for alias "xcommand" in path "x2 x3" is not my descendant}}
+
+# Part 11: testing "interp issafe"
+test interp-12.1 {testing interp issafe} {
+    interp issafe
+} 0
+test interp-12.2 {testing interp issafe} {
+    interp issafe a
+} 0
+test interp-12.3 {testing interp issafe} {
+    interp create {a x3} -safe
+    interp issafe {a x3}
+} 1
+test interp-12.4 {testing interp issafe} {
+    interp create {a x3 foo}
+    interp issafe {a x3 foo}
+} 1
+
+# Part 12: testing interpreter object command "issafe" sub-command
+test interp-13.1 {testing foo issafe} {
+    a issafe
+} 0
+test interp-13.2 {testing foo issafe} {
+    a eval x3 issafe
+} 1
+test interp-13.3 {testing foo issafe} {
+    a eval x3 eval foo issafe
+} 1
+
+# part 13: testing interp aliases
+test interp-14.1 {testing interp aliases} {
+    interp aliases
+} ""
+test interp-14.2 {testing interp aliases} {
+    interp aliases a
+} {boo foo zop bar a_command}
+test interp-14.3 {testing interp aliases} {
+    interp alias {a x3} froboz "" puts
+    interp aliases {a x3}
+} froboz
+
+test interp-15.1 {testing file sharing} {
+    interp create z
+    z eval close stdout
+    list [catch {z eval puts hello} msg] $msg
+} {1 {can not find channel named "stdout"}}
+test interp-15.2 {testing file sharing} {
+    set f [open foo w]
+    interp share "" $f z
+    z eval puts $f hello
+    z eval close $f
+    close $f
+} ""
+test interp-15.3 {testing file sharing} {
+    interp create xsafe -safe
+    list [catch {xsafe eval puts hello} msg] $msg
+} {1 {can not find channel named "stdout"}}
+test interp-15.4 {testing file sharing} {
+    set f [open foo w]
+    interp share "" $f xsafe
+    xsafe eval puts $f hello
+    xsafe eval close $f
+    close $f
+} ""
+test interp-15.5 {testing file sharing} {
+    interp share "" stdout xsafe
+    list [catch {xsafe eval gets stdout} msg] $msg
+} {1 {channel "stdout" wasn't opened for reading}}
+test interp-15.6 {testing file sharing} {
+    set f [open foo w]
+    interp share "" $f xsafe
+    set x [list [catch [list xsafe eval gets $f] msg] $msg]
+    close $f
+    string compare [string tolower $x] \
+		[list 1 [format "channel \"%s\" wasn't opened for reading" $f]]
+} 0
+test interp-15.7 {testing file transferring} {
+    set f [open foo w]
+    interp transfer "" $f xsafe
+    xsafe eval puts $f hello
+    xsafe eval close $f
+} ""
+test interp-15.8 {testing file transferring} {
+    set f [open foo w]
+    interp transfer "" $f xsafe
+    xsafe eval close $f
+    set x [list [catch {close $f} msg] $msg]
+    string compare [string tolower $x] \
+		[list 1 [format "can not find channel named \"%s\"" $f]]
+} 0
+removeFile foo
+
+#
+# Torture tests for interpreter deletion order
+#
+proc kill {} {interp delete xxx}
+
+test interp-15.9 {testing deletion order} {
+    interp create xxx
+    xxx alias kill kill
+    list [catch {xxx eval kill} msg] $msg
+} {0 {}}
+test interp-16.1 {testing deletion order} {
+    interp create xxx
+    interp create {xxx yyy}
+    interp alias {xxx yyy} kill "" kill
+    list [catch {interp eval {xxx yyy} kill} msg] $msg
+} {0 {}}
+test interp-16.2 {testing deletion order} {
+    interp create xxx
+    interp create {xxx yyy}
+    interp alias {xxx yyy} kill "" kill
+    list [catch {xxx eval yyy eval kill} msg] $msg
+} {0 {}}
+test interp-16.3 {testing deletion order} {
+    interp create xxx
+    interp create ddd
+    xxx alias kill kill
+    interp alias ddd kill xxx kill
+    set x [ddd eval kill]
+    interp delete ddd
+    set x
+} ""
+test interp-16.4 {testing deletion order} {
+    interp create xxx
+    interp create {xxx yyy}
+    interp alias {xxx yyy} kill "" kill
+    interp create ddd
+    interp alias ddd kill {xxx yyy} kill
+    set x [ddd eval kill]
+    interp delete ddd
+    set x
+} ""
+
+#
+# Alias loop prevention testing.
+#
+
+test interp-16.5 {alias loop prevention} {
+    list [catch {interp alias {} a {} a} msg] $msg
+} {1 {cannot define or rename alias "a": would create a loop}}
+test interp-17.1 {alias loop prevention} {
+    catch {interp delete x}
+    interp create x
+    x alias a loop
+    list [catch {interp alias {} loop x a} msg] $msg
+} {1 {cannot define or rename alias "loop": would create a loop}}
+test interp-17.2 {alias loop prevention} {
+    catch {interp delete x}
+    interp create x
+    interp alias x a x b
+    list [catch {interp alias x b x a} msg] $msg
+} {1 {cannot define or rename alias "b": would create a loop}}
+test interp-17.3 {alias loop prevention} {
+    catch {interp delete x}
+    interp create x
+    interp alias x b x a
+    list [catch {x eval rename b a} msg] $msg
+} {1 {cannot define or rename alias "b": would create a loop}}
+test interp-17.4 {alias loop prevention} {
+    catch {interp delete x}
+    interp create x
+    x alias z l1
+    interp alias {} l2 x z
+    list [catch {rename l2 l1} msg] $msg
+} {1 {cannot define or rename alias "l2": would create a loop}}
+
+#
+# Test robustness of Tcl_DeleteInterp when applied to a slave interpreter.
+# If there are bugs in the implementation these tests are likely to expose
+# the bugs as a core dump.
+#
+
+if {[info commands testinterpdelete] != ""} {
+    test interp-17.5 {testing Tcl_DeleteInterp vs slaves} {
+	list [catch {testinterpdelete} msg] $msg
+    } {1 {wrong # args: should be "testinterpdelete path"}}
+    test interp-18.1 {testing Tcl_DeleteInterp vs slaves} {
+	catch {interp delete a}
+	interp create a
+	testinterpdelete a
+    } ""
+    test interp-18.2 {testing Tcl_DeleteInterp vs slaves} {
+	catch {interp delete a}
+	interp create a
+	interp create {a b}
+	testinterpdelete {a b}
+    } ""
+    test interp-18.3 {testing Tcl_DeleteInterp vs slaves} {
+	catch {interp delete a}
+	interp create a
+	interp create {a b}
+	testinterpdelete a
+    } ""
+    test interp-18.4 {testing Tcl_DeleteInterp vs slaves} {
+	catch {interp delete a}
+	interp create a
+	interp create {a b}
+	interp alias {a b} dodel {} dodel
+	proc dodel {x} {testinterpdelete $x}
+	list [catch {interp eval {a b} {dodel {a b}}} msg] $msg
+    } {0 {}}
+    test interp-18.5 {testing Tcl_DeleteInterp vs slaves} {
+	catch {interp delete a}
+	interp create a
+	interp create {a b}
+	interp alias {a b} dodel {} dodel
+	proc dodel {x} {testinterpdelete $x}
+	list [catch {interp eval {a b} {dodel a}} msg] $msg
+    } {0 {}}
+    test interp-18.6 {eval in deleted interp} {
+	catch {interp delete a}
+	interp create a
+	a eval {
+	    proc dodel {} {
+		delme
+		dosomething else
+	    }
+	    proc dosomething args {
+		puts "I should not have been called!!"
+	    }
+	}
+	a alias delme dela
+	proc dela {} {interp delete a}
+	list [catch {a eval dodel} msg] $msg
+    } {1 {attempt to call eval in deleted interpreter}}
+    test interp-18.7 {eval in deleted interp} {
+	catch {interp delete a}
+	interp create a
+	a eval {
+	    interp create b
+	    b eval {
+		proc dodel {} {
+		    dela
+		}
+	    }
+	    proc foo {} {
+		b eval dela
+		dosomething else
+	    }
+	    proc dosomething args {
+		puts "I should not have been called!!"
+	    }
+	}
+	interp alias {a b} dela {} dela
+	proc dela {} {interp delete a}
+	list [catch {a eval foo} msg] $msg
+    } {1 {attempt to call eval in deleted interpreter}}
+}
+
+foreach i [interp slaves] {
+  interp delete $i
+}
