@@ -2,7 +2,7 @@
 
 MAN1=	pagesize.1
 
-install:
+beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${.CURDIR}/pagesize.sh ${DESTDIR}${BINDIR}/pagesize
 
