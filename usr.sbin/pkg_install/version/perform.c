@@ -290,17 +290,17 @@ show_version(const char *installed, const char *latest, const char *source)
 	ver = strrchr(latest, '-');
 	ver = ver ? &ver[1] : latest;
 	if (cmp < 0 && OUTPUT('<')) {
-	    printf("%-34s  <", tmp);
+	    printf("%-34s  %c", tmp, Quiet ? '\0' : '<');
 	    if (Verbose)
 		printf("   needs updating (%s has %s)", source, ver);
 	    printf("\n");
 	} else if (cmp == 0 && OUTPUT('=')) {
-	    printf("%-34s  =", tmp);
+	    printf("%-34s  %c", tmp, Quiet ? '\0' : '=');
 	    if (Verbose)
 		printf("   up-to-date with %s", source);
 	    printf("\n");
 	} else if (cmp > 0 && OUTPUT('>')) {
-	    printf("%-34s  >", tmp);
+	    printf("%-34s  %c", tmp, Quiet ? '\0' : '>');
 	    if (Verbose)
 		printf("   succeeds %s (%s has %s)", source, source, ver);
 	    printf("\n");

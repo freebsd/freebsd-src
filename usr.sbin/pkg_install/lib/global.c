@@ -25,6 +25,7 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 
 /* These are global for all utils */
+Boolean	Quiet		= FALSE;
 Boolean	Verbose		= FALSE;
 Boolean	Fake		= FALSE;
 Boolean	Force		= FALSE;
