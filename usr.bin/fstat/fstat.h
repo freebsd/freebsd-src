@@ -40,14 +40,15 @@
  * a kvm_read that returns true if everything is read
  */
 #define KVM_READ(kaddr, paddr, len) \
-	(kvm_read(kd, (u_long)(kaddr), (char *)(paddr), (len)) == (len))
+	((len) < SSIZE_MAX && \
+	kvm_read(kd, (u_long)(kaddr), (char *)(paddr), (len)) == (ssize_t)(len))
 
 #define dprintf	if (vflg) fprintf
 
 typedef struct devs {
 	struct	devs *next;
 	long	fsid;
-	ino_t	ino;
+	long	ino;
 	const char	*name;
 } DEVS;
 

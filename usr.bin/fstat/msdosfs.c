@@ -73,9 +73,7 @@ struct dosmount {
 };
 
 int
-msdosfs_filestat(vp, fsp)
-	struct vnode *vp;
-	struct filestat *fsp;
+msdosfs_filestat(struct vnode *vp, struct filestat *fsp)
 {
 	struct denode denode;
 	static struct dosmount *mounts;
