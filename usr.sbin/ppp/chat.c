@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.24 1997/05/10 01:22:07 brian Exp $
+ * $Id: chat.c,v 1.25 1997/05/26 00:43:57 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -180,9 +180,9 @@ int sendmode;
 	strncpy(result, phone, reslen);
 	reslen -= strlen(result);
 	result += strlen(result);
-	if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
-	  fprintf(stderr, "Phone: %s\n", phone);
-	LogPrintf(LOG_PHASE_BIT, "Phone: %s\n", phone);
+	if (VarTerm)
+	  fprintf(VarTerm, "Phone: %s\n", phone);
+	LogPrintf(LogPHASE, "Phone: %s", phone);
 	break;
       case 'U':
 	strncpy(result, VarAuthName, reslen);
@@ -229,11 +229,11 @@ static void clear_log() {
 }
 
 static void flush_log() {
-  if ((loglevel & LOG_CONNECT_BIT) 
-      || ((loglevel & LOG_CARRIER_BIT) 
-	  && strstr(logbuff,"CARRIER"))) {
-    LogPrintf(LOG_CONNECT_BIT|LOG_CARRIER_BIT,"Chat: %s\n",logbuff);
-  }
+  if (LogIsKept(LogCONNECT))
+    LogPrintf(LogCONNECT,"%s", logbuff);
+  else if (LogIsKept(LogCARRIER) && strstr(logbuff,"CARRIER"))
+    LogPrintf(LogCARRIER,"%s", logbuff);
+
   clear_log();
 }
 
@@ -271,13 +271,13 @@ char *estr;
 #endif
   clear_log();
   (void) ExpandString(estr, buff, sizeof(buff), 0);
-  LogPrintf(LOG_CHAT_BIT, "Wait for (%d): %s --> %s\n", TimeoutSec, estr, buff);
+  LogPrintf(LogCHAT, "Wait for (%d): %s --> %s", TimeoutSec, estr, buff);
   str = buff;
   inp = inbuff;
 
   if (strlen(str)>=IBSIZE){
     str[IBSIZE-1]=0;
-    LogPrintf(LOG_CHAT_BIT, "Truncating String to %d character: %s\n", IBSIZE, str);
+    LogPrintf(LogCHAT, "Truncating String to %d character: %s", IBSIZE, str);
   }
 
   nfds = modem + 1;
@@ -301,14 +301,14 @@ char *estr;
 	continue;
       sigsetmask(omask);
 #endif
-      perror("select");
+      LogPrintf(LogERROR, "select: %s", strerror(errno));
       *inp = 0;
       return(NOMATCH);
     } else if (i == 0) { 	/* Timeout reached! */
       *inp = 0;
       if (inp != inbuff)
-	LogPrintf(LOG_CHAT_BIT, "got: %s\n", inbuff);
-      LogPrintf(LOG_CHAT_BIT, "can't get (%d).\n", timeout.tv_sec);
+	LogPrintf(LogCHAT, "Got: %s", inbuff);
+      LogPrintf(LogCHAT, "Can't get (%d).", timeout.tv_sec);
 #ifdef SIGALRM
       sigsetmask(omask);
 #endif
@@ -333,7 +333,7 @@ char *estr;
 	}
 	for (i = 0; i < numaborts; i++) {
 	  if (strstr(inbuff, AbortStrings[i])) {
-	    LogPrintf(LOG_CHAT_BIT, "Abort: %s\n", AbortStrings[i]);
+	    LogPrintf(LogCHAT, "Abort: %s", AbortStrings[i]);
 #ifdef SIGALRM
             sigsetmask(omask);
 #endif
@@ -343,7 +343,7 @@ char *estr;
 	}
       } else {
         if (read(modem, &ch, 1) < 0) {
-	   perror("read error");
+           LogPrintf(LogERROR, "read error: %s", strerror(errno));
 	   *inp = '\0';
 	   return(NOMATCH);
 	}
@@ -372,7 +372,7 @@ char *estr;
 	    s1 = AbortStrings[i];
 	    len = strlen(s1);
 	    if ((len <= inp - inbuff) && (strncmp(inp - len, s1, len) == 0)) {
-	      LogPrintf(LOG_CHAT_BIT, "Abort: %s\n", s1);
+	      LogPrintf(LogCHAT, "Abort: %s", s1);
 	      *inp = 0;
 #ifdef SIGALRM
       	      sigsetmask(omask);
@@ -408,15 +408,13 @@ char *command, *out;
     cp--;
   }
   if (snprintf(tmp, sizeof tmp, "%s %s", command, cp) >= sizeof tmp) {
-    LogPrintf(LOG_CHAT_BIT, "Too long string to ExecStr: \"%s\"\n",
-	      command);
+    LogPrintf(LogCHAT, "Too long string to ExecStr: \"%s\"", command);
     return;
   }
   (void) MakeArgs(tmp, vector, VECSIZE(vector));
 
   if (pipe(fids) < 0) {
-    LogPrintf(LOG_CHAT_BIT, "Unable to create pipe in ExecStr: %s\n",
-	      strerror(errno));
+    LogPrintf(LogCHAT, "Unable to create pipe in ExecStr: %s", strerror(errno));
     return;
   }
 
@@ -430,29 +428,27 @@ char *command, *out;
     signal(SIGALRM, SIG_DFL);
     close(fids[0]);
     if (dup2(fids[1], 1) < 0) {
-      LogPrintf(LOG_CHAT_BIT, "dup2(fids[1], 1) in ExecStr: %s\n",
-		strerror(errno));
+      LogPrintf(LogCHAT, "dup2(fids[1], 1) in ExecStr: %s", strerror(errno));
       return;
     }
     close(fids[1]);
     nb = open("/dev/tty", O_RDWR);
     if (dup2(nb, 0) < 0) {
-      LogPrintf(LOG_CHAT_BIT, "dup2(nb, 0) in ExecStr: %s\n",
-		strerror(errno));
+      LogPrintf(LogCHAT, "dup2(nb, 0) in ExecStr: %s", strerror(errno));
       return;
     }
-    LogPrintf(LOG_CHAT_BIT, "exec: %s\n", command);
+    LogPrintf(LogCHAT, "exec: %s", command);
     /* switch back to original privileges */
     if (setgid(getgid()) < 0) {
-      LogPrintf(LOG_CHAT_BIT, "setgid: %s\n", strerror(errno));
+      LogPrintf(LogCHAT, "setgid: %s", strerror(errno));
       exit(1);
     }
     if (setuid(getuid()) < 0) {
-      LogPrintf(LOG_CHAT_BIT, "setuid: %s\n", strerror(errno));
+      LogPrintf(LogCHAT, "setuid: %s", strerror(errno));
       exit(1);
     }
     pid = execvp(command, vector);
-    LogPrintf(LOG_CHAT_BIT, "execvp failed for (%d/%d): %s\n", pid, errno, command);
+    LogPrintf(LogCHAT, "execvp failed for (%d/%d): %s", pid, errno, command);
     exit(127);
   } else {
     close(fids[1]);
@@ -494,9 +490,9 @@ char *str;
       (void) ExpandString(str, buff+2, sizeof(buff)-2, 1);
     }
     if (strstr(str, "\\P")) { /* Do not log the password itself. */
-      LogPrintf(LOG_CHAT_BIT, "sending: %s\n", str);
+      LogPrintf(LogCHAT, "sending: %s", str);
     } else {
-      LogPrintf(LOG_CHAT_BIT, "sending: %s\n", buff+2);
+      LogPrintf(LogCHAT, "sending: %s", buff+2);
     }
     cp = buff;
     if (DEV_IS_SYNC)
@@ -523,7 +519,7 @@ char *str;
     ++timeout_next;
     return(MATCH);
   }
-  LogPrintf(LOG_CHAT_BIT, "Expecting %s\n", str);
+  LogPrintf(LogCHAT, "Expecting %s", str);
   while (*str) {
     /*
      *  Check whether if string contains sub-send-expect.
@@ -574,9 +570,6 @@ char *script;
   char *vector[40];
   char **argv;
   int argc, n, state;
-#ifdef DEBUG
-  int i;
-#endif
 
   timeout_next = abort_next = 0;
   for (n = 0; AbortStrings[n]; n++) {
@@ -587,11 +580,6 @@ char *script;
 
   bzero(vector, sizeof(vector));
   n = MakeArgs(script, vector, VECSIZE(vector));
-#ifdef DEBUG
-  logprintf("n = %d\n", n);
-  for (i = 0; i < n; i++)
-    logprintf("  %s\n", vector[i]);
-#endif
   argc = n;
   argv = vector;
   TimeoutSec = 30;

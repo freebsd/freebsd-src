@@ -36,16 +36,14 @@ char *name, *key;
   char *salt, *ep;
   struct utmp utmp;
 
-#ifdef DEBUG
-  logprintf( "passwdauth called with name= %s, key= %s\n", name, key );
-#endif /* DEBUG */
+  LogPrintf(LogDEBUG, "PasswdAuth: Called with name %s, key %s\n", name, key );
 
   if(( pwd = getpwnam( name ) ))
     salt = pwd->pw_passwd;
   else
   {
     endpwent();
-    LogPrintf( LOG_LCP, "PasswdAuth - user (%s) not in passwd file\n", name );
+    LogPrintf( LogLCP, "PasswdAuth - user (%s) not in passwd file\n", name );
     return 0; /* false - failed to authenticate (password not in file) */
   }
 
@@ -58,7 +56,7 @@ char *name, *key;
 
   if( name[0] != 'P' )
   { 
-    LogPrintf( LOG_LCP, "PasswdAuth - user (%s) not a PPP user\n", name );
+    LogPrintf( LogLCP, "PasswdAuth - user (%s) not a PPP user\n", name );
     endpwent();
     return 0;
   }
@@ -70,7 +68,7 @@ char *name, *key;
   /* strcmp returns 0 if same */
   if( strcmp( ep, pwd->pw_passwd ) != 0 )
   {
-    LogPrintf( LOG_LCP, "PasswdAuth - user (%s,%s) authentication failed\n",
+    LogPrintf( LogLCP, "PasswdAuth - user (%s,%s) authentication failed\n",
 	name, key );
     endpwent();
     return 0;  /* false - failed to authenticate (didn't match up) */
@@ -100,7 +98,7 @@ char *name, *key;
     login(&utmp);
     (void)setlogin( pwd->pw_name );
 
-    LogPrintf( LOG_LCP, "PasswdAuth has logged in user %s\n", name );
+    LogPrintf( LogLCP, "PasswdAuth has logged in user %s\n", name );
 
     logged_in = 1;
   }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.10 1997/02/25 14:04:50 brian Exp $
+ * $Id: arp.c,v 1.11 1997/04/15 00:03:35 brian Exp $
  *
  */
 
@@ -55,7 +55,7 @@
 
 static int rtm_seq;
 
-static int get_ether_addr __P((int, u_long, struct sockaddr_dl *));
+static int get_ether_addr(int, u_long, struct sockaddr_dl *);
 
 #define BCOPY(s, d, l)		memcpy(d, s, l)
 #define BZERO(s, n)		memset(s, 0, n)
@@ -96,12 +96,14 @@ sifproxyarp(unit, hisaddr)
      */
     memset(&arpmsg, 0, sizeof(arpmsg));
     if (!get_ether_addr(unit, hisaddr, &arpmsg.hwa)) {
-	logprintf("Cannot determine ethernet address for proxy ARP\n");
+	LogPrintf(LogERROR, "Cannot determine ethernet address"
+		 " for proxy ARP\n");
 	return 0;
     }
 
     if ((routes = socket(PF_ROUTE, SOCK_RAW, AF_INET)) < 0) {
-	logprintf("sifproxyarp: opening routing socket: \n");
+	LogPrintf(LogERROR, "sifproxyarp: opening routing socket: %s\n",
+		  strerror(errno));
 	return 0;
     }
 
@@ -119,7 +121,7 @@ sifproxyarp(unit, hisaddr)
     arpmsg.hdr.rtm_msglen = (char *) &arpmsg.hwa - (char *) &arpmsg
 	+ arpmsg.hwa.sdl_len;
     if (write(routes, &arpmsg, arpmsg.hdr.rtm_msglen) < 0) {
-	logprintf("add proxy arp entry: \n");
+	LogPrintf(LogERROR, "Add proxy arp entry: %s\n", strerror(errno));
 	close(routes);
 	return 0;
     }
@@ -147,12 +149,13 @@ cifproxyarp(unit, hisaddr)
     arpmsg.hdr.rtm_seq = ++rtm_seq;
 
     if ((routes = socket(PF_ROUTE, SOCK_RAW, AF_INET)) < 0) {
-	logprintf("sifproxyarp: opening routing socket: \n");
+	LogPrintf(LogERROR, "sifproxyarp: opening routing socket: %s\n",
+		  strerror(errno));
 	return 0;
     }
 
     if (write(routes, &arpmsg, arpmsg.hdr.rtm_msglen) < 0) {
-	logprintf("delete proxy arp entry: \n");
+	LogPrintf(LogERROR, "Delete proxy arp entry: %s\n", strerror(errno));
 	close(routes);
 	return 0;
     }
@@ -195,7 +198,7 @@ sifproxyarp(unit, hisaddr)
     ((struct sockaddr_in *) &arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
     arpreq.arp_flags = ATF_PERM | ATF_PUBL;
     if (ioctl(unit, SIOCSARP, (caddr_t)&arpreq) < 0) {
-	fprintf(stderr, "ioctl(SIOCSARP): \n");
+	LogPrintf(LogERROR, "sifproxyarp: ioctl(SIOCSARP): \n");
 	return 0;
     }
 
@@ -216,7 +219,7 @@ cifproxyarp(unit, hisaddr)
     SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
     ((struct sockaddr_in *) &arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
     if (ioctl(unit, SIOCDARP, (caddr_t)&arpreq) < 0) {
-	fprintf(stderr, "ioctl(SIOCDARP): \n");
+	LogPrintf(LogERROR, "cifproxyarp: ioctl(SIOCDARP): \n");
 	return 0;
     }
     return 1;
@@ -246,7 +249,7 @@ get_ether_addr(s, ipaddr, hwaddr)
     ifc.ifc_len = sizeof(ifs);
     ifc.ifc_req = ifs;
     if (ioctl(s, SIOCGIFCONF, &ifc) < 0) {
-	fprintf(stderr, "ioctl(SIOCGIFCONF): \n");
+	LogPrintf(LogERROR, "get_ether_addr: ioctl(SIOCGIFCONF): \n");
 	return 0;
     }
 
@@ -287,7 +290,7 @@ nextif:
 
     if (ifr >= ifend)
 	return 0;
-    LogPrintf(LOG_PHASE_BIT, "found interface %s for proxy arp\n", ifr->ifr_name);
+    LogPrintf(LogPHASE, "Found interface %s for proxy arp\n", ifr->ifr_name);
 
     /*
      * Now scan through again looking for a link-level address
@@ -335,14 +338,12 @@ kread(addr, buf, size)
   char *buf;
   int size;
 {
-
-	if (kvm_read(kvmd, addr, buf, size) != size) {
-		/* XXX this duplicates kvm_read's error printout */
-		(void)fprintf(stderr, "kvm_read %s\n",
-			kvm_geterr(kvmd));
-		return (-1);
-	}
-	return (0);
+  if (kvm_read(kvmd, addr, buf, size) != size) {
+    /* XXX this duplicates kvm_read's error printout */
+    LogPrintf(LogERROR, "kvm_read %s\n", kvm_geterr(kvmd));
+    return -1;
+  }
+  return 0;
 }
 
 kmemgetether(ifname, dlo)

@@ -15,23 +15,23 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: os.h,v 1.5 1997/02/22 16:10:39 peter Exp $
  *
  *	TODO:
  */
 
 #ifndef _OS_H_
 #define	_OS_H_
-#include "cdefs.h"
 
-int OsSetIpaddress __P((struct in_addr myaddr, struct in_addr hisaddr, struct in_addr netmask));
-int OsInterfaceDown __P((int));
-void OsSetInterfaceParams __P((int type, int mtu, int speed));
-int OpenTunnel __P((int *));
-void OsCloseLink __P((int flag));
-void OsLinkup __P((void)), OsLinkdown __P((void));
-void OsSetRoute __P((int, struct in_addr, struct in_addr, struct in_addr));
-void DeleteIfRoutes __P((int));
-void OsAddInOctets __P((int cnt));
-void OsAddOutOctets __P((int cnt));
+int OsSetIpaddress(struct in_addr myaddr, struct in_addr hisaddr, struct in_addr netmask);
+int OsInterfaceDown(int);
+void OsSetInterfaceParams(int type, int mtu, int speed);
+int OpenTunnel(int *);
+void OsCloseLink(int flag);
+void OsLinkup(void);
+void OsLinkdown (void);
+void OsSetRoute(int, struct in_addr, struct in_addr, struct in_addr);
+void DeleteIfRoutes(int);
+void OsAddInOctets(int cnt);
+void OsAddOutOctets(int cnt);
 #endif

@@ -1,317 +1,148 @@
-/*
- *	            PPP logging facility
- *
- *	    Written by Toshiharu OHNO (tony-o@iij.ad.jp)
- *
- *   Copyright (C) 1993, Internet Initiative Japan, Inc. All rights reserverd.
- *
- * Redistribution and use in source and binary forms are permitted
- * provided that the above copyright notice and this paragraph are
- * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
- * distribution and use acknowledge that the software was developed
- * by the Internet Initiative Japan, Inc.  The name of the
- * IIJ may not be used to endorse or promote products derived
- * from this software without specific prior written permission.
- * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
- * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $Id: log.c,v 1.11 1997/05/26 00:44:05 brian Exp $
- *
- */
-#include "defs.h"
-#include <time.h>
-#include <netdb.h>
-#ifdef __STDC__
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/param.h>
+#include <netinet/in.h>
+#include <syslog.h>
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-#ifdef NO_VSPRINTF
 #include <stdio.h>
-#endif
+#include "mbuf.h"
+#include "log.h"
+#include "loadalias.h"
+#include "vars.h"
 
-#include "hdlc.h"
+static char *LogNames[] = {
+    "Async",
+    "Carrier",
+    "Chat",
+    "Command",
+    "Connect",
+    "Debug",
+    "HDLC",
+    "LCP",
+    "Link",
+    "LQM",
+    "Phase",
+    "TCP/IP",
+    "Tun",
+    "Warning",
+    "Error",
+    "Alert"
+};
 
-#define	MAXLOG	70
+#define MSK(n) (1<<((n)-1))
 
-#define USELOGFILE
+static u_long LogMask = MSK(LogLINK) | MSK(LogCARRIER) | MSK(LogPHASE);
+static int LogTunno = -1;
 
-#ifdef USELOGFILE
-static FILE *logfile;
-#endif
-static char logbuff[MAX_MRU*3+(MAX_MRU/16+1)*22+80];
-char *logptr;
-static struct mbuf *logtop;
-static struct mbuf *lognext;
-static int  logcnt;
-static int  mypid;
+static int
+syslogLevel(int lev)
+{
+    switch (lev) {
+        case LogDEBUG:	return LOG_DEBUG;
+        case LogWARN:	return LOG_WARNING;
+        case LogERROR:	return LOG_ERR;
+        case LogALERT:	return LOG_ALERT;
+    }
+    return lev >= LogMIN && lev <= LogMAX ? LOG_INFO : 0;
+}
 
-int loglevel = LOG_LINK_BIT | LOG_CARRIER_BIT | LOG_PHASE_BIT;
+const char *
+LogName(int id)
+{
+    return id < LogMIN || id > LogMAX ? "Unknown" : LogNames[id-1];
+}
 
 void
-ListLog()
+LogKeep(int id)
 {
-  struct mbuf *bp;
+    if (id >= LogMIN && id <= LogMAXCONF)
+        LogMask |= MSK(id);
+}
 
-  for (bp = logtop; bp; bp = bp->next) {
-    write(1, MBUF_CTOP(bp), bp->cnt);
-    usleep(10);
-  }
+void
+LogDiscard(int id)
+{
+    if (id >= LogMIN && id <= LogMAXCONF)
+        LogMask &= ~MSK(id);
+}
+
+void
+LogDiscardAll()
+{
+    LogMask = 0;
 }
 
 int
-LogOpen(tunno)
-int tunno;
+LogIsKept(int id)
 {
-#ifdef USELOGFILE
-  char buf[80];
-
-  sprintf(buf, LOGFILE,	tunno);
-  logfile = fopen(buf, "a");
-  if (logfile == NULL) {
-    fprintf(stderr, "can't open	%s.\r\n", buf);
-    return(1);
-  }
-#endif
-  if (!(mode & MODE_DIRECT))
-    fprintf(stderr, "Log level is %02x\r\n", loglevel);
-  logptr = logbuff;
-  logcnt = 0;
-  logtop = lognext = NULL;
-  return(0);
+    if (id < LogMIN)
+        return 0;
+    if (id <= LogMAXCONF)
+        return LogMask & MSK(id);
+    return id <= LogMAX;
 }
 
 void
-LogFlush()
+LogOpen(const char *Name)
 {
-  struct mbuf *bp;
-  int cnt;
-
-#ifdef USELOGFILE
-  *logptr = 0;
-  fprintf(logfile, "%s", logbuff);
-  fflush(logfile);
-#endif
-  cnt = logptr - logbuff + 1;
-  bp = mballoc(cnt, MB_LOG);
-  bcopy(logbuff, MBUF_CTOP(bp), cnt);
-  bp->cnt = cnt;
-  if (lognext) {
-    lognext->next = bp;
-    lognext = bp;
-    if (++logcnt > MAXLOG) {
-      logcnt--;
-      logtop = mbfree(logtop);
-    }
-  } else {
-    lognext = logtop = bp;
-  }
-  logptr = logbuff;
+    openlog(Name, LOG_PID, LOG_DAEMON);
 }
 
 void
-DupLog()
+LogSetTun(int tunno)
 {
-  mypid = 0;
-#ifdef USELOGFILE
-  dup2(fileno(logfile), 2);
-#endif
+    LogTunno = tunno;
 }
 
 void
 LogClose()
 {
-  LogFlush();
-#ifdef USELOGFILE
-  fclose(logfile);
-#endif
-  logptr = NULL;
-}
-
-#ifdef NO_VSPRINTF
-void
-vsprintf(buf, fmt, av)
-char *buf;
-char *fmt;
-va_list av;
-{
-  FILE foo;
-
-  foo._cnt = BUFSIZ;
-  foo._base = foo._ptr = buf; /* may have to cast(unsigned char *) */
-  foo._flag = _IOWRT+_IOSTRG;
-  (void) _doprnt(fmt, (va_list)av, &foo);
-  *foo._ptr = '\0'; /* plant terminating null character */
-}
-#endif
-
-static void
-vlogprintf(format, ap)
-char *format;
-va_list ap;
-{
-  if (logptr) {
-    vsnprintf(logptr, sizeof(logbuff)-(logptr-logbuff), format, ap);
-    logptr += strlen(logptr);
-    LogFlush();
-  }
+    closelog();
+    LogTunno = -1;
 }
 
 void
-#ifdef __STDC__
-logprintf(char *format, ...)
-#else
-logprintf(va_alist)
-va_dcl
-#endif
+LogPrintf(int lev, char *fmt, ...)
 {
-  va_list ap;
-#ifdef __STDC__
-  va_start(ap, format);
-#else
-  char *format;
+    va_list ap;
+    va_start(ap, fmt);
+    if (LogIsKept(lev)) {
+        static char nfmt[200];
 
-  va_start(ap);
-  format = va_arg(ap, char *);
-#endif
-  vlogprintf(format, ap);
-  va_end(ap);
-}
-
-void
-LogDumpBp(level, header, bp)
-int level;
-char *header;
-struct mbuf *bp;
-{
-  u_char *cp;
-  int cnt, loc;
-
-  if (!(loglevel & (1 << level)))
-    return;
-  LogTimeStamp();
-  snprintf(logptr, sizeof(logbuff)-(logptr-logbuff), "%s\n", header);
-  logptr += strlen(logptr);
-  loc = 0;
-  LogTimeStamp();
-  while (bp) {
-    cp = MBUF_CTOP(bp);
-    cnt = bp->cnt;
-    while (cnt-- > 0) {
-      snprintf(logptr, sizeof(logbuff)-(logptr-logbuff), " %02x", *cp++);
-      logptr += strlen(logptr);
-      if (++loc == 16) {
-	loc = 0;
-	*logptr++ = '\n';
-	if (logptr - logbuff > 1500)
-	  LogFlush();
-  	if (cnt) LogTimeStamp();
-      }
+        if (LogIsKept(LogTUN) && LogTunno != -1)
+            snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
+                     LogTunno, LogName(lev), fmt);
+        else
+            snprintf(nfmt, sizeof nfmt, "%s: %s", LogName(lev), fmt);
+        if ((lev == LogERROR || lev == LogALERT || lev == LogWARN) && VarTerm)
+          vfprintf(VarTerm, fmt, ap);
+        if (lev != LogWARN || !VarTerm)
+          vsyslog(syslogLevel(lev), nfmt, ap);
     }
-    bp = bp->next;
-  }
-  if (loc) *logptr++ = '\n';
-  LogFlush();
+    va_end(ap);
 }
 
 void
-LogDumpBuff(level, header, ptr, cnt)
-int level;
-char *header;
-u_char *ptr;
-int cnt;
+LogDumpBp(int lev, char *hdr, struct mbuf *bp)
 {
-  int loc;
+    LogDumpBuff(lev, hdr, MBUF_CTOP(bp), bp->cnt);
+}
 
-  if (cnt < 1) return;
-  if (!(loglevel & (1 << level)))
-    return;
-  LogTimeStamp();
-  snprintf(logptr, sizeof(logbuff)-(logptr-logbuff), "%s\n", header);
-  logptr += strlen(logptr);
-  LogTimeStamp();
-  loc = 0;
-  while (cnt-- > 0) {
-    snprintf(logptr, sizeof(logbuff)-(logptr-logbuff), " %02x", *ptr++);
-    logptr += strlen(logptr);
-    if (++loc == 16) {
-      loc = 0;
-      *logptr++ = '\n';
-      if (cnt) LogTimeStamp();
+void
+LogDumpBuff(int lev, char *hdr, u_char *ptr, int n)
+{
+    if (LogIsKept(lev)) {
+        char buf[49];
+        char *b;
+        int f;
+
+        if (hdr && *hdr)
+            LogPrintf(lev, "%s", hdr);
+        while (n > 0) {
+            b = buf;
+            for (f = 0; f < 16 && n--; f++, b += 3)
+               sprintf(b, " %02x", (int)*ptr++);
+            LogPrintf(lev, buf);
+        }
     }
-  }
-  if (loc) *logptr++ = '\n';
-  LogFlush();
-}
-
-void
-LogTimeStamp()
-{
-  struct tm *ptm;
-  time_t ltime;
-
-  if (mypid == 0)
-    mypid = getpid();
-  ltime = time(0);
-  ptm = localtime(&ltime);
-  snprintf(logptr, sizeof(logbuff)-(logptr-logbuff),
-    "%02d-%02d %02d:%02d:%02d [%d] ",
-    ptm->tm_mon + 1, ptm->tm_mday,
-	ptm->tm_hour, ptm->tm_min, ptm->tm_sec, mypid);
-  logptr += strlen(logptr);
-}
-
-void
-#ifdef __STDC__
-LogPrintf(int level, char *format, ...)
-#else
-LogPrintf(va_alist)
-va_dcl
-#endif
-{
-  va_list ap;
-#ifdef __STDC__
-  va_start(ap, format);
-#else
-  int level;
-  char *format;
-
-  va_start(ap);
-  int = va_arg(ap, int);
-  format = va_arg(ap, char *);
-#endif
-  if (!(loglevel & level))
-    return;
-  LogTimeStamp();
-  vlogprintf(format, ap);
-  va_end(ap);
-}
-
-void
-LogReOpen( sig )
-int sig;
-{
-#ifdef USELOGFILE
-  FILE *nlogfile;
-  char buf[80];
-
-  sprintf(buf, LOGFILE,	tunno);
-  nlogfile = fopen(buf,	"a");
-  if (nlogfile == NULL) {
-    LogPrintf(~0,"can't	re-open	%s.\r\n", buf);
-  }
-  else {
-    LogPrintf(~0,"log file closed due to signal %d.\r\n",sig);
-    LogFlush();
-    fclose(logfile);
-    logfile = nlogfile;
-    logptr = logbuff;
-    logcnt = 0;
-    logtop = lognext = NULL;
-    LogPrintf(~0,"log file opened due to signal %d.\r\n",sig);
-  }
-#endif
-  LogFlush();
 }
