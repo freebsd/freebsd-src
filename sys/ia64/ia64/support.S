@@ -192,7 +192,8 @@ END(ia64_call_efi_physical)
  * fu{byte,word} : fetch a byte (word) from user memory
  */
 	
-ENTRY(suword, 2)
+ENTRY(suword64, 2)
+XENTRY(suword)
 
 	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
 	cmp.geu	p6,p0=in0,r14
@@ -218,9 +219,9 @@ ENTRY(suword, 2)
 	mov	ret0=r0
 	br.ret.sptk.few rp
 
-END(suword)
+END(suword64)
 	
-ENTRY(suhword, 2)
+ENTRY(suword32, 2)
 
 	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
 	cmp.geu	p6,p0=in0,r14
@@ -246,7 +247,7 @@ ENTRY(suhword, 2)
 	mov	ret0=r0
 	br.ret.sptk.few rp
 
-END(suhword)
+END(suword32)
 	
 ENTRY(subyte, 2)
 
@@ -276,7 +277,8 @@ ENTRY(subyte, 2)
 
 END(subyte)
 
-ENTRY(fuword, 1)
+ENTRY(fuword64, 1)
+XENTRY(fuword)
 
 	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
 	cmp.geu	p6,p0=in0,r14
@@ -301,9 +303,9 @@ ENTRY(fuword, 1)
 
 	br.ret.sptk.few rp
 
-END(fuword)
+END(fuword64)
 
-ENTRY(fuhword, 1)
+ENTRY(fuword32, 1)
 
 	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
 	cmp.geu	p6,p0=in0,r14
@@ -328,7 +330,7 @@ ENTRY(fuhword, 1)
 
 	br.ret.sptk.few rp
 
-END(fuhword)
+END(fuword32)
 
 ENTRY(fubyte, 1)
 

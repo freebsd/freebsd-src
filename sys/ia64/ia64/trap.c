@@ -909,8 +909,6 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 
 #include <i386/include/psl.h>
 
-extern long fuhword(const void *base);
-
 static void
 ia32_syscall(struct trapframe *framep)
 {
@@ -956,14 +954,16 @@ ia32_syscall(struct trapframe *framep)
 			/*
 			 * Code is first argument, followed by actual args.
 			 */
-			code = fuhword(params);
+			code = fuword32(params);
 			params += sizeof(int);
 		} else if (code == SYS___syscall) {
 			/*
 			 * Like syscall, but code is a quad, so as to maintain
 			 * quad alignment for the rest of the arguments.
+			 * We use a 32-bit fetch in case params is not
+			 * aligned.
 			 */
-			code = fuword(params);
+			code = fuword32(params);
 			params += sizeof(quad_t);
 		}
 	}
