@@ -398,7 +398,7 @@ cmd_destroy(struct g_bde_key *gl, int nkey)
 	bzero(&gl->sectorN, sizeof gl->sectorN);
 	bzero(&gl->keyoffset, sizeof gl->keyoffset);
 	bzero(&gl->flags, sizeof gl->flags);
-	bzero(gl->key, sizeof gl->key);
+	bzero(gl->mkey, sizeof gl->mkey);
 	for (i = 0; i < G_BDE_MAXKEYS; i++)
 		if (i != nkey)
 			gl->lsector[i] = ~0;
@@ -594,7 +594,8 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		}
 	}
 
-	random_bits(gl->key, sizeof gl->key);
+	random_bits(gl->mkey, sizeof gl->mkey);
+	random_bits(gl->salt, sizeof gl->salt);
 	
 	return;
 }
