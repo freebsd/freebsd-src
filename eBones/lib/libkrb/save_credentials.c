@@ -30,8 +30,17 @@ static char *rcsid =
  * by the tf_init() or tf_save_cred() routines.
  */
 
-int save_credentials(char *service, char *instance, char *realm,
-    des_cblock session, int lifetime, int kvno, KTEXT ticket, long issue_date)
+int
+save_credentials(service, instance, realm, session, lifetime, kvno,
+                 ticket, issue_date)
+    char *service;              /* Service name */
+    char *instance;             /* Instance */
+    char *realm;                /* Auth domain */
+    C_Block session;            /* Session key */
+    int lifetime;               /* Lifetime */
+    int kvno;                   /* Key version number */
+    KTEXT ticket;               /* The ticket itself */
+    long issue_date;            /* The issue time */
 {
     int tf_status;   /* return values of the tf_util calls */
 

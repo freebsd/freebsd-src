@@ -46,18 +46,32 @@ static char *rcsid =
  * See create_ticket.c for the format of the ticket packet.
  */
 
-int decomp_ticket(KTEXT tkt, unsigned char *flags, char *pname,
-    char *pinstance, char *prealm, unsigned long *paddress, des_cblock session,
-    int *life, unsigned long *time_sec, char *sname, char *sinstance,
-    des_cblock key, des_key_schedule key_s)
+int
+decomp_ticket(tkt, flags, pname, pinstance, prealm, paddress, session,
+              life, time_sec, sname, sinstance, key, key_s)
+    KTEXT tkt;			/* The ticket to be decoded */
+    unsigned char *flags;       /* Kerberos ticket flags */
+    char *pname;		/* Authentication name */
+    char *pinstance;		/* Principal's instance */
+    char *prealm;		/* Principal's authentication domain */
+    unsigned long *paddress;    /* Net address of entity
+                                 * requesting ticket */
+    C_Block session;		/* Session key inserted in ticket */
+    int *life; 		        /* Lifetime of the ticket */
+    unsigned long *time_sec;    /* Issue time and date */
+    char *sname;		/* Service name */
+    char *sinstance;		/* Service instance */
+    C_Block key;		/* Service's secret key
+                                 * (to decrypt the ticket) */
+    Key_schedule key_s;		/* The precomputed key schedule */
 {
     static int tkt_swap_bytes;
     unsigned char *uptr;
     char *ptr = (char *)tkt->dat;
 
 #ifndef NOENCRYPTION
-    pcbc_encrypt((des_cblock *)tkt->dat,(des_cblock *)tkt->dat,
-	(long)tkt->length,key_s,(des_cblock *)key,DECRYPT);
+    pcbc_encrypt((C_Block *)tkt->dat,(C_Block *)tkt->dat,(long)tkt->length,
+	key_s,(C_Block *)key,DECRYPT);
 #endif /* ! NOENCRYPTION */
 
     *flags = *ptr;              /* get flags byte */

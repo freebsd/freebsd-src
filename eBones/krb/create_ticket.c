@@ -70,9 +70,20 @@ static char rcsid[] =
  *
  */
 
-int krb_create_ticket(KTEXT tkt, unsigned char flags, char *pname,
-    char *pinstance, char *prealm, long paddress, char *session, short life,
-    long time_sec, char *sname, char *sinstance, des_cblock key)
+int krb_create_ticket(tkt, flags, pname, pinstance, prealm, paddress,
+		  session, life, time_sec, sname, sinstance, key)
+    KTEXT   tkt;                /* Gets filled in by the ticket */
+    unsigned char flags;        /* Various Kerberos flags */
+    char    *pname;             /* Principal's name */
+    char    *pinstance;         /* Principal's instance */
+    char    *prealm;            /* Principal's authentication domain */
+    long    paddress;           /* Net address of requesting entity */
+    char    *session;           /* Session key inserted in ticket */
+    short   life;               /* Lifetime of the ticket */
+    long    time_sec;           /* Issue time and date */
+    char    *sname;             /* Service Name */
+    char    *sinstance;         /* Instance Name */
+    C_Block key;                /* Service's secret key */
 {
     Key_schedule key_s;
     register char *data;        /* running index into ticket */
@@ -113,9 +124,9 @@ int krb_create_ticket(KTEXT tkt, unsigned char flags, char *pname,
     }
 
 #ifndef NOENCRYPTION
-    key_sched((des_cblock *)key,key_s);
-    pcbc_encrypt((des_cblock *)tkt->dat,(des_cblock *)tkt->dat,
-	(long)tkt->length,key_s,(des_cblock *)key,ENCRYPT);
+    key_sched((C_Block *)key,key_s);
+    pcbc_encrypt((C_Block *)tkt->dat,(C_Block *)tkt->dat,(long)tkt->length,
+	key_s,(C_Block *)key,ENCRYPT);
 #endif
     return 0;
 }

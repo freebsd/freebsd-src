@@ -9,10 +9,12 @@
  *	$Id: maketime.c,v 1.3 1995/07/18 16:37:29 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
 "$Id: maketime.c,v 1.1 1994/03/21 16:23:54 piero Exp ";
 #endif	lint
+#endif
 
 #include <sys/time.h>
 

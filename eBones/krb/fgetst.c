@@ -25,9 +25,13 @@ static char rcsid[] =
  * returns the number of characters read, including the null terminator.
  */
 
-int fgetst(FILE *f, char *s, int n)
+int
+fgetst(f, s, n)
+    FILE   *f;
+    register char *s;
+    int     n;
 {
-    register count = n;
+    register int count = n;
     int     ch;		/* NOT char; otherwise you don't see EOF */
 
     while ((ch = getc(f)) != EOF && ch && --count) {

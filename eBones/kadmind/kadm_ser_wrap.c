@@ -7,17 +7,21 @@
  * Kerberos administration server-side support functions
  */
 
+#if 0
 #ifndef	lint
 static char rcsid_module_c[] =
 "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/kadm_ser_wrap.c,v 4.4 89/09/26 09:29:36 jtkohl Exp ";
 #endif	lint
+#endif
 
 /*
 kadm_ser_wrap.c
 unwraps wrapped packets and calls the appropriate server subroutine
 */
 
+#include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>
@@ -32,6 +36,7 @@ Kadm_Server server_parm;
 kadm_ser_init
 set up the server_parm structure
 */
+int
 kadm_ser_init(inter, realm)
 int inter;			/* interactive or from file */
 char realm[];
@@ -40,14 +45,14 @@ char realm[];
   struct hostent *hp;
   char hostname[MAXHOSTNAMELEN];
 
-  (void) init_kadm_err_tbl();
-  (void) init_krb_err_tbl();
+  init_kadm_err_tbl();
+  init_krb_err_tbl();
   if (gethostname(hostname, sizeof(hostname)))
       return KADM_NO_HOSTNAME;
 
-  (void) strcpy(server_parm.sname, PWSERV_NAME);
-  (void) strcpy(server_parm.sinst, KRB_MASTER);
-  (void) strcpy(server_parm.krbrlm, realm);
+  strcpy(server_parm.sname, PWSERV_NAME);
+  strcpy(server_parm.sinst, KRB_MASTER);
+  strcpy(server_parm.krbrlm, realm);
 
   server_parm.admin_fd = -1;
 				/* setting up the addrs */
@@ -70,7 +75,8 @@ char realm[];
   return KADM_SUCCESS;
 }
 
-static void errpkt(dat, dat_len, code)
+static void
+errpkt(dat, dat_len, code)
 u_char **dat;
 int *dat_len;
 int code;
@@ -92,6 +98,7 @@ int code;
 kadm_ser_in
 unwrap the data stored in dat, process, and return it.
 */
+int
 kadm_ser_in(dat,dat_len)
 u_char **dat;
 int *dat_len;
@@ -121,8 +128,8 @@ int *dat_len;
     bcopy((char *)(*dat) + in_len, (char *)authent.dat, authent.length);
     authent.mbz = 0;
     /* service key should be set before here */
-    if (retc = krb_rd_req(&authent, server_parm.sname, server_parm.sinst,
-			  server_parm.recv_addr.sin_addr.s_addr, &ad, (char *)0))
+    if ((retc = krb_rd_req(&authent, server_parm.sname, server_parm.sinst,
+			  server_parm.recv_addr.sin_addr.s_addr, &ad, (char *)0)))
     {
 	errpkt(dat, dat_len,retc + krb_err_base);
 	return retc + krb_err_base;
@@ -134,7 +141,8 @@ int *dat_len;
 #ifdef NOENCRYPTION
     ncksum = 0;
 #else
-    ncksum = quad_cksum(in_st, (u_long *)0, (long) r_len, 0, ad.session);
+    ncksum = quad_cksum((des_cblock *)in_st, (des_cblock *)0, (long) r_len,
+	0, (des_cblock *)ad.session);
 #endif
     if (ncksum!=ad.checksum) {		/* yow, are we correct yet */
 	clr_cli_secrets();
@@ -144,11 +152,11 @@ int *dat_len;
 #ifdef NOENCRYPTION
     bzero(sess_sched, sizeof(sess_sched));
 #else
-    des_key_sched(ad.session, sess_sched);
+    des_key_sched((des_cblock *)ad.session, sess_sched);
 #endif
-    if (retc = (int) krb_rd_priv(in_st, r_len, sess_sched, ad.session,
+    if ((retc = (int) krb_rd_priv(in_st, r_len, sess_sched, ad.session,
 				 &server_parm.recv_addr,
-				 &server_parm.admin_addr, &msg_st)) {
+				 &server_parm.admin_addr, &msg_st))) {
 	clr_cli_secrets();
 	errpkt(dat, dat_len,retc + krb_err_base);
 	return retc + krb_err_base;

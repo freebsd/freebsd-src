@@ -34,9 +34,12 @@ static char *rcsid =
  * krb_get_krbhst().
  */
 
-int krb_get_lrealm(char *r, int n)
+int
+krb_get_lrealm(r,n)
+    char *r;
+    int n;
 {
-    FILE *cnffile;
+    FILE *cnffile, *fopen();
 
     if (n > 1)
 	return(KFAILURE);  /* Temporary restriction */

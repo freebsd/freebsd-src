@@ -32,8 +32,12 @@ static char rcsid[] =
  * krb_get_in_tkt().
  */
 
-int krb_get_tf_fullname(char *ticket_file, char *name, char *instance,
-    char *realm)
+int
+krb_get_tf_fullname(ticket_file, name, instance, realm)
+  char *ticket_file;
+  char *name;
+  char *instance;
+  char *realm;
 {
     int tf_status;
     CREDENTIALS c;

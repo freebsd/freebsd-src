@@ -70,11 +70,14 @@
  *
  */
 
+#if 0
 #ifndef	lint
 static char rcsid_kprop_c[] =
 "$Id: kprop.c,v 1.1.1.1 1995/08/03 07:36:18 mark Exp $";
 #endif	lint
+#endif
 
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -118,6 +121,11 @@ struct slave_host {
     struct slave_host *next;
 };
 
+void Death(char *s);
+int get_slaves(struct slave_host **psl, char *file, time_t ok_mtime);
+int prop_to_slaves(struct slave_host *sl, int fd, char *fslv);
+
+int
 main(argc, argv)
     int     argc;
     char   *argv[];
@@ -128,7 +136,7 @@ main(argc, argv)
     struct stat stbuf, stbuf_ok;
     long    l_init, l_final;
     char   *pc;
-    int    l_diff, prop_to_slaves(), get_slaves();
+    int    l_diff;
     static struct slave_host *slave_host_list = NULL;
     struct slave_host *sh;
 
@@ -253,6 +261,7 @@ main(argc, argv)
     exit(0);
 }
 
+void
 Death(s)
     char   *s;
 {
@@ -271,7 +280,8 @@ Death(s)
      4 and 5 repeat til EOF ...
 */
 
-int prop_to_slaves(sl, fd, fslv)
+int
+prop_to_slaves(sl, fd, fslv)
     struct slave_host *sl;
     int     fd;
     char   *fslv;
@@ -308,7 +318,7 @@ int prop_to_slaves(sl, fd, fslv)
     sin.sin_port = sp->s_port;
 
     strcpy(path, fslv);
-    if (pc = rindex(path, '/')) {
+    if ((pc = rindex(path, '/'))) {
 	pc += 1;
     } else {
 	pc = path;
@@ -420,7 +430,7 @@ int prop_to_slaves(sl, fd, fslv)
 #ifdef NOENCRYPTION
 		bzero((char *)session_sched, sizeof(session_sched));
 #else
-		if (key_sched (cred.session, session_sched)) {
+		if (key_sched ((C_Block *)cred.session, session_sched)) {
 		    fprintf (stderr, "%s: can't make key schedule.",
 			     cs->name);
 		    close (s);
@@ -461,7 +471,7 @@ int prop_to_slaves(sl, fd, fslv)
 		    continue;	/*** NEXT SLAVE ***/
 		}
 
-		while (n = read(fd, buf, sizeof buf)) {
+		while ((n = read(fd, buf, sizeof buf))) {
 		    if (n < 0) {
 			perror("input file read error");
 			exit(1);
@@ -475,7 +485,7 @@ int prop_to_slaves(sl, fd, fslv)
 						  &my_sin, &sin);
 			else
 			    length = krb_mk_safe (buf, obuf, n,
-						  cred.session,
+						  (C_Block *)cred.session,
 						  &my_sin, &sin);
 			if (length == -1) {
 			    fprintf (stderr, "%s: %s failed.",
@@ -528,7 +538,8 @@ punt:
     return (1);
 }
 
-int get_slaves(psl, file, ok_mtime)
+int
+get_slaves(psl, file, ok_mtime)
     struct slave_host **psl;
     char   *file;
     time_t  ok_mtime;
@@ -547,13 +558,13 @@ int get_slaves(psl, file, ok_mtime)
 	exit(-1);
     }
     strcpy(path, file);
-    if (ppath = rindex(path, '/')) {
+    if ((ppath = rindex(path, '/'))) {
 	ppath += 1;
     } else {
 	ppath = path;
     }
     for (th = psl; fgets(namebuf, sizeof namebuf, fin); th = &(*th)->next) {
-	if (pc = index(namebuf, '\n')) {
+	if ((pc = index(namebuf, '\n'))) {
 	    *pc = '\0';
 	} else {
 	    fprintf(stderr, "Host name too long (>= %d chars) in '%s'.\n",

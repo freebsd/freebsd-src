@@ -20,17 +20,20 @@ static char rcsid[] =
 #endif	lint
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/file.h>
+#include <des.h>
 #include <krb.h>
 #include <krb_db.h>
 #include <kdc.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/file.h>
 
-long kdb_get_master_key(int prompt, C_Block master_key,
-     Key_schedule master_key_sched)
+long
+kdb_get_master_key(prompt, master_key, master_key_sched)
+     int prompt;
+     C_Block master_key;
+     Key_schedule master_key_sched;
 {
   int kfile;
 
@@ -39,7 +42,7 @@ long kdb_get_master_key(int prompt, C_Block master_key,
       placebo_read_password(master_key,
 			    "\nEnter Kerberos master key: ", 0);
 #else
-      des_read_password((C_Block *)master_key,
+      des_read_password((des_cblock *)master_key,
 			     "\nEnter Kerberos master key: ", 0);
 #endif
       printf ("\n");
@@ -57,24 +60,9 @@ long kdb_get_master_key(int prompt, C_Block master_key,
   }
 
 #ifndef NOENCRYPTION
-  key_sched((C_Block *)master_key,master_key_sched);
+  key_sched((des_cblock *)master_key,master_key_sched);
 #endif
   return (0);
-}
-
-/* The old algorithm used the key schedule as the initial vector which
-   was byte order depedent ... */
-
-void kdb_encrypt_key (C_Block in, C_Block out, C_Block master_key,
-     Key_schedule master_key_sched, int e_d_flag)
-{
-
-#ifdef NOENCRYPTION
-  bcopy(in, out, sizeof(C_Block));
-#else
-  pcbc_encrypt((C_Block *)in,(C_Block *)out,(long)sizeof(C_Block),
-	master_key_sched,(C_Block *)master_key, e_d_flag);
-#endif
 }
 
 /* The caller is reasponsible for cleaning up the master key and sched,
@@ -82,8 +70,11 @@ void kdb_encrypt_key (C_Block in, C_Block out, C_Block master_key,
 
 /* Returns master key version if successful, otherwise -1 */
 
-long kdb_verify_master_key (C_Block master_key, Key_schedule master_key_sched,
-     FILE *out)
+long
+kdb_verify_master_key (master_key, master_key_sched, out)
+     C_Block master_key;
+     Key_schedule master_key_sched;
+     FILE *out;  /* setting this to non-null be do output */
 {
   C_Block key_from_db;
   Principal principal_data[1];
@@ -136,4 +127,22 @@ long kdb_verify_master_key (C_Block master_key, Key_schedule master_key_sched,
   }
 
   return (master_key_version);
+}
+
+/* The old algorithm used the key schedule as the initial vector which
+   was byte order depedent ... */
+
+void
+kdb_encrypt_key (in, out, master_key, master_key_sched, e_d_flag)
+     C_Block in, out, master_key;
+     Key_schedule master_key_sched;
+     int e_d_flag;
+{
+
+#ifdef NOENCRYPTION
+  bcopy(in, out, sizeof(C_Block));
+#else
+  pcbc_encrypt((des_cblock*)in,(des_cblock*)out,(long)sizeof(C_Block),
+	master_key_sched,(des_cblock*)master_key,e_d_flag);
+#endif
 }

@@ -27,8 +27,15 @@ static char *rcsid =
  * session, liftime and kvno.
  */
 
-void extract_ticket(KTEXT cipher, int n, char *session, int *lifetime,
-    int *kvno, char *realm, KTEXT ticket)
+void
+extract_ticket(cipher,n,session,lifetime,kvno,realm,ticket)
+    KTEXT cipher;		/* The ciphertext */
+    int n;			/* Which ticket */
+    char *session;		/* The session key for this tkt */
+    int *lifetime;		/* The life of this ticket */
+    int *kvno;			/* The kvno for the service */
+    char *realm;		/* Realm in which tkt issued */
+    KTEXT ticket;		/* The ticket itself */
 {
     char *ptr;
     int i;

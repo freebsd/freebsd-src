@@ -15,12 +15,13 @@ static char *rcsid =
 #endif /* lint */
 #endif
 
-#include <stdio.h>
 #include <des.h>
 #include <krb.h>
 #include <prot.h>
 #include <sys/time.h>
 #include <strings.h>
+
+extern int krb_ap_req_debug;
 
 static struct timeval t_local = { 0, 0 };
 
@@ -65,17 +66,20 @@ static char st_inst[INST_SZ];	/* server's instance */
  * krb_rd_req().
  */
 
-int krb_set_key(char *key, int cvt)
+int
+krb_set_key(key,cvt)
+    char *key;
+    int cvt;
 {
 #ifdef NOENCRYPTION
     bzero(ky, sizeof(ky));
     return KSUCCESS;
 #else
     if (cvt)
-	string_to_key(key,(des_cblock *)ky);
+	string_to_key(key,(C_Block *)ky);
     else
 	bcopy(key,(char *)ky,8);
-    return(des_key_sched((des_cblock *)ky,serv_key));
+    return(des_key_sched((C_Block *)ky,serv_key));
 #endif
 }
 
@@ -121,8 +125,14 @@ int krb_set_key(char *key, int cvt)
  * Mutual authentication is not implemented.
  */
 
-int krb_rd_req (KTEXT authent, char *service, char *instance, long from_addr,
-    AUTH_DAT *ad, char *fn)
+int
+krb_rd_req(authent,service,instance,from_addr,ad,fn)
+    register KTEXT authent;	/* The received message */
+    char *service;		/* Service name */
+    char *instance;		/* Service instance */
+    long from_addr;		/* Net address of originating host */
+    AUTH_DAT *ad;		/* Structure to be filled in */
+    char *fn;			/* Filename to get keys from */
 {
     static KTEXT_ST ticket;     /* Temp storage for ticket */
     static KTEXT tkt = &ticket;
@@ -241,10 +251,9 @@ int krb_rd_req (KTEXT authent, char *service, char *instance, long from_addr,
     bcopy(ptr + tkt->length, (char *)(req_id->dat),req_id->length);
 
 #ifndef NOENCRYPTION
-    key_sched((des_cblock *)ad->session,seskey_sched);
-    pcbc_encrypt((des_cblock *)req_id->dat,(des_cblock *)req_id->dat,
-	(long)req_id->length,seskey_sched,(des_cblock *)ad->session,
-	DES_DECRYPT);
+    key_sched((C_Block *)ad->session,seskey_sched);
+    pcbc_encrypt((C_Block *)req_id->dat,(C_Block *)req_id->dat,
+	(long)req_id->length,seskey_sched,(C_Block *)ad->session,DES_DECRYPT);
 #endif /* NOENCRYPTION */
 
 #define check_ptr() if ((ptr - (char *) req_id->dat) > req_id->length) return(RD_AP_MODIFIED);

@@ -46,6 +46,7 @@ static char rcsid[] =
 /* XXX they aren't all used; to avoid incompatible changes we will
  * fool lint for the moment */
 /*ARGSUSED */
+int
 add_ticket(cipher,n,session,lifetime,sname,instance,realm,kvno,ticket)
     KTEXT cipher;		/* Ciphertext info for ticket */
     char *sname;		/* Service name */

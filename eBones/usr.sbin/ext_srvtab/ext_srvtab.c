@@ -5,12 +5,15 @@
  *	$Id: ext_srvtab.c,v 1.3 1995/07/18 16:35:55 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
 "$Id: ext_srvtab.c,v 1.3 1995/07/18 16:35:55 mark Exp $";
 #endif	lint
+#endif
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/file.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -30,6 +33,11 @@ static Key_schedule master_key_schedule;
 char progname[] = "ext_srvtab";
 char realm[REALM_SZ];
 
+void FWrite(char *p, int size, int n, FILE *f);
+void StampOutSecrets(void);
+void usage(void);
+
+int
 main(argc, argv)
   int argc;
   char *argv[];
@@ -131,12 +139,14 @@ main(argc, argv)
 
 }
 
+void
 Die()
 {
     StampOutSecrets();
     exit(1);
 }
 
+void
 FWrite(p, size, n, f)
   char   *p;
   int     size;
@@ -149,6 +159,7 @@ FWrite(p, size, n, f)
     }
 }
 
+void
 StampOutSecrets()
 {
     bzero(master_key, sizeof master_key);
@@ -156,6 +167,7 @@ StampOutSecrets()
     bzero(master_key_schedule, sizeof master_key_schedule);
 }
 
+void
 usage()
 {
     fprintf(stderr,

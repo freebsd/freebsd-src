@@ -15,7 +15,6 @@ static char *rcsid =
 #endif /* lint */
 #endif
 
-#include <stdio.h>
 #include <krb.h>
 #include <prot.h>
 #include <strings.h>

@@ -15,10 +15,10 @@ static char rcsid[] =
 #endif
 
 #include <stdio.h>
-#include <string.h>
 #include <ctype.h>
 #include <netdb.h>
-#include <krb.h>
+
+char *index();
 
 /*
  * This routine takes an alias for a host name and returns the first
@@ -37,7 +37,8 @@ static char rcsid[] =
  * to the original "alias" argument is returned.
  */
 
-char *krb_get_phost(char *alias)
+char * krb_get_phost(alias)
+    char *alias;
 {
     struct hostent *h;
     char *phost = alias;

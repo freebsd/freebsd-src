@@ -50,7 +50,11 @@ static char *rcsid =
  * nameserver.
  */
 
-int krb_get_krbhst(char *h, char *r, int n)
+int
+krb_get_krbhst(h,r,n)
+    char *h;
+    char *r;
+    int n;
 {
     FILE *cnffile;
     char tr[REALM_SZ];

@@ -31,15 +31,14 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
 static char sccsid[] = "@(#)registerd.c	8.1 (Berkeley) 6/1/93";
 #endif /* not lint */
+#endif
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -47,13 +46,16 @@ static char sccsid[] = "@(#)registerd.c	8.1 (Berkeley) 6/1/93";
 #include <sys/resource.h>
 #include <sys/param.h>
 #include <sys/file.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <syslog.h>
-#include <stdio.h>
 #include <des.h>
-#include <kerberosIV/krb.h>
-#include <kerberosIV/krb_db.h>
+#include <krb.h>
+#include <krb_db.h>
+#include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "register_proto.h"
 #include "pathnames.h"
 
@@ -63,6 +65,13 @@ static char sccsid[] = "@(#)registerd.c	8.1 (Berkeley) 6/1/93";
 
 char	*progname, msgbuf[BUFSIZ];
 
+void cleanup(void);
+void die(void);
+void send_packet(char *msg, int flag);
+int net_get_principal(char *pname, char *iname, C_Block *keyp);
+int do_append(struct sockaddr_in *sinp);
+
+void
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -74,16 +83,15 @@ main(argc, argv)
 	int	kf, retval, sval;
 	struct	sockaddr_in	sin;
 	char	keyfile[MAXPATHLEN], keybuf[KBUFSIZ];
-	void die();
 
 	progname = argv[0];		/* for the library routines */
 
 	openlog("registerd", LOG_PID, LOG_AUTH);
 
-	(void)signal(SIGHUP, SIG_IGN);
-	(void)signal(SIGINT, SIG_IGN);
-	(void)signal(SIGTSTP, SIG_IGN);
-	(void)signal(SIGPIPE, die);
+	signal(SIGHUP, SIG_IGN);
+	signal(SIGINT, SIG_IGN);
+	signal(SIGTSTP, SIG_IGN);
+	signal(SIGPIPE, (__sighandler_t *)die);
 
 	if (setrlimit(RLIMIT_CORE, &rl) < 0) {
 		syslog(LOG_ERR, "setrlimit: %m");
@@ -109,7 +117,7 @@ main(argc, argv)
 	if ((kf = open(keyfile, O_RDONLY)) < 0) {
 		syslog(LOG_ERR,
 		    "error opening Kerberos update keyfile (%s): %m", keyfile);
-		(void) sprintf(msgbuf,
+		sprintf(msgbuf,
 		    "couldn't open session keyfile for your host");
 		send_packet(msgbuf, CLEAR);
 		exit(1);
@@ -117,16 +125,16 @@ main(argc, argv)
 
 	if (read(kf, keybuf, KBUFSIZ) != KBUFSIZ) {
 		syslog(LOG_ERR, "wrong read size of Kerberos update keyfile");
-		(void) sprintf(msgbuf,
+		sprintf(msgbuf,
 			"couldn't read session key from your host's keyfile");
 		send_packet(msgbuf, CLEAR);
 		exit(1);
 	}
-	(void) sprintf(msgbuf, GOTKEY_MSG);
+	sprintf(msgbuf, GOTKEY_MSG);
 	send_packet(msgbuf, CLEAR);
 	kfile = (struct keyfile_data *) keybuf;
-	key_sched(kfile->kf_key, schedule);
-	des_set_key(kfile->kf_key, schedule);
+	key_sched((C_Block *)kfile->kf_key, schedule);
+	des_set_key((des_cblock *)kfile->kf_key, schedule);
 
 	/* read the command code byte */
 
@@ -155,10 +163,10 @@ main(argc, argv)
 
 	code = (u_char) retval;
 	if (code != KSUCCESS) {
-		(void) sprintf(msgbuf, "%s", krb_err_txt[code]);
+		sprintf(msgbuf, "%s", krb_err_txt[code]);
 		send_packet(msgbuf, RCRYPT);
 	} else {
-		(void) sprintf(msgbuf, "Update complete.");
+		sprintf(msgbuf, "Update complete.");
 		send_packet(msgbuf, RCRYPT);
 	}
 	cleanup();
@@ -170,6 +178,7 @@ main(argc, argv)
 static	Principal	principal_data[MAX_PRINCIPAL];
 static	C_Block		key, master_key;
 static Key_schedule	master_key_schedule;
+
 int
 do_append(sinp)
 	struct sockaddr_in *sinp;
@@ -207,7 +216,7 @@ do_append(sinp)
 	 * convert password to key and store it
 	 */
 
-	if (net_get_principal(input_name, input_instance, key) != 0) {
+	if (net_get_principal(input_name, input_instance, (C_Block *)key) != 0) {
 		return(KFAILURE);
 	}
 
@@ -273,6 +282,7 @@ do_append(sinp)
 
 }
 
+void
 send_packet(msg,flag)
 	char	*msg;
 	int	flag;
@@ -295,6 +305,7 @@ send_packet(msg,flag)
 
 }
 
+int
 net_get_principal(pname, iname, keyp)
 	char	*pname, *iname;
 	C_Block	*keyp;
@@ -321,11 +332,12 @@ net_get_principal(pname, iname, keyp)
 		return(-1);
 	}
 
-	string_to_key(password, *keyp);
+	string_to_key(password, (des_cblock *)*keyp);
 	bzero(password, 255);
 	return(0);
 }
 
+void
 cleanup()
 {
 	bzero(master_key, sizeof(master_key));

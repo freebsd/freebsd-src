@@ -14,9 +14,7 @@ static char rcsid[] =
 #endif	lint
 #endif
 
-#include <stdio.h>
 #include <unistd.h>
-#include <krb.h>
 
 /*
  * krb_net_write() writes "len" bytes from "buf" to the file
@@ -27,7 +25,11 @@ static char rcsid[] =
  * XXX must not use non-blocking I/O
  */
 
-int krb_net_write(int fd, char *buf, int len)
+int
+krb_net_write(fd, buf, len)
+int fd;
+register char *buf;
+int len;
 {
     int cc;
     register int wrlen = len;

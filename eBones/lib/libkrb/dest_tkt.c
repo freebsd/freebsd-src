@@ -15,10 +15,9 @@ static char *rcsid =
 #endif /* lint */
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <string.h>
 #include <krb.h>
 #include <sys/file.h>
 #include <sys/types.h>
@@ -37,7 +36,8 @@ static char *rcsid =
  * The ticket file (TKT_FILE) is defined in "krb.h".
  */
 
-int dest_tkt()
+int
+dest_tkt()
 {
     char *file = TKT_FILE;
     int i,fd;

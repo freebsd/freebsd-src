@@ -21,6 +21,7 @@ static char *rcsid =
 #include <sys/time.h>
 #include <strings.h>
 
+extern          int     krb_ap_req_debug;
 static struct   timeval tv_local = { 0, 0 };
 static int lifetime = DEFAULT_TKT_LIFE;
 
@@ -68,8 +69,13 @@ static int lifetime = DEFAULT_TKT_LIFE;
  *                  all rounded up to multiple of 8.
  */
 
-int krb_mk_req(KTEXT authent, char *service, char *instance, char *realm,
-    long checksum)
+int
+krb_mk_req(authent,service,instance,realm,checksum)
+    register KTEXT   authent;	/* Place to build the authenticator */
+    char    *service;           /* Name of the service */
+    char    *instance;          /* Service instance */
+    char    *realm;             /* Authentication domain of service */
+    long    checksum;           /* Checksum of data (optional) */
 {
     static KTEXT_ST req_st; /* Temp storage for req id */
     register KTEXT req_id = &req_st;
@@ -151,9 +157,9 @@ int krb_mk_req(KTEXT authent, char *service, char *instance, char *realm,
     req_id->length = ((req_id->length+7)/8)*8;
 
 #ifndef NOENCRYPTION
-    key_sched((des_cblock *)cr.session,key_s);
-    pcbc_encrypt((des_cblock *)req_id->dat,(des_cblock *)req_id->dat,
-	(long)req_id->length,key_s,(des_cblock *)cr.session,ENCRYPT);
+    key_sched((C_Block *)cr.session,key_s);
+    pcbc_encrypt((C_Block *)req_id->dat,(C_Block *)req_id->dat,
+	(long)req_id->length,key_s,(C_Block *)cr.session,ENCRYPT);
     bzero((char *) key_s, sizeof(key_s));
 #endif /* NOENCRYPTION */
 
@@ -181,7 +187,9 @@ int krb_mk_req(KTEXT authent, char *service, char *instance, char *realm,
  * It returns the previous value of the default lifetime.
  */
 
-int krb_set_lifetime(int newval)
+int
+krb_set_lifetime(newval)
+int newval;
 {
     int olife = lifetime;
 

@@ -3,7 +3,8 @@
 LIB=	kadm
 
 SRCS=	kadm_err.c kadm_stream.c kadm_supp.c kadm_cli_wrap.c
-CFLAGS+=	-I. -I${.CURDIR} -I${.CURDIR}/../include -I${KRBOBJDIR} -DPOSIX -Wall
+CFLAGS+=	-I. -I${.CURDIR} -I${.CURDIR}/../include -I${KRBOBJDIR} \
+		-DPOSIX -Wall
 CLEANFILES+=	kadm_err.c kadm_err.h
 
 kadm_err.c kadm_err.h:	kadm_err.et

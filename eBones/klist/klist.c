@@ -10,25 +10,34 @@
  *	$Id: klist.c,v 1.3 1995/07/18 16:37:59 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
 "$Id: klist.c,v 1.3 1995/07/18 16:37:59 mark Exp $";
 #endif	lint
+#endif
 
+#include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <strings.h>
 #include <sys/file.h>
 #include <krb.h>
 #include <prot.h>
+#include <time.h>
 
-char   *tkt_string();
-char   *short_date();
+int ok_getst(int fd, char *s, int n);
+void display_srvtab(char *file);
+char *short_date(long *dp);
+void usage(void);
+void display_tktfile(char *file, int tgt_test, int long_form);
+
 char   *whoami;			/* What was I invoked as?? */
-char   *getenv();
 
 extern char *krb_err_txt[];
 
 /* ARGSUSED */
+int
 main(argc, argv)
     int     argc;
     char  **argv;
@@ -78,7 +87,7 @@ main(argc, argv)
     exit(0);
 }
 
-
+void
 display_tktfile(file, tgt_test, long_form)
 char *file;
 int tgt_test, long_form;
@@ -108,7 +117,7 @@ int tgt_test, long_form;
      */
 
     /* Open ticket file */
-    if (k_errno = tf_init(file, R_TKT_FIL)) {
+    if ((k_errno = tf_init(file, R_TKT_FIL))) {
 	if (!tgt_test)
 		fprintf(stderr, "%s: %s\n", whoami, krb_err_txt[k_errno]);
 	exit(1);
@@ -130,7 +139,7 @@ int tgt_test, long_form;
     }
 
     /* Open ticket file */
-    if (k_errno = tf_init(file, R_TKT_FIL)) {
+    if ((k_errno = tf_init(file, R_TKT_FIL))) {
 	if (!tgt_test)
 		fprintf(stderr, "%s: %s\n", whoami, krb_err_txt[k_errno]);
 	exit(1);
@@ -199,6 +208,7 @@ short_date(dp)
     return (cp);
 }
 
+void
 usage()
 {
     fprintf(stderr,
@@ -206,6 +216,7 @@ usage()
     exit(1);
 }
 
+void
 display_srvtab(file)
 char *file;
 {
@@ -259,9 +270,11 @@ char *file;
  * If there is a read error, it returns -1 (like the read(2) system call)
  */
 
+int
 ok_getst(fd, s, n)
     int fd;
     register char *s;
+    int n;
 {
     register count = n;
     int err;

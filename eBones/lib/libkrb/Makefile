@@ -31,4 +31,26 @@ beforeinstall:
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 krb_err.h \
 	    ${DESTDIR}/usr/include/kerberosIV
 
+MAN3=	krb.3 krb_realmofhost.3 krb_sendauth.3 krb_set_tkt_string.3 \
+	kuserok.3 tf_util.3
+
+MLINKS=	krb.3 krb_mk_req.3 krb.3 krb_rd_req.3 krb.3 krb_kntoln.3 \
+	krb.3 krb_set_key.3 krb.3 krb_get_cred.3 krb.3 krb_mk_priv.3 \
+	krb.3 krb_rd_priv.3 krb.3 krb_mk_safe.3 krb.3 krb_rd_safe.3 \
+	krb.3 krb_mk_err.3 krb.3 krb_rd_err.3 krb.3 krb_ck_repl.3
+
+MLINKS+=krb_realmofhost.3 krb_get_phost.3 krb_realmofhost.3 krb_get_krbhst.3 \
+	krb_realmofhost.3 krb_get_admhst.3 krb_realmofhost.3 krb_get_lrealm.3
+
+MLINKS+=krb_realmofhost.3 realm.3
+
+MLINKS+=krb_sendauth.3 krb_recvauth.3 krb_sendauth.3 krb_net_write.3 \
+	krb_sendauth.3 krb_net_read.3
+
+MLINKS+=krb_sendauth.3 ksend.3
+
+MLINKS+=tf_util.3 tf_init.3 tf_util.3 tf_get_pname.3 \
+	tf_util.3 tf_get_pinst.3 tf_util.3 tf_get_cred.3 \
+	tf_util.3 tf_close.3
+
 .include <bsd.lib.mk>
