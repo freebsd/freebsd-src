@@ -39,6 +39,8 @@
 #
 # SRCS          List of source files 
 #
+# KMODDEPS	List of modules which this one is dependant on
+#
 # SUBDIR        A list of subdirectories that should be built as well.
 #               Each of the targets will execute the same target in the
 #               subdirectories.
@@ -129,18 +131,28 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 PROG=	${KMOD}.ko
 .endif
 
-${PROG}: ${KMOD}.kld
-.if ${OBJFORMAT} == elf
-	gensetdefs ${KMOD}.kld
-	${CC} ${CFLAGS} -c setdef0.c
-	${CC} ${CFLAGS} -c setdef1.c
-	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} setdef0.o ${KMOD}.kld setdef1.o
-.else
-	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
-.endif
+${PROG}: ${KMOD}.kld ${KMODDEPS}
+	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld ${KMODDEPS}
 
 ${KMOD}.kld: ${OBJS}
+.if ${OBJFORMAT} == elf
+	gensetdefs ${OBJS}
+	${CC} ${CFLAGS} -c setdef0.c
+	${CC} ${CFLAGS} -c setdef1.c
+	${LD} ${LDFLAGS} -r -o ${.TARGET} setdef0.o ${OBJS} setdef1.o
+.else
 	${LD} ${LDFLAGS} -r -o ${.TARGET} ${OBJS}
+.endif
+
+.if defined(KMODDEPS)
+.for dep in ${KMODDEPS}
+CLEANFILES+=	${dep} __${dep}_hack_dep.c
+
+${dep}:
+	touch __${dep}_hack_dep.c
+	${CC} -shared ${CFLAGS} -o ${dep} __${dep}_hack_dep.c
+.endfor
+.endif
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
@@ -269,9 +281,9 @@ CLEANFILES+=	${_src}
 .if !target(${_src})
 ${_src}: @
 .if exists(@)
-${_src}: @/kern/makeobjops.pl @/${_srcsrc}
+${_src}: @/kern/makedevops.pl @/${_srcsrc}
 .endif
-	perl @/kern/makeobjops.pl -${_ext} @/${_srcsrc}
+	perl @/kern/makedevops.pl -${_ext} @/${_srcsrc}
 .endif
 .endfor # _src
 .endfor # _ext
