@@ -5,7 +5,7 @@
 
 # PROVIDE: random
 # REQUIRE: diskless mountcritlocal initrandom
-# BEFORE: network1
+# BEFORE: netif
 # KEYWORD: FreeBSD shutdown
 
 . /etc/rc.subr
