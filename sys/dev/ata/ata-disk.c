@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.5 1999/03/28 18:57:18 sos Exp $
+ *	$Id: ata-disk.c,v 1.6 1999/04/10 18:53:35 sos Exp $
  */
 
 #include "ata.h"
@@ -527,11 +527,11 @@ ad_transfer(struct buf *bp)
     /* output the data */
 #if 0
     outsw(adp->controller->ioaddr + ATA_DATA,
-          (void *)((int32_t)bp->b_data + adp->donecount),
+          (void *)((uintptr_t)bp->b_data + adp->donecount),
           adp->currentsize / sizeof(int16_t));
 #else
     outsl(adp->controller->ioaddr + ATA_DATA,
-          (void *)((int32_t)bp->b_data + adp->donecount),
+          (void *)((uintptr_t)bp->b_data + adp->donecount),
           adp->currentsize / sizeof(int32_t));
 #endif
     adp->bytecount -= adp->currentsize;
@@ -590,11 +590,11 @@ oops:
         /* data ready, read in */
 #if 0
         insw(adp->controller->ioaddr + ATA_DATA,
-             (void *)((int32_t)bp->b_data + adp->donecount), 
+             (void *)((uintptr_t)bp->b_data + adp->donecount), 
 	     adp->currentsize / sizeof(int16_t));
 #else
         insl(adp->controller->ioaddr + ATA_DATA,
-             (void *)((int32_t)bp->b_data + adp->donecount), 
+             (void *)((uintptr_t)bp->b_data + adp->donecount), 
 	     adp->currentsize / sizeof(int32_t));
 #endif
         adp->bytecount -= adp->currentsize;

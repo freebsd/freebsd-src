@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.8 1998/11/28 09:55:16 dfr Exp $
+ *	$Id: isa.c,v 1.9 1999/01/23 16:53:27 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -31,11 +31,13 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <machine/bus.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
+#include <alpha/isa/isavar.h>
 #include <machine/intr.h>
 #include <machine/intrcnt.h>
 #include <machine/resource.h>
@@ -78,10 +80,6 @@ static struct resource *isa_alloc_resource(device_t bus, device_t child,
 					   u_long count, u_int flags);
 static int isa_release_resource(device_t bus, device_t child,
 				int type, int rid, struct resource *r);
-static int isa_setup_intr(device_t dev, device_t child, struct resource *irq,
-			  driver_intr_t *intr, void *arg, void **cookiep);
-static int isa_teardown_intr(device_t dev, device_t child,
-			     struct resource *irq, void *cookie);
 
 static device_method_t isa_methods[] = {
 	/* Device interface */
@@ -139,7 +137,7 @@ isa_add_device(device_t dev, const char *name, int unit)
 		idev->id_portsize[0] = 0;
 	idev->id_portsize[1] = 0;
 
-	if (resource_int_value(name, unit, "iomem", &t) == 0)
+	if (resource_int_value(name, unit, "maddr", &t) == 0)
 		idev->id_maddr[0] = t;
 	else
 		idev->id_maddr[0] = 0;
@@ -236,6 +234,8 @@ isa_probe(device_t dev)
 {
 	int i;
 
+	device_set_desc(dev, "ISA bus");
+
 	/*
 	 * Add all devices configured to be attached to isa0.
 	 */
@@ -256,14 +256,7 @@ isa_probe(device_t dev)
 			       resource_query_unit(i));
 	}
 
-	isa_irq_rman.rm_start = 0;
-	isa_irq_rman.rm_end = 15;
-	isa_irq_rman.rm_type = RMAN_ARRAY;
-	isa_irq_rman.rm_descr = "ISA Interrupt request lines";
-	if (rman_init(&isa_irq_rman)
-	    || rman_manage_region(&isa_irq_rman, 0, 1)
-	    || rman_manage_region(&isa_irq_rman, 3, 15))
-		panic("isa_probe isa_irq_rman");
+	isa_init_intr();
 
 	return 0;
 }
@@ -275,13 +268,6 @@ isa_attach(device_t dev)
 {
 	if (bootverbose)
 		printf("isa_attach: mask=%04x\n", isa_irq_mask());
-
-	/* mask all isa interrupts */
-	outb(IO_ICU1+1, 0xff);
-	outb(IO_ICU2+1, 0xff);
-
-	/* make sure chaining irq is enabled */
-	isa_intr_enable(2);
 
 	/*
 	 * Arrange for bus_generic_attach(dev) to be called later.
@@ -340,12 +326,14 @@ isa_print_child(device_t bus, device_t dev)
 			printf("-%#x", (u_int)(id->id_maddr[1]
 					       + id->id_msize[1] - 1));
 	}
+#if 0
 	if (id->id_irq[0] >= 0 && id->id_irq[1] >= 0)
 		printf(" irqs %d and %d", id->id_irq[0], id->id_irq[1]);
 	else if (id->id_irq[0] >= 0)
 		printf(" irq %d", id->id_irq[0]);
 	else if (id->id_irq[1] >= 0)
 		printf(" irq %d", id->id_irq[1]);
+#endif
 	if (id->id_drq[0] >= 0 && id->id_drq[1] >= 0)
 		printf(" drqs %d and %d", id->id_drq[0], id->id_drq[1]);
 	else if (id->id_drq[0] >= 0)
@@ -406,8 +394,10 @@ isa_read_ivar(device_t bus, device_t dev,
 	case ISA_IVAR_FLAGS:
 		*result = idev->id_flags;
 		break;
+	default:
+		return (ENOENT);
 	}
-	return ENOENT;
+	return (0);
 }
 
 static int
@@ -462,6 +452,43 @@ isa_write_ivar(device_t bus, device_t dev,
 	return (0);
 }
 
+void isa_init_intr(void)
+{
+	static int initted = 0;
+
+	if (initted) return;
+	initted = 1;
+		
+	isa_irq_rman.rm_start = 0;
+	isa_irq_rman.rm_end = 15;
+	isa_irq_rman.rm_type = RMAN_ARRAY;
+	isa_irq_rman.rm_descr = "ISA Interrupt request lines";
+	if (rman_init(&isa_irq_rman)
+	    || rman_manage_region(&isa_irq_rman, 0, 1)
+	    || rman_manage_region(&isa_irq_rman, 3, 15))
+		panic("isa_probe isa_irq_rman");
+
+	/* mask all isa interrupts */
+	outb(IO_ICU1+1, 0xff);
+	outb(IO_ICU2+1, 0xff);
+
+	/* make sure chaining irq is enabled */
+	isa_intr_enable(2);
+}
+
+struct resource *
+isa_alloc_intr(device_t bus, device_t child, int irq)
+{
+	return rman_reserve_resource(&isa_irq_rman, irq, irq, 1,
+				     0, child);
+}
+
+int
+isa_release_intr(device_t bus, device_t child, struct resource *r)
+{
+	return rman_release_resource(r);
+}
+
 /*
  * This implementation simply passes the request up to the parent
  * bus, which in our case is the pci chipset device, substituting any
@@ -502,7 +529,7 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		 * The hack implementation of intr_create() passes a
 		 * NULL child device.
 		 */
-		if (isdefault && (id == NULL || id->id_irq[0] >= 0)) {
+		if (isdefault && id && id->id_irq[0] >= 0) {
 			start = id->id_irq[0];
 			end = id->id_irq[0];
 			count = 1;
@@ -576,7 +603,6 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 		     struct resource *r)
 {
 	int	rv;
-	struct	resource **rp;
 	struct	isa_device *id = DEVTOISA(child);
 
 	if (rid > 1)
@@ -595,7 +621,7 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 
 	rv = BUS_RELEASE_RESOURCE(device_get_parent(bus), child, type, rid, r);
 
-	if (rv) {
+	if (rv == 0) {
 		switch (type) {
 		case SYS_RES_IRQ:
 			id->id_irqres[rid] = 0;
@@ -652,7 +678,7 @@ isa_handle_intr(void *arg)
 	outb(IO_ICU1, 0x20 | (irq > 7 ? 2 : irq));
 }
 
-static int
+int
 isa_setup_intr(device_t dev, device_t child,
 	       struct resource *irq,
 	       driver_intr_t *intr, void *arg, void **cookiep)
@@ -681,10 +707,15 @@ isa_setup_intr(device_t dev, device_t child,
 	isa_intr_enable(irq->r_start);
 
 	*cookiep = ii;
+
+	if (child)
+		device_printf(child, "interrupting at ISA irq %d\n",
+			      (int)irq->r_start);
+
 	return 0;
 }
 
-static int
+int
 isa_teardown_intr(device_t dev, device_t child,
 		  struct resource *irq, void *cookie)
 {
@@ -696,6 +727,4 @@ isa_teardown_intr(device_t dev, device_t child,
 	return 0;
 }
 
-DRIVER_MODULE(isa, cia, isa_driver, isa_devclass, 0, 0);
-DRIVER_MODULE(isa, apecs, isa_driver, isa_devclass, 0, 0);
-DRIVER_MODULE(isa, lca, isa_driver, isa_devclass, 0, 0);
+DRIVER_MODULE(isa, isab, isa_driver, isa_devclass, 0, 0);

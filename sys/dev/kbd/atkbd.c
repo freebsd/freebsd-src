@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.4 1999/01/28 10:55:55 yokota Exp $
+ * $Id: atkbd.c,v 1.5 1999/03/10 10:36:52 yokota Exp $
  */
 
 #include "atkbd.h"
@@ -46,7 +46,7 @@
 #include <dev/kbd/atkbdreg.h>
 #include <dev/kbd/atkbdcreg.h>
 
-#ifndef __i386__
+#if 1
 
 #include <sys/bus.h>
 #include <isa/isareg.h>
@@ -89,6 +89,7 @@ static struct  cdevsw atkbd_cdevsw = {
 
 #endif /* KBD_INSTALL_CDEV */
 
+#if 0
 #ifdef __i386__
 
 atkbd_softc_t
@@ -110,6 +111,7 @@ atkbd_softc_t
 }
 
 #endif /* __i386__ */
+#endif
 
 int
 atkbd_probe_unit(int unit, int port, int irq, int flags)
@@ -376,16 +378,14 @@ atkbd_configure(int flags)
 {
 	keyboard_t *kbd;
 	int arg[2];
-#ifdef __i386__
-	struct isa_device *dev;
 	int i;
 
 	/* XXX: a kludge to obtain the device configuration flags */
-	dev = find_isadev(isa_devtab_tty, &atkbddriver, 0);
-	if (dev != NULL) {
-		flags |= dev->id_flags;
+	if (resource_int_value("atkbd", 0, "flags", &i) == 0) {
+		flags |= i;
 		/* if the driver is disabled, unregister the keyboard if any */
-		if (!dev->id_enabled) {
+		if (resource_int_value("atkbd", 0, "disabled", &i) == 0
+		    && i != 0) {
 			i = kbd_find_keyboard(ATKBD_DRIVER_NAME, ATKBD_DEFAULT);
 			if (i >= 0) {
 				kbd = kbd_get_keyboard(i);
@@ -395,8 +395,7 @@ atkbd_configure(int flags)
 			}
 		}
 	}
-#endif
-
+	
 	/* probe the keyboard controller */
 	atkbdc_configure();
 

@@ -15,6 +15,7 @@ SRCS+=		main.c conf.c dev_net.c
 .include	<${.CURDIR}/../../common/Makefile.inc>
 CFLAGS+=	-mno-fp-regs
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
+CFLAGS+=	-I${.CURDIR}/../../.. -I.
 CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-DNETBOOT
 

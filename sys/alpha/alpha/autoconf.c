@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.14 1999/03/12 14:44:46 gallatin Exp $
+ *	$Id: autoconf.c,v 1.15 1999/03/28 17:33:38 dfr Exp $
  */
 
 #include "opt_bootp.h"
@@ -190,7 +190,7 @@ configure(void *dummy)
 
 	if((hwrpb->rpb_type != ST_DEC_3000_300) &&
 	   (hwrpb->rpb_type != ST_DEC_3000_500)){
-		pci_configure();
+		/* pci_configure(); */
 
 		/*
 		 * Probe ISA devices after everything.

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.65 1999/03/17 16:44:53 luigi Exp $
+ *	$Id: if_fxp.c,v 1.66 1999/03/20 04:51:25 wes Exp $
  */
 
 /*
@@ -89,6 +89,10 @@
 #else /* __FreeBSD__ */
 
 #include <sys/sockio.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <net/ethernet.h>
 #include <net/if_arp.h>
@@ -491,51 +495,31 @@ fxp_ether_ioctl(ifp, cmd, data)
 
 #else /* __FreeBSD__ */
 
-static u_long fxp_count;
-static const char *fxp_probe		__P((pcici_t, pcidi_t));
-static void fxp_attach		__P((pcici_t, int));
-
-static void fxp_shutdown	__P((int, void *));
-
-static struct pci_device fxp_device = {
-	"fxp",
-	fxp_probe,
-	fxp_attach,
-	&fxp_count,
-	NULL
-};
-DATA_SET(pcidevice_set, fxp_device);
-
 /*
  * Return identification string if this is device is ours.
  */
-static const char *
-fxp_probe(config_id, device_id)
-	pcici_t config_id;
-	pcidi_t device_id;
+static int
+fxp_probe(device_t dev)
 {
-	if (((device_id & 0xffff) == FXP_VENDORID_INTEL) &&
-	    ((device_id >> 16) & 0xffff) == FXP_DEVICEID_i82557)
-		return ("Intel EtherExpress Pro 10/100B Ethernet");
+	if ((pci_get_vendor(dev) == FXP_VENDORID_INTEL) &&
+	    (pci_get_device(dev) == FXP_DEVICEID_i82557)) {
+		device_set_desc(dev, "Intel EtherExpress Pro 10/100B Ethernet");
+		return 0;
+	}
 
-	return NULL;
+	return ENXIO;
 }
 
-static void
-fxp_attach(config_id, unit)
-	pcici_t config_id;
-	int unit;
+static int
+fxp_attach(device_t dev)
 {
-	struct fxp_softc *sc;
-	vm_offset_t pbase;
+	int error = 0;
+	struct fxp_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 	int s;
 	u_long val;
+	int rid;
 
-	sc = malloc(sizeof(struct fxp_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL)
-		return;
-	bzero(sc, sizeof(struct fxp_softc));
 	callout_handle_init(&sc->stat_ch);
 
 	s = splimp();
@@ -543,39 +527,56 @@ fxp_attach(config_id, unit)
 	/*
 	 * Enable bus mastering.
 	 */
-	val = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	val = pci_read_config(dev, PCIR_COMMAND, 2);
 	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, val);
+	pci_write_config(dev, PCIR_COMMAND, val, 2);
 
 	/*
 	 * Map control/status registers.
 	 */
-	if (!pci_map_mem(config_id, FXP_PCI_MMBA,
-	    (vm_offset_t *)&sc->csr, &pbase)) {
-		printf("fxp%d: couldn't map memory\n", unit);
+	rid = FXP_PCI_MMBA;
+	sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+				     0, ~0, 1, RF_ACTIVE);
+	if (!sc->mem) {
+		device_printf(dev, "could not map memory\n");
+		error = ENXIO;
 		goto fail;
-	}
+        }
+	sc->csr = rman_get_virtual(sc->mem); /* XXX use bus_space */
 
 	/*
 	 * Allocate our interrupt.
 	 */
-	if (!pci_map_int(config_id, fxp_intr, sc, &net_imask)) {
-		printf("fxp%d: couldn't map interrupt\n", unit);
+	rid = 0;
+	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				 RF_SHAREABLE | RF_ACTIVE);
+	if (sc->irq == NULL) {
+		device_printf(dev, "could not map interrupt\n");
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, sc->irq, fxp_intr, sc, &sc->ih);
+	if (error) {
+		device_printf(dev, "could not setup irq\n");
 		goto fail;
 	}
 
 	/* Do generic parts of attach. */
 	if (fxp_attach_common(sc, sc->arpcom.ac_enaddr)) {
 		/* Failed! */
-		(void) pci_unmap_int(config_id);
+		bus_teardown_intr(dev, sc->irq, sc->ih);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+		bus_release_resource(dev, SYS_RES_MEMORY, FXP_PCI_MMBA, sc->mem);
+		error = ENXIO;
 		goto fail;
 	}
 
-	printf("fxp%d: Ethernet address %6D%s\n", unit,
+	device_printf(dev, "Ethernet address %6D%s\n",
 	    sc->arpcom.ac_enaddr, ":", sc->phy_10Mbps_only ? ", 10Mbps" : "");
 
 	ifp = &sc->arpcom.ac_if;
-	ifp->if_unit = unit;
+	ifp->if_unit = device_get_unit(dev);
 	ifp->if_name = "fxp";
 	ifp->if_output = ether_output;
 	ifp->if_baudrate = 100000000;
@@ -600,19 +601,63 @@ fxp_attach(config_id, unit)
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
-	/*
-	 * Add shutdown hook so that DMA is disabled prior to reboot. Not
-	 * doing do could allow DMA to corrupt kernel memory during the
-	 * reboot before the driver initializes.
-	 */
-	at_shutdown(fxp_shutdown, sc, SHUTDOWN_POST_SYNC);
-
 	splx(s);
-	return;
+	return 0;
 
  fail:
-	free(sc, M_DEVBUF);
 	splx(s);
+	return error;
+}
+
+/*
+ * Detach interface.
+ */
+static int
+fxp_detach(device_t dev)
+{
+	struct fxp_softc *sc = device_get_softc(dev);
+	int s;
+
+	s = splimp();
+
+	/*
+	 * Close down routes etc.
+	 */
+	if_detach(&sc->arpcom.ac_if);
+
+	/*
+	 * Stop DMA and drop transmit queue.
+	 */
+	fxp_stop(sc);
+
+	/*
+	 * Deallocate resources.
+	 */
+	bus_teardown_intr(dev, sc->irq, sc->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+	bus_release_resource(dev, SYS_RES_MEMORY, FXP_PCI_MMBA, sc->mem);
+
+	/*
+	 * Free all the receive buffers.
+	 */
+	if (sc->rfa_headm != NULL)
+		m_freem(sc->rfa_headm);
+
+	/*
+	 * Free all media structures.
+	 */
+	ifmedia_removeall(&sc->sc_media);
+
+	/*
+	 * Free anciliary structures.
+	 */
+	free(sc->cbl_base, M_DEVBUF);
+	free(sc->fxp_stats, M_DEVBUF);
+	free(sc->mcsp, M_DEVBUF);
+
+	splx(s);
+
+	return 0;
 }
 
 /*
@@ -620,13 +665,38 @@ fxp_attach(config_id, unit)
  * main purpose of this routine is to shut off receiver DMA so that
  * kernel memory doesn't get clobbered during warmboot.
  */
-static void
-fxp_shutdown(howto, sc)
-	int howto;
-	void *sc;
+static int
+fxp_shutdown(device_t dev)
 {
-	fxp_stop((struct fxp_softc *) sc);
+	/*
+	 * Make sure that DMA is disabled prior to reboot. Not doing
+	 * do could allow DMA to corrupt kernel memory during the
+	 * reboot before the driver initializes.
+	 */
+	fxp_stop((struct fxp_softc *) device_get_softc(dev));
+	return 0;
 }
+
+static device_method_t fxp_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		fxp_probe),
+	DEVMETHOD(device_attach,	fxp_attach),
+	DEVMETHOD(device_detach,	fxp_detach),
+	DEVMETHOD(device_shutdown,	fxp_shutdown),
+
+	{ 0, 0 }
+};
+
+static driver_t fxp_driver = {
+	"fxp",
+	fxp_methods,
+	DRIVER_TYPE_NET,
+	sizeof(struct fxp_softc),
+};
+
+static devclass_t fxp_devclass;
+
+DRIVER_MODULE(fxp, pci, fxp_driver, fxp_devclass, 0, 0);
 
 #endif /* __NetBSD__ */
 

@@ -236,7 +236,6 @@ int
 pcmattach(struct isa_device * dev)
 {
     snddev_info *d = NULL ;
-    struct isa_device *dvp;
     int stat = 0;
 
     dev->id_ointr = pcmintr;
@@ -292,9 +291,7 @@ pcmattach(struct isa_device * dev)
      */
     if (dev->id_driver == NULL) {
 	dev->id_driver = &pcmdriver ;
-	dvp=find_isadev(isa_devtab_tty, &pcmdriver, 0);
-	if (dvp)
-	    dev->id_id = dvp->id_id;
+	dev->id_id = isa_compat_nextid();
     }
 
     /*

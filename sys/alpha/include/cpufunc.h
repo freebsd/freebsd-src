@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.2 1998/07/22 08:25:39 dfr Exp $
+ *	$Id: cpufunc.h,v 1.3 1998/08/17 08:21:31 dfr Exp $
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
@@ -59,11 +59,45 @@ breakpoint(void)
 #define writel(pa,v)		chipset.writel(pa,v)
 
 /*
+ * Bulk i/o (for IDE driver).
+ */
+static __inline void insw(u_int32_t port, void *buffer, size_t count)
+{
+	u_int16_t *p = (u_int16_t *) buffer;
+	while (count--)
+		*p++ = inw(port);
+}
+
+static __inline void insl(u_int32_t port, void *buffer, size_t count)
+{
+	u_int32_t *p = (u_int32_t *) buffer;
+	while (count--)
+		*p++ = inl(port);
+}
+
+static __inline void outsw(u_int32_t port, const void *buffer, size_t count)
+{
+	const u_int16_t *p = (const u_int16_t *) buffer;
+	while (count--)
+		outw(port, *p++);
+}
+
+static __inline void outsl(u_int32_t port, const void *buffer, size_t count)
+{
+	const u_int32_t *p = (const u_int32_t *) buffer;
+	while (count--)
+		outl(port, *p++);
+}
+
+/*
  * String version of IO memory access ops:
  */
 extern void memcpy_fromio(void *, u_int32_t, size_t);
 extern void memcpy_toio(u_int32_t, void *, size_t);
+extern void memcpy_io(u_int32_t, u_int32_t, size_t);
 extern void memset_io(u_int32_t, int, size_t);
+extern void memsetw(void *, int, size_t);
+extern void memsetw_io(u_int32_t, int, size_t);
 
 
 #endif /* KERNEL */

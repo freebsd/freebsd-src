@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.24 1999/01/13 04:59:19 bde Exp $
+ * $Id: pcivar.h,v 1.25 1999/01/19 23:29:20 se Exp $
  *
  */
 
@@ -67,13 +67,17 @@ typedef struct {
     u_int8_t	ln2size;
     u_int8_t	ln2range;
     u_int8_t	reg;		/* offset of map register in config space */
+/*    u_int8_t	dummy;*/
+    struct resource *res;	/* handle from resource manager */
 } pcimap;
 
 /* config header information common to all header types */
 
 typedef struct pcicfg {
+    struct device *dev;		/* device which owns this */
     pcimap	*map;		/* pointer to array of PCI maps */
     void	*hdrspec;	/* pointer to header type specific data */
+    struct resource *irqres;	/* resource descriptor for interrupt mapping */
 
     u_int16_t	subvendor;	/* card vendor ID */
     u_int16_t	subdevice;	/* card device ID, assigned by card vendor */
@@ -182,6 +186,79 @@ void pci_cfgwrite (pcicfgregs *cfg, int reg, int data, int bytes);
 vm_offset_t pci_cvt_to_dense (vm_offset_t);
 vm_offset_t pci_cvt_to_bwx (vm_offset_t);
 #endif /* __alpha__ */
+
+#ifdef _SYS_BUS_H_
+
+#include "pci_if.h"
+
+enum pci_device_ivars {
+	PCI_IVAR_SUBVENDOR,
+	PCI_IVAR_SUBDEVICE,
+	PCI_IVAR_VENDOR,
+	PCI_IVAR_DEVICE,
+	PCI_IVAR_DEVID,
+	PCI_IVAR_CLASS,
+	PCI_IVAR_SUBCLASS,
+	PCI_IVAR_PROGIF,
+	PCI_IVAR_REVID,
+	PCI_IVAR_INTPIN,
+	PCI_IVAR_IRQ,
+	PCI_IVAR_BUS,
+	PCI_IVAR_SLOT,
+	PCI_IVAR_FUNCTION,
+	PCI_IVAR_SECONDARYBUS,
+	PCI_IVAR_SUBORDINATEBUS,
+};
+
+/*
+ * Simplified accessors for pci devices
+ */
+#define PCI_ACCESSOR(A, B, T)						\
+									\
+static __inline T pci_get_ ## A(device_t dev)				\
+{									\
+	uintptr_t v;							\
+	BUS_READ_IVAR(device_get_parent(dev), dev, PCI_IVAR_ ## B, &v);	\
+	return (T) v;							\
+}									\
+									\
+static __inline void pci_set_ ## A(device_t dev, T t)			\
+{									\
+	u_long v = (u_long) t;						\
+	BUS_WRITE_IVAR(device_get_parent(dev), dev, PCI_IVAR_ ## B, v);	\
+}
+
+PCI_ACCESSOR(subvendor,		SUBVENDOR,	u_int16_t)
+PCI_ACCESSOR(subdevice,		SUBDEVICE,	u_int16_t)
+PCI_ACCESSOR(vendor,		VENDOR,		u_int16_t)
+PCI_ACCESSOR(device,		DEVICE,		u_int16_t)
+PCI_ACCESSOR(devid,		DEVID,		u_int32_t)
+PCI_ACCESSOR(class,		CLASS,		u_int8_t)
+PCI_ACCESSOR(subclass,		SUBCLASS,	u_int8_t)
+PCI_ACCESSOR(progif,		PROGIF,		u_int8_t)
+PCI_ACCESSOR(revid,		REVID,		u_int8_t)
+PCI_ACCESSOR(intpin,		INTPIN,		u_int8_t)
+PCI_ACCESSOR(irq,		IRQ,		u_int8_t)
+PCI_ACCESSOR(bus,		BUS,		u_int8_t)
+PCI_ACCESSOR(slot,		SLOT,		u_int8_t)
+PCI_ACCESSOR(function,		FUNCTION,	u_int8_t)
+PCI_ACCESSOR(secondarybus,	SECONDARYBUS,	u_int8_t)
+PCI_ACCESSOR(subordinatebus,	SUBORDINATEBUS,	u_int8_t)
+
+static __inline u_int32_t
+pci_read_config(device_t dev, int reg, int width)
+{
+    return PCI_READ_CONFIG(device_get_parent(dev), dev, reg, width);
+}
+
+static __inline void
+pci_write_config(device_t dev, int reg, u_int32_t val, int width)
+{
+    PCI_WRITE_CONFIG(device_get_parent(dev), dev, reg, val, width);
+}
+
+#endif
+
 /* for compatibility to FreeBSD-2.2 version of PCI code */
 
 #ifdef PCI_COMPAT

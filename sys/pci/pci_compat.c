@@ -23,9 +23,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.20 1999/01/19 23:29:19 se Exp $
+ * $Id: pci_compat.c,v 1.21 1999/04/11 02:46:20 eivind Exp $
  *
  */
+
+#include "opt_bus.h"
 
 #include "pci.h"
 #if NPCI > 0
@@ -40,6 +42,11 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <sys/interrupt.h>
+
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -56,118 +63,45 @@
 
 /* ------------------------------------------------------------------------- */
 
-static int
-pci_mapno(pcicfgregs *cfg, int reg)
-{
-	int i, nummaps;
-	pcimap *map;
-
-	nummaps = cfg->nummaps;
-	map = cfg->map;
-
-	for (i = 0; i < nummaps; i++)
-		if (map[i].reg == reg)
-			return (i);
-	return (-1);
-}
-
-static int
-pci_porten(pcicfgregs *cfg)
-{
-	return ((cfg->cmdreg & PCIM_CMD_PORTEN) != 0);
-}
-
-static int
-pci_isportmap(pcicfgregs *cfg, int map)
-
-{
-	return ((unsigned)map < cfg->nummaps 
-		&& (cfg->map[map].type & PCI_MAPPORT) != 0);
-}
-
-static int
-pci_memen(pcicfgregs *cfg)
-{
-	return ((cfg->cmdreg & PCIM_CMD_MEMEN) != 0);
-}
-
-static int
-pci_ismemmap(pcicfgregs *cfg, int map)
-{
-	return ((unsigned)map < cfg->nummaps 
-		&& (cfg->map[map].type & PCI_MAPMEM) != 0);
-}
-
-/* ------------------------------------------------------------------------- */
-
 u_long
-pci_conf_read(pcici_t tag, u_long reg)
+pci_conf_read(pcici_t cfg, u_long reg)
 {
-	return (pci_cfgread(tag, reg, 4));
+	return (pci_read_config(cfg->dev, reg, 4));
 }
 
 void
-pci_conf_write(pcici_t tag, u_long reg, u_long data)
+pci_conf_write(pcici_t cfg, u_long reg, u_long data)
 {
-	pci_cfgwrite(tag, reg, data, 4);
+	pci_write_config(cfg->dev, reg, data, 4);
 }
 
 int pci_map_port(pcici_t cfg, u_long reg, pci_port_t* pa)
 {
-	int map;
+	int rid;
+	struct resource *res;
 
-	map = pci_mapno(cfg, reg);
-	if (pci_porten(cfg) && pci_isportmap(cfg, map)) {
-		u_int32_t iobase;
-		u_int32_t iosize;
-
-		iobase = cfg->map[map].base;
-		iosize = 1 << cfg->map[map].ln2size;
-#ifdef RESOURCE_CHECK
-		if (resource_claim(cfg, REST_PORT, RESF_NONE, 
-				   iobase, iobase + iosize -1) == 0)
-#endif /* RESOURCE_CHECK */
-		{
-			*pa = iobase;
-			return (1);
-		}
+	rid = reg;
+	res = bus_alloc_resource(cfg->dev, SYS_RES_IOPORT, &rid,
+				 0, ~0, 1, RF_ACTIVE);
+	if (res) {
+		*pa = rman_get_start(res);
+		return (1);
 	}
 	return (0);
 }
 
 int pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
-	int map;
+	int rid;
+	struct resource *res;
 
-	map = pci_mapno(cfg, reg);
-	if (pci_memen(cfg) && pci_ismemmap(cfg, map)) {
-		u_int32_t paddr;
-		u_int32_t psize;
-
-		paddr = cfg->map[map].base;
-		psize = 1 << cfg->map[map].ln2size;
-#ifdef RESOURCE_CHECK
-		if (resource_claim(cfg, REST_MEM, RESF_NONE, 
-				   paddr, paddr + psize -1) == 0)
-#endif /* RESOURCE_CHECK */
-		{
-			u_int32_t poffs;
-			vm_offset_t vaddr;
-
-			poffs = paddr - trunc_page(paddr);
-#ifdef __i386__
-			vaddr = (vm_offset_t)pmap_mapdev(paddr-poffs, psize+poffs);
-#endif
-#ifdef __alpha__
-			vaddr = paddr-poffs;
-#endif
-			if (vaddr != NULL) {
-				vaddr += poffs;
-				*va = vaddr;
-				*pa = paddr;
-				return (1);
-			}
-		}
+	rid = reg;
+	res = bus_alloc_resource(cfg->dev, SYS_RES_MEMORY, &rid,
+				 0, ~0, 1, RF_ACTIVE);
+	if (res) {
+		*pa = rman_get_start(res);
+		*va = (vm_offset_t) rman_get_virtual(res);
+		return (1);
 	}
 	return (0);
 }
@@ -175,7 +109,7 @@ int pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 int 
 pci_map_dense(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
-	if(pci_map_mem(cfg, reg, va, pa)){
+	if (pci_map_mem(cfg, reg, va, pa)){
 #ifdef __alpha__
 		vm_offset_t dense;
 
@@ -195,7 +129,7 @@ pci_map_dense(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 int 
 pci_map_bwx(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
-	if(pci_map_mem(cfg, reg, va, pa)){
+	if (pci_map_mem(cfg, reg, va, pa)){
 #ifdef __alpha__
 		vm_offset_t bwx;
 
@@ -228,14 +162,42 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 #endif
 	if (cfg->intpin != 0) {
 		int irq = cfg->intline;
-		void *dev_instance = (void *)-1; /* XXX use cfg->devdata  */
-		void *idesc;
+		driver_t *driver = device_get_driver(cfg->dev);
+		int rid = 0;
+		struct resource *res;
+		void *ih;
+		res = bus_alloc_resource(cfg->dev, SYS_RES_IRQ, &rid,
+					 irq, irq, 1, RF_SHAREABLE|RF_ACTIVE);
+		if (!res) {
+			printf("pci_map_int: can't allocate interrupt\n");
+			return 0;
+		}
 
-		idesc = intr_create(dev_instance, irq, handler, arg, maskptr,
-				    flags);
-		error = intr_connect(idesc);
+		/*
+		 * This is ugly. Translate the mask into a driver type.
+		 */
+		if (maskptr == &tty_imask)
+			driver->type |= DRIVER_TYPE_TTY;
+		else if (maskptr == &bio_imask)
+			driver->type |= DRIVER_TYPE_BIO;
+		else if (maskptr == &net_imask)
+			driver->type |= DRIVER_TYPE_NET;
+		else if (maskptr == &cam_imask)
+			driver->type |= DRIVER_TYPE_CAM;
+
+		error = BUS_SETUP_INTR(device_get_parent(cfg->dev), cfg->dev,
+				       res, handler, arg, &ih);
 		if (error != 0)
 			return 0;
+
+#ifdef NEW_BUS_PCI
+		/*
+		 * XXX this apic stuff looks totally busted.  It should
+		 * move to the nexus code which actually registers the
+		 * interrupt.
+		 */
+#endif
+
 #ifdef APIC_IO
 		nextpin = next_apic_irq(irq);
 		
@@ -265,11 +227,21 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 
 		nextpin = next_apic_irq(irq);
 		while (nextpin >= 0) {
-			idesc = intr_create(dev_instance, nextpin, handler,
-					    arg, maskptr, flags);
-			error = intr_connect(idesc);
-			if (error != 0)
+			rid = 0;
+			res = bus_alloc_resource(cfg->dev, SYS_RES_IRQ, &rid,
+						 nextpin, nextpin, 1,
+						 RF_SHAREABLE|RF_ACTIVE);
+			if (!res) {
+				printf("pci_map_int: can't allocate extra interrupt\n");
 				return 0;
+			}
+			error = BUS_SETUP_INTR(device_get_parent(cfg->dev),
+					       cfg->dev, res, handler, arg,
+					       &ih);
+			if (error != 0) {
+				printf("pci_map_int: BUS_SETUP_INTR failed\n");
+				return 0;
+			}
 			printf("Registered extra interrupt handler for int %d (in addition to int %d)\n", nextpin, irq);
 			nextpin = next_apic_irq(nextpin);
 		}
@@ -284,6 +256,7 @@ pci_unmap_int(pcici_t cfg)
 	return (0); /* not supported, yet, since cfg doesn't know about idesc */
 }
 
+#if 0
 /* ------------------------------------------------------------------------- */
 
 /*
@@ -464,6 +437,7 @@ int pci_register_lkm (struct pci_device *dvp, int if_revision)
 	if (lkm == NULL) {
 		return (-1);
 	}
+	bzero(lkm, sizeof (*lkm));
 
 	lkm->dvp = dvp;
 	lkm->next = pci_lkm_head;
@@ -479,6 +453,8 @@ pci_configure(void)
 }
 
 /* ------------------------------------------------------------------------- */
+
+#endif
 
 #endif /* PCI_COMPAT */
 #endif /* NPCI > 0 */

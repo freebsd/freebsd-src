@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.76 1998/12/04 21:28:39 archie Exp $
+ *	$Id: apm.c,v 1.77 1998/12/10 23:36:14 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -30,7 +30,7 @@
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/reboot.h>
-#include <i386/isa/isa_device.h>
+#include <sys/bus.h>
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
 #include <machine/clock.h>
@@ -432,11 +432,15 @@ void
 apm_suspend(int state)
 {
 	struct apm_softc *sc = &apm_softc;
+	int error;
 
 	if (!sc)
 		return;
 
 	if (sc->initialized) {
+		error = DEVICE_SUSPEND(root_bus);
+		if (error)
+			return;	/* XXX no error reporting */
 		apm_execute_hook(hook[APM_HOOK_SUSPEND]);
 		if (apm_suspend_system(state) == 0)
 			apm_processevent();
@@ -454,8 +458,10 @@ apm_resume(void)
 	if (!sc)
 		return;
 
-	if (sc->initialized)
+	if (sc->initialized) {
+		DEVICE_RESUME(root_bus);
 		apm_execute_hook(hook[APM_HOOK_RESUME]);
+	}
 }
 
 
@@ -623,9 +629,6 @@ apm_not_halt_cpu(void)
 }
 
 /* device driver definitions */
-static int apmprobe (struct isa_device *);
-static int apmattach(struct isa_device *);
-struct isa_driver apmdriver = { apmprobe, apmattach, "apm" };
 
 /*
  * probe APM (dummy):
@@ -639,17 +642,23 @@ struct isa_driver apmdriver = { apmprobe, apmattach, "apm" };
  */
 
 static int
-apmprobe(struct isa_device *dvp)
+apm_probe(device_t dev)
 {
 #ifdef VM86
 	struct vm86frame	vmf;
 	int			i;
 #endif
+	int			flags;
 
-	if ( dvp->id_unit > 0 ) {
+	device_set_desc(dev, "APM BIOS");
+
+	if ( device_get_unit(dev) > 0 ) {
 		printf("apm: Only one APM driver supported.\n");
-		return 0;
+		return ENXIO;
 	}
+
+	if (resource_int_value("apm", 0, "flags", &flags) != 0)
+		flags = 0;
 
 #ifdef VM86
 	bzero(&vmf, sizeof(struct vm86frame));		/* safety */
@@ -712,9 +721,9 @@ apmprobe(struct isa_device *dvp)
 		printf("apm: 32-bit connection error.\n");
 		return 0;
 	}
-	if (dvp->id_flags & 0x20)
+	if (flags & 0x20)
 		statclock_disable = 1;
-	return -1;
+	return 0;
 }
 
 
@@ -779,10 +788,14 @@ apm_processevent(void)
  */
 
 static int
-apmattach(struct isa_device *dvp)
+apm_attach(device_t dev)
 {
 #define APM_KERNBASE	KERNBASE
 	struct apm_softc	*sc = &apm_softc;
+	int			flags;
+
+	if (resource_int_value("apm", 0, "flags", &flags) != 0)
+		flags = 0;
 
 	sc->initialized = 0;
 
@@ -833,11 +846,11 @@ apmattach(struct isa_device *dvp)
 	apm_addr.segment = GSEL(GAPMCODE32_SEL, SEL_KPL);
 	apm_addr.offset  = sc->cs_entry;
 
-	if ((dvp->id_flags & 0x10)) {
-		if ((dvp->id_flags & 0xf) >= 0x2) {
+	if ((flags & 0x10)) {
+		if ((flags & 0xf) >= 0x2) {
 			apm_driver_version(0x102);
 		} 
-		if (!apm_version && (dvp->id_flags & 0xf) >= 0x1) {
+		if (!apm_version && (flags & 0xf) >= 0x1) {
 			apm_driver_version(0x101);
 		}
 	} else {
@@ -1009,19 +1022,22 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	return error;
 }
 
+static device_method_t apm_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		apm_probe),
+	DEVMETHOD(device_attach,	apm_attach),
 
-static apm_devsw_installed = 0;
+	{ 0, 0 }
+};
 
-static void
-apm_drvinit(void *unused)
-{
-	dev_t dev;
+static driver_t apm_driver = {
+	"apm",
+	apm_methods,
+	DRIVER_TYPE_MISC,
+	1,			/* no softc (XXX) */
+};
 
-	if( ! apm_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&apm_cdevsw,NULL);
-		apm_devsw_installed = 1;
-    	}
-}
+static devclass_t apm_devclass;
 
-SYSINIT(apmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,apm_drvinit,NULL)
+CDEV_DRIVER_MODULE(apm, nexus, apm_driver, apm_devclass,
+		   CDEV_MAJOR, apm_cdevsw, 0, 0);

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.111 1999/01/19 00:10:59 peter Exp $
+ *	$Id: autoconf.c,v 1.112 1999/04/15 14:52:24 bde Exp $
  */
 
 /*
@@ -50,9 +50,11 @@
 #include "opt_cd9660.h"
 #include "opt_mfs.h"
 #include "opt_nfsroot.h"
+#include "opt_bus.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
@@ -74,12 +76,18 @@
 
 #include "isa.h"
 #if NISA > 0
+#ifdef OLD_BUS_ARCH
 #include <i386/isa/isa_device.h>
+#else
+device_t isa_bus_device = 0;
+#endif /* OLD_BUS_ARCH */
 #endif
 
 #include "pnp.h"
 #if NPNP > 0
+#ifdef OLD_BUS_ARCH
 #include <i386/isa/pnp.h>
+#endif
 #endif
 
 #include "eisa.h"
@@ -91,8 +99,6 @@
 #if NPCI > 0
 #include <pci/pcivar.h>
 #endif
-
-#include <sys/bus.h>
 
 static void	configure_first __P((void *));
 static void	configure __P((void *));
@@ -186,6 +192,8 @@ configure_finish()
 {
 }
 
+device_t nexus_dev;
+
 /*
  * Determine i/o configuration for a machine.
  */
@@ -228,20 +236,20 @@ configure(dummy)
 	eisa_configure();
 #endif
 
-#if NPCI > 0
-	pci_configure();
-#endif
-
 #if NPNP > 0
 	pnp_configure();
 #endif
 
-#if NISA > 0
-	isa_configure();
-#endif
+	/* nexus0 is the top of the i386 device tree */
+	device_add_child(root_bus, "nexus", 0, 0);
 
 	/* initialize new bus architecture */
 	root_bus_configure();
+
+#if NISA > 0
+	if (isa_bus_device)
+		bus_generic_attach(isa_bus_device);
+#endif
 
 	/*
 	 * Now we're ready to handle (pending) interrupts.

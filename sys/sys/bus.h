@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.9 1999/03/06 16:52:04 bde Exp $
+ *	$Id: bus.h,v 1.10 1999/03/29 08:54:19 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -75,6 +75,7 @@ struct driver {
     size_t		softc;		/* size of device softc struct */
     void		*priv;		/* driver private data */
     device_ops_t	ops;		/* compiled method table */
+    int			refs;		/* # devclasses containing driver */
 };
 
 typedef enum device_state {
@@ -106,6 +107,7 @@ int	bus_generic_attach(device_t dev);
 int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
+void	bus_generic_driver_added(device_t dev, driver_t *driver);
 void	bus_generic_print_child(device_t dev, device_t child);
 int	bus_generic_read_ivar(device_t dev, device_t child, int which,
 			      uintptr_t *result);
@@ -195,6 +197,7 @@ int	devclass_get_maxunit(devclass_t dc);
 /*
  * Access functions for device resources.
  */
+
 int	resource_int_value(const char *name, int unit, char *resname,
 			   int *result);
 int	resource_long_value(const char *name, int unit, char *resname,
@@ -204,6 +207,11 @@ int	resource_string_value(const char *name, int unit, char *resname,
 int	resource_query_string(int i, char *resname, char *value);
 char	*resource_query_name(int i);
 int	resource_query_unit(int i);
+int	resource_locate(int i, char *resname);
+int	resource_set_int(int i, char *resname, int value);
+int	resource_set_long(int i, char *resname, long value);
+int	resource_set_string(int i, char *resname, char *value);
+int	resource_count(void);
 
 /*
  * Shorthand for constructing method tables.

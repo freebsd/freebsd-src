@@ -1,5 +1,5 @@
 /* 
- * $Id: start.S,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $ 
+ * $Id: start.S,v 1.2 1998/10/31 17:12:32 dfr Exp $ 
  * From: $NetBSD: start.S,v 1.4 1998/03/28 00:54:15 cgd Exp $ 
  */
 
@@ -45,6 +45,7 @@
 	.set	noreorder		/* don't reorder instructions */
 
 #define ENTRY_FRAME	32
+#define STACK_SIZE	8192
 
 NESTED(start, 1, ENTRY_FRAME, ra, 0, 0)
 	br	pv,Lstartgp
@@ -57,7 +58,7 @@ Lstartgp:
 	CALL(bzero)
 
 #if defined(NETBOOT) || defined(LOADER)
-	lda	sp,stack + 8192 - ENTRY_FRAME
+	lda	sp,stack + STACK_SIZE - ENTRY_FRAME
 #endif
 	
 	CALL(main)			/* transfer to C */
@@ -84,5 +85,5 @@ LEAF(cpu_number, 0)
 END(cpu_number)
 
 #if defined(NETBOOT) || defined(LOADER)
-BSS(stack, 8192)
+BSS(stack, STACK_SIZE)
 #endif

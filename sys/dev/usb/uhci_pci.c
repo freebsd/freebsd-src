@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.4 1999/04/06 23:09:58 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.5 1999/04/11 14:24:20 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -37,6 +37,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_bus.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -45,22 +47,12 @@
 #include <sys/device.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-
-#define PCI_CLASS_SERIALBUS			0x0c000000
-#define PCI_SUBCLASS_COMMUNICATIONS_SERIAL	0x00000000
-#define PCI_SUBCLASS_SERIALBUS_FIREWIRE		0x00000000
-#define PCI_SUBCLASS_SERIALBUS_ACCESS		0x00010000
-#define PCI_SUBCLASS_SERIALBUS_SSA		0x00020000
-#define PCI_SUBCLASS_SERIALBUS_USB		0x00030000
-#define PCI_SUBCLASS_SERIALBUS_FIBER		0x00040000
-
-#define PCI_INTERFACE(d)	(((d)>>8)&0xff)
-#define PCI_SUBCLASS(d)		((d)&PCI_SUBCLASS_MASK)
-#define PCI_CLASS(d)		((d)&PCI_CLASS_MASK)
-
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -69,7 +61,6 @@
 
 #include <dev/usb/uhcireg.h>
 #include <dev/usb/uhcivar.h>
-
 
 #define PCI_UHCI_VENDORID_INTEL		0x8086
 #define PCI_UHCI_VENDORID_VIA		0x1106
@@ -85,26 +76,10 @@ static const char *uhci_device_generic	= "UHCI (generic) USB Controller";
 
 #define PCI_UHCI_BASE_REG               0x20
 
-static const char *uhci_pci_probe	__P((pcici_t, pcidi_t));
-static void uhci_pci_attach		__P((pcici_t, int));
-
-static u_long uhci_count = 0;
-
-static struct pci_device uhci_pci_device = {
-	"uhci",
-	uhci_pci_probe,
-	uhci_pci_attach,
-	&uhci_count,
-	NULL
-};
-
-DATA_SET(pcidevice_set, uhci_pci_device);
-
-
 static const char *
-uhci_pci_probe(pcici_t config_id, pcidi_t device_id)
+uhci_pci_match(device_t dev)
 {
-	u_int32_t class;
+	u_int32_t device_id = pci_get_devid(dev);
 
 	if (device_id == PCI_UHCI_DEVICEID_PIIX3) {
 		return (uhci_device_piix3);
@@ -113,10 +88,9 @@ uhci_pci_probe(pcici_t config_id, pcidi_t device_id)
 	} else if (device_id == PCI_UHCI_DEVICEID_VT83C572) {
 		return (uhci_device_vt83c572);
 	} else {
-		class = pci_conf_read(config_id, PCI_CLASS_REG);
-		if (   PCI_CLASS(class)	    == PCI_CLASS_SERIALBUS
-		    && PCI_SUBCLASS(class)  == PCI_SUBCLASS_SERIALBUS_USB
-		    && PCI_INTERFACE(class) == PCI_INTERFACE_UHCI) {
+		if (   pci_get_class(dev)    == PCIC_SERIALBUS
+		    && pci_get_subclass(dev) == PCIS_SERIALBUS_USB
+		    && pci_get_progif(dev)   == PCI_INTERFACE_UHCI) {
 			return (uhci_device_generic);
 		}
 	}
@@ -124,42 +98,64 @@ uhci_pci_probe(pcici_t config_id, pcidi_t device_id)
 	return NULL;    /* dunno... */
 }
 
-static void
-uhci_pci_attach(pcici_t config_id, int unit)
+static int
+uhci_pci_probe(device_t dev)
 {
-	int id, legsup;
+	const char *desc = uhci_pci_match(dev);
+	if (desc) {
+		device_set_desc(dev, desc);
+		return 0;
+	} else {
+		return ENXIO;
+	}
+}
+
+static int
+uhci_pci_attach(device_t dev)
+{
+	int unit = device_get_unit(dev);
+	int legsup;
 	char *typestr;
 	usbd_status err;
-	uhci_softc_t *sc = NULL;
 	device_t usbus;
+	uhci_softc_t *sc = device_get_softc(dev);
+	int rid;
+	struct resource *res;
+	void *ih;
+	int error;
 
-	sc = malloc(sizeof(uhci_softc_t), M_DEVBUF, M_NOWAIT);
-	/* Do not free it below, intr might use the sc */
-	if ( sc == NULL ) {
-		printf("uhci%d: could not allocate memory", unit);
-		return;
+	rid = PCI_UHCI_BASE_REG;
+	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				 0, ~0, 1, RF_ACTIVE);
+	if (!res) {
+		device_printf(dev, "could not map ports\n");
+		return ENXIO;
+        }
+
+	sc->iot = rman_get_bustag(res);
+	sc->ioh = rman_get_bushandle(res);
+
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				 RF_SHAREABLE | RF_ACTIVE);
+	if (res == NULL) {
+		device_printf(dev, "could not allocate irq\n");
+		return ENOMEM;
 	}
-	memset(sc, 0, sizeof(uhci_softc_t));
-
-	if ( !pci_map_port(config_id, PCI_UHCI_BASE_REG, &sc->sc_iobase) ) {
-		printf("uhci%d: could not map port\n", unit);
-		return;
+		
+	error = bus_setup_intr(dev, res, (driver_intr_t *) uhci_intr, sc, &ih);
+	if (error) {
+		device_printf(dev, "could not setup irq\n");
+		return error;
 	}
 
-	if ( !pci_map_int(config_id, (pci_inthand_t *)uhci_intr,
-			  (void *) sc, &bio_imask)) {
-		printf("uhci%d: could not map irq\n", unit);
-		return;                    
-	}
-
-	usbus = device_add_child(root_bus, "usb", -1, sc);
+	usbus = device_add_child(dev, "usb", -1, sc);
 	if (!usbus) {
-		printf("usb%d: could not add USB device to root bus\n", unit);
-		return;
+		printf("usb%d: could not add USB device\n", unit);
+		return ENOMEM;
 	}
 
-	id = pci_conf_read(config_id, PCI_ID_REG);
-	switch (id) {
+	switch (pci_get_devid(dev)) {
 	case PCI_UHCI_DEVICEID_PIIX3:
 		device_set_desc(usbus, uhci_device_piix3);
 		sprintf(sc->sc_vendor, "Intel");
@@ -173,13 +169,13 @@ uhci_pci_attach(pcici_t config_id, int unit)
 		sprintf(sc->sc_vendor, "VIA");
 		break;
 	default:
-		printf("(New UHCI DeviceId=0x%08x)\n", id);
+		printf("(New UHCI DeviceId=0x%08x)\n", pci_get_devid(dev));
 		device_set_desc(usbus, uhci_device_generic);
-		sprintf(sc->sc_vendor, "(0x%08x)", id);
+		sprintf(sc->sc_vendor, "(0x%08x)", pci_get_devid(dev));
 	}
 
 	if (bootverbose) {
-		switch(pci_conf_read(config_id, PCI_USBREV) & PCI_USBREV_MASK) {
+		switch(pci_read_config(dev, PCI_USBREV, 4) & PCI_USBREV_MASK) {
 		case PCI_USBREV_PRE_1_0:
 			typestr = "pre 1.0";
 			break;
@@ -191,25 +187,53 @@ uhci_pci_attach(pcici_t config_id, int unit)
 			break;
 		}
 		printf("uhci%d: USB version %s, chip rev. %d\n", unit, typestr,
-			(int) pci_conf_read(config_id, PCIR_REVID) & 0xff);
+			pci_get_revid(dev));
 	}
 
-	legsup = pci_conf_read(config_id, PCI_LEGSUP);
+	legsup = pci_read_config(dev, PCI_LEGSUP, 4);
 	if ( !(legsup & PCI_LEGSUP_USBPIRQDEN) ) {
 #if ! (defined(USBVERBOSE) || defined(USB_DEBUG))
 		if (bootverbose)
 #endif
 			printf("uhci%d: PIRQD enable not set\n", unit);
 		legsup |= PCI_LEGSUP_USBPIRQDEN;
-		pci_conf_write(config_id, PCI_LEGSUP, legsup);
+		pci_write_config(dev, PCI_LEGSUP, legsup, 4);
 	}
 
 	sc->sc_bus.bdev = usbus;
 	err = uhci_init(sc);
 	if (err != USBD_NORMAL_COMPLETION) {
 		printf("uhci%d: init failed, error=%d\n", unit, err);
-		device_delete_child(root_bus, usbus);
+		device_delete_child(dev, usbus);
 	}
 
-	return;
+	return device_probe_and_attach(sc->sc_bus.bdev);
 }
+
+static device_method_t uhci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		uhci_pci_probe),
+	DEVMETHOD(device_attach,	uhci_pci_attach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	{ 0, 0 }
+};
+
+static driver_t uhci_driver = {
+	"uhci",
+	uhci_methods,
+	DRIVER_TYPE_BIO,
+	sizeof(uhci_softc_t),
+};
+
+static devclass_t uhci_devclass;
+
+DRIVER_MODULE(uhci, pci, uhci_driver, uhci_devclass, 0, 0);

@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.8 1999/01/12 00:27:43 eivind Exp $
+ * $Id: if_cs.c,v 1.9 1999/01/28 01:59:53 dillon Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -1352,7 +1352,6 @@ cs_pnp_attach(u_long csn, u_long vend_id, char *name,
     int iobase, unit, flags;
     u_int irq;
     int drq;
-    struct isa_device *dvp;
     struct cs_softc *sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
 
     if (read_pnp_parms ( &d , ldn ) == 0 ) {
@@ -1373,9 +1372,7 @@ cs_pnp_attach(u_long csn, u_long vend_id, char *name,
 
     if (dev->id_driver == NULL) {
 	dev->id_driver = &csdriver;
-	dvp = find_isadev(isa_devtab_net, &csdriver, 0);
-	if (dvp != NULL)
-	dev->id_id = dvp->id_id;
+	dev->id_id = isa_compat_nextid();
     }
 
     if (!sc) return;

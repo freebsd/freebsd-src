@@ -72,7 +72,8 @@ typedef struct ohci_softc {
 	/* XXX should keep track of all DMA memory */
 
 #elif defined(__FreeBSD__)
-        int             sc_iobase;
+	bus_space_tag_t iot;
+	bus_space_handle_t ioh;
 #endif /* __FreeBSD__ */
 
 	usb_dma_t sc_hccadma;

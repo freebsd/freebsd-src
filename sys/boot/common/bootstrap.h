@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.19 1999/01/22 23:50:13 msmith Exp $
+ *	$Id: bootstrap.h,v 1.20 1999/02/04 17:06:45 dcs Exp $
  */
 
 #include <sys/types.h>
@@ -214,8 +214,8 @@ extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module
 /* XXX just for conversion's sake, until we move to the new linker set code */
 
 #define SET_FOREACH(pvar, set)				\
-	    for (pvar = set.ls_items;			\
-		 pvar < set.ls_items + set.ls_length;	\
+	    for ((char*) pvar = set.ls_items;			\
+		 (char*) pvar < (char*) &set.ls_items[set.ls_length];	\
 		 pvar++)
 
 #else /* NEW_LINKER_SET */

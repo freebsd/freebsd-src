@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.5 1999/03/28 18:57:18 sos Exp $
+ *  $Id: ata-all.c,v 1.6 1999/04/10 18:53:35 sos Exp $
  */
 
 #include "ata.h"
@@ -44,12 +44,18 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/clock.h>
+#ifdef __i386__
 #include <machine/smp.h>
+#endif
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+#ifdef __i386__
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
+#else
+#include <isa/isareg.h>
+#endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/atapi-all.h>
@@ -62,7 +68,7 @@
 #endif
 
 /* prototypes */
-#if NISA > 0
+#if NISA > 0 && defined(__i386__)
 static int32_t ata_isaprobe(struct isa_device *);
 static int32_t ata_isaattach(struct isa_device *);
 #endif
@@ -76,9 +82,10 @@ static void ataintr(int32_t);
 
 static int32_t atanlun = 0;
 struct ata_softc *atadevices[MAXATA];
+
+#if NISA > 0 && defined(__i386__)
 struct isa_driver atadriver = { ata_isaprobe, ata_isaattach, "ata" };
 
-#if NISA > 0
 static int32_t
 ata_isaprobe(struct isa_device *devp)
 {
@@ -133,6 +140,10 @@ ata_pciprobe(pcici_t tag, pcidi_t type)
 	    return "Promise Ultra/33 IDE controller";
 	case 0x522910b9:
 	    return "AcerLabs Aladdin IDE controller";
+	case 0x06401095:
+	    return "CMD 640 IDE controller";
+	case 0x06461095:
+	    return "CMD 646 IDE controller";
 #if 0
 	case 0x05711106:
 	    return "VIA Apollo IDE controller";
@@ -222,14 +233,18 @@ ata_pciattach(pcici_t tag, int32_t unit)
     lun = 0;
     if (ata_probe(iobase_1, altiobase_1, bmaddr_1, tag, &lun)) {
 	if (iobase_1 == IO_WD1)
+#ifdef __i386__
 	    register_intr(irq1, (int)"", 0, (inthand2_t *)ataintr, 
 			  &bio_imask, lun);
+#else
+	    alpha_platform_setup_ide_intr(0, ataintr, (void *)(intptr_t)lun);
+#endif
 	else {
 	    if (sysctrl)
 	        pci_map_int(tag, (inthand2_t *)promise_intr, 
-			    (void *)lun, &bio_imask);
+			    (void *)(intptr_t)lun, &bio_imask);
 	    else
-	        pci_map_int(tag, (inthand2_t *)ataintr, (void *)lun,&bio_imask);
+	        pci_map_int(tag, (inthand2_t *)ataintr, (void *)(intptr_t)lun,&bio_imask);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_1, isa_apic_irq(irq1), unit);
@@ -237,11 +252,15 @@ ata_pciattach(pcici_t tag, int32_t unit)
     lun = 1;
     if (ata_probe(iobase_2, altiobase_2, bmaddr_2, tag, &lun)) {
 	if (iobase_2 == IO_WD2)
+#ifdef __i386__
 	    register_intr(irq2, (int)"", 0, (inthand2_t *)ataintr,
 			  &bio_imask, lun);
+#else
+	    alpha_platform_setup_ide_intr(1, ataintr, (void *)(intptr_t)lun);
+#endif
 	else {
 	    if (!sysctrl)
-	        pci_map_int(tag, (inthand2_t *)ataintr, (void *)lun,&bio_imask);
+	        pci_map_int(tag, (inthand2_t *)ataintr, (void *)(intptr_t)lun,&bio_imask);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_2, isa_apic_irq(irq2), unit);
@@ -418,6 +437,7 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
 #ifndef ATA_STATIC_ID
     atanlun++;
 #endif
+    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     return ATA_IOSIZE;
 }
 
@@ -571,7 +591,7 @@ printf("ata_command: addr=%04x, device=%02x, cmd=%02x, c=%d, h=%d, s=%d, count=%
         scp->active = ATA_WAIT_INTR;
         outb(scp->ioaddr + ATA_CMD, command);
 	if (tsleep((caddr_t)scp, PRIBIO, "atacmd", 500)) {
-	    printf("ata_command: timeout waiting for interrupt");
+	    printf("ata_command: timeout waiting for interrupt\n");
 	    scp->active = ATA_IDLE;
 	    return -1;
 	}
