@@ -31,5 +31,5 @@ struct device;
 
 extern struct device *i4b_Create(struct physical *);
 extern struct device *i4b_iov2device(int, struct physical *,
-                                     struct iovec *, int *, int);
+                                     struct iovec *, int *, int, int *, int *);
 extern int i4b_DeviceSize(void);

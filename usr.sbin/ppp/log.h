@@ -87,6 +87,7 @@ extern int log_ShowLevel(struct cmdargs const *);
 extern int log_SetLevel(struct cmdargs const *);
 extern int log_ShowWho(struct cmdargs const *);
 
+extern struct prompt *log_PromptContext;
 extern int log_PromptListChanged;
 extern void log_RegisterPrompt(struct prompt *);
 extern void log_UnRegisterPrompt(struct prompt *);

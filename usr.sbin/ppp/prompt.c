@@ -173,6 +173,7 @@ static void
 prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct prompt *p = descriptor2prompt(d);
+  struct prompt *op;
   int n;
   char ch;
   char linebuff[LINE_LEN];
@@ -186,8 +187,12 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         linebuff[n] = '\0';
       p->nonewline = 1;		/* Maybe command_Decode does a prompt */
       prompt_Required(p);
-      if (n)
+      if (n) {
+        if ((op = log_PromptContext) == NULL)
+          log_PromptContext = p;
         command_Decode(bundle, linebuff, n, p, p->src.from);
+        log_PromptContext = op;
+      }
     } else if (n <= 0) {
       log_Printf(LogPHASE, "%s: Client connection closed.\n", p->src.from);
       if (!p->owner)

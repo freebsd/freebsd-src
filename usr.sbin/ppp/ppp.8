@@ -8,9 +8,10 @@
 .Nd Point to Point Protocol (a.k.a. user-ppp) 
 .Sh SYNOPSIS
 .Nm
+.Op Fl Va mode
 .Op Fl nat
 .Op Fl quiet
-.Op Fl Va mode
+.Op Fl unit Ns Ar N
 .Op Ar system Ns
 .No ...
 .Sh DESCRIPTION
@@ -47,6 +48,21 @@ flag tells
 .Nm
 to be silent at startup rather than displaying the mode and interface
 to standard output.
+.Pp
+The
+.Fl unit
+flag tells
+.Nm
+to only attempt to open
+.Pa /dev/tun Ns Ar N .
+Normally,
+.Nm
+will start with a value of 0 for
+.Ar N ,
+and keep trying to open a tunnel device by incrementing the value of
+.Ar N
+by one each time until it succeeds.  If it fails three times in a row
+because the device file is missing, it gives up.
 .Pp
 The following
 .Va mode Ns No s
@@ -190,7 +206,7 @@ will force it to exit.
 .Nm
 can use either the standard LCP callback protocol or the Microsoft
 CallBack Control Protocol (ftp://ftp.microsoft.com/developr/rfc/cbcp.txt).
-.It Supports packet aliasing.
+.It Supports NAT or packet aliasing.
 Packet aliasing (a.k.a. IP masquerading) allows computers on a
 private, unregistered network to access the Internet.  The
 .Em PPP
@@ -261,19 +277,39 @@ link.
 .It Supports PPP over TCP and PPP over UDP.
 If a device name is specified as
 .Em host Ns No : Ns Em port Ns
-.Op / Ns Em tcp Ns No | Ns Em udp ,
+.Xo
+.Op / Ns tcp|udp ,
+.Xc
 .Nm
 will open a TCP or UDP connection for transporting data rather than using a
 conventional serial device.  UDP connections force
 .Nm
 into synchronous mode.
-.It Supports PPP over ISDN
+.It Supports PPP over ISDN.
 If
 .Nm
 is given a raw B-channel i4b device to open as a link, it's able to talk
 to the
 .Xr isdnd 8
 daemon to establish an ISDN connection.
+.It Supports PPP over Ethernet (rfc 2516).
+If
+.Nm
+is given a device specification of the format
+.No PPPoE: Ns Ar iface Ns Xo
+.Op \&: Ns Ar provider Ns
+.Xc
+and if
+.Xr netgraph 4
+is available,
+.Nm
+will attempt talk
+.Em PPP
+over Ethernet to
+.Ar provider
+using the
+.Ar iface
+network interface.
 .It "Supports IETF draft Predictor-1 (rfc 1978) and DEFLATE (rfc 1979) compression."
 .Nm
 supports not only VJ-compression but also Predictor-1 and DEFLATE compression.
@@ -330,12 +366,10 @@ When you first run
 you may need to deal with some initial configuration details.
 .Bl -bullet
 .It
-Up until FreeBSD-current as of October 1999, your kernel must include a
-tunnel device (the GENERIC kernel includes one by default).  Versions of
-FreeBSD after this will dynamically load the if_tun kld and the tun device
-will allocate new minors on demand.  If an older kernel doesn't contain any
-tun device or if you require more than one tun interface with that old kernel,
-you'll need to rebuild it with the following line in the configuration file:
+Your kernel must include a tunnel device (the GENERIC kernel includes
+one by default).  If it doesn't, or if you require more than one tun
+interface, you'll need to rebuild your kernel with the following line in
+your kernel configuration file:
 .Pp
 .Dl pseudo-device tun N
 .Pp
@@ -355,9 +389,6 @@ represents the number of the tun device, starting at zero.
 If they don't exist, you can create them by running "sh ./MAKEDEV tunN".
 This will create tun devices 0 through
 .Ar N .
-.Pp
-This is required even if your kernel is capable of dynamically allocating
-tun devices.
 .It
 Make sure that your system has a group named
 .Dq network
@@ -1971,7 +2002,8 @@ Generate a CCP packet trace.
 .It Li Chat
 Generate
 .Sq dial ,
-.Sq login
+.Sq login ,
+.Sq logout
 and
 .Sq hangup
 chat script trace logs.
@@ -2314,9 +2346,7 @@ implementations use "MS-CHAP" rather than MD5 when encrypting the
 challenge.  MS-CHAP is a combination of MD4 and DES.  If
 .Nm
 was built on a machine with DES libraries available, it will respond
-to MS-CHAP authentication requests.  See the
-.Dq MSChap
-description below.
+to MS-CHAP authentication requests, but will never request them.
 .It deflate
 Default: Enabled and Accepted.  This option decides if deflate
 compression will be used by the Compression Control Protocol (CCP).
@@ -3568,7 +3598,7 @@ be agreeable with the peer), or if
 is specified,
 .Nm
 will expect the peer to specify the number.
-.It set cd Ar seconds Ns Op \&!
+.It "set cd off|" Ns Ar seconds Ns Op \&!
 Normally,
 .Nm
 checks for the existence of carrier one second after the login script is
@@ -3588,6 +3618,11 @@ specifies the number of seconds that
 should wait after the dial script has finished before deciding if
 carrier is available or not.
 .Pp
+If
+.Dq off
+is specified,
+.Nm
+will not check for carrier on the device, otherwise
 .Nm
 will not proceed to the login script until either carrier is detected
 or until
@@ -3607,15 +3642,18 @@ seconds, the link will be disconnected.
 .Pp
 For ISDN devices,
 .Nm
-will always insist on carrier.  Carrier is raised by the i4brbchX device
-driver only after the call has connected.  It is therefore wise to set
-a reasonable value such as
+will always insist on carrier (the value
+.Dq off
+is invalid).  Carrier is raised by the i4brbchX device driver only after
+the call has connected.  It is therefore wise to set a reasonable value
+such as
 .Ar 6
 seconds.
 .Pp
 Carrier
 .Em require Ns No ment
-is ignored for all other device types.
+is ignored for all other device types - as if set to
+.Dq off .
 .It set choked Op Ar timeout
 This sets the number of seconds that
 .Nm
@@ -3633,9 +3671,9 @@ has read a certain number of packets from the local network for transmission,
 but cannot send the data due to link failure (the peer is busy etc.).
 .Nm
 will not read packets indefinitely.  Instead, it reads up to
-.Em 20
+.Em 30
 packets (or
-.Em 20 No +
+.Em 30 No +
 .Em nlinks No *
 .Em 2
 packets in multi-link mode), then stops reading the network interface
@@ -3694,9 +3732,15 @@ If
 does not begin with
 .Pa /dev/ ,
 it must either begin with an exclamation mark
-.Pq Dq \&!
+.Pq Dq \&! ,
+be of the format
+.No PPPoE: Ns Ar iface Ns Xo
+.Op \&: Ns Ar provider Ns
+.Xc
 or be of the format
-.Dq host:port Ns Op Ns /proto .
+.Ar host Ns No : Ns Ar port Ns Oo
+.No /tcp|udp
+.Oc .
 .Pp
 If it begins with an exclamation mark, the rest of the device name is
 treated as a program name, and that program is executed when the device
@@ -3705,15 +3749,41 @@ is opened.  Standard input, output and error are fed back to
 and are read and written as if they were a regular device.
 .Pp
 If a
-.Dq host:port Ns Op /tcp|/udp
+.No PPPoE: Ns Ar iface Ns Xo
+.Op \&: Ns Ar provider Ns
+.Xc
+specification is given,
+.Nm
+will attempt to create a
+.Em PPP
+over Ethernet connection using the given
+.Ar iface
+interface.  The given
+.Ar provider
+is passed as the service name in the PPPoE Discovery Initiation (PADI)
+packet.  If no provider is given, an empty value will be used.  Refer to
+.Xr netgraph 4
+and
+.Xr ng_pppoe 8
+for further details.
+.Pp
+If a
+.Ar host Ns No : Ns Ar port Ns Oo
+.No /tcp|udp
+.Oc
 specification is given,
 .Nm
 will attempt to connect to the given
-.Dq host
+.Ar host
 on the given
-.Dq port .
-If a tcp or udp specification is not given, the default is tcp.  Refer to
-the section on
+.Ar port .
+If a
+.Dq /tcp
+or
+.Dq /udp
+suffix is not provided, the default is
+.Dq /tcp .
+Refer to the section on
 .Em PPP OVER TCP and UDP
 above for further details.
 .Pp
@@ -4118,6 +4188,9 @@ This
 compliments the dial-script.  If both are specified, the login
 script will be executed after the dial script.  Escape sequences
 available in the dial script are also available here.
+.It set logout Ar chat-script
+This specifies the chat script that will be used to logout
+before the hangup script is called.  It should not normally be necessary.
 .It set lqrperiod Ar frequency
 This command sets the
 .Ar frequency
@@ -4426,10 +4499,7 @@ If you wish to specify a local domain socket,
 .Ar LocalName
 must be specified as an absolute file name, otherwise it is assumed
 to be the name or number of a TCP port.  You must specify the octal umask
-that should be used with local domain sockets as a four character octal
-number beginning with
-.Sq 0 .
-Refer to
+to be used with a local domain socket.  Refer to
 .Xr umask 2
 for umask details.  Refer to
 .Xr services 5
@@ -4506,6 +4576,46 @@ is specified,
 .Nm
 will never idle out before the link has been up for at least that number
 of seconds.
+.It set urgent Xo
+.Op tcp|udp
+.Oo Op +|- Ns
+.Ar port
+.Oc No ...
+.Xc
+This command controls the ports that
+.Nm
+prioritizes when transmitting data.  The default priority TCP ports
+are ports 21 (ftp control), 22 (ssh), 23 (telnet), 513 (login), 514 (shell),
+543 (klogin) and 544 (kshell).  There are no priority UDP ports by default.
+See
+.Xr services 5
+for details.
+.Pp
+If neither
+.Dq tcp
+or
+.Dq udp
+are specified,
+.Dq tcp
+is assumed.
+.Pp
+If no
+.Ar port Ns No s
+are given, the priority port lists are cleared (although if
+.Dq tcp
+or
+.Dq udp
+is specified, only that list is cleared).  If the first
+.Ar port
+argument is prefixed with a plus
+.Pq Dq \&+
+or a minus
+.Pq Dq \&- ,
+the current list is adjusted, otherwise the list is reassigned.
+.Ar port Ns No s
+prefixed with a plus or not prefixed at all are added to the list and
+.Ar port Ns No s
+prefixed with a minus are removed from the list.
 .It set vj slotcomp on|off
 This command tells
 .Nm
@@ -4708,6 +4818,7 @@ This socket is used to pass links between different instances of
 .Xr libalias 3 ,
 .Xr syslog 3 ,
 .Xr uucplock 3 ,
+.Xr netgraph 4 ,
 .Xr crontab 5 ,
 .Xr group 5 ,
 .Xr passwd 5 ,
@@ -4721,6 +4832,7 @@ This socket is used to pass links between different instances of
 .Xr init 8 ,
 .Xr isdn 8 ,
 .Xr named 8 ,
+.Xr ng_pppoe 8 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,

@@ -206,7 +206,8 @@ fsm_Output(struct fsm *fp, u_int code, u_int id, u_char *ptr, int count,
   if (count)
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
   log_DumpBp(LogDEBUG, "fsm_Output", bp);
-  link_PushPacket(fp->link, bp, fp->bundle, PRI_LINK, fp->proto);
+  link_PushPacket(fp->link, bp, fp->bundle, LINK_QUEUES(fp->link) - 1,
+                  fp->proto);
 }
 
 static void
@@ -892,8 +893,10 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   u_char *cp;
   u_int32_t magic;
 
+  bp = mbuf_Contiguous(bp);
   mbuf_SetType(bp, MB_ECHOIN);
-  if (lcp && mbuf_Length(bp) >= 4) {
+
+  if (lcp && ntohs(lhp->length) - sizeof *lhp >= 4) {
     cp = MBUF_CTOP(bp);
     ua_ntohl(cp, &magic);
     if (magic != lcp->his_magic) {
@@ -904,7 +907,8 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     }
     if (fp->state == ST_OPENED) {
       ua_htonl(&lcp->want_magic, cp);		/* local magic */
-      fsm_Output(fp, CODE_ECHOREP, lhp->id, cp, mbuf_Length(bp), MB_ECHOOUT);
+      fsm_Output(fp, CODE_ECHOREP, lhp->id, cp,
+                 ntohs(lhp->length) - sizeof *lhp, MB_ECHOOUT);
     }
   }
   mbuf_Free(bp);
@@ -942,9 +946,9 @@ FsmRecvResetReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   (*fp->fn->RecvResetReq)(fp);
   /*
-   * All sendable compressed packets are queued in the PRI_NORMAL modem
-   * output queue.... dump 'em to the priority queue so that they arrive
-   * at the peer before our ResetAck.
+   * All sendable compressed packets are queued in the first (lowest
+   * priority) modem output queue.... dump 'em to the priority queue
+   * so that they arrive at the peer before our ResetAck.
    */
   link_SequenceQueue(fp->link);
   fsm_Output(fp, CODE_RESETACK, lhp->id, NULL, 0, MB_CCPOUT);
@@ -971,6 +975,11 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
     return;
   }
   bp = mbuf_Read(bp, &lh, sizeof lh);
+
+  if (ntohs(lh.length) != len)
+    log_Printf(LogWARN, "%s: Oops: Got %d bytes but %d byte payload\n",
+               fp->link->name, len, (int)ntohs(lh.length));
+
   if (lh.code < fp->min_code || lh.code > fp->max_code ||
       lh.code > sizeof FsmCodes / sizeof *FsmCodes) {
     /*

@@ -33,6 +33,11 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifdef __OpenBSD__
+#include <util.h>
+#else
+#include <libutil.h>
+#endif
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,7 +68,7 @@
 #include "hdlc.h"
 #include "ipcp.h"
 #ifndef NONAT
-#include "alias_cmd.h"
+#include "nat_cmd.h"
 #endif
 #include "systems.h"
 #include "filter.h"
@@ -87,6 +92,7 @@
 #include "cbcp.h"
 #include "datalink.h"
 #include "iface.h"
+#include "id.h"
 
 /* ``set'' values */
 #define	VAR_AUTHKEY	0
@@ -122,6 +128,8 @@
 #define	VAR_CD		30
 #define	VAR_PARITY	31
 #define VAR_CRTSCTS	32
+#define VAR_URGENTPORTS	33
+#define	VAR_LOGOUT	34
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -143,7 +151,7 @@
 #define NEG_SHORTSEQ	52
 #define NEG_VJCOMP	53
 
-const char Version[] = "2.23";
+const char Version[] = "2.24";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1177,9 +1185,6 @@ SetStoppedTimeout(struct cmdargs const *arg)
   return -1;
 }
 
-#define ismask(x) \
-  (*x == '0' && strlen(x) == 4 && strspn(x+1, "0123456789.") == 3)
-
 static int
 SetServer(struct cmdargs const *arg)
 {
@@ -1187,6 +1192,7 @@ SetServer(struct cmdargs const *arg)
 
   if (arg->argc > arg->argn && arg->argc < arg->argn+4) {
     const char *port, *passwd, *mask;
+    int mlen;
 
     /* What's what ? */
     port = arg->argv[arg->argn];
@@ -1196,8 +1202,13 @@ SetServer(struct cmdargs const *arg)
     } else if (arg->argc == arg->argn + 3) {
       passwd = arg->argv[arg->argn+1];
       mask = arg->argv[arg->argn+2];
-      if (!ismask(mask))
+      mlen = strlen(mask);
+      if (mlen == 0 || mlen > 4 || strspn(mask, "01234567") != mlen ||
+          (mlen == 4 && *mask != '0')) {
+        log_Printf(LogWARN, "%s %s: %s: Invalid mask\n",
+                   arg->argv[arg->argn - 2], arg->argv[arg->argn - 1], mask);
         return -1;
+      }
     } else if (strcasecmp(port, "none") == 0) {
       if (server_Close(arg->bundle))
         log_Printf(LogPHASE, "Disabled server port.\n");
@@ -1212,15 +1223,10 @@ SetServer(struct cmdargs const *arg)
       mode_t imask;
       char *ptr, name[LINE_LEN + 12];
 
-      if (mask != NULL) {
-	unsigned m;
-
-	if (sscanf(mask, "%o", &m) == 1)
-	  imask = m;
-        else
-          return -1;
-      } else
+      if (mask == NULL)
         imask = (mode_t)-1;
+      else for (imask = mlen = 0; mask[mlen]; mlen++)
+        imask = (imask * 8) + mask[mlen] - '0';
 
       ptr = strstr(port, "%d");
       if (ptr) {
@@ -1374,7 +1380,7 @@ static int
 SetVariable(struct cmdargs const *arg)
 {
   long long_val, param = (long)arg->cmd->args;
-  int mode, dummyint;
+  int mode, dummyint, f, first;
   const char *argp;
   struct datalink *cx = arg->cx;	/* LOCAL_CX uses this */
   const char *err = NULL;
@@ -1594,6 +1600,11 @@ SetVariable(struct cmdargs const *arg)
     cx->cfg.script.hangup[sizeof cx->cfg.script.hangup - 1] = '\0';
     break;
 
+  case VAR_LOGOUT:
+    strncpy(cx->cfg.script.logout, argp, sizeof cx->cfg.script.logout - 1);
+    cx->cfg.script.logout[sizeof cx->cfg.script.logout - 1] = '\0';
+    break;
+
   case VAR_IDLETIMEOUT:
     if (arg->argc > arg->argn+2)
       err = "Too many idle timeout values\n";
@@ -1756,14 +1767,18 @@ SetVariable(struct cmdargs const *arg)
 
   case VAR_CD:
     if (*argp) {
-      long_val = atol(argp);
-      if (long_val < 0)
-        long_val = 0;
-      cx->physical->cfg.cd.delay = long_val;
-      cx->physical->cfg.cd.required = argp[strlen(argp)-1] == '!';
+      if (strcasecmp(argp, "off")) {
+        long_val = atol(argp);
+        if (long_val < 0)
+          long_val = 0;
+        cx->physical->cfg.cd.delay = long_val;
+        cx->physical->cfg.cd.necessity = argp[strlen(argp)-1] == '!' ?
+          CD_REQUIRED : CD_VARIABLE;
+      } else
+        cx->physical->cfg.cd.necessity = CD_NOTREQUIRED;
     } else {
       cx->physical->cfg.cd.delay = DEF_CDDELAY;
-      cx->physical->cfg.cd.required = 0;
+      cx->physical->cfg.cd.necessity = CD_VARIABLE;
     }
     break;
 
@@ -1786,6 +1801,43 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, err);
     }
     break;
+
+  case VAR_URGENTPORTS:
+    if (arg->argn == arg->argc) {
+      ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
+      ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
+    } else if (!strcasecmp(arg->argv[arg->argn], "udp")) {
+      if (arg->argn == arg->argc - 1)
+        ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
+      else for (f = arg->argn + 1; f < arg->argc; f++)
+        if (*arg->argv[f] == '+')
+          ipcp_AddUrgentUdpPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f] + 1));
+        else if (*arg->argv[f] == '-')
+          ipcp_RemoveUrgentUdpPort(&arg->bundle->ncp.ipcp,
+                                   atoi(arg->argv[f] + 1));
+        else {
+          if (f == arg->argn)
+            ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
+          ipcp_AddUrgentUdpPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f]));
+        }
+    } else {
+      first = arg->argn;
+      if (!strcasecmp(arg->argv[first], "tcp") && ++first == arg->argc)
+        ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
+
+      for (f = first; f < arg->argc; f++)
+        if (*arg->argv[f] == '+')
+          ipcp_AddUrgentTcpPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f] + 1));
+        else if (*arg->argv[f] == '-')
+          ipcp_RemoveUrgentTcpPort(&arg->bundle->ncp.ipcp,
+                                   atoi(arg->argv[f] + 1));
+        else {
+          if (f == first)
+            ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
+          ipcp_AddUrgentTcpPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f]));
+        }
+    }
+    break;
   }
 
   return err ? 1 : 0;
@@ -1801,6 +1853,8 @@ static struct cmdtab const SetCommands[] = {
   {"autoload", NULL, SetVariable, LOCAL_AUTH,
   "auto link [de]activation", "set autoload maxtime maxload mintime minload",
   (const void *)VAR_AUTOLOAD},
+  {"bandwidth", NULL, mp_SetDatalinkBandwidth, LOCAL_AUTH | LOCAL_CX,
+  "datalink bandwidth", "set bandwidth value"},
   {"callback", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "callback control", "set callback [none|auth|cbcp|"
   "E.164 *|number[,number]...]...", (const void *)VAR_CALLBACK},
@@ -1850,6 +1904,8 @@ static struct cmdtab const SetCommands[] = {
   "ipcp|lcp|lqm|phase|physical|sync|tcp/ip|timer|tun..."},
   {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "login script", "set login chat-script", (const void *) VAR_LOGIN},
+  {"logout", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "logout script", "set logout chat-script", (const void *) VAR_LOGOUT},
   {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "LQR period", "set lqrperiod value", (const void *)VAR_LQRPERIOD},
   {"mode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "mode value",
@@ -1892,10 +1948,10 @@ static struct cmdtab const SetCommands[] = {
   "STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
   {"timeout", NULL, SetVariable, LOCAL_AUTH, "Idle timeout",
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
+  {"urgent", NULL, SetVariable, LOCAL_AUTH, "urgent ports",
+  "set urgent [tcp|udp] [+|-]port...", (const void *)VAR_URGENTPORTS},
   {"vj", NULL, ipcp_vjset, LOCAL_AUTH,
   "vj values", "set vj slots|slotcomp [value]"},
-  {"bandwidth", NULL, mp_SetDatalinkBandwidth, LOCAL_AUTH | LOCAL_CX,
-  "datalink bandwidth", "set bandwidth value"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "set help|? [command]", SetCommands},
   {NULL, NULL, NULL},
@@ -2559,8 +2615,7 @@ SetProcTitle(struct cmdargs const *arg)
   int len, remaining, f, argc = arg->argc - arg->argn;
 
   if (arg->argc == arg->argn) {
-    arg->bundle->argv[0] = arg->bundle->argv0;
-    arg->bundle->argv[1] = arg->bundle->argv1;
+    ID0setproctitle(NULL);
     return 0;
   }
 
@@ -2586,8 +2641,7 @@ SetProcTitle(struct cmdargs const *arg)
   }
   *ptr = '\0';
 
-  arg->bundle->argv[0] = title;
-  arg->bundle->argv[1] = NULL;
+  ID0setproctitle(title);
 
   return 0;
 }

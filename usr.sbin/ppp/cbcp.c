@@ -203,7 +203,7 @@ cbcp_Output(struct cbcp *cbcp, u_char code, struct cbcp_data *data)
   memcpy(MBUF_CTOP(bp) + sizeof *head, data, data->length);
   log_DumpBp(LogDEBUG, "cbcp_Output", bp);
   link_PushPacket(&cbcp->p->link, bp, cbcp->p->dl->bundle,
-                  PRI_LINK, PROTO_CBCP);
+                  LINK_QUEUES(&cbcp->p->link) - 1, PROTO_CBCP);
 }
 
 static const char *

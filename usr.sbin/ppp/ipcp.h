@@ -42,6 +42,12 @@ struct in_range {
   int width;
 };
 
+struct port_range {
+  unsigned nports;		/* How many ports */
+  unsigned maxports;		/* How many allocated (malloc) ports */
+  u_short *port;		/* The actual ports */
+};
+
 struct ipcp {
   struct fsm fsm;			/* The finite state machine */
 
@@ -69,6 +75,10 @@ struct ipcp {
       struct in_addr nbns[2];		/* NetBIOS NS addresses offered */
     } ns;
 
+    struct {
+      struct port_range tcp, udp;	/* The range of urgent ports */
+    } urgent;
+
     struct fsm_retry fsm;	/* How often/frequently to resend requests */
   } cfg;
 
@@ -93,10 +103,11 @@ struct ipcp {
   u_int32_t my_reject;			/* Request codes I have rejected */
 
   struct pppThroughput throughput;	/* throughput statistics */
-  struct mqueue Queue[PRI_FAST + 1];	/* Output packet queues */
+  struct mqueue Queue[3];		/* Output packet queues */
 };
 
 #define fsm2ipcp(fp) (fp->proto == PROTO_IPCP ? (struct ipcp *)fp : NULL)
+#define IPCP_QUEUES(ipcp) (sizeof ipcp->Queue / sizeof ipcp->Queue[0])
 
 struct bundle;
 struct link;
@@ -104,6 +115,7 @@ struct cmdargs;
 
 extern void ipcp_Init(struct ipcp *, struct bundle *, struct link *,
                       const struct fsm_parent *);
+extern void ipcp_Destroy(struct ipcp *);
 extern void ipcp_Setup(struct ipcp *, u_int32_t);
 extern void ipcp_SetLink(struct ipcp *, struct link *);
 
@@ -116,4 +128,25 @@ extern int  ipcp_UseHisaddr(struct bundle *, const char *, int);
 extern int  ipcp_vjset(struct cmdargs const *);
 extern void ipcp_CleanInterface(struct ipcp *);
 extern int  ipcp_InterfaceUp(struct ipcp *);
+extern int  ipcp_IsUrgentPort(struct port_range *, u_short, u_short);
+extern void ipcp_AddUrgentPort(struct port_range *, u_short);
+extern void ipcp_RemoveUrgentPort(struct port_range *, u_short);
+extern void ipcp_ClearUrgentPorts(struct port_range *);
 extern struct in_addr addr2mask(struct in_addr);
+
+#define ipcp_IsUrgentTcpPort(ipcp, p1, p2) \
+          ipcp_IsUrgentPort(&(ipcp)->cfg.urgent.tcp, p1, p2)
+#define ipcp_IsUrgentUdpPort(ipcp, p1, p2) \
+          ipcp_IsUrgentPort(&(ipcp)->cfg.urgent.udp, p1, p2)
+#define ipcp_AddUrgentTcpPort(ipcp, p) \
+          ipcp_AddUrgentPort(&(ipcp)->cfg.urgent.tcp, p)
+#define ipcp_AddUrgentUdpPort(ipcp, p) \
+          ipcp_AddUrgentPort(&(ipcp)->cfg.urgent.udp, p)
+#define ipcp_RemoveUrgentTcpPort(ipcp, p) \
+          ipcp_RemoveUrgentPort(&(ipcp)->cfg.urgent.tcp, p)
+#define ipcp_RemoveUrgentUdpPort(ipcp, p) \
+          ipcp_RemoveUrgentPort(&(ipcp)->cfg.urgent.udp, p)
+#define ipcp_ClearUrgentTcpPorts(ipcp) \
+          ipcp_ClearUrgentPorts(&(ipcp)->cfg.urgent.tcp)
+#define ipcp_ClearUrgentUdpPorts(ipcp) \
+          ipcp_ClearUrgentPorts(&(ipcp)->cfg.urgent.udp)

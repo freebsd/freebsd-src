@@ -65,6 +65,13 @@
 #include "main.h"
 #include "tty.h"
 
+#if defined(__mac68k__) || defined(__macppc__)
+#undef	CRTS_IFLOW
+#undef	CCTS_OFLOW
+#define	CRTS_IFLOW	CDTRCTS
+#define	CCTS_OFLOW	CDTRCTS
+#endif
+
 #define	Online(dev)	((dev)->mbits & TIOCM_CD)
 
 struct ttydevice {
@@ -115,7 +122,7 @@ tty_Timeout(void *data)
     if (Online(dev))
       log_Printf(LogPHASE, "%s: %s: CD detected\n", p->link.name, p->name.full);
     else if (++dev->carrier_seconds >= p->cfg.cd.delay) {
-      if (p->cfg.cd.required)
+      if (p->cfg.cd.necessity == CD_REQUIRED)
         log_Printf(LogPHASE, "%s: %s: Required CD not detected\n",
                    p->link.name, p->name.full);
       else {
@@ -169,7 +176,7 @@ tty_AwaitCarrier(struct physical *p)
 {
   struct ttydevice *dev = device2tty(p->handler);
 
-  if (physical_IsSync(p))
+  if (p->cfg.cd.necessity == CD_NOTREQUIRED || physical_IsSync(p))
     return CARRIER_OK;
 
   if (dev->mbits == -1) {
@@ -180,7 +187,8 @@ tty_AwaitCarrier(struct physical *p)
     return CARRIER_PENDING;			/* Not yet ! */
   }
 
-  return Online(dev) || !p->cfg.cd.required ? CARRIER_OK : CARRIER_LOST;
+  return Online(dev) || !p->cfg.cd.necessity == CD_REQUIRED ?
+    CARRIER_OK : CARRIER_LOST;
 }
 
 static int
@@ -301,7 +309,7 @@ tty_OpenInfo(struct physical *p)
 
 static void
 tty_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, pid_t newpid)
+               int maxiov, int *auxfd, int *nauxfd, pid_t newpid)
 {
   struct ttydevice *dev = device2tty(d);
   int sz = physical_MaxDeviceSize();
@@ -324,6 +332,7 @@ static struct device basettydevice = {
   TTY_DEVICE,
   "tty",
   tty_AwaitCarrier,
+  NULL,
   tty_Raw,
   tty_Offline,
   tty_Cooked,
@@ -338,7 +347,7 @@ static struct device basettydevice = {
 
 struct device *
 tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
-               int maxiov)
+               int maxiov, int *auxfd, int *nauxfd)
 {
   if (type == TTY_DEVICE) {
     struct ttydevice *dev = (struct ttydevice *)iov[(*niov)++].iov_base;

@@ -31,12 +31,13 @@
 #define DATALINK_HANGUP  (2)
 #define DATALINK_DIAL    (3)
 #define DATALINK_CARRIER (4)
-#define DATALINK_LOGIN   (5)
-#define DATALINK_READY   (6)
-#define DATALINK_LCP     (7)
-#define DATALINK_AUTH    (8)
-#define DATALINK_CBCP    (9)
-#define DATALINK_OPEN    (10)
+#define DATALINK_LOGOUT  (5)
+#define DATALINK_LOGIN   (6)
+#define DATALINK_READY   (7)
+#define DATALINK_LCP     (8)
+#define DATALINK_AUTH    (9)
+#define DATALINK_CBCP    (10)
+#define DATALINK_OPEN    (11)
 
 #define DATALINK_MAXNAME (20)   /* Maximum datalink::name length */
 
@@ -65,10 +66,11 @@ struct datalink {
 
   struct {
     struct {
-      char dial[SCRIPT_LEN];	/* dial */
-      char login[SCRIPT_LEN];	/* login */
-      char hangup[SCRIPT_LEN];	/* hangup */
-    } script;
+      char dial[SCRIPT_LEN];
+      char login[SCRIPT_LEN];
+      char logout[SCRIPT_LEN];
+      char hangup[SCRIPT_LEN];
+    } script;			/* various chat scripts */
     struct {
       char list[SCRIPT_LEN];	/* Telephone Numbers */
     } phone;
@@ -126,8 +128,9 @@ struct datalink {
 extern struct datalink *datalink_Create(const char *name, struct bundle *, int);
 extern struct datalink *datalink_Clone(struct datalink *, const char *);
 extern struct datalink *iov2datalink(struct bundle *, struct iovec *, int *,
-                                     int, int);
-extern int datalink2iov(struct datalink *, struct iovec *, int *, int, pid_t);
+                                     int, int, int *, int *);
+extern int datalink2iov(struct datalink *, struct iovec *, int *, int, int *,
+                        int *, pid_t);
 extern struct datalink *datalink_Destroy(struct datalink *);
 extern void datalink_GotAuthname(struct datalink *, const char *);
 extern void datalink_Up(struct datalink *, int, int);

@@ -31,7 +31,6 @@
 #define PHYSICAL_LINK	1
 #define LOGICAL_LINK	2
 
-#define LINK_QUEUES (PRI_MAX + 1)
 #define NPROTOSTAT 13
 
 struct bundle;
@@ -43,7 +42,7 @@ struct link {
   const char *name;                       /* Points to datalink::name */
   int len;                                /* full size of parent struct */
   struct pppThroughput throughput;        /* Link throughput statistics */
-  struct mqueue Queue[LINK_QUEUES];       /* Our output queue of mbufs */
+  struct mqueue Queue[2];                 /* Our output queue of mbufs */
 
   u_long proto_in[NPROTOSTAT];            /* outgoing protocol stats */
   u_long proto_out[NPROTOSTAT];           /* incoming protocol stats */
@@ -54,6 +53,9 @@ struct link {
   struct layer const *layer[LAYER_MAX];   /* i/o layers */
   int nlayers;
 };
+
+#define LINK_QUEUES(link) (sizeof (link)->Queue / sizeof (link)->Queue[0])
+#define LINK_HIGHQ(link) ((link)->Queue + LINK_QUEUES(link) - 1)
 
 extern void link_AddInOctets(struct link *, int);
 extern void link_AddOutOctets(struct link *, int);

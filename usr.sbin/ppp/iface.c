@@ -118,18 +118,20 @@ iface_Create(const char *name)
   mib[5] = 0;
 
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    fprintf(stderr, "clean: sysctl: estimate: %s\n",
+    fprintf(stderr, "iface_Create: sysctl: estimate: %s\n",
               strerror(errno));
     close(s);
     return NULL;
   }
 
   if ((buf = (char *)malloc(needed)) == NULL) {
+    fprintf(stderr, "iface_Create: malloc failed: %s\n", strerror(errno));
     close(s);
     return NULL;
   }
 
   if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+    fprintf(stderr, "iface_Create: sysctl: %s\n", strerror(errno));
     free(buf);
     close(s);
     return NULL;
@@ -417,7 +419,7 @@ iface_ChangeFlags(struct iface *iface, int flags, int how)
 
   s = ID0socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    log_Printf(LogERROR, "iface_ClearFlags: socket: %s\n", strerror(errno));
+    log_Printf(LogERROR, "iface_ChangeFlags: socket: %s\n", strerror(errno));
     return 0;
   }
 
@@ -425,7 +427,7 @@ iface_ChangeFlags(struct iface *iface, int flags, int how)
   strncpy(ifrq.ifr_name, iface->name, sizeof ifrq.ifr_name - 1);
   ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
   if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-    log_Printf(LogERROR, "iface_ClearFlags: ioctl(SIOCGIFFLAGS): %s\n",
+    log_Printf(LogERROR, "iface_ChangeFlags: ioctl(SIOCGIFFLAGS): %s\n",
        strerror(errno));
     close(s);
     return 0;
@@ -437,7 +439,7 @@ iface_ChangeFlags(struct iface *iface, int flags, int how)
     ifrq.ifr_flags &= ~flags;
 
   if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-    log_Printf(LogERROR, "iface_ClearFlags: ioctl(SIOCSIFFLAGS): %s\n",
+    log_Printf(LogERROR, "iface_ChangeFlags: ioctl(SIOCSIFFLAGS): %s\n",
        strerror(errno));
     close(s);
     return 0;

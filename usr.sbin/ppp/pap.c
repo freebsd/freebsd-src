@@ -94,7 +94,8 @@ pap_Req(struct authinfo *authp)
   cp += namelen;
   *cp++ = keylen;
   memcpy(cp, bundle->cfg.auth.key, keylen);
-  link_PushPacket(&authp->physical->link, bp, bundle, PRI_LINK, PROTO_PAP);
+  link_PushPacket(&authp->physical->link, bp, bundle,
+                  LINK_QUEUES(&authp->physical->link) - 1, PROTO_PAP);
 }
 
 static void
@@ -118,7 +119,7 @@ SendPapCode(struct authinfo *authp, int code, const char *message)
   log_Printf(LogPHASE, "Pap Output: %s\n", papcodes[code]);
 
   link_PushPacket(&authp->physical->link, bp, authp->physical->dl->bundle,
-                  PRI_LINK, PROTO_PAP);
+                  LINK_QUEUES(&authp->physical->link) - 1, PROTO_PAP);
 }
 
 static void

@@ -30,5 +30,5 @@ struct physical;
 
 extern struct device *tcp_Create(struct physical *);
 extern struct device *tcp_iov2device(int, struct physical *,
-                                     struct iovec *, int *, int);
+                                     struct iovec *, int *, int, int *, int *);
 #define tcp_DeviceSize physical_DeviceSize
