@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: err.c,v 8.120.4.3 2001/05/30 00:22:26 gshapiro Exp $";
+static char id[] = "@(#)$Id: err.c,v 8.120.4.5 2001/08/17 22:09:40 ca Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -778,10 +778,27 @@ fmtmsg(eb, to, num, enhsc, eno, fmt, ap)
 		spaceleft -= l;
 	}
 
-	/* output the "to" person */
+	/*
+	**  output the "to" address only if it is defined and one of the
+	**  following codes is used:
+	**  050 internal notices, e.g., alias expansion
+	**  250 Ok
+	**  252 Cannot VRFY user, but will accept message and attempt delivery
+	**  450 Requested mail action not taken: mailbox unavailable
+	**  550 Requested action not taken: mailbox unavailable
+	**  553 Requested action not taken: mailbox name not allowed
+	**
+	**  Notice: this still isn't "the right thing", this code shouldn't
+	**	(indirectly) depend on CurEnv->e_to.
+	*/
+
 	if (to != NULL && to[0] != '\0' &&
-	    strncmp(num, "551", 3) != 0 &&
-	    strncmp(num, "251", 3) != 0)
+	    (strncmp(num, "050", 3) == 0 ||
+	     strncmp(num, "250", 3) == 0 ||
+	     strncmp(num, "252", 3) == 0 ||
+	     strncmp(num, "450", 3) == 0 ||
+	     strncmp(num, "550", 3) == 0 ||
+	     strncmp(num, "553", 3) == 0))
 	{
 		(void) snprintf(eb, spaceleft, "%s... ",
 			shortenstring(to, MAXSHORTSTR));
