@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.6 1995/06/11 19:32:39 rgrimes Exp $";
+	"$Id: inetd.c,v 1.6.2.1 1996/05/07 03:11:58 gpalmer Exp $";
 #endif /* not lint */
 
 /*
@@ -882,7 +882,8 @@ more:
 		sep->se_socktype = -1;
 	sep->se_proto = newstr(sskip(&cp));
         if (strncmp(sep->se_proto, "rpc/", 4) == 0) {
-                sep->se_proto += 4;
+                memmove(sep->se_proto, sep->se_proto + 4,
+                    strlen(sep->se_proto) + 1 - 4);
                 sep->se_rpc = 1;
                 sep->se_rpc_prog = sep->se_rpc_lowvers =
 			sep->se_rpc_lowvers = 0;
