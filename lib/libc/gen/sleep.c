@@ -87,6 +87,7 @@ sleep(seconds)
 	struct timespec time_remaining;
 	struct sigaction act, oact;
 	sigset_t mask, omask;
+	int alarm_blocked;
 
 	if (seconds != 0) {
 		/*
@@ -102,30 +103,39 @@ sleep(seconds)
 		time_to_sleep.tv_sec = seconds;
 		time_to_sleep.tv_nsec = 0;
 
-		/*
-		 * Set up handler to interrupt signanosleep and ensure
-		 * SIGARLM is not blocked.  Block SIGALRM while fiddling
-		 * with things.
-		 */
-		memset(&act, 0, sizeof(act));
-		act.sa_handler = sleephandler;
+		/* Block SIGALRM while fiddling with it */
 		sigemptyset(&mask);
 		sigaddset(&mask, SIGALRM);
 		sigprocmask(SIG_BLOCK, &mask, &omask);
-		sigaction(SIGALRM, &act, &oact);
-		mask = omask;
-		sigdelset(&mask, SIGALRM);
 
-		/*
-		 * signanosleep() uses the given mask for the lifetime of
-		 * the syscall only - it resets on return.  Note that the
-		 * old sleep explicitly unblocks SIGALRM during the sleep.
-		 */
-		signanosleep(&time_to_sleep, &time_remaining, &mask);
+		/* Was SIGALRM blocked already? */
+		alarm_blocked = sigismember(&omask, SIGALRM);
 
-		/* Unwind */
-		sigaction(SIGALRM, &oact, (struct sigaction *)0);
-		sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
+		if (!alarm_blocked) {
+			/*
+			 * Set up handler to interrupt signanosleep only if
+			 * SIGALRM was unblocked. (Save some syscalls)
+			 */
+			memset(&act, 0, sizeof(act));
+			act.sa_handler = sleephandler;
+			sigaction(SIGALRM, &act, &oact);
+		}
+
+  		/*
+  		 * signanosleep() uses the given mask for the lifetime of
+  		 * the syscall only - it resets on return.  Note that the
+		 * old sleep() explicitly unblocks SIGALRM during the sleep,
+		 * we don't do that now since we don't depend on SIGALRM
+		 * to end the timeout.  If the process blocks SIGALRM, it
+		 * gets what it asks for.
+  		 */
+		signanosleep(&time_to_sleep, &time_remaining, &omask);
+
+		if (!alarm_blocked) {
+			/* Unwind */
+			sigaction(SIGALRM, &oact, (struct sigaction *)0);
+			sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
+		}
 
 		/* return how long is left */
 		rest += time_remaining.tv_sec;
