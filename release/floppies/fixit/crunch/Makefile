@@ -1,3 +1,3 @@
 OBJTOP=../../../..
-.include "../../makecrunch.mk"
+.include "../../mk/makecrunch.mk"
 
