@@ -999,6 +999,8 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
       { " local",	"Local additions collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
+      { " perl",	"Perl",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PERL },
       { " XFree86",	"The XFree86 distribution",
 #ifdef X_AS_PKG
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_XF86 },
