@@ -62,8 +62,11 @@ struct pcb {
 	int     pcb_dr6;
 	int     pcb_dr7;
 
-	caddr_t	pcb_ldt;		/* per process (user) LDT */
-	int	pcb_ldt_len;		/* number of LDT entries */
+#ifdef USER_LDT
+	struct	pcb_ldt *pcb_ldt;	/* per process (user) LDT */
+#else
+	struct	pcb_ldt	*pcb_ldt_dontuse;
+#endif
 	struct	save87	pcb_savefpu;	/* floating point state for 287/387 */
 	u_char	pcb_flags;
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
@@ -76,7 +79,7 @@ struct pcb {
 #endif
 	int	pcb_gs;
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
-	u_long	__pcb_spare[2];	/* adjust to avoid core dump size changes */
+	u_long	__pcb_spare[3];	/* adjust to avoid core dump size changes */
 };
 
 /*

@@ -49,13 +49,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/unistd.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -63,6 +64,9 @@
 #ifdef SMP
 #include <machine/smp.h>
 #endif
+#include <machine/pcb.h>
+#include <machine/pcb_ext.h>
+#include <machine/vm86.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -110,10 +114,28 @@ vm_fault_quick(v, prot)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(p1, p2)
+cpu_fork(p1, p2, flags)
 	register struct proc *p1, *p2;
+	int flags;
 {
-	struct pcb *pcb2 = &p2->p_addr->u_pcb;
+	struct pcb *pcb2;
+
+	if ((flags & RFPROC) == 0) {
+#ifdef USER_LDT
+		if ((flags & RFMEM) == 0) {
+			/* unshare user LDT */
+			struct pcb *pcb1 = &p1->p_addr->u_pcb;
+			struct pcb_ldt *pcb_ldt = pcb1->pcb_ldt;
+			if (pcb_ldt && pcb_ldt->ldt_refcnt > 1) {
+				pcb_ldt = user_ldt_alloc(pcb1,pcb_ldt->ldt_len);
+				user_ldt_free(pcb1);
+				pcb1->pcb_ldt = pcb_ldt;
+				set_user_ldt(pcb1);
+			}
+		}
+#endif
+		return;
+	}
 
 #if NNPX > 0
 	/* Ensure that p1's pcb is up to date. */
@@ -123,6 +145,7 @@ cpu_fork(p1, p2)
 
 	/* Copy p1's pcb. */
 	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
+	pcb2 = &p2->p_addr->u_pcb;
 
 	/*
 	 * Create a new fresh stack for the new process.
@@ -146,7 +169,6 @@ cpu_fork(p1, p2)
 	pcb2->pcb_eip = (int)fork_trampoline;
 	/*
 	 * pcb2->pcb_ldt:	duplicated below, if necessary.
-	 * pcb2->pcb_ldt_len:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.
 	 * pcb2->pcb_flags:	cloned above (always 0 here?).
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
@@ -163,12 +185,12 @@ cpu_fork(p1, p2)
 #ifdef USER_LDT
         /* Copy the LDT, if necessary. */
         if (pcb2->pcb_ldt != 0) {
-                union descriptor *new_ldt;
-                size_t len = pcb2->pcb_ldt_len * sizeof(union descriptor);
-
-                new_ldt = (union descriptor *)kmem_alloc(kernel_map, len);
-                bcopy(pcb2->pcb_ldt, new_ldt, len);
-                pcb2->pcb_ldt = (caddr_t)new_ldt;
+		if (flags & RFMEM) {
+			pcb2->pcb_ldt->ldt_refcnt++;
+		} else {
+			pcb2->pcb_ldt = user_ldt_alloc(pcb2,
+				pcb2->pcb_ldt->ldt_len);
+		}
         }
 #endif
 
@@ -222,15 +244,7 @@ cpu_exit(p)
 		pcb->pcb_ext = 0;
 	}
 #ifdef USER_LDT
-	if (pcb->pcb_ldt != 0) {
-		if (pcb == curpcb) {
-			lldt(_default_ldt);
-			currentldt = _default_ldt;
-		}
-		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ldt,
-			pcb->pcb_ldt_len * sizeof(union descriptor));
-		pcb->pcb_ldt_len = (int)pcb->pcb_ldt = 0;
-	}
+	user_ldt_free(pcb);
 #endif
 	cnt.v_swtch++;
 	cpu_switch(p);
