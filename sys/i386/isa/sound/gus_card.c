@@ -34,8 +34,6 @@
 
 #include "gus_hw.h"
 
-void            gusintr (int);
-
 int             gus_base, gus_irq, gus_dma;
 extern int      gus_wave_volume;
 extern int      gus_pcm_volume;
@@ -184,7 +182,7 @@ attach_gus_db16 (long mem_start, struct address_info *hw_config)
   gus_pcm_volume = 100;
   gus_wave_volume = 90;
 
-  ad1848_init ("GUS 16 bit sampling", hw_config->io_base,
+  ad1848_init ("gusxvi0: <GUS 16 bit sampling>", hw_config->io_base,
 	       hw_config->irq,
 	       hw_config->dma,
 	       hw_config->dma);

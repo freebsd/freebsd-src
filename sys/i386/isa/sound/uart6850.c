@@ -285,7 +285,11 @@ attach_uart6850 (long mem_start, struct address_info *hw_config)
 
   RESTORE_INTR (flags);
 
+#ifdef __FreeBSD__
+  printk ("uart0: <6850 Midi Interface>");
+#else
   printk (" <6850 Midi Interface>");
+#endif
 
   std_midi_synth.midi_dev = my_dev = num_midis;
   midi_devs[num_midis++] = &uart6850_operations;

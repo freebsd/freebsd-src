@@ -32,7 +32,7 @@
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_MIDI)
+#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16MIDI) && !defined(EXCLUDE_MIDI)
 
 #include "sb.h"
 
@@ -226,7 +226,7 @@ attach_sb16midi (long mem_start, struct address_info *hw_config)
     }
 
 #ifdef __FreeBSD__
-  printk ("snd7: <SoundBlaster MPU-401>");
+  printk ("sbmidi: <SoundBlaster MPU-401>");
 #else
   printk (" <SoundBlaster MPU-401>");
 #endif

@@ -478,7 +478,7 @@ sb16_dsp_init (long mem_start, struct address_info *hw_config)
 #endif
 
 #ifdef __FreeBSD__
-  printk ("snd6: <%s>", sb16_dsp_operations.name);
+  printk ("sbxvi0: <%s>", sb16_dsp_operations.name);
 #else
   printk (" <%s>", sb16_dsp_operations.name);
 #endif

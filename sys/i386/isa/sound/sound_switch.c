@@ -292,10 +292,12 @@ sound_read_sw (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
       return audio_read (dev, file, buf, count);
       break;
 
+#ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
       return sequencer_read (dev, file, buf, count);
       break;
+#endif
 
 #ifndef EXCLUDE_MIDI
     case SND_DEV_MIDIN:
@@ -323,10 +325,12 @@ sound_write_sw (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
   switch (dev & 0x0f)
     {
 
+#ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
       return sequencer_write (dev, file, buf, count);
       break;
+#endif
 
     case SND_DEV_DSP:
     case SND_DEV_DSP16:
@@ -380,11 +384,13 @@ sound_open_sw (int dev, struct fileinfo *file)
       return 0;
       break;
 
+#ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
       if ((retval = sequencer_open (dev, file)) < 0)
 	return retval;
       break;
+#endif
 
 #ifndef EXCLUDE_MIDI
     case SND_DEV_MIDIN:
@@ -436,10 +442,12 @@ sound_release_sw (int dev, struct fileinfo *file)
     case SND_DEV_CTL:
       break;
 
+#ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
       sequencer_release (dev, file);
       break;
+#endif
 
 #ifndef EXCLUDE_MIDI
     case SND_DEV_MIDIN:
@@ -495,10 +503,12 @@ sound_ioctl_sw (int dev, struct fileinfo *file,
       return mixer_devs[dev]->ioctl (dev, cmd, arg);
       break;
 
+#ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
       return sequencer_ioctl (dev, file, cmd, arg);
       break;
+#endif
 
     case SND_DEV_DSP:
     case SND_DEV_DSP16:
