@@ -114,6 +114,10 @@ SLIST_HEAD(klist, knote);
 
 #ifdef _KERNEL
 
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_KQUEUE);
+#endif
+
 #define KNOTE(list, hint)	if ((list) != NULL) knote(list, hint)
 
 /*
