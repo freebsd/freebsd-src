@@ -247,6 +247,22 @@ The \fIfqdn.fqdn\fR option \fBMUST\fR be a fully-qualified domain
 name.   You \fBMUST\fR define a zone statement for the zone to be
 updated.   The \fIfqdn.encoded\fR option may need to be set to
 \fIon\fR or \fIoff\fR, depending on the DHCP server you are using.
+.PP
+.I The
+.B no-client-updates
+.I statement
+.PP
+ \fBno-client-updates [ \fIflag\fR ] \fB;\fR
+.PP
+If you want to do DNS updates in the DHCP client
+script (see \fBdhclient-script(8)\fR) rather than having the
+DHCP client do the update directly (for example, if you want to
+use SIG(0) authentication, which is not supported directly by the
+DHCP client, you can instruct the client not to do the update using
+the \fBno-client-updates\fR statement.   \fIFlag\fR should be \fBtrue\fR
+if you don't want the DHCP client to do the update, and \fBfalse\fR if
+you want the DHCP client to do the update.   By default, the DHCP
+client will do the DNS update.
 .SH OPTION MODIFIERS
 In some cases, a client may receive option data from the server which
 is not really appropriate for that client, or may not receive
@@ -319,7 +335,7 @@ enforced - if you ignore it, the behaviour will be unpredictable.
  \fBlease {\fR \fIlease-declaration\fR [ ... \fIlease-declaration ] \fB}\fR
 .PP
 The DHCP client may decide after some period of time (see \fBPROTOCOL
-TIMING\fR) decide that it is not going to succeed in contacting a
+TIMING\fR) that it is not going to succeed in contacting a
 server.   At that time, it consults its own database of old leases and
 tests each one that has not yet timed out by pinging the listed router
 for that lease to see if that lease could work.   It is possible to
@@ -430,7 +446,7 @@ initializing the interface.  On Unix and Unix-like systems, the
 argument is passed on the ifconfig command line when configuring te
 interface.
 .PP
-The dhcp client automatically declares this parameter if it used a
+The dhcp client automatically declares this parameter if it uses a
 media type (see the
 .B media
 statement) when configuring the interface in order to obtain a lease.
@@ -493,7 +509,9 @@ declaration.
 .SH OTHER DECLARATIONS
  \fBreject \fIip-address\fB;\fR
 .PP
-The reject statement causes the DHCP client to reject offers from
+The
+.B reject
+statement causes the DHCP client to reject offers from
 servers who use the specified address as a server identifier.   This
 can be used to avoid being configured by rogue or misconfigured dhcp
 servers, although it should be a last resort - better to track down
@@ -554,7 +572,7 @@ succeeds in getting a request to the server and hearing the reply is
 probably right (no guarantees).
 .PP
 The media setup is only used for the initial phase of address
-acquisition (the DHCPDISCOVER and DHCPOFFER packtes).   Once an
+acquisition (the DHCPDISCOVER and DHCPOFFER packets).   Once an
 address has been acquired, the dhcp client will record it in its lease
 database and will record the media type used to acquire the address.
 Whenever the client tries to renew the lease, it will use that same
@@ -586,7 +604,7 @@ interface "ep0" {
     request subnet-mask, broadcast-address, time-offset, routers,
 	    domain-name, domain-name-servers, host-name;
     require subnet-mask, domain-name-servers;
-    script "/etc/dhclient-script";
+    script "CLIENTBINDIR/dhclient-script";
     media "media 10baseT/UTP", "media 10base2/BNC";
 }
 

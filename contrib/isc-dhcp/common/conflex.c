@@ -3,7 +3,7 @@
    Lexical scanner for dhcpd config file... */
 
 /*
- * Copyright (c) 1995-2001 Internet Software Consortium.
+ * Copyright (c) 1995-2002 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: conflex.c,v 1.92.2.4 2002/01/10 19:35:59 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: conflex.c,v 1.92.2.5 2002/02/09 03:15:17 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -612,6 +612,8 @@ static enum dhcp_token intern (atom, dfv)
 			return DOMAIN;
 		if (!strcasecmp (atom + 1, "omain-name"))
 			return DOMAIN_NAME;
+		if (!strcasecmp (atom + 1, "o-forward-update"))
+			return DO_FORWARD_UPDATE;
 		if (!strcasecmp (atom + 1, "ebug"))
 			return TOKEN_DEBUG;
 		if (!strcasecmp (atom + 1, "eny"))
