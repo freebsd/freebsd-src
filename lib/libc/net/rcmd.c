@@ -59,12 +59,19 @@ static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #include <rpcsvc/ypclnt.h>
 #endif
 
+/* wrapper for KAME-special getnameinfo() */
+#ifndef NI_WITHSCOPEID
+#define NI_WITHSCOPEID	0
+#endif
+
 extern int innetgr __P(( const char *, const char *, const char *, const char * ));
 
 #define max(a, b)	((a > b) ? a : b)
 
 int	__ivaliduser __P((FILE *, u_int32_t, const char *, const char *));
-static int __icheckhost __P((u_int32_t, char *));
+static int __icheckhost __P((void *, char *, int, int));
+
+char paddr[INET6_ADDRSTRLEN];
 
 int
 rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
@@ -73,24 +80,40 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 	const char *locuser, *remuser, *cmd;
 	int *fd2p;
 {
-	struct hostent *hp;
-	struct sockaddr_in sin, from;
+	struct addrinfo hints, *res, *ai;
+	struct sockaddr_storage from;
 	fd_set reads;
 	long oldmask;
 	pid_t pid;
-	int s, lport, timo;
+	int s, aport, lport, timo, error;
 	char c;
+	int refused;
+	char num[8];
 
 	pid = getpid();
-	hp = gethostbyname(*ahost);
-	if (hp == NULL) {
-		herror(*ahost);
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags = AI_CANONNAME;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = 0;
+	(void)snprintf(num, sizeof(num), "%d", ntohs(rport));
+	error = getaddrinfo(*ahost, num, &hints, &res);
+	if (error) {
+		fprintf(stderr, "rcmd: getaddrinfo: %s\n",
+			gai_strerror(error));
+		if (error == EAI_SYSTEM)
+			fprintf(stderr, "rcmd: getaddrinfo: %s\n",
+				strerror(errno));
 		return (-1);
 	}
-	*ahost = hp->h_name;
+	if (res->ai_canonname)
+		*ahost = res->ai_canonname;
+	ai = res;
+	refused = 0;
 	oldmask = sigblock(sigmask(SIGURG));
 	for (timo = 1, lport = IPPORT_RESERVED - 1;;) {
-		s = rresvport(&lport);
+		s = rresvport_af(&lport, ai->ai_family);
 		if (s < 0) {
 			if (errno == EAGAIN)
 				(void)fprintf(stderr,
@@ -99,40 +122,47 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 				(void)fprintf(stderr, "rcmd: socket: %s\n",
 				    strerror(errno));
 			sigsetmask(oldmask);
+			freeaddrinfo(res);
 			return (-1);
 		}
 		_libc_fcntl(s, F_SETOWN, pid);
-		bzero(&sin, sizeof sin);
-		sin.sin_len = sizeof(struct sockaddr_in);
-		sin.sin_family = hp->h_addrtype;
-		sin.sin_port = rport;
-		bcopy(hp->h_addr_list[0], &sin.sin_addr, MIN(hp->h_length, sizeof sin.sin_addr));
-		if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
+		if (connect(s, ai->ai_addr, ai->ai_addrlen) >= 0)
 			break;
 		(void)_libc_close(s);
 		if (errno == EADDRINUSE) {
 			lport--;
 			continue;
 		}
-		if (errno == ECONNREFUSED && timo <= 16) {
-			(void)_libc_sleep(timo);
-			timo *= 2;
-			continue;
-		}
-		if (hp->h_addr_list[1] != NULL) {
+		if (errno == ECONNREFUSED)
+			refused = 1;
+		if (ai->ai_next != NULL) {
 			int oerrno = errno;
 
+			getnameinfo(ai->ai_addr, ai->ai_addrlen,
+				    paddr, sizeof(paddr),
+				    NULL, 0,
+				    NI_NUMERICHOST|NI_WITHSCOPEID);
 			(void)fprintf(stderr, "connect to address %s: ",
-			    inet_ntoa(sin.sin_addr));
+				      paddr);
 			errno = oerrno;
 			perror(0);
-			hp->h_addr_list++;
-			bcopy(hp->h_addr_list[0], &sin.sin_addr, MIN(hp->h_length, sizeof sin.sin_addr));
-			(void)fprintf(stderr, "Trying %s...\n",
-			    inet_ntoa(sin.sin_addr));
+			ai = ai->ai_next;
+			getnameinfo(ai->ai_addr, ai->ai_addrlen,
+				    paddr, sizeof(paddr),
+				    NULL, 0,
+				    NI_NUMERICHOST|NI_WITHSCOPEID);
+			fprintf(stderr, "Trying %s...\n", paddr);
 			continue;
 		}
-		(void)fprintf(stderr, "%s: %s\n", hp->h_name, strerror(errno));
+		if (refused && timo <= 16) {
+			(void)_libc_sleep(timo);
+			timo *= 2;
+			ai = res;
+			refused = 0;
+			continue;
+		}
+		freeaddrinfo(res);
+		(void)fprintf(stderr, "%s: %s\n", *ahost, strerror(errno));
 		sigsetmask(oldmask);
 		return (-1);
 	}
@@ -142,8 +172,8 @@ rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
 		lport = 0;
 	} else {
 		char num[8];
-		int s2 = rresvport(&lport), s3;
-		int len = sizeof(from);
+		int s2 = rresvport_af(&lport, ai->ai_family), s3;
+		int len = ai->ai_addrlen;
 		int nfds;
 
 		if (s2 < 0)
@@ -180,11 +210,24 @@ again:
 			goto bad;
 		}
 		s3 = accept(s2, (struct sockaddr *)&from, &len);
+		switch (from.ss_family) {
+		case AF_INET:
+			aport = ntohs(((struct sockaddr_in *)&from)->sin_port);
+			break;
+#ifdef INET6
+		case AF_INET6:
+			aport = ntohs(((struct sockaddr_in6 *)&from)->sin6_port);
+			break;
+#endif
+		default:
+			aport = 0;	/* error */
+			break;
+		}
 		/*
 		 * XXX careful for ftp bounce attacks. If discovered, shut them
 		 * down and check for the real auxiliary channel to connect.
 		 */
-		if (from.sin_family == AF_INET && from.sin_port == htons(20)) {
+		if (aport == 20) {
 			_libc_close(s3);
 			goto again;
 		}
@@ -196,10 +239,7 @@ again:
 			goto bad;
 		}
 		*fd2p = s3;
-		from.sin_port = ntohs((u_short)from.sin_port);
-		if (from.sin_family != AF_INET ||
-		    from.sin_port >= IPPORT_RESERVED ||
-		    from.sin_port < IPPORT_RESERVED / 2) {
+		if (aport >= IPPORT_RESERVED || aport < IPPORT_RESERVED / 2) {
 			(void)fprintf(stderr,
 			    "socket: protocol failure in circuit setup.\n");
 			goto bad2;
@@ -222,6 +262,7 @@ again:
 		goto bad2;
 	}
 	sigsetmask(oldmask);
+	freeaddrinfo(res);
 	return (s);
 bad2:
 	if (lport)
@@ -229,21 +270,46 @@ bad2:
 bad:
 	(void)_libc_close(s);
 	sigsetmask(oldmask);
+	freeaddrinfo(res);
 	return (-1);
 }
 
 int
-rresvport(alport)
-	int *alport;
+rresvport(port)
+	int *port;
 {
-	struct sockaddr_in sin;
-	int s;
+	return rresvport_af(port, AF_INET);
+}
 
-	bzero(&sin, sizeof sin);
-	sin.sin_len = sizeof(struct sockaddr_in);
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = INADDR_ANY;
-	s = socket(AF_INET, SOCK_STREAM, 0);
+int
+rresvport_af(alport, family)
+	int *alport, family;
+{
+	int i, s, len, err;
+	struct sockaddr_storage ss;
+	u_short *sport;
+
+	memset(&ss, 0, sizeof(ss));
+	ss.ss_family = family;
+	switch (family) {
+	case AF_INET:
+		((struct sockaddr *)&ss)->sa_len = sizeof(struct sockaddr_in);
+		sport = &((struct sockaddr_in *)&ss)->sin_port;
+		((struct sockaddr_in *)&ss)->sin_addr.s_addr = INADDR_ANY;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		((struct sockaddr *)&ss)->sa_len = sizeof(struct sockaddr_in6);
+		sport = &((struct sockaddr_in6 *)&ss)->sin6_port;
+		((struct sockaddr_in6 *)&ss)->sin6_addr = in6addr_any;
+		break;
+#endif
+	default:
+		errno = EAFNOSUPPORT;
+		return -1;
+	}
+
+	s = socket(ss.ss_family, SOCK_STREAM, 0);
 	if (s < 0)
 		return (-1);
 #if 0 /* compat_exact_traditional_rresvport_semantics */
@@ -255,12 +321,13 @@ rresvport(alport)
 		return (-1);
 	}
 #endif
-	sin.sin_port = 0;
-	if (bindresvport(s, &sin) == -1) {
+	*sport = 0;
+	if (bindresvport2(s, (struct sockaddr *)&ss,
+			  ((struct sockaddr *)&ss)->sa_len) == -1) {
 		(void)_libc_close(s);
 		return (-1);
 	}
-	*alport = (int)ntohs(sin.sin_port);
+	*alport = (int)ntohs(*sport);
 	return (s);
 }
 
@@ -272,18 +339,34 @@ ruserok(rhost, superuser, ruser, luser)
 	const char *rhost, *ruser, *luser;
 	int superuser;
 {
-	struct hostent *hp;
-	u_int32_t addr;
-	char **ap;
+	return ruserok_af(rhost, superuser, ruser, luser, AF_INET);
+}
 
-	if ((hp = gethostbyname(rhost)) == NULL)
+int
+ruserok_af(rhost, superuser, ruser, luser, af)
+	const char *rhost, *ruser, *luser;
+	int superuser, af;
+{
+	struct hostent *hp;
+	union {
+		struct in_addr addr_in;
+		struct in6_addr addr_in6;
+	} addr;
+	char **ap;
+	int ret, h_error;
+
+	if ((hp = getipnodebyname(rhost, af, AI_DEFAULT, &h_error)) == NULL)
 		return (-1);
+	ret = -1;
 	for (ap = hp->h_addr_list; *ap; ++ap) {
-		bcopy(*ap, &addr, sizeof(addr));
-		if (iruserok(addr, superuser, ruser, luser) == 0)
-			return (0);
+		bcopy(*ap, &addr, hp->h_length);
+		if (iruserok_af(&addr, superuser, ruser, luser, af) == 0) {
+			ret = 0;
+			break;
+		}
 	}
-	return (-1);
+	freehostent(hp);
+	return (ret);
 }
 
 /*
@@ -301,6 +384,16 @@ iruserok(raddr, superuser, ruser, luser)
 	int superuser;
 	const char *ruser, *luser;
 {
+	return iruserok_af(&raddr, superuser, ruser, luser, AF_INET);
+}
+
+int
+iruserok_af(raddr, superuser, ruser, luser, af)
+	void *raddr;
+	int superuser;
+	const char *ruser, *luser;
+	int af;
+{
 	register char *cp;
 	struct stat sbuf;
 	struct passwd *pwd;
@@ -308,12 +401,25 @@ iruserok(raddr, superuser, ruser, luser)
 	uid_t uid;
 	int first;
 	char pbuf[MAXPATHLEN];
+	int len = 0;
+
+	switch (af) {
+	case AF_INET:
+		len = sizeof(struct in_addr);
+		break;
+#ifdef INET6
+	case AF_INET6:
+		len = sizeof(struct in6_addr);
+		break;
+#endif
+	}
 
 	first = 1;
 	hostf = superuser ? NULL : fopen(_PATH_HEQUIV, "r");
 again:
 	if (hostf) {
-		if (__ivaliduser(hostf, (u_int32_t)raddr, luser, ruser) == 0) {
+		if (__ivaliduser_af(hostf, raddr, luser, ruser, af, len)
+		    == 0) {
 			(void)fclose(hostf);
 			return (0);
 		}
@@ -376,6 +482,17 @@ __ivaliduser(hostf, raddr, luser, ruser)
 	u_int32_t raddr;
 	const char *luser, *ruser;
 {
+	return __ivaliduser_af(hostf, &raddr, luser, ruser, AF_INET,
+			       sizeof(raddr));
+}
+
+int
+__ivaliduser_af(hostf, raddr, luser, ruser, af, len)
+	FILE *hostf;
+	void *raddr;
+	const char *luser, *ruser;
+	int af, len;
+{
 	register char *user, *p;
 	int ch;
 	char buf[MAXHOSTNAMELEN + 128];		/* host + login */
@@ -383,6 +500,7 @@ __ivaliduser(hostf, raddr, luser, ruser)
 	struct hostent *hp;
 	/* Presumed guilty until proven innocent. */
 	int userok = 0, hostok = 0;
+	int h_error;
 #ifdef YP
 	char *ypdomain;
 
@@ -392,11 +510,11 @@ __ivaliduser(hostf, raddr, luser, ruser)
 #define	ypdomain NULL
 #endif
 	/* We need to get the damn hostname back for netgroup matching. */
-	if ((hp = gethostbyaddr((char *)&raddr, sizeof(u_int32_t),
-							AF_INET)) == NULL)
+	if ((hp = getipnodebyaddr((char *)raddr, len, af, &h_error)) == NULL)
 		return (-1);
 	strncpy(hname, hp->h_name, sizeof(hname));
 	hname[sizeof(hname) - 1] = '\0';
+	freehostent(hp);
 
 	while (fgets(buf, sizeof(buf), hostf)) {
 		p = buf;
@@ -438,7 +556,8 @@ __ivaliduser(hostf, raddr, luser, ruser)
 				hostok = innetgr((char *)&buf[2],
 					(char *)&hname, NULL, ypdomain);
 			else		/* match a host by addr */
-				hostok = __icheckhost(raddr,(char *)&buf[1]);
+				hostok = __icheckhost(raddr,(char *)&buf[1],
+						      af, len);
 			break;
 		case '-':     /* reject '-' hosts and all their users */
 			if (buf[1] == '@') {
@@ -446,12 +565,12 @@ __ivaliduser(hostf, raddr, luser, ruser)
 					      (char *)&hname, NULL, ypdomain))
 					return(-1);
 			} else {
-				if (__icheckhost(raddr,(char *)&buf[1]))
+				if (__icheckhost(raddr,(char *)&buf[1],af,len))
 					return(-1);
 			}
 			break;
 		default:  /* if no '+' or '-', do a simple match */
-			hostok = __icheckhost(raddr, buf);
+			hostok = __icheckhost(raddr, buf, af, len);
 			break;
 		}
 		switch(*user) {
@@ -494,27 +613,37 @@ __ivaliduser(hostf, raddr, luser, ruser)
  * Returns "true" if match, 0 if no match.
  */
 static int
-__icheckhost(raddr, lhost)
-	u_int32_t raddr;
+__icheckhost(raddr, lhost, af, len)
+	void *raddr;
 	register char *lhost;
+	int af, len;
 {
 	register struct hostent *hp;
-	register u_int32_t laddr;
+	char laddr[BUFSIZ]; /* xxx */
 	register char **pp;
+	int h_error;
+	int match;
 
 	/* Try for raw ip address first. */
-	if (isdigit((unsigned char)*lhost) && (u_int32_t)(laddr = inet_addr(lhost)) != -1)
-		return (raddr == laddr);
+	if (inet_pton(af, lhost, laddr) == 1) {
+		if (memcmp(raddr, laddr, len) == 0)
+			return (1);
+		else
+			return (0);
+	}
 
 	/* Better be a hostname. */
-	if ((hp = gethostbyname(lhost)) == NULL)
+	if ((hp = getipnodebyname(lhost, af, AI_DEFAULT, &h_error)) == NULL)
 		return (0);
 
 	/* Spin through ip addresses. */
+	match = 0;
 	for (pp = hp->h_addr_list; *pp; ++pp)
-		if (!bcmp(&raddr, *pp, sizeof(u_int32_t)))
-			return (1);
+		if (!bcmp(raddr, *pp, len)) {
+			match = 1;
+			break;
+		}
 
-	/* No match. */
-	return (0);
+	freehostent(hp);
+	return (match);
 }
