@@ -63,6 +63,9 @@ int	fflag;
 int	nflag;
 int	sflag;
 
+size_t	autostart, autostop, maxval;
+char *	positions;
+
 int	b_cut(FILE *, const char *);
 int	b_n_cut(FILE *, const char *);
 int	c_cut(FILE *, const char *);
@@ -153,10 +156,6 @@ main(int argc, char *argv[])
 		rval = fcn(stdin, "stdin");
 	exit(rval);
 }
-
-size_t autostart, autostop, maxval;
-
-char *positions;
 
 void
 get_list(char *list)
