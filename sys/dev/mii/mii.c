@@ -64,6 +64,10 @@ MODULE_VERSION(miibus, 1);
 
 #include "miibus_if.h"
 
+static int miibus_child_location_str(device_t bus, device_t child, char *buf,
+    size_t buflen);
+static int miibus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
+    size_t buflen);
 static int miibus_readreg(device_t, int, int);
 static int miibus_writereg(device_t, int, int, int);
 static void miibus_statchg(device_t);
@@ -80,6 +84,8 @@ static device_method_t miibus_methods[] = {
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	DEVMETHOD(bus_child_pnpinfo_str, miibus_child_pnpinfo_str),
+	DEVMETHOD(bus_child_location_str, miibus_child_location_str),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	miibus_readreg),
@@ -189,6 +195,24 @@ miibus_detach(device_t dev)
 	mii->mii_ifp = NULL;
 
 	return(0);
+}
+
+static int
+miibus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
+    size_t buflen)
+{
+	struct mii_attach_args *maa = device_get_ivars(child);
+	snprintf(buf, buflen, "id1=0x%x id2=0x%x", maa->mii_id1, maa->mii_id2);
+	return (0);
+}
+
+static int
+miibus_child_location_str(device_t bus, device_t child, char *buf,
+    size_t buflen)
+{
+	struct mii_attach_args *maa = device_get_ivars(child);
+	snprintf(buf, buflen, "phyno=%d", maa->mii_phyno);
+	return (0);
 }
 
 static int
