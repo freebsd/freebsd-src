@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.219 1998/11/24 00:18:55 jkh Exp $
+ * $Id: install.c,v 1.220 1998/12/06 10:13:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -455,8 +455,10 @@ installExpress(dialogMenuItem *self)
     int i;
 
     variable_set2(SYSTEM_STATE, "express");
+#ifndef __alpha__
     if (DITEM_STATUS((i = diskPartitionEditor(self))) == DITEM_FAILURE)
 	return i;
+#endif
     
     if (DITEM_STATUS((i = diskLabelEditor(self))) == DITEM_FAILURE)
 	return i;
@@ -478,6 +480,7 @@ installNovice(dialogMenuItem *self)
     Device **devs;
 
     variable_set2(SYSTEM_STATE, "novice");
+#ifndef __alpha__
     dialog_clear_norefresh();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
@@ -496,14 +499,24 @@ nodisks:
 	++tries;
 	goto nodisks;
     }
+#endif
 
     dialog_clear_norefresh();
-    msgConfirm("Next, you need to create BSD partitions inside of the fdisk partition(s)\n"
+#ifdef __alpha__
+    msgConfirm("First, you need to create BSD partitions on the disk which you are\n"
+	       "installing to.  If you have a reasonable amount of disk space (200MB or more)\n"
+	       "and don't have any special requirements, simply use the (A)uto command to\n"
+	       "allocate space automatically.  If you have more specific needs or just don't\n"
+	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
+	       "manual layout.");
+#else
+    msgConfirm("First, you need to create BSD partitions inside of the fdisk partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
 	       "allocate space automatically.  If you have more specific needs or just don't\n"
 	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
 	       "manual layout.");
+#endif
 
     if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
