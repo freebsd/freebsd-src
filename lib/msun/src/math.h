@@ -50,6 +50,7 @@ extern const union __nan_un {
     ((sizeof (x) == sizeof (float)) ? __fpclassifyf(x) \
     : (sizeof (x) == sizeof (double)) ? __fpclassifyd(x) \
     : __fpclassifyl(x))
+#define	signbit(x)	__signbit(x)
 
 typedef	__double_t	double_t;
 typedef	__float_t	float_t;
@@ -147,6 +148,7 @@ __BEGIN_DECLS
 int	__fpclassifyd(double);
 int	__fpclassifyf(float);
 int	__fpclassifyl(long double);
+int	__signbit(double);
 
 double	acos(double);
 double	asin(double);
