@@ -96,20 +96,13 @@ g_bioq_first(struct g_bioq *bq)
 
 	bp = TAILQ_FIRST(&bq->bio_queue);
 	if (bp != NULL) {
+		KASSERT((bp->bio_flags & BIO_ONQUEUE),
+		    ("Bio not on queue bp=%p target %p", bp, bq));
+		bp->bio_flags &= ~BIO_ONQUEUE;
 		TAILQ_REMOVE(&bq->bio_queue, bp, bio_queue);
 		bq->bio_queue_length--;
 	}
 	return (bp);
-}
-
-static void
-g_bioq_enqueue_tail(struct bio *bp, struct g_bioq *rq)
-{
-
-	g_bioq_lock(rq);
-	TAILQ_INSERT_TAIL(&rq->bio_queue, bp, bio_queue);
-	rq->bio_queue_length++;
-	g_bioq_unlock(rq);
 }
 
 struct bio *
@@ -252,22 +245,46 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	pp = cp->provider;
 	KASSERT(pp != NULL, ("consumer not attached in g_io_request"));
 
+#ifdef DIAGNOSTIC
+	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) {
+		KASSERT(bp->bio_offset % cp->provider->sectorsize == 0,
+		    ("wrong offset %jd for sectorsize %u",
+		    bp->bio_offset, cp->provider->sectorsize));
+		KASSERT(bp->bio_length % cp->provider->sectorsize == 0,
+		    ("wrong length %jd for sectorsize %u",
+		    bp->bio_length, cp->provider->sectorsize));
+	}
+#endif /* DIAGNOSTIC */
+
+	g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
+	    bp, cp, cp->geom->name, pp, pp->name, bp->bio_cmd);
+
 	bp->bio_from = cp;
 	bp->bio_to = pp;
 	bp->bio_error = 0;
 	bp->bio_completed = 0;
 
+	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
+	    ("Bio already on queue bp=%p", bp));
+	bp->bio_flags |= BIO_ONQUEUE;
+
+	binuptime(&bp->bio_t0);
+	if (g_collectstats & 4)
+		g_bioq_lock(&g_bio_run_down);
 	if (g_collectstats & 1)
-		devstat_start_transaction_bio(pp->stat, bp);
-	pp->nstart++;
+		devstat_start_transaction(pp->stat, &bp->bio_t0);
 	if (g_collectstats & 2)
-		devstat_start_transaction_bio(cp->stat, bp);
+		devstat_start_transaction(cp->stat, &bp->bio_t0);
+
+	if (!(g_collectstats & 4))
+		g_bioq_lock(&g_bio_run_down);
+	pp->nstart++;
 	cp->nstart++;
+	TAILQ_INSERT_TAIL(&g_bio_run_down.bio_queue, bp, bio_queue);
+	g_bio_run_down.bio_queue_length++;
+	g_bioq_unlock(&g_bio_run_down);
 
 	/* Pass it on down. */
-	g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
-	    bp, cp, cp->geom->name, pp, pp->name, bp->bio_cmd);
-	g_bioq_enqueue_tail(bp, &g_bio_run_down);
 	wakeup(&g_wait_down);
 }
 
@@ -297,27 +314,43 @@ g_io_deliver(struct bio *bp, int error)
 	    bp, cp, cp->geom->name, pp, pp->name, bp->bio_cmd, error,
 	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
 
+	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
+	    ("Bio already on queue bp=%p", bp));
+
+	/*
+	 * XXX: next two doesn't belong here
+	 */
 	bp->bio_bcount = bp->bio_length;
 	bp->bio_resid = bp->bio_bcount - bp->bio_completed;
+
+	if (g_collectstats & 4)
+		g_bioq_lock(&g_bio_run_up);
 	if (g_collectstats & 1)
 		devstat_end_transaction_bio(pp->stat, bp);
 	if (g_collectstats & 2)
 		devstat_end_transaction_bio(cp->stat, bp);
+	if (!(g_collectstats & 4))
+		g_bioq_lock(&g_bio_run_up);
 	cp->nend++;
 	pp->nend++;
-
-	if (error == ENOMEM) {
-		if (bootverbose)
-			printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);
-		bp->bio_children = 0;
-		bp->bio_inbed = 0;
-		g_io_request(bp, cp);
-		pace++;
+	if (error != ENOMEM) {
+		bp->bio_error = error;
+		TAILQ_INSERT_TAIL(&g_bio_run_up.bio_queue, bp, bio_queue);
+		bp->bio_flags |= BIO_ONQUEUE;
+		g_bio_run_up.bio_queue_length++;
+		g_bioq_unlock(&g_bio_run_up);
+		wakeup(&g_wait_up);
 		return;
 	}
-	bp->bio_error = error;
-	g_bioq_enqueue_tail(bp, &g_bio_run_up);
-	wakeup(&g_wait_up);
+	g_bioq_unlock(&g_bio_run_up);
+
+	if (bootverbose)
+		printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);
+	bp->bio_children = 0;
+	bp->bio_inbed = 0;
+	g_io_request(bp, cp);
+	pace++;
+	return;
 }
 
 void
@@ -390,6 +423,9 @@ bio_taskqueue(struct bio *bp, bio_task_t *func, void *arg)
 	 * queue, so we use the same lock.
 	 */
 	g_bioq_lock(&g_bio_run_up);
+	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
+	    ("Bio already on queue bp=%p target taskq", bp));
+	bp->bio_flags |= BIO_ONQUEUE;
 	TAILQ_INSERT_TAIL(&g_bio_run_task.bio_queue, bp, bio_queue);
 	g_bio_run_task.bio_queue_length++;
 	wakeup(&g_wait_up);
