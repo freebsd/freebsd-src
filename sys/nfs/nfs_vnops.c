@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.8 1994/10/02 17:27:04 phk Exp $
+ * $Id: nfs_vnops.c,v 1.9 1994/10/09 07:35:06 davidg Exp $
  */
 
 /*
@@ -236,7 +236,6 @@ void nqnfs_clientlease();
  */
 extern u_long nfs_procids[NFS_NPROCS];
 extern u_long nfs_prog, nfs_vers, nfs_true, nfs_false;
-extern char nfsiobuf[MAXPHYS+NBPG];
 struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 int nfs_numasync = 0;
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
@@ -482,25 +481,36 @@ nfs_setattr(ap)
 	register struct vattr *vap = ap->a_vap;
 	u_quad_t frev, tsize = 0;
 
-	if (vap->va_size != VNOVAL || vap->va_mtime.ts_sec != VNOVAL ||
-		vap->va_atime.ts_sec != VNOVAL) {
-		if (vap->va_size != VNOVAL) {
+	if (vap->va_size != VNOVAL) {
+		switch (vp->v_type) {
+		case VDIR:
+			return (EISDIR);
+		case VCHR:
+		case VBLK:
+			if (vap->va_mtime.ts_sec == VNOVAL &&
+			    vap->va_atime.ts_sec == VNOVAL &&
+			    vap->va_mode == (u_short)VNOVAL &&
+			    vap->va_uid == VNOVAL &&
+			    vap->va_gid == VNOVAL)
+				return (0);
+			vap->va_size = VNOVAL;
+			break;
+		default:
 			if (np->n_flag & NMODIFIED) {
-			    if (vap->va_size == 0)
-				error = nfs_vinvalbuf(vp, 0, ap->a_cred,
-					ap->a_p, 1);
-			    else
-				error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
-					ap->a_p, 1);
-			    if (error)
-				return (error);
+				error = nfs_vinvalbuf(vp, 
+					vap->va_size ? V_SAVE : 0,
+					ap->a_cred, ap->a_p, 1);
+				if (error)
+					return (error);
 			}
 			tsize = np->n_size;
 			np->n_size = np->n_vattr.va_size = vap->va_size;
 			vnode_pager_setsize(vp, (u_long)np->n_size);
-		} else if ((np->n_flag & NMODIFIED) &&
-			(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
-			 ap->a_p, 1)) == EINTR)
+		}
+	} else if ((vap->va_mtime.ts_sec != VNOVAL ||
+	    vap->va_atime.ts_sec != VNOVAL) && (np->n_flag & NMODIFIED)) {
+		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 1);
+		if (error == EINTR)
 			return (error);
 	}
 	nfsstats.rpccnt[NFSPROC_SETATTR]++;
@@ -904,9 +914,11 @@ nfs_writerpc(vp, uiop, cred, ioflags)
 		if (nmp->nm_flag & NFSMNT_NQNFS) {
 			txdr_hyper(&uiop->uio_offset, tl);
 			tl += 2;
+#ifdef notyet
 			if (ioflags & IO_APPEND)
 				*tl++ = txdr_unsigned(1);
 			else
+#endif
 				*tl++ = 0;
 		} else {
 			*++tl = txdr_unsigned(uiop->uio_offset);
@@ -980,6 +992,7 @@ nfs_mknod(ap)
 		vput(dvp);
 		return (error);
 	}
+	newvp = NULLVP;
 	nfsstats.rpccnt[NFSPROC_CREATE]++;
 	nfsm_reqhead(dvp, NFSPROC_CREATE,
 	  NFSX_FH+NFSX_UNSIGNED+nfsm_rndup(cnp->cn_namelen)+NFSX_SATTR(isnq));
@@ -1008,6 +1021,8 @@ nfs_mknod(ap)
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	VTONFS(dvp)->n_attrstamp = 0;
 	vrele(dvp);
+	if (newvp != NULLVP)
+		vrele(newvp);
 	return (error);
 }
 
@@ -1106,11 +1121,23 @@ nfs_remove(ap)
 	caddr_t bpos, dpos;
 	int error = 0;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
+	struct vattr vattr;
 
 	if (vp->v_usecount > 1) {
 		if (!np->n_sillyrename)
 			error = nfs_sillyrename(dvp, vp, cnp);
+		else if (VOP_GETATTR(vp, &vattr, cnp->cn_cred, cnp->cn_proc)
+			 == 0 && vattr.va_nlink > 1)
+			/*
+			 * If we already have a silly name but there are more
+			 * than one links, just proceed with the NFS remove
+			 * request, as the bits will remain available (modulo
+			 * network races). This avoids silently ignoring the
+			 * attempted removal of a non-silly entry.
+			 */
+			goto doit;
 	} else {
+	doit:
 		/*
 		 * Purge the name cache so that the chance of a lookup for
 		 * the name succeeding while the remove is in progress is
@@ -1311,6 +1338,13 @@ nfs_link(ap)
 		return (EXDEV);
 	}
 
+	/*
+	 * Push all writes to the server, so that the attribute cache
+	 * doesn't get "out of sync" with the server.
+	 * XXX There should be a better way!
+	 */
+	VOP_FSYNC(tdvp, cnp->cn_cred, MNT_WAIT, cnp->cn_proc);
+
 	nfsstats.rpccnt[NFSPROC_LINK]++;
 	nfsm_reqhead(tdvp, NFSPROC_LINK,
 		NFSX_FH*2+NFSX_UNSIGNED+nfsm_rndup(cnp->cn_namelen));
@@ -1321,7 +1355,7 @@ nfs_link(ap)
 	nfsm_reqdone;
 	FREE(cnp->cn_pnbuf, M_NAMEI);
 	VTONFS(tdvp)->n_attrstamp = 0;
-	VTONFS(tdvp)->n_flag |= NMODIFIED;
+	VTONFS(vp)->n_flag |= NMODIFIED;
 	VTONFS(vp)->n_attrstamp = 0;
 	vrele(vp);
 	/*
@@ -2052,8 +2086,8 @@ nfs_strategy(ap)
 	struct proc *p;
 	int error = 0;
 
-	if (bp->b_flags & B_PHYS)
-		panic("nfs physio");
+	if ((bp->b_flags & (B_PHYS|B_ASYNC)) == (B_PHYS|B_ASYNC))
+		panic("nfs physio/async");
 	if (bp->b_flags & B_ASYNC)
 		p = (struct proc *)0;
 	else

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.1 (Berkeley) 6/16/93
- * $Id: nfsm_subs.h,v 1.3 1994/08/21 06:50:10 paul Exp $
+ * $Id: nfsm_subs.h,v 1.4 1994/10/02 17:27:05 phk Exp $
  */
 
 #ifndef _NFS_NFSM_SUBS_H_
@@ -264,8 +264,7 @@ extern struct mbuf *nfsm_reqh();
 		fp->fa_nfsblocks = txdr_unsigned(vap->va_bytes / NFS_FABLKSIZE); \
 		txdr_nfstime(&vap->va_atime, &fp->fa_nfsatime); \
 		txdr_nfstime(&vap->va_mtime, &fp->fa_nfsmtime); \
-		fp->fa_nfsctime.nfs_sec = txdr_unsigned(vap->va_ctime.ts_sec); \
-		fp->fa_nfsctime.nfs_usec = txdr_unsigned(vap->va_gen); \
+		txdr_nfstime(&vap->va_ctime, &fp->fa_nfsctime); \
 	} else { \
 		fp->fa_nqblocksize = txdr_unsigned(vap->va_blocksize); \
 		if (vap->va_type == VFIFO) \
