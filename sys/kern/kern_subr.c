@@ -485,39 +485,39 @@ copyinstrfrom(const void * __restrict src, void * __restrict dst, size_t len,
 }
 
 int
-iov_to_uio(struct iovec *iovp, u_int iovcnt, struct uio *auio)
+iov_to_uio(struct iovec *iovp, u_int iovcnt, struct uio *uio)
 {
-	int error = 0, i;
+	struct iovec *iov;
 	u_int iovlen;
-	struct iovec *iov = NULL;
+	int error, i;
 
-        /* note: can't use iovlen until iovcnt is validated */
-        iovlen = iovcnt * sizeof (struct iovec);
-        if (iovcnt > UIO_MAXIOV) {
-               error = EINVAL;
-               goto done;
-        }
-        MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
-        auio->uio_iov = iov;
-        auio->uio_iovcnt = iovcnt;
-        auio->uio_segflg = UIO_USERSPACE;
-        auio->uio_offset = -1;
-        if ((error = copyin(iovp, iov, iovlen)))
-                goto done;
-        auio->uio_resid = 0;
-        for (i = 0; i < iovcnt; i++) {
-                if (iov->iov_len > INT_MAX - auio->uio_resid) {
-                        error = EINVAL;
-                        goto done;
-                }
-                auio->uio_resid += iov->iov_len;
-                iov++;
-        }
+	/* note: can't use iovlen until iovcnt is validated */
+	iovlen = iovcnt * sizeof (struct iovec);
+	if (iovcnt > UIO_MAXIOV) {
+		error = EINVAL;
+		goto done;
+	}
+	MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
+	uio->uio_iov = iov;
+	uio->uio_iovcnt = iovcnt;
+	uio->uio_segflg = UIO_USERSPACE;
+	uio->uio_offset = -1;
+	if ((error = copyin(iovp, iov, iovlen)))
+		goto done;
+	uio->uio_resid = 0;
+	for (i = 0; i < iovcnt; i++) {
+		if (iov->iov_len > INT_MAX - uio->uio_resid) {
+			error = EINVAL;
+			goto done;
+		}
+		uio->uio_resid += iov->iov_len;
+		iov++;
+	}
 
 done:
-	if (error && auio->uio_iov) {
-		FREE(auio->uio_iov, M_IOV);
-		auio->uio_iov = NULL;
+	if (error && uio->uio_iov) {
+		FREE(uio->uio_iov, M_IOV);
+		uio->uio_iov = NULL;
 	}
 	return (error);
 
