@@ -93,7 +93,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.108 1995/10/29 15:52:31 bde Exp $
+#	$Id: MAKEDEV,v 1.109 1995/12/03 17:26:21 markm Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -182,7 +182,7 @@ std)
 	mknod random	c 2 3;	chmod 644 random;	chown root.wheel random
 	mknod urandom	c 2 4;	chmod 644 urandom;	chown root.wheel urandom
 	mknod zero	c 2 12;	chmod 666 zero;		chown root.wheel zero
-	mknod io	c 2 14;	chmod 640 io;		chown root.kmem io
+	mknod io	c 2 14;	chmod 600 io;		chown root.wheel io
 	mknod tty	c 1 0;	chmod 666 tty;		chown root.wheel tty
 	mknod klog	c 7 0;	chmod 600 klog;		chown root.wheel klog
 	mknod stdin	c 22 0; chmod 666 stdin;	chown root.wheel stdin
