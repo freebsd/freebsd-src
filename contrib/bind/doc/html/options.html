@@ -159,9 +159,9 @@ specified, the default is "named.stats".
 <DD>
 If <CODE>yes</CODE>, the <CODE>AA</CODE> bit is always set on
 NXDOMAIN responses, even if the server is not actually authoritative.
-The default is <CODE>yes</CODE>.  Do not turn off
-<CODE>auth-nxdomain</CODE> unless you are sure you know what you are
-doing, as some older software won't like it.
+The default is <CODE>no</CODE>.  Turning <CODE>auth-nxdomain</CODE> will
+allow older clients that require <CODE>AA</CODE> to be set to accept
+NXDOMAIN responses to work.
 
 <DT><CODE>deallocate-on-exit</CODE>
 <DD>
@@ -847,7 +847,7 @@ request for the root servers to be accepted.  Default 2.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: options.html,v 1.48 2002/04/25 05:27:00 marka Exp $
+Last Updated: $Id: options.html,v 1.49 2002/09/09 00:19:17 marka Exp $
 </ADDRESS>
 </BODY>
 </HTML>
