@@ -35,6 +35,8 @@
 /* board-specific include files */
 #include <dev/sound/isa/mss.h>
 
+#define	abs(x)	(((x) < 0) ? -(x) : (x))
+
 struct mss_info;
 
 struct mss_chinfo {
@@ -1154,7 +1156,7 @@ mss_speed(struct mss_chinfo *ch, int speed)
     	ad_enter_MCE(mss);
     	if (mss->bd_id == MD_AD1845) { /* Use alternate speed select regs */
 		ad_write(mss, 22, (speed >> 8) & 0xff);	/* Speed MSB */
-		ad_write(mss, 23, speed & 0xff);		/* Speed LSB */
+		ad_write(mss, 23, speed & 0xff);	/* Speed LSB */
 		/* XXX must also do something in I27 for the ad1845 */
     	} else {
         	int i, sel = 0; /* assume entry 0 does not contain -1 */
