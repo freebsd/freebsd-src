@@ -42,41 +42,52 @@
 The
 .Nm
 driver provides support for host-to-host cables that contain at least two
-bulk pipes, one for each direction, like for example the EzLink cable and
+bulk pipes (one for each direction), for example the EzLink cable and
 the NetChip 1080 chip.
 .Pp
-It requires netgraph to be avalable. This can be done either by adding
+.\" XXX	The description of how to add netgraph to the kernel
+.\"	is out of place here.  It should be limited to the
+.\"	netgraph(4) manpage only.  However, that page does
+.\"	not yet give instructions for kldload(8) for the
+.\"	clueless.  Working on it -- sheldonh
+It requires
+.Xr netgraph 4
+to be avalable. This can be done either by adding
 .Cd "options NETGRAPH"
 to your kernel configuration file, or alternatively loading
-.Nm netgraph
-as a module either from
+.Xr netgraph 4
+as a module, either from
 .Pa /boot/loader.conf
-or from the command line, before the udbp module.
+or from the command line, before the
+.Nm
+module.
 .Sh EXAMPLE
 .Dl options NETGRAPH
 .Dl device udbp
 .Pp
 Add the
-.Nm udbp
+.Nm
 driver to the kernel.
 .Pp
 .Dl kldload netgraph
 .Dl kldload udbp
 .Pp
 Load the
-.Nm netgraph
+.Xr netgraph 4
 module and then the
-.Nm udbp
+.Nm
 driver.
 .Pp
 .Dl ngctl mkpeer udbp0: iface data inet
 .Dl ifconfig ng0 10.0.0.1 10.0.0.2
 .Pp
-Create a new network interface node node and connect it's inet hook to the data
+Create a new network interface node and connect its inet hook to the data
 hook of the
-.Nm udbp
-node. Ifconfig configures the resulting network interface ng0 with a local
-IP address of 10.0.0.1 and a remote 10.0.0.2. On the remote host the two
+.Nm
+node.
+.Xr ifconfig 8
+configures the resulting network interface ng0 with a local
+IP address of 10.0.0.1 and a remote IP address of 10.0.0.2. On the remote host, the two
 IP addresses should of course be reversed.
 .Pp
 .Sh SEE ALSO
@@ -84,16 +95,16 @@ IP addresses should of course be reversed.
 .Xr ohci 4 ,
 .Xr uhci 4 ,
 .Xr usb 4 ,
-.Xr ngctl 8 ,
 .Xr ng_iface 8 ,
+.Xr ngctl 8
 .Sh HISTORY
 The
-.Nm udbp
+.Nm
 driver first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
 The
-.Nm udbp
+.Nm
 driver was written by
 .An Doug Ambrisko Aq ambrisko@whistle.com ,
 .An Julian Elischer Aq julian@whistle.com
