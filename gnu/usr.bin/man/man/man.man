@@ -21,7 +21,7 @@
 .Nm man
 .Nd format and display the on-line manual pages
 .Sh SYNOPSIS
-.Nm man
+.Nm
 .Op Fl adfhkotw
 .Op Fl m Ar system
 .Op Fl p Ar string
@@ -39,7 +39,8 @@ and
 .Ev PAGER
 environment variables, so you can have
 your own set(s) of personal man pages and choose whatever program you
-like to display the formatted pages.  If section is specified, man
+like to display the formatted pages.  If section is specified,
+.Nm
 only looks in that section of the manual.  You may also specify the
 order to search the sections for entries and which preprocessors to
 run on the source files via command line options or environment
@@ -50,13 +51,22 @@ space.
 The options are as follows:
 .Bl -tag -width Fl
 .It Fl M Ar path
-Specify an alternate manpath.  By default, man uses
-.Nm manpath
+Specify an alternate manpath.
+By default,
+.Nm
+uses
+.Xr manpath 1
+(which is built into the
+.Nm
+binary)
 to determine the path to search.  This option overrides the
 .Ev MANPATH
 environment variable.
 .It Fl P Ar pager
-Specify which pager to use.  By default, man uses
+Specify which pager to use.
+By default,
+.Nm
+uses
 .Nm %pager% ,
 This option overrides the
 .Ev PAGER
@@ -67,8 +77,12 @@ This option overrides the
 .Ev MANSECT
 environment variable.
 .It Fl a
-By default, man will exit after displaying the first manual page it
-finds.  Using this option forces man to display all the manual pages
+By default,
+.Nm
+will exit after displaying the first manual page it
+finds.  Using this option forces
+.Nm
+to display all the manual pages
 that match
 .Ar name ,
 not just the first.
@@ -87,32 +101,62 @@ Equivalent to
 Specify an alternate set of man pages to search based on the system
 name given.
 .It Fl o
-Use original, non-localized manpages. By default, man searches
-for localized subdirectories of each manpath component, subdirectory
-name is determined by the
-.Ev LANG
-or
-.Ev LC_CTYPE
-environment variables.
-Localized directory name builded
-using following rule: directory name
-merged with
-.Ev LC_CTYPE
-or
-.Ev LANG
-environment variable value.
-If
-.Ev LC_CTYPE
-has no value, then
-.Ev LANG
-variable value will be used. If both
-these variables have no value, then no actions will be performed.
+Look for original, non-localized manpages only.
+.Pp
+By default,
 .Nm
-can handle long and short notations of localized directory names. Long notation
-means that directory has name "path/<lang>_<country>.<charset>", for
-example ".../man/ru_RU.KOI8-R". Short notation "path/<lang>.<charset>", for
-example ".../man/ru.KOI8-R". Short notation have priority over
-long one.
+searches for a localized manpage
+in a set of locale subdirectories of each
+.Xr manpath 1
+component.
+.Pp
+Locale name is taken from the first of three environment variables
+with a nonempty value:
+.Ev LC_ALL , LC_CTYPE ,
+or
+.Ev LANG ,
+in the specified order.
+.Pp
+If the value could not be determined, or is not a valid locale name,
+then only non-localized manpage will be looked up.
+.Pp
+Otherwise,
+.Nm
+will search in the following subdirectories, in the order of precedence:
+.Pp
+.Bl -item -offset indent -compact
+.Sm off
+.It
+.Pa <lang> _ <country> . <charset>
+.It
+.Pa <lang> . <charset>
+.It
+.Pa en . <charset>
+.Sm on
+.El
+.Pp
+For example, for
+.Dq de_DE.ISO_8859-1
+locale,
+.Nm
+will search in the following subdirectories of the
+.Pa /usr/share/man
+manpath component:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Pa /usr/share/man/de_DE.ISO_8859-1
+.It
+.Pa /usr/share/man/de.ISO_8859-1
+.It
+.Pa /usr/share/man/en.ISO_8859-1
+.El
+.Pp
+Finally,
+if the search of localized manpage fails,
+it will be looked up in the default
+.Pa /usr/share/man
+directory.
 .It Fl p Ar string
 Specify the sequence of preprocessors to run before nroff or troff.
 Not all installations will have a full set of preprocessors.
@@ -134,7 +178,23 @@ Don't actually display the man pages, but do print the location(s) of
 the files that would be formatted or displayed.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width MANROFFSEQ -compact
+.Bl -tag -width MANROFFSEQ
+.It Ev LC_ALL , LC_CTYPE , LANG
+These variables specify the preferred language for manual pages.
+(See the
+.Fl o
+option above.)
+.It Ev MACHINE
+As some manual pages are intended only for specific architectures,
+.Nm
+searches any subdirectories,
+with the same name as the current architecture,
+in every directory which it searches.
+Machine specific areas are checked before general areas.
+The current machine type may be overridden by setting the environment
+variable
+.Ev MACHINE
+to the name of a specific architecture.
 .It Ev MANPATH
 If
 .Ev MANPATH
@@ -161,12 +221,14 @@ is used.
 .Pp
 Normally, to look at the relevant manpage information for getopt,
 one would use:
+.Pp
 .Dl man getopt
 .Pp
 However, when referring to a specific section of the manual,
 such as
 .Xr getopt 3 ,
 one would use:
+.Pp
 .Dl man 3 getopt
 .Sh SEE ALSO
 .Xr apropos 1 ,
@@ -180,4 +242,6 @@ one would use:
 .Sh BUGS
 The
 .Fl t
-option only works if a troff-like program is installed.
+option only works if the
+.Xr troff 1 Ns -like
+program is installed.

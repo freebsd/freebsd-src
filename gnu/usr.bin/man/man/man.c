@@ -20,7 +20,7 @@
 
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <ctype.h>
 #include <errno.h>
 #ifdef __FreeBSD__
@@ -74,6 +74,7 @@ extern int do_system_command ();
 
 char *prognam;
 static char *pager;
+static char *machine;
 static char *manp;
 static char *manpathlist[MAXDIRS];
 static char *section;
@@ -99,9 +100,9 @@ struct ltable {
 	char *nroff;
 };
 static struct ltable ltable[] = {
-	{"KOI8-R", " -Tkoi8-r"},
-	{"ISO_8859-1", " -Tlatin1"},
-	{NULL, NULL}
+	{"KOI8-R", "koi8-r"},
+	{"ISO_8859-1", "latin1"},
+	{NULL}
 };
 #endif
 
@@ -495,6 +496,12 @@ man_getopt (argc, argv)
   if (debug)
     fprintf (stderr, "\nusing %s as pager\n", pager);
 
+  if ((machine = getenv ("MACHINE")) == NULL)
+    machine = MACHINE;
+
+  if (debug)
+    fprintf (stderr, "\nusing %s architecture\n", machine);
+
   if (manp == NULL)
     {
       if ((manp = manpath (0)) == NULL)
@@ -662,6 +669,15 @@ convert_name (name, to_cat)
       *t1 = '\0';
       t2 = strrchr (to_name, '/');
       *t1 = '/';
+
+      /* Skip architecture part (if present). */
+      if (t2 != NULL && (t1 - t2 < 5 || *(t2 + 1) != 'm' || *(t2 + 3) != 'n'))
+	{
+	  t1 = t2;
+	  *t1 = '\0';
+	  t2 = strrchr (to_name, '/');
+	  *t1 = '/';
+	}
     }
 
   if (t2 == NULL)
@@ -946,8 +962,8 @@ parse_roff_directive (cp, file, buf, bufsize)
 #ifdef __FreeBSD__
 	    char lbuf[FILENAME_MAX];
 
-	    snprintf(lbuf, sizeof(lbuf), "%s%s", NEQN,
-		     locale_opts == NULL ? " -Tascii" : locale_opts);
+	    snprintf(lbuf, sizeof(lbuf), "%s -T%s", NEQN,
+		     locale_opts == NULL ? "ascii" : locale_opts);
 	    add_directive (&first, lbuf, file, buf, bufsize);
 #else
 	    add_directive (&first, NEQN, file, buf, bufsize);
@@ -1025,8 +1041,8 @@ parse_roff_directive (cp, file, buf, bufsize)
 #ifdef __FreeBSD__
       char lbuf[FILENAME_MAX];
 
-      snprintf(lbuf, sizeof(lbuf), "%s%s", NROFF,
-	       locale_opts == NULL ? " -Tascii" : locale_opts);
+      snprintf(lbuf, sizeof(lbuf), "%s -T%s", NROFF,
+	       locale_opts == NULL ? "ascii" : locale_opts);
 	    add_directive (&first, lbuf, file, buf, bufsize);
 #else
       add_directive (&first, NROFF " -Tascii", file, buf, bufsize);
@@ -1469,6 +1485,22 @@ try_section (path, section, name, glob)
   register int cat;
   register char **names;
   register char **np;
+  static int arch_search;
+  char buf[FILENAME_MAX];
+
+  if (!arch_search)
+    {
+      snprintf(buf, sizeof(buf), "%s/man%s/%s", path, section, machine);
+      if (is_directory (buf) == 1)
+	{
+	  snprintf(buf, sizeof(buf), "%s/%s", machine, name);
+	  arch_search++;
+	  found = try_section (path, section, buf, glob);
+	  arch_search--;
+	  if (found && !findall)   /* only do this architecture... */
+	    return found;
+	}
+    }
 
   if (debug)
     {
@@ -1591,12 +1623,17 @@ man (name)
 	  if (locale != NULL) {
 	    locale_opts = locale_nroff;
 	    snprintf(buf, sizeof(buf), "%s/%s", *mp, locale);
-	    if (is_directory (buf))
+	    if (is_directory (buf) == 1)
 	      l_found = try_section (buf, section, name, glob);
 	    if (!l_found) {
 	      snprintf(buf, sizeof(buf), "%s/%s", *mp, short_locale);
-	      if (is_directory (buf))
+	      if (is_directory (buf) == 1)
 		l_found = try_section (buf, section, name, glob);
+	      if (!l_found && (*short_locale != 'e' || *(short_locale + 1) != 'n')) {
+		snprintf(buf, sizeof(buf), "%s/en.%s", *mp, short_locale + 3);
+		if (is_directory (buf) == 1)
+		  l_found = try_section (buf, section, name, glob);
+	      }
 	    }
 	    locale_opts = NULL;
 	  }
@@ -1628,12 +1665,17 @@ man (name)
 	      if (locale != NULL) {
 		locale_opts = locale_nroff;
 		snprintf(buf, sizeof(buf), "%s/%s", *mp, locale);
-		if (is_directory (buf))
+		if (is_directory (buf) == 1)
 		  l_found = try_section (buf, *sp, name, glob);
 		if (!l_found) {
 		  snprintf(buf, sizeof(buf), "%s/%s", *mp, short_locale);
-		  if (is_directory (buf))
+		  if (is_directory (buf) == 1)
 		    l_found = try_section (buf, *sp, name, glob);
+		  if (!l_found && (*short_locale != 'e' || *(short_locale + 1) != 'n')) {
+		    snprintf(buf, sizeof(buf), "%s/en.%s", *mp, short_locale + 3);
+		    if (is_directory (buf) == 1)
+		      l_found = try_section (buf, *sp, name, glob);
+		  }
 		}
 		locale_opts = NULL;
 	      }
