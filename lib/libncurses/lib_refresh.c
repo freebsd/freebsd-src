@@ -40,6 +40,23 @@ int	m, n;
 
 	T(("wnoutrefresh(%x) called", win));
 
+	/*
+	 * This function will break badly if we try to refresh a pad.
+	 */
+	if ((win == 0)
+	 || (win->_flags & _ISPAD))
+		return(ERR);
+
+	/*
+	 * If 'newscr' has a different background than the window that we're
+	 * trying to refresh, we'll have to copy the whole thing.
+	 */
+	if (win->_bkgd != newscr->_bkgd) {
+		touchwin(win);
+		newscr->_bkgd = win->_bkgd;
+	}
+	newscr->_attrs = win->_attrs;
+
 	win->_flags &= ~_HASMOVED;
 	for (i = 0, m = begy; i <= win->_maxy; i++, m++) {
 		if (win->_firstchar[i] != _NOCHANGE) {

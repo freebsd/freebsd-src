@@ -12,8 +12,6 @@
 
 #include "curses.priv.h"
 
-#define BLANK ' '|A_NORMAL
-
 int wclrtobot(WINDOW *win)
 {
 chtype	*ptr, *end, *maxx = NULL;
@@ -30,11 +28,13 @@ int	y, startx, minx;
 	    end = &win->_line[y][win->_maxx];
 
 	    for (ptr = &win->_line[y][startx]; ptr <= end; ptr++) {
-			if (*ptr != BLANK) {
+			chtype blank = _nc_background(win);
+
+			if (*ptr != blank) {
 			    maxx = ptr;
 			    if (minx == _NOCHANGE)
 					minx = ptr - win->_line[y];
-			    *ptr = BLANK;
+			    *ptr = blank;
 			}
 	    }
 
