@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: locate.c,v 1.3 1996/08/29 22:39:41 wosch Exp wosch $
+ *      $Id: locate.c,v 1.4 1996/08/31 23:14:53 wosch Exp $
  */
 
 #ifndef lint
@@ -352,15 +352,15 @@ usage ()
 #undef FF_ICASE
 
 #define FF_MMAP
-#include <fastfind.c>
+#include "fastfind.c"
 #define FF_ICASE
-#include <fastfind.c>
+#include "fastfind.c"
 #endif /* MMAP */
 
 /* fopen */
 /* fastfind, fastfind_icase */
 #undef FF_MMAP
 #undef FF_ICASE
-#include <fastfind.c>
+#include "fastfind.c"
 #define FF_ICASE
-#include <fastfind.c>
+#include "fastfind.c"
