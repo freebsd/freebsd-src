@@ -91,6 +91,75 @@ snddev_info synth_info[NPCM_MAX] ;
 u_long nsnd = NPCM ;	/* total number of sound devices */
 
 /*
+ * Hooks for APM support, but code not operational yet.
+ */
+
+#include "apm.h"
+#include <i386/include/apm_bios.h>
+#if NAPM > 0
+
+static int
+sound_suspend(void *arg)
+{
+	/*
+	 * I think i can safely do nothing here and
+	 * reserve all the work for wakeup time
+	 */
+	printf("Called APM sound suspend hook for unit %d\n", (int)arg);
+	return 0 ;
+}
+
+static int
+sound_resume(void *arg)
+{
+    snddev_info *d = NULL ;
+
+    d = &pcm_info[(int)arg] ;
+	/*
+	 * reinitialize card registers.
+	 * Flush buffers and reinitialize DMA channels.
+	 * If a write was pending, pretend it is done
+	 * (and issue any wakeup we need).
+	 * If a read is pending, restart it.
+	 */
+    if (d->bd_id == MD_YM0020) {
+	DDB(printf("setting up yamaha registers\n"));
+	outb(0x370, 6 /* dma config */ ) ;
+	if (FULL_DUPLEX(d))
+	    outb(0x371, 0xa9 ); /* use both dma chans */
+	else
+	    outb(0x371, 0x8b ); /* use low dma chan */
+    }
+	printf("Called APM sound resume hook for unit %d\n", (int)arg);
+	return 0 ;
+}
+
+static void
+init_sound_apm(int unit)
+{
+	struct apmhook *ap;
+
+        ap = malloc(sizeof *ap, M_DEVBUF, M_NOWAIT);
+        bzero(ap, sizeof *ap);
+
+	ap->ah_fun = sound_resume;
+	ap->ah_arg = (void *)unit;
+	ap->ah_name = "pcm resume handler";
+	ap->ah_order = APM_MID_ORDER;
+	apm_hook_establish(APM_HOOK_RESUME, ap);
+
+        ap = malloc(sizeof *ap, M_DEVBUF, M_NOWAIT);
+        bzero(ap, sizeof *ap);
+
+	ap->ah_fun = sound_suspend;
+	ap->ah_arg = (void *)unit;
+	ap->ah_name = "pcm suspend handler";
+	ap->ah_order = APM_MID_ORDER;
+	apm_hook_establish(APM_HOOK_SUSPEND, ap);
+}
+#endif /* NAPM */
+
+/*
  * the probe routine can only return an int to the upper layer. Hence,
  * it leaves the pointer to the last successfully
  * probed device descriptor in snddev_last_probed
@@ -169,6 +238,7 @@ pcmattach(struct isa_device * dev)
     struct isa_device *dvp;
     int stat = 0;
     dev_t isadev;
+    void *cookie;
 
     if ( (dev->id_unit >= NPCM_MAX) ||		/* too many devs	*/
 	 (snddev_last_probed == NULL) ||	/* last probe failed	*/
@@ -192,7 +262,10 @@ pcmattach(struct isa_device * dev)
 	d->dbuf_in.chan = dev->id_flags & DV_F_DRQ_MASK ;
     else
 	d->dbuf_in.chan = d->dbuf_out.chan ;
-    /* XXX should also set bd_id from flags ? */
+#if 1 /* does this cause trouble with PnP cards ? */
+    if (d->bd_id == 0)
+	d->bd_id = (dev->id_flags & DV_F_DEV_MASK) >> DV_F_DEV_SHIFT ;
+#endif
     d->status_ptr = 0;
 
     /*
@@ -222,25 +295,44 @@ pcmattach(struct isa_device * dev)
     cdevsw_add(&isadev, &snd_cdevsw, NULL);
 
 #ifdef DEVFS
+#define GID_SND UID_ROOT /* GID_GAMES */
+#define UID_SND UID_ROOT
+#define PERM_SND 0660
     /*
      * XXX remember to store the returned tokens if you want to
      * be able to remove the device later
+     *
+     * Make links to first successfully probed unit.
+     * Attempts by later devices to make these links will fail.
      */
-    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
-	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "dsp%n", dev->id_unit);
-    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
-	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "dspW%n", dev->id_unit);
-    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
-	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "audio%n", dev->id_unit);
-    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
-	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "mixer%n", dev->id_unit);
-    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
-	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "sndstat%n", dev->id_unit);
+    cookie=devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "dsp%n", dev->id_unit);
+    if (cookie) devfs_link(cookie, "dsp");
+
+    cookie=devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "dspW%n", dev->id_unit);
+    if (cookie) devfs_link(cookie, "dspW");
+
+    cookie=devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "audio%n", dev->id_unit);
+    if (cookie) devfs_link(cookie, "audio");
+
+    cookie=devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "mixer%n", dev->id_unit);
+    if (cookie) devfs_link(cookie, "mixer");
+
+    cookie=devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "sndstat%n", dev->id_unit);
+    if (cookie) devfs_link(cookie, "sndstat");
+
 #if 0 /* these two are still unsupported... */
-    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
-	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "midi%n", dev->id_unit);
-    devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SYNTH,
-	DV_CHR, UID_ROOT, GID_WHEEL, 0600, "sequencer%n", dev->id_unit);
+    cookie=devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "midi%n", dev->id_unit);
+    if (cookie) devfs_link(cookie, "midi");
+
+    cookie=devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SYNTH,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "sequencer%n", dev->id_unit);
+    if (cookie) devfs_link(cookie, "sequencer");
 #endif
 #endif /* DEVFS */
 
@@ -273,6 +365,9 @@ pcmattach(struct isa_device * dev)
 #endif
     snddev_last_probed = NULL ;
 
+#if NAPM > 0
+    init_sound_apm(dev->id_unit);
+#endif
     return stat ;
 }
 
@@ -1223,7 +1318,7 @@ init_status(snddev_info *d)
     if (status_len != 0) /* only do init once */
 	return ;
     sprintf(status_buf,
-	"FreeBSD Audio Driver (980215) "  __DATE__ " " __TIME__ "\n"
+	"FreeBSD Audio Driver (981022) "  __DATE__ " " __TIME__ "\n"
 	"Installed devices:\n");
 
     for (i = 0; i < NPCM_MAX; i++) {

@@ -156,7 +156,6 @@ dsp_wrintr(snddev_info *d)
 	b->int_count++;
 	dsp_wr_dmadone(d);
     }
-
     DEB(if (b->rl < 0)
 	printf("dsp_wrintr: dl %d, rp:rl %d:%d, fp:fl %d:%d\n",
 	    b->dl, b->rp, b->rl, b->fp, b->fl));
@@ -175,16 +174,16 @@ dsp_wrintr(snddev_info *d)
 	int l = min(b->rl, d->play_blocksize );	/* avoid too large transfer */
 	l &= DMA_ALIGN_MASK ; /* realign things */
 
+        DEB(printf("dsp_wrintr: dl %d -> %d\n", b->dl, l);)
 	/*
 	 * check if we need to reprogram the DMA on the sound card.
 	 * This happens if the size has changed _and_ the new size
 	 * is smaller, or it matches the blocksize.
 	 */
-	if (l != b->dl && (l < b->dl || l == d->play_blocksize) ) {
+	if (l != b->dl && (b->dl == 0 || l < b->dl || l == d->play_blocksize) ) {
 	    /* for any reason, size has changed. Stop and restart */
 	    DEB(printf("wrintr: bsz change from %d to %d, rp %d rl %d\n",
 		b->dl, l, b->rp, b->rl));
-	    DEB(printf("wrintr: dl %d -> %d\n", b->dl, l);)
 	    if (b->dl != 0)
 		d->callback(d, SND_CB_WR | SND_CB_STOP );
 	    /*
@@ -765,7 +764,8 @@ snd_flush(snddev_info *d)
 	    return -1 ;
 	}
 	if ( ret && --count == 0) {
-	    printf("timeout flushing dbuf_out.chan, cnt 0x%x flags 0x%08lx\n",
+	    printf("timeout flushing dbuf_out, chan %d cnt 0x%x flags 0x%08lx\n",
+		    b->chan,
 		    b->rl, d->flags);
 	    break;
 	}

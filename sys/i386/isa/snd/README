@@ -13,7 +13,7 @@ of the Voxware ioctl() audio calls, so that many applications --
 even commercial ones -- will run unmodified with this driver.  On
 the other hand, at the moment this driver does not support /dev/midi
 and /dev/synth, or some ioctl() used in xquake. Do not expect
-/dev/synth to be supported before summer'98.
+/dev/synth to be supported anytime soon.
 
 I also have implemented a new software interface with an independent
 set of ioctl(), to support some functions which were not easy to
@@ -23,12 +23,13 @@ need to recompile applications by replacing the audio module(s).
 Such modified driver modules are present in the misc/ directory
 for several applications.
 
-This file gives quick information on how to install the driver. For
-more info you are invited to look at the doc/ directory where you
-can find more documentation (in Latex and Postscript) on the driver
-and how to extend it. I am afraid there is not yet a complete set of
-manual pages for using the driver. The files in doc/ should give a
-good idea of what the driver is supposed to do and how, the Voxware
+This file gives quick information on how to install the driver.
+Most of these information are also in the manpage included here,
+which will become the 'official' reference in case of discrepancies.
+For more info you are invited to look at the doc/ directory where
+you can find more documentation (in Latex and Postscript) on the
+driver and how to extend it. The files in doc/ should give a good
+idea of what the driver is supposed to do and how, the Voxware
 documentation should be of some help, and the various driver modules
 in misc/ should also give some help.
 
@@ -97,11 +98,16 @@ In order to use this driver, you need FreeBSD 2.2 or above (I have
 tested this code on 2.2.1 and 2.2.5, and have many reports of the
 driver working on various vintages of 3.0 ). The enclosed patch
 file refers to FreeBSD 2.2.5. Your mileage may vary -- e.g. both
--stable and -current at the time of this writing (Jan.98) have
+-stable and -current at the time of this writing (Jun.98) have
 included the modifications to isa.c .
 
 Installation requires the following steps:
 
+2.2.6 USERS:
+  * replace the files in /sys/i386/isa/snd with the files in this
+    directory.
+
+2.2.5 AND EARLIER VERSIONS:
   * install the PnP support files (pnp971020.tgz). This is optional,
     in case you don't you might need to do some simple modifications
     to the file because pnp.h might not exist.
@@ -129,6 +135,7 @@ Installation requires the following steps:
     the definition of new ioctl() calls which are implemented by
     this driver.
 
+ALL VERSIONS:
   * add the following lines to your kernel configuration file:
 
       controller pnp0  # this is required for PnP support

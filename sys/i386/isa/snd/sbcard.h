@@ -141,6 +141,11 @@ extern int sbc_major, sbc_minor ;
 #define	BD_F_SB16X	0x0200	/* this is a vibra16X or clone */
 #define	BD_F_MIDIBUSY	0x0400	/* midi busy */
 #define	BD_F_ESS	0x0800	/* this is an ESS chip */
+/*
+ * on some SB16 cards, at times I swap DMA channels. Remember this
+ * so that they can be restored later.
+ */
+#define	BD_F_SWAPPED	0x1000	/* have swapped DMA channels */
 
 
 /*
