@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: mtio.h,v 1.3 1994/08/02 07:53:17 davidg Exp $
  */
 
 #ifndef _SYS_MTIO_H_
@@ -72,6 +72,12 @@ struct mtop {
 /* and range from 0 to 0x17. Sets the value for the openned mode only	*/
 
 #define MTSETDNSTY	11
+
+/*
+** Tape erase function - AKL: Andreas Klemm <andreas@knobel.gun.de>
+*/
+#define MTERASE		12
+
 #endif
 
 /* structure for MTIOCGET - mag tape get status command */
