@@ -1,5 +1,5 @@
 /* ELF linker support.
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -5377,8 +5377,9 @@ elf_bfd_final_link (abfd, info)
                  the original st_name with the dynstr_index.  */
               sym = e->isym;
 
-	      if (e->isym.st_shndx < SHN_LORESERVE
-		  || e->isym.st_shndx > SHN_HIRESERVE)
+	      if (e->isym.st_shndx != SHN_UNDEF
+		   && (e->isym.st_shndx < SHN_LORESERVE
+		       || e->isym.st_shndx > SHN_HIRESERVE))
 		{
 		  s = bfd_section_from_elf_index (e->input_bfd,
 						  e->isym.st_shndx);
