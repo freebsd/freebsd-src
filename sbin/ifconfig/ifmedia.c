@@ -1,5 +1,5 @@
 /*	$NetBSD: ifconfig.c,v 1.34 1997/04/21 01:17:58 lukem Exp $	*/
-/*	$Id: ifmedia.c,v 1.3 1997/05/10 17:14:53 peter Exp $ */
+/*	$Id: ifmedia.c,v 1.4 1997/10/16 03:55:29 peter Exp $ */
 
 /*
  * Copyright (c) 1997 Jason R. Thorpe.
@@ -73,7 +73,6 @@
 #include <sys/time.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
