@@ -76,7 +76,10 @@
 #define	_BSD_VA_LIST_	__builtin_va_list	/* internally known to gcc */
 #else
 #define	_BSD_VA_LIST_	char *			/* va_list */
-#endif /*__GNUC__*/
+#endif /* post GCC 2.95 */
+#if defined __GNUC__
+typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
+#endif
 
 /*
  * The rune type above is declared to be an ``int'' instead of the more natural
