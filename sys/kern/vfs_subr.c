@@ -1701,8 +1701,23 @@ vclean(vp, flags, p)
 	if (VOP_RECLAIM(vp, p))
 		panic("vclean: cannot reclaim");
 
-	if (active)
-		vrele(vp);
+	if (active) {
+		/*
+		 * Inline copy of vrele() since VOP_INACTIVE
+		 * has already been called.
+		 */
+		simple_lock(&vp->v_interlock);
+		if (--vp->v_usecount <= 0) {
+#ifdef DIAGNOSTIC
+			if (vp->v_usecount < 0 || vp->v_writecount != 0) {
+				vprint("vclean: bad ref count", vp);
+				panic("vclean: ref cnt");
+			}
+#endif
+			vfree(vp);
+		}
+		simple_unlock(&vp->v_interlock);
+	}
 
 	cache_purge(vp);
 	if (vp->v_vnlock) {
