@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.10 1995/09/25 04:53:32 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.11 1995/09/26 17:47:02 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -499,7 +499,7 @@ C> MD C:\FREEBSD
 C> XCOPY /S E:\FLOPPIES C:\FREEBSD\FLOPPIES\
 C> XCOPY /S E:\DISTS\BIN C:\FREEBSD\BIN\
 </verb></tscreen>
-	  asssuming that <tt>C:</tt> is where you have free space
+	  assuming that <tt>C:</tt> is where you have free space
 	  and <tt>E:</tt> is where your CDROM is mounted.  Note
 	  that you need the <tt>FLOPPIES</tt> directory because
 	  the <tt>root.flp</tt> image is needed during an MS-DOS
@@ -521,7 +521,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 
 	<p>Installing from tape is probably the easiest method,
 	  short of an on-line install using FTP or a CDROM
-	  instal.  The installation program expects the files to
+	  install.  The installation program expects the files to
 	  be simply tar'ed onto the tape, so after getting all of
 	  the files for distribution you're interested in, simply
 	  tar them onto the tape with a command like:
@@ -714,7 +714,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 	    wish to proceed directly to the Language option and
 	    set your preferred language.  This will bring up some
 	    of the documentation in that language instead of
-	    english.
+	    English.
 
 	  <item>Select the Options item and set any special
 	    preferences you may have.
@@ -769,7 +769,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 	      flags in the Label editor) and all selected
 	      distributions will be extracted.
 
-	    <item>The Configure menu choice allows you to furthur
+	    <item>The Configure menu choice allows you to further
 	      configure your FreeBSD installation by giving you
 	      menu-driven access to various system defaults.
 	      Some items, like networking, may be especially

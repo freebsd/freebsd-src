@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.18 1995/09/26 10:16:23 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.19 1995/09/26 19:19:26 wollman Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -19,7 +19,7 @@
       some occasionally rocky moments in relations between the
       two groups, we both want essentially the same thing: More
       BSD based operating systems on people's computers!  We wish
-      the NetBSD group every success in their endevors.
+      the NetBSD group every success in their endeavors.
 
   <sect><heading>Hardware contributors</heading>
 

@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.9 1995/07/27 16:15:32 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.10 1995/09/01 04:54:11 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -280,7 +280,7 @@ fixes, etc).
 
 <tag/FREEBSD-USER-GROUPS/ <em>User Group Coordination List</em><newline>
 This is the mailing list for the coordinators from each of the 
-local area Users Groups to dicuss matters with each other and a 
+local area Users Groups to discuss matters with each other and a 
 designated individual from the Core Team.  This mail list should
 be limited to meeting synopsis and coordination of projects that span
 User Groups.
