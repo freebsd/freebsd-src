@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -43,21 +43,36 @@
 /*
  * Lock routines.  Currently, we lock either an individual volume
  * or the global configuration.  I don't think tsleep and
- * wakeup are SMP safe. FIXME XXX 
+ * wakeup are SMP safe. FIXME XXX
  */
 
 /* Lock a drive, wait if it's in use */
+#if VINUMDEBUG
+int 
+lockdrive(struct drive *drive, char *file, int line)
+#else
 int 
 lockdrive(struct drive *drive)
+#endif
 {
     int error;
 
     /* XXX get rid of     drive->flags |= VF_LOCKING; */
     if ((drive->flags & VF_LOCKED)			    /* it's locked */
     &&(drive->pid == curproc->p_pid)) {			    /* by us! */
+#ifdef VINUMDEBUG
+	log(LOG_WARNING,
+	    "vinum lockdrive: already locking %s from %s:%d, called from %s:%d\n",
+	    drive->label.name,
+	    drive->lockfilename,
+	    drive->lockline,
+	    basename(file),
+	    line);
+#else
 	log(LOG_WARNING,
 	    "vinum lockdrive: already locking %s\n",
 	    drive->label.name);
+#endif
 	return 0;
     }
     while ((drive->flags & VF_LOCKED) != 0) {
@@ -66,7 +81,7 @@ lockdrive(struct drive *drive)
 	 * since the drive structure can move, and the unlock
 	 * function can be called after killing the drive.
 	 * Solve this by waiting on this function; the number
-	 * of conflicts is negligible 
+	 * of conflicts is negligible.
 	 */
 	if ((error = tsleep(&lockdrive,
 		    PRIBIO | PCATCH,
@@ -76,6 +91,11 @@ lockdrive(struct drive *drive)
     }
     drive->flags |= VF_LOCKED;
     drive->pid = curproc->p_pid;			    /* it's a panic error if curproc is null */
+#ifdef VINUMDEBUG
+    bcopy(basename(file), drive->lockfilename, 15);
+    drive->lockfilename[15] = '\0';			    /* truncate if necessary */
+    drive->lockline = line;
+#endif
     return 0;
 }
 
@@ -100,7 +120,7 @@ lockvol(struct volume *vol)
 	 * It would seem to make more sense to sleep on
 	 * the address 'vol'.  Unfortuntaly we can't
 	 * guarantee that this address won't change due to
-	 * table expansion.  The address we choose won't change. 
+	 * table expansion.  The address we choose won't change.
 	 */
 	if ((error = tsleep(&vinum_conf.volume + vol->devno,
 		    PRIBIO | PCATCH,
@@ -135,7 +155,7 @@ lockplex(struct plex *plex)
 	 * It would seem to make more sense to sleep on
 	 * the address 'plex'.  Unfortunately we can't
 	 * guarantee that this address won't change due to
-	 * table expansion.  The address we choose won't change. 
+	 * table expansion.  The address we choose won't change.
 	 */
 	if ((error = tsleep(&vinum_conf.plex + plex->sdnos[0],
 		    PRIBIO | PCATCH,
