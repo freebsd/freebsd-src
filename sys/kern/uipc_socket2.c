@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.5 1995/05/30 08:06:22 rgrimes Exp $
+ * $Id: uipc_socket2.c,v 1.6 1995/11/03 18:33:46 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -52,11 +52,6 @@
 /*
  * Primitive routines for operating on sockets and socket buffers
  */
-
-/* strings for sleep message: */
-char	netio[] = "netio";
-char	netcon[] = "netcon";
-char	netcls[] = "netcls";
 
 u_long	sb_max = SB_MAX;		/* XXX should be static */
 SYSCTL_INT(_kern, KERN_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, &sb_max, 0, "")
@@ -280,7 +275,7 @@ sbwait(sb)
 
 	sb->sb_flags |= SB_WAIT;
 	return (tsleep((caddr_t)&sb->sb_cc,
-	    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK | PCATCH, netio,
+	    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK | PCATCH, "sbwait",
 	    sb->sb_timeo));
 }
 
@@ -298,7 +293,7 @@ sb_lock(sb)
 		sb->sb_flags |= SB_WANT;
 		error = tsleep((caddr_t)&sb->sb_flags,
 		    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK|PCATCH,
-		    netio, 0);
+		    "sblock", 0);
 		if (error)
 			return (error);
 	}
