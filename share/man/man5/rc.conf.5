@@ -833,15 +833,15 @@ at boot time.
 .It Va portmap_program
 .Pq Vt str
 path to
-.Xr portmap 8
+.Xr rpcbind 8
 (default
-.Pa /usr/sbin/portmap ) .
+.Pa /usr/sbin/rpcbind ) .
 .It Va portmap_enable
 .Pq Vt bool
 If set to
 .Ar YES ,
 run the
-.Xr portmap 8
+.Xr rpcbind 8
 service at boot time.
 .It Va portmap_flags
 .Pq Vt str
@@ -850,7 +850,7 @@ If
 is set to
 .Ar YES ,
 these are the flags to pass to the
-.Xr portmap 8
+.Xr rpcbind 8
 daemon.
 .It Va xtend_enable
 .Pq Vt bool
@@ -1766,7 +1766,7 @@ Flags for
 .Xr nfsiod 8 ,
 .Xr ntpdate 8 ,
 .Xr pcnfsd 8 ,
-.Xr portmap 8 ,
+.Xr rpcbind 8 ,
 .Xr quotacheck 8 ,
 .Xr rc 8 ,
 .Xr route 8 ,
