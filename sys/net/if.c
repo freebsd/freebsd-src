@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.10 1994/11/10 18:49:23 guido Exp $
+ * $Id: if.c,v 1.11 1994/12/21 22:56:58 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,7 @@
 #include <ether.h>
 
 int	ifqmaxlen = IFQ_MAXLEN;
+struct	ifnet *ifnet;
 
 /*
  * Network interface utility routines.
@@ -115,6 +116,7 @@ if_attach(ifp)
 		unsigned n = (if_indexlim <<= 1) * sizeof(ifa);
 		struct ifaddr **q = (struct ifaddr **)
 					malloc(n, M_IFADDR, M_WAITOK);
+		bzero((caddr_t)q, n);
 		if (ifnet_addrs) {
 			bcopy((caddr_t)ifnet_addrs, (caddr_t)q, n/2);
 			free((caddr_t)ifnet_addrs, M_IFADDR);
