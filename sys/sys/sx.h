@@ -78,7 +78,7 @@ void	sx_xunlock(struct sx *sx);
 
 #else	/* INVARIANTS */
 #define	SX_ASSERT_SLOCKED(sx)
-#define	SX_ASSERT_XLOCKER(sx)
+#define	SX_ASSERT_XLOCKED(sx)
 #endif	/* INVARIANTS */
 
 #endif	/* _KERNEL */
