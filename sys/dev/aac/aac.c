@@ -751,12 +751,10 @@ aac_command_thread(struct aac_softc *sc)
 
 		/* See if any FIBs need to be allocated */
 		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
-			mtx_lock(&Giant);
 			AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
 			aac_alloc_commands(sc);
 			sc->aifflags &= ~AAC_AIFFLAGS_ALLOCFIBS;
 			AAC_LOCK_RELEASE(&sc->aac_io_lock);
-			mtx_unlock(&Giant);
 		}
 
 		/* While we're here, check to see if any commands are stuck */
