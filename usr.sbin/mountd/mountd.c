@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.6 1995/05/21 19:31:09 phk Exp $";
+	"$Id: mountd.c,v 1.7.2.1 1995/06/08 04:34:11 davidg Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -236,7 +236,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	SVCXPRT *transp;
+	SVCXPRT *udptransp, *tcptransp;
 	int c;
 	struct vfsconf *vfc;
 
@@ -295,13 +295,16 @@ main(argc, argv)
 		fclose(pidfile);
 	  }
 	}
-	if ((transp = svcudp_create(RPC_ANYSOCK)) == NULL) {
+	if ((udptransp = svcudp_create(RPC_ANYSOCK)) == NULL ||
+	    (tcptransp = svctcp_create(RPC_ANYSOCK, 0, 0)) == NULL) {
 		syslog(LOG_ERR, "Can't create socket");
 		exit(1);
 	}
 	pmap_unset(RPCPROG_MNT, RPCMNT_VER1);
-	if (!svc_register(transp, RPCPROG_MNT, RPCMNT_VER1, mntsrv,
-	    IPPROTO_UDP)) {
+	if (!svc_register(udptransp, RPCPROG_MNT, RPCMNT_VER1, mntsrv,
+	    IPPROTO_UDP) ||
+	    !svc_register(tcptransp, RPCPROG_MNT, RPCMNT_VER1, mntsrv,
+	    IPPROTO_TCP)) {
 		syslog(LOG_ERR, "Can't register mount");
 		exit(1);
 	}

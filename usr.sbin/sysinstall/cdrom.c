@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.5 1995/05/29 11:01:03 jkh Exp $
+ * $Id: cdrom.c,v 1.6.2.3 1995/06/05 12:03:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,13 +101,13 @@ mediaInitCDROM(Device *dev)
 }
 
 int
-mediaGetCDROM(char *file)
+mediaGetCDROM(Device *dev, char *file, Attribs *dist_attrs)
 {
     char		buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/cdrom/%s", file);
     if (!access(buf,R_OK))
-	    return open(buf, O_RDONLY);
+	return open(buf, O_RDONLY);
     snprintf(buf, PATH_MAX, "/cdrom/dists/%s", file);
     return open(buf, O_RDONLY);
 }
@@ -118,7 +118,7 @@ mediaShutdownCDROM(Device *dev)
     if (!cdromMounted)
 	return;
     msgDebug("Unmounting /cdrom\n");
-    if (unmount("/cdrom", 0) != 0)
+    if (unmount("/cdrom", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the CDROM: %s\n", strerror(errno));
     msgDebug("Unmount returned\n");
     cdromMounted = FALSE;

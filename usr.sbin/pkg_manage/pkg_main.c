@@ -23,8 +23,6 @@
 
 extern PKG_info	p_inf;
 
-char *StartDir;
-
 /*
  * Main
  */
@@ -35,12 +33,17 @@ main(int argc, char **argv)
     init_dialog();
 
     p_inf.Nitems = 0;	/* Initialize p_inf */
-    if (argc > 1)
-	StartDir = argv[1];
-    else
-	StartDir = NULL;
+
     get_pkginfo();
-    run_menu();
+
+    /* start in the pkg add menu when giving the -add option */
+    if (argc > 1) {
+        if (strcmp(argv[1], "-add") == 0) {
+	    install_pkgs_indir();
+	}
+    } else {
+	run_menu();
+    }
 
     if (p_inf.Nitems > 0) {
 	FreeInfo();

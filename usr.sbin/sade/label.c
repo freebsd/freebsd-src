@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.30 1995/05/29 00:50:03 jkh Exp $
+ * $Id: label.c,v 1.31.2.4 1995/06/07 06:38:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -171,7 +171,10 @@ static PartInfo *
 new_part(char *mpoint, Boolean newfs, u_long size)
 {
     PartInfo *ret;
-    u_long target,divisor;
+    u_long target, divisor;
+
+    if (!mpoint)
+	mpoint = "/change_me";
 
     ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
     strncpy(ret->mountpoint, mpoint, FILENAME_MAX);
@@ -382,8 +385,8 @@ static void
 print_command_summary()
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
-    mvprintw(19, 0, "C = Create New     D = Delete         M = Set Mountpoint");
-    mvprintw(20, 0, "N = Newfs Options  T = Toggle Newfs   U = Undo    ESC = Exit");
+    mvprintw(19, 0, "C = Create New     D = Delete           M = Set Mountpoint");
+    mvprintw(20, 0, "N = Newfs Options  T = Toggle Newfs     U = Undo    Q = Finish");
     mvprintw(21, 0, "The default target will be displayed in ");
 
     attrset(A_REVERSE);
@@ -400,7 +403,7 @@ diskLabelEditor(char *str)
     int sz, i, key = 0;
     Boolean labeling;
     char *msg = NULL;
-    PartInfo *p;
+    PartInfo *p, *oldp;
     PartType type;
     Device **devs;
 
@@ -459,7 +462,7 @@ diskLabelEditor(char *str)
 
 	case KEY_F(1):
 	case '?':
-	    systemDisplayFile("disklabel.hlp");
+	    systemDisplayFile("partition.hlp");
 	    break;
 
 	case 'C':
@@ -580,9 +583,11 @@ diskLabelEditor(char *str)
 
 	    case PART_FAT:
 	    case PART_FILESYSTEM:
+		oldp = label_chunk_info[here].c->private;
 		p = get_mountpoint(label_chunk_info[here].c);
 		if (p) {
-		    p->newfs = FALSE;
+		    if (!oldp)
+		    	p->newfs = FALSE;
 		    if (label_chunk_info[here].type == PART_FAT
 			&& (!strcmp(p->mountpoint, "/") || !strcmp(p->mountpoint, "/usr")
 			    || !strcmp(p->mountpoint, "/var"))) {
@@ -608,10 +613,9 @@ diskLabelEditor(char *str)
 	    break;
 
 	case 'T':	/* Toggle newfs state */
-	    if (label_chunk_info[here].type == PART_FILESYSTEM &&
-		label_chunk_info[here].c->private) {
+	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
 		    PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private);
-		    label_chunk_info[here].c->private = new_part(pi->mountpoint, !pi->newfs, label_chunk_info[here].c->size);
+		    label_chunk_info[here].c->private = new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
 		    safe_free(pi);
 		    label_chunk_info[here].c->private_free = safe_free;
 		}
@@ -659,7 +663,7 @@ diskLabelEditor(char *str)
 		msg = "A most prudent choice!";
 	    break;
 
-	case 27:	/* ESC */
+	case 'Q':
 	    labeling = FALSE;
 	    break;
 

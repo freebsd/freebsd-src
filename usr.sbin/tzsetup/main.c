@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id: main.c,v 1.1 1995/04/24 21:04:33 wollman Exp $";
+	"$Id: main.c,v 1.2.2.1 1995/06/06 04:51:22 jkh Exp $";
 
 #include <stdio.h>
 #include <ncurses.h>
@@ -150,8 +150,8 @@ set_time(void)
 }
 
 static unsigned char *cmos_list[] = {
-	"1", "CMOS clock is set to local time",
-	"2", "CMOS clock is set to Universal time (UTC)",
+	"1", "CMOS clock is set to Universal time (UTC)",
+	"2", "CMOS clock is set to local time",
 	"3", "I'm not sure, leave it alone"
 };
 

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: wizard.c,v 1.4 1995/05/20 10:33:14 jkh Exp $
+ * $Id: wizard.c,v 1.5.2.1 1995/06/05 02:25:27 jkh Exp $
  *
  */
 
@@ -165,22 +165,6 @@ slice_wizard(Disk *d)
 			  strtol(cmds[3],0,0));
 	    continue;
 	}
-	if (!strcasecmp(*cmds,"phys") && ncmd == 4) {
-	    d = Set_Phys_Geom(d,
-			      strtol(cmds[1],0,0),
-			      strtol(cmds[2],0,0),
-			      strtol(cmds[3],0,0));
-	    continue;
-	}
-	if (!strcasecmp(*cmds,"collapse")) {
-	    if (cmds[1])
-		while (Collapse_Chunk(d,
-				      (struct chunk *)strtol(cmds[1],0,0)))
-		    ;
-	    else
-		Collapse_Disk(d);
-	    continue;
-	}
 	if (!strcasecmp(*cmds,"list")) {
 	    cp = Disk_Names();
 	    printf("Disks:");
@@ -218,19 +202,6 @@ slice_wizard(Disk *d)
 	    Scan_Disk(d);
 	    continue;
 	}
-	if (!strcasecmp(*cmds,"bteasy")) {
-	    Set_Boot_Mgr(d,bteasy17);
-	    continue;
-	}
-	if (!strcasecmp(*cmds,"mbr")) {
-	    Set_Boot_Mgr(d,mbr);
-	    continue;
-	}
-	if (!strcasecmp(*cmds,"boot")) {
-	    extern u_char boot1[],boot2[];
-	    Set_Boot_Blocks(d,boot1,boot2);
-	    continue;
-	}
 	if (!strcasecmp(*cmds,"write")) {
 	    printf("Write=%d\n",
 		   Write_Disk(d));
@@ -243,15 +214,11 @@ slice_wizard(Disk *d)
 	printf("CMDS:\n");
 	printf("allfreebsd\t\t");
 	printf("bios cyl hd sect\n");
-	printf("boot\t\t");
-	printf("bteasy17\n");
 	printf("collapse [pointer]\t\t");
 	printf("create offset size enum subtype flags\n");
 	printf("subtype(part): swap=1, ffs=7\t\t");
 	printf("delete pointer\n");
 	printf("list\t\t");
-	printf("mbr\n");
-	printf("phys cyl hd sect\t\t");
 	printf("quit\n");
 	printf("read [disk]\t\t");
 	printf("scan\n");

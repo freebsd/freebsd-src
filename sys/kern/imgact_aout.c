@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.12 1995/03/16 18:12:25 bde Exp $
+ *	$Id: imgact_aout.c,v 1.13.2.1 1995/06/04 16:58:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -57,10 +57,11 @@ exec_aout_imgact(iparams)
 	/*
 	 * Linux and *BSD binaries look very much alike,
 	 * only the machine id is different:
-	 * 0x64 for Linux, 0x86 for *BSD.
+	 * 0x64 for Linux, 0x86 for *BSD, 0x00 for BSDI.
 	 */
-	if (((a_out->a_magic >> 16) & 0xff) != 0x86)
-		return -1;
+	if (((a_out->a_magic >> 16) & 0xff) != 0x86 &&
+	    ((a_out->a_magic >> 16) & 0xff) != 0)
+                return -1;
 #endif /* COMPAT_LINUX */
 
 	/*

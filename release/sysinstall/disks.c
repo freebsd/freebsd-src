@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.29 1995/05/28 20:28:09 jkh Exp $
+ * $Id: disks.c,v 1.30.2.7 1995/06/08 09:48:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,11 +79,14 @@ print_chunks(Disk *d)
     int row;
     int i;
 
+    if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64))
+	msgConfirm("WARNING:  The detected geometry is incorrect!  Please adjust it to\nthe correct values manually with the (G)eometry command.  If you are\nunsure about the correct geometry (which may be \"translated\"), please\nconsult the Hardware Guide in the Documentation submenu.");
+			  
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
     clrtobot();
     attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
-    attrset(A_REVERSE); mvaddstr(0, 55, "Master Partition Editor"); attrset(A_NORMAL);
+    attrset(A_REVERSE); mvaddstr(0, 55, "FDISK Partition Editor"); attrset(A_NORMAL);
     mvprintw(1, 0,
 	     "BIOS Geometry:\t%lu cyls/%lu heads/%lu sectors",
 	     d->bios_cyl, d->bios_hd, d->bios_sect);
@@ -93,11 +96,11 @@ print_chunks(Disk *d)
     for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
 	if (i == current_chunk)
 	    attrset(A_REVERSE);
-	mvprintw(row, 2, "%10ld %10lu %10lu %8s %8d %8s %8d %6lx",
+	mvprintw(row, 2, "%10ld %10lu %10lu %8s %8d %8s %8d\t%-6s",
 		 chunk_info[i]->offset, chunk_info[i]->size,
 		 chunk_info[i]->end, chunk_info[i]->name,
 		 chunk_info[i]->type, chunk_n[chunk_info[i]->type],
-		 chunk_info[i]->subtype, chunk_info[i]->flags);
+		 chunk_info[i]->subtype, ShowChunkFlags(chunk_info[i]));
 	if (i == current_chunk)
 	    attrset(A_NORMAL);
     }
@@ -109,7 +112,7 @@ print_command_summary()
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
     mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
-    mvprintw(18, 0, "U = Undo All Changes   ESC = Exit this screen");
+    mvprintw(18, 0, "U = Undo All Changes   Q = Finish");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
     attrset(A_REVERSE); addstr("reverse"); attrset(A_NORMAL); addstr(" video.");
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");
@@ -265,7 +268,7 @@ diskPartition(Disk *d)
 		msg = "Wise choice!";
 	    break;
 
-	case 27:	/* ESC */
+	case 'Q':
 	    chunking = FALSE;
 	    break;
 
@@ -322,14 +325,27 @@ int
 diskPartitionEditor(char *str)
 {
     DMenu *menu;
+    Device **devs;
+    int cnt;
 
-    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
-    if (!menu) {
-	msgConfirm("No devices suitable for installation found!\n\nPlease verify that your disk controller (and attached drives) were detected properly.  This can be done by selecting the ``Bootmsg'' option on the main menu and reviewing the boot messages carefully.");
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    cnt = deviceCount(devs);
+    if (!cnt) {
+	msgConfirm("No disks found!  Please verify that your disk controller is being\nproperly probed at boot time.  See the Hardware Guide on the Documentation menu\nfor clues on diagnosing this type of problem.");
+	return 0;
+    }
+    else if (cnt == 1) {
+	devs[0]->private = diskPartition((Disk *)devs[0]->private);
+	devs[0]->enabled = TRUE;
     }
     else {
-	dmenuOpenSimple(menu);
-	free(menu);
+	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
+	if (!menu)
+	    msgConfirm("No devices suitable for installation found!\n\nPlease verify that your disk controller (and attached drives) were detected properly.  This can be done by selecting the ``Bootmsg'' option on the main menu and reviewing the boot messages carefully.");
+	else {
+	    dmenuOpenSimple(menu);
+	    free(menu);
+	}
     }
     return 0;
 }

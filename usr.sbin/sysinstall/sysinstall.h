@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.40 1995/05/29 11:01:37 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.20 1995/06/10 09:14:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,6 +69,7 @@
 #define DEV_NAME_MAX		128	/* The maximum length of a device name	*/
 #define DEV_MAX			200	/* The maximum number of devices we'll deal with */
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
+#define MAX_FTP_RETRIES		3	/* How many times to beat our heads against the wall */
 
 /*
  * I make some pretty gross assumptions about having a max of 50 chunks
@@ -85,7 +86,20 @@
 #define DISK_LABELLED		"_diskLabelled"
 #define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
-#define NO_CONFIRMATION		"noConfirmation"
+
+#define FTP_USER		"_ftpUser"
+#define FTP_PASS		"_ftpPass"
+
+#define OPT_NO_CONFIRM		0x0001
+#define OPT_NFS_SECURE		0x0002
+#define OPT_DEBUG		0x0004
+#define OPT_FTP_ACTIVE		0x0008
+#define OPT_FTP_PASSIVE		0x0010
+#define OPT_FTP_RESELECT	0x0020
+#define OPT_FTP_ABORT		0x0040
+#define OPT_SLOW_ETHER		0x0080
+#define OPT_EXPLORATORY_GET	0x0100
+#define OPT_LEAVE_NETWORK_UP	0x0200
 
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
@@ -105,13 +119,13 @@ typedef struct disk Disk;
 typedef struct chunk Chunk;
 
 typedef enum {
-    DMENU_SHELL_ESCAPE,			/* Fork a shell			*/
     DMENU_DISPLAY_FILE,			/* Display a file's contents	*/
     DMENU_SUBMENU,			/* Recurse into another menu	*/
     DMENU_SYSTEM_COMMAND,		/* Run shell commmand		*/
     DMENU_SYSTEM_COMMAND_BOX,		/* Same as above, but in prgbox	*/
     DMENU_SET_VARIABLE,			/* Set an environment/system var */
     DMENU_SET_FLAG,			/* Set flag in an unsigned int	*/
+    DMENU_SET_VALUE,			/* Set unsigned int to value	*/
     DMENU_CALL,				/* Call back a C function	*/
     DMENU_CANCEL,			/* Cancel out of this menu	*/
     DMENU_NOP,				/* Do nothing special for item	*/
@@ -124,6 +138,7 @@ typedef struct _dmenuItem {
     void *ptr;				/* Generic data ptr		*/
     u_long parm;			/* Parameter for above		*/
     Boolean disabled;			/* Are we temporarily disabled?	*/
+    char * (*check)(struct _dmenuItem *); /* Our state                  */
 } DMenuItem;
 
 typedef struct _dmenu {
@@ -172,11 +187,12 @@ typedef struct _device {
     char *devname;
     DeviceType type;
     Boolean enabled;
-    Boolean (*init)(struct _device *);
-    int (*get)(char *file);
-    Boolean (*close)(struct _device *, int fd);
-    void (*shutdown)(struct _device *);
+    Boolean (*init)(struct _device *dev);
+    int (*get)(struct _device *dev, char *file, Attribs *dist_attrs);
+    Boolean (*close)(struct _device *dev, int fd);
+    void (*shutdown)(struct _device *dev);
     void *private;
+    unsigned int flags;
 } Device;
 
 /* Some internal representations of partitions */
@@ -213,8 +229,6 @@ typedef struct _devPriv {
 
 /*** Externs ***/
 extern int		DebugFD;		/* Where diagnostic output goes			*/
-extern Boolean		OnCDROM;		/* Are we running off of a CDROM?		*/
-extern Boolean		OnSerial;		/* Are we on a serial console?			*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
 extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
@@ -223,10 +237,15 @@ extern Boolean		OnVTY;			/* On a syscons VTY?				*/
 extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
+extern unsigned int	DESDists;		/* Which naughty distributions we want		*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
 extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
 extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
 extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
+extern unsigned int	OptFlags;		/* Global options */
+extern int		BootMgr;		/* Which boot manager to use 			*/
+extern char		*InstallPrefix;		/* A location bias				*/
+
 
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
@@ -234,7 +253,6 @@ extern DMenu		MenuConfigure;		/* Final configuration menu			*/
 extern DMenu		MenuDocumentation;	/* Documentation menu				*/
 extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
-extern DMenu		MenuOptionsFTP;		/* FTP options menu				*/
 extern DMenu		MenuMedia;		/* Media type menu				*/
 extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
 extern DMenu		MenuMediaDOS;		/* DOS media menu				*/
@@ -251,6 +269,7 @@ extern DMenu		MenuNetworking;		/* Network configuration menu			*/
 extern DMenu		MenuInstall;		/* Installation menu				*/
 extern DMenu		MenuInstallType;	/* Installation type menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
+extern DMenu		MenuDESDistributions;	/* DES distribution menu			*/
 extern DMenu		MenuSrcDistributions;	/* Source distribution menu			*/
 extern DMenu		MenuXF86;		/* XFree86 main menu				*/
 extern DMenu		MenuXF86Select;		/* XFree86 distribution selection menu		*/
@@ -268,7 +287,7 @@ extern int		attr_parse(Attribs **attr, char *file);
 
 /* cdrom.c */
 extern Boolean	mediaInitCDROM(Device *dev);
-extern int	mediaGetCDROM(char *file);
+extern int	mediaGetCDROM(Device *dev, char *file, Attribs *dist_attrs);
 extern void	mediaShutdownCDROM(Device *dev);
 
 /* command.c */
@@ -285,6 +304,11 @@ extern void	configResolv(void);
 extern int	configPorts(char *str);
 extern int	configPackages(char *str);
 extern int	configSaverTimeout(char *str);
+extern int	configNTP(char *str);
+extern int	configRoutedFlags(char *str);
+
+/* crc.c */
+extern int	crc(int, unsigned long *, unsigned long *);
 
 /* decode.c */
 extern DMenuItem *decode(DMenu *menu, char *name);
@@ -298,9 +322,13 @@ extern Device	**deviceFind(char *name, DeviceType type);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
 extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-				Boolean (*init)(Device *mediadev), int (*get)(char *file),
+				Boolean (*init)(Device *mediadev), int (*get)(Device *dev, char *file, Attribs *dist_attrs),
 				Boolean (*close)(Device *mediadev, int fd), void (*shutDown)(Device *mediadev),
 				void *private);
+extern Boolean	dummyInit(Device *dev);
+extern int	dummyGet(Device *dev, char *dist, Attribs *dist_attrs);
+extern Boolean	dummyClose(Device *dev, int fd);
+extern void	dummyShutdown(Device *dev);
 
 /* disks.c */
 extern int	diskPartitionEditor(char *unused);
@@ -309,34 +337,40 @@ extern int	diskPartitionEditor(char *unused);
 extern int	distReset(char *str);
 extern int	distSetDeveloper(char *str);
 extern int	distSetXDeveloper(char *str);
+extern int	distSetKernDeveloper(char *str);
 extern int	distSetUser(char *str);
 extern int	distSetXUser(char *str);
 extern int	distSetMinimum(char *str);
 extern int	distSetEverything(char *str);
+extern int	distSetDES(char *str);
 extern int	distSetSrc(char *str);
+extern int	distSetXF86(char *str);
 extern void	distExtractAll(void);
 
 /* dmenu.c */
-extern void	dmenuOpen(DMenu *menu, int *choice, int *scroll,
-			  int *curr, int *max);
-extern void	dmenuOpenSimple(DMenu *menu);
+extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max);
+extern Boolean	dmenuOpenSimple(DMenu *menu);
+extern char     *dmenuVarCheck(DMenuItem *item);
+extern char     *dmenuFlagCheck(DMenuItem *item);
+extern char     *dmenuRadioCheck(DMenuItem *item);
 
 /* dos.c */
 extern Boolean	mediaInitDOS(Device *dev);
-extern int	mediaGetDOS(char *file);
+extern int	mediaGetDOS(Device *dev, char *file, Attribs *dist_attrs);
 extern void	mediaShutdownDOS(Device *dev);
 
 /* floppy.c */
 extern int	getRootFloppy(void);
 extern Boolean	mediaInitFloppy(Device *dev);
-extern int	mediaGetFloppy(char *file);
+extern int	mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs);
 extern void	mediaShutdownFloppy(Device *dev);
 
 /* ftp_strat.c */
 extern Boolean	mediaCloseFTP(Device *dev, int fd);
 extern Boolean	mediaInitFTP(Device *dev);
-extern int	mediaGetFTP(char *file);
+extern int	mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs);
 extern void	mediaShutdownFTP(Device *dev);
+extern int	mediaSetFtpUserPass(char *str);
 
 /* globals.c */
 extern void	globalsInit(void);
@@ -403,7 +437,6 @@ extern char	**item_add_pair(char **list, char *item1, char *item2,
 extern void	items_free(char **list, int *curr, int *max);
 extern int	Mkdir(char *, void *data);
 extern int	Mount(char *, void *data);
-extern int	Mount_DOS(char *, void *data);
 
 /* msg.c */
 extern Boolean	isDebug(void);
@@ -422,19 +455,16 @@ extern char	*msgGetInput(char *buf, char *fmt, ...);
 /* network.c */
 extern Boolean	mediaInitNetwork(Device *dev);
 extern void	mediaShutdownNetwork(Device *dev);
-extern int	configRoutedFlags(char *str);
 
 /* nfs.c */
 extern Boolean	mediaInitNFS(Device *dev);
-extern int	mediaGetNFS(char *file);
+extern int	mediaGetNFS(Device *dev, char *file, Attribs *dist_attrs);
 extern void	mediaShutdownNFS(Device *dev);
 
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(void);
-extern void	systemWelcome(void);
 extern int	systemExecute(char *cmd);
-extern int	systemShellEscape(void);
 extern int	systemDisplayFile(char *file);
 extern char	*systemHelpFile(char *file, char *buf);
 extern void	systemChangeFont(const u_char font[]);
@@ -446,12 +476,13 @@ extern int	vsystem(char *fmt, ...);
 
 /* tape.c */
 extern Boolean	mediaInitTape(Device *dev);
-extern int	mediaGetTape(char *file);
+extern int	mediaGetTape(Device *dev, char *file, Attribs *dist_attrs);
 extern void	mediaShutdownTape(Device *dev);
 
 /* tcpip.c */
 extern int	tcpOpenDialog(Device *dev);
-extern int	tcpDeviceSelect(char *str);
+extern int	tcpMenuSelect(char *str);
+extern Boolean	tcpDeviceSelect(void);
 
 /* termcap.c */
 extern int	set_termcap(void);
@@ -459,7 +490,7 @@ extern int	set_termcap(void);
 /* ufs.c */
 extern void	mediaShutdownUFS(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
-extern int	mediaGetUFS(char *file);
+extern int	mediaGetUFS(Device *dev, char *file, Attribs *dist_attrs);
 
 /* variables.c */
 extern void	variable_set(char *var);

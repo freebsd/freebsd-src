@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.28 1995/05/29 12:32:41 jkh Exp $
+ * $Id: tcpip.c,v 1.29.2.8 1995/06/06 06:08:29 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -83,7 +83,7 @@ typedef struct _layout {
 
 static Layout layout[] = {
 { 1, 2, 25, HOSTNAME_FIELD_LEN - 1,
-      "Host name:", "The name of your machine on a network, e.g. foo.bar.com",
+      "Host name:", "Your fully-qualified hostname, e.g. foo.bar.com",
       hostname, STRINGOBJ, NULL },
 #define LAYOUT_HOSTNAME		0
 { 1, 35, 20, HOSTNAME_FIELD_LEN - 1,
@@ -392,9 +392,11 @@ tcpOpenDialog(Device *devp)
     if (!cancel) {
 	DevInfo *di;
 	char temp[512], ifn[64];
+	char *ifaces;
 
 	variable_set2(VAR_HOSTNAME, hostname);
-	variable_set2(VAR_DOMAINNAME, domainname);
+	if (domainname[0])
+	    variable_set2(VAR_DOMAINNAME, domainname);
 	if (gateway[0])
 	    variable_set2(VAR_GATEWAY, gateway);
 	if (nameserver[0])
@@ -410,8 +412,14 @@ tcpOpenDialog(Device *devp)
 	sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
 	variable_set2(ifn, temp);
-	sprintf(ifn, "%s %s", devp->name, getenv(VAR_INTERFACES) ? getenv(VAR_INTERFACES) : "");
-	variable_set2(VAR_INTERFACES, ifn);
+	ifaces = getenv(VAR_INTERFACES);
+	if (!ifaces)
+	    variable_set2(VAR_INTERFACES, ifaces = "lo0");
+	/* Only add it if it's not there already */
+	if (!strstr(ifaces, devp->name)) {
+	    sprintf(ifn, "%s %s", devp->name, ifaces);
+	    variable_set2(VAR_INTERFACES, ifn);
+	}
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr);
 	return 0;
@@ -438,15 +446,41 @@ netHook(char *str)
 }
 
 /* Get a network device */
-int
-tcpDeviceSelect(char *str)
+Boolean
+tcpDeviceSelect(void)
 {
     DMenu *menu;
+    Device **devs;
+    int cnt;
+    int status;
 
-    menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook);
-    if (!menu)
-	msgFatal("Unable to create network device menu!  Argh!");
-    dmenuOpenSimple(menu);
-    free(menu);
+    devs = deviceFind(NULL, DEVICE_TYPE_NETWORK);
+    cnt = deviceCount(devs);
+    if (!cnt) {
+	msgConfirm("No network devices available!");
+	status = FALSE;
+    }
+    else if (cnt == 1) {
+	tcpOpenDialog(devs[0]);
+	mediaDevice = devs[0];
+	status = TRUE;
+    }
+    else {
+
+	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook);
+	if (!menu)
+	    msgFatal("Unable to create network device menu!  Argh!");
+	status = dmenuOpenSimple(menu);
+	free(menu);
+    }
+    return status;
+}
+
+/* Do it from a menu that doesn't care about status */
+int
+tcpMenuSelect(char *str)
+{
+    (void)tcpDeviceSelect();
+    configResolv();
     return 0;
 }

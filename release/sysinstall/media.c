@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.23 1995/05/30 05:13:21 jkh Exp $
+ * $Id: media.c,v 1.24.2.11 1995/06/10 01:42:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,35 +82,26 @@ mediaSetCDROM(char *str)
     Device **devs;
     int cnt;
 
-    if (OnCDROM == TRUE) {
-	static Device bootCD;
-
-	/* This may need to be extended a little, but the basic idea is sound */
-	strcpy(bootCD.name, "bootCD");
-	bootCD.type = DEVICE_TYPE_CDROM;
-	bootCD.get = mediaGetCDROM;
-	mediaDevice = &bootCD;
-	return 1;
+    devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
+    cnt = deviceCount(devs);
+    if (!cnt) {
+	msgConfirm("No CDROM devices found!  Please check that your system's\nconfiguration is correct and that the CDROM drive is of a supported\ntype.  For more information, consult the hardware guide\nin the Doc menu.");
+	return 0;
     }
-    else {
-	devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
-	cnt = deviceCount(devs);
-	if (!cnt) {
-	    msgConfirm("No CDROM devices found!  Please check that your system's\nconfiguration is correct and that the CDROM drive is of a supported\ntype.  For more information, consult the hardware guide\nin the Doc menu.");
+    else if (cnt > 1) {
+	DMenu *menu;
+	int status;
+	
+	menu = deviceCreateMenu(&MenuMediaCDROM, DEVICE_TYPE_CDROM, cdromHook);
+	if (!menu)
+	    msgFatal("Unable to create CDROM menu!  Something is seriously wrong.");
+	status = dmenuOpenSimple(menu);
+	free(menu);
+	if (!status)
 	    return 0;
-        }
-	else if (cnt > 1) {
-	    DMenu *menu;
-
-	    menu = deviceCreateMenu(&MenuMediaCDROM, DEVICE_TYPE_CDROM, cdromHook);
-	    if (!menu)
-		msgFatal("Unable to create CDROM menu!  Something is seriously wrong.");
-	    dmenuOpenSimple(menu);
-	    free(menu);
-	}
-	else
-	    mediaDevice = devs[0];
     }
+    else
+	mediaDevice = devs[0];
     return mediaDevice ? 1 : 0;
 }
 
@@ -138,12 +129,15 @@ mediaSetFloppy(char *str)
     }
     else if (cnt > 1) {
 	DMenu *menu;
+	int status;
 
 	menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyHook);
 	if (!menu)
 	    msgFatal("Unable to create Floppy menu!  Something is seriously wrong.");
-	dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu);
 	free(menu);
+	if (!status)
+	    return 0;
     }
     else
 	mediaDevice = devs[0];
@@ -174,12 +168,15 @@ mediaSetDOS(char *str)
     }
     else if (cnt > 1) {
 	DMenu *menu;
+	int status;
 
 	menu = deviceCreateMenu(&MenuMediaDOS, DEVICE_TYPE_DOS, DOSHook);
 	if (!menu)
 	    msgFatal("Unable to create DOS menu!  Something is seriously wrong.");
-	dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu);
 	free(menu);
+	if (!status)
+	    return 0;
     }
     else
 	mediaDevice = devs[0];
@@ -210,15 +207,27 @@ mediaSetTape(char *str)
     }
     else if (cnt > 1) {
 	DMenu *menu;
+	int status;
 
 	menu = deviceCreateMenu(&MenuMediaTape, DEVICE_TYPE_TAPE, tapeHook);
 	if (!menu)
 	    msgFatal("Unable to create tape drive menu!  Something is seriously wrong.");
-	dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu);
 	free(menu);
+	if (!status)
+	    return 0;
     }
     else
 	mediaDevice = devs[0];
+    if (mediaDevice) {
+	char *val;
+
+	val = msgGetInput("/usr/tmp", "Please enter the name of a temporary directory containing\nsufficient space for holding the contents of this tape (or\ntapes).  The contents of this directory will be removed\nafter installation, so be sure to specify a directory that\ncan be erased afterward!");
+	if (!val)
+	    mediaDevice = NULL;
+	else
+	    mediaDevice->private = strdup(val);
+    }
     return mediaDevice ? 1 : 0;
 }
 
@@ -232,25 +241,30 @@ mediaSetFTP(char *str)
     static Device ftpDevice;
     char *cp;
 
-    dmenuOpenSimple(&MenuMediaFTP);
+    if (!dmenuOpenSimple(&MenuMediaFTP))
+	return 0;
     cp = getenv("ftp");
     if (!cp)
 	return 0;
     if (!strcmp(cp, "other")) {
-	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept anonymous ftp!\nA URL looks like this:  ftp://<hostname>/<path>");
+	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept either anonymous\nftp or you should have set an ftp username and password\nin the Options Menu.\nA URL looks like this:  ftp://<hostname>/<path>\nWhere <path> is relative to the anonymous ftp directory or the\nhome directory of the user being logged in as.");
 	if (!cp || strncmp("ftp://", cp, 6))
 	    return 0;
 	else
 	    variable_set2("ftp", cp);
     }
-    tcpDeviceSelect(NULL);
     strcpy(ftpDevice.name, cp);
+    /* XXX hack: if str == NULL, we were called by an ftp strategy routine and don't need to reinit all */
+    if (!str)
+	return 1;
+    if (!tcpDeviceSelect())
+	return 0;
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
     ftpDevice.close = mediaCloseFTP;
     ftpDevice.shutdown = mediaShutdownFTP;
-    ftpDevice.private = mediaDevice;
+    ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
     return 1;
 }
@@ -261,12 +275,15 @@ mediaSetUFS(char *str)
     static Device ufsDevice;
     char *val;
 
-    val = msgGetInput(NULL, "Enter a fully qualified pathname for the directory\ncontaining the FreeBSD distribtion files:");
+    val = msgGetInput(NULL, "Enter a fully qualified pathname for the directory\ncontaining the FreeBSD distribution files:");
     if (!val)
 	return 0;
     strcpy(ufsDevice.name, "ufs");
     ufsDevice.type = DEVICE_TYPE_UFS;
+    ufsDevice.init = dummyInit;
     ufsDevice.get = mediaGetUFS;
+    ufsDevice.close = dummyClose;
+    ufsDevice.shutdown = dummyShutdown;
     ufsDevice.private = strdup(val);
     mediaDevice = &ufsDevice;
     return 1;
@@ -281,11 +298,13 @@ mediaSetNFS(char *str)
     val = msgGetInput(NULL, "Please enter the full NFS file specification for the remote\nhost and directory containing the FreeBSD distribution files.\nThis should be in the format:  hostname:/some/freebsd/dir");
     if (!val)
 	return 0;
-    tcpDeviceSelect(NULL);
     strncpy(nfsDevice.name, val, DEV_NAME_MAX);
+    if (!tcpDeviceSelect())
+	return 0;
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
+    nfsDevice.close = dummyClose;
     nfsDevice.shutdown = mediaShutdownNFS;
     nfsDevice.private = mediaDevice;
     mediaDevice = &nfsDevice;
@@ -436,7 +455,8 @@ mediaExtractDist(char *dir, int fd)
 Boolean
 mediaGetType(void)
 {
-    dmenuOpenSimple(&MenuMedia);
+    if (!dmenuOpenSimple(&MenuMedia))
+	return FALSE;
     return TRUE;
 }
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.46 1995/05/21 21:39:30 davidg Exp $
+ * $Id: vm_object.c,v 1.47.2.1 1995/06/04 13:53:25 davidg Exp $
  */
 
 /*
@@ -616,9 +616,9 @@ vm_object_page_clean(object, start, end, syncio)
 		struct vnode *vp;
 
 		vp = vnp->vnp_vp;
-		vget(vp, 1);
+		VOP_LOCK(vp);
 		_vm_object_page_clean(object, start, end, syncio);
-		vput(vp);
+		VOP_UNLOCK(vp);
 	} else {
 		_vm_object_page_clean(object, start, end, syncio);
 	}

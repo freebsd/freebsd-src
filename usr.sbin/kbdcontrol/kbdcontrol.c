@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdcontrol.c,v 1.5 1995/01/30 21:41:10 sos Exp $
+ *	$Id: kbdcontrol.c,v 1.6.2.1 1995/06/05 09:23:13 davidg Exp $
  */
 
 #include <ctype.h>
@@ -54,11 +54,11 @@ char fkey_table[96][MAXFK] = {
 /* 33-36 */	"\033[s", "\033[t", "\033[u", "\033[v",
 /* 37-40 */	"\033[w", "\033[x", "\033[y", "\033[z",
 /* 41-44 */	"\033[@", "\033[[", "\033[\\","\033[]",
-/* 45-48 */     "\033[^", "\033[_", "\033[`", "\033[",
+/* 45-48 */     "\033[^", "\033[_", "\033[`", "\033[{",
 /* 49-52 */	"\033[H", "\033[A", "\033[I", "-"     ,
 /* 53-56 */	"\033[D", "\033[E", "\033[C", "+"     ,
 /* 57-60 */	"\033[F", "\033[B", "\033[G", "\033[L",
-/* 61-64 */	"\033[J", "\033[K", "\033[}", ""      ,
+/* 61-64 */     "\177",   "\033[J", "\033[~", "\033[}",
 /* 65-68 */	""      , ""      , ""      , ""      ,
 /* 69-72 */	""      , ""      , ""      , ""      ,
 /* 73-76 */	""      , ""      , ""      , ""      ,
@@ -283,7 +283,7 @@ print_entry(FILE *fp, int value)
 				fprintf(fp, " %s   ", ctrl_names[val]);
 			else if (val == 127)
 				fprintf(fp, " del   ");
-			else if (isprint(val))
+			else if (isascii(val) && isprint(val))
 				fprintf(fp, " '%c'   ", val);
 			else if (hex)
 				fprintf(fp, " 0x%02x  ", val);
@@ -537,6 +537,7 @@ usage()
 "                  -r slow             (set keyboard delay & repeat to slow)\n"
 "                  -r normal           (set keyboard delay & repeat to normal)\n"
 "                  -r fast             (set keyboard delay & repeat to fast)\n"
+"                  -x                  (use hexadecimal numbers in -d option)\n"
 	);
 }
 

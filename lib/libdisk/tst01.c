@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.13 1995/05/12 18:50:00 phk Exp $
+ * $Id: tst01.c,v 1.14.2.1 1995/06/05 02:24:35 jkh Exp $
  *
  */
 
@@ -199,6 +199,7 @@ main(int argc, char **argv)
 				strtol(cmds[3],0,0));
 			continue;
 		}
+#if 0
 		if (!strcasecmp(*cmds,"phys") && ncmd == 4) {
 			d = Set_Phys_Geom(d,
 				strtol(cmds[1],0,0),
@@ -206,6 +207,8 @@ main(int argc, char **argv)
 				strtol(cmds[3],0,0));
 			continue;
 		}
+#endif
+#if 0
 		if (!strcasecmp(*cmds,"collapse")) {
 			if (cmds[1])
 				while (Collapse_Chunk(d,
@@ -215,6 +218,7 @@ main(int argc, char **argv)
 				Collapse_Disk(d);
 			continue;
 		}
+#endif
 		if (!strcasecmp(*cmds,"list")) {
 			cp = Disk_Names();
 			printf("Disks:");
@@ -279,13 +283,17 @@ main(int argc, char **argv)
 		printf("\tbios cyl hd sect\n");
 		printf("\tboot\n");
 		printf("\tbteasy17\n");
+#if 0
 		printf("\tcollapse [pointer]\n");
+#endif
 		printf("\tcreate offset size enum subtype flags\n");
 		printf("\t\tsubtype(part): swap=1, ffs=7\n");
 		printf("\tdelete pointer\n");
 		printf("\tlist\n");
 		printf("\tmbr\n");
+#if 0
 		printf("\tphys cyl hd sect\n");
+#endif
 		printf("\tquit\n");
 		printf("\tread [disk]\n");
 		printf("\tscan\n");

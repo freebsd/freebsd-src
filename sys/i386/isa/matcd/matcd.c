@@ -2405,9 +2405,21 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 	array from the kernel address space into the user address space
 */
 
-	if (copyout(entries, ioc_entry->data,
-	    (trk)*sizeof(struct cd_toc_entry)) != 0) {
-		return(EFAULT);
+	{
+	    int len = ioc_entry->data_len;
+	    int i = ioc_entry->starting_track - 1;
+	    struct cd_toc_entry* from = &entries[i];
+	    struct cd_toc_entry* to = ioc_entry->data;
+
+	    while (i < trk && len >= sizeof(struct cd_toc_entry)) {
+		if (copyout(from, to, sizeof(struct cd_toc_entry)) != 0) {
+		    return (EFAULT);
+		}
+		i++;
+		len -= sizeof(struct cd_toc_entry);
+		from++;
+		to++;
+	    }
 	}
 	return(0);
 

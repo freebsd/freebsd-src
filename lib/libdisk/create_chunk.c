@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.19 1995/05/24 08:59:38 jkh Exp $
+ * $Id: create_chunk.c,v 1.20.2.1 1995/05/31 23:53:45 jkh Exp $
  *
  */
 
@@ -190,7 +190,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 	warn("Not enough unused space");
 	return 0;
     found:
-	if (c1->flags & CHUNK_BAD144) {
+	if (parent->flags & CHUNK_BAD144) {
 		edge = c1->end - d->bios_sect - 127;
 		if (offset > edge)
 			return 0;

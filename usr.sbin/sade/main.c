@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.11 1995/05/28 09:31:35 jkh Exp $
+ * $Id: main.c,v 1.12.2.4 1995/06/05 15:17:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,6 +42,7 @@
  */
 
 #include "sysinstall.h"
+#include <stdio.h>
 
 int
 main(int argc, char **argv)
@@ -55,17 +56,19 @@ main(int argc, char **argv)
     /* Set up whatever things need setting up */
     systemInitialize(argc, argv);
 
+    /* Try to preserve our scroll-back buffer */
+    if (OnVTY)
+	for (curr = 0; curr < 25; curr++)
+	    putchar('\n');
+
     /* Probe for all relevant devices on the system */
     deviceGetAll();
-
-    /* Welcome user to FreeBSD */
-    systemWelcome();
 
     /* Default to English */
     lang_set_English(NULL);
 
     /* Default to passive mode ftp since it's the only thing we currently support :-( */
-    variable_set2("ftpPassive", "yes");
+    OptFlags |= OPT_FTP_PASSIVE;
 
     /* Begin user dialog at outer menu */
     while (1) {
@@ -76,7 +79,8 @@ main(int argc, char **argv)
     }
 
     /* Write out any changes to /etc/sysconfig */
-    configSysconfig();
+    if (SystemWasInstalled)
+	configSysconfig();
 
     /* Say goodnight, Gracie */
     systemShutdown();

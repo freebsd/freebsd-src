@@ -4,13 +4,13 @@ CLEANFILES=	makedevs.c rtermcap
 
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
-SRCS=	attr.c cdrom.c command.c config.c crc.c decode.c devices.c disks.c dist.c \
+SRCS=	attr.c cdrom.c command.c config.c decode.c devices.c disks.c dist.c \
 	dmenu.c dos.c floppy.c ftp.c ftp_strat.c globals.c install.c label.c lang.c \
 	main.c makedevs.c media.c menus.c misc.c msg.c network.c nfs.c system.c tape.c \
 	tcpip.c termcap.c ufs.c variable.c wizard.c
 
 
-CFLAGS+=	-Wall -g -I${.CURDIR}/../libdisk \
+CFLAGS+=	-Wall -I${.CURDIR}/../libdisk \
 		-I${.CURDIR}/../../gnu/lib/libdialog
 
 LDADD=  -ldialog -lncurses -lmytinfo -lutil
@@ -22,30 +22,15 @@ LDADD+= -L${.CURDIR}/../libdisk -ldisk
 
 DPADD= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL}
 
-.if exists(${.CURDIR}/../../sys/i386/boot/biosboot/obj)
-BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot/obj
-.else
-BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot
-.endif
-
 .if exists(${.CURDIR}/../../share/syscons/scrnmaps/obj)
 MKSCRNMAP=${.CURDIR}/../../share/syscons/scrnmaps/obj/koi8-r2cp866.mk
 .else
 MKSCRNMAP=${.CURDIR}/../../share/syscons/scrnmaps/koi8-r2cp866.mk
 .endif
 
-makedevs.c:	dev2c.sh Makefile rtermcap
+makedevs.c:	Makefile rtermcap
 	rm -f makedevs.tmp
-	mkdir -p dev
 	echo '#include <sys/types.h>' > makedevs.tmp
-	cp ${.CURDIR}/../../etc/etc.i386/MAKEDEV dev
-	( cd dev; sh ./MAKEDEV all )
-	sh ${.CURDIR}/dev2c.sh dev > makedevs.tmp
-	rm -rf dev
-	uudecode < ${.CURDIR}/bteasy17.uu
-	file2c 'const unsigned char boot0[] = {' '};' \
-		< bteasy17 >> makedevs.tmp
-	rm -rf bteasy17
 	./rtermcap cons25 | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
 		>> makedevs.tmp

@@ -20,7 +20,7 @@ int     pwok;
 
     /* Try s/key authentication even when the UNIX password is permitted. */
 
-    if (pwd != 0 && skeylookup(&skey, pwd->pw_name) == 0
+    if (pwd != 0 && skeyinfo(&skey, pwd->pw_name, (char *) 0) == 0
 	&& skeyverify(&skey, pp) == 0) {
 	/* s/key authentication succeeded */
 	return (pwd->pw_passwd);

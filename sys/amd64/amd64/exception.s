@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.7 1995/01/14 13:20:05 bde Exp $
+ *	$Id: exception.s,v 1.8.2.1 1995/06/05 00:22:02 davidg Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -251,34 +251,26 @@ IDTVEC(syscall)
  */
 	SUPERALIGN_TEXT
 IDTVEC(linux_syscall)
-	pushl	$0
-	pushl	$0
+	pushfl					/* Room for tf_err */
+	pushfl					/* Room for tf_trapno */
 	pushal
 	pushl	%ds
 	pushl	%es
-	movl	$KDSEL,%eax
+	movl	$KDSEL,%eax			/* switch to kernel segments */
 	movl	%ax,%ds
 	movl	%ax,%es
+	movl	TF_ERR(%esp),%eax		/* copy eflags from tf_err to fs_eflags */
+	movl	%eax,TF_EFLAGS(%esp)
 	FAKE_MCOUNT(12*4(%esp))
 	incl	_cnt+V_SYSCALL
-	orl	$SWI_AST_MASK,_cpl
+	movl	$SWI_AST_MASK,_cpl
 	call	_linux_syscall
 	/*
-	 * There was no place to save the cpl so we have to recover it
-	 * indirectly.  For traps from user mode it was 0, and for traps
-	 * from kernel mode Oring SWI_AST_MASK into it didn't change it.
+	 * Return via _doreti to handle ASTs.
 	 */
-	subl	%eax,%eax
-	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
-	jne	1f
-	movl	_cpl,%eax
-1:
-	/*
-	 * Return via _doreti to handle ASTs.  Have to change trap frame
-	 * to interrupt frame.
-	 */
-	pushl	%eax
+	pushl	$0				/* cpl to restore */
 	subl	$4,%esp
+	movb	$1,_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
 #endif /* COMPAT_LINUX */

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.42 1995/04/21 22:20:34 julian Exp $
+ *	$Id: boot.c,v 1.43.2.1 1995/05/31 21:42:38 jkh Exp $
  */
 
 
@@ -76,6 +76,7 @@ boot(int drive)
 	int ret;
 	char *t;
 
+#if 0
 #ifndef FORCE_COMCONSOLE
 	if (probe_keyboard()) {
 		init_serial();
@@ -86,6 +87,7 @@ boot(int drive)
 	init_serial();
 	loadflags |= RB_SERIAL;
 	printf("\nSerial console forced.");
+#endif
 #endif
 
 	/* Pick up the story from the Bios on geometry of disks */

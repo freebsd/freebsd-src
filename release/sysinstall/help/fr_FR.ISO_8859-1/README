@@ -13,7 +13,7 @@ considérable du point de vue de la stabilité ainsi    `-----' /
 que des nouveautés par douzaines. Pour    <----.     __ / __   \
 obtenir plus de détails concernant ces    <----|====O)))==) \) /====
 nouveautés, consultez le fichier          <----'    `--' `.__,' \
-<< release notes >>.                                    |        |
+RELNOTES                                                |        |
                                                         \       /       /\
                                                    ______( (_  / \______/
                                                  ,'  ,-----'   |
@@ -30,11 +30,11 @@ FreeBSD !
 Cette version de FreeBSD contient tout ce dont vous pouvez avoir
 besoin pour implanter ce système sur votre machine. Les sources de
 tous les programmes étant fournis, vous pouvez recompiler à loisir la
-distribution complête en une unique commande. C'est idéal pour les
+distribution complète en une unique commande. C'est idéal pour les
 étudiants, les chercheurs et tous ceux qui sont simplement curieux de
 voir comment est conçu un tel système.
 
-Une importante collection de logiciels supportés (les << ports >>) est
+Une importante collection de logiciels supportés (les « ports ») est
 aussi fournie pour vous aider à obtenir et à installer sur FreeBSD,
 les logiciels traditionnels du domaine UNIX. Plus de 270 ports sont
 ainsi disponibles, des éditeurs de texte aux langages de programmation,
@@ -43,8 +43,8 @@ faire autour de FreeBSD, un environnement puissant et accessible,
 capable de rivaliser avec beaucoup de stations de travail.
 
 En complément, il est recommandé d'acquérir les ouvrages relatifs à
-4.4BSD, chez << O'Reilly Associates >> et << USENIX Association >>,
-ISBN 1-56592-082-1. Nous n'avons pas d'intérêt dans la vente de ces
+4.4BSD, chez « O'Reilly Associates » et « USENIX Association »,
+ISBN 1-56592-082-1. Nous n'avons pas d'intérêts dans la vente de ces
 ouvrages, nous sommes simplement des lecteurs satisfaits.
 
 Il est conseillé de lire le guide des configurations matérielles avant
@@ -52,7 +52,7 @@ d'aller plus loin dans l'installation. La configuration d'un PC pour
 d'autres systèmes que DOS/Windows (qui n'est pas très exigeant sur ce
 point) est certainement un peu plus difficile qu'il n'y paraît, et si
 vous pensez maîtriser la situation, c'est sans doute que vous n'avez
-pas utilisé un PC depuis quelques temps. :) Ce guide donne les
+pas utilisé un PC depuis quelque temps. :) Ce guide donne les
 renseignements indiquant comment configurer votre machine et quels
 symptômes rechercher en cas de problème. Ce guide est disponible par
 le menu Documentation de la disquette de démarrage de FreeBSD.
@@ -68,8 +68,8 @@ adressés à :
 
         hackers@FreeBSD.org                    (en anglais)
 
-Les rapports de disfonctionnement << bug reports >> peuvent être
-notifiés par la commande << send-pr >> dès que votre système est
+Les rapports de dysfonctionnement « bug reports » peuvent être
+notifiés par la commande « send-pr » dès que votre système est
 installé. Dans le cas contraire, ils peuvent être adressés à :
 
         bugs@FreeBSD.org                       (en anglais)
@@ -84,7 +84,7 @@ Les questions d'ordre général sont à diriger vers :
 Ne soyez pas impatient si vos questions ne trouvent pas réponse dans
 la minute, car c'est beaucoup d'investissement que d'y répondre et il
 n'est pas rare que toute notre bonne volonté ne suffise pas. Les
-problèmes soumis par le biais de la commande << send-pr >> sont
+problèmes soumis par le biais de la commande « send-pr » sont
 automatiquement répertoriés dans une base de données. Vous resterez
 informés de toute évolution concernant votre demande.
 
@@ -92,7 +92,7 @@ Notre site WEB est http://www.freebsd.org. C'est aussi une bonne
 source pour obtenir les dernières informations en date. Ce site
 propose de nombreuses facilités de documentation. La version de
 Netscape compilée pour BSDI peut être utilisée pour découvrir le 
-<< World Wide Web >> directement à partir de FreeBSD.
+« World Wide Web » directement à partir de FreeBSD.
 
 Pour de plus amples détails, consultez les fichiers contenus dans les
 répertoires /usr/share/FAQ et /usr/share/doc.
