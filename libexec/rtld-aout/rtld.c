@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.40 1996/10/24 16:24:19 jdp Exp $
+ *	$Id: rtld.c,v 1.41 1997/01/12 00:16:36 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #ifndef MAP_COPY
 #define MAP_COPY	MAP_PRIVATE
 #endif
+#include <dlfcn.h>
 #include <err.h>
 #include <fcntl.h>
 #include <a.out.h>
@@ -1830,9 +1831,7 @@ __dlopen(path, mode)
 {
 	struct so_map	*old_tail = link_map_tail;
 	struct so_map	*smp;
-	int		bind_now = mode == 2;
-	/* XXX - s/2/RTLD_NOW/ in the above line, after putting the necessary
-	   defines into <dlfcn.h> and testing for problems. */
+	int		bind_now = mode == RTLD_NOW;
 
 	/*
 	 * path == NULL is handled by map_object()
