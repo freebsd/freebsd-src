@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.46 1999/08/08 18:42:54 phk Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.47 1999/08/13 10:29:26 phk Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -730,7 +730,7 @@ mountmsdosfs(devvp, mp, p, argp)
 	else
 		pmp->pm_fmod = 1;
 	mp->mnt_data = (qaddr_t) pmp;
-	mp->mnt_stat.f_fsid.val[0] = (long)dev;
+	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_flag |= MNT_LOCAL;
 	devvp->v_specmountpoint = mp;

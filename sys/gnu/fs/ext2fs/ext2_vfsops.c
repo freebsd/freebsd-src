@@ -697,7 +697,7 @@ ext2_mountfs(devvp, mp, p)
 		fs->s_es->s_state &= ~EXT2_VALID_FS;	/* set fs invalid */
 	}
 	mp->mnt_data = (qaddr_t)ump;
-	mp->mnt_stat.f_fsid.val[0] = (long)dev;
+	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = EXT2_MAXSYMLINKLEN;
 	mp->mnt_flag |= MNT_LOCAL;
