@@ -19,9 +19,6 @@ You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* This goes away when the math-emulator is fixed */
-#define TARGET_CPU_DEFAULT 0400		/* TARGET_NO_FANCY_MATH_387 */
-
 /* This is tested by i386gas.h.  */
 #define YES_UNDERSCORES
 
@@ -39,9 +36,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 	{ 0, 0} \
 	}
 
+#define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
+
 /* Like the default, except no -lg.  */
 #define LIB_SPEC "%{!p:%{!pg:-lc}}%{p:-lc_p}%{pg:-lc_p}"
 
+#define LINK_SPEC \
+  "%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*} \
+   %{p:-Bstatic} %{pg:-Bstatic} %{Z}"
+
+/* This goes away when the math emulator is fixed.  */
+#undef TARGET_DEFAULT
+#define TARGET_DEFAULT	(MASK_NO_FANCY_MATH_387 | 0301)
+
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
 
@@ -49,12 +56,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define PTRDIFF_TYPE "int"
 
 #undef WCHAR_TYPE
-#define WCHAR_TYPE "short unsigned int"
+#define WCHAR_TYPE "int"
 
-#define WCHAR_UNSIGNED 1
+#define WCHAR_UNSIGNED 0
 
 #undef WCHAR_TYPE_SIZE
-#define WCHAR_TYPE_SIZE 16
+#define WCHAR_TYPE_SIZE BITS_PER_WORD
 
 #define HAVE_ATEXIT
 
@@ -68,16 +75,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
 {									\
   if (flag_pic)								\
-    {									\
-      fprintf (FILE, "\tleal %sP%d@GOTOFF(%%ebx),%%eax\n",		\
-	     LPREFIX, (LABELNO));					\
-      fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
-    }									\
+    fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
   else									\
-    {									\
-      fprintf (FILE, "\tmovl $%sP%d,%%eax\n", LPREFIX, (LABELNO));	\
-      fprintf (FILE, "\tcall mcount\n");				\
-    }									\
+    fprintf (FILE, "\tcall mcount\n");					\
 }
 
 #if 0 /* not ready for this; it should be decided at compile time */
@@ -233,10 +233,6 @@ do {                                                                    \
 	putc ('\n', FILE);						\
       }									\
   } while (0)
-
-#define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
-#define LINK_SPEC \
-  "%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*}"
 
 /* This is defined when gcc is compiled in the BSD-directory-tree, and must
  * make up for the gap to all the stuff done in the GNU-makefiles.
