@@ -62,13 +62,14 @@ as its sole argument. If the
 returns, the effect is as if there was an implicit call to
 .Fn pthread_exit
 using the return value of
-.Fa start_toutine
+.Fa start_routine
 as the exit status. Note that the thread in which
 .Fn main
 was originally invoked differs from this. When it returns from
 .Fn main ,
 the effect is as if there was an implicit call to
-.Fn exit using the return value of
+.Fn exit
+using the return value of
 .Fn main
 as the exit status.
 .Pp
