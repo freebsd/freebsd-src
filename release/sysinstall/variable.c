@@ -58,8 +58,7 @@ make_variable(char *var, char *value, int dirty)
 	    setenv(var, value, 1);
 	    free(vp->value);
 	    vp->value = strdup(value);
-	    if (dirty != -1)
-		vp->dirty = dirty;
+	    vp->dirty = dirty;
 	    return;
 	}
     }
@@ -69,8 +68,6 @@ make_variable(char *var, char *value, int dirty)
     vp = (Variable *)safe_malloc(sizeof(Variable));
     vp->name = strdup(var);
     vp->value = strdup(value);
-    if (dirty == -1)
-	dirty = 0;
     vp->dirty = dirty;
     vp->next = VarHead;
     VarHead = vp;
