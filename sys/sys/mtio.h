@@ -117,6 +117,12 @@ struct mtget {
 	short	mt_dsreg;	/* ``drive status'' register */
 	short	mt_erreg;	/* ``error'' register */
 /* end device-dependent registers */
+	/*
+	 * Note that the residual count, while maintained, may be
+	 * be nonsense because the size of the residual may (greatly)
+	 * exceed 32 K-bytes. Use the MTIOCERRSTAT ioctl to get a
+	 * more accurate count.
+	 */
 	short	mt_resid;	/* residual count */
 #if defined (__FreeBSD__)
 	daddr_t mt_blksiz;	/* presently operating blocksize */
@@ -150,10 +156,10 @@ struct scsi_tape_errors {
 	 * of issuing an MTIOCERRSTAT unlatches and clears them.
 	 */
 	u_int8_t io_sense[32];	/* Last Sense Data For Data I/O */
-	u_int32_t io_resid;	/* residual count from last Data I/O */
+	int32_t io_resid;	/* residual count from last Data I/O */
 	u_int8_t io_cdb[16];	/* Command that Caused the Last Data Sense */
 	u_int8_t ctl_sense[32];	/* Last Sense Data For Control I/O */
-	u_int32_t ctl_resid;	/* residual count from last Control I/O */
+	int32_t ctl_resid;	/* residual count from last Control I/O */
 	u_int8_t ctl_cdb[16];	/* Command that Caused the Last Control Sense */
 	/*
 	 * These are the read and write cumulative error counters.
