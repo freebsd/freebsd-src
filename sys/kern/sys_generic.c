@@ -527,54 +527,66 @@ select(p, uap, retval)
 	register struct select_args *uap;
 	int *retval;
 {
-	fd_mask *ibits[3], *obits[3];
+	/*
+	 * The magic 2048 here is chosen to be just enough for FD_SETSIZE
+	 * infds with the new FD_SETSIZE of 1024, and more than enough for
+	 * FD_SETSIZE infds, outfds and exceptfds with the old FD_SETSIZE
+	 * of 256.
+	 */
+	fd_mask s_selbits[howmany(2048, NFDBITS)];
+	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
 	struct timeval atv;
-	int s, ncoll, error = 0, timo, i;
-	u_int ni;
+	int s, ncoll, error, timo;
+	u_int nbufbytes, ncpbytes, nfdbits;
 
 	if (uap->nd < 0)
 		return (EINVAL);
-
 	if (uap->nd > p->p_fd->fd_nfiles)
 		uap->nd = p->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
 
-	/* The amount of space we need to allocate */
-	ni = howmany(roundup2 (uap->nd, FD_SETSIZE), NFDBITS) *
-		sizeof(fd_mask);
-
-	if (ni > p->p_selbits_size) {
-		if (p->p_selbits_size)
-			free (p->p_selbits, M_SELECT);
-
-		while (p->p_selbits_size < ni)
-			p->p_selbits_size += 32; /* Increase by 256 bits */
-
-		p->p_selbits = malloc(p->p_selbits_size * 6, M_SELECT,
-			M_WAITOK);
-	}
-	for (i = 0; i < 3; i++) {
-		ibits[i] = (fd_mask *)(p->p_selbits + i * p->p_selbits_size);
-		obits[i] = (fd_mask *)(p->p_selbits + (i + 3) *
-			p->p_selbits_size);
-	}
+	/*
+	 * Allocate just enough bits for the non-null fd_sets.  Use the
+	 * preallocated auto buffer if possible.
+	 */
+	nfdbits = roundup(uap->nd, NFDBITS);
+	ncpbytes = nfdbits / NBBY;
+	nbufbytes = 0;
+	if (uap->in != NULL)
+		nbufbytes += 2 * ncpbytes;
+	if (uap->ou != NULL)
+		nbufbytes += 2 * ncpbytes;
+	if (uap->ex != NULL)
+		nbufbytes += 2 * ncpbytes;
+	if (nbufbytes <= sizeof s_selbits)
+		selbits = &s_selbits[0];
+	else
+		selbits = malloc(nbufbytes, M_SELECT, M_WAITOK);
 
 	/*
-	 * This buffer is usually very small therefore it's probably faster
-	 * to just zero it, rather than calculate what needs to be zeroed.
+	 * Assign pointers into the bit buffers and fetch the input bits.
+	 * Put the output buffers together so that they can be bzeroed
+	 * together.
 	 */
-	bzero (p->p_selbits, p->p_selbits_size * 6);
-
-	/* The amount of space we need to copyin/copyout */
-	ni = howmany(uap->nd, NFDBITS) * sizeof(fd_mask);
-
+	sbp = selbits;
 #define	getbits(name, x) \
-	if (uap->name && \
-	    (error = copyin((caddr_t)uap->name, (caddr_t)ibits[x], ni))) \
-		goto done;
+	do {								\
+		if (uap->name == NULL)					\
+			ibits[x] = NULL;				\
+		else {							\
+			ibits[x] = sbp + nbufbytes / 2 / sizeof *sbp;	\
+			obits[x] = sbp;					\
+			sbp += ncpbytes / sizeof *sbp;			\
+			error = copyin(uap->name, ibits[x], ncpbytes);	\
+			if (error != 0)					\
+				goto done;				\
+		}							\
+	} while (0)
 	getbits(in, 0);
 	getbits(ou, 1);
 	getbits(ex, 2);
 #undef	getbits
+	if (nbufbytes != 0)
+		bzero(selbits, nbufbytes / 2);
 
 	if (uap->tv) {
 		error = copyin((caddr_t)uap->tv, (caddr_t)&atv,
@@ -626,8 +638,7 @@ done:
 	if (error == EWOULDBLOCK)
 		error = 0;
 #define	putbits(name, x) \
-	if (uap->name && \
-	    (error2 = copyout((caddr_t)obits[x], (caddr_t)uap->name, ni))) \
+	if (uap->name && (error2 = copyout(obits[x], uap->name, ncpbytes))) \
 		error = error2;
 	if (error == 0) {
 		int error2;
@@ -637,6 +648,8 @@ done:
 		putbits(ex, 2);
 #undef putbits
 	}
+	if (selbits != &s_selbits[0])
+		free(selbits, M_SELECT);
 	return (error);
 }
 
@@ -654,6 +667,8 @@ selscan(p, ibits, obits, nfd, retval)
 	static int flag[3] = { FREAD, FWRITE, 0 };
 
 	for (msk = 0; msk < 3; msk++) {
+		if (ibits[msk] == NULL)
+			continue;
 		for (i = 0; i < nfd; i += NFDBITS) {
 			bits = ibits[msk][i/NFDBITS];
 			while ((j = ffs(bits)) && (fd = i + --j) < nfd) {
@@ -662,7 +677,7 @@ selscan(p, ibits, obits, nfd, retval)
 				if (fp == NULL)
 					return (EBADF);
 				if ((*fp->f_ops->fo_select)(fp, flag[msk], p)) {
-					obits[msk][(fd)/NFDBITS] |= 
+					obits[msk][(fd)/NFDBITS] |=
 						(1 << ((fd) % NFDBITS));
 					n++;
 				}
