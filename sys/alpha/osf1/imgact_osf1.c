@@ -137,7 +137,8 @@ exec_osf1_imgact(struct image_params *imgp)
 		ndp = (struct nameidata *)malloc(sizeof(struct nameidata),
 		    M_TEMP, M_WAITOK);
 		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME, UIO_SYSSPACE,
-		    "/compat/osf1/sbin/loader", FIRST_THREAD_IN_PROC(imgp->proc));
+		    "/compat/osf1/sbin/loader",
+		    FIRST_THREAD_IN_PROC(imgp->proc));
 		error = namei(ndp);
 		if (error) {
 			uprintf("imgact_osf1: can't read /compat/osf1/sbin/loader\n");
