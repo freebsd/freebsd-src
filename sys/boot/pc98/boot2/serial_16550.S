@@ -151,10 +151,10 @@ ENTRY(init_serial)
 	outb	%al, %dx	# enable DLAB
 
 	subl	$3, %edx	# divisor latch, low byte
-	movb	$COMBRD(CONSPEED) & 0xff, %al
+	movb	(1843200 / (16*(CONSPEED))) & 0xff, %al
 	outb	%al, %dx
 	incl	%edx		# divisor latch, high byte
-	movb	$COMBRD(CONSPEED) >> 8, %al
+	movb	(1843200 / (16*(CONSPEED))) >> 8, %al
 	outb	%al, %dx
 
 	incl	%edx		# fifo control register (if any)
