@@ -9,12 +9,12 @@
  * Kristoffer Eriksson <ske@pkmab.se>
  */
  
-/* $Id$ */
+/* $Id: match.S,v 1.5 1997/02/22 15:45:59 peter Exp $ */
 
 /* Preprocess with -DNO_UNDERLINE if your C compiler does not prefix
  * external symbols with an underline character '_'.
  */
-#ifdef NO_UNDERLINE
+#ifdef __ELF__ /* NO_UNDERLINE */
 #  define _prev             prev
 #  define _window           window
 #  define _match_start	    match_start
