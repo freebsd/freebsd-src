@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)set.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: set.c,v 1.9 1998/05/06 06:51:04 charnier Exp $";
+	"$Id: set.c,v 1.10 1998/05/13 07:29:15 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -163,7 +163,7 @@ doset(v, t)
 	    cp = Strsave(value(vp));	/* get the old value back */
 
 	    /*
-	     * convert to cononical pathname (possibly resolving symlinks)
+	     * convert to canonical pathname (possibly resolving symlinks)
 	     */
 	    cp = dcanon(cp, cp);
 
@@ -745,7 +745,7 @@ balance(p, f, d)
 		break;
 	    case 1:		/* was already right heavy */
 		switch (p->v_right->v_bal) {
-		case 1:	/* sigle rotate */
+		case 1:	/* single rotate */
 		    pp->v_link[ff] = rleft(p);
 		    p->v_left->v_bal = 0;
 		    p->v_bal = 0;
@@ -783,7 +783,7 @@ balance(p, f, d)
 		    p->v_right->v_bal = 0;
 		    p->v_bal = 0;
 		    break;
-		case 0:	/* signle rotate */
+		case 0:	/* single rotate */
 		    pp->v_link[ff] = rright(p);
 		    p->v_right->v_bal = -1;
 		    p->v_bal = 1;

@@ -1,4 +1,4 @@
-/* buf.c: This file contains the scratch-file buffer rountines for the
+/* buf.c: This file contains the scratch-file buffer routines for the
    ed line editor. */
 /*-
  * Copyright (c) 1993 Andrew Moore, Talke Studio.
@@ -31,7 +31,7 @@
 static char * const rcsid = "@(#)buf.c,v 1.4 1994/02/01 00:34:35 alm Exp";
 #else
 static char * const rcsid =
-	"$Id: buf.c,v 1.14 1997/10/09 11:05:16 eivind Exp $";
+	"$Id: buf.c,v 1.15 1997/12/31 12:25:33 helbig Exp $";
 #endif
 #endif /* not lint */
 

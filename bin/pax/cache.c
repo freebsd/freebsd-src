@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)cache.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: cache.c,v 1.10 1998/05/15 06:27:37 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -235,7 +235,7 @@ name_uid(uid, frc)
 	if ((pw = getpwuid(uid)) == NULL) {
 		/*
 		 * no match for this uid in the local password file
-		 * a string that is the uid in numberic format
+		 * a string that is the uid in numeric format
 		 */
 		if (ptr == NULL)
 			return("");
@@ -312,7 +312,7 @@ name_gid(gid, frc)
 	if ((gr = getgrgid(gid)) == NULL) {
 		/*
 		 * no match for this gid in the local group file, put in
-		 * a string that is the gid in numberic format
+		 * a string that is the gid in numeric format
 		 */
 		if (ptr == NULL)
 			return("");

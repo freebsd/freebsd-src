@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)cpio.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: cpio.c,v 1.10 1998/05/15 06:27:38 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -1012,7 +1012,7 @@ bcpio_rd(arcn, buf)
 	hd = (HD_BCPIO *)buf;
 	if (swp_head) {
 		/*
-		 * header has swapped bytes on 16 bit boundries
+		 * header has swapped bytes on 16 bit boundaries
 		 */
 		arcn->sb.st_dev = (dev_t)(RSHRT_EXT(hd->h_dev));
 		arcn->sb.st_ino = (ino_t)(RSHRT_EXT(hd->h_ino));
