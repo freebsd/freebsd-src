@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.73 1995/11/05 02:22:48 jkh Exp $
+ * $Id: install.c,v 1.71.2.74 1995/11/06 07:27:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,8 +56,6 @@
 #include <unistd.h>
 #include <sys/mount.h>
 
-static Boolean	copy_self(void);
-static Boolean	root_extract(void);
 static void	create_termcap(void);
 
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
@@ -194,7 +192,7 @@ installInitial(void)
 	return RET_FAIL;
     }
 
-    if (!copy_self()) {
+    if (!copySelf()) {
 	dialog_clear();
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
 		   "Aborting.");
@@ -395,7 +393,7 @@ installCommit(char *str)
 	    return RET_FAIL;
 	if (configFstab() == RET_FAIL)
 	    return RET_FAIL;
-	if (!root_extract()) {
+	if (!rootExtract()) {
 	    dialog_clear();
 	    msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
 		       "this problem and try again.");
@@ -785,8 +783,8 @@ installVarDefaults(char *unused)
 }
 
 /* Copy the boot floppy contents into /stand */
-static Boolean
-copy_self(void)
+Boolean
+copySelf(void)
 {
     int i;
 
@@ -809,8 +807,8 @@ copy_self(void)
 
 static Boolean loop_on_root_floppy(void);
 
-static Boolean
-root_extract(void)
+Boolean
+rootExtract(void)
 {
     int fd;
     static Boolean alreadyExtracted = FALSE;
