@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.26 1995/12/14 09:53:06 phk Exp $
+ * $Id: spec_vnops.c,v 1.27 1996/01/01 20:20:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -825,6 +825,7 @@ spec_getpages(ap)
 		pmap_clear_modify(VM_PAGE_TO_PHYS(ap->a_m[i]));
 		ap->a_m[i]->dirty = 0;
 		ap->a_m[i]->valid = VM_PAGE_BITS_ALL;
+		ap->a_m[i]->flags &= ~PG_ZERO;
 		if (i != ap->a_reqpage) {
 			/*
 			 * Whether or not to leave the page activated is up in
