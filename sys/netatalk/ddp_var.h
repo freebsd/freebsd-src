@@ -29,7 +29,9 @@ struct ddpstat {
 };
 
 #ifdef KERNEL
+extern int	ddp_cksum;
 extern struct ddpcb		*ddp_ports[ ];
 extern struct ddpcb		*ddpcb;
+extern struct pr_usrreqs	ddp_usrreqs;
 #endif
 #endif /* _NETATALK_DDP_VAR_H_ */
