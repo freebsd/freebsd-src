@@ -600,6 +600,14 @@ mac_test_copy_cred_label(struct label *src, struct label *dest)
 }
 
 static void
+mac_test_copy_ifnet_label(struct label *src, struct label *dest)
+{
+
+	ASSERT_IFNET_LABEL(src);
+	ASSERT_IFNET_LABEL(dest);
+}
+
+static void
 mac_test_copy_mbuf_label(struct label *src, struct label *dest)
 {
 
@@ -1892,6 +1900,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_destroy_socket_peer_label = mac_test_destroy_socket_peer_label,
 	.mpo_destroy_vnode_label = mac_test_destroy_vnode_label,
 	.mpo_copy_cred_label = mac_test_copy_cred_label,
+	.mpo_copy_ifnet_label = mac_test_copy_ifnet_label,
 	.mpo_copy_mbuf_label = mac_test_copy_mbuf_label,
 	.mpo_copy_pipe_label = mac_test_copy_pipe_label,
 	.mpo_copy_socket_label = mac_test_copy_socket_label,

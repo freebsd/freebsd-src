@@ -122,6 +122,8 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_vnode_label)(struct label *label);
 	void	(*mpo_copy_cred_label)(struct label *src,
 		    struct label *dest);
+	void	(*mpo_copy_ifnet_label)(struct label *src,
+		    struct label *dest);
 	void	(*mpo_copy_mbuf_label)(struct label *src,
 		    struct label *dest);
 	void	(*mpo_copy_pipe_label)(struct label *src,
