@@ -76,7 +76,7 @@
 #define		OHCI_MAX_DMA_CH		(0x4 + OHCI_DMA_ITCH + OHCI_DMA_IRCH)
 
 
-typedef volatile u_int32_t 	fwohcireg_t;
+typedef u_int32_t 	fwohcireg_t;
 
 /* for PCI */
 #if BYTE_ORDER == BIG_ENDIAN
@@ -94,12 +94,12 @@ typedef volatile u_int32_t 	fwohcireg_t;
 struct fwohcidb {
 	union {
 		struct {
-			volatile u_int32_t cmd;
-			volatile u_int32_t addr;
-			volatile u_int32_t depend;
-			volatile u_int32_t res;
+			u_int32_t cmd;
+			u_int32_t addr;
+			u_int32_t depend;
+			u_int32_t res;
 		} desc;
-		volatile u_int32_t immed[4];
+		u_int32_t immed[4];
 	} db;
 #define OHCI_STATUS_SHIFT	16
 #define OHCI_COUNT_MASK		0xffff
@@ -317,7 +317,7 @@ struct ohci_registers {
 struct fwohcidb_tr{
 	STAILQ_ENTRY(fwohcidb_tr) link;
 	struct fw_xfer *xfer;
-	volatile struct fwohcidb *db;
+	struct fwohcidb *db;
 	bus_dmamap_t dma_map;
 	caddr_t buf;
 	bus_addr_t bus_addr;

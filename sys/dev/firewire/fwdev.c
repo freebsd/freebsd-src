@@ -39,6 +39,11 @@
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/mbuf.h>
+#if __FreeBSD_version < 500000
+#include <sys/buf.h>
+#else
+#include <sys/bio.h>
+#endif
 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -67,6 +72,7 @@ static	d_poll_t	fw_poll;
 static	d_read_t	fw_read;	/* for Isochronous packet */
 static	d_write_t	fw_write;
 static	d_mmap_t	fw_mmap;
+static	d_strategy_t	fw_strategy;
 
 struct cdevsw firewire_cdevsw = 
 {
@@ -78,12 +84,13 @@ struct cdevsw firewire_cdevsw =
 	.d_ioctl =	fw_ioctl,
 	.d_poll =	fw_poll,
 	.d_mmap =	fw_mmap,
+	.d_strategy =	fw_strategy,
 	.d_name =	"fw",
 	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_MEM
 #else
 	fw_open, fw_close, fw_read, fw_write, fw_ioctl,
-	fw_poll, fw_mmap, nostrategy, "fw", CDEV_MAJOR,
+	fw_poll, fw_mmap, fw_strategy, "fw", CDEV_MAJOR,
 	nodump, nopsize, D_MEM, -1
 #endif
 };
@@ -270,7 +277,7 @@ fw_read (dev_t dev, struct uio *uio, int ioflag)
 	struct fw_pkt *fp;
 
 	if (DEV_FWMEM(dev))
-		return fwmem_read(dev, uio, ioflag);
+		return physio(dev, uio, ioflag);
 
 	sc = devclass_get_softc(firewire_devclass, unit);
 
@@ -303,16 +310,19 @@ readloop:
 			err = EIO;
 		return err;
 	} else if(xfer != NULL) {
+#if 0 /* XXX broken */
 		/* per packet mode or FWACT_CH bind?*/
 		s = splfw();
 		ir->queued --;
 		STAILQ_REMOVE_HEAD(&ir->q, link);
 		splx(s);
-		fp = (struct fw_pkt *)xfer->recv.buf;
-		if(sc->fc->irx_post != NULL)
+		fp = &xfer->recv.hdr;
+		if (sc->fc->irx_post != NULL)
 			sc->fc->irx_post(sc->fc, fp->mode.ld);
-		err = uiomove(xfer->recv.buf, xfer->recv.len, uio);
+		err = uiomove((void *)fp, 1 /* XXX header size */, uio);
+		/* XXX copy payload too */
 		/* XXX we should recycle this xfer */
+#endif
 		fw_xfer_free( xfer);
 	} else if(ir->stproc != NULL) {
 		/* iso bulkxfer */
@@ -354,7 +364,7 @@ fw_write (dev_t dev, struct uio *uio, int ioflag)
 	struct fw_xferq *it;
 
 	if (DEV_FWMEM(dev))
-		return fwmem_write(dev, uio, ioflag);
+		return physio(dev, uio, ioflag);
 
 	sc = devclass_get_softc(firewire_devclass, unit);
 	fc = sc->fc;
@@ -520,8 +530,11 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		}
 		break;
 	case FW_ASYREQ:
+	{
+		struct tcode_info *tinfo;
+
 		xfer = fw_xfer_alloc_buf(M_FWXFER, asyreq->req.len,
-							PAGE_SIZE /* XXX */);
+		    PAGE_SIZE/*XXX*/);
 		if(xfer == NULL){
 			err = ENOMEM;
 			return err;
@@ -529,7 +542,6 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		fp = &asyreq->pkt;
 		switch (asyreq->req.type) {
 		case FWASREQNODE:
-			xfer->dst = fp->mode.hdr.dst;
 			break;
 		case FWASREQEUI:
 			fwdev = fw_noderesolve_eui64(sc->fc,
@@ -540,8 +552,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 				err = EINVAL;
 				goto error;
 			}
-			xfer->dst = FWLOCALBUS | fwdev->dst;
-			fp->mode.hdr.dst = xfer->dst;
+			fp->mode.hdr.dst = FWLOCALBUS | fwdev->dst;
 			break;
 		case FWASRESTL:
 			/* XXX what's this? */
@@ -550,26 +561,41 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			/* nothing to do */
 			break;
 		}
-		xfer->spd = asyreq->req.sped;
-		bcopy(fp, xfer->send.buf, xfer->send.len);
+		xfer->send.spd = asyreq->req.sped;
+		tinfo = &sc->fc->tcode[fp->mode.hdr.tcode];
+		bcopy(fp, (void *)&xfer->send.hdr, tinfo->hdr_len);
+		if ((tinfo->flag & FWTI_BLOCK_ASY) != 0)
+			bcopy((char *)fp + tinfo->hdr_len,
+			    (void *)&xfer->send.payload,
+			    asyreq->req.len - tinfo->hdr_len);
 		xfer->act.hand = fw_asy_callback;
 		err = fw_asyreq(sc->fc, -1, xfer);
 		if(err){
-			fw_xfer_free( xfer);
+			fw_xfer_free_buf(xfer);
 			return err;
 		}
 		err = tsleep(xfer, FWPRI, "asyreq", hz);
-		if(err == 0){
-			if(asyreq->req.len >= xfer->recv.len){
-				asyreq->req.len = xfer->recv.len;
+		if (err == 0) {
+			if (xfer->resp != 0) {
+				err = EIO;
+				goto error;
+			}
+			tinfo = &sc->fc->tcode[xfer->recv.hdr.mode.hdr.tcode];
+			if (asyreq->req.len >= xfer->recv.pay_len +
+			    tinfo->hdr_len) {
+				asyreq->req.len = xfer->recv.pay_len;
 			}else{
 				err = EINVAL;
 			}
-			bcopy(xfer->recv.buf, fp, asyreq->req.len);
+			bcopy(&xfer->recv.hdr, fp, tinfo->hdr_len);
+			bcopy(xfer->recv.payload,
+			    (char *)fp + tinfo->hdr_len,
+			    asyreq->req.len - tinfo->hdr_len);
 		}
 error:
-		fw_xfer_free( xfer);
+		fw_xfer_free_buf(xfer);
 		break;
+	}
 	case FW_IBUSRST:
 		sc->fc->ibr(sc->fc);
 		break;
@@ -598,13 +624,14 @@ error:
 			err = ENOMEM;
 			break;
 		}
-		fwb->start_hi = bindreq->start.hi;
-		fwb->start_lo = bindreq->start.lo;
-		fwb->addrlen = bindreq->len;
+		fwb->start = ((u_int64_t)bindreq->start.hi << 32) |
+		    bindreq->start.lo;
+		fwb->end = fwb->start +  bindreq->len;
 		/* XXX */
 		fwb->sub = ir->dmach;
 		fwb->act_type = FWACT_CH;
 
+		/* XXX alloc buf */
 		xfer = fw_xfer_alloc(M_FWXFER);
 		if(xfer == NULL){
 			err = ENOMEM;
@@ -734,6 +761,23 @@ fw_mmap (dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)
 	sc = devclass_get_softc(firewire_devclass, unit);
 
 	return EINVAL;
+}
+
+static void
+fw_strategy(struct bio *bp)
+{
+	dev_t dev;
+
+	dev = bp->bio_dev;
+	if (DEV_FWMEM(dev)) {
+		fwmem_strategy(bp);
+		return;
+	}
+
+	bp->bio_error = EOPNOTSUPP;
+	bp->bio_flags |= BIO_ERROR;
+	bp->bio_resid = bp->bio_bcount;
+	biodone(bp);
 }
 
 int

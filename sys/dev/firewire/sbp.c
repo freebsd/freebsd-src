@@ -66,6 +66,7 @@
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwdma.h>
 #include <dev/firewire/iec13213.h>
+#include <dev/firewire/sbp.h>
 
 #define ccb_sdev_ptr	spriv_ptr0
 #define ccb_sbp_ptr	spriv_ptr1
@@ -77,10 +78,6 @@
 #define SBP_QUEUE_LEN ((SBP_DMA_SIZE - SBP_LOGIN_SIZE) / sizeof(struct sbp_ocb))
 #define SBP_NUM_OCB (SBP_QUEUE_LEN * SBP_NUM_TARGETS)
 
-#define SBP_INITIATOR 7
-
-#define LOGIN_DELAY 2
-
 /* 
  * STATUS FIFO addressing
  *   bit
@@ -88,66 +85,24 @@
  *  0- 1( 2): 0 (alingment)
  *  2- 7( 6): target
  *  8-15( 8): lun
- * 16-23( 8): unit
- * 24-31( 8): reserved
+ * 16-31( 8): reserved
  * 32-47(16): SBP_BIND_HI 
  * 48-64(16): bus_id, node_id 
  */
 #define SBP_BIND_HI 0x1
-#define SBP_DEV2ADDR(u, t, l) \
-	((((u) & 0xff) << 16) | (((l) & 0xff) << 8) | (((t) & 0x3f) << 2))
+#define SBP_DEV2ADDR(t, l) \
+	(((u_int64_t)SBP_BIND_HI << 32) \
+	| (((l) & 0xff) << 8) \
+	| (((t) & 0x3f) << 2))
 #define SBP_ADDR2TRG(a)	(((a) >> 2) & 0x3f)
 #define SBP_ADDR2LUN(a)	(((a) >> 8) & 0xff)
+#define SBP_INITIATOR 7
 
-#define ORB_NOTIFY	(1 << 31)
-#define	ORB_FMT_STD	(0 << 29)
-#define	ORB_FMT_VED	(2 << 29)
-#define	ORB_FMT_NOP	(3 << 29)
-#define	ORB_FMT_MSK	(3 << 29)
-#define	ORB_EXV		(1 << 28)
-/* */
-#define	ORB_CMD_IN	(1 << 27)
-/* */
-#define	ORB_CMD_SPD(x)	((x) << 24)
-#define	ORB_CMD_MAXP(x)	((x) << 20)
-#define	ORB_RCN_TMO(x)	((x) << 20)
-#define	ORB_CMD_PTBL	(1 << 19)
-#define	ORB_CMD_PSZ(x)	((x) << 16)
-
-#define	ORB_FUN_LGI	(0 << 16)
-#define	ORB_FUN_QLG	(1 << 16)
-#define	ORB_FUN_RCN	(3 << 16)
-#define	ORB_FUN_LGO	(7 << 16)
-#define	ORB_FUN_ATA	(0xb << 16)
-#define	ORB_FUN_ATS	(0xc << 16)
-#define	ORB_FUN_LUR	(0xe << 16)
-#define	ORB_FUN_RST	(0xf << 16)
-#define	ORB_FUN_MSK	(0xf << 16)
-#define	ORB_FUN_RUNQUEUE 0xffff
+#define LOGIN_DELAY 1
 
 static char *orb_fun_name[] = {
-	/* 0 */ "LOGIN",
-	/* 1 */ "QUERY LOGINS",
-	/* 2 */ "Reserved",
-	/* 3 */ "RECONNECT",
-	/* 4 */ "SET PASSWORD",
-	/* 5 */ "Reserved",
-	/* 6 */ "Reserved",
-	/* 7 */ "LOGOUT",
-	/* 8 */ "Reserved",
-	/* 9 */ "Reserved",
-	/* A */ "Reserved",
-	/* B */ "ABORT TASK",
-	/* C */ "ABORT TASK SET",
-	/* D */ "Reserved",
-	/* E */ "LOGICAL UNIT RESET",
-	/* F */ "TARGET RESET"
+	ORB_FUN_NAMES
 };
-
-#define ORB_RES_CMPL 0
-#define ORB_RES_FAIL 1
-#define ORB_RES_ILLE 2
-#define ORB_RES_VEND 3
 
 static int debug = 0;
 static int auto_login = 1;
@@ -163,14 +118,8 @@ SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, auto_login, CTLFLAG_RW, &auto_login, 0,
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, max_speed, CTLFLAG_RW, &max_speed, 0,
 	"SBP transfer max speed");
 
-#define SBP_DEBUG(x)	if (debug > x) {
-#define END_DEBUG	}
-
 #define NEED_RESPONSE 0
 
-struct ind_ptr {
-	u_int32_t hi,lo;
-};
 #define SBP_SEG_MAX rounddown(0xffff, PAGE_SIZE)
 #ifdef __sparc64__ /* iommu */
 #define SBP_IND_MAX howmany(MAXPHYS, SBP_SEG_MAX)
@@ -181,9 +130,9 @@ struct sbp_ocb {
 	STAILQ_ENTRY(sbp_ocb)	ocb;
 	union ccb	*ccb;
 	bus_addr_t	bus_addr;
-	volatile u_int32_t	orb[8];
+	u_int32_t	orb[8];
 #define IND_PTR_OFFSET	(8*sizeof(u_int32_t))
-	volatile struct ind_ptr  ind_ptr[SBP_IND_MAX];
+	struct ind_ptr  ind_ptr[SBP_IND_MAX];
 	struct sbp_dev	*sdev;
 	int		flags; /* XXX should be removed */
 	bus_dmamap_t	dmamap;
@@ -192,63 +141,6 @@ struct sbp_ocb {
 #define OCB_ACT_MGM 0
 #define OCB_ACT_CMD 1
 #define OCB_MATCH(o,s)	((o)->bus_addr == ntohl((s)->orb_lo))
-
-#define SBP_RECV_LEN (16 + 32) /* header + payload */
-
-struct sbp_login_res{
-	u_int16_t	len;
-	u_int16_t	id;
-	u_int16_t	res0;
-	u_int16_t	cmd_hi;
-	u_int32_t	cmd_lo;
-	u_int16_t	res1;
-	u_int16_t	recon_hold;
-};
-struct sbp_status{
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	src:2,
-			resp:2,
-			dead:1,
-			len:3;
-#else
-	u_int8_t	len:3,
-			dead:1,
-			resp:2,
-			src:2;
-#endif
-	u_int8_t	status;
-	u_int16_t	orb_hi;
-	u_int32_t	orb_lo;
-	u_int32_t	data[6];
-};
-struct sbp_cmd_status{
-#define SBP_SFMT_CURR 0
-#define SBP_SFMT_DEFER 1
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	sfmt:2,
-			status:6;
-	u_int8_t	valid:1,
-			mark:1,
-			eom:1,
-			ill_len:1,
-			s_key:4;
-#else
-	u_int8_t	status:6,
-			sfmt:2;
-	u_int8_t	s_key:4,
-			ill_len:1,
-			eom:1,
-			mark:1,
-			valid:1;
-#endif
-	u_int8_t	s_code;
-	u_int8_t	s_qlfr;
-	u_int32_t	info;
-	u_int32_t	cdb;
-	u_int8_t	fru;
-	u_int8_t	s_keydep[3];
-	u_int32_t	vend[2];
-};
 
 struct sbp_dev{
 #define SBP_DEV_RESET		0	/* accept login */
@@ -289,7 +181,7 @@ struct sbp_target {
 	struct sbp_ocb *mgm_ocb_cur;
 	STAILQ_HEAD(, sbp_ocb) mgm_ocb_queue;
 	struct callout mgm_ocb_timeout;
-#define SCAN_DELAY 2
+#define SCAN_DELAY 1
 	struct callout scan_callout;
 	STAILQ_HEAD(, fw_xfer) xferlist;
 	int n_xfer;
@@ -406,7 +298,7 @@ END_DEBUG
 		return(ENXIO);
 	}
 
-	device_set_desc(dev, "SBP2/SCSI over firewire");
+	device_set_desc(dev, "SBP-2/SCSI over FireWire");
 
 	if (bootverbose)
 		debug = bootverbose;
@@ -879,7 +771,7 @@ END_DEBUG
 
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0);
 	xfer->act.hand = sbp_reset_start_callback;
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqq.dest_hi = 0xffff;
 	fp->mode.wreqq.dest_lo = 0xf0000000 | RESET_START;
 	fp->mode.wreqq.data = htonl(0xf);
@@ -1057,7 +949,7 @@ sbp_agent_reset_callback(struct fw_xfer *xfer)
 	sdev = (struct sbp_dev *)xfer->sc;
 SBP_DEBUG(1)
 	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_cmd_callback\n");
+	printf("%s\n", __FUNCTION__);
 END_DEBUG
 	if (xfer->resp != 0) {
 		sbp_show_sdev_info(sdev, 2);
@@ -1088,7 +980,7 @@ END_DEBUG
 		xfer->act.hand = sbp_agent_reset_callback;
 	else
 		xfer->act.hand = sbp_do_attach;
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqq.data = htonl(0xf);
 	fw_asyreq(xfer->fc, -1, xfer);
 	sbp_abort_all_ocbs(sdev, CAM_BDR_SENT);
@@ -1120,7 +1012,7 @@ END_DEBUG
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0);
 
 	xfer->act.hand = sbp_busy_timeout_callback;
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqq.dest_hi = 0xffff;
 	fp->mode.wreqq.dest_lo = 0xf0000000 | BUSY_TIMEOUT;
 	fp->mode.wreqq.data = htonl((1 << (13+12)) | 0xf);
@@ -1142,12 +1034,12 @@ END_DEBUG
 		return;
 	xfer->act.hand = sbp_cmd_callback;
 
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqb.len = 8;
 	fp->mode.wreqb.extcode = 0;
-	fp->mode.wreqb.payload[0] = 
+	xfer->send.payload[0] = 
 		htonl(((sdev->target->sbp->fd.fc->nodeid | FWLOCALBUS )<< 16));
-	fp->mode.wreqb.payload[1] = htonl(ocb->bus_addr);
+	xfer->send.payload[1] = htonl(ocb->bus_addr);
 
 	if(fw_asyreq(xfer->fc, -1, xfer) != 0){
 			sbp_xfer_free(xfer);
@@ -1194,7 +1086,7 @@ sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
 			splx(s);
 			return(NULL);
 		}
-		xfer = fw_xfer_alloc_buf(M_SBP, 24, 12);
+		xfer = fw_xfer_alloc_buf(M_SBP, 8, 0);
 		if(xfer == NULL){
 			printf("sbp: fw_xfer_alloc_buf failed\n");
 			splx(s);
@@ -1211,26 +1103,26 @@ sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
 
 	microtime(&xfer->tv);
 
-	if (tcode == FWTCODE_WREQQ)
-		xfer->send.len = 16;
-	else
-		xfer->send.len = 24;
-	xfer->recv.len = 12;
-
 	if (new) {
-		xfer->spd = min(sdev->target->fwdev->speed, max_speed);
+		xfer->recv.pay_len = 0;
+		xfer->send.spd = min(sdev->target->fwdev->speed, max_speed);
 		xfer->fc = sdev->target->sbp->fd.fc;
 		xfer->retry_req = fw_asybusy;
 	}
+
+	if (tcode == FWTCODE_WREQB)
+		xfer->send.pay_len = 8;
+	else
+		xfer->send.pay_len = 0;
+
 	xfer->sc = (caddr_t)sdev;
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqq.dest_hi = sdev->login->cmd_hi;
 	fp->mode.wreqq.dest_lo = sdev->login->cmd_lo + offset;
 	fp->mode.wreqq.tlrt = 0;
 	fp->mode.wreqq.tcode = tcode;
 	fp->mode.wreqq.pri = 0;
-	xfer->dst = FWLOCALBUS | sdev->target->fwdev->dst;
-	fp->mode.wreqq.dst = xfer->dst;
+	fp->mode.wreqq.dst = FWLOCALBUS | sdev->target->fwdev->dst;
 
 	return xfer;
 
@@ -1265,12 +1157,9 @@ sbp_mgm_orb(struct sbp_dev *sdev, int func, struct sbp_ocb *aocb)
 	ocb->flags = OCB_ACT_MGM;
 	ocb->sdev = sdev;
 
-	bzero((void *)(uintptr_t)(volatile void *)ocb->orb, sizeof(ocb->orb));
+	bzero((void *)ocb->orb, sizeof(ocb->orb));
 	ocb->orb[6] = htonl((nid << 16) | SBP_BIND_HI);
-	ocb->orb[7] = htonl(SBP_DEV2ADDR(
-		device_get_unit(target->sbp->fd.dev),
-		target->target_id,
-		sdev->lun_id));
+	ocb->orb[7] = htonl(SBP_DEV2ADDR(target->target_id, sdev->lun_id));
 
 SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
@@ -1278,6 +1167,7 @@ SBP_DEBUG(0)
 END_DEBUG
 	switch (func) {
 	case ORB_FUN_LGI:
+		ocb->orb[0] = ocb->orb[1] = 0; /* password */
 		ocb->orb[2] = htonl(nid << 16);
 		ocb->orb[3] = htonl(sdev->dma.bus_addr);
 		ocb->orb[4] = htonl(ORB_NOTIFY | ORB_EXV | sdev->lun_id);
@@ -1315,13 +1205,17 @@ start:
 	}
 	xfer->act.hand = sbp_mgm_callback;
 
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqb.dest_hi = sdev->target->mgm_hi;
 	fp->mode.wreqb.dest_lo = sdev->target->mgm_lo;
 	fp->mode.wreqb.len = 8;
 	fp->mode.wreqb.extcode = 0;
-	fp->mode.wreqb.payload[0] = htonl(nid << 16);
-	fp->mode.wreqb.payload[1] = htonl(ocb->bus_addr);
+	xfer->send.payload[0] = htonl(nid << 16);
+	xfer->send.payload[1] = htonl(ocb->bus_addr & 0xffffffff);
+SBP_DEBUG(0)
+	sbp_show_sdev_info(sdev, 2);
+	printf("mgm orb: %08x\n", (u_int32_t)ocb->bus_addr);
+END_DEBUG
 
 	fw_asyreq(xfer->fc, -1, xfer);
 }
@@ -1509,23 +1403,21 @@ printf("sbp %x %d %d %08x %08x %08x %08x\n",
 printf("sbp %08x %08x %08x %08x\n", ntohl(ld[4]), ntohl(ld[5]), ntohl(ld[6]), ntohl(ld[7]));
 printf("sbp %08x %08x %08x %08x\n", ntohl(ld[8]), ntohl(ld[9]), ntohl(ld[10]), ntohl(ld[11]));
 */
-
 	sbp = (struct sbp_softc *)xfer->sc;
-	if(xfer->resp != 0){
+	if (xfer->resp != 0){
 		printf("sbp_recv: xfer->resp != 0\n");
 		goto done0;
 	}
-	if(xfer->recv.buf == NULL){
-		printf("sbp_recv: xfer->recv.buf == NULL\n");
+	if (xfer->recv.payload == NULL){
+		printf("sbp_recv: xfer->recv.payload == NULL\n");
 		goto done0;
 	}
-	sbp = (struct sbp_softc *)xfer->sc;
-	rfp = (struct fw_pkt *)xfer->recv.buf;
+	rfp = &xfer->recv.hdr;
 	if(rfp->mode.wreqb.tcode != FWTCODE_WREQB){
 		printf("sbp_recv: tcode = %d\n", rfp->mode.wreqb.tcode);
 		goto done0;
 	}
-	sbp_status = (struct sbp_status *)rfp->mode.wreqb.payload;
+	sbp_status = (struct sbp_status *)xfer->recv.payload;
 	addr = rfp->mode.wreqb.dest_lo;
 SBP_DEBUG(2)
 	printf("received address 0x%x\n", addr);
@@ -1748,6 +1640,7 @@ done:
 		sbp_agent_reset(sdev);
 
 done0:
+	xfer->recv.pay_len = SBP_RECV_LEN;
 /* The received packet is usually small enough to be stored within
  * the buffer. In that case, the controller return ack_complete and
  * no respose is necessary.
@@ -1772,7 +1665,6 @@ done0:
 	fw_asyreq(xfer->fc, -1, xfer);
 #else
 	/* recycle */
-	xfer->recv.len = SBP_RECV_LEN;
 	STAILQ_INSERT_TAIL(&sbp->fwb.xferlist, xfer, link);
 #endif
 
@@ -1856,23 +1748,20 @@ END_DEBUG
 		goto fail;
 
 	if (xpt_create_path(&sbp->path, xpt_periph, cam_sim_path(sbp->sim),
-			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_bus_deregister(cam_sim_path(sbp->sim));
 		goto fail;
+	}
 
-	sbp->fwb.start_hi = SBP_BIND_HI;
-	sbp->fwb.start_lo = SBP_DEV2ADDR(device_get_unit(sbp->fd.dev), 0, 0);
 	/* We reserve 16 bit space (4 bytes X 64 targets X 256 luns) */
-	sbp->fwb.addrlen = 0xffff;
+	sbp->fwb.start = ((u_int64_t)SBP_BIND_HI << 32) | SBP_DEV2ADDR(0, 0);
+	sbp->fwb.end = sbp->fwb.start + 0xffff;
 	sbp->fwb.act_type = FWACT_XFER;
 	/* pre-allocate xfer */
 	STAILQ_INIT(&sbp->fwb.xferlist);
 	for (i = 0; i < SBP_NUM_OCB/2; i ++) {
 		xfer = fw_xfer_alloc_buf(M_SBP,
-#if NEED_RESPONSE
-			/* send */12,
-#else
 			/* send */0,
-#endif
 			/* recv */SBP_RECV_LEN);
 		xfer->act.hand = sbp_recv;
 #if NEED_RESPONSE
@@ -1949,8 +1838,10 @@ END_DEBUG
 
 	for (i = 0; i < SBP_NUM_TARGETS; i ++) 
 		sbp_cam_detach_target(&sbp->targets[i]);
+	xpt_async(AC_LOST_DEVICE, sbp->path, NULL);
 	xpt_free_path(sbp->path);
 	xpt_bus_deregister(cam_sim_path(sbp->sim));
+	cam_sim_free(sbp->sim, /*free_devq*/ TRUE),
 
 	sbp_logout_all(sbp);
 
@@ -1974,7 +1865,7 @@ END_DEBUG
 		for (xfer = STAILQ_FIRST(&target->xferlist);
 				xfer != NULL; xfer = next) {
 			next = STAILQ_NEXT(xfer, link);
-			fw_xfer_free(xfer);
+			fw_xfer_free_buf(xfer);
 		}
 		free(target->luns, M_SBP);
 	}
@@ -1982,7 +1873,7 @@ END_DEBUG
 	for (xfer = STAILQ_FIRST(&sbp->fwb.xferlist);
 				xfer != NULL; xfer = next) {
 		next = STAILQ_NEXT(xfer, link);
-		fw_xfer_free(xfer);
+		fw_xfer_free_buf(xfer);
 	}
 	STAILQ_INIT(&sbp->fwb.xferlist);
 	fw_bindremove(fc, &sbp->fwb);
@@ -2259,9 +2150,7 @@ END_DEBUG
 			cdb = (void *)csio->cdb_io.cdb_ptr;
 		else
 			cdb = (void *)&csio->cdb_io.cdb_bytes;
-		bcopy(cdb,
-			(void *)(uintptr_t)(volatile void *)&ocb->orb[5],
-				csio->cdb_len);
+		bcopy(cdb, (void *)&ocb->orb[5], csio->cdb_len);
 /*
 printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[0]), ntohl(ocb->orb[1]), ntohl(ocb->orb[2]), ntohl(ocb->orb[3]));
 printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[4]), ntohl(ocb->orb[5]), ntohl(ocb->orb[6]), ntohl(ocb->orb[7]));
