@@ -393,6 +393,18 @@ for the previous day.
 .It Ar daily_status_mail_rejects_logs
 (num) Set to the number of maillog files that should be checked
 for yesterday's mail rejects.
+.It Ar daily_status_named_enable
+(bool) Set to
+.Dq YES
+if you want to summarise denied zone transfers (AXFR and IXFR)
+for the previious day.
+.It Ar daily_status_named_logs
+(num) Set to the number of log files that should be checked for
+yesterday's rejected zone transfers.
+.It Ar daily_status_named_usedns
+(bool) Set to
+.Dq YES
+if you want to enable reverse DNS lookups.
 .It Ar daily_queuerun_enable
 (bool) Set to
 .Dq YES
