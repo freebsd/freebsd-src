@@ -16,10 +16,12 @@ struct nlist    nl[] = {
     {"_eisa_dev_list"},
     {"_pcidevice_set"},
     {"_device_list"},
+#ifdef DO_SCSI
     {"_scbusses"},
     {"_scsi_cinit"},
     {"_scsi_dinit"},
     {"_scsi_tinit"},
+#endif
     {""},
 };
 
