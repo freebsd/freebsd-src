@@ -489,7 +489,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		if ((v = m->mtx_lock) == MTX_UNOWNED) {
 			mtx_unlock_spin(&sched_lock);
 #ifdef __i386__
-			cpu_pause();
+			pause();
 #endif
 			continue;
 		}
@@ -519,7 +519,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			(void *)(v | MTX_CONTESTED))) {
 			mtx_unlock_spin(&sched_lock);
 #ifdef __i386__
-			cpu_pause();
+			pause();
 #endif
 			continue;
 		}
@@ -534,7 +534,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    owner->td_kse->ke_oncpu != NOCPU) {
 			mtx_unlock_spin(&sched_lock);
 #ifdef __i386__
-			cpu_pause();
+			pause();
 #endif
 			continue;
 		}
@@ -630,7 +630,7 @@ _mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 		while (m->mtx_lock != MTX_UNOWNED) {
 			if (i++ < 10000000) {
 #ifdef __i386__
-				cpu_pause();
+				pause();
 #endif
 				continue;
 			}
@@ -644,7 +644,7 @@ _mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 				panic("spin lock %s held by %p for > 5 seconds",
 				    m->mtx_object.lo_name, (void *)m->mtx_lock);
 #ifdef __i386__
-			cpu_pause();
+			pause();
 #endif
 		}
 		critical_enter();
