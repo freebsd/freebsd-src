@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)telnetd.8	8.3 (Berkeley) 3/1/94
-.\"	$Id$
+.\"	$Id: telnetd.8,v 1.8 1997/02/22 14:22:30 peter Exp $
 .\"
 .Dd March 1, 1994
 .Dt TELNETD 8
@@ -49,7 +49,7 @@ protocol server
 .Op Fl X Ar authtype
 .Op Fl a Ar authmode
 .Op Fl edebug
-.Op Fl P Ar loginprog
+.Op Fl p Ar loginprog
 .Op Fl r Ns Ar lowpty-highpty
 .Op Fl u Ar len
 .Op Fl debug Op Ar port
@@ -189,7 +189,7 @@ If
 has been compiled with support for data encryption, then the
 .Fl edebug
 option may be used to enable encryption debugging code.
-.It Fl P Ar loginprog
+.It Fl p Ar loginprog
 Specifies an alternate
 .Xr login 1
 command to run to complete the login.  The alternate command must
