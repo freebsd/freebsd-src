@@ -19,6 +19,10 @@
         wi
         ..
     ..
+    fs
+	smbfs
+	..
+    ..
     g++
         std
         ..
@@ -80,8 +84,6 @@
     rpcsvc
     ..
     security
-    ..
-    smbfs
     ..
     ss
     ..
