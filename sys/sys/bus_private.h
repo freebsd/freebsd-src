@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus_private.h,v 1.6 1999/04/16 21:22:54 peter Exp $
+ *	$Id: bus_private.h,v 1.7 1999/05/10 17:06:11 dfr Exp $
  */
 
 #ifndef _SYS_BUS_PRIVATE_H_
@@ -93,15 +93,17 @@ struct device_ops {
  */
 #define DEVOPDESC(OP)	(&OP##_##desc)
 
-#define DEVOPOFF(OPS, OP)				\
-	((DEVOPDESC(OP)->offset >= OPS->maxoffset	\
-	  || !OPS->methods[DEVOPDESC(OP)->offset])	\
-	 ? 0 : DEVOPDESC(OP)->offset)
-
 #define DEVOPS(DEV)	   (DEV->ops)
-#define DEVOPMETH(DEV, OP) (DEVOPS(DEV)->methods[DEVOPOFF(DEVOPS(DEV), OP)])
+#define DEVOPMETH(DEV, OP)					\
+	((DEVOPDESC(OP)->offset >= DEVOPS(DEV)->maxoffset)	\
+	 ? DEVOPDESC(OP)->deflt					\
+	 : DEVOPS(DEV)->methods[DEVOPDESC(OP)->offset])
+
 #define DRVOPS(DRV)	   ((struct device_ops *)DRV->ops)
-#define DRVOPMETH(DRV, OP) (DRVOPS(DRV)->methods[DEVOPOFF(DRVOPS(DRV), OP)])
+#define DRVOPMETH(DRV, OP)					\
+	((DEVOPDESC(OP)->offset >= DRVOPS(DRV)->maxoffset)	\
+	 ? DEVOPDESC(OP)->deflt					\
+	 : DRVOPS(DRV)->methods[DEVOPDESC(OP)->offset])
 
 /*
  * Implementation of device.
