@@ -479,6 +479,7 @@ sysctl_kern_clockrate(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Construct clockinfo structure.
 	 */
+	bzero(&clkinfo, sizeof(clkinfo));
 	clkinfo.hz = hz;
 	clkinfo.tick = tick;
 	clkinfo.profhz = profhz;
