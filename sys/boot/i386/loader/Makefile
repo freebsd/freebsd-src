@@ -5,7 +5,6 @@ NEWVERSWHAT=	"bootstrap loader" i386
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
 
-CFLAGS+=	-ffreestanding
 # Enable PXE TFTP or NFS support, not both.
 .if defined(LOADER_TFTP_SUPPORT)
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
@@ -52,9 +51,6 @@ CFLAGS+=	-I${.CURDIR}/..
 
 # BTX components
 CFLAGS+=	-I${.CURDIR}/../btx/lib
-
-# BTX is expecting ELF components
-CFLAGS+=	-elf
 
 # Debug me!
 #CFLAGS+=	-g
