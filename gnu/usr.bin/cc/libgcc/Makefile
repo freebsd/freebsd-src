@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.17 1998/07/08 00:45:50 bde Exp $
+# $Id: Makefile,v 1.18 1998/10/06 11:28:29 peter Exp $
 #
 
 LIB=	gcc
@@ -50,8 +50,8 @@ CLEANFILES+=	${COMMONHDRS}
 
 LIB1OBJS=	${LIB1FUNCS:S/$/.o/}
 LIB2OBJS=	${LIB2FUNCS:S/$/.o/}
-LIB1SOBJS=	${LIB1FUNCS:S/$/.so/}
-LIB2SOBJS=	${LIB2FUNCS:S/$/.so/}
+LIB1SOBJS=	${LIB1FUNCS:S/$/.So/}
+LIB2SOBJS=	${LIB2FUNCS:S/$/.So/}
 LIB1POBJS=	${LIB1FUNCS:S/$/.po/}
 LIB2POBJS=	${LIB2FUNCS:S/$/.po/}
 
