@@ -82,12 +82,11 @@ strlst_t *srcdirs = NULL;
 strlst_t *libs    = NULL;
 prog_t   *progs   = NULL;
 
-char line[MAXLINELEN];
-
 char confname[MAXPATHLEN], infilename[MAXPATHLEN];
 char outmkname[MAXPATHLEN], outcfname[MAXPATHLEN], execfname[MAXPATHLEN];
 char tempfname[MAXPATHLEN], cachename[MAXPATHLEN], curfilename[MAXPATHLEN];
 char outhdrname[MAXPATHLEN] ; /* user-supplied header for *.mk */
+char *objprefix;	/* where are the objects ? */
 int linenum = -1;
 int goterror = 0;
 
@@ -121,13 +120,20 @@ int main(int argc, char **argv)
     readcache = 1;
     *outmkname = *outcfname = *execfname = '\0';
 
-    while((optc = getopt(argc, argv, "lh:m:c:e:foq")) != -1) {
+    p = getenv("MAKEOBJDIRPREFIX");
+    if (p == NULL || *p == '\0')
+	objprefix = "/usr/obj"; /* default */
+    else
+	objprefix = strdup(p);
+
+    while((optc = getopt(argc, argv, "lh:m:c:e:p:foq")) != -1) {
 	switch(optc) {
 	case 'f':	readcache = 0; break;
 	case 'o':	makeobj = 1; break;
 	case 'q':	verbose = 0; break;
 
 	case 'm':	strcpy(outmkname, optarg); break;
+	case 'p':	objprefix = strdup(optarg); break;
 	case 'h':	strcpy(outhdrname, optarg); break;
 	case 'c':	strcpy(outcfname, optarg); break;
 	case 'e':	strcpy(execfname, optarg); break;
@@ -159,8 +165,8 @@ int main(int argc, char **argv)
     if(!*outcfname) sprintf(outcfname, "%s.c", confname);
     if(!*execfname) sprintf(execfname, "%s", confname);
 
-    sprintf(cachename, "%s.cache", confname);
-    sprintf(tempfname, ".tmp_%sXXXXXX", confname);
+    snprintf(cachename, sizeof(cachename), "%s.cache", confname);
+    snprintf(tempfname, sizeof(tempfname), ".tmp_%sXXXXXX", confname);
     if(mktemp(tempfname) == NULL) {
 	perror(tempfname);
 	exit(1);
@@ -179,8 +185,8 @@ int main(int argc, char **argv)
 void usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
-		"usage: crunchgen [-foq] [-m <makefile>] [-c <c file>]",
-		"                 [-e <exec file>] <conffile>");
+	"usage: crunchgen [-foq] [-h <makefile-header-name>] [-m <makefile>]",
+	"	[-p <obj-prefix>] [-c <c-file-name>] [-e <exec-file>] <conffile>");
     exit(1);
 }
 
@@ -224,6 +230,7 @@ void parse_one_file(char *filename)
     int fieldc;
     void (*f)(int c, char **v);
     FILE *cf;
+    char line[MAXLINELEN];
 
     sprintf(line, "reading %s", filename);
     status(line);
@@ -507,8 +514,9 @@ void fillin_program(prog_t *p)
     char path[MAXPATHLEN];
     char *srcparent;
     strlst_t *s;
+    char line[MAXLINELEN];
 
-    sprintf(line, "filling in parms for %s", p->name);
+    snprintf(line, MAXLINELEN, "filling in parms for %s", p->name);
     status(line);
 
     if(!p->ident)
@@ -516,17 +524,18 @@ void fillin_program(prog_t *p)
     if(!p->srcdir) {
 	srcparent = dir_search(p->name);
 	if(srcparent)
-	    sprintf(path, "%s/%s", srcparent, p->name);
-	if(is_dir(path))
-	    p->srcdir = strdup(path);
+	    snprintf(line, MAXLINELEN, "%s/%s", srcparent, p->name);
+	if(is_dir(line))
+	    p->srcdir = strdup(line);
     }
     if(!p->objdir && p->srcdir) {
 	FILE *f;
-
-	sprintf(path, "cd %s && echo -n /usr/obj`/bin/pwd`", p->srcdir);
         p->objdir = p->srcdir;
-	f = popen(path,"r");
+	snprintf(line, MAXLINELEN, "cd %s && echo -n %s`/bin/pwd`",
+		 p->srcdir, objprefix);
+	f = popen(line,"r");
 	if (f) {
+	    path[0]='\0';
 	    fgets(path,sizeof path, f);
 	    if (!pclose(f)) {
 		if(is_dir(path))
@@ -538,18 +547,18 @@ void fillin_program(prog_t *p)
  * XXX look for a Makefile.{name} in local directory first.
  * This lets us override the original Makefile.
  */
-    sprintf(path, "Makefile.%s", p->name);
+    snprintf(path, sizeof(path), "Makefile.%s", p->name);
     if (is_nonempty_file(path)) {
-       sprintf(line, "Using %s for %s", path, p->name);
+       snprintf(line, MAXLINELEN, "Using %s for %s", path, p->name);
        status(line);
     } else
-    if(p->srcdir) sprintf(path, "%s/Makefile", p->srcdir);
+    if(p->srcdir) snprintf(path, sizeof(path), "%s/Makefile", p->srcdir);
     if(!p->objs && p->srcdir && is_nonempty_file(path))
 	fillin_program_objs(p, path);
 
     if(!p->objpaths && p->objdir && p->objs)
 	for(s = p->objs; s != NULL; s = s->next) {
-	    sprintf(line, "%s/%s", p->objdir, s->str);
+	    snprintf(line, MAXLINELEN, "%s/%s", p->objdir, s->str);
 	    add_string(&p->objpaths, line);
 	}
 
@@ -574,6 +583,7 @@ void fillin_program_objs(prog_t *p, char *path)
     FILE *f;
     char *objvar="OBJS";
     strlst_t *s;
+    char line[MAXLINELEN];
 
     /* discover the objs from the srcdir Makefile */
 
@@ -608,7 +618,7 @@ void fillin_program_objs(prog_t *p, char *path)
 
     fclose(f);
 
-    sprintf(line, "make -f %s crunchgen_objs 2>&1", tempfname);
+    snprintf(line, MAXLINELEN, "make -f %s crunchgen_objs 2>&1", tempfname);
     if((f = popen(line, "r")) == NULL) {
 	warn("submake pipe");
 	goterror = 1;
@@ -661,8 +671,9 @@ void gen_specials_cache(void)
 {
     FILE *cachef;
     prog_t *p;
+    char line[MAXLINELEN];
 
-    sprintf(line, "generating %s", cachename);
+    snprintf(line, MAXLINELEN, "generating %s", cachename);
     status(line);
 
     if((cachef = fopen(cachename, "w")) == NULL) {
@@ -695,8 +706,9 @@ void gen_output_makefile(void)
 {
     prog_t *p;
     FILE *outmk;
+    char line[MAXLINELEN];
 
-    sprintf(line, "generating %s", outmkname);
+    snprintf(line, MAXLINELEN, "generating %s", outmkname);
     status(line);
 
     if((outmk = fopen(outmkname, "w")) == NULL) {
@@ -711,7 +723,6 @@ void gen_output_makefile(void)
 	fprintf(outmk, ".include \"%s\"\n", outhdrname);
 
     top_makefile_rules(outmk);
-
     for(p = progs; p != NULL; p = p->next)
 	prog_makefile_rules(outmk, p);
 
@@ -727,8 +738,9 @@ void gen_output_cfile(void)
     FILE *outcf;
     prog_t *p;
     strlst_t *s;
+    char line[MAXLINELEN];
 
-    sprintf(line, "generating %s", outcfname);
+    snprintf(line, MAXLINELEN, "generating %s", outcfname);
     status(line);
 
     if((outcf = fopen(outcfname, "w")) == NULL) {
@@ -790,7 +802,7 @@ char *dir_search(char *progname)
     strlst_t *dir;
 
     for(dir=srcdirs; dir != NULL; dir=dir->next) {
-	sprintf(path, "%s/%s", dir->str, progname);
+	snprintf(path, MAXPATHLEN, "%s/%s", dir->str, progname);
 	if(is_dir(path)) return dir->str;
     }
     return NULL;
@@ -931,13 +943,12 @@ void add_string(strlst_t **listp, char *str)
 
     p2 = malloc(sizeof(strlst_t));
     if(p2) {
-	memset(p2, 0, sizeof(strlst_t));
+	p2->next = NULL ;
 	p2->str = strdup(str);
     }
     if(!p2 || !p2->str)
 	out_of_memory();
 
-    p2->next = NULL;
     if(p1 == NULL) *listp = p2;
     else p1->next = p2;
 }
