@@ -5813,7 +5813,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			switch(periph_qual) {
 			case SID_QUAL_LU_CONNECTED:
 			{
-				u_int8_t alen;
+				u_int8_t len;
 
 				/*
 				 * We conservatively request only
@@ -5825,9 +5825,11 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				 * the amount of information the device
 				 * is willing to give.
 				 */
-				alen = inq_buf->additional_length;
+				len = inq_buf->additional_length
+				    + offsetof(struct scsi_inquiry_data,
+                                               additional_length) + 1;
 				if (softc->action == PROBE_INQUIRY
-				 && alen > (SHORT_INQUIRY_LENGTH - 4)) {
+				 && len > SHORT_INQUIRY_LENGTH) {
 					softc->action = PROBE_FULL_INQUIRY;
 					xpt_release_ccb(done_ccb);
 					xpt_schedule(periph, priority);
