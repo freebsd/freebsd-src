@@ -122,6 +122,8 @@ ep_pccard_identify(u_short id)
 		    "Fast Etherlink 3C574-TX");
 	case 0x9058: /* 3C589 */
 		return ("3Com Etherlink III 3C589");
+	case 0x2056: /* 3C562/3C563 */
+		return ("3Com 3C562D/3C563D");
 	}
 	return (NULL);
 }
@@ -140,6 +142,7 @@ ep_pccard_card_attach(struct ep_board *epb)
 	case 0x4b57: /* 3C574B */
 		epb->mii_trans = 1;
 		return (1);
+	case 0x2056: /* 3C562D/3C563D */
 	case 0x9058: /* 3C589 */
 		epb->mii_trans = 0;
 		return (1);
