@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id$
+ *	$Id: ctx.c,v 1.1 1994/10/01 17:59:41 davidg Exp $
  */
 
 /*
@@ -153,6 +153,21 @@ struct ctx_soft_registers {
 }       ctx_sr[NCTX];
 
 
+static struct kern_devconf kdc_ctx[NCTX] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"ctx", 0, { "isa0", MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+} };
+
+static inline void
+ctx_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_ctx[id->id_unit] = kdc_ctx[0];
+	kdc_ctx[id->id_unit].kdc_unit = id->id_unit;
+	kdc_ctx[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_ctx[id->id_unit]);
+}
 
 int 
 ctxprobe(struct isa_device * devp)
@@ -178,6 +193,7 @@ ctxattach(struct isa_device * devp)
 	sr->iobase = devp->id_iobase;
 	sr->maddr = devp->id_maddr;
 	sr->msize = devp->id_msize;
+	ctx_registerdev(devp);
 	return (1);
 }
 

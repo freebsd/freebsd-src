@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id$
+ * $Id: aic6360.c,v 1.1 1994/09/26 16:15:45 jkh Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -134,10 +134,11 @@
 #include <scsi/scsiconf.h>
 
 #ifdef __FreeBSD__
+#include <sys/devconf.h>
 #include <i386/isa/isa_device.h>
 
 #include "ddb.h"
-#include "kernel.h"
+#include <sys/kernel.h>
 #else
 #include <i386/isa/isavar.h>
 #include <i386/isa/icu.h>
@@ -748,6 +749,22 @@ struct scsi_device aic_dev = {
 	0
 };
 
+static struct kern_devconf kdc_aic[NAIC] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"aic", 0, { "isa0", MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+} };
+
+static inline void
+aic_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_aic[id->id_unit] = kdc_aic[0];
+	kdc_aic[id->id_unit].kdc_unit = id->id_unit;
+	kdc_aic[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_aic[id->id_unit]);
+}
+
 /* 
  * INITIALIZATION ROUTINES (probe, attach ++)
  */
@@ -803,6 +820,7 @@ aicprobe(parent, self, aux)
 		return 0;
 	}
 	aicunit++;
+	aic_registerdev(dev);
 	return 0x20;
 #else
 #ifdef NEWCONFIG

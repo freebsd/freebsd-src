@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.14 1994/09/05 22:28:31 ats Exp $
+ *	$Id: if_ie.c,v 1.15 1994/09/07 03:34:12 wollman Exp $
  */
 
 /*
@@ -115,6 +115,7 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -304,6 +305,22 @@ struct ie_softc {
 static int sl_probe(struct isa_device *);
 static int el_probe(struct isa_device *);
 static int ni_probe(struct isa_device *);
+
+static struct kern_devconf kdc_ie[NIE] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"ie", 0, { "isa0", MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+} };
+
+static inline void
+ie_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_ie[id->id_unit] = kdc_ie[0];
+	kdc_ie[id->id_unit].kdc_unit = id->id_unit;
+	kdc_ie[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_ie[id->id_unit]);
+}
 
 /* This routine written by Charles Martin Hannum. */
 int ieprobe(dvp)
@@ -569,6 +586,8 @@ ieattach(dvp)
 #endif
 
   if_attach(ifp);
+  ie_registerdev(dvp);
+
   {
     struct ifaddr *ifa = ifp->if_addrlist;
     struct sockaddr_dl *sdl;
