@@ -855,7 +855,7 @@ Packets transit through the pipe according to its parameters.
 .Pp
 A
 .Em queue
-is an abstraction used to implement the WF2Q+ policy.
+is an abstraction used to implement the WF2Q+ (Worst-case Fair Weighted Fair Queueing) policy.
 The queue associates to each flow a weight and a reference pipe.
 Then, all flows linked to the same pipe are scheduled at the
 rate fixed by the pipe according to the WF2Q+ policy.
@@ -1000,7 +1000,7 @@ specifies the aggregate rate for the set of queues.
 Specifies the weight to be used for flows matching this queue.
 The weight must be in the range 1..100, and defaults to 1.
 .It Cm red | gred Ar w_q Ns / Ns Ar min_th Ns / Ns Ar max_th Ns / Ns Ar max_p
-Make use of the RED queue management algorithm.
+Make use of the RED (Random Early Detection) queue management algorithm.
 .Ar w_q
 and
 .Ar max_p
