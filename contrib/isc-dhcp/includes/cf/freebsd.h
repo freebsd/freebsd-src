@@ -53,7 +53,11 @@ extern int h_errno;
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_arp.h>
+
+#ifndef INADDR_LOOPBACK
 #define INADDR_LOOPBACK	((u_int32_t)0x7f000001)
+#endif
 
 /* Varargs stuff... */
 #include <stdarg.h>
