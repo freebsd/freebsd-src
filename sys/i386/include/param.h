@@ -110,7 +110,7 @@
 #define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
-#define UPAGES	2		/* pages of u-area */
+#define UPAGES	3		/* pages of u-area */
 
 /*
  * Ceiling on amount of swblock kva space.
