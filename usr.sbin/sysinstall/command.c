@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.2 1995/05/11 09:01:24 jkh Exp $
+ * $Id: command.c,v 1.3 1995/05/16 02:52:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -122,7 +122,7 @@ command_func_add(char *key, commandFunc func, void *data)
 	    if (commandStack[i]->ncmds == MAX_NUM_COMMANDS)
 		msgFatal("More than %d commands stacked up behind %s??",
 			 MAX_NUM_COMMANDS, key);
-	    commandStack[i]->cmds[commandStack[i]->ncmds].type = CMD_FUNC;
+	    commandStack[i]->cmds[commandStack[i]->ncmds].type = CMD_FUNCTION;
 	    commandStack[i]->cmds[commandStack[i]->ncmds].ptr = (void *)func;
 	    commandStack[i]->cmds[commandStack[i]->ncmds].data = data;
 	    ++(commandStack[i]->ncmds);
@@ -136,7 +136,7 @@ command_func_add(char *key, commandFunc func, void *data)
     commandStack[numCommands] = safe_malloc(sizeof(Command));
     strcpy(commandStack[numCommands]->key, key);
     commandStack[numCommands]->ncmds = 1;
-    commandStack[numCommands]->cmds[0].type = CMD_FUNC;
+    commandStack[numCommands]->cmds[0].type = CMD_FUNCTION;
     commandStack[numCommands++]->cmds[0].ptr = (void *)func;
 }
 
@@ -162,7 +162,8 @@ command_execute(void)
 
     for (i = 0; i < numCommands; i++) {
 	for (j = 0; j < commandStack[i]->ncmds; j++) {
-	    if (commandStack[i].type == CMD_SHELL) {
+	    /* If it's a shell command, run system on it */
+	    if (commandStack[i]->cmds[j].type == CMD_SHELL) {
 		msgNotify("Executing command: %s",
 			  commandStack[i]->cmds[j].ptr);
 		ret = system((char *)commandStack[i]->cmds[j].ptr);
@@ -170,10 +171,11 @@ command_execute(void)
 			 commandStack[i]->cmds[j].ptr, ret);
 	    }
 	    else {
-		func = (commandFunc)commandStack[i]->cmds.ptr;
+		/* It's a function pointer - call it with the key and the data */
+		func = (commandFunc)commandStack[i]->cmds[j].ptr;
 		msgNotify("Executing internal command @ %0x", func);
-		ret = (*func)(commandStack[i]->cmds.key,
-			      commandStack[i]->cmds.data);
+		ret = (*func)(commandStack[i]->key,
+			      commandStack[i]->cmds[j].data);
 		msgDebug("Function @ %x returns status %d\n",
 			 commandStack[i]->cmds[j].ptr, ret);
 	    }

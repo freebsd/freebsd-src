@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.3 1995/05/01 21:56:27 jkh Exp $
+ * $Id: misc.c,v 1.4 1995/05/08 21:39:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -40,6 +40,16 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
+#include <sys/stat.h>
+#include <sys/errno.h>
+#include <sys/file.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <sys/reboot.h>
+#include <sys/dkbad.h>
+#include <sys/disklabel.h>
 
 /* Quick check to see if a file is readable */
 Boolean
@@ -159,5 +169,64 @@ items_free(char **list, int *curr, int *max)
 {
     safe_free(list);
     *curr = *max = 0;
+}
+
+int
+Mkdir(char *ipath, void *data)
+{
+    struct stat sb;
+    int final=0;
+    char *p, *path = strdup(ipath);
+
+    msgDebug("mkdir(%s)\n", path);
+    p = path;
+    if (p[0] == '/')		/* Skip leading '/'. */
+	++p;
+    for (;!final; ++p) {
+	if (p[0] == '\0' || (p[0] == '/' && p[1] == '\0'))
+	    final++;
+	else if (p[0] != '/')
+	    continue;
+	*p = '\0';
+	if (stat(path, &sb)) {
+	    if (errno != ENOENT) {
+		msgConfirm("Couldn't stat directory %s: %s", path, strerror(errno));
+		return 1;
+	    }
+	    msgDebug("mkdir(%s..)\n", path);
+	    if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+		msgConfirm("Couldn't create directory %s: %s", path,strerror(errno));
+		return 1;
+	    }
+	}
+	*p = '/';
+    }
+    free(path);
+    return 0;
+}
+
+int
+Mount(char *device, void *data)
+{
+    struct ufs_args ufsargs;
+    char mountpoint[FILENAME_MAX];
+
+    strcpy(mountpoint, "/mnt");
+    if (data)
+	sprintf(mountpoint + 4, "/%s", (char *)data);
+
+    memset(&ufsargs,0,sizeof ufsargs);
+
+    if (access(mountpoint, R_OK))
+	Mkdir(mountpoint, NULL);
+
+    msgDebug("mount %s %s\n", device, mountpoint); 
+    ufsargs.fspec = device;
+    if (mount(MOUNT_UFS, mountpoint, 0, (caddr_t)&ufsargs) == -1) {
+	msgConfirm("Error mounting %s on %s : %s\n",
+		   device, mountpoint, strerror(errno));
+	return 1;
+    }
+    return 0;
 }
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.14 1995/05/11 06:47:42 jkh Exp $
+ * $Id: devices.c,v 1.15 1995/05/16 02:53:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,10 +81,10 @@ static struct {
     { DEVICE_TYPE_CDROM, "cd1a",	"SCSI CDROM drive (2nd unit)"				},
     { DEVICE_TYPE_CDROM, "mcd0a",	"Mitsumi (old model) CDROM drive"			},
     { DEVICE_TYPE_CDROM, "mcd1a",	"Mitsumi (old model) CDROM drive (2nd unit)"		},
-    { DEVICE_TYPE_CDROM, "scd0a",	"Sony CDROM drive - CDU31/33A type",			}
+    { DEVICE_TYPE_CDROM, "scd0a",	"Sony CDROM drive - CDU31/33A type",			},
     { DEVICE_TYPE_CDROM, "scd1a",	"Sony CDROM drive - CDU31/33A type (2nd unit)"		},
-    { DEVICE_TYPE_CDROM, "matcd0a",	"Matsushita CDROM ("sound blaster" type)"		},
-    { DEVICE_TYPE_CDROM, "matcd1a",	"Matsushita CDROM ("sound blaster" type - 2nd unit)"	},
+    { DEVICE_TYPE_CDROM, "matcd0a",	"Matsushita CDROM ('sound blaster' type)"		},
+    { DEVICE_TYPE_CDROM, "matcd1a",	"Matsushita CDROM (2nd unit)"				},
     { DEVICE_TYPE_TAPE,  "rst0",	"SCSI tape drive"					},
     { DEVICE_TYPE_TAPE,  "rst1",	"SCSI tape drive (2nd unit)"				},
     { DEVICE_TYPE_TAPE,  "ft0",		"Floppy tape drive (QIC-02)"				},
@@ -99,10 +99,10 @@ static struct {
     { DEVICE_TYPE_NETWORK, "ep",	"3Com 3C509 interface card"				},
     { DEVICE_TYPE_NETWORK, "el",	"3Com 3C501 interface card"				},
     { DEVICE_TYPE_NETWORK, "fe",	"Fujitsu MB86960A/MB86965A Ethernet"			},
-    { DEVICE_TYPE_NETWORK, "ie",	"AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210"	},
+    { DEVICE_TYPE_NETWORK, "ie",	"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"		},
     { DEVICE_TYPE_NETWORK, "le",	"DEC EtherWorks 2 and 3"				},
-    { DEVICE_TYPE_NETWORK, "lnc",	"Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL)"	},
-    { DEVICE_TYPE_NETWORK, "ze",	"IBM/National Semiconductor PCMCIA ethernet controller"	},
+    { DEVICE_TYPE_NETWORK, "lnc",	"Lance/PCnet cards (Isolan/Novell NE2100/NE32-VL)"	},
+    { DEVICE_TYPE_NETWORK, "ze",	"IBM/National Semiconductor PCMCIA ethernet"		},
     { DEVICE_TYPE_NETWORK, "zp",	"3Com PCMCIA Etherlink III"				},
     { NULL },
 };
@@ -124,6 +124,7 @@ static int
 deviceTry(char *name)
 {
     char try[FILENAME_MAX];
+    int fd;
 
     snprintf(try, FILENAME_MAX, "/dev/%s", name);
     fd = open(try, O_RDWR);
@@ -137,44 +138,39 @@ deviceTry(char *name)
 static void
 deviceDiskFree(Device *dev)
 {
-    Disk_Close(dev->private);
+    Free_Disk(dev->private);
 }
 
 /* Get all device information for devices we have attached */
 void
-deviceGetAll(Boolean disksOnly)
+deviceGetAll(void)
 {
     int i, fd, s;
     struct ifconf ifc;
     struct ifreq *ifptr, *end;
-    int ifflags, selectflag = -1;
-    char buffer[INTERFACES_MAX * sizeof(struct ifreq)];
+    int ifflags;
+    char buffer[INTERFACE_MAX * sizeof(struct ifreq)];
+    char **names;
 
-    /* We do this at the very beginning */
-    if (disksOnly) {
-	char **names = Disk_names();
+    /* Try and get the disks first */
+    if ((names = Disk_Names()) != NULL) {
+	int i;
 
-	if (names) {
-	    int i;
-	    
-	    for (i = 0; names[i]; i++) {
-		CHECK_DEVS;
-		Devices[numDevs] = new_device(names[i]);
-		Devices[numDevs]->type = DEVICE_TYPE_DISK;
-		Devices[numDevs]->ignore = TRUE;
-		Devices[numDevs]->init = NULL;
-		Devices[numDevs]->get = mediaUFSGet;
-		Devices[numDevs]->close = deviceDiskFree;
-		Devices[numDevs]->private = Open_Disk(names[i]);
-		if (!Devices[numDevs]->private)
-		    msgFatal("Unable to open device for %s!", names[i]);
-		msgDebug("Found a device of type disk named: %s\n",
-			 names[i]);
-		++numDevs;
-	    }
-	    free(names);
+	for (i = 0; names[i]; i++) {
+	    CHECK_DEVS;
+	    Devices[numDevs] = new_device(names[i]);
+	    Devices[numDevs]->type = DEVICE_TYPE_DISK;
+	    Devices[numDevs]->enabled = FALSE;
+	    Devices[numDevs]->init = mediaInitUFS;
+	    Devices[numDevs]->get = mediaGetUFS;
+	    Devices[numDevs]->close = deviceDiskFree;
+	    Devices[numDevs]->private = Open_Disk(names[i]);
+	    if (!Devices[numDevs]->private)
+		msgFatal("Unable to open device for %s!", names[i]);
+	    msgDebug("Found a device of type disk named: %s\n", names[i]);
+	    ++numDevs;
 	}
-	return;
+	free(names);
     }
 
     /*
@@ -188,16 +184,16 @@ deviceGetAll(Boolean disksOnly)
 	    if (fd > 0) {
 		close(fd);
 		CHECK_DEVS;
-		Devices[numDevs] = new_devices(device_names[i].name);
+		Devices[numDevs] = new_device(device_names[i].name);
 		Devices[numDevs]->type = DEVICE_TYPE_CDROM;
-		Devices[numDevs]->description = devices_names[i].description;
-		Devices[numDevs]->ignore = FALSE;
-		Devices[numDevs]->init = NULL;
-		Devices[numDevs]->get = mediaCDROMGet;
+		Devices[numDevs]->description = device_names[i].description;
+		Devices[numDevs]->enabled = TRUE;	/* XXX check for FreeBSD disk later XXX */
+		Devices[numDevs]->init = mediaInitCDROM;
+		Devices[numDevs]->get = mediaGetCDROM;
 		Devices[numDevs]->close = NULL;
 		Devices[numDevs]->private = NULL;
 		msgDebug("Found a device of type CDROM named: %s\n",
-			 cdrom_table[i]);
+			 device_names[i].name);
 		++numDevs;
 	    }
 	    break;
@@ -207,17 +203,21 @@ deviceGetAll(Boolean disksOnly)
 	    if (fd > 0) {
 		close(fd);
 		CHECK_DEVS;
-		Devices[numDevs] = new_devices(device_names[i].name);
+		Devices[numDevs] = new_device(device_names[i].name);
 		Devices[numDevs]->type = DEVICE_TYPE_TAPE;
-		Devices[numDevs]->ignore = FALSE;
-		Devices[numDevs]->init = mediaTapeInit;
-		Devices[numDevs]->get = mediaTapeGet;
-		Devices[numDevs]->close = mediaTapeClose;
+		Devices[numDevs]->enabled = TRUE;
+		Devices[numDevs]->init = mediaInitTape;
+		Devices[numDevs]->get = mediaGetTape;
+		Devices[numDevs]->close = mediaCloseTape;
 		Devices[numDevs]->private = NULL;
 		msgDebug("Found a device of type TAPE named: %s\n",
-			 tape_table[i]);
+			 device_names[i].name);
 		++numDevs;
 	    }
+	    break;
+
+	case DEVICE_TYPE_FLOPPY:
+	default:
 	    break;
 	}
     }
@@ -240,28 +240,28 @@ deviceGetAll(Boolean disksOnly)
     }
     ifflags = ifc.ifc_req->ifr_flags;
     end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
-    ifptr = ifc.ifc_req;
-    while (ifptr < end) {
+    for (ifptr = ifc.ifc_req; ifptr < end; ifptr++) {
+	if (ifptr->ifr_ifru.ifru_addr.sa_family != AF_LINK) 
+	    continue;
 	CHECK_DEVS;
-	Devices[numDevs] = new_devices(ifptr->ifr_name);
+	Devices[numDevs] = new_device(ifptr->ifr_name);
 	Devices[numDevs]->type = DEVICE_TYPE_NETWORK;
-	Devices[numDevs]->ignore = FALSE;
-	Devices[numDevs]->init = mediaNetworkInit;
-	Devices[numDevs]->get = mediaNetworkGet;
-	Devices[numDevs]->close = mediaNetworkClose;
+	Devices[numDevs]->enabled = TRUE;
+	Devices[numDevs]->init = mediaInitNetwork;
+	Devices[numDevs]->get = mediaGetNetwork;
+	Devices[numDevs]->close = mediaCloseNetwork;
 	Devices[numDevs]->private = NULL;
 	msgDebug("Found a device of type network named: %s\n",
 		 ifptr->ifr_name);
 	++numDevs;
 	close(s);
-	if ((s = socket(af, SOCK_DGRAM, 0)) < 0) {
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 	    msgConfirm("ifconfig: socket");
 	    continue;
 	}
 	if (ifptr->ifr_addr.sa_len)	/* Dohw! */
 	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len
 				     - sizeof(struct sockaddr));
-	ifptr++;
     }
     /* Terminate the devices array */
     Devices[numDevs] = NULL;
@@ -295,30 +295,34 @@ DMenu *
 deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
 {
     Device **devs;
+    int numdevs;
+    DMenu *tmp = NULL;
+    int i, j;
 
     devs = deviceFind(NULL, type);
-    if (devs) {
-	DMenu *tmp;
-	int i, j;
+    if (!devs)
+	return NULL;
 
-	tmp = (DMenu *)safe_malloc(sizeof(DMenu) +
-				   (sizeof(DMenuItem) * (numdevs + 1)));
-	bcopy(menu, tmp, sizeof(DMenu));
-	for (i = 0; *devs; i++, devs++) {
-	    tmp->items[i].title = *devs->name;
-	    for (j = 0; device_names[j].name; j++) {
-		if (!strncmp(*devs->name, device_names[j].name,
-			     strlen(device_names[j].name)))
-		    tmp->items[i].prompt = devices_names[j].description;
+    for (numdevs = 0; devs[numdevs]; numdevs++);
+    tmp = (DMenu *)safe_malloc(sizeof(DMenu) +
+			       (sizeof(DMenuItem) * (numdevs + 1)));
+    bcopy(menu, tmp, sizeof(DMenu));
+    for (i = 0; devs[i]; i++) {
+	tmp->items[i].title = devs[i]->name;
+	for (j = 0; device_names[j].name; j++) {
+	    if (!strncmp(devs[i]->name, device_names[j].name,
+			 strlen(device_names[j].name))) {
+		tmp->items[i].prompt = device_names[j].description;
+		break;
 	    }
-	    if (!device_names[j].name)
-		tmp->items[i].prompt = "<unknown device type>";
-	    tmp->items[i].type = DMENU_CALL;
-	    tmp->items[i].ptr = hook;
-	    tmp->items[i].disabled = FALSE;
 	}
-	tmp->items[i].type = DMENU_NOP;
-	tmp->items[i].title = NULL;
-	return tmp;
+	if (!device_names[j].name)
+	    tmp->items[i].prompt = "<unknown device type>";
+	tmp->items[i].type = DMENU_CALL;
+	tmp->items[i].ptr = hook;
+	tmp->items[i].disabled = FALSE;
     }
+    tmp->items[i].type = DMENU_NOP;
+    tmp->items[i].title = NULL;
+    return tmp;
 }

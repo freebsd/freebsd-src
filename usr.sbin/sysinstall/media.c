@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.3 1995/05/01 21:56:23 jkh Exp $
+ * $Id: media.c,v 1.4 1995/05/16 02:53:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,6 +41,9 @@
  *
  */
 
+#include <stdio.h>
+#include "sysinstall.h"
+
 /*
  * Return 1 if we successfully found and set the installation type to
  * be a CD.
@@ -48,12 +51,14 @@
 int
 mediaSetCDROM(char *str)
 {
+    extern DMenu MenuMediaCDROM;
+
     if (OnCDROM == TRUE)
 	return 1;
     else {
 	dmenuOpenSimple(&MenuMediaCDROM);
 	if (getenv(MEDIA_DEVICE)) {
-	    variable_set(MEDIA_TYPE, "cdrom");
+	    variable_set2(MEDIA_TYPE, "cdrom");
 	    return 1;
 	}
     }
@@ -67,6 +72,8 @@ mediaSetCDROM(char *str)
 int
 mediaSetFloppy(char *str)
 {
+    extern DMenu MenuMediaFloppy;
+
     dmenuOpenSimple(&MenuMediaFloppy);
     if (getenv(MEDIA_DEVICE)) {
 	variable_set2(MEDIA_TYPE, "floppy");
@@ -107,7 +114,9 @@ mediaSetTape(char *str)
 int
 mediaSetFTP(char *str)
 {
-    dmenuOpenSimple(&MenuMediaFtp);
+    extern DMenu MenuMediaFTP;
+
+    dmenuOpenSimple(&MenuMediaFTP);
     if (getenv(MEDIA_DEVICE)) {
 	variable_set2(MEDIA_TYPE, "ftp");
 	return 1;
@@ -125,24 +134,10 @@ mediaSetFS(char *str)
     return 0;
 }
 
-Boolean
-mediaGetType(void)
-{
-    extern DMenu MenuMedia;
-    char *cp;
-
-    dmenuOpenSimple(&MenuMedia);
-    cp = getenv(MEDIA_TYPE);
-    if (!cp)
-	return FALSE;
-    return TRUE;
-}
-
 FILE *
-mediaOpen(char *parent, *char *me)
+mediaOpen(char *parent, char *me)
 {
     char fname[FILENAME_MAX];
-    FILE *fp;
 
     if (!getenv(MEDIA_TYPE)) {
 	if (!mediaGetType())
@@ -157,52 +152,99 @@ mediaOpen(char *parent, *char *me)
     else
 	strncpy(fname, me, FILENAME_MAX);
     /* XXX find a Device here XXX */
+    return NULL;
 }
 
-/* Various media "get" routines */
 Boolean
-mediaUFSGet(char *dist)
+mediaExtractDist(FILE *fp)
 {
     return TRUE;
 }
 
 Boolean
-mediaCDROMGet(char *dist)
+mediaGetType(void)
+{
+    extern DMenu MenuMedia;
+    char *cp;
+
+    dmenuOpenSimple(&MenuMedia);
+    cp = getenv(MEDIA_TYPE);
+    if (!cp)
+	return FALSE;
+    return TRUE;
+}
+
+/* Various media "strategy" routines */
+Boolean
+mediaInitUFS(Device *dev)
 {
     return TRUE;
 }
 
 Boolean
-mediaTapeInit(void)
+mediaGetUFS(char *dist)
+{
+    return TRUE;
+}
+
+/* UFS has no close routine since this is handled at the device level */
+
+Boolean
+mediaInitCDROM(Device *dev)
 {
     return TRUE;
 }
 
 Boolean
-mediaTapeGet(char *dist)
+mediaGetCDROM(char *dist)
 {
     return TRUE;
 }
 
 void
-mediaTapeClose(void)
+mediaCloseCDROM(Device *dev)
 {
+    return;
 }
 
 Boolean
-mediaNetworkInit(void)
+mediaInitTape(Device *dev)
 {
     return TRUE;
 }
 
 Boolean
-mediaNetworkGet(char *dist)
+mediaGetTape(char *dist)
 {
     return TRUE;
 }
 
 void
-mediaNetworkClose(void)
+mediaCloseTape(Device *dev)
+{
+    return;
+}
+
+Boolean
+mediaInitNetwork(Device *dev)
+{
+    return TRUE;
+}
+
+Boolean
+mediaGetNetwork(char *dist)
+{
+    return TRUE;
+}
+
+void
+mediaCloseNetwork(Device *dev)
 {
 }
 
+/* Return TRUE if all the media variables are set up correctly */
+Boolean
+mediaVerify(void)
+{
+    return TRUE;
+}
