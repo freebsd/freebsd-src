@@ -245,6 +245,8 @@ uhci_pci_attach(device_t self)
 	int rid;
 	int err;
 
+	pci_enable_busmaster(self);
+
 	rid = PCI_UHCI_BASE_REG;
 	sc->io_res = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
 	    0, ~0, 1, RF_ACTIVE);
