@@ -64,8 +64,6 @@ ng_hub_rcvdata(hook_p hook, item_p item)
 	int error = 0;
 	hook_p hook2;
 	struct mbuf * const m = NGI_M(item), *m2;
-	meta_p const meta = NGI_META(item);
-	meta_p meta2;
 	int nhooks;
 
 	if ((nhooks = NG_NODE_NUMHOOKS(node)) == 1) {
@@ -82,15 +80,7 @@ ng_hub_rcvdata(hook_p hook, item_p item)
 				NG_FREE_ITEM(item);
 				return (ENOBUFS);
 			}
-			if (meta != NULL) {
-				if ((meta2 = ng_copy_meta(meta)) == NULL) {
-					m_freem(m2);
-					NG_FREE_ITEM(item);
-					return (ENOMEM);
-				}
-			} else
-				meta2 = NULL;
-			NG_SEND_DATA(error, hook2, m2, meta2);
+			NG_SEND_DATA_ONLY(error, hook2, m2);
 			if (error)
 				continue;	/* don't give up */
 		}

@@ -381,7 +381,6 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 	int linkNum;
 	int i;
 	struct mbuf *m;
-	meta_p meta;
 
 	m = NGI_M(item); /* just peaking, mbuf still owned by item */
 	/* Get link number */
@@ -411,7 +410,6 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 			priv->nextMany = (priv->nextMany + 1) % priv->numActiveMany;
 			break;
 		case NG_ONE2MANY_XMIT_ALL:
-			meta = NGI_META(item); /* peek.. */
 			/* no need to copy data for the 1st one */
 			dst = &priv->many[priv->activeMany[0]];
 
@@ -419,7 +417,6 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 			 * except the first one, which we'll do last 
 			 */
 			for (i = 1; i < priv->numActiveMany; i++) {
-				meta_p meta2 = NULL;
 				struct mbuf *m2;
 				struct ng_one2many_link *mdst;
 
@@ -431,18 +428,10 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 					NG_FREE_M(m);
 					return (ENOBUFS);
 				}
-				if (meta != NULL
-				    && (meta2 = ng_copy_meta(meta)) == NULL) {
-					mdst->stats.memoryFailures++;
-					m_freem(m2);
-					NG_FREE_ITEM(item);
-					NG_FREE_M(m);
-					return (ENOMEM);
-				}
 				/* Update transmit stats */
 				mdst->stats.xmitPackets++;
 				mdst->stats.xmitOctets += m->m_pkthdr.len;
-				NG_SEND_DATA(error, mdst->hook, m2, meta2);
+				NG_SEND_DATA_ONLY(error, mdst->hook, m2);
 			}
 			break;
 #ifdef INVARIANTS
