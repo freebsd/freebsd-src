@@ -39,7 +39,7 @@
 #include "y.tab.h"
 
 int line_no = 1, save_no, fromsubs;
-u_char buf[80], *ptr;
+u_char buf[BUFSIZE], *ptr;
 FILE *map_fp;
 YY_BUFFER_STATE main_buf, map_buf;
 #ifdef FLEX_DEBUG
@@ -100,7 +100,7 @@ YYSTYPE yylval;
 		yylval.ch = *yytext;
 		return CHAR;
 	}
-	if(yyleng > STR_LEN - 1)
+	if(yyleng > BUFSIZE - 1)
 		errx(EX_UNAVAILABLE, "chain buffer overflow near line %u",
 		     line_no);
 	strcpy(yylval.str, yytext);
@@ -145,12 +145,13 @@ YYSTYPE yylval;
 		errx(EX_UNAVAILABLE, "non-empty name expected near line %u",
 		     line_no);
 	*ptr = '\0';
-	for (i = 0; i <= UCHAR_MAX; i++)
+	for (i = 0; i <= UCHAR_MAX; i++) {
 		if (strcmp(charmap_table[i], buf) == 0)
 			goto findit;
+	}
 	errx(EX_UNAVAILABLE, "name <%s> not 'charmap'-defined near line %u",
 		buf, line_no);
-	findit:
+ findit:
 	yylval.ch = i;
 	if (fromsubs)
 		BEGIN(subs);
