@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: help.c,v 1.2 1998/09/07 19:00:34 abial Exp $
  */
 
 
@@ -93,7 +93,7 @@ display(FILE *fd, const char *fname)
 		return 1;
 	}
 	if (strncmp(aname, ARMAG, SARMAG)) return 1;
-	(void)sprintf(aname, "%-16.16s", fname);
+	(void)snprintf(aname, sizeof(aname), "%s/", fname);
 	for (;;) {
 		if (fread((void *)&ar, sizeof ar, 1, fd)!=1) return 1;
 		if (strncmp(ar.ar_fmag, ARFMAG, 2)) return 1;
@@ -103,7 +103,7 @@ display(FILE *fd, const char *fname)
 			if ((c=(int)(*p++-'0'))<0||c>9) break;
 			n*=10; n+=c;
 		} while (p<&ar.ar_size[sizeof ar.ar_size]);
-		if (!strncmp(ar.ar_name, aname, 16)) break;
+		if (!strncmp(ar.ar_name, aname, strlen(aname))) break;
 		if (fseek(fd, (long)n, SEEK_CUR)<0) return 1;
 		if ((n&1)&&fgetc(fd)!='\n') return 1;
 	}
@@ -137,6 +137,7 @@ display(FILE *fd, const char *fname)
 				(void)fputc('\n', stdout);
 				if (++cnt>=crt&&more()) return -1;
 			}
+			*(index(ar.ar_name,'/'))=' ';
 			(void)printf("%.13s", ar.ar_name);
 			++o;
 			n=0;
