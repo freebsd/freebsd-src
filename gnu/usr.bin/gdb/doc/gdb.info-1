@@ -1,0 +1,1304 @@
+This is Info file ./gdb.info, produced by Makeinfo-1.52 from the input
+file gdb.texinfo.
+
+START-INFO-DIR-ENTRY
+* Gdb::                         The GNU debugger.
+END-INFO-DIR-ENTRY
+   This file documents the GNU debugger GDB.
+
+   This is Edition 4.09, August 1993, of `Debugging with GDB: the GNU
+Source-Level Debugger' for GDB Version 4.11.
+
+   Copyright (C) 1988, '89, '90, '91, '92, '93 Free Software
+Foundation, Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the entire resulting derived work is distributed under the terms
+of a permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions.
+
+
+File: gdb.info,  Node: Top,  Next: Summary,  Prev: (DIR),  Up: (DIR)
+
+Debugging with GDB
+******************
+
+   This file describes GDB, the GNU symbolic debugger.
+
+   This is Edition 4.09, August 1993, for GDB Version 4.11.
+
+* Menu:
+
+* Summary::                     Summary of GDB
+
+* New Features::                New features since GDB version 3.5
+
+* Sample Session::              A sample GDB session
+
+* Invocation::                  Getting in and out of GDB
+* Commands::                    GDB commands
+* Running::                     Running programs under GDB
+* Stopping::                    Stopping and continuing
+* Stack::                       Examining the stack
+* Source::                      Examining source files
+* Data::                        Examining data
+
+* Languages::                   Using GDB with different languages
+
+
+* Symbols::                     Examining the symbol table
+* Altering::                    Altering execution
+* GDB Files::                   GDB files
+* Targets::                     Specifying a debugging target
+* Controlling GDB::             Controlling GDB
+* Sequences::                   Canned sequences of commands
+
+* Emacs::                       Using GDB under GNU Emacs
+
+* GDB Bugs::                    Reporting bugs in GDB
+* Command Line Editing::        Facilities of the readline library
+* Using History Interactively::
+
+* Renamed Commands::
+
+* Formatting Documentation::    How to format and print GDB documentation
+* Installing GDB::              Installing GDB
+
+* Index::                       Index
+
+
+File: gdb.info,  Node: Summary,  Next: New Features,  Prev: Top,  Up: Top
+
+Summary of GDB
+**************
+
+   The purpose of a debugger such as GDB is to allow you to see what is
+going on "inside" another program while it executes--or what another
+program was doing at the moment it crashed.
+
+   GDB can do four main kinds of things (plus other things in support of
+these) to help you catch bugs in the act:
+
+   * Start your program, specifying anything that might affect its
+     behavior.
+
+   * Make your program stop on specified conditions.
+
+   * Examine what has happened, when your program has stopped.
+
+   * Change things in your program, so you can experiment with
+     correcting the effects of one bug and go on to learn about another.
+
+   You can use GDB to debug programs written in C, C++, and Modula-2.
+G{No Value For "DBN"} can be used to debug programs written in Fortran,
+although it does not yet support entering expressions, printing values,
+etc.  using Fortran syntax.  It may be necessary to refer to some
+variables with a trailing underscore.
+
+* Menu:
+
+* Free Software::               Freely redistributable software
+* Contributors::                Contributors to GDB
+
+
+File: gdb.info,  Node: Free Software,  Next: Contributors,  Up: Summary
+
+Free software
+=============
+
+   GDB is "free software", protected by the GNU General Public License
+(GPL).  The GPL gives you the freedom to copy or adapt a licensed
+program--but every person getting a copy also gets with it the freedom
+to modify that copy (which means that they must get access to the
+source code), and the freedom to distribute further copies.  Typical
+software companies use copyrights to limit your freedoms; the Free
+Software Foundation uses the GPL to preserve these freedoms.
+
+   Fundamentally, the General Public License is a license which says
+that you have these freedoms and that you cannot take these freedoms
+away from anyone else.
+
+
+File: gdb.info,  Node: Contributors,  Prev: Free Software,  Up: Summary
+
+Contributors to GDB
+===================
+
+   Richard Stallman was the original author of GDB, and of many other
+GNU programs.  Many others have contributed to its development.  This
+section attempts to credit major contributors.  One of the virtues of
+free software is that everyone is free to contribute to it; with
+regret, we cannot actually acknowledge everyone here.  The file
+`ChangeLog' in the GDB distribution approximates a blow-by-blow account.
+
+   Changes much prior to version 2.0 are lost in the mists of time.
+
+     *Plea:* Additions to this section are particularly welcome.  If you
+     or your friends (or enemies, to be evenhanded) have been unfairly
+     omitted from this list, we would like to add your names!
+
+   So that they may not regard their long labor as thankless, we
+particularly thank those who shepherded GDB through major releases: Fred
+Fish (releases 4.11, 4.10, 4.9), Stu Grossman and John Gilmore (releases
+4.8, 4.7, 4.6, 4.5, 4.4), John Gilmore (releases 4.3, 4.2, 4.1, 4.0, and
+3.9); Jim Kingdon (releases 3.5, 3.4, 3.3); and Randy Smith (releases
+3.2, 3.1, 3.0).  As major maintainer of GDB for some period, each
+contributed significantly to the structure, stability, and capabilities
+of the entire debugger.
+
+   Richard Stallman, assisted at various times by Peter TerMaat, Chris
+Hanson, and Richard Mlynarik, handled releases through 2.8.
+
+   Michael Tiemann is the author of most of the GNU C++ support in GDB,
+with significant additional contributions from Per Bothner.  James
+Clark wrote the GNU C++ demangler.  Early work on C++ was by Peter
+TerMaat (who also did much general update work leading to release 3.0).
+
+   GDB 4 uses the BFD subroutine library to examine multiple
+object-file formats; BFD was a joint project of David V.
+Henkel-Wallace, Rich Pixley, Steve Chamberlain, and John Gilmore.
+
+   David Johnson wrote the original COFF support; Pace Willison did the
+original support for encapsulated COFF.
+
+   Adam de Boor and Bradley Davis contributed the ISI Optimum V support.
+Per Bothner, Noboyuki Hikichi, and Alessandro Forin contributed MIPS
+support.  Jean-Daniel Fekete contributed Sun 386i support.  Chris
+Hanson improved the HP9000 support.  Noboyuki Hikichi and Tomoyuki
+Hasei contributed Sony/News OS 3 support.  David Johnson contributed
+Encore Umax support.  Jyrki Kuoppala contributed Altos 3068 support.
+Keith Packard contributed NS32K support.  Doug Rabson contributed Acorn
+Risc Machine support.  Chris Smith contributed Convex support (and
+Fortran debugging).  Jonathan Stone contributed Pyramid support.
+Michael Tiemann contributed SPARC support.  Tim Tucker contributed
+support for the Gould NP1 and Gould Powernode.  Pace Willison
+contributed Intel 386 support.  Jay Vosburgh contributed Symmetry
+support.
+
+   Rich Schaefer and Peter Schauer helped with support of SunOS shared
+libraries.
+
+   Jay Fenlason and Roland McGrath ensured that GDB and GAS agree about
+several machine instruction sets.
+
+   Patrick Duval, Ted Goldstein, Vikram Koka and Glenn Engel helped
+develop remote debugging.  Intel Corporation and Wind River Systems
+contributed remote debugging modules for their products.
+
+   Brian Fox is the author of the readline libraries providing
+command-line editing and command history.
+
+   Andrew Beers of SUNY Buffalo wrote the language-switching code, the
+Modula-2 support, and contributed the Languages chapter of this manual.
+
+   Fred Fish wrote most of the support for Unix System Vr4.  He also
+enhanced the command-completion support to cover C++ overloaded symbols.
+
+   Hitachi America, Ltd. sponsored the support for Hitachi
+microprocessors.
+
+
+File: gdb.info,  Node: New Features,  Next: Sample Session,  Prev: Summary,  Up: Top
+
+New Features since GDB Version 3.5
+**********************************
+
+*Targets*
+     Using the new command `target', you can select at runtime whether
+     you are debugging local files, local processes, standalone systems
+     over a serial port, realtime systems over a TCP/IP connection,
+     etc.  The command `load' can download programs into a remote
+     system.  Serial stubs are available for Motorola 680x0, Intel
+     80386, and Sparc remote systems; GDB also supports debugging
+     realtime processes running under VxWorks, using SunRPC Remote
+     Procedure Calls over TCP/IP to talk to a debugger stub on the
+     target system.  Internally, GDB now uses a function vector to
+     mediate access to different targets; if you need to add your own
+     support for a remote protocol, this makes it much easier.
+
+*Watchpoints*
+     GDB now sports watchpoints as well as breakpoints.  You can use a
+     watchpoint to stop execution whenever the value of an expression
+     changes, without having to predict a particular place in your
+     program where this may happen.
+
+*Wide Output*
+     Commands that issue wide output now insert newlines at places
+     designed to make the output more readable.
+
+*Object Code Formats*
+     GDB uses a new library called the Binary File Descriptor (BFD)
+     Library to permit it to switch dynamically, without
+     reconfiguration or recompilation, between different object-file
+     formats.  Formats currently supported are COFF, ELF, a.out, Intel
+     960 b.out, MIPS ECOFF, HPPA SOM (with stabs debugging), and
+     S-records; files may be read as .o files, archive libraries, or
+     core dumps.  BFD is available as a subroutine library so that
+     other programs may take advantage of it, and the other GNU binary
+     utilities are being converted to use it.
+
+*Configuration and Ports*
+     Compile-time configuration (to select a particular architecture and
+     operating system) is much easier.  The script `configure' now
+     allows you to configure GDB as either a native debugger or a
+     cross-debugger. *Note Installing GDB::, for details on how to
+     configure.
+
+*Interaction*
+     The user interface to the GDB control variables is simpler, and is
+     consolidated in two commands, `set' and `show'.  Output lines are
+     now broken at readable places, rather than overflowing onto the
+     next line.  You can suppress output of machine-level addresses,
+     displaying only source language information.
+
+*C++*
+     GDB now supports C++ multiple inheritance (if used with a GCC
+     version 2 compiler), and also has limited support for C++ exception
+     handling, with the commands `catch' and `info catch': GDB can
+     break when an exception is raised, before the stack is peeled back
+     to the exception handler's context.
+
+*Modula-2*
+     GDB now has preliminary support for the GNU Modula-2 compiler,
+     currently under development at the State University of New York at
+     Buffalo.  Coordinated development of both GDB and the GNU Modula-2
+     compiler will continue.  Other Modula-2 compilers are currently
+     not supported, and attempting to debug programs compiled with them
+     will likely result in an error as the symbol table of the
+     executable is read in.
+
+*Command Rationalization*
+     Many GDB commands have been renamed to make them easier to remember
+     and use.  In particular, the subcommands of `info' and
+     `show'/`set' are grouped to make the former refer to the state of
+     your program, and the latter refer to the state of GDB itself.
+     *Note Renamed Commands::, for details on what commands were
+     renamed.
+
+*Shared Libraries*
+     GDB 4 can debug programs and core files that use SunOS, SVR4, or
+     IBM RS/6000 shared libraries.
+
+*Reference Card*
+     GDB 4 has a reference card.  *Note Formatting the Documentation:
+     Formatting Documentation, for instructions about how to print it.
+
+
+File: gdb.info,  Node: Sample Session,  Next: Invocation,  Prev: New Features,  Up: Top
+
+A Sample GDB Session
+********************
+
+   You can use this manual at your leisure to read all about GDB.
+However, a handful of commands are enough to get started using the
+debugger.  This chapter illustrates those commands.
+
+   One of the preliminary versions of GNU `m4' (a generic macro
+processor) exhibits the following bug: sometimes, when we change its
+quote strings from the default, the commands used to capture one macro
+definition within another stop working.  In the following short `m4'
+session, we define a macro `foo' which expands to `0000'; we then use
+the `m4' built-in `defn' to define `bar' as the same thing.  However,
+when we change the open quote string to `<QUOTE>' and the close quote
+string to `<UNQUOTE>', the same procedure fails to define a new synonym
+`baz':
+
+     $ cd gnu/m4
+     $ ./m4
+     define(foo,0000)
+     
+     foo
+     0000
+     define(bar,defn(`foo'))
+     
+     bar
+     0000
+     changequote(<QUOTE>,<UNQUOTE>)
+     
+     define(baz,defn(<QUOTE>foo<UNQUOTE>))
+     baz
+     C-d
+     m4: End of input: 0: fatal error: EOF in string
+
+Let us use GDB to try to see what is going on.
+
+     $ gdb m4
+     GDB is free software and you are welcome to distribute copies
+      of it under certain conditions; type "show copying" to see
+      the conditions.
+     There is absolutely no warranty for GDB; type "show warranty"
+      for details.
+     GDB 4.11, Copyright 1993 Free Software Foundation, Inc...
+     (gdb)
+
+GDB reads only enough symbol data to know where to find the rest when
+needed; as a result, the first prompt comes up very quickly.  We now
+tell GDB to use a narrower display width than usual, so that examples
+will fit in this manual.
+
+     (gdb) set width 70
+
+We need to see how the `m4' built-in `changequote' works.  Having
+looked at the source, we know the relevant subroutine is
+`m4_changequote', so we set a breakpoint there with the GDB `break'
+command.
+
+     (gdb) break m4_changequote
+     Breakpoint 1 at 0x62f4: file builtin.c, line 879.
+
+Using the `run' command, we start `m4' running under GDB control; as
+long as control does not reach the `m4_changequote' subroutine, the
+program runs as usual:
+
+     (gdb) run
+     Starting program: /work/Editorial/gdb/gnu/m4/m4
+     define(foo,0000)
+     
+     foo
+     0000
+
+To trigger the breakpoint, we call `changequote'.  GDB suspends
+execution of `m4', displaying information about the context where it
+stops.
+
+     changequote(<QUOTE>,<UNQUOTE>)
+     
+     Breakpoint 1, m4_changequote (argc=3, argv=0x33c70)
+         at builtin.c:879
+     879         if (bad_argc(TOKEN_DATA_TEXT(argv[0]),argc,1,3))
+
+Now we use the command `n' (`next') to advance execution to the next
+line of the current function.
+
+     (gdb) n
+     882         set_quotes((argc >= 2) ? TOKEN_DATA_TEXT(argv[1])\
+      : nil,
+
+`set_quotes' looks like a promising subroutine.  We can go into it by
+using the command `s' (`step') instead of `next'.  `step' goes to the
+next line to be executed in *any* subroutine, so it steps into
+`set_quotes'.
+
+     (gdb) s
+     set_quotes (lq=0x34c78 "<QUOTE>", rq=0x34c88 "<UNQUOTE>")
+         at input.c:530
+     530         if (lquote != def_lquote)
+
+The display that shows the subroutine where `m4' is now suspended (and
+its arguments) is called a stack frame display.  It shows a summary of
+the stack.  We can use the `backtrace' command (which can also be
+spelled `bt'), to see where we are in the stack as a whole: the
+`backtrace' command displays a stack frame for each active subroutine.
+
+     (gdb) bt
+     #0  set_quotes (lq=0x34c78 "<QUOTE>", rq=0x34c88 "<UNQUOTE>")
+         at input.c:530
+     #1  0x6344 in m4_changequote (argc=3, argv=0x33c70)
+         at builtin.c:882
+     #2  0x8174 in expand_macro (sym=0x33320) at macro.c:242
+     #3  0x7a88 in expand_token (obs=0x0, t=209696, td=0xf7fffa30)
+         at macro.c:71
+     #4  0x79dc in expand_input () at macro.c:40
+     #5  0x2930 in main (argc=0, argv=0xf7fffb20) at m4.c:195
+
+We will step through a few more lines to see what happens.  The first
+two times, we can use `s'; the next two times we use `n' to avoid
+falling into the `xstrdup' subroutine.
+
+     (gdb) s
+     0x3b5c  532         if (rquote != def_rquote)
+     (gdb) s
+     0x3b80  535         lquote = (lq == nil || *lq == '\0') ?  \
+     def_lquote : xstrdup(lq);
+     (gdb) n
+     536         rquote = (rq == nil || *rq == '\0') ? def_rquote\
+      : xstrdup(rq);
+     (gdb) n
+     538         len_lquote = strlen(rquote);
+
+The last line displayed looks a little odd; we can examine the variables
+`lquote' and `rquote' to see if they are in fact the new left and right
+quotes we specified.  We use the command `p' (`print') to see their
+values.
+
+     (gdb) p lquote
+     $1 = 0x35d40 "<QUOTE>"
+     (gdb) p rquote
+     $2 = 0x35d50 "<UNQUOTE>"
+
+`lquote' and `rquote' are indeed the new left and right quotes.  To
+look at some context, we can display ten lines of source surrounding
+the current line with the `l' (`list') command.
+
+     (gdb) l
+     533             xfree(rquote);
+     534
+     535         lquote = (lq == nil || *lq == '\0') ? def_lquote\
+      : xstrdup (lq);
+     536         rquote = (rq == nil || *rq == '\0') ? def_rquote\
+      : xstrdup (rq);
+     537
+     538         len_lquote = strlen(rquote);
+     539         len_rquote = strlen(lquote);
+     540     }
+     541
+     542     void
+
+Let us step past the two lines that set `len_lquote' and `len_rquote',
+and then examine the values of those variables.
+
+     (gdb) n
+     539         len_rquote = strlen(lquote);
+     (gdb) n
+     540     }
+     (gdb) p len_lquote
+     $3 = 9
+     (gdb) p len_rquote
+     $4 = 7
+
+That certainly looks wrong, assuming `len_lquote' and `len_rquote' are
+meant to be the lengths of `lquote' and `rquote' respectively.  We can
+set them to better values using the `p' command, since it can print the
+value of any expression--and that expression can include subroutine
+calls and assignments.
+
+     (gdb) p len_lquote=strlen(lquote)
+     $5 = 7
+     (gdb) p len_rquote=strlen(rquote)
+     $6 = 9
+
+Is that enough to fix the problem of using the new quotes with the `m4'
+built-in `defn'?  We can allow `m4' to continue executing with the `c'
+(`continue') command, and then try the example that caused trouble
+initially:
+
+     (gdb) c
+     Continuing.
+     
+     define(baz,defn(<QUOTE>foo<UNQUOTE>))
+     
+     baz
+     0000
+
+Success!  The new quotes now work just as well as the default ones.  The
+problem seems to have been just the two typos defining the wrong
+lengths.  We allow `m4' exit by giving it an EOF as input:
+
+     C-d
+     Program exited normally.
+
+The message `Program exited normally.' is from GDB; it indicates `m4'
+has finished executing.  We can end our GDB session with the GDB `quit'
+command.
+
+     (gdb) quit
+
+
+File: gdb.info,  Node: Invocation,  Next: Commands,  Prev: Sample Session,  Up: Top
+
+Getting In and Out of GDB
+*************************
+
+   This chapter discusses how to start GDB, and how to get out of it.
+(The essentials: type `gdb' to start GDB, and type `quit' or `C-d' to
+exit.)
+
+* Menu:
+
+* Invoking GDB::                How to start GDB
+* Quitting GDB::                 How to quit GDB
+* Shell Commands::              How to use shell commands inside GDB
+
+
+File: gdb.info,  Node: Invoking GDB,  Next: Quitting GDB,  Up: Invocation
+
+Invoking GDB
+============
+
+   Invoke GDB by running the program `gdb'.  Once started, GDB reads
+commands from the terminal until you tell it to exit.
+
+   You can also run `gdb' with a variety of arguments and options, to
+specify more of your debugging environment at the outset.
+
+   The command-line options described here are designed to cover a
+variety of situations; in some environments, some of these options may
+effectively be unavailable.
+
+   The most usual way to start GDB is with one argument, specifying an
+executable program:
+
+     gdb PROGRAM
+
+You can also start with both an executable program and a core file
+specified:
+
+     gdb PROGRAM CORE
+
+   You can, instead, specify a process ID as a second argument, if you
+want to debug a running process:
+
+     gdb PROGRAM 1234
+
+would attach GDB to process `1234' (unless you also have a file named
+`1234'; GDB does check for a core file first).
+
+   Taking advantage of the second command-line argument requires a
+fairly complete operating system; when you use GDB as a remote debugger
+attached to a bare board, there may not be any notion of "process", and
+there is often no way to get a core dump.
+
+You can further control how GDB starts up by using command-line
+options.  GDB itself can remind you of the options available.
+
+Type
+
+     gdb -help
+
+to display all available options and briefly describe their use (`gdb
+-h' is a shorter equivalent).
+
+   All options and command line arguments you give are processed in
+sequential order.  The order makes a difference when the `-x' option is
+used.
+
+* Menu:
+
+
+
+* File Options::                Choosing files
+* Mode Options::                Choosing modes
+
+
+File: gdb.info,  Node: File Options,  Next: Mode Options,  Up: Invoking GDB
+
+Choosing files
+--------------
+
+   When GDB starts, it reads any arguments other than options as
+specifying an executable file and core file (or process ID).  This is
+the same as if the arguments were specified by the `-se' and `-c'
+options respectively.  (GDB reads the first argument that does not have
+an associated option flag as equivalent to the `-se' option followed by
+that argument; and the second argument that does not have an associated
+option flag, if any, as equivalent to the `-c' option followed by that
+argument.)
+
+   Many options have both long and short forms; both are shown in the
+following list.  GDB also recognizes the long forms if you truncate
+them, so long as enough of the option is present to be unambiguous.
+(If you prefer, you can flag option arguments with `--' rather than
+`-', though we illustrate the more usual convention.)
+
+`-symbols FILE'
+`-s FILE'
+     Read symbol table from file FILE.
+
+`-exec FILE'
+`-e FILE'
+     Use file FILE as the executable file to execute when appropriate,
+     and for examining pure data in conjunction with a core dump.
+
+`-se FILE'
+     Read symbol table from file FILE and use it as the executable file.
+
+`-core FILE'
+`-c FILE'
+     Use file FILE as a core dump to examine.
+
+`-c NUMBER'
+     Connect to process ID NUMBER, as with the `attach' command (unless
+     there is a file in core-dump format named NUMBER, in which case
+     `-c' specifies that file as a core dump to read).
+
+`-command FILE'
+`-x FILE'
+     Execute GDB commands from file FILE.  *Note Command files: Command
+     Files.
+
+`-directory DIRECTORY'
+`-d DIRECTORY'
+     Add DIRECTORY to the path to search for source files.
+
+`-m'
+`-mapped'
+     *Warning: this option depends on operating system facilities that
+     are not supported on all systems.*
+     If memory-mapped files are available on your system through the
+     `mmap' system call, you can use this option to have GDB write the
+     symbols from your program into a reusable file in the current
+     directory.  If the program you are debugging is called
+     `/tmp/fred', the mapped symbol file will be `./fred.syms'.  Future
+     GDB debugging sessions will notice the presence of this file, and
+     will quickly map in symbol information from it, rather than reading
+     the symbol table from the executable program.
+
+     The `.syms' file is specific to the host machine where GDB is run.
+     It holds an exact image of the internal GDB symbol table.  It
+     cannot be shared across multiple host platforms.
+
+`-r'
+`-readnow'
+     Read each symbol file's entire symbol table immediately, rather
+     than the default, which is to read it incrementally as it is
+     needed.  This makes startup slower, but makes future operations
+     faster.
+
+   The `-mapped' and `-readnow' options are typically combined in order
+to build a `.syms' file that contains complete symbol information.
+(*Note Commands to specify files: Files, for information on `.syms'
+files.)  A simple GDB invocation to do nothing but build a `.syms' file
+for future use is:
+
+     	gdb -batch -nx -mapped -readnow programname
+
+
+File: gdb.info,  Node: Mode Options,  Prev: File Options,  Up: Invoking GDB
+
+Choosing modes
+--------------
+
+   You can run GDB in various alternative modes--for example, in batch
+mode or quiet mode.
+
+`-nx'
+`-n'
+     Do not execute commands from any initialization files (normally
+     called `.gdbinit').  Normally, the commands in these files are
+     executed after all the command options and arguments have been
+     processed.  *Note Command files: Command Files.
+
+`-quiet'
+`-q'
+     "Quiet".  Do not print the introductory and copyright messages.
+     These messages are also suppressed in batch mode.
+
+`-batch'
+     Run in batch mode.  Exit with status `0' after processing all the
+     command files specified with `-x' (and all commands from
+     initialization files, if not inhibited with `-n').  Exit with
+     nonzero status if an error occurs in executing the GDB commands in
+     the command files.
+
+     Batch mode may be useful for running GDB as a filter, for example
+     to download and run a program on another computer; in order to
+     make this more useful, the message
+
+          Program exited normally.
+
+     (which is ordinarily issued whenever a program running under GDB
+     control terminates) is not issued when running in batch mode.
+
+`-cd DIRECTORY'
+     Run GDB using DIRECTORY as its working directory, instead of the
+     current directory.
+
+`-fullname'
+`-f'
+     Emacs sets this option when it runs GDB as a subprocess.  It tells
+     GDB to output the full file name and line number in a standard,
+     recognizable fashion each time a stack frame is displayed (which
+     includes each time your program stops).  This recognizable format
+     looks like two `\032' characters, followed by the file name, line
+     number and character position separated by colons, and a newline.
+     The Emacs-to-GDB interface program uses the two `\032' characters
+     as a signal to display the source code for the frame.
+
+`-b BPS'
+     Set the line speed (baud rate or bits per second) of any serial
+     interface used by GDB for remote debugging.
+
+`-tty DEVICE'
+     Run using DEVICE for your program's standard input and output.
+
+
+File: gdb.info,  Node: Quitting GDB,  Next: Shell Commands,  Prev: Invoking GDB,  Up: Invocation
+
+Quitting GDB
+============
+
+`quit'
+     To exit GDB, use the `quit' command (abbreviated `q'), or type an
+     end-of-file character (usually `C-d').
+
+   An interrupt (often `C-c') will not exit from GDB, but rather will
+terminate the action of any GDB command that is in progress and return
+to GDB command level.  It is safe to type the interrupt character at
+any time because GDB does not allow it to take effect until a time when
+it is safe.
+
+   If you have been using GDB to control an attached process or device,
+you can release it with the `detach' command (*note Debugging an
+already-running process: Attach.).
+
+
+File: gdb.info,  Node: Shell Commands,  Prev: Quitting GDB,  Up: Invocation
+
+Shell commands
+==============
+
+   If you need to execute occasional shell commands during your
+debugging session, there is no need to leave or suspend GDB; you can
+just use the `shell' command.
+
+`shell COMMAND STRING'
+     Invoke a the standard shell to execute COMMAND STRING.  If it
+     exists, the environment variable `SHELL' determines which shell to
+     run.  Otherwise GDB uses `/bin/sh'.
+
+   The utility `make' is often needed in development environments.  You
+do not have to use the `shell' command for this purpose in GDB:
+
+`make MAKE-ARGS'
+     Execute the `make' program with the specified arguments.  This is
+     equivalent to `shell make MAKE-ARGS'.
+
+
+File: gdb.info,  Node: Commands,  Next: Running,  Prev: Invocation,  Up: Top
+
+GDB Commands
+************
+
+   You can abbreviate a GDB command to the first few letters of the
+command name, if that abbreviation is unambiguous; and you can repeat
+certain GDB commands by typing just RET.  You can also use the TAB key
+to get GDB to fill out the rest of a word in a command (or to show you
+the alternatives available, if there is more than one possibility).
+
+* Menu:
+
+* Command Syntax::              How to give commands to GDB
+* Completion::                  Command completion
+* Help::                        How to ask GDB for help
+
+
+File: gdb.info,  Node: Command Syntax,  Next: Completion,  Up: Commands
+
+Command syntax
+==============
+
+   A GDB command is a single line of input.  There is no limit on how
+long it can be.  It starts with a command name, which is followed by
+arguments whose meaning depends on the command name.  For example, the
+command `step' accepts an argument which is the number of times to
+step, as in `step 5'.  You can also use the `step' command with no
+arguments.  Some command names do not allow any arguments.
+
+   GDB command names may always be truncated if that abbreviation is
+unambiguous.  Other possible command abbreviations are listed in the
+documentation for individual commands.  In some cases, even ambiguous
+abbreviations are allowed; for example, `s' is specially defined as
+equivalent to `step' even though there are other commands whose names
+start with `s'.  You can test abbreviations by using them as arguments
+to the `help' command.
+
+   A blank line as input to GDB (typing just RET) means to repeat the
+previous command. Certain commands (for example, `run') will not repeat
+this way; these are commands for which unintentional repetition might
+cause trouble and which you are unlikely to want to repeat.
+
+   The `list' and `x' commands, when you repeat them with RET,
+construct new arguments rather than repeating exactly as typed.  This
+permits easy scanning of source or memory.
+
+   GDB can also use RET in another way: to partition lengthy output, in
+a way similar to the common utility `more' (*note Screen size: Screen
+Size.).  Since it is easy to press one RET too many in this situation,
+GDB disables command repetition after any command that generates this
+sort of display.
+
+   Any text from a `#' to the end of the line is a comment; it does
+nothing.  This is useful mainly in command files (*note Command files:
+Command Files.).
+
+
+File: gdb.info,  Node: Completion,  Next: Help,  Prev: Command Syntax,  Up: Commands
+
+Command completion
+==================
+
+   GDB can fill in the rest of a word in a command for you, if there is
+only one possibility; it can also show you what the valid possibilities
+are for the next word in a command, at any time.  This works for GDB
+commands, GDB subcommands, and the names of symbols in your program.
+
+   Press the TAB key whenever you want GDB to fill out the rest of a
+word.  If there is only one possibility, GDB will fill in the word, and
+wait for you to finish the command (or press RET to enter it).  For
+example, if you type
+
+     (gdb) info bre TAB
+
+GDB fills in the rest of the word `breakpoints', since that is the only
+`info' subcommand beginning with `bre':
+
+     (gdb) info breakpoints
+
+You can either press RET at this point, to run the `info breakpoints'
+command, or backspace and enter something else, if `breakpoints' does
+not look like the command you expected.  (If you were sure you wanted
+`info breakpoints' in the first place, you might as well just type RET
+immediately after `info bre', to exploit command abbreviations rather
+than command completion).
+
+   If there is more than one possibility for the next word when you
+press TAB, GDB will sound a bell.  You can either supply more
+characters and try again, or just press TAB a second time, and GDB will
+display all the possible completions for that word.  For example, you
+might want to set a breakpoint on a subroutine whose name begins with
+`make_', but when you type `b make_TAB' GDB just sounds the bell.
+Typing TAB again will display all the function names in your program
+that begin with those characters, for example:
+
+     (gdb) b make_ TAB
+GDB sounds bell; press TAB again, to see:
+     make_a_section_from_file     make_environ
+     make_abs_section             make_function_type
+     make_blockvector             make_pointer_type
+     make_cleanup                 make_reference_type
+     make_command                 make_symbol_completion_list
+     (gdb) b make_
+
+After displaying the available possibilities, GDB copies your partial
+input (`b make_' in the example) so you can finish the command.
+
+   If you just want to see the list of alternatives in the first place,
+you can press `M-?' rather than pressing TAB twice. `M-?' means `META
+?'.  You can type this either by holding down a key designated as the
+META shift on your keyboard (if there is one) while typing `?', or as
+ESC followed by `?'.
+
+   Sometimes the string you need, while logically a "word", may contain
+parentheses or other characters that GDB normally excludes from its
+notion of a word.  To permit word completion to work in this situation,
+you may enclose words in `'' (single quote marks) in GDB commands.
+
+   The most likely situation where you might need this is in typing the
+name of a C++ function.  This is because C++ allows function overloading
+(multiple definitions of the same function, distinguished by argument
+type).  For example, when you want to set a breakpoint you may need to
+distinguish whether you mean the version of `name' that takes an `int'
+parameter, `name(int)', or the version that takes a `float' parameter,
+`name(float)'.  To use the word-completion facilities in this
+situation, type a single quote `'' at the beginning of the function
+name.  This alerts GDB that it may need to consider more information
+than usual when you press TAB or `M-?' to request word completion:
+
+     (gdb) b 'bubble( M-?
+     bubble(double,double)    bubble(int,int)
+     (gdb) b 'bubble(
+
+   In some cases, GDB can tell that completing a name will require
+quotes.  When this happens, GDB will insert the quote for you (while
+completing as much as it can) if you do not type the quote in the first
+place:
+
+     (gdb) b bub TAB
+GDB alters your input line to the following, and rings a bell:
+     (gdb) b 'bubble(
+
+In general, GDB can tell that a quote is needed (and inserts it) if you
+have not yet started typing the argument list when you ask for
+completion on an overloaded symbol.
+
+
+File: gdb.info,  Node: Help,  Prev: Completion,  Up: Commands
+
+Getting help
+============
+
+   You can always ask GDB itself for information on its commands, using
+the command `help'.
+
+`help'
+`h'
+     You can use `help' (abbreviated `h') with no arguments to display
+     a short list of named classes of commands:
+
+          (gdb) help
+          List of classes of commands:
+          
+          running -- Running the program
+          stack -- Examining the stack
+          data -- Examining data
+          breakpoints -- Making program stop at certain points
+          files -- Specifying and examining files
+          status -- Status inquiries
+          support -- Support facilities
+          user-defined -- User-defined commands
+          aliases -- Aliases of other commands
+          obscure -- Obscure features
+          
+          Type "help" followed by a class name for a list of
+          commands in that class.
+          Type "help" followed by command name for full
+          documentation.
+          Command name abbreviations are allowed if unambiguous.
+          (gdb)
+
+`help CLASS'
+     Using one of the general help classes as an argument, you can get a
+     list of the individual commands in that class.  For example, here
+     is the help display for the class `status':
+
+          (gdb) help status
+          Status inquiries.
+          
+          List of commands:
+          
+          show -- Generic command for showing things set
+           with "set"
+          info -- Generic command for printing status
+          
+          Type "help" followed by command name for full
+          documentation.
+          Command name abbreviations are allowed if unambiguous.
+          (gdb)
+
+`help COMMAND'
+     With a command name as `help' argument, GDB will display a short
+     paragraph on how to use that command.
+
+   In addition to `help', you can use the GDB commands `info' and
+`show' to inquire about the state of your program, or the state of GDB
+itself.  Each command supports many topics of inquiry; this manual
+introduces each of them in the appropriate context.  The listings under
+`info' and under `show' in the Index point to all the sub-commands.
+*Note Index::.
+
+`info'
+     This command (abbreviated `i') is for describing the state of your
+     program.  For example, you can list the arguments given to your
+     program with `info args', list the registers currently in use with
+     `info registers', or list the breakpoints you have set with `info
+     breakpoints'.  You can get a complete list of the `info'
+     sub-commands with `help info'.
+
+`show'
+     In contrast, `show' is for describing the state of GDB itself.
+     You can change most of the things you can `show', by using the
+     related command `set'; for example, you can control what number
+     system is used for displays with `set radix', or simply inquire
+     which is currently in use with `show radix'.
+
+     To display all the settable parameters and their current values,
+     you can use `show' with no arguments; you may also use `info set'.
+     Both commands produce the same display.
+
+   Here are three miscellaneous `show' subcommands, all of which are
+exceptional in lacking corresponding `set' commands:
+
+`show version'
+     Show what version of GDB is running.  You should include this
+     information in GDB bug-reports.  If multiple versions of GDB are in
+     use at your site, you may occasionally want to determine which
+     version of GDB you are running; as GDB evolves, new commands are
+     introduced, and old ones may wither away.  The version number is
+     also announced when you start GDB.
+
+`show copying'
+     Display information about permission for copying GDB.
+
+`show warranty'
+     Display the GNU "NO WARRANTY" statement.
+
+
+File: gdb.info,  Node: Running,  Next: Stopping,  Prev: Commands,  Up: Top
+
+Running Programs Under GDB
+**************************
+
+   When you run a program under GDB, you must first generate debugging
+information when you compile it.  You may start it with its arguments,
+if any, in an environment of your choice.  You may redirect your
+program's input and output, debug an already running process, or kill a
+child process.
+
+* Menu:
+
+* Compilation::                 Compiling for debugging
+* Starting::                    Starting your program
+
+* Arguments::                   Your program's arguments
+* Environment::                 Your program's environment
+* Working Directory::           Your program's working directory
+* Input/Output::                Your program's input and output
+* Attach::                      Debugging an already-running process
+* Kill Process::                Killing the child process
+* Process Information::         Additional process information
+
+
+File: gdb.info,  Node: Compilation,  Next: Starting,  Up: Running
+
+Compiling for debugging
+=======================
+
+   In order to debug a program effectively, you need to generate
+debugging information when you compile it.  This debugging information
+is stored in the object file; it describes the data type of each
+variable or function and the correspondence between source line numbers
+and addresses in the executable code.
+
+   To request debugging information, specify the `-g' option when you
+run the compiler.
+
+   Many C compilers are unable to handle the `-g' and `-O' options
+together.  Using those compilers, you cannot generate optimized
+executables containing debugging information.
+
+   GCC, the GNU C compiler, supports `-g' with or without `-O', making
+it possible to debug optimized code.  We recommend that you *always*
+use `-g' whenever you compile a program.  You may think your program is
+correct, but there is no sense in pushing your luck.
+
+   When you debug a program compiled with `-g -O', remember that the
+optimizer is rearranging your code; the debugger will show you what is
+really there.  Do not be too surprised when the execution path does not
+exactly match your source file!  An extreme example: if you define a
+variable, but never use it, GDB will never see that variable--because
+the compiler optimizes it out of existence.
+
+   Some things do not work as well with `-g -O' as with just `-g',
+particularly on machines with instruction scheduling.  If in doubt,
+recompile with `-g' alone, and if this fixes the problem, please report
+it as a bug (including a test case!).
+
+   Older versions of the GNU C compiler permitted a variant option
+`-gg' for debugging information.  GDB no longer supports this format;
+if your GNU C compiler has this option, do not use it.
+
+
+File: gdb.info,  Node: Starting,  Next: Arguments,  Prev: Compilation,  Up: Running
+
+Starting your program
+=====================
+
+`run'
+`r'
+     Use the `run' command to start your program under GDB.  You must
+     first specify the program name (except on VxWorks) with an
+     argument to GDB (*note Getting In and Out of GDB: Invocation.), or
+     by using the `file' or `exec-file' command (*note Commands to
+     specify files: Files.).
+
+   If you are running your program in an execution environment that
+supports processes, `run' creates an inferior process and makes that
+process run your program.  (In environments without processes, `run'
+jumps to the start of your program.)
+
+   The execution of a program is affected by certain information it
+receives from its superior.  GDB provides ways to specify this
+information, which you must do *before* starting your program.  (You
+can change it after starting your program, but such changes will only
+affect your program the next time you start it.)  This information may
+be divided into four categories:
+
+The *arguments.*
+     Specify the arguments to give your program as the arguments of the
+     `run' command.  If a shell is available on your target, the shell
+     is used to pass the arguments, so that you may use normal
+     conventions (such as wildcard expansion or variable substitution)
+     in describing the arguments.  In Unix systems, you can control
+     which shell is used with the `SHELL' environment variable. *Note
+     Your program's arguments: Arguments.
+
+The *environment.*
+     Your program normally inherits its environment from GDB, but you
+     can use the GDB commands `set environment' and `unset environment'
+     to change parts of the environment that will be given to your
+     program.  *Note Your program's environment: Environment.
+
+The *working directory.*
+     Your program inherits its working directory from GDB.  You can set
+     the GDB working directory with the `cd' command in GDB.  *Note
+     Your program's working directory: Working Directory.
+
+The *standard input and output.*
+     Your program normally uses the same device for standard input and
+     standard output as GDB is using.  You can redirect input and output
+     in the `run' command line, or you can use the `tty' command to set
+     a different device for your program.  *Note Your program's input
+     and output: Input/Output.
+
+     *Warning:* While input and output redirection work, you cannot use
+     pipes to pass the output of the program you are debugging to
+     another program; if you attempt this, GDB is likely to wind up
+     debugging the wrong program.
+
+   When you issue the `run' command, your program begins to execute
+immediately.  *Note Stopping and continuing: Stopping, for discussion
+of how to arrange for your program to stop.  Once your program has
+stopped, you may call functions in your program, using the `print' or
+`call' commands.  *Note Examining Data: Data.
+
+   If the modification time of your symbol file has changed since the
+last time GDB read its symbols, GDB will discard its symbol table and
+re-read it.  When it does this, GDB tries to retain your current
+breakpoints.
+
+
+File: gdb.info,  Node: Arguments,  Next: Environment,  Prev: Starting,  Up: Running
+
+Your program's arguments
+========================
+
+   The arguments to your program can be specified by the arguments of
+the `run' command.  They are passed to a shell, which expands wildcard
+characters and performs redirection of I/O, and thence to your program.
+Your `SHELL' environment variable (if it exists) specifies what shell
+GDB if you do not define `SHELL', GDB uses `/bin/sh'.
+
+   `run' with no arguments uses the same arguments used by the previous
+`run', or those set by the `set args' command.
+
+`set args'
+     Specify the arguments to be used the next time your program is
+     run.  If `set args' has no arguments, `run' will execute your
+     program with no arguments.  Once you have run your program with
+     arguments, using `set args' before the next `run' is the only way
+     to run it again without arguments.
+
+`show args'
+     Show the arguments to give your program when it is started.
+
+
+File: gdb.info,  Node: Environment,  Next: Working Directory,  Prev: Arguments,  Up: Running
+
+Your program's environment
+==========================
+
+   The "environment" consists of a set of environment variables and
+their values.  Environment variables conventionally record such things
+as your user name, your home directory, your terminal type, and your
+search path for programs to run.  Usually you set up environment
+variables with the shell and they are inherited by all the other
+programs you run.  When debugging, it can be useful to try running your
+program with a modified environment without having to start GDB over
+again.
+
+`path DIRECTORY'
+     Add DIRECTORY to the front of the `PATH' environment variable (the
+     search path for executables), for both GDB and your program.  You
+     may specify several directory names, separated by `:' or
+     whitespace.  If DIRECTORY is already in the path, it is moved to
+     the front, so it will be searched sooner.
+
+     You can use the string `$cwd' to refer to whatever is the current
+     working directory at the time GDB searches the path.  If you use
+     `.' instead, it refers to the directory where you executed the
+     `path' command.  GDB replaces `.' in the DIRECTORY argument (with
+     the current path) before adding DIRECTORY to the search path.
+
+`show paths'
+     Display the list of search paths for executables (the `PATH'
+     environment variable).
+
+`show environment [VARNAME]'
+     Print the value of environment variable VARNAME to be given to
+     your program when it starts.  If you do not supply VARNAME, print
+     the names and values of all environment variables to be given to
+     your program.  You can abbreviate `environment' as `env'.
+
+`set environment VARNAME [=] VALUE'
+     Set environment variable VARNAME to VALUE.  The value changes for
+     your program only, not for GDB itself.  VALUE may be any string;
+     the values of environment variables are just strings, and any
+     interpretation is supplied by your program itself.  The VALUE
+     parameter is optional; if it is eliminated, the variable is set to
+     a null value.
+
+     For example, this command:
+
+          set env USER = foo
+
+     tells a Unix program, when subsequently run, that its user is named
+     `foo'.  (The spaces around `=' are used for clarity here; they are
+     not actually required.)
+
+`unset environment VARNAME'
+     Remove variable VARNAME from the environment to be passed to your
+     program.  This is different from `set env VARNAME ='; `unset
+     environment' removes the variable from the environment, rather
+     than assigning it an empty value.
+
+   *Warning:* GDB runs your program using the shell indicated by your
+`SHELL' environment variable if it exists (or `/bin/sh' if not).  If
+your `SHELL' variable names a shell that runs an initialization
+file--such as `.cshrc' for C-shell, or `.bashrc' for BASH--any
+variables you set in that file will affect your program.  You may wish
+to move setting of environment variables to files that are only run
+when you sign on, such as `.login' or `.profile'.
+
+
+File: gdb.info,  Node: Working Directory,  Next: Input/Output,  Prev: Environment,  Up: Running
+
+Your program's working directory
+================================
+
+   Each time you start your program with `run', it inherits its working
+directory from the current working directory of GDB.  The GDB working
+directory is initially whatever it inherited from its parent process
+(typically the shell), but you can specify a new working directory in
+GDB with the `cd' command.
+
+   The GDB working directory also serves as a default for the commands
+that specify files for GDB to operate on.  *Note Commands to specify
+files: Files.
+
+`cd DIRECTORY'
+     Set the GDB working directory to DIRECTORY.
+
+`pwd'
+     Print the GDB working directory.
+
+
+File: gdb.info,  Node: Input/Output,  Next: Attach,  Prev: Working Directory,  Up: Running
+
+Your program's input and output
+===============================
+
+   By default, the program you run under GDB does input and output to
+the same terminal that GDB uses.  GDB switches the terminal to its own
+terminal modes to interact with you, but it records the terminal modes
+your program was using and switches back to them when you continue
+running your program.
+
+`info terminal'
+     Displays information recorded by GDB about the terminal modes your
+     program is using.
+
+   You can redirect your program's input and/or output using shell
+redirection with the `run' command.  For example,
+
+     run > outfile
+
+starts your program, diverting its output to the file `outfile'.
+
+   Another way to specify where your program should do input and output
+is with the `tty' command.  This command accepts a file name as
+argument, and causes this file to be the default for future `run'
+commands.  It also resets the controlling terminal for the child
+process, for future `run' commands.  For example,
+
+     tty /dev/ttyb
+
+directs that processes started with subsequent `run' commands default
+to do input and output on the terminal `/dev/ttyb' and have that as
+their controlling terminal.
+
+   An explicit redirection in `run' overrides the `tty' command's
+effect on the input/output device, but not its effect on the controlling
+terminal.
+
+   When you use the `tty' command or redirect input in the `run'
+command, only the input *for your program* is affected.  The input for
+GDB still comes from your terminal.
+
