@@ -991,12 +991,18 @@ acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
 {
     ACPI_STATUS	error;
     ACPI_BUFFER	buf;
-    ACPI_OBJECT	param;
+    ACPI_OBJECT	param, *p;
+    int		i;
 
     ACPI_ASSERTLOCK;
 
     if (handle == NULL)
 	handle = ACPI_ROOT_OBJECT;
+
+    /*
+     * Assume that what we've been pointed at is an Integer object, or
+     * a method that will return an Integer.
+     */
     buf.Pointer = &param;
     buf.Length = sizeof(param);
     if ((error = AcpiEvaluateObject(handle, path, NULL, &buf)) == AE_OK) {
@@ -1005,6 +1011,36 @@ acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
 	} else {
 	    error = AE_TYPE;
 	}
+    }
+
+    /* 
+     * In some applications, a method that's expected to return an Integer
+     * may instead return a Buffer (probably to simplify some internal
+     * arithmetic).  We'll try to fetch whatever it is, and if it's a Buffer,
+     * convert it into an Integer as best we can.
+     *
+     * This is a hack.
+     */
+    if (error == AE_BUFFER_OVERFLOW) {
+	if ((buf.Pointer = AcpiOsCallocate(buf.Length)) == NULL) {
+	    error = AE_NO_MEMORY;
+	} else {
+	    if ((error = AcpiEvaluateObject(handle, path, NULL, &buf)) == AE_OK) {
+		p = (ACPI_OBJECT *)buf.Pointer;
+		if (p->Type != ACPI_TYPE_BUFFER) {
+		    error = AE_TYPE;
+		} else {
+		    if (p->Buffer.Length > sizeof(int)) {
+			error = AE_BAD_DATA;
+		    } else {
+			*number = 0;
+			for (i = 0; i < p->Buffer.Length; i++)
+			    *number += (*(p->Buffer.Pointer + i) << (i * 8));
+		    }
+		}
+	    }
+	}
+	AcpiOsFree(buf.Pointer);
     }
     return(error);
 }
