@@ -50,11 +50,11 @@
 .Nm mtx_assert
 .Nd kernel synchronization primitives
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
+.Fd #include <sys/param.h>
 .Fd #include <sys/lock.h>
 .Fd #include <sys/mutex.h>
-.Ft int
-.Fn mtx_init "struct mtx *mutex" "char *name" "int opts"
+.Ft void
+.Fn mtx_init "struct mtx *mutex" "const char *description" "int opts"
 .Ft void
 .Fn mtx_lock "struct mtx *mutex"
 .Ft void
@@ -139,11 +139,11 @@ function must be used to initialize a mutex
 before it can be passed to
 .Fn mtx_lock .
 The
-.Fa name
+.Fa description
 argument is used by the witness code
 to classify a mutex when doing checks of lock ordering.
 The pointer passed in as the
-.Fa name
+.Fa description
 is saved rather than the data it points to.
 The data pointed to must remain stable
 until the mutex is destroyed.
