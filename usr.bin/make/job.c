@@ -1095,7 +1095,7 @@ Boolean
 Job_CheckCommands(gn, abortProc)
     GNode          *gn;	    	    /* The target whose commands need
 				     * verifying */
-    void    	 (*abortProc)(char *, ...);
+    void    	 (*abortProc)(const char *, ...);
 			/* Function to abort with message */
 {
     if (OP_NOP(gn->type) && Lst_IsEmpty(gn->commands) &&

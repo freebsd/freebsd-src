@@ -306,7 +306,7 @@ ParseFindKeyword (str)
  */
 /* VARARGS */
 void
-Parse_Error(int type, char *fmt, ...)
+Parse_Error(int type, const char *fmt, ...)
 {
 	va_list ap;
 
