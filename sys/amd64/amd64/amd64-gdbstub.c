@@ -504,7 +504,7 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 	case 'D':		/* detach; say OK and turn off gdb */
 	  putpacket(remcomOutBuffer);
 	  boothowto &= ~RB_GDB;
-	  return 0;
+	  goto cont_exit;
 
 	case 'g':		/* return the value of the CPU registers */
 	  mem2hex ((vm_offset_t)&registers, remcomOutBuffer, NUMREGBYTES);
@@ -579,7 +579,7 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 	  if (hexToInt(&ptr,&addr))
 	    registers.eip = addr;
 
-
+cont_exit:
 	  /* set the trace bit if we're stepping */
 	  if (remcomInBuffer[0] == 's')
 	    registers.eflags |= PSL_T;
