@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.20 1996/02/24 05:21:50 hsu Exp $
+ * $Id: disklabel.h,v 1.20 1996/03/11 02:06:30 hsu Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -197,6 +197,7 @@ struct disklabel {
 #define	DTYPE_HPIB		7		/* CS/80 on HP-IB */
 #define	DTYPE_HPFL		8		/* HP Fiber-link */
 #define	DTYPE_FLOPPY		10		/* floppy */
+#define	DTYPE_CCD		11		/* concatenated disk */
 
 #ifdef DKTYPENAMES
 static char *dktypenames[] = {
@@ -211,6 +212,7 @@ static char *dktypenames[] = {
 	"HP-FL",
 	"type 9",
 	"floppy",
+	"CCD",
 	NULL
 };
 #define DKMAXTYPES	(sizeof(dktypenames) / sizeof(dktypenames[0]) - 1)
