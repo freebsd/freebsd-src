@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.29 1999/06/24 08:55:02 grog Exp $
+ * $Id: vinumio.c,v 1.24 1999/03/23 02:00:52 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -193,11 +193,10 @@ init_drive(struct drive *drive, int verbose)
 void 
 close_drive(struct drive *drive)
 {
-    if (drive->vp) {
-	LOCKDRIVE(drive);				    /* keep the daemon out */
+    LOCKDRIVE(drive);					    /* keep the daemon out */
+    if (drive->vp)
 	close_locked_drive(drive);			    /* and close it */
-	unlockdrive(drive);
-    }
+    unlockdrive(drive);
 }
 
 /*
@@ -272,7 +271,7 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 	int len = min(length, MAXBSIZE);		    /* maximum block device transfer is MAXBSIZE */
 
 	bp = geteblk(len);				    /* get a buffer header */
-	bp->b_flags = flag;			    	    /* get locked */
+	bp->b_flags = flag;
 	bp->b_dev = drive->vp->v_un.vu_specinfo->si_rdev;   /* device */
 	bp->b_blkno = offset / drive->partinfo.disklab->d_secsize; /* block number */
 	bp->b_data = buf;
