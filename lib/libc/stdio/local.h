@@ -81,7 +81,8 @@ struct __sFILEX {
  * Return true iff the given FILE cannot be written now.
  */
 #define	cantwrite(fp) \
-	((((fp)->_flags & __SWR) == 0 || (fp)->_bf._base == NULL) && \
+ 	((((fp)->_flags & __SWR) == 0 || \
+ 	    ((fp)->_bf._base == NULL && ((fp)->_flags & __SSTR) == 0)) && \
 	 __swsetup(fp))
 
 /*
