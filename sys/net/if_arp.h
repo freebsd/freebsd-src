@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_arp.h	8.1 (Berkeley) 6/10/93
- * $Id: if_arp.h,v 1.3 1994/08/21 05:11:41 paul Exp $
+ * $Id: if_arp.h,v 1.4 1994/11/15 14:41:38 bde Exp $
  */
 
 #ifndef _NET_IF_ARP_H_
 #define	_NET_IF_ARP_H_
 
-#include <socket.h>		/* for struct sockaddr */
+#include <sys/socket.h>		/* for struct sockaddr */
 
 /*
  * Address Resolution Protocol.
