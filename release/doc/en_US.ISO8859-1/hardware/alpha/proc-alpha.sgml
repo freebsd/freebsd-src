@@ -1,5 +1,4 @@
 <!-- $FreeBSD$ -->
-
 <sect1>
   <sect1info>
     <authorgroup>
@@ -24,7 +23,7 @@
     aimed at providing background information on the various hardware
     designs. It is not a replacement for the systems manuals.</para>
 
-    <para>The information is structured as follows:
+    <para>The information is structured as follows:</para>
       <itemizedlist>
         <listitem>
 	  <para>general hardware requirements to run &os; on alpha;</para>
@@ -39,7 +38,6 @@
 	  supported hardware list.</para>
 	</listitem>
       </itemizedlist>
-    </para>
 
     <note>
       <para>You will see references to DEC, Digital Equipment Corporation and 
@@ -52,7 +50,7 @@
     <note>
       <para>SRM commands will be in <userinput>UPPER CASE</userinput>. 
       Lower case input is also acceptible to SRM. Upper case is used for
-      clarity.
+      clarity.</para>
     </note>
 
     <note>
@@ -97,7 +95,7 @@
     trade-in value when they are NT-only from the console firmware
     perspective. So, be suspicious if the price appears too good.</para>
 
-    <para>Known non-SRM machines are:
+    <para>Known non-SRM machines are:</para>
       <itemizedlist>
         <listitem>
 	  <para>Digital XL series</para>
@@ -112,9 +110,8 @@
 	  <para>Samsung 164B</para>
 	</listitem>
       </itemizedlist>
-    </para>
 
-    <para>Machines that have SRM but are not supported by &os; are:
+    <para>Machines that have SRM but are not supported by &os; are:</para>
        <itemizedlist>
 	 <listitem>
            <para>DECpc 150 (<quote>Jensen</quote>)</para>
@@ -129,7 +126,6 @@
            <para>AXPvme series (<quote>Medulla</quote>)</para>
          </listitem>
        </itemizedlist>
-    </para>
     
     <para>To complicate things a bit further: Digital used to have so
     called <quote>white-box</quote> Alpha machines destined as NT-only
@@ -305,7 +301,7 @@
       these days. It is a full-fledged 64 bit CPU, just don't expect
       miracles as far as speed goes.</para>
 
-      <para>Features:
+      <para>Features:</para>
         <itemizedlist>
           <listitem>
 	    <para>21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz. 
@@ -320,7 +316,7 @@
 	    mainboard models)</para>
 	  </listitem>
 	  <listitem>
-	    <para>memory: 
+	    <para>memory:</para>
               <itemizedlist>
                <listitem>
 	         <para>bus width: 64 bits</para>
@@ -332,7 +328,7 @@
 	         <para>70ns or better</para>
                </listitem>
                <listitem>
-                 <para>installed in pairs of 2
+                 <para>installed in pairs of 2</para>
                </listitem>
                <listitem>
                <para>4 SIMM sockets</para>
@@ -340,7 +336,7 @@
                <listitem>
 	         <para>uses ECC</para>
                </listitem>
-              </itemizedlist></para>
+              </itemizedlist>
 	  </listitem>
 	  <listitem>
 	    <para>512kB Flash ROM for the console code.</para>
@@ -358,7 +354,7 @@
 	    <para>1 embedded IDE interface</para>
 	  </listitem>
 	  <listitem>
-	    <para>expansion:
+	    <para>expansion:</para>
 	    <itemizedlist>
 	      <listitem>
 	        <para>3 32 bit PCI slots (1 shared with ISA)</para>
@@ -366,13 +362,12 @@
 	      <listitem>
 	        <para>5 ISA slots (1 shared with PCI)</para>
 	      </listitem>
-	    </itemizedlist></para>
+	    </itemizedlist>
 	  </listitem>
 	  <listitem>
 	    <para>embedded Fast SCSI using a Symbios 53C810 chip</para>
 	  </listitem>
 	</itemizedlist>
-      </para>
 
       <para>NoNames can either have SRM <emphasis>or</emphasis> ARC console
       firmware in their Flash ROM.  The Flash ROM is not big enough to
@@ -448,7 +443,7 @@ cpu	EV4</programlisting>
       personal workstation. They come in a considerable number of
       variations, check closely what you get.</para>
 
-      <para>Features:
+      <para>Features:</para>
         <itemizedlist>
 	  <listitem>
 	    <para>21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz</para>
@@ -462,7 +457,7 @@ cpu	EV4</programlisting>
             <para>PS/2 mouse & keyboard port</para>
 	  </listitem>
           <listitem>
-            <para>memory:
+            <para>memory:</para>
               <itemizedlist>
                <listitem>
                  <para>bus width: 64 bits</para>
@@ -474,7 +469,7 @@ cpu	EV4</programlisting>
                  <para>70ns or better</para>
                </listitem>
                <listitem>
-                 <para>SIMMs are installed in pairs of 2
+                 <para>SIMMs are installed in pairs of 2</para>
                </listitem>
                <listitem>
                <para>4 SIMM sockets</para>
@@ -482,7 +477,7 @@ cpu	EV4</programlisting>
                <listitem>
                  <para>uses ECC</para>
                </listitem>
-              </itemizedlist></para>
+              </itemizedlist>
           </listitem>
 	  <listitem>
             <para>2 16550A serial ports</para>
@@ -501,7 +496,7 @@ cpu	EV4</programlisting>
             10base2 connector</para>
 	  </listitem>
 	  <listitem>
-            <para>expansion:
+            <para>expansion:</para>
 	      <itemizedlist>
 		<listitem>
 		  <para>1 32 bit PCI slot</para>
@@ -510,7 +505,6 @@ cpu	EV4</programlisting>
 	          <para>2 PCMCIA slots</para>
 		</listitem>
               </itemizedlist>
-	    </para>
 	  </listitem>
 	  <listitem>
             <para>on-board Crystal CS4231 or AD1848 sound chip</para>
@@ -520,7 +514,6 @@ cpu	EV4</programlisting>
             PCI riser card</para>
 	  </listitem>
 	</itemizedlist>
-      </para>
 
       <para>Multia has enough Flash ROM to store both SRM and ARC code
       at the same time and allow software selection of one of them.</para>
@@ -650,13 +643,13 @@ cpu	EV4</programlisting>
       <quote>a</quote>). Systems designated from day 1 to run Tru64
       Unix or OpenVMS will sport <quote>433au</quote>. WinNT-Miatas
       are likely to come pre-configured with an IDE CDROM drive. So,
-      in general systems are named like PWS[433,500,600]a[u].
+      in general systems are named like PWS[433,500,600]a[u].</para>
 
       <para>There was also a Miata model with a special CPU cooling
       system by Kryotech. The Kryotech has a special cooling system 
       and is housed in a different enclosure.</para>
 
-      <para>Features:
+      <para>Features:</para>
         <itemizedlist>
 	  <listitem>
 	    <para>21164A EV56 Alpha CPU at 433, 500 or 600MHz</para>
@@ -669,7 +662,7 @@ cpu	EV4</programlisting>
 	    cache module)</para>
 	  </listitem>
 	  <listitem><para>memory:</para>
-	    <para><itemizedlist>
+	    <itemizedlist>
 	      <listitem>
 	        <para>bus width: 128 bits wide, ECC protected</para>
 	      </listitem>
@@ -683,10 +676,10 @@ cpu	EV4</programlisting>
 	      <listitem>
 		<para>maximum memory 1.5 GBytes</para>
 	      </listitem>
-	    </itemizedlist></para>
+	    </itemizedlist>
 	  </listitem>
 	  <listitem>
-	    <para>on-board Fast Ethernet:
+	    <para>on-board Fast Ethernet:</para>
 	    <itemizedlist>
 	      <listitem>
 	        <para>MX5 uses a 21142 or 21143 Ethernet chip, 
@@ -700,7 +693,6 @@ cpu	EV4</programlisting>
 		10 Mbit UTP/BNC</para>
 	      </listitem>
 	    </itemizedlist>
-	    </para>
 	  </listitem>
 	  <listitem>
 	    <para>2 on-board [E]IDE disk interfaces, based on 
@@ -735,7 +727,6 @@ cpu	EV4</programlisting>
 	    <para>embedded sound based on an ESS1888 chip</para>
 	  </listitem>
 	</itemizedlist>
-      </para>
 
       <para>The Miata logic is divided into two printed circuit
       boards.  The lower board in the bottom of the machine has the
@@ -776,8 +767,8 @@ cpu	EV4</programlisting>
 
       <para>This disables PCI ID checking altogether, so that you
       can install any PCI card without its ID getting
-      checked. For this to work you need a reasonable current SRM version.
-      <important><para>Do this on your own risk..</para></important></para>
+      checked. For this to work you need a reasonable current SRM version.</para>
+      <important><para>Do this on your own risk..</para></important>
 
       <para>The &os; kernel reports it when it sees a buggy Pyxis chip:</para>
 
@@ -889,7 +880,7 @@ cpu	EV5</programlisting>
       bus.</para>
 
       <para>They are called <quote>Birds</quote> because their
-      internal DEC code names were bird names:
+      internal DEC code names were bird names:</para>
 
         <informaltable>
 	  <tgroup cols=3 align=left>
@@ -955,16 +946,15 @@ cpu	EV5</programlisting>
 	    </tbody>
 	  </tgroup>
         </informaltable>
-      </para>
 
-      <para>Features:
+      <para>Features:</para>
         <itemizedlist>
 	  <listitem>
 	    <para>21064 CPU (100 to 200 MHz) or 21064A CPU (225 to 275
 	    MHz)</para>
 	  </listitem>
 	  <listitem>
-	    <para>memory DEC3000/500 class:
+	    <para>memory DEC3000/500 class:</para>
 	    <itemizedlist>
 	      <listitem>
 		<para>bus width: 256 bit, with ECC</para>
@@ -975,10 +965,10 @@ cpu	EV5</programlisting>
 	      <listitem>
 		<para>installed in sets of 8</para>
 	      </listitem>
-	    </itemizedlist></para>
+	    </itemizedlist>
 	   </listitem>
 	   <listitem>
-	     <para>memory DEC3000/300 class:<itemizedlist> 
+	     <para>memory DEC3000/300 class:</para><itemizedlist> 
 	      <listitem>
 		<para>bus width: 64 bit, with ECC</para>
 	      </listitem>
@@ -988,7 +978,7 @@ cpu	EV5</programlisting>
 	      <listitem>
 		<para>used in pairs of 2</para>
 	      </listitem>
-	     </itemizedlist></para>
+	     </itemizedlist>
 	  </listitem>
 	  <listitem>
 	    <para>Bcache / L2 cache: varying sizes, 512 kB to 2 Mbyte</para>
@@ -1016,19 +1006,18 @@ cpu	EV5</programlisting>
 	    on model)</para>
 	  </listitem>
 	</itemizedlist>
-      </para>
 
       <para>Currently DEC3000 machines can only be used diskless on
       &os;. The reason for this is that the SCSI drivers needed
       for the TC SCSI adapters were not brought into CAM that the
       recent &os; versions use. TC option cards for single (PMAZ-A) or
       dual fast SCSI (PMAZC-AA) are also available.  These cards currently
-      have no drivers on &os; either.<para>
+      have no drivers on &os; either.</para>
 
       <para>DEC3000/300 has 5 MBytes/sec SCSI on-board. This bus is
       used for both internal and external devices. DEC3000/500 has 2
       SCSI buses. One is for internal devices only, the other one is
-      for external devices only.<para>
+      for external devices only.</para>
 
       <para>Floppy devices found in the DEC3000s are attached to the
       SCSI bus (via a bridge card). This makes it possible to boot from them
@@ -1064,7 +1053,7 @@ cpu	EV5</programlisting>
       (PRD4).</para>
 
       <para>If you bridge a pair of pads with a small resistor or a
-      drop of solder you ground that particular bit.
+      drop of solder you ground that particular bit.</para>
 
         <informaltable>
 	  <tgroup cols=3 align=left>
@@ -1139,7 +1128,6 @@ cpu	EV5</programlisting>
 	    </tbody>
 	  </tgroup>
 	</informaltable>
-      </para>
 
       <para>DEC3000/500-class can use 2, 4, 8, 16 and 32 Mbyte 100pin
       SIMMs.  Note that the maximum memory size varies from system to
@@ -1186,12 +1174,12 @@ cpu	EV4</programlisting>
       The EB64 family of evaluation boards has the following 
       feature set:</para>
 
-      <para><itemizedlist>
+      <itemizedlist>
         <listitem>
           <para>21064 or 21064A CPU, 150 to 275 MHz</para>
         </listitem>
         <listitem>
-          <para>memory:  
+          <para>memory:</para>
              <itemizedlist>
                <listitem>
                  <para>memory buswidth: 128 bit</para>
@@ -1244,7 +1232,7 @@ cpu	EV4</programlisting>
         <listitem>
           <para>3 ISA slots</para>
         </listitem>
-      </itemizedlist></para>
+      </itemizedlist>
 
       <para>Aspen Alpine is slightly different, but is close enough to the 
       EB64+ to run an EB64+ SRM EPROM (mine did..). The Aspen Alpine does 
@@ -1296,7 +1284,7 @@ cpu	EV4</programlisting>
       did its own PC164LX which has only 32 bit PCI, whereas the Digital 
       variant has 64 bit PCI.</para>
 
-      <para><itemizedlist>
+      <itemizedlist>
         <listitem>
           <para>21164A, multiple speed variants [EB164, PC164, PC164LX]</para>
         </listitem>
@@ -1313,7 +1301,7 @@ cpu	EV4</programlisting>
           <para>memory bus: 128 bit / 256 bit</para>
         </listitem>
         <listitem>
-          <para>memory:<itemizedlist>
+          <para>memory:</para><itemizedlist>
 	    <listitem>
               <para>PS/2 style SIMMs in sets of 4 or 8</para>
             </listitem>
@@ -1324,7 +1312,6 @@ cpu	EV4</programlisting>
 	      <para>SDRAM DIMMs in sets of 2, uses ECC [PC164SX / PC164LX]
 	      </para>
             </listitem></itemizedlist>
-          </para>
         </listitem>
         <listitem>
            <para>2 16550A serial ports</para>
@@ -1347,7 +1334,7 @@ cpu	EV4</programlisting>
         <listitem>
            <para>ISA slots via an Intel 82378ZB PCI to ISA bridge chip</para>
         </listitem>
-      </itemizedlist></para>
+      </itemizedlist>
 
       <para>Using 8 SIMMs for a 256bit wide memory can yield interesting 
       speedups over a 4 SIMM/128bit wide memory. Obviously all 8 SIMMs must 
@@ -1428,7 +1415,7 @@ cpu             EV5</programlisting>
       low end PCI based workstations. The 200 and 250 series are 
       desktop boxes, the 400 series is a desk-side mini-tower.</para>
 
-      <para>Features:
+      <para>Features:</para>
       <itemizedlist>
         <listitem>
             <para>21064 or 21064A CPU at speeds of 166 up to 333 MHz</para>
@@ -1441,7 +1428,7 @@ cpu             EV5</programlisting>
           or 2048KBytes (250 series)</para>
         </listitem>
         <listitem>
-  	<para>memory:
+  	<para>memory:</para>
           <itemizedlist>
             <listitem>
   	      <para>64 bit bus width</para>
@@ -1461,7 +1448,7 @@ cpu             EV5</programlisting>
 	    <listitem>
 	       <para>the memory subsystem uses parity</para>
 	    </listitem>
-          </itemizedlist></para>
+          </itemizedlist>
         </listitem>
         <listitem>
           <para>PS/2 keyboard and mouse port</para>
@@ -1499,7 +1486,7 @@ cpu             EV5</programlisting>
         <listitem>
           <para>16 bit sound (on 200 & 250 series)</para>
         </listitem>
-      </itemizedlist></para>
+      </itemizedlist>
 
       <para>The systems use parity memory SIMMs, but these do not need 36 bit 
       wide SIMMs. 33 bit wide SIMMs are sufficient, 36 bit SIMMs are 
@@ -1540,16 +1527,16 @@ cpu	EV4</programlisting>
       AS600 is a sturdy desk-side box. AS600 has a nice LCD panel to observe 
       the early stages of SRM startup.</para>
   
-      <para>Features:
+      <para>Features:</para>
       <itemizedlist>
         <listitem>
           <para>21164 EV5 CPU at 266, 300, 333, 366, 400, 433, 466, or 
-  	500 MHz (AS500) or at 266, 300 or 333 MHz (AS600)<para>
+  	500 MHz (AS500) or at 266, 300 or 333 MHz (AS600)</para>
         </listitem>
         <listitem>
           <para>21171 or 21172 (Alcor) core logic chip-set</para>
         </listitem>
-        <listitem><para>Cache:
+        <listitem><para>Cache:</para>
           <itemizedlist>
             <listitem>
               <para>2 or 4 Mb L3 / Bcache (AS600 at 266 MHz)</para>
@@ -1563,12 +1550,12 @@ cpu	EV4</programlisting>
             <listitem>
               <para>2 to 16 Mb L3 / Bcache (AS600; 3 cache-SIMM slots)</para>
             </listitem>
-          </itemizedlist></para>
+          </itemizedlist>
         </listitem>
         <listitem>
-          <para>memory buswidth: 256 bits
+          <para>memory buswidth: 256 bits</para>
         </listitem>
-        <listitem><para>AS500 memory:
+        <listitem><para>AS500 memory:</para>
   	  <itemizedlist>
   	    <listitem>
   	      <para>industry standard 72 bit wide buffered DIMMs</para>
@@ -1585,8 +1572,9 @@ cpu	EV4</programlisting>
               <listitem>
   	      <para>uses ECC </para>
               </listitem>
-  	  </itemizedlist></para>
-         <listitem><para>AS600 memory:
+  	  </itemizedlist>
+	  </listitem>
+         <listitem><para>AS600 memory:</para>
   	  <itemizedlist>
   	    <listitem>
     	      <para>industry standard 36 bit Fast Page Mode SIMMs</para>
@@ -1603,7 +1591,7 @@ cpu	EV4</programlisting>
               <listitem>
   	      <para>uses ECC</para>
               </listitem>
-  	  </itemizedlist></para>
+  	  </itemizedlist>
         </listitem>
         <listitem>
           <para>Qlogic 1020 based wide SCSI bus (1 bus/chip for AS500, 
@@ -1614,10 +1602,10 @@ cpu	EV4</programlisting>
   	and UTP connectors</para>
         </listitem>
         <listitem>
-          <para>expansion:
+          <para>expansion:</para>
 	    <itemizedlist>
 	      <listitem>
-		<para>AS500:
+		<para>AS500:</para>
 		<itemizedlist>
 		  <listitem>
 		    <para>3 32-bit PCI slots</para>
@@ -1625,10 +1613,10 @@ cpu	EV4</programlisting>
 		  <listitem>
   	     	    <para>1 64-bit PCI slot</para>
 		  </listitem>
-		</itemizedlist></para>
+		</itemizedlist>
 	      </listitem>
 	      <listitem>
-		<para>AS600:
+		<para>AS600:</para>
 		<itemizedlist>
 		  <listitem>
 		    <para>2 32-bit PCI slot</para>
@@ -1645,10 +1633,9 @@ cpu	EV4</programlisting>
 		  <listitem>
   		    <para>1 PCI and 1 EISA slot are occupied by default</para>
 		  </listitem>
-		</itemizedlist></para>
+		</itemizedlist>
 	      </listitem>
 	    </itemizedlist>
-          </para>
         </listitem>
         <listitem>
           <para>21050 PCI-to-PCI bridge chip</para>
@@ -1669,7 +1656,7 @@ cpu	EV4</programlisting>
         <listitem>
           <para>PS/2 keyboard and mouse port</para>
         </listitem>
-      </itemizedlist></para>
+      </itemizedlist>
   
       <para>Early machines had Fast SCSI interfaces, later ones are Ultra 
       SCSI capable. AS500 shares its single SCSI bus with internal and external 
@@ -1753,7 +1740,7 @@ cpu	EV5</programlisting>
       CPU was later re-branded to become a 
       <quote>DIGITAL Server 3305[R]</quote>.</para>
 
-      <para>Features:
+      <para>Features:</para>
       <itemizedlist>
        <listitem>
         <para>21064 EV4[5] CPU at 200, 233 or 266 MHz
@@ -1761,11 +1748,11 @@ cpu	EV5</programlisting>
 	AS800 only)</para>
        </listitem>
        <listitem>
-         <para>memory:<itemizedlist>
+         <para>memory:</para><itemizedlist>
 	  <listitem>
 	    <para>buswidth: 128 bit with ECC</para>
           </listitem>
-          <listitem><para>AS1000[A]:
+          <listitem><para>AS1000[A]:</para>
 	    <itemizedlist>
 	      <listitem>
 		<para>72pin 36 bit Fast Page Mode SIMMs, 70ns or better</para>
@@ -1802,7 +1789,7 @@ cpu	EV5</programlisting>
         <para>embedded SCSI based on Symbios 810 [AS1000] or 
         Qlogic 1020 [AS1000A]</para>
        </listitem>
-      </itemizedlist></para>
+      </itemizedlist>
 
       <para>AS1000 based machines come in multiple enclosure types. Floor 
       standing, rack-mount, with or without StorageWorks SCSI chassis etc. 
@@ -1872,7 +1859,7 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
 	    bandwith</para>
 	  </listitem>
 	  <listitem>
-	    <para>memory:
+	    <para>memory:</para>
 	      <itemizedlist>
 		<listitem>
 		  <para>industry standard 200 pin 83 MHz buffered 
@@ -1888,7 +1875,6 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
 		  <para>DIMMs are installed in pairs of 2</para>
 		</listitem>
 	      </itemizedlist>
-	    </para>
 	  </listitem>
 	  <listitem>
 	    <para>21271 Core Logic chipset (<quote>Tsunami</quote>)</para>
@@ -2014,7 +2000,7 @@ cpu	EV5</programlisting>
 	</listitem>
 	<listitem>
           <para>expansion: 2 independent PCI buses, driven by high-speed I/O
- 	     channels called <quote>hoses</quote>:
+ 	     channels called <quote>hoses</quote>:</para>
 	     <itemizedlist>
 	       <listitem>
 		 <para>hose 0: (the upper 3 slots)
@@ -2041,25 +2027,25 @@ cpu	EV5</programlisting>
 	       <listitem>
    	         <para>all PCI slots run at 33MHz</para>
 	       </listitem>
-	     </itemizedlist></para>
+	     </itemizedlist>
 	</listitem>
 	<listitem>
-          <para>1 Ultra-Wide SCSI port based on a Qlogic 1040 chip
+          <para>1 Ultra-Wide SCSI port based on a Qlogic 1040 chip</para>
 	</listitem>
 	<listitem>
-          <para>2 16550A serial port        
+          <para>2 16550A serial port</para>
 	</listitem>
 	<listitem>
-          <para>1 parallel port        
+          <para>1 parallel port</para>
 	</listitem>
 	<listitem>
-          <para>PS/2 keyboard & mouse port        
+          <para>PS/2 keyboard & mouse port</para>
 	</listitem>
 	<listitem>
-          <para>embedded 16-bit ESS ES1888 sound chip
+          <para>embedded 16-bit ESS ES1888 sound chip</para>
 	</listitem>
 	<listitem>
-          <para>2 USB ports
+          <para>2 USB ports</para>
 	</listitem>
 	<listitem>
           <para>graphics options: ELSA Gloria Synergy or 
@@ -2121,7 +2107,7 @@ cpu	EV5</programlisting>
     <sect3>
       <title>DS20/DS20E (<quote>Goldrush</quote>)</title>
 
-      <para>Features:
+      <para>Features:</para>
         <itemizedlist>
 	  <listitem>
 	    <para>21264 EV6 CPU at 500 or 670 MHz</para>
@@ -2136,7 +2122,7 @@ cpu	EV5</programlisting>
 	    <para>memory bus: dual 256 bit wide with crossbar switch</para>
 	  </listitem>
 	  <listitem>
-	    <para>memory:
+	    <para>memory:</para>
 	      <itemizedlist>
 		<listitem>
 		  <para>SDRAM DIMMs</para>
@@ -2151,7 +2137,6 @@ cpu	EV5</programlisting>
 		  <para>uses ECC</para>
 		</listitem>
 	      </itemizedlist>
-	    </para>
 	  </listitem>
 	  <listitem>
 	    <para>21271 Core Logic chip-set
@@ -2161,7 +2146,7 @@ cpu	EV5</programlisting>
 	    <para>embedded Adaptec ? Wide Ultra SCSI</para>
 	  </listitem>
 	  <listitem>
-	    <para>expansion:
+	    <para>expansion:</para>
 	      <itemizedlist>
 		<listitem>
 		  <para>2 independent PCI buses, driven 
@@ -2174,10 +2159,8 @@ cpu	EV5</programlisting>
                   <para>1 ISA slot</para>
 		</listitem>
 	      </itemizedlist>
-	    </para>
 	  </listitem>
 	</itemizedlist>
-      </para>
 
       <para>DS20 needs</para>
       <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET CONSOLE SERIAL</userinput></screen>
@@ -2243,7 +2226,7 @@ cpu	EV5</programlisting>
 
       <para>UP2000 is built by Alpha Processor Inc.</para>
 
-      <para>Features:
+      <para>Features:</para>
         <itemizedlist>
 	  <listitem>
 	    <para>21264 EV6 CPU at 670 MHz</para>
@@ -2274,7 +2257,7 @@ cpu	EV5</programlisting>
 	    <para>embedded USB via Cypress 82C693</para>
 	  </listitem>
 	  <listitem>
-	    <para>expansion:
+	    <para>expansion:</para>
 	      <itemizedlist>
 		<listitem>
 		  <para>2 independent PCI buses, driven 
@@ -2287,10 +2270,8 @@ cpu	EV5</programlisting>
                   <para>1 ISA slot</para>
 		</listitem>
 	      </itemizedlist>
-	    </para>
 	  </listitem>
 	</itemizedlist>
-      </para>
 
       <para>Currently a maximum of 2GB memory is supported by &os;.</para>
 
@@ -2486,7 +2467,7 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
       Server 7300 (5/400 CPU), DIGITAL Server 7305 (5/533 CPU). A 
       trailing R on the part-number means a rackmount variant.</para>
 
-      <para>Features:
+      <para>Features:</para>
         <itemizedlist>
 	  <listitem>
 	    <para>21164 EV5 CPUs at 266, 300 MHz or 21164A EV56 
@@ -2512,7 +2493,6 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
             <para>PS/2 style keyboard & mouse port</para>
 	  </listitem>
         </itemizedlist>
-      </para>
 
      <para>Rawhide uses a maximum of 8 RAM modules. These modules are used 
      in pairs and supply 72 bits to the bus (this includes ECC bits). 
@@ -2542,11 +2522,11 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
      PCI bridges. There is currently a limited fix in place which allows 
      for single level, single device PCI bridges. The fix allows the use of
      the Digital supplied Qlogic SCSI card which sits behind 
-     a 21054 PCI bridge chip.<para>
+     a 21054 PCI bridge chip.</para>
 
      <note><para>EISA slots are currently unsupported, but the Compaq Qvision
      EISA VGA adapter is treated as an ISA device. It therefore works 
-     OK as a console.<para></note>
+     OK as a console.</para></note>
 
      <para>Rawhide employs an I2C based power controller system. If 
      you want to be sure all power is removed from the system remove the 
@@ -2570,7 +2550,7 @@ cpu	EV5</programlisting>
       The AS1200 intended for the NT market were designated DIGITAL 
       Server 5300 (5/400 CPU) and DIGITAL Server 5305 (5/533 CPU).</para>
 
-      <para>Features:
+      <para>Features:</para>
 	<itemizedlist>
 	  <listitem>
 	    <para>21164A EV56 CPUs at 400 or 533 Mhz</para>
@@ -2595,7 +2575,6 @@ cpu	EV5</programlisting>
             <para>PS/2 style keyboard & mouse port</para>
 	  </listitem>
         </itemizedlist>
-      </para>
 
       <para>AS1200 uses 2 memory daughter cards. On each of these cards 
       are 8 DIMM slots. DIMMs must be installed in pairs. The maximum 
@@ -2646,7 +2625,7 @@ cpu	EV5</programlisting>
       <para>Basic disk storage is housed in a StorageWorks shelf. 
       AS8400 uses 3 phase power, AS8200 uses single phase power.</para>
 
-      <para>Features:
+      <para>Features:</para>
 	<itemizedlist>
 	  <listitem>
 	    <para>21164 EV5/EV56 CPUs at up to 467 MHz or 21264 EV67 CPUs at 
@@ -2671,10 +2650,9 @@ cpu	EV5</programlisting>
 	  <listitem>
             <para>expansion: 3 system <quote>I/O ports</quote> that allow up to 
 	    12 I/O channels each I/O channel can connect to 
-	    XMI, Futurebus+ or PCI boxes
+	    XMI, Futurebus+ or PCI boxes</para>
 	  </listitem>
 	</itemizedlist>
-      </para>
        
       <para>&os; supports (and has been tested with) up to 2 GBytes 
       of memory on TurboLaser. There is a trade-off to be made between
@@ -2745,7 +2723,7 @@ cpu	EV5</programlisting>
       CPU which itself lives in a Slot B module. It is normally housed 
       in an ATX tower enclosure.</para>
 
-      <para>Features:
+      <para>Features:</para>
 	<itemizedlist>
 	  <listitem>
 	    <para>21264a Alpha CPU at 600 or 700 MHz in a Slot B 
@@ -2790,7 +2768,7 @@ cpu	EV5</programlisting>
             <para>2 USB ports</para>
 	  </listitem>
 	  <listitem>
-            <para>expansion:
+            <para>expansion:</para>
 	      <itemizedlist>
 		<listitem>
 		  <para>4 32 bit PCI slots</para>
@@ -2804,7 +2782,6 @@ cpu	EV5</programlisting>
 	       </itemizedlist>
           </listitem>
 	</itemizedlist>
-       </para>
 
        <para>Slot B is a box-like enclosure that houses a 
        daughter-board for the CPU and cache. It has 2 small fans for 
@@ -2854,7 +2831,7 @@ cpu	EV5</programlisting>
       <para>The UP1100 is an ATX mainboard based on the 21264a CPU running 
       at 600 MHz.  It is normally housed in an ATX tower enclosure.</para>
 
-      <para>Features:
+      <para>Features:</para>
 	<itemizedlist>
 	  <listitem>
             <para>21264a Alpha EV6 CPU at 600 or 700 MHz</para>
@@ -2900,7 +2877,6 @@ cpu	EV5</programlisting>
              <para>expansion: 3 32 bit PCI slots and 1 AGP2x slot</para>
 	  </listitem>
         </itemizedlist>
-      </para>
 
       <para>SRM console code comes standard with the UP1100. The SRM lives 
       in 2Mbytes of flash ROM.</para>
@@ -2948,7 +2924,7 @@ cpu	EV5</programlisting>
       <para>The CS20 is a 19&quot;, 1U high rackmount server based 
       on the 21264[ab] CPU. It can have a maximum of 2 CPUs.</para>
 
-      <para>Features:
+      <para>Features:</para>
 	<itemizedlist>
 	  <listitem>
 	    <para>21264a Alpha CPU at 667 MHz or 21264b 833 MHz 
@@ -2991,7 +2967,6 @@ cpu	EV5</programlisting>
             <para>expansion: 2 64 bit PCI slots (2/3 length)</para>
 	  </listitem>
 	</itemizedlist>
-      </para>
 
       <para>SRM console code comes standard with the CS20. The SRM 
       lives in 2Mbytes of flash ROM.</para>
@@ -3105,7 +3080,7 @@ cpu	EV5</programlisting>
     it wasn't for NetBSD/alpha there probably would not be a
     &os;/alpha in the first place.</para>
 
-    <para>People who kindly helped me create this section:
+    <para>People who kindly helped me create this section:</para>
       <itemizedlist>
       <listitem>
         <para>&a.gallatin;</para>
