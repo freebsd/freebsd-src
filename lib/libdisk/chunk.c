@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.6 1995/05/03 22:36:49 phk Exp $
+ * $Id: chunk.c,v 1.7 1995/05/05 07:07:43 phk Exp $
  *
  */
 
@@ -52,30 +52,28 @@ Find_Mother_Chunk(struct chunk *chunks, u_long offset, u_long end, chunk_e type)
 					return c1;
 			}
 			return 0;
-			break;
 		case freebsd:
 			for(c1=chunks->part;c1;c1=c1->next) {
 				if (c1->type == type)
 					if (Chunk_Inside(c1,&ct))
 						return c1;
-				if (c1->type == extended) {
-					for(c2=c1->part;c2;c2=c2->next)
-						if (c2->type == type)
-							if (Chunk_Inside(c2,&ct))
-								return c2;
-				}
+				if (c1->type != extended)
+					continue;
+				for(c2=c1->part;c2;c2=c2->next)
+					if (c2->type == type
+					    && Chunk_Inside(c2,&ct))
+						return c2;
 			}
 			return 0;
-			break;
 		default:
-			err(1,"Mumble!");
+			warn("Unsupported mother (0x%x) in Find_Mother_Chunk");
+			return 0;
 	}
 }
 
 void
 Free_Chunk(struct chunk *c1)
 {
-	/* XXX remove all chunks which "ref" us */
 	if(!c1) return;	
 	if(c1->private && c1->private_free)
 		(*c1->private_free)(c1->private);
@@ -97,7 +95,7 @@ Clone_Chunk(struct chunk *c1)
 	if (!c2) err(1,"malloc failed");
 	*c2 = *c1;
 	if (c1->private && c1->private_clone)
-		c2->private_clone(c2->private);
+		c2->private = c2->private_clone(c2->private);
 	c2->name = strdup(c2->name);
 	c2->next = Clone_Chunk(c2->next);
 	c2->part = Clone_Chunk(c2->part);
@@ -108,6 +106,10 @@ int
 Insert_Chunk(struct chunk *c2, u_long offset, u_long size, char *name, chunk_e type, int subtype, u_long flags)
 {
 	struct chunk *ct,*cs;
+
+	/* We will only insert into empty spaces */
+	if (c2->type != unused)
+		return __LINE__;
 
 	ct = new_chunk();
 	if (!ct) err(1,"malloc failed");
@@ -120,6 +122,11 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, char *name, chunk_e t
 	ct->subtype = subtype;
 	ct->flags = flags;
 
+	if (!Chunk_Inside(c2,ct)) {
+		Free_Chunk(ct);
+		return __LINE__;
+	}
+
 	if(type==freebsd || type==extended) {
 		cs = new_chunk();
 		if (!cs) err(1,"malloc failed");
@@ -129,46 +136,41 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, char *name, chunk_e t
 		cs->end = offset + size - 1;
 		cs->type = unused;
 		cs->name = strdup("-");
-		cs->next = 0;
-		cs->part = 0;
 		ct->part = cs;
 	}
 
-	if (c2->type != unused)
-		return __LINE__;
-	if (Chunk_Inside(c2,ct)) {
-		if (c2->end > ct->end) {
-			cs = new_chunk();
-			if (!cs) err(1,"malloc failed");
-			*cs = *c2;
-			cs->offset = ct->end + 1;
-			cs->size = c2->end - ct->end;
-			if(c2->name)
-				cs->name = strdup(c2->name);
-			c2->next = cs;
-			c2->size -= c2->end - ct->end;
-			c2->end = ct->end;
-		}
-		if (c2->offset == ct->offset) {
-			c2->name = ct->name;
-			c2->type = ct->type;
-			c2->part = ct->part;
-			c2->subtype = ct->subtype;
-			c2->flags = ct->flags;
-			ct->name = 0;
-			ct->part = 0;
-			Free_Chunk(ct);
-			return 0;
-		}
-		c2->end = ct->offset - 1;
-		c2->size -= ct->size;
-		ct->next = c2->next;
-		c2->next = ct;
+	/* Make a new chunk for any trailing unused space */
+	if (c2->end > ct->end) {
+		cs = new_chunk();
+		if (!cs) err(1,"malloc failed");
+		*cs = *c2;
+		cs->offset = ct->end + 1;
+		cs->size = c2->end - ct->end;
+		if(c2->name)
+			cs->name = strdup(c2->name);
+		c2->next = cs;
+		c2->size -= c2->end - ct->end;
+		c2->end = ct->end;
+	}
+	/* If no leading unused space just occupy the old chunk */
+	if (c2->offset == ct->offset) {
+		c2->name = ct->name;
+		c2->type = ct->type;
+		c2->part = ct->part;
+		c2->subtype = ct->subtype;
+		c2->flags = ct->flags;
+		ct->name = 0;
+		ct->part = 0;
+		Free_Chunk(ct);
 		return 0;
 	}
-	return __LINE__;
+	/* else insert new chunk and adjust old one */
+	c2->end = ct->offset - 1;
+	c2->size -= ct->size;
+	ct->next = c2->next;
+	c2->next = ct;
+	return 0;
 }
-
 
 int
 Add_Chunk(struct disk *d, u_long offset, u_long size, char *name, chunk_e type,
@@ -207,10 +209,6 @@ Add_Chunk(struct disk *d, u_long offset, u_long size, char *name, chunk_e type,
 		c1 = Find_Mother_Chunk(d->chunks,offset,end,whole);
 	if(!c1 && type == part)
 		c1 = Find_Mother_Chunk(d->chunks,offset,end,freebsd);
-	if(!c1 && type == reserved)
-		c1 = Find_Mother_Chunk(d->chunks,offset,end,extended);
-	if(!c1 && type == reserved)
-		c1 = Find_Mother_Chunk(d->chunks,offset,end,whole);
 	if(!c1)
 		return __LINE__;
 	for(c2=c1->part;c2;c2=c2->next) {
@@ -262,11 +260,19 @@ Print_Chunk(struct chunk *c1,int offset)
 {
 	int i;
 	if(!c1) return;
-	for(i=0;i<offset;i++) putchar('>');
+	for(i=0;i<offset-2;i++) putchar(' ');
+	for(;i<offset;i++) putchar('-');
+	putchar('>');
 	for(;i<10;i++) putchar(' ');
-	printf("%p %10lu %10lu %10lu %-8s %d %-8s %d %lx\n",
+	printf("%p %8lu %8lu %8lu %-8s %-8s 0x%02x ",
 		c1, c1->offset, c1->size, c1->end, c1->name, 
-		c1->type, chunk_n[c1->type],c1->subtype,c1->flags);
+		chunk_n[c1->type],c1->subtype);
+	if (c1->flags & CHUNK_ALIGN) putchar('=');
+	if (c1->flags & CHUNK_PAST_1024) putchar('>');
+	if (c1->flags & CHUNK_IS_ROOT) putchar('R');
+	if (c1->flags & CHUNK_BAD144) putchar('B');
+	if (c1->flags & CHUNK_BSD_COMPAT) putchar('C');
+	putchar('\n');
 	Print_Chunk(c1->part,offset + 2);
 	Print_Chunk(c1->next,offset);
 }

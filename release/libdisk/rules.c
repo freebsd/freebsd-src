@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: rules.c,v 1.6 1995/05/04 07:00:56 phk Exp $
+ * $Id: rules.c,v 1.7 1995/05/05 07:07:45 phk Exp $
  *
  */
 
@@ -87,7 +87,6 @@ Rule_000(struct disk *d, struct chunk *c, char *msg)
 		return;
 	for (c1=c->part; c1; c1=c1->next) {
 		if (c1->type != unused) continue;
-		if (c1->type != reserved) continue;
 		if (c1->flags & CHUNK_ACTIVE)
 			j++;
 		i++;
@@ -115,10 +114,7 @@ Rule_001(struct disk *d, struct chunk *c, char *msg)
 	if (c->type != whole && c->type != extended)
 		return;
 	for (i=0, c1=c->part; c1; c1=c1->next) {
-		if (c1->type == reserved)
-			continue;
-		if (c1->type == unused)
-			continue;
+		if (c1->type == unused) continue;
 		c1->flags |= CHUNK_ALIGN;
 		if (!Track_Aligned(d,c1->offset))
 			sprintf(msg+strlen(msg),
