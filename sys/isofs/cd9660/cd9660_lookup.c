@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.8 1995/10/22 09:32:15 davidg Exp $
+ * $Id: cd9660_lookup.c,v 1.9 1995/11/12 10:16:50 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -154,7 +154,7 @@ cd9660_lookup(ap)
 	 * we are looking for is known already.
 	 */
 	if ((error = cache_lookup(vdp, vpp, cnp))) {
-		int vpid;	/* capability number of vnode */
+		u_long vpid;	/* capability number of vnode */
 
 		if (error == ENOENT)
 			return (error);
