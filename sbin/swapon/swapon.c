@@ -96,10 +96,6 @@ add(char *name, int ignoreebusy)
 
 	if (swapon(name) == -1) {
 		switch (errno) {
-		case EINVAL:
-			fprintf(stderr, "swapon: %s: device not configured\n",
-			    name);
-			break;
 		case EBUSY:
 			if (!ignoreebusy)
 				fprintf(stderr,
