@@ -584,6 +584,9 @@ serve_root (arg)
        nothing.  But for rsh, we need to do it now.  */
     parse_config (CVSroot_directory);
 
+    /* Now is a good time to read CVSROOT/options too. */
+    parseopts(CVSroot_directory);
+
     path = xmalloc (strlen (CVSroot_directory)
 		    + sizeof (CVSROOTADM)
 		    + sizeof (CVSROOTADM_HISTORY)
@@ -621,7 +624,6 @@ Sorry, you don't have read/write access to the history file %s", path);
     (void) putenv (env);
     /* do not free env, as putenv has control of it */
 #endif
-    parseopts(CVSroot_directory);
 }
 
 static int max_dotdot_limit = 0;
