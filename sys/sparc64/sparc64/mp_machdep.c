@@ -125,7 +125,7 @@ mp_tramp_alloc(void)
 	*(u_long *)(v + mp_tramp_func) = (u_long)mp_startup;
 	tp = (struct tte *)(v + mp_tramp_code_len);
 	for (i = 0; i < kernel_tlb_slots; i++) {
-		tp[i].tte_vpn = TV_VPN(kernel_tlbs[i].te_va);
+		tp[i].tte_vpn = TV_VPN(kernel_tlbs[i].te_va, TS_4M);
 		tp[i].tte_data = TD_V | TD_4M | TD_PA(kernel_tlbs[i].te_pa) |
 		    TD_L | TD_CP | TD_CV | TD_P | TD_W;
 	}
@@ -312,7 +312,7 @@ cpu_mp_unleash(void *v)
 			pa = pmap_kextract(va);
 			if (pa == 0)
 				panic("cpu_mp_unleash: pmap_kextract\n");
-			csa->csa_ttes[i].tte_vpn = TV_VPN(va);
+			csa->csa_ttes[i].tte_vpn = TV_VPN(va, TS_8K);
 			csa->csa_ttes[i].tte_data = TD_V | TD_8K | TD_PA(pa) |
 			    TD_L | TD_CP | TD_CV | TD_P | TD_W;
 		}
