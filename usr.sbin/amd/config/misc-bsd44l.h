@@ -38,7 +38,6 @@
  *
  */
 
-#define M_NEWTYPE	0
 #define NFS_NPROCS	26
 struct nfs_fattr;
 union nfsfh;
