@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.46 1997/12/08 22:56:10 fsmp Exp $
+ * $Id: kern_clock.c,v 1.47 1997/12/23 16:31:54 nate Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -1114,6 +1114,42 @@ SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
 	0, 0, sysctl_kern_clockrate, "S,clockinfo","");
 
 #ifdef PPS_SYNC
+
+/* We need this ugly monster twice, so lets macroize it... */
+
+#define MEDIAN3(a, m, s)				\
+	do {						\
+		if (a[0] > a[1]) {			\
+			if (a[1] > a[2]) {		\
+				/* 0 1 2 */		\
+				m = a[1];		\
+				s = a[0] - a[2];	\
+			} else if (a[2] > a[0]) {	\
+				/* 2 0 1 */		\
+				m = a[0];		\
+				s = a[2] - a[1];	\
+			} else {			\
+				/* 0 2 1 */		\
+				m = a[2];		\
+				s = a[0] - a[1];	\
+			}				\
+		} else {				\
+			if (a[1] < a[2]) {		\
+				/* 2 1 0 */		\
+				m = a[1];		\
+				s = a[2] - a[0];	\
+			} else  if (a[2] < a[0]) {	\
+				/* 1 0 2 */		\
+				m = a[0];		\
+				s = a[1] - a[2];	\
+			} else {			\
+				/* 1 2 0 */		\
+				m = a[2];		\
+				s = a[1] - a[0];	\
+			}				\
+		}					\
+	} while (0)
+
 /*
  * hardpps() - discipline CPU clock oscillator to external PPS signal
  *
@@ -1138,9 +1174,9 @@ SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
  * routine.
  */
 void
-hardpps(tvp, usec)
+hardpps(tvp, p_usec)
 	struct timeval *tvp;		/* time at PPS */
-	long usec;			/* hardware counter at PPS */
+	long p_usec;			/* hardware counter at PPS */
 {
 	long u_usec, v_usec, bigtick;
 	long cal_sec, cal_usec;
@@ -1182,29 +1218,9 @@ hardpps(tvp, usec)
 	pps_tf[2] = pps_tf[1];
 	pps_tf[1] = pps_tf[0];
 	pps_tf[0] = u_usec;
-	if (pps_tf[0] > pps_tf[1]) {
-		if (pps_tf[1] > pps_tf[2]) {
-			pps_offset = pps_tf[1];		/* 0 1 2 */
-			v_usec = pps_tf[0] - pps_tf[2];
-		} else if (pps_tf[2] > pps_tf[0]) {
-			pps_offset = pps_tf[0];		/* 2 0 1 */
-			v_usec = pps_tf[2] - pps_tf[1];
-		} else {
-			pps_offset = pps_tf[2];		/* 0 2 1 */
-			v_usec = pps_tf[0] - pps_tf[1];
-		}
-	} else {
-		if (pps_tf[1] < pps_tf[2]) {
-			pps_offset = pps_tf[1];		/* 2 1 0 */
-			v_usec = pps_tf[2] - pps_tf[0];
-		} else  if (pps_tf[2] < pps_tf[0]) {
-			pps_offset = pps_tf[0];		/* 1 0 2 */
-			v_usec = pps_tf[1] - pps_tf[2];
-		} else {
-			pps_offset = pps_tf[2];		/* 1 2 0 */
-			v_usec = pps_tf[1] - pps_tf[0];
-		}
-	}
+
+	MEDIAN3(pps_tf, pps_offset, v_usec);
+
 	if (v_usec > MAXTIME)
 		pps_jitcnt++;
 	v_usec = (v_usec << PPS_AVG) - pps_jitter;
@@ -1238,7 +1254,7 @@ hardpps(tvp, usec)
 		return;
 	pps_count = 0;
 	pps_calcnt++;
-	u_usec = usec << SHIFT_USEC;
+	u_usec = p_usec << SHIFT_USEC;
 	v_usec = pps_usec - u_usec;
 	if (v_usec >= bigtick >> 1)
 		v_usec -= bigtick;
@@ -1287,29 +1303,8 @@ hardpps(tvp, usec)
 	pps_ff[2] = pps_ff[1];
 	pps_ff[1] = pps_ff[0];
 	pps_ff[0] = v_usec;
-	if (pps_ff[0] > pps_ff[1]) {
-		if (pps_ff[1] > pps_ff[2]) {
-			u_usec = pps_ff[1];		/* 0 1 2 */
-			v_usec = pps_ff[0] - pps_ff[2];
-		} else if (pps_ff[2] > pps_ff[0]) {
-			u_usec = pps_ff[0];		/* 2 0 1 */
-			v_usec = pps_ff[2] - pps_ff[1];
-		} else {
-			u_usec = pps_ff[2];		/* 0 2 1 */
-			v_usec = pps_ff[0] - pps_ff[1];
-		}
-	} else {
-		if (pps_ff[1] < pps_ff[2]) {
-			u_usec = pps_ff[1];		/* 2 1 0 */
-			v_usec = pps_ff[2] - pps_ff[0];
-		} else  if (pps_ff[2] < pps_ff[0]) {
-			u_usec = pps_ff[0];		/* 1 0 2 */
-			v_usec = pps_ff[1] - pps_ff[2];
-		} else {
-			u_usec = pps_ff[2];		/* 1 2 0 */
-			v_usec = pps_ff[1] - pps_ff[0];
-		}
-	}
+
+	MEDIAN3(pps_ff, u_usec, v_usec);
 
 	/*
 	 * Here the frequency dispersion (stability) is updated. If it
