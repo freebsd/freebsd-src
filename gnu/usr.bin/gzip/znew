@@ -1,6 +1,7 @@
 #!/bin/sh
+#
+# $Id$
 
-PATH="/usr/local/bin:$PATH"; export PATH
 check=0
 pipe=0
 opt=
