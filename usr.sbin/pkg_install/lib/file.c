@@ -151,6 +151,7 @@ fileGetURL(char *base, char *spec)
     int pfd[2], pstat;
     size_t r, w;
     char *hint;
+    int fd;
 
     rp = NULL;
     /* Special tip that sysinstall left for us */
@@ -196,7 +197,7 @@ fileGetURL(char *base, char *spec)
     else
 	strcpy(fname, spec);
 
-    if ((ftp = fetchGetURL(fname, NULL)) == NULL) {
+    if ((ftp = fetchGetURL(fname, Verbose ? "v" : NULL)) == NULL) {
 	printf("Error: FTP Unable to get %s: %s\n",
 	       fname, fetchLastErrString);
 	return NULL;
@@ -221,9 +222,9 @@ fileGetURL(char *base, char *spec)
 	exit(2);
     }
     if (!tpid) {
-	close(pfd[1]);
 	dup2(pfd[0], 0);
-	close(pfd[0]);
+	for (fd = 3; fd < OPEN_MAX; ++fd)
+	    close(fd);
 	execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-", 0);
 	_exit(2);
     }
