@@ -450,8 +450,6 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 		 */
 		vm = p->p_vmspace;
 
-		mtx_lock(&Giant);
-
 		/*
 		 * Keep swapout from messing with us during this
 		 * critical time.
@@ -460,17 +458,8 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 		++p->p_lock;
 		PROC_UNLOCK(p);
 
-		/*
-		 * Grow the stack if necessary.  vm_map_growstack only
-		 * fails if the va falls into a growable stack region
-		 * and the stack growth fails.  If it succeeds, or the
-		 * va was not within a growable stack region, fault in
-		 * the user page.
-		 */
-		if (vm_map_growstack(p, va) != KERN_SUCCESS)
-			rv = KERN_FAILURE;
-		else
-			rv = vm_fault(&vm->vm_map, va, prot, flags);
+		/* Fault in the user page. */
+		rv = vm_fault(&vm->vm_map, va, prot, flags);
 
 		/*
 		 * Now the process can be swapped again.
@@ -487,15 +476,12 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 		KASSERT(tf->tf_tstate & TSTATE_PRIV,
 		    ("trap_pfault: fault on nucleus context from user mode"));
 
-		mtx_lock(&Giant);
-
 		/*
 		 * Don't have to worry about process locking or stacks in the
 		 * kernel.
 		 */
 		rv = vm_fault(kernel_map, va, prot, VM_FAULT_NORMAL);
 	}
-	mtx_unlock(&Giant);
 
 	CTR3(KTR_TRAP, "trap_pfault: return td=%p va=%#lx rv=%d",
 	    td, va, rv);
