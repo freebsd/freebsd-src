@@ -33,6 +33,8 @@
 #ifndef UBSER_H
 #define UBSER_H
 
+#define MAX_SER	32
+
 /* Vendor Interface Requests */
 #define VENDOR_GET_NUMSER		0x01
 #define VENDOR_SET_BREAK		0x02
