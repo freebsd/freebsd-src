@@ -44,7 +44,6 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/times.h>
 #include <setjmp.h>
-#include <utmp.h>
 #include "pathnames.h"
 
 extern int measure_delta;
@@ -514,7 +513,7 @@ prthp(delta)
 		return;
 
 	this_time = times(&tm);
-	if (this_time + delta < next_time)
+	if ((time_t)(this_time + delta) < next_time)
 		return;
 	next_time = this_time + CLK_TCK;
 
