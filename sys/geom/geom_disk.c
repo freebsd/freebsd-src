@@ -126,6 +126,26 @@ g_disk_done(struct bio *bp)
 }
 
 static void
+g_disk_ioctl(void *arg)
+{
+	struct bio *bp;
+	dev_t dev;
+	struct disk *dp;
+	struct g_ioctl *gio;
+	int error;
+
+	bp = arg;
+	dp = bp->bio_to->geom->softc;
+	dev = dp->d_dev;
+	gio = (struct g_ioctl *)bp->bio_data;
+	mtx_lock(&Giant);
+	error = devsw(dev)->d_ioctl(dev, gio->cmd,
+	    gio->data, gio->fflag, gio->td);
+	mtx_unlock(&Giant);
+	g_io_deliver(bp, error);
+}
+
+static void
 g_disk_start(struct bio *bp)
 {
 	struct bio *bp2;
@@ -165,11 +185,8 @@ g_disk_start(struct bio *bp)
 			g_disk_kerneldump(bp, dp);
 		else if (!strcmp(bp->bio_attribute, "GEOM::ioctl") &&
 		    bp->bio_length == sizeof *gio) {
-			gio = (struct g_ioctl *)bp->bio_data;
-			mtx_lock(&Giant);
-			error = devsw(dev)->d_ioctl(dev, gio->cmd,
-			    gio->data, gio->fflag, gio->td);
-			mtx_unlock(&Giant);
+			g_call_me(g_disk_ioctl, bp);
+			return;
 		} else 
 			error = ENOIOCTL;
 		break;
