@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.18 1997/02/22 14:12:31 peter Exp $
+ * $Id: uc_main.c,v 1.19 1998/09/16 09:25:20 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -285,7 +285,6 @@ uc_getdev(struct kernel *kern, char *dev)
     else {
 	/* we gotta figure out which real device to report */
 	struct uc_isa *ip;
-	struct uc_scsi *sp;
 	struct uc_pci *pp;
 	struct uc_eisa *ep;
 	
@@ -300,6 +299,8 @@ uc_getdev(struct kernel *kern, char *dev)
 	
 #ifdef USE_SCSI
 	if (kern->scsi_devp) {
+	    struct uc_scsi *sp;
+
 	    for (sp = kern->scsi_devp; sp->device; sp++) {
 		if (strcmp(dev, sp->device) == 0) {
 		    list = get_scsi_device(sp);
