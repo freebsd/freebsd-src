@@ -96,7 +96,6 @@
   090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     O
   092   nscr   pscr   debug  nop    nop    nop    nop    nop     O
-# 093   meta   meta   meta   meta   meta   meta   meta   meta    O
   093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
   094   fkey49 fkey49 fkey69 fkey49 fkey49 fkey49 fkey49 fkey49  O
   095   fkey50 fkey50 fkey70 fkey50 fkey50 fkey50 fkey50 fkey50  O
