@@ -87,6 +87,9 @@ The separator string,
 .Fa sep ,
 must be supplied each time, and may change between calls.
 .Pp
+The implementation will behave as if no library function calls
+.Fn strtok .
+.Pp
 The
 .Fn strtok_r
 function is a reentrant version of
