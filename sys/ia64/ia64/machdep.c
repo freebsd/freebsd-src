@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cpu.h>
 #include <sys/eventhandler.h>
 #include <sys/kdb.h>
 #include <sys/sysproto.h>
@@ -285,6 +286,17 @@ cpu_boot(int howto)
 {
 
 	efi_reset_system();
+}
+
+/* Get current clock frequency for the given cpu id. */
+int
+cpu_est_clockrate(int cpu_id, uint64_t *rate)
+{
+
+	if (pcpu_find(cpu_id) == NULL || rate == NULL)
+		return (EINVAL);
+	*rate = processor_frequency;
+	return (0);
 }
 
 void

@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cpu.h>
 #include <sys/kdb.h>
 #include <sys/eventhandler.h>
 #include <sys/imgact.h>
@@ -698,6 +699,14 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 void
 cpu_boot(int howto)
 {
+}
+
+/* Get current clock frequency for the given cpu id. */
+int
+cpu_est_clockrate(int cpu_id, uint64_t *rate)
+{
+
+	return (ENXIO);
 }
 
 /*
