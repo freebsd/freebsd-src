@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.24 1998/09/20 00:01:26 jkh Exp $
+.\" $Id: fetch.1,v 1.25 1998/11/08 23:18:47 des Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os FreeBSD 2.2
@@ -115,6 +115,9 @@ This option is useful to prevent
 .Nm fetch
 from downloading a file that is either incomplete or the wrong version,
 given the correct size of the file in advance.
+.It Fl s
+Ask server for size of file in bytes and print it to stdout. Do not
+actually fetch the file.
 .It Fl T Ar seconds
 Set timeout value to
 .Ar seconds.
