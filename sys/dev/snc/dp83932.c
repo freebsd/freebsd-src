@@ -346,12 +346,6 @@ outloop:
 	M_ASSERTPKTHDR(m);
 
 	/*
-	 * If bpf is listening on this interface, let it
-	 * see the packet before we commit it to the wire.
-	 */
-	BPF_MTAP(ifp, m);
-
-	/*
 	 * If there is nothing in the o/p queue, and there is room in
 	 * the Tx ring, then send the packet directly.  Otherwise append
 	 * it to the o/p queue.
@@ -360,6 +354,16 @@ outloop:
 		IF_PREPEND(&ifp->if_snd, m);
 		return;
 	}
+
+	/*
+	 * If bpf is listening on this interface, let it see the packet
+	 * before we commit it to the wire, but only if we are really
+	 * committed to send it.
+	 *
+	 * XXX: Locking must protect m against premature m_freem() in
+	 * sonictxint().
+	 */
+	BPF_MTAP(ifp, m);
 
 	sc->mtd_prev = sc->mtd_free;
 	sc->mtd_free = mtd_next;
