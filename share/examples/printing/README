@@ -1,7 +1,7 @@
-# $Id$ 
+# $Id: README,v 1.4 1997/02/22 13:55:59 peter Exp $ 
 #
 # The files in this directory are generated automatically
-# from src/share/doc/handbook/printing.sgml, do not edit it here!
+# from doc/handbook/printing.sgml, do not edit it here!
 #
-# Please change src/share/doc/handbook/printing.sgml or maybe 
+# Please change doc/handbook/printing.sgml or maybe 
 # src/tools/tools/epfe/epfe.pl instead.
