@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: tl.4,v 1.1 1998/05/21 03:20:39 wpaul Exp $
+.\"	$Id: tl.4,v 1.2 1998/12/05 09:31:25 rnordier Exp $
 .\"
 .Dd May 1, 1998
 .Dt TL 4 i386
@@ -46,7 +46,10 @@ driver provides support for PCI ethernet adapters based on the Texas
 Instruments ThunderLAN ethernet controller chip. This includes a large
 number of Compaq PCI-bus ethernet adapters as well as the integrated
 ethernet controllers built in to several models of Compaq Prosignia
-servers and Compaq Deskpro desktop machines.
+servers and Compaq Deskpro desktop machines. This driver also supports
+the Olicom OC-2135/2138, OC-2325 and OC-2326 10/100 TX UTP adapters
+and the Racore 8165 10/100baseTX and 8148 10baseT/100baseTX/100baseFX
+multi-personality cards.
 .Pp
 The ThunderLAN controller has a standard MII interface that supports
 up to 32 physical interface devices (PHYs). It also has a built-in
