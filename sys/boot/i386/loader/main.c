@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.12 1998/10/21 20:10:33 msmith Exp $
+ *	$Id: main.c,v 1.13 1998/10/22 20:23:58 msmith Exp $
  */
 
 /*
@@ -96,6 +96,11 @@ main(void)
     if (initial_howto & RB_SERIAL)
 	setenv("console", "comconsole", 1);
     cons_probe();
+
+    /*
+     * Initialise the block cache
+     */
+    bcache_init(32, 512);	/* 16k cache XXX tune this */
 
     /*
      * March through the device switch probing for things.
