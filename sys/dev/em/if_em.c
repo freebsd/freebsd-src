@@ -727,11 +727,10 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFCAP:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFCAP (Set Capabilities)");
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		if (mask & IFCAP_POLLING)
+			ifp->if_capenable ^= IFCAP_POLLING;
 		if (mask & IFCAP_HWCSUM) {
-			if (IFCAP_HWCSUM & ifp->if_capenable)
-				ifp->if_capenable &= ~IFCAP_HWCSUM;
-			else
-				ifp->if_capenable |= IFCAP_HWCSUM;
+			ifp->if_capenable ^= IFCAP_HWCSUM;
 			if (ifp->if_flags & IFF_RUNNING)
 				em_init(adapter);
 		}
@@ -888,6 +887,10 @@ em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	mtx_assert(&adapter->mtx, MA_OWNED);
 
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
         if (cmd == POLL_DEREGISTER) {       /* final call, enable interrupts */
                 em_enable_intr(adapter);
                 return;
@@ -945,7 +948,8 @@ em_intr(void *arg)
                 return;
 	}
 
-        if (ether_poll_register(em_poll, ifp)) {
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(em_poll, ifp)) {
                 em_disable_intr(adapter);
                 em_poll_locked(ifp, 0, 1);
 		EM_UNLOCK(adapter);
@@ -1864,6 +1868,10 @@ em_setup_interface(device_t dev, struct adapter * adapter)
         ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 #endif
 
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+	ifp->if_capenable |= IFCAP_POLLING;
+#endif
 
 	/* 
 	 * Specify the media types supported by this adapter and register
