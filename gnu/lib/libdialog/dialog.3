@@ -232,16 +232,18 @@ effect.
 .Pp
 Below is a short description of the various functions:
 .Pp
+The
 .Fn draw_shadow
-draws a shadow in curses window
+function draws a shadow in curses window
 .Va win
 using the dimensions of
 .Va x , y , width
 and
 .Va height .
 .Pp
+The
 .Fn draw_box
-draws a bordered box using the dimensions of
+function draws a bordered box using the dimensions of
 .Va x , y , width
 and
 .Va height .
@@ -252,8 +254,9 @@ and
 are used, if specified, while painting the box and border regions of the
 object.
 .Pp
+The
 .Fn line_edit
-invoke a simple line editor with an edit box of dimensions
+function invokes a simple line editor with an edit box of dimensions
 .Va box_x , box_y
 and
 .Va box_width .
@@ -268,23 +271,27 @@ The string being edited is stored in
 .Va result .
 Returns 0 on success, 1 on Cancel, and -1 on failure or ESC.
 .Pp
+The
 .Fn strheight
-returns the height of string in
+function returns the height of string in
 .Va p ,
 counting newlines.
 .Pp
+The
 .Fn strwidth
-returns the width of string in
+function returns the width of string in
 .Va p ,
 counting newlines.
 .Pp
+The
 .Fn dialog_create_rc
-dump dialog library settings into
+function dumps dialog library settings into
 .Pa filename
 for later retrieval as defaults.  Returns 0 on success, -1 on failure.
 .Pp
+The
 .Fn dialog_yesno
-display a text box using
+function displays a text box using
 .Va title
 and
 .Va prompt
@@ -305,14 +312,16 @@ button is chosen, return FALSE.  If
 .Em \&No ,
 return TRUE.
 .Pp
+The
 .Fn dialog_noyes
-is the same as
+function is the same as
 .Fn dialog_yesno ,
 except the default selection is
 .Em \&No .
 .Pp
+The
 .Fn dialog_prgbox
-display a text box of dimensions
+function displays a text box of dimensions
 .Va height
 and
 .Va width
@@ -331,16 +340,18 @@ If
 is TRUE, a final confirmation requestor will be put up when execution
 terminates.  Returns 0 on success, -1 on failure.
 .Pp
+The
 .Fn dialog_textbox
-display a text box containing the contents of
+function displays a text box containing the contents of
 .Va file
 with dimensions of
 .Va height
 and
 .Va width .
 .Pp
+The
 .Fn dialog_menu
-display a menu of dimensions
+function displays a menu of dimensions
 .Va height
 and
 .Va width
@@ -402,8 +413,9 @@ and
 values may be passed in to preserve current
 item selection and scroll position values across calls.
 .Pp
+The
 .Fn dialog_checklist
-display a menu of dimensions
+function displays a menu of dimensions
 .Va height
 and
 .Va width
@@ -485,8 +497,9 @@ behavior, you're no longer constrained by it.
 .Pp
 Returns 0 on success, 1 on Cancel, and -1 on failure or ESC.
 .Pp
+The
 .Fn dialog_radiolist
-display a menu of dimensions
+function displays a menu of dimensions
 .Va height
 and
 .Va width
@@ -567,8 +580,9 @@ behavior.
 .Pp
 Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
 .Pp
+The
 .Fn dialog_inputbox
-displays a single-line text input field in a box displaying
+function displays a single-line text input field in a box displaying
 .Va title
 and
 .Va prompt
@@ -581,8 +595,9 @@ The field entered is stored in
 .Pp
 Returns 0 on success, -1 on failure or ESC.
 .Pp
+The
 .Fn dialog_fselect
-brings up a file selector dialog starting at
+function brings up a file selector dialog starting at
 .Va dir
 and showing only those file names
 matching
@@ -590,8 +605,9 @@ matching
 .Pp
 Returns filename selected or NULL.
 .Pp
+The
 .Fn dialog_dselect
-brings up a directory selector dialog starting at
+function brings up a directory selector dialog starting at
 .Va dir
 and showing only those directory names
 matching
@@ -599,12 +615,14 @@ matching
 .Pp
 Returns directory name selected or NULL.
 .Pp
+The
 .Fn dialog_notify
-brings up a generic "hey, you!" notifier dialog containing
+function brings up a generic "hey, you!" notifier dialog containing
 .Va msg .
 .Pp
+The
 .Fn dialog_mesgbox
-like a notifier dialog, but with more control over
+function displays a notifier dialog, but with more control over
 .Va title ,
 .Va prompt ,
 .Va width
@@ -615,8 +633,9 @@ This object will also wait for user confirmation, unlike
 .Pp
 Returns 0 on success, -1 on failure.
 .Pp
+The
 .Fn dialog_gauge
-displays a horizontal bar-graph style gauge.  A value of
+function displays a horizontal bar-graph style gauge.  A value of
 .Em 100
 for
 .Em perc
@@ -624,37 +643,47 @@ constitutes a full gauge, a value of
 .Em 0
 an empty one.
 .Pp
+The
 .Fn use_helpfile
-for any menu supporting context sensitive help, invoke the text box
+function for any menu supporting context sensitive help, invokes the text box
 object on this file whenever the
 .Em F1
 key is pressed.
 .Pp
+The
 .Fn use_helpline
-displays this line of helpful text below any menu being displayed.
+function displays this line of helpful text below any menu being displayed.
 .Pp
+The
 .Fn get_helpline
-get the current value of the helpful text line.
+function gets the current value of the helpful text line.
 .Pp
+The
 .Fn dialog_clear_norefresh
-clear the screen back to the dialog background color, but don't refresh the
-contents just yet.
+function clears the screen back to the dialog background color, but don't
+refresh the contents just yet.
 .Pp
+The
 .Fn dialog_clear
-clear the screen back to the dialog background color immediately.
+function clears the screen back to the dialog background color immediately.
 .Pp
+The
 .Fn dialog_update
-do any pending screen refreshes now.
+function does any pending screen refreshes now.
 .Pp
+The
 .Fn init_dialog
-initialize the dialog library (call this routine before any other dialog
-API calls).
+function initializes the dialog library (call this routine before any other
+dialog API calls).
 .Pp
+The
 .Fn end_dialog
-shut down the dialog library (call this if you need to get back to sanity).
+function shuts down the dialog library (call this if you need to get back to
+sanity).
 .Pp
+The
 .Fn dialog_ftree
-shows a tree described by the data from the file
+function shows a tree described by the data from the file
 .Pa filename .
 The data in the file should look like
 .Xr find 1
@@ -728,6 +757,7 @@ function returns 1. In case of exiting
 .Fn dialog_ftree
 on ESC, the function returns -1.
 .Pp
+The
 .Fn dialog_tree 
 function returns the same results as
 .Fn dialog_ftree .
