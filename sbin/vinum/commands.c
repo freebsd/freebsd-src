@@ -312,7 +312,7 @@ void
 initplex(int plexno, char *name)
 {
     int sdno;
-    int plexfh = NULL;					    /* file handle for plex */
+    int plexfh = 0;					    /* file handle for plex */
     pid_t pid;
     char filename[MAXPATHLEN];				    /* create a file name here */
 
