@@ -140,13 +140,16 @@ main(argc, argv)
 	options = NULL;
 	vfslist = NULL;
 	vfstype = "ufs";
-	while ((ch = getopt(argc, argv, "adfo:prwt:uv")) != -1)
+	while ((ch = getopt(argc, argv, "adF:fo:prwt:uv")) != -1)
 		switch (ch) {
 		case 'a':
 			all = 1;
 			break;
 		case 'd':
 			debug = 1;
+			break;
+		case 'F':
+			setfstab(optarg);
 			break;
 		case 'f':
 			init_flags |= MNT_FORCE;
@@ -712,7 +715,7 @@ usage()
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 "usage: mount [-dfpruvw] [-o options] [-t ufs | external_type] special node",
-"       mount [-adfpruvw] [-t ufs | external_type]",
+"       mount [-adfpruvw] [ -F fstab] [-t ufs | external_type]",
 "       mount [-dfpruvw] special | node");
 	exit(1);
 }
