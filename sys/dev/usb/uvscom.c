@@ -217,6 +217,8 @@ struct ucom_callback uvscom_callback = {
 };
 
 static const struct usb_devno uvscom_devs [] = {
+	/* SUNTAC U-Cable type A4 */
+	{ USB_VENDOR_SUNTAC, USB_PRODUCT_SUNTAC_AS144L4 },
 	/* SUNTAC U-Cable type D2 */
 	{ USB_VENDOR_SUNTAC, USB_PRODUCT_SUNTAC_DS96L },
 	/* SUNTAC Ir-Trinity */
