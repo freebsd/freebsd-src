@@ -58,7 +58,7 @@ __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 	 * This means that we need an 8-byte-odd alignment since the ABI expects
 	 * the return address to be pushed, thus breaking the 16 byte alignment.
 	 */
-	sp = (ucp->uc_mcontext.mc_rsp - sizeof(ucontext_t)) & ~15UL;
+	sp = (ucp->uc_mcontext.mc_rsp - 128 - sizeof(ucontext_t)) & ~15UL;
 	sig_uc = (ucontext_t *)sp;
 	bcopy(ucp, sig_uc, sizeof(*sig_uc));
 	sp = (sp - sizeof(siginfo_t)) & ~15UL;
