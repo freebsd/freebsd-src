@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.41 1999/03/27 20:32:32 wpaul Exp $
+ *	$Id: if_pn.c,v 1.42 1999/03/30 19:29:25 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.41 1999/03/27 20:32:32 wpaul Exp $";
+	"$Id: if_pn.c,v 1.42 1999/03/30 19:29:25 wpaul Exp $";
 #endif
 
 /*
@@ -1344,7 +1344,8 @@ static void pn_rxeof(sc)
 
 		m0->m_data += 2;
 		if (total_len <= (MHLEN - 2)) {
-			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), total_len);				m_freem(m);
+			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), total_len);
+			m_freem(m);
 			m = m0;
 			m->m_pkthdr.len = m->m_len = total_len;
 		} else {
