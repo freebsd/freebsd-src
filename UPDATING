@@ -50,6 +50,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	netgraph to boot need to make sure to have world and kernel in
 	sync before rebooting.
 
+20031111:
+	Hyperthreading logical CPU's are no longer probed by default
+	when using the MP Table.  If ACPI is being used, then logical
+	CPUs will be probed if hyperthreading is enabled in the BIOS.
+	If ACPI is not being used and hyperthreading is enabled in the
+	BIOS, logical CPUs can be enabled by building a custom kernel
+	with the option MPTABLE_FORCE_HTT enabled.
+ 
 20031103:
 	The i386 APIC_IO kernel option has been replaced by
 	'device apic'.  The ACPI module has also been temporarily
