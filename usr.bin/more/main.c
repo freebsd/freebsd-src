@@ -288,7 +288,8 @@ main(argc, argv)
 		 */
 		if (ac < 1) {
 			(void)edit("-");
-			cat_file();
+			if (file >= 0)
+				cat_file();
 		} else {
 			do {
 				(void)edit((char *)NULL);
