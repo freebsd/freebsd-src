@@ -576,7 +576,7 @@ legacy_setsoftnet(void)
  * via a SI_SUB_SOFINTR, SI_ORDER_MIDDLE sysinit.
  */
 void	(*netisrs[32]) __P((void));
-u_int	netisr;
+volatile unsigned int	netisr;	/* scheduling bits for network */
 
 int
 register_netisr(num, handler)
