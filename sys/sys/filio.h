@@ -50,5 +50,10 @@
 #define	FIOGETOWN	_IOR('f', 123, int)	/* get owner */
 #define	FIODTYPE	_IOR('f', 122, int)	/* get d_flags type part */
 #define	FIOGETLBA	_IOR('f', 121, int)	/* get start blk # */
+struct fiodgname_arg {
+	int	len;
+	void	*buf;
+};
+#define	FIODGNAME	_IOW('f', 120, struct fiodgname_arg) /* get dev. name */
 
 #endif /* !_SYS_FILIO_H_ */
