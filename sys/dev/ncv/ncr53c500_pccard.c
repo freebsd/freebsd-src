@@ -74,7 +74,7 @@ extern struct ncv_softc *ncvdata[];
 #include "ncv.h"
 #endif
 
-#define KME_KXLC004_01 0x1
+#define KME_KXLC004_01 0x100
 #define OFFSET_KME_KXLC004_01 0x10
 
 /* pccard support */
