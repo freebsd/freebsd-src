@@ -109,6 +109,8 @@
 #define cond_init(c, a, p)	_pthread_cond_init(c, a)
 #define cond_signal(m)		if (__isthreaded) \
 				_pthread_cond_signal(m)
+#define cond_broadcast(m)	if (__isthreaded) \
+				_pthread_cond_broadcast(m)
 #define cond_wait(c, m)		if (__isthreaded) \
 				_pthread_cond_wait(c, m)
 
