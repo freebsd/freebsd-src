@@ -98,8 +98,8 @@ struct route {
 	struct sockaddr ro_dst;
 	struct rtentry *ro_rt;
 };
-.Pp
 .Ed
+.Pp
 Thus, this function can only be used for address families which are
 smaller than the default
 .Dq Li "struct sockaddr" .
@@ -134,13 +134,13 @@ argument, which lists the flags in the route which are to be
 .Em ignored
 (in most cases this is
 .Dv RTF_CLONING
-flag) .
+flag).
 Both
 .Fn rtalloc
 and
 .Fn rtalloc_ign
-functions return an unlocked
-.Ft "struct rtentry" .
+functions return a pointer to an unlocked
+.Vt "struct rtentry" .
 .Pp
 The
 .Fn rtalloc1
@@ -173,15 +173,17 @@ The third argument,
 .Fa flags ,
 is a set of flags to ignore, as in
 .Fn rtalloc_ign .
+The
 .Fn rtalloc1
-returns a locked
-.Ft "struct rtentry" .
+returns a pointer to a locked
+.Vt "struct rtentry" .
 .Pp
 The
 .Fn rtfree
-function frees a locked route entry, e.g. previously allocated by
+function frees a locked route entry, e.g. a previously allocated by
 .Fn rtalloc1 .
 .Pp
+The
 .Fn RTFREE
 macro is used to free unlocked route entries, previously allocated by
 .Fn rtalloc
