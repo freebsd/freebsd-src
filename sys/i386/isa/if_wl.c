@@ -157,7 +157,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "wl.h"
-#include "opt_wl.h"
+#include "opt_wavelan.h"
 #include "bpfilter.h"
 
 #include <sys/param.h>
