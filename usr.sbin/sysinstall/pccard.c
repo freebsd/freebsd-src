@@ -247,7 +247,7 @@ pccardInitialize(void)
     msgConfirm("Now we start initializing PC-card controller and cards.\n"
 	       "If you've executed this installer from a PC-card floppy\n"
 	       "drive, this is the last chance to replace it with\n"
-	       "installation media (PC-card Ethernet, CDROM, etc.).\n"
+	       "installation media (PC-card Ethernet, CD, DVD, etc.).\n"
 	       "Please insert installation media and press [Enter].\n"
 	       "If you've not plugged the PC-card installation media\n"
 	       "in yet, please plug it in now and press [Enter].\n"

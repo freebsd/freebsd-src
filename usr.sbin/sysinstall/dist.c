@@ -394,7 +394,7 @@ distMaybeSetPorts(dialogMenuItem *self)
 		  "This will give you ready access to over 4000 ported software packages,\n"
 		  "at a cost of around 70MB of disk space when \"clean\" and possibly\n"
 		  "much more than that when a lot of the distribution tarballs are loaded\n"
-		  "(unless you have the extra CDs available from a FreeBSD CDROM distribution\n"
+		  "(unless you have the extra discs available from a FreeBSD CD/DVD distribution\n"
 		  "and can mount them on /cdrom, in which case this is far less of a problem).\n\n"
 		  "The ports collection is a very valuable resource and well worth having\n"
 		  "on your /usr partition, so it is advisable to say Yes to this option.\n\n"
