@@ -125,9 +125,9 @@ based PC's, ranging from 386sx to Pentium class machines (though the
 configurations, various SCSI controller, network and serial cards is
 also provided.
 
-What follows is a list of all disk controllers and ethernet cards
-currently known to work with FreeBSD.  Other configurations may also
-work, but we have simply not received any confirmation of this.
+What follows is a list of all peripherals currently known to work with
+FreeBSD.  Other configurations may also work, we have simply not as yet
+received confirmation of this.
 
 
 3.1. Disk Controllers
@@ -164,7 +164,14 @@ Buslogic 742A, 747S, 747c EISA SCSI controller.
 Buslogic 946c PCI SCSI controller
 Buslogic 956c PCI SCSI controller
 
-NCR 53C810 and 53C825 PCI SCSI controller.
+NCR 53C810, 53C825, 53c860 and 53c875 PCI SCSI controllers:
+	ASUS SC-200
+  	Data Technology DTC3130 (all variants)
+	NCR cards (all)
+	Symbios cards (all)
+	Tekram DC390W, 390U and 390F
+	Tyan S1365
+
 NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
@@ -179,7 +186,7 @@ WD7000 SCSI controller.
 
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
-DAT) and CD ROM drives.
+DAT and 8mm Exabyte) and CD ROM drives.
 
 The following CD-ROM type systems are supported at this time:
 (cd)    SCSI interface (also includes ProAudio Spectrum and
@@ -196,6 +203,9 @@ The following CD-ROM type systems are supported at this time:
 -------------------
 
 Allied-Telesis AT1700 and RE2000 cards
+
+AMD PCnet/PCI (79c970 & 53c974 or 79c974)
+
 SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra is also supported.
@@ -204,7 +214,9 @@ DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
 DEC FDDI (DEFPA/DEFEA) NICs
+
 Fujitsu MB86960A/MB86965A
+
 HP PC Lan+ cards (model numbers: 27247B and 27252A)
 
 Intel EtherExpress (not recommended due to driver instability)
@@ -243,7 +255,10 @@ AST 4 port serial card using shared IRQ.
 ARNET 8 port serial card using shared IRQ.
 ARNET (now Digiboard) Sync 570/i high-speed serial.
 
-BOCA ATIO66 6 port serial card using shared IRQ.
+Boca BB1004 4-Port serial card (Modems NOT supported)
+Boca IOAT66 6-Port serial card (Modems supported)
+Boca BB1008 8-Port serial card (Modems NOT supported)
+Boca BB2016 16-Port serial card (Modems supported)
 
 Cyclades Cyclom-y Serial Board.
 
@@ -252,8 +267,29 @@ STB 4 port card using shared IRQ.
 SDL Communications Riscom/8 Serial Board.
 SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
 
+Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
+ONboard 4/16 and Brumby.
+
 Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards.
+
+Connectix QuickCam
+Matrox Meteor Video frame grabber
+Creative Labs Video Spigot frame grabber
+Cortex1 frame grabber
+
+HP4020i, Philips CDD2000 and PLASMON WORM (CDR) drives.
+
+PS/2 mice
+
+Standard PC Joystick
+
+X-10 power controllers
+
+GPIB and Transputer drivers.
+
+Genius and Mustek hand scanners.
+
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
 
@@ -421,40 +457,41 @@ The FreeBSD Development Team, excluding core team members
         Thomas Gellekum <tg@FreeBSD.org>
         Thomas Graichen <graichen@FreeBSD.org>
         Rod Grimes <rgrimes@FreeBSD.org>
-	James FitzGibbon <jfitz@FreeBSD.org>
+        James FitzGibbon <jfitz@FreeBSD.org>
         John Hay <jhay@FreeBSD.org>
         Jeffrey Hsu <hsu@FreeBSD.org>
         Ugen J.S. Antsilevich <ugen@FreeBSD.org>
         Gary Jennejohn <gj@FreeBSD.org>
-	Andreas Klemm <andreas@FreeBSD.org>
-	Warner Losh <imp@FreeBSD.org>
+        Andreas Klemm <andreas@FreeBSD.org>
+        Warner Losh <imp@FreeBSD.org>
         L Jonas Olsson <ljo@FreeBSD.org>
         Eric L. Hernes <erich@FreeBSD.org>
         Scott Mace <smace@FreeBSD.org>
         Atsushi Murai <amurai@FreeBSD.org>
         Mark Murray <markm@FreeBSD.org>
-	Alex Nash <alex@FreeBSD.org>
-	Masafumi NAKANE <max@FreeBSD.org>
-	David E. O'Brien <obrien@FreeBSD.org>
+        Alex Nash <alex@FreeBSD.org>
+        Masafumi NAKANE <max@FreeBSD.org>
+        David E. O'Brien <obrien@FreeBSD.org>
         Andras Olah <olah@FreeBSD.org>
-	Steve Passe <smp@FreeBSD.org>
+        Steve Passe <smp@FreeBSD.org>
+        Sujal Patel <smpatel@FreeBSD.org>
         Bill Paul <wpaul@FreeBSD.org>
         Joshua Peck Macdonald <jmacd@FreeBSD.org>
         John Polstra <jdp@FreeBSD.org>
-	Steve Price <steve@FreeBSD.org>
+        Steve Price <steve@FreeBSD.org>
         Mike Pritchard <mpp@FreeBSD.org>
         Doug Rabson <dfr@FreeBSD.org>
-	James Raynard <jraynard@FreeBSD.org>
+        James Raynard <jraynard@FreeBSD.org>
         Geoff Rehmet <csgr@FreeBSD.org>
         Martin Renters <martin@FreeBSD.org>
         Paul Richards <paul@FreeBSD.org>
         Ollivier Robert <roberto@FreeBSD.org>
-	Chuck Robey <chuckr@FreeBSD.org>
+        Chuck Robey <chuckr@FreeBSD.org>
         Dima Ruban <dima@FreeBSD.org>
         Wolfram Schneider <wosch@FreeBSD.org>
         Andreas Schulz <ats@FreeBSD.org>
         Karl Strickland <karl@FreeBSD.org>
-	Michael Smith <msmith@FreeBSD.org>
+        Michael Smith <msmith@FreeBSD.org>
         Paul Traina <pst@FreeBSD.org>
         Guido van Rooij <guido@FreeBSD.org>
         Steven Wallace <swallace@FreeBSD.org>
@@ -494,4 +531,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.17 1996/10/30 18:57:46 jhay Exp $
+$Id: relnotes.hlp,v 1.17.2.1 1996/11/13 11:49:42 jkh Exp $

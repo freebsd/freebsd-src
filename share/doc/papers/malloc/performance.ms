@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id$
+.\" $Id: performance.ms,v 1.1 1996/04/13 08:30:19 phk Exp $
 .\"
 .ds RH Performance
 .NH
@@ -63,15 +63,15 @@ For now we can simply say that it is the number of pages the process
 needs in order to run at a sufficiently low paging rate in a congested
 primary storage.
 (If primary storage isn't congested, this is not really important 
-of course, but most systems would be better of using the pages for
+of course, but most systems would be better off using the pages for
 disk-cache or similar functions, so from that perspective it will
 always be congested.)
-If this number of pages is to small, the process will wait for the its
+If the number of pages is too small, the process will wait for its
 pages to be read from secondary storage much of the time, if it's too
 big, the space could be used better for something else.
 .PP
 From the view of any single process, this number of pages is 
-"all of my pages", but from the point of view of the OS is should
+"all of my pages", but from the point of view of the OS it should
 be tuned to maximise the total throughput of all the processes on
 the machine at the time.
 This is usually done using various kinds of least-recently-used 

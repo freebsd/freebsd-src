@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.145.2.1 1996/11/06 08:46:35 phk Exp $ -->
+<!-- $Id: contrib.sgml,v 1.145.2.2 1996/11/10 12:15:06 phk Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -178,6 +178,7 @@
 	  <item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andreas Kohout &lt;shanee@rabbit.augusta.de&gt;
+	  <item>Andreas Lohr &lt;andreas@marvin.RoBIN.de&gt;
 	  <item>Andrew McRae &lt;amcrae@cisco.com&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
 	  <item>Andrew V. Stesin &lt;stesin@elvisti.kiev.ua&gt;
@@ -254,6 +255,7 @@
 	  <item>Juha Inkari &lt;inkari@cc.hut.fi&gt;
 	  <item>Julian Jenkins &lt;kaveman@magna.com.au&gt;
 	  <item>Julian Stacey &lt;jhs@freebsd.org&gt;
+	  <item>Kazutaka YOKOTA &lt;yokota@zodiac.mech.utsunomiya-u.ac.jp&gt;
 	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
 	  <item>Keith Moore &lt;?&gt;
 	  <item>Kirk McKusick &lt;mckusick@mckusick.com&gt;
@@ -290,7 +292,7 @@
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
 	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
 	  <item>Noritaka Ishizumi &lt;graphite@taurus.bekkoame.or.jp&gt;
-	  <item>Oly &lt;oly@world.std.com&gt;
+	  <item>Oliver Oberdorf &lt;oly@world.std.com&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;

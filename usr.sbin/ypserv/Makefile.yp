@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.12 1996/08/09 17:55:18 adam Exp $
+# $Id: Makefile.yp,v 1.13 1996/10/24 18:58:21 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -271,7 +271,7 @@ hosts.byname: $(HOSTS)
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(HOSTS) | \
 	$(AWK) '/^[0-9]/ { for (n=2; n<=NF && $$n !~ "#"; n++) \
-		print $$n"\t"$$0 }' $^ | $(DBLOAD) -i $(HOSTS)  \
+		print $$n"\t"$$0 }' $^ | $(DBLOAD) ${B} -i $(HOSTS)  \
 						-o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -285,7 +285,7 @@ hosts.byaddr: $(HOSTS)
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(HOSTS) | \
 	$(AWK) '$$1 !~ "#" { print $$1"\t"$$0 }' $^ \
-		| $(DBLOAD) -i $(HOSTS) -o $(YPMAPDIR)/$@ - $(TMP)
+		| $(DBLOAD) ${B} -i $(HOSTS) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
@@ -483,7 +483,7 @@ master.passwd.byname: $(MASTER)
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(MASTER) | \
 	$(AWK) -F: '{ if ($$1 != "+") print $$1"\t"$$0 }' $^ \
-		| $(DBLOAD) -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP)
+		| $(DBLOAD) ${S} -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
@@ -495,7 +495,7 @@ master.passwd.byuid: $(MASTER)
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(MASTER) | \
 	$(AWK) -F: '{ if ($$1 != "+") print $$3"\t"$$0 }' $^ \
-		| $(DBLOAD) -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP)
+		| $(DBLOAD) ${S} -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi

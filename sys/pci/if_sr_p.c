@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_sr_p.c,v 1.1 1996/10/29 03:53:21 jhay Exp $
  */
 
 #include "pci.h"
@@ -74,9 +74,10 @@ static char *
 sr_pci_probe(pcici_t tag, pcidi_t type)
 {
 	switch(type) {
-	case 0x55684778:
+	case 0x556812aa:
 		return ("RISCom/N2pci");
 		break;
+	case 0x55684778:
 	case 0x55684877:
 		/*
 		 * XXX This can probably be removed sometime.

@@ -31,7 +31,7 @@
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#include <i386/isa/sound/pas.h>
+#include <i386/isa/sound/pas_defs.h>
 
 #if !defined(EXCLUDE_PAS) && !defined(EXCLUDE_MIDI) && defined(EXCLUDE_PRO_MIDI)
 

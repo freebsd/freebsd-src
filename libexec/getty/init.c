@@ -33,7 +33,7 @@
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)init.c	8.1 (Berkeley) 6/4/93";*/
-static char rcsid[] = "$Id: init.c,v 1.1.1.2 1996/04/13 15:33:10 joerg Exp $";
+static char rcsid[] = "$Id: init.c,v 1.3 1996/05/05 19:01:09 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -76,6 +76,7 @@ struct	gettystrs gettystrs[] = {
 	{ "we", &tmode.c_cc[VWERASE] },	/* word erase */
 	{ "ln", &tmode.c_cc[VLNEXT] },	/* literal next */
 	{ "Lo" },			/* locale for strftime() */
+	{ "pp" },			/* ppp login program */
 	{ 0 }
 };
 
