@@ -21,9 +21,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
@@ -42,7 +43,7 @@ static const struct {
     int32_t	type;
     char	name[sizeof ABI_VENDOR];
     int32_t	desc;
-} abitag __attribute__ ((section (ABI_SECTION))) = {
+} abitag __attribute__ ((section (ABI_SECTION))) __unused = {
     sizeof ABI_VENDOR,
     sizeof(int32_t),
     ABI_NOTETYPE,
