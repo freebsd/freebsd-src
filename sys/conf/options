@@ -404,6 +404,7 @@ NETGRAPH_GIF_DEMUX	opt_netgraph.h
 NETGRAPH_HOLE		opt_netgraph.h
 NETGRAPH_IFACE		opt_netgraph.h
 NETGRAPH_IP_INPUT	opt_netgraph.h
+NETGRAPH_IPFW		opt_netgraph.h
 NETGRAPH_KSOCKET	opt_netgraph.h
 NETGRAPH_L2TP		opt_netgraph.h
 NETGRAPH_LMI		opt_netgraph.h
