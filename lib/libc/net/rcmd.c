@@ -333,8 +333,8 @@ rresvport_af(alport, family)
 	}
 #endif
 	*sport = 0;
-	if (bindresvport2(s, (struct sockaddr *)&ss,
-			  ((struct sockaddr *)&ss)->sa_len) == -1) {
+	if (bindresvport_sa(s, (struct sockaddr *)&ss,
+			    ((struct sockaddr *)&ss)->sa_len) == -1) {
 		(void)_libc_close(s);
 		return (-1);
 	}
