@@ -206,6 +206,19 @@
 #define	RXCON_DEFAULT		(RXCON_EARLY | \
 				 RXCON_RECEIVE_MULTICAST_FRAMES | \
 				 RXCON_RECEIVE_BROADCAST_FRAMES)
+/*
+ * EEPROM structure
+ * SMC9432* eeprom is organized by words and only first 8 words
+ * have distinctive meaning (according to datasheet)
+ */
+#define	EEPROM_MAC0		0x0000	/* Byte 0 / Byte 1 */
+#define	EEPROM_MAC1		0x0001	/* Byte 2 / Byte 3 */
+#define	EEPROM_MAC2		0x0002	/* Byte 4 / Byte 5 */
+#define	EEPROM_BID_CSUM		0x0003	/* Board Id / Check Sum */
+#define	EEPROM_NVCTL		0x0004	/* NVCTL (bits 0-5) / nothing */
+#define	EEPROM_PCI_MGD_MLD	0x0005	/* PCI MinGrant / MaxLatency. Desired */
+#define	EEPROM_SSVENDID		0x0006	/* Subsystem Vendor Id */
+#define	EEPROM_SSID		0x0006	/* Subsystem Id */
 
 /*
  * Structures definition and Functions prototypes

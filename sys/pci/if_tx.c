@@ -781,6 +781,9 @@ epic_common_attach(sc)
 	for (i = 0; i < ETHER_ADDR_LEN / sizeof(u_int16_t); i++)
 		((u_int16_t *)sc->sc_macaddr)[i] = epic_read_eeprom(sc,i);
 
+	/* Set Non-Volatile Control Register from EEPROM */
+	CSR_WRITE_4(sc, NVCTL, epic_read_eeprom(sc, EEPROM_NVCTL) & 0x1F);
+
 	/* Set defaults */
 	sc->tx_threshold = TRANSMIT_THRESHOLD;
 	sc->txcon = TXCON_DEFAULT;
