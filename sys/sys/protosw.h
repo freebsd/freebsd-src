@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $Id: protosw.h,v 1.4 1994/10/08 01:45:27 phk Exp $
+ * $Id: protosw.h,v 1.5 1994/10/08 22:22:57 phk Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -86,12 +86,17 @@ struct protosw {
  * Values for pr_flags.
  * PR_ADDR requires PR_ATOMIC;
  * PR_ADDR and PR_CONNREQUIRED are mutually exclusive.
+ * PR_IMPLOPCL means that the protocol allows sendto without prior connect,
+ *	and the protocol understands the MSG_EOF flag.  The first property is
+ *	is only relevant if PR_CONNREQUIRED is set (otherwise sendto is allowed
+ *	anyhow).
  */
 #define	PR_ATOMIC	0x01		/* exchange atomic messages only */
 #define	PR_ADDR		0x02		/* addresses given with messages */
 #define	PR_CONNREQUIRED	0x04		/* connection required by protocol */
 #define	PR_WANTRCVD	0x08		/* want PRU_RCVD calls */
 #define	PR_RIGHTS	0x10		/* passes capabilities */
+#define PR_IMPLOPCL	0x20		/* implied open/close */
 
 /*
  * The arguments to usrreq are:
@@ -128,8 +133,8 @@ struct protosw {
 #define	PRU_SLOWTIMO		19	/* 500ms timeout */
 #define	PRU_PROTORCV		20	/* receive from below */
 #define	PRU_PROTOSEND		21	/* send to below */
-
-#define	PRU_NREQ		21
+#define PRU_SEND_EOF		22	/* send and close */
+#define PRU_NREQ		22
 
 #ifdef PRUREQUESTS
 char *prurequests[] = {
@@ -139,6 +144,7 @@ char *prurequests[] = {
 	"SENSE",	"RCVOOB",	"SENDOOB",	"SOCKADDR",
 	"PEERADDR",	"CONNECT2",	"FASTTIMO",	"SLOWTIMO",
 	"PROTORCV",	"PROTOSEND",
+	"SEND_EOF",
 };
 #endif
 
