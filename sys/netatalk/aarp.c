@@ -221,7 +221,7 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
     if (aa->aa_flags & AFA_PHASE2) {
 	bcopy(atmulticastaddr, eh->ether_dhost, sizeof(eh->ether_dhost));
 	eh->ether_type = htons(sizeof(struct llc) + sizeof(struct ether_aarp));
-	M_PREPEND(m, sizeof(struct llc), M_TRYWAIT);
+	M_PREPEND(m, sizeof(struct llc), M_DONTWAIT);
 	if (m == NULL) {
 	    return;
 	}
