@@ -290,4 +290,4 @@ int usbd_driver_load(module_t mod, int what, void *arg);
 #define splhardusb splbio
 #define IPL_USB IPL_BIO
 
-#endif
+#endif /* _USBDI_H_ */
