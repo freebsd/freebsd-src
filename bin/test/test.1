@@ -39,14 +39,17 @@
 .Dt TEST 1
 .Os
 .Sh NAME
-.Nm test
+.Nm test ,
+.Nm \&[
 .Nd condition evaluation utility
 .Sh SYNOPSIS
 .Nm test
 .Ar expression
+.Nm [
+.Ar expression Cm ]
 .Sh DESCRIPTION
 The
-.Nm
+.Nm test
 utility evaluates the expression and, if it evaluates
 to true, returns a zero (true) exit status; otherwise
 it returns 1 (false).
@@ -54,11 +57,11 @@ If there is no expression, test also
 returns 1 (false).
 .Pp
 All operators and flags are separate arguments to the
-.Nm
+.Nm test
 utility.
 .Pp
 The following primaries are used to construct expression:
-.Bl -tag -width indent
+.Bl -tag -width Ar
 .It Fl b Ar file
 True if
 .Ar file
@@ -90,6 +93,14 @@ is set.
 True if
 .Ar file
 exists and is a symbolic link.
+This operator is retained for compatibility with previous versions of
+this program. Do not rely on its existence; use
+.Fl L
+instead.
+.It Fl k Ar file
+True if
+.Ar file
+exists and its sticky bit is set.
 .It Fl n Ar string
 True if the length of
 .Ar string
@@ -99,25 +110,20 @@ True if
 .Ar file
 is a named pipe
 .Po Tn FIFO Pc .
-.It Fl S Ar file
-True if
-.Ar file
-is a socket. 
 .It Fl r Ar file
 True if
-.Ar file
+.Ar file 
 exists and is readable.
 .It Fl s Ar file
 True if
 .Ar file
 exists and has a size greater
 than zero.
-.It Fl t Ar [file_descriptor]
+.It Fl t Op Ar file_descriptor
 True if the file whose file descriptor number
 is
 .Ar file_descriptor
-(default 1) is open and is
-associated with a terminal.
+is open and is associated with a terminal.
 .It Fl u Ar file
 True if
 .Ar file
@@ -146,6 +152,38 @@ can be searched.
 True if the length of
 .Ar string
 is zero.
+.It Fl L Ar file
+True if 
+.Ar file
+exists and is a symbolic link.
+.It Fl O Ar file
+True if
+.Ar file
+exists and its owner matches the effective user id of this process.
+.It Fl G Ar file
+True if
+.Ar file
+exists and its group matches the effective group id of this process.
+.It Fl S Ar file
+True if
+.Ar file
+exists and is a socket.
+.It Ar file1 Fl nt Ar file2
+True if
+.Ar file1
+exists and is newer than
+.Ar file2 .
+.It Ar file1 Fl ot Ar file2
+True if
+.Ar file1
+exists and is older than
+.Ar file2 .
+.It Ar file1 Fl ef Ar file2
+True if
+.Ar file1
+and
+.Ar file2
+exist and refer to the same file.
 .It Ar string
 True if
 .Ar string
@@ -163,6 +201,23 @@ True if the strings
 and
 .Ar \&s\&2
 are not identical.
+.It Ar \&s\&1 Cm \&< Ar \&s\&2
+True if string
+.Ar \&s\&1
+comes before
+.Ar \&s\&2
+based on the ASCII value of their characters.
+.It Ar \&s\&1 Cm \&> Ar \&s\&2
+True if string
+.Ar \&s\&1
+comes after
+.Ar \&s\&2
+based on the ASCII value of their characters.
+.It Ar \&s\&1
+True if
+.Ar \&s\&1
+is not the null
+string.
 .It Ar \&n\&1 Fl \&eq Ar \&n\&2 
 True if the integers
 .Ar \&n\&1
@@ -232,7 +287,7 @@ operator has higher precedence than the
 operator.
 .Sh GRAMMAR AMBIGUITY
 The 
-.Nm
+.Nm test
 grammar is inherently ambiguous.  In order to assure a degree of consistency,
 the cases described in the 
 .St -p1003.2 , 
@@ -242,7 +297,7 @@ standards document.  All other cases are subject to the ambiguity in the
 command semantics.
 .Sh RETURN VALUES
 The
-.Nm
+.Nm test
 utility exits with one of the following values:
 .Bl -tag -width Ds
 .It 0
@@ -258,7 +313,7 @@ An error occurred.
 .Xr sh 1
 .Sh STANDARDS
 The
-.Nm
-function is expected to be
+.Nm test
+utility implements a superset of the
 .St -p1003.2
-compatible.
+specification.
