@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-BIN=    100.clean-disks \
+FILES=	100.clean-disks \
 	110.clean-tmps \
 	120.clean-preserve \
 	130.clean-msgs \
