@@ -101,7 +101,7 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 {
 	int i, j, nmbufs, nmbclusters, page_size, num_objs;
 	u_int mbuf_hiwm, clust_hiwm, mbuf_lowm, clust_lowm;
-	u_long totspace[2], totused[2], totnum, totfree;
+	u_long totspace[2], totused[2], gentotnum, gentotfree, totnum, totfree;
 	short nmbtypes;
 	size_t mlen;
 	long *mbtypes = NULL;
@@ -229,21 +229,14 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 #define	MCLBYTES	(mbstat->m_mclbytes)
 #define	GENLST		(num_objs - 1)
 
-	printf("mbuf usage:\n");
 	totnum = mbpstat[GENLST]->mb_mbbucks * mbstat->m_mbperbuck;
 	totfree = mbpstat[GENLST]->mb_mbfree;
-	printf("\tGEN cache:\t%lu/%lu (in use/in pool)\n",
-	    totnum - totfree, totnum);
 	for (j = 1; j < nmbtypes; j++)
 		mbtypes[j] += mbpstat[GENLST]->mb_mbtypes[j];
 	totspace[0] = mbpstat[GENLST]->mb_mbbucks * mbstat->m_mbperbuck * MSIZE;
 	for (i = 0; i < (num_objs - 1); i++) {
 		if (mbpstat[i]->mb_active == 0)
 			continue;
-		printf("\tCPU #%d cache:\t%lu/%lu (in use/in pool)\n", i,
-		    (mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck -
-		    mbpstat[i]->mb_mbfree),
-		    (mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck));
 		totspace[0] += mbpstat[i]->mb_mbbucks*mbstat->m_mbperbuck*MSIZE;
 		totnum += mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck;
 		totfree += mbpstat[i]->mb_mbfree;
@@ -251,13 +244,35 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 			mbtypes[j] += mbpstat[i]->mb_mbtypes[j]; 
 	}
 	totused[0] = totnum - totfree;
-	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", totused[0], totnum);
-	printf("\tMbuf cache high watermark: %d\n", mbuf_hiwm);
+	if (cflag) {
+		printf("mbuf usage:\n"
+		    "\tTotal:\t\t%lu/%lu/%d (in use/in pool/max)\n",
+		    totused[0], totnum, nmbufs);
+		gentotnum = mbpstat[GENLST]->mb_mbbucks * mbstat->m_mbperbuck;
+		gentotfree = mbpstat[GENLST]->mb_mbfree;
+		printf("\tGEN cache:\t%lu/%lu (in use/in pool)\n",
+		    gentotnum - gentotfree, gentotnum);
+	} else {
+		/* XXX: peak is now wrong. */
+		printf("%lu/%lu/%d (current/peak/max):\n",
+		    totused[0], totused[0], nmbufs);
+	}
+
+	for (i = 0; cflag && i < (num_objs - 1); i++) {
+		if (mbpstat[i]->mb_active == 0)
+			continue;
+		printf("\tCPU #%d cache:\t%lu/%lu (in use/in pool)\n",
+		    i,
+		    (mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck -
+		     mbpstat[i]->mb_mbfree),
+		    (mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck));
+	}
+	if (cflag) {
+		printf("\tMbuf cache high watermark: %d\n", mbuf_hiwm);
 #ifdef NOTYET
-	printf("\tMbuf cache low watermark: %d\n", mbuf_lowm);
+		printf("\tMbuf cache low watermark: %d\n", mbuf_lowm);
 #endif
-	printf("\tMaximum possible: %d\n", nmbufs);
-	printf("\tAllocated mbuf types:\n");
+	}
 	for (mp = mbtypenames; mp->mt_name; mp++) {
 		if (mbtypes[mp->mt_type]) {
 			seen[mp->mt_type] = YES;
@@ -270,36 +285,53 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 			printf("\t  %lu mbufs allocated to <mbuf type: %d>\n",
 			    mbtypes[i], i);
 	}
-	printf("\t%lu%% of mbuf map consumed\n", ((totspace[0] * 100) / (nmbufs
-	    * MSIZE)));
+	if (cflag)
+		printf("\t%lu%% of mbuf map consumed\n",
+		    ((totspace[0] * 100) / (nmbufs * MSIZE)));
 
-	printf("mbuf cluster usage:\n");
 	totnum = mbpstat[GENLST]->mb_clbucks * mbstat->m_clperbuck;
 	totfree = mbpstat[GENLST]->mb_clfree;
-	printf("\tGEN cache:\t%lu/%lu (in use/in pool)\n",
-	    totnum - totfree, totnum);
 	totspace[1] = mbpstat[GENLST]->mb_clbucks*mbstat->m_clperbuck*MCLBYTES;
 	for (i = 0; i < (num_objs - 1); i++) {
 		if (mbpstat[i]->mb_active == 0)
 			continue;
-		printf("\tCPU #%d cache:\t%lu/%lu (in use/in pool)\n", i,
-		    (mbpstat[i]->mb_clbucks * mbstat->m_clperbuck -
-		    mbpstat[i]->mb_clfree),
-		    (mbpstat[i]->mb_clbucks * mbstat->m_clperbuck));
 		totspace[1] += mbpstat[i]->mb_clbucks * mbstat->m_clperbuck
 		    * MCLBYTES;
 		totnum += mbpstat[i]->mb_clbucks * mbstat->m_clperbuck;
 		totfree += mbpstat[i]->mb_clfree;
 	}
 	totused[1] = totnum - totfree;
-	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", totused[1], totnum);
-	printf("\tCluster cache high watermark: %d\n", clust_hiwm);
+	if (cflag) {
+		printf("mbuf cluster usage:\n"
+		    "\tTotal:\t\t%lu/%lu/%d (in use/in pool/max)\n",
+		    totused[1], totnum, nmbclusters);
+		gentotnum = mbpstat[GENLST]->mb_clbucks * mbstat->m_clperbuck;
+		gentotfree = mbpstat[GENLST]->mb_clfree;
+		printf("\tGEN cache:\t%lu/%lu (in use/in pool)\n",
+		    gentotnum - gentotfree, gentotnum);
+	} else {
+		/* XXX: peak is now wrong. */
+		printf("%lu/%lu/%d (current/peak/max):\n",
+		    totused[1], totused[1], nmbclusters);
+	}
+	for (i = 0; cflag && i < (num_objs - 1); i++) {
+		if (mbpstat[i]->mb_active == 0)
+			continue;
+		printf("\tCPU #%d cache:\t%lu/%lu (in use/in pool)\n",
+		    i,
+		    (mbpstat[i]->mb_clbucks * mbstat->m_clperbuck -
+		     mbpstat[i]->mb_clfree),
+		    (mbpstat[i]->mb_clbucks * mbstat->m_clperbuck));
+	}
+	if (cflag) {
+		printf("\tCluster cache high watermark: %d\n", clust_hiwm);
 #ifdef NOTYET
-	printf("\tCluster cache low watermark: %d\n", clust_lowm);
+		printf("\tCluster cache low watermark: %d\n", clust_lowm);
 #endif
-	printf("\tMaximum possible: %d\n", nmbclusters);
-	printf("\t%lu%% of cluster map consumed\n", ((totspace[1] * 100) /
-	    (nmbclusters * MCLBYTES)));
+	}
+	if (cflag)
+		printf("\t%lu%% of cluster map consumed\n",
+		    ((totspace[1] * 100) / (nmbclusters * MCLBYTES)));
 
 	printf("%lu KBytes of wired memory reserved (%lu%% in use)\n",
 	    (totspace[0] + totspace[1]) / 1024, ((totused[0] * MSIZE +
