@@ -253,8 +253,8 @@ mb_t *m;
 	mlen = (flags & FR_LOGBODY) ? MIN(msgdsize(m) - hlen, 128) : 0;
 # else
 #  if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603)) || \
-	(defined(OpenBSD) && (OpenBSD >= 199603) || \
-	(defined(__FreeBSD__) && (__FreeBSD_version >= 501113)) )
+	(defined(OpenBSD) && (OpenBSD >= 199603)) || \
+	(defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 	strncpy(ipfl.fl_ifname, ifp->if_xname, IFNAMSIZ);
 #  else
 	ipfl.fl_unit = (u_char)ifp->if_unit;
