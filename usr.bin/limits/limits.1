@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\"	$Id$
+.\"	$Id: limits.1,v 1.2 1997/02/22 19:55:37 peter Exp $
 .\"
 .Dd January 15, 1996
 .Dt LIMITS 1
@@ -162,7 +162,7 @@ which
 is invoked.
 .It Fl c Op Ar limit
 Selects or sets (if 'limit' is specified) the
-.Em coredumsize
+.Em coredumpsize
 resource limit.
 A value of 0 disables core dumps.
 .It Fl d Op Ar limit
@@ -299,6 +299,6 @@ shell scripts.
 .Nm Limits
 makes no effort to ensure that resource settings emitted or displayed
 are valid and settable by the current user.
-Only a superuser account may raise hard limits, and and when doing so
+Only a superuser account may raise hard limits, and when doing so
 the FreeBSD kernel will silently lower limits to values less than
 specified if the values given are too high.
