@@ -4,6 +4,11 @@
 
 #ifndef HAVE_GETPAGESIZE
 
+#if !defined getpagesize && defined __BEOS__
+# include <OS.h>
+# define getpagesize() B_PAGE_SIZE
+#endif
+
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
