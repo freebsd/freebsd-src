@@ -161,8 +161,11 @@ archive_read_format_cpio_bid(struct archive *a)
 	cpio = *(a->pformat_data);
 	bid = 0;
 	bytes_read = (a->compression_read_ahead)(a, &h, 6);
+	/* Convert error code into error return. */
+	if (bytes_read < 0)
+		return ((int)bytes_read);
 	if (bytes_read < 6)
-	    return (-1);
+		return (-1);
 
 	p = h;
 	if (memcmp(p, "070707", 6) == 0) {
