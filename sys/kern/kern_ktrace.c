@@ -100,7 +100,7 @@ ktrsyscall(vp, code, narg, args)
 	argp = &ktp->ktr_args[0];
 	for (i = 0; i < narg; i++)
 		*argp++ = args[i];
-	kth->ktr_buf = (caddr_t)ktp;
+	kth->ktr_buffer = (caddr_t)ktp;
 	kth->ktr_len = len;
 	ktrwrite(vp, kth, NULL);
 	FREE(ktp, M_KTRACE);
@@ -124,7 +124,7 @@ ktrsysret(vp, code, error, retval)
 	ktp.ktr_error = error;
 	ktp.ktr_retval = retval;		/* what about val2 ? */
 
-	kth->ktr_buf = (caddr_t)&ktp;
+	kth->ktr_buffer = (caddr_t)&ktp;
 	kth->ktr_len = sizeof(struct ktr_sysret);
 
 	ktrwrite(vp, kth, NULL);
@@ -143,7 +143,7 @@ ktrnamei(vp, path)
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_NAMEI);
 	kth->ktr_len = strlen(path);
-	kth->ktr_buf = path;
+	kth->ktr_buffer = path;
 
 	ktrwrite(vp, kth, NULL);
 	FREE(kth, M_KTRACE);
@@ -168,7 +168,7 @@ ktrgenio(vp, fd, rw, uio, error)
 	kth = ktrgetheader(KTR_GENIO);
 	ktg.ktr_fd = fd;
 	ktg.ktr_rw = rw;
-	kth->ktr_buf = (caddr_t)&ktg;
+	kth->ktr_buffer = (caddr_t)&ktg;
 	kth->ktr_len = sizeof(struct ktr_genio);
 	uio->uio_offset = 0;
 	uio->uio_rw = UIO_WRITE;
@@ -196,7 +196,7 @@ ktrpsig(vp, sig, action, mask, code)
 	kp.action = action;
 	kp.mask = *mask;
 	kp.code = code;
-	kth->ktr_buf = (caddr_t)&kp;
+	kth->ktr_buffer = (caddr_t)&kp;
 	kth->ktr_len = sizeof (struct ktr_psig);
 
 	ktrwrite(vp, kth, NULL);
@@ -217,7 +217,7 @@ ktrcsw(vp, out, user)
 	kth = ktrgetheader(KTR_CSW);
 	kc.out = out;
 	kc.user = user;
-	kth->ktr_buf = (caddr_t)&kc;
+	kth->ktr_buffer = (caddr_t)&kc;
 	kth->ktr_len = sizeof (struct ktr_csw);
 
 	ktrwrite(vp, kth, NULL);
@@ -365,7 +365,7 @@ utrace(curp, uap)
 	kth = ktrgetheader(KTR_USER);
 	MALLOC(cp, caddr_t, uap->len, M_KTRACE, M_WAITOK);
 	if (!copyin(uap->addr, cp, uap->len)) {
-		kth->ktr_buf = cp;
+		kth->ktr_buffer = cp;
 		kth->ktr_len = uap->len;
 		ktrwrite(p->p_tracep, kth, NULL);
 	}
@@ -474,7 +474,7 @@ ktrwrite(vp, kth, uio)
 	auio.uio_procp = curproc;
 	if (kth->ktr_len > 0) {
 		auio.uio_iovcnt++;
-		aiov[1].iov_base = kth->ktr_buf;
+		aiov[1].iov_base = kth->ktr_buffer;
 		aiov[1].iov_len = kth->ktr_len;
 		auio.uio_resid += kth->ktr_len;
 		if (uio != NULL)
