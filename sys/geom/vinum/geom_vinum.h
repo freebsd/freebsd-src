@@ -32,6 +32,7 @@
 #define	ERRBUFSIZ	1024
 
 /* geom_vinum_drive.c */
+void	gv_config_new_drive(struct gv_drive *);
 void	gv_save_config_all(struct gv_softc *);
 void	gv_save_config(struct g_consumer *, struct gv_drive *,
 	    struct gv_softc *);
