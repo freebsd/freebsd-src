@@ -38,6 +38,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -282,7 +283,7 @@ sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	switch (cmd) {
 
 	case CONS_HISTORY:  	/* set history size */
-		scp = sc_get_scr_stat(tp->t_dev);
+		scp = SC_STAT(tp->t_dev);
 		if (*(int *)data <= 0)
 			return EINVAL;
 		if (scp->status & BUFFER_SAVED)

@@ -62,7 +62,7 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	tp = scdevtotty(dev);
 	if (!tp)
 		return ENXIO;
-	scp = sc_get_scr_stat(tp->t_dev);
+	scp = SC_STAT(tp->t_dev);
 
 	switch (cmd) {
 
