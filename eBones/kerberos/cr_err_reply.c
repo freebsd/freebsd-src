@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: cr_err_reply.c,v 4.10 89/01/10 11:34:42 steiner Exp $
- *	$Id: cr_err_reply.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $
+ *	$Id: cr_err_reply.c,v 1.2 1995/07/18 16:37:49 mark Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: cr_err_reply.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $";
+"$Id: cr_err_reply.c,v 1.2 1995/07/18 16:37:49 mark Exp $";
 #endif /* lint */
 
 #include <sys/types.h>

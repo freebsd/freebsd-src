@@ -5,17 +5,20 @@
  * <Copyright.MIT>.
  *
  *	from: _service_key.c,v 4.10 90/03/10 19:06:56 jon Exp $
- *	$Id: read_service_key.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $
+ *	$Id: read_service_key.c,v 1.3 1995/07/18 16:39:36 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: read_service_key.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $";
+"$Id: read_service_key.c,v 1.3 1995/07/18 16:39:36 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <stdio.h>
 #include <strings.h>
+#include <unistd.h>
 
 /*
  * The private keys for servers on a given host are stored in a
@@ -51,13 +54,8 @@ static char *rcsid =
 
 
 /*ARGSUSED */
-read_service_key(service,instance,realm,kvno,file,key)
-    char *service;              /* Service Name */
-    char *instance;             /* Instance name or "*" */
-    char *realm;                /* Realm */
-    int kvno;                   /* Key version number */
-    char *file;                 /* Filename */
-    char *key;                  /* Pointer to key to be filled in */
+int read_service_key(char *service, char *instance, char *realm, int kvno,
+    char *file, char *key)
 {
     char serv[SNAME_SZ];
     char inst[INST_SZ];

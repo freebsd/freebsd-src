@@ -7,12 +7,12 @@
  * The lifetime is the shortest allowed [1 five-minute interval]
  *
  *	from: ksrvtgt.c,v 4.3 89/07/28 10:17:28 jtkohl Exp $
- *	$Id: ksrvtgt.c,v 1.1.1.1 1994/09/30 14:50:04 csgr Exp $
+ *	$Id: ksrvtgt.c,v 1.3 1995/07/18 16:40:07 mark Exp $
  */
 
 #ifndef lint
 const char rcsid[] =
-"$Id: ksrvtgt.c,v 1.1.1.1 1994/09/30 14:50:04 csgr Exp $";
+"$Id: ksrvtgt.c,v 1.3 1995/07/18 16:40:07 mark Exp $";
 #endif /* lint */
 
 #include <stdio.h>
@@ -49,7 +49,7 @@ main(argc,argv)
 	(void) strcpy(srvtab, KEYFILE);
 
     if (realm[0] == 0)
-	if (krb_get_lrealm(realm) != KSUCCESS)
+	if (krb_get_lrealm(realm, 1) != KSUCCESS)
 	    (void) strcpy(realm, KRB_REALM);
 
     code = krb_get_svc_in_tkt(argv[1], argv[2], realm,

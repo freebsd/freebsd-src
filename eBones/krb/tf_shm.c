@@ -7,13 +7,15 @@
  * contributed by Dan Kolkowitz (kolk@jessica.stanford.edu).
  *
  *	from: tf_shm.c,v 4.2 89/10/25 23:26:46 qjb Exp $
- *	$Id: tf_shm.c,v 1.1.1.1 1994/09/30 14:50:04 csgr Exp $
+ *	$Id: tf_shm.c,v 1.3 1995/07/18 16:39:48 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: tf_shm.c,v 1.1.1.1 1994/09/30 14:50:04 csgr Exp $";
+"$Id: tf_shm.c,v 1.3 1995/07/18 16:39:48 mark Exp $";
 #endif	lint
+#endif
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -26,9 +28,6 @@ static char rcsid[] =
 
 #define MAX_BUFF sizeof(des_cblock)*1000 /* room for 1k keys */
 
-extern int errno;
-extern int krb_debug;
-
 /*
  * krb_create_shmtkt:
  *
@@ -36,9 +35,7 @@ extern int krb_debug;
  * in the specified filename.
  */
 
-int
-krb_shm_create(file_name)
-char *file_name;
+int krb_shm_create(char *file_name)
 {
     int retval;
     int shmid;
@@ -136,8 +133,7 @@ int krb_is_diskless()
  * file pointing to it.
  */
 
-int krb_shm_dest(file)
-char *file;
+int krb_shm_dest(char *file)
 {
     int shmid;
     FILE *sfile;
@@ -169,6 +165,3 @@ char *file;
     } else
 	return(RET_TKFIL);		/* XXX */
 }
-
-
-

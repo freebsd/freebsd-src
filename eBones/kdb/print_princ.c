@@ -3,14 +3,16 @@
  * For copying and distribution information, please see the file
  * <Copyright.MIT>.
  *
- *	from: $Header: /home/ncvs/src/eBones/kdb/print_princ.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
- *	$Id: print_princ.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
+ *	from: $Header: /usr/cvs/src/eBones/kdb/print_princ.c,v 1.3 1995/07/18 16:37:19 mark Exp $
+ *	$Id: print_princ.c,v 1.3 1995/07/18 16:37:19 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: print_princ.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $";
+"$Id: print_princ.c,v 1.3 1995/07/18 16:37:19 mark Exp $";
 #endif	lint
+#endif
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -20,15 +22,11 @@ static char rcsid[] =
 #include <krb_db.h>
 
 extern int debug;
-extern char *strncpy();
-extern char *ctime();
-extern struct tm *localtime();
-struct tm *time_p;
 
 long    kerb_debug;
+static struct tm *time_p;
 
-krb_print_principal(a_n)
-    Principal *a_n;
+void krb_print_principal(Principal *a_n)
 {
     /* run-time database does not contain string versions */
     time_p = localtime(&(a_n->exp_date));
@@ -42,9 +40,9 @@ krb_print_principal(a_n)
     a_n->max_life, 5 * a_n->max_life, a_n->attributes);
 
     fprintf(stderr,
-    "\n\tkey_ver %d  k_low 0x%08x  k_high 0x%08x  akv %d  exists %d\n",
+    "\n\tkey_ver %d  k_low 0x%08lx  k_high 0x%08lx  akv %d  exists %d\n",
     a_n->key_version, a_n->key_low, a_n->key_high,
-    a_n->kdc_key_ver, a_n->old);
+    a_n->kdc_key_ver, (int)a_n->old);
 
     fflush(stderr);
 }

@@ -1,6 +1,6 @@
 /*
- * $Source: /home/ncvs/src/eBones/libkadm/kadm.h,v $
- * $Author: wollman $
+ * $Source: /usr/cvs/src/eBones/libkadm/kadm.h,v $
+ * $Author: mark $
  * Header: /afs/athena.mit.edu/astaff/project/kerberos/src/include/RCS/kadm.h,v 4.2 89/09/26 09:15:20 jtkohl Exp
  *
  * Copyright 1988 by the Massachusetts Institute of Technology.
@@ -25,6 +25,7 @@
 #define MAXHOSTNAMELEN 64
 #endif
 
+#include <stdlib.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <krb.h>
@@ -121,20 +122,27 @@ MODACL
 #define MOD_ENT      4
 #define GET_ENT      5
 
-extern long kdb_get_master_key();	/* XXX should be in krb_db.h */
-extern long kdb_verify_master_key();	/* XXX ditto */
-
-extern long krb_mk_priv(), krb_rd_priv(); /* XXX should be in krb.h */
-extern void krb_set_tkt_string();	/* XXX ditto */
-
-extern unsigned long quad_cksum();	/* XXX should be in des.h */
-
 /* XXX This doesn't belong here!!! */
-char *malloc(), *realloc();
 #ifdef POSIX
 typedef void sigtype;
 #else
 typedef int sigtype;
 #endif
+
+int vals_to_stream(Kadm_vals *dt_in, u_char **dt_out);
+int stream_to_vals(u_char *dt_in, Kadm_vals *dt_out, int maxlen);
+
+int build_field_header(u_char *cont, u_char **st);
+int check_field_header(u_char *st, u_char *cont, int maxlen);
+
+int stv_string(u_char *st, char *dat, int loc, int stlen, int maxlen);
+int stv_short(u_char *st, u_short *dat, int loc, int maxlen);
+int stv_long(u_char *st, u_long *dat, int loc, int maxlen);
+int stv_char(u_char *st, u_char *dat, int loc, int maxlen);
+
+int vts_string(char *dat, u_char **st, int loc);
+int vts_short(u_short dat, u_char **st, int loc);
+int vts_long(u_long dat, u_char **st, int loc);
+int vts_char(u_char dat, u_char **st, int loc);
 
 #endif KADM_DEFS

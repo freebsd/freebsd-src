@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: extract_ticket.c,v 4.6 88/10/07 06:08:15 shanzer Exp $
- *	$Id: extract_ticket.c,v 1.2 1994/07/19 19:25:08 g89r4222 Exp $
+ *	$Id: extract_ticket.c,v 1.3 1995/07/18 16:38:21 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: extract_ticket.c,v 1.2 1994/07/19 19:25:08 g89r4222 Exp $";
+"$Id: extract_ticket.c,v 1.3 1995/07/18 16:38:21 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <prot.h>
@@ -25,14 +27,8 @@ static char *rcsid =
  * session, liftime and kvno.
  */
 
-extract_ticket(cipher,n,session,lifetime,kvno,realm,ticket)
-    KTEXT cipher;		/* The ciphertext */
-    int n;			/* Which ticket */
-    char *session;		/* The session key for this tkt */
-    int *lifetime;		/* The life of this ticket */
-    int *kvno;			/* The kvno for the service */
-    char *realm;		/* Realm in which tkt issued */
-    KTEXT ticket;		/* The ticket itself */
+void extract_ticket(KTEXT cipher, int n, char *session, int *lifetime,
+    int *kvno, char *realm, KTEXT ticket)
 {
     char *ptr;
     int i;

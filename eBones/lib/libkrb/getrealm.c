@@ -6,13 +6,15 @@
  * routine to convert hostname into realm name.
  *
  *	from: getrealm.c,v 4.6 90/01/02 13:35:56 jtkohl Exp $
- *	$Id: getrealm.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
+ *	$Id: getrealm.c,v 1.3 1995/07/18 16:38:46 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: getrealm.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
+"$Id: getrealm.c,v 1.3 1995/07/18 16:38:46 mark Exp $";
 #endif	lint
+#endif
 
 #include <strings.h>
 #include <stdio.h>
@@ -45,9 +47,7 @@ static char rcsid[] =
 
 static char ret_realm[REALM_SZ+1];
 
-char *
-krb_realmofhost(host)
-char *host;
+char *krb_realmofhost(char *host)
 {
 	char *domain;
 	FILE *trans_file;

@@ -5,21 +5,22 @@
  * <Copyright.MIT>.
  *
  *	from: der: rd_req.c,v 4.16 89/03/22 14:52:06 jtkohl Exp $
- *	$Id: rd_req.c,v 1.2 1994/07/19 19:26:13 g89r4222 Exp $
+ *	$Id: rd_req.c,v 1.3 1995/07/18 16:39:33 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: rd_req.c,v 1.2 1994/07/19 19:26:13 g89r4222 Exp $";
+"$Id: rd_req.c,v 1.3 1995/07/18 16:39:33 mark Exp $";
 #endif /* lint */
+#endif
 
+#include <stdio.h>
 #include <des.h>
 #include <krb.h>
 #include <prot.h>
 #include <sys/time.h>
 #include <strings.h>
-
-extern int krb_ap_req_debug;
 
 static struct timeval t_local = { 0, 0 };
 
@@ -64,20 +65,17 @@ static char st_inst[INST_SZ];	/* server's instance */
  * krb_rd_req().
  */
 
-int
-krb_set_key(key,cvt)
-    char *key;
-    int cvt;
+int krb_set_key(char *key, int cvt)
 {
 #ifdef NOENCRYPTION
     bzero(ky, sizeof(ky));
     return KSUCCESS;
 #else
     if (cvt)
-	string_to_key(key,ky);
+	string_to_key(key,(des_cblock *)ky);
     else
 	bcopy(key,(char *)ky,8);
-    return(des_key_sched(ky,serv_key));
+    return(des_key_sched((des_cblock *)ky,serv_key));
 #endif
 }
 
@@ -123,13 +121,8 @@ krb_set_key(key,cvt)
  * Mutual authentication is not implemented.
  */
 
-krb_rd_req(authent,service,instance,from_addr,ad,fn)
-    register KTEXT authent;	/* The received message */
-    char *service;		/* Service name */
-    char *instance;		/* Service instance */
-    long from_addr;		/* Net address of originating host */
-    AUTH_DAT *ad;		/* Structure to be filled in */
-    char *fn;			/* Filename to get keys from */
+int krb_rd_req (KTEXT authent, char *service, char *instance, long from_addr,
+    AUTH_DAT *ad, char *fn)
 {
     static KTEXT_ST ticket;     /* Temp storage for ticket */
     static KTEXT tkt = &ticket;
@@ -208,7 +201,7 @@ krb_rd_req(authent,service,instance,from_addr,ad,fn)
 #ifndef NOENCRYPTION
 	if (read_service_key(service,instance,realm,s_kvno,fn,(char *)skey))
 		return(RD_AP_UNDEC);
-	if (status=krb_set_key((char *)skey,0)) return(status);
+	if ((status=krb_set_key((char *)skey,0))) return(status);
 #endif
         (void) strcpy(st_rlm,realm);
         (void) strcpy(st_nam,service);
@@ -248,9 +241,10 @@ krb_rd_req(authent,service,instance,from_addr,ad,fn)
     bcopy(ptr + tkt->length, (char *)(req_id->dat),req_id->length);
 
 #ifndef NOENCRYPTION
-    key_sched(ad->session,seskey_sched);
-    pcbc_encrypt((C_Block *)req_id->dat,(C_Block *)req_id->dat,
-	(long)req_id->length,seskey_sched,ad->session,DES_DECRYPT);
+    key_sched((des_cblock *)ad->session,seskey_sched);
+    pcbc_encrypt((des_cblock *)req_id->dat,(des_cblock *)req_id->dat,
+	(long)req_id->length,seskey_sched,(des_cblock *)ad->session,
+	DES_DECRYPT);
 #endif /* NOENCRYPTION */
 
 #define check_ptr() if ((ptr - (char *) req_id->dat) > req_id->length) return(RD_AP_MODIFIED);

@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: pkt_cipher.c,v 4.8 89/01/13 17:46:14 steiner Exp $
- *	$Id: pkt_cipher.c,v 1.2 1994/07/19 19:26:07 g89r4222 Exp $
+ *	$Id: pkt_cipher.c,v 1.3 1995/07/18 16:39:25 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: pkt_cipher.c,v 1.2 1994/07/19 19:26:07 g89r4222 Exp $";
+"$Id: pkt_cipher.c,v 1.3 1995/07/18 16:39:25 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <prot.h>

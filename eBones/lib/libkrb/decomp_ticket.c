@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: decomp_ticket.c,v 4.12 89/05/16 18:44:46 jtkohl Exp $
- *	$Id: decomp_ticket.c,v 1.2 1994/07/19 19:25:05 g89r4222 Exp $
+ *	$Id: decomp_ticket.c,v 1.3 1995/07/18 16:38:15 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: decomp_ticket.c,v 1.2 1994/07/19 19:25:05 g89r4222 Exp $";
+"$Id: decomp_ticket.c,v 1.3 1995/07/18 16:38:15 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
 #include <des.h>
@@ -44,31 +46,18 @@ static char *rcsid =
  * See create_ticket.c for the format of the ticket packet.
  */
 
-decomp_ticket(tkt, flags, pname, pinstance, prealm, paddress, session,
-              life, time_sec, sname, sinstance, key, key_s)
-    KTEXT tkt;			/* The ticket to be decoded */
-    unsigned char *flags;       /* Kerberos ticket flags */
-    char *pname;		/* Authentication name */
-    char *pinstance;		/* Principal's instance */
-    char *prealm;		/* Principal's authentication domain */
-    unsigned long *paddress;    /* Net address of entity
-                                 * requesting ticket */
-    C_Block session;		/* Session key inserted in ticket */
-    int *life; 		        /* Lifetime of the ticket */
-    unsigned long *time_sec;    /* Issue time and date */
-    char *sname;		/* Service name */
-    char *sinstance;		/* Service instance */
-    C_Block key;		/* Service's secret key
-                                 * (to decrypt the ticket) */
-    Key_schedule key_s;		/* The precomputed key schedule */
+int decomp_ticket(KTEXT tkt, unsigned char *flags, char *pname,
+    char *pinstance, char *prealm, unsigned long *paddress, des_cblock session,
+    int *life, unsigned long *time_sec, char *sname, char *sinstance,
+    des_cblock key, des_key_schedule key_s)
 {
     static int tkt_swap_bytes;
     unsigned char *uptr;
     char *ptr = (char *)tkt->dat;
 
 #ifndef NOENCRYPTION
-    pcbc_encrypt((C_Block *)tkt->dat,(C_Block *)tkt->dat,(long)tkt->length,
-	key_s,key,DECRYPT);
+    pcbc_encrypt((des_cblock *)tkt->dat,(des_cblock *)tkt->dat,
+	(long)tkt->length,key_s,(des_cblock *)key,DECRYPT);
 #endif /* ! NOENCRYPTION */
 
     *flags = *ptr;              /* get flags byte */

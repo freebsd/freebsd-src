@@ -4,12 +4,12 @@
  * <Copyright.MIT>.
  *
  *	from: kdb_destroy.c,v 4.0 89/01/24 21:49:02 jtkohl Exp $
- *	$Id: kdb_destroy.c,v 1.3 1995/08/02 23:08:14 pst Exp $
+ *	$Id: kdb_destroy.c,v 1.5 1995/08/04 06:35:45 mark Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_destroy.c,v 1.3 1995/08/02 23:08:14 pst Exp $";
+"$Id: kdb_destroy.c,v 1.5 1995/08/04 06:35:45 mark Exp $";
 #endif	lint
 
 #include <strings.h>
@@ -17,9 +17,10 @@ static char rcsid[] =
 #include "krb.h"
 #include "krb_db.h"
 
-#ifdef dbm_pagfno
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #define	DB
 #endif
+
 
 main()
 {

@@ -5,18 +5,20 @@
  * <Copyright.MIT>.
  *
  *	from: pkt_clen.c,v 4.7 88/11/15 16:56:36 jtkohl Exp $
- *	$Id: pkt_clen.c,v 1.2 1994/07/19 19:26:09 g89r4222 Exp $
+ *	$Id: pkt_clen.c,v 1.3 1995/07/18 16:39:27 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: pkt_clen.c,v 1.2 1994/07/19 19:26:09 g89r4222 Exp $";
+"$Id: pkt_clen.c,v 1.3 1995/07/18 16:39:27 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <prot.h>
+#include <string.h>
 
-extern int krb_debug;
 extern int swap_bytes;
 
 /*
@@ -27,8 +29,7 @@ extern int swap_bytes;
  * ciphertext length out of the packet.
  */
 
-pkt_clen(pkt)
-    KTEXT pkt;
+int pkt_clen(KTEXT pkt)
 {
     static unsigned short temp,temp2;
     int clen = 0;

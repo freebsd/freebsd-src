@@ -13,7 +13,7 @@ static char rcsid_ksrvutil_c[] =
 "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/ksrvutil.c,v 4.1 89/09/26 09:33:49 jtkohl Exp ";
 #endif
 static const char rcsid[] =
-	"$Id: ksrvutil.c,v 1.2 1995/01/23 22:54:08 wollman Exp $";
+	"$Id: ksrvutil.c,v 1.1 1995/07/18 16:40:11 mark Exp $";
 #endif	lint
 
 /*

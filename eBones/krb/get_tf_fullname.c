@@ -4,13 +4,15 @@
  * <Copyright.MIT>.
  *
  *	from: get_tf_fullname.c,v 4.3 90/03/10 22:40:20 jon Exp $
- *	$Id: get_tf_fullname.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
+ *	$Id: get_tf_fullname.c,v 1.3 1995/07/18 16:38:42 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: get_tf_fullname.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
+"$Id: get_tf_fullname.c,v 1.3 1995/07/18 16:38:42 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <strings.h>
@@ -30,11 +32,8 @@ static char rcsid[] =
  * krb_get_in_tkt().
  */
 
-krb_get_tf_fullname(ticket_file, name, instance, realm)
-  char *ticket_file;
-  char *name;
-  char *instance;
-  char *realm;
+int krb_get_tf_fullname(char *ticket_file, char *name, char *instance,
+    char *realm)
 {
     int tf_status;
     CREDENTIALS c;

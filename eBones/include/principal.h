@@ -6,7 +6,7 @@
  * Definitions for principal names.
  *
  *	from: principal.h,v 4.5 89/01/11 15:15:01 steiner Exp $
- *	$Id: principal.h,v 1.2 1994/07/19 19:23:25 g89r4222 Exp $
+ *	$Id: principal.h,v 1.3 1995/07/18 16:36:45 mark Exp $
  */
 
 #ifndef PRINCIPAL_DEFS

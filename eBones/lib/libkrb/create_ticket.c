@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: create_ticket.c,v 4.11 89/03/22 14:43:23 jtkohl Exp $
- *	$Id: create_ticket.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
+ *	$Id: create_ticket.c,v 1.3 1995/07/18 16:38:12 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: create_ticket.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
+"$Id: create_ticket.c,v 1.3 1995/07/18 16:38:12 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
 #include <des.h>
@@ -68,20 +70,9 @@ static char rcsid[] =
  *
  */
 
-int krb_create_ticket(tkt, flags, pname, pinstance, prealm, paddress,
-		  session, life, time_sec, sname, sinstance, key)
-    KTEXT   tkt;                /* Gets filled in by the ticket */
-    unsigned char flags;        /* Various Kerberos flags */
-    char    *pname;             /* Principal's name */
-    char    *pinstance;         /* Principal's instance */
-    char    *prealm;            /* Principal's authentication domain */
-    long    paddress;           /* Net address of requesting entity */
-    char    *session;           /* Session key inserted in ticket */
-    short   life;               /* Lifetime of the ticket */
-    long    time_sec;           /* Issue time and date */
-    char    *sname;             /* Service Name */
-    char    *sinstance;         /* Instance Name */
-    C_Block key;                /* Service's secret key */
+int krb_create_ticket(KTEXT tkt, unsigned char flags, char *pname,
+    char *pinstance, char *prealm, long paddress, char *session, short life,
+    long time_sec, char *sname, char *sinstance, des_cblock key)
 {
     Key_schedule key_s;
     register char *data;        /* running index into ticket */
@@ -122,9 +113,9 @@ int krb_create_ticket(tkt, flags, pname, pinstance, prealm, paddress,
     }
 
 #ifndef NOENCRYPTION
-    key_sched(key,key_s);
-    pcbc_encrypt((C_Block *)tkt->dat,(C_Block *)tkt->dat,(long)tkt->length,
-	key_s,key,ENCRYPT);
+    key_sched((des_cblock *)key,key_s);
+    pcbc_encrypt((des_cblock *)tkt->dat,(des_cblock *)tkt->dat,
+	(long)tkt->length,key_s,(des_cblock *)key,ENCRYPT);
 #endif
     return 0;
 }

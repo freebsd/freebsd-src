@@ -4,19 +4,21 @@
  * <Copyright.MIT>.
  *
  *	from: get_phost.c,v 4.6 89/01/23 09:25:40 jtkohl Exp $
- *	$Id: get_phost.c,v 1.2 1994/07/19 19:25:20 g89r4222 Exp $
+ *	$Id: get_phost.c,v 1.3 1995/07/18 16:38:35 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: get_phost.c,v 1.2 1994/07/19 19:25:20 g89r4222 Exp $";
+"$Id: get_phost.c,v 1.3 1995/07/18 16:38:35 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include <netdb.h>
-
-char *index();
+#include <krb.h>
 
 /*
  * This routine takes an alias for a host name and returns the first
@@ -35,8 +37,7 @@ char *index();
  * to the original "alias" argument is returned.
  */
 
-char * krb_get_phost(alias)
-    char *alias;
+char *krb_get_phost(char *alias)
 {
     struct hostent *h;
     char *phost = alias;

@@ -6,7 +6,7 @@
  * Include file for the Kerberos library.
  *
  *	from: krb.h,v 4.26 89/08/08 17:55:25 jtkohl Exp $
- *	$Id: krb.h,v 1.1.1.1 1994/09/30 14:49:54 csgr Exp $
+ *	$Id: krb.h,v 1.5 1995/07/18 16:36:34 mark Exp $
  */
 
 /* Only one time, please */
@@ -14,7 +14,9 @@
 #define KRB_DEFS
 
 /* Need some defs from des.h	 */
-#include <kerberosIV/des.h>
+#include <stdio.h>
+#include <des.h>
+#include <netinet/in.h>
 
 /* Text describing error codes */
 #define		MAX_KRB_ERRORS	256
@@ -372,5 +374,74 @@ char *tkt_string();
 #ifdef ATHENA_COMPAT
 #define	KOPT_DO_OLDSTYLE 0x00000008 /* use the old-style protocol */
 #endif ATHENA_COMPAT
+
+void acl_canonicalize_principal(char *principal, char *buf);
+int acl_check(char *acl, char *principal);
+int acl_exact_match(char *acl, char *principal);
+int acl_add(char *acl, char *principal);
+int acl_delete(char *acl, char *principal);
+int acl_initialize(char *acl_file, int mode);
+
+int krb_mk_req(KTEXT authent, char *service, char *instance, char *realm,
+    long checksum);
+int krb_rd_req (KTEXT authent, char *service, char *instance, long from_addr,
+    AUTH_DAT *ad, char *fn);
+int krb_kntoln(AUTH_DAT *ad, char *lname);
+int krb_set_key(char *key, int cvt);
+int krb_get_cred(char *service, char *instance, char *realm, CREDENTIALS *c);
+long krb_mk_priv(u_char *in, u_char *out, u_long in_length,
+    des_key_schedule schedule, des_cblock key, struct sockaddr_in *sender,
+    struct sockaddr_in *receiver);
+long krb_rd_priv(u_char *in, u_long in_length, Key_schedule schedule,
+    des_cblock key, struct sockaddr_in *sender, struct sockaddr_in *receiver,
+    MSG_DAT *msg_data);
+long krb_mk_safe(u_char *in, u_char *out, u_long in_length, des_cblock key,
+    struct sockaddr_in *sender, struct sockaddr_in *receiver);
+long krb_rd_safe(u_char *in, u_long length, des_cblock key,
+    struct sockaddr_in *sender, struct sockaddr_in *receiver,
+    MSG_DAT *msg_data);
+long krb_mk_err(u_char *out, long code, char *string);
+int krb_rd_err(u_char *in, u_long in_length, long *code, MSG_DAT *m_data);
+
+int krb_get_lrealm(char *r, int n);
+char *krb_get_phost(char *alias);
+int krb_get_krbhst(char *h, char *r, int n);
+int krb_get_admhst(char *h, char *r, int n);
+int krb_net_write(int fd, char *buf, int len);
+int krb_net_read(int fd, char *buf, int len);
+int krb_get_tf_realm(char *ticket_file, char *realm);
+int krb_get_in_tkt(char *user, char *instance, char *realm, char *service,
+    char *sinstance, int life, int (*key_proc)(), int (*decrypt_proc)(),
+    char *arg);
+int krb_get_pw_in_tkt(char *user, char *instance, char *realm, char *service,
+    char *sinstance, int life, char *password);
+int krb_get_tf_fullname(char *ticket_file, char *name, char *instance,
+    char *realm);
+int save_credentials(char *service, char *instance, char *realm,
+    des_cblock session, int lifetime, int kvno, KTEXT ticket, long issue_date);
+int read_service_key(char *service, char *instance, char *realm, int kvno,
+    char *file, char *key);
+int get_ad_tkt(char *service, char *sinstance, char *realm, int lifetime);
+int send_to_kdc(KTEXT pkt, KTEXT rpkt, char *realm);
+int decomp_ticket(KTEXT tkt, unsigned char *flags, char *pname,
+    char *pinstance, char *prealm, unsigned long *paddress, des_cblock session,
+    int *life, unsigned long *time_sec, char *sname, char *sinstance,
+    des_cblock key, des_key_schedule key_s);
+int kname_parse(char *np, char *ip, char *rp, char *fullname);
+int tf_init(char *tf_name, int rw);
+int tf_save_cred(char *service, char *instance, char *realm,
+    des_cblock session, int lifetime, int kvno, KTEXT ticket, long issue_date);
+int tf_get_pname(char *p);
+int tf_get_pinst(char *inst);
+int tf_get_cred(CREDENTIALS *c);
+void tf_close(void);
+int getst(int fd, char *s, int n);
+int pkt_clen(KTEXT pkt);
+int in_tkt(char *pname, char *pinst);
+char *month_sname(int n);
+void log(); /* Actually VARARGS - markm */
+
+extern int krb_ap_req_debug;
+extern int krb_debug;
 
 #endif	KRB_DEFS

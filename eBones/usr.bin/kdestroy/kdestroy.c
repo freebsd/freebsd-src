@@ -10,12 +10,12 @@
  *   -f[orce]	- no message printed at all
  *
  *	from: kdestroy.c,v 4.5 88/03/18 15:16:02 steiner Exp $
- *	$Id: kdestroy.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $
+ *	$Id: kdestroy.c,v 1.3 1995/07/18 16:37:44 mark Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdestroy.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $";
+"$Id: kdestroy.c,v 1.3 1995/07/18 16:37:44 mark Exp $";
 #endif	lint
 
 #include <stdio.h>

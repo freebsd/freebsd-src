@@ -4,15 +4,19 @@
  * <Copyright.MIT>.
  *
  *	from: tf_util.c,v 4.9 90/03/10 19:19:45 jon Exp $
- *	$Id: tf_util.c,v 1.1.1.1 1994/09/30 14:50:04 csgr Exp $
+ *	$Id: tf_util.c,v 1.3 1995/07/18 16:39:50 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: tf_util.c,v 1.1.1.1 1994/09/30 14:50:04 csgr Exp $";
+"$Id: tf_util.c,v 1.3 1995/07/18 16:39:50 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -29,9 +33,6 @@ static char rcsid[] =
 #define TF_LCK_RETRY ((unsigned)2)	/* seconds to sleep before
 					 * retry if ticket file is
 					 * locked */
-extern  errno;
-extern int krb_debug;
-
 #ifdef TKT_SHMEM
 char *krb_shm_addr = 0;
 static char *tmp_shm_addr = 0;
@@ -53,9 +54,9 @@ char *shmat();
  *	c. In tf_close, be sure it gets reinitialized to a negative
  *	   number.
  */
-static  fd = -1;
-static	curpos;				/* Position in tfbfr */
-static	lastpos;			/* End of tfbfr */
+static  int fd = -1;
+static	int curpos;			/* Position in tfbfr */
+static	int lastpos;			/* End of tfbfr */
 static	char tfbfr[BUFSIZ];		/* Buffer for ticket data */
 
 static tf_gets(), tf_read();
@@ -122,8 +123,7 @@ static tf_gets(), tf_read();
  * TKT_FIL_LCK  - couldn't lock the file, even after a retry
  */
 
-tf_init(tf_name, rw)
-    char   *tf_name;
+int tf_init(char *tf_name, int rw)
 {
     int     wflag;
     uid_t   me, getuid();
@@ -259,8 +259,7 @@ tf_init(tf_name, rw)
  * was longer than ANAME_SZ, TKT_FIL_FMT is returned.
  */
 
-tf_get_pname(p)
-    char   *p;
+int tf_get_pname(char *p)
 {
     if (fd < 0) {
 	if (krb_debug)
@@ -282,8 +281,7 @@ tf_get_pname(p)
  * instance may be null.
  */
 
-tf_get_pinst(inst)
-    char   *inst;
+int tf_get_pinst(char *inst)
 {
     if (fd < 0) {
 	if (krb_debug)
@@ -293,6 +291,33 @@ tf_get_pinst(inst)
     if (tf_gets(inst, INST_SZ) < 1)
 	return TKT_FIL_FMT;
     return KSUCCESS;
+}
+
+/*
+ * tf_close() closes the ticket file and sets "fd" to -1. If "fd" is
+ * not a valid file descriptor, it just returns.  It also clears the
+ * buffer used to read tickets.
+ *
+ * The return value is not defined.
+ */
+
+void tf_close()
+{
+    if (!(fd < 0)) {
+#ifdef TKT_SHMEM
+	if (shmdt(krb_shm_addr)) {
+	    /* what kind of error? */
+	    if (krb_debug)
+		fprintf(stderr, "shmdt 0x%x: errno %d",krb_shm_addr, errno);
+	} else {
+	    krb_shm_addr = 0;
+	}
+#endif TKT_SHMEM
+	(void) flock(fd, LOCK_UN);
+	(void) close(fd);
+	fd = -1;		/* see declaration of fd above */
+    }
+    bzero(tfbfr, sizeof(tfbfr));
 }
 
 /*
@@ -306,8 +331,7 @@ tf_get_pinst(inst)
  * EOF          - end of file encountered
  */
 
-tf_get_cred(c)
-    CREDENTIALS *c;
+int tf_get_cred(CREDENTIALS *c)
 {
     KTEXT   ticket = &c->ticket_st;	/* pointer to ticket */
     int     k_errno;
@@ -364,33 +388,6 @@ tf_get_cred(c)
 }
 
 /*
- * tf_close() closes the ticket file and sets "fd" to -1. If "fd" is
- * not a valid file descriptor, it just returns.  It also clears the
- * buffer used to read tickets.
- *
- * The return value is not defined.
- */
-
-tf_close()
-{
-    if (!(fd < 0)) {
-#ifdef TKT_SHMEM
-	if (shmdt(krb_shm_addr)) {
-	    /* what kind of error? */
-	    if (krb_debug)
-		fprintf(stderr, "shmdt 0x%x: errno %d",krb_shm_addr, errno);
-	} else {
-	    krb_shm_addr = 0;
-	}
-#endif TKT_SHMEM
-	(void) flock(fd, LOCK_UN);
-	(void) close(fd);
-	fd = -1;		/* see declaration of fd above */
-    }
-    bzero(tfbfr, sizeof(tfbfr));
-}
-
-/*
  * tf_gets() is an internal routine.  It takes a string "s" and a count
  * "n", and reads from the file until either it has read "n" characters,
  * or until it reads a null byte. When finished, what has been read exists
@@ -408,9 +405,7 @@ tf_close()
  *		file is seriously ill.
  */
 
-static
-tf_gets(s, n)
-    register char *s;
+static int tf_gets(char *s, int n)
 {
     register count;
 
@@ -449,12 +444,9 @@ tf_gets(s, n)
  * 0		on end of file or read error
  */
 
-static
-tf_read(s, n)
-    register char *s;
-    register n;
+static int tf_read(char *s, int n)
 {
-    register count;
+    int count;
 
     for (count = n; count > 0; --count) {
 	if (curpos >= sizeof(tfbfr)) {
@@ -486,16 +478,8 @@ char   *tkt_string();
  * called previously, and KFAILURE for anything else that went wrong.
  */
 
-tf_save_cred(service, instance, realm, session, lifetime, kvno,
-	     ticket, issue_date)
-    char   *service;		/* Service name */
-    char   *instance;		/* Instance */
-    char   *realm;		/* Auth domain */
-    C_Block session;		/* Session key */
-    int     lifetime;		/* Lifetime */
-    int     kvno;		/* Key version number */
-    KTEXT   ticket;		/* The ticket itself */
-    long    issue_date;		/* The issue time */
+int tf_save_cred(char *service, char *instance, char *realm,
+    des_cblock session, int lifetime, int kvno, KTEXT ticket, long issue_date)
 {
 
     off_t   lseek();

@@ -7,16 +7,19 @@
  * access to a local account
  *
  *	from: kuserok.c,v 4.5 89/01/23 09:25:21 jtkohl Exp $
- *	$Id: kuserok.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $
+ *	$Id: kuserok.c,v 1.3 1995/07/18 16:39:07 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kuserok.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $";
+"$Id: kuserok.c,v 1.3 1995/07/18 16:39:07 mark Exp $";
 #endif	lint
+#endif
 
 #include <krb.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <pwd.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -83,9 +86,7 @@ parmtable kparm[] = {
 #define KPARMS kparm,PARMCOUNT(kparm)
 #endif ATHENA_COMPAT
 
-kuserok(kdata, luser)
-    AUTH_DAT *kdata;
-    char   *luser;
+int kuserok(AUTH_DAT *kdata, char *luser)
 {
     struct stat sbuf;
     struct passwd *pwd;
@@ -178,7 +179,7 @@ kuserok(kdata, luser)
 	linebuf[BUFSIZ-1] = '\0';
 	newline = NULL;
 	/* nuke the newline if it exists */
-	if (newline = index(linebuf, '\n'))
+	if ((newline = index(linebuf, '\n')))
 	    *newline = '\0';
 	rc = kname_parse(principal, inst, realm, linebuf);
 	if (rc == KSUCCESS) {

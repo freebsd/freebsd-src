@@ -15,12 +15,12 @@
  *   -l[ifetime]
  *
  *	from: kinit.c,v 4.12 90/03/20 16:11:15 jon Exp $
- *	$Id: kinit.c,v 1.1.1.1 1994/09/30 14:49:58 csgr Exp $
+ *	$Id: kinit.c,v 1.4 1995/08/03 17:16:00 mark Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kinit.c,v 1.1.1.1 1994/09/30 14:49:58 csgr Exp $";
+"$Id: kinit.c,v 1.4 1995/08/03 17:16:00 mark Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -35,7 +35,7 @@ static char rcsid[] =
 #define	LEN	64		/* just guessing */
 #endif	PC
 
-#if defined(BSD42) || defined(__FreeBSD__)
+#if defined(BSD42) || defined(__FreeBSD__) || defined(__NetBSD__)
 #include <strings.h>
 #include <sys/param.h>
 #if 	defined(ultrix) || defined(sun)

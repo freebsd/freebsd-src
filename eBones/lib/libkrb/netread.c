@@ -4,13 +4,19 @@
  * <Copyright.MIT>.
  *
  *	from: netread.c,v 4.1 88/11/15 16:47:21 jtkohl Exp $
- *	$Id: netread.c,v 1.2 1994/07/19 19:26:03 g89r4222 Exp $
+ *	$Id: netread.c,v 1.3 1995/07/18 16:39:20 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: netread.c,v 1.2 1994/07/19 19:26:03 g89r4222 Exp $";
+"$Id: netread.c,v 1.3 1995/07/18 16:39:20 mark Exp $";
 #endif	lint
+#endif
+
+#include <stdio.h>
+#include <unistd.h>
+#include <krb.h>
 
 /*
  * krb_net_read() reads from the file descriptor "fd" to the buffer
@@ -22,11 +28,7 @@ static char rcsid[] =
  * XXX must not use non-blocking I/O
  */
 
-int
-krb_net_read(fd, buf, len)
-int fd;
-register char *buf;
-register int len;
+int krb_net_read(int fd, char *buf, int len)
 {
     int cc, len2 = 0;
 

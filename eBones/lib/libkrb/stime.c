@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: stime.c,v 4.5 88/11/15 16:58:05 jtkohl Exp $
- *	$Id: stime.c,v 1.2 1994/07/19 19:26:25 g89r4222 Exp $
+ *	$Id: stime.c,v 1.3 1995/07/18 16:39:46 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: stime.c,v 1.2 1994/07/19 19:26:25 g89r4222 Exp $";
+"$Id: stime.c,v 1.3 1995/07/18 16:39:46 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <sys/time.h>
 #include <stdio.h>                      /* for sprintf() */

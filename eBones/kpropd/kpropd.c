@@ -10,8 +10,8 @@
  * adapted from the MIT distribution to work properly in a 4.4BSD
  * environment.
  * 
- * $Revision: 4.5 $ $Date: 92/10/23 15:45:46 $ $State: Exp $
- * $Source$
+ * $Revision: 1.1.1.1 $ $Date: 1995/08/03 07:37:19 $ $State: Exp $
+ * $Source: /usr/cvs/src/eBones/kpropd/kpropd.c,v $
  * 
  * Log: kpropd.c,v
  * Revision 4.5  92/10/23  15:45:46  tytso Make it possible
@@ -38,7 +38,7 @@
 
 #ifndef	lint
 static char     rcsid_kpropd_c[] =
-"$Header: /afs/net.mit.edu/project/krb4/src/slave/RCS/kpropd.c,v 4.5 92/10/23 15:45:46 tytso Exp $";
+"$Header: /usr/cvs/src/eBones/kpropd/kpropd.c,v 1.1.1.1 1995/08/03 07:37:19 mark Exp $";
 #endif	/* lint */
 
 #include <ctype.h>
