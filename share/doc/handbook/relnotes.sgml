@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.14 1996/09/22 15:40:33 wosch Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.15 1996/10/23 03:15:10 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -8,13 +8,13 @@
       <sect><heading>About the current release<label id="relnotes"></heading>
 
 	<p>FreeBSD is a freely available, full source 4.4BSD-Lite
-	  based release for Intel i386/i486/Pentium (or
+	  based release for Intel i386/i486/Pentium/PentiumPro (or
 	  compatible) based PC's.  It is based primarily on
 	  software from U.C. Berkeley's CSRG group, with some
 	  enhancements from NetBSD, 386BSD, and the Free Software
 	  Foundation.
 
-	  Since our release of FreeBSD 2.0 one year ago, the
+	  Since our release of FreeBSD 2.0 in January of 95, the
 	  performance, feature set, and stability of FreeBSD has
 	  improved dramatically.  The largest change is a
 	  revamped VM system with a merged VM/file buffer cache
@@ -35,24 +35,26 @@
 	  (constantly evolving) process is especially welcome!
 
 	  In addition to the base distributions, FreeBSD offers a
-	  new ported software collection with some 350 commonly
-	  sought-after programs.  The list of ports ranges from
+	  new ported software collection with hundreds of commonly
+	  sought-after programs. At the end of November 96 there was
+	  an amount of 710 ports ! The list of ports ranges from
 	  http (WWW) servers, to games, languages, editors and
-	  almost everything in between.  The entire ports
-	  collection requires only 10MB of storage, all ports
-	  being expressed as ``deltas'' to their original sources.
-	  This makes it much easier for us to update ports, and
-	  greatly reduces the disk space demands made by the
-	  older 1.0 ports collection.  To compile a port, you
-	  simply change to the directory of the program you wish
-	  to install, type make and let the system do the rest.
-	  The full original distribution for each port you build
-	  is retrieved dynamically off of CDROM or a local ftp
-	  site, so you need only enough disk space to build the
-	  ports you want.  (Almost) every port is also provided
-	  as a pre-compiled "package" which can be installed with
-	  a simple command (pkg_add) by those who do not wish to
-	  compile their own ports from source.
+	  almost everything in between. The entire ports collection
+	  requires only 10MB of storage, all ports being expressed
+	  as ``deltas'' to their original sources.  This makes it
+	  much easier for us to update ports, and greatly reduces
+	  the disk space demands made by the older 1.0 ports
+	  collection.  To compile a port, you simply change to the
+	  directory of the program you wish to install, type ``make
+	  all'' followed by ``make install'' after successfull
+	  compilation and let the system do the rest.  The full
+	  original distribution for each port you build is retrieved
+	  dynamically off of CDROM or a local ftp site, so you need
+	  only enough disk space to build the ports you want.
+	  (Almost) every port is also provided as a pre-compiled
+	  "package" which can be installed with a simple command
+	  (pkg_add) by those who do not wish to compile their own
+	  ports from source.
 
 	  A number of additional documents which you may find
 	  very helpful in the process of installing and using
