@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.9 1995/05/25 06:15:38 phk Exp $
+ * $Id: ftp.c,v 1.10 1995/05/26 19:28:01 jkh Exp $
  *
  */
 
@@ -137,7 +137,6 @@ cmd(FTP_t ftp, const char *fmt, ...)
     if (writes(ftp->fd_ctrl,p))
 	return -1;
     i = get_a_number(ftp,0);
-    debug(ftp, "got %d\n",i);
     return i;
 }
 
@@ -243,6 +242,7 @@ FtpClose(FTP_t ftp)
     if (ftp->state != isopen) 
 	botch(ftp,"FtpClose","open");
     
+    debug(ftp, "FtpClose(ftp)\n");
     writes(ftp->fd_ctrl,"QUIT\r\n");
     close(ftp->fd_ctrl); ftp->fd_ctrl = -1;
     close(ftp->fd_xfer); ftp->fd_xfer = -1;
@@ -267,6 +267,7 @@ FtpGet(FTP_t ftp, char *file)
     unsigned char addr[6];
     struct sockaddr_in sin;
     
+    debug(ftp, "FtpGet(ftp,%s)\n",file);
     if (ftp->state != isopen) 
 	return botch(ftp,"FtpGet","open");
     if(ftp->binary) {
@@ -324,6 +325,7 @@ FtpEOF(FTP_t ftp)
 {
     if (ftp->state != xfer) 
 	return botch(ftp,"FtpEOF","xfer");
+    debug(ftp, "FtpEOF(ftp)\n");
     close(ftp->fd_xfer); ftp->fd_xfer = -1;
     ftp->state = isopen;
     return get_a_number(ftp,0);
