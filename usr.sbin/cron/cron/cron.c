@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: cron.c,v 2.11 1994/01/15 20:43:43 vixie Exp $";
+static char rcsid[] = "$Id: cron.c,v 1.1.1.1 1994/08/27 13:43:03 jkh Exp $";
 #endif
 
 
@@ -46,7 +46,16 @@ static	void	usage __P((void)),
 
 static void
 usage() {
+    char **dflags;
+
 	fprintf(stderr, "usage:  %s [-x debugflag[,...]]\n", ProgramName);
+	fprintf(stderr, "\ndebugflags: ");
+
+        for(dflags = DebugFlagNames; *dflags; dflags++) {
+		fprintf(stderr, "%s ", *dflags);
+	}
+        fprintf(stderr, "\n");
+
 	exit(ERROR_EXIT);
 }
 
@@ -116,7 +125,7 @@ main(argc, argv)
 	cron_sync();
 	while (TRUE) {
 # if DEBUGGING
-		if (!(DebugFlags & DTEST))
+	    /* if (!(DebugFlags & DTEST)) */
 # endif /*DEBUGGING*/
 			cron_sleep();
 
@@ -290,12 +299,12 @@ parse_args(argc, argv)
 
 	while (EOF != (argch = getopt(argc, argv, "x:"))) {
 		switch (argch) {
-		default:
-			usage();
 		case 'x':
 			if (!set_debug_flags(optarg))
 				usage();
 			break;
+		default:
+			usage();
 		}
 	}
 }
