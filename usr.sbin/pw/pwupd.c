@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include "pwupd.h"
 
 #define HAVE_PWDB_C	1
+#define	HAVE_PWDB_U	1
 
 static char pathpwd[] = _PATH_PWD;
 static char * pwpath = pathpwd;
@@ -150,9 +151,12 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 #else
 	{				/* No -C */
 #endif
-		char            pfx[32];
+		char            pfx[PWBUFSZ];
 		char            pwbuf[PWBUFSZ];
-		int             l = sprintf(pfx, "%s:", user);
+		int             l = snprintf(pfx, PWBUFSZ, "%s:", user);
+#ifdef HAVE_PWDB_U
+		int		isrename = strcmp(user, pwd->pw_name);
+#endif
 
 		/*
 		 * Update the passwd file first
@@ -172,10 +176,14 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 				fmtpwentry(pwbuf, pwd, PWF_MASTER);
 			rc = fileupdate(getpwpath(_MASTERPASSWD), 0644, pwbuf, pfx, l, mode);
 			if (rc == 0) {
-				if (mode == UPD_DELETE)
+#ifdef HAVE_PWDB_U
+				if (mode == UPD_DELETE || isrename)
+#endif
 					rc = pwdb(NULL);
+#ifdef HAVE_PWDB_U
 				else
-					rc = pwdb("-u", pwd->pw_name, NULL);
+					rc = pwdb("-u", user, NULL);
+#endif
 			}
 		}
 	}
