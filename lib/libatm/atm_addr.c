@@ -22,10 +22,14 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
+#include <sys/cdefs.h>
+#ifndef lint
+#if 0	/* original (broken) import id */
+static char *RCSid = "@(#) $Id: atm_addr.c,v 1.1 1998/07/09 21:45:18 johnc Exp $";
+#endif
+#endif
+__FBSDID("$FreeBSD$");
 
 /*
  * User Space Library Functions
@@ -36,7 +40,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -53,10 +56,7 @@
 
 #include "libatm.h"
 
-__FBSDID("$FreeBSD$");
-
 extern char	*prog;
-
 
 /*
  * Get NSAP, NSAP prefix or MAC address
