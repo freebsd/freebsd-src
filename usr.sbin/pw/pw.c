@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pw.c,v 1.12 1999/02/23 07:15:10 davidn Exp $";
+	"$Id: pw.c,v 1.13 1999/02/23 10:35:47 davidn Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -153,7 +153,7 @@ main(int argc, char *argv[])
 			mode = tmp % M_NUM;
 		} else if (strcmp(argv[1], "help") == 0)
 			cmdhelp(mode, which);
-		else if (which != -1 && mode != -1 && arglist.lh_first == NULL)
+		else if (which != -1 && mode != -1)
 			addarg(&arglist, 'n', argv[1]);
 		else
 			errx(EX_USAGE, "unknown keyword `%s'", argv[1]);
