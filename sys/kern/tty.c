@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.8 1994/10/03 01:12:18 ache Exp $
+ * $Id: tty.c,v 1.9 1994/10/06 21:06:34 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1274,7 +1274,7 @@ loop:
 			goto read;
 		carrier = ISSET(tp->t_state, TS_CARR_ON) ||
 		    ISSET(tp->t_cflag, CLOCAL);
-		if (!carrier && ISSET(tp->t_state, TS_ISOPEN) ||
+		if ((!carrier && ISSET(tp->t_state, TS_ISOPEN)) ||
 		    !ISSET(lflag, ICANON) && cc[VMIN] == 0) {
 			splx(s);
 			return (0);
