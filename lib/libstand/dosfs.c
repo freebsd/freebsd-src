@@ -39,7 +39,7 @@
 #include "dosfs.h"
 
 
-static int	dos_open(char *path, struct open_file *fd);
+static int	dos_open(const char *path, struct open_file *fd);
 static int	dos_close(struct open_file *fd);
 static int	dos_read(struct open_file *fd, void *buf, size_t size, size_t *resid);
 static off_t	dos_seek(struct open_file *fd, off_t offset, int whence);
@@ -185,7 +185,7 @@ dosunmount(DOS_FS *fs)
  * Open DOS file
  */
 static int
-dos_open(char *path, struct open_file *fd)
+dos_open(const char *path, struct open_file *fd)
 {
     DOS_DE *de;
     DOS_FILE *f;
