@@ -140,11 +140,11 @@ init_param2(int physpages)
 
 	/* Base parameters */
 	if ((maxusers = MAXUSERS) == 0) {
-		maxusers = physpages / (1024 * 1024 / PAGE_SIZE);
+		maxusers = physpages / (2 * 1024 * 1024 / PAGE_SIZE);
 		if (maxusers < 32)
 		    maxusers = 32;
-		if (maxusers > 512)
-		    maxusers = 512;
+		if (maxusers > 384)
+		    maxusers = 384;
 	}
 	TUNABLE_INT_FETCH("kern.maxusers", &maxusers);
 
