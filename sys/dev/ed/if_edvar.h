@@ -201,7 +201,7 @@ int	ed_probe_WD80x3_generic(device_t, int, uint16_t *[]);
 int	ed_probe_3Com(device_t, int, int);
 int	ed_probe_SIC(device_t, int, int);
 int	ed_probe_Novell(device_t, int, int);
-int	ed_probe_Novell_generic(device_t, int);
+void	ed_Novell_read_mac(struct ed_softc *);
 int	ed_probe_HP_pclanp(device_t, int, int);
 
 int	ed_attach(device_t);
@@ -230,4 +230,51 @@ void	ed_enable_16bit_access(struct ed_softc *);
 driver_intr_t	edintr;
 
 extern devclass_t ed_devclass;
+
+
+/*
+ * Vendor types
+ */
+#define ED_VENDOR_WD_SMC	0x00		/* Western Digital/SMC */
+#define ED_VENDOR_3COM		0x01		/* 3Com */
+#define ED_VENDOR_NOVELL	0x02		/* Novell */
+#define ED_VENDOR_HP		0x03		/* Hewlett Packard */
+#define ED_VENDOR_SIC		0x04		/* Allied-Telesis SIC */
+
+/*
+ * Compile-time config flags
+ */
+/*
+ * this sets the default for enabling/disabling the transceiver
+ */
+#define ED_FLAGS_DISABLE_TRANCEIVER	0x0001
+
+/*
+ * This forces the board to be used in 8/16bit mode even if it
+ *	autoconfigs differently
+ */
+#define ED_FLAGS_FORCE_8BIT_MODE	0x0002
+#define ED_FLAGS_FORCE_16BIT_MODE	0x0004
+
+/*
+ * This disables the use of double transmit buffers.
+ */
+#define ED_FLAGS_NO_MULTI_BUFFERING	0x0008
+
+/*
+ * This forces all operations with the NIC memory to use Programmed
+ *	I/O (i.e. not via shared memory)
+ */
+#define ED_FLAGS_FORCE_PIO		0x0010
+
+/*
+ * These are flags describing the chip type.
+ */
+#define ED_FLAGS_TOSH_ETHER		0x10000
+#define ED_FLAGS_GWETHER		0x20000
+#define ED_FLAGS_AX88190		0x30000
+#define ED_FLAGS_LINKSYS		0x80000
+
+#define ED_FLAGS_GETTYPE(flg)		((flg) & 0xff0000)
+
 #endif /* SYS_DEV_ED_IF_EDVAR_H */
