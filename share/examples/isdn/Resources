@@ -1,7 +1,8 @@
 $FreeBSD$
 
-Download sites for isdn4bsd
-===========================
+
+Download site for isdn4bsd
+==========================
 
         ftp://i4b.consol.de/pub
 
@@ -9,7 +10,7 @@ Download sites for isdn4bsd
 Bugfixes, improvements and patches for i4b
 ==========================================
 
-	http://www.freebsd-support.de/i4b (in the "errata" section)
+	http://www.freebsd-support.de/i4b
 
 
 Bob's ISDN BRI/PRI Signaling Guide
@@ -24,12 +25,6 @@ Anwahl von T-Offline mittels i4b und FreeBSD (german)
 	http://www.de.freebsd.org/de/i4b-t-error.html
 
 
-PPP mit isdn4bsd (german)
-=========================
-
-	http://www.saargate.de/~domi/freebsd/i4b-ppp-newbie.html
-
-
 ISDN Information:
 =================
 
@@ -41,7 +36,6 @@ Standards:
 
 	ETSI
 	----
-		http://webapp.etsi.org/publicationssearch
 		http://www.etsi.org
 
 	ITU
@@ -60,36 +54,15 @@ ISDN Chips
 
 	Infineon (formerly Siemens)
 	---------------------------
-		general:
-		--------
-		http://www.infineon.com/products/ics/33/33.htm
-
-		ISAC:
-		-----
-		http://www.infineon.com/products/ics/33/isac_s.htm
-		http://www.infineon.com/products/ics/33/isac_ste.htm
-
-		HSCX:
-		-----
-		http://www.infineon.com/products/ics/33/hscx.htm
-		http://www.infineon.com/products/ics/33/hscx_te.htm
-
-		IPAC:
-		-----
-		http://www.infineon.com/products/ics/33/ipac.htm
-
+		http://www.infineon.com
 
 	Cologne Chip Design
 	-------------------
 		http://www.colognechip.de
 
-	AMD
-	---
-		http://www.amd.com/products/cpd/isdn/isdn.html
-
 	Winbond
 	-------
-		http://www.winbond.com/produ/isdn.htm
+		http://www.winbond.com
 
 	Motorola
 	--------
@@ -100,12 +73,6 @@ SunShine Project - Implementation of the ISDN recommendations Q.921 & Q.931
 ===========================================================================
 
 	http://www.tcm.hut.fi/~bos/ISDN/sunshine/SunShine.html
-
-
-CD's:
-=====
-	The Infomagic Standards CDROM: http://www.infomagic.com
-
 
 Books:
 ======
@@ -141,5 +108,3 @@ Books:
 	"ISDN - Die Technik",
 		Andreas Kanbach, Andreas Koerber, Huethig Verlag 1999,
 		ISBN 3-7785-2288-4
-
--- EOF -----------------------------------------------------------------------
