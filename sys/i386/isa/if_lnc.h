@@ -121,6 +121,7 @@
 #define Am79C970A 0x2621
 #define Am79C971  0x2623
 #define Am79C972  0x2624
+#define Am79C973  0x2625
 #define Am79C978  0x2626
 
 /* Board types */
