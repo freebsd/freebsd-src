@@ -42,7 +42,7 @@ typedef struct scsi_state {
  */
 
 struct asc_softc {
-	struct device sc_dev;			/* us as a device */
+	device_t sc_dev;			/* us as a device */
 	asc_regmap_t	*regs;		/* chip address */
 	volatile int	*dmar;		/* DMA address register address */
 	int		sc_id;		/* SCSI ID of this interface */

@@ -149,9 +149,9 @@ struct tcbus_attach_args {
 
         /* TC bus resource management; XXX will move elsewhere eventually. */
 /*
-        void    (*tba_intr_establish) __P((struct device *, void *,
+        void    (*tba_intr_establish) __P((device_t, void *,
                     tc_intrlevel_t, int (*)(void *), void *));
-        void    (*tba_intr_disestablish) __P((struct device *, void *));
+        void    (*tba_intr_disestablish) __P((device_t, void *));
 */
 };
 
@@ -174,9 +174,9 @@ struct tc_attach_args {
 /*
  * Interrupt establishment functions.
  */
-void	tc_intr_establish __P((struct device *, void *, tc_intrlevel_t,
+void	tc_intr_establish __P((device_t, void *, tc_intrlevel_t,
 	    int (*)(void *), void *));
-void	tc_intr_disestablish __P((struct device *, void *));
+void	tc_intr_disestablish __P((device_t, void *));
 
 #if 0
 #include "locators.h"

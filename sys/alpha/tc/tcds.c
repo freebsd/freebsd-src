@@ -334,7 +334,7 @@ tcds_intrnull(void *val)
 
 void
 tcds_intr_establish(tcds, cookie, level, func, arg)
-        struct device *tcds;
+        device_t tcds;
         void *cookie, *arg;
         tc_intrlevel_t level;
         int (*func) __P((void *));
@@ -356,7 +356,7 @@ tcds_intr_establish(tcds, cookie, level, func, arg)
 }
 void
 tcds_intr_disestablish(tcds, cookie)
-        struct device *tcds;
+        device_t tcds;
         void *cookie;
 {
         struct tcds_softc *sc = device_get_softc(tcds);

@@ -84,9 +84,9 @@ struct tcdsdev_attach_args {
 /*
  * TCDS functions.
  */
-void	tcds_intr_establish __P((struct device *, void *, tc_intrlevel_t,
+void	tcds_intr_establish __P((device_t, void *, tc_intrlevel_t,
 	    int (*)(void *), void *));
-void	tcds_intr_disestablish __P((struct device *, void *));
+void	tcds_intr_disestablish __P((device_t, void *));
 void	tcds_dma_enable __P((struct tcds_slotconfig *, int));
 void	tcds_scsi_enable __P((struct tcds_slotconfig *, int));
 int	tcds_scsi_isintr __P((struct tcds_slotconfig *, int));
