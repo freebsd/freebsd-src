@@ -26,19 +26,19 @@
  *	$FreeBSD$
  */
 
-#define MLX_CFG_BASE0   0x10		/* first region */
-#define MLX_CFG_BASE1   0x14		/* second region (type 3 only) */
-
 #define MLX_BLKSIZE	512		/* fixed feature */
 
 /*
  * Selected command codes.
  */
+#define MLX_CMD_ENQUIRY_OLD	0x05
 #define MLX_CMD_ENQUIRY		0x53
 #define MLX_CMD_ENQUIRY2	0x1c
 #define MLX_CMD_ENQSYSDRIVE	0x19
-#define MLX_CMD_READOLDSG	0xb6
-#define MLX_CMD_WRITEOLDSG	0xb7
+#define MLX_CMD_READSG		0xb6
+#define MLX_CMD_WRITESG		0xb7
+#define MLX_CMD_READSG_OLD	0x82
+#define MLX_CMD_WRITESG_OLD	0x83
 #define MLX_CMD_FLUSH		0x0a
 #define MLX_CMD_LOGOP		0x72
 #define MLX_CMD_REBUILDASYNC	0x16
@@ -46,6 +46,13 @@
 #define MLX_CMD_REBUILDSTAT	0x0c
 #define MLX_CMD_STOPCHANNEL	0x13
 #define MLX_CMD_STARTCHANNEL	0x12
+#define MLX_CMD_READ_CONFIG	0x4e
+#define MLX_CMD_DIRECT_CDB	0x04
+
+#ifdef _KERNEL
+
+#define MLX_CFG_BASE0   0x10		/* first region */
+#define MLX_CFG_BASE1   0x14		/* second region (type 3 only) */
 
 /*
  * Status values.
@@ -65,6 +72,9 @@
 #define MLX_V3_IDBR		0x40
 #define MLX_V3_ODBR		0x41
 #define MLX_V3_IER		0x43
+#define MLX_V3_FWERROR		0x3f
+#define MLX_V3_FWERROR_PARAM1	0x00
+#define MLX_V3_FWERROR_PARAM2	0x01
 
 #define MLX_V3_PUT_MAILBOX(sc, idx, val) bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_MAILBOX + idx, val)
 #define MLX_V3_GET_STATUS_IDENT(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_STATUS_IDENT)
@@ -74,21 +84,33 @@
 #define MLX_V3_GET_ODBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_ODBR)
 #define MLX_V3_PUT_ODBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_ODBR, val)
 #define MLX_V3_PUT_IER(sc, val)		 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_IER, val)
+#define MLX_V3_GET_FWERROR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_FWERROR)
+#define MLX_V3_PUT_FWERROR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_FWERROR, val)
+#define MLX_V3_GET_FWERROR_PARAM1(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_FWERROR_PARAM1)
+#define MLX_V3_GET_FWERROR_PARAM2(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_FWERROR_PARAM2)
 
 #define MLX_V3_IDB_FULL		(1<<0)		/* mailbox is full */
+#define MLX_V3_IDB_INIT_BUSY	(1<<1)		/* initialisation in progress */
+
 #define MLX_V3_IDB_SACK		(1<<1)		/* acknowledge status read */
 
 #define MLX_V3_ODB_SAVAIL	(1<<0)		/* status is available */
+
+#define MLX_V3_FWERROR_PEND	(1<<2)		/* firmware error pending */
 
 /*
  * Accessor defines for the V4 interface.
  */
 #define MLX_V4_MAILBOX		0x1000
-#define	MLX_V4_STATUS_IDENT	0x1018
+#define MLX_V4_MAILBOX_LENGTH		16
+#define MLX_V4_STATUS_IDENT	0x1018
 #define MLX_V4_STATUS		0x101a
 #define MLX_V4_IDBR		0x0020
 #define MLX_V4_ODBR		0x002c
 #define MLX_V4_IER		0x0034
+#define MLX_V4_FWERROR		0x103f
+#define MLX_V4_FWERROR_PARAM1	0x1000
+#define MLX_V4_FWERROR_PARAM2	0x1001
 
 /* use longword access? */
 #define MLX_V4_PUT_MAILBOX(sc, idx, val) bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_MAILBOX + idx, val)
@@ -99,8 +121,13 @@
 #define MLX_V4_GET_ODBR(sc)		 bus_space_read_4 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_ODBR)
 #define MLX_V4_PUT_ODBR(sc, val)	 bus_space_write_4(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_ODBR, val)
 #define MLX_V4_PUT_IER(sc, val)		 bus_space_write_4(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_IER, val)
+#define MLX_V4_GET_FWERROR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_FWERROR)
+#define MLX_V4_PUT_FWERROR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_FWERROR, val)
+#define MLX_V4_GET_FWERROR_PARAM1(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_FWERROR_PARAM1)
+#define MLX_V4_GET_FWERROR_PARAM2(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_FWERROR_PARAM2)
 
 #define MLX_V4_IDB_FULL		(1<<0)		/* mailbox is full */
+#define MLX_V4_IDB_INIT_BUSY	(1<<1)		/* initialisation in progress */
 
 #define MLX_V4_IDB_HWMBOX_CMD	(1<<0)		/* posted hardware mailbox command */
 #define MLX_V4_IDB_SACK		(1<<1)		/* acknowledge status read */
@@ -115,15 +142,21 @@
 #define MLX_V4_IER_MASK		0xfb		/* message unit interrupt mask */
 #define MLX_V4_IER_DISINT	(1<<2)		/* interrupt disable bit */
 
+#define MLX_V4_FWERROR_PEND	(1<<2)		/* firmware error pending */
+
 /*
  * Accessor defines for the V5 interface
  */
 #define MLX_V5_MAILBOX		0x50
+#define MLX_V5_MAILBOX_LENGTH		16
 #define MLX_V5_STATUS_IDENT	0x5d
 #define MLX_V5_STATUS		0x5e
 #define MLX_V5_IDBR		0x60
 #define MLX_V5_ODBR		0x61
 #define MLX_V5_IER		0x34
+#define MLX_V5_FWERROR		0x63
+#define MLX_V5_FWERROR_PARAM1	0x50
+#define MLX_V5_FWERROR_PARAM2	0x51
 
 #define MLX_V5_PUT_MAILBOX(sc, idx, val) bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_MAILBOX + idx, val)
 #define MLX_V5_GET_STATUS_IDENT(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_STATUS_IDENT)
@@ -133,11 +166,17 @@
 #define MLX_V5_GET_ODBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_ODBR)
 #define MLX_V5_PUT_ODBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_ODBR, val)
 #define MLX_V5_PUT_IER(sc, val)		 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_IER, val)
+#define MLX_V5_GET_FWERROR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_FWERROR)
+#define MLX_V5_PUT_FWERROR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_FWERROR, val)
+#define MLX_V5_GET_FWERROR_PARAM1(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_FWERROR_PARAM1)
+#define MLX_V5_GET_FWERROR_PARAM2(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_FWERROR_PARAM2)
 
 #define MLX_V5_IDB_EMPTY	(1<<0)		/* mailbox is empty */
+#define MLX_V5_IDB_INIT_DONE	(1<<1)		/* initialisation has completed */
 
 #define MLX_V5_IDB_HWMBOX_CMD	(1<<0)		/* posted hardware mailbox command */
 #define MLX_V5_IDB_SACK		(1<<1)		/* acknowledge status read */
+#define MLX_V5_IDB_RESET	(1<<3)		/* reset request */
 #define MLX_V5_IDB_MEMMBOX_CMD	(1<<4)		/* posted memory mailbox command */
 
 #define MLX_V5_ODB_HWSAVAIL	(1<<0)		/* status is available for hardware mailbox */
@@ -148,6 +187,9 @@
 
 #define MLX_V5_IER_DISINT	(1<<2)		/* interrupt disable bit */
 
+#define MLX_V5_FWERROR_PEND	(1<<2)		/* firmware error pending */
+
+#endif /* _KERNEL */
 
 /*
  * Scatter-gather list format, type 1, kind 00.
@@ -161,6 +203,34 @@ struct mlx_sgentry
 /*
  * Command result buffers, as placed in system memory by the controller.
  */
+
+struct mlx_enquiry_old	/* MLX_CMD_ENQUIRY_OLD */
+{
+    u_int8_t		me_num_sys_drvs;
+    u_int8_t		res1[3];
+    u_int32_t		me_drvsize[8];
+    u_int16_t		me_flash_age;
+    u_int8_t		me_status_flags;
+    u_int8_t		me_free_state_change_count;
+    u_int8_t		me_fwminor;
+    u_int8_t		me_fwmajor;
+    u_int8_t		me_rebuild_flag;
+    u_int8_t		me_max_commands;
+    u_int8_t		me_offline_sd_count;
+    u_int8_t		res3;
+    u_int8_t		me_critical_sd_count;
+    u_int8_t		res4[3];
+    u_int8_t		me_dead_count;
+    u_int8_t		res5;
+    u_int8_t		me_rebuild_count;
+    u_int8_t		me_misc_flags;
+    struct 
+    {
+	u_int8_t	dd_targ;
+	u_int8_t	dd_chan;
+    } __attribute__ ((packed)) me_dead[20];
+} __attribute__ ((packed));
+
 struct mlx_enquiry	/* MLX_CMD_ENQUIRY */
 {
     u_int8_t		me_num_sys_drvs;
@@ -285,6 +355,135 @@ struct mlx_rebuild_stat	/* MLX_CMD_REBUILDSTAT */
     u_int32_t	rb_remaining;
 } __attribute__ ((packed));
 
+struct mlx_config2
+{
+    u_int16_t	cf_flags1;
+#define MLX_CF2_ACTV_NEG	(1<<1)
+#define MLX_CF2_NORSTRTRY	(1<<7)
+#define MLX_CF2_STRGWRK		(1<<8)
+#define MLX_CF2_HPSUPP		(1<<9)
+#define MLX_CF2_NODISCN		(1<<10)
+#define MLX_CF2_ARM    		(1<<13)
+#define MLX_CF2_OFM		(1<<15)
+#define MLX_CF2_AEMI (MLX_CF2_ARM | MLX_CF2_OFM)
+    u_int8_t	cf_oemid;
+    u_int8_t	cf_oem_model;
+    u_int8_t	cf_physical_sector;
+    u_int8_t	cf_logical_sector;
+    u_int8_t	cf_blockfactor;
+    u_int8_t	cf_flags2;
+#define MLX_CF2_READAH		(1<<0)
+#define MLX_CF2_BIOSDLY		(1<<1)
+#define MLX_CF2_REASS1S		(1<<4)
+#define MLX_CF2_FUAENABL	(1<<6)
+#define MLX_CF2_R5ALLS		(1<<7)
+    u_int8_t	cf_rcrate;
+    u_int8_t	cf_res1;
+    u_int8_t	cf_blocks_per_cache_line;
+    u_int8_t	cf_blocks_per_stripe;
+    u_int8_t	cf_scsi_param_0;
+    u_int8_t	cf_scsi_param_1;
+    u_int8_t	cf_scsi_param_2;
+    u_int8_t	cf_scsi_param_3;
+    u_int8_t	cf_scsi_param_4;
+    u_int8_t	cf_scsi_param_5;
+    u_int8_t	cf_scsi_initiator_id;    
+    u_int8_t	cf_res2;
+    u_int8_t	cf_startup_mode;
+    u_int8_t	cf_simultaneous_spinup_devices;
+    u_int8_t	cf_delay_between_spinups;
+    u_int8_t	cf_res3;
+    u_int16_t	cf_checksum;
+} __attribute__ ((packed));
+
+struct mlx_sys_drv_span
+{
+    u_int32_t	sp_start_lba;
+    u_int32_t	sp_nblks;
+    u_int8_t	sp_arm[8];
+} __attribute__ ((packed));
+
+struct mlx_sys_drv
+{
+    u_int8_t	sd_status;
+    u_int8_t	sd_ext_status;
+    u_int8_t	sd_mod1;
+    u_int8_t	sd_mod2;
+    u_int8_t	sd_raidlevel;
+#define MLX_SYS_DRV_WRITEBACK	(1<<7)
+#define MLX_SYS_DRV_RAID0	0
+#define MLX_SYS_DRV_RAID1	1
+#define MLX_SYS_DRV_RAID3	3
+#define MLX_SYS_DRV_RAID5	5
+#define MLX_SYS_DRV_RAID6	6
+#define MLX_SYS_DRV_JBOD	7
+    u_int8_t	sd_valid_arms;
+    u_int8_t	sd_valid_spans;
+    u_int8_t	sd_init_state;
+#define MLX_SYS_DRV_INITTED	0x81;
+    struct mlx_sys_drv_span sd_span[4];
+} __attribute__ ((packed));
+
+struct mlx_phys_drv
+{
+    u_int8_t	pd_flags1;
+#define	MLX_PHYS_DRV_PRESENT	(1<<0)
+    u_int8_t	pd_flags2;
+#define MLX_PHYS_DRV_OTHER	0x00
+#define MLX_PHYS_DRV_DISK	0x01
+#define MLX_PHYS_DRV_SEQUENTIAL	0x02
+#define MLX_PHYS_DRV_CDROM	0x03
+#define MLX_PHYS_DRV_FAST20	(1<<3)
+#define MLX_PHYS_DRV_SYNC	(1<<4)
+#define MLX_PHYS_DRV_FAST	(1<<5)
+#define MLX_PHYS_DRV_WIDE	(1<<6)
+#define MLX_PHYS_DRV_TAG	(1<<7)
+    u_int8_t	pd_status;
+#define MLX_PHYS_DRV_DEAD	0x00
+#define MLX_PHYS_DRV_WRONLY	0x02
+#define MLX_PHYS_DRV_ONLINE	0x03
+#define MLX_PHYS_DRV_STANDBY	0x10
+    u_int8_t	pd_res1;
+    u_int8_t	pd_period;
+    u_int8_t	pd_offset;
+    u_int32_t	pd_config_size;
+} __attribute__ ((packed));
+
+struct mlx_core_cfg
+{
+    u_int8_t	cc_num_sys_drives;
+    u_int8_t	cc_res1[3];
+    struct mlx_sys_drv	cc_sys_drives[32];
+    struct mlx_phys_drv cc_phys_drives[5 * 16];
+} __attribute__ ((packed));
+
+struct mlx_dcdb
+{
+    u_int8_t	dcdb_target:4;
+    u_int8_t	dcdb_channel:4;
+    u_int8_t	dcdb_flags;
+#define MLX_DCDB_NO_DATA	0x00
+#define MLX_DCDB_DATA_IN	0x01
+#define MLX_DCDB_DATA_OUT	0x02
+#define MLX_DCDB_EARLY_STATUS		(1<<2)
+#define MLX_DCDB_TIMEOUT_10S	0x10
+#define MLX_DCDB_TIMEOUT_60S	0x20
+#define MLX_DCDB_TIMEOUT_20M	0x30
+#define MLX_DCDB_TIMEOUT_24H	0x40
+#define MLX_DCDB_NO_AUTO_SENSE	(1<<6)
+#define MLX_DCDB_DISCONNECT	(1<<7)
+    u_int16_t	dcdb_datasize;
+    u_int32_t	dcdb_physaddr;
+    u_int8_t	dcdb_cdb_length:4;
+    u_int8_t	dcdb_datasize_high:4;
+    u_int8_t	dcdb_sense_length;
+    u_int8_t	dcdb_cdb[12];
+    u_int8_t	dcdb_sense[64];
+    u_int8_t	dcdb_status;
+    u_int8_t	res1;
+} __attribute__ ((packed));
+
+#ifdef _KERNEL
 /*
  * Inlines to build various command structures
  */
@@ -406,3 +605,5 @@ mlx_make_type5(struct mlx_command *mc,
     mc->mc_mailbox[0xb] = (f4 >> 24) & 0xff;
     mc->mc_mailbox[0xc] = f5;
 }
+
+#endif /* _KERNEL */
