@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.14 1995/05/02 04:03:07 phk Exp $
+ * $Id: if_ze.c,v 1.15 1995/05/03 22:58:07 phk Exp $
  */
 
 #include "ze.h"
@@ -173,6 +173,10 @@ static unsigned char card_info[256];
  */
 #define CARD2_INFO  "IBM Corp.~Ethernet~0934214"
 
+/* */
+
+#define CARD3_INFO  "National Semiconductor~InfoMover NE4"
+
 /*
  * scan the card information structure looking for the version/product info
  * tuple.  when we find it, compare it to the string we are looking for.
@@ -208,7 +212,8 @@ ze_check_cis (unsigned char *scratch)
 	    return (memcmp (card_info, CARD_INFO, sizeof(CARD_INFO)-1) == 0);
 #else
 	    if ((memcmp (card_info, CARD_INFO, sizeof(CARD_INFO)-1) == 0) ||
-		(memcmp (card_info, CARD2_INFO, sizeof(CARD2_INFO)-1) == 0)) {
+		(memcmp (card_info, CARD2_INFO, sizeof(CARD2_INFO)-1) == 0) ||
+		(memcmp (card_info, CARD3_INFO, sizeof(CARD3_INFO)-1) == 0)) {
 		return 1;
 	    }
 	    return 0;
