@@ -499,6 +499,7 @@ static int num_on_worklist;	/* number of worklist items to be processed */
 static int softdep_worklist_busy; /* 1 => trying to do unmount */
 static int softdep_worklist_req; /* serialized waiters */
 static int max_softdeps;	/* maximum number of structs before slowdown */
+static int maxindirdeps = 50;	/* max number of indirdeps before slowdown */
 static int tickdelay = 2;	/* number of ticks to pause during slowdown */
 static int proc_waiting;	/* tracks whether we have a timeout posted */
 static int *stat_countp;	/* statistic to count in proc_waiting timeout */
@@ -527,6 +528,7 @@ static int stat_dir_entry;	/* bufs redirtied as dir entry cannot write */
 #include <sys/sysctl.h>
 SYSCTL_INT(_debug, OID_AUTO, max_softdeps, CTLFLAG_RW, &max_softdeps, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, tickdelay, CTLFLAG_RW, &tickdelay, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, maxindirdeps, CTLFLAG_RW, &maxindirdeps, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, worklist_push, CTLFLAG_RW, &stat_worklist_push, 0,"");
 SYSCTL_INT(_debug, OID_AUTO, blk_limit_push, CTLFLAG_RW, &stat_blk_limit_push, 0,"");
 SYSCTL_INT(_debug, OID_AUTO, ino_limit_push, CTLFLAG_RW, &stat_ino_limit_push, 0,"");
@@ -1862,8 +1864,7 @@ setup_allocindir_phase2(bp, ip, aip)
 				handle_workitem_freefrag(freefrag);
 		}
 		if (newindirdep) {
-			if (indirdep->ir_savebp != NULL)
-				brelse(newindirdep->ir_savebp);
+			brelse(newindirdep->ir_savebp);
 			WORKITEM_FREE((caddr_t)newindirdep, D_INDIRDEP);
 		}
 		if (indirdep)
@@ -2125,6 +2126,7 @@ deallocate_dependencies(bp, inodedep)
 				panic("deallocate_dependencies: already gone");
 			}
 			indirdep->ir_state |= GOINGAWAY;
+			VFSTOUFS(bp->b_vp->v_mount)->um_numindirdeps += 1;
 			while ((aip = LIST_FIRST(&indirdep->ir_deplisthd)) != 0)
 				free_allocindir(aip, inodedep);
 			if (bp->b_lblkno >= 0 ||
@@ -2564,6 +2566,7 @@ indir_trunc(freeblks, dbn, level, lbn, countp)
 			FREE_LOCK(&lk);
 			panic("indir_trunc: dangling dep");
 		}
+		VFSTOUFS(freeblks->fb_mnt)->um_numindirdeps -= 1;
 		FREE_LOCK(&lk);
 	} else {
 		FREE_LOCK(&lk);
@@ -3454,7 +3457,8 @@ softdep_disk_io_initiation(bp)
 			 * dependency can be freed.
 			 */
 			if (LIST_FIRST(&indirdep->ir_deplisthd) == NULL) {
-				indirdep->ir_savebp->b_flags |= B_INVAL | B_NOCACHE;
+				indirdep->ir_savebp->b_flags |=
+				    B_INVAL | B_NOCACHE;
 				brelse(indirdep->ir_savebp);
 				/* inline expand WORKLIST_REMOVE(wk); */
 				wk->wk_state &= ~ONWORKLIST;
@@ -5410,8 +5414,11 @@ softdep_slowdown(vp)
 
 	max_softdeps_hard = max_softdeps * 11 / 10;
 	if (num_dirrem < max_softdeps_hard / 2 &&
-	    num_inodedep < max_softdeps_hard)
-		return (0);
+	    num_inodedep < max_softdeps_hard &&
+	    VFSTOUFS(vp->v_mount)->um_numindirdeps < maxindirdeps)
+  		return (0);
+	if (VFSTOUFS(vp->v_mount)->um_numindirdeps >= maxindirdeps)
+		speedup_syncer();
 	stat_sync_limit_hit += 1;
 	return (1);
 }
