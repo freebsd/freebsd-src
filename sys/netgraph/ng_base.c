@@ -136,6 +136,8 @@ struct ng_hook ng_deadhook = {
 	&ng_deadhook,	/* Peer is self */
 	&ng_deadnode,	/* attached to deadnode */
 	{},		/* hooks list */
+	NULL,		/* override rcvmsg() */
+	NULL,		/* override rcvdata() */
 #ifdef	NETGRAPH_DEBUG
 	HK_MAGIC,
 	__FILE__,
@@ -2298,6 +2300,7 @@ ng_apply_item(item_p item)
 	int	was_reader = ((item->el_flags & NGQF_RW));
 	int	error = 0;
 	ng_rcvdata_t *rcvdata;
+	ng_rcvmsg_t *rcvmsg;
 
 	NGI_GET_HOOK(item, hook); /* clears stored hook */
 	NGI_GET_NODE(item, node); /* clears stored node */
@@ -2309,16 +2312,24 @@ ng_apply_item(item_p item)
 		/*
 		 * Check things are still ok as when we were queued.
 		 */
-
 		if ((hook == NULL)
 		|| NG_HOOK_NOT_VALID(hook)
-		|| NG_NODE_NOT_VALID(node)
-		|| ((rcvdata = NG_HOOK_NODE(hook)->nd_type->rcvdata) == NULL)) {
+		|| NG_NODE_NOT_VALID(node) ) {
 			error = EIO;
 			NG_FREE_ITEM(item);
-		} else {
-			error = (*rcvdata)(hook, item);
+			break;
 		}
+		/*
+		 * If no receive method, just silently drop it.
+		 * Give preference to the hook over-ride method
+		 */
+		if ((!(rcvdata = hook->hk_rcvdata)) 
+		&& (!(rcvdata = NG_HOOK_NODE(hook)->nd_type->rcvdata))) {
+			error = 0;
+			NG_FREE_ITEM(item);
+			break;
+		}
+		error = (*rcvdata)(hook, item);
 		break;
 	case NGQF_MESG:
 		if (hook) {
@@ -2355,20 +2366,26 @@ ng_apply_item(item_p item)
 
 			struct ng_mesg *msg = NGI_MSG(item);
 
+			/* 
+			 * check if the generic handler owns it.
+			 */
 			if ((msg->header.typecookie == NGM_GENERIC_COOKIE)
 			&& ((msg->header.flags & NGF_RESP) == 0)) {
 				error = ng_generic_msg(node, item, hook);
-			} else {
-				if ((node)->nd_type->rcvmsg != NULL) {
-					error = (*(node)->nd_type->rcvmsg)((node),
-						(item), (hook));
-				} else {
-					TRAP_ERROR();
-					error = EINVAL; /* XXX */
-					NG_FREE_ITEM(item);
-				}
+				break;
 			}
-			/* item is now invalid */
+			/*
+			 * Now see if there is a handler (hook or node specific)
+			 * in the target node. If none, silently discard.
+			 */
+			if (((!hook) || (!(rcvmsg = hook->hk_rcvmsg)))
+			&& (!(rcvmsg = node->nd_type->rcvmsg))) {
+				TRAP_ERROR();
+				error = 0; 
+				NG_FREE_ITEM(item);
+				break;
+			}
+			error = (*rcvmsg)(node, item, hook);
 		}
 		break;
 	case NGQF_FN:
