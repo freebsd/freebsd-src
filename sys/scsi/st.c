@@ -240,17 +240,17 @@ struct	scsi_switch *scsi_switch;
 	{
 		if(st_test_ready(unit,SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT))
 		{
-			printf("\tst%d: tape present: %d blocks of %d bytes\n",
+			printf("st%d: tape present: %d blocks of %d bytes\n",
 				unit, st->numblks, st->media_blksiz);
 		}
 		else
 		{
-			printf("\tst%d: drive empty\n", unit);
+			printf("st%d: drive empty\n", unit);
 		}
 	}
 	else
 	{
-		printf("\tst%d: drive offline\n", unit);
+		printf("st%d: drive offline\n", unit);
 	}
 	/*******************************************************\
 	* Set up the bufs for this device			*
@@ -301,7 +301,7 @@ int	unit;
 	if (scsi_inquire(st->ctlr, st->targ, st->lu, st->sc_sw, &inqbuf,
 		SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT) != COMPLETE)
 	{
-		printf("	st%d: couldn't get device type, using default\n", unit);
+		printf("st%d: couldn't get device type, using default\n", unit);
 		return;
 	}
 	if(inqbuf.ansii_version == 0)
@@ -339,7 +339,7 @@ int	unit;
 		if ((strcmp(manu, finger->manu) == 0 )
 		&& (strcmp(model2, finger->model) == 0 ))
 		{
-			printf("	st%d: %s is a known rogue\n", unit,finger->name);
+			printf("st%d: %s is a known rogue\n", unit,finger->name);
 			st->modes[0]	=	finger->modes[0];
 			st->modes[1]	=	finger->modes[1];
 			st->modes[2]	=	finger->modes[2];

@@ -13,7 +13,7 @@
  * functioning of this software in any circumstances.
  *
  */
-static	char rev[] = "$Revision: 1.3 $";
+static	char rev[] = "$Revision: 1.2 $";
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
@@ -126,7 +126,7 @@ struct	scsi_switch *scsi_switch;
 	\*******************************************************/
 	if( unit >= NCD)
 	{
-		printf("Too many scsi CDs..(%d > %d) reconfigure kernel",(unit + 1),NCD);
+		printf("Too many scsi CDs..(%d > %d) reconfigure kernel\n",(unit + 1),NCD);
 		return(0);
 	}
 	/*******************************************************\
