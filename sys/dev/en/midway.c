@@ -1315,7 +1315,7 @@ en_close_vcc(struct en_softc *sc, struct atmio_closevcc *cl, int wait)
 	vc->vflags |= VCC_DRAIN;
 	DBG(sc, IOCTL, ("VCI %u now draining", cl->vci));
 
-	if (!wait) {
+	if (!wait || (vc->vcc.flags & ATMIO_FLAG_ASYNC)) {
 		vc->vflags |= VCC_ASYNC;
 		goto done;
 	}
