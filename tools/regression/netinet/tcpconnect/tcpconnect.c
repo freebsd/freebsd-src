@@ -33,6 +33,7 @@
 
 #include <arpa/inet.h>
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,20 +70,14 @@ tcpconnect_server(int argc, char *argv[])
 	sin.sin_port = htons(port);
 
 	listen_sock = socket(PF_INET, SOCK_STREAM, 0);
-	if (listen_sock == -1) {
-		perror("socket");
-		exit(-1);
-	}
+	if (listen_sock == -1)
+		errx(-1, "socket: %s", strerror(errno));
 
-	if (bind(listen_sock, (struct sockaddr *)&sin, sizeof(sin)) == -1) {
-		perror("bind");
-		exit(-1);
-	}
+	if (bind(listen_sock, (struct sockaddr *)&sin, sizeof(sin)) == -1)
+		errx(-1, "bind: %s", strerror(errno));
 
-	if (listen(listen_sock, -1) == -1) {
-		perror("listen");
-		exit(1);
-	}
+	if (listen(listen_sock, -1) == -1)
+		errx(-1, "listen: %s", strerror(errno));
 
 	while (1) {
 		accept_sock = accept(listen_sock, NULL, NULL);
@@ -104,10 +99,8 @@ tcpconnect_client(int argc, char *argv[])
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
-	if (inet_aton(argv[0], &sin.sin_addr) == 0) {
-		perror(argv[0]);
-		exit(-1);
-	}
+	if (inet_aton(argv[0], &sin.sin_addr) == 0)
+		errx(-1, "listen: %x", strerror(errno));
 
 	port = strtoul(argv[1], &dummy, 10);
 	if (port < 1 || port > 65535 || *dummy != '\0')
@@ -120,15 +113,11 @@ tcpconnect_client(int argc, char *argv[])
 
 	for (i = 0; i < count; i++) {
 		sock = socket(PF_INET, SOCK_STREAM, 0);
-		if (sock == -1) {
-			perror("socket");
-			exit(-1);
-		}
+		if (sock == -1)
+			errx(-1, "socket: %s", strerror(errno));
 
-		if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) == -1) {
-			perror("connect");
-			exit(-1);
-		}
+		if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) == -1)
+			errx(-1, "connect: %s", strerror(errno));
 
 		close(sock);
 	}
