@@ -27,8 +27,6 @@ static volatile int	ddp_firewall = 0;
 static struct ddpstat	ddpstat;
 static struct route	forwro;
 
-const int atintrq1_present = 1, atintrq2_present = 1;
-
 static void     ddp_input(struct mbuf *, struct ifnet *, struct elaphdr *, int);
 
 /*
