@@ -418,6 +418,7 @@ sub tbmaster($) {
 ###
 MAIN:{
     # Set defaults
+    $ENV{'TZ'} = "UTC";
     $ENV{'PATH'} = "/usr/bin:/usr/sbin:/bin:/sbin";
     $INITIAL_CONFIG{'HOSTNAME'} = `/usr/bin/uname -n`;
     if ($INITIAL_CONFIG{'HOSTNAME'} =~ m/^([0-9a-z-]+(?:\.[0-9a-z-]+)*)$/) {
