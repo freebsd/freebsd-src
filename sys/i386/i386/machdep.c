@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.351 1999/07/04 02:26:23 jlemon Exp $
+ *	$Id: machdep.c,v 1.352 1999/07/05 08:52:49 msmith Exp $
  */
 
 #include "apm.h"
@@ -509,6 +509,9 @@ sendsig(catcher, sig, mask, code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+#ifdef DEBUG
+		printf("process %d has trashed its stack\n", p->p_pid);
+#endif
 		SIGACTION(p, SIGILL) = SIG_DFL;
 		sig = sigmask(SIGILL);
 		p->p_sigignore &= ~sig;
@@ -528,36 +531,50 @@ sendsig(catcher, sig, mask, code)
 			sig = p->p_sysent->sv_sigsize + 1;
 	}
 	sf.sf_signum = sig;
-	sf.sf_code = code;
-	sf.sf_scp = &fp->sf_sc;
+	sf.sf_scp = (register_t)&fp->sf_siginfo.si_sc;
+ 	if (p->p_sigacts->ps_siginfo & sigmask(sig)) {
+		/*
+		 * Signal handler installed with SA_SIGINFO.
+		 */
+		sf.sf_arg2 = (register_t)&fp->sf_siginfo;
+		sf.sf_siginfo.si_signo = sig;
+		sf.sf_siginfo.si_code = code;
+		sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher;
+	} else {
+		/* 
+		 * Old FreeBSD-style arguments.
+		 */
+		sf.sf_arg2 = code;
+		sf.sf_ahu.sf_handler = catcher;
+	}
+
 	sf.sf_addr = (char *) regs->tf_err;
-	sf.sf_handler = catcher;
 
 	/* save scratch registers */
-	sf.sf_sc.sc_eax = regs->tf_eax;
-	sf.sf_sc.sc_ebx = regs->tf_ebx;
-	sf.sf_sc.sc_ecx = regs->tf_ecx;
-	sf.sf_sc.sc_edx = regs->tf_edx;
-	sf.sf_sc.sc_esi = regs->tf_esi;
-	sf.sf_sc.sc_edi = regs->tf_edi;
-	sf.sf_sc.sc_cs = regs->tf_cs;
-	sf.sf_sc.sc_ds = regs->tf_ds;
-	sf.sf_sc.sc_ss = regs->tf_ss;
-	sf.sf_sc.sc_es = regs->tf_es;
-	sf.sf_sc.sc_fs = regs->tf_fs;
-	sf.sf_sc.sc_isp = regs->tf_isp;
+	sf.sf_siginfo.si_sc.sc_eax = regs->tf_eax;
+	sf.sf_siginfo.si_sc.sc_ebx = regs->tf_ebx;
+	sf.sf_siginfo.si_sc.sc_ecx = regs->tf_ecx;
+	sf.sf_siginfo.si_sc.sc_edx = regs->tf_edx;
+	sf.sf_siginfo.si_sc.sc_esi = regs->tf_esi;
+	sf.sf_siginfo.si_sc.sc_edi = regs->tf_edi;
+	sf.sf_siginfo.si_sc.sc_cs = regs->tf_cs;
+	sf.sf_siginfo.si_sc.sc_ds = regs->tf_ds;
+	sf.sf_siginfo.si_sc.sc_ss = regs->tf_ss;
+	sf.sf_siginfo.si_sc.sc_es = regs->tf_es;
+	sf.sf_siginfo.si_sc.sc_fs = regs->tf_fs;
+	sf.sf_siginfo.si_sc.sc_isp = regs->tf_isp;
 
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
-	sf.sf_sc.sc_onstack = oonstack;
-	sf.sf_sc.sc_mask = mask;
-	sf.sf_sc.sc_sp = regs->tf_esp;
-	sf.sf_sc.sc_fp = regs->tf_ebp;
-	sf.sf_sc.sc_pc = regs->tf_eip;
-	sf.sf_sc.sc_ps = regs->tf_eflags;
-	sf.sf_sc.sc_trapno = regs->tf_trapno;
-	sf.sf_sc.sc_err = regs->tf_err;
+	sf.sf_siginfo.si_sc.sc_onstack = oonstack;
+	sf.sf_siginfo.si_sc.sc_mask = mask;
+	sf.sf_siginfo.si_sc.sc_sp = regs->tf_esp;
+	sf.sf_siginfo.si_sc.sc_fp = regs->tf_ebp;
+	sf.sf_siginfo.si_sc.sc_pc = regs->tf_eip;
+	sf.sf_siginfo.si_sc.sc_ps = regs->tf_eflags;
+	sf.sf_siginfo.si_sc.sc_trapno = regs->tf_trapno;
+	sf.sf_siginfo.si_sc.sc_err = regs->tf_err;
 
 	/*
 	 * If we're a vm86 process, we want to save the segment registers.
@@ -568,13 +585,13 @@ sendsig(catcher, sig, mask, code)
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
 		struct vm86_kernel *vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
 
-		sf.sf_sc.sc_gs = tf->tf_vm86_gs;
-		sf.sf_sc.sc_fs = tf->tf_vm86_fs;
-		sf.sf_sc.sc_es = tf->tf_vm86_es;
-		sf.sf_sc.sc_ds = tf->tf_vm86_ds;
+		sf.sf_siginfo.si_sc.sc_gs = tf->tf_vm86_gs;
+		sf.sf_siginfo.si_sc.sc_fs = tf->tf_vm86_fs;
+		sf.sf_siginfo.si_sc.sc_es = tf->tf_vm86_es;
+		sf.sf_siginfo.si_sc.sc_ds = tf->tf_vm86_ds;
 
 		if (vm86->vm86_has_vme == 0)
-			sf.sf_sc.sc_ps = (tf->tf_eflags & ~(PSL_VIF | PSL_VIP))
+			sf.sf_siginfo.si_sc.sc_ps = (tf->tf_eflags & ~(PSL_VIF | PSL_VIP))
 			    | (vm86->vm86_eflags & (PSL_VIF | PSL_VIP));
 
 		/*
@@ -640,7 +657,7 @@ sigreturn(p, uap)
 	 */
 	scp = uap->sigcntxp;
 	fp = (struct sigframe *)
-	     ((caddr_t)scp - offsetof(struct sigframe, sf_sc));
+	     ((caddr_t)scp - offsetof(struct sigframe, sf_siginfo.si_sc));
 
 	if (useracc((caddr_t)fp, sizeof (*fp), B_WRITE) == 0)
 		return(EFAULT);

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- *	$Id: frame.h,v 1.16 1999/04/28 01:03:59 luoqi Exp $
+ *	$Id: frame.h,v 1.17 1999/05/11 16:29:01 luoqi Exp $
  */
 
 #ifndef _MACHINE_FRAME_H_
@@ -158,15 +158,39 @@ struct clockframe {
 };
 
 /*
- * Signal frame
+ * Signal frame, arguments passed to application signal handlers.
  */
 struct sigframe {
-	int	sf_signum;
-	int	sf_code;
-	struct	sigcontext *sf_scp;
-	char	*sf_addr;
-	sig_t	sf_handler;
-	struct	sigcontext sf_sc;
+	/* 
+	 * The first three members may be used by applications.
+	 */
+
+	register_t sf_signum;
+
+	/* 
+	 * Either 'int' for old-style FreeBSD handler or 'siginfo_t *'
+	 * pointing to sf_siginfo for SA_SIGINFO handlers. 
+	 */
+	register_t sf_arg2;
+
+	/* Points to sf_siginfo.si_sc. */
+	register_t sf_scp;
+
+	/* 
+	 * The following arguments are not constrained  by the 
+	 * function call protocol.
+	 * Applications are not supposed to access these members,
+	 * except using the pointers we provide in the first three
+	 * arguments. 
+	 */
+	char    *sf_addr;
+	union {
+		__siginfohandler_t *sf_action;
+		__sighandler_t     *sf_handler;
+	} sf_ahu;
+
+	/* In the SA_SIGINFO case, sf_arg2 points here. */
+	siginfo_t  sf_siginfo;
 };
 
 int	kdb_trap __P((int, int, struct trapframe *));
