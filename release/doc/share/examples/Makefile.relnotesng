@@ -8,7 +8,7 @@
 
 ARCHS=		alpha amd64 ia64 i386 pc98 sparc64
 MULTITEXTS=	installation relnotes hardware
-UNITEXTS=	readme errata early-adopter
+UNITEXTS=	readme errata
 
 IMAGEDIR=	.imagedir
 RHOST=		freefall.freebsd.org
