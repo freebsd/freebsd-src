@@ -227,14 +227,14 @@ again:
 #ifdef YP
 	if (*p == '+' && _yp_check(NULL)) {
 		if (___getservbyname_yp != NULL) {
-			if (!_getservbyname_yp(&line))
+			if (!_getservbyname_yp(line))
 				goto tryagain;
 		} 
 		else if (___getservbyport_yp != 0) {
-			if (!_getservbyport_yp(&line))
+			if (!_getservbyport_yp(line))
 				goto tryagain;
 		}
-		else if (!_getservent_yp(&line))
+		else if (!_getservent_yp(line))
 			goto tryagain;
 	}
 unpack:
