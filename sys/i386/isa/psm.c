@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.40 1997/06/30 12:52:57 yokota Exp $
+ * $Id: psm.c,v 1.41 1997/07/20 14:10:08 bde Exp $
  */
 
 /*
@@ -69,6 +69,7 @@
 #include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
+#include <sys/poll.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
 #ifdef DEVFS
@@ -182,7 +183,7 @@ static d_open_t psmopen;
 static d_close_t psmclose;
 static d_read_t psmread;
 static d_ioctl_t psmioctl;
-static d_select_t psmselect;
+static d_poll_t psmpoll;
 
 static int enable_aux_dev __P((KBDC));
 static int disable_aux_dev __P((KBDC));
@@ -211,7 +212,7 @@ struct isa_driver psmdriver = { psmprobe, psmattach, "psm", FALSE };
 static struct  cdevsw psm_cdevsw = {
 	psmopen,	psmclose,	psmread,	nowrite,	/* 21 */
 	psmioctl,	nostop,		nullreset,	nodevtotty,
-	psmselect,	nommap,		NULL,		"psm",	NULL,	-1
+	psmpoll,	nommap,		NULL,		"psm",	NULL,	-1
 };
 
 /* debug message level */
@@ -1589,27 +1590,23 @@ psmintr(int unit)
 }
 
 static int
-psmselect(dev_t dev, int rw, struct proc *p)
+psmpoll(dev_t dev, int events, struct proc *p)
 {
     struct psm_softc *sc = psm_softc[PSM_UNIT(dev)];
-    int ret;
     int s;
-
-    /* Silly to select for output */
-    if (rw == FWRITE)
-        return (0);
+    int revents = 0;
 
     /* Return true if a mouse event available */
     s = spltty();
-    if ((sc->outputbytes > 0) || (sc->queue.count > 0)) {
-        ret = 1;
-    } else {
-        selrecord(p, &sc->rsel);
-        ret = 0;
-    }
+    if (events & (POLLIN | POLLRDNORM))
+	if ((sc->outputbytes > 0) || (sc->queue.count > 0))
+	    revents |= events & (POLLIN | POLLRDNORM);
+	else
+	    selrecord(p, &sc->rsel);
+
     splx(s);
 
-    return (ret);
+    return (revents);
 }
 
 static int psm_devsw_installed = FALSE;

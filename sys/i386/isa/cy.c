@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.52 1997/09/01 07:45:25 fsmp Exp $
+ *	$Id: cy.c,v 1.53 1997/09/03 01:50:24 bde Exp $
  */
 
 #include "cy.h"
@@ -381,7 +381,7 @@ static	d_devtotty_t	siodevtotty;
 static struct cdevsw sio_cdevsw = {
 	sioopen,	sioclose,	sioread,	siowrite,
 	sioioctl,	siostop,	noreset,	siodevtotty,
-	ttselect,	nommap,		NULL,		driver_name,
+	ttpoll,		nommap,		NULL,		driver_name,
 	NULL,		-1,
 };
 

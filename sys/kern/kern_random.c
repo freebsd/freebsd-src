@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.16 1997/04/26 11:46:03 peter Exp $
+ * $Id: random_machdep.c,v 1.17 1997/05/04 14:28:22 peter Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -45,6 +45,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/select.h>
+#include <sys/poll.h>
 #include <sys/fcntl.h>
 
 #include <machine/clock.h>
@@ -494,22 +495,22 @@ write_random(const char *buf, u_int nbytes)
 #endif /* notused */
 
 int
-random_select(dev_t dev, int rw, struct proc *p)
+random_poll(dev_t dev, int events, struct proc *p)
 {
-	int s, ret;
-
-	if (rw == FWRITE)
-		return 1;	/* heh. */
+	int s;
+	int revents = 0;
 
 	s = splhigh();
-	if (random_state.entropy_count >= 8)
-		ret = 1;
-	else {
-		selrecord(p, &random_state.rsel);
-		ret = 0;
-	}
-	splx(s);
+	if (events & (POLLIN | POLLRDNORM))
+		if (random_state.entropy_count >= 8)
+			revents |= events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(p, &random_state.rsel);
 
-	return ret;
+	splx(s);
+	if (events & (POLLOUT | POLLWRNORM))
+		revents |= events & (POLLOUT | POLLWRNORM);	/* heh */
+
+	return (revents);
 }
 

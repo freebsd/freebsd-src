@@ -112,13 +112,13 @@ static	d_close_t	bquclose;
 static	d_read_t	bquread;
 static	d_write_t	bquwrite;
 static	d_ioctl_t	bquioctl;
-static	d_select_t	bquselect;
+static	d_poll_t	bqupoll;
 
 #define CDEV_MAJOR 8
 static struct cdevsw bqu_cdevsw = 
 	{ bquopen,      bquclose,       bquread,        bquwrite,       /*8*/
 	  bquioctl,     nostop,         nullreset,      nodevtotty,/* tputer */
-	  bquselect,    nommap,         NULL,	"bqu",	NULL,	-1 };
+	  bqupoll,    nommap,         NULL,	"bqu",	NULL,	-1 };
 
 static int b004_sleep; /* wait address */
 
@@ -467,10 +467,10 @@ bquclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-bquselect(dev_t dev, int rw, struct proc *p)
+bqupoll(dev_t dev, int events, struct proc *p)
 {
     /* still unimplemented */
-    return(1);
+    return(seltrue(dev, events, p));
 }
 
 /*
