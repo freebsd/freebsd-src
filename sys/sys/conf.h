@@ -353,7 +353,7 @@ extern int devfs_present;
 
 typedef void (*dev_clone_fn) __P((void *arg, char *name, int namelen, dev_t *result));
 
-int dev_stdclone __P((char *name, char **namep, char *stem, int *unit));
+int dev_stdclone __P((char *name, char **namep, const char *stem, int *unit));
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 #endif /* _KERNEL */
 
