@@ -2903,7 +2903,7 @@ ttycreate(struct tty *tp, struct cdevsw *csw, int unit, int flags, const char *f
 	mtx_assert(&Giant, MA_OWNED);
 
 	if (tty_unit == NULL)
-		tty_unit = new_unrhdr(0, 0xffff);
+		tty_unit = new_unrhdr(0, 0xffff, NULL);
 
 	sunit = alloc_unr(tty_unit);
 	tp->t_devunit = sunit;
