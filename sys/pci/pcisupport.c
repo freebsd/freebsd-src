@@ -700,6 +700,8 @@ pcib_match(device_t dev)
 		return ("VLSI 82C538 Eagle II PCI Docking bridge");
 
 	/* VIA Technologies -- vendor 0x1106 */
+	case 0x83051106:
+		return ("VIA 8363 (Apollo KT133) PCI-PCI (AGP) bridge");
 	case 0x85981106:
 		return ("VIA 82C598MVP (Apollo MVP3) PCI-PCI (AGP) bridge");
 
