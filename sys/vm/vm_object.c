@@ -423,8 +423,9 @@ vm_object_terminate(object)
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
 	}
 
-	if (object->ref_count != 0)
-		panic("vm_object_terminate: object with references, ref_count=%d", object->ref_count);
+	KASSERT(object->ref_count == 0, 
+		("vm_object_terminate: object with references, ref_count=%d",
+		object->ref_count));
 
 	/*
 	 * Now free any remaining pages. For internal objects, this also
@@ -433,8 +434,9 @@ vm_object_terminate(object)
 	 */
 	s = splvm();
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
-		if (p->busy || (p->flags & PG_BUSY))
-			panic("vm_object_terminate: freeing busy page %p\n", p);
+		KASSERT(!p->busy && (p->flags & PG_BUSY) == 0,
+			("vm_object_terminate: freeing busy page %p "
+			"p->busy = %d, p->flags %x\n", p, p->busy, p->flags));
 		if (p->wire_count == 0) {
 			vm_page_busy(p);
 			vm_page_free(p);
@@ -910,9 +912,8 @@ vm_object_shadow(object, offset, length)
 	/*
 	 * Allocate a new object with the given length
 	 */
-
-	if ((result = vm_object_allocate(OBJT_DEFAULT, length)) == NULL)
-		panic("vm_object_shadow: no object for shadowing");
+	result = vm_object_allocate(OBJT_DEFAULT, length);
+	KASSERT(result != NULL, ("vm_object_shadow: no object for shadowing"));
 
 	/*
 	 * The new object shadows the source object, adding a reference to it.
