@@ -52,7 +52,6 @@
 #define PACKETPTR	struct mbuf *
 #include <net/ppp_comp.h>
 
-#if DO_BSD_COMPRESS
 /*
  * PPP "BSD compress" compression
  *  The differences between this compression and the classic BSD LZW
@@ -1110,4 +1109,3 @@ bsd_decompress(state, cmp, dmpp)
     return DECOMP_FATALERROR;
 #endif /* DEBUG */
 }
-#endif /* DO_BSD_COMPRESS */
