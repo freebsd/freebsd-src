@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.49 1996/07/30 03:08:12 dyson Exp $
+ * $Id: vm_mmap.c,v 1.50 1996/09/19 10:12:41 davidg Exp $
  */
 
 /*
@@ -573,7 +573,6 @@ madvise(p, uap, retval)
 
 	vm_map_madvise(map, pmap, start, end, uap->behav);
 
-	/* Not yet implemented */
 	return (0);
 }
 
