@@ -337,21 +337,21 @@ ip_output(m0, opt, ro, flags, imo)
 		m->m_flags &= ~M_BCAST;
 	}
 
+sendit:
 #if defined(IPFILTER) || defined(IPFILTER_LKM)
-    {
-	struct	mbuf	*m0 = m;
 	/*
 	 * looks like most checking has been done now...do a filter check
 	 */
-	if (fr_checkp && (*fr_checkp)(ip, hlen, ifp, 1, &m0))
-	{
-		error = EHOSTUNREACH;
-		goto done;
+	if (fr_checkp) {
+		struct  mbuf    *m1 = m;
+
+		if ((*fr_checkp)(ip, hlen, ifp, 1, &m1))
+			error = EHOSTUNREACH;
+		if (error || !m1)
+			goto done;
+		ip = mtod(m = m1, struct ip *);
 	}
-	ip = mtod(m = m0, struct ip *);
-    }
 #endif
-sendit:
         /*
 	 * IpHack's section.
 	 * - Xlate: translate packet's addr/port (NAT).
