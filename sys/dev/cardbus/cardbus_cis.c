@@ -309,7 +309,7 @@ DECODE_PROTOTYPE(bar)
 
 	/*
 	 * Mark the appropriate bit in the PCI command register so that
-	 * device drivers will know which BARs can be used.
+	 * device drivers will know which type of BARs can be used.
 	 */
 	pci_enable_io(child, type);
 	return (0);
