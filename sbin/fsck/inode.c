@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -339,7 +343,7 @@ resetinodebuf()
 	}
 	if (inodebuf == NULL &&
 	    (inodebuf = (struct dinode *)malloc((unsigned)inobufsize)) == NULL)
-		errx(EEXIT, "Cannot allocate space for inode buffer");
+		errx(EEXIT, "cannot allocate space for inode buffer");
 	while (nextino < ROOTINO)
 		(void)getnextinode(nextino);
 }

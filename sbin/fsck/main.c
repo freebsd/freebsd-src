@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.12 1997/12/20 22:24:32 bde Exp $";
+	"$Id: main.c,v 1.13 1998/03/08 09:55:26 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -53,10 +53,8 @@ static const char rcsid[] =
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ffs/fs.h>
 
-#include <ctype.h>
 #include <err.h>
 #include <fstab.h>
-#include <string.h>
 
 #include "fsck.h"
 
