@@ -2520,6 +2520,10 @@ renamefrom(char *name)
 {
 	struct stat st;
 
+	if (guest && noguestmod) {
+		reply(550, "Operation not permitted");
+		return (NULL);
+	}
 	if (lstat(name, &st) < 0) {
 		perror_reply(550, name);
 		return ((char *)0);
