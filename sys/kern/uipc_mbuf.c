@@ -1041,22 +1041,17 @@ m_uiotombuf(struct uio *uio, int how, int len)
 		total = min(uio->uio_resid, len);
 	else
 		total = uio->uio_resid;
-
 	if (total > MHLEN)
 		m_final = m_getcl(how, MT_DATA, M_PKTHDR);
 	else
 		m_final = m_gethdr(how, MT_DATA);
-
 	if (m_final == NULL)
 		goto nospace;
-
 	m_new = m_final;
-
 	while (progress < total) {
 		length = total - progress;
 		if (length > MCLBYTES)
 			length = MCLBYTES;
-
 		if (m_new == NULL) {
 			if (length > MLEN)
 				m_new = m_getcl(how, MT_DATA, 0);
@@ -1065,7 +1060,6 @@ m_uiotombuf(struct uio *uio, int how, int len)
 			if (m_new == NULL)
 				goto nospace;
 		}
-
 		error = uiomove(mtod(m_new, void *), length, uio);
 		if (error)
 			goto nospace;
