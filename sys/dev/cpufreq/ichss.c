@@ -150,7 +150,6 @@ ichss_pci_probe(device_t dev)
 {
 	device_t child, parent;
 	uint32_t pmbase;
-	uint16_t ss_en;
 
 	/*
 	 * TODO: add a quirk to disable if we see the 82815_MC along
@@ -198,14 +197,6 @@ ichss_pci_probe(device_t dev)
 	bus_set_resource(child, SYS_RES_IOPORT, 1, pmbase + ICHSS_CTRL_OFFSET,
 	    1);
 
-	/* Activate SpeedStep control if not already enabled. */
-	ss_en = pci_read_config(dev, ICHSS_PMCFG_OFFSET, sizeof(ss_en));
-	if ((ss_en & ICHSS_ENABLE) == 0) {
-		printf("ichss: enabling SpeedStep support\n");
-		pci_write_config(dev, ICHSS_PMCFG_OFFSET,
-		    ss_en | ICHSS_ENABLE, sizeof(ss_en));
-	}
-
 	/* Attach the new CPU child now. */
 	device_probe_and_attach(child);
 
@@ -217,6 +208,7 @@ ichss_probe(device_t dev)
 {
 	device_t est_dev, perf_dev;
 	int error, type;
+	uint16_t ss_en;
 
 	if (resource_disabled("ichss", 0))
 		return (ENXIO);
@@ -235,6 +227,14 @@ ichss_probe(device_t dev)
 	est_dev = device_find_child(device_get_parent(dev), "est", -1);
 	if (est_dev && device_is_attached(est_dev))
 		return (ENXIO);
+
+	/* Activate SpeedStep control if not already enabled. */
+	ss_en = pci_read_config(dev, ICHSS_PMCFG_OFFSET, sizeof(ss_en));
+	if ((ss_en & ICHSS_ENABLE) == 0) {
+		printf("ichss: enabling SpeedStep support\n");
+		pci_write_config(dev, ICHSS_PMCFG_OFFSET,
+		    ss_en | ICHSS_ENABLE, sizeof(ss_en));
+	}
 
 	device_set_desc(dev, "SpeedStep ICH");
 	return (-1000);
