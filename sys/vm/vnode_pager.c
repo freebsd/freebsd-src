@@ -245,8 +245,7 @@ vnode_pager_haspage(object, pindex, before, after)
 		reqblock = pindex * blocksperpage;
 	}
 	VM_OBJECT_UNLOCK(object);
-	err = VOP_BMAP(vp, reqblock, (struct vnode **) 0, &bn,
-		after, before);
+	err = VOP_BMAP(vp, reqblock, NULL, &bn, after, before);
 	VM_OBJECT_LOCK(object);
 	if (err)
 		return TRUE;
@@ -390,7 +389,6 @@ vnode_pager_addr(vp, address, run)
 	int rtaddress;
 	int bsize;
 	daddr_t block;
-	struct vnode *rtvp;
 	int err;
 	daddr_t vblock;
 	int voffset;
@@ -406,7 +404,7 @@ vnode_pager_addr(vp, address, run)
 	vblock = address / bsize;
 	voffset = address % bsize;
 
-	err = VOP_BMAP(vp, vblock, &rtvp, &block, run, NULL);
+	err = VOP_BMAP(vp, vblock, NULL, &block, run, NULL);
 
 	if (err || (block == -1))
 		rtaddress = -1;
