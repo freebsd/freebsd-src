@@ -355,14 +355,14 @@ pcattach(struct isa_device *dev)
 
 #if !PCVT_NETBSD && !(PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200)
 	for(i = 0; i < totalscreens; i++)
+	{
+		ttyregister(&pccons[i]);
 		vs[i].vs_tty = &pccons[i];
+		make_dev(&pc_cdevsw, i, UID_ROOT, GID_WHEEL, 0600, "ttyv%r", i);
+	}
 #endif /* !PCVT_NETBSD && !(PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200) */
 
 	async_update(UPDATE_START);	/* start asynchronous updates */
-
-#if PCVT_FREEBSD > 205
-	cdevsw_add(&pc_cdevsw);
-#endif /* PCVT_FREEBSD > 205 */
 
 #if PCVT_NETBSD > 9
 
@@ -473,6 +473,7 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 
 	tp->t_oproc = pcstart;
 	tp->t_param = pcparam;
+	tp->t_stop = nottystop;
 	tp->t_dev = dev;
 
 	if ((tp->t_state & TS_ISOPEN) == 0)
