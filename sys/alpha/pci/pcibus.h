@@ -27,7 +27,7 @@
  */
 
 void pci_init_resources(void);
-struct resource *pci_alloc_resource(device_t bus, device_t child,
+struct resource *alpha_pci_alloc_resource(device_t bus, device_t child,
 				    int type, int *rid,
 				    u_long start, u_long end, u_long count,
 				    u_int flags);
