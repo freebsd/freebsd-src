@@ -1,4 +1,4 @@
-/* $Id: freebsd.h,v 1.17 1999/08/15 22:02:47 obrien Exp $ */
+/* $Id: freebsd.h,v 1.18 1999/08/19 09:16:22 obrien Exp $ */
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -46,9 +46,9 @@ Boston, MA 02111-1307, USA.  */
 
 #define FBSD_WORD_SWITCH_TAKES_ARG(STR)					\
   (DEFAULT_WORD_SWITCH_TAKES_ARG (STR)					\
-   || !strcmp (STR, "rpath") || !strcmp (STR, "rpath-link")		\
-   || !strcmp (STR, "soname") || !strcmp (STR, "defsym") 		\
-   || !strcmp (STR, "assert") || !strcmp (STR, "dynamic-linker"))
+   || !strcmp ((STR), "rpath") || !strcmp ((STR), "rpath-link")		\
+   || !strcmp ((STR), "soname") || !strcmp ((STR), "defsym") 		\
+   || !strcmp ((STR), "assert") || !strcmp ((STR), "dynamic-linker"))
 
 #undef WORD_SWITCH_TAKES_ARG
 #define WORD_SWITCH_TAKES_ARG(STR) (FBSD_WORD_SWITCH_TAKES_ARG(STR))
