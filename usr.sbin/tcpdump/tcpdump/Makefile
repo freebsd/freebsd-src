@@ -5,27 +5,27 @@ TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 
 PROG=	tcpdump
 SRCS=	addrtoname.c gmt2local.c machdep.c parsenfsfh.c \
-	print-ah.c print-arp.c print-ascii.c print-atalk.c \
-	print-atm.c print-bgp.c print-bootp.c print-bxxp.c \
-	print-cdp.c print-chdlc.c print-cip.c print-cnfp.c \
-	print-decnet.c print-domain.c print-dvmrp.c \
-	print-egp.c print-esp.c print-ether.c print-fddi.c \
-	print-gre.c print-icmp.c \
-	print-igmp.c print-igrp.c print-ip.c \
-	print-ipcomp.c print-ipx.c print-isakmp.c \
-	print-isoclns.c print-krb.c print-l2tp.c print-lane.c \
-	print-lcp.c print-llc.c print-mobile.c print-nfs.c \
-	print-ntp.c print-null.c print-ospf.c \
-	print-pim.c print-ppp.c print-pppoe.c print-radius.c \
-	print-raw.c print-rip.c \
-	print-rx.c print-sl.c print-sll.c print-smb.c print-snmp.c \
-	print-stp.c print-sunrpc.c print-tcp.c print-telnet.c \
-	print-tftp.c print-timed.c print-token.c print-udp.c \
-	print-vjc.c print-vrrp.c print-wb.c \
-	savestr.c setsignal.c smbutil.c tcpdump.c util.c version.c
+	print-802_11.c print-ah.c print-arcnet.c print-arp.c \
+	print-ascii.c print-atalk.c print-atm.c print-bgp.c \
+	print-bootp.c print-beep.c print-cdp.c print-chdlc.c \
+	print-cip.c print-cnfp.c print-decnet.c print-domain.c \
+	print-dvmrp.c print-egp.c print-esp.c print-ether.c \
+	print-fddi.c print-gre.c print-hsrp.c print-icmp.c \
+	print-igmp.c print-igrp.c print-ip.c print-ipcomp.c \
+	print-ipx.c print-isakmp.c print-isoclns.c print-krb.c \
+	print-l2tp.c print-lane.c print-lcp.c print-llc.c print-lwres.c \
+	print-msdp.c print-mobile.c print-mpls.c print-nfs.c \
+	print-ntp.c print-null.c print-ospf.c print-pim.c \
+	print-ppp.c print-pppoe.c print-pptp.c print-radius.c \
+	print-raw.c print-rip.c print-rx.c print-sctp.c \
+	print-sl.c print-sll.c print-smb.c print-snmp.c \
+	print-stp.c print-sunrpc.c print-tcp.c \
+	print-telnet.c print-tftp.c print-timed.c print-token.c \
+	print-udp.c print-vjc.c print-vrrp.c print-wb.c print-zephyr.c \
+	setsignal.c smbutil.c tcpdump.c util.c version.c
 CLEANFILES+=	version.c
 
-CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR}/lbl
+CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR} -I${TCPDUMP_DISTDIR}/lbl
 CFLAGS+= -DHAVE_CONFIG_H
 
 .if !defined(NOINET6)
