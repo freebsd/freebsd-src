@@ -410,12 +410,13 @@ cd9660_blkatoff(vp, offset, res, bpp)
 	register struct iso_mnt *imp;
 	struct buf *bp;
 	daddr_t lbn;
-	int bsize, error;
+	int bsize, bshift, error;
 
 	ip = VTOI(vp);
 	imp = ip->i_mnt;
 	lbn = lblkno(imp, offset);
 	bsize = blksize(imp, ip, lbn);
+	bshift = imp->im_bshift;
 
 	if ((error = bread(vp, lbn, bsize, NOCRED, &bp)) != 0) {
 		brelse(bp);
@@ -433,15 +434,7 @@ cd9660_blkatoff(vp, offset, res, bpp)
 	 * reconstituted buffer will have no knowledge of b_blkno.
 	 */
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = VOP_BMAP(vp, bp->b_lblkno, NULL, 
-			    &bp->b_blkno, NULL, NULL);
-		if (error) {
-                        bp->b_error = error;
-                        bp->b_ioflags |= BIO_ERROR;
-                        brelse(bp);
-			*bpp = NULL;
-                        return (error);
-                }
+	        bp->b_blkno = (ip->iso_start + bp->b_lblkno) << (bshift - DEV_BSHIFT);
         }
 
 	if (res)
