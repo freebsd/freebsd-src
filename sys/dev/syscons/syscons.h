@@ -549,8 +549,12 @@ void		sc_remove_cutmarking(scr_stat *scp);
 void		sc_remove_all_cutmarkings(sc_softc_t *scp);
 void		sc_remove_all_mouse(sc_softc_t *scp);
 #else
+#define		sc_draw_mouse_image(scp)
+#define		sc_remove_mouse_image(scp)
 #define		sc_inside_cutmark(scp, pos)	FALSE
 #define		sc_remove_cutmarking(scp)
+#define		sc_remove_all_cutmarkings(scp)
+#define		sc_remove_all_mouse(scp)
 #endif /* SC_NO_CUTPASTE */
 #ifndef SC_NO_SYSMOUSE
 void		sc_mouse_move(scr_stat *scp, int x, int y);
