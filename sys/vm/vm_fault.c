@@ -138,8 +138,7 @@ unlock_map(struct faultstate *fs)
 static void
 _unlock_things(struct faultstate *fs, int dealloc)
 {
-	GIANT_REQUIRED;
-	VM_OBJECT_LOCK(fs->object);
+
 	vm_object_pip_wakeup(fs->object);
 	VM_OBJECT_UNLOCK(fs->object);
 	if (fs->object != fs->first_object) {
@@ -286,7 +285,6 @@ RetryFault:;
 	fs.vp = vnode_pager_lock(fs.first_object);
 	VM_OBJECT_LOCK(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
-	VM_OBJECT_UNLOCK(fs.first_object);
 
 	fs.lookup_still_valid = TRUE;
 
@@ -620,13 +618,13 @@ readrest:
 			 * object with zeros.
 			 */
 			if (fs.object != fs.first_object) {
-				VM_OBJECT_LOCK(fs.object);
 				vm_object_pip_wakeup(fs.object);
 				VM_OBJECT_UNLOCK(fs.object);
 
 				fs.object = fs.first_object;
 				fs.pindex = fs.first_pindex;
 				fs.m = fs.first_m;
+				VM_OBJECT_LOCK(fs.object);
 			}
 			fs.first_m = NULL;
 
@@ -646,8 +644,6 @@ readrest:
 			    ("object loop %p", next_object));
 			VM_OBJECT_LOCK(next_object);
 			vm_object_pip_add(next_object, 1);
-			VM_OBJECT_UNLOCK(next_object);
-			VM_OBJECT_LOCK(fs.object);
 			if (fs.object != fs.first_object)
 				vm_object_pip_wakeup(fs.object);
 			VM_OBJECT_UNLOCK(fs.object);
@@ -730,8 +726,6 @@ readrest:
 				 */
 				vm_page_copy(fs.m, fs.first_m);
 			}
-			if (is_first_object_locked)
-/*XXX*/				VM_OBJECT_UNLOCK(fs.first_object);
 			if (fs.m) {
 				/*
 				 * We no longer need the old page or object.
@@ -742,7 +736,6 @@ readrest:
 			 * fs.object != fs.first_object due to above 
 			 * conditional
 			 */
-			VM_OBJECT_LOCK(fs.object);
 			vm_object_pip_wakeup(fs.object);
 			VM_OBJECT_UNLOCK(fs.object);
 			/*
@@ -751,6 +744,8 @@ readrest:
 			fs.object = fs.first_object;
 			fs.pindex = fs.first_pindex;
 			fs.m = fs.first_m;
+			if (!is_first_object_locked)
+				VM_OBJECT_LOCK(fs.object);
 			cnt.v_cow_faults++;
 		} else {
 			prot &= ~VM_PROT_WRITE;
@@ -787,6 +782,7 @@ readrest:
 			unlock_and_deallocate(&fs);
 			goto RetryFault;
 		}
+		VM_OBJECT_UNLOCK(fs.object);
 
 		/*
 		 * To avoid trying to write_lock the map while another process
@@ -800,6 +796,7 @@ readrest:
 		    &fs.entry, &retry_object, &retry_pindex, &retry_prot, &wired);
 		map_generation = fs.map->timestamp;
 
+		VM_OBJECT_LOCK(fs.object);
 		/*
 		 * If we don't need the page any longer, put it on the active
 		 * list (the easiest thing to do here).  If no one needs it,
@@ -1083,8 +1080,10 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * (Because the source is wired down, the page will be in
 		 * memory.)
 		 */
+		VM_OBJECT_LOCK(src_object);
 		src_m = vm_page_lookup(src_object,
 			OFF_TO_IDX(dst_offset + src_offset));
+		VM_OBJECT_UNLOCK(src_object);
 		if (src_m == NULL)
 			panic("vm_fault_copy_wired: page missing");
 
@@ -1137,7 +1136,7 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	vm_page_t rtm;
 	int cbehind, cahead;
 
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 
 	object = m->object;
 	pindex = m->pindex;
