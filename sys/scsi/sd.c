@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.14 1993/12/19 00:54:57 wollman Exp $
+ *      $Id: sd.c,v 1.15 1994/01/06 18:08:03 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -972,7 +972,6 @@ sddump(dev_t dev)
 	sddoingadump = 1;
 
 	blknum = dumplo + blkoff;
-	/* blkcnt = initialise_me; */
 	while (num > 0) {
                 *(int *)CMAP1 =
 			PG_V | PG_KW | ((unsigned long)addr >> PG_SHIFT);
