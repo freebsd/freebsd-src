@@ -432,6 +432,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE,
 		 "PENTAX", "DIGITAL_CAMERA", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * SanDisk ImageMate II compact flash
+		 * PR: kern/47877
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SanDisk", "ImageMate*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };
 
