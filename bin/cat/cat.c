@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cat.c,v 1.2 1994/09/24 02:53:26 davidg Exp $
+ *	$Id: cat.c,v 1.3 1995/10/03 12:46:37 bde Exp $
  */
 
 #ifndef lint
@@ -43,7 +43,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)cat.c	8.1 (Berkeley) 7/19/93";
+static char sccsid[] = "@(#)cat.c	8.2 (Berkeley) 4/27/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -98,7 +98,7 @@ main(argc, argv)
 		case 'v':
 			vflag = 1;
 			break;
-		case '?':
+		default:
 			(void)fprintf(stderr,
 			    "usage: cat [-benstuv] [-] [file ...]\n");
 			exit(1);
@@ -245,7 +245,7 @@ raw_cat(rfd)
 			err(1, "%s", filename);
 		bsize = MAX(sbuf.st_blksize, 1024);
 		if ((buf = malloc((u_int)bsize)) == NULL)
-			err(1, "");
+			err(1, NULL);
 	}
 	while ((nr = read(rfd, buf, bsize)) > 0)
 		for (off = 0; nr; nr -= nw, off += nw)
