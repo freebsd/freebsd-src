@@ -418,7 +418,7 @@ home directory to prevent core files from being written to disk:
 	limit coredumpsize 0
 		-- Dru <genesis@istar.ca>
 %
-If you need a reminder to leave your terminal, type "leave hhmm" where
+If you need a reminder to leave your terminal, type "leave +hhmm" where
 "hhmm" represents in how many hours and minutes you need to leave.
 		-- Dru <genesis@istar.ca>
 %
