@@ -62,7 +62,7 @@ static void init_6x86(void);
 static void	init_6x86MX(void);
 static void	init_ppro(void);
 static void	init_mendocino(void);
-void	enable_sse();
+void	enable_sse(void);
 #endif
 
 int	hw_instruction_sse = 0;
