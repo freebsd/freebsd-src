@@ -51,7 +51,7 @@
 #define	LINUX_SYS_linux_mmap	71
 #define	LINUX_SYS_linux_munmap	73
 #define	LINUX_SYS_linux_mprotect	74
-#define	LINUX_SYS_linux_madvise	75
+#define	LINUX_SYS_madvise	75
 #define	LINUX_SYS_linux_vhangup	76
 #define	LINUX_SYS_linux_setgroups	79
 #define	LINUX_SYS_linux_getgroups	80

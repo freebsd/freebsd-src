@@ -66,7 +66,6 @@ DUMMY(sendfile);
 DUMMY(getdtablesize);
 DUMMY(gethostname);
 DUMMY(getpagesize);
-DUMMY(madvise);
 DUMMY(mincore);
 DUMMY(old_adjtimex);
 DUMMY(pciconfig_iobase);

@@ -114,7 +114,7 @@
 73	STD	{ int linux_munmap(l_ulong addr, l_size_t len); }
 74	STD	{ int linux_mprotect(l_ulong addr, l_size_t len, \
 				l_ulong prot); }
-75	STD	{ int linux_madvise(void); }
+75	MNOPROTO { int madvise(void *addr, size_t len, int behav); }
 76	STD	{ int linux_vhangup(void); }
 77	UNIMPL
 78	UNIMPL
