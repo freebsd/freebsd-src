@@ -56,7 +56,8 @@ ckinode(dp, idesc)
 	register struct inodesc *idesc;
 {
 	register daddr_t *ap;
-	long ret, n, ndb, offset;
+	int ret;
+	long n, ndb, offset;
 	struct dinode dino;
 	quad_t remsize, sizepb;
 	mode_t mode;
