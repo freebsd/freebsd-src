@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysent.h,v 1.7 1996/03/02 19:38:20 peter Exp $
+ *	$Id: sysent.h,v 1.8 1996/03/29 14:29:50 bde Exp $
  */
 
 #ifndef _SYS_SYSENT_H_
@@ -52,7 +52,7 @@ struct sysentvec {
 	u_int		sv_mask;	/* optional mask to index */
 	int		sv_sigsize;	/* size of signal translation table */
 	int		*sv_sigtbl;	/* signal translation table */
-	int		sv_errsize;	/* size of signal translation table */
+	int		sv_errsize;	/* size of errno translation table */
 	int 		*sv_errtbl;	/* errno translation table */
 	int		(*sv_fixup) __P((int **, struct image_params *));
 					/* stack fixup function */
