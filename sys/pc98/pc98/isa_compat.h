@@ -36,7 +36,6 @@
 #include "el.h"
 #include "ed.h"
 #include "fe.h"
-#include "ie.h"
 #include "le.h"
 #include "lnc.h"
 #include "rdp.h"
@@ -78,9 +77,7 @@
 #include "stl.h"
 #include "stli.h"
 #include "loran.h"
-#include "pcf.h"
 #include "tina.h"
-#include "ppc.h"
 #include "fla.h"
 #ifdef PC98
 #include "bs.h"
@@ -101,7 +98,6 @@ extern struct isa_driver  cxdriver;
 extern struct isa_driver  eddriver;
 extern struct isa_driver  eldriver;
 extern struct isa_driver  fedriver;
-extern struct isa_driver  iedriver;
 extern struct isa_driver  ledriver;
 extern struct isa_driver lncdriver;
 extern struct isa_driver rdpdriver;
@@ -143,9 +139,7 @@ extern struct isa_driver ascdriver;
 extern struct isa_driver stldriver;
 extern struct isa_driver stlidriver;
 extern struct isa_driver lorandriver;
-extern struct isa_driver pcfdriver;
 extern struct isa_driver tinadriver;
-extern struct isa_driver ppcdriver;
 #ifdef PC98
 extern struct isa_driver bsdriver;
 #endif
@@ -220,9 +214,6 @@ static struct old_isa_driver old_drivers[] = {
 #if NLORAN > 0
 	{ INTR_TYPE_TTY, &lorandriver },
 #endif
-#if NPPC > 0
-	{ INTR_TYPE_TTY, &ppcdriver },
-#endif
 
 /* BIO */
 
@@ -244,9 +235,6 @@ static struct old_isa_driver old_drivers[] = {
 
 /* NET */
 
-#if NIE > 0
-	{ INTR_TYPE_NET, &iedriver },
-#endif
 #if NED > 0
 	{ INTR_TYPE_NET, &eddriver },
 #endif
@@ -273,9 +261,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NWL > 0
 	{ INTR_TYPE_NET, &wldriver },
-#endif
-#if NPCF > 0
-	{ INTR_TYPE_NET, &pcfdriver },
 #endif
 #if NTINA > 0
 	{ INTR_TYPE_NET, &tinadriver },
