@@ -6,8 +6,6 @@
 
 .PATH: ${SRCDIR}/gas
 
-SUBDIR=		doc
-
 PROG=		gasp
 SRCS+=		gasp.c macro.c sb.c hash.c
 CFLAGS+=	-I${SRCDIR}

@@ -7,9 +7,10 @@ CONTRIBDIR= ${.CURDIR}/../../../../contrib
 
 .PATH: ${SRCDIR}/gas/doc ${SRCDIR}/ld ${SRCDIR}/bfd/doc ${GDBDIR}/gdb/doc
 
-INFO = as ld annotate gdb gdbint stabs
+INFO = as ld annotate gasp gdb gdbint stabs
 INFOSECTION=	"Programming & development tools."
 INFOENTRY_as=	"* As: (as).            The GNU assembler."
+INFOENTRY_gasp=	"* Gasp: (gasp).        The GNU Assembler Macro Preprocessor."
 INFOENTRY_ld=	"* Ld: (ld).		The GNU linker."
 INFOENTRY_annotate= "* GDB annotation: (annotate).	Annotations for the GNU Debugger (GDB)."
 
