@@ -1,5 +1,6 @@
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
+/* $FreeBSD$ */
 
 /* Define to empty if the keyword does not work.  */
 /* #undef const */
@@ -116,7 +117,7 @@
 #define HAVE_SYS_MMAN_H 1
 
 /* Define if you have <sys/select.h> */
-#define HAVE_SYS_SELECT_H 1
+/* #undef HAVE_SYS_SELECT_H 1 */
 
 /* Define if you have the System V style pty calls. */
 /* #undef HAVE_SYS5_PTY */
