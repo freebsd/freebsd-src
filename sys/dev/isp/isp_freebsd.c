@@ -2119,15 +2119,13 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 #ifdef	ISP2100_FABRIC
 	case ISPASYNC_FABRIC_DEV:
 	{
-		int target;
-		struct lportdb *lp;
+		int target, lrange;
+		struct lportdb *lp = NULL;
 		char *pt;
 		sns_ganrsp_t *resp = (sns_ganrsp_t *) arg;
 		u_int32_t portid;
 		u_int64_t wwpn, wwnn;
 		fcparam *fcp = isp->isp_param;
-
-		rv = -1;
 
 		portid =
 		    (((u_int32_t) resp->snscb_port_id[0]) << 16) |
@@ -2154,7 +2152,6 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		    (((u_int64_t)resp->snscb_nodename[6]) <<  8) |
 		    (((u_int64_t)resp->snscb_nodename[7]));
 		if (portid == 0 || wwpn == 0) {
-			rv = 0;
 			break;
 		}
 
@@ -2188,19 +2185,40 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		    "%s @ 0x%x, Node 0x%08x%08x Port %08x%08x",
 		    pt, portid, ((u_int32_t) (wwnn >> 32)), ((u_int32_t) wwnn),
 		    ((u_int32_t) (wwpn >> 32)), ((u_int32_t) wwpn));
-		for (target = FC_SNS_ID+1; target < MAX_FC_TARG; target++) {
-			lp = &fcp->portdb[target];
-			if (lp->port_wwn == wwpn && lp->node_wwn == wwnn)
-				break;
-		}
-		if (target < MAX_FC_TARG) {
-			rv = 0;
+		/*
+		 * We're only interested in SCSI_FCP types (for now)
+		 */
+		if ((resp->snscb_fc4_types[2] & 1) == 0) {
 			break;
 		}
-		for (target = FC_SNS_ID+1; target < MAX_FC_TARG; target++) {
+		if (fcp->isp_topo != TOPO_F_PORT)
+			lrange = FC_SNS_ID+1;
+		else
+			lrange = 0;
+		/*
+		 * Is it already in our list?
+		 */
+		for (target = lrange; target < MAX_FC_TARG; target++) {
+			if (target >= FL_PORT_ID && target <= FC_SNS_ID) {
+				continue;
+			}
 			lp = &fcp->portdb[target];
-			if (lp->port_wwn == 0)
+			if (lp->port_wwn == wwpn && lp->node_wwn == wwnn) {
+				lp->fabric_dev = 1;
 				break;
+			}
+		}
+		if (target < MAX_FC_TARG) {
+			break;
+		}
+		for (target = lrange; target < MAX_FC_TARG; target++) {
+			if (target >= FL_PORT_ID && target <= FC_SNS_ID) {
+				continue;
+			}
+			lp = &fcp->portdb[target];
+			if (lp->port_wwn == 0) {
+				break;
+			}
 		}
 		if (target == MAX_FC_TARG) {
 			isp_prt(isp, ISP_LOGWARN,
@@ -2210,7 +2228,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		lp->node_wwn = wwnn;
 		lp->port_wwn = wwpn;
 		lp->portid = portid;
-		rv = 0;
+		lp->fabric_dev = 1;
 		break;
 	}
 #endif
