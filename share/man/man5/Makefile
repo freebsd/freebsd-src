@@ -7,8 +7,4 @@ MAN5=	a.out.5 acct.5 core.5 dir.5 disktab.5 ethers.5 fs.5 fbtab.5 fstab.5 \
 	stab.5 types.5 utmp.5
 MLINKS=	fs.5 inode.5 utmp.5 wtmp.5 utmp.5 lastlog.5
 
-clean depend lint tags:
-
-install: maninstall
-
 .include <bsd.prog.mk>
