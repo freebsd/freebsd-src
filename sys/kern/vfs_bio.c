@@ -3193,8 +3193,11 @@ bufdone(struct buf *bp)
 			iosize -= resid;
 		}
 		vm_page_unlock_queues();
-		if (obj)
+		if (obj != NULL) {
+			VM_OBJECT_LOCK(obj);
 			vm_object_pip_wakeupn(obj, 0);
+			VM_OBJECT_UNLOCK(obj);
+		}
 	}
 
 	/*
@@ -3231,6 +3234,7 @@ vfs_unbusy_pages(struct buf * bp)
 		vm_object_t obj;
 
 		obj = bp->b_object;
+		VM_OBJECT_LOCK(obj);
 		vm_page_lock_queues();
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
@@ -3249,6 +3253,7 @@ vfs_unbusy_pages(struct buf * bp)
 		}
 		vm_page_unlock_queues();
 		vm_object_pip_wakeupn(obj, 0);
+		VM_OBJECT_UNLOCK(obj);
 	}
 }
 
