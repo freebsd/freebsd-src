@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2005
+.Dd January 30, 2005
 .Dt EM 4
 .Os
 .Sh NAME
@@ -199,3 +199,13 @@ The
 .Nm
 driver was written by
 .An Intel Corporation Aq freebsdnic@mailbox.intel.com .
+.Sh BUGS
+Hardware-assisted VLAN processing is disabled by default.
+You can enable it on an
+.Nm
+interface using
+.Xr ifconfig 8
+unless you are going to run
+.Xr bridge 4
+on the interface.
+In any case, VLAN can operate safely without the hardware acceleration.
