@@ -1,6 +1,6 @@
 #
 # hosts.allow access control file for "tcp wrapped" apps.
-# $Id: hosts.allow,v 1.2.2.1 1999/05/05 20:47:42 obrien Exp $
+# $Id: hosts.allow,v 1.2.2.2 1999/05/11 01:35:01 obrien Exp $
 #
 # NOTE: The hosts.deny file is not longer used.  Instead, put both 'allow'
 #       and 'deny' rules in the hosts.allow file.
@@ -33,9 +33,10 @@ sendmail : .evil.cracker.example.com : deny
 sendmail : ALL : allow
 
 # Portmapper is used for all RPC services; protect your NFS!
-portmap : localhost : allow
-portmap : .nice.guy.example.com : allow
-portmap : .evil.cracker.example.com : deny
+# (IP addresses rather than hostnames *MUST* be used here)
+portmap : 127.0.0.1 localhost : allow
+portmap : 192.168.0. .nice.guy.example.com : allow
+portmap : 172.16. .evil.cracker.example.com : deny
 portmap : ALL : allow
 
 # Provide a small amount of protection for ftpd
