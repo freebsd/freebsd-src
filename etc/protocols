@@ -65,7 +65,7 @@ narp	54	NARP		# NBMA Address Resolution Protocol
 mobile	55	MOBILE		# IP Mobility
 tlsp	56	TLSP		# Transport Layer Security Protocol
 skip	57	SKIP		# SKIP
-ipv6-icmp	58	IPV6-ICMP	# ICMP for IPv6
+ipv6-icmp	58	IPV6-ICMP	icmp6	# ICMP for IPv6
 ipv6-nonxt	59	IPV6-NONXT	# no next header for ipv6
 ipv6-opts	60	IPV6-OPTS	# destination options for ipv6
 #	61			# any host internal protocol

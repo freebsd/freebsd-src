@@ -487,6 +487,13 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  The `ef' device provides support for multiple ethernet frame types
 #  specified via ETHER_* options. See ef(4) for details.
 #
+# The pf packet filter consists of three devices:
+#  The `pf' device provides /dev/pf and the firewall code itself.
+#  The `pflog' device provides the pflog0 interface which logs packets.
+#  The `pfsync' device provides the pfsync0 interface used for
+#   synchronization of firewall state tables (over the net).
+# Requires option PFIL_HOOKS and (when used as a module) option RANDOM_IP_ID
+#
 # The PPP_BSDCOMP option enables support for compress(1) style entire
 # packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
 # PPP_FILTER enables code for filtering the ppp data stream and selecting
@@ -507,6 +514,9 @@ device		tap			#Virtual Ethernet driver
 device		tun			#Tunnel driver (ppp(8), nos-tun(8))
 device		sl			#Serial Line IP
 device		gre			#IP over IP tunneling
+device		pf			#PF OpenBSD packet-filter firewall
+device		pflog			#logging support interface for PF
+device		pfsync			#synchronization interface for PF
 device		ppp			#Point-to-point protocol
 options 	PPP_BSDCOMP		#PPP BSD-compress support
 options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support
@@ -561,7 +571,7 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 #
 # PFIL_HOOKS enables an abtraction layer which is meant to be used in
 # network code where filtering is required.  See the pfil(9) man page.
-# This option is required by the IPFILTER option.
+# This option is required by the IPFILTER option and the PF device.
 #
 # TCPDEBUG enables code which keeps traces of the TCP state machine
 # for sockets with the SO_DEBUG option set, which can then be examined
