@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.46 1996/10/12 15:54:04 bde Exp $
+ * $Id: systm.h,v 1.47 1996/10/12 16:11:55 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -135,6 +135,8 @@ void	stopprofclock __P((struct proc *));
 void	setstatclockrate __P((int hzrate));
 
 void	hardupdate __P((long));
+void	hardpps __P((struct timeval *tvp, long usec));
+
 #include <sys/libkern.h>
 
 /* Initialize the world */
