@@ -56,6 +56,11 @@
 .Fa "devstat_tag_type tag_type"
 .Fa "devstat_trans_flags flags"
 .Fc
+.Ft void
+.Fo devstat_end_transaction_buf
+.Fa "struct devstat *ds"
+.Fa "struct buf *bp"
+.Fc
 .Sh DESCRIPTION
 The devstat subsystem is an interface for recording device
 statistics, as its name implies.  The idea is to keep reasonably detailed
@@ -139,6 +144,13 @@ Transaction tag type.  See below for tag types.
 Transaction flags indicating whether the transaction was a read, write, or
 whether no data was transferred.
 .El
+.Pp
+.Fn devstat_end_transaction_buf
+is a wrapper for
+.Fn devstat_end_transaction
+which pulls all the information from a 
+.Va "struct buf"
+which is ready for biodone().
 .Pp
 The
 .Va devstat
