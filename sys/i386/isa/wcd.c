@@ -12,7 +12,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.8, Thu Sep 28 21:04:16 MSK 1995
+ * Version 1.9, Mon Oct  9 20:27:42 MSK 1995
  */
 
 #include "wdc.h"
@@ -36,10 +36,9 @@
 #define UNIT(d) ((minor(d) >> 3) & 3)   /* Unit part of minor device number */
 #define SECSIZE 2048                    /* CD-ROM sector size in bytes */
 
-#define F_OPEN          0x0001          /* The drive os opened */
+#define F_BOPEN         0x0001          /* The block device is opened */
 #define F_MEDIA_CHANGED 0x0002          /* The media have changed since open */
-#define F_DEBUG         0x0004          /* The media have changed since open */
-#define F_NOPLAYCD      0x0008          /* The PLAY_CD op not supported */
+#define F_DEBUG         0x0004          /* Print debug info */
 
 /*
  * Disc table of contents.
@@ -184,6 +183,7 @@ struct wcd {
 	int unit;                       /* IDE bus drive unit */
 	int lun;                        /* Logical device unit */
 	int flags;                      /* Device state flags */
+	int refcnt;                     /* The number of raw opens */
 	struct buf queue;               /* Queue of i/o requests */
 	struct atapi_params *param;     /* Drive parameters table */
 	struct toc toc;                 /* Table of disc contents */
@@ -212,6 +212,7 @@ static int wcd_goaway (struct kern_devconf *kdc, int force);
 static void wcd_describe (struct wcd *t);
 static int wcd_setchan (struct wcd *t,
 	u_char c0, u_char c1, u_char c2, u_char c3);
+static int wcd_eject (struct wcd *t);
 
 static struct kern_devconf cftemplate = {
 	0, 0, 0, "wcd", 0, { MDDT_DISK, 0 },
@@ -244,7 +245,7 @@ static int wcd_goaway (struct kern_devconf *kdc, int force)
 	return 0;
 }
 
-void wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
+int wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	struct kern_devconf *parent)
 {
 	struct wcd *t;
@@ -252,12 +253,12 @@ void wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 
 	if (wcdnlun >= NUNIT) {
 		printf ("wcd: too many units\n");
-		return;
+		return (0);
 	}
 	t = malloc (sizeof (struct wcd), M_TEMP, M_NOWAIT);
 	if (! t) {
 		printf ("wcd: out of memory\n");
-		return;
+		return (0);
 	}
 	wcdtab[wcdnlun] = t;
 	bzero (t, sizeof (struct wcd));
@@ -266,6 +267,7 @@ void wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	t->lun = wcdnlun++;
 	t->param = ap;
 	t->flags = F_MEDIA_CHANGED;
+	t->refcnt = 0;
 	if (debug) {
 		t->flags |= F_DEBUG;
 		/* Print params. */
@@ -305,6 +307,7 @@ void wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	strncpy (t->description + strlen(t->description),
 		ap->model, sizeof(ap->model));
 	dev_attach (&t->cf);
+	return (1);
 }
 
 void wcd_describe (struct wcd *t)
@@ -365,89 +368,72 @@ void wcd_describe (struct wcd *t)
 	printf ("\n");
 }
 
-int wcdopen (dev_t dev, int flags, int fmt, struct proc *p)
+int wcd_open (dev_t dev, int rawflag)
 {
 	int lun = UNIT(dev);
 	struct wcd *t;
 	struct atapires result;
 
-	/* Check the unit is legal. */
-	if (lun >= wcdnlun)
+	/* Check that the device number is legal
+	 * and the ATAPI driver is loaded. */
+	if (lun >= wcdnlun || ! atapi_request_immediate)
 		return (ENXIO);
 	t = wcdtab[lun];
 
-	/* If already opened, that's all. */
-	if (t->flags & F_OPEN) {
-		/* If it's been invalidated, forbid re-entry.
-		 * (may have changed media) */
-		if (t->flags & F_MEDIA_CHANGED)
-			return (ENXIO);
-		return (0);
+	/* On the first open, read the table of contents. */
+	if (! (t->flags & F_BOPEN) && ! t->refcnt) {
+		/* Read table of contents. */
+		if (wcd_read_toc (t) < 0)
+			return (EIO);
+
+		/* Lock the media. */
+		wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
+			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
 	}
-
-	/* On the first open: check for the media.
-	 * Do it twice to avoid the stale media changed state. */
-	result = atapi_request_wait (t->ata, t->unit, ATAPI_TEST_UNIT_READY,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-	if (result.code == RES_ERR &&
-	    (result.error & AER_SKEY) == AER_SK_UNIT_ATTENTION) {
-		t->flags |= F_MEDIA_CHANGED;
-		result = atapi_request_wait (t->ata, t->unit,
-			ATAPI_TEST_UNIT_READY, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0);
-	}
-	if (result.code) {
-		wcd_error (t, result);
-		return (ENXIO);
-	}
-
-	/* Read table of contents. */
-	if (wcd_read_toc (t) != 0)
-		bzero (&t->toc, sizeof (t->toc));
-
-	/* Read disc capacity. */
-	if (wcd_request_wait (t, ATAPI_READ_CAPACITY, 0, 0, 0, 0, 0, 0,
-	    0, sizeof(t->info), 0, (char*)&t->info, sizeof(t->info)) != 0)
-		bzero (&t->info, sizeof (t->info));
-	t->info.volsize = ntohl (t->info.volsize);
-	t->info.blksize = ntohl (t->info.blksize);
-
-	/* Print the disc description string on every disc change.
-	 * It would help to track the history of disc changes. */
-	if (t->info.volsize && t->toc.hdr.ending_track &&
-	    (t->flags & F_MEDIA_CHANGED) && (t->flags & F_DEBUG)) {
-		printf ("wcd%d: ", t->lun);
-		if (t->toc.tab[0].control & 4)
-			printf ("%ldMB ", t->info.volsize / 512);
-		else
-			printf ("%ld:%ld audio ", t->info.volsize/75/60,
-				t->info.volsize/75%60);
-		printf ("(%ld sectors), %d tracks\n", t->info.volsize,
-			t->toc.hdr.ending_track - t->toc.hdr.starting_track + 1);
-	}
-	/* Lock the media. */
-	wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
-		0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
-
-	t->flags &= ~F_MEDIA_CHANGED;
-	t->flags |= F_OPEN;
+	if (rawflag)
+		++t->refcnt;
+	else
+		t->flags |= F_BOPEN;
 	return (0);
+}
+
+int wcdbopen (dev_t dev, int flags, int fmt, struct proc *p)
+{
+	return wcd_open (dev, 0);
+}
+
+int wcdropen (dev_t dev, int flags, int fmt, struct proc *p)
+{
+	return wcd_open (dev, 1);
 }
 
 /*
  * Close the device.  Only called if we are the LAST
  * occurence of an open device.
  */
-int wcdclose (dev_t dev, int flags, int fmt, struct proc *p)
+int wcdbclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int lun = UNIT(dev);
 	struct wcd *t = wcdtab[lun];
 
 	/* If we were the last open of the entire device, release it. */
-	wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	t->flags &= ~F_OPEN;
+	if (! t->refcnt)
+		wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	t->flags &= ~F_BOPEN;
+	return (0);
+}
+
+int wcdrclose (dev_t dev, int flags, int fmt, struct proc *p)
+{
+	int lun = UNIT(dev);
+	struct wcd *t = wcdtab[lun];
+
+	/* If we were the last open of the entire device, release it. */
+	if (! (t->flags & F_BOPEN) && t->refcnt == 1)
+		wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	--t->refcnt;
 	return (0);
 }
 
@@ -461,15 +447,6 @@ void wcdstrategy (struct buf *bp)
 	int lun = UNIT(bp->b_dev);
 	struct wcd *t = wcdtab[lun];
 	int x;
-
-	/* If the device has been made invalid, error out
-	 * maybe the media changed. */
-	if (t->flags & F_MEDIA_CHANGED) {
-		bp->b_error = EIO;
-		bp->b_flags |= B_ERROR;
-		biodone (bp);
-		return;
-	}
 
 	/* Can't ever write to a CD. */
 	if (! (bp->b_flags & B_READ)) {
@@ -608,34 +585,6 @@ static int wcd_request_wait (struct wcd *t, u_char cmd, u_char a1, u_char a2,
 	return (0);
 }
 
-static int wcd_play (struct wcd *t, u_char cmd, u_char a1, u_char a2,
-	u_char a3, u_char a4, u_char a5, u_char a6, u_char a7, u_char a8,
-	u_char a9, char *addr, int count)
-{
-	struct atapires result;
-
-	if (! (t->flags & F_NOPLAYCD)) {
-		t->cf.kdc_state = DC_BUSY;
-		result = atapi_request_wait (t->ata, t->unit, ATAPI_PLAY_CD,
-			cmd == ATAPI_PLAY_MSF ? 2 : 0, a2, a3, a4, a5, a6,
-			a7, a8, a9, 0, 0, 0, 0, 0, 0, addr, count);
-		t->cf.kdc_state = DC_IDLE;
-		if (result.code == RES_ERR &&
-		    (result.error & AER_SKEY) == AER_SK_ILLEGAL_REQUEST) {
-			/* Some drives don't support a PLAY_CD command.
-			 * Remember this and use PLAY_MSF instead. */
-			t->flags |= F_NOPLAYCD;
-			result.code = 0;
-		}
-		if (result.code) {
-			wcd_error (t, result);
-			return (EIO);
-		}
-	}
-	return wcd_request_wait (t, cmd, a1, a2, a3, a4, a5, a6,
-		a7, a8, a9, addr, count);
-}
-
 static inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
 {
 	lba += 150;             /* offset of first logical frame */
@@ -650,15 +599,29 @@ static inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
  * Perform special action on behalf of the user.
  * Knows about the internals of this device
  */
-int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
+int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	int lun = UNIT(dev);
 	struct wcd *t = wcdtab[lun];
+	struct atapires result;
 	int error = 0;
 
-	/* If the device is not valid.. abandon ship.  */
 	if (t->flags & F_MEDIA_CHANGED)
-		return (EIO);
+		switch (cmd) {
+		case CDIOCSETDEBUG:
+		case CDIOCCLRDEBUG:
+		case CDIOCRESET:
+			/* These ops are media change transparent. */
+			break;
+		default:
+			/* Read table of contents. */
+			wcd_read_toc (t);
+
+			/* Lock the media. */
+			wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
+				0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
+			break;
+		}
 	switch (cmd) {
 	default:
 		return (ENOTTY);
@@ -708,21 +671,15 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 	case CDIOCEJECT:
-		/* Stop the disc. */
-		error = wcd_request_wait (t, ATAPI_START_STOP,
-			1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-		if (error)
-			return (error);
-		/* Give it some time to stop spinning. */
-		tsleep ((caddr_t)&lbolt, PRIBIO, "wcdejct", 0);
-		tsleep ((caddr_t)&lbolt, PRIBIO, "wcdejct", 0);
-		/* Eject. */
-		return wcd_request_wait (t, ATAPI_START_STOP,
-			0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0);
+		/* Don't allow eject if the device is opened
+		 * by somebody (not us) in block mode. */
+		if ((t->flags & F_BOPEN) && t->refcnt)
+			return (EBUSY);
+		return wcd_eject (t);
 
 	case CDIOREADTOCHEADER:
 		if (! t->toc.hdr.ending_track)
-			return (ENODEV);
+			return (EIO);
 		bcopy (&t->toc.hdr, addr, sizeof t->toc.hdr);
 		break;
 
@@ -734,7 +691,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		u_long len;
 
 		if (! t->toc.hdr.ending_track)
-			return (ENODEV);
+			return (EIO);
 		if (te->starting_track < toc->hdr.starting_track ||
 		    te->starting_track > toc->hdr.ending_track)
 			return (EINVAL);
@@ -808,14 +765,14 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 	case CDIOCPLAYMSF: {
 		struct ioc_play_msf *args = (struct ioc_play_msf*) addr;
 
-		return wcd_play (t, ATAPI_PLAY_MSF, 0, 0,
+		return wcd_request_wait (t, ATAPI_PLAY_MSF, 0, 0,
 			args->start_m, args->start_s, args->start_f,
 			args->end_m, args->end_s, args->end_f, 0, 0, 0);
 	}
 	case CDIOCPLAYBLOCKS: {
 		struct ioc_play_blocks *args = (struct ioc_play_blocks*) addr;
 
-		return wcd_play (t, ATAPI_PLAY_BIG, 0,
+		return wcd_request_wait (t, ATAPI_PLAY_BIG, 0,
 			args->blk >> 24 & 0xff, args->blk >> 16 & 0xff,
 			args->blk >> 8 & 0xff, args->blk & 0xff,
 			args->len >> 24 & 0xff, args->len >> 16 & 0xff,
@@ -827,7 +784,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		int t1, t2;
 
 		if (! t->toc.hdr.ending_track)
-			return (ENODEV);
+			return (EIO);
 
 		/* Ignore index fields,
 		 * play from start_track to end_track inclusive. */
@@ -842,7 +799,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		start = t->toc.tab[t1].addr.lba;
 		len = t->toc.tab[t2].addr.lba - start;
 
-		return wcd_play (t, ATAPI_PLAY_BIG, 0,
+		return wcd_request_wait (t, ATAPI_PLAY_BIG, 0,
 			start >> 24 & 0xff, start >> 16 & 0xff,
 			start >> 8 & 0xff, start & 0xff,
 			len >> 24 & 0xff, len >> 16 & 0xff,
@@ -888,6 +845,9 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		if (t->flags & F_DEBUG)
 			wcd_dump (t->lun, "mask", &t->aumask, sizeof t->aumask);
 
+		/* Sony-55E requires the data length field to be zeroed. */
+		t->au.data_length = 0;
+
 		t->au.port[0].channels = CHANNEL_0;
 		t->au.port[1].channels = CHANNEL_1;
 		t->au.port[0].volume = arg->vol[0] & t->aumask.port[0].volume;
@@ -929,16 +889,40 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 static int wcd_read_toc (struct wcd *t)
 {
 	int ntracks, len, i;
+	struct atapires result;
+
+	bzero (&t->toc, sizeof (t->toc));
+	bzero (&t->info, sizeof (t->info));
+
+	/* Check for the media.
+	 * Do it twice to avoid the stale media changed state. */
+	result = atapi_request_wait (t->ata, t->unit, ATAPI_TEST_UNIT_READY,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+	if (result.code == RES_ERR &&
+	    (result.error & AER_SKEY) == AER_SK_UNIT_ATTENTION) {
+		t->flags |= F_MEDIA_CHANGED;
+		result = atapi_request_wait (t->ata, t->unit,
+			ATAPI_TEST_UNIT_READY, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0);
+	}
+	if (result.code) {
+		wcd_error (t, result);
+		return (EIO);
+	}
+	t->flags &= ~F_MEDIA_CHANGED;
 
 	/* First read just the header, so we know how long the TOC is. */
 	len = sizeof(struct ioc_toc_header) + sizeof(struct cd_toc_entry);
 	if (wcd_request_wait (t, ATAPI_READ_TOC, 0, 0, 0, 0, 0, 0,
-	    len >> 8, len & 0xff, 0, (char*)&t->toc, len) != 0)
-		return (EIO);
+	    len >> 8, len & 0xff, 0, (char*)&t->toc, len) != 0) {
+err:            bzero (&t->toc, sizeof (t->toc));
+		return (0);
+	}
 
 	ntracks = t->toc.hdr.ending_track - t->toc.hdr.starting_track + 1;
 	if (ntracks <= 0)
-		return (EIO);
+		goto err;
 	if (ntracks > MAXTRK)
 		ntracks = MAXTRK;
 
@@ -947,11 +931,36 @@ static int wcd_read_toc (struct wcd *t)
 		(ntracks+1) * sizeof(struct cd_toc_entry);
 	if (wcd_request_wait (t, ATAPI_READ_TOC, 0, 0, 0, 0, 0, 0,
 	    len >> 8, len & 0xff, 0, (char*)&t->toc, len) & 0xff)
-		return (EIO);
+		goto err;
 
 	t->toc.hdr.len = ntohs (t->toc.hdr.len);
 	for (i=0; i<=ntracks; i++)
 		t->toc.tab[i].addr.lba = ntohl (t->toc.tab[i].addr.lba);
+
+	/* Decrement the total length of the disc.
+	 * Some drives (e.g. Sony-55E) have this value too big. */
+	--t->toc.tab[ntracks].addr.lba;
+
+	/* Read disc capacity. */
+	if (wcd_request_wait (t, ATAPI_READ_CAPACITY, 0, 0, 0, 0, 0, 0,
+	    0, sizeof(t->info), 0, (char*)&t->info, sizeof(t->info)) != 0)
+		bzero (&t->info, sizeof (t->info));
+	t->info.volsize = ntohl (t->info.volsize);
+	t->info.blksize = ntohl (t->info.blksize);
+
+	/* Print the disc description string on every disc change.
+	 * It would help to track the history of disc changes. */
+	if (t->info.volsize && t->toc.hdr.ending_track &&
+	    (t->flags & F_MEDIA_CHANGED) && (t->flags & F_DEBUG)) {
+		printf ("wcd%d: ", t->lun);
+		if (t->toc.tab[0].control & 4)
+			printf ("%ldMB ", t->info.volsize / 512);
+		else
+			printf ("%ld:%ld audio ", t->info.volsize/75/60,
+				t->info.volsize/75%60);
+		printf ("(%ld sectors), %d tracks\n", t->info.volsize,
+			t->toc.hdr.ending_track - t->toc.hdr.starting_track + 1);
+	}
 	return (0);
 }
 
@@ -973,6 +982,9 @@ static int wcd_setchan (struct wcd *t,
 	if (t->au.page_code != AUDIO_PAGE)
 		return (EIO);
 
+	/* Sony-55E requires the data length field to be zeroed. */
+	t->au.data_length = 0;
+
 	t->au.port[0].channels = c0;
 	t->au.port[1].channels = c1;
 	t->au.port[2].channels = c2;
@@ -981,4 +993,171 @@ static int wcd_setchan (struct wcd *t,
 		0, 0, 0, 0, 0, sizeof (t->au) >> 8, sizeof (t->au),
 		0, (char*) &t->au, - sizeof (t->au));
 }
+
+static int wcd_eject (struct wcd *t)
+{
+	struct atapires result;
+
+	/* Try to stop the disc. */
+	t->cf.kdc_state = DC_BUSY;
+	result = atapi_request_wait (t->ata, t->unit, ATAPI_START_STOP,
+		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	t->cf.kdc_state = DC_IDLE;
+
+	if (result.code == RES_ERR &&
+	    ((result.error & AER_SKEY) == AER_SK_NOT_READY ||
+	    (result.error & AER_SKEY) == AER_SK_UNIT_ATTENTION)) {
+		/*
+		 * The disc was unloaded.
+		 * Load it (close tray).
+		 * Read the table of contents.
+		 */
+		int err = wcd_request_wait (t, ATAPI_START_STOP,
+			0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0);
+		if (err)
+			return (err);
+
+		/* Read table of contents. */
+		wcd_read_toc (t);
+
+		/* Lock the media. */
+		wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
+			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
+
+		return (0);
+	}
+
+	if (result.code) {
+		wcd_error (t, result);
+		return (EIO);
+	}
+
+	/* Give it some time to stop spinning. */
+	tsleep ((caddr_t)&lbolt, PRIBIO, "wcdej1", 0);
+	tsleep ((caddr_t)&lbolt, PRIBIO, "wcdej2", 0);
+
+	/* Unlock. */
+	wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+	/* Eject. */
+	t->flags |= F_MEDIA_CHANGED;
+	return wcd_request_wait (t, ATAPI_START_STOP,
+		0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0);
+}
+
+#ifdef WCD_MODULE
+/*
+ * Loadable ATAPI CD-ROM driver stubs.
+ */
+#include <sys/exec.h>
+#include <sys/sysent.h>
+#include <sys/lkm.h>
+
+/*
+ * Device table entries.
+ * These get copied at modload time into the kernels
+ * lkm dummy device driver entries (see sys/i386/i386/conf.c).
+ */
+#define NOSTOP     (d_stop_t*)  enodev
+#define NOWRITE    (d_rdwr_t*)  enodev
+#define NORESET    (d_reset_t*) nullop
+#define NODEVTOTTY (d_ttycv_t*) nullop
+#define NOMMAP     (d_mmap_t*)  enodev
+#define NODUMP     (d_dump_t*)  enxio
+#define ZEROSIZE   (d_psize_t*) 0
+d_rdwr_t rawread;
+struct bdevsw dev_wcd  = { wcdbopen, wcdbclose, wcdstrategy, wcdioctl,
+			   NODUMP, ZEROSIZE, 0 };
+struct cdevsw dev_rwcd = { wcdropen, wcdrclose, rawread, NOWRITE, wcdioctl,
+			   NOSTOP, NORESET, NODEVTOTTY, seltrue, NOMMAP,
+			   wcdstrategy };
+/*
+ * Construct lkm_dev structures (see lkm.h).
+ * Our bdevsw/cdevsw slot numbers are 19/69.
+ */
+static struct lkm_dev wcd_module = {
+	LM_DEV, LKM_VERSION, "wcd",  19, LM_DT_BLOCK, { (void*) &dev_wcd  } };
+static struct lkm_dev rwcd_module = {
+	LM_DEV, LKM_VERSION, "rwcd", 69, LM_DT_CHAR,  { (void*) &dev_rwcd } };
+
+/*
+ * Function called when loading the driver.
+ */
+int wcd_load (struct lkm_table *lkmtp, int cmd)
+{
+	struct atapi *ata;
+	int n, u;
+
+	if (! atapi_start)
+		/* No ATAPI driver available. */
+		return EPROTONOSUPPORT;
+	n = 0;
+	for (ata=atapi_tab; ata<atapi_tab+2; ++ata)
+		if (ata->port)
+			for (u=0; u<2; ++u)
+				/* Probing controller ata->ctrlr, unit u. */
+				if (ata->params[u] && ! ata->attached[u] &&
+				    wcdattach (ata, u, ata->params[u],
+				    ata->debug, ata->parent) >= 0)
+				{
+					/* Drive found. */
+					ata->attached[u] = 1;
+					++n;
+				}
+	if (! n)
+		/* No IDE CD-ROMs found. */
+		return ENXIO;
+	return 0;
+}
+
+/*
+ * Function called when unloading the driver.
+ */
+int wcd_unload (struct lkm_table *lkmtp, int cmd)
+{
+	struct wcd **t;
+
+	for (t=wcdtab; t<wcdtab+wcdnlun; ++t)
+		if (((*t)->flags & F_BOPEN) || (*t)->refcnt)
+			/* The device is opened, cannot unload the driver. */
+			return EBUSY;
+	for (t=wcdtab; t<wcdtab+wcdnlun; ++t) {
+		(*t)->ata->attached[(*t)->unit] = 0;
+		free (*t, M_TEMP);
+	}
+	wcdnlun = 0;
+	bzero (wcdtab, sizeof(wcdtab));
+	return 0;
+}
+
+/*
+ * Dispatcher function for the module (load/unload/stat).
+ */
+int wcd (struct lkm_table *lkmtp, int cmd, int ver)
+{
+	int err = 0;
+
+	if (ver != LKM_VERSION)
+		return EINVAL;
+
+	if (cmd == LKM_E_LOAD)
+		err = wcd_load (lkmtp, cmd);
+	else if (cmd == LKM_E_UNLOAD)
+		err = wcd_unload (lkmtp, cmd);
+	if (err)
+		return err;
+
+	/* Register the cdevsw entry. */
+	lkmtp->private.lkm_dev = &rwcd_module;
+	err = lkmdispatch (lkmtp, cmd);
+	if (err)
+		return err;
+
+	/* Register the bdevsw entry. */
+	lkmtp->private.lkm_dev = &wcd_module;
+	return lkmdispatch (lkmtp, cmd);
+}
+#endif /* WCD_MODULE */
+
 #endif /* NWCD && NWDC && ATAPI */
