@@ -87,6 +87,7 @@ MAIN:{
 	} elsif ($keyword eq 'ident') {
 	    $line =~ s/$value/$ident/;
 	} elsif ($keyword eq 'options' && $value =~ m/(\w+)=(.+)/ &&
+	    defined($config{$keyword}->{$1}) &&
 	    $config{$keyword}->{$1} != \&EMPTY) {
 	    $value = $1;
 	    if ($config{$keyword}->{$value} ne $2) {
