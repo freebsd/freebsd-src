@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.160 1997/03/23 03:35:04 bde Exp $
+ *	$Id: sio.c,v 1.161 1997/03/24 11:24:04 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -103,6 +103,9 @@
 #define	COM_NOTAST4(dev)	((dev)->id_flags & 0x04)
 #endif /* COM_MULTIPORT */
 
+#define	COM_CONSOLE(dev)	((dev)->id_flags & 0x10)
+#define	COM_FORCECONSOLE(dev)	((dev)->id_flags & 0x20)
+#define	COM_LLCONSOLE(dev)	((dev)->id_flags & 0x40)
 #define	COM_LOSESOUTINTS(dev)	((dev)->id_flags & 0x08)
 #define	COM_NOFIFO(dev)		((dev)->id_flags & 0x02)
 #define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
@@ -328,8 +331,9 @@ static struct cdevsw sio_cdevsw = {
 };
 
 static	int	comconsole = -1;
-static	speed_t	comdefaultrate = CONSPEED;
+static	volatile speed_t	comdefaultrate = CONSPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
+static	Port_t	siocniobase;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 #if 0 /* XXX */
@@ -518,6 +522,11 @@ sioprobe(dev)
 		already_init = TRUE;
 	}
 
+	if (COM_LLCONSOLE(dev)) {
+		printf("sio%d: reserved for low-level i/o\n", dev->id_unit);
+		return (0);
+	}
+
 	/*
 	 * If the device is on a multiport card and has an AST/4
 	 * compatible interrupt control register, initialize this
@@ -569,11 +578,15 @@ sioprobe(dev)
 	 * XXX what about the UART bug avoided by waiting in comparam()?
 	 * We don't want to to wait long enough to drain at 2 bps.
 	 */
-	outb(iobase + com_cfcr, CFCR_DLAB | CFCR_8BITS);
-	outb(iobase + com_dlbl, COMBRD(9600) & 0xff);
-	outb(iobase + com_dlbh, (u_int) COMBRD(9600) >> 8);
-	outb(iobase + com_cfcr, CFCR_8BITS);
-	DELAY((16 + 1) * 1000000 / (9600 / 10));
+	if (iobase == siocniobase)
+		DELAY((16 + 1) * 1000000 / (comdefaultrate / 10));
+	else {
+		outb(iobase + com_cfcr, CFCR_DLAB | CFCR_8BITS);
+		outb(iobase + com_dlbl, COMBRD(9600) & 0xff);
+		outb(iobase + com_dlbh, (u_int) COMBRD(9600) >> 8);
+		outb(iobase + com_cfcr, CFCR_8BITS);
+		DELAY((16 + 1) * 1000000 / (9600 / 10));
+	}
 
 	/*
 	 * Enable the interrupt gate and disable device interupts.  This
@@ -2383,8 +2396,6 @@ struct siocnstate {
 	u_char	mcr;
 };
 
-static	Port_t	siocniobase;
-
 static void siocnclose	__P((struct siocnstate *sp));
 static void siocnopen	__P((struct siocnstate *sp));
 static void siocntxwait	__P((void));
@@ -2478,21 +2489,40 @@ void
 siocnprobe(cp)
 	struct consdev	*cp;
 {
-	int	unit;
+	struct isa_device	*dvp;
+	int	s;
+	struct siocnstate	sp;
 
-	/* XXX: ick */
-	unit = DEV_TO_UNIT(CONUNIT);
-	siocniobase = CONADDR;
-
-	/* make sure hardware exists?  XXX */
-
-	/* initialize required fields */
-	cp->cn_dev = makedev(CDEV_MAJOR, unit);
-#ifdef COMCONSOLE
-	cp->cn_pri = CN_REMOTE;		/* Force a serial port console */
-#else
-	cp->cn_pri = (boothowto & RB_SERIAL) ? CN_REMOTE : CN_NORMAL;
-#endif
+	/*
+	 * Find our first enabled console, if any.  If it is a high-level
+	 * console device, then initialize it and return successfully.
+	 * If it is a low-level console device, then initialize it and
+	 * return unsuccessfully.  It must be initialized in both cases
+	 * for early use by console drivers and debuggers.  Initializing
+	 * the hardware is not necessary in all cases, since the i/o
+	 * routines initialize it on the fly, but it is necessary if
+	 * input might arrive while the hardware is switched back to an
+	 * uninitialized state.  We can't handle multiple console devices
+	 * yet because our low-level routines don't take a device arg.
+	 * We trust the user to set the console flags properly so that we
+	 * don't need to probe.
+	 */
+	cp->cn_pri = CN_DEAD;
+	for (dvp = isa_devtab_tty; dvp->id_driver != NULL; dvp++)
+		if (dvp->id_driver == &siodriver && dvp->id_enabled
+		    && COM_CONSOLE(dvp)) {
+			siocniobase = dvp->id_iobase;
+			s = spltty();
+			siocnopen(&sp);
+			splx(s);
+			if (!COM_LLCONSOLE(dvp)) {
+				cp->cn_dev = makedev(CDEV_MAJOR, dvp->id_unit);
+				cp->cn_pri = COM_FORCECONSOLE(dvp)
+					     || boothowto & RB_SERIAL
+					     ? CN_REMOTE : CN_NORMAL;
+			}
+			break;
+		}
 }
 
 void
