@@ -63,7 +63,7 @@ int encrypt;
 	{
 	register DES_LONG v0,v1;
 	register long l=length;
-	register int n=*num;
+	register int n= *num;
 	DES_LONG ti[2];
 	unsigned char *iv,c,cc;
 
