@@ -132,7 +132,7 @@ pos_out()
 	 */
 	if (!(out.flags & ISTAPE)) {
 		errno = 0;
-		if (lseek(out.fd, out.offset * out.dbsz, SEEK_SET) == -1 &&
+		if (lseek(out.fd, out.offset * out.dbsz, SEEK_CUR) == -1 &&
 		    errno != 0)
 			err(1, "%s", out.name);
 		return;

@@ -209,6 +209,8 @@ f_count(arg)
 	cpy_cnt = get_num(arg);
 	if (cpy_cnt < 0)
 		errx(1, "count cannot be negative");
+	if (cpy_cnt == 0)
+		cpy_cnt = -1;
 }
 
 static void
