@@ -247,7 +247,7 @@ if_simloop(ifp, m, af, hlen)
 		/* The alpha doesn't like unaligned data.
 		 * We move data down in the first mbuf */
 		if (mtod(m, vm_offset_t) & 3) {
-			KASSERT(hlen >= 3, "if_simloop: hlen too small");
+			KASSERT(hlen >= 3, ("if_simloop: hlen too small"));
 			bcopy(m->m_data, 
 			    (char *)(mtod(m, vm_offset_t) 
 				- (mtod(m, vm_offset_t) & 3)),
