@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.9 1997/10/23 02:44:22 ache Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.11 1998/01/21 14:37:22 ache Exp $";
 
 /* patch - a program to apply diffs to original files
  *
@@ -9,6 +9,9 @@ char rcsid[] =
  * money off of it, or pretend that you wrote it.
  *
  * $Log: patch.c,v $
+ * Revision 1.11  1998/01/21 14:37:22  ache
+ * Resurrect patch 2.1 without FreeBSD Index: hack
+ *
  * Revision 1.9  1997/10/23 02:44:22  ache
  * Add (unsigned char) cast to ctype macros
  *
@@ -171,6 +174,9 @@ static int reverse_flag_specified = FALSE;
 
 /* TRUE if -C was specified on command line.  */
 int check_patch = FALSE;
+
+/* TRUE if -I was specified on command line.  */
+int index_first = FALSE;
 
 /* Apply a set of diffs as appropriate. */
 
@@ -485,7 +491,7 @@ reinitialize_almost_everything()
 	fatal1("you may not change to a different patch file\n");
 }
 
-static char *shortopts = "-b:B:cCd:D:eEfF:lnNo:p::r:RsStuvV:x:";
+static char *shortopts = "-b:B:cCd:D:eEfF:IlnNo:p::r:RsStuvV:x:";
 static struct option longopts[] =
 {
   {"suffix", 1, NULL, 'b'},
@@ -498,6 +504,7 @@ static struct option longopts[] =
   {"remove-empty-files", 0, NULL, 'E'},
   {"force", 0, NULL, 'f'},
   {"fuzz", 1, NULL, 'F'},
+  {"index-first", 0, NULL, 'I'},
   {"ignore-whitespace", 0, NULL, 'l'},
   {"normal", 0, NULL, 'n'},
   {"forward", 0, NULL, 'N'},
@@ -573,6 +580,9 @@ get_some_switches()
 		break;
 	    case 'F':
 		maxfuzz = atoi(optarg);
+		break;
+	    case 'I':
+		index_first = TRUE;
 		break;
 	    case 'l':
 		canonicalize = TRUE;
