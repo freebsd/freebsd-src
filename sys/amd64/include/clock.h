@@ -3,20 +3,16 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.31 1998/02/01 22:45:23 bde Exp $
+ *	$Id: clock.h,v 1.32 1998/02/20 16:35:27 phk Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
 
-#define	TSC_COMULTIPLIER_SHIFT	20
-#define	TSC_MULTIPLIER_SHIFT	32
-
 #ifdef KERNEL
 /*
  * i386 to clock driver interface.
- * XXX almost all of it is misplaced.  i586 stuff is done in isa/clock.c
- * and isa stuff is done in i386/microtime.s and i386/support.s.
+ * XXX large parts of the driver and its interface are misplaced.
  */
 extern int	adjkerntz;
 extern int	disable_rtc_set;
