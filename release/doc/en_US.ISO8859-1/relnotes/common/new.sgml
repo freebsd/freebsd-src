@@ -326,6 +326,10 @@
     <para arch="alpha">The console driver has gained support for TGA-based
     display adapters.</para>
 
+    <para arch="i386">A new cdboot bootstrap utility for CDROMs provides
+    better compatability with some BIOS implementations that do not
+    completely implement the El Torito bootable CDROM standard.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -962,7 +966,8 @@
       management, has been added.  This functionality has been
       provided by the <application>Intel ACPI Component
       Architecture</application> project, updated to the ACPI CA
-      20010831 release.</para>
+      20011018 snapshot.  Some backward compatability for
+      applications using the older APM standard has been provided.</para>
 
       <sect4 arch="i386">
         <title>isdn4bsd</title>
@@ -2098,9 +2103,6 @@
       <para><application>am-utils</application> has been updated to 
       6.0.7.</para>
 
-      <para><application>awk</application> from Bell Labs has replaced
-      <application>GNU awk</application> in the &os; base system.</para>
-
       <para><application>bc</application> has been updated from 1.04 to
       1.06. &merged;</para>
 
@@ -2117,7 +2119,7 @@
       8.2.4-REL. &merged;</para>
 
       <para><application>Binutils</application> have been updated to
-      2.11.2. &merged;</para>
+      a 31 October 2001 snapshot from the FSF 2.11 branch.</para>
 
       <para><application>bzip2</application> 1.0.1 has been imported; this
       brings the &man.bzip2.1; program and the <filename>libbz2</filename>
@@ -2142,6 +2144,9 @@
       <para><application>GNATS</application> has been updated to
       3.113. &merged;</para>
       
+      <para><application>GNU awk</application> has been updated to
+      3.1.0.</para>
+
       <para><application>gperf</application> has been updated to 2.7.2.</para>
 
       <para><application>groff</application> and its related utilities
