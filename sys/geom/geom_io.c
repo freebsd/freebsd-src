@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
+#include <sys/ktr.h>
 
 #include <sys/errno.h>
 #include <geom/geom.h>
@@ -370,33 +371,50 @@ g_io_schedule_down(struct thread *tp __unused)
 		g_bioq_lock(&g_bio_run_down);
 		bp = g_bioq_first(&g_bio_run_down);
 		if (bp == NULL) {
+			CTR0(KTR_GEOM, "g_down going to sleep");
 			msleep(&g_wait_down, &g_bio_run_down.bio_queue_lock,
 			    PRIBIO | PDROP, "-", hz/10);
 			continue;
 		}
+		CTR0(KTR_GEOM, "g_down has work to do");
 		g_bioq_unlock(&g_bio_run_down);
 		if (pace > 0) {
+			CTR1(KTR_GEOM, "g_down pacing self (pace %d)", pace);
 			msleep(&error, NULL, PRIBIO, "g_down", hz/10);
 			pace--;
 		}
 		error = g_io_check(bp);
 		if (error) {
+			CTR3(KTR_GEOM, "g_down g_io_check on bp %p provider "
+			    "%s returned %d", bp, bp->bio_to->name, error);
 			g_io_deliver(bp, error);
 			continue;
 		}
+		CTR2(KTR_GEOM, "g_down processing bp %p provider %s", bp,
+		    bp->bio_to->name);
 		switch (bp->bio_cmd) {
 		case BIO_READ:
 		case BIO_WRITE:
 		case BIO_DELETE:
 			/* Truncate requests to the end of providers media. */
+			/*
+			 * XXX: What if we truncate because of offset being
+			 * bad, not length?
+			 */
 			excess = bp->bio_offset + bp->bio_length;
 			if (excess > bp->bio_to->mediasize) {
 				excess -= bp->bio_to->mediasize;
 				bp->bio_length -= excess;
+				if (excess > 0)
+					CTR3(KTR_GEOM, "g_down truncated bio "
+					    "%p provider %s by %d", bp,
+					    bp->bio_to->name, excess);
 			}
 			/* Deliver zero length transfers right here. */
 			if (bp->bio_length == 0) {
 				g_io_deliver(bp, 0);
+				CTR2(KTR_GEOM, "g_down terminated 0-length "
+				    "bp %p provider %s", bp, bp->bio_to->name);
 				continue;
 			}
 			break;
@@ -406,6 +424,9 @@ g_io_schedule_down(struct thread *tp __unused)
 #ifdef WITNESS
 		mtx_lock(&mymutex);
 #endif
+		CTR4(KTR_GEOM, "g_down starting bp %p provider %s off %ld "
+		    "len %ld", bp, bp->bio_to->name, bp->bio_offset,
+		    bp->bio_length);
 		bp->bio_to->geom->start(bp);
 #ifdef WITNESS
 		mtx_unlock(&mymutex);
@@ -451,6 +472,7 @@ g_io_schedule_up(struct thread *tp __unused)
 #ifdef WITNESS
 			mtx_lock(&mymutex);
 #endif
+			CTR1(KTR_GEOM, "g_up processing task bp %p", bp);
 			bp->bio_task(bp->bio_task_arg);
 #ifdef WITNESS
 			mtx_unlock(&mymutex);
@@ -463,12 +485,16 @@ g_io_schedule_up(struct thread *tp __unused)
 #ifdef WITNESS
 			mtx_lock(&mymutex);
 #endif
+			CTR4(KTR_GEOM, "g_up biodone bp %p provider %s off "
+			    "%ld len %ld", bp, bp->bio_to->name,
+			    bp->bio_offset, bp->bio_length);
 			biodone(bp);
 #ifdef WITNESS
 			mtx_unlock(&mymutex);
 #endif
 			continue;
 		}
+		CTR0(KTR_GEOM, "g_up going to sleep");
 		msleep(&g_wait_up, &g_bio_run_up.bio_queue_lock,
 		    PRIBIO | PDROP, "-", hz/10);
 	}
