@@ -125,6 +125,7 @@ cpu_fork(td1, p2, flags)
 	register struct proc *p1;
 	struct thread *td2;
 	struct pcb *pcb2;
+	struct mdproc *mdp2;
 #ifdef DEV_NPX
 	int savecrit;
 #endif
@@ -134,15 +135,15 @@ cpu_fork(td1, p2, flags)
 	if ((flags & RFPROC) == 0) {
 		if ((flags & RFMEM) == 0) {
 			/* unshare user LDT */
-			struct pcb *pcb1 = td1->td_pcb;
-			struct pcb_ldt *pcb_ldt = pcb1->pcb_ldt;
-			if (pcb_ldt && pcb_ldt->ldt_refcnt > 1) {
-				pcb_ldt = user_ldt_alloc(pcb1,pcb_ldt->ldt_len);
-				if (pcb_ldt == NULL)
+			struct mdproc *mdp1 = &td1->td_proc->p_md;
+			struct proc_ldt *pldt = mdp1->md_ldt;
+			if (pldt && pldt->ldt_refcnt > 1) {
+				pldt = user_ldt_alloc(mdp1, pldt->ldt_len);
+				if (pldt == NULL)
 					panic("could not copy LDT");
-				pcb1->pcb_ldt = pcb_ldt;
-				set_user_ldt(pcb1);
-				user_ldt_free(pcb1);
+				mdp1->md_ldt = pldt;
+				set_user_ldt(mdp1);
+				user_ldt_free(td1);
 			}
 		}
 		return;
@@ -162,8 +163,12 @@ cpu_fork(td1, p2, flags)
 	pcb2 = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	td2->td_pcb = pcb2;
 
-	/* Copy p1's pcb. */
+	/* Copy p1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
+
+	/* Point mdproc and then copy over td1's contents */
+	mdp2 = &td2->td_proc->p_md;
+	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
 
 	/*
 	 * Create a new fresh stack for the new process.
@@ -191,7 +196,6 @@ cpu_fork(td1, p2, flags)
 	pcb2->pcb_eip = (int)fork_trampoline;
 	/*-
 	 * pcb2->pcb_dr*:	cloned above.
-	 * pcb2->pcb_ldt:	duplicated below, if necessary.
 	 * pcb2->pcb_savefpu:	cloned above.
 	 * pcb2->pcb_flags:	cloned above.
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
@@ -206,13 +210,13 @@ cpu_fork(td1, p2, flags)
 
         /* Copy the LDT, if necessary. */
 	mtx_lock_spin(&sched_lock);
-        if (pcb2->pcb_ldt != 0) {
+        if (mdp2->md_ldt != 0) {
 		if (flags & RFMEM) {
-			pcb2->pcb_ldt->ldt_refcnt++;
+			mdp2->md_ldt->ldt_refcnt++;
 		} else {
-			pcb2->pcb_ldt = user_ldt_alloc(pcb2,
-				pcb2->pcb_ldt->ldt_len);
-			if (pcb2->pcb_ldt == NULL)
+			mdp2->md_ldt = user_ldt_alloc(mdp2,
+			    mdp2->md_ldt->ldt_len);
+			if (mdp2->md_ldt == NULL)
 				panic("could not copy LDT");
 		}
         }
@@ -254,7 +258,7 @@ cpu_exit(td)
 	register struct thread *td;
 {
 	struct pcb *pcb = td->td_pcb; 
-
+	struct mdproc *mdp = &td->td_proc->p_md;
 #ifdef DEV_NPX
 	npxexit(td);
 #endif
@@ -267,8 +271,8 @@ cpu_exit(td)
 		    ctob(IOPAGES + 1));
 		pcb->pcb_ext = 0;
 	}
-	if (pcb->pcb_ldt)
-		user_ldt_free(pcb);
+	if (mdp->md_ldt)
+		user_ldt_free(td);
         if (pcb->pcb_flags & PCB_DBREGS) {
                 /*
                  * disable all hardware breakpoints
