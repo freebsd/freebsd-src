@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.6 1998/06/06 23:33:28 jb Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.7 1999/02/15 08:11:44 des Exp $ (LBL)";
 #endif
 
 /*
@@ -416,8 +416,9 @@ main(int argc, char **argv)
 
 		case 'w':
 			waittime = atoi(optarg);
-			if (waittime <= 1) {
-				Fprintf(stderr, "%s: wait must be > 1 sec\n",
+			if (waittime <= 1 || waittime >= 24L * 60 * 60) {
+				Fprintf(stderr,
+				    "%s: wait must be > 1 sec and < 1 day\n",
 				    prog);
 				exit(1);
 			}
@@ -724,6 +725,7 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 	struct timeval now, wait;
 	struct timezone tz;
 	register int cc = 0;
+	register int error;
 	int fromlen = sizeof(*fromp);
 
 	FD_ZERO(&fds);
@@ -732,11 +734,18 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 	wait.tv_sec = tp->tv_sec + waittime;
 	wait.tv_usec = tp->tv_usec;
 	(void)gettimeofday(&now, &tz);
-	if (wait.tv_sec < now.tv_sec + 1)
-		wait.tv_sec = now.tv_sec + 1;
 	tvsub(&wait, &now);
+	if (wait.tv_sec < 0) {
+		wait.tv_sec = 0;
+		wait.tv_usec = 1;
+	}
 
-	if (select(sock + 1, &fds, (fd_set *)0, (fd_set *)0, &wait) > 0)
+	error = select(sock + 1, &fds, (fd_set *)0, (fd_set *)0, &wait);
+	if (error == -1 && errno == EINVAL) {
+		Fprintf(stderr, "%s: botched select() args\n", prog);
+		exit(1);
+	}
+	if (error > 0)
 		cc = recvfrom(s, (char *)packet, sizeof(packet), 0,
 			    (struct sockaddr *)fromp, &fromlen);
 
@@ -914,7 +923,7 @@ in_cksum(register u_short *addr, register int len)
 
 /*
  * Subtract 2 timeval structs:  out = out - in.
- * Out is assumed to be >= in.
+ * Out is assumed to be within about LONG_MAX seconds of in.
  */
 void
 tvsub(register struct timeval *out, register struct timeval *in)
