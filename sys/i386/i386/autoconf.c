@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.126 1999/07/03 08:23:50 phk Exp $
+ *	$Id: autoconf.c,v 1.127 1999/07/03 17:40:29 peter Exp $
  */
 
 /*
@@ -163,8 +163,8 @@ find_cdrom_root()
 			if (bd == NULL || bd->d_open == NULL)
 				continue;
 			if (bootverbose)
-				printf("trying %s%d as rootdev (0x%x)\n",
-				       try_cdrom[j].name, i, rootdev);
+				printf("trying %s%d as rootdev (%p)\n",
+				       try_cdrom[j].name, i, (void *)rootdev);
 			error = (bd->d_open)(rootdev, FREAD, S_IFBLK, curproc);
 			if (error == 0) {
 				if (bd->d_close != NULL)
