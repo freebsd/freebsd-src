@@ -57,7 +57,7 @@ main(argc, argv)
 	char **argv;
 {
 	int ch, sflag;
-	char *t, *ttyname();
+	char *t;
 
 	sflag = 0;
 	while ((ch = getopt(argc, argv, "s")) != -1)
