@@ -45,3 +45,7 @@ extern int i386_syscall_exit(struct trussinfo *, int);
 extern void i386_linux_syscall_entry(struct trussinfo *, int);
 extern int i386_linux_syscall_exit(struct trussinfo *, int);
 #endif
+#ifdef __sparc64__
+extern void sparc64_syscall_entry(struct trussinfo *, int);
+extern int sparc64_syscall_exit(struct trussinfo *, int);
+#endif

@@ -91,6 +91,9 @@ struct ex_types {
   { "FreeBSD ELF32", i386_syscall_entry, i386_syscall_exit },
   { "Linux ELF", i386_linux_syscall_entry, i386_linux_syscall_exit },
 #endif
+#ifdef __sparc64__
+  { "FreeBSD ELF64", sparc64_syscall_entry, sparc64_syscall_exit },
+#endif
   { 0, 0, 0 },
 };
 
