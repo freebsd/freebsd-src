@@ -146,6 +146,8 @@ _${file}: ${file} ${file}.diff
 .endfor
 
 .for file in infblock.c infcodes.c inffast.c inflate.c inftrees.c infutil.c zutil.c
+CLEANFILES+=	_${file}
+
 _${file}: ${file}
 	sed "s|zutil\.h|_zutil.h|" ${.ALLSRC} > ${.TARGET}
 .endfor
