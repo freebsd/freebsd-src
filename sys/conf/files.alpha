@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.18 1999/04/16 21:21:34 peter Exp $
+#	$Id: files.alpha,v 1.19 1999/05/26 23:22:13 gallatin Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -35,6 +35,7 @@ alpha/alpha/mountroot.c		optional	slice
 alpha/alpha/ipl_funcs.c		standard
 alpha/alpha/pal.s		standard
 alpha/alpha/busdma_machdep.c	standard
+alpha/alpha/sgmap.c		standard
 alpha/alpha/cons.c		standard
 alpha/alpha/prom.c		standard
 alpha/alpha/promcons.c		standard
@@ -124,6 +125,7 @@ alpha/pci/tsunami.c		optional	tsunami
 alpha/pci/tsunami_pci.c		optional	tsunami
 alpha/pci/pcibus.c		optional	pci
 alpha/isa/isa.c			optional	isa
+alpha/isa/isa_dma.c		optional	isa
 alpha/isa/mcclock_isa.c		optional	isa
 alpha/alpha/elf_machdep.c	standard
 libkern/bcd.c			standard
@@ -163,6 +165,7 @@ dev/syscons/syscons.c		optional	sc	device-driver
 dev/syscons/scvidctl.c		optional	sc	device-driver
 isa/syscons_isa.c		optional	sc	device-driver
 isa/psm.c			optional	psm	device-driver
+isa/fd.c			optional	fd	device-driver
 dev/ata/ata-all.c		optional	ata	device-driver
 dev/ata/ata-dma.c		optional	ata	device-driver
 dev/ata/atapi-all.c		optional	ata	device-driver

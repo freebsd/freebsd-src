@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.1 1998/09/16 08:20:45 dfr Exp $
+ *      $Id: busdma_machdep.c,v 1.2 1999/05/26 23:01:36 gallatin Exp $
  */
 
 #include <sys/param.h>
@@ -35,6 +35,7 @@
 #include <vm/vm_page.h>
 
 #include <machine/bus.h>
+#include <machine/sgmap.h>
 #include <machine/md_var.h>
 
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
@@ -81,8 +82,10 @@ struct bus_dmamap {
 	bus_dma_tag_t	       dmat;
 	void		      *buf;		/* unmapped buffer pointer */
 	bus_size_t	       buflen;		/* unmapped buffer length */
+	vm_offset_t	       busaddress;	/* address in bus space */
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
+	void		      *sgmaphandle;	/* handle into sgmap */
 	STAILQ_ENTRY(bus_dmamap) links;
 };
 
@@ -237,6 +240,25 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 
 	error = 0;
 
+	if (dmat->flags & BUS_DMA_ISA) {
+		bus_dmamap_t map;
+		map = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
+					     M_NOWAIT);
+		if (map == NULL) {
+			return (ENOMEM);
+		} else {
+			bzero(map, sizeof(*map));
+			map->busaddress =
+				sgmap_alloc_region(chipset.sgmap,
+						   dmat->maxsize,
+						   dmat->boundary,
+						   &map->sgmaphandle);
+			dmat->map_count++;
+			*mapp = map;
+			return (0);
+		}
+	}
+
 	if (dmat->lowaddr < ptoa(Maxmem)) {
 		/* Must bounce */
 		int maxpages;
@@ -294,6 +316,10 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 int
 bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
+	if (dmat->flags & BUS_DMA_ISA) {
+		sgmap_free_region(chipset.sgmap, map->sgmaphandle);
+	}
+
 	if (map != NULL) {
 		if (STAILQ_FIRST(&map->bpages) != NULL)
 			return (EBUSY);
@@ -376,6 +402,28 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	int			error;
 
 	error = 0;
+
+	if (dmat->flags & BUS_DMA_ISA) {
+		/*
+		 * For ISA dma, we use the chipset's scatter-gather
+		 * map to map the tranfer into the ISA reachable range
+		 * of the bus address space.
+		 */
+		vaddr = trunc_page((vm_offset_t) buf);
+		dm_segments[0].ds_addr =
+			map->busaddress + (vm_offset_t) buf - vaddr;
+		dm_segments[0].ds_len = buflen;
+		buflen = round_page((vm_offset_t) buf + buflen) - vaddr;
+		sgmap_load_region(chipset.sgmap,
+				  map->busaddress,
+				  vaddr,
+				  buflen);
+		map->buflen = buflen;
+		(*callback)(callback_arg, dm_segments, 1, error);
+
+		return (0);
+	}
+
 	/*
 	 * If we are being called during a callback, pagesneeded will
 	 * be non-zero, so we can avoid doing the work twice.
@@ -478,6 +526,13 @@ void
 _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	struct bounce_page *bpage;
+
+	if (dmat->flags & BUS_DMA_ISA) {
+		sgmap_unload_region(chipset.sgmap,
+				    map->busaddress,
+				    map->buflen);
+		return;
+	}
 
 	while ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
 		STAILQ_REMOVE_HEAD(&map->bpages, links);
@@ -637,7 +692,7 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 }
 
 void
-busdma_swi()
+busdma_swi(void)
 {
 	int s;
 	struct bus_dmamap *map;

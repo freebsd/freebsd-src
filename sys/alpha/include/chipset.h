@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chipset.h,v 1.7 1999/04/16 21:21:35 peter Exp $
+ *	$Id: chipset.h,v 1.8 1999/05/20 15:33:16 gallatin Exp $
  */
 
 #ifndef _MACHINE_CHIPSET_H_
@@ -56,6 +56,8 @@ typedef void		alpha_chipset_cfgwritel_t(u_int, u_int, u_int, u_int, u_int,
 typedef vm_offset_t     alpha_chipset_addrcvt_t(vm_offset_t);
 typedef u_int64_t	alpha_chipset_read_hae_t(void);
 typedef void		alpha_chipset_write_hae_t(u_int64_t);
+
+struct sgmap;
 
 typedef struct alpha_chipset {
     /*
@@ -100,6 +102,11 @@ typedef struct alpha_chipset {
      */
     alpha_chipset_read_hae_t*	read_hae;
     alpha_chipset_write_hae_t*	write_hae;
+
+    /*
+     * Scatter-Gather map for ISA dma.
+     */
+    struct sgmap*		sgmap;
 } alpha_chipset_t;
 
 extern alpha_chipset_t chipset;

@@ -67,7 +67,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* $Id$ */
+/* $Id: bus.h,v 1.2 1998/09/16 08:22:57 dfr Exp $ */
 
 #ifndef _ALPHA_BUS_H_
 #define _ALPHA_BUS_H_
@@ -1025,8 +1025,8 @@ bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t bsh,
 #define	BUS_DMA_NOWAIT		0x01	/* not safe to sleep */
 #define	BUS_DMA_ALLOCNOW	0x02	/* perform resource allocation now */
 #define	BUS_DMAMEM_NOSYNC	0x04	/* map memory to not require sync */
-#define	BUS_DMA_BUS1		0x10	/* placeholders for bus functions... */
-#define	BUS_DMA_BUS2		0x20
+#define	BUS_DMA_ISA		0x10	/* map memory for ISA dma */
+#define	BUS_DMA_BUS2		0x20	/* placeholders for bus functions... */
 #define	BUS_DMA_BUS3		0x40
 #define	BUS_DMA_BUS4		0x80
 

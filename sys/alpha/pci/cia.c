@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.17 1999/05/08 21:58:41 dfr Exp $
+ *	$Id: cia.c,v 1.18 1999/05/20 15:33:21 gallatin Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -95,6 +95,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/malloc.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -109,6 +110,11 @@
 #include <machine/cpuconf.h>
 #include <machine/rpb.h>
 #include <machine/resource.h>
+#include <machine/sgmap.h>
+
+#include <vm/vm.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_page.h>
 
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
 
@@ -673,6 +679,142 @@ static driver_t cia_driver = {
 	sizeof(struct cia_softc),
 };
 
+#define CIA_SGMAP_BASE		(8*1024*1024)
+#define CIA_SGMAP_SIZE		(8*1024*1024)
+#define	CIA_PYXIS_BUG_BASE	(128*1024*1024)
+#define	CIA_PYXIS_BUG_SIZE	(2*1024*1024)
+
+static void
+cia_sgmap_invalidate(void)
+{
+	REGVAL(CIA_PCI_TBIA) = CIA_PCI_TBIA_ALL;
+	alpha_mb();
+}
+
+static void
+cia_sgmap_invalidate_pyxis(void)
+{
+	volatile u_int64_t dummy;
+	u_int32_t ctrl;
+	int i, s;
+
+	s = splhigh();
+
+	/*
+	 * Put the Pyxis into PCI loopback mode.
+	 */
+	alpha_mb();
+	ctrl = REGVAL(CIA_CSR_CTRL);
+	REGVAL(CIA_CSR_CTRL) = ctrl | CTRL_PCI_LOOP_EN;
+	alpha_mb();
+
+	/*
+	 * Now, read from PCI dense memory space at offset 128M (our
+	 * target window base), skipping 64k on each read.  This forces
+	 * S/G TLB misses.
+	 *
+	 * XXX Looks like the TLB entries are `not quite LRU'.  We need
+	 * XXX to read more times than there are actual tags!
+	 */
+	for (i = 0; i < CIA_TLB_NTAGS + 4; i++) {
+		dummy = *((volatile u_int64_t *)
+		    ALPHA_PHYS_TO_K0SEG(CIA_PCI_DENSE + CIA_PYXIS_BUG_BASE +
+		    (i * 65536)));
+	}
+
+	/*
+	 * Restore normal PCI operation.
+	 */
+	alpha_mb();
+	REGVAL(CIA_CSR_CTRL) = ctrl;
+	alpha_mb();
+
+	splx(s);
+}
+
+static void
+cia_sgmap_map(void *arg, vm_offset_t ba, vm_offset_t pa)
+{
+	u_int64_t *sgtable = arg;
+	int index = alpha_btop(ba - CIA_SGMAP_BASE);
+
+	if (pa) {
+		if (pa > (1L<<32))
+			panic("cia_sgmap_map: can't map address 0x%lx", pa);
+		sgtable[index] = ((pa >> 13) << 1) | 1;
+	} else {
+		sgtable[index] = 0;
+	}
+	alpha_mb();
+
+	if (cia_ispyxis)
+		cia_sgmap_invalidate_pyxis();
+	else
+		cia_sgmap_invalidate();
+}
+
+static void
+cia_init_sgmap(void)
+{
+	void *sgtable;
+
+	/*
+	 * First setup Window 0 to map 8Mb to 16Mb with an
+	 * sgmap. Allocate the map aligned to a 32 boundary.
+	 */
+	REGVAL(CIA_PCI_W0BASE) = (CIA_SGMAP_BASE
+				  | CIA_PCI_WnBASE_SG_EN
+				  | CIA_PCI_WnBASE_W_EN);
+	alpha_mb();
+
+	REGVAL(CIA_PCI_W0MASK) = CIA_PCI_WnMASK_8M;
+	alpha_mb();
+
+	sgtable = contigmalloc(8192, M_DEVBUF, M_NOWAIT,
+			       0, (1L<<34),
+			       32*1024, (1L<<34));
+	if (!sgtable)
+		panic("cia_init_sgmap: can't allocate page table");
+	REGVAL(CIA_PCI_T0BASE) =
+		(pmap_kextract((vm_offset_t) sgtable) >> CIA_PCI_TnBASE_SHIFT);
+
+	chipset.sgmap = sgmap_map_create(CIA_SGMAP_BASE,
+					 CIA_SGMAP_BASE + CIA_SGMAP_SIZE,
+					 cia_sgmap_map, sgtable);
+
+	if (cia_ispyxis) {
+		/*
+		 * Pyxis has broken TLB invalidate. We use the NetBSD
+		 * workaround of using another region to spill entries 
+		 * out of the TLB. The 'bug' region is 2Mb mapped at
+		 * 128Mb.
+		 */
+		int i;
+		vm_offset_t pa;
+		u_int64_t *bugtable;
+
+		REGVAL(CIA_PCI_W2BASE) = CIA_PYXIS_BUG_BASE |
+		    CIA_PCI_WnBASE_SG_EN | CIA_PCI_WnBASE_W_EN;
+		alpha_mb();
+
+		REGVAL(CIA_PCI_W2MASK) = CIA_PCI_WnMASK_2M;
+		alpha_mb();
+
+		bugtable = contigmalloc(8192, M_DEVBUF, M_NOWAIT,
+				       0, (1L<<34),
+				       2*1024, (1L<<34));
+		if (!bugtable)
+			panic("cia_init_sgmap: can't allocate page table");
+		REGVAL(CIA_PCI_T2BASE) =
+			(pmap_kextract((vm_offset_t) bugtable)
+			 >> CIA_PCI_TnBASE_SHIFT);
+
+		pa = sgmap_overflow_page();
+		for (i = 0; i < alpha_btop(CIA_PYXIS_BUG_SIZE); i++)
+			bugtable[i] = ((pa >> 13) << 1) | 1;
+	}
+}
+
 void
 cia_init()
 {
@@ -730,6 +872,7 @@ cia_probe(device_t dev)
 
 	pci_init_resources();
 	isa_init_intr();
+	cia_init_sgmap();
 
 	device_add_child(dev, "pcib", 0, 0);
 
