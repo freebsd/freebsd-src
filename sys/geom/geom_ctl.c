@@ -266,7 +266,7 @@ gctl_dump(struct gctl_req *req)
 		} else if (ap->flag & GCTL_PARAM_ASCII) {
 			printf("\"%s\"", (char *)ap->kvalue);
 		} else if (ap->len > 0) {
-			for (j = 0; j < ap->len; j++)
+			for (j = 0; j < ap->len && j < 512; j++)
 				printf(" %02x", ((u_char *)ap->kvalue)[j]);
 		} else {
 			printf(" = %p", ap->kvalue);
@@ -473,6 +473,7 @@ g_ctl_ioctl_ctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 		gctl_copyout(req);
 	}
 
+	g_waitidle();
 	gctl_free(req);
 	return (req->nerror);
 }
