@@ -157,8 +157,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 			/*
 			 * Flush any dirty data.
 			 */
-			if ((error = VFS_SYNC(mp, MNT_WAIT,
-			    td->td_ucred, td)) != 0) {
+			if ((error = VFS_SYNC(mp, MNT_WAIT, td)) != 0) {
 				vn_finished_write(mp);
 				return (error);
 			}
@@ -1001,7 +1000,7 @@ ffs_flushfiles(mp, flags, td)
 	 * Flush filesystem metadata.
 	 */
 	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_FSYNC(ump->um_devvp, td->td_ucred, MNT_WAIT, td);
+	error = VOP_FSYNC(ump->um_devvp, MNT_WAIT, td);
 	VOP_UNLOCK(ump->um_devvp, 0, td);
 	return (error);
 }
@@ -1044,10 +1043,9 @@ ffs_statfs(mp, sbp, td)
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
 int
-ffs_sync(mp, waitfor, cred, td)
+ffs_sync(mp, waitfor, td)
 	struct mount *mp;
 	int waitfor;
-	struct ucred *cred;
 	struct thread *td;
 {
 	struct vnode *nvp, *vp, *devvp;
@@ -1100,7 +1098,7 @@ loop:
 				goto loop;
 			continue;
 		}
-		if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
+		if ((error = VOP_FSYNC(vp, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
@@ -1128,7 +1126,7 @@ loop:
 	if (waitfor != MNT_LAZY &&
 	    (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
-		if ((error = VOP_FSYNC(devvp, cred, waitfor, td)) != 0)
+		if ((error = VOP_FSYNC(devvp, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(devvp, 0, td);
 		if (allerror == 0 && waitfor == MNT_WAIT) {

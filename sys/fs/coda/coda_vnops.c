@@ -763,7 +763,6 @@ coda_fsync(struct vop_fsync_args *ap)
 /* true args */
     struct vnode *vp = ap->a_vp;
     struct cnode *cp = VTOC(vp);
-    struct ucred *cred = ap->a_cred;
     struct thread *td = ap->a_td;
 /* locals */
     struct vnode *convp = cp->c_ovp;
@@ -787,7 +786,7 @@ coda_fsync(struct vop_fsync_args *ap)
     }
 
     if (convp)
-    	VOP_FSYNC(convp, cred, MNT_WAIT, td);
+    	VOP_FSYNC(convp, MNT_WAIT, td);
 
     /*
      * We see fsyncs with usecount == 1 then usecount == 0.
@@ -815,7 +814,7 @@ coda_fsync(struct vop_fsync_args *ap)
 
     /* needs research */
     return 0;
-    error = venus_fsync(vtomi(vp), &cp->c_fid, cred, td->td_proc);
+    error = venus_fsync(vtomi(vp), &cp->c_fid, td->td_proc);
 
     CODADEBUG(CODA_FSYNC, myprintf(("in fsync result %d\n",error)); );
     return(error);

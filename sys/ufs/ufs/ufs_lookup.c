@@ -805,7 +805,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 				return (error);
 			if (tvp != NULL)
 				VOP_UNLOCK(tvp, 0, td);
-			error = VOP_FSYNC(dvp, td->td_ucred, MNT_WAIT, td);
+			error = VOP_FSYNC(dvp, MNT_WAIT, td);
 			if (tvp != NULL)
 				vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, td);
 			return (error);

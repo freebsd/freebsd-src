@@ -75,8 +75,7 @@ venus_readlink(void *mdp, CodaFid *fid,
 /*out*/	char **str, int *len);
 
 int
-venus_fsync(void *mdp, CodaFid *fid,
-	struct ucred *cred, struct proc *p);
+venus_fsync(void *mdp, CodaFid *fid, struct proc *p);
 
 int
 venus_lookup(void *mdp, CodaFid *fid,

@@ -270,7 +270,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 		}
 		if (!(pmp->pm_flags & MSDOSFSMNT_RONLY) &&
 		    vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
-			error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td);
+			error = VFS_SYNC(mp, MNT_WAIT, td);
 			if (error)
 				return (error);
 			flags = WRITECLOSE;
@@ -852,10 +852,9 @@ msdosfs_statfs(mp, sbp, td)
 }
 
 static int
-msdosfs_sync(mp, waitfor, cred, td)
+msdosfs_sync(mp, waitfor, td)
 	struct mount *mp;
 	int waitfor;
-	struct ucred *cred;
 	struct thread *td;
 {
 	struct vnode *vp, *nvp;
@@ -902,7 +901,7 @@ loop:
 				goto loop;
 			continue;
 		}
-		error = VOP_FSYNC(vp, cred, waitfor, td);
+		error = VOP_FSYNC(vp, waitfor, td);
 		if (error)
 			allerror = error;
 		VOP_UNLOCK(vp, 0, td);
@@ -916,7 +915,7 @@ loop:
 	 */
 	if (waitfor != MNT_LAZY) {
 		vn_lock(pmp->pm_devvp, LK_EXCLUSIVE | LK_RETRY, td);
-		error = VOP_FSYNC(pmp->pm_devvp, cred, waitfor, td);
+		error = VOP_FSYNC(pmp->pm_devvp, waitfor, td);
 		if (error)
 			allerror = error;
 		VOP_UNLOCK(pmp->pm_devvp, 0, td);

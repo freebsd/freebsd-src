@@ -835,7 +835,7 @@ again:
 	}
 	vm_page_unlock_queues();
 #if 0
-	VOP_FSYNC(vp, NULL, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
+	VOP_FSYNC(vp, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
 #endif
 
 	vm_object_clear_flag(object, OBJ_CLEANING);

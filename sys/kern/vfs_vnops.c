@@ -1021,7 +1021,7 @@ vfs_write_suspend(mp)
 	mp->mnt_kern_flag |= MNTK_SUSPEND;
 	if (mp->mnt_writeopcount > 0)
 		(void) tsleep(&mp->mnt_writeopcount, PUSER - 1, "suspwt", 0);
-	if ((error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td)) != 0) {
+	if ((error = VFS_SYNC(mp, MNT_WAIT, td)) != 0) {
 		vfs_write_resume(mp);
 		return (error);
 	}

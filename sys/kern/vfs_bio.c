@@ -1028,7 +1028,7 @@ bdwrite(struct buf *bp)
 		recursiveflushes++;
 	} else if (bo->bo_dirty.bv_cnt > dirtybufthresh + 10) {
 		BO_UNLOCK(bo);
-		(void) VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td);
+		(void) VOP_FSYNC(vp, MNT_NOWAIT, td);
 		BO_LOCK(bo);
 		altbufferflushes++;
 	} else if (bo->bo_dirty.bv_cnt > dirtybufthresh) {
