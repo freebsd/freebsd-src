@@ -48,6 +48,16 @@ is an array of
 .Ar niocb
 pointers to asynchronous I/O requests.  Array members containing
 NULL will be silently ignored.
+.Pp
+If
+.Ar timeout
+is a non-nil pointer, it specifies a maximum interval to suspend.
+If
+.Ar timeout
+is a nil pointer, the suspend blocks indefinitely.  To effect a
+poll, the
+.Ar timeout
+should point to a zero-value timespec structure.
 .Sh RETURN VALUES
 If one or more of the specified asynchronous I/O requests have
 completed,
