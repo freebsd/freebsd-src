@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.26 1997/08/13 18:56:54 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.81.2.27 1997/08/19 04:25:13 gibbs Exp $
  */
 /*
  * TODO:
@@ -236,11 +236,8 @@ static inline void
 restart_sequencer(ahc)
 	struct ahc_softc *ahc;
 {
-	do {
-		ahc_outb(ahc, SEQCTL, SEQRESET|FASTMODE);
-	} while ((ahc_inb(ahc, SEQADDR0) != 0)
-	      || (ahc_inb(ahc, SEQADDR1) != 0));
-
+	pause_sequencer(ahc);
+	ahc_outb(ahc, SEQCTL, SEQRESET|FASTMODE);
 	unpause_sequencer(ahc, /*unpause_always*/TRUE);
 }
 
@@ -3057,7 +3054,7 @@ bus_reset:
 					(scb->xs->timeout * hz) / 1000);
 			}
 			timeout(ahc_timeout, (caddr_t)active_scb,
-				(200 * hz) / 1000);
+				(2000 * hz) / 1000);
 			unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		} else {
 			int	 disconnected;
@@ -3123,7 +3120,7 @@ bus_reset:
 						   links);
 				scb->flags |= SCB_WAITINGQ;
 				timeout(ahc_timeout, (caddr_t)scb,
-					(200 * hz) / 1000);
+					(2000 * hz) / 1000);
 				ahc_outb(ahc, SCBPTR, saved_scbptr);
 				/*
 				 * ahc_run_waiting_queue may unpause us
@@ -3626,8 +3623,6 @@ ahc_reset_current_bus(ahc)
  
 	/* Re-enable reset interrupts */
 	ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) | ENSCSIRST);
-
-	ahc_run_done_queue(ahc);
 }
 
 static int
@@ -3716,13 +3711,7 @@ ahc_reset_channel(ahc, channel, xs_error, initiate_reset)
 	 * processing.
 	 */
 	ahc_untimeout_done_queue(ahc);
-	if (initiate_reset == 0) {
-		/*
-		 * If we initiated the reset, we'll run the queue
-		 * once our bus-settle delay has expired.
-		 */
-		ahc_run_done_queue(ahc);
-	}
+	ahc_run_done_queue(ahc);
 	return found;
 }
 
