@@ -131,7 +131,7 @@ distribution:
 	${INSTALL} -c -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/log/authentication.log
+	    ${DESTDIR}/var/log/auth.log
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/lpd-errs
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
