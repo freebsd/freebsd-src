@@ -5,9 +5,9 @@
 .Nm getopt
 .Nd parse command options
 .Sh SYNOPSIS
-.Ic set \-\- \`getopt Ar optstring
+.Ic var=\`getopt Ar optstring
 .Qq $@
-\`
+\` ; set \-\- $var
 .Sh DESCRIPTION
 .Nm Getopt
 is used to break up options in command lines for easy parsing by
@@ -50,15 +50,17 @@ then
 	echo 'Usage: ...'
 	exit 2
 fi
-eval set \-\- $tmp
+set \-\- $tmp
 for i
 do
 	case "$i"
 	in
 		\-a|\-b)
-			echo flag $i set; sflags="${i#-}$sflags"; shift;;
+			echo flag $i set; sflags="${i#-}$sflags"; 
+			shift;;
 		\-o)
-			echo oarg is "'"$2"'"; oarg="$2"; shift; shift;;
+			echo oarg is "'"$2"'"; oarg="$2"; shift;
+			shift;;
 		\-\-)
 			shift; break;;
 	esac
@@ -75,12 +77,6 @@ cmd \-a \-o arg file file
 cmd \-oarg -a file file
 cmd \-a \-oarg \-\- file file
 .Pp
-Test your scripts with calls like this
-.Pp
-cmd \-ab \-o 'f \-z'
-.Pp
-to verify that they work with parameters/filenames that have
-whitespace in them.
 .Ed
 .Sh SEE ALSO
 .Xr sh 1 ,
@@ -100,20 +96,8 @@ Whatever
 .Xr getopt 3
 has.
 .Pp
-It is hard to get command switch parsing right in shell scripts,
-especially with arguments containing whitespace or embedded shell
-metacharacters. This version of
-.Nm getopt
-and the example in this manpage have been fixed to avoid traditional
-problems. They have been tested with
-.Fx
-.Xr sh 1
-and with GNU bash. Note that bash has a builtin
-.Nm getopt .
-In shells with builtin
-.Nm getopt
-you need to call getopt with a full path to get the external version
-described here.
+Arguments containing white space or embedded shell metacharacters
+generally will not survive intact;  this looks easy to fix but isn't.
 .Pp
 The error message for an invalid option is identified as coming
 from
@@ -121,4 +105,9 @@ from
 rather than from the shell procedure containing the invocation
 of
 .Nm getopt ;
-this is hard to fix.
+this again is hard to fix.
+.Pp
+The precise best way to use the
+.Nm set
+command to set the arguments without disrupting the value(s) of
+shell options varies from one shell version to another.
