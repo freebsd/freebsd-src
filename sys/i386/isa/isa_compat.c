@@ -296,23 +296,3 @@ isa_wrap_old_drivers(void)
 		devclass_add_driver(isa_devclass, driver);
 	}
 }
-
-int
-haveseen_iobase(struct isa_device *dvp, int size)
-{
-	int rid;
-	struct resource *res;
-	device_t dev = dvp->id_device;
-	int base = dvp->id_iobase;
-
-	/*
-	 * Ask for resource 1 so that we don't hurt our hints.  In theory
-	 * this should work, but....
-	 */
-	rid = 1;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-				 &rid, base, base + size, size, RF_ACTIVE);
-	if (res)
-		bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
-	return res ? 0 : 1;
-}
