@@ -1,7 +1,7 @@
 PROG=	sysinstall
 NOMAN=	yes
 CLEANFILES=	makedevs.c rtermcap
-DEBUG_FLAGS+=	-g3
+#DEBUG_FLAGS+=	-g3
 
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
