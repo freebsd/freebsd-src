@@ -53,7 +53,6 @@ extern	u_int	cpu_id;
 extern	u_int	cpu_procinfo;
 extern	char	cpu_vendor[];
 extern	u_int	cyrix_did;
-extern	uint16_t *elan_mmcr;
 extern	char	kstack[];
 #ifdef PC98
 extern	int	need_pre_dma_flush;

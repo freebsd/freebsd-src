@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_pc98.h"
 #endif
 #include "opt_reset.h"
+#include "opt_cpu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -76,6 +77,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/pcb_ext.h>
 #include <machine/vm86.h>
+
+#ifdef CPU_ELAN
+#include <machine/elan_mmcr.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -537,6 +542,11 @@ cpu_reset()
 static void
 cpu_reset_real()
 {
+
+#ifdef CPU_ELAN
+	if (elan_mmcr != NULL)
+		elan_mmcr->RESCFG = 1;
+#endif
 
 #ifdef PC98
 	/*
