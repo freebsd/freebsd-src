@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.6 1998/09/13 22:15:44 eivind Exp $
+ *      $Id: pnp.c,v 1.7 1998/10/22 05:58:40 bde Exp $
  */
 
 #include <sys/param.h>
@@ -373,9 +373,9 @@ config_pnp_device(pnp_id *p, int csn)
 
     /* these are for autoconfigure a-la pci */
     struct pnp_device *dvp, **dvpp;
-    char *name ;
+    char *name = NULL;
 
-    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08x] Serial 0x%08x Comp ID: %c%c%c%02x%02x [0x%08x]\n",
+    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08lx] Serial 0x%08lx Comp ID: %c%c%c%02x%02x [0x%08lx]\n",
 	csn,
 	((data[0] & 0x7c) >> 2) + '@',
 	(((data[0] & 0x03) << 3) | ((data[1] & 0xe0) >> 5)) + '@',
@@ -533,7 +533,7 @@ pnp_scan_resdata(pnp_id *p, int csn)
 		        bcopy(resinfo, &p->comp_id, 4);
 			retval = TRUE;
 			if (bootverbose)
-			    printf("PnP: CSN %d COMP_DEVICE_ID = 0x%08x\n", csn, p->comp_id);
+			    printf("PnP: CSN %d COMP_DEVICE_ID = 0x%08lx\n", csn, p->comp_id);
 		    }
 		    /*
 		     * We found what we were looking for, or got an error from
