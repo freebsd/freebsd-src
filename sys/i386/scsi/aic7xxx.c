@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.30 1995/07/04 21:14:44 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.31 1995/07/08 22:09:11 ats Exp $
  */
 /*
  * TODO:
@@ -877,7 +877,8 @@ ahc_attach(unit)
 		/* Configure the second scsi bus */
 		ahc->sc_link_b = ahc->sc_link;
         	ahc->sc_link_b.adapter_targ = ahc->our_id_b;
-		ahc->sc_link_b.fordriver = (void *)0x0008;
+        	ahc->sc_link_b.adapter_bus = 1;
+		ahc->sc_link_b.fordriver = (void *)SELBUSB;
 		printf("ahc%d: Probing Channel B\n", unit);
 		scsi_attachdevs(&(ahc->sc_link_b));
 	}
