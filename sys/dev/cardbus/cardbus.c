@@ -547,8 +547,8 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 		pci_print_verbose(&dinfo->pci);
 		resource_list_init(&dinfo->pci.resources);
 		cardbus_do_cis(cbdev, dev);
-		cardbus_pickup_maps(cbdev, child);
-		cardbus_alloc_resources(cbdev, child);
+		cardbus_pickup_maps(cbdev, dev);
+		cardbus_alloc_resources(cbdev, dev);
 		if (device_probe_and_attach(dev) != 0)
 			cardbus_release_all_resources(cbdev, dinfo);
 	}
