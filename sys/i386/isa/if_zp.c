@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.2 1995/02/26 05:14:49 bde Exp $
+ *	$Id: if_zp.c,v 1.4 1995/03/31 06:10:22 jkh Exp $
  */
 /*-
  * TODO:
@@ -766,12 +766,13 @@ zpattach(isa_dev)
 
 #ifdef	ZP_DEBUG
     printf("### zpattach ####\n");
+#ifdef	MACH_KERNEL
     cngetc();
+#endif	/* MACH_KERNEL */
 #endif	/* ZP_DEBUG */
 
     /* PCMCIA card can be offlined. Reconfiguration is required */
     if (isa_dev->id_reconfig) {
-	zpreset(isa_dev->id_unit);
 	if (!isa_dev->id_alive && sc->last_alive) {
 	    pl = splimp();
 	    sc->last_up = (ifp->if_flags & IFF_UP);
@@ -780,6 +781,7 @@ zpattach(isa_dev)
 	    sc->last_alive = 0;
 	}
 	if (isa_dev->id_alive && !sc->last_alive) {
+	    zpreset(isa_dev->id_unit);
 	    if (sc->last_up) {
 		pl = splimp();
 		if_up(ifp);
@@ -818,7 +820,9 @@ zpattach(isa_dev)
 	if_port = read_eeprom_data(BASE, 8) >> 14;
 	sc->if_port = if_port;
 	printf("Linux select:%x\n", if_port);
+#ifdef	MACH_KERNEL
 	cngetc();
+#endif	/* MACH_KERNEL */
     }
 
     printf("SELECT connectors:%x\n", i);
