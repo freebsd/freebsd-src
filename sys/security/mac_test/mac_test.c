@@ -88,7 +88,6 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, enabled, CTLFLAG_RW,
 #define	SOCKETMAGIC	0x9199c6cd
 #define	PIPEMAGIC	0xdc6c9919
 #define	CREDMAGIC	0x9a5a4987
-#define	TEMPMAGIC	0x70336678
 #define	VNODEMAGIC	0x1a67a45c
 #define	EXMAGIC		0x849ba1fd
 
@@ -131,9 +130,6 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_socket_peerlabel,
 static int	init_count_pipe;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_pipe, CTLFLAG_RD,
     &init_count_pipe, 0, "pipe init calls");
-static int	init_count_temp;
-SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_temp, CTLFLAG_RD,
-    &init_count_temp, 0, "temp init calls");
 static int	init_count_vnode;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_vnode, CTLFLAG_RD,
     &init_count_vnode, 0, "vnode init calls");
@@ -173,9 +169,6 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_socket_peerlabel,
 static int      destroy_count_pipe;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_pipe, CTLFLAG_RD,
     &destroy_count_pipe, 0, "pipe destroy calls");
-static int      destroy_count_temp;
-SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_temp, CTLFLAG_RD,
-    &destroy_count_temp, 0, "temp destroy calls");
 static int      destroy_count_vnode;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_vnode, CTLFLAG_RD,
     &destroy_count_vnode, 0, "vnode destroy calls");
@@ -301,14 +294,6 @@ mac_test_init_pipe_label(struct label *label)
 
 	SLOT(label) = PIPEMAGIC;
 	atomic_add_int(&init_count_pipe, 1);
-}
-
-static void
-mac_test_init_temp_label(struct label *label)
-{
-
-	SLOT(label) = TEMPMAGIC;
-	atomic_add_int(&init_count_temp, 1);
 }
 
 static void
@@ -474,20 +459,6 @@ mac_test_destroy_pipe_label(struct label *label)
 }
 
 static void
-mac_test_destroy_temp_label(struct label *label)
-{
-
-	if (SLOT(label) == TEMPMAGIC || SLOT(label) == 0) {
-		atomic_add_int(&destroy_count_temp, 1);
-		SLOT(label) = EXMAGIC;
-	} else if (SLOT(label) == EXMAGIC) {
-		Debugger("mac_test_destroy_temp: dup destroy");
-	} else {
-		Debugger("mac_test_destroy_temp: corrupted label");
-	}
-}
-
-static void
 mac_test_destroy_vnode_label(struct label *label)
 {
 
@@ -502,7 +473,8 @@ mac_test_destroy_vnode_label(struct label *label)
 }
 
 static int
-mac_test_externalize(struct label *label, struct mac *extmac)
+mac_test_externalize_label(struct label *label, char *element_name,
+    char *element_data, size_t size, size_t *len, int *claimed)
 {
 
 	atomic_add_int(&externalize_count, 1);
@@ -511,7 +483,17 @@ mac_test_externalize(struct label *label, struct mac *extmac)
 }
 
 static int
-mac_test_internalize(struct label *label, struct mac *extmac)
+mac_test_externalize_vnode_oldmac(struct label *label, struct oldmac *extmac)
+{
+
+	atomic_add_int(&externalize_count, 1);
+
+	return (0);
+}
+
+static int
+mac_test_internalize_label(struct label *label, struct mac *mac,
+    char *element_name, char *element_data, int *claimed)
 {
 
 	atomic_add_int(&internalize_count, 1);
@@ -1255,8 +1237,6 @@ static struct mac_policy_op_entry mac_test_ops[] =
 	    (macop_t)mac_test_init_socket_label },
 	{ MAC_INIT_SOCKET_PEER_LABEL,
 	    (macop_t)mac_test_init_socket_peer_label },
-	{ MAC_INIT_TEMP_LABEL,
-	    (macop_t)mac_test_init_temp_label },
 	{ MAC_INIT_VNODE_LABEL,
 	    (macop_t)mac_test_init_vnode_label },
 	{ MAC_DESTROY_BPFDESC_LABEL,
@@ -1281,14 +1261,32 @@ static struct mac_policy_op_entry mac_test_ops[] =
 	    (macop_t)mac_test_destroy_socket_label },
 	{ MAC_DESTROY_SOCKET_PEER_LABEL,
 	    (macop_t)mac_test_destroy_socket_peer_label },
-	{ MAC_DESTROY_TEMP_LABEL,
-	    (macop_t)mac_test_destroy_temp_label },
 	{ MAC_DESTROY_VNODE_LABEL,
 	    (macop_t)mac_test_destroy_vnode_label },
-	{ MAC_EXTERNALIZE,
-	    (macop_t)mac_test_externalize },
-	{ MAC_INTERNALIZE,
-	    (macop_t)mac_test_internalize },
+	{ MAC_EXTERNALIZE_CRED_LABEL,
+	    (macop_t)mac_test_externalize_label },
+	{ MAC_EXTERNALIZE_IFNET_LABEL,
+	    (macop_t)mac_test_externalize_label },
+	{ MAC_EXTERNALIZE_PIPE_LABEL,
+	    (macop_t)mac_test_externalize_label },
+	{ MAC_EXTERNALIZE_SOCKET_LABEL,
+	    (macop_t)mac_test_externalize_label },
+	{ MAC_EXTERNALIZE_SOCKET_PEER_LABEL,
+	    (macop_t)mac_test_externalize_label },
+	{ MAC_EXTERNALIZE_VNODE_LABEL,
+	    (macop_t)mac_test_externalize_label },
+	{ MAC_EXTERNALIZE_VNODE_OLDMAC,
+	    (macop_t)mac_test_externalize_vnode_oldmac },
+	{ MAC_INTERNALIZE_CRED_LABEL,
+	    (macop_t)mac_test_internalize_label },
+	{ MAC_INTERNALIZE_IFNET_LABEL,
+	    (macop_t)mac_test_internalize_label },
+	{ MAC_INTERNALIZE_PIPE_LABEL,
+	    (macop_t)mac_test_internalize_label },
+	{ MAC_INTERNALIZE_SOCKET_LABEL,
+	    (macop_t)mac_test_internalize_label },
+	{ MAC_INTERNALIZE_VNODE_LABEL,
+	    (macop_t)mac_test_internalize_label },
 	{ MAC_CREATE_DEVFS_DEVICE,
 	    (macop_t)mac_test_create_devfs_device },
 	{ MAC_CREATE_DEVFS_DIRECTORY,
