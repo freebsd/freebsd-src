@@ -436,7 +436,7 @@ copynext(input, output)
 
 /*
  * Canonicalize file names to always start with ``./'' and
- * remove any imbedded "." and ".." components.
+ * remove any embedded "." and ".." components.
  */
 void
 canon(rawname, canonname, len)
@@ -452,7 +452,7 @@ canon(rawname, canonname, len)
 	else
 		(void) strcpy(canonname, "./");
 	if (strlen(canonname) + strlen(rawname) >= len) {
-		fprintf(stderr, "canonname: not enough bufferspace\n");
+		fprintf(stderr, "canonname: not enough buffer space\n");
 		done(1);
 	}
 		

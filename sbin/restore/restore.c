@@ -428,7 +428,7 @@ nodeupdates(name, ino, type)
 		break;
 
 	/*
-	 * A hard link to a diirectory that has been removed.
+	 * A hard link to a directory that has been removed.
 	 * Ignore it.
 	 */
 	case NAMEFND:
@@ -628,7 +628,7 @@ createleaves(symtabfile)
 		/*
 		 * If the file is to be extracted, then the old file must
 		 * be removed since its type may change from one leaf type
-		 * to another (eg "file" to "character special").
+		 * to another (e.g. "file" to "character special").
 		 */
 		if ((ep->e_flags & EXTRACT) != 0) {
 			removeleaf(ep);
@@ -638,7 +638,7 @@ createleaves(symtabfile)
 		ep->e_flags &= ~(NEW|EXTRACT);
 		/*
 		 * We checkpoint the restore after every tape reel, so
-		 * as to simplify the amount of work re quired by the
+		 * as to simplify the amount of work required by the
 		 * 'R' command.
 		 */
 	next:
