@@ -37,6 +37,7 @@
 #endif
 
 #include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
@@ -139,6 +140,8 @@ struct r_debug r_debug;		/* for GDB; */
 static bool libmap_disable;	/* Disable libmap */
 static char *libmap_override;	/* Maps to use in addition to libmap.conf */
 static bool trust;		/* False for setuid and setgid programs */
+static bool dangerous_ld_env;	/* True if environment variables have been
+				   used to affect the libraries loaded */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
 static char *ld_library_path;	/* Environment variable for search path */
@@ -293,7 +296,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	libmap_override = getenv(LD_ "LIBMAP");
 	ld_library_path = getenv(LD_ "LIBRARY_PATH");
 	ld_preload = getenv(LD_ "PRELOAD");
-    }
+	dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
+	    (ld_library_path != NULL) || (ld_preload != NULL);
+    } else
+	dangerous_ld_env = 0;
     ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
 
     if (ld_debug != NULL && *ld_debug != '\0')
@@ -1218,6 +1224,7 @@ load_object(char *path)
     Obj_Entry *obj;
     int fd = -1;
     struct stat sb;
+    struct statfs fs;
 
     for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
 	if (strcmp(obj->path, path) == 0)
@@ -1250,6 +1257,22 @@ load_object(char *path)
     }
 
     if (obj == NULL) {	/* First use of this object, so we must map it in */
+	/*
+	 * but first, make sure that environment variables haven't been 
+	 * used to circumvent the noexec flag on a filesystem.
+	 */
+	if (dangerous_ld_env) {
+	    if (fstatfs(fd, &fs) != 0) {
+		_rtld_error("Cannot fstatfs \"%s\"", path);
+		close(fd);
+		return NULL;
+	    }
+	    if (fs.f_flags & MNT_NOEXEC) {
+		_rtld_error("Cannot execute objects on %s\n", fs.f_mntonname);
+		close(fd);
+		return NULL;
+	    }
+	}
 	dbg("loading \"%s\"", path);
 	obj = map_object(fd, path, &sb);
 	close(fd);
