@@ -1,5 +1,5 @@
 .TH FILE __CSECTION__ "Copyright but distributable"
-.\" $Id: file.man,v 1.36 2000/08/05 17:36:48 christos Exp $
+.\" $Id: file.man,v 1.37 2000/08/07 20:08:55 christos Exp $
 .SH NAME
 file
 \- determine file type
@@ -51,6 +51,12 @@ People depend on knowing that all the readable files in a directory
 have the word ``text'' printed.
 Don't do as Berkeley did and change ``shell commands text''
 to ``shell script''.
+Note that the file
+.I __MAGIC__
+is built mechanically from a large number of small files in
+the subdirectory
+.I Magdir
+in the source distribution of this program.
 .PP
 The filesystem tests are based on examining the return from a
 .BR stat (2)
@@ -155,7 +161,7 @@ traditional human readable ones. Thus it may say
 ``text/plain; charset=us-ascii''
 rather
 than ``ASCII text''. In order for this option to work, file changes the way
-it handles files recognised by the command it's self (such as many of the
+it handles files recognised by the command itself (such as many of the
 text file types, directories etc), and makes use of an alternative
 ``magic'' file.
 (See ``FILES'' section, below).
@@ -168,8 +174,8 @@ Specify an alternate list of files containing magic numbers.
 This can be a single file, or a colon-separated list of files.
 .TP 8
 .B \-n
-Force stdout to be flushed after check a file. This is only useful if
-checking a list of files. It is intended to be used by programs want
+Force stdout to be flushed after checking each file. This is only useful if
+checking a list of files. It is intended to be used by programs that want
 filetype output from a pipe.
 .TP 8
 .B \-v
@@ -313,42 +319,19 @@ the external list of magic number types.
 This slowed the program down slightly but made it a lot more flexible.
 .PP
 This program, based on the System V version,
-was written by Ian Darwin without looking at anybody else's source code.
+was written by Ian Darwin <ian@darwinsys.com>
+without looking at anybody else's source code.
 .PP
 John Gilmore revised the code extensively, making it better than
 the first version.
 Geoff Collyer found several inadequacies
 and provided some magic file entries.
-The program has undergone continued evolution since.
-.SH AUTHOR
-Written by Ian F. Darwin, UUCP address {utzoo | ihnp4}!darwin!ian,
-Internet address ian@sq.com,
-postal address: P.O. Box 603, Station F, Toronto, Ontario, CANADA M4Y 2L8.
+Contributions by the `&' operator by Rob McMahon, cudcv@warwick.ac.uk, 1989.
 .PP
-Altered by Rob McMahon, cudcv@warwick.ac.uk, 1989, to extend the `&' operator
-from simple `x&y != 0' to `x&y op z'.
+Guy Harris, guy@netapp.com, made many changes from 1993 to the present.
 .PP
-Altered by Guy Harris, guy@netapp.com, 1993, to:
-.RS
-.PP
-put the ``old-style'' `&'
-operator back the way it was, because 1) Rob McMahon's change broke the
-previous style of usage, 2) the SunOS ``new-style'' `&' operator,
-which this version of
-.B file
-supports, also handles `x&y op z', and 3) Rob's change wasn't documented
-in any case;
-.PP
-put in multiple levels of `>';
-.PP
-put in ``beshort'', ``leshort'', etc. keywords to look at numbers in the
-file in a specific byte order, rather than in the native byte order of
-the process running
-.BR file .
-.RE
-.PP
-Changes by Ian Darwin and various authors including
-Christos Zoulas (christos@astron.com), 1990-1999.
+Primary development and maintenance from 1990 to the present by
+Christos Zoulas (christos@astron.com).
 .PP
 Altered by Chris Lowth, chris@lowth.com, 2000:
 Handle the ``-i'' option to output mime type strings and using an alternative
@@ -357,45 +340,14 @@ magic file and internal logic.
 Altered by Eric Fischer (enf@pobox.com), July, 2000,
 to identify character codes and attempt to identify the languages
 of non-ASCII files.
+.PP
+The list of contributors to the "Magdir" directory (source for the
+/etc/magic
+file) is too long to include here. You know who you are; thank you.
 .SH LEGAL NOTICE
-Copyright (c) Ian F. Darwin, Toronto, Canada,
-1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993.
-.PP
-This software is not subject to and may not be made subject to any
-license of the American Telephone and Telegraph Company, Sun
-Microsystems Inc., Digital Equipment Inc., Lotus Development Inc., the
-Regents of the University of California, The X Consortium or MIT, or
-The Free Software Foundation.
-.PP
-This software is not subject to any export provision of the United States
-Department of Commerce, and may be exported to any country or planet.
-.PP
-Permission is granted to anyone to use this software for any purpose on
-any computer system, and to alter it and redistribute it freely, subject
-to the following restrictions:
-.PP 
-1. The author is not responsible for the consequences of use of this
-software, no matter how awful, even if they arise from flaws in it.
-.PP
-2. The origin of this software must not be misrepresented, either by
-explicit claim or by omission.  Since few users ever read sources,
-credits must appear in the documentation.
-.PP
-3. Altered versions must be plainly marked as such, and must not be
-misrepresented as being the original software.  Since few users
-ever read sources, credits must appear in the documentation.
-.PP
-4. This notice may not be removed or altered.
-.\" .PP
-.\" A few support files (\fIgetopt\fP, \fIstrtok\fP)
-.\" distributed with this package
-.\" are by Henry Spencer and are subject to the same terms as above.
-.\" .PP
-.\" A few simple support files (\fIstrtol\fP, \fIstrchr\fP)
-.\" distributed with this package
-.\" are in the public domain; they are so marked.
-.\"
-.\" enf: commented out because these support files don't seem to be included
+Copyright (c) Ian F. Darwin, Toronto, Canada, 1986-1999.
+Covered by the standard Berkeley Software Distribution copyright; see the file
+LEGAL.NOTICE in the source distribution.
 .PP
 The files
 .I tar.h
@@ -403,7 +355,7 @@ and
 .I is_tar.c
 were written by John Gilmore from his public-domain
 .B tar
-program, and are not covered by the above restrictions.
+program, and are not covered by the above license.
 .SH BUGS
 There must be a better way to automate the construction of the Magic
 file from all the glop in Magdir. What is it?
