@@ -180,6 +180,8 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 /* Hide these in macros */
 #define	SYSCTL_CHILDREN(oid_ptr) (struct sysctl_oid_list *) \
 	(oid_ptr)->oid_arg1
+#define	SYSCTL_CHILDREN_SET(oid_ptr, val) \
+	(oid_ptr)->oid_arg1 = (val);
 #define	SYSCTL_STATIC_CHILDREN(oid_name) \
 	(&sysctl_##oid_name##_children)
 
