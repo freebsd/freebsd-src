@@ -3,6 +3,15 @@
 #	example of a configuration file for the isdn daemon & user-ppp
 #	--------------------------------------------------------------
 #
+#	NOTE:  If your system does not have one of the files
+#
+#		/usr/include/machine/i4b_rbch_ioctl.h
+#		/usr/include/i4b/i4b_rbch_ioctl.h
+#
+#	then ppp will not work over ISDN !
+#
+# $FreeBSD$
+#
 #------------------------------------------------------------------------------
 
 #==============================================================================
