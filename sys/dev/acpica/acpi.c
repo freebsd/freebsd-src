@@ -1369,7 +1369,7 @@ acpi_AllocBuffer(int size)
 }
 
 ACPI_STATUS
-acpi_SetInteger(ACPI_HANDLE handle, char *path, int number)
+acpi_SetInteger(ACPI_HANDLE handle, char *path, UINT32 number)
 {
     ACPI_OBJECT arg1;
     ACPI_OBJECT_LIST args;
@@ -1388,7 +1388,7 @@ acpi_SetInteger(ACPI_HANDLE handle, char *path, int number)
  * Evaluate a path that should return an integer.
  */
 ACPI_STATUS
-acpi_GetInteger(ACPI_HANDLE handle, char *path, int *number)
+acpi_GetInteger(ACPI_HANDLE handle, char *path, UINT32 *number)
 {
     ACPI_STATUS	status;
     ACPI_BUFFER	buf;
@@ -1435,7 +1435,7 @@ acpi_GetInteger(ACPI_HANDLE handle, char *path, int *number)
 }
 
 ACPI_STATUS
-acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp, int *number)
+acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp, UINT32 *number)
 {
     ACPI_OBJECT	*p;
     int		i;
