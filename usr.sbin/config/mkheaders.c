@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkheaders.c,v 1.8 1997/11/07 00:09:40 joerg Exp $";
+	"$Id: mkheaders.c,v 1.9 1999/04/17 14:41:40 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -66,7 +66,7 @@ headers()
 	for (fl = ftab; fl != 0; fl = fl->f_next)
 		if (fl->f_needs != 0)
 			do_count(fl->f_needs, fl->f_needs, 1);
-	for (dp = dtab; dp != 0; dp = dp->d_next)
+	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
 			if (!(dp->d_type & DEVDONE))
 				printf("Warning: pseudo-device \"%s\" is unknown\n",
@@ -74,6 +74,14 @@ headers()
 			else
 				dp->d_type &= TYPEMASK;
 		}
+		if ((dp->d_type & TYPEMASK) == DEVICE) {
+			if (!(dp->d_type & DEVDONE))
+				printf("Warning: device \"%s\" is unknown\n",
+				       dp->d_name);
+			else
+				dp->d_type &= TYPEMASK;
+		}
+	}
 }
 
 /*
@@ -101,6 +109,8 @@ do_count(dev, hname, search)
 				dp->d_type |= DEVDONE;
 				break;
 			}
+			if ((dp->d_type & TYPEMASK) == DEVICE)
+				dp->d_type |= DEVDONE;
 			count++;
 			/*
 			 * Allow holes in unit numbering,
