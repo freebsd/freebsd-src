@@ -166,8 +166,15 @@
 #define	CONTROL_LOCK_STATE	0x40
 #define	DEV_TO_UNIT(dev)	(MINOR_TO_UNIT(minor(dev)))
 #define	MINOR_MAGIC_MASK	(CALLOUT_MASK | CONTROL_MASK)
+/*
+ * Not all of the magic is parametrized in the following macros.  16 and
+ * 0xff are related to the bitfields in a udev_t.  CY_MAX_PORTS must be
+ * ((0xff & ~MINOR_MAGIC_MASK) + 1) for things to work.
+ */
 #define	MINOR_TO_UNIT(mynor)	(((mynor) >> 16) * CY_MAX_PORTS \
 				 | (((mynor) & 0xff) & ~MINOR_MAGIC_MASK))
+#define	UNIT_TO_MINOR(unit)	(((unit) / CY_MAX_PORTS) << 16 \
+				 | (((unit) & 0xff) & ~MINOR_MAGIC_MASK))
 
 /*
  * com state bits.
@@ -521,6 +528,7 @@ cyattach_common(cy_iobase, cy_align)
 	int	cyu;
 	u_char	firmware_version;
 	cy_addr	iobase;
+	int	minorbase;
 	int	ncyu;
 	int	unit;
 
@@ -614,22 +622,23 @@ cyattach_common(cy_iobase, cy_align)
 		register_swi(SWI_TTY, siopoll);
 		sio_registered = TRUE;
 	}
-	make_dev(&sio_cdevsw, unit,
+	minorbase = UNIT_TO_MINOR(unit);
+	make_dev(&sio_cdevsw, minorbase,
 		UID_ROOT, GID_WHEEL, 0600, "ttyc%r%r", adapter,
 		unit % CY_MAX_PORTS);
-	make_dev(&sio_cdevsw, unit | CONTROL_INIT_STATE,
+	make_dev(&sio_cdevsw, minorbase | CONTROL_INIT_STATE,
 		UID_ROOT, GID_WHEEL, 0600, "ttyic%r%r", adapter,
 		unit % CY_MAX_PORTS);
-	make_dev(&sio_cdevsw, unit | CONTROL_LOCK_STATE,
+	make_dev(&sio_cdevsw, minorbase | CONTROL_LOCK_STATE,
 		UID_ROOT, GID_WHEEL, 0600, "ttylc%r%r", adapter,
 		unit % CY_MAX_PORTS);
-	make_dev(&sio_cdevsw, unit | CALLOUT_MASK,
+	make_dev(&sio_cdevsw, minorbase | CALLOUT_MASK,
 		UID_UUCP, GID_DIALER, 0660, "cuac%r%r", adapter,
 		unit % CY_MAX_PORTS);
-	make_dev(&sio_cdevsw, unit | CALLOUT_MASK | CONTROL_INIT_STATE,
+	make_dev(&sio_cdevsw, minorbase | CALLOUT_MASK | CONTROL_INIT_STATE,
 		UID_UUCP, GID_DIALER, 0660, "cuaic%r%r", adapter,
 		unit % CY_MAX_PORTS);
-	make_dev(&sio_cdevsw, unit | CALLOUT_MASK | CONTROL_LOCK_STATE,
+	make_dev(&sio_cdevsw, minorbase | CALLOUT_MASK | CONTROL_LOCK_STATE,
 		UID_UUCP, GID_DIALER, 0660, "cualc%r%r", adapter,
 		unit % CY_MAX_PORTS);
 		}
