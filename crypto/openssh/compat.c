@@ -72,6 +72,8 @@ compat_datafellows(const char *version)
 		{ "^2\\.4$",		SSH_OLD_SESSIONID}, /* Van Dyke */
 		{ "^3\\.0 SecureCRT",	SSH_OLD_SESSIONID},
 		{ "^1\\.7 SecureFX",	SSH_OLD_SESSIONID},
+		{ "^1\\.2\\.1[89]",	SSH_BUG_IGNOREMSG},
+		{ "^1\\.2\\.2[012]",	SSH_BUG_IGNOREMSG},
 		{ "^2\\.",		SSH_BUG_HMAC},	/* XXX fallback */
 		{ NULL,			0 }
 	};
