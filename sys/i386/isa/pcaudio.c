@@ -191,9 +191,9 @@ conv(const void *table, void *buff, unsigned int n)
 	  "\tinc %2\n"
 	  "\tdec %1\n"
 	  "\tjnz 1b\n"
-          :
-          :"b" (table), "c" (n), "D" (buff), "a" ((char)n)
-          :"bx","cx","di","ax");
+          : "=b" (table), "=c" (n), "=D" (buff), "=a" ((char)n) /*all dummies*/
+          : "0" (table), "1" (n), "2" (buff), "3" ((char)n)
+           /* clobber list covered by matching out/in registers */ );
 }
 
 
