@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.250
+    Original revision: 1.251
 -->
 
 <articleinfo>
@@ -2650,6 +2650,9 @@ hw.pcic.irq="0"</programlisting>
       利用可能なすべてのアドレスではなく指定アドレスへ bind
       させるためのものです. &merged;</para>
 
+    <para>&man.syslogd.8; に新しく重複した行を圧縮する機能を無効に
+      する <option>-c</option> フラグが追加されました. &merged;</para>
+
     <para>&man.tail.1; が 2GB を超えるファイルの処理に対応しました.
       &merged;</para>
 
@@ -2908,9 +2911,10 @@ hw.pcic.irq="0"</programlisting>
         &merged;</para>
 
       <para>&man.more.1; コマンドが &man.less.1; に置き換えられました,
-        ただし <command>more</command> というコマンド名はそのまま使用できます.
-        <application>less</application> はバージョン 3.5.8 が import されました.
-        &merged;</para>
+        ただし <command>more</command> というコマンド名はそのまま使用
+        できます. &merged;
+        <application>less</application> のバージョン 371 が import されました.
+      </para>
 
       <para><application>libpcap</application> がバージョン
         0.6.2 に更新されました.  &merged;</para>
