@@ -68,7 +68,6 @@
 
 #include "libc_private.h"
 #include "thr_private.h"
-#include "ksd.h"
 
 int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 int	__pthread_mutex_lock(pthread_mutex_t *);
@@ -306,12 +305,10 @@ _libpthread_init(struct pthread *curthread)
 	KSEG_THRQ_ADD(_kse_initial->k_kseg, _thr_initial);
 
 	/* Setup the KSE/thread specific data for the current KSE/thread. */
-	if (_ksd_setprivate(&_thr_initial->kse->k_ksd) != 0)
-		PANIC("Can't set initial KSE specific data");
-	_set_curkse(_thr_initial->kse);
 	_thr_initial->kse->k_curthread = _thr_initial;
+	_kcb_set(_thr_initial->kse->k_kcb);
+	_tcb_set(_thr_initial->kse->k_kcb, _thr_initial->tcb);
 	_thr_initial->kse->k_flags |= KF_INITIALIZED;
-	_kse_initial->k_curthread = _thr_initial;
 
 	_thr_rtld_init();
 }
@@ -323,13 +320,7 @@ _libpthread_init(struct pthread *curthread)
 static void
 init_main_thread(struct pthread *thread)
 {
-	void *p;
 	int i;
-
-	/* Zero the initial thread structure. */
-	p = thread->alloc_addr;
-	memset(thread, 0, sizeof(struct pthread));
-	thread->alloc_addr = p;
 
 	/* Setup the thread attributes. */
 	thread->attr = _pthread_attr_default;
@@ -381,9 +372,11 @@ init_main_thread(struct pthread *thread)
 	 * Set up the thread mailbox.  The threads saved context
 	 * is also in the mailbox.
 	 */
-	thread->tmbx.tm_udata = thread;
-	thread->tmbx.tm_context.uc_stack.ss_size = thread->attr.stacksize_attr;
-	thread->tmbx.tm_context.uc_stack.ss_sp = thread->attr.stackaddr_attr;
+	thread->tcb->tcb_tmbx.tm_udata = thread;
+	thread->tcb->tcb_tmbx.tm_context.uc_stack.ss_size =
+	    thread->attr.stacksize_attr;
+	thread->tcb->tcb_tmbx.tm_context.uc_stack.ss_sp =
+	    thread->attr.stackaddr_attr;
 
 	/* Default the priority of the initial thread: */
 	thread->base_priority = THR_DEFAULT_PRIORITY;

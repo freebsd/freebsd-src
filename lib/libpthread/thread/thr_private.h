@@ -173,15 +173,14 @@ struct kse_group;
 
 #define	MAX_KSE_LOCKLEVEL	5	
 struct kse {
-	struct kse_mailbox	k_mbx;		/* kernel kse mailbox */
 	/* -- location and order specific items for gdb -- */
+	struct kcb		*k_kcb;
 	struct pthread		*k_curthread;	/* current thread */
 	struct kse_group	*k_kseg;	/* parent KSEG */
 	struct sched_queue	*k_schedq;	/* scheduling queue */
 	/* -- end of location and order specific items -- */
 	TAILQ_ENTRY(kse)	k_qe;		/* KSE list link entry */
 	TAILQ_ENTRY(kse)	k_kgqe;		/* KSEG's KSE list entry */
-	struct ksd		k_ksd;		/* KSE specific data */
 	/*
 	 * Items that are only modified by the kse, or that otherwise
 	 * don't need to be locked when accessed
@@ -300,7 +299,7 @@ do { \
 #define	KSE_CLEAR_WAIT(kse) 	atomic_store_rel_int(&(kse)->k_waiting, 0)
 
 #define	KSE_WAITING(kse)	(kse)->k_waiting != 0
-#define	KSE_WAKEUP(kse)		kse_wakeup(&(kse)->k_mbx)
+#define	KSE_WAKEUP(kse)		kse_wakeup(&(kse)->k_kcb->kcb_kmbx)
 
 #define	KSE_SET_IDLE(kse)	((kse)->k_idle = 1)
 #define	KSE_CLEAR_IDLE(kse)	((kse)->k_idle = 0)
@@ -509,7 +508,7 @@ struct pthread_attr {
  */
 #define	KSE_GET_TOD(curkse, tsp) \
 do {							\
-	*tsp = (curkse)->k_mbx.km_timeofday;		\
+	*tsp = (curkse)->k_kcb->kcb_kmbx.km_timeofday;	\
 	if ((tsp)->tv_sec == 0)				\
 		clock_gettime(CLOCK_REALTIME, tsp);	\
 } while (0)
@@ -601,8 +600,7 @@ struct pthread {
 	/*
 	 * Thread mailbox is first so it cal be aligned properly.
 	 */
-	struct kse_thr_mailbox	tmbx;
-	void			*alloc_addr;	/* real address (unaligned) */
+	struct tcb		*tcb;
 
 	/*
 	 * Magic value to help recognize a valid thread structure
@@ -1049,9 +1047,6 @@ SCLASS int		_thr_debug_flags	SCLASS_PRESET(0);
 __BEGIN_DECLS
 int	_cond_reinit(pthread_cond_t *);
 void	_cond_wait_backout(struct pthread *);
-struct pthread *_get_curthread(void);
-struct kse *_get_curkse(void);
-void	_set_curkse(struct kse *);
 struct kse *_kse_alloc(struct pthread *, int sys_scope);
 kse_critical_t _kse_critical_enter(void);
 void	_kse_critical_leave(kse_critical_t);
@@ -1098,8 +1093,6 @@ int	_pthread_rwlock_destroy (pthread_rwlock_t *);
 struct pthread *_pthread_self(void);
 int	_pthread_setspecific(pthread_key_t, const void *);
 struct pthread *_thr_alloc(struct pthread *);
-int	_thread_enter_uts(struct kse_thr_mailbox *, struct kse_mailbox *);
-int	_thread_switch(struct kse_thr_mailbox *, struct kse_thr_mailbox **);
 void	_thr_exit(char *, int, char *);
 void	_thr_exit_cleanup(void);
 void	_thr_lock_wait(struct lock *lock, struct lockuser *lu);
