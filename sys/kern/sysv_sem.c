@@ -172,6 +172,17 @@ seminit(void)
 {
 	register int i;
 
+	TUNABLE_INT_FETCH("kern.ipc.semmap", &seminfo.semmap);
+	TUNABLE_INT_FETCH("kern.ipc.semmni", &seminfo.semmni);
+	TUNABLE_INT_FETCH("kern.ipc.semmns", &seminfo.semmns);
+	TUNABLE_INT_FETCH("kern.ipc.semmnu", &seminfo.semmnu);
+	TUNABLE_INT_FETCH("kern.ipc.semmsl", &seminfo.semmsl);
+	TUNABLE_INT_FETCH("kern.ipc.semopm", &seminfo.semopm);
+	TUNABLE_INT_FETCH("kern.ipc.semume", &seminfo.semume);
+	TUNABLE_INT_FETCH("kern.ipc.semusz", &seminfo.semusz);
+	TUNABLE_INT_FETCH("kern.ipc.semvmx", &seminfo.semvmx);
+	TUNABLE_INT_FETCH("kern.ipc.semaem", &seminfo.semaem);
+
 	sem = malloc(sizeof(struct sem) * seminfo.semmns, M_SEM, M_WAITOK);
 	if (sem == NULL)
 		panic("sem is NULL");
