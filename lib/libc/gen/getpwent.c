@@ -656,7 +656,7 @@ fin:
 
 
 static int
-pwdb_match_entry_v3(char *entry, size_t entrysize, enum nss_lookup_type how, 
+pwdb_match_entry_v3(char *entry, size_t entrysize, enum nss_lookup_type how,
     const char *name, uid_t uid)
 {
 	const char	*p, *eom;
@@ -670,7 +670,7 @@ pwdb_match_entry_v3(char *entry, size_t entrysize, enum nss_lookup_type how,
 		return (NS_NOTFOUND);
 	if (how == nss_lt_all)
 		return (NS_SUCCESS);
-	if (how == nss_lt_name) 
+	if (how == nss_lt_name)
 		return (strcmp(name, entry) == 0 ? NS_SUCCESS : NS_NOTFOUND);
 	for (p++; p < eom; p++)
 		if (*p == '\0')
@@ -726,7 +726,7 @@ pwdb_parse_entry_v3(char *buffer, size_t bufsize, struct passwd *pwd,
 
 
 static int
-pwdb_match_entry_v4(char *entry, size_t entrysize, enum nss_lookup_type how, 
+pwdb_match_entry_v4(char *entry, size_t entrysize, enum nss_lookup_type how,
     const char *name, uid_t uid)
 {
 	const char	*p, *eom;
@@ -740,7 +740,7 @@ pwdb_match_entry_v4(char *entry, size_t entrysize, enum nss_lookup_type how,
 		return (NS_NOTFOUND);
 	if (how == nss_lt_all)
 		return (NS_SUCCESS);
-	if (how == nss_lt_name) 
+	if (how == nss_lt_name)
 		return (strcmp(name, entry) == 0 ? NS_SUCCESS : NS_NOTFOUND);
 	for (p++; p < eom; p++)
 		if (*p == '\0')
@@ -994,7 +994,7 @@ nis_adjunct(char *domain, const char *name, char *buffer, size_t bufsize)
 			}
 		} else
 			rv = 1;
-	} 
+	}
 	free(result);
 	return (rv);
 }
@@ -1028,7 +1028,7 @@ nis_passwd(void *retval, void *mdata, va_list ap)
 	uid_t		 uid;
 	enum nss_lookup_type how;
 	int		*errnop, keylen, resultlen, rv, master;
-	  
+
 	name = NULL;
 	uid = (uid_t)-1;
 	how = (enum nss_lookup_type)mdata;
@@ -1122,7 +1122,7 @@ nis_passwd(void *retval, void *mdata, va_list ap)
 			rv = __pw_parse_entry(buffer, resultlen, pwd, master,
 			    errnop);
 	} while (how == nss_lt_all && !(rv & NS_TERMINATE));
-fin:	
+fin:
 	if (rv == NS_SUCCESS) {
 		if (strstr(pwd->pw_passwd, "##") != NULL) {
 			rv = nis_adjunct(st->domain, pwd->pw_name,
@@ -1137,7 +1137,7 @@ fin:
 		if (retval != NULL)
 			*(struct passwd **)retval = pwd;
 	}
-	return (rv);	
+	return (rv);
 erange:
 	*errnop = ERANGE;
 	return (NS_RETURN);
@@ -1663,7 +1663,7 @@ fin:
 		(void)st->db->close(st->db);
 		st->db = NULL;
 	}
-	if (rv == NS_SUCCESS) { 
+	if (rv == NS_SUCCESS) {
 		if (!from_compat) {
 			pwd->pw_fields &= ~_PWF_SOURCE;
 			pwd->pw_fields |= _PWF_FILES;
