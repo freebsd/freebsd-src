@@ -80,7 +80,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: at.c,v 1.2 1995/04/12 02:42:28 ache Exp $";
+static char rcsid[] = "$Id: at.c,v 1.3 1995/04/15 22:08:08 ache Exp $";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"
@@ -249,6 +249,12 @@ writefile(time_t runtimer, char queue)
 	perr("Cannot give away file");
 
     PRIV_END
+
+    /* We no longer need suid root; now we just need to be able to write
+     * to the directory, if necessary.
+     */
+
+    REDUCE_PRIV(DAEMON_UID, DAEMON_GID)
 
     /* We've successfully created the file; let's set the flag so it 
      * gets removed in case of an interrupt or error.
