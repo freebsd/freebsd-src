@@ -1,5 +1,5 @@
 #	@(#)printcap	5.3 (Berkeley) 6/30/90
-# $Id$
+# $Id: printcap,v 1.7 1997/02/23 09:20:44 peter Exp $
 
 #
 # This enables a simple local "raw" printer, hooked up to the first
@@ -19,7 +19,11 @@
 # Do also refer to section 7 (Printing) of the handbook.  A local copy
 # can be found under /usr/share/doc/handbook/handbook.{html,latin1}.
 #
+# Banner pages are now suppressed by default.  Remove the :sh:
+# capability to turn them back on.
+#
 lp|local line printer:\
+	:sh:\
 	:lp=/dev/lpt0:sd=/var/spool/output/lpd:lf=/var/log/lpd-errs:
 #
 # Sample remote printer.  The physical printer is on machine "lphost".
@@ -29,4 +33,5 @@ lp|local line printer:\
 # argument after filtering.
 #
 #remote|sample remote printer:\
+#	:sh:\
 #	:rm=lphost:sd=/var/spool/output/lphost:lf=/var/log/lpd-errs:
