@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 87 $
+ *              $Revision: 88 $
  *
  *****************************************************************************/
 
@@ -249,7 +249,7 @@ AcpiDsParseMethod (
         return_ACPI_STATUS (Status);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, 
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
         "**** [%4.4s] Parsed **** NamedObj=%p Op=%p\n",
         ((ACPI_NAMESPACE_NODE *) ObjHandle)->Name.Ascii, ObjHandle, Op));
 
@@ -459,7 +459,7 @@ AcpiDsCallControlMethod (
 
     ThisWalkState->NumOperands = 0;
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, 
+    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "Starting nested execution, newstate=%p\n", NextWalkState));
 
     return_ACPI_STATUS (AE_OK);

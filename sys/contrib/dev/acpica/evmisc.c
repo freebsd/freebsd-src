@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evmisc - Miscellaneous event manager support functions
- *              $Revision: 53 $
+ *              $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -480,7 +480,7 @@ AcpiEvGlobalLockHandler (
 
         /* Run the Global Lock thread which will signal all waiting threads */
 
-        Status = AcpiOsQueueForExecution (OSD_PRIORITY_HIGH, 
+        Status = AcpiOsQueueForExecution (OSD_PRIORITY_HIGH,
                         AcpiEvGlobalLockThread, Context);
         if (ACPI_FAILURE (Status))
         {
@@ -556,12 +556,14 @@ AcpiEvAcquireGlobalLock (
     ACPI_FUNCTION_TRACE ("EvAcquireGlobalLock");
 
 
+#ifndef ACPI_APPLICATION
     /* Make sure that we actually have a global lock */
 
     if (!AcpiGbl_GlobalLockPresent)
     {
         return_ACPI_STATUS (AE_NO_GLOBAL_LOCK);
     }
+#endif
 
     /* One more thread wants the global lock */
 
@@ -672,9 +674,64 @@ AcpiEvReleaseGlobalLock (void)
 void
 AcpiEvTerminate (void)
 {
+    NATIVE_UINT_MAX32       i;
+    ACPI_STATUS             Status;
+
 
     ACPI_FUNCTION_TRACE ("EvTerminate");
 
+    /*
+     * Disable all event-related functionality.
+     * In all cases, on error, print a message but obviously we don't abort.
+     */
+
+    /*
+     * Disable all fixed events
+     */
+    for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++)
+    {
+        Status = AcpiDisableEvent(i, ACPI_EVENT_FIXED, 0);
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Failed to disable fixed event %d.\n", i));
+        }
+    }
+
+    /*
+     * Disable all GPEs
+     */
+    for (i = 0; i < AcpiGbl_GpeNumberMax; i++)
+    {
+        if (AcpiEvGetGpeNumberIndex(i) != ACPI_GPE_INVALID)
+        {
+            Status = AcpiHwDisableGpe(i);
+            if (ACPI_FAILURE (Status))
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Failed to disable GPE %d.\n", i));
+            }
+        }
+    }
+
+    /*
+     * Remove SCI handler
+     */
+    Status = AcpiEvRemoveSciHandler();
+    if (ACPI_FAILURE(Status))
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unable to remove SCI handler.\n"));
+    }
+
+    /*
+     * Return to original mode if necessary
+     */
+    if (AcpiGbl_OriginalMode == ACPI_SYS_MODE_LEGACY)
+    {
+        Status = AcpiDisable ();
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "AcpiDisable failed.\n"));
+        }
+    }
 
     /*
      * Free global tables, etc.

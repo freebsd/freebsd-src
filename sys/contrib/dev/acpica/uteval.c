@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 40 $
+ *              $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -277,7 +277,7 @@ AcpiUtExecute_HID (
         Status = AE_TYPE;
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Type returned from _HID not a number or string: %s(%X) \n",
-            AcpiUtGetObjectTypeName (ObjDesc), 
+            AcpiUtGetObjectTypeName (ObjDesc),
             ACPI_GET_OBJECT_TYPE (ObjDesc)));
     }
     else
@@ -390,7 +390,7 @@ AcpiUtExecute_CID (
         Status = AE_TYPE;
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Type returned from _CID not a number, string, or package: %s(%X) \n",
-            AcpiUtGetObjectTypeName (ObjDesc), 
+            AcpiUtGetObjectTypeName (ObjDesc),
             ACPI_GET_OBJECT_TYPE (ObjDesc)));
         break;
     }

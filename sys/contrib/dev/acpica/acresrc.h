@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acresrc.h - Resource Manager function prototypes
- *       $Revision: 33 $
+ *       $Revision: 34 $
  *
  *****************************************************************************/
 
@@ -174,11 +174,11 @@ AcpiRsDumpAddress16 (
 void
 AcpiRsDumpAddress32 (
     ACPI_RESOURCE_DATA      *Data);
-    
+
 void
 AcpiRsDumpAddress64 (
     ACPI_RESOURCE_DATA      *Data);
-    
+
 void
 AcpiRsDumpDma (
     ACPI_RESOURCE_DATA      *Data);
@@ -186,7 +186,7 @@ AcpiRsDumpDma (
 void
 AcpiRsDumpIo (
     ACPI_RESOURCE_DATA      *Data);
-    
+
 void
 AcpiRsDumpExtendedIrq (
     ACPI_RESOURCE_DATA      *Data);

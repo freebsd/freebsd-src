@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 110 $
+ *              $Revision: 112 $
  *
  *****************************************************************************/
 
@@ -557,9 +557,13 @@ AcpiNsExternalizeName (
     case '^':
         for (i = 0; i < InternalNameLength; i++)
         {
-            if (InternalName[i] != '^')
+            if (InternalName[i] == '^')
             {
                 PrefixLength = i + 1;
+            }
+            else
+            {
+                break;
             }
         }
 
@@ -980,7 +984,7 @@ AcpiNsFindParentName (
 }
 
 
-#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
 /*******************************************************************************
  *
@@ -1016,7 +1020,7 @@ AcpiNsExistDownstreamSibling (
     return (FALSE);
 }
 
-#endif /* ACPI_DEBUG */
+#endif /* ACPI_DEBUG_OUTPUT */
 
 
 /*******************************************************************************

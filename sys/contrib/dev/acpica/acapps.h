@@ -1,9 +1,8 @@
-/*******************************************************************************
+/******************************************************************************
  *
- * Module Name: nsnames - Name manipulation and search
- *              $Revision: 79 $
+ * Module Name: acapps - common include for ACPI applications/tools
  *
- ******************************************************************************/
+ *****************************************************************************/
 
 /******************************************************************************
  *
@@ -114,228 +113,69 @@
  *
  *****************************************************************************/
 
-#define __NSNAMES_C__
-
-#include "acpi.h"
-#include "amlcode.h"
-#include "acnamesp.h"
+#ifndef _ACAPPS
+#define _ACAPPS
 
 
-#define _COMPONENT          ACPI_NAMESPACE
-        ACPI_MODULE_NAME    ("nsnames")
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsBuildExternalPath
- *
- * PARAMETERS:  Node            - NS node whose pathname is needed
- *              Size            - Size of the pathname
- *              *NameBuffer     - Where to return the pathname
- *
- * RETURN:      Places the pathname into the NameBuffer, in external format
- *              (name segments separated by path separators)
- *
- * DESCRIPTION: Generate a full pathaname
- *
- ******************************************************************************/
-
-void
-AcpiNsBuildExternalPath (
-    ACPI_NAMESPACE_NODE     *Node,
-    ACPI_SIZE               Size,
-    NATIVE_CHAR             *NameBuffer)
-{
-    ACPI_SIZE               Index;
-    ACPI_NAMESPACE_NODE     *ParentNode;
-
-
-    ACPI_FUNCTION_NAME ("NsBuildExternalPath");
-
-
-    /* Special case for root */
-
-    Index = Size - 1;
-    if (Index < ACPI_NAME_SIZE)
-    {
-        NameBuffer[0] = AML_ROOT_PREFIX;
-        NameBuffer[1] = 0;
-        return;
-    }
-
-    /* Store terminator byte, then build name backwards */
-
-    ParentNode = Node;
-    NameBuffer[Index] = 0;
-
-    while ((Index > ACPI_NAME_SIZE) && (ParentNode != AcpiGbl_RootNode))
-    {
-        Index -= ACPI_NAME_SIZE;
-
-        /* Put the name into the buffer */
-
-        ACPI_MOVE_UNALIGNED32_TO_32 ((NameBuffer + Index), &ParentNode->Name);
-        ParentNode = AcpiNsGetParentNode (ParentNode);
-
-        /* Prefix name with the path separator */
-
-        Index--;
-        NameBuffer[Index] = PATH_SEPARATOR;
-    }
-
-    /* Overwrite final separator with the root prefix character */
-
-    NameBuffer[Index] = AML_ROOT_PREFIX;
-
-    if (Index != 0)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Could not construct pathname; index=%X, size=%X, Path=%s\n",
-            (UINT32) Index, (UINT32) Size, &NameBuffer[Size]));
-    }
-
-    return;
-}
-
-
-#ifdef ACPI_DEBUG_OUTPUT
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsGetExternalPathname
- *
- * PARAMETERS:  Node            - NS node whose pathname is needed
- *
- * RETURN:      Pointer to storage containing the fully qualified name of
- *              the node, In external format (name segments separated by path
- *              separators.)
- *
- * DESCRIPTION: Used for debug printing in AcpiNsSearchTable().
- *
- ******************************************************************************/
-
-NATIVE_CHAR *
-AcpiNsGetExternalPathname (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-    NATIVE_CHAR             *NameBuffer;
-    ACPI_SIZE               Size;
-
-
-    ACPI_FUNCTION_TRACE_PTR ("NsGetExternalPathname", Node);
-
-
-    /* Calculate required buffer size based on depth below root */
-
-    Size = AcpiNsGetPathnameLength (Node);
-
-    /* Allocate a buffer to be returned to caller */
-
-    NameBuffer = ACPI_MEM_CALLOCATE (Size);
-    if (!NameBuffer)
-    {
-        ACPI_REPORT_ERROR (("NsGetTablePathname: allocation failure\n"));
-        return_PTR (NULL);
-    }
-
-    /* Build the path in the allocated buffer */
-
-    AcpiNsBuildExternalPath (Node, Size, NameBuffer);
-    return_PTR (NameBuffer);
-}
+#ifdef _MSC_VER                 /* disable some level-4 warnings */
+#pragma warning(disable:4100)   /* warning C4100: unreferenced formal parameter */
 #endif
 
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsGetPathnameLength
- *
- * PARAMETERS:  Node        - Namespace node
- *
- * RETURN:      Length of path, including prefix
- *
- * DESCRIPTION: Get the length of the pathname string for this node
- *
- ******************************************************************************/
-
-ACPI_SIZE
-AcpiNsGetPathnameLength (
-    ACPI_NAMESPACE_NODE     *Node)
-{
-    ACPI_SIZE               Size;
-    ACPI_NAMESPACE_NODE     *NextNode;
+extern UINT8                    *DsdtPtr;
+extern UINT32                   AcpiDsdtLength;
+extern UINT8                    *AmlStart;
+extern UINT32                   AmlLength;
 
 
-    ACPI_FUNCTION_ENTRY ();
+extern int                      AcpiGbl_Optind;
+extern NATIVE_CHAR              *AcpiGbl_Optarg;
 
-
-    /*
-     * Compute length of pathname as 5 * number of name segments.
-     * Go back up the parent tree to the root
-     */
-    Size = 0;
-    NextNode = Node;
-
-    while (NextNode && (NextNode != AcpiGbl_RootNode))
-    {
-        Size += PATH_SEGMENT_LENGTH;
-        NextNode = AcpiNsGetParentNode (NextNode);
-    }
-
-    return (Size + 1);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsHandleToPathname
- *
- * PARAMETERS:  TargetHandle            - Handle of named object whose name is
- *                                        to be found
- *              Buffer                  - Where the pathname is returned
- *
- * RETURN:      Status, Buffer is filled with pathname if status is AE_OK
- *
- * DESCRIPTION: Build and return a full namespace pathname
- *
- ******************************************************************************/
+int
+AcpiGetopt(
+    int                     argc, 
+    char                    **argv, 
+    char                    *opts);
 
 ACPI_STATUS
-AcpiNsHandleToPathname (
-    ACPI_HANDLE             TargetHandle,
-    ACPI_BUFFER             *Buffer)
-{
-    ACPI_STATUS             Status;
-    ACPI_NAMESPACE_NODE     *Node;
-    ACPI_SIZE               RequiredSize;
+AdInitialize (
+    void);
+
+char *
+FlGenerateFilename (
+    char                    *InputFilename,
+    char                    *Suffix);
+
+ACPI_STATUS
+AdAmlDisassemble (
+    BOOLEAN                 OutToFile,
+    char                    *Filename,
+    char                    **OutFilename);
+
+void
+AdPrintStatistics (void);
+
+ACPI_STATUS
+AdFindDsdt(
+    UINT8                   **DsdtPtr,
+    UINT32                  *DsdtLength);
+
+void
+AdDumpTables (void);
+
+ACPI_STATUS
+AdGetTables (
+    char                    *Filename);
+
+ACPI_STATUS
+AdParseTables (void);
+
+ACPI_STATUS
+AdDisplayTables (
+    char                    *Filename);
+
+ACPI_STATUS
+AdDisplayStatistics (void);
 
 
-    ACPI_FUNCTION_TRACE_PTR ("NsHandleToPathname", TargetHandle);
-
-
-    Node = AcpiNsMapHandleToNode (TargetHandle);
-    if (!Node)
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
-
-    /* Determine size required for the caller buffer */
-
-    RequiredSize = AcpiNsGetPathnameLength (Node);
-
-    /* Validate/Allocate/Clear caller buffer */
-
-    Status = AcpiUtInitializeBuffer (Buffer, RequiredSize);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Build the path in the caller buffer */
-
-    AcpiNsBuildExternalPath (Node, RequiredSize, Buffer->Pointer);
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s [%X] \n", (char *) Buffer->Pointer, (UINT32) RequiredSize));
-    return_ACPI_STATUS (AE_OK);
-}
-
+#endif /* _ACAPPS */
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 62 $
+ *              $Revision: 63 $
  *
  *****************************************************************************/
 
@@ -171,7 +171,7 @@ AcpiTbMatchSignature (
                 TableInfo->Type = (UINT8) i;
             }
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
                 "Table [%4.4s] matched and is a required ACPI table\n",
                 (char *) AcpiGbl_AcpiTableData[i].Signature));
 
@@ -179,7 +179,7 @@ AcpiTbMatchSignature (
         }
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, 
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "Table [%4.4s] is not a required ACPI table - ignored\n",
         (char *) Signature));
 
@@ -215,7 +215,7 @@ AcpiTbInstallTable (
     Status = AcpiUtAcquireMutex (ACPI_MTX_TABLES);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR (("Could not acquire table mutex for [%4.4s], %s\n", 
+        ACPI_REPORT_ERROR (("Could not acquire table mutex for [%4.4s], %s\n",
             TableInfo->Pointer->Signature, AcpiFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
@@ -225,7 +225,7 @@ AcpiTbInstallTable (
     Status = AcpiTbInitTableDescriptor (TableInfo->Type, TableInfo);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR (("Could not install ACPI table [%s], %s\n", 
+        ACPI_REPORT_ERROR (("Could not install ACPI table [%s], %s\n",
             TableInfo->Pointer->Signature, AcpiFormatException (Status)));
     }
 

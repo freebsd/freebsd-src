@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 62 $
+ *              $Revision: 63 $
  *
  ******************************************************************************/
 
@@ -704,24 +704,43 @@ AcpiDsStoreObjectToLocal (
          *
          * Weird, but true.
          */
-        if ((Opcode == AML_ARG_OP) &&
-            (ACPI_GET_DESCRIPTOR_TYPE (CurrentObjDesc) == ACPI_DESC_TYPE_NAMED))
+        if (Opcode == AML_ARG_OP)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-                "Arg (%p) is an ObjRef(Node), storing in node %p\n",
-                ObjDesc, CurrentObjDesc));
-
-            /* Detach an existing object from the Node */
-
-            AcpiNsDetachObject ((ACPI_NAMESPACE_NODE *) CurrentObjDesc);
-
-            /*
-             * Store this object into the Node
-             * (perform the indirect store)
+            /* 
+             * Make sure that the object is the correct type.  This may be overkill, but
+             * it is here because references were NS nodes in the past.  Now they are
+             * operand objects of type Reference.
              */
-            Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) CurrentObjDesc,
-                            ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc));
-            return_ACPI_STATUS (Status);
+            if (ACPI_GET_DESCRIPTOR_TYPE (CurrentObjDesc) != ACPI_DESC_TYPE_OPERAND)
+            {
+                ACPI_REPORT_ERROR (("Invalid descriptor type while storing to method arg: %X\n", 
+                    CurrentObjDesc->Common.Type));
+                return_ACPI_STATUS (AE_AML_INTERNAL);
+            }
+
+            /* 
+             * If we have a valid reference object that came from RefOf(), do the
+             * indirect store
+             */
+            if ((CurrentObjDesc->Common.Type == INTERNAL_TYPE_REFERENCE) &&
+                (CurrentObjDesc->Reference.Opcode == AML_REF_OF_OP))
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+                    "Arg (%p) is an ObjRef(Node), storing in node %p\n",
+                    ObjDesc, CurrentObjDesc));
+
+                /* Detach an existing object from the referenced Node */
+
+                AcpiNsDetachObject (CurrentObjDesc->Reference.Object);
+
+                /*
+                 * Store this object into the Node
+                 * (perform the indirect store)
+                 */
+                Status = AcpiNsAttachObject (CurrentObjDesc->Reference.Object,
+                                ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc));
+                return_ACPI_STATUS (Status);
+            }
         }
 
         /*

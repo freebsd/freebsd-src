@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 156 $
+ *              $Revision: 161 $
  *
  ******************************************************************************/
 
@@ -216,6 +216,19 @@ AcpiNsRootInitialize (void)
              */
             switch (InitVal->Type)
             {
+            case ACPI_TYPE_METHOD:
+                ObjDesc->Method.ParamCount =
+                        (UINT8) ACPI_STRTOUL (InitVal->Val, NULL, 10);
+                ObjDesc->Common.Flags |= AOPOBJ_DATA_VALID;
+
+#if defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
+
+                /* Compiler cheats by putting parameter count in the OwnerID */
+
+                NewNode->OwnerId = ObjDesc->Method.ParamCount;
+#endif
+                break;
+
             case ACPI_TYPE_INTEGER:
 
                 ObjDesc->Integer.Value =
@@ -331,6 +344,7 @@ AcpiNsLookup (
     ACPI_NAMESPACE_NODE     **ReturnNode)
 {
     ACPI_STATUS             Status;
+    NATIVE_CHAR             *Path = Pathname;
     ACPI_NAMESPACE_NODE     *PrefixNode;
     ACPI_NAMESPACE_NODE     *CurrentNode = NULL;
     ACPI_NAMESPACE_NODE     *ThisNode = NULL;
@@ -338,7 +352,9 @@ AcpiNsLookup (
     ACPI_NAME               SimpleName;
     ACPI_OBJECT_TYPE        TypeToCheckFor;
     ACPI_OBJECT_TYPE        ThisSearchType;
-    UINT32                  LocalFlags = Flags & ~ACPI_NS_ERROR_IF_FOUND;
+    UINT32                  SearchParentFlag = ACPI_NS_SEARCH_PARENT;
+    UINT32                  LocalFlags = Flags & ~(ACPI_NS_ERROR_IF_FOUND | 
+                                                   ACPI_NS_SEARCH_PARENT);
 
 
     ACPI_FUNCTION_TRACE ("NsLookup");
@@ -373,6 +389,23 @@ AcpiNsLookup (
     else
     {
         PrefixNode = ScopeInfo->Scope.Node;
+        if (ACPI_GET_DESCRIPTOR_TYPE (PrefixNode) != ACPI_DESC_TYPE_NAMED)
+        {
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%p] Not a namespace node\n", 
+                PrefixNode));
+            return_ACPI_STATUS (AE_AML_INTERNAL);
+        }
+
+        /*
+         * This node might not be a actual "scope" node (such as a 
+         * Device/Method, etc.)  It could be a Package or other object node.  
+         * Backup up the tree to find the containing scope node.
+         */
+        while (!AcpiNsOpensScope (PrefixNode->Type) && 
+                PrefixNode->Type != ACPI_TYPE_ANY)
+        {
+            PrefixNode = AcpiNsGetParentNode (PrefixNode);
+        }
     }
 
     /*
@@ -408,7 +441,7 @@ AcpiNsLookup (
 
         NumSegments  = 0;
         ThisNode     = AcpiGbl_RootNode;
-        Pathname     = "";
+        Path     = "";
 
         ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
             "Null Pathname (Zero segments), Flags=%X\n", Flags));
@@ -428,25 +461,26 @@ AcpiNsLookup (
          * Parent Prefixes (in which case the name's scope is relative
          * to the current scope).
          */
-        if (*Pathname == (UINT8) AML_ROOT_PREFIX)
+        if (*Path == (UINT8) AML_ROOT_PREFIX)
         {
             /* Pathname is fully qualified, start from the root */
 
             ThisNode = AcpiGbl_RootNode;
+            SearchParentFlag = ACPI_NS_NO_UPSEARCH;
 
             /* Point to name segment part */
 
-            Pathname++;
+            Path++;
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching from root [%p]\n",
-                ThisNode));
+            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, 
+                "Path is absolute from root [%p]\n", ThisNode));
         }
         else
         {
             /* Pathname is relative to current scope, start there */
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                "Searching relative to pfx scope [%p]\n",
+                "Searching relative to prefix scope [%p]\n",
                 PrefixNode));
 
             /*
@@ -454,13 +488,16 @@ AcpiNsLookup (
              * the parent node for each prefix instance.
              */
             ThisNode = PrefixNode;
-            while (*Pathname == (UINT8) AML_PARENT_PREFIX)
+            while (*Path == (UINT8) AML_PARENT_PREFIX)
             {
+                /* Name is fully qualified, no search rules apply */
+
+                SearchParentFlag = ACPI_NS_NO_UPSEARCH;
                 /*
                  * Point past this prefix to the name segment
                  * part or the next Parent Prefix
                  */
-                Pathname++;
+                Path++;
 
                 /* Backup to the parent node */
 
@@ -473,6 +510,12 @@ AcpiNsLookup (
                         ("ACPI path has too many parent prefixes (^) - reached beyond root node\n"));
                     return_ACPI_STATUS (AE_NOT_FOUND);
                 }
+            }
+
+            if (SearchParentFlag == ACPI_NS_NO_UPSEARCH)
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
+                    "Path is absolute with one or more carats\n"));
             }
         }
 
@@ -489,7 +532,7 @@ AcpiNsLookup (
          * Examine the name prefix opcode, if any, to determine the number of
          * segments.
          */
-        switch (*Pathname)
+        switch (*Path)
         {
         case 0:
             /*
@@ -504,10 +547,14 @@ AcpiNsLookup (
 
         case AML_DUAL_NAME_PREFIX:
 
+            /* More than one NameSeg, search rules do not apply */
+
+            SearchParentFlag = ACPI_NS_NO_UPSEARCH;
+
             /* Two segments, point to first name segment */
 
             NumSegments = 2;
-            Pathname++;
+            Path++;
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                 "Dual Pathname (2 segments, Flags=%X)\n", Flags));
@@ -515,11 +562,15 @@ AcpiNsLookup (
 
         case AML_MULTI_NAME_PREFIX_OP:
 
+            /* More than one NameSeg, search rules do not apply */
+
+            SearchParentFlag = ACPI_NS_NO_UPSEARCH;
+
             /* Extract segment count, point to first name segment */
 
-            Pathname++;
-            NumSegments = (UINT32) (UINT8) *Pathname;
-            Pathname++;
+            Path++;
+            NumSegments = (UINT32) (UINT8) *Path;
+            Path++;
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                 "Multi Pathname (%d Segments, Flags=%X) \n",
@@ -538,35 +589,53 @@ AcpiNsLookup (
             break;
         }
 
-        ACPI_DEBUG_EXEC (AcpiNsPrintPathname (NumSegments, Pathname));
+        ACPI_DEBUG_EXEC (AcpiNsPrintPathname (NumSegments, Path));
     }
+
 
     /*
      * Search namespace for each segment of the name.  Loop through and
-     * verify/add each name segment.
+     * verify (or add to the namespace) each name segment.
+     *
+     * The object type is significant only at the last name
+     * segment.  (We don't care about the types along the path, only
+     * the type of the final target object.)
      */
+    ThisSearchType = ACPI_TYPE_ANY;
     CurrentNode = ThisNode;
     while (NumSegments && CurrentNode)
     {
-        /*
-         * Search for the current name segment under the current
-         * named object.  The Type is significant only at the last name
-         * segment.  (We don't care about the types along the path, only
-         * the type of the final target object.)
-         */
-        ThisSearchType = ACPI_TYPE_ANY;
         NumSegments--;
         if (!NumSegments)
         {
+            /*
+             * This is the last segment, enable typechecking
+             */
             ThisSearchType = Type;
-            LocalFlags = Flags;
+
+            /*
+             * Only allow automatic parent search (search rules) if the caller
+             * requested it AND we have a single, non-fully-qualified NameSeg
+             */
+            if ((SearchParentFlag != ACPI_NS_NO_UPSEARCH) &&
+                (Flags & ACPI_NS_SEARCH_PARENT))
+            {
+                LocalFlags |= ACPI_NS_SEARCH_PARENT;
+            }
+
+            /* Set error flag according to caller */
+
+            if (Flags & ACPI_NS_ERROR_IF_FOUND)
+            {
+                LocalFlags |= ACPI_NS_ERROR_IF_FOUND;
+            }
         }
 
         /* Extract one ACPI name from the front of the pathname */
 
-        ACPI_MOVE_UNALIGNED32_TO_32 (&SimpleName, Pathname);
+        ACPI_MOVE_UNALIGNED32_TO_32 (&SimpleName, Path);
 
-        /* Try to find the ACPI name */
+        /* Try to find the single (4 character) ACPI name */
 
         Status = AcpiNsSearchAndEnter (SimpleName, WalkState, CurrentNode,
                         InterpreterMode, ThisSearchType, LocalFlags, &ThisNode);
@@ -578,7 +647,8 @@ AcpiNsLookup (
 
                 ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                     "Name [%4.4s] not found in scope [%4.4s] %p\n",
-                    (char *) &SimpleName, (char *) &CurrentNode->Name, CurrentNode));
+                    (char *) &SimpleName, (char *) &CurrentNode->Name, 
+                    CurrentNode));
             }
 
             return_ACPI_STATUS (Status);
@@ -627,7 +697,7 @@ AcpiNsLookup (
 
         /* Point to next name segment and make this node current */
 
-        Pathname += ACPI_NAME_SIZE;
+        Path += ACPI_NAME_SIZE;
         CurrentNode = ThisNode;
     }
 
@@ -649,7 +719,7 @@ AcpiNsLookup (
             }
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                "Setting current scope to [%4.4s] (%p)\n", 
+                "Setting current scope to [%4.4s] (%p)\n",
                 ThisNode->Name.Ascii, ThisNode));
         }
     }
