@@ -1985,10 +1985,10 @@ vm_map_sync(
 		end = entry->end;
 	}
 	/*
-	 * Make a first pass to check for holes.
+	 * Make a first pass to check for user-wired memory and holes.
 	 */
 	for (current = entry; current->start < end; current = current->next) {
-		if (current->eflags & MAP_ENTRY_IS_SUB_MAP) {
+		if (invalidate && (current->eflags & MAP_ENTRY_USER_WIRED)) {
 			vm_map_unlock_read(map);
 			return (KERN_INVALID_ARGUMENT);
 		}
