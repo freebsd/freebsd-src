@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.4 1994/11/09 15:12:44 davidg Exp $
+ * $Id: if_de.c,v 1.5 1994/11/10 02:56:48 davidg Exp $
  *
  */
 
@@ -832,13 +832,14 @@ tulip_ioctl(
     caddr_t data)
 {
     tulip_softc_t *sc = tulips[ifp->if_unit];
+    struct ifaddr *ifa = (struct ifaddr *)data;
+    struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
 
     s = splimp();
 
     switch (cmd) {
 	case SIOCSIFADDR: {
-	    struct ifaddr *ifa = (struct ifaddr *)data;
 
 	    ifp->if_flags |= IFF_UP;
 	    switch(ifa->ifa_addr->sa_family) {
@@ -901,9 +902,9 @@ tulip_ioctl(
 	     * Update multicast listeners
 	     */
 	    if (cmd == SIOCADDMULTI)
-		error = ether_addmulti((struct ifreq *)data, &sc->tulip_ac);
+		error = ether_addmulti(ifr, &sc->tulip_ac);
 	    else
-		error = ether_delmulti((struct ifreq *)data, &sc->tulip_ac);
+		error = ether_delmulti(ifr, &sc->tulip_ac);
 
 	    if (error == ENETRESET) {
 		tulip_addr_filter(sc);		/* reset multicast filtering */
@@ -912,6 +913,16 @@ tulip_ioctl(
 	    }
 	    break;
 	}
+	case SIOCSIFMTU:
+	    /*
+	     * Set the interface MTU.
+	     */
+	    if (ifr->ifr_mtu > ETHERMTU) {
+		error = EINVAL;
+	    } else {
+		ifp->if_mtu = ifr->ifr_mtu;
+	    }
+	    break;
 
 	default: {
 	    error = EINVAL;
@@ -1120,9 +1131,9 @@ tulip_pci_attach(
 	       (sc->tulip_revinfo & 0xF0) >> 4, sc->tulip_revinfo & 0x0F,
 	       "unknown");
     } else {
-	pci_map_int (config_id, tulip_intr, (void*) sc, &net_imask);
 	TULIP_RESET(sc);
 	tulip_attach(sc);
+	pci_map_int (config_id, tulip_intr, (void*) sc, &net_imask);
     }
 }
 #endif /* NPCI > 0 */
