@@ -66,7 +66,7 @@ static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/time.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <termios.h>
 
 #include <netinet/in_systm.h>
@@ -356,8 +356,11 @@ main(argc, argv)
 
 	(void)signal(SIGINT, finish);
 	(void)signal(SIGALRM, catcher);
-	(void)signal(SIGINFO, status);
 
+	/*
+	 * Use sigaction instead of signal() to get unambiguous semantics
+	 * for SIGINFO, in particular with SA_RESTART not set.
+	 */
 	si_sa.sa_handler = status;
 	sigemptyset(&si_sa.sa_mask);
 	si_sa.sa_flags = 0;
@@ -378,11 +381,12 @@ main(argc, argv)
 	if ((options & F_FLOOD) == 0)
 		catcher();		/* start things going */
 
-	for (;;check_status()) {
+	for (;;) {
 		struct sockaddr_in from;
 		register int cc;
 		int fromlen;
 
+		check_status();
 		if (options & F_FLOOD) {
 			pinger();
 			timeout.tv_sec = 0;
@@ -749,29 +753,24 @@ tvsub(out, in)
  */
 
 void
-status() {
+status(sig)
+	int sig;
+{
 	siginfo_p = 1;
 }
 
 void
 check_status()
 {
-	double temp_min = nreceived ? tmin : 0;
-
 	if (siginfo_p) {
-		(void)fprintf(stderr, "%ld/%ld packets received (%ld%%) "
-			"%.3f min / %.3f avg / %.3f max\n",
-			nreceived, ntransmitted,
-			(ntransmitted ?
-				100 - (int) (((ntransmitted - nreceived) * 100)
-				/ ntransmitted)
-				: 0),
-			temp_min,
-			(nreceived + nrepeats) ?
-				tsum / (nreceived + nrepeats)
-				: tsum,
-			tmax);
 		siginfo_p = 0;
+		(void)fprintf(stderr,
+	"\r%ld/%ld packets received (%.0f%%) %.3f min / %.3f avg / %.3f max\n",
+		    nreceived, ntransmitted,
+		    ntransmitted ? nreceived * 100.0 / ntransmitted : 0.0,
+		    nreceived ? tmin : 0.0,
+		    nreceived + nrepeats ? tsum / (nreceived + nrepeats) : tsum,
+		    tmax);
 	}
 }
 
@@ -782,7 +781,6 @@ check_status()
 void
 finish()
 {
-	register int i;
 	struct termios ts;
 
 	(void)signal(SIGINT, SIG_IGN);
@@ -801,12 +799,9 @@ finish()
 			    (int) (((ntransmitted - nreceived) * 100) /
 			    ntransmitted));
 	(void)putchar('\n');
-	if (nreceived && timing) {
-		/* Only display average to microseconds */
-		i = 1000.0 * tsum / (nreceived + nrepeats);
+	if (nreceived && timing)
 		(void)printf("round-trip min/avg/max = %.3f/%.3f/%.3f ms\n",
-		    tmin, ((double)i) / 1000.0, tmax);
-	}
+		    tmin, tsum / (nreceived + nrepeats), tmax);
 	if (reset_kerninfo && tcgetattr(STDOUT_FILENO, &ts) != -1) {
 		ts.c_lflag &= ~NOKERNINFO;
 		tcsetattr(STDOUT_FILENO, TCSANOW, &ts);
