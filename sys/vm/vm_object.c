@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.130 1998/10/22 02:16:53 dg Exp $
+ * $Id: vm_object.c,v 1.131 1998/10/23 05:25:49 dg Exp $
  */
 
 /*
@@ -446,11 +446,6 @@ vm_object_terminate(object)
 		panic("vm_object_terminate: object with references, ref_count=%d", object->ref_count);
 
 	/*
-	 * Let the pager know object is dead.
-	 */
-	vm_pager_deallocate(object);
-
-	/*
 	 * Now free any remaining pages. For internal objects, this also
 	 * removes them from paging queues. Don't free wired pages, just
 	 * remove them from the object.
@@ -465,11 +460,17 @@ vm_object_terminate(object)
 			vm_page_free(p);
 			cnt.v_pfree++;
 		} else {
-			printf("vm_object_terminate: not freeing wired page; wire_count=%d\n", p->wire_count);
+			if (!(p->flags & PG_FICTITIOUS))
+				printf("vm_object_terminate: not freeing wired page; wire_count=%d\n", p->wire_count);
 			vm_page_busy(p);
 			vm_page_remove(p);
 		}
 	}
+
+	/*
+	 * Let the pager know object is dead.
+	 */
+	vm_pager_deallocate(object);
 
 	/*
 	 * Remove the object from the global object list.
