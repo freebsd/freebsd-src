@@ -199,7 +199,5 @@ struct ata_param {
 #define ATAREINIT	_IOW('a',  4, int)
 #define ATAATTACH	_IOW('a',  5, int)
 #define ATADETACH	_IOW('a',  6, int)
-#define ATAACOUSTIC	_IOWR('a',  7, int);
-#define ATASLEEP	_IOWR('a',  8, struct ata_sleep)
 
 #endif /* _SYS_ATA_H_ */
