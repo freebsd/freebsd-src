@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip6protosw.h,v 1.11 2000/10/03 09:59:35 jinmei Exp $	*/
+/*	$KAME: ip6protosw.h,v 1.22 2001/02/08 18:02:08 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -87,16 +87,38 @@ struct socket;
 struct domain;
 struct proc;
 struct ip6_hdr;
+struct icmp6_hdr;
+struct in6_addr;
 struct pr_usrreqs;
 
 /*
  * argument type for the last arg of pr_ctlinput().
  * should be consulted only with AF_INET6 family.
+ *
+ * IPv6 ICMP IPv6 [exthdrs] finalhdr paylaod
+ * ^    ^    ^              ^
+ * |    |    ip6c_ip6       ip6c_off
+ * |    ip6c_icmp6
+ * ip6c_m
+ *
+ * ip6c_finaldst usually points to ip6c_ip6->ip6_dst.  if the original
+ * (internal) packet carries a routing header, it may point the final
+ * dstination address in the routing header.
+ *
+ * ip6c_src: ip6c_ip6->ip6_src + scope info + flowlabel in ip6c_ip6
+ *	(beware of flowlabel, if you try to compare it against others)
+ * ip6c_dst: ip6c_finaldst + scope info
  */
 struct ip6ctlparam {
 	struct mbuf *ip6c_m;		/* start of mbuf chain */
+	struct icmp6_hdr *ip6c_icmp6;	/* icmp6 header of target packet */
 	struct ip6_hdr *ip6c_ip6;	/* ip6 header of target packet */
 	int ip6c_off;			/* offset of the target proto header */
+	struct sockaddr_in6 *ip6c_src;	/* srcaddr w/ additional info */
+	struct sockaddr_in6 *ip6c_dst;	/* (final) dstaddr w/ additional info */
+	struct in6_addr *ip6c_finaldst;	/* final destination address */
+	void *ip6c_cmdarg;		/* control command dependent data */
+	u_int8_t ip6c_nxt;		/* final next header field */
 };
 
 struct ip6protosw {

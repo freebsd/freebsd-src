@@ -33,11 +33,11 @@ foreach $_ (<IN>) {
 		$akey =~ s/\s//g;
 		$akey =~ s/^/0x/g;
 	} elsif (/^\treplay=(\d+) flags=(0x\d+) state=/) {
-		print "$mode $src $dst $proto $spi -m $ipsecmode";
+		print "$mode $src $dst $proto $spi";
 		$replay = $1;
 		print " -u $reqid" if $reqid;
 		if ($mode eq 'add') {
-			print " -r $replay" if $replay;
+			print " -m $ipsecmode -r $replay" if $replay;
 			if ($proto eq 'esp') {
 				print " -E $ealgo $ekey" if $ealgo;
 				print " -A $aalgo $akey" if $aalgo;

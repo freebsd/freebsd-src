@@ -37,6 +37,8 @@
 #ifndef _NETINET_IP_VAR_H_
 #define	_NETINET_IP_VAR_H_
 
+#include <sys/queue.h>
+
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
  */
@@ -86,6 +88,7 @@ struct ipoption {
  */
 struct ip_moptions {
 	struct	ifnet *imo_multicast_ifp; /* ifp for outgoing multicasts */
+	struct in_addr imo_multicast_addr; /* ifindex/addr on MULTICAST_IF */
 	u_char	imo_multicast_ttl;	/* TTL for outgoing multicasts */
 	u_char	imo_multicast_loop;	/* 1 => hear sends if a member */
 	u_short	imo_num_memberships;	/* no. memberships this socket */
@@ -122,6 +125,7 @@ struct	ipstat {
 	u_long	ips_toolong;		/* ip length > max ip packet size */
 	u_long	ips_notmember;		/* multicasts for unregistered grps */
 	u_long	ips_nogif;		/* no match gif found */
+	u_long	ips_badaddr;		/* invalid address on header */
 };
 
 #ifdef _KERNEL

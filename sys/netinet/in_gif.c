@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: in_gif.c,v 1.44 2000/08/15 07:24:24 itojun Exp $	*/
+/*	$KAME: in_gif.c,v 1.54 2001/05/14 14:02:16 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -88,7 +88,7 @@ in_gif_output(ifp, family, m, rt)
 	struct mbuf	*m;
 	struct rtentry *rt;
 {
-	register struct gif_softc *sc = (struct gif_softc*)ifp;
+	struct gif_softc *sc = (struct gif_softc*)ifp;
 	struct sockaddr_in *dst = (struct sockaddr_in *)&sc->gif_ro.ro_dst;
 	struct sockaddr_in *sin_src = (struct sockaddr_in *)sc->gif_psrc;
 	struct sockaddr_in *sin_dst = (struct sockaddr_in *)sc->gif_pdst;
@@ -146,29 +146,12 @@ in_gif_output(ifp, family, m, rt)
 
 	bzero(&iphdr, sizeof(iphdr));
 	iphdr.ip_src = sin_src->sin_addr;
-	if (ifp->if_flags & IFF_LINK0) {
-		/* multi-destination mode */
-		if (sin_dst->sin_addr.s_addr != INADDR_ANY)
-			iphdr.ip_dst = sin_dst->sin_addr;
-		else if (rt) {
-			if (family != AF_INET) {
-				m_freem(m);
-				return EINVAL;	/*XXX*/
-			}
-			iphdr.ip_dst = ((struct sockaddr_in *)
-					(rt->rt_gateway))->sin_addr;
-		} else {
-			m_freem(m);
-			return ENETUNREACH;
-		}
-	} else {
-		/* bidirectional configured tunnel mode */
-		if (sin_dst->sin_addr.s_addr != INADDR_ANY)
-			iphdr.ip_dst = sin_dst->sin_addr;
-		else {
-			m_freem(m);
-			return ENETUNREACH;
-		}
+	/* bidirectional configured tunnel mode */
+	if (sin_dst->sin_addr.s_addr != INADDR_ANY)
+		iphdr.ip_dst = sin_dst->sin_addr;
+	else {
+		m_freem(m);
+		return ENETUNREACH;
 	}
 	iphdr.ip_p = proto;
 	/* version will be set in ip_output() */
@@ -176,6 +159,8 @@ in_gif_output(ifp, family, m, rt)
 	iphdr.ip_len = m->m_pkthdr.len + sizeof(struct ip);
 	if (ifp->if_flags & IFF_LINK1)
 		ip_ecn_ingress(ECN_ALLOWED, &iphdr.ip_tos, &tos);
+	else
+		ip_ecn_ingress(ECN_NOCARE, &iphdr.ip_tos, &tos);
 
 	/* prepend new IP header */
 	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
@@ -272,6 +257,8 @@ in_gif_input(m, va_alist)
 		ip = mtod(m, struct ip *);
 		if (gifp->if_flags & IFF_LINK1)
 			ip_ecn_egress(ECN_ALLOWED, &otos, &ip->ip_tos);
+		else
+			ip_ecn_egress(ECN_NOCARE, &otos, &ip->ip_tos);
 		break;
 	    }
 #endif
@@ -290,6 +277,8 @@ in_gif_input(m, va_alist)
 		itos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 		if (gifp->if_flags & IFF_LINK1)
 			ip_ecn_egress(ECN_ALLOWED, &otos, &itos);
+		else
+			ip_ecn_egress(ECN_NOCARE, &otos, &itos);
 		ip6->ip6_flow &= ~htonl(0xff << 20);
 		ip6->ip6_flow |= htonl((u_int32_t)itos << 20);
 		break;
@@ -335,10 +324,6 @@ gif_encapcheck4(m, off, proto, arg)
 		addrmatch |= 1;
 	if (dst->sin_addr.s_addr == ip.ip_src.s_addr)
 		addrmatch |= 2;
-	else if ((sc->gif_if.if_flags & IFF_LINK0) != 0 &&
-		 dst->sin_addr.s_addr == INADDR_ANY) {
-		addrmatch |= 2; /* we accept any source */
-	}
 	if (addrmatch != 3)
 		return 0;
 
@@ -359,7 +344,8 @@ gif_encapcheck4(m, off, proto, arg)
 	}
 
 	/* ingress filters on outer source */
-	if ((m->m_flags & M_PKTHDR) != 0 && m->m_pkthdr.rcvif) {
+	if ((sc->gif_if.if_flags & IFF_LINK2) == 0 &&
+	    (m->m_flags & M_PKTHDR) != 0 && m->m_pkthdr.rcvif) {
 		struct sockaddr_in sin;
 		struct rtentry *rt;
 
@@ -368,15 +354,18 @@ gif_encapcheck4(m, off, proto, arg)
 		sin.sin_len = sizeof(struct sockaddr_in);
 		sin.sin_addr = ip.ip_src;
 		rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
-		if (!rt)
-			return 0;
-		if (rt->rt_ifp != m->m_pkthdr.rcvif) {
-			rtfree(rt);
+		if (!rt || rt->rt_ifp != m->m_pkthdr.rcvif) {
+#if 0
+			log(LOG_WARNING, "%s: packet from 0x%x dropped "
+			    "due to ingress filter\n", if_name(&sc->gif_if),
+			    (u_int32_t)ntohl(sin.sin_addr.s_addr));
+#endif
+			if (rt)
+				rtfree(rt);
 			return 0;
 		}
 		rtfree(rt);
 	}
 
-	/* prioritize: IFF_LINK0 mode is less preferred */
-	return (sc->gif_if.if_flags & IFF_LINK0) ? 32 : 32 * 2;
+	return 32 * 2;
 }

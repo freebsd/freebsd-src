@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$KAME: rtadvd.conf.5,v 1.32 2001/01/19 05:32:05 jinmei Exp $
+.\"	$KAME: rtadvd.conf.5,v 1.35 2001/05/25 07:40:22 jinmei Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -117,6 +117,16 @@ and Bit 6
 .Li 0x40
 .Pc
 means Other stateful configuration flag bit.
+Bit 4 
+.Po
+.Li 0x10
+.Pc
+and Bit 3
+.Po
+.Li 0x08
+.Pc
+are used to encode router preference.
+0x01 means high, 0x00 means medium, and 0x11 means low.
 The default value is 0.
 .It Cm \&rltime
 (num) Router lifetime field
@@ -145,6 +155,17 @@ These items can be omitted, then
 will automatically get appropriate prefixes from the kernel's routing table,
 and advertise the prefixes with the default parameters.
 .Bl -tag -width indent
+.It Cm \&clockskew
+(num) Time skew to adjust link propagation delays and clock skews
+betwen routers on the link
+.Pq unit: seconds .
+This value is used in consistency check for locally-configured and
+advertised prefix lifetimes, and has its meaning when the local router
+configures a prefix on the link with a lifetime that decrements in
+real time.
+If the value is 0, it means the consistency check will be skipped
+for such prefixes.
+The default value is 0.
 .It Cm \&addrs
 (num) Number of prefixes.
 Its default is 0, so it must explicitly be set to positve values
@@ -193,10 +214,16 @@ is more than 0.
 (num) Valid lifetime field
 .Pq unit: seconds .
 The default value is 2592000 (30 days).
+.It Cm \&vltimedecr
+(bool) This item means the advertised valid lifetime will decrements
+in real time, which is disabled by default.
 .It Cm \&pltime
 (num) Preferred lifetime field
 .Pq unit: seconds .
 The default value is 604800 (7 days).
+.It Cm \&pltimedecr
+(bool) This item means the advertised preferred lifetime will decrements
+in real time, which is disabled by default.
 .El
 .Pp
 The following item is for ICMPv6 MTU option,
@@ -237,6 +264,75 @@ will not attach source link-layer address option to
 router advertisement packets.
 .El
 .Pp
+The following item controls ICMPV6 home agent information option,
+which was defined with mobile IPv6 support.
+It will be attached to router advertisement header just like other options do.
+.Bl -tag -width indent
+.It Cm \&hapref
+(num) Specifies home agent preference.
+If set to non-zero,
+.Cm \&hatime
+must be present as well.
+.It Cm \&hatime
+(num) Specifies home agent lifetime.
+.El
+.Pp
+When mobile IPv6 support is turned on for
+.Xr rtadvd 8 ,
+advertisement interval option will be attached to router advertisement
+packet, by configuring
+.Cm \&maxinterval
+explicitly.
+.Pp
+The following items are for ICMPv6 route information option,
+which will be attached to router advertisement header.
+These items are optional.
+.Bl -tag -width indent
+.It Cm \&routes
+(num) Number of routes.
+Its default is 0, so it must explicitly be set to positve values
+if you want to specify any route information option.
+If its value is 0, no route information is sent.
+If its value is more than 1, you must specify the index of the routes
+for each item below.
+Indices vary from 0 to N-1, where N is the
+value of
+.Cm routes.
+Each index shall follow the name of each item, e.g.,
+.Dq rtrplen2 .
+.It Cm \&rtrplen
+(num) Prefix length field in route information option.
+The default value is 64.
+.It Cm \&rtrflags
+(num) Flags field in route information option.
+Bit 4
+.Po
+.Li 0x10
+.Pc
+and 
+and Bit 3
+.Po
+.Li 0x08
+.Pc
+are used to encode router preference for the route.
+The default value is 0x00, i.e. medium router preference.
+.It Cm \&rtrprefix
+(str) The prefix filled into the Prefix field of route information option.
+Since
+.Dq \&:
+is used for
+.Xr termcap 5
+file format as well as IPv6 numeric address, the field MUST be quoted by
+doublequote character.
+This field cannot be
+omitted if the value of
+.Cm addrs
+is more than 0.
+.It Cm \&rtrltime
+(num) route lifetime field in route information option.
+.Pq unit: seconds .
+The default value is 2592000 (30 days). (not specified in draft-draves-router-selection-01.txt now)
+.El
 You can also refer one line from another by using
 .Cm tc
 capability.
@@ -293,6 +389,12 @@ Thomas Narten, Erik Nordmark and W. A. Simpson,
 Neighbor Discovery for IP version 6 (IPv6)
 .Dc ,
 RFC 2461
+.Pp
+Richard Draves,
+.Do
+Default Router Preferences and More-Specific Routes
+.Dc ,
+draft-ietf-ipngwg-router-selection-01.txt
 .Sh HISTORY
 The
 .Xr rtadvd 8

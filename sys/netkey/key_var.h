@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: key_var.h,v 1.8 2000/05/24 17:28:23 itojun Exp $	*/
+/*	$KAME: key_var.h,v 1.9 2000/10/04 11:13:57 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -42,7 +42,10 @@
 #define KEYCTL_LARVAL_LIFETIME		6
 #define KEYCTL_BLOCKACQ_COUNT		7
 #define KEYCTL_BLOCKACQ_LIFETIME	8
-#define KEYCTL_MAXID			9
+#define KEYCTL_ESP_KEYMIN		9
+#define KEYCTL_ESP_AUTH			10
+#define KEYCTL_AH_KEYMIN		11
+#define KEYCTL_MAXID			12
 
 #define KEYCTL_NAMES { \
 	{ 0, 0 }, \
@@ -54,7 +57,39 @@
 	{ "larval_lifetime", CTLTYPE_INT }, \
 	{ "blockacq_count", CTLTYPE_INT }, \
 	{ "blockacq_lifetime", CTLTYPE_INT }, \
+	{ "esp_keymin", CTLTYPE_INT }, \
+	{ "ah_keymin", CTLTYPE_INT }, \
 }
+
+#ifdef IPSEC_DEBUG
+#define KEYCTL_VARS { \
+	0, \
+	&key_debug_level, \
+	&key_spi_trycnt, \
+	&key_spi_minval, \
+	&key_spi_maxval, \
+	&key_int_random, \
+	&key_larval_lifetime, \
+	&key_blockacq_count, \
+	&key_blockacq_lifetime, \
+	&ipsec_esp_keymin, \
+	&ipsec_ah_keymin, \
+}
+#else
+#define KEYCTL_VARS { \
+	0, \
+	0, \
+	&key_spi_trycnt, \
+	&key_spi_minval, \
+	&key_spi_maxval, \
+	&key_int_random, \
+	&key_larval_lifetime, \
+	&key_blockacq_count, \
+	&key_blockacq_lifetime, \
+	&ipsec_esp_keymin, \
+	&ipsec_ah_keymin, \
+}
+#endif
 
 #ifdef _KERNEL
 #define _ARRAYLEN(p) (sizeof(p)/sizeof(p[0]))

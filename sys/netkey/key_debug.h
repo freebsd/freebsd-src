@@ -33,6 +33,8 @@
 #ifndef _NETKEY_KEY_DEBUG_H_
 #define _NETKEY_KEY_DEBUG_H_
 
+#if !defined(_KERNEL) || (defined(_KERNEL) && defined(IPSEC_DEBUG))
+
 /* debug flags */
 #define KEYDEBUG_STAMP		0x00000001 /* path */
 #define KEYDEBUG_DATA		0x00000002 /* data */
@@ -84,5 +86,10 @@ extern void kdebug_sockaddr __P((struct sockaddr *));
 extern void ipsec_hexdump __P((caddr_t, int));
 extern void ipsec_bindump __P((caddr_t, int));
 
-#endif /* _NETKEY_KEY_DEBUG_H_ */
+#else
 
+#define KEYDEBUG(lev,arg)
+
+#endif /*!defined(_KERNEL) || (defined(_KERNEL) && defined(IPSEC_DEBUG))*/
+
+#endif /* _NETKEY_KEY_DEBUG_H_ */

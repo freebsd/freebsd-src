@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ah_input.c,v 1.29 2000/05/29 08:33:53 itojun Exp $	*/
+/*	$KAME: ah_input.c,v 1.59 2001/05/16 04:01:27 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -66,7 +66,9 @@
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/in6_pcb.h>
 #include <netinet/icmp6.h>
+#include <netinet6/ip6protosw.h>
 #endif
 
 #include <netinet6/ipsec.h>
@@ -107,16 +109,16 @@ ah4_input(m, va_alist)
 	struct ip *ip;
 	struct ah *ah;
 	u_int32_t spi;
-	struct ah_algorithm *algo;
+	const struct ah_algorithm *algo;
 	size_t siz;
 	size_t siz1;
 	u_char *cksum;
 	struct secasvar *sav = NULL;
 	u_int16_t nxt;
 	size_t hlen;
-	int s;
 	int off, proto;
 	va_list ap;
+	size_t stripsiz = 0;
 
 	va_start(ap, m);
 	off = va_arg(ap, int);
@@ -175,15 +177,15 @@ ah4_input(m, va_alist)
 		ipsecstat.in_badspi++;
 		goto fail;
 	}
-	if (sav->alg_auth == SADB_AALG_NONE) {
+
+	algo = ah_algorithm_lookup(sav->alg_auth);
+	if (!algo) {
 		ipseclog((LOG_DEBUG, "IPv4 AH input: "
-		    "unspecified authentication algorithm for spi %u\n",
+		    "unsupported authentication algorithm for spi %u\n",
 		    (u_int32_t)ntohl(spi)));
 		ipsecstat.in_badspi++;
 		goto fail;
 	}
-
-	algo = &ah_algorithms[sav->alg_auth];
 
 	siz = (*algo->sumsiz)(sav);
 	siz1 = ((siz + 3) & ~(4 - 1));
@@ -284,29 +286,23 @@ ah4_input(m, va_alist)
 		goto fail;
 	}
 	
-    {
-#if 1
 	/*
 	 * some of IP header fields are flipped to the host endian.
 	 * convert them back to network endian.  VERY stupid.
 	 */
 	ip->ip_len = htons(ip->ip_len + hlen);
 	ip->ip_off = htons(ip->ip_off);
-#endif
 	if (ah4_calccksum(m, (caddr_t)cksum, siz1, algo, sav)) {
 		free(cksum, M_TEMP);
 		ipsecstat.in_inval++;
 		goto fail;
 	}
 	ipsecstat.in_ahhist[sav->alg_auth]++;
-#if 1
 	/*
 	 * flip them back.
 	 */
 	ip->ip_len = ntohs(ip->ip_len) - hlen;
 	ip->ip_off = ntohs(ip->ip_off);
-#endif
-    }
 
     {
 	caddr_t sumpos = NULL;
@@ -397,7 +393,14 @@ ah4_input(m, va_alist)
 	}
 
 	/* was it transmitted over the IPsec tunnel SA? */
-	if (ipsec4_tunnel_validate(ip, nxt, sav) && nxt == IPPROTO_IPV4) {
+	if (sav->flags & SADB_X_EXT_OLD) {
+		/* RFC 1826 */
+		stripsiz = sizeof(struct ah) + siz1;
+	} else {
+		/* RFC 2402 */
+		stripsiz = sizeof(struct newah) + siz1;
+	}
+	if (ipsec4_tunnel_validate(m, off + stripsiz, nxt, sav)) {
 		/*
 		 * strip off all the headers that precedes AH.
 		 *	IP xx AH IP' payload -> IP' payload
@@ -405,17 +408,9 @@ ah4_input(m, va_alist)
 		 * XXX more sanity checks
 		 * XXX relationship with gif?
 		 */
-		size_t stripsiz = 0;
 		u_int8_t tos;
 
 		tos = ip->ip_tos;
-		if (sav->flags & SADB_X_EXT_OLD) {
-			/* RFC 1826 */
-			stripsiz = sizeof(struct ah) + siz1;
-		} else {
-			/* RFC 2402 */
-			stripsiz = sizeof(struct newah) + siz1;
-		}
 		m_adj(m, off + stripsiz);
 		if (m->m_len < sizeof(*ip)) {
 			m = m_pullup(m, sizeof(*ip));
@@ -469,6 +464,11 @@ ah4_input(m, va_alist)
 #endif
 
 		key_sa_recordxfer(sav, m);
+		if (ipsec_addhist(m, IPPROTO_AH, spi) != 0 ||
+		    ipsec_addhist(m, IPPROTO_IPV4, 0) != 0) {
+			ipsecstat.in_nomem++;
+			goto fail;
+		}
 
 		if (! IF_HANDOFF(&ipintrq, m, NULL)) {
 			ipsecstat.in_inval++;
@@ -482,15 +482,6 @@ ah4_input(m, va_alist)
 		/*
 		 * strip off AH.
 		 */
-		size_t stripsiz = 0;
-
-		if (sav->flags & SADB_X_EXT_OLD) {
-			/* RFC 1826 */
-			stripsiz = sizeof(struct ah) + siz1;
-		} else {
-			/* RFC 2402 */
-			stripsiz = sizeof(struct newah) + siz1;
-		}
 
 		ip = mtod(m, struct ip *);
 #ifndef PULLDOWN_TEST
@@ -548,10 +539,19 @@ ah4_input(m, va_alist)
 		/* forget about IP hdr checksum, the check has already been passed */
 
 		key_sa_recordxfer(sav, m);
+		if (ipsec_addhist(m, IPPROTO_AH, spi) != 0) {
+			ipsecstat.in_nomem++;
+			goto fail;
+		}
 
-		if (nxt != IPPROTO_DONE)
+		if (nxt != IPPROTO_DONE) {
+			if ((inetsw[ip_protox[nxt]].pr_flags & PR_LASTHDR) != 0 &&
+			    ipsec4_in_reject(m, NULL)) {
+				ipsecstat.in_polvio++;
+				goto fail;
+			}
 			(*inetsw[ip_protox[nxt]].pr_input)(m, off, nxt);
-		else
+		} else
 			m_freem(m);
 		m = NULL;
 	}
@@ -587,12 +587,13 @@ ah6_input(mp, offp, proto)
 	struct ip6_hdr *ip6;
 	struct ah *ah;
 	u_int32_t spi;
-	struct ah_algorithm *algo;
+	const struct ah_algorithm *algo;
 	size_t siz;
 	size_t siz1;
 	u_char *cksum;
 	struct secasvar *sav = NULL;
 	u_int16_t nxt;
+	size_t stripsiz = 0;
 
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, sizeof(struct ah), IPPROTO_DONE);
@@ -601,7 +602,7 @@ ah6_input(mp, offp, proto)
 	IP6_EXTHDR_GET(ah, struct ah *, m, off, sizeof(struct newah));
 	if (ah == NULL) {
 		ipseclog((LOG_DEBUG, "IPv6 AH input: can't pullup\n"));
-		ipsecstat.in_inval++;
+		ipsec6stat.in_inval++;
 		return IPPROTO_DONE;
 	}
 #endif
@@ -637,15 +638,15 @@ ah6_input(mp, offp, proto)
 		ipsec6stat.in_badspi++;
 		goto fail;
 	}
-	if (sav->alg_auth == SADB_AALG_NONE) {
+
+	algo = ah_algorithm_lookup(sav->alg_auth);
+	if (!algo) {
 		ipseclog((LOG_DEBUG, "IPv6 AH input: "
-		    "unspecified authentication algorithm for spi %u\n",
+		    "unsupported authentication algorithm for spi %u\n",
 		    (u_int32_t)ntohl(spi)));
 		ipsec6stat.in_badspi++;
 		goto fail;
 	}
-
-	algo = &ah_algorithms[sav->alg_auth];
 
 	siz = (*algo->sumsiz)(sav);
 	siz1 = ((siz + 3) & ~(4 - 1));
@@ -685,7 +686,7 @@ ah6_input(mp, offp, proto)
 		sizeof(struct ah) + sizoff + siz1);
 	if (ah == NULL) {
 		ipseclog((LOG_NOTICE, "couldn't pullup gather IPv6 AH checksum part"));
-		ipsecstat.in_inval++;
+		ipsec6stat.in_inval++;
 		m = NULL;
 		goto fail;
 	}
@@ -808,7 +809,14 @@ ah6_input(mp, offp, proto)
 	}
 
 	/* was it transmitted over the IPsec tunnel SA? */
-	if (ipsec6_tunnel_validate(ip6, nxt, sav) && nxt == IPPROTO_IPV6) {
+	if (sav->flags & SADB_X_EXT_OLD) {
+		/* RFC 1826 */
+		stripsiz = sizeof(struct ah) + siz1;
+	} else {
+		/* RFC 2402 */
+		stripsiz = sizeof(struct newah) + siz1;
+	}
+	if (ipsec6_tunnel_validate(m, off + stripsiz, nxt, sav)) {
 		/*
 		 * strip off all the headers that precedes AH.
 		 *	IP6 xx AH IP6' payload -> IP6' payload
@@ -816,17 +824,9 @@ ah6_input(mp, offp, proto)
 		 * XXX more sanity checks
 		 * XXX relationship with gif?
 		 */
-		size_t stripsiz = 0;
 		u_int32_t flowinfo;	/*net endian*/
 
 		flowinfo = ip6->ip6_flow;
-		if (sav->flags & SADB_X_EXT_OLD) {
-			/* RFC 1826 */
-			stripsiz = sizeof(struct ah) + siz1;
-		} else {
-			/* RFC 2402 */
-			stripsiz = sizeof(struct newah) + siz1;
-		}
 		m_adj(m, off + stripsiz);
 		if (m->m_len < sizeof(*ip6)) {
 			/*
@@ -870,6 +870,11 @@ ah6_input(mp, offp, proto)
 #endif
 
 		key_sa_recordxfer(sav, m);
+		if (ipsec_addhist(m, IPPROTO_AH, spi) != 0 ||
+		    ipsec_addhist(m, IPPROTO_IPV6, 0) != 0) {
+			ipsec6stat.in_nomem++;
+			goto fail;
+		}
 
 		if (! IF_HANDOFF(&ip6intrq, m, NULL)) {
 			ipsec6stat.in_inval++;
@@ -883,7 +888,6 @@ ah6_input(mp, offp, proto)
 		/*
 		 * strip off AH.
 		 */
-		size_t stripsiz = 0;
 		char *prvnxtp;
 
 		/*
@@ -893,14 +897,6 @@ ah6_input(mp, offp, proto)
 		 */
 		prvnxtp = ip6_get_prevhdr(m, off); /* XXX */
 		*prvnxtp = nxt;
-
-		if (sav->flags & SADB_X_EXT_OLD) {
-			/* RFC 1826 */
-			stripsiz = sizeof(struct ah) + siz1;
-		} else {
-			/* RFC 2402 */
-			stripsiz = sizeof(struct newah) + siz1;
-		}
 
 		ip6 = mtod(m, struct ip6_hdr *);
 #ifndef PULLDOWN_TEST
@@ -945,6 +941,10 @@ ah6_input(mp, offp, proto)
 		ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) - stripsiz);
 
 		key_sa_recordxfer(sav, m);
+		if (ipsec_addhist(m, IPPROTO_AH, spi) != 0) {
+			ipsec6stat.in_nomem++;
+			goto fail;
+		}
 	}
 
 	*offp = off;
@@ -967,5 +967,93 @@ fail:
 	if (m)
 		m_freem(m);
 	return IPPROTO_DONE;
+}
+
+void
+ah6_ctlinput(cmd, sa, d)
+	int cmd;
+	struct sockaddr *sa;
+	void *d;
+{
+	const struct newah *ahp;
+	struct newah ah;
+	struct secasvar *sav;
+	struct ip6_hdr *ip6;
+	struct mbuf *m;
+	struct ip6ctlparam *ip6cp = NULL;
+	int off;
+	struct sockaddr_in6 sa6_src, sa6_dst;
+
+	if (sa->sa_family != AF_INET6 ||
+	    sa->sa_len != sizeof(struct sockaddr_in6))
+		return;
+	if ((unsigned)cmd >= PRC_NCMDS)
+		return;
+
+	/* if the parameter is from icmp6, decode it. */
+	if (d != NULL) {
+		ip6cp = (struct ip6ctlparam *)d;
+		m = ip6cp->ip6c_m;
+		ip6 = ip6cp->ip6c_ip6;
+		off = ip6cp->ip6c_off;
+	} else {
+		m = NULL;
+		ip6 = NULL;
+	}
+
+	if (ip6) {
+		/*
+		 * XXX: We assume that when ip6 is non NULL,
+		 * M and OFF are valid.
+		 */
+
+		/* check if we can safely examine src and dst ports */
+		if (m->m_pkthdr.len < off + sizeof(ah))
+			return;
+
+		if (m->m_len < off + sizeof(ah)) {
+			/*
+			 * this should be rare case,
+			 * so we compromise on this copy...
+			 */
+			m_copydata(m, off, sizeof(ah), (caddr_t)&ah);
+			ahp = &ah;
+		} else
+			ahp = (struct newah *)(mtod(m, caddr_t) + off);
+
+		if (cmd == PRC_MSGSIZE) {
+			int valid = 0;
+
+			/*
+			 * Check to see if we have a valid SA corresponding to
+			 * the address in the ICMP message payload.
+			 */
+			sav = key_allocsa(AF_INET6,
+					  (caddr_t)&sa6_src.sin6_addr,
+					  (caddr_t)&sa6_dst.sin6_addr,
+					  IPPROTO_AH, ahp->ah_spi);
+			if (sav) {
+				if (sav->state == SADB_SASTATE_MATURE ||
+				    sav->state == SADB_SASTATE_DYING)
+					valid++;
+				key_freesav(sav);
+			}
+
+			/* XXX Further validation? */
+
+			/*
+			 * Depending on the value of "valid" and routing table
+			 * size (mtudisc_{hi,lo}wat), we will:
+			 * - recalcurate the new MTU and create the
+			 *   corresponding routing entry, or
+			 * - ignore the MTU change notification.
+			 */
+			icmp6_mtudisc_update((struct ip6ctlparam *)d, valid);
+		}
+
+		/* we normally notify single pcb here */
+	} else {
+		/* we normally notify any pcb here */
+	}
 }
 #endif /* INET6 */

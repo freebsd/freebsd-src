@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip6_fw.c,v 1.15 2000/07/02 14:17:37 itojun Exp $	*/
+/*	$KAME: ip6_fw.c,v 1.21 2001/01/24 01:25:32 itojun Exp $	*/
 
 /*
  * Copyright (c) 1993 Daniel Boulet
@@ -87,7 +87,7 @@ LIST_HEAD (ip6_fw_head, ip6_fw_chain) ip6_fw_chain;
 SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
 SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, enable, CTLFLAG_RW,
-    &ip6_fw_enable, 0, "Enable ip6fw");
+	&ip6_fw_enable, 0, "Enable ip6fw");
 SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, debug, CTLFLAG_RW, &fw6_debug, 0, "");
 SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw6_verbose, 0, "");
 SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw6_verbose_limit, 0, "");
@@ -479,7 +479,7 @@ ip6_fw_chk(struct ip6_hdr **pip6,
 	}
 #endif /* IP6FW_DIVERT_RESTART */
 	for (; chain; chain = LIST_NEXT(chain, chain)) {
-		register struct ip6_fw *const f = chain->rule;
+		struct ip6_fw *const f = chain->rule;
 
 		if (oif) {
 			/* Check direction outbound */
@@ -758,7 +758,8 @@ got_match:
 				flags = TH_RST|TH_ACK;
 			}
 			bcopy(&ti, ip6, sizeof(ti));
-			m_freem(*m);
+			tcp_respond(NULL, ip6, (struct tcphdr *)(ip6 + 1),
+				*m, ack, seq, flags);
 			*m = NULL;
 			break;
 		  }
@@ -1064,7 +1065,7 @@ ip6_fw_ctl(int stage, struct mbuf **mm)
 			}
 		}
 		for (; fcp; fcp = fcp->chain.le_next) {
-			memcpy(m->m_data, fcp->rule, sizeof *(fcp->rule));
+			bcopy(fcp->rule, m->m_data, sizeof *(fcp->rule));
 			m->m_len = sizeof *(fcp->rule);
 			m->m_next = m_get(M_TRYWAIT, MT_DATA); /* XXX */
 			if (!m->m_next) {
@@ -1204,7 +1205,7 @@ static int
 ip6fw_modevent(module_t mod, int type, void *unused)
 {
 	int s;
-	
+
 	switch (type) {
 	case MOD_LOAD:
 		s = splnet();
@@ -1225,7 +1226,7 @@ ip6fw_modevent(module_t mod, int type, void *unused)
 			free(fcp->rule, M_IP6FW);
 			free(fcp, M_IP6FW);
 		}
-	
+
 		splx(s);
 		printf("IPv6 firewall unloaded\n");
 		return 0;

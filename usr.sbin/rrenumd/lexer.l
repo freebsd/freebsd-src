@@ -1,4 +1,4 @@
-/*	$KAME$	*/
+/*	$KAME: lexer.l,v 1.7 2000/11/08 02:40:53 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -32,9 +32,12 @@
  */
 
 %{
+#define YY_NO_UNPUT
+
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
 
 #include <string.h>
 
@@ -55,6 +58,10 @@ int lineno = 1;
 
 #define LINEBUF_SIZE 1000
 char linebuf[LINEBUF_SIZE];
+
+int parse __P((FILE **));
+void yyerror __P((const char *));
+int yylex __P((void));
 %}
 
 /* common section */
@@ -248,9 +255,11 @@ off		{
 
 int parse(FILE **fp)
 {
+	extern int yyparse __P((void));
+
 	yyin = *fp;
 
-	if(yyparse())
+	if (yyparse())
 		return(-1);
 
 	return(0);

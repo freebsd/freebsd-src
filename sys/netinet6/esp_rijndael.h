@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: rc5.h,v 1.4 2000/06/14 10:41:17 itojun Exp $	*/
+/*	$KAME: esp_rijndael.h,v 1.1 2000/09/20 18:15:22 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -30,58 +30,10 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _RFC2040_RC5_H_
-#define _RFC2040_RC5_H_
-
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/mbuf.h>
-
-/*
- * if RC5_WORD change, W also may be changed.
- */
-typedef u_int32_t	RC5_WORD;
-
-#define W		(32)
-#define WW		(W / 8)
-#define ROT_MASK	(W - 1)
-#define BB		((2 * W) / 8)
-
-#define SHLL(x, s)	((RC5_WORD)((x) << ((s)&ROT_MASK)))
-#define SHLR(x, s, w)	((RC5_WORD)((x) >> ((w)-((s)&ROT_MASK))))
-#define SHRL(x, s, w)	((RC5_WORD)((x) << ((w)-((s)&ROT_MASK))))
-#define SHRR(x, s)	((RC5_WORD)((x) >> ((s)&ROT_MASK)))
-
-#define ROTL(x, s, w)	((RC5_WORD)(SHLL((x), (s))|SHLR((x), (s), (w))))
-#define ROTR(x, s, w)	((RC5_WORD)(SHRL((x), (s), (w))|SHRR((x), (s))))
-
-#define P16	0xb7e1
-#define Q16	0x9e37
-#define P32	0xb7e15163
-#define Q32	0x9e3779b9
-#define P64	0xb7e151628aed2a6b
-#define Q64	0x9e3779b97f4a7c15
-
-#if W == 16
-#define Pw	P16
-#define Qw	Q16
-#elif W == 32
-#define Pw	P32
-#define Qw	Q32
-#elif W == 64
-#define Pw	P64
-#define Qw	Q64
-#endif
-
-#define RC5_ENCRYPT	1
-#define RC5_DECRYPT	0
-
-extern void set_rc5_expandkey __P((RC5_WORD *, u_int8_t *, size_t, int));
-extern void rc5_encrypt_round16 __P((u_int8_t *, const u_int8_t *,
-				const RC5_WORD *));
-extern void rc5_decrypt_round16 __P((u_int8_t *, const u_int8_t *,
-				const RC5_WORD *));
-extern int rc5_cbc_process __P((struct mbuf *, size_t, size_t, RC5_WORD *,
-				u_int8_t *, int));
-
-#endif
+int esp_rijndael_schedlen __P((const struct esp_algorithm *));
+int esp_rijndael_schedule __P((const struct esp_algorithm *,
+	struct secasvar *));
+int esp_rijndael_blockdecrypt __P((const struct esp_algorithm *,
+	struct secasvar *, u_int8_t *, u_int8_t *));
+int esp_rijndael_blockencrypt __P((const struct esp_algorithm *,
+	struct secasvar *, u_int8_t *, u_int8_t *));

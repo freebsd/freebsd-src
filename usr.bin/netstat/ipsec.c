@@ -1,5 +1,6 @@
 /*	$FreeBSD$	*/
 /*	$NetBSD: inet.c,v 1.35.2.1 1999/04/29 14:57:08 perry Exp $	*/
+/*	$KAME: ipsec.c,v 1.25 2001/03/12 09:04:39 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -63,6 +64,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #ifndef lint
 /*
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
@@ -99,30 +101,52 @@ static const char rcsid[] =
 #define CAST	unsigned long long
 
 #ifdef IPSEC 
-static const char *ipsec_ahnames[] = {
-	"none",
-	"hmac MD5",
-	"hmac SHA1",
-	"keyed MD5",
-	"keyed SHA1",
-	"null",
+struct val2str {
+	int val;
+	const char *str;
 };
 
-static const char *ipsec_espnames[] = {
-	"none",
-	"DES CBC",
-	"3DES CBC",
-	"simple",
-	"blowfish CBC",
-	"CAST128 CBC",
-	"DES derived IV",
+static struct val2str ipsec_ahnames[] = {
+	{ SADB_AALG_NONE, "none", },
+	{ SADB_AALG_MD5HMAC, "hmac-md5", },
+	{ SADB_AALG_SHA1HMAC, "hmac-sha1", },
+	{ SADB_X_AALG_MD5, "md5", },
+	{ SADB_X_AALG_SHA, "sha", },
+	{ SADB_X_AALG_NULL, "null", },
+#ifdef SADB_X_AALG_SHA2_256
+	{ SADB_X_AALG_SHA2_256, "hmac-sha2-256", },
+#endif
+#ifdef SADB_X_AALG_SHA2_384
+	{ SADB_X_AALG_SHA2_384, "hmac-sha2-384", },
+#endif
+#ifdef SADB_X_AALG_SHA2_512
+	{ SADB_X_AALG_SHA2_512, "hmac-sha2-512", },
+#endif
+	{ -1, NULL },
 };
 
-static const char *ipsec_compnames[] = {
-	"none",
-	"OUI",
-	"deflate",
-	"LZS",
+static struct val2str ipsec_espnames[] = {
+	{ SADB_EALG_NONE, "none", },
+	{ SADB_EALG_DESCBC, "des-cbc", },
+	{ SADB_EALG_3DESCBC, "3des-cbc", },
+	{ SADB_EALG_NULL, "null", },
+#ifdef SADB_X_EALG_RC5CBC
+	{ SADB_X_EALG_RC5CBC, "rc5-cbc", },
+#endif
+	{ SADB_X_EALG_CAST128CBC, "cast128-cbc", },
+	{ SADB_X_EALG_BLOWFISHCBC, "blowfish-cbc", },
+#ifdef SADB_X_EALG_RIJNDAELCBC
+	{ SADB_X_EALG_RIJNDAELCBC, "rijndael-cbc", },
+#endif
+	{ -1, NULL },
+};
+
+static struct val2str ipsec_compnames[] = {
+	{ SADB_X_CALG_NONE, "none", },
+	{ SADB_X_CALG_OUI, "oui", },
+	{ SADB_X_CALG_DEFLATE, "deflate", },
+	{ SADB_X_CALG_LZS, "lzs", },
+	{ -1, NULL },
 };
 
 static const char *pfkey_msgtypenames[] = {
@@ -137,8 +161,8 @@ static struct ipsecstat ipsecstat;
 
 static void print_ipsecstats __P((void));
 static const char *pfkey_msgtype_names __P((int));
-static void ipsec_hist __P((const u_quad_t *, size_t, const char **, size_t,
-	const char *));
+static void ipsec_hist __P((const u_quad_t *, size_t, const struct val2str *,
+	size_t, const char *));
 
 /*
  * Dump IPSEC statistics structure.
@@ -147,26 +171,31 @@ static void
 ipsec_hist(hist, histmax, name, namemax, title)
 	const u_quad_t *hist;
 	size_t histmax;
-	const char **name;
+	const struct val2str *name;
 	size_t namemax;
 	const char *title;
 {
 	int first;
 	size_t proto;
+	const struct val2str *p;
 
-	for (first = 1, proto = 0; proto < histmax; proto++) {
+	first = 1;
+	for (proto = 0; proto < histmax; proto++) {
 		if (hist[proto] <= 0)
 			continue;
 		if (first) {
 			printf("\t%s histogram:\n", title);
 			first = 0;
 		}
-		if (proto < namemax && name[proto]) {
-			printf("\t\t%s: " LLU "\n", name[proto],
-				(CAST)hist[proto]);
+		for (p = name; p && p->str; p++) {
+			if (p->val == proto)
+				break;
+		}
+		if (p && p->str) {
+			printf("\t\t%s: " LLU "\n", p->str, (CAST)hist[proto]);
 		} else {
 			printf("\t\t#%ld: " LLU "\n", (long)proto,
-				(CAST)hist[proto]);
+			    (CAST)hist[proto]);
 		}
 	}
 }
@@ -220,19 +249,6 @@ ipsec_stats(off, name)
 
 	print_ipsecstats();
 }
-
-#if defined(__bsdi__) && _BSDI_VERSION >= 199802 /* bsdi4 only */
-void
-ipsec_stats0(name)
-	char *name;
-{
-	printf("%s:\n", name);
-
-	skread(name, &ipsecstat_info);
-
-	print_ipsecstats();
-}
-#endif
 
 static const char *
 pfkey_msgtype_names(x)

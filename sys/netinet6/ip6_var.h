@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip6_var.h,v 1.33 2000/06/11 14:59:20 jinmei Exp $	*/
+/*	$KAME: ip6_var.h,v 1.62 2001/05/03 14:51:48 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -129,14 +129,28 @@ struct	ip6po_rhinfo {
 
 struct	ip6_pktopts {
 	struct	mbuf *ip6po_m;	/* Pointer to mbuf storing the data */
-	int	ip6po_hlim;		/* Hoplimit for outgoing packets */
-	struct	in6_pktinfo *ip6po_pktinfo; /* Outgoing IF/address information */
-	struct	sockaddr *ip6po_nexthop;	/* Next-hop address */
+	int	ip6po_hlim;	/* Hoplimit for outgoing packets */
+
+	/* Outgoing IF/address information */
+	struct	in6_pktinfo *ip6po_pktinfo;
+
+	struct	sockaddr *ip6po_nexthop; /* Next-hop address */
+	
 	struct	ip6_hbh *ip6po_hbh; /* Hop-by-Hop options header */
-	struct	ip6_dest *ip6po_dest1; /* Destination options header(1st part) */
-	struct	ip6po_rhinfo ip6po_rhinfo; /* Routing header related info. */
-	struct	ip6_dest *ip6po_dest2; /* Destination options header(2nd part) */
+
+	/* Destination options header (before a routing header) */
+	struct	ip6_dest *ip6po_dest1;
+
+	/* Routing header related info. */
+	struct	ip6po_rhinfo ip6po_rhinfo;
+
+	/* Destination options header (after a routing header) */
+	struct	ip6_dest *ip6po_dest2;
 };
+
+/*
+ * Control options for incoming packets
+ */
 
 struct	ip6stat {
 	u_quad_t ip6s_total;		/* total packets received */
@@ -200,6 +214,37 @@ struct	ip6stat {
 };
 
 #ifdef _KERNEL
+/*
+ * IPv6 onion peeling state.
+ * it will be initialized when we come into ip6_input().
+ * XXX do not make it a kitchen sink!
+ */
+struct ip6aux {
+	u_int32_t ip6a_flags;
+#define IP6A_SWAP	0x01		/* swapped home/care-of on packet */
+#define IP6A_HASEEN	0x02		/* HA was present */
+#define IP6A_BRUID	0x04		/* BR Unique Identifier was present */
+#define IP6A_RTALERTSEEN 0x08		/* rtalert present */
+
+	/* ip6.ip6_src */
+	struct in6_addr ip6a_careof;	/* care-of address of the peer */
+	struct in6_addr ip6a_home;	/* home address of the peer */
+	u_int16_t	ip6a_bruid;	/* BR unique identifier */
+
+	/* ip6.ip6_dst */
+	struct in6_ifaddr *ip6a_dstia6;	/* my ifaddr that matches ip6_dst */
+
+	/* rtalert */
+	u_int16_t ip6a_rtalert;		/* rtalert option value */
+
+	/*
+	 * decapsulation history will be here.
+	 * with IPsec it may not be accurate.
+	 */
+};
+#endif
+
+#ifdef _KERNEL
 /* flags passed to ip6_output as last parameter */
 #define	IPV6_DADOUTPUT		0x01	/* DAD */
 #define	IPV6_FORWARDING		0x02	/* most of IPv6 header exists */
@@ -215,7 +260,8 @@ extern int	ip6_gif_hlim;		/* Hop limit for gif encap packet */
 extern int	ip6_use_deprecated;	/* allow deprecated addr as source */
 extern int	ip6_rr_prune;		/* router renumbering prefix
 					 * walk list every 5 sec.    */
-extern int	ip6_mapped_addr_on;
+#define ip6_mapped_addr_on	(!ip6_v6only)
+extern int	ip6_v6only;
 
 extern struct socket *ip6_mrouter; 	/* multicast routing daemon */
 extern int	ip6_sendredirects;	/* send IP redirects when forwarding? */
@@ -231,6 +277,14 @@ extern int	ip6_dad_count;		/* DupAddrDetectionTransmits */
 
 extern u_int32_t ip6_flow_seq;
 extern int ip6_auto_flowlabel;
+extern int ip6_auto_linklocal;
+
+extern int   ip6_anonportmin;		/* minimum ephemeral port */
+extern int   ip6_anonportmax;		/* maximum ephemeral port */
+extern int   ip6_lowportmin;		/* minimum reserved port */
+extern int   ip6_lowportmax;		/* maximum reserved port */
+
+extern int	ip6_use_tempaddr; /* whether to use temporary addresses. */
 
 extern struct	pr_usrreqs rip6_usrreqs;
 struct sockopt;
@@ -239,29 +293,41 @@ struct inpcb;
 
 int	icmp6_ctloutput __P((struct socket *, struct sockopt *sopt));
 
+struct in6_ifaddr;
 void	ip6_init __P((void));
 void	ip6intr __P((void));
 void	ip6_input __P((struct mbuf *));
+struct in6_ifaddr *ip6_getdstifaddr __P((struct mbuf *));
+void	ip6_freepcbopts __P((struct ip6_pktopts *));
 void	ip6_freemoptions __P((struct ip6_moptions *));
 int	ip6_unknown_opt __P((u_int8_t *, struct mbuf *, int));
 char *	ip6_get_prevhdr __P((struct mbuf *, int));
 int	ip6_nexthdr __P((struct mbuf *, int, int, int *));
 int	ip6_lasthdr __P((struct mbuf *, int, int, int *));
+
+struct mbuf *ip6_addaux __P((struct mbuf *));
+struct mbuf *ip6_findaux __P((struct mbuf *));
+void	ip6_delaux __P((struct mbuf *));
+
 int	ip6_mforward __P((struct ip6_hdr *, struct ifnet *, struct mbuf *));
 int	ip6_process_hopopts __P((struct mbuf *, u_int8_t *, int, u_int32_t *,
 				 u_int32_t *));
 void	ip6_savecontrol __P((struct inpcb *, struct mbuf **, struct ip6_hdr *,
-		struct mbuf *));
+			     struct mbuf *));
+void	ip6_notify_pmtu __P((struct inpcb *, struct sockaddr_in6 *,
+			     u_int32_t *));
 int	ip6_sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
 
 void	ip6_forward __P((struct mbuf *, int));
 
 void	ip6_mloopback __P((struct ifnet *, struct mbuf *, struct sockaddr_in6 *));
 int	ip6_output __P((struct mbuf *, struct ip6_pktopts *,
-			struct route_in6 *, int,
+			struct route_in6 *,
+			int,
 			struct ip6_moptions *, struct ifnet **));
 int	ip6_ctloutput __P((struct socket *, struct sockopt *sopt));
-int	ip6_setpktoptions __P((struct mbuf *, struct ip6_pktopts *, int));
+void	init_ip6pktopts __P((struct ip6_pktopts *));
+int	ip6_setpktoptions __P((struct mbuf *, struct ip6_pktopts *, int, int));
 void	ip6_clearpktopts __P((struct ip6_pktopts *, int, int));
 struct ip6_pktopts *ip6_copypktopts __P((struct ip6_pktopts *, int));
 int	ip6_optlen __P((struct inpcb *));

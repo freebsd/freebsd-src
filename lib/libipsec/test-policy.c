@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: test-policy.c,v 1.13 2000/05/07 05:25:03 itojun Exp $	*/
+/*	$KAME: test-policy.c,v 1.14 2000/12/27 11:38:11 sakane Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -45,6 +45,8 @@
 #include <string.h>
 #include <errno.h>
 #include <err.h>
+
+#include "libpfkey.h"
 
 struct req_t {
 	int result;	/* expected result; 0:ok 1:ng */
@@ -111,9 +113,9 @@ test1()
 
 		result = test1sub1(&reqs[i]);
 		if (result == 0 && reqs[i].result == 1) {
-			errx(1, "ERROR: expecting failure.\n");
+			warnx("ERROR: expecting failure.\n");
 		} else if (result == 1 && reqs[i].result == 0) {
-			errx(1, "ERROR: expecting success.\n");
+			warnx("ERROR: expecting success.\n");
 		}
 	}
 
@@ -245,7 +247,8 @@ test2()
 		errx(1, "ERROR: %s\n", ipsec_strerror());
 	m = pfkey_recv(so);
 	free(m);
-	
+
+#if 0
 	printf("spdsetidx()\n");
 	if (pfkey_send_spdsetidx(so, (struct sockaddr *)addr, 128,
 				(struct sockaddr *)addr, 128,
@@ -261,6 +264,8 @@ test2()
 		errx(1, "ERROR: %s\n", ipsec_strerror());
 	m = pfkey_recv(so);
 	free(m);
+
+	sleep(4);
 
 	printf("spddelete()\n");
 	if (pfkey_send_spddelete(so, (struct sockaddr *)addr, 128,
@@ -283,19 +288,31 @@ test2()
 	m = pfkey_recv(so);
 	free(m);
 
+	sleep(4);
+
 	printf("spddelete2()\n");
 	if (pfkey_send_spddelete2(so, spid) < 0)
 		errx(1, "ERROR: %s\n", ipsec_strerror());
 	m = pfkey_recv(so);
 	free(m);
+#endif
 
+	printf("spdadd() with lifetime's 10(s)\n");
+	if (pfkey_send_spdadd2(so, (struct sockaddr *)addr, 128,
+				(struct sockaddr *)addr, 128,
+				255, 0, 10, sp2, splen2, 0) < 0)
+		errx(1, "ERROR: %s\n", ipsec_strerror());
+	spid = test2sub(so);
+
+#if 0
 	/* expecting failure */
 	printf("spdupdate()\n");
 	if (pfkey_send_spdupdate(so, (struct sockaddr *)addr, 128,
 				(struct sockaddr *)addr, 128,
 				255, sp2, splen2, 0) == 0) {
-		errx(1, "ERROR: expecting failure.\n");
+		warnx("ERROR: expecting failure.\n");
 	}
+#endif
 
 	return 0;
 }

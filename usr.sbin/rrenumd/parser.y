@@ -1,4 +1,4 @@
-/*	$KAME$	*/
+/*	$KAME: parser.y,v 1.8 2000/11/08 03:03:34 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -36,6 +36,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
@@ -48,6 +49,7 @@
 
 #include <netdb.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "rrenumd.h"
 
@@ -62,6 +64,7 @@ char errbuf[LINE_MAX];
 
 extern int lineno;
 extern void yyerror __P((const char *s));
+extern int yylex __P((void));
 static struct payload_list * pllist_lookup __P((int seqnum));
 static void pllist_enqueue __P((struct payload_list *pl_entry));
 
@@ -192,8 +195,9 @@ dest_addr :
 			hints.ai_protocol = 0;
 			error = getaddrinfo($1.cp, 0, &hints, &res);
 			if (error) {
-				sprintf(errbuf, "name resolution failed for %s"
-				":%s", $1, gai_strerror(error));
+				snprintf(errbuf, sizeof(errbuf),
+				    "name resolution failed for %s:%s",
+				    $1.cp, gai_strerror(error));
 				yyerror(errbuf);
 			}
 			ss = (struct sockaddr_storage *)malloc(sizeof(*ss));
@@ -274,8 +278,9 @@ rrenum_statement_with_seqnum:
 		SEQNUM_CMD seqnum
 		{
 			if (pllist_lookup($2)) {
-				sprintf(errbuf, "duplicate seqnum %d specified"
-					" at %d", $2, lineno);
+				snprintf(errbuf, sizeof(errbuf),
+				    "duplicate seqnum %ld specified at %d",
+				    $2, lineno);
 				yyerror(errbuf);
 			}
 		}
@@ -294,9 +299,10 @@ seqnum:
 	|	decstring
 		{
 			if ($1 > MAX_SEQNUM) {
-				sprintf(errbuf, "seqnum %d is illegal for this"
-					" program. should be between 0 and %d",
-					$1, MAX_SEQNUM);
+				snprintf(errbuf, sizeof(errbuf),
+				    "seqnum %ld is illegal for this  program. "
+				    "should be between 0 and %d",
+				    $1, MAX_SEQNUM);
 				yyerror(errbuf);
 			}
 			$$ = $1;
@@ -307,8 +313,9 @@ rrenum_statement_without_seqnum:
 		rrenum_statement EOS
 		{
 			if (pllist_lookup(0)) {
-				sprintf(errbuf, "duplicate seqnum %d specified"
-					" at %d", 0, lineno);
+				snprintf(errbuf, sizeof(errbuf),
+				    "duplicate seqnum %d specified  at %d",
+				    0, lineno);
 				yyerror(errbuf);
 			}
 			$1->pl_irr.rr_seqnum = 0;
@@ -435,8 +442,8 @@ use_prefix_values:
 			rpu = (struct rr_pco_use *)(rpm + 1);
 			memset(rpu, 0, sizeof(*rpu));
 
-			rpu->rpu_vltime = DEF_VLTIME;
-			rpu->rpu_pltime = DEF_PLTIME;
+			rpu->rpu_vltime = htonl(DEF_VLTIME);
+			rpu->rpu_pltime = htonl(DEF_PLTIME);
 			rpu->rpu_ramask = 0;
 			rpu->rpu_flags = 0;
 		}
@@ -510,7 +517,7 @@ keeplen:
 vltime:
 		/* empty */
 		{
-			$$ = DEF_VLTIME;
+			$$ = htonl(DEF_VLTIME);
 		}
 	|	VLTIME_CMD lifetime
 		{
@@ -521,7 +528,7 @@ vltime:
 pltime:
 		/* empty */
 		{
-			$$ = DEF_PLTIME;
+			$$ = htonl(DEF_PLTIME);
 		}
 	|	PLTIME_CMD lifetime
 		{
@@ -573,8 +580,8 @@ raf_decrprefd:
 	;
 
 flag:
-		ON
-	|	OFF
+		ON { $$ = ON; }
+	|	OFF { $$ = OFF; }
 	;
 
 lifetime:
@@ -653,15 +660,16 @@ static void
 pllist_enqueue(struct payload_list *pl_entry)
 {
 	struct payload_list *pl, *pl_last;
-	if (pl_head == NULL) {
-		pl_head = pl_entry;
-		return;
-	}
+
+	pl_last = NULL;
 	for (pl = pl_head;
 	     pl && pl->pl_irr.rr_seqnum < pl_entry->pl_irr.rr_seqnum;
 	     pl_last = pl, pl = pl->pl_next)
 		continue;
-	pl_last->pl_next = pl_entry;
+	if (pl_last)
+		pl_last->pl_next = pl_entry;
+	else
+		pl_head = pl_entry;
 
 	return;
 }

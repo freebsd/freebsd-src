@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ah.h,v 1.10 2000/07/02 13:23:33 itojun Exp $	*/
+/*	$KAME: ah.h,v 1.13 2000/10/18 21:28:00 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -37,7 +37,9 @@
 #ifndef _NETINET6_AH_H_
 #define _NETINET6_AH_H_
 
-struct secasvar;
+#if defined(_KERNEL) && !defined(_LKM)
+#include "opt_inet.h"
+#endif
 
 struct ah {
 	u_int8_t	ah_nxt;		/* Next Header */
@@ -55,6 +57,9 @@ struct newah {
 	u_int32_t	ah_seq;		/* Sequence number field */
 	/* variable size, 32bit bound*/	/* Authentication data */
 };
+
+#ifdef _KERNEL
+struct secasvar;
 
 struct ah_algorithm_state {
 	struct secasvar *sav;
@@ -74,8 +79,7 @@ struct ah_algorithm {
 
 #define	AH_MAXSUMSIZE	16
 
-#ifdef _KERNEL
-extern struct ah_algorithm ah_algorithms[];
+extern const struct ah_algorithm *ah_algorithm_lookup __P((int));
 
 /* cksum routines */
 extern int ah_hdrlen __P((struct secasvar *));
@@ -84,7 +88,7 @@ extern size_t ah_hdrsiz __P((struct ipsecrequest *));
 extern void ah4_input __P((struct mbuf *, ...));
 extern int ah4_output __P((struct mbuf *, struct ipsecrequest *));
 extern int ah4_calccksum __P((struct mbuf *, caddr_t, size_t,
-	struct ah_algorithm *, struct secasvar *));
+	const struct ah_algorithm *, struct secasvar *));
 #endif /*_KERNEL*/
 
 #endif /*_NETINET6_AH_H_*/

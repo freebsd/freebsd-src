@@ -149,35 +149,43 @@ void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
 void	status __P((const struct afswtch *afp, int addrcount,
 		    struct sockaddr_dl *sdl, struct if_msghdr *ifm,
 		    struct ifa_msghdr *ifam));
+void	tunnel_status __P((int s));
 void	usage __P((void));
 void	ifmaybeload __P((char *name));
 
 #ifdef INET6
+void	in6_fillscopeid __P((struct sockaddr_in6 *sin6));
 int	prefix __P((void *, int));
 static	char *sec2str __P((time_t));
 int	explicit_prefix = 0;
 #endif
 
 typedef	void c_func __P((const char *cmd, int arg, int s, const struct afswtch *afp));
+typedef	void c_func2 __P((const char *arg, const char *arg2, int s, const struct afswtch *afp));
 c_func	setatphase, setatrange;
 c_func	setifaddr, setifbroadaddr, setifdstaddr, setifnetmask;
+c_func2	settunnel;
+c_func	deletetunnel;
 #ifdef INET6
 c_func	setifprefixlen;
 c_func	setip6flags;
-c_func  setip6vltime;
 c_func  setip6pltime;
+c_func  setip6vltime;
+c_func2	setip6lifetime;
 #endif
 c_func	setifipdst;
 c_func	setifflags, setifmetric, setifmtu, setiflladdr;
 
 
 #define	NEXTARG		0xffffff
+#define	NEXTARG2	0xfffffe
 
 const
 struct	cmd {
 	const	char *c_name;
 	int	c_parameter;		/* NEXTARG means next argv */
 	void	(*c_func) __P((const char *, int, int, const struct afswtch *afp));
+	void	(*c_func2) __P((const char *, const char *, int, const struct afswtch *afp));
 } cmds[] = {
 	{ "up",		IFF_UP,		setifflags } ,
 	{ "down",	-IFF_UP,	setifflags },
@@ -201,14 +209,20 @@ struct	cmd {
 	{ "anycast",	IN6_IFF_ANYCAST, setip6flags },
 	{ "tentative",	IN6_IFF_TENTATIVE, setip6flags },
 	{ "-tentative",	-IN6_IFF_TENTATIVE, setip6flags },
-	{ "vltime",     NEXTARG,        setip6vltime },
+	{ "deprecated",	IN6_IFF_DEPRECATED, setip6flags },
+	{ "-deprecated", -IN6_IFF_DEPRECATED, setip6flags },
+	{ "autoconf",	IN6_IFF_AUTOCONF, setip6flags },
+	{ "-autoconf",	-IN6_IFF_AUTOCONF, setip6flags },
 	{ "pltime",     NEXTARG,        setip6pltime },
+	{ "vltime",     NEXTARG,        setip6vltime },
 #endif
 	{ "range",	NEXTARG,	setatrange },
 	{ "phase",	NEXTARG,	setatphase },
 	{ "metric",	NEXTARG,	setifmetric },
 	{ "broadcast",	NEXTARG,	setifbroadaddr },
 	{ "ipdst",	NEXTARG,	setifipdst },
+	{ "tunnel",	NEXTARG2,	NULL,	settunnel },
+	{ "deletetunnel", 0,		deletetunnel },
 	{ "link0",	IFF_LINK0,	setifflags },
 	{ "-link0",	-IFF_LINK0,	setifflags },
 	{ "link1",	IFF_LINK1,	setifflags },
@@ -600,13 +614,19 @@ ifconfig(argc, argv, afp)
 				break;
 		if (p->c_name == 0 && setaddr)
 			p++;	/* got src, do dst */
-		if (p->c_func) {
+		if (p->c_func || p->c_func2) {
 			if (p->c_parameter == NEXTARG) {
 				if (argv[1] == NULL)
 					errx(1, "'%s' requires argument",
 					    p->c_name);
 				(*p->c_func)(argv[1], 0, s, afp);
 				argc--, argv++;
+			} else if (p->c_parameter == NEXTARG2) {
+				if (argc < 3)
+					errx(1, "'%s' requires 2 arguments",
+					    p->c_name);
+				(*p->c_func2)(argv[1], argv[2], s, afp);
+				argc -= 2, argv += 2;
 			} else
 				(*p->c_func)(*argv, p->c_parameter, s, afp);
 		}
@@ -704,6 +724,82 @@ setifaddr(addr, param, s, afp)
 }
 
 void
+settunnel(src, dst, s, afp)
+	const char *src, *dst;
+	int s;
+	const struct afswtch *afp;
+{
+	struct addrinfo hints, *srcres, *dstres;
+	struct ifaliasreq addreq;
+	int ecode;
+#ifdef INET6
+	struct in6_aliasreq in6_addreq; 
+#endif
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = afp->af_af;
+
+	if ((ecode = getaddrinfo(src, NULL, NULL, &srcres)) != 0)
+		errx(1, "error in parsing address string: %s",
+		    gai_strerror(ecode));
+
+	if ((ecode = getaddrinfo(dst, NULL, NULL, &dstres)) != 0)  
+		errx(1, "error in parsing address string: %s",
+		    gai_strerror(ecode));
+
+	if (srcres->ai_addr->sa_family != dstres->ai_addr->sa_family)
+		errx(1,
+		    "source and destination address families do not match");
+
+	switch (srcres->ai_addr->sa_family) {
+	case AF_INET:
+		memset(&addreq, 0, sizeof(addreq));
+		strncpy(addreq.ifra_name, name, IFNAMSIZ);
+		memcpy(&addreq.ifra_addr, srcres->ai_addr,
+		    srcres->ai_addr->sa_len);
+		memcpy(&addreq.ifra_dstaddr, dstres->ai_addr,
+		    dstres->ai_addr->sa_len);
+
+		if (ioctl(s, SIOCSIFPHYADDR, &addreq) < 0)
+			warn("SIOCSIFPHYADDR");
+		break;
+
+#ifdef INET6
+	case AF_INET6:
+		memset(&in6_addreq, 0, sizeof(in6_addreq));
+		strncpy(in6_addreq.ifra_name, name, IFNAMSIZ);
+		memcpy(&in6_addreq.ifra_addr, srcres->ai_addr,
+		    srcres->ai_addr->sa_len);
+		memcpy(&in6_addreq.ifra_dstaddr, dstres->ai_addr,
+		    dstres->ai_addr->sa_len);
+
+		if (ioctl(s, SIOCSIFPHYADDR_IN6, &in6_addreq) < 0)
+			warn("SIOCSIFPHYADDR_IN6");
+		break;
+#endif /* INET6 */
+
+	default:
+		warn("address family not supported");
+	}
+
+	freeaddrinfo(srcres);
+	freeaddrinfo(dstres);
+}
+
+/* ARGSUSED */
+void
+deletetunnel(vname, param, s, afp)
+	const char *vname;
+	int param;
+	int s;
+	const struct afswtch *afp;
+{
+
+	if (ioctl(s, SIOCDIFPHYADDR, &ifr) < 0)
+		err(1, "SIOCDIFPHYADDR");
+}
+
+void
 setifnetmask(addr, dummy, s, afp)
 	const char *addr;
 	int dummy __unused;
@@ -745,23 +841,48 @@ setip6flags(dummyaddr, flag, dummysoc, afp)
 }
 
 void
-setip6vltime(seconds, dummy, s, afp)
-    	const char *seconds;
-	int dummy __unused;
-	int s;
-	const struct afswtch *afp;
-{
-	in6_addreq.ifra_lifetime.ia6t_vltime = atoi(seconds);
-}
-
-void
 setip6pltime(seconds, dummy, s, afp)
     	const char *seconds;
 	int dummy __unused;
 	int s;
 	const struct afswtch *afp;
 {
-	in6_addreq.ifra_lifetime.ia6t_pltime = atoi(seconds);
+	setip6lifetime("pltime", seconds, s, afp);
+}
+
+void
+setip6vltime(seconds, dummy, s, afp)
+    	const char *seconds;
+	int dummy __unused;
+	int s;
+	const struct afswtch *afp;
+{
+	setip6lifetime("vltime", seconds, s, afp);
+}
+
+void
+setip6lifetime(cmd, val, s, afp)
+	const char *cmd;
+	const char *val;
+	int s;
+	const struct afswtch *afp;
+{
+	time_t newval, t;
+	char *ep;
+
+	t = time(NULL);
+	newval = (time_t)strtoul(val, &ep, 0);
+	if (val == ep)
+		errx(1, "invalid %s", cmd);
+	if (afp->af_af != AF_INET6)
+		errx(1, "%s not allowed for the AF", cmd);
+	if (strcmp(cmd, "vltime") == 0) {
+		in6_addreq.ifra_lifetime.ia6t_expire = t + newval;
+		in6_addreq.ifra_lifetime.ia6t_vltime = newval;
+	} else if (strcmp(cmd, "pltime") == 0) {
+		in6_addreq.ifra_lifetime.ia6t_preferred = t + newval;
+		in6_addreq.ifra_lifetime.ia6t_pltime = newval;
+	}
 }
 #endif
 
@@ -964,6 +1085,8 @@ status(afp, addrcount, sdl, ifm, ifam)
 		printf(" mtu %d", mtu);
 	putchar('\n');
 
+	tunnel_status(s);
+
 	while (addrcount > 0) {
 		
 		info.rti_addrs = ifam->ifam_addrs;
@@ -1015,6 +1138,73 @@ status(afp, addrcount, sdl, ifm, ifam)
 }
 
 void
+tunnel_status(s)
+	int s;
+{
+	char psrcaddr[NI_MAXHOST];
+	char pdstaddr[NI_MAXHOST];
+	u_long srccmd, dstcmd;
+	struct ifreq *ifrp;
+	const char *ver = "";
+#ifdef NI_WITHSCOPEID
+	const int niflag = NI_NUMERICHOST | NI_WITHSCOPEID;
+#else
+	const int niflag = NI_NUMERICHOST;
+#endif
+#ifdef INET6
+	struct in6_ifreq in6_ifr;
+	int s6;
+#endif /* INET6 */
+
+	psrcaddr[0] = pdstaddr[0] = '\0';
+
+#ifdef INET6
+	memset(&in6_ifr, 0, sizeof(in6_ifr));
+	strncpy(in6_ifr.ifr_name, name, IFNAMSIZ);
+	s6 = socket(AF_INET6, SOCK_DGRAM, 0);
+	if (s6 < 0) {
+		srccmd = SIOCGIFPSRCADDR;
+		dstcmd = SIOCGIFPDSTADDR;
+		ifrp = &ifr;
+	} else {
+		close(s6);
+		srccmd = SIOCGIFPSRCADDR_IN6;
+		dstcmd = SIOCGIFPDSTADDR_IN6;
+		ifrp = (struct ifreq *)&in6_ifr;
+	}
+#else /* INET6 */
+	srccmd = SIOCGIFPSRCADDR;
+	dstcmd = SIOCGIFPDSTADDR;
+	ifrp = &ifr;
+#endif /* INET6 */
+
+	if (ioctl(s, srccmd, (caddr_t)ifrp) < 0)
+		return;
+#ifdef INET6
+	if (ifrp->ifr_addr.sa_family == AF_INET6)
+		in6_fillscopeid((struct sockaddr_in6 *)&ifrp->ifr_addr);
+#endif
+	getnameinfo(&ifrp->ifr_addr, ifrp->ifr_addr.sa_len,
+	    psrcaddr, sizeof(psrcaddr), 0, 0, niflag);
+#ifdef INET6
+	if (ifrp->ifr_addr.sa_family == AF_INET6)
+		ver = "6";
+#endif
+
+	if (ioctl(s, dstcmd, (caddr_t)ifrp) < 0)
+		return;
+#ifdef INET6
+	if (ifrp->ifr_addr.sa_family == AF_INET6)
+		in6_fillscopeid((struct sockaddr_in6 *)&ifrp->ifr_addr);
+#endif
+	getnameinfo(&ifrp->ifr_addr, ifrp->ifr_addr.sa_len,
+	    pdstaddr, sizeof(pdstaddr), 0, 0, niflag);
+
+	printf("\ttunnel inet%s %s --> %s\n", ver,
+	    psrcaddr, pdstaddr);
+}
+
+void
 in_status(s, info)
 	int s __unused;
 	struct rt_addrinfo * info;
@@ -1049,6 +1239,19 @@ in_status(s, info)
 }
 
 #ifdef INET6
+void
+in6_fillscopeid(sin6)
+	struct sockaddr_in6 *sin6;
+{
+#if defined(__KAME__) && defined(KAME_SCOPEID)
+	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+		sin6->sin6_scope_id =
+			ntohs(*(u_int16_t *)&sin6->sin6_addr.s6_addr[2]);
+		sin6->sin6_addr.s6_addr[2] = sin6->sin6_addr.s6_addr[3] = 0;
+	}
+#endif
+}
+
 void
 in6_status(s, info)
 	int s __unused;
@@ -1146,16 +1349,20 @@ in6_status(s, info)
 	printf("prefixlen %d ", prefix(&sin->sin6_addr,
 		sizeof(struct in6_addr)));
 
-	if (flags6 & IN6_IFF_ANYCAST)
+	if ((flags6 & IN6_IFF_ANYCAST) != 0)
 		printf("anycast ");
-	if (flags6 & IN6_IFF_TENTATIVE)
+	if ((flags6 & IN6_IFF_TENTATIVE) != 0)
 		printf("tentative ");
-	if (flags6 & IN6_IFF_DUPLICATED)
+	if ((flags6 & IN6_IFF_DUPLICATED) != 0)
 		printf("duplicated ");
-	if (flags6 & IN6_IFF_DETACHED)
+	if ((flags6 & IN6_IFF_DETACHED) != 0)
 		printf("detached ");
-	if (flags6 & IN6_IFF_DEPRECATED)
+	if ((flags6 & IN6_IFF_DEPRECATED) != 0)
 		printf("deprecated ");
+	if ((flags6 & IN6_IFF_AUTOCONF) != 0)
+		printf("autoconf ");
+	if ((flags6 & IN6_IFF_TEMPORARY) != 0)
+		printf("temporary ");
 
         if (scopeid)
 		printf("scopeid 0x%x ", scopeid);

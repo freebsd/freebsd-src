@@ -269,7 +269,7 @@ if_detach(ifp)
 #endif /* INET */
 #ifdef INET6
 		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET6) {
-			in6_purgeaddr(ifa, ifp);
+			in6_purgeaddr(ifa);
 			/* ifp_addrhead is already updated */
 			continue;
 		}
@@ -277,6 +277,16 @@ if_detach(ifp)
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		IFAFREE(ifa);
 	}
+
+#ifdef INET6
+	/*
+	 * Remove all IPv6 kernel structs related to ifp.  This should be done
+	 * before removing routing entries below, since IPv6 interface direct
+	 * routes are expected to be removed by the IPv6-specific kernel API.
+	 * Otherwise, the kernel will detect some inconsistency and bark it.
+	 */
+	in6_ifdetach(ifp);
+#endif
 
 	/*
 	 * Delete all remaining routes using this interface
@@ -289,11 +299,6 @@ if_detach(ifp)
 			continue;
 		(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
 	}
-
-#ifdef INET6
-	/* nuke all IPv6 kernel structs related to ifp */
-	in6_ifdetach(ifp);
-#endif
 
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
 	mtx_destroy(&ifp->if_snd.ifq_mtx);
@@ -897,6 +902,7 @@ ifioctl(so, cmd, data, p)
 #ifdef INET6
 	case SIOCSIFPHYADDR_IN6:
 #endif
+	case SIOCSLIFPHYADDR:
         case SIOCSIFMEDIA:
 	case SIOCSIFGENERIC:
 		error = suser(p);
@@ -913,6 +919,9 @@ ifioctl(so, cmd, data, p)
 		ifs = (struct ifstat *)data;
 		ifs->ascii[0] = '\0';
 		
+	case SIOCGIFPSRCADDR:
+	case SIOCGIFPDSTADDR:
+	case SIOCGLIFPHYADDR:
 	case SIOCGIFMEDIA:
 	case SIOCGIFGENERIC:
 		if (ifp->if_ioctl == 0)
