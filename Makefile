@@ -1,5 +1,5 @@
 #
-#	$Id$
+#	$Id: Makefile,v 1.168 1998/03/26 17:32:24 markm Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -710,7 +710,7 @@ build-tools:
 .for __target in clean cleandir obj depend
 .for entry in ${SUBDIR}
 ${entry}.${__target}__D: .PHONY
-	if test -d ${.CURDIR}/${entry}.${MACHINE}; then \
+	@if test -d ${.CURDIR}/${entry}.${MACHINE}; then \
 		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE}"; \
 		edir=${entry}.${MACHINE}; \
 		cd ${.CURDIR}/$${edir}; \
