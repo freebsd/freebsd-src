@@ -7,7 +7,7 @@
 #
 LIB=		lpr
 INTERNALLIB=	YES
-SRCS=		common.c ctlinfo.c displayq.c net.c printcap.c request.c \
-		rmjob.c startdaemon.c
+SRCS=		common.c ctlinfo.c displayq.c matchjobs.c net.c \
+		printcap.c request.c rmjob.c startdaemon.c
 
 .include <bsd.lib.mk>
