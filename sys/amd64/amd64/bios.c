@@ -32,7 +32,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -41,7 +40,6 @@
 #include <machine/md_var.h>
 #include <machine/segments.h>
 #include <machine/stdarg.h>
-#include <machine/tss.h>
 #include <machine/vmparam.h>
 #include <machine/pc/bios.h>
 #include <isa/pnpreg.h>

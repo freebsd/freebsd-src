@@ -37,9 +37,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
-#include <vm/vm_param.h>
 
-#include <sys/reboot.h>
 #include <sys/user.h>
 
 #include <machine/md_var.h>

@@ -68,7 +68,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/vnode.h>
@@ -80,8 +79,6 @@
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-
-#include <sys/user.h>
 
 int
 procfs_read_regs(p, regs)

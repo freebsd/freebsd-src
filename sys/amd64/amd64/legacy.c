@@ -46,7 +46,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <machine/bus.h>
@@ -57,7 +56,6 @@
 #include <vm/pmap.h>
 #include <machine/pmap.h>
 
-#include <machine/ipl.h>
 #include <machine/resource.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
@@ -69,7 +67,6 @@
 #else
 #include <i386/isa/isa.h>
 #endif
-#include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 
 static struct rman irq_rman, drq_rman, port_rman, mem_rman;
