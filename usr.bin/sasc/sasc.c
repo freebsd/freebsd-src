@@ -29,10 +29,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id$
+ * $Id: sasc.c,v 1.4 1997/02/22 19:56:57 peter Exp $
  */
 
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
