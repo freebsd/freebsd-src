@@ -49,12 +49,17 @@ extern int smp_active;
 extern int smp_cpus;
 extern volatile cpumask_t started_cpus;
 extern volatile cpumask_t stopped_cpus;
+extern cpumask_t idle_cpus_mask;
+extern cpumask_t hlt_cpus_mask;
+extern cpumask_t logical_cpus_mask;
 #endif /* SMP */
 
-extern cpumask_t all_cpus;
 extern u_int mp_maxid;
+extern int mp_maxcpus;
 extern int mp_ncpus;
 extern volatile int smp_started;
+
+extern cpumask_t all_cpus;
 
 /*
  * Macro allowing us to determine whether a CPU is absent at any given

@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
+#include <machine/smp.h>
 
 /*
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
@@ -101,6 +102,9 @@ static void	sched_setup(void *dummy);
 static void	maybe_resched(struct thread *td);
 static void	updatepri(struct ksegrp *kg);
 static void	resetpriority(struct ksegrp *kg);
+#ifdef SMP
+static int	forward_wakeup(int  cpunum);
+#endif
 
 static struct kproc_desc sched_kp = {
         "schedcpu",
@@ -159,6 +163,46 @@ SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "4BSD", 0,
 SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof sched_quantum, sysctl_kern_quantum, "I",
     "Roundrobin scheduling quantum in microseconds");
+
+#ifdef SMP
+/* Enable forwarding of wakeups to all other cpus */
+SYSCTL_NODE(_kern_sched, OID_AUTO, ipiwakeup, CTLFLAG_RD, NULL, "Kernel SMP");
+
+static int forward_wakeup_enabled = 0;
+SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, enabled, CTLFLAG_RW,
+	   &forward_wakeup_enabled, 0,
+	   "Forwarding of wakeup to idle CPUs");
+
+static int forward_wakeups_requested = 0;
+SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, requested, CTLFLAG_RD,
+	   &forward_wakeups_requested, 0,
+	   "Requests for Forwarding of wakeup to idle CPUs");
+
+static int forward_wakeups_delivered = 0;
+SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, delivered, CTLFLAG_RD,
+	   &forward_wakeups_delivered, 0,
+	   "Completed Forwarding of wakeup to idle CPUs");
+
+static int forward_wakeup_use_mask = 0;
+SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, usemask, CTLFLAG_RW,
+	   &forward_wakeup_use_mask, 0,
+	   "Use the mask of idle cpus");
+
+static int forward_wakeup_use_loop = 0;
+SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, useloop, CTLFLAG_RW,
+	   &forward_wakeup_use_loop, 0,
+	   "Use a loop to find idle cpus");
+
+static int forward_wakeup_use_single = 0;
+SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, onecpu, CTLFLAG_RW,
+	   &forward_wakeup_use_single, 0,
+	   "Only signal one idle cpu");
+
+static int forward_wakeup_use_htt = 0;
+SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, htt2, CTLFLAG_RW,
+	   &forward_wakeup_use_htt, 0,
+	   "account for htt");
+#endif
 
 /*
  * Arrange to reschedule if necessary, taking the priorities and
@@ -694,10 +738,103 @@ sched_wakeup(struct thread *td)
 	setrunqueue(td, SRQ_BORING);
 }
 
+#ifdef SMP
+/* enable HTT_2 if you have a 2-way HTT cpu.*/
+static int
+forward_wakeup(int  cpunum)
+{
+	cpumask_t map, me, dontuse;
+	cpumask_t map2;
+	struct pcpu *pc;
+	cpumask_t id, map3;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	CTR0(KTR_SMP, "forward_wakeup()");
+
+	if ((!forward_wakeup_enabled) ||
+	     (forward_wakeup_use_mask == 0 && forward_wakeup_use_loop == 0))
+		return (0);
+	if (!smp_started || cold || panicstr)
+		return (0);
+
+	forward_wakeups_requested++;
+
+/*
+ * check the idle mask we received against what we calculated before
+ * in the old version.
+ */
+	me = PCPU_GET(cpumask);
+	/* 
+	 * don't bother if we should be doing it ourself..
+	 */
+	if ((me & idle_cpus_mask) && (cpunum == NOCPU || me == (1 << cpunum)))
+		return (0);
+
+	dontuse = me | stopped_cpus | hlt_cpus_mask;
+	map3 = 0;
+	if (forward_wakeup_use_loop) {
+		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+			id = pc->pc_cpumask;
+			if ( (id & dontuse) == 0 &&
+			    pc->pc_curthread == pc->pc_idlethread) {
+				map3 |= id;
+			}
+		}
+	}
+
+	if (forward_wakeup_use_mask) {
+		map = 0;
+		map = idle_cpus_mask & ~dontuse;
+
+		/* If they are both on, compare and use loop if different */
+		if (forward_wakeup_use_loop) {
+			if (map != map3) {
+				printf("map (%02X) != map3 (%02X)\n",
+						map, map3);
+				map = map3;
+			}
+		}
+	} else {
+		map = map3;
+	}
+	/* If we only allow a specific CPU, then mask off all the others */
+	if (cpunum != NOCPU) {
+		KASSERT((cpunum <= mp_maxcpus),("forward_wakeup: bad cpunum."));
+		map &= (1 << cpunum);
+	} else {
+		/* Try choose an idle die. */
+		if (forward_wakeup_use_htt) {
+			map2 =  (map & (map >> 1)) & 0x5555;
+			if (map2) {
+				map = map2;
+			}
+		}
+
+		/* set only one bit */ 
+		if (forward_wakeup_use_single) {
+			map = map & ((~map) + 1);
+		}
+	}
+	if (map) {
+		forward_wakeups_delivered++;
+		ipi_selected(map, IPI_AST);
+		return (1);
+	}
+	if (cpunum == NOCPU)
+		printf("forward_wakeup: Idle processor not found\n");
+	return (0);
+}
+#endif
+
 void
 sched_add(struct thread *td, int flags)
 {
 	struct kse *ke;
+#ifdef SMP
+	int forwarded = 0;
+	int cpu;
+#endif
 
 	ke = td->td_kse;
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -711,33 +848,70 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: process swapped out"));
 
 #ifdef SMP
-	/*
-	 * Only try to preempt if the thread is unpinned or pinned to the
-	 * current CPU.
-	 */
-	if (KSE_CAN_MIGRATE(ke) || ke->ke_runq == &runq_pcpu[PCPU_GET(cpuid)])
-#endif
-	/*
-	 * Don't try preempt if we are already switching. 
-	 * all hell might break loose.
-	 */
-	if ((flags & SRQ_YIELDING) == 0)
-		if (maybe_preempt(td))
-			return;
-
-#ifdef SMP
 	if (KSE_CAN_MIGRATE(ke)) {
-		CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p) to gbl runq", ke, td);
+		CTR2(KTR_RUNQ,
+		    "sched_add: adding kse:%p (td:%p) to gbl runq", ke, td);
+		cpu = NOCPU;
 		ke->ke_runq = &runq;
 	} else {
-		CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p)to pcpu runq", ke, td);
 		if (!SKE_RUNQ_PCPU(ke))
-			ke->ke_runq = &runq_pcpu[PCPU_GET(cpuid)];
+			ke->ke_runq = &runq_pcpu[(cpu = PCPU_GET(cpuid))];
+		else
+			cpu = td->td_lastcpu;
+		CTR3(KTR_RUNQ,
+		    "sched_add: Put kse:%p(td:%p) on cpu%d runq", ke, td, cpu);
 	}
 #else
 	CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p) to runq", ke, td);
 	ke->ke_runq = &runq;
+
 #endif
+	/* 
+	 * If we are yielding (on the way out anyhow) 
+	 * or the thread being saved is US,
+	 * then don't try be smart about preemption
+	 * or kicking off another CPU
+	 * as it won't help and may hinder.
+	 * In the YIEDLING case, we are about to run whoever is 
+	 * being put in the queue anyhow, and in the 
+	 * OURSELF case, we are puting ourself on the run queue
+	 * which also only happens when we are about to yield.
+	 */
+	if((flags & SRQ_YIELDING) == 0) {
+#ifdef SMP
+		cpumask_t me = PCPU_GET(cpumask);
+		int idle = idle_cpus_mask & me;
+		/*
+		 * Only try to kick off another CPU if
+		 * the thread is unpinned
+		 * or pinned to another cpu,
+		 * and there are other available and idle CPUs.
+		 * if we are idle, then skip straight to preemption.
+		 */
+		if ( (! idle) &&
+		    (idle_cpus_mask & ~(hlt_cpus_mask | me)) &&
+		    ( KSE_CAN_MIGRATE(ke) ||
+		      ke->ke_runq != &runq_pcpu[PCPU_GET(cpuid)])) {
+			forwarded = forward_wakeup(cpu);
+		}
+		/*
+		 * If we failed to kick off another cpu, then look to 
+		 * see if we should preempt this CPU. Only allow this
+		 * if it is not pinned or IS pinned to this CPU.
+		 * If we are the idle thread, we also try do preempt.
+		 * as it will be quicker and being idle, we won't 
+		 * lose in doing so.. 
+		 */
+		if ((!forwarded) &&
+		    (ke->ke_runq == &runq ||
+		     ke->ke_runq == &runq_pcpu[PCPU_GET(cpuid)]))
+#endif
+
+		{
+			if (maybe_preempt(td))
+				return;
+		}
+	}
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt++;
 	runq_add(ke->ke_runq, ke);

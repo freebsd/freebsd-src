@@ -89,6 +89,7 @@ reassigned to keep this true.
 __FBSDID("$FreeBSD$");
 
 #include "opt_full_preemption.h"
+#include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -104,6 +105,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #endif
 #include <machine/critical.h>
+#if defined(SMP) && defined(SCHED_4BSD)
+#include <sys/sysctl.h>
+#endif
+
 
 CTASSERT((RQB_BPW * RQB_LEN) == RQ_NQS);
 
@@ -679,6 +684,12 @@ runq_check(struct runq *rq)
 	return (0);
 }
 
+#if defined(SMP) && defined(SCHED_4BSD)
+int runq_fuzz = 1;
+SYSCTL_DECL(_kern_sched);
+SYSCTL_INT(_kern_sched, OID_AUTO, runq_fuzz, CTLFLAG_RW, &runq_fuzz, 0, "");
+#endif
+
 /*
  * Find the highest priority process on the run queue.
  */
@@ -692,7 +703,28 @@ runq_choose(struct runq *rq)
 	mtx_assert(&sched_lock, MA_OWNED);
 	while ((pri = runq_findbit(rq)) != -1) {
 		rqh = &rq->rq_queues[pri];
-		ke = TAILQ_FIRST(rqh);
+#if defined(SMP) && defined(SCHED_4BSD)
+		/* fuzz == 1 is normal.. 0 or less are ignored */
+		if (runq_fuzz > 1) {
+			/*
+			 * In the first couple of entries, check if
+			 * there is one for our CPU as a preference.
+			 */
+			int count = runq_fuzz;
+			int cpu = PCPU_GET(cpuid);
+			struct kse *ke2;
+			ke2 = ke = TAILQ_FIRST(rqh);
+
+			while (count-- && ke2) {
+				if (ke->ke_thread->td_lastcpu == cpu) {
+					ke = ke2;
+					break;
+				}
+				ke2 = TAILQ_NEXT(ke2, ke_procq);
+			}
+		} else 
+#endif
+			ke = TAILQ_FIRST(rqh);
 		KASSERT(ke != NULL, ("runq_choose: no proc on busy queue"));
 		CTR3(KTR_RUNQ,
 		    "runq_choose: pri=%d kse=%p rqh=%p", pri, ke, rqh);

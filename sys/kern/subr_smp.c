@@ -49,12 +49,19 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/smp.h>
 
+#include "opt_sched.h"
+
 #ifdef SMP
 volatile cpumask_t stopped_cpus;
 volatile cpumask_t started_cpus;
+cpumask_t idle_cpus_mask;
+cpumask_t hlt_cpus_mask;
+cpumask_t logical_cpus_mask;
 
 void (*cpustop_restartfunc)(void);
 #endif
+/* This is used in modules that need to work in both SMP and UP. */
+cpumask_t all_cpus;
 
 int mp_ncpus;
 /* export this for libkvm consumers. */
@@ -62,7 +69,6 @@ int mp_maxcpus = MAXCPU;
 
 struct cpu_top *smp_topology;
 volatile int smp_started;
-cpumask_t all_cpus;
 u_int mp_maxid;
 
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
