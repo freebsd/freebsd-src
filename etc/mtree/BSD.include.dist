@@ -12,6 +12,8 @@
         ..
     ..
     dev
+        digi
+        ..
         ppbus
         ..
         usb
