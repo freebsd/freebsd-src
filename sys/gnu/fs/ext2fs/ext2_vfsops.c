@@ -65,8 +65,7 @@
 
 static int ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
 static int ext2_mountfs(struct vnode *, struct mount *, struct thread *);
-static int ext2_reload(struct mount *mountp, struct ucred *cred,
-			struct thread *td);
+static int ext2_reload(struct mount *mp, struct ucred *cred, struct thread *td);
 static int ext2_sbupdate(struct ext2mount *, int);
 
 static vfs_unmount_t		ext2_unmount;
@@ -524,8 +523,8 @@ static int compute_sb_data(devvp, es, fs)
  *	6) re-read inode data for all active vnodes.
  */
 static int
-ext2_reload(mountp, cred, td)
-	struct mount *mountp;
+ext2_reload(mp, cred, td)
+	struct mount *mp;
 	struct ucred *cred;
 	struct thread *td;
 {
@@ -536,12 +535,12 @@ ext2_reload(mountp, cred, td)
 	struct ext2_sb_info *fs;
 	int error;
 
-	if ((mountp->mnt_flag & MNT_RDONLY) == 0)
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		return (EINVAL);
 	/*
 	 * Step 1: invalidate all cached meta-data.
 	 */
-	devvp = VFSTOEXT2(mountp)->um_devvp;
+	devvp = VFSTOEXT2(mp)->um_devvp;
 	if (vinvalbuf(devvp, 0, cred, td, 0, 0))
 		panic("ext2_reload: dirty1");
 	/*
@@ -555,7 +554,7 @@ ext2_reload(mountp, cred, td)
 		brelse(bp);
 		return (EIO);		/* XXX needs translation */
 	}
-	fs = VFSTOEXT2(mountp)->um_e2fs;
+	fs = VFSTOEXT2(mp)->um_e2fs;
 	bcopy(bp->b_data, fs->s_es, sizeof(struct ext2_super_block));
 
 	if((error = compute_sb_data(devvp, es, fs)) != 0) {
@@ -570,8 +569,8 @@ ext2_reload(mountp, cred, td)
 
 loop:
 	MNT_ILOCK(mp);
-	for (vp = TAILQ_FIRST(&mountp->mnt_nvnodelist); vp != NULL; vp = nvp) {
-		if (vp->v_mount != mountp) {
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
+		if (vp->v_mount != mp) {
 			MNT_IUNLOCK(mp);
 			goto loop;
 		}
