@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.47 1995/04/15 08:19:16 phk Exp $
+#	$Id: Makefile,v 1.48 1995/04/27 18:03:29 jfieber Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -9,17 +9,16 @@
 SUBDIR=	apply ar at banner basename biff cal calendar \
 	cap_mkdb chat checknr chflags chpass cksum col colcrt colldef colrm \
 	column comm compile_et compress cpp ctags cut devmenu \
-	dig dirname dmenu du \
-	env error expand f2c false file file2c find finger fmt \
-	fold fpr from fsplit \
-	fstat ftp gcore gencat getopt gprof head hexdump host \
-	id indent ipcrm ipcs \
+	dig dirname dmenu du env error expand f2c false file file2c \
+	find finger fmt fold fpr from fsplit fstat ftp gcore gencat getopt \
+	gprof head hexdump host id indent ipcrm ipcs \
 	join jot kdump ktrace key keyinfo keyinit lam last \
 	lastcomm leave lex locate lock logger login logname lorder \
 	lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr mk_cmds \
 	modstat more msgs mt ncftp netstat nfsstat nice \
-	nm nohup pagesize passwd paste pr printenv printf quota ranlib rdist \
-	renice rev rlogin rpcgen rpcinfo rs rsh rup ruptime rusers rwall \
+	nm nohup pagesize passwd paste piano pr printenv \
+	printf quota ranlib rdist renice rev rlogin rpcgen \
+	rpcinfo rs rsh rup ruptime rusers rwall \
 	rwho script sed sgmls shar showmount size soelim split \
 	strings strip su symorder talk tconv tcopy tee telnet tftp time tip \
 	tn3270 touch tput tr true tset tsort tty ul uname unexpand \
