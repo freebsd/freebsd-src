@@ -2056,38 +2056,6 @@ ti_probe(dev)
 	return(ENXIO);
 }
 
-#ifdef KLD_MODULE
-static int
-log2rndup(int len)
-{
-	int log2size = 0, t = len;
-	while (t > 1) {
-		log2size++;
-		t >>= 1;
-	}
-	if (len != (1 << log2size))
-		log2size++;
-	return log2size;
-}
-
-static int
-ti_mbuf_sanity(device_t dev)
-{
-	if ((mbstat.m_msize != MSIZE) || mbstat.m_mclbytes != MCLBYTES){
-		device_printf(dev, "\n");
-		device_printf(dev, "This module was compiled with "
-				   "-DMCLSHIFT=%d -DMSIZE=%d\n", MCLSHIFT,
-				   MSIZE);
-		device_printf(dev, "The kernel was compiled with MCLSHIFT=%d,"
-			      " MSIZE=%d\n", log2rndup(mbstat.m_mclbytes),
-			      (int)mbstat.m_msize);
-		return(EINVAL);
-	} 
-	return(0);
-}
-#endif
-
-
 static int
 ti_attach(dev)
 	device_t		dev;
@@ -2095,20 +2063,6 @@ ti_attach(dev)
 	struct ifnet		*ifp;
 	struct ti_softc		*sc;
 	int			unit, error = 0, rid;
-
-	sc = NULL;
-
-#ifdef KLD_MODULE
-	if (ti_mbuf_sanity(dev)){
-		device_printf(dev, "Module mbuf constants do not match "
-			      "kernel constants!\n");
-		device_printf(dev, "Rebuild the module or the kernel so "
-			      "they match\n");
-		device_printf(dev, "\n");
-		error = EINVAL;
-		goto fail;
-	}
-#endif
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
