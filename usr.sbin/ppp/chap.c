@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.5 1996/01/30 11:08:25 dfr Exp $
+ * $Id: chap.c,v 1.6 1996/05/11 20:48:16 phk Exp $
  *
  *	TODO:
  */
@@ -147,7 +147,7 @@ struct mbuf *bp;
     }
     name = VarAuthName;
     namelen = strlen(VarAuthName);
-    argp = malloc(1 + valsize + namelen);
+    argp = malloc(1 + valsize + namelen + 16);
     digest = argp;
     *digest++ = 16;		/* value size */
     ap = answer;
@@ -169,6 +169,7 @@ struct mbuf *bp;
     ap += namelen;
     /* Send answer to the peer */
     ChapOutput(CHAP_RESPONSE, chp->id, argp, namelen + 17);
+    free(argp);
     break;
   case CHAP_RESPONSE:
     if (keyp) {
