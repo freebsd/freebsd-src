@@ -2140,7 +2140,7 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 	        return 0;
 	}
 
-	if (c->mode == M_ASYNC && d->tty) {
+	if (c->mode == M_ASYNC && !IF_CUNIT(dev) && d->tty) {
 #if __FreeBSD_version >= 502113
 		error = ttyioctl (dev, cmd, data, flag, td);
 		ttyldoptim (d->tty);
