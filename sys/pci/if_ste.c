@@ -163,8 +163,10 @@ static devclass_t ste_devclass;
 DRIVER_MODULE(ste, pci, ste_driver, ste_devclass, 0, 0);
 DRIVER_MODULE(miibus, ste, miibus_driver, miibus_devclass, 0, 0);
 
+SYSCTL_NODE(_hw, OID_AUTO, ste, CTLFLAG_RD, 0, "if_ste parameters");
+
 static int ste_rxsyncs;
-SYSCTL_INT(_hw, OID_AUTO, ste_rxsyncs, CTLFLAG_RW, &ste_rxsyncs, 0, "");
+SYSCTL_INT(_hw_ste, OID_AUTO, rxsyncs, CTLFLAG_RW, &ste_rxsyncs, 0, "");
 
 #define STE_SETBIT4(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | (x))
