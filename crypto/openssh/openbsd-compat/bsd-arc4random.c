@@ -25,7 +25,7 @@
 #include "includes.h"
 #include "log.h"
 
-RCSID("$Id: bsd-arc4random.c,v 1.6 2003/03/17 05:13:53 djm Exp $");
+RCSID("$Id: bsd-arc4random.c,v 1.7 2003/05/18 14:13:38 djm Exp $");
 
 #ifndef HAVE_ARC4RANDOM
 
@@ -70,6 +70,7 @@ void arc4random_stir(void)
 		fatal("Couldn't obtain random bytes (error %ld)",
 		    ERR_get_error());
 	RC4_set_key(&rc4, sizeof(rand_buf), rand_buf);
+	RC4(&rc4, sizeof(rand_buf), rand_buf, rand_buf);
 	memset(rand_buf, 0, sizeof(rand_buf));
 
 	rc4_ready = REKEY_BYTES;

@@ -24,9 +24,7 @@
 
 #include "includes.h"
 
-RCSID("$OpenBSD: sftp.c,v 1.34 2003/01/10 08:19:07 fgsch Exp $");
-
-/* XXX: short-form remote directory listings (like 'ls -C') */
+RCSID("$OpenBSD: sftp.c,v 1.37 2003/07/10 20:05:55 markus Exp $");
 
 #include "buffer.h"
 #include "xmalloc.h"
@@ -48,11 +46,21 @@ char *__progname;
 FILE* infile;
 size_t copy_buffer_len = 32768;
 size_t num_requests = 16;
+static pid_t sshpid = -1;
 
 extern int showprogress;
 
 static void
-connect_to_server(char *path, char **args, int *in, int *out, pid_t *sshpid)
+killchild(int signo)
+{
+	if (sshpid > 1)
+		kill(sshpid, signo);
+
+	_exit(1);
+}
+
+static void
+connect_to_server(char *path, char **args, int *in, int *out)
 {
 	int c_in, c_out;
 
@@ -74,9 +82,9 @@ connect_to_server(char *path, char **args, int *in, int *out, pid_t *sshpid)
 	c_in = c_out = inout[1];
 #endif /* USE_PIPES */
 
-	if ((*sshpid = fork()) == -1)
+	if ((sshpid = fork()) == -1)
 		fatal("fork: %s", strerror(errno));
-	else if (*sshpid == 0) {
+	else if (sshpid == 0) {
 		if ((dup2(c_in, STDIN_FILENO) == -1) ||
 		    (dup2(c_out, STDOUT_FILENO) == -1)) {
 			fprintf(stderr, "dup2: %s\n", strerror(errno));
@@ -91,6 +99,9 @@ connect_to_server(char *path, char **args, int *in, int *out, pid_t *sshpid)
 		exit(1);
 	}
 
+	signal(SIGTERM, killchild);
+	signal(SIGINT, killchild);
+	signal(SIGHUP, killchild);
 	close(c_in);
 	close(c_out);
 }
@@ -101,8 +112,9 @@ usage(void)
 	extern char *__progname;
 
 	fprintf(stderr,
-	    "usage: %s [-vC1] [-b batchfile] [-o option] [-s subsystem|path] [-B buffer_size]\n"
-	    "            [-F config] [-P direct server path] [-S program]\n"
+	    "usage: %s [-vC1] [-b batchfile] [-o ssh_option] [-s subsystem | sftp_server]\n"
+	    "            [-B buffer_size] [-F ssh_config] [-P sftp_server path]\n"
+	    "            [-R num_requests] [-S program]\n"
 	    "            [user@]host[:file [file]]\n", __progname);
 	exit(1);
 }
@@ -111,7 +123,6 @@ int
 main(int argc, char **argv)
 {
 	int in, out, ch, err;
-	pid_t sshpid;
 	char *host, *userhost, *cp, *file2;
 	int debug_level = 0, sshver = 2;
 	char *file1 = NULL, *sftp_server = NULL;
@@ -121,7 +132,7 @@ main(int argc, char **argv)
 	extern int optind;
 	extern char *optarg;
 
-	__progname = get_progname(argv[0]);
+	__progname = ssh_get_progname(argv[0]);
 	args.list = NULL;
 	addargs(&args, "ssh");		/* overwritten with ssh_program */
 	addargs(&args, "-oForwardX11 no");
@@ -229,15 +240,13 @@ main(int argc, char **argv)
 		args.list[0] = ssh_program;
 
 		fprintf(stderr, "Connecting to %s...\n", host);
-		connect_to_server(ssh_program, args.list, &in, &out,
-		    &sshpid);
+		connect_to_server(ssh_program, args.list, &in, &out);
 	} else {
 		args.list = NULL;
 		addargs(&args, "sftp-server");
 
 		fprintf(stderr, "Attaching to %s...\n", sftp_direct);
-		connect_to_server(sftp_direct, args.list, &in, &out,
-		    &sshpid);
+		connect_to_server(sftp_direct, args.list, &in, &out);
 	}
 
 	err = interactive_loop(in, out, file1, file2);

@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: sftp-server.c,v 1.41 2003/03/26 04:02:51 deraadt Exp $");
+RCSID("$OpenBSD: sftp-server.c,v 1.43 2003/06/25 22:39:36 miod Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
@@ -52,7 +52,7 @@ Buffer oqueue;
 /* Version of client */
 int version;
 
-/* portable attibutes, etc. */
+/* portable attributes, etc. */
 
 typedef struct Stat Stat;
 
@@ -442,7 +442,7 @@ process_read(void)
 	    (u_int64_t)off, len);
 	if (len > sizeof buf) {
 		len = sizeof buf;
-		log("read change len %d", len);
+		logit("read change len %d", len);
 	}
 	fd = handle_to_fd(handle);
 	if (fd >= 0) {
@@ -495,7 +495,7 @@ process_write(void)
 			} else if (ret == len) {
 				status = SSH2_FX_OK;
 			} else {
-				log("nothing at all written");
+				logit("nothing at all written");
 			}
 		}
 	}
@@ -1030,7 +1030,7 @@ main(int ac, char **av)
 
 	/* XXX should use getopt */
 
-	__progname = get_progname(av[0]);
+	__progname = ssh_get_progname(av[0]);
 	handle_init();
 
 #ifdef DEBUG_SFTP_SERVER

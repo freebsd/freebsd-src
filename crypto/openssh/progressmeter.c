@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1999 Theo de Raadt.  All rights reserved.
- * Copyright (c) 1999 Aaron Campbell.  All rights reserved.
+ * Copyright (c) 2003 Nils Nordman.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,260 +22,244 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * Parts from:
- *
- * Copyright (c) 1983, 1990, 1992, 1993, 1995
- *	The Regents of the University of California.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- */
-
 #include "includes.h"
-RCSID("$OpenBSD: progressmeter.c,v 1.3 2003/03/17 10:38:38 markus Exp $");
+RCSID("$OpenBSD: progressmeter.c,v 1.15 2003/08/31 12:14:22 markus Exp $");
 
-#ifdef HAVE_LIBGEN_H
-#include <libgen.h>
-#endif
-
-#include "atomicio.h"
 #include "progressmeter.h"
+#include "atomicio.h"
+#include "misc.h"
 
-/* Number of seconds before xfer considered "stalled". */
-#define STALLTIME	5
-/* alarm() interval for updating progress meter. */
-#define PROGRESSTIME	1
+#define DEFAULT_WINSIZE 80
+#define MAX_WINSIZE 512
+#define PADDING 1		/* padding between the progress indicators */
+#define UPDATE_INTERVAL 1	/* update the progress meter every second */
+#define STALL_TIME 5		/* we're stalled after this many seconds */
 
-/* Signal handler used for updating the progress meter. */
+/* determines whether we can output to the terminal */
+static int can_output(void);
+
+/* formats and inserts the specified size into the given buffer */
+static void format_size(char *, int, off_t);
+static void format_rate(char *, int, off_t);
+
+/* updates the progressmeter to reflect the current state of the transfer */
+void refresh_progress_meter(void);
+
+/* signal handler for updating the progress meter */
 static void update_progress_meter(int);
 
-/* Returns non-zero if we are the foreground process. */
-static int foregroundproc(void);
+static time_t start; 		/* start progress */
+static time_t last_update; 	/* last progress update */
+static char *file; 		/* name of the file being transferred */
+static off_t end_pos; 		/* ending position of transfer */
+static off_t cur_pos; 		/* transfer position as of last refresh */
+static volatile off_t *counter;	/* progress counter */
+static long stalled; 		/* how long we have been stalled */
+static int bytes_per_second; 	/* current speed in bytes per second */
+static int win_size; 		/* terminal window size */
 
-/* Returns width of the terminal (for progress meter calculations). */
-static int get_tty_width(void);
+/* units for format_size */
+static const char unit[] = " KMGT";
 
-/* Visual statistics about files as they are transferred. */
-static void draw_progress_meter(void);
-
-/* Time a transfer started. */
-static struct timeval start;
-
-/* Number of bytes of current file transferred so far. */
-static volatile off_t *statbytes;
-
-/* Total size of current file. */
-static off_t totalbytes;
-
-/* Name of current file being transferred. */
-static char *curfile;
-
-/* Time of last update. */
-static struct timeval lastupdate;
-
-/* Size at the time of the last update. */
-static off_t lastsize;
-
-void
-start_progress_meter(char *file, off_t filesize, off_t *counter)
+static int
+can_output(void)
 {
-	if ((curfile = basename(file)) == NULL)
-		curfile = file;
+	return (getpgrp() == tcgetpgrp(STDOUT_FILENO));
+}
 
-	totalbytes = filesize;
-	statbytes = counter;
-	(void) gettimeofday(&start, (struct timezone *) 0);
-	lastupdate = start;
-	lastsize = 0;
+static void
+format_rate(char *buf, int size, off_t bytes)
+{
+	int i;
 
-	draw_progress_meter();
-	signal(SIGALRM, update_progress_meter);
-	alarm(PROGRESSTIME);
+	bytes *= 100;
+	for (i = 0; bytes >= 100*1000 && unit[i] != 'T'; i++)
+		bytes = (bytes + 512) / 1024;
+	if (i == 0) {
+		i++;
+		bytes = (bytes + 512) / 1024;
+	}
+	snprintf(buf, size, "%3lld.%1lld%c%s",
+	    (int64_t) bytes / 100,
+	    (int64_t) (bytes + 5) / 10 % 10,
+	    unit[i],
+	    i ? "B" : " ");
+}
+
+static void
+format_size(char *buf, int size, off_t bytes)
+{
+	int i;
+
+	for (i = 0; bytes >= 10000 && unit[i] != 'T'; i++)
+		bytes = (bytes + 512) / 1024;
+	snprintf(buf, size, "%4lld%c%s",
+	    (int64_t) bytes,
+	    unit[i],
+	    i ? "B" : " ");
 }
 
 void
-stop_progress_meter()
+refresh_progress_meter(void)
 {
-	alarm(0);
-	draw_progress_meter();
-	if (foregroundproc() != 0)
-		atomicio(write, fileno(stdout), "\n", 1);
+	char buf[MAX_WINSIZE + 1];
+	time_t now;
+	off_t transferred;
+	double elapsed;
+	int percent;
+	int bytes_left;
+	int cur_speed;
+	int hours, minutes, seconds;
+	int i, len;
+	int file_len;
+
+	transferred = *counter - cur_pos;
+	cur_pos = *counter;
+	now = time(NULL);
+	bytes_left = end_pos - cur_pos;
+
+	if (bytes_left > 0)
+		elapsed = now - last_update;
+	else
+		elapsed = now - start;
+
+	/* calculate speed */
+	if (elapsed != 0)
+		cur_speed = (transferred / elapsed);
+	else
+		cur_speed = 0;
+
+#define AGE_FACTOR 0.9
+	if (bytes_per_second != 0) {
+		bytes_per_second = (bytes_per_second * AGE_FACTOR) +
+		    (cur_speed * (1.0 - AGE_FACTOR));
+	} else
+		bytes_per_second = cur_speed;
+
+	/* filename */
+	buf[0] = '\0';
+	file_len = win_size - 35;
+	if (file_len > 0) {
+		len = snprintf(buf, file_len + 1, "\r%s", file);
+		if (len < 0)
+			len = 0;
+		for (i = len;  i < file_len; i++ )
+			buf[i] = ' ';
+		buf[file_len] = '\0';
+	}
+
+	/* percent of transfer done */
+	if (end_pos != 0)
+		percent = ((float)cur_pos / end_pos) * 100;
+	else
+		percent = 100;
+	snprintf(buf + strlen(buf), win_size - strlen(buf),
+	    " %3d%% ", percent);
+
+	/* amount transferred */
+	format_size(buf + strlen(buf), win_size - strlen(buf),
+	    cur_pos);
+	strlcat(buf, " ", win_size);
+
+	/* bandwidth usage */
+	format_rate(buf + strlen(buf), win_size - strlen(buf),
+	    bytes_per_second);
+	strlcat(buf, "/s ", win_size);
+
+	/* ETA */
+	if (!transferred)
+		stalled += elapsed;
+	else
+		stalled = 0;
+
+	if (stalled >= STALL_TIME)
+		strlcat(buf, "- stalled -", win_size);
+	else if (bytes_per_second == 0 && bytes_left)
+		strlcat(buf, "  --:-- ETA", win_size);
+	else {
+		if (bytes_left > 0)
+			seconds = bytes_left / bytes_per_second;
+		else
+			seconds = elapsed;
+
+		hours = seconds / 3600;
+		seconds -= hours * 3600;
+		minutes = seconds / 60;
+		seconds -= minutes * 60;
+
+		if (hours != 0)
+			snprintf(buf + strlen(buf), win_size - strlen(buf),
+			    "%d:%02d:%02d", hours, minutes, seconds);
+		else
+			snprintf(buf + strlen(buf), win_size - strlen(buf),
+			    "  %02d:%02d", minutes, seconds);
+
+		if (bytes_left > 0)
+			strlcat(buf, " ETA", win_size);
+		else
+			strlcat(buf, "    ", win_size);
+	}
+
+	atomicio(vwrite, STDOUT_FILENO, buf, win_size);
+	last_update = now;
 }
 
 static void
 update_progress_meter(int ignore)
 {
-	int save_errno = errno;
+	int save_errno;
 
-	draw_progress_meter();
+	save_errno = errno;
+
+	if (can_output())
+		refresh_progress_meter();
+
 	signal(SIGALRM, update_progress_meter);
-	alarm(PROGRESSTIME);
+	alarm(UPDATE_INTERVAL);
 	errno = save_errno;
 }
 
-static int
-foregroundproc(void)
-{
-	static pid_t pgrp = -1;
-	int ctty_pgrp;
-
-	if (pgrp == -1)
-		pgrp = getpgrp();
-
-#ifdef HAVE_TCGETPGRP
-        return ((ctty_pgrp = tcgetpgrp(STDOUT_FILENO)) != -1 &&
-	                ctty_pgrp == pgrp);
-#else
-	return ((ioctl(STDOUT_FILENO, TIOCGPGRP, &ctty_pgrp) != -1 &&
-		 ctty_pgrp == pgrp));
-#endif
-}
-
-static void
-draw_progress_meter()
-{
-	static const char spaces[] = "                          "
-	    "                                                   "
-	    "                                                   "
-	    "                                                   "
-	    "                                                   "
-	    "                                                   ";
-	static const char prefixes[] = " KMGTP";
-	struct timeval now, td, wait;
-	off_t cursize, abbrevsize, bytespersec;
-	double elapsed;
-	int ratio, remaining, i, ai, bi, nspaces;
-	char buf[512];
-
-	if (foregroundproc() == 0)
-		return;
-
-	(void) gettimeofday(&now, (struct timezone *) 0);
-	cursize = *statbytes;
-	if (totalbytes != 0) {
-		ratio = 100.0 * cursize / totalbytes;
-		ratio = MAX(ratio, 0);
-		ratio = MIN(ratio, 100);
-	} else
-		ratio = 100;
-
-	abbrevsize = cursize;
-	for (ai = 0; abbrevsize >= 10000 && ai < sizeof(prefixes); ai++)
-		abbrevsize >>= 10;
-
-	timersub(&now, &lastupdate, &wait);
-	if (cursize > lastsize) {
-		lastupdate = now;
-		lastsize = cursize;
-		wait.tv_sec = 0;
-	}
-	timersub(&now, &start, &td);
-	elapsed = td.tv_sec + (td.tv_usec / 1000000.0);
-
-	bytespersec = 0;
-	if (cursize > 0) {
-		bytespersec = cursize;
-		if (elapsed > 0.0)
-			bytespersec /= elapsed;
-	}
-	for (bi = 1; bytespersec >= 1024000 && bi < sizeof(prefixes); bi++)
-		bytespersec >>= 10;
-
-    	nspaces = MIN(get_tty_width() - 79, sizeof(spaces) - 1);
-
-#ifdef HAVE_LONG_LONG_INT
-	snprintf(buf, sizeof(buf),
-	    "\r%-45.45s%.*s%3d%% %4lld%c%c %3lld.%01d%cB/s",
-	    curfile,
-	    nspaces,
-	    spaces,
-	    ratio,
-	    (long long)abbrevsize,
-	    prefixes[ai],
-	    ai == 0 ? ' ' : 'B',
-	    (long long)(bytespersec / 1024),
-	    (int)((bytespersec % 1024) * 10 / 1024),
-	    prefixes[bi]
-	);
-#else
-		/* XXX: Handle integer overflow? */
-	snprintf(buf, sizeof(buf),
-	    "\r%-45.45s%.*s%3d%% %4lu%c%c %3lu.%01d%cB/s",
-	    curfile,
-	    nspaces,
-	    spaces,
-	    ratio,
-	    (u_long)abbrevsize,
-	    prefixes[ai],
-	    ai == 0 ? ' ' : 'B',
-	    (u_long)(bytespersec / 1024),
-	    (int)((bytespersec % 1024) * 10 / 1024),
-	    prefixes[bi]
-	);
-#endif
-
-	if (cursize <= 0 || elapsed <= 0.0 || cursize > totalbytes) {
-		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		    "   --:-- ETA");
-	} else if (wait.tv_sec >= STALLTIME) {
-		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		    " - stalled -");
-	} else {
-		if (cursize != totalbytes)
-			remaining = (int)(totalbytes / (cursize / elapsed) -
-			    elapsed);
-		else
-			remaining = elapsed;
-
-		i = remaining / 3600;
-		if (i)
-			snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-			    "%2d:", i);
-		else
-			snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-			    "   ");
-		i = remaining % 3600;
-		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		    "%02d:%02d%s", i / 60, i % 60,
-		    (cursize != totalbytes) ? " ETA" : "    ");
-	}
-	atomicio(write, fileno(stdout), buf, strlen(buf));
-}
-
-static int
-get_tty_width(void)
+void
+start_progress_meter(char *f, off_t filesize, off_t *stat)
 {
 	struct winsize winsize;
 
-	if (ioctl(fileno(stdout), TIOCGWINSZ, &winsize) != -1)
-		return (winsize.ws_col ? winsize.ws_col : 80);
-	else
-		return (80);
+	start = last_update = time(NULL);
+	file = f;
+	end_pos = filesize;
+	cur_pos = 0;
+	counter = stat;
+	stalled = 0;
+	bytes_per_second = 0;
+
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &winsize) != -1 &&
+	    winsize.ws_col != 0) {
+		if (winsize.ws_col > MAX_WINSIZE)
+			win_size = MAX_WINSIZE;
+		else
+			win_size = winsize.ws_col;
+	} else
+		win_size = DEFAULT_WINSIZE;
+	win_size += 1;					/* trailing \0 */
+
+	if (can_output())
+		refresh_progress_meter();
+
+	signal(SIGALRM, update_progress_meter);
+	alarm(UPDATE_INTERVAL);
+}
+
+void
+stop_progress_meter(void)
+{
+	alarm(0);
+
+	if (!can_output())
+		return;
+
+	/* Ensure we complete the progress */
+	if (cur_pos != end_pos)
+		refresh_progress_meter();
+
+	atomicio(vwrite, STDOUT_FILENO, "\n", 1);
 }

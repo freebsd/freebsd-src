@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssh2.h,v 1.8 2002/03/04 17:27:39 stevesk Exp $	*/
+/*	$OpenBSD: ssh2.h,v 1.9 2003/05/14 00:52:59 markus Exp $	*/
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -61,6 +61,8 @@
 #define SSH2_MSG_TRANSPORT_MAX				49
 #define SSH2_MSG_USERAUTH_MIN				50
 #define SSH2_MSG_USERAUTH_MAX				79
+#define SSH2_MSG_USERAUTH_PER_METHOD_MIN		60
+#define SSH2_MSG_USERAUTH_PER_METHOD_MAX		SSH2_MSG_USERAUTH_MAX
 #define SSH2_MSG_CONNECTION_MIN				80
 #define SSH2_MSG_CONNECTION_MAX				127
 #define SSH2_MSG_RESERVED_MIN				128

@@ -2,9 +2,15 @@
 #	Placed in the Public Domain.
 
 PORT=4242
-USER=`id -un`
-SUDO=
 #SUDO=sudo
+
+if [ -x /usr/ucb/whoami ]; then
+	USER=`/usr/ucb/whoami`
+elif whoami >/dev/null 2>&1; then
+	USER=`whoami`
+else
+	USER=`id -un`
+fi
 
 OBJ=$1
 if [ "x$OBJ" = "x" ]; then
@@ -72,6 +78,32 @@ export SSH SSHD SSHAGENT SSHADD SSHKEYGEN SSHKEYSCAN SFTP SFTPSERVER
 #echo $SSH $SSHD $SSHAGENT $SSHADD $SSHKEYGEN $SSHKEYSCAN $SFTP $SFTPSERVER
 
 # helper
+echon()
+{
+       if [ "x`echo -n`" = "x" ]; then
+               echo -n "$@"
+       elif [ "x`echo '\c'`" = "x" ]; then
+               echo "$@\c"
+       else
+               fatal "Don't know how to echo without newline."
+       fi
+}
+
+have_prog()
+{
+	saved_IFS="$IFS"
+	IFS=":"
+	for i in $PATH
+	do
+		if [ -x $i/$1 ]; then
+			IFS="$saved_IFS"
+			return 0
+		fi
+	done
+	IFS="$saved_IFS"
+	return 1
+}
+
 cleanup ()
 {
 	if [ -f $PIDFILE ]; then
@@ -111,7 +143,7 @@ fail ()
 
 fatal ()
 {
-	echo -n "FATAL: "
+	echon "FATAL: "
 	fail "$@"
 	cleanup
 	exit $RESULT
@@ -130,6 +162,7 @@ cat << EOF > $OBJ/sshd_config
 	PidFile			$PIDFILE
 	AuthorizedKeysFile	$OBJ/authorized_keys_%u
 	LogLevel		QUIET
+	StrictModes		no
 EOF
 
 # server config for proxy connects
@@ -169,7 +202,7 @@ for t in rsa rsa1; do
 
 	# known hosts file for client
 	(
-		echo -n 'localhost-with-alias,127.0.0.1,::1 '
+		echon 'localhost-with-alias,127.0.0.1,::1 '
 		cat $OBJ/$t.pub
 	) >> $OBJ/known_hosts
 
@@ -189,7 +222,7 @@ chmod 644 $OBJ/authorized_keys_$USER
 # create a proxy version of the client config
 (
 	cat $OBJ/ssh_config
-	echo proxycommand ${SSHD} -i -f $OBJ/sshd_proxy
+	echo proxycommand ${SUDO} ${SSHD} -i -f $OBJ/sshd_proxy
 ) > $OBJ/ssh_proxy
 
 # check proxy config
@@ -203,7 +236,7 @@ start_sshd ()
 
 	trace "wait for sshd"
 	i=0;
-	while [ ! -f $PIDFILE -a $i -lt 5 ]; do
+	while [ ! -f $PIDFILE -a $i -lt 10 ]; do
 		i=`expr $i + 1`
 		sleep $i
 	done

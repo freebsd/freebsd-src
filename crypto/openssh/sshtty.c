@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshtty.c,v 1.3 2002/03/04 17:27:39 stevesk Exp $");
+RCSID("$OpenBSD: sshtty.c,v 1.4 2003/07/16 10:36:28 markus Exp $");
 
 #include "sshtty.h"
 #include "log.h"
@@ -80,6 +80,9 @@ enter_raw_mode(void)
 	_saved_tio = tio;
 	tio.c_iflag |= IGNPAR;
 	tio.c_iflag &= ~(ISTRIP | INLCR | IGNCR | ICRNL | IXON | IXANY | IXOFF);
+#ifdef IUCLC
+	tio.c_iflag &= ~IUCLC;
+#endif
 	tio.c_lflag &= ~(ISIG | ICANON | ECHO | ECHOE | ECHOK | ECHONL);
 #ifdef IEXTEN
 	tio.c_lflag &= ~IEXTEN;

@@ -3,7 +3,7 @@
 
 You will need working installations of Zlib and OpenSSL.
 
-Zlib:
+Zlib 1.1.4 or greater:
 http://www.gzip.org/zlib/ 
 
 OpenSSL 0.9.6 or greater:
@@ -33,7 +33,7 @@ http://www.gnome.org/
 Alternatively, Jim Knoble <jmknoble@jmknoble.cx> has written an excellent X11
 passphrase requester. This is maintained separately at:
 
-http://www.ntrnet.net/~jmknoble/software/x11-ssh-askpass/index.html
+http://www.jmknoble.net/software/x11-ssh-askpass/
 
 PRNGD:
 
@@ -101,11 +101,8 @@ name).
 
 There are a few other options to the configure script:
 
---with-pam enables PAM support.
-
---enable-gnome-askpass will build the GNOME passphrase dialog. You
-need a working installation of GNOME, including the development
-headers, for this to work.
+--with-pam enables PAM support. If PAM support is compiled in, it must
+also be enabled in sshd_config (refer to the UsePAM directive).
 
 --with-prngd-socket=/some/file allows you to enable EGD or PRNGD 
 support and to specify a PRNGd socket. Use this if your Unix lacks 
@@ -123,18 +120,8 @@ it if lastlog is installed in a different place.
 
 --without-lastlog will disable lastlog support entirely.
 
---with-sia, --without-sia will enable or disable OSF1's Security 
+--with-osfsia, --without-osfsia will enable or disable OSF1's Security 
 Integration Architecture.  The default for OSF1 machines is enable.
-
---with-kerberos4=PATH will enable Kerberos IV support. You will need
-to have the Kerberos libraries and header files installed for this
-to work. Use the optional PATH argument to specify the root of your
-Kerberos installation.
-
---with-afs=PATH will enable AFS support. You will need to have the
-Kerberos IV and the AFS libraries and header files installed for this
-to work.  Use the optional PATH argument to specify the root of your
-AFS installation. AFS requires Kerberos support to be enabled.
 
 --with-skey=PATH will enable S/Key one time password support. You will 
 need the S/Key libraries and header files installed for this to work.
@@ -160,12 +147,6 @@ started by sshd. This replaces the standard path entirely.
 created.
 
 --with-xauth=PATH specifies the location of the xauth binary
-
---with-ipv4-default instructs OpenSSH to use IPv4 by default for new
-connections. Normally OpenSSH will try attempt to lookup both IPv6 and
-IPv4 addresses. On Linux/glibc-2.1.2 this causes long delays in name
-resolution. If this option is specified, you can still attempt to 
-connect to IPv6 addresses using the command line option '-6'.
 
 --with-ssl-dir=DIR allows you to specify where your OpenSSL libraries
 are installed.
@@ -217,4 +198,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.55 2002/07/25 04:36:25 djm Exp $
+$Id: INSTALL,v 1.56.2.4 2003/09/23 09:24:21 djm Exp $

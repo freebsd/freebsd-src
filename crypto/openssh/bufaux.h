@@ -29,10 +29,8 @@ void	buffer_put_short(Buffer *, u_short);
 u_int	buffer_get_int(Buffer *);
 void    buffer_put_int(Buffer *, u_int);
 
-#ifdef HAVE_U_INT64_T
 u_int64_t buffer_get_int64(Buffer *);
 void	buffer_put_int64(Buffer *, u_int64_t);
-#endif
 
 int     buffer_get_char(Buffer *);
 void    buffer_put_char(Buffer *, int);

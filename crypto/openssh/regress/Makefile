@@ -1,8 +1,11 @@
-#	$OpenBSD: Makefile,v 1.20 2003/01/08 23:54:22 djm Exp $
+#	$OpenBSD: Makefile,v 1.24 2003/07/03 08:24:13 markus Exp $
 
-REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7
+REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7 t-exec
+tests:		$(REGRESS_TARGETS)
 
-CLEANFILES+=	t2.out t6.out1 t6.out2 t7.out t7.out.pub copy.1 copy.2
+clean:
+	for F in $(CLEANFILES); do rm -f $(OBJ)$$F; done
+distclean:	clean
 
 LTESTS= 	connect \
 		proxy-connect \
@@ -11,6 +14,7 @@ LTESTS= 	connect \
 		proto-mismatch \
 		exit-status \
 		transfer \
+		rekey \
 		stderr-data \
 		stderr-after-eof \
 		broken-pipe \
@@ -24,30 +28,34 @@ LTESTS= 	connect \
 		keygen-change \
 		sftp \
 		sftp-cmds \
+		sftp-badcmds \
 		sftp-batch \
+		reconfigure \
+		dynamic-forward \
 		forwarding
 
 USER!=		id -un
-CLEANFILES+=	authorized_keys_${USER} known_hosts pidfile \
+CLEANFILES=	t2.out t6.out1 t6.out2 t7.out t7.out.pub copy.1 copy.2 \
+		authorized_keys_${USER} known_hosts pidfile \
 		ssh_config ssh_proxy sshd_config sshd_proxy \
 		rsa.pub rsa rsa1.pub rsa1 host.rsa host.rsa1 \
 		rsa-agent rsa-agent.pub rsa1-agent rsa1-agent.pub \
-		ls.copy
+		ls.copy remote_pid
 
-#LTESTS+=	ssh-com ssh-com-client ssh-com-keygen ssh-com-sftp
+#LTESTS +=	ssh-com ssh-com-client ssh-com-keygen ssh-com-sftp
 
 t1:
 	ssh-keygen -if ${.CURDIR}/rsa_ssh2.prv | diff - ${.CURDIR}/rsa_openssh.prv
 
 t2:
-	cat ${.CURDIR}/rsa_openssh.prv > t2.out
-	chmod 600 t2.out
-	ssh-keygen -yf t2.out | diff - ${.CURDIR}/rsa_openssh.pub
+	cat ${.CURDIR}/rsa_openssh.prv > $(OBJ)/t2.out
+	chmod 600 $(OBJ)/t2.out
+	ssh-keygen -yf $(OBJ)/t2.out | diff - ${.CURDIR}/rsa_openssh.pub
 
 t3:
-	ssh-keygen -ef ${.CURDIR}/rsa_openssh.pub |\
-		ssh-keygen -if /dev/stdin |\
-		diff - ${.CURDIR}/rsa_openssh.pub
+	ssh-keygen -ef ${.CURDIR}/rsa_openssh.pub >$(OBJ)/rsa_secsh.pub
+	ssh-keygen -if $(OBJ)/rsa_secsh.pub | diff - ${.CURDIR}/rsa_openssh.pub
+	rm -f ${.CURDIR}/rsa_secsh.pub
 
 t4:
 	ssh-keygen -lf ${.CURDIR}/rsa_openssh.pub |\
@@ -58,22 +66,21 @@ t5:
 		awk '{print $$2}' | diff - ${.CURDIR}/t5.ok
 
 t6:
-	ssh-keygen -if ${.CURDIR}/dsa_ssh2.prv > t6.out1
-	ssh-keygen -if ${.CURDIR}/dsa_ssh2.pub > t6.out2
-	chmod 600 t6.out1
-	ssh-keygen -yf t6.out1 | diff - t6.out2
+	ssh-keygen -if ${.CURDIR}/dsa_ssh2.prv > $(OBJ)/t6.out1
+	ssh-keygen -if ${.CURDIR}/dsa_ssh2.pub > $(OBJ)/t6.out2
+	chmod 600 $(OBJ)/t6.out1
+	ssh-keygen -yf $(OBJ)/t6.out1 | diff - $(OBJ)/t6.out2
 
-t7.out:
+$(OBJ)/t7.out:
 	ssh-keygen -q -t rsa -N '' -f $@
 
-t7: t7.out
-	ssh-keygen -lf t7.out > /dev/null
-	ssh-keygen -Bf t7.out > /dev/null
+t7: $(OBJ)/t7.out
+	ssh-keygen -lf $(OBJ)/t7.out > /dev/null
+	ssh-keygen -Bf $(OBJ)/t7.out > /dev/null
 
-.for t in ${LTESTS}
-REGRESS_TARGETS+=t-${t}
-t-${t}:
-	sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/${t}.sh
-.endfor
-
-.include "bsd.regress.mk"
+t-exec:	${LTESTS:=.sh}
+	@if [ "x$?" = "x" ]; then exit 0; fi; \
+	for TEST in ""$?; do \
+		echo "run test $${TEST}" ... 1>&2; \
+		(sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
+	done

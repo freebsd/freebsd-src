@@ -25,7 +25,7 @@
 /* XXX: recursive operations */
 
 #include "includes.h"
-RCSID("$OpenBSD: sftp-int.c,v 1.57 2003/03/05 22:33:43 markus Exp $");
+RCSID("$OpenBSD: sftp-int.c,v 1.62 2003/08/25 08:13:09 fgsch Exp $");
 
 #include "buffer.h"
 #include "xmalloc.h"
@@ -52,6 +52,10 @@ int showprogress = 1;
 
 /* Seperators for interactive commands */
 #define WHITESPACE " \t\r\n"
+
+/* Define what type of ls view (0 - multi-column) */
+#define LONG_VIEW 1		/* Full view ala ls -l */
+#define SHORT_VIEW 2		/* Single row view ala ls -1 */
 
 /* Commands for interactive mode */
 #define I_CHDIR		1
@@ -307,7 +311,10 @@ parse_ls_flags(const char **cpp, int *lflag)
 		for(; strchr(WHITESPACE, *cp) == NULL; cp++) {
 			switch (*cp) {
 			case 'l':
-				*lflag = 1;
+				*lflag = LONG_VIEW;
+				break;
+			case '1':
+				*lflag = SHORT_VIEW;
 				break;
 			default:
 				error("Invalid flag -%c", *cp);
@@ -325,7 +332,7 @@ get_pathname(const char **cpp, char **path)
 {
 	const char *cp = *cpp, *end;
 	char quot;
-	int i;
+	int i, j;
 
 	cp += strspn(cp, WHITESPACE);
 	if (!*cp) {
@@ -334,37 +341,55 @@ get_pathname(const char **cpp, char **path)
 		return (0);
 	}
 
+	*path = xmalloc(strlen(cp) + 1);
+
 	/* Check for quoted filenames */
 	if (*cp == '\"' || *cp == '\'') {
 		quot = *cp++;
 
-		end = strchr(cp, quot);
-		if (end == NULL) {
-			error("Unterminated quote");
-			goto fail;
+		/* Search for terminating quote, unescape some chars */
+		for (i = j = 0; i <= strlen(cp); i++) {
+			if (cp[i] == quot) {	/* Found quote */
+				(*path)[j] = '\0';
+				i++;
+				break;
+			}
+			if (cp[i] == '\0') {	/* End of string */
+				error("Unterminated quote");
+				goto fail;
+			}
+			if (cp[i] == '\\') {	/* Escaped characters */
+				i++;
+				if (cp[i] != '\'' && cp[i] != '\"' && 
+				    cp[i] != '\\') {
+					error("Bad escaped character '\%c'",
+					    cp[i]);
+					goto fail;
+				}
+			}
+			(*path)[j++] = cp[i];
 		}
-		if (cp == end) {
+
+		if (j == 0) {
 			error("Empty quotes");
 			goto fail;
 		}
-		*cpp = end + 1 + strspn(end + 1, WHITESPACE);
+		*cpp = cp + i + strspn(cp + i, WHITESPACE);
 	} else {
 		/* Read to end of filename */
 		end = strpbrk(cp, WHITESPACE);
 		if (end == NULL)
 			end = strchr(cp, '\0');
 		*cpp = end + strspn(end, WHITESPACE);
+
+		memcpy(*path, cp, end - cp);
+		(*path)[end - cp] = '\0';
 	}
-
-	i = end - cp;
-
-	*path = xmalloc(i + 1);
-	memcpy(*path, cp, i);
-	(*path)[i] = '\0';
-	return(0);
+	return (0);
 
  fail:
-	*path = NULL;
+ 	xfree(*path);
+	*path = NULL;	
 	return (-1);
 }
 
@@ -425,29 +450,8 @@ process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 		goto out;
 	}
 
-	/* Only one match, dst may be file, directory or unspecified */
-	if (g.gl_pathv[0] && g.gl_matchc == 1) {
-		if (dst) {
-			/* If directory specified, append filename */
-			if (is_dir(dst)) {
-				if (infer_path(g.gl_pathv[0], &tmp)) {
-					err = 1;
-					goto out;
-				}
-				abs_dst = path_append(dst, tmp);
-				xfree(tmp);
-			} else
-				abs_dst = xstrdup(dst);
-		} else if (infer_path(g.gl_pathv[0], &abs_dst)) {
-			err = -1;
-			goto out;
-		}
-		err = do_download(conn, g.gl_pathv[0], abs_dst, pflag);
-		goto out;
-	}
-
-	/* Multiple matches, dst may be directory or unspecified */
-	if (dst && !is_dir(dst)) {
+	/* If multiple matches, dst must be a directory or unspecified */
+	if (g.gl_matchc > 1 && dst && !is_dir(dst)) {
 		error("Multiple files match, but \"%s\" is not a directory",
 		    dst);
 		err = -1;
@@ -459,7 +463,19 @@ process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 			err = -1;
 			goto out;
 		}
-		if (dst) {
+
+		if (g.gl_matchc == 1 && dst) {
+			/* If directory specified, append filename */
+			if (is_dir(dst)) {
+				if (infer_path(g.gl_pathv[0], &tmp)) {
+					err = 1;
+					goto out;
+				}
+				abs_dst = path_append(dst, tmp);
+				xfree(tmp);
+			} else
+				abs_dst = xstrdup(dst);
+		} else if (dst) {
 			abs_dst = path_append(dst, tmp);
 			xfree(tmp);
 		} else
@@ -503,38 +519,8 @@ process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 		goto out;
 	}
 
-	/* Only one match, dst may be file, directory or unspecified */
-	if (g.gl_pathv[0] && g.gl_matchc == 1) {
-		if (!is_reg(g.gl_pathv[0])) {
-			error("Can't upload %s: not a regular file",
-			    g.gl_pathv[0]);
-			err = 1;
-			goto out;
-		}
-		if (tmp_dst) {
-			/* If directory specified, append filename */
-			if (remote_is_dir(conn, tmp_dst)) {
-				if (infer_path(g.gl_pathv[0], &tmp)) {
-					err = 1;
-					goto out;
-				}
-				abs_dst = path_append(tmp_dst, tmp);
-				xfree(tmp);
-			} else
-				abs_dst = xstrdup(tmp_dst);
-		} else {
-			if (infer_path(g.gl_pathv[0], &abs_dst)) {
-				err = -1;
-				goto out;
-			}
-			abs_dst = make_absolute(abs_dst, pwd);
-		}
-		err = do_upload(conn, g.gl_pathv[0], abs_dst, pflag);
-		goto out;
-	}
-
-	/* Multiple matches, dst may be directory or unspecified */
-	if (tmp_dst && !remote_is_dir(conn, tmp_dst)) {
+	/* If multiple matches, dst may be directory or unspecified */
+	if (g.gl_matchc > 1 && tmp_dst && !remote_is_dir(conn, tmp_dst)) {
 		error("Multiple files match, but \"%s\" is not a directory",
 		    tmp_dst);
 		err = -1;
@@ -551,7 +537,20 @@ process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 			err = -1;
 			goto out;
 		}
-		if (tmp_dst) {
+
+		if (g.gl_matchc == 1 && tmp_dst) {
+			/* If directory specified, append filename */
+			if (remote_is_dir(conn, tmp_dst)) {
+				if (infer_path(g.gl_pathv[0], &tmp)) {
+					err = 1;
+					goto out;
+				}
+				abs_dst = path_append(tmp_dst, tmp);
+				xfree(tmp);
+			} else
+				abs_dst = xstrdup(tmp_dst);
+
+		} else if (tmp_dst) {
 			abs_dst = path_append(tmp_dst, tmp);
 			xfree(tmp);
 		} else
@@ -567,6 +566,7 @@ out:
 		xfree(abs_dst);
 	if (tmp_dst)
 		xfree(tmp_dst);
+	globfree(&g);
 	return(err);
 }
 
@@ -583,15 +583,27 @@ sdirent_comp(const void *aa, const void *bb)
 static int
 do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
 {
-	int n;
+	int n, c = 1, colspace = 0, columns = 1;
 	SFTP_DIRENT **d;
 
 	if ((n = do_readdir(conn, path, &d)) != 0)
 		return (n);
 
-	/* Count entries for sort */
-	for (n = 0; d[n] != NULL; n++)
-		;
+	if (!(lflag & SHORT_VIEW)) {
+		int m = 0, width = 80;
+		struct winsize ws;
+
+		/* Count entries for sort and find longest filename */
+		for (n = 0; d[n] != NULL; n++)
+			m = MAX(m, strlen(d[n]->filename));
+
+		if (ioctl(fileno(stdin), TIOCGWINSZ, &ws) != -1) 
+			width = ws.ws_col;
+
+		columns = width / (m + 2);
+		columns = MAX(columns, 1);
+		colspace = width / columns;
+	}
 
 	qsort(d, n, sizeof(*d), sdirent_comp);
 
@@ -602,7 +614,7 @@ do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
 		fname = path_strip(tmp, strip_path);
 		xfree(tmp);
 
-		if (lflag) {
+		if (lflag & LONG_VIEW) {
 			char *lname;
 			struct stat sb;
 
@@ -612,12 +624,19 @@ do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
 			printf("%s\n", lname);
 			xfree(lname);
 		} else {
-			/* XXX - multicolumn display would be nice here */
-			printf("%s\n", fname);
+			printf("%-*s", colspace, fname);
+			if (c >= columns) {
+				printf("\n");
+				c = 1;
+			} else
+				c++;
 		}
 
 		xfree(fname);
 	}
+
+	if (!(lflag & LONG_VIEW) && (c != 1))
+		printf("\n");
 
 	free_sftp_dirents(d);
 	return (0);
@@ -629,9 +648,8 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
     int lflag)
 {
 	glob_t g;
-	int i;
+	int i, c = 1, colspace = 0, columns = 1;
 	Attrib *a;
-	struct stat sb;
 
 	memset(&g, 0, sizeof(g));
 
@@ -658,12 +676,31 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 		}
 	}
 
+	if (!(lflag & SHORT_VIEW)) {
+		int m = 0, width = 80;
+		struct winsize ws;	
+
+		/* Count entries for sort and find longest filename */
+ 		for (i = 0; g.gl_pathv[i]; i++)
+			m = MAX(m, strlen(g.gl_pathv[i]));
+
+		if (ioctl(fileno(stdin), TIOCGWINSZ, &ws) != -1)
+			width = ws.ws_col;
+
+		columns = width / (m + 2);
+		columns = MAX(columns, 1);
+		colspace = width / columns;
+	}
+
 	for (i = 0; g.gl_pathv[i]; i++) {
-		char *fname, *lname;
+		char *fname;
 
 		fname = path_strip(g.gl_pathv[i], strip_path);
 
-		if (lflag) {
+		if (lflag & LONG_VIEW) {
+			char *lname;
+			struct stat sb;
+
 			/*
 			 * XXX: this is slow - 1 roundtrip per path
 			 * A solution to this is to fork glob() and
@@ -679,11 +716,18 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 			printf("%s\n", lname);
 			xfree(lname);
 		} else {
-			/* XXX - multicolumn display would be nice here */
-			printf("%s\n", fname);
+			printf("%-*s", colspace, fname);
+			if (c >= columns) {
+				printf("\n");
+				c = 1;
+			} else
+				c++;
 		}
 		xfree(fname);
 	}
+
+	if (!(lflag & LONG_VIEW) && (c != 1))
+		printf("\n");
 
 	if (g.gl_pathc)
 		globfree(&g);
