@@ -78,6 +78,7 @@ ok:
 	popq	%rdi
 	ret
 err:
+	addq	$8, %rsp
 #ifdef PIC
 	movq	PIC_GOT(HIDENAME(cerror)),%rdx
 	jmp	*%rdx
