@@ -23,7 +23,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/grammar.y,v 1.64 2000/10/28 10:18:40 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/grammar.y,v 1.71 2001/07/03 19:15:48 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -107,21 +107,25 @@ pcap_parse()
 
 %token  DST SRC HOST GATEWAY
 %token  NET MASK PORT LESS GREATER PROTO PROTOCHAIN BYTE
-%token  ARP RARP IP TCP UDP ICMP IGMP IGRP PIM
+%token  ARP RARP IP SCTP TCP UDP ICMP IGMP IGRP PIM VRRP
 %token  ATALK AARP DECNET LAT SCA MOPRC MOPDL
 %token  TK_BROADCAST TK_MULTICAST
 %token  NUM INBOUND OUTBOUND
 %token  LINK
 %token	GEQ LEQ NEQ
-%token	ID EID HID HID6
+%token	ID EID HID HID6 AID
 %token	LSH RSH
 %token  LEN
 %token  IPV6 ICMPV6 AH ESP
 %token	VLAN
 %token  ISO ESIS ISIS CLNP
+%token  STP
+%token  IPX
+%token  NETBEUI
 
 %type	<s> ID
 %type	<e> EID
+%type	<e> AID
 %type	<s> HID HID6
 %type	<i> NUM
 
@@ -185,7 +189,24 @@ nid:	  ID			{ $$.b = gen_scode($1, $$.q = $<blk>0.q); }
 					"in this configuration");
 #endif /*INET6*/
 				}
-	| EID			{ $$.b = gen_ecode($1, $$.q = $<blk>0.q); }
+	| EID			{ 
+				  $$.b = gen_ecode($1, $$.q = $<blk>0.q);
+				  /*
+				   * $1 was allocated by "pcap_ether_aton()",
+				   * so we must free it now that we're done
+				   * with it.
+				   */
+				  free($1);
+				}
+	| AID			{
+				  $$.b = gen_acode($1, $$.q = $<blk>0.q);
+				  /*
+				   * $1 was allocated by "pcap_ether_aton()",
+				   * so we must free it now that we're done
+				   * with it.
+				   */
+				  free($1);
+				}
 	| not id		{ gen_not($2.b); $$ = $2; }
 	;
 not:	  '!'			{ $$ = $<blk>0; }
@@ -243,12 +264,14 @@ pname:	  LINK			{ $$ = Q_LINK; }
 	| IP			{ $$ = Q_IP; }
 	| ARP			{ $$ = Q_ARP; }
 	| RARP			{ $$ = Q_RARP; }
+	| SCTP			{ $$ = Q_SCTP; }
 	| TCP			{ $$ = Q_TCP; }
 	| UDP			{ $$ = Q_UDP; }
 	| ICMP			{ $$ = Q_ICMP; }
 	| IGMP			{ $$ = Q_IGMP; }
 	| IGRP			{ $$ = Q_IGRP; }
 	| PIM			{ $$ = Q_PIM; }
+	| VRRP			{ $$ = Q_VRRP; }
 	| ATALK			{ $$ = Q_ATALK; }
 	| AARP			{ $$ = Q_AARP; }
 	| DECNET		{ $$ = Q_DECNET; }
@@ -264,6 +287,9 @@ pname:	  LINK			{ $$ = Q_LINK; }
 	| ESIS			{ $$ = Q_ESIS; }
 	| ISIS			{ $$ = Q_ISIS; }
 	| CLNP			{ $$ = Q_CLNP; }
+	| STP			{ $$ = Q_STP; }
+	| IPX			{ $$ = Q_IPX; }
+	| NETBEUI		{ $$ = Q_NETBEUI; }
 	;
 other:	  pqual TK_BROADCAST	{ $$ = gen_broadcast($1); }
 	| pqual TK_MULTICAST	{ $$ = gen_multicast($1); }
