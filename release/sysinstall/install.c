@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.6 1995/09/25 01:20:46 jkh Exp $
+ * $Id: install.c,v 1.71.2.7 1995/09/25 04:16:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -208,10 +208,11 @@ installFixit(char *str)
 
     memset(&args, 0, sizeof(args));
     args.fspec = "/dev/fd0";
+    (void)mkdir("/mnt2", 0755);
 
     while (1) {
-	msgConfirm("Please insert the fixit disk and press return");
-	if (mount(MOUNT_UFS, "/mnt", MNT_RDONLY, (caddr_t)&args) != -1)
+	msgConfirm("Please insert the fixit floppy and press return");
+	if (mount(MOUNT_UFS, "/mnt2", MNT_RDONLY, (caddr_t)&args) != -1)
 	    break;
 	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?"))
 	    return TRUE;
@@ -223,15 +224,15 @@ installFixit(char *str)
     if (child = fork())
 	(void)waitpid(child, &waitstatus, 0);
     else {
-	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt/stand", 1);
+	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt2/stand", 1);
 	execlp("sh", "-sh", 0);
 	return -1;
     }
     DialogActive = TRUE;
     dialog_clear();
     dialog_update();
-    unmount("/mnt", MNT_FORCE);
-    msgConfirm("Please remove the fixit disk and press return");
+    unmount("/mnt2", MNT_FORCE);
+    msgConfirm("Please remove the fixit floppy and press return");
     return TRUE;
 }
 
