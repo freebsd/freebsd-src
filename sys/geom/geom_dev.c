@@ -303,10 +303,12 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		gio->fflag = fflag;
 		gio->td = td;
 		i = sizeof *gio;
-		if (cmd & IOC_IN)
-			error = g_io_setattr("GEOM::ioctl", cp, i, gio);
-		else
-			error = g_io_getattr("GEOM::ioctl", cp, &i, gio);
+		/*
+		 * We always issue ioctls as getattr since the direction of data
+		 * movement in ioctl is no indication of the ioctl being a "set"
+		 * or "get" type ioctl or if such simplistic terms even apply
+		 */
+		error = g_io_getattr("GEOM::ioctl", cp, &i, gio);
 		break;
 	}
 
