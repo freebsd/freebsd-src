@@ -1,5 +1,5 @@
 #	@(#)Makefile	7.9 (Berkeley) 6/1/93
-# $Id: Makefile,v 1.9 1995/03/23 07:02:14 rgrimes Exp $
+# $Id: Makefile,v 1.10 1995/10/05 14:46:07 phk Exp $
 
 .undef NOPROFILE
 
@@ -8,6 +8,7 @@ CFLAGS+= -I${.CURDIR} -I${.CURDIR}/.. -DKERNEL
 
 # Stuff we call from the kernel
 SRCS+=	mcount.c
+SRCS+=  qsort.c
 SRCS+=	strcpy.c strcmp.c strncpy.c strncmp.c strcat.c
 SRCS+=	skpc.c scanc.c random.c inet_ntoa.c
 
