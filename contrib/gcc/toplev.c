@@ -2255,6 +2255,19 @@ rest_of_decl_compilation (decl, asmspec, top_level, at_end)
 #define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP, END)
 #endif
 
+  /* We deferred calling assemble_alias so that we could collect
+     other attributes such as visibility.  Emit the alias now.  */
+  {
+    tree alias;
+    alias = lookup_attribute ("alias", DECL_ATTRIBUTES (decl));
+    if (alias)
+      {
+	alias = TREE_VALUE (TREE_VALUE (alias));
+	alias = get_identifier (TREE_STRING_POINTER (alias));
+        assemble_alias (decl, alias);
+      }
+  }
+
   /* Forward declarations for nested functions are not "external",
      but we need to treat them as if they were.  */
   if (TREE_STATIC (decl) || DECL_EXTERNAL (decl)
@@ -3643,12 +3656,6 @@ display_help ()
   printf (_("  -Wunused                Enable unused warnings\n"));
   printf (_("  -Wlarger-than-<number>  Warn if an object is larger than <number> bytes\n"));
   printf (_("  -p                      Enable function profiling\n"));
-#if defined (BLOCK_PROFILER) || defined (FUNCTION_BLOCK_PROFILER)
-  printf (_("  -a                      Enable block profiling \n"));
-#endif
-#if defined (BLOCK_PROFILER) || defined (FUNCTION_BLOCK_PROFILER) || defined FUNCTION_BLOCK_PROFILER_EXIT
-  printf (_("  -ax                     Enable jump profiling \n"));
-#endif
   printf (_("  -o <file>               Place output into <file> \n"));
   printf (_("\
   -G <number>             Put global and static data smaller than <number>\n\
@@ -5260,7 +5267,7 @@ toplev_main (argc, argv)
   parse_options_and_default_flags (argc, argv);
 
   /* Exit early if we can (e.g. -help).  */
-  if (!exit_after_options)
+  if (!errorcount && !exit_after_options)
     do_compile ();
 
   if (errorcount || sorrycount)
