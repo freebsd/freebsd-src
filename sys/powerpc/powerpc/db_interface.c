@@ -38,7 +38,6 @@ int	db_active = 0;
 
 db_regs_t ddb_regs;
 
-void ddb_trap(void);				/* Call into trap_subr.S */
 int ddb_trap_glue(struct trapframe *);		/* Called from trap_subr.S */
 #ifdef PPC_IBM4XX
 static void db_ppc4xx_ctx(db_expr_t, int, db_expr_t, char *);
