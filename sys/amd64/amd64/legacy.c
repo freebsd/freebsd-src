@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.4 1999/04/21 07:26:26 peter Exp $
+ *	$Id: nexus.c,v 1.5 1999/04/24 04:16:22 kato Exp $
  */
 
 /*
@@ -307,9 +307,9 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	int	error, icflags;
 	char	name[32];
 
-	if (child)
-		device_printf(child, "interrupting at irq %d\n",
-			      (int)irq->r_start);
+	/* somebody tried to setup an irq that failed to allocate! */
+	if (irq == NULL)
+		panic("nexus_setup_intr: NULL irq resource!");
 
 	*cookiep = 0;
 	if (irq->r_flags & RF_SHAREABLE)
