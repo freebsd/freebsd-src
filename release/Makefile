@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.108 1995/02/25 22:08:43 phk Exp $
+#	$Id: Makefile,v 1.109 1995/02/26 01:35:32 phk Exp $
 #
 # How to roll a release:
 #
@@ -37,13 +37,17 @@ release:
 	-mkdir ${CHROOTDIR}
 	chflags -R noschg ${CHROOTDIR}/.
 	rm -rf ${CHROOTDIR}/*
-	cd ${.CURDIR}/../etc ; ${MAKE} distrib-dirst DESTDIR=${CHROOTDIR}
+	cd ${.CURDIR}/../etc ; ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
+	cd ${.CURDIR}/../etc ; ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/.. ; ${MAKE} install DESTDIR=${CHROOTDIR}
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
-	echo "cd release"			>> ${CHROOTDIR}/mk
+	echo "cd sbin/sysinstall"		>> ${CHROOTDIR}/mk
+	echo "make obj"				>> ${CHROOTDIR}/mk
+	echo "cd ../../release"			>> ${CHROOTDIR}/mk
+	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE RELEASEDIR=/R"	>> ${CHROOTDIR}/mk
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr ; cvs co src
@@ -71,8 +75,11 @@ release.1:
 	mkdir ${RD}/cpiofd/stand
 	mkdir ${RD}/floppies
 	mkdir ${RD}/dists
+	mkdir ${RD}/dists/bin
 	mkdir ${RD}/tarballs
-	for i in ${DISTRIBUTIONS} ; do \
+	mkdir ${RD}/tarballs/bin
+	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/dists/bin
+	for i in ${EXTRADISTRIBUTIONS} ; do \
 		mkdir ${RD}/dists/$$i ; \
 		mkdir ${RD}/tarballs/$$i ; \
 		mtree -deU -f ${MTREEFILES}/BSD.root.dist \
