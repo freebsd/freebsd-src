@@ -70,9 +70,6 @@ RELEASESRCMODULE?=	src
 RELEASEDOCMODULE?=	doc
 RELEASEPORTSMODULE?=	ports
 
-# Unless set elsewhere, indicate the object format we'll be using.
-OBJFORMAT?=		elf
-
 # Uncomment this to disable the doc.1 target.  Docs normally require
 # the ports tree, so NOPORTS can be set together with NODOC in order
 # to have neither ports or docs.  If only NOPORTS is set to YES, but
@@ -347,7 +344,6 @@ rerelease release:
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
 	  mv newvers.sh foo && \
 	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh && rm foo )
-	echo OBJFORMAT=${OBJFORMAT} > ${CHROOTDIR}/etc/objformat
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
@@ -357,7 +353,7 @@ rerelease release:
 	CD_EXTRA_BITS DISTRIBUTIONS DOMINIMALDOCPORTS \
 	EXTRA_SRC FIXCRYPTO KERNELS KERNEL_FLAGS \
 	MAKE_ISOS NODOC NOKERBEROS NOPORTS NOSHARED \
-	NOSRC NO_SENDMAIL OBJFORMAT RELEASETAG \
+	NOSRC NO_SENDMAIL RELEASETAG \
 	RELNOTES_LANG TARGET TARGET_ARCH WORLD_FLAGS
 .if defined(${var})
 	echo "export ${var}=\"${${var}}\""	>> ${CHROOTDIR}/mk
@@ -487,7 +483,7 @@ release.6:
 	@for i in ${DISTRIBUTIONS}; do \
 		if [ -f ${.CURDIR}/scripts/$${i}-make.sh ]; then \
 			echo -n "Running $$i dist creation script... "; \
-			env OBJFORMAT=${OBJFORMAT} RD=${RD} sh ${.CURDIR}/scripts/$${i}-make.sh || echo "$$i distribution script returned bad status."; \
+			env RD=${RD} sh ${.CURDIR}/scripts/$${i}-make.sh || echo "$$i distribution script returned bad status."; \
 			echo "Done."; \
 		fi \
 	done \

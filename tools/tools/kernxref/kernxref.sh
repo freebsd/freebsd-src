@@ -25,15 +25,10 @@ if [ ! -d ${COMPILEDIR}/${KERNELNAME} ]; then
 fi
 
 cd ${COMPILEDIR}/${KERNELNAME}
-if file vers.o | grep -q ELF; then
-	OBJFORMAT=elf;
-else
-	OBJFORMAT=aout;
-fi
 
 MOD_OBJS=`find modules -name \*.ko`
 
-OBJFORMAT=${OBJFORMAT} nm -gon `echo *.o $MOD_OBJS      \
+nm -gon `echo *.o $MOD_OBJS      \
 	| tr ' ' '\012'					\
 	| egrep -v '(aicasm|genassym)'`			\
 	| tr : ' ' | awk '

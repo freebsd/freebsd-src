@@ -58,8 +58,4 @@
 /* gas messes up offset -- although we don't currently need it, do for BCS */
 #define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
 
-#ifdef __ELF__
-#define KERNCALL	int $0x80	/* Faster */
-#else
-#define KERNCALL	LCALL(7,0)	/* The old way */
-#endif
+#define KERNCALL	int $0x80

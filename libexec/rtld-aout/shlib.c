@@ -44,7 +44,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <link.h>
+#include <sys/link_aout.h>
 #include "shlib.h"
 #include "support.h"
 

@@ -153,11 +153,7 @@ CLEANFILES	+= openpam_static.o
 CLEANFILES+=	openpam_static_modules.o
 
 openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
-.if ${OBJFORMAT} == elf
 	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
-.else
-	${LD} -o ${.TARGET} -r -Bforcearchive ${.ALLSRC}
-.endif
 
 # Headers
 INCS=		${HEADERS} ${ADD_HEADERS}

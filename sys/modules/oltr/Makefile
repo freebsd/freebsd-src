@@ -11,7 +11,7 @@ TR_INET6?=	0	# 0/1 requires INET6 to be configured in the kernel
 TR_IPX?=	0	# 0/1 requires IPX to be configured in the kernel
 
 trlld.o:
-	uudecode < ${.CURDIR}/../../contrib/dev/oltr/i386-${OBJFORMAT}.trlld.o.uu
+	uudecode < ${.CURDIR}/../../contrib/dev/oltr/i386-elf.trlld.o.uu
 
 opt_inet.h:
 	touch opt_inet.h

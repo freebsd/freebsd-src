@@ -21,9 +21,6 @@
 #		own install script so that the entire system can be made
 #		stripped/not-stripped using a single knob. [-s]
 #
-# OBJFORMAT	Default object format that selects which set of tools to run.
-#		[elf]
-#
 # BINOWN	Binary owner. [root]
 #
 # BINGRP	Binary group. [wheel]
@@ -123,11 +120,7 @@ KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
 
-.if ${OBJFORMAT} == aout
-LIBDIR?=	/usr/lib/aout
-.else
 LIBDIR?=	/usr/lib
-.endif
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
 LINTLIBDIR?=	/usr/libdata/lint

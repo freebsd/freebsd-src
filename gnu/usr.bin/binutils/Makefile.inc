@@ -1,6 +1,6 @@
 #
 # $FreeBSD$
 #
+.include "../Makefile.inc"
 
-BINDIR?=	/usr/libexec/elf
 WARNS?=		3

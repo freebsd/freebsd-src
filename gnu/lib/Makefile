@@ -2,12 +2,6 @@
 
 SUBDIR= csu libgcc libdialog libregex libreadline
 
-.if ${OBJFORMAT} == aout
-.if !defined(NOLIBC_R)
-SUBDIR+= libgcc_r
-.endif
-.endif
-
 # libsupc++ uses libstdc++ headers, although 'make includes' should
 # have taken care of that already.
 .if !defined(NO_CXX)

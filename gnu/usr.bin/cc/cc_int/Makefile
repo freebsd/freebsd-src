@@ -71,11 +71,7 @@ CFLAGS+=	-DTARGET_NAME=\"${target}\" -DIN_GCC
 CFLAGS+=	-DTARGET_CPU_DEFAULT=${TARGET_CPU_DEFAULT}
 .endif
 
-.if ${OBJFORMAT} == aout
-UNDERSCORES=	1
-.else
 UNDERSCORES=	0
-.endif
 SRCS+=	underscore.c
 CLEANFILES+=	underscore.c
 underscore.c: Makefile

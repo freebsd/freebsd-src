@@ -61,11 +61,7 @@ ENTRY(bios32_apm98)
 	pushl	%ebp
 	pushfl
 	cli
-#ifdef __AOUT__
-	lcall	bioscall_vector		/* Stupid a.out gas! */
-#else
 	lcall	*bioscall_vector
-#endif
 	movl	%eax,%edi
 	movl	%edx,%esi
 	lahf

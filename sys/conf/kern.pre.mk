@@ -31,23 +31,11 @@ INCLUDES+= -I$S/contrib/dev/acpica
 # ... and the same for ipfilter
 INCLUDES+= -I$S/contrib/ipfilter
 
-# This hack is to allow kernel compiles to succeed on machines w/out srcdist
-.if exists($S/../include)
-INCLUDES+= -I$S/../include
-.else
-INCLUDES+= -I/usr/include
-.endif
-
 COPTS=	${INCLUDES} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -fno-common
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
-
-# Select the correct set of tools. Can't set OBJFORMAT here because it
-# doesn't get exported into the environment, and if it were exported
-# then it might break building of utilities.
-CFLAGS+=	${FMT}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
 CFLAGS+=	-DGPROF -falign-functions=16

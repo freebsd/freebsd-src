@@ -26,58 +26,13 @@
  * $FreeBSD$
  */
 
-#include <err.h>
-#include <objformat.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 int
 main(int argc, char **argv)
 {
-	char objformat[32];
-	char *path, *chunk;
-	char *cmd, *newcmd = NULL;
-	const char *objformat_path;
 
-	if (getobjformat(objformat, sizeof objformat, &argc, argv) == -1)
-		errx(1, "Invalid object format");
-
-	cmd = strrchr(argv[0], '/');
-	if (cmd != NULL)
-		cmd++;
-	else
-		cmd = argv[0];
-
-	if (strcmp(cmd, "objformat") == 0) {
-		if (argc != 1) {
-			fprintf(stderr, "usage: objformat\n");
-			exit(1);
-		}
-		printf("%s\n", objformat);
-		exit(0);
-	}
-
-	/* 'make world' glue */
-	objformat_path = getenv("OBJFORMAT_PATH");
-	if (objformat_path == NULL)
-		objformat_path = "/usr/libexec";
-	path = strdup(objformat_path);
-
-	setenv("OBJFORMAT", objformat, 1);
-
-	while ((chunk = strsep(&path, ":")) != NULL) {
-		if (newcmd != NULL) {
-			free(newcmd);
-			newcmd = NULL;
-		}
-		asprintf(&newcmd, "%s/%s/%s", chunk, objformat, cmd);
-		if (newcmd == NULL)
-			err(1, "cannot allocate memory for new command");
-
-		argv[0] = newcmd;
-		execv(newcmd, argv);
-	}
-	err(1, "could not exec %s/%s in %s", objformat, cmd, objformat_path);
+	write(1, "elf\n", 4);
+	return (0);
 }

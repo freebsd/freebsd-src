@@ -14,7 +14,7 @@
 /* Preprocess with -DNO_UNDERLINE if your C compiler does not prefix
  * external symbols with an underline character '_'.
  */
-#ifdef __ELF__ /* NO_UNDERLINE */
+#ifdef NO_UNDERLINE
 #  define _prev             prev
 #  define _window           window
 #  define _match_start	    match_start

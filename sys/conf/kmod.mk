@@ -106,11 +106,6 @@ LDFLAGS+=	-d -warn-common
 
 CFLAGS+=	${DEBUG_FLAGS}
 
-.if ${OBJFORMAT} == elf
-CLEANFILES+=	setdef0.c setdef1.c setdefs.h
-CLEANFILES+=	setdef0.o setdef1.o
-.endif
-
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .if !defined(PROG)
