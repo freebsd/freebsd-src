@@ -84,6 +84,7 @@ are
 .Xr em 4 ,
 .Xr gx 4 ,
 .Xr nge 4 ,
+.Xr re 4 ,
 .Xr ti 4 ,
 and
 .Xr txp 4 .
@@ -108,6 +109,10 @@ filtering that breaks the Path MTU Discovery mechanism.
 .Pp
 The NICs that support oversized frames are as follows:
 .Bl -tag -width ".Xr fxp 4 " -offset indent
+.It Xr bfe 4
+supports long frames for
+.Nm
+natively.
 .It Xr dc 4
 supports long frames for
 .Nm
@@ -125,6 +130,10 @@ supports long frames for
 .Nm
 natively.
 .It Xr hme 4
+supports long frames for
+.Nm
+natively.
+.It Xr rl 4
 supports long frames for
 .Nm
 natively.
