@@ -20,23 +20,34 @@ export PATH
 TAR=tar
 TAR_FLAGS=xvf
 TMP=/tmp
+IFCONFIG=ifconfig
+ROUTE=route
+ROUTE_FLAGS="add default"
 
+# Set the initial state of the system.
 set_defaults() {
 	media_type="" ;
 	media_device="" ;
+	ipaddr="" ;
+	hostname="" ;
+	ether_intr="" ;
+	domain="" ;
+	netmask="" ;
+	ifconfig_flags="" ;
 	tmp_dir="/usr/tmp" ;
 	installing=1 ;
 	mkdir -p ${TMP}
 }
 
+# Handle the return value from a dialog, doing some pre-processing
+# so that each client doesn't have to.
 handle_rval() {
 	case $1 in
 	0)
 		return 0
 	;;
 	255)
-		echo "User aborted installation, invoking shell.";
-		exec /stand/sh
+		PS1="subshell# " /stand/sh
 	;;
 	*)
 		return 1
@@ -44,21 +55,25 @@ handle_rval() {
 	esac
 }
 
+# A simple user-confirmation dialog.
 confirm() {
 	dialog --title "Please Confirm" --msgbox "$*" 10 72
 }
 
+# A simple error dialog.
 error() {
 	dialog --title "Error!" --msgbox "$*" 10 72
 }
 
+# Something isn't supported yet! :-(
 not_supported() {
 	dialog --title "Sorry!" \
-        --msgbox "This feature is not supported in the current version of the \
-installation tools but will be in the release, barring \
-some sort of fatal accident.  Please press RETURN to go on." 10 60
+	--msgbox "This feature is not supported in the current version of the \
+installation tools.  Barring some sort of fatal accident, we do \
+expect it to be in the release.  Please press RETURN to go on." 10 60
 }
 
+# Print welcome banner.
 welcome() {
 	dialog --title "Welcome to FreeBSD" --clear \
 --msgbox "Hi!  Nice to see you've made it this far.  We're now ready to
@@ -73,6 +88,8 @@ for your part of the world." 15 72
 	if ! handle_rval $?; then return 1; fi
 }
 
+# Get values into $media_type and $media_device.  Call network initialization
+# if necessary.
 choose_media() {
 	while [ "$media_device" = "" ]; do
 
@@ -143,6 +160,7 @@ system?  FreeBSD supports the following types:\n\n\
 		not_supported
 	;;
 	FTP)
+		if ! setup_network; then continue; fi
 		dialog --title "FTP Installation Information" --clear \
 --inputbox "Please specify the machine and directory location of the
 distribution you wish to load.  This should be either a \"URL style\"
@@ -154,14 +172,17 @@ and \"mget\" the files yourself.\n\n" \
 		if ! handle_rval $?; then continue; fi
 		media_type=ftp
 		media_device=`cat ${TMP}/inputbox.tmp.$$`
+		rm -f ${TMP}/inputbox.tmp.$$
 	;;
 	NFS)
+		setup_network
 		not_supported
 	;;
 	esac
 	done
 }
 
+# Set the location of our temporary unpacking directory.
 set_tmpdir()
 {
 	dialog --title "Chose temporary directory" --clear \
@@ -170,20 +191,21 @@ free space to hold the temporary files for this distribution.
 At minimum, a binary distribution will require around 10MB.
 At maximum, a srcdist may take 60MB or more.  If the directory
 you specify does not exist, it will be created for you.\n\n" \
-16 72 "/usr${TMP}" 2> ${TMP}/inputbox.tmp.$$
-		if ! handle_rval $?; then continue; fi
+16 72 "/usr/tmp" 2> ${TMP}/inputbox.tmp.$$
+	if ! handle_rval $?; then return 1; fi
 	tmp_dir=`cat ${TMP}/inputbox.tmp.$$`
+	rm -f ${TMP}/inputbox.tmp.$$
 	mkdir -p $tmp_dir
+	echo wahoo
 	return 0
 }
 
 cd_tmpdir()
 {
-	if ! cd $tmp_dir 2> /dev/null; then
+	if ! cd $tmp_dir; then
 		error "No such file or directory for ${tmp_dir}, sorry!  Please fix this and try again."
-		return
+		return 1
 	fi
-	return 0
 }
 
 rm_tmpdir()
@@ -194,14 +216,132 @@ rm_tmpdir()
 	fi
 }
 
+setup_network_ether()
+{
+	dialog --clear --title "Ethernet Interface Name" \
+	--menu "Please select the type of ethernet device you have:\n\n" \
+	 20 72 4 \
+	"ed0" "WD80x3, SMC, Novell NE1000/2000 or 3C503 generic NIC" \
+	"ie0" "AT&T StarLan and EN100 family" \
+	"is0" "Isolan 4141-0 or Isolink 4110 Ethernet controller" \
+	  2> ${TMP}/menu.tmp.$$
+
+	retval=$?
+	interface=`cat ${TMP}/menu.tmp.$$`
+	rm -f ${TMP}/menu.tmp.$$
+	if ! handle_rval $retval; then return 1; fi
+}
+
+setup_network_slip()
+{
+	not_supported
+}
+
+setup_network_ppp()
+{
+	not_supported
+}
+
+setup_network_plip()
+{
+	not_supported
+}
+
+setup_network()
+{
+	done=0
+	while [ "$interface" = "" ]; do
+	dialog --clear --title "Set up network interface" \
+	--menu "Please select the type of network connection you have:\n\n" \
+	20 72 4 \
+	"ether" "A supported ethernet card" \
+	"SLIP" "A point-to-point SLIP (Serial Line IP) connection" \
+        "PPP" "A point-to-point protocol link" \
+        "PLIP" "A Parallel-Line IP setup (sort of like lap-link)" \
+        2> ${TMP}/menu.tmp.$$
+
+	retval=$?
+	choice=`cat ${TMP}/menu.tmp.$$`
+	rm -f ${TMP}/menu.tmp.$$
+	if ! handle_rval $retval; then return 1; fi
+	case $choice in
+	ether)
+		if ! setup_network_ether; then continue; fi
+	;;
+
+	SLIP)
+		if ! setup_network_slip; then continue; fi
+	;;
+
+	PPP)
+		if ! setup_network_ppp; then continue; fi
+	;;
+
+	PLIP)
+		if ! setup_network_plip; then continue; fi
+	;;
+	esac	
+	if [ "$interface" = "" ]; then	continue; fi
+	dialog --title "Hostname Information" --clear \
+	--inputbox "Please specify the name of this host" 5 60 "foo" \
+	2> ${TMP}/inputbox.tmp.$$
+	if ! handle_rval $?; then return 1; fi
+	hostname=`cat ${TMP}/inputbox.tmp.$$`
+	rm -f ${TMP}/inputbox.tmp.$$
+
+	dialog --title "Address Information" --clear \
+	--inputbox "Please specify the IP address of this host" 5 60 "" \
+	2> ${TMP}/inputbox.tmp.$$
+	if ! handle_rval $?; then return 1; fi
+	ipaddr=`cat ${TMP}/inputbox.tmp.$$`
+	rm -f ${TMP}/inputbox.tmp.$$
+
+	dialog --title "Netmask Information" --clear \
+	--inputbox "Please specify the netmask" 5 60 "0xffffff00" \
+	2> ${TMP}/inputbox.tmp.$$
+	if handle_rval $?; then
+		netmask=`cat ${TMP}/inputbox.tmp.$$`
+	else
+		netmask="0xffffff00"
+	fi
+	rm -f ${TMP}/inputbox.tmp.$$
+
+	dialog --title "Extra Information" --clear \
+	--inputbox "Any extra flags to ifconfig?" 5 60 "" \
+	2> ${TMP}/inputbox.tmp.$$
+	if handle_rval $?; then
+		ifconfig_flags=`cat ${TMP}/inputbox.tmp.$$`
+	fi
+	if ! $IFCONFIG inet $interface netmask $netmask $ifconfig_flags ; then
+		error "Unable to configure interface $interface"
+		ipaddr=""; interface=""
+		continue
+	fi
+	rm -f ${TMP}/inputbox.tmp.$$
+
+	dialog --title "Gateway host" --clear \
+	--inputbox "Please specify the gateway host, if any" 5 60 "" \
+	2> ${TMP}/inputbox.tmp.$$
+	if handle_rval $?; then
+		gateway=`cat ${TMP}/inputbox.tmp.$$`
+		if [ "$gateway" = "" ]; then
+			:;
+		else
+			$ROUTE $route_flags $gateway
+		fi
+	fi
+	rm -f ${TMP}/inputbox.tmp.$$
+	done
+}
+
 install_set()
 {
 	case $media_type in
 	tape)
-		if ! set_tmpdir; then return 1; fi
-		if ! cd_tmpdir; then return 1; fi
+		if ! set_tmpdir; then return; fi
+		if ! cd_tmpdir; then return; fi
 		confirm "Please mount tape for ${media_device}."
-		dialog --title "Extract from tape" --clear \
+		dialog --title "Results of tape extract" --clear \
 			--prgbox "$TAR $TAR_FLAGS $media_device" 10 72
 		if [ -f extract.sh ]; then
 			sh ./extract.sh
@@ -217,16 +357,16 @@ install_set()
 	;;
 
 	dos)
-		if ! set_tmpdir; then return 1; fi
-		if ! cd_tmpdir; then return 1; fi
+		if ! set_tmpdir; then return; fi
+		if ! cd_tmpdir; then return; fi
 		not_supported
 		return
 	;;
 	ftp)
-		if ! set_tmpdir; then return 1; fi
-		if ! cd_tmpdir; then return 1; fi
+		if ! set_tmpdir; then return; fi
+		if ! cd_tmpdir; then return; fi
 		if ! echo $media_device | grep -v 'ftp://'; then
-			if ! ncftp $media_device/* 2>/dev/null; then
+			if ! ncftp $media_device/* ; then
 				error "Couldn't fetch distribution from ${media_device}!"
 			else
 				if [ -f extract.sh ]; then
