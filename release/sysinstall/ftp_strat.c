@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.17 1995/10/20 21:57:06 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.18 1995/10/21 14:06:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -85,7 +85,7 @@ get_new_host(Device *dev, Boolean tentative)
 
 /* Should we throw in the towel? */
 static int
-ftpShouldAbort(int retries)
+ftpShouldAbort(Device *dev, int retries)
 {
     char *cp;
     static int allFailures = 0;
@@ -94,8 +94,10 @@ ftpShouldAbort(int retries)
 	if (!msgYesNo("This doesn't seem to be working.  Your network card may be\n"
 		      "misconfigured, the information you entered in the network setup\n"
 		      "screen may be wrong or your network connection may just simply be\n"
-		      "having a bad day.  Would you like to end this travesty?"))
+		      "having a bad day.  Would you like to end this travesty?")) {
+	    dev->shutdown(dev);
 	    return -1;
+	}
 	else
 	    allFailures = 0;
     }
@@ -104,7 +106,11 @@ ftpShouldAbort(int retries)
 	return 1;
 
     cp = variable_get(OPT_FTP_ONERROR);
-    return cp && !strcmp(cp, "abort");
+    if (cp && !strcmp(cp, "abort")) {
+	dev->shutdown(dev);
+	return 1;
+    }
+    return 0;
 }
 
 Boolean
@@ -181,7 +187,7 @@ retry:
 	    msgNotify("Couldn't open FTP connection to %s\n", hostname);
 	else
 	    msgConfirm("Couldn't open FTP connection to %s\n", hostname);
-	if (ftpShouldAbort(++retries) || !get_new_host(dev, FALSE))
+	if (ftpShouldAbort(dev, ++retries) || !get_new_host(dev, FALSE))
 	    return FALSE;
 	goto retry;
     }
@@ -191,7 +197,7 @@ retry:
     if (dir && *dir != '\0') {
 	msgNotify("Attempt to chdir to distribution in %s..", dir);
 	if ((i = FtpChdir(ftp, dir)) != 0) {
-	    if (i == -2 || ftpShouldAbort(++retries))
+	    if (i == -2 || ftpShouldAbort(dev, ++retries))
 		goto punt;
 	    if (get_new_host(dev, FALSE))
 		retries = 0;
@@ -208,9 +214,7 @@ retry:
     return TRUE;
 
 punt:
-    FtpClose(ftp);
-    ftp = NULL;
-    ftpInitted = FALSE;
+    mediaShutdownFTP(dev);
     /* We used to shut down network here - not anymore */
     return FALSE;
 }
@@ -228,11 +232,13 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
     msgDebug("Attempting to get %s from FTP.\n", file);
     while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
-	if (fd == -2)
+	if (fd == -2) {
+	    ftpInitted = FALSE;
 	    return -2;
+	}
 	else if (tentative)
 	    return -1;
-	else if ((i = ftpShouldAbort(++nretries))) {
+	else if ((i = ftpShouldAbort(dev, ++nretries))) {
 	    if (i == -1) /* hard error */
 		return -2;
 	    else if (!get_new_host(dev, tentative))
