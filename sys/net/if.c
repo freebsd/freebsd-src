@@ -70,25 +70,14 @@
 #endif
 #endif
 
-/*
- * System initialization
- */
-
-static int ifconf __P((u_long, caddr_t));
-static void ifinit __P((void *));
-static void if_qflush __P((struct ifqueue *));
-static void if_slowtimo __P((void *));
-static void link_rtrequest __P((int, struct rtentry *, struct sockaddr *));
-static int  if_rtdel __P((struct radix_node *, void *));
-
-SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, ifinit, NULL)
-
-MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
-MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
-
-int	ifqmaxlen = IFQ_MAXLEN;
-struct	ifnethead ifnet;	/* depend on static init XXX */
-
+static int	ifconf(u_long, caddr_t);
+static void	ifinit(void *);
+static void	if_qflush(struct ifqueue *);
+static void	if_slowtimo(void *);
+static void	link_rtrequest(int, struct rtentry *, struct sockaddr *);
+static int	if_rtdel(struct radix_node *, void *);
+static struct	if_clone *if_clone_lookup(const char *, int *);
+static int	if_clone_list(struct if_clonereq *);
 #ifdef INET6
 /*
  * XXX: declare here to avoid to include many inet6 related files..
@@ -97,11 +86,21 @@ struct	ifnethead ifnet;	/* depend on static init XXX */
 extern void	nd6_setmtu __P((struct ifnet *));
 #endif
 
-struct if_clone *if_clone_lookup __P((const char *, int *));
-int if_clone_list __P((struct if_clonereq *));
-
+int	if_index = 0;
+struct	ifaddr **ifnet_addrs;
+struct	ifnet **ifindex2ifnet = NULL;
+int	ifqmaxlen = IFQ_MAXLEN;
+struct	ifnethead ifnet;	/* depend on static init XXX */
+int	if_cloners_count;
 LIST_HEAD(, if_clone) if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
-int if_cloners_count;
+
+/*
+ * System initialization
+ */
+SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, ifinit, NULL)
+
+MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
+MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
 /*
  * Network interface utility routines.
@@ -133,11 +132,6 @@ ifinit(dummy)
 	splx(s);
 	if_slowtimo(0);
 }
-
-int if_index = 0;
-struct ifaddr **ifnet_addrs;
-struct ifnet **ifindex2ifnet = NULL;
-
 
 /*
  * Attach an interface to the
@@ -429,7 +423,7 @@ if_clone_destroy(name)
 /*
  * Look up a network interface cloner.
  */
-struct if_clone *
+static struct if_clone *
 if_clone_lookup(name, unitp)
 	const char *name;
 	int *unitp;
@@ -496,7 +490,7 @@ if_clone_detach(ifc)
 /*
  * Provide list of interface cloners to userspace.
  */
-int
+static int
 if_clone_list(ifcr)
 	struct if_clonereq *ifcr;
 {
@@ -534,47 +528,55 @@ if_clone_list(ifcr)
 /*ARGSUSED*/
 struct ifaddr *
 ifa_ifwithaddr(addr)
-	register struct sockaddr *addr;
+	struct sockaddr *addr;
 {
-	register struct ifnet *ifp;
-	register struct ifaddr *ifa;
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
 
 #define	equal(a1, a2) \
   (bcmp((caddr_t)(a1), (caddr_t)(a2), ((struct sockaddr *)(a1))->sa_len) == 0)
 	TAILQ_FOREACH(ifp, &ifnet, if_link)
-	    TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr->sa_family != addr->sa_family)
-			continue;
-		if (equal(addr, ifa->ifa_addr))
-			return (ifa);
-		if ((ifp->if_flags & IFF_BROADCAST) && ifa->ifa_broadaddr &&
-		    /* IP6 doesn't have broadcast */
-		    ifa->ifa_broadaddr->sa_len != 0 &&
-		    equal(ifa->ifa_broadaddr, addr))
-			return (ifa);
-	}
-	return ((struct ifaddr *)0);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != addr->sa_family)
+				continue;
+			if (equal(addr, ifa->ifa_addr))
+				goto done;
+			/* IP6 doesn't have broadcast */
+			if ((ifp->if_flags & IFF_BROADCAST) &&
+			    ifa->ifa_broadaddr &&
+			    ifa->ifa_broadaddr->sa_len != 0 &&
+			    equal(ifa->ifa_broadaddr, addr))
+				goto done;
+		}
+	ifa = NULL;
+done:
+	return (ifa);
 }
+
 /*
  * Locate the point to point interface with a given destination address.
  */
 /*ARGSUSED*/
 struct ifaddr *
 ifa_ifwithdstaddr(addr)
-	register struct sockaddr *addr;
+	struct sockaddr *addr;
 {
-	register struct ifnet *ifp;
-	register struct ifaddr *ifa;
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
 
-	TAILQ_FOREACH(ifp, &ifnet, if_link)
-	    if (ifp->if_flags & IFF_POINTOPOINT)
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
+			continue;
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
 			if (ifa->ifa_dstaddr && equal(addr, ifa->ifa_dstaddr))
-				return (ifa);
+				goto done;
+		}
 	}
-	return ((struct ifaddr *)0);
+	ifa = NULL;
+done:
+	return (ifa);
 }
 
 /*
@@ -626,18 +628,16 @@ next:				continue;
 				 */
 				if (ifa->ifa_dstaddr != 0
 				    && equal(addr, ifa->ifa_dstaddr))
- 					return (ifa);
+					goto done;
 			} else {
 				/*
 				 * if we have a special address handler,
 				 * then use it instead of the generic one.
 				 */
 	          		if (ifa->ifa_claim_addr) {
-					if ((*ifa->ifa_claim_addr)(ifa, addr)) {
-						return (ifa);
-					} else {
-						continue;
-					}
+					if ((*ifa->ifa_claim_addr)(ifa, addr))
+						goto done;
+					continue;
 				}
 
 				/*
@@ -671,7 +671,9 @@ next:				continue;
 			}
 		}
 	}
-	return (ifa_maybe);
+	ifa = ifa_maybe;
+done:
+	return (ifa);
 }
 
 /*
@@ -1263,16 +1265,19 @@ ifconf(cmd, data)
 	u_long cmd;
 	caddr_t data;
 {
-	register struct ifconf *ifc = (struct ifconf *)data;
-	register struct ifnet *ifp = TAILQ_FIRST(&ifnet);
-	register struct ifaddr *ifa;
+	struct ifconf *ifc = (struct ifconf *)data;
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
 	struct ifreq ifr, *ifrp;
 	int space = ifc->ifc_len, error = 0;
 
 	ifrp = ifc->ifc_req;
-	for (; space > sizeof (ifr) && ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		char workbuf[64];
 		int ifnlen, addrs;
+
+		if (space > sizeof(ifr))
+			break;
 
 		ifnlen = snprintf(workbuf, sizeof(workbuf),
 		    "%s%d", ifp->if_name, ifp->if_unit);
