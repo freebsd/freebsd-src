@@ -217,6 +217,9 @@ vcnt(SYSCTL_HANDLER_ARGS)
 		struct pcpu *pcpu = pcpu_find(i);
 		count += *(int *)((char *)&pcpu->pc_cnt + offset);
 	}
+#else
+	int offset = (char *)arg1 - (char *)&cnt;
+	count += *(int *)((char *)PCPU_PTR(cnt) + offset);
 #endif
 	error = SYSCTL_OUT(req, &count, sizeof(int));
 	return(error);
