@@ -39,7 +39,7 @@
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
 .Nm mtree
-.Op Fl cdeinrux
+.Op Fl cdeinrUux
 .Op Fl f Ar spec
 .Op Fl K Ar keywords
 .Op Fl k Ar keywords
@@ -100,11 +100,18 @@ of the files for which the keyword
 .Cm cksum
 was specified.
 The checksum is seeded with the specified value.
-.It Fl u
+.It Fl U
 Modify the owner, group, and permissions of existing files to match
 the specification and create any missing directories.
 User, group, and permissions must all be specified for missing directories
 to be created.
+Exit with a status of 0 on success, 1 if any error occurred,
+a mismatch is not considered an error if it was corrected.
+.It Fl u
+Same as
+.Fl U
+except a status of 2 is returned if the file hierarchy did not match
+the specification.
 .It Fl x
 Don't descend below mount points in the file hierarchy.
 .El
@@ -218,6 +225,9 @@ The
 .Nm mtree
 utility exits with a status of 0 on success, 1 if any error occurred,
 and 2 if the file hierarchy did not match the specification.
+A status of 2 is converted to a status of 0 if the
+.Fl U
+option is used.
 .Sh EXAMPLES
 To detect system binaries that have been ``trojan horsed'', it is recommended
 that
