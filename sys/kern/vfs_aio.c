@@ -1102,7 +1102,6 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 
 	bp->b_bcount = cb->aio_nbytes;
 	bp->b_bufsize = cb->aio_nbytes;
-	bp->b_flags = B_PHYS;
 	bp->b_iodone = aio_physwakeup;
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = (void *)(uintptr_t)cb->aio_buf;
