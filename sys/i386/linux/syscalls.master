@@ -277,3 +277,10 @@
 188	STD	LINUX	{ int linux_getpmsg(void); }
 189	STD	LINUX	{ int linux_putpmsg(void); }
 190	STD	LINUX	{ int linux_vfork(void); }
+191	STD	LINUX	{ int linux_ugetrlimit(void); }
+192	STD	LINUX	{ int linux_mmap2(void); }
+193	STD	LINUX	{ int linux_truncate64(void); }
+194	STD	LINUX	{ int linux_ftruncate64(void); }
+195	STD	LINUX	{ int linux_stat64(void); }
+196	STD	LINUX	{ int linux_lstat64(void); }
+197	STD	LINUX	{ int linux_fstat64(void); }
