@@ -59,7 +59,7 @@ SRCS+=	dbinput.c dbstats.c dbutils.c dbxface.c
 SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
 SRCS+=	dmresrcs.c dmutils.c dmwalk.c
 opt_ddb.h: Makefile
-	echo '#define DDB 1' > ${.TARGET}
+	echo "#define DDB 1" > ${.TARGET}
 .else
 opt_ddb.h: Makefile
 	echo -n > ${.TARGET}
