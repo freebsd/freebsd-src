@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 # ISO 3166 country codes
-# Ths includes many places that are not legally independent countries,
+# This includes many places that are not legally independent countries,
 # but which is it convenient to refer to separately from their
 # parent lands.
 #
@@ -10,7 +10,7 @@
 # The file format used by RIPE was not suitable, so it has been
 # rearranged to put the two-letter country code first.  The country
 # names were capitalized, and most parenthetical designations have
-# been deleted unless necessary to distinguish two counties.
+# been deleted unless necessary to distinguish two countries.
 #
 # The ISO3166 Maintenance Agency can be found at:
 #	http://www.iso.ch/iso/en/prods-services/iso3166ma/index.html
