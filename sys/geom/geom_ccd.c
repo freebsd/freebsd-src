@@ -177,7 +177,6 @@ static void ccdiodone(struct bio *bp);
 
 static void ccdstart(struct ccd_s *, struct bio *);
 static void ccdinterleave(struct ccd_s *, int);
-static void ccdintr(struct ccd_s *, struct bio *);
 static int ccdinit(struct ccd_s *, char **, struct thread *);
 static int ccdlookup(char *, struct thread *p, struct vnode **);
 static void ccdbuffer(struct ccdbuf **ret, struct ccd_s *,
@@ -1084,21 +1083,6 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 	}
 }
 
-static void
-ccdintr(struct ccd_s *cs, struct bio *bp)
-{
-#ifdef DEBUG
-	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdintr(%p, %p)\n", cs, bp);
-#endif
-	/*
-	 * Request is done for better or worse, wakeup the top half.
-	 */
-	if (bp->bio_flags & BIO_ERROR)
-		bp->bio_resid = bp->bio_bcount;
-	biofinish(bp, &cs->device_stats, 0);
-}
-
 /*
  * Called at interrupt time.
  * Mark the component as done and if all components are done,
@@ -1110,8 +1094,10 @@ ccdiodone(struct bio *ibp)
 	struct ccdbuf *cbp = (struct ccdbuf *)ibp;
 	struct bio *bp = cbp->cb_obp;
 	int unit = cbp->cb_unit;
+	struct ccd_s *cs;
 	int count, s;
 
+	cs = ccdfind(unit);
 	s = splbio();
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
@@ -1135,7 +1121,7 @@ ccdiodone(struct bio *ibp)
 	if (cbp->cb_buf.bio_flags & BIO_ERROR) {
 		const char *msg = "";
 
-		if ((ccdfind(unit)->sc_cflags & CCDF_MIRROR) &&
+		if ((cs->sc_cflags & CCDF_MIRROR) &&
 		    (cbp->cb_buf.bio_cmd == BIO_READ) &&
 		    (cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
 			/*
@@ -1144,7 +1130,6 @@ ccdiodone(struct bio *ibp)
 			 * are doing a scan we do not keep hitting the
 			 * bad disk first.
 			 */
-			struct ccd_s *cs = ccdfind(unit);
 
 			msg = ", trying other disk";
 			cs->sc_pick = 1 - cs->sc_pick;
@@ -1169,7 +1154,7 @@ ccdiodone(struct bio *ibp)
 	 * we free the second I/O without initiating it.
 	 */
 
-	if (ccdfind(unit)->sc_cflags & CCDF_MIRROR) {
+	if (cs->sc_cflags & CCDF_MIRROR) {
 		if (cbp->cb_buf.bio_cmd == BIO_WRITE) {
 			/*
 			 * When writing, handshake with the second buffer
@@ -1222,8 +1207,11 @@ ccdiodone(struct bio *ibp)
 	bp->bio_resid -= count;
 	if (bp->bio_resid < 0)
 		panic("ccdiodone: count");
-	if (bp->bio_resid == 0)
-		ccdintr(ccdfind(unit), bp);
+	if (bp->bio_resid == 0) {
+		if (bp->bio_flags & BIO_ERROR)
+			bp->bio_resid = bp->bio_bcount;
+		biofinish(bp, &cs->device_stats, 0);
+	}
 	splx(s);
 }
 
