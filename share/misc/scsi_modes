@@ -291,4 +291,56 @@
 	{Reserved} *i4
 }
 
+# CD-ROM (and CD-R[W]) devices
+0x2a "CD capabilities and mechanical status page" {
+	{Reserved} *t4
+	{Method 2} t1
+	{CD-RW Read} t1
+	{CD-R Read} t1
+	{Reserved} *t4
+	{Test Write} t1
+	{CD-RW Write} t1
+	{CD-R Write} t1
+	{Reserved} *t1
+	{Multi Session} t1
+	{Mode 2 Form 2} t1
+	{Mode 2 Form 1} t1
+	{Digital Port (2)} t1
+	{Digital Port (1)} t1
+	{Composite} t1
+	{Audio Play} t1
+	{Read Bar Code} t1
+	{UPC} t1
+	{ISRC} t1
+	{C2 Pointers are supported} t1
+	{R-W De-interleaved & corrected} t1
+	{R-W Supported} t1
+	{CD-DA Stream is Accurate} t1
+	{CD-DA Commands Supported} t1
+	{Loading Mechanism Type} t3
+	{Reserved} *t1
+	{Eject} t1
+	{Prevent Jumper} t1
+	{Lock State} t1
+	{Lock} t1
+	{Reserved} *t4
+	{S/W Slot Selection} t1
+	{Changer Supports Disc Present reporting} t1
+	{Separate Channel Mute Supported} t1
+	{Separate volume levels per channel} t1
+	{Maximum Read Speed Supported (kBps)} i2
+	{Number of Volume Leves Supported} i2
+	{Buffer Size supported by Drive (KB)} i2
+	{Current Read Speed Selected (kBps)} i2
+	{Reserved} *i1
+	{Reserved} *t2
+	{Length} t2
+	{LSBF} t1
+	{RCK} t1
+	{BCK} t1
+	{Reserved} *t1
+	{Maximum Write Speed Supported (kBps)} i2
+	{Current Write Speed Supported (kBps)} i2
+};
+
 0x00 "Vendor-Specific";
