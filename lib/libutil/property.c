@@ -28,6 +28,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
+ *
  */
 
 #include <ctype.h>
@@ -38,9 +40,6 @@
 #include <err.h>
 #include <sys/types.h>
 #include <libutil.h>
-
-#define MAX_NAME	64
-#define MAX_VALUE	512
 
 static properties
 property_alloc(char *name, char *value)
@@ -58,8 +57,8 @@ properties
 properties_read(int fd)
 {
     properties head, ptr;
-    char hold_n[MAX_NAME + 1];
-    char hold_v[MAX_VALUE + 1];
+    char hold_n[PROPERTY_MAX_NAME + 1];
+    char hold_v[PROPERTY_MAX_VALUE + 1];
     char buf[BUFSIZ * 4];
     int bp, n, v, max;
     enum { LOOK, COMMENT, NAME, VALUE, MVALUE, COMMIT, FILL, STOP } state;
@@ -97,7 +96,7 @@ properties_read(int fd)
 		continue;
 	    }
 	    else if (isalnum(ch) || ch == '_') {
-		if (n >= MAX_NAME) {
+		if (n >= PROPERTY_MAX_NAME) {
 		    n = 0;
 		    state = COMMENT;
 		}
@@ -134,7 +133,12 @@ properties_read(int fd)
 	    break;
 
 	case VALUE:
-	    if (v == 0 && isspace(ch))
+	    if (v == 0 && ch == '\n') {
+	        hold_v[v] = '\0';
+	        v = n = 0;
+	        state = COMMIT;
+	    } 
+	    else if (v == 0 && isspace(ch))
 		continue;
 	    else if (ch == '{') {
 		state = MVALUE;
@@ -146,7 +150,7 @@ properties_read(int fd)
 		state = COMMIT;
 	    }
 	    else {
-		if (v >= MAX_VALUE) {
+		if (v >= PROPERTY_MAX_VALUE) {
 		    state = COMMENT;
 		    v = n = 0;
 		    break;
@@ -158,7 +162,7 @@ properties_read(int fd)
 
 	case MVALUE:
 	    /* multiline value */
-	    if (v >= MAX_VALUE) {
+	    if (v >= PROPERTY_MAX_VALUE) {
 		warn("properties_read: value exceeds max length");
 		state = COMMENT;
 		n = v = 0;

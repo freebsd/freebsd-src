@@ -66,7 +66,9 @@ of error.
 .Fn property_find
 Returns the associated value string for the property named
 .Fa name
-if found, otherwise NULL.
+if found, otherwise NULL.  The value returned may be up to
+.Dv PROPERTY_MAX_VALUE
+bytes in length.
 .Pp
 .Fn properties_free
 is used to free the structure returned by
