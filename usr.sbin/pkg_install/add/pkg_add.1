@@ -99,9 +99,10 @@ by this flag.  Note that only the first
 directive will be replaced, since
 .Nm
 has no way of knowing which directory settings are relative and
-which are absolute.  It is rare, in any case, to see more than one
-directory transition made, but when such is the case you
-may then wish to look into the use of the
+which are absolute.  It is rare in any case to see more than one
+directory transition made, but when such does happen and you wish
+to have control over *all* directory transitions, then you
+may then wish to look into the use of
 .Cm MASTER
 and
 .Cm SLAVE
@@ -167,7 +168,8 @@ in the staging area, the location of which is read as a string
 from stdin.  The complete packing list is also read from stdin,
 and the contents then acted on as normal.
 .El
-On or more
+.Pp
+One or more
 .Ar pkg-name
 arguments may be specified, each being either a file containing the
 package (these usually ending with the ``.tgz'' suffix) or a
@@ -196,7 +198,7 @@ ftp.
 .Sh TECHNICAL DETAILS
 .Nm
 is fairly simple.  It extracts each packages' "packing list"
-into a special staging directory in /tmp (or $PKG_TMPDIR), parses it,
+into a special staging directory in /tmp (or $PKG_TMPDIR if set), parses it,
 then runs through the following sequence to fully extract the contents:
 .Bl -enum -indent indent
 .It
@@ -229,27 +231,28 @@ file (see
 .Xr pkg_create 1 ),
 then execute it with the following arguments:
 .Bd -filled -offset indent -compact
-.Ar <pkg-name>
+.Ar pkg-name
 .Ar INSTALL
 .Ed
 where
-.Ar <pkg-name>
-is the name of the package in question and
+.Ar pkg-name
+is the name of the package in question and the
 .Ar INSTALL
-is simply a keyword denoting that this is an installation requirements check.
+keyword denotes this as an installation requirements check (useful if
+you want to have one script serving multiple functions).
 .It
 If an
 .Ar install
 script exists for the package, it is then executed with the following arguments:
 .Bd -filled -offset indent -compact
-.Ar <pkg-name>
+.Ar pkg-name
 .Ar PRE-INSTALL 
 .Ed
 where
-.Ar <pkg-name>
+.Ar pkg-name
 is the name of the package in question and
 .Ar PRE-INSTALL
-is a keyword denoting that this is the preinstallation phase.
+is a keyword denoting this as the preinstallation phase.
 .It
 If
 .Cm @option extract-in-place
@@ -260,11 +263,9 @@ the staging area into their final locations.
 .It
 If the package contains an
 .Ar mtreefile
-file (see the
-.Fl m
-option to
+file (see
 .Xr pkg_create 1 ),
-then mtree is invoked as
+then mtree is invoked as:
 .Bd -filled -offset indent -compact
 .Cm mtree
 .Fl u 
@@ -289,8 +290,8 @@ If an
 .Ar install
 script exists for the package, it is then executed as 
 .Bd -filled -offset indent -compact
-.Cm <script>
-.Ar <pkg-name>
+.Cm script
+.Ar pkg-name
 .Ar POST-INSTALL 
 .Ed
 This all allows you to write a single
@@ -333,9 +334,9 @@ flag to
 .Sh AUTHORS
 .Bl -tag -width indent -compact
 .It "Jordan Hubbard"
-most of the work
+Initial work and ongoing development.
 .It "John Kohl"
-refined it for NetBSD
+NetBSD refinements.
 .El
 .Sh BUGS
 Hard links between files in a distribution are only preserved if either
