@@ -183,8 +183,11 @@ static devclass_t lp_devclass;
 static void
 lp_identify(driver_t *driver, device_t parent)
 {
+	device_t dev;
 
-	BUS_ADD_CHILD(parent, 0, "plip", -1);
+	dev = device_find_child(parent, "plip", 0);
+	if (!dev)
+		BUS_ADD_CHILD(parent, 0, "plip", -1);
 }
 /*
  * lpprobe()
