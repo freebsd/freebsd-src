@@ -46,6 +46,8 @@
 #include <sys/stat.h>
 
 #include <gnu/ext2fs/inode.h>
+#include <gnu/ext2fs/ext2_fs.h>
+#include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/ext2_mount.h>
 #include <gnu/ext2fs/ext2_extern.h>
 
@@ -113,7 +115,7 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 	struct indir a[NIADDR+1], *ap;
 	int32_t daddr;
 	long metalbn;
-	int error, num, maxrun = 0;
+	int error, num, maxrun = 0, bsize;
 	int *nump;
 
 	ap = NULL;
@@ -122,8 +124,10 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 	ump = VFSTOEXT2(mp);
 	devvp = ump->um_devvp;
 
+	bsize = EXT2_BLOCK_SIZE(ump->um_e2fs);
+
 	if (runp) {
-		maxrun = mp->mnt_iosize_max / mp->mnt_stat.f_iosize - 1;
+		maxrun = mp->mnt_iosize_max / bsize - 1;
 		*runp = 0;
 	}
 
@@ -181,7 +185,7 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 			bqrelse(bp);
 
 		ap->in_exists = 1;
-		bp = getblk(vp, metalbn, mp->mnt_stat.f_iosize, 0, 0, 0);
+		bp = getblk(vp, metalbn, bsize, 0, 0, 0);
 		if ((bp->b_flags & B_CACHE) == 0) {
 #ifdef DIAGNOSTIC
 			if (!daddr)
