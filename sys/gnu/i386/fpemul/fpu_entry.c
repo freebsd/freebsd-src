@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.2 1994/04/29 21:16:21 gclarkii Exp $
+ *  $Id: fpu_entry.c,v 1.3 1994/06/10 07:44:22 rich Exp $
  * 
  */
 
@@ -210,6 +210,7 @@ math_emulate(struct trapframe * tframe)
 
 	if ((((struct pcb *) curproc->p_addr)->pcb_flags & FP_SOFTFP) == 0) {
 		finit();
+		control_word = __INITIAL_NPXCW__;
 		((struct pcb *) curproc->p_addr)->pcb_flags |= FP_SOFTFP;
 	}
 	FPU_info = tframe;
@@ -228,10 +229,8 @@ math_emulate(struct trapframe * tframe)
 #endif
 
 	FPU_lookahead = FPU_LOOKAHEAD;
-#if notnow /* I dont know that much of traceing. Is it right? --pink-- */
 	if (curproc->p_flag & STRC)
 		FPU_lookahead = 0;
-#endif
 
 do_another_FPU_instruction:
 
