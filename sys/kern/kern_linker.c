@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.13 1998/11/03 14:27:05 peter Exp $
+ *	$Id: kern_linker.c,v 1.14 1998/11/04 15:20:56 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -46,6 +46,10 @@
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
+
+#ifdef KLD_DEBUG
+int kld_debug = 0;
+#endif
 
 MALLOC_DEFINE(M_LINKER, "kld", "kernel linker");
 linker_file_t linker_current_file;
