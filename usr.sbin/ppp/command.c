@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  * 
- * $Id: command.c,v 1.2 1995/02/26 12:17:22 amurai Exp $
+ * $Id: command.c,v 1.3 1995/02/27 10:57:45 amurai Exp $
  * 
  */
 #include <ctype.h>
@@ -445,6 +445,7 @@ char **argv;
       VarLocalAuth = LOCAL_NO_AUTH;
       close(netfd);
       close(1);
+      dup2(2, 1);     /* Have to have something here or the modem will be 1 */
       netfd = -1;
       mode &= ~MODE_INTER;
     }
