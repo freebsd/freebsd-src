@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.71 1999/05/06 20:00:30 phk Exp $
+ * $Id: nfs_bio.c,v 1.72 1999/06/05 05:25:37 peter Exp $
  */
 
 
@@ -894,7 +894,7 @@ again:
 
 		if (bp->b_dirtyend > 0 &&
 		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
-			if (VOP_BWRITE(bp) == EINTR)
+			if (VOP_BWRITE(bp->b_vp, bp) == EINTR)
 				return (EINTR);
 			goto again;
 		}
@@ -961,7 +961,7 @@ again:
 		if ((np->n_flag & NQNFSNONCACHE) || (ioflag & IO_SYNC)) {
 			if (ioflag & IO_INVAL)
 				bp->b_flags |= B_NOCACHE;
-			error = VOP_BWRITE(bp);
+			error = VOP_BWRITE(bp->b_vp, bp);
 			if (error)
 				return (error);
 			if (np->n_flag & NQNFSNONCACHE) {
