@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 1995 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -30,13 +31,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)useful.h	8.2 (Berkeley) 9/24/93
+ *	@(#)useful.h	8.4 (Berkeley) 4/21/95
  */
 
 # include <sys/types.h>
 
 /* support for bool type */
-typedef char	bool;
+typedef int	bool;
 # define TRUE	1
 # define FALSE	0
 

@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)sendmail.8	8.4 (Berkeley) 12/11/93
+.\"     @(#)sendmail.8	8.6 (Berkeley) 5/27/95
 .\"
-.Dd December 11, 1993
+.Dd May 27, 1995
 .Dt SENDMAIL 8
 .Os BSD 4
 .Sh NAME
@@ -209,6 +209,18 @@ is specified,
 will run in background.
 This option can be used safely with
 .Fl bd .
+.It Fl qI Ns Ar substr
+Limit processed jobs to those containing
+.Ar substr
+as a substring of the queue id.
+.It Fl qR Ns Ar substr
+Limit processed jobs to those containing
+.Ar substr
+as a substring of one of the recipients.
+.It Fl qS Ns Ar substr
+Limit processed jobs to those containing
+.Ar substr
+as a substring of the sender.
 .It Fl r Ns Ar name
 An alternate and obsolete form of the
 .Fl f
@@ -259,6 +271,7 @@ successful deliveries (default 10).
 This avoids excessive duplicate deliveries
 when sending to long mailing lists
 interrupted by system crashes.
+.ne 1i
 .It Li d Ns Ar x
 Set the delivery mode to
 .Ar x .
@@ -461,7 +474,7 @@ raw data for alias names
 data base of alias names
 .It Pa /etc/sendmail.cf
 configuration file
-.It Pa /etc/sendmail.hf
+.It Pa /usr/share/misc/sendmail.hf
 help file
 .It Pa /var/log/sendmail.st
 collected statistics
@@ -471,13 +484,13 @@ temp files
 The process id of the daemon
 .El
 .Sh SEE ALSO
-.Xr binmail 1 ,
 .Xr mail 1 ,
-.Xr rmail 1 ,
 .Xr syslog 3 ,
 .Xr aliases 5 ,
 .Xr mailaddr 7 ,
-.Xr rc 8 ;
+.Xr mail.local 8 ,
+.Xr rc 8 ,
+.Xr rmail 8 ;
 .Pp
 DARPA
 Internet Request For Comments

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983 Eric P. Allman
+ * Copyright (c) 1983, 1995 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)arpadate.c	8.1 (Berkeley) 6/7/93";
+static char sccsid[] = "@(#)arpadate.c	8.4 (Berkeley) 4/21/95";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -64,6 +64,17 @@ static char sccsid[] = "@(#)arpadate.c	8.1 (Berkeley) 6/7/93";
 **		the format is and work appropriately.
 */
 
+#ifndef TZNAME_MAX
+# define TZNAME_MAX	50	/* max size of timezone */
+#endif
+
+/* values for TZ_TYPE */
+#define TZ_NONE		0	/* no character timezone support */
+#define TZ_TM_NAME	1	/* use tm->tm_name */
+#define TZ_TM_ZONE	2	/* use tm->tm_zone */
+#define TZ_TZNAME	3	/* use tzname[] */
+#define TZ_TIMEZONE	4	/* use timezone() */
+
 char *
 arpadate(ud)
 	register char *ud;
@@ -75,7 +86,8 @@ arpadate(ud)
 	register struct tm *lt;
 	time_t t;
 	struct tm gmt;
-	static char b[40];
+	char *tz;
+	static char b[43 + TZNAME_MAX];
 
 	/*
 	**  Get current time.
@@ -147,15 +159,41 @@ arpadate(ud)
 		off += 24 * 60;
 
 	*q++ = ' ';
-	if (off == 0) {
+	if (off == 0)
+	{
 		*q++ = 'G';
 		*q++ = 'M';
 		*q++ = 'T';
-	} else {
-		if (off < 0) {
+	}
+	else
+	{
+		tz = NULL;
+#if TZ_TYPE == TZ_TM_NAME
+		tz = lt->tm_name;
+#endif
+#if TZ_TYPE == TZ_TM_ZONE
+		tz = lt->tm_zone;
+#endif
+#if TZ_TYPE == TZ_TZNAME
+		{
+			extern char *tzname[];
+
+			tz = tzname[lt->tm_isdst];
+		}
+#endif
+#if TZ_TYPE == TZ_TIMEZONE
+		{
+			extern char *timezone();
+
+			tz = timezone(off, lt->tm_isdst);
+		}
+#endif
+		if (off < 0)
+		{
 			off = -off;
 			*q++ = '-';
-		} else
+		}
+		else
 			*q++ = '+';
 
 		if (off >= 24*60)		/* should be impossible */
@@ -166,6 +204,14 @@ arpadate(ud)
 		off %= 60;
 		*q++ = (off / 10) + '0';
 		*q++ = (off % 10) + '0';
+		if (tz != NULL && *tz != '\0')
+		{
+			*q++ = ' ';
+			*q++ = '(';
+			while (*tz != '\0')
+				*q++ = *tz++;
+			*q++ = ')';
+		}
 	}
 	*q = '\0';
 

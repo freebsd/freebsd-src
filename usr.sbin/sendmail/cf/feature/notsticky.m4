@@ -34,7 +34,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)notsticky.m4	8.1 (Berkeley) 6/7/93')
+VERSIONID(`@(#)notsticky.m4	8.3 (Berkeley) 5/29/95')
+#
+#  This is now the default.  Use ``FEATURE(stickyhost)'' if you want
+#  the old default behaviour.
+#
 divert(-1)
-
-define(`_LOCAL_NOT_STICKY_', 1)

@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1983 Eric P. Allman
+# Copyright (c) 1983, 1995 Eric P. Allman
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
 #
@@ -34,7 +34,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)nullrelay.m4	8.5 (Berkeley) 2/1/94')
+VERSIONID(`@(#)nullrelay.m4	8.10 (Berkeley) 9/29/95')
 
 #
 #  This configuration applies only to relay-only hosts.  They send
@@ -45,201 +45,6 @@ VERSIONID(`@(#)nullrelay.m4	8.5 (Berkeley) 2/1/94')
 #	This is based on a prototype done by Bryan Costales of ICSI.
 #
 
-# hub host (to which all mail is sent)
-DH`'ifdef(`MAIL_HUB', MAIL_HUB,
-	`errprint(`MAIL_HUB not defined for nullclient feature')')
-
-# name from which everyone will appear to come
-DM`'ifdef(`MASQUERADE_NAME', MASQUERADE_NAME, MAIL_HUB)
-
-# route-addr separators
-C: : ,
-
-undivert(6)dnl
-
-######################
-#   Special macros   #
-######################
-
-# SMTP initial login message
-De`'confSMTP_LOGIN_MSG
-
-# UNIX initial From header format
-Dl`'confFROM_LINE
-
-# my name for error messages
-Dn`'confMAILER_NAME
-
-# delimiter (operator) characters
-Do`'confOPERATORS
-
-# format of a total name
-Dq<$g>
-include(`../m4/version.m4')
-
-###############
-#   Options   #
-###############
-
-# strip message body to 7 bits on input?
-O7`'confSEVEN_BIT_INPUT
-
-# no aliases here
-
-# substitution for space (blank) characters
-OB`'confBLANK_SUB
-
-# default delivery mode
-Od`'confDELIVERY_MODE
-
-# error message header/file
-ifdef(`confERROR_MESSAGE',
-	OE`'confERROR_MESSAGE,
-	#OE/etc/sendmail.oE)
-
-# error mode
-ifdef(`confERROR_MODE',
-	Oe`'confERROR_MODE,
-	#Oep)
-
-# save Unix-style "From_" lines at top of header?
-Of`'confSAVE_FROM_LINES
-
-# temporary file mode
-OF`'confTEMP_FILE_MODE
-
-# default GID
-Og`'confDEF_GROUP_ID
-
-# maximum hop count
-Oh`'confMAX_HOP
-
-# location of help file
-OH`'ifdef(`HELP_FILE', HELP_FILE, /usr/lib/sendmail.hf)
-
-# ignore dots as terminators in incoming messages?
-Oi`'confIGNORE_DOTS
-
-# Insist that the BIND name server be running to resolve names
-ifdef(`confBIND_OPTS',
-	OI`'confBIND_OPTS,
-	#OI)
-
-# deliver MIME-encapsulated error messages?
-Oj`'confMIME_FORMAT_ERRORS
-
-# open connection cache size
-Ok`'confMCI_CACHE_SIZE
-
-# open connection cache timeout
-OK`'confMCI_CACHE_TIMEOUT
-
-# use Errors-To: header?
-Ol`'confUSE_ERRORS_TO
-
-# log level
-OL`'confLOG_LEVEL
-
-# send to me too, even in an alias expansion?
-Om`'confME_TOO
-
-# default messages to old style headers if no special punctuation?
-Oo`'confOLD_STYLE_HEADERS
-
-# SMTP daemon options
-ifdef(`confDAEMON_OPTIONS',
-	OO`'confDAEMON_OPTIONS,
-	#OOPort=esmtp)
-
-# privacy flags
-Op`'confPRIVACY_FLAGS
-
-# who (if anyone) should get extra copies of error messages
-ifdef(`confCOPY_ERRORS_TO',
-	OP`'confCOPY_ERRORS_TO,
-	#OPPostmaster)
-
-# slope of queue-only function
-ifdef(`confQUEUE_FACTOR',
-	Oq`'confQUEUE_FACTOR,
-	#Oq600000)
-
-# queue directory
-OQ`'ifdef(`QUEUE_DIR', QUEUE_DIR, /var/spool/mqueue)
-
-# read timeout -- now OK per RFC 1123 section 5.3.2
-ifdef(`confREAD_TIMEOUT',
-	Or`'confREAD_TIMEOUT,
-	#Ordatablock=10m)
-
-# queue up everything before forking?
-Os`'confSAFE_QUEUE
-
-# status file
-OS`'ifdef(`STATUS_FILE', STATUS_FILE, /etc/sendmail.st)
-
-# default message timeout interval
-OT`'confMESSAGE_TIMEOUT
-
-# time zone handling:
-#  if undefined, use system default
-#  if defined but null, use TZ envariable passed in
-#  if defined and non-null, use that info
-ifelse(confTIME_ZONE, `USE_SYSTEM', `#Ot',
-	confTIME_ZONE, `USE_TZ', `Ot',
-	`Ot`'confTIME_ZONE')
-
-# default UID
-Ou`'confDEF_USER_ID
-
-# deliver each queued job in a separate process?
-OY`'confSEPARATE_PROC
-
-# work class factor
-ifdef(`confWORK_CLASS_FACTOR',
-	Oz`'confWORK_CLASS_FACTOR,
-	#Oz1800)
-
-# work time factor
-ifdef(`confWORK_TIME_FACTOR',
-	OZ`'confWORK_TIME_FACTOR,
-	#OZ90000)
-
-###########################
-#   Message precedences   #
-###########################
-
-Pfirst-class=0
-Pspecial-delivery=100
-Plist=-30
-Pbulk=-60
-Pjunk=-100
-
-#####################
-#   Trusted users   #
-#####################
-
-Troot
-Tdaemon
-Tuucp
-
-#########################
-#   Format of headers   #
-#########################
-
-H?P?Return-Path: $g
-HReceived: $?sfrom $s $.$?_($_) $.by $j ($v/$Z)$?r with $r$. id $i$?u for $u$.; $b
-H?D?Resent-Date: $a
-H?D?Date: $a
-H?F?Resent-From: $q
-H?F?From: $q
-H?x?Full-Name: $x
-HSubject:
-# HPosted-Date: $a
-# H?l?Received-Date: $b
-H?M?Resent-Message-Id: <$t.$i@$j>
-H?M?Message-Id: <$t.$i@$j>
-#
 ######################################################################
 ######################################################################
 #####
@@ -253,9 +58,20 @@ H?M?Message-Id: <$t.$i@$j>
 ###########################################
 S3
 
-# handle null input and list syntax (translate to <@> special case)
+# handle null input
 R$@			$@ <@>
-R$*:;$*			$@ $1 :; <@>
+
+# strip group: syntax (not inside angle brackets!) and trailing semicolon
+R$*			$: $1 <@>			mark addresses
+R$* < $* > $* <@>	$: $1 < $2 > $3			unmark <addr>
+R$* :: $* <@>		$: $1 :: $2			unmark node::addr
+R:`include': $* <@>	$: :`include': $1			unmark :`include':...
+R$* : $* <@>		$: $2				strip colon if marked
+R$* <@>			$: $1				unmark
+R$* ;			$: $1				strip trailing semi
+
+# null input now results from list:; syntax
+R$@			$@ :; <@>
 
 # basic textual canonicalization -- note RFC733 heuristic here
 R$*<$*>$*<$*>$*		$2$3<$4>$5			strip multiple <> <>
@@ -290,6 +106,17 @@ R$*:;<@>		$#error $@ USAGE $: "list:; syntax illegal for recipient addresses"
 
 # pass everything else to a relay host
 R$*			$#_RELAY_ $@ $H $: $1
+
+
+##################################################
+###  Ruleset 4 -- Final Output Post-rewriting  ###
+##################################################
+S4
+
+R$* <@>			$@				handle <> and list:;
+
+# strip trailing dot off before passing to nullclient relay
+R$* @ $+ .		$1 @ $2
 
 #
 ######################################################################

@@ -40,7 +40,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mailstats.c	8.3 (Berkeley) 12/27/93";
+static char sccsid[] = "@(#)mailstats.c	8.4 (Berkeley) 8/14/94";
 #endif /* not lint */
 
 #include <sendmail.h>
@@ -126,14 +126,32 @@ main(argc, argv)
 			break;
 
 		  case 'O':		/* option -- see if .st file */
-			if (*b++ != 'S')
+			if (strncasecmp(b, " StatusFile", 11) == 0 &&
+			    !isalnum(b[11]))
+			{
+				/* new form -- find value */
+				b = strchr(b, '=');
+				if (b == NULL)
+					continue;
+				while (isspace(*++b))
+					continue;
+			}
+			else if (*b++ != 'S')
+			{
+				/* something else boring */
 				continue;
+			}
 
-			/* yep -- save this */
+			/* this is the S or StatusFile option -- save it */
 			strcpy(sfilebuf, b);
-			b = strchr(sfilebuf, '\n');
-			if (b != NULL)
-				*b = '\0';
+			b = strchr(sfilebuf, '#');
+			if (b == NULL)
+				b = strchr(sfilebuf, '\n');
+			if (b == NULL)
+				b = &sfilebuf[strlen(sfilebuf)];
+			while (isspace(*--b))
+				continue;
+			*++b = '\0';
 			if (sfile == NULL)
 				sfile = sfilebuf;
 

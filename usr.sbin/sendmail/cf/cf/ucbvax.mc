@@ -33,15 +33,25 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
-include(`../m4/cf.m4')
-VERSIONID(`@(#)ucbvax.mc	8.1 (Berkeley) 6/7/93')
+#
+#  This machine has been decommissioned at Berkeley, and hence should
+#  not be considered to be tested.  This file is provided as an example
+#  only, of how you might set up a fairly complex configuration.
+#  Ucbvax was our main relay (both SMTP and UUCP) for many years.
+#  At this point I recommend using `FEATURE(mailertable)' instead of
+#  `SITECONFIG' for routing of UUCP within your domain.
+#
+
+VERSIONID(`@(#)ucbvax.mc	8.5 (Berkeley) 8/25/95')
 OSTYPE(bsd4.3)
-DOMAIN(cs.hidden)
-FEATURE(notsticky)
+DOMAIN(CS.Berkeley.EDU)
+MASQUERADE_AS(CS.Berkeley.EDU)
 MAILER(local)
 MAILER(smtp)
 MAILER(uucp)
 undefine(`UUCP_RELAY')dnl
+
+LOCAL_CONFIG
 DDBerkeley.EDU
 
 # names for which we act as a local forwarding agent

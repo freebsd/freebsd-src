@@ -33,14 +33,24 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
-include(`../m4/cf.m4')
-VERSIONID(`@(#)mail.eecs.mc	8.1 (Berkeley) 6/7/93')
-OSTYPE(ultrix4.1)dnl
-DOMAIN(eecs.hidden)dnl
-FEATURE(notsticky)dnl
+#
+#  This is a Berkeley-specific configuration file for a specific
+#  machine in Electrical Engineering and Computer Sciences at Berkeley,
+#  and should not be used elsewhere.   It is provided on the sendmail
+#  distribution as a sample only.
+#
+#  This file is for the primary EECS mail server.
+#
+
+VERSIONID(`@(#)mail.eecs.mc	8.9 (Berkeley) 8/25/95')
+OSTYPE(ultrix4)dnl
+DOMAIN(EECS.Berkeley.EDU)dnl
+MASQUERADE_AS(EECS.Berkeley.EDU)dnl
 MAILER(local)dnl
 MAILER(smtp)dnl
-define(`confUSERDB_SPEC', `/usr/local/lib/users.cs.db,/usr/local/lib/users.eecs.db')dnl
+define(`confUSERDB_SPEC', `/usr/local/lib/users.eecs.db,/usr/local/lib/users.cs.db,/usr/local/lib/users.coe.db')dnl
+
+LOCAL_CONFIG
 DDBerkeley.EDU
 
 # hosts for which we accept and forward mail (must be in .Berkeley.EDU)
