@@ -1650,7 +1650,7 @@ sioattach(dev)
 		obufsize = 2048;
 	}
 	if ((obuf = malloc(obufsize * 2, M_DEVBUF, M_NOWAIT)) == NULL)
-		return (0);
+		return ENXIO;
 	bzero(obuf, obufsize * 2);
 #endif
 
@@ -1739,7 +1739,7 @@ sioattach(dev)
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
 		enable_intr();
 		free(com, M_DEVBUF);
-		return (0);
+		return ENXIO;
 	}
 	enable_intr();
 	termioschars(&com->it_in);
