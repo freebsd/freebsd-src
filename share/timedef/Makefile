@@ -7,6 +7,7 @@ LOCALES=	cs_CZ.ISO_8859-2 \
 		da_DK.ISO_8859-1 \
 		de_AT.ISO_8859-1 \
 		de_DE.ISO_8859-1 \
+		el_GR.ISO_8859-7 \
 		en_GB.ISO_8859-1 \
 		en_US.ISO_8859-1 \
 		es_ES.ISO_8859-1 \
