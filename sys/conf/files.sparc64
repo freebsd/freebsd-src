@@ -43,6 +43,7 @@ sparc64/sparc64/in_cksum.c	optional	inet
 sparc64/sparc64/intr_machdep.c	standard
 sparc64/sparc64/iommu.c		standard
 sparc64/sparc64/machdep.c	standard
+sparc64/sparc64/mem.c		standard
 sparc64/sparc64/mp_exception.s	optional	smp
 sparc64/sparc64/mp_locore.s	optional	smp
 sparc64/sparc64/mp_machdep.c	optional	smp
