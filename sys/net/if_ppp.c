@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.2 1994/09/23 00:13:18 wollman Exp $ */
+/* $Id: if_ppp.c,v 1.4 1994/10/05 21:22:42 wollman Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -328,7 +328,7 @@ pppopen(dev, tp)
  * Detach the tty from the ppp unit.
  * Mimics part of ttyclose().
  */
-void
+int
 pppclose(tp, flag)
     struct tty *tp;
     int flag;
@@ -352,6 +352,7 @@ pppclose(tp, flag)
 	}
     }
     splx(s);
+    return (0);			/* success */
 }
 
 /*
@@ -857,7 +858,7 @@ pppasyncstart(sc)
  * Start output on async tty interface.  Get another datagram
  * to send from the interface queue and start sending it.
  */
-void
+int
 pppstart(tp)
     register struct tty *tp;
 {
@@ -870,11 +871,11 @@ pppstart(tp)
 
     if ((tp->t_state & TS_CARR_ON) == 0 && (tp->t_cflag & CLOCAL) == 0) {
 	/* sorry, I can't talk now */
-	return;
+	return 0;
     }
     if (sc == NULL || tp != (struct tty *) sc->sc_devp) {
 	(*tp->t_oproc)(tp);
-	return;
+	return 0;
     }
 
     for (;;) {
@@ -886,7 +887,7 @@ pppstart(tp)
 	if (CCOUNT(&tp->t_outq) != 0 && tp->t_oproc != NULL) {
 	    (*tp->t_oproc)(tp);
 	    if (CCOUNT(&tp->t_outq) > PPP_HIWAT)
-		return;
+		return 0;
 	}
 
 	/*
@@ -902,7 +903,7 @@ pppstart(tp)
 	     */
 	    m = ppp_dequeue(sc);
 	    if (m == NULL)
-		return;
+		return 0;
 
 	    /*
 	     * The extra PPP_FLAG will start up a new packet, and thus
@@ -1007,7 +1008,7 @@ pppstart(tp)
 		sc->sc_outm = m;
 		if (tp->t_oproc != NULL)
 		    (*tp->t_oproc)(tp);
-		return;		/* can't do any more at the moment */
+		return 0;	/* can't do any more at the moment */
 	    }
 
 	    /* Finished with this mbuf; free it and move on. */
@@ -1025,6 +1026,7 @@ pppstart(tp)
 	sc->sc_if.if_opackets++;
 	sc->sc_if.if_obytes = sc->sc_bytessent;
     }
+    return 0;
 }
 
 /*
@@ -1253,7 +1255,7 @@ static unsigned paritytab[8] = {
     0x69969669, 0x96696996, 0x96696996, 0x69969669
 };
 
-void
+int
 pppinput(c, tp)
     int c;
     register struct tty *tp;
@@ -1265,7 +1267,7 @@ pppinput(c, tp)
     tk_nin++;
     sc = (struct ppp_softc *) tp->t_sc;
     if (sc == NULL || tp != (struct tty *) sc->sc_devp)
-	return;
+	return 0;
 
     ++sc->sc_bytesrcvd;
 
@@ -1317,7 +1319,7 @@ pppinput(c, tp)
 		sc->sc_if.if_ierrors++;
 	    } else
 		sc->sc_flags &= ~(SC_FLUSH | SC_ESCAPED);
-	    return;
+	    return 0;
 	}
 
 	if (ilen < PPP_HDRLEN + PPP_FCSLEN) {
@@ -1326,7 +1328,7 @@ pppinput(c, tp)
 		    printf("ppp%d: too short (%d)\n", sc->sc_if.if_unit, ilen);
 		sc->sc_if.if_ierrors++;
 	    }
-	    return;
+	    return 0;
 	}
 
 	/*
@@ -1352,24 +1354,24 @@ pppinput(c, tp)
 	    putc(0, &tp->t_canq);
 	    ttwakeup(tp);
 	}
-	return;
+	return 0;
     }
 
     if (sc->sc_flags & SC_FLUSH) {
 	if (sc->sc_flags & SC_LOG_FLUSH)
 	    ppplogchar(sc, c);
-	return;
+	return 0;
     }
 
     if (c < 0x20 && (sc->sc_rasyncmap & (1 << c)))
-	return;
+	return 0;
 
     if (sc->sc_flags & SC_ESCAPED) {
 	sc->sc_flags &= ~SC_ESCAPED;
 	c ^= PPP_TRANS;
     } else if (c == PPP_ESCAPE) {
 	sc->sc_flags |= SC_ESCAPED;
-	return;
+	return 0;
     }
 
     /*
@@ -1444,7 +1446,7 @@ pppinput(c, tp)
     ++m->m_len;
     *sc->sc_mp++ = c;
     sc->sc_fcs = PPP_FCS(sc->sc_fcs, c);
-    return;
+    return 0;
 
  flush:
     if (!(sc->sc_flags & SC_FLUSH)) {
@@ -1453,6 +1455,7 @@ pppinput(c, tp)
 	if (sc->sc_flags & SC_LOG_FLUSH)
 	    ppplogchar(sc, c);
     }
+    return 0;
 }
 
 /*
