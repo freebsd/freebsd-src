@@ -155,7 +155,6 @@ SUBDIR+=elf2exe
 SUBDIR+=acpi \
 	apm \
 	apmd \
-	boot0cfg \
 	btxld \
 	i4b \
 	kgmon \
@@ -171,7 +170,12 @@ SUBDIR+=acpi \
 	wlconfig
 .endif
 
+.if ${MACHINE} == "i386"
+SUBDIR+=boot0cfg
+.endif
+
 .if ${MACHINE} == "pc98"
 SUBDIR+=boot98cfg
 .endif
+
 .include <bsd.subdir.mk>
