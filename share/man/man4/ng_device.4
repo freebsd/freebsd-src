@@ -35,18 +35,24 @@
 .Sh DESCRIPTION
 A
 .Nm device
-node is both a netgraph node and a system device interface.  When an
+node is both a netgraph node and a system device interface.
+When a
 .Nm device
 node is created, a new device entry appears which is accessible via the
 regular file operators such as
 .Xr open 2 ,
 .Xr close 2 ,
 .Xr read 2 ,
-.Xr write 2 , etc.
+.Xr write 2 ,
+etc.
 .Pp
-The first node is created as /dev/ngd0, all subsequent nodes /dev/ngd1, 
-/dev/ngd2, etc. The only way a
-.Nm device 
+The first node is created as
+.Pa /dev/ngd0 ,
+all subsequent nodes
+.Pa /dev/ngd1 , /dev/ngd2 ,
+etc.
+The only way a
+.Nm device
 node can be created is by a connection to the main
 .Nm device
 node by another type of
@@ -62,7 +68,8 @@ A
 .Nm device
 node has a single hook to which it connects to the requesting
 .Xr netgraph 4
-node. All data coming in over the hook will be presented to the device
+node.
+All data coming in over the hook will be presented to the device
 for
 .Xr read 2 .
 All data coming in from the device entry by
@@ -71,30 +78,35 @@ will be forwarded to the hook.
 .Sh HOOKS
 The
 .Nm device
-node has no named hooks. There is one hook which is used for all
-interactions. This is the hook created by the calling node.
+node has no named hooks.
+There is one hook which is used for all interactions.
+This is the hook created by the calling node.
 .Sh CONTROL MESSAGES
 The
 .Nm device
-node supports no special control messages. All incoming messages from the
+node supports no special control messages.
+All incoming messages from the
 hook will be returned to the sender.
 Additionally the node accepts
-.Xr ioctl 2 's from the device entry. These will be encapsulated into
+.Xr ioctl 2 Ns s
+from the device entry.
+These will be encapsulated into
 .Xr netgraph 4
 messages and send out to the hook.
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
-control message.  The associated interface is removed and becomes available
+control message.
+The associated interface is removed and becomes available
 for use by future
 .Nm device
 nodes.
 .Pp
 Unlike most other node types, a
-.Nm iface
+.Nm device
 node does
 .Em not
-go away when all hooks have been disconnected; rather, and explicit
+go away when all hooks have been disconnected; rather, an explicit
 .Dv NGM_SHUTDOWN
 control message is required.
 .Sh SEE ALSO
