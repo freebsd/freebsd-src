@@ -58,7 +58,6 @@
 
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
-static struct g_bioq g_bio_run_task;
 static struct g_bioq g_bio_idle;
 
 static u_int pace;
@@ -167,7 +166,6 @@ g_io_init()
 
 	g_bioq_init(&g_bio_run_down);
 	g_bioq_init(&g_bio_run_up);
-	g_bioq_init(&g_bio_run_task);
 	g_bioq_init(&g_bio_idle);
 }
 
@@ -362,23 +360,6 @@ g_io_schedule_down(struct thread *tp __unused)
 }
 
 void
-bio_taskqueue(struct bio *bp, bio_task_t *func, void *arg)
-{
-	bp->bio_task = func;
-	bp->bio_task_arg = arg;
-	/*
-	 * The taskqueue is actually just a second queue off the "up"
-	 * queue, so we use the same lock.
-	 */
-	g_bioq_lock(&g_bio_run_up);
-	TAILQ_INSERT_TAIL(&g_bio_run_task.bio_queue, bp, bio_queue);
-	g_bio_run_task.bio_queue_length++;
-	wakeup(&g_wait_up);
-	g_bioq_unlock(&g_bio_run_up);
-}
-
-
-void
 g_io_schedule_up(struct thread *tp __unused)
 {
 	struct bio *bp;
@@ -388,14 +369,6 @@ g_io_schedule_up(struct thread *tp __unused)
 	mtx_init(&mymutex, "g_xup", MTX_DEF, 0);
 	for(;;) {
 		g_bioq_lock(&g_bio_run_up);
-		bp = g_bioq_first(&g_bio_run_task);
-		if (bp != NULL) {
-			g_bioq_unlock(&g_bio_run_up);
-			mtx_lock(&mymutex);
-			bp->bio_task(bp, bp->bio_task_arg);
-			mtx_unlock(&mymutex);
-			continue;
-		}
 		bp = g_bioq_first(&g_bio_run_up);
 		if (bp != NULL) {
 			g_bioq_unlock(&g_bio_run_up);
