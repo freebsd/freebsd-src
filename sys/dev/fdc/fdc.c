@@ -2564,7 +2564,7 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	finfo = (struct fd_formb *)data;
 	idfield = (struct fdc_readid *)data;
 
-	bp = malloc(sizeof(struct bio), M_TEMP, M_ZERO);
+	bp = malloc(sizeof(struct bio), M_TEMP, M_WAITOK | M_ZERO);
 
 	/*
 	 * Set up a bio request for fdstrategy().  bio_blkno is faked
