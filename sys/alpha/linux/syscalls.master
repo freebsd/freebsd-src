@@ -133,7 +133,7 @@
 89	STD	{ int linux_getdtablesize(void); }
 90	MNOPROTO { int dup2(u_int from, u_int to); }
 91	STD	{ int linux_newfstat(l_uint fd, struct l_newstat *buf); }
-92	STD	{ int linux_fcntl(l_uint fd, l_uint cmd, l_ulong arg); }
+92	MSTD	{ int linux_fcntl(l_uint fd, l_uint cmd, l_ulong arg); }
 93	STD	{ int osf1_select(u_int nd, fd_set *in, fd_set *ou, \
 				fd_set *ex, struct timeval *tv); }
 94	NOPROTO	{ int poll(struct pollfd*, unsigned int nfds, long timeout); }
