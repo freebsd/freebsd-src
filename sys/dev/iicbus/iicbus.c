@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 
 static devclass_t iicbus_devclass;
 
+/* See comments below for why auto-scanning is a bad idea. */
+#define SCAN_IICBUS 0
+
 /*
  * Device methods
  */
@@ -83,7 +86,7 @@ iicbus_probe(device_t dev)
 	return (0);
 }
 
-#if 0
+#if SCAN_IICBUS
 static int 
 iic_probe_device(device_t dev, u_char addr)
 {
@@ -113,6 +116,10 @@ iic_probe_device(device_t dev, u_char addr)
 static int
 iicbus_attach(device_t dev)
 {
+#if SCAN_IICBUS
+	unsigned char addr;
+#endif
+
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 
 	/* device probing is meaningless since the bus is supposed to be
@@ -120,11 +127,11 @@ iicbus_attach(device_t dev)
 	 * accesses like stop after start to fast, reads for less than
 	 * x bytes...
 	 */
-#if 0
+#if SCAN_IICBUS
 	printf("Probing for devices on iicbus%d:", device_get_unit(dev));
 
 	/* probe any devices */
-	for (addr = FIRST_SLAVE_ADDR; addr <= LAST_SLAVE_ADDR; addr++) {
+	for (addr = 16; addr < 240; addr++) {
 		if (iic_probe_device(dev, (u_char)addr)) {
 			printf(" <%x>", addr);
 		}
