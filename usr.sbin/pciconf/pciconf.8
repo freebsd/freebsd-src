@@ -38,7 +38,7 @@
 .Nm
 .Fl r Ar selector
 .Op Fl b | Fl h
-.Ar reg
+.Ar reg Ns Op : Ns Ar reg2
 .Nm
 .Fl w Ar selector
 .Op Fl b | Fl h
@@ -139,6 +139,9 @@ option reads a configuration space register at byte offset
 of device
 .Ar selector
 and prints out its value in hexadecimal.
+The optional second
+.Ar reg2
+specifies a range to read.
 The 
 .Fl w 
 option writes the 

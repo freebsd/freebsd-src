@@ -57,7 +57,7 @@ usage()
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 		"usage: pciconf -l",
 		"       pciconf -a sel",
-		"       pciconf -r [-b | -h] sel addr",
+		"       pciconf -r [-b | -h] sel addr[:addr]",
 		"       pciconf -w [-b | -h] sel addr [value]");
 	exit (1);
 }
@@ -212,23 +212,48 @@ getsel(const char *str)
 }
 
 static void
-readit(const char *name, const char *reg, int width)
+readone(int fd, struct pcisel *sel, long reg, int width)
 {
-	int fd;
 	struct pci_io pi;
 
-	pi.pi_sel = getsel(name);
-	pi.pi_reg = strtoul(reg, (char **)0, 0); /* XXX error check */
+	pi.pi_sel = *sel;
+	pi.pi_reg = reg;
 	pi.pi_width = width;
+
+	if (ioctl(fd, PCIOCREAD, &pi) < 0)
+		err(1, "ioctl(PCIOCREAD)");
+
+	printf("0x%08x", pi.pi_data);
+}
+
+static void
+readit(const char *name, const char *reg, int width)
+{
+	long rstart;
+	long rend;
+	long r;
+	char *end;
+	int i;
+	int fd;
+	struct pcisel sel;
 
 	fd = open(_PATH_DEVPCI, O_RDWR, 0);
 	if (fd < 0)
 		err(1, "%s", _PATH_DEVPCI);
 
-	if (ioctl(fd, PCIOCREAD, &pi) < 0)
-		err(1, "ioctl(PCIOCREAD)");
-
-	printf("0x%08x\n", pi.pi_data);
+	rend = rstart = strtol(reg, &end, 0);
+	if (end && *end == ':') {
+		end++;
+		rend = strtol(end, (char **) 0, 0);
+	}
+	sel = getsel(name);
+	for (i = 1, r = rstart; r <= rend; i++, r += width) {	
+		readone(fd, &sel, r, width);
+		putchar(i % 4 ? ' ' : '\n');
+	}
+	if (i % 4 != 1)
+		putchar('\n');
+	close(fd);
 }
 
 static void
