@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2000 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,8 +115,15 @@ version(int ver)
 void
 param_print(struct ata_params *parm)
 {
-	printf("<%.40s/%.8s> ATA/ATAPI rev %d\n",
-		parm->model, parm->revision, version(parm->version_major)); 
+	printf("<%.40s/%.8s> ", parm->model, parm->revision); 
+	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
+		if (parm->satacapabilities & ATA_SATA_GEN1)
+			printf("Serial ATA v1.0\n");
+		if (parm->satacapabilities & ATA_SATA_GEN2)
+			printf("Serial ATA II\n");
+	}
+	else 
+		printf("ATA/ATAPI revision %d\n", version(parm->version_major));
 }
 
 void
@@ -131,7 +138,15 @@ cap_print(struct ata_params *parm)
 				((u_int64_t)parm->lba_size48_4 << 48);
  
 	printf("\n");
-	printf("ATA/ATAPI revision    %d\n", version(parm->version_major));
+	printf("Protocol              ");
+	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
+		if (parm->satacapabilities & ATA_SATA_GEN1)
+			printf("Serial ATA v1.0\n");
+		if (parm->satacapabilities & ATA_SATA_GEN2)
+			printf("Serial ATA II\n");
+	}
+	else 
+		printf("ATA/ATAPI revision %d\n", version(parm->version_major));
 	printf("device model          %.40s\n", parm->model);
 	printf("serial number         %.20s\n", parm->serial);
 	printf("firmware revision     %.8s\n", parm->revision);
@@ -147,7 +162,7 @@ cap_print(struct ata_params *parm)
 	else
 		printf("\n");
 
-	printf("lba48%ssupported         ",
+	printf("lba48%ssupported       ",
 		parm->support.command2 & ATA_SUPPORT_ADDRESS48 ? " " : " not ");
 	if (lbasize48)
 		printf("%ju sectors\n", (uintmax_t)lbasize48);	
@@ -171,10 +186,17 @@ cap_print(struct ata_params *parm)
 		parm->support.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");	
 
-	printf("dma queued                     %s	%s	%d/0x%02X\n",
-		parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-		ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));	
+	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
+		printf("SATA NCQ                       %s	%s	%d/0x%02X\n",
+			parm->satacapabilities & ATA_SUPPORT_NCQ ? "yes" : "no",
+			" -", ATA_QUEUE_LEN(parm->queue),
+			ATA_QUEUE_LEN(parm->queue));
+	}
+	else 
+		printf("dma queued                     %s	%s	%d/0x%02X\n",
+			parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
+			parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
+			ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));	
 
 	printf("SMART                          %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
