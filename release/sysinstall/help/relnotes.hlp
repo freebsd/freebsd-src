@@ -83,9 +83,10 @@ o Support for using VESA video modes. It is now possible to select and
 
 o Support for AdvanSys SCSI controllers
 
-o Support for the Compaq QLogic SCSI controller.
+o Support for QLogic SCSI and Fibre Channel controllers.
 
-o Support for Adaptec 7895 based controllers (new 3840 et al).
+o Support for Adaptec 7890, 7891, 7895, 7896 and 7897 based controllers
+  (new 2940/2950/3940/3950 et al).
 
 o The ed0 (wd8xxxx, 3c503, NE2000, HP Lan+) Ethernet device's default IRQ
   has changed from IRQ 5 to IRQ 10.
@@ -376,6 +377,11 @@ makes tty-mode emacs work when called from system(2), i.e. by a mail
 agent. Several syntax bugs have been fixed.
 [MERGED: Also in 2.2.8 and later releases on 2.2-STABLE branch]
 
+systat(1), iostat(8), rpc.rstatd(8), and vmstat(8) have been
+overhauled to use the new devstat(3) library and devstat(9) statistics
+subsystem.  Among other enhancements, these utilities (well, with the
+exception of rpc.rstatd(8)) now print out more useful statistics, and can
+see statistics for all devices in the system, not just the first 8.
 
 2. Supported Configurations
 ---------------------------
@@ -400,26 +406,19 @@ ATA
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
-Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
-controllers.
-Adaptec AIC7850 and AIC7895 on-board SCSI controllers.
+Adaptec 274X/284X/2920/2940/2950/3940/3950 (Narrow/Wide/Twin) series
+EISA/VLB/PCI SCSI controllers.
+Adaptec AIC7850, AIC7880, AIC789x, on-board SCSI controllers.
 
-** Note: You cannot boot from the SoundBlaster cards as they have no
-   on-board BIOS, such being necessary for mapping the boot device into the
-   system BIOS I/O vectors.  They're perfectly usable for external tapes,
-   CDROMs, etc, however.  The same goes for any other AIC-6x60 based card
-   without a boot ROM.  Some systems DO have a boot ROM, which is generally
-   indicated by some sort of message when the system is first powered up
-   or reset, and in such cases you *will* also be able to boot from them.
-   Check your system/board documentation for more details.
-
-AdvanSys ADP9xx controllers.
+AdvanSys SCSI controllers (all models).
 
 Buslogic 545S & 545c
 Buslogic 445S/445c VLB SCSI controller
 Buslogic 742A, 747S, 747c EISA SCSI controller.
 Buslogic 946c PCI SCSI controller
 Buslogic 956c PCI SCSI controller
+
+DPT SCSI/RAID controllers (most variants).
 
 SymBios (formerly NCR) 53C810, 53C825, 53c860 and 53c875 PCI SCSI
 controllers:
@@ -430,26 +429,17 @@ controllers:
         Tekram DC390W, 390U and 390F
         Tyan S1365
 
-Tekram DC390 and DC390T controllers (maybe other cards based on the
-AMD 53c974 as well).
 
-NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
-
-Compaq QLogic controllers.
+QLogic SCSI and Fibre Channel controllers.
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
-UltraStor 14F, 24F and 34F SCSI controllers.
-
-Seagate ST01/02 SCSI controllers.
-
-Future Domain 8xx/950 series SCSI controllers.
-
-WD7000 SCSI controller.
-
 With all supported SCSI controllers, full support is provided for
-SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
-DAT and 8mm Exabyte) and CD ROM drives.
+SCSI-I & SCSI-II peripherals, including hard disks, optical disks,
+tape drives (including DAT and 8mm Exabyte), medium changers, processor
+target devices and CDROM drives.  WORM devices that support CDROM commands
+are supported for read-only access by the CDROM driver.  WORM/CD-R/CD-RW
+writing support is provided by cdrecord, which is in the ports tree.
 
 The following CD-ROM type systems are supported at this time:
 (cd)    SCSI interface (also includes ProAudio Spectrum and
@@ -460,12 +450,32 @@ The following CD-ROM type systems are supported at this time:
 (wcd)   ATAPI IDE interface
 
 
-Unmaintained drivers, they might or might not work for your hardware:
+The following drivers were supported under the old SCSI subsystem, but are
+NOT YET supported under the new CAM SCSI subsystem:
+
+  Tekram DC390 and DC390T controllers (maybe other cards based on the
+  AMD 53c974 as well).
+
+  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
+
+  UltraStor 14F, 24F and 34F SCSI controllers.
+
+  Seagate ST01/02 SCSI controllers.
+
+  Future Domain 8xx/950 series SCSI controllers.
+
+  WD7000 SCSI controller.
 
   Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
   Adaptec 152x series ISA SCSI controllers
   Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
   and SoundBlaster SCSI cards.
+
+  [ Note:  There is work-in-progress to port the AIC-6260/6360 and
+    UltraStor drivers to the new CAM SCSI framework, but no estimates on
+    when or if they will be completed. ]
+
+Unmaintained drivers, they might or might not work for your hardware:
 
   Floppy tape interface (Colorado/Mountain/Insight)
 
