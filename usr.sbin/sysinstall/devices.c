@@ -176,7 +176,6 @@ deviceGetAll(void)
     int ifflags;
     char buffer[INTERFACE_MAX * sizeof(struct ifreq)];
     char **names;
-    int supportSLIP = FALSE, supportPPP = FALSE;
 
     /* Try and get the disks first */
     if ((names = Disk_Names()) != NULL) {
@@ -237,17 +236,14 @@ deviceGetAll(void)
 	if (!strncmp(ifptr->ifr_name, "lo0", 3))
 	    continue;
 
-	/* If we have a slip device, don't register it but flag its support for later, when we do the serial devs */ 
+	/* If we have a slip device, don't register it */
 	if (!strncmp(ifptr->ifr_name, "sl", 2)) {
-	    supportSLIP = TRUE;
 	    continue;
 	}
 	/* And the same for ppp */
 	if (!strncmp(ifptr->ifr_name, "tun", 3) || !strncmp(ifptr->ifr_name, "ppp", 3)) {
-	    supportPPP = TRUE;
 	    continue;
 	}
-	msgDebug("SupportSLIP = %d, SupportPPP = %d\n", supportSLIP, supportPPP);
 	/* Try and find its description */
 	for (i = 0, descr = NULL; device_names[i].name; i++) {
 	    int len = strlen(device_names[i].name);
@@ -322,20 +318,16 @@ skipif:
 		close(fd);
 		cp = device_names[i].description;
 		/* Serial devices get a slip and ppp device each, if supported */
-		if (supportSLIP) {
-		    newdesc = safe_malloc(strlen(cp) + 40);
-		    sprintf(newdesc, cp, "SLIP interface");
-		    deviceRegister("sl0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-				   NULL, mediaShutdownNetwork, NULL);
-		    msgDebug("Add mapping for %s on %s to sl0\n", device_names[i].name, try);
-		}
-		if (supportPPP) {
-		    newdesc = safe_malloc(strlen(cp) + 50);
-		    sprintf(newdesc, cp, "PPP interface");
-		    deviceRegister("ppp0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-				   NULL, mediaShutdownNetwork, NULL);
-		    msgDebug("Add mapping for %s on %s to ppp0\n", device_names[i].name, try);
-		}
+		newdesc = safe_malloc(strlen(cp) + 40);
+		sprintf(newdesc, cp, "SLIP interface");
+		deviceRegister("sl0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
+				NULL, mediaShutdownNetwork, NULL);
+		msgDebug("Add mapping for %s on %s to sl0\n", device_names[i].name, try);
+		newdesc = safe_malloc(strlen(cp) + 50);
+		sprintf(newdesc, cp, "PPP interface");
+		deviceRegister("ppp0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
+				NULL, mediaShutdownNetwork, NULL);
+		msgDebug("Add mapping for %s on %s to ppp0\n", device_names[i].name, try);
 	    }
 	    break;
 

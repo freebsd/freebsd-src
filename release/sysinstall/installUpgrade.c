@@ -52,37 +52,6 @@ typedef struct _hitList {
     void (*handler)(struct _hitList *self);
 } HitList;
 
-/* cop-out function for files we can't handle */
-static void
-doByHand(HitList *h)
-{
-    FILE *fp;
-
-    fp = fopen("/etc/update-by-hand", "a");
-    msgConfirm("/etc/%s is one of those files that this upgrade procedure just isn't\n"
-	       "smart enough to deal with right now.  You'll need to merge the old and\n"
-	       "new versions by hand when the option to do so manually is later\n"
-	       "presented.  This has also been noted in the file /etc/update-by-hand.", h->name);
-    fprintf(fp, "/etc/%s\n", h->name);
-    fclose(fp);
-}
-
-static void
-yellSysconfig(HitList *h)
-{
-    FILE *fp;
-
-    fp = fopen("/etc/update-by-hand", "a");
-    fprintf(fp, "/etc/sysconfig\n");
-    msgConfirm("/etc/sysconfig is one of those files that this upgrade procedure just isn't\n"
-	       "smart enough to deal with right now.  Unfortunately, your system\n"
-	       "will also come up with a very different \"personality\" than it had\n"
-	       "before if you do not merge at LEAST the hostname and ifconfig lines\n"
-	       "from the old one!  This is very important, so please do this merge\n"
-	       "even if you do no others before the system is allowed to reboot.");
-    fclose(fp);
-}
-
 /* These are the only meaningful files I know about */
 static HitList etc_files [] = {
    { JUST_COPY,		"Xaccel.ini",		TRUE, NULL },
@@ -99,7 +68,7 @@ static HitList etc_files [] = {
    { JUST_COPY,		"dm.conf",		TRUE, NULL },
    { JUST_COPY,		"exports",		TRUE, NULL },
    { JUST_COPY,		"fbtab",		TRUE, NULL },
-   { CALL_HANDLER,	"fstab",		FALSE, doByHand },
+   { JUST_COPY,		"fstab",		FALSE, NULL },
    { JUST_COPY,		"ftpusers",		TRUE, NULL },
    { JUST_COPY,		"gnats",		TRUE, NULL },
    { JUST_COPY,		"group",		FALSE, NULL },
@@ -107,8 +76,8 @@ static HitList etc_files [] = {
    { JUST_COPY,		"hosts",		TRUE, NULL },
    { JUST_COPY,		"hosts.equiv",		TRUE, NULL },
    { JUST_COPY,		"hosts.lpd",		TRUE, NULL },
-   { CALL_HANDLER,	"inetd.conf",		FALSE, doByHand },
-   { CALL_HANDLER,	"kerberosIV",		TRUE, doByHand },
+   { JUST_COPY,		"inetd.conf",		TRUE, NULL },
+   { JUST_COPY,		"kerberosIV",		TRUE, NULL },
    { JUST_COPY,		"localtime",		TRUE, NULL },
    { JUST_COPY,		"login.access",		TRUE, NULL },
    { JUST_COPY,		"mail.rc",		TRUE, NULL },
@@ -120,7 +89,6 @@ static HitList etc_files [] = {
    { JUST_COPY,		"monthly",		TRUE, NULL },
    { JUST_COPY,		"motd",			TRUE, NULL },
    { JUST_COPY,		"namedb",		TRUE, NULL },
-   { CALL_HANDLER,	"netstart",		FALSE, doByHand },
    { JUST_COPY,		"networks",		TRUE, NULL },
    { JUST_COPY,		"passwd",		FALSE, NULL },
    { JUST_COPY,		"phones",		TRUE, NULL },
@@ -129,21 +97,18 @@ static HitList etc_files [] = {
    { JUST_COPY,		"profile",		TRUE, NULL },
    { JUST_COPY,		"protocols",		TRUE, NULL },
    { JUST_COPY,		"pwd.db",		TRUE, NULL },
-   { CALL_HANDLER,	"rc",			FALSE, doByHand },
-   { CALL_HANDLER,	"rc.i386",		TRUE, doByHand },
    { JUST_COPY,		"rc.local",		TRUE, NULL },
-   { CALL_HANDLER,	"rc.serial",		TRUE, doByHand },
    { JUST_COPY,		"remote",		TRUE, NULL },
    { JUST_COPY,		"resolv.conf",		TRUE, NULL },
    { JUST_COPY,		"rmt",			TRUE, NULL },
    { JUST_COPY,		"security",		TRUE, NULL },
    { JUST_COPY,		"sendmail.cf",		TRUE, NULL },
-   { CALL_HANDLER,	"services",		TRUE, doByHand },
+   { JUST_COPY,		"services",		TRUE, NULL },
    { JUST_COPY,		"shells",		TRUE, NULL },
    { JUST_COPY,		"skeykeys",		TRUE, NULL },
    { JUST_COPY,		"spwd.db",		TRUE, NULL },
    { JUST_COPY,		"supfile",		TRUE, NULL },
-   { CALL_HANDLER,	"sysconfig",		FALSE, yellSysconfig },
+   { JUST_COPY,		"sysconfig",		FALSE, NULL },
    { JUST_COPY,		"syslog.conf",		TRUE, NULL },
    { JUST_COPY,		"termcap",		TRUE, NULL },
    { JUST_COPY,		"ttys",			TRUE, NULL },
@@ -163,8 +128,8 @@ traverseHitlist(HitList *h)
 	}
 	else {
 	    if (h->action == JUST_COPY) {
-		/* Nuke the just-loaded copy thoroughly */
-		vsystem("rm -rf /etc/%s", h->name);
+		/* Move the just-loaded copy aside */
+		vsystem("mv /etc/%s /etc/%s.upgrade", h->name, h->name);
 
 		/* Copy the old one into its place */
 		msgNotify("Resurrecting %s..", h->name);
@@ -184,7 +149,6 @@ installUpgrade(dialogMenuItem *self)
 {
     char *saved_etc;
     Boolean extractingBin = TRUE;
-    struct termios foo;
 
     variable_set2(SYSTEM_STATE, "upgrade");
     systemDisplayHelp("upgrade");
@@ -255,11 +219,11 @@ media:
 	}
 
 	msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
-		   "you will be expected to *Mount* any partitions you're interested in\n"
+		   "you will be expected to Mount any partitions you're interested in\n"
 		   "upgrading.  DO NOT set the Newfs flag to Y on anything in the label editor\n"
 		   "unless you're absolutely sure you know what you're doing!  In this\n"
 		   "instance, you'll be using the label editor as little more than a fancy\n"
-		   "screen-oriented way of labeling existing partitions.\n\n"
+		   "screen-oriented partition mounting tool.\n\n"
 		   "Once you're done in the label editor, press Q to return here for the next\n"
 		   "step.");
 
@@ -328,9 +292,9 @@ media:
 	dialog_clear();
 	systemShutdown(1);
     }
-    else {
+    else if (Dists) {
 	if (extractingBin && !(Dists & DIST_BIN)) {
-	    msgConfirm("The extraction process seems to have had some problems, but we got most\n"
+	    msgNotify("The extraction process seems to have had some problems, but we got most\n"
 		       "of the essentials.  We'll treat this as a warning since it may have been\n"
 		       "only non-essential distributions which failed to load.");
 	}
@@ -345,7 +309,7 @@ media:
 
     if (extractingBin) {
 	msgNotify("OK, now it's time to go pound on your root a little bit to create all the\n"
-		  "/dev entries and such that a 2.1 system expects to see.  I'll also perform a\n"
+		  "/dev entries and such that a new system expects to see.  I'll also perform a\n"
 		  "few \"fixup\" operations to repair the effects of splatting a bin distribution\n"
 		  "on top of an existing system..");
 	if (DITEM_STATUS(installFixup(self)) == DITEM_FAILURE) {
@@ -371,33 +335,10 @@ media:
     }
 
     msgConfirm("OK!  At this stage, we've resurrected all the /etc files we could\n"
-	       "(and you may have been warned about some that you'll have to merge\n"
-	       "yourself by hand) and we're going to drop you into a shell to do\n"
-	       "the rest yourself (sorry about this!).  Once the system looks good\n"
-	       "to you, exit the shell to reboot the system.");
-
-    chdir("/");
-    dialog_clear();
-    end_dialog();
-    DialogActive = FALSE;
-    endwin();
-
-    signal(SIGTTOU, SIG_IGN);
-    if (tcgetattr(0, &foo) != -1) {
-	foo.c_cc[VERASE] = '\010';
-	if (tcsetattr(0, TCSANOW, &foo) == -1)
-	    msgDebug("Unable to set the erase character.\n");
-    }
-    else
-	msgDebug("Unable to get the terminal attributes!\n");
-    printf("Well, good luck!  When you're done, please type \"reboot\" or exit\n"
-	    "the shell to reboot the new system.\n");
-    if (!Fake)
-	system("/bin/sh");
-    else
-	exit(0);
-    if (RunningAsInit)
-	reboot(0);
-    /* NOTREACHED */
-    return 0;
+	       "and moved the new copies over to <file>.update in case you want to\n"
+	       "see what the new version looks like.  If you want to wander over\n"
+	       "to the Emergency Holographic Shell [ALT-F4] at this point to check\n"
+	       "on that, you may do so now.  When you're ready to reboot into\n"
+	       "the new system, just exit the installation.");
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
