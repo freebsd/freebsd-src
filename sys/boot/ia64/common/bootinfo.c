@@ -244,7 +244,8 @@ bi_copymodules(vm_offset_t addr)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey)
+bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey,
+    UINTN pages)
 {
     char			*rootdevname;
     struct efi_devdesc		*rootdev;
@@ -254,7 +255,7 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey)
     vm_offset_t			ssym, esym;
     struct file_metadata	*md;
     EFI_STATUS			status;
-    UINTN			key;
+    UINTN			bisz, key;
 
     /*
      * Version 1 bootinfo.
@@ -273,9 +274,9 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey)
     bi->bi_systab = (u_int64_t) ST;
 
     /* 
-     * Allow the environment variable 'rootdev' to override the supplied device 
-     * This should perhaps go to MI code and/or have $rootdev tested/set by
-     * MI code before launching the kernel.
+     * Allow the environment variable 'rootdev' to override the supplied
+     * device. This should perhaps go to MI code and/or have $rootdev
+     * tested/set by MI code before launching the kernel.
      */
     rootdevname = getenv("rootdev");
     efi_getdev((void **)(&rootdev), rootdevname, NULL);
@@ -331,14 +332,16 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey)
     /* all done copying stuff in, save end of loaded object space */
     bi->bi_kernend = addr;
 
-    /* read memory map and stash it after bootinfo */
-    bi->bi_memmap = (u_int64_t)(bi + 1);
-    bi->bi_memmap_size = 8192 - sizeof(struct bootinfo);
+    /*
+     * Read the memory map and stash it after bootinfo. Align the memory map
+     * on a 16-byte boundary (the bootinfo block is page aligned).
+     */
+    bisz = (sizeof(struct bootinfo) + 0x0f) & ~0x0f;
+    bi->bi_memmap = ((u_int64_t)bi) + bisz;
+    bi->bi_memmap_size = EFI_PAGE_SIZE * pages - bisz;
     status = BS->GetMemoryMap(&bi->bi_memmap_size,
-			      (EFI_MEMORY_DESCRIPTOR *)bi->bi_memmap,
-			      &key,
-			      &bi->bi_memdesc_size,
-			      &bi->bi_memdesc_version);
+		(EFI_MEMORY_DESCRIPTOR *)bi->bi_memmap, &key,
+		&bi->bi_memdesc_size, &bi->bi_memdesc_version);
     if (EFI_ERROR(status)) {
 	printf("bi_load: Can't read memory map\n");
 	return EINVAL;
