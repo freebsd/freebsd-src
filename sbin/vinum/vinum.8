@@ -54,7 +54,10 @@
 .in +1i
 Attach a plex to a volume, or a subdisk to a plex.
 .in
-.\" XXX remove this
+.Cd checkparity Ar plex
+.in +1i
+Check the parity blocks of a RAID-5 plex.
+.in
 .Nm concat
 .Op Fl f
 .Op Fl n Ar name
@@ -70,7 +73,6 @@ Create a concatenated volume from the specified drives.
 Create a volume as described in
 .Ar description-file
 .in
-.\" XXX remove this
 .Cd debug
 .in +1i
 Cause the volume manager to enter the kernel debugger.
@@ -210,6 +212,10 @@ XXX
 .in +1i
 Replace the object with an identical other object.  XXX not implemented yet.
 ..
+.in
+.Cd rebuildparity Ar plex
+.in +1i
+Rebuild the parity blocks of a RAID-5 plex.
 .in
 .Cd resetconfig
 .in +1i
