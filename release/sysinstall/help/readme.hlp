@@ -24,11 +24,10 @@ What is FreeBSD?  FreeBSD is an operating system based on 4.4 BSD Lite
 for Intel, AMD, Cyrix or NexGen "x86" based PC hardware.  It works
 with a very wide variety of PC peripherals and configurations and can
 be used for everything from software development to Internet Service
-Provision; the busiest site on the Internet, ftp.cdrom.com, is a
-FreeBSD machine!
+Provision.
 
 This release of FreeBSD contains everything you need to run such a
-system, plus full source code for everything.  With the source
+system, including full source code for everything.  With the source
 distribution installed you can literally recompile the entire system
 from scratch with one command, making it ideal for students,
 researchers or folks who simply want to see how it all works.
@@ -38,11 +37,11 @@ collection") is also provided to make it easier for you to obtain and
 install all your favorite traditional UNIX utilities for FreeBSD.
 Over 350 ports, from editors to programming languages to graphical
 applications, make FreeBSD a powerful and comprehensive operating
-environment that rivals that of many large workstations for general
-utility and power.
+environment that extends far beyond what's provided by many commercial
+versions of UNIX.
 
 
-For more documentation on this system, it is recommended that you
+For more documentation on this system it is recommended that you
 purchase the 4.4BSD Document Set from O'Reilly Associates and the
 USENIX Association, ISBN 1-56592-082-1.  We have no connection with
 O'Reilly, we're just satisfied customers!
@@ -50,10 +49,12 @@ O'Reilly, we're just satisfied customers!
 If you're new to FreeBSD then you should also read EVERYTHING listed
 in the Documentation menu on the boot floppy.  It may seem like a lot
 to read, but you should at least aquaint yourself with the types of
-information available there should you later get stuck.  Once the
-system is installed, you can also revisit this menu and use a WEB
-browser to read the now-installed (or network) FAQ (Frequently Asked
-Questions) and Handbook HTML documentation sets for FreeBSD.
+information available should you later get stuck.  Once the system is
+installed, you can also revisit this menu and use a WEB browser to
+read the installed FAQ (Frequently Asked Questions) and Handbook HTML
+documentation sets for FreeBSD.  You can also use the browser to visit
+other WEB sites on the net (such as http://www.freebsd.org) if you
+have an Internet connection.
 
 
 DISCLAIMER: While FreeBSD does its best to safeguard against accidental
@@ -102,16 +103,18 @@ type:
 	# make all install
 
 If you have the Ports collection installed (see the Configuration menu
-item).
+or enable the Ports collection when given the chance to do so during
+the Novice installation).
+
 
 Several other non-commercial browsers are also available in
 /usr/ports/net and may be compiled and installed in the same fashion.
-Many are also available as pre-compiled packages, see the Packages
+Many are also available as pre-compiled packages - see the Packages
 entry in the Configuration menu for more details.
 
 The Handbook and FAQ are also available as on-line documents in
-/usr/share/doc and can be read with the ``file:/usr/share/doc'' syntax
-in any HTML capable browser (see the release notes for examples).
+/usr/share/doc and can be read using the ``file:/usr/share/doc''
+syntax in any HTML capable browser.
 
 We sincerely hope you enjoy this release of FreeBSD!
 

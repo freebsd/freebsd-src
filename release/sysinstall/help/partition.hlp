@@ -5,7 +5,7 @@ you probably shouldn't (C)reate anything at all but rather use only
 the (M)ount command to check and mount existing partitions for
 upgrading.
 
-If you would like the label editor to do most of the following *for*
+If you would like the label editor to do most of the following for
 you, simply type `A' for automatic partitioning of the disk.
 
 If you wish to create partitions manually you may do so by moving the

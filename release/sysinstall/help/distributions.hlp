@@ -1,5 +1,5 @@
 An ``X-'' prefixed before a distribution set means that the XFree86
-3.1.2 base distribution, libraries, manual pages, SVGA server and a
+3.1.2-S base distribution, libraries, manual pages, SVGA server and a
 set of default fonts will be selected in addition to the set itself.
 
 If you select such a set, you will also be presented with a set of
@@ -26,7 +26,9 @@ Everything:     The base distribution, man pages, dictionary files,
                 profiling libraries, the FreeBSD 1.x and the FreeBSD 2.0
                 compatibility libraries, the complete source tree,
                 games and your choice of XFree86 distribution components.
-                N.B. Still no cryptocraphy source code!
+                Note that the cryptocraphy source code is NOT included
+                in this collection.  You will need to select that by
+                hand if you're inside the United States.
 
 Custom:         Allows you to modify or create your distribution set on
                 a piece-by-piece basis.
@@ -58,15 +60,16 @@ obvious, though two possible exceptions may be the "commerce" and
 
 
 You may also notice that certain distributions, like "des" and "krb",
-are marked "NOT FOR EXPORT!"  This is because it's illegal to
-export them from the United States (or any other country which
-considers encryption technology to be on its restricted export
-list).  Since breaking this law only gets the _originating_ site
-(US!) in trouble, please do not load these distributions from U.S.
-servers!
+are marked "NOT FOR EXPORT!"  This is because it's illegal to export
+them from the United States (or any other country which considers
+encryption technology to be on its restricted export list).  Since
+breaking this law only gets the _originating_ site (US!) in trouble,
+please do not load these distributions from U.S. servers!  We don't
+like these restrictions any more than you do, but can't do much about
+it (write your U.S. congressperson!).
 
 A number of "foreign" servers do exist for the benefit of
-non-U.S. sites, one of which is:
+non-U.S. sites, the official site being:
 
         ftp://ftp.internat.freebsd.org/pub/FreeBSD
 

@@ -10,16 +10,16 @@ for Intel i386/i486/Pentium (or compatible) based PC's.  It is based
 primarily on software from U.C. Berkeley's CSRG group, with some
 enhancements from NetBSD, 386BSD, and the Free Software Foundation.
 
-Since our release of FreeBSD 2.0 one year ago, the performance,
-feature set, and stability of FreeBSD has improved dramatically.  The
+Since our release of FreeBSD 2.0 over a year ago, the performance,
+feature set and stability of FreeBSD has improved dramatically.  The
 largest change is a revamped VM system with a merged VM/file buffer
-cache that not only increases performance, but reduces FreeBSD's
-memory footprint, making a 5MB configuration a more acceptable
-minimum.  Other enhancements include full NIS client and server
-support, transaction TCP support, dial-on-demand PPP, an improved SCSI
+cache that not only increases performance but reduces FreeBSD's memory
+footprint, making a 5MB configuration a more acceptable minimum.
+Other enhancements include full NIS client and server support,
+transaction TCP support, dial-on-demand PPP, an improved SCSI
 subsystem, early ISDN support, support for FDDI and Fast Ethernet
 (100Mbit) adapters, improved support for the Adaptec 2940 (WIDE and
-narrow) and many hundreds of bug fixes.
+narrow) and 3940 SCSI adaptors along with many hundreds of bug fixes.
 
 We've also taken the comments and suggestions of many of our users to
 heart and have attempted to provide what we hope is a more sane and
@@ -27,25 +27,26 @@ easily understood installation process.  Your feedback on this
 (constantly evolving) process is especially welcome!
 
 In addition to the base distributions, FreeBSD offers a new ported
-software collection with some 350 commonly sought-after programs.  The
+software collection with over 350 commonly sought-after programs.  The
 list of ports ranges from http (WWW) servers, to games, languages,
 editors and almost everything in between.  The entire ports collection
 requires only 10MB of storage, all ports being expressed as "deltas"
 to their original sources.  This makes it much easier for us to update
-ports, and greatly reduces the disk space demands made by the older
-1.0 ports collection.  To compile a port, you simply change to the
-directory of the program you wish to install, type make and let the
-system do the rest.  The full original distribution for each port you
-build is retrieved dynamically off of CDROM or a local ftp site, so
-you need only enough disk space to build the ports you want.  (Almost)
-every port is also provided as a pre-compiled "package" which can be
+ports and greatly reduces the disk space demands made by the ports
+collection.  To compile a port, you simply change to the directory of
+the program you wish to install, type make and let the system do the
+rest.  The full original distribution for each port you build is
+retrieved dynamically off of CDROM or a local ftp site, so you need
+only enough disk space to build the ports you want.  (Almost) every
+port is also provided as a pre-compiled "package" which can be
 installed with a simple command (pkg_add) by those who do not wish to
-compile their own ports from source.
+compile their own ports from source.  See the new Packages option in
+the Configuration menu for an expecially convenient interface to this.
 
 
-A number of additional documents which you may find very helpful in
-the process of installing and using FreeBSD may now also be found in
-the /usr/share/doc directory.  You may view the manuals with any HTML
+A number of additional documents which you may find helpful in the
+process of installing and using FreeBSD may now also be found in the
+/usr/share/doc directory.  You may view the manuals with any HTML
 capable browser by saying:
 
   To read the handbook:
@@ -61,11 +62,11 @@ The core of FreeBSD does not contain DES code which would inhibit its
 being exported outside the United States.  There is an add-on package
 to the core distribution, for use only in the United States, that
 contains the programs that normally use DES.  The auxiliary packages
-provided separately can be used by anyone.   A freely (from outside the
-U.S.) exportable European distribution of DES for our non-U.S. users also
-exists and is described in the FreeBSD FAQ.
+provided separately can be used by anyone.  A freely (from outside the
+U.S.) exportable distribution of DES for our non-U.S. users also
+exists at ftp://ftp.internat.freebsd.org/pub/FreeBSD.
 
-If password security for FreeBSD is all you need, and you have no
+If password security for FreeBSD is all you need and you have no
 requirement for copying encrypted passwords from different hosts
 (Suns, DEC machines, etc) into FreeBSD password entries, then
 FreeBSD's MD5 based security may be all you require!  We feel that our
@@ -83,9 +84,9 @@ based PC's, ranging from 386sx to Pentium class machines (though the
 configurations, various SCSI controller, network and serial cards is
 also provided.
 
-What follows is a list of all disk controllers and ethernet cards currently
-known to work with FreeBSD.  Other configurations may also work, and
-we have simply not received any indication of this.
+What follows is a list of all disk controllers and ethernet cards
+currently known to work with FreeBSD.  Other configurations may also
+work, but we have simply not received any confirmation of this.
 
 
 2.1. Disk Controllers
@@ -105,12 +106,13 @@ Adaptec AIC-6260 and AIC-6360 based boards, which includes
 the AHA-152x and SoundBlaster SCSI cards.
 
 ** Note: You cannot boot from the SoundBlaster cards as they have no
-   on-board BIOS, which is necessary for mapping the boot device into the
+   on-board BIOS, such being necessary for mapping the boot device into the
    system BIOS I/O vectors.  They're perfectly usable for external tapes,
    CDROMs, etc, however.  The same goes for any other AIC-6x60 based card
    without a boot ROM.  Some systems DO have a boot ROM, which is generally
    indicated by some sort of message when the system is first powered up
-   or reset.  Check your system/board documentation for more details.
+   or reset, and in such cases you *will* also be able to boot from them.
+   Check your system/board documentation for more details.
 
 [Note that Buslogic was formerly known as "Bustec"]
 Buslogic 545S & 545c
@@ -184,6 +186,10 @@ Toshiba ethernet cards
 PCMCIA ethernet cards from IBM and National Semiconductor are also
 supported.
 
+Note that NO token ring cards are supported at this time as we're
+still waiting for someone to donate a driver for one of them.  Any
+takers?
+
 
 2.3. Misc
 ---------
@@ -203,9 +209,8 @@ SDL Communications Riscom/8 Serial Board.
 Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards.
 
-FreeBSD currently does NOT support IBM's microchannel (MCA) bus, but
-support is apparently close to materializing.  Details will be posted
-as the situation develops.
+FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
+
 
 
 3. Obtaining FreeBSD
@@ -219,16 +224,18 @@ You can ftp FreeBSD and any or all of its optional packages from
 `ftp.freebsd.org' - the official FreeBSD release site.
 
 For other locations that mirror the FreeBSD software see the file
-MIRROR.SITES.  Please ftp the distribution from the nearest site
-to you netwise.
+MIRROR.SITES.  Please ftp the distribution from the site closest (in
+networking terms) to you.  Additional mirror sites are always welcome!
+Contact admin@freebsd.org for more details if you'd like to become an
+official mirror site.
 
 If you do not have access to the internet and electronic mail is your
 only recourse, then you may still fetch the files by sending mail to
 `ftpmail@decwrl.dec.com' - putting the keyword "help" in your message
-to get more information on how to fetch files from ftp.freebsd.org.
-Note: This approach will end up sending many *tens of megabytes*
-through the mail, and should only be employed as an absolute LAST
-resort!
+to get more information on how to fetch files using this mechanism.
+Please do note, however, that this will end up sending many *tens of
+megabytes* through the mail and should only be employed as an absolute
+LAST resort!
 
 
 2. CDROM
@@ -244,19 +251,21 @@ Or via the internet from orders@cdrom.com or http://www.cdrom.com.
 Their current catalog can be obtained via ftp as:
         ftp://ftp.cdrom.com/cdrom/catalog.
 
-Cost per CD is $39.95, or $24.95 with a FreeBSD subscription.  With
-a subscription, you will automatically receive updates as they
-are released.  Your credit card will be billed when each disk is shipped 
-and you may cancel your subscription at any time without further obligation.
+Cost per CD is $39.95 or $24.95 with a FreeBSD subscription.  With a
+subscription, you will automatically receive updates as they are
+released.  Your credit card will be billed when each disk is shipped
+and you may cancel your subscription at any time without further
+obligation.
 
-Walnut Creek CDROM also sells a full line of FreeBSD related merchandise such
-as T-shirts ($14.95, available in "child", Large and XL sizes), coffee mugs
-($9.95), tattoos ($0.25 each) and posters ($3.00).
+Walnut Creek CDROM also sells a full line of FreeBSD related
+merchandise such as T-shirts ($14.95, available in "child", Large and
+XL sizes), coffee mugs ($9.95), tattoos ($0.25 each) and posters
+($3.00).
 
-Shipping (per order not per disc) is $5 in the US, Canada or
-Mexico and $9.00 overseas.  They accept Visa, Mastercard, Discover,
-American Express or checks in U.S. Dollars and ship COD within the
-United States.  California residents please add 8.25% sales tax.
+Shipping (per order not per disc) is $5 in the US, Canada or Mexico
+and $9.00 overseas.  They accept Visa, Mastercard, Discover, American
+Express or checks in U.S. Dollars and ship COD within the United
+States.  California residents please add 8.25% sales tax.
 
 Should you be dissatisfied for any reason, the CD comes with an
 unconditional return policy.
@@ -267,13 +276,16 @@ Reporting problems, making suggestions, submitting code
 
 Your suggestions, bug reports and contributions of code are always
 valued - please do not hesitate to report any problems you may find
-(preferably with a fix attached if you can!).
+(preferably with a fix attached, if you can!).
 
 The preferred method to submit bug reports from a machine with
 internet mail connectivity is to use the send-pr command.  Bug reports
 will be dutifully filed by our faithful bugfiler program and you can
 be sure that we'll do our best to respond to all reported bugs as soon
-as possible.
+as possible.  Bugs filed in this way are also visible on our WEB site
+in the support section and are therefore valuable both as bug reports
+and as "signposts" for other users concerning potential problems to
+watch out for.
 
 If, for some reason, you are unable to use the send-pr command to
 submit a bug report, you can try to send it to:
@@ -287,17 +299,18 @@ Otherwise, for any questions or suggestions, please send mail to:
 
 
 Additionally, being a volunteer effort, we are always happy to have
-extra hands willing to help - there are already far more enhancements
-to be done than we can ever manage to do by ourselves!  To contact us
-on technical matters, or with offers of help, you may send mail to:
+extra hands willing to help - there are already far more desired
+enhancements than we'll ever be able to manage by ourselves!  To
+contact us on technical matters, or with offers of help, please send
+mail to:
 
                 hackers@FreeBSD.org
 
 
-Since these mailing lists can experience significant amounts of
-traffic, if you have slow or expensive mail access and you are
-only interested in keeping up with significant FreeBSD events, you may
-find it preferable to subscribe to:
+Please note that these mailing lists can experience *significant*
+amounts of traffic and if you have slow or expensive mail access and
+are only interested in keeping up with significant FreeBSD events, you
+may find it preferable to subscribe instead to:
 
                 announce@FreeBSD.org
 
@@ -318,9 +331,11 @@ FreeBSD represents the cumulative work of many dozens, if not
 hundreds, of individuals from around the world who have worked very
 hard to bring you this release.  It would be very difficult, if not
 impossible, to enumerate everyone who's contributed to FreeBSD, but
-nonetheless we shall try (in alphabetical order, of course). If your
-name is not mentioned, please be assured that its omission is entirely
-accidental.
+nonetheless we shall try (in alphabetical order, of course). If you've
+contributed something substantive to us and your name is not mentioned
+here, please be assured that its omission is entirely accidental.
+Please contact hackers@FreeBSD.org for any desired updates to the
+lists that follow:
 
 
 The Computer Systems Research Group (CSRG), U.C. Berkeley.
@@ -361,16 +376,17 @@ Special mention to:
         Kaleb S. Keithley           Michael Smith
         Nate Williams               Peter Dufault              
         Peter Wemm                  Rod Grimes                 
-        Scott Mace                  Sean Eric Fagan
-        Stefan Esser                Steven Wallace             
-        Terry Lambert               Wolfram Schneider          
+        Scott Mace                  Stefan Esser
+        Steven Wallace              Terry Lambert
+        Wolfram Schneider          
 
         And everyone at Montana State University for their initial support.
 
+And to the many thousands of FreeBSD users and testers all over the
+world without whom this release simply would not have been possible.
 
-Thanks also to everyone else who helped, especially those not
-mentioned, and we sincerely hope you enjoy this release of FreeBSD!
+We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.5 1995/10/30 15:44:32 jfieber Exp $
+$Id: relnotes.hlp,v 1.1.2.6 1995/11/03 12:03:14 jkh Exp $
