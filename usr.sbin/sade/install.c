@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.55 1995/05/25 18:48:25 jkh Exp $
+ * $Id: install.c,v 1.56 1995/05/26 08:41:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -211,6 +211,7 @@ installInitial(void)
 	exit(1);
     }
     root_extract();
+    vsystem("(cd /stand; find etc) | cpio -pdmv /");
     alreadyDone = TRUE;
     return TRUE;
 }
