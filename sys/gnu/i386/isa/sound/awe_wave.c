@@ -74,11 +74,11 @@
 
 static int debug_mode = 0;
 #ifdef AWE_DEBUG_ON
-#define DEBUG(LVL,XXX)	{if (debug_mode > LVL) { XXX; }}
+#define AWE_DEBUG(LVL,XXX)	{if (debug_mode > LVL) { XXX; }}
 #define ERRMSG(XXX)	{if (debug_mode) { XXX; }}
 #define FATALERR(XXX)	XXX
 #else
-#define DEBUG(LVL,XXX) /**/
+#define AWE_DEBUG(LVL,XXX) /**/
 #define ERRMSG(XXX)	XXX
 #define FATALERR(XXX)	XXX
 #endif
@@ -806,7 +806,7 @@ awe_release_region(void)
 static void
 awe_initialize(void)
 {
-	DEBUG(0,printk("AWE32: initializing..\n"));
+	AWE_DEBUG(0,printk("AWE32: initializing..\n"));
 
 	/* initialize hardware configuration */
 	awe_poke(AWE_HWCF1, 0x0059);
@@ -1300,7 +1300,7 @@ awe_note_on(int voice)
 	temp = FX_BYTE(fx, fx_lay, AWE_FX_CHORUS, vp->parm.chorus);
 	temp = (temp <<24) | (unsigned int)addr;
 	awe_poke_dw(AWE_CSL(voice), temp);
-	DEBUG(4,printk("AWE32: [-- loopend=%x/%x]\n", vp->loopend, addr));
+	AWE_DEBUG(4,printk("AWE32: [-- loopend=%x/%x]\n", vp->loopend, addr));
 
 	/* Q & current address (Q 4bit value, MSB) */
 	addr = vp->start - 1;
@@ -1309,7 +1309,7 @@ awe_note_on(int voice)
 	temp = FX_BYTE(fx, fx_lay, AWE_FX_FILTERQ, vp->parm.filterQ);
 	temp = (temp<<28) | (unsigned int)addr;
 	awe_poke_dw(AWE_CCCA(voice), temp);
-	DEBUG(4,printk("AWE32: [-- startaddr=%x/%x]\n", vp->start, addr));
+	AWE_DEBUG(4,printk("AWE32: [-- startaddr=%x/%x]\n", vp->start, addr));
 
 	/* reset volume */
 	awe_poke_dw(AWE_VTFT(voice), 0x0000FFFF);
@@ -1385,7 +1385,7 @@ awe_exclusive_off(int voice)
 		if (i != voice && IS_PLAYING(i) &&
 		    voices[i].sample && voices[i].ch == voices[voice].ch &&
 		    voices[i].sample->exclusiveClass == exclass) {
-			DEBUG(4,printk("AWE32: [exoff(%d)]\n", i));
+			AWE_DEBUG(4,printk("AWE32: [exoff(%d)]\n", i));
 			awe_terminate(i);
 			awe_voice_init(i, TRUE);
 		}
@@ -1403,7 +1403,7 @@ awe_set_pitch(int voice, int forced)
 {
 	if (IS_NO_EFFECT(voice) && !forced) return;
 	awe_poke(AWE_IP(voice), voices[voice].apitch);
-	DEBUG(3,printk("AWE32: [-- pitch=%x]\n", voices[voice].apitch));
+	AWE_DEBUG(3,printk("AWE32: [-- pitch=%x]\n", voices[voice].apitch));
 }
 
 /* calculate & change pitch */
@@ -1486,7 +1486,7 @@ awe_set_pan(int voice, int forced)
 		temp = (temp<<24) | (unsigned int)addr;
 		awe_poke_dw(AWE_PSST(voice), temp);
 		voices[voice].apan = temp;
-		DEBUG(4,printk("AWE32: [-- loopstart=%x/%x]\n", vp->loopstart, addr));
+		AWE_DEBUG(4,printk("AWE32: [-- loopstart=%x/%x]\n", vp->loopstart, addr));
 	}
 }
 
@@ -1584,26 +1584,26 @@ awe_calc_pitch(int voice)
 	if ((ap = vp->sample) == NULL)
 			return;
 	if (ap->index < 0) {
-		DEBUG(3,printk("AWE32: set sample (%d)\n", ap->sample));
+		AWE_DEBUG(3,printk("AWE32: set sample (%d)\n", ap->sample));
 		if (awe_set_sample(ap) < 0)
 			return;
 	}
 
 	/* calculate offset */
 	if (ap->fixkey >= 0) {
-		DEBUG(3,printk("AWE32: p-> fixkey(%d) tune(%d)\n", ap->fixkey, ap->tune));
+		AWE_DEBUG(3,printk("AWE32: p-> fixkey(%d) tune(%d)\n", ap->fixkey, ap->tune));
 		offset = (ap->fixkey - ap->root) * 4096 / 12;
 	} else {
-		DEBUG(3,printk("AWE32: p(%d)-> root(%d) tune(%d)\n", vp->note, ap->root, ap->tune));
+		AWE_DEBUG(3,printk("AWE32: p(%d)-> root(%d) tune(%d)\n", vp->note, ap->root, ap->tune));
 		offset = (vp->note - ap->root) * 4096 / 12;
-		DEBUG(4,printk("AWE32: p-> ofs=%d\n", offset));
+		AWE_DEBUG(4,printk("AWE32: p-> ofs=%d\n", offset));
 	}
 	offset = (offset * ap->scaleTuning) / 100;
-	DEBUG(4,printk("AWE32: p-> scale* ofs=%d\n", offset));
+	AWE_DEBUG(4,printk("AWE32: p-> scale* ofs=%d\n", offset));
 	offset += ap->tune * 4096 / 1200;
-	DEBUG(4,printk("AWE32: p-> tune+ ofs=%d\n", offset));
+	AWE_DEBUG(4,printk("AWE32: p-> tune+ ofs=%d\n", offset));
 	if (cp->bender != 0) {
-		DEBUG(3,printk("AWE32: p-> bend(%d) %d\n", voice, cp->bender));
+		AWE_DEBUG(3,printk("AWE32: p-> bend(%d) %d\n", voice, cp->bender));
 		/* (819200: 1 semitone) ==> (4096: 12 semitones) */
 		offset += cp->bender * cp->bender_range / 2400;
 	}
@@ -1616,7 +1616,7 @@ awe_calc_pitch(int voice)
 
 	/* 0xe000: root pitch */
 	vp->apitch = 0xe000 + ap->rate_offset + offset;
-	DEBUG(4,printk("AWE32: p-> sum aofs=%x, rate_ofs=%d\n", vp->apitch, ap->rate_offset));
+	AWE_DEBUG(4,printk("AWE32: p-> sum aofs=%x, rate_ofs=%d\n", vp->apitch, ap->rate_offset));
 	if (vp->apitch > 0xffff)
 		vp->apitch = 0xffff;
 	if (vp->apitch < 0)
@@ -1643,7 +1643,7 @@ awe_calc_pitch_from_freq(int voice, int freq)
 	if ((ap = vp->sample) == NULL)
 		return;
 	if (ap->index < 0) {
-		DEBUG(3,printk("AWE32: set sample (%d)\n", ap->sample));
+		AWE_DEBUG(3,printk("AWE32: set sample (%d)\n", ap->sample));
 		if (awe_set_sample(ap) < 0)
 			return;
 	}
@@ -1696,7 +1696,7 @@ awe_calc_volume(int voice)
 
 	ap = vp->sample;
 	if (ap->index < 0) {
-		DEBUG(3,printk("AWE32: set sample (%d)\n", ap->sample));
+		AWE_DEBUG(3,printk("AWE32: set sample (%d)\n", ap->sample));
 		if (awe_set_sample(ap) < 0)
 			return;
 	}
@@ -1714,7 +1714,7 @@ awe_calc_volume(int voice)
 	if (vol > 255) vol = 255;
 
 	vp->avol = vol;
-	DEBUG(3,printk("AWE32: [-- voice(%d) vol=%x]\n", voice, vol));
+	AWE_DEBUG(3,printk("AWE32: [-- voice(%d) vol=%x]\n", voice, vol));
 }
 
 
@@ -1985,7 +1985,7 @@ awe_kill_note(int dev, int voice, int note, int velocity)
 {
 	int i, v2, key;
 
-	DEBUG(2,printk("AWE32: [off(%d) nt=%d vl=%d]\n", voice, note, velocity));
+	AWE_DEBUG(2,printk("AWE32: [off(%d) nt=%d vl=%d]\n", voice, note, velocity));
 	if (! voice_in_range(voice))
 		return RET_ERROR(EINVAL);
 
@@ -2044,7 +2044,7 @@ awe_start_note(int dev, int voice, int note, int velocity)
 {
 	int i, key, state, volonly;
 
-	DEBUG(2,printk("AWE32: [on(%d) nt=%d vl=%d]\n", voice, note, velocity));
+	AWE_DEBUG(2,printk("AWE32: [on(%d) nt=%d vl=%d]\n", voice, note, velocity));
 	if (! voice_in_range(voice))
 		return RET_ERROR(EINVAL);
 	    
@@ -2171,7 +2171,7 @@ awe_set_instr(int dev, int voice, int instr_no)
 		cinfo->def_vrec = awe_search_instr(misc_modes[AWE_MD_DEF_BANK], instr_no);
 
 	if (cinfo->vrec < 0 && cinfo->def_vrec < 0) {
-		DEBUG(1,printk("AWE32 Warning: can't find instrument %d\n", instr_no));
+		AWE_DEBUG(1,printk("AWE32 Warning: can't find instrument %d\n", instr_no));
 	}
 
 	cinfo->instr = instr_no;
@@ -2346,7 +2346,7 @@ awe_hw_awe_control(int dev, int cmd, unsigned char *event)
 		break;
 		      
 	case _AWE_REMOVE_LAST_SAMPLES:
-		DEBUG(0,printk("AWE32: remove last samples\n"));
+		AWE_DEBUG(0,printk("AWE32: remove last samples\n"));
 		if (locked_sf_id > 0)
 			awe_remove_samples(locked_sf_id);
 		break;
@@ -2368,7 +2368,7 @@ awe_hw_awe_control(int dev, int cmd, unsigned char *event)
 		if (p1 & 0x80) i = FX_FLAG_ADD;
 		p1 &= 0x3f;
 		if (p1 < AWE_FX_END) {
-			DEBUG(0,printk("AWE32: effects (%d) %d %d\n", voice, p1, p2));
+			AWE_DEBUG(0,printk("AWE32: effects (%d) %d %d\n", voice, p1, p2));
 			if (i == FX_FLAG_SET)
 				FX_SET(fx, p1, p2);
 			else if (i == FX_FLAG_ADD)
@@ -2376,7 +2376,7 @@ awe_hw_awe_control(int dev, int cmd, unsigned char *event)
 			else
 				FX_UNSET(fx, p1);
 			if (i != FX_FLAG_OFF && parm_defs[p1].realtime) {
-				DEBUG(0,printk("AWE32: fx_realtime (%d)\n", voice));
+				AWE_DEBUG(0,printk("AWE32: fx_realtime (%d)\n", voice));
 				awe_voice_change(voice, parm_defs[p1].realtime);
 			}
 		}
@@ -2402,7 +2402,7 @@ awe_hw_awe_control(int dev, int cmd, unsigned char *event)
 		break;
 
 	case _AWE_INITIAL_VOLUME:
-		DEBUG(0,printk("AWE32: init attenuation %d\n", p1));
+		AWE_DEBUG(0,printk("AWE32: init attenuation %d\n", p1));
 		if (p2 == 0) /* absolute value */
 			init_atten = (short)p1;
 		else /* relative value */
@@ -2422,18 +2422,18 @@ awe_hw_awe_control(int dev, int cmd, unsigned char *event)
 		break;
 
 	case _AWE_CHANNEL_MODE:
-		DEBUG(0,printk("AWE32: channel mode = %d\n", p1));
+		AWE_DEBUG(0,printk("AWE32: channel mode = %d\n", p1));
 		playing_mode = p1;
 		awe_reset(0);
 		break;
 
 	case _AWE_DRUM_CHANNELS:
-		DEBUG(0,printk("AWE32: drum flags = %x\n", p1));
+		AWE_DEBUG(0,printk("AWE32: drum flags = %x\n", p1));
 		drum_flags = *(unsigned int*)&event[4];
 		break;
 
 	case _AWE_MISC_MODE:
-		DEBUG(0,printk("AWE32: misc mode = %d %d\n", p1, p2));
+		AWE_DEBUG(0,printk("AWE32: misc mode = %d %d\n", p1, p2));
 		if (p1 > AWE_MD_VERSION && p1 < AWE_MD_END)
 			misc_modes[p1] = p2;
 		break;
@@ -2443,7 +2443,7 @@ awe_hw_awe_control(int dev, int cmd, unsigned char *event)
 		break;
 
 	default:
-		DEBUG(0,printk("AWE32: hw control cmd=%d voice=%d\n", cmd, voice));
+		AWE_DEBUG(0,printk("AWE32: hw control cmd=%d voice=%d\n", cmd, voice));
 		break;
 	}
 }
@@ -2455,7 +2455,7 @@ awe_aftertouch(int dev, int voice, int pressure)
 {
 	int note;
 
-	DEBUG(2,printk("AWE32: [after(%d) %d]\n", voice, pressure));
+	AWE_DEBUG(2,printk("AWE32: [after(%d) %d]\n", voice, pressure));
 	if (! voice_in_range(voice))
 		return;
 
@@ -2492,7 +2492,7 @@ awe_controller(int dev, int voice, int ctrl_num, int value)
 
 	switch (ctrl_num) {
 	case CTL_BANK_SELECT: /* MIDI control #0 */
-		DEBUG(2,printk("AWE32: [bank(%d) %d]\n", voice, value));
+		AWE_DEBUG(2,printk("AWE32: [bank(%d) %d]\n", voice, value));
 		if (MULTI_LAYER_MODE() && IS_DRUM_CHANNEL(voice) &&
 		    !misc_modes[AWE_MD_TOGGLE_DRUM_BANK])
 			break;
@@ -2505,7 +2505,7 @@ awe_controller(int dev, int voice, int ctrl_num, int value)
 		break;
 
 	case CTL_MODWHEEL: /* MIDI control #1 */
-		DEBUG(2,printk("AWE32: [modwheel(%d) %d]\n", voice, value));
+		AWE_DEBUG(2,printk("AWE32: [modwheel(%d) %d]\n", voice, value));
 		i = value * misc_modes[AWE_MD_MOD_SENSE] / 1200;
 		FX_ADD(&cinfo->fx, AWE_FX_LFO1_PITCH, i);
 		awe_voice_change(voice, awe_fx_fmmod);
@@ -2514,14 +2514,14 @@ awe_controller(int dev, int voice, int ctrl_num, int value)
 		break;
 
 	case CTRL_PITCH_BENDER: /* SEQ1 V2 contorl */
-		DEBUG(2,printk("AWE32: [bend(%d) %d]\n", voice, value));
+		AWE_DEBUG(2,printk("AWE32: [bend(%d) %d]\n", voice, value));
 		/* zero centered */
 		cinfo->bender = value;
 		awe_voice_change(voice, awe_set_voice_pitch);
 		break;
 
 	case CTRL_PITCH_BENDER_RANGE: /* SEQ1 V2 control */
-		DEBUG(2,printk("AWE32: [range(%d) %d]\n", voice, value));
+		AWE_DEBUG(2,printk("AWE32: [range(%d) %d]\n", voice, value));
 		/* value = sense x 100 */
 		cinfo->bender_range = value;
 		/* no audible pitch change yet.. */
@@ -2531,14 +2531,14 @@ awe_controller(int dev, int voice, int ctrl_num, int value)
 		if (SINGLE_LAYER_MODE())
 			value /= 128;
 	case CTRL_EXPRESSION: /* SEQ1 V2 control */
-		DEBUG(2,printk("AWE32: [expr(%d) %d]\n", voice, value));
+		AWE_DEBUG(2,printk("AWE32: [expr(%d) %d]\n", voice, value));
 		/* 0 - 127 */
 		cinfo->expression_vol = value;
 		awe_voice_change(voice, awe_set_voice_vol);
 		break;
 
 	case CTL_PAN:	/* MIDI control #10 */
-		DEBUG(2,printk("AWE32: [pan(%d) %d]\n", voice, value));
+		AWE_DEBUG(2,printk("AWE32: [pan(%d) %d]\n", voice, value));
 		/* (0-127) -> signed 8bit */
 		cinfo->panning = value * 2 - 128;
 		if (misc_modes[AWE_MD_REALTIME_PAN])
@@ -2549,19 +2549,19 @@ awe_controller(int dev, int voice, int ctrl_num, int value)
 		if (SINGLE_LAYER_MODE())
 			value = (value * 100) / 16383;
 	case CTRL_MAIN_VOLUME:	/* SEQ1 V2 control */
-		DEBUG(2,printk("AWE32: [mainvol(%d) %d]\n", voice, value));
+		AWE_DEBUG(2,printk("AWE32: [mainvol(%d) %d]\n", voice, value));
 		/* 0 - 127 */
 		cinfo->main_vol = value;
 		awe_voice_change(voice, awe_set_voice_vol);
 		break;
 
 	case CTL_EXT_EFF_DEPTH: /* reverb effects: 0-127 */
-		DEBUG(2,printk("AWE32: [reverb(%d) %d]\n", voice, value));
+		AWE_DEBUG(2,printk("AWE32: [reverb(%d) %d]\n", voice, value));
 		FX_SET(&cinfo->fx, AWE_FX_REVERB, value * 2);
 		break;
 
 	case CTL_CHORUS_DEPTH: /* chorus effects: 0-127 */
-		DEBUG(2,printk("AWE32: [chorus(%d) %d]\n", voice, value));
+		AWE_DEBUG(2,printk("AWE32: [chorus(%d) %d]\n", voice, value));
 		FX_SET(&cinfo->fx, AWE_FX_CHORUS, value * 2);
 		break;
 
@@ -2588,7 +2588,7 @@ awe_controller(int dev, int voice, int ctrl_num, int value)
 		break;
 
 	default:
-		DEBUG(0,printk("AWE32: [control(%d) ctrl=%d val=%d]\n",
+		AWE_DEBUG(0,printk("AWE32: [control(%d) ctrl=%d val=%d]\n",
 			   voice, ctrl_num, value));
 		break;
 	}
@@ -2612,7 +2612,7 @@ awe_panning(int dev, int voice, int value)
 
 	cinfo = &channels[voice];
 	cinfo->panning = value;
-	DEBUG(2,printk("AWE32: [pan(%d) %d]\n", voice, cinfo->panning));
+	AWE_DEBUG(2,printk("AWE32: [pan(%d) %d]\n", voice, cinfo->panning));
 	if (misc_modes[AWE_MD_REALTIME_PAN])
 		awe_voice_change(voice, awe_set_pan);
 }
@@ -2623,7 +2623,7 @@ static void
 awe_volume_method(int dev, int mode)
 {
 	/* not impremented */
-	DEBUG(0,printk("AWE32: [volmethod mode=%d]\n", mode));
+	AWE_DEBUG(0,printk("AWE32: [volmethod mode=%d]\n", mode));
 }
 
 
@@ -2656,7 +2656,7 @@ awe_bender(int dev, int voice, int value)
 	/* convert to zero centered value */
 	cinfo = &channels[voice];
 	cinfo->bender = value - 8192;
-	DEBUG(2,printk("AWE32: [bend(%d) %d]\n", voice, cinfo->bender));
+	AWE_DEBUG(2,printk("AWE32: [bend(%d) %d]\n", voice, cinfo->bender));
 	awe_voice_change(voice, awe_set_voice_pitch);
 }
 
@@ -3341,7 +3341,7 @@ awe_load_guspatch(const char *addr, int offs, int size, int pmgr_flag)
 	if (patch.mode & WAVE_LOOP_BACK)
 		smp->mode_flags |= AWE_SAMPLE_REVERSE_LOOP;
 
-	DEBUG(0,printk("AWE32: [sample %d mode %x]\n", patch.instr_no, smp->mode_flags));
+	AWE_DEBUG(0,printk("AWE32: [sample %d mode %x]\n", patch.instr_no, smp->mode_flags));
 	if (patch.mode & WAVE_16_BITS) {
 		/* convert to word offsets */
 		smp->size /= 2;
@@ -3369,7 +3369,7 @@ awe_load_guspatch(const char *addr, int offs, int size, int pmgr_flag)
 	rec->tune = -(note % 100);
 	rec->low = freq_to_note(patch.low_note) / 100;
 	rec->high = freq_to_note(patch.high_note) / 100;
-	DEBUG(1,printk("AWE32: [gus base offset=%d, note=%d, range=%d-%d(%lu-%lu)]\n",
+	AWE_DEBUG(1,printk("AWE32: [gus base offset=%d, note=%d, range=%d-%d(%lu-%lu)]\n",
 		       rec->rate_offset, note,
 		       rec->low, rec->high,
 	      patch.low_note, patch.high_note));
@@ -3402,7 +3402,7 @@ awe_load_guspatch(const char *addr, int offs, int size, int pmgr_flag)
 		rec->parm.voldcysus = (calc_gus_sustain(patch.env_offset[2]) << 8) |
 			calc_parm_decay(decay);
 		rec->parm.volrelease = 0x8000 | calc_parm_decay(release);
-		DEBUG(2,printk("AWE32: [gusenv atk=%d, hld=%d, dcy=%d, rel=%d]\n", attack, hold, decay, release));
+		AWE_DEBUG(2,printk("AWE32: [gusenv atk=%d, hld=%d, dcy=%d, rel=%d]\n", attack, hold, decay, release));
 		rec->attenuation = calc_gus_attenuation(patch.env_offset[0]);
 	}
 
@@ -3410,7 +3410,7 @@ awe_load_guspatch(const char *addr, int offs, int size, int pmgr_flag)
 	if (patch.mode & WAVE_TREMOLO) {
 		int rate = (patch.tremolo_rate * 1000 / 38) / 42;
 		rec->parm.tremfrq = ((patch.tremolo_depth / 2) << 8) | rate;
-		DEBUG(2,printk("AWE32: [gusenv tremolo rate=%d, dep=%d, tremfrq=%x]\n",
+		AWE_DEBUG(2,printk("AWE32: [gusenv tremolo rate=%d, dep=%d, tremfrq=%x]\n",
 			       patch.tremolo_rate, patch.tremolo_depth,
 			       rec->parm.tremfrq));
 	}
@@ -3418,7 +3418,7 @@ awe_load_guspatch(const char *addr, int offs, int size, int pmgr_flag)
 	if (patch.mode & WAVE_VIBRATO) {
 		int rate = (patch.vibrato_rate * 1000 / 38) / 42;
 		rec->parm.fm2frq2 = ((patch.vibrato_depth / 6) << 8) | rate;
-		DEBUG(2,printk("AWE32: [gusenv vibrato rate=%d, dep=%d, tremfrq=%x]\n",
+		AWE_DEBUG(2,printk("AWE32: [gusenv vibrato rate=%d, dep=%d, tremfrq=%x]\n",
 			       patch.tremolo_rate, patch.tremolo_depth,
 			       rec->parm.tremfrq));
 	}
@@ -3806,7 +3806,7 @@ awe_setup_voice(int dev, int voice, int chn)
 	if (voice < 0 || voice >= awe_max_voices)
 		return;
 
-	DEBUG(2,printk("AWE32: [setup(%d) ch=%d]\n", voice, chn));
+	AWE_DEBUG(2,printk("AWE32: [setup(%d) ch=%d]\n", voice, chn));
 	channels[chn].expression_vol = info->controllers[CTL_EXPRESSION];
 	channels[chn].main_vol = info->controllers[CTL_MAIN_VOLUME];
 	channels[chn].panning =
@@ -3841,7 +3841,7 @@ awe_mixer_ioctl(int dev, unsigned int cmd, caddr_t arg)
 
 	level = (int)IOCTL_IN(arg);
 	level = ((level & 0xff) + (level >> 8)) / 2;
-	DEBUG(0,printk("AWEMix: cmd=%x val=%d\n", cmd & 0xff, level));
+	AWE_DEBUG(0,printk("AWEMix: cmd=%x val=%d\n", cmd & 0xff, level));
 
 	if (IO_WRITE_CHECK(cmd)) {
 		switch (cmd & 0xff) {
@@ -4121,7 +4121,7 @@ awe_init_fm(void)
 	if (awe_mem_size <= 0)
 		return;
 #endif
-	DEBUG(3,printk("AWE32: initializing FM\n"));
+	AWE_DEBUG(3,printk("AWE32: initializing FM\n"));
 
 	/* Initialize the last two channels for DRAM refresh and producing
 	   the reverb and chorus effects for Yamaha OPL-3 synthesizer */
@@ -4280,7 +4280,7 @@ awe_detect_base(int addr)
 		return 0;
 	if ((awe_peek(AWE_HWCF2) & 0x0003) != 0x0003)
 		return 0;
-        DEBUG(0,printk("AWE32 found at %x\n", awe_base));
+        AWE_DEBUG(0,printk("AWE32 found at %x\n", awe_base));
 	return 1;
 }
 	
@@ -4292,7 +4292,7 @@ awe_detect(void)
 		for (base = 0x620; base <= 0x680; base += 0x20)
 			if (awe_detect_base(base))
 				return 1;
-		DEBUG(0,printk("AWE32 not found\n"));
+		AWE_DEBUG(0,printk("AWE32 not found\n"));
 		return 0;
 	}
 	return 1;
@@ -4351,7 +4351,7 @@ awe_check_dram(void)
 	}
 	awe_close_dram();
 
-	DEBUG(0,printk("AWE32: %d Kbytes memory detected\n", awe_mem_size));
+	AWE_DEBUG(0,printk("AWE32: %d Kbytes memory detected\n", awe_mem_size));
 
 	/* convert to Kbytes */
 	awe_mem_size *= 1024;
