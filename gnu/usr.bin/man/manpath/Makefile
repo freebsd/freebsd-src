@@ -17,8 +17,4 @@ ${MAN1}: ${.CURDIR}/manpath.man
 	    -e 's,%manpath_config_file%,${manpath_config_file},' \
 	${.CURDIR}/manpath.man > ${MAN1}
 
-afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${.CURDIR}/manpath.config ${DESTDIR}${manpath_config_file}.sample
-
 .include <bsd.prog.mk>
