@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.33 1998/06/07 17:11:35 dfr Exp $
+ * $Id: kern_shutdown.c,v 1.34 1998/07/11 07:45:41 bde Exp $
  */
 
 #include "opt_ddb.h"
@@ -354,8 +354,10 @@ dumpsys(void)
 		return;
 	if (dumpdev == NODEV)
 		return;
+#ifndef SLICE
 	if ((minor(dumpdev)&07) != 1)
 		return;
+#endif /* !SLICE */
 	if (!(bdevsw[major(dumpdev)]))
 		return;
 	if (!(bdevsw[major(dumpdev)]->d_dump))
