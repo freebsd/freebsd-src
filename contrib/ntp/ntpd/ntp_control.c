@@ -403,6 +403,8 @@ static u_char clocktypes[] = {
 	CTL_SST_TS_LF,		/* REFCLK_JJY (40) */
 	CTL_SST_TS_UHF,		/* REFCLK_TT560 (41) */
 	CTL_SST_TS_UHF,		/* REFCLK_ZYFER (42) */
+	CTL_SST_TS_UHF,		/* REFCLK_RIPENCC (43) */
+	CTL_SST_TS_UHF,		/* REFCLK_NEOCLOCK4X (44) */
 };
 
 
