@@ -515,6 +515,7 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 		if (dhcpreplytype != DHCP_ACK)
 			return 0;
 	case DHCP_NOMSG:
+		break;
 	}
 
 	/* Ignore packet unless it gives us a root tag we didn't have */
