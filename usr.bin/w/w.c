@@ -323,7 +323,7 @@ main(argc, argv)
 			}
 			p = hp->h_name;
 		}
-		if (nflag && strcmp(p, "-") && inet_addr(p) == INADDR_NONE) {
+		if (nflag && *p && strcmp(p, "-") && inet_addr(p) == INADDR_NONE) {
 			hp = gethostbyname(p);
 
 			if (hp != NULL) {
