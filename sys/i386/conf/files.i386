@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.220.2.7 1999/05/25 20:19:12 julian Exp $
+#	$Id: files.i386,v 1.220.2.8 1999/05/27 03:06:33 julian Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -33,6 +33,13 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	compile-with	"kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"				\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
+#
+contrib/dev/fla/fla.c		optional	fla
+msysosak.o			optional	fla			\
+	dependency	"$S/contrib/dev/fla/i386/msysosak.o.uu"		\
+	compile-with	"uudecode < $S/contrib/dev/fla/i386/msysosak.o.uu" \
+	no-implicit-rule
+
 #
 dev/fb/fb.c			optional	fb	device-driver
 dev/fb/fb.c			optional	vga	device-driver
