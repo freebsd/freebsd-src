@@ -66,16 +66,6 @@ Permit messages to be displayed.
 If no arguments are given,
 .Nm
 displays the present message status to the standard output.
-.Sh EXAMPLES
-Disallow messages from other users to the current terminal:
-.Pp
-.Dl "mesg n"
-.Pp
-Allow messages from other users to
-.Pa ttyp1
-(assuming you are also logged in on that terminal):
-.Pp
-.Dl "mesg y </dev/ttyp1"
 .Sh EXIT STATUS
 The
 .Nm
@@ -89,6 +79,16 @@ Messages are not allowed.
 .It Li ">1"
 An error has occurred.
 .El
+.Sh EXAMPLES
+Disallow messages from other users to the current terminal:
+.Pp
+.Dl "mesg n"
+.Pp
+Allow messages from other users to
+.Pa ttyp1
+(assuming you are also logged in on that terminal):
+.Pp
+.Dl "mesg y </dev/ttyp1"
 .Sh COMPATIBILITY
 Previous versions of the
 .Nm

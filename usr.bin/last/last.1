@@ -204,6 +204,11 @@ login data base
 .Xr lastcomm 1 ,
 .Xr utmp 5 ,
 .Xr ac 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.Bx 3.0 .
 .Sh BUGS
 If a login shell should terminate abnormally for some reason, it is likely
 that a logout record won't be written to the
@@ -212,8 +217,3 @@ file.
 In this case,
 .Nm
 will indicate the logout time as "shutdown".
-.Sh HISTORY
-A
-.Nm
-utility appeared in
-.Bx 3.0 .

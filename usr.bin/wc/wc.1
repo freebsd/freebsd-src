@@ -102,6 +102,8 @@ environment variables affect the execution of
 .Nm
 as described in
 .Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 Count the number of characters, words and lines in each of the files
 .Pa report1
@@ -110,10 +112,6 @@ and
 as well as the totals for both:
 .Pp
 .Dl "wc -mlw report1 report2"
-.Sh EXIT STATUS
-.Ex -std
-.Sh SEE ALSO
-.Xr iswspace 3
 .Sh COMPATIBILITY
 Historically, the
 .Nm
@@ -134,6 +132,8 @@ This implementation defines a ``word'' in terms of the
 .Xr iswspace 3
 function, as required by
 .St -p1003.2 .
+.Sh SEE ALSO
+.Xr iswspace 3
 .Sh STANDARDS
 The
 .Nm

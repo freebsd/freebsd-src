@@ -212,11 +212,6 @@ connected unix domain stream socket.
 A unidirectional unix domain socket indicates the direction of flow with
 an arrow (``<-'' or ``->''), and a full duplex socket shows a double arrow
 (``<->'').
-.Sh BUGS
-Since
-.Nm
-takes a snapshot of the system, it is only correct for a very short period
-of time.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr nfsstat 1 ,
@@ -233,3 +228,8 @@ The
 .Nm
 command appeared in
 .Bx 4.3 tahoe .
+.Sh BUGS
+Since
+.Nm
+takes a snapshot of the system, it is only correct for a very short period
+of time.

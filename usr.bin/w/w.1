@@ -91,11 +91,24 @@ names are specified, the output is restricted to those users.
 .It Pa /var/run/utmp
 list of users on the system
 .El
+.Sh COMPATIBILITY
+The
+.Fl f ,
+.Fl l ,
+.Fl s ,
+and
+.Fl w
+flags are no longer supported.
 .Sh SEE ALSO
 .Xr finger 1 ,
 .Xr ps 1 ,
 .Xr uptime 1 ,
 .Xr who 1
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .
 .Sh BUGS
 The notion of the
 .Dq current process
@@ -130,16 +143,3 @@ The
 utility does not know about the new conventions for detection of background
 jobs.
 It will sometimes find a background job instead of the right one.
-.Sh COMPATIBILITY
-The
-.Fl f ,
-.Fl l ,
-.Fl s ,
-and
-.Fl w
-flags are no longer supported.
-.Sh HISTORY
-The
-.Nm
-command appeared in
-.Bx 3.0 .

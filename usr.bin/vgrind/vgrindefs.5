@@ -81,36 +81,6 @@ comments are normally starting with
 while the string
 .Ql $#
 is an operator on an array.
-.Sh EXAMPLES
-The following entry, which describes the C language, is
-typical of a language entry.
-.Bd -literal
-C|c:\
-:pb=^\ed?*?\ed?\ep\ed?\e(\ea?\e):bb={:be=}:cb=/*:ce=*/:sb=":se=\ee":\e
-:lb=':le=\ee':tl:\e
-:kw=asm auto break case char continue default do double else enum\e
-extern float for fortran goto if int long register return short\e
-sizeof static struct switch typedef union unsigned while #define\e
-#else #endif #if #ifdef #ifndef #include #undef # define else endif\e
-if ifdef ifndef include undef:
-.Ed
-.Pp
-Note that the first field is just the language name (and any variants
-of it).
-Thus the C language could be specified to
-.Xr vgrind 1
-as "c" or "C".
-.Pp
-Entries may continue onto multiple lines by giving a \e as the last
-character of a line.
-Capabilities in
-.Nm
-are of two types:
-Boolean capabilities which indicate that the language has
-some particular feature
-and string
-capabilities which give a regular expression or
-keyword list.
 .Sh REGULAR EXPRESSIONS
 .Nm Vgrindefs
 uses regular expression which are very similar to those of
@@ -165,6 +135,36 @@ specified in lower case.
 .It Pa /usr/share/misc/vgrindefs
 File containing terminal descriptions.
 .El
+.Sh EXAMPLES
+The following entry, which describes the C language, is
+typical of a language entry.
+.Bd -literal
+C|c:\
+:pb=^\ed?*?\ed?\ep\ed?\e(\ea?\e):bb={:be=}:cb=/*:ce=*/:sb=":se=\ee":\e
+:lb=':le=\ee':tl:\e
+:kw=asm auto break case char continue default do double else enum\e
+extern float for fortran goto if int long register return short\e
+sizeof static struct switch typedef union unsigned while #define\e
+#else #endif #if #ifdef #ifndef #include #undef # define else endif\e
+if ifdef ifndef include undef:
+.Ed
+.Pp
+Note that the first field is just the language name (and any variants
+of it).
+Thus the C language could be specified to
+.Xr vgrind 1
+as "c" or "C".
+.Pp
+Entries may continue onto multiple lines by giving a \e as the last
+character of a line.
+Capabilities in
+.Nm
+are of two types:
+Boolean capabilities which indicate that the language has
+some particular feature
+and string
+capabilities which give a regular expression or
+keyword list.
 .Sh SEE ALSO
 .Xr troff 1 ,
 .Xr vgrind 1

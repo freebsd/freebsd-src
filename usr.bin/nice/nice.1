@@ -72,20 +72,6 @@ environment variable is used to locate the requested
 if the name contains no
 .Ql /
 characters.
-.Sh EXAMPLES
-Execute utility
-.Sq date
-at priority 5 assuming the priority of the
-shell is 0:
-.Pp
-.Dl "nice -n 5 date"
-.Pp
-Execute utility
-.Sq date
-at priority -19 assuming the priority of the
-shell is 0 and you are the super-user:
-.Pp
-.Dl "nice -n 16 nice -n -35 date"
 .Sh EXIT STATUS
 If
 .Ar utility
@@ -100,6 +86,24 @@ was found, but could not be executed.
 An exit status of 127 indicates
 .Ar utility
 could not be found.
+.Sh EXAMPLES
+Execute utility
+.Sq date
+at priority 5 assuming the priority of the
+shell is 0:
+.Pp
+.Dl "nice -n 5 date"
+.Pp
+Execute utility
+.Sq date
+at priority -19 assuming the priority of the
+shell is 0 and you are the super-user:
+.Pp
+.Dl "nice -n 16 nice -n -35 date"
+.Sh COMPATIBILITY
+The traditional
+.Fl Ns Ar increment
+option has been deprecated but is still supported.
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr csh 1 ,
@@ -108,10 +112,6 @@ could not be found.
 .Xr getpriority 2 ,
 .Xr setpriority 2 ,
 .Xr renice 8
-.Sh COMPATIBILITY
-The traditional
-.Fl Ns Ar increment
-option has been deprecated but is still supported.
 .Sh STANDARDS
 The
 .Nm

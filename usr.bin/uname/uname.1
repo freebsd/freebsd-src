@@ -79,8 +79,6 @@ If the
 .Fl a
 flag is specified, or multiple flags are specified, all
 output is written on a single line, separated by spaces.
-.Sh EXIT STATUS
-.Ex -std
 .Sh ENVIRONMENT
 An environment variable composed of the string
 .Ev UNAME_
@@ -90,17 +88,19 @@ utility (except for
 .Fl a )
 will allow the corresponding data to be set to the contents
 of the environment variable.
+.Sh EXIT STATUS
+.Ex -std
 .Sh SEE ALSO
 .Xr sysctl 3 ,
 .Xr uname 3 ,
 .Xr sysctl 8
-.Sh HISTORY
-The
-.Nm
-command appeared in PWB UNIX.
 .Sh STANDARDS
 The
 .Nm
 command is expected to conform to the
 .St -p1003.2
 specification.
+.Sh HISTORY
+The
+.Nm
+command appeared in PWB UNIX.

@@ -147,21 +147,6 @@ variables provide information on the necessary compiler and linker flags
 to use the standard programming environments described above.
 .Sh EXIT STATUS
 .Ex -std
-.Sh DIAGNOSTICS
-Use of a
-.Ar system_var
-or
-.Ar path_var
-which is completely unrecognized is considered an error,
-causing a diagnostic message to be written to standard error.
-One
-which is known but merely undefined does not result in an error
-indication.
-The
-.Nm
-utility recognizes all of the variables defined for
-.St -p1003.1-2001 ,
-including those which are not currently implemented.
 .Sh EXAMPLES
 The command:
 .Pp
@@ -189,6 +174,21 @@ in the
 .Li POSIX_V6_LPBIG_OFFBIG
 programming environment,
 if the system supports that environment.
+.Sh DIAGNOSTICS
+Use of a
+.Ar system_var
+or
+.Ar path_var
+which is completely unrecognized is considered an error,
+causing a diagnostic message to be written to standard error.
+One
+which is known but merely undefined does not result in an error
+indication.
+The
+.Nm
+utility recognizes all of the variables defined for
+.St -p1003.1-2001 ,
+including those which are not currently implemented.
 .Sh SEE ALSO
 .Xr pathconf 2 ,
 .Xr confstr 3 ,
