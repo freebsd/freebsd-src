@@ -106,7 +106,7 @@ tun_clone(arg, name, namelen, dev)
 	if (dev_stdclone(name, NULL, "tun", &u) != 1)
 		return;
 	*dev = make_dev(&tun_cdevsw, unit2minor(u),
-	    UID_UUCP, GID_DIALER, 0600, "tun%d", u);
+	    UID_ROOT, GID_WHEEL, 0600, "tun%d", u);
 
 }
 
@@ -189,11 +189,6 @@ tunopen(dev, flag, mode, p)
 {
 	struct ifnet	*ifp;
 	struct tun_softc *tp;
-	register int	error;
-
-	error = suser(p);
-	if (error)
-		return (error);
 
 	tp = dev->si_drv1;
 	if (!tp) {
@@ -333,8 +328,7 @@ tunifioctl(ifp, cmd, data)
 		break;
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
-		TUNDEBUG("%s%d: mtu set\n",
-			 ifp->if_name, ifp->if_unit);
+		TUNDEBUG("%s%d: mtu set\n", ifp->if_name, ifp->if_unit);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -449,6 +443,7 @@ tunioctl(dev, cmd, data, flag, p)
 	struct proc	*p;
 {
 	int		s;
+	int		error;
 	struct tun_softc *tp = dev->si_drv1;
  	struct tuninfo *tunp;
 
@@ -457,6 +452,8 @@ tunioctl(dev, cmd, data, flag, p)
  		tunp = (struct tuninfo *)data;
 		if (tunp->mtu < IF_MINMTU)
 			return (EINVAL);
+ 		if (tp->tun_if.if_mtu != tunp->mtu && (error = suser(p)) != 0)
+			return (error);
  		tp->tun_if.if_mtu = tunp->mtu;
  		tp->tun_if.if_type = tunp->type;
  		tp->tun_if.if_baudrate = tunp->baudrate;
