@@ -94,6 +94,10 @@ struct kse_mailbox {
 #define	KMF_BOUND		0x08
 #define	KMF_WAITSIGEVENT	0x10
 
+/* These flags are kept in tm_flags */
+#define	TMF_NOUPCALL		0x01
+
+/* Commands for kse_thr_interrupt */
 #define	KSE_INTR_INTERRUPT	0x01
 #define	KSE_INTR_RESTART	0x02
 #define	KSE_INTR_SENDSIG	0x03
