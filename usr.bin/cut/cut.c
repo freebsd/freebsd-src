@@ -202,15 +202,18 @@ void
 needpos(size_t n)
 {
 	static size_t npos;
+	size_t oldnpos;
 
 	/* Grow the positions array to at least the specified size. */
 	if (n > npos) {
+		oldnpos = npos;
 		if (npos == 0)
 			npos = n;
 		while (n > npos)
 			npos *= 2;
 		if ((positions = realloc(positions, npos)) == NULL)
 			err(1, "realloc");
+		memset((char *)positions + oldnpos, 0, npos - oldnpos);
 	}
 }
 
