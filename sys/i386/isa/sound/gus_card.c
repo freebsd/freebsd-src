@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * gus_card.c,v 1.11 1994/10/14 09:04:19 jkh Exp
  */
 
 #include "sound_config.h"
@@ -169,7 +170,7 @@ gusintr (int irq)
 /*
  * Some extra code for the 16 bit sampling option
  */
-#if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS16)
+#if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS16) && !defined(EXCLUDE_GUS)
 
 int
 probe_gus_db16 (struct address_info *hw_config)

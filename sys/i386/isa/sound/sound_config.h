@@ -26,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: sound_config.h,v 1.6 1994/10/01 02:17:11 swallace Exp $
  */
 
 #include "local.h"
@@ -114,6 +115,18 @@ If your card has nonstandard I/O address or IRQ number, change defines
 
 #ifndef GUS_DMA
 #define GUS_DMA		6
+#endif
+
+#ifndef GUS16_BASE
+#define GUS16_BASE	0x530 
+#endif
+
+#ifndef GUS16_IRQ
+#define GUS16_IRQ	7
+#endif
+
+#ifndef GUS16_DMA
+#define GUS16_DMA	3
 #endif
 
 #ifndef MPU_BASE

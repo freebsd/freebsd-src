@@ -26,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * uart6850.c,v 1.2 1994/10/01 02:17:17 swallace Exp
  */
 
 #include "sound_config.h"

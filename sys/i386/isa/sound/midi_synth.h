@@ -1,3 +1,6 @@
+/*
+ * midi_synth.h,v 1.2 1994/10/01 02:16:47 swallace Exp
+ */
 int midi_synth_ioctl (int dev,
 	    unsigned int cmd, unsigned int arg);
 int midi_synth_kill_note (int dev, int channel, int note, int velocity);

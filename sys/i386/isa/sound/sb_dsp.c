@@ -29,6 +29,7 @@
  *	Hunyue Yau	Jan 6 1994
  *	Added code to support Sound Galaxy NX Pro
  *
+ * $Id: sb_dsp.c,v 1.22 1994/12/10 22:55:50 ats Exp $
  */
 
 #include "sound_config.h"
@@ -737,7 +738,7 @@ sb_dsp_detect (struct address_info *hw_config)
 #ifndef EXCLUDE_AUDIO
 static struct audio_operations sb_dsp_operations =
 {
-  "SoundBlaster",
+  "SoundBlaster                    ",
   NOTHING_SPECIAL,
   AFMT_U8,			/* Just 8 bits. Poor old SB */
   NULL,
@@ -823,7 +824,11 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
 #endif
     }
 
+#ifdef __FreeBSD__
+  printk ("snd2: <%s>", sb_dsp_operations.name);
+#else
   printk (" <%s>", sb_dsp_operations.name);
+#endif
 
 #ifndef EXCLUDE_AUDIO
 #if !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SBPRO)

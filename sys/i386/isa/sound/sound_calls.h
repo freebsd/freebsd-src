@@ -1,6 +1,11 @@
 /*
  *	DMA buffer calls
+ *
+ * $Id: sound_calls.h,v 1.7 1994/10/01 02:17:10 swallace Exp $
  */
+
+#ifndef _MACHINE_ISA_SOUND_H_
+#define _MACHINE_ISA_SOUND_H_
 
 int DMAbuf_open(int dev, int mode);
 int DMAbuf_release(int dev, int mode);
@@ -241,3 +246,5 @@ int pss_ioctl (int dev, struct fileinfo *file,
 	   unsigned int cmd, unsigned int arg);
 int pss_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
 long pss_init(long mem_start);
+
+#endif /* _MACHINE_ISA_SOUND_H_ */

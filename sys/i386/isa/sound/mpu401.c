@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * mpu401.c,v 1.9 1994/10/01 02:16:49 swallace Exp
  */
 
 #define USE_SEQ_MACROS
@@ -1048,7 +1049,11 @@ attach_mpu401 (long mem_start, struct address_info *hw_config)
 	MPU_CAP_CLS | MPU_CAP_2PORT;
 
       revision_char = (devc->revision == 0x7f) ? 'M' : ' ';
+#ifdef __FreeBSD__
+      printk ("snd5: <MQX-%d%c MIDI Interface>",
+#else
       printk (" <MQX-%d%c MIDI Interface>",
+#endif
 	      ports,
 	      revision_char);
 #ifndef SCO
@@ -1068,7 +1073,11 @@ attach_mpu401 (long mem_start, struct address_info *hw_config)
 
       devc->capabilities |= MPU_CAP_SYNC | MPU_CAP_FSK;
 
+#ifdef __FreeBSD__
+      printk ("snd5: <MPU-401 MIDI Interface %d.%d%c>",
+#else
       printk (" <MPU-401 MIDI Interface %d.%d%c>",
+#endif
 	      (devc->version & 0xf0) >> 4,
 	      devc->version & 0x0f,
 	      revision_char);

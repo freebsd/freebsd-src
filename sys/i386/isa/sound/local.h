@@ -1,6 +1,6 @@
 /* for FreeBSD */
 /*
- * local.h,v 1.11 1994/11/01 17:26:50 ache Exp
+ * $Id: local.h,v 1.11 1994/11/01 17:26:50 ache Exp
  */
 #include "snd.h"
 
@@ -24,9 +24,9 @@
 #define SELECTED_SOUND_OPTIONS  0xffffffff
 #define SOUND_VERSION_STRING "2.90-2"
 #define SOUND_CONFIG_DATE "Sun Feb 5 14:38:12 EST 1995"
-#define SOUND_CONFIG_BY "smpatel"
-#define SOUND_CONFIG_HOST "xi.dorm.umd.edu"
-#define SOUND_CONFIG_DOMAIN "dorm.umd.edu"
+#define SOUND_CONFIG_BY "freebsd-hackers"
+#define SOUND_CONFIG_HOST "freebsd.org"
+#define SOUND_CONFIG_DOMAIN "freebsd.org"
 
 
 /* Reversed the VoxWare EXCLUDE options -Sujal Patel (smpatel@wam.umd.edu) */
@@ -87,6 +87,7 @@
 #undef EXCLUDE_PSS
 #endif
 #ifdef AUDIO_GUS16
+#undef EXCLUDE_GUS
 #undef EXCLUDE_GUS16
 #endif
 #ifdef AUDIO_GUSMAX
@@ -97,11 +98,9 @@
 #endif
 #ifdef AUDIO_SBPRO
 #undef EXCLUDE_SBPRO
-#undef EXCLUDE_SB
 #endif
 #ifdef AUDIO_SB16
 #undef EXCLUDE_SB16
-#undef EXCLUDE_SB
 #endif
 #ifdef AUDIO_YM3812
 #undef EXCLUDE_YM3812
