@@ -38,6 +38,7 @@ MAN=	aac.4 \
 	cd.4 \
 	ch.4 \
 	ciss.4 \
+	cm.4 \
 	crypto.4 \
 	csa.4 \
 	cue.4 \
@@ -59,6 +60,7 @@ MAN=	aac.4 \
 	ehci.4 \
 	em.4 \
 	en.4 \
+	esp.4 \
 	exca.4 \
 	faith.4 \
 	fast_ipsec.4 \
@@ -225,6 +227,7 @@ MAN=	aac.4 \
 	pty.4 \
 	puc.4 \
 	random.4 \
+	rc.4 \
 	re.4 \
 	rl.4 \
 	rndtest.4 \
@@ -253,6 +256,7 @@ MAN=	aac.4 \
 	smbus.4 \
 	smp.4 \
 	sn.4 \
+	snc.4 \
 	snp.4 \
 	spic.4 \
 	splash.4 \
