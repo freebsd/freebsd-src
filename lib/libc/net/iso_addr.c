@@ -90,30 +90,28 @@ iso_addr(addr)
 	out_addr.isoa_len = cp - out_addr.isoa_genaddr;
 	return (&out_addr);
 }
+
 static char hexlist[] = "0123456789abcdef";
 
 char *
 iso_ntoa(isoa)
 	const struct iso_addr *isoa;
 {
-	static char obuf[64];
-	register char *out = obuf; 
-	register int i;
-	register u_char *in = (u_char *)isoa->isoa_genaddr;
-	u_char *inlim = in + isoa->isoa_len;
+	static char tmpbuf[sizeof(isoa->isoa_genaddr)*3];
+	const u_char *binary;
+	char *cp;
+	int i;
 
-	out[1] = 0;
-	while (in < inlim) {
-		i = *in++;
-		*out++ = '.';
-		if (i > 0xf) {
-			out[1] = hexlist[i & 0xf];
-			i >>= 4;
-			out[0] = hexlist[i];
-			out += 2;
-		} else
-			*out++ = hexlist[i];
+	binary = isoa->isoa_genaddr;
+	cp = tmpbuf;
+
+	for (i = 0; i < isoa->isoa_len; i++) {
+		*cp++ = hexlist[*binary >> 4];
+		*cp++ = hexlist[*binary++ & 0xf];
+
+		if ((((i % 2) == 0) && ((i + 1) < isoa->isoa_len)))
+			*cp++ = '.';
 	}
-	*out = 0;
-	return(obuf + 1);
+	*cp = '\0';
+	return tmpbuf;
 }
