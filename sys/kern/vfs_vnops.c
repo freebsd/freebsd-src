@@ -528,7 +528,7 @@ vn_stat(vp, sb, p)
 	 *   "a filesystem-specific preferred I/O block size for this 
 	 *    object.  In some filesystem types, this may vary from file
 	 *    to file"
-	 * Default to zero to catch bogus uses of this field.
+	 * Default to PAGE_SIZE after much discussion.
 	 */
 
 	if (vap->va_type == VREG) {
@@ -540,7 +540,7 @@ vn_stat(vp, sb, p)
 		if (sb->st_blksize < BLKDEV_IOSIZE)
 			sb->st_blksize = BLKDEV_IOSIZE;
 	} else {
-		sb->st_blksize = 0;
+		sb->st_blksize = PAGE_SIZE;
 	}
 	
 	sb->st_flags = vap->va_flags;
