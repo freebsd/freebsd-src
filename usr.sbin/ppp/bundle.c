@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.3 1998/02/06 02:23:28 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.4 1998/02/06 02:24:01 brian Exp $
  */
 
 #include <sys/param.h>
@@ -51,8 +51,10 @@
 #include "timer.h"
 #include "fsm.h"
 #include "iplist.h"
+#include "hdlc.h"
 #include "throughput.h"
 #include "ipcp.h"
+#include "link.h"
 #include "bundle.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -61,87 +63,75 @@
 #include "route.h"
 #include "lcp.h"
 #include "ccp.h"
+#include "async.h"
+#include "physical.h"
 #include "modem.h"
+#include "main.h"
+#include "auth.h"
+#include "lcpproto.h"
+#include "pap.h"
+#include "chap.h"
+#include "tun.h"
 
-static int
-bundle_SetIpDevice(struct bundle *bundle, struct in_addr myaddr,
-                   struct in_addr hisaddr, struct in_addr netmask, int silent)
+static const char *PhaseNames[] = {
+  "Dead", "Establish", "Authenticate", "Network", "Terminate"
+};
+
+const char *
+bundle_PhaseName(struct bundle *bundle)
 {
-  struct sockaddr_in *sock_in;
-  int s;
-  u_long mask, addr;
-  struct ifaliasreq ifra;
+  return bundle->phase <= PHASE_TERMINATE ?
+    PhaseNames[bundle->phase] : "unknown";
+}
 
-  /* If given addresses are alreay set, then ignore this request */
-  if (bundle->if_mine.s_addr == myaddr.s_addr &&
-      bundle->if_peer.s_addr == hisaddr.s_addr)
-    return 0;
+void
+bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
+{
+  if (new <= PHASE_NETWORK)
+    LogPrintf(LogPHASE, "bundle_NewPhase: %s\n", PhaseNames[new]);
 
-  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
-  if (s < 0) {
-    LogPrintf(LogERROR, "SetIpDevice: socket(): %s\n", strerror(errno));
-    return (-1);
+  switch (new) {
+  case PHASE_DEAD:
+    bundle->phase = new;
+    if (CleaningUp || (mode & MODE_DIRECT) ||
+        ((mode & MODE_BACKGROUND) && reconnectState != RECON_TRUE))
+      Cleanup(EX_DEAD);
+    break;
+
+  case PHASE_ESTABLISH:
+    bundle->phase = new;
+    break;
+
+  case PHASE_AUTHENTICATE:
+    LcpInfo.auth_ineed = LcpInfo.want_auth;
+    LcpInfo.auth_iwait = LcpInfo.his_auth;
+    if (LcpInfo.his_auth || LcpInfo.want_auth) {
+      LogPrintf(LogPHASE, " his = %s, mine = %s\n",
+                Auth2Nam(LcpInfo.his_auth), Auth2Nam(LcpInfo.want_auth));
+       /* XXX-ML AuthPapInfo and AuthChapInfo must be allocated! */
+      if (LcpInfo.his_auth == PROTO_PAP)
+	StartAuthChallenge(&AuthPapInfo, physical);
+      if (LcpInfo.want_auth == PROTO_CHAP)
+	StartAuthChallenge(&AuthChapInfo, physical);
+      bundle->phase = new;
+      Prompt(bundle);
+    } else
+      bundle_NewPhase(bundle, physical, PHASE_NETWORK);
+    break;
+
+  case PHASE_NETWORK:
+    tun_configure(bundle, LcpInfo.his_mru, modem_Speed(physical));
+    IpcpUp();
+    IpcpOpen();
+    CcpUp();
+    CcpOpen();
+    /* Fall through */
+
+  case PHASE_TERMINATE:
+    bundle->phase = new;
+    Prompt(bundle);
+    break;
   }
-
-  memset(&ifra, '\0', sizeof ifra);
-  strncpy(ifra.ifra_name, bundle->ifname, sizeof ifra.ifra_name - 1);
-  ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
-
-  /* If different address has been set, then delete it first */
-  if (bundle->if_mine.s_addr != INADDR_ANY ||
-      bundle->if_peer.s_addr != INADDR_ANY)
-    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
-      LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCDIFADDR): %s\n",
-		strerror(errno));
-      close(s);
-      return (-1);
-    }
-
-  /* Set interface address */
-  sock_in = (struct sockaddr_in *)&ifra.ifra_addr;
-  sock_in->sin_family = AF_INET;
-  sock_in->sin_addr = myaddr;
-  sock_in->sin_len = sizeof *sock_in;
-
-  /* Set destination address */
-  sock_in = (struct sockaddr_in *)&ifra.ifra_broadaddr;
-  sock_in->sin_family = AF_INET;
-  sock_in->sin_addr = hisaddr;
-  sock_in->sin_len = sizeof *sock_in;
-
-  addr = ntohl(myaddr.s_addr);
-  if (IN_CLASSA(addr))
-    mask = IN_CLASSA_NET;
-  else if (IN_CLASSB(addr))
-    mask = IN_CLASSB_NET;
-  else
-    mask = IN_CLASSC_NET;
-
-  /* if subnet mask is given, use it instead of class mask */
-  if (netmask.s_addr != INADDR_ANY && (ntohl(netmask.s_addr) & mask) == mask)
-    mask = ntohl(netmask.s_addr);
-
-  sock_in = (struct sockaddr_in *)&ifra.ifra_mask;
-  sock_in->sin_family = AF_INET;
-  sock_in->sin_addr.s_addr = htonl(mask);
-  sock_in->sin_len = sizeof *sock_in;
-
-  if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0) {
-    if (!silent)
-      LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCAIFADDR): %s\n",
-		strerror(errno));
-    close(s);
-    return (-1);
-  }
-
-  bundle->if_peer.s_addr = hisaddr.s_addr;
-  bundle->if_mine.s_addr = myaddr.s_addr;
-
-  if (Enabled(ConfProxy))
-    sifproxyarp(bundle, s);
-
-  close(s);
-  return (0);
 }
 
 static int
@@ -186,27 +176,23 @@ bundle_CleanInterface(const struct bundle *bundle)
   return 1;
 }
 
-int
-bundle_TrySetIPaddress(struct bundle *bundle, struct in_addr myaddr,
-                       struct in_addr hisaddr)
+void
+bundle_LayerStart(struct bundle *bundle, struct fsm *fp)
 {
-  return bundle_SetIpDevice(bundle, myaddr, hisaddr, ifnetmask, 1);
-}
-
-int
-bundle_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
-                    struct in_addr hisaddr)
-{
-  return bundle_SetIpDevice(bundle, myaddr, hisaddr, ifnetmask, 0);
+  if (fp == &LcpInfo.fsm)
+    bundle_NewPhase(bundle, link2physical(fp->link), PHASE_ESTABLISH);
 }
 
 void
-bundle_Linkup(struct bundle *bundle)
+bundle_LayerUp(struct bundle *bundle, struct fsm *fp)
 {
-  if (bundle->linkup == 0) {
-    char *s;
-
+  /* The given fsm is now up */
+  if (fp == &LcpInfo.fsm) {
     reconnectState = RECON_UNKNOWN;
+    bundle_NewPhase(bundle, link2physical(fp->link), PHASE_AUTHENTICATE);
+  }
+
+  if (fp == &IpcpInfo.fsm)
     if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
       char c = EX_NORMAL;
 
@@ -217,113 +203,45 @@ bundle_Linkup(struct bundle *bundle)
       close(BGFiledes[1]);
       BGFiledes[1] = -1;
     }
-
-    s = inet_ntoa(bundle->if_peer);
-    if (LogIsKept(LogLINK))
-      LogPrintf(LogLINK, "OsLinkup: %s\n", s);
-    else
-      LogPrintf(LogLCP, "OsLinkup: %s\n", s);
-
-    /*
-     * XXX this stuff should really live in the FSM.  Our config should
-     * associate executable sections in files with events.
-     */
-    if (SelectSystem(bundle, inet_ntoa(bundle->if_mine), LINKUPFILE) < 0) {
-      if (GetLabel()) {
-	if (SelectSystem(bundle, GetLabel(), LINKUPFILE) < 0)
-	  SelectSystem(bundle, "MYADDR", LINKUPFILE);
-      } else
-	SelectSystem(bundle, "MYADDR", LINKUPFILE);
-    }
-    bundle->linkup = 1;
-  }
 }
 
 int
 bundle_LinkIsUp(const struct bundle *bundle)
 {
-  return bundle->linkup;
+  return IpcpInfo.fsm.state == ST_OPENED;
 }
 
 void
-bundle_Linkdown(struct bundle *bundle)
+bundle_Close(struct bundle *bundle, struct fsm *fp)
 {
-  char *s = NULL;
-  int Level;
+  /*
+   * Please close the given FSM.
+   *
+   * If fp is any CCP, just FsmClose that CCP.
+   *
+   * If fp == NULL or fp is the last NCP or the last LCP, enter TERMINATE phase.
+   *
+   * If fp == NULL, FsmClose all NCPs.
+   *
+   * If fp is an NCP, just FsmClose that.  When the NCPs TLF happens,
+   * and if it's the last NCP, bundle_LayerFinish will enter TERMINATE
+   * phase, FsmDown the top level CCP and FsmClose each of the LCPs.
+   *
+   * If fp is the last LCP, FsmClose all NCPs for the same
+   * reasons as above.
+   *
+   * If fp isn't an NCP and isn't the last LCP, just FsmClose that LCP.
+   */
 
-  if (bundle->linkup) {
-    s = inet_ntoa(bundle->if_peer);
-    Level = LogIsKept(LogLINK) ? LogLINK : LogIPCP;
-    LogPrintf(Level, "OsLinkdown: %s\n", s);
+  if (fp == &CcpInfo.fsm) {
+    FsmClose(&CcpInfo.fsm);
+    return;
   }
+
+  bundle_NewPhase(bundle, NULL, PHASE_TERMINATE);
 
   FsmClose(&IpcpInfo.fsm);
   FsmClose(&CcpInfo.fsm);
-
-  if (bundle->linkup) {
-    /*
-     * XXX this stuff should really live in the FSM.  Our config should
-     * associate executable sections in files with events.
-     */
-    bundle->linkup = 0;
-    if (SelectSystem(bundle, s, LINKDOWNFILE) < 0)
-      if (GetLabel()) {
-	if (SelectSystem(bundle, GetLabel(), LINKDOWNFILE) < 0)
-	  SelectSystem(bundle, "MYADDR", LINKDOWNFILE);
-      } else
-	SelectSystem(bundle, "MYADDR", LINKDOWNFILE);
-  }
-}
-
-int
-bundle_InterfaceDown(struct bundle *bundle)
-{
-  struct ifreq ifrq;
-  struct ifaliasreq ifra;
-  int s;
-
-  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
-  if (s < 0) {
-    LogPrintf(LogERROR, "OsInterfaceDown: socket: %s\n", strerror(errno));
-    return -1;
-  }
-
-  if (Enabled(ConfProxy))
-    cifproxyarp(bundle, s);
-
-  memset(&ifrq, '\0', sizeof ifrq);
-  strncpy(ifrq.ifr_name, bundle->ifname, sizeof ifrq.ifr_name - 1);
-  ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
-  if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-    LogPrintf(LogERROR, "OsInterfaceDown: ioctl(SIOCGIFFLAGS): %s\n",
-	      strerror(errno));
-    close(s);
-    return -1;
-  }
-  ifrq.ifr_flags &= ~IFF_UP;
-  if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-    LogPrintf(LogERROR, "OsInterfaceDown: ioctl(SIOCSIFFLAGS): %s\n",
-	      strerror(errno));
-    close(s);
-    return -1;
-  }
-
-  if (bundle->if_mine.s_addr != INADDR_ANY ||
-      bundle->if_peer.s_addr != INADDR_ANY) {
-    memset(&ifra, '\0', sizeof ifra);
-    strncpy(ifra.ifra_name, bundle->ifname, sizeof ifra.ifra_name - 1);
-    ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
-    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
-      LogPrintf(LogERROR, "OsInterfaceDown: ioctl(SIOCDIFADDR): %s\n",
-		strerror(errno));
-      close(s);
-      return -1;
-    }
-    bundle->if_mine.s_addr = bundle->if_peer.s_addr = INADDR_ANY;
-  }
-
-  close(s);
-  return 0;
 }
 
 /*
@@ -424,14 +342,13 @@ bundle_Create(const char *prefix)
     fprintf(VarTerm, "Using interface: %s\n", bundle.ifname);
   LogPrintf(LogPHASE, "Using interface: %s\n", bundle.ifname);
 
-  bundle.linkup = 0;
-  bundle.if_mine.s_addr = bundle.if_peer.s_addr = INADDR_ANY;
   bundle.routing_seq = 0;
+  bundle.phase = 0;
 
   /* Clean out any leftover crud */
   bundle_CleanInterface(&bundle);
 
-  bundle.physical = modem_Create("default");
+  bundle.physical = modem_Create("Modem");
   if (bundle.physical == NULL) {
     LogPrintf(LogERROR, "Cannot create modem device: %s\n", strerror(errno));
     return NULL;
@@ -557,12 +474,87 @@ failed:
 }
 
 void
-bundle_Down(struct bundle *bundle, struct link *link)
+bundle_LinkLost(struct bundle *bundle, struct link *link)
 {
-  /* If link is NULL slam everything down, otherwise `link' is dead */
+  /*
+   * Locate the appropriate LCP and its associated CCP, and FsmDown
+   * them both.
+   * The LCP TLF will notify bundle_LayerFinish() which will
+   * slam the top level CCP and all NCPs down.
+   */
 
-  LogPrintf(LogPHASE, "Disconnected!\n");
   FsmDown(&LcpInfo.fsm);
-  FsmDown(&IpcpInfo.fsm);
-  FsmDown(&CcpInfo.fsm);
+  if (CleaningUp || reconnectState == RECON_FALSE)
+    FsmClose(&LcpInfo.fsm);
+}
+
+void
+bundle_LayerDown(struct bundle *bundle, struct fsm *fp)
+{
+  /*
+   * The given FSM has been told to come down.
+   * We don't do anything here, as the FSM will eventually
+   * come up or down and will call LayerUp or LayerFinish.
+   */
+}
+
+void
+bundle_LayerFinish(struct bundle *bundle, struct fsm *fp)
+{
+  /* The given fsm is now down (fp cannot be NULL)
+   *
+   * If it's a CCP, just bring it back to STARTING in case we get more REQs
+   * If it's an LCP, FsmDown the corresponding CCP and link (if open).  The
+   * link_Close causes the LCP to be FsmDown()d, so make sure we only close
+   * open links. XXX Not if the link is ok to come up again.
+   * If it's the last LCP, FsmDown all NCPs
+   * If it's the last NCP, FsmClose all LCPs and enter TERMINATE phase.
+   */
+
+  if (fp == &CcpInfo.fsm) {
+    FsmDown(&CcpInfo.fsm);
+    FsmOpen(&CcpInfo.fsm);
+  } else if (fp == &LcpInfo.fsm) {
+    struct ifreq ifrq;
+    int s;
+
+    FsmDown(&CcpInfo.fsm);
+
+    FsmDown(&IpcpInfo.fsm);		/* You've lost your underlings */
+    FsmClose(&IpcpInfo.fsm);		/* ST_INITIAL please */
+
+    if (link_IsActive(fp->link)) 
+      link_Close(fp->link, bundle, 0);	/* clean shutdown */
+
+    DeleteIfRoutes(fp->bundle, 1);
+
+    s = ID0socket(AF_INET, SOCK_DGRAM, 0);
+    if (s < 0) {
+      LogPrintf(LogERROR, "bundle_LayerFinish: socket: %s\n", strerror(errno));
+      return;
+    }
+
+    memset(&ifrq, '\0', sizeof ifrq);
+    strncpy(ifrq.ifr_name, bundle->ifname, sizeof ifrq.ifr_name - 1);
+    ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
+    if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
+      LogPrintf(LogERROR, "IpcpLayerDown: ioctl(SIOCGIFFLAGS): %s\n",
+	        strerror(errno));
+      close(s);
+      return;
+    }
+    ifrq.ifr_flags &= ~IFF_UP;
+    if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
+      LogPrintf(LogERROR, "IpcpLayerDown: ioctl(SIOCSIFFLAGS): %s\n",
+	        strerror(errno));
+      close(s);
+      return;
+    }
+    close(s);
+    bundle_NewPhase(bundle, NULL, PHASE_DEAD);
+  } else if (fp == &IpcpInfo.fsm) {
+    FsmClose(&LcpInfo.fsm);
+    if (fp->bundle->phase != PHASE_TERMINATE)
+      bundle_NewPhase(bundle, NULL, PHASE_TERMINATE);
+  }
 }

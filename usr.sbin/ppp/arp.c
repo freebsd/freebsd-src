@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.27 1998/01/24 00:03:14 brian Exp $
+ * $Id: arp.c,v 1.27.2.1 1998/02/02 19:32:56 brian Exp $
  *
  */
 
@@ -52,26 +52,13 @@
 #include "id.h"
 #include "route.h"
 #include "bundle.h"
+#include "timer.h"
+#include "fsm.h"
+#include "throughput.h"
+#include "defs.h"
+#include "iplist.h"
+#include "ipcp.h"
 #include "arp.h"
-
-#ifdef DEBUG
-/*
- * To test the proxy arp stuff, just
- * 
- * cc -o arp-test -DDEBUG arp.c
- *
- */
-#define LogIsKept(x) 1
-#define LogPrintf fprintf
-#undef LogDEBUG
-#define LogDEBUG stderr
-#undef LogERROR
-#define LogERROR stderr
-#undef LogPHASE
-#define LogPHASE stdout
-#define ID0socket socket
-#define ID0ioctl ioctl
-#endif
 
 static int get_ether_addr(int, struct in_addr, struct sockaddr_dl *);
 
@@ -100,7 +87,7 @@ static struct {
 static int arpmsg_valid;
 
 int
-sifproxyarp(struct bundle *bundle, int s)
+sifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
 {
   int routes;
 
@@ -109,7 +96,7 @@ sifproxyarp(struct bundle *bundle, int s)
    * address.
    */
   memset(&arpmsg, 0, sizeof arpmsg);
-  if (!get_ether_addr(s, bundle->if_peer, &arpmsg.hwa)) {
+  if (!get_ether_addr(s, ipcp->if_peer, &arpmsg.hwa)) {
     LogPrintf(LogERROR, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
   }
@@ -127,7 +114,7 @@ sifproxyarp(struct bundle *bundle, int s)
   arpmsg.hdr.rtm_inits = RTV_EXPIRE;
   arpmsg.dst.sin_len = sizeof(struct sockaddr_inarp);
   arpmsg.dst.sin_family = AF_INET;
-  arpmsg.dst.sin_addr.s_addr = bundle->if_peer.s_addr;
+  arpmsg.dst.sin_addr.s_addr = ipcp->if_peer.s_addr;
   arpmsg.dst.sin_other = SIN_PROXY;
 
   arpmsg.hdr.rtm_msglen = (char *) &arpmsg.hwa - (char *) &arpmsg
@@ -146,7 +133,7 @@ sifproxyarp(struct bundle *bundle, int s)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(struct bundle *bundle, int s)
+cifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
 {
   int routes;
 
@@ -178,7 +165,7 @@ cifproxyarp(struct bundle *bundle, int s)
  * sifproxyarp - Make a proxy ARP entry for the peer.
  */
 int
-sifproxyarp(struct bundle *bundle, int s)
+sifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
 {
   struct arpreq arpreq;
   struct {
@@ -192,7 +179,7 @@ sifproxyarp(struct bundle *bundle, int s)
    * Get the hardware address of an interface on the same subnet as our local
    * address.
    */
-  if (!get_ether_addr(s, bundle->if_peer, &dls.sdl)) {
+  if (!get_ether_addr(s, ipcp->if_peer, &dls.sdl)) {
     LogPrintf(LOG_PHASE_BIT, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
   }
@@ -201,7 +188,7 @@ sifproxyarp(struct bundle *bundle, int s)
   memcpy(arpreq.arp_ha.sa_data, LLADDR(&dls.sdl), dls.sdl.sdl_alen);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
   ((struct sockaddr_in *)&arpreq.arp_pa)->sin_addr.s_addr =
-    bundle->if_peer.s_addr;
+    ipcp->if_peer.s_addr;
   arpreq.arp_flags = ATF_PERM | ATF_PUBL;
   if (ID0ioctl(s, SIOCSARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "sifproxyarp: ioctl(SIOCSARP): %s\n", strerror(errno));
@@ -214,14 +201,14 @@ sifproxyarp(struct bundle *bundle, int s)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(struct bundle *bundle, int s)
+cifproxyarp(struct bundle *bundle, struct ipcpstate *ipcp, int s)
 {
   struct arpreq arpreq;
 
   memset(&arpreq, '\0', sizeof arpreq);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
   ((struct sockaddr_in *)&arpreq.arp_pa)->sin_addr.s_addr =
-    bundle->if_peer.s_addr;
+    ipcp->if_peer.s_addr;
   if (ID0ioctl(s, SIOCDARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "cifproxyarp: ioctl(SIOCDARP): %s\n", strerror(errno));
     return 0;
@@ -338,19 +325,3 @@ get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
 
   return 0;
 }
-
-#ifdef DEBUG
-int
-main(int argc, char **argv)
-{
-  struct in_addr ipaddr;
-  int s, f;
-
-  s = socket(AF_INET, SOCK_DGRAM, 0);
-  for (f = 1; f < argc; f++) {
-    if (inet_aton(argv[f], &ipaddr))
-      sifproxyarp(s, ipaddr);
-  }
-  close(s);
-}
-#endif

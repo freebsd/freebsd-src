@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.9 1998/02/06 02:23:33 brian Exp $
+ * $Id: command.c,v 1.131.2.10 1998/02/06 02:24:09 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -51,7 +51,6 @@
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
-#include "phase.h"
 #include "lcp.h"
 #include "iplist.h"
 #include "throughput.h"
@@ -336,7 +335,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     waitpid(shpid, &status, 0);
   }
 
-  TtyCommandMode(0);
+  TtyCommandMode(arg->bundle, 0);
 
   return (0);
 }
@@ -725,11 +724,11 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc,
 int aft_cmd = 1;
 
 void
-Prompt()
+Prompt(struct bundle *bundle)
 {
   const char *pconnect, *pauth;
 
-  if (!VarTerm || TermMode)
+  if (!VarTerm || TermMode || CleaningUp)
     return;
 
   if (!aft_cmd)
@@ -741,8 +740,12 @@ Prompt()
     pauth = " ON ";
   else
     pauth = " on ";
-  if (IpcpInfo.fsm.state == ST_OPENED && phase == PHASE_NETWORK)
+  if (IpcpInfo.fsm.state == ST_OPENED)
     pconnect = "PPP";
+  else if (bundle_Phase(bundle) == PHASE_NETWORK)
+    pconnect = "PPp";
+  else if (bundle_Phase(bundle) == PHASE_AUTHENTICATE)
+    pconnect = "Ppp";
   else
     pconnect = "ppp";
   fprintf(VarTerm, "%s%s%s> ", pconnect, pauth, VarShortHost);
@@ -867,7 +870,7 @@ QuitCommand(struct cmdargs const *arg)
     DropClient(1);
     if ((mode & MODE_INTER) ||
         (arg->argc > 0 && !strcasecmp(*arg->argv, "all") &&
-         VarLocalAuth&LOCAL_AUTH))
+         (VarLocalAuth & LOCAL_AUTH)))
       Cleanup(EX_NORMAL);
   }
 
@@ -878,14 +881,16 @@ static int
 CloseCommand(struct cmdargs const *arg)
 {
   reconnect(RECON_FALSE);
-  LcpClose(&LcpInfo.fsm);
+  bundle_Close(LcpInfo.fsm.bundle, &LcpInfo.fsm);
   return 0;
 }
 
 static int
 DownCommand(struct cmdargs const *arg)
 {
-  bundle_Down(arg->bundle, &arg->bundle->physical->link);
+  reconnectState = RECON_FALSE;
+  reconnectCount = 0;
+  link_Close(&arg->bundle->physical->link, arg->bundle, 0);
   return 0;
 }
 
@@ -1374,7 +1379,7 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_DEVICE:
     if (mode & MODE_INTER)
-      link_Close(physical2link(arg->bundle->physical), 0);
+      link_Close(physical2link(arg->bundle->physical), arg->bundle, 0);
     if (link_IsActive(physical2link(arg->bundle->physical)))
       LogPrintf(LogWARN,
 		"Cannot change device to \"%s\" when \"%s\" is open\n",

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.4 1998/02/02 19:32:00 brian Exp $
+ * $Id: auth.c,v 1.27.2.5 1998/02/02 19:33:33 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -49,6 +49,21 @@
 #include "async.h"
 #include "link.h"
 #include "physical.h"
+#include "lcpproto.h"
+
+const char *
+Auth2Nam(u_short auth)
+{
+  switch (auth) {
+  case PROTO_PAP:
+    return "PAP";
+  case PROTO_CHAP:
+    return "CHAP";
+  case 0:
+    return "none";
+  }
+  return "unknown";
+}
 
 void
 LocalAuthInit()

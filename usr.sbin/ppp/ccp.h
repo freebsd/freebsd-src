@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.14.2.5 1998/02/02 19:32:02 brian Exp $
+ * $Id: ccp.h,v 1.14.2.6 1998/02/06 02:24:06 brian Exp $
  *
  *	TODO:
  */
@@ -86,7 +86,7 @@ struct ccp_algorithm {
 
 extern void CcpRecvResetReq(struct fsm *);
 extern void CcpSendResetReq(struct fsm *);
-extern void CcpInput(struct mbuf *);
+extern void CcpInput(struct bundle *, struct mbuf *);
 extern void CcpUp(void);
 extern void CcpOpen(void);
 extern void CcpInit(struct bundle *, struct link *);

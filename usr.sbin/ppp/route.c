@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.4 1998/02/02 19:32:14 brian Exp $
+ * $Id: route.c,v 1.42.2.5 1998/02/02 19:33:01 brian Exp $
  *
  */
 
@@ -430,29 +430,4 @@ GetIfIndex(char *name)
     else
       idx++;
   return -1;
-}
-
-struct in_addr
-ChooseHisAddr(struct bundle *bundle, const struct in_addr gw)
-{
-  struct in_addr try;
-  int f;
-
-  for (f = 0; f < IpcpInfo.DefHisChoice.nItems; f++) {
-    try = iplist_next(&IpcpInfo.DefHisChoice);
-    LogPrintf(LogDEBUG, "ChooseHisAddr: Check item %d (%s)\n",
-              f, inet_ntoa(try));
-    if (bundle_TrySetIPaddress(bundle, gw, try) == 0) {
-      LogPrintf(LogIPCP, "ChooseHisAddr: Selected IP address %s\n",
-                inet_ntoa(try));
-      break;
-    }
-  }
-
-  if (f == IpcpInfo.DefHisChoice.nItems) {
-    LogPrintf(LogDEBUG, "ChooseHisAddr: All addresses in use !\n");
-    try.s_addr = INADDR_ANY;
-  }
-
-  return try;
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.4 1998/01/31 02:48:23 brian Exp $
+ * $Id: lqr.c,v 1.22.2.5 1998/02/02 19:33:37 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -44,6 +44,7 @@
 #include "throughput.h"
 #include "link.h"
 #include "physical.h"
+#include "bundle.h"
 #include "lqr.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -127,9 +128,9 @@ SendLqrReport(void *v)
        * XXX: Should implement LQM strategy
        */
       LogPrintf(LogPHASE, "** 1 Too many ECHO packets are lost. **\n");
-      lqmmethod = 0;		/* Prevent rcursion via LcpClose() */
+      lqmmethod = 0;		/* Prevent rcursion via bundle_Close() */
       reconnect(RECON_TRUE);
-      LcpClose(&LcpInfo.fsm);
+      bundle_Close(LcpInfo.fsm.bundle, &LcpInfo.fsm);
     } else {
       bp = mballoc(sizeof(struct lqrdata), MB_LQR);
       HdlcOutput(physical2link(physical), PRI_LINK, PROTO_LQR, bp);
@@ -138,9 +139,9 @@ SendLqrReport(void *v)
   } else if (lqmmethod & LQM_ECHO) {
     if (echoseq - gotseq > 5) {
       LogPrintf(LogPHASE, "** 2 Too many ECHO packets are lost. **\n");
-      lqmmethod = 0;		/* Prevent rcursion via LcpClose() */
+      lqmmethod = 0;		/* Prevent rcursion via bundle_Close() */
       reconnect(RECON_TRUE);
-      LcpClose(&LcpInfo.fsm);
+      bundle_Close(LcpInfo.fsm.bundle, &LcpInfo.fsm);
     } else
       SendEchoReq();
   }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.4 1998/01/31 02:48:19 brian Exp $
+ * $Id: ip.c,v 1.38.2.5 1998/02/02 19:32:07 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -73,11 +73,11 @@ IdleTimeout(void *v)
 {
   LogPrintf(LogPHASE, "Idle timer expired.\n");
   reconnect(RECON_FALSE);
-  LcpClose(&LcpInfo.fsm);
+  bundle_Close(LcpInfo.fsm.bundle, &LcpInfo.fsm);
 }
 
 /*
- *  Start Idle timer. If timeout is reached, we call LcpClose() to
+ *  Start Idle timer. If timeout is reached, we call bundle_Close() to
  *  close LCP and link.
  */
 void

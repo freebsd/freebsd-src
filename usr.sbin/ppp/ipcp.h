@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.8 1998/02/02 19:32:31 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.9 1998/02/06 02:24:20 brian Exp $
  *
  *	TODO:
  */
@@ -68,6 +68,9 @@ struct ipcpstate {
 
   struct in_addr   TriggerAddress;	/* Address to suggest in REQ */
   int HaveTriggerAddress : 1;		/* Trigger address specified */
+
+  struct in_addr if_mine;               /* My configured interface address */
+  struct in_addr if_peer;               /* My congigured destination address */
 
   struct pppThroughput throughput;	/* throughput statistics */
 };

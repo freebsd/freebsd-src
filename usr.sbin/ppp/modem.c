@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.7 1998/02/06 02:23:46 brian Exp $
+ * $Id: modem.c,v 1.77.2.8 1998/02/06 02:24:27 brian Exp $
  *
  *  TODO:
  */
@@ -235,12 +235,13 @@ modem_Timeout(void *data)
   if (to->modem->abort) {
     /* Something went horribly wrong */
     to->modem->abort = 0;
-    bundle_Down(to->bundle, &to->modem->link);
+    link_Close(&to->modem->link, to->bundle, 0);
   } else if (to->modem->dev_is_modem) {
     if (to->modem->fd >= 0) {
       if (ioctl(to->modem->fd, TIOCMGET, &to->modem->mbits) < 0) {
 	LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
-	bundle_Down(to->bundle, &to->modem->link);
+	reconnect(RECON_TRUE);
+        link_Close(&to->modem->link, to->bundle, 0);
 	return;
       }
     } else
@@ -263,7 +264,7 @@ modem_Timeout(void *data)
       } else {
         LogPrintf(LogDEBUG, "modem_Timeout: online -> offline\n");
 	reconnect(RECON_TRUE);
-	bundle_Down(to->bundle, &to->modem->link);
+        link_Close(&to->modem->link, to->bundle, 0);
       }
     }
     else
@@ -382,7 +383,7 @@ OpenConnection(char *host, char *port)
 }
 
 static int
-modem_lock(struct physical *modem)
+modem_lock(struct physical *modem, int tunno)
 {
   int res;
   FILE *lockfile;
@@ -484,7 +485,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
       arg.argc = 1;
       arg.argv = (char const *const *)&cp;
       SetVariable(&arg);
-      if (modem_lock(modem) == -1) {
+      if (modem_lock(modem, bundle->unit) == -1) {
         close(STDIN_FILENO);
         return -1;
       }
@@ -511,7 +512,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
       VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
 
       if (strncmp(VarDevice, "/dev/", 5) == 0) {
-	if (modem_lock(modem) == -1) {
+	if (modem_lock(modem, bundle->unit) == -1) {
 	  modem->fd = -1;
 	}
 	else {

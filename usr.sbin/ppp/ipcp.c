@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.7 1998/02/02 19:33:36 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.8 1998/02/06 02:24:19 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -29,10 +29,14 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <sys/time.h>
+#include <net/if.h>
+#include <sys/sockio.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/errno.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -49,7 +53,6 @@
 #include "ipcp.h"
 #include "slcompress.h"
 #include "bundle.h"
-#include "phase.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "vjcomp.h"
@@ -60,6 +63,9 @@
 #include "async.h"
 #include "link.h"
 #include "physical.h"
+#include "id.h"
+#include "arp.h"
+#include "systems.h"
 
 struct compreq {
   u_short proto;
@@ -251,6 +257,7 @@ IpcpInit(struct bundle *bundle, struct link *l)
     LogPrintf(LogIPCP, "Using trigger address %s\n",
               inet_ntoa(IpcpInfo.TriggerAddress));
   }
+  IpcpInfo.if_mine.s_addr = IpcpInfo.if_peer.s_addr = INADDR_ANY;
 
   if (Enabled(ConfVjcomp))
     IpcpInfo.want_compproto = (PROTO_VJCOMP << 16) +
@@ -263,6 +270,114 @@ IpcpInit(struct bundle *bundle, struct link *l)
   IpcpInfo.heis1172 = 0;
   IpcpInfo.fsm.maxconfig = 10;
   throughput_init(&IpcpInfo.throughput);
+}
+
+static int
+ipcp_SetIPaddress(struct bundle *bundle, struct ipcpstate *ipcp,
+                  struct in_addr myaddr, struct in_addr hisaddr,
+                  struct in_addr netmask, int silent)
+{
+  struct sockaddr_in *sock_in;
+  int s;
+  u_long mask, addr;
+  struct ifaliasreq ifra;
+
+  /* If given addresses are alreay set, then ignore this request */
+  if (ipcp->if_mine.s_addr == myaddr.s_addr &&
+      ipcp->if_peer.s_addr == hisaddr.s_addr)
+    return 0;
+
+  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
+  if (s < 0) {
+    LogPrintf(LogERROR, "SetIpDevice: socket(): %s\n", strerror(errno));
+    return (-1);
+  }
+
+  memset(&ifra, '\0', sizeof ifra);
+  strncpy(ifra.ifra_name, bundle->ifname, sizeof ifra.ifra_name - 1);
+  ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
+
+  /* If different address has been set, then delete it first */
+  if (ipcp->if_mine.s_addr != INADDR_ANY ||
+      ipcp->if_peer.s_addr != INADDR_ANY)
+    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
+      LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCDIFADDR): %s\n",
+		strerror(errno));
+      close(s);
+      return (-1);
+    }
+
+  /* Set interface address */
+  sock_in = (struct sockaddr_in *)&ifra.ifra_addr;
+  sock_in->sin_family = AF_INET;
+  sock_in->sin_addr = myaddr;
+  sock_in->sin_len = sizeof *sock_in;
+
+  /* Set destination address */
+  sock_in = (struct sockaddr_in *)&ifra.ifra_broadaddr;
+  sock_in->sin_family = AF_INET;
+  sock_in->sin_addr = hisaddr;
+  sock_in->sin_len = sizeof *sock_in;
+
+  addr = ntohl(myaddr.s_addr);
+  if (IN_CLASSA(addr))
+    mask = IN_CLASSA_NET;
+  else if (IN_CLASSB(addr))
+    mask = IN_CLASSB_NET;
+  else
+    mask = IN_CLASSC_NET;
+
+  /* if subnet mask is given, use it instead of class mask */
+  if (netmask.s_addr != INADDR_ANY && (ntohl(netmask.s_addr) & mask) == mask)
+    mask = ntohl(netmask.s_addr);
+
+  sock_in = (struct sockaddr_in *)&ifra.ifra_mask;
+  sock_in->sin_family = AF_INET;
+  sock_in->sin_addr.s_addr = htonl(mask);
+  sock_in->sin_len = sizeof *sock_in;
+
+  if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0) {
+    if (!silent)
+      LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCAIFADDR): %s\n",
+		strerror(errno));
+    close(s);
+    return (-1);
+  }
+
+  ipcp->if_peer.s_addr = hisaddr.s_addr;
+  ipcp->if_mine.s_addr = myaddr.s_addr;
+
+  if (Enabled(ConfProxy))
+    sifproxyarp(bundle, ipcp, s);
+
+  close(s);
+  return (0);
+}
+
+static struct in_addr
+ChooseHisAddr(struct bundle *bundle, struct ipcpstate *ipcp,
+              const struct in_addr gw)
+{
+  struct in_addr try;
+  int f;
+
+  for (f = 0; f < IpcpInfo.DefHisChoice.nItems; f++) {
+    try = iplist_next(&IpcpInfo.DefHisChoice);
+    LogPrintf(LogDEBUG, "ChooseHisAddr: Check item %d (%s)\n",
+              f, inet_ntoa(try));
+    if (ipcp_SetIPaddress(bundle, ipcp, gw, try, ifnetmask, 1) == 0) {
+      LogPrintf(LogIPCP, "ChooseHisAddr: Selected IP address %s\n",
+                inet_ntoa(try));
+      break;
+    }
+  }
+
+  if (f == IpcpInfo.DefHisChoice.nItems) {
+    LogPrintf(LogDEBUG, "ChooseHisAddr: All addresses in use !\n");
+    try.s_addr = INADDR_ANY;
+  }
+
+  return try;
 }
 
 static void
@@ -328,16 +443,15 @@ IpcpLayerStart(struct fsm * fp)
 {
   /* We're about to start up ! */
   LogPrintf(LogIPCP, "IpcpLayerStart.\n");
+
+  /* This is where we should be setting up the interface in AUTO mode */
 }
 
 static void
-IpcpLayerFinish(struct fsm * fp)
+IpcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
   LogPrintf(LogIPCP, "IpcpLayerFinish.\n");
-  /* Better tell LCP that it's all over (we're the only NCP) */
-  reconnect(RECON_FALSE);
-  LcpClose(&LcpInfo.fsm);
 }
 
 static void
@@ -345,9 +459,56 @@ IpcpLayerDown(struct fsm *fp)
 {
   /* About to come down */
   struct ipcpstate *ipcp = fsm2ipcp(fp);
-  LogPrintf(LogIPCP, "IpcpLayerDown.\n");
+  const char *s;
+
+  s = inet_ntoa(ipcp->if_peer);
+  LogPrintf(LogIsKept(LogLINK) ? LogLINK : LogIPCP, "IpcpLayerDown: %s\n", s);
+
   throughput_stop(&ipcp->throughput);
   throughput_log(&ipcp->throughput, LogIPCP, NULL);
+
+  /*
+   * XXX this stuff should really live in the FSM.  Our config should
+   * associate executable sections in files with events.
+   */
+  if (SelectSystem(fp->bundle, s, LINKDOWNFILE) < 0)
+    if (GetLabel()) {
+       if (SelectSystem(fp->bundle, GetLabel(), LINKDOWNFILE) < 0)
+       SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE);
+    } else
+      SelectSystem(fp->bundle, "MYADDR", LINKDOWNFILE);
+
+  if (!(mode & MODE_AUTO)) {
+    struct ifaliasreq ifra;
+    int s;
+
+    s = ID0socket(AF_INET, SOCK_DGRAM, 0);
+    if (s < 0) {
+      LogPrintf(LogERROR, "IpcpLayerDown: socket: %s\n", strerror(errno));
+      return;
+    }
+
+    if (Enabled(ConfProxy))
+      cifproxyarp(fp->bundle, ipcp, s);
+
+    if (ipcp->if_mine.s_addr != INADDR_ANY ||
+        ipcp->if_peer.s_addr != INADDR_ANY) {
+      memset(&ifra, '\0', sizeof ifra);
+      strncpy(ifra.ifra_name, fp->bundle->ifname, sizeof ifra.ifra_name - 1);
+      ifra.ifra_name[sizeof ifra.ifra_name - 1] = '\0';
+      /* XXX don't delete things belonging to other NCPs */
+      if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
+        LogPrintf(LogERROR, "IpcpLayerDown: ioctl(SIOCDIFADDR): %s\n",
+		  strerror(errno));
+        close(s);
+        return;
+      }
+      ipcp->if_mine.s_addr = ipcp->if_peer.s_addr = INADDR_ANY;
+    }
+
+    close(s);
+    return;
+  }
 }
 
 static void
@@ -357,28 +518,43 @@ IpcpLayerUp(struct fsm *fp)
   struct ipcpstate *ipcp = fsm2ipcp(fp);
   char tbuff[100];
 
-  Prompt();
   LogPrintf(LogIPCP, "IpcpLayerUp(%d).\n", fp->state);
   snprintf(tbuff, sizeof tbuff, "myaddr = %s ", inet_ntoa(ipcp->want_ipaddr));
+  LogPrintf(LogIsKept(LogIPCP) ? LogIPCP : LogLINK, " %s hisaddr = %s\n",
+	    tbuff, inet_ntoa(ipcp->his_ipaddr));
 
   if (ipcp->his_compproto >> 16 == PROTO_VJCOMP)
     VjInit((ipcp->his_compproto >> 8) & 255);
 
-  LogPrintf(LogIsKept(LogIPCP) ? LogIPCP : LogLINK, " %s hisaddr = %s\n",
-	    tbuff, inet_ntoa(ipcp->his_ipaddr));
-  if (bundle_SetIPaddress(fp->bundle, ipcp->want_ipaddr,
-                          ipcp->his_ipaddr) < 0) {
+  if (ipcp_SetIPaddress(fp->bundle, ipcp, ipcp->want_ipaddr,
+                        ipcp->his_ipaddr, ifnetmask, 0) < 0) {
     if (VarTerm)
       LogPrintf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
     return;
   }
+
 #ifndef NOALIAS
   if (mode & MODE_ALIAS)
     VarPacketAliasSetAddress(ipcp->want_ipaddr);
 #endif
-  bundle_Linkup(fp->bundle);
+
+  LogPrintf(LogIsKept(LogLINK) ? LogLINK : LogIPCP, "IpcpLayerUp: %s\n",
+            inet_ntoa(ipcp->if_peer));
+
+  /*
+   * XXX this stuff should really live in the FSM.  Our config should
+   * associate executable sections in files with events.
+   */
+  if (SelectSystem(fp->bundle, inet_ntoa(ipcp->if_mine), LINKUPFILE) < 0)
+    if (GetLabel()) {
+      if (SelectSystem(fp->bundle, GetLabel(), LINKUPFILE) < 0)
+        SelectSystem(fp->bundle, "MYADDR", LINKUPFILE);
+    } else
+      SelectSystem(fp->bundle, "MYADDR", LINKUPFILE);
+
   throughput_start(&ipcp->throughput);
   StartIdleTimer();
+  Prompt(fp->bundle);
 }
 
 void
@@ -446,12 +622,12 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
         if (iplist_isvalid(&ipcp->DefHisChoice)) {
           if (ipaddr.s_addr == INADDR_ANY ||
               iplist_ip2pos(&ipcp->DefHisChoice, ipaddr) < 0 ||
-              bundle_TrySetIPaddress(fp->bundle, ipcp->DefMyAddress.ipaddr,
-                                     ipaddr)) {
+              ipcp_SetIPaddress(fp->bundle, ipcp, ipcp->DefMyAddress.ipaddr,
+                                ipaddr, ifnetmask, 1)) {
             LogPrintf(LogIPCP, "%s: Address invalid or already in use\n",
                       inet_ntoa(ipaddr));
             ipcp->his_ipaddr = ChooseHisAddr
-              (fp->bundle, ipcp->DefMyAddress.ipaddr);
+              (fp->bundle, ipcp, ipcp->DefMyAddress.ipaddr);
             if (ipcp->his_ipaddr.s_addr == INADDR_ANY) {
 	      memcpy(rejp, cp, length);
 	      rejp += length;
@@ -706,7 +882,8 @@ UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
     iplist_setsrc(&IpcpInfo.DefHisChoice, hisaddr);
     if (iplist_isvalid(&IpcpInfo.DefHisChoice)) {
       iplist_setrandpos(&IpcpInfo.DefHisChoice);
-      IpcpInfo.his_ipaddr = ChooseHisAddr(bundle, IpcpInfo.want_ipaddr);
+      IpcpInfo.his_ipaddr = ChooseHisAddr
+        (bundle, &IpcpInfo, IpcpInfo.want_ipaddr);
       if (IpcpInfo.his_ipaddr.s_addr == INADDR_ANY) {
         LogPrintf(LogWARN, "%s: None available !\n", IpcpInfo.DefHisChoice.src);
         return(0);
@@ -723,8 +900,10 @@ UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
                        &IpcpInfo.DefHisAddress.width) != 0) {
     IpcpInfo.his_ipaddr.s_addr = IpcpInfo.DefHisAddress.ipaddr.s_addr;
 
-    if (setaddr && bundle_SetIPaddress(bundle, IpcpInfo.DefMyAddress.ipaddr,
-                                   IpcpInfo.DefHisAddress.ipaddr) < 0) {
+    if (setaddr && ipcp_SetIPaddress(bundle, &IpcpInfo,
+                                     IpcpInfo.DefMyAddress.ipaddr,
+                                     IpcpInfo.DefHisAddress.ipaddr, ifnetmask,
+                                     0) < 0) {
       IpcpInfo.DefMyAddress.ipaddr.s_addr = INADDR_ANY;
       IpcpInfo.DefHisAddress.ipaddr.s_addr = INADDR_ANY;
       return 0;

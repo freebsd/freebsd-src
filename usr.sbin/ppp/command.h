@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.12 1997/11/22 03:37:29 brian Exp $
+ * $Id: command.h,v 1.12.2.1 1998/02/02 19:32:04 brian Exp $
  *
  *	TODO:
  */
@@ -56,7 +56,7 @@ extern struct in_addr ifnetmask;
 extern int aft_cmd;
 
 extern int SetVariable(struct cmdargs const *);
-extern void Prompt(void);
+extern void Prompt(struct bundle *);
 extern int IsInteractive(int);
 extern void InterpretCommand(char *, int, int *, char ***);
 extern void RunCommand(struct bundle *, int, char const *const *, const char *);

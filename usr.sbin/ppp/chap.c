@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.5 1998/02/02 19:32:03 brian Exp $
+ * $Id: chap.c,v 1.28.2.6 1998/02/02 19:33:33 brian Exp $
  *
  *	TODO:
  */
@@ -53,7 +53,6 @@
 #include "lcpproto.h"
 #include "lcp.h"
 #include "hdlc.h"
-#include "phase.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
@@ -61,6 +60,7 @@
 #include "throughput.h"
 #include "link.h"
 #include "physical.h"
+#include "bundle.h"
 
 static const char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
@@ -251,7 +251,14 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
 	    login(&ut);
 	    Utmp = 1;
 	  }
-	NewPhase(bundle, physical, PHASE_NETWORK);
+
+        if (LcpInfo.auth_iwait == 0)
+          /*
+           * Either I didn't need to authenticate, or I've already been
+           * told that I got the answer right.
+           */
+	  bundle_NewPhase(bundle, physical, PHASE_NETWORK);
+
 	break;
       }
     }
@@ -261,7 +268,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
      */
     ChapOutput(physical, CHAP_FAILURE, chp->id, "Invalid!!", 9);
     reconnect(RECON_FALSE);
-    LcpClose(&LcpInfo.fsm);
+    bundle_Close(bundle, &LcpInfo.fsm);
     break;
   }
 }
@@ -278,14 +285,17 @@ RecvChapResult(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
     if (LcpInfo.auth_iwait == PROTO_CHAP) {
       LcpInfo.auth_iwait = 0;
       if (LcpInfo.auth_ineed == 0)
-	NewPhase(bundle, physical, PHASE_NETWORK);
+        /*
+         * We've succeeded in our ``login''
+         * If we're not expecting  the peer to authenticate (or he already
+         * has), proceed to network phase.
+         */
+	bundle_NewPhase(bundle, physical, PHASE_NETWORK);
     }
   } else {
-
-    /*
-     * Maybe, we should close LCP. Of cause, peer may take close action, too.
-     */
-    ;
+    /* CHAP failed - it's not going to get any better */
+    reconnect(RECON_FALSE);
+    bundle_Close(bundle, &LcpInfo.fsm);
   }
 }
 

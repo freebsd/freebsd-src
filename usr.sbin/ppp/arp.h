@@ -17,9 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.h,v 1.7 1998/01/19 02:59:32 brian Exp $
+ * $Id: arp.h,v 1.7.2.1 1998/02/02 19:32:57 brian Exp $
  *
  */
 
-extern int cifproxyarp(struct bundle *, int);
-extern int sifproxyarp(struct bundle *, int);
+struct ipcp;
+
+extern int cifproxyarp(struct bundle *, struct ipcpstate *, int);
+extern int sifproxyarp(struct bundle *, struct ipcpstate *, int);

@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.5 1998/02/02 19:32:12 brian Exp $
+ * $Id: pap.c,v 1.20.2.6 1998/02/02 19:33:39 brian Exp $
  *
  *	TODO:
  */
@@ -50,12 +50,12 @@
 #include "vars.h"
 #include "hdlc.h"
 #include "lcpproto.h"
-#include "phase.h"
 #include "auth.h"
 #include "async.h"
 #include "throughput.h"
 #include "link.h"
 #include "physical.h"
+#include "bundle.h"
 
 static const char *papcodes[] = { "???", "REQUEST", "ACK", "NAK" };
 
@@ -169,29 +169,34 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	if (PapValidate(bundle, cp, cp + *cp + 1, physical)) {
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
 	  LcpInfo.auth_ineed = 0;
-	  if (LcpInfo.auth_iwait == 0) {
-	    if ((mode & MODE_DIRECT) && Physical_IsATTY(physical) &&
-			Enabled(ConfUtmp))
-	      if (Utmp)
-		LogPrintf(LogERROR, "Oops, already logged in on %s\n",
-			  VarBaseDevice);
-	      else {
-	        struct utmp ut;
-	        memset(&ut, 0, sizeof ut);
-	        time(&ut.ut_time);
-	        strncpy(ut.ut_name, cp+1, sizeof ut.ut_name - 1);
-	        strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
-	        if (logout(ut.ut_line))
-		  logwtmp(ut.ut_line, "", "");
-	        login(&ut);
-	        Utmp = 1;
-	      }
-	    NewPhase(bundle, physical, PHASE_NETWORK);
-	  }
+          if ((mode & MODE_DIRECT) && Physical_IsATTY(physical) &&
+              Enabled(ConfUtmp))
+            if (Utmp)
+              LogPrintf(LogERROR, "Oops, already logged in on %s\n",
+                        VarBaseDevice);
+            else {
+              struct utmp ut;
+              memset(&ut, 0, sizeof ut);
+              time(&ut.ut_time);
+              strncpy(ut.ut_name, cp+1, sizeof ut.ut_name - 1);
+              strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
+              if (logout(ut.ut_line))
+                logwtmp(ut.ut_line, "", "");
+              login(&ut);
+              Utmp = 1;
+            }
+
+          if (LcpInfo.auth_iwait == 0)
+            /*
+             * Either I didn't need to authenticate, or I've already been
+             * told that I got the answer right.
+             */
+            bundle_NewPhase(bundle, physical, PHASE_NETWORK);
+
 	} else {
 	  SendPapCode(php->id, PAP_NAK, "Login incorrect", physical);
-	  reconnect(RECON_FALSE);
-	  LcpClose(&LcpInfo.fsm);
+          reconnect(RECON_FALSE);
+          bundle_Close(bundle, &LcpInfo.fsm);
 	}
 	break;
       case PAP_ACK:
@@ -203,7 +208,12 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	if (LcpInfo.auth_iwait == PROTO_PAP) {
 	  LcpInfo.auth_iwait = 0;
 	  if (LcpInfo.auth_ineed == 0)
-	    NewPhase(bundle, physical, PHASE_NETWORK);
+            /*
+             * We've succeeded in our ``login''
+             * If we're not expecting  the peer to authenticate (or he already
+             * has), proceed to network phase.
+             */
+	    bundle_NewPhase(bundle, physical, PHASE_NETWORK);
 	}
 	break;
       case PAP_NAK:
@@ -213,7 +223,7 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_NAK (%s)\n", cp);
 	reconnect(RECON_FALSE);
-	LcpClose(&LcpInfo.fsm);
+        bundle_Close(bundle, &LcpInfo.fsm);
 	break;
       }
     }

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.h,v 1.10.2.1 1998/01/29 00:49:12 brian Exp $
+ * $Id: auth.h,v 1.10.2.2 1998/02/02 19:32:01 brian Exp $
  *
  *	TODO:
  */
@@ -36,6 +36,7 @@ struct authinfo {
   struct physical *physical;
 };
 
+extern const char *Auth2Nam(u_short);
 extern LOCAL_AUTH_VALID LocalAuthValidate(const char *, const char *, const char *);
 extern void StopAuthTimer(struct authinfo *);
 extern void StartAuthChallenge(struct authinfo *, struct physical *);

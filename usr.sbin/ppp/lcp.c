@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.9 1998/02/06 02:22:14 brian Exp $
+ * $Id: lcp.c,v 1.55.2.10 1998/02/06 02:24:22 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -54,7 +54,6 @@
 #include "hdlc.h"
 #include "ccp.h"
 #include "lqr.h"
-#include "phase.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
@@ -395,13 +394,7 @@ static void
 LcpLayerStart(struct fsm *fp)
 {
   /* We're about to start up ! */
-  struct physical *p = link2physical(fp->link);
-
   LogPrintf(LogLCP, "LcpLayerStart\n");
-  if (p)
-    NewPhase(fp->bundle, p, PHASE_ESTABLISH);
-  else
-    LogPrintf(LogERROR, "LcpLayerStart: Not a physical link !\n");
 }
 
 static void
@@ -418,22 +411,12 @@ static void
 LcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
-  struct physical *p = link2physical(fp->link);
   struct lcpstate *lcp = fsm2lcp(fp);
 
   LogPrintf(LogLCP, "LcpLayerFinish\n");
   lcp->LcpFailedMagic = 0;
-  link_Close(fp->link, 0);
   StopAllTimers();
-  CcpInfo.fsm.restart = 0;
-  IpcpInfo.fsm.restart = 0;
-
-  /* We're down at last.  Lets tell background and direct mode to get out */
-  if (p)
-    NewPhase(fp->bundle, p, PHASE_DEAD);
-  else
-    LogPrintf(LogERROR, "LcpLayerFinish: Not a physical link !\n");
-  Prompt();
+  LogPrintf(LogPHASE, "%s disconnected!\n", fp->link->name);
 }
 
 static void
@@ -447,7 +430,6 @@ LcpLayerUp(struct fsm *fp)
 
   if (p) {
     async_SetLinkParams(&p->async, lcp);
-    NewPhase(fp->bundle, p, PHASE_AUTHENTICATE);
     StartLqm(p);
   } else
     LogPrintf(LogERROR, "LcpLayerUp: Not a physical link !\n");
@@ -464,13 +446,7 @@ static void
 LcpLayerDown(struct fsm *fp)
 {
   /* About to come down */
-  bundle_Linkdown(fp->bundle);
-
   LogPrintf(LogLCP, "LcpLayerDown\n");
-  /*
-   * bundle_Linkdown() brings CCP & IPCP down, then waits 'till we go from
-   * STOPPING to STOPPED.  At this point, the FSM gives us a LayerFinish
-   */
 }
 
 void
@@ -488,23 +464,6 @@ LcpOpen(int open_mode)
   LcpInfo.fsm.open_mode = open_mode;
   LcpInfo.LcpFailedMagic = 0;
   FsmOpen(&LcpInfo.fsm);
-}
-
-void
-LcpClose(struct fsm *fp)
-{
-  /* Stop LCP please */
-  struct physical *p = link2physical(fp->link);
-
-  if (p)
-    NewPhase(fp->bundle, p, PHASE_TERMINATE);
-  else
-    LogPrintf(LogERROR, "LcpClose: Not a physical link !\n");
-
-  bundle_Linkdown(fp->bundle);
-  if (!(mode & MODE_DAEMON))
-    bundle_InterfaceDown(fp->bundle);
-  FsmClose(fp);
 }
 
 static void

@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.36.2.3 1998/02/02 19:31:59 brian Exp $
+#	$Id: Makefile,v 1.36.2.4 1998/02/06 02:23:26 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c deflate.c \
 	defs.c filter.c fsm.c hdlc.c id.c ip.c ipcp.c iplist.c lcp.c \
-	link.c log.c lqr.c main.c mbuf.c modem.c pap.c phase.c physical.c \
+	link.c log.c lqr.c main.c mbuf.c modem.c pap.c physical.c \
 	pred.c route.c server.c sig.c slcompress.c systems.c throughput.c \
 	timer.c tun.c vars.c vjcomp.c
 CFLAGS+=-Wall -Wpointer-arith
@@ -41,5 +41,3 @@ chap_ms.o alias_cmd.o loadalias.o:
 .endif
 
 .include <bsd.prog.mk>
-
-STRIP=

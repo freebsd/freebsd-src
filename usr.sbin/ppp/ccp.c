@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.5 1998/02/02 19:32:02 brian Exp $
+ * $Id: ccp.c,v 1.30.2.6 1998/02/06 02:24:04 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -37,11 +37,11 @@
 #include "lcpproto.h"
 #include "lcp.h"
 #include "ccp.h"
-#include "phase.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "pred.h"
 #include "deflate.h"
+#include "bundle.h"
 
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSendTerminateReq(struct fsm *);
@@ -260,7 +260,7 @@ CcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
   struct ccpstate *ccp = fsm2ccp(fp);
-  LogPrintf(LogCCP, "CcpLayerUp(%d).\n", fp->state);
+  LogPrintf(LogCCP, "CcpLayerUp.\n");
   if (!ccp->in_init && ccp->in_algorithm >= 0 &&
       ccp->in_algorithm < NALGORITHMS)
     if ((*algorithm[ccp->in_algorithm]->i.Init)())
@@ -405,14 +405,14 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 }
 
 void
-CcpInput(struct mbuf *bp)
+CcpInput(struct bundle *bundle, struct mbuf *bp)
 {
   /* Got PROTO_CCP from link */
-  if (phase == PHASE_NETWORK)
+  if (bundle_Phase(bundle) == PHASE_NETWORK)
     FsmInput(&CcpInfo.fsm, bp);
-  else {
-    if (phase < PHASE_NETWORK)
-      LogPrintf(LogCCP, "Error: Unexpected CCP in phase %d (ignored)\n", phase);
+  else if (bundle_Phase(bundle) < PHASE_NETWORK) {
+    LogPrintf(LogCCP, "Error: Unexpected CCP in phase %s (ignored)\n",
+              bundle_PhaseName(bundle));
     pfree(bp);
   }
 }

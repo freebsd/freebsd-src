@@ -23,11 +23,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.4 1998/02/06 02:23:29 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.5 1998/02/06 02:24:02 brian Exp $
  */
+
+#define	PHASE_DEAD		0	/* Link is dead */
+#define	PHASE_ESTABLISH		1	/* Establishing link */
+#define	PHASE_AUTHENTICATE	2	/* Being authenticated */
+#define	PHASE_NETWORK		3	/* We're alive ! */
+#define	PHASE_TERMINATE		4	/* Terminating link */
 
 struct physical;
 struct link;
+struct fsm;
 
 struct bundle {
   int unit;                   /* The tun number */
@@ -36,24 +43,21 @@ struct bundle {
   char dev[20];               /* The /dev/tunX name */
   char *ifname;               /* The interface name */
   int routing_seq;            /* The current routing sequence number */
+  u_int phase;                /* Curent phase */
 
   struct physical *physical;  /* For the time being */
-
-  /* These really belong at the NCP level */
-  int linkup;                 /* We've called ppp.linkup */
-  struct in_addr if_mine;     /* My configured interface address */
-  struct in_addr if_peer;     /* My congigured destination address */
 };
 
 extern struct bundle *bundle_Create(const char *dev);
-extern int  bundle_InterfaceDown(struct bundle *);
-extern int  bundle_SetIPaddress(struct bundle *, struct in_addr,
-                                struct in_addr);
-extern int  bundle_TrySetIPaddress(struct bundle *, struct in_addr,
-                                   struct in_addr);
-extern void bundle_Linkup(struct bundle *);
+extern const char *bundle_PhaseName(struct bundle *);
+#define bundle_Phase(b) ((b)->phase)
+extern void bundle_NewPhase(struct bundle *, struct physical *, u_int);
+extern void bundle_LayerStart(struct bundle *, struct fsm *);
+extern void bundle_LayerUp(struct bundle *, struct fsm *);
 extern int  bundle_LinkIsUp(const struct bundle *);
-extern void bundle_Linkdown(struct bundle *);
 extern void bundle_SetRoute(struct bundle *, int, struct in_addr,
                             struct in_addr, struct in_addr, int);
-extern void bundle_Down(struct bundle *, struct link *);
+extern void bundle_LinkLost(struct bundle *, struct link *);
+extern void bundle_Close(struct bundle *, struct fsm *);
+extern void bundle_LayerDown(struct bundle *, struct fsm *);
+extern void bundle_LayerFinish(struct bundle *, struct fsm *);

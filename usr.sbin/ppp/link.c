@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.2 1998/02/06 02:22:43 brian Exp $
+ *  $Id: link.c,v 1.1.2.3 1998/02/06 02:23:35 brian Exp $
  *
  */
 
@@ -43,6 +43,7 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "link.h"
+#include "bundle.h"
 
 void
 link_AddInOctets(struct link *l, int n)
@@ -139,9 +140,10 @@ link_IsActive(struct link *l)
 }
 
 void
-link_Close(struct link *l, int dedicated_force)
+link_Close(struct link *l, struct bundle *bundle, int dedicated_force)
 {
   (*l->Close)(l, dedicated_force);
+  bundle_LinkLost(bundle, l);
 }
 
 void

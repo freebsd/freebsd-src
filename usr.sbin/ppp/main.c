@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.9 1998/02/06 02:23:37 brian Exp $
+ * $Id: main.c,v 1.121.2.10 1998/02/06 02:24:25 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -85,7 +85,6 @@
 #endif
 
 int TermMode = 0;
-int tunno = 0;
 
 static struct termios oldtio;	/* Original tty mode */
 static struct termios comtio;	/* Command level tty mode */
@@ -126,7 +125,7 @@ TtyInit(int DontWantInt)
  *  Set tty into command mode. We allow canonical input and echo processing.
  */
 void
-TtyCommandMode(int prompt)
+TtyCommandMode(struct bundle *bundle, int prompt)
 {
   struct termios newtio;
   int stat;
@@ -145,7 +144,7 @@ TtyCommandMode(int prompt)
   }
   TermMode = 0;
   if (prompt)
-    Prompt();
+    Prompt(bundle);
 }
 
 /*
@@ -179,16 +178,20 @@ TtyOldMode()
 }
 
 static struct bundle *SignalBundle;
+int CleaningUp;
 
 void
 Cleanup(int excode)
 {
+  CleaningUp = 1;
+  reconnect(RECON_FALSE);
+  if (bundle_Phase(SignalBundle) != PHASE_DEAD) {
+    bundle_Close(SignalBundle, NULL);
+    return;
+  }
+
   DropClient(1);
   ServerClose();
-  bundle_InterfaceDown(SignalBundle);
-  link_Close(physical2link(SignalBundle->physical), 1);
-  nointr_sleep(1);
-  DeleteIfRoutes(SignalBundle, 1);
   ID0unlink(pid_filename);
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
     char c = EX_ERRDEAD;
@@ -215,7 +218,7 @@ CloseConnection(int signo)
   LogPrintf(LogPHASE, "Caught signal %d, abort connection\n", signo);
   reconnectState = RECON_FALSE;
   reconnectCount = 0;
-  bundle_Down(SignalBundle, NULL);
+  link_Close(&SignalBundle->physical->link, SignalBundle, 0);
   dial_up = 0;
   pending_signal(SIGINT, CloseConnection);
 }
@@ -228,8 +231,6 @@ CloseSession(int signo)
     exit(EX_TERM);
   }
   LogPrintf(LogPHASE, "Signal %d, terminate.\n", signo);
-  reconnect(RECON_FALSE);
-  LcpClose(&LcpInfo.fsm);
   Cleanup(EX_TERM);
 }
 
@@ -238,7 +239,7 @@ TerminalCont(int signo)
 {
   pending_signal(SIGCONT, SIG_DFL);
   pending_signal(SIGTSTP, TerminalStop);
-  TtyCommandMode(getpgrp() == tcgetpgrp(netfd));
+  TtyCommandMode(SignalBundle, getpgrp() == tcgetpgrp(netfd));
 }
 
 static void
@@ -257,9 +258,9 @@ SetUpServer(int signo)
 
   VarHaveLocalAuthKey = 0;
   LocalAuthInit();
-  if ((res = ServerTcpOpen(SERVER_PORT + tunno)) != 0)
+  if ((res = ServerTcpOpen(SERVER_PORT + SignalBundle->unit)) != 0)
     LogPrintf(LogERROR, "SIGUSR1: Failed %d to open port %d\n",
-	      res, SERVER_PORT + tunno);
+	      res, SERVER_PORT + SignalBundle->unit);
 }
 
 static void
@@ -541,11 +542,11 @@ main(int argc, char **argv)
     }
     close(STDERR_FILENO);
     TtyInit(0);
-    TtyCommandMode(1);
+    TtyCommandMode(bundle, 1);
   }
 
   snprintf(pid_filename, sizeof pid_filename, "%stun%d.pid",
-           _PATH_VARRUN, tunno);
+           _PATH_VARRUN, bundle->unit);
   lockfile = ID0fopen(pid_filename, "w");
   if (lockfile != NULL) {
     fprintf(lockfile, "%d\n", (int) getpid());
@@ -585,10 +586,10 @@ PacketMode(struct bundle *bundle, int delay)
 
   LcpOpen(delay);
   if (mode & MODE_INTER)
-    TtyCommandMode(1);
+    TtyCommandMode(bundle, 0);
   if (VarTerm) {
     fprintf(VarTerm, "Packet mode.\n");
-    aft_cmd = 1;
+    /* aft_cmd = 1; */
   }
 }
 
@@ -625,7 +626,7 @@ ReadTty(struct bundle *bundle)
         linebuff[n] = '\0';
       if (n)
         DecodeCommand(bundle, linebuff, n, IsInteractive(0) ? NULL : "Client");
-      Prompt();
+      Prompt(bundle);
     } else if (n <= 0) {
       LogPrintf(LogPHASE, "Client connection closed.\n");
       DropClient(0);
@@ -664,7 +665,7 @@ ReadTty(struct bundle *bundle)
       case '.':
 	TermMode = 1;
 	aft_cmd = 1;
-	TtyCommandMode(1);
+	TtyCommandMode(bundle, 1);
 	break;
       case 't':
 	if (LogIsKept(LogDEBUG)) {
@@ -1008,7 +1009,7 @@ DoLoop(struct bundle *bundle)
       VarTerm = fdopen(netfd, "a+");
       LocalAuthInit();
       IsInteractive(1);
-      Prompt();
+      Prompt(bundle);
     }
     if (netfd >= 0 && FD_ISSET(netfd, &rfds))
       /* something to read from tty */
@@ -1025,7 +1026,8 @@ DoLoop(struct bundle *bundle)
 	nointr_usleep(10000);
       n = Physical_Read(bundle->physical, rbuff, sizeof rbuff);
       if ((mode & MODE_DIRECT) && n <= 0) {
-        bundle_Down(bundle, &bundle->physical->link);
+        reconnect(RECON_TRUE);
+        link_Close(&bundle->physical->link, bundle, 0);
       } else
 	LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
