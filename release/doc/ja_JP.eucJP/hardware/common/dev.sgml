@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.157
+        Original revision: 1.158
 -->
 
 <sect1 id="support">
@@ -161,7 +161,7 @@
             narrow 型、wide 型に対応。(&man.ahc.4; ドライバ)</para>
 	</listitem>
 	<listitem arch="i386,alpha,sparc64">
-	  <para>Adaptec 19160/291x/2920/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x
+	  <para>Adaptec 19160/291x/2920C/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x
             シリーズ PCI SCSI コントローラ。
             Narrow/Wide/Twin/Ultra/Ultra2 型に対応。
             (&man.ahc.4; ドライバ)</para>
