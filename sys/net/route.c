@@ -1000,7 +1000,8 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 			rt->rt_gwroute = 0;
 			return EDQUOT; /* failure */
 		}
-		RT_UNLOCK(rt->rt_gwroute);
+		if (rt->rt_gwroute != NULL)
+			RT_UNLOCK(rt->rt_gwroute);
 	}
 
 	/*
