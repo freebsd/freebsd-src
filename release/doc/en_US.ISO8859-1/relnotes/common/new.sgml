@@ -489,7 +489,7 @@
       <title>Bootloader Changes</title>
 
       <para arch="i386"><filename>boot2</filename> now supports a
-	<option>-n</option> to disallow boot interruption by
+	<option>-n</option> option to disallow boot interruption by
 	keypresses. &merged;</para>
 
       <para arch="i386">A new <filename>cdboot</filename> bootstrap
