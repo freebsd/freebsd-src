@@ -24,7 +24,7 @@ MAN1=
 MLINKS+= perl.1 suidperl.1
 
 BINOWN= root
-BINMODE=4711
+BINMODE=4111
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
