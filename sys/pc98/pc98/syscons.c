@@ -421,18 +421,6 @@ scmeminit(void *arg)
 /* XXX */
 SYSINIT(sc_mem, SI_SUB_KMEM, SI_ORDER_ANY, scmeminit, NULL);
 
-int
-sc_resume_unit(int unit)
-{
-    /* XXX should be moved to the keyboard driver? */
-    sc_softc_t *sc;
-
-    sc = sc_get_softc(unit, (sc_console_unit == unit) ? SC_KERNEL_CONSOLE : 0);
-    if (sc->kbd != NULL)
-	kbd_clear_state(sc->kbd);
-    return 0;
-}
-
 static int
 scdevtounit(dev_t dev)
 {
