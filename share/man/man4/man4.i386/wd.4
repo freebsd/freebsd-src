@@ -31,10 +31,10 @@
 .Sh NAME
 .Nm wd
 .Nd
-Generic WD100x diskcontroller driver
+Generic WD100x/IDE diskcontroller driver
 .Sh SYNOPSIS
 .sp
-.Cd "controller	wdc0 at isa? port" \&"IO_WD1\&" bio irq 14 vector wdintr
+.Cd "controller wdc0 at isa? port" \&"IO_WD1\&" bio irq 14 vector wdintr
 .Cd "disk wd0 at wdc0 drive 0
 .Cd "disk wd1 at wdc0 drive 1
 .sp
@@ -46,6 +46,30 @@ controllers found on most motherboards.
 .sp
 Your controller documentation is usually quick to point out any WD100x 
 compatibility.
+.sp
+You can convey a number of hints and instructions to the driver using
+the
+.Ar flags
+parameter.
+.sp
+For each drive there are four bit-fields encoded in a 16 bit integer:
+.Bl -tag -width 0x0000 -offset 1c
+.It 0x8000
+Test and use the 32bit transfer capability of the drive.
+.It 0x4000
+If drive looks like it's comming out of sleep mode, assume it's 
+confused and reinitialize it.
+.It 0x0f00
+Force number of heads to ((flags & 0xf00)>>8), recalculate number
+of cylinders to match.
+.It 0x00ff
+Test and use multi-sector transfer mode of this drive, max number of
+sectors attempted is (flags & 0x00ff).
+.El
+.sp
+The flags can be specified on the line for the drive as a 16 bit int,
+or on the controller line as a 32 bit int, where the top 16 bit is
+relevant to the highest numbered drive.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /dev/wd*
