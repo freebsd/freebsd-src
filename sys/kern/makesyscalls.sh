@@ -305,7 +305,7 @@ s/\$//g
 		if ((!nosys || funcname != "nosys") && \
 		    (funcname != "lkmnosys") && (funcname != "lkmressys")) {
 			if (argc != 0 && $2 != "NOARGS" && $2 != "NOPROTO") {
-				printf("struct\t%s {\n", argalias) > sysarg
+				printf("struct %s {\n", argalias) > sysarg
 				for (i = 1; i <= argc; i++)
 					printf("\tchar %s_l_[PADL_(%s)]; " \
 					    "%s %s; char %s_r_[PADR_(%s)];\n",
@@ -315,7 +315,7 @@ s/\$//g
 				printf("};\n") > sysarg
 			}
 			else if($2 != "NOARGS" && $2 != "NOPROTO")
-				printf("struct\t%s {\n\tregister_t dummy;\n};\n",
+				printf("struct %s {\n\tregister_t dummy;\n};\n",
 				    argalias) > sysarg
 		}
 		if ($2 != "NOPROTO" && (!nosys || funcname != "nosys") && \
@@ -358,7 +358,7 @@ s/\$//g
 		ncompat++
 		parseline()
 		if (argc != 0 && $2 != "CPT_NOA") {
-			printf("struct\t%s {\n", argalias) > syscompat
+			printf("struct %s {\n", argalias) > syscompat
 			for (i = 1; i <= argc; i++)
 				printf("\tchar %s_l_[PADL_(%s)]; %s %s; " \
 				    "char %s_r_[PADR_(%s)];\n",
@@ -368,7 +368,7 @@ s/\$//g
 			printf("};\n") > syscompat
 		}
 		else if($2 != "CPT_NOA")
-			printf("struct\t%s {\n\tregister_t dummy;\n};\n",
+			printf("struct %s {\n\tregister_t dummy;\n};\n",
 			    argalias) > sysarg
 		printf("%s\to%s __P((struct proc *, struct %s *));\n",
 		    rettype, funcname, argalias) > syscompatdcl
