@@ -158,13 +158,6 @@ arstrategy(struct bio *bp)
     int lba, count, chunk;
     caddr_t data;
 
-    /* if it's a null transfer, return immediatly. */
-    if (bp->bio_bcount == 0) {
-	bp->bio_resid = 0;
-	biodone(bp);
-	return;
-    }
-
     bp->bio_resid = bp->bio_bcount;
     lba = bp->bio_pblkno;
     data = bp->bio_data;

@@ -269,13 +269,6 @@ adstrategy(struct bio *bp)
 	return;
     }
 
-    /* if it's a null transfer, return immediatly. */
-    if (bp->bio_bcount == 0) {
-	bp->bio_resid = 0;
-	biodone(bp);
-	return;
-    }
-
     s = splbio();
     bioqdisksort(&adp->queue, bp);
     ata_start(adp->controller);
