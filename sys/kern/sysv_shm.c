@@ -96,6 +96,7 @@ struct shmmap_state {
 static void shm_deallocate_segment __P((struct shmid_ds *));
 static int shm_find_segment_by_key __P((key_t));
 static struct shmid_ds *shm_find_segment_by_shmid __P((int));
+static struct shmid_ds *shm_find_segment_by_shmidx __P((int));
 static int shm_delete_mapping __P((struct proc *p, struct shmmap_state *));
 static void shmrealloc __P((void));
 static void shminit __P((void));
@@ -175,6 +176,20 @@ shm_find_segment_by_shmid(shmid)
 	if ((shmseg->shm_perm.mode & (SHMSEG_ALLOCATED | SHMSEG_REMOVED))
 	    != SHMSEG_ALLOCATED ||
 	    shmseg->shm_perm.seq != IPCID_TO_SEQ(shmid))
+		return NULL;
+	return shmseg;
+}
+
+static struct shmid_ds *
+shm_find_segment_by_shmidx(int segnum)
+{
+	struct shmid_ds *shmseg;
+
+	if (segnum < 0 || segnum >= shmalloced)
+		return NULL;
+	shmseg = &shmsegs[segnum];
+	if ((shmseg->shm_perm.mode & (SHMSEG_ALLOCATED | SHMSEG_REMOVED))
+	    != SHMSEG_ALLOCATED )
 		return NULL;
 	return shmseg;
 }
@@ -476,12 +491,38 @@ shmctl(td, uap)
 		error = ENOSYS;
 		goto done2;
 	}
-	shmseg = shm_find_segment_by_shmid(uap->shmid);
+	switch (uap->cmd) {
+	case IPC_INFO:
+		error = copyout( (caddr_t)&shminfo, uap->buf, sizeof( shminfo ) );
+		if (error)
+			goto done2;
+		td->td_retval[0] = shmalloced;
+		goto done2;
+	case SHM_INFO: {
+		struct shm_info shm_info;
+		shm_info.used_ids = shm_nused;
+		shm_info.shm_rss = 0;	/*XXX where to get from ? */
+		shm_info.shm_tot = 0;	/*XXX where to get from ? */
+		shm_info.shm_swp = 0;	/*XXX where to get from ? */
+		shm_info.swap_attempts = 0;	/*XXX where to get from ? */
+		shm_info.swap_successes = 0;	/*XXX where to get from ? */
+		error = copyout( (caddr_t)&shm_info, uap->buf, sizeof( shm_info ) );
+		if (error)
+			goto done2;
+		td->td_retval[0] = shmalloced;
+		goto done2;
+	}
+	}
+	if( (uap->cmd) == SHM_STAT )
+		shmseg = shm_find_segment_by_shmidx(uap->shmid);
+	else
+		shmseg = shm_find_segment_by_shmid(uap->shmid);
 	if (shmseg == NULL) {
 		error = EINVAL;
 		goto done2;
 	}
 	switch (uap->cmd) {
+	case SHM_STAT:
 	case IPC_STAT:
 		error = ipcperm(td, &shmseg->shm_perm, IPC_R);
 		if (error)
@@ -489,6 +530,8 @@ shmctl(td, uap)
 		error = copyout((caddr_t)shmseg, uap->buf, sizeof(inbuf));
 		if (error)
 			goto done2;
+		else if( (uap->cmd) == SHM_STAT )
+			td->td_retval[0] = IXSEQ_TO_IPCID( uap->shmid, shmseg->shm_perm );
 		break;
 	case IPC_SET:
 		error = ipcperm(td, &shmseg->shm_perm, IPC_M);
