@@ -100,9 +100,9 @@ clone_label(lp)
 	*lp1 = *lp;
 	lp = NULL;
 	if (lp1->d_typename[0] == '\0')
-		strncpy(lp1->d_typename, "amnesiac", sizeof(lp1->d_typename));
+		strlcpy(lp1->d_typename, "amnesiac", sizeof(lp1->d_typename));
 	if (lp1->d_packname[0] == '\0')
-		strncpy(lp1->d_packname, "fictitious", sizeof(lp1->d_packname));
+		strlcpy(lp1->d_packname, "fictitious", sizeof(lp1->d_packname));
 	if (lp1->d_nsectors == 0)
 		lp1->d_nsectors = 32;
 	if (lp1->d_ntracks == 0)

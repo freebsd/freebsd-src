@@ -363,9 +363,10 @@ cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 		cnd->cnd_vp = NULL;
 		vn_close(vp, openflag, td->td_ucred, td);
 	}
-	if (cnd->cnd_name[0] == '\0')
-		strncpy(cnd->cnd_name, devtoname(cnd->cnd_cn->cn_dev),
+	if (cnd->cnd_name[0] == '\0') {
+		strlcpy(cnd->cnd_name, devtoname(cnd->cnd_cn->cn_dev),
 		    sizeof(cnd->cnd_name));
+	}
 	snprintf(path, sizeof(path), "/dev/%s", cnd->cnd_name);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
 	error = vn_open(&nd, &openflag, 0);

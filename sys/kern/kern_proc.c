@@ -921,13 +921,13 @@ fill_kinfo_proc(p, kp)
 		}
 		if (!(p->p_flag & P_KSES)) {
 			if (td->td_wmesg != NULL) {
-				strncpy(kp->ki_wmesg, td->td_wmesg,
-				    sizeof(kp->ki_wmesg) - 1);
+				strlcpy(kp->ki_wmesg, td->td_wmesg,
+				    sizeof(kp->ki_wmesg));
 			}
 			if (TD_ON_LOCK(td)) {
 				kp->ki_kiflag |= KI_LOCKBLOCK;
-				strncpy(kp->ki_lockname, td->td_lockname,
-				    sizeof(kp->ki_lockname) - 1);
+				strlcpy(kp->ki_lockname, td->td_lockname,
+				    sizeof(kp->ki_lockname));
 			}
 		}
 
@@ -1002,8 +1002,8 @@ fill_kinfo_proc(p, kp)
 		if (sp != NULL) {
 			kp->ki_sid = sp->s_sid;
 			SESS_LOCK(sp);
-			strncpy(kp->ki_login, sp->s_login,
-			    sizeof(kp->ki_login) - 1);
+			strlcpy(kp->ki_login, sp->s_login,
+			    sizeof(kp->ki_login));
 			if (sp->s_ttyvp)
 				kp->ki_kiflag |= KI_CTTY;
 			if (SESS_LEADER(p))
@@ -1020,8 +1020,8 @@ fill_kinfo_proc(p, kp)
 	} else
 		kp->ki_tdev = NOUDEV;
 	if (p->p_comm[0] != '\0') {
-		strncpy(kp->ki_comm, p->p_comm, sizeof(kp->ki_comm) - 1);
-		strncpy(kp->ki_ocomm, p->p_comm, sizeof(kp->ki_ocomm) - 1);
+		strlcpy(kp->ki_comm, p->p_comm, sizeof(kp->ki_comm));
+		strlcpy(kp->ki_ocomm, p->p_comm, sizeof(kp->ki_ocomm));
 	}
 	kp->ki_siglist = p->p_siglist;
 	kp->ki_sigmask = p->p_sigmask;

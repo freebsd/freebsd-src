@@ -124,7 +124,8 @@ ithread_update(struct ithd *ithd)
 		return;
 	p = td->td_proc;
 
-	strncpy(p->p_comm, ithd->it_name, sizeof(ithd->it_name));
+	strlcpy(p->p_comm, ithd->it_name, sizeof(ithd->it_name));
+
 	ih = TAILQ_FIRST(&ithd->it_handlers);
 	if (ih == NULL) {
 		mtx_lock_spin(&sched_lock);

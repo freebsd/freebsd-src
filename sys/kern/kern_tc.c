@@ -447,8 +447,8 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	tc = timecounter;
-	strncpy(newname, tc->tc_name, sizeof(newname));
-	newname[sizeof(newname) - 1] = '\0';
+	strlcpy(newname, tc->tc_name, sizeof(newname));
+
 	error = sysctl_handle_string(oidp, &newname[0], sizeof(newname), req);
 	if (error != 0 || req->newptr == NULL ||
 	    strcmp(newname, tc->tc_name) == 0)
