@@ -66,8 +66,8 @@
 #include "ficl.h"
 
 /* Dictionary on-demand resizing control variables */
-unsigned int dictThreshold;
-unsigned int dictIncrease;
+CELL dictThreshold;
+CELL dictIncrease;
 
 
 static char *dictCopyName(FICL_DICT *pDict, STRINGINFO si);
@@ -774,11 +774,12 @@ void hashReset(FICL_HASH *pHash)
 
 void dictCheckThreshold(FICL_DICT* dp)
 {
-    if( dictCellsAvail(dp) < dictThreshold ) {
-        dp->dict = ficlMalloc( dictIncrease * sizeof (CELL) );
+    if( dictCellsAvail(dp) < dictThreshold.u ) {
+        dp->dict = ficlMalloc( dictIncrease.u * sizeof (CELL) );
         assert(dp->dict);
         dp->here = dp->dict;
-        dp->size = dictIncrease;
+        dp->size = dictIncrease.u;
+        dictAlign(dp);
     }
 }
 
