@@ -1,0 +1,70 @@
+.\"
+.\" Copyright (c) 2003 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 25, 2003
+.Dt WLAN 4
+.Os
+.Sh NAME
+.Nm wlan
+.Nd generic 802.11 link-layer support
+.Sh SYNOPSIS
+.Cd "device wlan"
+.Sh DESCRIPTION
+The
+.Nm
+device provides generic code to support 802.11
+drivers, including host AP mode.
+Currently it is required for the
+.Xr wi 4
+and
+.Xr an 4
+drivers but will eventually be required by all 802.11 drivers.
+.Sh COMPATIBILITY
+The module name of
+.Nm
+was used to be compatible with
+.Nx .
+.Sh SEE ALSO
+.Xr an 4 ,
+.Xr awi 4 ,
+.Xr netintro 4 ,
+.Xr wi 4
+.Sh STANDARDS
+More information can be found in the IEEE 802.11 Standard.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+Support for generic 802.11 devices was adapted from
+.Nx
+by
+.An -nosplit
+.An Sam Leffler Aq sam@FreeBSD.org .
+This manual page was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org .
