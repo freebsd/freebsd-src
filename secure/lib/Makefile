@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= libcipher libcrypto libdes libssl
+SUBDIR= libcipher libcrypto libdes librsaglue libssl
 .if !defined(NOCRYPT) && !defined(MAKE_KERBEROS4)
 SUBDIR+=libtelnet
 .endif
