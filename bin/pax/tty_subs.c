@@ -189,6 +189,7 @@ paxwarn(set, fmt, va_alist)
 	 * line by itself
 	 */
 	if (vflag && vfpart) {
+		(void)fflush(listf);
 		(void)fputc('\n', stderr);
 		vfpart = 0;
 	}
@@ -229,6 +230,7 @@ syswarn(set, errnum, fmt, va_alist)
 	 * line by itself
 	 */
 	if (vflag && vfpart) {
+		(void)fflush(listf);
 		(void)fputc('\n', stderr);
 		vfpart = 0;
 	}

@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <sys/uio.h>
 #include <stdlib.h>
 #include "pax.h"
+#include "options.h"
 #include "extern.h"
 
 static int
@@ -122,7 +123,7 @@ file_creat(arcn)
 		    file_mode)) >= 0)
 			break;
 		oerrno = errno;
-		if (chk_path(arcn->name,arcn->sb.st_uid,arcn->sb.st_gid) < 0) {
+		if (nodirs || chk_path(arcn->name,arcn->sb.st_uid,arcn->sb.st_gid) < 0) {
 			syswarn(1, oerrno, "Unable to create %s", arcn->name);
 			return(-1);
 		}
@@ -356,7 +357,7 @@ mk_link(to, to_sb, from, ign)
 		if (link(to, from) == 0)
 			break;
 		oerrno = errno;
-		if (chk_path(from, to_sb->st_uid, to_sb->st_gid) == 0)
+		if (!nodirs && chk_path(from, to_sb->st_uid, to_sb->st_gid) == 0)
 			continue;
 		if (!ign) {
 			syswarn(1, oerrno, "Could not link to %s from %s", to,
@@ -431,8 +432,7 @@ node_creat(arcn)
 			    arcn->name);
 			return(-1);
 		case PAX_SLK:
-			if ((res = symlink(arcn->ln_name, arcn->name)) == 0)
-				return(0);
+			res = symlink(arcn->ln_name, arcn->name);
 			break;
 		case PAX_CTG:
 		case PAX_HLK:
@@ -465,7 +465,7 @@ node_creat(arcn)
 		if (++pass <= 1)
 			continue;
 
-		if (chk_path(arcn->name,arcn->sb.st_uid,arcn->sb.st_gid) < 0) {
+		if (nodirs || chk_path(arcn->name,arcn->sb.st_uid,arcn->sb.st_gid) < 0) {
 			syswarn(1, oerrno, "Could not create: %s", arcn->name);
 			return(-1);
 		}
@@ -475,9 +475,17 @@ node_creat(arcn)
 	 * we were able to create the node. set uid/gid, modes and times
 	 */
 	if (pids)
-		res = set_ids(arcn->name, arcn->sb.st_uid, arcn->sb.st_gid);
+		res = ((arcn->type == PAX_SLK) ?
+		    set_lids(arcn->name, arcn->sb.st_uid, arcn->sb.st_gid) :
+		    set_ids(arcn->name, arcn->sb.st_uid, arcn->sb.st_gid));
 	else
 		res = 0;
+
+	/*
+	 * symlinks are done now.
+	 */
+	if (arcn->type == PAX_SLK)
+		return(0);
 
 	/*
 	 * IMPORTANT SECURITY NOTE:
@@ -489,7 +497,7 @@ node_creat(arcn)
 	if (pmode)
 		set_pmode(arcn->name, arcn->sb.st_mode);
 
-	if (arcn->type == PAX_DIR) {
+	if (arcn->type == PAX_DIR && strcmp(NM_CPIO, argv0) != 0) {
 		/*
 		 * Dirs must be processed again at end of extract to set times
 		 * and modes to agree with those stored in the archive. However
@@ -752,7 +760,46 @@ set_ids(fnm, uid, gid)
 #endif
 {
 	if (chown(fnm, uid, gid) < 0) {
-		syswarn(1, errno, "Unable to set file uid/gid of %s", fnm);
+		/*
+		 * ignore EPERM unless in verbose mode or being run by root.
+		 * if running as pax, POSIX requires a warning.
+		 */
+		if (strcmp(NM_PAX, argv0) == 0 || errno != EPERM || vflag ||
+		    geteuid() == 0)
+			syswarn(1, errno, "Unable to set file uid/gid of %s",
+			    fnm);
+		return(-1);
+	}
+	return(0);
+}
+
+/*
+ * set_lids()
+ *	set the uid and gid of a file system node
+ * Return:
+ *	0 when set, -1 on failure
+ */
+
+#ifdef __STDC__
+int
+set_lids(char *fnm, uid_t uid, gid_t gid)
+#else
+int
+set_lids(fnm, uid, gid)
+	char *fnm;
+	uid_t uid;
+	gid_t gid;
+#endif
+{
+	if (lchown(fnm, uid, gid) < 0) {
+		/*
+		 * ignore EPERM unless in verbose mode or being run by root.
+		 * if running as pax, POSIX requires a warning.
+		 */
+		if (strcmp(NM_PAX, argv0) == 0 || errno != EPERM || vflag ||
+		    geteuid() == 0)
+			syswarn(1, errno, "Unable to set file uid/gid of %s",
+			    fnm);
 		return(-1);
 	}
 	return(0);
