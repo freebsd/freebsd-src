@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.17 1997/02/22 12:58:08 peter Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.14.2.1 1997/03/15 23:29:09 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -18,7 +18,7 @@
 	<p><bf>International books & Magazines:</bf>
 
 	<p><itemize>
-	  <item><htmlurl url="http://freebsd.csie.nctu.edu.tw/~jdli/book.shtml"
+	  <item><htmlurl url="http://freebsd.csie.nctu.edu.tw/~jdli/book.html"
 	  name="Using FreeBSD"> (in Chinese).
 	  <item>FreeBSD for PC 98'ers (in Japanese), published by SHUWA
 	   System Co, LTD. ISBN4-87966-468-5 C3055 P2900E.
@@ -52,6 +52,12 @@
 	    O'Reilly &amp; Associates, Inc., 1990.
 	    <newline>ISBN 093717520X</item>
 
+	    <item>Mui, Linda.
+		<em>What You Need To Know When You Can't Find Your UNIX
+		System Administrator</em>.
+		O'Reilly &amp; Associates, Inc., 1995. 
+		<newline>ISBN 1-56592-104-6 </item>
+
           <item><htmlurl url="http://www-wks.acs.ohio-state.edu/"
 		name="Ohio State University"> has written
 		a <htmlurl
@@ -66,8 +72,9 @@
 	<p><itemize> 
 
 	    <item>Albitz, Paul and Liu, Cricket. <em>DNS and
-		BIND</em>.  O'Reilly &amp; Associates, Inc., 1993. 
-		<newline>ISBN 1-56592-010-4 </item>
+		BIND</em>, 2nd Ed.
+		O'Reilly &amp; Associates, Inc., 1997. 
+		<newline>ISBN 1-56592-236-0 </item>
 
 	    <item>Computer Systems Research Group, UC Berkeley.
 		<sl>4.4BSD System Manager's Manual</sl>.
@@ -75,12 +82,13 @@
 		<newline>ISBN 1-56592-080-5</item>
 
 	    <item>Costales, Brian, et al.
-		<em>Sendmail</em>. O'Reilly &amp;
-		Associates, Inc., 1993. <newline>ISBN 1-56592-056-2 </item>
+		<em>Sendmail</em>, 2nd Ed. O'Reilly &amp;
+		Associates, Inc., 1997.
+		<newline>ISBN 1-56592-222-0 </item>
 
 	    <item>Frisch, &AElig;leen. <em>Essential System
-	      Administration</em>.  O'Reilly &amp;
-	      Associates, Inc., 1993. <newline>ISBN 0-937175-80-3 </item>
+	      Administration</em>, 2nd Ed.  O'Reilly &amp;
+	      Associates, Inc., 1995. <newline>ISBN 1-56592-127-5 </item>
 
 	    <item>Hunt, Craig. <em>TCP/IP Network Administration</em>.
                 O'Reilly &amp; Associates, Inc., 1992.  
@@ -89,6 +97,10 @@
 	    <item>Nemeth, Evi. <em>UNIX System Administration
 		Handbook</em>. 2nd ed. Prentice Hall, 1995. 
 		<newline>ISBN 0131510517</item>
+
+	    <item>Stern, Hal <em>Managing NFS and NIS</em>
+		O'Reilly &amp; Associates, Inc., 1991. 
+		<newline>ISBN 1-937175-75-7 </item>
 
 	  </itemize>
 
@@ -127,6 +139,11 @@
 		PTR Prentice Hall, 1988. 
 		<newline>ISBN 0-13-110362-9</item>
 
+	    <item>Lehey, Greg.
+		<em>Port UNIX Software</em>.
+		O'Reilly &amp; Associates, Inc., 1995.
+		<newline>ISBN 1-56592-126-7</item>
+
 	    <item>Plauger, P. J. <em>The Standard C
 		Library</em>. Prentice Hall, 1992.  
 		<newline>ISBN 0-13-131509-9</item>
@@ -150,6 +167,10 @@
 	<heading>Operating System Internals</heading>
 
 	<p><itemize>
+
+	    <item>Andleigh, Prabhat K. <em>UNIX System Architecture</em>.
+		Prentice-Hall, Inc., 1990.
+		<newline>ISBN 0-13-949843-5</item>
 
 	    <item>Jolitz, William.  "Porting UNIX to the
 	      386". <em>Dr. Dobb's Journal</em>.  January
@@ -184,6 +205,10 @@
 		Reading, Mass. : Addison-Wesley, 1996.
 		<newline>ISBN 0-201-63495-3</item>
 
+	    <item>Vahalia, Uresh. <em>UNIX Internals -- The New Frontiers</em>.
+		Prentice Hall, 1996.
+		<newline>ISBN 0-13-101908-2</item>
+
 	    <item>Wright, Gary R. and W. Richard Stevens.
 		<em>TCP/IP Illustrated, Volume 2:
 		The Implementation</em>.
@@ -208,6 +233,11 @@
 		<em>Practical UNIX Security</em>. 2nd Ed.
 		O'Reilly &amp; Associates, Inc., 1996. 
 		<newline>ISBN 1-56592-148-8 </item>
+
+	    <item>Garfinkel, Simson.
+		<em>PGP Pretty Good Privacy</em>
+		O'Reilly &amp; Associates, Inc., 1995. 
+		<newline>ISBN 1-56592-098-8 </item>
 
 	  </itemize>
 
@@ -252,7 +282,19 @@
 
 	<p><itemize>
 
-	    <item>Saulus, Peter H. <em>A quarter century of UNIX</em>.
+	    <item>Lion, John <em>Lion's Commentary on UNIX, 6th Ed.
+	      With Source Code</em>.
+	      ITP Media Group, 1996.
+	      <newline>ISBN 1573980137</item>
+
+	    <item>Raymond, Eric s. <em>The New Hacker's Dictonary,
+	      3rd edition</em>.  MIT Press, 1996.
+	      <newline>ISBN 0-262-68092-0
+	      <newline>Also known as the
+	      <htmlurl url="http://www.ccil.org/jargon/jargon.html"
+	      name="Jargon File"></item>
+
+	    <item>Salus, Peter H. <em>A quarter century of UNIX</em>.
 	      Addison-Wesley Publishing Company, Inc., 1994.
 	      <newline>ISBN 0-201-54777-5</item>
           
@@ -264,6 +306,14 @@
 	    <item>Don Libes, Sandy Ressler <em>Life with UNIX</em> - special
 	      edition.  Prentice-Hall, Inc., 1989.
 	      <newline>ISBN 0-13-536657-7</item>
+
+	    <item><em>The BSD family tree</em>. 1997.
+              <newline>
+	      <htmlurl url="http://www.de.freebsd.org/de/ftp/unix-stammbaum"
+	      name="http://www.de.freebsd.org/de/ftp/unix-stammbaum">
+	      or <url url="file:/usr/share/misc/bsd-family-tree"
+	      name="local"> on a FreeBSD-current machine.
+	      </item>
 
 	  </itemize>
 

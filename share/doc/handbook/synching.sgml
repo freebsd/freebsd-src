@@ -1,13 +1,13 @@
-<!-- $Id: synching.sgml,v 1.9 1997/02/22 12:59:32 peter Exp $ -->
+<!-- $Id: synching.sgml,v 1.3.2.2 1997/03/15 23:30:39 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<chapt><heading>Synchronizing source trees over the Internet<label id="synching"></heading>
+<sect><heading>Synchronizing source trees over the Internet<label id="synching"></heading>
 
 <p><em>Contributed by &a.jkh;.</em>
 
 <!--
 
-Last updated: $Date: 1997/02/22 12:59:32 $
+Last updated: $Date: 1997/03/15 23:30:39 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.

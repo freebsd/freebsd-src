@@ -1,8 +1,8 @@
-<!-- $Id: current.sgml,v 1.19 1997/02/22 12:58:16 peter Exp $ -->
+<!-- $Id: current.sgml,v 1.16.2.1 1997/03/15 23:29:13 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
-<chapt><heading>Staying current with FreeBSD<label id="current"></heading>
+<sect><heading>Staying current with FreeBSD<label id="current"></heading>
 
 <p><em>Contributed by &a.jkh;.</em>
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1997/02/22 12:58:16 $
+Last updated: $Date: 1997/03/15 23:29:13 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -18,7 +18,7 @@ and states some prerequisites for making sure the process goes as
 smoothly as possible.
 -->
 
-<sect><heading>What is FreeBSD-current?</heading>
+<sect1><heading>What is FreeBSD-current?</heading>
 
 <p>FreeBSD-current is, quite literally, nothing more than a daily
 snapshot of the working sources for FreeBSD.  These include work in
@@ -37,7 +37,7 @@ getting something tested, not because we are in the business of
 providing binary releases of current.  If we do not offer, please do not
 ask!  It takes far too much time to do this as a general task.
 
-<sect><heading>Who needs FreeBSD-current?</heading>
+<sect1><heading>Who needs FreeBSD-current?</heading>
 
 <p>FreeBSD-current is made generally available for 3 primary interest groups:
 <enum>
@@ -57,7 +57,7 @@ ask!  It takes far too much time to do this as a general task.
         people also make the occasional comment or contribute code.
 </enum>
 
-<sect><heading>What is FreeBSD-current <em>NOT</em>?</heading>
+<sect1><heading>What is FreeBSD-current <em>NOT</em>?</heading>
 
 <p><enum>
     <item>  A fast-track to getting pre-release bits because you heard there is
@@ -79,7 +79,7 @@ ask!  It takes far too much time to do this as a general task.
         improve FreeBSD, most of you would vote for us improving it.
 </enum>
 
-<sect><heading>Using FreeBSD-current</heading>
+<sect1><heading>Using FreeBSD-current</heading>
 
 <p><enum> <item> Join the &a.current and the &a.cvsall .
     This is not just a good idea, it is <em>essential</em>.
@@ -113,11 +113,11 @@ subscribe cvs-all
             have a good TCP/IP connection at a flat rate, this is 
             the way to do it.
 
-        <item>  Use the CMU <ref id="sup" name="sup"> program (Software Update
-	     Protocol).
+        <item>  Use the <ref id="cvsup" name="cvsup"> program with
+	    <url url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/examples/cvsup/standard-supfile" name="this supfile">.
             This is the second most recommended method, since it allows 
 	    you to grab the entire collection once and then only what has
-            changed from then on.  Many people run sup from cron
+            changed from then on.  Many people run cvsup from cron
             and keep their sources up-to-date automatically.
 
         <item>  Use ftp.  The source tree for FreeBSD-current is always
@@ -139,7 +139,7 @@ subscribe cvs-all
     </enum>
 
     <item>  Essentially, if you need rapid on-demand access to the source and
-    communications bandwidth is not a consideration, use sup or ftp.
+    communications bandwidth is not a consideration, use cvsup or ftp.
     Otherwise, use CTM.
 
     <item>  If you are grabbing the sources to run, and not just look at,

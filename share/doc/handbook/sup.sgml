@@ -1,15 +1,15 @@
-<!-- $Id: sup.sgml,v 1.27 1997/03/11 06:42:03 jkh Exp $ -->
+<!-- $Id: sup.sgml,v 1.19.2.3 1997/03/15 23:30:37 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
-<sect><heading>SUP<label id="sup"></heading>
+<sect1><heading>SUP<label id="sup"></heading>
 
 <p><em>Contributed by &a.jkh; and &a.gclarkii;.</em> 
 
 SUP is a network based software update tool developed at CMU.  The
 purpose of this document is get the beginner up and running with sup.
 
-<sect1><heading>Configuration<label id="sup:setup"></heading>
+<sect2><heading>Configuration<label id="sup:setup"></heading>
 
 <p>SUP gets the information it needs to run from a configuration file 
 called a supfile.  There are different example supfiles provided
@@ -69,7 +69,7 @@ a -current user.    If you are using the stable-supfile, please
 join the &a.stable and read
 <ref id="stable" name="Staying stable with FreeBSD">.
 
-<sect1><heading>Distributions<label id="sup:dists">
+<sect2><heading>Distributions<label id="sup:dists">
 </heading>
 
 <p>For the main FreeBSD distribution using the standard-supfile:
@@ -118,6 +118,7 @@ ports-benchmarks: /usr/ports/benchmarks	benchmarks
 ports-cad:	  /usr/ports/cad	CAD tools
 ports-chinese:	  /usr/ports/chinese	Chinese support
 ports-comms:	  /usr/ports/comms	communication software
+ports-converters: /usr/ports/converters	character code converters
 ports-databases:  /usr/ports/databases	databases
 ports-devel:	  /usr/ports/devel	development utilities
 ports-editors:    /usr/ports/editors	editors
@@ -139,6 +140,7 @@ ports-russian:    /usr/ports/russian    Russian support
 ports-security:	  /usr/ports/security	``security'' utilities, for better or for worse
 ports-shells:	  /usr/ports/shells	various UN*X shells
 ports-sysutils:	  /usr/ports/sysutils	system utilities
+ports-textproc:	  /usr/ports/textproc	text processing utilities (does not include desktop publishing)
 ports-vietnamese: /usr/ports/vietnamese	Vietnamese support
 ports-www:	  /usr/ports/www	software related to the world wide web
 ports-x11:	  /usr/ports/x11	X11 software

@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.27 1997/02/22 12:58:42 peter Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.21.2.3 1997/03/15 23:29:49 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -669,8 +669,8 @@
       <sect1><heading>Console, Bus Mouse, and X Server Support</heading>
 
 	<p>You must choose one of these two console types, and, if you plan
-	to use the X Window System, enable the XSERVER option and optionally, a bus
-	mouse or PS/2 mouse device.
+	to use the X Window System with the vt220 console, enable the
+	XSERVER option and optionally, a bus mouse or PS/2 mouse device.
 
 	  <descrip>
 
@@ -709,9 +709,10 @@
 
 		<tag>options XSERVER</tag> 
 
-		<p>This includes code
+		<p>Only applicable with the <tt>vt0</tt> console driver.
+		This includes code
 		  required to run the <tt>XFree86</tt> X Window
-		  Server.
+		  Server under the <tt>vt0</tt> console driver.
 	   
 	      </descrip>
 
