@@ -274,8 +274,8 @@ defaults(void)
 		bindirs = realloc(bindirs, (nele + 3) * sizeof(char *));
 		if (bindirs == NULL)
 			abort();
-		bindirs[nele++] = "/usr/libexec";
-		bindirs[nele++] = "/usr/games";
+		bindirs[nele++] = PATH_LIBEXEC;
+		bindirs[nele++] = PATH_GAMES;
 		bindirs[nele] = NULL;
 		if ((cp = getenv("PATH")) != NULL) {
 			/* don't destroy the original environment... */
