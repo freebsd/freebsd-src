@@ -273,7 +273,6 @@ END(bcmp)
  * void bcopy(const void *src, void *dst, size_t len)
  */
 ENTRY(bcopy)
-ENTRY(ovbcopy)
 	/*
 	 * Check for overlap, and copy backwards if so.
 	 */

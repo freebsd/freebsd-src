@@ -507,12 +507,10 @@ npx_attach(dev)
 	if (cpu_class == CPUCLASS_586 && npx_ex16 && npx_exists &&
 	    timezero("i586_bzero()", i586_bzero) <
 	    timezero("bzero()", bzero) * 4 / 5) {
-		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY)) {
+		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY))
 			bcopy_vector = i586_bcopy;
-			ovbcopy_vector = i586_bcopy;
-		}
 		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_BZERO))
-			bzero = i586_bzero;
+			bzero_vector = i586_bzero;
 		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_COPYIO)) {
 			copyin_vector = i586_copyin;
 			copyout_vector = i586_copyout;

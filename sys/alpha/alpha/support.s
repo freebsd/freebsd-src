@@ -270,16 +270,11 @@ NESTED(copyoutstr, 4, 16, ra, 0, 0)
 	
 /*
  * Copy a bytes within the kernel's address space.
- *
- * In the kernel, bcopy() doesn't have to handle the overlapping
- * case; that's that ovbcopy() is for.  However, it doesn't hurt
- * to do both in bcopy, and it does provide a measure of safety.
+ * Handles overlapping regions.
  *
  * void bcopy(char *from, char *to, size_t len);
- * void ovbcopy(char *from, char *to, size_t len);
  */
 LEAF(bcopy,3)
-XLEAF(ovbcopy,3)
 
 	/* Check for negative length */
 	ble	a2,bcopy_done
