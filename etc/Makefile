@@ -69,7 +69,7 @@ CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/ftp
 CPIO_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
 CPIO_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
 CPIO_CPIO+=	usr/sbin/update usr/sbin/chown
-CPIO_CPIO+=	var
+CPIO_CPIO_DIRS=	var var/tmp
 
 DOS_FILES=	${COPYRIGHT}
 DOS_FILES+=	bin/cat bin/dd bin/ed
@@ -271,7 +271,8 @@ cpio-floppy:
 	(cd ${DESTDIR}/; \
 		ls ${CPIO_FILES} | cpio -pdamuv ${MOUNT})
 	(cd ${DESTDIR}/; \
-	    find ${CPIO_CPIO} | cpio -oav | gzip -9 >${MOUNT}/inst2.cpio.gz)
+	    (find ${CPIO_CPIO}; ls -d ${CPIO_CPIO_DIRS}) | \
+		cpio -oav | gzip -9 >${MOUNT}/inst2.cpio.gz)
 	install -c -o root -g wheel -m 755 etc.i386/inst2.profile \
 	    ${MOUNT}/.profile
 	install -c -o root -g wheel -m 755 etc.i386/inst2.install \
