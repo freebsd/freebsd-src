@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.12 1997/07/21 17:03:22 fsmp Exp $
+ * $Id: init_smp.c,v 1.13 1997/07/22 16:49:54 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -214,6 +214,15 @@ void *dummy;
 {
 	int dcnt = 0;
 	int apic_id;
+
+#if 1
+	/*
+	 * XXX FIXME: cheap fix for "trap 9 on boot" problem.
+	 * this is temporary, but seems to be the most benign of our choices.
+	 * expected to be fixed properly "real soon now".
+	 */
+	asm("pushl %ds; popl %es");
+#endif
 
 	/*
 	 * This code is executed only on startup of the idleprocs
