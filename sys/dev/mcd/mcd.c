@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.31 1994/11/14 19:25:43 ache Exp $
+ *	$Id: mcd.c,v 1.32 1994/11/14 19:32:11 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -679,9 +679,9 @@ mcd_probe(struct isa_device *dev)
 			return 0;
 		stbytes[j] = (inb(port+MCD_DATA) & 0xFF);
 	}
-	printf("mcd%d: version information is %x %c %x\n", unit,
-		stbytes[0], stbytes[1], stbytes[2]);
-	if (stbytes[1] >= 4) {
+	printf("mcd%d: version information is %c %x\n", unit,
+		stbytes[1], stbytes[2]);
+	if (stbytes[2] >= 4) {
 		outb(port+MCD_CTRL, M_PICKLE);
 		mcd_data[unit].flags |= MCDNEWMODEL;
 		printf("mcd%d: Adjusted for newer drive model\n", unit);
