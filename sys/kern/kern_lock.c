@@ -136,10 +136,10 @@ apause(struct lock *lkp, int flags)
 }
 
 static int
-acquire(struct lock **lkpp, int extflags, int wanted) {
+acquire(struct lock **lkpp, int extflags, int wanted)
+{
 	struct lock *lkp = *lkpp;
 	int s, error;
-
 	CTR3(KTR_LOCK,
 	    "acquire(): lkp == %p, extflags == 0x%x, wanted == 0x%x",
 	    lkp, extflags, wanted);
@@ -148,7 +148,7 @@ acquire(struct lock **lkpp, int extflags, int wanted) {
 		return EBUSY;
 	}
 
-	if (((lkp->lk_flags | extflags) & LK_NOPAUSE) == 0) {
+	if (((lkp->lk_flags | extflags) & (LK_NOPAUSE|LK_INTERLOCK)) == 0) {
 		error = apause(lkp, wanted);
 		if (error == 0)
 			return 0;
@@ -214,10 +214,6 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 	struct thread *thr;
 	int extflags, lockflags;
 
-	CTR5(KTR_LOCK,
-	    "lockmgr(): lkp == %p (lk_wmesg == \"%s\"), flags == 0x%x, "
-	    "interlkp == %p, td == %p", lkp, lkp->lk_wmesg, flags, interlkp, td);
-
 	error = 0;
 	if (td == NULL)
 		thr = LK_KERNPROC;
@@ -226,6 +222,17 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 
 	if ((flags & LK_INTERNAL) == 0)
 		mtx_lock(lkp->lk_interlock);
+#ifdef DEBUG_LOCKS
+	CTR6(KTR_LOCK,
+	    "lockmgr(): lkp == %p (lk_wmesg == \"%s\"), flags == 0x%x, "
+	    "td == %p %s:%d", lkp, lkp->lk_wmesg, flags, td, file, line);
+#else
+	CTR6(KTR_LOCK,
+	    "lockmgr(): lkp == %p (lk_wmesg == \"%s\"), owner == %p, exclusivecount == %d, flags == 0x%x, "
+	    "td == %p", lkp, lkp->lk_wmesg, lkp->lk_lockholder,
+	    lkp->lk_exclusivecount, flags, td);
+#endif
+
 	if (flags & LK_INTERLOCK) {
 		mtx_assert(interlkp, MA_OWNED | MA_NOTRECURSED);
 		mtx_unlock(interlkp);
@@ -479,9 +486,11 @@ acquiredrain(struct lock *lkp, int extflags) {
 		return EBUSY;
 	}
 
-	error = apause(lkp, LK_ALL);
-	if (error == 0)
-		return 0;
+	if ((extflags & LK_INTERLOCK) == 0) {
+		error = apause(lkp, LK_ALL);
+		if (error == 0)
+			return 0;
+	}
 
 	while (lkp->lk_flags & LK_ALL) {
 		lkp->lk_flags |= LK_WAITDRAIN;
