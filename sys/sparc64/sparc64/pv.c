@@ -157,8 +157,7 @@ pv_bit_clear(vm_page_t m, u_long bits)
 					vm_page_dirty(m);
 			}
 			atomic_clear_long(&tp->tte_data, bits);
-			tlb_tte_demap(*tp,
-			    pv->pv_pmap->pm_context[PCPU_GET(cpuid)]);
+			tlb_tte_demap(*tp, pv->pv_pmap);
 		}
 	}
 }
@@ -260,7 +259,7 @@ pv_remove_all(vm_page_t m)
 				vm_page_dirty(m);
 		}
 		atomic_clear_long(&tp->tte_data, TD_V);
-		tlb_tte_demap(*tp, pv->pv_pmap->pm_context[PCPU_GET(cpuid)]);
+		tlb_tte_demap(*tp, pv->pv_pmap);
 		tp->tte_vpn = 0;
 		tp->tte_data = 0;
 		pv->pv_pmap->pm_stats.resident_count--;

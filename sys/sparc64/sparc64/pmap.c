@@ -336,7 +336,7 @@ pmap_bootstrap(vm_offset_t ekva)
 		pa = kstack0_phys + i * PAGE_SIZE;
 		va = kstack0 + i * PAGE_SIZE;
 		pmap_kenter(va, pa);
-		tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
+		/* tlb_page_demap(TLB_DTLB, kernel_pmap, va); */
 	}
 
 	/*
@@ -628,8 +628,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if ((tp = tsb_tte_lookup(pv->pv_pmap, pv->pv_va)) != NULL) {
 			atomic_clear_long(&tp->tte_data, TD_CV);
-			tlb_page_demap(TLB_DTLB | TLB_ITLB,
-			    pv->pv_pmap->pm_context[PCPU_GET(cpuid)],
+			tlb_page_demap(TLB_DTLB | TLB_ITLB, pv->pv_pmap,
 			    pv->pv_va);
 		}
 	}
@@ -742,7 +741,7 @@ pmap_map(vm_offset_t *virt, vm_offset_t pa_start, vm_offset_t pa_end, int prot)
 	va = sva;
 	for (; pa < pa_end; pa += PAGE_SIZE, va += PAGE_SIZE)
 		pmap_kenter(va, pa);
-	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + (pa_end - pa_start) - 1);
+	tlb_range_demap(kernel_pmap, sva, sva + (pa_end - pa_start) - 1);
 	*virt = va;
 	return (sva);
 }
@@ -761,7 +760,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 	va = sva;
 	for (i = 0; i < count; i++, va += PAGE_SIZE)
 		pmap_kenter(va, VM_PAGE_TO_PHYS(m[i]));
-	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + (count * PAGE_SIZE) - 1);
+	tlb_range_demap(kernel_pmap, sva, sva + (count * PAGE_SIZE) - 1);
 }
 
 /*
@@ -777,7 +776,7 @@ pmap_qenter_flags(vm_offset_t sva, vm_page_t *m, int count, u_long fl)
 	va = sva;
 	for (i = 0; i < count; i++, va += PAGE_SIZE)
 		pmap_kenter_flags(va, VM_PAGE_TO_PHYS(m[i]), fl);
-	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + (count * PAGE_SIZE) - 1);
+	tlb_range_demap(kernel_pmap, sva, sva + (count * PAGE_SIZE) - 1);
 }
 
 /*
@@ -793,7 +792,7 @@ pmap_qremove(vm_offset_t sva, int count)
 	va = sva;
 	for (i = 0; i < count; i++, va += PAGE_SIZE)
 		pmap_kremove(va);
-	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + (count * PAGE_SIZE) - 1);
+	tlb_range_demap(kernel_pmap, sva, sva + (count * PAGE_SIZE) - 1);
 }
 
 /*
@@ -976,7 +975,7 @@ pmap_new_thread(struct thread *td)
 		   (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE);
 		if (ks == 0)
 			panic("pmap_new_thread: kstack allocation failed");
-		tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, ks);
+		tlb_page_demap(TLB_DTLB, kernel_pmap, ks);
 		ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
 		td->td_kstack = ks;
 	}
@@ -1295,7 +1294,7 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 		return;
 	if (end - start > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, start, end, pmap_remove_tte);
-		tlb_context_demap(pm->pm_context[PCPU_GET(cpuid)]);
+		tlb_context_demap(pm);
 	} else {
 		for (va = start; va < end; va += PAGE_SIZE) {
 			if ((tp = tsb_tte_lookup(pm, va)) != NULL) {
@@ -1303,8 +1302,7 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 					break;
 			}
 		}
-		tlb_range_demap(pm->pm_context[PCPU_GET(cpuid)],
-		    start, end - 1);
+		tlb_range_demap(pm, start, end - 1);
 	}
 }
 
@@ -1360,13 +1358,13 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 	if (eva - sva > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, sva, eva, pmap_protect_tte);
-		tlb_context_demap(pm->pm_context[PCPU_GET(cpuid)]);
+		tlb_context_demap(pm);
 	} else {
 		for (va = sva; va < eva; va += PAGE_SIZE) {
 			if ((tp = tsb_tte_lookup(pm, va)) != NULL)
 				pmap_protect_tte(pm, NULL, tp, va);
 		}
-		tlb_range_demap(pm->pm_context[PCPU_GET(cpuid)], sva, eva - 1);
+		tlb_range_demap(pm, sva, eva - 1);
 	}
 }
 
@@ -1436,8 +1434,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 					if (pmap_track_modified(pm, va))
 						vm_page_dirty(m);
 				}
-				tlb_tte_demap(otte,
-				    pm->pm_context[PCPU_GET(cpuid)]);
+				tlb_tte_demap(otte, pm);
 			}
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: replace");
@@ -1468,7 +1465,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				if (pmap_cache_enter(m, va) != 0)
 					tte.tte_data |= TD_CV;
 			}
-			tlb_tte_demap(otte, pm->pm_context[PCPU_GET(cpuid)]);
+			tlb_tte_demap(otte, pm);
 		}
 	} else {
 		CTR0(KTR_PMAP, "pmap_enter: new");
@@ -1592,14 +1589,13 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	if (len > PMAP_TSB_THRESH) {
 		tsb_foreach(src_pmap, dst_pmap, src_addr, src_addr + len,
 		    pmap_copy_tte);
-		tlb_context_demap(dst_pmap->pm_context[PCPU_GET(cpuid)]);
+		tlb_context_demap(dst_pmap);
 	} else {
 		for (va = src_addr; va < src_addr + len; va += PAGE_SIZE) {
 			if ((tp = tsb_tte_lookup(src_pmap, va)) != NULL)
 				pmap_copy_tte(src_pmap, dst_pmap, tp, va);
 		}
-		tlb_range_demap(dst_pmap->pm_context[PCPU_GET(cpuid)],
-		    src_addr, src_addr + len - 1);
+		tlb_range_demap(dst_pmap, src_addr, src_addr + len - 1);
 	}
 }
 
@@ -1707,7 +1703,7 @@ pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
 		pv_free(pv);
 	}
-	tlb_context_demap(pm->pm_context[PCPU_GET(cpuid)]);
+	tlb_context_demap(pm);
 }
 
 /*
