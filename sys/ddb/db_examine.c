@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.21 1998/06/27 15:39:51 dfr Exp $
+ *	$Id: db_examine.c,v 1.22 1998/07/05 10:10:33 dfr Exp $
  */
 
 /*
@@ -208,22 +208,22 @@ db_print_cmd(addr, have_addr, count, modif)
 		db_printsym((db_addr_t)addr, DB_STGY_ANY);
 		break;
 	    case 'r':
-		db_printf("%+11ln", addr);
+		db_printf("%+11ln", (long)addr);
 		break;
 	    case 'x':
-		db_printf("%8lx", addr);
+		db_printf("%8lx", (unsigned long)addr);
 		break;
 	    case 'z':
-		db_printf("%+8lx", addr);
+		db_printf("%+8lx", (long)addr);
 		break;
 	    case 'd':
-		db_printf("%11ld", addr);
+		db_printf("%11ld", (long)addr);
 		break;
 	    case 'u':
-		db_printf("%11lu", addr);
+		db_printf("%11lu", (unsigned long)addr);
 		break;
 	    case 'o':
-		db_printf("%16lo", addr);
+		db_printf("%16lo", (unsigned long)addr);
 		break;
 	    case 'c':
 		value = addr & 0xFF;
