@@ -101,12 +101,6 @@ protopr(off, name)
 
 	for (next = head.lh_first; next != NULL; next = inpcb.list.le_next) {
 		kread((u_long)next, (char *)&inpcb, sizeof (inpcb));
-#if 0
-		if (*inpcb.list.le_prev != prev) {
-			printf("???\n");
-			break;
-		}
-#endif
 		if (!aflag &&
 		  inet_lnaof(inpcb.inp_laddr) == INADDR_ANY) {
 			prev = next;
