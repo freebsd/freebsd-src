@@ -524,9 +524,219 @@
 
     <sect3>
       <title>Support des interfaces réseau</title>
- <para></para>
-
 <!-- Above this line, order network driver changes by manpage/variable name-->
+
+      <para>Le gestionnaire de périphériques &man.an.4; pour les cartes Cisco Aironet supporte 
+      maintenant le chiffrement "Wired Equivalent Privacy" (WEP), et est
+      controlable via &man.ancontrol.8;. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.an.4; supporte maintenant les séries
+      Cisco Aironet 350. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.an.4; supporte le mode <quote>monitor</quote>
+      controlable via l'option <option>-M</option> de &man.ancontrol.8;. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.an.4; supporte maintenant Cisco LEAP
+      aussi bien que les clefs WEP. Les utilitaires Aironet Linux sont supportés sous
+      l'émulation. &merged;</para>
+
+      <para arch="i386">Le support générique pour les réseaux a jetons de type ARCNET 
+      a été ajouté. &merged;</para>
+
+      <para arch="i386">Le gestionnaire de périphériques &man.bge.4; a été ajouté et permet
+      de gérer les cartes de la famille des controleurs Gigabit Ethernet Broadcom BCM570x, cela
+      inclut les cartes 3Com 3c996-T, SysKonnect SK-9D21 et SK-9D41, et les cartes
+      Gigabit Ethernet des serveurs Dell PowerEdge 2550. Les "jumbo frames", le marquage
+      des VLAN et le controle de sortie "TCP/IP offload" sont supportés, tout comme
+      la moderation des interruptions. &merged;</para>
+
+      <para arch="i386">Le gestionnaire de périphériques cm a été ajouté et permet de supporter
+      les cartes ARCNET SMC COM90cx6 ARCNET. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.dc.4; supporte désormais les
+      cartes a base de composants Xircom 3201 et Conexant LANfinity RS7112.</para>
+
+      <para>Le gestionnaire de périphériques &man.dc.4; supporte maintenant les VLAN.</para>
+
+      <para>Le gestionnaire de périphériques &man.de.4; effectue maintenant une arbitration
+      a base de "round-robin" entre les réceptions et les transmissions du 21143
+      a la place de donner la priorité a l'unité de reception. Cela permet de gagner
+      10&ndash;15% de performances lors des gros transferts. &merged;</para>
+
+      <para arch="alpha">Le gestionnaire de périphériques &man.ed.4; est supporté.</para>
+
+      <para arch="i386">Les cartes Fast Ethernet Linksys PCCARD supportés via
+      le gestionnaire de périphériques &man.ed.4; nécessite maintenant l'ajout du drapeau
+      <literal>0x80000</literal> a la ligne de configuration de &man.pccard.conf.5;.  
+      Ce drapeau n'est pas optionnel. Les cartes Linksys ne serait pas reconnues 
+      sans lui. &merged;</para>
+
+      <para>Un problème avec le gestionnaire de périphériques &man.ed.4; qui 
+      pouvait résulter en un "panic" du système avec les très petits paquets et les
+      BPF ou le pontage activé a été fixé. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ed.4; supporte maintenant les composants
+      D-Link DL10022 chips, nécessaires pour pour certaines cartes dont la carte 
+      NetGear FA-410TX. Le gestionnaire <literal>miibus</literal> est
+      maintenant nécessaire dans la configuration du noyau pour le gestionnaire de
+      périphériques &man.ed.4;. &merged;</para>
+
+      <para arch="i386">Le gestionnaire de périphériques &man.el.4; peut maintenant
+      etre chargé en module.</para>
+
+      <para arch="i386">Le gestionnaire de périphériques &man.em.4; supporte maintenant
+      les cartes basées sur les composants controleurs Gigabit Ethernet Intel 82544, 82542, et 82543.
+      Le gestionnaire supporte les "jumbo frames" et les "checksum offload"  en émission/
+      réception sur les cartes basées sur les composants 82543 et 82544. &merged;</para>
+
+      <para>Le périphérique &man.faith.4; est maintenant chargeable, déchargeable et 
+      clonable. &merged;</para>
+
+      <para arch="i386">Le support des cartes Ethernet Fujitsu MB86960A/MB86965A PC-Cards
+      a été de nouveau rajouté au gestionnaire de périphériques &man.fe.4;. &merged;</para>
+
+      <para arch="alpha">Le gestionnaire de périphériques &man.fpa.4; supporte maintenant les
+      cartes DEFPA FDDI Digital sur les architectures Alpha. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.fxp.4; nécessite maintenant l'entrée
+      <literal>device miibus</literal> dans le fichier de configuration du 
+      noyau. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.fxp.4; contient maintenant un 
+      correctif pour la violation de protocole PCI causé sur certains
+      systèmes basés sur des composants Intel ICH2/ICH2-M. Le correctif
+      consiste en écrivant dans l'EEPROM de l'interface a désactiver le mode
+      "Dynamic Standby"; une fois l'EEPROM modifiée, le système doit etre redémarré
+      pour que les modifications soient prises en compte. &merged;</para>
+
+       <para>**The &man.fxp.4; driver now supports Intel's loadable
+      microcode to implement receive-side interrupt coalescing and
+      packet bundling, on NICs that support these features.  This
+      support can be activated by the use of the
+      <option>link0</option> option to &man.ifconfig.8;. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.gx.4; a été ajouté et permet 
+      de gérer les cartes basées sur les controleurs Gigabit Ethernet Intel 82542 et 82543.
+      Les versions fibres et cuivre sont supportées. Les deux cartes supportent 
+      l'insertion de VLAN et le taggage de VLAN, les cartes 82543 supportent un 
+      plus les "checksum offload" TCP/IP. &merged;</para>
+
+      <para>The &man.lge.4; driver has been added to support the Level
+      1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
+      device is used on some fiber optic GigE cards from SMC, D-Link
+      and Addtron.  Jumbograms and TCP/IP checksum offload on receive
+      are supported, although hardware VLAN filtering is not. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.nge.4; a été ajouté et supporte
+      les cartes PCI Gigabit Ethernet basées sur les controleurs National Semiconductor DP83820
+      et DP83821, incluant les controleurs D-Link DGE-500T, SMC EZ Card 1000 (SMC9462TX), Asante
+      FriendlyNet GigaNIC 1000TA et 1000TPC et Addtron
+      AEG320T. Ce gestionnaire de périphériques supporte le déchargement des sommes
+      de controle en émission et en réception. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.pcn.4; a été ajouté et supporte 
+      les cartes AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO, 
+      PCnet/Home, et HomePNA. Ces cartes sont toujours supportées par le 
+      gestionnaire &man.lnc.4;, le gestionnaire &man.pcn.4; permet de 
+      faire fonctionner ces composants en mode 32bits et utilise la fonction
+      d'alignement RX pour permettre de recevoir sans effectuer de copie.
+      Ce gestionnaire est indépendant de l'architecture, il fonctionne donc
+      aussi bien sur I386 que sur Alpha. Le gestionnaire &man.lnc.4; 
+      continue a etre nécessaire pour les cartes non PCI. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ray.4;, supportant
+      les cartes réseau sans-fil Webgear Aviator a été ajouté. Les 
+      opération sur l'interfaces &man.ray.4; s'effectue via 
+      &man.raycontrol.8;. &merged;</para>
+
+      <para arch="i386">Le gestionnaire de périphériques sbni, permettant
+      de supporter les interfaces de comunications Granch
+      SBNI12,  point a point ISA et PCI a été ajouté. Le port 
+      <filename role="package">sysutils/sbniconfig</filename> contenu
+      dans la collection des ports de &os; peut etre utilisé pour configurer
+      ces périphériques.&merged;</para>
+
+      <para>Le support des cartes PCI Ethernet basées sur les controleurs
+      SiS 900 et SiS 7016 Fast Ethernet (par exemple, les composants
+      se trouvant sur les cartes mères SiS 635 and 735), et les composants
+      National Semiconductor DP83815 (incluant  NetGear
+      FA311-TX et FA312-TX) a été ajouté via le gestionnaire de périphériques &man.sis.4;.
+      Ce gestionnaire supporte les VLANs. &merged;</para>
+
+      <para arch="i386">Le gestionnaire de périphériques snc pour les controleurs
+      de cartes Ethernet National Semiconductor
+      DP8393X (SONIC) a été ajouté. Actuellement ce gestionnaire est uniquement
+      utilisé sur les architectures PC-98.. &merged;</para>
+
+      <para>Le périphérique &man.stf.4; est maintenant clonable.</para>
+
+      <para>Le gestionnaire de périphériques &man.tap.4;, un gestionnaire de
+      périphériques virtuel Ethernet nécessaire pour les configuration en point, a été
+      ajouté. Ce périphérique est clonable.  &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ti.4; supporte maintenant
+      les cartes Gigabit Ethernet Alteon AceNIC
+      1000baseT et Netgear GA620T 1000baseT . &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ti.4; masque maintenant
+      correctement le marquage de VLAN. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.txp.4; a été ajouté et supporte
+      les cartes basées sur le composant 3Com 3XP Typhoon/Sidewinder (3CR990). &merged;</para>
+
+      <para>Le périphérique &man.vlan.4; est maintenant chargeable, déchargeable et
+      clonable. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.xl.4; supporte maintenant 
+      les cartes 3Com 3C556 and 3C556B MiniPCI utilisées sur cecrtains
+      ordinateurs portables. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.xl.4; supporte maintenant les
+      trames de VLAN marqués en réception(sur les cartes a base de composant
+       <quote>Cyclone</quote> ou plus récents). &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.xl.4; supporte maintenant
+      le déchargement des sommes de controles TCP/IP en réception et en émission
+      sur les cartes implémentant cette fonctionnalité, comme les cartes 
+       3C905B, 3C905C, et 3C980C. &merged;</para>
+
+      <para>Un problème dans le gestionnaire &man.xl.4;, relatif a un débordement 
+      de statistiques lors de la gestion des interruptions, pouvant causer des 
+      ralentissements lors de taux de traitements plus ou moins importants de paquets
+      , a été résolu. &merged;</para>
+
+      <para>La structure de données <varname>ifnet</varname> d'une interface, peut
+      maintenant indiquer les fonctions supportées par une carte réseau, et 
+      lesquelles sont activées.  &man.ifconfig.8; d'obtenir ces informations. &merged;</para>
+
+      <para>Les performances pour les serveurs ayant un grand nombre d'alias
+      IP ont été augmentées, en remplacant la liste linéaire
+      <varname>if_inaddr</varname> par un tableau de hashage. &merged;</para>
+
+      <para>Les périphériques réseaux apparaissent maintenant automatiquement
+      comme des fichiers spéciaux dans <filename>/dev/net</filename>. Des
+      ioctls matériels su les interfaces ( en excluant le protocol ou 
+      le routage) peut etre effectué sur ces périphériques. L'ioctl
+      <varname>SIOCGIFCONF</varname> peut etre effectué sur le fichier
+      <filename>/dev/network</filename>.</para>
+
+      <para>Certains gestionnaires de périphériques implémentent maintenant
+      un mode semi-interrogation, qui permet aux systèmes d'etre plus robustes
+      aux attaques et surcharges. Pour activer l'interrogation, les options suivantes
+      sont nécessaires dans le fichier de configuration du noyau:
+
+      <programlisting>options DEVICE_POLLING
+options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
+
+      La variable  sysctl <varname>kern.polling.enable</varname> activera ensuite
+	le mode d'interrogation; la variable sysctl <varname>kern.polling.user_frac</varname>
+	indiquant le pourcentage de temps CPU à reserver dans le mode utilisateur. Les 
+	gestionnaires supportant cette fonctionnalité sont  &man.dc.4;, &man.fxp.4;, et
+	&man.sis.4;.  Plus de détails peuvent etre trouvé a la page de manuel de &man.polling.4;. &merged;</para>
+
+      <para arch="i386">La perfomance de certains gestionnaires de périphériques
+      réseaux (spécifiquement &man.dc.4; et &man.sis.4;) a été améliorée
+      par l'élimination d'inutiles copies de tampons.&merged;</para>
 
     </sect3>
 
@@ -561,13 +771,25 @@
     </sect3>
 
     <sect3>
-      <title>Logiciel externes</title>
-
+      <title>Logiciels externes</title>
       <para></para>
+
+      <sect4>
+        <title>IPFilter</title>
+
+	<para><application>IPFilter</application> a été mis a jour en version
+	3.4.20. &merged;</para>
+
+	<para><application>IPFilter</application> supporte maintenant
+	IPv6. &merged;</para>
+
+      </sect4>
     </sect3>
   </sect2>
   <sect2 id="security">
     <title>Changements liés a la sécurité</title>
+
+
 
     <para></para>
   </sect2>
