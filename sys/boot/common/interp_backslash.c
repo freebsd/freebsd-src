@@ -18,6 +18,7 @@
 
 #include <stand.h>
 #include <string.h>
+#include "bootstrap.h"
 
 #define DIGIT(x) (isdigit(x) ? (x) - '0' : islower(x) ? (x) + 10 - 'a' : (x) + 10 - 'A')
 

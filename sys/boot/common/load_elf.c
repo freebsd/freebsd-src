@@ -208,6 +208,7 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     vm_offset_t lastaddr;
     void	*buf;
     size_t	resid, chunk;
+    ssize_t	result;
     vm_offset_t	dest;
     vm_offset_t	ssym, esym;
     Elf_Dyn	*dp;
@@ -218,7 +219,7 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     int		symstrindex;
     int		symtabindex;
     long	size;
-    int		fpcopy;
+    u_int	fpcopy;
 
     dp = NULL;
     shdr = NULL;

@@ -52,9 +52,9 @@ struct i386_devdesc
     } d_kind;
 };
 
-extern int	i386_getdev(void **vdev, const char *devspec, const char **path);
-extern char	*i386_fmtdev(void *vdev);
-extern int	i386_setcurrdev(struct env_var *ev, int flags, void *value);
+int	i386_getdev(void **vdev, const char *devspec, const char **path);
+char	*i386_fmtdev(void *vdev);
+int	i386_setcurrdev(struct env_var *ev, int flags, void *value);
 
 extern struct devdesc	currdev;	/* our current device */
 
@@ -65,26 +65,26 @@ extern struct devsw biosdisk;
 extern struct devsw pxedisk;
 extern struct fs_ops pxe_fsops;
 
-u_int32_t		bd_getbigeom(int bunit);		/* return geometry in bootinfo format */
-extern int		bd_bios2unit(int biosdev);		/* xlate BIOS device -> biosdisk unit */
-extern int		bd_unit2bios(int unit);			/* xlate biosdisk unit -> BIOS device */
-extern int		bd_getdev(struct i386_devdesc *dev);	/* return dev_t for (dev) */
+u_int32_t	bd_getbigeom(int bunit);	/* return geometry in bootinfo format */
+int	bd_bios2unit(int biosdev);		/* xlate BIOS device -> biosdisk unit */
+int	bd_unit2bios(int unit);			/* xlate biosdisk unit -> BIOS device */
+int	bd_getdev(struct i386_devdesc *dev);	/* return dev_t for (dev) */
 
-extern int		i386_copyin(void *src, vm_offset_t dest, size_t len);
-extern int		i386_copyout(vm_offset_t src, void *dest, size_t len);
-extern int		i386_readin(int fd, vm_offset_t dest, size_t len);
+ssize_t	i386_copyin(const void *src, vm_offset_t dest, const size_t len);
+ssize_t	i386_copyout(const vm_offset_t src, void *dest, const size_t len);
+ssize_t	i386_readin(const int fd, vm_offset_t dest, const size_t len);
 
-extern void		bios_getmem(void);
+void	bios_getmem(void);
 extern u_int32_t	bios_basemem;				/* base memory in bytes */
 extern u_int32_t	bios_extmem;				/* extended memory in bytes */
 extern vm_offset_t	memtop;
 
-extern void		gateA20(void);
+void	gateA20(void);
 
-extern int		i386_autoload(void);
+int	i386_autoload(void);
 
-extern int		bi_getboothowto(char *kargs);
-extern vm_offset_t	bi_copyenv(vm_offset_t addr);
-extern int		bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip);
+int	bi_getboothowto(char *kargs);
+vm_offset_t	bi_copyenv(vm_offset_t addr);
+int	bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip);
 
-extern void		pxe_enable(void *pxeinfo);
+void	pxe_enable(void *pxeinfo);

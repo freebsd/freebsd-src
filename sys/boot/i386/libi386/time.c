@@ -28,6 +28,8 @@
 
 #include <stand.h>
 #include <btxv86.h>
+#include "bootstrap.h"
+#include "libi386.h"
 
 /*
  * Return the time in seconds since the beginning of the day.
@@ -41,7 +43,7 @@ time_t
 time(time_t *t)
 {
     static time_t	lasttime, now;
-    int			hr, min, sec;
+    int			hr, minute, sec;
     
     v86.ctl = 0;
     v86.addr = 0x1a;		/* int 0x1a, function 2 */
@@ -49,10 +51,10 @@ time(time_t *t)
     v86int();
 
     hr = bcd2bin((v86.ecx & 0xff00) >> 8);	/* hour in %ch */
-    min = bcd2bin(v86.ecx & 0xff);		/* minute in %cl */
+    minute = bcd2bin(v86.ecx & 0xff);		/* minute in %cl */
     sec = bcd2bin((v86.edx & 0xff00) >> 8);	/* second in %dh */
     
-    now = hr * 3600 + min * 60 + sec;
+    now = hr * 3600 + minute * 60 + sec;
     if (now < lasttime)
 	now += 24 * 3600;
     lasttime = now;

@@ -18,13 +18,11 @@
 
 #include <stand.h>
 #include <string.h>
+#include "bootstrap.h"
 
-/* Forward decls */
-extern char *backslash(char *str);
-
-static void clean(void);
-static int insert(int *argcp, char *buf);
-static char *variable_lookup(char *name);
+static void	 clean(void);
+static int	 insert(int *argcp, char *buf);
+static char	*variable_lookup(char *name);
 
 #define PARSE_BUFSIZE	1024	/* maximum size of one element */
 #define MAXARGS		20	/* maximum number of elements */
@@ -61,7 +59,7 @@ if (expr) { \
 
 /* Accept the usual delimiters for a variable, returning counterpart */
 static char
-isdelim(char ch)
+isdelim(int ch)
 {
     if (ch == '{')
 	return '}';
@@ -71,7 +69,7 @@ isdelim(char ch)
 }
 
 static int
-isquote(char ch)
+isquote(int ch)
 {
     return (ch == '\'' || ch == '"');
 }
@@ -81,7 +79,7 @@ parse(int *argc, char ***argv, char *str)
 {
     int ac;
     char *val, *p, *q, *copy = NULL;
-    int i = 0;
+    size_t i = 0;
     char token, tmp, quote, *buf;
     enum { STR, VAR, WHITE } state;
 
@@ -147,7 +145,7 @@ parse(int *argc, char ***argv, char *str)
 	    tmp = *q;
 	    *q = '\0';
 	    if ((val = variable_lookup(p)) != NULL) {
-		int len = strlen(val);
+		size_t len = strlen(val);
 
 		strncpy(buf + i, val, PARSE_BUFSIZE - (i + 1));
 		i += min(len, PARSE_BUFSIZE - 1);

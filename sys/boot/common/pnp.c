@@ -19,8 +19,6 @@ STAILQ_HEAD(,pnpinfo)	pnp_devices;
 static int		pnp_devices_initted = 0;
 
 static void		pnp_discard(void);
-static int		pnp_readconf(char *path);
-static int		pnp_scankernel(void);
 
 /*
  * Perform complete enumeration sweep

@@ -43,7 +43,7 @@ static struct bootinfo	bi;
  */
 static struct 
 {
-    char	*ev;
+    const char	*ev;
     int		mask;
 } howto_names[] = {
     {"boot_askname",	RB_ASKNAME},
@@ -55,6 +55,8 @@ static struct
     {"boot_verbose",	RB_VERBOSE},
     {NULL,	0}
 };
+
+vm_offset_t	bi_copymodules(vm_offset_t addr);
 
 int
 bi_getboothowto(char *kargs)
@@ -232,7 +234,7 @@ bi_copymodules(vm_offset_t addr)
  * Load the information expected by an i386 kernel.
  *
  * - The 'boothowto' argument is constructed
- * - The 'botdev' argument is constructed
+ * - The 'bootdev' argument is constructed
  * - The 'bootinfo' struct is constructed, and copied into the kernel space.
  * - The kernel environment is copied into kernel space.
  * - Module metadata are formatted and placed in kernel space.
@@ -242,7 +244,7 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
 {
     struct loaded_module	*xp;
     struct i386_devdesc		*rootdev;
-    vm_offset_t			addr, bootinfo_addr;
+    vm_offset_t			addr;
     char			*rootdevname;
     int				bootdevnr, i;
     u_int			pad;
@@ -267,6 +269,10 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
     getrootmount(i386_fmtdev((void *)rootdev));
 
     /* Do legacy rootdev guessing */
+
+    /* XXX - use a default bootdev of 0.  Is this ok??? */
+    bootdevnr = 0;
+
     switch(rootdev->d_type) {
     case DEVT_DISK:
 	/* pass in the BIOS device number of the current disk */

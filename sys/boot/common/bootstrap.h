@@ -29,10 +29,6 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 
-/* XXX debugging */
-extern struct console vidconsole;
-#define MARK(s, c) {vidconsole.c_out(s); vidconsole.c_out(c); while (!vidconsole.c_ready()) ; vidconsole.c_in();}
-
 /*
  * Generic device specifier; architecture-dependant 
  * versions may be larger, but should be allowed to
@@ -55,37 +51,42 @@ extern char	command_errbuf[];	/* XXX blah, length */
 #define CMD_ERROR	1
 
 /* interp.c */
-extern void	interact(void);
-extern int	include(char *filename);
+void	interact(void);
+int	include(const char *filename);
+
+/* interp_backslash.c */
+char	*backslash(char *str);
 
 /* interp_parse.c */
-extern int	parse(int *argc, char ***argv, char *str);
+int	parse(int *argc, char ***argv, char *str);
 
 /* interp_forth.c */
-extern void	bf_init(void);
-extern int	bf_run(char *line);
+void	bf_init(void);
+int	bf_run(char *line);
 
 /* boot.c */
-extern int	autoboot(int delay, char *prompt);
-extern void	autoboot_maybe(void);
-extern int	getrootmount(char *rootdev);
+int	autoboot(int timeout, char *prompt);
+void	autoboot_maybe(void);
+int	getrootmount(char *rootdev);
 
 /* misc.c */
-extern char	*unargv(int argc, char *argv[]);
-extern void	hexdump(caddr_t region, size_t len);
-extern size_t	strlenout(vm_offset_t str);
-extern char	*strdupout(vm_offset_t str);
+char	*unargv(int argc, char *argv[]);
+void	hexdump(caddr_t region, size_t len);
+size_t	strlenout(vm_offset_t str);
+char	*strdupout(vm_offset_t str);
 
 /* bcache.c */
-extern int	bcache_init(int nblks, size_t bsize);
-extern void	bcache_flush();
+int	bcache_init(u_int nblks, size_t bsize);
+void	bcache_flush(void);
+int	bcache_strategy(void *devdata, int unit, int rw, daddr_t blk,
+			size_t size, char *buf, size_t *rsize);
 
 /*
  * Disk block cache
  */
 struct bcache_devdata
 {
-    int         (*dv_strategy)(void *devdata, int rw, daddr_t blk, size_t size, void *buf, size_t *rsize);
+    int         (*dv_strategy)(void *devdata, int rw, daddr_t blk, size_t size, char *buf, size_t *rsize);
     void	*dv_devdata;
 };
 
@@ -94,8 +95,8 @@ struct bcache_devdata
  */
 struct console 
 {
-    char	*c_name;
-    char	*c_desc;
+    const char	*c_name;
+    const char	*c_desc;
     int		c_flags;
 #define C_PRESENTIN	(1<<0)
 #define C_PRESENTOUT	(1<<1)
@@ -108,14 +109,14 @@ struct console
     int		(* c_ready)(void);			/* return nonzer if input waiting */
 };
 extern struct console	*consoles[];
-extern void		cons_probe(void);
+void		cons_probe(void);
 
 /*
  * Plug-and-play enumerator/configurator interface.
  */
 struct pnphandler 
 {
-    char	*pp_name;		/* handler/bus name */
+    const char	*pp_name;		/* handler/bus name */
     void	(* pp_enumerate)(void);	/* enumerate PnP devices, add to chain */
 };
 
@@ -139,11 +140,11 @@ struct pnpinfo
 
 extern struct pnphandler	*pnphandlers[];		/* provided by MD code */
 
-extern void			pnp_addident(struct pnpinfo *pi, char *ident);
-extern struct pnpinfo		*pnp_allocinfo(void);
-extern void			pnp_freeinfo(struct pnpinfo *pi);
-extern void			pnp_addinfo(struct pnpinfo *pi);
-extern char			*pnp_eisaformat(u_int8_t *data);
+void			pnp_addident(struct pnpinfo *pi, char *ident);
+struct pnpinfo		*pnp_allocinfo(void);
+void			pnp_freeinfo(struct pnpinfo *pi);
+void			pnp_addinfo(struct pnpinfo *pi);
+char			*pnp_eisaformat(u_int8_t *data);
 
 /*
  *  < 0	- No ISA in system
@@ -203,11 +204,9 @@ extern struct module_metadata	*mod_findmetadata(struct loaded_module *mp, int ty
 extern void			mod_discard(struct loaded_module *mp);
 extern struct loaded_module	*mod_allocmodule(void);
 
-
 /* MI module loaders */
 extern int		aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
 extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
-
 extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
 
 #ifndef NEW_LINKER_SET
@@ -267,7 +266,7 @@ struct bootblk_command
 #define COMMAND_SET(tag, key, desc, func)				\
     static bootblk_cmd_t func;						\
     static struct bootblk_command _cmd_ ## tag = { key, desc, func };	\
-    DATA_SET(Xcommand_set, _cmd_ ## tag);
+    DATA_SET(Xcommand_set, _cmd_ ## tag)
 
 extern struct linker_set Xcommand_set;
 
@@ -280,22 +279,25 @@ extern struct linker_set Xcommand_set;
 struct arch_switch
 {
     /* Automatically load modules as required by detected hardware */
-    int			(* arch_autoload)();
+    int		(*arch_autoload)(void);
     /* Locate the device for (name), return pointer to tail in (*path) */
-    int			(*arch_getdev)(void **dev, const char *name, const char **path);
+    int		(*arch_getdev)(void **dev, const char *name, const char **path);
     /* Copy from local address space to module address space, similar to bcopy() */
-    int			(*arch_copyin)(void *src, vm_offset_t dest, size_t len);
+    ssize_t	(*arch_copyin)(const void *src, vm_offset_t dest,
+			       const size_t len);
     /* Copy to local address space from module address space, similar to bcopy() */
-    int			(*arch_copyout)(vm_offset_t src, void *dest, size_t len);
+    ssize_t	(*arch_copyout)(const vm_offset_t src, void *dest,
+				const size_t len);
     /* Read from file to module address space, same semantics as read() */
-    int			(*arch_readin)(int fd, vm_offset_t dest, size_t len);
+    ssize_t	(*arch_readin)(const int fd, vm_offset_t dest,
+			       const size_t len);
     /* Perform ISA byte port I/O (only for systems with ISA) */
-    int			(*arch_isainb)(int port);
-    void		(*arch_isaoutb)(int port, int value);
+    int		(*arch_isainb)(int port);
+    void	(*arch_isaoutb)(int port, int value);
 };
 extern struct arch_switch archsw;
 
 /* This must be provided by the MD code, but should it be in the archsw? */
-extern void		delay(int delay);
+void	delay(int delay);
 
-extern void		dev_cleanup(void);
+void	dev_cleanup(void);
