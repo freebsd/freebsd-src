@@ -96,10 +96,13 @@ beforeinstall: ${SHARED}
 .endfor
 
 copies:
-.for i in ${LDIRS} ${LNOHEADERDIRS} machine
+.for i in ${LDIRS} ${LSYMSUBDIRS} machine
 	if [ -h ${DESTDIR}/usr/include/$i ]; then \
 		rm -f ${DESTDIR}/usr/include/$i; \
 	fi
+.endfor
+.for i in ${LNOHEADERDIRS}
+	rm -rf ${DESTDIR}/usr/include/$i
 .endfor
 	mtree -deU -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
