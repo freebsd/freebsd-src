@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.45 1998/12/10 19:57:00 eivind Exp $
+ *	$Id: fd.c,v 1.46 1998/12/14 09:06:23 kato Exp $
  *
  */
 
@@ -373,7 +373,7 @@ static char const * const fdstates[] =
 "IOTIMEDOUT",
 "RESETCOMPLETE",
 #ifdef FDC_YE
-,"PIOREAD"
+"PIOREAD",
 #endif
 };
 
@@ -1306,7 +1306,7 @@ static int yeattach(struct isa_device *dev)
 
 #ifdef DEVFS
 	mynor = fdcu << 6;
-	fd->bdevs[0] = devfs_add_devswf(&fd_bdevsw, mynor, DV_BLK,
+	fd->bdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_BLK,
 		UID_ROOT, GID_OPERATOR, 0640,
 		"fd%d", fdu);
 	fd->cdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
@@ -1326,16 +1326,16 @@ static int yeattach(struct isa_device *dev)
 		typesize = 1480;
 	if (typesize == 1722)
 		typesize = 1720;
-	fd->bdevs[FD_1440] = devfs_add_devswf(&fd_bdevsw, typemynor,
+	fd->bdevs[FD_1440] = devfs_add_devswf(&fd_cdevsw, typemynor,
 		DV_BLK, UID_ROOT, GID_OPERATOR,
 		0640, "fd%d.%d", fdu, typesize);
 	fd->cdevs[FD_1440] = devfs_add_devswf(&fd_cdevsw, typemynor,
 		DV_CHR, UID_ROOT, GID_OPERATOR,
 		0640,"rfd%d.%d", fdu, typesize);
 	for (i = 0; i < MAXPARTITIONS; i++) {
-		fd->bdevs[1 + NUMDENS + i] = devfs_link(fd->bdevs[0],
+		fd->bdevs[1 + NUMDENS + i] = devfs_makelink(fd->bdevs[0],
 			"fd%d%c", fdu, 'a' + i);
-		fd->cdevs[1 + NUMDENS + i] = devfs_link(fd->cdevs[0],
+		fd->cdevs[1 + NUMDENS + i] = devfs_makelink(fd->cdevs[0],
 			"rfd%d%c", fdu, 'a' + i);
 	}
 #endif /* DEVFS */
