@@ -31,6 +31,7 @@
 .\"
 .\"	@(#)su.1	8.2 (Berkeley) 4/18/94
 .\"
+.\" this is for hilit19's braindeadness: "
 .Dd April 18, 1994
 .Dt SU 1
 .Os
@@ -40,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm su
 .Op Fl Kflm
-.Op Ar login
+.Op Ar login Op Ar args
 .Sh DESCRIPTION
 .Nm Su
 requests the Kerberos password for
@@ -128,6 +129,17 @@ and
 options are mutually exclusive; the last one specified
 overrides any previous ones.
 .Pp
+If the optional
+.Ar args
+are provided on the command line, they are passed to the login shell of
+the target login.  This allows it to pass arbitrary commands via
+the
+.Fl c
+option as understood by most shells.  Note that
+.Fl c
+usually expects a single argument only; you have to quote it when
+passing multiple words.
+.Pp
 Only users in group 0 (normally
 .Dq wheel )
 can
@@ -164,6 +176,21 @@ user ID.
 The user ID is always the effective ID (the target user ID) after an
 .Nm su
 unless the user ID is 0 (root).
+.El
+.Sh EXAMPLES
+.Bl -tag -width 5n -compact
+.It Li "su man -c catman"
+Runs the command
+.Li catman
+as user
+.Li man .
+You will be asked for man's password unless your real UID is 0.
+.It Li "su man -c 'catman /usr/share/man /usr/local/man /usr/X11R6/man'"
+Same as above, but the target command constitutes of more than a
+single word.
+.It Li "su -l foo"
+Pretend a login for user
+.Li foo .
 .El
 .Sh HISTORY
 A
