@@ -284,10 +284,16 @@
       for supported scanners. The HP ScanJet 4100C, 5200C and 6300C
       are known to be working. &merged;</para>
 
+    <para>To increase security, the <literal>UCONSOLE</literal> kernel
+      configuration option has been removed.</para>
+
     <para>The <literal>USER_LDT</literal> kernel option is now
       activated by default.</para>
 
     <para>A VESA S3 linear framebuffer driver has been added.</para>
+
+    <para arch="i386">The &man.viapm.4; driver for VIA SMBus
+      power management controllers has been added.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -1018,6 +1024,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	enhancements.  Density selection for common settings is now
 	automatic; the driver is also much more flexible in setting
 	the densities of various subdevices.</para>
+
+      <para>The &man.geom.4; disk I/O request transformation framework
+	has been added; this extensible framework is designed to
+	support a wide variety of operations on I/O requests on their
+	way from the upper kernel to the device drivers.</para>
 
       <para>The ida disk driver now has crashdump
 	support. &merged;</para>
@@ -1963,8 +1974,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.indent.1; has gained some new formatting
       options. &merged;</para>
 
-    <para>&man.ifconfig.8; command can set the link-layer address of
-      an interface using the <option>lladdr</option> parameter.
+    <para>&man.ifconfig.8; can set the link-layer address of
+      an interface using the <option>link</option> parameter.
       &merged;</para>
 
     <para>&man.ifconfig.8; can now accept addresses in slash/CIDR
@@ -2113,6 +2124,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>The functions from <filename>libposix1e</filename> have been
       integrated into <filename>libc</filename>.</para>
+
+    <para><filename>libusb</filename> has been renamed as
+      <filename>libusbhid</filename>, following NetBSD's naming
+      conventions. &merged;</para>
 
     <para>&man.ln.1; now takes an <option>-i</option> option to
       request user confirmation before overwriting an existing
@@ -2606,6 +2621,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.usbdevs.8; now supports a <option>-d</option> flag to
       show the device driver associated with each device.</para>
 
+    <para>The &man.usbhidctl.1; utility has been added to manipulate
+      USB Human Interface Devices. &merged;</para>
+
     <para>&man.uudecode.1; now accepts a <option>-o</option> option to
       set its output file.</para>
 
@@ -2852,7 +2870,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<application>xinetd</application>.</para>
 
       <para><application>texinfo</application> has been updated to
-	4.1.</para>
+	4.1. &merged;</para>
 
       <para><application>top</application> has been updated to version
 	3.5b12.</para>
