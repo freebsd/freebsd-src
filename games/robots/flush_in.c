@@ -49,7 +49,7 @@ flush_in()
 {
 # ifdef TIOCFLUSH
 	ioctl(fileno(stdin), TIOCFLUSH, NULL);
-# else TIOCFLUSH
+# else /* TIOCFLUSH */
 	crmode();
-# endif TIOCFLUSH
+# endif /* TIOCFLUSH */
 }
