@@ -114,7 +114,7 @@ ip4_input6(struct mbuf **m, int *offp, int proto)
 #if 0
 	/* If we do not accept IP-in-IP explicitly, drop.  */
 	if (!ipip_allow && ((*m)->m_flags & M_IPSEC) == 0) {
-		DPRINTF(("ip4_input6: dropped due to policy\n"));
+		DPRINTF(("%s: dropped due to policy\n", __func__));
 		ipipstat.ipips_pdrops++;
 		m_freem(*m);
 		return IPPROTO_DONE;
@@ -138,7 +138,7 @@ ip4_input(struct mbuf *m, ...)
 #if 0
 	/* If we do not accept IP-in-IP explicitly, drop.  */
 	if (!ipip_allow && (m->m_flags & M_IPSEC) == 0) {
-		DPRINTF(("ip4_input: dropped due to policy\n"));
+		DPRINTF(("%s: dropped due to policy\n", __func__));
 		ipipstat.ipips_pdrops++;
 		m_freem(m);
 		return;
@@ -201,7 +201,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	/* Bring the IP header in the first mbuf, if not there already */
 	if (m->m_len < hlen) {
 		if ((m = m_pullup(m, hlen)) == NULL) {
-			DPRINTF(("ipip_input: m_pullup (1) failed\n"));
+			DPRINTF(("%s: m_pullup (1) failed\n", __func__));
 			ipipstat.ipips_hdrops++;
 			return;
 		}
@@ -269,7 +269,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	 */
 	if (m->m_len < hlen) {
 		if ((m = m_pullup(m, hlen)) == NULL) {
-			DPRINTF(("ipip_input: m_pullup (2) failed\n"));
+			DPRINTF(("%s: m_pullup (2) failed\n", __func__));
 			ipipstat.ipips_hdrops++;
 			return;
 		}
@@ -376,12 +376,13 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 		break;
 #endif
 	default:
-		panic("ipip_input: should never reach here");
+		panic("%s: bogus ip version %u", __func__, v>>4);
 	}
 
 	if (!netisr_queue(isr, m)) {
 		ipipstat.ipips_qfull++;
-		DPRINTF(("ipip_input: packet dropped because of full queue\n"));
+		DPRINTF(("%s: packet dropped because of full queue\n",
+			__func__));
 	}
 }
 
@@ -406,13 +407,11 @@ ipip_output(
 	struct ip6_hdr *ip6, *ip6o;
 #endif /* INET6 */
 
-#if 0
-	SPLASSERT(net, "ipip_output");
-#endif
+	IPSEC_SPLASSERT_SOFTNET(__func__);
 
 	sav = isr->sav;
-	KASSERT(sav != NULL, ("ipip_output: null SA"));
-	KASSERT(sav->sah != NULL, ("ipip_output: null SAH"));
+	IPSEC_ASSERT(sav != NULL, ("null SA"));
+	IPSEC_ASSERT(sav->sah != NULL, ("null SAH"));
 
 	/* XXX Deal with empty TDB source/destination addresses. */
 
@@ -426,8 +425,8 @@ ipip_output(
 		if (saidx->src.sa.sa_family != AF_INET ||
 		    saidx->src.sin.sin_addr.s_addr == INADDR_ANY ||
 		    saidx->dst.sin.sin_addr.s_addr == INADDR_ANY) {
-			DPRINTF(("ipip_output: unspecified tunnel endpoint "
-			    "address in SA %s/%08lx\n",
+			DPRINTF(("%s: unspecified tunnel endpoint "
+			    "address in SA %s/%08lx\n", __func__,
 			    ipsec_address(&saidx->dst),
 			    (u_long) ntohl(sav->spi)));
 			ipipstat.ipips_unspec++;
@@ -437,7 +436,7 @@ ipip_output(
 
 		M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
 		if (m == 0) {
-			DPRINTF(("ipip_output: M_PREPEND failed\n"));
+			DPRINTF(("%s: M_PREPEND failed\n", __func__));
 			ipipstat.ipips_hdrops++;
 			error = ENOBUFS;
 			goto bad;
@@ -507,8 +506,8 @@ ipip_output(
 		if (IN6_IS_ADDR_UNSPECIFIED(&saidx->dst.sin6.sin6_addr) ||
 		    saidx->src.sa.sa_family != AF_INET6 ||
 		    IN6_IS_ADDR_UNSPECIFIED(&saidx->src.sin6.sin6_addr)) {
-			DPRINTF(("ipip_output: unspecified tunnel endpoint "
-			    "address in SA %s/%08lx\n",
+			DPRINTF(("%s: unspecified tunnel endpoint "
+			    "address in SA %s/%08lx\n", __func__,
 			    ipsec_address(&saidx->dst),
 			    (u_long) ntohl(sav->spi)));
 			ipipstat.ipips_unspec++;
@@ -525,7 +524,7 @@ ipip_output(
 
 		M_PREPEND(m, sizeof(struct ip6_hdr), M_DONTWAIT);
 		if (m == 0) {
-			DPRINTF(("ipip_output: M_PREPEND failed\n"));
+			DPRINTF(("%s: M_PREPEND failed\n", __func__));
 			ipipstat.ipips_hdrops++;
 			*mp = NULL;
 			error = ENOBUFS;
@@ -575,7 +574,7 @@ ipip_output(
 
 	default:
 nofamily:
-		DPRINTF(("ipip_output: unsupported protocol family %u\n",
+		DPRINTF(("%s: unsupported protocol family %u\n", __func__,
 		    saidx->dst.sa.sa_family));
 		ipipstat.ipips_family++;
 		error = EAFNOSUPPORT;		/* XXX diffs from openbsd */
@@ -634,7 +633,7 @@ static int
 ipe4_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
 	/* This is a rather serious mistake, so no conditional printing. */
-	printf("ipe4_input: should never be called\n");
+	printf("%s: should never be called\n", __func__);
 	if (m)
 		m_freem(m);
 	return EOPNOTSUPP;

@@ -142,8 +142,7 @@ ah_hdrsiz(struct secasvar *sav)
 
 	if (sav != NULL) {
 		int authsize;
-		KASSERT(sav->tdb_authalgxform != NULL,
-			("ah_hdrsiz: null xform"));
+		IPSEC_ASSERT(sav->tdb_authalgxform != NULL, ("null xform"));
 		/*XXX not right for null algorithm--does it matter??*/
 		authsize = AUTHSIZE(sav);
 		size = roundup(authsize, sizeof (u_int32_t)) + HDRSIZE(sav);
@@ -165,8 +164,8 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 
 	thash = ah_algorithm_lookup(sav->alg_auth);
 	if (thash == NULL) {
-		DPRINTF(("ah_init: unsupported authentication algorithm %u\n",
-			sav->alg_auth));
+		DPRINTF(("%s: unsupported authentication algorithm %u\n",
+			__func__, sav->alg_auth));
 		return EINVAL;
 	}
 	/*
@@ -176,21 +175,21 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 	 */
 	/* NB: replay state is setup elsewhere (sigh) */
 	if (((sav->flags&SADB_X_EXT_OLD) == 0) ^ (sav->replay != NULL)) {
-		DPRINTF(("ah_init: replay state block inconsistency, "
-			"%s algorithm %s replay state\n",
+		DPRINTF(("%s: replay state block inconsistency, "
+			"%s algorithm %s replay state\n", __func__,
 			(sav->flags & SADB_X_EXT_OLD) ? "old" : "new",
 			sav->replay == NULL ? "without" : "with"));
 		return EINVAL;
 	}
 	if (sav->key_auth == NULL) {
-		DPRINTF(("ah_init: no authentication key for %s "
-			"algorithm\n", thash->name));
+		DPRINTF(("%s: no authentication key for %s algorithm\n",
+			__func__, thash->name));
 		return EINVAL;
 	}
 	keylen = _KEYLEN(sav->key_auth);
 	if (keylen != thash->keysize && thash->keysize != 0) {
-		DPRINTF(("ah_init: invalid keylength %d, algorithm "
-			 "%s requires keysize %d\n",
+		DPRINTF(("%s: invalid keylength %d, algorithm %s requires "
+			"keysize %d\n", __func__,
 			 keylen, thash->name, thash->keysize));
 		return EINVAL;
 	}
@@ -271,7 +270,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 		 */
 		*m0 = m = m_pullup(m, skip);
 		if (m == NULL) {
-			DPRINTF(("ah_massage_headers: m_pullup failed\n"));
+			DPRINTF(("%s: m_pullup failed\n", __func__));
 			return ENOBUFS;
 		}
 
@@ -308,9 +307,8 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 			    off + 1 < skip)
 				;
 			else {
-				DPRINTF(("ah_massage_headers: illegal IPv4 "
-				    "option length for option %d\n",
-				    ptr[off]));
+				DPRINTF(("%s: illegal IPv4 option length for "
+					"option %d\n", __func__, ptr[off]));
 
 				m_freem(m);
 				return EINVAL;
@@ -332,9 +330,9 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 			case 0x95:	/* RFC1770 */
 				/* Sanity check for option length. */
 				if (ptr[off + 1] < 2) {
-					DPRINTF(("ah_massage_headers: "
-					    "illegal IPv4 option length for "
-					    "option %d\n", ptr[off]));
+					DPRINTF(("%s: illegal IPv4 option "
+						"length for option %d\n",
+						__func__, ptr[off]));
 
 					m_freem(m);
 					return EINVAL;
@@ -347,9 +345,9 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 			case IPOPT_SSRR:
 				/* Sanity check for option length. */
 				if (ptr[off + 1] < 2) {
-					DPRINTF(("ah_massage_headers: "
-					    "illegal IPv4 option length for "
-					    "option %d\n", ptr[off]));
+					DPRINTF(("%s: illegal IPv4 option "
+						"length for option %d\n",
+						__func__, ptr[off]));
 
 					m_freem(m);
 					return EINVAL;
@@ -373,9 +371,9 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 			default:
 				/* Sanity check for option length. */
 				if (ptr[off + 1] < 2) {
-					DPRINTF(("ah_massage_headers: "
-					    "illegal IPv4 option length for "
-					    "option %d\n", ptr[off]));
+					DPRINTF(("%s: illegal IPv4 option "
+						"length for option %d\n",
+						__func__, ptr[off]));
 					m_freem(m);
 					return EINVAL;
 				}
@@ -389,8 +387,8 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 
 			/* Sanity check. */
 			if (off > skip)	{
-				DPRINTF(("ah_massage_headers(): malformed "
-				    "IPv4 options header\n"));
+				DPRINTF(("%s: malformed IPv4 options header\n",
+					__func__));
 
 				m_freem(m);
 				return EINVAL;
@@ -407,7 +405,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 
 		/* We don't do IPv6 Jumbograms. */
 		if (ip6.ip6_plen == 0) {
-			DPRINTF(("ah_massage_headers: unsupported IPv6 jumbogram\n"));
+			DPRINTF(("%s: unsupported IPv6 jumbogram\n", __func__));
 			m_freem(m);
 			return EMSGSIZE;
 		}
@@ -433,9 +431,8 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 				    skip - sizeof(struct ip6_hdr),
 				    M_XDATA, M_NOWAIT);
 				if (ptr == NULL) {
-					DPRINTF(("ah_massage_headers: failed "
-					    "to allocate memory for IPv6 "
-					    "headers\n"));
+					DPRINTF(("%s: failed to allocate memory"
+						"for IPv6 headers\n",__func__));
 					m_freem(m);
 					return ENOBUFS;
 				}
@@ -524,8 +521,8 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 				break;
 
 			default:
-				DPRINTF(("ah_massage_headers: unexpected "
-				    "IPv6 header type %d", off));
+				DPRINTF(("%s: unexpected IPv6 header type %d",
+					__func__, off));
 				if (alloc)
 					FREE(ptr, M_XDATA);
 				m_freem(m);
@@ -563,15 +560,12 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptodesc *crda;
 	struct cryptop *crp;
 
-#if 0
-	SPLASSERT(net, "ah_input");
-#endif
+	IPSEC_SPLASSERT_SOFTNET(__func__);
 
-	KASSERT(sav != NULL, ("ah_input: null SA"));
-	KASSERT(sav->key_auth != NULL,
-		("ah_input: null authentication key"));
-	KASSERT(sav->tdb_authalgxform != NULL,
-		("ah_input: null authentication xform"));
+	IPSEC_ASSERT(sav != NULL, ("null SA"));
+	IPSEC_ASSERT(sav->key_auth != NULL, ("null authentication key"));
+	IPSEC_ASSERT(sav->tdb_authalgxform != NULL,
+		("null authentication xform"));
 
 	/* Figure out header size. */
 	rplen = HDRSIZE(sav);
@@ -588,7 +582,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Check replay window, if applicable. */
 	if (sav->replay && !ipsec_chkreplay(ntohl(ah->ah_seq), sav)) {
 		ahstat.ahs_replay++;
-		DPRINTF(("ah_input: packet replay failure: %s\n",
+		DPRINTF(("%s: packet replay failure: %s\n", __func__,
 			  ipsec_logsastr(sav)));
 		m_freem(m);
 		return ENOBUFS;
@@ -599,8 +593,8 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	ahx = sav->tdb_authalgxform;
 	authsize = AUTHSIZE(sav);
 	if (hl != authsize + rplen - sizeof (struct ah)) {
-		DPRINTF(("ah_input: bad authenticator length %u (expecting %lu)"
-			" for packet in SA %s/%08lx\n",
+		DPRINTF(("%s: bad authenticator length %u (expecting %lu)"
+			" for packet in SA %s/%08lx\n", __func__,
 			hl, (u_long) (authsize + rplen - sizeof (struct ah)),
 			ipsec_address(&sav->sah->saidx.dst),
 			(u_long) ntohl(sav->spi)));
@@ -613,14 +607,14 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Get crypto descriptors. */
 	crp = crypto_getreq(1);
 	if (crp == NULL) {
-		DPRINTF(("ah_input: failed to acquire crypto descriptor\n"));
+		DPRINTF(("%s: failed to acquire crypto descriptor\n",__func__));
 		ahstat.ahs_crypto++;
 		m_freem(m);
 		return ENOBUFS;
 	}
 
 	crda = crp->crp_desc;
-	KASSERT(crda != NULL, ("ah_input: null crypto descriptor"));
+	IPSEC_ASSERT(crda != NULL, ("null crypto descriptor"));
 
 	crda->crd_skip = 0;
 	crda->crd_len = m->m_pkthdr.len;
@@ -653,7 +647,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 						    M_XDATA, M_NOWAIT|M_ZERO);
 	}
 	if (tc == NULL) {
-		DPRINTF(("ah_input: failed to allocate tdb_crypto\n"));
+		DPRINTF(("%s: failed to allocate tdb_crypto\n", __func__));
 		ahstat.ahs_crypto++;
 		crypto_freereq(crp);
 		m_freem(m);
@@ -743,7 +737,7 @@ ah_input_cb(struct cryptop *crp)
 	crd = crp->crp_desc;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
-	KASSERT(tc != NULL, ("ah_input_cb: null opaque crypto data area!"));
+	IPSEC_ASSERT(tc != NULL, ("null opaque crypto data area!"));
 	skip = tc->tc_skip;
 	nxt = tc->tc_nxt;
 	protoff = tc->tc_protoff;
@@ -753,16 +747,15 @@ ah_input_cb(struct cryptop *crp)
 	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
 	if (sav == NULL) {
 		ahstat.ahs_notdb++;
-		DPRINTF(("ah_input_cb: SA expired while in crypto\n"));
+		DPRINTF(("%s: SA expired while in crypto\n", __func__));
 		error = ENOBUFS;		/*XXX*/
 		goto bad;
 	}
 
 	saidx = &sav->sah->saidx;
-	KASSERT(saidx->dst.sa.sa_family == AF_INET ||
+	IPSEC_ASSERT(saidx->dst.sa.sa_family == AF_INET ||
 		saidx->dst.sa.sa_family == AF_INET6,
-		("ah_input_cb: unexpected protocol family %u",
-		 saidx->dst.sa.sa_family));
+		("unexpected protocol family %u", saidx->dst.sa.sa_family));
 
 	ahx = (struct auth_hash *) sav->tdb_authalgxform;
 
@@ -775,7 +768,7 @@ ah_input_cb(struct cryptop *crp)
 			return crypto_dispatch(crp);
 
 		ahstat.ahs_noxform++;
-		DPRINTF(("ah_input_cb: crypto error %d\n", crp->crp_etype));
+		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
 		error = crp->crp_etype;
 		goto bad;
 	} else {
@@ -787,7 +780,7 @@ ah_input_cb(struct cryptop *crp)
 	/* Shouldn't happen... */
 	if (m == NULL) {
 		ahstat.ahs_crypto++;
-		DPRINTF(("ah_input_cb: bogus returned buffer from crypto\n"));
+		DPRINTF(("%s: bogus returned buffer from crypto\n", __func__));
 		error = EINVAL;
 		goto bad;
 	}
@@ -808,8 +801,8 @@ ah_input_cb(struct cryptop *crp)
 
 		/* Verify authenticator. */
 		if (bcmp(ptr + skip + rplen, calc, authsize)) {
-			DPRINTF(("ah_input: authentication hash mismatch "
-			    "for packet in SA %s/%08lx\n",
+			DPRINTF(("%s: authentication hash mismatch for packet "
+			    "in SA %s/%08lx\n", __func__,
 			    ipsec_address(&saidx->dst),
 			    (u_long) ntohl(sav->spi)));
 			ahstat.ahs_badauth++;
@@ -854,7 +847,7 @@ ah_input_cb(struct cryptop *crp)
 	 */
 	error = m_striphdr(m, skip, rplen + authsize);
 	if (error) {
-		DPRINTF(("ah_input_cb: mangled mbuf chain for SA %s/%08lx\n",
+		DPRINTF(("%s: mangled mbuf chain for SA %s/%08lx\n", __func__,
 		    ipsec_address(&saidx->dst), (u_long) ntohl(sav->spi)));
 
 		ahstat.ahs_hdrops++;
@@ -900,14 +893,12 @@ ah_output(
 	u_int8_t prot;
 	struct newah *ah;
 
-#if 0
-	SPLASSERT(net, "ah_output");
-#endif
+	IPSEC_SPLASSERT_SOFTNET(__func__);
 
 	sav = isr->sav;
-	KASSERT(sav != NULL, ("ah_output: null SA"));
+	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	ahx = sav->tdb_authalgxform;
-	KASSERT(ahx != NULL, ("ah_output: null authentication xform"));
+	IPSEC_ASSERT(ahx != NULL, ("null authentication xform"));
 
 	ahstat.ahs_output++;
 
@@ -927,8 +918,8 @@ ah_output(
 		break;
 #endif /* INET6 */
 	default:
-		DPRINTF(("ah_output: unknown/unsupported protocol "
-		    "family %u, SA %s/%08lx\n",
+		DPRINTF(("%s: unknown/unsupported protocol family %u, "
+		    "SA %s/%08lx\n", __func__,
 		    sav->sah->saidx.dst.sa.sa_family,
 		    ipsec_address(&sav->sah->saidx.dst),
 		    (u_long) ntohl(sav->spi)));
@@ -938,8 +929,8 @@ ah_output(
 	}
 	authsize = AUTHSIZE(sav);
 	if (rplen + authsize + m->m_pkthdr.len > maxpacketsize) {
-		DPRINTF(("ah_output: packet in SA %s/%08lx got too big "
-		    "(len %u, max len %u)\n",
+		DPRINTF(("%s: packet in SA %s/%08lx got too big "
+		    "(len %u, max len %u)\n", __func__,
 		    ipsec_address(&sav->sah->saidx.dst),
 		    (u_long) ntohl(sav->spi),
 		    rplen + authsize + m->m_pkthdr.len, maxpacketsize));
@@ -953,7 +944,7 @@ ah_output(
 
 	m = m_clone(m);
 	if (m == NULL) {
-		DPRINTF(("ah_output: cannot clone mbuf chain, SA %s/%08lx\n",
+		DPRINTF(("%s: cannot clone mbuf chain, SA %s/%08lx\n", __func__,
 		    ipsec_address(&sav->sah->saidx.dst),
 		    (u_long) ntohl(sav->spi)));
 		ahstat.ahs_hdrops++;
@@ -964,8 +955,8 @@ ah_output(
 	/* Inject AH header. */
 	mi = m_makespace(m, skip, rplen + authsize, &roff);
 	if (mi == NULL) {
-		DPRINTF(("ah_output: failed to inject %u byte AH header for SA "
-		    "%s/%08lx\n",
+		DPRINTF(("%s: failed to inject %u byte AH header for SA "
+		    "%s/%08lx\n", __func__,
 		    rplen + authsize,
 		    ipsec_address(&sav->sah->saidx.dst),
 		    (u_long) ntohl(sav->spi)));
@@ -993,8 +984,8 @@ ah_output(
 	if (sav->replay) {
 		if (sav->replay->count == ~0 &&
 		    (sav->flags & SADB_X_EXT_CYCSEQ) == 0) {
-			DPRINTF(("ah_output: replay counter wrapped for SA "
-				"%s/%08lx\n",
+			DPRINTF(("%s: replay counter wrapped for SA %s/%08lx\n",
+				__func__,
 				ipsec_address(&sav->sah->saidx.dst),
 				(u_long) ntohl(sav->spi)));
 			ahstat.ahs_wrap++;
@@ -1008,7 +999,8 @@ ah_output(
 	/* Get crypto descriptors. */
 	crp = crypto_getreq(1);
 	if (crp == NULL) {
-		DPRINTF(("ah_output: failed to acquire crypto descriptors\n"));
+		DPRINTF(("%s: failed to acquire crypto descriptors\n",
+			__func__));
 		ahstat.ahs_crypto++;
 		error = ENOBUFS;
 		goto bad;
@@ -1030,7 +1022,7 @@ ah_output(
 		sizeof(struct tdb_crypto) + skip, M_XDATA, M_NOWAIT|M_ZERO);
 	if (tc == NULL) {
 		crypto_freereq(crp);
-		DPRINTF(("ah_output: failed to allocate tdb_crypto\n"));
+		DPRINTF(("%s: failed to allocate tdb_crypto\n", __func__));
 		ahstat.ahs_crypto++;
 		error = ENOBUFS;
 		goto bad;
@@ -1123,22 +1115,22 @@ ah_output_cb(struct cryptop *crp)
 	int err;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
-	KASSERT(tc != NULL, ("ah_output_cb: null opaque data area!"));
+	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
 	skip = tc->tc_skip;
 	protoff = tc->tc_protoff;
 	ptr = (caddr_t) (tc + 1);
 	m = (struct mbuf *) crp->crp_buf;
 
 	isr = tc->tc_isr;
-	mtx_lock(&isr->lock);
+	IPSECREQUEST_LOCK(isr);
 	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
 	if (sav == NULL) {
 		ahstat.ahs_notdb++;
-		DPRINTF(("ah_output_cb: SA expired while in crypto\n"));
+		DPRINTF(("%s: SA expired while in crypto\n", __func__));
 		error = ENOBUFS;		/*XXX*/
 		goto bad;
 	}
-	KASSERT(isr->sav == sav, ("ah_output_cb: SA changed\n"));
+	IPSEC_ASSERT(isr->sav == sav, ("SA changed\n"));
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
@@ -1147,12 +1139,12 @@ ah_output_cb(struct cryptop *crp)
 
 		if (crp->crp_etype == EAGAIN) {
 			KEY_FREESAV(&sav);
-			mtx_unlock(&isr->lock);
+			IPSECREQUEST_UNLOCK(isr);
 			return crypto_dispatch(crp);
 		}
 
 		ahstat.ahs_noxform++;
-		DPRINTF(("ah_output_cb: crypto error %d\n", crp->crp_etype));
+		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
 		error = crp->crp_etype;
 		goto bad;
 	}
@@ -1160,7 +1152,7 @@ ah_output_cb(struct cryptop *crp)
 	/* Shouldn't happen... */
 	if (m == NULL) {
 		ahstat.ahs_crypto++;
-		DPRINTF(("ah_output_cb: bogus returned buffer from crypto\n"));
+		DPRINTF(("%s: bogus returned buffer from crypto\n", __func__));
 		error = EINVAL;
 		goto bad;
 	}
@@ -1179,13 +1171,13 @@ ah_output_cb(struct cryptop *crp)
 	/* NB: m is reclaimed by ipsec_process_done. */
 	err = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
-	mtx_unlock(&isr->lock);
+	IPSECREQUEST_UNLOCK(isr);
 
 	return err;
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
-	mtx_unlock(&isr->lock);
+	IPSECREQUEST_UNLOCK(isr);
 	if (m)
 		m_freem(m);
 	free(tc, M_XDATA);

@@ -102,7 +102,7 @@ struct secasvar {
 	size_t schedlen;
 
 	struct secreplay *replay;	/* replay prevention */
-	long created;			/* for lifetime */
+	time_t created;			/* for lifetime */
 
 	struct sadb_lifetime *lft_c;	/* CURRENT lifetime, it's constant. */
 	struct sadb_lifetime *lft_h;	/* HARD lifetime */
@@ -125,6 +125,13 @@ struct secasvar {
 	u_int64_t tdb_cryptoid;		/* crypto session id */
 };
 
+#define	SECASVAR_LOCK_INIT(_sav) \
+	mtx_init(&(_sav)->lock, "ipsec association", NULL, MTX_DEF)
+#define	SECASVAR_LOCK(_sav)		mtx_lock(&(_sav)->lock)
+#define	SECASVAR_UNLOCK(_sav)		mtx_unlock(&(_sav)->lock)
+#define	SECASVAR_LOCK_DESTROY(_sav)	mtx_destroy(&(_sav)->lock)
+#define	SECASVAR_LOCK_ASSERT(_sav)	mtx_assert(&(_sav)->lock, MA_OWNED)
+
 /* replay prevention */
 struct secreplay {
 	u_int32_t count;
@@ -142,7 +149,6 @@ struct secreg {
 	struct socket *so;
 };
 
-#ifndef IPSEC_NONBLOCK_ACQUIRE
 /* acquiring list table. */
 struct secacq {
 	LIST_ENTRY(secacq) chain;
@@ -150,10 +156,9 @@ struct secacq {
 	struct secasindex saidx;
 
 	u_int32_t seq;		/* sequence number */
-	long created;		/* for lifetime */
+	time_t created;		/* for lifetime */
 	int count;		/* for lifetime */
 };
-#endif
 
 /* Sensitivity Level Specification */
 /* nothing */
