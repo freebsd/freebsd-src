@@ -50,8 +50,10 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 # If you want to pass flags to the world build such as -j X, use
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
+# Similarly, you can specify make flags for make readmes via PORTREADMES_FLAGS.
 #WORLD_FLAGS=-j4
 #KERNEL_FLAGS=-j4
+#PORTREADMES_FLAGS=-j4
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
@@ -245,12 +247,6 @@ BOOTABLE="-b"
 DOCREL= doc.1 doc.2
 .endif
 
-.if !defined(NOPORTREADMES)
-MAKEREADMES=	make readmes PORTSDIR=${CHROOTDIR}/usr/ports
-.else
-MAKEREADMES=	true
-.endif
-
 TMAKE!=		echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
 		cd ${.CURDIR}/..; ${MAKE} -f Makefile.inc1 -V TMAKE
 WMAKEENV!=	echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
@@ -297,9 +293,9 @@ rerelease release:
 .endif
 .if !defined(NOPORTS)
 .if defined(PORTSRELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P -r ${PORTSRELEASETAG} ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P -r ${PORTSRELEASETAG} ${RELEASEPORTSMODULE}
 .else
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P ${RELEASEPORTSMODULE}
 .endif
 .elif defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
 .if defined(PORTSRELEASETAG)
@@ -400,6 +396,16 @@ rerelease release:
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
+	echo "fi"				>> ${CHROOTDIR}/mk
+.if defined(NOPORTS) || defined(NOPORTREADMES)
+	echo "if false; then"			>> ${CHROOTDIR}/mk
+.else
+	echo "if true; then"			>> ${CHROOTDIR}/mk
+.endif
+	echo "	echo \">>> make readmes started on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
+	echo "	cd /usr/ports"			>> ${CHROOTDIR}/mk
+	echo "	make ${PORTREADMES_FLAGS} readmes" >> ${CHROOTDIR}/mk
+	echo "	echo \">>> make readmes finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
@@ -819,9 +825,9 @@ doc.1:
 	@echo "Making docs..."
 	@for i in ${DOCPORTS}; do \
 	    cd /usr/ports/$$i && \
-	    env -i PATH=$${PATH} make all install clean \
-		BATCH=yes WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes \
-		FORCE_PKG_REGISTER=yes; \
+	    env -i FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \
+		make all install clean BATCH=yes WITHOUT_X11=yes JADETEX=no \
+		WITHOUT_PYTHON=yes FORCE_PKG_REGISTER=yes; \
 	done
 	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/bin/usr/share/doc
 	touch doc.1
