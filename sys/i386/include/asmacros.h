@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.8 1996/05/31 01:08:05 peter Exp $
+ *	$Id: asmacros.h,v 1.9 1996/10/16 18:13:25 bde Exp $
  */
 
 #ifndef _MACHINE_ASMACROS_H_
@@ -42,7 +42,11 @@
 /* XXX too much duplication in various asm*.h's. */
 
 #define ALIGN_DATA	.align	2	/* 4 byte alignment, zero filled */
+#ifdef GPROF
+#define ALIGN_TEXT	.align	4,0x90	/* 16-byte alignment, nop filled */
+#else
 #define ALIGN_TEXT	.align	2,0x90	/* 4-byte alignment, nop filled */
+#endif
 #define SUPERALIGN_TEXT	.align	4,0x90	/* 16-byte alignment, nop filled */
 
 #define GEN_ENTRY(name)		ALIGN_TEXT; .globl __CONCAT(_,name); \
