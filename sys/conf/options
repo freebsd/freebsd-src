@@ -83,9 +83,10 @@ CONSPEED	opt_comconsole.h
 CY_PCI_FASTINTR
 DDB
 DDB_NOKLDSYM	opt_ddb.h
-DDB_TRACE
 DDB_NUMSYM	opt_ddb.h
+DDB_TRACE
 DDB_UNATTENDED
+DIRECTIO	opt_directio.h
 GDB_REMOTE_CHAT	opt_ddb.h
 GDBSPEED	opt_ddb.h
 GEOM_AES	opt_geom.h
@@ -100,8 +101,8 @@ GEOM_PC98	opt_geom.h
 GEOM_SUNLABEL	opt_geom.h
 GEOM_VOL	opt_geom.h
 HW_WDOG
-KSTACK_PAGES
 KSTACK_MAX_PAGES
+KSTACK_PAGES
 KTRACE
 KTRACE_REQUEST_POOL	opt_ktrace.h
 LIBICONV
@@ -152,15 +153,15 @@ SHMSEG		opt_sysvipc.h
 SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
+TTYHOG		opt_tty.h
 VFS_AIO
+WATCHDOG	opt_watchdog.h
 WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
-TTYHOG		opt_tty.h
-DIRECTIO	opt_directio.h
 
 # POSIX kernel options
-_KPOSIX_PRIORITY_SCHEDULING	opt_posix.h
 P1003_1B_SEMAPHORES		opt_posix.h
+_KPOSIX_PRIORITY_SCHEDULING	opt_posix.h
 
 # Do we want the config file compiled into the kernel?
 INCLUDE_CONFIG_FILE	opt_config.h
@@ -306,11 +307,11 @@ ISP_FW_CRASH_DUMP	opt_isp.h
 ATA_STATIC_ID		opt_ata.h
 ATA_NOPCI		opt_ata.h
 DEV_ATADISK		opt_ata.h
-DEV_ATARAID		opt_ata.h
 DEV_ATAPICD		opt_ata.h
 DEV_ATAPIST		opt_ata.h
 DEV_ATAPIFD		opt_ata.h
 DEV_ATAPICAM		opt_ata.h
+DEV_ATARAID		opt_ata.h
 
 # Net stuff.
 ACCEPT_FILTER_DATA
@@ -353,6 +354,7 @@ IPX
 IPXIP			opt_ipx.h
 LIBMBPOOL
 LIBMCHAIN
+MBUF_STRESS_TEST	opt_mbuf_stress_test.h
 NCP
 NETATALK		opt_atalk.h
 PPP_BSDCOMP		opt_ppp.h
@@ -364,7 +366,6 @@ TCPDEBUG
 TCP_SIGNATURE		opt_inet.h
 TCP_DROP_SYNFIN		opt_tcp_input.h
 XBONEHACK
-MBUF_STRESS_TEST		opt_mbuf_stress_test.h
 
 # Netgraph(4). Use option NETGRAPH to enable the base netgraph code.
 # Each netgraph node type can be either be compiled into the kernel
@@ -446,13 +447,9 @@ VP0_DEBUG		opt_vpo.h
 LPT_DEBUG		opt_lpt.h
 PLIP_DEBUG		opt_plip.h
 LOCKF_DEBUG		opt_debug_lockf.h
-MUTEX_DEBUG		opt_global.h
-MUTEX_NOINLINE		opt_global.h
-MUTEX_PROFILING		opt_global.h
 NPX_DEBUG		opt_debug_npx.h
 NETATALKDEBUG		opt_atalk.h
 SI_DEBUG		opt_debug_si.h
-WATCHDOG		opt_watchdog.h
 
 # Fb options
 FB_DEBUG		opt_fb.h
@@ -476,6 +473,9 @@ INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
 LOOKUP_SHARED		opt_global.h
 MCLSHIFT		opt_global.h
+MUTEX_DEBUG		opt_global.h
+MUTEX_NOINLINE		opt_global.h
+MUTEX_PROFILING		opt_global.h
 MSIZE			opt_global.h
 REGRESSION		opt_global.h
 RESTARTABLE_PANICS	opt_global.h
@@ -589,9 +589,9 @@ NDEVFSINO		opt_devfs.h
 NDEVFSOVERFLOW		opt_devfs.h
 
 # various 'device presence' options.
+DEV_BPF			opt_bpf.h
 DEV_ISA			opt_isa.h
 DEV_MCA			opt_mca.h
-DEV_BPF			opt_bpf.h
 DEV_SPLASH		opt_splash.h
 
 EISA_SLOTS		opt_eisa.h
@@ -637,13 +637,13 @@ SC_MOUSE_CHAR		opt_syscons.h
 SC_NO_CUTPASTE		opt_syscons.h
 SC_NO_FONT_LOADING	opt_syscons.h
 SC_NO_HISTORY		opt_syscons.h
+SC_NO_SUSPEND_VTYSWITCH	opt_syscons.h
 SC_NO_SYSMOUSE		opt_syscons.h
 SC_NORM_ATTR		opt_syscons.h
 SC_NORM_REV_ATTR	opt_syscons.h
 SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
-SC_NO_SUSPEND_VTYSWITCH	opt_syscons.h
 
 # kbd options
 KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
