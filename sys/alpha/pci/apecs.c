@@ -370,8 +370,7 @@ apecs_setup_intr(device_t dev, device_t child,
 		return error;
 
 	error = alpha_setup_intr(device_get_nameunit(child ? child : dev),
-			0x900 + (irq->r_start << 4), intr, arg,
-			ithread_priority(flags), flags, cookiep,
+			0x900 + (irq->r_start << 4), intr, arg, flags, cookiep,
 			&intrcnt[INTRCNT_EB64PLUS_IRQ + irq->r_start],
 			apecs_disable_intr, apecs_enable_intr);
 	if (error)

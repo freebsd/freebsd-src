@@ -345,7 +345,7 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
        driver_intr_t *intr, void *arg, void **cp)
 {
 	struct mcpcia_softc *sc = MCPCIA_SOFTC(dev);
-	int slot, mid, gid, birq, irq, error, intpin, h, pri;
+	int slot, mid, gid, birq, irq, error, intpin, h;
 	
 	intpin = pci_get_intpin(child);
 	if (intpin == 0) {
@@ -394,9 +394,8 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 		    ((intpin - 1) * MCPCIA_VECWIDTH_PER_INTPIN);
 	}
 	birq = irq + INTRCNT_KN300_IRQ;
-	pri = ithread_priority(flags);
 	error = alpha_setup_intr(device_get_nameunit(child ? child : dev), h,
-	    intr, arg, pri, flags, cp, &intrcnt[birq],
+	    intr, arg, flags, cp, &intrcnt[birq],
 	    mcpcia_disable_intr_vec, mcpcia_enable_intr_vec);
 	if (error)
 		return error;
