@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.7.2.5 1997/10/13 09:00:26 kato Exp $
+ *	$Id: syscons.h,v 1.7.2.6 1998/01/04 09:51:33 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -182,7 +182,9 @@ typedef struct scr_stat {
 	int	 	status;			/* status (bitfield) */
 	u_short 	*cursor_pos;		/* cursor buffer position */
 	u_short 	*cursor_oldpos;		/* cursor old buffer position */
+#ifndef	PC98
 	u_short		cursor_saveunder;	/* saved chars under cursor */
+#endif
 	char		cursor_start;		/* cursor start line # */
 	char		cursor_end;		/* cursor end line # */
 	u_short		*mouse_pos;		/* mouse buffer position */
@@ -199,6 +201,7 @@ typedef struct scr_stat {
 	u_short		bell_duration;
 	u_short		bell_pitch;
 	u_char		border;			/* border color */
+	u_char	 	initial_mode;		/* initial mode */
 	u_char	 	mode;			/* mode */
 	pid_t 		pid;			/* pid of controlling proc */
 	struct proc 	*proc;			/* proc* of controlling proc */
@@ -233,6 +236,8 @@ void set_border(u_char color);
 void set_mode(scr_stat *scp);
 void copy_font(int operation, int font_type, char* font_image);
 void load_palette(char *palette);
+int add_scrn_saver(void (*this)(int));
+int remove_scrn_saver(void (*this)(int));
 
 #ifdef PC98
 unsigned int at2pc98(unsigned int attr);
