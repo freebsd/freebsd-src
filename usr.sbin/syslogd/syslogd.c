@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.31 1998/05/07 00:39:56 brian Exp $";
+	"$Id: syslogd.c,v 1.32 1998/05/19 12:02:41 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -543,10 +543,9 @@ printsys(msg)
 	int c, pri, flags;
 	char *lp, *p, *q, line[MAXLINE + 1];
 
-	(void)strcpy(line, bootfile);
-	(void)strcat(line, ": ");
-	lp = line + strlen(line);
 	for (p = msg; *p != '\0'; ) {
+
+		/* Get message priority, if any */
 		flags = SYNC_FILE | ADDDATE;	/* fsync file after write */
 		pri = DEFSPRI;
 		if (*p == '<') {
@@ -561,6 +560,18 @@ printsys(msg)
 		}
 		if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 			pri = DEFSPRI;
+
+		/* See if kernel provided a prefix; if not, use kernel name */
+		for (q = p; *q && isalnum(*q); q++);
+		if (*q == ':') {
+			lp = line;
+		} else {
+			(void)strcpy(line, bootfile);
+			(void)strcat(line, ": ");
+			lp = line + strlen(line);
+		}
+
+		/* Append message body to prefix */
 		q = lp;
 		while (*p != '\0' && (c = *p++) != '\n' &&
 		    q < &line[MAXLINE])
