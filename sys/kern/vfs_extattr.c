@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.94 1998/03/07 21:35:39 dyson Exp $
+ * $Id: vfs_syscalls.c,v 1.95 1998/03/08 09:57:21 julian Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -2177,10 +2177,17 @@ fsync(p, uap)
 		if (vp->v_object) {
 			vm_object_page_clean(vp->v_object, 0, 0, FALSE);
 		}
-		error = VOP_FSYNC(vp, fp->f_cred,
-			(vp->v_mount && (vp->v_mount->mnt_flag & MNT_ASYNC)) ? 
-			MNT_NOWAIT : MNT_WAIT, p);
+		if (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP)) {
+			error = VOP_FSYNC(vp, fp->f_cred, MNT_LAZY, p);
+		} else {
+			error = VOP_FSYNC(vp, fp->f_cred,
+				(vp->v_mount && (vp->v_mount->mnt_flag & MNT_ASYNC)) ? 
+				MNT_NOWAIT : MNT_WAIT, p);
+		}
 		VOP_UNLOCK(vp, 0, p);
+
+		if ((vp->v_mount->mnt_flag & MNT_SOFTDEP) && bioops.io_sync)
+			(*bioops.io_sync)(NULL);
 	}
 	return (error);
 }
