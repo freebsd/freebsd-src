@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.104 1996/10/04 08:48:27 peter Exp $
+#	$Id: Makefile,v 1.105 1996/10/05 18:36:38 ache Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -519,6 +519,8 @@ build-tools:
 	cd ${.CURDIR}/share/sgml && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} 
 	cd ${.CURDIR}/usr.sbin/zic && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/gnu/usr.bin/awk && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/groff && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
