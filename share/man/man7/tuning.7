@@ -83,11 +83,7 @@ depends on the kind of temporary file usage you think you will need.
 the minimum we recommend.
 Also note that sysinstall will create a
 .Pa /tmp
-directory, but it is usually a good idea to make
-.Pa /tmp
-a softlink to
-.Pa /var/tmp
-after the fact.
+directory.
 Dedicating a partition for temporary file storage is important for
 two reasons: first, it reduces the possibility of filesystem corruption
 in a crash, and second it reduces the chance of a runaway process that
