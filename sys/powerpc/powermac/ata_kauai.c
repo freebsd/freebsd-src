@@ -90,10 +90,11 @@ static driver_t ata_kauai_driver = {
 
 DRIVER_MODULE(ata, pci, ata_kauai_driver, ata_devclass, 0, 0);
 
-static void
+static int
 ata_kauai_locknoop(struct ata_channel *ch, int type)
 {
 	/* XXX SMP ? */
+	return (0);
 }
 
 static void
