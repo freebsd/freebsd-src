@@ -1451,11 +1451,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 					continue;
 				}
 			}
-
-			/* 
-			 * Busy the page
-			 */
-			vm_page_busy(p);
 			vm_page_unlock_queues();
 
 			KASSERT(
