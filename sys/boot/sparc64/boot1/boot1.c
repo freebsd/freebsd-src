@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #define _PATH_LOADER	"/boot/loader"
 #define _PATH_KERNEL	"/boot/kernel/kernel"
 
-#define BSIZEMAX	8192
+#define BSIZEMAX	16384
 
 typedef int putc_func_t(int c, void *arg);
 typedef int32_t ofwh_t;
