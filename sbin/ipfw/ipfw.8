@@ -8,8 +8,16 @@
 .Nm
 .Ar file
 .Nm ipfw
+.Oo
+.Fl f
+|
+.Fl q
+.Oc
 flush
 .Nm ipfw
+.Oo
+.Fl q
+.Oc
 zero
 .Op Ar number
 .Nm ipfw
@@ -19,6 +27,14 @@ delete
 .Op Fl aftN
 list
 .Nm ipfw
+.Oo
+.Fl ftN
+.Oc
+show
+.Nm ipfw
+.Oo
+.Fl q
+.Oc
 add
 .Op Ar number
 .Ar action 
@@ -61,6 +77,8 @@ if any.
 .Pp
 The list command prints out the current rule set.
 .Pp
+The show command is equivalent to `ipfw -a list'.
+.Pp
 The zero operation zeroes the counters associated with rule number
 .Ar number .
 .Pp
@@ -72,7 +90,8 @@ One rule is always present:
 .Ed
 .Pp
 This rule is the default policy, i.e., don't allow anything at all.
-Your job in setting up rules is to modify this policy to match your needs.
+Your job in setting up rules is to modify this policy to match your
+needs.
 .Pp
 The following options are available:
 .Bl -tag -width flag
@@ -84,6 +103,15 @@ Don't ask for confirmation for commands that can cause problems if misused
 (ie; flush).
 .Ar Note ,
 if there is no tty associated with the process, this is implied.
+.It Fl q
+While adding or flushing, be quiet about actions (implies '-f').  This is
+useful for adjusting rules by executing multiple ipfw commands in a script
+(e.g. sh /etc/rc.firewall), or by processing a file of many ipfw rules,
+across a remote login session.  If a flush is performed in normal
+(verbose) mode, it prints a message.  Because all rules are flushed, the
+message cannot be delivered to the login session, the login session is
+closed and the remainder of the ruleset is not processed.  Access to the
+console is required to recover. 
 .It Fl t
 While listing, show last match timestamp.
 .It Fl N

@@ -49,6 +49,7 @@ int 		s;				/* main RAW socket 	   */
 int 		do_resolv=0;			/* Would try to resolv all */
 int		do_acct=0;			/* Show packet/byte count  */
 int		do_time=0;			/* Show time stamps        */
+int		do_quiet=0;			/* Be quiet in add and flush  */
 int		do_force=0;			/* Don't ask for confirmation */
 
 int
@@ -354,6 +355,7 @@ show_usage(str)
 "\t\tadd [number] rule\n"
 "\t\tdelete number\n"
 "\t\tlist [number]\n"
+"\t\tshow [number]\n"
 "\t\tzero [number]\n"
 "\trule:\taction proto src dst extras...\n"
 "\t\taction: {allow|deny|reject|count|divert port} [log]\n"
@@ -730,10 +732,13 @@ add(ac,av)
 			}
 
 			av++; ac--; 
+			if (!ac) {
+				show_usage("'via' option specified with no interface.");
+			}
 			if (!isdigit(**av)) {
 				char *q;
 
-				strcpy(rule.fw_via_name, *av);
+				strncpy(rule.fw_via_name, *av, sizeof(rule.fw_via_name));
 				for (q = rule.fw_via_name; *q && !isdigit(*q) && *q != '*'; q++)
 					continue;
 				if (*q == '*')
@@ -791,7 +796,8 @@ add(ac,av)
 		show_usage("Unknown argument\n");
 	}
 
-	show_ipfw(&rule);
+	if (!do_quiet)
+		show_ipfw(&rule);
 	i = setsockopt(s, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
 	if (i)
 		err(1,"setsockopt(IP_FW_ADD)");
@@ -810,7 +816,8 @@ zero (ac, av)
 			fprintf(stderr,"%s: setsockopt failed.\n",progname);
 			exit(1);
 		} 
-		printf("Accounting cleared.\n");
+		if (!do_quiet)
+			printf("Accounting cleared.\n");
 	} else {
 		/* clear a specific entry */
 		struct ip_fw rule;
@@ -848,13 +855,16 @@ ipfw_main(ac,av)
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
 
-	while ((ch = getopt(ac, av ,"aftN")) != EOF)
+	while ((ch = getopt(ac, av ,"afqtN")) != EOF)
 	switch(ch) {
 		case 'a':
 			do_acct=1;
 			break;
 		case 'f':
 			do_force=1;
+			break;
+		case 'q':
+			do_quiet=1;
 			break;
 		case 't':
 			do_time=1;
@@ -878,7 +888,7 @@ ipfw_main(ac,av)
 	} else if (!strncmp(*av, "flush", strlen(*av))) {
 		int do_flush = 0;
 
-		if ( do_force )
+		if ( do_force || do_quiet )
 			do_flush = 1;
 		else {
 			int c;
@@ -901,13 +911,17 @@ ipfw_main(ac,av)
 				fprintf(stderr,"%s: setsockopt failed.\n",progname);
 				exit(1);
 			}
-			printf("Flushed all rules.\n");
+			if (!do_quiet)
+				printf("Flushed all rules.\n");
 		}
 	} else if (!strncmp(*av, "zero", strlen(*av))) {
 		zero(ac,av);
 	} else if (!strncmp(*av, "print", strlen(*av))) {
 		list(--ac,++av);
 	} else if (!strncmp(*av, "list", strlen(*av))) {
+		list(--ac,++av);
+	} else if (!strncmp(*av, "show", strlen(*av))) {
+		do_acct++;
 		list(--ac,++av);
 	} else {
 		show_usage("Bad arguments");
@@ -927,7 +941,7 @@ main(ac, av)
 	int 	i;
 	FILE	*f;
 
-	strcpy(progname,*av);
+	strncpy(progname,*av, sizeof(progname));
 
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 ) {
