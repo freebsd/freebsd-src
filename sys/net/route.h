@@ -296,6 +296,7 @@ void	 rtredirect(struct sockaddr *, struct sockaddr *,
 int	 rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
 int	 rtrequest1(int, struct rt_addrinfo *, struct rtentry **);
+int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 #endif
 
 #endif

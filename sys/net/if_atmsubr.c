@@ -117,29 +117,9 @@ atm_output(ifp, m0, dst, rt0)
 	/*
 	 * check route
 	 */
-	if ((rt = rt0) != NULL) {
-
-		if ((rt->rt_flags & RTF_UP) == 0) { /* route went down! */
-			if ((rt0 = rt = RTALLOC1(dst, 0)) != NULL)
-				rt->rt_refcnt--;
-			else 
-				senderr(EHOSTUNREACH);
-		}
-
-		if (rt->rt_flags & RTF_GATEWAY) {
-			if (rt->rt_gwroute == 0)
-				goto lookup;
-			if (((rt = rt->rt_gwroute)->rt_flags & RTF_UP) == 0) {
-				rtfree(rt); rt = rt0;
-			lookup: rt->rt_gwroute = RTALLOC1(rt->rt_gateway, 0);
-				if ((rt = rt->rt_gwroute) == 0)
-					senderr(EHOSTUNREACH);
-			}
-		}
-
-		/* XXX: put RTF_REJECT code here if doing ATMARP */
-
-	}
+	error = rt_check(&rt, &rt0, dst);
+	if (error)
+		goto bad;
 
 	/*
 	 * check for non-native ATM traffic   (dst != NULL)

@@ -163,31 +163,11 @@ ether_output(ifp, m, dst, rt0)
 		senderr(ENETDOWN);
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
-	rt = rt0;
-	if (rt) {
-		if ((rt->rt_flags & RTF_UP) == 0) {
-			rt0 = rt = rtalloc1(dst, 1, 0UL);
-			if (rt0)
-				rt->rt_refcnt--;
-			else
-				senderr(EHOSTUNREACH);
-		}
-		if (rt->rt_flags & RTF_GATEWAY) {
-			if (rt->rt_gwroute == 0)
-				goto lookup;
-			if (((rt = rt->rt_gwroute)->rt_flags & RTF_UP) == 0) {
-				rtfree(rt); rt = rt0;
-			lookup: rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1,
-							  0UL);
-				if ((rt = rt->rt_gwroute) == 0)
-					senderr(EHOSTUNREACH);
-			}
-		}
-		if (rt->rt_flags & RTF_REJECT)
-			if (rt->rt_rmx.rmx_expire == 0 ||
-			    time_second < rt->rt_rmx.rmx_expire)
-				senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
-	}
+
+	error = rt_check(&rt, &rt0, dst);
+	if (error)
+		goto bad;
+
 	hlen = ETHER_HDR_LEN;
 	switch (dst->sa_family) {
 #ifdef INET
