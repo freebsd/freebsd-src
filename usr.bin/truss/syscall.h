@@ -22,7 +22,7 @@
  */
 
 enum Argtype { None = 1, Hex, Octal, Int, String, Ptr, Stat, Ioctl, Quad,
-	Signal };
+	Signal, Sockaddr };
 
 #define ARG_MASK	0xff
 #define OUT	0x100
