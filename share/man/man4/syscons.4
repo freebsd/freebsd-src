@@ -54,7 +54,7 @@ the console driver
 .Cd "options SC_KERNEL_CONS_REV_ATTR=_attribute_"
 .Cd "options SC_DFLT_FONT"
 .Cd "makeoptions SC_DFLT_FONT=_font_name_"
-.Cd "device sc0 at isa?"
+.Cd "device sc0 at isa?" Op flags Ar flags
 .Sh DESCRIPTION
 The
 .Nm
@@ -380,7 +380,7 @@ time
 .\".It bit 6 (QUIET_BELL)
 .\"This option suppresses the bell, whether audible or visual, 
 .\"if it is rung in a background virtual terminal.
-.It bit 7 (VESA800X600)
+.It 0x0080 (VESA800X600)
 This option puts the video card in the VESA 800x600 dots, 16 color
 mode.
 It may be useful for laptop computers for which the 800x600 mode
@@ -391,6 +391,10 @@ compiled with the
 option explained above.
 .\"Note also that the ``copy-and-paste'' function is not currently supported 
 .\"in this mode and the mouse pointer will not be displayed.
+.It 0x0100 (AUTODETECT_KBD)
+This option instructs the syscons driver to periodically scan
+for a keyboard device if it is not currently attached to one.
+Otherwise, the driver only probes for a keyboard once during bootup.
 .El
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/xxxxyyyyzzz -compact
