@@ -472,6 +472,12 @@ struct dc_desc {
 #define DC_TXDESC(sc, i)	(sc->dc_laddr +				\
     (uintptr_t)(sc->dc_ldata->dc_tx_list + i) - (uintptr_t)sc->dc_ldata)
 
+#if BYTE_ORDER == BIG_ENDIAN
+#define DC_SP_MAC(x)		((x) << 16)
+#else
+#define DC_SP_MAC(x)		(x)
+#endif
+
 struct dc_list_data {
 	struct dc_desc		dc_rx_list[DC_RX_LIST_CNT];
 	struct dc_desc		dc_tx_list[DC_TX_LIST_CNT];
