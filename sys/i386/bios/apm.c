@@ -473,19 +473,18 @@ apm_do_suspend(void)
 
 	if (sc->initialized) {
 		error = DEVICE_SUSPEND(root_bus);
-		/*
-		 * XXX Shouldn't ignore the error like this, but should
-		 * instead fix the newbus code.  Until that happens,
-		 * I'm doing this to get suspend working again.
-		 */
-		if (error)
-			printf("DEVICE_SUSPEND error %d, ignored\n", error);
-		apm_execute_hook(hook[APM_HOOK_SUSPEND]);
-		if (apm_suspend_system(PMST_SUSPEND) == 0)
-			apm_processevent();
-		else
-			/* Failure, 'resume' the system again */
-			apm_execute_hook(hook[APM_HOOK_RESUME]);
+		if (error) {
+			DEVICE_RESUME(root_bus);
+		} else {
+			apm_execute_hook(hook[APM_HOOK_SUSPEND]);
+			if (apm_suspend_system(PMST_SUSPEND) == 0) {
+				apm_processevent();
+			} else {
+				/* Failure, 'resume' the system again */
+				apm_execute_hook(hook[APM_HOOK_RESUME]);
+				DEVICE_RESUME(root_bus);
+			}
+		}
 	}
 }
 
@@ -593,8 +592,8 @@ apm_resume(void)
 		return;
 
 	if (sc->initialized) {
-		DEVICE_RESUME(root_bus);
 		apm_execute_hook(hook[APM_HOOK_RESUME]);
+		DEVICE_RESUME(root_bus);
 	}
 }
 
