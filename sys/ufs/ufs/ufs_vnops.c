@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.105 1999/01/21 08:29:09 dillon Exp $
+ * $Id: ufs_vnops.c,v 1.106 1999/01/28 00:57:56 dillon Exp $
  */
 
 #include "opt_quota.h"
@@ -891,14 +891,14 @@ ufs_rename(ap)
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
 		error = EXDEV;
 abortit:
-		VOP_ABORTOP(tdvp, tcnp); /* XXX, why not in NFS? */
+		VOP_ABORTOP(tdvp, tcnp);
 		if (tdvp == tvp)
 			vrele(tdvp);
 		else
 			vput(tdvp);
 		if (tvp)
 			vput(tvp);
-		VOP_ABORTOP(fdvp, fcnp); /* XXX, why not in NFS? */
+		VOP_ABORTOP(fdvp, fcnp);
 		vrele(fdvp);
 		vrele(fvp);
 		return (error);
