@@ -40,8 +40,11 @@ _csu=csu/${MACHINE_ARCH}
 _csu=csu
 .endif
 
+# libc_r is obsolete on ia64.
+.if ${MACHINE_ARCH} != "ia64"
 .if !defined(NOLIBC_R)
 _libc_r=	libc_r
+.endif
 .endif
 
 .if !defined(NO_BIND)
@@ -69,6 +72,9 @@ _libthr=	libthr
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
+.if !defined(NOLIBPTHREAD)
+_libpthread=	libpthread
+.endif
 .if !defined(NOLIBTHR)
 _libthr=	libthr
 .endif
