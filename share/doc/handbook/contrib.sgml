@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.69 1996/04/20 00:17:53 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.70 1996/04/20 18:43:54 jdp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -122,7 +122,7 @@
     <p><descrip>
         <tag/President/ &a.jkh 
         <tag/Principal Architect/ &a.davidg 
-        <tag/Documentation/ &a.jfieber
+        <tag/Documentation/ &a.mpp
         <tag/Internationalization/ &a.ache 
         <tag/Networking/ &a.wollman 
         <tag/Postmaster/ &a.jmb; 
