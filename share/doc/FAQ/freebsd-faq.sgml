@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.32 1996/01/31 14:25:49 mpp Exp $
+<date> $Id: freebsd-faq.sgml,v 1.33 1996/02/11 14:02:52 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -33,11 +33,6 @@ Any entries with a &lt;XXX&gt; are under construction.
 
         There are regular snapshots extracted from 2.2-CURRENT. Check on
         <tt>ftp.FreeBSD.ORG</tt> in <tt>/pub/FreeBSD/*-SNAP*</tt>.
-
-        This version of the FAQ uses the <tt>linuxdoc-sgml</tt> utility
-        written for Linux by Matt Welsh. The initial SGML translation was
-        made by Ollivier Robert <url url="mailto:roberto@FreeBSD.ORG"
-        name="roberto@FreeBSD.ORG">
 
         Some of the instructions here will also refer to auxiliary
         utilities in the <tt>/usr/share/FAQ/Text</tt> directory. If you do
@@ -154,7 +149,7 @@ Any entries with a &lt;XXX&gt; are under construction.
             <tag/fs/        Discussion of FreeBSD Filesystems
             <tag/hardware/  Discussion on hardware requirements for
               FreeBSD.
-            <tag/committers/ CVS commit messages for -current users
+            <tag/committers/ All CVS commit messages
             <tag/chat/  What does not belong elsewhere, general chat, fun.
             <tag/hubs/  This the mailing-list for all of the generous
               people who manage the ``regional'' part of the <tt/freebsd.org/
@@ -395,6 +390,9 @@ Any entries with a &lt;XXX&gt; are under construction.
           and install FreeBSD on the new free slice.  See the Distributions
           menu for an estimation of how much free space you'll need for the
           kind of installation you want.
+
+	  NOTE: <tt/FIPS/ may cause problems with the mounting of your
+          DOS partition under FreeBSD 2.X.
 
       <sect1>
         <heading>I have installed Windows 95 on to my home PC, and I want
@@ -807,6 +805,7 @@ sea32550N|Seagate 32550N:\
             <item>Cyclades 8/16 port &lt;Alpha&gt;,
             <item>Cronyx/Sigfgma multiport sync/async,
             <item>RISCom/8 multiport card,
+            <item>SCCSI Usenet II in shared IRQ mode,
             <item>STB 4 port i shared IRQ mode,
           </itemize>
 
@@ -825,7 +824,7 @@ sea32550N|Seagate 32550N:\
 	<heading>Does FreeBSD support the AHA-2xxx SCSI adapters from Adaptec?</heading>
 
         <p>
-          FreeBSD supports the AHA-2xxx line of disks.  The GPL portions
+          FreeBSD supports the AHA-2xxx line of adapters.  The GPL portions
           of the old drivers have been re-written and now it is fully
           under the Berkeley style copyright.
  
@@ -879,7 +878,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
         <p>
           FreeBSD supports SCSI, QIC-02 and QIC-40/80 (Floppy based) tape
           drives.  This includes 8-mm (aka Exabyte) and DAT drives.
-          
+          The QIC-40/80 drives are known to be slow.
+
       <sect1>
 	<heading>What sound cards are supported by FreeBSD?</heading>
           
@@ -926,7 +926,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             <tag/``lnc'' drive/
               Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL)(*)
             <tag/``ep'' driver/
-              3com 3c509
+              3com 3c509 (Must disable PNP support on card)
             <tag/``ix'' driver/
               Intel InterExpress
             <tag/``cx'' driver/
@@ -1957,6 +1957,21 @@ disk        fd1   at fdc0 drive 1
             name="Handbook's section on PPP (kernel version)">
           <url url="http://www.FreeBSD.ORG/How/handbook/userppp.html"
             name="Handbook's section on SLIP (user-mode version)">
+
+      <sect1> 
+        <heading>I've got problems with my IJPPP, I connect and it goes to PPP mode but I can't get out!  Whats up?</heading>
+
+        <p>
+        One problem we have had reported is IJPPPs' use of predictor1 
+        compression.  One way of determining if you have this problem
+        is to look at your log and if you have protocol errors then this is 
+        most likely it.
+        These can be shut off with:
+<verb>
+deny pred1
+disable pred1
+</verb>
+        Use these two before you dial out and it should work.  
 
       <sect1>
 	<heading>How do I get my network set up? I don't see how to make my <tt>/dev/ed0</tt> device!</heading>
