@@ -74,9 +74,7 @@
 #   include <sys/libkern.h>
 #   include <sys/systm.h>
 #   define memset(a,b,c)	bzero (a,c)
-#   if __FreeBSD_version > 501000
-#       define port_t int
-#   endif
+#   define port_t int
 #endif
 
 #endif
