@@ -78,15 +78,14 @@ static struct cdevsw acpi_cdevsw = {
 	.d_name =	"acpi",
 };
 
-#if __FreeBSD_version >= 500000
+/* Global mutex for locking access to the ACPI subsystem. */
 struct mtx	acpi_mutex;
-#endif
 
 /* Bitmap of device quirks. */
-int acpi_quirks;
+int		acpi_quirks;
 
 /* Local pools for managing system resources for ACPI child devices. */
-struct rman acpi_rman_io, acpi_rman_mem;
+struct rman	acpi_rman_io, acpi_rman_mem;
 
 static int	acpi_modevent(struct module *mod, int event, void *junk);
 static void	acpi_identify(driver_t *driver, device_t parent);
@@ -251,10 +250,8 @@ acpi_Startup(void)
 	return_VALUE (0);
     started = 1;
 
-#if __FreeBSD_version >= 500000
     /* Initialise the ACPI mutex */
     mtx_init(&acpi_mutex, "ACPI global lock", NULL, MTX_DEF);
-#endif
 
     /*
      * Set the globals from our tunables.  This is needed because ACPI-CA
