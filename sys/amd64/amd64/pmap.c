@@ -200,8 +200,7 @@ int pmap_pagedaemon_waken;
  * All those kernel PT submaps that BSD is so fond of
  */
 pt_entry_t *CMAP1 = 0;
-static pt_entry_t *ptmmap;
-caddr_t CADDR1 = 0, ptvmmap = 0;
+caddr_t CADDR1 = 0;
 static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp = 0;
 
@@ -505,12 +504,6 @@ pmap_bootstrap(firstaddr)
 	 * Crashdump maps.
 	 */
 	SYSMAP(caddr_t, pt_crashdumpmap, crashdumpmap, MAXDUMPPGS);
-
-	/*
-	 * ptvmmap is used for reading arbitrary physical pages via /dev/mem.
-	 * XXX ptmmap is not used.
-	 */
-	SYSMAP(caddr_t, ptmmap, ptvmmap, 1)
 
 	/*
 	 * msgbufp is used to map the system message buffer.
