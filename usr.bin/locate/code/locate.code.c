@@ -115,11 +115,11 @@ bg_t big[UCHAR_MAX + 1][UCHAR_MAX + 1];
 #else
 #define BGINDEX(x) bgindex(x)
 typedef int bg_t;
-int	bgindex __P((char *));
+int	bgindex(char *);
 #endif /* LOOKUP */
 
 
-void	usage __P((void));
+void	usage(void);
 
 int
 main(argc, argv)

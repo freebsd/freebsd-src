@@ -55,7 +55,7 @@ enum _vflag vflag = FIRST;
 static off_t address;			/* address/offset in stream */
 static off_t eaddress;			/* end address */
 
-static inline void print __P((PR *, u_char *));
+static inline void print(PR *, u_char *);
 
 void
 display()

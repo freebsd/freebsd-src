@@ -41,21 +41,21 @@ extern struct tm *tp;
 extern const char *calendarFile;
 extern char *optarg;
 
-void	 cal __P((void));
-void	 closecal __P((FILE *));
-int	 getday __P((char *));
-int	 getdayvar __P((char *));
-int	 getfield __P((char *, char **, int *));
-int	 getmonth __P((char *));
-int	 geteaster __P((char *, int));
-int      getpaskha __P((char *, int));
-int      easter __P((int));
-int	 isnow __P((char *, int *, int *, int *));
-FILE	*opencal __P((void));
-void	 settime __P((time_t));
-time_t   Mktime __P((char *));
-void	 usage __P((void));
-void     setnnames __P((void));
+void	 cal(void);
+void	 closecal(FILE *);
+int	 getday(char *);
+int	 getdayvar(char *);
+int	 getfield(char *, char **, int *);
+int	 getmonth(char *);
+int	 geteaster(char *, int);
+int      getpaskha(char *, int);
+int      easter(int);
+int	 isnow(char *, int *, int *, int *);
+FILE	*opencal(void);
+void	 settime(time_t);
+time_t   Mktime(char *);
+void	 usage(void);
+void     setnnames(void);
 
 #define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 

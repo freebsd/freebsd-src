@@ -74,8 +74,8 @@ int yp_errno = YP_TRUE;
 char *tempname;
 uid_t uid;
 
-void	baduser __P((void));
-void	usage __P((void));
+void	baduser(void);
+void	usage(void);
 
 int
 main(argc, argv)

@@ -55,8 +55,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-int match __P((char *, char *));
-static void usage __P((void));
+int match(char *, char *);
+static void usage(void);
 
 int
 main(argc, argv)

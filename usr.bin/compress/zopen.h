@@ -29,6 +29,6 @@
 #ifndef _ZOPEN_H_
 #define _ZOPEN_H_
 
-FILE  *zopen __P((const char *, const char *, int));
+FILE  *zopen(const char *, const char *, int);
 
 #endif /* _ZOPEN_H_ */

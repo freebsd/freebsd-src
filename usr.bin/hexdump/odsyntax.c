@@ -51,8 +51,8 @@ static const char rcsid[] =
 
 int deprecated;
 
-static void odoffset __P((int, char ***));
-static void odprecede __P((void));
+static void odoffset(int, char ***);
+static void odprecede(void);
 
 void
 oldsyntax(argc, argvp)

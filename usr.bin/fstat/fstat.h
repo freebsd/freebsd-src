@@ -64,10 +64,10 @@ extern kvm_t *kd;
 extern int vflg;
 extern int Pid;
 
-udev_t dev2udev __P((dev_t dev));
+udev_t dev2udev(dev_t dev);
 
 /* Additional filesystem types */
-int isofs_filestat __P((struct vnode *vp, struct filestat *fsp));
-int msdosfs_filestat __P((struct vnode *vp, struct filestat *fsp));
+int isofs_filestat(struct vnode *vp, struct filestat *fsp);
+int msdosfs_filestat(struct vnode *vp, struct filestat *fsp);
 
 #endif /* __FSTAT_H__ */

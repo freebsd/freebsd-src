@@ -79,12 +79,12 @@ static const char rcsid[] =
 
 #include "extern.h"
 
-static void	core __P((int, int, struct kinfo_proc *));
-static void	datadump __P((int, int, struct kinfo_proc *, u_long, int));
-static void	killed __P((int));
-static void	restart_target __P((void));
-static void	usage __P((void)) __dead2;
-static void	userdump __P((int, struct kinfo_proc *, u_long, int));
+static void	core(int, int, struct kinfo_proc *);
+static void	datadump(int, int, struct kinfo_proc *, u_long, int);
+static void	killed(int);
+static void	restart_target(void);
+static void	usage(void) __dead2;
+static void	userdump(int, struct kinfo_proc *, u_long, int);
 
 kvm_t *kd;
 

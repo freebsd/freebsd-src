@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFLINEWIDTH	80
 
-void fold __P((int));
-static void usage __P((void));
+void fold(int);
+static void usage(void);
 
 int
 main(argc, argv)

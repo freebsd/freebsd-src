@@ -138,18 +138,18 @@ int maxfiles;
 
 kvm_t *kd;
 
-void dofiles __P((struct kinfo_proc *kp));
-void dommap __P((struct kinfo_proc *kp));
-void vtrans __P((struct vnode *vp, int i, int flag));
-int  ufs_filestat __P((struct vnode *vp, struct filestat *fsp));
-int  nfs_filestat __P((struct vnode *vp, struct filestat *fsp));
-int  devfs_filestat __P((struct vnode *vp, struct filestat *fsp));
-char *getmnton __P((struct mount *m));
-void pipetrans __P((struct pipe *pi, int i, int flag));
-void socktrans __P((struct socket *sock, int i));
-void getinetproto __P((int number));
-int  getfname __P((char *filename));
-void usage __P((void));
+void dofiles(struct kinfo_proc *kp);
+void dommap(struct kinfo_proc *kp);
+void vtrans(struct vnode *vp, int i, int flag);
+int  ufs_filestat(struct vnode *vp, struct filestat *fsp);
+int  nfs_filestat(struct vnode *vp, struct filestat *fsp);
+int  devfs_filestat(struct vnode *vp, struct filestat *fsp);
+char *getmnton(struct mount *m);
+void pipetrans(struct pipe *pi, int i, int flag);
+void socktrans(struct socket *sock, int i);
+void getinetproto(int number);
+int  getfname(char *filename);
+void usage(void);
 
 
 int

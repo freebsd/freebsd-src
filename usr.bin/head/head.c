@@ -60,10 +60,10 @@ static const char rcsid[] =
  * Bill Joy UCB August 24, 1977
  */
 
-void head __P((FILE *, int));
-void head_bytes __P((FILE *, int));
-void obsolete __P((char *[]));
-void usage __P((void));
+void head(FILE *, int);
+void head_bytes(FILE *, int);
+void obsolete(char *[]);
+void usage(void);
 
 int
 main(argc, argv)

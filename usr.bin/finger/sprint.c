@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <utmp.h>
 #include "finger.h"
 
-static void	  stimeprint __P((WHERE *));
+static void	  stimeprint(WHERE *);
 
 void
 sflag_print()
