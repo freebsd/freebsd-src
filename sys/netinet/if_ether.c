@@ -949,14 +949,9 @@ arplookup(addr, create, proxy)
 		 * arplookup() is creating the route, then purge
 		 * it from the routing table as it is probably bogus.
 		 */
-		RT_UNLOCK(rt);
-		if (rt->rt_refcnt == 1 && ISDYNCLONE(rt)) {
-			rtrequest(RTM_DELETE,
-					(struct sockaddr *)rt_key(rt),
-					rt->rt_gateway, rt_mask(rt),
-					rt->rt_flags, 0);
-		}
-		RTFREE(rt);
+		if (rt->rt_refcnt == 1 && ISDYNCLONE(rt))
+			rtexpunge(rt);
+		RTFREE_LOCKED(rt);
 		return (0);
 #undef ISDYNCLONE
 	} else {

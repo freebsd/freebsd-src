@@ -297,6 +297,7 @@ int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void	 rtalloc_ign(struct route *, u_long);
 /* NB: the rtentry is returned locked */
 struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
+int	 rtexpunge(struct rtentry *);
 void	 rtfree(struct rtentry *);
 int	 rtinit(struct ifaddr *, int, int);
 int	 rtioctl(u_long, caddr_t);
