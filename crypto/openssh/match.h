@@ -1,3 +1,5 @@
+/*	$OpenBSD: match.h,v 1.7 2001/03/10 17:51:04 markus Exp $	*/
+
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -26,6 +28,12 @@ int     match_pattern(const char *s, const char *pattern);
  * indicate negation).  Returns -1 if negation matches, 1 if there is
  * a positive match, 0 if there is no match at all.
  */
-int     match_hostname(const char *host, const char *pattern, unsigned int len);
+int     match_hostname(const char *host, const char *pattern, u_int len);
+
+/*
+ * Returns first item from client-list that is also supported by server-list,
+ * caller must xfree() returned string.
+ */
+char	*match_list(const char *client, const char *server, u_int *next);
 
 #endif

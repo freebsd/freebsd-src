@@ -1,8 +1,36 @@
+/*	$OpenBSD: cli.c,v 1.11 2001/03/06 00:33:04 deraadt Exp $	*/
+
+/*
+ * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include "includes.h"
-RCSID("$OpenBSD: cli.c,v 1.2 2000/10/16 09:38:44 djm Exp $");
+RCSID("$OpenBSD: cli.c,v 1.11 2001/03/06 00:33:04 deraadt Exp $");
 
 #include "xmalloc.h"
-#include "ssh.h"
+#include "log.h"
+#include "cli.h"
+
 #include <vis.h>
 
 static int cli_input = -1;
@@ -32,7 +60,7 @@ cli_open(int from_stdin)
 		cli_input = STDIN_FILENO;
 		cli_output = STDERR_FILENO;
 	} else {
-		cli_input = cli_output = open("/dev/tty", O_RDWR);
+		cli_input = cli_output = open(_PATH_TTY, O_RDWR);
 		if (cli_input < 0)
 			fatal("You have no controlling tty.  Cannot read passphrase.");
 	}
@@ -43,7 +71,7 @@ cli_open(int from_stdin)
 }
 
 static void
-cli_close()
+cli_close(void)
 {
 	if (!cli_from_stdin && cli_input >= 0)
 		close(cli_input);
@@ -54,13 +82,13 @@ cli_close()
 }
 
 void
-intrcatch()
+intrcatch(int sig)
 {
 	intr = 1;
 }
 
 static void
-cli_echo_disable()
+cli_echo_disable(void)
 {
 	sigemptyset(&nset);
 	sigaddset(&nset, SIGTSTP);
@@ -83,7 +111,7 @@ cli_echo_disable()
 }
 
 static void
-cli_echo_restore()
+cli_echo_restore(void)
 {
 	if (echo_modified != 0) {
 		tcsetattr(cli_input, TCSANOW, &otio);
@@ -108,12 +136,16 @@ cli_read(char* buf, int size, int echo)
 {
 	char ch = 0;
 	int i = 0;
+	int n;
 
 	if (!echo)
 		cli_echo_disable();
 
 	while (ch != '\n') {
-		if (read(cli_input, &ch, 1) != 1)
+		n = read(cli_input, &ch, 1);
+		if (n == -1 && (errno == EAGAIN || errno == EINTR))
+			continue;
+		if (n != 1)
 			break;
 		if (ch == '\n' || intr != 0)
 			break;
@@ -137,18 +169,21 @@ cli_write(char* buf, int size)
 
 	output = xmalloc(4*size);
 	for (p = output, i = 0; i < size; i++) {
-                if (buf[i] == '\n')
-                        *p++ = buf[i];
-                else
-                        p = vis(p, buf[i], 0, 0);
-        }
+		if (buf[i] == '\n' || buf[i] == '\r')
+			*p++ = buf[i];
+		else
+			p = vis(p, buf[i], 0, 0);
+	}
 	len = p - output;
 
 	for (pos = 0; pos < len; pos += ret) {
 		ret = write(cli_output, output + pos, len - pos);
-		if (ret == -1)
+		if (ret == -1) {
+			xfree(output);
 			return -1;
+		}
 	}
+	xfree(output);
 	return 0;
 }
 

@@ -1,3 +1,5 @@
+.\"	$OpenBSD: ssh-add.1,v 1.24 2001/04/10 09:13:21 itojun Exp $
+.\"
 .\"  -*- nroff -*-
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -11,9 +13,9 @@
 .\" called by a name other than "ssh" or "Secure Shell".
 .\"
 .\"
-.\" Copyright (c) 1999,2000 Markus Friedl. All rights reserved.
-.\" Copyright (c) 1999 Aaron Campbell. All rights reserved.
-.\" Copyright (c) 1999 Theo de Raadt. All rights reserved.
+.\" Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell.  All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -56,6 +58,8 @@ If any file requires a passphrase,
 .Nm
 asks for the passphrase from the user.
 The Passphrase it is read from the user's tty.
+.Nm
+retries the last passphrase if multiple identity files are given.
 .Pp
 The authentication agent must be running and must be an ancestor of
 the current process for
@@ -76,7 +80,7 @@ Deletes all identities from the agent.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa $HOME/.ssh/identity
-Contains the RSA authentication identity of the user.
+Contains the protocol version 1 RSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 Note that
 .Nm
@@ -88,7 +92,9 @@ This is the default file added by
 .Nm
 when no other files have been specified.
 .It Pa $HOME/.ssh/id_dsa
-Contains the DSA authentication identity of the user.
+Contains the protocol version 2 DSA authentication identity of the user.
+.It Pa $HOME/.ssh/id_rsa
+Contains the protocol version 2 RSA authentication identity of the user.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
@@ -116,35 +122,17 @@ may be necessary to redirect the input from
 .Pa /dev/null
 to make this work.)
 .El
-.Sh AUTHOR
-Tatu Ylonen <ylo@cs.hut.fi>
-.Pp
-OpenSSH
-is a derivative of the original (free) ssh 1.2.12 release, but with bugs
-removed and newer features re-added.
-Rapidly after the 1.2.12 release,
-newer versions bore successively more restrictive licenses.
-This version of OpenSSH
-.Bl -bullet
-.It
-has all components of a restrictive nature (i.e., patents, see
-.Xr ssl 8 )
-directly removed from the source code; any licensed or patented components
-are chosen from
-external libraries.
-.It
-has been updated to support ssh protocol 1.5.
-.It
-contains added support for
-.Xr kerberos 8
-authentication and ticket passing.
-.It
-supports one-time password authentication with
-.Xr skey 1 .
-.El
+.Sh AUTHORS
+OpenSSH is a derivative of the original and free
+ssh 1.2.12 release by Tatu Ylonen.
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
+Theo de Raadt and Dug Song
+removed many bugs, re-added newer features and
+created OpenSSH.
+Markus Friedl contributed the support for SSH
+protocol versions 1.5 and 2.0.
 .Sh SEE ALSO
 .Xr ssh 1 ,
 .Xr ssh-agent 1 ,
 .Xr ssh-keygen 1 ,
-.Xr sshd 8 ,
-.Xr ssl 8
+.Xr sshd 8

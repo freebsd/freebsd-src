@@ -8,7 +8,7 @@
  * software must be clearly marked as such, and if the derived work is
  * incompatible with the protocol description in the RFC file, it must be
  * called by a name other than "ssh" or "Secure Shell".
- * 
+ *
  *
  * Copyright (c) 1999 Niels Provos.  All rights reserved.
  *
@@ -60,82 +60,16 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: rsa.c,v 1.16 2000/09/07 20:27:53 deraadt Exp $");
+RCSID("$OpenBSD: rsa.c,v 1.22 2001/03/26 23:23:23 markus Exp $");
 
 #include "rsa.h"
-#include "ssh.h"
+#include "log.h"
 #include "xmalloc.h"
-
-int rsa_verbose = 1;
-
-int
-rsa_alive()
-{
-	RSA *key;
-
-	key = RSA_generate_key(32, 3, NULL, NULL);
-	if (key == NULL)
-		return (0);
-	RSA_free(key);
-	return (1);
-}
-
-/*
- * Generates RSA public and private keys.  This initializes the data
- * structures; they should be freed with rsa_clear_private_key and
- * rsa_clear_public_key.
- */
-
-void
-rsa_generate_key(RSA *prv, RSA *pub, unsigned int bits)
-{
-	RSA *key;
-
-	if (rsa_verbose) {
-		printf("Generating RSA keys:  ");
-		fflush(stdout);
-	}
-	key = RSA_generate_key(bits, 35, NULL, NULL);
-	if (key == NULL)
-		fatal("rsa_generate_key: key generation failed.");
-
-	/* Copy public key parameters */
-	pub->n = BN_new();
-	BN_copy(pub->n, key->n);
-	pub->e = BN_new();
-	BN_copy(pub->e, key->e);
-
-	/* Copy private key parameters */
-	prv->n = BN_new();
-	BN_copy(prv->n, key->n);
-	prv->e = BN_new();
-	BN_copy(prv->e, key->e);
-	prv->d = BN_new();
-	BN_copy(prv->d, key->d);
-	prv->p = BN_new();
-	BN_copy(prv->p, key->p);
-	prv->q = BN_new();
-	BN_copy(prv->q, key->q);
-
-	prv->dmp1 = BN_new();
-	BN_copy(prv->dmp1, key->dmp1);
-
-	prv->dmq1 = BN_new();
-	BN_copy(prv->dmq1, key->dmq1);
-
-	prv->iqmp = BN_new();
-	BN_copy(prv->iqmp, key->iqmp);
-
-	RSA_free(key);
-
-	if (rsa_verbose)
-		printf("Key generation complete.\n");
-}
 
 void
 rsa_public_encrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 {
-	unsigned char *inbuf, *outbuf;
+	u_char *inbuf, *outbuf;
 	int len, ilen, olen;
 
 	if (BN_num_bits(key->e) < 2 || !BN_is_odd(key->e))
@@ -160,10 +94,10 @@ rsa_public_encrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 	xfree(inbuf);
 }
 
-void
+int
 rsa_private_decrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 {
-	unsigned char *inbuf, *outbuf;
+	u_char *inbuf, *outbuf;
 	int len, ilen, olen;
 
 	olen = BN_num_bytes(key->n);
@@ -174,21 +108,34 @@ rsa_private_decrypt(BIGNUM *out, BIGNUM *in, RSA *key)
 	BN_bn2bin(in, inbuf);
 
 	if ((len = RSA_private_decrypt(ilen, inbuf, outbuf, key,
-	    RSA_PKCS1_PADDING)) <= 0)
-		fatal("rsa_private_decrypt() failed");
-
-	BN_bin2bn(outbuf, len, out);
-
+	    RSA_PKCS1_PADDING)) <= 0) {
+		error("rsa_private_decrypt() failed");
+	} else {
+		BN_bin2bn(outbuf, len, out);
+	}
 	memset(outbuf, 0, olen);
 	memset(inbuf, 0, ilen);
 	xfree(outbuf);
 	xfree(inbuf);
+	return len;
 }
-
-/* Set whether to output verbose messages during key generation. */
 
 void
-rsa_set_verbose(int verbose)
+generate_additional_parameters(RSA *rsa)
 {
-	rsa_verbose = verbose;
+	BIGNUM *aux;
+	BN_CTX *ctx;
+	/* Generate additional parameters */
+	aux = BN_new();
+	ctx = BN_CTX_new();
+
+	BN_sub(aux, rsa->q, BN_value_one());
+	BN_mod(rsa->dmq1, rsa->d, aux, ctx);
+
+	BN_sub(aux, rsa->p, BN_value_one());
+	BN_mod(rsa->dmp1, rsa->d, aux, ctx);
+
+	BN_clear_free(aux);
+	BN_CTX_free(ctx);
 }
+

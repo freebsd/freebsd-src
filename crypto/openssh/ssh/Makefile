@@ -1,3 +1,5 @@
+#	$OpenBSD: Makefile,v 1.30 2001/04/14 16:33:20 stevesk Exp $
+
 .PATH:		${.CURDIR}/..
 
 PROG=	ssh
@@ -10,7 +12,7 @@ MAN=	ssh.1
 LINKS=	${BINDIR}/ssh ${BINDIR}/slogin
 MLINKS=	ssh.1 slogin.1
 
-SRCS=	ssh.c log-client.c readconf.c clientloop.c \
+SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
 	sshconnect.c sshconnect1.c sshconnect2.c
 
 .include <bsd.own.mk> # for AFS
@@ -28,5 +30,5 @@ DPADD+=  ${LIBKRBAFS}
 
 .include <bsd.prog.mk>
 
-LDADD+=	-lutil -lz -lcrypto
-DPADD+=	${LIBCRYPTO} ${LIBUTIL} ${LIBZ}
+LDADD+=	-lcrypto -lz
+DPADD+=	${LIBCRYPTO} ${LIBZ}

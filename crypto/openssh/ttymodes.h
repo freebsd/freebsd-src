@@ -1,6 +1,6 @@
+/* RCSID("$OpenBSD: ttymodes.h,v 1.11 2001/04/14 16:33:20 stevesk Exp $"); */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 	SGTTY stuff contributed by Janne Snabb <snabb@niksula.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
  *
@@ -11,13 +11,46 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$OpenBSD: ttymodes.h,v 1.9 2000/09/07 20:27:55 deraadt Exp $"); */
+/*
+ * SSH2 tty modes support by Kevin Steves.
+ * Copyright (c) 2001 Kevin Steves.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
-/* The tty mode description is a stream of bytes.  The stream consists of
+/*
+ * SSH1:
+ * The tty mode description is a stream of bytes.  The stream consists of
  * opcode-arguments pairs.  It is terminated by opcode TTY_OP_END (0).
  * Opcodes 1-127 have one-byte arguments.  Opcodes 128-159 have integer
  * arguments.  Opcodes 160-255 are not yet defined, and cause parsing to
  * stop (they should only be used after any other data).
+ *
+ * SSH2:
+ * Differences between SSH1 and SSH2 terminal mode encoding include:
+ * 1. Encoded terminal modes are represented as a string, and a stream
+ *    of bytes within that string.
+ * 2. Opcode arguments are uint32 (1-159); 160-255 remain undefined.
+ * 3. The values for TTY_OP_ISPEED and TTY_OP_OSPEED are different;
+ *    128 and 129 vs. 192 and 193 respectively.
  *
  * The client puts in the stream any modes it knows about, and the
  * server ignores any modes it does not know about.  This allows some degree
@@ -31,110 +64,109 @@
  * is only intended for including from ttymodes.c.
  */
 
-/* termios macro */		/* sgtty macro */
+/* termios macro */
 /* name, op */
-TTYCHAR(VINTR, 1) 		SGTTYCHAR(tiotc.t_intrc, 1)
-TTYCHAR(VQUIT, 2)		SGTTYCHAR(tiotc.t_quitc, 2)
-TTYCHAR(VERASE, 3)		SGTTYCHAR(tio.sg_erase, 3)
+TTYCHAR(VINTR, 1)
+TTYCHAR(VQUIT, 2)
+TTYCHAR(VERASE, 3)
 #if defined(VKILL)
-TTYCHAR(VKILL, 4)		SGTTYCHAR(tio.sg_kill, 4)
+TTYCHAR(VKILL, 4)
 #endif /* VKILL */
-TTYCHAR(VEOF, 5)		SGTTYCHAR(tiotc.t_eofc, 5)
+TTYCHAR(VEOF, 5)
 #if defined(VEOL)
-TTYCHAR(VEOL, 6)		SGTTYCHAR(tiotc.t_brkc, 6)
+TTYCHAR(VEOL, 6)
 #endif /* VEOL */
-#ifdef VEOL2			/* n/a */
+#ifdef VEOL2
 TTYCHAR(VEOL2, 7)
 #endif /* VEOL2 */
-TTYCHAR(VSTART, 8)		SGTTYCHAR(tiotc.t_startc, 8)
-TTYCHAR(VSTOP, 9)		SGTTYCHAR(tiotc.t_stopc, 9)
+TTYCHAR(VSTART, 8)
+TTYCHAR(VSTOP, 9)
 #if defined(VSUSP)
-TTYCHAR(VSUSP, 10)		SGTTYCHAR(tioltc.t_suspc, 10)
+TTYCHAR(VSUSP, 10)
 #endif /* VSUSP */
 #if defined(VDSUSP)
-TTYCHAR(VDSUSP, 11)		SGTTYCHAR(tioltc.t_dsuspc, 11)
+TTYCHAR(VDSUSP, 11)
 #endif /* VDSUSP */
 #if defined(VREPRINT)
-TTYCHAR(VREPRINT, 12)		SGTTYCHAR(tioltc.t_rprntc, 12)
+TTYCHAR(VREPRINT, 12)
 #endif /* VREPRINT */
 #if defined(VWERASE)
-TTYCHAR(VWERASE, 13)		SGTTYCHAR(tioltc.t_werasc, 13)
+TTYCHAR(VWERASE, 13)
 #endif /* VWERASE */
 #if defined(VLNEXT)
-TTYCHAR(VLNEXT, 14)		SGTTYCHAR(tioltc.t_lnextc, 14)
+TTYCHAR(VLNEXT, 14)
 #endif /* VLNEXT */
 #if defined(VFLUSH)
-TTYCHAR(VFLUSH, 15)		SGTTYCHAR(tioltc.t_flushc, 15)
+TTYCHAR(VFLUSH, 15)
 #endif /* VFLUSH */
 #ifdef VSWTCH
-TTYCHAR(VSWTCH, 16)		/* n/a */
+TTYCHAR(VSWTCH, 16)
 #endif /* VSWTCH */
 #if defined(VSTATUS)
-TTYCHAR(VSTATUS, 17)		SGTTYCHAR(tiots.tc_statusc, 17)
+TTYCHAR(VSTATUS, 17)
 #endif /* VSTATUS */
 #ifdef VDISCARD
-TTYCHAR(VDISCARD, 18)		/* n/a */
+TTYCHAR(VDISCARD, 18)
 #endif /* VDISCARD */
 
 /* name, field, op */
-TTYMODE(IGNPAR,	c_iflag, 30)	/* n/a */
-TTYMODE(PARMRK,	c_iflag, 31)	/* n/a */
-TTYMODE(INPCK, 	c_iflag, 32)	SGTTYMODEN(ANYP, tio.sg_flags, 32)
-TTYMODE(ISTRIP,	c_iflag, 33)	SGTTYMODEN(LPASS8, tiolm, 33)
-TTYMODE(INLCR, 	c_iflag, 34)	/* n/a */
-TTYMODE(IGNCR, 	c_iflag, 35)	/* n/a */
-TTYMODE(ICRNL, 	c_iflag, 36)	SGTTYMODE(CRMOD, tio.sg_flags, 36)
+TTYMODE(IGNPAR,	c_iflag, 30)
+TTYMODE(PARMRK,	c_iflag, 31)
+TTYMODE(INPCK, 	c_iflag, 32)
+TTYMODE(ISTRIP,	c_iflag, 33)
+TTYMODE(INLCR, 	c_iflag, 34)
+TTYMODE(IGNCR, 	c_iflag, 35)
+TTYMODE(ICRNL, 	c_iflag, 36)
 #if defined(IUCLC)
-TTYMODE(IUCLC, 	c_iflag, 37)	SGTTYMODE(LCASE, tio.sg_flags, 37)
+TTYMODE(IUCLC, 	c_iflag, 37)
 #endif
-TTYMODE(IXON,  	c_iflag, 38)	/* n/a */
-TTYMODE(IXANY, 	c_iflag, 39)	SGTTYMODEN(LDECCTQ, tiolm, 39)
-TTYMODE(IXOFF, 	c_iflag, 40)	SGTTYMODE(TANDEM, tio.sg_flags, 40)
+TTYMODE(IXON,  	c_iflag, 38)
+TTYMODE(IXANY, 	c_iflag, 39)
+TTYMODE(IXOFF, 	c_iflag, 40)
 #ifdef IMAXBEL
-TTYMODE(IMAXBEL,c_iflag, 41)	/* n/a */
+TTYMODE(IMAXBEL,c_iflag, 41)
 #endif /* IMAXBEL */
 
-TTYMODE(ISIG,	c_lflag, 50)	/* n/a */
-TTYMODE(ICANON,	c_lflag, 51)	SGTTYMODEN(CBREAK, tio.sg_flags, 51)
+TTYMODE(ISIG,	c_lflag, 50)
+TTYMODE(ICANON,	c_lflag, 51)
 #ifdef XCASE
-TTYMODE(XCASE,	c_lflag, 52)	/* n/a */
+TTYMODE(XCASE,	c_lflag, 52)
 #endif
-TTYMODE(ECHO,	c_lflag, 53)	SGTTYMODE(ECHO, tio.sg_flags, 53)
-TTYMODE(ECHOE,	c_lflag, 54)	SGTTYMODE(LCRTERA, tiolm, 54)
-TTYMODE(ECHOK,	c_lflag, 55)	SGTTYMODE(LCRTKIL, tiolm, 55)
-TTYMODE(ECHONL,	c_lflag, 56)	/* n/a */
-TTYMODE(NOFLSH,	c_lflag, 57)	SGTTYMODE(LNOFLSH, tiolm, 57)
-TTYMODE(TOSTOP,	c_lflag, 58)	SGTTYMODE(LTOSTOP, tiolm, 58)
+TTYMODE(ECHO,	c_lflag, 53)
+TTYMODE(ECHOE,	c_lflag, 54)
+TTYMODE(ECHOK,	c_lflag, 55)
+TTYMODE(ECHONL,	c_lflag, 56)
+TTYMODE(NOFLSH,	c_lflag, 57)
+TTYMODE(TOSTOP,	c_lflag, 58)
 #ifdef IEXTEN
-TTYMODE(IEXTEN, c_lflag, 59)	/* n/a */
+TTYMODE(IEXTEN, c_lflag, 59)
 #endif /* IEXTEN */
 #if defined(ECHOCTL)
-TTYMODE(ECHOCTL,c_lflag, 60)	SGTTYMODE(LCTLECH, tiolm, 60)
+TTYMODE(ECHOCTL,c_lflag, 60)
 #endif /* ECHOCTL */
 #ifdef ECHOKE
-TTYMODE(ECHOKE,	c_lflag, 61)	/* n/a */
+TTYMODE(ECHOKE,	c_lflag, 61)
 #endif /* ECHOKE */
 #if defined(PENDIN)
-TTYMODE(PENDIN,	c_lflag, 62)	SGTTYMODE(LPENDIN, tiolm, 62)
+TTYMODE(PENDIN,	c_lflag, 62)
 #endif /* PENDIN */
 
-TTYMODE(OPOST,	c_oflag, 70)	/* n/a */
+TTYMODE(OPOST,	c_oflag, 70)
 #if defined(OLCUC)
-TTYMODE(OLCUC,	c_oflag, 71)	SGTTYMODE(LCASE, tio.sg_flags, 71)
+TTYMODE(OLCUC,	c_oflag, 71)
 #endif
-TTYMODE(ONLCR,	c_oflag, 72)	SGTTYMODE(CRMOD, tio.sg_flags, 72)
+TTYMODE(ONLCR,	c_oflag, 72)
 #ifdef OCRNL
-TTYMODE(OCRNL,	c_oflag, 73)	/* n/a */
+TTYMODE(OCRNL,	c_oflag, 73)
 #endif
 #ifdef ONOCR
-TTYMODE(ONOCR,	c_oflag, 74)	/* n/a */
+TTYMODE(ONOCR,	c_oflag, 74)
 #endif
 #ifdef ONLRET
-TTYMODE(ONLRET,	c_oflag, 75)	/* n/a */
+TTYMODE(ONLRET,	c_oflag, 75)
 #endif
 
-TTYMODE(CS7,	c_cflag, 90)	/* n/a */
-TTYMODE(CS8,	c_cflag, 91)	SGTTYMODE(LPASS8, tiolm, 91)
-TTYMODE(PARENB,	c_cflag, 92)	/* n/a */
-TTYMODE(PARODD,	c_cflag, 93)	SGTTYMODE(ODDP, tio.sg_flags, 93)
-
+TTYMODE(CS7,	c_cflag, 90)
+TTYMODE(CS8,	c_cflag, 91)
+TTYMODE(PARENB,	c_cflag, 92)
+TTYMODE(PARODD,	c_cflag, 93)
