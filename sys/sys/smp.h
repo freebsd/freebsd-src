@@ -26,6 +26,7 @@ extern int smp_cpus;
 extern u_int all_cpus;
 extern volatile u_int started_cpus;
 extern volatile u_int stopped_cpus;
+extern u_int mp_maxid;
 
 /*
  * Macro allowing us to determine whether a CPU is absent at any given

@@ -307,6 +307,7 @@ cpu_mp_probe(void)
 	all_cpus = 1 << boot_cpu_id;
 
 	mp_ncpus = 1;
+	mp_maxid = 0;
 
 	/* Make sure we have at least one secondary CPU. */
 	cpus = 0;
@@ -332,6 +333,7 @@ cpu_mp_probe(void)
 		if (i > MAXCPU) {
 			continue;
 		}
+		mp_maxid = i;
 		cpus++;
 	}
 	return (cpus);
