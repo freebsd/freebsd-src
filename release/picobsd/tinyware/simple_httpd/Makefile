@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1999/02/12 20:36:13 abial Exp $
+#	$Id: Makefile,v 1.2.2.2 1999/05/05 07:31:31 abial Exp $
 #
 PROG=simple_httpd
 SRCS= 	simple_httpd.c

@@ -1,0 +1,15 @@
+etc/disktab
+etc/inetd.conf
+etc/master.passwd
+etc/mfs.rc
+etc/ppp.conf
+etc/ppp.conf
+etc/ppp.linkup
+etc/rc
+etc/rc.conf
+etc/rc.firewall
+etc/rc.serial
+etc/remote
+etc/shells
+etc/snmpd.conf
+etc/ttys
