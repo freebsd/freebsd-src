@@ -27,11 +27,16 @@
 #ifndef	_MACHINE_LSU_H_
 #define	_MACHINE_LSU_H_
 
+/*
+ * Definitions for the Load-Store-Unit Control Register. This is called
+ * Data Cache Unit Control Register (DCUCR) for UltraSPARC-III.
+ */
 #define	LSU_IC		(1UL << 0)
 #define	LSU_DC		(1UL << 1)
 #define	LSU_IM		(1UL << 2)
 #define	LSU_DM		(1UL << 3)
 
+/* Parity control mask, UltraSPARC-I and II series only. */
 #define	LSU_FM_SHIFT	4
 #define	LSU_FM_BITS	16
 #define	LSU_FM_MASK	(((1UL << LSU_FM_BITS) - 1) << LSU_FM_SHIFT)
@@ -48,5 +53,16 @@
 #define	LSU_VR		(1UL << 22)
 #define	LSU_PW		(1UL << 23)
 #define	LSU_PR		(1UL << 24)
+
+/* The following bits are valid for the UltraSPARC-III series only. */
+#define	LSU_WE		(1UL << 41)
+#define	LSU_SL		(1UL << 42)
+#define	LSU_SPE		(1UL << 43)
+#define	LSU_HPE		(1UL << 44)
+#define	LSU_PE		(1UL << 45)
+#define	LSU_RE		(1UL << 46)
+#define	LSU_ME		(1UL << 47)
+#define	LSU_CV		(1UL << 48)
+#define	LSU_CP		(1UL << 49)
 
 #endif	/* _MACHINE_LSU_H_ */
