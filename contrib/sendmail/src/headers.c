@@ -9,11 +9,11 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
+ * $FreeBSD$
+ *
  */
 
 #include <sendmail.h>
-
-/* $FreeBSD$ */
 
 SM_RCSID("@(#)$Id: headers.c,v 8.266.4.1 2002/08/16 14:56:01 ca Exp $")
 
