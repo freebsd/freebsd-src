@@ -1,8 +1,8 @@
-#	$Id: bsd.dep.mk,v 1.4 1994/02/27 19:28:44 nate Exp $
+#	$Id: bsd.dep.mk,v 1.1 1994/08/04 21:10:07 wollman Exp $
 
 # some of the rules involve .h sources, so remove them from mkdep line
 .if !target(depend)
-depend: beforedepend .depend afterdepend
+depend: beforedepend .depend afterdepend ${_DEPSUBDIR}
 .if defined(SRCS)
 .depend: ${SRCS}
 	rm -f .depend
@@ -19,7 +19,7 @@ depend: beforedepend .depend afterdepend
 	  mkdep -a ${MKDEP} ${CXXFLAGS:M-nostd*} ${CXXFLAGS:M-[ID]*} $$files; \
 	fi
 .else
-.depend:
+.depend: ${_DEPSUBDIR}
 .endif
 .if !target(beforedepend)
 beforedepend:
