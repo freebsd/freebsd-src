@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.165.2.28 1997/06/18 03:21:31 asami Exp $
+# $Id: bsd.port.mk,v 1.165.2.29 1997/06/24 07:17:15 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -171,7 +171,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # EXTRACT_SUFX	- Suffix for archive names (default: .tar.gz).
 # EXTRACT_BEFORE_ARGS -
 #				  Arguments to ${EXTRACT_CMD} before filename
-#				  (default: -C ${WRKDIR} -xzf).
+#				  (default: -xzf).
 # EXTRACT_AFTER_ARGS -
 #				  Arguments to ${EXTRACT_CMD} following filename
 #				  (default: none).
