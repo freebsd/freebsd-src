@@ -161,6 +161,14 @@ The typical usage for burning a mixed mode CD-R:
 The typical usage for burning from a compressed image file on stdin:
 .Pp
 .Dl "gunzip -c file.iso.gz | burncd -f /dev/acd0c data - fixate"
+.Pp
+In the examples above, the files burned to data CD-Rs are assumed to
+be ISO9660 filesystems.
+.Xr mkisofs 8 ,
+available in the
+.Fx
+Ports Collection, is commonly used to create ISO9660 filesystem images
+from a given directory tree.
 .Sh BUGS
 Probably, please report when found.
 .Sh HISTORY
