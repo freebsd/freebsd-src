@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.25 1995/05/30 08:15:59 rgrimes Exp $
+ * $Id: vm_fault.c,v 1.25.4.1 1996/06/14 23:21:01 davidg Exp $
  */
 
 /*
@@ -1056,10 +1056,10 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		vm_object_unlock(src_object);
 		vm_object_unlock(dst_object);
 
-		dst_m->flags |= PG_WRITEABLE;
-		dst_m->flags |= PG_MAPPED;
 		pmap_enter(dst_map->pmap, vaddr, VM_PAGE_TO_PHYS(dst_m),
 		    prot, FALSE);
+		dst_m->flags |= PG_WRITEABLE;
+		dst_m->flags |= PG_MAPPED;
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
