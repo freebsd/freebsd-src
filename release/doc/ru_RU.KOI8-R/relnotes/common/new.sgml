@@ -3,7 +3,7 @@
 
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.17 2004/10/11 06:16:43 den Exp $
 
-     Original revision: 1.761.2.33
+     Original revision: 1.761.2.35
 -->
 
 <articleinfo>
@@ -56,8 +56,8 @@
 
   <para>Дистрибутив (&release.type;), для которого предоставлена эта
     информация, представляет собой точку на ветви разработки между
-    &release.prev; и будущим релизом &release.next;.  Отдельные
-    собранные бинарные дистрибутивы (&release.type;) из этой ветви
+    &release.prev; и будущим релизом &release.next;.  Информацию о
+    собранных бинарных дистрибутивах (&release.type;) из этой ветви
     можно найти на <ulink url="&release.url;"></ulink>.</para>
 
 ]]>
@@ -496,6 +496,9 @@
     <para>Параметр <option>-f</option> утилиты &man.tail.1;
       теперь поддерживает более одного файла одновременно.</para>
 
+    <para>Была добавлена команда &man.tcpdrop.8;, закрывающая выбранное
+      соединение TCP.  Она была заимствована из OpenBSD.</para>
+
     <para>&man.whois.1; теперь поддерживает флаг <option>-k</option>
       для запроса <hostid role="fqdn">whois.krnic.net</hostid>
       (the National Internet Development Agency of Korea),
@@ -594,7 +597,9 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 
     <para>Поддерживаемая версия десктопа
       <application>GNOME</application> была обновлена с
-      2.6.2 до 2.10.
+      2.6.2 до 2.10.  Более подробная информация о работе
+      <application>GNOME</application> в &os; находится на веб странице
+      <ulink url="&url.base;/gnome/">FreeBSD GNOME Project</ulink>.
 
       <note>
 	<para>Пользователи предыдущих версий
@@ -612,17 +617,25 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 	  <ulink url="&url.base;/gnome/gnome_upgrade.sh"><filename>gnome_upgrade.sh</filename></ulink>
 	  для обновления до
 	  <application>GNOME</application> 2.10.</para>
-
-	<para>Для обновления библиотек
-	  <application>GNOME</application>, достаточно
-	  использовать &man.portupgrade.1;.</para></note>
+	</note>
       </para>
 
     <para>Поддерживаемая версия <application>KDE</application>
-      была обновлена с 3.3.0 до 3.3.2.</para>
+      была обновлена с 3.3.0 до 3.4.0.  Более подробная информация о работе
+      <application>KDE</application> в &os; находится на веб странице
+      <ulink url="http://freebsd.kde.org/">KDE в FreeBSD</ulink>.
+
+      <note>
+	<para>Пользователям более старых версий
+	  <application>KDE</application> предлагается следовать процедуре
+	  обновления, документированной на веб странице
+	  <ulink url="http://freebsd.kde.org/">KDE on FreeBSD</ulink>
+	  иди в файле <filename>ports/UPDATING</filename>.</para>
+	</note>
+    </para>
 
     <para>Поддерживаемая версия <application>Xorg</application> была
-      обновлена с 6.7.0 до 6.8.1.</para>
+      обновлена с 6.7.0 до 6.8.2.</para>
 
   </sect2>
 
