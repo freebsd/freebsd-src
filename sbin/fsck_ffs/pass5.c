@@ -317,7 +317,7 @@ pass5()
 		sbdirty();
 	}
 	if (fs->fs_clean == 0) {
-		pwarn("CLEAN FLAG IS WRONG IN SUPERBLOCK");
+		pwarn("CLEAN FLAG NOT SET IN SUPERBLOCK");
 		if (preen)
 			printf(" (FIXED)\n");
 		if (preen || reply("FIX") == 1) {
