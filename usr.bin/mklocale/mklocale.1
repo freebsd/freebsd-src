@@ -35,7 +35,7 @@
 .\"	@(#)mklocale.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd April 18, 1994
+.Dd October 14, 2002
 .Dt MKLOCALE 1
 .Os
 .Sh NAME
@@ -136,20 +136,38 @@ Followed by a
 .Dv STRING
 which indicates the encoding mechanism to be used for this locale.
 The current encodings are:
-.Bl -tag -width NONE
-.It Dv NONE
-No translation and the default.
-.It Dv UTF2
-.Dv "Universal character set Transformation Format"
-adopted from
-.Tn "Plan 9 from Bell Labs" .
-This is the preferred encoding.
+.Bl -tag -width MSKanji
+.It Dv BIG5
+The
+.Dq Big5
+encoding of Chinese.
 .It Dv EUC
 .Dv EUC
 encoding as used by several
 vendors of
 .Ux
 systems.
+.It Dv MSKanji
+The method of encoding Japanese used by Microsoft,
+loosely based on JIS.
+Also known as
+.Dq "Shift JIS"
+and
+.Dq SJIS .
+.It Dv NONE
+No translation and the default.
+.It Dv UTF2
+(deprecated)
+.Dv "Universal character set Transformation Format"
+adopted from
+.Tn "Plan 9 from Bell Labs" .
+.It Dv UTF-8
+The
+.Dv UTF-8
+transformation format of
+.Tn ISO
+10646
+as defined by RFC 2279.
 .El
 .It Dv VARIABLE
 This keyword must be followed by a single tab or space character,
@@ -267,7 +285,8 @@ for printable runes by default.
 .Xr setlocale 3 ,
 .Xr wcwidth 3 ,
 .Xr euc 4 ,
-.Xr utf2 4
+.Xr utf2 4 ,
+.Xr utf8 5
 .Sh BUGS
 The
 .Nm
