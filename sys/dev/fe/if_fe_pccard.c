@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -59,16 +60,18 @@ static int fe_pccard_probe(device_t);
 static int fe_pccard_attach(device_t);
 static int fe_pccard_detach(device_t);
 static int fe_pccard_match(device_t);
+static int fe_pccard_mem_ether(device_t dev, bus_addr_t cardoff,
+	       u_char *enaddr);
 
 static const struct fe_pccard_product {
         struct pccard_product mpp_product;
         uint32_t mpp_ioalign;                  /* required alignment */
         int mpp_enet_maddr;
 	int mpp_flags;
-#define MBH10302		0x1		/* Fujitsu MBH10302 */
+#define MPP_MBH10302 1
 } fe_pccard_products[] = {
 	/* These need to be first */
-	{ PCMCIA_CARD(FUJITSU2, FMV_J181, 0), 0, -1, MBH10302},
+	{ PCMCIA_CARD(FUJITSU2, FMV_J181, 0), 0, -1, MPP_MBH10302},
 	{ PCMCIA_CARD(FUJITSU2, FMV_J182, 0), 0, 0xf2c},
 	{ PCMCIA_CARD(FUJITSU2, FMV_J182A, 0), 0, 0x1cc},
 	{ PCMCIA_CARD(FUJITSU2, ITCFJ182A, 0), 0, 0x1cc},
@@ -81,7 +84,7 @@ static const struct fe_pccard_product {
         { PCMCIA_CARD(CONTEC, CNETPC, 0), 0, -1 },
 	{ PCMCIA_CARD(FUJITSU, LA501, 0), 0x20, -1 },
 	{ PCMCIA_CARD(FUJITSU, LA10S, 0), 0, -1 },
-	{ PCMCIA_CARD(FUJITSU, NE200T, 0), 0, -1, MBH10302},/* Sold by Eagle */
+	{ PCMCIA_CARD(FUJITSU, NE200T, 0), 0, -1, MPP_MBH10302},/* Sold by Eagle */
 	{ PCMCIA_CARD(RATOC, REX_R280, 0), 0, 0x1fc },
         { { NULL } }
 };
@@ -132,9 +135,8 @@ static driver_t fe_pccard_driver = {
 
 DRIVER_MODULE(fe, pccard, fe_pccard_driver, fe_devclass, 0, 0);
 
-static int fe_probe_mbh(device_t);
-static int fe_probe_tdk(device_t);
-
+static int fe_probe_mbh(device_t, const struct fe_pccard_product *);
+static int fe_probe_tdk(device_t, const struct fe_pccard_product *);
 /*
  *      Initialize the device - called from Slot manager.
  */
@@ -142,24 +144,23 @@ static int
 fe_pccard_probe(device_t dev)
 {
 	struct fe_softc *sc;
+        const struct fe_pccard_product *pp;
 	int error;
 
 	/* Prepare for the device probe process.  */
 	sc = device_get_softc(dev);
 	sc->sc_unit = device_get_unit(dev);
 
-	pccard_get_ether(dev, sc->sc_enaddr);
+        pp = (const struct fe_pccard_product *) pccard_product_lookup(dev,
+	    (const struct pccard_product *)fe_pccard_products,
+            sizeof(fe_pccard_products[0]), NULL);
+	if (pp == NULL)
+		return (ENXIO);
 
-	/* Probe for supported cards.  */
-	if ((error = fe_probe_mbh(dev)) == 0)
-		goto end;
-	fe_release_resource(dev);
-
-	if ((error = fe_probe_tdk(dev)) == 0)
-		goto end;
-	fe_release_resource(dev);
-
-end:
+	if (pp->mpp_flags & MPP_MBH10302)
+		error = fe_probe_mbh(dev, pp);
+	else
+		error = fe_probe_tdk(dev, pp);
 	if (error == 0)
 		error = fe_alloc_irq(dev, 0);
 
@@ -218,7 +219,7 @@ fe_init_mbh(struct fe_softc *sc)
 }
 
 static int
-fe_probe_mbh(device_t dev)
+fe_probe_mbh(device_t dev, const struct fe_pccard_product *pp)
 {
 	struct fe_softc *sc = device_get_softc(dev);
 
@@ -231,13 +232,6 @@ fe_probe_mbh(device_t dev)
 
 	/* MBH10302 occupies 32 I/O addresses. */
 	if (fe_alloc_port(dev, 32))
-		return ENXIO;
-
-	/* Ethernet MAC address should *NOT* have been given by pccardd,
-	   if this is a true MBH10302; i.e., Ethernet address must be
-	   "all-zero" upon entry.  */
-	if (sc->sc_enaddr[0] || sc->sc_enaddr[1] || sc->sc_enaddr[2] ||
-	    sc->sc_enaddr[3] || sc->sc_enaddr[4] || sc->sc_enaddr[5])
 		return ENXIO;
 
 	/* Fill the softc struct with default values.  */
@@ -281,7 +275,7 @@ fe_probe_mbh(device_t dev)
  * name _tdk is just for a historical reason. :-)
  */
 static int
-fe_probe_tdk (device_t dev)
+fe_probe_tdk (device_t dev, const struct fe_pccard_product *pp)
 {
 	struct fe_softc *sc = device_get_softc(dev);
 
@@ -308,6 +302,8 @@ fe_probe_tdk (device_t dev)
         /* Determine the card type.  */
 	sc->type = FE_TYPE_TDK;
         sc->typestr = "Generic MB8696x/78Q837x Ethernet (PCMCIA)";
+
+	pccard_get_ether(dev, sc->sc_enaddr);
 
         /* Make sure we got a valid station address.  */
         if (!fe_valid_Ether_p(sc->sc_enaddr, 0))
