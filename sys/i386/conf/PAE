@@ -102,5 +102,6 @@ nodevice	ums
 nodevice	urio
 nodevice	uscanner
 nodevice	aue
+nodevice	axe
 nodevice	cue
 nodevice	kue
