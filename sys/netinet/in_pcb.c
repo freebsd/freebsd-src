@@ -683,6 +683,44 @@ in_pcbnotifyall(head, faddr, errno, notify)
 	splx(s);
 }
 
+void
+in_pcbpurgeif0(head, ifp)
+	struct inpcb *head;
+	struct ifnet *ifp;
+{
+	struct inpcb *inp;
+	struct ip_moptions *imo;
+	int i, gap;
+
+	for (inp = head; inp != NULL; inp = LIST_NEXT(inp, inp_list)) {
+		imo = inp->inp_moptions;
+		if ((inp->inp_vflag & INP_IPV4) &&
+		    imo != NULL) {
+			/*
+			 * Unselect the outgoing interface if it is being
+			 * detached.
+			 */
+			if (imo->imo_multicast_ifp == ifp)
+				imo->imo_multicast_ifp = NULL;
+
+			/*
+			 * Drop multicast group membership if we joined
+			 * through the interface being detached.
+			 */
+			for (i = 0, gap = 0; i < imo->imo_num_memberships;
+			    i++) {
+				if (imo->imo_membership[i]->inm_ifp == ifp) {
+					in_delmulti(imo->imo_membership[i]);
+					gap++;
+				} else if (gap != 0)
+					imo->imo_membership[i - gap] =
+					    imo->imo_membership[i];
+			}
+			imo->imo_num_memberships -= gap;
+		}
+	}
+}
+
 /*
  * Check for alternatives when higher level complains
  * about service problems.  For now, invalidate cached
