@@ -100,6 +100,7 @@ struct ke_sched {
 
 #define	KEF_ASSIGNED	KEF_SCHED0	/* KSE is being migrated. */
 #define	KEF_BOUND	KEF_SCHED1	/* KSE can not migrate. */
+#define	KEF_XFERABLE	KEF_SCHED2	/* KSE was added as transferable. */
 
 struct kg_sched {
 	int	skg_slptime;		/* Number of ticks we vol. slept */
@@ -332,6 +333,7 @@ kseq_runq_add(struct kseq *kseq, struct kse *ke)
 	if (KSE_CAN_MIGRATE(ke, PRI_BASE(ke->ke_ksegrp->kg_pri_class))) {
 		kseq->ksq_transferable++;
 		kseq->ksq_group->ksg_transferable++;
+		ke->ke_flags |= KEF_XFERABLE;
 	}
 #endif
 	runq_add(ke->ke_runq, ke);
@@ -341,9 +343,10 @@ static __inline void
 kseq_runq_rem(struct kseq *kseq, struct kse *ke)
 {
 #ifdef SMP
-	if (KSE_CAN_MIGRATE(ke, PRI_BASE(ke->ke_ksegrp->kg_pri_class))) {
+	if (ke->ke_flags & KEF_XFERABLE) {
 		kseq->ksq_transferable--;
 		kseq->ksq_group->ksg_transferable--;
+		ke->ke_flags &= ~KEF_XFERABLE;
 	}
 #endif
 	runq_remove(ke->ke_runq, ke);
@@ -651,9 +654,11 @@ kseq_notify(struct kse *ke, int cpu)
 	struct kseq *kseq;
 	struct thread *td;
 	struct pcpu *pcpu;
+	int prio;
 
 	ke->ke_cpu = cpu;
 	ke->ke_flags |= KEF_ASSIGNED;
+	prio = ke->ke_thread->td_priority;
 
 	kseq = KSEQ_CPU(cpu);
 
@@ -663,6 +668,12 @@ kseq_notify(struct kse *ke, int cpu)
 	do {
 		*(volatile struct kse **)&ke->ke_assign = kseq->ksq_assigned;
 	} while(!atomic_cmpset_ptr(&kseq->ksq_assigned, ke->ke_assign, ke));
+	/*
+	 * Without sched_lock we could lose a race where we set NEEDRESCHED
+	 * on a thread that is switched out before the IPI is delivered.  This
+	 * would lead us to miss the resched.  This will be a problem once
+	 * sched_lock is pushed down.
+	 */
 	pcpu = pcpu_find(cpu);
 	td = pcpu->pc_curthread;
 	if (ke->ke_thread->td_priority < td->td_priority ||
@@ -727,43 +738,56 @@ kseq_transfer(struct kseq *kseq, struct kse *ke, int class)
 	if (smp_started == 0)
 		return (0);
 	cpu = 0;
-	ksg = kseq->ksq_group;
-
 	/*
-	 * If there are any idle groups, give them our extra load.  The
-	 * threshold at which we start to reassign kses has a large impact
+	 * If our load exceeds a certain threshold we should attempt to
+	 * reassign this thread.  The first candidate is the cpu that
+	 * originally ran the thread.  If it is idle, assign it there, 
+	 * otherwise, pick an idle cpu.
+	 *
+	 * The threshold at which we start to reassign kses has a large impact
 	 * on the overall performance of the system.  Tuned too high and
 	 * some CPUs may idle.  Too low and there will be excess migration
 	 * and context switches.
 	 */
-	if (ksg->ksg_load > (ksg->ksg_cpus * 2) && kseq_idle) {
+	ksg = kseq->ksq_group;
+	if (ksg->ksg_load > ksg->ksg_cpus && kseq_idle) {
+		ksg = KSEQ_CPU(ke->ke_cpu)->ksq_group;
+		if (kseq_idle & ksg->ksg_mask) {
+			cpu = ffs(ksg->ksg_idlemask);
+			if (cpu)
+				goto migrate;
+		}
 		/*
 		 * Multiple cpus could find this bit simultaneously
 		 * but the race shouldn't be terrible.
 		 */
 		cpu = ffs(kseq_idle);
 		if (cpu)
-			atomic_clear_int(&kseq_idle, 1 << (cpu - 1));
+			goto migrate;
 	}
 	/*
 	 * If another cpu in this group has idled, assign a thread over
 	 * to them after checking to see if there are idled groups.
 	 */
-	if (cpu == 0 && kseq->ksq_load > 1 && ksg->ksg_idlemask) {
+	ksg = kseq->ksq_group;
+	if (ksg->ksg_idlemask) {
 		cpu = ffs(ksg->ksg_idlemask);
 		if (cpu)
-			ksg->ksg_idlemask &= ~(1 << (cpu - 1));
+			goto migrate;
 	}
+	/*
+	 * No new CPU was found.
+	 */
+	return (0);
+migrate:
 	/*
 	 * Now that we've found an idle CPU, migrate the thread.
 	 */
-	if (cpu) {
-		cpu--;
-		ke->ke_runq = NULL;
-		kseq_notify(ke, cpu);
-		return (1);
-	}
-	return (0);
+	cpu--;
+	ke->ke_runq = NULL;
+	kseq_notify(ke, cpu);
+
+	return (1);
 }
 
 #endif	/* SMP */
@@ -958,7 +982,7 @@ sched_slice(struct kse *ke)
 
 	/*
 	 * Rationale:
-	 * KSEs in interactive ksegs get the minimum slice so that we
+	 * KSEs in interactive ksegs get a minimal slice so that we
 	 * quickly notice if it abuses its advantage.
 	 *
 	 * KSEs in non-interactive ksegs are assigned a slice that is
@@ -1020,7 +1044,7 @@ sched_interact_update(struct ksegrp *kg)
 	/*
 	 * If we have exceeded by more than 1/5th then the algorithm below
 	 * will not bring us back into range.  Dividing by two here forces
-	 * us into the range of [3/5 * SCHED_INTERACT_MAX, SCHED_INTERACT_MAX]
+	 * us into the range of [4/5 * SCHED_INTERACT_MAX, SCHED_INTERACT_MAX]
 	 */
 	if (sum > (SCHED_SLP_RUN_MAX / 5) * 6) {
 		kg->kg_runtime /= 2;
@@ -1144,9 +1168,9 @@ sched_switch(struct thread *td, struct thread *newtd)
 	 * to the new cpu.  This is the case in sched_bind().
 	 */
 	if ((ke->ke_flags & KEF_ASSIGNED) == 0) {
-		if (td == PCPU_GET(idlethread))
+		if (td == PCPU_GET(idlethread)) {
 			TD_SET_CAN_RUN(td);
-		else if (TD_IS_RUNNING(td)) {
+		} else if (TD_IS_RUNNING(td)) {
 			kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 			setrunqueue(td);
 		} else {
@@ -1162,10 +1186,12 @@ sched_switch(struct thread *td, struct thread *newtd)
 				kse_reassign(ke);
 		}
 	}
-	if (newtd == NULL)
-		newtd = choosethread();
-	else
+	if (newtd != NULL) {
 		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
+		ke->ke_cpu = PCPU_GET(cpuid);
+		ke->ke_runq = KSEQ_SELF()->ksq_curr;
+	} else
+		newtd = choosethread();
 	if (td != newtd)
 		cpu_switch(td, newtd);
 	sched_lock.mtx_lock = (uintptr_t)td;
@@ -1392,11 +1418,18 @@ sched_clock(struct thread *td)
 	struct kse *ke;
 
 	mtx_assert(&sched_lock, MA_OWNED);
+	kseq = KSEQ_SELF();
 #ifdef SMP
 	if (ticks == bal_tick)
 		sched_balance();
 	if (ticks == gbal_tick)
 		sched_balance_groups();
+	/*
+	 * We could have been assigned a non real-time thread without an
+	 * IPI.
+	 */
+	if (kseq->ksq_assigned)
+		kseq_assign(kseq);	/* Potentially sets NEEDRESCHED */
 #endif
 	/*
 	 * sched_setup() apparently happens prior to stathz being set.  We
@@ -1450,7 +1483,6 @@ sched_clock(struct thread *td)
 	/*
 	 * We're out of time, recompute priorities and requeue.
 	 */
-	kseq = KSEQ_SELF();
 	kseq_load_rem(kseq, ke);
 	sched_priority(kg);
 	sched_slice(ke);
@@ -1553,6 +1585,9 @@ sched_add_internal(struct thread *td, int preemptive)
 	struct kseq *kseq;
 	struct ksegrp *kg;
 	struct kse *ke;
+#ifdef SMP
+	int canmigrate;
+#endif
 	int class;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -1602,7 +1637,18 @@ sched_add_internal(struct thread *td, int preemptive)
 		break;
 	}
 #ifdef SMP
-	if (ke->ke_cpu != PCPU_GET(cpuid)) {
+	/*
+	 * Don't migrate running threads here.  Force the long term balancer
+	 * to do it.
+	 */
+	canmigrate = KSE_CAN_MIGRATE(ke, class);
+	if (TD_IS_RUNNING(td))
+		canmigrate = 0;
+
+	/*
+	 * If this thread is pinned or bound, notify the target cpu.
+	 */
+	if (!canmigrate && ke->ke_cpu != PCPU_GET(cpuid) ) {
 		ke->ke_runq = NULL;
 		kseq_notify(ke, ke->ke_cpu);
 		return;
@@ -1624,20 +1670,16 @@ sched_add_internal(struct thread *td, int preemptive)
 		 * Now remove ourselves from the group specific idle mask.
 		 */
 		kseq->ksq_group->ksg_idlemask &= ~PCPU_GET(cpumask);
-	} else if (kseq->ksq_load > 1 && KSE_CAN_MIGRATE(ke, class))
+	} else if (kseq->ksq_load > 1 && canmigrate)
 		if (kseq_transfer(kseq, ke, class))
 			return;
+	ke->ke_cpu = PCPU_GET(cpuid);
 #endif
+	/*
+	 * XXX With preemption this is not necessary.
+	 */
         if (td->td_priority < curthread->td_priority)
                 curthread->td_flags |= TDF_NEEDRESCHED;
-
-#ifdef SMP
-	/*
-	 * Only try to preempt if the thread is unpinned or pinned to the
-	 * current CPU.
-	 */
-	if (KSE_CAN_MIGRATE(ke, class) || ke->ke_cpu == PCPU_GET(cpuid))
-#endif
 	if (preemptive && maybe_preempt(td))
 		return;
 	ke->ke_ksegrp->kg_runq_kses++;
