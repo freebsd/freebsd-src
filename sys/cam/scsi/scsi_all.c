@@ -2040,10 +2040,8 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 					snprintf(tmpstr2, sizeof(tmpstr2),
 						 "bit %d",
 						sense->sense_key_spec[0] & 0x7);
-				sbuf_printf(sb,
-					   ": %s byte %d %s is invalid",
-					    bad_command ?
-					    "Command" : "Data",
+				sbuf_printf(sb, ": %s byte %d %s is invalid",
+					    bad_command ? "Command" : "Data",
 					    scsi_2btoul(
 					    &sense->sense_key_spec[1]),
 					    tmpstr2);
