@@ -92,17 +92,18 @@ Sets
 .Ar prefix
 as the directory in which to extract files from a package.
 If a package has set its default directory, it will be overridden
-by this flag.  Note that only the first directory default will
-be replaced, since
+by this flag.  Note that only the first
+.Cm @cwd
+directive will be replaced, since
 .Nm
 has no way of knowing which directory settings are relative and
-which are absolute.  It is rare, in any case, that more than one
-directory transition is made, but when such is the case then you
-may wish to look into the use of
+which are absolute.  It is rare, in any case, to see more than one
+directory transition made, but when such is the case you
+may then wish to look into the use of the
 .Cm MASTER
 and
 .Cm SLAVE
-mode (see the
+modes (see the
 .Fl M
 and
 .Fl S
@@ -166,27 +167,40 @@ and the contents then acted on as normal.
 .El
 .Sh TECHNICAL DETAILS
 .Nm
-is fairly simple.  It simply extracts the requested packages into
-a ``staging area'' directory and then performs the following steps:
+is fairly simple.  It extracts each packages' "packing list"
+into a special staging directory in /tmp (or $PKG_TMPDIR), parses it,
+then runs through the following sequence to fully extract the contents:
 .Bl -enum -indent indent
 .It
-It checks whether the package is already recorded as installed; if so,
-the installation terminates.
+Check if the package is already recorded as installed.  If so,
+terminate installation.
 .It
-It checks whether all the package dependencies (from
+Scan all the package dependencies (from
 .Cm @pkgdep
 directives, see
 .Xr pkg_create 8 )
-are met; if not, the missing dependencies are printed and the
-installation terminates.
+and make sure each one is met. If not, print the missing dependencies and
+terminate the installation.
+.It
+Search for any
+.Cm @option
+directives which control how the package is added to the system.
+At the time of this writing, the only currently implemented option is
+.Cm @option extract-in-place
+which will cause the package to be extracted direcly into its
+prefix directory without moving through a staging area in /tmp.
+.It
+If
+.Cm @option extract-in-place
+is enabled, the package is now extracted directly into its
+final location, otherwise it is extracted into the staging area.
 .It
 If the package contains a
 .Ar require
 file (see 
 .Xr pkg_create 8 ),
-then this is executed first as 
+then execute it with the following arguments:
 .Bd -filled -offset indent -compact
-.Cm require
 .Ar <pkg-name>
 .Ar INSTALL
 .Ed
@@ -194,13 +208,12 @@ where
 .Ar <pkg-name>
 is the name of the package in question and
 .Ar INSTALL
-is a keyword denoting that this is an installation requirements check.
+is simply a keyword denoting that this is an installation requirements check.
 .It
 If an
 .Ar install
-script exists for the package, it is then executed as
+script exists for the package, it is then executed with the following arguments:
 .Bd -filled -offset indent -compact
-.Cm install
 .Ar <pkg-name>
 .Ar PRE-INSTALL 
 .Ed
@@ -210,9 +223,11 @@ is the name of the package in question and
 .Ar PRE-INSTALL
 is a keyword denoting that this is the preinstallation phase.
 .It
-Using the packing list (the
+If
+.Cm @option extract-in-place
+is not used, then the packing list (this is the
 .Pa +CONTENTS
-file) as a guide, files are then moved (or copied, as necessary) from
+file) is now used as a guide for moving (or copying, as necessary) files from
 the staging area into their final locations.
 .It
 If the package contains an
