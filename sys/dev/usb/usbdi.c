@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.60 2000/01/19 00:23:58 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.71 2000/03/29 01:45:21 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -237,6 +237,12 @@ usbd_close_pipe(pipe)
 	LIST_REMOVE(pipe, next);
 	pipe->endpoint->refcnt--;
 	pipe->methods->close(pipe);
+#if defined(__NetBSD__) && defined(DIAGNOSTIC)
+	if (callout_pending(&pipe->abort_handle)) {
+		callout_stop(&pipe->abort_handle);
+		printf("usbd_close_pipe: abort_handle pending");
+	}
+#endif
 	if (pipe->intrxfer != NULL)
 		usbd_free_xfer(pipe->intrxfer);
 	free(pipe, M_USB);
@@ -260,6 +266,9 @@ usbd_transfer(xfer)
 		usbd_dump_queue(pipe);
 #endif
 	xfer->done = 0;
+
+	if (pipe->aborting)
+		return (USBD_CANCELLED);
 
 	size = xfer->length;
 	/* If there is no buffer, allocate one. */
@@ -314,8 +323,10 @@ usbd_transfer(xfer)
 				if (xfer->done)
 					break;
 			}
-			if (!xfer->done)
+			if (!xfer->done) {
 				pipe->methods->abort(xfer);
+				xfer->status = USBD_TIMEOUT;
+			}
 		} else
 		/* XXX End hack XXX */
 			tsleep(xfer, PRIBIO, "usbsyn", 0);
@@ -381,6 +392,7 @@ usbd_alloc_xfer(dev)
 	if (xfer == NULL)
 		return (NULL);
 	xfer->device = dev;
+	usb_callout_init(xfer->timeout_handle);
 	DPRINTFN(5,("usbd_alloc_xfer() = %p\n", xfer));
 	return (xfer);
 }
@@ -392,6 +404,12 @@ usbd_free_xfer(xfer)
 	DPRINTFN(5,("usbd_free_xfer: %p\n", xfer));
 	if (xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))
 		usbd_free_buffer(xfer);
+#if defined(__NetBSD__) && defined(DIAGNOSTIC)
+	if (callout_pending(&xfer->timeout_handle)) {
+		callout_stop(&xfer->timeout_handle);
+		printf("usbd_free_xfer: timout_handle pending");
+	}
+#endif
 	xfer->device->bus->methods->freex(xfer->device->bus, xfer);
 	return (USBD_NORMAL_COMPLETION);
 }
@@ -607,12 +625,10 @@ usbd_clear_endpoint_stall_async(pipe)
 }
 
 void
-usbd_clear_endpoint_toggle(pipe)
-	usbd_pipe_handle pipe;
+usbd_clear_endpoint_toggle(usbd_pipe_handle pipe)
 {
 	pipe->methods->cleartoggle(pipe);
 }
-
 
 usbd_status 
 usbd_endpoint_count(iface, count)
@@ -752,6 +768,7 @@ usbd_ar_pipe(pipe)
 		usbd_dump_queue(pipe);
 #endif
 	pipe->repeat = 0;
+	pipe->aborting = 1;
 	while ((xfer = SIMPLEQ_FIRST(&pipe->queue)) != NULL) {
 		DPRINTFN(2,("usbd_ar_pipe: pipe=%p xfer=%p (methods=%p)\n", 
 			    pipe, xfer, pipe->methods));
@@ -759,6 +776,7 @@ usbd_ar_pipe(pipe)
 		pipe->methods->abort(xfer);
 		/* XXX only for non-0 usbd_clear_endpoint_stall(pipe); */
 	}
+	pipe->aborting = 0;
 	return (USBD_NORMAL_COMPLETION);
 }
 
@@ -809,9 +827,6 @@ usb_transfer_complete(xfer)
 		}
 	}
 
-	if (pipe->methods->done != NULL)
-		pipe->methods->done(xfer);
-
 	if (!repeat) {
 		/* Remove request from queue. */
 #ifdef DIAGNOSTIC
@@ -821,6 +836,8 @@ usb_transfer_complete(xfer)
 #endif
 		SIMPLEQ_REMOVE_HEAD(&pipe->queue, xfer, next);
 	}
+	DPRINTFN(5,("usb_transfer_complete: repeat=%d new head=%p\n", 
+		    repeat, SIMPLEQ_FIRST(&pipe->queue)));
 
 	/* Count completed transfers. */
 	++pipe->device->bus->stats.uds_requests
@@ -836,6 +853,15 @@ usb_transfer_complete(xfer)
 
 	if (xfer->callback)
 		xfer->callback(xfer, xfer->priv, xfer->status);
+
+#ifdef DIAGNOSTIC
+	if (pipe->methods->done != NULL)
+		pipe->methods->done(xfer);
+	else
+		printf("usb_transfer_complete: pipe->methods->done == NULL\n");
+#else
+	pipe->methods->done(xfer);
+#endif
 
 	if ((xfer->flags & USBD_SYNCHRONOUS) && !polling)
 		wakeup(xfer);
