@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.34 1995/10/13 19:48:03 wollman Exp $
+ * $Id: if_de.c,v 1.35 1995/10/26 07:40:11 davidg Exp $
  *
  */
 
@@ -2142,7 +2142,7 @@ tulip_pci_probe(
 static void  tulip_pci_attach(TULIP_PCI_ATTACH_ARGS);
 static u_long tulip_pci_count;
 
-struct pci_device dedevice = {
+static struct pci_device dedevice = {
     "de",
     tulip_pci_probe,
     tulip_pci_attach,
