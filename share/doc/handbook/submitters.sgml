@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.50 1997/04/16 17:55:22 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.51 1997/04/23 02:54:28 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -101,9 +101,9 @@ Coordinator: &a.gibbs
 <p>The following tasks need to be done, but not with any particular
 urgency:
 <enum>
-<item>DOS emulator (for DOS executables)  Coordinator: <tt><htmlurl
+<item>DOS emulator (for DOS executables)  Coordinator: <tt><url
 url="mailto:jr@jrw.org" name="J.R. Westmoreland"></tt>
-<item>Port AFS (Andrew File System) to FreeBSD  Coordinator: <tt><htmlurl
+<item>Port AFS (Andrew File System) to FreeBSD  Coordinator: <tt><url
 url="mailto:ajones@ctron.com" name="Alexander Seth Jones"></tt>
 
 <item>MCA support?  This should be finalized one way or the other.
@@ -248,7 +248,7 @@ the following 6 categories:
 	  for more information about this and other mailing lists.
 
 	<item>An actual bug report should be filed by using the send-pr(1)
-          program or its <htmlurl url="http://www.freebsd.org/send-pr.html"
+          program or its <url url="http://www.freebsd.org/send-pr.html"
 	  name="WEB based equivalent">. This will prompt you for various
 	  fields to fill in.  In the send-pr(1) case, simply go to the
 	  fields surrounded by <tt>&lt;&gt;</tt>'s and fill in your own
@@ -260,7 +260,7 @@ the following 6 categories:
 	  a tracking number.  Please keep this tracking number and refer to
 	  it in any subsequent correspondence so that people can find the
 	  details of your problem quickly.  You may also send mail to
-	  <htmlurl url="mailto:bug-followup@freebsd.org"
+	  <url url="mailto:bug-followup@freebsd.org"
 	  name="bug-followup@freebsd.org"> with your PR# in the subject
 	  line to append further information to an existing bug report.
 
@@ -490,7 +490,7 @@ before we can accept delivery of new hardware.
 
 <p>We can always use new mirror sites for FTP, WWW or sup.
 If you would like to be such a mirror, please contact
-<htmlurl url="mailto:admin@FreeBSD.ORG" name="the FreeBSD project
+<url url="mailto:admin@FreeBSD.ORG" name="the FreeBSD project
 administrators"> for more information.
 
 <sect><heading>Donors Gallery<label id="donors"></heading>
@@ -532,29 +532,29 @@ like to publically thank them here!
   direct funding to the project:
 
   <itemize>
-	<item><htmlurl url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
+	<item><url url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
 	name="Annelise Anderson">
 
-	<item><htmlurl url="http://www.epilogue.com/" name="Epilogue
+	<item><url url="http://www.epilogue.com/" name="Epilogue
         Technology Corporation">
 
 	<item>Sean Eric Fagan
 
-	<item><htmlurl url="mailto:gmarco@masternet.it"
+	<item><url url="mailto:gmarco@masternet.it"
 	name="Gianmarco Giovannelli">
 
-	<item><htmlurl url="mailto:joeg@truenorth.org" name="Josef C. Grosch">
+	<item><url url="mailto:joeg@truenorth.org" name="Josef C. Grosch">
 
-	<item><htmlurl url="mailto:chuckr@freebsd.org" name="Chuck Robey">
+	<item><url url="mailto:chuckr@freebsd.org" name="Chuck Robey">
 
-	<item><htmlurl url="mailto:ken@stox.sa.enteract.com"
-	name="Kenneth P. Stox"> of <htmlurl url="http://www.imagescape.com"
+	<item><url url="mailto:ken@stox.sa.enteract.com"
+	name="Kenneth P. Stox"> of <url url="http://www.imagescape.com"
 	name="Imaginary Landscape, LLC.">
 
-	<item><htmlurl url="mailto:dk@dog.farm.org"
+	<item><url url="mailto:dk@dog.farm.org"
 	name="Dmitry S. Kohmanyuk">
 
-        <item><htmlurl url="http://www.iijnet.or.jp/laser5/" name="Laser5">
+        <item><url url="http://www.iijnet.or.jp/laser5/" name="Laser5">
         of Japan (a portion of the profits from sales of their
         <em>FreeBSD for PC98'ers</em> CD, a port of FreeBSD to
         the NEC PC98).
@@ -589,12 +589,17 @@ like to publically thank them here!
     <item>Ernst Winter &lt;ewinter@lobo.muc.de&gt; contributed a 2.88 MB
       floppy drive to the project.  This will hopefully increase the
       pressure for rewriting the floppy disk driver. ;-)
+
+    <item><url url="mailto:kuku@freebsd.org" name="Christoph Kukulies">
+    donated an FX120 12 speed Mitsumi CDROM drive for IDE CDROM driver
+    development.
+
   </itemize>
 
 <item><bf>Special contributors:</bf>
   <p>
   <itemize>
-	<item><htmlurl url="http://www.cdrom.com" name="Walnut Creek CDROM">
+	<item><url url="http://www.cdrom.com" name="Walnut Creek CDROM">
 	has donated almost more than we can say (see the
 	<ref id="history" name="history"> document for more details).
 	In particular, we would like to thank them for the original hardware
@@ -604,7 +609,7 @@ like to publically thank them here!
 	the years and providing us with unrestricted use of their T1
 	connection to the Internet.</item>
 
-	<item>The <htmlurl url="http://www.interface-business.de"
+	<item>The <url url="http://www.interface-business.de"
 	name="interface business GmbH, Dresden"> has been patiently
 	supporting &a.joerg; who has often preferred FreeBSD work over
 	paywork, and used to fall back to their (quite expensive) EUnet
