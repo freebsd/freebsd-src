@@ -110,9 +110,10 @@ rlphy_probe(dev)
 		return (ENXIO);
 
 	/*
-	 * Make sure the parent is an `rl'.
+	 * Make sure the parent is an `rl' or an `re'.
 	 */
-	if (strcmp(device_get_name(parent), "rl") != 0)
+	if (strcmp(device_get_name(parent), "rl") != 0 &&
+	    strcmp(device_get_name(parent), "re") != 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "RealTek internal media interface");

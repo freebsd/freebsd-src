@@ -105,6 +105,7 @@ SUBDIR=	accf_data \
 	${_random} \
 	rc \
 	rc4 \
+	re \
 	rl \
 	rp \
 	rue \
