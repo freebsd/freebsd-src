@@ -265,8 +265,18 @@ aha_isa_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
 		aha_free(aha);
 		return (ENOMEM);
+	} 
+	/*
+	 * The 1542A and B look the same.  So we guess based on
+	 * the firmware revision.  It appears that only rev 0 is on
+	 * the A cards.
+	 */
+	if (aha->boardid <= BOARD_1542 && aha->fw_major == 0) {
+		device_printf(dev, "154xA may not work\n");
+		aha->ccb_sg_opcode = INITIATOR_SG_CCB;
+		aha->ccb_ccb_opcode = INITIATOR_CCB;
 	}
-
+	
 	error = aha_attach(aha);
 	if (error) {
 		device_printf(dev, "attach failed\n");
