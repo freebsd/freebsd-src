@@ -38,7 +38,7 @@
  *      @(#)bpf.h	8.1 (Berkeley) 6/10/93
  *	@(#)bpf.h	1.34 (LBL)     6/16/96
  *
- * $Id: bpf.h,v 1.12 1997/02/22 09:40:55 peter Exp $
+ * $Id: bpf.h,v 1.13 1998/07/13 10:44:02 bde Exp $
  */
 
 #ifndef _NET_BPF_H_
@@ -147,6 +147,7 @@ struct bpf_hdr {
 #define DLT_PPP		9	/* Point-to-point Protocol */
 #define DLT_FDDI	10	/* FDDI */
 #define DLT_ATM_RFC1483	11	/* LLC/SNAP encapsulated atm */
+#define DLT_RAW		12	/* raw IP */
 
 /*
  * The instruction encodings.
