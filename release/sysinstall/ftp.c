@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.4 1995/05/24 11:19:10 gpalmer Exp $
+ * $Id: ftp.c,v 1.5 1995/05/24 17:49:14 jkh Exp $
  *
  */
 
@@ -220,7 +220,7 @@ FtpOpen(FTP_t ftp, char *host, char *user, char *passwd)
     ftp->state = isopen;
     return 0;
     
- fail:
+fail:
     close(ftp->fd_ctrl);
     ftp->fd_ctrl = -1;
     return -1;
