@@ -1202,11 +1202,10 @@ uhci_waitintr(uhci_softc_t *sc, usbd_xfer_handle xfer)
 	for (; timo >= 0; timo--) {
 		usb_delay_ms(&sc->sc_bus, 1);
 		DPRINTFN(20,("uhci_waitintr: 0x%04x\n", UREAD2(sc, UHCI_STS)));
-		if (UREAD2(sc, UHCI_STS) & UHCI_STS_USBINT) {
+		if (UREAD2(sc, UHCI_STS) & UHCI_STS_USBINT)
 			uhci_intr(sc);
-			if (xfer->status != USBD_IN_PROGRESS)
-				return;
-		}
+		if (xfer->status != USBD_IN_PROGRESS)
+			return;
 	}
 
 	/* Timeout */
