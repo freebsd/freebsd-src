@@ -112,6 +112,8 @@ struct mac_policy_ops {
 		    struct label *dest);
 	void	(*mpo_copy_pipe_label)(struct label *src,
 		    struct label *dest);
+	void	(*mpo_copy_socket_label)(struct label *src,
+		    struct label *dest);
 	void	(*mpo_copy_vnode_label)(struct label *src,
 		    struct label *dest);
 	int	(*mpo_externalize_cred_label)(struct label *label,
