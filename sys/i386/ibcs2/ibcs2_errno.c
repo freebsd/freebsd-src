@@ -114,5 +114,7 @@ int bsd_to_ibcs2_errno[] = {
 	0,			/* 79 */
 	0,			/* 80 */
 	0,			/* 81 */
+	IBCS2_EIDRM,		/* 82 */
+	IBCS2_ENOMSG,		/* 83 */
 };
 
