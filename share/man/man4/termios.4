@@ -119,7 +119,7 @@ sets the process group of the terminal back to its own process
 group (it puts itself into the foreground).
 If the job is to
 be started in the background (as denoted by the shell operator "&"),
-it never changes the process group of the terminal and doesn't
+it never changes the process group of the terminal and does not
 wait for the job to complete (that is, it immediately attempts to read the next
 command).
 If the job is started in the foreground, the user may
@@ -136,7 +136,7 @@ and for placing stopped or background jobs into the foreground.
 An orphaned process group is a process group that has no process
 whose parent is in a different process group, yet is in the same
 session.
-Conceptually it means a process group that doesn't have
+Conceptually it means a process group that does not have
 a parent that could do anything if it were to be stopped.
 For example,
 the initial login shell is typically in an orphaned process group.

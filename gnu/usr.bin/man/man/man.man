@@ -93,7 +93,7 @@ that match
 .Ar name ,
 not just the first.
 .It Fl d
-Don't actually display the man pages, but do print gobs of debugging
+Do not actually display the man pages, but do print gobs of debugging
 information.
 .It Fl f
 Equivalent to
@@ -191,7 +191,7 @@ The output from
 may need to be passed through some filter or another before being
 printed.
 .It Fl w
-Don't actually display the man pages, but do print the location(s) of
+Do not actually display the man pages, but do print the location(s) of
 the files that would be formatted or displayed.
 .El
 .Sh ENVIRONMENT

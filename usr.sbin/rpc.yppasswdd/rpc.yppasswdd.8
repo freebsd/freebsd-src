@@ -83,7 +83,7 @@ the
 or
 .Xr ypchpass 1
 commands.
-(Some administrators don't want users to be able to change their
+(Some administrators do not want users to be able to change their
 full name information or shells; the server can be invoked with option flags
 that disallow such changes.)
 When the server receives an update request,
@@ -249,7 +249,7 @@ be either
 or
 .Pa /var/yp/master.passwd .
 The server will check for the latter file first and then use the former
-if it can't find it.
+if it cannot find it.
 .Pp
 Multi-domain mode is off by default since it can fail if there are
 duplicate or near-duplicate user entries in different domains.
@@ -306,7 +306,7 @@ flag to
 .Nm
 disables the privileged port check so that it will work with
 .Xr yppasswd 1
-clients that don't use privileged ports.
+clients that do not use privileged ports.
 This reduces security to
 a certain small degree, but it might be necessary in cases where it
 is not possible to change the client behavior.

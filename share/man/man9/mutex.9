@@ -117,7 +117,7 @@ As a machine dependent optimization they may spin for some amount
 of time before context switching.
 It is important to remember that since a process may be preempted at any time,
 the possible context switch introduced by acquiring a mutex is guaranteed
-to not break anything that isn't already broken.
+to not break anything that is not already broken.
 .Pp
 Mutexes which do not context switch are
 .Dv MTX_SPIN

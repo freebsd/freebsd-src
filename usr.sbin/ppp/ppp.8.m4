@@ -105,7 +105,7 @@ are understood by
 .It Fl auto
 .Nm
 opens the tun interface, configures it then goes into the background.
-The link isn't brought up until outgoing data is detected on the tun
+The link is not brought up until outgoing data is detected on the tun
 interface at which point
 .Nm
 attempts to bring up the link.
@@ -446,7 +446,7 @@ you may need to deal with some initial configuration details.
 .It
 Your kernel must {include} a tunnel device (the GENERIC kernel includes
 one by default).
-If it doesn't, or if you require more than one tun
+If it does not, or if you require more than one tun
 interface, you'll need to rebuild your kernel with the following line in
 your kernel configuration file:
 .Pp
@@ -465,7 +465,7 @@ directory for the tunnel device entries
 where
 .Sq N
 represents the number of the tun device, starting at zero.
-If they don't exist, you can create them by running "sh ./MAKEDEV tunN".
+If they do not exist, you can create them by running "sh ./MAKEDEV tunN".
 This will create tun devices 0 through
 .Ar N .
 .It
@@ -515,7 +515,7 @@ and using
 .Pp
 in
 .Pa /etc/syslog.conf .
-Don't forget to send a
+Do not forget to send a
 .Dv HUP
 signal to
 .Xr syslogd 8
@@ -584,7 +584,7 @@ to certain PPP-capable terminal servers), this may result in
 hanging as soon as it tries to write data to your communications link
 as it is waiting for the CTS (clear to send) signal - which will never
 come.
-Thus, if you have a direct line and can't seem to make a
+Thus, if you have a direct line and cannot seem to make a
 connection, try turning CTS/RTS off with
 .Dq set ctsrts off .
 If you need to do this, check the
@@ -707,7 +707,7 @@ If only some of the three Ps go uppercase, wait until
 either everything is uppercase or lowercase.
 If they revert to lowercase, it means that
 .Nm
-couldn't successfully negotiate with the peer.
+could not successfully negotiate with the peer.
 A good first step for troubleshooting at this point would be to
 .Bd -literal -offset indent
 ppp ON awfulhak> set log local phase lcp ipcp
@@ -1226,7 +1226,7 @@ For example:
 .Pp
 .Dl ttyd1 Qo /usr/libexec/getty std.38400 Qc dialup on secure
 .Pp
-Don't forget to send a
+Do not forget to send a
 .Dv HUP
 signal to the
 .Xr init 8
@@ -1457,7 +1457,7 @@ will open a TCP connection to the given machine on the given
 socket.
 It should be noted however that
 .Nm
-doesn't use the telnet protocol and will be unable to negotiate
+does not use the telnet protocol and will be unable to negotiate
 with a telnet server.
 You should set up a port for receiving this
 .Em PPP
@@ -1476,7 +1476,7 @@ how to deal with incoming connections on that port:
 .Pp
 .Dl ppp-in stream tcp nowait root /usr/sbin/ppp ppp -direct ppp-in
 .Pp
-Don't forget to send a
+Do not forget to send a
 .Dv HUP
 signal to
 .Xr inetd 8
@@ -1993,7 +1993,7 @@ I will first suggest that my IP address should be 0.0.0.0, but I
 will only accept an address of 192.244.177.38.
 .It
 I strongly insist that the peer uses 192.244.177.2 as his own
-address and won't permit the use of any IP address but 192.244.177.2.
+address and will not permit the use of any IP address but 192.244.177.2.
 When the peer requests another IP address, I will always suggest that
 it uses 192.244.177.2.
 .It
@@ -2232,7 +2232,7 @@ be ignored as it is less restrictive than the default mask for your
 .Sq src_addr ) .
 .El
 .Pp
-An example for a connection where you don't know your IP number or your
+An example for a connection where you do not know your IP number or your
 ISPs IP number would be:
 .Bd -literal -offset indent
 set ifaddr 10.0.0.1/0 10.0.0.2/0 0.0.0.0 0.0.0.0
@@ -2249,7 +2249,7 @@ to
 .Pa /etc/ppp/ppp.conf
 (or to
 .Pa /etc/ppp/ppp.linkup
-for setups that don't use
+for setups that do not use
 .Fl auto
 mode).
 .Pp
@@ -2452,7 +2452,7 @@ This signal, tells
 .Nm
 to re-open any existing server socket, dropping all existing diagnostic
 connections.
-Sockets that couldn't previously be opened will be retried.
+Sockets that could not previously be opened will be retried.
 .It USR2
 This signal, tells
 .Nm
@@ -2827,7 +2827,7 @@ below) as part of the LCP request.
 If the peer agrees, both sides will
 exchange LQR packets at the agreed frequency, allowing detailed link
 quality monitoring by enabling LQM logging.
-If the peer doesn't agree, and if the
+If the peer does not agree, and if the
 .Dq echo
 option is enabled,
 .Nm
@@ -3459,7 +3459,7 @@ It is useful if you own a small number of real IP numbers that
 you wish to map to specific machines behind your gateway.
 .It nat deny_incoming yes|no
 If set to yes, this command will refuse all incoming packets where an
-aliasing link doesn't already exist.
+aliasing link does not already exist.
 ifdef({LOCALNAT},{},{Refer to the
 .Sx CONCEPTUAL BACKGROUND
 section of
@@ -3941,7 +3941,7 @@ This command deletes the given
 from the interface.
 If the
 .Dq !\&
-is used, no error is given if the address isn't currently assigned to
+is used, no error is given if the address is not currently assigned to
 the interface (and no deletion takes place).
 .It iface show
 Shows the current state and current addresses for the interface.
@@ -4471,13 +4471,13 @@ that has been opened:
 Carrier is checked one second after the login script is complete.
 If it's not set,
 .Nm
-assumes that this is because the device doesn't support carrier (which
+assumes that this is because the device does not support carrier (which
 is true for most
 .Dq laplink
 NULL-modem cables), logs the fact and stops checking
 for carrier.
 .Pp
-As ptys don't support the TIOCMGET ioctl, the tty device will switch all
+As ptys do not support the TIOCMGET ioctl, the tty device will switch all
 carrier detection off when it detects that the device is a pty.
 .It ISDN (i4b) Devices
 Carrier is checked once per second for 6 seconds.
@@ -4493,17 +4493,17 @@ the device is closed.
 Carrier is always required for PPPoE devices.
 .El
 .Pp
-All other device types don't support carrier.
+All other device types do not support carrier.
 Setting a carrier value will
 result in a warning when the device is opened.
 .Pp
 Some modems take more than one second after connecting to assert the carrier
 signal.
-If this delay isn't increased, this will result in
+If this delay is not increased, this will result in
 .Nm Ns No 's
 inability to detect when the link is dropped, as
 .Nm
-assumes that the device isn't asserting carrier.
+assumes that the device is not asserting carrier.
 .Pp
 The
 .Dq set cd
@@ -4549,7 +4549,7 @@ If
 .Ar timeout
 is less than or equal to zero or if
 .Ar timeout
-isn't specified, it is set to the default value of
+is not specified, it is set to the default value of
 .Em 120 seconds .
 .Pp
 A choked output queue occurs when
@@ -4953,7 +4953,7 @@ Rules are processed in order according to
 (unless skipped by specifying a rule number as the
 .Ar action ) .
 Up to 40 rules may be given for each set.
-If a packet doesn't match
+If a packet does not match
 any of the rules in a given set, it is discarded.
 In the case of
 .Em in
@@ -5063,7 +5063,7 @@ will configure the interface immediately upon reading the
 .Dq set ifaddr
 line in the config file.
 In any other mode, these values are just
-used for IPCP negotiations, and the interface isn't configured
+used for IPCP negotiations, and the interface is not configured
 until the IPCP layer is up.
 .Pp
 Note that the
@@ -5442,7 +5442,7 @@ and
 files.
 The load will be attempted before (and in addition to) the normal
 label search.
-If the label doesn't exist, no action is taken and
+If the label does not exist, no action is taken and
 .Nm
 proceeds to the normal load using the current label.
 .It RAD_FRAMED_ROUTE
@@ -5485,7 +5485,7 @@ would result in a default route to
 .Pp
 All RADIUS routes are applied after any sticky routes are applied, making
 RADIUS routes override configured routes.
-This also applies for RADIUS routes that don't {include} the
+This also applies for RADIUS routes that do not {include} the
 .Dv MYADDR
 or
 .Dv HISADDR
@@ -5537,7 +5537,7 @@ would result in a default route to
 All RADIUS IPv6 routes are applied after any sticky routes are
 applied, making RADIUS IPv6 routes override configured routes.
 This
-also applies for RADIUS IPv6 routes that don't {include} the
+also applies for RADIUS IPv6 routes that do not {include} the
 .Dv MYADDR6
 or
 .Dv HISADDR6
@@ -5786,7 +5786,7 @@ but never actually closes the connection despite our sending a terminate
 acknowledgement.
 This is also useful if you wish to
 .Dq set openmode passive
-and time out if the peer doesn't send a Configure Request within the
+and time out if the peer does not send a Configure Request within the
 given time.
 Use
 .Dq set log +lcp +ccp
@@ -5796,7 +5796,7 @@ log the appropriate state transitions.
 .Pp
 The default value is zero, where
 .Nm
-doesn't time out in the stopped state.
+does not time out in the stopped state.
 .Pp
 This value should not be set to less than the openmode delay (see
 .Dq set openmode

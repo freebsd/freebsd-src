@@ -141,7 +141,7 @@ For CHAP, this will be used to compute the response hash value, based
 on remote's challenge.
 For PAP, it will be transmitted as plain text
 together with the system name.
-Don't forget to quote the secrets from
+Do not forget to quote the secrets from
 the shell if they contain shell metacharacters (or white space).
 .It Va myauthkey Ns Li = Ns Ar secret
 Same as above.
@@ -170,7 +170,7 @@ Only meaningful with CHAP.
 Do not re-challenge peer once the initial
 CHAP handshake was successful.
 Used to work around broken peer
-implementations that can't grok being re-challenged once the
+implementations that cannot grok being re-challenged once the
 connection is up.
 .It Ar rechallenge
 With CHAP, send re-challenges at random intervals while the connection

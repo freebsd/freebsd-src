@@ -191,8 +191,8 @@ Once the device name and unit number
 are determined, a lookup is performed to determine the passthrough device
 that corresponds to the given device.
 .Fn cam_open_device
-is rather simple to use, but it isn't really suitable for general use
-because its behavior isn't necessarily deterministic.
+is rather simple to use, but it is not really suitable for general use
+because its behavior is not necessarily deterministic.
 Programmers writing
 new applications should make the extra effort to use one of the other open
 routines documented below.
@@ -419,10 +419,10 @@ The CAM library first appeared in
 .An Kenneth Merry Aq ken@FreeBSD.org
 .Sh BUGS
 .Fn cam_open_device
-doesn't check to see if the
+does not check to see if the
 .Fa path
 passed in is a symlink to something.
-It also doesn't check to see if the
+It also does not check to see if the
 .Fa path
 passed in is an actual
 .Xr pass 4

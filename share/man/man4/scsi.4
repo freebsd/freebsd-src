@@ -75,7 +75,7 @@ subsystem:
 .Bl -tag -width SCSI_NO_SENSE_STRINGS
 .It Dv CAMDEBUG
 This option enables the CAM debugging printf code.
-This won't actually
+This will not actually
 cause any debugging information to be printed out when included by itself.
 Enabling printouts requires additional configuration.
 See below for details.
@@ -105,7 +105,7 @@ In most cases, though,
 this should be enabled, since it speeds the interpretation of
 .Tn SCSI
 error messages.
-Don't let the "kernel bloat" zealots get to you -- leave
+Do not let the "kernel bloat" zealots get to you -- leave
 the sense descriptions in your kernel!
 .It Dv SCSI_NO_OP_STRINGS
 This disables text descriptions of each
@@ -113,7 +113,7 @@ This disables text descriptions of each
 opcode.
 This option, like the sense string option above, is primarily
 useful for environments like a boot floppy where kernel size is critical.
-Enabling this option for normal use isn't recommended, since it slows
+Enabling this option for normal use is not recommended, since it slows
 debugging of
 .Tn SCSI
 problems.
@@ -137,7 +137,7 @@ Newer disks
 may need as little as 100ms, while old, slow devices may need much longer.
 If the
 .Dv SCSI_DELAY
-isn't specified, it defaults to 2 seconds.
+is not specified, it defaults to 2 seconds.
 The minimum allowable value for
 .Dv SCSI_DELAY
 is "100", or 100ms.
@@ -268,10 +268,10 @@ Some of these flags, most notably
 and
 .Dv CAM_DEBUG_SUBTRACE
 will produce kernel printfs in EXTREME numbers,
-and because of that, they aren't especially useful.
-There aren't many things logged at the
+and because of that, they are not especially useful.
+There are not many things logged at the
 .Dv CAM_DEBUG_INFO
-level, so it isn't especially useful.
+level, so it is not especially useful.
 The most useful debugging flag is the
 .Dv CAM_DEBUG_CDB
 flag.

@@ -63,7 +63,7 @@ If
 is
 .Cm pgp ,
 it will always prompt you for a passphrase to unlock your private
-pgp key, even if you don't use a passphrase (which is a bad idea, anyway).
+pgp key, even if you do not use a passphrase (which is a bad idea, anyway).
 If
 .Ar type
 is
@@ -166,7 +166,7 @@ utility currently does not handle multiple signatures.
 .It "File %s is not a signed gzip file"
 This is an unsigned package.
 .It "File %s is not a gzip file"
-The program couldn't find a proper gzip header.
+The program could not find a proper gzip header.
 .It "File %s contains an unknown extension"
 The extended area of the gzip file has been used for an unknown purpose.
 .It "File %s uses old signatures, no longer supported"
@@ -196,7 +196,7 @@ The
 .Xr pgp 1
 utility is an ill-designed program, which is hard to interface with.
 For instance, the `separate signing scheme' it pretends to offer is
-useless, as it can't be used with pipes, so that
+useless, as it cannot be used with pipes, so that
 .Nm pgp_sign
 needs to kludge it by knowing the length of a pgp signature, and invoking
 pgp in `seamless' signature mode, without compression of the main file,

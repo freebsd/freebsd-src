@@ -87,7 +87,7 @@ The PS/2 style pointing device typically supports 10, 20, 40, 60, 80, 100
 and 200 reports per second.
 60 or 100 appears to be the default value for many devices.
 Note that when there is no movement and no button has changed its state,
-the device won't send anything to the host system.
+the device will not send anything to the host system.
 The report rate can be changed via an ioctl call.
 .Ss Operation Levels
 The
@@ -186,7 +186,7 @@ minor = (`unit' << 1) | `non-blocking'
 .Ed
 .Pp
 where `unit' is the device number (usually 0) and the `non-blocking' bit
-is set to indicate ``don't block waiting for mouse input,
+is set to indicate ``do not block waiting for mouse input,
 return immediately''.
 The `non-blocking' bit should be set for \fIXFree86\fP,
 therefore the minor device number usually used for \fIXFree86\fP is 1.
@@ -293,14 +293,14 @@ driver will not try to identify the model of the pointing device and
 will not carry out model-specific initialization.
 The device should always act like a standard PS/2 mouse without such
 initialization.
-Extra features, such as wheels and additional buttons, won't be
+Extra features, such as wheels and additional buttons, will not be
 recognized by the
 .Nm
 driver.
 .It bit 10 NORESET
 When this flag is set, the
 .Nm
-driver won't reset the pointing device when initializing the device.
+driver will not reset the pointing device when initializing the device.
 If the
 .Fx
 kernel

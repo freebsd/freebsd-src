@@ -150,7 +150,7 @@ Internet-routed IP addresses.
 In our example, 192.100.5.x represents
 the Internet-routed IP block while 10.x.x.x represents the internal
 networks.
-While it isn't relevant to the example, 10.0.1.x is
+While it is not relevant to the example, 10.0.1.x is
 assigned as the internal address block for the LAN on fxp0, 10.0.2.x
 for the LAN on fxp1, and 10.0.3.x for the LAN on fxp2.
 .Pp
@@ -284,7 +284,7 @@ add 01001 allow all from any to any out via fxp2
 # internal networks.  Packets received via fxp1 MUST come from
 # 10.0.1.x.  Packets received via fxp2 MUST come from 10.0.2.x.
 # Packets received via fxp0 cannot come from the LAN1 or LAN2
-# blocks.  We can't protect 10.0.0.x here, the Internet router
+# blocks.  We cannot protect 10.0.0.x here, the Internet router
 # must do that for us.
 #
 add 01500 deny all from not 10.0.1.0/24 in via fxp1
@@ -315,7 +315,7 @@ add 01501 deny all from 10.0.2.0/24 in via fxp0
 # access to specific services running on the firewall itself.
 # In this case we assume LAN1 needs access to filesharing running
 # on the firewall.  If using a less restrictive firewall
-# (allowing rule 01010), you don't need these rules.
+# (allowing rule 01010), you do not need these rules.
 #
 add 01012 allow tcp from 10.0.1.0/8 to 10.0.1.1 139
 add 01012 allow udp from 10.0.1.0/8 to 10.0.1.1 137,138
@@ -376,7 +376,7 @@ add 03000 allow tcp from any to any auth,pop3,ftp,ftp-data
 add 04000 allow icmp from any to any icmptypes 0,3,8,11,12,13,14
 
 # log any remaining fragments that get through.  Might be useful,
-# otherwise don't bother.  Have a final deny rule as a safety to
+# otherwise do not bother.  Have a final deny rule as a safety to
 # guarantee that your firewall is inclusive no matter how the kernel
 # is configured.
 #
@@ -385,7 +385,7 @@ add 06000 deny all from any to any
 .Ed
 .Sh PORT BINDING INTERNAL AND EXTERNAL SERVICES
 We've mentioned multi-homing hosts and binding services to internal or
-external addresses but we haven't really explained it.
+external addresses but we have not really explained it.
 When you have a
 host with multiple IP addresses assigned to it, you can bind services run
 on that host to specific IPs or interfaces rather than all IPs.
