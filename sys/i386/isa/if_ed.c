@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.74 1995/07/25 22:18:54 bde Exp $
+ * $Id: if_ed.c,v 1.75 1995/07/28 12:15:16 davidg Exp $
  */
 
 #include "ed.h"
@@ -2558,7 +2558,7 @@ ds_getmcaf(sc, mcaf)
 			mcaf[1] = 0xffffffff;
 			return;
 		}
-		index = ds_crc(enm->enm_addrlo, 6) >> 26;
+		index = ds_crc(enm->enm_addrlo) >> 26;
 		af[index >> 3] |= 1 << (index & 7);
 
 		ETHER_NEXT_MULTI(step, enm);
