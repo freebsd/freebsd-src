@@ -35,6 +35,7 @@
 #	sa*	SCSI Sequential Access Devices
 #
 # Disks:
+#	aac*	Adaptec FSA RAID controllers
 #	aacd*	Adaptec FSA RAID
 #	acd*	ATAPI CD-ROM disks
 #	amrd*	AMI MegaRAID
@@ -1677,6 +1678,7 @@ i4btrc*)
 aac*)
 	unit=`expr $i : 'aac\(.*\)'`
 	mknod aac$unit c 150 `unit2minor $unit`
+	ln -s aac$unit afa$unit
 	;;
 
 mlx*)
