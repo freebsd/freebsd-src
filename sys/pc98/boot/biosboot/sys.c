@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.12 1997/05/28 09:23:00 kato Exp $
+ *	$Id: sys.c,v 1.13 1997/06/09 13:44:04 kato Exp $
  */
 
 /*
@@ -204,11 +204,6 @@ openrd(void)
 	char **devp, *name0 = name, *cp = name0;
 	int biosdrive, dosdev_copy, ret;
 
-#ifdef PC98
-	int i;
-	unsigned char disk_equips;
-	int sdunit = 0;
-#endif
 	/*******************************************************\
 	* If bracket given look for preceding device name	*
 	\*******************************************************/
@@ -266,7 +261,11 @@ openrd(void)
 	}
 	biosdrive = biosdrivedigit - '0';
 	if (biosdrivedigit == '\0') {
+#ifdef PC98
+		biosdrive = dosdev & 0x0f;
+#else
 		biosdrive = unit;
+#endif
 #if BOOT_HD_BIAS > 0
 		/* XXX */
 		if (maj == 4)
@@ -277,12 +276,7 @@ openrd(void)
 	{
 #ifdef PC98
 	case 4: /* sd */
-		dosdev_copy = unit | 0xa0;
-		disk_equips = *(unsigned char *)V(0xA1482);
-		sdunit = unit;
-		unit = 0;
-		for (i = 0; i < sdunit; i++)
-			unit += ((disk_equips >> i) & 0x01);
+		dosdev_copy = biosdrive | 0xa0;
 #else	/* IBM-PC */
 	case 0:
 	case 4:
