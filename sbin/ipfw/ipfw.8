@@ -885,8 +885,7 @@ specified as argument.
 Matches IP packets whose destination port is one of the port(s)
 specified as argument.
 .It Cm established
-Matches TCP packets that either do not have the SYN bit set, or
-that also have one of the RST or ACK bits set.
+Matches TCP packets that have the RST or ACK bits set.
 .It Cm frag
 Matches packets that are fragments and not the first
 fragment of an IP datagram. Note that these packets will not have
