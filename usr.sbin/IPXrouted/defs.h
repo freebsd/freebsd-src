@@ -34,7 +34,7 @@
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: defs.h,v 1.5 1997/02/22 16:00:55 peter Exp $
+ *	$Id: defs.h,v 1.6 1997/07/06 07:38:27 jhay Exp $
  */
 
 #include <sys/types.h>
@@ -77,6 +77,7 @@ extern int	sapsock;		/* Socket to listen on */
 extern int	kmem;
 extern int	supplier;		/* process should supply updates */
 extern int	dosap;			/* SAP is enabled */
+extern int	dognreply;		/* enable GET_NEAREST response */
 extern int	install;		/* if 1 call kernel */
 extern int	lookforinterfaces;	/* if 1 probe kernel for new up ifs */
 extern int	performnlist;		/* if 1 check if /kernel has changed */
