@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.29 1997/11/20 18:43:45 bde Exp $
+ *	$Id: sys_machdep.c,v 1.30 1997/11/26 22:45:47 joerg Exp $
  *
  */
 
@@ -233,6 +233,8 @@ i386_get_ioperm(p, args)
 
 	iomap = (char *)p->p_addr->u_pcb.pcb_ext->ext_iomap;
 
+	i = ua.start;
+	state = (iomap[i >> 3] >> (i & 7)) & 1;
 	ua.enable = !state;
 	ua.length = 1;
 
