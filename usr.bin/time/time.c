@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: time.c,v 1.7 1998/07/24 07:19:29 phk Exp $";
+	"$Id: time.c,v 1.8 1998/07/27 16:08:58 des Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -78,17 +78,12 @@ main(argc, argv)
 	char *ofn = NULL;
 
 	lflag = 0;
-	while ((ch = getopt(argc, argv, "a:o:l")) != -1)
+	while ((ch = getopt(argc, argv, "lao:")) != -1)
 		switch((char)ch) {
 		case 'a':
-		        if (ofn)
-			        usage();
-			ofn = optarg;
 			aflag = 1;
 			break;
 		case 'o':
-		        if (ofn)
-			        usage();
 			ofn = optarg;
 			break;
 		case 'l':
@@ -187,7 +182,7 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: time [-l] [-{o|a} file] command\n");
+	fprintf(stderr, "usage: time [-l] [-a] [-o file] command\n");
 	exit(EX_USAGE);
 }
 
