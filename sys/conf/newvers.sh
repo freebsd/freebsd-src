@@ -32,14 +32,14 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-# $Id: newvers.sh,v 1.14 1995/04/17 10:17:45 gpalmer Exp $
+# $Id: newvers.sh,v 1.15 1995/04/22 21:39:15 phk Exp $
 
 TYPE="FreeBSD"
-RELEASE="CURRENT"
+RELEASE="2.0-CURRENT"
 RELDATE="199504"
 
-if [ "x$RELEASE" = xCURRENT ] ; then
-	RELEASE=`date '+BUILT-%Y%m%d'`
+if [ "x$RELEASE" = x2.0-CURRENT ] ; then
+	RELEASE=`date '+2.0-BUILT-%Y%m%d'`
 fi
 
 DISTNAME=${RELEASE}
