@@ -78,34 +78,26 @@ files and writes the result on the standard output.
 The following options are available:
 .Bl -tag -width indent
 .It Fl a
-.Pq Nm unexpand No only
+.Nm ( unexpand
+only.)
 By default, only leading blanks and tabs
 are reconverted to maximal strings of tabs.  If the
 .Fl a
 option is given, then tabs are inserted whenever they would compress the
 resultant file by replacing two or more characters.
-.It Xo
-.Fl t
-.Sm off
-.Ar tab1 , tab2 , ... , tabn
-.Sm on
-.Xc
+.It Fl t Sm Ar tab1 , tab2 , ... , tabn Sm
 Set tab stops at column positions
-.Ar tab1 ,
-.Ar tab2 ,
-\&...,
-.Ar tabn .
+.Ar tab1 , tab2 , ... , tabn .
 If only a single number is given, tab stops are set that number of
 column positions apart instead of the default number of 8.
 .El
 .Sh ENVIRONMENT
 The
-.Ev LANG ,
-.Ev LC_ALL
+.Ev LANG , LC_ALL
 and
 .Ev LC_CTYPE
 environment variables affect the execution of
-.Nm expand
+.Nm
 and
 .Nm unexpand
 as described in
@@ -114,7 +106,7 @@ as described in
 .Ex -std expand unexpand
 .Sh STANDARDS
 The
-.Nm expand
+.Nm
 and
 .Nm unexpand
 utilities conform to
