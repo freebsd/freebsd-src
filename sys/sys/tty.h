@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.43 1998/11/11 10:04:13 truckman Exp $
+ * $Id: tty.h,v 1.44 1998/11/11 10:56:07 truckman Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -101,6 +101,7 @@ struct tty {
 	int	t_olowat;		/* Low water mark for output. */
 	speed_t	t_ospeedwat;		/* t_ospeed override for watermarks. */
 	int	t_gen;			/* Generation number. */
+	SLIST_ENTRY(tty) t_list;	/* Global chain of ttys for pstat(8) */
 };
 
 #define	t_cc		t_termios.c_cc
@@ -263,6 +264,7 @@ int	 ttyinput __P((int c, struct tty *tp));
 int	 ttylclose __P((struct tty *tp, int flag));
 int	 ttymodem __P((struct tty *tp, int flag));
 int	 ttyopen __P((dev_t device, struct tty *tp));
+void	 ttyregister __P((struct tty *tp));
 int	 ttysleep __P((struct tty *tp,
 	    void *chan, int pri, char *wmesg, int timeout));
 int	 ttywait __P((struct tty *tp));
