@@ -64,6 +64,7 @@
 #include <sys/smp.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
+#include <sys/syscallsubr.h>
 #include <sys/syslog.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
@@ -75,8 +76,6 @@
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
 static int	coredump(struct thread *);
-static int	do_sigaction(struct proc *p, int sig, struct sigaction *act,
-			struct sigaction *oact, int old);
 static int	do_sigprocmask(struct proc *p, int how, sigset_t *set,
 			sigset_t *oset, int old);
 static char	*expand_name(const char *, uid_t, pid_t);
@@ -221,18 +220,19 @@ sig_ffs(sigset_t *set)
 }
 
 /*
- * do_sigaction
+ * kern_sigaction
  * sigaction
  * osigaction
  */
-static int
-do_sigaction(p, sig, act, oact, old)
-	struct proc *p;
+int
+kern_sigaction(td, sig, act, oact, old)
+	struct thread *td;
 	register int sig;
 	struct sigaction *act, *oact;
 	int old;
 {
 	register struct sigacts *ps;
+	struct proc *p = td->td_proc;
 
 	if (!_SIG_VALID(sig))
 		return (EINVAL);
@@ -374,7 +374,6 @@ sigaction(td, uap)
 	struct thread *td;
 	register struct sigaction_args *uap;
 {
-	struct proc *p = td->td_proc;
 	struct sigaction act, oact;
 	register struct sigaction *actp, *oactp;
 	int error;
@@ -388,7 +387,7 @@ sigaction(td, uap)
 		if (error)
 			goto done2;
 	}
-	error = do_sigaction(p, uap->sig, actp, oactp, 0);
+	error = kern_sigaction(td, uap->sig, actp, oactp, 0);
 	if (oactp && !error) {
 		error = copyout(oactp, uap->oact, sizeof(oact));
 	}
@@ -414,7 +413,6 @@ osigaction(td, uap)
 	struct thread *td;
 	register struct osigaction_args *uap;
 {
-	struct proc *p = td->td_proc;
 	struct osigaction sa;
 	struct sigaction nsa, osa;
 	register struct sigaction *nsap, *osap;
@@ -436,7 +434,7 @@ osigaction(td, uap)
 		nsap->sa_flags = sa.sa_flags;
 		OSIG2SIG(sa.sa_mask, nsap->sa_mask);
 	}
-	error = do_sigaction(p, uap->signum, nsap, osap, 1);
+	error = kern_sigaction(td, uap->signum, nsap, osap, 1);
 	if (osap && !error) {
 		sa.sa_handler = osap->sa_handler;
 		sa.sa_flags = osap->sa_flags;
@@ -689,7 +687,6 @@ osigvec(td, uap)
 	struct thread *td;
 	register struct osigvec_args *uap;
 {
-	struct proc *p = td->td_proc;
 	struct sigvec vec;
 	struct sigaction nsa, osa;
 	register struct sigaction *nsap, *osap;
@@ -712,7 +709,7 @@ osigvec(td, uap)
 #endif
 	}
 	mtx_lock(&Giant);
-	error = do_sigaction(p, uap->signum, nsap, osap, 1);
+	error = kern_sigaction(td, uap->signum, nsap, osap, 1);
 	mtx_unlock(&Giant);
 	if (osap && !error) {
 		vec.sv_handler = osap->sa_handler;
@@ -806,14 +803,20 @@ sigsuspend(td, uap)
 	struct thread *td;
 	struct sigsuspend_args *uap;
 {
-	struct proc *p = td->td_proc;
 	sigset_t mask;
-	register struct sigacts *ps;
 	int error;
 
 	error = copyin(uap->sigmask, &mask, sizeof(mask));
 	if (error)
 		return (error);
+	return (kern_sigsuspend(td, mask));
+}
+
+int
+kern_sigsuspend(struct thread *td, sigset_t mask)
+{
+	struct proc *p = td->td_proc;
+	register struct sigacts *ps;
 
 	/*
 	 * When returning from sigsuspend, we want
@@ -939,8 +942,27 @@ sigaltstack(td, uap)
 	struct thread *td;
 	register struct sigaltstack_args *uap;
 {
+	stack_t ss, oss;
+	int error;
+
+	if (uap->ss != NULL) {
+		error = copyin(uap->ss, &ss, sizeof(ss));
+		if (error)
+			return (error);
+	}
+	error = kern_sigaltstack(td, (uap->ss != NULL) ? &ss : NULL,
+	    (uap->oss != NULL) ? &oss : NULL);
+	if (error)
+		return (error);
+	if (uap->oss != NULL)
+		error = copyout(&oss, uap->oss, sizeof(stack_t));
+	return (error);
+}
+
+int
+kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss)
+{
 	struct proc *p = td->td_proc;
-	stack_t ss;
 	int oonstack;
 	int error = 0;
 
@@ -948,34 +970,30 @@ sigaltstack(td, uap)
 
 	oonstack = sigonstack(cpu_getstack(td));
 
-	if (uap->oss != NULL) {
+	if (oss != NULL) {
 		PROC_LOCK(p);
-		ss = p->p_sigstk;
-		ss.ss_flags = (p->p_flag & P_ALTSTACK)
+		*oss = p->p_sigstk;
+		oss->ss_flags = (p->p_flag & P_ALTSTACK)
 		    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 		PROC_UNLOCK(p);
-		if ((error = copyout(&ss, uap->oss, sizeof(stack_t))) != 0)
-			goto done2;
 	}
 
-	if (uap->ss != NULL) {
+	if (ss != NULL) {
 		if (oonstack) {
 			error = EPERM;
 			goto done2;
 		}
-		if ((error = copyin(uap->ss, &ss, sizeof(ss))) != 0)
-			goto done2;
-		if ((ss.ss_flags & ~SS_DISABLE) != 0) {
+		if ((ss->ss_flags & ~SS_DISABLE) != 0) {
 			error = EINVAL;
 			goto done2;
 		}
-		if (!(ss.ss_flags & SS_DISABLE)) {
-			if (ss.ss_size < p->p_sysent->sv_minsigstksz) {
+		if (!(ss->ss_flags & SS_DISABLE)) {
+			if (ss->ss_size < p->p_sysent->sv_minsigstksz) {
 				error = ENOMEM;
 				goto done2;
 			}
 			PROC_LOCK(p);
-			p->p_sigstk = ss;
+			p->p_sigstk = *ss;
 			p->p_flag |= P_ALTSTACK;
 			PROC_UNLOCK(p);
 		} else {
@@ -1211,7 +1229,7 @@ trapsignal(p, sig, code)
 			SIGADDSET(p->p_sigmask, sig);
 		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
 			/*
-			 * See do_sigaction() for origin of this code.
+			 * See kern_sigaction() for origin of this code.
 			 */
 			SIGDELSET(p->p_sigcatch, sig);
 			if (sig != SIGCONT &&
@@ -1793,7 +1811,7 @@ postsig(sig)
 
 		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
 			/*
-			 * See do_sigaction() for origin of this code.
+			 * See kern_sigaction() for origin of this code.
 			 */
 			SIGDELSET(p->p_sigcatch, sig);
 			if (sig != SIGCONT &&
