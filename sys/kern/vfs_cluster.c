@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.57 1998/03/08 09:57:09 julian Exp $
+ * $Id: vfs_cluster.c,v 1.58 1998/03/16 01:55:24 dyson Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -407,9 +407,6 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				break;
 			}
 		}
-		/* check for latent dependencies to be handled */
-		if ((LIST_FIRST(&tbp->b_dep)) != NULL && bioops.io_start)
-			(*bioops.io_start)(tbp);
 		TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 			tbp, b_cluster.cluster_entry);
 		for (j = 0; j < tbp->b_npages; j += 1) {
@@ -641,7 +638,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 	while (len > 0) {
 		s = splbio();
 		if (((tbp = gbincore(vp, start_lbn)) == NULL) ||
-			((tbp->b_flags & (B_INVAL|B_BUSY|B_DELWRI)) != B_DELWRI)) {
+		  ((tbp->b_flags & (B_INVAL|B_BUSY|B_DELWRI)) != B_DELWRI)) {
 			++start_lbn;
 			--len;
 			splx(s);
@@ -660,9 +657,10 @@ cluster_wbuild(vp, size, start_lbn, len)
 	 * prematurely--too much hassle.
 	 */
 		if (((tbp->b_flags & (B_CLUSTEROK|B_MALLOC)) != B_CLUSTEROK) ||
-			(tbp->b_bcount != tbp->b_bufsize) ||
-			(tbp->b_bcount != size) ||
-			len == 1) {
+		  (tbp->b_bcount != tbp->b_bufsize) ||
+		  (tbp->b_bcount != size) ||
+		  (len == 1) ||
+		  ((bp = trypbuf()) == NULL)) {
 			totalwritten += tbp->b_bufsize;
 			bawrite(tbp);
 			++start_lbn;
@@ -670,15 +668,10 @@ cluster_wbuild(vp, size, start_lbn, len)
 			continue;
 		}
 
-		bp = trypbuf();
-		if (bp == NULL) {
-			totalwritten += tbp->b_bufsize;
-			bawrite(tbp);
-			++start_lbn;
-			--len;
-			continue;
-		}
-
+		/*
+		 * We got a pbuf to make the cluster in.
+		 * so initialise it.
+		 */
 		TAILQ_INIT(&bp->b_cluster.cluster_head);
 		bp->b_bcount = 0;
 		bp->b_bufsize = 0;
@@ -691,20 +684,38 @@ cluster_wbuild(vp, size, start_lbn, len)
 		bp->b_blkno = tbp->b_blkno;
 		bp->b_lblkno = tbp->b_lblkno;
 		bp->b_offset = tbp->b_offset;
-		(vm_offset_t) bp->b_data |= ((vm_offset_t) tbp->b_data) & PAGE_MASK;
+		(vm_offset_t) bp->b_data |=
+			((vm_offset_t) tbp->b_data) & PAGE_MASK;
 		bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER |
-						(tbp->b_flags & (B_VMIO|B_NEEDCOMMIT));
+				(tbp->b_flags & (B_VMIO|B_NEEDCOMMIT));
 		bp->b_iodone = cluster_callback;
 		pbgetvp(vp, bp);
+		/*
+		 * From this location in the file, scan forward to see
+		 * if there are buffers with adjacent data that need to
+		 * be written as well.
+		 */
 		for (i = 0; i < len; ++i, ++start_lbn) {
-			if (i != 0) {
+			if (i != 0) { /* If not the first buffer */
 				s = splbio();
+				/*
+				 * If the adjacent data is not even in core it
+				 * can't need to be written.
+				 */
 				if ((tbp = gbincore(vp, start_lbn)) == NULL) {
 					splx(s);
 					break;
 				}
 
-				if ((tbp->b_flags & (B_VMIO|B_CLUSTEROK|B_INVAL|B_BUSY|B_DELWRI|B_NEEDCOMMIT)) != (B_DELWRI|B_CLUSTEROK|(bp->b_flags & (B_VMIO|B_NEEDCOMMIT)))) {
+				/*
+				 * If it IS in core, but has different
+				 * characteristics, don't cluster with it.
+				 */
+				if ((tbp->b_flags &
+				  (B_VMIO|B_CLUSTEROK|B_INVAL|B_BUSY|
+				    B_DELWRI|B_NEEDCOMMIT))
+				  != (B_DELWRI|B_CLUSTEROK|
+				    (bp->b_flags & (B_VMIO|B_NEEDCOMMIT)))) {
 					splx(s);
 					break;
 				}
@@ -714,25 +725,41 @@ cluster_wbuild(vp, size, start_lbn, len)
 					break;
 				}
 
+				/*
+				 * Check that the combined cluster
+				 * would make sense with regard to pages
+				 * and would not be too large
+				 */
 				if ((tbp->b_bcount != size) ||
-					((bp->b_blkno + dbsize * i) != tbp->b_blkno) ||
-					((tbp->b_npages + bp->b_npages) > (vp->v_maxio / PAGE_SIZE))) {
+				  ((bp->b_blkno + (dbsize * i)) !=
+				    (tbp->b_blkno)) ||
+				  ((tbp->b_npages + bp->b_npages) >
+				    (vp->v_maxio / PAGE_SIZE))) {
 					splx(s);
 					break;
 				}
+				/*
+				 * Ok, it's passed all the tests,
+				 * so remove it from the free list
+				 * and mark it busy. We will use it.
+				 */
 				bremfree(tbp);
 				tbp->b_flags |= B_BUSY;
 				tbp->b_flags &= ~B_DONE;
 				splx(s);
-			}
+			} /* end of code for non-first buffers only */
 			/* check for latent dependencies to be handled */
 			if ((LIST_FIRST(&tbp->b_dep)) != NULL &&
 			    bioops.io_start)
 				(*bioops.io_start)(tbp);
+			/*
+			 * If the IO is via the VM then we do some
+			 * special VM hackery. (yuck)
+			 */
 			if (tbp->b_flags & B_VMIO) {
 				vm_page_t m;
 
-				if (i != 0) {
+				if (i != 0) { /* if not first buffer */
 					for (j = 0; j < tbp->b_npages; j += 1) {
 						m = tbp->b_pages[j];
 						if (m->flags & PG_BUSY)
@@ -745,7 +772,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 					++m->busy;
 					++m->object->paging_in_progress;
 					if ((bp->b_npages == 0) ||
-						(bp->b_pages[bp->b_npages - 1] != m)) {
+					  (bp->b_pages[bp->b_npages - 1] != m)) {
 						bp->b_pages[bp->b_npages] = m;
 						bp->b_npages++;
 					}
