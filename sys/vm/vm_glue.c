@@ -140,8 +140,6 @@ useracc(addr, len, rw)
 	boolean_t rv;
 	vm_prot_t prot;
 
-	GIANT_REQUIRED;
-
 	KASSERT((rw & ~VM_PROT_ALL) == 0,
 	    ("illegal ``rw'' argument to useracc (%x)\n", rw));
 	prot = rw;
@@ -174,12 +172,15 @@ vslock(addr, len)
 	    round_page((vm_offset_t)addr + len), FALSE);
 }
 
+/*
+ * MPSAFE
+ */
 void
 vsunlock(addr, len)
 	caddr_t addr;
 	u_int len;
 {
-	GIANT_REQUIRED;
+
 	vm_map_unwire(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr),
 	    round_page((vm_offset_t)addr + len), FALSE);
