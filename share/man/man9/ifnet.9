@@ -961,6 +961,13 @@ The following commands are handled by
 Get interface configuration.
 (No call-down to driver.)
 .Pp
+.It Dv SIOCSIFNAME
+Set the interface name.
+.Dv RTM_IFANNOUCNE departure and arrival messages are sent so that
+routing code that relies on the interface name will update its interface
+list.
+Caller must have appropriate privilege.
+(No call-down to driver.)
 .It Dv SIOCGIFCAP
 .It Dv SIOCGIFFLAGS
 .It Dv SIOCGIFMETRIC
