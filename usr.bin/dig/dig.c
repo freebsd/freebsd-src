@@ -1,5 +1,5 @@
 #ifndef lint
-static char rcsid[] = "$Id: dig.c,v 8.4 1995/06/19 08:35:06 vixie Exp $";
+static char rcsid[] = "$Id: dig.c,v 8.6 1995/12/29 21:08:13 vixie Exp $";
 #endif
 
 /*
@@ -288,6 +288,7 @@ main(argc, argv)
 	res_init();
 	_res.pfcode = PRF_DEF;
 	qtypeSet = 0;
+	bzero(domain, (sizeof domain));
 	gethostname(myhostname, (sizeof myhostname));
 	defsrv = strcat(defbuf, inet_ntoa(_res.nsaddr.sin_addr));
 	res_x = _res;
@@ -648,7 +649,8 @@ main(argc, argv)
 			continue;
 		}
 		eecode = 0;
-		__fp_resstat(NULL, stdout);
+		if (_res.pfcode & RES_PRF_HEAD1)
+			__fp_resstat(NULL, stdout);
 		(void) gettimeofday(&start_time, NULL);
 		if ((bytes_in = n = res_send(packet, n,
 					     answer, sizeof(answer))) < 0) {
@@ -902,14 +904,19 @@ res_re_init()
 	static char localdomain[] = "LOCALDOMAIN";
 	char *buf;
 	long pfcode = _res.pfcode;
+#if defined(__RES) && (__RES >= 19931104)
+	long ndots = _res.ndots;
+#endif
 
 	/* this is ugly but putenv() is more portable than setenv() */
 	buf = malloc((sizeof localdomain) +strlen(_res.defdname) +10/*fuzz*/);
 	sprintf(buf, "%s=%s", localdomain, _res.defdname);
 	putenv(buf);	/* keeps the argument, so we won't free it */
-	_res.options &= ~RES_INIT;
 	res_init();
 	_res.pfcode = pfcode;
+#if defined(__RES) && (__RES >= 19931104)
+	_res.ndots = ndots;
+#endif
 }
 
 
