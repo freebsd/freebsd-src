@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)csh.a	8.1 (Berkeley) 6/8/93
+.\"	@(#)csh.a	8.2 (Berkeley) 5/16/94
 .\"
 .SH
 Appendix \- Special characters
@@ -92,4 +92,3 @@ Other metacharacters
 \-	1.2	prefixes option (flag) arguments to commands
 %	2.6	prefixes job name specifications
 .DE
-.bp
