@@ -220,7 +220,7 @@ mcpcia_attach(device_t dev)
 	mcpcia_dma_init(sc);
 
 	/*
-	 * Register our interrupt service requirements with out parent.
+	 * Register our interrupt service requirements with our parent.
 	 */
 	rval =
 	    BUS_SETUP_INTR(p, dev, NULL, INTR_TYPE_MISC, mcpcia_intr, 0, &intr);
