@@ -200,9 +200,6 @@ static Path *dot;	    /* contents of current directory */
  */
 static Hash_Table mtimes;
 
-static int DirPrintWord(void *, void *);
-static int DirPrintDir(void *, void *);
-
 /*-
  *-----------------------------------------------------------------------
  * Dir_Init --
@@ -249,27 +246,6 @@ Dir_InitDot(void)
 	 * reference count to make sure it's not destroyed.
 	 */
 	dot->refCount += 1;
-}
-
-/*-
- *-----------------------------------------------------------------------
- * DirFindName --
- *	See if the Path structure describes the same directory as the
- *	given one by comparing their names. Called from Dir_AddDir via
- *	Lst_Find when searching the list of open directories.
- *
- * Results:
- *	0 if it is the same. Non-zero otherwise
- *
- * Side Effects:
- *	None
- *-----------------------------------------------------------------------
- */
-static int
-DirFindName(const void *p, const void *dname)
-{
-
-	return (strcmp(((const Path *)p)->name, dname));
 }
 
 /*-
@@ -487,35 +463,12 @@ DirExpandCurly(const char *word, const char *brace, Lst *path, Lst *expansions)
  *-----------------------------------------------------------------------
  */
 static void
-DirExpandInt(const char *word, Lst *path, Lst *expansions)
+DirExpandInt(const char *word, const Lst *path, Lst *expansions)
 {
 	LstNode *ln;	    /* Current node */
 
-	for (ln = Lst_First(path); ln != NULL; ln = Lst_Succ(ln))
+	LST_FOREACH(ln, path)
 		DirMatchFiles(word, (Path *)Lst_Datum(ln), expansions);
-}
-
-/*-
- *-----------------------------------------------------------------------
- * DirPrintWord --
- *	Print a word in the list of expansions. Callback for Dir_Expand
- *	when DEBUG(DIR), via Lst_ForEach.
- *
- * Results:
- *	=== 0
- *
- * Side Effects:
- *	The passed word is printed, followed by a space.
- *
- *-----------------------------------------------------------------------
- */
-static int
-DirPrintWord(void *word, void *dummy __unused)
-{
-
-	DEBUGF(DIR, ("%s ", (char *)word));
-
-	return (0);
 }
 
 /*-
@@ -535,6 +488,7 @@ DirPrintWord(void *word, void *dummy __unused)
 void
 Dir_Expand(char *word, Lst *path, Lst *expansions)
 {
+	LstNode *ln;
 	char *cp;
 
 	DEBUGF(DIR, ("expanding \"%s\"...", word));
@@ -630,7 +584,8 @@ Dir_Expand(char *word, Lst *path, Lst *expansions)
 		}
 	}
 	if (DEBUG(DIR)) {
-		Lst_ForEach(expansions, DirPrintWord, (void *)NULL);
+		LST_FOREACH(ln, expansions)
+			DEBUGF(DIR, ("%s ", (const char *)Lst_Datum(ln)));
 		DEBUGF(DIR, ("\n"));
 	}
 }
@@ -702,7 +657,7 @@ Dir_FindFile(char *name, Lst *path)
 	 * and return the resulting string. If we don't find any such thing,
 	 * we go on to phase two...
 	 */
-	for (ln = Lst_First(path); ln != NULL; ln = Lst_Succ(ln)) {
+	LST_FOREACH(ln, path) {
 		p = Lst_Datum(ln);
 		DEBUGF(DIR, ("%s...", p->name));
 		if (Hash_FindEntry(&p->files, cp) != NULL) {
@@ -781,7 +736,7 @@ Dir_FindFile(char *name, Lst *path)
 		Boolean	checkedDot = FALSE;
 
 		DEBUGF(DIR, ("failed. Trying subdirectories..."));
-		for (ln = Lst_First(path); ln != NULL; ln = Lst_Succ(ln)) {
+		LST_FOREACH(ln, path) {
 			p = Lst_Datum(ln);
 			if (p != dot) {
 				file = str_concat(p->name, name, STR_ADDSLASH);
@@ -984,7 +939,9 @@ Dir_AddDir(Lst *path, const char *name)
 	DIR *d;			/* for reading directory */
 	struct dirent *dp;	/* entry in directory */
 
-	ln = Lst_Find(&openDirectories, name, DirFindName);
+	LST_FOREACH(ln, &openDirectories)
+		if (strcmp(((const Path *)Lst_Datum(ln))->name, name) == 0)
+			break;
 	if (ln != NULL) {
 		p = Lst_Datum(ln);
 		if (Lst_Member(path, p) == NULL) {
@@ -1076,7 +1033,7 @@ Dir_CopyDir(void *p)
  *-----------------------------------------------------------------------
  */
 char *
-Dir_MakeFlags(const char *flag, Lst *path)
+Dir_MakeFlags(const char *flag, const Lst *path)
 {
 	char *str;	/* the string which will be returned */
 	char *tstr;	/* the current directory preceded by 'flag' */
@@ -1086,7 +1043,7 @@ Dir_MakeFlags(const char *flag, Lst *path)
 
 	str = estrdup("");
 
-	for (ln = Lst_First(path); ln != NULL; ln = Lst_Succ(ln)) {
+	LST_FOREACH(ln, path) {
 		p = Lst_Datum(ln);
 		tstr = str_concat(flag, p->name, 0);
 		nstr = str_concat(str, tstr, STR_ADDSPACE);
@@ -1178,7 +1135,7 @@ Dir_Concat(Lst *path1, Lst *path2)
 	LstNode *ln;
 	Path *p;
 
-	for (ln = Lst_First(path2); ln != NULL; ln = Lst_Succ(ln)) {
+	LST_FOREACH(ln, path2) {
 		p = Lst_Datum(ln);
 		if (Lst_Member(path1, p) == NULL) {
 			p->refCount += 1;
@@ -1191,8 +1148,8 @@ Dir_Concat(Lst *path1, Lst *path2)
 void
 Dir_PrintDirectories(void)
 {
-	LstNode *ln;
-	Path *p;
+	const LstNode *ln;
+	const Path *p;
 
 	printf("#*** Directory Cache:\n");
 	printf("# Stats: %d hits %d misses %d near misses %d losers (%d%%)\n",
@@ -1200,24 +1157,17 @@ Dir_PrintDirectories(void)
 	    (hits + bigmisses + nearmisses ?
 	    hits * 100 / (hits + bigmisses + nearmisses) : 0));
 	printf("# %-20s referenced\thits\n", "directory");
-	for (ln = Lst_First(&openDirectories); ln != NULL; ln = Lst_Succ(ln)) {
+	LST_FOREACH(ln, &openDirectories) {
 		p = Lst_Datum(ln);
 		printf("# %-20s %10d\t%4d\n", p->name, p->refCount, p->hits);
 	}
 }
 
-static int
-DirPrintDir(void *p, void *dummy __unused)
-{
-
-	printf("%s ", ((Path *)p)->name);
-
-	return (0);
-}
-
 void
-Dir_PrintPath(Lst *path)
+Dir_PrintPath(const Lst *path)
 {
+	const LstNode *ln;
 
-	Lst_ForEach(path, DirPrintDir, (void *)NULL);
+	LST_FOREACH(ln, path)
+		printf("%s ", ((const Path *)Lst_Datum(ln))->name);
 }
