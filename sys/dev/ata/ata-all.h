@@ -176,9 +176,9 @@ struct ata_params {
     u_int8_t	lbaflag		:1;		/* LBA supported - always 1 */
     u_int8_t	iordydis	:1;		/* IORDY may be disabled */
     u_int8_t	iordyflag	:1;		/* IORDY supported */
-    u_int8_t			:1;
+    u_int8_t	softreset	:1;		/* needs softreset when busy */
     u_int8_t	stdby_ovlap	:1;		/* standby/overlap supported */
-    u_int8_t			:1;
+    u_int8_t	queuing		:1;		/* supports queuing overlap */
     u_int8_t	idmaflag	:1;		/* interleaved DMA supported */
     int16_t	capvalidate;			/* validation for above */
 
@@ -284,12 +284,12 @@ struct ata_softc {
     u_int8_t			error;		/* last controller error */
     int32_t			active;		/* active processing request */
 #define		ATA_IDLE		0x0
-#define		ATA_IMMEDIATE		0x0
-#define		ATA_WAIT_INTR		0x1
-#define		ATA_WAIT_READY		0x2
-#define		ATA_ACTIVE_ATA		0x3
-#define		ATA_ACTIVE_ATAPI	0x4
-#define		ATA_REINITING		0x5
+#define		ATA_IMMEDIATE		0x1
+#define		ATA_WAIT_INTR		0x2
+#define		ATA_WAIT_READY		0x3
+#define		ATA_ACTIVE_ATA		0x4
+#define		ATA_ACTIVE_ATAPI	0x5
+#define		ATA_REINITING		0x6
 
     TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
     TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */
@@ -321,3 +321,4 @@ int32_t ata_umode(struct ata_params *);
 int8_t *ata_mode2str(int32_t);
 int8_t ata_pio2mode(int32_t);
 int32_t ata_find_dev(device_t, int32_t);
+int32_t ata_printf(struct ata_softc *, int32_t, const char *, ...) __printflike(3, 4);

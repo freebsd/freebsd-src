@@ -341,6 +341,5 @@ struct acd_softc {
     struct changer		*changer_info;	/* changer info */
     int32_t			slot;		/* this lun's slot number */
     u_int32_t			block_size;	/* blocksize currently used */
-    u_int32_t			next_writeable_addr; /* next writable address */
     struct devstat		*stats;		/* devstat entry */
 };
