@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/queue.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #if __FreeBSD_version < 502113
 #include <sys/sysctl.h>
 #endif
@@ -1080,9 +1081,14 @@ ndis_linksts(adapter, status, sbuf, slen)
 	uint32_t		slen;
 {
 	ndis_miniport_block	*block;
+	struct ndis_softc	*sc;
 
 	block = adapter;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+
+	NDIS_LOCK(sc);
 	block->nmb_getstat = status;
+	NDIS_UNLOCK(sc);
 
 	return;
 }
@@ -1113,6 +1119,10 @@ ndis_linksts_done(adapter)
 	case NDIS_STATUS_MEDIA_DISCONNECT:
 		if (sc->ndis_link)
 			ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
+		else {
+			if (sc->ndis_80211)
+				wakeup(&block->nmb_getstat);
+		}
 		break;
 	default:
 		break;
@@ -1128,14 +1138,11 @@ ndis_intrtask(arg)
 {
 	struct ndis_softc	*sc;
 	struct ifnet		*ifp;
-	uint8_t			irql;
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
-	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	ndis_intrhand(sc);
-	KeLowerIrql(irql);
 
 	ndis_enable_intr(sc);
 
@@ -1170,7 +1177,7 @@ ndis_intr(arg)
 	KeReleaseSpinLock(&intr->ni_dpccountlock, irql);
 
 	if ((is_our_intr || call_isr))
-		ndis_sched(ndis_intrtask, ifp->if_softc, NDIS_SWI);
+		ndis_sched(ndis_intrtask, sc, NDIS_SWI);
 
 	return;
 }
@@ -1459,8 +1466,35 @@ ndis_init(xsc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	ndis_stop(sc);
+
+	NDIS_LOCK(sc);
+	sc->ndis_block->nmb_getstat = 0;
 	if (ndis_init_nic(sc))
 		return;
+
+	/*
+	 * 802.11 NDIS drivers are supposed to generate a link
+	 * down event right when you initialize them. You wait
+	 * until this event occurs before trying to futz with
+	 * the device. Some drivers will actually set the event
+	 * during the course of MiniportInitialize(), which means
+	 * by the time it completes, the device is ready for us
+	 * to interact with it. But some drivers don't signal the
+	 * event until after MiniportInitialize() (they probably
+	 * need to wait for a device interrupt to occur first).
+	 * We have to be careful to handle both cases. After we
+	 * call ndis_init_nic(), we have to see if a status event
+	 * was triggered. If it wasn't, we have to wait for it
+	 * to occur before we can proceed.
+	 */
+	if (sc->ndis_80211 & !sc->ndis_block->nmb_getstat) {
+		error = msleep(&sc->ndis_block->nmb_getstat,
+		    &sc->ndis_mtx, curthread->td_priority,
+		    "ndiswait", 5 * hz);
+	}
+
+	sc->ndis_block->nmb_getstat = 0;
+	NDIS_UNLOCK(sc);
 
 	/* Init our MAC address */
 
