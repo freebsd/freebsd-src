@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_vx.c,v 1.17 1998/06/07 17:09:51 dfr Exp $
+ * $Id: if_vx.c,v 1.18 1998/07/13 09:52:53 bde Exp $
  *
  */
 
@@ -131,7 +131,6 @@ static void vxsetfilter __P((struct vx_softc *));
 static void vxgetlink __P((struct vx_softc *));
 static void vxsetlink __P((struct vx_softc *));
 /* int vxbusyeeprom __P((struct vx_softc *)); */
-/* void vxintr __P((void *)); */
 
 struct vx_softc *
 vxalloc(unit)
@@ -640,10 +639,11 @@ vxtxstat(sc)
 }
 
 void
-vxintr(sc)
-    struct vx_softc *sc;
+vxintr(voidsc)
+    void *voidsc;
 {
     register short status;
+    struct vx_softc *sc = voidsc;
     struct ifnet *ifp = &sc->arpcom.ac_if;
 
     for (;;) {
