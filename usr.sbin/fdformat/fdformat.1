@@ -33,6 +33,7 @@
 .Sh SYNOPSIS
 .Nm fdformat
 .Op Fl q
+.Op Fl y
 .Op Fl v | Fl n
 .Op Fl f Ar capacity
 .Op Fl c Ar cyls
@@ -73,6 +74,9 @@ The options are as follows:
 Suppress any normal output from the command, and don't ask the
 user for a confirmation whether to format the floppy disk at
 .Ar device_name .
+.It Fl y
+Suppress confirmation request by automagically responding "yes", but still
+report format status.
 .It Fl f Ar capacity
 The normal way to specify the desired formatting parameters.
 .Ar Capacity

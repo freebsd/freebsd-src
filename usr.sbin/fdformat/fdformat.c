@@ -140,7 +140,7 @@ static void
 usage (void)
 {
 	fprintf(stderr, "%s\n%s\n",
-	"usage: fdformat [-q] [-n | -v] [-f #] [-c #] [-s #] [-h #]",
+	"usage: fdformat [-y] [-q] [-n | -v] [-f #] [-c #] [-s #] [-h #]",
 	"                [-r #] [-g #] [-i #] [-S #] [-F #] [-t #] devname");
 	exit(2);
 }
@@ -170,12 +170,12 @@ main(int argc, char **argv)
 {
 	int format = -1, cyls = -1, secs = -1, heads = -1, intleave = -1;
 	int rate = -1, gaplen = -1, secsize = -1, steps = -1;
-	int fill = 0xf6, quiet = 0, verify = 1, verify_only = 0;
+	int fill = 0xf6, quiet = 0, verify = 1, verify_only = 0, confirm = 0;
 	int fd, c, track, error, tracks_per_dot, bytes_per_track, errs;
 	const char *devname, *suffix;
 	struct fd_type fdt;
 
-	while((c = getopt(argc, argv, "f:c:s:h:r:g:S:F:t:i:qvn")) != -1)
+	while((c = getopt(argc, argv, "f:c:s:h:r:g:S:F:t:i:qyvn")) != -1)
 		switch(c) {
 		case 'f':	/* format in kilobytes */
 			format = atoi(optarg);
@@ -219,6 +219,10 @@ main(int argc, char **argv)
 
 		case 'q':
 			quiet = 1;
+			break;
+
+		case 'y':
+			confirm = 1;
 			break;
 
 		case 'n':
@@ -291,7 +295,7 @@ main(int argc, char **argv)
 				fdt.tracks * fdt.heads * bytes_per_track / 1024,
 				devname);
 	}
-	else if(!quiet) {
+	else if(!quiet && !confirm) {
 		printf("Format %dK floppy `%s'? (y/n): ",
 			fdt.tracks * fdt.heads * bytes_per_track / 1024,
 			devname);
