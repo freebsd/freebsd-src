@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.50 1996/07/13 10:49:53 davidg Exp $
+ *  $Id: if_ep.c,v 1.51 1996/07/19 13:20:04 amurai Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -964,7 +964,7 @@ startagain:
     }
     IF_DEQUEUE(&ifp->if_snd, m);
 
-    outw(BASE + EP_W1_TX_PIO_WR_1, len | 0x8000); /* XXX */
+    outw(BASE + EP_W1_TX_PIO_WR_1, len); 
     outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
 
     /* compute the Tx start threshold for this packet */
