@@ -148,21 +148,13 @@ if_dump()
 		    "MinAdvInterval: %d\n", rai->lifetime, rai->maxinterval,
 		    rai->mininterval);
 		fprintf(fp, "  Flags: %s%s%s, ",
-		    rai->managedflg ? "M" : "", rai->otherflg ? "O" : "",
-#ifdef MIP6
-		    rai->haflg ? "H" :
-#endif
-		    "");
+		    rai->managedflg ? "M" : "", rai->otherflg ? "O" : "", "");
 		fprintf(fp, "Preference: %s, ",
 			rtpref_str[(rai->rtpref >> 3) & 0xff]);
 		fprintf(fp, "MTU: %d\n", rai->linkmtu);
 		fprintf(fp, "  ReachableTime: %d, RetransTimer: %d, "
 			"CurHopLimit: %d\n", rai->reachabletime,
 			rai->retranstimer, rai->hoplimit);
-#ifdef MIP6
-		fprintf(fp, "  HAPreference: %d, HALifetime: %d\n",
-			rai->hapref, rai->hatime);
-#endif 
 
 		if (rai->clockskew)
 			fprintf(fp, "  Clock skew: %ldsec\n",
@@ -212,9 +204,6 @@ if_dump()
 			fprintf(fp, "flags: %s%s%s",
 				pfx->onlinkflg ? "L" : "",
 				pfx->autoconfflg ? "A" : "",
-#ifdef MIP6
-				pfx->routeraddr ? "R" :
-#endif
 				"");
 			if (pfx->timer) {
 				struct timeval *rest;
