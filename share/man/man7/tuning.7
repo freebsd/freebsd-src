@@ -211,10 +211,13 @@ basis the buffer cache can wind up getting polluted with atime updates,
 creating a burden on the system.  For example, if you are running a heavily
 loaded web site, or a news server with lots of readers, you might want to
 consider turning off atime updates on your larger partitions with this
-mount option.  Do not gratuitously turn off atime updates everywhere.. for
-example, you might as well leave them turned on for mostly read-only
-partitions such as / and /usr (especially for / since some system utilities
-use the atime field for reporting).
+mount option.  However, you should not gratuitously turn off atime
+updates everywhere.  For example, the /var filesystem customarily
+holds mailboxes, and atime (in combination with mtime) is used to
+determine whether a mailbox has new mail.  You might as well leave
+atime turned on for mostly read-only partitions such as / and /usr
+as well.  This is especially useful for / since some system utilities
+use the atime field for reporting.
 .Sh STRIPING DISKS
 In larger systems you can stripe partitions from several drives together
 to create a much larger overall partition.  Striping can also improve
