@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rusers.c,v 1.5 1997/02/22 19:56:52 peter Exp $";
+	"$Id: rusers.c,v 1.6 1997/08/08 12:12:54 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -204,7 +204,7 @@ allhosts()
 	bzero((char *)&up, sizeof(up));
 	clnt_stat = clnt_broadcast(RUSERSPROG, RUSERSVERS_IDLE, RUSERSPROC_NAMES,
 				   xdr_void, NULL,
-				   xdr_utmpidlearr, &up, rusers_reply);
+				   xdr_utmpidlearr, (char *)&up, rusers_reply);
 	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
 		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
